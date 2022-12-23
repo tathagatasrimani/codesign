@@ -1,0 +1,37 @@
+
+# Postmortem
+
+The following section outlines how i derived the stripped down implementation.
+
+### core file
+
+`src/synthesis/hls.py`
+
+_Functions of interest:_ parse_graph, check_and_parse, parse_code
+
+This is the starting file. Note this file is extremely broken and will not run
+as-is.
+
+
+### calling files (parse_graph)
+
+Next, i traced the functions in `hls.py` to find the calling files.
+
+`src/ir/ddfg_main.py`
+
+The above file invokes the `parse_graph` hls function. This file appears to run the main optimization loop. I broke out the `synthesis_hardware` function that parses programs and then produces program statistics from these parsed programs. The `synthesis_hardware` subroutine uses two different flows:
+
+
+- It uses `aladdin` (CPP+Boost) for ai workloads [ignoring]. I am not looking at this one for now, since we are interested in non-AI workloads.
+
+- The ``CFGBuilder` class in `builder.py` and `model.py` in `src/ir/cfg/staticcfg/*` is invoked to build the relevent graph representation. This routine uses `astor` to assist with building the relevent data structures for  non-ai workloads.
+	+ `Astor`: astor is designed to allow easy manipulation of Python source via the AST. (https://pypi.org/project/astor/)
+	
+### Toplevel
+
+The `run.ipynb` notebook is the best toplevel notebook.
+
+# Guide: Stripped Parser
+
+you want to pay attention to the `nonai` benchmark usecase. Basically the `synthesis_nonai_hardware` routine use CFGBuilder to produce a control flow graph of the given program, and then uses HLS to produce the mapped computation.
+
