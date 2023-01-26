@@ -4,9 +4,9 @@ import re
 from collections import deque
 import ast
 
-from src.cfg_builder import CFGBuilder
-from src.hls_instrument import instrument_and_run
-from src.ast_utils import ASTUtils
+from cfg.staticfg.builder import CFGBuilder
+from hls_instrument import instrument_and_run
+from cfg.ast_utils import ASTUtils
 
 op2sym_map = {
     "And": "and",
@@ -112,28 +112,82 @@ class Node:
         self.end = -1
         self.hw = {}
 
-def assign(expr):
+class HardwareModel:
 
-    return expr
+    def __init__(self,bandwidth,loop_counts={},var_sizes={}):
+        self.max_bw = bandwidth
+        self.bw_avail = bandwidth
+
+        self.loop_counts = loop_counts
+
+        self.memory_cfgs = {}
+        self.mem_state = {}
+        for variable in self.memory_cfgs.keys():
+            self.mem_state[variable]=False
+
+        # number of non-memory elements allocated
+        self.hw_allocated = {}
+        self.hw_utilized = {}
+        self.hw_allocated["Regs"] = 0
+        self.hw_utilized["Regs"] = 0
+        self.hw_allocated["Other"] = 0
+        self.hw_utilized["Other"] = 0
+        self.loop_variables = loop_counts
+        self.var_sizes = var_sizes
+        self.blocks = {}
+
+
+        for key in op2sym_map.keys():
+                self.hw_allocated[key] = 0
+                self.hw_utilized[key] = 0
+
+        self.cycles = 0
+
+
+    def print_stats(self):
+        s = '''
+        cycles={cycles}
+        allocated={allocated}
+        utilized={utilized}
+        '''.format(cycles=self.cycles, \
+                   allocated=str(self.hw_allocated), \
+                   utilized=str(self.hw_utilized))
+        return s
+
+    def get_latency(self,expr : ast.AST):
+        name = ASTUtils.expr_to_opname(expr)
+        if name is None:
+            return None,0.0
+        else:
+            return name,latency[name]
+
+    def parse_expr(self, expr):
+        print(expr)
+        if type(expr) == ast.Name: 
+            self.hw_allocated["Regs"] += 1
+        elif isinstance(expr,ast.operator):
+            print("hi", expr)
+            self.hw_allocated[ASTUtils.operator_to_opname(expr)] += 1
+            self.cycles += self.get_latency(expr)[1]
+        else:
+            for sub_expr in ASTUtils.get_sub_expr(expr):
+                self.parse_expr(sub_expr)
+        
 
 def main():
     # note: must specify path to run the program, this is just an example path
-    path = '/Users/PatrickMcEwen/high_level_synthesis/venv/hls_and_schedule/benchmarks/nonai_models/'
+    path = '/Users/PatrickMcEwen/high_level_synthesis/venv/codesign/src/cfg/benchmarks/'
     benchmark = 'simple'
-    cfg = CFGBuilder().build_from_file('main.c', path + benchmark + '.py')
-    cfg.build_visual(path + benchmark, 'pdf', show = False)
+    cfg = CFGBuilder().build_from_file('main.c', path + 'nonai_models/' + benchmark + '.py')
+    cfg.build_visual(path + 'pictures/' + benchmark, 'jpeg', show = False)
+    models = {}
     for node in cfg:
         #print(node.predecessors, node.exits)
+        models[node] = HardwareModel(0)
         for statement in node.statements:
-            #print(statement, ASTUtils.get_identifier(statement))
-            if type(statement) == ast.Assign:
-                print(statement.targets, statement.value)
-                for target in statement.targets:
-                    if type(target) == ast.Name:
-                        print(target.id)
-                if type(statement.value.left) == ast.Name and type(statement.value.right) == ast.Name:
-                    print(statement.value.left.id, statement.value.op, statement.value.right.id)
+            models[node].parse_expr(statement)
             #num_cycles, hw_need, energy_need = assign(statement)
+        print(models[node].hw_allocated)
     return 0
 
 if __name__ == "__main__":

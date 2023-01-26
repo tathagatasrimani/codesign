@@ -63,7 +63,7 @@ class ASTUtils:
             return "Sub"
         elif type(op) == ast.Pow:
             return None
-        elif type(op) == ast.Div:
+        elif type(op) == ast.Div  or type(op) == ast.FloorDiv:
             return "FloorDiv"
         else:
             raise Exception("unhandled binary operator <%s>" % op)
@@ -142,6 +142,9 @@ class ASTUtils:
                 return ASTUtils.cmpop_to_opname(expr.ops[0])
             else:
                 raise Exception("unhandled compare operator <%s>" % expr.op)
+                
+        elif type(expr) == ast.AugAssign:
+            return ASTUtils.operator_to_opname(expr.op) 
  
         elif type(expr) == ast.Load:
             print("[warn] ignoring loads")
@@ -173,7 +176,6 @@ class ASTUtils:
 
         elif type(expr) == ast.Constant:
             return None
-
         elif type(expr) == ast.List:
             return None
 
@@ -190,7 +192,53 @@ class ASTUtils:
             return None
 
         elif type(expr) == ast.keyword:
-            return None
+            return None  
         else:
             raise Exception("unhandled expression <%s>" % expr)
+    
+    @staticmethod
+    def get_sub_expr(expr: ast.AST):
+        if type(expr) == ast.BinOp:
+            return [expr.left, expr.op, expr.right]
+        elif type(expr) == ast.BoolOp:
+            return expr.values + [expr.op]
+        elif type(expr) == ast.NamedExpr:
+            return [expr.target, expr.value]
+        elif type(expr) == ast.UnaryOp:
+            return [expr.op, expr.operand]
+        elif type(expr) == ast.Lambda:
+            return [expr.args, expr.body]
+        elif type(expr) == ast.Dict:
+            return expr.keys + expr.values
+        elif type(expr) == ast.Set:
+            return expr.elts
+        elif type(expr) == ast.FunctionDef or type(expr) == ast.AsyncFunctionDef:
+            return [expr.args]
+        elif type(expr) == ast.ClassDef:
+            return []
+        elif type(expr) == ast.Return:
+            return [expr.value]
+        elif type(expr) == ast.Delete:
+            return expr.targets
+        elif type(expr) == ast.AugAssign:
+            return [expr.target, expr.op, expr.value]
+        elif type(expr) == ast.Assign:
+            return expr.targets + [expr.value]
+        elif type(expr) == ast.AnnAssign:
+            return [expr.target, expr.value]
+        elif type(expr) == ast.For or type(expr) == ast.AsyncFor:
+            return [expr.target, expr.iter] + expr.orelse
+        elif type(expr) == ast.While:
+            return [expr.test] + expr.orelse
+        elif type(expr) == ast.If:
+            return [expr.test] + expr.orelse
+        elif type(expr) == ast.With or type(expr) == ast.AsyncWith:
+            return expr.items
+        elif type(expr) == ast.Match:
+            return [expr.subject] + expr.cases
+        elif type(expr) == ast.Raise:
+            return [expr.exc, expr.cause]
+        else:
+            #raise Exception("unhandled expresssion <%s>" % expr)
+            return []
 

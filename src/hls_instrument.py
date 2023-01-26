@@ -1,7 +1,7 @@
 import ast
 import astor
 
-from src.ast_utils import ASTUtils
+from cfg.ast_utils import ASTUtils
 import os
 
 def _parse(fmtstr,**kwargs):
