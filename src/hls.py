@@ -154,7 +154,7 @@ class HardwareModel:
         return s
 
     def parse_expr(self, expr):
-        #print(expr, type(expr))
+        print(expr, type(expr))
         expr_to_node[expr] = self.id
         if type(expr) == ast.Name: 
             self.hw_allocated["Regs"] += 1

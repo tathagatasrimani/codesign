@@ -227,12 +227,13 @@ class ASTUtils:
             return expr.targets + [expr.value]
         elif type(expr) == ast.AnnAssign:
             return [expr.target, expr.value]
+        #Note: should I have the orelse component for the ast.for, ast.while, and ast.if objects? Was thinking no.
         elif type(expr) == ast.For or type(expr) == ast.AsyncFor:
-            return [expr.target, expr.iter] + expr.orelse
+            return [expr.target, expr.iter]
         elif type(expr) == ast.While:
-            return [expr.test] + expr.orelse
+            return [expr.test]
         elif type(expr) == ast.If:
-            return [expr.test] + expr.orelse
+            return [expr.test]
         elif type(expr) == ast.With or type(expr) == ast.AsyncWith:
             return expr.items
         elif type(expr) == ast.Match:
