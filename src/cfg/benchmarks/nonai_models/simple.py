@@ -6,7 +6,7 @@ def add_nums(n, a):
     if d > 5:
         d //= 2
     else:
-        d += 3
+        d += 1 * 3 + 4 * 2
     return d
 
 if __name__ == "__main__":

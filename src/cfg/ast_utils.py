@@ -65,6 +65,8 @@ class ASTUtils:
             return None
         elif type(op) == ast.Div  or type(op) == ast.FloorDiv:
             return "FloorDiv"
+        elif type(op) == ast.Mod:
+            return "Mod"
         else:
             raise Exception("unhandled binary operator <%s>" % op)
 
@@ -92,8 +94,14 @@ class ASTUtils:
             return "GtE"
         elif type(op) == ast.Gt:
             return "Gt"
-
-
+        elif type(op) == ast.Is:
+            return None
+        elif type(op) == ast.IsNot:
+            return None
+        elif type(op) == ast.In:
+            return None
+        elif type(op) == ast.NotIn:
+            return None
         else:
             raise Exception("unhandled comparator op <%s>" % op)
 
@@ -117,7 +125,6 @@ class ASTUtils:
         elif isinstance(expr,ast.unaryop):
             return ASTUtils.unaryop_to_opname(expr)
 
-
         elif isinstance(expr,ast.cmpop):
             return ASTUtils.cmpop_to_opname(expr)
 
@@ -125,26 +132,19 @@ class ASTUtils:
             return ASTUtils.operator_to_opname(expr)
 
         elif isinstance(expr, ast.BinOp):
-            return ASTUtils.operator_to_opname(expr.op)
+            return None
 
         elif isinstance(expr, ast.UnaryOp):
-            return ASTUtils.unaryop_to_opname(expr.op)
+            return None
 
         elif type(expr) == ast.BoolOp:
-            return ASTUtils.boolop_to_opname(expr.op)
+            return None
 
         elif type(expr) == ast.Compare:
-            assert(len(expr.ops) == 1)
-            op = expr.ops[0]
-            if type(op) == ast.UnaryOp:
-                return ASTUtils.unaryop_to_opname(expr.ops[0])
-            elif isinstance(op,ast.cmpop):
-                return ASTUtils.cmpop_to_opname(expr.ops[0])
-            else:
-                raise Exception("unhandled compare operator <%s>" % expr.op)
+            return None
                 
         elif type(expr) == ast.AugAssign:
-            return ASTUtils.operator_to_opname(expr.op) 
+            return None 
  
         elif type(expr) == ast.Load:
             print("[warn] ignoring loads")
@@ -194,7 +194,8 @@ class ASTUtils:
         elif type(expr) == ast.keyword:
             return None  
         else:
-            raise Exception("unhandled expression <%s>" % expr)
+            print("unhandled expression <%s>" % expr)
+            return None
     
     @staticmethod
     def get_sub_expr(expr: ast.AST):
@@ -238,7 +239,9 @@ class ASTUtils:
             return [expr.subject] + expr.cases
         elif type(expr) == ast.Raise:
             return [expr.exc, expr.cause]
+        elif type(expr) == ast.Compare:
+            return [expr.left] + expr.ops + expr.comparators
         else:
-            #raise Exception("unhandled expresssion <%s>" % expr)
+            if expr: print("unhandled (sub) expresssion <%s>" % expr)
             return []
 

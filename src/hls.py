@@ -1,5 +1,5 @@
 import json
-import graphviz
+import graphviz as gv
 import re
 from collections import deque
 import ast
@@ -7,6 +7,11 @@ import ast
 from cfg.staticfg.builder import CFGBuilder
 from hls_instrument import instrument_and_run
 from cfg.ast_utils import ASTUtils
+
+path = '/Users/PatrickMcEwen/high_level_synthesis/venv/codesign/src/cfg/benchmarks/'
+benchmark = 'simple'
+expr_to_node = {}
+func_ref = {}
 
 op2sym_map = {
     "And": "and",
@@ -106,15 +111,9 @@ power = {
     "Regs": [7.936518e-03, 1.062977e-03, 8.999495e-03, 8.999495e-03, 7.395312e-05],
 }
 
-class Node:
-    def __init__(self) -> None:
-        self.start = -1
-        self.end = -1
-        self.hw = {}
-
 class HardwareModel:
 
-    def __init__(self,bandwidth,loop_counts={},var_sizes={}):
+    def __init__(self,id,bandwidth,loop_counts={},var_sizes={}):
         self.max_bw = bandwidth
         self.bw_avail = bandwidth
 
@@ -134,7 +133,7 @@ class HardwareModel:
         self.hw_utilized["Other"] = 0
         self.loop_variables = loop_counts
         self.var_sizes = var_sizes
-        self.blocks = {}
+        self.id = id
 
 
         for key in op2sym_map.keys():
@@ -154,40 +153,62 @@ class HardwareModel:
                    utilized=str(self.hw_utilized))
         return s
 
-    def get_latency(self,expr : ast.AST):
-        name = ASTUtils.expr_to_opname(expr)
-        if name is None:
-            return None,0.0
-        else:
-            return name,latency[name]
-
     def parse_expr(self, expr):
-        print(expr)
+        #print(expr, type(expr))
+        expr_to_node[expr] = self.id
         if type(expr) == ast.Name: 
             self.hw_allocated["Regs"] += 1
-        elif isinstance(expr,ast.operator):
-            print("hi", expr)
-            self.hw_allocated[ASTUtils.operator_to_opname(expr)] += 1
-            self.cycles += self.get_latency(expr)[1]
         else:
-            for sub_expr in ASTUtils.get_sub_expr(expr):
-                self.parse_expr(sub_expr)
-        
+            name = ASTUtils.expr_to_opname(expr)
+            if name:
+                self.hw_allocated[name] += 1
+                self.cycles += latency[name]
+            else:
+                for sub_expr in ASTUtils.get_sub_expr(expr):
+                    self.parse_expr(sub_expr)
+        if type(expr) == ast.FunctionDef:
+            print(expr.body[0])
+            func_ref[expr.name] = expr
+
+def make_visual(cfg, models):
+    graph = gv.Digraph()
+    for node in cfg:
+        hw = models[node.id].hw_allocated
+        s = ""
+        for i in hw:
+            if hw[i] > 0:
+                s += str(i) + ": " + str(hw[i]) + ", "
+        if len(s) != 0:
+            s = node.get_source() + "\n" + str(node.id) + ": [" + s[:-2] + "]" + "\n cycles: " + str(models[node.id].cycles)
+        print(s)
+        graph.node(str(node.id), s)
+        for exit in node.exits:
+            graph.edge(str(node.id), str(exit.target.id))
+        for f in node.func_calls:
+            if f in func_ref:
+                graph.edge(str(node.id), str(expr_to_node[func_ref[f].body[0]]))
+    graph.render(path + 'pictures/' + benchmark + "_hw", view = True, format='jpeg')
 
 def main():
     # note: must specify path to run the program, this is just an example path
-    path = '/Users/PatrickMcEwen/high_level_synthesis/venv/codesign/src/cfg/benchmarks/'
-    benchmark = 'simple'
+    global path, benchmark, func_to_node, expr_to_node
     cfg = CFGBuilder().build_from_file('main.c', path + 'nonai_models/' + benchmark + '.py')
     cfg.build_visual(path + 'pictures/' + benchmark, 'jpeg', show = False)
     models = {}
+    print(cfg.entryblock)
+    print([block.id for block in cfg.__iter__()])
+
     for node in cfg:
-        #print(node.predecessors, node.exits)
-        models[node] = HardwareModel(0)
+        print([exit.target.id for exit in node.exits])
+        print(node.func_calls)
+        models[node.id] = HardwareModel(node.id, 0)
         for statement in node.statements:
-            models[node].parse_expr(statement)
-            #num_cycles, hw_need, energy_need = assign(statement)
-        print(models[node].hw_allocated)
+            models[node.id].parse_expr(statement)
+        print("Node", node.id, models[node.id].hw_allocated)
+    #build_visual(cfg, models, path + 'pictures/' + benchmark, 'jpeg')
+    make_visual(cfg, models)
+    print(func_ref)
+    print(expr_to_node)
     return 0
 
 if __name__ == "__main__":
