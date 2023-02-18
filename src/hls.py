@@ -153,7 +153,7 @@ class HardwareModel:
                    utilized=str(self.hw_utilized))
         return s
 
-    def parse_expr(self, expr):
+    def eval_expr(self, expr):
         print(expr, type(expr))
         expr_to_node[expr] = self.id
         if type(expr) == ast.Name: 
@@ -165,7 +165,7 @@ class HardwareModel:
                 self.cycles += latency[name]
             else:
                 for sub_expr in ASTUtils.get_sub_expr(expr):
-                    self.parse_expr(sub_expr)
+                    self.eval_expr(sub_expr)
         if type(expr) == ast.FunctionDef:
             print(expr.body[0])
             func_ref[expr.name] = expr
@@ -184,9 +184,13 @@ def make_visual(cfg, models):
         graph.node(str(node.id), s)
         for exit in node.exits:
             graph.edge(str(node.id), str(exit.target.id))
+        print(node.func_calls, "these are the calls")
         for f in node.func_calls:
-            if f in func_ref:
-                graph.edge(str(node.id), str(expr_to_node[func_ref[f].body[0]]))
+            if f in cfg.functioncfgs:
+                graph.edge(str(node.id), str(cfg.functioncfgs[f].entryblock.id))
+                print(node.id, cfg.functioncfgs[f].entryblock.id)
+                for end in cfg.functioncfgs[f].finalblocks:
+                    graph.edge(str(end.id), str(node.id))
     graph.render(path + 'pictures/' + benchmark + "_hw", view = True, format='jpeg')
 
 def main():
@@ -197,15 +201,14 @@ def main():
     models = {}
     print(cfg.entryblock)
     print([block.id for block in cfg.__iter__()])
-
+    print([cfg.functioncfgs[f] for f in cfg.functioncfgs], "hi")
     for node in cfg:
-        print([exit.target.id for exit in node.exits])
-        print(node.func_calls)
+        #print([exit.target.id for exit in node.exits])
+        print(node.func_calls, "func_calls")
         models[node.id] = HardwareModel(node.id, 0)
         for statement in node.statements:
-            models[node.id].parse_expr(statement)
+            models[node.id].eval_expr(statement)
         print("Node", node.id, models[node.id].hw_allocated)
-    #build_visual(cfg, models, path + 'pictures/' + benchmark, 'jpeg')
     make_visual(cfg, models)
     print(func_ref)
     print(expr_to_node)

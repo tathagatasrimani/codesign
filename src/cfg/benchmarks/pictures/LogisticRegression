@@ -1,0 +1,338 @@
+digraph "clustermain.c" {
+	graph [label="main.c"]
+	1 [label="import csv
+import numpy as np
+import math
+demographic = []
+def log_like(theta, data):...
+def sigmoid(x):...
+def make_arr(train, noDem):...
+def dot_prod(x, y):...
+def logistic_regression(train, test, step, iters, noDem):...
+def test_data(test, theta, noDem, datatype):...
+def main():...
+if __name__ == '__main__':
+"]
+	93 [label="main()
+"]
+	"93_calls" [label=main shape=box]
+	93 -> "93_calls" [label=calls style=dashed]
+	1 -> 93 [label="__name__ == '__main__'"]
+	subgraph clusterlog_like {
+		graph [label=log_like]
+		3 [label="result = 0
+print(theta)
+"]
+		"3_calls" [label=print shape=box]
+		3 -> "3_calls" [label=calls style=dashed]
+		4 [label="for i in range(len(data)):
+"]
+		5 [label="y = data[i][-1]
+y_hat = sigmoid(dot_prod(theta, data[i, :-1]))
+result += y * np.log(y_hat) + (1 - y) * np.log(1 - y_hat)
+"]
+		"5_calls" [label="sigmoid
+np.log
+np.log" shape=box]
+		5 -> "5_calls" [label=calls style=dashed]
+		5 -> 4 [label=""]
+		4 -> 5 [label="range(len(data))"]
+		6 [label="return result
+"]
+		4 -> 6 [label=""]
+		3 -> 4 [label=""]
+	}
+	subgraph clustersigmoid {
+		graph [label=sigmoid]
+		10 [label="return 1.0 / (1 + math.exp(-1 * x))
+"]
+	}
+	subgraph clustermake_arr {
+		graph [label=make_arr]
+		14 [label="data = []
+i = 0
+"]
+		15 [label="for row in train:
+"]
+		16 [label="data.append([])
+j = 0
+"]
+		"16_calls" [label="data.append" shape=box]
+		16 -> "16_calls" [label=calls style=dashed]
+		18 [label="for col in row:
+"]
+		19 [label="if j == 0:
+"]
+		21 [label="data[i].append(1)
+"]
+		"21_calls" [label="data.append" shape=box]
+		21 -> "21_calls" [label=calls style=dashed]
+		22 [label="data[i].append(int(row[col]))
+j += 1
+"]
+		"22_calls" [label="data.append" shape=box]
+		22 -> "22_calls" [label=calls style=dashed]
+		22 -> 18 [label=""]
+		21 -> 22 [label=""]
+		19 -> 21 [label="j == 0"]
+		19 -> 22 [label="(j != 0)"]
+		18 -> 19 [label=row]
+		20 [label="i += 1
+"]
+		20 -> 15 [label=""]
+		18 -> 20 [label=""]
+		16 -> 18 [label=""]
+		15 -> 16 [label=train]
+		17 [label="col = len(data[0])
+if noDem:
+"]
+		"17_calls" [label=len shape=box]
+		17 -> "17_calls" [label=calls style=dashed]
+		23 [label="col -= 1
+"]
+		24 [label="npdata = np.zeros((len(data), col))
+"]
+		"24_calls" [label="np.zeros" shape=box]
+		24 -> "24_calls" [label=calls style=dashed]
+		25 [label="for i in range(len(data)):
+"]
+		26 [label="a = 0
+"]
+		28 [label="for j in range(len(data[0])):
+"]
+		29 [label="if noDem and j == len(data[0]) - 2:
+"]
+		31 [label="demographic.append(data[i][j])
+a -= 1
+"]
+		"31_calls" [label="demographic.append" shape=box]
+		31 -> "31_calls" [label=calls style=dashed]
+		32 [label="a += 1
+"]
+		32 -> 28 [label=""]
+		31 -> 32 [label=""]
+		29 -> 31 [label="noDem and j == len(data[0]) - 2"]
+		33 [label="npdata[i][a] = data[i][j]
+"]
+		33 -> 32 [label=""]
+		29 -> 33 [label="(not (noDem and j == len(data[0]) - 2))"]
+		28 -> 29 [label="range(len(data[0]))"]
+		28 -> 25 [label=""]
+		26 -> 28 [label=""]
+		25 -> 26 [label="range(len(data))"]
+		27 [label="return npdata
+"]
+		25 -> 27 [label=""]
+		24 -> 25 [label=""]
+		23 -> 24 [label=""]
+		17 -> 23 [label=noDem]
+		17 -> 24 [label="(not noDem)"]
+		15 -> 17 [label=""]
+		14 -> 15 [label=""]
+	}
+	subgraph clusterdot_prod {
+		graph [label=dot_prod]
+		37 [label="result = 0
+"]
+		38 [label="for i in range(len(x)):
+"]
+		39 [label="result += x[i] * y[i]
+"]
+		39 -> 38 [label=""]
+		38 -> 39 [label="range(len(x))"]
+		40 [label="return result
+"]
+		38 -> 40 [label=""]
+		37 -> 38 [label=""]
+	}
+	subgraph clusterlogistic_regression {
+		graph [label=logistic_regression]
+		44 [label="data = make_arr(train, noDem)
+theta = np.zeros(len(data[0]) - 1)
+"]
+		"44_calls" [label="make_arr
+np.zeros" shape=box]
+		44 -> "44_calls" [label=calls style=dashed]
+		45 [label="for a in range(iters):
+"]
+		46 [label="gradient = np.zeros(len(data[0]) - 1)
+"]
+		"46_calls" [label="np.zeros" shape=box]
+		46 -> "46_calls" [label=calls style=dashed]
+		48 [label="for i in range(len(data)):
+"]
+		49 [label="for j in range(len(data[0]) - 1):
+"]
+		51 [label="gradient[j] += data[i][j] * (data[i][-1] - sigmoid(dot_prod(theta, data[i])))
+"]
+		"51_calls" [label=sigmoid shape=box]
+		51 -> "51_calls" [label=calls style=dashed]
+		51 -> 49 [label=""]
+		49 -> 51 [label="range(len(data[0]) - 1)"]
+		49 -> 48 [label=""]
+		48 -> 49 [label="range(len(data))"]
+		50 [label="for i in range(len(theta)):
+"]
+		53 [label="theta[i] += step * gradient[i]
+"]
+		53 -> 50 [label=""]
+		50 -> 53 [label="range(len(theta))"]
+		50 -> 45 [label=""]
+		48 -> 50 [label=""]
+		46 -> 48 [label=""]
+		45 -> 46 [label="range(iters)"]
+		47 [label="print(test_data(data, theta, noDem, True))
+"]
+		"47_calls" [label=print shape=box]
+		47 -> "47_calls" [label=calls style=dashed]
+		45 -> 47 [label=""]
+		44 -> 45 [label=""]
+	}
+	subgraph clustertest_data {
+		graph [label=test_data]
+		57 [label="if datatype == True:
+"]
+		58 [label="data = test
+"]
+		59 [label="predict = np.zeros(len(data))
+"]
+		"59_calls" [label="np.zeros" shape=box]
+		59 -> "59_calls" [label=calls style=dashed]
+		61 [label="for i in range(len(predict)):
+"]
+		62 [label="if sigmoid(dot_prod(data[i, :-1], theta)) > 0.5:
+"]
+		64 [label="predict[i] = 1
+"]
+		64 -> 61 [label=""]
+		62 -> 64 [label="sigmoid(dot_prod(data[i, :-1], theta)) > 0.5"]
+		62 -> 61 [label="(sigmoid(dot_prod(data[i, :-1], theta)) <= 0.5)"]
+		61 -> 62 [label="range(len(predict))"]
+		63 [label="correct = []
+"]
+		66 [label="for i in range(len(predict)):
+"]
+		67 [label="if predict[i] == data[i][-1]:
+"]
+		69 [label="correct.append(1)
+"]
+		"69_calls" [label="correct.append" shape=box]
+		69 -> "69_calls" [label=calls style=dashed]
+		69 -> 66 [label=""]
+		67 -> 69 [label="predict[i] == data[i][-1]"]
+		71 [label="correct.append(0)
+"]
+		"71_calls" [label="correct.append" shape=box]
+		71 -> "71_calls" [label=calls style=dashed]
+		71 -> 66 [label=""]
+		67 -> 71 [label="(predict[i] != data[i][-1])"]
+		66 -> 67 [label="range(len(predict))"]
+		68 [label="if noDem == True:
+"]
+		72 [label="D0 = 0
+P0 = 0
+D1 = 0
+P1 = 0
+"]
+		74 [label="for i in range(len(data)):
+"]
+		75 [label="if demographic[i] == 1:
+"]
+		77 [label="D1 += 1
+if data[i][-1] == 1:
+"]
+		82 [label="P1 += 1
+"]
+		82 -> 74 [label=""]
+		77 -> 82 [label="data[i][-1] == 1"]
+		77 -> 74 [label="(data[i][-1] != 1)"]
+		75 -> 77 [label="demographic[i] == 1"]
+		79 [label="D0 += 1
+if data[i][-1] == 1:
+"]
+		80 [label="P0 += 1
+"]
+		80 -> 74 [label=""]
+		79 -> 80 [label="data[i][-1] == 1"]
+		79 -> 74 [label="(data[i][-1] != 1)"]
+		75 -> 79 [label="(demographic[i] != 1)"]
+		74 -> 75 [label="range(len(data))"]
+		76 [label="print(P0 / D0, P1 / D1)
+"]
+		"76_calls" [label=print shape=box]
+		76 -> "76_calls" [label=calls style=dashed]
+		73 [label="print(log_like(theta, data))
+toSort = []
+"]
+		"73_calls" [label=print shape=box]
+		73 -> "73_calls" [label=calls style=dashed]
+		84 [label="for i in range(len(theta)):
+"]
+		85 [label="toSort.append([theta[i], i])
+"]
+		"85_calls" [label="toSort.append" shape=box]
+		85 -> "85_calls" [label=calls style=dashed]
+		85 -> 84 [label=""]
+		84 -> 85 [label="range(len(theta))"]
+		86 [label="toSort.sort()
+return sum(correct) / len(predict)
+"]
+		"86_calls" [label="toSort.sort" shape=box]
+		86 -> "86_calls" [label=calls style=dashed]
+		84 -> 86 [label=""]
+		73 -> 84 [label=""]
+		76 -> 73 [label=""]
+		74 -> 76 [label=""]
+		72 -> 74 [label=""]
+		68 -> 72 [label="noDem == True"]
+		68 -> 73 [label="(noDem != True)"]
+		66 -> 68 [label=""]
+		63 -> 66 [label=""]
+		61 -> 63 [label=""]
+		59 -> 61 [label=""]
+		58 -> 59 [label=""]
+		57 -> 58 [label="datatype == True"]
+		60 [label="data = make_arr(test, noDem)
+"]
+		"60_calls" [label=make_arr shape=box]
+		60 -> "60_calls" [label=calls style=dashed]
+		60 -> 59 [label=""]
+		57 -> 60 [label="(datatype != True)"]
+	}
+	subgraph clustermain {
+		graph [label=main]
+		90 [label="atrain = csv.DictReader(open(
+    '/Users/PatrickMcEwen/109pset6/venv/pset6data/ancestry-train.csv'))
+atest = csv.DictReader(open(
+    '/Users/PatrickMcEwen/109pset6/venv/pset6data/ancestry-test.csv'))
+htrain = csv.DictReader(open(
+    '/Users/PatrickMcEwen/109pset6/venv/pset6data/heart-train.csv'))
+htest = csv.DictReader(open(
+    '/Users/PatrickMcEwen/109pset6/venv/pset6data/heart-test.csv'))
+ntrain = csv.DictReader(open(
+    '/Users/PatrickMcEwen/109pset6/venv/pset6data/netflix-train.csv'))
+ntest = csv.DictReader(open(
+    '/Users/PatrickMcEwen/109pset6/venv/pset6data/netflix-test.csv'))
+strain = csv.DictReader(open(
+    '/Users/PatrickMcEwen/109pset6/venv/pset6data/simple-train.csv'))
+stest = csv.DictReader(open(
+    '/Users/PatrickMcEwen/109pset6/venv/pset6data/simple-test.csv'))
+print(logistic_regression(ntrain, ntest, 0.00625, 100, True))
+print(logistic_regression(atrain, atest, 0.0001, 1000, False))
+print(logistic_regression(htrain, htest, 1e-05, 1000, True))
+return 0
+"]
+		"90_calls" [label="csv.DictReader
+csv.DictReader
+csv.DictReader
+csv.DictReader
+csv.DictReader
+csv.DictReader
+csv.DictReader
+csv.DictReader
+print
+print
+print" shape=box]
+		90 -> "90_calls" [label=calls style=dashed]
+	}
+}

@@ -1,0 +1,372 @@
+digraph {
+	1 [label="import csv
+import numpy as np
+import math
+demographic = []
+def log_like(theta, data):...
+def sigmoid(x):...
+def make_arr(train, noDem):...
+def dot_prod(x, y):...
+def logistic_regression(train, test, step, iters, noDem):...
+def test_data(test, theta, noDem, datatype):...
+def main():...
+if __name__ == '__main__':
+
+1: [Regs: 2, Eq: 1]
+ cycles: 1"]
+	1 -> 93
+	93 [label=""]
+	93 -> 90
+	90 -> 93
+	3 [label="result = 0
+print(theta)
+
+3: [Regs: 1]
+ cycles: 0"]
+	3 -> 4
+	4 [label="for i in range(len(data)):
+
+4: [Regs: 1]
+ cycles: 0"]
+	4 -> 5
+	4 -> 6
+	5 [label="y = data[i][-1]
+y_hat = sigmoid(dot_prod(theta, data[i, :-1]))
+result += y * np.log(y_hat) + (1 - y) * np.log(1 - y_hat)
+
+5: [Regs: 5, Add: 2, Sub: 1, Mult: 2]
+ cycles: 22"]
+	5 -> 4
+	5 -> 10
+	10 -> 5
+	6 [label="return result
+
+6: [Regs: 1]
+ cycles: 0"]
+	10 [label="return 1.0 / (1 + math.exp(-1 * x))
+
+10: [Add: 1, FloorDiv: 1]
+ cycles: 20"]
+	14 [label="data = []
+i = 0
+
+14: [Regs: 2]
+ cycles: 0"]
+	14 -> 15
+	15 [label="for row in train:
+
+15: [Regs: 2]
+ cycles: 0"]
+	15 -> 16
+	15 -> 17
+	16 [label="data.append([])
+j = 0
+
+16: [Regs: 1]
+ cycles: 0"]
+	16 -> 18
+	17 [label="col = len(data[0])
+if noDem:
+
+17: [Regs: 2]
+ cycles: 0"]
+	17 -> 23
+	17 -> 24
+	18 [label="for col in row:
+
+18: [Regs: 2]
+ cycles: 0"]
+	18 -> 19
+	18 -> 20
+	23 [label="col -= 1
+
+23: [Regs: 1, Sub: 1]
+ cycles: 4"]
+	23 -> 24
+	24 [label="npdata = np.zeros((len(data), col))
+
+24: [Regs: 1]
+ cycles: 0"]
+	24 -> 25
+	19 [label="if j == 0:
+
+19: [Regs: 1, Eq: 1]
+ cycles: 1"]
+	19 -> 21
+	19 -> 22
+	20 [label="i += 1
+
+20: [Regs: 1, Add: 1]
+ cycles: 4"]
+	20 -> 15
+	25 [label="for i in range(len(data)):
+
+25: [Regs: 1]
+ cycles: 0"]
+	25 -> 26
+	25 -> 27
+	21 [label=""]
+	21 -> 22
+	22 [label="data[i].append(int(row[col]))
+j += 1
+
+22: [Regs: 1, Add: 1]
+ cycles: 4"]
+	22 -> 18
+	26 [label="a = 0
+
+26: [Regs: 1]
+ cycles: 0"]
+	26 -> 28
+	27 [label="return npdata
+
+27: [Regs: 1]
+ cycles: 0"]
+	28 [label="for j in range(len(data[0])):
+
+28: [Regs: 1]
+ cycles: 0"]
+	28 -> 29
+	28 -> 25
+	29 [label="if noDem and j == len(data[0]) - 2:
+
+29: [Regs: 2, And: 1, Sub: 1, Eq: 1]
+ cycles: 6"]
+	29 -> 31
+	29 -> 33
+	31 [label="demographic.append(data[i][j])
+a -= 1
+
+31: [Regs: 1, Sub: 1]
+ cycles: 4"]
+	31 -> 32
+	33 [label=""]
+	33 -> 32
+	32 [label="a += 1
+
+32: [Regs: 1, Add: 1]
+ cycles: 4"]
+	32 -> 28
+	37 [label="result = 0
+
+37: [Regs: 1]
+ cycles: 0"]
+	37 -> 38
+	38 [label="for i in range(len(x)):
+
+38: [Regs: 1]
+ cycles: 0"]
+	38 -> 39
+	38 -> 40
+	39 [label="result += x[i] * y[i]
+
+39: [Regs: 1, Add: 1, Mult: 1]
+ cycles: 9"]
+	39 -> 38
+	40 [label="return result
+
+40: [Regs: 1]
+ cycles: 0"]
+	44 [label="data = make_arr(train, noDem)
+theta = np.zeros(len(data[0]) - 1)
+
+44: [Regs: 2]
+ cycles: 0"]
+	44 -> 45
+	44 -> 14
+	27 -> 44
+	45 [label="for a in range(iters):
+
+45: [Regs: 1]
+ cycles: 0"]
+	45 -> 46
+	45 -> 47
+	46 [label="gradient = np.zeros(len(data[0]) - 1)
+
+46: [Regs: 1]
+ cycles: 0"]
+	46 -> 48
+	47 [label=""]
+	48 [label="for i in range(len(data)):
+
+48: [Regs: 1]
+ cycles: 0"]
+	48 -> 49
+	48 -> 50
+	49 [label="for j in range(len(data[0]) - 1):
+
+49: [Regs: 1]
+ cycles: 0"]
+	49 -> 51
+	49 -> 48
+	50 [label="for i in range(len(theta)):
+
+50: [Regs: 1]
+ cycles: 0"]
+	50 -> 53
+	50 -> 45
+	51 [label="gradient[j] += data[i][j] * (data[i][-1] - sigmoid(dot_prod(theta, data[i])))
+
+51: [Add: 1, Sub: 1, Mult: 1]
+ cycles: 13"]
+	51 -> 49
+	51 -> 10
+	10 -> 51
+	53 [label="theta[i] += step * gradient[i]
+
+53: [Regs: 1, Add: 1, Mult: 1]
+ cycles: 9"]
+	53 -> 50
+	57 [label="if datatype == True:
+
+57: [Regs: 1, Eq: 1]
+ cycles: 1"]
+	57 -> 58
+	57 -> 60
+	58 [label="data = test
+
+58: [Regs: 2]
+ cycles: 0"]
+	58 -> 59
+	60 [label="data = make_arr(test, noDem)
+
+60: [Regs: 1]
+ cycles: 0"]
+	60 -> 59
+	60 -> 14
+	27 -> 60
+	59 [label="predict = np.zeros(len(data))
+
+59: [Regs: 1]
+ cycles: 0"]
+	59 -> 61
+	61 [label="for i in range(len(predict)):
+
+61: [Regs: 1]
+ cycles: 0"]
+	61 -> 62
+	61 -> 63
+	62 [label="if sigmoid(dot_prod(data[i, :-1], theta)) > 0.5:
+
+62: [Gt: 1]
+ cycles: 1"]
+	62 -> 64
+	62 -> 61
+	63 [label="correct = []
+
+63: [Regs: 1]
+ cycles: 0"]
+	63 -> 66
+	64 [label=""]
+	64 -> 61
+	66 [label="for i in range(len(predict)):
+
+66: [Regs: 1]
+ cycles: 0"]
+	66 -> 67
+	66 -> 68
+	67 [label="if predict[i] == data[i][-1]:
+
+67: [Eq: 1]
+ cycles: 1"]
+	67 -> 69
+	67 -> 71
+	68 [label="if noDem == True:
+
+68: [Regs: 1, Eq: 1]
+ cycles: 1"]
+	68 -> 72
+	68 -> 73
+	69 [label=""]
+	69 -> 66
+	71 [label=""]
+	71 -> 66
+	72 [label="D0 = 0
+P0 = 0
+D1 = 0
+P1 = 0
+
+72: [Regs: 4]
+ cycles: 0"]
+	72 -> 74
+	73 [label="print(log_like(theta, data))
+toSort = []
+
+73: [Regs: 1]
+ cycles: 0"]
+	73 -> 84
+	74 [label="for i in range(len(data)):
+
+74: [Regs: 1]
+ cycles: 0"]
+	74 -> 75
+	74 -> 76
+	84 [label="for i in range(len(theta)):
+
+84: [Regs: 1]
+ cycles: 0"]
+	84 -> 85
+	84 -> 86
+	75 [label="if demographic[i] == 1:
+
+75: [Eq: 1]
+ cycles: 1"]
+	75 -> 77
+	75 -> 79
+	76 [label=""]
+	76 -> 73
+	85 [label=""]
+	85 -> 84
+	86 [label="toSort.sort()
+return sum(correct) / len(predict)
+
+86: [FloorDiv: 1]
+ cycles: 16"]
+	77 [label="D1 += 1
+if data[i][-1] == 1:
+
+77: [Regs: 1, Add: 1, Eq: 1]
+ cycles: 5"]
+	77 -> 82
+	77 -> 74
+	79 [label="D0 += 1
+if data[i][-1] == 1:
+
+79: [Regs: 1, Add: 1, Eq: 1]
+ cycles: 5"]
+	79 -> 80
+	79 -> 74
+	82 [label="P1 += 1
+
+82: [Regs: 1, Add: 1]
+ cycles: 4"]
+	82 -> 74
+	80 [label="P0 += 1
+
+80: [Regs: 1, Add: 1]
+ cycles: 4"]
+	80 -> 74
+	90 [label="atrain = csv.DictReader(open(
+    '/Users/PatrickMcEwen/109pset6/venv/pset6data/ancestry-train.csv'))
+atest = csv.DictReader(open(
+    '/Users/PatrickMcEwen/109pset6/venv/pset6data/ancestry-test.csv'))
+htrain = csv.DictReader(open(
+    '/Users/PatrickMcEwen/109pset6/venv/pset6data/heart-train.csv'))
+htest = csv.DictReader(open(
+    '/Users/PatrickMcEwen/109pset6/venv/pset6data/heart-test.csv'))
+ntrain = csv.DictReader(open(
+    '/Users/PatrickMcEwen/109pset6/venv/pset6data/netflix-train.csv'))
+ntest = csv.DictReader(open(
+    '/Users/PatrickMcEwen/109pset6/venv/pset6data/netflix-test.csv'))
+strain = csv.DictReader(open(
+    '/Users/PatrickMcEwen/109pset6/venv/pset6data/simple-train.csv'))
+stest = csv.DictReader(open(
+    '/Users/PatrickMcEwen/109pset6/venv/pset6data/simple-test.csv'))
+print(logistic_regression(ntrain, ntest, 0.00625, 100, True))
+print(logistic_regression(atrain, atest, 0.0001, 1000, False))
+print(logistic_regression(htrain, htest, 1e-05, 1000, True))
+return 0
+
+90: [Regs: 8]
+ cycles: 0"]
+}
