@@ -126,11 +126,8 @@ class HardwareModel:
 
         # number of non-memory elements allocated
         self.hw_allocated = {}
-        self.hw_utilized = {}
         self.hw_allocated["Regs"] = 0
-        self.hw_utilized["Regs"] = 0
         self.hw_allocated["Other"] = 0
-        self.hw_utilized["Other"] = 0
         self.loop_variables = loop_counts
         self.var_sizes = var_sizes
         self.id = id
@@ -138,7 +135,6 @@ class HardwareModel:
 
         for key in op2sym_map.keys():
                 self.hw_allocated[key] = 0
-                self.hw_utilized[key] = 0
 
         self.cycles = 0
 
@@ -149,8 +145,7 @@ class HardwareModel:
         allocated={allocated}
         utilized={utilized}
         '''.format(cycles=self.cycles, \
-                   allocated=str(self.hw_allocated), \
-                   utilized=str(self.hw_utilized))
+                   allocated=str(self.hw_allocated))
         return s
 
     def eval_expr(self, expr):

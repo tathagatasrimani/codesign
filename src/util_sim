@@ -1,5 +1,40 @@
-from src.hls import HardwareModel
+import json
+import graphviz as gv
+from collections import deque
+import ast
 
-def sim(hardware, program):
+from cfg.staticfg.builder import CFGBuilder
+from cfg.staticfg.model import Block
+from cfg.staticfg.model import Link
+from hls_instrument import instrument_and_run
+from cfg.ast_utils import ASTUtils
+from hls import HardwareModel
 
+path = '/Users/PatrickMcEwen/high_level_synthesis/venv/codesign/src/cfg/benchmarks/'
+benchmark = 'simple'
+
+def sim():
+    # note: must specify path to run the program, this is just an example path
+    global path, benchmark, func_to_node, expr_to_node
+    cfg = CFGBuilder().build_from_file('main.c', path + 'nonai_models/' + benchmark + '.py')
+    for node in cfg:
+        prev_nodes = node.predecessors
+        for statement in node.statements:
+            new_node = Block(node.id*1000)
+            for pre in prev_nodes:
+                if type(pre) == Block:
+                    new_link = Link(new_node, pre, None)
+                else:
+                    new_link = Link(new_node, pre.source, None)
+                new_node.predecessors.append(pre)
+                if type(pre) == Block:
+                    pre.exits.append(new_link)
+                else:
+                    pre.source.exits.append(new_link)
+            prev_nodes = [new_node]
+    cfg.build_visual(path + 'pictures/' + benchmark, 'jpeg', show = True)
     return 0
+
+if __name__ == "__main__":
+    sim()
+
