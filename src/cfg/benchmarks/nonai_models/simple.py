@@ -10,7 +10,7 @@ def do_something(n, a):
     b = (a + 4) * 2
     c = b + a
     d = c * b
-    e = cool_func(other_func(d) / 2)
+    e = other_func(d) / 2
     if d > 5:
         d //= 2
     else:

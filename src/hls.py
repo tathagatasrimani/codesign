@@ -149,7 +149,6 @@ class HardwareModel:
         return s
 
     def eval_expr(self, expr):
-        print(expr, type(expr))
         expr_to_node[expr] = self.id
         if type(expr) == ast.Name: 
             self.hw_allocated["Regs"] += 1
@@ -162,8 +161,11 @@ class HardwareModel:
                 for sub_expr in ASTUtils.get_sub_expr(expr):
                     self.eval_expr(sub_expr)
         if type(expr) == ast.FunctionDef:
-            print(expr.body[0])
             func_ref[expr.name] = expr
+    
+    def reset_hw(self):
+        for key in op2sym_map.keys():
+            self.hw_allocated[key] = 0
 
 def make_visual(cfg, models):
     graph = gv.Digraph()
@@ -175,17 +177,13 @@ def make_visual(cfg, models):
                 s += str(i) + ": " + str(hw[i]) + ", "
         if len(s) != 0:
             s = node.get_source() + "\n" + str(node.id) + ": [" + s[:-2] + "]" + "\n cycles: " + str(models[node.id].cycles)
+        else:
+            s = node.get_source() + "\n" + str(node.id) + ": no hardware allocated \n cycles: " + str(models[node.id].cycles)
         print(s)
         graph.node(str(node.id), s)
         for exit in node.exits:
             graph.edge(str(node.id), str(exit.target.id))
-        print(node.func_calls, "these are the calls")
-        for f in node.func_calls:
-            if f in cfg.functioncfgs:
-                graph.edge(str(node.id), str(cfg.functioncfgs[f].entryblock.id))
-                print(node.id, cfg.functioncfgs[f].entryblock.id)
-                for end in cfg.functioncfgs[f].finalblocks:
-                    graph.edge(str(end.id), str(node.id))
+        print(node.func_calls, "these are the calls \n")
     graph.render(path + 'pictures/' + benchmark + "_hw", view = True, format='jpeg')
 
 def main():
@@ -194,9 +192,6 @@ def main():
     cfg = CFGBuilder().build_from_file('main.c', path + 'nonai_models/' + benchmark + '.py')
     cfg.build_visual(path + 'pictures/' + benchmark, 'jpeg', show = False)
     models = {}
-    print(cfg.entryblock)
-    print([block.id for block in cfg.__iter__()])
-    print([cfg.functioncfgs[f] for f in cfg.functioncfgs], "hi")
     for node in cfg:
         #print([exit.target.id for exit in node.exits])
         print(node.func_calls, "func_calls")
@@ -205,8 +200,6 @@ def main():
             models[node.id].eval_expr(statement)
         print("Node", node.id, models[node.id].hw_allocated)
     make_visual(cfg, models)
-    print(func_ref)
-    print(expr_to_node)
     return 0
 
 if __name__ == "__main__":

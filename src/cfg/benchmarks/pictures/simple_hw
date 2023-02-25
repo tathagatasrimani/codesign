@@ -7,9 +7,10 @@ if __name__ == '__main__':
 1: [Regs: 1, Eq: 1]
  cycles: 1"]
 	1 -> 17
-	17 [label=""]
-	17 -> 11
-	13 -> 17
+	17 [label="do_something(5, 10)
+
+17: no hardware allocated 
+ cycles: 0"]
 	3 [label="return num + 2 // 3
 
 3: [Regs: 1, Add: 1, FloorDiv: 1]
@@ -23,15 +24,13 @@ return a - b
 	11 [label="b = (a + 4) * 2
 c = b + a
 d = c * b
-e = cool_func(other_func(d) / 2)
+e = other_func(d) / 2
 if d > 5:
 
-11: [Regs: 10, Add: 2, Mult: 2, Gt: 1]
- cycles: 19"]
+11: [Regs: 10, Add: 2, Mult: 2, FloorDiv: 1, Gt: 1]
+ cycles: 35"]
 	11 -> 12
 	11 -> 14
-	11 -> 3
-	3 -> 11
 	12 [label="d //= 2
 
 12: [Regs: 1, FloorDiv: 1]

@@ -10,7 +10,6 @@ if __name__ == '__main__':
 	"17_calls" [label=do_something shape=box]
 	17 -> "17_calls" [label=calls style=dashed]
 	1 -> 17 [label="__name__ == '__main__'"]
-	1 -> 1 [label=""]
 	subgraph clustercool_func {
 		graph [label=cool_func]
 		3 [label="return num + 2 // 3
@@ -28,24 +27,20 @@ return a - b
 		11 [label="b = (a + 4) * 2
 c = b + a
 d = c * b
-e = cool_func(other_func(d) / 2)
+e = other_func(d) / 2
 if d > 5:
 "]
-		"11_calls" [label=cool_func shape=box]
+		"11_calls" [label=other_func shape=box]
 		11 -> "11_calls" [label=calls style=dashed]
 		12 [label="d //= 2
 "]
 		13 [label="return d + e
 "]
 		12 -> 13 [label=""]
-		12 -> 12 [label=""]
 		11 -> 12 [label="d > 5"]
 		14 [label="d += 1 * 3 + 4 * 2
 "]
 		14 -> 13 [label=""]
-		14 -> 14 [label=""]
 		11 -> 14 [label="(d <= 5)"]
-		11 -> 11 [label=""]
-		11 -> 11 [label=""]
 	}
 }
