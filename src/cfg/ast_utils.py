@@ -242,6 +242,8 @@ class ASTUtils:
             return [expr.exc, expr.cause]
         elif type(expr) == ast.Compare:
             return [expr.left] + expr.ops + expr.comparators
+        elif type(expr) == ast.Expr:
+            return [expr.value]
         else:
             if expr: print("unhandled (sub) expresssion <%s>" % expr)
             return []
