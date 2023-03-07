@@ -15,7 +15,10 @@ def main():
     hw.hw_allocated['Add'] = 2
     hw.hw_allocated['Regs'] = 3
     hw.hw_allocated['Mult'] = 1
-    print(sim(cfg, hw, first=True))
+    hw.hw_allocated['Sub'] = 1
+    hw.hw_allocated['FloorDiv'] = 1
+    hw.hw_allocated['Gt'] = 1
+    print(sim(cfg, hw.hw_allocated, first=True))
 
 
 if __name__ == "__main__":
