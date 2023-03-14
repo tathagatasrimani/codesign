@@ -2,6 +2,7 @@ import ast
 from cfg.staticfg.builder import CFGBuilder
 from hls import HardwareModel
 from util_sim import sim
+import json
 
 path = '/Users/PatrickMcEwen/high_level_synthesis/venv/codesign/src/cfg/benchmarks/'
 benchmark = 'simple'
@@ -18,7 +19,11 @@ def main():
     hw.hw_allocated['Sub'] = 1
     hw.hw_allocated['FloorDiv'] = 1
     hw.hw_allocated['Gt'] = 1
-    print(sim(cfg, hw.hw_allocated, first=True))
+    cycles, data = sim(cfg, hw.hw_allocated, first=True)
+    print(data)
+    text = json.dumps(data, indent=4)
+    with open(path + 'json_data/' + benchmark, 'w') as fh:
+        fh.write(text)
 
 
 if __name__ == "__main__":

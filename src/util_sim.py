@@ -13,6 +13,7 @@ from cfg.ast_utils import ASTUtils
 from hls import HardwareModel
 import hls
 
+data = {}
 cycles = 0
 main_cfg = None
 
@@ -23,12 +24,24 @@ def func_calls(expr, calls):
         func_calls(sub_expr, calls)
     
 def cycle_sim(hw_inuse, max_cycles):
-    global cycles
+    global cycles, data
     for i in range(max_cycles):
         for elem in hw_inuse:
             for j in range(len(hw_inuse[elem])):
                 if hw_inuse[elem][j] > 0:
                     hw_inuse[elem][j] = max(0, hw_inuse[elem][j] - 1)
+        # save current state of hardware to data array
+        cur_data = ""
+        for elem in hw_inuse:
+            if len(hw_inuse[elem]) > 0:
+                cur_data += elem + ": "
+                count = 0
+                for i in hw_inuse[elem]:
+                    if i > 0:
+                        count += 1
+                cur_data += str(count) + "/" + str(len(hw_inuse[elem])) + " in use. || "
+        data[cycles] = cur_data
+
         print("This is after cycle " + str(cycles))
         print(hw_inuse)
         print("")
@@ -44,6 +57,7 @@ def sim(cfg, hw, first):
     for elem in hw:
         hw_inuse[elem] = [0] * hw[elem]
     print(hw_inuse)
+
     while True:
         for statement in cur_node.statements:
             hw_need = HardwareModel(0, 0)
@@ -74,4 +88,4 @@ def sim(cfg, hw, first):
             cur_node = cur_node.exits[0].target
         else:
             break
-    return cycles
+    return cycles, data
