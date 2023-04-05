@@ -1,0 +1,19 @@
+digraph "clustermain.c" {
+	graph [label="main.c"]
+	1 [label="def main(x, y):...
+if __name__ == '__main__':
+"]
+	5 [label="main(2, 3)
+"]
+	"5_calls" [label=main shape=box]
+	5 -> "5_calls" [label=calls style=dashed]
+	1 -> 5 [label="__name__ == '__main__'"]
+	subgraph clustermain {
+		graph [label=main]
+		3 [label="q = x * y
+r = x + y
+q = q * r
+w = q + r
+"]
+	}
+}

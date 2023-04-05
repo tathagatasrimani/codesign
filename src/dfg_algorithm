@@ -1,0 +1,60 @@
+from cfg.staticfg.builder import CFGBuilder
+import graphviz as gv
+import ast
+from cfg.staticfg.builder import CFGBuilder
+from cfg.ast_utils import ASTUtils
+
+path = '/Users/PatrickMcEwen/high_level_synthesis/venv/codesign/src/cfg/benchmarks/'
+benchmark = 'example'
+id_to_name = {}
+
+def eval_single_op(expr, graph, cur_id, target_id):
+    sub_values = ASTUtils.get_sub_expr(expr)
+    op_id = str(cur_id)
+    graph.node(op_id, ASTUtils.operator_to_opname(sub_values[1]))
+    cur_id += 1 
+    value_ids = [str(cur_id), str(cur_id + 1)]
+    graph.node(value_ids[0], sub_values[0].id)
+    graph.node(value_ids[1], sub_values[2].id)
+    cur_id += 2
+    graph.edge(op_id, target_id)
+    for i in value_ids:
+        graph.edge(i, op_id)
+    return cur_id
+
+
+def eval_expr(expr, graph, cur_id):
+    if type(expr) == ast.Assign:
+        #still have to add support for multiple assignments
+        for target in expr.targets:
+            target_id = str(cur_id)
+            graph.node(target_id, target.id)
+            cur_id += 1
+        if type(expr.value) == ast.BinOp:
+            cur_id = eval_single_op(expr.value, graph, cur_id, target_id)
+        return cur_id
+
+# first pass over the basic block
+def graph_per_expr(node, names):
+    graph = gv.Digraph()
+    cur_id = 0
+    for expr in node.statements:
+        cur_id = eval_expr(expr, graph, cur_id)
+    graph.render(path + 'pictures/' + benchmark + "_dfg_", view = True, format='jpeg')
+    
+
+def generate_dfg(node):
+    names = {}
+    graph_per_expr(node, names)
+
+
+def main():
+    global path, benchmark
+    cfg = CFGBuilder().build_from_file('main.c', path + 'nonai_models/' + benchmark + '.py')
+    cfg.build_visual(path + 'pictures/' + benchmark, 'jpeg', show = True)
+    for node in cfg:
+        generate_dfg(node)
+    return 0
+
+if __name__ == "__main__":
+    main()
