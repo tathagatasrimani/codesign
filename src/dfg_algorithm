@@ -6,20 +6,37 @@ from cfg.ast_utils import ASTUtils
 
 path = '/Users/PatrickMcEwen/high_level_synthesis/venv/codesign/src/cfg/benchmarks/'
 benchmark = 'example'
-id_to_name = {}
+op_to_symbol = {
+    'Mult': '*',
+    'Add': '+',
+    'Sub': '-',
+    'FloorDiv': '/',
+}
 
-def eval_single_op(expr, graph, cur_id, target_id):
+def eval_single_op(expr, graph, cur_id, target_id, value_ids, op_id):
+    global op_to_symbol
     sub_values = ASTUtils.get_sub_expr(expr)
-    op_id = str(cur_id)
-    graph.node(op_id, ASTUtils.operator_to_opname(sub_values[1]))
-    cur_id += 1 
-    value_ids = [str(cur_id), str(cur_id + 1)]
-    graph.node(value_ids[0], sub_values[0].id)
-    graph.node(value_ids[1], sub_values[2].id)
-    cur_id += 2
+    print(sub_values)
+    graph.node(op_id, op_to_symbol[ASTUtils.operator_to_opname(sub_values[1])])
+    if type(sub_values[0]) == ast.Name:
+        graph.node(value_ids[0], sub_values[0].id)
+        graph.edge(value_ids[0], op_id)
+    elif type(sub_values[0]) == ast.BinOp:
+        cur_id += 3
+        cur_id = eval_single_op(sub_values[0], graph, cur_id, op_id, [str(cur_id-2), str(cur_id-1)], str(cur_id-3))
+    else:
+        graph.node(value_ids[0], str(sub_values[0].value))
+        graph.edge(value_ids[0], op_id)
+    if type(sub_values[2]) == ast.Name:
+        graph.node(value_ids[1], sub_values[2].id)
+        graph.edge(value_ids[1], op_id)
+    elif type(sub_values[2]) == ast.BinOp:
+        cur_id += 3
+        cur_id = eval_single_op(sub_values[2], graph, cur_id, op_id, [str(cur_id-2), str(cur_id-1)], str(cur_id-3))
+    else:
+        graph.node(value_ids[1], str(sub_values[2].value))
+        graph.edge(value_ids[1], op_id)
     graph.edge(op_id, target_id)
-    for i in value_ids:
-        graph.edge(i, op_id)
     return cur_id
 
 
@@ -30,8 +47,12 @@ def eval_expr(expr, graph, cur_id):
             target_id = str(cur_id)
             graph.node(target_id, target.id)
             cur_id += 1
+        op_id = str(cur_id)
+        cur_id += 1
+        value_ids = [str(cur_id), str(cur_id + 1)]
+        cur_id += 2
         if type(expr.value) == ast.BinOp:
-            cur_id = eval_single_op(expr.value, graph, cur_id, target_id)
+            cur_id = eval_single_op(expr.value, graph, cur_id, target_id, value_ids, op_id)
         return cur_id
 
 # first pass over the basic block

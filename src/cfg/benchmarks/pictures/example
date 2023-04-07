@@ -10,7 +10,7 @@ if __name__ == '__main__':
 	1 -> 5 [label="__name__ == '__main__'"]
 	subgraph clustermain {
 		graph [label=main]
-		3 [label="q = x * y
+		3 [label="q = 0.5 + x * y + 1 / 2 * 3 + 4 - 5 * 6 - 7
 r = x + y
 q = q * r
 w = q + r
