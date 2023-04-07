@@ -12,23 +12,27 @@ op_to_symbol = {
     'Sub': '-',
     'FloorDiv': '/',
 }
+# format: (id)-> [symbol, write (true) or read (false)]
+id_to_symbol = []
 
 def eval_single_op(expr, graph, cur_id, target_id, value_ids, op_id):
-    global op_to_symbol
+    global op_to_symbol, id_to_symbol
     sub_values = ASTUtils.get_sub_expr(expr)
     print(sub_values)
     graph.node(op_id, op_to_symbol[ASTUtils.operator_to_opname(sub_values[1])])
     if type(sub_values[0]) == ast.Name:
-        graph.node(value_ids[0], sub_values[0].id)
+        graph.node(value_ids[0], sub_values[0].id + '\nread')
+        id_to_symbol.append([sub_values[0].id, value_ids[0], False])
         graph.edge(value_ids[0], op_id)
     elif type(sub_values[0]) == ast.BinOp:
         cur_id += 3
         cur_id = eval_single_op(sub_values[0], graph, cur_id, op_id, [str(cur_id-2), str(cur_id-1)], str(cur_id-3))
-    else:
+    else: #dealing with ast.Constant
         graph.node(value_ids[0], str(sub_values[0].value))
         graph.edge(value_ids[0], op_id)
     if type(sub_values[2]) == ast.Name:
-        graph.node(value_ids[1], sub_values[2].id)
+        graph.node(value_ids[1], sub_values[2].id + '\nread')
+        id_to_symbol.append([sub_values[2].id, value_ids[1], False])
         graph.edge(value_ids[1], op_id)
     elif type(sub_values[2]) == ast.BinOp:
         cur_id += 3
@@ -43,9 +47,10 @@ def eval_single_op(expr, graph, cur_id, target_id, value_ids, op_id):
 def eval_expr(expr, graph, cur_id):
     if type(expr) == ast.Assign:
         #still have to add support for multiple assignments
+        target_id = str(cur_id)
         for target in expr.targets:
             target_id = str(cur_id)
-            graph.node(target_id, target.id)
+            graph.node(target_id, target.id + '\nwrite')
             cur_id += 1
         op_id = str(cur_id)
         cur_id += 1
@@ -53,28 +58,37 @@ def eval_expr(expr, graph, cur_id):
         cur_id += 2
         if type(expr.value) == ast.BinOp:
             cur_id = eval_single_op(expr.value, graph, cur_id, target_id, value_ids, op_id)
+        id_to_symbol.append([target.id, target_id, True])
         return cur_id
 
 # first pass over the basic block
-def graph_per_expr(node, names):
+def dfg_per_node(node):
     graph = gv.Digraph()
     cur_id = 0
     for expr in node.statements:
         cur_id = eval_expr(expr, graph, cur_id)
+    # walk backwards over statements, link reads to previous writes
+    i = len(id_to_symbol)-1
+    while i >= 0:
+        if not id_to_symbol[i][2]:
+            j = i-1
+            while j >= 0:
+                if id_to_symbol[j][2] and (id_to_symbol[j][0] == id_to_symbol[i][0]):
+                    graph.edge(id_to_symbol[j][1], id_to_symbol[i][1])
+                    break
+                j -= 1
+        i -= 1
     graph.render(path + 'pictures/' + benchmark + "_dfg_", view = True, format='jpeg')
-    
+    return 0
 
-def generate_dfg(node):
-    names = {}
-    graph_per_expr(node, names)
 
 
 def main():
-    global path, benchmark
+    global path, benchmark, id_to_symbol
     cfg = CFGBuilder().build_from_file('main.c', path + 'nonai_models/' + benchmark + '.py')
     cfg.build_visual(path + 'pictures/' + benchmark, 'jpeg', show = True)
     for node in cfg:
-        generate_dfg(node)
+        dfg_per_node(node)
     return 0
 
 if __name__ == "__main__":

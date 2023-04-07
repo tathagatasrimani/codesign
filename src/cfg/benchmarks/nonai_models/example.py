@@ -1,7 +1,7 @@
 def main(x, y):
-    q = 0.5 + x * y + 1 / 2 * 3 + 4 - 5 * 6 - 7
+    q = 0.5 + x * y + 1 / 2
     r = x + y
-    q = q * r
+    q = q * r - 3
     w = q + r
 
 if __name__ == "__main__":
