@@ -14,6 +14,8 @@ op_to_symbol = {
 }
 # format: node -> [symbol, id, write (true) or read (false)]
 node_to_symbols = {}
+# format: node -> {id -> dfg_node}
+graphs = {}
 
 class symbol:
     def __init__(self, value: str, num_id: str, write: bool):
@@ -21,30 +23,49 @@ class symbol:
         self.num_id = num_id
         self.write = write
 
+class Node:
+    def __init__(self, value: str):
+        self.value = value
+        self.children = []
+        self.parents = []
+
+class Graph:
+    def __init__(self, roots, id_to_Node):
+        self.roots = roots
+        self.id_to_Node = id_to_Node
+
 def process_operand(graph, cur_id, operand, operand_num, operation_num, node):
     if type(operand) == ast.Name:
-        graph.node(operand_num, operand.id + '\nread')
+        make_node(graph, node, operand_num, operand.id, '\nread')
+        make_edge(graph, node, operand_num, operation_num)
         node_to_symbols[node].append(symbol(operand.id, operand_num, False))
-        graph.edge(operand_num, operation_num)
     elif type(operand) == ast.BinOp:
-        cur_id += 3
-        cur_id = eval_single_op(operand, graph, cur_id, operation_num, [str(cur_id-2), str(cur_id-1)], str(cur_id-3), node)
+        op_id, value_ids, cur_id = set_ids(cur_id)
+        cur_id = eval_single_op(operand, graph, cur_id, operation_num, value_ids, op_id, node)
     else: #dealing with ast.Constant
         graph.node(operand_num, str(operand.value))
         graph.edge(operand_num, operation_num)
     return cur_id
 
-
+# for now, only working with ast.binop
+# add support for boolop
 def eval_single_op(expr, graph, cur_id, target_id, value_ids, op_id, node):
     global op_to_symbol, node_to_symbols
     sub_values = ASTUtils.get_sub_expr(expr)
     print(sub_values)
+    op_node = Node(op_to_symbol[ASTUtils.operator_to_opname(sub_values[1])])
     graph.node(op_id, op_to_symbol[ASTUtils.operator_to_opname(sub_values[1])])
+    graphs[node].id_to_Node[op_id] = op_node
+    graphs[node].roots.add(op_node)
     cur_id = process_operand(graph, cur_id, sub_values[0], value_ids[0], op_id, node)
     cur_id = process_operand(graph, cur_id, sub_values[2], value_ids[1], op_id, node)
-    graph.edge(op_id, target_id)
+    make_edge(graph, node, op_id, target_id)
     return cur_id
 
+def set_ids(cur_id):
+    op_id = str(cur_id)
+    value_ids = [str(cur_id+1), str(cur_id+2)]
+    return op_id, value_ids, cur_id + 3
 
 def eval_expr(expr, graph, cur_id, node):
     if type(expr) != ast.Assign and type(expr) != ast.AugAssign: return cur_id
@@ -52,21 +73,34 @@ def eval_expr(expr, graph, cur_id, node):
     if type(expr) == ast.Assign: target = expr.targets[0]
     elif type(expr) == ast.AugAssign: target = expr.target
     target_id = str(cur_id)
-    graph.node(target_id, target.id + '\nwrite')
     cur_id += 1
-    op_id = str(cur_id)
-    cur_id += 1
-    value_ids = [str(cur_id), str(cur_id + 1)]
-    cur_id += 2
+    op_id, value_ids, cur_id = set_ids(cur_id)
+    make_node(graph, node, target_id, target.id, '\nwrite')
     if type(expr) == ast.Assign:
         #still have to add support for multiple assignments
         if type(expr.value) == ast.BinOp:
             cur_id = eval_single_op(expr.value, graph, cur_id, target_id, value_ids, op_id, node)
     elif type(expr) == ast.AugAssign:
         cur_id = eval_single_op(ast.BinOp(expr.target, expr.op, expr.value), graph, cur_id, target_id, value_ids, op_id, node)
+    # adding the target node to node_to_symbols after the operands so that the inverse pass works correctly
     node_to_symbols[node].append(symbol(target.id, target_id, True))
     return cur_id
 
+# node for a non-literal
+def make_node(graph, cfg_node, id, name, annotation):
+    dfg_node = Node(name)
+    graph.node(id, name + annotation)
+    graphs[cfg_node].roots.add(dfg_node)
+    graphs[cfg_node].id_to_Node[id] = dfg_node
+
+# edge for a non-literal
+def make_edge(graph, node, source_id, target_id):
+    source, target = graphs[node].id_to_Node[source_id], graphs[node].id_to_Node[target_id]
+    graph.edge(source_id, target_id)
+    target_node = graphs[node].id_to_Node[target_id]
+    if target_node in graphs[node].roots: graphs[node].roots.remove(target_node)
+    source.children.append(target)
+    target.parents.append(source)
 
 # first pass over the basic block
 def dfg_per_node(node):
@@ -81,7 +115,7 @@ def dfg_per_node(node):
             j = i-1
             while j >= 0:
                 if node_to_symbols[node][j].write and (node_to_symbols[node][j].value == node_to_symbols[node][i].value):
-                    graph.edge(node_to_symbols[node][j].num_id, node_to_symbols[node][i].num_id)
+                    make_edge(graph, node, node_to_symbols[node][j].num_id, node_to_symbols[node][i].num_id)
                     break
                 j -= 1
         i -= 1
@@ -91,12 +125,20 @@ def dfg_per_node(node):
 
 
 def main():
-    global path, benchmark, node_to_symbols
+    global path, benchmark, node_to_symbols, graphs
     cfg = CFGBuilder().build_from_file('main.c', path + 'nonai_models/' + benchmark + '.py')
     cfg.build_visual(path + 'pictures/' + benchmark, 'jpeg', show = True)
     for node in cfg:
         node_to_symbols[node] = []
+        graphs[node] = Graph(set(), {})
         dfg_per_node(node)
+        for root in graphs[node].roots:
+            cur_node = root
+            while True:
+                print(cur_node.value)
+                if len(cur_node.children) == 0: break
+                cur_node = cur_node.children[0]
+            print('')
     return 0
 
 if __name__ == "__main__":
