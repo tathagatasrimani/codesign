@@ -1,7 +1,7 @@
 digraph {
 	0 [label="a
 write"]
-	1 [label="+"]
+	1 [label="-"]
 	2 [label="q
 read"]
 	2 -> 1
@@ -10,7 +10,7 @@ read"]
 	1 -> 0
 	4 [label="b
 write"]
-	5 [label="*"]
+	5 [label="/"]
 	6 [label="a
 read"]
 	6 -> 5
@@ -18,24 +18,5 @@ read"]
 read"]
 	7 -> 5
 	5 -> 4
-	8 [label="r
-write"]
-	9 [label="+"]
-	10 [label="r
-read"]
-	10 -> 9
-	12 [label="+"]
-	13 [label="a
-read"]
-	13 -> 12
-	15 [label="*"]
-	16 [label=3]
-	16 -> 15
-	17 [label=2]
-	17 -> 15
-	15 -> 12
-	12 -> 9
-	9 -> 8
-	0 -> 13
 	0 -> 6
 }

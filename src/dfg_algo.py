@@ -28,6 +28,7 @@ class Node:
         self.value = value
         self.children = []
         self.parents = []
+        self.order = 0
 
 class Graph:
     def __init__(self, roots, id_to_Node):
@@ -52,7 +53,7 @@ def process_operand(graph, cur_id, operand, operand_num, operation_num, node):
 def eval_single_op(expr, graph, cur_id, target_id, value_ids, op_id, node):
     global op_to_symbol, node_to_symbols
     sub_values = ASTUtils.get_sub_expr(expr)
-    print(sub_values)
+    #print(sub_values)
     op_node = Node(op_to_symbol[ASTUtils.operator_to_opname(sub_values[1])])
     graph.node(op_id, op_to_symbol[ASTUtils.operator_to_opname(sub_values[1])])
     graphs[node].id_to_Node[op_id] = op_node
@@ -124,7 +125,7 @@ def dfg_per_node(node):
 
 
 
-def main():
+def main_fn():
     global path, benchmark, node_to_symbols, graphs
     cfg = CFGBuilder().build_from_file('main.c', path + 'nonai_models/' + benchmark + '.py')
     cfg.build_visual(path + 'pictures/' + benchmark, 'jpeg', show = True)
@@ -135,11 +136,11 @@ def main():
         for root in graphs[node].roots:
             cur_node = root
             while True:
-                print(cur_node.value)
+                #print(cur_node.value)
                 if len(cur_node.children) == 0: break
                 cur_node = cur_node.children[0]
-            print('')
-    return 0
+            #print('')
+    return cfg, graphs
 
 if __name__ == "__main__":
-    main()
+    main_fn()
