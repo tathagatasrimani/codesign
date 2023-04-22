@@ -1,21 +1,21 @@
 digraph {
 	0 [label="a
-write"]
+Write"]
 	1 [label="-"]
 	2 [label="q
-read"]
+Read"]
 	2 -> 1
 	3 [label=3]
 	3 -> 1
 	1 -> 0
 	4 [label="b
-write"]
+Write"]
 	5 [label="/"]
 	6 [label="a
-read"]
+Read"]
 	6 -> 5
 	7 [label="r
-read"]
+Read"]
 	7 -> 5
 	5 -> 4
 	0 -> 6

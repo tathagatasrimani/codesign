@@ -1,10 +1,10 @@
 from dfg_algo import main_fn
 from collections import deque
-
+# format: cfg_node -> {states -> operations}
 node_operations = {}
 operation_sets = {}
 
-def main():
+def schedule():
     cfg, graphs = main_fn()
     for node in cfg:
         node_operations[node] = []
@@ -25,9 +25,10 @@ def main():
             node_operations[node][cur_node.order].append(cur_node)
         for state in node_operations[node]:
             for op in state:
-                print(op.order, op.value)
+                print(op.order, op.operation)
             print('')
+    return cfg, graphs, node_operations
         
 
 if __name__ == '__main__':
-    main()
+    schedule()

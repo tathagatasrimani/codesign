@@ -24,8 +24,9 @@ class symbol:
         self.write = write
 
 class Node:
-    def __init__(self, value: str):
+    def __init__(self, value: str, operation: str):
         self.value = value
+        self.operation = operation
         self.children = []
         self.parents = []
         self.order = 0
@@ -37,7 +38,7 @@ class Graph:
 
 def process_operand(graph, cur_id, operand, operand_num, operation_num, node):
     if type(operand) == ast.Name:
-        make_node(graph, node, operand_num, operand.id, '\nread')
+        make_node(graph, node, operand_num, operand.id, 'Read')
         make_edge(graph, node, operand_num, operation_num)
         node_to_symbols[node].append(symbol(operand.id, operand_num, False))
     elif type(operand) == ast.BinOp:
@@ -54,8 +55,9 @@ def eval_single_op(expr, graph, cur_id, target_id, value_ids, op_id, node):
     global op_to_symbol, node_to_symbols
     sub_values = ASTUtils.get_sub_expr(expr)
     #print(sub_values)
-    op_node = Node(op_to_symbol[ASTUtils.operator_to_opname(sub_values[1])])
-    graph.node(op_id, op_to_symbol[ASTUtils.operator_to_opname(sub_values[1])])
+    op_name = ASTUtils.operator_to_opname(sub_values[1])
+    op_node = Node(op_to_symbol[op_name], op_name)
+    graph.node(op_id, op_to_symbol[op_name])
     graphs[node].id_to_Node[op_id] = op_node
     graphs[node].roots.add(op_node)
     cur_id = process_operand(graph, cur_id, sub_values[0], value_ids[0], op_id, node)
@@ -76,7 +78,7 @@ def eval_expr(expr, graph, cur_id, node):
     target_id = str(cur_id)
     cur_id += 1
     op_id, value_ids, cur_id = set_ids(cur_id)
-    make_node(graph, node, target_id, target.id, '\nwrite')
+    make_node(graph, node, target_id, target.id, 'Write')
     if type(expr) == ast.Assign:
         #still have to add support for multiple assignments
         if type(expr.value) == ast.BinOp:
@@ -89,8 +91,8 @@ def eval_expr(expr, graph, cur_id, node):
 
 # node for a non-literal
 def make_node(graph, cfg_node, id, name, annotation):
-    dfg_node = Node(name)
-    graph.node(id, name + annotation)
+    dfg_node = Node(name, annotation)
+    graph.node(id, name + '\n' + annotation)
     graphs[cfg_node].roots.add(dfg_node)
     graphs[cfg_node].id_to_Node[id] = dfg_node
 
