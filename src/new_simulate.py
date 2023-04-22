@@ -3,10 +3,14 @@ from hls import HardwareModel
 from cfg.ast_utils import ASTUtils
 import ast
 import hls
+import math
+import json
 
 data = {}
 cycles = 0
 main_cfg = None
+path = '/Users/PatrickMcEwen/high_level_synthesis/venv/codesign/src/cfg/benchmarks/'
+benchmark = 'simple'
 
 def func_calls(expr, calls):
     if type(expr) == ast.Call:
@@ -24,10 +28,9 @@ def get_hw_need(state):
 def cycle_sim(hw_inuse, max_cycles):
     global cycles, data
     for i in range(max_cycles):
-        for elem in hw_inuse:
-            for j in range(len(hw_inuse[elem])):
-                if hw_inuse[elem][j] > 0:
-                    hw_inuse[elem][j] = max(0, hw_inuse[elem][j] - 1)
+        print("This is during cycle " + str(cycles))
+        print(hw_inuse)
+        print("")
         # save current state of hardware to data array
         cur_data = ""
         for elem in hw_inuse:
@@ -39,10 +42,11 @@ def cycle_sim(hw_inuse, max_cycles):
                         count += 1
                 cur_data += str(count) + "/" + str(len(hw_inuse[elem])) + " in use. || "
         data[cycles] = cur_data
-
-        print("This is after cycle " + str(cycles))
-        print(hw_inuse)
-        print("")
+        # simulate one cycle
+        for elem in hw_inuse:
+            for j in range(len(hw_inuse[elem])):
+                if hw_inuse[elem][j] > 0:
+                    hw_inuse[elem][j] = max(0, hw_inuse[elem][j] - 1)
         cycles += 1
 
 def simulate(cfg, node_operations, hw_spec, first):
@@ -74,21 +78,21 @@ def simulate(cfg, node_operations, hw_spec, first):
                 if cur_elem_count == 0: continue
                 if hw_spec[elem] < cur_elem_count: # this is just a basic condition, it might not work for every case
                     raise Exception("hardware specification insufficient to run program")
-                cur_cycles_needed = cur_elem_count * hls.latency[elem]
-                print("cycles needed for " + elem + ": " + str(cur_cycles_needed))
+                cur_cycles_needed = math.ceil(cur_elem_count / hw_spec[elem]) * hls.latency[elem]
+                print("cycles needed for " + elem + ": " + str(cur_cycles_needed) + ' (element count = ' + str(cur_elem_count) + ')')
                 max_cycles = max(cur_cycles_needed, max_cycles)
                 i = 0
-                while cur_cycles_needed > 0:
+                while cur_elem_count > 0:
                     hw_inuse[elem][i] += hls.latency[elem]
                     i = (i + 1) % hw_spec[elem]
-                    cur_cycles_needed -= hls.latency[elem]
+                    cur_elem_count -= 1
             cycle_sim(hw_inuse, max_cycles)
         if len(cur_node.exits) != 0:
             # dumb version, just take the first exit node each time
             cur_node = cur_node.exits[0].target
         else:
             break
-    return cycles, data
+    return data
 
 def main():
     cfg, graphs, node_operations = schedule()
@@ -99,7 +103,11 @@ def main():
     hw.hw_allocated['Sub'] = 1
     hw.hw_allocated['FloorDiv'] = 1
     hw.hw_allocated['Gt'] = 1
-    simulate(cfg, node_operations, hw.hw_allocated, first=True)
+    data = simulate(cfg, node_operations, hw.hw_allocated, first=True)
+    print(data)
+    text = json.dumps(data, indent=4)
+    with open(path + 'json_data/' + benchmark, 'w') as fh:
+        fh.write(text)
 
 if __name__ == '__main__':
     main()
