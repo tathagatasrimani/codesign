@@ -9,8 +9,10 @@ import json
 data = {}
 cycles = 0
 main_cfg = None
+id_to_node = {}
 path = '/Users/PatrickMcEwen/high_level_synthesis/venv/codesign/src/cfg/benchmarks/'
 benchmark = 'simple'
+data_path = []
 
 def func_calls(expr, calls):
     if type(expr) == ast.Call:
@@ -49,8 +51,8 @@ def cycle_sim(hw_inuse, max_cycles):
                     hw_inuse[elem][j] = max(0, hw_inuse[elem][j] - 1)
         cycles += 1
 
-def simulate(cfg, node_operations, hw_spec, first):
-    global main_cfg
+def simulate(cfg, data_path, node_operations, hw_spec, first):
+    global main_cfg, id_to_node
     cur_node = cfg.entryblock
     if first: 
         cur_node = cur_node.exits[0].target # skip over the first node in the main cfg
@@ -60,15 +62,8 @@ def simulate(cfg, node_operations, hw_spec, first):
         hw_inuse[elem] = [0] * hw_spec[elem]
     print(hw_inuse)
 
-    while True:
-        # find any function calls in the statement and step into them before we continue in the current function
-        # change this implementation once dfg_algo has support for function calls
-        for statement in cur_node.statements:
-            calls = []
-            func_calls(statement, calls)
-            if len(calls) != 0:
-                for call in calls[::-1]:
-                    simulate(main_cfg.functioncfgs[call], node_operations, hw_spec, False)
+    for elem in data_path:
+        cur_node = id_to_node[elem[0]]
         for state in node_operations[cur_node]:
             hw_need = get_hw_need(state)
             print(hw_need)
@@ -103,7 +98,25 @@ def main():
     hw.hw_allocated['Sub'] = 1
     hw.hw_allocated['FloorDiv'] = 1
     hw.hw_allocated['Gt'] = 1
-    data = simulate(cfg, node_operations, hw.hw_allocated, first=True)
+    for node in cfg:
+        id_to_node[str(node.id)] = node
+    # set up sequence of cfg nodes to visit
+    with open('/Users/PatrickMcEwen/high_level_synthesis/venv/codesign/src/output.txt', 'r') as f:
+        src = f.read()
+        l = src.split('\n')
+        for i in range(len(l)):
+            l[i] = l[i].split()
+        print(l)
+        last_line = '-1'
+        last_node = '-1'
+        for item in l:
+            if len(item) > 0 and (item[0] != last_node or item[1] == last_line):
+                last_node = item[0]
+                last_line = item[1]
+                data_path.append(item)
+        print(data_path)
+        
+    data = simulate(cfg, data_path, node_operations, hw.hw_allocated, first=True)
     print(data)
     text = json.dumps(data, indent=4)
     with open(path + 'json_data/' + benchmark, 'w') as fh:
