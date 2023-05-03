@@ -71,7 +71,7 @@ def simulate(cfg, data_path, node_operations, hw_spec, first):
             for elem in hw_need:
                 cur_elem_count = hw_need[elem]
                 if cur_elem_count == 0: continue
-                if hw_spec[elem] < cur_elem_count: # this is just a basic condition, it might not work for every case
+                if hw_spec[elem] == 0 and cur_elem_count > 0: # this is just a basic condition, it might not work for every case
                     raise Exception("hardware specification insufficient to run program")
                 cur_cycles_needed = math.ceil(cur_elem_count / hw_spec[elem]) * hls.latency[elem]
                 print("cycles needed for " + elem + ": " + str(cur_cycles_needed) + ' (element count = ' + str(cur_elem_count) + ')')
@@ -93,7 +93,7 @@ def main():
     cfg, graphs, node_operations = schedule()
     hw = HardwareModel(0, 0)
     hw.hw_allocated['Add'] = 2
-    hw.hw_allocated['Regs'] = 5
+    hw.hw_allocated['Regs'] = 3
     hw.hw_allocated['Mult'] = 1
     hw.hw_allocated['Sub'] = 1
     hw.hw_allocated['FloorDiv'] = 1
