@@ -1,0 +1,7 @@
+digraph {
+	0 [label="__mix_single_column
+Write"]
+	1 [label="s
+Read"]
+	1 -> 0
+}

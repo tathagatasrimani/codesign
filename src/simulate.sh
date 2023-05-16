@@ -1,7 +1,7 @@
 #!/bin/sh
 
 FILE_DIR=/Users/PatrickMcEwen/high_level_synthesis/venv/codesign/src
-
+# arguments like this: ./simulate.sh benchmarks/nonai_models/<name> <name>
 if [ $1 ]; then
     cd $FILE_DIR
     python3 instrument.py cfg/$1
