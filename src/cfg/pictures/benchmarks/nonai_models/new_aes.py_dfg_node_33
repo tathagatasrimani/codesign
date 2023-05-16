@@ -1,4 +1,12 @@
 digraph {
-	0 [label="round_keys
+	0 [label="source code:
+round_keys = text2matrix(master_key)
+"]
+	1 [label="round_keys
 Write"]
+	3 [label="text2matrix
+Write"]
+	4 [label="master_key
+Read"]
+	4 -> 3
 }

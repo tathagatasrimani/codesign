@@ -1,4 +1,10 @@
 digraph {
-	0 [label="s
+	0 [label="source code:
+s[i][j] = InvSbox[s[i][j]]
+"]
+	1 [label="s
 Write"]
+	2 [label="InvSbox
+Read"]
+	2 -> 1
 }

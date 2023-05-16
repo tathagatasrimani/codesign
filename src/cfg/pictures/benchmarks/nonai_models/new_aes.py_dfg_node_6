@@ -1,2 +1,5 @@
 digraph {
+	0 [label="source code:
+return a << 1
+"]
 }

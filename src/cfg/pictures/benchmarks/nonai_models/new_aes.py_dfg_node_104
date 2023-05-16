@@ -1,7 +1,10 @@
 digraph {
-	0 [label="__mix_columns
+	0 [label="source code:
+__mix_columns(s)
+"]
+	1 [label="__mix_columns
 Write"]
-	1 [label="s
+	2 [label="s
 Read"]
-	1 -> 0
+	2 -> 1
 }

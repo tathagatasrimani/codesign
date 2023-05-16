@@ -1,4 +1,7 @@
 digraph {
-	0 [label="matrix
+	0 [label="source code:
+matrix = []
+"]
+	1 [label="matrix
 Write"]
 }

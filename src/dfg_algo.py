@@ -91,9 +91,11 @@ def process_operand(graph, cur_id, operand, operand_num, operation_num, node):
             cur_id += 1
             cur_id = process_operand(graph, cur_id, arg, value_id, target_id, node)
         node_to_symbols[node].append(symbol(target.id, target_id, True))
-    else: #dealing with ast.Constant
+    elif type(operand) == ast.Constant:
         graph.node(operand_num, str(operand.value))
         graph.edge(operand_num, operation_num)
+    else: 
+        print("unsupported operand type" + str(type(operand)))
     return cur_id
 
 # for now, only working with ast.binop
@@ -127,10 +129,14 @@ def eval_expr(expr, graph, cur_id, node):
             target = target.value
         target_id = str(cur_id)
         cur_id += 1
-        op_id, value_ids, cur_id = set_ids(cur_id)
         make_node(graph, node, target_id, target.id, 'Write')
         if type(expr.value) == ast.BinOp:
+            op_id, value_ids, cur_id = set_ids(cur_id)
             cur_id = eval_single_op(expr.value, graph, cur_id, target_id, value_ids, op_id, node)
+        else:
+            operand_id = str(cur_id)
+            cur_id += 1
+            cur_id = process_operand(graph, cur_id, expr.value, operand_id, target_id, node)
         node_to_symbols[node].append(symbol(target.id, target_id, True))
     elif type(expr) == ast.AugAssign:
         target = expr.target
@@ -183,7 +189,8 @@ def make_edge(graph, node, source_id, target_id):
 # first pass over the basic block
 def dfg_per_node(node):
     graph = gv.Digraph()
-    cur_id = 0
+    graph.node('0', "source code:\n" + node.get_source())
+    cur_id = 1
     for expr in node.statements:
         cur_id = eval_expr(expr, graph, cur_id, node)
     # walk backwards over statements, link reads to previous writes

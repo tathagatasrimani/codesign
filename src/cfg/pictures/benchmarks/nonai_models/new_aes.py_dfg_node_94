@@ -1,125 +1,136 @@
 digraph {
-	0 [label="t
+	0 [label="source code:
+t = a[0] ^ a[1] ^ a[2] ^ a[3]
+u = a[0]
+a[0] ^= t ^ xtime(a[0] ^ a[1])
+a[1] ^= t ^ xtime(a[1] ^ a[2])
+a[2] ^= t ^ xtime(a[2] ^ a[3])
+a[3] ^= t ^ xtime(a[3] ^ u)
+"]
+	1 [label="t
 Write"]
-	1 [label="^"]
-	4 [label="^"]
-	7 [label="^"]
-	8 [label="a
-Read"]
-	8 -> 7
+	2 [label="^"]
+	5 [label="^"]
+	8 [label="^"]
 	9 [label="a
 Read"]
-	9 -> 7
-	7 -> 4
-	6 [label="a
+	9 -> 8
+	10 [label="a
 Read"]
-	6 -> 4
-	4 -> 1
-	3 [label="a
+	10 -> 8
+	8 -> 5
+	7 [label="a
 Read"]
-	3 -> 1
-	1 -> 0
-	10 [label="u
+	7 -> 5
+	5 -> 2
+	4 [label="a
+Read"]
+	4 -> 2
+	2 -> 1
+	11 [label="u
 Write"]
-	14 [label="a
-Write"]
-	15 [label="^"]
-	16 [label="a
+	12 [label="a
 Read"]
-	16 -> 15
-	18 [label="^"]
-	19 [label="t
-Read"]
-	19 -> 18
-	21 [label="xtime
+	12 -> 11
+	13 [label="a
 Write"]
-	23 [label="^"]
+	14 [label="^"]
+	15 [label="a
+Read"]
+	15 -> 14
+	17 [label="^"]
+	18 [label="t
+Read"]
+	18 -> 17
+	20 [label="xtime
+Write"]
+	22 [label="^"]
+	23 [label="a
+Read"]
+	23 -> 22
 	24 [label="a
 Read"]
-	24 -> 23
+	24 -> 22
+	22 -> 20
+	17 -> 14
+	14 -> 13
 	25 [label="a
-Read"]
-	25 -> 23
-	23 -> 21
-	18 -> 15
-	15 -> 14
-	26 [label="a
 Write"]
-	27 [label="^"]
-	28 [label="a
+	26 [label="^"]
+	27 [label="a
 Read"]
-	28 -> 27
-	30 [label="^"]
-	31 [label="t
+	27 -> 26
+	29 [label="^"]
+	30 [label="t
 Read"]
-	31 -> 30
-	33 [label="xtime
+	30 -> 29
+	32 [label="xtime
 Write"]
-	35 [label="^"]
+	34 [label="^"]
+	35 [label="a
+Read"]
+	35 -> 34
 	36 [label="a
 Read"]
-	36 -> 35
+	36 -> 34
+	34 -> 32
+	29 -> 26
+	26 -> 25
 	37 [label="a
-Read"]
-	37 -> 35
-	35 -> 33
-	30 -> 27
-	27 -> 26
-	38 [label="a
 Write"]
-	39 [label="^"]
-	40 [label="a
+	38 [label="^"]
+	39 [label="a
 Read"]
-	40 -> 39
-	42 [label="^"]
-	43 [label="t
+	39 -> 38
+	41 [label="^"]
+	42 [label="t
 Read"]
-	43 -> 42
-	45 [label="xtime
+	42 -> 41
+	44 [label="xtime
 Write"]
-	47 [label="^"]
+	46 [label="^"]
+	47 [label="a
+Read"]
+	47 -> 46
 	48 [label="a
 Read"]
-	48 -> 47
+	48 -> 46
+	46 -> 44
+	41 -> 38
+	38 -> 37
 	49 [label="a
-Read"]
-	49 -> 47
-	47 -> 45
-	42 -> 39
-	39 -> 38
-	50 [label="a
 Write"]
-	51 [label="^"]
-	52 [label="a
+	50 [label="^"]
+	51 [label="a
 Read"]
-	52 -> 51
-	54 [label="^"]
-	55 [label="t
-Read"]
-	55 -> 54
-	57 [label="xtime
-Write"]
-	59 [label="^"]
-	60 [label="a
-Read"]
-	60 -> 59
-	61 [label="u
-Read"]
-	61 -> 59
-	59 -> 57
-	54 -> 51
 	51 -> 50
-	10 -> 61
-	38 -> 60
-	0 -> 55
-	38 -> 52
-	26 -> 49
-	26 -> 48
-	0 -> 43
-	26 -> 40
-	14 -> 37
-	14 -> 36
-	0 -> 31
-	14 -> 28
-	0 -> 19
+	53 [label="^"]
+	54 [label="t
+Read"]
+	54 -> 53
+	56 [label="xtime
+Write"]
+	58 [label="^"]
+	59 [label="a
+Read"]
+	59 -> 58
+	60 [label="u
+Read"]
+	60 -> 58
+	58 -> 56
+	53 -> 50
+	50 -> 49
+	11 -> 60
+	37 -> 59
+	1 -> 54
+	37 -> 51
+	25 -> 48
+	25 -> 47
+	1 -> 42
+	25 -> 39
+	13 -> 36
+	13 -> 35
+	1 -> 30
+	13 -> 27
+	1 -> 18
 }

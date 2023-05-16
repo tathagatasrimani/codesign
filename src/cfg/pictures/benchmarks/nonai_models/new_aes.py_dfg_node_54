@@ -1,25 +1,36 @@
 digraph {
-	0 [label="cipher_state
+	0 [label="source code:
+cipher_state = text2matrix(ciphertext)
+__add_round_key(cipher_state, round_keys[40:])
+__inv_shift_rows(cipher_state)
+__inv_sub_bytes(cipher_state)
+"]
+	1 [label="cipher_state
 Write"]
-	4 [label="__add_round_key
+	3 [label="text2matrix
 Write"]
-	5 [label="cipher_state
+	4 [label="ciphertext
 Read"]
-	5 -> 4
-	6 [label="round_keys
-Read"]
-	6 -> 4
-	7 [label="__inv_shift_rows
+	4 -> 3
+	5 [label="__add_round_key
 Write"]
-	8 [label="cipher_state
+	6 [label="cipher_state
 Read"]
-	8 -> 7
-	9 [label="__inv_sub_bytes
+	6 -> 5
+	7 [label="round_keys
+Read"]
+	7 -> 5
+	8 [label="__inv_shift_rows
 Write"]
-	10 [label="cipher_state
+	9 [label="cipher_state
 Read"]
-	10 -> 9
-	0 -> 10
-	0 -> 8
-	0 -> 5
+	9 -> 8
+	10 [label="__inv_sub_bytes
+Write"]
+	11 [label="cipher_state
+Read"]
+	11 -> 10
+	1 -> 11
+	1 -> 9
+	1 -> 6
 }

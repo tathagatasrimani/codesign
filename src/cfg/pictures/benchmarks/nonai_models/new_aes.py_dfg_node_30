@@ -1,7 +1,10 @@
 digraph {
-	0 [label="change_key
+	0 [label="source code:
+change_key(master_key)
+"]
+	1 [label="change_key
 Write"]
-	1 [label="master_key
+	2 [label="master_key
 Read"]
-	1 -> 0
+	2 -> 1
 }
