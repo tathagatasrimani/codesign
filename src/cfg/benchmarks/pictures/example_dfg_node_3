@@ -1,0 +1,62 @@
+digraph {
+	0 [label="q
+Write"]
+	1 [label="+"]
+	4 [label="+"]
+	5 [label=0.5]
+	5 -> 4
+	7 [label="*"]
+	8 [label="x
+Read"]
+	8 -> 7
+	9 [label="y
+Read"]
+	9 -> 7
+	7 -> 4
+	4 -> 1
+	10 [label="/"]
+	11 [label=1]
+	11 -> 10
+	12 [label=2]
+	12 -> 10
+	10 -> 1
+	1 -> 0
+	13 [label="r
+Write"]
+	14 [label="+"]
+	15 [label="x
+Read"]
+	15 -> 14
+	16 [label="y
+Read"]
+	16 -> 14
+	14 -> 13
+	17 [label="q
+Write"]
+	18 [label="-"]
+	21 [label="*"]
+	22 [label="q
+Read"]
+	22 -> 21
+	23 [label="r
+Read"]
+	23 -> 21
+	21 -> 18
+	20 [label=3]
+	20 -> 18
+	18 -> 17
+	24 [label="w
+Write"]
+	25 [label="+"]
+	26 [label="q
+Read"]
+	26 -> 25
+	27 [label="r
+Read"]
+	27 -> 25
+	25 -> 24
+	13 -> 27
+	17 -> 26
+	13 -> 23
+	0 -> 22
+}

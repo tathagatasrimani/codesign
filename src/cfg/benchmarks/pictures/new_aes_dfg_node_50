@@ -1,0 +1,20 @@
+digraph {
+	0 [label="__sub_bytes
+Write"]
+	1 [label="plain_state
+Read"]
+	1 -> 0
+	2 [label="__shift_rows
+Write"]
+	3 [label="plain_state
+Read"]
+	3 -> 2
+	4 [label="__add_round_key
+Write"]
+	5 [label="plain_state
+Read"]
+	5 -> 4
+	6 [label="round_keys
+Read"]
+	6 -> 4
+}

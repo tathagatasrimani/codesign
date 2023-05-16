@@ -4,13 +4,32 @@ import ast
 from cfg.staticfg.builder import CFGBuilder
 from cfg.ast_utils import ASTUtils
 
-path = '/Users/PatrickMcEwen/high_level_synthesis/venv/codesign/src/cfg/benchmarks/'
-benchmark = 'example'
+path = '/Users/PatrickMcEwen/high_level_synthesis/venv/codesign/src/cfg/'
+benchmark = 'new_aes'
 op_to_symbol = {
-    'Mult': '*',
-    'Add': '+',
-    'Sub': '-',
-    'FloorDiv': '/',
+    "And": "and",
+    "Or": "or",
+    "Add": "+",
+    "Sub": "-",
+    "Mult": "*",
+    "FloorDiv": "//",
+    "Mod": "%",
+    "LShift": "<<",
+    "RShift": ">>",
+    "BitOr": "|",
+    "BitXor": "^",
+    "BitAnd": "&",
+    "Eq": "==",
+    "NotEq": "!=",
+    "Lt": "<",
+    "LtE": "<=",
+    "Gt": ">",
+    "GtE": ">=",
+    "IsNot": "!=",
+    "USub": "-",
+    "UAdd": "+",
+    "Not": "!",
+    "Invert": "~",
 }
 # format: node -> [symbol, id, write (true) or read (false)]
 node_to_symbols = {}
@@ -36,7 +55,10 @@ class Graph:
         self.roots = roots
         self.id_to_Node = id_to_Node
 
+# more generally, for one piece of data flowing to another location
+# operand is the source of the data and operation is the destination
 def process_operand(graph, cur_id, operand, operand_num, operation_num, node):
+    global node_to_symbols
     if type(operand) == ast.Name:
         make_node(graph, node, operand_num, operand.id, 'Read')
         make_edge(graph, node, operand_num, operation_num)
@@ -44,6 +66,31 @@ def process_operand(graph, cur_id, operand, operand_num, operation_num, node):
     elif type(operand) == ast.BinOp:
         op_id, value_ids, cur_id = set_ids(cur_id)
         cur_id = eval_single_op(operand, graph, cur_id, operation_num, value_ids, op_id, node)
+    elif type(operand) == ast.Attribute:
+        cur_id = process_operand(graph, cur_id, ast.Name(operand.attr), operand_num, operation_num, node)
+    elif type(operand) == ast.List:
+        for elt in operand.elts:
+            cur_id = process_operand(graph, cur_id, elt, operand_num, operation_num, node)
+            operand_num = str(cur_id)
+            cur_id += 1
+    elif type(operand) == ast.Subscript:
+        # ignoring the slice for now
+        cur_id = process_operand(graph, cur_id, operand.value, operand_num, operation_num, node)
+    elif type(operand) == ast.Call:
+        target = operand.func
+        if type(target) == ast.Attribute:
+            # this should be a name
+            target = target.value
+        while type(target) == ast.Subscript:
+            target = target.value
+        target_id = str(cur_id)
+        cur_id += 1
+        make_node(graph, node, target_id, target.id, 'Write')
+        for arg in operand.args:
+            value_id = str(cur_id)
+            cur_id += 1
+            cur_id = process_operand(graph, cur_id, arg, value_id, target_id, node)
+        node_to_symbols[node].append(symbol(target.id, target_id, True))
     else: #dealing with ast.Constant
         graph.node(operand_num, str(operand.value))
         graph.edge(operand_num, operation_num)
@@ -71,22 +118,50 @@ def set_ids(cur_id):
     return op_id, value_ids, cur_id + 3
 
 def eval_expr(expr, graph, cur_id, node):
-    if type(expr) != ast.Assign and type(expr) != ast.AugAssign: return cur_id
-    target = None
-    if type(expr) == ast.Assign: target = expr.targets[0]
-    elif type(expr) == ast.AugAssign: target = expr.target
-    target_id = str(cur_id)
-    cur_id += 1
-    op_id, value_ids, cur_id = set_ids(cur_id)
-    make_node(graph, node, target_id, target.id, 'Write')
     if type(expr) == ast.Assign:
-        #still have to add support for multiple assignments
+        target = expr.targets[0]
+        if type(target) == ast.Attribute:
+            # this should be a name
+            target = ast.Name(target.attr)
+        while type(target) == ast.Subscript:
+            target = target.value
+        target_id = str(cur_id)
+        cur_id += 1
+        op_id, value_ids, cur_id = set_ids(cur_id)
+        make_node(graph, node, target_id, target.id, 'Write')
         if type(expr.value) == ast.BinOp:
             cur_id = eval_single_op(expr.value, graph, cur_id, target_id, value_ids, op_id, node)
+        node_to_symbols[node].append(symbol(target.id, target_id, True))
     elif type(expr) == ast.AugAssign:
+        target = expr.target
+        if type(target) == ast.Attribute:
+            # this should be a name
+            target = ast.Name(target.attr)
+        while type(target) == ast.Subscript:
+            target = target.value
+        target_id = str(cur_id)
+        cur_id += 1
+        op_id, value_ids, cur_id = set_ids(cur_id)
+        make_node(graph, node, target_id, target.id, 'Write')
         cur_id = eval_single_op(ast.BinOp(expr.target, expr.op, expr.value), graph, cur_id, target_id, value_ids, op_id, node)
-    # adding the target node to node_to_symbols after the operands so that the inverse pass works correctly
-    node_to_symbols[node].append(symbol(target.id, target_id, True))
+        node_to_symbols[node].append(symbol(target.id, target_id, True))
+    elif type(expr) == ast.Call:
+        target = expr.func
+        if type(target) == ast.Attribute:
+            # this should be a name
+            target = target.value
+        while type(target) == ast.Subscript:
+            target = target.value
+        target_id = str(cur_id)
+        cur_id += 1
+        make_node(graph, node, target_id, target.id, 'Write')
+        for arg in expr.args:
+            value_id = str(cur_id)
+            cur_id += 1
+            cur_id = process_operand(graph, cur_id, arg, value_id, target_id, node)
+        node_to_symbols[node].append(symbol(target.id, target_id, True))
+    elif type(expr) == ast.Expr:
+        cur_id = eval_expr(expr.value, graph, cur_id, node)
     return cur_id
 
 # node for a non-literal
@@ -122,14 +197,16 @@ def dfg_per_node(node):
                     break
                 j -= 1
         i -= 1
-    graph.render(path + 'pictures/' + benchmark + "_dfg_", view = True, format='jpeg')
+    graph.render(path + 'pictures/' + benchmark + "_dfg_node_" + str(node.id), view = True, format='jpeg')
     return 0
 
 
 
-def main_fn():
+def main_fn(benchmark_in):
     global path, benchmark, node_to_symbols, graphs
-    cfg = CFGBuilder().build_from_file('main.c', path + 'nonai_models/' + benchmark + '.py')
+    if benchmark_in != "":
+        benchmark = benchmark_in
+    cfg = CFGBuilder().build_from_file('main.c', path + benchmark)
     cfg.build_visual(path + 'pictures/' + benchmark, 'jpeg', show = True)
     for node in cfg:
         node_to_symbols[node] = []
@@ -145,4 +222,4 @@ def main_fn():
     return cfg, graphs
 
 if __name__ == "__main__":
-    main_fn()
+    main_fn("")

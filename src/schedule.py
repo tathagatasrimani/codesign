@@ -4,9 +4,10 @@ from collections import deque
 node_operations = {}
 operation_sets = {}
 
-def schedule():
-    cfg, graphs = main_fn()
+def schedule(benchmark):
+    cfg, graphs = main_fn(benchmark)
     for node in cfg:
+        print(node.id)
         node_operations[node] = []
         operation_sets[node] = set()
         graph = graphs[node]
@@ -31,4 +32,4 @@ def schedule():
         
 
 if __name__ == '__main__':
-    schedule()
+    schedule("")

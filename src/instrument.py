@@ -104,14 +104,13 @@ def instrument_and_run(filepath:str):
     with open(filepath, 'r') as src_file:
         src = src_file.read()
         cfg = CFGBuilder().build_from_file('main.c', filepath)
-        cfg.build_visual(filepath + 'cfg/benchmarks/nonai_models/pictures/testme.py', 'jpeg', show = False)
         for node in cfg:
             for statement in node.statements:
                 lineno_to_node[statement.lineno] = node.id
         codeobj = compile(src, 'tmp.py', 'exec')
         tree = ast.parse(src, mode='exec')
-        dest_filepath = "xformed-%s" % filepath
-        print(tree)
+        names = filepath.split('/')
+        dest_filepath = "xformed-%s" % names[-1]
         instr = ProgramInstrumentor()
         rewrite_tree = instr.visit(tree)
         with open(dest_filepath, 'w') as fh:

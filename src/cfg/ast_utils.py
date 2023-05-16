@@ -67,6 +67,16 @@ class ASTUtils:
             return "FloorDiv"
         elif type(op) == ast.Mod:
             return "Mod"
+        elif type(op) == ast.LShift:
+            return "LShift"
+        elif type(op) == ast.RShift:
+            return "RShift"
+        elif type(op) == ast.BitOr:
+            return "BitOr"
+        elif type(op) == ast.BitAnd:
+            return "BitAnd"
+        elif type(op) == ast.BitXor:
+            return "BitXor"
         else:
             raise Exception("unhandled binary operator <%s>" % op)
 

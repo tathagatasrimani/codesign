@@ -1,0 +1,16 @@
+digraph {
+	0 [label="main
+Write"]
+	2 [label="+"]
+	3 [label=2]
+	3 -> 2
+	4 [label=3]
+	4 -> 2
+	2 -> 0
+	6 [label="+"]
+	7 [label=5]
+	7 -> 6
+	8 [label=4]
+	8 -> 6
+	6 -> 0
+}

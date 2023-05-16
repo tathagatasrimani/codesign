@@ -1,0 +1,22 @@
+digraph {
+	0 [label="matrix
+Write"]
+	4 [label="bruh
+Write"]
+	8 [label="matrix
+Write"]
+	9 [label=2]
+	9 -> 8
+	10 [label="len
+Write"]
+	11 [label="matrix
+Read"]
+	11 -> 10
+	12 [label="print
+Write"]
+	13 [label="matrix
+Read"]
+	13 -> 12
+	8 -> 13
+	8 -> 11
+}

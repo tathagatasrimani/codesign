@@ -1,0 +1,50 @@
+digraph {
+	0 [label="b
+Write"]
+	1 [label="*"]
+	4 [label="+"]
+	5 [label="a
+Read"]
+	5 -> 4
+	6 [label=4]
+	6 -> 4
+	4 -> 1
+	3 [label=2]
+	3 -> 1
+	1 -> 0
+	7 [label="c
+Write"]
+	8 [label="+"]
+	9 [label="b
+Read"]
+	9 -> 8
+	10 [label="a
+Read"]
+	10 -> 8
+	8 -> 7
+	11 [label="d
+Write"]
+	12 [label="*"]
+	13 [label="c
+Read"]
+	13 -> 12
+	14 [label="b
+Read"]
+	14 -> 12
+	12 -> 11
+	15 [label="e
+Write"]
+	16 [label="//"]
+	19 [label="other_func
+Write"]
+	20 [label="d
+Read"]
+	20 -> 19
+	18 [label=2]
+	18 -> 16
+	16 -> 15
+	11 -> 20
+	0 -> 14
+	7 -> 13
+	0 -> 9
+}

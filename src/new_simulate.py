@@ -5,6 +5,7 @@ import ast
 import hls
 import math
 import json
+import sys
 
 data = {}
 cycles = 0
@@ -73,7 +74,7 @@ def simulate(cfg, data_path, node_operations, hw_spec, first):
                 if cur_elem_count == 0: continue
                 if hw_spec[elem] == 0 and cur_elem_count > 0: # this is just a basic condition, it might not work for every case
                     raise Exception("hardware specification insufficient to run program")
-                cur_cycles_needed = math.ceil(cur_elem_count / hw_spec[elem]) * hls.latency[elem]
+                cur_cycles_needed = int(math.ceil(cur_elem_count / hw_spec[elem]) * hls.latency[elem])
                 print("cycles needed for " + elem + ": " + str(cur_cycles_needed) + ' (element count = ' + str(cur_elem_count) + ')')
                 max_cycles = max(cur_cycles_needed, max_cycles)
                 i = 0
@@ -82,15 +83,12 @@ def simulate(cfg, data_path, node_operations, hw_spec, first):
                     i = (i + 1) % hw_spec[elem]
                     cur_elem_count -= 1
             cycle_sim(hw_inuse, max_cycles)
-        if len(cur_node.exits) != 0:
-            # dumb version, just take the first exit node each time
-            cur_node = cur_node.exits[0].target
-        else:
-            break
     return data
 
 def main():
-    cfg, graphs, node_operations = schedule()
+    if len(sys.argv) > 1:
+        benchmark = sys.argv[1]
+    cfg, graphs, node_operations = schedule(sys.argv[1])
     hw = HardwareModel(0, 0)
     hw.hw_allocated['Add'] = 2
     hw.hw_allocated['Regs'] = 3
@@ -98,6 +96,20 @@ def main():
     hw.hw_allocated['Sub'] = 1
     hw.hw_allocated['FloorDiv'] = 1
     hw.hw_allocated['Gt'] = 1
+    hw.hw_allocated['And'] = 1
+    hw.hw_allocated['Or'] = 1
+    hw.hw_allocated['Mod'] = 1
+    hw.hw_allocated['LShift'] = 1
+    hw.hw_allocated['RShift'] = 1
+    hw.hw_allocated['BitOr'] = 1
+    hw.hw_allocated['BitXor'] = 1
+    hw.hw_allocated['BitAnd'] = 1
+    hw.hw_allocated['Eq'] = 1
+    hw.hw_allocated['NotEq'] = 1
+    hw.hw_allocated['Lt'] = 1
+    hw.hw_allocated['LtE'] = 1
+    hw.hw_allocated['Gt'] = 1
+    hw.hw_allocated['GtE'] = 1
     for node in cfg:
         id_to_node[str(node.id)] = node
     # set up sequence of cfg nodes to visit
@@ -110,16 +122,14 @@ def main():
         last_line = '-1'
         last_node = '-1'
         for item in l:
-            if len(item) > 0 and (item[0] != last_node or item[1] == last_line):
+            if len(item) == 2 and (item[0] != last_node or item[1] == last_line):
                 last_node = item[0]
                 last_line = item[1]
-                data_path.append(item)
-        print(data_path)
-        
+                data_path.append(item)      
     data = simulate(cfg, data_path, node_operations, hw.hw_allocated, first=True)
-    print(data)
     text = json.dumps(data, indent=4)
-    with open(path + 'json_data/' + benchmark, 'w') as fh:
+    names = sys.argv[1].split('/')
+    with open(path + 'json_data/' + names[-1], 'w') as fh:
         fh.write(text)
 
 if __name__ == '__main__':

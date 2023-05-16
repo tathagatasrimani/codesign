@@ -1,0 +1,8 @@
+digraph {
+	0 [label="Sbox
+Write"]
+	4 [label="InvSbox
+Write"]
+	8 [label="Rcon
+Write"]
+}
