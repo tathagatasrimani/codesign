@@ -1,0 +1,29 @@
+digraph {
+	0 [label="source code:
+k = int(Column[j])
+temp += Value[j] * matrix2[k][0]
+"]
+	1 [label="k
+Write"]
+	3 [label="int
+Write"]
+	4 [label="Column
+Read"]
+	4 -> 3
+	3 -> 1
+	5 [label="temp
+Write"]
+	6 [label="+"]
+	7 [label="temp
+Read"]
+	7 -> 6
+	9 [label="*"]
+	10 [label="Value
+Read"]
+	10 -> 9
+	11 [label="matrix2
+Read"]
+	11 -> 9
+	9 -> 6
+	6 -> 5
+}

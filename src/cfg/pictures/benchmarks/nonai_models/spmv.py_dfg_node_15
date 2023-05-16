@@ -1,0 +1,27 @@
+digraph {
+	0 [label="source code:
+start = int(RowPtr[i])
+end = int(RowPtr[i + 1])
+temp = 0
+"]
+	1 [label="start
+Write"]
+	3 [label="int
+Write"]
+	4 [label="RowPtr
+Read"]
+	4 -> 3
+	3 -> 1
+	5 [label="end
+Write"]
+	7 [label="int
+Write"]
+	8 [label="RowPtr
+Read"]
+	8 -> 7
+	7 -> 5
+	9 [label="temp
+Write"]
+	10 [label=0]
+	10 -> 9
+}

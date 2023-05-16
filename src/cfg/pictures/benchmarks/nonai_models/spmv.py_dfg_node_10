@@ -1,0 +1,32 @@
+digraph {
+	0 [label="source code:
+Value = np.append(Value, np.array(matrix1[i][j]))
+Column = np.append(Column, j)
+if flag == 1:
+"]
+	1 [label="Value
+Write"]
+	3 [label="np
+Write"]
+	4 [label="Value
+Read"]
+	4 -> 3
+	6 [label="np
+Write"]
+	7 [label="matrix1
+Read"]
+	7 -> 6
+	6 -> 3
+	3 -> 1
+	8 [label="Column
+Write"]
+	10 [label="np
+Write"]
+	11 [label="Column
+Read"]
+	11 -> 10
+	12 [label="j
+Read"]
+	12 -> 10
+	10 -> 8
+}

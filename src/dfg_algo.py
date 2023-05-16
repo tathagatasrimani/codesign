@@ -5,7 +5,7 @@ from cfg.staticfg.builder import CFGBuilder
 from cfg.ast_utils import ASTUtils
 
 path = '/Users/PatrickMcEwen/high_level_synthesis/venv/codesign/src/cfg/'
-benchmark = 'new_aes'
+benchmark = 'benchmarks/nonai_models/spmv.py'
 op_to_symbol = {
     "And": "and",
     "Or": "or",
@@ -78,7 +78,7 @@ def process_operand(graph, cur_id, operand, operand_num, operation_num, node):
         cur_id = process_operand(graph, cur_id, operand.value, operand_num, operation_num, node)
     elif type(operand) == ast.Call:
         target = operand.func
-        if type(target) == ast.Attribute:
+        while type(target) == ast.Attribute:
             # this should be a name
             target = target.value
         while type(target) == ast.Subscript:
@@ -91,6 +91,7 @@ def process_operand(graph, cur_id, operand, operand_num, operation_num, node):
             cur_id += 1
             cur_id = process_operand(graph, cur_id, arg, value_id, target_id, node)
         node_to_symbols[node].append(symbol(target.id, target_id, True))
+        graph.edge(target_id, operation_num)
     elif type(operand) == ast.Constant:
         graph.node(operand_num, str(operand.value))
         graph.edge(operand_num, operation_num)
@@ -122,7 +123,7 @@ def set_ids(cur_id):
 def eval_expr(expr, graph, cur_id, node):
     if type(expr) == ast.Assign:
         target = expr.targets[0]
-        if type(target) == ast.Attribute:
+        while type(target) == ast.Attribute:
             # this should be a name
             target = ast.Name(target.attr)
         while type(target) == ast.Subscript:
@@ -140,7 +141,7 @@ def eval_expr(expr, graph, cur_id, node):
         node_to_symbols[node].append(symbol(target.id, target_id, True))
     elif type(expr) == ast.AugAssign:
         target = expr.target
-        if type(target) == ast.Attribute:
+        while type(target) == ast.Attribute:
             # this should be a name
             target = ast.Name(target.attr)
         while type(target) == ast.Subscript:
@@ -153,7 +154,7 @@ def eval_expr(expr, graph, cur_id, node):
         node_to_symbols[node].append(symbol(target.id, target_id, True))
     elif type(expr) == ast.Call:
         target = expr.func
-        if type(target) == ast.Attribute:
+        while type(target) == ast.Attribute:
             # this should be a name
             target = target.value
         while type(target) == ast.Subscript:
