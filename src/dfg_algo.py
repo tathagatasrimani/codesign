@@ -78,11 +78,10 @@ def process_operand(graph, cur_id, operand, operand_num, operation_num, node):
         cur_id = process_operand(graph, cur_id, operand.value, operand_num, operation_num, node)
     elif type(operand) == ast.Call:
         target = operand.func
-        while type(target) == ast.Attribute:
+        while type(target) == ast.Attribute or type(target) == ast.Subscript:
             # this should be a name
             target = target.value
-        while type(target) == ast.Subscript:
-            target = target.value
+        if type(target) == ast.Tuple: return cur_id
         target_id = str(cur_id)
         cur_id += 1
         make_node(graph, node, target_id, target.id, 'Write')
@@ -123,11 +122,10 @@ def set_ids(cur_id):
 def eval_expr(expr, graph, cur_id, node):
     if type(expr) == ast.Assign:
         target = expr.targets[0]
-        while type(target) == ast.Attribute:
+        while type(target) == ast.Attribute or type(target) == ast.Subscript:
             # this should be a name
-            target = ast.Name(target.attr)
-        while type(target) == ast.Subscript:
             target = target.value
+        if type(target) == ast.Tuple: return cur_id
         target_id = str(cur_id)
         cur_id += 1
         make_node(graph, node, target_id, target.id, 'Write')
@@ -141,11 +139,10 @@ def eval_expr(expr, graph, cur_id, node):
         node_to_symbols[node].append(symbol(target.id, target_id, True))
     elif type(expr) == ast.AugAssign:
         target = expr.target
-        while type(target) == ast.Attribute:
+        while type(target) == ast.Attribute or type(target) == ast.Subscript:
             # this should be a name
-            target = ast.Name(target.attr)
-        while type(target) == ast.Subscript:
             target = target.value
+        if type(target) == ast.Tuple: return cur_id
         target_id = str(cur_id)
         cur_id += 1
         op_id, value_ids, cur_id = set_ids(cur_id)
@@ -154,11 +151,10 @@ def eval_expr(expr, graph, cur_id, node):
         node_to_symbols[node].append(symbol(target.id, target_id, True))
     elif type(expr) == ast.Call:
         target = expr.func
-        while type(target) == ast.Attribute:
+        while type(target) == ast.Attribute or type(target) == ast.Subscript:
             # this should be a name
             target = target.value
-        while type(target) == ast.Subscript:
-            target = target.value
+        if type(target) == ast.Tuple: return cur_id
         target_id = str(cur_id)
         cur_id += 1
         make_node(graph, node, target_id, target.id, 'Write')

@@ -1,0 +1,26 @@
+digraph {
+	0 [label="source code:
+self.__sub_bytes(self.plain_state)
+self.__shift_rows(self.plain_state)
+self.__add_round_key(self.plain_state, self.round_keys[40:])
+return matrix2text(self.plain_state)
+"]
+	1 [label="self
+Write"]
+	2 [label="plain_state
+Read"]
+	2 -> 1
+	3 [label="self
+Write"]
+	4 [label="plain_state
+Read"]
+	4 -> 3
+	5 [label="self
+Write"]
+	6 [label="plain_state
+Read"]
+	6 -> 5
+	7 [label="round_keys
+Read"]
+	7 -> 5
+}

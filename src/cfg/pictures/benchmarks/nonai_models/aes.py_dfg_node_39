@@ -1,0 +1,22 @@
+digraph {
+	0 [label="source code:
+byte = self.round_keys[i - 4][j] ^ Sbox[self.round_keys[i - 1][(j + 1) % 4]]
+self.round_keys[i].append(byte)
+"]
+	1 [label="byte
+Write"]
+	2 [label="^"]
+	3 [label="round_keys
+Read"]
+	3 -> 2
+	4 [label="Sbox
+Read"]
+	4 -> 2
+	2 -> 1
+	5 [label="self
+Write"]
+	6 [label="byte
+Read"]
+	6 -> 5
+	1 -> 6
+}

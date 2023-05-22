@@ -1,11 +1,39 @@
 from schedule import schedule
 from hls import HardwareModel
 from cfg.ast_utils import ASTUtils
+import matplotlib.pyplot as plt
 import ast
 import hls
 import math
 import json
 import sys
+
+power = {
+    "And": 32 * [1.010606e-02, 7.950398e-03, 1.805590e-02, 1.805590e-02, 6.111633e-04],
+    "Or": 32 * [1.010606e-02, 7.950398e-03, 1.805590e-02, 1.805590e-02, 6.111633e-04],
+    "Add": [2.537098e00, 3.022642e00, 5.559602e00, 1.667880e01, 5.311069e-02],
+    "Sub": [2.537098e00, 3.022642e00, 5.559602e00, 1.667880e01, 5.311069e-02],
+    "Mult": [5.050183e00, 6.723213e00, 1.177340e01, 3.532019e01, 1.198412e-01],
+    "FloorDiv": [5.050183e00, 6.723213e00, 1.177340e01, 3.532019e01, 1.198412e-01],
+    "Mod": [5.050183e00, 6.723213e00, 1.177340e01, 3.532019e01, 1.198412e-01],
+    "LShift": [8.162355e-02, 3.356332e-01, 4.172512e-01, 4.172512e-01, 1.697876e-03],
+    "RShift": [8.162355e-02, 3.356332e-01, 4.172512e-01, 4.172512e-01, 1.697876e-03],
+    "BitOr": [1.010606e-02, 7.950398e-03, 1.805590e-02, 1.805590e-02, 6.111633e-04],
+    "BitXor": [1.010606e-02, 7.950398e-03, 1.805590e-02, 1.805590e-02, 6.111633e-04],
+    "BitAnd": [1.010606e-02, 7.950398e-03, 1.805590e-02, 1.805590e-02, 6.111633e-04],
+    "Eq": [8.162355e-02, 3.356332e-01, 4.172512e-01, 4.172512e-01, 1.697876e-03],
+    "NotEq": [8.162355e-02, 3.356332e-01, 4.172512e-01, 4.172512e-01, 1.697876e-03],
+    "Lt": [8.162355e-02, 3.356332e-01, 4.172512e-01, 4.172512e-01, 1.697876e-03],
+    "LtE": [8.162355e-02, 3.356332e-01, 4.172512e-01, 4.172512e-01, 1.697876e-03],
+    "Gt": [8.162355e-02, 3.356332e-01, 4.172512e-01, 4.172512e-01, 1.697876e-03],
+    "GtE": [8.162355e-02, 3.356332e-01, 4.172512e-01, 4.172512e-01, 1.697876e-03],
+    "USub": [1.010606e-02, 7.950398e-03, 1.805590e-02, 1.805590e-02, 6.111633e-04],
+    "UAdd": [1.010606e-02, 7.950398e-03, 1.805590e-02, 1.805590e-02, 6.111633e-04],
+    "IsNot": [8.162355e-02, 3.356332e-01, 4.172512e-01, 4.172512e-01, 1.697876e-03],
+    "Not": [1.010606e-02, 7.950398e-03, 1.805590e-02, 1.805590e-02, 6.111633e-04],
+    "Invert": [1.010606e-02, 7.950398e-03, 1.805590e-02, 1.805590e-02, 6.111633e-04],
+    "Regs": [7.936518e-03, 1.062977e-03, 8.999495e-03, 8.999495e-03, 7.395312e-05],
+}
 
 data = {}
 cycles = 0
@@ -14,6 +42,7 @@ id_to_node = {}
 path = '/Users/PatrickMcEwen/high_level_synthesis/venv/codesign/src/cfg/benchmarks/'
 benchmark = 'simple'
 data_path = []
+power_use = []
 
 def func_calls(expr, calls):
     if type(expr) == ast.Call:
@@ -29,8 +58,9 @@ def get_hw_need(state):
     return hw_need.hw_allocated
 
 def cycle_sim(hw_inuse, max_cycles):
-    global cycles, data
+    global cycles, data, power_use
     for i in range(max_cycles):
+        power_use.append(0)
         print("This is during cycle " + str(cycles))
         print(hw_inuse)
         print("")
@@ -43,6 +73,8 @@ def cycle_sim(hw_inuse, max_cycles):
                 for i in hw_inuse[elem]:
                     if i > 0:
                         count += 1
+                        power_use[cycles] += power[elem][2]
+                power_use[cycles] += (power[elem][2] / 10) * len(hw_inuse[elem]) # passive power
                 cur_data += str(count) + "/" + str(len(hw_inuse[elem])) + " in use. || "
         data[cycles] = cur_data
         # simulate one cycle
@@ -86,6 +118,7 @@ def simulate(cfg, data_path, node_operations, hw_spec, first):
     return data
 
 def main():
+    global power_use
     if len(sys.argv) > 1:
         benchmark = sys.argv[1]
     cfg, graphs, node_operations = schedule(sys.argv[1])
@@ -131,6 +164,16 @@ def main():
     names = sys.argv[1].split('/')
     with open(path + 'json_data/' + names[-1], 'w') as fh:
         fh.write(text)
+    t = []
+    for i in range(len(power_use)):
+        t.append(i)
+    print(power_use)
+    plt.plot(t,power_use)
+    plt.title("power use for " + names[-1])
+    plt.xlabel("Cycle")
+    plt.ylabel("Power")
+    plt.savefig("power_use_" + names[-1] + ".pdf")
+    plt.clf() 
 
 if __name__ == '__main__':
     main()

@@ -1,0 +1,5 @@
+digraph {
+	0 [label="source code:
+return (a << 1 ^ 27) & 255 if a & 128 else a << 1
+"]
+}

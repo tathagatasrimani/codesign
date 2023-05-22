@@ -1,0 +1,15 @@
+digraph {
+	0 [label="source code:
+s[i][j] ^= k[i][j]
+"]
+	1 [label="s
+Write"]
+	2 [label="^"]
+	3 [label="s
+Read"]
+	3 -> 2
+	4 [label="k
+Read"]
+	4 -> 2
+	2 -> 1
+}

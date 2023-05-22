@@ -1,0 +1,10 @@
+digraph {
+	0 [label="source code:
+self.__mix_columns(s)
+"]
+	1 [label="self
+Write"]
+	2 [label="s
+Read"]
+	2 -> 1
+}
