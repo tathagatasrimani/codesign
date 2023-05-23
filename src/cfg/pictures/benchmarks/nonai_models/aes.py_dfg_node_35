@@ -1,5 +1,8 @@
 digraph {
 	0 [label="source code:
-for j in range(4):
+round_keys.append([])
+if i % 4 == 0:
 "]
+	1 [label="round_keys
+Write"]
 }

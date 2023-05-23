@@ -40,231 +40,285 @@ InvSbox = (82, 9, 106, 213, 48, 54, 165, 56, 191, 64, 163, 158, 129, 243,
 
 def xtime(a):
     print(1, 521)
-    return (a << 1 ^ 27) & 255 if a & 128 else a << 1
+    if a & 128:
+        print(3, 522)
+        return (a << 1 ^ 27) & 255
+    else:
+        print(3, 522)
+        return a << 1
 
 
-print(1, 525)
+print(1, 528)
 Rcon = (0, 1, 2, 4, 8, 16, 32, 64, 128, 27, 54, 108, 216, 171, 77, 154, 47,
     94, 188, 99, 198, 151, 53, 106, 212, 179, 125, 250, 239, 197, 145, 57)
+print(1, 563)
+round_keys = []
 
 
 def text2matrix(text):
-    print(1, 561)
-    print(7, 562)
+    print(1, 565)
+    print(11, 566)
     matrix = []
-    print(8, 563)
+    print(12, 567)
     for i in range(16):
-        print(8, 563)
-        print(9, 564)
+        print(12, 567)
+        print(13, 568)
         byte = text >> 8 * (15 - i) & 255
         if i % 4 == 0:
-            print(9, 565)
+            print(13, 569)
             matrix.append([byte])
         else:
-            print(9, 565)
+            print(13, 569)
             matrix[int(i / 4)].append(byte)
     return matrix
 
 
 def matrix2text(matrix):
-    print(1, 572)
-    print(17, 573)
+    print(1, 576)
+    print(21, 577)
     text = 0
-    print(18, 574)
+    print(22, 578)
     for i in range(4):
-        print(18, 574)
-        print(19, 575)
+        print(22, 578)
+        print(23, 579)
         for j in range(4):
-            print(19, 575)
-            print(21, 576)
+            print(23, 579)
+            print(25, 580)
             text |= matrix[i][j] << 120 - 8 * (4 * i + j)
     return text
 
 
-class AES:
+def __init__(master_key):
+    print(1, 583)
+    change_key(master_key)
 
-    def __init__(self, master_key):
-        print(1, 581)
-        self.change_key(master_key)
 
-    def change_key(self, master_key):
-        print(1, 584)
-        print(29, 585)
-        self.round_keys = text2matrix(master_key)
-        print(30, 588)
-        for i in range(4, 4 * 11):
-            print(30, 588)
-            self.round_keys.append([])
-            if i % 4 == 0:
-                print(31, 590)
-                print(33, 591)
-                byte = self.round_keys[i - 4][0] ^ Sbox[self.round_keys[i -
-                    1][1]] ^ Rcon[int(i / 4)]
-                self.round_keys[i].append(byte)
-                print(38, 598)
-                for j in range(1, 4):
-                    print(38, 598)
-                    print(39, 599)
-                    byte = self.round_keys[i - 4][j] ^ Sbox[self.round_keys
-                        [i - 1][(j + 1) % 4]]
-                    self.round_keys[i].append(byte)
-            else:
-                print(31, 590)
-                print(35, 605)
-                for j in range(4):
-                    print(35, 605)
-                    print(36, 606)
-                    byte = self.round_keys[i - 4][j] ^ self.round_keys[i - 1][j
-                        ]
-                    self.round_keys[i].append(byte)
-
-    def encrypt(self, plaintext):
-        print(1, 611)
-        print(43, 612)
-        self.plain_state = text2matrix(plaintext)
-        self.__add_round_key(self.plain_state, self.round_keys[:4])
-        print(44, 616)
-        for i in range(1, 10):
-            print(44, 616)
-            self.__round_encrypt(self.plain_state, self.round_keys[4 * i:4 *
-                (i + 1)])
-        self.__sub_bytes(self.plain_state)
-        self.__shift_rows(self.plain_state)
-        self.__add_round_key(self.plain_state, self.round_keys[40:])
-        return matrix2text(self.plain_state)
-
-    def decrypt(self, ciphertext):
-        print(1, 625)
-        print(50, 626)
-        self.cipher_state = text2matrix(ciphertext)
-        self.__add_round_key(self.cipher_state, self.round_keys[40:])
-        self.__inv_shift_rows(self.cipher_state)
-        self.__inv_sub_bytes(self.cipher_state)
-        print(51, 632)
-        for i in range(9, 0, -1):
-            print(51, 632)
-            self.__round_decrypt(self.cipher_state, self.round_keys[4 * i:4 *
-                (i + 1)])
-        self.__add_round_key(self.cipher_state, self.round_keys[:4])
-        return matrix2text(self.cipher_state)
-
-    def __add_round_key(self, s, k):
-        print(1, 641)
-        print(57, 642)
-        for i in range(4):
-            print(57, 642)
-            print(58, 643)
+def change_key(master_key):
+    print(1, 586)
+    global round_keys
+    print(33, 588)
+    round_keys = text2matrix(master_key)
+    print(34, 591)
+    for i in range(4, 4 * 11):
+        print(34, 591)
+        round_keys.append([])
+        if i % 4 == 0:
+            print(35, 593)
+            print(37, 594)
+            byte = round_keys[i - 4][0] ^ Sbox[round_keys[i - 1][1]] ^ Rcon[int
+                (i / 4)]
+            round_keys[i].append(byte)
+            print(42, 597)
+            for j in range(1, 4):
+                print(42, 597)
+                print(43, 598)
+                byte = round_keys[i - 4][j] ^ Sbox[round_keys[i - 1][(j + 1
+                    ) % 4]]
+                round_keys[i].append(byte)
+        else:
+            print(35, 593)
+            print(39, 601)
             for j in range(4):
-                print(58, 643)
-                print(60, 644)
-                s[i][j] ^= k[i][j]
+                print(39, 601)
+                print(40, 602)
+                byte = round_keys[i - 4][j] ^ round_keys[i - 1][j]
+                round_keys[i].append(byte)
 
-    def __round_encrypt(self, state_matrix, key_matrix):
-        print(1, 646)
-        self.__sub_bytes(state_matrix)
-        self.__shift_rows(state_matrix)
-        self.__mix_columns(state_matrix)
-        self.__add_round_key(state_matrix, key_matrix)
 
-    def __round_decrypt(self, state_matrix, key_matrix):
-        print(1, 652)
-        self.__add_round_key(state_matrix, key_matrix)
-        self.__inv_mix_columns(state_matrix)
-        self.__inv_shift_rows(state_matrix)
-        self.__inv_sub_bytes(state_matrix)
+def encrypt(plaintext):
+    print(1, 607)
+    global round_keys
+    print(47, 609)
+    plain_state = text2matrix(plaintext)
+    __add_round_key(plain_state, round_keys[:4])
+    print(48, 613)
+    for i in range(1, 10):
+        print(48, 613)
+        __round_encrypt(plain_state, round_keys[4 * i:4 * (i + 1)])
+    __sub_bytes(plain_state)
+    __shift_rows(plain_state)
+    __add_round_key(plain_state, round_keys[40:])
+    return matrix2text(plain_state)
 
-    def __sub_bytes(self, s):
-        print(1, 658)
-        print(70, 659)
-        for i in range(4):
-            print(70, 659)
-            print(71, 660)
-            for j in range(4):
-                print(71, 660)
-                print(73, 661)
-                s[i][j] = Sbox[s[i][j]]
 
-    def __inv_sub_bytes(self, s):
-        print(1, 663)
-        print(77, 664)
-        for i in range(4):
-            print(77, 664)
-            print(78, 665)
-            for j in range(4):
-                print(78, 665)
-                print(80, 666)
-                s[i][j] = InvSbox[s[i][j]]
+def decrypt(ciphertext):
+    print(1, 622)
+    global round_keys
+    print(54, 624)
+    cipher_state = text2matrix(ciphertext)
+    __add_round_key(cipher_state, round_keys[40:])
+    __inv_shift_rows(cipher_state)
+    __inv_sub_bytes(cipher_state)
+    print(55, 630)
+    for i in range(9, 0, -1):
+        print(55, 630)
+        __round_decrypt(cipher_state, round_keys[4 * i:4 * (i + 1)])
+    __add_round_key(cipher_state, round_keys[:4])
+    return matrix2text(cipher_state)
 
-    def __shift_rows(self, s):
-        print(1, 668)
-        print(84, 669)
-        s[0][1], s[1][1], s[2][1], s[3][1] = s[1][1], s[2][1], s[3][1], s[0][1]
-        print(84, 670)
-        s[0][2], s[1][2], s[2][2], s[3][2] = s[2][2], s[3][2], s[0][2], s[1][2]
-        print(84, 671)
-        s[0][3], s[1][3], s[2][3], s[3][3] = s[3][3], s[0][3], s[1][3], s[2][3]
 
-    def __inv_shift_rows(self, s):
-        print(1, 673)
-        print(87, 674)
-        s[0][1], s[1][1], s[2][1], s[3][1] = s[3][1], s[0][1], s[1][1], s[2][1]
-        print(87, 675)
-        s[0][2], s[1][2], s[2][2], s[3][2] = s[2][2], s[3][2], s[0][2], s[1][2]
-        print(87, 676)
-        s[0][3], s[1][3], s[2][3], s[3][3] = s[1][3], s[2][3], s[3][3], s[0][3]
+def __add_round_key(s, k):
+    print(1, 639)
+    print(61, 640)
+    for i in range(4):
+        print(61, 640)
+        print(62, 641)
+        for j in range(4):
+            print(62, 641)
+            print(64, 642)
+            s[i][j] ^= k[i][j]
 
-    def __mix_single_column(self, a):
-        print(1, 678)
-        print(90, 680)
-        t = a[0] ^ a[1] ^ a[2] ^ a[3]
-        print(90, 681)
-        u = a[0]
-        print(90, 682)
-        a[0] ^= t ^ xtime(a[0] ^ a[1])
-        print(90, 683)
-        a[1] ^= t ^ xtime(a[1] ^ a[2])
-        print(90, 684)
-        a[2] ^= t ^ xtime(a[2] ^ a[3])
-        print(90, 685)
-        a[3] ^= t ^ xtime(a[3] ^ u)
 
-    def __mix_columns(self, s):
-        print(1, 687)
-        print(93, 688)
-        for i in range(4):
-            print(93, 688)
-            self.__mix_single_column(s[i])
+def __round_encrypt(state_matrix, key_matrix):
+    print(1, 644)
+    __sub_bytes(state_matrix)
+    __shift_rows(state_matrix)
+    __mix_columns(state_matrix)
+    __add_round_key(state_matrix, key_matrix)
 
-    def __inv_mix_columns(self, s):
-        print(1, 691)
-        print(98, 693)
-        for i in range(4):
-            print(98, 693)
-            print(99, 694)
-            u = xtime(xtime(s[i][0] ^ s[i][2]))
-            print(99, 695)
-            v = xtime(xtime(s[i][1] ^ s[i][3]))
-            print(99, 696)
-            s[i][0] ^= u
-            print(99, 697)
-            s[i][1] ^= v
-            print(99, 698)
-            s[i][2] ^= u
-            print(99, 699)
-            s[i][3] ^= v
-        self.__mix_columns(s)
+
+def __round_decrypt(state_matrix, key_matrix):
+    print(1, 650)
+    __add_round_key(state_matrix, key_matrix)
+    __inv_mix_columns(state_matrix)
+    __inv_shift_rows(state_matrix)
+    __inv_sub_bytes(state_matrix)
+
+
+def __sub_bytes(s):
+    print(1, 656)
+    print(74, 657)
+    for i in range(4):
+        print(74, 657)
+        print(75, 658)
+        for j in range(4):
+            print(75, 658)
+            print(77, 659)
+            s[i][j] = Sbox[s[i][j]]
+
+
+def __inv_sub_bytes(s):
+    print(1, 661)
+    print(81, 662)
+    for i in range(4):
+        print(81, 662)
+        print(82, 663)
+        for j in range(4):
+            print(82, 663)
+            print(84, 664)
+            s[i][j] = InvSbox[s[i][j]]
+
+
+def __shift_rows(s):
+    print(1, 666)
+    print(88, 667)
+    s[0][1] = s[1][1]
+    print(88, 668)
+    s[1][1] = s[2][1]
+    print(88, 669)
+    s[2][1] = s[3][1]
+    print(88, 670)
+    s[3][1] = s[0][1]
+    print(88, 672)
+    s[0][2] = s[2][2]
+    print(88, 673)
+    s[1][2] = s[3][2]
+    print(88, 674)
+    s[2][2] = s[0][2]
+    print(88, 675)
+    s[3][2] = s[1][2]
+    print(88, 677)
+    s[0][3] = s[3][3]
+    print(88, 678)
+    s[1][3] = s[0][3]
+    print(88, 679)
+    s[2][3] = s[1][3]
+    print(88, 680)
+    s[3][3] = s[2][3]
+
+
+def __inv_shift_rows(s):
+    print(1, 682)
+    print(91, 683)
+    s[0][1] = s[3][1]
+    print(91, 684)
+    s[1][1] = s[0][1]
+    print(91, 685)
+    s[2][1] = s[1][1]
+    print(91, 686)
+    s[3][1] = s[2][1]
+    print(91, 688)
+    s[0][2] = s[2][2]
+    print(91, 689)
+    s[1][2] = s[3][2]
+    print(91, 690)
+    s[2][2] = s[0][2]
+    print(91, 691)
+    s[3][2] = s[1][2]
+    print(91, 693)
+    s[0][3] = s[1][3]
+    print(91, 694)
+    s[1][3] = s[2][3]
+    print(91, 695)
+    s[2][3] = s[3][3]
+    print(91, 696)
+    s[3][3] = s[0][3]
+
+
+def __mix_single_column(a):
+    print(1, 698)
+    print(94, 700)
+    t = a[0] ^ a[1] ^ a[2] ^ a[3]
+    print(94, 701)
+    u = a[0]
+    print(94, 702)
+    a[0] ^= t ^ xtime(a[0] ^ a[1])
+    print(94, 703)
+    a[1] ^= t ^ xtime(a[1] ^ a[2])
+    print(94, 704)
+    a[2] ^= t ^ xtime(a[2] ^ a[3])
+    print(94, 705)
+    a[3] ^= t ^ xtime(a[3] ^ u)
+
+
+def __mix_columns(s):
+    print(1, 707)
+    print(97, 708)
+    for i in range(4):
+        print(97, 708)
+        __mix_single_column(s[i])
+
+
+def __inv_mix_columns(s):
+    print(1, 711)
+    print(102, 713)
+    for i in range(4):
+        print(102, 713)
+        print(103, 714)
+        u = xtime(xtime(s[i][0] ^ s[i][2]))
+        print(103, 715)
+        v = xtime(xtime(s[i][1] ^ s[i][3]))
+        print(103, 716)
+        s[i][0] ^= u
+        print(103, 717)
+        s[i][1] ^= v
+        print(103, 718)
+        s[i][2] ^= u
+        print(103, 719)
+        s[i][3] ^= v
+    __mix_columns(s)
 
 
 if __name__ == '__main__':
-    print(1, 703)
+    print(1, 723)
     import time
-    print(102, 705)
+    print(106, 725)
     start = time.time()
-    print(102, 706)
-    aes = AES(1212304810341341)
-    aes.encrypt(1212304810341341)
-    print(102, 708)
+    print(106, 726)
+    aes = __init__(1212304810341341)
+    encrypt(1212304810341341)
+    print(106, 728)
     end = time.time()
     print(end - start)
 else:
-    print(1, 703)
+    print(1, 723)

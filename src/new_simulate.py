@@ -43,6 +43,8 @@ path = '/Users/PatrickMcEwen/high_level_synthesis/venv/codesign/src/cfg/benchmar
 benchmark = 'simple'
 data_path = []
 power_use = []
+node_intervals = []
+node_avg_power = {}
 
 def func_calls(expr, calls):
     if type(expr) == ast.Call:
@@ -59,6 +61,8 @@ def get_hw_need(state):
 
 def cycle_sim(hw_inuse, max_cycles):
     global cycles, data, power_use
+    start_cycles = cycles
+    node_power_sum = 0
     for i in range(max_cycles):
         power_use.append(0)
         print("This is during cycle " + str(cycles))
@@ -82,7 +86,9 @@ def cycle_sim(hw_inuse, max_cycles):
             for j in range(len(hw_inuse[elem])):
                 if hw_inuse[elem][j] > 0:
                     hw_inuse[elem][j] = max(0, hw_inuse[elem][j] - 1)
+        node_power_sum += power_use[cycles]
         cycles += 1
+    return node_power_sum
 
 def simulate(cfg, data_path, node_operations, hw_spec, first):
     global main_cfg, id_to_node
@@ -96,7 +102,11 @@ def simulate(cfg, data_path, node_operations, hw_spec, first):
     print(hw_inuse)
 
     for elem in data_path:
-        cur_node = id_to_node[elem[0]]
+        node_id = elem[0]
+        cur_node = id_to_node[node_id]
+        node_intervals.append([node_id, [cycles, 0]])
+        node_avg_power[node_id] = 0 # just reset because we will end up overwriting it
+        start_cycles = cycles # for calculating average power
         for state in node_operations[cur_node]:
             hw_need = get_hw_need(state)
             print(hw_need)
@@ -114,7 +124,9 @@ def simulate(cfg, data_path, node_operations, hw_spec, first):
                     hw_inuse[elem][i] += hls.latency[elem]
                     i = (i + 1) % hw_spec[elem]
                     cur_elem_count -= 1
-            cycle_sim(hw_inuse, max_cycles)
+            node_avg_power[node_id] += cycle_sim(hw_inuse, max_cycles)
+        if cycles - start_cycles > 0: node_avg_power[node_id] /= cycles - start_cycles
+        node_intervals[-1][1][1] = cycles
     return data
 
 def main():
@@ -172,8 +184,10 @@ def main():
     plt.title("power use for " + names[-1])
     plt.xlabel("Cycle")
     plt.ylabel("Power")
-    plt.savefig("power_use_" + names[-1] + ".pdf")
+    plt.savefig("cfg/benchmarks/power_plots/power_use_" + names[-1] + ".pdf")
     plt.clf() 
+    print(node_intervals)
+    print(node_avg_power)
 
 if __name__ == '__main__':
     main()

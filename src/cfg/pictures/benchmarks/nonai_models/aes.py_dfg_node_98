@@ -1,5 +1,10 @@
 digraph {
 	0 [label="source code:
-for i in range(4):
+__mix_single_column(s[i])
 "]
+	1 [label="__mix_single_column
+Write"]
+	2 [label="s
+Read"]
+	2 -> 1
 }

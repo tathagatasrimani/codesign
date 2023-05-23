@@ -1,28 +1,13 @@
 digraph {
 	0 [label="source code:
-byte = self.round_keys[i - 4][0] ^ Sbox[self.round_keys[i - 1][1]] ^ Rcon[int
-    (i / 4)]
-self.round_keys[i].append(byte)
+round_keys = text2matrix(master_key)
 "]
-	1 [label="byte
+	1 [label="round_keys
 Write"]
-	2 [label="^"]
-	5 [label="^"]
-	6 [label="round_keys
-Read"]
-	6 -> 5
-	7 [label="Sbox
-Read"]
-	7 -> 5
-	5 -> 2
-	4 [label="Rcon
-Read"]
-	4 -> 2
-	2 -> 1
-	8 [label="self
+	3 [label="text2matrix
 Write"]
-	9 [label="byte
+	4 [label="master_key
 Read"]
-	9 -> 8
-	1 -> 9
+	4 -> 3
+	3 -> 1
 }

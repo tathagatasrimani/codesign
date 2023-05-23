@@ -1,9 +1,10 @@
 digraph {
 	0 [label="source code:
-text = 0
+matrix[int(i / 4)].append(byte)
 "]
-	1 [label="text
+	1 [label="matrix
 Write"]
-	2 [label=0]
+	2 [label="byte
+Read"]
 	2 -> 1
 }

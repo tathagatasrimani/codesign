@@ -1,5 +1,10 @@
 digraph {
 	0 [label="source code:
-for i in range(4, 4 * 11):
+change_key(master_key)
 "]
+	1 [label="change_key
+Write"]
+	2 [label="master_key
+Read"]
+	2 -> 1
 }
