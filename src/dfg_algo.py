@@ -4,7 +4,7 @@ import ast
 from cfg.staticfg.builder import CFGBuilder
 from cfg.ast_utils import ASTUtils
 
-path = '/Users/PatrickMcEwen/high_level_synthesis/venv/codesign/src/cfg/'
+path = '/Users/PatrickMcEwen/forward_pass_present_June/codesign/src/cfg/'
 benchmark = 'benchmarks/nonai_models/spmv.py'
 op_to_symbol = {
     "And": "and",

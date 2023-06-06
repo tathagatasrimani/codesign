@@ -4,7 +4,8 @@ from hls import HardwareModel
 from util_sim import sim
 import json
 
-path = '/Users/PatrickMcEwen/high_level_synthesis/venv/codesign/src/cfg/benchmarks/'
+
+path = '/Users/PatrickMcEwen/forward_pass_present_June/codesign/src/cfg/benchmarks/' # change path variable for local computer
 benchmark = 'simple'
 
 def main():

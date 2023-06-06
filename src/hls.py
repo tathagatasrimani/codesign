@@ -8,7 +8,7 @@ from cfg.staticfg.builder import CFGBuilder
 from hls_instrument import instrument_and_run
 from cfg.ast_utils import ASTUtils
 
-path = '/Users/PatrickMcEwen/high_level_synthesis/venv/codesign/src/cfg/benchmarks/'
+path = '/Users/PatrickMcEwen/forward_pass_present_June/codesign/src/cfg/benchmarks/'
 benchmark = 'simple'
 expr_to_node = {}
 func_ref = {}
