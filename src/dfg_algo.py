@@ -201,7 +201,7 @@ def dfg_per_node(node):
                     break
                 j -= 1
         i -= 1
-    graph.render(path + 'pictures/' + benchmark + "_dfg_node_" + str(node.id), view = True, format='jpeg')
+    graph.render(path + 'pictures/' + benchmark + "_dfg_node_" + str(node.id), view = False, format='jpeg')
     return 0
 
 
@@ -211,7 +211,7 @@ def main_fn(benchmark_in):
     if benchmark_in != "":
         benchmark = benchmark_in
     cfg = CFGBuilder().build_from_file('main.c', path + benchmark)
-    cfg.build_visual(path + 'pictures/' + benchmark, 'jpeg', show = True)
+    cfg.build_visual(path + 'pictures/' + benchmark, 'jpeg', show = False)
     for node in cfg:
         node_to_symbols[node] = []
         graphs[node] = Graph(set(), {})

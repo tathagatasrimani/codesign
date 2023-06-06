@@ -516,14 +516,12 @@ InvSbox = (
     0x7D,
 )
 
-
 # learnt from http://cs.ucsb.edu/~koc/cs178/projects/JT/aes.c
 def xtime(a):
     if (a& 0x80):
         return ((a << 1) ^ 0x1B) & 0xFF
     else:
         return a << 1
-
 
 Rcon = (
     0x00,
@@ -572,7 +570,6 @@ def text2matrix(text):
             matrix[int(i / 4)].append(byte)
     return matrix
 
-
 def matrix2text(matrix):
     text = 0
     for i in range(4):
@@ -603,7 +600,6 @@ def change_key(master_key):
                 round_keys[i].append(byte)
 
     # print round_keys
-
 def encrypt(plaintext):
     global round_keys
     plain_state = text2matrix(plaintext)
