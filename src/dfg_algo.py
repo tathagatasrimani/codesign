@@ -4,7 +4,7 @@ import ast
 from cfg.staticfg.builder import CFGBuilder
 from cfg.ast_utils import ASTUtils
 
-path = '/Users/PatrickMcEwen/forward_pass_present_June/codesign/src/cfg/'
+path = '/Users/PatrickMcEwen/git_container/codesign/src/cfg/'
 benchmark = 'benchmarks/nonai_models/spmv.py'
 op_to_symbol = {
     "And": "and",
@@ -201,7 +201,7 @@ def dfg_per_node(node):
                     break
                 j -= 1
         i -= 1
-    graph.render(path + 'pictures/' + benchmark + "_dfg_node_" + str(node.id), view = False, format='jpeg')
+    graph.render(path + 'pictures/' + benchmark + "_dfg_node_" + str(node.id), view = True, format='jpeg')
     return 0
 
 

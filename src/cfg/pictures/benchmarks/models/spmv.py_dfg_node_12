@@ -1,0 +1,28 @@
+digraph {
+	0 [label="source code:
+RowPtr = np.append(RowPtr, len(Value) - 1)
+flag = 0
+"]
+	1 [label="RowPtr
+Write"]
+	3 [label="np
+Write"]
+	4 [label="RowPtr
+Read"]
+	4 -> 3
+	6 [label="-"]
+	9 [label="len
+Write"]
+	10 [label="Value
+Read"]
+	10 -> 9
+	9 -> 6
+	8 [label=1]
+	8 -> 6
+	6 -> 3
+	3 -> 1
+	11 [label="flag
+Write"]
+	12 [label=0]
+	12 -> 11
+}

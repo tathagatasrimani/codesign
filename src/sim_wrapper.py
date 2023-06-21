@@ -5,12 +5,12 @@ from util_sim import sim
 import json
 
 
-path = '/Users/PatrickMcEwen/forward_pass_present_June/codesign/src/cfg/benchmarks/' # change path variable for local computer
+path = '/Users/PatrickMcEwen/git_container/codesign/src/cfg/benchmarks/' # change path variable for local computer
 benchmark = 'simple'
 
 def main():
     global path, benchmark
-    cfg = CFGBuilder().build_from_file('main.c', path + 'nonai_models/' + benchmark + '.py')
+    cfg = CFGBuilder().build_from_file('main.c', path + 'models/' + benchmark + '.py')
     cfg.build_visual(path + 'pictures/' + benchmark, 'jpeg', show = True)
     print(cfg.functioncfgs)
     hw = HardwareModel(0, 0)

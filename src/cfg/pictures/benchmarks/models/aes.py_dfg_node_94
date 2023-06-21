@@ -1,0 +1,140 @@
+digraph {
+	0 [label="source code:
+t = a[0] ^ a[1] ^ a[2] ^ a[3]
+u = a[0]
+a[0] ^= t ^ xtime(a[0] ^ a[1])
+a[1] ^= t ^ xtime(a[1] ^ a[2])
+a[2] ^= t ^ xtime(a[2] ^ a[3])
+a[3] ^= t ^ xtime(a[3] ^ u)
+"]
+	1 [label="t
+Write"]
+	2 [label="^"]
+	5 [label="^"]
+	8 [label="^"]
+	9 [label="a
+Read"]
+	9 -> 8
+	10 [label="a
+Read"]
+	10 -> 8
+	8 -> 5
+	7 [label="a
+Read"]
+	7 -> 5
+	5 -> 2
+	4 [label="a
+Read"]
+	4 -> 2
+	2 -> 1
+	11 [label="u
+Write"]
+	12 [label="a
+Read"]
+	12 -> 11
+	13 [label="a
+Write"]
+	14 [label="^"]
+	15 [label="a
+Read"]
+	15 -> 14
+	17 [label="^"]
+	18 [label="t
+Read"]
+	18 -> 17
+	20 [label="xtime
+Write"]
+	22 [label="^"]
+	23 [label="a
+Read"]
+	23 -> 22
+	24 [label="a
+Read"]
+	24 -> 22
+	22 -> 20
+	20 -> 17
+	17 -> 14
+	14 -> 13
+	25 [label="a
+Write"]
+	26 [label="^"]
+	27 [label="a
+Read"]
+	27 -> 26
+	29 [label="^"]
+	30 [label="t
+Read"]
+	30 -> 29
+	32 [label="xtime
+Write"]
+	34 [label="^"]
+	35 [label="a
+Read"]
+	35 -> 34
+	36 [label="a
+Read"]
+	36 -> 34
+	34 -> 32
+	32 -> 29
+	29 -> 26
+	26 -> 25
+	37 [label="a
+Write"]
+	38 [label="^"]
+	39 [label="a
+Read"]
+	39 -> 38
+	41 [label="^"]
+	42 [label="t
+Read"]
+	42 -> 41
+	44 [label="xtime
+Write"]
+	46 [label="^"]
+	47 [label="a
+Read"]
+	47 -> 46
+	48 [label="a
+Read"]
+	48 -> 46
+	46 -> 44
+	44 -> 41
+	41 -> 38
+	38 -> 37
+	49 [label="a
+Write"]
+	50 [label="^"]
+	51 [label="a
+Read"]
+	51 -> 50
+	53 [label="^"]
+	54 [label="t
+Read"]
+	54 -> 53
+	56 [label="xtime
+Write"]
+	58 [label="^"]
+	59 [label="a
+Read"]
+	59 -> 58
+	60 [label="u
+Read"]
+	60 -> 58
+	58 -> 56
+	56 -> 53
+	53 -> 50
+	50 -> 49
+	11 -> 60
+	37 -> 59
+	1 -> 54
+	37 -> 51
+	25 -> 48
+	25 -> 47
+	1 -> 42
+	25 -> 39
+	13 -> 36
+	13 -> 35
+	1 -> 30
+	13 -> 27
+	1 -> 18
+}
