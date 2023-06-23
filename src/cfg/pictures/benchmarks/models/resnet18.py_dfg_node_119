@@ -1,0 +1,16 @@
+digraph {
+	0 [label="source code:
+result = np.zeros(len(W[0]))
+"]
+	1 [label="result
+Write"]
+	3 [label="np
+Write"]
+	5 [label="len
+Write"]
+	6 [label="W
+Read"]
+	6 -> 5
+	5 -> 3
+	3 -> 1
+}

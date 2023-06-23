@@ -1,0 +1,15 @@
+digraph {
+	0 [label="source code:
+img[i][j][k] = max(img[i][j][k], 0)
+"]
+	1 [label="img
+Write"]
+	3 [label="max
+Write"]
+	4 [label="img
+Read"]
+	4 -> 3
+	5 [label=0]
+	5 -> 3
+	3 -> 1
+}

@@ -1,0 +1,10 @@
+digraph {
+	0 [label="source code:
+sum_val = biases[j]
+"]
+	1 [label="sum_val
+Write"]
+	2 [label="biases
+Read"]
+	2 -> 1
+}

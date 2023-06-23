@@ -1,0 +1,62 @@
+digraph {
+	0 [label="source code:
+res_l = int((len(input[0]) - l) / stride + 1)
+res_w = int((len(input[0][0]) - w) / stride + 1)
+result = np.zeros((len(input), res_l, res_w))
+"]
+	1 [label="res_l
+Write"]
+	3 [label="int
+Write"]
+	5 [label="+"]
+	8 [label="//"]
+	11 [label="-"]
+	14 [label="len
+Write"]
+	15 [label="input
+Read"]
+	15 -> 14
+	14 -> 11
+	13 [label="l
+Read"]
+	13 -> 11
+	11 -> 8
+	10 [label="stride
+Read"]
+	10 -> 8
+	8 -> 5
+	7 [label=1]
+	7 -> 5
+	5 -> 3
+	3 -> 1
+	16 [label="res_w
+Write"]
+	18 [label="int
+Write"]
+	20 [label="+"]
+	23 [label="//"]
+	26 [label="-"]
+	29 [label="len
+Write"]
+	30 [label="input
+Read"]
+	30 -> 29
+	29 -> 26
+	28 [label="w
+Read"]
+	28 -> 26
+	26 -> 23
+	25 [label="stride
+Read"]
+	25 -> 23
+	23 -> 20
+	22 [label=1]
+	22 -> 20
+	20 -> 18
+	18 -> 16
+	31 [label="result
+Write"]
+	33 [label="np
+Write"]
+	33 -> 31
+}

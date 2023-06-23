@@ -1,0 +1,7 @@
+digraph {
+	0 [label="source code:
+main()
+"]
+	1 [label="main
+Write"]
+}

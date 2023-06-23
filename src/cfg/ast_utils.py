@@ -62,7 +62,7 @@ class ASTUtils:
         elif type(op) == ast.Sub:
             return "Sub"
         elif type(op) == ast.Pow:
-            return None
+            return "Pow"
         elif type(op) == ast.Div  or type(op) == ast.FloorDiv:
             return "FloorDiv"
         elif type(op) == ast.Mod:

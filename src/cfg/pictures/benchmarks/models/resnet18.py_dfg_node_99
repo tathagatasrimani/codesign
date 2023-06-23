@@ -1,0 +1,23 @@
+digraph {
+	0 [label="source code:
+dev = std_dev(img[i][j][:])
+mean = get_mean(img[i][j][:])
+if dev == 0.0:
+"]
+	1 [label="dev
+Write"]
+	3 [label="std_dev
+Write"]
+	4 [label="img
+Read"]
+	4 -> 3
+	3 -> 1
+	5 [label="mean
+Write"]
+	7 [label="get_mean
+Write"]
+	8 [label="img
+Read"]
+	8 -> 7
+	7 -> 5
+}

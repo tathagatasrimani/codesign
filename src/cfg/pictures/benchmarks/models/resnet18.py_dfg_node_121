@@ -1,0 +1,10 @@
+digraph {
+	0 [label="source code:
+sum_val = W_0[i]
+"]
+	1 [label="sum_val
+Write"]
+	2 [label="W_0
+Read"]
+	2 -> 1
+}

@@ -1,0 +1,37 @@
+digraph {
+	0 [label="source code:
+result = np.zeros(len(img) * len(img[0]) * len(img[0][0]))
+index = 0
+"]
+	1 [label="result
+Write"]
+	3 [label="np
+Write"]
+	5 [label="*"]
+	8 [label="*"]
+	11 [label="len
+Write"]
+	12 [label="img
+Read"]
+	12 -> 11
+	11 -> 8
+	13 [label="len
+Write"]
+	14 [label="img
+Read"]
+	14 -> 13
+	13 -> 8
+	8 -> 5
+	15 [label="len
+Write"]
+	16 [label="img
+Read"]
+	16 -> 15
+	15 -> 5
+	5 -> 3
+	3 -> 1
+	17 [label="index
+Write"]
+	18 [label=0]
+	18 -> 17
+}

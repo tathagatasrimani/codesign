@@ -1,0 +1,9 @@
+digraph {
+	0 [label="source code:
+new_img[i][j][k] = 0
+"]
+	1 [label="new_img
+Write"]
+	2 [label=0]
+	2 -> 1
+}

@@ -1,0 +1,16 @@
+digraph {
+	0 [label="source code:
+max_val = max(max_val, input[i][j * stride + c][k * stride + d])
+"]
+	1 [label="max_val
+Write"]
+	3 [label="max
+Write"]
+	4 [label="max_val
+Read"]
+	4 -> 3
+	5 [label="input
+Read"]
+	5 -> 3
+	3 -> 1
+}

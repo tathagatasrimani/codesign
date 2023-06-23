@@ -65,9 +65,9 @@ def cycle_sim(hw_inuse, max_cycles):
     node_power_sum = 0
     for i in range(max_cycles):
         power_use.append(0)
-        print("This is during cycle " + str(cycles))
-        print(hw_inuse)
-        print("")
+        #print("This is during cycle " + str(cycles))
+        #print(hw_inuse)
+        #print("")
         # save current state of hardware to data array
         cur_data = ""
         for elem in hw_inuse:
@@ -99,7 +99,7 @@ def simulate(cfg, data_path, node_operations, hw_spec, first):
     hw_inuse = {}
     for elem in hw_spec:
         hw_inuse[elem] = [0] * hw_spec[elem]
-    print(hw_inuse)
+    #print(hw_inuse)
 
     for elem in data_path:
         node_id = elem[0]
@@ -109,7 +109,7 @@ def simulate(cfg, data_path, node_operations, hw_spec, first):
         start_cycles = cycles # for calculating average power
         for state in node_operations[cur_node]:
             hw_need = get_hw_need(state)
-            print(hw_need)
+            #print(hw_need)
             max_cycles = 0
             for elem in hw_need:
                 cur_elem_count = hw_need[elem]
@@ -117,7 +117,7 @@ def simulate(cfg, data_path, node_operations, hw_spec, first):
                 if hw_spec[elem] == 0 and cur_elem_count > 0:
                     raise Exception("hardware specification insufficient to run program")
                 cur_cycles_needed = int(math.ceil(cur_elem_count / hw_spec[elem]) * hls.latency[elem])
-                print("cycles needed for " + elem + ": " + str(cur_cycles_needed) + ' (element count = ' + str(cur_elem_count) + ')')
+                #print("cycles needed for " + elem + ": " + str(cur_cycles_needed) + ' (element count = ' + str(cur_elem_count) + ')')
                 max_cycles = max(cur_cycles_needed, max_cycles)
                 i = 0
                 while cur_elem_count > 0:
@@ -163,7 +163,7 @@ def main():
         l = src.split('\n')
         for i in range(len(l)):
             l[i] = l[i].split()
-        print(l)
+        #print(l)
         last_line = '-1'
         last_node = '-1'
         for item in l:
@@ -179,15 +179,13 @@ def main():
     t = []
     for i in range(len(power_use)):
         t.append(i)
-    print(power_use)
+    #print(power_use)
     plt.plot(t,power_use)
     plt.title("power use for " + names[-1])
     plt.xlabel("Cycle")
     plt.ylabel("Power")
     plt.savefig("cfg/benchmarks/power_plots/power_use_" + names[-1] + ".pdf")
     plt.clf() 
-    print(node_intervals)
-    print(node_avg_power)
 
 if __name__ == '__main__':
     main()

@@ -7,7 +7,7 @@ operation_sets = {}
 def schedule(benchmark):
     cfg, graphs = main_fn(benchmark)
     for node in cfg:
-        print(node.id)
+        #print(node.id)
         node_operations[node] = []
         operation_sets[node] = set()
         graph = graphs[node]
@@ -24,10 +24,10 @@ def schedule(benchmark):
             node_operations[node].append([])
         for cur_node in operation_sets[node]:
             node_operations[node][cur_node.order].append(cur_node)
-        for state in node_operations[node]:
+        """for state in node_operations[node]:
             for op in state:
                 print(op.order, op.operation)
-            print('')
+            print('')"""
     return cfg, graphs, node_operations
         
 
