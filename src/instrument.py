@@ -110,12 +110,11 @@ def instrument_and_run(filepath:str):
         codeobj = compile(src, 'tmp.py', 'exec')
         tree = ast.parse(src, mode='exec')
         names = filepath.split('/')
-        dest_filepath = "xformed-%s" % names[-1]
+        dest_filepath = "instrumented_files/xformed-%s" % names[-1]
         instr = ProgramInstrumentor()
         rewrite_tree = instr.visit(tree)
         with open(dest_filepath, 'w') as fh:
             fh.write("import sys\n")
-            fh.write("from instrument_lib import *\n")
             for stmt in instr.preamble:
                 fh.write(astor.to_source(stmt)+"\n")
 

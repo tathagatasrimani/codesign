@@ -1,8 +1,0 @@
-digraph {
-	0 [label="do_something
-Write"]
-	1 [label=5]
-	1 -> 0
-	2 [label=10]
-	2 -> 0
-}

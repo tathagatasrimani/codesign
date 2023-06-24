@@ -1,5 +1,0 @@
-digraph {
-	0 [label="source code:
-if matrix1[i][j] != 0:
-"]
-}

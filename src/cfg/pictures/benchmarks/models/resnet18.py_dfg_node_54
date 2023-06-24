@@ -1,5 +1,0 @@
-digraph {
-	0 [label="source code:
-if zero_pad > 0:
-"]
-}

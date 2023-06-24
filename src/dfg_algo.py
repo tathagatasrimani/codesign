@@ -2,7 +2,7 @@ from cfg.staticfg.builder import CFGBuilder
 import graphviz as gv
 import ast
 from cfg.staticfg.builder import CFGBuilder
-from cfg.ast_utils import ASTUtils
+from ast_utils import ASTUtils
 
 path = '/Users/PatrickMcEwen/git_container/codesign/src/cfg/'
 benchmark = 'benchmarks/nonai_models/spmv.py'
@@ -201,7 +201,7 @@ def dfg_per_node(node):
                     break
                 j -= 1
         i -= 1
-    graph.render(path + 'pictures/' + benchmark + "_dfg_node_" + str(node.id), view = True, format='jpeg')
+    graph.render(path + 'benchmarks/pictures/' + benchmark + "_dfg_node_" + str(node.id), view = True, format='jpeg')
     return 0
 
 
@@ -211,7 +211,8 @@ def main_fn(benchmark_in):
     if benchmark_in != "":
         benchmark = benchmark_in
     cfg = CFGBuilder().build_from_file('main.c', path + benchmark)
-    cfg.build_visual(path + 'pictures/' + benchmark, 'jpeg', show = False)
+    benchmark = benchmark[benchmark.rfind('/')+1:]
+    cfg.build_visual(path + 'benchmarks/pictures/' + benchmark, 'jpeg', show = False)
     for node in cfg:
         node_to_symbols[node] = []
         graphs[node] = Graph(set(), {})

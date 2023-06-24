@@ -5,8 +5,7 @@ from collections import deque
 import ast
 
 from cfg.staticfg.builder import CFGBuilder
-from hls_instrument import instrument_and_run
-from cfg.ast_utils import ASTUtils
+from ast_utils import ASTUtils
 
 path = '/Users/PatrickMcEwen/git_container/codesign/src/cfg/benchmarks/'
 benchmark = 'simple'
@@ -163,44 +162,4 @@ class HardwareModel:
         if type(expr) == ast.FunctionDef:
             func_ref[expr.name] = expr
     
-    def reset_hw(self):
-        for key in op2sym_map.keys():
-            self.hw_allocated[key] = 0
-
-def make_visual(cfg, models):
-    graph = gv.Digraph()
-    for node in cfg:
-        hw = models[node.id].hw_allocated
-        s = ""
-        for i in hw:
-            if hw[i] > 0:
-                s += str(i) + ": " + str(hw[i]) + ", "
-        if len(s) != 0:
-            s = node.get_source() + "\n" + str(node.id) + ": [" + s[:-2] + "]" + "\n cycles: " + str(models[node.id].cycles)
-        else:
-            s = node.get_source() + "\n" + str(node.id) + ": no hardware allocated \n cycles: " + str(models[node.id].cycles)
-        print(s)
-        graph.node(str(node.id), s)
-        for exit in node.exits:
-            graph.edge(str(node.id), str(exit.target.id))
-        print(node.func_calls, "these are the calls \n")
-    graph.render(path + 'pictures/' + benchmark + "_hw", view = True, format='jpeg')
-
-def main():
-    # note: must specify path to run the program, this is just an example path
-    global path, benchmark, func_to_node, expr_to_node
-    cfg = CFGBuilder().build_from_file('main.c', path + 'nonai_models/' + benchmark + '.py')
-    cfg.build_visual(path + 'pictures/' + benchmark, 'jpeg', show = False)
-    models = {}
-    for node in cfg:
-        #print([exit.target.id for exit in node.exits])
-        print(node.func_calls, "func_calls")
-        models[node.id] = HardwareModel(node.id, 0)
-        for statement in node.statements:
-            models[node.id].eval_expr(statement)
-        print("Node", node.id, models[node.id].hw_allocated)
-    make_visual(cfg, models)
-    return 0
-
-if __name__ == "__main__":
-    main()
+    

@@ -1,5 +1,0 @@
-digraph {
-	0 [label="source code:
-for k in range(f_wid):
-"]
-}

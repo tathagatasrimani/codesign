@@ -1,7 +1,0 @@
-digraph {
-	0 [label="source code:
-matrix = []
-"]
-	1 [label="matrix
-Write"]
-}

@@ -1,9 +1,0 @@
-digraph {
-	0 [label="source code:
-make_zero = False
-"]
-	1 [label="make_zero
-Write"]
-	2 [label=False]
-	2 -> 1
-}

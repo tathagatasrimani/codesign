@@ -1,6 +1,6 @@
 from schedule import schedule
 from hls import HardwareModel
-from cfg.ast_utils import ASTUtils
+from ast_utils import ASTUtils
 import matplotlib.pyplot as plt
 import ast
 import hls
@@ -158,7 +158,7 @@ def main():
     for node in cfg:
         id_to_node[str(node.id)] = node
     # set up sequence of cfg nodes to visit
-    with open('/Users/PatrickMcEwen/git_container/codesign/src/output.txt', 'r') as f:
+    with open('/Users/PatrickMcEwen/git_container/codesign/src/instrumented_files/output.txt', 'r') as f:
         src = f.read()
         l = src.split('\n')
         for i in range(len(l)):

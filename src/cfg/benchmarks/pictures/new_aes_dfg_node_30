@@ -1,7 +1,0 @@
-digraph {
-	0 [label="change_key
-Write"]
-	1 [label="master_key
-Read"]
-	1 -> 0
-}

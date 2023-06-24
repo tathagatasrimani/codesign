@@ -1,5 +1,0 @@
-digraph {
-	0 [label="source code:
-return num + 2 // 3
-"]
-}
