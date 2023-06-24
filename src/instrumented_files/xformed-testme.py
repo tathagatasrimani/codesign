@@ -1,5 +1,4 @@
 import sys
-from instrument_lib import *
 def main(x, y):
     print(1, 1)
     print(3, 2)

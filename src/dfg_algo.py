@@ -3,34 +3,9 @@ import graphviz as gv
 import ast
 from cfg.staticfg.builder import CFGBuilder
 from ast_utils import ASTUtils
-
-path = '/Users/PatrickMcEwen/git_container/codesign/src/cfg/'
-benchmark = 'benchmarks/nonai_models/spmv.py'
-op_to_symbol = {
-    "And": "and",
-    "Or": "or",
-    "Add": "+",
-    "Sub": "-",
-    "Mult": "*",
-    "FloorDiv": "//",
-    "Mod": "%",
-    "LShift": "<<",
-    "RShift": ">>",
-    "BitOr": "|",
-    "BitXor": "^",
-    "BitAnd": "&",
-    "Eq": "==",
-    "NotEq": "!=",
-    "Lt": "<",
-    "LtE": "<=",
-    "Gt": ">",
-    "GtE": ">=",
-    "IsNot": "!=",
-    "USub": "-",
-    "UAdd": "+",
-    "Not": "!",
-    "Invert": "~",
-}
+import hardwareModel
+benchmark = None
+path = None
 # format: node -> [symbol, id, write (true) or read (false)]
 node_to_symbols = {}
 # format: node -> {id -> dfg_node}
@@ -101,12 +76,12 @@ def process_operand(graph, cur_id, operand, operand_num, operation_num, node):
 # for now, only working with ast.binop
 # add support for boolop
 def eval_single_op(expr, graph, cur_id, target_id, value_ids, op_id, node):
-    global op_to_symbol, node_to_symbols
+    global node_to_symbols
     sub_values = ASTUtils.get_sub_expr(expr)
     #print(sub_values)
     op_name = ASTUtils.operator_to_opname(sub_values[1])
-    op_node = Node(op_to_symbol[op_name], op_name)
-    graph.node(op_id, op_to_symbol[op_name])
+    op_node = Node(hardwareModel.op2sym_map[op_name], op_name)
+    graph.node(op_id, hardwareModel.op2sym_map[op_name])
     graphs[node].id_to_Node[op_id] = op_node
     graphs[node].roots.add(op_node)
     cur_id = process_operand(graph, cur_id, sub_values[0], value_ids[0], op_id, node)
@@ -201,18 +176,17 @@ def dfg_per_node(node):
                     break
                 j -= 1
         i -= 1
-    graph.render(path + 'benchmarks/pictures/' + benchmark + "_dfg_node_" + str(node.id), view = True, format='jpeg')
+    graph.render(path + 'pictures/' + benchmark + "_dfg_node_" + str(node.id), view = False, format='jpeg')
     return 0
 
 
 
-def main_fn(benchmark_in):
-    global path, benchmark, node_to_symbols, graphs
-    if benchmark_in != "":
-        benchmark = benchmark_in
-    cfg = CFGBuilder().build_from_file('main.c', path + benchmark)
+def main_fn(path_in, benchmark_in):
+    global benchmark, path, node_to_symbols, graphs
+    benchmark, path = benchmark_in, path_in
     benchmark = benchmark[benchmark.rfind('/')+1:]
-    cfg.build_visual(path + 'benchmarks/pictures/' + benchmark, 'jpeg', show = False)
+    cfg = CFGBuilder().build_from_file('main.c', path + 'models/' + benchmark)
+    cfg.build_visual(path + 'pictures/' + benchmark, 'jpeg', show = False)
     for node in cfg:
         node_to_symbols[node] = []
         graphs[node] = Graph(set(), {})

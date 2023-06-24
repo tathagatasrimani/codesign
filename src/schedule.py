@@ -1,11 +1,9 @@
-from dfg_algo import main_fn
 from collections import deque
 # format: cfg_node -> {states -> operations}
 node_operations = {}
 operation_sets = {}
 
-def schedule(benchmark):
-    cfg, graphs = main_fn(benchmark)
+def schedule(cfg, graphs, benchmark):
     for node in cfg:
         #print(node.id)
         node_operations[node] = []
@@ -28,7 +26,7 @@ def schedule(benchmark):
             for op in state:
                 print(op.order, op.operation)
             print('')"""
-    return cfg, graphs, node_operations
+    return cfg, node_operations
         
 
 if __name__ == '__main__':

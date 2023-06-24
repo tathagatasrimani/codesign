@@ -1,46 +1,19 @@
-from schedule import schedule
-from hls import HardwareModel
+from hardwareModel import HardwareModel
 from ast_utils import ASTUtils
+import schedule
+import dfg_algo
 import matplotlib.pyplot as plt
 import ast
-import hls
+import hardwareModel
 import math
 import json
 import sys
-
-power = {
-    "And": 32 * [1.010606e-02, 7.950398e-03, 1.805590e-02, 1.805590e-02, 6.111633e-04],
-    "Or": 32 * [1.010606e-02, 7.950398e-03, 1.805590e-02, 1.805590e-02, 6.111633e-04],
-    "Add": [2.537098e00, 3.022642e00, 5.559602e00, 1.667880e01, 5.311069e-02],
-    "Sub": [2.537098e00, 3.022642e00, 5.559602e00, 1.667880e01, 5.311069e-02],
-    "Mult": [5.050183e00, 6.723213e00, 1.177340e01, 3.532019e01, 1.198412e-01],
-    "FloorDiv": [5.050183e00, 6.723213e00, 1.177340e01, 3.532019e01, 1.198412e-01],
-    "Mod": [5.050183e00, 6.723213e00, 1.177340e01, 3.532019e01, 1.198412e-01],
-    "LShift": [8.162355e-02, 3.356332e-01, 4.172512e-01, 4.172512e-01, 1.697876e-03],
-    "RShift": [8.162355e-02, 3.356332e-01, 4.172512e-01, 4.172512e-01, 1.697876e-03],
-    "BitOr": [1.010606e-02, 7.950398e-03, 1.805590e-02, 1.805590e-02, 6.111633e-04],
-    "BitXor": [1.010606e-02, 7.950398e-03, 1.805590e-02, 1.805590e-02, 6.111633e-04],
-    "BitAnd": [1.010606e-02, 7.950398e-03, 1.805590e-02, 1.805590e-02, 6.111633e-04],
-    "Eq": [8.162355e-02, 3.356332e-01, 4.172512e-01, 4.172512e-01, 1.697876e-03],
-    "NotEq": [8.162355e-02, 3.356332e-01, 4.172512e-01, 4.172512e-01, 1.697876e-03],
-    "Lt": [8.162355e-02, 3.356332e-01, 4.172512e-01, 4.172512e-01, 1.697876e-03],
-    "LtE": [8.162355e-02, 3.356332e-01, 4.172512e-01, 4.172512e-01, 1.697876e-03],
-    "Gt": [8.162355e-02, 3.356332e-01, 4.172512e-01, 4.172512e-01, 1.697876e-03],
-    "GtE": [8.162355e-02, 3.356332e-01, 4.172512e-01, 4.172512e-01, 1.697876e-03],
-    "USub": [1.010606e-02, 7.950398e-03, 1.805590e-02, 1.805590e-02, 6.111633e-04],
-    "UAdd": [1.010606e-02, 7.950398e-03, 1.805590e-02, 1.805590e-02, 6.111633e-04],
-    "IsNot": [8.162355e-02, 3.356332e-01, 4.172512e-01, 4.172512e-01, 1.697876e-03],
-    "Not": [1.010606e-02, 7.950398e-03, 1.805590e-02, 1.805590e-02, 6.111633e-04],
-    "Invert": [1.010606e-02, 7.950398e-03, 1.805590e-02, 1.805590e-02, 6.111633e-04],
-    "Regs": [7.936518e-03, 1.062977e-03, 8.999495e-03, 8.999495e-03, 7.395312e-05],
-}
 
 data = {}
 cycles = 0
 main_cfg = None
 id_to_node = {}
 path = '/Users/PatrickMcEwen/git_container/codesign/src/cfg/benchmarks/' # change path variable for local computer
-benchmark = 'simple'
 data_path = []
 power_use = []
 node_intervals = []
@@ -77,8 +50,8 @@ def cycle_sim(hw_inuse, max_cycles):
                 for i in hw_inuse[elem]:
                     if i > 0:
                         count += 1
-                        power_use[cycles] += power[elem][2]
-                power_use[cycles] += (power[elem][2] / 10) * len(hw_inuse[elem]) # passive power
+                        power_use[cycles] += hardwareModel.power[elem][2]
+                power_use[cycles] += (hardwareModel.power[elem][2] / 10) * len(hw_inuse[elem]) # passive power
                 cur_data += str(count) + "/" + str(len(hw_inuse[elem])) + " in use. || "
         data[cycles] = cur_data
         # simulate one cycle
@@ -116,12 +89,12 @@ def simulate(cfg, data_path, node_operations, hw_spec, first):
                 if cur_elem_count == 0: continue
                 if hw_spec[elem] == 0 and cur_elem_count > 0:
                     raise Exception("hardware specification insufficient to run program")
-                cur_cycles_needed = int(math.ceil(cur_elem_count / hw_spec[elem]) * hls.latency[elem])
+                cur_cycles_needed = int(math.ceil(cur_elem_count / hw_spec[elem]) * hardwareModel.latency[elem])
                 #print("cycles needed for " + elem + ": " + str(cur_cycles_needed) + ' (element count = ' + str(cur_elem_count) + ')')
                 max_cycles = max(cur_cycles_needed, max_cycles)
                 i = 0
                 while cur_elem_count > 0:
-                    hw_inuse[elem][i] += hls.latency[elem]
+                    hw_inuse[elem][i] += hardwareModel.latency[elem]
                     i = (i + 1) % hw_spec[elem]
                     cur_elem_count -= 1
             node_avg_power[node_id] += cycle_sim(hw_inuse, max_cycles)
@@ -131,9 +104,9 @@ def simulate(cfg, data_path, node_operations, hw_spec, first):
 
 def main():
     global power_use
-    if len(sys.argv) > 1:
-        benchmark = sys.argv[1]
-    cfg, graphs, node_operations = schedule(sys.argv[1])
+    benchmark = sys.argv[1]
+    cfg, graphs = dfg_algo.main_fn(path, benchmark)
+    cfg, node_operations = schedule.schedule(cfg, graphs, sys.argv[1])
     hw = HardwareModel(0, 0)
     hw.hw_allocated['Add'] = 1
     hw.hw_allocated['Regs'] = 3
@@ -179,13 +152,13 @@ def main():
     t = []
     for i in range(len(power_use)):
         t.append(i)
-    #print(power_use)
     plt.plot(t,power_use)
     plt.title("power use for " + names[-1])
     plt.xlabel("Cycle")
     plt.ylabel("Power")
     plt.savefig("cfg/benchmarks/power_plots/power_use_" + names[-1] + ".pdf")
     plt.clf() 
+    print("done!")
 
 if __name__ == '__main__':
     main()

@@ -7,7 +7,6 @@ import ast
 from cfg.staticfg.builder import CFGBuilder
 from ast_utils import ASTUtils
 
-path = '/Users/PatrickMcEwen/git_container/codesign/src/cfg/benchmarks/'
 benchmark = 'simple'
 expr_to_node = {}
 func_ref = {}
@@ -37,25 +36,6 @@ op2sym_map = {
     "Not": "!",
     "Invert": "~",
 }
-delimiters = (
-    "+",
-    "-",
-    "*",
-    "//",
-    "%",
-    "=",
-    ">>",
-    "<<",
-    "<",
-    "<=",
-    ">",
-    ">=",
-    "!=",
-    "~",
-    "!",
-    "^",
-    "&",
-)
 
 latency = {
     "And": 1,
@@ -147,19 +127,5 @@ class HardwareModel:
                    allocated=str(self.hw_allocated))
         return s
 
-    def eval_expr(self, expr):
-        expr_to_node[expr] = self.id
-        if type(expr) == ast.Name: 
-            self.hw_allocated["Regs"] += 1
-        else:
-            name = ASTUtils.expr_to_opname(expr)
-            if name:
-                self.hw_allocated[name] += 1
-                self.cycles += latency[name]
-            else:
-                for sub_expr in ASTUtils.get_sub_expr(expr):
-                    self.eval_expr(sub_expr)
-        if type(expr) == ast.FunctionDef:
-            func_ref[expr.name] = expr
     
     
