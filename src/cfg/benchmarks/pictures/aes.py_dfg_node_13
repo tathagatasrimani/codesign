@@ -1,28 +1,28 @@
 digraph {
-	0 [label="source code:
+	34 [label="source code:
 byte = text >> 8 * (15 - i) & 255
 if i % 4 == 0:
 "]
-	1 [label="byte
+	35 [label="byte
 Write"]
-	2 [label="&"]
-	5 [label=">>"]
-	6 [label="text
+	36 [label="&"]
+	39 [label=">>"]
+	40 [label="text
 Read"]
-	6 -> 5
-	8 [label="*"]
-	9 [label=8]
-	9 -> 8
-	11 [label="-"]
-	12 [label=15]
-	12 -> 11
-	13 [label="i
+	40 -> 39
+	42 [label="*"]
+	43 [label=8]
+	43 -> 42
+	45 [label="-"]
+	46 [label=15]
+	46 -> 45
+	47 [label="i
 Read"]
-	13 -> 11
-	11 -> 8
-	8 -> 5
-	5 -> 2
-	4 [label=255]
-	4 -> 2
-	2 -> 1
+	47 -> 45
+	45 -> 42
+	42 -> 39
+	39 -> 36
+	38 [label=255]
+	38 -> 36
+	36 -> 35
 }

@@ -217,7 +217,8 @@ def smith_waterman(seq1, seq2, match_score=3, mismatch_score=-3, gap_score=-2):
                 max_score = scoring_matrix[i][j]
                 max_pos   = (i, j)
     # Traceback
-    i, j = max_pos
+    i = max_pos
+    j = max_pos
     aln1 = ""
     aln2 = ""
     while traceback_matrix[i][j] != None:

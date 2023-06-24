@@ -1,5 +1,5 @@
 digraph {
-	0 [label="source code:
+	128 [label="source code:
 for i in range(1, 10):
 "]
 }

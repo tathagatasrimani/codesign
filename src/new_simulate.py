@@ -105,6 +105,7 @@ def simulate(cfg, data_path, node_operations, hw_spec, first):
 def main():
     global power_use
     benchmark = sys.argv[1]
+    print(benchmark)
     cfg, graphs = dfg_algo.main_fn(path, benchmark)
     cfg, node_operations = schedule.schedule(cfg, graphs, sys.argv[1])
     hw = HardwareModel(0, 0)

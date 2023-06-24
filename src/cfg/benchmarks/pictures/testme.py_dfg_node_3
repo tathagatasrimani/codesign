@@ -1,69 +1,69 @@
 digraph {
-	0 [label="source code:
+	5 [label="source code:
 q = 0.5 + x * y + 1 / 2
 r = x + y
 q = q * r - 3
 w = q + r
 if w < 0:
 "]
-	1 [label="q
+	6 [label="q
 Write"]
-	2 [label="+"]
-	5 [label="+"]
-	6 [label=0.5]
-	6 -> 5
-	8 [label="*"]
-	9 [label="x
+	7 [label="+"]
+	10 [label="+"]
+	11 [label=0.5]
+	11 -> 10
+	13 [label="*"]
+	14 [label="x
 Read"]
-	9 -> 8
-	10 [label="y
+	14 -> 13
+	15 [label="y
 Read"]
-	10 -> 8
-	8 -> 5
-	5 -> 2
-	11 [label="//"]
-	12 [label=1]
-	12 -> 11
-	13 [label=2]
-	13 -> 11
-	11 -> 2
-	2 -> 1
-	14 [label="r
+	15 -> 13
+	13 -> 10
+	10 -> 7
+	16 [label="//"]
+	17 [label=1]
+	17 -> 16
+	18 [label=2]
+	18 -> 16
+	16 -> 7
+	7 -> 6
+	19 [label="r
 Write"]
-	15 [label="+"]
-	16 [label="x
+	20 [label="+"]
+	21 [label="x
 Read"]
-	16 -> 15
-	17 [label="y
+	21 -> 20
+	22 [label="y
 Read"]
-	17 -> 15
-	15 -> 14
-	18 [label="q
-Write"]
-	19 [label="-"]
-	22 [label="*"]
+	22 -> 20
+	20 -> 19
 	23 [label="q
-Read"]
-	23 -> 22
-	24 [label="r
-Read"]
-	24 -> 22
-	22 -> 19
-	21 [label=3]
-	21 -> 19
-	19 -> 18
-	25 [label="w
 Write"]
-	26 [label="+"]
-	27 [label="q
+	24 [label="-"]
+	27 [label="*"]
+	28 [label="q
 Read"]
-	27 -> 26
-	28 [label="r
+	28 -> 27
+	29 [label="r
 Read"]
-	28 -> 26
-	26 -> 25
-	14 -> 28
-	18 -> 27
-	14 -> 24
-	1 -> 23
+	29 -> 27
+	27 -> 24
+	26 [label=3]
+	26 -> 24
+	24 -> 23
+	30 [label="w
+Write"]
+	31 [label="+"]
+	32 [label="q
+Read"]
+	32 -> 31
+	33 [label="r
+Read"]
+	33 -> 31
+	31 -> 30
+	19 -> 33
+	23 -> 32
+	19 -> 29
+	6 -> 28
 }

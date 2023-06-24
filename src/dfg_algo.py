@@ -10,6 +10,7 @@ path = None
 node_to_symbols = {}
 # format: node -> {id -> dfg_node}
 graphs = {}
+cur_id = 0
 
 class symbol:
     def __init__(self, value: str, num_id: str, write: bool):
@@ -32,38 +33,35 @@ class Graph:
 
 # more generally, for one piece of data flowing to another location
 # operand is the source of the data and operation is the destination
-def process_operand(graph, cur_id, operand, operand_num, operation_num, node):
+def process_operand(graph, operand, operand_num, operation_num, node):
     global node_to_symbols
     if type(operand) == ast.Name:
         make_node(graph, node, operand_num, operand.id, 'Read')
         make_edge(graph, node, operand_num, operation_num)
         node_to_symbols[node].append(symbol(operand.id, operand_num, False))
     elif type(operand) == ast.BinOp:
-        op_id, value_ids, cur_id = set_ids(cur_id)
-        cur_id = eval_single_op(operand, graph, cur_id, operation_num, value_ids, op_id, node)
+        op_id, value_ids = set_ids()
+        eval_single_op(operand, graph, operation_num, value_ids, op_id, node)
     elif type(operand) == ast.Attribute:
-        cur_id = process_operand(graph, cur_id, ast.Name(operand.attr), operand_num, operation_num, node)
+        process_operand(graph, ast.Name(operand.attr), operand_num, operation_num, node)
     elif type(operand) == ast.List:
         for elt in operand.elts:
-            cur_id = process_operand(graph, cur_id, elt, operand_num, operation_num, node)
-            operand_num = str(cur_id)
-            cur_id += 1
+            process_operand(graph, elt, operand_num, operation_num, node)
+            operand_num = set_id()
     elif type(operand) == ast.Subscript:
         # ignoring the slice for now
-        cur_id = process_operand(graph, cur_id, operand.value, operand_num, operation_num, node)
+        process_operand(graph, operand.value, operand_num, operation_num, node)
     elif type(operand) == ast.Call:
         target = operand.func
         while type(target) == ast.Attribute or type(target) == ast.Subscript:
             # this should be a name
             target = target.value
-        if type(target) == ast.Tuple: return cur_id
-        target_id = str(cur_id)
-        cur_id += 1
+        if type(target) == ast.Tuple: return
+        target_id = set_id()
         make_node(graph, node, target_id, target.id, 'Write')
         for arg in operand.args:
-            value_id = str(cur_id)
-            cur_id += 1
-            cur_id = process_operand(graph, cur_id, arg, value_id, target_id, node)
+            value_id = set_id()
+            process_operand(graph, arg, value_id, target_id, node)
         node_to_symbols[node].append(symbol(target.id, target_id, True))
         graph.edge(target_id, operation_num)
     elif type(operand) == ast.Constant:
@@ -71,11 +69,10 @@ def process_operand(graph, cur_id, operand, operand_num, operation_num, node):
         graph.edge(operand_num, operation_num)
     else: 
         print("unsupported operand type" + str(type(operand)))
-    return cur_id
 
 # for now, only working with ast.binop
 # add support for boolop
-def eval_single_op(expr, graph, cur_id, target_id, value_ids, op_id, node):
+def eval_single_op(expr, graph, target_id, value_ids, op_id, node):
     global node_to_symbols
     sub_values = ASTUtils.get_sub_expr(expr)
     #print(sub_values)
@@ -84,63 +81,64 @@ def eval_single_op(expr, graph, cur_id, target_id, value_ids, op_id, node):
     graph.node(op_id, hardwareModel.op2sym_map[op_name])
     graphs[node].id_to_Node[op_id] = op_node
     graphs[node].roots.add(op_node)
-    cur_id = process_operand(graph, cur_id, sub_values[0], value_ids[0], op_id, node)
-    cur_id = process_operand(graph, cur_id, sub_values[2], value_ids[1], op_id, node)
+    process_operand(graph, sub_values[0], value_ids[0], op_id, node)
+    process_operand(graph, sub_values[2], value_ids[1], op_id, node)
     make_edge(graph, node, op_id, target_id)
-    return cur_id
 
-def set_ids(cur_id):
+def set_ids():
+    global cur_id
     op_id = str(cur_id)
     value_ids = [str(cur_id+1), str(cur_id+2)]
-    return op_id, value_ids, cur_id + 3
+    cur_id += 3
+    return op_id, value_ids
 
-def eval_expr(expr, graph, cur_id, node):
+def set_id():
+    global cur_id
+    val = str(cur_id)
+    cur_id += 1
+    return val
+
+def eval_expr(expr, graph, node):
     if type(expr) == ast.Assign:
         target = expr.targets[0]
         while type(target) == ast.Attribute or type(target) == ast.Subscript:
             # this should be a name
             target = target.value
-        if type(target) == ast.Tuple: return cur_id
-        target_id = str(cur_id)
-        cur_id += 1
+        if type(target) == ast.Tuple: return
+        target_id = set_id()
         make_node(graph, node, target_id, target.id, 'Write')
         if type(expr.value) == ast.BinOp:
-            op_id, value_ids, cur_id = set_ids(cur_id)
-            cur_id = eval_single_op(expr.value, graph, cur_id, target_id, value_ids, op_id, node)
+            op_id, value_ids = set_ids()
+            eval_single_op(expr.value, graph, target_id, value_ids, op_id, node)
         else:
-            operand_id = str(cur_id)
-            cur_id += 1
-            cur_id = process_operand(graph, cur_id, expr.value, operand_id, target_id, node)
+            operand_id = set_id()
+            process_operand(graph, expr.value, operand_id, target_id, node)
         node_to_symbols[node].append(symbol(target.id, target_id, True))
     elif type(expr) == ast.AugAssign:
         target = expr.target
         while type(target) == ast.Attribute or type(target) == ast.Subscript:
             # this should be a name
             target = target.value
-        if type(target) == ast.Tuple: return cur_id
-        target_id = str(cur_id)
-        cur_id += 1
-        op_id, value_ids, cur_id = set_ids(cur_id)
+        if type(target) == ast.Tuple: return
+        target_id = set_id()
+        op_id, value_ids = set_ids()
         make_node(graph, node, target_id, target.id, 'Write')
-        cur_id = eval_single_op(ast.BinOp(expr.target, expr.op, expr.value), graph, cur_id, target_id, value_ids, op_id, node)
+        eval_single_op(ast.BinOp(expr.target, expr.op, expr.value), graph, target_id, value_ids, op_id, node)
         node_to_symbols[node].append(symbol(target.id, target_id, True))
     elif type(expr) == ast.Call:
         target = expr.func
         while type(target) == ast.Attribute or type(target) == ast.Subscript:
             # this should be a name
             target = target.value
-        if type(target) == ast.Tuple: return cur_id
-        target_id = str(cur_id)
-        cur_id += 1
+        if type(target) == ast.Tuple: return
+        target_id = set_id()
         make_node(graph, node, target_id, target.id, 'Write')
         for arg in expr.args:
-            value_id = str(cur_id)
-            cur_id += 1
-            cur_id = process_operand(graph, cur_id, arg, value_id, target_id, node)
+            value_id = set_id()
+            process_operand(graph, arg, value_id, target_id, node)
         node_to_symbols[node].append(symbol(target.id, target_id, True))
     elif type(expr) == ast.Expr:
-        cur_id = eval_expr(expr.value, graph, cur_id, node)
-    return cur_id
+        eval_expr(expr.value, graph, node)
 
 # node for a non-literal
 def make_node(graph, cfg_node, id, name, annotation):
@@ -161,10 +159,10 @@ def make_edge(graph, node, source_id, target_id):
 # first pass over the basic block
 def dfg_per_node(node):
     graph = gv.Digraph()
-    graph.node('0', "source code:\n" + node.get_source())
-    cur_id = 1
+    id = set_id()
+    graph.node(id, "source code:\n" + node.get_source())
     for expr in node.statements:
-        cur_id = eval_expr(expr, graph, cur_id, node)
+        eval_expr(expr, graph, node)
     # walk backwards over statements, link reads to previous writes
     i = len(node_to_symbols[node])-1
     while i >= 0:

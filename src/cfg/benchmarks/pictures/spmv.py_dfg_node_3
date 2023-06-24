@@ -1,5 +1,5 @@
 digraph {
-	0 [label="source code:
+	19 [label="source code:
 rowNum = int(matrix1.shape[0])
 columnNum = int(matrix1.shape[1])
 Value = np.array([], dtype=int)
@@ -7,40 +7,40 @@ Column = np.array([], dtype=int)
 RowPtr = np.array([], dtype=int)
 Result = np.array([], dtype=int)
 "]
-	1 [label="rowNum
+	20 [label="rowNum
 Write"]
-	3 [label="int
+	22 [label="int
 Write"]
-	4 [label="shape
+	23 [label="shape
 Read"]
-	4 -> 3
-	3 -> 1
-	5 [label="columnNum
+	23 -> 22
+	22 -> 20
+	24 [label="columnNum
 Write"]
-	7 [label="int
+	26 [label="int
 Write"]
-	8 [label="shape
+	27 [label="shape
 Read"]
-	8 -> 7
-	7 -> 5
-	9 [label="Value
+	27 -> 26
+	26 -> 24
+	28 [label="Value
 Write"]
-	11 [label="np
+	30 [label="np
 Write"]
-	11 -> 9
-	13 [label="Column
+	30 -> 28
+	32 [label="Column
 Write"]
-	15 [label="np
+	34 [label="np
 Write"]
-	15 -> 13
-	17 [label="RowPtr
+	34 -> 32
+	36 [label="RowPtr
 Write"]
-	19 [label="np
+	38 [label="np
 Write"]
-	19 -> 17
-	21 [label="Result
+	38 -> 36
+	40 [label="Result
 Write"]
-	23 [label="np
+	42 [label="np
 Write"]
-	23 -> 21
+	42 -> 40
 }

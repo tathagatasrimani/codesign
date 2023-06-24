@@ -1,9 +1,9 @@
 digraph {
-	0 [label="source code:
+	45 [label="source code:
 flag = 1
 "]
-	1 [label="flag
+	46 [label="flag
 Write"]
-	2 [label=1]
-	2 -> 1
+	47 [label=1]
+	47 -> 46
 }

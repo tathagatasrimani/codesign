@@ -1,23 +1,23 @@
 digraph {
-	0 [label="source code:
+	120 [label="source code:
 plain_state = text2matrix(plaintext)
 __add_round_key(plain_state, round_keys[:4])
 "]
-	1 [label="plain_state
+	121 [label="plain_state
 Write"]
-	3 [label="text2matrix
+	123 [label="text2matrix
 Write"]
-	4 [label="plaintext
+	124 [label="plaintext
 Read"]
-	4 -> 3
-	3 -> 1
-	5 [label="__add_round_key
+	124 -> 123
+	123 -> 121
+	125 [label="__add_round_key
 Write"]
-	6 [label="plain_state
+	126 [label="plain_state
 Read"]
-	6 -> 5
-	7 [label="round_keys
+	126 -> 125
+	127 [label="round_keys
 Read"]
-	7 -> 5
-	1 -> 6
+	127 -> 125
+	121 -> 126
 }

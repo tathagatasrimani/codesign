@@ -1,22 +1,22 @@
 digraph {
-	0 [label="source code:
+	113 [label="source code:
 byte = round_keys[i - 4][j] ^ Sbox[round_keys[i - 1][(j + 1) % 4]]
 round_keys[i].append(byte)
 "]
-	1 [label="byte
+	114 [label="byte
 Write"]
-	2 [label="^"]
-	3 [label="round_keys
+	115 [label="^"]
+	116 [label="round_keys
 Read"]
-	3 -> 2
-	4 [label="Sbox
+	116 -> 115
+	117 [label="Sbox
 Read"]
-	4 -> 2
-	2 -> 1
-	5 [label="round_keys
+	117 -> 115
+	115 -> 114
+	118 [label="round_keys
 Write"]
-	6 [label="byte
+	119 [label="byte
 Read"]
-	6 -> 5
-	1 -> 6
+	119 -> 118
+	114 -> 119
 }

@@ -1,5 +1,5 @@
 digraph {
-	0 [label="source code:
+	249 [label="source code:
 t = a[0] ^ a[1] ^ a[2] ^ a[3]
 u = a[0]
 a[0] ^= t ^ xtime(a[0] ^ a[1])
@@ -7,134 +7,134 @@ a[1] ^= t ^ xtime(a[1] ^ a[2])
 a[2] ^= t ^ xtime(a[2] ^ a[3])
 a[3] ^= t ^ xtime(a[3] ^ u)
 "]
-	1 [label="t
+	250 [label="t
 Write"]
-	2 [label="^"]
-	5 [label="^"]
-	8 [label="^"]
-	9 [label="a
+	251 [label="^"]
+	254 [label="^"]
+	257 [label="^"]
+	258 [label="a
 Read"]
-	9 -> 8
-	10 [label="a
+	258 -> 257
+	259 [label="a
 Read"]
-	10 -> 8
-	8 -> 5
-	7 [label="a
+	259 -> 257
+	257 -> 254
+	256 [label="a
 Read"]
-	7 -> 5
-	5 -> 2
-	4 [label="a
+	256 -> 254
+	254 -> 251
+	253 [label="a
 Read"]
-	4 -> 2
-	2 -> 1
-	11 [label="u
+	253 -> 251
+	251 -> 250
+	260 [label="u
 Write"]
-	12 [label="a
+	261 [label="a
 Read"]
-	12 -> 11
-	13 [label="a
+	261 -> 260
+	262 [label="a
 Write"]
-	14 [label="^"]
-	15 [label="a
+	263 [label="^"]
+	264 [label="a
 Read"]
-	15 -> 14
-	17 [label="^"]
-	18 [label="t
+	264 -> 263
+	266 [label="^"]
+	267 [label="t
 Read"]
-	18 -> 17
-	20 [label="xtime
+	267 -> 266
+	269 [label="xtime
 Write"]
-	22 [label="^"]
-	23 [label="a
+	271 [label="^"]
+	272 [label="a
 Read"]
-	23 -> 22
-	24 [label="a
+	272 -> 271
+	273 [label="a
 Read"]
-	24 -> 22
-	22 -> 20
-	20 -> 17
-	17 -> 14
-	14 -> 13
-	25 [label="a
+	273 -> 271
+	271 -> 269
+	269 -> 266
+	266 -> 263
+	263 -> 262
+	274 [label="a
 Write"]
-	26 [label="^"]
-	27 [label="a
+	275 [label="^"]
+	276 [label="a
 Read"]
-	27 -> 26
-	29 [label="^"]
-	30 [label="t
+	276 -> 275
+	278 [label="^"]
+	279 [label="t
 Read"]
-	30 -> 29
-	32 [label="xtime
+	279 -> 278
+	281 [label="xtime
 Write"]
-	34 [label="^"]
-	35 [label="a
+	283 [label="^"]
+	284 [label="a
 Read"]
-	35 -> 34
-	36 [label="a
+	284 -> 283
+	285 [label="a
 Read"]
-	36 -> 34
-	34 -> 32
-	32 -> 29
-	29 -> 26
-	26 -> 25
-	37 [label="a
+	285 -> 283
+	283 -> 281
+	281 -> 278
+	278 -> 275
+	275 -> 274
+	286 [label="a
 Write"]
-	38 [label="^"]
-	39 [label="a
+	287 [label="^"]
+	288 [label="a
 Read"]
-	39 -> 38
-	41 [label="^"]
-	42 [label="t
+	288 -> 287
+	290 [label="^"]
+	291 [label="t
 Read"]
-	42 -> 41
-	44 [label="xtime
+	291 -> 290
+	293 [label="xtime
 Write"]
-	46 [label="^"]
-	47 [label="a
+	295 [label="^"]
+	296 [label="a
 Read"]
-	47 -> 46
-	48 [label="a
+	296 -> 295
+	297 [label="a
 Read"]
-	48 -> 46
-	46 -> 44
-	44 -> 41
-	41 -> 38
-	38 -> 37
-	49 [label="a
+	297 -> 295
+	295 -> 293
+	293 -> 290
+	290 -> 287
+	287 -> 286
+	298 [label="a
 Write"]
-	50 [label="^"]
-	51 [label="a
+	299 [label="^"]
+	300 [label="a
 Read"]
-	51 -> 50
-	53 [label="^"]
-	54 [label="t
+	300 -> 299
+	302 [label="^"]
+	303 [label="t
 Read"]
-	54 -> 53
-	56 [label="xtime
+	303 -> 302
+	305 [label="xtime
 Write"]
-	58 [label="^"]
-	59 [label="a
+	307 [label="^"]
+	308 [label="a
 Read"]
-	59 -> 58
-	60 [label="u
+	308 -> 307
+	309 [label="u
 Read"]
-	60 -> 58
-	58 -> 56
-	56 -> 53
-	53 -> 50
-	50 -> 49
-	11 -> 60
-	37 -> 59
-	1 -> 54
-	37 -> 51
-	25 -> 48
-	25 -> 47
-	1 -> 42
-	25 -> 39
-	13 -> 36
-	13 -> 35
-	1 -> 30
-	13 -> 27
-	1 -> 18
+	309 -> 307
+	307 -> 305
+	305 -> 302
+	302 -> 299
+	299 -> 298
+	260 -> 309
+	286 -> 308
+	250 -> 303
+	286 -> 300
+	274 -> 297
+	274 -> 296
+	250 -> 291
+	274 -> 288
+	262 -> 285
+	262 -> 284
+	250 -> 279
+	262 -> 276
+	250 -> 267
 }

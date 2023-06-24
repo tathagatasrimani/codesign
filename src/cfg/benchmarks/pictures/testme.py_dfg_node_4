@@ -1,46 +1,46 @@
 digraph {
-	0 [label="source code:
+	34 [label="source code:
 a = q + 3
 b = a * r
 r += a + 3 * 2
 "]
-	1 [label="a
+	35 [label="a
 Write"]
-	2 [label="+"]
-	3 [label="q
+	36 [label="+"]
+	37 [label="q
 Read"]
-	3 -> 2
-	4 [label=3]
-	4 -> 2
-	2 -> 1
-	5 [label="b
+	37 -> 36
+	38 [label=3]
+	38 -> 36
+	36 -> 35
+	39 [label="b
 Write"]
-	6 [label="*"]
-	7 [label="a
+	40 [label="*"]
+	41 [label="a
 Read"]
-	7 -> 6
-	8 [label="r
+	41 -> 40
+	42 [label="r
 Read"]
-	8 -> 6
-	6 -> 5
-	9 [label="r
+	42 -> 40
+	40 -> 39
+	43 [label="r
 Write"]
-	10 [label="+"]
-	11 [label="r
+	44 [label="+"]
+	45 [label="r
 Read"]
-	11 -> 10
-	13 [label="+"]
-	14 [label="a
+	45 -> 44
+	47 [label="+"]
+	48 [label="a
 Read"]
-	14 -> 13
-	16 [label="*"]
-	17 [label=3]
-	17 -> 16
-	18 [label=2]
-	18 -> 16
-	16 -> 13
-	13 -> 10
-	10 -> 9
-	1 -> 14
-	1 -> 7
+	48 -> 47
+	50 [label="*"]
+	51 [label=3]
+	51 -> 50
+	52 [label=2]
+	52 -> 50
+	50 -> 47
+	47 -> 44
+	44 -> 43
+	35 -> 48
+	35 -> 41
 }

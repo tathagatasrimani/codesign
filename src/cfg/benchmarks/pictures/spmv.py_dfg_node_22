@@ -1,25 +1,25 @@
 digraph {
-	0 [label="source code:
+	10 [label="source code:
 Result = csr(A, B)
 print('CSR result is:', Result)
 "]
-	1 [label="Result
+	11 [label="Result
 Write"]
-	3 [label="csr
+	13 [label="csr
 Write"]
-	4 [label="A
+	14 [label="A
 Read"]
-	4 -> 3
-	5 [label="B
+	14 -> 13
+	15 [label="B
 Read"]
-	5 -> 3
-	3 -> 1
-	6 [label="print
+	15 -> 13
+	13 -> 11
+	16 [label="print
 Write"]
-	7 [label="CSR result is:"]
-	7 -> 6
-	8 [label="Result
+	17 [label="CSR result is:"]
+	17 -> 16
+	18 [label="Result
 Read"]
-	8 -> 6
-	1 -> 8
+	18 -> 16
+	11 -> 18
 }
