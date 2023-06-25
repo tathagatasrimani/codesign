@@ -62,7 +62,7 @@ class ASTUtils:
         elif type(op) == ast.Sub:
             return "Sub"
         elif type(op) == ast.Pow:
-            return "Pow"
+            return "Mult" # may change this later
         elif type(op) == ast.Div  or type(op) == ast.FloorDiv:
             return "FloorDiv"
         elif type(op) == ast.Mod:
@@ -88,6 +88,10 @@ class ASTUtils:
             return "Invert"
         elif type(op) == ast.USub:
             return "USub"
+        elif type(op) == ast.Not:
+            return "Not"
+        elif type(op) == ast.UAdd:
+            return "UAdd"
         else:
             raise Exception("unhandled unary op <%s>" % op)
 
@@ -109,7 +113,7 @@ class ASTUtils:
         elif type(op) == ast.IsNot:
             return None
         elif type(op) == ast.In:
-            return None
+            return "Eq"
         elif type(op) == ast.NotIn:
             return None
         else:
@@ -257,4 +261,229 @@ class ASTUtils:
         else:
             if expr: print("unhandled (sub) expresssion <%s>" % expr)
             return []
+        
+    # modules #
+    ############### 
+    @staticmethod
+    def isModule(mod):
+        return type(mod) == ast.Module
+    
+    @staticmethod
+    def isInteractive(mod):
+        return type(mod) == ast.Interactive
+    
+    @staticmethod
+    def isExpression(mod):
+        return type(mod) == ast.Expression
+    
+    @staticmethod
+    def isFunctionType(mod):
+        return type(mod) == ast.FunctionType
+    
+    # statements #
+    ############### 
+    @staticmethod
+    def isFunctionDef(stmt):
+        return type(stmt) == ast.FunctionDef
+    
+    @staticmethod
+    def isAsyncFunctionDef(stmt):
+        return type(stmt) == ast.AsyncFunctionDef
+    
+    @staticmethod
+    def isClassDef(stmt):
+        return type(stmt) == ast.ClassDef
+    
+    @staticmethod
+    def isReturn(stmt):
+        return type(stmt) == ast.Return
+    
+    @staticmethod
+    def isDelete(stmt):
+        return type(stmt) == ast.Delete
+    
+    @staticmethod
+    def isAssign(stmt):
+        return type(stmt) == ast.Assign
+    
+    @staticmethod
+    def isAugAssign(stmt):
+        return type(stmt) == ast.AugAssign
+    
+    @staticmethod
+    def isAnnAssign(stmt):
+        return type(stmt) == ast.AnnAssign
+    
+    @staticmethod
+    def isFor(stmt):
+        return type(stmt) == ast.For
+    
+    @staticmethod
+    def isAsyncFor(stmt):
+        return type(stmt) == ast.AsyncFor
+    
+    @staticmethod
+    def isWhile(stmt):
+        return type(stmt) == ast.While
+    
+    @staticmethod
+    def isIf(stmt):
+        return type(stmt) == ast.If
+    
+    @staticmethod
+    def isWith(stmt):
+        return type(stmt) == ast.With
+    
+    @staticmethod
+    def isAsyncWith(stmt):
+        return type(stmt) == ast.AsyncWith
+    
+    @staticmethod
+    def isMatch(stmt):
+        return type(stmt) == ast.Match
+    
+    @staticmethod
+    def isRaise(stmt):
+        return type(stmt) == ast.Raise
+    
+    @staticmethod
+    def isTry(stmt):
+        return type(stmt) == ast.Try
+    
+    @staticmethod
+    def isTryStar(stmt):
+        return type(stmt) == ast.TryStar
+    
+    @staticmethod
+    def isAssert(stmt):
+        return type(stmt) == ast.Assert
+    
+    @staticmethod
+    def isImport(stmt):
+        return type(stmt) == ast.Import
+    
+    @staticmethod
+    def isImportFrom(stmt):
+        return type(stmt) == ast.ImportFrom
+    
+    @staticmethod
+    def isGlobal(stmt):
+        return type(stmt) == ast.Global
+    
+    @staticmethod
+    def isNonlocal(stmt):
+        return type(stmt) == ast.Nonlocal
+    
+    @staticmethod
+    def isExpr(stmt):
+        return type(stmt) == ast.Expr
+
+    # expressions #
+    ###############        
+    @staticmethod
+    def isBoolOp(expr):
+        return type(expr) == ast.BoolOp
+    
+    @staticmethod
+    def isNamedExpr(expr):
+        return type(expr) == ast.NamedExpr
+    
+    @staticmethod
+    def isBinOp(expr):
+        return type(expr) == ast.BinOp
+    
+    @staticmethod
+    def isUnaryOp(expr):
+        return type(expr) == ast.UnaryOp
+    
+    @staticmethod
+    def isLambda(expr):
+        return type(expr) == ast.Lambda
+    
+    @staticmethod
+    def isIfExp(expr):
+        return type(expr) == ast.IfExp
+    
+    @staticmethod
+    def isDict(expr):
+        return type(expr) == ast.Dict
+    
+    def isSet(expr):
+        return type(expr) == ast.Set
+    
+    @staticmethod
+    def isListComp(expr):
+        return type(expr) == ast.ListComp
+    
+    @staticmethod
+    def isSetComp(expr):
+        return type(expr) == ast.SetComp
+    
+    @staticmethod
+    def isDictComp(expr):
+        return type(expr) == ast.DictComp
+    
+    @staticmethod
+    def isGeneratorExp(expr):
+        return type(expr) == ast.GeneratorExp
+    
+    @staticmethod
+    def isAwait(expr):
+        return type(expr) == ast.Await
+    
+    @staticmethod
+    def isYield(expr):
+        return type(expr) == ast.Yield
+    
+    @staticmethod
+    def isYieldFrom(expr):
+        return type(expr) == ast.YieldFrom
+    
+    @staticmethod
+    def isCompare(expr):
+        return type(expr) == ast.Compare
+    
+    @staticmethod
+    def isCall(expr):
+        return type(expr) == ast.Call
+    
+    @staticmethod
+    def isFormattedValue(expr):
+        return type(expr) == ast.FormattedValue
+    
+    @staticmethod
+    def isJoinedStr(expr):
+        return type(expr) == ast.JoinedStr
+    
+    @staticmethod
+    def isConstant(expr):
+        return type(expr) == ast.Constant
+    
+    @staticmethod
+    def isAttribute(expr):
+        return type(expr) == ast.Attribute
+    
+    @staticmethod
+    def isSubscript(expr):
+        return type(expr) == ast.Subscript
+    
+    @staticmethod
+    def isStarred(expr):
+        return type(expr) == ast.Starred
+    
+    @staticmethod
+    def isName(expr):
+        return type(expr) == ast.Name
+    
+    @staticmethod
+    def isList(expr):
+        return type(expr) == ast.List
+    
+    @staticmethod
+    def isTuple(expr):
+        return type(expr) == ast.Tuple
+    
+    @staticmethod
+    def isSlice(expr):
+        return type(expr) == ast.Slice
 

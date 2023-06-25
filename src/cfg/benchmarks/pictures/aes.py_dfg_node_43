@@ -1,22 +1,25 @@
 digraph {
-	113 [label="source code:
-byte = round_keys[i - 4][j] ^ Sbox[round_keys[i - 1][(j + 1) % 4]]
-round_keys[i].append(byte)
+	669 [label="source code:
+self.plain_state = text2matrix(plaintext)
+self.__add_round_key(self.plain_state, self.round_keys[:4])
 "]
-	114 [label="byte
+	670 [label="text2matrix(plaintext)
+"]
+	671 [label="plaintext
+Read"]
+	671 -> 670
+	672 [label="self.plain_state
 Write"]
-	115 [label="^"]
-	116 [label="round_keys
+	670 -> 672
+	673 [label="self.__add_round_key(self.plain_state, self.round_keys[:4])
+"]
+	674 [label="self.plain_state
 Read"]
-	116 -> 115
-	117 [label="Sbox
+	674 -> 673
+	675 [label="self.round_keys
 Read"]
-	117 -> 115
-	115 -> 114
-	118 [label="round_keys
-Write"]
-	119 [label="byte
+	676 [label="self.round_keys[:4]
 Read"]
-	119 -> 118
-	114 -> 119
+	675 -> 676
+	676 -> 673
 }

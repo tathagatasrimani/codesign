@@ -106,7 +106,6 @@ class HardwareModel:
         # number of non-memory elements allocated
         self.hw_allocated = {}
         self.hw_allocated["Regs"] = 0
-        self.hw_allocated["Other"] = 0
         self.loop_variables = loop_counts
         self.var_sizes = var_sizes
         self.id = id

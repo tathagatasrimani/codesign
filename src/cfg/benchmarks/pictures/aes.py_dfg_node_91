@@ -1,5 +1,5 @@
 digraph {
-	224 [label="source code:
+	783 [label="source code:
 s[0][1] = s[3][1]
 s[1][1] = s[0][1]
 s[2][1] = s[1][1]
@@ -13,75 +13,64 @@ s[1][3] = s[2][3]
 s[2][3] = s[3][3]
 s[3][3] = s[0][3]
 "]
-	225 [label="s
-Write"]
-	226 [label="s
+	784 [label="s
 Read"]
-	226 -> 225
-	227 [label="s
-Write"]
-	228 [label="s
+	785 [label="s
 Read"]
-	228 -> 227
-	229 [label="s
-Write"]
-	230 [label="s
+	784 -> 785
+	786 [label="s
 Read"]
-	230 -> 229
-	231 [label="s
-Write"]
-	232 [label="s
+	787 [label="s
 Read"]
-	232 -> 231
-	233 [label="s
-Write"]
-	234 [label="s
+	786 -> 787
+	788 [label="s
 Read"]
-	234 -> 233
-	235 [label="s
-Write"]
-	236 [label="s
+	789 [label="s
 Read"]
-	236 -> 235
-	237 [label="s
-Write"]
-	238 [label="s
+	788 -> 789
+	790 [label="s
 Read"]
-	238 -> 237
-	239 [label="s
-Write"]
-	240 [label="s
+	791 [label="s
 Read"]
-	240 -> 239
-	241 [label="s
-Write"]
-	242 [label="s
+	790 -> 791
+	792 [label="s
 Read"]
-	242 -> 241
-	243 [label="s
-Write"]
-	244 [label="s
+	793 [label="s
 Read"]
-	244 -> 243
-	245 [label="s
-Write"]
-	246 [label="s
+	792 -> 793
+	794 [label="s
 Read"]
-	246 -> 245
-	247 [label="s
-Write"]
-	248 [label="s
+	795 [label="s
 Read"]
-	248 -> 247
-	245 -> 248
-	243 -> 246
-	241 -> 244
-	239 -> 242
-	237 -> 240
-	235 -> 238
-	233 -> 236
-	231 -> 234
-	229 -> 232
-	227 -> 230
-	225 -> 228
+	794 -> 795
+	796 [label="s
+Read"]
+	797 [label="s
+Read"]
+	796 -> 797
+	798 [label="s
+Read"]
+	799 [label="s
+Read"]
+	798 -> 799
+	800 [label="s
+Read"]
+	801 [label="s
+Read"]
+	800 -> 801
+	802 [label="s
+Read"]
+	803 [label="s
+Read"]
+	802 -> 803
+	804 [label="s
+Read"]
+	805 [label="s
+Read"]
+	804 -> 805
+	806 [label="s
+Read"]
+	807 [label="s
+Read"]
+	806 -> 807
 }

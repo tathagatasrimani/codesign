@@ -1,0 +1,14 @@
+digraph {
+	17 [label="source code:
+active_sequence_name = line[1:]
+if active_sequence_name not in fasta_dict:
+"]
+	18 [label="line
+Read"]
+	19 [label="line[1:]
+Read"]
+	18 -> 19
+	20 [label="active_sequence_name
+Write"]
+	19 -> 20
+}

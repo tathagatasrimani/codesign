@@ -1,0 +1,5 @@
+digraph {
+	230 [label="source code:
+return matrix.div(matrix.sum(axis=1), axis=0)
+"]
+}

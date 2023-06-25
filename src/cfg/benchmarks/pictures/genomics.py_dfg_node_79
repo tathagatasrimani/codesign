@@ -1,0 +1,17 @@
+digraph {
+	164 [label="source code:
+quality = fastq_dict[key][0]
+if min_quality > 0:
+"]
+	165 [label="fastq_dict
+Read"]
+	166 [label="fastq_dict[key]
+Read"]
+	165 -> 166
+	167 [label="fastq_dict[key][0]
+Read"]
+	166 -> 167
+	168 [label="quality
+Write"]
+	167 -> 168
+}

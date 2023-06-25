@@ -1,0 +1,10 @@
+digraph {
+	91 [label="source code:
+h = alpha
+"]
+	92 [label="alpha
+Read"]
+	93 [label="h
+Write"]
+	92 -> 93
+}

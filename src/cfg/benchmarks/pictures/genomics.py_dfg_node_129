@@ -1,0 +1,25 @@
+digraph {
+	345 [label="source code:
+aln1 += seq1[i - 1]
+aln2 += '-'
+i -= 1
+"]
+	346 [label="seq1
+Read"]
+	347 [label="seq1[i - 1]
+Read"]
+	346 -> 347
+	348 [label="aln1
+Write"]
+	347 -> 348
+	349 [label="-
+"]
+	350 [label="aln2
+Write"]
+	349 -> 350
+	351 [label=1
+]
+	352 [label="i
+Write"]
+	351 -> 352
+}

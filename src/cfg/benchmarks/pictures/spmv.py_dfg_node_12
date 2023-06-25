@@ -3,26 +3,29 @@ digraph {
 RowPtr = np.append(RowPtr, len(Value) - 1)
 flag = 0
 "]
-	84 [label="RowPtr
-Write"]
-	86 [label="np
-Write"]
-	87 [label="RowPtr
+	84 [label="np.append(RowPtr, len(Value) - 1)
+"]
+	85 [label="RowPtr
+Read"]
+	85 -> 84
+	86 [label="len(Value)
+"]
+	87 [label="Value
 Read"]
 	87 -> 86
-	89 [label="-"]
-	92 [label="len
+	88 [label=1
+]
+	89 [label="-
+"]
+	86 -> 89
+	88 -> 89
+	89 -> 84
+	90 [label="RowPtr
 Write"]
-	93 [label="Value
-Read"]
-	93 -> 92
-	92 -> 89
-	91 [label=1]
-	91 -> 89
-	89 -> 86
-	86 -> 84
-	94 [label="flag
+	84 -> 90
+	91 [label=0
+]
+	92 [label="flag
 Write"]
-	95 [label=0]
-	95 -> 94
+	91 -> 92
 }

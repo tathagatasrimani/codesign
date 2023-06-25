@@ -1,0 +1,19 @@
+digraph {
+	40 [label="source code:
+if strong_wolfe_alpha(f, g, alpha, c2):
+"]
+	41 [label="strong_wolfe_alpha(f, g, alpha, c2)
+"]
+	42 [label="f
+Read"]
+	42 -> 41
+	43 [label="g
+Read"]
+	43 -> 41
+	44 [label="alpha
+Read"]
+	44 -> 41
+	45 [label="c2
+Read"]
+	45 -> 41
+}

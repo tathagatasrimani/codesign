@@ -1,0 +1,40 @@
+digraph {
+	362 [label="source code:
+fasta_file = (
+    '/Users/PatrickMcEwen/git_container/codesign/src/cfg/benchmarks/supplemental_files/fasta_example.fasta'
+    )
+fastq_file = (
+    '/Users/PatrickMcEwen/git_container/codesign/src/cfg/benchmarks/supplemental_files/fastq_example.fastq'
+    )
+output_file = (
+    '/Users/PatrickMcEwen/git_container/codesign/src/cfg/benchmarks/supplemental_files/output_file.txt'
+    )
+darwin_wga_workflow(fasta_file, fastq_file, output_file)
+"]
+	363 [label="/Users/PatrickMcEwen/git_container/codesign/src/cfg/benchmarks/supplemental_files/fasta_example.fasta
+"]
+	364 [label="fasta_file
+Write"]
+	363 -> 364
+	365 [label="/Users/PatrickMcEwen/git_container/codesign/src/cfg/benchmarks/supplemental_files/fastq_example.fastq
+"]
+	366 [label="fastq_file
+Write"]
+	365 -> 366
+	367 [label="/Users/PatrickMcEwen/git_container/codesign/src/cfg/benchmarks/supplemental_files/output_file.txt
+"]
+	368 [label="output_file
+Write"]
+	367 -> 368
+	369 [label="darwin_wga_workflow(fasta_file, fastq_file, output_file)
+"]
+	370 [label="fasta_file
+Read"]
+	370 -> 369
+	371 [label="fastq_file
+Read"]
+	371 -> 369
+	372 [label="output_file
+Read"]
+	372 -> 369
+}

@@ -2,10 +2,13 @@ digraph {
 	1 [label="source code:
 main(2, 3)
 "]
-	2 [label="main
-Write"]
-	3 [label=2]
+	2 [label="main(2, 3)
+
+"]
+	3 [label=2
+]
 	3 -> 2
-	4 [label=3]
+	4 [label=3
+]
 	4 -> 2
 }

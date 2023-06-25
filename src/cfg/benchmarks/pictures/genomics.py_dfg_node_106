@@ -1,0 +1,22 @@
+digraph {
+	257 [label="source code:
+diagonal_score = scoring_matrix[i - 1][j - 1] + match_score
+"]
+	258 [label="scoring_matrix
+Read"]
+	259 [label="scoring_matrix[i - 1]
+Read"]
+	258 -> 259
+	260 [label="scoring_matrix[i - 1][j - 1]
+Read"]
+	259 -> 260
+	261 [label="match_score
+Read"]
+	262 [label="+
+"]
+	260 -> 262
+	261 -> 262
+	263 [label="diagonal_score
+Write"]
+	262 -> 263
+}

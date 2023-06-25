@@ -1,5 +1,11 @@
 digraph {
-	195 [label="source code:
+	752 [label="source code:
 for j in range(4):
 "]
+	753 [label="range(4)
+
+"]
+	754 [label=4
+]
+	754 -> 753
 }

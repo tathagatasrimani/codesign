@@ -1,5 +1,10 @@
 digraph {
-	55 [label="source code:
+	51 [label="source code:
 for i in range(rowNum):
 "]
+	52 [label="range(rowNum)
+"]
+	53 [label="rowNum
+Read"]
+	53 -> 52
 }

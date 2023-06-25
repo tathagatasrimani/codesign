@@ -1,0 +1,10 @@
+digraph {
+	33 [label="source code:
+c = 2
+"]
+	34 [label=2
+]
+	35 [label="c
+Write"]
+	34 -> 35
+}

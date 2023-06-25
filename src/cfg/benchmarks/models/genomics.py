@@ -87,8 +87,6 @@ def darwin_wga_workflow(fasta_file, fastq_file, output_file,
     fasta_dict = read_fasta(fasta_file)
     # Read fastq file
     fastq_dict = read_fastq(fastq_file)
-    # Read fasta file with quality
-    fasta_dict, quality_dict = read_fasta_with_quality(fasta_file, quality_file)
     # Filter fasta file
     filtered_fasta_dict = filter_fasta(fasta_dict, min_length, max_length,
                                        min_length_fraction, max_length_fraction)
@@ -96,22 +94,6 @@ def darwin_wga_workflow(fasta_file, fastq_file, output_file,
     filtered_fastq_dict = filter_fastq(fastq_dict, min_quality, max_quality)
     # Write output
     write_output(filtered_fasta_dict, filtered_fastq_dict, output_file)
-
-# Read fasta file
-fasta_dict = read_fasta(fasta_file)
-# Read fastq file
-fastq_dict = read_fastq(fastq_file)
-# Read fasta file with quality
-fasta_dict, quality_dict = read_fasta_with_quality(fasta_file, quality_file)
-# Filter fasta file
-filtered_fasta_dict = filter_fasta(fasta_dict, min_length, max_length,
-                                   min_length_fraction, max_length_fraction)
-# Filter fastq file
-filtered_fastq_dict = filter_fastq(fastq_dict, min_quality, max_quality)
-# Write output
-write_output(filtered_fasta_dict, filtered_fastq_dict, output_file)
-
-
 
 
 
@@ -237,4 +219,11 @@ def smith_waterman(seq1, seq2, match_score=3, mismatch_score=-3, gap_score=-2):
             i -= 1
     return aln1[::-1], aln2[::-1]
 
+def main():
+    fasta_file = "/Users/PatrickMcEwen/git_container/codesign/src/cfg/benchmarks/supplemental_files/fasta_example.fasta"
+    fastq_file = "/Users/PatrickMcEwen/git_container/codesign/src/cfg/benchmarks/supplemental_files/fastq_example.fastq"
+    output_file = "/Users/PatrickMcEwen/git_container/codesign/src/cfg/benchmarks/supplemental_files/output_file.txt"
+    darwin_wga_workflow(fasta_file, fastq_file, output_file)
 
+if __name__ == "__main__":
+    main()

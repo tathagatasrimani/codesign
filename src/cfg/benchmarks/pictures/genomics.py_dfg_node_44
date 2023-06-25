@@ -1,0 +1,14 @@
+digraph {
+	96 [label="source code:
+active_sequence_name = line[1:]
+if active_sequence_name not in quality_dict:
+"]
+	97 [label="line
+Read"]
+	98 [label="line[1:]
+Read"]
+	97 -> 98
+	99 [label="active_sequence_name
+Write"]
+	98 -> 99
+}

@@ -1,9 +1,46 @@
 digraph {
-	56 [label="source code:
-text = 0
+	597 [label="source code:
+text |= matrix[i][j] << 120 - 8 * (4 * i + j)
 "]
-	57 [label="text
+	598 [label="matrix
+Read"]
+	599 [label="matrix[i]
+Read"]
+	598 -> 599
+	600 [label="matrix[i][j]
+Read"]
+	599 -> 600
+	601 [label=120
+]
+	602 [label=8
+]
+	603 [label=4
+]
+	604 [label="i
+Read"]
+	605 [label="*
+"]
+	603 -> 605
+	604 -> 605
+	606 [label="j
+Read"]
+	607 [label="+
+"]
+	605 -> 607
+	606 -> 607
+	608 [label="*
+"]
+	602 -> 608
+	607 -> 608
+	609 [label="-
+"]
+	601 -> 609
+	608 -> 609
+	610 [label="<<
+"]
+	600 -> 610
+	609 -> 610
+	611 [label="text
 Write"]
-	58 [label=0]
-	58 -> 57
+	610 -> 611
 }

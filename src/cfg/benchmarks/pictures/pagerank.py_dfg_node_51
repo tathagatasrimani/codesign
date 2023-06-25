@@ -1,0 +1,77 @@
+digraph {
+	253 [label="source code:
+transition_weights = pandas.DataFrame(transition_weights)
+nodes = __extract_nodes(transition_weights)
+transition_weights = __make_square(transition_weights, nodes, default=0.0)
+transition_weights = __ensure_rows_positive(transition_weights)
+state = __start_state(nodes)
+transition_probabilities = __normalize_rows(transition_weights)
+transition_probabilities = __integrate_random_surfer(nodes,
+    transition_probabilities, rsp)
+"]
+	254 [label="pandas.DataFrame(transition_weights)
+"]
+	255 [label="transition_weights
+Read"]
+	255 -> 254
+	256 [label="transition_weights
+Write"]
+	254 -> 256
+	257 [label="__extract_nodes(transition_weights)
+"]
+	258 [label="transition_weights
+Read"]
+	258 -> 257
+	259 [label="nodes
+Write"]
+	257 -> 259
+	260 [label="__make_square(transition_weights, nodes, default=0.0)
+"]
+	261 [label="transition_weights
+Read"]
+	261 -> 260
+	262 [label="nodes
+Read"]
+	262 -> 260
+	263 [label="transition_weights
+Write"]
+	260 -> 263
+	264 [label="__ensure_rows_positive(transition_weights)
+"]
+	265 [label="transition_weights
+Read"]
+	265 -> 264
+	266 [label="transition_weights
+Write"]
+	264 -> 266
+	267 [label="__start_state(nodes)
+"]
+	268 [label="nodes
+Read"]
+	268 -> 267
+	269 [label="state
+Write"]
+	267 -> 269
+	270 [label="__normalize_rows(transition_weights)
+"]
+	271 [label="transition_weights
+Read"]
+	271 -> 270
+	272 [label="transition_probabilities
+Write"]
+	270 -> 272
+	273 [label="__integrate_random_surfer(nodes, transition_probabilities, rsp)
+"]
+	274 [label="nodes
+Read"]
+	274 -> 273
+	275 [label="transition_probabilities
+Read"]
+	275 -> 273
+	276 [label="rsp
+Read"]
+	276 -> 273
+	277 [label="transition_probabilities
+Write"]
+	273 -> 277
+}

@@ -1,0 +1,23 @@
+digraph {
+	249 [label="source code:
+letter1 = seq1[i - 1]
+letter2 = seq2[j - 1]
+if letter1 == letter2:
+"]
+	250 [label="seq1
+Read"]
+	251 [label="seq1[i - 1]
+Read"]
+	250 -> 251
+	252 [label="letter1
+Write"]
+	251 -> 252
+	253 [label="seq2
+Read"]
+	254 [label="seq2[j - 1]
+Read"]
+	253 -> 254
+	255 [label="letter2
+Write"]
+	254 -> 255
+}

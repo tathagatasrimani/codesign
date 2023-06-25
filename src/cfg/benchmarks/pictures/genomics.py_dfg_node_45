@@ -1,0 +1,16 @@
+digraph {
+	100 [label="source code:
+quality = line
+quality_dict[active_sequence_name].append(quality)
+"]
+	101 [label="line
+Read"]
+	102 [label="quality
+Write"]
+	101 -> 102
+	103 [label="quality_dict[active_sequence_name].append(quality)
+"]
+	104 [label="quality
+Read"]
+	104 -> 103
+}

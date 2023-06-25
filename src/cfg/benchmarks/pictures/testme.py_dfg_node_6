@@ -1,26 +1,28 @@
 digraph {
-	53 [label="source code:
+	45 [label="source code:
 a = q - 3
 b = a / r
 "]
-	54 [label="a
+	46 [label="q
+Read"]
+	47 [label=3
+]
+	48 [label="-
+"]
+	46 -> 48
+	47 -> 48
+	49 [label="a
 Write"]
-	55 [label="-"]
-	56 [label="q
+	48 -> 49
+	50 [label="a
 Read"]
-	56 -> 55
-	57 [label=3]
-	57 -> 55
-	55 -> 54
-	58 [label="b
+	51 [label="r
+Read"]
+	52 [label="//
+"]
+	50 -> 52
+	51 -> 52
+	53 [label="b
 Write"]
-	59 [label="//"]
-	60 [label="a
-Read"]
-	60 -> 59
-	61 [label="r
-Read"]
-	61 -> 59
-	59 -> 58
-	54 -> 60
+	52 -> 53
 }

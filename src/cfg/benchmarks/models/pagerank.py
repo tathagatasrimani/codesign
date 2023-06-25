@@ -74,3 +74,6 @@ def power_iteration(transition_weights, rsp=0.15, epsilon=0.00001, max_iteration
             break
 
     return state
+
+if __name__ == "__main__":
+    power_iteration([[1, 3, 5,], [4, 2, 7], [3, 8, 1]])

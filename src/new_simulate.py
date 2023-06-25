@@ -2,6 +2,7 @@ from hardwareModel import HardwareModel
 from ast_utils import ASTUtils
 import schedule
 import dfg_algo
+import dfg_algo_new
 import matplotlib.pyplot as plt
 import ast
 import hardwareModel
@@ -28,7 +29,7 @@ def func_calls(expr, calls):
 def get_hw_need(state):
     hw_need = HardwareModel(0,0)
     for op in state:
-        if op.operation == 'Read' or op.operation == 'Write': hw_need.hw_allocated['Regs'] += 1
+        if not op.operation: continue
         else: hw_need.hw_allocated[op.operation] += 1
     return hw_need.hw_allocated
 
@@ -106,7 +107,7 @@ def main():
     global power_use
     benchmark = sys.argv[1]
     print(benchmark)
-    cfg, graphs = dfg_algo.main_fn(path, benchmark)
+    cfg, graphs = dfg_algo_new.main_fn(path, benchmark)
     cfg, node_operations = schedule.schedule(cfg, graphs, sys.argv[1])
     hw = HardwareModel(0, 0)
     hw.hw_allocated['Add'] = 1
@@ -127,8 +128,12 @@ def main():
     hw.hw_allocated['NotEq'] = 1
     hw.hw_allocated['Lt'] = 1
     hw.hw_allocated['LtE'] = 1
-    hw.hw_allocated['Gt'] = 1
     hw.hw_allocated['GtE'] = 1
+    hw.hw_allocated['IsNot'] = 1
+    hw.hw_allocated['USub'] = 1
+    hw.hw_allocated['UAdd'] = 1
+    hw.hw_allocated['Not'] = 1
+    hw.hw_allocated['Invert'] = 1
     for node in cfg:
         id_to_node[str(node.id)] = node
     # set up sequence of cfg nodes to visit

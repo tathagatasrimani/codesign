@@ -1,32 +1,38 @@
 digraph {
-	69 [label="source code:
+	67 [label="source code:
 Value = np.append(Value, np.array(matrix1[i][j]))
 Column = np.append(Column, j)
 if flag == 1:
 "]
-	70 [label="Value
-Write"]
-	72 [label="np
-Write"]
-	73 [label="Value
+	68 [label="np.append(Value, np.array(matrix1[i][j]))
+"]
+	69 [label="Value
 Read"]
-	73 -> 72
-	75 [label="np
+	69 -> 68
+	70 [label="np.array(matrix1[i][j])
+"]
+	71 [label="matrix1
+Read"]
+	72 [label="matrix1[i]
+Read"]
+	71 -> 72
+	73 [label="matrix1[i][j]
+Read"]
+	72 -> 73
+	73 -> 70
+	70 -> 68
+	74 [label="Value
 Write"]
-	76 [label="matrix1
+	68 -> 74
+	75 [label="np.append(Column, j)
+"]
+	76 [label="Column
 Read"]
 	76 -> 75
-	75 -> 72
-	72 -> 70
-	77 [label="Column
-Write"]
-	79 [label="np
-Write"]
-	80 [label="Column
+	77 [label="j
 Read"]
-	80 -> 79
-	81 [label="j
-Read"]
-	81 -> 79
-	79 -> 77
+	77 -> 75
+	78 [label="Column
+Write"]
+	75 -> 78
 }

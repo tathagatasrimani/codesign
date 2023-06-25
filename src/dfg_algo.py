@@ -41,7 +41,7 @@ def process_operand(graph, operand, operand_num, operation_num, node):
         node_to_symbols[node].append(symbol(operand.id, operand_num, False))
     elif type(operand) == ast.BinOp:
         op_id, value_ids = set_ids()
-        eval_single_op(operand, graph, operation_num, value_ids, op_id, node)
+        eval_expr(operand, graph, operation_num, value_ids, op_id, node)
     elif type(operand) == ast.Attribute:
         process_operand(graph, ast.Name(operand.attr), operand_num, operation_num, node)
     elif type(operand) == ast.List:
@@ -72,7 +72,7 @@ def process_operand(graph, operand, operand_num, operation_num, node):
 
 # for now, only working with ast.binop
 # add support for boolop
-def eval_single_op(expr, graph, target_id, value_ids, op_id, node):
+def eval_expr(expr, graph, target_id, value_ids, op_id, node):
     global node_to_symbols
     sub_values = ASTUtils.get_sub_expr(expr)
     #print(sub_values)
@@ -98,7 +98,7 @@ def set_id():
     cur_id += 1
     return val
 
-def eval_expr(expr, graph, node):
+def eval_stmt(expr, graph, node):
     if type(expr) == ast.Assign:
         target = expr.targets[0]
         while type(target) == ast.Attribute or type(target) == ast.Subscript:
@@ -109,7 +109,7 @@ def eval_expr(expr, graph, node):
         make_node(graph, node, target_id, target.id, 'Write')
         if type(expr.value) == ast.BinOp:
             op_id, value_ids = set_ids()
-            eval_single_op(expr.value, graph, target_id, value_ids, op_id, node)
+            eval_expr(expr.value, graph, target_id, value_ids, op_id, node)
         else:
             operand_id = set_id()
             process_operand(graph, expr.value, operand_id, target_id, node)
@@ -123,7 +123,7 @@ def eval_expr(expr, graph, node):
         target_id = set_id()
         op_id, value_ids = set_ids()
         make_node(graph, node, target_id, target.id, 'Write')
-        eval_single_op(ast.BinOp(expr.target, expr.op, expr.value), graph, target_id, value_ids, op_id, node)
+        eval_expr(ast.BinOp(expr.target, expr.op, expr.value), graph, target_id, value_ids, op_id, node)
         node_to_symbols[node].append(symbol(target.id, target_id, True))
     elif type(expr) == ast.Call:
         target = expr.func
@@ -138,7 +138,7 @@ def eval_expr(expr, graph, node):
             process_operand(graph, arg, value_id, target_id, node)
         node_to_symbols[node].append(symbol(target.id, target_id, True))
     elif type(expr) == ast.Expr:
-        eval_expr(expr.value, graph, node)
+        eval_stmt(expr.value, graph, node)
 
 # node for a non-literal
 def make_node(graph, cfg_node, id, name, annotation):
@@ -162,7 +162,7 @@ def dfg_per_node(node):
     id = set_id()
     graph.node(id, "source code:\n" + node.get_source())
     for expr in node.statements:
-        eval_expr(expr, graph, node)
+        eval_stmt(expr, graph, node)
     # walk backwards over statements, link reads to previous writes
     i = len(node_to_symbols[node])-1
     while i >= 0:

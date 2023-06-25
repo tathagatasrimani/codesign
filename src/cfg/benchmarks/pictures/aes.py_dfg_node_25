@@ -1,37 +1,40 @@
 digraph {
-	62 [label="source code:
+	604 [label="source code:
 text |= matrix[i][j] << 120 - 8 * (4 * i + j)
 "]
-	63 [label="text
+	605 [label="matrix
+Read"]
+	606 [label=120
+]
+	607 [label=8
+]
+	608 [label=4
+]
+	609 [label="i
+Read"]
+	610 [label="*
+"]
+	608 -> 610
+	609 -> 610
+	611 [label="j
+Read"]
+	612 [label="+
+"]
+	610 -> 612
+	611 -> 612
+	613 [label="*
+"]
+	607 -> 613
+	612 -> 613
+	614 [label="-
+"]
+	606 -> 614
+	613 -> 614
+	615 [label="<<
+"]
+	605 -> 615
+	614 -> 615
+	616 [label="text
 Write"]
-	64 [label="|"]
-	65 [label="text
-Read"]
-	65 -> 64
-	67 [label="<<"]
-	68 [label="matrix
-Read"]
-	68 -> 67
-	70 [label="-"]
-	71 [label=120]
-	71 -> 70
-	73 [label="*"]
-	74 [label=8]
-	74 -> 73
-	76 [label="+"]
-	79 [label="*"]
-	80 [label=4]
-	80 -> 79
-	81 [label="i
-Read"]
-	81 -> 79
-	79 -> 76
-	78 [label="j
-Read"]
-	78 -> 76
-	76 -> 73
-	73 -> 70
-	70 -> 67
-	67 -> 64
-	64 -> 63
+	615 -> 616
 }

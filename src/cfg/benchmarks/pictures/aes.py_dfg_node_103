@@ -1,5 +1,5 @@
 digraph {
-	315 [label="source code:
+	856 [label="source code:
 u = xtime(xtime(s[i][0] ^ s[i][2]))
 v = xtime(xtime(s[i][1] ^ s[i][3]))
 s[i][0] ^= u
@@ -7,83 +7,66 @@ s[i][1] ^= v
 s[i][2] ^= u
 s[i][3] ^= v
 "]
-	316 [label="u
+	857 [label="xtime(xtime(s[i][0] ^ s[i][2]))
+
+"]
+	858 [label="xtime(s[i][0] ^ s[i][2])
+
+"]
+	859 [label="s
+Read"]
+	860 [label="s
+Read"]
+	861 [label="^
+"]
+	859 -> 861
+	860 -> 861
+	861 -> 858
+	858 -> 857
+	862 [label="u
 Write"]
-	318 [label="xtime
+	857 -> 862
+	863 [label="xtime(xtime(s[i][1] ^ s[i][3]))
+
+"]
+	864 [label="xtime(s[i][1] ^ s[i][3])
+
+"]
+	865 [label="s
+Read"]
+	866 [label="s
+Read"]
+	867 [label="^
+"]
+	865 -> 867
+	866 -> 867
+	867 -> 864
+	864 -> 863
+	868 [label="v
 Write"]
-	320 [label="xtime
-Write"]
-	322 [label="^"]
-	323 [label="s
+	863 -> 868
+	869 [label="u
 Read"]
-	323 -> 322
-	324 [label="s
+	870 [label="s
 Read"]
-	324 -> 322
-	322 -> 320
-	320 -> 318
-	318 -> 316
-	325 [label="v
-Write"]
-	327 [label="xtime
-Write"]
-	329 [label="xtime
-Write"]
-	331 [label="^"]
-	332 [label="s
+	869 -> 870
+	871 [label="v
 Read"]
-	332 -> 331
-	333 [label="s
+	872 [label="s
 Read"]
-	333 -> 331
-	331 -> 329
-	329 -> 327
-	327 -> 325
-	334 [label="s
-Write"]
-	335 [label="^"]
-	336 [label="s
+	871 -> 872
+	873 [label="u
 Read"]
-	336 -> 335
-	337 [label="u
+	874 [label="s
 Read"]
-	337 -> 335
-	335 -> 334
-	338 [label="s
-Write"]
-	339 [label="^"]
-	340 [label="s
+	873 -> 874
+	875 [label="v
 Read"]
-	340 -> 339
-	341 [label="v
+	876 [label="s
 Read"]
-	341 -> 339
-	339 -> 338
-	342 [label="s
-Write"]
-	343 [label="^"]
-	344 [label="s
-Read"]
-	344 -> 343
-	345 [label="u
-Read"]
-	345 -> 343
-	343 -> 342
-	346 [label="s
-Write"]
-	347 [label="^"]
-	348 [label="s
-Read"]
-	348 -> 347
-	349 [label="v
-Read"]
-	349 -> 347
-	347 -> 346
-	325 -> 349
-	342 -> 348
-	316 -> 345
-	338 -> 344
-	325 -> 341
-	334 -> 340
-	316 -> 337
+	875 -> 876
+	868 -> 875
+	862 -> 873
+	868 -> 871
+	862 -> 869
 }

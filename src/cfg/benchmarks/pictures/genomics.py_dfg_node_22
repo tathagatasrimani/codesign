@@ -1,0 +1,14 @@
+digraph {
+	44 [label="source code:
+active_sequence_name = line[1:]
+if active_sequence_name not in fastq_dict:
+"]
+	45 [label="line
+Read"]
+	46 [label="line[1:]
+Read"]
+	45 -> 46
+	47 [label="active_sequence_name
+Write"]
+	46 -> 47
+}

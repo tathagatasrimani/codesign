@@ -1,0 +1,16 @@
+digraph {
+	201 [label="source code:
+if not key in matrix:
+"]
+	202 [label="key
+Read"]
+	203 [label="matrix
+Read"]
+	204 [label="==
+"]
+	202 -> 204
+	203 -> 204
+	205 [label="!
+"]
+	204 -> 205
+}

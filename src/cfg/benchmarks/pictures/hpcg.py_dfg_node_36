@@ -1,0 +1,106 @@
+digraph {
+	48 [label="source code:
+half = (l + h) / 2
+alpha = -g_alpha(l) * h ** 2 / (2 * (f_alpha(h) - f_alpha(l) - g_alpha(l) * h))
+if alpha < l or alpha > h:
+"]
+	49 [label="l
+Read"]
+	50 [label="h
+Read"]
+	51 [label="+
+"]
+	49 -> 51
+	50 -> 51
+	52 [label=2
+]
+	53 [label="//
+"]
+	51 -> 53
+	52 -> 53
+	54 [label="half
+Write"]
+	53 -> 54
+	55 [label="g_alpha(l)
+"]
+	56 [label="l
+Read"]
+	56 -> 55
+	57 [label="-
+"]
+	55 -> 57
+	58 [label="h
+Read"]
+	59 [label=2
+]
+	60 [label="*
+"]
+	58 -> 60
+	59 -> 60
+	61 [label="*
+"]
+	57 -> 61
+	60 -> 61
+	62 [label=2
+]
+	63 [label="f_alpha(h)
+"]
+	64 [label="h
+Read"]
+	64 -> 63
+	65 [label="f_alpha(l)
+"]
+	66 [label="l
+Read"]
+	66 -> 65
+	67 [label="-
+"]
+	63 -> 67
+	65 -> 67
+	68 [label="g_alpha(l)
+"]
+	69 [label="l
+Read"]
+	69 -> 68
+	70 [label="h
+Read"]
+	71 [label="*
+"]
+	68 -> 71
+	70 -> 71
+	72 [label="-
+"]
+	67 -> 72
+	71 -> 72
+	73 [label="*
+"]
+	62 -> 73
+	72 -> 73
+	74 [label="//
+"]
+	61 -> 74
+	73 -> 74
+	75 [label="alpha
+Write"]
+	74 -> 75
+	76 [label="alpha
+Read"]
+	77 [label="l
+Read"]
+	78 [label="<
+"]
+	76 -> 78
+	77 -> 78
+	79 [label="alpha
+Read"]
+	80 [label="h
+Read"]
+	81 [label=">
+"]
+	79 -> 81
+	80 -> 81
+	82 [label=or
+]
+	78 -> 82
+	81 -> 82
+}

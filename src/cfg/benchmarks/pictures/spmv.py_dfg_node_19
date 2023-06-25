@@ -1,16 +1,16 @@
 digraph {
-	108 [label="source code:
+	105 [label="source code:
 Result = np.append(Result, temp)
 "]
+	106 [label="np.append(Result, temp)
+"]
+	107 [label="Result
+Read"]
+	107 -> 106
+	108 [label="temp
+Read"]
+	108 -> 106
 	109 [label="Result
 Write"]
-	111 [label="np
-Write"]
-	112 [label="Result
-Read"]
-	112 -> 111
-	113 [label="temp
-Read"]
-	113 -> 111
-	111 -> 109
+	106 -> 109
 }

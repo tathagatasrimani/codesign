@@ -1,27 +1,34 @@
 digraph {
-	57 [label="source code:
+	55 [label="source code:
 start = int(RowPtr[i])
 end = int(RowPtr[i + 1])
 temp = 0
 "]
-	58 [label="start
+	56 [label="int(RowPtr[i])
+"]
+	57 [label="RowPtr
+Read"]
+	58 [label="RowPtr[i]
+Read"]
+	57 -> 58
+	58 -> 56
+	59 [label="start
 Write"]
-	60 [label="int
-Write"]
+	56 -> 59
+	60 [label="int(RowPtr[i + 1])
+"]
 	61 [label="RowPtr
 Read"]
-	61 -> 60
-	60 -> 58
-	62 [label="end
-Write"]
-	64 [label="int
-Write"]
-	65 [label="RowPtr
+	62 [label="RowPtr[i + 1]
 Read"]
-	65 -> 64
-	64 -> 62
-	66 [label="temp
+	61 -> 62
+	62 -> 60
+	63 [label="end
 Write"]
-	67 [label=0]
-	67 -> 66
+	60 -> 63
+	64 [label=0
+]
+	65 [label="temp
+Write"]
+	64 -> 65
 }

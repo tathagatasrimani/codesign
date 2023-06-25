@@ -1,0 +1,5 @@
+digraph {
+	147 [label="source code:
+if length < min_length_fraction * len(fasta_dict[key][0]):
+"]
+}

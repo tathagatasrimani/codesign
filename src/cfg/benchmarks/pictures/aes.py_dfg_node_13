@@ -1,28 +1,10 @@
 digraph {
-	34 [label="source code:
-byte = text >> 8 * (15 - i) & 255
-if i % 4 == 0:
+	584 [label="source code:
+matrix[int(i / 4)].append(byte)
 "]
-	35 [label="byte
-Write"]
-	36 [label="&"]
-	39 [label=">>"]
-	40 [label="text
+	585 [label="matrix[int(i / 4)].append(byte)
+"]
+	586 [label="byte
 Read"]
-	40 -> 39
-	42 [label="*"]
-	43 [label=8]
-	43 -> 42
-	45 [label="-"]
-	46 [label=15]
-	46 -> 45
-	47 [label="i
-Read"]
-	47 -> 45
-	45 -> 42
-	42 -> 39
-	39 -> 36
-	38 [label=255]
-	38 -> 36
-	36 -> 35
+	586 -> 585
 }

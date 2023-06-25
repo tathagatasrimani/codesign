@@ -1,0 +1,5 @@
+digraph {
+	231 [label="source code:
+return math.sqrt(series.dot(series))
+"]
+}

@@ -6,20 +6,23 @@ B = np.random.randint(512, high=None, size=(10, 10))
 def csr(matrix1, matrix2):...
 if __name__ == '__main__':
 "]
-	1 [label="A
-Write"]
-	3 [label="np
-Write"]
-	4 [label=0]
-	4 -> 3
-	5 [label=512]
-	5 -> 3
+	1 [label="np.random.randint(0, 512, size=(10, 10))
+"]
+	2 [label=0
+]
+	2 -> 1
+	3 [label=512
+]
 	3 -> 1
-	6 [label="B
+	4 [label="A
 Write"]
-	8 [label="np
+	1 -> 4
+	5 [label="np.random.randint(512, high=None, size=(10, 10))
+"]
+	6 [label=512
+]
+	6 -> 5
+	7 [label="B
 Write"]
-	9 [label=512]
-	9 -> 8
-	8 -> 6
+	5 -> 7
 }

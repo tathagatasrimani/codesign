@@ -1,0 +1,7 @@
+digraph {
+	31 [label="source code:
+return interpolation(f, g, lambda alpha: f(xk + alpha * pk), lambda alpha:
+    np.dot(g(xk + alpha * pk), pk), alpha, c2, lambda f, g, alpha, c2:
+    strong_wolfe(f, g, xk, alpha, pk, c2))
+"]
+}
