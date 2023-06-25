@@ -1,0 +1,49 @@
+digraph {
+	506 [label="source code:
+Q[i][j][k] = sumQ
+K[i][j][k] = sumK
+V[i][j][k] = sumV
+"]
+	507 [label="sumQ
+Read"]
+	508 [label="Q
+Read"]
+	509 [label="Q[i]
+Read"]
+	508 -> 509
+	510 [label="Q[i][j]
+Read"]
+	509 -> 510
+	511 [label="Q[i][j][k]
+Write"]
+	510 -> 511
+	507 -> 511
+	512 [label="sumK
+Read"]
+	513 [label="K
+Read"]
+	514 [label="K[i]
+Read"]
+	513 -> 514
+	515 [label="K[i][j]
+Read"]
+	514 -> 515
+	516 [label="K[i][j][k]
+Write"]
+	515 -> 516
+	512 -> 516
+	517 [label="sumV
+Read"]
+	518 [label="V
+Read"]
+	519 [label="V[i]
+Read"]
+	518 -> 519
+	520 [label="V[i][j]
+Read"]
+	519 -> 520
+	521 [label="V[i][j][k]
+Write"]
+	520 -> 521
+	517 -> 521
+}

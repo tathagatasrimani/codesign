@@ -1,0 +1,31 @@
+digraph {
+	321 [label="source code:
+sum_val += scores[i][k] * V[head][k][j]
+"]
+	322 [label="scores
+Read"]
+	323 [label="scores[i]
+Read"]
+	322 -> 323
+	324 [label="scores[i][k]
+Read"]
+	323 -> 324
+	325 [label="V
+Read"]
+	326 [label="V[head]
+Read"]
+	325 -> 326
+	327 [label="V[head][k]
+Read"]
+	326 -> 327
+	328 [label="V[head][k][j]
+Read"]
+	327 -> 328
+	329 [label="*
+"]
+	324 -> 329
+	328 -> 329
+	330 [label="sum_val
+Write"]
+	329 -> 330
+}

@@ -1,0 +1,52 @@
+digraph {
+	106 [label="source code:
+arr[i][j] = weights[i] * ((arr[i][j] - mean) / dev) + biases[i]
+"]
+	107 [label="weights
+Read"]
+	108 [label="weights[i]
+Read"]
+	107 -> 108
+	109 [label="arr
+Read"]
+	110 [label="arr[i]
+Read"]
+	109 -> 110
+	111 [label="arr[i][j]
+Read"]
+	110 -> 111
+	112 [label="mean
+Read"]
+	113 [label="-
+"]
+	111 -> 113
+	112 -> 113
+	114 [label="dev
+Read"]
+	115 [label="//
+"]
+	113 -> 115
+	114 -> 115
+	116 [label="*
+"]
+	108 -> 116
+	115 -> 116
+	117 [label="biases
+Read"]
+	118 [label="biases[i]
+Read"]
+	117 -> 118
+	119 [label="+
+"]
+	116 -> 119
+	118 -> 119
+	120 [label="arr
+Read"]
+	121 [label="arr[i]
+Read"]
+	120 -> 121
+	122 [label="arr[i][j]
+Write"]
+	121 -> 122
+	119 -> 122
+}

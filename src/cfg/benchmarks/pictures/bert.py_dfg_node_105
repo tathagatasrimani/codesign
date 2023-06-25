@@ -1,0 +1,22 @@
+digraph {
+	311 [label="source code:
+scores[i][j] = sum_val / val
+"]
+	312 [label="sum_val
+Read"]
+	313 [label="val
+Read"]
+	314 [label="//
+"]
+	312 -> 314
+	313 -> 314
+	315 [label="scores
+Read"]
+	316 [label="scores[i]
+Read"]
+	315 -> 316
+	317 [label="scores[i][j]
+Write"]
+	316 -> 317
+	314 -> 317
+}

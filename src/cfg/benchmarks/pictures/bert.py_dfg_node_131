@@ -1,0 +1,20 @@
+digraph {
+	444 [label="source code:
+sumQ, sumK, sumV = 0, 0, 0
+"]
+	445 [label=0
+]
+	446 [label=0
+]
+	447 [label=0
+]
+	448 [label="sumQ
+Write"]
+	449 [label="sumK
+Write"]
+	450 [label="sumV
+Write"]
+	445 -> 448
+	446 -> 449
+	447 -> 450
+}

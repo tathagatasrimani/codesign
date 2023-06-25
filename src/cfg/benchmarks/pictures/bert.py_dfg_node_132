@@ -1,0 +1,85 @@
+digraph {
+	469 [label="source code:
+sumQ += embeddings[j][a] * W_Q[i][a][k]
+sumK += embeddings[j][a] * W_K[i][a][k]
+sumV += embeddings[j][a] * W_V[i][a][k]
+"]
+	470 [label="embeddings
+Read"]
+	471 [label="embeddings[j]
+Read"]
+	470 -> 471
+	472 [label="embeddings[j][a]
+Read"]
+	471 -> 472
+	473 [label="W_Q
+Read"]
+	474 [label="W_Q[i]
+Read"]
+	473 -> 474
+	475 [label="W_Q[i][a]
+Read"]
+	474 -> 475
+	476 [label="W_Q[i][a][k]
+Read"]
+	475 -> 476
+	477 [label="*
+"]
+	472 -> 477
+	476 -> 477
+	478 [label="sumQ
+Write"]
+	477 -> 478
+	479 [label="embeddings
+Read"]
+	480 [label="embeddings[j]
+Read"]
+	479 -> 480
+	481 [label="embeddings[j][a]
+Read"]
+	480 -> 481
+	482 [label="W_K
+Read"]
+	483 [label="W_K[i]
+Read"]
+	482 -> 483
+	484 [label="W_K[i][a]
+Read"]
+	483 -> 484
+	485 [label="W_K[i][a][k]
+Read"]
+	484 -> 485
+	486 [label="*
+"]
+	481 -> 486
+	485 -> 486
+	487 [label="sumK
+Write"]
+	486 -> 487
+	488 [label="embeddings
+Read"]
+	489 [label="embeddings[j]
+Read"]
+	488 -> 489
+	490 [label="embeddings[j][a]
+Read"]
+	489 -> 490
+	491 [label="W_V
+Read"]
+	492 [label="W_V[i]
+Read"]
+	491 -> 492
+	493 [label="W_V[i][a]
+Read"]
+	492 -> 493
+	494 [label="W_V[i][a][k]
+Read"]
+	493 -> 494
+	495 [label="*
+"]
+	490 -> 495
+	494 -> 495
+	496 [label="sumV
+Write"]
+	495 -> 496
+}

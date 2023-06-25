@@ -1,0 +1,49 @@
+digraph {
+	336 [label="source code:
+d_model, heads, tokens, layers = 12, 12, 8, 12
+d_k = d_model // heads
+embeddings = np.random.rand(tokens, d_model)
+"]
+	337 [label=12
+]
+	338 [label=12
+]
+	339 [label=8
+]
+	340 [label=12
+]
+	341 [label="d_model
+Write"]
+	342 [label="heads
+Write"]
+	343 [label="tokens
+Write"]
+	344 [label="layers
+Write"]
+	337 -> 341
+	338 -> 342
+	339 -> 343
+	340 -> 344
+	345 [label="d_model
+Read"]
+	346 [label="heads
+Read"]
+	347 [label="//
+"]
+	345 -> 347
+	346 -> 347
+	348 [label="d_k
+Write"]
+	347 -> 348
+	349 [label="np.random.rand(tokens, d_model)
+"]
+	350 [label="tokens
+Read"]
+	350 -> 349
+	351 [label="d_model
+Read"]
+	351 -> 349
+	352 [label="embeddings
+Write"]
+	349 -> 352
+}

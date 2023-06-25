@@ -1,0 +1,37 @@
+digraph {
+	625 [label="source code:
+embeddings = emb_new
+embeddings = arr_add(embeddings, emb_cpy)
+embeddings = BN_layer(embeddings, weights, biases)
+"]
+	626 [label="emb_new
+Read"]
+	627 [label="embeddings
+Write"]
+	626 -> 627
+	628 [label="arr_add(embeddings, emb_cpy)
+"]
+	629 [label="embeddings
+Read"]
+	629 -> 628
+	630 [label="emb_cpy
+Read"]
+	630 -> 628
+	631 [label="embeddings
+Write"]
+	628 -> 631
+	632 [label="BN_layer(embeddings, weights, biases)
+"]
+	633 [label="embeddings
+Read"]
+	633 -> 632
+	634 [label="weights
+Read"]
+	634 -> 632
+	635 [label="biases
+Read"]
+	635 -> 632
+	636 [label="embeddings
+Write"]
+	632 -> 636
+}

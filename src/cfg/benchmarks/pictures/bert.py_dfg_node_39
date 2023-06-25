@@ -1,0 +1,16 @@
+digraph {
+	101 [label="source code:
+for j in range(len(arr[0])):
+"]
+	102 [label="range(len(arr[0]))
+"]
+	103 [label="len(arr[0])
+"]
+	104 [label="arr
+Read"]
+	105 [label="arr[0]
+Read"]
+	104 -> 105
+	105 -> 103
+	103 -> 102
+}

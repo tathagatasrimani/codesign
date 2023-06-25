@@ -1,0 +1,37 @@
+digraph {
+	134 [label="source code:
+dev = std_dev(arr[i])
+mean = get_mean(arr[i])
+if dev == 0:
+"]
+	135 [label="std_dev(arr[i])
+"]
+	136 [label="arr
+Read"]
+	137 [label="arr[i]
+Read"]
+	136 -> 137
+	137 -> 135
+	138 [label="dev
+Write"]
+	135 -> 138
+	139 [label="get_mean(arr[i])
+"]
+	140 [label="arr
+Read"]
+	141 [label="arr[i]
+Read"]
+	140 -> 141
+	141 -> 139
+	142 [label="mean
+Write"]
+	139 -> 142
+	143 [label="dev
+Read"]
+	144 [label=0
+]
+	145 [label="==
+"]
+	143 -> 145
+	144 -> 145
+}

@@ -1,0 +1,25 @@
+digraph {
+	6 [label="source code:
+arr = np.random.rand(depth, l, wid)
+neg = True
+"]
+	7 [label="np.random.rand(depth, l, wid)
+"]
+	8 [label="depth
+Read"]
+	8 -> 7
+	9 [label="l
+Read"]
+	9 -> 7
+	10 [label="wid
+Read"]
+	10 -> 7
+	11 [label="arr
+Write"]
+	7 -> 11
+	12 [label=True
+]
+	13 [label="neg
+Write"]
+	12 -> 13
+}

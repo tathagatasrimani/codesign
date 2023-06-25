@@ -1,0 +1,13 @@
+digraph {
+	106 [label="source code:
+sum_val += row[i]
+"]
+	107 [label="row
+Read"]
+	108 [label="row[i]
+Read"]
+	107 -> 108
+	109 [label="sum_val
+Write"]
+	108 -> 109
+}

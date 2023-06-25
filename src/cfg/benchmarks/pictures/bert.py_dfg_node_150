@@ -1,0 +1,25 @@
+digraph {
+	573 [label="source code:
+emb_new[i] = fc_layer(embeddings[i], W, W_0)
+"]
+	574 [label="fc_layer(embeddings[i], W, W_0)
+"]
+	575 [label="embeddings
+Read"]
+	576 [label="embeddings[i]
+Read"]
+	575 -> 576
+	576 -> 574
+	577 [label="W
+Read"]
+	577 -> 574
+	578 [label="W_0
+Read"]
+	578 -> 574
+	579 [label="emb_new
+Read"]
+	580 [label="emb_new[i]
+Write"]
+	579 -> 580
+	574 -> 580
+}

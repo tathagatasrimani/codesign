@@ -1,0 +1,107 @@
+digraph {
+	528 [label="source code:
+embeddings = arr_add(embeddings, emb_cpy)
+weights, biases = np.random.rand(d_model), np.random.rand(d_model)
+embeddings = BN_layer(embeddings, weights, biases)
+emb_cpy = np.copy(embeddings)
+W = np.random.rand(d_model, d_model * 4)
+W_0 = np.random.rand(d_model * 4)
+emb_new = np.zeros((tokens, d_model * 4))
+"]
+	529 [label="arr_add(embeddings, emb_cpy)
+"]
+	530 [label="embeddings
+Read"]
+	530 -> 529
+	531 [label="emb_cpy
+Read"]
+	531 -> 529
+	532 [label="embeddings
+Write"]
+	529 -> 532
+	533 [label="np.random.rand(d_model)
+"]
+	534 [label="d_model
+Read"]
+	534 -> 533
+	535 [label="np.random.rand(d_model)
+"]
+	536 [label="d_model
+Read"]
+	536 -> 535
+	537 [label="weights
+Write"]
+	538 [label="biases
+Write"]
+	533 -> 537
+	535 -> 538
+	539 [label="BN_layer(embeddings, weights, biases)
+"]
+	540 [label="embeddings
+Read"]
+	540 -> 539
+	541 [label="weights
+Read"]
+	541 -> 539
+	542 [label="biases
+Read"]
+	542 -> 539
+	543 [label="embeddings
+Write"]
+	539 -> 543
+	544 [label="np.copy(embeddings)
+"]
+	545 [label="embeddings
+Read"]
+	545 -> 544
+	546 [label="emb_cpy
+Write"]
+	544 -> 546
+	547 [label="np.random.rand(d_model, d_model * 4)
+"]
+	548 [label="d_model
+Read"]
+	548 -> 547
+	549 [label="d_model
+Read"]
+	550 [label=4
+]
+	551 [label="*
+"]
+	549 -> 551
+	550 -> 551
+	551 -> 547
+	552 [label="W
+Write"]
+	547 -> 552
+	553 [label="np.random.rand(d_model * 4)
+"]
+	554 [label="d_model
+Read"]
+	555 [label=4
+]
+	556 [label="*
+"]
+	554 -> 556
+	555 -> 556
+	556 -> 553
+	557 [label="W_0
+Write"]
+	553 -> 557
+	558 [label="np.zeros((tokens, d_model * 4))
+"]
+	559 [label="tokens
+Read"]
+	560 [label="d_model
+Read"]
+	561 [label=4
+]
+	562 [label="*
+"]
+	560 -> 562
+	561 -> 562
+	559 -> 558
+	563 [label="emb_new
+Write"]
+	558 -> 563
+}

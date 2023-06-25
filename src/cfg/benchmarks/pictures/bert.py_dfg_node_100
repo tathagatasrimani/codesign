@@ -1,0 +1,31 @@
+digraph {
+	267 [label="source code:
+scores = np.random.rand(tokens, tokens)
+scores[i] = softmax(scores[i])
+"]
+	268 [label="np.random.rand(tokens, tokens)
+"]
+	269 [label="tokens
+Read"]
+	269 -> 268
+	270 [label="tokens
+Read"]
+	270 -> 268
+	271 [label="scores
+Write"]
+	268 -> 271
+	272 [label="softmax(scores[i])
+"]
+	273 [label="scores
+Read"]
+	274 [label="scores[i]
+Read"]
+	273 -> 274
+	274 -> 272
+	275 [label="scores
+Read"]
+	276 [label="scores[i]
+Write"]
+	275 -> 276
+	272 -> 276
+}

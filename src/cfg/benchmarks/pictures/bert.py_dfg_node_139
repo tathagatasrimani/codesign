@@ -1,0 +1,49 @@
+digraph {
+	457 [label="source code:
+cur = self_attn(j, tokens, d_k, Q, K, V)
+multi_head_out = concat(multi_head_out, j, tokens, d_k, cur)
+"]
+	458 [label="self_attn(j, tokens, d_k, Q, K, V)
+"]
+	459 [label="j
+Read"]
+	459 -> 458
+	460 [label="tokens
+Read"]
+	460 -> 458
+	461 [label="d_k
+Read"]
+	461 -> 458
+	462 [label="Q
+Read"]
+	462 -> 458
+	463 [label="K
+Read"]
+	463 -> 458
+	464 [label="V
+Read"]
+	464 -> 458
+	465 [label="cur
+Write"]
+	458 -> 465
+	466 [label="concat(multi_head_out, j, tokens, d_k, cur)
+"]
+	467 [label="multi_head_out
+Read"]
+	467 -> 466
+	468 [label="j
+Read"]
+	468 -> 466
+	469 [label="tokens
+Read"]
+	469 -> 466
+	470 [label="d_k
+Read"]
+	470 -> 466
+	471 [label="cur
+Read"]
+	471 -> 466
+	472 [label="multi_head_out
+Write"]
+	466 -> 472
+}

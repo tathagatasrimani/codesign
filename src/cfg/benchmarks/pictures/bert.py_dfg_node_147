@@ -1,0 +1,28 @@
+digraph {
+	600 [label="source code:
+sum_val += multi_head_out[i][k] * W_attn[k][j]
+"]
+	601 [label="multi_head_out
+Read"]
+	602 [label="multi_head_out[i]
+Read"]
+	601 -> 602
+	603 [label="multi_head_out[i][k]
+Read"]
+	602 -> 603
+	604 [label="W_attn
+Read"]
+	605 [label="W_attn[k]
+Read"]
+	604 -> 605
+	606 [label="W_attn[k][j]
+Read"]
+	605 -> 606
+	607 [label="*
+"]
+	603 -> 607
+	606 -> 607
+	608 [label="sum_val
+Write"]
+	607 -> 608
+}

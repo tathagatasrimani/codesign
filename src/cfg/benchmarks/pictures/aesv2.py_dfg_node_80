@@ -1,0 +1,19 @@
+digraph {
+	774 [label="source code:
+s[i][j] = InvSbox[s[i][j]]
+"]
+	775 [label="InvSbox
+Read"]
+	776 [label="InvSbox[s[i][j]]
+Read"]
+	775 -> 776
+	777 [label="s
+Read"]
+	778 [label="s[i]
+Read"]
+	777 -> 778
+	779 [label="s[i][j]
+Write"]
+	778 -> 779
+	776 -> 779
+}

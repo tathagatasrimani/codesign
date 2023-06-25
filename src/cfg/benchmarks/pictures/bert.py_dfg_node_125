@@ -1,0 +1,43 @@
+digraph {
+	413 [label="source code:
+embeddings[i][j] += math.cos(i / math.pow(10000, 2 * j / d_model))
+"]
+	414 [label="math.cos(i / math.pow(10000, 2 * j / d_model))
+"]
+	415 [label="i
+Read"]
+	416 [label="math.pow(10000, 2 * j / d_model)
+"]
+	417 [label=10000
+]
+	417 -> 416
+	418 [label=2
+]
+	419 [label="j
+Read"]
+	420 [label="*
+"]
+	418 -> 420
+	419 -> 420
+	421 [label="d_model
+Read"]
+	422 [label="//
+"]
+	420 -> 422
+	421 -> 422
+	422 -> 416
+	423 [label="//
+"]
+	415 -> 423
+	416 -> 423
+	423 -> 414
+	424 [label="embeddings
+Read"]
+	425 [label="embeddings[i]
+Read"]
+	424 -> 425
+	426 [label="embeddings[i][j]
+Write"]
+	425 -> 426
+	414 -> 426
+}

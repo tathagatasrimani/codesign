@@ -1,0 +1,88 @@
+digraph {
+	359 [label="source code:
+W_Q = balance_random_3d(heads, d_model, d_k)
+W_K = balance_random_3d(heads, d_model, d_k)
+W_V = balance_random_3d(heads, d_model, d_k)
+Q = np.zeros((heads, tokens, d_k))
+K = np.zeros((heads, tokens, d_k))
+V = np.zeros((heads, tokens, d_k))
+"]
+	360 [label="balance_random_3d(heads, d_model, d_k)
+"]
+	361 [label="heads
+Read"]
+	361 -> 360
+	362 [label="d_model
+Read"]
+	362 -> 360
+	363 [label="d_k
+Read"]
+	363 -> 360
+	364 [label="W_Q
+Write"]
+	360 -> 364
+	365 [label="balance_random_3d(heads, d_model, d_k)
+"]
+	366 [label="heads
+Read"]
+	366 -> 365
+	367 [label="d_model
+Read"]
+	367 -> 365
+	368 [label="d_k
+Read"]
+	368 -> 365
+	369 [label="W_K
+Write"]
+	365 -> 369
+	370 [label="balance_random_3d(heads, d_model, d_k)
+"]
+	371 [label="heads
+Read"]
+	371 -> 370
+	372 [label="d_model
+Read"]
+	372 -> 370
+	373 [label="d_k
+Read"]
+	373 -> 370
+	374 [label="W_V
+Write"]
+	370 -> 374
+	375 [label="np.zeros((heads, tokens, d_k))
+"]
+	376 [label="heads
+Read"]
+	377 [label="tokens
+Read"]
+	378 [label="d_k
+Read"]
+	376 -> 375
+	379 [label="Q
+Write"]
+	375 -> 379
+	380 [label="np.zeros((heads, tokens, d_k))
+"]
+	381 [label="heads
+Read"]
+	382 [label="tokens
+Read"]
+	383 [label="d_k
+Read"]
+	381 -> 380
+	384 [label="K
+Write"]
+	380 -> 384
+	385 [label="np.zeros((heads, tokens, d_k))
+"]
+	386 [label="heads
+Read"]
+	387 [label="tokens
+Read"]
+	388 [label="d_k
+Read"]
+	386 -> 385
+	389 [label="V
+Write"]
+	385 -> 389
+}

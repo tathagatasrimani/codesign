@@ -1,0 +1,22 @@
+digraph {
+	241 [label="source code:
+emb[i][j + head * d_k] = cur[i][j]
+"]
+	242 [label="cur
+Read"]
+	243 [label="cur[i]
+Read"]
+	242 -> 243
+	244 [label="cur[i][j]
+Read"]
+	243 -> 244
+	245 [label="emb
+Read"]
+	246 [label="emb[i]
+Read"]
+	245 -> 246
+	247 [label="emb[i][j + head * d_k]
+Write"]
+	246 -> 247
+	244 -> 247
+}

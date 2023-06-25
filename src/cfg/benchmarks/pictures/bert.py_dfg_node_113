@@ -1,0 +1,16 @@
+digraph {
+	331 [label="source code:
+out[i][j] = sum_val
+"]
+	332 [label="sum_val
+Read"]
+	333 [label="out
+Read"]
+	334 [label="out[i]
+Read"]
+	333 -> 334
+	335 [label="out[i][j]
+Write"]
+	334 -> 335
+	332 -> 335
+}

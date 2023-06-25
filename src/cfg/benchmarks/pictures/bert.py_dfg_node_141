@@ -1,0 +1,10 @@
+digraph {
+	522 [label="source code:
+for i in range(tokens):
+"]
+	523 [label="range(tokens)
+"]
+	524 [label="tokens
+Read"]
+	524 -> 523
+}

@@ -1,0 +1,10 @@
+digraph {
+	305 [label="source code:
+sum_val = 0
+"]
+	306 [label=0
+]
+	307 [label="sum_val
+Write"]
+	306 -> 307
+}

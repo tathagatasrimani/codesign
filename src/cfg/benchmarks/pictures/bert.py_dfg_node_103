@@ -1,0 +1,22 @@
+digraph {
+	298 [label="source code:
+val = math.sqrt(d_k)
+if val == 0:
+"]
+	299 [label="math.sqrt(d_k)
+"]
+	300 [label="d_k
+Read"]
+	300 -> 299
+	301 [label="val
+Write"]
+	299 -> 301
+	302 [label="val
+Read"]
+	303 [label=0
+]
+	304 [label="==
+"]
+	302 -> 304
+	303 -> 304
+}

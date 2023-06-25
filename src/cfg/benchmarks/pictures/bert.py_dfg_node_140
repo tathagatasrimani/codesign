@@ -1,0 +1,16 @@
+digraph {
+	473 [label="source code:
+W_attn = np.random.rand(d_model, d_model)
+"]
+	474 [label="np.random.rand(d_model, d_model)
+"]
+	475 [label="d_model
+Read"]
+	475 -> 474
+	476 [label="d_model
+Read"]
+	476 -> 474
+	477 [label="W_attn
+Write"]
+	474 -> 477
+}

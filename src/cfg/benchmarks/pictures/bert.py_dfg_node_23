@@ -1,0 +1,13 @@
+digraph {
+	59 [label="source code:
+neg = not neg
+"]
+	60 [label="neg
+Read"]
+	61 [label="!
+"]
+	60 -> 61
+	62 [label="neg
+Write"]
+	61 -> 62
+}
