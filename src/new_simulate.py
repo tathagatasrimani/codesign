@@ -2,7 +2,6 @@ from hardwareModel import HardwareModel
 from ast_utils import ASTUtils
 import schedule
 import dfg_algo
-import dfg_algo_new
 import matplotlib.pyplot as plt
 import ast
 import hardwareModel
@@ -107,7 +106,7 @@ def main():
     global power_use
     benchmark = sys.argv[1]
     print(benchmark)
-    cfg, graphs = dfg_algo_new.main_fn(path, benchmark)
+    cfg, graphs = dfg_algo.main_fn(path, benchmark)
     cfg, node_operations = schedule.schedule(cfg, graphs, sys.argv[1])
     hw = HardwareModel(0, 0)
     hw.hw_allocated['Add'] = 1

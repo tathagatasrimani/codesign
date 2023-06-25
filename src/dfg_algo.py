@@ -1,6 +1,7 @@
 from cfg.staticfg.builder import CFGBuilder
 import graphviz as gv
 import ast
+import astor
 from cfg.staticfg.builder import CFGBuilder
 from ast_utils import ASTUtils
 import hardwareModel
@@ -13,10 +14,11 @@ graphs = {}
 cur_id = 0
 
 class symbol:
-    def __init__(self, value: str, num_id: str, write: bool):
+    def __init__(self, value: str, num_id: str, write: bool, read: bool):
         self.value = value
         self.num_id = num_id
         self.write = write
+        self.read = read
 
 class Node:
     def __init__(self, value: str, operation: str):
@@ -31,121 +33,255 @@ class Graph:
         self.roots = roots
         self.id_to_Node = id_to_Node
 
-# more generally, for one piece of data flowing to another location
-# operand is the source of the data and operation is the destination
-def process_operand(graph, operand, operand_num, operation_num, node):
-    global node_to_symbols
-    if type(operand) == ast.Name:
-        make_node(graph, node, operand_num, operand.id, 'Read')
-        make_edge(graph, node, operand_num, operation_num)
-        node_to_symbols[node].append(symbol(operand.id, operand_num, False))
-    elif type(operand) == ast.BinOp:
-        op_id, value_ids = set_ids()
-        eval_expr(operand, graph, operation_num, value_ids, op_id, node)
-    elif type(operand) == ast.Attribute:
-        process_operand(graph, ast.Name(operand.attr), operand_num, operation_num, node)
-    elif type(operand) == ast.List:
-        for elt in operand.elts:
-            process_operand(graph, elt, operand_num, operation_num, node)
-            operand_num = set_id()
-    elif type(operand) == ast.Subscript:
-        # ignoring the slice for now
-        process_operand(graph, operand.value, operand_num, operation_num, node)
-    elif type(operand) == ast.Call:
-        target = operand.func
-        while type(target) == ast.Attribute or type(target) == ast.Subscript:
-            # this should be a name
-            target = target.value
-        if type(target) == ast.Tuple: return
-        target_id = set_id()
-        make_node(graph, node, target_id, target.id, 'Write')
-        for arg in operand.args:
-            value_id = set_id()
-            process_operand(graph, arg, value_id, target_id, node)
-        node_to_symbols[node].append(symbol(target.id, target_id, True))
-        graph.edge(target_id, operation_num)
-    elif type(operand) == ast.Constant:
-        graph.node(operand_num, str(operand.value))
-        graph.edge(operand_num, operation_num)
-    else: 
-        print("unsupported operand type" + str(type(operand)))
-
-# for now, only working with ast.binop
-# add support for boolop
-def eval_expr(expr, graph, target_id, value_ids, op_id, node):
-    global node_to_symbols
-    sub_values = ASTUtils.get_sub_expr(expr)
-    #print(sub_values)
-    op_name = ASTUtils.operator_to_opname(sub_values[1])
-    op_node = Node(hardwareModel.op2sym_map[op_name], op_name)
-    graph.node(op_id, hardwareModel.op2sym_map[op_name])
-    graphs[node].id_to_Node[op_id] = op_node
-    graphs[node].roots.add(op_node)
-    process_operand(graph, sub_values[0], value_ids[0], op_id, node)
-    process_operand(graph, sub_values[2], value_ids[1], op_id, node)
-    make_edge(graph, node, op_id, target_id)
-
-def set_ids():
-    global cur_id
-    op_id = str(cur_id)
-    value_ids = [str(cur_id+1), str(cur_id+2)]
-    cur_id += 3
-    return op_id, value_ids
-
 def set_id():
     global cur_id
     val = str(cur_id)
     cur_id += 1
     return val
 
-def eval_stmt(expr, graph, node):
-    if type(expr) == ast.Assign:
-        target = expr.targets[0]
-        while type(target) == ast.Attribute or type(target) == ast.Subscript:
-            # this should be a name
-            target = target.value
-        if type(target) == ast.Tuple: return
-        target_id = set_id()
-        make_node(graph, node, target_id, target.id, 'Write')
-        if type(expr.value) == ast.BinOp:
-            op_id, value_ids = set_ids()
-            eval_expr(expr.value, graph, target_id, value_ids, op_id, node)
-        else:
-            operand_id = set_id()
-            process_operand(graph, expr.value, operand_id, target_id, node)
-        node_to_symbols[node].append(symbol(target.id, target_id, True))
-    elif type(expr) == ast.AugAssign:
-        target = expr.target
-        while type(target) == ast.Attribute or type(target) == ast.Subscript:
-            # this should be a name
-            target = target.value
-        if type(target) == ast.Tuple: return
-        target_id = set_id()
-        op_id, value_ids = set_ids()
-        make_node(graph, node, target_id, target.id, 'Write')
-        eval_expr(ast.BinOp(expr.target, expr.op, expr.value), graph, target_id, value_ids, op_id, node)
-        node_to_symbols[node].append(symbol(target.id, target_id, True))
-    elif type(expr) == ast.Call:
-        target = expr.func
-        while type(target) == ast.Attribute or type(target) == ast.Subscript:
-            # this should be a name
-            target = target.value
-        if type(target) == ast.Tuple: return
-        target_id = set_id()
-        make_node(graph, node, target_id, target.id, 'Write')
+# for now, only working with ast.binop
+# add support for boolop
+def eval_expr(expr, graph, node):
+    if ASTUtils.isBoolOp(expr):
+        print("visiting boolop")
+        values = []
+        for value in expr.values:
+            values += eval_expr(value, graph, node)
+        op_id = set_id()
+
+        opname = ASTUtils.expr_to_opname(expr.op)
+        make_node(graph, node, op_id, hardwareModel.op2sym_map[opname], None, opname) 
+        for value in values:
+            make_edge(graph, node, value, op_id)
+        return [op_id]
+    elif ASTUtils.isNamedExpr(expr):
+        return
+    elif ASTUtils.isBinOp(expr):
+        print("visiting binop")
+        left = eval_expr(expr.left, graph, node)
+        right = eval_expr(expr.right, graph, node)
+        op_id = set_id()
+        opname = ASTUtils.expr_to_opname(expr.op)
+        make_node(graph, node, op_id, hardwareModel.op2sym_map[opname], None, opname)
+        make_edge(graph, node, left[0], op_id)
+        make_edge(graph, node, right[0], op_id)
+        return [op_id]
+    elif ASTUtils.isUnaryOp(expr):
+        print("visiting unaryop")
+        value = eval_expr(expr.operand, graph, node)
+        op_id = set_id()
+        opname = ASTUtils.expr_to_opname(expr.op)
+        make_node(graph, node, op_id, hardwareModel.op2sym_map[opname], None, opname)
+        make_edge(graph, node, value[0], op_id)
+        return [op_id]
+    elif ASTUtils.isLambda(expr):
+        return
+    elif ASTUtils.isIfExp(expr):
+        return
+    elif ASTUtils.isDict(expr):
+        return
+    elif ASTUtils.isSet(expr):
+        return
+    elif ASTUtils.isListComp(expr):
+        return
+    elif ASTUtils.isSetComp(expr):
+        return
+    elif ASTUtils.isDictComp(expr):
+        return
+    elif ASTUtils.isGeneratorExp(expr):
+        return
+    elif ASTUtils.isAwait(expr):
+        return
+    elif ASTUtils.isYield(expr):
+        return
+    elif ASTUtils.isYieldFrom(expr):
+        return
+    elif ASTUtils.isCompare(expr):
+        print("visiting compare")
+        ids = []
+        left = eval_expr(expr.left, graph, node)
+        assert(len(expr.ops) == len(expr.comparators))
+        for i in range(len(expr.ops)):
+            comparator = eval_expr(expr.comparators[i], graph, node)
+            op_id = set_id()
+            ids.append(op_id)
+            opname = ASTUtils.expr_to_opname(expr.ops[i])
+            make_node(graph, node, op_id, hardwareModel.op2sym_map[opname], None, opname)
+            make_edge(graph, node, left[0], op_id)
+            make_edge(graph, node, comparator[0], op_id)
+            left = comparator
+        return ids
+    elif ASTUtils.isCall(expr):
+        print("visiting call")
+        func_id = set_id()
+        make_node(graph, node, func_id, astor.to_source(expr)[:-1], None, None)
         for arg in expr.args:
-            value_id = set_id()
-            process_operand(graph, arg, value_id, target_id, node)
-        node_to_symbols[node].append(symbol(target.id, target_id, True))
-    elif type(expr) == ast.Expr:
-        eval_stmt(expr.value, graph, node)
+            arg_id = eval_expr(arg, graph, node)
+            make_edge(graph, node, arg_id[0], func_id)
+        return [func_id]
+    elif ASTUtils.isFormattedValue(expr):
+        return
+    elif ASTUtils.isJoinedStr(expr):
+        return
+    elif ASTUtils.isConstant(expr):
+        print("visiting constant")
+        id = set_id()
+        make_node(graph, node, id, str(expr.value), None, None)
+        return [id]
+    elif ASTUtils.isAttribute(expr):
+        print("visiting attribute")
+        if ASTUtils.isName(expr.value) or ASTUtils.isSubscript(expr.value):
+            attr_id = set_id()
+            make_node(graph, node, attr_id, astor.to_source(expr)[:-1], type(expr.ctx), "Regs")
+            return [attr_id]
+        else:
+            target_id = eval_expr(expr.value, graph, node)
+            attr_id = set_id()
+            make_node(graph, node, attr_id, expr.attr, type(expr.ctx), "Regs")
+            make_edge(graph, node, attr_id, target_id[0])
+            return [attr_id]
+    elif ASTUtils.isSubscript(expr):
+        print("visiting subscript")
+        # ignoring the index for now
+        name_id = eval_expr(expr.value, graph, node)
+        sub_id = set_id()
+        make_node(graph, node, sub_id, astor.to_source(expr)[:-1], type(expr.ctx), "Regs")
+        make_edge(graph, node, name_id[0], sub_id)
+        return [sub_id]
+    elif ASTUtils.isStarred(expr):
+        return
+    elif ASTUtils.isName(expr):
+        print("visiting name")
+        id = set_id()
+        make_node(graph, node, id, expr.id, type(expr.ctx), "Regs")
+        return [id]
+    elif ASTUtils.isList(expr):
+        print("visiting list")
+        val = []
+        for elem in expr.elts:
+            val += eval_expr(elem, graph, node)
+        if len(expr.elts) == 0:
+            none_id = set_id()
+            make_node(graph, node, none_id, "[]", None, None)
+            val = [none_id]
+        return val
+    elif ASTUtils.isTuple(expr):
+        print("visiting tuple")
+        val = []
+        for elem in expr.elts:
+            val += eval_expr(elem, graph, node)
+        return val
+    elif ASTUtils.isSlice(expr):
+        return
+
+def eval_stmt(stmt, graph, node):
+    if ASTUtils.isFunctionDef(stmt):
+        return
+    elif ASTUtils.isAsyncFunctionDef(stmt):
+        return
+    elif ASTUtils.isClassDef(stmt):
+        return
+    elif ASTUtils.isReturn(stmt):
+        return
+    elif ASTUtils.isDelete(stmt):
+        return
+    elif ASTUtils.isAssign(stmt):
+        print("visiting assign")
+        value_ids = eval_expr(stmt.value, graph, node)
+        targets = eval_expr(stmt.targets[0], graph, node)
+        if not targets or not value_ids: return
+        if len(targets) > 1:
+            if len(value_ids) == 1:
+                for target in targets:
+                    make_edge(graph, node, value_ids[0], target)
+            elif len(targets) != len(value_ids):
+                print("tuples of differing sizes")
+                return
+            else:
+                for i in range(len(targets)):
+                    make_edge(graph, node, value_ids[i], targets[i])
+        else:
+            for value_id in value_ids:
+                make_edge(graph, node, value_id, targets[0])
+    elif ASTUtils.isAugAssign(stmt):
+        print("visiting augassign")
+        value_ids = eval_expr(stmt.value, graph, node)
+        targets = eval_expr(stmt.target, graph, node)
+        if not targets or not value_ids: return
+        if len(targets) > 1:
+            if len(value_ids) == 1:
+                for target in targets:
+                    make_edge(graph, node, value_ids[0], target)
+            elif len(targets) != len(value_ids):
+                print("tuples of differing sizes")
+                return
+            else:
+                for i in range(len(targets)):
+                    make_edge(graph, node, value_ids[i], targets[i])
+        else:
+            for value_id in value_ids:
+                make_edge(graph, node, value_id, targets[0])
+    elif ASTUtils.isAnnAssign(stmt):
+        print("visiting annassign")
+        target_id = eval_expr(stmt.target, graph, node)
+        if not stmt.value:
+            none_id = set_id()
+            make_node(graph, node, none_id, "None", None, None)
+            make_edge(graph, node, none_id, target_id[0])
+        else:
+            source_ids = eval_expr(stmt.value, graph, node)
+            for source_id in source_ids:
+                make_edge(graph, node, source_id, target_id[0])
+        return target_id
+    elif ASTUtils.isFor(stmt):
+        print("visiting for")
+        # target only evaluated once so going to ignore it here
+        eval_expr(stmt.iter, graph, node)
+    elif ASTUtils.isAsyncFor(stmt):
+        print("visiting async for")
+        eval_expr(stmt.iter, graph, node)
+    elif ASTUtils.isWhile(stmt):
+        print("visiting while")
+        eval_expr(stmt.test, graph, node)
+    elif ASTUtils.isIf(stmt):
+        print("visiting if")
+        eval_expr(stmt.test, graph, node)
+    elif ASTUtils.isWith(stmt):
+        return
+    elif ASTUtils.isAsyncWith(stmt):
+        return
+    elif ASTUtils.isRaise(stmt):
+        return
+    elif ASTUtils.isTry(stmt):
+        return
+    elif ASTUtils.isAssert(stmt):
+        return
+    elif ASTUtils.isImport(stmt):
+        return
+    elif ASTUtils.isImportFrom(stmt):
+        return
+    elif ASTUtils.isGlobal(stmt):
+        return
+    elif ASTUtils.isNonlocal(stmt):
+        return
+    elif type(stmt) == ast.Expr:
+        print("visiting expr")
+        eval_expr(stmt.value, graph, node)
+    elif ASTUtils.isCall(stmt):
+        return
 
 # node for a non-literal
-def make_node(graph, cfg_node, id, name, annotation):
-    dfg_node = Node(name, annotation)
+def make_node(graph, cfg_node, id, name, ctx, opname):
+    annotation = ""
+    if ctx == ast.Load:
+        annotation = "Read"
+    elif ctx == ast.Store: # deal with Del if needed
+        annotation = "Write"
+    dfg_node = Node(name, opname)
     graph.node(id, name + '\n' + annotation)
     graphs[cfg_node].roots.add(dfg_node)
     graphs[cfg_node].id_to_Node[id] = dfg_node
+    node_to_symbols[cfg_node].append(symbol(name, id, type(ctx) == ast.Store, type(ctx) == ast.Load))
 
 # edge for a non-literal
 def make_edge(graph, node, source_id, target_id):
@@ -159,14 +295,13 @@ def make_edge(graph, node, source_id, target_id):
 # first pass over the basic block
 def dfg_per_node(node):
     graph = gv.Digraph()
-    id = set_id()
-    graph.node(id, "source code:\n" + node.get_source())
-    for expr in node.statements:
-        eval_stmt(expr, graph, node)
+    graph.node(set_id(), "source code:\n" + node.get_source())
+    for stmt in node.statements:
+        eval_stmt(stmt, graph, node)
     # walk backwards over statements, link reads to previous writes
     i = len(node_to_symbols[node])-1
     while i >= 0:
-        if not node_to_symbols[node][i].write:
+        if node_to_symbols[node][i].read:
             j = i-1
             while j >= 0:
                 if node_to_symbols[node][j].write and (node_to_symbols[node][j].value == node_to_symbols[node][i].value):
@@ -174,7 +309,7 @@ def dfg_per_node(node):
                     break
                 j -= 1
         i -= 1
-    graph.render(path + 'pictures/' + benchmark + "_dfg_node_" + str(node.id), view = False, format='jpeg')
+    graph.render(path + 'pictures/' + benchmark + "_dfg_node_" + str(node.id), view = True, format='jpeg')
     return 0
 
 
@@ -184,7 +319,7 @@ def main_fn(path_in, benchmark_in):
     benchmark, path = benchmark_in, path_in
     benchmark = benchmark[benchmark.rfind('/')+1:]
     cfg = CFGBuilder().build_from_file('main.c', path + 'models/' + benchmark)
-    cfg.build_visual(path + 'pictures/' + benchmark, 'jpeg', show = False)
+    cfg.build_visual(path + 'pictures/' + benchmark, 'jpeg', show = True)
     for node in cfg:
         node_to_symbols[node] = []
         graphs[node] = Graph(set(), {})
