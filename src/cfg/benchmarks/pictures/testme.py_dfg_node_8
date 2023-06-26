@@ -1,14 +1,19 @@
 digraph {
-	1 [label="source code:
-main(2, 3)
+	92 [label="source code:
+z[i] += 1
 "]
-	2 [label="main(2, 3)
-
+	93 [label=1
+]
+	94 [label="z
+Read"]
+	95 [label="+
 "]
-	3 [label=2
-]
-	3 -> 2
-	4 [label=3
-]
-	4 -> 2
+	93 -> 95
+	94 -> 95
+	96 [label="z
+Read"]
+	97 [label="z[i]
+Write"]
+	96 -> 97
+	95 -> 97
 }

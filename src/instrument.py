@@ -80,9 +80,8 @@ class ProgramInstrumentor(ast.NodeTransformer):
         iter_ = self.generic_visit(node.iter)
         body = self.visit_Stmts(node.body)
         orelse = self.visit_Stmts(node.orelse)
-        stmt1 = text_to_ast('print(' + str(lineno_to_node[node.lineno]) + ',' + str(node.lineno) + ')')
         stmt2 = text_to_ast('print(' + str(lineno_to_node[node.lineno]) + ',' + str(node.lineno) + ')')
-        forblk = ast.For(target,iter_,[stmt1]+body,orelse)
+        forblk = ast.For(target,iter_,body,orelse)
         return ProgramInstrumentor.mkblock([stmt2,forblk])
 
 

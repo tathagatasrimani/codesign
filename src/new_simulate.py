@@ -63,7 +63,7 @@ def cycle_sim(hw_inuse, max_cycles):
         cycles += 1
     return node_power_sum
 
-def simulate(cfg, data_path, node_operations, hw_spec, first):
+def simulate(cfg, data_path, node_operations, hw_spec, first, unroll):
     global main_cfg, id_to_node
     cur_node = cfg.entryblock
     if first: 
@@ -73,14 +73,33 @@ def simulate(cfg, data_path, node_operations, hw_spec, first):
     for elem in hw_spec:
         hw_inuse[elem] = [0] * hw_spec[elem]
     #print(hw_inuse)
-
-    for elem in data_path:
-        node_id = elem[0]
+    i = 0
+    while i < len(data_path):
+        node_id = data_path[i][0]
+        print(node_id, i)
         cur_node = id_to_node[node_id]
         node_intervals.append([node_id, [cycles, 0]])
         node_avg_power[node_id] = 0 # just reset because we will end up overwriting it
         start_cycles = cycles # for calculating average power
+        iters = 0
+        if unroll:
+            j = i
+            while True:
+                j += 1
+                if len(data_path) == j: break
+                next_node_id = data_path[j][0]
+                if next_node_id != node_id: break
+                iters += 1
+            i = j - 1 # skip over loop iterations because we execute them all at once
         for state in node_operations[cur_node]:
+            # if unroll, take each operation in a state and create more of them
+            if unroll:
+                new_state = state.copy()
+                for op in state:
+                    for j in range(iters):
+                        new_state.append(op)
+                state = new_state
+            print(state)
             hw_need = get_hw_need(state)
             #print(hw_need)
             max_cycles = 0
@@ -92,24 +111,27 @@ def simulate(cfg, data_path, node_operations, hw_spec, first):
                 cur_cycles_needed = int(math.ceil(cur_elem_count / hw_spec[elem]) * hardwareModel.latency[elem])
                 #print("cycles needed for " + elem + ": " + str(cur_cycles_needed) + ' (element count = ' + str(cur_elem_count) + ')')
                 max_cycles = max(cur_cycles_needed, max_cycles)
-                i = 0
+                j = 0
                 while cur_elem_count > 0:
-                    hw_inuse[elem][i] += hardwareModel.latency[elem]
-                    i = (i + 1) % hw_spec[elem]
+                    hw_inuse[elem][j] += hardwareModel.latency[elem]
+                    j = (j + 1) % hw_spec[elem]
                     cur_elem_count -= 1
             node_avg_power[node_id] += cycle_sim(hw_inuse, max_cycles)
         if cycles - start_cycles > 0: node_avg_power[node_id] /= cycles - start_cycles
         node_intervals[-1][1][1] = cycles
+        i += 1
     return data
 
 def main():
     global power_use
     benchmark = sys.argv[1]
+    unroll = False
+    if len(sys.argv) > 2: unroll = sys.argv[2] == "unroll"
     print(benchmark)
     cfg, graphs = dfg_algo.main_fn(path, benchmark)
     cfg, node_operations = schedule.schedule(cfg, graphs, sys.argv[1])
     hw = HardwareModel(0, 0)
-    hw.hw_allocated['Add'] = 1
+    hw.hw_allocated['Add'] = 5
     hw.hw_allocated['Regs'] = 3
     hw.hw_allocated['Mult'] = 1
     hw.hw_allocated['Sub'] = 1
@@ -149,7 +171,7 @@ def main():
                 last_node = item[0]
                 last_line = item[1]
                 data_path.append(item)      
-    data = simulate(cfg, data_path, node_operations, hw.hw_allocated, first=True)
+    data = simulate(cfg, data_path, node_operations, hw.hw_allocated, True, unroll)
     text = json.dumps(data, indent=4)
     names = sys.argv[1].split('/')
     with open(path + 'json_data/' + names[-1], 'w') as fh:

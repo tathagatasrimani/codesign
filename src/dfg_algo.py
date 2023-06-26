@@ -204,23 +204,35 @@ def eval_stmt(stmt, graph, node):
             for value_id in value_ids:
                 make_edge(graph, node, value_id, targets[0])
     elif ASTUtils.isAugAssign(stmt):
+        # note that target is a name
         print("visiting augassign")
         value_ids = eval_expr(stmt.value, graph, node)
-        targets = eval_expr(stmt.target, graph, node)
-        if not targets or not value_ids: return
-        if len(targets) > 1:
-            if len(value_ids) == 1:
-                for target in targets:
-                    make_edge(graph, node, value_ids[0], target)
-            elif len(targets) != len(value_ids):
-                print("tuples of differing sizes")
-                return
-            else:
-                for i in range(len(targets)):
-                    make_edge(graph, node, value_ids[i], targets[i])
-        else:
+        target = stmt.target
+        while type(target) == ast.Attribute or type(target) == ast.Subscript:
+            # this should be a name
+            target = target.value
+        if not target or not value_ids: return
+        if len(value_ids) > 1:
             for value_id in value_ids:
-                make_edge(graph, node, value_id, targets[0])
+                target_read_id = set_id()
+                make_node(graph, node, target_read_id, target.id, ast.Load, "Regs")
+                op_id = set_id()
+                opname = ASTUtils.expr_to_opname(stmt.op)
+                make_node(graph, node, op_id, hardwareModel.op2sym_map[opname], None, opname)
+                make_edge(graph, node, value_id, op_id)
+                make_edge(graph, node, target_read_id, op_id)
+                target_write_id = eval_expr(stmt.target, graph, node)
+                make_edge(graph, node, op_id, target_write_id[0])
+        else:
+            target_read_id = set_id()
+            make_node(graph, node, target_read_id, target.id, ast.Load, "Regs")
+            op_id = set_id()
+            opname = ASTUtils.expr_to_opname(stmt.op)
+            make_node(graph, node, op_id, hardwareModel.op2sym_map[opname], None, opname)
+            make_edge(graph, node, value_ids[0], op_id)
+            make_edge(graph, node, target_read_id, op_id)
+            target_write_id = eval_expr(stmt.target, graph, node)
+            make_edge(graph, node, op_id, target_write_id[0])
     elif ASTUtils.isAnnAssign(stmt):
         print("visiting annassign")
         target_id = eval_expr(stmt.target, graph, node)

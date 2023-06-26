@@ -1,0 +1,78 @@
+digraph {
+	62 [label="source code:
+z = [1, 2, 3, 4, 5]
+z += [1, 2, 3, 4, 5]
+"]
+	63 [label=1
+]
+	64 [label=2
+]
+	65 [label=3
+]
+	66 [label=4
+]
+	67 [label=5
+]
+	68 [label="z
+Write"]
+	63 -> 68
+	64 -> 68
+	65 -> 68
+	66 -> 68
+	67 -> 68
+	69 [label=1
+]
+	70 [label=2
+]
+	71 [label=3
+]
+	72 [label=4
+]
+	73 [label=5
+]
+	74 [label="z
+Read"]
+	75 [label="+
+"]
+	69 -> 75
+	74 -> 75
+	76 [label="z
+Write"]
+	75 -> 76
+	77 [label="z
+Read"]
+	78 [label="+
+"]
+	70 -> 78
+	77 -> 78
+	79 [label="z
+Write"]
+	78 -> 79
+	80 [label="z
+Read"]
+	81 [label="+
+"]
+	71 -> 81
+	80 -> 81
+	82 [label="z
+Write"]
+	81 -> 82
+	83 [label="z
+Read"]
+	84 [label="+
+"]
+	72 -> 84
+	83 -> 84
+	85 [label="z
+Write"]
+	84 -> 85
+	86 [label="z
+Read"]
+	87 [label="+
+"]
+	73 -> 87
+	86 -> 87
+	88 [label="z
+Write"]
+	87 -> 88
+}
