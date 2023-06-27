@@ -1,0 +1,71 @@
+digraph {
+	6 [label="source code:
+len_new = len(img[0]) + 2 * zero_pad
+wid_new = len(img[0][0]) + 2 * zero_pad
+new_img = np.zeros((len(img), len_new, wid_new))
+"]
+	7 [label="len(img[0])
+"]
+	8 [label="img
+Read"]
+	9 [label="img[0]
+Read"]
+	8 -> 9
+	9 -> 7
+	10 [label=2
+]
+	11 [label="zero_pad
+Read"]
+	12 [label="*
+"]
+	10 -> 12
+	11 -> 12
+	13 [label="+
+"]
+	7 -> 13
+	12 -> 13
+	14 [label="len_new
+Write"]
+	13 -> 14
+	15 [label="len(img[0][0])
+"]
+	16 [label="img
+Read"]
+	17 [label="img[0]
+Read"]
+	16 -> 17
+	18 [label="img[0][0]
+Read"]
+	17 -> 18
+	18 -> 15
+	19 [label=2
+]
+	20 [label="zero_pad
+Read"]
+	21 [label="*
+"]
+	19 -> 21
+	20 -> 21
+	22 [label="+
+"]
+	15 -> 22
+	21 -> 22
+	23 [label="wid_new
+Write"]
+	22 -> 23
+	24 [label="np.zeros((len(img), len_new, wid_new))
+"]
+	25 [label="len(img)
+"]
+	26 [label="img
+Read"]
+	26 -> 25
+	27 [label="len_new
+Read"]
+	28 [label="wid_new
+Read"]
+	25 -> 24
+	29 [label="new_img
+Write"]
+	24 -> 29
+}

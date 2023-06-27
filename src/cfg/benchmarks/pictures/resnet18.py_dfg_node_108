@@ -1,0 +1,58 @@
+digraph {
+	439 [label="source code:
+img[i][j][k] = weights[j] * ((img[i][j][k] - mean) / dev) + biases[j]
+"]
+	440 [label="weights
+Read"]
+	441 [label="weights[j]
+Read"]
+	440 -> 441
+	442 [label="img
+Read"]
+	443 [label="img[i]
+Read"]
+	442 -> 443
+	444 [label="img[i][j]
+Read"]
+	443 -> 444
+	445 [label="img[i][j][k]
+Read"]
+	444 -> 445
+	446 [label="mean
+Read"]
+	447 [label="-
+"]
+	445 -> 447
+	446 -> 447
+	448 [label="dev
+Read"]
+	449 [label="//
+"]
+	447 -> 449
+	448 -> 449
+	450 [label="*
+"]
+	441 -> 450
+	449 -> 450
+	451 [label="biases
+Read"]
+	452 [label="biases[j]
+Read"]
+	451 -> 452
+	453 [label="+
+"]
+	450 -> 453
+	452 -> 453
+	454 [label="img
+Read"]
+	455 [label="img[i]
+Read"]
+	454 -> 455
+	456 [label="img[i][j]
+Read"]
+	455 -> 456
+	457 [label="img[i][j][k]
+Write"]
+	456 -> 457
+	453 -> 457
+}

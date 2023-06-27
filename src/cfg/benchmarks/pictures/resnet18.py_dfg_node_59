@@ -1,0 +1,31 @@
+digraph {
+	252 [label="source code:
+result[i][j][k] /= l * w
+"]
+	253 [label="l
+Read"]
+	254 [label="w
+Read"]
+	255 [label="*
+"]
+	253 -> 255
+	254 -> 255
+	256 [label="result
+Read"]
+	257 [label="//
+"]
+	255 -> 257
+	256 -> 257
+	258 [label="result
+Read"]
+	259 [label="result[i]
+Read"]
+	258 -> 259
+	260 [label="result[i][j]
+Read"]
+	259 -> 260
+	261 [label="result[i][j][k]
+Write"]
+	260 -> 261
+	257 -> 261
+}

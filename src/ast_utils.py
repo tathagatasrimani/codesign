@@ -116,6 +116,8 @@ class ASTUtils:
             return "Eq"
         elif type(op) == ast.NotIn:
             return None
+        elif type(op) == ast.NotEq:
+            return "IsNot"
         else:
             raise Exception("unhandled comparator op <%s>" % op)
 

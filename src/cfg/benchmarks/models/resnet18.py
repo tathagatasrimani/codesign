@@ -25,12 +25,14 @@ def conv_layer(img, filt, numFilt, zero_pad, stride):
     for i in range(numFilt):
         for j in range(f_len):
             for k in range(f_wid):
-                sum_val = biases[j]
                 for l in range(len(filt)):
                     for c in range(len(filt[0])):
                         for d in range(len(filt[0][0])):
-                            sum_val += img_new[l][j * stride + c][k * stride + d] * filt[l][c][d]
-                f_new[i][j][k] = sum_val
+                            f_new[i][j][k] += img_new[l][j * stride + c][k * stride + d] * filt[l][c][d]
+    for i in range(numFilt):
+        for j in range(f_len):
+            for k in range(f_wid):
+                f_new[i][j][k] += biases[j]
     return f_new
 
 def max_pool(input, l, w, zero_pad, stride):
@@ -42,11 +44,13 @@ def max_pool(input, l, w, zero_pad, stride):
     for i in range(len(input)):
         for j in range(res_l):
             for k in range(res_w):
-                max_val = input[i][j][k]
                 for c in range(l):
                     for d in range(w):
-                        max_val = max(max_val, input[i][j * stride + c][k * stride + d])
-                result[i][j][k] = max_val / (l * w)
+                        result[i][j][k] = max(input[i][j][k], result[i][j][k], input[i][j * stride + c][k * stride + d])
+    for i in range(len(input)):
+        for j in range(res_l):
+            for k in range(res_w):
+                result[i][j][k] /= l * w
     return result
 
 def avg_pool(input, l, w, zero_pad, stride):
@@ -58,11 +62,13 @@ def avg_pool(input, l, w, zero_pad, stride):
     for i in range(len(input)):
         for j in range(res_l):
             for k in range(res_w):
-                sum_val = 0
                 for c in range(l):
                     for d in range(w):
-                        sum_val += input[i][j * stride + c][k * stride + d]
-                result[i][j][k] = sum_val / (l * w)
+                        result[i][j][k] += input[i][j * stride + c][k * stride + d]
+    for i in range(len(input)):
+        for j in range(res_l):
+            for k in range(res_w):
+                result[i][j][k] /= l * w
     return result
 
 def reLU(img):
@@ -217,7 +223,6 @@ def main():
     w_0 = np.random.rand(7)
     flat = fc_layer(flat, weights, w_0)
     final = softmax(flat)
-    print(final)
 
     return 0
 

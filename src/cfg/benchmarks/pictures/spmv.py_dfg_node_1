@@ -25,4 +25,12 @@ Write"]
 	7 [label="B
 Write"]
 	5 -> 7
+	8 [label="__name__
+Read"]
+	9 [label=__main__
+]
+	10 [label="==
+"]
+	8 -> 10
+	9 -> 10
 }

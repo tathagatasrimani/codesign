@@ -1,0 +1,56 @@
+digraph {
+	262 [label="source code:
+result[i][j][k] = max(input[i][j][k], result[i][j][k], input[i][j * stride +
+    c][k * stride + d])
+"]
+	263 [label="max(input[i][j][k], result[i][j][k], input[i][j * stride + c][k * stride + d])
+"]
+	264 [label="input
+Read"]
+	265 [label="input[i]
+Read"]
+	264 -> 265
+	266 [label="input[i][j]
+Read"]
+	265 -> 266
+	267 [label="input[i][j][k]
+Read"]
+	266 -> 267
+	267 -> 263
+	268 [label="result
+Read"]
+	269 [label="result[i]
+Read"]
+	268 -> 269
+	270 [label="result[i][j]
+Read"]
+	269 -> 270
+	271 [label="result[i][j][k]
+Read"]
+	270 -> 271
+	271 -> 263
+	272 [label="input
+Read"]
+	273 [label="input[i]
+Read"]
+	272 -> 273
+	274 [label="input[i][j * stride + c]
+Read"]
+	273 -> 274
+	275 [label="input[i][j * stride + c][k * stride + d]
+Read"]
+	274 -> 275
+	275 -> 263
+	276 [label="result
+Read"]
+	277 [label="result[i]
+Read"]
+	276 -> 277
+	278 [label="result[i][j]
+Read"]
+	277 -> 278
+	279 [label="result[i][j][k]
+Write"]
+	278 -> 279
+	263 -> 279
+}

@@ -39,8 +39,6 @@ def set_id():
     cur_id += 1
     return val
 
-# for now, only working with ast.binop
-# add support for boolop
 def eval_expr(expr, graph, node):
     if ASTUtils.isBoolOp(expr):
         print("visiting boolop")
@@ -321,7 +319,7 @@ def dfg_per_node(node):
                     break
                 j -= 1
         i -= 1
-    graph.render(path + 'pictures/' + benchmark + "_dfg_node_" + str(node.id), view = True, format='jpeg')
+    graph.render(path + 'pictures/' + benchmark + "_dfg_node_" + str(node.id), view = False, format='jpeg')
     return 0
 
 
@@ -331,7 +329,7 @@ def main_fn(path_in, benchmark_in):
     benchmark, path = benchmark_in, path_in
     benchmark = benchmark[benchmark.rfind('/')+1:]
     cfg = CFGBuilder().build_from_file('main.c', path + 'models/' + benchmark)
-    cfg.build_visual(path + 'pictures/' + benchmark, 'jpeg', show = True)
+    cfg.build_visual(path + 'pictures/' + benchmark, 'jpeg', show = False)
     for node in cfg:
         node_to_symbols[node] = []
         graphs[node] = Graph(set(), {})

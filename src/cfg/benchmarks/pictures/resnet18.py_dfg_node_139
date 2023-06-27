@@ -1,0 +1,31 @@
+digraph {
+	545 [label="source code:
+sum_val += arr[j] * W[j][i]
+"]
+	546 [label="arr
+Read"]
+	547 [label="arr[j]
+Read"]
+	546 -> 547
+	548 [label="W
+Read"]
+	549 [label="W[j]
+Read"]
+	548 -> 549
+	550 [label="W[j][i]
+Read"]
+	549 -> 550
+	551 [label="*
+"]
+	547 -> 551
+	550 -> 551
+	552 [label="sum_val
+Read"]
+	553 [label="+
+"]
+	551 -> 553
+	552 -> 553
+	554 [label="sum_val
+Write"]
+	553 -> 554
+}

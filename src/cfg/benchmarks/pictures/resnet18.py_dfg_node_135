@@ -1,0 +1,16 @@
+digraph {
+	531 [label="source code:
+for i in range(len(W[0])):
+"]
+	532 [label="range(len(W[0]))
+"]
+	533 [label="len(W[0])
+"]
+	534 [label="W
+Read"]
+	535 [label="W[0]
+Read"]
+	534 -> 535
+	535 -> 533
+	533 -> 532
+}

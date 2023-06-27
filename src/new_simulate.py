@@ -76,7 +76,6 @@ def simulate(cfg, data_path, node_operations, hw_spec, first, unroll):
     i = 0
     while i < len(data_path):
         node_id = data_path[i][0]
-        print(node_id, i)
         cur_node = id_to_node[node_id]
         node_intervals.append([node_id, [cycles, 0]])
         node_avg_power[node_id] = 0 # just reset because we will end up overwriting it
@@ -86,7 +85,7 @@ def simulate(cfg, data_path, node_operations, hw_spec, first, unroll):
             j = i
             while True:
                 j += 1
-                if len(data_path) == j: break
+                if len(data_path) <= j: break
                 next_node_id = data_path[j][0]
                 if next_node_id != node_id: break
                 iters += 1
@@ -99,7 +98,6 @@ def simulate(cfg, data_path, node_operations, hw_spec, first, unroll):
                     for j in range(iters):
                         new_state.append(op)
                 state = new_state
-            print(state)
             hw_need = get_hw_need(state)
             #print(hw_need)
             max_cycles = 0
@@ -120,6 +118,7 @@ def simulate(cfg, data_path, node_operations, hw_spec, first, unroll):
         if cycles - start_cycles > 0: node_avg_power[node_id] /= cycles - start_cycles
         node_intervals[-1][1][1] = cycles
         i += 1
+    print("done with simulation")
     return data
 
 def main():
@@ -131,11 +130,11 @@ def main():
     cfg, graphs = dfg_algo.main_fn(path, benchmark)
     cfg, node_operations = schedule.schedule(cfg, graphs, sys.argv[1])
     hw = HardwareModel(0, 0)
-    hw.hw_allocated['Add'] = 5
-    hw.hw_allocated['Regs'] = 3
-    hw.hw_allocated['Mult'] = 1
-    hw.hw_allocated['Sub'] = 1
-    hw.hw_allocated['FloorDiv'] = 1
+    hw.hw_allocated['Add'] = 15
+    hw.hw_allocated['Regs'] = 30
+    hw.hw_allocated['Mult'] = 15
+    hw.hw_allocated['Sub'] = 15
+    hw.hw_allocated['FloorDiv'] = 15
     hw.hw_allocated['Gt'] = 1
     hw.hw_allocated['And'] = 1
     hw.hw_allocated['Or'] = 1

@@ -1,37 +1,43 @@
 digraph {
-	93 [label="source code:
+	104 [label="source code:
 k = int(Column[j])
 temp += Value[j] * matrix2[k][0]
 "]
-	94 [label="int(Column[j])
+	105 [label="int(Column[j])
 "]
-	95 [label="Column
+	106 [label="Column
 Read"]
-	96 [label="Column[j]
+	107 [label="Column[j]
 Read"]
-	95 -> 96
-	96 -> 94
-	97 [label="k
+	106 -> 107
+	107 -> 105
+	108 [label="k
 Write"]
-	94 -> 97
-	98 [label="Value
+	105 -> 108
+	109 [label="Value
 Read"]
-	99 [label="Value[j]
+	110 [label="Value[j]
 Read"]
-	98 -> 99
-	100 [label="matrix2
+	109 -> 110
+	111 [label="matrix2
 Read"]
-	101 [label="matrix2[k]
+	112 [label="matrix2[k]
 Read"]
-	100 -> 101
-	102 [label="matrix2[k][0]
+	111 -> 112
+	113 [label="matrix2[k][0]
 Read"]
-	101 -> 102
-	103 [label="*
+	112 -> 113
+	114 [label="*
 "]
-	99 -> 103
-	102 -> 103
-	104 [label="temp
+	110 -> 114
+	113 -> 114
+	115 [label="temp
+Read"]
+	116 [label="+
+"]
+	114 -> 116
+	115 -> 116
+	117 [label="temp
 Write"]
-	103 -> 104
+	116 -> 117
 }

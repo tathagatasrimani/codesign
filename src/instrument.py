@@ -75,15 +75,6 @@ class ProgramInstrumentor(ast.NodeTransformer):
         stmt2 = text_to_ast('print(' + str(lineno_to_node[node.lineno]) + ',' + str(node.lineno) + ')')
         return ast.If(test,[stmt1]+body,[stmt2]+orelse)
 
-    def visit_For(self,node):
-        target = self.generic_visit(node.target)
-        iter_ = self.generic_visit(node.iter)
-        body = self.visit_Stmts(node.body)
-        orelse = self.visit_Stmts(node.orelse)
-        stmt2 = text_to_ast('print(' + str(lineno_to_node[node.lineno]) + ',' + str(node.lineno) + ')')
-        forblk = ast.For(target,iter_,body,orelse)
-        return ProgramInstrumentor.mkblock([stmt2,forblk])
-
 
     def visit_Call(self,node):
         report("visiting function call",node)

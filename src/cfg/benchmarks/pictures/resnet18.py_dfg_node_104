@@ -1,0 +1,10 @@
+digraph {
+	408 [label="source code:
+result = 0
+"]
+	409 [label=0
+]
+	410 [label="result
+Write"]
+	409 -> 410
+}

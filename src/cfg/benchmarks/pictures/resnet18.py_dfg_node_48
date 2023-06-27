@@ -1,0 +1,31 @@
+digraph {
+	237 [label="source code:
+result[i][j][k] = max_val / (l * w)
+"]
+	238 [label="max_val
+Read"]
+	239 [label="l
+Read"]
+	240 [label="w
+Read"]
+	241 [label="*
+"]
+	239 -> 241
+	240 -> 241
+	242 [label="//
+"]
+	238 -> 242
+	241 -> 242
+	243 [label="result
+Read"]
+	244 [label="result[i]
+Read"]
+	243 -> 244
+	245 [label="result[i][j]
+Read"]
+	244 -> 245
+	246 [label="result[i][j][k]
+Write"]
+	245 -> 246
+	242 -> 246
+}

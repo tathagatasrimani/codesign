@@ -1,0 +1,89 @@
+digraph {
+	289 [label="source code:
+res_l = int((len(input[0]) - l) / stride + 1)
+res_w = int((len(input[0][0]) - w) / stride + 1)
+result = np.zeros((len(input), res_l, res_w))
+"]
+	290 [label="int((len(input[0]) - l) / stride + 1)
+"]
+	291 [label="len(input[0])
+"]
+	292 [label="input
+Read"]
+	293 [label="input[0]
+Read"]
+	292 -> 293
+	293 -> 291
+	294 [label="l
+Read"]
+	295 [label="-
+"]
+	291 -> 295
+	294 -> 295
+	296 [label="stride
+Read"]
+	297 [label="//
+"]
+	295 -> 297
+	296 -> 297
+	298 [label=1
+]
+	299 [label="+
+"]
+	297 -> 299
+	298 -> 299
+	299 -> 290
+	300 [label="res_l
+Write"]
+	290 -> 300
+	301 [label="int((len(input[0][0]) - w) / stride + 1)
+"]
+	302 [label="len(input[0][0])
+"]
+	303 [label="input
+Read"]
+	304 [label="input[0]
+Read"]
+	303 -> 304
+	305 [label="input[0][0]
+Read"]
+	304 -> 305
+	305 -> 302
+	306 [label="w
+Read"]
+	307 [label="-
+"]
+	302 -> 307
+	306 -> 307
+	308 [label="stride
+Read"]
+	309 [label="//
+"]
+	307 -> 309
+	308 -> 309
+	310 [label=1
+]
+	311 [label="+
+"]
+	309 -> 311
+	310 -> 311
+	311 -> 301
+	312 [label="res_w
+Write"]
+	301 -> 312
+	313 [label="np.zeros((len(input), res_l, res_w))
+"]
+	314 [label="len(input)
+"]
+	315 [label="input
+Read"]
+	315 -> 314
+	316 [label="res_l
+Read"]
+	317 [label="res_w
+Read"]
+	314 -> 313
+	318 [label="result
+Write"]
+	313 -> 318
+}

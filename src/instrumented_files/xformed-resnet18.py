@@ -1,5 +1,4 @@
 import sys
-from instrument_lib import *
 import math
 import numpy as np
 
@@ -12,17 +11,11 @@ def zero_pad_arr(img, zero_pad):
     wid_new = len(img[0][0]) + 2 * zero_pad
     print(3, 7)
     new_img = np.zeros((len(img), len_new, wid_new))
-    print(4, 8)
     for i in range(len(img)):
-        print(4, 8)
-        print(5, 9)
         for j in range(len_new):
-            print(5, 9)
             print(7, 10)
             make_zero = j < zero_pad or j >= len_new - zero_pad
-            print(9, 11)
             for k in range(wid_new):
-                print(9, 11)
                 if k < zero_pad or k >= wid_new - zero_pad or make_zero:
                     print(10, 12)
                     print(12, 13)
@@ -46,407 +39,346 @@ def conv_layer(img, filt, numFilt, zero_pad, stride):
     img_new = zero_pad_arr(img, zero_pad)
     print(18, 24)
     f_new = np.zeros((numFilt, f_len, f_wid))
-    print(19, 25)
     for i in range(numFilt):
-        print(19, 25)
-        print(20, 26)
         for j in range(f_len):
-            print(20, 26)
-            print(22, 27)
             for k in range(f_wid):
-                print(22, 27)
-                print(24, 28)
-                sum_val = biases[j]
-                print(26, 29)
                 for l in range(len(filt)):
-                    print(26, 29)
-                    print(27, 30)
                     for c in range(len(filt[0])):
-                        print(27, 30)
-                        print(29, 31)
                         for d in range(len(filt[0][0])):
-                            print(29, 31)
-                            print(31, 32)
-                            sum_val += img_new[l][j * stride + c][k *
+                            print(30, 31)
+                            f_new[i][j][k] += img_new[l][j * stride + c][k *
                                 stride + d] * filt[l][c][d]
-                print(28, 33)
-                f_new[i][j][k] = sum_val
+    for i in range(numFilt):
+        for j in range(f_len):
+            for k in range(f_wid):
+                print(36, 35)
+                f_new[i][j][k] += biases[j]
     return f_new
 
 
 def max_pool(input, l, w, zero_pad, stride):
-    print(1, 36)
+    print(1, 38)
     if zero_pad > 0:
-        print(36, 37)
-        print(37, 38)
+        print(41, 39)
+        print(42, 40)
         input = zero_pad_arr(input, zero_pad)
     else:
-        print(36, 37)
-    print(38, 39)
+        print(41, 39)
+    print(43, 41)
     res_l = int((len(input[0]) - l) / stride + 1)
-    print(38, 40)
+    print(43, 42)
     res_w = int((len(input[0][0]) - w) / stride + 1)
-    print(38, 41)
+    print(43, 43)
     result = np.zeros((len(input), res_l, res_w))
-    print(39, 42)
     for i in range(len(input)):
-        print(39, 42)
-        print(40, 43)
         for j in range(res_l):
-            print(40, 43)
-            print(42, 44)
             for k in range(res_w):
-                print(42, 44)
-                print(44, 45)
-                max_val = input[i][j][k]
-                print(46, 46)
                 for c in range(l):
-                    print(46, 46)
-                    print(47, 47)
                     for d in range(w):
-                        print(47, 47)
-                        print(49, 48)
-                        max_val = max(max_val, input[i][j * stride + c][k *
-                            stride + d])
-                print(48, 49)
-                result[i][j][k] = max_val / (l * w)
+                        print(53, 49)
+                        result[i][j][k] = max(input[i][j][k], result[i][j][
+                            k], input[i][j * stride + c][k * stride + d])
+    for i in range(len(input)):
+        for j in range(res_l):
+            for k in range(res_w):
+                print(59, 53)
+                result[i][j][k] /= l * w
     return result
 
 
 def avg_pool(input, l, w, zero_pad, stride):
-    print(1, 52)
+    print(1, 56)
     if zero_pad > 0:
-        print(54, 53)
-        print(55, 54)
+        print(64, 57)
+        print(65, 58)
         input = zero_pad_arr(input, zero_pad)
     else:
-        print(54, 53)
-    print(56, 55)
+        print(64, 57)
+    print(66, 59)
     res_l = int((len(input[0]) - l) / stride + 1)
-    print(56, 56)
+    print(66, 60)
     res_w = int((len(input[0][0]) - w) / stride + 1)
-    print(56, 57)
+    print(66, 61)
     result = np.zeros((len(input), res_l, res_w))
-    print(57, 58)
     for i in range(len(input)):
-        print(57, 58)
-        print(58, 59)
         for j in range(res_l):
-            print(58, 59)
-            print(60, 60)
             for k in range(res_w):
-                print(60, 60)
-                print(62, 61)
-                sum_val = 0
-                print(64, 62)
                 for c in range(l):
-                    print(64, 62)
-                    print(65, 63)
                     for d in range(w):
-                        print(65, 63)
-                        print(67, 64)
-                        sum_val += input[i][j * stride + c][k * stride + d]
-                print(66, 65)
-                result[i][j][k] = sum_val / (l * w)
+                        print(76, 67)
+                        result[i][j][k] += input[i][j * stride + c][k *
+                            stride + d]
+    for i in range(len(input)):
+        for j in range(res_l):
+            for k in range(res_w):
+                print(82, 71)
+                result[i][j][k] /= l * w
     return result
 
 
 def reLU(img):
-    print(1, 68)
-    print(72, 69)
+    print(1, 74)
     for i in range(len(img)):
-        print(72, 69)
-        print(73, 70)
         for j in range(len(img[0])):
-            print(73, 70)
-            print(75, 71)
             for k in range(len(img[0][0])):
-                print(75, 71)
-                print(77, 72)
+                print(92, 78)
                 img[i][j][k] = max(img[i][j][k], 0)
     return img
 
 
 def get_mean(row):
-    print(1, 75)
-    print(82, 76)
+    print(1, 81)
+    print(97, 82)
     sum_val = 0
-    print(83, 77)
     for i in range(len(row)):
-        print(83, 77)
-        print(84, 78)
+        print(99, 84)
         sum_val += row[i]
     return sum_val / len(row)
 
 
 def std_dev(row):
-    print(1, 81)
-    print(89, 82)
+    print(1, 87)
+    print(104, 88)
     result = 0
-    print(90, 83)
     for i in range(len(row)):
-        print(90, 83)
-        print(91, 84)
+        print(106, 90)
         diff = row[i] - get_mean(row)
-        print(91, 85)
+        print(106, 91)
         result += diff * diff
     return math.sqrt(result / len(row))
 
 
 def BN_layer(img, channels, weights, biases):
-    print(1, 88)
-    print(96, 89)
+    print(1, 94)
     for i in range(channels):
-        print(96, 89)
-        print(97, 90)
         for j in range(len(img[0])):
-            print(97, 90)
-            print(99, 91)
+            print(114, 97)
             dev = std_dev(img[i][j][:])
-            print(99, 92)
+            print(114, 98)
             mean = get_mean(img[i][j][:])
             if dev == 0.0:
-                print(101, 93)
-                print(101, 93)
+                print(116, 99)
+                print(116, 99)
                 dev = 1.0
             else:
-                print(101, 93)
-            print(102, 94)
+                print(116, 99)
             for k in range(len(img[0][0])):
-                print(102, 94)
-                print(103, 95)
+                print(118, 101)
                 img[i][j][k] = weights[j] * ((img[i][j][k] - mean) / dev
                     ) + biases[j]
     return img
 
 
 def flatten_layer(img):
-    print(1, 98)
-    print(108, 99)
+    print(1, 104)
+    print(123, 105)
     result = np.zeros(len(img) * len(img[0]) * len(img[0][0]))
-    print(108, 100)
+    print(123, 106)
     index = 0
-    print(109, 101)
     for i in range(len(img)):
-        print(109, 101)
-        print(110, 102)
         for j in range(len(img[0])):
-            print(110, 102)
-            print(112, 103)
             for k in range(len(img[0][0])):
-                print(112, 103)
-                print(114, 104)
+                print(129, 110)
                 result[index] = img[i][j][k]
-                print(114, 105)
+                print(129, 111)
                 index += 1
     return result
 
 
 def fc_layer(arr, W, W_0):
-    print(1, 108)
-    print(119, 109)
+    print(1, 114)
+    print(134, 115)
     result = np.zeros(len(W[0]))
-    print(120, 110)
     for i in range(len(W[0])):
-        print(120, 110)
-        print(121, 111)
+        print(136, 117)
         sum_val = W_0[i]
-        print(123, 112)
         for j in range(len(arr)):
-            print(123, 112)
-            print(124, 113)
+            print(139, 119)
             sum_val += arr[j] * W[j][i]
-        print(125, 114)
+        print(140, 120)
         result[i] = sum_val
     return result
 
 
 def softmax(img):
-    print(1, 117)
-    print(129, 118)
+    print(1, 123)
+    print(144, 124)
     sum_val = 0
-    print(130, 119)
     for i in range(len(img)):
-        print(130, 119)
-        print(131, 120)
+        print(146, 126)
         sum_val += math.exp(img[i])
-    print(132, 121)
+    print(147, 127)
     result = np.zeros(len(img))
-    print(133, 122)
     for i in range(len(img)):
-        print(133, 122)
-        print(134, 123)
+        print(149, 129)
         result[i] = math.exp(img[i]) / sum_val
     return result
 
 
 def main():
-    print(1, 126)
-    print(139, 127)
+    print(1, 132)
+    print(154, 133)
     zero_pad = 3
-    print(139, 128)
+    print(154, 134)
     stride = 2
-    print(139, 129)
+    print(154, 135)
     filt = np.random.rand(3, 7, 7)
-    print(139, 130)
+    print(154, 136)
     img = np.random.rand(3, 64, 64)
-    print(139, 133)
+    print(154, 139)
     img = conv_layer(img, filt, 1, zero_pad, stride)
-    print(139, 134)
+    print(154, 140)
     weights = np.random.rand(len(img[0]))
-    print(139, 135)
+    print(154, 141)
     biases = np.random.rand(len(img[0]))
-    print(139, 136)
+    print(154, 142)
     img = BN_layer(img, 1, weights, biases)
-    print(139, 137)
+    print(154, 143)
     img = reLU(img)
-    print(139, 138)
+    print(154, 144)
     img = max_pool(img, 3, 3, 1, 2)
-    print(139, 141)
+    print(154, 147)
     filt = np.random.rand(1, len(filt[0]), len(filt[0][0]))
-    print(140, 142)
     for i in range(2):
-        print(140, 142)
-        print(141, 143)
+        print(156, 149)
         byPass = np.copy(img)
-        print(141, 144)
+        print(156, 150)
         img = conv_layer(img, filt, 1, 3, 1)
-        print(141, 145)
+        print(156, 151)
         img = BN_layer(img, 1, weights, biases)
-        print(141, 146)
+        print(156, 152)
         img = reLU(img)
-        print(141, 147)
+        print(156, 153)
         img = conv_layer(img, filt, 1, 3, 1)
-        print(141, 148)
+        print(156, 154)
         img += byPass
-        print(141, 149)
+        print(156, 155)
         img = reLU(img)
-    print(142, 152)
+    print(157, 158)
     filt = np.random.rand(1, len(filt[0]), len(filt[0][0]))
-    print(142, 153)
+    print(157, 159)
     byPass = np.copy(img)
-    print(142, 154)
+    print(157, 160)
     byPass = conv_layer(byPass, filt, 1, 3, 2)
-    print(142, 155)
+    print(157, 161)
     byPass = BN_layer(byPass, 1, weights, biases)
-    print(142, 156)
+    print(157, 162)
     img = conv_layer(img, filt, 1, 3, 1)
-    print(142, 157)
+    print(157, 163)
     img = BN_layer(img, 1, weights, biases)
-    print(142, 158)
+    print(157, 164)
     img = reLU(img)
-    print(142, 159)
+    print(157, 165)
     img = conv_layer(img, filt, 1, 3, 2)
-    print(142, 160)
+    print(157, 166)
     img += byPass
-    print(142, 161)
+    print(157, 167)
     img = reLU(img)
-    print(142, 163)
+    print(157, 169)
     byPass = np.copy(img)
-    print(142, 164)
+    print(157, 170)
     img = conv_layer(img, filt, 1, 3, 1)
-    print(142, 165)
+    print(157, 171)
     img = BN_layer(img, 1, weights, biases)
-    print(142, 166)
+    print(157, 172)
     img = reLU(img)
-    print(142, 167)
+    print(157, 173)
     img = conv_layer(img, filt, 1, 3, 1)
-    print(142, 168)
+    print(157, 174)
     img = BN_layer(img, 1, weights, biases)
-    print(142, 169)
+    print(157, 175)
     img += byPass
-    print(142, 170)
+    print(157, 176)
     img = reLU(img)
-    print(142, 173)
+    print(157, 179)
     filt = np.random.rand(1, len(filt[0]), len(filt[0][0]))
-    print(142, 174)
+    print(157, 180)
     byPass = np.copy(img)
-    print(142, 175)
+    print(157, 181)
     byPass = conv_layer(byPass, filt, 1, 3, 2)
-    print(142, 176)
+    print(157, 182)
     byPass = BN_layer(byPass, 1, weights, biases)
-    print(142, 177)
+    print(157, 183)
     img = conv_layer(img, filt, 1, 3, 1)
-    print(142, 178)
+    print(157, 184)
     img = BN_layer(img, 1, weights, biases)
-    print(142, 179)
+    print(157, 185)
     img = reLU(img)
-    print(142, 180)
+    print(157, 186)
     img = conv_layer(img, filt, 1, 3, 2)
-    print(142, 181)
+    print(157, 187)
     img += byPass
-    print(142, 182)
+    print(157, 188)
     img = reLU(img)
-    print(142, 184)
+    print(157, 190)
     byPass = np.copy(img)
-    print(142, 185)
+    print(157, 191)
     img = conv_layer(img, filt, 1, 3, 1)
-    print(142, 186)
+    print(157, 192)
     img = BN_layer(img, 1, weights, biases)
-    print(142, 187)
+    print(157, 193)
     img = reLU(img)
-    print(142, 188)
+    print(157, 194)
     img = conv_layer(img, filt, 1, 3, 1)
-    print(142, 189)
+    print(157, 195)
     img = BN_layer(img, 1, weights, biases)
-    print(142, 190)
+    print(157, 196)
     img += byPass
-    print(142, 191)
+    print(157, 197)
     img = reLU(img)
-    print(142, 194)
+    print(157, 200)
     filt = np.random.rand(1, len(filt[0]), len(filt[0][0]))
-    print(142, 195)
+    print(157, 201)
     byPass = np.copy(img)
-    print(142, 196)
+    print(157, 202)
     byPass = conv_layer(byPass, filt, 1, 3, 2)
-    print(142, 197)
+    print(157, 203)
     byPass = BN_layer(byPass, 1, weights, biases)
-    print(142, 198)
+    print(157, 204)
     img = conv_layer(img, filt, 1, 3, 1)
-    print(142, 199)
+    print(157, 205)
     img = BN_layer(img, 1, weights, biases)
-    print(142, 200)
+    print(157, 206)
     img = reLU(img)
-    print(142, 201)
+    print(157, 207)
     img = conv_layer(img, filt, 1, 3, 2)
-    print(142, 202)
+    print(157, 208)
     img += byPass
-    print(142, 203)
+    print(157, 209)
     img = reLU(img)
-    print(142, 205)
+    print(157, 211)
     byPass = np.copy(img)
-    print(142, 206)
+    print(157, 212)
     img = conv_layer(img, filt, 1, 3, 1)
-    print(142, 207)
+    print(157, 213)
     img = BN_layer(img, 1, weights, biases)
-    print(142, 208)
+    print(157, 214)
     img = reLU(img)
-    print(142, 209)
+    print(157, 215)
     img = conv_layer(img, filt, 1, 3, 1)
-    print(142, 210)
+    print(157, 216)
     img = BN_layer(img, 1, weights, biases)
-    print(142, 211)
+    print(157, 217)
     img += byPass
-    print(142, 212)
+    print(157, 218)
     img = reLU(img)
-    print(142, 213)
+    print(157, 219)
     img = avg_pool(img, len(img[0]), len(img[0][0]), 3, 1)
-    print(142, 214)
+    print(157, 220)
     flat = flatten_layer(img)
-    print(142, 216)
+    print(157, 222)
     weights = np.random.rand(len(img) * len(img[0]) * len(img[0][0]), 7)
-    print(142, 217)
+    print(157, 223)
     w_0 = np.random.rand(7)
-    print(142, 218)
+    print(157, 224)
     flat = fc_layer(flat, weights, w_0)
-    print(142, 219)
+    print(157, 225)
     final = softmax(flat)
-    print(final)
     return 0
 
 
 if __name__ == '__main__':
-    print(1, 224)
+    print(1, 229)
     main()
 else:
-    print(1, 224)
+    print(1, 229)

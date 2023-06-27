@@ -1,16 +1,16 @@
 digraph {
-	43 [label="source code:
+	46 [label="source code:
 RowPtr = np.append(RowPtr, 8)
 "]
-	44 [label="np.append(RowPtr, 8)
+	47 [label="np.append(RowPtr, 8)
 "]
-	45 [label="RowPtr
+	48 [label="RowPtr
 Read"]
-	45 -> 44
-	46 [label=8
+	48 -> 47
+	49 [label=8
 ]
-	46 -> 44
-	47 [label="RowPtr
+	49 -> 47
+	50 [label="RowPtr
 Write"]
-	44 -> 47
+	47 -> 50
 }

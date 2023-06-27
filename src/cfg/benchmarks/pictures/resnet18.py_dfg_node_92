@@ -1,0 +1,34 @@
+digraph {
+	383 [label="source code:
+img[i][j][k] = max(img[i][j][k], 0)
+"]
+	384 [label="max(img[i][j][k], 0)
+"]
+	385 [label="img
+Read"]
+	386 [label="img[i]
+Read"]
+	385 -> 386
+	387 [label="img[i][j]
+Read"]
+	386 -> 387
+	388 [label="img[i][j][k]
+Read"]
+	387 -> 388
+	388 -> 384
+	389 [label=0
+]
+	389 -> 384
+	390 [label="img
+Read"]
+	391 [label="img[i]
+Read"]
+	390 -> 391
+	392 [label="img[i][j]
+Read"]
+	391 -> 392
+	393 [label="img[i][j][k]
+Write"]
+	392 -> 393
+	384 -> 393
+}

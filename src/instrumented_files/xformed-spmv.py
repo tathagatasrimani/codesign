@@ -20,14 +20,10 @@ def csr(matrix1, matrix2):
     RowPtr = np.array([], dtype=int)
     print(3, 14)
     Result = np.array([], dtype=int)
-    print(4, 17)
     for i in range(rowNum):
-        print(4, 17)
         print(5, 18)
         flag = 1
-        print(7, 19)
         for j in range(columnNum):
-            print(7, 19)
             if matrix1[i][j] != 0:
                 print(8, 20)
                 print(10, 21)
@@ -46,18 +42,14 @@ def csr(matrix1, matrix2):
                 print(8, 20)
     print(6, 26)
     RowPtr = np.append(RowPtr, 8)
-    print(14, 30)
     for i in range(rowNum):
-        print(14, 30)
         print(15, 31)
         start = int(RowPtr[i])
         print(15, 32)
         end = int(RowPtr[i + 1])
         print(15, 33)
         temp = 0
-        print(17, 34)
         for j in range(start, end):
-            print(17, 34)
             print(18, 35)
             k = int(Column[j])
             print(18, 36)

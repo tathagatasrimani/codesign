@@ -1,0 +1,19 @@
+digraph {
+	377 [label="source code:
+for k in range(len(img[0][0])):
+"]
+	378 [label="range(len(img[0][0]))
+"]
+	379 [label="len(img[0][0])
+"]
+	380 [label="img
+Read"]
+	381 [label="img[0]
+Read"]
+	380 -> 381
+	382 [label="img[0][0]
+Read"]
+	381 -> 382
+	382 -> 379
+	379 -> 378
+}

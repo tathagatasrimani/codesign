@@ -1,0 +1,34 @@
+digraph {
+	52 [label="source code:
+if k < zero_pad or k >= wid_new - zero_pad or make_zero:
+"]
+	53 [label="k
+Read"]
+	54 [label="zero_pad
+Read"]
+	55 [label="<
+"]
+	53 -> 55
+	54 -> 55
+	56 [label="k
+Read"]
+	57 [label="wid_new
+Read"]
+	58 [label="zero_pad
+Read"]
+	59 [label="-
+"]
+	57 -> 59
+	58 -> 59
+	60 [label=">=
+"]
+	56 -> 60
+	59 -> 60
+	61 [label="make_zero
+Read"]
+	62 [label=or
+]
+	55 -> 62
+	60 -> 62
+	61 -> 62
+}

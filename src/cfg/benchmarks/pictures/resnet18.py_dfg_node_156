@@ -1,0 +1,103 @@
+digraph {
+	652 [label="source code:
+byPass = np.copy(img)
+img = conv_layer(img, filt, 1, 3, 1)
+img = BN_layer(img, 1, weights, biases)
+img = reLU(img)
+img = conv_layer(img, filt, 1, 3, 1)
+img += byPass
+img = reLU(img)
+"]
+	653 [label="np.copy(img)
+"]
+	654 [label="img
+Read"]
+	654 -> 653
+	655 [label="byPass
+Write"]
+	653 -> 655
+	656 [label="conv_layer(img, filt, 1, 3, 1)
+"]
+	657 [label="img
+Read"]
+	657 -> 656
+	658 [label="filt
+Read"]
+	658 -> 656
+	659 [label=1
+]
+	659 -> 656
+	660 [label=3
+]
+	660 -> 656
+	661 [label=1
+]
+	661 -> 656
+	662 [label="img
+Write"]
+	656 -> 662
+	663 [label="BN_layer(img, 1, weights, biases)
+"]
+	664 [label="img
+Read"]
+	664 -> 663
+	665 [label=1
+]
+	665 -> 663
+	666 [label="weights
+Read"]
+	666 -> 663
+	667 [label="biases
+Read"]
+	667 -> 663
+	668 [label="img
+Write"]
+	663 -> 668
+	669 [label="reLU(img)
+"]
+	670 [label="img
+Read"]
+	670 -> 669
+	671 [label="img
+Write"]
+	669 -> 671
+	672 [label="conv_layer(img, filt, 1, 3, 1)
+"]
+	673 [label="img
+Read"]
+	673 -> 672
+	674 [label="filt
+Read"]
+	674 -> 672
+	675 [label=1
+]
+	675 -> 672
+	676 [label=3
+]
+	676 -> 672
+	677 [label=1
+]
+	677 -> 672
+	678 [label="img
+Write"]
+	672 -> 678
+	679 [label="byPass
+Read"]
+	680 [label="img
+Read"]
+	681 [label="+
+"]
+	679 -> 681
+	680 -> 681
+	682 [label="img
+Write"]
+	681 -> 682
+	683 [label="reLU(img)
+"]
+	684 [label="img
+Read"]
+	684 -> 683
+	685 [label="img
+Write"]
+	683 -> 685
+}

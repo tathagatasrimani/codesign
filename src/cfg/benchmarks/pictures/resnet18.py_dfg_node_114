@@ -1,0 +1,49 @@
+digraph {
+	438 [label="source code:
+dev = std_dev(img[i][j][:])
+mean = get_mean(img[i][j][:])
+if dev == 0.0:
+"]
+	439 [label="std_dev(img[i][j][:])
+"]
+	440 [label="img
+Read"]
+	441 [label="img[i]
+Read"]
+	440 -> 441
+	442 [label="img[i][j]
+Read"]
+	441 -> 442
+	443 [label="img[i][j][:]
+Read"]
+	442 -> 443
+	443 -> 439
+	444 [label="dev
+Write"]
+	439 -> 444
+	445 [label="get_mean(img[i][j][:])
+"]
+	446 [label="img
+Read"]
+	447 [label="img[i]
+Read"]
+	446 -> 447
+	448 [label="img[i][j]
+Read"]
+	447 -> 448
+	449 [label="img[i][j][:]
+Read"]
+	448 -> 449
+	449 -> 445
+	450 [label="mean
+Write"]
+	445 -> 450
+	451 [label="dev
+Read"]
+	452 [label=0.0
+]
+	453 [label="==
+"]
+	451 -> 453
+	452 -> 453
+}

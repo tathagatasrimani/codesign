@@ -1,0 +1,25 @@
+digraph {
+	258 [label="source code:
+max_val = max(max_val, input[i][j * stride + c][k * stride + d])
+"]
+	259 [label="max(max_val, input[i][j * stride + c][k * stride + d])
+"]
+	260 [label="max_val
+Read"]
+	260 -> 259
+	261 [label="input
+Read"]
+	262 [label="input[i]
+Read"]
+	261 -> 262
+	263 [label="input[i][j * stride + c]
+Read"]
+	262 -> 263
+	264 [label="input[i][j * stride + c][k * stride + d]
+Read"]
+	263 -> 264
+	264 -> 259
+	265 [label="max_val
+Write"]
+	259 -> 265
+}
