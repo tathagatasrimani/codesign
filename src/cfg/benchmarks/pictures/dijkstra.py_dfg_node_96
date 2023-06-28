@@ -1,0 +1,10 @@
+digraph {
+	144 [label="source code:
+ret = []
+"]
+	145 [label="[]
+"]
+	146 [label="ret
+Write"]
+	145 -> 146
+}

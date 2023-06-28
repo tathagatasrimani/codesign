@@ -1,0 +1,19 @@
+digraph {
+	361 [label="source code:
+if u.estD + wt < v.estD:
+"]
+	362 [label="u.estD
+Read"]
+	363 [label="wt
+Read"]
+	364 [label="+
+"]
+	362 -> 364
+	363 -> 364
+	365 [label="v.estD
+Read"]
+	366 [label="<
+"]
+	364 -> 366
+	365 -> 366
+}

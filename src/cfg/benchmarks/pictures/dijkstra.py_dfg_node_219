@@ -1,0 +1,10 @@
+digraph {
+	418 [label="source code:
+for t in range(numTrials):
+"]
+	419 [label="range(numTrials)
+"]
+	420 [label="numTrials
+Read"]
+	420 -> 419
+}

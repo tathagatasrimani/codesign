@@ -1,0 +1,7 @@
+digraph {
+	147 [label="source code:
+for v in self.vertices:
+"]
+	148 [label="self.vertices
+Read"]
+}

@@ -1,0 +1,16 @@
+digraph {
+	278 [label="source code:
+minD = x.estD
+u = x
+"]
+	279 [label="x.estD
+Read"]
+	280 [label="minD
+Write"]
+	279 -> 280
+	281 [label="x
+Read"]
+	282 [label="u
+Write"]
+	281 -> 282
+}

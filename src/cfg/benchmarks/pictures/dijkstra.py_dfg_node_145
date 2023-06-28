@@ -1,0 +1,16 @@
+digraph {
+	218 [label="source code:
+Ls = BFS(w, G)
+"]
+	219 [label="BFS(w, G)
+"]
+	220 [label="w
+Read"]
+	220 -> 219
+	221 [label="G
+Read"]
+	221 -> 219
+	222 [label="Ls
+Write"]
+	219 -> 222
+}

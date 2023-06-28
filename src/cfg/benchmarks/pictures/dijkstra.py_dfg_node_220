@@ -1,0 +1,67 @@
+digraph {
+	421 [label="source code:
+G = randomGraph(n, pFn(n))
+start = time.time()
+myFn(G.vertices[0], G)
+end = time.time()
+runtime += (end - start) * 1000
+"]
+	422 [label="randomGraph(n, pFn(n))
+"]
+	423 [label="n
+Read"]
+	423 -> 422
+	424 [label="pFn(n)
+"]
+	425 [label="n
+Read"]
+	425 -> 424
+	424 -> 422
+	426 [label="G
+Write"]
+	422 -> 426
+	427 [label="time.time()
+"]
+	428 [label="start
+Write"]
+	427 -> 428
+	429 [label="myFn(G.vertices[0], G)
+"]
+	430 [label="G.vertices
+Read"]
+	431 [label="G.vertices[0]
+Read"]
+	430 -> 431
+	431 -> 429
+	432 [label="G
+Read"]
+	432 -> 429
+	433 [label="time.time()
+"]
+	434 [label="end
+Write"]
+	433 -> 434
+	435 [label="end
+Read"]
+	436 [label="start
+Read"]
+	437 [label="-
+"]
+	435 -> 437
+	436 -> 437
+	438 [label=1000
+]
+	439 [label="*
+"]
+	437 -> 439
+	438 -> 439
+	440 [label="runtime
+Read"]
+	441 [label="+
+"]
+	439 -> 441
+	440 -> 441
+	442 [label="runtime
+Write"]
+	441 -> 442
+}

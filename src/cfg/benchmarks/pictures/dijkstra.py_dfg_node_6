@@ -1,0 +1,13 @@
+digraph {
+	42 [label="source code:
+if v in self.getOutNeighbors():
+"]
+	43 [label="v
+Read"]
+	44 [label="self.getOutNeighbors()
+"]
+	45 [label="==
+"]
+	43 -> 45
+	44 -> 45
+}

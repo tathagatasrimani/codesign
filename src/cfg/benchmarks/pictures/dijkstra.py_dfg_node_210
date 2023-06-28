@@ -1,0 +1,13 @@
+digraph {
+	394 [label="source code:
+while current != w:
+"]
+	395 [label="current
+Read"]
+	396 [label="w
+Read"]
+	397 [label="!=
+"]
+	395 -> 397
+	396 -> 397
+}

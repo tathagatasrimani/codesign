@@ -1,0 +1,13 @@
+digraph {
+	302 [label="source code:
+dijkstraDumb(w, G)
+"]
+	303 [label="dijkstraDumb(w, G)
+"]
+	304 [label="w
+Read"]
+	304 -> 303
+	305 [label="G
+Read"]
+	305 -> 303
+}

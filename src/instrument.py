@@ -4,6 +4,7 @@ from typing import Any
 import astor
 import sys
 from cfg.staticfg.builder import CFGBuilder
+from ast_utils import ASTUtils
 
 import os
 
@@ -54,19 +55,21 @@ class ProgramInstrumentor(ast.NodeTransformer):
         return list(map(lambda stmt: self.visit(stmt), stmts))
 
     def visit_Assign(self,node):
+        if node.lineno not in lineno_to_node: return node
         new_node = self.generic_visit(node)
         report("visiting assignment",node)
         stmt1 = text_to_ast('print(' + str(lineno_to_node[node.lineno]) + ',' + str(node.lineno) + ')')
         return ProgramInstrumentor.mkblock([stmt1,new_node])
     
     def visit_AugAssign(self, node: AugAssign):
+        if node.lineno not in lineno_to_node: return node
         new_node = self.generic_visit(node)
         report("visiting augmented assignment",node)
         stmt1 = text_to_ast('print(' + str(lineno_to_node[node.lineno]) + ',' + str(node.lineno) + ')')
         return ProgramInstrumentor.mkblock([stmt1,new_node])
 
     def visit_If(self,node):
-        print(node.lineno)
+        if node.lineno not in lineno_to_node: return node
         test = self.generic_visit(node.test)
         body = self.visit_Stmts(node.body)
         orelse = self.visit_Stmts(node.orelse)
@@ -81,13 +84,21 @@ class ProgramInstrumentor(ast.NodeTransformer):
         return ProgramInstrumentor.mkblock([node])
 
     def visit_FunctionDef(self,node):
+        if node.lineno not in lineno_to_node: return node
         new_stmts = self.visit_Stmts(node.body)
         report("visiting func def",node)
         stmt1 = text_to_ast('print(' + str(lineno_to_node[node.lineno]) + ',' + str(node.lineno) + ')')
         new_body = [stmt1] + new_stmts
         return ast.FunctionDef(node.name,args=node.args, body=new_body, \
                                decorator_list=node.decorator_list)
-
+    
+    """def visit_For(self,node,tile=False,prev_iter=None):
+        new_body = self.visit_Stmts(node.body)
+        new_orelse = self.visit_Stmts(node.orelse)
+        if tile and prev_iter and not node.type_comment and type(node.target) == ast.Name:
+            return ast.For(node.target, text_to_ast(astor.to_source(node.iter)+"[::TILE_SIZE]"), \
+                           ast.For...)
+        return node"""
 
 def instrument_and_run(filepath:str):
     global cfg

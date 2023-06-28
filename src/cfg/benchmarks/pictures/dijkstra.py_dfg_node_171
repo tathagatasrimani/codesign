@@ -1,0 +1,10 @@
+digraph {
+	292 [label="source code:
+unsureVertices.remove(u)
+"]
+	293 [label="unsureVertices.remove(u)
+"]
+	294 [label="u
+Read"]
+	294 -> 293
+}
