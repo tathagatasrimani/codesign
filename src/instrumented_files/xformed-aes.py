@@ -51,9 +51,7 @@ def text2matrix(text):
     print(1, 561)
     print(7, 562)
     matrix = []
-    print(8, 563)
     for i in range(16):
-        print(8, 563)
         print(9, 564)
         byte = text >> 8 * (15 - i) & 255
         if i % 4 == 0:
@@ -69,12 +67,8 @@ def matrix2text(matrix):
     print(1, 572)
     print(17, 573)
     text = 0
-    print(18, 574)
     for i in range(4):
-        print(18, 574)
-        print(19, 575)
         for j in range(4):
-            print(19, 575)
             print(21, 576)
             text |= matrix[i][j] << 120 - 8 * (4 * i + j)
     return text
@@ -90,9 +84,7 @@ class AES:
         print(1, 584)
         print(29, 585)
         self.round_keys = text2matrix(master_key)
-        print(30, 588)
         for i in range(4, 4 * 11):
-            print(30, 588)
             self.round_keys.append([])
             if i % 4 == 0:
                 print(31, 590)
@@ -100,18 +92,14 @@ class AES:
                 byte = self.round_keys[i - 4][0] ^ Sbox[self.round_keys[i -
                     1][1]] ^ Rcon[int(i / 4)]
                 self.round_keys[i].append(byte)
-                print(38, 598)
                 for j in range(1, 4):
-                    print(38, 598)
                     print(39, 599)
                     byte = self.round_keys[i - 4][j] ^ Sbox[self.round_keys
                         [i - 1][(j + 1) % 4]]
                     self.round_keys[i].append(byte)
             else:
                 print(31, 590)
-                print(35, 605)
                 for j in range(4):
-                    print(35, 605)
                     print(36, 606)
                     byte = self.round_keys[i - 4][j] ^ self.round_keys[i - 1][j
                         ]
@@ -122,9 +110,7 @@ class AES:
         print(43, 612)
         self.plain_state = text2matrix(plaintext)
         self.__add_round_key(self.plain_state, self.round_keys[:4])
-        print(44, 616)
         for i in range(1, 10):
-            print(44, 616)
             self.__round_encrypt(self.plain_state, self.round_keys[4 * i:4 *
                 (i + 1)])
         self.__sub_bytes(self.plain_state)
@@ -139,9 +125,7 @@ class AES:
         self.__add_round_key(self.cipher_state, self.round_keys[40:])
         self.__inv_shift_rows(self.cipher_state)
         self.__inv_sub_bytes(self.cipher_state)
-        print(51, 632)
         for i in range(9, 0, -1):
-            print(51, 632)
             self.__round_decrypt(self.cipher_state, self.round_keys[4 * i:4 *
                 (i + 1)])
         self.__add_round_key(self.cipher_state, self.round_keys[:4])
@@ -149,12 +133,8 @@ class AES:
 
     def __add_round_key(self, s, k):
         print(1, 641)
-        print(57, 642)
         for i in range(4):
-            print(57, 642)
-            print(58, 643)
             for j in range(4):
-                print(58, 643)
                 print(60, 644)
                 s[i][j] ^= k[i][j]
 
@@ -174,23 +154,15 @@ class AES:
 
     def __sub_bytes(self, s):
         print(1, 658)
-        print(70, 659)
         for i in range(4):
-            print(70, 659)
-            print(71, 660)
             for j in range(4):
-                print(71, 660)
                 print(73, 661)
                 s[i][j] = Sbox[s[i][j]]
 
     def __inv_sub_bytes(self, s):
         print(1, 663)
-        print(77, 664)
         for i in range(4):
-            print(77, 664)
-            print(78, 665)
             for j in range(4):
-                print(78, 665)
                 print(80, 666)
                 s[i][j] = InvSbox[s[i][j]]
 
@@ -229,16 +201,12 @@ class AES:
 
     def __mix_columns(self, s):
         print(1, 687)
-        print(93, 688)
         for i in range(4):
-            print(93, 688)
             self.__mix_single_column(s[i])
 
     def __inv_mix_columns(self, s):
         print(1, 691)
-        print(98, 693)
         for i in range(4):
-            print(98, 693)
             print(99, 694)
             u = xtime(xtime(s[i][0] ^ s[i][2]))
             print(99, 695)

@@ -10,6 +10,8 @@ path = None
 # format: node -> [symbol, id, write (true) or read (false)]
 node_to_symbols = {}
 # format: node -> {id -> dfg_node}
+node_to_unroll = {}
+unroll = False
 graphs = {}
 cur_id = 0
 
@@ -40,6 +42,7 @@ def set_id():
     return val
 
 def eval_expr(expr, graph, node):
+    global unroll
     if ASTUtils.isBoolOp(expr):
         print("visiting boolop")
         values = []
@@ -128,6 +131,8 @@ def eval_expr(expr, graph, node):
         return [id]
     elif ASTUtils.isAttribute(expr):
         print("visiting attribute")
+        if expr.attr == "start_unroll": unroll = True
+        elif expr.attr == "stop_unroll": unroll = False
         if ASTUtils.isName(expr.value) or ASTUtils.isSubscript(expr.value):
             attr_id = set_id()
             make_node(graph, node, attr_id, astor.to_source(expr)[:-1], type(expr.ctx), "Regs")
@@ -173,8 +178,15 @@ def eval_expr(expr, graph, node):
         return
 
 def eval_stmt(stmt, graph, node):
+    global unroll
     if ASTUtils.isFunctionDef(stmt):
-        return
+        for decorator in stmt.decorator_list:
+            if ASTUtils.isName(decorator) and decorator.id == "unroll":
+                unroll = True
+                break
+        else:
+            unroll = False
+        print(unroll)
     elif ASTUtils.isAsyncFunctionDef(stmt):
         return
     elif ASTUtils.isClassDef(stmt):
@@ -304,10 +316,12 @@ def make_edge(graph, node, source_id, target_id):
 
 # first pass over the basic block
 def dfg_per_node(node):
+    global node_to_unroll, unroll
     graph = gv.Digraph()
     graph.node(set_id(), "source code:\n" + node.get_source())
     for stmt in node.statements:
         eval_stmt(stmt, graph, node)
+    node_to_unroll[node.id] = unroll
     # walk backwards over statements, link reads to previous writes
     i = len(node_to_symbols[node])-1
     while i >= 0:
@@ -325,7 +339,7 @@ def dfg_per_node(node):
 
 
 def main_fn(path_in, benchmark_in):
-    global benchmark, path, node_to_symbols, graphs
+    global benchmark, path, node_to_symbols, graphs, node_to_unroll, unroll
     benchmark, path = benchmark_in, path_in
     benchmark = benchmark[benchmark.rfind('/')+1:]
     cfg = CFGBuilder().build_from_file('main.c', path + 'models/' + benchmark)
@@ -341,7 +355,7 @@ def main_fn(path_in, benchmark_in):
                 if len(cur_node.children) == 0: break
                 cur_node = cur_node.children[0]
             #print('')
-    return cfg, graphs
+    return cfg, graphs, node_to_unroll
 
 if __name__ == "__main__":
     main_fn("")

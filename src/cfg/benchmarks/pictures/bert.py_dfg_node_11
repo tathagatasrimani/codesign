@@ -9,14 +9,20 @@ arr[i][j][k] *= -1
 	27 -> 28
 	29 [label="arr
 Read"]
-	30 [label="arr[i]
-Read"]
+	30 [label="*
+"]
+	28 -> 30
 	29 -> 30
-	31 [label="arr[i][j]
+	31 [label="arr
 Read"]
-	30 -> 31
-	32 [label="arr[i][j][k]
-Write"]
+	32 [label="arr[i]
+Read"]
 	31 -> 32
-	28 -> 32
+	33 [label="arr[i][j]
+Read"]
+	32 -> 33
+	34 [label="arr[i][j][k]
+Write"]
+	33 -> 34
+	30 -> 34
 }

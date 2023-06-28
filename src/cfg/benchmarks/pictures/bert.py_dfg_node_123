@@ -1,43 +1,49 @@
 digraph {
-	399 [label="source code:
+	407 [label="source code:
 embeddings[i][j] += math.sin(i / math.pow(10000, 2 * j / d_model))
 "]
-	400 [label="math.sin(i / math.pow(10000, 2 * j / d_model))
+	408 [label="math.sin(i / math.pow(10000, 2 * j / d_model))
 "]
-	401 [label="i
+	409 [label="i
 Read"]
-	402 [label="math.pow(10000, 2 * j / d_model)
+	410 [label="math.pow(10000, 2 * j / d_model)
 "]
-	403 [label=10000
+	411 [label=10000
 ]
-	403 -> 402
-	404 [label=2
+	411 -> 410
+	412 [label=2
 ]
-	405 [label="j
+	413 [label="j
 Read"]
-	406 [label="*
+	414 [label="*
 "]
-	404 -> 406
-	405 -> 406
-	407 [label="d_model
+	412 -> 414
+	413 -> 414
+	415 [label="d_model
 Read"]
-	408 [label="//
+	416 [label="//
 "]
-	406 -> 408
-	407 -> 408
-	408 -> 402
-	409 [label="//
+	414 -> 416
+	415 -> 416
+	416 -> 410
+	417 [label="//
 "]
-	401 -> 409
-	402 -> 409
-	409 -> 400
-	410 [label="embeddings
+	409 -> 417
+	410 -> 417
+	417 -> 408
+	418 [label="embeddings
 Read"]
-	411 [label="embeddings[i]
+	419 [label="+
+"]
+	408 -> 419
+	418 -> 419
+	420 [label="embeddings
 Read"]
-	410 -> 411
-	412 [label="embeddings[i][j]
+	421 [label="embeddings[i]
+Read"]
+	420 -> 421
+	422 [label="embeddings[i][j]
 Write"]
-	411 -> 412
-	400 -> 412
+	421 -> 422
+	419 -> 422
 }

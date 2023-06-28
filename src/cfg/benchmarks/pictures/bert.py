@@ -262,67 +262,58 @@ get_mean" shape=box]
 "]
 		97 [label="for j in range(tokens):
 "]
-		99 [label="sum_val = 0
+		99 [label="for k in range(d_k):
 "]
-		101 [label="for k in range(d_k):
+		101 [label="scores[i][j] += Q[head][i][k] * K[head][j][k]
 "]
-		102 [label="sum_val += Q[head][i][k] * K[head][j][k]
-"]
-		102 -> 101 [label=""]
-		101 -> 102 [label="range(d_k)"]
-		103 [label="val = math.sqrt(d_k)
-if val == 0:
-"]
-		"103_calls" [label="math.sqrt" shape=box]
-		103 -> "103_calls" [label=calls style=dashed]
-		104 [label="val = 1
-"]
-		105 [label="scores[i][j] = sum_val / val
-"]
-		105 -> 97 [label=""]
-		104 -> 105 [label=""]
-		103 -> 104 [label="val == 0"]
-		103 -> 105 [label="(val != 0)"]
-		101 -> 103 [label=""]
-		99 -> 101 [label=""]
+		101 -> 99 [label=""]
+		99 -> 101 [label="range(d_k)"]
+		99 -> 97 [label=""]
 		97 -> 99 [label="range(tokens)"]
-		100 [label="scores = np.random.rand(tokens, tokens)
+		97 -> 96 [label=""]
+		96 -> 97 [label="range(tokens)"]
+		98 [label="for i in range(tokens):
+"]
+		103 [label="for j in range(tokens):
+"]
+		105 [label="scores[i][j] /= math.sqrt(d_k)
+"]
+		"105_calls" [label="math.sqrt" shape=box]
+		105 -> "105_calls" [label=calls style=dashed]
+		105 -> 103 [label=""]
+		103 -> 105 [label="range(tokens)"]
+		106 [label="scores = np.random.rand(tokens, tokens)
 scores[i] = softmax(scores[i])
 "]
-		"100_calls" [label="np.random.rand
+		"106_calls" [label="np.random.rand
 softmax" shape=box]
-		100 -> "100_calls" [label=calls style=dashed]
-		100 -> 96 [label=""]
-		97 -> 100 [label=""]
-		96 -> 97 [label="range(tokens)"]
-		98 [label="out = np.zeros((tokens, d_k))
+		106 -> "106_calls" [label=calls style=dashed]
+		106 -> 98 [label=""]
+		103 -> 106 [label=""]
+		98 -> 103 [label="range(tokens)"]
+		104 [label="out = np.zeros((tokens, d_k))
 "]
-		"98_calls" [label="np.zeros" shape=box]
-		98 -> "98_calls" [label=calls style=dashed]
-		106 [label="for i in range(tokens):
+		"104_calls" [label="np.zeros" shape=box]
+		104 -> "104_calls" [label=calls style=dashed]
+		107 [label="for i in range(tokens):
 "]
-		107 [label="for j in range(d_k):
+		108 [label="for j in range(d_k):
 "]
-		109 [label="sum_val = 0
+		110 [label="for k in range(tokens):
 "]
-		111 [label="for k in range(tokens):
+		112 [label="out[i][j] += scores[i][k] * V[head][k][j]
 "]
-		112 [label="sum_val += scores[i][k] * V[head][k][j]
+		112 -> 110 [label=""]
+		110 -> 112 [label="range(tokens)"]
+		110 -> 108 [label=""]
+		108 -> 110 [label="range(d_k)"]
+		108 -> 107 [label=""]
+		107 -> 108 [label="range(tokens)"]
+		109 [label="return out
 "]
-		112 -> 111 [label=""]
-		111 -> 112 [label="range(tokens)"]
-		113 [label="out[i][j] = sum_val
-"]
-		113 -> 107 [label=""]
-		111 -> 113 [label=""]
-		109 -> 111 [label=""]
-		107 -> 109 [label="range(d_k)"]
-		107 -> 106 [label=""]
-		106 -> 107 [label="range(tokens)"]
-		108 [label="return out
-"]
-		106 -> 108 [label=""]
-		98 -> 106 [label=""]
+		107 -> 109 [label=""]
+		104 -> 107 [label=""]
+		98 -> 104 [label=""]
 		96 -> 98 [label=""]
 		95 -> 96 [label=""]
 	}

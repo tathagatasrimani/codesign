@@ -1,16 +1,16 @@
 digraph {
-	502 [label="source code:
+	507 [label="source code:
 for j in range(len(img[0])):
 "]
-	503 [label="range(len(img[0]))
+	508 [label="range(len(img[0]))
 "]
-	504 [label="len(img[0])
+	509 [label="len(img[0])
 "]
-	505 [label="img
+	510 [label="img
 Read"]
-	506 [label="img[0]
+	511 [label="img[0]
 Read"]
-	505 -> 506
-	506 -> 504
-	504 -> 503
+	510 -> 511
+	511 -> 509
+	509 -> 508
 }

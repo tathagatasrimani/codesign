@@ -1,22 +1,10 @@
 digraph {
-	298 [label="source code:
-val = math.sqrt(d_k)
-if val == 0:
+	279 [label="source code:
+for j in range(tokens):
 "]
-	299 [label="math.sqrt(d_k)
+	280 [label="range(tokens)
 "]
-	300 [label="d_k
+	281 [label="tokens
 Read"]
-	300 -> 299
-	301 [label="val
-Write"]
-	299 -> 301
-	302 [label="val
-Read"]
-	303 [label=0
-]
-	304 [label="==
-"]
-	302 -> 304
-	303 -> 304
+	281 -> 280
 }

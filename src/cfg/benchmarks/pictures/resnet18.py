@@ -2,6 +2,8 @@ digraph "clustermain.c" {
 	graph [label="main.c"]
 	1 [label="import math
 import numpy as np
+start_unroll = None
+stop_unroll = None
 def zero_pad_arr(img, zero_pad):...
 def conv_layer(img, filt, numFilt, zero_pad, stride):...
 def max_pool(input, l, w, zero_pad, stride):...
@@ -16,7 +18,8 @@ def softmax(img):...
 def main():...
 if __name__ == '__main__':
 "]
-	160 [label="main()
+	160 [label="loop.start_unroll
+main()
 "]
 	"160_calls" [label=main shape=box]
 	160 -> "160_calls" [label=calls style=dashed]

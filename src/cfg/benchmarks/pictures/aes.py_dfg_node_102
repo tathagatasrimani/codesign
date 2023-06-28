@@ -1,5 +1,5 @@
 digraph {
-	548 [label="source code:
+	551 [label="source code:
 import time
 start = time.time()
 aes = AES(1212304810341341)
@@ -7,38 +7,38 @@ aes.encrypt(1212304810341341)
 end = time.time()
 print(end - start)
 "]
-	549 [label="time.time()
+	552 [label="time.time()
 "]
-	550 [label="start
+	553 [label="start
 Write"]
-	549 -> 550
-	551 [label="AES(1212304810341341)
-"]
-	552 [label=1212304810341341
-]
-	552 -> 551
-	553 [label="aes
-Write"]
-	551 -> 553
-	554 [label="aes.encrypt(1212304810341341)
+	552 -> 553
+	554 [label="AES(1212304810341341)
 "]
 	555 [label=1212304810341341
 ]
 	555 -> 554
-	556 [label="time.time()
-"]
-	557 [label="end
+	556 [label="aes
 Write"]
-	556 -> 557
-	558 [label="print(end - start)
+	554 -> 556
+	557 [label="aes.encrypt(1212304810341341)
 "]
-	559 [label="end
-Read"]
-	560 [label="start
-Read"]
-	561 [label="-
+	558 [label=1212304810341341
+]
+	558 -> 557
+	559 [label="time.time()
 "]
-	559 -> 561
-	560 -> 561
-	561 -> 558
+	560 [label="end
+Write"]
+	559 -> 560
+	561 [label="print(end - start)
+"]
+	562 [label="end
+Read"]
+	563 [label="start
+Read"]
+	564 [label="-
+"]
+	562 -> 564
+	563 -> 564
+	564 -> 561
 }

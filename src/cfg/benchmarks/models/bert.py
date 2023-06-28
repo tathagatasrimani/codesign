@@ -82,20 +82,19 @@ def self_attn(head, tokens, d_k, Q, K, V):
     scores = np.zeros((tokens, tokens))
     for i in range(tokens):
         for j in range(tokens):
-            sum_val = 0
             for k in range(d_k):
-                sum_val += Q[head][i][k] * K[head][j][k]
-            scores[i][j] = sum_val / math.sqrt(d_k)
+                scores[i][j] += Q[head][i][k] * K[head][j][k]
+    for i in range(tokens):
+        for j in range(tokens):
+            scores[i][j] /= math.sqrt(d_k)
         # avoid overflow
         scores = np.random.rand(tokens, tokens)
         scores[i] = softmax(scores[i])
     out = np.zeros((tokens, d_k))
     for i in range(tokens):
         for j in range(d_k):
-            sum_val = 0
             for k in range(tokens):
-                sum_val += scores[i][k] * V[head][k][j]
-            out[i][j] = sum_val
+                out[i][j] += scores[i][k] * V[head][k][j]
     return out
 
 

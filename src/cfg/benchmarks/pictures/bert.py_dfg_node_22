@@ -1,19 +1,25 @@
 digraph {
-	53 [label="source code:
+	55 [label="source code:
 arr[i][j] *= -1
 "]
-	54 [label=1
+	56 [label=1
 ]
-	55 [label="-
+	57 [label="-
 "]
-	54 -> 55
-	56 [label="arr
-Read"]
-	57 [label="arr[i]
-Read"]
 	56 -> 57
-	58 [label="arr[i][j]
+	58 [label="arr
+Read"]
+	59 [label="*
+"]
+	57 -> 59
+	58 -> 59
+	60 [label="arr
+Read"]
+	61 [label="arr[i]
+Read"]
+	60 -> 61
+	62 [label="arr[i][j]
 Write"]
-	57 -> 58
-	55 -> 58
+	61 -> 62
+	59 -> 62
 }

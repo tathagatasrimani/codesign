@@ -1,10 +1,15 @@
 digraph {
-	308 [label="source code:
-val = 1
+	282 [label="source code:
+out = np.zeros((tokens, d_k))
 "]
-	309 [label=1
-]
-	310 [label="val
+	283 [label="np.zeros((tokens, d_k))
+"]
+	284 [label="tokens
+Read"]
+	285 [label="d_k
+Read"]
+	284 -> 283
+	286 [label="out
 Write"]
-	309 -> 310
+	283 -> 286
 }

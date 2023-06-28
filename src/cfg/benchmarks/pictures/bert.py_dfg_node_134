@@ -1,85 +1,103 @@
 digraph {
-	478 [label="source code:
+	490 [label="source code:
 sumQ += embeddings[j][a] * W_Q[i][a][k]
 sumK += embeddings[j][a] * W_K[i][a][k]
 sumV += embeddings[j][a] * W_V[i][a][k]
 "]
-	479 [label="embeddings
+	491 [label="embeddings
 Read"]
-	480 [label="embeddings[j]
-Read"]
-	479 -> 480
-	481 [label="embeddings[j][a]
-Read"]
-	480 -> 481
-	482 [label="W_Q
-Read"]
-	483 [label="W_Q[i]
-Read"]
-	482 -> 483
-	484 [label="W_Q[i][a]
-Read"]
-	483 -> 484
-	485 [label="W_Q[i][a][k]
-Read"]
-	484 -> 485
-	486 [label="*
-"]
-	481 -> 486
-	485 -> 486
-	487 [label="sumQ
-Write"]
-	486 -> 487
-	488 [label="embeddings
-Read"]
-	489 [label="embeddings[j]
-Read"]
-	488 -> 489
-	490 [label="embeddings[j][a]
-Read"]
-	489 -> 490
-	491 [label="W_K
-Read"]
-	492 [label="W_K[i]
+	492 [label="embeddings[j]
 Read"]
 	491 -> 492
-	493 [label="W_K[i][a]
+	493 [label="embeddings[j][a]
 Read"]
 	492 -> 493
-	494 [label="W_K[i][a][k]
+	494 [label="W_Q
 Read"]
-	493 -> 494
-	495 [label="*
-"]
-	490 -> 495
+	495 [label="W_Q[i]
+Read"]
 	494 -> 495
-	496 [label="sumK
-Write"]
+	496 [label="W_Q[i][a]
+Read"]
 	495 -> 496
-	497 [label="embeddings
+	497 [label="W_Q[i][a][k]
 Read"]
-	498 [label="embeddings[j]
-Read"]
+	496 -> 497
+	498 [label="*
+"]
+	493 -> 498
 	497 -> 498
-	499 [label="embeddings[j][a]
+	499 [label="sumQ
 Read"]
-	498 -> 499
-	500 [label="W_V
-Read"]
-	501 [label="W_V[i]
-Read"]
+	500 [label="+
+"]
+	498 -> 500
+	499 -> 500
+	501 [label="sumQ
+Write"]
 	500 -> 501
-	502 [label="W_V[i][a]
+	502 [label="embeddings
 Read"]
-	501 -> 502
-	503 [label="W_V[i][a][k]
+	503 [label="embeddings[j]
 Read"]
 	502 -> 503
-	504 [label="*
-"]
-	499 -> 504
+	504 [label="embeddings[j][a]
+Read"]
 	503 -> 504
-	505 [label="sumV
+	505 [label="W_K
+Read"]
+	506 [label="W_K[i]
+Read"]
+	505 -> 506
+	507 [label="W_K[i][a]
+Read"]
+	506 -> 507
+	508 [label="W_K[i][a][k]
+Read"]
+	507 -> 508
+	509 [label="*
+"]
+	504 -> 509
+	508 -> 509
+	510 [label="sumK
+Read"]
+	511 [label="+
+"]
+	509 -> 511
+	510 -> 511
+	512 [label="sumK
 Write"]
-	504 -> 505
+	511 -> 512
+	513 [label="embeddings
+Read"]
+	514 [label="embeddings[j]
+Read"]
+	513 -> 514
+	515 [label="embeddings[j][a]
+Read"]
+	514 -> 515
+	516 [label="W_V
+Read"]
+	517 [label="W_V[i]
+Read"]
+	516 -> 517
+	518 [label="W_V[i][a]
+Read"]
+	517 -> 518
+	519 [label="W_V[i][a][k]
+Read"]
+	518 -> 519
+	520 [label="*
+"]
+	515 -> 520
+	519 -> 520
+	521 [label="sumV
+Read"]
+	522 [label="+
+"]
+	520 -> 522
+	521 -> 522
+	523 [label="sumV
+Write"]
+	522 -> 523
 }

@@ -1,5 +1,5 @@
 digraph {
-	652 [label="source code:
+	657 [label="source code:
 byPass = np.copy(img)
 img = conv_layer(img, filt, 1, 3, 1)
 img = BN_layer(img, 1, weights, biases)
@@ -8,96 +8,96 @@ img = conv_layer(img, filt, 1, 3, 1)
 img += byPass
 img = reLU(img)
 "]
-	653 [label="np.copy(img)
+	658 [label="np.copy(img)
 "]
-	654 [label="img
+	659 [label="img
 Read"]
-	654 -> 653
-	655 [label="byPass
+	659 -> 658
+	660 [label="byPass
 Write"]
-	653 -> 655
-	656 [label="conv_layer(img, filt, 1, 3, 1)
+	658 -> 660
+	661 [label="conv_layer(img, filt, 1, 3, 1)
 "]
-	657 [label="img
-Read"]
-	657 -> 656
-	658 [label="filt
-Read"]
-	658 -> 656
-	659 [label=1
-]
-	659 -> 656
-	660 [label=3
-]
-	660 -> 656
-	661 [label=1
-]
-	661 -> 656
 	662 [label="img
-Write"]
-	656 -> 662
-	663 [label="BN_layer(img, 1, weights, biases)
-"]
-	664 [label="img
 Read"]
-	664 -> 663
-	665 [label=1
+	662 -> 661
+	663 [label="filt
+Read"]
+	663 -> 661
+	664 [label=1
 ]
-	665 -> 663
-	666 [label="weights
-Read"]
-	666 -> 663
-	667 [label="biases
-Read"]
-	667 -> 663
-	668 [label="img
+	664 -> 661
+	665 [label=3
+]
+	665 -> 661
+	666 [label=1
+]
+	666 -> 661
+	667 [label="img
 Write"]
-	663 -> 668
-	669 [label="reLU(img)
+	661 -> 667
+	668 [label="BN_layer(img, 1, weights, biases)
 "]
-	670 [label="img
+	669 [label="img
 Read"]
-	670 -> 669
-	671 [label="img
-Write"]
-	669 -> 671
-	672 [label="conv_layer(img, filt, 1, 3, 1)
-"]
+	669 -> 668
+	670 [label=1
+]
+	670 -> 668
+	671 [label="weights
+Read"]
+	671 -> 668
+	672 [label="biases
+Read"]
+	672 -> 668
 	673 [label="img
+Write"]
+	668 -> 673
+	674 [label="reLU(img)
+"]
+	675 [label="img
 Read"]
-	673 -> 672
-	674 [label="filt
-Read"]
-	674 -> 672
-	675 [label=1
-]
-	675 -> 672
-	676 [label=3
-]
-	676 -> 672
-	677 [label=1
-]
-	677 -> 672
+	675 -> 674
+	676 [label="img
+Write"]
+	674 -> 676
+	677 [label="conv_layer(img, filt, 1, 3, 1)
+"]
 	678 [label="img
+Read"]
+	678 -> 677
+	679 [label="filt
+Read"]
+	679 -> 677
+	680 [label=1
+]
+	680 -> 677
+	681 [label=3
+]
+	681 -> 677
+	682 [label=1
+]
+	682 -> 677
+	683 [label="img
 Write"]
-	672 -> 678
-	679 [label="byPass
+	677 -> 683
+	684 [label="byPass
 Read"]
-	680 [label="img
-Read"]
-	681 [label="+
-"]
-	679 -> 681
-	680 -> 681
-	682 [label="img
-Write"]
-	681 -> 682
-	683 [label="reLU(img)
-"]
-	684 [label="img
-Read"]
-	684 -> 683
 	685 [label="img
+Read"]
+	686 [label="+
+"]
+	684 -> 686
+	685 -> 686
+	687 [label="img
 Write"]
-	683 -> 685
+	686 -> 687
+	688 [label="reLU(img)
+"]
+	689 [label="img
+Read"]
+	689 -> 688
+	690 [label="img
+Write"]
+	688 -> 690
 }

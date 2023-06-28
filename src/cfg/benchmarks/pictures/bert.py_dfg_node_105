@@ -1,22 +1,25 @@
 digraph {
-	311 [label="source code:
-scores[i][j] = sum_val / val
+	302 [label="source code:
+scores[i][j] /= math.sqrt(d_k)
 "]
-	312 [label="sum_val
-Read"]
-	313 [label="val
-Read"]
-	314 [label="//
+	303 [label="math.sqrt(d_k)
 "]
-	312 -> 314
-	313 -> 314
-	315 [label="scores
+	304 [label="d_k
 Read"]
-	316 [label="scores[i]
+	304 -> 303
+	305 [label="scores
 Read"]
-	315 -> 316
-	317 [label="scores[i][j]
+	306 [label="//
+"]
+	303 -> 306
+	305 -> 306
+	307 [label="scores
+Read"]
+	308 [label="scores[i]
+Read"]
+	307 -> 308
+	309 [label="scores[i][j]
 Write"]
-	316 -> 317
-	314 -> 317
+	308 -> 309
+	306 -> 309
 }

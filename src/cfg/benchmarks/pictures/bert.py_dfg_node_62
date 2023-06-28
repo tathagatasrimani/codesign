@@ -1,52 +1,52 @@
 digraph {
-	155 [label="source code:
+	165 [label="source code:
 arr[i][j] = weights[i] * ((arr[i][j] - mean) / dev) + biases[i]
 "]
-	156 [label="weights
+	166 [label="weights
 Read"]
-	157 [label="weights[i]
-Read"]
-	156 -> 157
-	158 [label="arr
-Read"]
-	159 [label="arr[i]
-Read"]
-	158 -> 159
-	160 [label="arr[i][j]
-Read"]
-	159 -> 160
-	161 [label="mean
-Read"]
-	162 [label="-
-"]
-	160 -> 162
-	161 -> 162
-	163 [label="dev
-Read"]
-	164 [label="//
-"]
-	162 -> 164
-	163 -> 164
-	165 [label="*
-"]
-	157 -> 165
-	164 -> 165
-	166 [label="biases
-Read"]
-	167 [label="biases[i]
+	167 [label="weights[i]
 Read"]
 	166 -> 167
-	168 [label="+
-"]
-	165 -> 168
-	167 -> 168
-	169 [label="arr
+	168 [label="arr
 Read"]
-	170 [label="arr[i]
+	169 [label="arr[i]
+Read"]
+	168 -> 169
+	170 [label="arr[i][j]
 Read"]
 	169 -> 170
-	171 [label="arr[i][j]
+	171 [label="mean
+Read"]
+	172 [label="-
+"]
+	170 -> 172
+	171 -> 172
+	173 [label="dev
+Read"]
+	174 [label="//
+"]
+	172 -> 174
+	173 -> 174
+	175 [label="*
+"]
+	167 -> 175
+	174 -> 175
+	176 [label="biases
+Read"]
+	177 [label="biases[i]
+Read"]
+	176 -> 177
+	178 [label="+
+"]
+	175 -> 178
+	177 -> 178
+	179 [label="arr
+Read"]
+	180 [label="arr[i]
+Read"]
+	179 -> 180
+	181 [label="arr[i][j]
 Write"]
-	170 -> 171
-	168 -> 171
+	180 -> 181
+	178 -> 181
 }

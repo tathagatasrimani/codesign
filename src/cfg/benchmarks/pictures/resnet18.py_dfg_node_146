@@ -1,22 +1,22 @@
 digraph {
-	566 [label="source code:
+	571 [label="source code:
 sum_val += math.exp(img[i])
 "]
-	567 [label="math.exp(img[i])
+	572 [label="math.exp(img[i])
 "]
-	568 [label="img
+	573 [label="img
 Read"]
-	569 [label="img[i]
+	574 [label="img[i]
 Read"]
-	568 -> 569
-	569 -> 567
-	570 [label="sum_val
+	573 -> 574
+	574 -> 572
+	575 [label="sum_val
 Read"]
-	571 [label="+
+	576 [label="+
 "]
-	567 -> 571
-	570 -> 571
-	572 [label="sum_val
+	572 -> 576
+	575 -> 576
+	577 [label="sum_val
 Write"]
-	571 -> 572
+	576 -> 577
 }

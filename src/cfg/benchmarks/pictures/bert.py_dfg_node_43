@@ -1,10 +1,10 @@
 digraph {
-	99 [label="source code:
+	105 [label="source code:
 sum_val = 0
 "]
-	100 [label=0
+	106 [label=0
 ]
-	101 [label="sum_val
+	107 [label="sum_val
 Write"]
-	100 -> 101
+	106 -> 107
 }

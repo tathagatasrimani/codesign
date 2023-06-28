@@ -18,6 +18,7 @@ data_path = []
 power_use = []
 node_intervals = []
 node_avg_power = {}
+node_to_unroll = {}
 
 def func_calls(expr, calls):
     if type(expr) == ast.Call:
@@ -64,7 +65,7 @@ def cycle_sim(hw_inuse, max_cycles):
     return node_power_sum
 
 def simulate(cfg, data_path, node_operations, hw_spec, first, unroll):
-    global main_cfg, id_to_node
+    global main_cfg, id_to_node, node_to_unroll
     cur_node = cfg.entryblock
     if first: 
         cur_node = cur_node.exits[0].target # skip over the first node in the main cfg
@@ -81,7 +82,7 @@ def simulate(cfg, data_path, node_operations, hw_spec, first, unroll):
         node_avg_power[node_id] = 0 # just reset because we will end up overwriting it
         start_cycles = cycles # for calculating average power
         iters = 0
-        if unroll:
+        if node_to_unroll[cur_node.id]:
             j = i
             while True:
                 j += 1
@@ -92,7 +93,7 @@ def simulate(cfg, data_path, node_operations, hw_spec, first, unroll):
             i = j - 1 # skip over loop iterations because we execute them all at once
         for state in node_operations[cur_node]:
             # if unroll, take each operation in a state and create more of them
-            if unroll:
+            if node_to_unroll[cur_node.id]:
                 new_state = state.copy()
                 for op in state:
                     for j in range(iters):
@@ -122,12 +123,12 @@ def simulate(cfg, data_path, node_operations, hw_spec, first, unroll):
     return data
 
 def main():
-    global power_use
+    global power_use, node_to_unroll
     benchmark = sys.argv[1]
     unroll = False
     if len(sys.argv) > 2: unroll = sys.argv[2] == "unroll"
     print(benchmark)
-    cfg, graphs = dfg_algo.main_fn(path, benchmark)
+    cfg, graphs, node_to_unroll = dfg_algo.main_fn(path, benchmark)
     cfg, node_operations = schedule.schedule(cfg, graphs, sys.argv[1])
     hw = HardwareModel(0, 0)
     hw.hw_allocated['Add'] = 15

@@ -6,5 +6,5 @@ if [ $1 ]; then
     cd $FILE_DIR
     python3 instrument.py cfg/$1
     python3 instrumented_files/xformed-$2 > instrumented_files/output.txt
-    python3 new_simulate.py $1 $3
+    python3 new_simulate.py $1
 fi

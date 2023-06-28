@@ -1,13 +1,17 @@
 digraph "clustermain.c" {
 	graph [label="main.c"]
-	1 [label="def main(x, y):...
+	1 [label="from loop import loop
+def main(x, y):...
+def bruh():...
 if __name__ == '__main__':
 "]
-	11 [label="main(2, 3)
+	17 [label="main(2, 3)
+bruh()
 "]
-	"11_calls" [label=main shape=box]
-	11 -> "11_calls" [label=calls style=dashed]
-	1 -> 11 [label="__name__ == '__main__'"]
+	"17_calls" [label="main
+bruh" shape=box]
+	17 -> "17_calls" [label=calls style=dashed]
+	1 -> 17 [label="__name__ == '__main__'"]
 	subgraph clustermain {
 		graph [label=main]
 		3 [label="q = 0.5 + x * y + 1 / 2
@@ -22,6 +26,7 @@ r += a + 3 * 2
 "]
 		5 [label="z = [1, 2, 3, 4, 5]
 z += [1, 2, 3, 4, 5]
+loop.start_unroll
 "]
 		7 [label="for i in range(5):
 "]
@@ -29,6 +34,9 @@ z += [1, 2, 3, 4, 5]
 "]
 		8 -> 7 [label=""]
 		7 -> 8 [label="range(5)"]
+		9 [label="loop.stop_unroll
+"]
+		7 -> 9 [label=""]
 		5 -> 7 [label=""]
 		4 -> 5 [label=""]
 		3 -> 4 [label="w < 0"]
@@ -37,5 +45,21 @@ b = a / r
 "]
 		6 -> 5 [label=""]
 		3 -> 6 [label="(w >= 0)"]
+	}
+	subgraph clusterbruh {
+		graph [label=bruh]
+		12 [label="a = 1
+loop.start_unroll
+"]
+		13 [label="for i in range(3):
+"]
+		14 [label="a += i
+"]
+		14 -> 13 [label=""]
+		13 -> 14 [label="range(3)"]
+		15 [label="loop.stop_unroll
+"]
+		13 -> 15 [label=""]
+		12 -> 13 [label=""]
 	}
 }

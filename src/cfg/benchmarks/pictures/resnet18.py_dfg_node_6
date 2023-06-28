@@ -1,5 +1,5 @@
 digraph {
-	37 [label="source code:
+	42 [label="source code:
 return new_img
 "]
 }

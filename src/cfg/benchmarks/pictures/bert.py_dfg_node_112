@@ -1,31 +1,43 @@
 digraph {
-	321 [label="source code:
-sum_val += scores[i][k] * V[head][k][j]
+	330 [label="source code:
+out[i][j] += scores[i][k] * V[head][k][j]
 "]
-	322 [label="scores
+	331 [label="scores
 Read"]
-	323 [label="scores[i]
+	332 [label="scores[i]
 Read"]
-	322 -> 323
-	324 [label="scores[i][k]
+	331 -> 332
+	333 [label="scores[i][k]
 Read"]
-	323 -> 324
-	325 [label="V
+	332 -> 333
+	334 [label="V
 Read"]
-	326 [label="V[head]
+	335 [label="V[head]
 Read"]
-	325 -> 326
-	327 [label="V[head][k]
+	334 -> 335
+	336 [label="V[head][k]
 Read"]
-	326 -> 327
-	328 [label="V[head][k][j]
+	335 -> 336
+	337 [label="V[head][k][j]
 Read"]
-	327 -> 328
-	329 [label="*
+	336 -> 337
+	338 [label="*
 "]
-	324 -> 329
-	328 -> 329
-	330 [label="sum_val
+	333 -> 338
+	337 -> 338
+	339 [label="out
+Read"]
+	340 [label="+
+"]
+	338 -> 340
+	339 -> 340
+	341 [label="out
+Read"]
+	342 [label="out[i]
+Read"]
+	341 -> 342
+	343 [label="out[i][j]
 Write"]
-	329 -> 330
+	342 -> 343
+	340 -> 343
 }

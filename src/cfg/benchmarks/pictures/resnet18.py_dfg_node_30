@@ -1,49 +1,49 @@
 digraph {
-	170 [label="source code:
+	175 [label="source code:
 f_new[i][j][k] += img_new[l][j * stride + c][k * stride + d] * filt[l][c][d]
 "]
-	171 [label="img_new
+	176 [label="img_new
 Read"]
-	172 [label="img_new[l]
-Read"]
-	171 -> 172
-	173 [label="img_new[l][j * stride + c]
-Read"]
-	172 -> 173
-	174 [label="img_new[l][j * stride + c][k * stride + d]
-Read"]
-	173 -> 174
-	175 [label="filt
-Read"]
-	176 [label="filt[l]
-Read"]
-	175 -> 176
-	177 [label="filt[l][c]
+	177 [label="img_new[l]
 Read"]
 	176 -> 177
-	178 [label="filt[l][c][d]
+	178 [label="img_new[l][j * stride + c]
 Read"]
 	177 -> 178
-	179 [label="*
-"]
-	174 -> 179
+	179 [label="img_new[l][j * stride + c][k * stride + d]
+Read"]
 	178 -> 179
-	180 [label="f_new
+	180 [label="filt
 Read"]
-	181 [label="+
-"]
-	179 -> 181
+	181 [label="filt[l]
+Read"]
 	180 -> 181
-	182 [label="f_new
+	182 [label="filt[l][c]
 Read"]
-	183 [label="f_new[i]
+	181 -> 182
+	183 [label="filt[l][c][d]
 Read"]
 	182 -> 183
-	184 [label="f_new[i][j]
-Read"]
+	184 [label="*
+"]
+	179 -> 184
 	183 -> 184
-	185 [label="f_new[i][j][k]
+	185 [label="f_new
+Read"]
+	186 [label="+
+"]
+	184 -> 186
+	185 -> 186
+	187 [label="f_new
+Read"]
+	188 [label="f_new[i]
+Read"]
+	187 -> 188
+	189 [label="f_new[i][j]
+Read"]
+	188 -> 189
+	190 [label="f_new[i][j][k]
 Write"]
-	184 -> 185
-	181 -> 185
+	189 -> 190
+	186 -> 190
 }

@@ -1,49 +1,49 @@
 digraph {
-	482 [label="source code:
+	487 [label="source code:
 result = np.zeros(len(img) * len(img[0]) * len(img[0][0]))
 index = 0
 "]
-	483 [label="np.zeros(len(img) * len(img[0]) * len(img[0][0]))
+	488 [label="np.zeros(len(img) * len(img[0]) * len(img[0][0]))
 "]
-	484 [label="len(img)
+	489 [label="len(img)
 "]
-	485 [label="img
+	490 [label="img
 Read"]
-	485 -> 484
-	486 [label="len(img[0])
+	490 -> 489
+	491 [label="len(img[0])
 "]
-	487 [label="img
+	492 [label="img
 Read"]
-	488 [label="img[0]
-Read"]
-	487 -> 488
-	488 -> 486
-	489 [label="*
-"]
-	484 -> 489
-	486 -> 489
-	490 [label="len(img[0][0])
-"]
-	491 [label="img
-Read"]
-	492 [label="img[0]
-Read"]
-	491 -> 492
-	493 [label="img[0][0]
+	493 [label="img[0]
 Read"]
 	492 -> 493
-	493 -> 490
+	493 -> 491
 	494 [label="*
 "]
 	489 -> 494
-	490 -> 494
-	494 -> 483
-	495 [label="result
-Write"]
-	483 -> 495
-	496 [label=0
-]
-	497 [label="index
-Write"]
+	491 -> 494
+	495 [label="len(img[0][0])
+"]
+	496 [label="img
+Read"]
+	497 [label="img[0]
+Read"]
 	496 -> 497
+	498 [label="img[0][0]
+Read"]
+	497 -> 498
+	498 -> 495
+	499 [label="*
+"]
+	494 -> 499
+	495 -> 499
+	499 -> 488
+	500 [label="result
+Write"]
+	488 -> 500
+	501 [label=0
+]
+	502 [label="index
+Write"]
+	501 -> 502
 }

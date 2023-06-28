@@ -1,5 +1,5 @@
 digraph {
-	591 [label="source code:
+	596 [label="source code:
 zero_pad = 3
 stride = 2
 filt = np.random.rand(3, 7, 7)
@@ -12,78 +12,64 @@ img = reLU(img)
 img = max_pool(img, 3, 3, 1, 2)
 filt = np.random.rand(1, len(filt[0]), len(filt[0][0]))
 "]
-	592 [label=3
-]
-	593 [label="zero_pad
-Write"]
-	592 -> 593
-	594 [label=2
-]
-	595 [label="stride
-Write"]
-	594 -> 595
-	596 [label="np.random.rand(3, 7, 7)
-"]
 	597 [label=3
 ]
-	597 -> 596
-	598 [label=7
-]
-	598 -> 596
-	599 [label=7
-]
-	599 -> 596
-	600 [label="filt
+	598 [label="zero_pad
 Write"]
-	596 -> 600
-	601 [label="np.random.rand(3, 64, 64)
+	597 -> 598
+	599 [label=2
+]
+	600 [label="stride
+Write"]
+	599 -> 600
+	601 [label="np.random.rand(3, 7, 7)
 "]
 	602 [label=3
 ]
 	602 -> 601
-	603 [label=64
+	603 [label=7
 ]
 	603 -> 601
-	604 [label=64
+	604 [label=7
 ]
 	604 -> 601
-	605 [label="img
+	605 [label="filt
 Write"]
 	601 -> 605
-	606 [label="conv_layer(img, filt, 1, zero_pad, stride)
+	606 [label="np.random.rand(3, 64, 64)
 "]
-	607 [label="img
-Read"]
+	607 [label=3
+]
 	607 -> 606
-	608 [label="filt
-Read"]
+	608 [label=64
+]
 	608 -> 606
-	609 [label=1
+	609 [label=64
 ]
 	609 -> 606
-	610 [label="zero_pad
-Read"]
-	610 -> 606
-	611 [label="stride
-Read"]
-	611 -> 606
+	610 [label="img
+Write"]
+	606 -> 610
+	611 [label="conv_layer(img, filt, 1, zero_pad, stride)
+"]
 	612 [label="img
-Write"]
-	606 -> 612
-	613 [label="np.random.rand(len(img[0]))
-"]
-	614 [label="len(img[0])
-"]
-	615 [label="img
 Read"]
-	616 [label="img[0]
+	612 -> 611
+	613 [label="filt
 Read"]
-	615 -> 616
-	616 -> 614
-	614 -> 613
-	617 [label="weights
+	613 -> 611
+	614 [label=1
+]
+	614 -> 611
+	615 [label="zero_pad
+Read"]
+	615 -> 611
+	616 [label="stride
+Read"]
+	616 -> 611
+	617 [label="img
 Write"]
-	613 -> 617
+	611 -> 617
 	618 [label="np.random.rand(len(img[0]))
 "]
 	619 [label="len(img[0])
@@ -95,81 +81,95 @@ Read"]
 	620 -> 621
 	621 -> 619
 	619 -> 618
-	622 [label="biases
+	622 [label="weights
 Write"]
 	618 -> 622
-	623 [label="BN_layer(img, 1, weights, biases)
+	623 [label="np.random.rand(len(img[0]))
 "]
-	624 [label="img
+	624 [label="len(img[0])
+"]
+	625 [label="img
 Read"]
+	626 [label="img[0]
+Read"]
+	625 -> 626
+	626 -> 624
 	624 -> 623
-	625 [label=1
-]
-	625 -> 623
-	626 [label="weights
-Read"]
-	626 -> 623
 	627 [label="biases
-Read"]
-	627 -> 623
-	628 [label="img
 Write"]
-	623 -> 628
-	629 [label="reLU(img)
+	623 -> 627
+	628 [label="BN_layer(img, 1, weights, biases)
 "]
-	630 [label="img
+	629 [label="img
 Read"]
-	630 -> 629
-	631 [label="img
-Write"]
-	629 -> 631
-	632 [label="max_pool(img, 3, 3, 1, 2)
-"]
+	629 -> 628
+	630 [label=1
+]
+	630 -> 628
+	631 [label="weights
+Read"]
+	631 -> 628
+	632 [label="biases
+Read"]
+	632 -> 628
 	633 [label="img
+Write"]
+	628 -> 633
+	634 [label="reLU(img)
+"]
+	635 [label="img
 Read"]
-	633 -> 632
-	634 [label=3
-]
-	634 -> 632
-	635 [label=3
-]
-	635 -> 632
-	636 [label=1
-]
-	636 -> 632
-	637 [label=2
-]
-	637 -> 632
+	635 -> 634
+	636 [label="img
+Write"]
+	634 -> 636
+	637 [label="max_pool(img, 3, 3, 1, 2)
+"]
 	638 [label="img
-Write"]
-	632 -> 638
-	639 [label="np.random.rand(1, len(filt[0]), len(filt[0][0]))
-"]
-	640 [label=1
+Read"]
+	638 -> 637
+	639 [label=3
 ]
-	640 -> 639
-	641 [label="len(filt[0])
-"]
-	642 [label="filt
-Read"]
-	643 [label="filt[0]
-Read"]
-	642 -> 643
-	643 -> 641
-	641 -> 639
-	644 [label="len(filt[0][0])
-"]
-	645 [label="filt
-Read"]
-	646 [label="filt[0]
-Read"]
-	645 -> 646
-	647 [label="filt[0][0]
-Read"]
-	646 -> 647
-	647 -> 644
-	644 -> 639
-	648 [label="filt
+	639 -> 637
+	640 [label=3
+]
+	640 -> 637
+	641 [label=1
+]
+	641 -> 637
+	642 [label=2
+]
+	642 -> 637
+	643 [label="img
 Write"]
-	639 -> 648
+	637 -> 643
+	644 [label="np.random.rand(1, len(filt[0]), len(filt[0][0]))
+"]
+	645 [label=1
+]
+	645 -> 644
+	646 [label="len(filt[0])
+"]
+	647 [label="filt
+Read"]
+	648 [label="filt[0]
+Read"]
+	647 -> 648
+	648 -> 646
+	646 -> 644
+	649 [label="len(filt[0][0])
+"]
+	650 [label="filt
+Read"]
+	651 [label="filt[0]
+Read"]
+	650 -> 651
+	652 [label="filt[0][0]
+Read"]
+	651 -> 652
+	652 -> 649
+	649 -> 644
+	653 [label="filt
+Write"]
+	644 -> 653
 }
