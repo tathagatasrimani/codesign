@@ -59,6 +59,11 @@ class ProgramInstrumentor(ast.NodeTransformer):
         new_node = self.generic_visit(node)
         report("visiting assignment",node)
         stmt1 = text_to_ast('print(' + str(lineno_to_node[node.lineno]) + ',' + str(node.lineno) + ')')
+        if type(node.targets[0]) == ast.Name:
+            var_name = node.targets[0].id
+            stmt2 = text_to_ast('memory_module.malloc(\"' + var_name + '\", sys.getsizeof(' + var_name + '))') # change sizeof
+            stmt3 = text_to_ast('print(memory_module.locations[\"' + var_name + '\"].location, \"'+ var_name + '\", \"mem\")')
+            return ProgramInstrumentor.mkblock([stmt1, new_node, stmt2, stmt3])
         return ProgramInstrumentor.mkblock([stmt1,new_node])
     
     def visit_AugAssign(self, node: AugAssign):
@@ -88,7 +93,8 @@ class ProgramInstrumentor(ast.NodeTransformer):
         new_stmts = self.visit_Stmts(node.body)
         report("visiting func def",node)
         stmt1 = text_to_ast('print(' + str(lineno_to_node[node.lineno]) + ',' + str(node.lineno) + ')')
-        new_body = [stmt1] + new_stmts
+        stmt2 = text_to_ast('memory_module = Memory(MEMORY_SIZE)')
+        new_body = [stmt1, stmt2] + new_stmts
         return ast.FunctionDef(node.name,args=node.args, body=new_body, \
                                decorator_list=node.decorator_list)
     
@@ -116,6 +122,8 @@ def instrument_and_run(filepath:str):
         rewrite_tree = instr.visit(tree)
         with open(dest_filepath, 'w') as fh:
             fh.write("import sys\n")
+            fh.write("from memory import Memory\n")
+            fh.write("MEMORY_SIZE = 10000\n")
             for stmt in instr.preamble:
                 fh.write(astor.to_source(stmt)+"\n")
 

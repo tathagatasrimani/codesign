@@ -35,7 +35,6 @@ def get_hw_need(state):
 
 def cycle_sim(hw_inuse, max_cycles):
     global cycles, data, power_use
-    start_cycles = cycles
     node_power_sum = 0
     for i in range(max_cycles):
         power_use.append(0)
