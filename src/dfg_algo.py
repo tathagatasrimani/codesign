@@ -64,8 +64,10 @@ def eval_expr(expr, graph, node):
         op_id = set_id()
         opname = ASTUtils.expr_to_opname(expr.op)
         make_node(graph, node, op_id, hardwareModel.op2sym_map[opname], None, opname)
-        make_edge(graph, node, left[0], op_id)
-        make_edge(graph, node, right[0], op_id)
+        if left:
+            make_edge(graph, node, left[0], op_id)
+        if right:
+            make_edge(graph, node, right[0], op_id)
         return [op_id]
     elif ASTUtils.isUnaryOp(expr):
         print("visiting unaryop")

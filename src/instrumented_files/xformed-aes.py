@@ -1,6 +1,7 @@
 import sys
 from memory import Memory
 MEMORY_SIZE = 10000
+memory_module = Memory(MEMORY_SIZE)
 print(1, 1)
 Sbox = (99, 124, 119, 123, 242, 107, 111, 197, 48, 1, 103, 43, 254, 215, 
     171, 118, 202, 130, 201, 125, 250, 89, 71, 240, 173, 212, 162, 175, 156,

@@ -1,0 +1,51 @@
+digraph {
+	18 [label="source code:
+N = len(x)
+Xe = recursive_fft(x[0::2])
+Xo = recursive_fft(x[1::2])
+W = [cm.exp(-2.0j * cm.pi * k / N) for k in range(N // 2)]
+WXo = [(Wk * Xok) for Wk, Xok in zip(W, Xo)]
+X = [(Xek + WXok) for Xek, WXok in zip(Xe, WXo)] + [(Xek - WXok) for Xek,
+    WXok in zip(Xe, WXo)]
+return X
+"]
+	19 [label="len(x)
+"]
+	20 [label="x
+Read"]
+	20 -> 19
+	21 [label="N
+Write"]
+	19 -> 21
+	22 [label="recursive_fft(x[0::2])
+"]
+	23 [label="x
+Read"]
+	24 [label="x[0::2]
+Read"]
+	23 -> 24
+	24 -> 22
+	25 [label="Xe
+Write"]
+	22 -> 25
+	26 [label="recursive_fft(x[1::2])
+"]
+	27 [label="x
+Read"]
+	28 [label="x[1::2]
+Read"]
+	27 -> 28
+	28 -> 26
+	29 [label="Xo
+Write"]
+	26 -> 29
+	30 [label="W
+Write"]
+	31 [label="WXo
+Write"]
+	32 [label="+
+"]
+	33 [label="X
+Write"]
+	32 -> 33
+}
