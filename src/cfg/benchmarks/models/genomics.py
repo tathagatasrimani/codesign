@@ -220,9 +220,9 @@ def smith_waterman(seq1, seq2, match_score=3, mismatch_score=-3, gap_score=-2):
     return aln1[::-1], aln2[::-1]
 
 def main():
-    fasta_file = "/Users/PatrickMcEwen/git_container/codesign/src/cfg/benchmarks/supplemental_files/fasta_example.fasta"
-    fastq_file = "/Users/PatrickMcEwen/git_container/codesign/src/cfg/benchmarks/supplemental_files/fastq_example.fastq"
-    output_file = "/Users/PatrickMcEwen/git_container/codesign/src/cfg/benchmarks/supplemental_files/output_file.txt"
+    fasta_file = "/home/ubuntu/codesign/src/cfg/benchmarks/supplemental_files/fasta_example.fasta"
+    fastq_file = "/home/ubuntu/codesign/src/cfg/benchmarks/supplemental_files/fastq_example.fastq"
+    output_file = "/home/ubuntu/codesign/src/cfg/benchmarks/supplemental_files/output_file.txt"
     darwin_wga_workflow(fasta_file, fastq_file, output_file)
 
 if __name__ == "__main__":

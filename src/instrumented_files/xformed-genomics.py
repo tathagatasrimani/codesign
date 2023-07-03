@@ -393,15 +393,15 @@ def main():
     print(1, 222)
     print(134, 223)
     fasta_file = (
-        '/Users/PatrickMcEwen/git_container/codesign/src/cfg/benchmarks/supplemental_files/fasta_example.fasta'
+        '/home/ubuntu/codesign/src/cfg/benchmarks/supplemental_files/fasta_example.fasta'
         )
     print(134, 224)
     fastq_file = (
-        '/Users/PatrickMcEwen/git_container/codesign/src/cfg/benchmarks/supplemental_files/fastq_example.fastq'
+        '/home/ubuntu/codesign/src/cfg/benchmarks/supplemental_files/fastq_example.fastq'
         )
     print(134, 225)
     output_file = (
-        '/Users/PatrickMcEwen/git_container/codesign/src/cfg/benchmarks/supplemental_files/output_file.txt'
+        '/home/ubuntu/codesign/src/cfg/benchmarks/supplemental_files/output_file.txt'
         )
     darwin_wga_workflow(fasta_file, fastq_file, output_file)
 
