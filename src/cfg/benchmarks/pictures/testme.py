@@ -24,13 +24,13 @@ if w < 0:
 b = a * r
 r += a + 3 * 2
 "]
-		5 [label="z = [1, 2, 3, 4, 5]
-z += [1, 2, 3, 4, 5]
+		5 [label="z = [1, 2, 3, 4, 5, 6]
+z += [1, 2, 3, 4, 5, 6]
 loop.start_unroll
 "]
 		7 [label="for i in range(5):
 "]
-		8 [label="z[i] += 1
+		8 [label="z[i] += z[i + 1]
 "]
 		8 -> 7 [label=""]
 		7 -> 8 [label="range(5)"]

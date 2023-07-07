@@ -1,4 +1,4 @@
-from _ast import AugAssign
+from _ast import AugAssign, Subscript
 import ast
 from typing import Any
 import astor
@@ -10,6 +10,7 @@ import os
 
 lineno_to_node = {}
 cfg = None
+last_used = {}
 
 def text_to_ast(fmtstr,**kwargs):
     return ast.parse(fmtstr.format(**kwargs))
@@ -59,19 +60,29 @@ class ProgramInstrumentor(ast.NodeTransformer):
         new_node = self.generic_visit(node)
         report("visiting assignment",node)
         stmt1 = text_to_ast('print(' + str(lineno_to_node[node.lineno]) + ',' + str(node.lineno) + ')')
+        block = []
         if type(node.targets[0]) == ast.Name:
             var_name = node.targets[0].id
             stmt2 = text_to_ast('memory_module.malloc(\"' + var_name + '\", sys.getsizeof(' + var_name + '))') # change sizeof
             stmt3 = text_to_ast('print(memory_module.locations[\"' + var_name + '\"].location, \"'+ var_name + '\", \"mem\")')
-            return ProgramInstrumentor.mkblock([stmt1, new_node, stmt2, stmt3])
-        return ProgramInstrumentor.mkblock([stmt1,new_node])
+            new_line = ast.Name(node.targets[0].id, ctx=ast.Load())
+            block = [stmt1, new_node, text_to_ast('write_'), self.visit(new_line), stmt2, stmt3]
+        else:
+            block = [stmt1, node]
+        return ProgramInstrumentor.mkblock(block)
     
     def visit_AugAssign(self, node: AugAssign):
         if node.lineno not in lineno_to_node: return node
         new_node = self.generic_visit(node)
         report("visiting augmented assignment",node)
-        stmt1 = text_to_ast('print(' + str(lineno_to_node[node.lineno]) + ',' + str(node.lineno) + ')')
-        return ProgramInstrumentor.mkblock([stmt1,new_node])
+        stmt1 = text_to_ast('print(' + str(lineno_to_node[node.lineno]) + ',' + str(node.lineno) + ')\n')
+        block = []
+        if type(node.target) == ast.Subscript:
+            new_line = ast.Subscript(node.target.value, node.target.slice, ctx=ast.Load())
+            block = [stmt1, new_node, text_to_ast('write_'),self.visit(new_line)]
+        else:
+            block = [stmt1, new_node]
+        return ProgramInstrumentor.mkblock(block)
 
     def visit_If(self,node):
         if node.lineno not in lineno_to_node: return node
@@ -98,13 +109,27 @@ class ProgramInstrumentor(ast.NodeTransformer):
         return ast.FunctionDef(node.name,args=node.args, body=new_body, \
                                decorator_list=node.decorator_list)
     
-    """def visit_For(self,node,tile=False,prev_iter=None):
-        new_body = self.visit_Stmts(node.body)
-        new_orelse = self.visit_Stmts(node.orelse)
-        if tile and prev_iter and not node.type_comment and type(node.target) == ast.Name:
-            return ast.For(node.target, text_to_ast(astor.to_source(node.iter)+"[::TILE_SIZE]"), \
-                           ast.For...)
-        return node"""
+    def visit_Name(self, node):
+        report("visiting name", node)
+        if (type(node.ctx) == ast.Store):
+            return node
+        else:
+            return ast.Call(ast.Name('instrument_read', ast.Load), args=[ \
+                                node, \
+                                text_to_ast('\'' + node.id + '\'')
+                            ], keywords=[])
+
+    def visit_Subscript(self, node: Subscript) -> Any:
+        report("visiting subscript", node)
+        if (type(node.ctx) == ast.Store):
+            return node
+        else:
+            return ast.Call(ast.Name('instrument_read_sub', ast.Load), args=[ \
+                                self.visit(node.value), \
+                                text_to_ast('\'' + node.value.id + '\''), \
+                                self.visit(node.slice),
+                            ], keywords=[])
+    
 
 def instrument_and_run(filepath:str):
     global cfg
@@ -122,6 +147,7 @@ def instrument_and_run(filepath:str):
         rewrite_tree = instr.visit(tree)
         with open(dest_filepath, 'w') as fh:
             fh.write("import sys\n")
+            fh.write("from instrument_lib import *\n")
             fh.write("from memory import Memory\n")
             fh.write("MEMORY_SIZE = 10000\n")
             for stmt in instr.preamble:
@@ -129,6 +155,7 @@ def instrument_and_run(filepath:str):
 
 
             fh.write(astor.to_source(rewrite_tree))
+            #inject print statement for total memory size
 
 
 instrument_and_run(sys.argv[1])

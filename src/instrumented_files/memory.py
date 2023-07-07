@@ -16,11 +16,12 @@ class block:
 
 class Memory:
     def __init__(self, segment_size: int, start_loc=0):
-        self.locations = {} # maps variable name to an allocated block
+        self.locations = {} # maps variable id to an allocated block
         self.segment_size: int = segment_size
 
         self.segment_start = block(segment_size, start_loc)
 
+        # fblocks and ablocks are for debugging purposes
         #self.fblocks: int = 1
         #self.ablocks: int = 0
         self.first_free: block = self.segment_start
@@ -59,6 +60,8 @@ class Memory:
         else:
             self.last_free = new_free
 
+    # used in the context of freeing a variable. Need to figure out where the other closest free block is
+    # so we can add this block to the free list
     def orient_frees(self, cur_free):
         next_free = self.first_free
         while next_free and next_free.location < cur_free.location:
@@ -68,8 +71,8 @@ class Memory:
     # Takes in a requested size, and clears out a space in the heap for that block, if possible. 
     # Uses the first fit method, iterating through the free list from the start until the first suitable
     # block of free memory is found.
-    def malloc(self, var_name, requested_size: int):
-        if var_name in self.locations: self.free(var_name)
+    def malloc(self, id, requested_size: int):
+        if id in self.locations: self.free(id)
         if requested_size == 0: return 
         needed = self.roundup(requested_size)
         if needed > MAX_REQUEST_SIZE: return None
@@ -95,12 +98,12 @@ class Memory:
             self.rewire_in(prev_free, new_free, next_free)  
             alloc_block = free_block 
         #self.ablocks += 1
-        self.locations[var_name] = alloc_block
+        self.locations[id] = alloc_block
 
-    def free(self, name):
-        if name not in self.locations: 
+    def free(self, id):
+        if id not in self.locations: 
             print("variable to free was not allocated")
-        block_to_free = self.locations[name]
+        block_to_free = self.locations[id]
         next_free = self.orient_frees(block_to_free)
         prev_free = self.last_free
         if next_free: prev_free = next_free.prev
@@ -108,9 +111,9 @@ class Memory:
         #self.fblocks += 1
         #self.ablocks -= 1
 
-    def realloc(self, var_name, new_size):
-        self.free(var_name)
-        self.malloc(var_name, new_size)
+    def realloc(self, id, new_size):
+        self.free(id)
+        self.malloc(id, new_size)
         
         
 # debugging

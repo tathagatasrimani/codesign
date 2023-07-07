@@ -12,11 +12,11 @@ def main(x, y):
     else:
         a = q - 3
         b = a / r
-    z = [1, 2, 3, 4, 5]
-    z += [1, 2, 3, 4, 5]
+    z = [1, 2, 3, 4, 5, 6]
+    z += [1, 2, 3, 4, 5, 6]
     loop.start_unroll
     for i in range(5):
-        z[i] += 1
+        z[i] += z[i+1]
     loop.stop_unroll
 
 def bruh():

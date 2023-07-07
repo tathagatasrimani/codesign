@@ -1,19 +1,22 @@
 digraph {
-	94 [label="source code:
-z[i] += 1
+	99 [label="source code:
+z[i] += z[i + 1]
 "]
-	95 [label=1
-]
-	96 [label="z
+	100 [label="z
 Read"]
-	97 [label="+
+	101 [label="z[i + 1]
+Read"]
+	100 -> 101
+	102 [label="z
+Read"]
+	103 [label="+
 "]
-	95 -> 97
-	96 -> 97
-	98 [label="z
+	101 -> 103
+	102 -> 103
+	104 [label="z
 Read"]
-	99 [label="z[i]
+	105 [label="z[i]
 Write"]
-	98 -> 99
-	97 -> 99
+	104 -> 105
+	103 -> 105
 }

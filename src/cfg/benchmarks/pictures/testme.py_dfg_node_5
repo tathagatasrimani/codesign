@@ -1,7 +1,7 @@
 digraph {
 	63 [label="source code:
-z = [1, 2, 3, 4, 5]
-z += [1, 2, 3, 4, 5]
+z = [1, 2, 3, 4, 5, 6]
+z += [1, 2, 3, 4, 5, 6]
 loop.start_unroll
 "]
 	64 [label=1
@@ -14,68 +14,82 @@ loop.start_unroll
 ]
 	68 [label=5
 ]
-	69 [label="z
+	69 [label=6
+]
+	70 [label="z
 Write"]
-	64 -> 69
-	65 -> 69
-	66 -> 69
-	67 -> 69
-	68 -> 69
-	70 [label=1
+	64 -> 70
+	65 -> 70
+	66 -> 70
+	67 -> 70
+	68 -> 70
+	69 -> 70
+	71 [label=1
 ]
-	71 [label=2
+	72 [label=2
 ]
-	72 [label=3
+	73 [label=3
 ]
-	73 [label=4
+	74 [label=4
 ]
-	74 [label=5
+	75 [label=5
 ]
-	75 [label="z
-Read"]
-	76 [label="+
-"]
-	70 -> 76
-	75 -> 76
+	76 [label=6
+]
 	77 [label="z
-Write"]
-	76 -> 77
-	78 [label="z
 Read"]
-	79 [label="+
+	78 [label="+
 "]
-	71 -> 79
+	71 -> 78
+	77 -> 78
+	79 [label="z
+Write"]
 	78 -> 79
 	80 [label="z
-Write"]
-	79 -> 80
-	81 [label="z
 Read"]
-	82 [label="+
+	81 [label="+
 "]
-	72 -> 82
+	72 -> 81
+	80 -> 81
+	82 [label="z
+Write"]
 	81 -> 82
 	83 [label="z
-Write"]
-	82 -> 83
-	84 [label="z
 Read"]
-	85 [label="+
+	84 [label="+
 "]
-	73 -> 85
+	73 -> 84
+	83 -> 84
+	85 [label="z
+Write"]
 	84 -> 85
 	86 [label="z
-Write"]
-	85 -> 86
-	87 [label="z
 Read"]
-	88 [label="+
+	87 [label="+
 "]
-	74 -> 88
+	74 -> 87
+	86 -> 87
+	88 [label="z
+Write"]
 	87 -> 88
 	89 [label="z
+Read"]
+	90 [label="+
+"]
+	75 -> 90
+	89 -> 90
+	91 [label="z
 Write"]
-	88 -> 89
-	90 [label="loop.start_unroll
+	90 -> 91
+	92 [label="z
+Read"]
+	93 [label="+
+"]
+	76 -> 93
+	92 -> 93
+	94 [label="z
+Write"]
+	93 -> 94
+	95 [label="loop.start_unroll
 Read"]
 }

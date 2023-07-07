@@ -1,29 +1,87 @@
+__name__ no_ind Read
 1 29
 1 3
 3 4
+x no_ind Read
+y no_ind Read
+q no_ind Write
 0 q mem
 3 5
+x no_ind Read
+y no_ind Read
+r no_ind Write
 24 r mem
 3 6
+q no_ind Read
+r no_ind Read
+q no_ind Write
 0 q mem
 3 7
+q no_ind Read
+r no_ind Read
+w no_ind Write
 56 w mem
+w no_ind Read
 3 8
 6 13
+q no_ind Read
+a no_ind Write
 80 a mem
 6 14
+a no_ind Read
+r no_ind Read
+b no_ind Write
 104 b mem
 5 15
+z no_ind Write
 128 z mem
 5 16
+loop no_ind Read
 8 19
+z no_ind Read
+i no_ind Read
+z 1 Read
+z no_ind Read
+i no_ind Read
+z 0 Write
 8 19
+z no_ind Read
+i no_ind Read
+z 2 Read
+z no_ind Read
+i no_ind Read
+z 1 Write
 8 19
+z no_ind Read
+i no_ind Read
+z 3 Read
+z no_ind Read
+i no_ind Read
+z 2 Write
 8 19
+z no_ind Read
+i no_ind Read
+z 4 Read
+z no_ind Read
+i no_ind Read
+z 3 Write
 8 19
+z no_ind Read
+i no_ind Read
+z 5 Read
+z no_ind Read
+i no_ind Read
+z 4 Write
+loop no_ind Read
 1 22
 12 23
+a no_ind Write
 0 a mem
+loop no_ind Read
 14 26
+i no_ind Read
 14 26
+i no_ind Read
 14 26
+i no_ind Read
+loop no_ind Read
