@@ -1,4 +1,8 @@
 import sys
+from instrument_lib import *
+from memory import Memory
+MEMORY_SIZE = 10000
+memory_module = Memory(MEMORY_SIZE)
 print(1, 1)
 Sbox = (99, 124, 119, 123, 242, 107, 111, 197, 48, 1, 103, 43, 254, 215, 
     171, 118, 202, 130, 201, 125, 250, 89, 71, 240, 173, 212, 162, 175, 156,
@@ -17,6 +21,9 @@ Sbox = (99, 124, 119, 123, 242, 107, 111, 197, 48, 1, 103, 43, 254, 215,
     87, 185, 134, 193, 29, 158, 225, 248, 152, 17, 105, 217, 142, 148, 155,
     30, 135, 233, 206, 85, 40, 223, 140, 161, 137, 13, 191, 230, 66, 104, 
     65, 153, 45, 15, 176, 84, 187, 22)
+write_instrument_read(Sbox, 'Sbox')
+memory_module.malloc('Sbox', sys.getsizeof(Sbox))
+print(memory_module.locations['Sbox'].location, 'Sbox', 'mem')
 print(1, 260)
 InvSbox = (82, 9, 106, 213, 48, 54, 165, 56, 191, 64, 163, 158, 129, 243, 
     215, 251, 124, 227, 57, 130, 155, 47, 255, 135, 52, 142, 67, 68, 196, 
@@ -35,80 +42,132 @@ InvSbox = (82, 9, 106, 213, 48, 54, 165, 56, 191, 64, 163, 158, 129, 243,
     122, 159, 147, 201, 156, 239, 160, 224, 59, 77, 174, 42, 245, 176, 200,
     235, 187, 60, 131, 83, 153, 97, 23, 43, 4, 126, 186, 119, 214, 38, 225,
     105, 20, 99, 85, 33, 12, 125)
+write_instrument_read(InvSbox, 'InvSbox')
+memory_module.malloc('InvSbox', sys.getsizeof(InvSbox))
+print(memory_module.locations['InvSbox'].location, 'InvSbox', 'mem')
 
 
 def xtime(a):
+    global memory_module
     print(1, 521)
-    return (a << 1 ^ 27) & 255 if a & 128 else a << 1
+    return (instrument_read(a, 'a') << 1 ^ 27) & 255 if instrument_read(a, 'a'
+        ) & 128 else instrument_read(a, 'a') << 1
 
 
 print(1, 525)
 Rcon = (0, 1, 2, 4, 8, 16, 32, 64, 128, 27, 54, 108, 216, 171, 77, 154, 47,
     94, 188, 99, 198, 151, 53, 106, 212, 179, 125, 250, 239, 197, 145, 57)
+write_instrument_read(Rcon, 'Rcon')
+memory_module.malloc('Rcon', sys.getsizeof(Rcon))
+print(memory_module.locations['Rcon'].location, 'Rcon', 'mem')
 
 
 def text2matrix(text):
+    global memory_module
     print(1, 561)
     print(7, 562)
     matrix = []
+    write_instrument_read(matrix, 'matrix')
+    memory_module.malloc('matrix', sys.getsizeof(matrix))
+    print(memory_module.locations['matrix'].location, 'matrix', 'mem')
     for i in range(16):
         print(9, 564)
-        byte = text >> 8 * (15 - i) & 255
-        if i % 4 == 0:
+        byte = instrument_read(text, 'text') >> 8 * (15 - instrument_read(i,
+            'i')) & 255
+        write_instrument_read(byte, 'byte')
+        memory_module.malloc('byte', sys.getsizeof(byte))
+        print(memory_module.locations['byte'].location, 'byte', 'mem')
+        if instrument_read(i, 'i') % 4 == 0:
             print(9, 565)
             matrix.append([byte])
         else:
             print(9, 565)
             matrix[int(i / 4)].append(byte)
-    return matrix
+    return instrument_read(matrix, 'matrix')
 
 
 def matrix2text(matrix):
+    global memory_module
     print(1, 572)
     print(17, 573)
     text = 0
+    write_instrument_read(text, 'text')
+    memory_module.malloc('text', sys.getsizeof(text))
+    print(memory_module.locations['text'].location, 'text', 'mem')
     for i in range(4):
         for j in range(4):
             print(21, 576)
-            text |= matrix[i][j] << 120 - 8 * (4 * i + j)
-    return text
+            text |= instrument_read_sub(instrument_read_sub(instrument_read
+                (matrix, 'matrix'), 'matrix', i), 'matrix[i]', j
+                ) << 120 - 8 * (4 * instrument_read(i, 'i') +
+                instrument_read(j, 'j'))
+    return instrument_read(text, 'text')
 
 
 class AES:
 
     def __init__(self, master_key):
+        global memory_module
         print(1, 581)
         self.change_key(master_key)
 
     def change_key(self, master_key):
+        global memory_module
         print(1, 584)
         print(29, 585)
-        self.round_keys = text2matrix(master_key)
+        instrument_read(self, 'self').round_keys = text2matrix(master_key)
         for i in range(4, 4 * 11):
             self.round_keys.append([])
-            if i % 4 == 0:
+            if instrument_read(i, 'i') % 4 == 0:
                 print(31, 590)
                 print(33, 591)
-                byte = self.round_keys[i - 4][0] ^ Sbox[self.round_keys[i -
-                    1][1]] ^ Rcon[int(i / 4)]
+                byte = instrument_read_sub(instrument_read_sub(
+                    instrument_read(self, 'self').round_keys,
+                    "instrument_read(self, 'self').round_keys", i - 4),
+                    "instrument_read(self, 'self').round_keys[i - 4]", 0
+                    ) ^ instrument_read_sub(instrument_read(Sbox, 'Sbox'),
+                    'Sbox', self.round_keys[i - 1][1]) ^ instrument_read_sub(
+                    instrument_read(Rcon, 'Rcon'), 'Rcon', int(i / 4))
+                write_instrument_read(byte, 'byte')
+                memory_module.malloc('byte', sys.getsizeof(byte))
+                print(memory_module.locations['byte'].location, 'byte', 'mem')
                 self.round_keys[i].append(byte)
                 for j in range(1, 4):
                     print(39, 599)
-                    byte = self.round_keys[i - 4][j] ^ Sbox[self.round_keys
-                        [i - 1][(j + 1) % 4]]
+                    byte = instrument_read_sub(instrument_read_sub(
+                        instrument_read(self, 'self').round_keys,
+                        "instrument_read(self, 'self').round_keys", i - 4),
+                        "instrument_read(self, 'self').round_keys[i - 4]", j
+                        ) ^ instrument_read_sub(instrument_read(Sbox,
+                        'Sbox'), 'Sbox', self.round_keys[i - 1][(j + 1) % 4])
+                    write_instrument_read(byte, 'byte')
+                    memory_module.malloc('byte', sys.getsizeof(byte))
+                    print(memory_module.locations['byte'].location, 'byte',
+                        'mem')
                     self.round_keys[i].append(byte)
             else:
                 print(31, 590)
                 for j in range(4):
                     print(36, 606)
-                    byte = self.round_keys[i - 4][j] ^ self.round_keys[i - 1][j
-                        ]
+                    byte = instrument_read_sub(instrument_read_sub(
+                        instrument_read(self, 'self').round_keys,
+                        "instrument_read(self, 'self').round_keys", i - 4),
+                        "instrument_read(self, 'self').round_keys[i - 4]", j
+                        ) ^ instrument_read_sub(instrument_read_sub(
+                        instrument_read(self, 'self').round_keys,
+                        "instrument_read(self, 'self').round_keys", i - 1),
+                        "instrument_read(self, 'self').round_keys[i - 1]", j)
+                    write_instrument_read(byte, 'byte')
+                    memory_module.malloc('byte', sys.getsizeof(byte))
+                    print(memory_module.locations['byte'].location, 'byte',
+                        'mem')
                     self.round_keys[i].append(byte)
 
     def encrypt(self, plaintext):
+        global memory_module
         print(1, 611)
         print(43, 612)
-        self.plain_state = text2matrix(plaintext)
+        instrument_read(self, 'self').plain_state = text2matrix(plaintext)
         self.__add_round_key(self.plain_state, self.round_keys[:4])
         for i in range(1, 10):
             self.__round_encrypt(self.plain_state, self.round_keys[4 * i:4 *
@@ -119,9 +178,10 @@ class AES:
         return matrix2text(self.plain_state)
 
     def decrypt(self, ciphertext):
+        global memory_module
         print(1, 625)
         print(50, 626)
-        self.cipher_state = text2matrix(ciphertext)
+        instrument_read(self, 'self').cipher_state = text2matrix(ciphertext)
         self.__add_round_key(self.cipher_state, self.round_keys[40:])
         self.__inv_shift_rows(self.cipher_state)
         self.__inv_sub_bytes(self.cipher_state)
@@ -132,13 +192,18 @@ class AES:
         return matrix2text(self.cipher_state)
 
     def __add_round_key(self, s, k):
+        global memory_module
         print(1, 641)
         for i in range(4):
             for j in range(4):
                 print(60, 644)
-                s[i][j] ^= k[i][j]
+                s[i][j] ^= instrument_read_sub(instrument_read_sub(
+                    instrument_read(k, 'k'), 'k', i), 'k[i]', j)
+                write_instrument_read_sub(instrument_read_sub(
+                    instrument_read(s, 's'), 's', i), 's[i]', j)
 
     def __round_encrypt(self, state_matrix, key_matrix):
+        global memory_module
         print(1, 646)
         self.__sub_bytes(state_matrix)
         self.__shift_rows(state_matrix)
@@ -146,6 +211,7 @@ class AES:
         self.__add_round_key(state_matrix, key_matrix)
 
     def __round_decrypt(self, state_matrix, key_matrix):
+        global memory_module
         print(1, 652)
         self.__add_round_key(state_matrix, key_matrix)
         self.__inv_mix_columns(state_matrix)
@@ -153,85 +219,160 @@ class AES:
         self.__inv_sub_bytes(state_matrix)
 
     def __sub_bytes(self, s):
+        global memory_module
         print(1, 658)
         for i in range(4):
             for j in range(4):
                 print(73, 661)
-                s[i][j] = Sbox[s[i][j]]
+                s[i][j] = instrument_read_sub(instrument_read(Sbox, 'Sbox'),
+                    'Sbox', s[i][j])
 
     def __inv_sub_bytes(self, s):
+        global memory_module
         print(1, 663)
         for i in range(4):
             for j in range(4):
                 print(80, 666)
-                s[i][j] = InvSbox[s[i][j]]
+                s[i][j] = instrument_read_sub(instrument_read(InvSbox,
+                    'InvSbox'), 'InvSbox', s[i][j])
 
     def __shift_rows(self, s):
+        global memory_module
         print(1, 668)
         print(84, 669)
-        s[0][1], s[1][1], s[2][1], s[3][1] = s[1][1], s[2][1], s[3][1], s[0][1]
+        s[0][1], s[1][1], s[2][1], s[3][1] = instrument_read_sub(
+            instrument_read_sub(instrument_read(s, 's'), 's', 1), 's[1]', 1
+            ), instrument_read_sub(instrument_read_sub(instrument_read(s,
+            's'), 's', 2), 's[2]', 1), instrument_read_sub(instrument_read_sub
+            (instrument_read(s, 's'), 's', 3), 's[3]', 1), instrument_read_sub(
+            instrument_read_sub(instrument_read(s, 's'), 's', 0), 's[0]', 1)
         print(84, 670)
-        s[0][2], s[1][2], s[2][2], s[3][2] = s[2][2], s[3][2], s[0][2], s[1][2]
+        s[0][2], s[1][2], s[2][2], s[3][2] = instrument_read_sub(
+            instrument_read_sub(instrument_read(s, 's'), 's', 2), 's[2]', 2
+            ), instrument_read_sub(instrument_read_sub(instrument_read(s,
+            's'), 's', 3), 's[3]', 2), instrument_read_sub(instrument_read_sub
+            (instrument_read(s, 's'), 's', 0), 's[0]', 2), instrument_read_sub(
+            instrument_read_sub(instrument_read(s, 's'), 's', 1), 's[1]', 2)
         print(84, 671)
-        s[0][3], s[1][3], s[2][3], s[3][3] = s[3][3], s[0][3], s[1][3], s[2][3]
+        s[0][3], s[1][3], s[2][3], s[3][3] = instrument_read_sub(
+            instrument_read_sub(instrument_read(s, 's'), 's', 3), 's[3]', 3
+            ), instrument_read_sub(instrument_read_sub(instrument_read(s,
+            's'), 's', 0), 's[0]', 3), instrument_read_sub(instrument_read_sub
+            (instrument_read(s, 's'), 's', 1), 's[1]', 3), instrument_read_sub(
+            instrument_read_sub(instrument_read(s, 's'), 's', 2), 's[2]', 3)
 
     def __inv_shift_rows(self, s):
+        global memory_module
         print(1, 673)
         print(87, 674)
-        s[0][1], s[1][1], s[2][1], s[3][1] = s[3][1], s[0][1], s[1][1], s[2][1]
+        s[0][1], s[1][1], s[2][1], s[3][1] = instrument_read_sub(
+            instrument_read_sub(instrument_read(s, 's'), 's', 3), 's[3]', 1
+            ), instrument_read_sub(instrument_read_sub(instrument_read(s,
+            's'), 's', 0), 's[0]', 1), instrument_read_sub(instrument_read_sub
+            (instrument_read(s, 's'), 's', 1), 's[1]', 1), instrument_read_sub(
+            instrument_read_sub(instrument_read(s, 's'), 's', 2), 's[2]', 1)
         print(87, 675)
-        s[0][2], s[1][2], s[2][2], s[3][2] = s[2][2], s[3][2], s[0][2], s[1][2]
+        s[0][2], s[1][2], s[2][2], s[3][2] = instrument_read_sub(
+            instrument_read_sub(instrument_read(s, 's'), 's', 2), 's[2]', 2
+            ), instrument_read_sub(instrument_read_sub(instrument_read(s,
+            's'), 's', 3), 's[3]', 2), instrument_read_sub(instrument_read_sub
+            (instrument_read(s, 's'), 's', 0), 's[0]', 2), instrument_read_sub(
+            instrument_read_sub(instrument_read(s, 's'), 's', 1), 's[1]', 2)
         print(87, 676)
-        s[0][3], s[1][3], s[2][3], s[3][3] = s[1][3], s[2][3], s[3][3], s[0][3]
+        s[0][3], s[1][3], s[2][3], s[3][3] = instrument_read_sub(
+            instrument_read_sub(instrument_read(s, 's'), 's', 1), 's[1]', 3
+            ), instrument_read_sub(instrument_read_sub(instrument_read(s,
+            's'), 's', 2), 's[2]', 3), instrument_read_sub(instrument_read_sub
+            (instrument_read(s, 's'), 's', 3), 's[3]', 3), instrument_read_sub(
+            instrument_read_sub(instrument_read(s, 's'), 's', 0), 's[0]', 3)
 
     def __mix_single_column(self, a):
+        global memory_module
         print(1, 678)
         print(90, 680)
-        t = a[0] ^ a[1] ^ a[2] ^ a[3]
+        t = instrument_read_sub(instrument_read(a, 'a'), 'a', 0
+            ) ^ instrument_read_sub(instrument_read(a, 'a'), 'a', 1
+            ) ^ instrument_read_sub(instrument_read(a, 'a'), 'a', 2
+            ) ^ instrument_read_sub(instrument_read(a, 'a'), 'a', 3)
+        write_instrument_read(t, 't')
+        memory_module.malloc('t', sys.getsizeof(t))
+        print(memory_module.locations['t'].location, 't', 'mem')
         print(90, 681)
-        u = a[0]
+        u = instrument_read_sub(instrument_read(a, 'a'), 'a', 0)
+        write_instrument_read(u, 'u')
+        memory_module.malloc('u', sys.getsizeof(u))
+        print(memory_module.locations['u'].location, 'u', 'mem')
         print(90, 682)
-        a[0] ^= t ^ xtime(a[0] ^ a[1])
+        a[0] ^= instrument_read(t, 't') ^ xtime(a[0] ^ a[1])
+        write_instrument_read_sub(instrument_read(a, 'a'), 'a', 0)
         print(90, 683)
-        a[1] ^= t ^ xtime(a[1] ^ a[2])
+        a[1] ^= instrument_read(t, 't') ^ xtime(a[1] ^ a[2])
+        write_instrument_read_sub(instrument_read(a, 'a'), 'a', 1)
         print(90, 684)
-        a[2] ^= t ^ xtime(a[2] ^ a[3])
+        a[2] ^= instrument_read(t, 't') ^ xtime(a[2] ^ a[3])
+        write_instrument_read_sub(instrument_read(a, 'a'), 'a', 2)
         print(90, 685)
-        a[3] ^= t ^ xtime(a[3] ^ u)
+        a[3] ^= instrument_read(t, 't') ^ xtime(a[3] ^ u)
+        write_instrument_read_sub(instrument_read(a, 'a'), 'a', 3)
 
     def __mix_columns(self, s):
+        global memory_module
         print(1, 687)
         for i in range(4):
             self.__mix_single_column(s[i])
 
     def __inv_mix_columns(self, s):
+        global memory_module
         print(1, 691)
         for i in range(4):
             print(99, 694)
             u = xtime(xtime(s[i][0] ^ s[i][2]))
+            write_instrument_read(u, 'u')
+            memory_module.malloc('u', sys.getsizeof(u))
+            print(memory_module.locations['u'].location, 'u', 'mem')
             print(99, 695)
             v = xtime(xtime(s[i][1] ^ s[i][3]))
+            write_instrument_read(v, 'v')
+            memory_module.malloc('v', sys.getsizeof(v))
+            print(memory_module.locations['v'].location, 'v', 'mem')
             print(99, 696)
-            s[i][0] ^= u
+            s[i][0] ^= instrument_read(u, 'u')
+            write_instrument_read_sub(instrument_read_sub(instrument_read(s,
+                's'), 's', i), 's[i]', 0)
             print(99, 697)
-            s[i][1] ^= v
+            s[i][1] ^= instrument_read(v, 'v')
+            write_instrument_read_sub(instrument_read_sub(instrument_read(s,
+                's'), 's', i), 's[i]', 1)
             print(99, 698)
-            s[i][2] ^= u
+            s[i][2] ^= instrument_read(u, 'u')
+            write_instrument_read_sub(instrument_read_sub(instrument_read(s,
+                's'), 's', i), 's[i]', 2)
             print(99, 699)
-            s[i][3] ^= v
+            s[i][3] ^= instrument_read(v, 'v')
+            write_instrument_read_sub(instrument_read_sub(instrument_read(s,
+                's'), 's', i), 's[i]', 3)
         self.__mix_columns(s)
 
 
-if __name__ == '__main__':
+if instrument_read(__name__, '__name__') == '__main__':
     print(1, 703)
     import time
     print(102, 705)
     start = time.time()
+    write_instrument_read(start, 'start')
+    memory_module.malloc('start', sys.getsizeof(start))
+    print(memory_module.locations['start'].location, 'start', 'mem')
     print(102, 706)
     aes = AES(1212304810341341)
+    write_instrument_read(aes, 'aes')
+    memory_module.malloc('aes', sys.getsizeof(aes))
+    print(memory_module.locations['aes'].location, 'aes', 'mem')
     aes.encrypt(1212304810341341)
     print(102, 708)
     end = time.time()
+    write_instrument_read(end, 'end')
+    memory_module.malloc('end', sys.getsizeof(end))
+    print(memory_module.locations['end'].location, 'end', 'mem')
     print(end - start)
 else:
     print(1, 703)

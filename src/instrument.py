@@ -103,8 +103,8 @@ class ProgramInstrumentor(ast.NodeTransformer):
         if node.lineno not in lineno_to_node: return node
         new_stmts = self.visit_Stmts(node.body)
         report("visiting func def",node)
-        stmt1 = text_to_ast('print(' + str(lineno_to_node[node.lineno]) + ',' + str(node.lineno) + ')')
-        stmt2 = text_to_ast('memory_module = Memory(MEMORY_SIZE)')
+        stmt1 = text_to_ast('global memory_module')
+        stmt2 = text_to_ast('print(' + str(lineno_to_node[node.lineno]) + ',' + str(node.lineno) + ')')
         new_body = [stmt1, stmt2] + new_stmts
         return ast.FunctionDef(node.name,args=node.args, body=new_body, \
                                decorator_list=node.decorator_list)
@@ -114,21 +114,21 @@ class ProgramInstrumentor(ast.NodeTransformer):
         if (type(node.ctx) == ast.Store):
             return node
         else:
-            return ast.Call(ast.Name('instrument_read', ast.Load), args=[ \
-                                node, \
-                                text_to_ast('\'' + node.id + '\'')
+            return ast.Call(ast.Name('instrument_read', ast.Load()), args=[ 
+                                node, 
+                                ast.Constant(node.id)
                             ], keywords=[])
 
     def visit_Subscript(self, node: Subscript) -> Any:
+        new_node = self.visit(node.value)
         report("visiting subscript", node)
         if (type(node.ctx) == ast.Store):
             return node
         else:
-            return ast.Call(ast.Name('instrument_read_sub', ast.Load), args=[ \
-                                self.visit(node.value), \
-                                text_to_ast('\'' + node.value.id + '\''), \
-                                self.visit(node.slice),
-                            ], keywords=[])
+            t = ast_to_text(node.value)
+            retval = ast.Call(ast.Name('instrument_read_sub', ast.Load()), args=[new_node, ast.Constant(t), node.slice], keywords=[])
+            print(ast_to_text(retval))
+            return retval
     
 
 def instrument_and_run(filepath:str):
@@ -150,8 +150,9 @@ def instrument_and_run(filepath:str):
             fh.write("from instrument_lib import *\n")
             fh.write("from memory import Memory\n")
             fh.write("MEMORY_SIZE = 10000\n")
+            fh.write("memory_module = Memory(MEMORY_SIZE)\n")
             for stmt in instr.preamble:
-                fh.write(astor.to_source(stmt)+"\n")
+                fh.write(ast_to_text(stmt)+"\n")
 
 
             fh.write(astor.to_source(rewrite_tree))

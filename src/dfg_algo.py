@@ -333,7 +333,7 @@ def dfg_per_node(node):
                     break
                 j -= 1
         i -= 1
-    graph.render(path + 'pictures/' + benchmark + "_dfg_node_" + str(node.id), view = False, format='jpeg')
+    graph.render(path + 'pictures/' + benchmark + "_dfg_node_" + str(node.id), view = False)
     return 0
 
 

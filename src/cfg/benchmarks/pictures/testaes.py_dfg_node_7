@@ -1,0 +1,16 @@
+digraph {
+	13 [label="source code:
+a = matrix[i][j]
+"]
+	14 [label="matrix
+Read"]
+	15 [label="matrix[i]
+Read"]
+	14 -> 15
+	16 [label="matrix[i][j]
+Read"]
+	15 -> 16
+	17 [label="a
+Write"]
+	16 -> 17
+}

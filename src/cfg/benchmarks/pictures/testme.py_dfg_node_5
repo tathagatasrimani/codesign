@@ -1,7 +1,7 @@
 digraph {
 	63 [label="source code:
-z = [1, 2, 3, 4, 5, 6]
-z += [1, 2, 3, 4, 5, 6]
+z = [[1, 2, 3, 4, 5, 6]]
+z += [[1, 2, 3, 4, 5, 6]]
 loop.start_unroll
 "]
 	64 [label=1
