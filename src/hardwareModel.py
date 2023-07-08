@@ -4,7 +4,7 @@ import re
 from collections import deque
 import ast
 
-from cfg.staticfg.builder import CFGBuilder
+from staticfg.builder import CFGBuilder
 from ast_utils import ASTUtils
 
 benchmark = 'simple'

@@ -1,8 +1,8 @@
-from cfg.staticfg.builder import CFGBuilder
+from staticfg.builder import CFGBuilder
 import graphviz as gv
 import ast
 import astor
-from cfg.staticfg.builder import CFGBuilder
+from staticfg.builder import CFGBuilder
 from ast_utils import ASTUtils
 import hardwareModel
 benchmark = None

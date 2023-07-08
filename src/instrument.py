@@ -3,7 +3,7 @@ import ast
 from typing import Any
 import astor
 import sys
-from cfg.staticfg.builder import CFGBuilder
+from staticfg.builder import CFGBuilder
 from ast_utils import ASTUtils
 
 import os
