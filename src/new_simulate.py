@@ -13,7 +13,7 @@ data = {}
 cycles = 0
 main_cfg = None
 id_to_node = {}
-path = '/Users/PatrickMcEwen/git_container/codesign/src/cfg/benchmarks/' # change path variable for local computer
+path = '/Users/PatrickMcEwen/git_container/codesign/src/benchmarks/' # change path variable for local computer
 data_path = []
 power_use = []
 node_intervals = []
@@ -214,7 +214,7 @@ def main():
     plt.title("power use for " + names[-1])
     plt.xlabel("Cycle")
     plt.ylabel("Power")
-    plt.savefig("cfg/benchmarks/power_plots/power_use_" + names[-1] + ".pdf")
+    plt.savefig("benchmarks/power_plots/power_use_" + names[-1] + ".pdf")
     plt.clf() 
     print("done!")
 
