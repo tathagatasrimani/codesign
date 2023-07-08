@@ -14,18 +14,16 @@ def main(x, y):
         b = a / r
     z = [[1, 2, 3, 4, 5, 6]]
     z += [[1, 2, 3, 4, 5, 6]]
+    r, q = 2, 3
     loop.start_unroll
     for i in range(5):
         z[0][i] += z[0][i+1]
-        q = z[i][i+1]
     loop.stop_unroll
 
 def bruh():
     a = 1
-    loop.start_unroll
     for i in range(3):
         a += i
-    loop.stop_unroll
 
 if __name__ == "__main__":
     main(2, 3)

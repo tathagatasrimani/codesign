@@ -54,6 +54,13 @@ class ProgramInstrumentor(ast.NodeTransformer):
 
     def visit_Stmts(self,stmts):
         return list(map(lambda stmt: self.visit(stmt), stmts))
+    
+    def name_extras(self, node, var_name):
+        stmt1 = text_to_ast('print(\'malloc\', id(' + var_name + '), sys.getsizeof(' + var_name + '))')
+        stmt2 = text_to_ast('memory_module.malloc(\"id(' + var_name + ')\", sys.getsizeof(' + var_name + '))')
+        stmt3 = text_to_ast('print(memory_module.locations[\"id(' + var_name + ')\"].location, \"'+ var_name + '\", \"mem\")')
+        new_line = ast.Name(node.id, ctx=ast.Load())
+        return [self.visit(new_line), stmt1, stmt2, stmt3]
 
     def visit_Assign(self,node):
         if node.lineno not in lineno_to_node: return node
@@ -62,11 +69,14 @@ class ProgramInstrumentor(ast.NodeTransformer):
         stmt1 = text_to_ast('print(' + str(lineno_to_node[node.lineno]) + ',' + str(node.lineno) + ')')
         block = []
         if type(node.targets[0]) == ast.Name:
-            var_name = node.targets[0].id
-            stmt2 = text_to_ast('memory_module.malloc(\"' + var_name + '\", sys.getsizeof(' + var_name + '))') # change sizeof
-            stmt3 = text_to_ast('print(memory_module.locations[\"' + var_name + '\"].location, \"'+ var_name + '\", \"mem\")')
-            new_line = ast.Name(node.targets[0].id, ctx=ast.Load())
-            block = [stmt1, new_node, text_to_ast('write_'), self.visit(new_line), stmt2, stmt3]
+            block = [stmt1, new_node, text_to_ast('write_')] + self.name_extras(node.targets[0], node.targets[0].id)
+        elif type(node.targets[0]) == ast.Tuple:
+            for var in node.targets[0].elts:
+                if type(var) == ast.Name:
+                    block = [stmt1, new_node, text_to_ast('write_')] + self.name_extras(var, var.id)
+        elif type(node.targets[0]) == ast.Subscript:
+            new_line = ast.Subscript(node.targets[0].value, node.targets[0].slice, ctx=ast.Load())
+            block = [stmt1, new_node, text_to_ast('write_'),self.visit(new_line)]
         else:
             block = [stmt1, node]
         return ProgramInstrumentor.mkblock(block)
@@ -77,7 +87,10 @@ class ProgramInstrumentor(ast.NodeTransformer):
         report("visiting augmented assignment",node)
         stmt1 = text_to_ast('print(' + str(lineno_to_node[node.lineno]) + ',' + str(node.lineno) + ')\n')
         block = []
-        if type(node.target) == ast.Subscript:
+        if type(node.target) == ast.Name:
+            new_line = ast.Name(node.target.id, ctx=ast.Load())
+            block = [stmt1, new_node, text_to_ast('write_'), self.visit(new_line)]
+        elif type(node.target) == ast.Subscript:
             new_line = ast.Subscript(node.target.value, node.target.slice, ctx=ast.Load())
             block = [stmt1, new_node, text_to_ast('write_'),self.visit(new_line)]
         else:

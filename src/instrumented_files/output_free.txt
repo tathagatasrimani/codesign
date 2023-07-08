@@ -24,20 +24,25 @@ q 4303414320 no_ind Read
 r 4302373232 no_ind Read
 w 4303407152 no_ind Write
 malloc 4303407152 24
+free 4303407152 24
 56 w mem
 w 4303407152 no_ind Read
 3 8
+free 4303407152 24
 6 13
 q 4303414320 no_ind Read
 a 4303413616 no_ind Write
+free 4303414320 24
 malloc 4303413616 24
 80 a mem
 6 14
 a 4303413616 no_ind Read
 r 4302373232 no_ind Read
+free 4303413616 24
 b 4303413552 no_ind Write
 malloc 4303413552 24
 104 b mem
+free 4303413552 24
 5 15
 z 4303923200 no_ind Write
 malloc 4303923200 64
@@ -45,6 +50,7 @@ malloc 4303923200 64
 5 16
 z 4303923200 no_ind Write
 5 17
+free 4303923200 64
 q 4302373168 no_ind Write
 malloc 4302373168 28
 192 q mem
@@ -57,6 +63,7 @@ z 4303923200 no_ind Read
 z 4304528960 0 Read
 z[0] 4302373168 0 Write
 8 20
+free 4302373168 28
 z 4303923200 no_ind Read
 z 4304528960 0 Read
 z[0] 4302373168 2 Read
@@ -64,6 +71,7 @@ z 4303923200 no_ind Read
 z 4304528960 0 Read
 z[0] 4302373232 1 Write
 8 20
+free 4302373232 28
 z 4303923200 no_ind Read
 z 4304528960 0 Read
 z[0] 4302373200 3 Read
@@ -94,8 +102,10 @@ malloc 4302373104 28
 i 4302373072 no_ind Read
 a 4302373104 no_ind Write
 14 26
+free 4302373104 28
 i 4302373104 no_ind Read
 a 4302373136 no_ind Write
 14 26
 i 4302373136 no_ind Read
 a 4302373200 no_ind Write
+

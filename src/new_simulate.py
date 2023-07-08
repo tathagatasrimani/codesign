@@ -19,6 +19,21 @@ power_use = []
 node_intervals = []
 node_avg_power = {}
 unroll_at = {}
+vars_allocated = {}
+where_to_free = {}
+memory_needed = 0
+cur_memory_size = 0
+
+def find_free_loc(id, split_lines, ind):
+    where_to_free[id] = ind+1
+    for i in range(ind+1, len(split_lines)):
+        item = split_lines[i]
+        if len(item) == 4:
+            if item[1] == id and item[3] == "Read":
+                where_to_free[id] = i+1
+            elif item[1] == id and item[3] == "Write":
+                where_to_free[id] = i+1
+                return
 
 def func_calls(expr, calls):
     if type(expr) == ast.Call:
@@ -122,7 +137,7 @@ def simulate(cfg, data_path, node_operations, hw_spec, first):
     return data
 
 def main():
-    global power_use, unroll_at
+    global power_use, unroll_at, memory_needed, cur_memory_size, vars_allocated, where_to_free
     benchmark = sys.argv[1]
     print(benchmark)
     cfg, graphs, unroll_at = dfg_algo.main_fn(path, benchmark)
@@ -156,18 +171,37 @@ def main():
         id_to_node[str(node.id)] = node
     # set up sequence of cfg nodes to visit
     with open('/Users/PatrickMcEwen/git_container/codesign/src/instrumented_files/output.txt', 'r') as f:
+        f_new = open('/Users/PatrickMcEwen/git_container/codesign/src/instrumented_files/output_free.txt', 'w+')
         src = f.read()
         l = src.split('\n')
+        split_lines = []
         for i in range(len(l)):
-            l[i] = l[i].split()
+            split_lines.append(l[i].split())
         #print(l)
         last_line = '-1'
         last_node = '-1'
-        for item in l:
+        for i in range(len(split_lines)):
+            item = split_lines[i]
+            f_new.write(l[i] + '\n')
+            ids_to_pop = []
+            for id in where_to_free:
+                if where_to_free[id] == i:
+                    f_new.write("free " + id + " " + str(vars_allocated[id]) + "\n")
+                    ids_to_pop.append(id)
+                    cur_memory_size -= vars_allocated[id]
+                    vars_allocated.pop(id)
+            for id in ids_to_pop:
+                where_to_free.pop(id)
             if len(item) == 2 and (item[0] != last_node or item[1] == last_line):
                 last_node = item[0]
                 last_line = item[1]
                 data_path.append(item)      
+            elif len(item) == 3 and item[0] == "malloc" and item[1] not in vars_allocated:
+                vars_allocated[item[1]] = int(item[2])
+                find_free_loc(item[1], split_lines, i)
+                cur_memory_size += int(item[2])
+                memory_needed = max(memory_needed, cur_memory_size)
+    print("memory needed: ", memory_needed)
     data = simulate(cfg, data_path, node_operations, hw.hw_allocated, True)
     text = json.dumps(data, indent=4)
     names = sys.argv[1].split('/')
