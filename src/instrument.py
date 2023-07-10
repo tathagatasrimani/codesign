@@ -42,6 +42,7 @@ class ProgramInstrumentor(ast.NodeTransformer):
     def __init__(self):
         super().__init__()
         self.preamble = []
+        self.scope = 0
 
     def add_preamble(self,stmt):
         self.preamble.append(stmt)
@@ -51,16 +52,19 @@ class ProgramInstrumentor(ast.NodeTransformer):
         block = ast.Module(stmts)
         ast.fix_missing_locations(block)
         return block
+    
+    def enter_and_exits(self):
+        stmt = [text_to_ast("print(\'enter scope " + str(self.scope) + "\')"), text_to_ast("print(\'exit scope " + str(self.scope) + "\')")]
+        self.scope += 1
+        return stmt
 
     def visit_Stmts(self,stmts):
         return list(map(lambda stmt: self.visit(stmt), stmts))
     
     def name_extras(self, node, var_name):
-        stmt1 = text_to_ast('print(\'malloc\', id(' + var_name + '), sys.getsizeof(' + var_name + '))')
-        stmt2 = text_to_ast('memory_module.malloc(\"id(' + var_name + ')\", sys.getsizeof(' + var_name + '))')
-        stmt3 = text_to_ast('print(memory_module.locations[\"id(' + var_name + ')\"].location, \"'+ var_name + '\", \"mem\")')
+        stmt1 = text_to_ast('print(\'malloc\', id(' + var_name + '), sys.getsizeof(' + var_name + '), \'' + node.id + '\')')
         new_line = ast.Name(node.id, ctx=ast.Load())
-        return [self.visit(new_line), stmt1, stmt2, stmt3]
+        return [self.visit(new_line), stmt1]
 
     def visit_Assign(self,node):
         if node.lineno not in lineno_to_node: return node
@@ -105,7 +109,8 @@ class ProgramInstrumentor(ast.NodeTransformer):
         report("visiting if statement",node)
         stmt1 = text_to_ast('print(' + str(lineno_to_node[node.lineno]) + ',' + str(node.lineno) + ')')
         stmt2 = text_to_ast('print(' + str(lineno_to_node[node.lineno]) + ',' + str(node.lineno) + ')')
-        return ast.If(test,[stmt1]+body,[stmt2]+orelse)
+        scope = self.enter_and_exits()
+        return ProgramInstrumentor.mkblock([scope[0], ast.If(test,[stmt1]+body,[stmt2]+orelse), scope[1]])
 
 
     def visit_Call(self,node):
@@ -116,9 +121,9 @@ class ProgramInstrumentor(ast.NodeTransformer):
         if node.lineno not in lineno_to_node: return node
         new_stmts = self.visit_Stmts(node.body)
         report("visiting func def",node)
-        stmt1 = text_to_ast('global memory_module')
-        stmt2 = text_to_ast('print(' + str(lineno_to_node[node.lineno]) + ',' + str(node.lineno) + ')')
-        new_body = [stmt1, stmt2] + new_stmts
+        stmt1 = text_to_ast('print(' + str(lineno_to_node[node.lineno]) + ',' + str(node.lineno) + ')')
+        scope = self.enter_and_exits()
+        new_body = [scope[0], stmt1] + new_stmts + [scope[1]]
         return ast.FunctionDef(node.name,args=node.args, body=new_body, \
                                decorator_list=node.decorator_list)
     
@@ -161,9 +166,6 @@ def instrument_and_run(filepath:str):
         with open(dest_filepath, 'w') as fh:
             fh.write("import sys\n")
             fh.write("from instrument_lib import *\n")
-            fh.write("from memory import Memory\n")
-            fh.write("MEMORY_SIZE = 10000\n")
-            fh.write("memory_module = Memory(MEMORY_SIZE)\n")
             for stmt in instr.preamble:
                 fh.write(ast_to_text(stmt)+"\n")
 

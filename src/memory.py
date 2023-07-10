@@ -104,6 +104,7 @@ class Memory:
         if id not in self.locations: 
             print("variable to free was not allocated")
         block_to_free = self.locations[id]
+        self.locations.pop(id)
         next_free = self.orient_frees(block_to_free)
         prev_free = self.last_free
         if next_free: prev_free = next_free.prev
