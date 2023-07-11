@@ -26,7 +26,7 @@ def schedule(cfg, graphs, benchmark):
             for op in state:
                 print(op.order, op.operation)
             print('')"""
-    return cfg, node_operations
+    return node_operations
         
 
 if __name__ == '__main__':

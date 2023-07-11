@@ -9,6 +9,7 @@ import hardwareModel
 import math
 import json
 import sys
+from collections import deque
 
 MEMORY_SIZE = 10000
 memory_module = Memory(MEMORY_SIZE)
@@ -28,13 +29,16 @@ where_to_free = {}
 memory_needed = 0
 cur_memory_size = 0
 
-def find_free_loc(id, split_lines, ind):
-    where_to_free[id] = ind+1
+def find_free_loc(var_name, split_lines, ind):
+    where_to_free[var_name] = ind+1
     for i in range(ind+1, len(split_lines)):
         item = split_lines[i]
-        if len(item) == 4:
-            if item[1] == id and item[3] == "Read":
-                where_to_free[id] = i+1
+        if len(item) == 3:
+            if item[0] == var_name: # can add condition item[2] == "Read" for extra optimization, choosing not to for now
+                if item[2] == "Read":
+                    where_to_free[var_name] = i+1
+                else:
+                    where_to_free[var_name] = i
 
 def func_calls(expr, calls):
     if type(expr) == ast.Call:
@@ -80,14 +84,15 @@ def cycle_sim(hw_inuse, max_cycles):
     return node_power_sum
 
 def process_memory_operation(var_name, size, status):
+    global memory_module
     if status == "malloc":
         memory_module.malloc(var_name, size)
     elif status == "free":
         memory_module.free(var_name)
     print(memory_module.locations)
 
-def simulate(cfg, data_path, node_operations, hw_spec, first):
-    global main_cfg, id_to_node, unroll_at, memory_module
+def simulate(cfg, node_operations, hw_spec, first):
+    global main_cfg, id_to_node, unroll_at, memory_module, data_path
     cur_node = cfg.entryblock
     if first: 
         cur_node = cur_node.exits[0].target # skip over the first node in the main cfg
@@ -99,7 +104,7 @@ def simulate(cfg, data_path, node_operations, hw_spec, first):
     i = 0
     while i < len(data_path):
         if len(data_path[i]) > 2:
-            process_memory_operation(data_path[i][3], int(data_path[i][2]), data_path[i][0])
+            process_memory_operation(data_path[i][2], int(data_path[i][1]), data_path[i][0])
             i += 1
             continue
         node_id = data_path[i][0]
@@ -148,12 +153,60 @@ def simulate(cfg, data_path, node_operations, hw_spec, first):
     print("done with simulation")
     return data
 
+def set_data_path():
+    global data_path, cur_memory_size, vars_allocated, where_to_free, memory_needed
+    with open('/Users/PatrickMcEwen/git_container/codesign/src/instrumented_files/output.txt', 'r') as f:
+        f_new = open('/Users/PatrickMcEwen/git_container/codesign/src/instrumented_files/output_free.txt', 'w+')
+        src = f.read()
+        l = src.split('\n')
+        split_lines = []
+        for i in range(len(l)):
+            split_lines.append(l[i].split())
+        #print(l)
+        last_line = '-1'
+        last_node = '-1'
+        for i in range(len(split_lines)):
+            item = split_lines[i]
+            f_new.write(l[i] + '\n')
+            vars_to_pop = []
+            for var_name in where_to_free:
+                if where_to_free[var_name] == i:
+                    var_size = vars_allocated[var_name]
+                    f_new.write("free " + str(var_size) + " " + var_name + "\n")
+                    data_path.append(["free", str(var_size), var_name])
+                    vars_to_pop.append(var_name)
+                    cur_memory_size -= var_size
+                    vars_allocated.pop(var_name)
+            for var_name in vars_to_pop:
+                where_to_free.pop(var_name)
+            if len(item) == 2 and (item[0] != last_node or item[1] == last_line):
+                last_node = item[0]
+                last_line = item[1]
+                data_path.append(item)      
+            elif len(item) == 3 and item[0] == "malloc" and item[2] not in vars_allocated:
+                data_path.append(item)
+                vars_allocated[item[2]] = int(item[1])
+                print(vars_allocated)
+                if item[2] not in where_to_free:
+                    find_free_loc(item[2], split_lines, i)
+                cur_memory_size += int(item[1])
+                memory_needed = max(memory_needed, cur_memory_size)
+    print(data_path)
+    print("memory needed: ", memory_needed)
+
+def simulator_prep(benchmark):
+    global unroll_at, id_to_node
+    cfg, graphs, unroll_at = dfg_algo.main_fn(path, benchmark)
+    node_operations = schedule.schedule(cfg, graphs, benchmark)
+    set_data_path()
+    for node in cfg: id_to_node[str(node.id)] = node
+    return cfg, node_operations
+
 def main():
-    global power_use, unroll_at, memory_needed, cur_memory_size, vars_allocated, where_to_free, memory_module
+    global power_use
     benchmark = sys.argv[1]
     print(benchmark)
-    cfg, graphs, unroll_at = dfg_algo.main_fn(path, benchmark)
-    cfg, node_operations = schedule.schedule(cfg, graphs, sys.argv[1])
+    cfg, node_operations = simulator_prep(benchmark)
     hw = HardwareModel(0, 0)
     hw.hw_allocated['Add'] = 15
     hw.hw_allocated['Regs'] = 30
@@ -179,47 +232,8 @@ def main():
     hw.hw_allocated['UAdd'] = 1
     hw.hw_allocated['Not'] = 1
     hw.hw_allocated['Invert'] = 1
-    for node in cfg:
-        id_to_node[str(node.id)] = node
-    # set up sequence of cfg nodes to visit
-    with open('/Users/PatrickMcEwen/git_container/codesign/src/instrumented_files/output.txt', 'r') as f:
-        f_new = open('/Users/PatrickMcEwen/git_container/codesign/src/instrumented_files/output_free.txt', 'w+')
-        src = f.read()
-        l = src.split('\n')
-        split_lines = []
-        for i in range(len(l)):
-            split_lines.append(l[i].split())
-        #print(l)
-        last_line = '-1'
-        last_node = '-1'
-        for i in range(len(split_lines)):
-            item = split_lines[i]
-            f_new.write(l[i] + '\n')
-            ids_to_pop = []
-            for id in where_to_free:
-                if where_to_free[id] == i:
-                    var_size, var_name = vars_allocated[id]
-                    f_new.write("free " + id + " " + str(var_size) + " " + var_name + "\n")
-                    data_path.append(["free", id, str(var_size), var_name])
-                    ids_to_pop.append(id)
-                    cur_memory_size -= var_size
-                    vars_allocated.pop(id)
-            for id in ids_to_pop:
-                where_to_free.pop(id)
-            if len(item) == 2 and (item[0] != last_node or item[1] == last_line):
-                last_node = item[0]
-                last_line = item[1]
-                data_path.append(item)      
-            elif len(item) == 4 and item[0] == "malloc" and item[1] not in vars_allocated:
-                data_path.append(item)
-                vars_allocated[item[1]] = (int(item[2]), item[3])
-                if item[1] not in where_to_free:
-                    find_free_loc(item[1], split_lines, i)
-                cur_memory_size += int(item[2])
-                memory_needed = max(memory_needed, cur_memory_size)
-    print(data_path)
-    print("memory needed: ", memory_needed)
-    data = simulate(cfg, data_path, node_operations, hw.hw_allocated, True)
+    
+    data = simulate(cfg, node_operations, hw.hw_allocated, True)
     text = json.dumps(data, indent=4)
     names = sys.argv[1].split('/')
     with open(path + 'json_data/' + names[-1], 'w') as fh:

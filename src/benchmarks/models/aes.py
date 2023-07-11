@@ -706,4 +706,3 @@ if __name__ == "__main__" :
     aes = AES(1212304810341341)
     aes.encrypt(1212304810341341)
     end = time.time()
-    print(end-start)

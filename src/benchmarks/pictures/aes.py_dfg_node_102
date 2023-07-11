@@ -5,7 +5,6 @@ start = time.time()
 aes = AES(1212304810341341)
 aes.encrypt(1212304810341341)
 end = time.time()
-print(end - start)
 "]
 	552 [label="time.time()
 "]
@@ -30,15 +29,4 @@ Write"]
 	560 [label="end
 Write"]
 	559 -> 560
-	561 [label="print(end - start)
-"]
-	562 [label="end
-Read"]
-	563 [label="start
-Read"]
-	564 [label="-
-"]
-	562 -> 564
-	563 -> 564
-	564 -> 561
 }

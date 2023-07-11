@@ -60,13 +60,11 @@ start = time.time()
 aes = AES(1212304810341341)
 aes.encrypt(1212304810341341)
 end = time.time()
-print(end - start)
 "]
 	"102_calls" [label="time.time
 AES
 aes.encrypt
-time.time
-print" shape=box]
+time.time" shape=box]
 	102 -> "102_calls" [label=calls style=dashed]
 	1 -> 102 [label="__name__ == '__main__'"]
 	subgraph clusterxtime {
