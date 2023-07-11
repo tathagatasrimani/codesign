@@ -1,5 +1,5 @@
 digraph {
-	1016 [label="source code:
+	1012 [label="source code:
 u = xtime(xtime(s[i][0] ^ s[i][2]))
 v = xtime(xtime(s[i][1] ^ s[i][3]))
 s[i][0] ^= u
@@ -7,130 +7,130 @@ s[i][1] ^= v
 s[i][2] ^= u
 s[i][3] ^= v
 "]
-	1017 [label="xtime(xtime(s[i][0] ^ s[i][2]))
+	1013 [label="xtime(xtime(s[i][0] ^ s[i][2]))
 "]
-	1018 [label="xtime(s[i][0] ^ s[i][2])
+	1014 [label="xtime(s[i][0] ^ s[i][2])
 "]
-	1019 [label="s
+	1015 [label="s
 Read"]
-	1020 [label="s[i]
+	1016 [label="s[i]
+Read"]
+	1015 -> 1016
+	1017 [label="s[i][0]
+Read"]
+	1016 -> 1017
+	1018 [label="s
+Read"]
+	1019 [label="s[i]
+Read"]
+	1018 -> 1019
+	1020 [label="s[i][2]
 Read"]
 	1019 -> 1020
-	1021 [label="s[i][0]
-Read"]
+	1021 [label="^
+"]
+	1017 -> 1021
 	1020 -> 1021
-	1022 [label="s
-Read"]
-	1023 [label="s[i]
-Read"]
-	1022 -> 1023
-	1024 [label="s[i][2]
-Read"]
-	1023 -> 1024
-	1025 [label="^
-"]
-	1021 -> 1025
-	1024 -> 1025
-	1025 -> 1018
-	1018 -> 1017
-	1026 [label="u
+	1021 -> 1014
+	1014 -> 1013
+	1022 [label="u
 Write"]
-	1017 -> 1026
-	1027 [label="xtime(xtime(s[i][1] ^ s[i][3]))
+	1013 -> 1022
+	1023 [label="xtime(xtime(s[i][1] ^ s[i][3]))
 "]
-	1028 [label="xtime(s[i][1] ^ s[i][3])
+	1024 [label="xtime(s[i][1] ^ s[i][3])
 "]
-	1029 [label="s
+	1025 [label="s
 Read"]
-	1030 [label="s[i]
+	1026 [label="s[i]
+Read"]
+	1025 -> 1026
+	1027 [label="s[i][1]
+Read"]
+	1026 -> 1027
+	1028 [label="s
+Read"]
+	1029 [label="s[i]
+Read"]
+	1028 -> 1029
+	1030 [label="s[i][3]
 Read"]
 	1029 -> 1030
-	1031 [label="s[i][1]
-Read"]
+	1031 [label="^
+"]
+	1027 -> 1031
 	1030 -> 1031
-	1032 [label="s
+	1031 -> 1024
+	1024 -> 1023
+	1032 [label="v
+Write"]
+	1023 -> 1032
+	1033 [label="u
 Read"]
-	1033 [label="s[i]
+	1034 [label="s
 Read"]
-	1032 -> 1033
-	1034 [label="s[i][3]
-Read"]
-	1033 -> 1034
 	1035 [label="^
 "]
-	1031 -> 1035
+	1033 -> 1035
 	1034 -> 1035
-	1035 -> 1028
-	1028 -> 1027
-	1036 [label="v
+	1036 [label="s
+Read"]
+	1037 [label="s[i]
+Read"]
+	1036 -> 1037
+	1038 [label="s[i][0]
 Write"]
-	1027 -> 1036
-	1037 [label="u
+	1037 -> 1038
+	1035 -> 1038
+	1039 [label="v
 Read"]
-	1038 [label="s
-Read"]
-	1039 [label="^
-"]
-	1037 -> 1039
-	1038 -> 1039
 	1040 [label="s
 Read"]
-	1041 [label="s[i]
-Read"]
-	1040 -> 1041
-	1042 [label="s[i][0]
-Write"]
-	1041 -> 1042
-	1039 -> 1042
-	1043 [label="v
-Read"]
-	1044 [label="s
-Read"]
-	1045 [label="^
+	1041 [label="^
 "]
-	1043 -> 1045
-	1044 -> 1045
+	1039 -> 1041
+	1040 -> 1041
+	1042 [label="s
+Read"]
+	1043 [label="s[i]
+Read"]
+	1042 -> 1043
+	1044 [label="s[i][1]
+Write"]
+	1043 -> 1044
+	1041 -> 1044
+	1045 [label="u
+Read"]
 	1046 [label="s
 Read"]
-	1047 [label="s[i]
-Read"]
-	1046 -> 1047
-	1048 [label="s[i][1]
-Write"]
-	1047 -> 1048
-	1045 -> 1048
-	1049 [label="u
-Read"]
-	1050 [label="s
-Read"]
-	1051 [label="^
+	1047 [label="^
 "]
-	1049 -> 1051
-	1050 -> 1051
+	1045 -> 1047
+	1046 -> 1047
+	1048 [label="s
+Read"]
+	1049 [label="s[i]
+Read"]
+	1048 -> 1049
+	1050 [label="s[i][2]
+Write"]
+	1049 -> 1050
+	1047 -> 1050
+	1051 [label="v
+Read"]
 	1052 [label="s
 Read"]
-	1053 [label="s[i]
-Read"]
-	1052 -> 1053
-	1054 [label="s[i][2]
-Write"]
-	1053 -> 1054
-	1051 -> 1054
-	1055 [label="v
-Read"]
-	1056 [label="s
-Read"]
-	1057 [label="^
+	1053 [label="^
 "]
-	1055 -> 1057
-	1056 -> 1057
-	1058 [label="s
+	1051 -> 1053
+	1052 -> 1053
+	1054 [label="s
 Read"]
-	1059 [label="s[i]
+	1055 [label="s[i]
 Read"]
-	1058 -> 1059
-	1060 [label="s[i][3]
+	1054 -> 1055
+	1056 [label="s[i][3]
 Write"]
-	1059 -> 1060
-	1057 -> 1060
+	1055 -> 1056
+	1053 -> 1056
 }

@@ -1,31 +1,31 @@
 digraph {
-	753 [label="source code:
+	749 [label="source code:
 self.__sub_bytes(state_matrix)
 self.__shift_rows(state_matrix)
 self.__mix_columns(state_matrix)
 self.__add_round_key(state_matrix, key_matrix)
 "]
-	754 [label="self.__sub_bytes(state_matrix)
+	750 [label="self.__sub_bytes(state_matrix)
+"]
+	751 [label="state_matrix
+Read"]
+	751 -> 750
+	752 [label="self.__shift_rows(state_matrix)
+"]
+	753 [label="state_matrix
+Read"]
+	753 -> 752
+	754 [label="self.__mix_columns(state_matrix)
 "]
 	755 [label="state_matrix
 Read"]
 	755 -> 754
-	756 [label="self.__shift_rows(state_matrix)
+	756 [label="self.__add_round_key(state_matrix, key_matrix)
 "]
 	757 [label="state_matrix
 Read"]
 	757 -> 756
-	758 [label="self.__mix_columns(state_matrix)
-"]
-	759 [label="state_matrix
+	758 [label="key_matrix
 Read"]
-	759 -> 758
-	760 [label="self.__add_round_key(state_matrix, key_matrix)
-"]
-	761 [label="state_matrix
-Read"]
-	761 -> 760
-	762 [label="key_matrix
-Read"]
-	762 -> 760
+	758 -> 756
 }

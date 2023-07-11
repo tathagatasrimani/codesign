@@ -1,37 +1,37 @@
 digraph {
-	710 [label="source code:
+	706 [label="source code:
 self.cipher_state = text2matrix(ciphertext)
 self.__add_round_key(self.cipher_state, self.round_keys[40:])
 self.__inv_shift_rows(self.cipher_state)
 self.__inv_sub_bytes(self.cipher_state)
 "]
-	711 [label="text2matrix(ciphertext)
+	707 [label="text2matrix(ciphertext)
 "]
-	712 [label="ciphertext
+	708 [label="ciphertext
 Read"]
-	712 -> 711
-	713 [label="self.cipher_state
+	708 -> 707
+	709 [label="self.cipher_state
 Write"]
-	711 -> 713
-	714 [label="self.__add_round_key(self.cipher_state, self.round_keys[40:])
+	707 -> 709
+	710 [label="self.__add_round_key(self.cipher_state, self.round_keys[40:])
+"]
+	711 [label="self.cipher_state
+Read"]
+	711 -> 710
+	712 [label="self.round_keys
+Read"]
+	713 [label="self.round_keys[40:]
+Read"]
+	712 -> 713
+	713 -> 710
+	714 [label="self.__inv_shift_rows(self.cipher_state)
 "]
 	715 [label="self.cipher_state
 Read"]
 	715 -> 714
-	716 [label="self.round_keys
-Read"]
-	717 [label="self.round_keys[40:]
-Read"]
-	716 -> 717
-	717 -> 714
-	718 [label="self.__inv_shift_rows(self.cipher_state)
+	716 [label="self.__inv_sub_bytes(self.cipher_state)
 "]
-	719 [label="self.cipher_state
+	717 [label="self.cipher_state
 Read"]
-	719 -> 718
-	720 [label="self.__inv_sub_bytes(self.cipher_state)
-"]
-	721 [label="self.cipher_state
-Read"]
-	721 -> 720
+	717 -> 716
 }

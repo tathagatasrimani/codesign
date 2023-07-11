@@ -1,19 +1,19 @@
 digraph {
-	791 [label="source code:
+	787 [label="source code:
 s[i][j] = InvSbox[s[i][j]]
 "]
-	792 [label="InvSbox
+	788 [label="InvSbox
 Read"]
-	793 [label="InvSbox[s[i][j]]
+	789 [label="InvSbox[s[i][j]]
 Read"]
-	792 -> 793
-	794 [label="s
+	788 -> 789
+	790 [label="s
 Read"]
-	795 [label="s[i]
+	791 [label="s[i]
 Read"]
-	794 -> 795
-	796 [label="s[i][j]
+	790 -> 791
+	792 [label="s[i][j]
 Write"]
-	795 -> 796
-	793 -> 796
+	791 -> 792
+	789 -> 792
 }

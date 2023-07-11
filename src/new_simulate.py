@@ -33,12 +33,12 @@ def find_free_loc(var_name, split_lines, ind):
     where_to_free[var_name] = ind+1
     for i in range(ind+1, len(split_lines)):
         item = split_lines[i]
-        if len(item) == 3:
-            if item[0] == var_name: # can add condition item[2] == "Read" for extra optimization, choosing not to for now
-                if item[2] == "Read":
-                    where_to_free[var_name] = i+1
-                else:
-                    where_to_free[var_name] = i
+        if len(item) == 0: continue
+        if item[0] == var_name: # can add condition item[2] == "Read" for extra optimization, choosing not to for now
+            if item[-1] == "Read":
+                where_to_free[var_name] = i+1
+            else:
+                where_to_free[var_name] = i
 
 def func_calls(expr, calls):
     if type(expr) == ast.Call:

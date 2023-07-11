@@ -1,5 +1,5 @@
 digraph {
-	943 [label="source code:
+	939 [label="source code:
 t = a[0] ^ a[1] ^ a[2] ^ a[3]
 u = a[0]
 a[0] ^= t ^ xtime(a[0] ^ a[1])
@@ -7,184 +7,184 @@ a[1] ^= t ^ xtime(a[1] ^ a[2])
 a[2] ^= t ^ xtime(a[2] ^ a[3])
 a[3] ^= t ^ xtime(a[3] ^ u)
 "]
-	944 [label="a
+	940 [label="a
 Read"]
-	945 [label="a[0]
+	941 [label="a[0]
 Read"]
-	944 -> 945
-	946 [label="a
+	940 -> 941
+	942 [label="a
 Read"]
-	947 [label="a[1]
+	943 [label="a[1]
 Read"]
+	942 -> 943
+	944 [label="^
+"]
+	941 -> 944
+	943 -> 944
+	945 [label="a
+Read"]
+	946 [label="a[2]
+Read"]
+	945 -> 946
+	947 [label="^
+"]
+	944 -> 947
 	946 -> 947
-	948 [label="^
+	948 [label="a
+Read"]
+	949 [label="a[3]
+Read"]
+	948 -> 949
+	950 [label="^
 "]
-	945 -> 948
-	947 -> 948
-	949 [label="a
-Read"]
-	950 [label="a[2]
-Read"]
+	947 -> 950
 	949 -> 950
-	951 [label="^
-"]
-	948 -> 951
+	951 [label="t
+Write"]
 	950 -> 951
 	952 [label="a
 Read"]
-	953 [label="a[3]
+	953 [label="a[0]
 Read"]
 	952 -> 953
-	954 [label="^
-"]
-	951 -> 954
+	954 [label="u
+Write"]
 	953 -> 954
 	955 [label="t
-Write"]
-	954 -> 955
-	956 [label="a
 Read"]
-	957 [label="a[0]
-Read"]
-	956 -> 957
-	958 [label="u
-Write"]
-	957 -> 958
-	959 [label="t
-Read"]
-	960 [label="xtime(a[0] ^ a[1])
+	956 [label="xtime(a[0] ^ a[1])
 "]
-	961 [label="a
+	957 [label="a
 Read"]
-	962 [label="a[0]
+	958 [label="a[0]
 Read"]
-	961 -> 962
+	957 -> 958
+	959 [label="a
+Read"]
+	960 [label="a[1]
+Read"]
+	959 -> 960
+	961 [label="^
+"]
+	958 -> 961
+	960 -> 961
+	961 -> 956
+	962 [label="^
+"]
+	955 -> 962
+	956 -> 962
 	963 [label="a
 Read"]
-	964 [label="a[1]
-Read"]
+	964 [label="^
+"]
+	962 -> 964
 	963 -> 964
-	965 [label="^
-"]
-	962 -> 965
-	964 -> 965
-	965 -> 960
-	966 [label="^
-"]
-	959 -> 966
-	960 -> 966
-	967 [label="a
+	965 [label="a
 Read"]
-	968 [label="^
+	966 [label="a[0]
+Write"]
+	965 -> 966
+	964 -> 966
+	967 [label="t
+Read"]
+	968 [label="xtime(a[1] ^ a[2])
 "]
-	966 -> 968
-	967 -> 968
 	969 [label="a
 Read"]
-	970 [label="a[0]
-Write"]
+	970 [label="a[1]
+Read"]
 	969 -> 970
-	968 -> 970
-	971 [label="t
+	971 [label="a
 Read"]
-	972 [label="xtime(a[1] ^ a[2])
+	972 [label="a[2]
+Read"]
+	971 -> 972
+	973 [label="^
 "]
-	973 [label="a
-Read"]
-	974 [label="a[1]
-Read"]
-	973 -> 974
+	970 -> 973
+	972 -> 973
+	973 -> 968
+	974 [label="^
+"]
+	967 -> 974
+	968 -> 974
 	975 [label="a
 Read"]
-	976 [label="a[2]
-Read"]
+	976 [label="^
+"]
+	974 -> 976
 	975 -> 976
-	977 [label="^
-"]
-	974 -> 977
-	976 -> 977
-	977 -> 972
-	978 [label="^
-"]
-	971 -> 978
-	972 -> 978
-	979 [label="a
+	977 [label="a
 Read"]
-	980 [label="^
+	978 [label="a[1]
+Write"]
+	977 -> 978
+	976 -> 978
+	979 [label="t
+Read"]
+	980 [label="xtime(a[2] ^ a[3])
 "]
-	978 -> 980
-	979 -> 980
 	981 [label="a
 Read"]
-	982 [label="a[1]
-Write"]
+	982 [label="a[2]
+Read"]
 	981 -> 982
-	980 -> 982
-	983 [label="t
+	983 [label="a
 Read"]
-	984 [label="xtime(a[2] ^ a[3])
+	984 [label="a[3]
+Read"]
+	983 -> 984
+	985 [label="^
 "]
-	985 [label="a
-Read"]
-	986 [label="a[2]
-Read"]
-	985 -> 986
+	982 -> 985
+	984 -> 985
+	985 -> 980
+	986 [label="^
+"]
+	979 -> 986
+	980 -> 986
 	987 [label="a
 Read"]
-	988 [label="a[3]
-Read"]
+	988 [label="^
+"]
+	986 -> 988
 	987 -> 988
-	989 [label="^
-"]
-	986 -> 989
-	988 -> 989
-	989 -> 984
-	990 [label="^
-"]
-	983 -> 990
-	984 -> 990
-	991 [label="a
+	989 [label="a
 Read"]
-	992 [label="^
+	990 [label="a[2]
+Write"]
+	989 -> 990
+	988 -> 990
+	991 [label="t
+Read"]
+	992 [label="xtime(a[3] ^ u)
 "]
-	990 -> 992
-	991 -> 992
 	993 [label="a
 Read"]
-	994 [label="a[2]
-Write"]
+	994 [label="a[3]
+Read"]
 	993 -> 994
-	992 -> 994
-	995 [label="t
+	995 [label="u
 Read"]
-	996 [label="xtime(a[3] ^ u)
+	996 [label="^
 "]
-	997 [label="a
-Read"]
-	998 [label="a[3]
-Read"]
-	997 -> 998
-	999 [label="u
-Read"]
-	1000 [label="^
+	994 -> 996
+	995 -> 996
+	996 -> 992
+	997 [label="^
 "]
-	998 -> 1000
-	999 -> 1000
-	1000 -> 996
-	1001 [label="^
-"]
-	995 -> 1001
-	996 -> 1001
-	1002 [label="a
+	991 -> 997
+	992 -> 997
+	998 [label="a
 Read"]
-	1003 [label="^
+	999 [label="^
 "]
-	1001 -> 1003
-	1002 -> 1003
-	1004 [label="a
+	997 -> 999
+	998 -> 999
+	1000 [label="a
 Read"]
-	1005 [label="a[3]
+	1001 [label="a[3]
 Write"]
-	1004 -> 1005
-	1003 -> 1005
+	1000 -> 1001
+	999 -> 1001
 }

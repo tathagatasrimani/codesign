@@ -1,4 +1,4 @@
-from _ast import AugAssign, Subscript, arguments
+from _ast import Attribute, AugAssign, Subscript, arguments
 import ast
 from typing import Any
 import astor
@@ -6,6 +6,7 @@ import sys
 from staticfg.builder import CFGBuilder
 from ast_utils import ASTUtils
 from collections import deque
+import copy
 
 import os
 
@@ -47,10 +48,13 @@ class ProgramInstrumentor(ast.NodeTransformer):
         self.next_scope = 1
         self.var_scopes = {}
         self.valid_scopes = set()
-        self.dont_change_names = set(("__name__", "__main__", "loop", "range", "self"))
+        self.dont_change_names = set(("__name__", "__main__", "loop", "range", "self", "time", "np"))
 
     def add_preamble(self,stmt):
         self.preamble.append(stmt)
+
+    def get_name(self, name, scope):
+        return name + "__" + scope
 
     @staticmethod
     def mkblock(stmts):
@@ -76,7 +80,7 @@ class ProgramInstrumentor(ast.NodeTransformer):
         stmt1 = text_to_ast('print(\'malloc\', sys.getsizeof(' + var_name + '), \'' + node.id + '\')')
         new_line = ast.Name(node.id, ctx=ast.Load())
         return [self.visit(new_line), stmt1]
-
+    # so far only covering targets[0]
     def visit_Assign(self,node):
         if node.lineno not in lineno_to_node: return node
         node.targets = self.visit_Stmts(node.targets)
@@ -109,8 +113,14 @@ class ProgramInstrumentor(ast.NodeTransformer):
             new_line = ast.Name(node.target.id, ctx=ast.Load())
             block = [stmt1, node, text_to_ast('write_'), self.visit(new_line)]
         elif type(node.target) == ast.Subscript:
-            new_line = ast.Subscript(node.target.value, node.target.slice, ctx=ast.Load())
-            block = [stmt1, node, text_to_ast('write_'),self.visit(new_line)]
+            val = copy.deepcopy(node.target.value)
+            slice = copy.deepcopy(node.target.slice)
+            new_line = ast.Subscript(val, slice, ctx=ast.Load())
+            new_node = ast.AugAssign(node.target, node.op, node.value)
+            print(ast_to_text(new_node))
+            block = [stmt1, new_node, text_to_ast('write_'), self.visit(new_line)]
+            print(ast_to_text(new_node))
+            print(ast_to_text(ProgramInstrumentor.mkblock(block)))
         else:
             print("hello")
             block = [stmt1, node]
@@ -136,18 +146,18 @@ class ProgramInstrumentor(ast.NodeTransformer):
         scope = self.enter_and_exits()
         cur_scope = self.scope[-1]
         self.valid_scopes.add(cur_scope)
-        new_target = self.visit(node.target)
-        report("this is the new target: ", new_target)
-        self.visit(node.iter)
-        self.visit_Stmts(node.body)
-        self.visit_Stmts(node.orelse)
+        node.target = self.visit(node.target)
+        node.iter = self.visit(node.iter)
+        node.body = self.visit_Stmts(node.body)
+        node.orelse = self.visit_Stmts(node.orelse)
         self.valid_scopes.remove(cur_scope)
         self.clean_up_scope(cur_scope)
-        new_node = ast.For(target=new_target, iter=node.iter, body=node.body, orelse=node.orelse, type_comment=node.type_comment)
-        return ProgramInstrumentor.mkblock([scope[0], new_node, scope[1]])
+        return ProgramInstrumentor.mkblock([scope[0], node, scope[1]])
 
     def visit_Call(self,node):
         report("visiting function call",node)
+        node.args = self.visit_Stmts(node.args)
+        if type(node.func) == ast.Attribute: node.func = self.visit(node.func)
         return ProgramInstrumentor.mkblock([node])
 
     def visit_FunctionDef(self,node):
@@ -156,13 +166,13 @@ class ProgramInstrumentor(ast.NodeTransformer):
         scope = self.enter_and_exits()
         cur_scope = self.scope[-1]
         self.valid_scopes.add(cur_scope)
-        new_stmts = self.visit_Stmts(node.body)
-        self.visit_arguments(node.args)
+        node.args = self.visit_arguments(node.args)
+        node.body = self.visit_Stmts(node.body)
         self.valid_scopes.remove(cur_scope)
         self.clean_up_scope(cur_scope)
         report("visiting func def",node)
         stmt1 = text_to_ast('print(' + str(lineno_to_node[node.lineno]) + ',' + str(node.lineno) + ')')
-        new_body = [scope[0], stmt1] + new_stmts + [scope[1]]
+        new_body = [scope[0], stmt1] + node.body + [scope[1]]
         return ast.FunctionDef(node.name,args=node.args, body=new_body, \
                                decorator_list=node.decorator_list)
     
@@ -175,29 +185,29 @@ class ProgramInstrumentor(ast.NodeTransformer):
     def visit_arg(self, node):
         if node.arg not in self.var_scopes or len(self.var_scopes[node.arg]) == 0:
             self.var_scopes[node.arg] = deque([self.scope[-1]])
-        if node.arg not in self.dont_change_names: node.arg = node.arg + str(self.var_scopes[node.arg][-1])
+        if node.arg not in self.dont_change_names: node.arg = self.get_name(node.arg, str(self.var_scopes[node.arg][-1]))
         return node
 
     def visit_Name(self, node):
         report("visiting name", node)
         if node.id in self.dont_change_names: return node
-        while node.id[-1] >= '0' and node.id[-1] <= '9': node.id = node.id[:-1]
+        while (node.id[-1] >= '0' and node.id[-1] <= '9') or (node.id.endswith('_')): node.id = node.id[:-1]
         if (type(node.ctx) == ast.Store):
             if node.id not in self.var_scopes:
                 self.var_scopes[node.id] = deque([self.scope[-1]])
-                return ast.Name(id=node.id + str(self.scope[-1]), ctx=node.ctx)
+                return ast.Name(id=self.get_name(node.id, str(self.scope[-1])), ctx=node.ctx)
             else:
                 while len(self.var_scopes[node.id]) > 0 and self.var_scopes[node.id][-1] not in self.valid_scopes:
                     self.var_scopes[node.id].pop()
                 if len(self.var_scopes[node.id]) > 0:
-                    return ast.Name(id=node.id + str(self.var_scopes[node.id][-1]), ctx=node.ctx)
+                    return ast.Name(id=self.get_name(node.id, str(self.var_scopes[node.id][-1])), ctx=node.ctx)
                 else:
                     self.var_scopes[node.id] = deque([self.scope[-1]])
-                    return ast.Name(id=node.id + str(self.scope[-1]), ctx=node.ctx)
+                    return ast.Name(id=self.get_name(node.id, str(self.scope[-1])), ctx=node.ctx)
         else:
             if node.id not in self.var_scopes or len(self.var_scopes[node.id]) == 0:
                 self.var_scopes[node.id] = deque([self.scope[-1]])
-            node = ast.Name(id=node.id + str(self.var_scopes[node.id][-1]), ctx=node.ctx)
+            node = ast.Name(id=self.get_name(node.id, str(self.var_scopes[node.id][-1])), ctx=node.ctx)
             return ast.Call(ast.Name('instrument_read', ast.Load()), args=[ 
                                 node, 
                                 ast.Constant(node.id)
@@ -211,12 +221,25 @@ class ProgramInstrumentor(ast.NodeTransformer):
             node.slice = self.visit(node.slice)
             return node
         else:
-            new_node = self.visit(node.value)
-            new_slice = self.visit(node.slice)
+            node.value = self.visit(node.value)
+            node.slice = self.visit(node.slice)
             t = ast_to_text(node.value)
-            retval = ast.Call(ast.Name('instrument_read_sub', ast.Load()), args=[new_node, ast.Constant(t), new_slice], keywords=[])
+            lower, upper, is_slice = "None", "None", "False"
+            if type(node.slice) == ast.Slice:
+                if node.slice.lower: 
+                    lower = ast_to_text(node.slice.lower)[1:-1]
+                if node.slice.upper: 
+                    upper = ast_to_text(node.slice.upper)[1:-1]
+                is_slice = "True"
+                node.slice = ast.Name(id="None", ctx=ast.Load())
+            retval = ast.Call(ast.Name('instrument_read_sub', ast.Load()), args=[node.value, ast.Constant(t), node.slice, ast.Name(id=lower, ctx=ast.Load()), ast.Name(id=upper, ctx=ast.Load()), ast.Name(is_slice, ast.Load())], keywords=[])
             print(ast_to_text(retval))
             return retval
+        
+    def visit_Attribute(self, node: Attribute) -> Any:
+        report("visiting attribute", node)
+        node.value = self.visit(node.value)
+        return node
     
 
 def instrument_and_run(filepath:str):
