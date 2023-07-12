@@ -1,5 +1,6 @@
 digraph {
 	0 [label="source code:
+def main(a, b):...
 if __name__ == '__main__':
 "]
 	1 [label="__name__

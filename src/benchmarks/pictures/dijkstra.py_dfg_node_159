@@ -1,16 +1,16 @@
 digraph {
-	258 [label="source code:
-while len(unsureVertices) > 0:
+	268 [label="source code:
+path.append(current)
+current = current.parent
 "]
-	259 [label="len(unsureVertices)
+	269 [label="path.append(current)
 "]
-	260 [label="unsureVertices
+	270 [label="current
 Read"]
-	260 -> 259
-	261 [label=0
-]
-	262 [label=">
-"]
-	259 -> 262
-	261 -> 262
+	270 -> 269
+	271 [label="current.parent
+Read"]
+	272 [label="current
+Write"]
+	271 -> 272
 }

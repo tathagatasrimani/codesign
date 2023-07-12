@@ -1,5 +1,13 @@
 digraph {
-	172 [label="source code:
+	230 [label="source code:
 if quality > max_quality:
 "]
+	231 [label="quality
+Read"]
+	232 [label="max_quality
+Read"]
+	233 [label=">
+"]
+	231 -> 233
+	232 -> 233
 }

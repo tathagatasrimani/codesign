@@ -1,16 +1,7 @@
 digraph {
-	346 [label="source code:
-while len(unsureVertices) > 0:
+	359 [label="source code:
+for n in nVals:
 "]
-	347 [label="len(unsureVertices)
-"]
-	348 [label="unsureVertices
+	360 [label="nVals
 Read"]
-	348 -> 347
-	349 [label=0
-]
-	350 [label=">
-"]
-	347 -> 350
-	349 -> 350
 }

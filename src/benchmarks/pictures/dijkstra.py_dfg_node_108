@@ -1,30 +1,31 @@
 digraph {
-	93 [label="source code:
-ret += '\n'
-ret += '\t Edges:\n\t'
+	135 [label="source code:
+n = len(G.vertices)
+Ls = [[] for i in range(n)]
+Ls[0] = [w]
+w.status = 'visited'
 "]
-	94 [label="
-
+	136 [label="len(G.vertices)
 "]
-	95 [label="ret
+	137 [label="G.vertices
 Read"]
-	96 [label="+
-"]
-	94 -> 96
-	95 -> 96
-	97 [label="ret
+	137 -> 136
+	138 [label="n
 Write"]
-	96 -> 97
-	98 [label="	 Edges:
-	
-"]
-	99 [label="ret
+	136 -> 138
+	139 [label="Ls
+Write"]
+	140 [label="w
 Read"]
-	100 [label="+
-"]
-	98 -> 100
-	99 -> 100
-	101 [label="ret
+	141 [label="Ls
+Read"]
+	142 [label="Ls[0]
 Write"]
-	100 -> 101
+	141 -> 142
+	140 -> 142
+	143 [label=visited
+]
+	144 [label="w.status
+Write"]
+	143 -> 144
 }

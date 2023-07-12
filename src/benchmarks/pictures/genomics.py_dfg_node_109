@@ -1,5 +1,13 @@
 digraph {
-	298 [label="source code:
+	388 [label="source code:
 if diagonal_score >= left_score:
 "]
+	389 [label="diagonal_score
+Read"]
+	390 [label="left_score
+Read"]
+	391 [label=">=
+"]
+	389 -> 391
+	390 -> 391
 }

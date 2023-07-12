@@ -1,17 +1,25 @@
 digraph {
-	164 [label="source code:
+	213 [label="source code:
 quality = fastq_dict[key][0]
 if min_quality > 0:
 "]
-	165 [label="fastq_dict
+	214 [label="fastq_dict
 Read"]
-	166 [label="fastq_dict[key]
+	215 [label="fastq_dict[key]
 Read"]
-	165 -> 166
-	167 [label="fastq_dict[key][0]
+	214 -> 215
+	216 [label="fastq_dict[key][0]
 Read"]
-	166 -> 167
-	168 [label="quality
+	215 -> 216
+	217 [label="quality
 Write"]
-	167 -> 168
+	216 -> 217
+	218 [label="min_quality
+Read"]
+	219 [label=0
+]
+	220 [label=">
+"]
+	218 -> 220
+	219 -> 220
 }

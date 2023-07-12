@@ -1,5 +1,19 @@
 digraph {
-	353 [label="source code:
+	466 [label="source code:
 if scoring_matrix[i][j] >= max_score:
 "]
+	467 [label="scoring_matrix
+Read"]
+	468 [label="scoring_matrix[i]
+Read"]
+	467 -> 468
+	469 [label="scoring_matrix[i][j]
+Read"]
+	468 -> 469
+	470 [label="max_score
+Read"]
+	471 [label=">=
+"]
+	469 -> 471
+	470 -> 471
 }

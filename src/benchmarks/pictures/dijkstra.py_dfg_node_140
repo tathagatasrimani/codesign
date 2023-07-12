@@ -1,22 +1,13 @@
 digraph {
-	211 [label="source code:
-v.status = 'visited'
-v.parent = u
-Ls[i + 1].append(v)
+	221 [label="source code:
+if u == None:
 "]
-	212 [label=visited
+	222 [label="u
+Read"]
+	223 [label=None
 ]
-	213 [label="v.status
-Write"]
-	212 -> 213
-	214 [label="u
-Read"]
-	215 [label="v.parent
-Write"]
-	214 -> 215
-	216 [label="Ls[i + 1].append(v)
+	224 [label="==
 "]
-	217 [label="v
-Read"]
-	217 -> 216
+	222 -> 224
+	223 -> 224
 }

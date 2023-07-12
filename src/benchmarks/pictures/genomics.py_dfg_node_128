@@ -1,5 +1,19 @@
 digraph {
-	308 [label="source code:
+	410 [label="source code:
 if traceback_matrix[i][j] == 'U':
 "]
+	411 [label="traceback_matrix
+Read"]
+	412 [label="traceback_matrix[i]
+Read"]
+	411 -> 412
+	413 [label="traceback_matrix[i][j]
+Read"]
+	412 -> 413
+	414 [label=U
+]
+	415 [label="==
+"]
+	413 -> 415
+	414 -> 415
 }

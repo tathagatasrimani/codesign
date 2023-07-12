@@ -1,16 +1,13 @@
 digraph {
-	263 [label="source code:
-u = None
-minD = math.inf
+	273 [label="source code:
+path.append(current)
+path.reverse()
 "]
-	264 [label=None
-]
-	265 [label="u
-Write"]
-	264 -> 265
-	266 [label="math.inf
+	274 [label="path.append(current)
+"]
+	275 [label="current
 Read"]
-	267 [label="minD
-Write"]
-	266 -> 267
+	275 -> 274
+	276 [label="path.reverse()
+"]
 }

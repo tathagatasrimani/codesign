@@ -1,0 +1,22 @@
+digraph {
+	242 [label="source code:
+v.estD = u.estD + wt
+v.parent = u
+"]
+	243 [label="u.estD
+Read"]
+	244 [label="wt
+Read"]
+	245 [label="+
+"]
+	243 -> 245
+	244 -> 245
+	246 [label="v.estD
+Write"]
+	245 -> 246
+	247 [label="u
+Read"]
+	248 [label="v.parent
+Write"]
+	247 -> 248
+}

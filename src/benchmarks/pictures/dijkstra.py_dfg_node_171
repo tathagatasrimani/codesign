@@ -1,10 +1,5 @@
 digraph {
-	292 [label="source code:
-unsureVertices.remove(u)
+	305 [label="source code:
+return
 "]
-	293 [label="unsureVertices.remove(u)
-"]
-	294 [label="u
-Read"]
-	294 -> 293
 }

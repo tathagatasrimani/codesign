@@ -1,14 +1,22 @@
 digraph {
-	44 [label="source code:
+	50 [label="source code:
 active_sequence_name = line[1:]
 if active_sequence_name not in fastq_dict:
 "]
-	45 [label="line
+	51 [label="line
 Read"]
-	46 [label="line[1:]
+	52 [label="line[1:]
 Read"]
-	45 -> 46
-	47 [label="active_sequence_name
+	51 -> 52
+	53 [label="active_sequence_name
 Write"]
-	46 -> 47
+	52 -> 53
+	54 [label="active_sequence_name
+Read"]
+	55 [label="fastq_dict
+Read"]
+	56 [label="==
+"]
+	54 -> 56
+	55 -> 56
 }

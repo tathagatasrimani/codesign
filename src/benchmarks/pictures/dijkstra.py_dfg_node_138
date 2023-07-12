@@ -1,13 +1,7 @@
 digraph {
-	207 [label="source code:
-if v.status == 'unvisited':
+	215 [label="source code:
+for x in unsureVertices:
 "]
-	208 [label="v.status
+	216 [label="unsureVertices
 Read"]
-	209 [label=unvisited
-]
-	210 [label="==
-"]
-	208 -> 210
-	209 -> 210
 }

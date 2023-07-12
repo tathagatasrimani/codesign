@@ -1,7 +1,16 @@
 digraph {
-	284 [label="source code:
-for v, wt in u.getOutNeighborsWithWeights():
+	293 [label="source code:
+while len(unsureVertices) > 0:
 "]
-	285 [label="u.getOutNeighborsWithWeights()
+	294 [label="len(unsureVertices)
 "]
+	295 [label="unsureVertices
+Read"]
+	295 -> 294
+	296 [label=0
+]
+	297 [label=">
+"]
+	294 -> 297
+	296 -> 297
 }

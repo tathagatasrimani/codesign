@@ -1,7 +1,13 @@
 digraph {
-	147 [label="source code:
-for v in self.vertices:
+	118 [label="source code:
+if v != w:
 "]
-	148 [label="self.vertices
+	119 [label="v
 Read"]
+	120 [label="w
+Read"]
+	121 [label="!=
+"]
+	119 -> 121
+	120 -> 121
 }

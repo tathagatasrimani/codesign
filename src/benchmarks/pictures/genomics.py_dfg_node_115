@@ -1,28 +1,28 @@
 digraph {
-	309 [label="source code:
+	416 [label="source code:
 scoring_matrix[i][j] = diagonal_score
 traceback_matrix[i][j] = 'D'
 "]
-	310 [label="diagonal_score
+	417 [label="diagonal_score
 Read"]
-	311 [label="scoring_matrix
+	418 [label="scoring_matrix
 Read"]
-	312 [label="scoring_matrix[i]
+	419 [label="scoring_matrix[i]
 Read"]
-	311 -> 312
-	313 [label="scoring_matrix[i][j]
+	418 -> 419
+	420 [label="scoring_matrix[i][j]
 Write"]
-	312 -> 313
-	310 -> 313
-	314 [label=D
+	419 -> 420
+	417 -> 420
+	421 [label=D
 ]
-	315 [label="traceback_matrix
+	422 [label="traceback_matrix
 Read"]
-	316 [label="traceback_matrix[i]
+	423 [label="traceback_matrix[i]
 Read"]
-	315 -> 316
-	317 [label="traceback_matrix[i][j]
+	422 -> 423
+	424 [label="traceback_matrix[i][j]
 Write"]
-	316 -> 317
-	314 -> 317
+	423 -> 424
+	421 -> 424
 }

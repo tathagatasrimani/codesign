@@ -1,16 +1,16 @@
 digraph {
-	30 [label="source code:
+	36 [label="source code:
 \"\"\"
     Reads a fastq file and returns a dictionary with sequence
     number as keys and sequence code as values
     \"\"\"
 fastq_dict = {}
 "]
-	31 [label="
+	37 [label="
     Reads a fastq file and returns a dictionary with sequence
     number as keys and sequence code as values
     
 "]
-	32 [label="fastq_dict
+	38 [label="fastq_dict
 Write"]
 }

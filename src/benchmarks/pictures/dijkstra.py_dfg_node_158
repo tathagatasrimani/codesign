@@ -1,19 +1,13 @@
 digraph {
-	252 [label="source code:
-w.estD = 0
-unsureVertices = G.vertices[:]
+	264 [label="source code:
+while current != w:
 "]
-	253 [label=0
-]
-	254 [label="w.estD
-Write"]
-	253 -> 254
-	255 [label="G.vertices
+	265 [label="current
 Read"]
-	256 [label="G.vertices[:]
+	266 [label="w
 Read"]
-	255 -> 256
-	257 [label="unsureVertices
-Write"]
-	256 -> 257
+	267 [label="!=
+"]
+	265 -> 267
+	266 -> 267
 }

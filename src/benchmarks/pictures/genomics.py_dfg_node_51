@@ -1,5 +1,5 @@
 digraph {
-	109 [label="source code:
+	124 [label="source code:
 \"\"\"
     DARWIN-Whole Genome Alignment workflow
     \"\"\"
@@ -10,70 +10,70 @@ filtered_fasta_dict = filter_fasta(fasta_dict, min_length, max_length,
 filtered_fastq_dict = filter_fastq(fastq_dict, min_quality, max_quality)
 write_output(filtered_fasta_dict, filtered_fastq_dict, output_file)
 "]
-	110 [label="
+	125 [label="
     DARWIN-Whole Genome Alignment workflow
     
 "]
-	111 [label="read_fasta(fasta_file)
+	126 [label="read_fasta(fasta_file)
 "]
-	112 [label="fasta_file
+	127 [label="fasta_file
 Read"]
-	112 -> 111
-	113 [label="fasta_dict
+	127 -> 126
+	128 [label="fasta_dict
 Write"]
-	111 -> 113
-	114 [label="read_fastq(fastq_file)
+	126 -> 128
+	129 [label="read_fastq(fastq_file)
 "]
-	115 [label="fastq_file
-Read"]
-	115 -> 114
-	116 [label="fastq_dict
-Write"]
-	114 -> 116
-	117 [label="filter_fasta(fasta_dict, min_length, max_length, min_length_fraction,
-    max_length_fraction)
-"]
-	118 [label="fasta_dict
-Read"]
-	118 -> 117
-	119 [label="min_length
-Read"]
-	119 -> 117
-	120 [label="max_length
-Read"]
-	120 -> 117
-	121 [label="min_length_fraction
-Read"]
-	121 -> 117
-	122 [label="max_length_fraction
-Read"]
-	122 -> 117
-	123 [label="filtered_fasta_dict
-Write"]
-	117 -> 123
-	124 [label="filter_fastq(fastq_dict, min_quality, max_quality)
-"]
-	125 [label="fastq_dict
-Read"]
-	125 -> 124
-	126 [label="min_quality
-Read"]
-	126 -> 124
-	127 [label="max_quality
-Read"]
-	127 -> 124
-	128 [label="filtered_fastq_dict
-Write"]
-	124 -> 128
-	129 [label="write_output(filtered_fasta_dict, filtered_fastq_dict, output_file)
-"]
-	130 [label="filtered_fasta_dict
+	130 [label="fastq_file
 Read"]
 	130 -> 129
-	131 [label="filtered_fastq_dict
+	131 [label="fastq_dict
+Write"]
+	129 -> 131
+	132 [label="filter_fasta(fasta_dict, min_length, max_length, min_length_fraction,
+    max_length_fraction)
+"]
+	133 [label="fasta_dict
 Read"]
-	131 -> 129
-	132 [label="output_file
+	133 -> 132
+	134 [label="min_length
 Read"]
-	132 -> 129
+	134 -> 132
+	135 [label="max_length
+Read"]
+	135 -> 132
+	136 [label="min_length_fraction
+Read"]
+	136 -> 132
+	137 [label="max_length_fraction
+Read"]
+	137 -> 132
+	138 [label="filtered_fasta_dict
+Write"]
+	132 -> 138
+	139 [label="filter_fastq(fastq_dict, min_quality, max_quality)
+"]
+	140 [label="fastq_dict
+Read"]
+	140 -> 139
+	141 [label="min_quality
+Read"]
+	141 -> 139
+	142 [label="max_quality
+Read"]
+	142 -> 139
+	143 [label="filtered_fastq_dict
+Write"]
+	139 -> 143
+	144 [label="write_output(filtered_fasta_dict, filtered_fastq_dict, output_file)
+"]
+	145 [label="filtered_fasta_dict
+Read"]
+	145 -> 144
+	146 [label="filtered_fastq_dict
+Read"]
+	146 -> 144
+	147 [label="output_file
+Read"]
+	147 -> 144
 }

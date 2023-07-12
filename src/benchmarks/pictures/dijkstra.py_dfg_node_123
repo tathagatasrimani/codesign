@@ -1,13 +1,10 @@
 digraph {
-	175 [label="source code:
-if random() < p:
+	174 [label="source code:
+for w in Ls[i]:
 "]
-	176 [label="random()
-"]
-	177 [label="p
+	175 [label="Ls
 Read"]
-	178 [label="<
-"]
-	176 -> 178
-	177 -> 178
+	176 [label="Ls[i]
+Read"]
+	175 -> 176
 }

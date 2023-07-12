@@ -1,22 +1,10 @@
 digraph {
-	137 [label="source code:
-self.addDiEdge(u, v, wt=wt)
-self.addDiEdge(v, u, wt=wt)
+	110 [label="source code:
+G.addVertex(v)
 "]
-	138 [label="self.addDiEdge(u, v, wt=wt)
+	111 [label="G.addVertex(v)
 "]
-	139 [label="u
+	112 [label="v
 Read"]
-	139 -> 138
-	140 [label="v
-Read"]
-	140 -> 138
-	141 [label="self.addDiEdge(v, u, wt=wt)
-"]
-	142 [label="v
-Read"]
-	142 -> 141
-	143 [label="u
-Read"]
-	143 -> 141
+	112 -> 111
 }

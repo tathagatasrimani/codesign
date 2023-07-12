@@ -1,0 +1,13 @@
+digraph {
+	154 [label="source code:
+if v.status == 'unvisited':
+"]
+	155 [label="v.status
+Read"]
+	156 [label=unvisited
+]
+	157 [label="==
+"]
+	155 -> 157
+	156 -> 157
+}

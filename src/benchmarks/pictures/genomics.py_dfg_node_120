@@ -1,5 +1,19 @@
 digraph {
-	256 [label="source code:
+	320 [label="source code:
 while traceback_matrix[i][j] != None:
 "]
+	321 [label="traceback_matrix
+Read"]
+	322 [label="traceback_matrix[i]
+Read"]
+	321 -> 322
+	323 [label="traceback_matrix[i][j]
+Read"]
+	322 -> 323
+	324 [label=None
+]
+	325 [label="!=
+"]
+	323 -> 325
+	324 -> 325
 }

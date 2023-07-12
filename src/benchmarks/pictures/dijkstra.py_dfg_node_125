@@ -1,13 +1,16 @@
 digraph {
-	179 [label="source code:
-G.addDiEdge(v, w, wt=choice(wts))
+	177 [label="source code:
+path = []
+current = w
 "]
-	180 [label="G.addDiEdge(v, w, wt=choice(wts))
+	178 [label="[]
 "]
-	181 [label="v
+	179 [label="path
+Write"]
+	178 -> 179
+	180 [label="w
 Read"]
-	181 -> 180
-	182 [label="w
-Read"]
-	182 -> 180
+	181 [label="current
+Write"]
+	180 -> 181
 }

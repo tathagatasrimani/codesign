@@ -1,7 +1,16 @@
 digraph {
-	205 [label="source code:
-for v in u.getOutNeighbors():
+	210 [label="source code:
+u = None
+minD = math.inf
 "]
-	206 [label="u.getOutNeighbors()
-"]
+	211 [label=None
+]
+	212 [label="u
+Write"]
+	211 -> 212
+	213 [label="math.inf
+Read"]
+	214 [label="minD
+Write"]
+	213 -> 214
 }

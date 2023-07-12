@@ -1,13 +1,37 @@
 digraph {
-	302 [label="source code:
-dijkstraDumb(w, G)
+	314 [label="source code:
+v.estD = u.estD + wt
+unsureVertices[v] = u.estD + wt
+v.parent = u
 "]
-	303 [label="dijkstraDumb(w, G)
+	315 [label="u.estD
+Read"]
+	316 [label="wt
+Read"]
+	317 [label="+
 "]
-	304 [label="w
+	315 -> 317
+	316 -> 317
+	318 [label="v.estD
+Write"]
+	317 -> 318
+	319 [label="u.estD
 Read"]
-	304 -> 303
-	305 [label="G
+	320 [label="wt
 Read"]
-	305 -> 303
+	321 [label="+
+"]
+	319 -> 321
+	320 -> 321
+	322 [label="unsureVertices
+Read"]
+	323 [label="unsureVertices[v]
+Write"]
+	322 -> 323
+	321 -> 323
+	324 [label="u
+Read"]
+	325 [label="v.parent
+Write"]
+	324 -> 325
 }

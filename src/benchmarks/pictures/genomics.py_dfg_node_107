@@ -1,41 +1,49 @@
 digraph {
-	273 [label="source code:
+	347 [label="source code:
 up_score = scoring_matrix[i - 1][j] + gap_score
 left_score = scoring_matrix[i][j - 1] + gap_score
 if diagonal_score >= up_score:
 "]
-	274 [label="scoring_matrix
+	348 [label="scoring_matrix
 Read"]
-	275 [label="scoring_matrix[i - 1]
+	349 [label="scoring_matrix[i - 1]
 Read"]
-	274 -> 275
-	276 [label="scoring_matrix[i - 1][j]
+	348 -> 349
+	350 [label="scoring_matrix[i - 1][j]
 Read"]
-	275 -> 276
-	277 [label="gap_score
+	349 -> 350
+	351 [label="gap_score
 Read"]
-	278 [label="+
+	352 [label="+
 "]
-	276 -> 278
-	277 -> 278
-	279 [label="up_score
+	350 -> 352
+	351 -> 352
+	353 [label="up_score
 Write"]
-	278 -> 279
-	280 [label="scoring_matrix
+	352 -> 353
+	354 [label="scoring_matrix
 Read"]
-	281 [label="scoring_matrix[i]
+	355 [label="scoring_matrix[i]
 Read"]
-	280 -> 281
-	282 [label="scoring_matrix[i][j - 1]
+	354 -> 355
+	356 [label="scoring_matrix[i][j - 1]
 Read"]
-	281 -> 282
-	283 [label="gap_score
+	355 -> 356
+	357 [label="gap_score
 Read"]
-	284 [label="+
+	358 [label="+
 "]
-	282 -> 284
-	283 -> 284
-	285 [label="left_score
+	356 -> 358
+	357 -> 358
+	359 [label="left_score
 Write"]
-	284 -> 285
+	358 -> 359
+	360 [label="diagonal_score
+Read"]
+	361 [label="up_score
+Read"]
+	362 [label=">=
+"]
+	360 -> 362
+	361 -> 362
 }

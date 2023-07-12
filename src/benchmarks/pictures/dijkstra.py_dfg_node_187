@@ -1,7 +1,16 @@
 digraph {
-	330 [label="source code:
-for v in G.vertices:
+	345 [label="source code:
+path.append(current)
+current = current.parent
 "]
-	331 [label="G.vertices
+	346 [label="path.append(current)
+"]
+	347 [label="current
 Read"]
+	347 -> 346
+	348 [label="current.parent
+Read"]
+	349 [label="current
+Write"]
+	348 -> 349
 }

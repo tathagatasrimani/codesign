@@ -1,14 +1,14 @@
 digraph {
-	159 [label="source code:
+	208 [label="source code:
 \"\"\"
     Filters a fastq dictionary by quality
     \"\"\"
 filtered_fastq_dict = {}
 "]
-	160 [label="
+	209 [label="
     Filters a fastq dictionary by quality
     
 "]
-	161 [label="filtered_fastq_dict
+	210 [label="filtered_fastq_dict
 Write"]
 }

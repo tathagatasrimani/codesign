@@ -1,10 +1,19 @@
 digraph {
-	201 [label="source code:
-for u in Ls[i]:
+	199 [label="source code:
+w.estD = 0
+unsureVertices = G.vertices[:]
 "]
-	202 [label="Ls
+	200 [label=0
+]
+	201 [label="w.estD
+Write"]
+	200 -> 201
+	202 [label="G.vertices
 Read"]
-	203 [label="Ls[i]
+	203 [label="G.vertices[:]
 Read"]
 	202 -> 203
+	204 [label="unsureVertices
+Write"]
+	203 -> 204
 }

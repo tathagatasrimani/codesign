@@ -1,7 +1,7 @@
 digraph {
-	83 [label="source code:
-for v in self.vertices:
+	130 [label="source code:
+for v in G.vertices:
 "]
-	84 [label="self.vertices
+	131 [label="G.vertices
 Read"]
 }

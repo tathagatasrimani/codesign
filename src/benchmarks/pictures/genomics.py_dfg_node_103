@@ -1,28 +1,28 @@
 digraph {
-	240 [label="source code:
+	301 [label="source code:
 i = max_pos
 j = max_pos
 aln1 = ''
 aln2 = ''
 "]
-	241 [label="max_pos
+	302 [label="max_pos
 Read"]
-	242 [label="i
+	303 [label="i
 Write"]
-	241 -> 242
-	243 [label="max_pos
+	302 -> 303
+	304 [label="max_pos
 Read"]
-	244 [label="j
+	305 [label="j
 Write"]
-	243 -> 244
-	245 [label="
+	304 -> 305
+	306 [label="
 "]
-	246 [label="aln1
+	307 [label="aln1
 Write"]
-	245 -> 246
-	247 [label="
+	306 -> 307
+	308 [label="
 "]
-	248 [label="aln2
+	309 [label="aln2
 Write"]
-	247 -> 248
+	308 -> 309
 }

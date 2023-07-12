@@ -1,13 +1,13 @@
 digraph {
-	26 [label="source code:
+	32 [label="source code:
 fasta_dict[active_sequence_name] = []
 "]
-	27 [label="[]
+	33 [label="[]
 "]
-	28 [label="fasta_dict
+	34 [label="fasta_dict
 Read"]
-	29 [label="fasta_dict[active_sequence_name]
+	35 [label="fasta_dict[active_sequence_name]
 Write"]
-	28 -> 29
-	27 -> 29
+	34 -> 35
+	33 -> 35
 }

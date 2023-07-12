@@ -1,68 +1,68 @@
 digraph {
-	197 [label="source code:
+	258 [label="source code:
 f.write('@' + key + '\n')
 f.write(filtered_fastq_dict[key][0] + '\n')
 f.write('+\n')
 f.write(filtered_fastq_dict[key][1] + '\n')
 "]
-	198 [label="f.write('@' + key + '\n')
+	259 [label="f.write('@' + key + '\n')
 "]
-	199 [label="@
+	260 [label="@
 "]
-	200 [label="key
+	261 [label="key
 Read"]
-	201 [label="+
+	262 [label="+
 "]
-	199 -> 201
-	200 -> 201
-	202 [label="
+	260 -> 262
+	261 -> 262
+	263 [label="
 
 "]
-	203 [label="+
+	264 [label="+
 "]
-	201 -> 203
-	202 -> 203
-	203 -> 198
-	204 [label="f.write(filtered_fastq_dict[key][0] + '\n')
+	262 -> 264
+	263 -> 264
+	264 -> 259
+	265 [label="f.write(filtered_fastq_dict[key][0] + '\n')
 "]
-	205 [label="filtered_fastq_dict
+	266 [label="filtered_fastq_dict
 Read"]
-	206 [label="filtered_fastq_dict[key]
+	267 [label="filtered_fastq_dict[key]
 Read"]
-	205 -> 206
-	207 [label="filtered_fastq_dict[key][0]
+	266 -> 267
+	268 [label="filtered_fastq_dict[key][0]
 Read"]
-	206 -> 207
-	208 [label="
+	267 -> 268
+	269 [label="
 
 "]
-	209 [label="+
+	270 [label="+
 "]
-	207 -> 209
-	208 -> 209
-	209 -> 204
-	210 [label="f.write('+\n')
+	268 -> 270
+	269 -> 270
+	270 -> 265
+	271 [label="f.write('+\n')
 "]
-	211 [label="+
+	272 [label="+
 
 "]
-	211 -> 210
-	212 [label="f.write(filtered_fastq_dict[key][1] + '\n')
+	272 -> 271
+	273 [label="f.write(filtered_fastq_dict[key][1] + '\n')
 "]
-	213 [label="filtered_fastq_dict
+	274 [label="filtered_fastq_dict
 Read"]
-	214 [label="filtered_fastq_dict[key]
+	275 [label="filtered_fastq_dict[key]
 Read"]
-	213 -> 214
-	215 [label="filtered_fastq_dict[key][1]
+	274 -> 275
+	276 [label="filtered_fastq_dict[key][1]
 Read"]
-	214 -> 215
-	216 [label="
+	275 -> 276
+	277 [label="
 
 "]
-	217 [label="+
+	278 [label="+
 "]
-	215 -> 217
-	216 -> 217
-	217 -> 212
+	276 -> 278
+	277 -> 278
+	278 -> 273
 }

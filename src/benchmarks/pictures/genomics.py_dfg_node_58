@@ -1,5 +1,28 @@
 digraph {
-	147 [label="source code:
+	165 [label="source code:
 if length < min_length_fraction * len(fasta_dict[key][0]):
 "]
+	166 [label="length
+Read"]
+	167 [label="min_length_fraction
+Read"]
+	168 [label="len(fasta_dict[key][0])
+"]
+	169 [label="fasta_dict
+Read"]
+	170 [label="fasta_dict[key]
+Read"]
+	169 -> 170
+	171 [label="fasta_dict[key][0]
+Read"]
+	170 -> 171
+	171 -> 168
+	172 [label="*
+"]
+	167 -> 172
+	168 -> 172
+	173 [label="<
+"]
+	166 -> 173
+	172 -> 173
 }

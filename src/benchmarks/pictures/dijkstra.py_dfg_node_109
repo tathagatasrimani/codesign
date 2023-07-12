@@ -1,7 +1,10 @@
 digraph {
-	102 [label="source code:
-for a, b, wt in self.getDirEdges():
+	145 [label="source code:
+for i in range(n):
 "]
-	103 [label="self.getDirEdges()
+	146 [label="range(n)
 "]
+	147 [label="n
+Read"]
+	147 -> 146
 }

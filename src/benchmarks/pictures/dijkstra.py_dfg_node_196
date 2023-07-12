@@ -1,7 +1,67 @@
 digraph {
-	359 [label="source code:
-for v, wt in u.getOutNeighborsWithWeights():
+	368 [label="source code:
+G = randomGraph(n, pFn(n))
+start = time.time()
+myFn(G.vertices[0], G)
+end = time.time()
+runtime += (end - start) * 1000
 "]
-	360 [label="u.getOutNeighborsWithWeights()
+	369 [label="randomGraph(n, pFn(n))
 "]
+	370 [label="n
+Read"]
+	370 -> 369
+	371 [label="pFn(n)
+"]
+	372 [label="n
+Read"]
+	372 -> 371
+	371 -> 369
+	373 [label="G
+Write"]
+	369 -> 373
+	374 [label="time.time()
+"]
+	375 [label="start
+Write"]
+	374 -> 375
+	376 [label="myFn(G.vertices[0], G)
+"]
+	377 [label="G.vertices
+Read"]
+	378 [label="G.vertices[0]
+Read"]
+	377 -> 378
+	378 -> 376
+	379 [label="G
+Read"]
+	379 -> 376
+	380 [label="time.time()
+"]
+	381 [label="end
+Write"]
+	380 -> 381
+	382 [label="end
+Read"]
+	383 [label="start
+Read"]
+	384 [label="-
+"]
+	382 -> 384
+	383 -> 384
+	385 [label=1000
+]
+	386 [label="*
+"]
+	384 -> 386
+	385 -> 386
+	387 [label="runtime
+Read"]
+	388 [label="+
+"]
+	386 -> 388
+	387 -> 388
+	389 [label="runtime
+Write"]
+	388 -> 389
 }

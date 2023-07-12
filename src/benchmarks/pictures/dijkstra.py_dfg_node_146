@@ -1,13 +1,19 @@
 digraph {
-	223 [label="source code:
-for i in range(len(Ls)):
+	233 [label="source code:
+if u.estD + wt < v.estD:
 "]
-	224 [label="range(len(Ls))
-"]
-	225 [label="len(Ls)
-"]
-	226 [label="Ls
+	234 [label="u.estD
 Read"]
-	226 -> 225
-	225 -> 224
+	235 [label="wt
+Read"]
+	236 [label="+
+"]
+	234 -> 236
+	235 -> 236
+	237 [label="v.estD
+Read"]
+	238 [label="<
+"]
+	236 -> 238
+	237 -> 238
 }

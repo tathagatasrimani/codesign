@@ -1,0 +1,22 @@
+digraph {
+	298 [label="source code:
+u, dist = unsureVertices.popitem()
+if u.estD == math.inf:
+"]
+	299 [label="unsureVertices.popitem()
+"]
+	300 [label="u
+Write"]
+	301 [label="dist
+Write"]
+	299 -> 300
+	299 -> 301
+	302 [label="u.estD
+Read"]
+	303 [label="math.inf
+Read"]
+	304 [label="==
+"]
+	302 -> 304
+	303 -> 304
+}

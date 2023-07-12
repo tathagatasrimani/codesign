@@ -1,16 +1,16 @@
 digraph {
-	48 [label="source code:
+	57 [label="source code:
 sequence = line
 fastq_dict[active_sequence_name].append(sequence)
 "]
-	49 [label="line
+	58 [label="line
 Read"]
-	50 [label="sequence
+	59 [label="sequence
 Write"]
-	49 -> 50
-	51 [label="fastq_dict[active_sequence_name].append(sequence)
+	58 -> 59
+	60 [label="fastq_dict[active_sequence_name].append(sequence)
 "]
-	52 [label="sequence
+	61 [label="sequence
 Read"]
-	52 -> 51
+	61 -> 60
 }

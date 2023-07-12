@@ -1,5 +1,7 @@
 import sys
 from instrument_lib import *
+import sys
+from instrument_lib import *
 print(1, 1)
 Sbox__0 = (99, 124, 119, 123, 242, 107, 111, 197, 48, 1, 103, 43, 254, 215,
     171, 118, 202, 130, 201, 125, 250, 89, 71, 240, 173, 212, 162, 175, 156,
@@ -42,9 +44,13 @@ write_instrument_read(InvSbox__0, 'InvSbox__0')
 print('malloc', sys.getsizeof(InvSbox__0), 'InvSbox__0')
 
 
-def xtime(a__1):
+def xtime(a):
     print('enter scope 1')
     print(1, 521)
+    a__1 = instrument_read(a, 'a')
+    write_instrument_read(a__1, 'a__1')
+    print('malloc', sys.getsizeof(a__1), 'a__1')
+    print('exit scope 1')
     return (instrument_read(a__1, 'a__1') << 1 ^ 27) & 255 if instrument_read(
         a__1, 'a__1') & 128 else instrument_read(a__1, 'a__1') << 1
     print('exit scope 1')
@@ -57,465 +63,534 @@ write_instrument_read(Rcon__0, 'Rcon__0')
 print('malloc', sys.getsizeof(Rcon__0), 'Rcon__0')
 
 
-def text2matrix(text__2):
+def text2matrix(text):
     print('enter scope 2')
     print(1, 561)
+    text__2 = instrument_read(text, 'text')
+    write_instrument_read(text__2, 'text__2')
+    print('malloc', sys.getsizeof(text__2), 'text__2')
     print(7, 562)
     matrix__2 = []
     write_instrument_read(matrix__2, 'matrix__2')
     print('malloc', sys.getsizeof(matrix__2), 'matrix__2')
-    print('enter scope 3')
-    for i__3 in range(16):
+    for i__2 in range(16):
+        print('enter scope 3')
         print(9, 564)
         byte__3 = instrument_read(text__2, 'text__2') >> 8 * (15 -
-            instrument_read(i__3, 'i__3')) & 255
+            instrument_read(i__2, 'i__2')) & 255
         write_instrument_read(byte__3, 'byte__3')
         print('malloc', sys.getsizeof(byte__3), 'byte__3')
         print('enter scope 4')
-        if instrument_read(i__3, 'i__3') % 4 == 0:
-            print(9, 565)
+        if instrument_read(i__2, 'i__2') % 4 == 0:
             instrument_read(matrix__2, 'matrix__2').append([instrument_read
                 (byte__3, 'byte__3')])
         else:
-            print(9, 565)
             instrument_read_sub(instrument_read(matrix__2, 'matrix__2'),
-                "instrument_read(matrix__2, 'matrix__2')", int(
-                instrument_read(i__3, 'i__3') / 4), None, None, False).append(
-                instrument_read(byte__3, 'byte__3'))
+                'matrix__2', int(instrument_read(i__2, 'i__2') / 4), None,
+                None, False).append(instrument_read(byte__3, 'byte__3'))
         print('exit scope 4')
-    print('exit scope 3')
+        print('exit scope 3')
+    print('exit scope 2')
     return instrument_read(matrix__2, 'matrix__2')
     print('exit scope 2')
 
 
-def matrix2text(matrix__5):
+def matrix2text(matrix):
     print('enter scope 5')
     print(1, 572)
+    matrix__5 = instrument_read(matrix, 'matrix')
+    write_instrument_read(matrix__5, 'matrix__5')
+    print('malloc', sys.getsizeof(matrix__5), 'matrix__5')
     print(17, 573)
     text__5 = 0
     write_instrument_read(text__5, 'text__5')
     print('malloc', sys.getsizeof(text__5), 'text__5')
-    print('enter scope 6')
-    for i__6 in range(4):
-        print('enter scope 7')
-        for j__7 in range(4):
+    for i__5 in range(4):
+        print('enter scope 6')
+        for j__6 in range(4):
+            print('enter scope 7')
             print(21, 576)
             text__5 |= instrument_read_sub(instrument_read_sub(
-                instrument_read(matrix__5, 'matrix__5'),
-                "instrument_read(matrix__5, 'matrix__5')", instrument_read(
-                i__6, 'i__6'), None, None, False),
-                """instrument_read_sub(instrument_read(matrix__5, 'matrix__5'),
-    "instrument_read(matrix__5, 'matrix__5')", instrument_read(i__6, 'i__6'
-    ), None, None, False)"""
-                , instrument_read(j__7, 'j__7'), None, None, False
-                ) << 120 - 8 * (4 * instrument_read(i__6, 'i__6') +
-                instrument_read(j__7, 'j__7'))
+                instrument_read(matrix__5, 'matrix__5'), 'matrix__5',
+                instrument_read(i__5, 'i__5'), None, None, False),
+                'matrix__5[i__5]', instrument_read(j__6, 'j__6'), None,
+                None, False) << 120 - 8 * (4 * instrument_read(i__5, 'i__5'
+                ) + instrument_read(j__6, 'j__6'))
             write_instrument_read(text__5, 'text__5')
-        print('exit scope 7')
-    print('exit scope 6')
+            print('exit scope 7')
+        print('exit scope 6')
+    print('exit scope 5')
     return instrument_read(text__5, 'text__5')
     print('exit scope 5')
 
 
 class AES:
 
-    def __init__(self, master_key__8):
+    def __init__(self, master_key):
         print('enter scope 8')
         print(1, 581)
-        self.change_key(instrument_read(master_key__8, 'master_key__8'))
+        self = instrument_read(self, 'self')
+        write_instrument_read(self, 'self')
+        print('malloc', sys.getsizeof(self), 'self')
+        master_key__8 = instrument_read(master_key, 'master_key')
+        write_instrument_read(master_key__8, 'master_key__8')
+        print('malloc', sys.getsizeof(master_key__8), 'master_key__8')
+        instrument_read(self, 'self').change_key(instrument_read(
+            master_key__8, 'master_key__8'))
         print('exit scope 8')
 
-    def change_key(self, master_key__9):
+    def change_key(self, master_key):
         print('enter scope 9')
         print(1, 584)
+        self = instrument_read(self, 'self')
+        write_instrument_read(self, 'self')
+        print('malloc', sys.getsizeof(self), 'self')
+        master_key__9 = instrument_read(master_key, 'master_key')
+        write_instrument_read(master_key__9, 'master_key__9')
+        print('malloc', sys.getsizeof(master_key__9), 'master_key__9')
         print(29, 585)
-        self.round_keys = text2matrix(instrument_read(master_key__9,
-            'master_key__9'))
-        print('enter scope 10')
-        for i__10 in range(4, 4 * 11):
-            self.round_keys.append([])
+        instrument_read(self, 'self').round_keys = text2matrix(instrument_read
+            (master_key__9, 'master_key__9'))
+        for i__9 in range(4, 4 * 11):
+            print('enter scope 10')
+            instrument_read(self, 'self').round_keys.append([])
             print('enter scope 11')
-            if instrument_read(i__10, 'i__10') % 4 == 0:
-                print(31, 590)
+            if instrument_read(i__9, 'i__9') % 4 == 0:
                 print(33, 591)
-                byte__11 = instrument_read_sub(instrument_read_sub(self.
-                    round_keys, 'self.round_keys', instrument_read(i__10,
-                    'i__10') - 4, None, None, False),
-                    """instrument_read_sub(self.round_keys, 'self.round_keys', instrument_read(
-    i__10, 'i__10') - 4, None, None, False)"""
-                    , 0, None, None, False) ^ instrument_read_sub(
-                    instrument_read(Sbox__0, 'Sbox__0'),
-                    "instrument_read(Sbox__0, 'Sbox__0')",
-                    instrument_read_sub(instrument_read_sub(self.round_keys,
-                    'self.round_keys', instrument_read(i__10, 'i__10') - 1,
-                    None, None, False),
-                    """instrument_read_sub(self.round_keys, 'self.round_keys', instrument_read(
-    i__10, 'i__10') - 1, None, None, False)"""
-                    , 1, None, None, False), None, None, False
-                    ) ^ instrument_read_sub(instrument_read(Rcon__0,
-                    'Rcon__0'), "instrument_read(Rcon__0, 'Rcon__0')", int(
-                    instrument_read(i__10, 'i__10') / 4), None, None, False)
+                byte__11 = instrument_read_sub(instrument_read_sub(
+                    instrument_read(self, 'self').round_keys,
+                    'self.round_keys', instrument_read(i__9, 'i__9') - 4,
+                    None, None, False), 'self.round_keys[i__9 - 4]', 0,
+                    None, None, False) ^ instrument_read_sub(instrument_read
+                    (Sbox__0, 'Sbox__0'), 'Sbox__0', instrument_read_sub(
+                    instrument_read_sub(instrument_read(self, 'self').
+                    round_keys, 'self.round_keys', instrument_read(i__9,
+                    'i__9') - 1, None, None, False),
+                    'self.round_keys[i__9 - 1]', 1, None, None, False),
+                    None, None, False) ^ instrument_read_sub(instrument_read
+                    (Rcon__0, 'Rcon__0'), 'Rcon__0', int(instrument_read(
+                    i__9, 'i__9') / 4), None, None, False)
                 write_instrument_read(byte__11, 'byte__11')
                 print('malloc', sys.getsizeof(byte__11), 'byte__11')
-                instrument_read_sub(self.round_keys, 'self.round_keys',
-                    instrument_read(i__10, 'i__10'), None, None, False).append(
-                    instrument_read(byte__11, 'byte__11'))
-                print('enter scope 12')
-                for j__12 in range(1, 4):
+                instrument_read_sub(instrument_read(self, 'self').
+                    round_keys, 'self.round_keys', instrument_read(i__9,
+                    'i__9'), None, None, False).append(instrument_read(
+                    byte__11, 'byte__11'))
+                for j__11 in range(1, 4):
+                    print('enter scope 12')
                     print(39, 599)
-                    byte__11 = instrument_read_sub(instrument_read_sub(self
-                        .round_keys, 'self.round_keys', instrument_read(
-                        i__10, 'i__10') - 4, None, None, False),
-                        """instrument_read_sub(self.round_keys, 'self.round_keys', instrument_read(
-    i__10, 'i__10') - 4, None, None, False)"""
-                        , instrument_read(j__12, 'j__12'), None, None, False
+                    byte__11 = instrument_read_sub(instrument_read_sub(
+                        instrument_read(self, 'self').round_keys,
+                        'self.round_keys', instrument_read(i__9, 'i__9') - 
+                        4, None, None, False), 'self.round_keys[i__9 - 4]',
+                        instrument_read(j__11, 'j__11'), None, None, False
                         ) ^ instrument_read_sub(instrument_read(Sbox__0,
-                        'Sbox__0'), "instrument_read(Sbox__0, 'Sbox__0')",
-                        instrument_read_sub(instrument_read_sub(self.
-                        round_keys, 'self.round_keys', instrument_read(
-                        i__10, 'i__10') - 1, None, None, False),
-                        """instrument_read_sub(self.round_keys, 'self.round_keys', instrument_read(
-    i__10, 'i__10') - 1, None, None, False)"""
-                        , (instrument_read(j__12, 'j__12') + 1) % 4, None,
-                        None, False), None, None, False)
+                        'Sbox__0'), 'Sbox__0', instrument_read_sub(
+                        instrument_read_sub(instrument_read(self, 'self').
+                        round_keys, 'self.round_keys', instrument_read(i__9,
+                        'i__9') - 1, None, None, False),
+                        'self.round_keys[i__9 - 1]', (instrument_read(j__11,
+                        'j__11') + 1) % 4, None, None, False), None, None,
+                        False)
                     write_instrument_read(byte__11, 'byte__11')
                     print('malloc', sys.getsizeof(byte__11), 'byte__11')
-                    instrument_read_sub(self.round_keys, 'self.round_keys',
-                        instrument_read(i__10, 'i__10'), None, None, False
-                        ).append(instrument_read(byte__11, 'byte__11'))
-                print('exit scope 12')
+                    instrument_read_sub(instrument_read(self, 'self').
+                        round_keys, 'self.round_keys', instrument_read(i__9,
+                        'i__9'), None, None, False).append(instrument_read(
+                        byte__11, 'byte__11'))
+                    print('exit scope 12')
             else:
-                print(31, 590)
-                print('enter scope 13')
-                for j__13 in range(4):
+                for j__11 in range(4):
+                    print('enter scope 13')
                     print(36, 606)
-                    byte__11 = instrument_read_sub(instrument_read_sub(self
-                        .round_keys, 'self.round_keys', instrument_read(
-                        i__10, 'i__10') - 4, None, None, False),
-                        """instrument_read_sub(self.round_keys, 'self.round_keys', instrument_read(
-    i__10, 'i__10') - 4, None, None, False)"""
-                        , instrument_read(j__13, 'j__13'), None, None, False
-                        ) ^ instrument_read_sub(instrument_read_sub(self.
-                        round_keys, 'self.round_keys', instrument_read(
-                        i__10, 'i__10') - 1, None, None, False),
-                        """instrument_read_sub(self.round_keys, 'self.round_keys', instrument_read(
-    i__10, 'i__10') - 1, None, None, False)"""
-                        , instrument_read(j__13, 'j__13'), None, None, False)
+                    byte__11 = instrument_read_sub(instrument_read_sub(
+                        instrument_read(self, 'self').round_keys,
+                        'self.round_keys', instrument_read(i__9, 'i__9') - 
+                        4, None, None, False), 'self.round_keys[i__9 - 4]',
+                        instrument_read(j__11, 'j__11'), None, None, False
+                        ) ^ instrument_read_sub(instrument_read_sub(
+                        instrument_read(self, 'self').round_keys,
+                        'self.round_keys', instrument_read(i__9, 'i__9') - 
+                        1, None, None, False), 'self.round_keys[i__9 - 1]',
+                        instrument_read(j__11, 'j__11'), None, None, False)
                     write_instrument_read(byte__11, 'byte__11')
                     print('malloc', sys.getsizeof(byte__11), 'byte__11')
-                    instrument_read_sub(self.round_keys, 'self.round_keys',
-                        instrument_read(i__10, 'i__10'), None, None, False
-                        ).append(instrument_read(byte__11, 'byte__11'))
-                print('exit scope 13')
+                    instrument_read_sub(instrument_read(self, 'self').
+                        round_keys, 'self.round_keys', instrument_read(i__9,
+                        'i__9'), None, None, False).append(instrument_read(
+                        byte__11, 'byte__11'))
+                    print('exit scope 13')
             print('exit scope 11')
-        print('exit scope 10')
+            print('exit scope 10')
         print('exit scope 9')
 
-    def encrypt(self, plaintext__14):
+    def encrypt(self, plaintext):
         print('enter scope 14')
         print(1, 611)
+        self = instrument_read(self, 'self')
+        write_instrument_read(self, 'self')
+        print('malloc', sys.getsizeof(self), 'self')
+        plaintext__14 = instrument_read(plaintext, 'plaintext')
+        write_instrument_read(plaintext__14, 'plaintext__14')
+        print('malloc', sys.getsizeof(plaintext__14), 'plaintext__14')
         print(43, 612)
-        self.plain_state = text2matrix(instrument_read(plaintext__14,
-            'plaintext__14'))
-        self.__add_round_key(self.plain_state, instrument_read_sub(self.
-            round_keys, 'self.round_keys', None, None, 4, True))
-        print('enter scope 15')
-        for i__15 in range(1, 10):
-            self.__round_encrypt(self.plain_state, instrument_read_sub(self
-                .round_keys, 'self.round_keys', None,
-                4 * instrument_read(i__15, 'i__15'),
-                4 * (instrument_read(i__15, 'i__15') + 1), True))
-        print('exit scope 15')
-        self.__sub_bytes(self.plain_state)
-        self.__shift_rows(self.plain_state)
-        self.__add_round_key(self.plain_state, instrument_read_sub(self.
-            round_keys, 'self.round_keys', None, 40, None, True))
-        return matrix2text(self.plain_state)
+        instrument_read(self, 'self').plain_state = text2matrix(instrument_read
+            (plaintext__14, 'plaintext__14'))
+        instrument_read(self, 'self').__add_round_key(instrument_read(self,
+            'self').plain_state, instrument_read_sub(instrument_read(self,
+            'self').round_keys, 'self.round_keys', None, None, 4, True))
+        for i__14 in range(1, 10):
+            print('enter scope 15')
+            instrument_read(self, 'self').__round_encrypt(instrument_read(
+                self, 'self').plain_state, instrument_read_sub(
+                instrument_read(self, 'self').round_keys, 'self.round_keys',
+                None, 4 * instrument_read(i__14, 'i__14'),
+                4 * (instrument_read(i__14, 'i__14') + 1), True))
+            print('exit scope 15')
+        instrument_read(self, 'self').__sub_bytes(instrument_read(self,
+            'self').plain_state)
+        instrument_read(self, 'self').__shift_rows(instrument_read(self,
+            'self').plain_state)
+        instrument_read(self, 'self').__add_round_key(instrument_read(self,
+            'self').plain_state, instrument_read_sub(instrument_read(self,
+            'self').round_keys, 'self.round_keys', None, 40, None, True))
+        print('exit scope 14')
+        return matrix2text(instrument_read(self, 'self').plain_state)
         print('exit scope 14')
 
-    def decrypt(self, ciphertext__16):
+    def decrypt(self, ciphertext):
         print('enter scope 16')
         print(1, 625)
+        self = instrument_read(self, 'self')
+        write_instrument_read(self, 'self')
+        print('malloc', sys.getsizeof(self), 'self')
+        ciphertext__16 = instrument_read(ciphertext, 'ciphertext')
+        write_instrument_read(ciphertext__16, 'ciphertext__16')
+        print('malloc', sys.getsizeof(ciphertext__16), 'ciphertext__16')
         print(50, 626)
-        self.cipher_state = text2matrix(instrument_read(ciphertext__16,
-            'ciphertext__16'))
-        self.__add_round_key(self.cipher_state, instrument_read_sub(self.
-            round_keys, 'self.round_keys', None, 40, None, True))
-        self.__inv_shift_rows(self.cipher_state)
-        self.__inv_sub_bytes(self.cipher_state)
-        print('enter scope 17')
-        for i__17 in range(9, 0, -1):
-            self.__round_decrypt(self.cipher_state, instrument_read_sub(
-                self.round_keys, 'self.round_keys', None,
-                4 * instrument_read(i__17, 'i__17'),
-                4 * (instrument_read(i__17, 'i__17') + 1), True))
-        print('exit scope 17')
-        self.__add_round_key(self.cipher_state, instrument_read_sub(self.
-            round_keys, 'self.round_keys', None, None, 4, True))
-        return matrix2text(self.cipher_state)
+        instrument_read(self, 'self').cipher_state = text2matrix(
+            instrument_read(ciphertext__16, 'ciphertext__16'))
+        instrument_read(self, 'self').__add_round_key(instrument_read(self,
+            'self').cipher_state, instrument_read_sub(instrument_read(self,
+            'self').round_keys, 'self.round_keys', None, 40, None, True))
+        instrument_read(self, 'self').__inv_shift_rows(instrument_read(self,
+            'self').cipher_state)
+        instrument_read(self, 'self').__inv_sub_bytes(instrument_read(self,
+            'self').cipher_state)
+        for i__16 in range(9, 0, -1):
+            print('enter scope 17')
+            instrument_read(self, 'self').__round_decrypt(instrument_read(
+                self, 'self').cipher_state, instrument_read_sub(
+                instrument_read(self, 'self').round_keys, 'self.round_keys',
+                None, 4 * instrument_read(i__16, 'i__16'),
+                4 * (instrument_read(i__16, 'i__16') + 1), True))
+            print('exit scope 17')
+        instrument_read(self, 'self').__add_round_key(instrument_read(self,
+            'self').cipher_state, instrument_read_sub(instrument_read(self,
+            'self').round_keys, 'self.round_keys', None, None, 4, True))
+        print('exit scope 16')
+        return matrix2text(instrument_read(self, 'self').cipher_state)
         print('exit scope 16')
 
-    def __add_round_key(self, s__18, k__18):
+    def __add_round_key(self, s, k):
         print('enter scope 18')
         print(1, 641)
-        print('enter scope 19')
-        for i__19 in range(4):
-            print('enter scope 20')
-            for j__20 in range(4):
+        self = instrument_read(self, 'self')
+        write_instrument_read(self, 'self')
+        print('malloc', sys.getsizeof(self), 'self')
+        s__18 = instrument_read(s, 's')
+        write_instrument_read(s__18, 's__18')
+        print('malloc', sys.getsizeof(s__18), 's__18')
+        k__18 = instrument_read(k, 'k')
+        write_instrument_read(k__18, 'k__18')
+        print('malloc', sys.getsizeof(k__18), 'k__18')
+        for i__18 in range(4):
+            print('enter scope 19')
+            for j__19 in range(4):
+                print('enter scope 20')
                 print(60, 644)
-                s__18[instrument_read(i__19, 'i__19')][instrument_read(
-                    j__20, 'j__20')] ^= instrument_read_sub(instrument_read_sub
-                    (instrument_read(k__18, 'k__18'),
-                    "instrument_read(k__18, 'k__18')", instrument_read(
-                    i__19, 'i__19'), None, None, False),
-                    """instrument_read_sub(instrument_read(k__18, 'k__18'),
-    "instrument_read(k__18, 'k__18')", instrument_read(i__19, 'i__19'),
-    None, None, False)"""
-                    , instrument_read(j__20, 'j__20'), None, None, False)
+                s__18[instrument_read(i__18, 'i__18')][instrument_read(
+                    j__19, 'j__19')] ^= instrument_read_sub(instrument_read_sub
+                    (instrument_read(k__18, 'k__18'), 'k__18',
+                    instrument_read(i__18, 'i__18'), None, None, False),
+                    'k__18[i__18]', instrument_read(j__19, 'j__19'), None,
+                    None, False)
                 write_instrument_read_sub(s__18[instrument_read(
-                    instrument_read(i__19, 'i__19'), 'i__19')],
-                    "s__18[instrument_read(instrument_read(i__19, 'i__19'), 'i__19')]"
-                    , instrument_read(instrument_read(j__20, 'j__20'),
-                    'j__20'), None, None, False)
-            print('exit scope 20')
-        print('exit scope 19')
+                    instrument_read(i__18, 'i__18'), 'i__18')],
+                    "s__18[instrument_read(i__18, 'i__18')]",
+                    instrument_read(instrument_read(j__19, 'j__19'),
+                    'j__19'), None, None, False)
+                print('exit scope 20')
+            print('exit scope 19')
         print('exit scope 18')
 
-    def __round_encrypt(self, state_matrix__21, key_matrix__21):
+    def __round_encrypt(self, state_matrix, key_matrix):
         print('enter scope 21')
         print(1, 646)
-        self.__sub_bytes(instrument_read(state_matrix__21, 'state_matrix__21'))
-        self.__shift_rows(instrument_read(state_matrix__21, 'state_matrix__21')
-            )
-        self.__mix_columns(instrument_read(state_matrix__21,
-            'state_matrix__21'))
-        self.__add_round_key(instrument_read(state_matrix__21,
-            'state_matrix__21'), instrument_read(key_matrix__21,
-            'key_matrix__21'))
+        self = instrument_read(self, 'self')
+        write_instrument_read(self, 'self')
+        print('malloc', sys.getsizeof(self), 'self')
+        state_matrix__21 = instrument_read(state_matrix, 'state_matrix')
+        write_instrument_read(state_matrix__21, 'state_matrix__21')
+        print('malloc', sys.getsizeof(state_matrix__21), 'state_matrix__21')
+        key_matrix__21 = instrument_read(key_matrix, 'key_matrix')
+        write_instrument_read(key_matrix__21, 'key_matrix__21')
+        print('malloc', sys.getsizeof(key_matrix__21), 'key_matrix__21')
+        instrument_read(self, 'self').__sub_bytes(instrument_read(
+            state_matrix__21, 'state_matrix__21'))
+        instrument_read(self, 'self').__shift_rows(instrument_read(
+            state_matrix__21, 'state_matrix__21'))
+        instrument_read(self, 'self').__mix_columns(instrument_read(
+            state_matrix__21, 'state_matrix__21'))
+        instrument_read(self, 'self').__add_round_key(instrument_read(
+            state_matrix__21, 'state_matrix__21'), instrument_read(
+            key_matrix__21, 'key_matrix__21'))
         print('exit scope 21')
 
-    def __round_decrypt(self, state_matrix__22, key_matrix__22):
+    def __round_decrypt(self, state_matrix, key_matrix):
         print('enter scope 22')
         print(1, 652)
-        self.__add_round_key(instrument_read(state_matrix__22,
-            'state_matrix__22'), instrument_read(key_matrix__22,
-            'key_matrix__22'))
-        self.__inv_mix_columns(instrument_read(state_matrix__22,
-            'state_matrix__22'))
-        self.__inv_shift_rows(instrument_read(state_matrix__22,
-            'state_matrix__22'))
-        self.__inv_sub_bytes(instrument_read(state_matrix__22,
-            'state_matrix__22'))
+        self = instrument_read(self, 'self')
+        write_instrument_read(self, 'self')
+        print('malloc', sys.getsizeof(self), 'self')
+        state_matrix__22 = instrument_read(state_matrix, 'state_matrix')
+        write_instrument_read(state_matrix__22, 'state_matrix__22')
+        print('malloc', sys.getsizeof(state_matrix__22), 'state_matrix__22')
+        key_matrix__22 = instrument_read(key_matrix, 'key_matrix')
+        write_instrument_read(key_matrix__22, 'key_matrix__22')
+        print('malloc', sys.getsizeof(key_matrix__22), 'key_matrix__22')
+        instrument_read(self, 'self').__add_round_key(instrument_read(
+            state_matrix__22, 'state_matrix__22'), instrument_read(
+            key_matrix__22, 'key_matrix__22'))
+        instrument_read(self, 'self').__inv_mix_columns(instrument_read(
+            state_matrix__22, 'state_matrix__22'))
+        instrument_read(self, 'self').__inv_shift_rows(instrument_read(
+            state_matrix__22, 'state_matrix__22'))
+        instrument_read(self, 'self').__inv_sub_bytes(instrument_read(
+            state_matrix__22, 'state_matrix__22'))
         print('exit scope 22')
 
-    def __sub_bytes(self, s__23):
+    def __sub_bytes(self, s):
         print('enter scope 23')
         print(1, 658)
-        print('enter scope 24')
-        for i__24 in range(4):
-            print('enter scope 25')
-            for j__25 in range(4):
+        self = instrument_read(self, 'self')
+        write_instrument_read(self, 'self')
+        print('malloc', sys.getsizeof(self), 'self')
+        s__23 = instrument_read(s, 's')
+        write_instrument_read(s__23, 's__23')
+        print('malloc', sys.getsizeof(s__23), 's__23')
+        for i__23 in range(4):
+            print('enter scope 24')
+            for j__24 in range(4):
+                print('enter scope 25')
                 print(73, 661)
-                s__23[instrument_read(instrument_read(i__24, 'i__24'), 'i__24')
-                    ][instrument_read(instrument_read(j__25, 'j__25'), 'j__25')
+                s__23[instrument_read(instrument_read(i__23, 'i__23'), 'i__23')
+                    ][instrument_read(instrument_read(j__24, 'j__24'), 'j__24')
                     ] = instrument_read_sub(instrument_read(Sbox__0,
-                    'Sbox__0'), "instrument_read(Sbox__0, 'Sbox__0')",
-                    instrument_read_sub(instrument_read_sub(instrument_read
-                    (s__23, 's__23'), "instrument_read(s__23, 's__23')",
-                    instrument_read(i__24, 'i__24'), None, None, False),
-                    """instrument_read_sub(instrument_read(s__23, 's__23'),
-    "instrument_read(s__23, 's__23')", instrument_read(i__24, 'i__24'),
-    None, None, False)"""
-                    , instrument_read(j__25, 'j__25'), None, None, False),
-                    None, None, False)
+                    'Sbox__0'), 'Sbox__0', instrument_read_sub(
+                    instrument_read_sub(instrument_read(s__23, 's__23'),
+                    's__23', instrument_read(i__23, 'i__23'), None, None,
+                    False), 's__23[i__23]', instrument_read(j__24, 'j__24'),
+                    None, None, False), None, None, False)
                 write_instrument_read_sub(s__23[instrument_read(
-                    instrument_read(i__24, 'i__24'), 'i__24')],
-                    "s__23[instrument_read(instrument_read(i__24, 'i__24'), 'i__24')]"
-                    , instrument_read(instrument_read(j__25, 'j__25'),
-                    'j__25'), None, None, False)
-            print('exit scope 25')
-        print('exit scope 24')
+                    instrument_read(i__23, 'i__23'), 'i__23')],
+                    "s__23[instrument_read(i__23, 'i__23')]",
+                    instrument_read(instrument_read(j__24, 'j__24'),
+                    'j__24'), None, None, False)
+                print('exit scope 25')
+            print('exit scope 24')
         print('exit scope 23')
 
-    def __inv_sub_bytes(self, s__26):
+    def __inv_sub_bytes(self, s):
         print('enter scope 26')
         print(1, 663)
-        print('enter scope 27')
-        for i__27 in range(4):
-            print('enter scope 28')
-            for j__28 in range(4):
+        self = instrument_read(self, 'self')
+        write_instrument_read(self, 'self')
+        print('malloc', sys.getsizeof(self), 'self')
+        s__26 = instrument_read(s, 's')
+        write_instrument_read(s__26, 's__26')
+        print('malloc', sys.getsizeof(s__26), 's__26')
+        for i__26 in range(4):
+            print('enter scope 27')
+            for j__27 in range(4):
+                print('enter scope 28')
                 print(80, 666)
-                s__26[instrument_read(instrument_read(i__27, 'i__27'), 'i__27')
-                    ][instrument_read(instrument_read(j__28, 'j__28'), 'j__28')
+                s__26[instrument_read(instrument_read(i__26, 'i__26'), 'i__26')
+                    ][instrument_read(instrument_read(j__27, 'j__27'), 'j__27')
                     ] = instrument_read_sub(instrument_read(InvSbox__0,
-                    'InvSbox__0'),
-                    "instrument_read(InvSbox__0, 'InvSbox__0')",
-                    instrument_read_sub(instrument_read_sub(instrument_read
-                    (s__26, 's__26'), "instrument_read(s__26, 's__26')",
-                    instrument_read(i__27, 'i__27'), None, None, False),
-                    """instrument_read_sub(instrument_read(s__26, 's__26'),
-    "instrument_read(s__26, 's__26')", instrument_read(i__27, 'i__27'),
-    None, None, False)"""
-                    , instrument_read(j__28, 'j__28'), None, None, False),
-                    None, None, False)
+                    'InvSbox__0'), 'InvSbox__0', instrument_read_sub(
+                    instrument_read_sub(instrument_read(s__26, 's__26'),
+                    's__26', instrument_read(i__26, 'i__26'), None, None,
+                    False), 's__26[i__26]', instrument_read(j__27, 'j__27'),
+                    None, None, False), None, None, False)
                 write_instrument_read_sub(s__26[instrument_read(
-                    instrument_read(i__27, 'i__27'), 'i__27')],
-                    "s__26[instrument_read(instrument_read(i__27, 'i__27'), 'i__27')]"
-                    , instrument_read(instrument_read(j__28, 'j__28'),
-                    'j__28'), None, None, False)
-            print('exit scope 28')
-        print('exit scope 27')
+                    instrument_read(i__26, 'i__26'), 'i__26')],
+                    "s__26[instrument_read(i__26, 'i__26')]",
+                    instrument_read(instrument_read(j__27, 'j__27'),
+                    'j__27'), None, None, False)
+                print('exit scope 28')
+            print('exit scope 27')
         print('exit scope 26')
 
-    def __shift_rows(self, s__29):
+    def __shift_rows(self, s):
         print('enter scope 29')
         print(1, 668)
+        self = instrument_read(self, 'self')
+        write_instrument_read(self, 'self')
+        print('malloc', sys.getsizeof(self), 'self')
+        s__29 = instrument_read(s, 's')
+        write_instrument_read(s__29, 's__29')
+        print('malloc', sys.getsizeof(s__29), 's__29')
+        print(84, 669)
+        print(84, 670)
+        print(84, 671)
         print('exit scope 29')
 
-    def __inv_shift_rows(self, s__30):
+    def __inv_shift_rows(self, s):
         print('enter scope 30')
         print(1, 673)
+        self = instrument_read(self, 'self')
+        write_instrument_read(self, 'self')
+        print('malloc', sys.getsizeof(self), 'self')
+        s__30 = instrument_read(s, 's')
+        write_instrument_read(s__30, 's__30')
+        print('malloc', sys.getsizeof(s__30), 's__30')
+        print(87, 674)
+        print(87, 675)
+        print(87, 676)
         print('exit scope 30')
 
-    def __mix_single_column(self, a__31):
+    def __mix_single_column(self, a):
         print('enter scope 31')
         print(1, 678)
+        self = instrument_read(self, 'self')
+        write_instrument_read(self, 'self')
+        print('malloc', sys.getsizeof(self), 'self')
+        a__31 = instrument_read(a, 'a')
+        write_instrument_read(a__31, 'a__31')
+        print('malloc', sys.getsizeof(a__31), 'a__31')
         print(90, 680)
         t__31 = instrument_read_sub(instrument_read(a__31, 'a__31'),
-            "instrument_read(a__31, 'a__31')", 0, None, None, False
+            'a__31', 0, None, None, False) ^ instrument_read_sub(
+            instrument_read(a__31, 'a__31'), 'a__31', 1, None, None, False
             ) ^ instrument_read_sub(instrument_read(a__31, 'a__31'),
-            "instrument_read(a__31, 'a__31')", 1, None, None, False
-            ) ^ instrument_read_sub(instrument_read(a__31, 'a__31'),
-            "instrument_read(a__31, 'a__31')", 2, None, None, False
-            ) ^ instrument_read_sub(instrument_read(a__31, 'a__31'),
-            "instrument_read(a__31, 'a__31')", 3, None, None, False)
+            'a__31', 2, None, None, False) ^ instrument_read_sub(
+            instrument_read(a__31, 'a__31'), 'a__31', 3, None, None, False)
         write_instrument_read(t__31, 't__31')
         print('malloc', sys.getsizeof(t__31), 't__31')
         print(90, 681)
         u__31 = instrument_read_sub(instrument_read(a__31, 'a__31'),
-            "instrument_read(a__31, 'a__31')", 0, None, None, False)
+            'a__31', 0, None, None, False)
         write_instrument_read(u__31, 'u__31')
         print('malloc', sys.getsizeof(u__31), 'u__31')
         print(90, 682)
         a__31[0] ^= instrument_read(t__31, 't__31') ^ xtime(
-            instrument_read_sub(instrument_read(a__31, 'a__31'),
-            "instrument_read(a__31, 'a__31')", 0, None, None, False) ^
-            instrument_read_sub(instrument_read(a__31, 'a__31'),
-            "instrument_read(a__31, 'a__31')", 1, None, None, False))
+            instrument_read_sub(instrument_read(a__31, 'a__31'), 'a__31', 0,
+            None, None, False) ^ instrument_read_sub(instrument_read(a__31,
+            'a__31'), 'a__31', 1, None, None, False))
         write_instrument_read_sub(a__31, 'a__31', 0, None, None, False)
         print(90, 683)
         a__31[1] ^= instrument_read(t__31, 't__31') ^ xtime(
-            instrument_read_sub(instrument_read(a__31, 'a__31'),
-            "instrument_read(a__31, 'a__31')", 1, None, None, False) ^
-            instrument_read_sub(instrument_read(a__31, 'a__31'),
-            "instrument_read(a__31, 'a__31')", 2, None, None, False))
+            instrument_read_sub(instrument_read(a__31, 'a__31'), 'a__31', 1,
+            None, None, False) ^ instrument_read_sub(instrument_read(a__31,
+            'a__31'), 'a__31', 2, None, None, False))
         write_instrument_read_sub(a__31, 'a__31', 1, None, None, False)
         print(90, 684)
         a__31[2] ^= instrument_read(t__31, 't__31') ^ xtime(
-            instrument_read_sub(instrument_read(a__31, 'a__31'),
-            "instrument_read(a__31, 'a__31')", 2, None, None, False) ^
-            instrument_read_sub(instrument_read(a__31, 'a__31'),
-            "instrument_read(a__31, 'a__31')", 3, None, None, False))
+            instrument_read_sub(instrument_read(a__31, 'a__31'), 'a__31', 2,
+            None, None, False) ^ instrument_read_sub(instrument_read(a__31,
+            'a__31'), 'a__31', 3, None, None, False))
         write_instrument_read_sub(a__31, 'a__31', 2, None, None, False)
         print(90, 685)
         a__31[3] ^= instrument_read(t__31, 't__31') ^ xtime(
-            instrument_read_sub(instrument_read(a__31, 'a__31'),
-            "instrument_read(a__31, 'a__31')", 3, None, None, False) ^
-            instrument_read(u__31, 'u__31'))
+            instrument_read_sub(instrument_read(a__31, 'a__31'), 'a__31', 3,
+            None, None, False) ^ instrument_read(u__31, 'u__31'))
         write_instrument_read_sub(a__31, 'a__31', 3, None, None, False)
         print('exit scope 31')
 
-    def __mix_columns(self, s__32):
+    def __mix_columns(self, s):
         print('enter scope 32')
         print(1, 687)
-        print('enter scope 33')
-        for i__33 in range(4):
-            self.__mix_single_column(instrument_read_sub(instrument_read(
-                s__32, 's__32'), "instrument_read(s__32, 's__32')",
-                instrument_read(i__33, 'i__33'), None, None, False))
-        print('exit scope 33')
+        self = instrument_read(self, 'self')
+        write_instrument_read(self, 'self')
+        print('malloc', sys.getsizeof(self), 'self')
+        s__32 = instrument_read(s, 's')
+        write_instrument_read(s__32, 's__32')
+        print('malloc', sys.getsizeof(s__32), 's__32')
+        for i__32 in range(4):
+            print('enter scope 33')
+            instrument_read(self, 'self').__mix_single_column(
+                instrument_read_sub(instrument_read(s__32, 's__32'),
+                's__32', instrument_read(i__32, 'i__32'), None, None, False))
+            print('exit scope 33')
         print('exit scope 32')
 
-    def __inv_mix_columns(self, s__34):
+    def __inv_mix_columns(self, s):
         print('enter scope 34')
         print(1, 691)
-        print('enter scope 35')
-        for i__35 in range(4):
+        self = instrument_read(self, 'self')
+        write_instrument_read(self, 'self')
+        print('malloc', sys.getsizeof(self), 'self')
+        s__34 = instrument_read(s, 's')
+        write_instrument_read(s__34, 's__34')
+        print('malloc', sys.getsizeof(s__34), 's__34')
+        for i__34 in range(4):
+            print('enter scope 35')
             print(99, 694)
             u__35 = xtime(xtime(instrument_read_sub(instrument_read_sub(
-                instrument_read(s__34, 's__34'),
-                "instrument_read(s__34, 's__34')", instrument_read(i__35,
-                'i__35'), None, None, False),
-                """instrument_read_sub(instrument_read(s__34, 's__34'),
-    "instrument_read(s__34, 's__34')", instrument_read(i__35, 'i__35'),
-    None, None, False)"""
-                , 0, None, None, False) ^ instrument_read_sub(
+                instrument_read(s__34, 's__34'), 's__34', instrument_read(
+                i__34, 'i__34'), None, None, False), 's__34[i__34]', 0,
+                None, None, False) ^ instrument_read_sub(
                 instrument_read_sub(instrument_read(s__34, 's__34'),
-                "instrument_read(s__34, 's__34')", instrument_read(i__35,
-                'i__35'), None, None, False),
-                """instrument_read_sub(instrument_read(s__34, 's__34'),
-    "instrument_read(s__34, 's__34')", instrument_read(i__35, 'i__35'),
-    None, None, False)"""
-                , 2, None, None, False)))
+                's__34', instrument_read(i__34, 'i__34'), None, None, False
+                ), 's__34[i__34]', 2, None, None, False)))
             write_instrument_read(u__35, 'u__35')
             print('malloc', sys.getsizeof(u__35), 'u__35')
             print(99, 695)
             v__35 = xtime(xtime(instrument_read_sub(instrument_read_sub(
-                instrument_read(s__34, 's__34'),
-                "instrument_read(s__34, 's__34')", instrument_read(i__35,
-                'i__35'), None, None, False),
-                """instrument_read_sub(instrument_read(s__34, 's__34'),
-    "instrument_read(s__34, 's__34')", instrument_read(i__35, 'i__35'),
-    None, None, False)"""
-                , 1, None, None, False) ^ instrument_read_sub(
+                instrument_read(s__34, 's__34'), 's__34', instrument_read(
+                i__34, 'i__34'), None, None, False), 's__34[i__34]', 1,
+                None, None, False) ^ instrument_read_sub(
                 instrument_read_sub(instrument_read(s__34, 's__34'),
-                "instrument_read(s__34, 's__34')", instrument_read(i__35,
-                'i__35'), None, None, False),
-                """instrument_read_sub(instrument_read(s__34, 's__34'),
-    "instrument_read(s__34, 's__34')", instrument_read(i__35, 'i__35'),
-    None, None, False)"""
-                , 3, None, None, False)))
+                's__34', instrument_read(i__34, 'i__34'), None, None, False
+                ), 's__34[i__34]', 3, None, None, False)))
             write_instrument_read(v__35, 'v__35')
             print('malloc', sys.getsizeof(v__35), 'v__35')
             print(99, 696)
-            s__34[instrument_read(i__35, 'i__35')][0] ^= instrument_read(u__35,
+            s__34[instrument_read(i__34, 'i__34')][0] ^= instrument_read(u__35,
                 'u__35')
             write_instrument_read_sub(s__34[instrument_read(instrument_read
-                (i__35, 'i__35'), 'i__35')],
-                "s__34[instrument_read(instrument_read(i__35, 'i__35'), 'i__35')]"
-                , 0, None, None, False)
+                (i__34, 'i__34'), 'i__34')],
+                "s__34[instrument_read(i__34, 'i__34')]", 0, None, None, False)
             print(99, 697)
-            s__34[instrument_read(i__35, 'i__35')][1] ^= instrument_read(v__35,
+            s__34[instrument_read(i__34, 'i__34')][1] ^= instrument_read(v__35,
                 'v__35')
             write_instrument_read_sub(s__34[instrument_read(instrument_read
-                (i__35, 'i__35'), 'i__35')],
-                "s__34[instrument_read(instrument_read(i__35, 'i__35'), 'i__35')]"
-                , 1, None, None, False)
+                (i__34, 'i__34'), 'i__34')],
+                "s__34[instrument_read(i__34, 'i__34')]", 1, None, None, False)
             print(99, 698)
-            s__34[instrument_read(i__35, 'i__35')][2] ^= instrument_read(u__35,
+            s__34[instrument_read(i__34, 'i__34')][2] ^= instrument_read(u__35,
                 'u__35')
             write_instrument_read_sub(s__34[instrument_read(instrument_read
-                (i__35, 'i__35'), 'i__35')],
-                "s__34[instrument_read(instrument_read(i__35, 'i__35'), 'i__35')]"
-                , 2, None, None, False)
+                (i__34, 'i__34'), 'i__34')],
+                "s__34[instrument_read(i__34, 'i__34')]", 2, None, None, False)
             print(99, 699)
-            s__34[instrument_read(i__35, 'i__35')][3] ^= instrument_read(v__35,
+            s__34[instrument_read(i__34, 'i__34')][3] ^= instrument_read(v__35,
                 'v__35')
             write_instrument_read_sub(s__34[instrument_read(instrument_read
-                (i__35, 'i__35'), 'i__35')],
-                "s__34[instrument_read(instrument_read(i__35, 'i__35'), 'i__35')]"
-                , 3, None, None, False)
-        print('exit scope 35')
-        self.__mix_columns(instrument_read(s__34, 's__34'))
+                (i__34, 'i__34'), 'i__34')],
+                "s__34[instrument_read(i__34, 'i__34')]", 3, None, None, False)
+            print('exit scope 35')
+        instrument_read(self, 'self').__mix_columns(instrument_read(s__34,
+            's__34'))
         print('exit scope 34')
 
 
 print('enter scope 36')
-if __name__ == '__main__':
-    print(1, 703)
+if instrument_read(__name__, '__name__') == '__main__':
     import time
     print(102, 705)
-    start__36 = time.time()
+    start__36 = instrument_read(time, 'time').time()
     write_instrument_read(start__36, 'start__36')
     print('malloc', sys.getsizeof(start__36), 'start__36')
     print(102, 706)
@@ -524,9 +599,7 @@ if __name__ == '__main__':
     print('malloc', sys.getsizeof(aes__36), 'aes__36')
     instrument_read(aes__36, 'aes__36').encrypt(1212304810341341)
     print(102, 708)
-    end__36 = time.time()
+    end__36 = instrument_read(time, 'time').time()
     write_instrument_read(end__36, 'end__36')
     print('malloc', sys.getsizeof(end__36), 'end__36')
-else:
-    print(1, 703)
 print('exit scope 36')

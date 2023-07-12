@@ -1,10 +1,7 @@
 digraph {
-	39 [label="source code:
-self.vertices = []
+	96 [label="source code:
+for u, wt in v.getOutNeighborsWithWeights():
 "]
-	40 [label="[]
+	97 [label="v.getOutNeighborsWithWeights()
 "]
-	41 [label="self.vertices
-Write"]
-	40 -> 41
 }

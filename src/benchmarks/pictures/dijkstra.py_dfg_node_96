@@ -1,10 +1,5 @@
 digraph {
-	144 [label="source code:
-ret = []
+	117 [label="source code:
+return G
 "]
-	145 [label="[]
-"]
-	146 [label="ret
-Write"]
-	145 -> 146
 }

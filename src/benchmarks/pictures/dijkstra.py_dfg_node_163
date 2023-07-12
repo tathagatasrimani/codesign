@@ -1,13 +1,7 @@
 digraph {
-	270 [label="source code:
-if x.estD < minD:
+	277 [label="source code:
+for v in G.vertices:
 "]
-	271 [label="x.estD
+	278 [label="G.vertices
 Read"]
-	272 [label="minD
-Read"]
-	273 [label="<
-"]
-	271 -> 273
-	272 -> 273
 }

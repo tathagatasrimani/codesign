@@ -1,34 +1,58 @@
 digraph {
-	286 [label="source code:
+	363 [label="source code:
 aln1 += seq1[i - 1]
 aln2 += seq2[j - 1]
 i -= 1
 j -= 1
 "]
-	287 [label="seq1
+	364 [label="seq1
 Read"]
-	288 [label="seq1[i - 1]
+	365 [label="seq1[i - 1]
 Read"]
-	287 -> 288
-	289 [label="aln1
+	364 -> 365
+	366 [label="aln1
+Read"]
+	367 [label="+
+"]
+	365 -> 367
+	366 -> 367
+	368 [label="aln1
 Write"]
-	288 -> 289
-	290 [label="seq2
+	367 -> 368
+	369 [label="seq2
 Read"]
-	291 [label="seq2[j - 1]
+	370 [label="seq2[j - 1]
 Read"]
-	290 -> 291
-	292 [label="aln2
+	369 -> 370
+	371 [label="aln2
+Read"]
+	372 [label="+
+"]
+	370 -> 372
+	371 -> 372
+	373 [label="aln2
 Write"]
-	291 -> 292
-	293 [label=1
+	372 -> 373
+	374 [label=1
 ]
-	294 [label="i
+	375 [label="i
+Read"]
+	376 [label="-
+"]
+	374 -> 376
+	375 -> 376
+	377 [label="i
 Write"]
-	293 -> 294
-	295 [label=1
+	376 -> 377
+	378 [label=1
 ]
-	296 [label="j
+	379 [label="j
+Read"]
+	380 [label="-
+"]
+	378 -> 380
+	379 -> 380
+	381 [label="j
 Write"]
-	295 -> 296
+	380 -> 381
 }

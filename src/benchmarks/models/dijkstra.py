@@ -50,9 +50,6 @@ class CS161Vertex:
     
     def addInNeighbor(self,v,wt):
         self.inNeighbors.append((v,wt))
-    
-    def __str__(self):
-        return str(self.value) 
         
 # This is a directed graph class for use in CS161.
 # It can also be used as an undirected graph by adding edges in both directions.
@@ -82,18 +79,6 @@ class CS161Graph:
                 ret.append( [v,u,wt] )
         return ret
     
-    def __str__(self):
-        ret = "CS161Graph with:\n"
-        ret += "\t Vertices:\n\t"
-        for v in self.vertices:
-            ret += str(v) + ","
-        ret += "\n"
-        ret += "\t Edges:\n\t"
-        for a,b,wt in self.getDirEdges():
-            ret += "(" + str(a) + "," + str(b) + "; wt:" + str(wt) + ") "
-        ret += "\n"
-        return ret
-    
 class CS161Graph:
     def __init__(self):
         self.vertices = []
@@ -118,18 +103,6 @@ class CS161Graph:
         for v in self.vertices:
             for u, wt in v.getOutNeighborsWithWeights():
                 ret.append( [v,u,wt] )
-        return ret
-    
-    def __str__(self):
-        ret = "CS161Graph with:\n"
-        ret += "\t Vertices:\n\t"
-        for v in self.vertices:
-            ret += str(v) + ","
-        ret += "\n"
-        ret += "\t Edges:\n\t"
-        for a,b,wt in self.getDirEdges():
-            ret += "(" + str(a) + "," + str(b) + "; wt:" + str(wt) + ") "
-        ret += "\n"
         return ret
     
 # make a random graph

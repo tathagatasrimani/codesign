@@ -1,25 +1,25 @@
 digraph {
-	354 [label="source code:
+	472 [label="source code:
 max_score = scoring_matrix[i][j]
 max_pos = i, j
 "]
-	355 [label="scoring_matrix
+	473 [label="scoring_matrix
 Read"]
-	356 [label="scoring_matrix[i]
+	474 [label="scoring_matrix[i]
 Read"]
-	355 -> 356
-	357 [label="scoring_matrix[i][j]
+	473 -> 474
+	475 [label="scoring_matrix[i][j]
 Read"]
-	356 -> 357
-	358 [label="max_score
+	474 -> 475
+	476 [label="max_score
 Write"]
-	357 -> 358
-	359 [label="i
+	475 -> 476
+	477 [label="i
 Read"]
-	360 [label="j
+	478 [label="j
 Read"]
-	361 [label="max_pos
+	479 [label="max_pos
 Write"]
-	359 -> 361
-	360 -> 361
+	477 -> 479
+	478 -> 479
 }

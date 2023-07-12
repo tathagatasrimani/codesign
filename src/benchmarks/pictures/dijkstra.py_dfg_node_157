@@ -1,10 +1,16 @@
 digraph {
-	249 [label="source code:
-v.estD = math.inf
+	259 [label="source code:
+path = []
+current = v
 "]
-	250 [label="math.inf
-Read"]
-	251 [label="v.estD
+	260 [label="[]
+"]
+	261 [label="path
 Write"]
-	250 -> 251
+	260 -> 261
+	262 [label="v
+Read"]
+	263 [label="current
+Write"]
+	262 -> 263
 }

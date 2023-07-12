@@ -1,13 +1,13 @@
 digraph {
-	105 [label="source code:
+	120 [label="source code:
 quality_dict[active_sequence_name] = []
 "]
-	106 [label="[]
+	121 [label="[]
 "]
-	107 [label="quality_dict
+	122 [label="quality_dict
 Read"]
-	108 [label="quality_dict[active_sequence_name]
+	123 [label="quality_dict[active_sequence_name]
 Write"]
-	107 -> 108
-	106 -> 108
+	122 -> 123
+	121 -> 123
 }

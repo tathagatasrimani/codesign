@@ -1,5 +1,13 @@
 digraph {
-	150 [label="source code:
+	187 [label="source code:
 if min_length > 0:
 "]
+	188 [label="min_length
+Read"]
+	189 [label=0
+]
+	190 [label=">
+"]
+	188 -> 190
+	189 -> 190
 }

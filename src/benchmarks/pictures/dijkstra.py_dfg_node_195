@@ -1,5 +1,10 @@
 digraph {
-	358 [label="source code:
-return
+	365 [label="source code:
+for t in range(numTrials):
 "]
+	366 [label="range(numTrials)
+"]
+	367 [label="numTrials
+Read"]
+	367 -> 366
 }

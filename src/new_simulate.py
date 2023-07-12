@@ -11,7 +11,7 @@ import json
 import sys
 from collections import deque
 
-MEMORY_SIZE = 10000
+MEMORY_SIZE = 1000000
 memory_module = Memory(MEMORY_SIZE)
 
 data = {}

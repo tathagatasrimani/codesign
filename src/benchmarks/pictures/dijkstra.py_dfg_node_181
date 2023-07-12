@@ -1,16 +1,7 @@
 digraph {
-	312 [label="source code:
-path = []
-current = v
+	330 [label="source code:
+for v in G.vertices:
 "]
-	313 [label="[]
-"]
-	314 [label="path
-Write"]
-	313 -> 314
-	315 [label="v
+	331 [label="G.vertices
 Read"]
-	316 [label="current
-Write"]
-	315 -> 316
 }

@@ -1,10 +1,10 @@
 digraph {
-	227 [label="source code:
-for w in Ls[i]:
+	239 [label="source code:
+unsureVertices.remove(u)
 "]
-	228 [label="Ls
+	240 [label="unsureVertices.remove(u)
+"]
+	241 [label="u
 Read"]
-	229 [label="Ls[i]
-Read"]
-	228 -> 229
+	241 -> 240
 }

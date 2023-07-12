@@ -1,13 +1,16 @@
 digraph {
-	342 [label="source code:
-unsureVertices[v] = v.estD
+	354 [label="source code:
+nValues = []
+tValues = []
 "]
-	343 [label="v.estD
-Read"]
-	344 [label="unsureVertices
-Read"]
-	345 [label="unsureVertices[v]
+	355 [label="[]
+"]
+	356 [label="nValues
 Write"]
-	344 -> 345
-	343 -> 345
+	355 -> 356
+	357 [label="[]
+"]
+	358 [label="tValues
+Write"]
+	357 -> 358
 }
