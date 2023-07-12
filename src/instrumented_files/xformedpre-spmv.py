@@ -25,44 +25,36 @@ def csr(matrix1, matrix2):
     print(3, 14)
     Result__1 = np.array([], dtype=int)
     for i__1 in range(rowNum__1):
-        print('enter scope 2')
         print(5, 18)
-        flag__2 = 1
-        for j__2 in range(columnNum__1):
-            print('enter scope 3')
-            if matrix1__1[i__1][j__2] != 0:
+        flag__1 = 1
+        for j__1 in range(columnNum__1):
+            if matrix1__1[i__1][j__1] != 0:
                 print(10, 21)
-                Value__1 = np.append(Value__1, np.array(matrix1__1[i__1][j__2])
+                Value__1 = np.append(Value__1, np.array(matrix1__1[i__1][j__1])
                     )
                 print(10, 22)
-                Column__1 = np.append(Column__1, j__2)
-                if flag__2 == 1:
+                Column__1 = np.append(Column__1, j__1)
+                if flag__1 == 1:
                     print(12, 24)
                     RowPtr__1 = np.append(RowPtr__1, len(Value__1) - 1)
                     print(12, 25)
-                    flag__2 = 0
-            print('exit scope 3')
-        print('exit scope 2')
+                    flag__1 = 0
     print(6, 26)
     RowPtr__1 = np.append(RowPtr__1, 8)
     for i__1 in range(rowNum__1):
-        print('enter scope 4')
         print(15, 31)
-        start__4 = int(RowPtr__1[i__1])
+        start__1 = int(RowPtr__1[i__1])
         print(15, 32)
-        end__4 = int(RowPtr__1[i__1 + 1])
+        end__1 = int(RowPtr__1[i__1 + 1])
         print(15, 33)
-        temp__4 = 0
-        for j__4 in range(start__4, end__4):
-            print('enter scope 5')
+        temp__1 = 0
+        for j__1 in range(start__1, end__1):
             print(18, 35)
-            k__5 = int(Column__1[j__4])
+            k__1 = int(Column__1[j__1])
             print(18, 36)
-            temp__4 += Value__1[j__4] * matrix2__1[k__5][0]
-            print('exit scope 5')
+            temp__1 += Value__1[j__1] * matrix2__1[k__1][0]
         print(19, 37)
-        Result__1 = np.append(Result__1, temp__4)
-        print('exit scope 4')
+        Result__1 = np.append(Result__1, temp__1)
     print('exit scope 1')
     return Result__1
     print('exit scope 1')

@@ -49,33 +49,31 @@ def csr(matrix1, matrix2):
     write_instrument_read(Result__1, 'Result__1')
     print('malloc', sys.getsizeof(Result__1), 'Result__1')
     for i__1 in range(instrument_read(rowNum__1, 'rowNum__1')):
-        print('enter scope 2')
         print(5, 18)
-        flag__2 = 1
-        write_instrument_read(flag__2, 'flag__2')
-        print('malloc', sys.getsizeof(flag__2), 'flag__2')
-        for j__2 in range(instrument_read(columnNum__1, 'columnNum__1')):
-            print('enter scope 3')
+        flag__1 = 1
+        write_instrument_read(flag__1, 'flag__1')
+        print('malloc', sys.getsizeof(flag__1), 'flag__1')
+        for j__1 in range(instrument_read(columnNum__1, 'columnNum__1')):
             if instrument_read_sub(instrument_read_sub(instrument_read(
                 matrix1__1, 'matrix1__1'), 'matrix1__1', instrument_read(
                 i__1, 'i__1'), None, None, False), 'matrix1__1[i__1]',
-                instrument_read(j__2, 'j__2'), None, None, False) != 0:
+                instrument_read(j__1, 'j__1'), None, None, False) != 0:
                 print(10, 21)
                 Value__1 = instrument_read(np, 'np').append(instrument_read
                     (Value__1, 'Value__1'), instrument_read(np, 'np').array
                     (instrument_read_sub(instrument_read_sub(
                     instrument_read(matrix1__1, 'matrix1__1'), 'matrix1__1',
                     instrument_read(i__1, 'i__1'), None, None, False),
-                    'matrix1__1[i__1]', instrument_read(j__2, 'j__2'), None,
+                    'matrix1__1[i__1]', instrument_read(j__1, 'j__1'), None,
                     None, False)))
                 write_instrument_read(Value__1, 'Value__1')
                 print('malloc', sys.getsizeof(Value__1), 'Value__1')
                 print(10, 22)
                 Column__1 = instrument_read(np, 'np').append(instrument_read
-                    (Column__1, 'Column__1'), instrument_read(j__2, 'j__2'))
+                    (Column__1, 'Column__1'), instrument_read(j__1, 'j__1'))
                 write_instrument_read(Column__1, 'Column__1')
                 print('malloc', sys.getsizeof(Column__1), 'Column__1')
-                if instrument_read(flag__2, 'flag__2') == 1:
+                if instrument_read(flag__1, 'flag__1') == 1:
                     print(12, 24)
                     RowPtr__1 = instrument_read(np, 'np').append(
                         instrument_read(RowPtr__1, 'RowPtr__1'), len(
@@ -83,58 +81,52 @@ def csr(matrix1, matrix2):
                     write_instrument_read(RowPtr__1, 'RowPtr__1')
                     print('malloc', sys.getsizeof(RowPtr__1), 'RowPtr__1')
                     print(12, 25)
-                    flag__2 = 0
-                    write_instrument_read(flag__2, 'flag__2')
-                    print('malloc', sys.getsizeof(flag__2), 'flag__2')
-            print('exit scope 3')
-        print('exit scope 2')
+                    flag__1 = 0
+                    write_instrument_read(flag__1, 'flag__1')
+                    print('malloc', sys.getsizeof(flag__1), 'flag__1')
     print(6, 26)
     RowPtr__1 = instrument_read(np, 'np').append(instrument_read(RowPtr__1,
         'RowPtr__1'), 8)
     write_instrument_read(RowPtr__1, 'RowPtr__1')
     print('malloc', sys.getsizeof(RowPtr__1), 'RowPtr__1')
     for i__1 in range(instrument_read(rowNum__1, 'rowNum__1')):
-        print('enter scope 4')
         print(15, 31)
-        start__4 = int(instrument_read_sub(instrument_read(RowPtr__1,
+        start__1 = int(instrument_read_sub(instrument_read(RowPtr__1,
             'RowPtr__1'), 'RowPtr__1', instrument_read(i__1, 'i__1'), None,
             None, False))
-        write_instrument_read(start__4, 'start__4')
-        print('malloc', sys.getsizeof(start__4), 'start__4')
+        write_instrument_read(start__1, 'start__1')
+        print('malloc', sys.getsizeof(start__1), 'start__1')
         print(15, 32)
-        end__4 = int(instrument_read_sub(instrument_read(RowPtr__1,
+        end__1 = int(instrument_read_sub(instrument_read(RowPtr__1,
             'RowPtr__1'), 'RowPtr__1', instrument_read(i__1, 'i__1') + 1,
             None, None, False))
-        write_instrument_read(end__4, 'end__4')
-        print('malloc', sys.getsizeof(end__4), 'end__4')
+        write_instrument_read(end__1, 'end__1')
+        print('malloc', sys.getsizeof(end__1), 'end__1')
         print(15, 33)
-        temp__4 = 0
-        write_instrument_read(temp__4, 'temp__4')
-        print('malloc', sys.getsizeof(temp__4), 'temp__4')
-        for j__4 in range(instrument_read(start__4, 'start__4'),
-            instrument_read(end__4, 'end__4')):
-            print('enter scope 5')
+        temp__1 = 0
+        write_instrument_read(temp__1, 'temp__1')
+        print('malloc', sys.getsizeof(temp__1), 'temp__1')
+        for j__1 in range(instrument_read(start__1, 'start__1'),
+            instrument_read(end__1, 'end__1')):
             print(18, 35)
-            k__5 = int(instrument_read_sub(instrument_read(Column__1,
-                'Column__1'), 'Column__1', instrument_read(j__4, 'j__4'),
+            k__1 = int(instrument_read_sub(instrument_read(Column__1,
+                'Column__1'), 'Column__1', instrument_read(j__1, 'j__1'),
                 None, None, False))
-            write_instrument_read(k__5, 'k__5')
-            print('malloc', sys.getsizeof(k__5), 'k__5')
+            write_instrument_read(k__1, 'k__1')
+            print('malloc', sys.getsizeof(k__1), 'k__1')
             print(18, 36)
-            temp__4 += instrument_read_sub(instrument_read(Value__1,
-                'Value__1'), 'Value__1', instrument_read(j__4, 'j__4'),
+            temp__1 += instrument_read_sub(instrument_read(Value__1,
+                'Value__1'), 'Value__1', instrument_read(j__1, 'j__1'),
                 None, None, False) * instrument_read_sub(instrument_read_sub
                 (instrument_read(matrix2__1, 'matrix2__1'), 'matrix2__1',
-                instrument_read(k__5, 'k__5'), None, None, False),
-                'matrix2__1[k__5]', 0, None, None, False)
-            write_instrument_read(temp__4, 'temp__4')
-            print('exit scope 5')
+                instrument_read(k__1, 'k__1'), None, None, False),
+                'matrix2__1[k__1]', 0, None, None, False)
+            write_instrument_read(temp__1, 'temp__1')
         print(19, 37)
         Result__1 = instrument_read(np, 'np').append(instrument_read(
-            Result__1, 'Result__1'), instrument_read(temp__4, 'temp__4'))
+            Result__1, 'Result__1'), instrument_read(temp__1, 'temp__1'))
         write_instrument_read(Result__1, 'Result__1')
         print('malloc', sys.getsizeof(Result__1), 'Result__1')
-        print('exit scope 4')
     print('exit scope 1')
     return instrument_read(Result__1, 'Result__1')
     print('exit scope 1')

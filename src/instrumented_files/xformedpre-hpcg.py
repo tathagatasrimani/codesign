@@ -115,102 +115,83 @@ def interpolation(f, g, f_alpha, g_alpha, alpha, c2, strong_wolfe_alpha,
     print(31, 51)
     h__8 = 1.0
     for i__8 in range(iters__8):
-        print('enter scope 9')
-        print('enter scope 10')
         if strong_wolfe_alpha(f__8, g__8, alpha__8, c2__8):
             print('exit scope 8')
-            print('exit scope 9')
-            print('exit scope 10')
             return alpha__8
-        print('exit scope 10')
         print(36, 56)
-        half__9 = (l__8 + h__8) / 2
+        half__8 = (l__8 + h__8) / 2
         print(36, 57)
         alpha__8 = -g_alpha(l__8) * h__8 ** 2 / (2 * (f_alpha(h__8) -
             f_alpha(l__8) - g_alpha(l__8) * h__8))
-        print('enter scope 11')
         if alpha__8 < l__8 or alpha__8 > h__8:
             print(38, 59)
-            alpha__8 = half__9
-        print('exit scope 11')
-        print('enter scope 12')
+            alpha__8 = half__8
         if g_alpha(alpha__8) > 0:
             print(40, 61)
             h__8 = alpha__8
-        else:
-            print('enter scope 13')
-            if g_alpha(alpha__8) <= 0:
-                print(43, 63)
-                l__8 = alpha__8
-            print('exit scope 13')
-        print('exit scope 12')
-        print('exit scope 9')
+        elif g_alpha(alpha__8) <= 0:
+            print(43, 63)
+            l__8 = alpha__8
     print('exit scope 8')
     return alpha__8
     print('exit scope 8')
 
 
 def conjugate_gradient(f, g, x0, iterations, error):
-    print('enter scope 14')
+    print('enter scope 9')
     print(1, 68)
-    f__14 = f
-    g__14 = g
-    x0__14 = x0
-    iterations__14 = iterations
-    error__14 = error
+    f__9 = f
+    g__9 = g
+    x0__9 = x0
+    iterations__9 = iterations
+    error__9 = error
     print(48, 69)
-    xk__14 = x0__14
+    xk__9 = x0__9
     print(48, 70)
-    c2__14 = 0.1
+    c2__9 = 0.1
     print(48, 72)
-    fk__14 = f(xk__14)
+    fk__9 = f(xk__9)
     print(48, 73)
-    gk__14 = g(xk__14)
+    gk__9 = g(xk__9)
     print(48, 74)
-    pk__14 = -gk__14
-    for i__14 in range(iterations__14):
-        print('enter scope 15')
+    pk__9 = -gk__9
+    for i__9 in range(iterations__9):
         print(50, 77)
-        alpha__15 = step_length(f__14, g__14, xk__14, 1.0, pk__14, c2__14)
+        alpha__9 = step_length(f__9, g__9, xk__9, 1.0, pk__9, c2__9)
         print(50, 78)
-        xk1__15 = xk__14 + alpha__15 * pk__14
+        xk1__9 = xk__9 + alpha__9 * pk__9
         print(50, 79)
-        gk1__15 = g(xk1__15)
+        gk1__9 = g(xk1__9)
         print(50, 80)
-        beta_k1__15 = np.dot(gk1__15, gk1__15) / np.dot(gk__14, gk__14)
+        beta_k1__9 = np.dot(gk1__9, gk1__9) / np.dot(gk__9, gk__9)
         print(50, 81)
-        pk1__15 = -gk1__15 + beta_k1__15 * pk__14
-        print('enter scope 16')
-        if np.linalg.norm(xk1__15 - xk__14) < error__14:
+        pk1__9 = -gk1__9 + beta_k1__9 * pk__9
+        if np.linalg.norm(xk1__9 - xk__9) < error__9:
             print(52, 84)
-            xk__14 = xk1__15
+            xk__9 = xk1__9
             break
-        print('exit scope 16')
         print(53, 87)
-        xk__14 = xk1__15
+        xk__9 = xk1__9
         print(53, 88)
-        gk__14 = gk1__15
+        gk__9 = gk1__9
         print(53, 89)
-        pk__14 = pk1__15
-        print('exit scope 15')
-    print('exit scope 14')
-    return xk__14, i__14 + 1
-    print('exit scope 14')
+        pk__9 = pk1__9
+    print('exit scope 9')
+    return xk__9, i__9 + 1
+    print('exit scope 9')
 
 
-print('enter scope 17')
 if __name__ == '__main__':
     print(56, 94)
-    x0__17 = np.array([0, 0])
+    x0__0 = np.array([0, 0])
     print(56, 95)
-    error__17 = 0.0001
+    error__0 = 0.0001
     print(56, 96)
-    max_iterations__17 = 1000
+    max_iterations__0 = 1000
     print(56, 99)
-    start__17 = time.time()
+    start__0 = time.time()
     print(56, 100)
-    x__17, n_iter__17 = conjugate_gradient(rosenbrock, grad_rosen, x0__17,
-        iterations=max_iterations__17, error=error__17)
+    x__0, n_iter__0 = conjugate_gradient(rosenbrock, grad_rosen, x0__0,
+        iterations=max_iterations__0, error=error__0)
     print(56, 102)
-    end__17 = time.time()
-print('exit scope 17')
+    end__0 = time.time()

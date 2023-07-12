@@ -236,15 +236,11 @@ class CS161Graph:
         write_instrument_read(ret, 'ret')
         print('malloc', sys.getsizeof(ret), 'ret')
         for v__15 in instrument_read(self, 'self').vertices:
-            print('enter scope 16')
-            for u__16, wt__16 in instrument_read(v__15, 'v__15'
+            for u__15, wt__15 in instrument_read(v__15, 'v__15'
                 ).getOutNeighborsWithWeights():
-                print('enter scope 17')
-                instrument_read(ret__17, 'ret__17').append([instrument_read
-                    (v__15, 'v__15'), instrument_read(u__16, 'u__16'),
-                    instrument_read(wt__16, 'wt__16')])
-                print('exit scope 17')
-            print('exit scope 16')
+                instrument_read(ret__15, 'ret__15').append([instrument_read
+                    (v__15, 'v__15'), instrument_read(u__15, 'u__15'),
+                    instrument_read(wt__15, 'wt__15')])
         print('exit scope 15')
         return instrument_read(ret__15, 'ret__15')
         print('exit scope 15')
@@ -253,514 +249,470 @@ class CS161Graph:
 class CS161Graph:
 
     def __init__(self):
-        print('enter scope 18')
+        print('enter scope 16')
         print(1, 83)
         self = instrument_read(self, 'self')
         write_instrument_read(self, 'self')
         print('malloc', sys.getsizeof(self), 'self')
         print(70, 84)
         instrument_read(self, 'self').vertices = []
-        print('exit scope 18')
+        print('exit scope 16')
 
     def addVertex(self, n):
-        print('enter scope 19')
+        print('enter scope 17')
         print(1, 86)
         self = instrument_read(self, 'self')
         write_instrument_read(self, 'self')
         print('malloc', sys.getsizeof(self), 'self')
-        n__19 = instrument_read(n, 'n')
-        write_instrument_read(n__19, 'n__19')
-        print('malloc', sys.getsizeof(n__19), 'n__19')
-        instrument_read(self, 'self').vertices.append(instrument_read(n__19,
-            'n__19'))
-        print('exit scope 19')
+        n__17 = instrument_read(n, 'n')
+        write_instrument_read(n__17, 'n__17')
+        print('malloc', sys.getsizeof(n__17), 'n__17')
+        instrument_read(self, 'self').vertices.append(instrument_read(n__17,
+            'n__17'))
+        print('exit scope 17')
 
     def addDiEdge(self, u, v, wt=1):
-        print('enter scope 20')
+        print('enter scope 18')
         print(1, 90)
         self = instrument_read(self, 'self')
         write_instrument_read(self, 'self')
         print('malloc', sys.getsizeof(self), 'self')
-        u__20 = instrument_read(u, 'u')
-        write_instrument_read(u__20, 'u__20')
-        print('malloc', sys.getsizeof(u__20), 'u__20')
-        v__20 = instrument_read(v, 'v')
-        write_instrument_read(v__20, 'v__20')
-        print('malloc', sys.getsizeof(v__20), 'v__20')
-        wt__20 = instrument_read(wt, 'wt')
-        write_instrument_read(wt__20, 'wt__20')
-        print('malloc', sys.getsizeof(wt__20), 'wt__20')
-        instrument_read(u__20, 'u__20').addOutNeighbor(instrument_read(
-            v__20, 'v__20'), wt=wt__20)
-        instrument_read(v__20, 'v__20').addInNeighbor(instrument_read(u__20,
-            'u__20'), wt=wt__20)
-        print('exit scope 20')
+        u__18 = instrument_read(u, 'u')
+        write_instrument_read(u__18, 'u__18')
+        print('malloc', sys.getsizeof(u__18), 'u__18')
+        v__18 = instrument_read(v, 'v')
+        write_instrument_read(v__18, 'v__18')
+        print('malloc', sys.getsizeof(v__18), 'v__18')
+        wt__18 = instrument_read(wt, 'wt')
+        write_instrument_read(wt__18, 'wt__18')
+        print('malloc', sys.getsizeof(wt__18), 'wt__18')
+        instrument_read(u__18, 'u__18').addOutNeighbor(instrument_read(
+            v__18, 'v__18'), wt=wt__18)
+        instrument_read(v__18, 'v__18').addInNeighbor(instrument_read(u__18,
+            'u__18'), wt=wt__18)
+        print('exit scope 18')
 
     def addBiEdge(self, u, v, wt=1):
-        print('enter scope 21')
+        print('enter scope 19')
         print(1, 95)
         self = instrument_read(self, 'self')
         write_instrument_read(self, 'self')
         print('malloc', sys.getsizeof(self), 'self')
-        u__21 = instrument_read(u, 'u')
-        write_instrument_read(u__21, 'u__21')
-        print('malloc', sys.getsizeof(u__21), 'u__21')
-        v__21 = instrument_read(v, 'v')
-        write_instrument_read(v__21, 'v__21')
-        print('malloc', sys.getsizeof(v__21), 'v__21')
-        wt__21 = instrument_read(wt, 'wt')
-        write_instrument_read(wt__21, 'wt__21')
-        print('malloc', sys.getsizeof(wt__21), 'wt__21')
-        instrument_read(self, 'self').addDiEdge(instrument_read(u__21,
-            'u__21'), instrument_read(v__21, 'v__21'), wt=wt__21)
-        instrument_read(self, 'self').addDiEdge(instrument_read(v__21,
-            'v__21'), instrument_read(u__21, 'u__21'), wt=wt__21)
-        print('exit scope 21')
+        u__19 = instrument_read(u, 'u')
+        write_instrument_read(u__19, 'u__19')
+        print('malloc', sys.getsizeof(u__19), 'u__19')
+        v__19 = instrument_read(v, 'v')
+        write_instrument_read(v__19, 'v__19')
+        print('malloc', sys.getsizeof(v__19), 'v__19')
+        wt__19 = instrument_read(wt, 'wt')
+        write_instrument_read(wt__19, 'wt__19')
+        print('malloc', sys.getsizeof(wt__19), 'wt__19')
+        instrument_read(self, 'self').addDiEdge(instrument_read(u__19,
+            'u__19'), instrument_read(v__19, 'v__19'), wt=wt__19)
+        instrument_read(self, 'self').addDiEdge(instrument_read(v__19,
+            'v__19'), instrument_read(u__19, 'u__19'), wt=wt__19)
+        print('exit scope 19')
 
     def getDirEdges(self):
-        print('enter scope 22')
+        print('enter scope 20')
         print(1, 101)
         self = instrument_read(self, 'self')
         write_instrument_read(self, 'self')
         print('malloc', sys.getsizeof(self), 'self')
         print(82, 102)
-        ret__22 = []
-        write_instrument_read(ret__22, 'ret__22')
-        print('malloc', sys.getsizeof(ret__22), 'ret__22')
-        for v__22 in instrument_read(self, 'self').vertices:
-            print('enter scope 23')
-            for u__23, wt__23 in instrument_read(v__22, 'v__22'
+        ret__20 = []
+        write_instrument_read(ret__20, 'ret__20')
+        print('malloc', sys.getsizeof(ret__20), 'ret__20')
+        for v__20 in instrument_read(self, 'self').vertices:
+            for u__20, wt__20 in instrument_read(v__20, 'v__20'
                 ).getOutNeighborsWithWeights():
-                print('enter scope 24')
-                instrument_read(ret__22, 'ret__22').append([instrument_read
-                    (v__22, 'v__22'), instrument_read(u__23, 'u__23'),
-                    instrument_read(wt__23, 'wt__23')])
-                print('exit scope 24')
-            print('exit scope 23')
-        print('exit scope 22')
-        return instrument_read(ret__22, 'ret__22')
-        print('exit scope 22')
+                instrument_read(ret__20, 'ret__20').append([instrument_read
+                    (v__20, 'v__20'), instrument_read(u__20, 'u__20'),
+                    instrument_read(wt__20, 'wt__20')])
+        print('exit scope 20')
+        return instrument_read(ret__20, 'ret__20')
+        print('exit scope 20')
 
 
 def randomGraph(n, p, wts=[1]):
-    print('enter scope 25')
+    print('enter scope 21')
     print(1, 112)
-    n__25 = instrument_read(n, 'n')
-    write_instrument_read(n__25, 'n__25')
-    print('malloc', sys.getsizeof(n__25), 'n__25')
-    p__25 = instrument_read(p, 'p')
-    write_instrument_read(p__25, 'p__25')
-    print('malloc', sys.getsizeof(p__25), 'p__25')
-    wts__25 = instrument_read(wts, 'wts')
-    write_instrument_read(wts__25, 'wts__25')
-    print('malloc', sys.getsizeof(wts__25), 'wts__25')
+    n__21 = instrument_read(n, 'n')
+    write_instrument_read(n__21, 'n__21')
+    print('malloc', sys.getsizeof(n__21), 'n__21')
+    p__21 = instrument_read(p, 'p')
+    write_instrument_read(p__21, 'p__21')
+    print('malloc', sys.getsizeof(p__21), 'p__21')
+    wts__21 = instrument_read(wts, 'wts')
+    write_instrument_read(wts__21, 'wts__21')
+    print('malloc', sys.getsizeof(wts__21), 'wts__21')
     print(91, 113)
-    G__25 = CS161Graph()
-    write_instrument_read(G__25, 'G__25')
-    print('malloc', sys.getsizeof(G__25), 'G__25')
+    G__21 = CS161Graph()
+    write_instrument_read(G__21, 'G__21')
+    print('malloc', sys.getsizeof(G__21), 'G__21')
     print(91, 114)
-    V__25 = [CS161Vertex(instrument_read(x__25, 'x__25')) for x__25 in
-        range(instrument_read(n__25, 'n__25'))]
-    write_instrument_read(V__25, 'V__25')
-    print('malloc', sys.getsizeof(V__25), 'V__25')
-    for v__25 in instrument_read(V__25, 'V__25'):
-        print('enter scope 26')
-        instrument_read(G__25, 'G__25').addVertex(instrument_read(v__25,
-            'v__25'))
-        print('exit scope 26')
-    for v__25 in instrument_read(V__25, 'V__25'):
-        print('enter scope 27')
-        for w__27 in instrument_read(V__25, 'V__25'):
-            print('enter scope 28')
-            if instrument_read(v__25, 'v__25') != instrument_read(w__27,
-                'w__27'):
-                if random() < instrument_read(p__25, 'p__25'):
-                    instrument_read(G__25, 'G__25').addDiEdge(instrument_read
-                        (v__25, 'v__25'), instrument_read(w__27, 'w__27'),
-                        wt=choice(wts__25))
-            print('exit scope 28')
-        print('exit scope 27')
-    print('exit scope 25')
-    return instrument_read(G__25, 'G__25')
-    print('exit scope 25')
+    V__21 = [CS161Vertex(instrument_read(x__21, 'x__21')) for x__21 in
+        range(instrument_read(n__21, 'n__21'))]
+    write_instrument_read(V__21, 'V__21')
+    print('malloc', sys.getsizeof(V__21), 'V__21')
+    for v__21 in instrument_read(V__21, 'V__21'):
+        instrument_read(G__21, 'G__21').addVertex(instrument_read(v__21,
+            'v__21'))
+    for v__21 in instrument_read(V__21, 'V__21'):
+        for w__21 in instrument_read(V__21, 'V__21'):
+            if instrument_read(v__21, 'v__21') != instrument_read(w__21,
+                'w__21'):
+                if random() < instrument_read(p__21, 'p__21'):
+                    instrument_read(G__21, 'G__21').addDiEdge(instrument_read
+                        (v__21, 'v__21'), instrument_read(w__21, 'w__21'),
+                        wt=choice(wts__21))
+    print('exit scope 21')
+    return instrument_read(G__21, 'G__21')
+    print('exit scope 21')
 
 
 def BFS(w, G):
-    print('enter scope 29')
+    print('enter scope 22')
     print(1, 124)
-    w__29 = instrument_read(w, 'w')
-    write_instrument_read(w__29, 'w__29')
-    print('malloc', sys.getsizeof(w__29), 'w__29')
-    G__29 = instrument_read(G, 'G')
-    write_instrument_read(G__29, 'G__29')
-    print('malloc', sys.getsizeof(G__29), 'G__29')
-    for v__29 in instrument_read(G__29, 'G__29').vertices:
-        print('enter scope 30')
+    w__22 = instrument_read(w, 'w')
+    write_instrument_read(w__22, 'w__22')
+    print('malloc', sys.getsizeof(w__22), 'w__22')
+    G__22 = instrument_read(G, 'G')
+    write_instrument_read(G__22, 'G__22')
+    print('malloc', sys.getsizeof(G__22), 'G__22')
+    for v__22 in instrument_read(G__22, 'G__22').vertices:
         print(107, 126)
-        instrument_read(v__29, 'v__29').status = 'unvisited'
-        print('exit scope 30')
+        instrument_read(v__22, 'v__22').status = 'unvisited'
     print(108, 127)
-    n__29 = len(instrument_read(G__29, 'G__29').vertices)
-    write_instrument_read(n__29, 'n__29')
-    print('malloc', sys.getsizeof(n__29), 'n__29')
+    n__22 = len(instrument_read(G__22, 'G__22').vertices)
+    write_instrument_read(n__22, 'n__22')
+    print('malloc', sys.getsizeof(n__22), 'n__22')
     print(108, 128)
-    Ls__29 = [[] for i__29 in range(instrument_read(n__29, 'n__29'))]
-    write_instrument_read(Ls__29, 'Ls__29')
-    print('malloc', sys.getsizeof(Ls__29), 'Ls__29')
+    Ls__22 = [[] for i__22 in range(instrument_read(n__22, 'n__22'))]
+    write_instrument_read(Ls__22, 'Ls__22')
+    print('malloc', sys.getsizeof(Ls__22), 'Ls__22')
     print(108, 129)
-    Ls__29[0] = [instrument_read(w__29, 'w__29')]
-    write_instrument_read_sub(Ls__29, 'Ls__29', 0, None, None, False)
+    Ls__22[0] = [instrument_read(w__22, 'w__22')]
+    write_instrument_read_sub(Ls__22, 'Ls__22', 0, None, None, False)
     print(108, 130)
-    instrument_read(w__29, 'w__29').status = 'visited'
-    for i__29 in range(instrument_read(n__29, 'n__29')):
-        print('enter scope 31')
-        for u__31 in instrument_read_sub(instrument_read(Ls__29, 'Ls__29'),
-            'Ls__29', instrument_read(i__29, 'i__29'), None, None, False):
-            print('enter scope 32')
-            for v__29 in instrument_read(u__31, 'u__31').getOutNeighbors():
-                print('enter scope 33')
-                if instrument_read(v__29, 'v__29').status == 'unvisited':
+    instrument_read(w__22, 'w__22').status = 'visited'
+    for i__22 in range(instrument_read(n__22, 'n__22')):
+        for u__22 in instrument_read_sub(instrument_read(Ls__22, 'Ls__22'),
+            'Ls__22', instrument_read(i__22, 'i__22'), None, None, False):
+            for v__22 in instrument_read(u__22, 'u__22').getOutNeighbors():
+                if instrument_read(v__22, 'v__22').status == 'unvisited':
                     print(116, 135)
-                    instrument_read(v__29, 'v__29').status = 'visited'
+                    instrument_read(v__22, 'v__22').status = 'visited'
                     print(116, 136)
-                    instrument_read(v__29, 'v__29').parent = instrument_read(
-                        u__31, 'u__31')
-                    instrument_read_sub(instrument_read(Ls__29, 'Ls__29'),
-                        'Ls__29', instrument_read(i__29, 'i__29') + 1, None,
-                        None, False).append(instrument_read(v__29, 'v__29'))
-                print('exit scope 33')
-            print('exit scope 32')
-        print('exit scope 31')
-    print('exit scope 29')
-    return instrument_read(Ls__29, 'Ls__29')
-    print('exit scope 29')
+                    instrument_read(v__22, 'v__22').parent = instrument_read(
+                        u__22, 'u__22')
+                    instrument_read_sub(instrument_read(Ls__22, 'Ls__22'),
+                        'Ls__22', instrument_read(i__22, 'i__22') + 1, None,
+                        None, False).append(instrument_read(v__22, 'v__22'))
+    print('exit scope 22')
+    return instrument_read(Ls__22, 'Ls__22')
+    print('exit scope 22')
 
 
 def BFS_shortestPaths(w, G):
-    print('enter scope 34')
+    print('enter scope 23')
     print(1, 140)
-    w__34 = instrument_read(w, 'w')
-    write_instrument_read(w__34, 'w__34')
-    print('malloc', sys.getsizeof(w__34), 'w__34')
-    G__34 = instrument_read(G, 'G')
-    write_instrument_read(G__34, 'G__34')
-    print('malloc', sys.getsizeof(G__34), 'G__34')
+    w__23 = instrument_read(w, 'w')
+    write_instrument_read(w__23, 'w__23')
+    print('malloc', sys.getsizeof(w__23), 'w__23')
+    G__23 = instrument_read(G, 'G')
+    write_instrument_read(G__23, 'G__23')
+    print('malloc', sys.getsizeof(G__23), 'G__23')
     print(121, 141)
-    Ls__34 = BFS(instrument_read(w__34, 'w__34'), instrument_read(G__34,
-        'G__34'))
-    write_instrument_read(Ls__34, 'Ls__34')
-    print('malloc', sys.getsizeof(Ls__34), 'Ls__34')
-    for i__34 in range(len(instrument_read(Ls__34, 'Ls__34'))):
-        print('enter scope 35')
-        for w__34 in instrument_read_sub(instrument_read(Ls__34, 'Ls__34'),
-            'Ls__34', instrument_read(i__34, 'i__34'), None, None, False):
-            print('enter scope 36')
+    Ls__23 = BFS(instrument_read(w__23, 'w__23'), instrument_read(G__23,
+        'G__23'))
+    write_instrument_read(Ls__23, 'Ls__23')
+    print('malloc', sys.getsizeof(Ls__23), 'Ls__23')
+    for i__23 in range(len(instrument_read(Ls__23, 'Ls__23'))):
+        for w__23 in instrument_read_sub(instrument_read(Ls__23, 'Ls__23'),
+            'Ls__23', instrument_read(i__23, 'i__23'), None, None, False):
             print(125, 145)
-            path__36 = []
-            write_instrument_read(path__36, 'path__36')
-            print('malloc', sys.getsizeof(path__36), 'path__36')
+            path__23 = []
+            write_instrument_read(path__23, 'path__23')
+            print('malloc', sys.getsizeof(path__23), 'path__23')
             print(125, 146)
-            current__36 = instrument_read(w__34, 'w__34')
-            write_instrument_read(current__36, 'current__36')
-            print('malloc', sys.getsizeof(current__36), 'current__36')
-            for j__36 in range(instrument_read(i__34, 'i__34')):
-                print('enter scope 37')
-                instrument_read(path__36, 'path__36').append(instrument_read
-                    (current__36, 'current__36'))
+            current__23 = instrument_read(w__23, 'w__23')
+            write_instrument_read(current__23, 'current__23')
+            print('malloc', sys.getsizeof(current__23), 'current__23')
+            for j__23 in range(instrument_read(i__23, 'i__23')):
+                instrument_read(path__23, 'path__23').append(instrument_read
+                    (current__23, 'current__23'))
                 print(128, 149)
-                current__36 = instrument_read(current__36, 'current__36'
+                current__23 = instrument_read(current__23, 'current__23'
                     ).parent
-                write_instrument_read(current__36, 'current__36')
-                print('malloc', sys.getsizeof(current__36), 'current__36')
-                print('exit scope 37')
-            instrument_read(path__36, 'path__36').append(instrument_read(
-                current__36, 'current__36'))
-            instrument_read(path__36, 'path__36').reverse()
-            print('exit scope 36')
-        print('exit scope 35')
-    print('exit scope 34')
+                write_instrument_read(current__23, 'current__23')
+                print('malloc', sys.getsizeof(current__23), 'current__23')
+            instrument_read(path__23, 'path__23').append(instrument_read(
+                current__23, 'current__23'))
+            instrument_read(path__23, 'path__23').reverse()
+    print('exit scope 23')
 
 
 def dijkstraDumb(w, G):
-    print('enter scope 38')
+    print('enter scope 24')
     print(1, 154)
-    w__38 = instrument_read(w, 'w')
-    write_instrument_read(w__38, 'w__38')
-    print('malloc', sys.getsizeof(w__38), 'w__38')
-    G__38 = instrument_read(G, 'G')
-    write_instrument_read(G__38, 'G__38')
-    print('malloc', sys.getsizeof(G__38), 'G__38')
-    for v__38 in instrument_read(G__38, 'G__38').vertices:
-        print('enter scope 39')
+    w__24 = instrument_read(w, 'w')
+    write_instrument_read(w__24, 'w__24')
+    print('malloc', sys.getsizeof(w__24), 'w__24')
+    G__24 = instrument_read(G, 'G')
+    write_instrument_read(G__24, 'G__24')
+    print('malloc', sys.getsizeof(G__24), 'G__24')
+    for v__24 in instrument_read(G__24, 'G__24').vertices:
         print(133, 156)
-        instrument_read(v__38, 'v__38').estD = instrument_read(math, 'math'
+        instrument_read(v__24, 'v__24').estD = instrument_read(math, 'math'
             ).inf
-        print('exit scope 39')
     print(134, 157)
-    instrument_read(w__38, 'w__38').estD = 0
+    instrument_read(w__24, 'w__24').estD = 0
     print(134, 158)
-    unsureVertices__38 = instrument_read_sub(instrument_read(G__38, 'G__38'
-        ).vertices, 'G__38.vertices', None, None, None, True)
-    write_instrument_read(unsureVertices__38, 'unsureVertices__38')
-    print('malloc', sys.getsizeof(unsureVertices__38), 'unsureVertices__38')
-    while len(instrument_read(unsureVertices__38, 'unsureVertices__38')) > 0:
+    unsureVertices__24 = instrument_read_sub(instrument_read(G__24, 'G__24'
+        ).vertices, 'G__24.vertices', None, None, None, True)
+    write_instrument_read(unsureVertices__24, 'unsureVertices__24')
+    print('malloc', sys.getsizeof(unsureVertices__24), 'unsureVertices__24')
+    while len(instrument_read(unsureVertices__24, 'unsureVertices__24')) > 0:
         print(136, 161)
-        u__38 = None
-        write_instrument_read(u__38, 'u__38')
-        print('malloc', sys.getsizeof(u__38), 'u__38')
+        u__24 = None
+        write_instrument_read(u__24, 'u__24')
+        print('malloc', sys.getsizeof(u__24), 'u__24')
         print(136, 162)
-        minD__38 = instrument_read(math, 'math').inf
-        write_instrument_read(minD__38, 'minD__38')
-        print('malloc', sys.getsizeof(minD__38), 'minD__38')
-        for x__38 in instrument_read(unsureVertices__38, 'unsureVertices__38'):
-            print('enter scope 40')
-            if instrument_read(x__38, 'x__38').estD < instrument_read(minD__38,
-                'minD__38'):
+        minD__24 = instrument_read(math, 'math').inf
+        write_instrument_read(minD__24, 'minD__24')
+        print('malloc', sys.getsizeof(minD__24), 'minD__24')
+        for x__24 in instrument_read(unsureVertices__24, 'unsureVertices__24'):
+            if instrument_read(x__24, 'x__24').estD < instrument_read(minD__24,
+                'minD__24'):
                 print(141, 165)
-                minD__38 = instrument_read(x__38, 'x__38').estD
-                write_instrument_read(minD__38, 'minD__38')
-                print('malloc', sys.getsizeof(minD__38), 'minD__38')
+                minD__24 = instrument_read(x__24, 'x__24').estD
+                write_instrument_read(minD__24, 'minD__24')
+                print('malloc', sys.getsizeof(minD__24), 'minD__24')
                 print(141, 166)
-                u__38 = instrument_read(x__38, 'x__38')
-                write_instrument_read(u__38, 'u__38')
-                print('malloc', sys.getsizeof(u__38), 'u__38')
-            print('exit scope 40')
-        if instrument_read(u__38, 'u__38') == None:
-            print('exit scope 38')
+                u__24 = instrument_read(x__24, 'x__24')
+                write_instrument_read(u__24, 'u__24')
+                print('malloc', sys.getsizeof(u__24), 'u__24')
+        if instrument_read(u__24, 'u__24') == None:
+            print('exit scope 24')
             return
-        for v__38, wt__38 in instrument_read(u__38, 'u__38'
+        for v__24, wt__24 in instrument_read(u__24, 'u__24'
             ).getOutNeighborsWithWeights():
-            print('enter scope 41')
-            if instrument_read(u__38, 'u__38').estD + instrument_read(wt__38,
-                'wt__38') < instrument_read(v__38, 'v__38').estD:
+            if instrument_read(u__24, 'u__24').estD + instrument_read(wt__24,
+                'wt__24') < instrument_read(v__24, 'v__24').estD:
                 print(148, 173)
-                instrument_read(v__38, 'v__38').estD = instrument_read(u__38,
-                    'u__38').estD + instrument_read(wt__38, 'wt__38')
+                instrument_read(v__24, 'v__24').estD = instrument_read(u__24,
+                    'u__24').estD + instrument_read(wt__24, 'wt__24')
                 print(148, 174)
-                instrument_read(v__38, 'v__38').parent = instrument_read(u__38,
-                    'u__38')
-            print('exit scope 41')
-        instrument_read(unsureVertices__38, 'unsureVertices__38').remove(
-            instrument_read(u__38, 'u__38'))
-    print('exit scope 38')
+                instrument_read(v__24, 'v__24').parent = instrument_read(u__24,
+                    'u__24')
+        instrument_read(unsureVertices__24, 'unsureVertices__24').remove(
+            instrument_read(u__24, 'u__24'))
+    print('exit scope 24')
 
 
 def dijkstraDumb_shortestPaths(w, G):
-    print('enter scope 42')
+    print('enter scope 25')
     print(1, 178)
-    w__42 = instrument_read(w, 'w')
-    write_instrument_read(w__42, 'w__42')
-    print('malloc', sys.getsizeof(w__42), 'w__42')
-    G__42 = instrument_read(G, 'G')
-    write_instrument_read(G__42, 'G__42')
-    print('malloc', sys.getsizeof(G__42), 'G__42')
-    dijkstraDumb(instrument_read(w__42, 'w__42'), instrument_read(G__42,
-        'G__42'))
-    for v__42 in instrument_read(G__42, 'G__42').vertices:
-        print('enter scope 43')
-        if instrument_read(v__42, 'v__42').estD == instrument_read(math, 'math'
+    w__25 = instrument_read(w, 'w')
+    write_instrument_read(w__25, 'w__25')
+    print('malloc', sys.getsizeof(w__25), 'w__25')
+    G__25 = instrument_read(G, 'G')
+    write_instrument_read(G__25, 'G__25')
+    print('malloc', sys.getsizeof(G__25), 'G__25')
+    dijkstraDumb(instrument_read(w__25, 'w__25'), instrument_read(G__25,
+        'G__25'))
+    for v__25 in instrument_read(G__25, 'G__25').vertices:
+        if instrument_read(v__25, 'v__25').estD == instrument_read(math, 'math'
             ).inf:
             continue
         print(157, 184)
-        path__43 = []
-        write_instrument_read(path__43, 'path__43')
-        print('malloc', sys.getsizeof(path__43), 'path__43')
+        path__25 = []
+        write_instrument_read(path__25, 'path__25')
+        print('malloc', sys.getsizeof(path__25), 'path__25')
         print(157, 185)
-        current__43 = instrument_read(v__42, 'v__42')
-        write_instrument_read(current__43, 'current__43')
-        print('malloc', sys.getsizeof(current__43), 'current__43')
-        while instrument_read(current__43, 'current__43') != instrument_read(
-            w__42, 'w__42'):
-            instrument_read(path__43, 'path__43').append(instrument_read(
-                current__43, 'current__43'))
+        current__25 = instrument_read(v__25, 'v__25')
+        write_instrument_read(current__25, 'current__25')
+        print('malloc', sys.getsizeof(current__25), 'current__25')
+        while instrument_read(current__25, 'current__25') != instrument_read(
+            w__25, 'w__25'):
+            instrument_read(path__25, 'path__25').append(instrument_read(
+                current__25, 'current__25'))
             print(159, 188)
-            current__43 = instrument_read(current__43, 'current__43').parent
-            write_instrument_read(current__43, 'current__43')
-            print('malloc', sys.getsizeof(current__43), 'current__43')
-        instrument_read(path__43, 'path__43').append(instrument_read(
-            current__43, 'current__43'))
-        instrument_read(path__43, 'path__43').reverse()
-        print('exit scope 43')
-    print('exit scope 42')
+            current__25 = instrument_read(current__25, 'current__25').parent
+            write_instrument_read(current__25, 'current__25')
+            print('malloc', sys.getsizeof(current__25), 'current__25')
+        instrument_read(path__25, 'path__25').append(instrument_read(
+            current__25, 'current__25'))
+        instrument_read(path__25, 'path__25').reverse()
+    print('exit scope 25')
 
 
 def dijkstra(w, G):
-    print('enter scope 44')
+    print('enter scope 26')
     print(1, 193)
-    w__44 = instrument_read(w, 'w')
-    write_instrument_read(w__44, 'w__44')
-    print('malloc', sys.getsizeof(w__44), 'w__44')
-    G__44 = instrument_read(G, 'G')
-    write_instrument_read(G__44, 'G__44')
-    print('malloc', sys.getsizeof(G__44), 'G__44')
-    for v__44 in instrument_read(G__44, 'G__44').vertices:
-        print('enter scope 45')
+    w__26 = instrument_read(w, 'w')
+    write_instrument_read(w__26, 'w__26')
+    print('malloc', sys.getsizeof(w__26), 'w__26')
+    G__26 = instrument_read(G, 'G')
+    write_instrument_read(G__26, 'G__26')
+    print('malloc', sys.getsizeof(G__26), 'G__26')
+    for v__26 in instrument_read(G__26, 'G__26').vertices:
         print(164, 195)
-        instrument_read(v__44, 'v__44').estD = instrument_read(math, 'math'
+        instrument_read(v__26, 'v__26').estD = instrument_read(math, 'math'
             ).inf
-        print('exit scope 45')
     print(165, 196)
-    instrument_read(w__44, 'w__44').estD = 0
+    instrument_read(w__26, 'w__26').estD = 0
     print(165, 197)
-    unsureVertices__44 = instrument_read(heapdict, 'heapdict').heapdict()
-    write_instrument_read(unsureVertices__44, 'unsureVertices__44')
-    print('malloc', sys.getsizeof(unsureVertices__44), 'unsureVertices__44')
-    for v__44 in instrument_read(G__44, 'G__44').vertices:
-        print('enter scope 46')
+    unsureVertices__26 = instrument_read(heapdict, 'heapdict').heapdict()
+    write_instrument_read(unsureVertices__26, 'unsureVertices__26')
+    print('malloc', sys.getsizeof(unsureVertices__26), 'unsureVertices__26')
+    for v__26 in instrument_read(G__26, 'G__26').vertices:
         print(167, 199)
-        unsureVertices__44[instrument_read(instrument_read(v__44, 'v__44'),
-            'v__44')] = instrument_read(v__44, 'v__44').estD
-        write_instrument_read_sub(unsureVertices__44, 'unsureVertices__44',
-            instrument_read(instrument_read(v__44, 'v__44'), 'v__44'), None,
+        unsureVertices__26[instrument_read(instrument_read(v__26, 'v__26'),
+            'v__26')] = instrument_read(v__26, 'v__26').estD
+        write_instrument_read_sub(unsureVertices__26, 'unsureVertices__26',
+            instrument_read(instrument_read(v__26, 'v__26'), 'v__26'), None,
             None, False)
-        print('exit scope 46')
-    while len(instrument_read(unsureVertices__44, 'unsureVertices__44')) > 0:
+    while len(instrument_read(unsureVertices__26, 'unsureVertices__26')) > 0:
         print(169, 202)
-        u__44, dist__44 = instrument_read(unsureVertices__44,
-            'unsureVertices__44').popitem()
-        write_instrument_read(dist__44, 'dist__44')
-        print('malloc', sys.getsizeof(dist__44), 'dist__44')
-        if instrument_read(u__44, 'u__44').estD == instrument_read(math, 'math'
+        u__26, dist__26 = instrument_read(unsureVertices__26,
+            'unsureVertices__26').popitem()
+        write_instrument_read(dist__26, 'dist__26')
+        print('malloc', sys.getsizeof(dist__26), 'dist__26')
+        if instrument_read(u__26, 'u__26').estD == instrument_read(math, 'math'
             ).inf:
-            print('exit scope 44')
+            print('exit scope 26')
             return
-        for v__44, wt__44 in instrument_read(u__44, 'u__44'
+        for v__26, wt__26 in instrument_read(u__26, 'u__26'
             ).getOutNeighborsWithWeights():
-            print('enter scope 47')
-            if instrument_read(u__44, 'u__44').estD + instrument_read(wt__44,
-                'wt__44') < instrument_read(v__44, 'v__44').estD:
+            if instrument_read(u__26, 'u__26').estD + instrument_read(wt__26,
+                'wt__26') < instrument_read(v__26, 'v__26').estD:
                 print(176, 209)
-                instrument_read(v__44, 'v__44').estD = instrument_read(u__44,
-                    'u__44').estD + instrument_read(wt__44, 'wt__44')
+                instrument_read(v__26, 'v__26').estD = instrument_read(u__26,
+                    'u__26').estD + instrument_read(wt__26, 'wt__26')
                 print(176, 210)
-                unsureVertices__44[instrument_read(instrument_read(v__44,
-                    'v__44'), 'v__44')] = instrument_read(u__44, 'u__44'
-                    ).estD + instrument_read(wt__44, 'wt__44')
-                write_instrument_read_sub(unsureVertices__44,
-                    'unsureVertices__44', instrument_read(instrument_read(
-                    v__44, 'v__44'), 'v__44'), None, None, False)
+                unsureVertices__26[instrument_read(instrument_read(v__26,
+                    'v__26'), 'v__26')] = instrument_read(u__26, 'u__26'
+                    ).estD + instrument_read(wt__26, 'wt__26')
+                write_instrument_read_sub(unsureVertices__26,
+                    'unsureVertices__26', instrument_read(instrument_read(
+                    v__26, 'v__26'), 'v__26'), None, None, False)
                 print(176, 211)
-                instrument_read(v__44, 'v__44').parent = instrument_read(u__44,
-                    'u__44')
-            print('exit scope 47')
-    print('exit scope 44')
+                instrument_read(v__26, 'v__26').parent = instrument_read(u__26,
+                    'u__26')
+    print('exit scope 26')
 
 
 def dijkstra_shortestPaths(w, G):
-    print('enter scope 48')
+    print('enter scope 27')
     print(1, 214)
-    w__48 = instrument_read(w, 'w')
-    write_instrument_read(w__48, 'w__48')
-    print('malloc', sys.getsizeof(w__48), 'w__48')
-    G__48 = instrument_read(G, 'G')
-    write_instrument_read(G__48, 'G__48')
-    print('malloc', sys.getsizeof(G__48), 'G__48')
-    dijkstra(instrument_read(w__48, 'w__48'), instrument_read(G__48, 'G__48'))
-    for v__48 in instrument_read(G__48, 'G__48').vertices:
-        print('enter scope 49')
-        if instrument_read(v__48, 'v__48').estD == instrument_read(math, 'math'
+    w__27 = instrument_read(w, 'w')
+    write_instrument_read(w__27, 'w__27')
+    print('malloc', sys.getsizeof(w__27), 'w__27')
+    G__27 = instrument_read(G, 'G')
+    write_instrument_read(G__27, 'G__27')
+    print('malloc', sys.getsizeof(G__27), 'G__27')
+    dijkstra(instrument_read(w__27, 'w__27'), instrument_read(G__27, 'G__27'))
+    for v__27 in instrument_read(G__27, 'G__27').vertices:
+        if instrument_read(v__27, 'v__27').estD == instrument_read(math, 'math'
             ).inf:
             continue
         print(185, 220)
-        path__49 = []
-        write_instrument_read(path__49, 'path__49')
-        print('malloc', sys.getsizeof(path__49), 'path__49')
+        path__27 = []
+        write_instrument_read(path__27, 'path__27')
+        print('malloc', sys.getsizeof(path__27), 'path__27')
         print(185, 221)
-        current__49 = instrument_read(v__48, 'v__48')
-        write_instrument_read(current__49, 'current__49')
-        print('malloc', sys.getsizeof(current__49), 'current__49')
-        while instrument_read(current__49, 'current__49') != instrument_read(
-            w__48, 'w__48'):
-            instrument_read(path__49, 'path__49').append(instrument_read(
-                current__49, 'current__49'))
+        current__27 = instrument_read(v__27, 'v__27')
+        write_instrument_read(current__27, 'current__27')
+        print('malloc', sys.getsizeof(current__27), 'current__27')
+        while instrument_read(current__27, 'current__27') != instrument_read(
+            w__27, 'w__27'):
+            instrument_read(path__27, 'path__27').append(instrument_read(
+                current__27, 'current__27'))
             print(187, 224)
-            current__49 = instrument_read(current__49, 'current__49').parent
-            write_instrument_read(current__49, 'current__49')
-            print('malloc', sys.getsizeof(current__49), 'current__49')
-        instrument_read(path__49, 'path__49').append(instrument_read(
-            current__49, 'current__49'))
-        instrument_read(path__49, 'path__49').reverse()
-        print('exit scope 49')
-    print('exit scope 48')
+            current__27 = instrument_read(current__27, 'current__27').parent
+            write_instrument_read(current__27, 'current__27')
+            print('malloc', sys.getsizeof(current__27), 'current__27')
+        instrument_read(path__27, 'path__27').append(instrument_read(
+            current__27, 'current__27'))
+        instrument_read(path__27, 'path__27').reverse()
+    print('exit scope 27')
 
 
 def runTrials(myFn, nVals, pFn, numTrials=25):
-    print('enter scope 50')
+    print('enter scope 28')
     print(1, 229)
-    myFn__50 = instrument_read(myFn, 'myFn')
-    write_instrument_read(myFn__50, 'myFn__50')
-    print('malloc', sys.getsizeof(myFn__50), 'myFn__50')
-    nVals__50 = instrument_read(nVals, 'nVals')
-    write_instrument_read(nVals__50, 'nVals__50')
-    print('malloc', sys.getsizeof(nVals__50), 'nVals__50')
-    pFn__50 = instrument_read(pFn, 'pFn')
-    write_instrument_read(pFn__50, 'pFn__50')
-    print('malloc', sys.getsizeof(pFn__50), 'pFn__50')
-    numTrials__50 = instrument_read(numTrials, 'numTrials')
-    write_instrument_read(numTrials__50, 'numTrials__50')
-    print('malloc', sys.getsizeof(numTrials__50), 'numTrials__50')
+    myFn__28 = instrument_read(myFn, 'myFn')
+    write_instrument_read(myFn__28, 'myFn__28')
+    print('malloc', sys.getsizeof(myFn__28), 'myFn__28')
+    nVals__28 = instrument_read(nVals, 'nVals')
+    write_instrument_read(nVals__28, 'nVals__28')
+    print('malloc', sys.getsizeof(nVals__28), 'nVals__28')
+    pFn__28 = instrument_read(pFn, 'pFn')
+    write_instrument_read(pFn__28, 'pFn__28')
+    print('malloc', sys.getsizeof(pFn__28), 'pFn__28')
+    numTrials__28 = instrument_read(numTrials, 'numTrials')
+    write_instrument_read(numTrials__28, 'numTrials__28')
+    print('malloc', sys.getsizeof(numTrials__28), 'numTrials__28')
     print(191, 230)
-    nValues__50 = []
-    write_instrument_read(nValues__50, 'nValues__50')
-    print('malloc', sys.getsizeof(nValues__50), 'nValues__50')
+    nValues__28 = []
+    write_instrument_read(nValues__28, 'nValues__28')
+    print('malloc', sys.getsizeof(nValues__28), 'nValues__28')
     print(191, 231)
-    tValues__50 = []
-    write_instrument_read(tValues__50, 'tValues__50')
-    print('malloc', sys.getsizeof(tValues__50), 'tValues__50')
-    for n__50 in instrument_read(nVals__50, 'nVals__50'):
-        print('enter scope 51')
+    tValues__28 = []
+    write_instrument_read(tValues__28, 'tValues__28')
+    print('malloc', sys.getsizeof(tValues__28), 'tValues__28')
+    for n__28 in instrument_read(nVals__28, 'nVals__28'):
         print(193, 234)
-        runtime__51 = 0
-        write_instrument_read(runtime__51, 'runtime__51')
-        print('malloc', sys.getsizeof(runtime__51), 'runtime__51')
-        for t__51 in range(instrument_read(numTrials__50, 'numTrials__50')):
-            print('enter scope 52')
+        runtime__28 = 0
+        write_instrument_read(runtime__28, 'runtime__28')
+        print('malloc', sys.getsizeof(runtime__28), 'runtime__28')
+        for t__28 in range(instrument_read(numTrials__28, 'numTrials__28')):
             print(196, 236)
-            G__52 = randomGraph(instrument_read(n__50, 'n__50'), pFn(
-                instrument_read(n__50, 'n__50')))
-            write_instrument_read(G__52, 'G__52')
-            print('malloc', sys.getsizeof(G__52), 'G__52')
+            G__28 = randomGraph(instrument_read(n__28, 'n__28'), pFn(
+                instrument_read(n__28, 'n__28')))
+            write_instrument_read(G__28, 'G__28')
+            print('malloc', sys.getsizeof(G__28), 'G__28')
             print(196, 237)
-            start__52 = instrument_read(time, 'time').time()
-            write_instrument_read(start__52, 'start__52')
-            print('malloc', sys.getsizeof(start__52), 'start__52')
-            myFn(instrument_read_sub(instrument_read(G__52, 'G__52').
-                vertices, 'G__52.vertices', 0, None, None, False),
-                instrument_read(G__52, 'G__52'))
+            start__28 = instrument_read(time, 'time').time()
+            write_instrument_read(start__28, 'start__28')
+            print('malloc', sys.getsizeof(start__28), 'start__28')
+            myFn(instrument_read_sub(instrument_read(G__28, 'G__28').
+                vertices, 'G__28.vertices', 0, None, None, False),
+                instrument_read(G__28, 'G__28'))
             print(196, 239)
-            end__52 = instrument_read(time, 'time').time()
-            write_instrument_read(end__52, 'end__52')
-            print('malloc', sys.getsizeof(end__52), 'end__52')
+            end__28 = instrument_read(time, 'time').time()
+            write_instrument_read(end__28, 'end__28')
+            print('malloc', sys.getsizeof(end__28), 'end__28')
             print(196, 240)
-            runtime__51 += (instrument_read(end__52, 'end__52') -
-                instrument_read(start__52, 'start__52')) * 1000
-            write_instrument_read(runtime__51, 'runtime__51')
-            print('exit scope 52')
+            runtime__28 += (instrument_read(end__28, 'end__28') -
+                instrument_read(start__28, 'start__28')) * 1000
+            write_instrument_read(runtime__28, 'runtime__28')
         print(197, 241)
-        runtime__51 = instrument_read(runtime__51, 'runtime__51'
-            ) / instrument_read(numTrials__50, 'numTrials__50')
-        write_instrument_read(runtime__51, 'runtime__51')
-        print('malloc', sys.getsizeof(runtime__51), 'runtime__51')
-        instrument_read(nValues__50, 'nValues__50').append(instrument_read(
-            n__50, 'n__50'))
-        instrument_read(tValues__50, 'tValues__50').append(instrument_read(
-            runtime__51, 'runtime__51'))
-        print('exit scope 51')
-    print('exit scope 50')
-    return instrument_read(nValues__50, 'nValues__50'), instrument_read(
-        tValues__50, 'tValues__50')
-    print('exit scope 50')
+        runtime__28 = instrument_read(runtime__28, 'runtime__28'
+            ) / instrument_read(numTrials__28, 'numTrials__28')
+        write_instrument_read(runtime__28, 'runtime__28')
+        print('malloc', sys.getsizeof(runtime__28), 'runtime__28')
+        instrument_read(nValues__28, 'nValues__28').append(instrument_read(
+            n__28, 'n__28'))
+        instrument_read(tValues__28, 'tValues__28').append(instrument_read(
+            runtime__28, 'runtime__28'))
+    print('exit scope 28')
+    return instrument_read(nValues__28, 'nValues__28'), instrument_read(
+        tValues__28, 'tValues__28')
+    print('exit scope 28')
 
 
 def smallFrac(n):
-    print('enter scope 53')
+    print('enter scope 29')
     print(1, 246)
-    n__53 = instrument_read(n, 'n')
-    write_instrument_read(n__53, 'n__53')
-    print('malloc', sys.getsizeof(n__53), 'n__53')
-    print('exit scope 53')
-    return float(5 / instrument_read(n__53, 'n__53'))
-    print('exit scope 53')
+    n__29 = instrument_read(n, 'n')
+    write_instrument_read(n__29, 'n__29')
+    print('malloc', sys.getsizeof(n__29), 'n__29')
+    print('exit scope 29')
+    return float(5 / instrument_read(n__29, 'n__29'))
+    print('exit scope 29')
 
 
 if instrument_read(__name__, '__name__') == '__main__':

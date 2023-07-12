@@ -44,7 +44,7 @@ def set_id():
 def eval_expr(expr, graph, node):
     global unroll
     if ASTUtils.isBoolOp(expr):
-        print("visiting boolop")
+        #print("visiting boolop")
         values = []
         for value in expr.values:
             values += eval_expr(value, graph, node)
@@ -58,7 +58,7 @@ def eval_expr(expr, graph, node):
     elif ASTUtils.isNamedExpr(expr):
         return
     elif ASTUtils.isBinOp(expr):
-        print("visiting binop")
+        #print("visiting binop")
         left = eval_expr(expr.left, graph, node)
         right = eval_expr(expr.right, graph, node)
         op_id = set_id()
@@ -68,7 +68,7 @@ def eval_expr(expr, graph, node):
         make_edge(graph, node, right[0], op_id)
         return [op_id]
     elif ASTUtils.isUnaryOp(expr):
-        print("visiting unaryop")
+        #print("visiting unaryop")
         value = eval_expr(expr.operand, graph, node)
         op_id = set_id()
         opname = ASTUtils.expr_to_opname(expr.op)
@@ -98,7 +98,7 @@ def eval_expr(expr, graph, node):
     elif ASTUtils.isYieldFrom(expr):
         return
     elif ASTUtils.isCompare(expr):
-        print("visiting compare")
+        #print("visiting compare")
         ids = []
         left = eval_expr(expr.left, graph, node)
         assert(len(expr.ops) == len(expr.comparators))
@@ -113,7 +113,7 @@ def eval_expr(expr, graph, node):
             left = comparator
         return ids
     elif ASTUtils.isCall(expr):
-        print("visiting call")
+        #print("visiting call")
         func_id = set_id()
         make_node(graph, node, func_id, astor.to_source(expr)[:-1], None, None)
         for arg in expr.args:
@@ -125,12 +125,12 @@ def eval_expr(expr, graph, node):
     elif ASTUtils.isJoinedStr(expr):
         return
     elif ASTUtils.isConstant(expr):
-        print("visiting constant")
+        #print("visiting constant")
         id = set_id()
         make_node(graph, node, id, str(expr.value), None, None)
         return [id]
     elif ASTUtils.isAttribute(expr):
-        print("visiting attribute")
+        #print("visiting attribute")
         if expr.attr == "start_unroll": unroll = True
         elif expr.attr == "stop_unroll": unroll = False
         if ASTUtils.isName(expr.value) or ASTUtils.isSubscript(expr.value):
@@ -144,7 +144,7 @@ def eval_expr(expr, graph, node):
             make_edge(graph, node, attr_id, target_id[0])
             return [attr_id]
     elif ASTUtils.isSubscript(expr):
-        print("visiting subscript")
+        #print("visiting subscript")
         # ignoring the index for now
         name_id = eval_expr(expr.value, graph, node)
         sub_id = set_id()
@@ -154,12 +154,12 @@ def eval_expr(expr, graph, node):
     elif ASTUtils.isStarred(expr):
         return
     elif ASTUtils.isName(expr):
-        print("visiting name")
+        #print("visiting name")
         id = set_id()
         make_node(graph, node, id, expr.id, type(expr.ctx), "Regs")
         return [id]
     elif ASTUtils.isList(expr):
-        print("visiting list")
+        #print("visiting list")
         val = []
         for elem in expr.elts:
             val += eval_expr(elem, graph, node)
@@ -169,7 +169,7 @@ def eval_expr(expr, graph, node):
             val = [none_id]
         return val
     elif ASTUtils.isTuple(expr):
-        print("visiting tuple")
+        #print("visiting tuple")
         val = []
         for elem in expr.elts:
             val += eval_expr(elem, graph, node)
@@ -186,7 +186,7 @@ def eval_stmt(stmt, graph, node):
                 break
         else:
             unroll = False
-        print(unroll)
+        #print(unroll)
     elif ASTUtils.isAsyncFunctionDef(stmt):
         return
     elif ASTUtils.isClassDef(stmt):
@@ -196,7 +196,7 @@ def eval_stmt(stmt, graph, node):
     elif ASTUtils.isDelete(stmt):
         return
     elif ASTUtils.isAssign(stmt):
-        print("visiting assign")
+        #print("visiting assign")
         value_ids = eval_expr(stmt.value, graph, node)
         targets = eval_expr(stmt.targets[0], graph, node)
         if not targets or not value_ids: return
@@ -215,7 +215,7 @@ def eval_stmt(stmt, graph, node):
                 make_edge(graph, node, value_id, targets[0])
     elif ASTUtils.isAugAssign(stmt):
         # note that target is a name
-        print("visiting augassign")
+        #print("visiting augassign")
         value_ids = eval_expr(stmt.value, graph, node)
         target = stmt.target
         while type(target) == ast.Attribute or type(target) == ast.Subscript:
@@ -244,7 +244,7 @@ def eval_stmt(stmt, graph, node):
             target_write_id = eval_expr(stmt.target, graph, node)
             make_edge(graph, node, op_id, target_write_id[0])
     elif ASTUtils.isAnnAssign(stmt):
-        print("visiting annassign")
+        #print("visiting annassign")
         target_id = eval_expr(stmt.target, graph, node)
         if not stmt.value:
             none_id = set_id()
@@ -256,17 +256,17 @@ def eval_stmt(stmt, graph, node):
                 make_edge(graph, node, source_id, target_id[0])
         return target_id
     elif ASTUtils.isFor(stmt):
-        print("visiting for")
+        #print("visiting for")
         # target only evaluated once so going to ignore it here
         eval_expr(stmt.iter, graph, node)
     elif ASTUtils.isAsyncFor(stmt):
-        print("visiting async for")
+        #print("visiting async for")
         eval_expr(stmt.iter, graph, node)
     elif ASTUtils.isWhile(stmt):
-        print("visiting while")
+        #print("visiting while")
         eval_expr(stmt.test, graph, node)
     elif ASTUtils.isIf(stmt):
-        print("visiting if")
+        #print("visiting if")
         eval_expr(stmt.test, graph, node)
     elif ASTUtils.isWith(stmt):
         return
@@ -287,7 +287,7 @@ def eval_stmt(stmt, graph, node):
     elif ASTUtils.isNonlocal(stmt):
         return
     elif type(stmt) == ast.Expr:
-        print("visiting expr")
+        #print("visiting expr")
         eval_expr(stmt.value, graph, node)
     elif ASTUtils.isCall(stmt):
         return

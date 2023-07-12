@@ -234,10 +234,11 @@ def main():
     hw.hw_allocated['Invert'] = 1
     
     data = simulate(cfg, node_operations, hw.hw_allocated, True)
-    text = json.dumps(data, indent=4)
     names = sys.argv[1].split('/')
-    with open(path + 'json_data/' + names[-1], 'w') as fh:
-        fh.write(text)
+    if len(sys.argv) < 3 or not sys.argv[2] == "notrace":
+        text = json.dumps(data, indent=4)
+        with open(path + 'json_data/' + names[-1], 'w') as fh:
+            fh.write(text)
     t = []
     for i in range(len(power_use)):
         t.append(i)

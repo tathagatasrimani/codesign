@@ -233,21 +233,16 @@ def interpolation(f, g, f_alpha, g_alpha, alpha, c2, strong_wolfe_alpha,
     write_instrument_read(h__8, 'h__8')
     print('malloc', sys.getsizeof(h__8), 'h__8')
     for i__8 in range(instrument_read(iters__8, 'iters__8')):
-        print('enter scope 9')
-        print('enter scope 10')
         if strong_wolfe_alpha(instrument_read(f__8, 'f__8'),
             instrument_read(g__8, 'g__8'), instrument_read(alpha__8,
             'alpha__8'), instrument_read(c2__8, 'c2__8')):
             print('exit scope 8')
-            print('exit scope 9')
-            print('exit scope 10')
             return instrument_read(alpha__8, 'alpha__8')
-        print('exit scope 10')
         print(36, 56)
-        half__9 = (instrument_read(l__8, 'l__8') + instrument_read(h__8,
+        half__8 = (instrument_read(l__8, 'l__8') + instrument_read(h__8,
             'h__8')) / 2
-        write_instrument_read(half__9, 'half__9')
-        print('malloc', sys.getsizeof(half__9), 'half__9')
+        write_instrument_read(half__8, 'half__8')
+        print('malloc', sys.getsizeof(half__8), 'half__8')
         print(36, 57)
         alpha__8 = -g_alpha(instrument_read(l__8, 'l__8')) * instrument_read(
             h__8, 'h__8') ** 2 / (2 * (f_alpha(instrument_read(h__8, 'h__8'
@@ -255,160 +250,145 @@ def interpolation(f, g, f_alpha, g_alpha, alpha, c2, strong_wolfe_alpha,
             instrument_read(l__8, 'l__8')) * instrument_read(h__8, 'h__8')))
         write_instrument_read(alpha__8, 'alpha__8')
         print('malloc', sys.getsizeof(alpha__8), 'alpha__8')
-        print('enter scope 11')
         if instrument_read(alpha__8, 'alpha__8') < instrument_read(l__8, 'l__8'
             ) or instrument_read(alpha__8, 'alpha__8') > instrument_read(h__8,
             'h__8'):
             print(38, 59)
-            alpha__8 = instrument_read(half__9, 'half__9')
+            alpha__8 = instrument_read(half__8, 'half__8')
             write_instrument_read(alpha__8, 'alpha__8')
             print('malloc', sys.getsizeof(alpha__8), 'alpha__8')
-        print('exit scope 11')
-        print('enter scope 12')
         if g_alpha(instrument_read(alpha__8, 'alpha__8')) > 0:
             print(40, 61)
             h__8 = instrument_read(alpha__8, 'alpha__8')
             write_instrument_read(h__8, 'h__8')
             print('malloc', sys.getsizeof(h__8), 'h__8')
-        else:
-            print('enter scope 13')
-            if g_alpha(instrument_read(alpha__8, 'alpha__8')) <= 0:
-                print(43, 63)
-                l__8 = instrument_read(alpha__8, 'alpha__8')
-                write_instrument_read(l__8, 'l__8')
-                print('malloc', sys.getsizeof(l__8), 'l__8')
-            print('exit scope 13')
-        print('exit scope 12')
-        print('exit scope 9')
+        elif g_alpha(instrument_read(alpha__8, 'alpha__8')) <= 0:
+            print(43, 63)
+            l__8 = instrument_read(alpha__8, 'alpha__8')
+            write_instrument_read(l__8, 'l__8')
+            print('malloc', sys.getsizeof(l__8), 'l__8')
     print('exit scope 8')
     return instrument_read(alpha__8, 'alpha__8')
     print('exit scope 8')
 
 
 def conjugate_gradient(f, g, x0, iterations, error):
-    print('enter scope 14')
+    print('enter scope 9')
     print(1, 68)
-    f__14 = instrument_read(f, 'f')
-    write_instrument_read(f__14, 'f__14')
-    print('malloc', sys.getsizeof(f__14), 'f__14')
-    g__14 = instrument_read(g, 'g')
-    write_instrument_read(g__14, 'g__14')
-    print('malloc', sys.getsizeof(g__14), 'g__14')
-    x0__14 = instrument_read(x0, 'x0')
-    write_instrument_read(x0__14, 'x0__14')
-    print('malloc', sys.getsizeof(x0__14), 'x0__14')
-    iterations__14 = instrument_read(iterations, 'iterations')
-    write_instrument_read(iterations__14, 'iterations__14')
-    print('malloc', sys.getsizeof(iterations__14), 'iterations__14')
-    error__14 = instrument_read(error, 'error')
-    write_instrument_read(error__14, 'error__14')
-    print('malloc', sys.getsizeof(error__14), 'error__14')
+    f__9 = instrument_read(f, 'f')
+    write_instrument_read(f__9, 'f__9')
+    print('malloc', sys.getsizeof(f__9), 'f__9')
+    g__9 = instrument_read(g, 'g')
+    write_instrument_read(g__9, 'g__9')
+    print('malloc', sys.getsizeof(g__9), 'g__9')
+    x0__9 = instrument_read(x0, 'x0')
+    write_instrument_read(x0__9, 'x0__9')
+    print('malloc', sys.getsizeof(x0__9), 'x0__9')
+    iterations__9 = instrument_read(iterations, 'iterations')
+    write_instrument_read(iterations__9, 'iterations__9')
+    print('malloc', sys.getsizeof(iterations__9), 'iterations__9')
+    error__9 = instrument_read(error, 'error')
+    write_instrument_read(error__9, 'error__9')
+    print('malloc', sys.getsizeof(error__9), 'error__9')
     print(48, 69)
-    xk__14 = instrument_read(x0__14, 'x0__14')
-    write_instrument_read(xk__14, 'xk__14')
-    print('malloc', sys.getsizeof(xk__14), 'xk__14')
+    xk__9 = instrument_read(x0__9, 'x0__9')
+    write_instrument_read(xk__9, 'xk__9')
+    print('malloc', sys.getsizeof(xk__9), 'xk__9')
     print(48, 70)
-    c2__14 = 0.1
-    write_instrument_read(c2__14, 'c2__14')
-    print('malloc', sys.getsizeof(c2__14), 'c2__14')
+    c2__9 = 0.1
+    write_instrument_read(c2__9, 'c2__9')
+    print('malloc', sys.getsizeof(c2__9), 'c2__9')
     print(48, 72)
-    fk__14 = f(instrument_read(xk__14, 'xk__14'))
-    write_instrument_read(fk__14, 'fk__14')
-    print('malloc', sys.getsizeof(fk__14), 'fk__14')
+    fk__9 = f(instrument_read(xk__9, 'xk__9'))
+    write_instrument_read(fk__9, 'fk__9')
+    print('malloc', sys.getsizeof(fk__9), 'fk__9')
     print(48, 73)
-    gk__14 = g(instrument_read(xk__14, 'xk__14'))
-    write_instrument_read(gk__14, 'gk__14')
-    print('malloc', sys.getsizeof(gk__14), 'gk__14')
+    gk__9 = g(instrument_read(xk__9, 'xk__9'))
+    write_instrument_read(gk__9, 'gk__9')
+    print('malloc', sys.getsizeof(gk__9), 'gk__9')
     print(48, 74)
-    pk__14 = -instrument_read(gk__14, 'gk__14')
-    write_instrument_read(pk__14, 'pk__14')
-    print('malloc', sys.getsizeof(pk__14), 'pk__14')
-    for i__14 in range(instrument_read(iterations__14, 'iterations__14')):
-        print('enter scope 15')
+    pk__9 = -instrument_read(gk__9, 'gk__9')
+    write_instrument_read(pk__9, 'pk__9')
+    print('malloc', sys.getsizeof(pk__9), 'pk__9')
+    for i__9 in range(instrument_read(iterations__9, 'iterations__9')):
         print(50, 77)
-        alpha__15 = step_length(instrument_read(f__14, 'f__14'),
-            instrument_read(g__14, 'g__14'), instrument_read(xk__14,
-            'xk__14'), 1.0, instrument_read(pk__14, 'pk__14'),
-            instrument_read(c2__14, 'c2__14'))
-        write_instrument_read(alpha__15, 'alpha__15')
-        print('malloc', sys.getsizeof(alpha__15), 'alpha__15')
+        alpha__9 = step_length(instrument_read(f__9, 'f__9'),
+            instrument_read(g__9, 'g__9'), instrument_read(xk__9, 'xk__9'),
+            1.0, instrument_read(pk__9, 'pk__9'), instrument_read(c2__9,
+            'c2__9'))
+        write_instrument_read(alpha__9, 'alpha__9')
+        print('malloc', sys.getsizeof(alpha__9), 'alpha__9')
         print(50, 78)
-        xk1__15 = instrument_read(xk__14, 'xk__14') + instrument_read(alpha__15
-            , 'alpha__15') * instrument_read(pk__14, 'pk__14')
-        write_instrument_read(xk1__15, 'xk1__15')
-        print('malloc', sys.getsizeof(xk1__15), 'xk1__15')
+        xk1__9 = instrument_read(xk__9, 'xk__9') + instrument_read(alpha__9,
+            'alpha__9') * instrument_read(pk__9, 'pk__9')
+        write_instrument_read(xk1__9, 'xk1__9')
+        print('malloc', sys.getsizeof(xk1__9), 'xk1__9')
         print(50, 79)
-        gk1__15 = g(instrument_read(xk1__15, 'xk1__15'))
-        write_instrument_read(gk1__15, 'gk1__15')
-        print('malloc', sys.getsizeof(gk1__15), 'gk1__15')
+        gk1__9 = g(instrument_read(xk1__9, 'xk1__9'))
+        write_instrument_read(gk1__9, 'gk1__9')
+        print('malloc', sys.getsizeof(gk1__9), 'gk1__9')
         print(50, 80)
-        beta_k1__15 = instrument_read(np, 'np').dot(instrument_read(gk1__15,
-            'gk1__15'), instrument_read(gk1__15, 'gk1__15')) / instrument_read(
-            np, 'np').dot(instrument_read(gk__14, 'gk__14'),
-            instrument_read(gk__14, 'gk__14'))
-        write_instrument_read(beta_k1__15, 'beta_k1__15')
-        print('malloc', sys.getsizeof(beta_k1__15), 'beta_k1__15')
+        beta_k1__9 = instrument_read(np, 'np').dot(instrument_read(gk1__9,
+            'gk1__9'), instrument_read(gk1__9, 'gk1__9')) / instrument_read(np,
+            'np').dot(instrument_read(gk__9, 'gk__9'), instrument_read(
+            gk__9, 'gk__9'))
+        write_instrument_read(beta_k1__9, 'beta_k1__9')
+        print('malloc', sys.getsizeof(beta_k1__9), 'beta_k1__9')
         print(50, 81)
-        pk1__15 = -instrument_read(gk1__15, 'gk1__15') + instrument_read(
-            beta_k1__15, 'beta_k1__15') * instrument_read(pk__14, 'pk__14')
-        write_instrument_read(pk1__15, 'pk1__15')
-        print('malloc', sys.getsizeof(pk1__15), 'pk1__15')
-        print('enter scope 16')
-        if instrument_read(np, 'np').linalg.norm(instrument_read(xk1__15,
-            'xk1__15') - instrument_read(xk__14, 'xk__14')) < instrument_read(
-            error__14, 'error__14'):
+        pk1__9 = -instrument_read(gk1__9, 'gk1__9') + instrument_read(
+            beta_k1__9, 'beta_k1__9') * instrument_read(pk__9, 'pk__9')
+        write_instrument_read(pk1__9, 'pk1__9')
+        print('malloc', sys.getsizeof(pk1__9), 'pk1__9')
+        if instrument_read(np, 'np').linalg.norm(instrument_read(xk1__9,
+            'xk1__9') - instrument_read(xk__9, 'xk__9')) < instrument_read(
+            error__9, 'error__9'):
             print(52, 84)
-            xk__14 = instrument_read(xk1__15, 'xk1__15')
-            write_instrument_read(xk__14, 'xk__14')
-            print('malloc', sys.getsizeof(xk__14), 'xk__14')
+            xk__9 = instrument_read(xk1__9, 'xk1__9')
+            write_instrument_read(xk__9, 'xk__9')
+            print('malloc', sys.getsizeof(xk__9), 'xk__9')
             break
-        print('exit scope 16')
         print(53, 87)
-        xk__14 = instrument_read(xk1__15, 'xk1__15')
-        write_instrument_read(xk__14, 'xk__14')
-        print('malloc', sys.getsizeof(xk__14), 'xk__14')
+        xk__9 = instrument_read(xk1__9, 'xk1__9')
+        write_instrument_read(xk__9, 'xk__9')
+        print('malloc', sys.getsizeof(xk__9), 'xk__9')
         print(53, 88)
-        gk__14 = instrument_read(gk1__15, 'gk1__15')
-        write_instrument_read(gk__14, 'gk__14')
-        print('malloc', sys.getsizeof(gk__14), 'gk__14')
+        gk__9 = instrument_read(gk1__9, 'gk1__9')
+        write_instrument_read(gk__9, 'gk__9')
+        print('malloc', sys.getsizeof(gk__9), 'gk__9')
         print(53, 89)
-        pk__14 = instrument_read(pk1__15, 'pk1__15')
-        write_instrument_read(pk__14, 'pk__14')
-        print('malloc', sys.getsizeof(pk__14), 'pk__14')
-        print('exit scope 15')
-    print('exit scope 14')
-    return instrument_read(xk__14, 'xk__14'), instrument_read(i__14, 'i__14'
-        ) + 1
-    print('exit scope 14')
+        pk__9 = instrument_read(pk1__9, 'pk1__9')
+        write_instrument_read(pk__9, 'pk__9')
+        print('malloc', sys.getsizeof(pk__9), 'pk__9')
+    print('exit scope 9')
+    return instrument_read(xk__9, 'xk__9'), instrument_read(i__9, 'i__9') + 1
+    print('exit scope 9')
 
 
-print('enter scope 17')
 if instrument_read(__name__, '__name__') == '__main__':
     print(56, 94)
-    x0__17 = instrument_read(np, 'np').array([0, 0])
-    write_instrument_read(x0__17, 'x0__17')
-    print('malloc', sys.getsizeof(x0__17), 'x0__17')
+    x0__0 = instrument_read(np, 'np').array([0, 0])
+    write_instrument_read(x0__0, 'x0__0')
+    print('malloc', sys.getsizeof(x0__0), 'x0__0')
     print(56, 95)
-    error__17 = 0.0001
-    write_instrument_read(error__17, 'error__17')
-    print('malloc', sys.getsizeof(error__17), 'error__17')
+    error__0 = 0.0001
+    write_instrument_read(error__0, 'error__0')
+    print('malloc', sys.getsizeof(error__0), 'error__0')
     print(56, 96)
-    max_iterations__17 = 1000
-    write_instrument_read(max_iterations__17, 'max_iterations__17')
-    print('malloc', sys.getsizeof(max_iterations__17), 'max_iterations__17')
+    max_iterations__0 = 1000
+    write_instrument_read(max_iterations__0, 'max_iterations__0')
+    print('malloc', sys.getsizeof(max_iterations__0), 'max_iterations__0')
     print(56, 99)
-    start__17 = instrument_read(time, 'time').time()
-    write_instrument_read(start__17, 'start__17')
-    print('malloc', sys.getsizeof(start__17), 'start__17')
+    start__0 = instrument_read(time, 'time').time()
+    write_instrument_read(start__0, 'start__0')
+    print('malloc', sys.getsizeof(start__0), 'start__0')
     print(56, 100)
-    x__17, n_iter__17 = conjugate_gradient(instrument_read(rosenbrock,
+    x__0, n_iter__0 = conjugate_gradient(instrument_read(rosenbrock,
         'rosenbrock'), instrument_read(grad_rosen, 'grad_rosen'),
-        instrument_read(x0__17, 'x0__17'), iterations=max_iterations__17,
-        error=error__17)
-    write_instrument_read(n_iter__17, 'n_iter__17')
-    print('malloc', sys.getsizeof(n_iter__17), 'n_iter__17')
+        instrument_read(x0__0, 'x0__0'), iterations=max_iterations__0,
+        error=error__0)
+    write_instrument_read(n_iter__0, 'n_iter__0')
+    print('malloc', sys.getsizeof(n_iter__0), 'n_iter__0')
     print(56, 102)
-    end__17 = instrument_read(time, 'time').time()
-    write_instrument_read(end__17, 'end__17')
-    print('malloc', sys.getsizeof(end__17), 'end__17')
-print('exit scope 17')
+    end__0 = instrument_read(time, 'time').time()
+    write_instrument_read(end__0, 'end__0')
+    print('malloc', sys.getsizeof(end__0), 'end__0')

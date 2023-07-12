@@ -69,21 +69,6 @@ class NameScopeInstrumentor(ast.NodeTransformer):
 
     def visit_Stmts(self,stmts):
         return list(map(lambda stmt: self.visit(stmt), stmts))
-
-    def visit_For(self, node):
-        report("visiting for", node)
-        node.target = self.visit(node.target)
-        node.iter = self.visit(node.iter)
-        scope = self.enter_and_exits()
-        cur_scope = self.scope[-1]
-        self.valid_scopes.add(cur_scope)
-        node.body = self.visit_Stmts(node.body)
-        node.body = [scope[0]] + node.body + [scope[1]]
-        node.orelse = self.visit_Stmts(node.orelse)
-        if cur_scope in self.valid_scopes: 
-            self.valid_scopes.remove(cur_scope)
-        self.clean_up_scope(cur_scope)
-        return node
     
     def visit_AugAssign(self, node: AugAssign) -> Any:
         if node.lineno not in lineno_to_node: return node

@@ -59,289 +59,251 @@ def text2matrix(text):
     print(7, 562)
     matrix__2 = []
     for i__2 in range(16):
-        print('enter scope 3')
         print(9, 564)
-        byte__3 = text__2 >> 8 * (15 - i__2) & 255
-        print('enter scope 4')
+        byte__2 = text__2 >> 8 * (15 - i__2) & 255
         if i__2 % 4 == 0:
-            matrix__2.append([byte__3])
+            matrix__2.append([byte__2])
         else:
-            matrix__2[int(i__2 / 4)].append(byte__3)
-        print('exit scope 4')
-        print('exit scope 3')
+            matrix__2[int(i__2 / 4)].append(byte__2)
     print('exit scope 2')
     return matrix__2
     print('exit scope 2')
 
 
 def matrix2text(matrix):
-    print('enter scope 5')
+    print('enter scope 3')
     print(1, 572)
-    matrix__5 = matrix
+    matrix__3 = matrix
     print(17, 573)
-    text__5 = 0
-    for i__5 in range(4):
-        print('enter scope 6')
-        for j__6 in range(4):
-            print('enter scope 7')
+    text__3 = 0
+    for i__3 in range(4):
+        for j__3 in range(4):
             print(21, 576)
-            text__5 |= matrix__5[i__5][j__6] << 120 - 8 * (4 * i__5 + j__6)
-            print('exit scope 7')
-        print('exit scope 6')
-    print('exit scope 5')
-    return text__5
-    print('exit scope 5')
+            text__3 |= matrix__3[i__3][j__3] << 120 - 8 * (4 * i__3 + j__3)
+    print('exit scope 3')
+    return text__3
+    print('exit scope 3')
 
 
 class AES:
 
     def __init__(self, master_key):
-        print('enter scope 8')
+        print('enter scope 4')
         print(1, 581)
         self = self
-        master_key__8 = master_key
-        self.change_key(master_key__8)
-        print('exit scope 8')
+        master_key__4 = master_key
+        self.change_key(master_key__4)
+        print('exit scope 4')
 
     def change_key(self, master_key):
-        print('enter scope 9')
+        print('enter scope 5')
         print(1, 584)
         self = self
-        master_key__9 = master_key
+        master_key__5 = master_key
         print(29, 585)
-        self.round_keys = text2matrix(master_key__9)
-        for i__9 in range(4, 4 * 11):
-            print('enter scope 10')
+        self.round_keys = text2matrix(master_key__5)
+        for i__5 in range(4, 4 * 11):
             self.round_keys.append([])
-            print('enter scope 11')
-            if i__9 % 4 == 0:
+            if i__5 % 4 == 0:
                 print(33, 591)
-                byte__11 = self.round_keys[i__9 - 4][0] ^ Sbox__0[self.
-                    round_keys[i__9 - 1][1]] ^ Rcon__0[int(i__9 / 4)]
-                self.round_keys[i__9].append(byte__11)
-                for j__11 in range(1, 4):
-                    print('enter scope 12')
+                byte__5 = self.round_keys[i__5 - 4][0] ^ Sbox__0[self.
+                    round_keys[i__5 - 1][1]] ^ Rcon__0[int(i__5 / 4)]
+                self.round_keys[i__5].append(byte__5)
+                for j__5 in range(1, 4):
                     print(39, 599)
-                    byte__11 = self.round_keys[i__9 - 4][j__11] ^ Sbox__0[self
-                        .round_keys[i__9 - 1][(j__11 + 1) % 4]]
-                    self.round_keys[i__9].append(byte__11)
-                    print('exit scope 12')
+                    byte__5 = self.round_keys[i__5 - 4][j__5] ^ Sbox__0[self
+                        .round_keys[i__5 - 1][(j__5 + 1) % 4]]
+                    self.round_keys[i__5].append(byte__5)
             else:
-                for j__11 in range(4):
-                    print('enter scope 13')
+                for j__5 in range(4):
                     print(36, 606)
-                    byte__11 = self.round_keys[i__9 - 4][j__11
-                        ] ^ self.round_keys[i__9 - 1][j__11]
-                    self.round_keys[i__9].append(byte__11)
-                    print('exit scope 13')
-            print('exit scope 11')
-            print('exit scope 10')
-        print('exit scope 9')
+                    byte__5 = self.round_keys[i__5 - 4][j__5
+                        ] ^ self.round_keys[i__5 - 1][j__5]
+                    self.round_keys[i__5].append(byte__5)
+        print('exit scope 5')
 
     def encrypt(self, plaintext):
-        print('enter scope 14')
+        print('enter scope 6')
         print(1, 611)
         self = self
-        plaintext__14 = plaintext
+        plaintext__6 = plaintext
         print(43, 612)
-        self.plain_state = text2matrix(plaintext__14)
+        self.plain_state = text2matrix(plaintext__6)
         self.__add_round_key(self.plain_state, self.round_keys[:4])
-        for i__14 in range(1, 10):
-            print('enter scope 15')
-            self.__round_encrypt(self.plain_state, self.round_keys[4 *
-                i__14:4 * (i__14 + 1)])
-            print('exit scope 15')
+        for i__6 in range(1, 10):
+            self.__round_encrypt(self.plain_state, self.round_keys[4 * i__6
+                :4 * (i__6 + 1)])
         self.__sub_bytes(self.plain_state)
         self.__shift_rows(self.plain_state)
         self.__add_round_key(self.plain_state, self.round_keys[40:])
-        print('exit scope 14')
+        print('exit scope 6')
         return matrix2text(self.plain_state)
-        print('exit scope 14')
+        print('exit scope 6')
 
     def decrypt(self, ciphertext):
-        print('enter scope 16')
+        print('enter scope 7')
         print(1, 625)
         self = self
-        ciphertext__16 = ciphertext
+        ciphertext__7 = ciphertext
         print(50, 626)
-        self.cipher_state = text2matrix(ciphertext__16)
+        self.cipher_state = text2matrix(ciphertext__7)
         self.__add_round_key(self.cipher_state, self.round_keys[40:])
         self.__inv_shift_rows(self.cipher_state)
         self.__inv_sub_bytes(self.cipher_state)
-        for i__16 in range(9, 0, -1):
-            print('enter scope 17')
+        for i__7 in range(9, 0, -1):
             self.__round_decrypt(self.cipher_state, self.round_keys[4 *
-                i__16:4 * (i__16 + 1)])
-            print('exit scope 17')
+                i__7:4 * (i__7 + 1)])
         self.__add_round_key(self.cipher_state, self.round_keys[:4])
-        print('exit scope 16')
+        print('exit scope 7')
         return matrix2text(self.cipher_state)
-        print('exit scope 16')
+        print('exit scope 7')
 
     def __add_round_key(self, s, k):
-        print('enter scope 18')
+        print('enter scope 8')
         print(1, 641)
         self = self
-        s__18 = s
-        k__18 = k
-        for i__18 in range(4):
-            print('enter scope 19')
-            for j__19 in range(4):
-                print('enter scope 20')
+        s__8 = s
+        k__8 = k
+        for i__8 in range(4):
+            for j__8 in range(4):
                 print(60, 644)
-                s__18[i__18][j__19] ^= k__18[i__18][j__19]
-                print('exit scope 20')
-            print('exit scope 19')
-        print('exit scope 18')
+                s__8[i__8][j__8] ^= k__8[i__8][j__8]
+        print('exit scope 8')
 
     def __round_encrypt(self, state_matrix, key_matrix):
-        print('enter scope 21')
+        print('enter scope 9')
         print(1, 646)
         self = self
-        state_matrix__21 = state_matrix
-        key_matrix__21 = key_matrix
-        self.__sub_bytes(state_matrix__21)
-        self.__shift_rows(state_matrix__21)
-        self.__mix_columns(state_matrix__21)
-        self.__add_round_key(state_matrix__21, key_matrix__21)
-        print('exit scope 21')
+        state_matrix__9 = state_matrix
+        key_matrix__9 = key_matrix
+        self.__sub_bytes(state_matrix__9)
+        self.__shift_rows(state_matrix__9)
+        self.__mix_columns(state_matrix__9)
+        self.__add_round_key(state_matrix__9, key_matrix__9)
+        print('exit scope 9')
 
     def __round_decrypt(self, state_matrix, key_matrix):
-        print('enter scope 22')
+        print('enter scope 10')
         print(1, 652)
         self = self
-        state_matrix__22 = state_matrix
-        key_matrix__22 = key_matrix
-        self.__add_round_key(state_matrix__22, key_matrix__22)
-        self.__inv_mix_columns(state_matrix__22)
-        self.__inv_shift_rows(state_matrix__22)
-        self.__inv_sub_bytes(state_matrix__22)
-        print('exit scope 22')
+        state_matrix__10 = state_matrix
+        key_matrix__10 = key_matrix
+        self.__add_round_key(state_matrix__10, key_matrix__10)
+        self.__inv_mix_columns(state_matrix__10)
+        self.__inv_shift_rows(state_matrix__10)
+        self.__inv_sub_bytes(state_matrix__10)
+        print('exit scope 10')
 
     def __sub_bytes(self, s):
-        print('enter scope 23')
+        print('enter scope 11')
         print(1, 658)
         self = self
-        s__23 = s
-        for i__23 in range(4):
-            print('enter scope 24')
-            for j__24 in range(4):
-                print('enter scope 25')
+        s__11 = s
+        for i__11 in range(4):
+            for j__11 in range(4):
                 print(73, 661)
-                s__23[i__23][j__24] = Sbox__0[s__23[i__23][j__24]]
-                print('exit scope 25')
-            print('exit scope 24')
-        print('exit scope 23')
+                s__11[i__11][j__11] = Sbox__0[s__11[i__11][j__11]]
+        print('exit scope 11')
 
     def __inv_sub_bytes(self, s):
-        print('enter scope 26')
+        print('enter scope 12')
         print(1, 663)
         self = self
-        s__26 = s
-        for i__26 in range(4):
-            print('enter scope 27')
-            for j__27 in range(4):
-                print('enter scope 28')
+        s__12 = s
+        for i__12 in range(4):
+            for j__12 in range(4):
                 print(80, 666)
-                s__26[i__26][j__27] = InvSbox__0[s__26[i__26][j__27]]
-                print('exit scope 28')
-            print('exit scope 27')
-        print('exit scope 26')
+                s__12[i__12][j__12] = InvSbox__0[s__12[i__12][j__12]]
+        print('exit scope 12')
 
     def __shift_rows(self, s):
-        print('enter scope 29')
+        print('enter scope 13')
         print(1, 668)
         self = self
-        s__29 = s
+        s__13 = s
         print(84, 669)
-        s__29[0][1], s__29[1][1], s__29[2][1], s__29[3][1] = s__29[1][1
-            ], s__29[2][1], s__29[3][1], s__29[0][1]
+        s__13[0][1], s__13[1][1], s__13[2][1], s__13[3][1] = s__13[1][1
+            ], s__13[2][1], s__13[3][1], s__13[0][1]
         print(84, 670)
-        s__29[0][2], s__29[1][2], s__29[2][2], s__29[3][2] = s__29[2][2
-            ], s__29[3][2], s__29[0][2], s__29[1][2]
+        s__13[0][2], s__13[1][2], s__13[2][2], s__13[3][2] = s__13[2][2
+            ], s__13[3][2], s__13[0][2], s__13[1][2]
         print(84, 671)
-        s__29[0][3], s__29[1][3], s__29[2][3], s__29[3][3] = s__29[3][3
-            ], s__29[0][3], s__29[1][3], s__29[2][3]
-        print('exit scope 29')
+        s__13[0][3], s__13[1][3], s__13[2][3], s__13[3][3] = s__13[3][3
+            ], s__13[0][3], s__13[1][3], s__13[2][3]
+        print('exit scope 13')
 
     def __inv_shift_rows(self, s):
-        print('enter scope 30')
+        print('enter scope 14')
         print(1, 673)
         self = self
-        s__30 = s
+        s__14 = s
         print(87, 674)
-        s__30[0][1], s__30[1][1], s__30[2][1], s__30[3][1] = s__30[3][1
-            ], s__30[0][1], s__30[1][1], s__30[2][1]
+        s__14[0][1], s__14[1][1], s__14[2][1], s__14[3][1] = s__14[3][1
+            ], s__14[0][1], s__14[1][1], s__14[2][1]
         print(87, 675)
-        s__30[0][2], s__30[1][2], s__30[2][2], s__30[3][2] = s__30[2][2
-            ], s__30[3][2], s__30[0][2], s__30[1][2]
+        s__14[0][2], s__14[1][2], s__14[2][2], s__14[3][2] = s__14[2][2
+            ], s__14[3][2], s__14[0][2], s__14[1][2]
         print(87, 676)
-        s__30[0][3], s__30[1][3], s__30[2][3], s__30[3][3] = s__30[1][3
-            ], s__30[2][3], s__30[3][3], s__30[0][3]
-        print('exit scope 30')
+        s__14[0][3], s__14[1][3], s__14[2][3], s__14[3][3] = s__14[1][3
+            ], s__14[2][3], s__14[3][3], s__14[0][3]
+        print('exit scope 14')
 
     def __mix_single_column(self, a):
-        print('enter scope 31')
+        print('enter scope 15')
         print(1, 678)
         self = self
-        a__31 = a
+        a__15 = a
         print(90, 680)
-        t__31 = a__31[0] ^ a__31[1] ^ a__31[2] ^ a__31[3]
+        t__15 = a__15[0] ^ a__15[1] ^ a__15[2] ^ a__15[3]
         print(90, 681)
-        u__31 = a__31[0]
+        u__15 = a__15[0]
         print(90, 682)
-        a__31[0] ^= t__31 ^ xtime(a__31[0] ^ a__31[1])
+        a__15[0] ^= t__15 ^ xtime(a__15[0] ^ a__15[1])
         print(90, 683)
-        a__31[1] ^= t__31 ^ xtime(a__31[1] ^ a__31[2])
+        a__15[1] ^= t__15 ^ xtime(a__15[1] ^ a__15[2])
         print(90, 684)
-        a__31[2] ^= t__31 ^ xtime(a__31[2] ^ a__31[3])
+        a__15[2] ^= t__15 ^ xtime(a__15[2] ^ a__15[3])
         print(90, 685)
-        a__31[3] ^= t__31 ^ xtime(a__31[3] ^ u__31)
-        print('exit scope 31')
+        a__15[3] ^= t__15 ^ xtime(a__15[3] ^ u__15)
+        print('exit scope 15')
 
     def __mix_columns(self, s):
-        print('enter scope 32')
+        print('enter scope 16')
         print(1, 687)
         self = self
-        s__32 = s
-        for i__32 in range(4):
-            print('enter scope 33')
-            self.__mix_single_column(s__32[i__32])
-            print('exit scope 33')
-        print('exit scope 32')
+        s__16 = s
+        for i__16 in range(4):
+            self.__mix_single_column(s__16[i__16])
+        print('exit scope 16')
 
     def __inv_mix_columns(self, s):
-        print('enter scope 34')
+        print('enter scope 17')
         print(1, 691)
         self = self
-        s__34 = s
-        for i__34 in range(4):
-            print('enter scope 35')
+        s__17 = s
+        for i__17 in range(4):
             print(99, 694)
-            u__35 = xtime(xtime(s__34[i__34][0] ^ s__34[i__34][2]))
+            u__17 = xtime(xtime(s__17[i__17][0] ^ s__17[i__17][2]))
             print(99, 695)
-            v__35 = xtime(xtime(s__34[i__34][1] ^ s__34[i__34][3]))
+            v__17 = xtime(xtime(s__17[i__17][1] ^ s__17[i__17][3]))
             print(99, 696)
-            s__34[i__34][0] ^= u__35
+            s__17[i__17][0] ^= u__17
             print(99, 697)
-            s__34[i__34][1] ^= v__35
+            s__17[i__17][1] ^= v__17
             print(99, 698)
-            s__34[i__34][2] ^= u__35
+            s__17[i__17][2] ^= u__17
             print(99, 699)
-            s__34[i__34][3] ^= v__35
-            print('exit scope 35')
-        self.__mix_columns(s__34)
-        print('exit scope 34')
+            s__17[i__17][3] ^= v__17
+        self.__mix_columns(s__17)
+        print('exit scope 17')
 
 
-print('enter scope 36')
 if __name__ == '__main__':
     import time
     print(102, 705)
-    start__36 = time.time()
+    start__0 = time.time()
     print(102, 706)
-    aes__36 = AES(1212304810341341)
-    aes__36.encrypt(1212304810341341)
+    aes__0 = AES(1212304810341341)
+    aes__0.encrypt(1212304810341341)
     print(102, 708)
-    end__36 = time.time()
-print('exit scope 36')
+    end__0 = time.time()
