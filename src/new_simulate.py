@@ -113,6 +113,7 @@ def simulate(cfg, node_operations, hw_spec, graphs, first):
         for malloc in mallocs:
             process_memory_operation(malloc[2], int(malloc[1]), malloc[0], graphs)
         node_id = data_path[i][0]
+        print(i)
         cur_node = id_to_node[node_id]
         node_intervals.append([node_id, [cycles, 0]])
         node_avg_power[node_id] = 0 # just reset because we will end up overwriting it
@@ -123,7 +124,6 @@ def simulate(cfg, node_operations, hw_spec, graphs, first):
             while True:
                 j += 1
                 if len(data_path) <= j: break
-                process_memory_operation(data_path[i][2], int(data_path[i][1]), data_path[i][0], graphs)
                 next_node_id = data_path[j][0]
                 if next_node_id != node_id: break
                 iters += 1
