@@ -83,7 +83,7 @@ def cycle_sim(hw_inuse, max_cycles):
         cycles += 1
     return node_power_sum
 
-def process_memory_operation(var_name, size, status):
+def process_memory_operation(var_name, size, status, graphs):
     global memory_module
     if status == "malloc":
         memory_module.malloc(var_name, size)
@@ -91,7 +91,7 @@ def process_memory_operation(var_name, size, status):
         memory_module.free(var_name)
     print(memory_module.locations)
 
-def simulate(cfg, node_operations, hw_spec, first):
+def simulate(cfg, node_operations, hw_spec, graphs, first):
     global main_cfg, id_to_node, unroll_at, memory_module, data_path
     cur_node = cfg.entryblock
     if first: 
@@ -102,11 +102,16 @@ def simulate(cfg, node_operations, hw_spec, first):
         hw_inuse[elem] = [0] * hw_spec[elem]
     #print(hw_inuse)
     i = 0
+    frees = []
+    mallocs = []
     while i < len(data_path):
         if len(data_path[i]) > 2:
-            process_memory_operation(data_path[i][2], int(data_path[i][1]), data_path[i][0])
+            if data_path[i][2] == "malloc": mallocs.append(data_path[i][2])
+            else: frees.append(data_path[i][2])
             i += 1
             continue
+        for malloc in mallocs:
+            process_memory_operation(malloc[2], int(malloc[1]), malloc[0], graphs)
         node_id = data_path[i][0]
         cur_node = id_to_node[node_id]
         node_intervals.append([node_id, [cycles, 0]])
@@ -118,6 +123,7 @@ def simulate(cfg, node_operations, hw_spec, first):
             while True:
                 j += 1
                 if len(data_path) <= j: break
+                process_memory_operation(data_path[i][2], int(data_path[i][1]), data_path[i][0], graphs)
                 next_node_id = data_path[j][0]
                 if next_node_id != node_id: break
                 iters += 1
@@ -149,6 +155,11 @@ def simulate(cfg, node_operations, hw_spec, first):
             node_avg_power[node_id] += cycle_sim(hw_inuse, max_cycles)
         if cycles - start_cycles > 0: node_avg_power[node_id] /= cycles - start_cycles
         node_intervals[-1][1][1] = cycles
+        for free in frees:
+            if free[2] in memory_module.locations: 
+                process_memory_operation(free[2], int(free[1]), free[0], graphs)
+        mallocs.clear()
+        frees.clear()
         i += 1
     print("done with simulation")
     return data
@@ -200,13 +211,13 @@ def simulator_prep(benchmark):
     node_operations = schedule.schedule(cfg, graphs, benchmark)
     set_data_path()
     for node in cfg: id_to_node[str(node.id)] = node
-    return cfg, node_operations
+    return cfg, graphs, node_operations
 
 def main():
     global power_use
     benchmark = sys.argv[1]
     print(benchmark)
-    cfg, node_operations = simulator_prep(benchmark)
+    cfg, graphs, node_operations = simulator_prep(benchmark)
     hw = HardwareModel(0, 0)
     hw.hw_allocated['Add'] = 15
     hw.hw_allocated['Regs'] = 30
@@ -233,7 +244,7 @@ def main():
     hw.hw_allocated['Not'] = 1
     hw.hw_allocated['Invert'] = 1
     
-    data = simulate(cfg, node_operations, hw.hw_allocated, True)
+    data = simulate(cfg, node_operations, hw.hw_allocated, graphs, True)
     names = sys.argv[1].split('/')
     if len(sys.argv) < 3 or not sys.argv[2] == "notrace":
         text = json.dumps(data, indent=4)

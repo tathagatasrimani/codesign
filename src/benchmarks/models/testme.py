@@ -22,8 +22,10 @@ def main(x, y):
 
 def bruh():
     a = 1
+    loop.start_unroll
     for i in range(3):
         a += i
+    loop.stop_unroll
 
 if __name__ == "__main__":
     main(2, 3)

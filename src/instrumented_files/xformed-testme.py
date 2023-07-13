@@ -31,29 +31,27 @@ def main(x, y):
     w__1 = instrument_read(q__1, 'q__1') + instrument_read(r__1, 'r__1')
     write_instrument_read(w__1, 'w__1')
     print('malloc', sys.getsizeof(w__1), 'w__1')
-    print('enter scope 2')
     if instrument_read(w__1, 'w__1') < 0:
         print(4, 9)
-        a__2 = instrument_read(q__1, 'q__1') + 3
-        write_instrument_read(a__2, 'a__2')
-        print('malloc', sys.getsizeof(a__2), 'a__2')
+        a__1 = instrument_read(q__1, 'q__1') + 3
+        write_instrument_read(a__1, 'a__1')
+        print('malloc', sys.getsizeof(a__1), 'a__1')
         print(4, 10)
-        b__2 = instrument_read(a__2, 'a__2') * instrument_read(r__1, 'r__1')
-        write_instrument_read(b__2, 'b__2')
-        print('malloc', sys.getsizeof(b__2), 'b__2')
+        b__1 = instrument_read(a__1, 'a__1') * instrument_read(r__1, 'r__1')
+        write_instrument_read(b__1, 'b__1')
+        print('malloc', sys.getsizeof(b__1), 'b__1')
         print(4, 11)
-        r__1 += instrument_read(a__2, 'a__2') + 3 * 2
+        r__1 += instrument_read(a__1, 'a__1') + 3 * 2
         write_instrument_read(r__1, 'r__1')
     else:
         print(6, 13)
-        a__2 = instrument_read(q__1, 'q__1') - 3
-        write_instrument_read(a__2, 'a__2')
-        print('malloc', sys.getsizeof(a__2), 'a__2')
+        a__1 = instrument_read(q__1, 'q__1') - 3
+        write_instrument_read(a__1, 'a__1')
+        print('malloc', sys.getsizeof(a__1), 'a__1')
         print(6, 14)
-        b__2 = instrument_read(a__2, 'a__2') / instrument_read(r__1, 'r__1')
-        write_instrument_read(b__2, 'b__2')
-        print('malloc', sys.getsizeof(b__2), 'b__2')
-    print('exit scope 2')
+        b__1 = instrument_read(a__1, 'a__1') / instrument_read(r__1, 'r__1')
+        write_instrument_read(b__1, 'b__1')
+        print('malloc', sys.getsizeof(b__1), 'b__1')
     print(5, 15)
     z__1 = [[1, 2, 3, 4, 5, 6]]
     write_instrument_read(z__1, 'z__1')
@@ -67,7 +65,6 @@ def main(x, y):
     print('malloc', sys.getsizeof(q__1), 'q__1')
     instrument_read(loop, 'loop').start_unroll
     for i__1 in range(5):
-        print('enter scope 3')
         print(8, 20)
         z__1[0][instrument_read(i__1, 'i__1')] += instrument_read_sub(
             instrument_read_sub(instrument_read(z__1, 'z__1'), 'z__1', 0,
@@ -75,29 +72,26 @@ def main(x, y):
             1, None, None, False)
         write_instrument_read_sub(z__1[0], 'z__1[0]', instrument_read(
             instrument_read(i__1, 'i__1'), 'i__1'), None, None, False)
-        print('exit scope 3')
     instrument_read(loop, 'loop').stop_unroll
     print('exit scope 1')
 
 
 def bruh():
-    print('enter scope 4')
+    print('enter scope 2')
     print(1, 23)
     print(12, 24)
-    a__4 = 1
-    write_instrument_read(a__4, 'a__4')
-    print('malloc', sys.getsizeof(a__4), 'a__4')
-    for i__4 in range(3):
-        print('enter scope 5')
-        print(14, 26)
-        a__4 += instrument_read(i__4, 'i__4')
-        write_instrument_read(a__4, 'a__4')
-        print('exit scope 5')
-    print('exit scope 4')
+    a__2 = 1
+    write_instrument_read(a__2, 'a__2')
+    print('malloc', sys.getsizeof(a__2), 'a__2')
+    instrument_read(loop, 'loop').start_unroll
+    for i__2 in range(3):
+        print(14, 27)
+        a__2 += instrument_read(i__2, 'i__2')
+        write_instrument_read(a__2, 'a__2')
+    instrument_read(loop, 'loop').stop_unroll
+    print('exit scope 2')
 
 
-print('enter scope 6')
 if instrument_read(__name__, '__name__') == '__main__':
     main(2, 3)
     bruh()
-print('exit scope 6')

@@ -50,6 +50,7 @@ b = a / r
 	subgraph clusterbruh {
 		graph [label=bruh]
 		12 [label="a = 1
+loop.start_unroll
 "]
 		13 [label="for i in range(3):
 "]
@@ -57,6 +58,9 @@ b = a / r
 "]
 		14 -> 13 [label=""]
 		13 -> 14 [label="range(3)"]
+		15 [label="loop.stop_unroll
+"]
+		13 -> 15 [label=""]
 		12 -> 13 [label=""]
 	}
 }

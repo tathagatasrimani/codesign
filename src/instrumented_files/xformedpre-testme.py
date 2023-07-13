@@ -16,20 +16,18 @@ def main(x, y):
     q__1 = q__1 * r__1 - 3
     print(3, 7)
     w__1 = q__1 + r__1
-    print('enter scope 2')
     if w__1 < 0:
         print(4, 9)
-        a__2 = q__1 + 3
+        a__1 = q__1 + 3
         print(4, 10)
-        b__2 = a__2 * r__1
+        b__1 = a__1 * r__1
         print(4, 11)
-        r__1 += a__2 + 3 * 2
+        r__1 += a__1 + 3 * 2
     else:
         print(6, 13)
-        a__2 = q__1 - 3
+        a__1 = q__1 - 3
         print(6, 14)
-        b__2 = a__2 / r__1
-    print('exit scope 2')
+        b__1 = a__1 / r__1
     print(5, 15)
     z__1 = [[1, 2, 3, 4, 5, 6]]
     print(5, 16)
@@ -38,29 +36,25 @@ def main(x, y):
     r__1, q__1 = 2, 3
     loop.start_unroll
     for i__1 in range(5):
-        print('enter scope 3')
         print(8, 20)
         z__1[0][i__1] += z__1[0][i__1 + 1]
-        print('exit scope 3')
     loop.stop_unroll
     print('exit scope 1')
 
 
 def bruh():
-    print('enter scope 4')
+    print('enter scope 2')
     print(1, 23)
     print(12, 24)
-    a__4 = 1
-    for i__4 in range(3):
-        print('enter scope 5')
-        print(14, 26)
-        a__4 += i__4
-        print('exit scope 5')
-    print('exit scope 4')
+    a__2 = 1
+    loop.start_unroll
+    for i__2 in range(3):
+        print(14, 27)
+        a__2 += i__2
+    loop.stop_unroll
+    print('exit scope 2')
 
 
-print('enter scope 6')
 if __name__ == '__main__':
     main(2, 3)
     bruh()
-print('exit scope 6')
