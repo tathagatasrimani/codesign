@@ -23,9 +23,10 @@ class symbol:
         self.read = read
 
 class Node:
-    def __init__(self, value: str, operation: str):
+    def __init__(self, value: str, operation: str, memory_links=None):
         self.value = value
         self.operation = operation
+        self.memory_links = memory_links
         self.children = []
         self.parents = []
         self.order = 0
@@ -34,6 +35,11 @@ class Graph:
     def __init__(self, roots, id_to_Node):
         self.roots = roots
         self.id_to_Node = id_to_Node
+        self.gv_graph = None
+        self.max_id = 0
+    def set_gv_graph(self, graph):
+        self.gv_graph = graph
+
 
 def set_id():
     global cur_id
@@ -318,6 +324,7 @@ def make_edge(graph, node, source_id, target_id):
 def dfg_per_node(node):
     global node_to_unroll, unroll
     graph = gv.Digraph()
+    graphs[node].set_gv_graph(graph)
     graph.node(set_id(), "source code:\n" + node.get_source())
     for stmt in node.statements:
         eval_stmt(stmt, graph, node)

@@ -1,0 +1,58 @@
+digraph {
+	103 [label="source code:
+z[0][i] += z[0][i + 1]
+"]
+	104 [label="z
+Read"]
+	105 [label="z[0]
+Read"]
+	104 -> 105
+	106 [label="z[0][i + 1]
+Read"]
+	105 -> 106
+	107 [label="z
+Read"]
+	108 [label="+
+"]
+	106 -> 108
+	107 -> 108
+	109 [label="z
+Read"]
+	110 [label="z[0]
+Read"]
+	109 -> 110
+	111 [label="z[0][i]
+Write"]
+	110 -> 111
+	108 -> 111
+	140 [label="z
+location: 192
+Read"]
+	141 [label="z
+location: 192
+Read"]
+	142 [label="z
+location: 192
+Read"]
+	143 [label="z
+location: 192
+Read"]
+	144 [label="z
+location: 192
+Read"]
+	145 [label="z
+location: 192
+Read"]
+	146 [label="z
+location: 192
+Read"]
+	147 [label="z
+location: 192
+Read"]
+	148 [label="z
+location: 192
+Read"]
+	149 [label="z
+location: 192
+Read"]
+}

@@ -1,0 +1,112 @@
+digraph {
+	9 [label="source code:
+q = 0.5 + x * y + 1 / 2
+r = x + y
+q = q * r - 3
+w = q + r
+if w < 0:
+"]
+	10 [label=0.5
+]
+	11 [label="x
+Read"]
+	12 [label="y
+Read"]
+	13 [label="*
+"]
+	11 -> 13
+	12 -> 13
+	14 [label="+
+"]
+	10 -> 14
+	13 -> 14
+	15 [label=1
+]
+	16 [label=2
+]
+	17 [label="//
+"]
+	15 -> 17
+	16 -> 17
+	18 [label="+
+"]
+	14 -> 18
+	17 -> 18
+	19 [label="q
+Write"]
+	18 -> 19
+	20 [label="x
+Read"]
+	21 [label="y
+Read"]
+	22 [label="+
+"]
+	20 -> 22
+	21 -> 22
+	23 [label="r
+Write"]
+	22 -> 23
+	24 [label="q
+Read"]
+	25 [label="r
+Read"]
+	26 [label="*
+"]
+	24 -> 26
+	25 -> 26
+	27 [label=3
+]
+	28 [label="-
+"]
+	26 -> 28
+	27 -> 28
+	29 [label="q
+Write"]
+	28 -> 29
+	30 [label="q
+Read"]
+	31 [label="r
+Read"]
+	32 [label="+
+"]
+	30 -> 32
+	31 -> 32
+	33 [label="w
+Write"]
+	32 -> 33
+	34 [label="w
+Read"]
+	35 [label=0
+]
+	36 [label="<
+"]
+	34 -> 36
+	35 -> 36
+	128 [label="x
+location: 0
+Read"]
+	129 [label="y
+location: 32
+Read"]
+	130 [label="q
+location: 64
+Read"]
+	131 [label="r
+location: 88
+Read"]
+	132 [label="q
+location: 64
+Read"]
+	133 [label="r
+location: 88
+Read"]
+	134 [label="x
+location: 0
+Read"]
+	135 [label="y
+location: 32
+Read"]
+	136 [label="w
+location: 120
+Read"]
+}

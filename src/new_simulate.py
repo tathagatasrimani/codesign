@@ -83,12 +83,31 @@ def cycle_sim(hw_inuse, max_cycles):
         cycles += 1
     return node_power_sum
 
-def process_memory_operation(var_name, size, status, graphs):
+def process_compute_element(op, graph, node_id):
+    global memory_module
+    cfg_node = id_to_node[node_id]
+    for parent in op.parents:
+        if not parent.operation: break
+        if parent.operation == "Regs":
+            name = parent.value
+            bracket_ind = name.find('[')
+            if bracket_ind != -1:
+                name = name[:bracket_ind]
+            if name in memory_module.locations:
+                mem_loc = memory_module.locations[name]
+                text = name + "\nlocation: " + str(mem_loc.location)
+                dfg_node_id = dfg_algo.set_id()
+                print(dfg_node_id)
+                dfg_algo.make_node(graph.gv_graph, cfg_node, dfg_node_id, text, ast.Load, parent.operation)
+                print("node made for ", name)
+            
+
+def process_memory_operation(var_name, size, status):
     global memory_module
     if status == "malloc":
-        memory_module.malloc(var_name, size)
+        memory_module.malloc(var_name[:var_name.rfind('_')], size)
     elif status == "free":
-        memory_module.free(var_name)
+        memory_module.free(var_name[:var_name.rfind('_')], size)
 
 # adds all mallocs and frees to vectors, and finds the next cfg node in the data path,
 # returning the index of that node
@@ -98,7 +117,7 @@ def find_next_data_path_index(i, mallocs, frees, data_path):
         else: frees.append(data_path[i])
         i += 1
         if i == len(data_path): break
-    return i, mallocs, frees
+    return i
 
 def simulate(cfg, node_operations, hw_spec, graphs, first):
     global main_cfg, id_to_node, unroll_at, memory_module, data_path
@@ -114,13 +133,14 @@ def simulate(cfg, node_operations, hw_spec, graphs, first):
     frees = []
     mallocs = []
     print(data_path)
-    i, mallocs, frees = find_next_data_path_index(i, mallocs, frees, data_path)
+    i = find_next_data_path_index(i, mallocs, frees, data_path)
     while i < len(data_path):
-        next_ind, mallocs, frees = find_next_data_path_index(i+1, mallocs, frees, data_path)
+        next_ind = find_next_data_path_index(i+1, mallocs, frees, data_path)
         if i == len(data_path): break
         for malloc in mallocs:
-            process_memory_operation(malloc[2], int(malloc[1]), malloc[0], graphs)
+            process_memory_operation(malloc[2], int(malloc[1]), malloc[0])
         node_id = data_path[i][0]
+        print(node_id, memory_module.locations)
         print(i)
         cur_node = id_to_node[node_id]
         node_intervals.append([node_id, [cycles, 0]])
@@ -134,7 +154,7 @@ def simulate(cfg, node_operations, hw_spec, graphs, first):
                 next_node_id = data_path[j][0]
                 if next_node_id != node_id: break
                 iters += 1
-                j, null1, null2 = find_next_data_path_index(j+1, [], [], data_path)
+                j = find_next_data_path_index(j+1, [], [], data_path)
             next_ind = j
         for state in node_operations[cur_node]:
             # if unroll, take each operation in a state and create more of them
@@ -145,6 +165,9 @@ def simulate(cfg, node_operations, hw_spec, graphs, first):
                         new_state.append(op)
                 state = new_state
             hw_need = get_hw_need(state)
+            for op in state:
+                if op.operation and op.operation != "Regs":
+                    process_compute_element(op, graphs[id_to_node[node_id]], node_id)
             #print(hw_need)
             max_cycles = 0
             for elem in hw_need:
@@ -165,9 +188,10 @@ def simulate(cfg, node_operations, hw_spec, graphs, first):
         node_intervals[-1][1][1] = cycles
         for free in frees:
             if free[2] in memory_module.locations: 
-                process_memory_operation(free[2], int(free[1]), free[0], graphs)
+                process_memory_operation(free[2], int(free[1]), free[0])
         mallocs.clear()
         frees.clear()
+        graphs[id_to_node[node_id]].gv_graph.render(path + 'pictures/' + "test" + "_dfg_node_" + str(node_id), view = True)
         i = next_ind
     print("done with simulation")
     return data

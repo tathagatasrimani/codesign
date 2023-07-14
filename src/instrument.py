@@ -48,7 +48,7 @@ class NameScopeInstrumentor(ast.NodeTransformer):
         self.dont_change_names = set(("__name__", "__main__", "loop", "range", "self", "time", "np", "int", "str", "math", "heapdict"))
     
     def get_name(self, name, scope):
-        return name + "__" + scope
+        return name + "_" + scope
 
     @staticmethod
     def mkblock(stmts):
