@@ -91,6 +91,14 @@ def process_memory_operation(var_name, size, status, graphs):
         memory_module.free(var_name)
     print(memory_module.locations)
 
+def find_next_data_path_index(i, mallocs, frees, data_path):
+    while len(data_path[i]) > 2:
+        if data_path[i][2] == "malloc": mallocs.append(data_path[i][2])
+        else: frees.append(data_path[i][2])
+        i += 1
+        if i == len(data_path): break
+    return i, mallocs, frees
+
 def simulate(cfg, node_operations, hw_spec, graphs, first):
     global main_cfg, id_to_node, unroll_at, memory_module, data_path
     cur_node = cfg.entryblock
@@ -104,12 +112,10 @@ def simulate(cfg, node_operations, hw_spec, graphs, first):
     i = 0
     frees = []
     mallocs = []
+    i, mallocs, frees = find_next_data_path_index(i, mallocs, frees, data_path)
     while i < len(data_path):
-        if len(data_path[i]) > 2:
-            if data_path[i][2] == "malloc": mallocs.append(data_path[i][2])
-            else: frees.append(data_path[i][2])
-            i += 1
-            continue
+        i, mallocs, frees = find_next_data_path_index(i, mallocs, frees, data_path)
+        if i == len(data_path): break
         for malloc in mallocs:
             process_memory_operation(malloc[2], int(malloc[1]), malloc[0], graphs)
         node_id = data_path[i][0]
