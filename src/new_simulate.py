@@ -89,12 +89,13 @@ def process_memory_operation(var_name, size, status, graphs):
         memory_module.malloc(var_name, size)
     elif status == "free":
         memory_module.free(var_name)
-    print(memory_module.locations)
 
+# adds all mallocs and frees to vectors, and finds the next cfg node in the data path,
+# returning the index of that node
 def find_next_data_path_index(i, mallocs, frees, data_path):
     while len(data_path[i]) > 2:
-        if data_path[i][2] == "malloc": mallocs.append(data_path[i][2])
-        else: frees.append(data_path[i][2])
+        if data_path[i][0] == "malloc": mallocs.append(data_path[i])
+        else: frees.append(data_path[i])
         i += 1
         if i == len(data_path): break
     return i, mallocs, frees
@@ -112,9 +113,10 @@ def simulate(cfg, node_operations, hw_spec, graphs, first):
     i = 0
     frees = []
     mallocs = []
+    print(data_path)
     i, mallocs, frees = find_next_data_path_index(i, mallocs, frees, data_path)
     while i < len(data_path):
-        i, mallocs, frees = find_next_data_path_index(i, mallocs, frees, data_path)
+        next_ind, mallocs, frees = find_next_data_path_index(i+1, mallocs, frees, data_path)
         if i == len(data_path): break
         for malloc in mallocs:
             process_memory_operation(malloc[2], int(malloc[1]), malloc[0], graphs)
@@ -126,14 +128,14 @@ def simulate(cfg, node_operations, hw_spec, graphs, first):
         start_cycles = cycles # for calculating average power
         iters = 0
         if unroll_at[cur_node.id]:
-            j = i
+            j = next_ind
             while True:
-                j += 1
                 if len(data_path) <= j: break
                 next_node_id = data_path[j][0]
                 if next_node_id != node_id: break
                 iters += 1
-            i = j - 1 # skip over loop iterations because we execute them all at once
+                j, null1, null2 = find_next_data_path_index(j+1, [], [], data_path)
+            next_ind = j
         for state in node_operations[cur_node]:
             # if unroll, take each operation in a state and create more of them
             if unroll_at[cur_node.id]:
@@ -166,7 +168,7 @@ def simulate(cfg, node_operations, hw_spec, graphs, first):
                 process_memory_operation(free[2], int(free[1]), free[0], graphs)
         mallocs.clear()
         frees.clear()
-        i += 1
+        i = next_ind
     print("done with simulation")
     return data
 
