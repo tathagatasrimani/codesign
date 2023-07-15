@@ -57,12 +57,10 @@ def main(x, y):
     write_instrument_read(z_1, 'z_1')
     print('malloc', sys.getsizeof(z_1), 'z_1')
     print(5, 16)
-    z_1 += [[1, 2, 3, 4, 5, 6]]
-    write_instrument_read(z_1, 'z_1')
-    print(5, 17)
     r_1, q_1 = 2, 3
     write_instrument_read(q_1, 'q_1')
     print('malloc', sys.getsizeof(q_1), 'q_1')
+    instrument_read(loop, 'loop').start_unroll
     for i_1 in range(5):
         print(8, 19)
         z_1[0][instrument_read(i_1, 'i_1')] += instrument_read_sub(
@@ -71,20 +69,23 @@ def main(x, y):
             None, False)
         write_instrument_read_sub(z_1[0], 'z_1[0]', instrument_read(
             instrument_read(i_1, 'i_1'), 'i_1'), None, None, False)
+    instrument_read(loop, 'loop').stop_unroll
     print('exit scope 1')
 
 
 def bruh():
     print('enter scope 2')
-    print(1, 21)
-    print(12, 22)
+    print(1, 22)
+    print(12, 23)
     a_2 = 1
     write_instrument_read(a_2, 'a_2')
     print('malloc', sys.getsizeof(a_2), 'a_2')
+    instrument_read(loop, 'loop').start_unroll
     for i_2 in range(3):
-        print(14, 24)
+        print(14, 26)
         a_2 += instrument_read(i_2, 'i_2')
         write_instrument_read(a_2, 'a_2')
+    instrument_read(loop, 'loop').stop_unroll
     print('exit scope 2')
 
 

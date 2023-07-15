@@ -25,8 +25,8 @@ b = a * r
 r += a + 3 * 2
 "]
 		5 [label="z = [[1, 2, 3, 4, 5, 6]]
-z += [[1, 2, 3, 4, 5, 6]]
 r, q = 2, 3
+loop.start_unroll
 "]
 		7 [label="for i in range(5):
 "]
@@ -34,6 +34,9 @@ r, q = 2, 3
 "]
 		8 -> 7 [label=""]
 		7 -> 8 [label="range(5)"]
+		9 [label="loop.stop_unroll
+"]
+		7 -> 9 [label=""]
 		5 -> 7 [label=""]
 		4 -> 5 [label=""]
 		3 -> 4 [label="w < 0"]
@@ -46,6 +49,7 @@ b = a / r
 	subgraph clusterbruh {
 		graph [label=bruh]
 		12 [label="a = 1
+loop.start_unroll
 "]
 		13 [label="for i in range(3):
 "]
@@ -53,6 +57,9 @@ b = a / r
 "]
 		14 -> 13 [label=""]
 		13 -> 14 [label="range(3)"]
+		15 [label="loop.stop_unroll
+"]
+		13 -> 15 [label=""]
 		12 -> 13 [label=""]
 	}
 }

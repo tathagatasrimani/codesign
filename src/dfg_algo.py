@@ -23,7 +23,7 @@ class symbol:
         self.read = read
 
 class Node:
-    def __init__(self, value: str, operation: str, id, memory_links=set(), compute_id=None):
+    def __init__(self, value: str, operation: str, id, memory_links=None, compute_id=None):
         self.value = value
         self.operation = operation
         self.memory_links = memory_links

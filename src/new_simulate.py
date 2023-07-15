@@ -40,7 +40,7 @@ def make_node(graph, id, name, ctx, opname):
         annotation = "Read"
     elif ctx == ast.Store:
         annotation = "Write"
-    dfg_node = dfg_algo.Node(name, opname, id)
+    dfg_node = dfg_algo.Node(name, opname, id, memory_links=set())
     graph.node(id, name + '\n' + annotation)
     new_graph.roots.add(dfg_node)
     new_graph.id_to_Node[id] = dfg_node
@@ -76,12 +76,13 @@ def get_hw_need(state, hw_spec):
     for op in state:
         if not op.operation: continue
         if op.operation != "Regs":
-            print(hw_spec[op.operation])
+            #print(hw_spec[op.operation], op.operation, hw_need.hw_allocated[op.operation])
             compute_element_id = hw_need.hw_allocated[op.operation] % hw_spec[op.operation]
             compute_id = compute_element_to_node_id[op.operation][compute_element_id]
+            hw_op_node = new_graph.id_to_Node[compute_id]
             op.compute_id = compute_id
             #print(op.value)
-            process_compute_element(op, new_graph, str(compute_id))
+            process_compute_element(op, new_graph, hw_op_node)
         hw_need.hw_allocated[op.operation] += 1
     return hw_need.hw_allocated
 
@@ -115,53 +116,44 @@ def cycle_sim(hw_inuse, max_cycles):
         cycles += 1
     return node_power_sum
 
-def process_compute_element(op, graph, op_id):
+def process_compute_element_neighbor(op, neighbor, graph, op_node, context):
+    global memory_module
+    name = neighbor.value
+    bracket_ind = name.find('[')
+    if bracket_ind != -1: name = name[:bracket_ind]
+    if name in memory_module.locations:
+        mem_loc = memory_module.locations[name]
+        text = name + "\nlocation: " + str(mem_loc.location)
+        dfg_node_id = dfg_algo.set_id()
+        #print(dfg_node_id)
+        anno = "size: " + str(mem_loc.size)
+        if (mem_loc.location, mem_loc.size) not in op_node.memory_links:
+            make_node(graph.gv_graph, dfg_node_id, text, context, neighbor.operation)
+            make_edge(graph.gv_graph, dfg_node_id, op_node.id, annotation=anno)
+        op_node.memory_links.add((mem_loc.location, mem_loc.size))
+        #print("node made for ", name)
+
+def process_compute_element(op, graph, op_node):
     global memory_module
     parents = []
     for parent in op.parents:
         parents.append(parent.operation)
-    print(op.operation, parents)
+    #print(op.operation, parents)
     for parent in op.parents:
         if not parent.operation: continue
         if parent.operation == "Regs":
-            name = parent.value
-            bracket_ind = name.find('[')
-            if bracket_ind != -1: name = name[:bracket_ind]
-            if name in memory_module.locations:
-                mem_loc = memory_module.locations[name]
-                text = name + "\nlocation: " + str(mem_loc.location)
-                dfg_node_id = dfg_algo.set_id()
-                #print(dfg_node_id)
-                anno = "size: " + str(mem_loc.size)
-                if (mem_loc.location, mem_loc.size) not in op.memory_links:
-                    make_node(graph.gv_graph, dfg_node_id, text, ast.Load, parent.operation)
-                    make_edge(graph.gv_graph, dfg_node_id, op_id, annotation=anno)
-                op.memory_links.add((mem_loc.location, mem_loc.size))
-                #print("node made for ", name)
+            process_compute_element_neighbor(op, parent, graph, op_node, ast.Load)
         else:
-            print(op.operation, parent.operation)
+            #print(op.operation, parent.operation)
             parent_compute_id = parent.compute_id
-            if parent_compute_id not in compute_element_neighbors[op_id]:
-                make_edge(graph.gv_graph, parent_compute_id, op_id, "")
-            compute_element_neighbors[op_id].add(parent_compute_id)
-            compute_element_neighbors[parent_compute_id].add(op_id)
+            if parent_compute_id not in compute_element_neighbors[op_node.id]:
+                make_edge(graph.gv_graph, parent_compute_id, op_node.id, "")
+            compute_element_neighbors[op_node.id].add(parent_compute_id)
+            compute_element_neighbors[parent_compute_id].add(op_node.id)
     for child in op.children:
         if not child.operation: continue
         if child.operation == "Regs":
-            name = child.value
-            bracket_ind = name.find('[')
-            if bracket_ind != -1: name = name[:bracket_ind]
-            if name in memory_module.locations:
-                mem_loc = memory_module.locations[name]
-                text = name + "\nlocation: " + str(mem_loc.location)
-                dfg_node_id = dfg_algo.set_id()
-                #print(dfg_node_id)
-                anno = "size: " + str(mem_loc.size)
-                if (mem_loc.location, mem_loc.size) not in op.memory_links:
-                    make_node(graph.gv_graph, dfg_node_id, text, ast.Store, child.operation)
-                    make_edge(graph.gv_graph, op_id, dfg_node_id, annotation=anno)
-                op.memory_links.add((mem_loc.location, mem_loc.size))
-                #print("node made for ", name)
+            process_compute_element_neighbor(op, child, graph, op_node, ast.Store)
             
 
 def process_memory_operation(var_name, size, status):
@@ -257,7 +249,7 @@ def simulate(cfg, node_operations, hw_spec, graphs, first):
         frees.clear()
         i = next_ind
     print("done with simulation")
-    new_graph.gv_graph.render(path + 'pictures/' + "test" + "_dfg_node_" + str(node_id), view = True)
+    new_graph.gv_graph.render(path + 'pictures/memory_graphs/' + sys.argv[1][sys.argv[1].rfind('/')+1:], view = True)
     return data
 
 def set_data_path():
