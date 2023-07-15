@@ -7,10 +7,10 @@ bruh()
 "]
 	6 [label=2
 ]
-	6 -> 5
+	6 -> 5 [label=""]
 	7 [label=3
 ]
-	7 -> 5
+	7 -> 5 [label=""]
 	8 [label="bruh()
 "]
 }

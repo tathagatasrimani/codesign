@@ -10,6 +10,7 @@ import math
 import json
 import sys
 from collections import deque
+import graphviz as gv
 
 MEMORY_SIZE = 1000000
 memory_module = Memory(MEMORY_SIZE)
@@ -26,8 +27,31 @@ node_avg_power = {}
 unroll_at = {}
 vars_allocated = {}
 where_to_free = {}
+compute_element_to_node_id = {}
 memory_needed = 0
 cur_memory_size = 0
+new_graph = None
+
+def make_node(graph, id, name, ctx, opname):
+    global new_graph
+    annotation = ""
+    if ctx == ast.Load:
+        annotation = "Read"
+    elif ctx == ast.Store:
+        annotation = "Write"
+    dfg_node = dfg_algo.Node(name, opname, id)
+    graph.node(id, name + '\n' + annotation)
+    new_graph.roots.add(dfg_node)
+    new_graph.id_to_Node[id] = dfg_node
+
+def make_edge(graph, source_id, target_id, annotation=""):
+    global new_graph
+    source, target = new_graph.id_to_Node[source_id], new_graph.id_to_Node[target_id]
+    graph.edge(source_id, target_id, label=annotation)
+    target_node = new_graph.id_to_Node[target_id]
+    if target_node in new_graph.roots: new_graph.roots.remove(target_node)
+    source.children.append(target)
+    target.parents.append(source)
 
 def find_free_loc(var_name, split_lines, ind):
     where_to_free[var_name] = ind+1
@@ -50,7 +74,12 @@ def get_hw_need(state):
     hw_need = HardwareModel(0,0)
     for op in state:
         if not op.operation: continue
-        else: hw_need.hw_allocated[op.operation] += 1
+        if op.operation != "Regs":
+            compute_element_index = compute_element_to_node_id[op.operation][hw_need.hw_allocated[op.operation]]
+            op.compute_id = compute_element_index
+            #print(op.value)
+            process_compute_element(op, new_graph, str(compute_element_index))
+        hw_need.hw_allocated[op.operation] += 1
     return hw_need.hw_allocated
 
 def cycle_sim(hw_inuse, max_cycles):
@@ -83,23 +112,46 @@ def cycle_sim(hw_inuse, max_cycles):
         cycles += 1
     return node_power_sum
 
-def process_compute_element(op, graph, node_id):
+def process_compute_element(op, graph, op_id):
     global memory_module
-    cfg_node = id_to_node[node_id]
+    parents = []
     for parent in op.parents:
-        if not parent.operation: break
+        parents.append(parent.operation)
+    print(op.operation, parents)
+    for parent in op.parents:
+        if not parent.operation: continue
         if parent.operation == "Regs":
             name = parent.value
             bracket_ind = name.find('[')
-            if bracket_ind != -1:
-                name = name[:bracket_ind]
+            if bracket_ind != -1: name = name[:bracket_ind]
             if name in memory_module.locations:
                 mem_loc = memory_module.locations[name]
                 text = name + "\nlocation: " + str(mem_loc.location)
                 dfg_node_id = dfg_algo.set_id()
-                print(dfg_node_id)
-                dfg_algo.make_node(graph.gv_graph, cfg_node, dfg_node_id, text, ast.Load, parent.operation)
-                print("node made for ", name)
+                #print(dfg_node_id)
+                anno = "size: " + str(mem_loc.size)
+                make_node(graph.gv_graph, dfg_node_id, text, ast.Load, parent.operation)
+                make_edge(graph.gv_graph, dfg_node_id, op_id, annotation=anno)
+                #print("node made for ", name)
+        else:
+            print(op.operation, parent.operation)
+            parent_compute_id = parent.compute_id
+            make_edge(graph.gv_graph, parent_compute_id, op_id, "")
+    for child in op.children:
+        if not child.operation: continue
+        if child.operation == "Regs":
+            name = child.value
+            bracket_ind = name.find('[')
+            if bracket_ind != -1: name = name[:bracket_ind]
+            if name in memory_module.locations:
+                mem_loc = memory_module.locations[name]
+                text = name + "\nlocation: " + str(mem_loc.location)
+                dfg_node_id = dfg_algo.set_id()
+                #print(dfg_node_id)
+                anno = "size: " + str(mem_loc.size)
+                make_node(graph.gv_graph, dfg_node_id, text, ast.Store, child.operation)
+                make_edge(graph.gv_graph, op_id, dfg_node_id, annotation=anno)
+                #print("node made for ", name)
             
 
 def process_memory_operation(var_name, size, status):
@@ -107,7 +159,7 @@ def process_memory_operation(var_name, size, status):
     if status == "malloc":
         memory_module.malloc(var_name[:var_name.rfind('_')], size)
     elif status == "free":
-        memory_module.free(var_name[:var_name.rfind('_')], size)
+        memory_module.free(var_name[:var_name.rfind('_')])
 
 # adds all mallocs and frees to vectors, and finds the next cfg node in the data path,
 # returning the index of that node
@@ -120,7 +172,7 @@ def find_next_data_path_index(i, mallocs, frees, data_path):
     return i
 
 def simulate(cfg, node_operations, hw_spec, graphs, first):
-    global main_cfg, id_to_node, unroll_at, memory_module, data_path
+    global main_cfg, id_to_node, unroll_at, memory_module, data_path, new_graph
     cur_node = cfg.entryblock
     if first: 
         cur_node = cur_node.exits[0].target # skip over the first node in the main cfg
@@ -132,7 +184,6 @@ def simulate(cfg, node_operations, hw_spec, graphs, first):
     i = 0
     frees = []
     mallocs = []
-    print(data_path)
     i = find_next_data_path_index(i, mallocs, frees, data_path)
     while i < len(data_path):
         next_ind = find_next_data_path_index(i+1, mallocs, frees, data_path)
@@ -140,7 +191,7 @@ def simulate(cfg, node_operations, hw_spec, graphs, first):
         for malloc in mallocs:
             process_memory_operation(malloc[2], int(malloc[1]), malloc[0])
         node_id = data_path[i][0]
-        print(node_id, memory_module.locations)
+        #print(node_id, memory_module.locations)
         print(i)
         cur_node = id_to_node[node_id]
         node_intervals.append([node_id, [cycles, 0]])
@@ -164,10 +215,13 @@ def simulate(cfg, node_operations, hw_spec, graphs, first):
                     for j in range(iters):
                         new_state.append(op)
                 state = new_state
+            print("new state")
+            for node in state: 
+                parents = []
+                for parent in node.parents:
+                    parents.append(parent.operation)
+                print(node.operation, parents)
             hw_need = get_hw_need(state)
-            for op in state:
-                if op.operation and op.operation != "Regs":
-                    process_compute_element(op, graphs[id_to_node[node_id]], node_id)
             #print(hw_need)
             max_cycles = 0
             for elem in hw_need:
@@ -187,13 +241,13 @@ def simulate(cfg, node_operations, hw_spec, graphs, first):
         if cycles - start_cycles > 0: node_avg_power[node_id] /= cycles - start_cycles
         node_intervals[-1][1][1] = cycles
         for free in frees:
-            if free[2] in memory_module.locations: 
+            if free[2][:free[2].rfind('_')] in memory_module.locations: 
                 process_memory_operation(free[2], int(free[1]), free[0])
         mallocs.clear()
         frees.clear()
-        graphs[id_to_node[node_id]].gv_graph.render(path + 'pictures/' + "test" + "_dfg_node_" + str(node_id), view = True)
         i = next_ind
     print("done with simulation")
+    new_graph.gv_graph.render(path + 'pictures/' + "test" + "_dfg_node_" + str(node_id), view = True)
     return data
 
 def set_data_path():
@@ -246,7 +300,7 @@ def simulator_prep(benchmark):
     return cfg, graphs, node_operations
 
 def main():
-    global power_use
+    global power_use, new_graph
     benchmark = sys.argv[1]
     print(benchmark)
     cfg, graphs, node_operations = simulator_prep(benchmark)
@@ -275,6 +329,15 @@ def main():
     hw.hw_allocated['UAdd'] = 1
     hw.hw_allocated['Not'] = 1
     hw.hw_allocated['Invert'] = 1
+    new_gv_graph = gv.Digraph()
+    new_graph = dfg_algo.Graph(set(), {}, new_gv_graph)
+    for key in hw.hw_allocated:
+        if key == "Regs": continue
+        compute_element_to_node_id[key] = []
+        for i in range(hw.hw_allocated[key]):
+            compute_id = dfg_algo.set_id()
+            make_node(new_graph.gv_graph, compute_id, hardwareModel.op2sym_map[key], None, hardwareModel.op2sym_map[key])
+            compute_element_to_node_id[key].append(compute_id)
     
     data = simulate(cfg, node_operations, hw.hw_allocated, graphs, True)
     names = sys.argv[1].split('/')

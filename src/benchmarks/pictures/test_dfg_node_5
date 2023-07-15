@@ -1,106 +1,134 @@
 digraph {
-	63 [label="source code:
-z = [[1, 2, 3, 4, 5, 6]]
-z += [[1, 2, 3, 4, 5, 6]]
-r, q = 2, 3
-loop.start_unroll
+	122 [label="==
 "]
-	64 [label=1
-]
-	65 [label=2
-]
-	66 [label=3
-]
-	67 [label=4
-]
-	68 [label=5
-]
-	69 [label=6
-]
-	70 [label="z
-Write"]
-	64 -> 70
-	65 -> 70
-	66 -> 70
-	67 -> 70
-	68 -> 70
-	69 -> 70
-	71 [label=1
-]
-	72 [label=2
-]
-	73 [label=3
-]
-	74 [label=4
-]
-	75 [label=5
-]
-	76 [label=6
-]
-	77 [label="z
-Read"]
-	78 [label="+
+	123 [label="<
 "]
-	71 -> 78
-	77 -> 78
-	79 [label="z
-Write"]
-	78 -> 79
-	80 [label="z
+	124 [label="w
+location: 120
 Read"]
-	81 [label="+
+	124 -> 123
+	125 [label="+
 "]
-	72 -> 81
-	80 -> 81
-	82 [label="z
-Write"]
-	81 -> 82
-	83 [label="z
+	126 [label="x
+location: 0
 Read"]
-	84 [label="+
+	126 -> 125
+	127 [label="y
+location: 32
+Read"]
+	127 -> 125
+	128 [label="r
+location: 88
+Write"]
+	125 -> 128
+	129 [label="+
 "]
-	73 -> 84
-	83 -> 84
-	85 [label="z
-Write"]
-	84 -> 85
-	86 [label="z
+	130 [label="q
+location: 64
 Read"]
-	87 [label="+
+	130 -> 129
+	131 [label="r
+location: 88
+Read"]
+	131 -> 129
+	132 [label="w
+location: 120
+Write"]
+	129 -> 132
+	133 [label="//
 "]
-	74 -> 87
-	86 -> 87
-	88 [label="z
-Write"]
-	87 -> 88
-	89 [label="z
-Read"]
-	90 [label="+
+	134 [label="*
 "]
-	75 -> 90
-	89 -> 90
-	91 [label="z
-Write"]
-	90 -> 91
-	92 [label="z
+	135 [label="x
+location: 0
 Read"]
-	93 [label="+
+	135 -> 134
+	136 [label="y
+location: 32
+Read"]
+	136 -> 134
+	137 [label="*
 "]
-	76 -> 93
-	92 -> 93
-	94 [label="z
-Write"]
-	93 -> 94
-	95 [label=2
-]
-	96 [label=3
-]
-	97 [label="r
-Write"]
-	98 [label="q
-Write"]
-	95 -> 97
-	96 -> 98
-	99 [label="loop.start_unroll
+	138 [label="q
+location: 64
 Read"]
+	138 -> 137
+	139 [label="r
+location: 88
+Read"]
+	139 -> 137
+	140 [label="+
+"]
+	141 [label="-
+"]
+	142 [label="q
+location: 64
+Write"]
+	141 -> 142
+	143 [label="+
+"]
+	144 [label="q
+location: 64
+Write"]
+	143 -> 144
+	145 [label="-
+"]
+	146 [label="q
+location: 64
+Read"]
+	146 -> 145
+	147 [label="a
+location: 0
+Write"]
+	145 -> 147
+	148 [label="//
+"]
+	149 [label="a
+location: 0
+Read"]
+	149 -> 148
+	150 [label="r
+location: 88
+Read"]
+	150 -> 148
+	151 [label="b
+location: 32
+Write"]
+	148 -> 151
+	152 [label="+
+"]
+	153 [label="z
+location: 144
+Write"]
+	152 -> 153
+	154 [label="+
+"]
+	155 [label="z
+location: 144
+Write"]
+	154 -> 155
+	156 [label="+
+"]
+	157 [label="z
+location: 144
+Write"]
+	156 -> 157
+	158 [label="+
+"]
+	159 [label="z
+location: 144
+Write"]
+	158 -> 159
+	160 [label="+
+"]
+	161 [label="z
+location: 144
+Write"]
+	160 -> 161
+	162 [label="+
+"]
+	163 [label="z
+location: 144
+Write"]
+	162 -> 163
 }

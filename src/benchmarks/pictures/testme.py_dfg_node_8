@@ -1,28 +1,28 @@
 digraph {
-	103 [label="source code:
+	102 [label="source code:
 z[0][i] += z[0][i + 1]
 "]
-	104 [label="z
+	103 [label="z
 Read"]
-	105 [label="z[0]
+	104 [label="z[0]
 Read"]
-	104 -> 105
-	106 [label="z[0][i + 1]
+	103 -> 104 [label=""]
+	105 [label="z[0][i + 1]
 Read"]
-	105 -> 106
-	107 [label="z
+	104 -> 105 [label=""]
+	106 [label="z
 Read"]
-	108 [label="+
+	107 [label="+
 "]
-	106 -> 108
-	107 -> 108
-	109 [label="z
+	105 -> 107 [label=""]
+	106 -> 107 [label=""]
+	108 [label="z
 Read"]
-	110 [label="z[0]
+	109 [label="z[0]
 Read"]
-	109 -> 110
-	111 [label="z[0][i]
+	108 -> 109 [label=""]
+	110 [label="z[0][i]
 Write"]
-	110 -> 111
-	108 -> 111
+	109 -> 110 [label=""]
+	107 -> 110 [label=""]
 }

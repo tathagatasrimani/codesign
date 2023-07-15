@@ -1,25 +1,368 @@
 digraph {
-	121 [label="source code:
-a += i
-"]
-	122 [label="i
-Read"]
-	123 [label="a
-Read"]
+	122 [label=and
+]
+	123 [label=or
+]
 	124 [label="+
 "]
-	122 -> 124
-	123 -> 124
-	125 [label="a
+	125 [label="+
+"]
+	126 [label="+
+"]
+	127 [label="+
+"]
+	128 [label="+
+"]
+	129 [label="+
+"]
+	130 [label="+
+"]
+	131 [label="+
+"]
+	132 [label="+
+"]
+	133 [label="+
+"]
+	134 [label="+
+"]
+	135 [label="+
+"]
+	136 [label="+
+"]
+	137 [label="+
+"]
+	138 [label="+
+"]
+	139 [label="-
+"]
+	140 [label="-
+"]
+	141 [label="-
+"]
+	142 [label="-
+"]
+	143 [label="-
+"]
+	144 [label="-
+"]
+	145 [label="-
+"]
+	146 [label="-
+"]
+	147 [label="-
+"]
+	148 [label="-
+"]
+	149 [label="-
+"]
+	150 [label="-
+"]
+	151 [label="-
+"]
+	152 [label="-
+"]
+	153 [label="-
+"]
+	154 [label="*
+"]
+	155 [label="*
+"]
+	156 [label="*
+"]
+	157 [label="*
+"]
+	158 [label="*
+"]
+	159 [label="*
+"]
+	160 [label="*
+"]
+	161 [label="*
+"]
+	162 [label="*
+"]
+	163 [label="*
+"]
+	164 [label="*
+"]
+	165 [label="*
+"]
+	166 [label="*
+"]
+	167 [label="*
+"]
+	168 [label="*
+"]
+	169 [label="//
+"]
+	170 [label="//
+"]
+	171 [label="//
+"]
+	172 [label="//
+"]
+	173 [label="//
+"]
+	174 [label="//
+"]
+	175 [label="//
+"]
+	176 [label="//
+"]
+	177 [label="//
+"]
+	178 [label="//
+"]
+	179 [label="//
+"]
+	180 [label="//
+"]
+	181 [label="//
+"]
+	182 [label="//
+"]
+	183 [label="//
+"]
+	184 [label="%
+"]
+	185 [label="<<
+"]
+	186 [label=">>
+"]
+	187 [label="|
+"]
+	188 [label="^
+"]
+	189 [label="&
+"]
+	190 [label="==
+"]
+	191 [label="!=
+"]
+	192 [label="<
+"]
+	193 [label="<=
+"]
+	194 [label=">
+"]
+	195 [label=">=
+"]
+	196 [label="!=
+"]
+	197 [label="-
+"]
+	198 [label="+
+"]
+	199 [label="!
+"]
+	200 [label="~
+"]
+	201 [label="w
+location: 120
+Read"]
+	201 -> 192 [label="size: 24"]
+	202 [label="q
+location: 64
+Read"]
+	202 -> 154 [label="size: 24"]
+	203 [label="r
+location: 88
+Read"]
+	203 -> 154 [label="size: 32"]
+	204 [label="q
+location: 64
+Read"]
+	204 -> 124 [label="size: 24"]
+	205 [label="r
+location: 88
+Read"]
+	205 -> 124 [label="size: 32"]
+	206 [label="w
+location: 120
 Write"]
-	124 -> 125
-	150 [label="a
-location: 288
+	124 -> 206 [label="size: 24"]
+	207 [label="x
+location: 0
 Read"]
-	151 [label="a
-location: 288
+	207 -> 125 [label="size: 32"]
+	208 [label="y
+location: 32
 Read"]
-	152 [label="a
-location: 288
+	208 -> 125 [label="size: 32"]
+	209 [label="r
+location: 88
+Write"]
+	125 -> 209 [label="size: 32"]
+	210 [label="x
+location: 0
 Read"]
+	210 -> 155 [label="size: 32"]
+	211 [label="y
+location: 32
+Read"]
+	211 -> 155 [label="size: 32"]
+	155 -> 124 [label=""]
+	154 -> 139 [label=""]
+	212 [label="q
+location: 64
+Write"]
+	139 -> 212 [label="size: 24"]
+	124 -> 124 [label=""]
+	169 -> 124 [label=""]
+	213 [label="q
+location: 64
+Write"]
+	124 -> 213 [label="size: 24"]
+	214 [label="q
+location: 64
+Read"]
+	214 -> 139 [label="size: 24"]
+	215 [label="a
+location: 0
+Write"]
+	139 -> 215 [label="size: 24"]
+	216 [label="a
+location: 0
+Read"]
+	216 -> 169 [label="size: 24"]
+	217 [label="r
+location: 88
+Read"]
+	217 -> 169 [label="size: 32"]
+	218 [label="b
+location: 32
+Write"]
+	169 -> 218 [label="size: 24"]
+	219 [label="z
+location: 144
+Read"]
+	219 -> 124 [label="size: 64"]
+	220 [label="z
+location: 144
+Write"]
+	124 -> 220 [label="size: 64"]
+	221 [label="z
+location: 144
+Read"]
+	221 -> 125 [label="size: 64"]
+	222 [label="z
+location: 144
+Write"]
+	125 -> 222 [label="size: 64"]
+	223 [label="z
+location: 144
+Read"]
+	223 -> 126 [label="size: 64"]
+	224 [label="z
+location: 144
+Write"]
+	126 -> 224 [label="size: 64"]
+	225 [label="z
+location: 144
+Read"]
+	225 -> 127 [label="size: 64"]
+	226 [label="z
+location: 144
+Write"]
+	127 -> 226 [label="size: 64"]
+	227 [label="z
+location: 144
+Read"]
+	227 -> 128 [label="size: 64"]
+	228 [label="z
+location: 144
+Write"]
+	128 -> 228 [label="size: 64"]
+	229 [label="z
+location: 144
+Read"]
+	229 -> 129 [label="size: 64"]
+	230 [label="z
+location: 144
+Write"]
+	129 -> 230 [label="size: 64"]
+	231 [label="z
+location: 144
+Read"]
+	231 -> 124 [label="size: 64"]
+	232 [label="z
+location: 144
+Read"]
+	232 -> 124 [label="size: 64"]
+	233 [label="z
+location: 144
+Write"]
+	124 -> 233 [label="size: 64"]
+	234 [label="z
+location: 144
+Read"]
+	234 -> 124 [label="size: 64"]
+	235 [label="z
+location: 144
+Read"]
+	235 -> 124 [label="size: 64"]
+	236 [label="z
+location: 144
+Write"]
+	124 -> 236 [label="size: 64"]
+	237 [label="z
+location: 144
+Read"]
+	237 -> 124 [label="size: 64"]
+	238 [label="z
+location: 144
+Read"]
+	238 -> 124 [label="size: 64"]
+	239 [label="z
+location: 144
+Write"]
+	124 -> 239 [label="size: 64"]
+	240 [label="z
+location: 144
+Read"]
+	240 -> 124 [label="size: 64"]
+	241 [label="z
+location: 144
+Read"]
+	241 -> 124 [label="size: 64"]
+	242 [label="z
+location: 144
+Write"]
+	124 -> 242 [label="size: 64"]
+	243 [label="z
+location: 144
+Read"]
+	243 -> 124 [label="size: 64"]
+	244 [label="z
+location: 144
+Read"]
+	244 -> 124 [label="size: 64"]
+	245 [label="z
+location: 144
+Write"]
+	124 -> 245 [label="size: 64"]
+	246 [label="a
+location: 88
+Read"]
+	246 -> 124 [label="size: 32"]
+	247 [label="a
+location: 88
+Write"]
+	124 -> 247 [label="size: 32"]
+	248 [label="a
+location: 88
+Read"]
+	248 -> 124 [label="size: 32"]
+	249 [label="a
+location: 88
+Write"]
+	124 -> 249 [label="size: 32"]
+	250 [label="a
+location: 88
+Read"]
+	250 -> 124 [label="size: 32"]
+	251 [label="a
+location: 88
+Write"]
+	124 -> 251 [label="size: 32"]
 }

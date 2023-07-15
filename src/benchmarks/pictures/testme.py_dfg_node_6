@@ -9,20 +9,20 @@ Read"]
 ]
 	57 [label="-
 "]
-	55 -> 57
-	56 -> 57
+	55 -> 57 [label=""]
+	56 -> 57 [label=""]
 	58 [label="a
 Write"]
-	57 -> 58
+	57 -> 58 [label=""]
 	59 [label="a
 Read"]
 	60 [label="r
 Read"]
 	61 [label="//
 "]
-	59 -> 61
-	60 -> 61
+	59 -> 61 [label=""]
+	60 -> 61 [label=""]
 	62 [label="b
 Write"]
-	61 -> 62
+	61 -> 62 [label=""]
 }

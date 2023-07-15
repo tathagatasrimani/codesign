@@ -34,24 +34,20 @@ def main(x, y):
     z_1 += [[1, 2, 3, 4, 5, 6]]
     print(5, 17)
     r_1, q_1 = 2, 3
-    loop.start_unroll
     for i_1 in range(5):
-        print(8, 20)
+        print(8, 19)
         z_1[0][i_1] += z_1[0][i_1 + 1]
-    loop.stop_unroll
     print('exit scope 1')
 
 
 def bruh():
     print('enter scope 2')
-    print(1, 23)
-    print(12, 24)
+    print(1, 21)
+    print(12, 22)
     a_2 = 1
-    loop.start_unroll
     for i_2 in range(3):
-        print(14, 27)
+        print(14, 24)
         a_2 += i_2
-    loop.stop_unroll
     print('exit scope 2')
 
 

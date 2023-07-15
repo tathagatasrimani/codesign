@@ -23,19 +23,21 @@ class symbol:
         self.read = read
 
 class Node:
-    def __init__(self, value: str, operation: str, memory_links=None):
+    def __init__(self, value: str, operation: str, id, memory_links=None, compute_id=None):
         self.value = value
         self.operation = operation
         self.memory_links = memory_links
         self.children = []
         self.parents = []
         self.order = 0
+        self.id = id
+        self.compute_id = compute_id
 
 class Graph:
-    def __init__(self, roots, id_to_Node):
+    def __init__(self, roots, id_to_Node, gv_graph):
         self.roots = roots
         self.id_to_Node = id_to_Node
-        self.gv_graph = None
+        self.gv_graph = gv_graph
         self.max_id = 0
     def set_gv_graph(self, graph):
         self.gv_graph = graph
@@ -305,16 +307,16 @@ def make_node(graph, cfg_node, id, name, ctx, opname):
         annotation = "Read"
     elif ctx == ast.Store: # deal with Del if needed
         annotation = "Write"
-    dfg_node = Node(name, opname)
+    dfg_node = Node(name, opname, id)
     graph.node(id, name + '\n' + annotation)
     graphs[cfg_node].roots.add(dfg_node)
     graphs[cfg_node].id_to_Node[id] = dfg_node
     node_to_symbols[cfg_node].append(symbol(name, id, type(ctx) == ast.Store, type(ctx) == ast.Load))
 
 # edge for a non-literal
-def make_edge(graph, node, source_id, target_id):
+def make_edge(graph, node, source_id, target_id, annotation=""):
     source, target = graphs[node].id_to_Node[source_id], graphs[node].id_to_Node[target_id]
-    graph.edge(source_id, target_id)
+    graph.edge(source_id, target_id, label=annotation)
     target_node = graphs[node].id_to_Node[target_id]
     if target_node in graphs[node].roots: graphs[node].roots.remove(target_node)
     source.children.append(target)
@@ -353,7 +355,7 @@ def main_fn(path_in, benchmark_in):
     cfg.build_visual(path + 'pictures/' + benchmark, 'jpeg', show = False)
     for node in cfg:
         node_to_symbols[node] = []
-        graphs[node] = Graph(set(), {})
+        graphs[node] = Graph(set(), {}, None)
         dfg_per_node(node)
         for root in graphs[node].roots:
             cur_node = root

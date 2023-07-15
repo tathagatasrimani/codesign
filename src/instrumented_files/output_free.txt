@@ -52,9 +52,8 @@ z_1 no_ind Write
 q_1 no_ind Write
 free 24 q_1
 malloc 28 q_1
-loop no_ind Read
+8 19
 free 28 q_1
-8 20
 i_1 no_ind Read
 z_1 no_ind Read
 z_1 0 Read
@@ -63,7 +62,7 @@ z_1 1 Read
 i_1 no_ind Read
 i_1 no_ind Read
 z_1 0 Write
-8 20
+8 19
 i_1 no_ind Read
 z_1 no_ind Read
 z_1 0 Read
@@ -72,7 +71,7 @@ z_1 2 Read
 i_1 no_ind Read
 i_1 no_ind Read
 z_1 1 Write
-8 20
+8 19
 i_1 no_ind Read
 z_1 no_ind Read
 z_1 0 Read
@@ -81,7 +80,7 @@ z_1 3 Read
 i_1 no_ind Read
 i_1 no_ind Read
 z_1 2 Write
-8 20
+8 19
 i_1 no_ind Read
 z_1 no_ind Read
 z_1 0 Read
@@ -90,7 +89,7 @@ z_1 4 Read
 i_1 no_ind Read
 i_1 no_ind Read
 z_1 3 Write
-8 20
+8 19
 i_1 no_ind Read
 z_1 no_ind Read
 z_1 0 Read
@@ -100,24 +99,21 @@ i_1 no_ind Read
 i_1 no_ind Read
 z_1 4 Write
 free 64 z_1
-loop no_ind Read
 exit scope 1
 enter scope 2
-1 23
-12 24
+1 21
+12 22
 a_2 no_ind Write
 malloc 28 a_2
-loop no_ind Read
-14 27
+14 24
 i_2 no_ind Read
 a_2 no_ind Write
-14 27
+14 24
 i_2 no_ind Read
 a_2 no_ind Write
-14 27
+14 24
 i_2 no_ind Read
 a_2 no_ind Write
 free 28 a_2
-loop no_ind Read
 exit scope 2
 

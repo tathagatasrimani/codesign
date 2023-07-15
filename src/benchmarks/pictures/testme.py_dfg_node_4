@@ -10,22 +10,22 @@ Read"]
 ]
 	40 [label="+
 "]
-	38 -> 40
-	39 -> 40
+	38 -> 40 [label=""]
+	39 -> 40 [label=""]
 	41 [label="a
 Write"]
-	40 -> 41
+	40 -> 41 [label=""]
 	42 [label="a
 Read"]
 	43 [label="r
 Read"]
 	44 [label="*
 "]
-	42 -> 44
-	43 -> 44
+	42 -> 44 [label=""]
+	43 -> 44 [label=""]
 	45 [label="b
 Write"]
-	44 -> 45
+	44 -> 45 [label=""]
 	46 [label="a
 Read"]
 	47 [label=3
@@ -34,19 +34,19 @@ Read"]
 ]
 	49 [label="*
 "]
-	47 -> 49
-	48 -> 49
+	47 -> 49 [label=""]
+	48 -> 49 [label=""]
 	50 [label="+
 "]
-	46 -> 50
-	49 -> 50
+	46 -> 50 [label=""]
+	49 -> 50 [label=""]
 	51 [label="r
 Read"]
 	52 [label="+
 "]
-	50 -> 52
-	51 -> 52
+	50 -> 52 [label=""]
+	51 -> 52 [label=""]
 	53 [label="r
 Write"]
-	52 -> 53
+	52 -> 53 [label=""]
 }

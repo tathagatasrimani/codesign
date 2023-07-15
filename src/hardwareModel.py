@@ -35,6 +35,7 @@ op2sym_map = {
     "UAdd": "+",
     "Not": "!",
     "Invert": "~",
+    "Regs": "Regs"
 }
 
 latency = {
