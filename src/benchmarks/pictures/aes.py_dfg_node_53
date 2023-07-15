@@ -7,11 +7,11 @@ return matrix2text(self.cipher_state)
 "]
 	731 [label="self.cipher_state
 Read"]
-	731 -> 730
+	731 -> 730 [label=""]
 	732 [label="self.round_keys
 Read"]
 	733 [label="self.round_keys[:4]
 Read"]
-	732 -> 733
-	733 -> 730
+	732 -> 733 [label=""]
+	733 -> 730 [label=""]
 }

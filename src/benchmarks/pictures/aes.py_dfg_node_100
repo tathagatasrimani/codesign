@@ -6,5 +6,5 @@ self.__mix_columns(s)
 "]
 	1059 [label="s
 Read"]
-	1059 -> 1058
+	1059 -> 1058 [label=""]
 }

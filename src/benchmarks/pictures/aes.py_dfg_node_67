@@ -9,23 +9,23 @@ self.__inv_sub_bytes(state_matrix)
 "]
 	761 [label="state_matrix
 Read"]
-	761 -> 760
+	761 -> 760 [label=""]
 	762 [label="key_matrix
 Read"]
-	762 -> 760
+	762 -> 760 [label=""]
 	763 [label="self.__inv_mix_columns(state_matrix)
 "]
 	764 [label="state_matrix
 Read"]
-	764 -> 763
+	764 -> 763 [label=""]
 	765 [label="self.__inv_shift_rows(state_matrix)
 "]
 	766 [label="state_matrix
 Read"]
-	766 -> 765
+	766 -> 765 [label=""]
 	767 [label="self.__inv_sub_bytes(state_matrix)
 "]
 	768 [label="state_matrix
 Read"]
-	768 -> 767
+	768 -> 767 [label=""]
 }

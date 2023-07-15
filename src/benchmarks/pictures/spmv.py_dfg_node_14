@@ -6,5 +6,5 @@ for i in range(rowNum):
 "]
 	56 [label="rowNum
 Read"]
-	56 -> 55
+	56 -> 55 [label=""]
 }

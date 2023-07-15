@@ -6,5 +6,5 @@ text = 0
 ]
 	593 [label="text
 Write"]
-	592 -> 593
+	592 -> 593 [label=""]
 }

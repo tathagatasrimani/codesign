@@ -6,11 +6,11 @@ RowPtr = np.append(RowPtr, 8)
 "]
 	48 [label="RowPtr
 Read"]
-	48 -> 47
+	48 -> 47 [label=""]
 	49 [label=8
 ]
-	49 -> 47
+	49 -> 47 [label=""]
 	50 [label="RowPtr
 Write"]
-	47 -> 50
+	47 -> 50 [label=""]
 }

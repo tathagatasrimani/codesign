@@ -6,14 +6,14 @@ s[i][j] = InvSbox[s[i][j]]
 Read"]
 	789 [label="InvSbox[s[i][j]]
 Read"]
-	788 -> 789
+	788 -> 789 [label=""]
 	790 [label="s
 Read"]
 	791 [label="s[i]
 Read"]
-	790 -> 791
+	790 -> 791 [label=""]
 	792 [label="s[i][j]
 Write"]
-	791 -> 792
-	789 -> 792
+	791 -> 792 [label=""]
+	789 -> 792 [label=""]
 }

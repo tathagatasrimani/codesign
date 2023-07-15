@@ -10,25 +10,25 @@ temp = 0
 Read"]
 	66 [label="RowPtr[i]
 Read"]
-	65 -> 66
-	66 -> 64
+	65 -> 66 [label=""]
+	66 -> 64 [label=""]
 	67 [label="start
 Write"]
-	64 -> 67
+	64 -> 67 [label=""]
 	68 [label="int(RowPtr[i + 1])
 "]
 	69 [label="RowPtr
 Read"]
 	70 [label="RowPtr[i + 1]
 Read"]
-	69 -> 70
-	70 -> 68
+	69 -> 70 [label=""]
+	70 -> 68 [label=""]
 	71 [label="end
 Write"]
-	68 -> 71
+	68 -> 71 [label=""]
 	72 [label=0
 ]
 	73 [label="temp
 Write"]
-	72 -> 73
+	72 -> 73 [label=""]
 }

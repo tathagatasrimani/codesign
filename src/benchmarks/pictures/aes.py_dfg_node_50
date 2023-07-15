@@ -9,29 +9,29 @@ self.__inv_sub_bytes(self.cipher_state)
 "]
 	708 [label="ciphertext
 Read"]
-	708 -> 707
+	708 -> 707 [label=""]
 	709 [label="self.cipher_state
 Write"]
-	707 -> 709
+	707 -> 709 [label=""]
 	710 [label="self.__add_round_key(self.cipher_state, self.round_keys[40:])
 "]
 	711 [label="self.cipher_state
 Read"]
-	711 -> 710
+	711 -> 710 [label=""]
 	712 [label="self.round_keys
 Read"]
 	713 [label="self.round_keys[40:]
 Read"]
-	712 -> 713
-	713 -> 710
+	712 -> 713 [label=""]
+	713 -> 710 [label=""]
 	714 [label="self.__inv_shift_rows(self.cipher_state)
 "]
 	715 [label="self.cipher_state
 Read"]
-	715 -> 714
+	715 -> 714 [label=""]
 	716 [label="self.__inv_sub_bytes(self.cipher_state)
 "]
 	717 [label="self.cipher_state
 Read"]
-	717 -> 716
+	717 -> 716 [label=""]
 }

@@ -6,23 +6,23 @@ s[i][j] ^= k[i][j]
 Read"]
 	742 [label="k[i]
 Read"]
-	741 -> 742
+	741 -> 742 [label=""]
 	743 [label="k[i][j]
 Read"]
-	742 -> 743
+	742 -> 743 [label=""]
 	744 [label="s
 Read"]
 	745 [label="^
 "]
-	743 -> 745
-	744 -> 745
+	743 -> 745 [label=""]
+	744 -> 745 [label=""]
 	746 [label="s
 Read"]
 	747 [label="s[i]
 Read"]
-	746 -> 747
+	746 -> 747 [label=""]
 	748 [label="s[i][j]
 Write"]
-	747 -> 748
-	745 -> 748
+	747 -> 748 [label=""]
+	745 -> 748 [label=""]
 }

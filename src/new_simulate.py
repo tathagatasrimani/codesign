@@ -70,15 +70,17 @@ def func_calls(expr, calls):
     for sub_expr in ASTUtils.get_sub_expr(expr):
         func_calls(sub_expr, calls)
 
-def get_hw_need(state):
+def get_hw_need(state, hw_spec):
     hw_need = HardwareModel(0,0)
     for op in state:
         if not op.operation: continue
         if op.operation != "Regs":
-            compute_element_index = compute_element_to_node_id[op.operation][hw_need.hw_allocated[op.operation]]
-            op.compute_id = compute_element_index
+            print(hw_spec[op.operation])
+            compute_element_id = hw_need.hw_allocated[op.operation] % hw_spec[op.operation]
+            compute_id = compute_element_to_node_id[op.operation][compute_element_id]
+            op.compute_id = compute_id
             #print(op.value)
-            process_compute_element(op, new_graph, str(compute_element_index))
+            process_compute_element(op, new_graph, str(compute_id))
         hw_need.hw_allocated[op.operation] += 1
     return hw_need.hw_allocated
 
@@ -221,7 +223,7 @@ def simulate(cfg, node_operations, hw_spec, graphs, first):
                 for parent in node.parents:
                     parents.append(parent.operation)
                 print(node.operation, parents)
-            hw_need = get_hw_need(state)
+            hw_need = get_hw_need(state, hw_spec)
             #print(hw_need)
             max_cycles = 0
             for elem in hw_need:

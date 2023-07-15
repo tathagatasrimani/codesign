@@ -10,23 +10,23 @@ end = time.time()
 "]
 	553 [label="start
 Write"]
-	552 -> 553
+	552 -> 553 [label=""]
 	554 [label="AES(1212304810341341)
 "]
 	555 [label=1212304810341341
 ]
-	555 -> 554
+	555 -> 554 [label=""]
 	556 [label="aes
 Write"]
-	554 -> 556
+	554 -> 556 [label=""]
 	557 [label="aes.encrypt(1212304810341341)
 "]
 	558 [label=1212304810341341
 ]
-	558 -> 557
+	558 -> 557 [label=""]
 	559 [label="time.time()
 "]
 	560 [label="end
 Write"]
-	559 -> 560
+	559 -> 560 [label=""]
 }

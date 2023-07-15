@@ -9,21 +9,21 @@ return matrix2text(self.plain_state)
 "]
 	699 [label="self.plain_state
 Read"]
-	699 -> 698
+	699 -> 698 [label=""]
 	700 [label="self.__shift_rows(self.plain_state)
 "]
 	701 [label="self.plain_state
 Read"]
-	701 -> 700
+	701 -> 700 [label=""]
 	702 [label="self.__add_round_key(self.plain_state, self.round_keys[40:])
 "]
 	703 [label="self.plain_state
 Read"]
-	703 -> 702
+	703 -> 702 [label=""]
 	704 [label="self.round_keys
 Read"]
 	705 [label="self.round_keys[40:]
 Read"]
-	704 -> 705
-	705 -> 702
+	704 -> 705 [label=""]
+	705 -> 702 [label=""]
 }

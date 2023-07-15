@@ -8,6 +8,6 @@ self.__mix_single_column(s[i])
 Read"]
 	1008 [label="s[i]
 Read"]
-	1007 -> 1008
-	1008 -> 1006
+	1007 -> 1008 [label=""]
+	1008 -> 1006 [label=""]
 }

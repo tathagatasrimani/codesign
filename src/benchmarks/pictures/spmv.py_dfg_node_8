@@ -6,14 +6,14 @@ if matrix1[i][j] != 0:
 Read"]
 	59 [label="matrix1[i]
 Read"]
-	58 -> 59
+	58 -> 59 [label=""]
 	60 [label="matrix1[i][j]
 Read"]
-	59 -> 60
+	59 -> 60 [label=""]
 	61 [label=0
 ]
 	62 [label="!=
 "]
-	60 -> 62
-	61 -> 62
+	60 -> 62 [label=""]
+	61 -> 62 [label=""]
 }

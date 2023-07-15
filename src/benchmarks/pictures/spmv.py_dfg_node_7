@@ -6,5 +6,5 @@ for j in range(columnNum):
 "]
 	53 [label="columnNum
 Read"]
-	53 -> 52
+	53 -> 52 [label=""]
 }

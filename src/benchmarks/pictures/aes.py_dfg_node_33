@@ -8,34 +8,34 @@ self.round_keys[i].append(byte)
 Read"]
 	641 [label="self.round_keys[i - 4]
 Read"]
-	640 -> 641
+	640 -> 641 [label=""]
 	642 [label="self.round_keys[i - 4][0]
 Read"]
-	641 -> 642
+	641 -> 642 [label=""]
 	643 [label="Sbox
 Read"]
 	644 [label="Sbox[self.round_keys[i - 1][1]]
 Read"]
-	643 -> 644
+	643 -> 644 [label=""]
 	645 [label="^
 "]
-	642 -> 645
-	644 -> 645
+	642 -> 645 [label=""]
+	644 -> 645 [label=""]
 	646 [label="Rcon
 Read"]
 	647 [label="Rcon[int(i / 4)]
 Read"]
-	646 -> 647
+	646 -> 647 [label=""]
 	648 [label="^
 "]
-	645 -> 648
-	647 -> 648
+	645 -> 648 [label=""]
+	647 -> 648 [label=""]
 	649 [label="byte
 Write"]
-	648 -> 649
+	648 -> 649 [label=""]
 	650 [label="self.round_keys[i].append(byte)
 "]
 	651 [label="byte
 Read"]
-	651 -> 650
+	651 -> 650 [label=""]
 }

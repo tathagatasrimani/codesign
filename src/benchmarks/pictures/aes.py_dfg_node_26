@@ -6,5 +6,5 @@ self.change_key(master_key)
 "]
 	620 [label="master_key
 Read"]
-	620 -> 619
+	620 -> 619 [label=""]
 }

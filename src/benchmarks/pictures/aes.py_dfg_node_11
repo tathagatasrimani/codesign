@@ -6,5 +6,5 @@ matrix.append([byte])
 "]
 	587 [label="byte
 Read"]
-	587 -> 586
+	587 -> 586 [label=""]
 }

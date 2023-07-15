@@ -14,46 +14,46 @@ end = time.time()
 ]
 	7 [label=0
 ]
-	6 -> 5
+	6 -> 5 [label=""]
 	8 [label="x0
 Write"]
-	5 -> 8
+	5 -> 8 [label=""]
 	9 [label=0.0001
 ]
 	10 [label="error
 Write"]
-	9 -> 10
+	9 -> 10 [label=""]
 	11 [label=1000
 ]
 	12 [label="max_iterations
 Write"]
-	11 -> 12
+	11 -> 12 [label=""]
 	13 [label="time.time()
 "]
 	14 [label="start
 Write"]
-	13 -> 14
+	13 -> 14 [label=""]
 	15 [label="conjugate_gradient(rosenbrock, grad_rosen, x0, iterations=max_iterations,
     error=error)
 "]
 	16 [label="rosenbrock
 Read"]
-	16 -> 15
+	16 -> 15 [label=""]
 	17 [label="grad_rosen
 Read"]
-	17 -> 15
+	17 -> 15 [label=""]
 	18 [label="x0
 Read"]
-	18 -> 15
+	18 -> 15 [label=""]
 	19 [label="x
 Write"]
 	20 [label="n_iter
 Write"]
-	15 -> 19
-	15 -> 20
+	15 -> 19 [label=""]
+	15 -> 20 [label=""]
 	21 [label="time.time()
 "]
 	22 [label="end
 Write"]
-	21 -> 22
+	21 -> 22 [label=""]
 }

@@ -13,52 +13,52 @@ Result = np.array([], dtype=int)
 Read"]
 	22 [label="matrix1.shape[0]
 Read"]
-	21 -> 22
-	22 -> 20
+	21 -> 22 [label=""]
+	22 -> 20 [label=""]
 	23 [label="rowNum
 Write"]
-	20 -> 23
+	20 -> 23 [label=""]
 	24 [label="int(matrix1.shape[1])
 "]
 	25 [label="matrix1.shape
 Read"]
 	26 [label="matrix1.shape[1]
 Read"]
-	25 -> 26
-	26 -> 24
+	25 -> 26 [label=""]
+	26 -> 24 [label=""]
 	27 [label="columnNum
 Write"]
-	24 -> 27
+	24 -> 27 [label=""]
 	28 [label="np.array([], dtype=int)
 "]
 	29 [label="[]
 "]
-	29 -> 28
+	29 -> 28 [label=""]
 	30 [label="Value
 Write"]
-	28 -> 30
+	28 -> 30 [label=""]
 	31 [label="np.array([], dtype=int)
 "]
 	32 [label="[]
 "]
-	32 -> 31
+	32 -> 31 [label=""]
 	33 [label="Column
 Write"]
-	31 -> 33
+	31 -> 33 [label=""]
 	34 [label="np.array([], dtype=int)
 "]
 	35 [label="[]
 "]
-	35 -> 34
+	35 -> 34 [label=""]
 	36 [label="RowPtr
 Write"]
-	34 -> 36
+	34 -> 36 [label=""]
 	37 [label="np.array([], dtype=int)
 "]
 	38 [label="[]
 "]
-	38 -> 37
+	38 -> 37 [label=""]
 	39 [label="Result
 Write"]
-	37 -> 39
+	37 -> 39 [label=""]
 }

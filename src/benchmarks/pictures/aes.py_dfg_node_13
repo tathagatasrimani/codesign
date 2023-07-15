@@ -6,5 +6,5 @@ matrix[int(i / 4)].append(byte)
 "]
 	590 [label="byte
 Read"]
-	590 -> 589
+	590 -> 589 [label=""]
 }

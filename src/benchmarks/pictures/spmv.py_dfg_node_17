@@ -6,8 +6,8 @@ for j in range(start, end):
 "]
 	92 [label="start
 Read"]
-	92 -> 91
+	92 -> 91 [label=""]
 	93 [label="end
 Read"]
-	93 -> 91
+	93 -> 91 [label=""]
 }

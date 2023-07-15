@@ -6,11 +6,11 @@ self.__round_encrypt(self.plain_state, self.round_keys[4 * i:4 * (i + 1)])
 "]
 	694 [label="self.plain_state
 Read"]
-	694 -> 693
+	694 -> 693 [label=""]
 	695 [label="self.round_keys
 Read"]
 	696 [label="self.round_keys[4 * i:4 * (i + 1)]
 Read"]
-	695 -> 696
-	696 -> 693
+	695 -> 696 [label=""]
+	696 -> 693 [label=""]
 }

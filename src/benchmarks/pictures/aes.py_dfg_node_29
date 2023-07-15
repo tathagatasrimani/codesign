@@ -6,8 +6,8 @@ self.round_keys = text2matrix(master_key)
 "]
 	623 [label="master_key
 Read"]
-	623 -> 622
+	623 -> 622 [label=""]
 	624 [label="self.round_keys
 Write"]
-	622 -> 624
+	622 -> 624 [label=""]
 }

@@ -6,5 +6,5 @@ matrix = []
 "]
 	564 [label="matrix
 Write"]
-	563 -> 564
+	563 -> 564 [label=""]
 }

@@ -6,11 +6,11 @@ self.__round_decrypt(self.cipher_state, self.round_keys[4 * i:4 * (i + 1)])
 "]
 	726 [label="self.cipher_state
 Read"]
-	726 -> 725
+	726 -> 725 [label=""]
 	727 [label="self.round_keys
 Read"]
 	728 [label="self.round_keys[4 * i:4 * (i + 1)]
 Read"]
-	727 -> 728
-	728 -> 725
+	727 -> 728 [label=""]
+	728 -> 725 [label=""]
 }

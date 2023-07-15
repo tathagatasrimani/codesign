@@ -7,28 +7,28 @@ self.round_keys[i].append(byte)
 Read"]
 	661 [label="self.round_keys[i - 4]
 Read"]
-	660 -> 661
+	660 -> 661 [label=""]
 	662 [label="self.round_keys[i - 4][j]
 Read"]
-	661 -> 662
+	661 -> 662 [label=""]
 	663 [label="self.round_keys
 Read"]
 	664 [label="self.round_keys[i - 1]
 Read"]
-	663 -> 664
+	663 -> 664 [label=""]
 	665 [label="self.round_keys[i - 1][j]
 Read"]
-	664 -> 665
+	664 -> 665 [label=""]
 	666 [label="^
 "]
-	662 -> 666
-	665 -> 666
+	662 -> 666 [label=""]
+	665 -> 666 [label=""]
 	667 [label="byte
 Write"]
-	666 -> 667
+	666 -> 667 [label=""]
 	668 [label="self.round_keys[i].append(byte)
 "]
 	669 [label="byte
 Read"]
-	669 -> 668
+	669 -> 668 [label=""]
 }

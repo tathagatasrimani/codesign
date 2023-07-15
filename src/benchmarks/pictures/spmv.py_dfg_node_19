@@ -6,11 +6,11 @@ Result = np.append(Result, temp)
 "]
 	120 [label="Result
 Read"]
-	120 -> 119
+	120 -> 119 [label=""]
 	121 [label="temp
 Read"]
-	121 -> 119
+	121 -> 119 [label=""]
 	122 [label="Result
 Write"]
-	119 -> 122
+	119 -> 122 [label=""]
 }
