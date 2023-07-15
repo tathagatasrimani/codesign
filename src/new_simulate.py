@@ -107,6 +107,9 @@ def simulate(cfg, data_path, node_operations, hw_spec, first):
                 if hw_spec[elem] == 0 and cur_elem_count > 0:
                     raise Exception("hardware specification insufficient to run program")
                 cur_cycles_needed = int(math.ceil(cur_elem_count / hw_spec[elem]) * hardwareModel.latency[elem])
+                # symbolic max
+                # https://www.sympy.org/en/index.html
+                # plug in the number and see if it's correct
                 #print("cycles needed for " + elem + ": " + str(cur_cycles_needed) + ' (element count = ' + str(cur_elem_count) + ')')
                 max_cycles = max(cur_cycles_needed, max_cycles)
                 j = 0
@@ -186,3 +189,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+    
+    
+    
+
