@@ -8,6 +8,6 @@ Read"]
 Read"]
 	292 [label="unsureVertices[v]
 Write"]
-	291 -> 292
-	290 -> 292
+	291 -> 292 [label=""]
+	290 -> 292 [label=""]
 }

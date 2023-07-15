@@ -6,5 +6,5 @@ for i in range(iterations):
 "]
 	118 [label="iterations
 Read"]
-	118 -> 117
+	118 -> 117 [label=""]
 }

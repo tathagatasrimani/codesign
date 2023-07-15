@@ -6,5 +6,5 @@ runtime = 0
 ]
 	363 [label="runtime
 Write"]
-	362 -> 363
+	362 -> 363 [label=""]
 }

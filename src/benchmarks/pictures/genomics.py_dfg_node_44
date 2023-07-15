@@ -7,16 +7,16 @@ if active_sequence_name not in quality_dict:
 Read"]
 	110 [label="line[1:]
 Read"]
-	109 -> 110
+	109 -> 110 [label=""]
 	111 [label="active_sequence_name
 Write"]
-	110 -> 111
+	110 -> 111 [label=""]
 	112 [label="active_sequence_name
 Read"]
 	113 [label="quality_dict
 Read"]
 	114 [label="==
 "]
-	112 -> 114
-	113 -> 114
+	112 -> 114 [label=""]
+	113 -> 114 [label=""]
 }

@@ -6,5 +6,5 @@ v.estD = math.inf
 Read"]
 	198 [label="v.estD
 Write"]
-	197 -> 198
+	197 -> 198 [label=""]
 }

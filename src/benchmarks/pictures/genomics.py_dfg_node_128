@@ -6,14 +6,14 @@ if traceback_matrix[i][j] == 'U':
 Read"]
 	412 [label="traceback_matrix[i]
 Read"]
-	411 -> 412
+	411 -> 412 [label=""]
 	413 [label="traceback_matrix[i][j]
 Read"]
-	412 -> 413
+	412 -> 413 [label=""]
 	414 [label=U
 ]
 	415 [label="==
 "]
-	413 -> 415
-	414 -> 415
+	413 -> 415 [label=""]
+	414 -> 415 [label=""]
 }

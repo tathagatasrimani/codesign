@@ -7,10 +7,10 @@ current = v
 "]
 	338 [label="path
 Write"]
-	337 -> 338
+	337 -> 338 [label=""]
 	339 [label="v
 Read"]
 	340 [label="current
 Write"]
-	339 -> 340
+	339 -> 340 [label=""]
 }

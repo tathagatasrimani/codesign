@@ -9,20 +9,20 @@ Read"]
 Read"]
 	437 [label="scoring_matrix[i]
 Read"]
-	436 -> 437
+	436 -> 437 [label=""]
 	438 [label="scoring_matrix[i][j]
 Write"]
-	437 -> 438
-	435 -> 438
+	437 -> 438 [label=""]
+	435 -> 438 [label=""]
 	439 [label=U
 ]
 	440 [label="traceback_matrix
 Read"]
 	441 [label="traceback_matrix[i]
 Read"]
-	440 -> 441
+	440 -> 441 [label=""]
 	442 [label="traceback_matrix[i][j]
 Write"]
-	441 -> 442
-	439 -> 442
+	441 -> 442 [label=""]
+	439 -> 442 [label=""]
 }

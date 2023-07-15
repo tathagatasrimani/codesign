@@ -6,14 +6,14 @@ if strong_wolfe_alpha(f, g, alpha, c2):
 "]
 	42 [label="f
 Read"]
-	42 -> 41
+	42 -> 41 [label=""]
 	43 [label="g
 Read"]
-	43 -> 41
+	43 -> 41 [label=""]
 	44 [label="alpha
 Read"]
-	44 -> 41
+	44 -> 41 [label=""]
 	45 [label="c2
 Read"]
-	45 -> 41
+	45 -> 41 [label=""]
 }

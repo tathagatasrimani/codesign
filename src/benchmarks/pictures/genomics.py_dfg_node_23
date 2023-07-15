@@ -7,10 +7,10 @@ fastq_dict[active_sequence_name].append(sequence)
 Read"]
 	59 [label="sequence
 Write"]
-	58 -> 59
+	58 -> 59 [label=""]
 	60 [label="fastq_dict[active_sequence_name].append(sequence)
 "]
 	61 [label="sequence
 Read"]
-	61 -> 60
+	61 -> 60 [label=""]
 }

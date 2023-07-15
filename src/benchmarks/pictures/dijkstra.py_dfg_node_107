@@ -6,5 +6,5 @@ v.status = 'unvisited'
 ]
 	134 [label="v.status
 Write"]
-	133 -> 134
+	133 -> 134 [label=""]
 }

@@ -7,16 +7,16 @@ self.addDiEdge(v, u, wt=wt)
 "]
 	86 [label="u
 Read"]
-	86 -> 85
+	86 -> 85 [label=""]
 	87 [label="v
 Read"]
-	87 -> 85
+	87 -> 85 [label=""]
 	88 [label="self.addDiEdge(v, u, wt=wt)
 "]
 	89 [label="v
 Read"]
-	89 -> 88
+	89 -> 88 [label=""]
 	90 [label="u
 Read"]
-	90 -> 88
+	90 -> 88 [label=""]
 }

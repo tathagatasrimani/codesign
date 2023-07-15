@@ -7,10 +7,10 @@ u = x
 Read"]
 	227 [label="minD
 Write"]
-	226 -> 227
+	226 -> 227 [label=""]
 	228 [label="x
 Read"]
 	229 [label="u
 Write"]
-	228 -> 229
+	228 -> 229 [label=""]
 }

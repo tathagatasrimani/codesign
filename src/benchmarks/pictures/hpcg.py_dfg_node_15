@@ -7,5 +7,5 @@ return f(xk + alpha * pk) <= f(xk) + c1 * alpha * np.dot(g(xk), pk)
 ]
 	28 [label="c1
 Write"]
-	27 -> 28
+	27 -> 28 [label=""]
 }

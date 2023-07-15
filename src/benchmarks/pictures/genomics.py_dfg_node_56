@@ -8,27 +8,27 @@ if min_length_fraction > 0:
 Read"]
 	155 [label="fasta_dict[key]
 Read"]
-	154 -> 155
+	154 -> 155 [label=""]
 	156 [label="fasta_dict[key][0]
 Read"]
-	155 -> 156
+	155 -> 156 [label=""]
 	157 [label="sequence
 Write"]
-	156 -> 157
+	156 -> 157 [label=""]
 	158 [label="len(sequence)
 "]
 	159 [label="sequence
 Read"]
-	159 -> 158
+	159 -> 158 [label=""]
 	160 [label="length
 Write"]
-	158 -> 160
+	158 -> 160 [label=""]
 	161 [label="min_length_fraction
 Read"]
 	162 [label=0
 ]
 	163 [label=">
 "]
-	161 -> 163
-	162 -> 163
+	161 -> 163 [label=""]
+	162 -> 163 [label=""]
 }

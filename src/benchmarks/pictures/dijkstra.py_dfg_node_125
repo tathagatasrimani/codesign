@@ -7,10 +7,10 @@ current = w
 "]
 	179 [label="path
 Write"]
-	178 -> 179
+	178 -> 179 [label=""]
 	180 [label="w
 Read"]
 	181 [label="current
 Write"]
-	180 -> 181
+	180 -> 181 [label=""]
 }

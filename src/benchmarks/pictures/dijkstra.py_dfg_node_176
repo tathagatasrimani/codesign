@@ -10,28 +10,28 @@ Read"]
 Read"]
 	317 [label="+
 "]
-	315 -> 317
-	316 -> 317
+	315 -> 317 [label=""]
+	316 -> 317 [label=""]
 	318 [label="v.estD
 Write"]
-	317 -> 318
+	317 -> 318 [label=""]
 	319 [label="u.estD
 Read"]
 	320 [label="wt
 Read"]
 	321 [label="+
 "]
-	319 -> 321
-	320 -> 321
+	319 -> 321 [label=""]
+	320 -> 321 [label=""]
 	322 [label="unsureVertices
 Read"]
 	323 [label="unsureVertices[v]
 Write"]
-	322 -> 323
-	321 -> 323
+	322 -> 323 [label=""]
+	321 -> 323 [label=""]
 	324 [label="u
 Read"]
 	325 [label="v.parent
 Write"]
-	324 -> 325
+	324 -> 325 [label=""]
 }

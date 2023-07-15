@@ -9,50 +9,50 @@ j -= 1
 Read"]
 	365 [label="seq1[i - 1]
 Read"]
-	364 -> 365
+	364 -> 365 [label=""]
 	366 [label="aln1
 Read"]
 	367 [label="+
 "]
-	365 -> 367
-	366 -> 367
+	365 -> 367 [label=""]
+	366 -> 367 [label=""]
 	368 [label="aln1
 Write"]
-	367 -> 368
+	367 -> 368 [label=""]
 	369 [label="seq2
 Read"]
 	370 [label="seq2[j - 1]
 Read"]
-	369 -> 370
+	369 -> 370 [label=""]
 	371 [label="aln2
 Read"]
 	372 [label="+
 "]
-	370 -> 372
-	371 -> 372
+	370 -> 372 [label=""]
+	371 -> 372 [label=""]
 	373 [label="aln2
 Write"]
-	372 -> 373
+	372 -> 373 [label=""]
 	374 [label=1
 ]
 	375 [label="i
 Read"]
 	376 [label="-
 "]
-	374 -> 376
-	375 -> 376
+	374 -> 376 [label=""]
+	375 -> 376 [label=""]
 	377 [label="i
 Write"]
-	376 -> 377
+	376 -> 377 [label=""]
 	378 [label=1
 ]
 	379 [label="j
 Read"]
 	380 [label="-
 "]
-	378 -> 380
-	379 -> 380
+	378 -> 380 [label=""]
+	379 -> 380 [label=""]
 	381 [label="j
 Write"]
-	380 -> 381
+	380 -> 381 [label=""]
 }

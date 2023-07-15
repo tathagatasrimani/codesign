@@ -14,7 +14,7 @@ class CS161Vertex:
         print('enter scope 1')
         print(1, 10)
         self = self
-        v__1 = v
+        v_1 = v
         self.inNeighbors = []
         self.outNeighbors = []
         self.value = v
@@ -29,8 +29,8 @@ class CS161Vertex:
         print('enter scope 2')
         print(1, 21)
         self = self
-        v__2 = v
-        if v__2 in self.getOutNeighbors():
+        v_2 = v
+        if v_2 in self.getOutNeighbors():
             print('exit scope 2')
             return True
         print('exit scope 2')
@@ -41,8 +41,8 @@ class CS161Vertex:
         print('enter scope 3')
         print(1, 26)
         self = self
-        v__3 = v
-        if v__3 in self.getInNeighbors():
+        v_3 = v
+        if v_3 in self.getInNeighbors():
             print('exit scope 3')
             return True
         print('exit scope 3')
@@ -53,8 +53,8 @@ class CS161Vertex:
         print('enter scope 4')
         print(1, 31)
         self = self
-        v__4 = v
-        if v__4 in self.getInNeighbors() or v__4 in self.getOutNeighbors():
+        v_4 = v
+        if v_4 in self.getInNeighbors() or v_4 in self.getOutNeighbors():
             print('exit scope 4')
             return True
         print('exit scope 4')
@@ -66,7 +66,7 @@ class CS161Vertex:
         print(1, 36)
         self = self
         print('exit scope 5')
-        return [v__5[0] for v__5 in self.outNeighbors]
+        return [v_5[0] for v_5 in self.outNeighbors]
         print('exit scope 5')
 
     def getInNeighbors(self):
@@ -74,7 +74,7 @@ class CS161Vertex:
         print(1, 39)
         self = self
         print('exit scope 6')
-        return [v__6[0] for v__6 in self.inNeighbors]
+        return [v_6[0] for v_6 in self.inNeighbors]
         print('exit scope 6')
 
     def getOutNeighborsWithWeights(self):
@@ -97,18 +97,18 @@ class CS161Vertex:
         print('enter scope 9')
         print(1, 48)
         self = self
-        v__9 = v
-        wt__9 = wt
-        self.outNeighbors.append((v__9, wt__9))
+        v_9 = v
+        wt_9 = wt
+        self.outNeighbors.append((v_9, wt_9))
         print('exit scope 9')
 
     def addInNeighbor(self, v, wt):
         print('enter scope 10')
         print(1, 51)
         self = self
-        v__10 = v
-        wt__10 = wt
-        self.inNeighbors.append((v__10, wt__10))
+        v_10 = v
+        wt_10 = wt
+        self.inNeighbors.append((v_10, wt_10))
         print('exit scope 10')
 
 
@@ -125,30 +125,30 @@ class CS161Graph:
         print('enter scope 12')
         print(1, 60)
         self = self
-        n__12 = n
-        self.vertices.append(n__12)
+        n_12 = n
+        self.vertices.append(n_12)
         print('exit scope 12')
 
     def addDiEdge(self, u, v, wt=1):
         print('enter scope 13')
         print(1, 64)
         self = self
-        u__13 = u
-        v__13 = v
-        wt__13 = wt
-        u__13.addOutNeighbor(v__13, wt=wt__13)
-        v__13.addInNeighbor(u__13, wt=wt__13)
+        u_13 = u
+        v_13 = v
+        wt_13 = wt
+        u_13.addOutNeighbor(v_13, wt=wt_13)
+        v_13.addInNeighbor(u_13, wt=wt_13)
         print('exit scope 13')
 
     def addBiEdge(self, u, v, wt=1):
         print('enter scope 14')
         print(1, 69)
         self = self
-        u__14 = u
-        v__14 = v
-        wt__14 = wt
-        self.addDiEdge(u__14, v__14, wt=wt__14)
-        self.addDiEdge(v__14, u__14, wt=wt__14)
+        u_14 = u
+        v_14 = v
+        wt_14 = wt
+        self.addDiEdge(u_14, v_14, wt=wt_14)
+        self.addDiEdge(v_14, u_14, wt=wt_14)
         print('exit scope 14')
 
     def getDirEdges(self):
@@ -156,11 +156,11 @@ class CS161Graph:
         print(1, 75)
         self = self
         ret = []
-        for v__15 in self.vertices:
-            for u__15, wt__15 in v__15.getOutNeighborsWithWeights():
-                ret__15.append([v__15, u__15, wt__15])
+        for v_15 in self.vertices:
+            for u_15, wt_15 in v_15.getOutNeighborsWithWeights():
+                ret_15.append([v_15, u_15, wt_15])
         print('exit scope 15')
-        return ret__15
+        return ret_15
         print('exit scope 15')
 
 
@@ -178,30 +178,30 @@ class CS161Graph:
         print('enter scope 17')
         print(1, 86)
         self = self
-        n__17 = n
-        self.vertices.append(n__17)
+        n_17 = n
+        self.vertices.append(n_17)
         print('exit scope 17')
 
     def addDiEdge(self, u, v, wt=1):
         print('enter scope 18')
         print(1, 90)
         self = self
-        u__18 = u
-        v__18 = v
-        wt__18 = wt
-        u__18.addOutNeighbor(v__18, wt=wt__18)
-        v__18.addInNeighbor(u__18, wt=wt__18)
+        u_18 = u
+        v_18 = v
+        wt_18 = wt
+        u_18.addOutNeighbor(v_18, wt=wt_18)
+        v_18.addInNeighbor(u_18, wt=wt_18)
         print('exit scope 18')
 
     def addBiEdge(self, u, v, wt=1):
         print('enter scope 19')
         print(1, 95)
         self = self
-        u__19 = u
-        v__19 = v
-        wt__19 = wt
-        self.addDiEdge(u__19, v__19, wt=wt__19)
-        self.addDiEdge(v__19, u__19, wt=wt__19)
+        u_19 = u
+        v_19 = v
+        wt_19 = wt
+        self.addDiEdge(u_19, v_19, wt=wt_19)
+        self.addDiEdge(v_19, u_19, wt=wt_19)
         print('exit scope 19')
 
     def getDirEdges(self):
@@ -209,253 +209,253 @@ class CS161Graph:
         print(1, 101)
         self = self
         print(82, 102)
-        ret__20 = []
-        for v__20 in self.vertices:
-            for u__20, wt__20 in v__20.getOutNeighborsWithWeights():
-                ret__20.append([v__20, u__20, wt__20])
+        ret_20 = []
+        for v_20 in self.vertices:
+            for u_20, wt_20 in v_20.getOutNeighborsWithWeights():
+                ret_20.append([v_20, u_20, wt_20])
         print('exit scope 20')
-        return ret__20
+        return ret_20
         print('exit scope 20')
 
 
 def randomGraph(n, p, wts=[1]):
     print('enter scope 21')
     print(1, 112)
-    n__21 = n
-    p__21 = p
-    wts__21 = wts
+    n_21 = n
+    p_21 = p
+    wts_21 = wts
     print(91, 113)
-    G__21 = CS161Graph()
+    G_21 = CS161Graph()
     print(91, 114)
-    V__21 = [CS161Vertex(x__21) for x__21 in range(n__21)]
-    for v__21 in V__21:
-        G__21.addVertex(v__21)
-    for v__21 in V__21:
-        for w__21 in V__21:
-            if v__21 != w__21:
-                if random() < p__21:
-                    G__21.addDiEdge(v__21, w__21, wt=choice(wts__21))
+    V_21 = [CS161Vertex(x_21) for x_21 in range(n_21)]
+    for v_21 in V_21:
+        G_21.addVertex(v_21)
+    for v_21 in V_21:
+        for w_21 in V_21:
+            if v_21 != w_21:
+                if random() < p_21:
+                    G_21.addDiEdge(v_21, w_21, wt=choice(wts_21))
     print('exit scope 21')
-    return G__21
+    return G_21
     print('exit scope 21')
 
 
 def BFS(w, G):
     print('enter scope 22')
     print(1, 124)
-    w__22 = w
-    G__22 = G
-    for v__22 in G__22.vertices:
+    w_22 = w
+    G_22 = G
+    for v_22 in G_22.vertices:
         print(107, 126)
-        v__22.status = 'unvisited'
+        v_22.status = 'unvisited'
     print(108, 127)
-    n__22 = len(G__22.vertices)
+    n_22 = len(G_22.vertices)
     print(108, 128)
-    Ls__22 = [[] for i__22 in range(n__22)]
+    Ls_22 = [[] for i_22 in range(n_22)]
     print(108, 129)
-    Ls__22[0] = [w__22]
+    Ls_22[0] = [w_22]
     print(108, 130)
-    w__22.status = 'visited'
-    for i__22 in range(n__22):
-        for u__22 in Ls__22[i__22]:
-            for v__22 in u__22.getOutNeighbors():
-                if v__22.status == 'unvisited':
+    w_22.status = 'visited'
+    for i_22 in range(n_22):
+        for u_22 in Ls_22[i_22]:
+            for v_22 in u_22.getOutNeighbors():
+                if v_22.status == 'unvisited':
                     print(116, 135)
-                    v__22.status = 'visited'
+                    v_22.status = 'visited'
                     print(116, 136)
-                    v__22.parent = u__22
-                    Ls__22[i__22 + 1].append(v__22)
+                    v_22.parent = u_22
+                    Ls_22[i_22 + 1].append(v_22)
     print('exit scope 22')
-    return Ls__22
+    return Ls_22
     print('exit scope 22')
 
 
 def BFS_shortestPaths(w, G):
     print('enter scope 23')
     print(1, 140)
-    w__23 = w
-    G__23 = G
+    w_23 = w
+    G_23 = G
     print(121, 141)
-    Ls__23 = BFS(w__23, G__23)
-    for i__23 in range(len(Ls__23)):
-        for w__23 in Ls__23[i__23]:
+    Ls_23 = BFS(w_23, G_23)
+    for i_23 in range(len(Ls_23)):
+        for w_23 in Ls_23[i_23]:
             print(125, 145)
-            path__23 = []
+            path_23 = []
             print(125, 146)
-            current__23 = w__23
-            for j__23 in range(i__23):
-                path__23.append(current__23)
+            current_23 = w_23
+            for j_23 in range(i_23):
+                path_23.append(current_23)
                 print(128, 149)
-                current__23 = current__23.parent
-            path__23.append(current__23)
-            path__23.reverse()
+                current_23 = current_23.parent
+            path_23.append(current_23)
+            path_23.reverse()
     print('exit scope 23')
 
 
 def dijkstraDumb(w, G):
     print('enter scope 24')
     print(1, 154)
-    w__24 = w
-    G__24 = G
-    for v__24 in G__24.vertices:
+    w_24 = w
+    G_24 = G
+    for v_24 in G_24.vertices:
         print(133, 156)
-        v__24.estD = math.inf
+        v_24.estD = math.inf
     print(134, 157)
-    w__24.estD = 0
+    w_24.estD = 0
     print(134, 158)
-    unsureVertices__24 = G__24.vertices[:]
-    while len(unsureVertices__24) > 0:
+    unsureVertices_24 = G_24.vertices[:]
+    while len(unsureVertices_24) > 0:
         print(136, 161)
-        u__24 = None
+        u_24 = None
         print(136, 162)
-        minD__24 = math.inf
-        for x__24 in unsureVertices__24:
-            if x__24.estD < minD__24:
+        minD_24 = math.inf
+        for x_24 in unsureVertices_24:
+            if x_24.estD < minD_24:
                 print(141, 165)
-                minD__24 = x__24.estD
+                minD_24 = x_24.estD
                 print(141, 166)
-                u__24 = x__24
-        if u__24 == None:
+                u_24 = x_24
+        if u_24 == None:
             print('exit scope 24')
             return
-        for v__24, wt__24 in u__24.getOutNeighborsWithWeights():
-            if u__24.estD + wt__24 < v__24.estD:
+        for v_24, wt_24 in u_24.getOutNeighborsWithWeights():
+            if u_24.estD + wt_24 < v_24.estD:
                 print(148, 173)
-                v__24.estD = u__24.estD + wt__24
+                v_24.estD = u_24.estD + wt_24
                 print(148, 174)
-                v__24.parent = u__24
-        unsureVertices__24.remove(u__24)
+                v_24.parent = u_24
+        unsureVertices_24.remove(u_24)
     print('exit scope 24')
 
 
 def dijkstraDumb_shortestPaths(w, G):
     print('enter scope 25')
     print(1, 178)
-    w__25 = w
-    G__25 = G
-    dijkstraDumb(w__25, G__25)
-    for v__25 in G__25.vertices:
-        if v__25.estD == math.inf:
+    w_25 = w
+    G_25 = G
+    dijkstraDumb(w_25, G_25)
+    for v_25 in G_25.vertices:
+        if v_25.estD == math.inf:
             continue
         print(157, 184)
-        path__25 = []
+        path_25 = []
         print(157, 185)
-        current__25 = v__25
-        while current__25 != w__25:
-            path__25.append(current__25)
+        current_25 = v_25
+        while current_25 != w_25:
+            path_25.append(current_25)
             print(159, 188)
-            current__25 = current__25.parent
-        path__25.append(current__25)
-        path__25.reverse()
+            current_25 = current_25.parent
+        path_25.append(current_25)
+        path_25.reverse()
     print('exit scope 25')
 
 
 def dijkstra(w, G):
     print('enter scope 26')
     print(1, 193)
-    w__26 = w
-    G__26 = G
-    for v__26 in G__26.vertices:
+    w_26 = w
+    G_26 = G
+    for v_26 in G_26.vertices:
         print(164, 195)
-        v__26.estD = math.inf
+        v_26.estD = math.inf
     print(165, 196)
-    w__26.estD = 0
+    w_26.estD = 0
     print(165, 197)
-    unsureVertices__26 = heapdict.heapdict()
-    for v__26 in G__26.vertices:
+    unsureVertices_26 = heapdict.heapdict()
+    for v_26 in G_26.vertices:
         print(167, 199)
-        unsureVertices__26[v__26] = v__26.estD
-    while len(unsureVertices__26) > 0:
+        unsureVertices_26[v_26] = v_26.estD
+    while len(unsureVertices_26) > 0:
         print(169, 202)
-        u__26, dist__26 = unsureVertices__26.popitem()
-        if u__26.estD == math.inf:
+        u_26, dist_26 = unsureVertices_26.popitem()
+        if u_26.estD == math.inf:
             print('exit scope 26')
             return
-        for v__26, wt__26 in u__26.getOutNeighborsWithWeights():
-            if u__26.estD + wt__26 < v__26.estD:
+        for v_26, wt_26 in u_26.getOutNeighborsWithWeights():
+            if u_26.estD + wt_26 < v_26.estD:
                 print(176, 209)
-                v__26.estD = u__26.estD + wt__26
+                v_26.estD = u_26.estD + wt_26
                 print(176, 210)
-                unsureVertices__26[v__26] = u__26.estD + wt__26
+                unsureVertices_26[v_26] = u_26.estD + wt_26
                 print(176, 211)
-                v__26.parent = u__26
+                v_26.parent = u_26
     print('exit scope 26')
 
 
 def dijkstra_shortestPaths(w, G):
     print('enter scope 27')
     print(1, 214)
-    w__27 = w
-    G__27 = G
-    dijkstra(w__27, G__27)
-    for v__27 in G__27.vertices:
-        if v__27.estD == math.inf:
+    w_27 = w
+    G_27 = G
+    dijkstra(w_27, G_27)
+    for v_27 in G_27.vertices:
+        if v_27.estD == math.inf:
             continue
         print(185, 220)
-        path__27 = []
+        path_27 = []
         print(185, 221)
-        current__27 = v__27
-        while current__27 != w__27:
-            path__27.append(current__27)
+        current_27 = v_27
+        while current_27 != w_27:
+            path_27.append(current_27)
             print(187, 224)
-            current__27 = current__27.parent
-        path__27.append(current__27)
-        path__27.reverse()
+            current_27 = current_27.parent
+        path_27.append(current_27)
+        path_27.reverse()
     print('exit scope 27')
 
 
 def runTrials(myFn, nVals, pFn, numTrials=25):
     print('enter scope 28')
     print(1, 229)
-    myFn__28 = myFn
-    nVals__28 = nVals
-    pFn__28 = pFn
-    numTrials__28 = numTrials
+    myFn_28 = myFn
+    nVals_28 = nVals
+    pFn_28 = pFn
+    numTrials_28 = numTrials
     print(191, 230)
-    nValues__28 = []
+    nValues_28 = []
     print(191, 231)
-    tValues__28 = []
-    for n__28 in nVals__28:
+    tValues_28 = []
+    for n_28 in nVals_28:
         print(193, 234)
-        runtime__28 = 0
-        for t__28 in range(numTrials__28):
+        runtime_28 = 0
+        for t_28 in range(numTrials_28):
             print(196, 236)
-            G__28 = randomGraph(n__28, pFn(n__28))
+            G_28 = randomGraph(n_28, pFn(n_28))
             print(196, 237)
-            start__28 = time.time()
-            myFn(G__28.vertices[0], G__28)
+            start_28 = time.time()
+            myFn(G_28.vertices[0], G_28)
             print(196, 239)
-            end__28 = time.time()
+            end_28 = time.time()
             print(196, 240)
-            runtime__28 += (end__28 - start__28) * 1000
+            runtime_28 += (end_28 - start_28) * 1000
         print(197, 241)
-        runtime__28 = runtime__28 / numTrials__28
-        nValues__28.append(n__28)
-        tValues__28.append(runtime__28)
+        runtime_28 = runtime_28 / numTrials_28
+        nValues_28.append(n_28)
+        tValues_28.append(runtime_28)
     print('exit scope 28')
-    return nValues__28, tValues__28
+    return nValues_28, tValues_28
     print('exit scope 28')
 
 
 def smallFrac(n):
     print('enter scope 29')
     print(1, 246)
-    n__29 = n
+    n_29 = n
     print('exit scope 29')
-    return float(5 / n__29)
+    return float(5 / n_29)
     print('exit scope 29')
 
 
 if __name__ == '__main__':
     loop.start_unroll
     print(204, 252)
-    G__0 = randomGraph(5, 0.2)
-    BFS_shortestPaths(G__0.vertices[0], G__0)
-    dijkstraDumb_shortestPaths(G__0.vertices[0], G__0)
+    G_0 = randomGraph(5, 0.2)
+    BFS_shortestPaths(G_0.vertices[0], G_0)
+    dijkstraDumb_shortestPaths(G_0.vertices[0], G_0)
     print(204, 255)
-    G__0 = randomGraph(5, 0.4, [1, 2, 3, 4, 5])
-    dijkstra_shortestPaths(G__0.vertices[0], G__0)
+    G_0 = randomGraph(5, 0.4, [1, 2, 3, 4, 5])
+    dijkstra_shortestPaths(G_0.vertices[0], G_0)
     print(204, 257)
-    nValues__0 = [10]
+    nValues_0 = [10]
     print(204, 258)
-    nDijkstra__0, tDijkstra__0 = runTrials(dijkstra, nValues__0, smallFrac)
+    nDijkstra_0, tDijkstra_0 = runTrials(dijkstra, nValues_0, smallFrac)

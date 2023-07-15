@@ -10,34 +10,34 @@ pk = -gk
 Read"]
 	104 [label="xk
 Write"]
-	103 -> 104
+	103 -> 104 [label=""]
 	105 [label=0.1
 ]
 	106 [label="c2
 Write"]
-	105 -> 106
+	105 -> 106 [label=""]
 	107 [label="f(xk)
 "]
 	108 [label="xk
 Read"]
-	108 -> 107
+	108 -> 107 [label=""]
 	109 [label="fk
 Write"]
-	107 -> 109
+	107 -> 109 [label=""]
 	110 [label="g(xk)
 "]
 	111 [label="xk
 Read"]
-	111 -> 110
+	111 -> 110 [label=""]
 	112 [label="gk
 Write"]
-	110 -> 112
+	110 -> 112 [label=""]
 	113 [label="gk
 Read"]
 	114 [label="-
 "]
-	113 -> 114
+	113 -> 114 [label=""]
 	115 [label="pk
 Write"]
-	114 -> 115
+	114 -> 115 [label=""]
 }

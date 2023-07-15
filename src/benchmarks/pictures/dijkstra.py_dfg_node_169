@@ -9,14 +9,14 @@ if u.estD == math.inf:
 Write"]
 	301 [label="dist
 Write"]
-	299 -> 300
-	299 -> 301
+	299 -> 300 [label=""]
+	299 -> 301 [label=""]
 	302 [label="u.estD
 Read"]
 	303 [label="math.inf
 Read"]
 	304 [label="==
 "]
-	302 -> 304
-	303 -> 304
+	302 -> 304 [label=""]
+	303 -> 304 [label=""]
 }

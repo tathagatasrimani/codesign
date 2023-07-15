@@ -10,5 +10,5 @@ Read"]
 Read"]
 	103 [label="wt
 Read"]
-	101 -> 100
+	101 -> 100 [label=""]
 }

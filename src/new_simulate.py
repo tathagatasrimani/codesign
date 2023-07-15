@@ -28,6 +28,7 @@ unroll_at = {}
 vars_allocated = {}
 where_to_free = {}
 compute_element_to_node_id = {}
+compute_element_neighbors = {}
 memory_needed = 0
 cur_memory_size = 0
 new_graph = None
@@ -132,13 +133,18 @@ def process_compute_element(op, graph, op_id):
                 dfg_node_id = dfg_algo.set_id()
                 #print(dfg_node_id)
                 anno = "size: " + str(mem_loc.size)
-                make_node(graph.gv_graph, dfg_node_id, text, ast.Load, parent.operation)
-                make_edge(graph.gv_graph, dfg_node_id, op_id, annotation=anno)
+                if (mem_loc.location, mem_loc.size) not in op.memory_links:
+                    make_node(graph.gv_graph, dfg_node_id, text, ast.Load, parent.operation)
+                    make_edge(graph.gv_graph, dfg_node_id, op_id, annotation=anno)
+                op.memory_links.add((mem_loc.location, mem_loc.size))
                 #print("node made for ", name)
         else:
             print(op.operation, parent.operation)
             parent_compute_id = parent.compute_id
-            make_edge(graph.gv_graph, parent_compute_id, op_id, "")
+            if parent_compute_id not in compute_element_neighbors[op_id]:
+                make_edge(graph.gv_graph, parent_compute_id, op_id, "")
+            compute_element_neighbors[op_id].add(parent_compute_id)
+            compute_element_neighbors[parent_compute_id].add(op_id)
     for child in op.children:
         if not child.operation: continue
         if child.operation == "Regs":
@@ -151,8 +157,10 @@ def process_compute_element(op, graph, op_id):
                 dfg_node_id = dfg_algo.set_id()
                 #print(dfg_node_id)
                 anno = "size: " + str(mem_loc.size)
-                make_node(graph.gv_graph, dfg_node_id, text, ast.Store, child.operation)
-                make_edge(graph.gv_graph, op_id, dfg_node_id, annotation=anno)
+                if (mem_loc.location, mem_loc.size) not in op.memory_links:
+                    make_node(graph.gv_graph, dfg_node_id, text, ast.Store, child.operation)
+                    make_edge(graph.gv_graph, op_id, dfg_node_id, annotation=anno)
+                op.memory_links.add((mem_loc.location, mem_loc.size))
                 #print("node made for ", name)
             
 
@@ -331,7 +339,7 @@ def main():
     hw.hw_allocated['UAdd'] = 1
     hw.hw_allocated['Not'] = 1
     hw.hw_allocated['Invert'] = 1
-    new_gv_graph = gv.Digraph()
+    new_gv_graph = gv.Graph()
     new_graph = dfg_algo.Graph(set(), {}, new_gv_graph)
     for key in hw.hw_allocated:
         if key == "Regs": continue
@@ -339,6 +347,7 @@ def main():
         for i in range(hw.hw_allocated[key]):
             compute_id = dfg_algo.set_id()
             make_node(new_graph.gv_graph, compute_id, hardwareModel.op2sym_map[key], None, hardwareModel.op2sym_map[key])
+            compute_element_neighbors[compute_id] = set()
             compute_element_to_node_id[key].append(compute_id)
     
     data = simulate(cfg, node_operations, hw.hw_allocated, graphs, True)

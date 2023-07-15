@@ -8,5 +8,5 @@ self.inNeighbors.append((v, wt))
 Read"]
 	75 [label="wt
 Read"]
-	74 -> 73
+	74 -> 73 [label=""]
 }

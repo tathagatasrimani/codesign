@@ -7,10 +7,10 @@ fasta_dict[active_sequence_name].append(sequence)
 Read"]
 	29 [label="sequence
 Write"]
-	28 -> 29
+	28 -> 29 [label=""]
 	30 [label="fasta_dict[active_sequence_name].append(sequence)
 "]
 	31 [label="sequence
 Read"]
-	31 -> 30
+	31 -> 30 [label=""]
 }

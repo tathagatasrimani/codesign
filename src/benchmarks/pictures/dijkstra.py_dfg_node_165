@@ -7,10 +7,10 @@ unsureVertices = heapdict.heapdict()
 ]
 	284 [label="w.estD
 Write"]
-	283 -> 284
+	283 -> 284 [label=""]
 	285 [label="heapdict.heapdict()
 "]
 	286 [label="unsureVertices
 Write"]
-	285 -> 286
+	285 -> 286 [label=""]
 }

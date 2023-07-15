@@ -8,24 +8,24 @@ if letter1 == letter2:
 Read"]
 	312 [label="seq1[i - 1]
 Read"]
-	311 -> 312
+	311 -> 312 [label=""]
 	313 [label="letter1
 Write"]
-	312 -> 313
+	312 -> 313 [label=""]
 	314 [label="seq2
 Read"]
 	315 [label="seq2[j - 1]
 Read"]
-	314 -> 315
+	314 -> 315 [label=""]
 	316 [label="letter2
 Write"]
-	315 -> 316
+	315 -> 316 [label=""]
 	317 [label="letter1
 Read"]
 	318 [label="letter2
 Read"]
 	319 [label="==
 "]
-	317 -> 319
-	318 -> 319
+	317 -> 319 [label=""]
+	318 -> 319 [label=""]
 }

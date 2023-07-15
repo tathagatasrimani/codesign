@@ -7,16 +7,16 @@ if active_sequence_name not in fastq_dict:
 Read"]
 	52 [label="line[1:]
 Read"]
-	51 -> 52
+	51 -> 52 [label=""]
 	53 [label="active_sequence_name
 Write"]
-	52 -> 53
+	52 -> 53 [label=""]
 	54 [label="active_sequence_name
 Read"]
 	55 [label="fastq_dict
 Read"]
 	56 [label="==
 "]
-	54 -> 56
-	55 -> 56
+	54 -> 56 [label=""]
+	55 -> 56 [label=""]
 }

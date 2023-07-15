@@ -8,42 +8,42 @@ if diagonal_score >= up_score:
 Read"]
 	349 [label="scoring_matrix[i - 1]
 Read"]
-	348 -> 349
+	348 -> 349 [label=""]
 	350 [label="scoring_matrix[i - 1][j]
 Read"]
-	349 -> 350
+	349 -> 350 [label=""]
 	351 [label="gap_score
 Read"]
 	352 [label="+
 "]
-	350 -> 352
-	351 -> 352
+	350 -> 352 [label=""]
+	351 -> 352 [label=""]
 	353 [label="up_score
 Write"]
-	352 -> 353
+	352 -> 353 [label=""]
 	354 [label="scoring_matrix
 Read"]
 	355 [label="scoring_matrix[i]
 Read"]
-	354 -> 355
+	354 -> 355 [label=""]
 	356 [label="scoring_matrix[i][j - 1]
 Read"]
-	355 -> 356
+	355 -> 356 [label=""]
 	357 [label="gap_score
 Read"]
 	358 [label="+
 "]
-	356 -> 358
-	357 -> 358
+	356 -> 358 [label=""]
+	357 -> 358 [label=""]
 	359 [label="left_score
 Write"]
-	358 -> 359
+	358 -> 359 [label=""]
 	360 [label="diagonal_score
 Read"]
 	361 [label="up_score
 Read"]
 	362 [label=">=
 "]
-	360 -> 362
-	361 -> 362
+	360 -> 362 [label=""]
+	361 -> 362 [label=""]
 }

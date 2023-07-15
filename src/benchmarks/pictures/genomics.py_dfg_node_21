@@ -6,5 +6,5 @@ if line.startswith('@'):
 "]
 	49 [label="@
 "]
-	49 -> 48
+	49 -> 48 [label=""]
 }

@@ -8,6 +8,6 @@ quality_dict[active_sequence_name] = []
 Read"]
 	123 [label="quality_dict[active_sequence_name]
 Write"]
-	122 -> 123
-	121 -> 123
+	122 -> 123 [label=""]
+	121 -> 123 [label=""]
 }

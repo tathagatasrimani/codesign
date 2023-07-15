@@ -15,26 +15,26 @@ darwin_wga_workflow(fasta_file, fastq_file, output_file)
 "]
 	482 [label="fasta_file
 Write"]
-	481 -> 482
+	481 -> 482 [label=""]
 	483 [label="/Users/PatrickMcEwen/git_container/codesign/src/benchmarks/supplemental_files/fastq_example.fastq
 "]
 	484 [label="fastq_file
 Write"]
-	483 -> 484
+	483 -> 484 [label=""]
 	485 [label="/Users/PatrickMcEwen/git_container/codesign/src/benchmarks/supplemental_files/output_file.txt
 "]
 	486 [label="output_file
 Write"]
-	485 -> 486
+	485 -> 486 [label=""]
 	487 [label="darwin_wga_workflow(fasta_file, fastq_file, output_file)
 "]
 	488 [label="fasta_file
 Read"]
-	488 -> 487
+	488 -> 487 [label=""]
 	489 [label="fastq_file
 Read"]
-	489 -> 487
+	489 -> 487 [label=""]
 	490 [label="output_file
 Read"]
-	490 -> 487
+	490 -> 487 [label=""]
 }

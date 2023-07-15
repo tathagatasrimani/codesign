@@ -10,34 +10,34 @@ j -= 1
 Read"]
 	399 [label="+
 "]
-	397 -> 399
-	398 -> 399
+	397 -> 399 [label=""]
+	398 -> 399 [label=""]
 	400 [label="aln1
 Write"]
-	399 -> 400
+	399 -> 400 [label=""]
 	401 [label="seq2
 Read"]
 	402 [label="seq2[j - 1]
 Read"]
-	401 -> 402
+	401 -> 402 [label=""]
 	403 [label="aln2
 Read"]
 	404 [label="+
 "]
-	402 -> 404
-	403 -> 404
+	402 -> 404 [label=""]
+	403 -> 404 [label=""]
 	405 [label="aln2
 Write"]
-	404 -> 405
+	404 -> 405 [label=""]
 	406 [label=1
 ]
 	407 [label="j
 Read"]
 	408 [label="-
 "]
-	406 -> 408
-	407 -> 408
+	406 -> 408 [label=""]
+	407 -> 408 [label=""]
 	409 [label="j
 Write"]
-	408 -> 409
+	408 -> 409 [label=""]
 }

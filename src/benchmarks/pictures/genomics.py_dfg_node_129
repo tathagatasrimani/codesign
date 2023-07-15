@@ -8,36 +8,36 @@ i -= 1
 Read"]
 	454 [label="seq1[i - 1]
 Read"]
-	453 -> 454
+	453 -> 454 [label=""]
 	455 [label="aln1
 Read"]
 	456 [label="+
 "]
-	454 -> 456
-	455 -> 456
+	454 -> 456 [label=""]
+	455 -> 456 [label=""]
 	457 [label="aln1
 Write"]
-	456 -> 457
+	456 -> 457 [label=""]
 	458 [label="-
 "]
 	459 [label="aln2
 Read"]
 	460 [label="+
 "]
-	458 -> 460
-	459 -> 460
+	458 -> 460 [label=""]
+	459 -> 460 [label=""]
 	461 [label="aln2
 Write"]
-	460 -> 461
+	460 -> 461 [label=""]
 	462 [label=1
 ]
 	463 [label="i
 Read"]
 	464 [label="-
 "]
-	462 -> 464
-	463 -> 464
+	462 -> 464 [label=""]
+	463 -> 464 [label=""]
 	465 [label="i
 Write"]
-	464 -> 465
+	464 -> 465 [label=""]
 }

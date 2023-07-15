@@ -6,5 +6,5 @@ ret = []
 "]
 	93 [label="ret
 Write"]
-	92 -> 93
+	92 -> 93 [label=""]
 }

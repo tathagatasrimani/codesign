@@ -1,0 +1,186 @@
+graph {
+	400 [label=and
+]
+	401 [label=or
+]
+	402 [label="+
+"]
+	403 [label="+
+"]
+	404 [label="+
+"]
+	405 [label="+
+"]
+	406 [label="+
+"]
+	407 [label="+
+"]
+	408 [label="+
+"]
+	409 [label="+
+"]
+	410 [label="+
+"]
+	411 [label="+
+"]
+	412 [label="+
+"]
+	413 [label="+
+"]
+	414 [label="+
+"]
+	415 [label="+
+"]
+	416 [label="+
+"]
+	417 [label="-
+"]
+	418 [label="-
+"]
+	419 [label="-
+"]
+	420 [label="-
+"]
+	421 [label="-
+"]
+	422 [label="-
+"]
+	423 [label="-
+"]
+	424 [label="-
+"]
+	425 [label="-
+"]
+	426 [label="-
+"]
+	427 [label="-
+"]
+	428 [label="-
+"]
+	429 [label="-
+"]
+	430 [label="-
+"]
+	431 [label="-
+"]
+	432 [label="*
+"]
+	433 [label="*
+"]
+	434 [label="*
+"]
+	435 [label="*
+"]
+	436 [label="*
+"]
+	437 [label="*
+"]
+	438 [label="*
+"]
+	439 [label="*
+"]
+	440 [label="*
+"]
+	441 [label="*
+"]
+	442 [label="*
+"]
+	443 [label="*
+"]
+	444 [label="*
+"]
+	445 [label="*
+"]
+	446 [label="*
+"]
+	447 [label="//
+"]
+	448 [label="//
+"]
+	449 [label="//
+"]
+	450 [label="//
+"]
+	451 [label="//
+"]
+	452 [label="//
+"]
+	453 [label="//
+"]
+	454 [label="//
+"]
+	455 [label="//
+"]
+	456 [label="//
+"]
+	457 [label="//
+"]
+	458 [label="//
+"]
+	459 [label="//
+"]
+	460 [label="//
+"]
+	461 [label="//
+"]
+	462 [label="%
+"]
+	463 [label="<<
+"]
+	464 [label=">>
+"]
+	465 [label="|
+"]
+	466 [label="^
+"]
+	467 [label="&
+"]
+	468 [label="==
+"]
+	469 [label="!=
+"]
+	470 [label="<
+"]
+	471 [label="<=
+"]
+	472 [label=">
+"]
+	473 [label=">=
+"]
+	474 [label="!=
+"]
+	475 [label="-
+"]
+	476 [label="+
+"]
+	477 [label="!
+"]
+	478 [label="~
+"]
+	479 [label="wt
+location: 0
+Read"]
+	479 -- 402 [label="size: 32"]
+	480 [label="unsureVertices
+location: 504
+Write"]
+	402 -- 480 [label="size: 48"]
+	417 -- 432 [label=""]
+	432 -- 402 [label=""]
+	488 [label="runtime
+location: 216
+Read"]
+	488 -- 402 [label="size: 24"]
+	490 [label="start
+location: 672
+Read"]
+	490 -- 417 [label="size: 24"]
+	520 [label="end
+location: 696
+Read"]
+	520 -- 417 [label="size: 24"]
+	1347 [label="numTrials
+location: 360
+Read"]
+	1347 -- 447 [label="size: 32"]
+}

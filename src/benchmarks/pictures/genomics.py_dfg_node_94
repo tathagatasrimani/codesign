@@ -11,32 +11,32 @@ f.write(filtered_fasta_dict[key][0] + '\n')
 Read"]
 	247 [label="+
 "]
-	245 -> 247
-	246 -> 247
+	245 -> 247 [label=""]
+	246 -> 247 [label=""]
 	248 [label="
 
 "]
 	249 [label="+
 "]
-	247 -> 249
-	248 -> 249
-	249 -> 244
+	247 -> 249 [label=""]
+	248 -> 249 [label=""]
+	249 -> 244 [label=""]
 	250 [label="f.write(filtered_fasta_dict[key][0] + '\n')
 "]
 	251 [label="filtered_fasta_dict
 Read"]
 	252 [label="filtered_fasta_dict[key]
 Read"]
-	251 -> 252
+	251 -> 252 [label=""]
 	253 [label="filtered_fasta_dict[key][0]
 Read"]
-	252 -> 253
+	252 -> 253 [label=""]
 	254 [label="
 
 "]
 	255 [label="+
 "]
-	253 -> 255
-	254 -> 255
-	255 -> 250
+	253 -> 255 [label=""]
+	254 -> 255 [label=""]
+	255 -> 250 [label=""]
 }

@@ -9,20 +9,20 @@ aln2 = ''
 Read"]
 	303 [label="i
 Write"]
-	302 -> 303
+	302 -> 303 [label=""]
 	304 [label="max_pos
 Read"]
 	305 [label="j
 Write"]
-	304 -> 305
+	304 -> 305 [label=""]
 	306 [label="
 "]
 	307 [label="aln1
 Write"]
-	306 -> 307
+	306 -> 307 [label=""]
 	308 [label="
 "]
 	309 [label="aln2
 Write"]
-	308 -> 309
+	308 -> 309 [label=""]
 }

@@ -8,6 +8,6 @@ for i in range(len(Ls)):
 "]
 	173 [label="Ls
 Read"]
-	173 -> 172
-	172 -> 171
+	173 -> 172 [label=""]
+	172 -> 171 [label=""]
 }

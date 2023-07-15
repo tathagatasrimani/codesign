@@ -6,5 +6,5 @@ xk = xk1
 Read"]
 	161 [label="xk
 Write"]
-	160 -> 161
+	160 -> 161 [label=""]
 }

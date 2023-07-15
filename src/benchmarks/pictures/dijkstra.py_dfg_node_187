@@ -7,10 +7,10 @@ current = current.parent
 "]
 	347 [label="current
 Read"]
-	347 -> 346
+	347 -> 346 [label=""]
 	348 [label="current.parent
 Read"]
 	349 [label="current
 Write"]
-	348 -> 349
+	348 -> 349 [label=""]
 }

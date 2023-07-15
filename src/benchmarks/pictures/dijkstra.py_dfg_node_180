@@ -6,8 +6,8 @@ dijkstra(w, G)
 "]
 	328 [label="w
 Read"]
-	328 -> 327
+	328 -> 327 [label=""]
 	329 [label="G
 Read"]
-	329 -> 327
+	329 -> 327 [label=""]
 }

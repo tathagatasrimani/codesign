@@ -8,15 +8,15 @@ Ls[i + 1].append(v)
 ]
 	160 [label="v.status
 Write"]
-	159 -> 160
+	159 -> 160 [label=""]
 	161 [label="u
 Read"]
 	162 [label="v.parent
 Write"]
-	161 -> 162
+	161 -> 162 [label=""]
 	163 [label="Ls[i + 1].append(v)
 "]
 	164 [label="v
 Read"]
-	164 -> 163
+	164 -> 163 [label=""]
 }

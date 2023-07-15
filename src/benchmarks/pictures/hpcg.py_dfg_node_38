@@ -6,5 +6,5 @@ alpha = half
 Read"]
 	85 [label="alpha
 Write"]
-	84 -> 85
+	84 -> 85 [label=""]
 }

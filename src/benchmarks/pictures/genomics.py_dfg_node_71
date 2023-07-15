@@ -6,11 +6,11 @@ filtered_fasta_dict[key] = fasta_dict[key]
 Read"]
 	205 [label="fasta_dict[key]
 Read"]
-	204 -> 205
+	204 -> 205 [label=""]
 	206 [label="filtered_fasta_dict
 Read"]
 	207 [label="filtered_fasta_dict[key]
 Write"]
-	206 -> 207
-	205 -> 207
+	206 -> 207 [label=""]
+	205 -> 207 [label=""]
 }

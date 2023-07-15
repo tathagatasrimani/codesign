@@ -7,10 +7,10 @@ if not line:
 "]
 	97 [label="line
 Write"]
-	96 -> 97
+	96 -> 97 [label=""]
 	98 [label="line
 Read"]
 	99 [label="!
 "]
-	98 -> 99
+	98 -> 99 [label=""]
 }

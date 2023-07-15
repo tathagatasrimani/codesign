@@ -6,5 +6,5 @@ G.addVertex(v)
 "]
 	112 [label="v
 Read"]
-	112 -> 111
+	112 -> 111 [label=""]
 }

@@ -6,5 +6,5 @@ for i in range(iters):
 "]
 	39 [label="iters
 Read"]
-	39 -> 38
+	39 -> 38 [label=""]
 }

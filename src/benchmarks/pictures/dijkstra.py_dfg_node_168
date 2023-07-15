@@ -6,11 +6,11 @@ while len(unsureVertices) > 0:
 "]
 	295 [label="unsureVertices
 Read"]
-	295 -> 294
+	295 -> 294 [label=""]
 	296 [label=0
 ]
 	297 [label=">
 "]
-	294 -> 297
-	296 -> 297
+	294 -> 297 [label=""]
+	296 -> 297 [label=""]
 }

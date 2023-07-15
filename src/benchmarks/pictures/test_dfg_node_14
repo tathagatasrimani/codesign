@@ -1,4 +1,4 @@
-digraph {
+graph {
 	122 [label=and
 ]
 	123 [label=or
@@ -160,209 +160,37 @@ digraph {
 	201 [label="x
 location: 0
 Read"]
-	201 -> 154 [label="size: 32"]
+	201 -- 124 [label="size: 32"]
 	202 [label="y
 location: 32
 Read"]
-	202 -> 154 [label="size: 32"]
-	203 [label="x
-location: 0
-Read"]
-	203 -> 124 [label="size: 32"]
-	204 [label="y
-location: 32
-Read"]
-	204 -> 124 [label="size: 32"]
-	205 [label="r
+	202 -- 124 [label="size: 32"]
+	203 [label="r
 location: 88
 Write"]
-	124 -> 205 [label="size: 32"]
-	206 [label="q
+	124 -- 203 [label="size: 32"]
+	204 [label="q
 location: 64
 Read"]
-	206 -> 155 [label="size: 24"]
-	207 [label="r
-location: 88
-Read"]
-	207 -> 155 [label="size: 32"]
-	208 [label="w
+	204 -- 154 [label="size: 24"]
+	206 [label="w
 location: 120
 Read"]
-	208 -> 192 [label="size: 24"]
-	209 [label="q
-location: 64
-Read"]
-	209 -> 125 [label="size: 24"]
-	210 [label="r
-location: 88
-Read"]
-	210 -> 125 [label="size: 32"]
-	211 [label="w
-location: 120
-Write"]
-	125 -> 211 [label="size: 24"]
-	154 -> 124 [label=""]
-	155 -> 139 [label=""]
-	212 [label="q
-location: 64
-Write"]
-	139 -> 212 [label="size: 24"]
-	124 -> 124 [label=""]
-	169 -> 124 [label=""]
-	213 [label="q
-location: 64
-Write"]
-	124 -> 213 [label="size: 24"]
-	214 [label="a
+	206 -- 192 [label="size: 24"]
+	155 -- 124 [label=""]
+	154 -- 139 [label=""]
+	124 -- 124 [label=""]
+	169 -- 124 [label=""]
+	215 [label="a
 location: 0
-Read"]
-	214 -> 169 [label="size: 24"]
-	215 [label="r
-location: 88
-Read"]
-	215 -> 169 [label="size: 32"]
-	216 [label="b
+Write"]
+	139 -- 215 [label="size: 24"]
+	218 [label="b
 location: 32
 Write"]
-	169 -> 216 [label="size: 24"]
-	217 [label="q
-location: 64
-Read"]
-	217 -> 139 [label="size: 24"]
-	218 [label="a
-location: 0
-Write"]
-	139 -> 218 [label="size: 24"]
+	169 -- 218 [label="size: 24"]
 	219 [label="z
 location: 144
 Read"]
-	219 -> 124 [label="size: 64"]
-	220 [label="z
-location: 144
-Write"]
-	124 -> 220 [label="size: 64"]
-	221 [label="z
-location: 144
-Read"]
-	221 -> 125 [label="size: 64"]
-	222 [label="z
-location: 144
-Write"]
-	125 -> 222 [label="size: 64"]
-	223 [label="z
-location: 144
-Read"]
-	223 -> 126 [label="size: 64"]
-	224 [label="z
-location: 144
-Write"]
-	126 -> 224 [label="size: 64"]
-	225 [label="z
-location: 144
-Read"]
-	225 -> 127 [label="size: 64"]
-	226 [label="z
-location: 144
-Write"]
-	127 -> 226 [label="size: 64"]
-	227 [label="z
-location: 144
-Read"]
-	227 -> 128 [label="size: 64"]
-	228 [label="z
-location: 144
-Write"]
-	128 -> 228 [label="size: 64"]
-	229 [label="z
-location: 144
-Read"]
-	229 -> 129 [label="size: 64"]
-	230 [label="z
-location: 144
-Write"]
-	129 -> 230 [label="size: 64"]
-	231 [label="z
-location: 144
-Read"]
-	231 -> 124 [label="size: 64"]
-	232 [label="z
-location: 144
-Read"]
-	232 -> 124 [label="size: 64"]
-	233 [label="z
-location: 144
-Write"]
-	124 -> 233 [label="size: 64"]
-	234 [label="z
-location: 144
-Read"]
-	234 -> 124 [label="size: 64"]
-	235 [label="z
-location: 144
-Read"]
-	235 -> 124 [label="size: 64"]
-	236 [label="z
-location: 144
-Write"]
-	124 -> 236 [label="size: 64"]
-	237 [label="z
-location: 144
-Read"]
-	237 -> 124 [label="size: 64"]
-	238 [label="z
-location: 144
-Read"]
-	238 -> 124 [label="size: 64"]
-	239 [label="z
-location: 144
-Write"]
-	124 -> 239 [label="size: 64"]
-	240 [label="z
-location: 144
-Read"]
-	240 -> 124 [label="size: 64"]
-	241 [label="z
-location: 144
-Read"]
-	241 -> 124 [label="size: 64"]
-	242 [label="z
-location: 144
-Write"]
-	124 -> 242 [label="size: 64"]
-	243 [label="z
-location: 144
-Read"]
-	243 -> 124 [label="size: 64"]
-	244 [label="z
-location: 144
-Read"]
-	244 -> 124 [label="size: 64"]
-	245 [label="z
-location: 144
-Write"]
-	124 -> 245 [label="size: 64"]
-	246 [label="a
-location: 88
-Read"]
-	246 -> 124 [label="size: 32"]
-	247 [label="a
-location: 88
-Write"]
-	124 -> 247 [label="size: 32"]
-	248 [label="a
-location: 88
-Read"]
-	248 -> 124 [label="size: 32"]
-	249 [label="a
-location: 88
-Write"]
-	124 -> 249 [label="size: 32"]
-	250 [label="a
-location: 88
-Read"]
-	250 -> 124 [label="size: 32"]
-	251 [label="a
-location: 88
-Write"]
-	124 -> 251 [label="size: 32"]
+	219 -- 124 [label="size: 64"]
 }

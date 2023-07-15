@@ -6,5 +6,5 @@ if line.startswith('>'):
 "]
 	80 [label=">
 "]
-	80 -> 79
+	80 -> 79 [label=""]
 }

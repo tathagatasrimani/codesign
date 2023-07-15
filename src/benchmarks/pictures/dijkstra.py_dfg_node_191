@@ -7,10 +7,10 @@ tValues = []
 "]
 	356 [label="nValues
 Write"]
-	355 -> 356
+	355 -> 356 [label=""]
 	357 [label="[]
 "]
 	358 [label="tValues
 Write"]
-	357 -> 358
+	357 -> 358 [label=""]
 }

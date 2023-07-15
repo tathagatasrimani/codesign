@@ -9,20 +9,20 @@ Read"]
 Read"]
 	419 [label="scoring_matrix[i]
 Read"]
-	418 -> 419
+	418 -> 419 [label=""]
 	420 [label="scoring_matrix[i][j]
 Write"]
-	419 -> 420
-	417 -> 420
+	419 -> 420 [label=""]
+	417 -> 420 [label=""]
 	421 [label=D
 ]
 	422 [label="traceback_matrix
 Read"]
 	423 [label="traceback_matrix[i]
 Read"]
-	422 -> 423
+	422 -> 423 [label=""]
 	424 [label="traceback_matrix[i][j]
 Write"]
-	423 -> 424
-	421 -> 424
+	423 -> 424 [label=""]
+	421 -> 424 [label=""]
 }

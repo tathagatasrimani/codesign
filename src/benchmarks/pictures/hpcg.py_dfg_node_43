@@ -6,5 +6,5 @@ l = alpha
 Read"]
 	101 [label="l
 Write"]
-	100 -> 101
+	100 -> 101 [label=""]
 }

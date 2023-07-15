@@ -13,56 +13,56 @@ f.write(filtered_fastq_dict[key][1] + '\n')
 Read"]
 	262 [label="+
 "]
-	260 -> 262
-	261 -> 262
+	260 -> 262 [label=""]
+	261 -> 262 [label=""]
 	263 [label="
 
 "]
 	264 [label="+
 "]
-	262 -> 264
-	263 -> 264
-	264 -> 259
+	262 -> 264 [label=""]
+	263 -> 264 [label=""]
+	264 -> 259 [label=""]
 	265 [label="f.write(filtered_fastq_dict[key][0] + '\n')
 "]
 	266 [label="filtered_fastq_dict
 Read"]
 	267 [label="filtered_fastq_dict[key]
 Read"]
-	266 -> 267
+	266 -> 267 [label=""]
 	268 [label="filtered_fastq_dict[key][0]
 Read"]
-	267 -> 268
+	267 -> 268 [label=""]
 	269 [label="
 
 "]
 	270 [label="+
 "]
-	268 -> 270
-	269 -> 270
-	270 -> 265
+	268 -> 270 [label=""]
+	269 -> 270 [label=""]
+	270 -> 265 [label=""]
 	271 [label="f.write('+\n')
 "]
 	272 [label="+
 
 "]
-	272 -> 271
+	272 -> 271 [label=""]
 	273 [label="f.write(filtered_fastq_dict[key][1] + '\n')
 "]
 	274 [label="filtered_fastq_dict
 Read"]
 	275 [label="filtered_fastq_dict[key]
 Read"]
-	274 -> 275
+	274 -> 275 [label=""]
 	276 [label="filtered_fastq_dict[key][1]
 Read"]
-	275 -> 276
+	275 -> 276 [label=""]
 	277 [label="
 
 "]
 	278 [label="+
 "]
-	276 -> 278
-	277 -> 278
-	278 -> 273
+	276 -> 278 [label=""]
+	277 -> 278 [label=""]
+	278 -> 273 [label=""]
 }

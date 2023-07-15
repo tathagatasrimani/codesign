@@ -6,5 +6,5 @@ unsureVertices.remove(u)
 "]
 	241 [label="u
 Read"]
-	241 -> 240
+	241 -> 240 [label=""]
 }

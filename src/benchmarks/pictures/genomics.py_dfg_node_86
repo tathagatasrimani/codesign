@@ -6,11 +6,11 @@ filtered_fastq_dict[key] = fastq_dict[key]
 Read"]
 	236 [label="fastq_dict[key]
 Read"]
-	235 -> 236
+	235 -> 236 [label=""]
 	237 [label="filtered_fastq_dict
 Read"]
 	238 [label="filtered_fastq_dict[key]
 Write"]
-	237 -> 238
-	236 -> 238
+	237 -> 238 [label=""]
+	236 -> 238 [label=""]
 }

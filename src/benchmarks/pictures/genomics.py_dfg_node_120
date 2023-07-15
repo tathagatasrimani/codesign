@@ -6,14 +6,14 @@ while traceback_matrix[i][j] != None:
 Read"]
 	322 [label="traceback_matrix[i]
 Read"]
-	321 -> 322
+	321 -> 322 [label=""]
 	323 [label="traceback_matrix[i][j]
 Read"]
-	322 -> 323
+	322 -> 323 [label=""]
 	324 [label=None
 ]
 	325 [label="!=
 "]
-	323 -> 325
-	324 -> 325
+	323 -> 325 [label=""]
+	324 -> 325 [label=""]
 }

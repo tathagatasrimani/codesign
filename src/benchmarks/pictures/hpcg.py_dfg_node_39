@@ -6,11 +6,11 @@ if g_alpha(alpha) > 0:
 "]
 	88 [label="alpha
 Read"]
-	88 -> 87
+	88 -> 87 [label=""]
 	89 [label=0
 ]
 	90 [label=">
 "]
-	87 -> 90
-	89 -> 90
+	87 -> 90 [label=""]
+	89 -> 90 [label=""]
 }

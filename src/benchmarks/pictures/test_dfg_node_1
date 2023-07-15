@@ -1,206 +1,188 @@
-digraph {
-	122 [label="==
+graph {
+	491 [label=and
+]
+	492 [label=or
+]
+	493 [label="+
 "]
-	123 [label="<
+	494 [label="+
 "]
-	124 [label="w
-location: 120
-Read"]
-	124 -> 123
-	125 [label="+
+	495 [label="+
 "]
-	126 [label="x
+	496 [label="+
+"]
+	497 [label="+
+"]
+	498 [label="+
+"]
+	499 [label="+
+"]
+	500 [label="+
+"]
+	501 [label="+
+"]
+	502 [label="+
+"]
+	503 [label="+
+"]
+	504 [label="+
+"]
+	505 [label="+
+"]
+	506 [label="+
+"]
+	507 [label="+
+"]
+	508 [label="-
+"]
+	509 [label="-
+"]
+	510 [label="-
+"]
+	511 [label="-
+"]
+	512 [label="-
+"]
+	513 [label="-
+"]
+	514 [label="-
+"]
+	515 [label="-
+"]
+	516 [label="-
+"]
+	517 [label="-
+"]
+	518 [label="-
+"]
+	519 [label="-
+"]
+	520 [label="-
+"]
+	521 [label="-
+"]
+	522 [label="-
+"]
+	523 [label="*
+"]
+	524 [label="*
+"]
+	525 [label="*
+"]
+	526 [label="*
+"]
+	527 [label="*
+"]
+	528 [label="*
+"]
+	529 [label="*
+"]
+	530 [label="*
+"]
+	531 [label="*
+"]
+	532 [label="*
+"]
+	533 [label="*
+"]
+	534 [label="*
+"]
+	535 [label="*
+"]
+	536 [label="*
+"]
+	537 [label="*
+"]
+	538 [label="//
+"]
+	539 [label="//
+"]
+	540 [label="//
+"]
+	541 [label="//
+"]
+	542 [label="//
+"]
+	543 [label="//
+"]
+	544 [label="//
+"]
+	545 [label="//
+"]
+	546 [label="//
+"]
+	547 [label="//
+"]
+	548 [label="//
+"]
+	549 [label="//
+"]
+	550 [label="//
+"]
+	551 [label="//
+"]
+	552 [label="//
+"]
+	553 [label="%
+"]
+	554 [label="<<
+"]
+	555 [label=">>
+"]
+	556 [label="|
+"]
+	557 [label="^
+"]
+	558 [label="&
+"]
+	559 [label="==
+"]
+	560 [label="!=
+"]
+	561 [label="<
+"]
+	562 [label="<=
+"]
+	563 [label=">
+"]
+	564 [label=">=
+"]
+	565 [label="!=
+"]
+	566 [label="-
+"]
+	567 [label="+
+"]
+	568 [label="!
+"]
+	569 [label="~
+"]
+	570 [label="line
 location: 0
 Read"]
-	126 -> 125
-	127 [label="y
-location: 32
+	570 -- 568 [label="size: 56"]
+	571 [label="active_sequence_name
+location: 56
 Read"]
-	127 -> 125
-	128 [label="r
-location: 88
-Write"]
-	125 -> 128
-	129 [label="+
-"]
-	130 [label="q
-location: 64
+	571 -- 559 [label="size: 56"]
+	572 [label="fasta_dict
+location: 592
 Read"]
-	130 -> 129
-	131 [label="r
-location: 88
+	572 -- 559 [label="size: 64"]
+	614 [label="line
+location: 768
 Read"]
-	131 -> 129
-	132 [label="w
-location: 120
-Write"]
-	129 -> 132
-	133 [label="//
-"]
-	134 [label="*
-"]
-	135 [label="x
+	614 -- 568 [label="size: 192"]
+	615 [label="active_sequence_name
+location: 960
+Read"]
+	615 -- 559 [label="size: 192"]
+	27236 [label="min_length_fraction
+location: 56
+Read"]
+	27236 -- 563 [label="size: 24"]
+	27247 [label="min_quality
 location: 0
 Read"]
-	135 -> 134
-	136 [label="y
-location: 32
-Read"]
-	136 -> 134
-	137 [label="*
-"]
-	138 [label="q
-location: 64
-Read"]
-	138 -> 137
-	139 [label="r
-location: 88
-Read"]
-	139 -> 137
-	140 [label="+
-"]
-	141 [label="-
-"]
-	142 [label="q
-location: 64
-Write"]
-	141 -> 142
-	143 [label="+
-"]
-	144 [label="q
-location: 64
-Write"]
-	143 -> 144
-	145 [label="-
-"]
-	146 [label="q
-location: 64
-Read"]
-	146 -> 145
-	147 [label="a
-location: 0
-Write"]
-	145 -> 147
-	148 [label="//
-"]
-	149 [label="a
-location: 0
-Read"]
-	149 -> 148
-	150 [label="r
-location: 88
-Read"]
-	150 -> 148
-	151 [label="b
-location: 32
-Write"]
-	148 -> 151
-	152 [label="+
-"]
-	153 [label="z
-location: 144
-Write"]
-	152 -> 153
-	154 [label="+
-"]
-	155 [label="z
-location: 144
-Write"]
-	154 -> 155
-	156 [label="+
-"]
-	157 [label="z
-location: 144
-Write"]
-	156 -> 157
-	158 [label="+
-"]
-	159 [label="z
-location: 144
-Write"]
-	158 -> 159
-	160 [label="+
-"]
-	161 [label="z
-location: 144
-Write"]
-	160 -> 161
-	162 [label="+
-"]
-	163 [label="z
-location: 144
-Write"]
-	162 -> 163
-	164 [label="+
-"]
-	165 [label="z
-location: 144
-Read"]
-	165 -> 164
-	166 [label="z
-location: 144
-Read"]
-	166 -> 164
-	167 [label="z
-location: 144
-Write"]
-	164 -> 167
-	168 [label="+
-"]
-	169 [label="z
-location: 144
-Read"]
-	169 -> 168
-	170 [label="z
-location: 144
-Read"]
-	170 -> 168
-	171 [label="z
-location: 144
-Write"]
-	168 -> 171
-	172 [label="+
-"]
-	173 [label="z
-location: 144
-Read"]
-	173 -> 172
-	174 [label="z
-location: 144
-Read"]
-	174 -> 172
-	175 [label="z
-location: 144
-Write"]
-	172 -> 175
-	176 [label="+
-"]
-	177 [label="z
-location: 144
-Read"]
-	177 -> 176
-	178 [label="z
-location: 144
-Read"]
-	178 -> 176
-	179 [label="z
-location: 144
-Write"]
-	176 -> 179
-	180 [label="+
-"]
-	181 [label="z
-location: 144
-Read"]
-	181 -> 180
-	182 [label="z
-location: 144
-Read"]
-	182 -> 180
-	183 [label="z
-location: 144
-Write"]
-	180 -> 183
-	184 [label="==
-"]
+	27247 -- 563 [label="size: 24"]
 }

@@ -7,7 +7,7 @@ V = [CS161Vertex(x) for x in range(n)]
 "]
 	106 [label="G
 Write"]
-	105 -> 106
+	105 -> 106 [label=""]
 	107 [label="V
 Write"]
 }

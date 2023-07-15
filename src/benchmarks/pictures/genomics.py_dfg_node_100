@@ -22,10 +22,10 @@ Write"]
 ]
 	284 [label="max_score
 Write"]
-	283 -> 284
+	283 -> 284 [label=""]
 	285 [label=None
 ]
 	286 [label="max_pos
 Write"]
-	285 -> 286
+	285 -> 286 [label=""]
 }

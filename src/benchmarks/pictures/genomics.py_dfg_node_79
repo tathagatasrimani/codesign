@@ -7,19 +7,19 @@ if min_quality > 0:
 Read"]
 	215 [label="fastq_dict[key]
 Read"]
-	214 -> 215
+	214 -> 215 [label=""]
 	216 [label="fastq_dict[key][0]
 Read"]
-	215 -> 216
+	215 -> 216 [label=""]
 	217 [label="quality
 Write"]
-	216 -> 217
+	216 -> 217 [label=""]
 	218 [label="min_quality
 Read"]
 	219 [label=0
 ]
 	220 [label=">
 "]
-	218 -> 220
-	219 -> 220
+	218 -> 220 [label=""]
+	219 -> 220 [label=""]
 }

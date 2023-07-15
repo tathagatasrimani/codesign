@@ -7,19 +7,19 @@ max_pos = i, j
 Read"]
 	474 [label="scoring_matrix[i]
 Read"]
-	473 -> 474
+	473 -> 474 [label=""]
 	475 [label="scoring_matrix[i][j]
 Read"]
-	474 -> 475
+	474 -> 475 [label=""]
 	476 [label="max_score
 Write"]
-	475 -> 476
+	475 -> 476 [label=""]
 	477 [label="i
 Read"]
 	478 [label="j
 Read"]
 	479 [label="max_pos
 Write"]
-	477 -> 479
-	478 -> 479
+	477 -> 479 [label=""]
+	478 -> 479 [label=""]
 }

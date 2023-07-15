@@ -6,8 +6,8 @@ dijkstraDumb(w, G)
 "]
 	251 [label="w
 Read"]
-	251 -> 250
+	251 -> 250 [label=""]
 	252 [label="G
 Read"]
-	252 -> 250
+	252 -> 250 [label=""]
 }

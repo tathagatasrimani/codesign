@@ -9,10 +9,10 @@ w.status = 'visited'
 "]
 	137 [label="G.vertices
 Read"]
-	137 -> 136
+	137 -> 136 [label=""]
 	138 [label="n
 Write"]
-	136 -> 138
+	136 -> 138 [label=""]
 	139 [label="Ls
 Write"]
 	140 [label="w
@@ -21,11 +21,11 @@ Read"]
 Read"]
 	142 [label="Ls[0]
 Write"]
-	141 -> 142
-	140 -> 142
+	141 -> 142 [label=""]
+	140 -> 142 [label=""]
 	143 [label=visited
 ]
 	144 [label="w.status
 Write"]
-	143 -> 144
+	143 -> 144 [label=""]
 }

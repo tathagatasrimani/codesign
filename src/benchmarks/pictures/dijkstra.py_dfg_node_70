@@ -6,5 +6,5 @@ self.vertices = []
 "]
 	41 [label="self.vertices
 Write"]
-	40 -> 41
+	40 -> 41 [label=""]
 }

@@ -10,19 +10,19 @@ Read"]
 Read"]
 	393 [label="//
 "]
-	391 -> 393
-	392 -> 393
+	391 -> 393 [label=""]
+	392 -> 393 [label=""]
 	394 [label="runtime
 Write"]
-	393 -> 394
+	393 -> 394 [label=""]
 	395 [label="nValues.append(n)
 "]
 	396 [label="n
 Read"]
-	396 -> 395
+	396 -> 395 [label=""]
 	397 [label="tValues.append(runtime)
 "]
 	398 [label="runtime
 Read"]
-	398 -> 397
+	398 -> 397 [label=""]
 }

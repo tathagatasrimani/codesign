@@ -6,14 +6,14 @@ if scoring_matrix[i][j] >= max_score:
 Read"]
 	468 [label="scoring_matrix[i]
 Read"]
-	467 -> 468
+	467 -> 468 [label=""]
 	469 [label="scoring_matrix[i][j]
 Read"]
-	468 -> 469
+	468 -> 469 [label=""]
 	470 [label="max_score
 Read"]
 	471 [label=">=
 "]
-	469 -> 471
-	470 -> 471
+	469 -> 471 [label=""]
+	470 -> 471 [label=""]
 }

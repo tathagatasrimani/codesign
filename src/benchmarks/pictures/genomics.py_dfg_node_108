@@ -6,17 +6,17 @@ diagonal_score = scoring_matrix[i - 1][j - 1] + mismatch_score
 Read"]
 	335 [label="scoring_matrix[i - 1]
 Read"]
-	334 -> 335
+	334 -> 335 [label=""]
 	336 [label="scoring_matrix[i - 1][j - 1]
 Read"]
-	335 -> 336
+	335 -> 336 [label=""]
 	337 [label="mismatch_score
 Read"]
 	338 [label="+
 "]
-	336 -> 338
-	337 -> 338
+	336 -> 338 [label=""]
+	337 -> 338 [label=""]
 	339 [label="diagonal_score
 Write"]
-	338 -> 339
+	338 -> 339 [label=""]
 }

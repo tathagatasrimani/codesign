@@ -8,18 +8,18 @@ Read"]
 "]
 	57 [label="==
 "]
-	55 -> 57
-	56 -> 57
+	55 -> 57 [label=""]
+	56 -> 57 [label=""]
 	58 [label="v
 Read"]
 	59 [label="self.getOutNeighbors()
 "]
 	60 [label="==
 "]
-	58 -> 60
-	59 -> 60
+	58 -> 60 [label=""]
+	59 -> 60 [label=""]
 	61 [label=or
 ]
-	57 -> 61
-	60 -> 61
+	57 -> 61 [label=""]
+	60 -> 61 [label=""]
 }

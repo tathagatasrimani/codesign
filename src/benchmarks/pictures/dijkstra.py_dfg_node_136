@@ -7,10 +7,10 @@ minD = math.inf
 ]
 	212 [label="u
 Write"]
-	211 -> 212
+	211 -> 212 [label=""]
 	213 [label="math.inf
 Read"]
 	214 [label="minD
 Write"]
-	213 -> 214
+	213 -> 214 [label=""]
 }

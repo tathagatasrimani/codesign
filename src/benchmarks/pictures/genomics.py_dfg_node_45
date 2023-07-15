@@ -7,10 +7,10 @@ quality_dict[active_sequence_name].append(quality)
 Read"]
 	117 [label="quality
 Write"]
-	116 -> 117
+	116 -> 117 [label=""]
 	118 [label="quality_dict[active_sequence_name].append(quality)
 "]
 	119 [label="quality
 Read"]
-	119 -> 118
+	119 -> 118 [label=""]
 }

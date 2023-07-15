@@ -6,17 +6,17 @@ for i in range(1, len(seq1) + 1):
 "]
 	289 [label=1
 ]
-	289 -> 288
+	289 -> 288 [label=""]
 	290 [label="len(seq1)
 "]
 	291 [label="seq1
 Read"]
-	291 -> 290
+	291 -> 290 [label=""]
 	292 [label=1
 ]
 	293 [label="+
 "]
-	290 -> 293
-	292 -> 293
-	293 -> 288
+	290 -> 293 [label=""]
+	292 -> 293 [label=""]
+	293 -> 288 [label=""]
 }

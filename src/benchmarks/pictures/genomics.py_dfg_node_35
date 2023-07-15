@@ -7,16 +7,16 @@ if active_sequence_name not in fasta_dict:
 Read"]
 	85 [label="line[1:]
 Read"]
-	84 -> 85
+	84 -> 85 [label=""]
 	86 [label="active_sequence_name
 Write"]
-	85 -> 86
+	85 -> 86 [label=""]
 	87 [label="active_sequence_name
 Read"]
 	88 [label="fasta_dict
 Read"]
 	89 [label="==
 "]
-	87 -> 89
-	88 -> 89
+	87 -> 89 [label=""]
+	88 -> 89 [label=""]
 }

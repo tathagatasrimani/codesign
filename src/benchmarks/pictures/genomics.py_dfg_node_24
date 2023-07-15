@@ -8,6 +8,6 @@ fastq_dict[active_sequence_name] = []
 Read"]
 	65 [label="fastq_dict[active_sequence_name]
 Write"]
-	64 -> 65
-	63 -> 65
+	64 -> 65 [label=""]
+	63 -> 65 [label=""]
 }

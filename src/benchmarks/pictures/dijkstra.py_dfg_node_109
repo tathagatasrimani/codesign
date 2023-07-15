@@ -6,5 +6,5 @@ for i in range(n):
 "]
 	147 [label="n
 Read"]
-	147 -> 146
+	147 -> 146 [label=""]
 }

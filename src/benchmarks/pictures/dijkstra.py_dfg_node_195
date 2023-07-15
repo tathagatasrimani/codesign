@@ -6,5 +6,5 @@ for t in range(numTrials):
 "]
 	367 [label="numTrials
 Read"]
-	367 -> 366
+	367 -> 366 [label=""]
 }

@@ -7,7 +7,7 @@ path.reverse()
 "]
 	275 [label="current
 Read"]
-	275 -> 274
+	275 -> 274 [label=""]
 	276 [label="path.reverse()
 "]
 }

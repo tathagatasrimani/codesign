@@ -6,14 +6,14 @@ if traceback_matrix[i][j] == 'L':
 Read"]
 	384 [label="traceback_matrix[i]
 Read"]
-	383 -> 384
+	383 -> 384 [label=""]
 	385 [label="traceback_matrix[i][j]
 Read"]
-	384 -> 385
+	384 -> 385 [label=""]
 	386 [label=L
 ]
 	387 [label="==
 "]
-	385 -> 387
-	386 -> 387
+	385 -> 387 [label=""]
+	386 -> 387 [label=""]
 }

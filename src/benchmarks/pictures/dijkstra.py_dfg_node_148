@@ -9,14 +9,14 @@ Read"]
 Read"]
 	245 [label="+
 "]
-	243 -> 245
-	244 -> 245
+	243 -> 245 [label=""]
+	244 -> 245 [label=""]
 	246 [label="v.estD
 Write"]
-	245 -> 246
+	245 -> 246 [label=""]
 	247 [label="u
 Read"]
 	248 [label="v.parent
 Write"]
-	247 -> 248
+	247 -> 248 [label=""]
 }

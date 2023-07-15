@@ -8,6 +8,6 @@ fasta_dict[active_sequence_name] = []
 Read"]
 	35 [label="fasta_dict[active_sequence_name]
 Write"]
-	34 -> 35
-	33 -> 35
+	34 -> 35 [label=""]
+	33 -> 35 [label=""]
 }
