@@ -306,8 +306,10 @@ def make_node(graph, cfg_node, id, name, ctx, opname):
     graph.node(id, name + '\n' + annotation)
     graphs[cfg_node].roots.add(dfg_node)
     graphs[cfg_node].id_to_Node[id] = dfg_node
-    # node_to_symbols[cfg_node].append(symbol(name, id, type(ctx) == ast.Store, type(ctx) == ast.Load))
     node_to_symbols[cfg_node].append(symbol(name, id, type(ctx) == ast.Store, type(ctx) == ast.Load))
+    # we could assign value here
+    # expr.subs(x, 2)
+    # node_to_symbols[cfg_node].append([symbols('name'), symbols('id'), symbols('is_write'), symbols('is_read')])
 
 # edge for a non-literal
 def make_edge(graph, node, source_id, target_id):
