@@ -29,7 +29,7 @@ class Node:
         self.children = []
         self.parents = []
         self.order = 0
-
+        
 class Graph:
     def __init__(self, roots, id_to_Node):
         self.roots = roots

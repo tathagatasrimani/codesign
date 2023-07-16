@@ -11,10 +11,11 @@ path = None
 # format: node -> [symbol, id, write (true) or read (false)]
 node_to_symbols = {}
 # format: node -> {id -> dfg_node}
-node_to_unroll = {}
+symbolic_node_to_unroll = {}
 unroll = False
 graphs = {}
 cur_id = 0
+node_id = 0
 
 class symbol:
     def __init__(self, value: str, num_id: str, write: bool, read: bool):
@@ -23,14 +24,29 @@ class symbol:
         self.write = write
         self.read = read
 
-class Node:
-    def __init__(self, value: str, operation: str):
+# class Node:
+#     def __init__(self, value: str, operation: str):
+#         self.value = value
+#         self.operation = operation
+#         self.children = []
+#         self.parents = []
+#         self.order = 0
+
+class SymbolicNode:
+    def __init__(self, value: str, operation: str, node_id: str):
+        # value: str, operation: str
+        self.symbolic_value = symbols("value_" + node_id)
+        self.symbolic_operation = symbols("operation_" + node_id)
+        # these two represents the graph, currently not used
+        # self.symbolic_children = []
+        # self.symbolic_parents = []
+        self.symbolic_order = symbols("order_" + node_id)
         self.value = value
         self.operation = operation
         self.children = []
         self.parents = []
         self.order = 0
-
+        
 class Graph:
     def __init__(self, roots, id_to_Node):
         self.roots = roots
@@ -297,12 +313,15 @@ def eval_stmt(stmt, graph, node):
 
 # node for a non-literal
 def make_node(graph, cfg_node, id, name, ctx, opname):
+    global node_id
     annotation = ""
     if ctx == ast.Load:
         annotation = "Read"
     elif ctx == ast.Store: # deal with Del if needed
         annotation = "Write"
-    dfg_node = Node(name, opname)
+    # dfg_node = Node(name, opname)
+    dfg_node = SymbolicNode(name, opname, str(node_id))
+    node_id += 1
     graph.node(id, name + '\n' + annotation)
     graphs[cfg_node].roots.add(dfg_node)
     graphs[cfg_node].id_to_Node[id] = dfg_node
@@ -322,12 +341,13 @@ def make_edge(graph, node, source_id, target_id):
 
 # first pass over the basic block
 def dfg_per_node(node):
-    global node_to_unroll, unroll
+    global symbolic_node_to_unroll, unroll
     graph = gv.Digraph()
     graph.node(set_id(), "source code:\n" + node.get_source())
     for stmt in node.statements:
         eval_stmt(stmt, graph, node)
-    node_to_unroll[node.id] = unroll
+    # symbolic_node_to_unroll[node.id] = symbols('unroll')
+    symbolic_node_to_unroll[node.id] = unroll
     # walk backwards over statements, link reads to previous writes
     i = len(node_to_symbols[node])-1
     while i >= 0:
@@ -345,11 +365,14 @@ def dfg_per_node(node):
 
 
 def main_fn(path_in, benchmark_in):
-    global benchmark, path, node_to_symbols, graphs, node_to_unroll, unroll
+    global benchmark, path, node_to_symbols, graphs, symbolic_node_to_unroll, unroll
     benchmark, path = benchmark_in, path_in
     benchmark = benchmark[benchmark.rfind('/')+1:]
     cfg = CFGBuilder().build_from_file('main.c', path + 'models/' + benchmark)
     cfg.build_visual(path + 'pictures/' + benchmark, 'jpeg', show = False)
+    # node_to_symbols can't be symbolic because it's used to build the graph
+    # graphs can't be symbolic because it's used to build the graph
+    # only node_to_unroll can be symbolic, notifying us of the possible optimizations for the graph
     for node in cfg:
         node_to_symbols[node] = []
         graphs[node] = Graph(set(), {})
@@ -361,7 +384,7 @@ def main_fn(path_in, benchmark_in):
                 if len(cur_node.children) == 0: break
                 cur_node = cur_node.children[0]
             #print('')
-    return cfg, graphs, node_to_unroll
+    return cfg, graphs, symbolic_node_to_unroll
 
 if __name__ == "__main__":
     main_fn("")

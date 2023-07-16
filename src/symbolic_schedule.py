@@ -1,13 +1,14 @@
 from collections import deque
 from sympy import *
 # format: cfg_node -> {states -> operations}
-node_operations = {}
+symbolic_node_operations = {}
 operation_sets = {}
 
+            
 def schedule(cfg, graphs, benchmark):
     for node in cfg:
         #print(node.id)
-        node_operations[node] = []
+        symbolic_node_operations[node] = []
         operation_sets[node] = set()
         graph = graphs[node]
         queue = deque([[root, 0] for root in graph.roots])
@@ -20,14 +21,14 @@ def schedule(cfg, graphs, benchmark):
             for child in cur_node.children:
                 queue.append([child, order+1])
         for i in range(max_order+1):
-            node_operations[node].append([])
+            symbolic_node_operations[node].append([])
         for cur_node in operation_sets[node]:
-            node_operations[node][cur_node.order].append(cur_node)
+            symbolic_node_operations[node][cur_node.order].append(cur_node)
         """for state in node_operations[node]:
             for op in state:
                 print(op.order, op.operation)
             print('')"""
-    return cfg, node_operations
+    return cfg, symbolic_node_operations
 
 if __name__ == '__main__':
     schedule("")

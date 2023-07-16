@@ -10,6 +10,7 @@ import hardwareModel
 import math
 import json
 import sys
+from sympy import *
 
 data = {}
 cycles = 0
@@ -127,7 +128,7 @@ def simulate(cfg, data_path, node_operations, hw_spec, first):
     return data
 
 
-def symbolic_simulate(cfg, data_path, node_operations, hw_spec, first):
+def symbolic_simulate(cfg, symbolic_data_path, symbolic_node_operations, hw_spec, symbolic_first):
     global main_cfg, id_to_node, unroll_at
     cur_node = cfg.entryblock
     if first: 
@@ -138,6 +139,7 @@ def symbolic_simulate(cfg, data_path, node_operations, hw_spec, first):
         hw_inuse[elem] = [0] * hw_spec[elem]
     #print(hw_inuse)
     i = 0
+    # focus on symbolizing the node_operations
     while i < len(data_path):
         node_id = data_path[i][0]
         cur_node = id_to_node[node_id]
@@ -188,12 +190,17 @@ def symbolic_simulate(cfg, data_path, node_operations, hw_spec, first):
     print("done with simulation")
     return data
 
+
+cur_node_id = 0
+
 def main():
     global power_use, unroll_at
     benchmark = sys.argv[1]
     print(benchmark)
+    # for next step we would start from makeing unroll_at symbolic, is that right?
     cfg, graphs, unroll_at = symbolic_dfg_algo.main_fn(path, benchmark)
-    cfg, node_operations = symbolic_schedule.schedule(cfg, graphs, sys.argv[1])
+    # I think we need to make graphs symbolic, so that we could optimize the schedule procedure?
+    cfg, symbolic_node_operations = symbolic_schedule.schedule(cfg, graphs, sys.argv[1])
     hw = HardwareModel(0, 0)
     hw.hw_allocated['Add'] = 15
     hw.hw_allocated['Regs'] = 30
@@ -221,6 +228,8 @@ def main():
     hw.hw_allocated['Invert'] = 1
     for node in cfg:
         id_to_node[str(node.id)] = node
+        
+    symbolic_data_path = []
     # set up sequence of cfg nodes to visit
     with open('/home/ubuntu/codesign/src/instrumented_files/output.txt', 'r') as f:
         src = f.read()
@@ -235,7 +244,16 @@ def main():
                 last_node = item[0]
                 last_line = item[1]
                 data_path.append(item)
-    data = simulate(cfg, data_path, node_operations, hw.hw_allocated, True)
+                symbolic_data_path.append([symbols("item[0]_" + str(item[0])), symbols("item[1]_" + str(item[1]))])
+    # but for now we just begin with symbolic simulation
+    # data = simulate(cfg, data_path, node_operations, hw.hw_allocated, True)
+    first = True
+    symbolic_first = symbols('first')
+    
+    # symbolic_node_operations contains both node and values
+    # in symbolic_simulate, we would do the simulation only with the symbolic values
+    
+    data = symbolic_simulate(cfg, symbolic_data_path, symbolic_node_operations, hw.hw_allocated, symbolic_first)
     text = json.dumps(data, indent=4)
     names = sys.argv[1].split('/')
     with open(path + 'json_data/' + names[-1], 'w') as fh:
