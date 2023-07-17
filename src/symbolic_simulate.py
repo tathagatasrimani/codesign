@@ -128,10 +128,10 @@ def simulate(cfg, data_path, node_operations, hw_spec, first):
     return data
 
 
-def symbolic_simulate(cfg, symbolic_data_path, symbolic_node_operations, hw_spec, symbolic_first):
+def symbolic_simulate(cfg, data_path, symbolic_node_operations, hw_spec, symbolic_first):
     global main_cfg, id_to_node, unroll_at
     cur_node = cfg.entryblock
-    if first: 
+    if symbolic_first: 
         cur_node = cur_node.exits[0].target # skip over the first node in the main cfg
         main_cfg = cfg
     hw_inuse = {}
@@ -156,7 +156,39 @@ def symbolic_simulate(cfg, symbolic_data_path, symbolic_node_operations, hw_spec
                 if next_node_id != node_id: break
                 iters += 1
             i = j - 1 # skip over loop iterations because we execute them all at once
-        for state in node_operations[cur_node]:
+        # # most symbolic part after this
+        # for state in symbolic_node_operations[cur_node]:
+        #     # if unroll, take each operation in a state and create more of them
+        #     if unroll_at[cur_node.id]:
+        #         new_state = state.copy()
+        #         for op in state:
+        #             for j in range(iters):
+        #                 new_state.append(op)
+        #         state = new_state
+        #     hw_need = get_hw_need(state)
+        #     #print(hw_need)
+        #     max_cycles = 0
+        #     for elem in hw_need:
+        #         cur_elem_count = hw_need[elem]
+        #         if cur_elem_count == 0: continue
+        #         if hw_spec[elem] == 0 and cur_elem_count > 0:
+        #             raise Exception("hardware specification insufficient to run program")
+        #         cur_cycles_needed = int(math.ceil(cur_elem_count / hw_spec[elem]) * hardwareModel.latency[elem])
+        #         # symbolic max
+        #         # https://www.sympy.org/en/index.html
+        #         # plug in the number and see if it's correct
+        #         # print("cycles needed for " + elem + ": " + str(cur_cycles_needed) + ' (element count = ' + str(cur_elem_count) + ')')
+        #         max_cycles = max(cur_cycles_needed, max_cycles)
+        #         j = 0
+        #         while cur_elem_count > 0:
+        #             hw_inuse[elem][j] += hardwareModel.latency[elem]
+        #             j = (j + 1) % hw_spec[elem]
+        #             cur_elem_count -= 1
+        #     node_avg_power[node_id] += cycle_sim(hw_inuse, max_cycles)
+        # if cycles - start_cycles > 0: node_avg_power[node_id] /= cycles - start_cycles
+        # node_intervals[-1][1][1] = cycles
+        # i += 1
+        for state in symbolic_node_operations[cur_node]:
             # if unroll, take each operation in a state and create more of them
             if unroll_at[cur_node.id]:
                 new_state = state.copy()
@@ -164,11 +196,12 @@ def symbolic_simulate(cfg, symbolic_data_path, symbolic_node_operations, hw_spec
                     for j in range(iters):
                         new_state.append(op)
                 state = new_state
-            hw_need = get_hw_need(state)
+            symbolic_hw_need = get_hw_need(state)
             #print(hw_need)
             max_cycles = 0
-            for elem in hw_need:
-                cur_elem_count = hw_need[elem]
+            for elem in symbolic_hw_need:
+                cur_elem_count = symbolic_hw_need[elem]
+                cur_cycles_needed = hardwareModel.latency[elem]
                 if cur_elem_count == 0: continue
                 if hw_spec[elem] == 0 and cur_elem_count > 0:
                     raise Exception("hardware specification insufficient to run program")
@@ -198,9 +231,9 @@ def main():
     benchmark = sys.argv[1]
     print(benchmark)
     # for next step we would start from makeing unroll_at symbolic, is that right?
-    cfg, graphs, unroll_at = symbolic_dfg_algo.main_fn(path, benchmark)
+    cfg, graphs, unroll_at = dfg_algo.main_fn(path, benchmark)
     # I think we need to make graphs symbolic, so that we could optimize the schedule procedure?
-    cfg, symbolic_node_operations = symbolic_schedule.schedule(cfg, graphs, sys.argv[1])
+    cfg, node_operations = schedule.schedule(cfg, graphs, sys.argv[1])
     hw = HardwareModel(0, 0)
     hw.hw_allocated['Add'] = 15
     hw.hw_allocated['Regs'] = 30
@@ -228,8 +261,7 @@ def main():
     hw.hw_allocated['Invert'] = 1
     for node in cfg:
         id_to_node[str(node.id)] = node
-        
-    symbolic_data_path = []
+    
     # set up sequence of cfg nodes to visit
     with open('/home/ubuntu/codesign/src/instrumented_files/output.txt', 'r') as f:
         src = f.read()
@@ -244,16 +276,12 @@ def main():
                 last_node = item[0]
                 last_line = item[1]
                 data_path.append(item)
-                symbolic_data_path.append([symbols("item[0]_" + str(item[0])), symbols("item[1]_" + str(item[1]))])
     # but for now we just begin with symbolic simulation
     # data = simulate(cfg, data_path, node_operations, hw.hw_allocated, True)
     first = True
-    symbolic_first = symbols('first')
     
-    # symbolic_node_operations contains both node and values
-    # in symbolic_simulate, we would do the simulation only with the symbolic values
-    
-    data = symbolic_simulate(cfg, symbolic_data_path, symbolic_node_operations, hw.hw_allocated, symbolic_first)
+    data = symbolic_simulate(cfg, data_path, node_operations, hw.hw_allocated, first)
+
     text = json.dumps(data, indent=4)
     names = sys.argv[1].split('/')
     with open(path + 'json_data/' + names[-1], 'w') as fh:
@@ -265,7 +293,7 @@ def main():
     plt.title("power use for " + names[-1])
     plt.xlabel("Cycle")
     plt.ylabel("Power")
-    plt.savefig("cfg/benchmarks/power_plots/power_use_" + names[-1] + ".pdf")
+    plt.savefig("src/cfg/benchmarks/power_plots/power_use_" + names[-1] + ".pdf")
     plt.clf() 
     print("done!")
 

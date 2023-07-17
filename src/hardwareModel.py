@@ -109,10 +109,12 @@ class HardwareModel:
         self.loop_variables = loop_counts
         self.var_sizes = var_sizes
         self.id = id
+        
+        # a dict of symbols, only assigned and compute the value when needed
 
 
         for key in op2sym_map.keys():
-                self.hw_allocated[key] = 0
+            self.hw_allocated[key] = 0
 
         self.cycles = 0
 
@@ -125,6 +127,3 @@ class HardwareModel:
         '''.format(cycles=self.cycles, \
                    allocated=str(self.hw_allocated))
         return s
-
-    
-    
