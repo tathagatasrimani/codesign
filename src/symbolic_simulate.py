@@ -130,7 +130,7 @@ def simulate(cfg, data_path, node_operations, hw_spec, first):
 def symbolic_cycle_sim(hw_inuse, max_cycles):
     global cycles, data, power_use
     node_power_sum = 0
-    print(max_cycles)
+    # print(max_cycles)
     for i in range(max_cycles):
         power_use.append(0)
         # save current state of hardware to data array
@@ -143,8 +143,8 @@ def symbolic_cycle_sim(hw_inuse, max_cycles):
                     cound_add = Piecewise((0, Eq(i, 0)), (1, True))
                     if cound_add:
                         count += 1
-                        power_use[cycles] += hardwareModel.power[elem][2]
-                power_use[cycles] += (hardwareModel.power[elem][2] / 10) * len(hw_inuse[elem]) # passive power
+                        power_use[cycles] += hardwareModel.symbolic_power[elem][2]
+                power_use[cycles] += (hardwareModel.symbolic_power[elem][2] / 10) * len(hw_inuse[elem]) # passive power
                 cur_data += str(count) + "/" + str(len(hw_inuse[elem])) + " in use. || "
         data[cycles] = cur_data
         # simulate one cycle
@@ -164,6 +164,8 @@ def symbolic_simulate(cfg, data_path, symbolic_node_operations, hw_spec, symboli
         cur_node = cur_node.exits[0].target # skip over the first node in the main cfg
         main_cfg = cfg
     hw_inuse = {}
+    for elem in hw_spec:
+        hw_inuse[elem] = [0] * hw_spec[elem]
     i = 0
     # focus on symbolizing the node_operations
     while i < len(data_path):
@@ -199,12 +201,14 @@ def symbolic_simulate(cfg, data_path, symbolic_node_operations, hw_spec, symboli
                 if cur_elem_count == 0: continue
                 if hw_spec[elem] == 0 and cur_elem_count > 0:
                     raise Exception("hardware specification insufficient to run program")
-                cur_cycles_needed = ceiling(cur_elem_count / hw_spec[elem]) * hardwareModel.latency[elem] # need to cast to Integer
+                # cur_cycles_needed = ceiling(cur_elem_count / hw_spec[elem]) * hardwareModel.latency[elem] # need to cast to Integer
+                cur_cycles_needed = int(math.ceil(cur_elem_count / hw_spec[elem]) * hardwareModel.latency[elem])
                 # symbolic max
                 # https://www.sympy.org/en/index.html
                 # plug in the number and see if it's correct
                 # print("cycles needed for " + elem + ": " + str(cur_cycles_needed) + ' (element count = ' + str(cur_elem_count) + ')')
-                max_cycles = Max(cur_cycles_needed, max_cycles)
+                # max_cycles = Max(cur_cycles_needed, max_cycles)
+                max_cycles = max(cur_cycles_needed, max_cycles)
                 j = 0
                 j = j % hw_spec[elem]
                 # need to aggregate j here
@@ -235,58 +239,60 @@ def main():
     cfg, graphs, unroll_at = dfg_algo.main_fn(path, benchmark)
     # I think we need to make graphs symbolic, so that we could optimize the schedule procedure?
     cfg, node_operations = schedule.schedule(cfg, graphs, sys.argv[1])
-    symbolic_hw = SymbolicHardwareModel(0, 0)
+    # symbolic_hw = SymbolicHardwareModel(0, 0)
     
-    # hw.hw_allocated['Add'] = 15
-    # hw.hw_allocated['Regs'] = 30
-    # hw.hw_allocated['Mult'] = 15
-    # hw.hw_allocated['Sub'] = 15
-    # hw.hw_allocated['FloorDiv'] = 15
-    # hw.hw_allocated['Gt'] = 1
-    # hw.hw_allocated['And'] = 1
-    # hw.hw_allocated['Or'] = 1
-    # hw.hw_allocated['Mod'] = 1
-    # hw.hw_allocated['LShift'] = 1
-    # hw.hw_allocated['RShift'] = 1
-    # hw.hw_allocated['BitOr'] = 1
-    # hw.hw_allocated['BitXor'] = 1
-    # hw.hw_allocated['BitAnd'] = 1
-    # hw.hw_allocated['Eq'] = 1
-    # hw.hw_allocated['NotEq'] = 1
-    # hw.hw_allocated['Lt'] = 1
-    # hw.hw_allocated['LtE'] = 1
-    # hw.hw_allocated['GtE'] = 1
-    # hw.hw_allocated['IsNot'] = 1
-    # hw.hw_allocated['USub'] = 1
-    # hw.hw_allocated['UAdd'] = 1
-    # hw.hw_allocated['Not'] = 1
-    # hw.hw_allocated['Invert'] = 1
+    hw = HardwareModel(0, 0)
+    
+    hw.hw_allocated['Add'] = 15
+    hw.hw_allocated['Regs'] = 30
+    hw.hw_allocated['Mult'] = 15
+    hw.hw_allocated['Sub'] = 15
+    hw.hw_allocated['FloorDiv'] = 15
+    hw.hw_allocated['Gt'] = 1
+    hw.hw_allocated['And'] = 1
+    hw.hw_allocated['Or'] = 1
+    hw.hw_allocated['Mod'] = 1
+    hw.hw_allocated['LShift'] = 1
+    hw.hw_allocated['RShift'] = 1
+    hw.hw_allocated['BitOr'] = 1
+    hw.hw_allocated['BitXor'] = 1
+    hw.hw_allocated['BitAnd'] = 1
+    hw.hw_allocated['Eq'] = 1
+    hw.hw_allocated['NotEq'] = 1
+    hw.hw_allocated['Lt'] = 1
+    hw.hw_allocated['LtE'] = 1
+    hw.hw_allocated['GtE'] = 1
+    hw.hw_allocated['IsNot'] = 1
+    hw.hw_allocated['USub'] = 1
+    hw.hw_allocated['UAdd'] = 1
+    hw.hw_allocated['Not'] = 1
+    hw.hw_allocated['Invert'] = 1
     
     
-    symbolic_hw.hw_allocated['Add'] = symbols('Add')
-    symbolic_hw.hw_allocated['Regs'] = symbols('Regs')
-    symbolic_hw.hw_allocated['Mult'] = symbols('Mult')
-    symbolic_hw.hw_allocated['Sub'] = symbols('Sub')
-    symbolic_hw.hw_allocated['FloorDiv'] = symbols('FloorDiv')
-    symbolic_hw.hw_allocated['Gt'] = symbols('Gt')
-    symbolic_hw.hw_allocated['And'] = symbols('And')
-    symbolic_hw.hw_allocated['Or'] = symbols('Or')
-    symbolic_hw.hw_allocated['Mod'] = symbols('Mod')
-    symbolic_hw.hw_allocated['LShift'] = symbols('LShift')
-    symbolic_hw.hw_allocated['RShift'] = symbols('RShift')
-    symbolic_hw.hw_allocated['BitOr'] = symbols('BitOr')
-    symbolic_hw.hw_allocated['BitXor'] = symbols('BitXor')
-    symbolic_hw.hw_allocated['BitAnd'] = symbols('BitAnd')
-    symbolic_hw.hw_allocated['Eq'] = symbols('Eq')
-    symbolic_hw.hw_allocated['NotEq'] = symbols('NotEq')
-    symbolic_hw.hw_allocated['Lt'] = symbols('Lt')
-    symbolic_hw.hw_allocated['LtE'] = symbols('LtE')
-    symbolic_hw.hw_allocated['GtE'] = symbols('GtE')
-    symbolic_hw.hw_allocated['IsNot'] = symbols('IsNot')
-    symbolic_hw.hw_allocated['USub'] = symbols('USub')
-    symbolic_hw.hw_allocated['UAdd'] = symbols('UAdd')
-    symbolic_hw.hw_allocated['Not'] = symbols('Not')
-    symbolic_hw.hw_allocated['Invert'] = symbols('Invert')
+    # symbolic_hw.hw_allocated['Add'] = symbols('Add')
+    # symbolic_hw.hw_allocated['Regs'] = symbols('Regs')
+    # symbolic_hw.hw_allocated['Mult'] = symbols('Mult')
+    # symbolic_hw.hw_allocated['Sub'] = symbols('Sub')
+    # symbolic_hw.hw_allocated['FloorDiv'] = symbols('FloorDiv')
+    # symbolic_hw.hw_allocated['Gt'] = symbols('Gt')
+    # symbolic_hw.hw_allocated['And'] = symbols('And')
+    # symbolic_hw.hw_allocated['Or'] = symbols('Or')
+    # symbolic_hw.hw_allocated['Mod'] = symbols('Mod')
+    # symbolic_hw.hw_allocated['LShift'] = symbols('LShift')
+    # symbolic_hw.hw_allocated['RShift'] = symbols('RShift')
+    # symbolic_hw.hw_allocated['BitOr'] = symbols('BitOr')
+    # symbolic_hw.hw_allocated['BitXor'] = symbols('BitXor')
+    # symbolic_hw.hw_allocated['BitAnd'] = symbols('BitAnd')
+    # symbolic_hw.hw_allocated['Eq'] = symbols('Eq')
+    # symbolic_hw.hw_allocated['NotEq'] = symbols('NotEq')
+    # symbolic_hw.hw_allocated['Lt'] = symbols('Lt')
+    # symbolic_hw.hw_allocated['LtE'] = symbols('LtE')
+    # symbolic_hw.hw_allocated['GtE'] = symbols('GtE')
+    # symbolic_hw.hw_allocated['IsNot'] = symbols('IsNot')
+    # symbolic_hw.hw_allocated['USub'] = symbols('USub')
+    # symbolic_hw.hw_allocated['UAdd'] = symbols('UAdd')
+    # symbolic_hw.hw_allocated['Not'] = symbols('Not')
+    # symbolic_hw.hw_allocated['Invert'] = symbols('Invert')
     
     for node in cfg:
         id_to_node[str(node.id)] = node
@@ -309,8 +315,9 @@ def main():
     # data = simulate(cfg, data_path, node_operations, hw.hw_allocated, True)
     first = True
     
-    data = symbolic_simulate(cfg, data_path, node_operations, symbolic_hw.hw_allocated, first)
+    data = symbolic_simulate(cfg, data_path, node_operations, hw.hw_allocated, first)
     print(data)
+    # power_use is symbolic, so we need to make it concrete
     
     text = json.dumps(data, indent=4)
     names = sys.argv[1].split('/')
@@ -319,7 +326,16 @@ def main():
     t = []
     for i in range(len(power_use)):
         t.append(i)
-    plt.plot(t,power_use)
+    power_use_value = []
+    for expr in power_use:
+        
+        expr_symbols = {}
+        for s in expr.free_symbols:
+            if not s in expr_symbols:
+                expr_symbols[s] = hardwareModel.power[s.name.split('_')[1]][int(s.name.split('_')[2])]
+        expr_value = expr.subs(expr_symbols)
+        power_use_value.append(float(expr_value))
+    plt.plot(t,power_use_value)
     plt.title("power use for " + names[-1])
     plt.xlabel("Cycle")
     plt.ylabel("Power")
