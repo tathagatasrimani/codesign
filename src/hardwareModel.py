@@ -3,7 +3,7 @@ import graphviz as gv
 import re
 from collections import deque
 import ast
-
+from sympy import *
 from cfg.staticfg.builder import CFGBuilder
 from ast_utils import ASTUtils
 
@@ -63,7 +63,62 @@ latency = {
     "Invert": 0.06,
     "Regs": 1,
 }
+
 power = {
+    "And": 32 * [1.010606e-02, 7.950398e-03, 1.805590e-02, 1.805590e-02, 6.111633e-04],
+    "Or": 32 * [1.010606e-02, 7.950398e-03, 1.805590e-02, 1.805590e-02, 6.111633e-04],
+    "Add": [2.537098e00, 3.022642e00, 5.559602e00, 1.667880e01, 5.311069e-02],
+    "Sub": [2.537098e00, 3.022642e00, 5.559602e00, 1.667880e01, 5.311069e-02],
+    "Mult": [5.050183e00, 6.723213e00, 1.177340e01, 3.532019e01, 1.198412e-01],
+    "FloorDiv": [5.050183e00, 6.723213e00, 1.177340e01, 3.532019e01, 1.198412e-01],
+    "Mod": [5.050183e00, 6.723213e00, 1.177340e01, 3.532019e01, 1.198412e-01],
+    "LShift": [8.162355e-02, 3.356332e-01, 4.172512e-01, 4.172512e-01, 1.697876e-03],
+    "RShift": [8.162355e-02, 3.356332e-01, 4.172512e-01, 4.172512e-01, 1.697876e-03],
+    "BitOr": [1.010606e-02, 7.950398e-03, 1.805590e-02, 1.805590e-02, 6.111633e-04],
+    "BitXor": [1.010606e-02, 7.950398e-03, 1.805590e-02, 1.805590e-02, 6.111633e-04],
+    "BitAnd": [1.010606e-02, 7.950398e-03, 1.805590e-02, 1.805590e-02, 6.111633e-04],
+    "Eq": [8.162355e-02, 3.356332e-01, 4.172512e-01, 4.172512e-01, 1.697876e-03],
+    "NotEq": [8.162355e-02, 3.356332e-01, 4.172512e-01, 4.172512e-01, 1.697876e-03],
+    "Lt": [8.162355e-02, 3.356332e-01, 4.172512e-01, 4.172512e-01, 1.697876e-03],
+    "LtE": [8.162355e-02, 3.356332e-01, 4.172512e-01, 4.172512e-01, 1.697876e-03],
+    "Gt": [8.162355e-02, 3.356332e-01, 4.172512e-01, 4.172512e-01, 1.697876e-03],
+    "GtE": [8.162355e-02, 3.356332e-01, 4.172512e-01, 4.172512e-01, 1.697876e-03],
+    "USub": [1.010606e-02, 7.950398e-03, 1.805590e-02, 1.805590e-02, 6.111633e-04],
+    "UAdd": [1.010606e-02, 7.950398e-03, 1.805590e-02, 1.805590e-02, 6.111633e-04],
+    "IsNot": [8.162355e-02, 3.356332e-01, 4.172512e-01, 4.172512e-01, 1.697876e-03],
+    "Not": [1.010606e-02, 7.950398e-03, 1.805590e-02, 1.805590e-02, 6.111633e-04],
+    "Invert": [1.010606e-02, 7.950398e-03, 1.805590e-02, 1.805590e-02, 6.111633e-04],
+    "Regs": [7.936518e-03, 1.062977e-03, 8.999495e-03, 8.999495e-03, 7.395312e-05],
+}
+
+symbolic_latency = {
+    "And": symbols("latency_And"),
+    "Or": symbols("latency_Or"),
+    "Add": symbols("latency_Add"),
+    "Sub": symbols("latency_Sub"),
+    "Mult": symbols("latency_Mult"),
+    "FloorDiv": symbols("latency_FloorDiv"),
+    "Mod": symbols("latency_Mod"),
+    "LShift": symbols("latency_LShift"),
+    "RShift": symbols("latency_RShift"),
+    "BitOr": symbols("latency_BitOr"),
+    "BitXor": symbols("latency_BitXor"),
+    "BitAnd": symbols("latency_BitAnd"),
+    "Eq": symbols("latency_Eq"),
+    "NotEq": symbols("latency_NotEq"),
+    "Lt": symbols("latency_Lt"),
+    "LtE": symbols("latency_LtE"),
+    "Gt": symbols("latency_Gt"),
+    "GtE": symbols("latency_GtE"),
+    "USub": symbols("latency_USub"),
+    "UAdd": symbols("latency_UAdd"),
+    "IsNot": symbols("latency_IsNot"),
+    "Not": symbols("latency_Not"),
+    "Invert": symbols("latency_Invert"),
+    "Regs": symbols("latency_Regs"),
+}
+
+symbolic_power = {
     "And": 32 * [1.010606e-02, 7.950398e-03, 1.805590e-02, 1.805590e-02, 6.111633e-04],
     "Or": 32 * [1.010606e-02, 7.950398e-03, 1.805590e-02, 1.805590e-02, 6.111633e-04],
     "Add": [2.537098e00, 3.022642e00, 5.559602e00, 1.667880e01, 5.311069e-02],
@@ -93,6 +148,45 @@ power = {
 class HardwareModel:
 
     def __init__(self,id,bandwidth,loop_counts={},var_sizes={}):
+        self.max_bw = bandwidth
+        self.bw_avail = bandwidth
+
+        self.loop_counts = loop_counts
+
+        self.memory_cfgs = {}
+        self.mem_state = {}
+        for variable in self.memory_cfgs.keys():
+            self.mem_state[variable]=False
+
+        # number of non-memory elements allocated
+        self.hw_allocated = {}
+        self.hw_allocated["Regs"] = 0
+        self.loop_variables = loop_counts
+        self.var_sizes = var_sizes
+        self.id = id
+        
+        # a dict of symbols, only assigned and compute the value when needed
+
+
+        for key in op2sym_map.keys():
+            self.hw_allocated[key] = 0
+
+        self.cycles = 0
+
+
+    def print_stats(self):
+        s = '''
+        cycles={cycles}
+        allocated={allocated}
+        utilized={utilized}
+        '''.format(cycles=self.cycles, \
+                   allocated=str(self.hw_allocated))
+        return s
+
+
+class SymbolicHardwareModel:
+
+    def __init__(self, id, bandwidth, loop_counts={}, var_sizes={}):
         self.max_bw = bandwidth
         self.bw_avail = bandwidth
 
