@@ -1,146 +1,146 @@
 digraph {
-	83 [label="source code:
+	79 [label="source code:
 f_len = int((len(img[0]) - len(filt[0]) + 2 * zero_pad) / stride + 1)
 f_wid = int((len(img[0][0]) - len(filt[0][0]) + 2 * zero_pad) / stride + 1)
 biases = np.random.rand(f_len)
 img_new = zero_pad_arr(img, zero_pad)
 f_new = np.zeros((numFilt, f_len, f_wid))
 "]
-	84 [label="int((len(img[0]) - len(filt[0]) + 2 * zero_pad) / stride + 1)
+	80 [label="int((len(img[0]) - len(filt[0]) + 2 * zero_pad) / stride + 1)
 "]
-	85 [label="len(img[0])
+	81 [label="len(img[0])
 "]
-	86 [label="img
+	82 [label="img
 Read"]
-	87 [label="img[0]
+	83 [label="img[0]
 Read"]
-	86 -> 87
-	87 -> 85
-	88 [label="len(filt[0])
+	82 -> 83 [label=""]
+	83 -> 81 [label=""]
+	84 [label="len(filt[0])
 "]
-	89 [label="filt
+	85 [label="filt
 Read"]
-	90 [label="filt[0]
+	86 [label="filt[0]
 Read"]
-	89 -> 90
-	90 -> 88
-	91 [label="-
+	85 -> 86 [label=""]
+	86 -> 84 [label=""]
+	87 [label="-
 "]
-	85 -> 91
-	88 -> 91
-	92 [label=2
+	81 -> 87 [label=""]
+	84 -> 87 [label=""]
+	88 [label=2
 ]
-	93 [label="zero_pad
+	89 [label="zero_pad
 Read"]
-	94 [label="*
+	90 [label="*
 "]
-	92 -> 94
-	93 -> 94
+	88 -> 90 [label=""]
+	89 -> 90 [label=""]
+	91 [label="+
+"]
+	87 -> 91 [label=""]
+	90 -> 91 [label=""]
+	92 [label="stride
+Read"]
+	93 [label="//
+"]
+	91 -> 93 [label=""]
+	92 -> 93 [label=""]
+	94 [label=1
+]
 	95 [label="+
 "]
-	91 -> 95
-	94 -> 95
-	96 [label="stride
-Read"]
-	97 [label="//
-"]
-	95 -> 97
-	96 -> 97
-	98 [label=1
-]
-	99 [label="+
-"]
-	97 -> 99
-	98 -> 99
-	99 -> 84
-	100 [label="f_len
+	93 -> 95 [label=""]
+	94 -> 95 [label=""]
+	95 -> 80 [label=""]
+	96 [label="f_len
 Write"]
-	84 -> 100
-	101 [label="int((len(img[0][0]) - len(filt[0][0]) + 2 * zero_pad) / stride + 1)
+	80 -> 96 [label=""]
+	97 [label="int((len(img[0][0]) - len(filt[0][0]) + 2 * zero_pad) / stride + 1)
 "]
-	102 [label="len(img[0][0])
+	98 [label="len(img[0][0])
 "]
-	103 [label="img
+	99 [label="img
 Read"]
-	104 [label="img[0]
+	100 [label="img[0]
 Read"]
-	103 -> 104
-	105 [label="img[0][0]
+	99 -> 100 [label=""]
+	101 [label="img[0][0]
 Read"]
-	104 -> 105
-	105 -> 102
-	106 [label="len(filt[0][0])
+	100 -> 101 [label=""]
+	101 -> 98 [label=""]
+	102 [label="len(filt[0][0])
 "]
-	107 [label="filt
+	103 [label="filt
 Read"]
-	108 [label="filt[0]
+	104 [label="filt[0]
 Read"]
-	107 -> 108
-	109 [label="filt[0][0]
+	103 -> 104 [label=""]
+	105 [label="filt[0][0]
 Read"]
-	108 -> 109
-	109 -> 106
-	110 [label="-
+	104 -> 105 [label=""]
+	105 -> 102 [label=""]
+	106 [label="-
 "]
-	102 -> 110
-	106 -> 110
-	111 [label=2
+	98 -> 106 [label=""]
+	102 -> 106 [label=""]
+	107 [label=2
 ]
-	112 [label="zero_pad
+	108 [label="zero_pad
 Read"]
-	113 [label="*
+	109 [label="*
 "]
-	111 -> 113
-	112 -> 113
+	107 -> 109 [label=""]
+	108 -> 109 [label=""]
+	110 [label="+
+"]
+	106 -> 110 [label=""]
+	109 -> 110 [label=""]
+	111 [label="stride
+Read"]
+	112 [label="//
+"]
+	110 -> 112 [label=""]
+	111 -> 112 [label=""]
+	113 [label=1
+]
 	114 [label="+
 "]
-	110 -> 114
-	113 -> 114
-	115 [label="stride
-Read"]
-	116 [label="//
-"]
-	114 -> 116
-	115 -> 116
-	117 [label=1
-]
-	118 [label="+
-"]
-	116 -> 118
-	117 -> 118
-	118 -> 101
-	119 [label="f_wid
+	112 -> 114 [label=""]
+	113 -> 114 [label=""]
+	114 -> 97 [label=""]
+	115 [label="f_wid
 Write"]
-	101 -> 119
-	120 [label="np.random.rand(f_len)
+	97 -> 115 [label=""]
+	116 [label="np.random.rand(f_len)
 "]
-	121 [label="f_len
+	117 [label="f_len
 Read"]
-	121 -> 120
-	122 [label="biases
+	117 -> 116 [label=""]
+	118 [label="biases
 Write"]
-	120 -> 122
-	123 [label="zero_pad_arr(img, zero_pad)
+	116 -> 118 [label=""]
+	119 [label="zero_pad_arr(img, zero_pad)
 "]
-	124 [label="img
+	120 [label="img
 Read"]
-	124 -> 123
-	125 [label="zero_pad
+	120 -> 119 [label=""]
+	121 [label="zero_pad
 Read"]
-	125 -> 123
-	126 [label="img_new
+	121 -> 119 [label=""]
+	122 [label="img_new
 Write"]
-	123 -> 126
-	127 [label="np.zeros((numFilt, f_len, f_wid))
+	119 -> 122 [label=""]
+	123 [label="np.zeros((numFilt, f_len, f_wid))
 "]
-	128 [label="numFilt
+	124 [label="numFilt
 Read"]
-	129 [label="f_len
+	125 [label="f_len
 Read"]
-	130 [label="f_wid
+	126 [label="f_wid
 Read"]
-	128 -> 127
-	131 [label="f_new
+	124 -> 123 [label=""]
+	127 [label="f_new
 Write"]
-	127 -> 131
+	123 -> 127 [label=""]
 }

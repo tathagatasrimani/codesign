@@ -1,25 +1,25 @@
 digraph {
-	587 [label="source code:
+	583 [label="source code:
 result[i] = math.exp(img[i]) / sum_val
 "]
-	588 [label="math.exp(img[i])
+	584 [label="math.exp(img[i])
 "]
-	589 [label="img
+	585 [label="img
 Read"]
-	590 [label="img[i]
+	586 [label="img[i]
 Read"]
-	589 -> 590
-	590 -> 588
-	591 [label="sum_val
+	585 -> 586 [label=""]
+	586 -> 584 [label=""]
+	587 [label="sum_val
 Read"]
-	592 [label="//
+	588 [label="//
 "]
-	588 -> 592
-	591 -> 592
-	593 [label="result
+	584 -> 588 [label=""]
+	587 -> 588 [label=""]
+	589 [label="result
 Read"]
-	594 [label="result[i]
+	590 [label="result[i]
 Write"]
-	593 -> 594
-	592 -> 594
+	589 -> 590 [label=""]
+	588 -> 590 [label=""]
 }

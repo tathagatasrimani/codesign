@@ -8,6 +8,6 @@ for i in range(len(dst)):
 "]
 	70 [label="dst
 Read"]
-	70 -> 69
-	69 -> 68
+	70 -> 69 [label=""]
+	69 -> 68 [label=""]
 }

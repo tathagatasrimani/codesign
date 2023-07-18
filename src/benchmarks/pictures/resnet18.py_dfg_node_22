@@ -1,10 +1,10 @@
 digraph {
-	141 [label="source code:
+	137 [label="source code:
 for k in range(f_wid):
 "]
-	142 [label="range(f_wid)
+	138 [label="range(f_wid)
 "]
-	143 [label="f_wid
+	139 [label="f_wid
 Read"]
-	143 -> 142
+	139 -> 138 [label=""]
 }

@@ -6,17 +6,17 @@ emb[i][j + head * d_k] = cur[i][j]
 Read"]
 	257 [label="cur[i]
 Read"]
-	256 -> 257
+	256 -> 257 [label=""]
 	258 [label="cur[i][j]
 Read"]
-	257 -> 258
+	257 -> 258 [label=""]
 	259 [label="emb
 Read"]
 	260 [label="emb[i]
 Read"]
-	259 -> 260
+	259 -> 260 [label=""]
 	261 [label="emb[i][j + head * d_k]
 Write"]
-	260 -> 261
-	258 -> 261
+	260 -> 261 [label=""]
+	258 -> 261 [label=""]
 }

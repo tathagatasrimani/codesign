@@ -1,5 +1,5 @@
 digraph {
-	691 [label="source code:
+	687 [label="source code:
 filt = np.random.rand(1, len(filt[0]), len(filt[0][0]))
 byPass = np.copy(img)
 byPass = conv_layer(byPass, filt, 1, 3, 2)
@@ -62,919 +62,919 @@ flat = fc_layer(flat, weights, w_0)
 final = softmax(flat)
 return 0
 "]
-	692 [label="np.random.rand(1, len(filt[0]), len(filt[0][0]))
+	688 [label="np.random.rand(1, len(filt[0]), len(filt[0][0]))
 "]
-	693 [label=1
+	689 [label=1
 ]
-	693 -> 692
-	694 [label="len(filt[0])
+	689 -> 688 [label=""]
+	690 [label="len(filt[0])
 "]
-	695 [label="filt
+	691 [label="filt
 Read"]
-	696 [label="filt[0]
+	692 [label="filt[0]
 Read"]
-	695 -> 696
-	696 -> 694
-	694 -> 692
-	697 [label="len(filt[0][0])
+	691 -> 692 [label=""]
+	692 -> 690 [label=""]
+	690 -> 688 [label=""]
+	693 [label="len(filt[0][0])
 "]
-	698 [label="filt
+	694 [label="filt
 Read"]
-	699 [label="filt[0]
+	695 [label="filt[0]
 Read"]
-	698 -> 699
-	700 [label="filt[0][0]
+	694 -> 695 [label=""]
+	696 [label="filt[0][0]
 Read"]
-	699 -> 700
-	700 -> 697
-	697 -> 692
-	701 [label="filt
+	695 -> 696 [label=""]
+	696 -> 693 [label=""]
+	693 -> 688 [label=""]
+	697 [label="filt
 Write"]
-	692 -> 701
-	702 [label="np.copy(img)
+	688 -> 697 [label=""]
+	698 [label="np.copy(img)
 "]
-	703 [label="img
+	699 [label="img
 Read"]
-	703 -> 702
-	704 [label="byPass
+	699 -> 698 [label=""]
+	700 [label="byPass
 Write"]
-	702 -> 704
-	705 [label="conv_layer(byPass, filt, 1, 3, 2)
+	698 -> 700 [label=""]
+	701 [label="conv_layer(byPass, filt, 1, 3, 2)
 "]
-	706 [label="byPass
+	702 [label="byPass
 Read"]
-	706 -> 705
-	707 [label="filt
+	702 -> 701 [label=""]
+	703 [label="filt
 Read"]
-	707 -> 705
-	708 [label=1
+	703 -> 701 [label=""]
+	704 [label=1
 ]
-	708 -> 705
-	709 [label=3
+	704 -> 701 [label=""]
+	705 [label=3
 ]
-	709 -> 705
-	710 [label=2
+	705 -> 701 [label=""]
+	706 [label=2
 ]
-	710 -> 705
-	711 [label="byPass
+	706 -> 701 [label=""]
+	707 [label="byPass
 Write"]
-	705 -> 711
-	712 [label="BN_layer(byPass, 1, weights, biases)
+	701 -> 707 [label=""]
+	708 [label="BN_layer(byPass, 1, weights, biases)
 "]
+	709 [label="byPass
+Read"]
+	709 -> 708 [label=""]
+	710 [label=1
+]
+	710 -> 708 [label=""]
+	711 [label="weights
+Read"]
+	711 -> 708 [label=""]
+	712 [label="biases
+Read"]
+	712 -> 708 [label=""]
 	713 [label="byPass
-Read"]
-	713 -> 712
-	714 [label=1
-]
-	714 -> 712
-	715 [label="weights
-Read"]
-	715 -> 712
-	716 [label="biases
-Read"]
-	716 -> 712
-	717 [label="byPass
 Write"]
-	712 -> 717
-	718 [label="conv_layer(img, filt, 1, 3, 1)
+	708 -> 713 [label=""]
+	714 [label="conv_layer(img, filt, 1, 3, 1)
 "]
-	719 [label="img
+	715 [label="img
 Read"]
-	719 -> 718
-	720 [label="filt
+	715 -> 714 [label=""]
+	716 [label="filt
 Read"]
-	720 -> 718
-	721 [label=1
+	716 -> 714 [label=""]
+	717 [label=1
 ]
-	721 -> 718
-	722 [label=3
+	717 -> 714 [label=""]
+	718 [label=3
 ]
-	722 -> 718
+	718 -> 714 [label=""]
+	719 [label=1
+]
+	719 -> 714 [label=""]
+	720 [label="img
+Write"]
+	714 -> 720 [label=""]
+	721 [label="BN_layer(img, 1, weights, biases)
+"]
+	722 [label="img
+Read"]
+	722 -> 721 [label=""]
 	723 [label=1
 ]
-	723 -> 718
-	724 [label="img
-Write"]
-	718 -> 724
-	725 [label="BN_layer(img, 1, weights, biases)
-"]
+	723 -> 721 [label=""]
+	724 [label="weights
+Read"]
+	724 -> 721 [label=""]
+	725 [label="biases
+Read"]
+	725 -> 721 [label=""]
 	726 [label="img
-Read"]
-	726 -> 725
-	727 [label=1
-]
-	727 -> 725
-	728 [label="weights
-Read"]
-	728 -> 725
-	729 [label="biases
-Read"]
-	729 -> 725
-	730 [label="img
 Write"]
-	725 -> 730
-	731 [label="reLU(img)
+	721 -> 726 [label=""]
+	727 [label="reLU(img)
 "]
-	732 [label="img
+	728 [label="img
 Read"]
-	732 -> 731
-	733 [label="img
+	728 -> 727 [label=""]
+	729 [label="img
 Write"]
-	731 -> 733
-	734 [label="conv_layer(img, filt, 1, 3, 2)
+	727 -> 729 [label=""]
+	730 [label="conv_layer(img, filt, 1, 3, 2)
 "]
-	735 [label="img
+	731 [label="img
 Read"]
-	735 -> 734
-	736 [label="filt
+	731 -> 730 [label=""]
+	732 [label="filt
 Read"]
-	736 -> 734
-	737 [label=1
+	732 -> 730 [label=""]
+	733 [label=1
 ]
-	737 -> 734
-	738 [label=3
+	733 -> 730 [label=""]
+	734 [label=3
 ]
-	738 -> 734
-	739 [label=2
+	734 -> 730 [label=""]
+	735 [label=2
 ]
-	739 -> 734
+	735 -> 730 [label=""]
+	736 [label="img
+Write"]
+	730 -> 736 [label=""]
+	737 [label="byPass
+Read"]
+	738 [label="img
+Read"]
+	739 [label="+
+"]
+	737 -> 739 [label=""]
+	738 -> 739 [label=""]
 	740 [label="img
 Write"]
-	734 -> 740
-	741 [label="byPass
-Read"]
+	739 -> 740 [label=""]
+	741 [label="reLU(img)
+"]
 	742 [label="img
 Read"]
-	743 [label="+
-"]
-	741 -> 743
-	742 -> 743
-	744 [label="img
+	742 -> 741 [label=""]
+	743 [label="img
 Write"]
-	743 -> 744
-	745 [label="reLU(img)
+	741 -> 743 [label=""]
+	744 [label="np.copy(img)
 "]
-	746 [label="img
+	745 [label="img
 Read"]
-	746 -> 745
-	747 [label="img
+	745 -> 744 [label=""]
+	746 [label="byPass
 Write"]
-	745 -> 747
-	748 [label="np.copy(img)
+	744 -> 746 [label=""]
+	747 [label="conv_layer(img, filt, 1, 3, 1)
 "]
-	749 [label="img
+	748 [label="img
 Read"]
-	749 -> 748
-	750 [label="byPass
-Write"]
-	748 -> 750
-	751 [label="conv_layer(img, filt, 1, 3, 1)
-"]
-	752 [label="img
+	748 -> 747 [label=""]
+	749 [label="filt
 Read"]
-	752 -> 751
-	753 [label="filt
-Read"]
-	753 -> 751
-	754 [label=1
+	749 -> 747 [label=""]
+	750 [label=1
 ]
-	754 -> 751
-	755 [label=3
+	750 -> 747 [label=""]
+	751 [label=3
 ]
-	755 -> 751
+	751 -> 747 [label=""]
+	752 [label=1
+]
+	752 -> 747 [label=""]
+	753 [label="img
+Write"]
+	747 -> 753 [label=""]
+	754 [label="BN_layer(img, 1, weights, biases)
+"]
+	755 [label="img
+Read"]
+	755 -> 754 [label=""]
 	756 [label=1
 ]
-	756 -> 751
-	757 [label="img
-Write"]
-	751 -> 757
-	758 [label="BN_layer(img, 1, weights, biases)
-"]
+	756 -> 754 [label=""]
+	757 [label="weights
+Read"]
+	757 -> 754 [label=""]
+	758 [label="biases
+Read"]
+	758 -> 754 [label=""]
 	759 [label="img
-Read"]
-	759 -> 758
-	760 [label=1
-]
-	760 -> 758
-	761 [label="weights
-Read"]
-	761 -> 758
-	762 [label="biases
-Read"]
-	762 -> 758
-	763 [label="img
 Write"]
-	758 -> 763
-	764 [label="reLU(img)
+	754 -> 759 [label=""]
+	760 [label="reLU(img)
 "]
-	765 [label="img
+	761 [label="img
 Read"]
-	765 -> 764
-	766 [label="img
+	761 -> 760 [label=""]
+	762 [label="img
 Write"]
-	764 -> 766
-	767 [label="conv_layer(img, filt, 1, 3, 1)
+	760 -> 762 [label=""]
+	763 [label="conv_layer(img, filt, 1, 3, 1)
 "]
-	768 [label="img
+	764 [label="img
 Read"]
-	768 -> 767
-	769 [label="filt
+	764 -> 763 [label=""]
+	765 [label="filt
 Read"]
-	769 -> 767
-	770 [label=1
+	765 -> 763 [label=""]
+	766 [label=1
 ]
-	770 -> 767
-	771 [label=3
+	766 -> 763 [label=""]
+	767 [label=3
 ]
-	771 -> 767
+	767 -> 763 [label=""]
+	768 [label=1
+]
+	768 -> 763 [label=""]
+	769 [label="img
+Write"]
+	763 -> 769 [label=""]
+	770 [label="BN_layer(img, 1, weights, biases)
+"]
+	771 [label="img
+Read"]
+	771 -> 770 [label=""]
 	772 [label=1
 ]
-	772 -> 767
-	773 [label="img
-Write"]
-	767 -> 773
-	774 [label="BN_layer(img, 1, weights, biases)
-"]
+	772 -> 770 [label=""]
+	773 [label="weights
+Read"]
+	773 -> 770 [label=""]
+	774 [label="biases
+Read"]
+	774 -> 770 [label=""]
 	775 [label="img
+Write"]
+	770 -> 775 [label=""]
+	776 [label="byPass
 Read"]
-	775 -> 774
-	776 [label=1
-]
-	776 -> 774
-	777 [label="weights
+	777 [label="img
 Read"]
-	777 -> 774
-	778 [label="biases
-Read"]
-	778 -> 774
+	778 [label="+
+"]
+	776 -> 778 [label=""]
+	777 -> 778 [label=""]
 	779 [label="img
 Write"]
-	774 -> 779
-	780 [label="byPass
-Read"]
+	778 -> 779 [label=""]
+	780 [label="reLU(img)
+"]
 	781 [label="img
 Read"]
-	782 [label="+
-"]
-	780 -> 782
-	781 -> 782
-	783 [label="img
+	781 -> 780 [label=""]
+	782 [label="img
 Write"]
-	782 -> 783
-	784 [label="reLU(img)
+	780 -> 782 [label=""]
+	783 [label="np.random.rand(1, len(filt[0]), len(filt[0][0]))
 "]
-	785 [label="img
-Read"]
-	785 -> 784
-	786 [label="img
-Write"]
-	784 -> 786
-	787 [label="np.random.rand(1, len(filt[0]), len(filt[0][0]))
-"]
-	788 [label=1
+	784 [label=1
 ]
-	788 -> 787
-	789 [label="len(filt[0])
+	784 -> 783 [label=""]
+	785 [label="len(filt[0])
 "]
-	790 [label="filt
+	786 [label="filt
 Read"]
-	791 [label="filt[0]
+	787 [label="filt[0]
 Read"]
-	790 -> 791
-	791 -> 789
-	789 -> 787
-	792 [label="len(filt[0][0])
+	786 -> 787 [label=""]
+	787 -> 785 [label=""]
+	785 -> 783 [label=""]
+	788 [label="len(filt[0][0])
 "]
-	793 [label="filt
+	789 [label="filt
 Read"]
-	794 [label="filt[0]
+	790 [label="filt[0]
 Read"]
-	793 -> 794
-	795 [label="filt[0][0]
+	789 -> 790 [label=""]
+	791 [label="filt[0][0]
 Read"]
-	794 -> 795
-	795 -> 792
-	792 -> 787
-	796 [label="filt
+	790 -> 791 [label=""]
+	791 -> 788 [label=""]
+	788 -> 783 [label=""]
+	792 [label="filt
 Write"]
-	787 -> 796
-	797 [label="np.copy(img)
+	783 -> 792 [label=""]
+	793 [label="np.copy(img)
 "]
-	798 [label="img
+	794 [label="img
 Read"]
-	798 -> 797
-	799 [label="byPass
+	794 -> 793 [label=""]
+	795 [label="byPass
 Write"]
-	797 -> 799
-	800 [label="conv_layer(byPass, filt, 1, 3, 2)
+	793 -> 795 [label=""]
+	796 [label="conv_layer(byPass, filt, 1, 3, 2)
 "]
-	801 [label="byPass
+	797 [label="byPass
 Read"]
-	801 -> 800
-	802 [label="filt
+	797 -> 796 [label=""]
+	798 [label="filt
 Read"]
-	802 -> 800
-	803 [label=1
+	798 -> 796 [label=""]
+	799 [label=1
 ]
-	803 -> 800
-	804 [label=3
+	799 -> 796 [label=""]
+	800 [label=3
 ]
-	804 -> 800
-	805 [label=2
+	800 -> 796 [label=""]
+	801 [label=2
 ]
-	805 -> 800
-	806 [label="byPass
+	801 -> 796 [label=""]
+	802 [label="byPass
 Write"]
-	800 -> 806
-	807 [label="BN_layer(byPass, 1, weights, biases)
+	796 -> 802 [label=""]
+	803 [label="BN_layer(byPass, 1, weights, biases)
 "]
+	804 [label="byPass
+Read"]
+	804 -> 803 [label=""]
+	805 [label=1
+]
+	805 -> 803 [label=""]
+	806 [label="weights
+Read"]
+	806 -> 803 [label=""]
+	807 [label="biases
+Read"]
+	807 -> 803 [label=""]
 	808 [label="byPass
-Read"]
-	808 -> 807
-	809 [label=1
-]
-	809 -> 807
-	810 [label="weights
-Read"]
-	810 -> 807
-	811 [label="biases
-Read"]
-	811 -> 807
-	812 [label="byPass
 Write"]
-	807 -> 812
-	813 [label="conv_layer(img, filt, 1, 3, 1)
+	803 -> 808 [label=""]
+	809 [label="conv_layer(img, filt, 1, 3, 1)
 "]
-	814 [label="img
+	810 [label="img
 Read"]
-	814 -> 813
-	815 [label="filt
+	810 -> 809 [label=""]
+	811 [label="filt
 Read"]
-	815 -> 813
-	816 [label=1
+	811 -> 809 [label=""]
+	812 [label=1
 ]
-	816 -> 813
-	817 [label=3
+	812 -> 809 [label=""]
+	813 [label=3
 ]
-	817 -> 813
+	813 -> 809 [label=""]
+	814 [label=1
+]
+	814 -> 809 [label=""]
+	815 [label="img
+Write"]
+	809 -> 815 [label=""]
+	816 [label="BN_layer(img, 1, weights, biases)
+"]
+	817 [label="img
+Read"]
+	817 -> 816 [label=""]
 	818 [label=1
 ]
-	818 -> 813
-	819 [label="img
-Write"]
-	813 -> 819
-	820 [label="BN_layer(img, 1, weights, biases)
-"]
+	818 -> 816 [label=""]
+	819 [label="weights
+Read"]
+	819 -> 816 [label=""]
+	820 [label="biases
+Read"]
+	820 -> 816 [label=""]
 	821 [label="img
-Read"]
-	821 -> 820
-	822 [label=1
-]
-	822 -> 820
-	823 [label="weights
-Read"]
-	823 -> 820
-	824 [label="biases
-Read"]
-	824 -> 820
-	825 [label="img
 Write"]
-	820 -> 825
-	826 [label="reLU(img)
+	816 -> 821 [label=""]
+	822 [label="reLU(img)
 "]
-	827 [label="img
+	823 [label="img
 Read"]
-	827 -> 826
-	828 [label="img
+	823 -> 822 [label=""]
+	824 [label="img
 Write"]
-	826 -> 828
-	829 [label="conv_layer(img, filt, 1, 3, 2)
+	822 -> 824 [label=""]
+	825 [label="conv_layer(img, filt, 1, 3, 2)
 "]
-	830 [label="img
+	826 [label="img
 Read"]
-	830 -> 829
-	831 [label="filt
+	826 -> 825 [label=""]
+	827 [label="filt
 Read"]
-	831 -> 829
-	832 [label=1
+	827 -> 825 [label=""]
+	828 [label=1
 ]
-	832 -> 829
-	833 [label=3
+	828 -> 825 [label=""]
+	829 [label=3
 ]
-	833 -> 829
-	834 [label=2
+	829 -> 825 [label=""]
+	830 [label=2
 ]
-	834 -> 829
+	830 -> 825 [label=""]
+	831 [label="img
+Write"]
+	825 -> 831 [label=""]
+	832 [label="byPass
+Read"]
+	833 [label="img
+Read"]
+	834 [label="+
+"]
+	832 -> 834 [label=""]
+	833 -> 834 [label=""]
 	835 [label="img
 Write"]
-	829 -> 835
-	836 [label="byPass
-Read"]
+	834 -> 835 [label=""]
+	836 [label="reLU(img)
+"]
 	837 [label="img
 Read"]
-	838 [label="+
-"]
-	836 -> 838
-	837 -> 838
-	839 [label="img
+	837 -> 836 [label=""]
+	838 [label="img
 Write"]
-	838 -> 839
-	840 [label="reLU(img)
+	836 -> 838 [label=""]
+	839 [label="np.copy(img)
 "]
-	841 [label="img
+	840 [label="img
 Read"]
-	841 -> 840
-	842 [label="img
+	840 -> 839 [label=""]
+	841 [label="byPass
 Write"]
-	840 -> 842
-	843 [label="np.copy(img)
+	839 -> 841 [label=""]
+	842 [label="conv_layer(img, filt, 1, 3, 1)
 "]
-	844 [label="img
+	843 [label="img
 Read"]
-	844 -> 843
-	845 [label="byPass
-Write"]
-	843 -> 845
-	846 [label="conv_layer(img, filt, 1, 3, 1)
-"]
-	847 [label="img
+	843 -> 842 [label=""]
+	844 [label="filt
 Read"]
-	847 -> 846
-	848 [label="filt
-Read"]
-	848 -> 846
-	849 [label=1
+	844 -> 842 [label=""]
+	845 [label=1
 ]
-	849 -> 846
-	850 [label=3
+	845 -> 842 [label=""]
+	846 [label=3
 ]
-	850 -> 846
+	846 -> 842 [label=""]
+	847 [label=1
+]
+	847 -> 842 [label=""]
+	848 [label="img
+Write"]
+	842 -> 848 [label=""]
+	849 [label="BN_layer(img, 1, weights, biases)
+"]
+	850 [label="img
+Read"]
+	850 -> 849 [label=""]
 	851 [label=1
 ]
-	851 -> 846
-	852 [label="img
-Write"]
-	846 -> 852
-	853 [label="BN_layer(img, 1, weights, biases)
-"]
+	851 -> 849 [label=""]
+	852 [label="weights
+Read"]
+	852 -> 849 [label=""]
+	853 [label="biases
+Read"]
+	853 -> 849 [label=""]
 	854 [label="img
-Read"]
-	854 -> 853
-	855 [label=1
-]
-	855 -> 853
-	856 [label="weights
-Read"]
-	856 -> 853
-	857 [label="biases
-Read"]
-	857 -> 853
-	858 [label="img
 Write"]
-	853 -> 858
-	859 [label="reLU(img)
+	849 -> 854 [label=""]
+	855 [label="reLU(img)
 "]
-	860 [label="img
+	856 [label="img
 Read"]
-	860 -> 859
-	861 [label="img
+	856 -> 855 [label=""]
+	857 [label="img
 Write"]
-	859 -> 861
-	862 [label="conv_layer(img, filt, 1, 3, 1)
+	855 -> 857 [label=""]
+	858 [label="conv_layer(img, filt, 1, 3, 1)
 "]
-	863 [label="img
+	859 [label="img
 Read"]
-	863 -> 862
-	864 [label="filt
+	859 -> 858 [label=""]
+	860 [label="filt
 Read"]
-	864 -> 862
-	865 [label=1
+	860 -> 858 [label=""]
+	861 [label=1
 ]
-	865 -> 862
-	866 [label=3
+	861 -> 858 [label=""]
+	862 [label=3
 ]
-	866 -> 862
+	862 -> 858 [label=""]
+	863 [label=1
+]
+	863 -> 858 [label=""]
+	864 [label="img
+Write"]
+	858 -> 864 [label=""]
+	865 [label="BN_layer(img, 1, weights, biases)
+"]
+	866 [label="img
+Read"]
+	866 -> 865 [label=""]
 	867 [label=1
 ]
-	867 -> 862
-	868 [label="img
-Write"]
-	862 -> 868
-	869 [label="BN_layer(img, 1, weights, biases)
-"]
+	867 -> 865 [label=""]
+	868 [label="weights
+Read"]
+	868 -> 865 [label=""]
+	869 [label="biases
+Read"]
+	869 -> 865 [label=""]
 	870 [label="img
+Write"]
+	865 -> 870 [label=""]
+	871 [label="byPass
 Read"]
-	870 -> 869
-	871 [label=1
-]
-	871 -> 869
-	872 [label="weights
+	872 [label="img
 Read"]
-	872 -> 869
-	873 [label="biases
-Read"]
-	873 -> 869
+	873 [label="+
+"]
+	871 -> 873 [label=""]
+	872 -> 873 [label=""]
 	874 [label="img
 Write"]
-	869 -> 874
-	875 [label="byPass
-Read"]
+	873 -> 874 [label=""]
+	875 [label="reLU(img)
+"]
 	876 [label="img
 Read"]
-	877 [label="+
-"]
-	875 -> 877
-	876 -> 877
-	878 [label="img
+	876 -> 875 [label=""]
+	877 [label="img
 Write"]
-	877 -> 878
-	879 [label="reLU(img)
+	875 -> 877 [label=""]
+	878 [label="np.random.rand(1, len(filt[0]), len(filt[0][0]))
 "]
-	880 [label="img
-Read"]
-	880 -> 879
-	881 [label="img
-Write"]
-	879 -> 881
-	882 [label="np.random.rand(1, len(filt[0]), len(filt[0][0]))
-"]
-	883 [label=1
+	879 [label=1
 ]
-	883 -> 882
-	884 [label="len(filt[0])
+	879 -> 878 [label=""]
+	880 [label="len(filt[0])
 "]
-	885 [label="filt
+	881 [label="filt
 Read"]
-	886 [label="filt[0]
+	882 [label="filt[0]
 Read"]
-	885 -> 886
-	886 -> 884
-	884 -> 882
-	887 [label="len(filt[0][0])
+	881 -> 882 [label=""]
+	882 -> 880 [label=""]
+	880 -> 878 [label=""]
+	883 [label="len(filt[0][0])
 "]
-	888 [label="filt
+	884 [label="filt
 Read"]
-	889 [label="filt[0]
+	885 [label="filt[0]
 Read"]
-	888 -> 889
-	890 [label="filt[0][0]
+	884 -> 885 [label=""]
+	886 [label="filt[0][0]
 Read"]
-	889 -> 890
-	890 -> 887
-	887 -> 882
-	891 [label="filt
+	885 -> 886 [label=""]
+	886 -> 883 [label=""]
+	883 -> 878 [label=""]
+	887 [label="filt
 Write"]
-	882 -> 891
-	892 [label="np.copy(img)
+	878 -> 887 [label=""]
+	888 [label="np.copy(img)
 "]
-	893 [label="img
+	889 [label="img
 Read"]
-	893 -> 892
-	894 [label="byPass
+	889 -> 888 [label=""]
+	890 [label="byPass
 Write"]
-	892 -> 894
-	895 [label="conv_layer(byPass, filt, 1, 3, 2)
+	888 -> 890 [label=""]
+	891 [label="conv_layer(byPass, filt, 1, 3, 2)
 "]
-	896 [label="byPass
+	892 [label="byPass
 Read"]
-	896 -> 895
-	897 [label="filt
+	892 -> 891 [label=""]
+	893 [label="filt
 Read"]
-	897 -> 895
-	898 [label=1
+	893 -> 891 [label=""]
+	894 [label=1
 ]
-	898 -> 895
-	899 [label=3
+	894 -> 891 [label=""]
+	895 [label=3
 ]
-	899 -> 895
-	900 [label=2
+	895 -> 891 [label=""]
+	896 [label=2
 ]
-	900 -> 895
-	901 [label="byPass
+	896 -> 891 [label=""]
+	897 [label="byPass
 Write"]
-	895 -> 901
-	902 [label="BN_layer(byPass, 1, weights, biases)
+	891 -> 897 [label=""]
+	898 [label="BN_layer(byPass, 1, weights, biases)
 "]
+	899 [label="byPass
+Read"]
+	899 -> 898 [label=""]
+	900 [label=1
+]
+	900 -> 898 [label=""]
+	901 [label="weights
+Read"]
+	901 -> 898 [label=""]
+	902 [label="biases
+Read"]
+	902 -> 898 [label=""]
 	903 [label="byPass
-Read"]
-	903 -> 902
-	904 [label=1
-]
-	904 -> 902
-	905 [label="weights
-Read"]
-	905 -> 902
-	906 [label="biases
-Read"]
-	906 -> 902
-	907 [label="byPass
 Write"]
-	902 -> 907
-	908 [label="conv_layer(img, filt, 1, 3, 1)
+	898 -> 903 [label=""]
+	904 [label="conv_layer(img, filt, 1, 3, 1)
 "]
-	909 [label="img
+	905 [label="img
 Read"]
-	909 -> 908
-	910 [label="filt
+	905 -> 904 [label=""]
+	906 [label="filt
 Read"]
-	910 -> 908
-	911 [label=1
+	906 -> 904 [label=""]
+	907 [label=1
 ]
-	911 -> 908
-	912 [label=3
+	907 -> 904 [label=""]
+	908 [label=3
 ]
-	912 -> 908
+	908 -> 904 [label=""]
+	909 [label=1
+]
+	909 -> 904 [label=""]
+	910 [label="img
+Write"]
+	904 -> 910 [label=""]
+	911 [label="BN_layer(img, 1, weights, biases)
+"]
+	912 [label="img
+Read"]
+	912 -> 911 [label=""]
 	913 [label=1
 ]
-	913 -> 908
-	914 [label="img
-Write"]
-	908 -> 914
-	915 [label="BN_layer(img, 1, weights, biases)
-"]
+	913 -> 911 [label=""]
+	914 [label="weights
+Read"]
+	914 -> 911 [label=""]
+	915 [label="biases
+Read"]
+	915 -> 911 [label=""]
 	916 [label="img
-Read"]
-	916 -> 915
-	917 [label=1
-]
-	917 -> 915
-	918 [label="weights
-Read"]
-	918 -> 915
-	919 [label="biases
-Read"]
-	919 -> 915
-	920 [label="img
 Write"]
-	915 -> 920
-	921 [label="reLU(img)
+	911 -> 916 [label=""]
+	917 [label="reLU(img)
 "]
-	922 [label="img
+	918 [label="img
 Read"]
-	922 -> 921
-	923 [label="img
+	918 -> 917 [label=""]
+	919 [label="img
 Write"]
-	921 -> 923
-	924 [label="conv_layer(img, filt, 1, 3, 2)
+	917 -> 919 [label=""]
+	920 [label="conv_layer(img, filt, 1, 3, 2)
 "]
-	925 [label="img
+	921 [label="img
 Read"]
-	925 -> 924
-	926 [label="filt
+	921 -> 920 [label=""]
+	922 [label="filt
 Read"]
-	926 -> 924
-	927 [label=1
+	922 -> 920 [label=""]
+	923 [label=1
 ]
-	927 -> 924
-	928 [label=3
+	923 -> 920 [label=""]
+	924 [label=3
 ]
-	928 -> 924
-	929 [label=2
+	924 -> 920 [label=""]
+	925 [label=2
 ]
-	929 -> 924
+	925 -> 920 [label=""]
+	926 [label="img
+Write"]
+	920 -> 926 [label=""]
+	927 [label="byPass
+Read"]
+	928 [label="img
+Read"]
+	929 [label="+
+"]
+	927 -> 929 [label=""]
+	928 -> 929 [label=""]
 	930 [label="img
 Write"]
-	924 -> 930
-	931 [label="byPass
-Read"]
+	929 -> 930 [label=""]
+	931 [label="reLU(img)
+"]
 	932 [label="img
 Read"]
-	933 [label="+
-"]
-	931 -> 933
-	932 -> 933
-	934 [label="img
+	932 -> 931 [label=""]
+	933 [label="img
 Write"]
-	933 -> 934
-	935 [label="reLU(img)
+	931 -> 933 [label=""]
+	934 [label="np.copy(img)
 "]
-	936 [label="img
+	935 [label="img
 Read"]
-	936 -> 935
-	937 [label="img
+	935 -> 934 [label=""]
+	936 [label="byPass
 Write"]
-	935 -> 937
-	938 [label="np.copy(img)
+	934 -> 936 [label=""]
+	937 [label="conv_layer(img, filt, 1, 3, 1)
 "]
-	939 [label="img
+	938 [label="img
 Read"]
-	939 -> 938
-	940 [label="byPass
-Write"]
-	938 -> 940
-	941 [label="conv_layer(img, filt, 1, 3, 1)
-"]
-	942 [label="img
+	938 -> 937 [label=""]
+	939 [label="filt
 Read"]
-	942 -> 941
-	943 [label="filt
-Read"]
-	943 -> 941
-	944 [label=1
+	939 -> 937 [label=""]
+	940 [label=1
 ]
-	944 -> 941
-	945 [label=3
+	940 -> 937 [label=""]
+	941 [label=3
 ]
-	945 -> 941
+	941 -> 937 [label=""]
+	942 [label=1
+]
+	942 -> 937 [label=""]
+	943 [label="img
+Write"]
+	937 -> 943 [label=""]
+	944 [label="BN_layer(img, 1, weights, biases)
+"]
+	945 [label="img
+Read"]
+	945 -> 944 [label=""]
 	946 [label=1
 ]
-	946 -> 941
-	947 [label="img
-Write"]
-	941 -> 947
-	948 [label="BN_layer(img, 1, weights, biases)
-"]
+	946 -> 944 [label=""]
+	947 [label="weights
+Read"]
+	947 -> 944 [label=""]
+	948 [label="biases
+Read"]
+	948 -> 944 [label=""]
 	949 [label="img
-Read"]
-	949 -> 948
-	950 [label=1
-]
-	950 -> 948
-	951 [label="weights
-Read"]
-	951 -> 948
-	952 [label="biases
-Read"]
-	952 -> 948
-	953 [label="img
 Write"]
-	948 -> 953
-	954 [label="reLU(img)
+	944 -> 949 [label=""]
+	950 [label="reLU(img)
 "]
-	955 [label="img
+	951 [label="img
 Read"]
-	955 -> 954
-	956 [label="img
+	951 -> 950 [label=""]
+	952 [label="img
 Write"]
-	954 -> 956
-	957 [label="conv_layer(img, filt, 1, 3, 1)
+	950 -> 952 [label=""]
+	953 [label="conv_layer(img, filt, 1, 3, 1)
 "]
-	958 [label="img
+	954 [label="img
 Read"]
-	958 -> 957
-	959 [label="filt
+	954 -> 953 [label=""]
+	955 [label="filt
 Read"]
-	959 -> 957
-	960 [label=1
+	955 -> 953 [label=""]
+	956 [label=1
 ]
-	960 -> 957
-	961 [label=3
+	956 -> 953 [label=""]
+	957 [label=3
 ]
-	961 -> 957
+	957 -> 953 [label=""]
+	958 [label=1
+]
+	958 -> 953 [label=""]
+	959 [label="img
+Write"]
+	953 -> 959 [label=""]
+	960 [label="BN_layer(img, 1, weights, biases)
+"]
+	961 [label="img
+Read"]
+	961 -> 960 [label=""]
 	962 [label=1
 ]
-	962 -> 957
-	963 [label="img
-Write"]
-	957 -> 963
-	964 [label="BN_layer(img, 1, weights, biases)
-"]
+	962 -> 960 [label=""]
+	963 [label="weights
+Read"]
+	963 -> 960 [label=""]
+	964 [label="biases
+Read"]
+	964 -> 960 [label=""]
 	965 [label="img
+Write"]
+	960 -> 965 [label=""]
+	966 [label="byPass
 Read"]
-	965 -> 964
-	966 [label=1
-]
-	966 -> 964
-	967 [label="weights
+	967 [label="img
 Read"]
-	967 -> 964
-	968 [label="biases
-Read"]
-	968 -> 964
+	968 [label="+
+"]
+	966 -> 968 [label=""]
+	967 -> 968 [label=""]
 	969 [label="img
 Write"]
-	964 -> 969
-	970 [label="byPass
-Read"]
+	968 -> 969 [label=""]
+	970 [label="reLU(img)
+"]
 	971 [label="img
 Read"]
-	972 [label="+
-"]
-	970 -> 972
-	971 -> 972
-	973 [label="img
+	971 -> 970 [label=""]
+	972 [label="img
 Write"]
-	972 -> 973
-	974 [label="reLU(img)
+	970 -> 972 [label=""]
+	973 [label="avg_pool(img, len(img[0]), len(img[0][0]), 3, 1)
 "]
-	975 [label="img
+	974 [label="img
 Read"]
-	975 -> 974
+	974 -> 973 [label=""]
+	975 [label="len(img[0])
+"]
 	976 [label="img
-Write"]
-	974 -> 976
-	977 [label="avg_pool(img, len(img[0]), len(img[0][0]), 3, 1)
+Read"]
+	977 [label="img[0]
+Read"]
+	976 -> 977 [label=""]
+	977 -> 975 [label=""]
+	975 -> 973 [label=""]
+	978 [label="len(img[0][0])
 "]
-	978 [label="img
+	979 [label="img
 Read"]
-	978 -> 977
-	979 [label="len(img[0])
-"]
-	980 [label="img
+	980 [label="img[0]
 Read"]
-	981 [label="img[0]
+	979 -> 980 [label=""]
+	981 [label="img[0][0]
 Read"]
-	980 -> 981
-	981 -> 979
-	979 -> 977
-	982 [label="len(img[0][0])
-"]
-	983 [label="img
-Read"]
-	984 [label="img[0]
-Read"]
-	983 -> 984
-	985 [label="img[0][0]
-Read"]
-	984 -> 985
-	985 -> 982
-	982 -> 977
-	986 [label=3
+	980 -> 981 [label=""]
+	981 -> 978 [label=""]
+	978 -> 973 [label=""]
+	982 [label=3
 ]
-	986 -> 977
-	987 [label=1
+	982 -> 973 [label=""]
+	983 [label=1
 ]
-	987 -> 977
-	988 [label="img
+	983 -> 973 [label=""]
+	984 [label="img
 Write"]
-	977 -> 988
-	989 [label="flatten_layer(img)
+	973 -> 984 [label=""]
+	985 [label="flatten_layer(img)
+"]
+	986 [label="img
+Read"]
+	986 -> 985 [label=""]
+	987 [label="flat
+Write"]
+	985 -> 987 [label=""]
+	988 [label="np.random.rand(len(img) * len(img[0]) * len(img[0][0]), 7)
+"]
+	989 [label="len(img)
 "]
 	990 [label="img
 Read"]
-	990 -> 989
-	991 [label="flat
-Write"]
-	989 -> 991
-	992 [label="np.random.rand(len(img) * len(img[0]) * len(img[0][0]), 7)
+	990 -> 989 [label=""]
+	991 [label="len(img[0])
 "]
-	993 [label="len(img)
-"]
-	994 [label="img
+	992 [label="img
 Read"]
-	994 -> 993
-	995 [label="len(img[0])
+	993 [label="img[0]
+Read"]
+	992 -> 993 [label=""]
+	993 -> 991 [label=""]
+	994 [label="*
+"]
+	989 -> 994 [label=""]
+	991 -> 994 [label=""]
+	995 [label="len(img[0][0])
 "]
 	996 [label="img
 Read"]
 	997 [label="img[0]
 Read"]
-	996 -> 997
-	997 -> 995
-	998 [label="*
-"]
-	993 -> 998
-	995 -> 998
-	999 [label="len(img[0][0])
-"]
-	1000 [label="img
+	996 -> 997 [label=""]
+	998 [label="img[0][0]
 Read"]
-	1001 [label="img[0]
-Read"]
-	1000 -> 1001
-	1002 [label="img[0][0]
-Read"]
-	1001 -> 1002
-	1002 -> 999
-	1003 [label="*
+	997 -> 998 [label=""]
+	998 -> 995 [label=""]
+	999 [label="*
 "]
-	998 -> 1003
-	999 -> 1003
-	1003 -> 992
-	1004 [label=7
+	994 -> 999 [label=""]
+	995 -> 999 [label=""]
+	999 -> 988 [label=""]
+	1000 [label=7
 ]
-	1004 -> 992
-	1005 [label="weights
+	1000 -> 988 [label=""]
+	1001 [label="weights
 Write"]
-	992 -> 1005
-	1006 [label="np.random.rand(7)
+	988 -> 1001 [label=""]
+	1002 [label="np.random.rand(7)
 "]
-	1007 [label=7
+	1003 [label=7
 ]
-	1007 -> 1006
+	1003 -> 1002 [label=""]
+	1004 [label="w_0
+Write"]
+	1002 -> 1004 [label=""]
+	1005 [label="fc_layer(flat, weights, w_0)
+"]
+	1006 [label="flat
+Read"]
+	1006 -> 1005 [label=""]
+	1007 [label="weights
+Read"]
+	1007 -> 1005 [label=""]
 	1008 [label="w_0
+Read"]
+	1008 -> 1005 [label=""]
+	1009 [label="flat
 Write"]
-	1006 -> 1008
-	1009 [label="fc_layer(flat, weights, w_0)
+	1005 -> 1009 [label=""]
+	1010 [label="softmax(flat)
 "]
-	1010 [label="flat
+	1011 [label="flat
 Read"]
-	1010 -> 1009
-	1011 [label="weights
-Read"]
-	1011 -> 1009
-	1012 [label="w_0
-Read"]
-	1012 -> 1009
-	1013 [label="flat
+	1011 -> 1010 [label=""]
+	1012 [label="final
 Write"]
-	1009 -> 1013
-	1014 [label="softmax(flat)
-"]
-	1015 [label="flat
-Read"]
-	1015 -> 1014
-	1016 [label="final
-Write"]
-	1014 -> 1016
+	1010 -> 1012 [label=""]
 }

@@ -7,429 +7,336 @@ import math
 def balance_random_3d(depth, l, wid):
     print('enter scope 1')
     print(1, 4)
-    depth__1 = depth
-    l__1 = l
-    wid__1 = wid
+    depth_1 = depth
+    l_1 = l
+    wid_1 = wid
     print(3, 5)
-    arr__1 = np.random.rand(depth__1, l__1, wid__1)
+    arr_1 = np.random.rand(depth_1, l_1, wid_1)
     print(3, 6)
-    neg__1 = True
-    for i__1 in range(depth__1):
-        print('enter scope 2')
-        for j__2 in range(l__1):
-            print('enter scope 3')
-            for k__3 in range(wid__1):
-                print('enter scope 4')
-                print('enter scope 5')
-                if neg__1:
+    neg_1 = True
+    for i_1 in range(depth_1):
+        for j_1 in range(l_1):
+            for k_1 in range(wid_1):
+                if neg_1:
                     print(11, 11)
-                    arr__1[i__1][j__2][k__3] *= -1
-                print('exit scope 5')
+                    arr_1[i_1][j_1][k_1] *= -1
                 print(12, 12)
-                neg__1 = not neg__1
-                print('exit scope 4')
-            print('exit scope 3')
-        print('exit scope 2')
+                neg_1 = not neg_1
     print('exit scope 1')
-    return arr__1
+    return arr_1
     print('exit scope 1')
 
 
 def balance_random_2d(l, wid):
-    print('enter scope 6')
+    print('enter scope 2')
     print(1, 15)
-    l__6 = l
-    wid__6 = wid
+    l_2 = l
+    wid_2 = wid
     print(16, 16)
-    arr__6 = np.random.rand(l__6, wid__6)
+    arr_2 = np.random.rand(l_2, wid_2)
     print(16, 17)
-    neg__6 = True
-    for i__6 in range(l__6):
-        print('enter scope 7')
-        for j__7 in range(wid__6):
-            print('enter scope 8')
-            print('enter scope 9')
-            if neg__6:
+    neg_2 = True
+    for i_2 in range(l_2):
+        for j_2 in range(wid_2):
+            if neg_2:
                 print(22, 21)
-                arr__6[i__6][j__7] *= -1
-            print('exit scope 9')
+                arr_2[i_2][j_2] *= -1
             print(23, 22)
-            neg__6 = not neg__6
-            print('exit scope 8')
-        print('exit scope 7')
-    print('exit scope 6')
-    return arr__6
-    print('exit scope 6')
+            neg_2 = not neg_2
+    print('exit scope 2')
+    return arr_2
+    print('exit scope 2')
 
 
 def arr_add(dst, src):
-    print('enter scope 10')
+    print('enter scope 3')
     print(1, 25)
-    dst__10 = dst
-    src__10 = src
-    for i__10 in range(len(dst__10)):
-        print('enter scope 11')
-        for j__11 in range(len(dst__10[0])):
-            print('enter scope 12')
+    dst_3 = dst
+    src_3 = src
+    for i_3 in range(len(dst_3)):
+        for j_3 in range(len(dst_3[0])):
             print(30, 28)
-            dst__10[i__10][j__11] += src__10[i__10][j__11]
-            print('exit scope 12')
-        print('exit scope 11')
-    print('exit scope 10')
-    return dst__10
-    print('exit scope 10')
+            dst_3[i_3][j_3] += src_3[i_3][j_3]
+    print('exit scope 3')
+    return dst_3
+    print('exit scope 3')
 
 
 def reLU(img):
-    print('enter scope 13')
+    print('enter scope 4')
     print(1, 31)
-    img__13 = img
-    for i__13 in range(len(img__13)):
-        print('enter scope 14')
-        for j__14 in range(len(img__13[0])):
-            print('enter scope 15')
+    img_4 = img
+    for i_4 in range(len(img_4)):
+        for j_4 in range(len(img_4[0])):
             print(38, 34)
-            img__13[i__13][j__14] = max(img__13[i__13][j__14], 0)
-            print('exit scope 15')
-        print('exit scope 14')
-    print('exit scope 13')
-    return img__13
-    print('exit scope 13')
+            img_4[i_4][j_4] = max(img_4[i_4][j_4], 0)
+    print('exit scope 4')
+    return img_4
+    print('exit scope 4')
 
 
 def get_mean(row):
-    print('enter scope 16')
+    print('enter scope 5')
     print(1, 37)
-    row__16 = row
+    row_5 = row
     print(43, 38)
-    sum_val__16 = 0
-    for i__16 in range(len(row__16)):
-        print('enter scope 17')
+    sum_val_5 = 0
+    for i_5 in range(len(row_5)):
         print(45, 40)
-        sum_val__16 += row__16[i__16]
-        print('exit scope 17')
-    print('exit scope 16')
-    return sum_val__16 / len(row__16)
-    print('exit scope 16')
+        sum_val_5 += row_5[i_5]
+    print('exit scope 5')
+    return sum_val_5 / len(row_5)
+    print('exit scope 5')
 
 
 def std_dev(row):
-    print('enter scope 18')
+    print('enter scope 6')
     print(1, 43)
-    row__18 = row
+    row_6 = row
     print(50, 44)
-    result__18 = 0
-    for i__18 in range(len(row__18)):
-        print('enter scope 19')
+    result_6 = 0
+    for i_6 in range(len(row_6)):
         print(52, 46)
-        diff__19 = row__18[i__18] - get_mean(row__18)
+        diff_6 = row_6[i_6] - get_mean(row_6)
         print(52, 47)
-        result__18 += diff__19 * diff__19
-        print('exit scope 19')
-    print('exit scope 18')
-    return math.sqrt(result__18 / len(row__18))
-    print('exit scope 18')
+        result_6 += diff_6 * diff_6
+    print('exit scope 6')
+    return math.sqrt(result_6 / len(row_6))
+    print('exit scope 6')
 
 
 def BN_layer(arr, weights, biases):
-    print('enter scope 20')
+    print('enter scope 7')
     print(1, 50)
-    arr__20 = arr
-    weights__20 = weights
-    biases__20 = biases
-    for i__20 in range(len(arr__20)):
-        print('enter scope 21')
+    arr_7 = arr
+    weights_7 = weights
+    biases_7 = biases
+    for i_7 in range(len(arr_7)):
         print(58, 52)
-        dev__21 = std_dev(arr__20[i__20])
+        dev_7 = std_dev(arr_7[i_7])
         print(58, 53)
-        mean__21 = get_mean(arr__20[i__20])
-        print('enter scope 22')
-        if dev__21 == 0:
+        mean_7 = get_mean(arr_7[i_7])
+        if dev_7 == 0:
             print(60, 54)
-            dev__21 = 1
-        print('exit scope 22')
-        for j__21 in range(len(arr__20[0])):
-            print('enter scope 23')
+            dev_7 = 1
+        for j_7 in range(len(arr_7[0])):
             print(62, 56)
-            arr__20[i__20][j__21] = weights__20[i__20] * ((arr__20[i__20][
-                j__21] - mean__21) / dev__21) + biases__20[i__20]
-            print('exit scope 23')
-        print('exit scope 21')
-    print('exit scope 20')
-    return arr__20
-    print('exit scope 20')
+            arr_7[i_7][j_7] = weights_7[i_7] * ((arr_7[i_7][j_7] - mean_7) /
+                dev_7) + biases_7[i_7]
+    print('exit scope 7')
+    return arr_7
+    print('exit scope 7')
 
 
 def fc_layer(arr, W, W_0):
-    print('enter scope 24')
+    print('enter scope 8')
     print(1, 59)
-    arr__24 = arr
-    W__24 = W
-    W_0__24 = W_0
+    arr_8 = arr
+    W_8 = W
+    W_0_8 = W_0
     print(67, 60)
-    result__24 = np.zeros(len(W__24[0]))
-    for i__24 in range(len(W__24[0])):
-        print('enter scope 25')
+    result_8 = np.zeros(len(W_8[0]))
+    for i_8 in range(len(W_8[0])):
         print(69, 62)
-        sum_val__25 = W_0__24[i__24]
-        for j__25 in range(len(arr__24)):
-            print('enter scope 26')
+        sum_val_8 = W_0_8[i_8]
+        for j_8 in range(len(arr_8)):
             print(72, 64)
-            sum_val__25 += arr__24[j__25] * W__24[j__25][i__24]
-            print('exit scope 26')
+            sum_val_8 += arr_8[j_8] * W_8[j_8][i_8]
         print(73, 65)
-        result__24[i__24] = sum_val__25
-        print('exit scope 25')
-    print('exit scope 24')
-    return result__24
-    print('exit scope 24')
+        result_8[i_8] = sum_val_8
+    print('exit scope 8')
+    return result_8
+    print('exit scope 8')
 
 
 def softmax(arr):
-    print('enter scope 27')
+    print('enter scope 9')
     print(1, 68)
-    arr__27 = arr
+    arr_9 = arr
     print(77, 69)
-    sum_val__27 = 0
-    for i__27 in range(len(arr__27)):
-        print('enter scope 28')
+    sum_val_9 = 0
+    for i_9 in range(len(arr_9)):
         print(79, 70)
-        sum_val__27 += math.exp(arr__27[i__27])
-        print('exit scope 28')
+        sum_val_9 += math.exp(arr_9[i_9])
     print(80, 71)
-    result__27 = np.zeros(len(arr__27))
-    for i__27 in range(len(arr__27)):
-        print('enter scope 29')
+    result_9 = np.zeros(len(arr_9))
+    for i_9 in range(len(arr_9)):
         print(82, 72)
-        result__27[i__27] = math.exp(arr__27[i__27]) / sum_val__27
-        print('exit scope 29')
-    print('exit scope 27')
-    return result__27
-    print('exit scope 27')
+        result_9[i_9] = math.exp(arr_9[i_9]) / sum_val_9
+    print('exit scope 9')
+    return result_9
+    print('exit scope 9')
 
 
 def concat(emb, head, tokens, d_k, cur):
-    print('enter scope 30')
+    print('enter scope 10')
     print(1, 75)
-    emb__30 = emb
-    head__30 = head
-    tokens__30 = tokens
-    d_k__30 = d_k
-    cur__30 = cur
-    for i__30 in range(tokens__30):
-        print('enter scope 31')
-        for j__31 in range(d_k__30):
-            print('enter scope 32')
+    emb_10 = emb
+    head_10 = head
+    tokens_10 = tokens
+    d_k_10 = d_k
+    cur_10 = cur
+    for i_10 in range(tokens_10):
+        for j_10 in range(d_k_10):
             print(90, 78)
-            emb__30[i__30][j__31 + head__30 * d_k__30] = cur__30[i__30][j__31]
-            print('exit scope 32')
-        print('exit scope 31')
-    print('exit scope 30')
-    return emb__30
-    print('exit scope 30')
+            emb_10[i_10][j_10 + head_10 * d_k_10] = cur_10[i_10][j_10]
+    print('exit scope 10')
+    return emb_10
+    print('exit scope 10')
 
 
 def self_attn(head, tokens, d_k, Q, K, V):
-    print('enter scope 33')
+    print('enter scope 11')
     print(1, 81)
-    head__33 = head
-    tokens__33 = tokens
-    d_k__33 = d_k
-    Q__33 = Q
-    K__33 = K
-    V__33 = V
+    head_11 = head
+    tokens_11 = tokens
+    d_k_11 = d_k
+    Q_11 = Q
+    K_11 = K
+    V_11 = V
     print(95, 82)
-    scores__33 = np.zeros((tokens__33, tokens__33))
-    for i__33 in range(tokens__33):
-        print('enter scope 34')
-        for j__34 in range(tokens__33):
-            print('enter scope 35')
-            for k__35 in range(d_k__33):
-                print('enter scope 36')
+    scores_11 = np.zeros((tokens_11, tokens_11))
+    for i_11 in range(tokens_11):
+        for j_11 in range(tokens_11):
+            for k_11 in range(d_k_11):
                 print(101, 86)
-                scores__33[i__33][j__34] += Q__33[head__33][i__33][k__35
-                    ] * K__33[head__33][j__34][k__35]
-                print('exit scope 36')
-            print('exit scope 35')
-        print('exit scope 34')
-    for i__33 in range(tokens__33):
-        print('enter scope 37')
-        for j__37 in range(tokens__33):
-            print('enter scope 38')
+                scores_11[i_11][j_11] += Q_11[head_11][i_11][k_11] * K_11[
+                    head_11][j_11][k_11]
+    for i_11 in range(tokens_11):
+        for j_11 in range(tokens_11):
             print(105, 89)
-            scores__33[i__33][j__37] /= math.sqrt(d_k__33)
-            print('exit scope 38')
+            scores_11[i_11][j_11] /= math.sqrt(d_k_11)
         print(106, 91)
-        scores__33 = np.random.rand(tokens__33, tokens__33)
+        scores_11 = np.random.rand(tokens_11, tokens_11)
         print(106, 92)
-        scores__33[i__33] = softmax(scores__33[i__33])
-        print('exit scope 37')
+        scores_11[i_11] = softmax(scores_11[i_11])
     print(104, 93)
-    out__33 = np.zeros((tokens__33, d_k__33))
-    for i__33 in range(tokens__33):
-        print('enter scope 39')
-        for j__39 in range(d_k__33):
-            print('enter scope 40')
-            for k__40 in range(tokens__33):
-                print('enter scope 41')
+    out_11 = np.zeros((tokens_11, d_k_11))
+    for i_11 in range(tokens_11):
+        for j_11 in range(d_k_11):
+            for k_11 in range(tokens_11):
                 print(112, 97)
-                out__33[i__33][j__39] += scores__33[i__33][k__40] * V__33[
-                    head__33][k__40][j__39]
-                print('exit scope 41')
-            print('exit scope 40')
-        print('exit scope 39')
-    print('exit scope 33')
-    return out__33
-    print('exit scope 33')
+                out_11[i_11][j_11] += scores_11[i_11][k_11] * V_11[head_11][
+                    k_11][j_11]
+    print('exit scope 11')
+    return out_11
+    print('exit scope 11')
 
 
 def main():
-    print('enter scope 42')
+    print('enter scope 12')
     print(1, 101)
     print(117, 102)
-    d_model__42, heads__42, tokens__42, layers__42 = 12, 12, 8, 12
+    d_model_12, heads_12, tokens_12, layers_12 = 12, 12, 8, 12
     print(117, 103)
-    d_k__42 = d_model__42 // heads__42
+    d_k_12 = d_model_12 // heads_12
     print(117, 104)
-    embeddings__42 = np.random.rand(tokens__42, d_model__42)
-    for i__42 in range(tokens__42):
-        print('enter scope 43')
-        for j__43 in range(d_model__42):
-            print('enter scope 44')
-            print('enter scope 45')
-            if j__43 % 2 == 0:
+    embeddings_12 = np.random.rand(tokens_12, d_model_12)
+    for i_12 in range(tokens_12):
+        for j_12 in range(d_model_12):
+            if j_12 % 2 == 0:
                 print(123, 108)
-                embeddings__42[i__42][j__43] += math.sin(i__42 / math.pow(
-                    10000, 2 * j__43 / d_model__42))
+                embeddings_12[i_12][j_12] += math.sin(i_12 / math.pow(10000,
+                    2 * j_12 / d_model_12))
             else:
                 print(125, 110)
-                embeddings__42[i__42][j__43] += math.cos(i__42 / math.pow(
-                    10000, 2 * j__43 / d_model__42))
-            print('exit scope 45')
-            print('exit scope 44')
-        print('exit scope 43')
+                embeddings_12[i_12][j_12] += math.cos(i_12 / math.pow(10000,
+                    2 * j_12 / d_model_12))
     print(120, 111)
-    W_Q__42 = balance_random_3d(heads__42, d_model__42, d_k__42)
+    W_Q_12 = balance_random_3d(heads_12, d_model_12, d_k_12)
     print(120, 112)
-    W_K__42 = balance_random_3d(heads__42, d_model__42, d_k__42)
+    W_K_12 = balance_random_3d(heads_12, d_model_12, d_k_12)
     print(120, 113)
-    W_V__42 = balance_random_3d(heads__42, d_model__42, d_k__42)
+    W_V_12 = balance_random_3d(heads_12, d_model_12, d_k_12)
     print(120, 114)
-    Q__42 = np.zeros((heads__42, tokens__42, d_k__42))
+    Q_12 = np.zeros((heads_12, tokens_12, d_k_12))
     print(120, 115)
-    K__42 = np.zeros((heads__42, tokens__42, d_k__42))
+    K_12 = np.zeros((heads_12, tokens_12, d_k_12))
     print(120, 116)
-    V__42 = np.zeros((heads__42, tokens__42, d_k__42))
-    for i__42 in range(heads__42):
-        print('enter scope 46')
-        for j__46 in range(tokens__42):
-            print('enter scope 47')
-            for k__47 in range(d_k__42):
-                print('enter scope 48')
+    V_12 = np.zeros((heads_12, tokens_12, d_k_12))
+    for i_12 in range(heads_12):
+        for j_12 in range(tokens_12):
+            for k_12 in range(d_k_12):
                 print(131, 120)
-                sumQ__48, sumK__48, sumV__48 = 0, 0, 0
-                for a__48 in range(d_model__42):
-                    print('enter scope 49')
+                sumQ_12, sumK_12, sumV_12 = 0, 0, 0
+                for a_12 in range(d_model_12):
                     print(134, 122)
-                    sumQ__48 += embeddings__42[j__46][a__48] * W_Q__42[i__42][
-                        a__48][k__47]
+                    sumQ_12 += embeddings_12[j_12][a_12] * W_Q_12[i_12][a_12][
+                        k_12]
                     print(134, 123)
-                    sumK__48 += embeddings__42[j__46][a__48] * W_K__42[i__42][
-                        a__48][k__47]
+                    sumK_12 += embeddings_12[j_12][a_12] * W_K_12[i_12][a_12][
+                        k_12]
                     print(134, 124)
-                    sumV__48 += embeddings__42[j__46][a__48] * W_V__42[i__42][
-                        a__48][k__47]
-                    print('exit scope 49')
+                    sumV_12 += embeddings_12[j_12][a_12] * W_V_12[i_12][a_12][
+                        k_12]
                 print(135, 125)
-                Q__42[i__42][j__46][k__47] = sumQ__48
+                Q_12[i_12][j_12][k_12] = sumQ_12
                 print(135, 126)
-                K__42[i__42][j__46][k__47] = sumK__48
+                K_12[i_12][j_12][k_12] = sumK_12
                 print(135, 127)
-                V__42[i__42][j__46][k__47] = sumV__48
-                print('exit scope 48')
-            print('exit scope 47')
-        print('exit scope 46')
-    for i__42 in range(layers__42):
-        print('enter scope 50')
+                V_12[i_12][j_12][k_12] = sumV_12
+    for i_12 in range(layers_12):
         print(136, 129)
-        emb_cpy__50 = np.copy(embeddings__42)
+        emb_cpy_12 = np.copy(embeddings_12)
         print(136, 130)
-        multi_head_out__50 = np.zeros((tokens__42, d_model__42))
-        for j__50 in range(heads__42):
-            print('enter scope 51')
+        multi_head_out_12 = np.zeros((tokens_12, d_model_12))
+        for j_12 in range(heads_12):
             print(139, 132)
-            cur__51 = self_attn(j__50, tokens__42, d_k__42, Q__42, K__42, V__42
-                )
+            cur_12 = self_attn(j_12, tokens_12, d_k_12, Q_12, K_12, V_12)
             print(139, 133)
-            multi_head_out__50 = concat(multi_head_out__50, j__50,
-                tokens__42, d_k__42, cur__51)
-            print('exit scope 51')
+            multi_head_out_12 = concat(multi_head_out_12, j_12, tokens_12,
+                d_k_12, cur_12)
         print(140, 134)
-        W_attn__50 = np.random.rand(d_model__42, d_model__42)
-        for i__42 in range(tokens__42):
-            print('enter scope 52')
-            for j__50 in range(d_model__42):
-                print('enter scope 53')
+        W_attn_12 = np.random.rand(d_model_12, d_model_12)
+        for i_12 in range(tokens_12):
+            for j_12 in range(d_model_12):
                 print(144, 137)
-                sum_val__53 = 0
-                for k__53 in range(d_model__42):
-                    print('enter scope 54')
+                sum_val_12 = 0
+                for k_12 in range(d_model_12):
                     print(147, 139)
-                    sum_val__53 += multi_head_out__50[i__42][k__53
-                        ] * W_attn__50[k__53][j__50]
-                    print('exit scope 54')
+                    sum_val_12 += multi_head_out_12[i_12][k_12] * W_attn_12[
+                        k_12][j_12]
                 print(148, 140)
-                embeddings__42[i__42][j__50] = sum_val__53
-                print('exit scope 53')
-            print('exit scope 52')
+                embeddings_12[i_12][j_12] = sum_val_12
         print(143, 141)
-        embeddings__42 = arr_add(embeddings__42, emb_cpy__50)
+        embeddings_12 = arr_add(embeddings_12, emb_cpy_12)
         print(143, 142)
-        weights__50, biases__50 = np.random.rand(d_model__42), np.random.rand(
-            d_model__42)
+        weights_12, biases_12 = np.random.rand(d_model_12), np.random.rand(
+            d_model_12)
         print(143, 143)
-        embeddings__42 = BN_layer(embeddings__42, weights__50, biases__50)
+        embeddings_12 = BN_layer(embeddings_12, weights_12, biases_12)
         print(143, 144)
-        emb_cpy__50 = np.copy(embeddings__42)
+        emb_cpy_12 = np.copy(embeddings_12)
         print(143, 145)
-        W__50 = np.random.rand(d_model__42, d_model__42 * 4)
+        W_12 = np.random.rand(d_model_12, d_model_12 * 4)
         print(143, 146)
-        W_0__50 = np.random.rand(d_model__42 * 4)
+        W_0_12 = np.random.rand(d_model_12 * 4)
         print(143, 147)
-        emb_new__50 = np.zeros((tokens__42, d_model__42 * 4))
-        for i__42 in range(tokens__42):
-            print('enter scope 55')
+        emb_new_12 = np.zeros((tokens_12, d_model_12 * 4))
+        for i_12 in range(tokens_12):
             print(150, 149)
-            emb_new__50[i__42] = fc_layer(embeddings__42[i__42], W__50, W_0__50
-                )
-            print('exit scope 55')
+            emb_new_12[i_12] = fc_layer(embeddings_12[i_12], W_12, W_0_12)
         print(151, 150)
-        embeddings__42 = emb_new__50
+        embeddings_12 = emb_new_12
         print(151, 151)
-        embeddings__42 = reLU(embeddings__42)
+        embeddings_12 = reLU(embeddings_12)
         print(151, 152)
-        W__50 = np.random.rand(d_model__42 * 4, d_model__42)
+        W_12 = np.random.rand(d_model_12 * 4, d_model_12)
         print(151, 153)
-        W_0__50 = np.random.rand(d_model__42)
+        W_0_12 = np.random.rand(d_model_12)
         print(151, 154)
-        emb_new__50 = np.zeros((tokens__42, d_model__42))
-        for i__42 in range(tokens__42):
-            print('enter scope 56')
+        emb_new_12 = np.zeros((tokens_12, d_model_12))
+        for i_12 in range(tokens_12):
             print(153, 156)
-            emb_new__50[i__42] = fc_layer(embeddings__42[i__42], W__50, W_0__50
-                )
-            print('exit scope 56')
+            emb_new_12[i_12] = fc_layer(embeddings_12[i_12], W_12, W_0_12)
         print(154, 157)
-        embeddings__42 = emb_new__50
+        embeddings_12 = emb_new_12
         print(154, 158)
-        embeddings__42 = arr_add(embeddings__42, emb_cpy__50)
+        embeddings_12 = arr_add(embeddings_12, emb_cpy_12)
         print(154, 159)
-        embeddings__42 = BN_layer(embeddings__42, weights__50, biases__50)
-        print('exit scope 50')
-    print('exit scope 42')
+        embeddings_12 = BN_layer(embeddings_12, weights_12, biases_12)
+    print('exit scope 12')
 
 
-print('enter scope 57')
 if __name__ == '__main__':
     main()
-print('exit scope 57')

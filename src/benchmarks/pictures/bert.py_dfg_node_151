@@ -10,15 +10,15 @@ emb_new = np.zeros((tokens, d_model))
 Read"]
 	601 [label="embeddings
 Write"]
-	600 -> 601
+	600 -> 601 [label=""]
 	602 [label="reLU(embeddings)
 "]
 	603 [label="embeddings
 Read"]
-	603 -> 602
+	603 -> 602 [label=""]
 	604 [label="embeddings
 Write"]
-	602 -> 604
+	602 -> 604 [label=""]
 	605 [label="np.random.rand(d_model * 4, d_model)
 "]
 	606 [label="d_model
@@ -27,31 +27,31 @@ Read"]
 ]
 	608 [label="*
 "]
-	606 -> 608
-	607 -> 608
-	608 -> 605
+	606 -> 608 [label=""]
+	607 -> 608 [label=""]
+	608 -> 605 [label=""]
 	609 [label="d_model
 Read"]
-	609 -> 605
+	609 -> 605 [label=""]
 	610 [label="W
 Write"]
-	605 -> 610
+	605 -> 610 [label=""]
 	611 [label="np.random.rand(d_model)
 "]
 	612 [label="d_model
 Read"]
-	612 -> 611
+	612 -> 611 [label=""]
 	613 [label="W_0
 Write"]
-	611 -> 613
+	611 -> 613 [label=""]
 	614 [label="np.zeros((tokens, d_model))
 "]
 	615 [label="tokens
 Read"]
 	616 [label="d_model
 Read"]
-	615 -> 614
+	615 -> 614 [label=""]
 	617 [label="emb_new
 Write"]
-	614 -> 617
+	614 -> 617 [label=""]
 }

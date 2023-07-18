@@ -6,47 +6,47 @@ arr[i][j] = weights[i] * ((arr[i][j] - mean) / dev) + biases[i]
 Read"]
 	167 [label="weights[i]
 Read"]
-	166 -> 167
+	166 -> 167 [label=""]
 	168 [label="arr
 Read"]
 	169 [label="arr[i]
 Read"]
-	168 -> 169
+	168 -> 169 [label=""]
 	170 [label="arr[i][j]
 Read"]
-	169 -> 170
+	169 -> 170 [label=""]
 	171 [label="mean
 Read"]
 	172 [label="-
 "]
-	170 -> 172
-	171 -> 172
+	170 -> 172 [label=""]
+	171 -> 172 [label=""]
 	173 [label="dev
 Read"]
 	174 [label="//
 "]
-	172 -> 174
-	173 -> 174
+	172 -> 174 [label=""]
+	173 -> 174 [label=""]
 	175 [label="*
 "]
-	167 -> 175
-	174 -> 175
+	167 -> 175 [label=""]
+	174 -> 175 [label=""]
 	176 [label="biases
 Read"]
 	177 [label="biases[i]
 Read"]
-	176 -> 177
+	176 -> 177 [label=""]
 	178 [label="+
 "]
-	175 -> 178
-	177 -> 178
+	175 -> 178 [label=""]
+	177 -> 178 [label=""]
 	179 [label="arr
 Read"]
 	180 [label="arr[i]
 Read"]
-	179 -> 180
+	179 -> 180 [label=""]
 	181 [label="arr[i][j]
 Write"]
-	180 -> 181
-	178 -> 181
+	180 -> 181 [label=""]
+	178 -> 181 [label=""]
 }

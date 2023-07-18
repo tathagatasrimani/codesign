@@ -7,43 +7,43 @@ multi_head_out = concat(multi_head_out, j, tokens, d_k, cur)
 "]
 	471 [label="j
 Read"]
-	471 -> 470
+	471 -> 470 [label=""]
 	472 [label="tokens
 Read"]
-	472 -> 470
+	472 -> 470 [label=""]
 	473 [label="d_k
 Read"]
-	473 -> 470
+	473 -> 470 [label=""]
 	474 [label="Q
 Read"]
-	474 -> 470
+	474 -> 470 [label=""]
 	475 [label="K
 Read"]
-	475 -> 470
+	475 -> 470 [label=""]
 	476 [label="V
 Read"]
-	476 -> 470
+	476 -> 470 [label=""]
 	477 [label="cur
 Write"]
-	470 -> 477
+	470 -> 477 [label=""]
 	478 [label="concat(multi_head_out, j, tokens, d_k, cur)
 "]
 	479 [label="multi_head_out
 Read"]
-	479 -> 478
+	479 -> 478 [label=""]
 	480 [label="j
 Read"]
-	480 -> 478
+	480 -> 478 [label=""]
 	481 [label="tokens
 Read"]
-	481 -> 478
+	481 -> 478 [label=""]
 	482 [label="d_k
 Read"]
-	482 -> 478
+	482 -> 478 [label=""]
 	483 [label="cur
 Read"]
-	483 -> 478
+	483 -> 478 [label=""]
 	484 [label="multi_head_out
 Write"]
-	478 -> 484
+	478 -> 484 [label=""]
 }

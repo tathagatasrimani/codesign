@@ -7,16 +7,16 @@ neg = True
 "]
 	41 [label="l
 Read"]
-	41 -> 40
+	41 -> 40 [label=""]
 	42 [label="wid
 Read"]
-	42 -> 40
+	42 -> 40 [label=""]
 	43 [label="arr
 Write"]
-	40 -> 43
+	40 -> 43 [label=""]
 	44 [label=True
 ]
 	45 [label="neg
 Write"]
-	44 -> 45
+	44 -> 45 [label=""]
 }

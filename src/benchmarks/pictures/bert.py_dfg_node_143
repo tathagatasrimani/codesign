@@ -12,68 +12,68 @@ emb_new = np.zeros((tokens, d_model * 4))
 "]
 	548 [label="embeddings
 Read"]
-	548 -> 547
+	548 -> 547 [label=""]
 	549 [label="emb_cpy
 Read"]
-	549 -> 547
+	549 -> 547 [label=""]
 	550 [label="embeddings
 Write"]
-	547 -> 550
+	547 -> 550 [label=""]
 	551 [label="np.random.rand(d_model)
 "]
 	552 [label="d_model
 Read"]
-	552 -> 551
+	552 -> 551 [label=""]
 	553 [label="np.random.rand(d_model)
 "]
 	554 [label="d_model
 Read"]
-	554 -> 553
+	554 -> 553 [label=""]
 	555 [label="weights
 Write"]
 	556 [label="biases
 Write"]
-	551 -> 555
-	553 -> 556
+	551 -> 555 [label=""]
+	553 -> 556 [label=""]
 	557 [label="BN_layer(embeddings, weights, biases)
 "]
 	558 [label="embeddings
 Read"]
-	558 -> 557
+	558 -> 557 [label=""]
 	559 [label="weights
 Read"]
-	559 -> 557
+	559 -> 557 [label=""]
 	560 [label="biases
 Read"]
-	560 -> 557
+	560 -> 557 [label=""]
 	561 [label="embeddings
 Write"]
-	557 -> 561
+	557 -> 561 [label=""]
 	562 [label="np.copy(embeddings)
 "]
 	563 [label="embeddings
 Read"]
-	563 -> 562
+	563 -> 562 [label=""]
 	564 [label="emb_cpy
 Write"]
-	562 -> 564
+	562 -> 564 [label=""]
 	565 [label="np.random.rand(d_model, d_model * 4)
 "]
 	566 [label="d_model
 Read"]
-	566 -> 565
+	566 -> 565 [label=""]
 	567 [label="d_model
 Read"]
 	568 [label=4
 ]
 	569 [label="*
 "]
-	567 -> 569
-	568 -> 569
-	569 -> 565
+	567 -> 569 [label=""]
+	568 -> 569 [label=""]
+	569 -> 565 [label=""]
 	570 [label="W
 Write"]
-	565 -> 570
+	565 -> 570 [label=""]
 	571 [label="np.random.rand(d_model * 4)
 "]
 	572 [label="d_model
@@ -82,12 +82,12 @@ Read"]
 ]
 	574 [label="*
 "]
-	572 -> 574
-	573 -> 574
-	574 -> 571
+	572 -> 574 [label=""]
+	573 -> 574 [label=""]
+	574 -> 571 [label=""]
 	575 [label="W_0
 Write"]
-	571 -> 575
+	571 -> 575 [label=""]
 	576 [label="np.zeros((tokens, d_model * 4))
 "]
 	577 [label="tokens
@@ -98,10 +98,10 @@ Read"]
 ]
 	580 [label="*
 "]
-	578 -> 580
-	579 -> 580
-	577 -> 576
+	578 -> 580 [label=""]
+	579 -> 580 [label=""]
+	577 -> 576 [label=""]
 	581 [label="emb_new
 Write"]
-	576 -> 581
+	576 -> 581 [label=""]
 }

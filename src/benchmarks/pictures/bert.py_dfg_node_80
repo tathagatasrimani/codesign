@@ -8,9 +8,9 @@ result = np.zeros(len(arr))
 "]
 	233 [label="arr
 Read"]
-	233 -> 232
-	232 -> 231
+	233 -> 232 [label=""]
+	232 -> 231 [label=""]
 	234 [label="result
 Write"]
-	231 -> 234
+	231 -> 234 [label=""]
 }

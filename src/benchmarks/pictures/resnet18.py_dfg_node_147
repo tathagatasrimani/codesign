@@ -1,16 +1,16 @@
 digraph {
-	578 [label="source code:
+	574 [label="source code:
 result = np.zeros(len(img))
 "]
-	579 [label="np.zeros(len(img))
+	575 [label="np.zeros(len(img))
 "]
-	580 [label="len(img)
+	576 [label="len(img)
 "]
-	581 [label="img
+	577 [label="img
 Read"]
-	581 -> 580
-	580 -> 579
-	582 [label="result
+	577 -> 576 [label=""]
+	576 -> 575 [label=""]
+	578 [label="result
 Write"]
-	579 -> 582
+	575 -> 578 [label=""]
 }

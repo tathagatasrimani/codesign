@@ -6,5 +6,5 @@ for i in range(layers):
 "]
 	444 [label="layers
 Read"]
-	444 -> 443
+	444 -> 443 [label=""]
 }

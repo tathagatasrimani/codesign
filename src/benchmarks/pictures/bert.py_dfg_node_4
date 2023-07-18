@@ -6,5 +6,5 @@ for i in range(depth):
 "]
 	16 [label="depth
 Read"]
-	16 -> 15
+	16 -> 15 [label=""]
 }

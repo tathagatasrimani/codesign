@@ -1,40 +1,40 @@
 digraph {
-	420 [label="source code:
+	416 [label="source code:
 diff = row[i] - get_mean(row)
 result += diff * diff
 "]
-	421 [label="row
+	417 [label="row
 Read"]
-	422 [label="row[i]
+	418 [label="row[i]
 Read"]
-	421 -> 422
-	423 [label="get_mean(row)
+	417 -> 418 [label=""]
+	419 [label="get_mean(row)
 "]
-	424 [label="row
+	420 [label="row
 Read"]
-	424 -> 423
-	425 [label="-
+	420 -> 419 [label=""]
+	421 [label="-
 "]
-	422 -> 425
-	423 -> 425
-	426 [label="diff
+	418 -> 421 [label=""]
+	419 -> 421 [label=""]
+	422 [label="diff
 Write"]
-	425 -> 426
-	427 [label="diff
+	421 -> 422 [label=""]
+	423 [label="diff
 Read"]
-	428 [label="diff
+	424 [label="diff
 Read"]
-	429 [label="*
+	425 [label="*
 "]
-	427 -> 429
-	428 -> 429
-	430 [label="result
+	423 -> 425 [label=""]
+	424 -> 425 [label=""]
+	426 [label="result
 Read"]
-	431 [label="+
+	427 [label="+
 "]
-	429 -> 431
-	430 -> 431
-	432 [label="result
+	425 -> 427 [label=""]
+	426 -> 427 [label=""]
+	428 [label="result
 Write"]
-	431 -> 432
+	427 -> 428 [label=""]
 }

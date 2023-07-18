@@ -6,38 +6,38 @@ out[i][j] += scores[i][k] * V[head][k][j]
 Read"]
 	332 [label="scores[i]
 Read"]
-	331 -> 332
+	331 -> 332 [label=""]
 	333 [label="scores[i][k]
 Read"]
-	332 -> 333
+	332 -> 333 [label=""]
 	334 [label="V
 Read"]
 	335 [label="V[head]
 Read"]
-	334 -> 335
+	334 -> 335 [label=""]
 	336 [label="V[head][k]
 Read"]
-	335 -> 336
+	335 -> 336 [label=""]
 	337 [label="V[head][k][j]
 Read"]
-	336 -> 337
+	336 -> 337 [label=""]
 	338 [label="*
 "]
-	333 -> 338
-	337 -> 338
+	333 -> 338 [label=""]
+	337 -> 338 [label=""]
 	339 [label="out
 Read"]
 	340 [label="+
 "]
-	338 -> 340
-	339 -> 340
+	338 -> 340 [label=""]
+	339 -> 340 [label=""]
 	341 [label="out
 Read"]
 	342 [label="out[i]
 Read"]
-	341 -> 342
+	341 -> 342 [label=""]
 	343 [label="out[i][j]
 Write"]
-	342 -> 343
-	340 -> 343
+	342 -> 343 [label=""]
+	340 -> 343 [label=""]
 }

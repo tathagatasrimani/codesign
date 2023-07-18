@@ -10,10 +10,10 @@ result = np.zeros(len(W[0]))
 Read"]
 	186 [label="W[0]
 Read"]
-	185 -> 186
-	186 -> 184
-	184 -> 183
+	185 -> 186 [label=""]
+	186 -> 184 [label=""]
+	184 -> 183 [label=""]
 	187 [label="result
 Write"]
-	183 -> 187
+	183 -> 187 [label=""]
 }

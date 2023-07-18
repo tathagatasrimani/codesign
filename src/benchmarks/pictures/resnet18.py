@@ -2,8 +2,7 @@ digraph "clustermain.c" {
 	graph [label="main.c"]
 	1 [label="import math
 import numpy as np
-start_unroll = None
-stop_unroll = None
+from loop import loop
 def zero_pad_arr(img, zero_pad):...
 def conv_layer(img, filt, numFilt, zero_pad, stride):...
 def max_pool(input, l, w, zero_pad, stride):...

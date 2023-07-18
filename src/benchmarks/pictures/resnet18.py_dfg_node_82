@@ -1,31 +1,31 @@
 digraph {
-	351 [label="source code:
+	347 [label="source code:
 result[i][j][k] /= l * w
 "]
-	352 [label="l
+	348 [label="l
 Read"]
-	353 [label="w
+	349 [label="w
 Read"]
-	354 [label="*
+	350 [label="*
 "]
-	352 -> 354
-	353 -> 354
-	355 [label="result
+	348 -> 350 [label=""]
+	349 -> 350 [label=""]
+	351 [label="result
 Read"]
-	356 [label="//
+	352 [label="//
 "]
-	354 -> 356
-	355 -> 356
-	357 [label="result
+	350 -> 352 [label=""]
+	351 -> 352 [label=""]
+	353 [label="result
 Read"]
-	358 [label="result[i]
+	354 [label="result[i]
 Read"]
-	357 -> 358
-	359 [label="result[i][j]
+	353 -> 354 [label=""]
+	355 [label="result[i][j]
 Read"]
-	358 -> 359
-	360 [label="result[i][j][k]
+	354 -> 355 [label=""]
+	356 [label="result[i][j][k]
 Write"]
-	359 -> 360
-	356 -> 360
+	355 -> 356 [label=""]
+	352 -> 356 [label=""]
 }

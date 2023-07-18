@@ -2,8 +2,7 @@ digraph {
 	0 [label="source code:
 import math
 import numpy as np
-start_unroll = None
-stop_unroll = None
+from loop import loop
 def zero_pad_arr(img, zero_pad):...
 def conv_layer(img, filt, numFilt, zero_pad, stride):...
 def max_pool(input, l, w, zero_pad, stride):...
@@ -18,22 +17,12 @@ def softmax(img):...
 def main():...
 if __name__ == '__main__':
 "]
-	1 [label=None
-]
-	2 [label="start_unroll
-Write"]
-	1 -> 2
-	3 [label=None
-]
-	4 [label="stop_unroll
-Write"]
-	3 -> 4
-	5 [label="__name__
+	1 [label="__name__
 Read"]
-	6 [label=__main__
+	2 [label=__main__
 ]
-	7 [label="==
+	3 [label="==
 "]
-	5 -> 7
-	6 -> 7
+	1 -> 3 [label=""]
+	2 -> 3 [label=""]
 }

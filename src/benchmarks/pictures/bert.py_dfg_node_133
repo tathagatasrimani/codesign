@@ -6,5 +6,5 @@ for a in range(d_model):
 "]
 	468 [label="d_model
 Read"]
-	468 -> 467
+	468 -> 467 [label=""]
 }

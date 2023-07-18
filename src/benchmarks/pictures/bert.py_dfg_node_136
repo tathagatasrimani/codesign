@@ -7,18 +7,18 @@ multi_head_out = np.zeros((tokens, d_model))
 "]
 	450 [label="embeddings
 Read"]
-	450 -> 449
+	450 -> 449 [label=""]
 	451 [label="emb_cpy
 Write"]
-	449 -> 451
+	449 -> 451 [label=""]
 	452 [label="np.zeros((tokens, d_model))
 "]
 	453 [label="tokens
 Read"]
 	454 [label="d_model
 Read"]
-	453 -> 452
+	453 -> 452 [label=""]
 	455 [label="multi_head_out
 Write"]
-	452 -> 455
+	452 -> 455 [label=""]
 }

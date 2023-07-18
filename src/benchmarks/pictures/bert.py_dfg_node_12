@@ -6,8 +6,8 @@ neg = not neg
 Read"]
 	37 [label="!
 "]
-	36 -> 37
+	36 -> 37 [label=""]
 	38 [label="neg
 Write"]
-	37 -> 38
+	37 -> 38 [label=""]
 }

@@ -7,34 +7,34 @@ result += diff * diff
 Read"]
 	128 [label="row[i]
 Read"]
-	127 -> 128
+	127 -> 128 [label=""]
 	129 [label="get_mean(row)
 "]
 	130 [label="row
 Read"]
-	130 -> 129
+	130 -> 129 [label=""]
 	131 [label="-
 "]
-	128 -> 131
-	129 -> 131
+	128 -> 131 [label=""]
+	129 -> 131 [label=""]
 	132 [label="diff
 Write"]
-	131 -> 132
+	131 -> 132 [label=""]
 	133 [label="diff
 Read"]
 	134 [label="diff
 Read"]
 	135 [label="*
 "]
-	133 -> 135
-	134 -> 135
+	133 -> 135 [label=""]
+	134 -> 135 [label=""]
 	136 [label="result
 Read"]
 	137 [label="+
 "]
-	135 -> 137
-	136 -> 137
+	135 -> 137 [label=""]
+	136 -> 137 [label=""]
 	138 [label="result
 Write"]
-	137 -> 138
+	137 -> 138 [label=""]
 }

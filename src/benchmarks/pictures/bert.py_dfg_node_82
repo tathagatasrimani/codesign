@@ -8,18 +8,18 @@ result[i] = math.exp(arr[i]) / sum_val
 Read"]
 	242 [label="arr[i]
 Read"]
-	241 -> 242
-	242 -> 240
+	241 -> 242 [label=""]
+	242 -> 240 [label=""]
 	243 [label="sum_val
 Read"]
 	244 [label="//
 "]
-	240 -> 244
-	243 -> 244
+	240 -> 244 [label=""]
+	243 -> 244 [label=""]
 	245 [label="result
 Read"]
 	246 [label="result[i]
 Write"]
-	245 -> 246
-	244 -> 246
+	245 -> 246 [label=""]
+	244 -> 246 [label=""]
 }

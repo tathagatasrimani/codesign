@@ -6,5 +6,5 @@ for i in range(tokens):
 "]
 	587 [label="tokens
 Read"]
-	587 -> 586
+	587 -> 586 [label=""]
 }

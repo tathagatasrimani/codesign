@@ -6,5 +6,5 @@ for i in range(heads):
 "]
 	406 [label="heads
 Read"]
-	406 -> 405
+	406 -> 405 [label=""]
 }

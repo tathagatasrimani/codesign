@@ -6,5 +6,5 @@ result = 0
 ]
 	121 [label="result
 Write"]
-	120 -> 121
+	120 -> 121 [label=""]
 }

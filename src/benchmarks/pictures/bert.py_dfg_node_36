@@ -10,7 +10,7 @@ for j in range(len(img[0])):
 Read"]
 	94 [label="img[0]
 Read"]
-	93 -> 94
-	94 -> 92
-	92 -> 91
+	93 -> 94 [label=""]
+	94 -> 92 [label=""]
+	92 -> 91 [label=""]
 }

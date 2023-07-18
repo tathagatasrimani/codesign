@@ -6,41 +6,41 @@ scores[i][j] += Q[head][i][k] * K[head][j][k]
 Read"]
 	289 [label="Q[head]
 Read"]
-	288 -> 289
+	288 -> 289 [label=""]
 	290 [label="Q[head][i]
 Read"]
-	289 -> 290
+	289 -> 290 [label=""]
 	291 [label="Q[head][i][k]
 Read"]
-	290 -> 291
+	290 -> 291 [label=""]
 	292 [label="K
 Read"]
 	293 [label="K[head]
 Read"]
-	292 -> 293
+	292 -> 293 [label=""]
 	294 [label="K[head][j]
 Read"]
-	293 -> 294
+	293 -> 294 [label=""]
 	295 [label="K[head][j][k]
 Read"]
-	294 -> 295
+	294 -> 295 [label=""]
 	296 [label="*
 "]
-	291 -> 296
-	295 -> 296
+	291 -> 296 [label=""]
+	295 -> 296 [label=""]
 	297 [label="scores
 Read"]
 	298 [label="+
 "]
-	296 -> 298
-	297 -> 298
+	296 -> 298 [label=""]
+	297 -> 298 [label=""]
 	299 [label="scores
 Read"]
 	300 [label="scores[i]
 Read"]
-	299 -> 300
+	299 -> 300 [label=""]
 	301 [label="scores[i][j]
 Write"]
-	300 -> 301
-	298 -> 301
+	300 -> 301 [label=""]
+	298 -> 301 [label=""]
 }

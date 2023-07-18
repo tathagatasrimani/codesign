@@ -6,5 +6,5 @@ sum_val = 0
 ]
 	218 [label="sum_val
 Write"]
-	217 -> 218
+	217 -> 218 [label=""]
 }

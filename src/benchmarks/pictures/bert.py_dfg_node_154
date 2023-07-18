@@ -8,30 +8,30 @@ embeddings = BN_layer(embeddings, weights, biases)
 Read"]
 	647 [label="embeddings
 Write"]
-	646 -> 647
+	646 -> 647 [label=""]
 	648 [label="arr_add(embeddings, emb_cpy)
 "]
 	649 [label="embeddings
 Read"]
-	649 -> 648
+	649 -> 648 [label=""]
 	650 [label="emb_cpy
 Read"]
-	650 -> 648
+	650 -> 648 [label=""]
 	651 [label="embeddings
 Write"]
-	648 -> 651
+	648 -> 651 [label=""]
 	652 [label="BN_layer(embeddings, weights, biases)
 "]
 	653 [label="embeddings
 Read"]
-	653 -> 652
+	653 -> 652 [label=""]
 	654 [label="weights
 Read"]
-	654 -> 652
+	654 -> 652 [label=""]
 	655 [label="biases
 Read"]
-	655 -> 652
+	655 -> 652 [label=""]
 	656 [label="embeddings
 Write"]
-	652 -> 656
+	652 -> 656 [label=""]
 }

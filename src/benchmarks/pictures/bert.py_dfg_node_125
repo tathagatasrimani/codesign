@@ -10,40 +10,40 @@ Read"]
 "]
 	427 [label=10000
 ]
-	427 -> 426
+	427 -> 426 [label=""]
 	428 [label=2
 ]
 	429 [label="j
 Read"]
 	430 [label="*
 "]
-	428 -> 430
-	429 -> 430
+	428 -> 430 [label=""]
+	429 -> 430 [label=""]
 	431 [label="d_model
 Read"]
 	432 [label="//
 "]
-	430 -> 432
-	431 -> 432
-	432 -> 426
+	430 -> 432 [label=""]
+	431 -> 432 [label=""]
+	432 -> 426 [label=""]
 	433 [label="//
 "]
-	425 -> 433
-	426 -> 433
-	433 -> 424
+	425 -> 433 [label=""]
+	426 -> 433 [label=""]
+	433 -> 424 [label=""]
 	434 [label="embeddings
 Read"]
 	435 [label="+
 "]
-	424 -> 435
-	434 -> 435
+	424 -> 435 [label=""]
+	434 -> 435 [label=""]
 	436 [label="embeddings
 Read"]
 	437 [label="embeddings[i]
 Read"]
-	436 -> 437
+	436 -> 437 [label=""]
 	438 [label="embeddings[i][j]
 Write"]
-	437 -> 438
-	435 -> 438
+	437 -> 438 [label=""]
+	435 -> 438 [label=""]
 }

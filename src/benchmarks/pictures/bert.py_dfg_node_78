@@ -8,6 +8,6 @@ for i in range(len(arr)):
 "]
 	222 [label="arr
 Read"]
-	222 -> 221
-	221 -> 220
+	222 -> 221 [label=""]
+	221 -> 220 [label=""]
 }

@@ -168,7 +168,7 @@ Read"]
 	1140 [label="byte
 location: 2088
 Write"]
-	1127 -- 1140 [label="size: 24"]
+	1140 -- 1127 [label="size: 24"]
 	1171 [label="Sbox
 location: 0
 Read"]
@@ -181,7 +181,7 @@ Read"]
 	1173 [label="byte
 location: 2248
 Write"]
-	1126 -- 1173 [label="size: 32"]
+	1173 -- 1126 [label="size: 32"]
 	1397 [label="k
 location: 2416
 Read"]

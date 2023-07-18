@@ -1,13 +1,13 @@
 digraph {
-	285 [label="source code:
+	281 [label="source code:
 if zero_pad > 0:
 "]
-	286 [label="zero_pad
+	282 [label="zero_pad
 Read"]
-	287 [label=0
+	283 [label=0
 ]
-	288 [label=">
+	284 [label=">
 "]
-	286 -> 288
-	287 -> 288
+	282 -> 284 [label=""]
+	283 -> 284 [label=""]
 }

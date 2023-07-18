@@ -6,29 +6,29 @@ sum_val += multi_head_out[i][k] * W_attn[k][j]
 Read"]
 	620 [label="multi_head_out[i]
 Read"]
-	619 -> 620
+	619 -> 620 [label=""]
 	621 [label="multi_head_out[i][k]
 Read"]
-	620 -> 621
+	620 -> 621 [label=""]
 	622 [label="W_attn
 Read"]
 	623 [label="W_attn[k]
 Read"]
-	622 -> 623
+	622 -> 623 [label=""]
 	624 [label="W_attn[k][j]
 Read"]
-	623 -> 624
+	623 -> 624 [label=""]
 	625 [label="*
 "]
-	621 -> 625
-	624 -> 625
+	621 -> 625 [label=""]
+	624 -> 625 [label=""]
 	626 [label="sum_val
 Read"]
 	627 [label="+
 "]
-	625 -> 627
-	626 -> 627
+	625 -> 627 [label=""]
+	626 -> 627 [label=""]
 	628 [label="sum_val
 Write"]
-	627 -> 628
+	627 -> 628 [label=""]
 }

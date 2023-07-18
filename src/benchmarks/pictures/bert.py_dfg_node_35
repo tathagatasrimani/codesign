@@ -8,6 +8,6 @@ for i in range(len(img)):
 "]
 	89 [label="img
 Read"]
-	89 -> 88
-	88 -> 87
+	89 -> 88 [label=""]
+	88 -> 87 [label=""]
 }

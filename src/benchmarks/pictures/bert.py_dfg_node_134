@@ -8,96 +8,96 @@ sumV += embeddings[j][a] * W_V[i][a][k]
 Read"]
 	492 [label="embeddings[j]
 Read"]
-	491 -> 492
+	491 -> 492 [label=""]
 	493 [label="embeddings[j][a]
 Read"]
-	492 -> 493
+	492 -> 493 [label=""]
 	494 [label="W_Q
 Read"]
 	495 [label="W_Q[i]
 Read"]
-	494 -> 495
+	494 -> 495 [label=""]
 	496 [label="W_Q[i][a]
 Read"]
-	495 -> 496
+	495 -> 496 [label=""]
 	497 [label="W_Q[i][a][k]
 Read"]
-	496 -> 497
+	496 -> 497 [label=""]
 	498 [label="*
 "]
-	493 -> 498
-	497 -> 498
+	493 -> 498 [label=""]
+	497 -> 498 [label=""]
 	499 [label="sumQ
 Read"]
 	500 [label="+
 "]
-	498 -> 500
-	499 -> 500
+	498 -> 500 [label=""]
+	499 -> 500 [label=""]
 	501 [label="sumQ
 Write"]
-	500 -> 501
+	500 -> 501 [label=""]
 	502 [label="embeddings
 Read"]
 	503 [label="embeddings[j]
 Read"]
-	502 -> 503
+	502 -> 503 [label=""]
 	504 [label="embeddings[j][a]
 Read"]
-	503 -> 504
+	503 -> 504 [label=""]
 	505 [label="W_K
 Read"]
 	506 [label="W_K[i]
 Read"]
-	505 -> 506
+	505 -> 506 [label=""]
 	507 [label="W_K[i][a]
 Read"]
-	506 -> 507
+	506 -> 507 [label=""]
 	508 [label="W_K[i][a][k]
 Read"]
-	507 -> 508
+	507 -> 508 [label=""]
 	509 [label="*
 "]
-	504 -> 509
-	508 -> 509
+	504 -> 509 [label=""]
+	508 -> 509 [label=""]
 	510 [label="sumK
 Read"]
 	511 [label="+
 "]
-	509 -> 511
-	510 -> 511
+	509 -> 511 [label=""]
+	510 -> 511 [label=""]
 	512 [label="sumK
 Write"]
-	511 -> 512
+	511 -> 512 [label=""]
 	513 [label="embeddings
 Read"]
 	514 [label="embeddings[j]
 Read"]
-	513 -> 514
+	513 -> 514 [label=""]
 	515 [label="embeddings[j][a]
 Read"]
-	514 -> 515
+	514 -> 515 [label=""]
 	516 [label="W_V
 Read"]
 	517 [label="W_V[i]
 Read"]
-	516 -> 517
+	516 -> 517 [label=""]
 	518 [label="W_V[i][a]
 Read"]
-	517 -> 518
+	517 -> 518 [label=""]
 	519 [label="W_V[i][a][k]
 Read"]
-	518 -> 519
+	518 -> 519 [label=""]
 	520 [label="*
 "]
-	515 -> 520
-	519 -> 520
+	515 -> 520 [label=""]
+	519 -> 520 [label=""]
 	521 [label="sumV
 Read"]
 	522 [label="+
 "]
-	520 -> 522
-	521 -> 522
+	520 -> 522 [label=""]
+	521 -> 522 [label=""]
 	523 [label="sumV
 Write"]
-	522 -> 523
+	522 -> 523 [label=""]
 }

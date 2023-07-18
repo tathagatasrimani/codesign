@@ -194,7 +194,7 @@ def simulate(cfg, node_operations, hw_spec, graphs, first):
             process_memory_operation(malloc[2], int(malloc[1]), malloc[0])
         node_id = data_path[i][0]
         #print(node_id, memory_module.locations)
-        print(i)
+        #print(i)
         cur_node = id_to_node[node_id]
         node_intervals.append([node_id, [cycles, 0]])
         node_avg_power[node_id] = 0 # just reset because we will end up overwriting it
@@ -217,12 +217,12 @@ def simulate(cfg, node_operations, hw_spec, graphs, first):
                     for j in range(iters):
                         new_state.append(op)
                 state = new_state
-            print("new state")
+            #print("new state")
             for node in state: 
                 parents = []
                 for parent in node.parents:
                     parents.append(parent.operation)
-                print(node.operation, parents)
+                #print(node.operation, parents)
             hw_need = get_hw_need(state, hw_spec)
             #print(hw_need)
             max_cycles = 0
@@ -285,12 +285,12 @@ def set_data_path():
             elif len(item) == 3 and item[0] == "malloc" and item[2] not in vars_allocated:
                 data_path.append(item)
                 vars_allocated[item[2]] = int(item[1])
-                print(vars_allocated)
+                #print(vars_allocated)
                 if item[2] not in where_to_free:
                     find_free_loc(item[2], split_lines, i)
                 cur_memory_size += int(item[1])
                 memory_needed = max(memory_needed, cur_memory_size)
-    print(data_path)
+    #print(data_path)
     print("memory needed: ", memory_needed)
 
 def simulator_prep(benchmark):

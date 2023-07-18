@@ -1,5 +1,5 @@
 digraph {
-	596 [label="source code:
+	592 [label="source code:
 zero_pad = 3
 stride = 2
 filt = np.random.rand(3, 7, 7)
@@ -12,164 +12,164 @@ img = reLU(img)
 img = max_pool(img, 3, 3, 1, 2)
 filt = np.random.rand(1, len(filt[0]), len(filt[0][0]))
 "]
-	597 [label=3
+	593 [label=3
 ]
-	598 [label="zero_pad
+	594 [label="zero_pad
 Write"]
-	597 -> 598
-	599 [label=2
+	593 -> 594 [label=""]
+	595 [label=2
 ]
-	600 [label="stride
+	596 [label="stride
 Write"]
-	599 -> 600
-	601 [label="np.random.rand(3, 7, 7)
+	595 -> 596 [label=""]
+	597 [label="np.random.rand(3, 7, 7)
 "]
-	602 [label=3
+	598 [label=3
 ]
-	602 -> 601
-	603 [label=7
+	598 -> 597 [label=""]
+	599 [label=7
 ]
-	603 -> 601
-	604 [label=7
+	599 -> 597 [label=""]
+	600 [label=7
 ]
-	604 -> 601
-	605 [label="filt
+	600 -> 597 [label=""]
+	601 [label="filt
 Write"]
-	601 -> 605
-	606 [label="np.random.rand(3, 64, 64)
+	597 -> 601 [label=""]
+	602 [label="np.random.rand(3, 64, 64)
 "]
-	607 [label=3
+	603 [label=3
 ]
-	607 -> 606
-	608 [label=64
+	603 -> 602 [label=""]
+	604 [label=64
 ]
-	608 -> 606
-	609 [label=64
+	604 -> 602 [label=""]
+	605 [label=64
 ]
-	609 -> 606
-	610 [label="img
+	605 -> 602 [label=""]
+	606 [label="img
 Write"]
-	606 -> 610
-	611 [label="conv_layer(img, filt, 1, zero_pad, stride)
+	602 -> 606 [label=""]
+	607 [label="conv_layer(img, filt, 1, zero_pad, stride)
 "]
-	612 [label="img
+	608 [label="img
 Read"]
-	612 -> 611
-	613 [label="filt
+	608 -> 607 [label=""]
+	609 [label="filt
 Read"]
-	613 -> 611
-	614 [label=1
+	609 -> 607 [label=""]
+	610 [label=1
 ]
-	614 -> 611
-	615 [label="zero_pad
+	610 -> 607 [label=""]
+	611 [label="zero_pad
 Read"]
-	615 -> 611
-	616 [label="stride
+	611 -> 607 [label=""]
+	612 [label="stride
 Read"]
-	616 -> 611
-	617 [label="img
+	612 -> 607 [label=""]
+	613 [label="img
 Write"]
-	611 -> 617
-	618 [label="np.random.rand(len(img[0]))
+	607 -> 613 [label=""]
+	614 [label="np.random.rand(len(img[0]))
 "]
-	619 [label="len(img[0])
+	615 [label="len(img[0])
 "]
-	620 [label="img
+	616 [label="img
 Read"]
-	621 [label="img[0]
+	617 [label="img[0]
 Read"]
-	620 -> 621
-	621 -> 619
-	619 -> 618
-	622 [label="weights
+	616 -> 617 [label=""]
+	617 -> 615 [label=""]
+	615 -> 614 [label=""]
+	618 [label="weights
 Write"]
-	618 -> 622
-	623 [label="np.random.rand(len(img[0]))
+	614 -> 618 [label=""]
+	619 [label="np.random.rand(len(img[0]))
 "]
-	624 [label="len(img[0])
+	620 [label="len(img[0])
+"]
+	621 [label="img
+Read"]
+	622 [label="img[0]
+Read"]
+	621 -> 622 [label=""]
+	622 -> 620 [label=""]
+	620 -> 619 [label=""]
+	623 [label="biases
+Write"]
+	619 -> 623 [label=""]
+	624 [label="BN_layer(img, 1, weights, biases)
 "]
 	625 [label="img
 Read"]
-	626 [label="img[0]
+	625 -> 624 [label=""]
+	626 [label=1
+]
+	626 -> 624 [label=""]
+	627 [label="weights
 Read"]
-	625 -> 626
-	626 -> 624
-	624 -> 623
-	627 [label="biases
-Write"]
-	623 -> 627
-	628 [label="BN_layer(img, 1, weights, biases)
-"]
+	627 -> 624 [label=""]
+	628 [label="biases
+Read"]
+	628 -> 624 [label=""]
 	629 [label="img
-Read"]
-	629 -> 628
-	630 [label=1
-]
-	630 -> 628
-	631 [label="weights
-Read"]
-	631 -> 628
-	632 [label="biases
-Read"]
-	632 -> 628
-	633 [label="img
 Write"]
-	628 -> 633
-	634 [label="reLU(img)
+	624 -> 629 [label=""]
+	630 [label="reLU(img)
 "]
-	635 [label="img
+	631 [label="img
 Read"]
-	635 -> 634
-	636 [label="img
+	631 -> 630 [label=""]
+	632 [label="img
 Write"]
-	634 -> 636
-	637 [label="max_pool(img, 3, 3, 1, 2)
+	630 -> 632 [label=""]
+	633 [label="max_pool(img, 3, 3, 1, 2)
 "]
-	638 [label="img
+	634 [label="img
 Read"]
-	638 -> 637
-	639 [label=3
+	634 -> 633 [label=""]
+	635 [label=3
 ]
-	639 -> 637
-	640 [label=3
+	635 -> 633 [label=""]
+	636 [label=3
 ]
-	640 -> 637
+	636 -> 633 [label=""]
+	637 [label=1
+]
+	637 -> 633 [label=""]
+	638 [label=2
+]
+	638 -> 633 [label=""]
+	639 [label="img
+Write"]
+	633 -> 639 [label=""]
+	640 [label="np.random.rand(1, len(filt[0]), len(filt[0][0]))
+"]
 	641 [label=1
 ]
-	641 -> 637
-	642 [label=2
-]
-	642 -> 637
-	643 [label="img
+	641 -> 640 [label=""]
+	642 [label="len(filt[0])
+"]
+	643 [label="filt
+Read"]
+	644 [label="filt[0]
+Read"]
+	643 -> 644 [label=""]
+	644 -> 642 [label=""]
+	642 -> 640 [label=""]
+	645 [label="len(filt[0][0])
+"]
+	646 [label="filt
+Read"]
+	647 [label="filt[0]
+Read"]
+	646 -> 647 [label=""]
+	648 [label="filt[0][0]
+Read"]
+	647 -> 648 [label=""]
+	648 -> 645 [label=""]
+	645 -> 640 [label=""]
+	649 [label="filt
 Write"]
-	637 -> 643
-	644 [label="np.random.rand(1, len(filt[0]), len(filt[0][0]))
-"]
-	645 [label=1
-]
-	645 -> 644
-	646 [label="len(filt[0])
-"]
-	647 [label="filt
-Read"]
-	648 [label="filt[0]
-Read"]
-	647 -> 648
-	648 -> 646
-	646 -> 644
-	649 [label="len(filt[0][0])
-"]
-	650 [label="filt
-Read"]
-	651 [label="filt[0]
-Read"]
-	650 -> 651
-	652 [label="filt[0][0]
-Read"]
-	651 -> 652
-	652 -> 649
-	649 -> 644
-	653 [label="filt
-Write"]
-	644 -> 653
+	640 -> 649 [label=""]
 }

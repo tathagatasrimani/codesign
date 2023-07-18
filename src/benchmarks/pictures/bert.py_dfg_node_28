@@ -10,7 +10,7 @@ for j in range(len(dst[0])):
 Read"]
 	75 [label="dst[0]
 Read"]
-	74 -> 75
-	75 -> 73
-	73 -> 72
+	74 -> 75 [label=""]
+	75 -> 73 [label=""]
+	73 -> 72 [label=""]
 }

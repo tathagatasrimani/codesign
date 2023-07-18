@@ -1,5 +1,5 @@
 digraph {
-	147 [label="source code:
+	143 [label="source code:
 return f_new
 "]
 }

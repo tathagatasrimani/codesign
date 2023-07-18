@@ -161,120 +161,88 @@ graph {
 location: 0
 Read"]
 	479 -- 402 [label="size: 32"]
-	481 [label="wt
-location: 0
-Read"]
-	481 -- 403 [label="size: 32"]
-	482 [label="unsureVertices
-location: 504
-Write"]
-	403 -- 482 [label="size: 48"]
 	417 -- 432 [label=""]
 	432 -- 402 [label=""]
-	483 [label="runtime
+	480 [label="runtime
 location: 216
 Read"]
-	483 -- 402 [label="size: 24"]
-	485 [label="start
+	480 -- 402 [label="size: 24"]
+	482 [label="start
 location: 672
 Read"]
-	485 -- 417 [label="size: 24"]
-	491 [label="wt
+	482 -- 417 [label="size: 24"]
+	486 [label="unsureVertices
+location: 504
+Write"]
+	486 -- 402 [label="size: 48"]
+	487 [label="wt
 location: 0
 Read"]
-	491 -- 404 [label="size: 32"]
+	487 -- 403 [label="size: 32"]
+	488 [label="wt
+location: 0
+Read"]
+	488 -- 404 [label="size: 32"]
+	489 [label="unsureVertices
+location: 504
+Write"]
+	489 -- 404 [label="size: 48"]
+	490 [label="wt
+location: 0
+Read"]
+	490 -- 405 [label="size: 32"]
+	491 [label="unsureVertices
+location: 504
+Write"]
+	491 -- 405 [label="size: 48"]
 	492 [label="wt
 location: 0
 Read"]
-	492 -- 405 [label="size: 32"]
+	492 -- 406 [label="size: 32"]
 	493 [label="wt
 location: 0
 Read"]
-	493 -- 406 [label="size: 32"]
-	494 [label="wt
+	493 -- 407 [label="size: 32"]
+	502 [label="unsureVertices
+location: 504
+Write"]
+	502 -- 406 [label="size: 48"]
+	504 [label="wt
 location: 0
 Read"]
-	494 -- 407 [label="size: 32"]
-	495 [label="unsureVertices
-location: 504
-Write"]
-	407 -- 495 [label="size: 48"]
-	496 [label="wt
+	504 -- 408 [label="size: 32"]
+	505 [label="wt
 location: 0
 Read"]
-	496 -- 408 [label="size: 32"]
-	497 [label="unsureVertices
-location: 504
-Write"]
-	408 -- 497 [label="size: 48"]
-	498 [label="wt
-location: 0
-Read"]
-	498 -- 409 [label="size: 32"]
-	499 [label="unsureVertices
-location: 504
-Write"]
-	409 -- 499 [label="size: 48"]
-	506 [label="unsureVertices
-location: 504
-Write"]
-	406 -- 506 [label="size: 48"]
-	515 [label="end
+	505 -- 409 [label="size: 32"]
+	512 [label="end
 location: 696
 Read"]
-	515 -- 417 [label="size: 24"]
+	512 -- 417 [label="size: 24"]
+	530 [label="unsureVertices
+location: 504
+Write"]
+	530 -- 407 [label="size: 48"]
+	533 [label="wt
+location: 0
+Read"]
+	533 -- 410 [label="size: 32"]
 	534 [label="wt
 location: 0
 Read"]
-	534 -- 410 [label="size: 32"]
-	535 [label="unsureVertices
+	534 -- 411 [label="size: 32"]
+	1162 [label="unsureVertices
 location: 504
 Write"]
-	410 -- 535 [label="size: 48"]
-	536 [label="wt
+	1162 -- 408 [label="size: 48"]
+	1166 [label="wt
 location: 0
 Read"]
-	536 -- 411 [label="size: 32"]
-	537 [label="unsureVertices
-location: 504
-Write"]
-	411 -- 537 [label="size: 48"]
-	543 [label="unsureVertices
-location: 504
-Write"]
-	405 -- 543 [label="size: 48"]
-	572 [label="wt
+	1166 -- 412 [label="size: 32"]
+	1167 [label="wt
 location: 0
 Read"]
-	572 -- 412 [label="size: 32"]
-	573 [label="unsureVertices
-location: 504
-Write"]
-	412 -- 573 [label="size: 48"]
-	574 [label="wt
-location: 0
-Read"]
-	574 -- 413 [label="size: 32"]
-	575 [label="unsureVertices
-location: 504
-Write"]
-	413 -- 575 [label="size: 48"]
-	782 [label="wt
-location: 0
-Read"]
-	782 -- 414 [label="size: 32"]
-	783 [label="unsureVertices
-location: 504
-Write"]
-	414 -- 783 [label="size: 48"]
-	784 [label="wt
-location: 0
-Read"]
-	784 -- 415 [label="size: 32"]
-	785 [label="unsureVertices
-location: 504
-Write"]
-	415 -- 785 [label="size: 48"]
+	1167 -- 413 [label="size: 32"]
 	1338 [label="runtime
 location: 216
 Read"]

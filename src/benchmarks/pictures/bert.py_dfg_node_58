@@ -10,28 +10,28 @@ if dev == 0:
 Read"]
 	147 [label="arr[i]
 Read"]
-	146 -> 147
-	147 -> 145
+	146 -> 147 [label=""]
+	147 -> 145 [label=""]
 	148 [label="dev
 Write"]
-	145 -> 148
+	145 -> 148 [label=""]
 	149 [label="get_mean(arr[i])
 "]
 	150 [label="arr
 Read"]
 	151 [label="arr[i]
 Read"]
-	150 -> 151
-	151 -> 149
+	150 -> 151 [label=""]
+	151 -> 149 [label=""]
 	152 [label="mean
 Write"]
-	149 -> 152
+	149 -> 152 [label=""]
 	153 [label="dev
 Read"]
 	154 [label=0
 ]
 	155 [label="==
 "]
-	153 -> 155
-	154 -> 155
+	153 -> 155 [label=""]
+	154 -> 155 [label=""]
 }

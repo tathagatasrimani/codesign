@@ -6,11 +6,11 @@ W_attn = np.random.rand(d_model, d_model)
 "]
 	487 [label="d_model
 Read"]
-	487 -> 486
+	487 -> 486 [label=""]
 	488 [label="d_model
 Read"]
-	488 -> 486
+	488 -> 486 [label=""]
 	489 [label="W_attn
 Write"]
-	486 -> 489
+	486 -> 489 [label=""]
 }

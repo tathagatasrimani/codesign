@@ -1,19 +1,19 @@
 digraph {
-	406 [label="source code:
+	402 [label="source code:
 sum_val += row[i]
 "]
-	407 [label="row
+	403 [label="row
 Read"]
-	408 [label="row[i]
+	404 [label="row[i]
 Read"]
-	407 -> 408
-	409 [label="sum_val
+	403 -> 404 [label=""]
+	405 [label="sum_val
 Read"]
-	410 [label="+
+	406 [label="+
 "]
-	408 -> 410
-	409 -> 410
-	411 [label="sum_val
+	404 -> 406 [label=""]
+	405 -> 406 [label=""]
+	407 [label="sum_val
 Write"]
-	410 -> 411
+	406 -> 407 [label=""]
 }

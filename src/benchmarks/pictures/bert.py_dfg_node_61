@@ -10,7 +10,7 @@ for j in range(len(arr[0])):
 Read"]
 	164 [label="arr[0]
 Read"]
-	163 -> 164
-	164 -> 162
-	162 -> 161
+	163 -> 164 [label=""]
+	164 -> 162 [label=""]
+	162 -> 161 [label=""]
 }

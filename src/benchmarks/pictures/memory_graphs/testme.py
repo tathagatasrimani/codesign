@@ -157,30 +157,30 @@ graph {
 "]
 	182 [label="~
 "]
-	183 [label="x
-location: 0
+	183 [label="q
+location: 64
 Read"]
-	183 -- 106 [label="size: 32"]
-	184 [label="y
-location: 32
+	183 -- 106 [label="size: 24"]
+	184 [label="r
+location: 88
 Read"]
 	184 -- 106 [label="size: 32"]
-	185 [label="r
-location: 88
-Write"]
-	185 -- 106 [label="size: 32"]
-	186 [label="w
+	185 [label="w
 location: 120
-Read"]
-	186 -- 174 [label="size: 24"]
-	187 [label="x
+Write"]
+	185 -- 106 [label="size: 24"]
+	186 [label="x
 location: 0
 Read"]
-	187 -- 136 [label="size: 32"]
-	188 [label="y
+	186 -- 136 [label="size: 32"]
+	187 [label="y
 location: 32
 Read"]
-	188 -- 136 [label="size: 32"]
+	187 -- 136 [label="size: 32"]
+	188 [label="w
+location: 120
+Read"]
+	188 -- 174 [label="size: 24"]
 	189 [label="q
 location: 64
 Read"]
@@ -189,46 +189,42 @@ Read"]
 location: 88
 Read"]
 	190 -- 137 [label="size: 32"]
-	191 [label="q
-location: 64
+	191 [label="x
+location: 0
 Read"]
-	191 -- 107 [label="size: 24"]
-	192 [label="r
-location: 88
+	191 -- 107 [label="size: 32"]
+	192 [label="y
+location: 32
 Read"]
 	192 -- 107 [label="size: 32"]
-	193 [label="w
-location: 120
+	193 [label="r
+location: 88
 Write"]
-	193 -- 107 [label="size: 24"]
+	193 -- 107 [label="size: 32"]
+	136 -- 106 [label=""]
 	137 -- 121 [label=""]
 	194 [label="q
 location: 64
 Write"]
 	194 -- 121 [label="size: 24"]
-	136 -- 106 [label=""]
 	106 -- 106 [label=""]
 	151 -- 106 [label=""]
-	195 [label="q
-location: 64
-Write"]
-	195 -- 106 [label="size: 24"]
-	197 [label="a
-location: 0
-Write"]
-	197 -- 121 [label="size: 24"]
-	198 [label="a
+	196 [label="a
 location: 0
 Read"]
-	198 -- 151 [label="size: 24"]
-	199 [label="r
+	196 -- 151 [label="size: 24"]
+	197 [label="r
 location: 88
 Read"]
-	199 -- 151 [label="size: 32"]
-	200 [label="b
+	197 -- 151 [label="size: 32"]
+	198 [label="b
 location: 32
 Write"]
-	200 -- 151 [label="size: 24"]
+	198 -- 151 [label="size: 24"]
+	200 [label="a
+location: 0
+Write"]
+	200 -- 121 [label="size: 24"]
 	201 [label="z
 location: 144
 Read"]

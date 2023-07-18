@@ -6,20 +6,20 @@ arr[i][j] *= -1
 ]
 	57 [label="-
 "]
-	56 -> 57
+	56 -> 57 [label=""]
 	58 [label="arr
 Read"]
 	59 [label="*
 "]
-	57 -> 59
-	58 -> 59
+	57 -> 59 [label=""]
+	58 -> 59 [label=""]
 	60 [label="arr
 Read"]
 	61 [label="arr[i]
 Read"]
-	60 -> 61
+	60 -> 61 [label=""]
 	62 [label="arr[i][j]
 Write"]
-	61 -> 62
-	59 -> 62
+	61 -> 62 [label=""]
+	59 -> 62 [label=""]
 }

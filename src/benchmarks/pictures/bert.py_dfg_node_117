@@ -20,30 +20,30 @@ Write"]
 Write"]
 	352 [label="layers
 Write"]
-	345 -> 349
-	346 -> 350
-	347 -> 351
-	348 -> 352
+	345 -> 349 [label=""]
+	346 -> 350 [label=""]
+	347 -> 351 [label=""]
+	348 -> 352 [label=""]
 	353 [label="d_model
 Read"]
 	354 [label="heads
 Read"]
 	355 [label="//
 "]
-	353 -> 355
-	354 -> 355
+	353 -> 355 [label=""]
+	354 -> 355 [label=""]
 	356 [label="d_k
 Write"]
-	355 -> 356
+	355 -> 356 [label=""]
 	357 [label="np.random.rand(tokens, d_model)
 "]
 	358 [label="tokens
 Read"]
-	358 -> 357
+	358 -> 357 [label=""]
 	359 [label="d_model
 Read"]
-	359 -> 357
+	359 -> 357 [label=""]
 	360 [label="embeddings
 Write"]
-	357 -> 360
+	357 -> 360 [label=""]
 }

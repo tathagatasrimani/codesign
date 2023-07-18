@@ -6,5 +6,5 @@ for k in range(d_model):
 "]
 	590 [label="d_model
 Read"]
-	590 -> 589
+	590 -> 589 [label=""]
 }

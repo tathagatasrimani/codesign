@@ -8,15 +8,15 @@ sum_val += math.exp(arr[i])
 Read"]
 	226 [label="arr[i]
 Read"]
-	225 -> 226
-	226 -> 224
+	225 -> 226 [label=""]
+	226 -> 224 [label=""]
 	227 [label="sum_val
 Read"]
 	228 [label="+
 "]
-	224 -> 228
-	227 -> 228
+	224 -> 228 [label=""]
+	227 -> 228 [label=""]
 	229 [label="sum_val
 Write"]
-	228 -> 229
+	228 -> 229 [label=""]
 }

@@ -8,8 +8,8 @@ out = np.zeros((tokens, d_k))
 Read"]
 	285 [label="d_k
 Read"]
-	284 -> 283
+	284 -> 283 [label=""]
 	286 [label="out
 Write"]
-	283 -> 286
+	283 -> 286 [label=""]
 }

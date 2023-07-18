@@ -6,5 +6,5 @@ for j in range(tokens):
 "]
 	441 [label="tokens
 Read"]
-	441 -> 440
+	441 -> 440 [label=""]
 }

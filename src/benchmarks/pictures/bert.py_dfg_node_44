@@ -8,6 +8,6 @@ for i in range(len(row)):
 "]
 	111 [label="row
 Read"]
-	111 -> 110
-	110 -> 109
+	111 -> 110 [label=""]
+	110 -> 109 [label=""]
 }

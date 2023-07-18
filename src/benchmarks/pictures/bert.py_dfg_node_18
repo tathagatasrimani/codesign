@@ -6,5 +6,5 @@ for j in range(wid):
 "]
 	51 [label="wid
 Read"]
-	51 -> 50
+	51 -> 50 [label=""]
 }

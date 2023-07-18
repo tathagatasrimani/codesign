@@ -1,16 +1,16 @@
 digraph {
-	376 [label="source code:
+	372 [label="source code:
 for j in range(len(img[0])):
 "]
-	377 [label="range(len(img[0]))
+	373 [label="range(len(img[0]))
 "]
-	378 [label="len(img[0])
+	374 [label="len(img[0])
 "]
-	379 [label="img
+	375 [label="img
 Read"]
-	380 [label="img[0]
+	376 [label="img[0]
 Read"]
-	379 -> 380
-	380 -> 378
-	378 -> 377
+	375 -> 376 [label=""]
+	376 -> 374 [label=""]
+	374 -> 373 [label=""]
 }

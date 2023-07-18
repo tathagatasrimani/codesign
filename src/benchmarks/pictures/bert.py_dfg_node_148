@@ -8,9 +8,9 @@ Read"]
 Read"]
 	632 [label="embeddings[i]
 Read"]
-	631 -> 632
+	631 -> 632 [label=""]
 	633 [label="embeddings[i][j]
 Write"]
-	632 -> 633
-	630 -> 633
+	632 -> 633 [label=""]
+	630 -> 633 [label=""]
 }

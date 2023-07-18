@@ -1,19 +1,19 @@
 digraph {
-	382 [label="source code:
+	378 [label="source code:
 for k in range(len(img[0][0])):
 "]
-	383 [label="range(len(img[0][0]))
+	379 [label="range(len(img[0][0]))
 "]
-	384 [label="len(img[0][0])
+	380 [label="len(img[0][0])
 "]
-	385 [label="img
+	381 [label="img
 Read"]
-	386 [label="img[0]
+	382 [label="img[0]
 Read"]
-	385 -> 386
-	387 [label="img[0][0]
+	381 -> 382 [label=""]
+	383 [label="img[0][0]
 Read"]
-	386 -> 387
-	387 -> 384
-	384 -> 383
+	382 -> 383 [label=""]
+	383 -> 380 [label=""]
+	380 -> 379 [label=""]
 }

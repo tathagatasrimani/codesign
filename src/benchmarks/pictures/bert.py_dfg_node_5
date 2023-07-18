@@ -6,5 +6,5 @@ for j in range(l):
 "]
 	19 [label="l
 Read"]
-	19 -> 18
+	19 -> 18 [label=""]
 }

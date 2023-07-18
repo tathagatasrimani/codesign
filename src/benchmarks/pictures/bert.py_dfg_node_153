@@ -8,18 +8,18 @@ emb_new[i] = fc_layer(embeddings[i], W, W_0)
 Read"]
 	640 [label="embeddings[i]
 Read"]
-	639 -> 640
-	640 -> 638
+	639 -> 640 [label=""]
+	640 -> 638 [label=""]
 	641 [label="W
 Read"]
-	641 -> 638
+	641 -> 638 [label=""]
 	642 [label="W_0
 Read"]
-	642 -> 638
+	642 -> 638 [label=""]
 	643 [label="emb_new
 Read"]
 	644 [label="emb_new[i]
 Write"]
-	643 -> 644
-	638 -> 644
+	643 -> 644 [label=""]
+	638 -> 644 [label=""]
 }

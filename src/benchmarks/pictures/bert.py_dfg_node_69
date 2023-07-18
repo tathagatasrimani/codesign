@@ -6,8 +6,8 @@ sum_val = W_0[i]
 Read"]
 	195 [label="W_0[i]
 Read"]
-	194 -> 195
+	194 -> 195 [label=""]
 	196 [label="sum_val
 Write"]
-	195 -> 196
+	195 -> 196 [label=""]
 }

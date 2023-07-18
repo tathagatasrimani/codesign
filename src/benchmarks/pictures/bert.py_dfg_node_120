@@ -11,44 +11,44 @@ V = np.zeros((heads, tokens, d_k))
 "]
 	369 [label="heads
 Read"]
-	369 -> 368
+	369 -> 368 [label=""]
 	370 [label="d_model
 Read"]
-	370 -> 368
+	370 -> 368 [label=""]
 	371 [label="d_k
 Read"]
-	371 -> 368
+	371 -> 368 [label=""]
 	372 [label="W_Q
 Write"]
-	368 -> 372
+	368 -> 372 [label=""]
 	373 [label="balance_random_3d(heads, d_model, d_k)
 "]
 	374 [label="heads
 Read"]
-	374 -> 373
+	374 -> 373 [label=""]
 	375 [label="d_model
 Read"]
-	375 -> 373
+	375 -> 373 [label=""]
 	376 [label="d_k
 Read"]
-	376 -> 373
+	376 -> 373 [label=""]
 	377 [label="W_K
 Write"]
-	373 -> 377
+	373 -> 377 [label=""]
 	378 [label="balance_random_3d(heads, d_model, d_k)
 "]
 	379 [label="heads
 Read"]
-	379 -> 378
+	379 -> 378 [label=""]
 	380 [label="d_model
 Read"]
-	380 -> 378
+	380 -> 378 [label=""]
 	381 [label="d_k
 Read"]
-	381 -> 378
+	381 -> 378 [label=""]
 	382 [label="W_V
 Write"]
-	378 -> 382
+	378 -> 382 [label=""]
 	383 [label="np.zeros((heads, tokens, d_k))
 "]
 	384 [label="heads
@@ -57,10 +57,10 @@ Read"]
 Read"]
 	386 [label="d_k
 Read"]
-	384 -> 383
+	384 -> 383 [label=""]
 	387 [label="Q
 Write"]
-	383 -> 387
+	383 -> 387 [label=""]
 	388 [label="np.zeros((heads, tokens, d_k))
 "]
 	389 [label="heads
@@ -69,10 +69,10 @@ Read"]
 Read"]
 	391 [label="d_k
 Read"]
-	389 -> 388
+	389 -> 388 [label=""]
 	392 [label="K
 Write"]
-	388 -> 392
+	388 -> 392 [label=""]
 	393 [label="np.zeros((heads, tokens, d_k))
 "]
 	394 [label="heads
@@ -81,8 +81,8 @@ Read"]
 Read"]
 	396 [label="d_k
 Read"]
-	394 -> 393
+	394 -> 393 [label=""]
 	397 [label="V
 Write"]
-	393 -> 397
+	393 -> 397 [label=""]
 }

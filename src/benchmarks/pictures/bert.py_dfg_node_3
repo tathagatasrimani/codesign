@@ -7,19 +7,19 @@ neg = True
 "]
 	8 [label="depth
 Read"]
-	8 -> 7
+	8 -> 7 [label=""]
 	9 [label="l
 Read"]
-	9 -> 7
+	9 -> 7 [label=""]
 	10 [label="wid
 Read"]
-	10 -> 7
+	10 -> 7 [label=""]
 	11 [label="arr
 Write"]
-	7 -> 11
+	7 -> 11 [label=""]
 	12 [label=True
 ]
 	13 [label="neg
 Write"]
-	12 -> 13
+	12 -> 13 [label=""]
 }

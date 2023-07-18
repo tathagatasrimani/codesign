@@ -6,5 +6,5 @@ for j in range(d_k):
 "]
 	325 [label="d_k
 Read"]
-	325 -> 324
+	325 -> 324 [label=""]
 }

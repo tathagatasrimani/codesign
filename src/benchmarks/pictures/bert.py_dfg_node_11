@@ -6,23 +6,23 @@ arr[i][j][k] *= -1
 ]
 	28 [label="-
 "]
-	27 -> 28
+	27 -> 28 [label=""]
 	29 [label="arr
 Read"]
 	30 [label="*
 "]
-	28 -> 30
-	29 -> 30
+	28 -> 30 [label=""]
+	29 -> 30 [label=""]
 	31 [label="arr
 Read"]
 	32 [label="arr[i]
 Read"]
-	31 -> 32
+	31 -> 32 [label=""]
 	33 [label="arr[i][j]
 Read"]
-	32 -> 33
+	32 -> 33 [label=""]
 	34 [label="arr[i][j][k]
 Write"]
-	33 -> 34
-	30 -> 34
+	33 -> 34 [label=""]
+	30 -> 34 [label=""]
 }

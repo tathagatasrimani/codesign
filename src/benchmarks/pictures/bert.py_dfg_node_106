@@ -7,25 +7,25 @@ scores[i] = softmax(scores[i])
 "]
 	312 [label="tokens
 Read"]
-	312 -> 311
+	312 -> 311 [label=""]
 	313 [label="tokens
 Read"]
-	313 -> 311
+	313 -> 311 [label=""]
 	314 [label="scores
 Write"]
-	311 -> 314
+	311 -> 314 [label=""]
 	315 [label="softmax(scores[i])
 "]
 	316 [label="scores
 Read"]
 	317 [label="scores[i]
 Read"]
-	316 -> 317
-	317 -> 315
+	316 -> 317 [label=""]
+	317 -> 315 [label=""]
 	318 [label="scores
 Read"]
 	319 [label="scores[i]
 Write"]
-	318 -> 319
-	315 -> 319
+	318 -> 319 [label=""]
+	315 -> 319 [label=""]
 }
