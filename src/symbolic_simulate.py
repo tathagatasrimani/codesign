@@ -131,6 +131,10 @@ def symbolic_cycle_sim(hw_inuse, max_cycles):
     global cycles, data, power_use
     node_power_sum = 0
     # print(max_cycles)
+    # maximum max_cycles
+    # take the difference
+    # x > 4 * e
+    # 0.5 * tanh(x - 4 * e) + 0.5
     for i in range(max_cycles):
         power_use.append(0)
         # save current state of hardware to data array
@@ -326,9 +330,24 @@ def main():
     t = []
     for i in range(len(power_use)):
         t.append(i)
+    # for i in range(1, len(power_use)):
+    #     print(power_use[i].simplify())
+    
+    total_power_use = sum(power_use).simplify()
+    print("total_power_use", total_power_use)
+    for s in total_power_use.free_symbols:
+        print("variable", s)
+        print("diff on this variable", total_power_use.diff(s))
+    # constraints
+    
+    # print("power_use expression: ", sum(power_use).simplify())
+    
+    # power_use expression:  5821*power_Add_2 + 1919*power_And_2/5 + 2079*power_BitAnd_2/5 + 1999*power_BitOr_2/5 + 5039*power_BitXor_2/5 + 3184*power_Eq_2/5 + 5757*power_FloorDiv_2 + 1919*power_GtE_2/5 + 1919*power_Gt_2/5 + 1919*power_Invert_2/5 + 1919*power_IsNot_2/5 + 1999*power_LShift_2/5 + 1919*power_LtE_2/5 + 1919*power_Lt_2/5 + 2999*power_Mod_2/5 + 6077*power_Mult_2 + 1919*power_NotEq_2/5 + 1919*power_Not_2/5 + 1919*power_Or_2/5 + 2079*power_RShift_2/5 + 22742*power_Regs_2 + 5957*power_Sub_2 + 1919*power_UAdd_2/5 + 1919*power_USub_2/5
+    
+    return
+
     power_use_value = []
     for expr in power_use:
-        
         expr_symbols = {}
         for s in expr.free_symbols:
             if not s in expr_symbols:
