@@ -19,7 +19,7 @@ data = {}
 cycles = 0
 main_cfg = None
 id_to_node = {}
-path = '/Users/PatrickMcEwen/git_container/codesign/src/benchmarks/' # change path variable for local computer
+path = '/Users/PatrickMcEwen/git_container/codesign/src/' # change path variable for local computer
 data_path = []
 power_use = []
 node_intervals = []
@@ -249,7 +249,7 @@ def simulate(cfg, node_operations, hw_spec, graphs, first):
         frees.clear()
         i = next_ind
     print("done with simulation")
-    new_graph.gv_graph.render(path + 'pictures/memory_graphs/' + sys.argv[1][sys.argv[1].rfind('/')+1:], view = True)
+    new_graph.gv_graph.render(path + 'benchmarks/pictures/memory_graphs/' + sys.argv[1][sys.argv[1].rfind('/')+1:], view = True)
     return data
 
 def set_data_path():
@@ -295,7 +295,7 @@ def set_data_path():
 
 def simulator_prep(benchmark):
     global unroll_at, id_to_node
-    cfg, graphs, unroll_at = dfg_algo.main_fn(path, benchmark)
+    cfg, graphs, unroll_at = dfg_algo.main_fn(path + 'benchmarks/', benchmark)
     node_operations = schedule.schedule(cfg, graphs, benchmark)
     set_data_path()
     for node in cfg: id_to_node[str(node.id)] = node
@@ -331,6 +331,12 @@ def main():
     hw.hw_allocated['UAdd'] = 1
     hw.hw_allocated['Not'] = 1
     hw.hw_allocated['Invert'] = 1
+
+    area = 0
+    for key in hw.hw_allocated:
+        area += hw.hw_allocated[key] * hardwareModel.area[key]
+    print("compute area: ", area)
+
     new_gv_graph = gv.Graph()
     new_graph = dfg_algo.Graph(set(), {}, new_gv_graph)
     for key in hw.hw_allocated:
@@ -346,7 +352,7 @@ def main():
     names = sys.argv[1].split('/')
     if len(sys.argv) < 3 or not sys.argv[2] == "notrace":
         text = json.dumps(data, indent=4)
-        with open(path + 'json_data/' + names[-1], 'w') as fh:
+        with open(path + 'benchmarks/json_data/' + names[-1], 'w') as fh:
             fh.write(text)
     t = []
     for i in range(len(power_use)):
@@ -357,6 +363,73 @@ def main():
     plt.ylabel("Power")
     plt.savefig("benchmarks/power_plots/power_use_" + names[-1] + ".pdf")
     plt.clf() 
+
+    with open(path + 'destiny/config/sample.cfg', 'w') as fh:
+        fh.write("-DesignTarget: cache\n\
+\n\
+-CacheAccessMode: Normal\n\
+-Associativity (for cache only): 8\n\
+\n\
+-ProcessNode: 45\n\
+\n\
+-Capacity (KB): 128\n\
+//-WordWidth (bit): 64\n\
+-WordWidth (bit): 128\n\
+\n\
+-DeviceRoadmap: HP\n\
+\n\
+-LocalWireType: LocalAggressive\n\
+-LocalWireRepeaterType: RepeatedNone\n\
+-LocalWireUseLowSwing: No\n\
+\n\
+-GlobalWireType: GlobalAggressive\n\
+-GlobalWireRepeaterType: RepeatedNone\n\
+-GlobalWireUseLowSwing: No\n\
+\n\
+//-Routing: H-tree\n\
+-Routing: Non-H-tree\n\
+\n\
+-InternalSensing: true\n\
+\n\
+-MemoryCellInputFile: sample_2D_eDRAM.cell\n\
+\n\
+-Temperature (K): 370\n\
+-RetentionTime (us): 40\n\
+\n\
+-OptimizationTarget: WriteEDP\n\
+//-OptimizationTarget: Full\n\
+-EnablePruning: Yes\n\
+\n\
+-BufferDesignOptimization: latency\n\
+\n\
+//-ForceBank3D (Total AxBxC, Active DxE): 64x4x2, 1x1\n\
+//-ForceBank (Total AxB, Active CxD): 64x4, 1x1\n\
+//-ForceMat (Total AxB, Active CxD): 2x2, 2x2\n\
+//-ForceMuxSenseAmp: 128\n\
+//-ForceMuxOutputLev1: 1 \n\
+//-ForceMuxOutputLev2: 1\n\
+\n\
+-StackedDieCount: 1\n\
+//-PartitionGranularity: 1\n\
+//-LocalTSVProjection: 0\n\
+//-GlobalTSVProjection: 0\n\
+//-TSVRedundancy 1.2")
+    with open(path + 'destiny/config/sample.cell', 'w') as fh:
+        fh.write("-MemCellType: eDRAM\n\
+\n\
+-CellArea (F^2): 33.1\n\
+-CellAspectRatio: 2.39\n\
+\n\
+-ReadMode: voltage\n\
+\n\
+-AccessType: CMOS\n\
+-AccessCMOSWidth (F): 1.31\n\
+\n\
+-DRAMCellCapacitance (F): 18e-15\n\
+-ResetVoltage (V): vdd\n\
+-SetVoltage (V): vdd\n\
+\n\
+-MinSenseVoltage (mV): 10")
     print("done!")
 
 if __name__ == '__main__':

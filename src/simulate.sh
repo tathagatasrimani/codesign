@@ -7,4 +7,6 @@ if [ $1 ]; then
     python3 instrument.py $1
     python3 instrumented_files/xformed-$2 > instrumented_files/output.txt
     python3 new_simulate.py $1 $3
+    cd destiny/config
+    ./destiny sample.cfg
 fi
