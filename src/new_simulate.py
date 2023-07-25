@@ -33,6 +33,11 @@ memory_needed = 0
 cur_memory_size = 0
 new_graph = None
 
+def find_nearest_mem_to_scale(num):
+    if num < 512: return 512
+    if num > 536870912: return 536870912
+    return 2 ** math.ceil(math.log(num, 2))
+
 def make_node(graph, id, name, ctx, opname):
     global new_graph
     annotation = ""
@@ -87,7 +92,7 @@ def get_hw_need(state, hw_spec):
     return hw_need.hw_allocated
 
 def cycle_sim(hw_inuse, max_cycles):
-    global cycles, data, power_use
+    global cycles, data, power_use, memory_needed
     node_power_sum = 0
     for i in range(max_cycles):
         power_use.append(0)
@@ -97,14 +102,16 @@ def cycle_sim(hw_inuse, max_cycles):
         # save current state of hardware to data array
         cur_data = ""
         for elem in hw_inuse:
+            power = hardwareModel.power[elem][0]
+            if elem == "Regs": power *= hardwareModel.power_scale[find_nearest_mem_to_scale(memory_needed)]
             if len(hw_inuse[elem]) > 0:
                 cur_data += elem + ": "
                 count = 0
                 for i in hw_inuse[elem]:
                     if i > 0:
                         count += 1
-                        power_use[cycles] += hardwareModel.power[elem][2]
-                power_use[cycles] += (hardwareModel.power[elem][2] / 10) * len(hw_inuse[elem]) # passive power
+                        power_use[cycles] += power
+                power_use[cycles] += (power / 10) * len(hw_inuse[elem]) # passive power
                 cur_data += str(count) + "/" + str(len(hw_inuse[elem])) + " in use. || "
         data[cycles] = cur_data
         # simulate one cycle
@@ -174,7 +181,7 @@ def find_next_data_path_index(i, mallocs, frees, data_path):
     return i
 
 def simulate(cfg, node_operations, hw_spec, graphs, first):
-    global main_cfg, id_to_node, unroll_at, memory_module, data_path, new_graph
+    global main_cfg, id_to_node, unroll_at, memory_module, data_path, new_graph, memory_needed
     cur_node = cfg.entryblock
     if first: 
         cur_node = cur_node.exits[0].target # skip over the first node in the main cfg
@@ -227,16 +234,18 @@ def simulate(cfg, node_operations, hw_spec, graphs, first):
             #print(hw_need)
             max_cycles = 0
             for elem in hw_need:
+                latency = hardwareModel.latency[elem]
+                if elem == "Regs": latency *= hardwareModel.latency_scale[find_nearest_mem_to_scale(memory_needed)]
                 cur_elem_count = hw_need[elem]
                 if cur_elem_count == 0: continue
                 if hw_spec[elem] == 0 and cur_elem_count > 0:
                     raise Exception("hardware specification insufficient to run program")
-                cur_cycles_needed = int(math.ceil(cur_elem_count / hw_spec[elem]) * hardwareModel.latency[elem])
+                cur_cycles_needed = int(math.ceil(cur_elem_count / hw_spec[elem]) * latency)
                 #print("cycles needed for " + elem + ": " + str(cur_cycles_needed) + ' (element count = ' + str(cur_elem_count) + ')')
                 max_cycles = max(cur_cycles_needed, max_cycles)
                 j = 0
                 while cur_elem_count > 0:
-                    hw_inuse[elem][j] += hardwareModel.latency[elem]
+                    hw_inuse[elem][j] += latency
                     j = (j + 1) % hw_spec[elem]
                     cur_elem_count -= 1
             node_avg_power[node_id] += cycle_sim(hw_inuse, max_cycles)
@@ -349,6 +358,8 @@ def main():
             compute_element_to_node_id[key].append(compute_id)
     
     data = simulate(cfg, node_operations, hw.hw_allocated, graphs, True)
+    print("total number of cycles: ", cycles)
+    print("total energy: ", sum(power_use))
     names = sys.argv[1].split('/')
     if len(sys.argv) < 3 or not sys.argv[2] == "notrace":
         text = json.dumps(data, indent=4)
@@ -363,73 +374,6 @@ def main():
     plt.ylabel("Power")
     plt.savefig("benchmarks/power_plots/power_use_" + names[-1] + ".pdf")
     plt.clf() 
-
-    with open(path + 'destiny/config/sample.cfg', 'w') as fh:
-        fh.write("-DesignTarget: cache\n\
-\n\
--CacheAccessMode: Normal\n\
--Associativity (for cache only): 8\n\
-\n\
--ProcessNode: 45\n\
-\n\
--Capacity (KB): 128\n\
-//-WordWidth (bit): 64\n\
--WordWidth (bit): 128\n\
-\n\
--DeviceRoadmap: HP\n\
-\n\
--LocalWireType: LocalAggressive\n\
--LocalWireRepeaterType: RepeatedNone\n\
--LocalWireUseLowSwing: No\n\
-\n\
--GlobalWireType: GlobalAggressive\n\
--GlobalWireRepeaterType: RepeatedNone\n\
--GlobalWireUseLowSwing: No\n\
-\n\
-//-Routing: H-tree\n\
--Routing: Non-H-tree\n\
-\n\
--InternalSensing: true\n\
-\n\
--MemoryCellInputFile: sample_2D_eDRAM.cell\n\
-\n\
--Temperature (K): 370\n\
--RetentionTime (us): 40\n\
-\n\
--OptimizationTarget: WriteEDP\n\
-//-OptimizationTarget: Full\n\
--EnablePruning: Yes\n\
-\n\
--BufferDesignOptimization: latency\n\
-\n\
-//-ForceBank3D (Total AxBxC, Active DxE): 64x4x2, 1x1\n\
-//-ForceBank (Total AxB, Active CxD): 64x4, 1x1\n\
-//-ForceMat (Total AxB, Active CxD): 2x2, 2x2\n\
-//-ForceMuxSenseAmp: 128\n\
-//-ForceMuxOutputLev1: 1 \n\
-//-ForceMuxOutputLev2: 1\n\
-\n\
--StackedDieCount: 1\n\
-//-PartitionGranularity: 1\n\
-//-LocalTSVProjection: 0\n\
-//-GlobalTSVProjection: 0\n\
-//-TSVRedundancy 1.2")
-    with open(path + 'destiny/config/sample.cell', 'w') as fh:
-        fh.write("-MemCellType: eDRAM\n\
-\n\
--CellArea (F^2): 33.1\n\
--CellAspectRatio: 2.39\n\
-\n\
--ReadMode: voltage\n\
-\n\
--AccessType: CMOS\n\
--AccessCMOSWidth (F): 1.31\n\
-\n\
--DRAMCellCapacitance (F): 18e-15\n\
--ResetVoltage (V): vdd\n\
--SetVoltage (V): vdd\n\
-\n\
--MinSenseVoltage (mV): 10")
     print("done!")
 
 if __name__ == '__main__':

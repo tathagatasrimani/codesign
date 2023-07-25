@@ -157,74 +157,78 @@ graph {
 "]
 	182 [label="~
 "]
-	183 [label="q
-location: 64
-Read"]
-	183 -- 106 [label="size: 24"]
-	184 [label="r
-location: 88
-Read"]
-	184 -- 106 [label="size: 32"]
-	185 [label="w
-location: 120
-Write"]
-	185 -- 106 [label="size: 24"]
-	186 [label="w
-location: 120
-Read"]
-	186 -- 174 [label="size: 24"]
-	187 [label="x
+	183 [label="x
 location: 0
 Read"]
-	187 -- 107 [label="size: 32"]
-	188 [label="y
+	183 -- 136 [label="size: 32"]
+	184 [label="y
 location: 32
 Read"]
-	188 -- 107 [label="size: 32"]
+	184 -- 136 [label="size: 32"]
+	185 [label="x
+location: 0
+Read"]
+	185 -- 106 [label="size: 32"]
+	186 [label="y
+location: 32
+Read"]
+	186 -- 106 [label="size: 32"]
+	187 [label="r
+location: 88
+Write"]
+	187 -- 106 [label="size: 32"]
+	188 [label="q
+location: 64
+Read"]
+	188 -- 107 [label="size: 24"]
 	189 [label="r
 location: 88
-Write"]
+Read"]
 	189 -- 107 [label="size: 32"]
-	190 [label="q
+	190 [label="w
+location: 120
+Write"]
+	190 -- 107 [label="size: 24"]
+	191 [label="w
+location: 120
+Read"]
+	191 -- 174 [label="size: 24"]
+	192 [label="q
 location: 64
 Read"]
-	190 -- 136 [label="size: 24"]
-	191 [label="r
+	192 -- 137 [label="size: 24"]
+	193 [label="r
 location: 88
 Read"]
-	191 -- 136 [label="size: 32"]
-	192 [label="x
-location: 0
-Read"]
-	192 -- 137 [label="size: 32"]
-	193 [label="y
-location: 32
-Read"]
 	193 -- 137 [label="size: 32"]
-	136 -- 121 [label=""]
+	137 -- 121 [label=""]
 	194 [label="q
 location: 64
 Write"]
 	194 -- 121 [label="size: 24"]
-	137 -- 106 [label=""]
+	136 -- 106 [label=""]
 	106 -- 106 [label=""]
 	151 -- 106 [label=""]
-	196 [label="a
+	195 [label="q
+location: 64
+Write"]
+	195 -- 106 [label="size: 24"]
+	197 [label="a
+location: 0
+Write"]
+	197 -- 121 [label="size: 24"]
+	198 [label="a
 location: 0
 Read"]
-	196 -- 151 [label="size: 24"]
-	197 [label="r
+	198 -- 151 [label="size: 24"]
+	199 [label="r
 location: 88
 Read"]
-	197 -- 151 [label="size: 32"]
-	198 [label="b
+	199 -- 151 [label="size: 32"]
+	200 [label="b
 location: 32
 Write"]
-	198 -- 151 [label="size: 24"]
-	200 [label="a
-location: 0
-Write"]
-	200 -- 121 [label="size: 24"]
+	200 -- 151 [label="size: 24"]
 	201 [label="z
 location: 144
 Read"]
