@@ -1,13 +1,13 @@
 digraph {
-	140 [label="source code:
+	141 [label="source code:
 for i in range(len(arr)):
 "]
-	141 [label="range(len(arr))
+	142 [label="range(len(arr))
 "]
-	142 [label="len(arr)
+	143 [label="len(arr)
 "]
-	143 [label="arr
+	144 [label="arr
 Read"]
+	144 -> 143 [label=""]
 	143 -> 142 [label=""]
-	142 -> 141 [label=""]
 }

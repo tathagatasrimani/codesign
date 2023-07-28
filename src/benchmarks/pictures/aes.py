@@ -57,15 +57,26 @@ if __name__ == '__main__':
 "]
 	102 [label="import time
 start = time.time()
+"]
+	"102_calls" [label="time.time" shape=box]
+	102 -> "102_calls" [label=calls style=dashed]
+	104 [label="for i in range(10):
+"]
+	105 [label="Sbox += Sbox
+"]
+	105 -> 104 [label=""]
+	104 -> 105 [label="range(10)"]
+	106 [label="Sbox_new = Sbox
 aes = AES(1212304810341341)
 aes.encrypt(1212304810341341)
 end = time.time()
 "]
-	"102_calls" [label="time.time
-AES
+	"106_calls" [label="AES
 aes.encrypt
 time.time" shape=box]
-	102 -> "102_calls" [label=calls style=dashed]
+	106 -> "106_calls" [label=calls style=dashed]
+	104 -> 106 [label=""]
+	102 -> 104 [label=""]
 	1 -> 102 [label="__name__ == '__main__'"]
 	subgraph clusterxtime {
 		graph [label=xtime]

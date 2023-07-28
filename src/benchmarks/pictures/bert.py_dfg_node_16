@@ -1,22 +1,22 @@
 digraph {
-	39 [label="source code:
+	40 [label="source code:
 arr = np.random.rand(l, wid)
 neg = True
 "]
-	40 [label="np.random.rand(l, wid)
+	41 [label="np.random.rand(l, wid)
 "]
-	41 [label="l
+	42 [label="l
 Read"]
-	41 -> 40 [label=""]
-	42 [label="wid
+	42 -> 41 [label=""]
+	43 [label="wid
 Read"]
-	42 -> 40 [label=""]
-	43 [label="arr
+	43 -> 41 [label=""]
+	44 [label="arr
 Write"]
-	40 -> 43 [label=""]
-	44 [label=True
+	41 -> 44 [label=""]
+	45 [label=True
 ]
-	45 [label="neg
+	46 [label="neg
 Write"]
-	44 -> 45 [label=""]
+	45 -> 46 [label=""]
 }

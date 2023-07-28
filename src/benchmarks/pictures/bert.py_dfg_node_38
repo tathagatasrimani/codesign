@@ -1,28 +1,28 @@
 digraph {
-	96 [label="source code:
+	97 [label="source code:
 img[i][j] = max(img[i][j], 0)
 "]
-	97 [label="max(img[i][j], 0)
+	98 [label="max(img[i][j], 0)
 "]
-	98 [label="img
+	99 [label="img
 Read"]
-	99 [label="img[i]
-Read"]
-	98 -> 99 [label=""]
-	100 [label="img[i][j]
+	100 [label="img[i]
 Read"]
 	99 -> 100 [label=""]
-	100 -> 97 [label=""]
-	101 [label=0
+	101 [label="img[i][j]
+Read"]
+	100 -> 101 [label=""]
+	101 -> 98 [label=""]
+	102 [label=0
 ]
-	101 -> 97 [label=""]
-	102 [label="img
+	102 -> 98 [label=""]
+	103 [label="img
 Read"]
-	103 [label="img[i]
+	104 [label="img[i]
 Read"]
-	102 -> 103 [label=""]
-	104 [label="img[i][j]
-Write"]
 	103 -> 104 [label=""]
-	97 -> 104 [label=""]
+	105 [label="img[i][j]
+Write"]
+	104 -> 105 [label=""]
+	98 -> 105 [label=""]
 }

@@ -1,37 +1,37 @@
 digraph {
-	144 [label="source code:
+	145 [label="source code:
 dev = std_dev(arr[i])
 mean = get_mean(arr[i])
 if dev == 0:
 "]
-	145 [label="std_dev(arr[i])
+	146 [label="std_dev(arr[i])
 "]
-	146 [label="arr
+	147 [label="arr
 Read"]
-	147 [label="arr[i]
+	148 [label="arr[i]
 Read"]
-	146 -> 147 [label=""]
-	147 -> 145 [label=""]
-	148 [label="dev
+	147 -> 148 [label=""]
+	148 -> 146 [label=""]
+	149 [label="dev
 Write"]
-	145 -> 148 [label=""]
-	149 [label="get_mean(arr[i])
+	146 -> 149 [label=""]
+	150 [label="get_mean(arr[i])
 "]
-	150 [label="arr
+	151 [label="arr
 Read"]
-	151 [label="arr[i]
+	152 [label="arr[i]
 Read"]
-	150 -> 151 [label=""]
-	151 -> 149 [label=""]
-	152 [label="mean
+	151 -> 152 [label=""]
+	152 -> 150 [label=""]
+	153 [label="mean
 Write"]
-	149 -> 152 [label=""]
-	153 [label="dev
+	150 -> 153 [label=""]
+	154 [label="dev
 Read"]
-	154 [label=0
+	155 [label=0
 ]
-	155 [label="==
+	156 [label="==
 "]
-	153 -> 155 [label=""]
-	154 -> 155 [label=""]
+	154 -> 156 [label=""]
+	155 -> 156 [label=""]
 }

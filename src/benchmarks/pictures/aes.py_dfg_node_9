@@ -1,49 +1,49 @@
 digraph {
-	568 [label="source code:
+	579 [label="source code:
 byte = text >> 8 * (15 - i) & 255
 if i % 4 == 0:
 "]
-	569 [label="text
+	580 [label="text
 Read"]
-	570 [label=8
+	581 [label=8
 ]
-	571 [label=15
+	582 [label=15
 ]
-	572 [label="i
+	583 [label="i
 Read"]
-	573 [label="-
+	584 [label="-
 "]
-	571 -> 573 [label=""]
-	572 -> 573 [label=""]
-	574 [label="*
+	582 -> 584 [label=""]
+	583 -> 584 [label=""]
+	585 [label="*
 "]
-	570 -> 574 [label=""]
-	573 -> 574 [label=""]
-	575 [label=">>
+	581 -> 585 [label=""]
+	584 -> 585 [label=""]
+	586 [label=">>
 "]
-	569 -> 575 [label=""]
-	574 -> 575 [label=""]
-	576 [label=255
+	580 -> 586 [label=""]
+	585 -> 586 [label=""]
+	587 [label=255
 ]
-	577 [label="&
+	588 [label="&
 "]
-	575 -> 577 [label=""]
-	576 -> 577 [label=""]
-	578 [label="byte
+	586 -> 588 [label=""]
+	587 -> 588 [label=""]
+	589 [label="byte
 Write"]
-	577 -> 578 [label=""]
-	579 [label="i
+	588 -> 589 [label=""]
+	590 [label="i
 Read"]
-	580 [label=4
+	591 [label=4
 ]
-	581 [label="%
+	592 [label="%
 "]
-	579 -> 581 [label=""]
-	580 -> 581 [label=""]
-	582 [label=0
+	590 -> 592 [label=""]
+	591 -> 592 [label=""]
+	593 [label=0
 ]
-	583 [label="==
+	594 [label="==
 "]
-	581 -> 583 [label=""]
-	582 -> 583 [label=""]
+	592 -> 594 [label=""]
+	593 -> 594 [label=""]
 }

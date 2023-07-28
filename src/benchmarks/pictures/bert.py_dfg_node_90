@@ -1,22 +1,22 @@
 digraph {
-	255 [label="source code:
+	256 [label="source code:
 emb[i][j + head * d_k] = cur[i][j]
 "]
-	256 [label="cur
+	257 [label="cur
 Read"]
-	257 [label="cur[i]
-Read"]
-	256 -> 257 [label=""]
-	258 [label="cur[i][j]
+	258 [label="cur[i]
 Read"]
 	257 -> 258 [label=""]
-	259 [label="emb
+	259 [label="cur[i][j]
 Read"]
-	260 [label="emb[i]
+	258 -> 259 [label=""]
+	260 [label="emb
 Read"]
-	259 -> 260 [label=""]
-	261 [label="emb[i][j + head * d_k]
-Write"]
+	261 [label="emb[i]
+Read"]
 	260 -> 261 [label=""]
-	258 -> 261 [label=""]
+	262 [label="emb[i][j + head * d_k]
+Write"]
+	261 -> 262 [label=""]
+	259 -> 262 [label=""]
 }

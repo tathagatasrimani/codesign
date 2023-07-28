@@ -1,5 +1,6 @@
 import numpy as np
 import math
+from loop import loop
 
 def balance_random_3d(depth, l, wid):
     arr = np.random.rand(depth, l, wid)
@@ -99,7 +100,7 @@ def self_attn(head, tokens, d_k, Q, K, V):
 
 
 def main():
-    d_model, heads, tokens, layers = 12, 12, 8, 12
+    d_model, heads, tokens, layers = 200, 12, 8, 12
     d_k = d_model // heads
     embeddings = np.random.rand(tokens, d_model)
     for i in range(tokens):
@@ -159,4 +160,5 @@ def main():
         embeddings = BN_layer(embeddings, weights, biases)
 
 if __name__ == "__main__":
+    loop.start_unroll
     main()

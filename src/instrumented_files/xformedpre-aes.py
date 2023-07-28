@@ -302,8 +302,13 @@ if __name__ == '__main__':
     import time
     print(102, 705)
     start_0 = time.time()
-    print(102, 706)
+    for i_0 in range(10):
+        print(105, 707)
+        Sbox_0 += Sbox_0
+    print(106, 708)
+    Sbox_new_0 = Sbox_0
+    print(106, 709)
     aes_0 = AES(1212304810341341)
     aes_0.encrypt(1212304810341341)
-    print(102, 708)
+    print(106, 711)
     end_0 = time.time()

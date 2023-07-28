@@ -1,34 +1,34 @@
 digraph {
-	618 [label="source code:
+	619 [label="source code:
 sum_val += multi_head_out[i][k] * W_attn[k][j]
 "]
-	619 [label="multi_head_out
+	620 [label="multi_head_out
 Read"]
-	620 [label="multi_head_out[i]
-Read"]
-	619 -> 620 [label=""]
-	621 [label="multi_head_out[i][k]
+	621 [label="multi_head_out[i]
 Read"]
 	620 -> 621 [label=""]
-	622 [label="W_attn
+	622 [label="multi_head_out[i][k]
 Read"]
-	623 [label="W_attn[k]
+	621 -> 622 [label=""]
+	623 [label="W_attn
 Read"]
-	622 -> 623 [label=""]
-	624 [label="W_attn[k][j]
+	624 [label="W_attn[k]
 Read"]
 	623 -> 624 [label=""]
-	625 [label="*
-"]
-	621 -> 625 [label=""]
-	624 -> 625 [label=""]
-	626 [label="sum_val
+	625 [label="W_attn[k][j]
 Read"]
-	627 [label="+
+	624 -> 625 [label=""]
+	626 [label="*
 "]
-	625 -> 627 [label=""]
-	626 -> 627 [label=""]
-	628 [label="sum_val
-Write"]
+	622 -> 626 [label=""]
+	625 -> 626 [label=""]
+	627 [label="sum_val
+Read"]
+	628 [label="+
+"]
+	626 -> 628 [label=""]
 	627 -> 628 [label=""]
+	629 [label="sum_val
+Write"]
+	628 -> 629 [label=""]
 }

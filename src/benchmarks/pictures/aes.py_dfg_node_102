@@ -2,31 +2,10 @@ digraph {
 	551 [label="source code:
 import time
 start = time.time()
-aes = AES(1212304810341341)
-aes.encrypt(1212304810341341)
-end = time.time()
 "]
 	552 [label="time.time()
 "]
 	553 [label="start
 Write"]
 	552 -> 553 [label=""]
-	554 [label="AES(1212304810341341)
-"]
-	555 [label=1212304810341341
-]
-	555 -> 554 [label=""]
-	556 [label="aes
-Write"]
-	554 -> 556 [label=""]
-	557 [label="aes.encrypt(1212304810341341)
-"]
-	558 [label=1212304810341341
-]
-	558 -> 557 [label=""]
-	559 [label="time.time()
-"]
-	560 [label="end
-Write"]
-	559 -> 560 [label=""]
 }

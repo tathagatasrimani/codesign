@@ -2,6 +2,7 @@ digraph "clustermain.c" {
 	graph [label="main.c"]
 	1 [label="import numpy as np
 import math
+from loop import loop
 def balance_random_3d(depth, l, wid):...
 def balance_random_2d(l, wid):...
 def arr_add(dst, src):...
@@ -16,7 +17,8 @@ def self_attn(head, tokens, d_k, Q, K, V):...
 def main():...
 if __name__ == '__main__':
 "]
-	156 [label="main()
+	156 [label="loop.start_unroll
+main()
 "]
 	"156_calls" [label=main shape=box]
 	156 -> "156_calls" [label=calls style=dashed]
@@ -319,7 +321,7 @@ softmax" shape=box]
 	}
 	subgraph clustermain {
 		graph [label=main]
-		117 [label="d_model, heads, tokens, layers = 12, 12, 8, 12
+		117 [label="d_model, heads, tokens, layers = 100, 12, 8, 12
 d_k = d_model // heads
 embeddings = np.random.rand(tokens, d_model)
 "]

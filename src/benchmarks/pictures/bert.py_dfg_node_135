@@ -1,49 +1,49 @@
 digraph {
-	524 [label="source code:
+	525 [label="source code:
 Q[i][j][k] = sumQ
 K[i][j][k] = sumK
 V[i][j][k] = sumV
 "]
-	525 [label="sumQ
+	526 [label="sumQ
 Read"]
-	526 [label="Q
+	527 [label="Q
 Read"]
-	527 [label="Q[i]
-Read"]
-	526 -> 527 [label=""]
-	528 [label="Q[i][j]
+	528 [label="Q[i]
 Read"]
 	527 -> 528 [label=""]
-	529 [label="Q[i][j][k]
-Write"]
+	529 [label="Q[i][j]
+Read"]
 	528 -> 529 [label=""]
-	525 -> 529 [label=""]
-	530 [label="sumK
+	530 [label="Q[i][j][k]
+Write"]
+	529 -> 530 [label=""]
+	526 -> 530 [label=""]
+	531 [label="sumK
 Read"]
-	531 [label="K
+	532 [label="K
 Read"]
-	532 [label="K[i]
-Read"]
-	531 -> 532 [label=""]
-	533 [label="K[i][j]
+	533 [label="K[i]
 Read"]
 	532 -> 533 [label=""]
-	534 [label="K[i][j][k]
-Write"]
+	534 [label="K[i][j]
+Read"]
 	533 -> 534 [label=""]
-	530 -> 534 [label=""]
-	535 [label="sumV
+	535 [label="K[i][j][k]
+Write"]
+	534 -> 535 [label=""]
+	531 -> 535 [label=""]
+	536 [label="sumV
 Read"]
-	536 [label="V
+	537 [label="V
 Read"]
-	537 [label="V[i]
-Read"]
-	536 -> 537 [label=""]
-	538 [label="V[i][j]
+	538 [label="V[i]
 Read"]
 	537 -> 538 [label=""]
-	539 [label="V[i][j][k]
-Write"]
+	539 [label="V[i][j]
+Read"]
 	538 -> 539 [label=""]
-	535 -> 539 [label=""]
+	540 [label="V[i][j][k]
+Write"]
+	539 -> 540 [label=""]
+	536 -> 540 [label=""]
 }

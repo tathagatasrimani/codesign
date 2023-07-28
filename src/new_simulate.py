@@ -19,7 +19,7 @@ data = {}
 cycles = 0
 main_cfg = None
 id_to_node = {}
-path = '/Users/PatrickMcEwen/git_container/codesign/src/' # change path variable for local computer
+path = '/nfs/pool0/pmcewen/codesign/codesign/src/' # change path variable for local computer
 data_path = []
 power_use = []
 node_intervals = []
@@ -263,8 +263,8 @@ def simulate(cfg, node_operations, hw_spec, graphs, first):
 
 def set_data_path():
     global data_path, cur_memory_size, vars_allocated, where_to_free, memory_needed
-    with open('/Users/PatrickMcEwen/git_container/codesign/src/instrumented_files/output.txt', 'r') as f:
-        f_new = open('/Users/PatrickMcEwen/git_container/codesign/src/instrumented_files/output_free.txt', 'w+')
+    with open('/nfs/pool0/pmcewen/codesign/codesign/src/instrumented_files/output.txt', 'r') as f:
+        f_new = open('/nfs/pool0/pmcewen/codesign/codesign/src/instrumented_files/output_free.txt', 'w+')
         src = f.read()
         l = src.split('\n')
         split_lines = []

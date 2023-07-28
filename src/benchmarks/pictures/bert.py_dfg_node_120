@@ -1,5 +1,5 @@
 digraph {
-	367 [label="source code:
+	368 [label="source code:
 W_Q = balance_random_3d(heads, d_model, d_k)
 W_K = balance_random_3d(heads, d_model, d_k)
 W_V = balance_random_3d(heads, d_model, d_k)
@@ -7,82 +7,82 @@ Q = np.zeros((heads, tokens, d_k))
 K = np.zeros((heads, tokens, d_k))
 V = np.zeros((heads, tokens, d_k))
 "]
-	368 [label="balance_random_3d(heads, d_model, d_k)
+	369 [label="balance_random_3d(heads, d_model, d_k)
 "]
-	369 [label="heads
+	370 [label="heads
 Read"]
-	369 -> 368 [label=""]
-	370 [label="d_model
+	370 -> 369 [label=""]
+	371 [label="d_model
 Read"]
-	370 -> 368 [label=""]
-	371 [label="d_k
+	371 -> 369 [label=""]
+	372 [label="d_k
 Read"]
-	371 -> 368 [label=""]
-	372 [label="W_Q
+	372 -> 369 [label=""]
+	373 [label="W_Q
 Write"]
-	368 -> 372 [label=""]
-	373 [label="balance_random_3d(heads, d_model, d_k)
+	369 -> 373 [label=""]
+	374 [label="balance_random_3d(heads, d_model, d_k)
 "]
-	374 [label="heads
+	375 [label="heads
 Read"]
-	374 -> 373 [label=""]
-	375 [label="d_model
+	375 -> 374 [label=""]
+	376 [label="d_model
 Read"]
-	375 -> 373 [label=""]
-	376 [label="d_k
+	376 -> 374 [label=""]
+	377 [label="d_k
 Read"]
-	376 -> 373 [label=""]
-	377 [label="W_K
+	377 -> 374 [label=""]
+	378 [label="W_K
 Write"]
-	373 -> 377 [label=""]
-	378 [label="balance_random_3d(heads, d_model, d_k)
+	374 -> 378 [label=""]
+	379 [label="balance_random_3d(heads, d_model, d_k)
 "]
-	379 [label="heads
+	380 [label="heads
 Read"]
-	379 -> 378 [label=""]
-	380 [label="d_model
+	380 -> 379 [label=""]
+	381 [label="d_model
 Read"]
-	380 -> 378 [label=""]
-	381 [label="d_k
+	381 -> 379 [label=""]
+	382 [label="d_k
 Read"]
-	381 -> 378 [label=""]
-	382 [label="W_V
+	382 -> 379 [label=""]
+	383 [label="W_V
 Write"]
-	378 -> 382 [label=""]
-	383 [label="np.zeros((heads, tokens, d_k))
+	379 -> 383 [label=""]
+	384 [label="np.zeros((heads, tokens, d_k))
 "]
-	384 [label="heads
+	385 [label="heads
 Read"]
-	385 [label="tokens
+	386 [label="tokens
 Read"]
-	386 [label="d_k
+	387 [label="d_k
 Read"]
-	384 -> 383 [label=""]
-	387 [label="Q
+	385 -> 384 [label=""]
+	388 [label="Q
 Write"]
-	383 -> 387 [label=""]
-	388 [label="np.zeros((heads, tokens, d_k))
+	384 -> 388 [label=""]
+	389 [label="np.zeros((heads, tokens, d_k))
 "]
-	389 [label="heads
+	390 [label="heads
 Read"]
-	390 [label="tokens
+	391 [label="tokens
 Read"]
-	391 [label="d_k
+	392 [label="d_k
 Read"]
-	389 -> 388 [label=""]
-	392 [label="K
+	390 -> 389 [label=""]
+	393 [label="K
 Write"]
-	388 -> 392 [label=""]
-	393 [label="np.zeros((heads, tokens, d_k))
+	389 -> 393 [label=""]
+	394 [label="np.zeros((heads, tokens, d_k))
 "]
-	394 [label="heads
+	395 [label="heads
 Read"]
-	395 [label="tokens
+	396 [label="tokens
 Read"]
-	396 [label="d_k
+	397 [label="d_k
 Read"]
-	394 -> 393 [label=""]
-	397 [label="V
+	395 -> 394 [label=""]
+	398 [label="V
 Write"]
-	393 -> 397 [label=""]
+	394 -> 398 [label=""]
 }

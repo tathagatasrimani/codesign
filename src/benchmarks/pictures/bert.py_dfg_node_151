@@ -1,57 +1,57 @@
 digraph {
-	599 [label="source code:
+	600 [label="source code:
 embeddings = emb_new
 embeddings = reLU(embeddings)
 W = np.random.rand(d_model * 4, d_model)
 W_0 = np.random.rand(d_model)
 emb_new = np.zeros((tokens, d_model))
 "]
-	600 [label="emb_new
+	601 [label="emb_new
 Read"]
-	601 [label="embeddings
+	602 [label="embeddings
 Write"]
-	600 -> 601 [label=""]
-	602 [label="reLU(embeddings)
+	601 -> 602 [label=""]
+	603 [label="reLU(embeddings)
 "]
-	603 [label="embeddings
-Read"]
-	603 -> 602 [label=""]
 	604 [label="embeddings
-Write"]
-	602 -> 604 [label=""]
-	605 [label="np.random.rand(d_model * 4, d_model)
-"]
-	606 [label="d_model
 Read"]
-	607 [label=4
+	604 -> 603 [label=""]
+	605 [label="embeddings
+Write"]
+	603 -> 605 [label=""]
+	606 [label="np.random.rand(d_model * 4, d_model)
+"]
+	607 [label="d_model
+Read"]
+	608 [label=4
 ]
-	608 [label="*
+	609 [label="*
 "]
-	606 -> 608 [label=""]
-	607 -> 608 [label=""]
-	608 -> 605 [label=""]
-	609 [label="d_model
+	607 -> 609 [label=""]
+	608 -> 609 [label=""]
+	609 -> 606 [label=""]
+	610 [label="d_model
 Read"]
-	609 -> 605 [label=""]
-	610 [label="W
+	610 -> 606 [label=""]
+	611 [label="W
 Write"]
-	605 -> 610 [label=""]
-	611 [label="np.random.rand(d_model)
+	606 -> 611 [label=""]
+	612 [label="np.random.rand(d_model)
 "]
-	612 [label="d_model
+	613 [label="d_model
 Read"]
-	612 -> 611 [label=""]
-	613 [label="W_0
+	613 -> 612 [label=""]
+	614 [label="W_0
 Write"]
-	611 -> 613 [label=""]
-	614 [label="np.zeros((tokens, d_model))
+	612 -> 614 [label=""]
+	615 [label="np.zeros((tokens, d_model))
 "]
-	615 [label="tokens
+	616 [label="tokens
 Read"]
-	616 [label="d_model
+	617 [label="d_model
 Read"]
-	615 -> 614 [label=""]
-	617 [label="emb_new
+	616 -> 615 [label=""]
+	618 [label="emb_new
 Write"]
-	614 -> 617 [label=""]
+	615 -> 618 [label=""]
 }

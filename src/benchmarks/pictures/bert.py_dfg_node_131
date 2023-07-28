@@ -1,20 +1,20 @@
 digraph {
-	456 [label="source code:
+	457 [label="source code:
 sumQ, sumK, sumV = 0, 0, 0
 "]
-	457 [label=0
-]
 	458 [label=0
 ]
 	459 [label=0
 ]
-	460 [label="sumQ
+	460 [label=0
+]
+	461 [label="sumQ
 Write"]
-	461 [label="sumK
+	462 [label="sumK
 Write"]
-	462 [label="sumV
+	463 [label="sumV
 Write"]
-	457 -> 460 [label=""]
 	458 -> 461 [label=""]
 	459 -> 462 [label=""]
+	460 -> 463 [label=""]
 }

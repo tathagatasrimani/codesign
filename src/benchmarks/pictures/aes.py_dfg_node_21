@@ -1,52 +1,52 @@
 digraph {
-	601 [label="source code:
+	612 [label="source code:
 text |= matrix[i][j] << 120 - 8 * (4 * i + j)
 "]
-	602 [label="matrix
+	613 [label="matrix
 Read"]
-	603 [label="matrix[i]
+	614 [label="matrix[i]
 Read"]
-	602 -> 603 [label=""]
-	604 [label="matrix[i][j]
-Read"]
-	603 -> 604 [label=""]
-	605 [label=120
-]
-	606 [label=8
-]
-	607 [label=4
-]
-	608 [label="i
-Read"]
-	609 [label="*
-"]
-	607 -> 609 [label=""]
-	608 -> 609 [label=""]
-	610 [label="j
-Read"]
-	611 [label="+
-"]
-	609 -> 611 [label=""]
-	610 -> 611 [label=""]
-	612 [label="*
-"]
-	606 -> 612 [label=""]
-	611 -> 612 [label=""]
-	613 [label="-
-"]
-	605 -> 613 [label=""]
-	612 -> 613 [label=""]
-	614 [label="<<
-"]
-	604 -> 614 [label=""]
 	613 -> 614 [label=""]
-	615 [label="text
+	615 [label="matrix[i][j]
 Read"]
-	616 [label="|
+	614 -> 615 [label=""]
+	616 [label=120
+]
+	617 [label=8
+]
+	618 [label=4
+]
+	619 [label="i
+Read"]
+	620 [label="*
 "]
-	614 -> 616 [label=""]
-	615 -> 616 [label=""]
-	617 [label="text
+	618 -> 620 [label=""]
+	619 -> 620 [label=""]
+	621 [label="j
+Read"]
+	622 [label="+
+"]
+	620 -> 622 [label=""]
+	621 -> 622 [label=""]
+	623 [label="*
+"]
+	617 -> 623 [label=""]
+	622 -> 623 [label=""]
+	624 [label="-
+"]
+	616 -> 624 [label=""]
+	623 -> 624 [label=""]
+	625 [label="<<
+"]
+	615 -> 625 [label=""]
+	624 -> 625 [label=""]
+	626 [label="text
+Read"]
+	627 [label="|
+"]
+	625 -> 627 [label=""]
+	626 -> 627 [label=""]
+	628 [label="text
 Write"]
-	616 -> 617 [label=""]
+	627 -> 628 [label=""]
 }

@@ -1,13 +1,13 @@
 digraph {
-	193 [label="source code:
+	194 [label="source code:
 sum_val = W_0[i]
 "]
-	194 [label="W_0
+	195 [label="W_0
 Read"]
-	195 [label="W_0[i]
+	196 [label="W_0[i]
 Read"]
-	194 -> 195 [label=""]
-	196 [label="sum_val
-Write"]
 	195 -> 196 [label=""]
+	197 [label="sum_val
+Write"]
+	196 -> 197 [label=""]
 }

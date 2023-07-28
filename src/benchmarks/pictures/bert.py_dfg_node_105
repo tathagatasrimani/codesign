@@ -1,25 +1,25 @@
 digraph {
-	302 [label="source code:
+	303 [label="source code:
 scores[i][j] /= math.sqrt(d_k)
 "]
-	303 [label="math.sqrt(d_k)
+	304 [label="math.sqrt(d_k)
 "]
-	304 [label="d_k
+	305 [label="d_k
 Read"]
-	304 -> 303 [label=""]
-	305 [label="scores
+	305 -> 304 [label=""]
+	306 [label="scores
 Read"]
-	306 [label="//
+	307 [label="//
 "]
-	303 -> 306 [label=""]
-	305 -> 306 [label=""]
-	307 [label="scores
+	304 -> 307 [label=""]
+	306 -> 307 [label=""]
+	308 [label="scores
 Read"]
-	308 [label="scores[i]
+	309 [label="scores[i]
 Read"]
-	307 -> 308 [label=""]
-	309 [label="scores[i][j]
-Write"]
 	308 -> 309 [label=""]
-	306 -> 309 [label=""]
+	310 [label="scores[i][j]
+Write"]
+	309 -> 310 [label=""]
+	307 -> 310 [label=""]
 }

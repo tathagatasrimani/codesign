@@ -1,28 +1,28 @@
 digraph {
-	77 [label="source code:
+	78 [label="source code:
 dst[i][j] += src[i][j]
 "]
-	78 [label="src
+	79 [label="src
 Read"]
-	79 [label="src[i]
-Read"]
-	78 -> 79 [label=""]
-	80 [label="src[i][j]
+	80 [label="src[i]
 Read"]
 	79 -> 80 [label=""]
-	81 [label="dst
+	81 [label="src[i][j]
 Read"]
-	82 [label="+
+	80 -> 81 [label=""]
+	82 [label="dst
+Read"]
+	83 [label="+
 "]
-	80 -> 82 [label=""]
-	81 -> 82 [label=""]
-	83 [label="dst
+	81 -> 83 [label=""]
+	82 -> 83 [label=""]
+	84 [label="dst
 Read"]
-	84 [label="dst[i]
+	85 [label="dst[i]
 Read"]
-	83 -> 84 [label=""]
-	85 [label="dst[i][j]
-Write"]
 	84 -> 85 [label=""]
-	82 -> 85 [label=""]
+	86 [label="dst[i][j]
+Write"]
+	85 -> 86 [label=""]
+	83 -> 86 [label=""]
 }

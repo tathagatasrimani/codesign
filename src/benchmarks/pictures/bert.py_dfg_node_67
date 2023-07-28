@@ -1,19 +1,19 @@
 digraph {
-	182 [label="source code:
+	183 [label="source code:
 result = np.zeros(len(W[0]))
 "]
-	183 [label="np.zeros(len(W[0]))
+	184 [label="np.zeros(len(W[0]))
 "]
-	184 [label="len(W[0])
+	185 [label="len(W[0])
 "]
-	185 [label="W
+	186 [label="W
 Read"]
-	186 [label="W[0]
+	187 [label="W[0]
 Read"]
-	185 -> 186 [label=""]
-	186 -> 184 [label=""]
-	184 -> 183 [label=""]
-	187 [label="result
+	186 -> 187 [label=""]
+	187 -> 185 [label=""]
+	185 -> 184 [label=""]
+	188 [label="result
 Write"]
-	183 -> 187 [label=""]
+	184 -> 188 [label=""]
 }
