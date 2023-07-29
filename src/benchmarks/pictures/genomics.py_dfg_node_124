@@ -1,0 +1,28 @@
+digraph {
+	440 [label="source code:
+scoring_matrix[i][j] = diagonal_score
+traceback_matrix[i][j] = 'D'
+"]
+	441 [label="diagonal_score
+Read"]
+	442 [label="scoring_matrix
+Read"]
+	443 [label="scoring_matrix[i]
+Read"]
+	442 -> 443 [label=""]
+	444 [label="scoring_matrix[i][j]
+Write"]
+	443 -> 444 [label=""]
+	441 -> 444 [label=""]
+	445 [label=D
+]
+	446 [label="traceback_matrix
+Read"]
+	447 [label="traceback_matrix[i]
+Read"]
+	446 -> 447 [label=""]
+	448 [label="traceback_matrix[i][j]
+Write"]
+	447 -> 448 [label=""]
+	445 -> 448 [label=""]
+}

@@ -4,11 +4,11 @@ import sys
 from instrument_lib import *
 import numpy as np
 print(1, 4)
-A_0 = instrument_read(np, 'np').random.randint(0, 512, size=(10, 10))
+A_0 = instrument_read(np, 'np').random.randint(0, 512, size=(400, 400))
 write_instrument_read(A_0, 'A_0')
 print('malloc', sys.getsizeof(A_0), 'A_0')
 print(1, 5)
-B_0 = instrument_read(np, 'np').random.randint(512, high=None, size=(10, 10))
+B_0 = instrument_read(np, 'np').random.randint(512, high=None, size=(400, 400))
 write_instrument_read(B_0, 'B_0')
 print('malloc', sys.getsizeof(B_0), 'B_0')
 

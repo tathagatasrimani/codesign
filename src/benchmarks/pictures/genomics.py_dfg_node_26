@@ -1,0 +1,10 @@
+digraph {
+	64 [label="source code:
+for i in range(10):
+"]
+	65 [label="range(10)
+"]
+	66 [label=10
+]
+	66 -> 65 [label=""]
+}

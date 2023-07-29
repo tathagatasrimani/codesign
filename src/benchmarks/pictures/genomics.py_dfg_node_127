@@ -1,0 +1,25 @@
+digraph {
+	496 [label="source code:
+max_score = scoring_matrix[i][j]
+max_pos = i, j
+"]
+	497 [label="scoring_matrix
+Read"]
+	498 [label="scoring_matrix[i]
+Read"]
+	497 -> 498 [label=""]
+	499 [label="scoring_matrix[i][j]
+Read"]
+	498 -> 499 [label=""]
+	500 [label="max_score
+Write"]
+	499 -> 500 [label=""]
+	501 [label="i
+Read"]
+	502 [label="j
+Read"]
+	503 [label="max_pos
+Write"]
+	501 -> 503 [label=""]
+	502 -> 503 [label=""]
+}

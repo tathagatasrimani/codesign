@@ -2,9 +2,9 @@ import sys
 from instrument_lib import *
 import numpy as np
 print(1, 4)
-A_0 = np.random.randint(0, 512, size=(10, 10))
+A_0 = np.random.randint(0, 512, size=(400, 400))
 print(1, 5)
-B_0 = np.random.randint(512, high=None, size=(10, 10))
+B_0 = np.random.randint(512, high=None, size=(400, 400))
 
 
 def csr(matrix1, matrix2):

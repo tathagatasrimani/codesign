@@ -100,7 +100,7 @@ def self_attn(head, tokens, d_k, Q, K, V):
 
 
 def main():
-    d_model, heads, tokens, layers = 200, 12, 8, 12
+    d_model, heads, tokens, layers = 50, 12, 8, 12
     d_k = d_model // heads
     embeddings = np.random.rand(tokens, d_model)
     for i in range(tokens):

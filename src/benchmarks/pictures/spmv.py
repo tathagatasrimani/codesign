@@ -1,8 +1,8 @@
 digraph "clustermain.c" {
 	graph [label="main.c"]
 	1 [label="import numpy as np
-A = np.random.randint(0, 512, size=(10, 10))
-B = np.random.randint(512, high=None, size=(10, 10))
+A = np.random.randint(0, 512, size=(400, 400))
+B = np.random.randint(512, high=None, size=(400, 400))
 def csr(matrix1, matrix2):...
 if __name__ == '__main__':
 "]

@@ -336,15 +336,15 @@ def main():
     print(1, 222)
     print(134, 223)
     fasta_file_9 = (
-        '/Users/PatrickMcEwen/git_container/codesign/src/benchmarks/supplemental_files/fasta_example.fasta'
+        '/nfs/pool0/pmcewen/codesign/codesign/src/benchmarks/supplemental_files/fasta_example.fasta'
         )
     print(134, 224)
     fastq_file_9 = (
-        '/Users/PatrickMcEwen/git_container/codesign/src/benchmarks/supplemental_files/fastq_example.fastq'
+        '/nfs/pool0/pmcewen/codesign/codesign/src/benchmarks/supplemental_files/fastq_large.fastq'
         )
     print(134, 225)
     output_file_9 = (
-        '/Users/PatrickMcEwen/git_container/codesign/src/benchmarks/supplemental_files/output_file.txt'
+        '/nfs/pool0/pmcewen/codesign/codesign/src/benchmarks/supplemental_files/output_file.txt'
         )
     darwin_wga_workflow(fasta_file_9, fastq_file_9, output_file_9)
     print('exit scope 9')

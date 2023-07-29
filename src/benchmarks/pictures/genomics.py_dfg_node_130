@@ -1,0 +1,19 @@
+digraph {
+	364 [label="source code:
+if traceback_matrix[i][j] == 'D':
+"]
+	365 [label="traceback_matrix
+Read"]
+	366 [label="traceback_matrix[i]
+Read"]
+	365 -> 366 [label=""]
+	367 [label="traceback_matrix[i][j]
+Read"]
+	366 -> 367 [label=""]
+	368 [label=D
+]
+	369 [label="==
+"]
+	367 -> 369 [label=""]
+	368 -> 369 [label=""]
+}
