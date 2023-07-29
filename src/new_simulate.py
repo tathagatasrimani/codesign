@@ -94,7 +94,7 @@ def get_hw_need(state, hw_spec):
         hw_need.hw_allocated[op.operation] += 1
     return hw_need.hw_allocated
 
-def cycle_sim(hw_inuse, max_cycles):
+def cycle_sim(hw_inuse, hw, max_cycles):
     global cycles, data, power_use, memory_needed
     node_power_sum = 0
     for i in range(max_cycles):
@@ -105,8 +105,8 @@ def cycle_sim(hw_inuse, max_cycles):
         # save current state of hardware to data array
         cur_data = ""
         for elem in hw_inuse:
-            power = hardwareModel.power[elem][0]
-            if elem == "Regs": power *= hardwareModel.power_scale[find_nearest_mem_to_scale(memory_needed)]
+            power = hw.dynamic_power[elem]
+            if elem == "Regs": power *= hw.power_scale[find_nearest_mem_to_scale(memory_needed)]
             if len(hw_inuse[elem]) > 0:
                 cur_data += elem + ": "
                 count = 0
@@ -114,7 +114,7 @@ def cycle_sim(hw_inuse, max_cycles):
                     if i > 0:
                         count += 1
                         power_use[cycles] += power
-                power_use[cycles] += (power / 10) * len(hw_inuse[elem]) # passive power
+                power_use[cycles] += hw.leakage_power[elem] * len(hw_inuse[elem]) # passive power
                 cur_data += str(count) + "/" + str(len(hw_inuse[elem])) + " in use. || "
         data[cycles] = cur_data
         # simulate one cycle
@@ -183,15 +183,15 @@ def find_next_data_path_index(i, mallocs, frees, data_path):
         if i == len(data_path): break
     return i
 
-def simulate(cfg, node_operations, hw_spec, graphs, first):
+def simulate(cfg, node_operations, hw, graphs, first):
     global main_cfg, id_to_node, unroll_at, memory_module, data_path, new_graph, memory_needed
     cur_node = cfg.entryblock
     if first: 
         cur_node = cur_node.exits[0].target # skip over the first node in the main cfg
         main_cfg = cfg
     hw_inuse = {}
-    for elem in hw_spec:
-        hw_inuse[elem] = [0] * hw_spec[elem]
+    for elem in hw.hw_allocated:
+        hw_inuse[elem] = [0] * hw.hw_allocated[elem]
     #print(hw_inuse)
     i = 0
     frees = []
@@ -233,25 +233,25 @@ def simulate(cfg, node_operations, hw_spec, graphs, first):
                 for parent in node.parents:
                     parents.append(parent.operation)
                 #print(node.operation, parents)
-            hw_need = get_hw_need(state, hw_spec)
+            hw_need = get_hw_need(state, hw.hw_allocated)
             #print(hw_need)
             max_cycles = 0
             for elem in hw_need:
-                latency = hardwareModel.latency[elem]
-                if elem == "Regs": latency *= hardwareModel.latency_scale[find_nearest_mem_to_scale(memory_needed)]
+                latency = hw.latency[elem]
+                if elem == "Regs": latency *= hw.latency_scale[find_nearest_mem_to_scale(memory_needed)]
                 cur_elem_count = hw_need[elem]
                 if cur_elem_count == 0: continue
-                if hw_spec[elem] == 0 and cur_elem_count > 0:
+                if hw.hw_allocated[elem] == 0 and cur_elem_count > 0:
                     raise Exception("hardware specification insufficient to run program")
-                cur_cycles_needed = int(math.ceil(cur_elem_count / hw_spec[elem]) * latency)
+                cur_cycles_needed = int(math.ceil(cur_elem_count / hw.hw_allocated[elem]) * latency)
                 #print("cycles needed for " + elem + ": " + str(cur_cycles_needed) + ' (element count = ' + str(cur_elem_count) + ')')
                 max_cycles = max(cur_cycles_needed, max_cycles)
                 j = 0
                 while cur_elem_count > 0:
                     hw_inuse[elem][j] += latency
-                    j = (j + 1) % hw_spec[elem]
+                    j = (j + 1) % hw.hw_allocated[elem]
                     cur_elem_count -= 1
-            node_avg_power[node_id] += cycle_sim(hw_inuse, max_cycles)
+            node_avg_power[node_id] += cycle_sim(hw_inuse, hw, max_cycles)
         if cycles - start_cycles > 0: node_avg_power[node_id] /= cycles - start_cycles
         node_intervals[-1][1][1] = cycles
         for free in frees:
@@ -367,7 +367,7 @@ def main():
 
     area = 0
     for key in hw.hw_allocated:
-        area += hw.hw_allocated[key] * hardwareModel.area[key]
+        area += hw.hw_allocated[key] * hw.area[key]
     print("compute area: ", area)
 
     new_gv_graph = gv.Graph()
@@ -381,7 +381,7 @@ def main():
             compute_element_neighbors[compute_id] = set()
             compute_element_to_node_id[key].append(compute_id)
     
-    data = simulate(cfg, node_operations, hw.hw_allocated, graphs, True)
+    data = simulate(cfg, node_operations, hw, graphs, True)
     print("total number of cycles: ", cycles)
     print("total energy: ", sum(power_use))
     names = sys.argv[1].split('/')
