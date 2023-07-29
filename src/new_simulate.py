@@ -32,6 +32,9 @@ compute_element_neighbors = {}
 memory_needed = 0
 cur_memory_size = 0
 new_graph = None
+mem_layers = 0
+transistor_size = 0
+pitch = 0
 
 def find_nearest_mem_to_scale(num):
     if num < 512: return 512
@@ -77,7 +80,7 @@ def func_calls(expr, calls):
         func_calls(sub_expr, calls)
 
 def get_hw_need(state, hw_spec):
-    hw_need = HardwareModel(0,0)
+    hw_need = HardwareModel(0,0,mem_layers, pitch, transistor_size)
     for op in state:
         if not op.operation: continue
         if op.operation != "Regs":
@@ -288,7 +291,8 @@ def set_data_path():
 
         for i in range(len(split_lines)):
             item = split_lines[i]
-            f_new.write(l[i] + '\n')
+            if not (len(item) == 3 and item[0] == "malloc" and item[2] not in vars_allocated):
+                f_new.write(l[i] + '\n')
             vars_to_pop = []
             for var_name in where_to_free:
                 if where_to_free[var_name] == i:
@@ -304,7 +308,13 @@ def set_data_path():
                 last_node = item[0]
                 last_line = item[1]
                 data_path.append(item)      
-            elif len(item) == 3 and item[0] == "malloc" and item[2] not in vars_allocated:
+            elif len(item) == 3 and item[0] == "malloc":
+                if item[2] in vars_allocated:
+                    if int(item[1]) == vars_allocated[item[2]]: 
+                        continue
+                    else: 
+                        f_new.write("free " + str(item[1]) + " " + var_name + "\n")
+                        f_new.write(l[i] + '\n')
                 data_path.append(item)
                 vars_allocated[item[2]] = int(item[1])
                 #print(vars_allocated)
@@ -322,11 +332,14 @@ def simulator_prep(benchmark):
     return cfg, graphs, node_operations
 
 def main():
-    global power_use, new_graph
+    global power_use, new_graph, transistor_size, pitch, mem_layers
     benchmark = sys.argv[1]
     print(benchmark)
     cfg, graphs, node_operations = simulator_prep(benchmark)
-    hw = HardwareModel(0, 0)
+    transistor_size = 3 # in nm
+    pitch = 100
+    mem_layers = 2
+    hw = HardwareModel(0, 0, mem_layers, pitch, transistor_size)
     hw.hw_allocated['Add'] = 15
     hw.hw_allocated['Regs'] = 30
     hw.hw_allocated['Mult'] = 15

@@ -38,31 +38,32 @@ op2sym_map = {
     "Regs": "Regs"
 }
 
-latency = {
-    "And": 1,
-    "Or": 1,
-    "Add": 2,
-    "Sub": 2,
-    "Mult": 6,
-    "FloorDiv": 36,
-    "Mod": 3,
-    "LShift": 1,
-    "RShift": 1,
-    "BitOr": 1,
-    "BitXor": 1,
-    "BitAnd": 1,
-    "Eq": 1,
-    "NotEq": 1,
-    "Lt": 1,
-    "LtE": 1,
-    "Gt": 1,
-    "GtE": 1,
-    "USub": 1,
-    "UAdd": 1,
-    "IsNot": 1,
-    "Not": 1,
-    "Invert": 1,
-    "Regs": 2
+latency = {{
+        "And": 1,
+        "Or": 1,
+        "Add": 2,
+        "Sub": 2,
+        "Mult": 6,
+        "FloorDiv": 36,
+        "Mod": 3,
+        "LShift": 1,
+        "RShift": 1,
+        "BitOr": 1,
+        "BitXor": 1,
+        "BitAnd": 1,
+        "Eq": 1,
+        "NotEq": 1,
+        "Lt": 1,
+        "LtE": 1,
+        "Gt": 1,
+        "GtE": 1,
+        "USub": 1,
+        "UAdd": 1,
+        "IsNot": 1,
+        "Not": 1,
+        "Invert": 1,
+        "Regs": 2
+    }
 }
 
 power = {
@@ -170,7 +171,7 @@ power_scale = {
 
 class HardwareModel:
 
-    def __init__(self,id,bandwidth,loop_counts={},var_sizes={}):
+    def __init__(self,id,bandwidth,mem_layers,pitch,transistor_size,loop_counts={},var_sizes={}):
         self.max_bw = bandwidth
         self.bw_avail = bandwidth
 
@@ -182,11 +183,19 @@ class HardwareModel:
             self.mem_state[variable]=False
 
         # number of non-memory elements allocated
+        self.transistor_size = transistor_size
+        self.mem_layers = mem_layers
+        self.pitch = pitch
         self.hw_allocated = {}
         self.hw_allocated["Regs"] = 0
         self.loop_variables = loop_counts
         self.var_sizes = var_sizes
         self.id = id
+        self.area = area
+        self.latency = latency
+        self.latency_scale = latency_scale
+        self.power = power
+        self.power_scale = power_scale
 
 
         for key in op2sym_map.keys():
