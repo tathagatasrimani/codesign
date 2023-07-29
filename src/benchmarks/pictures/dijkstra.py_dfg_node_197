@@ -1,28 +1,5 @@
 digraph {
-	392 [label="source code:
-runtime = runtime / numTrials
-nValues.append(n)
-tValues.append(runtime)
+	375 [label="source code:
+return nValues, tValues
 "]
-	393 [label="runtime
-Read"]
-	394 [label="numTrials
-Read"]
-	395 [label="//
-"]
-	393 -> 395 [label=""]
-	394 -> 395 [label=""]
-	396 [label="runtime
-Write"]
-	395 -> 396 [label=""]
-	397 [label="nValues.append(n)
-"]
-	398 [label="n
-Read"]
-	398 -> 397 [label=""]
-	399 [label="tValues.append(runtime)
-"]
-	400 [label="runtime
-Read"]
-	400 -> 399 [label=""]
 }

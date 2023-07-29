@@ -358,12 +358,21 @@ def randomGraph(n, p, wts=[1]):
     for v_21 in instrument_read(V_21, 'V_21'):
         instrument_read(G_21, 'G_21').addVertex(instrument_read(v_21, 'v_21'))
     for v_21 in instrument_read(V_21, 'V_21'):
+        print(95, 118)
+        i_21 = 0
+        write_instrument_read(i_21, 'i_21')
+        print('malloc', sys.getsizeof(i_21), 'i_21')
         for w_21 in instrument_read(V_21, 'V_21'):
             if instrument_read(v_21, 'v_21') != instrument_read(w_21, 'w_21'):
                 if random() < instrument_read(p_21, 'p_21'):
                     instrument_read(G_21, 'G_21').addDiEdge(instrument_read
                         (v_21, 'v_21'), instrument_read(w_21, 'w_21'), wt=
                         choice(wts_21))
+                    print(102, 123)
+                    i_21 += 1
+                    write_instrument_read(i_21, 'i_21')
+            if instrument_read(i_21, 'i_21') > 15:
+                break
     print('exit scope 21')
     return instrument_read(G_21, 'G_21')
     print('exit scope 21')
@@ -371,7 +380,7 @@ def randomGraph(n, p, wts=[1]):
 
 def BFS(w, G):
     print('enter scope 22')
-    print(1, 124)
+    print(1, 127)
     w_22 = instrument_read(w, 'w')
     write_instrument_read(w_22, 'w_22')
     print('malloc', sys.getsizeof(w_22), 'w_22')
@@ -379,29 +388,29 @@ def BFS(w, G):
     write_instrument_read(G_22, 'G_22')
     print('malloc', sys.getsizeof(G_22), 'G_22')
     for v_22 in instrument_read(G_22, 'G_22').vertices:
-        print(107, 126)
+        print(110, 129)
         instrument_read(v_22, 'v_22').status = 'unvisited'
-    print(108, 127)
+    print(111, 130)
     n_22 = len(instrument_read(G_22, 'G_22').vertices)
     write_instrument_read(n_22, 'n_22')
     print('malloc', sys.getsizeof(n_22), 'n_22')
-    print(108, 128)
+    print(111, 131)
     Ls_22 = [[] for i_22 in range(instrument_read(n_22, 'n_22'))]
     write_instrument_read(Ls_22, 'Ls_22')
     print('malloc', sys.getsizeof(Ls_22), 'Ls_22')
-    print(108, 129)
+    print(111, 132)
     Ls_22[0] = [instrument_read(w_22, 'w_22')]
     write_instrument_read_sub(Ls_22, 'Ls_22', 0, None, None, False)
-    print(108, 130)
+    print(111, 133)
     instrument_read(w_22, 'w_22').status = 'visited'
     for i_22 in range(instrument_read(n_22, 'n_22')):
         for u_22 in instrument_read_sub(instrument_read(Ls_22, 'Ls_22'),
             'Ls_22', instrument_read(i_22, 'i_22'), None, None, False):
             for v_22 in instrument_read(u_22, 'u_22').getOutNeighbors():
                 if instrument_read(v_22, 'v_22').status == 'unvisited':
-                    print(116, 135)
+                    print(119, 138)
                     instrument_read(v_22, 'v_22').status = 'visited'
-                    print(116, 136)
+                    print(119, 139)
                     instrument_read(v_22, 'v_22').parent = instrument_read(u_22
                         , 'u_22')
                     instrument_read_sub(instrument_read(Ls_22, 'Ls_22'),
@@ -414,32 +423,32 @@ def BFS(w, G):
 
 def BFS_shortestPaths(w, G):
     print('enter scope 23')
-    print(1, 140)
+    print(1, 143)
     w_23 = instrument_read(w, 'w')
     write_instrument_read(w_23, 'w_23')
     print('malloc', sys.getsizeof(w_23), 'w_23')
     G_23 = instrument_read(G, 'G')
     write_instrument_read(G_23, 'G_23')
     print('malloc', sys.getsizeof(G_23), 'G_23')
-    print(121, 141)
+    print(124, 144)
     Ls_23 = BFS(instrument_read(w_23, 'w_23'), instrument_read(G_23, 'G_23'))
     write_instrument_read(Ls_23, 'Ls_23')
     print('malloc', sys.getsizeof(Ls_23), 'Ls_23')
     for i_23 in range(len(instrument_read(Ls_23, 'Ls_23'))):
         for w_23 in instrument_read_sub(instrument_read(Ls_23, 'Ls_23'),
             'Ls_23', instrument_read(i_23, 'i_23'), None, None, False):
-            print(125, 145)
+            print(128, 148)
             path_23 = []
             write_instrument_read(path_23, 'path_23')
             print('malloc', sys.getsizeof(path_23), 'path_23')
-            print(125, 146)
+            print(128, 149)
             current_23 = instrument_read(w_23, 'w_23')
             write_instrument_read(current_23, 'current_23')
             print('malloc', sys.getsizeof(current_23), 'current_23')
             for j_23 in range(instrument_read(i_23, 'i_23')):
                 instrument_read(path_23, 'path_23').append(instrument_read(
                     current_23, 'current_23'))
-                print(128, 149)
+                print(131, 152)
                 current_23 = instrument_read(current_23, 'current_23').parent
                 write_instrument_read(current_23, 'current_23')
                 print('malloc', sys.getsizeof(current_23), 'current_23')
@@ -451,7 +460,7 @@ def BFS_shortestPaths(w, G):
 
 def dijkstraDumb(w, G):
     print('enter scope 24')
-    print(1, 154)
+    print(1, 157)
     w_24 = instrument_read(w, 'w')
     write_instrument_read(w_24, 'w_24')
     print('malloc', sys.getsizeof(w_24), 'w_24')
@@ -459,32 +468,32 @@ def dijkstraDumb(w, G):
     write_instrument_read(G_24, 'G_24')
     print('malloc', sys.getsizeof(G_24), 'G_24')
     for v_24 in instrument_read(G_24, 'G_24').vertices:
-        print(133, 156)
+        print(136, 159)
         instrument_read(v_24, 'v_24').estD = instrument_read(math, 'math').inf
-    print(134, 157)
+    print(137, 160)
     instrument_read(w_24, 'w_24').estD = 0
-    print(134, 158)
+    print(137, 161)
     unsureVertices_24 = instrument_read_sub(instrument_read(G_24, 'G_24').
         vertices, 'G_24.vertices', None, None, None, True)
     write_instrument_read(unsureVertices_24, 'unsureVertices_24')
     print('malloc', sys.getsizeof(unsureVertices_24), 'unsureVertices_24')
     while len(instrument_read(unsureVertices_24, 'unsureVertices_24')) > 0:
-        print(136, 161)
+        print(139, 164)
         u_24 = None
         write_instrument_read(u_24, 'u_24')
         print('malloc', sys.getsizeof(u_24), 'u_24')
-        print(136, 162)
+        print(139, 165)
         minD_24 = instrument_read(math, 'math').inf
         write_instrument_read(minD_24, 'minD_24')
         print('malloc', sys.getsizeof(minD_24), 'minD_24')
         for x_24 in instrument_read(unsureVertices_24, 'unsureVertices_24'):
             if instrument_read(x_24, 'x_24').estD < instrument_read(minD_24,
                 'minD_24'):
-                print(141, 165)
+                print(144, 168)
                 minD_24 = instrument_read(x_24, 'x_24').estD
                 write_instrument_read(minD_24, 'minD_24')
                 print('malloc', sys.getsizeof(minD_24), 'minD_24')
-                print(141, 166)
+                print(144, 169)
                 u_24 = instrument_read(x_24, 'x_24')
                 write_instrument_read(u_24, 'u_24')
                 print('malloc', sys.getsizeof(u_24), 'u_24')
@@ -495,10 +504,10 @@ def dijkstraDumb(w, G):
             ).getOutNeighborsWithWeights():
             if instrument_read(u_24, 'u_24').estD + instrument_read(wt_24,
                 'wt_24') < instrument_read(v_24, 'v_24').estD:
-                print(148, 173)
+                print(151, 176)
                 instrument_read(v_24, 'v_24').estD = instrument_read(u_24,
                     'u_24').estD + instrument_read(wt_24, 'wt_24')
-                print(148, 174)
+                print(151, 177)
                 instrument_read(v_24, 'v_24').parent = instrument_read(u_24,
                     'u_24')
         instrument_read(unsureVertices_24, 'unsureVertices_24').remove(
@@ -508,7 +517,7 @@ def dijkstraDumb(w, G):
 
 def dijkstraDumb_shortestPaths(w, G):
     print('enter scope 25')
-    print(1, 178)
+    print(1, 181)
     w_25 = instrument_read(w, 'w')
     write_instrument_read(w_25, 'w_25')
     print('malloc', sys.getsizeof(w_25), 'w_25')
@@ -520,11 +529,11 @@ def dijkstraDumb_shortestPaths(w, G):
         if instrument_read(v_25, 'v_25').estD == instrument_read(math, 'math'
             ).inf:
             continue
-        print(157, 184)
+        print(160, 187)
         path_25 = []
         write_instrument_read(path_25, 'path_25')
         print('malloc', sys.getsizeof(path_25), 'path_25')
-        print(157, 185)
+        print(160, 188)
         current_25 = instrument_read(v_25, 'v_25')
         write_instrument_read(current_25, 'current_25')
         print('malloc', sys.getsizeof(current_25), 'current_25')
@@ -532,7 +541,7 @@ def dijkstraDumb_shortestPaths(w, G):
             , 'w_25'):
             instrument_read(path_25, 'path_25').append(instrument_read(
                 current_25, 'current_25'))
-            print(159, 188)
+            print(162, 191)
             current_25 = instrument_read(current_25, 'current_25').parent
             write_instrument_read(current_25, 'current_25')
             print('malloc', sys.getsizeof(current_25), 'current_25')
@@ -544,7 +553,7 @@ def dijkstraDumb_shortestPaths(w, G):
 
 def dijkstra(w, G):
     print('enter scope 26')
-    print(1, 193)
+    print(1, 196)
     w_26 = instrument_read(w, 'w')
     write_instrument_read(w_26, 'w_26')
     print('malloc', sys.getsizeof(w_26), 'w_26')
@@ -552,23 +561,23 @@ def dijkstra(w, G):
     write_instrument_read(G_26, 'G_26')
     print('malloc', sys.getsizeof(G_26), 'G_26')
     for v_26 in instrument_read(G_26, 'G_26').vertices:
-        print(164, 195)
+        print(167, 198)
         instrument_read(v_26, 'v_26').estD = instrument_read(math, 'math').inf
-    print(165, 196)
+    print(168, 199)
     instrument_read(w_26, 'w_26').estD = 0
-    print(165, 197)
+    print(168, 200)
     unsureVertices_26 = instrument_read(heapdict, 'heapdict').heapdict()
     write_instrument_read(unsureVertices_26, 'unsureVertices_26')
     print('malloc', sys.getsizeof(unsureVertices_26), 'unsureVertices_26')
     for v_26 in instrument_read(G_26, 'G_26').vertices:
-        print(167, 199)
+        print(170, 202)
         unsureVertices_26[instrument_read(instrument_read(v_26, 'v_26'),
             'v_26')] = instrument_read(v_26, 'v_26').estD
         write_instrument_read_sub(unsureVertices_26, 'unsureVertices_26',
             instrument_read(instrument_read(v_26, 'v_26'), 'v_26'), None,
             None, False)
     while len(instrument_read(unsureVertices_26, 'unsureVertices_26')) > 0:
-        print(169, 202)
+        print(172, 205)
         u_26, dist_26 = instrument_read(unsureVertices_26, 'unsureVertices_26'
             ).popitem()
         write_instrument_read(dist_26, 'dist_26')
@@ -581,17 +590,17 @@ def dijkstra(w, G):
             ).getOutNeighborsWithWeights():
             if instrument_read(u_26, 'u_26').estD + instrument_read(wt_26,
                 'wt_26') < instrument_read(v_26, 'v_26').estD:
-                print(176, 209)
+                print(179, 212)
                 instrument_read(v_26, 'v_26').estD = instrument_read(u_26,
                     'u_26').estD + instrument_read(wt_26, 'wt_26')
-                print(176, 210)
+                print(179, 213)
                 unsureVertices_26[instrument_read(instrument_read(v_26,
                     'v_26'), 'v_26')] = instrument_read(u_26, 'u_26'
                     ).estD + instrument_read(wt_26, 'wt_26')
                 write_instrument_read_sub(unsureVertices_26,
                     'unsureVertices_26', instrument_read(instrument_read(
                     v_26, 'v_26'), 'v_26'), None, None, False)
-                print(176, 211)
+                print(179, 214)
                 instrument_read(v_26, 'v_26').parent = instrument_read(u_26,
                     'u_26')
     print('exit scope 26')
@@ -599,7 +608,7 @@ def dijkstra(w, G):
 
 def dijkstra_shortestPaths(w, G):
     print('enter scope 27')
-    print(1, 214)
+    print(1, 217)
     w_27 = instrument_read(w, 'w')
     write_instrument_read(w_27, 'w_27')
     print('malloc', sys.getsizeof(w_27), 'w_27')
@@ -611,11 +620,11 @@ def dijkstra_shortestPaths(w, G):
         if instrument_read(v_27, 'v_27').estD == instrument_read(math, 'math'
             ).inf:
             continue
-        print(185, 220)
+        print(188, 223)
         path_27 = []
         write_instrument_read(path_27, 'path_27')
         print('malloc', sys.getsizeof(path_27), 'path_27')
-        print(185, 221)
+        print(188, 224)
         current_27 = instrument_read(v_27, 'v_27')
         write_instrument_read(current_27, 'current_27')
         print('malloc', sys.getsizeof(current_27), 'current_27')
@@ -623,7 +632,7 @@ def dijkstra_shortestPaths(w, G):
             , 'w_27'):
             instrument_read(path_27, 'path_27').append(instrument_read(
                 current_27, 'current_27'))
-            print(187, 224)
+            print(190, 227)
             current_27 = instrument_read(current_27, 'current_27').parent
             write_instrument_read(current_27, 'current_27')
             print('malloc', sys.getsizeof(current_27), 'current_27')
@@ -635,7 +644,7 @@ def dijkstra_shortestPaths(w, G):
 
 def runTrials(myFn, nVals, pFn, numTrials=1):
     print('enter scope 28')
-    print(1, 229)
+    print(1, 232)
     myFn_28 = instrument_read(myFn, 'myFn')
     write_instrument_read(myFn_28, 'myFn_28')
     print('malloc', sys.getsizeof(myFn_28), 'myFn_28')
@@ -648,41 +657,41 @@ def runTrials(myFn, nVals, pFn, numTrials=1):
     numTrials_28 = instrument_read(numTrials, 'numTrials')
     write_instrument_read(numTrials_28, 'numTrials_28')
     print('malloc', sys.getsizeof(numTrials_28), 'numTrials_28')
-    print(191, 230)
+    print(194, 233)
     nValues_28 = []
     write_instrument_read(nValues_28, 'nValues_28')
     print('malloc', sys.getsizeof(nValues_28), 'nValues_28')
-    print(191, 231)
+    print(194, 234)
     tValues_28 = []
     write_instrument_read(tValues_28, 'tValues_28')
     print('malloc', sys.getsizeof(tValues_28), 'tValues_28')
     for n_28 in instrument_read(nVals_28, 'nVals_28'):
-        print(193, 234)
+        print(196, 237)
         runtime_28 = 0
         write_instrument_read(runtime_28, 'runtime_28')
         print('malloc', sys.getsizeof(runtime_28), 'runtime_28')
         for t_28 in range(instrument_read(numTrials_28, 'numTrials_28')):
-            print(196, 236)
-            G_28 = randomGraph(instrument_read(n_28, 'n_28') * 100, pFn(
+            print(199, 239)
+            G_28 = randomGraph(instrument_read(n_28, 'n_28') * 30000, pFn(
                 instrument_read(n_28, 'n_28')))
             write_instrument_read(G_28, 'G_28')
             print('malloc', sys.getsizeof(G_28), 'G_28')
-            print(196, 237)
+            print(199, 240)
             start_28 = instrument_read(time, 'time').time()
             write_instrument_read(start_28, 'start_28')
             print('malloc', sys.getsizeof(start_28), 'start_28')
             myFn(instrument_read_sub(instrument_read(G_28, 'G_28').vertices,
                 'G_28.vertices', 0, None, None, False), instrument_read(
                 G_28, 'G_28'))
-            print(196, 239)
+            print(199, 242)
             end_28 = instrument_read(time, 'time').time()
             write_instrument_read(end_28, 'end_28')
             print('malloc', sys.getsizeof(end_28), 'end_28')
-            print(196, 240)
+            print(199, 243)
             runtime_28 += (instrument_read(end_28, 'end_28') -
                 instrument_read(start_28, 'start_28')) * 1000
             write_instrument_read(runtime_28, 'runtime_28')
-        print(197, 241)
+        print(200, 244)
         runtime_28 = instrument_read(runtime_28, 'runtime_28'
             ) / instrument_read(numTrials_28, 'numTrials_28')
         write_instrument_read(runtime_28, 'runtime_28')
@@ -699,7 +708,7 @@ def runTrials(myFn, nVals, pFn, numTrials=1):
 
 def smallFrac(n):
     print('enter scope 29')
-    print(1, 246)
+    print(1, 249)
     n_29 = instrument_read(n, 'n')
     write_instrument_read(n_29, 'n_29')
     print('malloc', sys.getsizeof(n_29), 'n_29')
@@ -710,7 +719,7 @@ def smallFrac(n):
 
 if instrument_read(__name__, '__name__') == '__main__':
     instrument_read(loop, 'loop').start_unroll
-    print(204, 252)
+    print(207, 255)
     G_0 = randomGraph(5, 0.2)
     write_instrument_read(G_0, 'G_0')
     print('malloc', sys.getsizeof(G_0), 'G_0')
@@ -720,20 +729,20 @@ if instrument_read(__name__, '__name__') == '__main__':
     dijkstraDumb_shortestPaths(instrument_read_sub(instrument_read(G_0,
         'G_0').vertices, 'G_0.vertices', 0, None, None, False),
         instrument_read(G_0, 'G_0'))
-    print(204, 255)
+    print(207, 258)
     G_0 = randomGraph(5, 0.4, [1, 2, 3, 4, 5])
     write_instrument_read(G_0, 'G_0')
     print('malloc', sys.getsizeof(G_0), 'G_0')
     dijkstra_shortestPaths(instrument_read_sub(instrument_read(G_0, 'G_0').
         vertices, 'G_0.vertices', 0, None, None, False), instrument_read(
         G_0, 'G_0'))
-    print(204, 257)
+    print(207, 260)
     nValues_0 = [10]
     write_instrument_read(nValues_0, 'nValues_0')
     print('malloc', sys.getsizeof(nValues_0), 'nValues_0')
-    print(204, 258)
-    nDijkstra_0, tDijkstra_0 = runTrials(instrument_read(dijkstra,
-        'dijkstra'), instrument_read(nValues_0, 'nValues_0'),
-        instrument_read(smallFrac, 'smallFrac'))
+    print(207, 261)
+    nDijkstra_0, tDijkstra_0 = runTrials(instrument_read(BFS, 'BFS'),
+        instrument_read(nValues_0, 'nValues_0'), instrument_read(smallFrac,
+        'smallFrac'))
     write_instrument_read(tDijkstra_0, 'tDijkstra_0')
     print('malloc', sys.getsizeof(tDijkstra_0), 'tDijkstra_0')

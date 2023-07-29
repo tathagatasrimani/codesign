@@ -1,16 +1,10 @@
 digraph {
-	210 [label="source code:
-u = None
-minD = math.inf
+	207 [label="source code:
+v.estD = math.inf
 "]
-	211 [label=None
-]
-	212 [label="u
-Write"]
-	211 -> 212 [label=""]
-	213 [label="math.inf
+	208 [label="math.inf
 Read"]
-	214 [label="minD
+	209 [label="v.estD
 Write"]
-	213 -> 214 [label=""]
+	208 -> 209 [label=""]
 }

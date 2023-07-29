@@ -1,13 +1,7 @@
 digraph {
-	118 [label="source code:
-if v != w:
+	119 [label="source code:
+for w in V:
 "]
-	119 [label="v
+	120 [label="V
 Read"]
-	120 [label="w
-Read"]
-	121 [label="!=
-"]
-	119 -> 121 [label=""]
-	120 -> 121 [label=""]
 }

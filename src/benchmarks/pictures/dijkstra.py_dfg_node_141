@@ -1,16 +1,7 @@
 digraph {
-	225 [label="source code:
-minD = x.estD
-u = x
+	226 [label="source code:
+for x in unsureVertices:
 "]
-	226 [label="x.estD
+	227 [label="unsureVertices
 Read"]
-	227 [label="minD
-Write"]
-	226 -> 227 [label=""]
-	228 [label="x
-Read"]
-	229 [label="u
-Write"]
-	228 -> 229 [label=""]
 }

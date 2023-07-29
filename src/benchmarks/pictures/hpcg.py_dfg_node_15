@@ -1,11 +1,11 @@
 digraph {
-	26 [label="source code:
+	62 [label="source code:
 c1 = 0.0001
 return f(xk + alpha * pk) <= f(xk) + c1 * alpha * np.dot(g(xk), pk)
 "]
-	27 [label=0.0001
+	63 [label=0.0001
 ]
-	28 [label="c1
+	64 [label="c1
 Write"]
-	27 -> 28 [label=""]
+	63 -> 64 [label=""]
 }

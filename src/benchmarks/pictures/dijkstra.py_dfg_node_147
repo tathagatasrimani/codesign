@@ -1,10 +1,7 @@
 digraph {
-	239 [label="source code:
-unsureVertices.remove(u)
+	242 [label="source code:
+for v, wt in u.getOutNeighborsWithWeights():
 "]
-	240 [label="unsureVertices.remove(u)
+	243 [label="u.getOutNeighborsWithWeights()
 "]
-	241 [label="u
-Read"]
-	241 -> 240 [label=""]
 }

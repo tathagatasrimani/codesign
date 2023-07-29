@@ -14,7 +14,7 @@ def interpolation(f, g, f_alpha, g_alpha, alpha, c2, strong_wolfe_alpha,...
 def conjugate_gradient(f, g, x0, iterations, error):...
 if __name__ == '__main__':
 "]
-	56 [label="x0 = np.array([0, 0])
+	56 [label="x0 = np.zeros([4096])
 error = 0.0001
 max_iterations = 10000
 start = time.time()
@@ -22,7 +22,7 @@ x, n_iter = conjugate_gradient(rosenbrock, grad_rosen, x0, iterations=
     max_iterations, error=error)
 end = time.time()
 "]
-	"56_calls" [label="np.array
+	"56_calls" [label="np.zeros
 time.time
 conjugate_gradient
 time.time" shape=box]
@@ -35,9 +35,14 @@ time.time" shape=box]
 	}
 	subgraph clustergrad_rosen {
 		graph [label=grad_rosen]
-		7 [label="return np.array([200 * (x[1] - x[0] ** 2) * (-2 * x[0]) + 2 * (x[0] - 1), 
+		7 [label="arr = np.array([200 * (x[1] - x[0] ** 2) * (-2 * x[0]) + 2 * (x[0] - 1), 
     200 * (x[1] - x[0] ** 2)])
+arr = np.repeat(arr, 2048)
+return arr
 "]
+		"7_calls" [label="np.array
+np.repeat" shape=box]
+		7 -> "7_calls" [label=calls style=dashed]
 	}
 	subgraph clusterhessian_rosen {
 		graph [label=hessian_rosen]

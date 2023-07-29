@@ -1,16 +1,13 @@
 digraph {
-	354 [label="source code:
-nValues = []
-tValues = []
+	361 [label="source code:
+path.append(current)
+path.reverse()
 "]
-	355 [label="[]
+	362 [label="path.append(current)
 "]
-	356 [label="nValues
-Write"]
-	355 -> 356 [label=""]
-	357 [label="[]
+	363 [label="current
+Read"]
+	363 -> 362 [label=""]
+	364 [label="path.reverse()
 "]
-	358 [label="tValues
-Write"]
-	357 -> 358 [label=""]
 }

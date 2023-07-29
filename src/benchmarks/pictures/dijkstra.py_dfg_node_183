@@ -1,16 +1,13 @@
 digraph {
-	321 [label="source code:
-path.append(current)
-current = current.parent
+	337 [label="source code:
+dijkstra(w, G)
 "]
-	322 [label="path.append(current)
+	338 [label="dijkstra(w, G)
 "]
-	323 [label="current
+	339 [label="w
 Read"]
-	323 -> 322
-	324 [label="current.parent
+	339 -> 338 [label=""]
+	340 [label="G
 Read"]
-	325 [label="current
-Write"]
-	324 -> 325
+	340 -> 338 [label=""]
 }

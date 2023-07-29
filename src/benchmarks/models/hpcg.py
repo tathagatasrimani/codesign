@@ -10,7 +10,9 @@ def rosenbrock(x):
 
 
 def grad_rosen(x):
-  return np.array([200*(x[1]-x[0]**2)*(-2*x[0]) + 2*(x[0]-1), 200*(x[1]-x[0]**2)])
+  arr = np.array([200*(x[1]-x[0]**2)*(-2*x[0]) + 2*(x[0]-1), 200*(x[1]-x[0]**2)])
+  arr = np.repeat(arr, 2048)
+  return arr
 
 
 def hessian_rosen(x):
@@ -90,7 +92,7 @@ def conjugate_gradient(f, g, x0, iterations, error):
   return xk, i + 1
 
 if __name__ == '__main__':
-  x0 = np.array([0, 0])
+  x0 = np.zeros([4096])
   error = 1e-4
   max_iterations = 10000
 

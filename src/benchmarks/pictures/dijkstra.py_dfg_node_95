@@ -1,7 +1,10 @@
 digraph {
 	115 [label="source code:
-for w in V:
+i = 0
 "]
-	116 [label="V
-Read"]
+	116 [label=0
+]
+	117 [label="i
+Write"]
+	116 -> 117 [label=""]
 }

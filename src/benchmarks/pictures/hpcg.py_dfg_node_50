@@ -1,5 +1,5 @@
 digraph {
-	119 [label="source code:
+	155 [label="source code:
 alpha = step_length(f, g, xk, 1.0, pk, c2)
 xk1 = xk + alpha * pk
 gk1 = g(xk1)
@@ -7,112 +7,112 @@ beta_k1 = np.dot(gk1, gk1) / np.dot(gk, gk)
 pk1 = -gk1 + beta_k1 * pk
 if np.linalg.norm(xk1 - xk) < error:
 "]
-	120 [label="step_length(f, g, xk, 1.0, pk, c2)
+	156 [label="step_length(f, g, xk, 1.0, pk, c2)
 "]
-	121 [label="f
+	157 [label="f
 Read"]
-	121 -> 120 [label=""]
-	122 [label="g
+	157 -> 156 [label=""]
+	158 [label="g
 Read"]
-	122 -> 120 [label=""]
-	123 [label="xk
+	158 -> 156 [label=""]
+	159 [label="xk
 Read"]
-	123 -> 120 [label=""]
-	124 [label=1.0
+	159 -> 156 [label=""]
+	160 [label=1.0
 ]
-	124 -> 120 [label=""]
-	125 [label="pk
+	160 -> 156 [label=""]
+	161 [label="pk
 Read"]
-	125 -> 120 [label=""]
-	126 [label="c2
+	161 -> 156 [label=""]
+	162 [label="c2
 Read"]
-	126 -> 120 [label=""]
-	127 [label="alpha
+	162 -> 156 [label=""]
+	163 [label="alpha
 Write"]
-	120 -> 127 [label=""]
-	128 [label="xk
+	156 -> 163 [label=""]
+	164 [label="xk
 Read"]
-	129 [label="alpha
+	165 [label="alpha
 Read"]
-	130 [label="pk
+	166 [label="pk
 Read"]
-	131 [label="*
+	167 [label="*
 "]
-	129 -> 131 [label=""]
-	130 -> 131 [label=""]
-	132 [label="+
+	165 -> 167 [label=""]
+	166 -> 167 [label=""]
+	168 [label="+
 "]
-	128 -> 132 [label=""]
-	131 -> 132 [label=""]
-	133 [label="xk1
+	164 -> 168 [label=""]
+	167 -> 168 [label=""]
+	169 [label="xk1
 Write"]
-	132 -> 133 [label=""]
-	134 [label="g(xk1)
+	168 -> 169 [label=""]
+	170 [label="g(xk1)
 "]
-	135 [label="xk1
+	171 [label="xk1
 Read"]
-	135 -> 134 [label=""]
-	136 [label="gk1
+	171 -> 170 [label=""]
+	172 [label="gk1
 Write"]
-	134 -> 136 [label=""]
-	137 [label="np.dot(gk1, gk1)
+	170 -> 172 [label=""]
+	173 [label="np.dot(gk1, gk1)
 "]
-	138 [label="gk1
+	174 [label="gk1
 Read"]
-	138 -> 137 [label=""]
-	139 [label="gk1
+	174 -> 173 [label=""]
+	175 [label="gk1
 Read"]
-	139 -> 137 [label=""]
-	140 [label="np.dot(gk, gk)
+	175 -> 173 [label=""]
+	176 [label="np.dot(gk, gk)
 "]
-	141 [label="gk
+	177 [label="gk
 Read"]
-	141 -> 140 [label=""]
-	142 [label="gk
+	177 -> 176 [label=""]
+	178 [label="gk
 Read"]
-	142 -> 140 [label=""]
-	143 [label="//
+	178 -> 176 [label=""]
+	179 [label="//
 "]
-	137 -> 143 [label=""]
-	140 -> 143 [label=""]
-	144 [label="beta_k1
+	173 -> 179 [label=""]
+	176 -> 179 [label=""]
+	180 [label="beta_k1
 Write"]
-	143 -> 144 [label=""]
-	145 [label="gk1
+	179 -> 180 [label=""]
+	181 [label="gk1
 Read"]
-	146 [label="-
+	182 [label="-
 "]
-	145 -> 146 [label=""]
-	147 [label="beta_k1
+	181 -> 182 [label=""]
+	183 [label="beta_k1
 Read"]
-	148 [label="pk
+	184 [label="pk
 Read"]
-	149 [label="*
+	185 [label="*
 "]
-	147 -> 149 [label=""]
-	148 -> 149 [label=""]
-	150 [label="+
+	183 -> 185 [label=""]
+	184 -> 185 [label=""]
+	186 [label="+
 "]
-	146 -> 150 [label=""]
-	149 -> 150 [label=""]
-	151 [label="pk1
+	182 -> 186 [label=""]
+	185 -> 186 [label=""]
+	187 [label="pk1
 Write"]
-	150 -> 151 [label=""]
-	152 [label="np.linalg.norm(xk1 - xk)
+	186 -> 187 [label=""]
+	188 [label="np.linalg.norm(xk1 - xk)
 "]
-	153 [label="xk1
+	189 [label="xk1
 Read"]
-	154 [label="xk
+	190 [label="xk
 Read"]
-	155 [label="-
+	191 [label="-
 "]
-	153 -> 155 [label=""]
-	154 -> 155 [label=""]
-	155 -> 152 [label=""]
-	156 [label="error
+	189 -> 191 [label=""]
+	190 -> 191 [label=""]
+	191 -> 188 [label=""]
+	192 [label="error
 Read"]
-	157 [label="<
+	193 [label="<
 "]
-	152 -> 157 [label=""]
-	156 -> 157 [label=""]
+	188 -> 193 [label=""]
+	192 -> 193 [label=""]
 }

@@ -1,16 +1,13 @@
 digraph {
-	177 [label="source code:
-path = []
-current = w
+	181 [label="source code:
+for i in range(len(Ls)):
 "]
-	178 [label="[]
+	182 [label="range(len(Ls))
 "]
-	179 [label="path
-Write"]
-	178 -> 179 [label=""]
-	180 [label="w
+	183 [label="len(Ls)
+"]
+	184 [label="Ls
 Read"]
-	181 [label="current
-Write"]
-	180 -> 181 [label=""]
+	184 -> 183 [label=""]
+	183 -> 182 [label=""]
 }

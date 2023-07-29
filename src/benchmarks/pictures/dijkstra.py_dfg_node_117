@@ -1,10 +1,13 @@
 digraph {
-	163 [label="source code:
-G.addVertex(v)
+	165 [label="source code:
+if v.status == 'unvisited':
 "]
-	164 [label="G.addVertex(v)
-"]
-	165 [label="v
+	166 [label="v.status
 Read"]
-	165 -> 164
+	167 [label=unvisited
+]
+	168 [label="==
+"]
+	166 -> 168 [label=""]
+	167 -> 168 [label=""]
 }

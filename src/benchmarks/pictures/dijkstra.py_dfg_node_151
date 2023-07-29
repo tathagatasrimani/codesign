@@ -1,10 +1,22 @@
 digraph {
-	235 [label="source code:
-for j in range(i):
+	253 [label="source code:
+v.estD = u.estD + wt
+v.parent = u
 "]
-	236 [label="range(i)
-"]
-	237 [label="i
+	254 [label="u.estD
 Read"]
-	237 -> 236
+	255 [label="wt
+Read"]
+	256 [label="+
+"]
+	254 -> 256 [label=""]
+	255 -> 256 [label=""]
+	257 [label="v.estD
+Write"]
+	256 -> 257 [label=""]
+	258 [label="u
+Read"]
+	259 [label="v.parent
+Write"]
+	258 -> 259 [label=""]
 }

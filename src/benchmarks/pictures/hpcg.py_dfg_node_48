@@ -1,43 +1,43 @@
 digraph {
-	102 [label="source code:
+	138 [label="source code:
 xk = x0
 c2 = 0.1
 fk = f(xk)
 gk = g(xk)
 pk = -gk
 "]
-	103 [label="x0
+	139 [label="x0
 Read"]
-	104 [label="xk
+	140 [label="xk
 Write"]
-	103 -> 104 [label=""]
-	105 [label=0.1
+	139 -> 140 [label=""]
+	141 [label=0.1
 ]
-	106 [label="c2
+	142 [label="c2
 Write"]
-	105 -> 106 [label=""]
-	107 [label="f(xk)
+	141 -> 142 [label=""]
+	143 [label="f(xk)
 "]
-	108 [label="xk
+	144 [label="xk
 Read"]
-	108 -> 107 [label=""]
-	109 [label="fk
+	144 -> 143 [label=""]
+	145 [label="fk
 Write"]
-	107 -> 109 [label=""]
-	110 [label="g(xk)
+	143 -> 145 [label=""]
+	146 [label="g(xk)
 "]
-	111 [label="xk
+	147 [label="xk
 Read"]
-	111 -> 110 [label=""]
-	112 [label="gk
+	147 -> 146 [label=""]
+	148 [label="gk
 Write"]
-	110 -> 112 [label=""]
-	113 [label="gk
+	146 -> 148 [label=""]
+	149 [label="gk
 Read"]
-	114 [label="-
+	150 [label="-
 "]
-	113 -> 114 [label=""]
-	115 [label="pk
+	149 -> 150 [label=""]
+	151 [label="pk
 Write"]
-	114 -> 115 [label=""]
+	150 -> 151 [label=""]
 }

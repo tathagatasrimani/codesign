@@ -1,10 +1,10 @@
 digraph {
-	148 [label="source code:
-for u in Ls[i]:
+	143 [label="source code:
+v.status = 'unvisited'
 "]
-	149 [label="Ls
-Read"]
-	150 [label="Ls[i]
-Read"]
-	149 -> 150 [label=""]
+	144 [label=unvisited
+]
+	145 [label="v.status
+Write"]
+	144 -> 145 [label=""]
 }

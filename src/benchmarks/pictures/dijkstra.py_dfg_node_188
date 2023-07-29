@@ -1,13 +1,16 @@
 digraph {
-	350 [label="source code:
-path.append(current)
-path.reverse()
+	347 [label="source code:
+path = []
+current = v
 "]
-	351 [label="path.append(current)
+	348 [label="[]
 "]
-	352 [label="current
+	349 [label="path
+Write"]
+	348 -> 349 [label=""]
+	350 [label="v
 Read"]
-	352 -> 351 [label=""]
-	353 [label="path.reverse()
-"]
+	351 [label="current
+Write"]
+	350 -> 351 [label=""]
 }

@@ -115,10 +115,13 @@ def randomGraph(n,p,wts=[1]):
     for v in V:
         G.addVertex(v)
     for v in V:
+        i = 0
         for w in V:
             if v != w:
                 if random() < p:
                     G.addDiEdge(v,w,wt=choice(wts))
+                    i += 1
+            if i > 15: break
     return G
 
 def BFS(w, G):
@@ -233,7 +236,7 @@ def runTrials(myFn, nVals, pFn, numTrials=1):
         # run myFn several times and average to get a decent idea.
         runtime = 0
         for t in range(numTrials):
-            G = randomGraph(n*100, pFn(n))  #Random graph on n vertices with about pn^2 edges
+            G = randomGraph(n*10000, pFn(n))  #Random graph on n vertices with about pn^2 edges
             start = time.time()
             myFn( G.vertices[0], G ) 
             end = time.time()
@@ -255,4 +258,4 @@ if __name__ == "__main__":
     G = randomGraph(5,.4,[1,2,3,4,5])
     dijkstra_shortestPaths(G.vertices[0], G)
     nValues = [10]
-    nDijkstra, tDijkstra = runTrials(dijkstra, nValues,smallFrac)
+    nDijkstra, tDijkstra = runTrials(BFS, nValues,smallFrac)

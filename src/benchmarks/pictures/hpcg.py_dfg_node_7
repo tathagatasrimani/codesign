@@ -1,6 +1,117 @@
 digraph {
-	24 [label="source code:
-return np.array([200 * (x[1] - x[0] ** 2) * (-2 * x[0]) + 2 * (x[0] - 1), 
+	23 [label="source code:
+arr = np.array([200 * (x[1] - x[0] ** 2) * (-2 * x[0]) + 2 * (x[0] - 1), 
     200 * (x[1] - x[0] ** 2)])
+arr = np.repeat(arr, 2048)
+return arr
 "]
+	24 [label="np.array([200 * (x[1] - x[0] ** 2) * (-2 * x[0]) + 2 * (x[0] - 1), 200 * (x
+    [1] - x[0] ** 2)])
+"]
+	25 [label=200
+]
+	26 [label="x
+Read"]
+	27 [label="x[1]
+Read"]
+	26 -> 27 [label=""]
+	28 [label="x
+Read"]
+	29 [label="x[0]
+Read"]
+	28 -> 29 [label=""]
+	30 [label=2
+]
+	31 [label="*
+"]
+	29 -> 31 [label=""]
+	30 -> 31 [label=""]
+	32 [label="-
+"]
+	27 -> 32 [label=""]
+	31 -> 32 [label=""]
+	33 [label="*
+"]
+	25 -> 33 [label=""]
+	32 -> 33 [label=""]
+	34 [label=2
+]
+	35 [label="-
+"]
+	34 -> 35 [label=""]
+	36 [label="x
+Read"]
+	37 [label="x[0]
+Read"]
+	36 -> 37 [label=""]
+	38 [label="*
+"]
+	35 -> 38 [label=""]
+	37 -> 38 [label=""]
+	39 [label="*
+"]
+	33 -> 39 [label=""]
+	38 -> 39 [label=""]
+	40 [label=2
+]
+	41 [label="x
+Read"]
+	42 [label="x[0]
+Read"]
+	41 -> 42 [label=""]
+	43 [label=1
+]
+	44 [label="-
+"]
+	42 -> 44 [label=""]
+	43 -> 44 [label=""]
+	45 [label="*
+"]
+	40 -> 45 [label=""]
+	44 -> 45 [label=""]
+	46 [label="+
+"]
+	39 -> 46 [label=""]
+	45 -> 46 [label=""]
+	47 [label=200
+]
+	48 [label="x
+Read"]
+	49 [label="x[1]
+Read"]
+	48 -> 49 [label=""]
+	50 [label="x
+Read"]
+	51 [label="x[0]
+Read"]
+	50 -> 51 [label=""]
+	52 [label=2
+]
+	53 [label="*
+"]
+	51 -> 53 [label=""]
+	52 -> 53 [label=""]
+	54 [label="-
+"]
+	49 -> 54 [label=""]
+	53 -> 54 [label=""]
+	55 [label="*
+"]
+	47 -> 55 [label=""]
+	54 -> 55 [label=""]
+	46 -> 24 [label=""]
+	56 [label="arr
+Write"]
+	24 -> 56 [label=""]
+	57 [label="np.repeat(arr, 2048)
+"]
+	58 [label="arr
+Read"]
+	58 -> 57 [label=""]
+	59 [label=2048
+]
+	59 -> 57 [label=""]
+	60 [label="arr
+Write"]
+	57 -> 60 [label=""]
 }

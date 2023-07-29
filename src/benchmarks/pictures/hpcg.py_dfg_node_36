@@ -1,106 +1,106 @@
 digraph {
-	48 [label="source code:
+	84 [label="source code:
 half = (l + h) / 2
 alpha = -g_alpha(l) * h ** 2 / (2 * (f_alpha(h) - f_alpha(l) - g_alpha(l) * h))
 if alpha < l or alpha > h:
 "]
-	49 [label="l
+	85 [label="l
 Read"]
-	50 [label="h
+	86 [label="h
 Read"]
-	51 [label="+
+	87 [label="+
 "]
-	49 -> 51 [label=""]
-	50 -> 51 [label=""]
-	52 [label=2
+	85 -> 87 [label=""]
+	86 -> 87 [label=""]
+	88 [label=2
 ]
-	53 [label="//
+	89 [label="//
 "]
-	51 -> 53 [label=""]
-	52 -> 53 [label=""]
-	54 [label="half
+	87 -> 89 [label=""]
+	88 -> 89 [label=""]
+	90 [label="half
 Write"]
-	53 -> 54 [label=""]
-	55 [label="g_alpha(l)
+	89 -> 90 [label=""]
+	91 [label="g_alpha(l)
 "]
-	56 [label="l
+	92 [label="l
 Read"]
-	56 -> 55 [label=""]
-	57 [label="-
+	92 -> 91 [label=""]
+	93 [label="-
 "]
-	55 -> 57 [label=""]
-	58 [label="h
+	91 -> 93 [label=""]
+	94 [label="h
 Read"]
-	59 [label=2
+	95 [label=2
 ]
-	60 [label="*
+	96 [label="*
 "]
-	58 -> 60 [label=""]
-	59 -> 60 [label=""]
-	61 [label="*
+	94 -> 96 [label=""]
+	95 -> 96 [label=""]
+	97 [label="*
 "]
-	57 -> 61 [label=""]
-	60 -> 61 [label=""]
-	62 [label=2
+	93 -> 97 [label=""]
+	96 -> 97 [label=""]
+	98 [label=2
 ]
-	63 [label="f_alpha(h)
+	99 [label="f_alpha(h)
 "]
-	64 [label="h
+	100 [label="h
 Read"]
-	64 -> 63 [label=""]
-	65 [label="f_alpha(l)
+	100 -> 99 [label=""]
+	101 [label="f_alpha(l)
 "]
-	66 [label="l
+	102 [label="l
 Read"]
-	66 -> 65 [label=""]
-	67 [label="-
+	102 -> 101 [label=""]
+	103 [label="-
 "]
-	63 -> 67 [label=""]
-	65 -> 67 [label=""]
-	68 [label="g_alpha(l)
+	99 -> 103 [label=""]
+	101 -> 103 [label=""]
+	104 [label="g_alpha(l)
 "]
-	69 [label="l
+	105 [label="l
 Read"]
-	69 -> 68 [label=""]
-	70 [label="h
+	105 -> 104 [label=""]
+	106 [label="h
 Read"]
-	71 [label="*
+	107 [label="*
 "]
-	68 -> 71 [label=""]
-	70 -> 71 [label=""]
-	72 [label="-
+	104 -> 107 [label=""]
+	106 -> 107 [label=""]
+	108 [label="-
 "]
-	67 -> 72 [label=""]
-	71 -> 72 [label=""]
-	73 [label="*
+	103 -> 108 [label=""]
+	107 -> 108 [label=""]
+	109 [label="*
 "]
-	62 -> 73 [label=""]
-	72 -> 73 [label=""]
-	74 [label="//
+	98 -> 109 [label=""]
+	108 -> 109 [label=""]
+	110 [label="//
 "]
-	61 -> 74 [label=""]
-	73 -> 74 [label=""]
-	75 [label="alpha
+	97 -> 110 [label=""]
+	109 -> 110 [label=""]
+	111 [label="alpha
 Write"]
-	74 -> 75 [label=""]
-	76 [label="alpha
+	110 -> 111 [label=""]
+	112 [label="alpha
 Read"]
-	77 [label="l
+	113 [label="l
 Read"]
-	78 [label="<
+	114 [label="<
 "]
-	76 -> 78 [label=""]
-	77 -> 78 [label=""]
-	79 [label="alpha
+	112 -> 114 [label=""]
+	113 -> 114 [label=""]
+	115 [label="alpha
 Read"]
-	80 [label="h
+	116 [label="h
 Read"]
-	81 [label=">
+	117 [label=">
 "]
-	79 -> 81 [label=""]
-	80 -> 81 [label=""]
-	82 [label=or
+	115 -> 117 [label=""]
+	116 -> 117 [label=""]
+	118 [label=or
 ]
-	78 -> 82 [label=""]
-	81 -> 82 [label=""]
+	114 -> 118 [label=""]
+	117 -> 118 [label=""]
 }

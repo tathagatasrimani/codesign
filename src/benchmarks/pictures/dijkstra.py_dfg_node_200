@@ -1,37 +1,28 @@
 digraph {
-	367 [label="source code:
-v.estD = u.estD + wt
-unsureVertices[v] = u.estD + wt
-v.parent = u
+	403 [label="source code:
+runtime = runtime / numTrials
+nValues.append(n)
+tValues.append(runtime)
 "]
-	368 [label="u.estD
+	404 [label="runtime
 Read"]
-	369 [label="wt
+	405 [label="numTrials
 Read"]
-	370 [label="+
+	406 [label="//
 "]
-	368 -> 370
-	369 -> 370
-	371 [label="v.estD
+	404 -> 406 [label=""]
+	405 -> 406 [label=""]
+	407 [label="runtime
 Write"]
-	370 -> 371
-	372 [label="u.estD
-Read"]
-	373 [label="wt
-Read"]
-	374 [label="+
+	406 -> 407 [label=""]
+	408 [label="nValues.append(n)
 "]
-	372 -> 374
-	373 -> 374
-	375 [label="unsureVertices
+	409 [label="n
 Read"]
-	376 [label="unsureVertices[v]
-Write"]
-	375 -> 376
-	374 -> 376
-	377 [label="u
+	409 -> 408 [label=""]
+	410 [label="tValues.append(runtime)
+"]
+	411 [label="runtime
 Read"]
-	378 [label="v.parent
-Write"]
-	377 -> 378
+	411 -> 410 [label=""]
 }

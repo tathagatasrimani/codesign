@@ -1,10 +1,16 @@
 digraph {
-	185 [label="source code:
-v.status = 'unvisited'
+	196 [label="source code:
+path.append(current)
+current = current.parent
 "]
-	186 [label=unvisited
-]
-	187 [label="v.status
+	197 [label="path.append(current)
+"]
+	198 [label="current
+Read"]
+	198 -> 197 [label=""]
+	199 [label="current.parent
+Read"]
+	200 [label="current
 Write"]
-	186 -> 187
+	199 -> 200 [label=""]
 }

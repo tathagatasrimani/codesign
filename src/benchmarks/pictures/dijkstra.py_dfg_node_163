@@ -1,7 +1,13 @@
 digraph {
-	277 [label="source code:
-for v in G.vertices:
+	284 [label="source code:
+path.append(current)
+path.reverse()
 "]
-	278 [label="G.vertices
+	285 [label="path.append(current)
+"]
+	286 [label="current
 Read"]
+	286 -> 285 [label=""]
+	287 [label="path.reverse()
+"]
 }

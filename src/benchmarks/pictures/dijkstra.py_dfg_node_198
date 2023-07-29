@@ -1,19 +1,10 @@
 digraph {
-	361 [label="source code:
-if u.estD + wt < v.estD:
+	376 [label="source code:
+for t in range(numTrials):
 "]
-	362 [label="u.estD
-Read"]
-	363 [label="wt
-Read"]
-	364 [label="+
+	377 [label="range(numTrials)
 "]
-	362 -> 364
-	363 -> 364
-	365 [label="v.estD
+	378 [label="numTrials
 Read"]
-	366 [label="<
-"]
-	364 -> 366
-	365 -> 366
+	378 -> 377 [label=""]
 }

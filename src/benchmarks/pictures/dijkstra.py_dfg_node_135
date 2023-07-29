@@ -1,16 +1,7 @@
 digraph {
 	205 [label="source code:
-while len(unsureVertices) > 0:
+for v in G.vertices:
 "]
-	206 [label="len(unsureVertices)
-"]
-	207 [label="unsureVertices
+	206 [label="G.vertices
 Read"]
-	207 -> 206 [label=""]
-	208 [label=0
-]
-	209 [label=">
-"]
-	206 -> 209 [label=""]
-	208 -> 209 [label=""]
 }

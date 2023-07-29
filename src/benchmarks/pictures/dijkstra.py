@@ -37,23 +37,23 @@ def runTrials(myFn, nVals, pFn, numTrials=1):...
 def smallFrac(n):...
 if __name__ == '__main__':
 "]
-	204 [label="loop.start_unroll
+	207 [label="loop.start_unroll
 G = randomGraph(5, 0.2)
 BFS_shortestPaths(G.vertices[0], G)
 dijkstraDumb_shortestPaths(G.vertices[0], G)
 G = randomGraph(5, 0.4, [1, 2, 3, 4, 5])
 dijkstra_shortestPaths(G.vertices[0], G)
 nValues = [10]
-nDijkstra, tDijkstra = runTrials(dijkstra, nValues, smallFrac)
+nDijkstra, tDijkstra = runTrials(BFS, nValues, smallFrac)
 "]
-	"204_calls" [label="randomGraph
+	"207_calls" [label="randomGraph
 BFS_shortestPaths
 dijkstraDumb_shortestPaths
 randomGraph
 dijkstra_shortestPaths
 runTrials" shape=box]
-	204 -> "204_calls" [label=calls style=dashed]
-	1 -> 204 [label="__name__ == '__main__'"]
+	207 -> "207_calls" [label=calls style=dashed]
+	1 -> 207 [label="__name__ == '__main__'"]
 	subgraph cluster__init__ {
 		graph [label=__init__]
 		70 [label="self.vertices = []
@@ -191,23 +191,31 @@ range" shape=box]
 		92 -> 93 [label=V]
 		94 [label="for v in V:
 "]
-		95 [label="for w in V:
+		95 [label="i = 0
 "]
-		97 [label="if v != w:
+		97 [label="for w in V:
 "]
-		99 [label="if random() < p:
+		98 [label="if v != w:
 "]
-		101 [label="G.addDiEdge(v, w, wt=choice(wts))
+		100 [label="if random() < p:
 "]
-		"101_calls" [label="G.addDiEdge" shape=box]
-		101 -> "101_calls" [label=calls style=dashed]
-		101 -> 95 [label=""]
-		99 -> 101 [label="random() < p"]
-		99 -> 95 [label="(random() >= p)"]
-		97 -> 99 [label="v != w"]
-		97 -> 95 [label="(v == w)"]
-		95 -> 97 [label=V]
-		95 -> 94 [label=""]
+		102 [label="G.addDiEdge(v, w, wt=choice(wts))
+i += 1
+"]
+		"102_calls" [label="G.addDiEdge" shape=box]
+		102 -> "102_calls" [label=calls style=dashed]
+		101 [label="if i > 15:
+"]
+		101 -> 94 [label="i > 15"]
+		101 -> 97 [label="(i <= 15)"]
+		102 -> 101 [label=""]
+		100 -> 102 [label="random() < p"]
+		100 -> 101 [label="(random() >= p)"]
+		98 -> 100 [label="v != w"]
+		98 -> 101 [label="(v == w)"]
+		97 -> 98 [label=V]
+		97 -> 94 [label=""]
+		95 -> 97 [label=""]
 		94 -> 95 [label=V]
 		96 [label="return G
 "]
@@ -217,303 +225,303 @@ range" shape=box]
 	}
 	subgraph clusterBFS {
 		graph [label=BFS]
-		106 [label="for v in G.vertices:
+		109 [label="for v in G.vertices:
 "]
-		107 [label="v.status = 'unvisited'
+		110 [label="v.status = 'unvisited'
 "]
-		107 -> 106 [label=""]
-		106 -> 107 [label="G.vertices"]
-		108 [label="n = len(G.vertices)
+		110 -> 109 [label=""]
+		109 -> 110 [label="G.vertices"]
+		111 [label="n = len(G.vertices)
 Ls = [[] for i in range(n)]
 Ls[0] = [w]
 w.status = 'visited'
 "]
-		"108_calls" [label="len
+		"111_calls" [label="len
 range" shape=box]
-		108 -> "108_calls" [label=calls style=dashed]
-		109 [label="for i in range(n):
+		111 -> "111_calls" [label=calls style=dashed]
+		112 [label="for i in range(n):
 "]
-		110 [label="for u in Ls[i]:
+		113 [label="for u in Ls[i]:
 "]
-		112 [label="for v in u.getOutNeighbors():
+		115 [label="for v in u.getOutNeighbors():
 "]
-		114 [label="if v.status == 'unvisited':
+		117 [label="if v.status == 'unvisited':
 "]
-		116 [label="v.status = 'visited'
+		119 [label="v.status = 'visited'
 v.parent = u
 Ls[i + 1].append(v)
 "]
-		"116_calls" [label="Ls.append" shape=box]
-		116 -> "116_calls" [label=calls style=dashed]
-		116 -> 112 [label=""]
-		114 -> 116 [label="v.status == 'unvisited'"]
-		114 -> 112 [label="(v.status != 'unvisited')"]
-		112 -> 114 [label="u.getOutNeighbors()"]
-		112 -> 110 [label=""]
-		110 -> 112 [label="Ls[i]"]
-		110 -> 109 [label=""]
-		109 -> 110 [label="range(n)"]
-		111 [label="return Ls
+		"119_calls" [label="Ls.append" shape=box]
+		119 -> "119_calls" [label=calls style=dashed]
+		119 -> 115 [label=""]
+		117 -> 119 [label="v.status == 'unvisited'"]
+		117 -> 115 [label="(v.status != 'unvisited')"]
+		115 -> 117 [label="u.getOutNeighbors()"]
+		115 -> 113 [label=""]
+		113 -> 115 [label="Ls[i]"]
+		113 -> 112 [label=""]
+		112 -> 113 [label="range(n)"]
+		114 [label="return Ls
 "]
+		112 -> 114 [label=""]
+		111 -> 112 [label=""]
 		109 -> 111 [label=""]
-		108 -> 109 [label=""]
-		106 -> 108 [label=""]
 	}
 	subgraph clusterBFS_shortestPaths {
 		graph [label=BFS_shortestPaths]
-		121 [label="Ls = BFS(w, G)
+		124 [label="Ls = BFS(w, G)
 "]
-		"121_calls" [label=BFS shape=box]
-		121 -> "121_calls" [label=calls style=dashed]
-		122 [label="for i in range(len(Ls)):
+		"124_calls" [label=BFS shape=box]
+		124 -> "124_calls" [label=calls style=dashed]
+		125 [label="for i in range(len(Ls)):
 "]
-		123 [label="for w in Ls[i]:
+		126 [label="for w in Ls[i]:
 "]
-		125 [label="path = []
+		128 [label="path = []
 current = w
 "]
-		127 [label="for j in range(i):
+		130 [label="for j in range(i):
 "]
-		128 [label="path.append(current)
+		131 [label="path.append(current)
 current = current.parent
 "]
-		"128_calls" [label="path.append" shape=box]
-		128 -> "128_calls" [label=calls style=dashed]
-		128 -> 127 [label=""]
-		127 -> 128 [label="range(i)"]
-		129 [label="path.append(current)
+		"131_calls" [label="path.append" shape=box]
+		131 -> "131_calls" [label=calls style=dashed]
+		131 -> 130 [label=""]
+		130 -> 131 [label="range(i)"]
+		132 [label="path.append(current)
 path.reverse()
 "]
-		"129_calls" [label="path.append
+		"132_calls" [label="path.append
 path.reverse" shape=box]
-		129 -> "129_calls" [label=calls style=dashed]
-		129 -> 123 [label=""]
-		127 -> 129 [label=""]
-		125 -> 127 [label=""]
-		123 -> 125 [label="Ls[i]"]
-		123 -> 122 [label=""]
-		122 -> 123 [label="range(len(Ls))"]
-		121 -> 122 [label=""]
+		132 -> "132_calls" [label=calls style=dashed]
+		132 -> 126 [label=""]
+		130 -> 132 [label=""]
+		128 -> 130 [label=""]
+		126 -> 128 [label="Ls[i]"]
+		126 -> 125 [label=""]
+		125 -> 126 [label="range(len(Ls))"]
+		124 -> 125 [label=""]
 	}
 	subgraph clusterdijkstraDumb {
 		graph [label=dijkstraDumb]
-		132 [label="for v in G.vertices:
+		135 [label="for v in G.vertices:
 "]
-		133 [label="v.estD = math.inf
+		136 [label="v.estD = math.inf
 "]
-		133 -> 132 [label=""]
-		132 -> 133 [label="G.vertices"]
-		134 [label="w.estD = 0
+		136 -> 135 [label=""]
+		135 -> 136 [label="G.vertices"]
+		137 [label="w.estD = 0
 unsureVertices = G.vertices[:]
 "]
-		135 [label="while len(unsureVertices) > 0:
+		138 [label="while len(unsureVertices) > 0:
 "]
-		136 [label="u = None
+		139 [label="u = None
 minD = math.inf
 "]
-		138 [label="for x in unsureVertices:
+		141 [label="for x in unsureVertices:
 "]
-		139 [label="if x.estD < minD:
+		142 [label="if x.estD < minD:
 "]
-		141 [label="minD = x.estD
+		144 [label="minD = x.estD
 u = x
 "]
-		141 -> 138 [label=""]
-		139 -> 141 [label="x.estD < minD"]
-		139 -> 138 [label="(x.estD >= minD)"]
-		138 -> 139 [label=unsureVertices]
-		140 [label="if u == None:
+		144 -> 141 [label=""]
+		142 -> 144 [label="x.estD < minD"]
+		142 -> 141 [label="(x.estD >= minD)"]
+		141 -> 142 [label=unsureVertices]
+		143 [label="if u == None:
 "]
-		143 [label=return
+		146 [label=return
 ]
-		140 -> 143 [label="u == None"]
-		144 [label="for v, wt in u.getOutNeighborsWithWeights():
+		143 -> 146 [label="u == None"]
+		147 [label="for v, wt in u.getOutNeighborsWithWeights():
 "]
-		146 [label="if u.estD + wt < v.estD:
+		149 [label="if u.estD + wt < v.estD:
 "]
-		148 [label="v.estD = u.estD + wt
+		151 [label="v.estD = u.estD + wt
 v.parent = u
 "]
-		148 -> 144 [label=""]
-		146 -> 148 [label="u.estD + wt < v.estD"]
-		146 -> 144 [label="(u.estD + wt >= v.estD)"]
-		144 -> 146 [label="u.getOutNeighborsWithWeights()"]
-		147 [label="unsureVertices.remove(u)
+		151 -> 147 [label=""]
+		149 -> 151 [label="u.estD + wt < v.estD"]
+		149 -> 147 [label="(u.estD + wt >= v.estD)"]
+		147 -> 149 [label="u.getOutNeighborsWithWeights()"]
+		150 [label="unsureVertices.remove(u)
 "]
-		"147_calls" [label="unsureVertices.remove" shape=box]
-		147 -> "147_calls" [label=calls style=dashed]
-		147 -> 135 [label=""]
-		144 -> 147 [label=""]
-		140 -> 144 [label="(u != None)"]
-		138 -> 140 [label=""]
-		136 -> 138 [label=""]
-		135 -> 136 [label="len(unsureVertices) > 0"]
-		134 -> 135 [label=""]
-		132 -> 134 [label=""]
+		"150_calls" [label="unsureVertices.remove" shape=box]
+		150 -> "150_calls" [label=calls style=dashed]
+		150 -> 138 [label=""]
+		147 -> 150 [label=""]
+		143 -> 147 [label="(u != None)"]
+		141 -> 143 [label=""]
+		139 -> 141 [label=""]
+		138 -> 139 [label="len(unsureVertices) > 0"]
+		137 -> 138 [label=""]
+		135 -> 137 [label=""]
 	}
 	subgraph clusterdijkstraDumb_shortestPaths {
 		graph [label=dijkstraDumb_shortestPaths]
-		152 [label="dijkstraDumb(w, G)
+		155 [label="dijkstraDumb(w, G)
 "]
-		"152_calls" [label=dijkstraDumb shape=box]
-		152 -> "152_calls" [label=calls style=dashed]
-		153 [label="for v in G.vertices:
+		"155_calls" [label=dijkstraDumb shape=box]
+		155 -> "155_calls" [label=calls style=dashed]
+		156 [label="for v in G.vertices:
 "]
-		154 [label="if v.estD == math.inf:
+		157 [label="if v.estD == math.inf:
 "]
-		157 [label="path = []
+		160 [label="path = []
 current = v
 "]
-		158 [label="while current != w:
+		161 [label="while current != w:
 "]
-		159 [label="path.append(current)
+		162 [label="path.append(current)
 current = current.parent
 "]
-		"159_calls" [label="path.append" shape=box]
-		159 -> "159_calls" [label=calls style=dashed]
-		159 -> 158 [label=""]
-		158 -> 159 [label="current != w"]
-		160 [label="path.append(current)
+		"162_calls" [label="path.append" shape=box]
+		162 -> "162_calls" [label=calls style=dashed]
+		162 -> 161 [label=""]
+		161 -> 162 [label="current != w"]
+		163 [label="path.append(current)
 path.reverse()
 "]
-		"160_calls" [label="path.append
+		"163_calls" [label="path.append
 path.reverse" shape=box]
-		160 -> "160_calls" [label=calls style=dashed]
-		160 -> 153 [label=""]
-		158 -> 160 [label="(current == w)"]
-		157 -> 158 [label=""]
-		154 -> 157 [label="(v.estD != math.inf)"]
-		154 -> 153 [label="v.estD == math.inf"]
-		153 -> 154 [label="G.vertices"]
-		152 -> 153 [label=""]
+		163 -> "163_calls" [label=calls style=dashed]
+		163 -> 156 [label=""]
+		161 -> 163 [label="(current == w)"]
+		160 -> 161 [label=""]
+		157 -> 160 [label="(v.estD != math.inf)"]
+		157 -> 156 [label="v.estD == math.inf"]
+		156 -> 157 [label="G.vertices"]
+		155 -> 156 [label=""]
 	}
 	subgraph clusterdijkstra {
 		graph [label=dijkstra]
-		163 [label="for v in G.vertices:
-"]
-		164 [label="v.estD = math.inf
-"]
-		164 -> 163 [label=""]
-		163 -> 164 [label="G.vertices"]
-		165 [label="w.estD = 0
-unsureVertices = heapdict.heapdict()
-"]
-		"165_calls" [label="heapdict.heapdict" shape=box]
-		165 -> "165_calls" [label=calls style=dashed]
 		166 [label="for v in G.vertices:
 "]
-		167 [label="unsureVertices[v] = v.estD
+		167 [label="v.estD = math.inf
 "]
 		167 -> 166 [label=""]
 		166 -> 167 [label="G.vertices"]
-		168 [label="while len(unsureVertices) > 0:
+		168 [label="w.estD = 0
+unsureVertices = heapdict.heapdict()
 "]
-		169 [label="u, dist = unsureVertices.popitem()
+		"168_calls" [label="heapdict.heapdict" shape=box]
+		168 -> "168_calls" [label=calls style=dashed]
+		169 [label="for v in G.vertices:
+"]
+		170 [label="unsureVertices[v] = v.estD
+"]
+		170 -> 169 [label=""]
+		169 -> 170 [label="G.vertices"]
+		171 [label="while len(unsureVertices) > 0:
+"]
+		172 [label="u, dist = unsureVertices.popitem()
 if u.estD == math.inf:
 "]
-		"169_calls" [label="unsureVertices.popitem" shape=box]
-		169 -> "169_calls" [label=calls style=dashed]
-		171 [label=return
+		"172_calls" [label="unsureVertices.popitem" shape=box]
+		172 -> "172_calls" [label=calls style=dashed]
+		174 [label=return
 ]
-		169 -> 171 [label="u.estD == math.inf"]
-		172 [label="for v, wt in u.getOutNeighborsWithWeights():
+		172 -> 174 [label="u.estD == math.inf"]
+		175 [label="for v, wt in u.getOutNeighborsWithWeights():
 "]
-		174 [label="if u.estD + wt < v.estD:
+		177 [label="if u.estD + wt < v.estD:
 "]
-		176 [label="v.estD = u.estD + wt
+		179 [label="v.estD = u.estD + wt
 unsureVertices[v] = u.estD + wt
 v.parent = u
 "]
-		176 -> 172 [label=""]
-		174 -> 176 [label="u.estD + wt < v.estD"]
-		174 -> 172 [label="(u.estD + wt >= v.estD)"]
-		172 -> 174 [label="u.getOutNeighborsWithWeights()"]
-		172 -> 168 [label=""]
-		169 -> 172 [label="(u.estD != math.inf)"]
-		168 -> 169 [label="len(unsureVertices) > 0"]
+		179 -> 175 [label=""]
+		177 -> 179 [label="u.estD + wt < v.estD"]
+		177 -> 175 [label="(u.estD + wt >= v.estD)"]
+		175 -> 177 [label="u.getOutNeighborsWithWeights()"]
+		175 -> 171 [label=""]
+		172 -> 175 [label="(u.estD != math.inf)"]
+		171 -> 172 [label="len(unsureVertices) > 0"]
+		169 -> 171 [label=""]
+		168 -> 169 [label=""]
 		166 -> 168 [label=""]
-		165 -> 166 [label=""]
-		163 -> 165 [label=""]
 	}
 	subgraph clusterdijkstra_shortestPaths {
 		graph [label=dijkstra_shortestPaths]
-		180 [label="dijkstra(w, G)
+		183 [label="dijkstra(w, G)
 "]
-		"180_calls" [label=dijkstra shape=box]
-		180 -> "180_calls" [label=calls style=dashed]
-		181 [label="for v in G.vertices:
+		"183_calls" [label=dijkstra shape=box]
+		183 -> "183_calls" [label=calls style=dashed]
+		184 [label="for v in G.vertices:
 "]
-		182 [label="if v.estD == math.inf:
+		185 [label="if v.estD == math.inf:
 "]
-		185 [label="path = []
+		188 [label="path = []
 current = v
 "]
-		186 [label="while current != w:
+		189 [label="while current != w:
 "]
-		187 [label="path.append(current)
+		190 [label="path.append(current)
 current = current.parent
 "]
-		"187_calls" [label="path.append" shape=box]
-		187 -> "187_calls" [label=calls style=dashed]
-		187 -> 186 [label=""]
-		186 -> 187 [label="current != w"]
-		188 [label="path.append(current)
+		"190_calls" [label="path.append" shape=box]
+		190 -> "190_calls" [label=calls style=dashed]
+		190 -> 189 [label=""]
+		189 -> 190 [label="current != w"]
+		191 [label="path.append(current)
 path.reverse()
 "]
-		"188_calls" [label="path.append
+		"191_calls" [label="path.append
 path.reverse" shape=box]
-		188 -> "188_calls" [label=calls style=dashed]
-		188 -> 181 [label=""]
-		186 -> 188 [label="(current == w)"]
-		185 -> 186 [label=""]
-		182 -> 185 [label="(v.estD != math.inf)"]
-		182 -> 181 [label="v.estD == math.inf"]
-		181 -> 182 [label="G.vertices"]
-		180 -> 181 [label=""]
+		191 -> "191_calls" [label=calls style=dashed]
+		191 -> 184 [label=""]
+		189 -> 191 [label="(current == w)"]
+		188 -> 189 [label=""]
+		185 -> 188 [label="(v.estD != math.inf)"]
+		185 -> 184 [label="v.estD == math.inf"]
+		184 -> 185 [label="G.vertices"]
+		183 -> 184 [label=""]
 	}
 	subgraph clusterrunTrials {
 		graph [label=runTrials]
-		191 [label="nValues = []
+		194 [label="nValues = []
 tValues = []
 "]
-		192 [label="for n in nVals:
+		195 [label="for n in nVals:
 "]
-		193 [label="runtime = 0
+		196 [label="runtime = 0
 "]
-		195 [label="for t in range(numTrials):
+		198 [label="for t in range(numTrials):
 "]
-		196 [label="G = randomGraph(n * 100, pFn(n))
+		199 [label="G = randomGraph(n * 10000, pFn(n))
 start = time.time()
 myFn(G.vertices[0], G)
 end = time.time()
 runtime += (end - start) * 1000
 "]
-		"196_calls" [label="randomGraph
+		"199_calls" [label="randomGraph
 time.time
 myFn
 time.time" shape=box]
-		196 -> "196_calls" [label=calls style=dashed]
-		196 -> 195 [label=""]
-		195 -> 196 [label="range(numTrials)"]
-		197 [label="runtime = runtime / numTrials
+		199 -> "199_calls" [label=calls style=dashed]
+		199 -> 198 [label=""]
+		198 -> 199 [label="range(numTrials)"]
+		200 [label="runtime = runtime / numTrials
 nValues.append(n)
 tValues.append(runtime)
 "]
-		"197_calls" [label="nValues.append
+		"200_calls" [label="nValues.append
 tValues.append" shape=box]
-		197 -> "197_calls" [label=calls style=dashed]
-		197 -> 192 [label=""]
-		195 -> 197 [label=""]
-		193 -> 195 [label=""]
-		192 -> 193 [label=nVals]
-		194 [label="return nValues, tValues
+		200 -> "200_calls" [label=calls style=dashed]
+		200 -> 195 [label=""]
+		198 -> 200 [label=""]
+		196 -> 198 [label=""]
+		195 -> 196 [label=nVals]
+		197 [label="return nValues, tValues
 "]
-		192 -> 194 [label=""]
-		191 -> 192 [label=""]
+		195 -> 197 [label=""]
+		194 -> 195 [label=""]
 	}
 	subgraph clustersmallFrac {
 		graph [label=smallFrac]
-		201 [label="return float(5 / n)
+		204 [label="return float(5 / n)
 "]
 	}
 }

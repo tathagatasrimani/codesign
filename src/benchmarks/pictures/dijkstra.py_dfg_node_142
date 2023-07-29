@@ -1,0 +1,13 @@
+digraph {
+	228 [label="source code:
+if x.estD < minD:
+"]
+	229 [label="x.estD
+Read"]
+	230 [label="minD
+Read"]
+	231 [label="<
+"]
+	229 -> 231 [label=""]
+	230 -> 231 [label=""]
+}

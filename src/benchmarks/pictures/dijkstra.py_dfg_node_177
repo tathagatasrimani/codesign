@@ -1,7 +1,19 @@
 digraph {
-	306 [label="source code:
-for v in G.vertices:
+	319 [label="source code:
+if u.estD + wt < v.estD:
 "]
-	307 [label="G.vertices
+	320 [label="u.estD
 Read"]
+	321 [label="wt
+Read"]
+	322 [label="+
+"]
+	320 -> 322 [label=""]
+	321 -> 322 [label=""]
+	323 [label="v.estD
+Read"]
+	324 [label="<
+"]
+	322 -> 324 [label=""]
+	323 -> 324 [label=""]
 }

@@ -1,22 +1,7 @@
 digraph {
 	298 [label="source code:
-u, dist = unsureVertices.popitem()
-if u.estD == math.inf:
+for v in G.vertices:
 "]
-	299 [label="unsureVertices.popitem()
-"]
-	300 [label="u
-Write"]
-	301 [label="dist
-Write"]
-	299 -> 300 [label=""]
-	299 -> 301 [label=""]
-	302 [label="u.estD
+	299 [label="G.vertices
 Read"]
-	303 [label="math.inf
-Read"]
-	304 [label="==
-"]
-	302 -> 304 [label=""]
-	303 -> 304 [label=""]
 }

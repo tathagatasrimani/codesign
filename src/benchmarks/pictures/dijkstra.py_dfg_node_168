@@ -1,16 +1,16 @@
 digraph {
 	293 [label="source code:
-while len(unsureVertices) > 0:
+w.estD = 0
+unsureVertices = heapdict.heapdict()
 "]
-	294 [label="len(unsureVertices)
-"]
-	295 [label="unsureVertices
-Read"]
-	295 -> 294 [label=""]
-	296 [label=0
+	294 [label=0
 ]
-	297 [label=">
+	295 [label="w.estD
+Write"]
+	294 -> 295 [label=""]
+	296 [label="heapdict.heapdict()
 "]
-	294 -> 297 [label=""]
+	297 [label="unsureVertices
+Write"]
 	296 -> 297 [label=""]
 }

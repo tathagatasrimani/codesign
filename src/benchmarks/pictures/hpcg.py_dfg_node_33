@@ -1,19 +1,19 @@
 digraph {
-	40 [label="source code:
+	76 [label="source code:
 if strong_wolfe_alpha(f, g, alpha, c2):
 "]
-	41 [label="strong_wolfe_alpha(f, g, alpha, c2)
+	77 [label="strong_wolfe_alpha(f, g, alpha, c2)
 "]
-	42 [label="f
+	78 [label="f
 Read"]
-	42 -> 41 [label=""]
-	43 [label="g
+	78 -> 77 [label=""]
+	79 [label="g
 Read"]
-	43 -> 41 [label=""]
-	44 [label="alpha
+	79 -> 77 [label=""]
+	80 [label="alpha
 Read"]
-	44 -> 41 [label=""]
-	45 [label="c2
+	80 -> 77 [label=""]
+	81 [label="c2
 Read"]
-	45 -> 41 [label=""]
+	81 -> 77 [label=""]
 }

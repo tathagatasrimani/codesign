@@ -1,16 +1,19 @@
 digraph {
-	230 [label="source code:
-path = []
-current = w
+	244 [label="source code:
+if u.estD + wt < v.estD:
 "]
-	231 [label="[]
-"]
-	232 [label="path
-Write"]
-	231 -> 232
-	233 [label="w
+	245 [label="u.estD
 Read"]
-	234 [label="current
-Write"]
-	233 -> 234
+	246 [label="wt
+Read"]
+	247 [label="+
+"]
+	245 -> 247 [label=""]
+	246 -> 247 [label=""]
+	248 [label="v.estD
+Read"]
+	249 [label="<
+"]
+	247 -> 249 [label=""]
+	248 -> 249 [label=""]
 }
