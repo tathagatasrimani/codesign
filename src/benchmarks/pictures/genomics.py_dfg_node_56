@@ -1,34 +1,34 @@
 digraph {
-	153 [label="source code:
+	155 [label="source code:
 sequence = fasta_dict[key][0]
 length = len(sequence)
 if min_length_fraction > 0:
 "]
-	154 [label="fasta_dict
+	156 [label="fasta_dict
 Read"]
-	155 [label="fasta_dict[key]
+	157 [label="fasta_dict[key]
 Read"]
-	154 -> 155 [label=""]
-	156 [label="fasta_dict[key][0]
-Read"]
-	155 -> 156 [label=""]
-	157 [label="sequence
-Write"]
 	156 -> 157 [label=""]
-	158 [label="len(sequence)
-"]
+	158 [label="fasta_dict[key][0]
+Read"]
+	157 -> 158 [label=""]
 	159 [label="sequence
-Read"]
-	159 -> 158 [label=""]
-	160 [label="length
 Write"]
-	158 -> 160 [label=""]
-	161 [label="min_length_fraction
-Read"]
-	162 [label=0
-]
-	163 [label=">
+	158 -> 159 [label=""]
+	160 [label="len(sequence)
 "]
-	161 -> 163 [label=""]
-	162 -> 163 [label=""]
+	161 [label="sequence
+Read"]
+	161 -> 160 [label=""]
+	162 [label="length
+Write"]
+	160 -> 162 [label=""]
+	163 [label="min_length_fraction
+Read"]
+	164 [label=0
+]
+	165 [label=">
+"]
+	163 -> 165 [label=""]
+	164 -> 165 [label=""]
 }

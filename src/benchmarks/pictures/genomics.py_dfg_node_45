@@ -1,16 +1,16 @@
 digraph {
-	115 [label="source code:
+	117 [label="source code:
 quality = line
 quality_dict[active_sequence_name].append(quality)
 "]
-	116 [label="line
+	118 [label="line
 Read"]
-	117 [label="quality
-Write"]
-	116 -> 117 [label=""]
-	118 [label="quality_dict[active_sequence_name].append(quality)
-"]
 	119 [label="quality
+Write"]
+	118 -> 119 [label=""]
+	120 [label="quality_dict[active_sequence_name].append(quality)
+"]
+	121 [label="quality
 Read"]
-	119 -> 118 [label=""]
+	121 -> 120 [label=""]
 }

@@ -1,5 +1,5 @@
 digraph {
-	279 [label="source code:
+	281 [label="source code:
 \"\"\"
     Computes the local alignment between two sequences using a scoring matrix.
     \"\"\"
@@ -10,22 +10,22 @@ traceback_matrix = [[None for j in range(len(seq2) + 1)] for i in range(len
 max_score = 0
 max_pos = None
 "]
-	280 [label="
+	282 [label="
     Computes the local alignment between two sequences using a scoring matrix.
     
 "]
-	281 [label="scoring_matrix
+	283 [label="scoring_matrix
 Write"]
-	282 [label="traceback_matrix
+	284 [label="traceback_matrix
 Write"]
-	283 [label=0
+	285 [label=0
 ]
-	284 [label="max_score
-Write"]
-	283 -> 284 [label=""]
-	285 [label=None
-]
-	286 [label="max_pos
+	286 [label="max_score
 Write"]
 	285 -> 286 [label=""]
+	287 [label=None
+]
+	288 [label="max_pos
+Write"]
+	287 -> 288 [label=""]
 }

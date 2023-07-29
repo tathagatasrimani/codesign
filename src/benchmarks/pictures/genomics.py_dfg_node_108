@@ -1,22 +1,22 @@
 digraph {
-	333 [label="source code:
+	335 [label="source code:
 diagonal_score = scoring_matrix[i - 1][j - 1] + mismatch_score
 "]
-	334 [label="scoring_matrix
+	336 [label="scoring_matrix
 Read"]
-	335 [label="scoring_matrix[i - 1]
+	337 [label="scoring_matrix[i - 1]
 Read"]
-	334 -> 335 [label=""]
-	336 [label="scoring_matrix[i - 1][j - 1]
+	336 -> 337 [label=""]
+	338 [label="scoring_matrix[i - 1][j - 1]
 Read"]
-	335 -> 336 [label=""]
-	337 [label="mismatch_score
-Read"]
-	338 [label="+
-"]
-	336 -> 338 [label=""]
 	337 -> 338 [label=""]
-	339 [label="diagonal_score
+	339 [label="mismatch_score
+Read"]
+	340 [label="+
+"]
+	338 -> 340 [label=""]
+	339 -> 340 [label=""]
+	341 [label="diagonal_score
 Write"]
-	338 -> 339 [label=""]
+	340 -> 341 [label=""]
 }

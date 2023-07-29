@@ -1,6 +1,7 @@
 digraph "clustermain.c" {
 	graph [label="main.c"]
-	1 [label="def read_fasta(fasta_file):...
+	1 [label="path = '/nfs/pool0/pmcewen/codesign/codesign/src'
+def read_fasta(fasta_file):...
 def read_fastq(fastq_file):...
 def read_fasta_with_quality(fasta_file, quality_file):...
 def darwin_wga_workflow(fasta_file, fastq_file, output_file, min_length=0,...
@@ -441,15 +442,9 @@ i -= 1
 	}
 	subgraph clustermain {
 		graph [label=main]
-		134 [label="fasta_file = (
-    '/nfs/pool0/pmcewen/codesign/codesign/src/benchmarks/supplemental_files/fasta_example.fasta'
-    )
-fastq_file = (
-    '/nfs/pool0/pmcewen/codesign/codesign/src/benchmarks/supplemental_files/fastq_large.fastq'
-    )
-output_file = (
-    '/nfs/pool0/pmcewen/codesign/codesign/src/benchmarks/supplemental_files/output_file.txt'
-    )
+		134 [label="fasta_file = path + '/benchmarks/supplemental_files/fasta_example.fasta'
+fastq_file = path + '/benchmarks/supplemental_files/fastq_example.fastq'
+output_file = path + '/benchmarks/supplemental_files/output_file.txt'
 darwin_wga_workflow(fasta_file, fastq_file, output_file)
 "]
 		"134_calls" [label=darwin_wga_workflow shape=box]

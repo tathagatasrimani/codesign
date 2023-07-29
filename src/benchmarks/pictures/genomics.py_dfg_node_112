@@ -1,28 +1,28 @@
 digraph {
-	434 [label="source code:
+	436 [label="source code:
 scoring_matrix[i][j] = up_score
 traceback_matrix[i][j] = 'U'
 "]
-	435 [label="up_score
+	437 [label="up_score
 Read"]
-	436 [label="scoring_matrix
+	438 [label="scoring_matrix
 Read"]
-	437 [label="scoring_matrix[i]
+	439 [label="scoring_matrix[i]
 Read"]
-	436 -> 437 [label=""]
-	438 [label="scoring_matrix[i][j]
+	438 -> 439 [label=""]
+	440 [label="scoring_matrix[i][j]
 Write"]
-	437 -> 438 [label=""]
-	435 -> 438 [label=""]
-	439 [label=U
+	439 -> 440 [label=""]
+	437 -> 440 [label=""]
+	441 [label=U
 ]
-	440 [label="traceback_matrix
+	442 [label="traceback_matrix
 Read"]
-	441 [label="traceback_matrix[i]
+	443 [label="traceback_matrix[i]
 Read"]
-	440 -> 441 [label=""]
-	442 [label="traceback_matrix[i][j]
+	442 -> 443 [label=""]
+	444 [label="traceback_matrix[i][j]
 Write"]
-	441 -> 442 [label=""]
-	439 -> 442 [label=""]
+	443 -> 444 [label=""]
+	441 -> 444 [label=""]
 }

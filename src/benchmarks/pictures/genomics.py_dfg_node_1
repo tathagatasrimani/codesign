@@ -1,5 +1,6 @@
 digraph {
 	0 [label="source code:
+path = '/nfs/pool0/pmcewen/codesign/codesign/src'
 def read_fasta(fasta_file):...
 def read_fastq(fastq_file):...
 def read_fasta_with_quality(fasta_file, quality_file):...
@@ -11,12 +12,17 @@ def smith_waterman(seq1, seq2, match_score=3, mismatch_score=-3, gap_score=-2):.
 def main():...
 if __name__ == '__main__':
 "]
-	1 [label="__name__
-Read"]
-	2 [label=__main__
-]
-	3 [label="==
+	1 [label="/nfs/pool0/pmcewen/codesign/codesign/src
 "]
-	1 -> 3 [label=""]
-	2 -> 3 [label=""]
+	2 [label="path
+Write"]
+	1 -> 2 [label=""]
+	3 [label="__name__
+Read"]
+	4 [label=__main__
+]
+	5 [label="==
+"]
+	3 -> 5 [label=""]
+	4 -> 5 [label=""]
 }

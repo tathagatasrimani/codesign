@@ -1,22 +1,22 @@
 digraph {
-	83 [label="source code:
+	85 [label="source code:
 active_sequence_name = line[1:]
 if active_sequence_name not in fasta_dict:
 "]
-	84 [label="line
+	86 [label="line
 Read"]
-	85 [label="line[1:]
+	87 [label="line[1:]
 Read"]
-	84 -> 85 [label=""]
-	86 [label="active_sequence_name
+	86 -> 87 [label=""]
+	88 [label="active_sequence_name
 Write"]
-	85 -> 86 [label=""]
-	87 [label="active_sequence_name
+	87 -> 88 [label=""]
+	89 [label="active_sequence_name
 Read"]
-	88 [label="fasta_dict
+	90 [label="fasta_dict
 Read"]
-	89 [label="==
+	91 [label="==
 "]
-	87 -> 89 [label=""]
-	88 -> 89 [label=""]
+	89 -> 91 [label=""]
+	90 -> 91 [label=""]
 }

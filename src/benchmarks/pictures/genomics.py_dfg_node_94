@@ -1,42 +1,42 @@
 digraph {
-	243 [label="source code:
+	245 [label="source code:
 f.write('>' + key + '\n')
 f.write(filtered_fasta_dict[key][0] + '\n')
 "]
-	244 [label="f.write('>' + key + '\n')
+	246 [label="f.write('>' + key + '\n')
 "]
-	245 [label=">
+	247 [label=">
 "]
-	246 [label="key
+	248 [label="key
 Read"]
-	247 [label="+
-"]
-	245 -> 247 [label=""]
-	246 -> 247 [label=""]
-	248 [label="
-
-"]
 	249 [label="+
 "]
 	247 -> 249 [label=""]
 	248 -> 249 [label=""]
-	249 -> 244 [label=""]
-	250 [label="f.write(filtered_fasta_dict[key][0] + '\n')
-"]
-	251 [label="filtered_fasta_dict
-Read"]
-	252 [label="filtered_fasta_dict[key]
-Read"]
-	251 -> 252 [label=""]
-	253 [label="filtered_fasta_dict[key][0]
-Read"]
-	252 -> 253 [label=""]
-	254 [label="
+	250 [label="
 
 "]
-	255 [label="+
+	251 [label="+
 "]
-	253 -> 255 [label=""]
+	249 -> 251 [label=""]
+	250 -> 251 [label=""]
+	251 -> 246 [label=""]
+	252 [label="f.write(filtered_fasta_dict[key][0] + '\n')
+"]
+	253 [label="filtered_fasta_dict
+Read"]
+	254 [label="filtered_fasta_dict[key]
+Read"]
+	253 -> 254 [label=""]
+	255 [label="filtered_fasta_dict[key][0]
+Read"]
 	254 -> 255 [label=""]
-	255 -> 250 [label=""]
+	256 [label="
+
+"]
+	257 [label="+
+"]
+	255 -> 257 [label=""]
+	256 -> 257 [label=""]
+	257 -> 252 [label=""]
 }

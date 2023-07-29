@@ -1,5 +1,7 @@
 # Python Implementation Denovo Single Gene Nanopore Sequencing by DARWIN-Whole Genome Alignment Workload
 
+path = '/nfs/pool0/pmcewen/codesign/codesign/src'
+
 def read_fasta(fasta_file):
     """
     Reads a fasta file and returns a dictionary with sequence
@@ -220,9 +222,10 @@ def smith_waterman(seq1, seq2, match_score=3, mismatch_score=-3, gap_score=-2):
     return aln1[::-1], aln2[::-1]
 
 def main():
-    fasta_file = "/nfs/pool0/pmcewen/codesign/codesign/src/benchmarks/supplemental_files/fasta_example.fasta"
-    fastq_file = "/nfs/pool0/pmcewen/codesign/codesign/src/benchmarks/supplemental_files/fastq_large.fastq"
-    output_file = "/nfs/pool0/pmcewen/codesign/codesign/src/benchmarks/supplemental_files/output_file.txt"
+    
+    fasta_file = path + "/benchmarks/supplemental_files/fasta_example.fasta"
+    fastq_file = path + "/benchmarks/supplemental_files/fastq_example.fastq"
+    output_file = path + "/benchmarks/supplemental_files/output_file.txt"
     darwin_wga_workflow(fasta_file, fastq_file, output_file)
 
 if __name__ == "__main__":

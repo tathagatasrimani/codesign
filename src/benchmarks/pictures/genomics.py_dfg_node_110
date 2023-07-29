@@ -1,19 +1,19 @@
 digraph {
-	466 [label="source code:
+	468 [label="source code:
 if scoring_matrix[i][j] >= max_score:
 "]
-	467 [label="scoring_matrix
+	469 [label="scoring_matrix
 Read"]
-	468 [label="scoring_matrix[i]
+	470 [label="scoring_matrix[i]
 Read"]
-	467 -> 468 [label=""]
-	469 [label="scoring_matrix[i][j]
+	469 -> 470 [label=""]
+	471 [label="scoring_matrix[i][j]
 Read"]
-	468 -> 469 [label=""]
-	470 [label="max_score
-Read"]
-	471 [label=">=
-"]
-	469 -> 471 [label=""]
 	470 -> 471 [label=""]
+	472 [label="max_score
+Read"]
+	473 [label=">=
+"]
+	471 -> 473 [label=""]
+	472 -> 473 [label=""]
 }

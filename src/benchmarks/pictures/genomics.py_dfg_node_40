@@ -1,16 +1,16 @@
 digraph {
-	95 [label="source code:
+	97 [label="source code:
 line = line.strip()
 if not line:
 "]
-	96 [label="line.strip()
+	98 [label="line.strip()
 "]
-	97 [label="line
+	99 [label="line
 Write"]
-	96 -> 97 [label=""]
-	98 [label="line
-Read"]
-	99 [label="!
-"]
 	98 -> 99 [label=""]
+	100 [label="line
+Read"]
+	101 [label="!
+"]
+	100 -> 101 [label=""]
 }

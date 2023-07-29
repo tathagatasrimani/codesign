@@ -1,19 +1,19 @@
 digraph {
-	382 [label="source code:
+	384 [label="source code:
 if traceback_matrix[i][j] == 'L':
 "]
-	383 [label="traceback_matrix
+	385 [label="traceback_matrix
 Read"]
-	384 [label="traceback_matrix[i]
+	386 [label="traceback_matrix[i]
 Read"]
-	383 -> 384 [label=""]
-	385 [label="traceback_matrix[i][j]
+	385 -> 386 [label=""]
+	387 [label="traceback_matrix[i][j]
 Read"]
-	384 -> 385 [label=""]
-	386 [label=L
-]
-	387 [label="==
-"]
-	385 -> 387 [label=""]
 	386 -> 387 [label=""]
+	388 [label=L
+]
+	389 [label="==
+"]
+	387 -> 389 [label=""]
+	388 -> 389 [label=""]
 }

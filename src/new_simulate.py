@@ -35,6 +35,7 @@ new_graph = None
 mem_layers = 0
 transistor_size = 0
 pitch = 0
+cache_size = 0
 
 def find_nearest_mem_to_scale(num):
     if num < 512: return 512
@@ -80,7 +81,7 @@ def func_calls(expr, calls):
         func_calls(sub_expr, calls)
 
 def get_hw_need(state, hw_spec):
-    hw_need = HardwareModel(0,0,mem_layers, pitch, transistor_size)
+    hw_need = HardwareModel(0,0,mem_layers, pitch, transistor_size, cache_size)
     for op in state:
         if not op.operation: continue
         if op.operation != "Regs":
@@ -265,9 +266,9 @@ def simulate(cfg, node_operations, hw, graphs, first):
     return data
 
 def set_data_path():
-    global data_path, cur_memory_size, vars_allocated, where_to_free, memory_needed
-    with open('/nfs/pool0/pmcewen/codesign/codesign/src/instrumented_files/output.txt', 'r') as f:
-        f_new = open('/nfs/pool0/pmcewen/codesign/codesign/src/instrumented_files/output_free.txt', 'w+')
+    global path, data_path, cur_memory_size, vars_allocated, where_to_free, memory_needed
+    with open(path + '/instrumented_files/output.txt', 'r') as f:
+        f_new = open(path + '/instrumented_files/output_free.txt', 'w+')
         src = f.read()
         l = src.split('\n')
         split_lines = []
@@ -332,7 +333,7 @@ def simulator_prep(benchmark):
     return cfg, graphs, node_operations
 
 def main():
-    global power_use, new_graph, transistor_size, pitch, mem_layers, memory_needed
+    global power_use, new_graph, transistor_size, pitch, mem_layers, memory_needed, cache_size
     benchmark = sys.argv[1]
     print(benchmark)
     cfg, graphs, node_operations = simulator_prep(benchmark)

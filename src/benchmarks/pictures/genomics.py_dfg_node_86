@@ -1,16 +1,16 @@
 digraph {
-	234 [label="source code:
+	236 [label="source code:
 filtered_fastq_dict[key] = fastq_dict[key]
 "]
-	235 [label="fastq_dict
+	237 [label="fastq_dict
 Read"]
-	236 [label="fastq_dict[key]
+	238 [label="fastq_dict[key]
 Read"]
-	235 -> 236 [label=""]
-	237 [label="filtered_fastq_dict
-Read"]
-	238 [label="filtered_fastq_dict[key]
-Write"]
 	237 -> 238 [label=""]
-	236 -> 238 [label=""]
+	239 [label="filtered_fastq_dict
+Read"]
+	240 [label="filtered_fastq_dict[key]
+Write"]
+	239 -> 240 [label=""]
+	238 -> 240 [label=""]
 }
