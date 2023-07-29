@@ -332,14 +332,24 @@ def simulator_prep(benchmark):
     return cfg, graphs, node_operations
 
 def main():
-    global power_use, new_graph, transistor_size, pitch, mem_layers
+    global power_use, new_graph, transistor_size, pitch, mem_layers, memory_needed
     benchmark = sys.argv[1]
     print(benchmark)
     cfg, graphs, node_operations = simulator_prep(benchmark)
     transistor_size = 3 # in nm
     pitch = 100
     mem_layers = 2
-    hw = HardwareModel(0, 0, mem_layers, pitch, transistor_size)
+    if memory_needed < 1000000:
+        cache_size = 1
+    elif memory_needed < 2000000:
+        cache_size = 2
+    elif memory_needed < 4000000:
+        cache_size = 4
+    elif memory_needed < 8000000:
+        cache_size = 8
+    else: 
+        cache_size = 16
+    hw = HardwareModel(0, 0, mem_layers, pitch, transistor_size, cache_size)
     hw.hw_allocated['Add'] = 15
     hw.hw_allocated['Regs'] = 30
     hw.hw_allocated['Mult'] = 15
