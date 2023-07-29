@@ -157,62 +157,58 @@ graph {
 "]
 	182 [label="~
 "]
-	183 [label="x
-location: 0
+	183 [label="w
+location: 120
 Read"]
-	183 -- 136 [label="size: 32"]
-	184 [label="y
-location: 32
+	183 -- 174 [label="size: 24"]
+	184 [label="q
+location: 64
 Read"]
-	184 -- 136 [label="size: 32"]
-	185 [label="x
-location: 0
+	184 -- 106 [label="size: 24"]
+	185 [label="r
+location: 88
 Read"]
 	185 -- 106 [label="size: 32"]
-	186 [label="y
+	186 [label="w
+location: 120
+Write"]
+	186 -- 106 [label="size: 24"]
+	187 [label="q
+location: 64
+Read"]
+	187 -- 136 [label="size: 24"]
+	188 [label="r
+location: 88
+Read"]
+	188 -- 136 [label="size: 32"]
+	189 [label="x
+location: 0
+Read"]
+	189 -- 137 [label="size: 32"]
+	190 [label="y
 location: 32
 Read"]
-	186 -- 106 [label="size: 32"]
-	187 [label="r
-location: 88
-Write"]
-	187 -- 106 [label="size: 32"]
-	188 [label="q
-location: 64
+	190 -- 137 [label="size: 32"]
+	191 [label="x
+location: 0
 Read"]
-	188 -- 107 [label="size: 24"]
-	189 [label="r
-location: 88
+	191 -- 107 [label="size: 32"]
+	192 [label="y
+location: 32
 Read"]
-	189 -- 107 [label="size: 32"]
-	190 [label="w
-location: 120
-Write"]
-	190 -- 107 [label="size: 24"]
-	191 [label="w
-location: 120
-Read"]
-	191 -- 174 [label="size: 24"]
-	192 [label="q
-location: 64
-Read"]
-	192 -- 137 [label="size: 24"]
+	192 -- 107 [label="size: 32"]
 	193 [label="r
 location: 88
-Read"]
-	193 -- 137 [label="size: 32"]
-	137 -- 121 [label=""]
+Write"]
+	193 -- 107 [label="size: 32"]
+	136 -- 121 [label=""]
 	194 [label="q
 location: 64
 Write"]
 	194 -- 121 [label="size: 24"]
-	136 -- 106 [label=""]
+	137 -- 106 [label=""]
 	106 -- 106 [label=""]
 	151 -- 106 [label=""]
-	195 [label="q
-location: 64
-Write"]
-	195 -- 106 [label="size: 24"]
 	197 [label="a
 location: 0
 Write"]

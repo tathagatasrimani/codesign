@@ -258,7 +258,8 @@ def simulate(cfg, node_operations, hw_spec, graphs, first):
         frees.clear()
         i = next_ind
     print("done with simulation")
-    new_graph.gv_graph.render(path + 'benchmarks/pictures/memory_graphs/' + sys.argv[1][sys.argv[1].rfind('/')+1:], view = True)
+    print(path + 'benchmarks/pictures/memory_graphs/' + sys.argv[1][sys.argv[1].rfind('/')+1:])
+    #new_graph.gv_graph.render(path + 'benchmarks/pictures/memory_graphs/' + sys.argv[1][sys.argv[1].rfind('/')+1:], view = True)
     return data
 
 def set_data_path():
