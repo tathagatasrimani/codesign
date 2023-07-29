@@ -182,16 +182,16 @@ def conjugate_gradient(f, g, x0, iterations, error):
 
 
 if __name__ == '__main__':
-    print(56, 94)
+    print(56, 93)
     x0_0 = np.array([0, 0])
-    print(56, 95)
+    print(56, 94)
     error_0 = 0.0001
-    print(56, 96)
-    max_iterations_0 = 1000
-    print(56, 99)
+    print(56, 95)
+    max_iterations_0 = 10000
+    print(56, 98)
     start_0 = time.time()
-    print(56, 100)
+    print(56, 99)
     x_0, n_iter_0 = conjugate_gradient(rosenbrock, grad_rosen, x0_0,
         iterations=max_iterations_0, error=error_0)
-    print(56, 102)
+    print(56, 101)
     end_0 = time.time()

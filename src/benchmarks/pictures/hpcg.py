@@ -16,7 +16,7 @@ if __name__ == '__main__':
 "]
 	56 [label="x0 = np.array([0, 0])
 error = 0.0001
-max_iterations = 1000
+max_iterations = 10000
 start = time.time()
 x, n_iter = conjugate_gradient(rosenbrock, grad_rosen, x0, iterations=
     max_iterations, error=error)

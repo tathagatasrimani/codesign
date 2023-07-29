@@ -1,67 +1,73 @@
 digraph {
 	368 [label="source code:
-G = randomGraph(n, pFn(n))
+G = randomGraph(n * 100, pFn(n))
 start = time.time()
 myFn(G.vertices[0], G)
 end = time.time()
 runtime += (end - start) * 1000
 "]
-	369 [label="randomGraph(n, pFn(n))
+	369 [label="randomGraph(n * 100, pFn(n))
 "]
 	370 [label="n
 Read"]
-	370 -> 369 [label=""]
-	371 [label="pFn(n)
-"]
-	372 [label="n
-Read"]
-	372 -> 371 [label=""]
-	371 -> 369 [label=""]
-	373 [label="G
-Write"]
-	369 -> 373 [label=""]
-	374 [label="time.time()
-"]
-	375 [label="start
-Write"]
-	374 -> 375 [label=""]
-	376 [label="myFn(G.vertices[0], G)
-"]
-	377 [label="G.vertices
-Read"]
-	378 [label="G.vertices[0]
-Read"]
-	377 -> 378 [label=""]
-	378 -> 376 [label=""]
-	379 [label="G
-Read"]
-	379 -> 376 [label=""]
-	380 [label="time.time()
-"]
-	381 [label="end
-Write"]
-	380 -> 381 [label=""]
-	382 [label="end
-Read"]
-	383 [label="start
-Read"]
-	384 [label="-
-"]
-	382 -> 384 [label=""]
-	383 -> 384 [label=""]
-	385 [label=1000
+	371 [label=100
 ]
-	386 [label="*
+	372 [label="*
+"]
+	370 -> 372 [label=""]
+	371 -> 372 [label=""]
+	372 -> 369 [label=""]
+	373 [label="pFn(n)
+"]
+	374 [label="n
+Read"]
+	374 -> 373 [label=""]
+	373 -> 369 [label=""]
+	375 [label="G
+Write"]
+	369 -> 375 [label=""]
+	376 [label="time.time()
+"]
+	377 [label="start
+Write"]
+	376 -> 377 [label=""]
+	378 [label="myFn(G.vertices[0], G)
+"]
+	379 [label="G.vertices
+Read"]
+	380 [label="G.vertices[0]
+Read"]
+	379 -> 380 [label=""]
+	380 -> 378 [label=""]
+	381 [label="G
+Read"]
+	381 -> 378 [label=""]
+	382 [label="time.time()
+"]
+	383 [label="end
+Write"]
+	382 -> 383 [label=""]
+	384 [label="end
+Read"]
+	385 [label="start
+Read"]
+	386 [label="-
 "]
 	384 -> 386 [label=""]
 	385 -> 386 [label=""]
-	387 [label="runtime
-Read"]
-	388 [label="+
+	387 [label=1000
+]
+	388 [label="*
 "]
 	386 -> 388 [label=""]
 	387 -> 388 [label=""]
 	389 [label="runtime
+Read"]
+	390 [label="+
+"]
+	388 -> 390 [label=""]
+	389 -> 390 [label=""]
+	391 [label="runtime
 Write"]
-	388 -> 389 [label=""]
+	390 -> 391 [label=""]
 }

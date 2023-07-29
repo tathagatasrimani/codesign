@@ -633,7 +633,7 @@ def dijkstra_shortestPaths(w, G):
     print('exit scope 27')
 
 
-def runTrials(myFn, nVals, pFn, numTrials=25):
+def runTrials(myFn, nVals, pFn, numTrials=1):
     print('enter scope 28')
     print(1, 229)
     myFn_28 = instrument_read(myFn, 'myFn')
@@ -663,7 +663,7 @@ def runTrials(myFn, nVals, pFn, numTrials=25):
         print('malloc', sys.getsizeof(runtime_28), 'runtime_28')
         for t_28 in range(instrument_read(numTrials_28, 'numTrials_28')):
             print(196, 236)
-            G_28 = randomGraph(instrument_read(n_28, 'n_28'), pFn(
+            G_28 = randomGraph(instrument_read(n_28, 'n_28') * 100, pFn(
                 instrument_read(n_28, 'n_28')))
             write_instrument_read(G_28, 'G_28')
             print('malloc', sys.getsizeof(G_28), 'G_28')

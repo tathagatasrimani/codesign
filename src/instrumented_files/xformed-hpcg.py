@@ -363,30 +363,30 @@ def conjugate_gradient(f, g, x0, iterations, error):
 
 
 if instrument_read(__name__, '__name__') == '__main__':
-    print(56, 94)
+    print(56, 93)
     x0_0 = instrument_read(np, 'np').array([0, 0])
     write_instrument_read(x0_0, 'x0_0')
     print('malloc', sys.getsizeof(x0_0), 'x0_0')
-    print(56, 95)
+    print(56, 94)
     error_0 = 0.0001
     write_instrument_read(error_0, 'error_0')
     print('malloc', sys.getsizeof(error_0), 'error_0')
-    print(56, 96)
-    max_iterations_0 = 1000
+    print(56, 95)
+    max_iterations_0 = 10000
     write_instrument_read(max_iterations_0, 'max_iterations_0')
     print('malloc', sys.getsizeof(max_iterations_0), 'max_iterations_0')
-    print(56, 99)
+    print(56, 98)
     start_0 = instrument_read(time, 'time').time()
     write_instrument_read(start_0, 'start_0')
     print('malloc', sys.getsizeof(start_0), 'start_0')
-    print(56, 100)
+    print(56, 99)
     x_0, n_iter_0 = conjugate_gradient(instrument_read(rosenbrock,
         'rosenbrock'), instrument_read(grad_rosen, 'grad_rosen'),
         instrument_read(x0_0, 'x0_0'), iterations=max_iterations_0, error=
         error_0)
     write_instrument_read(n_iter_0, 'n_iter_0')
     print('malloc', sys.getsizeof(n_iter_0), 'n_iter_0')
-    print(56, 102)
+    print(56, 101)
     end_0 = instrument_read(time, 'time').time()
     write_instrument_read(end_0, 'end_0')
     print('malloc', sys.getsizeof(end_0), 'end_0')

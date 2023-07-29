@@ -258,7 +258,6 @@ def simulate(cfg, node_operations, hw_spec, graphs, first):
         frees.clear()
         i = next_ind
     print("done with simulation")
-    print(path + 'benchmarks/pictures/memory_graphs/' + sys.argv[1][sys.argv[1].rfind('/')+1:])
     #new_graph.gv_graph.render(path + 'benchmarks/pictures/memory_graphs/' + sys.argv[1][sys.argv[1].rfind('/')+1:], view = True)
     return data
 
@@ -274,6 +273,19 @@ def set_data_path():
         #print(l)
         last_line = '-1'
         last_node = '-1'
+        valid_names = set()
+        for i in range(len(split_lines)):
+            item = split_lines[i]
+            if len(item) == 0: continue
+            if item[0] == "malloc":
+                valid_names.add(item[-1])
+            if (item[-1] != "Read" and item[-1] != "Write"): continue
+            var_name = item[0]
+            if var_name not in valid_names: continue 
+            if item[-1] == "Read": where_to_free[var_name] = i+1
+            else: where_to_free[var_name] = i
+
+
         for i in range(len(split_lines)):
             item = split_lines[i]
             f_new.write(l[i] + '\n')
@@ -296,8 +308,6 @@ def set_data_path():
                 data_path.append(item)
                 vars_allocated[item[2]] = int(item[1])
                 #print(vars_allocated)
-                if item[2] not in where_to_free:
-                    find_free_loc(item[2], split_lines, i)
                 cur_memory_size += int(item[1])
                 memory_needed = max(memory_needed, cur_memory_size)
     #print(data_path)

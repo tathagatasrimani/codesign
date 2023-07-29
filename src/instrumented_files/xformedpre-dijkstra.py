@@ -404,7 +404,7 @@ def dijkstra_shortestPaths(w, G):
     print('exit scope 27')
 
 
-def runTrials(myFn, nVals, pFn, numTrials=25):
+def runTrials(myFn, nVals, pFn, numTrials=1):
     print('enter scope 28')
     print(1, 229)
     myFn_28 = myFn
@@ -420,7 +420,7 @@ def runTrials(myFn, nVals, pFn, numTrials=25):
         runtime_28 = 0
         for t_28 in range(numTrials_28):
             print(196, 236)
-            G_28 = randomGraph(n_28, pFn(n_28))
+            G_28 = randomGraph(n_28 * 100, pFn(n_28))
             print(196, 237)
             start_28 = time.time()
             myFn(G_28.vertices[0], G_28)

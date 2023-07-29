@@ -87,13 +87,12 @@ def conjugate_gradient(f, g, x0, iterations, error):
     xk = xk1
     gk = gk1
     pk = pk1
-
   return xk, i + 1
 
 if __name__ == '__main__':
   x0 = np.array([0, 0])
   error = 1e-4
-  max_iterations = 1000
+  max_iterations = 10000
 
   #print '\n======= Conjugate Gradient Method ======\n'
   start = time.time()

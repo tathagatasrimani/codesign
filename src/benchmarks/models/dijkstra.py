@@ -226,14 +226,14 @@ def dijkstra_shortestPaths(w,G):
         path.reverse()
 
 # generate a bunch of random graphs and run an alg to compute shortest paths (implicitly)  
-def runTrials(myFn, nVals, pFn, numTrials=25):
+def runTrials(myFn, nVals, pFn, numTrials=1):
     nValues = []
     tValues = []
     for n in nVals:
         # run myFn several times and average to get a decent idea.
         runtime = 0
         for t in range(numTrials):
-            G = randomGraph(n, pFn(n))  #Random graph on n vertices with about pn^2 edges
+            G = randomGraph(n*100, pFn(n))  #Random graph on n vertices with about pn^2 edges
             start = time.time()
             myFn( G.vertices[0], G ) 
             end = time.time()
