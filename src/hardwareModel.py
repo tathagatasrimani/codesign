@@ -480,6 +480,11 @@ class HardwareModel:
                  self.dynamic_power["Regs"] = 1
                  self.leakage_power["Regs"] = 1
                  self.latency["Regs"] = 1
+        else: # mem_layers == 1
+            self.area["Regs"] = 1
+            self.dynamic_power["Regs"] = 1
+            self.leakage_power["Regs"] = 1
+            self.latency["Regs"] = 1
         for key in op2sym_map.keys():
                 self.hw_allocated[key] = 0
 
