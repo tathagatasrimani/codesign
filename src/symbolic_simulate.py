@@ -37,128 +37,65 @@ def get_hw_need(state):
         else: hw_need.hw_allocated[op.operation] += 1
     return hw_need.hw_allocated
 
-def cycle_sim(hw_inuse, max_cycles):
+def symbolic_cycle_sim_parallel():
     global cycles, data, power_use
     node_power_sum = 0
-    for i in range(max_cycles):
-        power_use.append(0)
-        # save current state of hardware to data array
-        cur_data = ""
-        for elem in hw_inuse:
-            if len(hw_inuse[elem]) > 0:
-                cur_data += elem + ": "
-                count = 0
-                for i in hw_inuse[elem]:
-                    if i > 0:
-                        count += 1
-                        power_use[cycles] += hardwareModel.power[elem][2]
-                power_use[cycles] += (hardwareModel.power[elem][2] / 10) * len(hw_inuse[elem]) # passive power
-                cur_data += str(count) + "/" + str(len(hw_inuse[elem])) + " in use. || "
-        data[cycles] = cur_data
-        # simulate one cycle
-        for elem in hw_inuse:
-            for j in range(len(hw_inuse[elem])):
-                if hw_inuse[elem][j] > 0:
-                    hw_inuse[elem][j] = max(0, hw_inuse[elem][j] - 1)
-        node_power_sum += power_use[cycles]
-        cycles += 1
-    return node_power_sum
-
-def simulate(cfg, data_path, node_operations, hw_spec, first):
-    global main_cfg, id_to_node, unroll_at
-    cur_node = cfg.entryblock
-    if first: 
-        cur_node = cur_node.exits[0].target # skip over the first node in the main cfg
-        main_cfg = cfg
-    hw_inuse = {}
-    for elem in hw_spec:
-        hw_inuse[elem] = [0] * hw_spec[elem]
-    #print(hw_inuse)
-    i = 0
-    while i < len(data_path):
-        node_id = data_path[i][0]
-        cur_node = id_to_node[node_id]
-        node_intervals.append([node_id, [cycles, 0]])
-        node_avg_power[node_id] = 0 # just reset because we will end up overwriting it
-        start_cycles = cycles # for calculating average power
-        iters = 0
-        if unroll_at[cur_node.id]:
-            j = i
-            while True:
-                j += 1
-                if len(data_path) <= j: break
-                next_node_id = data_path[j][0]
-                if next_node_id != node_id: break
-                iters += 1
-            i = j - 1 # skip over loop iterations because we execute them all at once
-        for state in node_operations[cur_node]:
-            # if unroll, take each operation in a state and create more of them
-            if unroll_at[cur_node.id]:
-                new_state = state.copy()
-                for op in state:
-                    for j in range(iters):
-                        new_state.append(op)
-                state = new_state
-            hw_need = get_hw_need(state)
-            # hw_need is non-symbolic
-            #print(hw_need)
-            max_cycles = 0
-            for elem in hw_need:
-                cur_elem_count = hw_need[elem]
-                if cur_elem_count == 0: continue
-                if hw_spec[elem] == 0 and cur_elem_count > 0:
-                    raise Exception("hardware specification insufficient to run program")
-                cur_cycles_needed = int(math.ceil(cur_elem_count / hw_spec[elem]) * hardwareModel.latency[elem])
-                # symbolic max
-                # https://www.sympy.org/en/index.html
-                # plug in the number and see if it's correct
-                # print("cycles needed for " + elem + ": " + str(cur_cycles_needed) + ' (element count = ' + str(cur_elem_count) + ')')
-                max_cycles = max(cur_cycles_needed, max_cycles)
-                j = 0
-                while cur_elem_count > 0:
-                    hw_inuse[elem][j] += hardwareModel.latency[elem]
-                    j = (j + 1) % hw_spec[elem]
-                    cur_elem_count -= 1
-            node_avg_power[node_id] += cycle_sim(hw_inuse, max_cycles)
-        if cycles - start_cycles > 0: node_avg_power[node_id] /= cycles - start_cycles
-        node_intervals[-1][1][1] = cycles
-        i += 1
-    print("done with simulation")
-    return data
-
-
-def symbolic_cycle_sim(hw_inuse, max_cycles):
-    global cycles, data, power_use
-    node_power_sum = 0
-    # print(max_cycles)
-    # maximum max_cycles
-    # take the difference
-    # x > 4 * e
-    # 0.5 * tanh(x - 4 * e) + 0.5
-    for i in range(max_cycles):
-        power_use.append(0)
-        # save current state of hardware to data array
-        cur_data = ""
-        for elem in hw_inuse:
-            if len(hw_inuse[elem]) > 0:
-                cur_data += elem + ": "
-                count = 0
-                for i in hw_inuse[elem]:
-                    cound_add = Piecewise((0, Eq(i, 0)), (1, True))
-                    if cound_add:
-                        count += 1
-                        power_use[cycles] += hardwareModel.symbolic_power[elem][2]
-                power_use[cycles] += (hardwareModel.symbolic_power[elem][2] / 10) * len(hw_inuse[elem]) # passive power
-                cur_data += str(count) + "/" + str(len(hw_inuse[elem])) + " in use. || "
-        data[cycles] = cur_data
-        # simulate one cycle
-        for elem in hw_inuse:
-            for j in range(len(hw_inuse[elem])):
-                if hw_inuse[elem][j] > 0:
-                    hw_inuse[elem][j] = max(0, hw_inuse[elem][j] - 1)
-        node_power_sum += power_use[cycles]
-        cycles += 1
-    return node_power_sum
+    print("symbolic_cycle_sim_parallel", hw_inuse)
+    # hw_inuse {'Regs': [latency_Regs, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 'And': [0], 'Or': [0], 'Add': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 'Sub': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 'Mult': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 'FloorDiv': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 'Mod': [0], 'LShift': [0], 'RShift': [0], 'BitOr': [0], 'BitXor': [0], 'BitAnd': [0], 'Eq': [0], 'NotEq': [0], 'Lt': [0], 'LtE': [0], 'Gt': [0], 'GtE': [0], 'IsNot': [0], 'USub': [0], 'UAdd': [0], 'Not': [0], 'Invert': [0]}
+    # for i in range(default_max_cycles):
+    #     cycles_threshold = 0.5 * tanh(max_cycles - i) + 0.5 # i < max_cycles, get 1, otherwise get 0
+    #     power_use.append(0)
+    #     cur_data = ""
+    #     for elem in hw_inuse:
+    #         if len(hw_inuse[elem]) > 0:
+    #             cur_data += elem + ": "
+    #             count = 0
+    #             for i in hw_inuse[elem]:
+    #                 count += 1
+    #                 power_use[cycles] += hardwareModel.symbolic_power[elem][2]
+    #             power_use[cycles] += (hardwareModel.symbolic_power[elem][2] / 10) * len(hw_inuse[elem]) # passive power
+    #             power_use[cycles].simplify()
+    #             cur_data += str(count) + "/" + str(len(hw_inuse[elem])) + " in use. || "
+        
+    #     data[cycles] = cur_data
+    #     print("data[cycles]", data[cycles])
+    #     # simulate one cycle
+    #     # 6 * power required for each cycle
+    #     # 0 cycle  6 * power and 15 division operations
+    #     # 1 cycle  6 * power and 9 division operations
+    #     # 2 cycle  6 * power and 3 division operations
+    #     # 3 cycle  3 * power and 0 division operations
+        
+    #     # power_sum += 15 * active_power
+    #     # power_sum += batch * number_of_hw_elem * passive_power # idle dividor still need passive power
+    #     # batch = 3
+    #     # cycles_per_node = batch * latency_of_the_division_operation # real latency in cycles
+        
+        
+    #     # passive_power = active_power / 10 # power consumption for particular element, not the final result
+        
+    #     # each batch 10 (symbolic) cycles, 15 total dividor operations
+    #     # 15 * 10 * active_power = 150 for energy (active_power)
+    #     # 10 * 3 * 6 * passive_power
+        
+    #     # power_sum_per_node * batch = energy_consume_per_node
+        
+    #     for elem in hw_inuse:
+    #         print("elem", elem, len(hw_inuse[elem]))  
+    #         for j in range(len(hw_inuse[elem])):
+                
+    #             hw_inuse_threadhold = 0.5 * tanh(hw_inuse[elem][j]) + 0.5 # hw_inuse[elem][j] > 0, get 1, otherwise get 0
+    #             print("hw_inuse[elem][j]", hw_inuse[elem][j])
+    #             hw_inuse[elem][j] = hw_inuse_threadhold * Max(0, hw_inuse[elem][j] - 1) + (1 - hw_inuse_threadhold) * hw_inuse[elem][j]
+    #             print("hw_inuse[elem][j]", hw_inuse[elem][j])
+    #             hw_inuse[elem][j].simplify()
+    #         print("hw_inuse[elem]", hw_inuse[elem])        
+    #     node_power_sum += cycles_threshold * power_use[cycles]
+    #     node_power_sum.simplify()
+    #     print("node_power_sum", node_power_sum)
+    #     cycles += 1
+    #     # node_power_sum * latency = avg_eng
+    # return node_power_sum
 
 
 def symbolic_simulate(cfg, data_path, symbolic_node_operations, hw_spec, symbolic_first):
@@ -198,35 +135,43 @@ def symbolic_simulate(cfg, data_path, symbolic_node_operations, hw_spec, symboli
                 state = new_state
             hw_need = get_hw_need(state)
             #print(hw_need)
-            max_cycles = 0
+            # max_cycles = 0
             for elem in hw_need:
-                cur_elem_count = hw_need[elem]
-                cur_cycles_needed = hardwareModel.latency[elem]
-                if cur_elem_count == 0: continue
-                if hw_spec[elem] == 0 and cur_elem_count > 0:
+                # cur_elem_count = hw_need[elem]
+                # cur_cycles_needed = hardwareModel.symbolic_latency[elem]
+                if hw_need[elem] == 0: continue
+                if hw_spec[elem] == 0 and hw_need[elem] > 0:
                     raise Exception("hardware specification insufficient to run program")
-                # cur_cycles_needed = ceiling(cur_elem_count / hw_spec[elem]) * hardwareModel.latency[elem] # need to cast to Integer
-                cur_cycles_needed = int(math.ceil(cur_elem_count / hw_spec[elem]) * hardwareModel.latency[elem])
+                # cur_cycles_needed = ceiling(cur_elem_count / hw_spec[elem]) * hardwareModel.symbolic_latency[elem] # need to cast to Integer
+                # cur_cycles_needed = int(math.ceil(cur_elem_count / hw_spec[elem]) * hardwareModel.latency[elem])
                 # symbolic max
                 # https://www.sympy.org/en/index.html
                 # plug in the number and see if it's correct
                 # print("cycles needed for " + elem + ": " + str(cur_cycles_needed) + ' (element count = ' + str(cur_elem_count) + ')')
                 # max_cycles = Max(cur_cycles_needed, max_cycles)
-                max_cycles = max(cur_cycles_needed, max_cycles)
-                j = 0
-                j = j % hw_spec[elem]
-                # need to aggregate j here
-                while cur_elem_count > 0:
-                    if not elem in hw_inuse:
-                        hw_inuse[elem] = {}
-                    if j in hw_inuse[elem]:
-                        hw_inuse[elem][j] += hardwareModel.latency[elem]
-                    else:
-                        hw_inuse[elem][j] = hardwareModel.latency[elem]
-                    j = (j + 1) % hw_spec[elem]
-                    cur_elem_count -= 1
-            node_avg_power[node_id] += symbolic_cycle_sim(hw_inuse, max_cycles)
-        if cycles - start_cycles > 0: node_avg_power[node_id] /= cycles - start_cycles
+                # max_cycles = max(cur_cycles_needed, max_cycles)
+                # j = 0
+                # j = j % hw_spec[elem]
+                # # need to aggregate j here
+                # while cur_elem_count > 0:
+                #     if not elem in hw_inuse:
+                #         hw_inuse[elem] = {}
+                #     if j in hw_inuse[elem]:
+                #         hw_inuse[elem][j] += hardwareModel.symbolic_latency[elem]
+                #     else:
+                #         hw_inuse[elem][j] = hardwareModel.symbolic_latency[elem]
+                #     j = (j + 1) % hw_spec[elem]
+                #     cur_elem_count -= 1
+                # print("elem: ", elem)
+                # print("hw_spec[elem]: ", hw_spec[elem])
+                # print("cur_elem_count: ", cur_elem_count)
+                # print("hw_inuse[elem]: ", hw_inuse[elem])
+                symbolic_cycle_sim_parallel(elem, hw_spec[elem], hw_need[elem])
+                
+            # node_avg_power[node_id] += symbolic_cycle_sim_parallel(hw_inuse)
+            # node_avg_power[node_id].simplify()
+            # print(node_avg_power[node_id])
+        if cycles - start_cycles > 0: node_avg_power[node_id] = node_avg_power[node_id] / (cycles - start_cycles)
         node_intervals[-1][1][1] = cycles
         i += 1
     print("done with simulation")
@@ -321,6 +266,7 @@ def main():
     
     data = symbolic_simulate(cfg, data_path, node_operations, hw.hw_allocated, first)
     print(data)
+    return
     # power_use is symbolic, so we need to make it concrete
     
     text = json.dumps(data, indent=4)
@@ -339,12 +285,8 @@ def main():
         print("variable", s)
         print("diff on this variable", total_power_use.diff(s))
     # constraints
-    
     # print("power_use expression: ", sum(power_use).simplify())
-    
     # power_use expression:  5821*power_Add_2 + 1919*power_And_2/5 + 2079*power_BitAnd_2/5 + 1999*power_BitOr_2/5 + 5039*power_BitXor_2/5 + 3184*power_Eq_2/5 + 5757*power_FloorDiv_2 + 1919*power_GtE_2/5 + 1919*power_Gt_2/5 + 1919*power_Invert_2/5 + 1919*power_IsNot_2/5 + 1999*power_LShift_2/5 + 1919*power_LtE_2/5 + 1919*power_Lt_2/5 + 2999*power_Mod_2/5 + 6077*power_Mult_2 + 1919*power_NotEq_2/5 + 1919*power_Not_2/5 + 1919*power_Or_2/5 + 2079*power_RShift_2/5 + 22742*power_Regs_2 + 5957*power_Sub_2 + 1919*power_UAdd_2/5 + 1919*power_USub_2/5
-    
-    return
 
     power_use_value = []
     for expr in power_use:
