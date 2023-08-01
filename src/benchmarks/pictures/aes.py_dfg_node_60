@@ -1,28 +1,28 @@
 digraph {
-	755 [label="source code:
+	756 [label="source code:
 s[i][j] ^= k[i][j]
 "]
-	756 [label="k
+	757 [label="k
 Read"]
-	757 [label="k[i]
-Read"]
-	756 -> 757 [label=""]
-	758 [label="k[i][j]
+	758 [label="k[i]
 Read"]
 	757 -> 758 [label=""]
-	759 [label="s
+	759 [label="k[i][j]
 Read"]
-	760 [label="^
+	758 -> 759 [label=""]
+	760 [label="s
+Read"]
+	761 [label="^
 "]
-	758 -> 760 [label=""]
-	759 -> 760 [label=""]
-	761 [label="s
+	759 -> 761 [label=""]
+	760 -> 761 [label=""]
+	762 [label="s
 Read"]
-	762 [label="s[i]
+	763 [label="s[i]
 Read"]
-	761 -> 762 [label=""]
-	763 [label="s[i][j]
-Write"]
 	762 -> 763 [label=""]
-	760 -> 763 [label=""]
+	764 [label="s[i][j]
+Write"]
+	763 -> 764 [label=""]
+	761 -> 764 [label=""]
 }

@@ -57,32 +57,35 @@ def __inv_mix_columns(self, s):...
 if __name__ == '__main__':
 "]
 	102 [label="import time
+start = time.time()
 "]
-	104 [label="for i in range(1):
+	"102_calls" [label="time.time" shape=box]
+	102 -> "102_calls" [label=calls style=dashed]
+	104 [label="for i in range(10):
 "]
-	105 [label="start = time.time()
+	105 [label="Sbox += Sbox
 "]
-	"105_calls" [label="time.time" shape=box]
-	105 -> "105_calls" [label=calls style=dashed]
-	107 [label="for i in range(10):
+	105 -> 104 [label=""]
+	104 -> 105 [label="range(10)"]
+	106 [label="Sbox_new = Sbox
 "]
-	108 [label="Sbox += Sbox
+	107 [label="for i in range(1):
 "]
-	108 -> 107 [label=""]
-	107 -> 108 [label="range(10)"]
-	109 [label="Sbox_new = Sbox
-aes = AES(1212304810341341)
+	108 [label="aes = AES(1212304810341341)
 aes.encrypt(1212304810341341)
-end = time.time()
 "]
-	"109_calls" [label="AES
-aes.encrypt
-time.time" shape=box]
+	"108_calls" [label="AES
+aes.encrypt" shape=box]
+	108 -> "108_calls" [label=calls style=dashed]
+	108 -> 107 [label=""]
+	107 -> 108 [label="range(1)"]
+	109 [label="end = time.time()
+"]
+	"109_calls" [label="time.time" shape=box]
 	109 -> "109_calls" [label=calls style=dashed]
-	109 -> 104 [label=""]
 	107 -> 109 [label=""]
-	105 -> 107 [label=""]
-	104 -> 105 [label="range(1)"]
+	106 -> 107 [label=""]
+	104 -> 106 [label=""]
 	102 -> 104 [label=""]
 	1 -> 102 [label="__name__ == '__main__'"]
 	subgraph clusterxtime {

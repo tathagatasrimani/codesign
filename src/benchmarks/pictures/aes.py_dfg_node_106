@@ -1,31 +1,10 @@
 digraph {
 	562 [label="source code:
 Sbox_new = Sbox
-aes = AES(1212304810341341)
-aes.encrypt(1212304810341341)
-end = time.time()
 "]
 	563 [label="Sbox
 Read"]
 	564 [label="Sbox_new
 Write"]
 	563 -> 564 [label=""]
-	565 [label="AES(1212304810341341)
-"]
-	566 [label=1212304810341341
-]
-	566 -> 565 [label=""]
-	567 [label="aes
-Write"]
-	565 -> 567 [label=""]
-	568 [label="aes.encrypt(1212304810341341)
-"]
-	569 [label=1212304810341341
-]
-	569 -> 568 [label=""]
-	570 [label="time.time()
-"]
-	571 [label="end
-Write"]
-	570 -> 571 [label=""]
 }

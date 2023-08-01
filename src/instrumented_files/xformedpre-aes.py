@@ -301,16 +301,16 @@ class AES:
 
 if __name__ == '__main__':
     import time
+    print(102, 706)
+    start_0 = time.time()
+    for i_0 in range(10):
+        print(105, 708)
+        Sbox_0 += Sbox_0
+    print(106, 709)
+    Sbox_new_0 = Sbox_0
     for i_0 in range(1):
-        print(105, 707)
-        start_0 = time.time()
-        for i_0 in range(10):
-            print(108, 709)
-            Sbox_0 += Sbox_0
-        print(109, 710)
-        Sbox_new_0 = Sbox_0
-        print(109, 711)
+        print(108, 711)
         aes_0 = AES(1212304810341341)
         aes_0.encrypt(1212304810341341)
-        print(109, 713)
-        end_0 = time.time()
+    print(109, 713)
+    end_0 = time.time()

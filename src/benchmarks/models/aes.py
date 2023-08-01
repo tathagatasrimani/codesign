@@ -703,12 +703,11 @@ class AES:
 
 if __name__ == "__main__" :
     import time
-    for i in range(2):
-        loop().pattern_seek()
-        start = time.time()
-        for i in range(10):
-            Sbox += Sbox
-        Sbox_new = Sbox
+    start = time.time()
+    for i in range(10):
+        Sbox += Sbox
+    Sbox_new = Sbox
+    for i in range(1):
         aes = AES(1212304810341341)
         aes.encrypt(1212304810341341)
-        end = time.time()
+    end = time.time()

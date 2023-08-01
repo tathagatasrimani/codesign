@@ -266,7 +266,7 @@ def simulate(cfg, node_operations, hw, graphs, first):
             cur_node = id_to_node[pattern_nodes[i]]
             mallocs = pattern_mallocs[i]
             frees = pattern_frees[i]
-            print(mallocs, frees)
+            #print(mallocs, frees)
             for malloc in mallocs:
                 process_memory_operation(malloc[2], int(malloc[1]), malloc[0])
             # try to unroll after pattern_seeking

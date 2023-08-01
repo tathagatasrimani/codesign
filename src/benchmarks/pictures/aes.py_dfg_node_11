@@ -1,10 +1,10 @@
 digraph {
-	600 [label="source code:
+	601 [label="source code:
 matrix.append([byte])
 "]
-	601 [label="matrix.append([byte])
+	602 [label="matrix.append([byte])
 "]
-	602 [label="byte
+	603 [label="byte
 Read"]
-	602 -> 601 [label=""]
+	603 -> 602 [label=""]
 }

@@ -1,5 +1,11 @@
 digraph {
 	551 [label="source code:
 import time
+start = time.time()
 "]
+	552 [label="time.time()
+"]
+	553 [label="start
+Write"]
+	552 -> 553 [label=""]
 }

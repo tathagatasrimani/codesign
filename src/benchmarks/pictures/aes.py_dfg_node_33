@@ -1,41 +1,41 @@
 digraph {
-	654 [label="source code:
+	655 [label="source code:
 byte = self.round_keys[i - 4][0] ^ Sbox[self.round_keys[i - 1][1]] ^ Rcon[int
     (i / 4)]
 self.round_keys[i].append(byte)
 "]
-	655 [label="self.round_keys
+	656 [label="self.round_keys
 Read"]
-	656 [label="self.round_keys[i - 4]
-Read"]
-	655 -> 656 [label=""]
-	657 [label="self.round_keys[i - 4][0]
+	657 [label="self.round_keys[i - 4]
 Read"]
 	656 -> 657 [label=""]
-	658 [label="Sbox
+	658 [label="self.round_keys[i - 4][0]
 Read"]
-	659 [label="Sbox[self.round_keys[i - 1][1]]
+	657 -> 658 [label=""]
+	659 [label="Sbox
 Read"]
-	658 -> 659 [label=""]
-	660 [label="^
-"]
-	657 -> 660 [label=""]
+	660 [label="Sbox[self.round_keys[i - 1][1]]
+Read"]
 	659 -> 660 [label=""]
-	661 [label="Rcon
-Read"]
-	662 [label="Rcon[int(i / 4)]
-Read"]
-	661 -> 662 [label=""]
-	663 [label="^
+	661 [label="^
 "]
-	660 -> 663 [label=""]
+	658 -> 661 [label=""]
+	660 -> 661 [label=""]
+	662 [label="Rcon
+Read"]
+	663 [label="Rcon[int(i / 4)]
+Read"]
 	662 -> 663 [label=""]
-	664 [label="byte
-Write"]
-	663 -> 664 [label=""]
-	665 [label="self.round_keys[i].append(byte)
+	664 [label="^
 "]
-	666 [label="byte
+	661 -> 664 [label=""]
+	663 -> 664 [label=""]
+	665 [label="byte
+Write"]
+	664 -> 665 [label=""]
+	666 [label="self.round_keys[i].append(byte)
+"]
+	667 [label="byte
 Read"]
-	666 -> 665 [label=""]
+	667 -> 666 [label=""]
 }
