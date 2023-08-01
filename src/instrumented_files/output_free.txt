@@ -155,7 +155,7 @@ text_2 no_ind Read
 i_2 no_ind Read
 byte_2 no_ind Write
 malloc 28 byte_2
-free 28 text_3
+free 24 text_3
 malloc 28 byte_2
 i_2 no_ind Read
 matrix_2 no_ind Read
@@ -3142,7 +3142,7 @@ text_2 no_ind Read
 i_2 no_ind Read
 byte_2 no_ind Write
 malloc 24 byte_2
-free 24 text_3
+free 28 text_3
 malloc 24 byte_2
 i_2 no_ind Read
 matrix_2 no_ind Read
@@ -3228,7 +3228,7 @@ text_2 no_ind Read
 i_2 no_ind Read
 byte_2 no_ind Write
 malloc 28 byte_2
-free 28 text_3
+free 24 text_3
 malloc 28 byte_2
 i_2 no_ind Read
 matrix_2 no_ind Read
@@ -4760,7 +4760,7 @@ a_15 no_ind Read
 a_15 3 Read
 t_15 no_ind Write
 malloc 28 t_15
-free 28 text_3
+free 24 text_3
 malloc 28 t_15
 90 682
 a_15 no_ind Read
@@ -4778,7 +4778,7 @@ enter scope 1
 a no_ind Read
 a_1 no_ind Write
 malloc 28 a_1
-free 28 text_3
+free 24 text_3
 malloc 28 a_1
 exit scope 1
 a_1 no_ind Read

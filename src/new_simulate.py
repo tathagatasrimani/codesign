@@ -376,8 +376,9 @@ def set_data_path():
                     if int(item[1]) == vars_allocated[item[2]]: 
                         continue
                     else: 
-                        f_new.write("free " + str(item[1]) + " " + var_name + "\n")
+                        f_new.write("free " + str(vars_allocated[item[2]]) + " " + var_name + "\n")
                         f_new.write(l[i] + '\n')
+                    cur_memory_size -= int(vars_allocated[item[2]])
                 data_path.append(item)
                 vars_allocated[item[2]] = int(item[1])
                 #print(vars_allocated)
