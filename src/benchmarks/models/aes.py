@@ -1,3 +1,4 @@
+from loop import loop
 Sbox = (
     0x63,
     0x7C,
@@ -702,10 +703,12 @@ class AES:
 
 if __name__ == "__main__" :
     import time
-    start = time.time()
-    for i in range(10):
-        Sbox += Sbox
-    Sbox_new = Sbox
-    aes = AES(1212304810341341)
-    aes.encrypt(1212304810341341)
-    end = time.time()
+    for i in range(2):
+        loop().pattern_seek()
+        start = time.time()
+        for i in range(10):
+            Sbox += Sbox
+        Sbox_new = Sbox
+        aes = AES(1212304810341341)
+        aes.encrypt(1212304810341341)
+        end = time.time()

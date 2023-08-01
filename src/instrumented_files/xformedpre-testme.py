@@ -34,29 +34,27 @@ def main(x, y):
     r_1, q_1 = 2, 3
     loop.start_unroll
     for i_1 in range(5):
-        loop().pattern_seek()
-        print(8, 20)
+        print(8, 19)
         z_1[0][i_1] += z_1[0][i_1 + 1]
-        if r_1 > 0:
-            print(10, 22)
-            q_1 += 3
     loop.stop_unroll
     print('exit scope 1')
 
 
 def bruh():
     print('enter scope 2')
-    print(1, 25)
-    print(14, 26)
+    print(1, 22)
+    print(12, 23)
     a_2 = 1
     loop.start_unroll
     for i_2 in range(3):
-        print(16, 29)
+        print(14, 26)
         a_2 += i_2
     loop.stop_unroll
     print('exit scope 2')
 
 
 if __name__ == '__main__':
-    main(2, 3)
-    bruh()
+    for i_0 in range(2):
+        loop().pattern_seek()
+        main(2, 3)
+        bruh()

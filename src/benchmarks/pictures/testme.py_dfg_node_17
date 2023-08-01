@@ -1,7 +1,10 @@
 digraph {
-	111 [label="source code:
-loop.stop_unroll
+	4 [label="source code:
+for i in range(2):
 "]
-	112 [label="loop.stop_unroll
-Read"]
+	5 [label="range(2)
+"]
+	6 [label=2
+]
+	6 -> 5 [label=""]
 }

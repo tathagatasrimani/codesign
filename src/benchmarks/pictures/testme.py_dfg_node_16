@@ -1,16 +1,16 @@
 digraph {
-	106 [label="source code:
+	103 [label="source code:
 a += i
 "]
-	107 [label="i
+	104 [label="i
 Read"]
-	108 [label="a
+	105 [label="a
 Read"]
-	109 [label="+
+	106 [label="+
 "]
-	107 -> 109 [label=""]
-	108 -> 109 [label=""]
-	110 [label="a
+	104 -> 106 [label=""]
+	105 -> 106 [label=""]
+	107 [label="a
 Write"]
-	109 -> 110 [label=""]
+	106 -> 107 [label=""]
 }

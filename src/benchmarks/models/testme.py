@@ -16,10 +16,7 @@ def main(x, y):
     r, q = 2, 3
     loop.start_unroll
     for i in range(5):
-        loop().pattern_seek()
         z[0][i] += z[0][i+1]
-        if r > 0:
-            q += 3
     loop.stop_unroll
 
 def bruh():
@@ -30,5 +27,7 @@ def bruh():
     loop.stop_unroll
 
 if __name__ == "__main__":
-    main(2, 3)
-    bruh()
+    for i in range(2):
+        loop().pattern_seek()
+        main(2, 3)
+        bruh()

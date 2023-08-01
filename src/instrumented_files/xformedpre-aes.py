@@ -1,6 +1,7 @@
 import sys
 from instrument_lib import *
-print(1, 1)
+from loop import loop
+print(1, 2)
 Sbox_0 = (99, 124, 119, 123, 242, 107, 111, 197, 48, 1, 103, 43, 254, 215, 
     171, 118, 202, 130, 201, 125, 250, 89, 71, 240, 173, 212, 162, 175, 156,
     164, 114, 192, 183, 253, 147, 38, 54, 63, 247, 204, 52, 165, 229, 241, 
@@ -18,7 +19,7 @@ Sbox_0 = (99, 124, 119, 123, 242, 107, 111, 197, 48, 1, 103, 43, 254, 215,
     87, 185, 134, 193, 29, 158, 225, 248, 152, 17, 105, 217, 142, 148, 155,
     30, 135, 233, 206, 85, 40, 223, 140, 161, 137, 13, 191, 230, 66, 104, 
     65, 153, 45, 15, 176, 84, 187, 22)
-print(1, 260)
+print(1, 261)
 InvSbox_0 = (82, 9, 106, 213, 48, 54, 165, 56, 191, 64, 163, 158, 129, 243,
     215, 251, 124, 227, 57, 130, 155, 47, 255, 135, 52, 142, 67, 68, 196, 
     222, 233, 203, 84, 123, 148, 50, 166, 194, 35, 61, 238, 76, 149, 11, 66,
@@ -40,26 +41,26 @@ InvSbox_0 = (82, 9, 106, 213, 48, 54, 165, 56, 191, 64, 163, 158, 129, 243,
 
 def xtime(a):
     print('enter scope 1')
-    print(1, 521)
+    print(1, 522)
     a_1 = a
     print('exit scope 1')
     return (a_1 << 1 ^ 27) & 255 if a_1 & 128 else a_1 << 1
     print('exit scope 1')
 
 
-print(1, 525)
+print(1, 526)
 Rcon_0 = (0, 1, 2, 4, 8, 16, 32, 64, 128, 27, 54, 108, 216, 171, 77, 154, 
     47, 94, 188, 99, 198, 151, 53, 106, 212, 179, 125, 250, 239, 197, 145, 57)
 
 
 def text2matrix(text):
     print('enter scope 2')
-    print(1, 561)
+    print(1, 562)
     text_2 = text
-    print(7, 562)
+    print(7, 563)
     matrix_2 = []
     for i_2 in range(16):
-        print(9, 564)
+        print(9, 565)
         byte_2 = text_2 >> 8 * (15 - i_2) & 255
         if i_2 % 4 == 0:
             matrix_2.append([byte_2])
@@ -72,13 +73,13 @@ def text2matrix(text):
 
 def matrix2text(matrix):
     print('enter scope 3')
-    print(1, 572)
+    print(1, 573)
     matrix_3 = matrix
-    print(17, 573)
+    print(17, 574)
     text_3 = 0
     for i_3 in range(4):
         for j_3 in range(4):
-            print(21, 576)
+            print(21, 577)
             text_3 |= matrix_3[i_3][j_3] << 120 - 8 * (4 * i_3 + j_3)
     print('exit scope 3')
     return text_3
@@ -89,7 +90,7 @@ class AES:
 
     def __init__(self, master_key):
         print('enter scope 4')
-        print(1, 581)
+        print(1, 582)
         self = self
         master_key_4 = master_key
         self.change_key(master_key_4)
@@ -97,26 +98,26 @@ class AES:
 
     def change_key(self, master_key):
         print('enter scope 5')
-        print(1, 584)
+        print(1, 585)
         self = self
         master_key_5 = master_key
-        print(29, 585)
+        print(29, 586)
         self.round_keys = text2matrix(master_key_5)
         for i_5 in range(4, 4 * 11):
             self.round_keys.append([])
             if i_5 % 4 == 0:
-                print(33, 591)
+                print(33, 592)
                 byte_5 = self.round_keys[i_5 - 4][0] ^ Sbox_0[self.
                     round_keys[i_5 - 1][1]] ^ Rcon_0[int(i_5 / 4)]
                 self.round_keys[i_5].append(byte_5)
                 for j_5 in range(1, 4):
-                    print(39, 599)
+                    print(39, 600)
                     byte_5 = self.round_keys[i_5 - 4][j_5] ^ Sbox_0[self.
                         round_keys[i_5 - 1][(j_5 + 1) % 4]]
                     self.round_keys[i_5].append(byte_5)
             else:
                 for j_5 in range(4):
-                    print(36, 606)
+                    print(36, 607)
                     byte_5 = self.round_keys[i_5 - 4][j_5] ^ self.round_keys[
                         i_5 - 1][j_5]
                     self.round_keys[i_5].append(byte_5)
@@ -124,10 +125,10 @@ class AES:
 
     def encrypt(self, plaintext):
         print('enter scope 6')
-        print(1, 611)
+        print(1, 612)
         self = self
         plaintext_6 = plaintext
-        print(43, 612)
+        print(43, 613)
         self.plain_state = text2matrix(plaintext_6)
         self.__add_round_key(self.plain_state, self.round_keys[:4])
         for i_6 in range(1, 10):
@@ -142,10 +143,10 @@ class AES:
 
     def decrypt(self, ciphertext):
         print('enter scope 7')
-        print(1, 625)
+        print(1, 626)
         self = self
         ciphertext_7 = ciphertext
-        print(50, 626)
+        print(50, 627)
         self.cipher_state = text2matrix(ciphertext_7)
         self.__add_round_key(self.cipher_state, self.round_keys[40:])
         self.__inv_shift_rows(self.cipher_state)
@@ -160,19 +161,19 @@ class AES:
 
     def __add_round_key(self, s, k):
         print('enter scope 8')
-        print(1, 641)
+        print(1, 642)
         self = self
         s_8 = s
         k_8 = k
         for i_8 in range(4):
             for j_8 in range(4):
-                print(60, 644)
+                print(60, 645)
                 s_8[i_8][j_8] ^= k_8[i_8][j_8]
         print('exit scope 8')
 
     def __round_encrypt(self, state_matrix, key_matrix):
         print('enter scope 9')
-        print(1, 646)
+        print(1, 647)
         self = self
         state_matrix_9 = state_matrix
         key_matrix_9 = key_matrix
@@ -184,7 +185,7 @@ class AES:
 
     def __round_decrypt(self, state_matrix, key_matrix):
         print('enter scope 10')
-        print(1, 652)
+        print(1, 653)
         self = self
         state_matrix_10 = state_matrix
         key_matrix_10 = key_matrix
@@ -196,80 +197,80 @@ class AES:
 
     def __sub_bytes(self, s):
         print('enter scope 11')
-        print(1, 658)
+        print(1, 659)
         self = self
         s_11 = s
         for i_11 in range(4):
             for j_11 in range(4):
-                print(73, 661)
+                print(73, 662)
                 s_11[i_11][j_11] = Sbox_0[s_11[i_11][j_11]]
         print('exit scope 11')
 
     def __inv_sub_bytes(self, s):
         print('enter scope 12')
-        print(1, 663)
+        print(1, 664)
         self = self
         s_12 = s
         for i_12 in range(4):
             for j_12 in range(4):
-                print(80, 666)
+                print(80, 667)
                 s_12[i_12][j_12] = InvSbox_0[s_12[i_12][j_12]]
         print('exit scope 12')
 
     def __shift_rows(self, s):
         print('enter scope 13')
-        print(1, 668)
+        print(1, 669)
         self = self
         s_13 = s
-        print(84, 669)
+        print(84, 670)
         s_13[0][1], s_13[1][1], s_13[2][1], s_13[3][1] = s_13[1][1], s_13[2][1
             ], s_13[3][1], s_13[0][1]
-        print(84, 670)
+        print(84, 671)
         s_13[0][2], s_13[1][2], s_13[2][2], s_13[3][2] = s_13[2][2], s_13[3][2
             ], s_13[0][2], s_13[1][2]
-        print(84, 671)
+        print(84, 672)
         s_13[0][3], s_13[1][3], s_13[2][3], s_13[3][3] = s_13[3][3], s_13[0][3
             ], s_13[1][3], s_13[2][3]
         print('exit scope 13')
 
     def __inv_shift_rows(self, s):
         print('enter scope 14')
-        print(1, 673)
+        print(1, 674)
         self = self
         s_14 = s
-        print(87, 674)
+        print(87, 675)
         s_14[0][1], s_14[1][1], s_14[2][1], s_14[3][1] = s_14[3][1], s_14[0][1
             ], s_14[1][1], s_14[2][1]
-        print(87, 675)
+        print(87, 676)
         s_14[0][2], s_14[1][2], s_14[2][2], s_14[3][2] = s_14[2][2], s_14[3][2
             ], s_14[0][2], s_14[1][2]
-        print(87, 676)
+        print(87, 677)
         s_14[0][3], s_14[1][3], s_14[2][3], s_14[3][3] = s_14[1][3], s_14[2][3
             ], s_14[3][3], s_14[0][3]
         print('exit scope 14')
 
     def __mix_single_column(self, a):
         print('enter scope 15')
-        print(1, 678)
+        print(1, 679)
         self = self
         a_15 = a
-        print(90, 680)
-        t_15 = a_15[0] ^ a_15[1] ^ a_15[2] ^ a_15[3]
         print(90, 681)
-        u_15 = a_15[0]
+        t_15 = a_15[0] ^ a_15[1] ^ a_15[2] ^ a_15[3]
         print(90, 682)
-        a_15[0] ^= t_15 ^ xtime(a_15[0] ^ a_15[1])
+        u_15 = a_15[0]
         print(90, 683)
-        a_15[1] ^= t_15 ^ xtime(a_15[1] ^ a_15[2])
+        a_15[0] ^= t_15 ^ xtime(a_15[0] ^ a_15[1])
         print(90, 684)
-        a_15[2] ^= t_15 ^ xtime(a_15[2] ^ a_15[3])
+        a_15[1] ^= t_15 ^ xtime(a_15[1] ^ a_15[2])
         print(90, 685)
+        a_15[2] ^= t_15 ^ xtime(a_15[2] ^ a_15[3])
+        print(90, 686)
         a_15[3] ^= t_15 ^ xtime(a_15[3] ^ u_15)
         print('exit scope 15')
 
     def __mix_columns(self, s):
         print('enter scope 16')
-        print(1, 687)
+        print(1, 688)
         self = self
         s_16 = s
         for i_16 in range(4):
@@ -278,21 +279,21 @@ class AES:
 
     def __inv_mix_columns(self, s):
         print('enter scope 17')
-        print(1, 691)
+        print(1, 692)
         self = self
         s_17 = s
         for i_17 in range(4):
-            print(99, 694)
-            u_17 = xtime(xtime(s_17[i_17][0] ^ s_17[i_17][2]))
             print(99, 695)
-            v_17 = xtime(xtime(s_17[i_17][1] ^ s_17[i_17][3]))
+            u_17 = xtime(xtime(s_17[i_17][0] ^ s_17[i_17][2]))
             print(99, 696)
-            s_17[i_17][0] ^= u_17
+            v_17 = xtime(xtime(s_17[i_17][1] ^ s_17[i_17][3]))
             print(99, 697)
-            s_17[i_17][1] ^= v_17
+            s_17[i_17][0] ^= u_17
             print(99, 698)
-            s_17[i_17][2] ^= u_17
+            s_17[i_17][1] ^= v_17
             print(99, 699)
+            s_17[i_17][2] ^= u_17
+            print(99, 700)
             s_17[i_17][3] ^= v_17
         self.__mix_columns(s_17)
         print('exit scope 17')
@@ -300,15 +301,16 @@ class AES:
 
 if __name__ == '__main__':
     import time
-    print(102, 705)
-    start_0 = time.time()
-    for i_0 in range(10):
+    for i_0 in range(1):
         print(105, 707)
-        Sbox_0 += Sbox_0
-    print(106, 708)
-    Sbox_new_0 = Sbox_0
-    print(106, 709)
-    aes_0 = AES(1212304810341341)
-    aes_0.encrypt(1212304810341341)
-    print(106, 711)
-    end_0 = time.time()
+        start_0 = time.time()
+        for i_0 in range(10):
+            print(108, 709)
+            Sbox_0 += Sbox_0
+        print(109, 710)
+        Sbox_new_0 = Sbox_0
+        print(109, 711)
+        aes_0 = AES(1212304810341341)
+        aes_0.encrypt(1212304810341341)
+        print(109, 713)
+        end_0 = time.time()

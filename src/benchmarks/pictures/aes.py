@@ -1,6 +1,7 @@
 digraph "clustermain.c" {
 	graph [label="main.c"]
-	1 [label="Sbox = (99, 124, 119, 123, 242, 107, 111, 197, 48, 1, 103, 43, 254, 215, 
+	1 [label="from loop import loop
+Sbox = (99, 124, 119, 123, 242, 107, 111, 197, 48, 1, 103, 43, 254, 215, 
     171, 118, 202, 130, 201, 125, 250, 89, 71, 240, 173, 212, 162, 175, 156,
     164, 114, 192, 183, 253, 147, 38, 54, 63, 247, 204, 52, 165, 229, 241, 
     113, 216, 49, 21, 4, 199, 35, 195, 24, 150, 5, 154, 7, 18, 128, 226, 
@@ -56,26 +57,32 @@ def __inv_mix_columns(self, s):...
 if __name__ == '__main__':
 "]
 	102 [label="import time
-start = time.time()
 "]
-	"102_calls" [label="time.time" shape=box]
-	102 -> "102_calls" [label=calls style=dashed]
-	104 [label="for i in range(10):
+	104 [label="for i in range(1):
 "]
-	105 [label="Sbox += Sbox
+	105 [label="start = time.time()
 "]
-	105 -> 104 [label=""]
-	104 -> 105 [label="range(10)"]
-	106 [label="Sbox_new = Sbox
+	"105_calls" [label="time.time" shape=box]
+	105 -> "105_calls" [label=calls style=dashed]
+	107 [label="for i in range(10):
+"]
+	108 [label="Sbox += Sbox
+"]
+	108 -> 107 [label=""]
+	107 -> 108 [label="range(10)"]
+	109 [label="Sbox_new = Sbox
 aes = AES(1212304810341341)
 aes.encrypt(1212304810341341)
 end = time.time()
 "]
-	"106_calls" [label="AES
+	"109_calls" [label="AES
 aes.encrypt
 time.time" shape=box]
-	106 -> "106_calls" [label=calls style=dashed]
-	104 -> 106 [label=""]
+	109 -> "109_calls" [label=calls style=dashed]
+	109 -> 104 [label=""]
+	107 -> 109 [label=""]
+	105 -> 107 [label=""]
+	104 -> 105 [label="range(1)"]
 	102 -> 104 [label=""]
 	1 -> 102 [label="__name__ == '__main__'"]
 	subgraph clusterxtime {

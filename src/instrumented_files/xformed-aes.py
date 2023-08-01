@@ -2,7 +2,8 @@ import sys
 from instrument_lib import *
 import sys
 from instrument_lib import *
-print(1, 1)
+from loop import loop
+print(1, 2)
 Sbox_0 = (99, 124, 119, 123, 242, 107, 111, 197, 48, 1, 103, 43, 254, 215, 
     171, 118, 202, 130, 201, 125, 250, 89, 71, 240, 173, 212, 162, 175, 156,
     164, 114, 192, 183, 253, 147, 38, 54, 63, 247, 204, 52, 165, 229, 241, 
@@ -22,7 +23,7 @@ Sbox_0 = (99, 124, 119, 123, 242, 107, 111, 197, 48, 1, 103, 43, 254, 215,
     65, 153, 45, 15, 176, 84, 187, 22)
 write_instrument_read(Sbox_0, 'Sbox_0')
 print('malloc', sys.getsizeof(Sbox_0), 'Sbox_0')
-print(1, 260)
+print(1, 261)
 InvSbox_0 = (82, 9, 106, 213, 48, 54, 165, 56, 191, 64, 163, 158, 129, 243,
     215, 251, 124, 227, 57, 130, 155, 47, 255, 135, 52, 142, 67, 68, 196, 
     222, 233, 203, 84, 123, 148, 50, 166, 194, 35, 61, 238, 76, 149, 11, 66,
@@ -46,7 +47,7 @@ print('malloc', sys.getsizeof(InvSbox_0), 'InvSbox_0')
 
 def xtime(a):
     print('enter scope 1')
-    print(1, 521)
+    print(1, 522)
     a_1 = instrument_read(a, 'a')
     write_instrument_read(a_1, 'a_1')
     print('malloc', sys.getsizeof(a_1), 'a_1')
@@ -56,7 +57,7 @@ def xtime(a):
     print('exit scope 1')
 
 
-print(1, 525)
+print(1, 526)
 Rcon_0 = (0, 1, 2, 4, 8, 16, 32, 64, 128, 27, 54, 108, 216, 171, 77, 154, 
     47, 94, 188, 99, 198, 151, 53, 106, 212, 179, 125, 250, 239, 197, 145, 57)
 write_instrument_read(Rcon_0, 'Rcon_0')
@@ -65,16 +66,16 @@ print('malloc', sys.getsizeof(Rcon_0), 'Rcon_0')
 
 def text2matrix(text):
     print('enter scope 2')
-    print(1, 561)
+    print(1, 562)
     text_2 = instrument_read(text, 'text')
     write_instrument_read(text_2, 'text_2')
     print('malloc', sys.getsizeof(text_2), 'text_2')
-    print(7, 562)
+    print(7, 563)
     matrix_2 = []
     write_instrument_read(matrix_2, 'matrix_2')
     print('malloc', sys.getsizeof(matrix_2), 'matrix_2')
     for i_2 in range(16):
-        print(9, 564)
+        print(9, 565)
         byte_2 = instrument_read(text_2, 'text_2') >> 8 * (15 -
             instrument_read(i_2, 'i_2')) & 255
         write_instrument_read(byte_2, 'byte_2')
@@ -93,17 +94,17 @@ def text2matrix(text):
 
 def matrix2text(matrix):
     print('enter scope 3')
-    print(1, 572)
+    print(1, 573)
     matrix_3 = instrument_read(matrix, 'matrix')
     write_instrument_read(matrix_3, 'matrix_3')
     print('malloc', sys.getsizeof(matrix_3), 'matrix_3')
-    print(17, 573)
+    print(17, 574)
     text_3 = 0
     write_instrument_read(text_3, 'text_3')
     print('malloc', sys.getsizeof(text_3), 'text_3')
     for i_3 in range(4):
         for j_3 in range(4):
-            print(21, 576)
+            print(21, 577)
             text_3 |= instrument_read_sub(instrument_read_sub(
                 instrument_read(matrix_3, 'matrix_3'), 'matrix_3',
                 instrument_read(i_3, 'i_3'), None, None, False),
@@ -120,7 +121,7 @@ class AES:
 
     def __init__(self, master_key):
         print('enter scope 4')
-        print(1, 581)
+        print(1, 582)
         self = instrument_read(self, 'self')
         write_instrument_read(self, 'self')
         print('malloc', sys.getsizeof(self), 'self')
@@ -133,20 +134,20 @@ class AES:
 
     def change_key(self, master_key):
         print('enter scope 5')
-        print(1, 584)
+        print(1, 585)
         self = instrument_read(self, 'self')
         write_instrument_read(self, 'self')
         print('malloc', sys.getsizeof(self), 'self')
         master_key_5 = instrument_read(master_key, 'master_key')
         write_instrument_read(master_key_5, 'master_key_5')
         print('malloc', sys.getsizeof(master_key_5), 'master_key_5')
-        print(29, 585)
+        print(29, 586)
         instrument_read(self, 'self').round_keys = text2matrix(instrument_read
             (master_key_5, 'master_key_5'))
         for i_5 in range(4, 4 * 11):
             instrument_read(self, 'self').round_keys.append([])
             if instrument_read(i_5, 'i_5') % 4 == 0:
-                print(33, 591)
+                print(33, 592)
                 byte_5 = instrument_read_sub(instrument_read_sub(
                     instrument_read(self, 'self').round_keys,
                     'self.round_keys', instrument_read(i_5, 'i_5') - 4,
@@ -167,7 +168,7 @@ class AES:
                     'i_5'), None, None, False).append(instrument_read(
                     byte_5, 'byte_5'))
                 for j_5 in range(1, 4):
-                    print(39, 599)
+                    print(39, 600)
                     byte_5 = instrument_read_sub(instrument_read_sub(
                         instrument_read(self, 'self').round_keys,
                         'self.round_keys', instrument_read(i_5, 'i_5') - 4,
@@ -188,7 +189,7 @@ class AES:
                         byte_5, 'byte_5'))
             else:
                 for j_5 in range(4):
-                    print(36, 606)
+                    print(36, 607)
                     byte_5 = instrument_read_sub(instrument_read_sub(
                         instrument_read(self, 'self').round_keys,
                         'self.round_keys', instrument_read(i_5, 'i_5') - 4,
@@ -209,14 +210,14 @@ class AES:
 
     def encrypt(self, plaintext):
         print('enter scope 6')
-        print(1, 611)
+        print(1, 612)
         self = instrument_read(self, 'self')
         write_instrument_read(self, 'self')
         print('malloc', sys.getsizeof(self), 'self')
         plaintext_6 = instrument_read(plaintext, 'plaintext')
         write_instrument_read(plaintext_6, 'plaintext_6')
         print('malloc', sys.getsizeof(plaintext_6), 'plaintext_6')
-        print(43, 612)
+        print(43, 613)
         instrument_read(self, 'self').plain_state = text2matrix(instrument_read
             (plaintext_6, 'plaintext_6'))
         instrument_read(self, 'self').__add_round_key(instrument_read(self,
@@ -241,14 +242,14 @@ class AES:
 
     def decrypt(self, ciphertext):
         print('enter scope 7')
-        print(1, 625)
+        print(1, 626)
         self = instrument_read(self, 'self')
         write_instrument_read(self, 'self')
         print('malloc', sys.getsizeof(self), 'self')
         ciphertext_7 = instrument_read(ciphertext, 'ciphertext')
         write_instrument_read(ciphertext_7, 'ciphertext_7')
         print('malloc', sys.getsizeof(ciphertext_7), 'ciphertext_7')
-        print(50, 626)
+        print(50, 627)
         instrument_read(self, 'self').cipher_state = text2matrix(
             instrument_read(ciphertext_7, 'ciphertext_7'))
         instrument_read(self, 'self').__add_round_key(instrument_read(self,
@@ -273,7 +274,7 @@ class AES:
 
     def __add_round_key(self, s, k):
         print('enter scope 8')
-        print(1, 641)
+        print(1, 642)
         self = instrument_read(self, 'self')
         write_instrument_read(self, 'self')
         print('malloc', sys.getsizeof(self), 'self')
@@ -285,7 +286,7 @@ class AES:
         print('malloc', sys.getsizeof(k_8), 'k_8')
         for i_8 in range(4):
             for j_8 in range(4):
-                print(60, 644)
+                print(60, 645)
                 s_8[instrument_read(i_8, 'i_8')][instrument_read(j_8, 'j_8')
                     ] ^= instrument_read_sub(instrument_read_sub(
                     instrument_read(k_8, 'k_8'), 'k_8', instrument_read(i_8,
@@ -299,7 +300,7 @@ class AES:
 
     def __round_encrypt(self, state_matrix, key_matrix):
         print('enter scope 9')
-        print(1, 646)
+        print(1, 647)
         self = instrument_read(self, 'self')
         write_instrument_read(self, 'self')
         print('malloc', sys.getsizeof(self), 'self')
@@ -322,7 +323,7 @@ class AES:
 
     def __round_decrypt(self, state_matrix, key_matrix):
         print('enter scope 10')
-        print(1, 652)
+        print(1, 653)
         self = instrument_read(self, 'self')
         write_instrument_read(self, 'self')
         print('malloc', sys.getsizeof(self), 'self')
@@ -345,7 +346,7 @@ class AES:
 
     def __sub_bytes(self, s):
         print('enter scope 11')
-        print(1, 658)
+        print(1, 659)
         self = instrument_read(self, 'self')
         write_instrument_read(self, 'self')
         print('malloc', sys.getsizeof(self), 'self')
@@ -354,7 +355,7 @@ class AES:
         print('malloc', sys.getsizeof(s_11), 's_11')
         for i_11 in range(4):
             for j_11 in range(4):
-                print(73, 661)
+                print(73, 662)
                 s_11[instrument_read(instrument_read(i_11, 'i_11'), 'i_11')][
                     instrument_read(instrument_read(j_11, 'j_11'), 'j_11')
                     ] = instrument_read_sub(instrument_read(Sbox_0,
@@ -371,7 +372,7 @@ class AES:
 
     def __inv_sub_bytes(self, s):
         print('enter scope 12')
-        print(1, 663)
+        print(1, 664)
         self = instrument_read(self, 'self')
         write_instrument_read(self, 'self')
         print('malloc', sys.getsizeof(self), 'self')
@@ -380,7 +381,7 @@ class AES:
         print('malloc', sys.getsizeof(s_12), 's_12')
         for i_12 in range(4):
             for j_12 in range(4):
-                print(80, 666)
+                print(80, 667)
                 s_12[instrument_read(instrument_read(i_12, 'i_12'), 'i_12')][
                     instrument_read(instrument_read(j_12, 'j_12'), 'j_12')
                     ] = instrument_read_sub(instrument_read(InvSbox_0,
@@ -397,42 +398,42 @@ class AES:
 
     def __shift_rows(self, s):
         print('enter scope 13')
-        print(1, 668)
+        print(1, 669)
         self = instrument_read(self, 'self')
         write_instrument_read(self, 'self')
         print('malloc', sys.getsizeof(self), 'self')
         s_13 = instrument_read(s, 's')
         write_instrument_read(s_13, 's_13')
         print('malloc', sys.getsizeof(s_13), 's_13')
-        print(84, 669)
         print(84, 670)
         print(84, 671)
+        print(84, 672)
         print('exit scope 13')
 
     def __inv_shift_rows(self, s):
         print('enter scope 14')
-        print(1, 673)
+        print(1, 674)
         self = instrument_read(self, 'self')
         write_instrument_read(self, 'self')
         print('malloc', sys.getsizeof(self), 'self')
         s_14 = instrument_read(s, 's')
         write_instrument_read(s_14, 's_14')
         print('malloc', sys.getsizeof(s_14), 's_14')
-        print(87, 674)
         print(87, 675)
         print(87, 676)
+        print(87, 677)
         print('exit scope 14')
 
     def __mix_single_column(self, a):
         print('enter scope 15')
-        print(1, 678)
+        print(1, 679)
         self = instrument_read(self, 'self')
         write_instrument_read(self, 'self')
         print('malloc', sys.getsizeof(self), 'self')
         a_15 = instrument_read(a, 'a')
         write_instrument_read(a_15, 'a_15')
         print('malloc', sys.getsizeof(a_15), 'a_15')
-        print(90, 680)
+        print(90, 681)
         t_15 = instrument_read_sub(instrument_read(a_15, 'a_15'), 'a_15', 0,
             None, None, False) ^ instrument_read_sub(instrument_read(a_15,
             'a_15'), 'a_15', 1, None, None, False) ^ instrument_read_sub(
@@ -441,30 +442,30 @@ class AES:
             3, None, None, False)
         write_instrument_read(t_15, 't_15')
         print('malloc', sys.getsizeof(t_15), 't_15')
-        print(90, 681)
+        print(90, 682)
         u_15 = instrument_read_sub(instrument_read(a_15, 'a_15'), 'a_15', 0,
             None, None, False)
         write_instrument_read(u_15, 'u_15')
         print('malloc', sys.getsizeof(u_15), 'u_15')
-        print(90, 682)
+        print(90, 683)
         a_15[0] ^= instrument_read(t_15, 't_15') ^ xtime(
             instrument_read_sub(instrument_read(a_15, 'a_15'), 'a_15', 0,
             None, None, False) ^ instrument_read_sub(instrument_read(a_15,
             'a_15'), 'a_15', 1, None, None, False))
         write_instrument_read_sub(a_15, 'a_15', 0, None, None, False)
-        print(90, 683)
+        print(90, 684)
         a_15[1] ^= instrument_read(t_15, 't_15') ^ xtime(
             instrument_read_sub(instrument_read(a_15, 'a_15'), 'a_15', 1,
             None, None, False) ^ instrument_read_sub(instrument_read(a_15,
             'a_15'), 'a_15', 2, None, None, False))
         write_instrument_read_sub(a_15, 'a_15', 1, None, None, False)
-        print(90, 684)
+        print(90, 685)
         a_15[2] ^= instrument_read(t_15, 't_15') ^ xtime(
             instrument_read_sub(instrument_read(a_15, 'a_15'), 'a_15', 2,
             None, None, False) ^ instrument_read_sub(instrument_read(a_15,
             'a_15'), 'a_15', 3, None, None, False))
         write_instrument_read_sub(a_15, 'a_15', 2, None, None, False)
-        print(90, 685)
+        print(90, 686)
         a_15[3] ^= instrument_read(t_15, 't_15') ^ xtime(
             instrument_read_sub(instrument_read(a_15, 'a_15'), 'a_15', 3,
             None, None, False) ^ instrument_read(u_15, 'u_15'))
@@ -473,7 +474,7 @@ class AES:
 
     def __mix_columns(self, s):
         print('enter scope 16')
-        print(1, 687)
+        print(1, 688)
         self = instrument_read(self, 'self')
         write_instrument_read(self, 'self')
         print('malloc', sys.getsizeof(self), 'self')
@@ -488,7 +489,7 @@ class AES:
 
     def __inv_mix_columns(self, s):
         print('enter scope 17')
-        print(1, 691)
+        print(1, 692)
         self = instrument_read(self, 'self')
         write_instrument_read(self, 'self')
         print('malloc', sys.getsizeof(self), 'self')
@@ -496,7 +497,7 @@ class AES:
         write_instrument_read(s_17, 's_17')
         print('malloc', sys.getsizeof(s_17), 's_17')
         for i_17 in range(4):
-            print(99, 694)
+            print(99, 695)
             u_17 = xtime(xtime(instrument_read_sub(instrument_read_sub(
                 instrument_read(s_17, 's_17'), 's_17', instrument_read(i_17,
                 'i_17'), None, None, False), 's_17[i_17]', 0, None, None,
@@ -506,7 +507,7 @@ class AES:
                 False)))
             write_instrument_read(u_17, 'u_17')
             print('malloc', sys.getsizeof(u_17), 'u_17')
-            print(99, 695)
+            print(99, 696)
             v_17 = xtime(xtime(instrument_read_sub(instrument_read_sub(
                 instrument_read(s_17, 's_17'), 's_17', instrument_read(i_17,
                 'i_17'), None, None, False), 's_17[i_17]', 1, None, None,
@@ -516,25 +517,25 @@ class AES:
                 False)))
             write_instrument_read(v_17, 'v_17')
             print('malloc', sys.getsizeof(v_17), 'v_17')
-            print(99, 696)
+            print(99, 697)
             s_17[instrument_read(i_17, 'i_17')][0] ^= instrument_read(u_17,
                 'u_17')
             write_instrument_read_sub(s_17[instrument_read(instrument_read(
                 i_17, 'i_17'), 'i_17')],
                 "s_17[instrument_read(i_17, 'i_17')]", 0, None, None, False)
-            print(99, 697)
+            print(99, 698)
             s_17[instrument_read(i_17, 'i_17')][1] ^= instrument_read(v_17,
                 'v_17')
             write_instrument_read_sub(s_17[instrument_read(instrument_read(
                 i_17, 'i_17'), 'i_17')],
                 "s_17[instrument_read(i_17, 'i_17')]", 1, None, None, False)
-            print(99, 698)
+            print(99, 699)
             s_17[instrument_read(i_17, 'i_17')][2] ^= instrument_read(u_17,
                 'u_17')
             write_instrument_read_sub(s_17[instrument_read(instrument_read(
                 i_17, 'i_17'), 'i_17')],
                 "s_17[instrument_read(i_17, 'i_17')]", 2, None, None, False)
-            print(99, 699)
+            print(99, 700)
             s_17[instrument_read(i_17, 'i_17')][3] ^= instrument_read(v_17,
                 'v_17')
             write_instrument_read_sub(s_17[instrument_read(instrument_read(
@@ -547,24 +548,25 @@ class AES:
 
 if instrument_read(__name__, '__name__') == '__main__':
     import time
-    print(102, 705)
-    start_0 = instrument_read(time, 'time').time()
-    write_instrument_read(start_0, 'start_0')
-    print('malloc', sys.getsizeof(start_0), 'start_0')
-    for i_0 in range(10):
+    for i_0 in range(1):
         print(105, 707)
-        Sbox_0 += instrument_read(Sbox_0, 'Sbox_0')
-        write_instrument_read(Sbox_0, 'Sbox_0')
-    print(106, 708)
-    Sbox_new_0 = instrument_read(Sbox_0, 'Sbox_0')
-    write_instrument_read(Sbox_new_0, 'Sbox_new_0')
-    print('malloc', sys.getsizeof(Sbox_new_0), 'Sbox_new_0')
-    print(106, 709)
-    aes_0 = AES(1212304810341341)
-    write_instrument_read(aes_0, 'aes_0')
-    print('malloc', sys.getsizeof(aes_0), 'aes_0')
-    instrument_read(aes_0, 'aes_0').encrypt(1212304810341341)
-    print(106, 711)
-    end_0 = instrument_read(time, 'time').time()
-    write_instrument_read(end_0, 'end_0')
-    print('malloc', sys.getsizeof(end_0), 'end_0')
+        start_0 = instrument_read(time, 'time').time()
+        write_instrument_read(start_0, 'start_0')
+        print('malloc', sys.getsizeof(start_0), 'start_0')
+        for i_0 in range(10):
+            print(108, 709)
+            Sbox_0 += instrument_read(Sbox_0, 'Sbox_0')
+            write_instrument_read(Sbox_0, 'Sbox_0')
+        print(109, 710)
+        Sbox_new_0 = instrument_read(Sbox_0, 'Sbox_0')
+        write_instrument_read(Sbox_new_0, 'Sbox_new_0')
+        print('malloc', sys.getsizeof(Sbox_new_0), 'Sbox_new_0')
+        print(109, 711)
+        aes_0 = AES(1212304810341341)
+        write_instrument_read(aes_0, 'aes_0')
+        print('malloc', sys.getsizeof(aes_0), 'aes_0')
+        instrument_read(aes_0, 'aes_0').encrypt(1212304810341341)
+        print(109, 713)
+        end_0 = instrument_read(time, 'time').time()
+        write_instrument_read(end_0, 'end_0')
+        print('malloc', sys.getsizeof(end_0), 'end_0')

@@ -1,16 +1,10 @@
 digraph {
-	557 [label="source code:
-Sbox += Sbox
+	555 [label="source code:
+start = time.time()
 "]
-	558 [label="Sbox
-Read"]
-	559 [label="Sbox
-Read"]
-	560 [label="+
+	556 [label="time.time()
 "]
-	558 -> 560 [label=""]
-	559 -> 560 [label=""]
-	561 [label="Sbox
+	557 [label="start
 Write"]
-	560 -> 561 [label=""]
+	556 -> 557 [label=""]
 }

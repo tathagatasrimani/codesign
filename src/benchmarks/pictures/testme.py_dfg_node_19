@@ -1,16 +1,19 @@
 digraph {
-	4 [label="source code:
+	7 [label="source code:
+loop().pattern_seek()
 main(2, 3)
 bruh()
 "]
-	5 [label="main(2, 3)
+	8 [label="loop().pattern_seek()
 "]
-	6 [label=2
+	9 [label="main(2, 3)
+"]
+	10 [label=2
 ]
-	6 -> 5 [label=""]
-	7 [label=3
+	10 -> 9 [label=""]
+	11 [label=3
 ]
-	7 -> 5 [label=""]
-	8 [label="bruh()
+	11 -> 9 [label=""]
+	12 [label="bruh()
 "]
 }

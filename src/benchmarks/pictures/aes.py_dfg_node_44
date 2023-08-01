@@ -1,13 +1,13 @@
 digraph {
-	699 [label="source code:
+	703 [label="source code:
 for i in range(1, 10):
 "]
-	700 [label="range(1, 10)
+	704 [label="range(1, 10)
 "]
-	701 [label=1
+	705 [label=1
 ]
-	701 -> 700 [label=""]
-	702 [label=10
+	705 -> 704 [label=""]
+	706 [label=10
 ]
-	702 -> 700 [label=""]
+	706 -> 704 [label=""]
 }

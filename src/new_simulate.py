@@ -177,18 +177,15 @@ def process_memory_operation(var_name, size, status):
 # adds all mallocs and frees to vectors, and finds the next cfg node in the data path,
 # returning the index of that node
 def find_next_data_path_index(i, mallocs, frees, data_path):
-    mallocs.clear()
     pattern_seek = False
     while len(data_path[i]) != 2:
         if len(data_path[i]) == 0: break
         elif len(data_path[i]) == 1:
-            if data_path[0] == "pattern_seek": pattern_seek = True
+            if data_path[i][0] == "pattern_seek": pattern_seek = True
         if data_path[i][0] == "malloc": mallocs.append(data_path[i])
-        else: frees.append(data_path[i])
+        elif data_path[i][0] == "free": frees.append(data_path[i])
         i += 1
         if i == len(data_path): break
-    for malloc in mallocs:
-        process_memory_operation(malloc[2], int(malloc[1]), malloc[0])
     return i, pattern_seek
 
 def simulate(cfg, node_operations, hw, graphs, first):
@@ -206,7 +203,7 @@ def simulate(cfg, node_operations, hw, graphs, first):
     mallocs = []
     i, pattern_seek = find_next_data_path_index(i, mallocs, frees, data_path)
     while i < len(data_path):
-        next_ind, pattern_seek = find_next_data_path_index(i+1, mallocs, frees, data_path)
+        next_ind, pattern_seek_next = find_next_data_path_index(i+1, mallocs, frees, data_path)
         if i == len(data_path): break
         node_id = data_path[i][0]
         #print(node_id, memory_module.locations)
@@ -216,65 +213,114 @@ def simulate(cfg, node_operations, hw, graphs, first):
         node_avg_power[node_id] = 0 # just reset because we will end up overwriting it
         start_cycles = cycles # for calculating average power
         iters = 0
+        pattern_nodes = [node_id]
+        pattern_mallocs, pattern_frees = [mallocs],  [frees]
+        #print(pattern_seek)
+        other_mallocs, other_frees = [], []
         if pattern_seek: 
             pattern_seek = False
             j = next_ind
-            pattern_nodes = [node_id]
-            while not pattern_seek:
+            while not pattern_seek_next:
+                #print("hello")
                 if len(data_path) <= j: break
                 next_node_id = data_path[j][0]
-                break
+                pattern_nodes.append(next_node_id)
+                pattern_seek = pattern_seek_next
+                j, pattern_seek_next = find_next_data_path_index(j+1, other_mallocs, other_frees, data_path)
+                pattern_frees.append(other_frees)
+                pattern_mallocs.append(other_mallocs)
+                other_frees.clear()
+                other_mallocs.clear()
+            if pattern_seek:
+                iters += 1
+                next_ind = j
+            else:
+                pattern_nodes = [node_id]
                 
-
-        if unroll_at[cur_node.id]:
+            pattern_ind = 0
+            while j < len(data_path):
+                next_node_id = data_path[j][0]
+                if next_node_id != pattern_nodes[pattern_ind]: break
+                pattern_ind += 1
+                pattern_seek = pattern_seek_next
+                j, pattern_seek_next = find_next_data_path_index(j+1, [], [], data_path)
+                if pattern_ind == len(pattern_nodes):
+                    iters += 1
+                    pattern_ind = 0
+                    next_ind = j
+            if iters > 0: pattern_seek = True
+        elif unroll_at[cur_node.id]:
             j = next_ind
             while True:
                 if len(data_path) <= j: break
                 next_node_id = data_path[j][0]
                 if next_node_id != node_id: break
                 iters += 1
-                j, pattern_seek = find_next_data_path_index(j+1, [], [], data_path)
+                pattern_seek = pattern_seek_next
+                j, pattern_seek_next = find_next_data_path_index(j+1, [], [], data_path)
             next_ind = j
-        for state in node_operations[cur_node]:
-            # if unroll, take each operation in a state and create more of them
+        #print(pattern_nodes, iters)
+        i = 0
+        while i < len(pattern_nodes):
+            #print("i: ", i)
+            cur_node = id_to_node[pattern_nodes[i]]
+            mallocs = pattern_mallocs[i]
+            frees = pattern_frees[i]
+            print(mallocs, frees)
+            for malloc in mallocs:
+                process_memory_operation(malloc[2], int(malloc[1]), malloc[0])
+            # try to unroll after pattern_seeking
+            node_iters = iters
             if unroll_at[cur_node.id]:
-                new_state = state.copy()
-                for op in state:
-                    for j in range(iters):
-                        new_state.append(op)
-                state = new_state
-            #print("new state")
-            for node in state: 
-                parents = []
-                for parent in node.parents:
-                    parents.append(parent.operation)
-                #print(node.operation, parents)
-            hw_need = get_hw_need(state, hw.hw_allocated)
-            #print(hw_need)
-            max_cycles = 0
-            for elem in hw_need:
-                latency = hw.latency[elem]
-                if elem == "Regs": latency *= hw.latency_scale[find_nearest_mem_to_scale(memory_needed)]
-                cur_elem_count = hw_need[elem]
-                if cur_elem_count == 0: continue
-                if hw.hw_allocated[elem] == 0 and cur_elem_count > 0:
-                    raise Exception("hardware specification insufficient to run program")
-                cur_cycles_needed = int(math.ceil(cur_elem_count / hw.hw_allocated[elem]) * latency)
-                #print("cycles needed for " + elem + ": " + str(cur_cycles_needed) + ' (element count = ' + str(cur_elem_count) + ')')
-                max_cycles = max(cur_cycles_needed, max_cycles)
-                j = 0
-                while cur_elem_count > 0:
-                    hw_inuse[elem][j] += latency
-                    j = (j + 1) % hw.hw_allocated[elem]
-                    cur_elem_count -= 1
-            node_avg_power[node_id] += cycle_sim(hw_inuse, hw, max_cycles)
+                while i+1 != len(pattern_nodes) and pattern_nodes[i+1] == pattern_nodes[i]:
+                    i += 1
+                    node_iters += iters
+            for state in node_operations[cur_node]:
+                # if unroll, take each operation in a state and create more of them
+                if unroll_at[cur_node.id] or pattern_seek:
+                    #print(iters, node_iters, len(state))
+                    new_state = state.copy()
+                    for op in state:
+                        for j in range(node_iters):
+                            new_state.append(op)
+                    state = new_state
+                #print(state)
+                #print("new state")
+                for node in state: 
+                    parents = []
+                    for parent in node.parents:
+                        parents.append(parent.operation)
+                    #print(node.operation, parents)
+                hw_need = get_hw_need(state, hw.hw_allocated)
+                #print(hw_need)
+                max_cycles = 0
+                for elem in hw_need:
+                    latency = hw.latency[elem]
+                    if elem == "Regs": latency *= hw.latency_scale[find_nearest_mem_to_scale(memory_needed)]
+                    cur_elem_count = hw_need[elem]
+                    if cur_elem_count == 0: continue
+                    if hw.hw_allocated[elem] == 0 and cur_elem_count > 0:
+                        raise Exception("hardware specification insufficient to run program")
+                    cur_cycles_needed = int(math.ceil(cur_elem_count / hw.hw_allocated[elem]) * latency)
+                    #print("cycles needed for " + elem + ": " + str(cur_cycles_needed) + ' (element count = ' + str(cur_elem_count) + ')')
+                    max_cycles = max(cur_cycles_needed, max_cycles)
+                    j = 0
+                    while cur_elem_count > 0:
+                        hw_inuse[elem][j] += latency
+                        j = (j + 1) % hw.hw_allocated[elem]
+                        cur_elem_count -= 1
+                node_avg_power[node_id] += cycle_sim(hw_inuse, hw, max_cycles)
+            i += 1
         if cycles - start_cycles > 0: node_avg_power[node_id] /= cycles - start_cycles
         node_intervals[-1][1][1] = cycles
         for free in frees:
+            #print(free)
             if free[2][:free[2].rfind('_')] in memory_module.locations: 
                 process_memory_operation(free[2], int(free[1]), free[0])
+        mallocs.clear()
         frees.clear()
         i = next_ind
+        pattern_seek = pattern_seek_next
     print("done with simulation")
     #new_graph.gv_graph.render(path + 'benchmarks/pictures/memory_graphs/' + sys.argv[1][sys.argv[1].rfind('/')+1:], view = True)
     return data
@@ -323,6 +369,8 @@ def set_data_path():
                 last_node = item[0]
                 last_line = item[1]
                 data_path.append(item)      
+            elif len(item) == 1 and item[0] == "pattern_seek":
+                data_path.append(item)
             elif len(item) == 3 and item[0] == "malloc":
                 if item[2] in vars_allocated:
                     if int(item[1]) == vars_allocated[item[2]]: 
