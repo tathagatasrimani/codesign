@@ -177,12 +177,19 @@ def process_memory_operation(var_name, size, status):
 # adds all mallocs and frees to vectors, and finds the next cfg node in the data path,
 # returning the index of that node
 def find_next_data_path_index(i, mallocs, frees, data_path):
-    while len(data_path[i]) > 2:
+    mallocs.clear()
+    pattern_seek = False
+    while len(data_path[i]) != 2:
+        if len(data_path[i]) == 0: break
+        elif len(data_path[i]) == 1:
+            if data_path[0] == "pattern_seek": pattern_seek = True
         if data_path[i][0] == "malloc": mallocs.append(data_path[i])
         else: frees.append(data_path[i])
         i += 1
         if i == len(data_path): break
-    return i
+    for malloc in mallocs:
+        process_memory_operation(malloc[2], int(malloc[1]), malloc[0])
+    return i, pattern_seek
 
 def simulate(cfg, node_operations, hw, graphs, first):
     global main_cfg, id_to_node, unroll_at, memory_module, data_path, new_graph, memory_needed
@@ -197,12 +204,10 @@ def simulate(cfg, node_operations, hw, graphs, first):
     i = 0
     frees = []
     mallocs = []
-    i = find_next_data_path_index(i, mallocs, frees, data_path)
+    i, pattern_seek = find_next_data_path_index(i, mallocs, frees, data_path)
     while i < len(data_path):
-        next_ind = find_next_data_path_index(i+1, mallocs, frees, data_path)
+        next_ind, pattern_seek = find_next_data_path_index(i+1, mallocs, frees, data_path)
         if i == len(data_path): break
-        for malloc in mallocs:
-            process_memory_operation(malloc[2], int(malloc[1]), malloc[0])
         node_id = data_path[i][0]
         #print(node_id, memory_module.locations)
         #print(i)
@@ -211,6 +216,16 @@ def simulate(cfg, node_operations, hw, graphs, first):
         node_avg_power[node_id] = 0 # just reset because we will end up overwriting it
         start_cycles = cycles # for calculating average power
         iters = 0
+        if pattern_seek: 
+            pattern_seek = False
+            j = next_ind
+            pattern_nodes = [node_id]
+            while not pattern_seek:
+                if len(data_path) <= j: break
+                next_node_id = data_path[j][0]
+                break
+                
+
         if unroll_at[cur_node.id]:
             j = next_ind
             while True:
@@ -218,7 +233,7 @@ def simulate(cfg, node_operations, hw, graphs, first):
                 next_node_id = data_path[j][0]
                 if next_node_id != node_id: break
                 iters += 1
-                j = find_next_data_path_index(j+1, [], [], data_path)
+                j, pattern_seek = find_next_data_path_index(j+1, [], [], data_path)
             next_ind = j
         for state in node_operations[cur_node]:
             # if unroll, take each operation in a state and create more of them
@@ -258,7 +273,6 @@ def simulate(cfg, node_operations, hw, graphs, first):
         for free in frees:
             if free[2][:free[2].rfind('_')] in memory_module.locations: 
                 process_memory_operation(free[2], int(free[1]), free[0])
-        mallocs.clear()
         frees.clear()
         i = next_ind
     print("done with simulation")

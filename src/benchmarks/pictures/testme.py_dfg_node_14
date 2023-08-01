@@ -1,16 +1,13 @@
 digraph {
-	97 [label="source code:
-a += i
+	99 [label="source code:
+a = 1
+loop.start_unroll
 "]
-	98 [label="i
-Read"]
-	99 [label="a
-Read"]
-	100 [label="+
-"]
-	98 -> 100 [label=""]
-	99 -> 100 [label=""]
+	100 [label=1
+]
 	101 [label="a
 Write"]
 	100 -> 101 [label=""]
+	102 [label="loop.start_unroll
+Read"]
 }

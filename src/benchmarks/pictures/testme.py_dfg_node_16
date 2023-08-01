@@ -1,10 +1,16 @@
 digraph {
 	106 [label="source code:
-for i in range(3):
+a += i
 "]
-	107 [label="range(3)
+	107 [label="i
+Read"]
+	108 [label="a
+Read"]
+	109 [label="+
 "]
-	108 [label=3
-]
-	108 -> 107
+	107 -> 109 [label=""]
+	108 -> 109 [label=""]
+	110 [label="a
+Write"]
+	109 -> 110 [label=""]
 }

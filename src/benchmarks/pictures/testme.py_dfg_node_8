@@ -1,28 +1,40 @@
 digraph {
 	79 [label="source code:
+loop().pattern_seek()
 z[0][i] += z[0][i + 1]
+if r > 0:
 "]
-	80 [label="z
+	80 [label="loop().pattern_seek()
+"]
+	81 [label="z
 Read"]
-	81 [label="z[0]
-Read"]
-	80 -> 81 [label=""]
-	82 [label="z[0][i + 1]
+	82 [label="z[0]
 Read"]
 	81 -> 82 [label=""]
-	83 [label="z
+	83 [label="z[0][i + 1]
 Read"]
-	84 [label="+
+	82 -> 83 [label=""]
+	84 [label="z
+Read"]
+	85 [label="+
 "]
-	82 -> 84 [label=""]
-	83 -> 84 [label=""]
-	85 [label="z
+	83 -> 85 [label=""]
+	84 -> 85 [label=""]
+	86 [label="z
 Read"]
-	86 [label="z[0]
+	87 [label="z[0]
 Read"]
-	85 -> 86 [label=""]
-	87 [label="z[0][i]
-Write"]
 	86 -> 87 [label=""]
-	84 -> 87 [label=""]
+	88 [label="z[0][i]
+Write"]
+	87 -> 88 [label=""]
+	85 -> 88 [label=""]
+	89 [label="r
+Read"]
+	90 [label=0
+]
+	91 [label=">
+"]
+	89 -> 91 [label=""]
+	90 -> 91 [label=""]
 }

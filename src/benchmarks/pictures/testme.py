@@ -5,13 +5,13 @@ def main(x, y):...
 def bruh():...
 if __name__ == '__main__':
 "]
-	17 [label="main(2, 3)
+	19 [label="main(2, 3)
 bruh()
 "]
-	"17_calls" [label="main
+	"19_calls" [label="main
 bruh" shape=box]
-	17 -> "17_calls" [label=calls style=dashed]
-	1 -> 17 [label="__name__ == '__main__'"]
+	19 -> "19_calls" [label=calls style=dashed]
+	1 -> 19 [label="__name__ == '__main__'"]
 	subgraph clustermain {
 		graph [label=main]
 		3 [label="q = 0.5 + x * y + 1 / 2
@@ -30,9 +30,17 @@ loop.start_unroll
 "]
 		7 [label="for i in range(5):
 "]
-		8 [label="z[0][i] += z[0][i + 1]
+		8 [label="loop().pattern_seek()
+z[0][i] += z[0][i + 1]
+if r > 0:
 "]
-		8 -> 7 [label=""]
+		"8_calls" [label="Call.pattern_seek" shape=box]
+		8 -> "8_calls" [label=calls style=dashed]
+		10 [label="q += 3
+"]
+		10 -> 7 [label=""]
+		8 -> 10 [label="r > 0"]
+		8 -> 7 [label="(r <= 0)"]
 		7 -> 8 [label="range(5)"]
 		9 [label="loop.stop_unroll
 "]
@@ -48,18 +56,18 @@ b = a / r
 	}
 	subgraph clusterbruh {
 		graph [label=bruh]
-		12 [label="a = 1
+		14 [label="a = 1
 loop.start_unroll
 "]
-		13 [label="for i in range(3):
+		15 [label="for i in range(3):
 "]
-		14 [label="a += i
+		16 [label="a += i
 "]
-		14 -> 13 [label=""]
-		13 -> 14 [label="range(3)"]
-		15 [label="loop.stop_unroll
+		16 -> 15 [label=""]
+		15 -> 16 [label="range(3)"]
+		17 [label="loop.stop_unroll
 "]
-		13 -> 15 [label=""]
-		12 -> 13 [label=""]
+		15 -> 17 [label=""]
+		14 -> 15 [label=""]
 	}
 }
