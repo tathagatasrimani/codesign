@@ -139,6 +139,7 @@ def eval_expr(expr, graph, node):
         return [id]
     elif ASTUtils.isAttribute(expr):
         #print("visiting attribute")
+        
         if expr.attr == "start_unroll": unroll = True
         elif expr.attr == "stop_unroll": unroll = False
         if ASTUtils.isName(expr.value) or ASTUtils.isSubscript(expr.value):
