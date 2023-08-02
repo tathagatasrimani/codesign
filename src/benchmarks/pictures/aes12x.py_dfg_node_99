@@ -1,0 +1,136 @@
+digraph {
+	1029 [label="source code:
+u = xtime(xtime(s[i][0] ^ s[i][2]))
+v = xtime(xtime(s[i][1] ^ s[i][3]))
+s[i][0] ^= u
+s[i][1] ^= v
+s[i][2] ^= u
+s[i][3] ^= v
+"]
+	1030 [label="xtime(xtime(s[i][0] ^ s[i][2]))
+"]
+	1031 [label="xtime(s[i][0] ^ s[i][2])
+"]
+	1032 [label="s
+Read"]
+	1033 [label="s[i]
+Read"]
+	1032 -> 1033 [label=""]
+	1034 [label="s[i][0]
+Read"]
+	1033 -> 1034 [label=""]
+	1035 [label="s
+Read"]
+	1036 [label="s[i]
+Read"]
+	1035 -> 1036 [label=""]
+	1037 [label="s[i][2]
+Read"]
+	1036 -> 1037 [label=""]
+	1038 [label="^
+"]
+	1034 -> 1038 [label=""]
+	1037 -> 1038 [label=""]
+	1038 -> 1031 [label=""]
+	1031 -> 1030 [label=""]
+	1039 [label="u
+Write"]
+	1030 -> 1039 [label=""]
+	1040 [label="xtime(xtime(s[i][1] ^ s[i][3]))
+"]
+	1041 [label="xtime(s[i][1] ^ s[i][3])
+"]
+	1042 [label="s
+Read"]
+	1043 [label="s[i]
+Read"]
+	1042 -> 1043 [label=""]
+	1044 [label="s[i][1]
+Read"]
+	1043 -> 1044 [label=""]
+	1045 [label="s
+Read"]
+	1046 [label="s[i]
+Read"]
+	1045 -> 1046 [label=""]
+	1047 [label="s[i][3]
+Read"]
+	1046 -> 1047 [label=""]
+	1048 [label="^
+"]
+	1044 -> 1048 [label=""]
+	1047 -> 1048 [label=""]
+	1048 -> 1041 [label=""]
+	1041 -> 1040 [label=""]
+	1049 [label="v
+Write"]
+	1040 -> 1049 [label=""]
+	1050 [label="u
+Read"]
+	1051 [label="s
+Read"]
+	1052 [label="^
+"]
+	1050 -> 1052 [label=""]
+	1051 -> 1052 [label=""]
+	1053 [label="s
+Read"]
+	1054 [label="s[i]
+Read"]
+	1053 -> 1054 [label=""]
+	1055 [label="s[i][0]
+Write"]
+	1054 -> 1055 [label=""]
+	1052 -> 1055 [label=""]
+	1056 [label="v
+Read"]
+	1057 [label="s
+Read"]
+	1058 [label="^
+"]
+	1056 -> 1058 [label=""]
+	1057 -> 1058 [label=""]
+	1059 [label="s
+Read"]
+	1060 [label="s[i]
+Read"]
+	1059 -> 1060 [label=""]
+	1061 [label="s[i][1]
+Write"]
+	1060 -> 1061 [label=""]
+	1058 -> 1061 [label=""]
+	1062 [label="u
+Read"]
+	1063 [label="s
+Read"]
+	1064 [label="^
+"]
+	1062 -> 1064 [label=""]
+	1063 -> 1064 [label=""]
+	1065 [label="s
+Read"]
+	1066 [label="s[i]
+Read"]
+	1065 -> 1066 [label=""]
+	1067 [label="s[i][2]
+Write"]
+	1066 -> 1067 [label=""]
+	1064 -> 1067 [label=""]
+	1068 [label="v
+Read"]
+	1069 [label="s
+Read"]
+	1070 [label="^
+"]
+	1068 -> 1070 [label=""]
+	1069 -> 1070 [label=""]
+	1071 [label="s
+Read"]
+	1072 [label="s[i]
+Read"]
+	1071 -> 1072 [label=""]
+	1073 [label="s[i][3]
+Write"]
+	1072 -> 1073 [label=""]
+	1070 -> 1073 [label=""]
+}

@@ -218,11 +218,14 @@ def simulate(cfg, node_operations, hw, graphs, first):
         #print(pattern_seek)
         other_mallocs, other_frees = [], []
         if pattern_seek: 
+            print("entering pattern seek")
             pattern_seek = False
             j = next_ind
             while not pattern_seek_next:
                 #print("hello")
-                if len(data_path) <= j: break
+                if len(data_path) <= j: 
+                    print("breaking")
+                    break
                 next_node_id = data_path[j][0]
                 pattern_nodes.append(next_node_id)
                 pattern_seek = pattern_seek_next
@@ -231,12 +234,11 @@ def simulate(cfg, node_operations, hw, graphs, first):
                 pattern_mallocs.append(other_mallocs)
                 other_frees.clear()
                 other_mallocs.clear()
-            if pattern_seek:
-                iters += 1
+            if pattern_seek_next:
                 next_ind = j
             else:
                 pattern_nodes = [node_id]
-                
+            print("found pattern")
             pattern_ind = 0
             while j < len(data_path):
                 next_node_id = data_path[j][0]
@@ -259,7 +261,7 @@ def simulate(cfg, node_operations, hw, graphs, first):
                 pattern_seek = pattern_seek_next
                 j, pattern_seek_next = find_next_data_path_index(j+1, [], [], data_path)
             next_ind = j
-        #print(pattern_nodes, iters)
+        print(pattern_nodes, iters)
         i = 0
         while i < len(pattern_nodes):
             #print("i: ", i)
