@@ -229,9 +229,6 @@ def main():
 
 if __name__ == "__main__":
     loop.start_unroll
-    for i in range(6):
-        loop().pattern_seek()
-        main()
-    for i in range(6):
-        loop().pattern_seek()
+    for i in range(12):
+        loop().pattern_seek(6)
         main()

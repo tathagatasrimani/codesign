@@ -5,7 +5,7 @@ def main(x, y):...
 def bruh():...
 if __name__ == '__main__':
 "]
-	17 [label="for i in range(2):
+	17 [label="for i in range(4):
 "]
 	19 [label="loop().pattern_seek()
 main(2, 3)
@@ -16,7 +16,7 @@ main
 bruh" shape=box]
 	19 -> "19_calls" [label=calls style=dashed]
 	19 -> 17 [label=""]
-	17 -> 19 [label="range(2)"]
+	17 -> 19 [label="range(4)"]
 	1 -> 17 [label="__name__ == '__main__'"]
 	subgraph clustermain {
 		graph [label=main]

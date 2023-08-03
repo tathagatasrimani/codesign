@@ -707,12 +707,8 @@ if __name__ == "__main__" :
     for i in range(10):
         Sbox += Sbox
     Sbox_new = Sbox
-    for i in range(6):
-        loop().pattern_seek()
-        aes = AES(1212304810341341)
-        aes.encrypt(1212304810341341)
-    for i in range(6):
-        loop().pattern_seek()
+    for i in range(12):
+        loop().pattern_seek(6)
         aes = AES(1212304810341341)
         aes.encrypt(1212304810341341)
     end = time.time()

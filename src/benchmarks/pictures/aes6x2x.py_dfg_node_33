@@ -1,0 +1,41 @@
+digraph {
+	666 [label="source code:
+byte = self.round_keys[i - 4][0] ^ Sbox[self.round_keys[i - 1][1]] ^ Rcon[int
+    (i / 4)]
+self.round_keys[i].append(byte)
+"]
+	667 [label="self.round_keys
+Read"]
+	668 [label="self.round_keys[i - 4]
+Read"]
+	667 -> 668 [label=""]
+	669 [label="self.round_keys[i - 4][0]
+Read"]
+	668 -> 669 [label=""]
+	670 [label="Sbox
+Read"]
+	671 [label="Sbox[self.round_keys[i - 1][1]]
+Read"]
+	670 -> 671 [label=""]
+	672 [label="^
+"]
+	669 -> 672 [label=""]
+	671 -> 672 [label=""]
+	673 [label="Rcon
+Read"]
+	674 [label="Rcon[int(i / 4)]
+Read"]
+	673 -> 674 [label=""]
+	675 [label="^
+"]
+	672 -> 675 [label=""]
+	674 -> 675 [label=""]
+	676 [label="byte
+Write"]
+	675 -> 676 [label=""]
+	677 [label="self.round_keys[i].append(byte)
+"]
+	678 [label="byte
+Read"]
+	678 -> 677 [label=""]
+}

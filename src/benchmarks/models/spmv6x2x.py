@@ -39,9 +39,6 @@ def csr(matrix1, matrix2):
 
 
 if __name__ == "__main__":
-    for i in range(6):
-        loop().pattern_seek()
-        Result = csr(A,B)
-    for i in range(6):
-        loop().pattern_seek()
+    for i in range(12):
+        loop().pattern_seek(6)
         Result = csr(A,B)

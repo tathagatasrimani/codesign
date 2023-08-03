@@ -561,7 +561,7 @@ if instrument_read(__name__, '__name__') == '__main__':
     write_instrument_read(Sbox_new_0, 'Sbox_new_0')
     print('malloc', sys.getsizeof(Sbox_new_0), 'Sbox_new_0')
     for i_0 in range(12):
-        loop().pattern_seek()
+        loop().pattern_seek(6)
         print(108, 712)
         aes_0 = AES(1212304810341341)
         write_instrument_read(aes_0, 'aes_0')

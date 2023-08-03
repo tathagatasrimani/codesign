@@ -1,10 +1,10 @@
 digraph {
 	4 [label="source code:
-for i in range(2):
+for i in range(4):
 "]
-	5 [label="range(2)
+	5 [label="range(4)
 "]
-	6 [label=2
+	6 [label=4
 ]
 	6 -> 5 [label=""]
 }

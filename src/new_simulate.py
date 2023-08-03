@@ -178,15 +178,18 @@ def process_memory_operation(var_name, size, status):
 # returning the index of that node
 def find_next_data_path_index(i, mallocs, frees, data_path):
     pattern_seek = False
+    max_iters = 1
     while len(data_path[i]) != 2:
         if len(data_path[i]) == 0: break
         elif len(data_path[i]) == 1:
-            if data_path[i][0] == "pattern_seek": pattern_seek = True
+            if data_path[i][0].startswith("pattern_seek"): 
+                pattern_seek = True
+                max_iters = int(data_path[i][0][data_path[i][0].rfind('_')+1:])
         if data_path[i][0] == "malloc": mallocs.append(data_path[i])
         elif data_path[i][0] == "free": frees.append(data_path[i])
         i += 1
         if i == len(data_path): break
-    return i, pattern_seek
+    return i, pattern_seek, max_iters
 
 def simulate(cfg, node_operations, hw, graphs, first):
     global main_cfg, id_to_node, unroll_at, memory_module, data_path, new_graph, memory_needed
@@ -201,9 +204,9 @@ def simulate(cfg, node_operations, hw, graphs, first):
     i = 0
     frees = []
     mallocs = []
-    i, pattern_seek = find_next_data_path_index(i, mallocs, frees, data_path)
+    i, pattern_seek, max_iters = find_next_data_path_index(i, mallocs, frees, data_path)
     while i < len(data_path):
-        next_ind, pattern_seek_next = find_next_data_path_index(i+1, mallocs, frees, data_path)
+        next_ind, pattern_seek_next, max_iters_next = find_next_data_path_index(i+1, mallocs, frees, data_path)
         if i == len(data_path): break
         node_id = data_path[i][0]
         #print(node_id, memory_module.locations)
@@ -218,18 +221,16 @@ def simulate(cfg, node_operations, hw, graphs, first):
         #print(pattern_seek)
         other_mallocs, other_frees = [], []
         if pattern_seek: 
-            print("entering pattern seek")
+            #print("entering pattern seek")
             pattern_seek = False
             j = next_ind
             while not pattern_seek_next:
                 #print("hello")
-                if len(data_path) <= j: 
-                    print("breaking")
-                    break
+                if len(data_path) <= j: break
                 next_node_id = data_path[j][0]
                 pattern_nodes.append(next_node_id)
                 pattern_seek = pattern_seek_next
-                j, pattern_seek_next = find_next_data_path_index(j+1, other_mallocs, other_frees, data_path)
+                j, pattern_seek_next, discard = find_next_data_path_index(j+1, other_mallocs, other_frees, data_path)
                 pattern_frees.append(other_frees)
                 pattern_mallocs.append(other_mallocs)
                 other_frees.clear()
@@ -238,18 +239,20 @@ def simulate(cfg, node_operations, hw, graphs, first):
                 next_ind = j
             else:
                 pattern_nodes = [node_id]
-            print("found pattern")
+            #print("found pattern")
             pattern_ind = 0
             while j < len(data_path):
                 next_node_id = data_path[j][0]
                 if next_node_id != pattern_nodes[pattern_ind]: break
                 pattern_ind += 1
                 pattern_seek = pattern_seek_next
-                j, pattern_seek_next = find_next_data_path_index(j+1, [], [], data_path)
+                j, pattern_seek_next, discard = find_next_data_path_index(j+1, [], [], data_path)
                 if pattern_ind == len(pattern_nodes):
                     iters += 1
                     pattern_ind = 0
                     next_ind = j
+                    if max_iters > 1 and iters+1 == max_iters: 
+                        break
             if iters > 0: pattern_seek = True
         elif unroll_at[cur_node.id]:
             j = next_ind
@@ -259,9 +262,9 @@ def simulate(cfg, node_operations, hw, graphs, first):
                 if next_node_id != node_id: break
                 iters += 1
                 pattern_seek = pattern_seek_next
-                j, pattern_seek_next = find_next_data_path_index(j+1, [], [], data_path)
+                j, pattern_seek_next, discard = find_next_data_path_index(j+1, [], [], data_path)
             next_ind = j
-        print(pattern_nodes, iters)
+        #print(pattern_nodes, iters, next_ind)
         i = 0
         while i < len(pattern_nodes):
             #print("i: ", i)
@@ -323,6 +326,7 @@ def simulate(cfg, node_operations, hw, graphs, first):
         frees.clear()
         i = next_ind
         pattern_seek = pattern_seek_next
+        max_iters = max_iters_next
     print("done with simulation")
     #new_graph.gv_graph.render(path + 'benchmarks/pictures/memory_graphs/' + sys.argv[1][sys.argv[1].rfind('/')+1:], view = True)
     return data
@@ -371,7 +375,7 @@ def set_data_path():
                 last_node = item[0]
                 last_line = item[1]
                 data_path.append(item)      
-            elif len(item) == 1 and item[0] == "pattern_seek":
+            elif len(item) == 1 and item[0].startswith('pattern_seek'):
                 data_path.append(item)
             elif len(item) == 3 and item[0] == "malloc":
                 if item[2] in vars_allocated:

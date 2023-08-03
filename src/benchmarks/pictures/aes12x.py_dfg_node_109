@@ -1,10 +1,10 @@
 digraph {
-	575 [label="source code:
+	576 [label="source code:
 end = time.time()
 "]
-	576 [label="time.time()
+	577 [label="time.time()
 "]
-	577 [label="end
+	578 [label="end
 Write"]
-	576 -> 577 [label=""]
+	577 -> 578 [label=""]
 }

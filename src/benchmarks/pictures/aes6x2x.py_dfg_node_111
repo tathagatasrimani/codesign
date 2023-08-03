@@ -1,0 +1,10 @@
+digraph {
+	585 [label="source code:
+end = time.time()
+"]
+	586 [label="time.time()
+"]
+	587 [label="end
+Write"]
+	586 -> 587 [label=""]
+}

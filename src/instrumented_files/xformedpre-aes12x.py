@@ -309,7 +309,7 @@ if __name__ == '__main__':
     print(106, 709)
     Sbox_new_0 = Sbox_0
     for i_0 in range(12):
-        loop().pattern_seek()
+        loop().pattern_seek(6)
         print(108, 712)
         aes_0 = AES(1212304810341341)
         aes_0.encrypt(1212304810341341)

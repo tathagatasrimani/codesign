@@ -3,6 +3,7 @@ from instrument_lib import *
 import sys
 from instrument_lib import *
 import numpy as np
+from loop import loop
 print(1, 4)
 A_0 = instrument_read(np, 'np').random.randint(0, 512, size=(400, 400))
 write_instrument_read(A_0, 'A_0')

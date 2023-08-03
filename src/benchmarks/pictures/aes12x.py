@@ -71,7 +71,7 @@ start = time.time()
 "]
 	107 [label="for i in range(12):
 "]
-	108 [label="loop().pattern_seek()
+	108 [label="loop().pattern_seek(6)
 aes = AES(1212304810341341)
 aes.encrypt(1212304810341341)
 "]

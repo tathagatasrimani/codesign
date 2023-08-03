@@ -251,18 +251,8 @@ def smallFrac(n):
 
 if __name__ == "__main__":
     loop.start_unroll
-    for i in range(6):
-        loop().pattern_seek()
-        # test on a random graph
-        G = randomGraph(5,.2)
-        BFS_shortestPaths(G.vertices[0],G)
-        dijkstraDumb_shortestPaths(G.vertices[0], G)    
-        G = randomGraph(5,.4,[1,2,3,4,5])
-        dijkstra_shortestPaths(G.vertices[0], G)
-        nValues = [10]
-        nDijkstra, tDijkstra = runTrials(BFS, nValues,smallFrac)
-    for i in range(6):
-        loop().pattern_seek()
+    for i in range(12):
+        loop().pattern_seek(6)
         # test on a random graph
         G = randomGraph(5,.2)
         BFS_shortestPaths(G.vertices[0],G)

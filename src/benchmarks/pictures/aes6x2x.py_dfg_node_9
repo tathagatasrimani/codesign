@@ -1,0 +1,49 @@
+digraph {
+	595 [label="source code:
+byte = text >> 8 * (15 - i) & 255
+if i % 4 == 0:
+"]
+	596 [label="text
+Read"]
+	597 [label=8
+]
+	598 [label=15
+]
+	599 [label="i
+Read"]
+	600 [label="-
+"]
+	598 -> 600 [label=""]
+	599 -> 600 [label=""]
+	601 [label="*
+"]
+	597 -> 601 [label=""]
+	600 -> 601 [label=""]
+	602 [label=">>
+"]
+	596 -> 602 [label=""]
+	601 -> 602 [label=""]
+	603 [label=255
+]
+	604 [label="&
+"]
+	602 -> 604 [label=""]
+	603 -> 604 [label=""]
+	605 [label="byte
+Write"]
+	604 -> 605 [label=""]
+	606 [label="i
+Read"]
+	607 [label=4
+]
+	608 [label="%
+"]
+	606 -> 608 [label=""]
+	607 -> 608 [label=""]
+	609 [label=0
+]
+	610 [label="==
+"]
+	608 -> 610 [label=""]
+	609 -> 610 [label=""]
+}
