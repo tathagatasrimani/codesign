@@ -443,7 +443,7 @@ i -= 1
 	subgraph clustermain {
 		graph [label=main]
 		134 [label="fasta_file = path + '/benchmarks/supplemental_files/fasta_example.fasta'
-fastq_file = path + '/benchmarks/supplemental_files/fastq_example.fastq'
+fastq_file = path + '/benchmarks/supplemental_files/fastq_large.fastq'
 output_file = path + '/benchmarks/supplemental_files/output_file.txt'
 darwin_wga_workflow(fasta_file, fastq_file, output_file)
 "]

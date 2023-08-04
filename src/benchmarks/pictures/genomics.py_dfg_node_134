@@ -1,7 +1,7 @@
 digraph {
 	482 [label="source code:
 fasta_file = path + '/benchmarks/supplemental_files/fasta_example.fasta'
-fastq_file = path + '/benchmarks/supplemental_files/fastq_example.fastq'
+fastq_file = path + '/benchmarks/supplemental_files/fastq_large.fastq'
 output_file = path + '/benchmarks/supplemental_files/output_file.txt'
 darwin_wga_workflow(fasta_file, fastq_file, output_file)
 "]
@@ -18,7 +18,7 @@ Write"]
 	485 -> 486 [label=""]
 	487 [label="path
 Read"]
-	488 [label="/benchmarks/supplemental_files/fastq_example.fastq
+	488 [label="/benchmarks/supplemental_files/fastq_large.fastq
 "]
 	489 [label="+
 "]

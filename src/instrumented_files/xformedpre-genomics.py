@@ -342,8 +342,7 @@ def main():
     fasta_file_9 = (path_0 +
         '/benchmarks/supplemental_files/fasta_example.fasta')
     print(134, 227)
-    fastq_file_9 = (path_0 +
-        '/benchmarks/supplemental_files/fastq_example.fastq')
+    fastq_file_9 = path_0 + '/benchmarks/supplemental_files/fastq_large.fastq'
     print(134, 228)
     output_file_9 = path_0 + '/benchmarks/supplemental_files/output_file.txt'
     darwin_wga_workflow(fasta_file_9, fastq_file_9, output_file_9)

@@ -748,7 +748,7 @@ def main():
     print('malloc', sys.getsizeof(fasta_file_9), 'fasta_file_9')
     print(134, 227)
     fastq_file_9 = instrument_read(path_0, 'path_0'
-        ) + '/benchmarks/supplemental_files/fastq_example.fastq'
+        ) + '/benchmarks/supplemental_files/fastq_large.fastq'
     write_instrument_read(fastq_file_9, 'fastq_file_9')
     print('malloc', sys.getsizeof(fastq_file_9), 'fastq_file_9')
     print(134, 228)
