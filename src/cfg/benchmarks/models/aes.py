@@ -1,3 +1,5 @@
+
+memory_module = Memory(MEMORY_SIZE)
 Sbox = (
     0x63,
     0x7C,

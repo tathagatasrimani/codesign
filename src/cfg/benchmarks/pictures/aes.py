@@ -1,6 +1,7 @@
 digraph "clustermain.c" {
 	graph [label="main.c"]
-	1 [label="Sbox = (99, 124, 119, 123, 242, 107, 111, 197, 48, 1, 103, 43, 254, 215, 
+	1 [label="memory_module = Memory(MEMORY_SIZE)
+Sbox = (99, 124, 119, 123, 242, 107, 111, 197, 48, 1, 103, 43, 254, 215, 
     171, 118, 202, 130, 201, 125, 250, 89, 71, 240, 173, 212, 162, 175, 156,
     164, 114, 192, 183, 253, 147, 38, 54, 63, 247, 204, 52, 165, 229, 241, 
     113, 216, 49, 21, 4, 199, 35, 195, 24, 150, 5, 154, 7, 18, 128, 226, 
@@ -55,6 +56,8 @@ def __mix_columns(self, s):...
 def __inv_mix_columns(self, s):...
 if __name__ == '__main__':
 "]
+	"1_calls" [label=Memory shape=box]
+	1 -> "1_calls" [label=calls style=dashed]
 	102 [label="import time
 start = time.time()
 aes = AES(1212304810341341)

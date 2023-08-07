@@ -38,6 +38,7 @@ def symbolic_cycle_sim_parallel(hw_spec, hw_need):
     global cycles
     max_cycles = 0
     power_sum = 0
+    # print(hw_need)
     for elem in hw_need:
         batch = math.ceil(hw_need[elem] / hw_spec[elem])
         active_power = hw_need[elem] * hardwareModel.symbolic_power[elem][2]
@@ -45,11 +46,12 @@ def symbolic_cycle_sim_parallel(hw_spec, hw_need):
         power_sum += batch * hw_spec[elem] * hardwareModel.symbolic_power[elem][2] / 10 # idle dividor still need passive power
         cycles_per_node = batch * hardwareModel.symbolic_latency[elem] # real latency in cycles
         max_cycles = Max(max_cycles, cycles_per_node)
+    
     cycles += max_cycles
     return max_cycles, power_sum
 
 def symbolic_simulate(cfg, data_path, symbolic_node_operations, hw_spec, symbolic_first):
-    global main_cfg, id_to_node, unroll_at
+    global main_cfg, id_to_node, unroll_at, node_sum_cycles, node_sum_power
     cur_node = cfg.entryblock
     if symbolic_first: 
         cur_node = cur_node.exits[0].target # skip over the first node in the main cfg
@@ -63,8 +65,10 @@ def symbolic_simulate(cfg, data_path, symbolic_node_operations, hw_spec, symboli
         node_id = data_path[i][0]
         cur_node = id_to_node[node_id]
         node_intervals.append([node_id, [cycles, 0]])
-        node_sum_power[node_id] = 0 # just reset because we will end up overwriting it
-        node_sum_cycles[node_id] = 0
+        if not node_id in node_sum_power:
+            node_sum_power[node_id] = 0 # just reset because we will end up overwriting it
+        if not node_id in node_sum_cycles:
+            node_sum_cycles[node_id] = 0
         iters = 0
         if unroll_at[cur_node.id]:
             j = i
@@ -89,7 +93,6 @@ def symbolic_simulate(cfg, data_path, symbolic_node_operations, hw_spec, symboli
             node_sum_cycles[node_id] += max_cycles
         node_intervals[-1][1][1] = cycles
         i += 1
-
 
 cur_node_id = 0
 
@@ -188,10 +191,24 @@ def main():
     # print("node_sum_cycles", node_sum_cycles)
     # print("node_intervals", node_intervals)
     
-    node_avg_power_value = {}
-    for node_id in node_avg_power:
+    # node_avg_power_value = {}
+    # for node_id in node_avg_power:
+    #     expr_symbols = {}
+    #     expr = node_avg_power[node_id]
+    #     for s in expr.free_symbols:
+    #         if not s in expr_symbols:
+    #             if "latency" in s.name:
+    #                 expr_symbols[s] = hardwareModel.latency[s.name.split('_')[1]]
+    #             else:
+    #                 expr_symbols[s] = hardwareModel.power[s.name.split('_')[1]][int(s.name.split('_')[2])]
+    #     expr_value = expr.subs(expr_symbols)
+    #     node_avg_power_value[node_id] = float(expr_value)
+        
+    # node_avg_power_value = {}
+    node_sum_cycles_value = {}
+    for node_id in node_sum_cycles:
         expr_symbols = {}
-        expr = node_avg_power[node_id]
+        expr = node_sum_cycles[node_id]
         for s in expr.free_symbols:
             if not s in expr_symbols:
                 if "latency" in s.name:
@@ -199,10 +216,11 @@ def main():
                 else:
                     expr_symbols[s] = hardwareModel.power[s.name.split('_')[1]][int(s.name.split('_')[2])]
         expr_value = expr.subs(expr_symbols)
-        node_avg_power_value[node_id] = float(expr_value)
+        node_sum_cycles_value[node_id] = float(expr_value)
 
-    print(node_avg_power_value)
-
+    print(node_sum_cycles_value)
+    # {'1': 2.0, '102': 6.0, '29': 2.0, '7': 1.0, '9': 11.76, '31': 5.0, '33': 4.12, '39': 4.06, '36': 4.06, '43': 3.0, '60': 4.06, '73': 3.0, '84': 4.0, '90': 5.359999999999999, '17': 1.0, '21': 20.759999999999998}
+    # /home/ubuntu/codesign/src/cfg/benchmarks/models/testme.py
 if __name__ == '__main__':
     main()
     

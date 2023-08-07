@@ -63,7 +63,10 @@ def cycle_sim(hw_inuse, max_cycles):
         cycles += 1
     return node_power_sum
 
+
+
 def simulate(cfg, data_path, node_operations, hw_spec, first):
+    node_id_to_sum_cycles = {}
     global main_cfg, id_to_node, unroll_at
     cur_node = cfg.entryblock
     if first: 
@@ -107,6 +110,7 @@ def simulate(cfg, data_path, node_operations, hw_spec, first):
                 if hw_spec[elem] == 0 and cur_elem_count > 0:
                     raise Exception("hardware specification insufficient to run program")
                 cur_cycles_needed = int(math.ceil(cur_elem_count / hw_spec[elem]) * hardwareModel.latency[elem])
+                # this int is actually a floor, so that's why the concrete result is always smaller
                 # symbolic max
                 # https://www.sympy.org/en/index.html
                 # plug in the number and see if it's correct
@@ -117,11 +121,27 @@ def simulate(cfg, data_path, node_operations, hw_spec, first):
                     hw_inuse[elem][j] += hardwareModel.latency[elem]
                     j = (j + 1) % hw_spec[elem]
                     cur_elem_count -= 1
+            # print("hw_inuse", hw_inuse)
+            
+                
             node_avg_power[node_id] += cycle_sim(hw_inuse, max_cycles)
+            
+        if node_id in node_id_to_sum_cycles:
+            node_id_to_sum_cycles[node_id] += (cycles - start_cycles)
+        else:
+            node_id_to_sum_cycles[node_id] = cycles - start_cycles
+        # {'1': 362, '102': 12, '29': 2, '7': 2, '9': 352, '31': 200, '33': 40, '39': 120, '36': 480, '43': 3, '60': 704, '73': 480, '84': 40, '90': 720, '17': 1, '21': 320}
+        # {'1': 2.0, '102': 6.0, '29': 2.0, '7': 1.0, '9': 11.76, '31': 5.0, '33': 4.12, '39': 4.06, '36': 4.06, '43': 3.0, '60': 4.06, '73': 3.0, '84': 4.0, '90': 5.359999999999999, '17': 1.0, '21': 20.759999999999998}
+
         if cycles - start_cycles > 0: node_avg_power[node_id] /= cycles - start_cycles
         node_intervals[-1][1][1] = cycles
         i += 1
     print("done with simulation")
+    print(node_id_to_sum_cycles)
+    # done with simulation
+    # {'1': 4, '3': 26, '6': 18, '5': 6, '8': 6, '12': 2, '14': 6}
+    # {'1': 4.0, '3': 26.0, '6': 18.0, '5': 6.0, '8': 6.0, '12': 2.0, '14': 6.0}
+    return
     return data
 
 def main():
@@ -192,4 +212,5 @@ if __name__ == '__main__':
     
     
     
-
+# {'1': 543.0, '102': 12.0, '29': 2.0, '7': 2.0, '9': 376.32, '31': 200.0, '33': 41.2, '39': 121.8, '36': 487.2, '43': 3.0, '60': 714.56, '73': 480.0, '84': 40.0, '90': 771.84, '17': 1.0, '21': 332.15999999999997}
+# {'1': 543, '102': 12, '29': 2, '7': 2, '9': 352, '31': 200, '33': 40, '39': 120, '36': 480, '43': 3, '60': 704, '73': 480, '84': 40, '90': 720, '17': 1, '21': 320}

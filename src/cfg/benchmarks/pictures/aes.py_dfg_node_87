@@ -1,175 +1,167 @@
 digraph {
-	870 [label="source code:
+	873 [label="source code:
 s[0][1], s[1][1], s[2][1], s[3][1] = s[3][1], s[0][1], s[1][1], s[2][1]
 s[0][2], s[1][2], s[2][2], s[3][2] = s[2][2], s[3][2], s[0][2], s[1][2]
 s[0][3], s[1][3], s[2][3], s[3][3] = s[1][3], s[2][3], s[3][3], s[0][3]
 "]
-	871 [label="s
-Read"]
-	872 [label="s[3]
-Read"]
-	871 -> 872
-	873 [label="s[3][1]
-Read"]
-	872 -> 873
 	874 [label="s
 Read"]
-	875 [label="s[0]
+	875 [label="s[3]
 Read"]
 	874 -> 875
-	876 [label="s[0][1]
+	876 [label="s[3][1]
 Read"]
 	875 -> 876
 	877 [label="s
 Read"]
-	878 [label="s[1]
+	878 [label="s[0]
 Read"]
 	877 -> 878
-	879 [label="s[1][1]
+	879 [label="s[0][1]
 Read"]
 	878 -> 879
 	880 [label="s
 Read"]
-	881 [label="s[2]
+	881 [label="s[1]
 Read"]
 	880 -> 881
-	882 [label="s[2][1]
+	882 [label="s[1][1]
 Read"]
 	881 -> 882
 	883 [label="s
 Read"]
-	884 [label="s[0]
+	884 [label="s[2]
 Read"]
 	883 -> 884
-	885 [label="s[0][1]
-Write"]
+	885 [label="s[2][1]
+Read"]
 	884 -> 885
 	886 [label="s
 Read"]
-	887 [label="s[1]
+	887 [label="s[0]
 Read"]
 	886 -> 887
-	888 [label="s[1][1]
+	888 [label="s[0][1]
 Write"]
 	887 -> 888
 	889 [label="s
 Read"]
-	890 [label="s[2]
+	890 [label="s[1]
 Read"]
 	889 -> 890
-	891 [label="s[2][1]
+	891 [label="s[1][1]
 Write"]
 	890 -> 891
 	892 [label="s
 Read"]
-	893 [label="s[3]
+	893 [label="s[2]
 Read"]
 	892 -> 893
-	894 [label="s[3][1]
+	894 [label="s[2][1]
 Write"]
 	893 -> 894
-	873 -> 885
+	895 [label="s
+Read"]
+	896 [label="s[3]
+Read"]
+	895 -> 896
+	897 [label="s[3][1]
+Write"]
+	896 -> 897
 	876 -> 888
 	879 -> 891
 	882 -> 894
-	895 [label="s
-Read"]
-	896 [label="s[2]
-Read"]
-	895 -> 896
-	897 [label="s[2][2]
-Read"]
-	896 -> 897
+	885 -> 897
 	898 [label="s
 Read"]
-	899 [label="s[3]
+	899 [label="s[2]
 Read"]
 	898 -> 899
-	900 [label="s[3][2]
+	900 [label="s[2][2]
 Read"]
 	899 -> 900
 	901 [label="s
 Read"]
-	902 [label="s[0]
+	902 [label="s[3]
 Read"]
 	901 -> 902
-	903 [label="s[0][2]
+	903 [label="s[3][2]
 Read"]
 	902 -> 903
 	904 [label="s
 Read"]
-	905 [label="s[1]
+	905 [label="s[0]
 Read"]
 	904 -> 905
-	906 [label="s[1][2]
+	906 [label="s[0][2]
 Read"]
 	905 -> 906
 	907 [label="s
 Read"]
-	908 [label="s[0]
+	908 [label="s[1]
 Read"]
 	907 -> 908
-	909 [label="s[0][2]
-Write"]
+	909 [label="s[1][2]
+Read"]
 	908 -> 909
 	910 [label="s
 Read"]
-	911 [label="s[1]
+	911 [label="s[0]
 Read"]
 	910 -> 911
-	912 [label="s[1][2]
+	912 [label="s[0][2]
 Write"]
 	911 -> 912
 	913 [label="s
 Read"]
-	914 [label="s[2]
+	914 [label="s[1]
 Read"]
 	913 -> 914
-	915 [label="s[2][2]
+	915 [label="s[1][2]
 Write"]
 	914 -> 915
 	916 [label="s
 Read"]
-	917 [label="s[3]
+	917 [label="s[2]
 Read"]
 	916 -> 917
-	918 [label="s[3][2]
+	918 [label="s[2][2]
 Write"]
 	917 -> 918
-	897 -> 909
+	919 [label="s
+Read"]
+	920 [label="s[3]
+Read"]
+	919 -> 920
+	921 [label="s[3][2]
+Write"]
+	920 -> 921
 	900 -> 912
 	903 -> 915
 	906 -> 918
-	919 [label="s
-Read"]
-	920 [label="s[1]
-Read"]
-	919 -> 920
-	921 [label="s[1][3]
-Read"]
-	920 -> 921
+	909 -> 921
 	922 [label="s
 Read"]
-	923 [label="s[2]
+	923 [label="s[1]
 Read"]
 	922 -> 923
-	924 [label="s[2][3]
+	924 [label="s[1][3]
 Read"]
 	923 -> 924
 	925 [label="s
 Read"]
-	926 [label="s[3]
+	926 [label="s[2]
 Read"]
 	925 -> 926
-	927 [label="s[3][3]
+	927 [label="s[2][3]
 Read"]
 	926 -> 927
 	928 [label="s
 Read"]
-	929 [label="s[0]
+	929 [label="s[3]
 Read"]
 	928 -> 929
-	930 [label="s[0][3]
+	930 [label="s[3][3]
 Read"]
 	929 -> 930
 	931 [label="s
@@ -178,34 +170,42 @@ Read"]
 Read"]
 	931 -> 932
 	933 [label="s[0][3]
-Write"]
+Read"]
 	932 -> 933
 	934 [label="s
 Read"]
-	935 [label="s[1]
+	935 [label="s[0]
 Read"]
 	934 -> 935
-	936 [label="s[1][3]
+	936 [label="s[0][3]
 Write"]
 	935 -> 936
 	937 [label="s
 Read"]
-	938 [label="s[2]
+	938 [label="s[1]
 Read"]
 	937 -> 938
-	939 [label="s[2][3]
+	939 [label="s[1][3]
 Write"]
 	938 -> 939
 	940 [label="s
 Read"]
-	941 [label="s[3]
+	941 [label="s[2]
 Read"]
 	940 -> 941
-	942 [label="s[3][3]
+	942 [label="s[2][3]
 Write"]
 	941 -> 942
-	921 -> 933
+	943 [label="s
+Read"]
+	944 [label="s[3]
+Read"]
+	943 -> 944
+	945 [label="s[3][3]
+Write"]
+	944 -> 945
 	924 -> 936
 	927 -> 939
 	930 -> 942
+	933 -> 945
 }

@@ -1,39 +1,31 @@
 digraph {
-	797 [label="source code:
+	800 [label="source code:
 s[0][1], s[1][1], s[2][1], s[3][1] = s[1][1], s[2][1], s[3][1], s[0][1]
 s[0][2], s[1][2], s[2][2], s[3][2] = s[2][2], s[3][2], s[0][2], s[1][2]
 s[0][3], s[1][3], s[2][3], s[3][3] = s[3][3], s[0][3], s[1][3], s[2][3]
 "]
-	798 [label="s
-Read"]
-	799 [label="s[1]
-Read"]
-	798 -> 799
-	800 [label="s[1][1]
-Read"]
-	799 -> 800
 	801 [label="s
 Read"]
-	802 [label="s[2]
+	802 [label="s[1]
 Read"]
 	801 -> 802
-	803 [label="s[2][1]
+	803 [label="s[1][1]
 Read"]
 	802 -> 803
 	804 [label="s
 Read"]
-	805 [label="s[3]
+	805 [label="s[2]
 Read"]
 	804 -> 805
-	806 [label="s[3][1]
+	806 [label="s[2][1]
 Read"]
 	805 -> 806
 	807 [label="s
 Read"]
-	808 [label="s[0]
+	808 [label="s[3]
 Read"]
 	807 -> 808
-	809 [label="s[0][1]
+	809 [label="s[3][1]
 Read"]
 	808 -> 809
 	810 [label="s
@@ -42,170 +34,178 @@ Read"]
 Read"]
 	810 -> 811
 	812 [label="s[0][1]
-Write"]
+Read"]
 	811 -> 812
 	813 [label="s
 Read"]
-	814 [label="s[1]
+	814 [label="s[0]
 Read"]
 	813 -> 814
-	815 [label="s[1][1]
+	815 [label="s[0][1]
 Write"]
 	814 -> 815
 	816 [label="s
 Read"]
-	817 [label="s[2]
+	817 [label="s[1]
 Read"]
 	816 -> 817
-	818 [label="s[2][1]
+	818 [label="s[1][1]
 Write"]
 	817 -> 818
 	819 [label="s
 Read"]
-	820 [label="s[3]
+	820 [label="s[2]
 Read"]
 	819 -> 820
-	821 [label="s[3][1]
+	821 [label="s[2][1]
 Write"]
 	820 -> 821
-	800 -> 812
+	822 [label="s
+Read"]
+	823 [label="s[3]
+Read"]
+	822 -> 823
+	824 [label="s[3][1]
+Write"]
+	823 -> 824
 	803 -> 815
 	806 -> 818
 	809 -> 821
-	822 [label="s
-Read"]
-	823 [label="s[2]
-Read"]
-	822 -> 823
-	824 [label="s[2][2]
-Read"]
-	823 -> 824
+	812 -> 824
 	825 [label="s
 Read"]
-	826 [label="s[3]
+	826 [label="s[2]
 Read"]
 	825 -> 826
-	827 [label="s[3][2]
+	827 [label="s[2][2]
 Read"]
 	826 -> 827
 	828 [label="s
 Read"]
-	829 [label="s[0]
+	829 [label="s[3]
 Read"]
 	828 -> 829
-	830 [label="s[0][2]
+	830 [label="s[3][2]
 Read"]
 	829 -> 830
 	831 [label="s
 Read"]
-	832 [label="s[1]
+	832 [label="s[0]
 Read"]
 	831 -> 832
-	833 [label="s[1][2]
+	833 [label="s[0][2]
 Read"]
 	832 -> 833
 	834 [label="s
 Read"]
-	835 [label="s[0]
+	835 [label="s[1]
 Read"]
 	834 -> 835
-	836 [label="s[0][2]
-Write"]
+	836 [label="s[1][2]
+Read"]
 	835 -> 836
 	837 [label="s
 Read"]
-	838 [label="s[1]
+	838 [label="s[0]
 Read"]
 	837 -> 838
-	839 [label="s[1][2]
+	839 [label="s[0][2]
 Write"]
 	838 -> 839
 	840 [label="s
 Read"]
-	841 [label="s[2]
+	841 [label="s[1]
 Read"]
 	840 -> 841
-	842 [label="s[2][2]
+	842 [label="s[1][2]
 Write"]
 	841 -> 842
 	843 [label="s
 Read"]
-	844 [label="s[3]
+	844 [label="s[2]
 Read"]
 	843 -> 844
-	845 [label="s[3][2]
+	845 [label="s[2][2]
 Write"]
 	844 -> 845
-	824 -> 836
-	827 -> 839
-	830 -> 842
-	833 -> 845
 	846 [label="s
 Read"]
 	847 [label="s[3]
 Read"]
 	846 -> 847
-	848 [label="s[3][3]
-Read"]
+	848 [label="s[3][2]
+Write"]
 	847 -> 848
+	827 -> 839
+	830 -> 842
+	833 -> 845
+	836 -> 848
 	849 [label="s
 Read"]
-	850 [label="s[0]
+	850 [label="s[3]
 Read"]
 	849 -> 850
-	851 [label="s[0][3]
+	851 [label="s[3][3]
 Read"]
 	850 -> 851
 	852 [label="s
 Read"]
-	853 [label="s[1]
+	853 [label="s[0]
 Read"]
 	852 -> 853
-	854 [label="s[1][3]
+	854 [label="s[0][3]
 Read"]
 	853 -> 854
 	855 [label="s
 Read"]
-	856 [label="s[2]
+	856 [label="s[1]
 Read"]
 	855 -> 856
-	857 [label="s[2][3]
+	857 [label="s[1][3]
 Read"]
 	856 -> 857
 	858 [label="s
 Read"]
-	859 [label="s[0]
+	859 [label="s[2]
 Read"]
 	858 -> 859
-	860 [label="s[0][3]
-Write"]
+	860 [label="s[2][3]
+Read"]
 	859 -> 860
 	861 [label="s
 Read"]
-	862 [label="s[1]
+	862 [label="s[0]
 Read"]
 	861 -> 862
-	863 [label="s[1][3]
+	863 [label="s[0][3]
 Write"]
 	862 -> 863
 	864 [label="s
 Read"]
-	865 [label="s[2]
+	865 [label="s[1]
 Read"]
 	864 -> 865
-	866 [label="s[2][3]
+	866 [label="s[1][3]
 Write"]
 	865 -> 866
 	867 [label="s
 Read"]
-	868 [label="s[3]
+	868 [label="s[2]
 Read"]
 	867 -> 868
-	869 [label="s[3][3]
+	869 [label="s[2][3]
 Write"]
 	868 -> 869
-	848 -> 860
+	870 [label="s
+Read"]
+	871 [label="s[3]
+Read"]
+	870 -> 871
+	872 [label="s[3][3]
+Write"]
+	871 -> 872
 	851 -> 863
 	854 -> 866
 	857 -> 869
+	860 -> 872
 }
