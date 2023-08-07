@@ -284,7 +284,7 @@ def main():
     print(154, 136)
     filt_12 = np.random.rand(3, 7, 7)
     print(154, 137)
-    img_12 = np.random.rand(3, 64, 64)
+    img_12 = np.random.rand(3, 224, 224)
     print(154, 140)
     img_12 = conv_layer(img_12, filt_12, 1, zero_pad_12, stride_12)
     print(154, 141)

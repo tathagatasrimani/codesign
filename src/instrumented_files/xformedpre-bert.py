@@ -228,7 +228,7 @@ def main():
     print('enter scope 12')
     print(1, 102)
     print(117, 103)
-    d_model_12, heads_12, tokens_12, layers_12 = 50, 12, 8, 12
+    d_model_12, heads_12, tokens_12, layers_12 = 100, 12, 8, 12
     print(117, 104)
     d_k_12 = d_model_12 // heads_12
     print(117, 105)

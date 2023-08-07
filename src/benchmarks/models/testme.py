@@ -27,7 +27,7 @@ def bruh():
     loop.stop_unroll
 
 if __name__ == "__main__":
-    for i in range(4):
+    for i in range(1):
         loop().pattern_seek()
         main(2, 3)
         bruh()

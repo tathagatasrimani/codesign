@@ -3,7 +3,7 @@ digraph {
 zero_pad = 3
 stride = 2
 filt = np.random.rand(3, 7, 7)
-img = np.random.rand(3, 64, 64)
+img = np.random.rand(3, 224, 224)
 img = conv_layer(img, filt, 1, zero_pad, stride)
 weights = np.random.rand(len(img[0]))
 biases = np.random.rand(len(img[0]))
@@ -36,15 +36,15 @@ Write"]
 	601 [label="filt
 Write"]
 	597 -> 601 [label=""]
-	602 [label="np.random.rand(3, 64, 64)
+	602 [label="np.random.rand(3, 224, 224)
 "]
 	603 [label=3
 ]
 	603 -> 602 [label=""]
-	604 [label=64
+	604 [label=224
 ]
 	604 -> 602 [label=""]
-	605 [label=64
+	605 [label=224
 ]
 	605 -> 602 [label=""]
 	606 [label="img

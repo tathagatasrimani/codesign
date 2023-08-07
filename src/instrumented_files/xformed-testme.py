@@ -90,7 +90,7 @@ def bruh():
 
 
 if instrument_read(__name__, '__name__') == '__main__':
-    for i_0 in range(4):
+    for i_0 in range(1):
         loop().pattern_seek()
         main(2, 3)
         bruh()

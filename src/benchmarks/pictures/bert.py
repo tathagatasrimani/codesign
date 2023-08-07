@@ -321,7 +321,7 @@ softmax" shape=box]
 	}
 	subgraph clustermain {
 		graph [label=main]
-		117 [label="d_model, heads, tokens, layers = 50, 12, 8, 12
+		117 [label="d_model, heads, tokens, layers = 100, 12, 8, 12
 d_k = d_model // heads
 embeddings = np.random.rand(tokens, d_model)
 "]

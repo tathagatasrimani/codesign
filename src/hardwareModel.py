@@ -867,7 +867,10 @@ class HardwareModel:
         self.mem_state = {}
         for variable in self.memory_cfgs.keys():
             self.mem_state[variable]=False
-
+        
+        self.compute_operation_totals = {}
+        for op in op2sym_map:
+             self.compute_operation_totals[op] = 0
         # number of non-memory elements allocated
         self.transistor_size = transistor_size
         self.mem_layers = mem_layers

@@ -674,7 +674,7 @@ def main():
     write_instrument_read(filt_12, 'filt_12')
     print('malloc', sys.getsizeof(filt_12), 'filt_12')
     print(154, 137)
-    img_12 = instrument_read(np, 'np').random.rand(3, 64, 64)
+    img_12 = instrument_read(np, 'np').random.rand(3, 224, 224)
     write_instrument_read(img_12, 'img_12')
     print('malloc', sys.getsizeof(img_12), 'img_12')
     print(154, 140)

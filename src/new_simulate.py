@@ -36,6 +36,10 @@ mem_layers = 0
 transistor_size = 0
 pitch = 0
 cache_size = 0
+reads = 0
+writes = 0
+total_read_size = 0
+total_write_size = 0
 
 def find_nearest_mem_to_scale(num):
     if num < 512: return 512
@@ -86,13 +90,14 @@ def get_hw_need(state, hw_spec):
         if not op.operation: continue
         if op.operation != "Regs":
             #print(hw_spec[op.operation], op.operation, hw_need.hw_allocated[op.operation])
-            compute_element_id = hw_need.hw_allocated[op.operation] % hw_spec[op.operation]
+            compute_element_id = hw_need.hw_allocated[op.operation] % hw_spec.hw_allocated[op.operation]
             compute_id = compute_element_to_node_id[op.operation][compute_element_id]
             hw_op_node = new_graph.id_to_Node[compute_id]
             op.compute_id = compute_id
             #print(op.value)
             process_compute_element(op, new_graph, hw_op_node)
         hw_need.hw_allocated[op.operation] += 1
+        hw_spec.compute_operation_totals[op.operation] += 1
     return hw_need.hw_allocated
 
 def cycle_sim(hw_inuse, hw, max_cycles):
@@ -296,7 +301,7 @@ def simulate(cfg, node_operations, hw, graphs, first):
                     for parent in node.parents:
                         parents.append(parent.operation)
                     #print(node.operation, parents)
-                hw_need = get_hw_need(state, hw.hw_allocated)
+                hw_need = get_hw_need(state, hw)
                 #print(hw_need)
                 max_cycles = 0
                 for elem in hw_need:
@@ -332,7 +337,7 @@ def simulate(cfg, node_operations, hw, graphs, first):
     return data
 
 def set_data_path():
-    global path, data_path, cur_memory_size, vars_allocated, where_to_free, memory_needed
+    global path, data_path, cur_memory_size, vars_allocated, where_to_free, memory_needed, reads, writes, total_read_size, total_write_size
     with open(path + '/instrumented_files/output.txt', 'r') as f:
         f_new = open(path + '/instrumented_files/output_free.txt', 'w+')
         src = f.read()
@@ -346,14 +351,20 @@ def set_data_path():
         valid_names = set()
         for i in range(len(split_lines)):
             item = split_lines[i]
-            if len(item) == 0: continue
+            if len(item) < 2: continue
             if item[0] == "malloc":
                 valid_names.add(item[-1])
-            if (item[-1] != "Read" and item[-1] != "Write"): continue
+            if (item[-2] != "Read" and item[-2] != "Write"): continue
             var_name = item[0]
             if var_name not in valid_names: continue 
-            if item[-1] == "Read": where_to_free[var_name] = i+1
-            else: where_to_free[var_name] = i
+            if item[-2] == "Read": 
+                reads += 1
+                total_read_size += int(item[-1])
+                where_to_free[var_name] = i+1
+            else: 
+                writes += 1
+                total_write_size += int(item[-1])
+                where_to_free[var_name] = i
 
 
         for i in range(len(split_lines)):
@@ -402,7 +413,7 @@ def simulator_prep(benchmark):
     return cfg, graphs, node_operations
 
 def main():
-    global power_use, new_graph, transistor_size, pitch, mem_layers, memory_needed, cache_size
+    global power_use, new_graph, transistor_size, pitch, mem_layers, memory_needed, cache_size, reads, writes, total_read_size, total_write_size
     benchmark = sys.argv[1]
     print(benchmark)
     cfg, graphs, node_operations = simulator_prep(benchmark)
@@ -463,7 +474,12 @@ def main():
     
     data = simulate(cfg, node_operations, hw, graphs, True)
     print("total number of cycles: ", cycles)
-    print("total energy: ", sum(power_use))
+    print("total energy (nJ): ", sum(power_use))
+    print("total reads: ", reads)
+    print("total read size: ", total_read_size)
+    print("total writes: ", writes)
+    print("total write size: ", total_write_size)
+    print("total compute element usage: ", hw.compute_operation_totals)
     names = sys.argv[1].split('/')
     if len(sys.argv) < 3 or not sys.argv[2] == "notrace":
         text = json.dumps(data, indent=4)

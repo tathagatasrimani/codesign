@@ -424,7 +424,7 @@ index += 1
 		154 [label="zero_pad = 3
 stride = 2
 filt = np.random.rand(3, 7, 7)
-img = np.random.rand(3, 64, 64)
+img = np.random.rand(3, 224, 224)
 img = conv_layer(img, filt, 1, zero_pad, stride)
 weights = np.random.rand(len(img[0]))
 biases = np.random.rand(len(img[0]))
