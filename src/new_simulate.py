@@ -40,6 +40,7 @@ reads = 0
 writes = 0
 total_read_size = 0
 total_write_size = 0
+max_regs_inuse = 0
 
 def find_nearest_mem_to_scale(num):
     if num < 512: return 512
@@ -85,6 +86,7 @@ def func_calls(expr, calls):
         func_calls(sub_expr, calls)
 
 def get_hw_need(state, hw_spec):
+    global max_regs_inuse
     hw_need = HardwareModel(0,0,mem_layers, pitch, transistor_size, cache_size)
     for op in state:
         if not op.operation: continue
@@ -98,6 +100,7 @@ def get_hw_need(state, hw_spec):
             process_compute_element(op, new_graph, hw_op_node)
         hw_need.hw_allocated[op.operation] += 1
         hw_spec.compute_operation_totals[op.operation] += 1
+    max_regs_inuse = min(hw_spec.hw_allocated["Regs"], max(max_regs_inuse, hw_need.hw_allocated["Regs"]))
     return hw_need.hw_allocated
 
 def cycle_sim(hw_inuse, hw, max_cycles):
@@ -413,7 +416,7 @@ def simulator_prep(benchmark):
     return cfg, graphs, node_operations
 
 def main():
-    global power_use, new_graph, transistor_size, pitch, mem_layers, memory_needed, cache_size, reads, writes, total_read_size, total_write_size
+    global power_use, new_graph, transistor_size, pitch, mem_layers, memory_needed, cache_size, reads, writes, total_read_size, total_write_size, max_regs_inuse
     benchmark = sys.argv[1]
     print(benchmark)
     cfg, graphs, node_operations = simulator_prep(benchmark)
@@ -480,6 +483,7 @@ def main():
     print("total writes: ", writes)
     print("total write size: ", total_write_size)
     print("total compute element usage: ", hw.compute_operation_totals)
+    print("max regs in use: ", max_regs_inuse)
     names = sys.argv[1].split('/')
     if len(sys.argv) < 3 or not sys.argv[2] == "notrace":
         text = json.dumps(data, indent=4)
