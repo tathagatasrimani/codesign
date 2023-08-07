@@ -205,20 +205,88 @@ def main():
     #     node_avg_power_value[node_id] = float(expr_value)
         
     # node_avg_power_value = {}
-    node_sum_cycles_value = {}
+    total_cycles = 0
     for node_id in node_sum_cycles:
-        expr_symbols = {}
-        expr = node_sum_cycles[node_id]
-        for s in expr.free_symbols:
-            if not s in expr_symbols:
-                if "latency" in s.name:
-                    expr_symbols[s] = hardwareModel.latency[s.name.split('_')[1]]
-                else:
-                    expr_symbols[s] = hardwareModel.power[s.name.split('_')[1]][int(s.name.split('_')[2])]
-        expr_value = expr.subs(expr_symbols)
-        node_sum_cycles_value[node_id] = float(expr_value)
+        total_cycles += node_sum_cycles[node_id]
+    
+    print("total_cycles", total_cycles)
+    
+    delta = 0.1
+    
+    expr_symbols = {}
+    for s in total_cycles.free_symbols:
+        if "latency" in s.name:
+            expr_symbols[s] = hardwareModel.latency[s.name.split('_')[1]]
+        else:
+            expr_symbols[s] = hardwareModel.power[s.name.split('_')[1]][int(s.name.split('_')[2])]
+    print("expr_symbols", expr_symbols)
+    
+    print("before modification ", total_cycles.subs(expr_symbols))
+    
+    prime_expr = {}
+    prime_expr_value = {}
+    for s in total_cycles.free_symbols:
+        prime_s = total_cycles.diff(s)
+        prime_expr[s] = prime_s
+        prime_expr_value[s] = prime_s.subs(expr_symbols)
+    
+    # print("prime_expr", prime_expr)
+    # print("prime_expr_value", prime_expr_value)
+    
+    max_key = max(prime_expr_value, key=prime_expr_value.get) # positive, apply - 0.1
+    min_key = min(prime_expr_value, key=prime_expr_value.get) # negative, apply + 0.1
+    
+    expr_symbols[max_key] -= delta
+    expr_symbols[min_key] += delta
+    
+    print("after modification ", total_cycles.subs(expr_symbols))
+    
+    expr_symbols[max_key] += 2*delta
+    expr_symbols[min_key] -= 2*delta
+    
+    print("after modification, prove the previous is correct ", total_cycles.subs(expr_symbols))
+    
+    
+    # total_cycles_value = total_cycles.subs(expr_symbols)
+    # print("total_cycles_value", total_cycles_value)
+        
+    # node_sum_cycles_value = {}
+    # for node_id in node_sum_cycles:
+    #     expr_symbols = {}
+    #     expr = node_sum_cycles[node_id]
+    #     for s in expr.free_symbols:
+    #         if not s in expr_symbols:
+    #             if "latency" in s.name:
+    #                 expr_symbols[s] = hardwareModel.latency[s.name.split('_')[1]]
+    #             else:
+    #                 expr_symbols[s] = hardwareModel.power[s.name.split('_')[1]][int(s.name.split('_')[2])]
+    #     expr_value = expr.subs(expr_symbols)
+    #     node_sum_cycles_value[node_id] = float(expr_value)
+    
+    # fprime_And = total_cycles_value.diff(hardwareModel.symbolic_latency["And"])
+    # fprime_Or = total_cycles_value.diff(hardwareModel.symbolic_latency["Or"])
+    # stationary_points = solve([fprime_And, fprime_Or], [hardwareModel.symbolic_latency["And"], hardwareModel.symbolic_latency["Or"]], dict=True)   
+    # print(stationary_points)
+    
+    
+    # x_interval = [0.5, 5]
+    # y_interval = [0.5, 5]
+    # constraints = [
+    #     total_cycles_value.And(hardwareModel.symbolic_latency["Add"] >= x_interval[0], hardwareModel.symbolic_latency["Add"] <= x_interval[1]),
+    #     total_cycles_value.And(hardwareModel.symbolic_latency["Regs"] >= y_interval[0], hardwareModel.symbolic_latency["Regs"] <= y_interval[1])
+    # ]
+    
+    # prime_Add = total_cycles_value.diff(hardwareModel.symbolic_latency["Add"])
+    # prime_Regs = total_cycles_value.diff(hardwareModel.symbolic_latency["Regs"])
+    # stationary_points = solve([prime_Add, prime_Regs], [hardwareModel.symbolic_latency["Add"], hardwareModel.symbolic_latency["Regs"]], dict=True)
+    # print("stationary_points", stationary_points)
+    # valid_critical_points = [point for point in stationary_points if all(con.subs(point) for con in constraints)]
 
-    print(node_sum_cycles_value)
+    
+    
+
+
+    # print(node_sum_cycles_value)
     # {'1': 2.0, '102': 6.0, '29': 2.0, '7': 1.0, '9': 11.76, '31': 5.0, '33': 4.12, '39': 4.06, '36': 4.06, '43': 3.0, '60': 4.06, '73': 3.0, '84': 4.0, '90': 5.359999999999999, '17': 1.0, '21': 20.759999999999998}
     # /home/ubuntu/codesign/src/cfg/benchmarks/models/testme.py
 if __name__ == '__main__':
