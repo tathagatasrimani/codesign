@@ -32,14 +32,16 @@ def main(x, y):
     print(5, 16)
     z_1 = [[1, 2, 3, 4, 5, 6]]
     print(5, 17)
-    r_1, q_1 = 2, 3
+    d_1 = [[[1], [1]], [[1], [1]]]
     print(5, 18)
-    g_1 = np.zeros(5)
+    r_1, q_1 = 2, 3
+    print(5, 19)
+    g_1 = np.zeros((5, 4, 2))
     loop.start_unroll
     for i_1 in range(5):
-        print(8, 21)
-        z_1[0][1] = 1
         print(8, 22)
+        z_1[0][1] = 1
+        print(8, 23)
         z_1[0][i_1] += z_1[0][i_1 + 1]
     loop.stop_unroll
     print('exit scope 1')
@@ -47,12 +49,12 @@ def main(x, y):
 
 def bruh():
     print('enter scope 2')
-    print(1, 25)
-    print(12, 26)
+    print(1, 26)
+    print(12, 27)
     a_2 = 1
     loop.start_unroll
     for i_2 in range(3):
-        print(14, 29)
+        print(14, 30)
         a_2 += i_2
     loop.stop_unroll
     print('exit scope 2')

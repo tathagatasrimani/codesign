@@ -1,8 +1,9 @@
 digraph {
 	67 [label="source code:
 z = [[1, 2, 3, 4, 5, 6]]
+d = [[[1], [1]], [[1], [1]]]
 r, q = 2, 3
-g = np.zeros(5)
+g = np.zeros((5, 4, 2))
 loop.start_unroll
 "]
 	68 [label=1
@@ -25,24 +26,42 @@ Write"]
 	71 -> 74 [label=""]
 	72 -> 74 [label=""]
 	73 -> 74 [label=""]
-	75 [label=2
+	75 [label=1
 ]
-	76 [label=3
+	76 [label=1
 ]
-	77 [label="r
+	77 [label=1
+]
+	78 [label=1
+]
+	79 [label="d
 Write"]
-	78 [label="q
+	75 -> 79 [label=""]
+	76 -> 79 [label=""]
+	77 -> 79 [label=""]
+	78 -> 79 [label=""]
+	80 [label=2
+]
+	81 [label=3
+]
+	82 [label="r
 Write"]
-	75 -> 77 [label=""]
-	76 -> 78 [label=""]
-	79 [label="np.zeros(5)
+	83 [label="q
+Write"]
+	80 -> 82 [label=""]
+	81 -> 83 [label=""]
+	84 [label="np.zeros((5, 4, 2))
 "]
-	80 [label=5
+	85 [label=5
 ]
-	80 -> 79 [label=""]
-	81 [label="g
+	86 [label=4
+]
+	87 [label=2
+]
+	85 -> 84 [label=""]
+	88 [label="g
 Write"]
-	79 -> 81 [label=""]
-	82 [label="loop.start_unroll
+	84 -> 88 [label=""]
+	89 [label="loop.start_unroll
 Read"]
 }

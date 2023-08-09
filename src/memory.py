@@ -4,11 +4,12 @@ MAX_REQUEST_SIZE = 1 << 30
 # This is a memory location allocator for variables inside of programs
 
 class block:
-    def __init__(self, size, location, prev=None, nxt=None):
+    def __init__(self, size, location, prev=None, nxt=None, dims=[]):
         self.size = size
         self.location = location
         self.prev = prev
         self.nxt = nxt
+        self.dims = dims
 
 class Memory:
     def __init__(self, segment_size: int, start_loc=0):
@@ -67,7 +68,7 @@ class Memory:
     # Takes in a requested size, and clears out a space in the heap for that block, if possible. 
     # Uses the first fit method, iterating through the free list from the start until the first suitable
     # block of free memory is found.
-    def malloc(self, id, requested_size: int):
+    def malloc(self, id, requested_size: int, dims):
         if id in self.locations: self.free(id)
         if requested_size == 0: return 
         needed = self.roundup(requested_size)
@@ -93,6 +94,7 @@ class Memory:
             new_free = block(size=old_size - needed, location=free_block.location + needed)
             self.rewire_in(prev_free, new_free, next_free)  
             alloc_block = free_block 
+            alloc_block.dims = dims
         #self.ablocks += 1
         self.locations[id] = alloc_block
 

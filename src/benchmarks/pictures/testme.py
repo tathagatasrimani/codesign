@@ -32,8 +32,9 @@ b = a * r
 r += a + 3 * 2
 "]
 		5 [label="z = [[1, 2, 3, 4, 5, 6]]
+d = [[[1], [1]], [[1], [1]]]
 r, q = 2, 3
-g = np.zeros(5)
+g = np.zeros((5, 4, 2))
 loop.start_unroll
 "]
 		"5_calls" [label="np.zeros" shape=box]

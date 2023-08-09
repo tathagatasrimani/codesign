@@ -14,8 +14,9 @@ def main(x, y):
         a = q - 3
         b = a / r
     z = [[1, 2, 3, 4, 5, 6]]
+    d = [[[1], [1]], [[1], [1]]]
     r, q = 2, 3
-    g = np.zeros(5)
+    g = np.zeros((5, 4, 2))
     loop.start_unroll
     for i in range(5):
         z[0][1] = 1

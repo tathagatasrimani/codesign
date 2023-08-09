@@ -139,13 +139,17 @@ def process_compute_element_neighbor(op, neighbor, graph, op_node, context):
     global memory_module
     name = neighbor.value
     bracket_ind = name.find('[')
+    bracket_count = name.count('[')
     if bracket_ind != -1: name = name[:bracket_ind]
     if name in memory_module.locations:
         mem_loc = memory_module.locations[name]
+        mem_size = mem_loc.size
+        for i in range(bracket_count):
+            mem_size /= mem_loc.dims[i]
         text = name + "\nlocation: " + str(mem_loc.location)
         dfg_node_id = dfg_algo.set_id()
         #print(dfg_node_id)
-        anno = "size: " + str(mem_loc.size)
+        anno = "size: " + str(mem_size)
         if (mem_loc.location, mem_loc.size) not in op_node.memory_links:
             make_node(graph.gv_graph, dfg_node_id, text, context, neighbor.operation)
             make_edge(graph.gv_graph, dfg_node_id, op_node.id, annotation=anno)
@@ -174,11 +178,34 @@ def process_compute_element(op, graph, op_node):
         if child.operation == "Regs":
             process_compute_element_neighbor(op, child, graph, op_node, ast.Store)
             
+def get_dims(arr):
+    dims = []
+    if arr[0][0] == '(': # processing tuple
+        dims.append(int(arr[0][1:arr[0].find(',')]))
+        if len(arr) > 2:
+            for dim in arr[1:-1]:
+                dims.append(int(dim[:-1]))
+        if len(arr) > 1:
+            dims.append(int(arr[-1][:-1]))
+    else: # processing array
+        dims.append(int(arr[0][1:-1]))
+        if len(arr) > 2:
+            for dim in arr[1:-1]:
+                dims.append(int(dim[:-1]))
+        if len(arr) > 1:
+            dims.append(int(arr[-1][:-1]))
+    return dims
 
-def process_memory_operation(var_name, size, status):
+def process_memory_operation(mem_op):
+    var_name = mem_op[2]
+    size = int(mem_op[1])
+    status = mem_op[0]
     global memory_module
     if status == "malloc":
-        memory_module.malloc(var_name[:var_name.rfind('_')], size)
+        dims = []
+        if len(mem_op) > 3:
+            dims = get_dims(mem_op[3:])
+        memory_module.malloc(var_name[:var_name.rfind('_')], size, dims=dims)
     elif status == "free":
         memory_module.free(var_name[:var_name.rfind('_')])
 
@@ -280,7 +307,7 @@ def simulate(cfg, node_operations, hw, graphs, first):
             frees = pattern_frees[i]
             #print(mallocs, frees)
             for malloc in mallocs:
-                process_memory_operation(malloc[2], int(malloc[1]), malloc[0])
+                process_memory_operation(malloc)
             # try to unroll after pattern_seeking
             node_iters = iters
             if unroll_at[cur_node.id]:
@@ -328,7 +355,7 @@ def simulate(cfg, node_operations, hw, graphs, first):
         for free in frees:
             #print(free)
             if free[2][:free[2].rfind('_')] in memory_module.locations: 
-                process_memory_operation(free[2], int(free[1]), free[0])
+                process_memory_operation(free)
         mallocs.clear()
         frees.clear()
         i = next_ind
