@@ -155,10 +155,10 @@ def eval_expr(expr, graph, node):
     elif ASTUtils.isSubscript(expr):
         #print("visiting subscript")
         # ignoring the index for now
-        name_id = eval_expr(expr.value, graph, node)
+        #name_id = eval_expr(expr.value, graph, node)
         sub_id = set_id()
         make_node(graph, node, sub_id, astor.to_source(expr)[:-1], type(expr.ctx), "Regs")
-        make_edge(graph, node, name_id[0], sub_id)
+        #make_edge(graph, node, name_id[0], sub_id)
         return [sub_id]
     elif ASTUtils.isStarred(expr):
         return
@@ -336,9 +336,15 @@ def dfg_per_node(node):
     i = len(node_to_symbols[node])-1
     while i >= 0:
         if node_to_symbols[node][i].read:
+            name = node_to_symbols[node][i].value
+            if name.find('[') != -1:
+                name = name[:name.find('[')]
             j = i-1
             while j >= 0:
-                if node_to_symbols[node][j].write and (node_to_symbols[node][j].value == node_to_symbols[node][i].value):
+                other_name = node_to_symbols[node][j].value
+                if other_name.find('[') != -1:
+                    other_name = other_name[:other_name.find('[')]
+                if node_to_symbols[node][j].write and (other_name == name):
                     make_edge(graph, node, node_to_symbols[node][j].num_id, node_to_symbols[node][i].num_id)
                     break
                 j -= 1

@@ -16,6 +16,7 @@ def main(x, y):
     r, q = 2, 3
     loop.start_unroll
     for i in range(5):
+        z[0][1] = 1
         z[0][i] += z[0][i+1]
     loop.stop_unroll
 

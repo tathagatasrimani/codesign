@@ -35,6 +35,8 @@ def main(x, y):
     loop.start_unroll
     for i_1 in range(5):
         print(8, 19)
+        z_1[0][1] = 1
+        print(8, 20)
         z_1[0][i_1] += z_1[0][i_1 + 1]
     loop.stop_unroll
     print('exit scope 1')
@@ -42,12 +44,12 @@ def main(x, y):
 
 def bruh():
     print('enter scope 2')
-    print(1, 22)
-    print(12, 23)
+    print(1, 23)
+    print(12, 24)
     a_2 = 1
     loop.start_unroll
     for i_2 in range(3):
-        print(14, 26)
+        print(14, 27)
         a_2 += i_2
     loop.stop_unroll
     print('exit scope 2')

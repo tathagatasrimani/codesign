@@ -63,6 +63,9 @@ def main(x, y):
     instrument_read(loop, 'loop').start_unroll
     for i_1 in range(5):
         print(8, 19)
+        z_1[0][1] = 1
+        write_instrument_read_sub(z_1[0], 'z_1[0]', 1, None, None, False)
+        print(8, 20)
         z_1[0][instrument_read(i_1, 'i_1')] += instrument_read_sub(
             instrument_read_sub(instrument_read(z_1, 'z_1'), 'z_1', 0, None,
             None, False), 'z_1[0]', instrument_read(i_1, 'i_1') + 1, None,
@@ -75,14 +78,14 @@ def main(x, y):
 
 def bruh():
     print('enter scope 2')
-    print(1, 22)
-    print(12, 23)
+    print(1, 23)
+    print(12, 24)
     a_2 = 1
     write_instrument_read(a_2, 'a_2')
     print('malloc', sys.getsizeof(a_2), 'a_2')
     instrument_read(loop, 'loop').start_unroll
     for i_2 in range(3):
-        print(14, 26)
+        print(14, 27)
         a_2 += instrument_read(i_2, 'i_2')
         write_instrument_read(a_2, 'a_2')
     instrument_read(loop, 'loop').stop_unroll
