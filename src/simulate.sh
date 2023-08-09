@@ -1,6 +1,6 @@
 #!/bin/sh
 
-FILE_DIR=/nfs/pool0/pmcewen/codesign/codesign/src # change path name for local computer
+FILE_DIR=/Users/PatrickMcEwen/git_container/codesign/src # change path name for local computer
 # arguments like this: ./simulate.sh benchmarks/models/<name> <name>
 if [ $1 ]; then
     cd $FILE_DIR

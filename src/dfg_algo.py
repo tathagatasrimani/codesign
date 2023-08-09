@@ -227,29 +227,25 @@ def eval_stmt(stmt, graph, node):
         #print("visiting augassign")
         value_ids = eval_expr(stmt.value, graph, node)
         target = stmt.target
-        while type(target) == ast.Attribute or type(target) == ast.Subscript:
-            # this should be a name
-            target = target.value
         if not target or not value_ids: return
+        stmt.target.ctx = ast.Load()
+        target_read_id = eval_expr(stmt.target, graph, node)
+        stmt.target.ctx = ast.Store()
         if len(value_ids) > 1:
             for value_id in value_ids:
-                target_read_id = set_id()
-                make_node(graph, node, target_read_id, target.id, ast.Load, "Regs")
                 op_id = set_id()
                 opname = ASTUtils.expr_to_opname(stmt.op)
                 make_node(graph, node, op_id, hardwareModel.op2sym_map[opname], None, opname)
                 make_edge(graph, node, value_id, op_id)
-                make_edge(graph, node, target_read_id, op_id)
+                make_edge(graph, node, target_read_id[0], op_id)
                 target_write_id = eval_expr(stmt.target, graph, node)
                 make_edge(graph, node, op_id, target_write_id[0])
         else:
-            target_read_id = set_id()
-            make_node(graph, node, target_read_id, target.id, ast.Load, "Regs")
             op_id = set_id()
             opname = ASTUtils.expr_to_opname(stmt.op)
             make_node(graph, node, op_id, hardwareModel.op2sym_map[opname], None, opname)
             make_edge(graph, node, value_ids[0], op_id)
-            make_edge(graph, node, target_read_id, op_id)
+            make_edge(graph, node, target_read_id[0], op_id)
             target_write_id = eval_expr(stmt.target, graph, node)
             make_edge(graph, node, op_id, target_write_id[0])
     elif ASTUtils.isAnnAssign(stmt):
@@ -312,7 +308,7 @@ def make_node(graph, cfg_node, id, name, ctx, opname):
     graph.node(id, name + '\n' + annotation)
     graphs[cfg_node].roots.add(dfg_node)
     graphs[cfg_node].id_to_Node[id] = dfg_node
-    node_to_symbols[cfg_node].append(symbol(name, id, type(ctx) == ast.Store, type(ctx) == ast.Load))
+    node_to_symbols[cfg_node].append(symbol(name, id, ctx == ast.Store, ctx == ast.Load))
 
 # edge for a non-literal
 def make_edge(graph, node, source_id, target_id, annotation=""):
@@ -335,6 +331,7 @@ def dfg_per_node(node):
     # walk backwards over statements, link reads to previous writes
     i = len(node_to_symbols[node])-1
     while i >= 0:
+        print(node_to_symbols[node][i].read, node_to_symbols[node][i].write, node_to_symbols[node][i].value)
         if node_to_symbols[node][i].read:
             name = node_to_symbols[node][i].value
             if name.find('[') != -1:
@@ -344,6 +341,7 @@ def dfg_per_node(node):
                 other_name = node_to_symbols[node][j].value
                 if other_name.find('[') != -1:
                     other_name = other_name[:other_name.find('[')]
+                print(name, other_name)
                 if node_to_symbols[node][j].write and (other_name == name):
                     make_edge(graph, node, node_to_symbols[node][j].num_id, node_to_symbols[node][i].num_id)
                     break

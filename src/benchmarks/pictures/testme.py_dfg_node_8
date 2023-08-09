@@ -10,7 +10,7 @@ Write"]
 	84 -> 85 [label=""]
 	86 [label="z[0][i + 1]
 Read"]
-	87 [label="z
+	87 [label="z[0][i]
 Read"]
 	88 [label="+
 "]
@@ -19,4 +19,6 @@ Read"]
 	89 [label="z[0][i]
 Write"]
 	88 -> 89 [label=""]
+	85 -> 87 [label=""]
+	85 -> 86 [label=""]
 }

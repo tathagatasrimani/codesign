@@ -85,7 +85,7 @@ class NameScopeInstrumentor(ast.NodeTransformer):
         return ProgramInstrumentor.mkblock([stmt, node])
 
     def visit_Call(self,node):
-        report("visiting function call",node)
+        #report("visiting function call",node)
         if node.args: node.args = self.visit_Stmts(node.args)
         if node.keywords: node.keywords = self.visit_Stmts(node.keywords)
         if type(node.func) == ast.Attribute: node.func = self.visit(node.func)
@@ -96,7 +96,7 @@ class NameScopeInstrumentor(ast.NodeTransformer):
         self.dont_change_names.add(node.name)
 
         stmt1 = text_to_ast('print(' + str(lineno_to_node[node.lineno]) + ',' + str(node.lineno) + ')')
-        print("visiting function def", node)
+        #print("visiting function def", node)
         scope = self.enter_and_exits()
         cur_scope = self.scope[-1]
         self.valid_scopes.add(cur_scope)
@@ -108,7 +108,7 @@ class NameScopeInstrumentor(ast.NodeTransformer):
         node.body = self.visit_Stmts(node.body)
         if cur_scope in self.valid_scopes: self.valid_scopes.remove(cur_scope)
         self.clean_up_scope(cur_scope)
-        report("visiting func def",node)
+        #report("visiting func def",node)
         new_body = [scope[0], stmt1] + stmts + node.body + [scope[1]]
         return ast.FunctionDef(node.name,args=node.args, body=new_body, \
                                decorator_list=node.decorator_list, lineno=node.lineno)
@@ -121,11 +121,11 @@ class NameScopeInstrumentor(ast.NodeTransformer):
         if node.vararg: node.vararg = self.visit(node.vararg)
         if node.kwarg: node.kwarg = self.visit(node.kwarg)
         if node.kw_defaults: node.kw_defaults = self.visit_Stmts(node.kw_defaults)
-        report("visiting arguments", node)
+        #report("visiting arguments", node)
         return node
     
     def visit_arg(self, node):
-        report("visiting arg", node)
+        #report("visiting arg", node)
         if node.arg not in self.var_scopes or len(self.var_scopes[node.arg]) == 0:
             self.var_scopes[node.arg] = deque([self.scope[-1]])
         if node.arg not in self.dont_change_names: node.arg = self.get_name(node.arg, str(self.var_scopes[node.arg][-1]))
@@ -139,7 +139,7 @@ class NameScopeInstrumentor(ast.NodeTransformer):
         return ProgramInstrumentor.mkblock(stmts + [node])
 
     def visit_Name(self, node):
-        report("visiting name", node)
+        #report("visiting name", node)
         if node.id in self.dont_change_names: return node
         if (type(node.ctx) == ast.Store):
             if node.id not in self.var_scopes:
@@ -189,7 +189,7 @@ class ProgramInstrumentor(ast.NodeTransformer):
     def visit_Assign(self,node):
         node.targets = self.visit_Stmts(node.targets)
         node.value = self.visit(node.value)
-        report("visiting assignment",node)
+        #report("visiting assignment",node)
         block = []
         if type(node.targets[0]) == ast.Name:
             block = [node, text_to_ast('write_')] + self.name_extras(node.targets[0], node.targets[0].id)
@@ -208,7 +208,7 @@ class ProgramInstrumentor(ast.NodeTransformer):
         node.target = self.visit(node.target)
         node.op = self.visit(node.op)
         node.value = self.visit(node.value)
-        report("visiting augmented assignment",node)
+        #report("visiting augmented assignment",node)
         block = []
         if type(node.target) == ast.Name:
             new_line = ast.Name(node.target.id, ctx=ast.Load())
@@ -218,24 +218,24 @@ class ProgramInstrumentor(ast.NodeTransformer):
             slice = copy.deepcopy(node.target.slice)
             new_line = ast.Subscript(val, slice, ctx=ast.Load())
             new_node = ast.AugAssign(node.target, node.op, node.value)
-            print(ast_to_text(new_node))
+            #print(ast_to_text(new_node))
             block = [new_node, text_to_ast('write_'), self.visit(new_line)]
-            print(ast_to_text(new_node))
-            print(ast_to_text(ProgramInstrumentor.mkblock(block)))
+            #print(ast_to_text(new_node))
+            #print(ast_to_text(ProgramInstrumentor.mkblock(block)))
         else:
-            print("hello")
+            #print("hello")
             block = [node]
         return ProgramInstrumentor.mkblock(block)
 
     def visit_Call(self,node):
-        report("visiting function call",node)
+        #report("visiting function call",node)
         if type(node.func) == ast.Name and node.func.id == "print": return node
         node.args = self.visit_Stmts(node.args)
         if type(node.func) == ast.Attribute: node.func = self.visit(node.func)
         return ProgramInstrumentor.mkblock([node])
 
     def visit_Name(self, node):
-        report("visiting name", node)
+        #report("visiting name", node)
         if (type(node.ctx) == ast.Load):
             return ast.Call(ast.Name('instrument_read', ast.Load()), args=[ 
                                 node, 
@@ -244,7 +244,7 @@ class ProgramInstrumentor(ast.NodeTransformer):
         return node
 
     def visit_Subscript(self, node: Subscript) -> Any:
-        report("visiting subscript", node)
+        #report("visiting subscript", node)
         if (type(node.ctx) == ast.Store):
             node.value.ctx = ast.Store()
             node.value = self.visit(node.value)
@@ -263,11 +263,11 @@ class ProgramInstrumentor(ast.NodeTransformer):
                 is_slice = "True"
                 node.slice = ast.Name(id="None", ctx=ast.Load())
             retval = ast.Call(ast.Name('instrument_read_sub', ast.Load()), args=[node.value, ast.Constant(t), node.slice, ast.Name(id=lower, ctx=ast.Load()), ast.Name(id=upper, ctx=ast.Load()), ast.Name(is_slice, ast.Load())], keywords=[])
-            print(ast_to_text(retval))
+            #print(ast_to_text(retval))
             return retval
         
     def visit_Attribute(self, node: Attribute) -> Any:
-        report("visiting attribute", node)
+        #report("visiting attribute", node)
         node.value = self.visit(node.value)
         return node
     
