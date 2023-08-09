@@ -1,6 +1,7 @@
 digraph "clustermain.c" {
 	graph [label="main.c"]
 	1 [label="from loop import loop
+import numpy as np
 def main(x, y):...
 def bruh():...
 if __name__ == '__main__':
@@ -32,8 +33,11 @@ r += a + 3 * 2
 "]
 		5 [label="z = [[1, 2, 3, 4, 5, 6]]
 r, q = 2, 3
+g = np.zeros(5)
 loop.start_unroll
 "]
+		"5_calls" [label="np.zeros" shape=box]
+		5 -> "5_calls" [label=calls style=dashed]
 		7 [label="for i in range(5):
 "]
 		8 [label="z[0][1] = 1

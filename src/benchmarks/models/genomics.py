@@ -1,5 +1,5 @@
 # Python Implementation Denovo Single Gene Nanopore Sequencing by DARWIN-Whole Genome Alignment Workload
-
+import numpy as np
 path = '/nfs/pool0/pmcewen/codesign/codesign/src'
 
 def read_fasta(fasta_file):

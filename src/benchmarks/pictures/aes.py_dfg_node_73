@@ -1,19 +1,10 @@
 digraph {
-	791 [label="source code:
+	768 [label="source code:
 s[i][j] = Sbox[s[i][j]]
 "]
-	792 [label="Sbox
+	769 [label="Sbox[s[i][j]]
 Read"]
-	793 [label="Sbox[s[i][j]]
-Read"]
-	792 -> 793 [label=""]
-	794 [label="s
-Read"]
-	795 [label="s[i]
-Read"]
-	794 -> 795 [label=""]
-	796 [label="s[i][j]
+	770 [label="s[i][j]
 Write"]
-	795 -> 796 [label=""]
-	793 -> 796 [label=""]
+	769 -> 770 [label=""]
 }

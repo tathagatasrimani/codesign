@@ -212,6 +212,7 @@ def simulate(cfg, node_operations, hw, graphs, first):
     i = 0
     frees = []
     mallocs = []
+    #print(data_path)
     i, pattern_seek, max_iters = find_next_data_path_index(i, mallocs, frees, data_path)
     while i < len(data_path):
         next_ind, pattern_seek_next, max_iters_next = find_next_data_path_index(i+1, mallocs, frees, data_path)
@@ -232,9 +233,8 @@ def simulate(cfg, node_operations, hw, graphs, first):
             #print("entering pattern seek")
             pattern_seek = False
             j = next_ind
-            while not pattern_seek_next:
+            while (not pattern_seek_next) and (j+1 < len(data_path)):
                 #print("hello")
-                if len(data_path) <= j: break
                 next_node_id = data_path[j][0]
                 pattern_nodes.append(next_node_id)
                 pattern_seek = pattern_seek_next
@@ -249,7 +249,7 @@ def simulate(cfg, node_operations, hw, graphs, first):
                 pattern_nodes = [node_id]
             #print("found pattern")
             pattern_ind = 0
-            while j < len(data_path):
+            while j+1 < len(data_path):
                 next_node_id = data_path[j][0]
                 if next_node_id != pattern_nodes[pattern_ind]: break
                 pattern_ind += 1
@@ -264,8 +264,7 @@ def simulate(cfg, node_operations, hw, graphs, first):
             if iters > 0: pattern_seek = True
         elif unroll_at[cur_node.id]:
             j = next_ind
-            while True:
-                if len(data_path) <= j: break
+            while j+1 < len(data_path):
                 next_node_id = data_path[j][0]
                 if next_node_id != node_id: break
                 iters += 1
@@ -356,7 +355,7 @@ def set_data_path():
             item = split_lines[i]
             if len(item) < 2: continue
             if item[0] == "malloc":
-                valid_names.add(item[-1])
+                valid_names.add(item[2])
             if (item[-2] != "Read" and item[-2] != "Write"): continue
             var_name = item[0]
             if var_name not in valid_names: continue 
@@ -372,7 +371,7 @@ def set_data_path():
 
         for i in range(len(split_lines)):
             item = split_lines[i]
-            if not (len(item) == 3 and item[0] == "malloc" and item[2] not in vars_allocated):
+            if not (len(item) >= 3 and item[0] == "malloc" and item[2] not in vars_allocated):
                 f_new.write(l[i] + '\n')
             vars_to_pop = []
             for var_name in where_to_free:
@@ -391,7 +390,7 @@ def set_data_path():
                 data_path.append(item)      
             elif len(item) == 1 and item[0].startswith('pattern_seek'):
                 data_path.append(item)
-            elif len(item) == 3 and item[0] == "malloc":
+            elif len(item) >= 3 and item[0] == "malloc":
                 if item[2] in vars_allocated:
                     if int(item[1]) == vars_allocated[item[2]]: 
                         continue

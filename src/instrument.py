@@ -181,7 +181,20 @@ class ProgramInstrumentor(ast.NodeTransformer):
         return list(map(lambda stmt: self.visit(stmt), stmts))
     
     def name_extras(self, node, var_name):
-        stmt1 = text_to_ast('print(\'malloc\', sys.getsizeof(' + var_name + '), \'' + node.id + '\')')
+        stmt1 = text_to_ast('if type(' + node.id + ') == np.ndarray:\n' + 
+                            '   print(\'malloc\', sys.getsizeof(' + var_name + '), \'' + node.id + '\', ' + node.id + '.shape)\n' + 
+                            'elif type(' + node.id + ') == list:\n' +
+                            '   dims = []\n' +
+                            '   tmp = ' + node.id + '\n'
+                            '   while type(tmp) == list:\n'
+                            '      dims.append(len(tmp))\n' + 
+                            '      if len(tmp) > 0:\n' + 
+                            '         tmp = tmp[0]\n' + 
+                            '      else:\n' +
+                            '         tmp = None\n' + 
+                            '   print(\'malloc\', sys.getsizeof(' + var_name + '), \'' + node.id + '\', dims)\n' + 
+                            'else:\n' +
+                            '   print(\'malloc\', sys.getsizeof(' + var_name + '), \'' + node.id + '\')')
         new_line = ast.Name(node.id, ctx=ast.Load())
         return [self.visit(new_line), stmt1]
     

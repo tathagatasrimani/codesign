@@ -4,6 +4,7 @@ from random import random
 from random import choice
 import time
 from loop import loop
+import numpy as np
 # Implementation of directed graphs with weighted edges
 
 class CS161Vertex:

@@ -1,34 +1,23 @@
 digraph {
-	675 [label="source code:
+	669 [label="source code:
 byte = self.round_keys[i - 4][j] ^ self.round_keys[i - 1][j]
 self.round_keys[i].append(byte)
 "]
-	676 [label="self.round_keys
+	670 [label="self.round_keys[i - 4][j]
 Read"]
-	677 [label="self.round_keys[i - 4]
+	671 [label="self.round_keys[i - 1][j]
 Read"]
-	676 -> 677 [label=""]
-	678 [label="self.round_keys[i - 4][j]
-Read"]
-	677 -> 678 [label=""]
-	679 [label="self.round_keys
-Read"]
-	680 [label="self.round_keys[i - 1]
-Read"]
-	679 -> 680 [label=""]
-	681 [label="self.round_keys[i - 1][j]
-Read"]
-	680 -> 681 [label=""]
-	682 [label="^
+	672 [label="^
 "]
-	678 -> 682 [label=""]
-	681 -> 682 [label=""]
-	683 [label="byte
+	670 -> 672 [label=""]
+	671 -> 672 [label=""]
+	673 [label="byte
 Write"]
-	682 -> 683 [label=""]
-	684 [label="self.round_keys[i].append(byte)
+	672 -> 673 [label=""]
+	674 [label="self.round_keys[i].append(byte)
 "]
-	685 [label="byte
+	675 [label="byte
 Read"]
-	685 -> 684 [label=""]
+	675 -> 674 [label=""]
+	673 -> 675 [label=""]
 }

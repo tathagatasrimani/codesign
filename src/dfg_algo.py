@@ -331,7 +331,7 @@ def dfg_per_node(node):
     # walk backwards over statements, link reads to previous writes
     i = len(node_to_symbols[node])-1
     while i >= 0:
-        print(node_to_symbols[node][i].read, node_to_symbols[node][i].write, node_to_symbols[node][i].value)
+        #print(node_to_symbols[node][i].read, node_to_symbols[node][i].write, node_to_symbols[node][i].value)
         if node_to_symbols[node][i].read:
             name = node_to_symbols[node][i].value
             if name.find('[') != -1:
@@ -341,7 +341,7 @@ def dfg_per_node(node):
                 other_name = node_to_symbols[node][j].value
                 if other_name.find('[') != -1:
                     other_name = other_name[:other_name.find('[')]
-                print(name, other_name)
+                #print(name, other_name)
                 if node_to_symbols[node][j].write and (other_name == name):
                     make_edge(graph, node, node_to_symbols[node][j].num_id, node_to_symbols[node][i].num_id)
                     break

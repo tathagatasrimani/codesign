@@ -1,25 +1,25 @@
 digraph {
-	647 [label="source code:
+	645 [label="source code:
 self.round_keys.append([])
 if i % 4 == 0:
 "]
-	648 [label="self.round_keys.append([])
+	646 [label="self.round_keys.append([])
 "]
-	649 [label="[]
+	647 [label="[]
 "]
-	649 -> 648 [label=""]
-	650 [label="i
+	647 -> 646 [label=""]
+	648 [label="i
 Read"]
-	651 [label=4
+	649 [label=4
 ]
-	652 [label="%
+	650 [label="%
+"]
+	648 -> 650 [label=""]
+	649 -> 650 [label=""]
+	651 [label=0
+]
+	652 [label="==
 "]
 	650 -> 652 [label=""]
 	651 -> 652 [label=""]
-	653 [label=0
-]
-	654 [label="==
-"]
-	652 -> 654 [label=""]
-	653 -> 654 [label=""]
 }

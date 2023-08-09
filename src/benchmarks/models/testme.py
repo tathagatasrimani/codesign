@@ -1,4 +1,5 @@
 from loop import loop
+import numpy as np
 
 def main(x, y):
     q = 0.5 + x * y + 1 / 2
@@ -14,6 +15,7 @@ def main(x, y):
         b = a / r
     z = [[1, 2, 3, 4, 5, 6]]
     r, q = 2, 3
+    g = np.zeros(5)
     loop.start_unroll
     for i in range(5):
         z[0][1] = 1

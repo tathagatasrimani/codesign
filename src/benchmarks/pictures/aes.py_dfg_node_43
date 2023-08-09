@@ -1,25 +1,23 @@
 digraph {
-	696 [label="source code:
+	683 [label="source code:
 self.plain_state = text2matrix(plaintext)
 self.__add_round_key(self.plain_state, self.round_keys[:4])
 "]
-	697 [label="text2matrix(plaintext)
+	684 [label="text2matrix(plaintext)
 "]
-	698 [label="plaintext
+	685 [label="plaintext
 Read"]
-	698 -> 697 [label=""]
-	699 [label="self.plain_state
+	685 -> 684 [label=""]
+	686 [label="self.plain_state
 Write"]
-	697 -> 699 [label=""]
-	700 [label="self.__add_round_key(self.plain_state, self.round_keys[:4])
+	684 -> 686 [label=""]
+	687 [label="self.__add_round_key(self.plain_state, self.round_keys[:4])
 "]
-	701 [label="self.plain_state
+	688 [label="self.plain_state
 Read"]
-	701 -> 700 [label=""]
-	702 [label="self.round_keys
+	688 -> 687 [label=""]
+	689 [label="self.round_keys[:4]
 Read"]
-	703 [label="self.round_keys[:4]
-Read"]
-	702 -> 703 [label=""]
-	703 -> 700 [label=""]
+	689 -> 687 [label=""]
+	686 -> 688 [label=""]
 }

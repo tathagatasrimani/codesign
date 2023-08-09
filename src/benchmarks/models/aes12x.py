@@ -1,4 +1,5 @@
 from loop import loop
+import numpy as np
 Sbox = (
     0x63,
     0x7C,

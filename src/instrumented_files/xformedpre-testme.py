@@ -1,42 +1,45 @@
 import sys
 from instrument_lib import *
 from loop import loop
+import numpy as np
 
 
 def main(x, y):
     print('enter scope 1')
-    print(1, 3)
+    print(1, 4)
     x_1 = x
     y_1 = y
-    print(3, 4)
-    q_1 = 0.5 + x_1 * y_1 + 1 / 2
     print(3, 5)
-    r_1 = x_1 + y_1
+    q_1 = 0.5 + x_1 * y_1 + 1 / 2
     print(3, 6)
-    q_1 = q_1 * r_1 - 3
+    r_1 = x_1 + y_1
     print(3, 7)
+    q_1 = q_1 * r_1 - 3
+    print(3, 8)
     w_1 = q_1 + r_1
     if w_1 < 0:
-        print(4, 9)
-        a_1 = q_1 + 3
         print(4, 10)
-        b_1 = a_1 * r_1
+        a_1 = q_1 + 3
         print(4, 11)
+        b_1 = a_1 * r_1
+        print(4, 12)
         r_1 += a_1 + 3 * 2
     else:
-        print(6, 13)
-        a_1 = q_1 - 3
         print(6, 14)
+        a_1 = q_1 - 3
+        print(6, 15)
         b_1 = a_1 / r_1
-    print(5, 15)
-    z_1 = [[1, 2, 3, 4, 5, 6]]
     print(5, 16)
+    z_1 = [[1, 2, 3, 4, 5, 6]]
+    print(5, 17)
     r_1, q_1 = 2, 3
+    print(5, 18)
+    g_1 = np.zeros(5)
     loop.start_unroll
     for i_1 in range(5):
-        print(8, 19)
+        print(8, 21)
         z_1[0][1] = 1
-        print(8, 20)
+        print(8, 22)
         z_1[0][i_1] += z_1[0][i_1 + 1]
     loop.stop_unroll
     print('exit scope 1')
@@ -44,12 +47,12 @@ def main(x, y):
 
 def bruh():
     print('enter scope 2')
-    print(1, 23)
-    print(12, 24)
+    print(1, 25)
+    print(12, 26)
     a_2 = 1
     loop.start_unroll
     for i_2 in range(3):
-        print(14, 27)
+        print(14, 29)
         a_2 += i_2
     loop.stop_unroll
     print('exit scope 2')

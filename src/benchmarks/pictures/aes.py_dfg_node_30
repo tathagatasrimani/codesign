@@ -1,19 +1,19 @@
 digraph {
-	641 [label="source code:
+	639 [label="source code:
 for i in range(4, 4 * 11):
 "]
-	642 [label="range(4, 4 * 11)
+	640 [label="range(4, 4 * 11)
 "]
-	643 [label=4
+	641 [label=4
 ]
-	643 -> 642 [label=""]
-	644 [label=4
+	641 -> 640 [label=""]
+	642 [label=4
 ]
-	645 [label=11
+	643 [label=11
 ]
-	646 [label="*
+	644 [label="*
 "]
-	644 -> 646 [label=""]
-	645 -> 646 [label=""]
-	646 -> 642 [label=""]
+	642 -> 644 [label=""]
+	643 -> 644 [label=""]
+	644 -> 640 [label=""]
 }

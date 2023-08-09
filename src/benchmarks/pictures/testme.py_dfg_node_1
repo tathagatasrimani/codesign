@@ -1,6 +1,7 @@
 digraph {
 	0 [label="source code:
 from loop import loop
+import numpy as np
 def main(x, y):...
 def bruh():...
 if __name__ == '__main__':

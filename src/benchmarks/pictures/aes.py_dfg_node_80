@@ -1,19 +1,10 @@
 digraph {
-	803 [label="source code:
+	777 [label="source code:
 s[i][j] = InvSbox[s[i][j]]
 "]
-	804 [label="InvSbox
+	778 [label="InvSbox[s[i][j]]
 Read"]
-	805 [label="InvSbox[s[i][j]]
-Read"]
-	804 -> 805 [label=""]
-	806 [label="s
-Read"]
-	807 [label="s[i]
-Read"]
-	806 -> 807 [label=""]
-	808 [label="s[i][j]
+	779 [label="s[i][j]
 Write"]
-	807 -> 808 [label=""]
-	805 -> 808 [label=""]
+	778 -> 779 [label=""]
 }
