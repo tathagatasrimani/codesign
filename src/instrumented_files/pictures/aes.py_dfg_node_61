@@ -1,0 +1,16 @@
+digraph {
+	766 [label="source code:
+s_8[i_8][j_8] ^= k_8[i_8][j_8]
+"]
+	767 [label="k_8[i_8][j_8]
+Read"]
+	768 [label="s_8[i_8][j_8]
+Read"]
+	769 [label="^
+"]
+	767 -> 769 [label=""]
+	768 -> 769 [label=""]
+	770 [label="s_8[i_8][j_8]
+Write"]
+	769 -> 770 [label=""]
+}

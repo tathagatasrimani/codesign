@@ -1,4 +1,4 @@
-from _ast import Attribute, AugAssign, Subscript, arguments, keyword
+from _ast import Assign, Attribute, AugAssign, FunctionDef, Subscript, arguments, keyword
 import ast
 from typing import Any
 import astor
@@ -100,6 +100,66 @@ class NameScopeInstrumentor(ast.NodeTransformer):
         scope = self.enter_and_exits()
         cur_scope = self.scope[-1]
         self.valid_scopes.add(cur_scope)
+        node.body = self.visit_Stmts(node.body)
+        if cur_scope in self.valid_scopes: self.valid_scopes.remove(cur_scope)
+        self.clean_up_scope(cur_scope)
+        #report("visiting func def",node)
+        new_body = [scope[0], stmt1] + node.body + [scope[1]]
+        return ast.FunctionDef(node.name,args=node.args, body=new_body, \
+                               decorator_list=node.decorator_list, lineno=node.lineno)
+    
+    def visit_Return(self, node):
+        if node.value: node.value = self.visit(node.value)
+        stmts = []
+        for scope in self.valid_scopes:
+            stmts.append(text_to_ast("print(\'exit scope " + str(scope) + "\')"))
+        return ProgramInstrumentor.mkblock(stmts + [node])
+        
+class NameOnlyInstrumentor(ast.NodeTransformer):
+    def __init__(self) -> None:
+        super().__init__()
+        self.scope = deque([0])
+        self.next_scope = 1
+        self.var_scopes = {}
+        self.valid_scopes = set()
+        self.dont_change_names = set(("__name__", "__main__", "loop", "range", "self", "time", "np", "int", "str", "math", "heapdict"))
+    
+    def get_name(self, name, scope):
+        return name + "_" + scope
+
+    @staticmethod
+    def mkblock(stmts):
+        block = ast.Module(stmts)
+        ast.fix_missing_locations(block)
+        return block
+    
+    def clean_up_scope(self, cur_scope):
+        for var in self.var_scopes:
+            if len(self.var_scopes[var]) > 0 and self.var_scopes[var][-1] == cur_scope: self.var_scopes[var].pop()
+        self.scope.pop()
+    
+    def enter_and_exits(self):
+        self.scope.append(self.next_scope)
+        self.next_scope += 1
+        stmt = [text_to_ast("print(\'enter scope " + str(self.scope[-1]) + "\')"), text_to_ast("print(\'exit scope " + str(self.scope[-1]) + "\')")]
+        return stmt
+
+    def visit_Stmts(self,stmts):
+        return list(map(lambda stmt: self.visit(stmt), stmts))
+
+    def visit_Call(self,node):
+        #report("visiting function call",node)
+        if node.args: node.args = self.visit_Stmts(node.args)
+        if node.keywords: node.keywords = self.visit_Stmts(node.keywords)
+        if type(node.func) == ast.Attribute: node.func = self.visit(node.func)
+        return ProgramInstrumentor.mkblock([node])
+
+    def visit_FunctionDef(self,node):
+        self.dont_change_names.add(node.name)
+        #print("visiting function def", node)
+        scope = self.enter_and_exits()
+        cur_scope = self.scope[-1]
+        self.valid_scopes.add(cur_scope)
         stmts = []
         for arg in node.args.args:
             name = ast.Name(id=arg.arg, ctx=ast.Store())
@@ -109,7 +169,7 @@ class NameScopeInstrumentor(ast.NodeTransformer):
         if cur_scope in self.valid_scopes: self.valid_scopes.remove(cur_scope)
         self.clean_up_scope(cur_scope)
         #report("visiting func def",node)
-        new_body = [scope[0], stmt1] + stmts + node.body + [scope[1]]
+        new_body = stmts + node.body
         return ast.FunctionDef(node.name,args=node.args, body=new_body, \
                                decorator_list=node.decorator_list, lineno=node.lineno)
     
@@ -130,13 +190,6 @@ class NameScopeInstrumentor(ast.NodeTransformer):
             self.var_scopes[node.arg] = deque([self.scope[-1]])
         if node.arg not in self.dont_change_names: node.arg = self.get_name(node.arg, str(self.var_scopes[node.arg][-1]))
         return node
-    
-    def visit_Return(self, node):
-        if node.value: node.value = self.visit(node.value)
-        stmts = []
-        for scope in self.valid_scopes:
-            stmts.append(text_to_ast("print(\'exit scope " + str(scope) + "\')"))
-        return ProgramInstrumentor.mkblock(stmts + [node])
 
     def visit_Name(self, node):
         #report("visiting name", node)
@@ -193,6 +246,8 @@ class ProgramInstrumentor(ast.NodeTransformer):
                             '      else:\n' +
                             '         tmp = None\n' + 
                             '   print(\'malloc\', sys.getsizeof(' + var_name + '), \'' + node.id + '\', dims)\n' + 
+                            'elif type(' + node.id + ') == tuple:\n' + 
+                            '   print(\'malloc\', sys.getsizeof(' + var_name + '), \'' + node.id + '\', [len(' + node.id + ')])\n'
                             'else:\n' +
                             '   print(\'malloc\', sys.getsizeof(' + var_name + '), \'' + node.id + '\')')
         new_line = ast.Name(node.id, ctx=ast.Load())
@@ -289,32 +344,39 @@ def instrument_and_run(filepath:str):
     global cfg
     with open(filepath, 'r') as src_file:
         src = src_file.read()
-        cfg = CFGBuilder().build_from_file('main.c', filepath)
-        for node in cfg:
-            for statement in node.statements:
-                lineno_to_node[statement.lineno] = node.id
         tree = ast.parse(src, mode='exec')
         names = filepath.split('/')
         dest_filepath = "instrumented_files/xformed-%s" % names[-1]
-        test_instr = NameScopeInstrumentor()
-        first_tree = test_instr.visit(tree)
-        with open("instrumented_files/xformedpre-%s" % names[-1], 'w') as fh:
-            fh.write("import sys\n")
-            fh.write("from instrument_lib import *\n")
-            fh.write(astor.to_source(first_tree))
-            #inject print statement for total memory size"""
-        with open("instrumented_files/xformedpre-%s" % names[-1], 'r') as new_src:
-            src = new_src.read()
-            tree = ast.parse(src, mode='exec')
-            instr = ProgramInstrumentor()
-            rewrite_tree = instr.visit(tree)
-            with open(dest_filepath, 'w') as f:
-                f.write("import sys\n")
-                f.write("from instrument_lib import *\n")
-                for stmt in instr.preamble:
-                    f.write(ast_to_text(stmt)+"\n")
-                f.write(astor.to_source(rewrite_tree))
+        name_instr = NameOnlyInstrumentor()
+        tree = name_instr.visit(tree)
+        with open("instrumented_files/xformedname-%s" % names[-1], 'w') as f:
+            f.write(astor.to_source(tree))
+        with open("instrumented_files/xformedname-%s" % names[-1], 'r') as name_f:
+            name_src = name_f.read()
+            name_tree = ast.parse(name_src, mode='exec')
+            cfg = CFGBuilder().build_from_file('main.c', "instrumented_files/xformedname-%s" % names[-1])
+            for node in cfg:
+                for statement in node.statements:
+                    lineno_to_node[statement.lineno] = node.id
+            test_instr = NameScopeInstrumentor()
+            first_tree = test_instr.visit(name_tree)
+            with open("instrumented_files/xformedpre-%s" % names[-1], 'w') as fh:
+                fh.write("import sys\n")
+                fh.write("from instrument_lib import *\n")
+                fh.write(astor.to_source(first_tree))
                 #inject print statement for total memory size"""
+            with open("instrumented_files/xformedpre-%s" % names[-1], 'r') as new_src:
+                src = new_src.read()
+                tree = ast.parse(src, mode='exec')
+                instr = ProgramInstrumentor()
+                rewrite_tree = instr.visit(tree)
+                with open(dest_filepath, 'w') as f:
+                    f.write("import sys\n")
+                    f.write("from instrument_lib import *\n")
+                    for stmt in instr.preamble:
+                        f.write(ast_to_text(stmt)+"\n")
+                    f.write(astor.to_source(rewrite_tree))
+                    #inject print statement for total memory size"""
 
 
 instrument_and_run(sys.argv[1])

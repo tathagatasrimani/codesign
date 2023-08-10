@@ -1,0 +1,10 @@
+digraph {
+	4 [label="source code:
+for i_0 in range(2):
+"]
+	5 [label="range(2)
+"]
+	6 [label=2
+]
+	6 -> 5 [label=""]
+}

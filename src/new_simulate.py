@@ -41,6 +41,7 @@ writes = 0
 total_read_size = 0
 total_write_size = 0
 max_regs_inuse = 0
+max_mem_inuse = 0
 
 def find_nearest_mem_to_scale(num):
     if num < 512: return 512
@@ -86,8 +87,9 @@ def func_calls(expr, calls):
         func_calls(sub_expr, calls)
 
 def get_hw_need(state, hw_spec):
-    global max_regs_inuse
+    global max_regs_inuse, max_mem_inuse
     hw_need = HardwareModel(0,0,mem_layers, pitch, transistor_size, cache_size)
+    mem_in_use = 0
     for op in state:
         if not op.operation: continue
         if op.operation != "Regs":
@@ -97,10 +99,11 @@ def get_hw_need(state, hw_spec):
             hw_op_node = new_graph.id_to_Node[compute_id]
             op.compute_id = compute_id
             #print(op.value)
-            process_compute_element(op, new_graph, hw_op_node)
+            mem_in_use += process_compute_element(op, new_graph, hw_op_node)
         hw_need.hw_allocated[op.operation] += 1
         hw_spec.compute_operation_totals[op.operation] += 1
     max_regs_inuse = min(hw_spec.hw_allocated["Regs"], max(max_regs_inuse, hw_need.hw_allocated["Regs"]))
+    max_mem_inuse = max(max_mem_inuse, mem_in_use)
     return hw_need.hw_allocated
 
 def cycle_sim(hw_inuse, hw, max_cycles):
@@ -135,17 +138,40 @@ def cycle_sim(hw_inuse, hw, max_cycles):
         cycles += 1
     return node_power_sum
 
+def get_matching_bracket_count(name):
+    if name.find('[') == -1:
+        return 0
+    bracket_count = 0
+    name = name[name.find('[')+1:]
+    bracket_depth = 1
+    while len(name) > 0:
+        front_ind = name.find('[')
+        back_ind = name.find(']')
+        if back_ind == -1: break
+        if front_ind != -1 and front_ind < back_ind:
+            bracket_depth += 1
+            name = name[front_ind+1:]
+        else:
+            bracket_depth -= 1
+            name = name[back_ind+1:]
+            if bracket_depth == 0: bracket_count += 1
+    return bracket_count
+
 def process_compute_element_neighbor(op, neighbor, graph, op_node, context):
     global memory_module
     name = neighbor.value
+    mem_size = 0
     bracket_ind = name.find('[')
-    bracket_count = name.count('[')
+    bracket_count = get_matching_bracket_count(name)
     if bracket_ind != -1: name = name[:bracket_ind]
+    #print(name, memory_module.locations)
     if name in memory_module.locations:
         mem_loc = memory_module.locations[name]
         mem_size = mem_loc.size
+        #print(bracket_count, mem_loc.dims, neighbor.value)
         for i in range(bracket_count):
             mem_size /= mem_loc.dims[i]
+        #print(mem_size)
         text = name + "\nlocation: " + str(mem_loc.location)
         dfg_node_id = dfg_algo.set_id()
         #print(dfg_node_id)
@@ -155,6 +181,7 @@ def process_compute_element_neighbor(op, neighbor, graph, op_node, context):
             make_edge(graph.gv_graph, dfg_node_id, op_node.id, annotation=anno)
         op_node.memory_links.add((mem_loc.location, mem_loc.size))
         #print("node made for ", name)
+    return mem_size
 
 def process_compute_element(op, graph, op_node):
     global memory_module
@@ -162,10 +189,11 @@ def process_compute_element(op, graph, op_node):
     for parent in op.parents:
         parents.append(parent.operation)
     #print(op.operation, parents)
+    mem_in_use = 0
     for parent in op.parents:
         if not parent.operation: continue
         if parent.operation == "Regs":
-            process_compute_element_neighbor(op, parent, graph, op_node, ast.Load)
+            mem_in_use += process_compute_element_neighbor(op, parent, graph, op_node, ast.Load)
         else:
             #print(op.operation, parent.operation)
             parent_compute_id = parent.compute_id
@@ -176,7 +204,8 @@ def process_compute_element(op, graph, op_node):
     for child in op.children:
         if not child.operation: continue
         if child.operation == "Regs":
-            process_compute_element_neighbor(op, child, graph, op_node, ast.Store)
+            mem_in_use += process_compute_element_neighbor(op, child, graph, op_node, ast.Store)
+    return mem_in_use
             
 def get_dims(arr):
     dims = []
@@ -205,9 +234,9 @@ def process_memory_operation(mem_op):
         dims = []
         if len(mem_op) > 3:
             dims = get_dims(mem_op[3:])
-        memory_module.malloc(var_name[:var_name.rfind('_')], size, dims=dims)
+        memory_module.malloc(var_name, size, dims=dims)
     elif status == "free":
-        memory_module.free(var_name[:var_name.rfind('_')])
+        memory_module.free(var_name)
 
 # adds all mallocs and frees to vectors, and finds the next cfg node in the data path,
 # returning the index of that node
@@ -268,8 +297,8 @@ def simulate(cfg, node_operations, hw, graphs, first):
                 j, pattern_seek_next, discard = find_next_data_path_index(j+1, other_mallocs, other_frees, data_path)
                 pattern_frees.append(other_frees)
                 pattern_mallocs.append(other_mallocs)
-                other_frees.clear()
-                other_mallocs.clear()
+                other_frees = []
+                other_mallocs = []
             if pattern_seek_next:
                 next_ind = j
             else:
@@ -354,10 +383,10 @@ def simulate(cfg, node_operations, hw, graphs, first):
         node_intervals[-1][1][1] = cycles
         for free in frees:
             #print(free)
-            if free[2][:free[2].rfind('_')] in memory_module.locations: 
+            if free[2] in memory_module.locations: 
                 process_memory_operation(free)
-        mallocs.clear()
-        frees.clear()
+        mallocs = []
+        frees = []
         i = next_ind
         pattern_seek = pattern_seek_next
         max_iters = max_iters_next
@@ -435,14 +464,15 @@ def set_data_path():
 
 def simulator_prep(benchmark):
     global unroll_at, id_to_node
-    cfg, graphs, unroll_at = dfg_algo.main_fn(path + 'benchmarks/', benchmark)
+    cfg, graphs, unroll_at = dfg_algo.main_fn(path + 'instrumented_files/', benchmark)
     node_operations = schedule.schedule(cfg, graphs, benchmark)
     set_data_path()
     for node in cfg: id_to_node[str(node.id)] = node
+    #print(id_to_node)
     return cfg, graphs, node_operations
 
 def main():
-    global power_use, new_graph, transistor_size, pitch, mem_layers, memory_needed, cache_size, reads, writes, total_read_size, total_write_size, max_regs_inuse
+    global power_use, new_graph, transistor_size, pitch, mem_layers, memory_needed, cache_size, reads, writes, total_read_size, total_write_size, max_regs_inuse, max_mem_inuse
     benchmark = sys.argv[1]
     print(benchmark)
     cfg, graphs, node_operations = simulator_prep(benchmark)
@@ -510,6 +540,7 @@ def main():
     print("total write size: ", total_write_size)
     print("total compute element usage: ", hw.compute_operation_totals)
     print("max regs in use: ", max_regs_inuse)
+    print("max memory in use: ", max_mem_inuse)
     names = sys.argv[1].split('/')
     if len(sys.argv) < 3 or not sys.argv[2] == "notrace":
         text = json.dumps(data, indent=4)

@@ -1,0 +1,22 @@
+digraph {
+	753 [label="source code:
+self = self
+s_8 = s
+k_8 = k
+"]
+	754 [label="self
+Read"]
+	755 [label="self
+Write"]
+	754 -> 755 [label=""]
+	756 [label="s
+Read"]
+	757 [label="s_8
+Write"]
+	756 -> 757 [label=""]
+	758 [label="k
+Read"]
+	759 [label="k_8
+Write"]
+	758 -> 759 [label=""]
+}

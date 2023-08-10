@@ -356,7 +356,7 @@ def main_fn(path_in, benchmark_in):
     global benchmark, path, node_to_symbols, graphs, node_to_unroll, unroll
     benchmark, path = benchmark_in, path_in
     benchmark = benchmark[benchmark.rfind('/')+1:]
-    cfg = CFGBuilder().build_from_file('main.c', path + 'models/' + benchmark)
+    cfg = CFGBuilder().build_from_file('main.c', path + 'xformedname-' + benchmark)
     cfg.build_visual(path + 'pictures/' + benchmark, 'jpeg', show = False)
     for node in cfg:
         node_to_symbols[node] = []

@@ -1,0 +1,11 @@
+digraph {
+	577 [label="source code:
+a_1 = a
+return (a_1 << 1 ^ 27) & 255 if a_1 & 128 else a_1 << 1
+"]
+	578 [label="a
+Read"]
+	579 [label="a_1
+Write"]
+	578 -> 579 [label=""]
+}

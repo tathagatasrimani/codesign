@@ -77,7 +77,6 @@ class Memory:
         while free_block and free_block.size < needed:
             free_block = free_block.nxt
         if not free_block: return 
-
         # split the free block if possible, and rewire as necessary
         prev_free = free_block.prev
         next_free = free_block.nxt

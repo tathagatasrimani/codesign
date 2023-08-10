@@ -1,0 +1,175 @@
+digraph {
+	889 [label="source code:
+self = self
+a_15 = a
+t_15 = a_15[0] ^ a_15[1] ^ a_15[2] ^ a_15[3]
+u_15 = a_15[0]
+a_15[0] ^= t_15 ^ xtime(a_15[0] ^ a_15[1])
+a_15[1] ^= t_15 ^ xtime(a_15[1] ^ a_15[2])
+a_15[2] ^= t_15 ^ xtime(a_15[2] ^ a_15[3])
+a_15[3] ^= t_15 ^ xtime(a_15[3] ^ u_15)
+"]
+	890 [label="self
+Read"]
+	891 [label="self
+Write"]
+	890 -> 891 [label=""]
+	892 [label="a
+Read"]
+	893 [label="a_15
+Write"]
+	892 -> 893 [label=""]
+	894 [label="a_15[0]
+Read"]
+	895 [label="a_15[1]
+Read"]
+	896 [label="^
+"]
+	894 -> 896 [label=""]
+	895 -> 896 [label=""]
+	897 [label="a_15[2]
+Read"]
+	898 [label="^
+"]
+	896 -> 898 [label=""]
+	897 -> 898 [label=""]
+	899 [label="a_15[3]
+Read"]
+	900 [label="^
+"]
+	898 -> 900 [label=""]
+	899 -> 900 [label=""]
+	901 [label="t_15
+Write"]
+	900 -> 901 [label=""]
+	902 [label="a_15[0]
+Read"]
+	903 [label="u_15
+Write"]
+	902 -> 903 [label=""]
+	904 [label="t_15
+Read"]
+	905 [label="xtime(a_15[0] ^ a_15[1])
+"]
+	906 [label="a_15[0]
+Read"]
+	907 [label="a_15[1]
+Read"]
+	908 [label="^
+"]
+	906 -> 908 [label=""]
+	907 -> 908 [label=""]
+	908 -> 905 [label=""]
+	909 [label="^
+"]
+	904 -> 909 [label=""]
+	905 -> 909 [label=""]
+	910 [label="a_15[0]
+Read"]
+	911 [label="^
+"]
+	909 -> 911 [label=""]
+	910 -> 911 [label=""]
+	912 [label="a_15[0]
+Write"]
+	911 -> 912 [label=""]
+	913 [label="t_15
+Read"]
+	914 [label="xtime(a_15[1] ^ a_15[2])
+"]
+	915 [label="a_15[1]
+Read"]
+	916 [label="a_15[2]
+Read"]
+	917 [label="^
+"]
+	915 -> 917 [label=""]
+	916 -> 917 [label=""]
+	917 -> 914 [label=""]
+	918 [label="^
+"]
+	913 -> 918 [label=""]
+	914 -> 918 [label=""]
+	919 [label="a_15[1]
+Read"]
+	920 [label="^
+"]
+	918 -> 920 [label=""]
+	919 -> 920 [label=""]
+	921 [label="a_15[1]
+Write"]
+	920 -> 921 [label=""]
+	922 [label="t_15
+Read"]
+	923 [label="xtime(a_15[2] ^ a_15[3])
+"]
+	924 [label="a_15[2]
+Read"]
+	925 [label="a_15[3]
+Read"]
+	926 [label="^
+"]
+	924 -> 926 [label=""]
+	925 -> 926 [label=""]
+	926 -> 923 [label=""]
+	927 [label="^
+"]
+	922 -> 927 [label=""]
+	923 -> 927 [label=""]
+	928 [label="a_15[2]
+Read"]
+	929 [label="^
+"]
+	927 -> 929 [label=""]
+	928 -> 929 [label=""]
+	930 [label="a_15[2]
+Write"]
+	929 -> 930 [label=""]
+	931 [label="t_15
+Read"]
+	932 [label="xtime(a_15[3] ^ u_15)
+"]
+	933 [label="a_15[3]
+Read"]
+	934 [label="u_15
+Read"]
+	935 [label="^
+"]
+	933 -> 935 [label=""]
+	934 -> 935 [label=""]
+	935 -> 932 [label=""]
+	936 [label="^
+"]
+	931 -> 936 [label=""]
+	932 -> 936 [label=""]
+	937 [label="a_15[3]
+Read"]
+	938 [label="^
+"]
+	936 -> 938 [label=""]
+	937 -> 938 [label=""]
+	939 [label="a_15[3]
+Write"]
+	938 -> 939 [label=""]
+	930 -> 937 [label=""]
+	903 -> 934 [label=""]
+	930 -> 933 [label=""]
+	901 -> 931 [label=""]
+	921 -> 928 [label=""]
+	921 -> 925 [label=""]
+	921 -> 924 [label=""]
+	901 -> 922 [label=""]
+	912 -> 919 [label=""]
+	912 -> 916 [label=""]
+	912 -> 915 [label=""]
+	901 -> 913 [label=""]
+	893 -> 910 [label=""]
+	893 -> 907 [label=""]
+	893 -> 906 [label=""]
+	901 -> 904 [label=""]
+	893 -> 902 [label=""]
+	893 -> 899 [label=""]
+	893 -> 897 [label=""]
+	893 -> 895 [label=""]
+	893 -> 894 [label=""]
+}

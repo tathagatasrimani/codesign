@@ -14,12 +14,9 @@ def main(x, y):
         a = q - 3
         b = a / r
     z = [[1, 2, 3, 4, 5, 6]]
-    d = [[[1], [1]], [[1], [1]]]
     r, q = 2, 3
-    g = np.zeros((5, 4, 2))
     loop.start_unroll
     for i in range(5):
-        z[0][1] = 1
         z[0][i] += z[0][i+1]
     loop.stop_unroll
 
@@ -31,7 +28,7 @@ def bruh():
     loop.stop_unroll
 
 if __name__ == "__main__":
-    for i in range(1):
+    for i in range(2):
         loop().pattern_seek()
         main(2, 3)
         bruh()
