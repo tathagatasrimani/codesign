@@ -349,6 +349,11 @@ class HardwareSimulator():
                         op_count += 1
                         compute_id = dfg_algo.set_id()
                         self.make_node(state_graph, compute_id, hardwareModel.op2sym_map[op.operation], None, hardwareModel.op2sym_map[op.operation])
+                        for parent in op.parents:
+                            if parent.operation and parent.operation != "Regs":
+                                parent_id = dfg_algo.set_id()
+                                self.make_node(state_graph, parent_id, hardwareModel.op2sym_map[parent.operation], None, hardwareModel.op2sym_map[parent.operation])
+                                self.make_edge(state_graph, parent_id, compute_id, "")
                         self.process_compute_element(op, state_graph, state_graph.id_to_Node[compute_id], check_duplicate=False)
                     if op_count > 0:
                         state_graph_viz.render(self.path + 'benchmarks/pictures/state_graphs/' + sys.argv[1][sys.argv[1].rfind('/')+1:] + '_' + str(state_graph_counter), view = True)
