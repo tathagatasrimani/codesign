@@ -1,0 +1,12 @@
+graph {
+	188 [label="*
+"]
+	189 [label="a_1
+location: 0
+Read"]
+	189 -- 188 [label="size: 8.88888888888889"]
+	190 [label="b_1
+location: 80
+Read"]
+	190 -- 188 [label="size: 8.88888888888889"]
+}

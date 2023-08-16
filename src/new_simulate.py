@@ -13,6 +13,7 @@ from collections import deque
 import graphviz as gv
 
 MEMORY_SIZE = 1000000
+state_graph_counter = 0
 
 class HardwareSimulator():
     def __init__(self):
@@ -57,15 +58,15 @@ class HardwareSimulator():
         elif ctx == ast.Store:
             annotation = "Write"
         dfg_node = dfg_algo.Node(name, opname, id, memory_links=set())
-        graph.node(id, name + '\n' + annotation)
-        self.new_graph.roots.add(dfg_node)
-        self.new_graph.id_to_Node[id] = dfg_node
+        graph.gv_graph.node(id, name + '\n' + annotation)
+        graph.roots.add(dfg_node)
+        graph.id_to_Node[id] = dfg_node
 
     def make_edge(self, graph, source_id, target_id, annotation=""):
-        source, target = self.new_graph.id_to_Node[source_id], self.new_graph.id_to_Node[target_id]
-        graph.edge(source_id, target_id, label=annotation)
-        target_node = self.new_graph.id_to_Node[target_id]
-        if target_node in self.new_graph.roots: self.new_graph.roots.remove(target_node)
+        source, target = graph.id_to_Node[source_id], graph.id_to_Node[target_id]
+        graph.gv_graph.edge(source_id, target_id, label=annotation)
+        target_node = graph.id_to_Node[target_id]
+        if target_node in graph.roots: graph.roots.remove(target_node)
         source.children.append(target)
         target.parents.append(source)
 
@@ -81,7 +82,7 @@ class HardwareSimulator():
                 hw_op_node = self.new_graph.id_to_Node[compute_id]
                 op.compute_id = compute_id
                 #print(op.value)
-                mem_in_use += self.process_compute_element(op, self.new_graph, hw_op_node)
+                mem_in_use += self.process_compute_element(op, self.new_graph, hw_op_node, check_duplicate=True)
             hw_need.hw_allocated[op.operation] += 1
             hw_spec.compute_operation_totals[op.operation] += 1
         self.max_regs_inuse = min(hw_spec.hw_allocated["Regs"], max(self.max_regs_inuse, hw_need.hw_allocated["Regs"]))
@@ -138,7 +139,7 @@ class HardwareSimulator():
                 if bracket_depth == 0: bracket_count += 1
         return bracket_count
 
-    def process_compute_element_neighbor(self, op, neighbor, graph, op_node, context):
+    def process_compute_element_neighbor(self, op, neighbor, graph, op_node, context, check_duplicate):
         name = neighbor.value
         mem_size = 0
         bracket_ind = name.find('[')
@@ -152,38 +153,42 @@ class HardwareSimulator():
             for i in range(bracket_count):
                 mem_size /= mem_loc.dims[i]
             #print(mem_size)
-            text = name + "\nlocation: " + str(mem_loc.location)
+            if check_duplicate:
+                text = name + "\nlocation: " + str(mem_loc.location)
+            else:
+                text = name
             dfg_node_id = dfg_algo.set_id()
             #print(dfg_node_id)
             anno = "size: " + str(mem_size)
             if (mem_loc.location, mem_loc.size) not in op_node.memory_links:
-                self.make_node(graph.gv_graph, dfg_node_id, text, context, neighbor.operation)
-                self.make_edge(graph.gv_graph, dfg_node_id, op_node.id, annotation=anno)
+                self.make_node(graph, dfg_node_id, text, context, neighbor.operation)
+                self.make_edge(graph, dfg_node_id, op_node.id, annotation=anno)
             op_node.memory_links.add((mem_loc.location, mem_loc.size))
             #print("node made for ", name)
         return mem_size
 
-    def process_compute_element(self, op, graph, op_node):
+    def process_compute_element(self, op, graph, op_node, check_duplicate):
         parents = []
         for parent in op.parents:
             parents.append(parent.operation)
-        #print(op.operation, parents)
+        print(op.operation, parents)
         mem_in_use = 0
         for parent in op.parents:
             if not parent.operation: continue
             if parent.operation == "Regs":
-                mem_in_use += self.process_compute_element_neighbor(op, parent, graph, op_node, ast.Load)
+                mem_in_use += self.process_compute_element_neighbor(op, parent, graph, op_node, ast.Load, check_duplicate)
             else:
+                if not check_duplicate: continue
                 #print(op.operation, parent.operation)
                 parent_compute_id = parent.compute_id
                 if parent_compute_id not in self.compute_element_neighbors[op_node.id]:
-                    self.make_edge(graph.gv_graph, parent_compute_id, op_node.id, "")
+                    self.make_edge(graph, parent_compute_id, op_node.id, "")
                 self.compute_element_neighbors[op_node.id].add(parent_compute_id)
                 self.compute_element_neighbors[parent_compute_id].add(op_node.id)
         for child in op.children:
             if not child.operation: continue
             if child.operation == "Regs":
-                mem_in_use += self.process_compute_element_neighbor(op, child, graph, op_node, ast.Store)
+                mem_in_use += self.process_compute_element_neighbor(op, child, graph, op_node, ast.Store, check_duplicate)
         return mem_in_use
                 
     def get_dims(self, arr):
@@ -234,6 +239,7 @@ class HardwareSimulator():
         return i, pattern_seek, max_iters
 
     def simulate(self, cfg, node_operations, hw, graphs, first):
+        global state_graph_counter
         cur_node = cfg.entryblock
         if first: 
             cur_node = cur_node.exits[0].target # skip over the first node in the main cfg
@@ -304,7 +310,7 @@ class HardwareSimulator():
                     pattern_seek = pattern_seek_next
                     j, pattern_seek_next, discard = self.find_next_data_path_index(j+1, [], [], self.data_path)
                 next_ind = j
-            #print(pattern_nodes, iters, next_ind)
+            print(pattern_nodes, iters, next_ind)
             i = 0
             while i < len(pattern_nodes):
                 #print("i: ", i)
@@ -317,13 +323,16 @@ class HardwareSimulator():
                 # try to unroll after pattern_seeking
                 node_iters = iters
                 if self.unroll_at[cur_node.id]:
+                    print(cur_node.id)
                     while i+1 != len(pattern_nodes) and pattern_nodes[i+1] == pattern_nodes[i]:
                         i += 1
                         node_iters += iters
+                if self.unroll_at[cur_node.id] or pattern_seek:
+                    node_operations[cur_node] = node_operations[cur_node].copy()
                 for state in node_operations[cur_node]:
                     # if unroll, take each operation in a state and create more of them
                     if self.unroll_at[cur_node.id] or pattern_seek:
-                        #print(iters, node_iters, len(state))
+                        print(iters, node_iters, len(state))
                         new_state = state.copy()
                         for op in state:
                             for j in range(node_iters):
@@ -331,12 +340,19 @@ class HardwareSimulator():
                         state = new_state
                     #print(state)
                     #print("new state")
-                    for node in state: 
-                        parents = []
-                        for parent in node.parents:
-                            parents.append(parent.operation)
-                        #print(node.operation, parents)
                     hw_need = self.get_hw_need(state, hw)
+                    state_graph_viz = gv.Graph()
+                    state_graph = dfg_algo.Graph(set(), {}, state_graph_viz)
+                    op_count = 0
+                    for op in state:
+                        if not op.operation or op.operation == "Regs": continue
+                        op_count += 1
+                        compute_id = dfg_algo.set_id()
+                        self.make_node(state_graph, compute_id, hardwareModel.op2sym_map[op.operation], None, hardwareModel.op2sym_map[op.operation])
+                        self.process_compute_element(op, state_graph, state_graph.id_to_Node[compute_id], check_duplicate=False)
+                    if op_count > 0:
+                        state_graph_viz.render(self.path + 'benchmarks/pictures/state_graphs/' + sys.argv[1][sys.argv[1].rfind('/')+1:] + '_' + str(state_graph_counter), view = True)
+                    state_graph_counter += 1
                     #print(hw_need)
                     max_cycles = 0
                     for elem in hw_need:
@@ -368,7 +384,7 @@ class HardwareSimulator():
             pattern_seek = pattern_seek_next
             max_iters = max_iters_next
         print("done with simulation")
-        #self.new_graph.gv_graph.render(self.path + 'benchmarks/pictures/memory_graphs/' + sys.argv[1][sys.argv[1].rfind('/')+1:], view = True)
+        self.new_graph.gv_graph.render(self.path + 'benchmarks/pictures/memory_graphs/' + sys.argv[1][sys.argv[1].rfind('/')+1:], view = True)
         return self.data
 
     def set_data_path(self):
@@ -439,7 +455,7 @@ class HardwareSimulator():
         print("memory needed: ", self.memory_needed)
 
     def simulator_prep(self, benchmark):
-        cfg, graphs, self.unroll_at = dfg_algo.main_fn(self.path + 'instrumented_files/', benchmark)
+        cfg, graphs, self.unroll_at = dfg_algo.main_fn(self.path, benchmark)
         node_operations = schedule.schedule(cfg, graphs, benchmark)
         self.set_data_path()
         for node in cfg: self.id_to_node[str(node.id)] = node
@@ -502,7 +518,7 @@ def main():
         simulator.compute_element_to_node_id[key] = []
         for i in range(hw.hw_allocated[key]):
             compute_id = dfg_algo.set_id()
-            simulator.make_node(simulator.new_graph.gv_graph, compute_id, hardwareModel.op2sym_map[key], None, hardwareModel.op2sym_map[key])
+            simulator.make_node(simulator.new_graph, compute_id, hardwareModel.op2sym_map[key], None, hardwareModel.op2sym_map[key])
             simulator.compute_element_neighbors[compute_id] = set()
             simulator.compute_element_to_node_id[key].append(compute_id)
     

@@ -15,20 +15,19 @@ def main(x, y):
         b = a / r
     z = [[1, 2, 3, 4, 5, 6]]
     r, q = 2, 3
-    loop.start_unroll
     for i in range(5):
+        loop.start_unroll
         z[0][i] += z[0][i+1]
     loop.stop_unroll
 
 def bruh():
     a = 1
-    loop.start_unroll
     for i in range(3):
+        loop.start_unroll
         a += i
     loop.stop_unroll
 
 if __name__ == "__main__":
-    for i in range(2):
-        loop().pattern_seek()
+    for i in range(1):
         main(2, 3)
         bruh()

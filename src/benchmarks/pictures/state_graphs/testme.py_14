@@ -1,0 +1,13 @@
+graph {
+	215 [label="+
+"]
+	216 [label="q_1
+Read"]
+	216 -- 215 [label="size: 24"]
+	217 [label="r_1
+Read"]
+	217 -- 215 [label="size: 32"]
+	218 [label="w_1
+Write"]
+	218 -- 215 [label="size: 24"]
+}

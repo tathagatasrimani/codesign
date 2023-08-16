@@ -1,0 +1,7 @@
+graph {
+	202 [label="+
+"]
+	203 [label="q_1
+Write"]
+	203 -- 202 [label="size: 24"]
+}

@@ -243,8 +243,8 @@ def main(x, y):
         print('malloc', sys.getsizeof(q_1), 'q_1', [len(q_1)])
     else:
         print('malloc', sys.getsizeof(q_1), 'q_1')
-    instrument_read(loop, 'loop').start_unroll
     for i_1 in range(5):
+        instrument_read(loop, 'loop').start_unroll
         print(8, 23)
         z_1[0][instrument_read(i_1, 'i_1')] += instrument_read_sub(
             instrument_read_sub(instrument_read(z_1, 'z_1'), 'z_1', 0, None,
@@ -278,8 +278,8 @@ def bruh():
         print('malloc', sys.getsizeof(a_2), 'a_2', [len(a_2)])
     else:
         print('malloc', sys.getsizeof(a_2), 'a_2')
-    instrument_read(loop, 'loop').start_unroll
     for i_2 in range(3):
+        instrument_read(loop, 'loop').start_unroll
         print(14, 31)
         a_2 += instrument_read(i_2, 'i_2')
         write_instrument_read(a_2, 'a_2')
@@ -288,7 +288,6 @@ def bruh():
 
 
 if instrument_read(__name__, '__name__') == '__main__':
-    for i_0 in range(2):
-        loop().pattern_seek()
+    for i_0 in range(1):
         main(2, 3)
         bruh()

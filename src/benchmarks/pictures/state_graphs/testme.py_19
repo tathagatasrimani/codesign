@@ -1,0 +1,10 @@
+graph {
+	224 [label="-
+"]
+	225 [label="q_1
+Read"]
+	225 -- 224 [label="size: 24"]
+	226 [label="a_1
+Write"]
+	226 -- 224 [label="size: 24"]
+}
