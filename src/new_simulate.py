@@ -53,10 +53,8 @@ class HardwareSimulator():
 
     def make_node(self, graph, id, name, ctx, opname):
         annotation = ""
-        if ctx == ast.Load:
-            annotation = "Read"
-        elif ctx == ast.Store:
-            annotation = "Write"
+        if ctx == ast.Load or ctx == ast.Store:
+            annotation = "Register"
         dfg_node = dfg_algo.Node(name, opname, id, memory_links=set())
         graph.gv_graph.node(id, name + '\n' + annotation)
         graph.roots.add(dfg_node)
@@ -159,7 +157,10 @@ class HardwareSimulator():
                 text = name
             dfg_node_id = dfg_algo.set_id()
             #print(dfg_node_id)
-            anno = "size: " + str(mem_size)
+            if check_duplicate:
+                anno = "size: " + str(mem_size)
+            else:
+                anno = ""
             if (mem_loc.location, mem_loc.size) not in op_node.memory_links:
                 self.make_node(graph, dfg_node_id, text, context, neighbor.operation)
                 self.make_edge(graph, dfg_node_id, op_node.id, annotation=anno)
