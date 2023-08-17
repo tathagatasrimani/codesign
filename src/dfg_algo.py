@@ -321,8 +321,10 @@ def make_edge(graph, node, source_id, target_id, annotation=""):
 
 # first pass over the basic block
 def dfg_per_node(node):
-    global node_to_unroll, unroll
+    global node_to_unroll, unroll, graphs
     graph = gv.Digraph()
+    graphs[node] = Graph(set(), {}, None)
+    node_to_symbols[node] = []
     graphs[node].set_gv_graph(graph)
     graph.node(set_id(), "source code:\n" + node.get_source())
     for stmt in node.statements:
@@ -348,7 +350,7 @@ def dfg_per_node(node):
                 j -= 1
         i -= 1
     graph.render(path + 'benchmarks/pictures/' + benchmark + "_dfg_node_" + str(node.id), view = False)
-    return 0
+    return graphs[node]
 
 
 
@@ -359,8 +361,6 @@ def main_fn(path_in, benchmark_in):
     cfg = CFGBuilder().build_from_file('main.c', path + 'instrumented_files/xformedname-' + benchmark)
     cfg.build_visual(path + 'benchmarks/pictures/' + benchmark, 'jpeg', show = False)
     for node in cfg:
-        node_to_symbols[node] = []
-        graphs[node] = Graph(set(), {}, None)
         dfg_per_node(node)
         for root in graphs[node].roots:
             cur_node = root

@@ -1,10 +1,10 @@
 graph {
-	224 [label="-
+	228 [label="-
 "]
-	225 [label="q_1
-Read"]
-	225 -- 224 [label="size: 24"]
-	226 [label="a_1
-Write"]
-	226 -- 224 [label="size: 24"]
+	229 [label="q_1
+Register"]
+	229 -- 228 [label=""]
+	230 [label="a_1
+Register"]
+	230 -- 228 [label=""]
 }

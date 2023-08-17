@@ -1,13 +1,13 @@
 graph {
-	230 [label="//
+	234 [label="//
 "]
-	231 [label="a_1
-Read"]
-	231 -- 230 [label="size: 24"]
-	232 [label="r_1
-Read"]
-	232 -- 230 [label="size: 32"]
-	233 [label="b_1
-Write"]
-	233 -- 230 [label="size: 24"]
+	235 [label="a_1
+Register"]
+	235 -- 234 [label=""]
+	236 [label="r_1
+Register"]
+	236 -- 234 [label=""]
+	237 [label="b_1
+Register"]
+	237 -- 234 [label=""]
 }

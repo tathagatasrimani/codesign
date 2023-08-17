@@ -1,0 +1,22 @@
+digraph {
+	8 [label="source code:
+a_1 = a
+b_1 = b
+res_1 = 0
+"]
+	9 [label="a
+Read"]
+	10 [label="a_1
+Write"]
+	9 -> 10 [label=""]
+	11 [label="b
+Read"]
+	12 [label="b_1
+Write"]
+	11 -> 12 [label=""]
+	13 [label=0
+]
+	14 [label="res_1
+Write"]
+	13 -> 14 [label=""]
+}

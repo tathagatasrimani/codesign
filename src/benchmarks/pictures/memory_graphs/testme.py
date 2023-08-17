@@ -159,94 +159,94 @@ graph {
 "]
 	188 [label="x_1
 location: 0
-Read"]
+Register"]
 	188 -- 139 [label="size: 32"]
 	189 [label="y_1
 location: 32
-Read"]
+Register"]
 	189 -- 139 [label="size: 32"]
 	190 [label="x_1
 location: 0
-Read"]
+Register"]
 	190 -- 109 [label="size: 32"]
 	191 [label="y_1
 location: 32
-Read"]
+Register"]
 	191 -- 109 [label="size: 32"]
 	192 [label="r_1
 location: 88
-Write"]
+Register"]
 	192 -- 109 [label="size: 32"]
 	139 -- 109 [label=""]
 	109 -- 109 [label=""]
 	154 -- 109 [label=""]
-	201 [label="q_1
+	202 [label="q_1
 location: 64
-Write"]
-	201 -- 109 [label="size: 24"]
-	204 [label="q_1
+Register"]
+	202 -- 109 [label="size: 24"]
+	207 [label="q_1
 location: 64
-Read"]
-	204 -- 139 [label="size: 24"]
-	205 [label="r_1
+Register"]
+	207 -- 139 [label="size: 24"]
+	208 [label="r_1
 location: 88
-Read"]
-	205 -- 139 [label="size: 32"]
+Register"]
+	208 -- 139 [label="size: 32"]
 	139 -- 124 [label=""]
-	209 [label="q_1
+	212 [label="q_1
 location: 64
-Write"]
-	209 -- 124 [label="size: 24"]
-	214 [label="w_1
+Register"]
+	212 -- 124 [label="size: 24"]
+	218 [label="w_1
 location: 120
-Write"]
-	214 -- 109 [label="size: 24"]
-	219 [label="w_1
+Register"]
+	218 -- 109 [label="size: 24"]
+	223 [label="w_1
 location: 120
-Read"]
-	219 -- 177 [label="size: 24"]
-	223 [label="a_1
-location: 0
-Write"]
-	223 -- 124 [label="size: 24"]
+Register"]
+	223 -- 177 [label="size: 24"]
 	227 [label="a_1
 location: 0
-Read"]
-	227 -- 154 [label="size: 24"]
-	228 [label="r_1
+Register"]
+	227 -- 124 [label="size: 24"]
+	231 [label="a_1
+location: 0
+Register"]
+	231 -- 154 [label="size: 24"]
+	232 [label="r_1
 location: 88
-Read"]
-	228 -- 154 [label="size: 32"]
-	229 [label="b_1
+Register"]
+	232 -- 154 [label="size: 32"]
+	233 [label="b_1
 location: 32
-Write"]
-	229 -- 154 [label="size: 24"]
-	234 [label="z_1
+Register"]
+	233 -- 154 [label="size: 24"]
+	238 [label="z_1
 location: 144
-Read"]
-	234 -- 109 [label="size: 10.666666666666666"]
-	237 [label="z_1
+Register"]
+	238 -- 109 [label="size: 10.666666666666666"]
+	241 [label="z_1
 location: 144
-Read"]
-	237 -- 110 [label="size: 10.666666666666666"]
-	240 [label="z_1
+Register"]
+	241 -- 110 [label="size: 10.666666666666666"]
+	244 [label="z_1
 location: 144
-Read"]
-	240 -- 111 [label="size: 10.666666666666666"]
-	243 [label="z_1
+Register"]
+	244 -- 111 [label="size: 10.666666666666666"]
+	247 [label="z_1
 location: 144
-Read"]
-	243 -- 112 [label="size: 10.666666666666666"]
-	246 [label="z_1
+Register"]
+	247 -- 112 [label="size: 10.666666666666666"]
+	250 [label="z_1
 location: 144
-Read"]
-	246 -- 113 [label="size: 10.666666666666666"]
-	272 [label="a_2
+Register"]
+	250 -- 113 [label="size: 10.666666666666666"]
+	276 [label="a_2
 location: 88
-Read"]
-	272 -- 110 [label="size: 32"]
-	274 [label="a_2
+Register"]
+	276 -- 110 [label="size: 32"]
+	278 [label="a_2
 location: 88
-Read"]
-	274 -- 111 [label="size: 32"]
+Register"]
+	278 -- 111 [label="size: 32"]
 }

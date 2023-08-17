@@ -1,7 +1,7 @@
 graph {
-	220 [label="<
+	224 [label="<
 "]
-	221 [label="w_1
-Read"]
-	221 -- 220 [label="size: 24"]
+	225 [label="w_1
+Register"]
+	225 -- 224 [label=""]
 }

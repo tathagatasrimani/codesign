@@ -1,12 +1,10 @@
 graph {
-	258 [label="*
+	271 [label="*
 "]
-	259 [label="a_1
-location: 0
-Read"]
-	259 -- 258 [label="size: 8.88888888888889"]
-	260 [label="b_1
-location: 80
-Read"]
-	260 -- 258 [label="size: 8.88888888888889"]
+	272 [label="a_1
+Register"]
+	272 -- 271 [label=""]
+	273 [label="b_1
+Register"]
+	273 -- 271 [label=""]
 }

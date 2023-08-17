@@ -329,16 +329,22 @@ class HardwareSimulator():
                         i += 1
                         node_iters += iters
                 if self.unroll_at[cur_node.id] or pattern_seek:
-                    node_operations[cur_node] = node_operations[cur_node].copy()
+                    for i in range(node_iters):
+                        graph = dfg_algo.dfg_per_node(cur_node)
+                        node_ops = schedule.schedule_one_node(graph, cur_node)
+                        print(node_operations[cur_node], node_ops)
+                        for i in range(len(node_ops)):
+                            node_operations[cur_node][i] = node_operations[cur_node][i] + node_ops[i]
+
                 for state in node_operations[cur_node]:
                     # if unroll, take each operation in a state and create more of them
-                    if self.unroll_at[cur_node.id] or pattern_seek:
+                    """if self.unroll_at[cur_node.id] or pattern_seek:
                         print(iters, node_iters, len(state))
                         new_state = state.copy()
                         for op in state:
                             for j in range(node_iters):
                                 new_state.append(op)
-                        state = new_state
+                        state = new_state"""
                     #print(state)
                     #print("new state")
                     hw_need = self.get_hw_need(state, hw)

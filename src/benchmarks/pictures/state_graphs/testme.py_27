@@ -1,27 +1,27 @@
 graph {
-	249 [label="+
-"]
-	250 [label="z_1
-Read"]
-	250 -- 249 [label="size: 10.666666666666666"]
 	253 [label="+
 "]
 	254 [label="z_1
-Read"]
-	254 -- 253 [label="size: 10.666666666666666"]
+Register"]
+	254 -- 253 [label=""]
 	257 [label="+
 "]
 	258 [label="z_1
-Read"]
-	258 -- 257 [label="size: 10.666666666666666"]
+Register"]
+	258 -- 257 [label=""]
 	261 [label="+
 "]
 	262 [label="z_1
-Read"]
-	262 -- 261 [label="size: 10.666666666666666"]
+Register"]
+	262 -- 261 [label=""]
 	265 [label="+
 "]
 	266 [label="z_1
-Read"]
-	266 -- 265 [label="size: 10.666666666666666"]
+Register"]
+	266 -- 265 [label=""]
+	269 [label="+
+"]
+	270 [label="z_1
+Register"]
+	270 -- 269 [label=""]
 }
