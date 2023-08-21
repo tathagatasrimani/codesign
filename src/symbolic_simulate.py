@@ -223,39 +223,167 @@ def main():
     
     print("before modification ", total_cycles.subs(expr_symbols))
     
-    prime_expr = {}
-    prime_expr_value = {}
+    # prime_expr = {}
+    # prime_expr_value = {}
     
-    for s in total_cycles.free_symbols:
-        print("total_cycles", total_cycles)
-        print("s", s)
-        prime_s = total_cycles.diff(s)
-        print("prime_s", prime_s)
-        prime_expr[s] = prime_s
-        prime_expr_value[s] = prime_s.subs(expr_symbols)
+    # for s in total_cycles.free_symbols:
+    #     print("total_cycles", total_cycles)
+    #     print("s", s)
+    #     prime_s = total_cycles.diff(s)
+    #     print("prime_s", prime_s)
+    #     prime_expr[s] = prime_s
+    #     prime_expr_value[s] = prime_s.subs(expr_symbols)
     
     # print("prime_expr", prime_expr)
     # print("prime_expr_value", prime_expr_value)
     
-    max_key = max(prime_expr_value, key=prime_expr_value.get) # positive, apply - 0.1
-    print("max_key", max_key)
-    min_key = min(prime_expr_value, key=prime_expr_value.get) # negative, apply + 0.1
-    print("min_key", min_key)
+    # max_key = max(prime_expr_value, key=prime_expr_value.get) # positive, apply - 0.1
+    # print("max_key", max_key)
+    # min_key = min(prime_expr_value, key=prime_expr_value.get) # negative, apply + 0.1
+    # print("min_key", min_key)
     
-    expr_symbols[max_key] -= delta
-    expr_symbols[min_key] += delta
+    # expr_symbols[max_key] -= delta
+    # expr_symbols[min_key] += delta
     
-    print("min latency ", total_cycles.subs(expr_symbols))
+    # print("min latency ", total_cycles.subs(expr_symbols))
     
-    expr_symbols[max_key] += delta
-    expr_symbols[min_key] -= delta
+    # expr_symbols[max_key] += delta
+    # expr_symbols[min_key] -= delta
     
-    print("original latency ", total_cycles.subs(expr_symbols))
+    # print("original latency ", total_cycles.subs(expr_symbols))
     
-    expr_symbols[max_key] += delta
-    expr_symbols[min_key] -= delta
+    # expr_symbols[max_key] += delta
+    # expr_symbols[min_key] -= delta
     
-    print("maximum latency ", total_cycles.subs(expr_symbols))
+    # print("maximum latency ", total_cycles.subs(expr_symbols))
+    cost_sum = 0
+    for s in total_cycles.free_symbols:
+        cost_sum += 1/(s+1)
+    
+    print('cost_sum', cost_sum)
+    expr_symbols_with_cost = total_cycles * cost_sum
+    
+    
+    
+    
+    expr_symbols = {}
+    cnt=0
+    for s in expr_symbols_with_cost.free_symbols:
+        cnt+=1
+        if cnt<=2:
+            continue
+        if "latency" in s.name:
+            expr_symbols[s] = hardwareModel.latency[s.name.split('_')[1]]
+        else:
+            expr_symbols[s] = hardwareModel.power[s.name.split('_')[1]][int(s.name.split('_')[2])]
+
+    # print("only keep 2 variables ", expr_symbols_with_cost.subs(expr_symbols))
+    expr_symbols_with_cost_with_2_symbols = expr_symbols_with_cost.subs(expr_symbols)
+    
+    diffs=[]
+    symbols=[]
+    for s in expr_symbols_with_cost_with_2_symbols.free_symbols:
+        diffs.append(expr_symbols_with_cost_with_2_symbols.diff(s))
+        symbols.append(s)
+    from design_space import DesignSpace
+    ds=DesignSpace(expr_symbols_with_cost_with_2_symbols,symbols,diffs)
+    ds.solve()
+    
+    # stationary_points = solve(diffs, symbols, dict=True)   
+
+    # # Append boundary points
+    # stationary_points.append({x:0, y:0})
+    # stationary_points.append({x:1, y:0})
+    # stationary_points.append({x:1, y:1})
+    # stationary_points.append({x:0, y:1})
+    
+    # # store results after evaluation
+    # results = []
+    
+    # # iteration counter
+    # j = -1
+    
+    # for i in range(len(stationary_points)):
+    #     j = j+1
+    #     x1 = stationary_points[j].get(x)
+    #     y1 = stationary_points[j].get(y)
+        
+    #     # If point is in the domain evalute and append it
+    #     if (0 <= x1 <=  1) and ( 0 <= y1 <=  1):
+    #         tmp = f.subs({x:x1, y:y1})
+    #         results.append(tmp)
+    #     else:
+    #         # else remove the point
+    #         stationary_points.pop(j)
+    #         j = j-1
+            
+    # # Variables to store info
+    # returnMax = []
+    # returnMin = []
+    
+    # # Get the maximum value
+    # maximum = max(results)
+    
+    # # Get the position of all the maximum values
+    # maxpos = [i for i,j in enumerate(results) if j==maximum]
+    
+    # # Append only unique points
+    # append = False
+    # for item in maxpos:
+    #     for i in returnMax:
+    #         if (stationary_points[item] in i.values()):
+    #             append = True
+               
+    #     if (not(append)):
+    #         returnMax.append({maximum: stationary_points[item]})
+    
+    # # Get the minimum value
+    # minimum  = min(results)
+    
+    # # Get the position of all the minimum  values
+    # minpos = [i for i,j in enumerate(results) if j==minimum ]
+    
+    # # Append only unique points
+    # append = False
+    # for item in minpos:
+    #     for i in returnMin:
+    #         if (stationary_points[item] in i.values()):
+    #             append = True
+               
+    #     if (not(append)):
+    #         returnMin.append({minimum: stationary_points[item]})
+    
+
+    
+    # print([returnMax, returnMin])
+
+    # import scipy.optimize as optimize
+
+    # def f(params):
+    #     # print(params)  # <-- you'll see that params is a NumPy array
+    #     a, b, c = params # <-- for readability you may wish to assign names to the component variables
+    #     return a**2 + b**2 + c**2
+
+    # initial_guess = [1, 1, 1]
+    # result = optimize.minimize(f, initial_guess)
+        
+        
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     
     # energy delay product
     # realistic model what you can change and how much you can change it
