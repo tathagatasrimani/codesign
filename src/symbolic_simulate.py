@@ -269,8 +269,9 @@ def main():
     expr_symbols = {}
     cnt=0
     for s in expr_symbols_with_cost.free_symbols:
-        cnt+=1
-        if cnt<=2:
+        if s.name == 'latency_Add':
+            continue
+        if s.name == 'latency_Sub':
             continue
         if "latency" in s.name:
             expr_symbols[s] = hardwareModel.latency[s.name.split('_')[1]]
@@ -283,12 +284,40 @@ def main():
     diffs=[]
     symbols=[]
     for s in expr_symbols_with_cost_with_2_symbols.free_symbols:
-        diffs.append(expr_symbols_with_cost_with_2_symbols.diff(s))
+        diffs.append(diff(expr_symbols_with_cost_with_2_symbols,s))
         symbols.append(s)
     from design_space import DesignSpace
     ds=DesignSpace(expr_symbols_with_cost_with_2_symbols,symbols,diffs)
     ds.solve()
+    return
+    import numpy as np
+    modules = ['numpy']
+    # {'Heaviside': lambda x: np.heaviside(x, 1)}, 
+    # focx_lambda = lambdify((self.symbols[0], self.symbols[1]), self.expr.subs({self.symbols[0].name: self.symbols[0]}), modules=modules)
+    # focy_lambda = lambdify((self.symbols[0], self.symbols[1]), self.expr, modules=modules)
+    # print(focx_lambda(0.3, 0.4))  # we need to check that the lambdify works, so this should print a floating point number
+    # print(focy_lambda(0.3, 0.4))
+    # f_lambda = lambdify((self.symbols[0], self.symbols[1]), self.expr, modules=modules)
+    # print(f_lambda(0.3, 0.4))
+    f0_lambda = lambdify((symbols[0], symbols[1]), diffs[0], modules=modules)
+    f1_lambda = lambdify((symbols[0], symbols[1]), diffs[1], modules=modules)
     
+    
+    def equations(p):
+        x, y = p
+        print("x, y", x, y)
+        return [f0_lambda(x, y), f1_lambda(x, y)]
+
+    sol = fsolve(equations, [1, 1])
+    print(sol)  # [0.64701372 0.61726372]
+    print("self.expr", self.expr)
+    data_dict = {self.symbols[0]:sol[0], self.symbols[1]:sol[1]}
+    print(data_dict)
+    print(self.expr.subs(data_dict))
+        
+    # print(f0_lambda)
+    # print(f0_lambda(0.3, 0.4))
+        
     # stationary_points = solve(diffs, symbols, dict=True)   
 
     # # Append boundary points
