@@ -225,8 +225,12 @@ def main():
     
     prime_expr = {}
     prime_expr_value = {}
+    
     for s in total_cycles.free_symbols:
+        print("total_cycles", total_cycles)
+        print("s", s)
         prime_s = total_cycles.diff(s)
+        print("prime_s", prime_s)
         prime_expr[s] = prime_s
         prime_expr_value[s] = prime_s.subs(expr_symbols)
     
@@ -234,18 +238,27 @@ def main():
     # print("prime_expr_value", prime_expr_value)
     
     max_key = max(prime_expr_value, key=prime_expr_value.get) # positive, apply - 0.1
+    print("max_key", max_key)
     min_key = min(prime_expr_value, key=prime_expr_value.get) # negative, apply + 0.1
+    print("min_key", min_key)
     
     expr_symbols[max_key] -= delta
     expr_symbols[min_key] += delta
     
-    print("after modification ", total_cycles.subs(expr_symbols))
+    print("min latency ", total_cycles.subs(expr_symbols))
     
-    expr_symbols[max_key] += 2*delta
-    expr_symbols[min_key] -= 2*delta
+    expr_symbols[max_key] += delta
+    expr_symbols[min_key] -= delta
     
-    print("after modification, prove the previous is correct ", total_cycles.subs(expr_symbols))
+    print("original latency ", total_cycles.subs(expr_symbols))
     
+    expr_symbols[max_key] += delta
+    expr_symbols[min_key] -= delta
+    
+    print("maximum latency ", total_cycles.subs(expr_symbols))
+    
+    # energy delay product
+    # realistic model what you can change and how much you can change it
     
     # total_cycles_value = total_cycles.subs(expr_symbols)
     # print("total_cycles_value", total_cycles_value)
