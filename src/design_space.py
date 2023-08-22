@@ -1,13 +1,13 @@
 from sympy import *
 class DesignSpace:
-    def __init__(self, expr, symbols, diffs) -> None:
+    def __init__(self, expr, symbols, diffs, initials) -> None:
         self.functions=[]
         # in this case the variable we want to optimize 
         # is the same as the variable we use in simulation, so no extra function needed
         self.expr=expr
         self.symbols=symbols
         self.diffs=diffs
-        self.initials=[1 for i in range(len(self.symbols))]
+        self.initials=initials
         
     
     def solve(self):
@@ -48,7 +48,7 @@ class DesignSpace:
         # 9.76996261670138e-15
         # 1.11910480882216e-13
         # 134.878365760103
-        print(sol)  # [0.64701372 0.61726372]
+        print(sol) 
         print("self.expr", self.expr)
         data_dict = {self.symbols[0]:sol[0], self.symbols[1]:sol[1]}
         print(data_dict)

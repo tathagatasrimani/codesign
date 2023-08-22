@@ -287,8 +287,12 @@ def main():
         diffs.append(diff(expr_symbols_with_cost_with_2_symbols,s))
         symbols.append(s)
     from design_space import DesignSpace
-    ds=DesignSpace(expr_symbols_with_cost_with_2_symbols,symbols,diffs)
+    ds=DesignSpace(expr_symbols_with_cost_with_2_symbols,symbols,diffs,[hardwareModel.latency['And'], hardwareModel.latency['Sub']])
+    # ds=DesignSpace(expr_symbols_with_cost_with_2_symbols,symbols,diffs,[1,1])
+    
     ds.solve()
+    
+    
     return
     import numpy as np
     modules = ['numpy']
