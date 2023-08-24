@@ -33,13 +33,24 @@ class DesignSpace:
         # print(f0_lambda(0.3, 0.4))  # we need to check that the lambdify works, so this should print a floating point number
         # # print(f1_lambda(0.3, 0.4))
         
+        # https://docs.scipy.org/doc/scipy/tutorial/optimize.html#constrained-minimization-of-multivariate-scalar-functions-minimize
+        # https://www.minlplib.org
+        
+        # cpp https://github.com/coin-or/SHOT
+        
+        # https://stackoverflow.com/questions/39236863/restrict-scipy-optimize-minimize-to-integer-values
+        # https://gekko.readthedocs.io/en/latest/model_methods.html
+        
+        # interge and real values
+        # 
+        
         from scipy.optimize import fsolve
         def equations(p):
             x, y = p
             print("x, y", x, y)
             return [f0_lambda(x, y), f1_lambda(x, y)]
 
-        sol = fsolve(equations, [0, 0])
+        sol = fsolve(equations, self.initials)
         # start 1 1
         # -10.5242741229133
         # -2.34805725514641

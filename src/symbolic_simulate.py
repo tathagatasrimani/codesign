@@ -40,7 +40,8 @@ def symbolic_cycle_sim_parallel(hw_spec, hw_need):
     power_sum = 0
     # print(hw_need)
     for elem in hw_need:
-        batch = math.ceil(hw_need[elem] / hw_spec[elem])
+        # batch = math.ceil(hw_need[elem] / hw_spec[elem])
+        batch = ceiling(hw_need[elem] / hw_spec[elem])
         active_power = hw_need[elem] * hardwareModel.symbolic_power[elem][2]
         power_sum += active_power
         power_sum += batch * hw_spec[elem] * hardwareModel.symbolic_power[elem][2] / 10 # idle dividor still need passive power
@@ -56,9 +57,9 @@ def symbolic_simulate(cfg, data_path, symbolic_node_operations, hw_spec, symboli
     if symbolic_first: 
         cur_node = cur_node.exits[0].target # skip over the first node in the main cfg
         main_cfg = cfg
-    hw_inuse = {}
-    for elem in hw_spec:
-        hw_inuse[elem] = [0] * hw_spec[elem]
+    # hw_inuse = {}
+    # for elem in hw_spec:
+    #     hw_inuse[elem] = [0] * hw_spec[elem]
     i = 0
     # focus on symbolizing the node_operations
     while i < len(data_path):
@@ -104,7 +105,7 @@ def main():
     cfg, graphs, unroll_at = dfg_algo.main_fn(path, benchmark)
     # I think we need to make graphs symbolic, so that we could optimize the schedule procedure?
     cfg, node_operations = schedule.schedule(cfg, graphs, sys.argv[1])
-    # symbolic_hw = SymbolicHardwareModel(0, 0)
+    symbolic_hw = SymbolicHardwareModel(0, 0)
     
     hw = HardwareModel(0, 0)
     
@@ -134,30 +135,30 @@ def main():
     hw.hw_allocated['Invert'] = 1
     
     
-    # symbolic_hw.hw_allocated['Add'] = symbols('Add')
-    # symbolic_hw.hw_allocated['Regs'] = symbols('Regs')
-    # symbolic_hw.hw_allocated['Mult'] = symbols('Mult')
-    # symbolic_hw.hw_allocated['Sub'] = symbols('Sub')
-    # symbolic_hw.hw_allocated['FloorDiv'] = symbols('FloorDiv')
-    # symbolic_hw.hw_allocated['Gt'] = symbols('Gt')
-    # symbolic_hw.hw_allocated['And'] = symbols('And')
-    # symbolic_hw.hw_allocated['Or'] = symbols('Or')
-    # symbolic_hw.hw_allocated['Mod'] = symbols('Mod')
-    # symbolic_hw.hw_allocated['LShift'] = symbols('LShift')
-    # symbolic_hw.hw_allocated['RShift'] = symbols('RShift')
-    # symbolic_hw.hw_allocated['BitOr'] = symbols('BitOr')
-    # symbolic_hw.hw_allocated['BitXor'] = symbols('BitXor')
-    # symbolic_hw.hw_allocated['BitAnd'] = symbols('BitAnd')
-    # symbolic_hw.hw_allocated['Eq'] = symbols('Eq')
-    # symbolic_hw.hw_allocated['NotEq'] = symbols('NotEq')
-    # symbolic_hw.hw_allocated['Lt'] = symbols('Lt')
-    # symbolic_hw.hw_allocated['LtE'] = symbols('LtE')
-    # symbolic_hw.hw_allocated['GtE'] = symbols('GtE')
-    # symbolic_hw.hw_allocated['IsNot'] = symbols('IsNot')
-    # symbolic_hw.hw_allocated['USub'] = symbols('USub')
-    # symbolic_hw.hw_allocated['UAdd'] = symbols('UAdd')
-    # symbolic_hw.hw_allocated['Not'] = symbols('Not')
-    # symbolic_hw.hw_allocated['Invert'] = symbols('Invert')
+    symbolic_hw.hw_allocated['Add'] = symbols('Add')
+    symbolic_hw.hw_allocated['Regs'] = symbols('Regs')
+    symbolic_hw.hw_allocated['Mult'] = symbols('Mult')
+    symbolic_hw.hw_allocated['Sub'] = symbols('Sub')
+    symbolic_hw.hw_allocated['FloorDiv'] = symbols('FloorDiv')
+    symbolic_hw.hw_allocated['Gt'] = symbols('Gt')
+    symbolic_hw.hw_allocated['And'] = symbols('And')
+    symbolic_hw.hw_allocated['Or'] = symbols('Or')
+    symbolic_hw.hw_allocated['Mod'] = symbols('Mod')
+    symbolic_hw.hw_allocated['LShift'] = symbols('LShift')
+    symbolic_hw.hw_allocated['RShift'] = symbols('RShift')
+    symbolic_hw.hw_allocated['BitOr'] = symbols('BitOr')
+    symbolic_hw.hw_allocated['BitXor'] = symbols('BitXor')
+    symbolic_hw.hw_allocated['BitAnd'] = symbols('BitAnd')
+    symbolic_hw.hw_allocated['Eq'] = symbols('Eq')
+    symbolic_hw.hw_allocated['NotEq'] = symbols('NotEq')
+    symbolic_hw.hw_allocated['Lt'] = symbols('Lt')
+    symbolic_hw.hw_allocated['LtE'] = symbols('LtE')
+    symbolic_hw.hw_allocated['GtE'] = symbols('GtE')
+    symbolic_hw.hw_allocated['IsNot'] = symbols('IsNot')
+    symbolic_hw.hw_allocated['USub'] = symbols('USub')
+    symbolic_hw.hw_allocated['UAdd'] = symbols('UAdd')
+    symbolic_hw.hw_allocated['Not'] = symbols('Not')
+    symbolic_hw.hw_allocated['Invert'] = symbols('Invert')
     
     for node in cfg:
         id_to_node[str(node.id)] = node
@@ -180,7 +181,7 @@ def main():
     # data = simulate(cfg, data_path, node_operations, hw.hw_allocated, True)
     first = True
     
-    symbolic_simulate(cfg, data_path, node_operations, hw.hw_allocated, first)
+    symbolic_simulate(cfg, data_path, node_operations, symbolic_hw.hw_allocated, first)
     
     node_avg_power = {}
     for node_id in node_sum_power:
@@ -217,8 +218,10 @@ def main():
     for s in total_cycles.free_symbols:
         if "latency" in s.name:
             expr_symbols[s] = hardwareModel.latency[s.name.split('_')[1]]
-        else:
+        elif "power" in s.name:
             expr_symbols[s] = hardwareModel.power[s.name.split('_')[1]][int(s.name.split('_')[2])]
+        # else:
+        #     expr_symbols[s] = hw.hw_allocated[s.name]
     print("expr_symbols", expr_symbols)
     
     print("before modification ", total_cycles.subs(expr_symbols))
@@ -275,19 +278,24 @@ def main():
             continue
         if "latency" in s.name:
             expr_symbols[s] = hardwareModel.latency[s.name.split('_')[1]]
-        else:
+        elif "power" in s.name:
             expr_symbols[s] = hardwareModel.power[s.name.split('_')[1]][int(s.name.split('_')[2])]
+        # else:
+        #     expr_symbols[s] = hw.hw_allocated[s.name]
 
     # print("only keep 2 variables ", expr_symbols_with_cost.subs(expr_symbols))
     expr_symbols_with_cost_with_2_symbols = expr_symbols_with_cost.subs(expr_symbols)
     
-    diffs=[]
-    symbols=[]
+    m_diffs=[]
+    m_symbols=[]
     for s in expr_symbols_with_cost_with_2_symbols.free_symbols:
-        diffs.append(diff(expr_symbols_with_cost_with_2_symbols,s))
-        symbols.append(s)
+        m_diffs.append(diff(expr_symbols_with_cost_with_2_symbols,s))
+        m_symbols.append(s)
+    print("expr_symbols_with_cost_with_2_symbols", expr_symbols_with_cost_with_2_symbols)
+    print("m_diffs", m_diffs)
+    return
     from design_space import DesignSpace
-    ds=DesignSpace(expr_symbols_with_cost_with_2_symbols,symbols,diffs,[hardwareModel.latency['And'], hardwareModel.latency['Sub']])
+    ds=DesignSpace(expr_symbols_with_cost_with_2_symbols,m_symbols,m_diffs,[hardwareModel.latency['And'], hardwareModel.latency['Sub']])
     # ds=DesignSpace(expr_symbols_with_cost_with_2_symbols,symbols,diffs,[1,1])
     
     ds.solve()

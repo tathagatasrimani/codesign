@@ -199,7 +199,7 @@ class SymbolicHardwareModel:
 
         # number of non-memory elements allocated
         self.hw_allocated = {}
-        self.hw_allocated["Regs"] = 0
+        # self.hw_allocated["Regs"] = 0
         self.loop_variables = loop_counts
         self.var_sizes = var_sizes
         self.id = id
@@ -207,17 +207,17 @@ class SymbolicHardwareModel:
         # a dict of symbols, only assigned and compute the value when needed
 
 
-        for key in op2sym_map.keys():
-            self.hw_allocated[key] = 0
+        # for key in op2sym_map.keys():
+        #     self.hw_allocated[key] = 0
 
         self.cycles = 0
 
 
-    def print_stats(self):
-        s = '''
-        cycles={cycles}
-        allocated={allocated}
-        utilized={utilized}
-        '''.format(cycles=self.cycles, \
-                   allocated=str(self.hw_allocated))
-        return s
+    # def print_stats(self):
+    #     s = '''
+    #     cycles={cycles}
+    #     allocated={allocated}
+    #     utilized={utilized}
+    #     '''.format(cycles=self.cycles, \
+    #                allocated=str(self.hw_allocated))
+    #     return s
