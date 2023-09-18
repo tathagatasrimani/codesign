@@ -15,6 +15,7 @@ main_cfg = None
 id_to_node = {}
 path = '/home/ubuntu/codesign/src/cfg/benchmarks/' # change path variable for local computer
 data_path = []
+symbolic_data_path = []
 node_intervals = []
 node_sum_power = {}
 node_sum_cycles = {}
@@ -38,7 +39,6 @@ def symbolic_cycle_sim_parallel(hw_spec, hw_need):
     global cycles
     max_cycles = 0
     power_sum = 0
-    # print(hw_need)
     for elem in hw_need:
         # batch = math.ceil(hw_need[elem] / hw_spec[elem])
         batch = ceiling(hw_need[elem] / hw_spec[elem])
@@ -62,6 +62,7 @@ def symbolic_simulate(cfg, data_path, symbolic_node_operations, hw_spec, symboli
     #     hw_inuse[elem] = [0] * hw_spec[elem]
     i = 0
     # focus on symbolizing the node_operations
+    print("data_path", data_path)
     while i < len(data_path):
         node_id = data_path[i][0]
         cur_node = id_to_node[node_id]
@@ -172,11 +173,12 @@ def main():
         #print(l)
         last_line = '-1'
         last_node = '-1'
-        for item in l:
+        for idx, item in enumerate(l):
             if len(item) == 2 and (item[0] != last_node or item[1] == last_line):
                 last_node = item[0]
                 last_line = item[1]
                 data_path.append(item)
+                symbolic_data_path.append([symbols("last_node_" + str(idx)), symbols("last_line_" + str(idx))])
     # but for now we just begin with symbolic simulation
     # data = simulate(cfg, data_path, node_operations, hw.hw_allocated, True)
     first = True
