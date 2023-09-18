@@ -185,27 +185,9 @@ def main():
     
     node_avg_power = {}
     for node_id in node_sum_power:
-        # node_sum_cycles_is_zero = 0.5 * tanh(node_sum_cycles[node_id]) + 0.5
-        # probably node_sum_cycles[node_id] is not zero, because it's the max of all the cycles, just divide by it
         node_avg_power[node_id] = (node_sum_power[node_id] / node_sum_cycles[node_id]).simplify()
-    # print("node_sum_power", node_sum_power)
-    # print("node_sum_cycles", node_sum_cycles)
-    # print("node_intervals", node_intervals)
+
     
-    # node_avg_power_value = {}
-    # for node_id in node_avg_power:
-    #     expr_symbols = {}
-    #     expr = node_avg_power[node_id]
-    #     for s in expr.free_symbols:
-    #         if not s in expr_symbols:
-    #             if "latency" in s.name:
-    #                 expr_symbols[s] = hardwareModel.latency[s.name.split('_')[1]]
-    #             else:
-    #                 expr_symbols[s] = hardwareModel.power[s.name.split('_')[1]][int(s.name.split('_')[2])]
-    #     expr_value = expr.subs(expr_symbols)
-    #     node_avg_power_value[node_id] = float(expr_value)
-        
-    # node_avg_power_value = {}
     total_cycles = 0
     for node_id in node_sum_cycles:
         total_cycles += node_sum_cycles[node_id]
@@ -220,45 +202,7 @@ def main():
             expr_symbols[s] = hardwareModel.latency[s.name.split('_')[1]]
         elif "power" in s.name:
             expr_symbols[s] = hardwareModel.power[s.name.split('_')[1]][int(s.name.split('_')[2])]
-        # else:
-        #     expr_symbols[s] = hw.hw_allocated[s.name]
-    print("expr_symbols", expr_symbols)
-    
-    print("before modification ", total_cycles.subs(expr_symbols))
-    
-    # prime_expr = {}
-    # prime_expr_value = {}
-    
-    # for s in total_cycles.free_symbols:
-    #     print("total_cycles", total_cycles)
-    #     print("s", s)
-    #     prime_s = total_cycles.diff(s)
-    #     print("prime_s", prime_s)
-    #     prime_expr[s] = prime_s
-    #     prime_expr_value[s] = prime_s.subs(expr_symbols)
-    
-    # print("prime_expr", prime_expr)
-    # print("prime_expr_value", prime_expr_value)
-    
-    # max_key = max(prime_expr_value, key=prime_expr_value.get) # positive, apply - 0.1
-    # print("max_key", max_key)
-    # min_key = min(prime_expr_value, key=prime_expr_value.get) # negative, apply + 0.1
-    # print("min_key", min_key)
-    
-    # expr_symbols[max_key] -= delta
-    # expr_symbols[min_key] += delta
-    
-    # print("min latency ", total_cycles.subs(expr_symbols))
-    
-    # expr_symbols[max_key] += delta
-    # expr_symbols[min_key] -= delta
-    
-    # print("original latency ", total_cycles.subs(expr_symbols))
-    
-    # expr_symbols[max_key] += delta
-    # expr_symbols[min_key] -= delta
-    
-    # print("maximum latency ", total_cycles.subs(expr_symbols))
+
     cost_sum = 0
     for s in total_cycles.free_symbols:
         cost_sum += 1/(s+1)
@@ -280,10 +224,7 @@ def main():
             expr_symbols[s] = hardwareModel.latency[s.name.split('_')[1]]
         elif "power" in s.name:
             expr_symbols[s] = hardwareModel.power[s.name.split('_')[1]][int(s.name.split('_')[2])]
-        # else:
-        #     expr_symbols[s] = hw.hw_allocated[s.name]
-
-    # print("only keep 2 variables ", expr_symbols_with_cost.subs(expr_symbols))
+            
     expr_symbols_with_cost_with_2_symbols = expr_symbols_with_cost.subs(expr_symbols)
     
     m_diffs=[]
@@ -291,186 +232,12 @@ def main():
     for s in expr_symbols_with_cost_with_2_symbols.free_symbols:
         m_diffs.append(diff(expr_symbols_with_cost_with_2_symbols,s))
         m_symbols.append(s)
-    print("expr_symbols_with_cost_with_2_symbols", expr_symbols_with_cost_with_2_symbols)
-    print("m_diffs", m_diffs)
-    return
+
     from design_space import DesignSpace
     ds=DesignSpace(expr_symbols_with_cost_with_2_symbols,m_symbols,m_diffs,[hardwareModel.latency['And'], hardwareModel.latency['Sub']])
-    # ds=DesignSpace(expr_symbols_with_cost_with_2_symbols,symbols,diffs,[1,1])
-    
+
     ds.solve()
     
-    
-    return
-    import numpy as np
-    modules = ['numpy']
-    # {'Heaviside': lambda x: np.heaviside(x, 1)}, 
-    # focx_lambda = lambdify((self.symbols[0], self.symbols[1]), self.expr.subs({self.symbols[0].name: self.symbols[0]}), modules=modules)
-    # focy_lambda = lambdify((self.symbols[0], self.symbols[1]), self.expr, modules=modules)
-    # print(focx_lambda(0.3, 0.4))  # we need to check that the lambdify works, so this should print a floating point number
-    # print(focy_lambda(0.3, 0.4))
-    # f_lambda = lambdify((self.symbols[0], self.symbols[1]), self.expr, modules=modules)
-    # print(f_lambda(0.3, 0.4))
-    f0_lambda = lambdify((symbols[0], symbols[1]), diffs[0], modules=modules)
-    f1_lambda = lambdify((symbols[0], symbols[1]), diffs[1], modules=modules)
-    
-    
-    def equations(p):
-        x, y = p
-        print("x, y", x, y)
-        return [f0_lambda(x, y), f1_lambda(x, y)]
-
-    sol = fsolve(equations, [1, 1])
-    print(sol)  # [0.64701372 0.61726372]
-    print("self.expr", self.expr)
-    data_dict = {self.symbols[0]:sol[0], self.symbols[1]:sol[1]}
-    print(data_dict)
-    print(self.expr.subs(data_dict))
-        
-    # print(f0_lambda)
-    # print(f0_lambda(0.3, 0.4))
-        
-    # stationary_points = solve(diffs, symbols, dict=True)   
-
-    # # Append boundary points
-    # stationary_points.append({x:0, y:0})
-    # stationary_points.append({x:1, y:0})
-    # stationary_points.append({x:1, y:1})
-    # stationary_points.append({x:0, y:1})
-    
-    # # store results after evaluation
-    # results = []
-    
-    # # iteration counter
-    # j = -1
-    
-    # for i in range(len(stationary_points)):
-    #     j = j+1
-    #     x1 = stationary_points[j].get(x)
-    #     y1 = stationary_points[j].get(y)
-        
-    #     # If point is in the domain evalute and append it
-    #     if (0 <= x1 <=  1) and ( 0 <= y1 <=  1):
-    #         tmp = f.subs({x:x1, y:y1})
-    #         results.append(tmp)
-    #     else:
-    #         # else remove the point
-    #         stationary_points.pop(j)
-    #         j = j-1
-            
-    # # Variables to store info
-    # returnMax = []
-    # returnMin = []
-    
-    # # Get the maximum value
-    # maximum = max(results)
-    
-    # # Get the position of all the maximum values
-    # maxpos = [i for i,j in enumerate(results) if j==maximum]
-    
-    # # Append only unique points
-    # append = False
-    # for item in maxpos:
-    #     for i in returnMax:
-    #         if (stationary_points[item] in i.values()):
-    #             append = True
-               
-    #     if (not(append)):
-    #         returnMax.append({maximum: stationary_points[item]})
-    
-    # # Get the minimum value
-    # minimum  = min(results)
-    
-    # # Get the position of all the minimum  values
-    # minpos = [i for i,j in enumerate(results) if j==minimum ]
-    
-    # # Append only unique points
-    # append = False
-    # for item in minpos:
-    #     for i in returnMin:
-    #         if (stationary_points[item] in i.values()):
-    #             append = True
-               
-    #     if (not(append)):
-    #         returnMin.append({minimum: stationary_points[item]})
-    
-
-    
-    # print([returnMax, returnMin])
-
-    # import scipy.optimize as optimize
-
-    # def f(params):
-    #     # print(params)  # <-- you'll see that params is a NumPy array
-    #     a, b, c = params # <-- for readability you may wish to assign names to the component variables
-    #     return a**2 + b**2 + c**2
-
-    # initial_guess = [1, 1, 1]
-    # result = optimize.minimize(f, initial_guess)
-        
-        
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    # energy delay product
-    # realistic model what you can change and how much you can change it
-    
-    # total_cycles_value = total_cycles.subs(expr_symbols)
-    # print("total_cycles_value", total_cycles_value)
-        
-    # node_sum_cycles_value = {}
-    # for node_id in node_sum_cycles:
-    #     expr_symbols = {}
-    #     expr = node_sum_cycles[node_id]
-    #     for s in expr.free_symbols:
-    #         if not s in expr_symbols:
-    #             if "latency" in s.name:
-    #                 expr_symbols[s] = hardwareModel.latency[s.name.split('_')[1]]
-    #             else:
-    #                 expr_symbols[s] = hardwareModel.power[s.name.split('_')[1]][int(s.name.split('_')[2])]
-    #     expr_value = expr.subs(expr_symbols)
-    #     node_sum_cycles_value[node_id] = float(expr_value)
-    
-    # fprime_And = total_cycles_value.diff(hardwareModel.symbolic_latency["And"])
-    # fprime_Or = total_cycles_value.diff(hardwareModel.symbolic_latency["Or"])
-    # stationary_points = solve([fprime_And, fprime_Or], [hardwareModel.symbolic_latency["And"], hardwareModel.symbolic_latency["Or"]], dict=True)   
-    # print(stationary_points)
-    
-    
-    # x_interval = [0.5, 5]
-    # y_interval = [0.5, 5]
-    # constraints = [
-    #     total_cycles_value.And(hardwareModel.symbolic_latency["Add"] >= x_interval[0], hardwareModel.symbolic_latency["Add"] <= x_interval[1]),
-    #     total_cycles_value.And(hardwareModel.symbolic_latency["Regs"] >= y_interval[0], hardwareModel.symbolic_latency["Regs"] <= y_interval[1])
-    # ]
-    
-    # prime_Add = total_cycles_value.diff(hardwareModel.symbolic_latency["Add"])
-    # prime_Regs = total_cycles_value.diff(hardwareModel.symbolic_latency["Regs"])
-    # stationary_points = solve([prime_Add, prime_Regs], [hardwareModel.symbolic_latency["Add"], hardwareModel.symbolic_latency["Regs"]], dict=True)
-    # print("stationary_points", stationary_points)
-    # valid_critical_points = [point for point in stationary_points if all(con.subs(point) for con in constraints)]
-
-    
-    
-
-
-    # print(node_sum_cycles_value)
-    # {'1': 2.0, '102': 6.0, '29': 2.0, '7': 1.0, '9': 11.76, '31': 5.0, '33': 4.12, '39': 4.06, '36': 4.06, '43': 3.0, '60': 4.06, '73': 3.0, '84': 4.0, '90': 5.359999999999999, '17': 1.0, '21': 20.759999999999998}
-    # /home/ubuntu/codesign/src/cfg/benchmarks/models/testme.py
 if __name__ == '__main__':
     main()
     

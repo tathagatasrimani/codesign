@@ -24,14 +24,6 @@ class symbol:
         self.write = write
         self.read = read
 
-# class Node:
-#     def __init__(self, value: str, operation: str):
-#         self.value = value
-#         self.operation = operation
-#         self.children = []
-#         self.parents = []
-#         self.order = 0
-
 class SymbolicNode:
     def __init__(self, value: str, operation: str, node_id: str):
         # value: str, operation: str
