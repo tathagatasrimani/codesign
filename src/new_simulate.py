@@ -11,6 +11,7 @@ import json
 import sys
 from collections import deque
 import graphviz as gv
+import os
 
 MEMORY_SIZE = 1000000
 state_graph_counter = 0
@@ -22,7 +23,7 @@ class HardwareSimulator():
         self.cycles = 0
         self.main_cfg = None
         self.id_to_node = {}
-        self.path = '/Users/PatrickMcEwen/git_container/codesign/src/' # change path variable for local computer
+        self.path = os.getcwd()
         self.data_path = []
         self.power_use = []
         self.node_intervals = []
