@@ -349,7 +349,7 @@ def dfg_per_node(node):
                     break
                 j -= 1
         i -= 1
-    graph.render(path + 'benchmarks/pictures/' + benchmark + "_dfg_node_" + str(node.id), view = False)
+    graph.render(path + '/benchmarks/pictures/' + benchmark + "_dfg_node_" + str(node.id), view = False)
     return graphs[node]
 
 
@@ -358,8 +358,8 @@ def main_fn(path_in, benchmark_in):
     global benchmark, path, node_to_symbols, graphs, node_to_unroll, unroll
     benchmark, path = benchmark_in, path_in
     benchmark = benchmark[benchmark.rfind('/')+1:]
-    cfg = CFGBuilder().build_from_file('main.c', path + 'instrumented_files/xformedname-' + benchmark)
-    cfg.build_visual(path + 'benchmarks/pictures/' + benchmark, 'jpeg', show = False)
+    cfg = CFGBuilder().build_from_file('main.c', path + '/instrumented_files/xformedname-' + benchmark)
+    cfg.build_visual(path + '/benchmarks/pictures/' + benchmark, 'jpeg', show = False)
     for node in cfg:
         dfg_per_node(node)
         for root in graphs[node].roots:

@@ -12,6 +12,7 @@ import sys
 from collections import deque
 import graphviz as gv
 import os
+import argparse
 
 MEMORY_SIZE = 1000000
 state_graph_counter = 0
@@ -364,7 +365,7 @@ class HardwareSimulator():
                                 self.make_edge(state_graph, parent_id, compute_id, "")
                         self.process_compute_element(op, state_graph, state_graph.id_to_Node[compute_id], check_duplicate=False)
                     if op_count > 0:
-                        state_graph_viz.render(self.path + 'benchmarks/pictures/state_graphs/' + sys.argv[1][sys.argv[1].rfind('/')+1:] + '_' + str(state_graph_counter), view = True)
+                        state_graph_viz.render(self.path + '/benchmarks/pictures/state_graphs/' + sys.argv[1][sys.argv[1].rfind('/')+1:] + '_' + str(state_graph_counter), view = True)
                     state_graph_counter += 1
                     #print(hw_need)
                     max_cycles = 0
@@ -397,7 +398,7 @@ class HardwareSimulator():
             pattern_seek = pattern_seek_next
             max_iters = max_iters_next
         print("done with simulation")
-        self.new_graph.gv_graph.render(self.path + 'benchmarks/pictures/memory_graphs/' + sys.argv[1][sys.argv[1].rfind('/')+1:], view = True)
+        self.new_graph.gv_graph.render(self.path + '/benchmarks/pictures/memory_graphs/' + sys.argv[1][sys.argv[1].rfind('/')+1:], view = True)
         return self.data
 
     def set_data_path(self):
@@ -464,7 +465,7 @@ class HardwareSimulator():
                     #print(self.vars_allocated)
                     self.cur_memory_size += int(item[1])
                     self.memory_needed = max(self.memory_needed, self.cur_memory_size)
-        #print(self.data_path)
+        print(f"data_path: {self.data_path}")
         print("memory needed: ", self.memory_needed)
 
     def simulator_prep(self, benchmark):
@@ -476,10 +477,9 @@ class HardwareSimulator():
         return cfg, graphs, node_operations
 
 def main():
-    benchmark = sys.argv[1]
-    print(benchmark)
+    print(args.benchmark)
     simulator = HardwareSimulator()
-    cfg, graphs, node_operations = simulator.simulator_prep(benchmark)
+    cfg, graphs, node_operations = simulator.simulator_prep(args.benchmark)
     simulator.transistor_size = 3 # in nm
     simulator.pitch = 100
     simulator.mem_layers = 2
@@ -545,8 +545,8 @@ def main():
     print("total compute element usage: ", hw.compute_operation_totals)
     print("max regs in use: ", simulator.max_regs_inuse)
     print("max memory in use: ", simulator.max_mem_inuse)
-    names = sys.argv[1].split('/')
-    if len(sys.argv) < 3 or not sys.argv[2] == "notrace":
+    names = args.benchmark.split('/')
+    if not args.notrace:
         text = json.dumps(data, indent=4)
         with open(simulator.path + 'benchmarks/json_data/' + names[-1], 'w') as fh:
             fh.write(text)
@@ -561,5 +561,16 @@ def main():
     plt.clf() 
     print("done!")
 
+
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(
+                    prog='Simulate',
+                    description='Runs a hardware simulation on a given benchmark and technology spec',
+                    epilog='Text at the bottom of help')
+    parser.add_argument('benchmark', metavar='B', type=str)
+    parser.add_argument('--notrace', '-n', metavar='N', type=bool, default=False, nargs=1)
+
+    args = parser.parse_args()
+    print(f"args: {args.benchmark}, {args.notrace}")
+
     main()
