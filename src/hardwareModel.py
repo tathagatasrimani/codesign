@@ -39,7 +39,6 @@ op2sym_map = {
 }
 
 # using 64 bit numbers, 5GHz clock
-
 latency = {
     7: {
         "And": 1.75,

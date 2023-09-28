@@ -7,7 +7,7 @@ from staticfg.builder import CFGBuilder
 from ast_utils import ASTUtils
 from collections import deque
 import copy
-
+import argparse
 import os
 
 lineno_to_node = {}
@@ -379,5 +379,14 @@ def instrument_and_run(filepath:str):
                     #inject print statement for total memory size"""
 
 
-instrument_and_run(sys.argv[1])
+parser = argparse.ArgumentParser(
+                    prog='Instrument',
+                    description='What the program does? I\'m not yet sure myself.',
+                    epilog='Text at the bottom of help')
+
+parser.add_argument('filename')
+
+args = parser.parse_args()
+
+instrument_and_run(args.filename)
 print(lineno_to_node)
