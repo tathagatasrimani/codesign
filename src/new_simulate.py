@@ -13,7 +13,7 @@ data = {}
 cycles = 0
 main_cfg = None
 id_to_node = {}
-path = '/home/ubuntu/codesign/src/cfg/benchmarks/' # change path variable for local computer
+path = '/Users/PatrickMcEwen/git_container/codesign/src/cfg/benchmarks/' # change path variable for local computer
 data_path = []
 power_use = []
 node_intervals = []
@@ -178,7 +178,7 @@ def main():
     for node in cfg:
         id_to_node[str(node.id)] = node
     # set up sequence of cfg nodes to visit
-    with open('/home/ubuntu/codesign/src/instrumented_files/output.txt', 'r') as f:
+    with open('/Users/PatrickMcEwen/git_container/codesign/src/instrumented_files/output.txt', 'r') as f:
         src = f.read()
         l = src.split('\n')
         for i in range(len(l)):
