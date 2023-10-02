@@ -13,7 +13,7 @@ from sympy import *
 cycles = 0
 main_cfg = None
 id_to_node = {}
-path = '/home/ubuntu/codesign/src/cfg/benchmarks/' # change path variable for local computer
+path = '/Users/PatrickMcEwen/git_container/codesign/src/cfg/benchmarks/' # change path variable for local computer
 data_path = []
 node_intervals = []
 node_sum_power = {}
@@ -34,13 +34,25 @@ def get_hw_need(state):
         else: hw_need.hw_allocated[op.operation] += 1
     return hw_need.hw_allocated
 
+def sigmoid(x):
+    return 1 / (1 + exp(-x))
+
+def get_batch(need, spec):
+    batch = 0
+    for i in range(need):
+        # add 1 to batch if need / spec > i
+        batch += sigmoid((need/spec) - i)
+    return batch
+
 def symbolic_cycle_sim_parallel(hw_spec, hw_need):
     global cycles
     max_cycles = 0
     power_sum = 0
     # print(hw_need)
     for elem in hw_need:
-        batch = math.ceil(hw_need[elem] / hw_spec[elem])
+        # batch = math.ceil(hw_need[elem] / hw_spec[elem])
+        batch = get_batch(hw_need[elem], hw_spec[elem])
+        print("batch for", elem, "with need of", hw_need[elem], "and spec of", hw_spec[elem], "is", batch)
         active_power = hw_need[elem] * hardwareModel.symbolic_power[elem][2]
         power_sum += active_power
         power_sum += batch * hw_spec[elem] * hardwareModel.symbolic_power[elem][2] / 10 # idle dividor still need passive power
@@ -56,9 +68,6 @@ def symbolic_simulate(cfg, data_path, symbolic_node_operations, hw_spec, symboli
     if symbolic_first: 
         cur_node = cur_node.exits[0].target # skip over the first node in the main cfg
         main_cfg = cfg
-    hw_inuse = {}
-    for elem in hw_spec:
-        hw_inuse[elem] = [0] * hw_spec[elem]
     i = 0
     # focus on symbolizing the node_operations
     while i < len(data_path):
@@ -107,8 +116,9 @@ def main():
     # symbolic_hw = SymbolicHardwareModel(0, 0)
     
     hw = HardwareModel(0, 0)
+    symbolic_hw = HardwareModel(0, 0)
     
-    hw.hw_allocated['Add'] = 15
+    hw.hw_allocated['Add'] = 1
     hw.hw_allocated['Regs'] = 30
     hw.hw_allocated['Mult'] = 15
     hw.hw_allocated['Sub'] = 15
@@ -132,38 +142,38 @@ def main():
     hw.hw_allocated['UAdd'] = 1
     hw.hw_allocated['Not'] = 1
     hw.hw_allocated['Invert'] = 1
+    from sympy import symbols
     
-    
-    # symbolic_hw.hw_allocated['Add'] = symbols('Add')
-    # symbolic_hw.hw_allocated['Regs'] = symbols('Regs')
-    # symbolic_hw.hw_allocated['Mult'] = symbols('Mult')
-    # symbolic_hw.hw_allocated['Sub'] = symbols('Sub')
-    # symbolic_hw.hw_allocated['FloorDiv'] = symbols('FloorDiv')
-    # symbolic_hw.hw_allocated['Gt'] = symbols('Gt')
-    # symbolic_hw.hw_allocated['And'] = symbols('And')
-    # symbolic_hw.hw_allocated['Or'] = symbols('Or')
-    # symbolic_hw.hw_allocated['Mod'] = symbols('Mod')
-    # symbolic_hw.hw_allocated['LShift'] = symbols('LShift')
-    # symbolic_hw.hw_allocated['RShift'] = symbols('RShift')
-    # symbolic_hw.hw_allocated['BitOr'] = symbols('BitOr')
-    # symbolic_hw.hw_allocated['BitXor'] = symbols('BitXor')
-    # symbolic_hw.hw_allocated['BitAnd'] = symbols('BitAnd')
-    # symbolic_hw.hw_allocated['Eq'] = symbols('Eq')
-    # symbolic_hw.hw_allocated['NotEq'] = symbols('NotEq')
-    # symbolic_hw.hw_allocated['Lt'] = symbols('Lt')
-    # symbolic_hw.hw_allocated['LtE'] = symbols('LtE')
-    # symbolic_hw.hw_allocated['GtE'] = symbols('GtE')
-    # symbolic_hw.hw_allocated['IsNot'] = symbols('IsNot')
-    # symbolic_hw.hw_allocated['USub'] = symbols('USub')
-    # symbolic_hw.hw_allocated['UAdd'] = symbols('UAdd')
-    # symbolic_hw.hw_allocated['Not'] = symbols('Not')
-    # symbolic_hw.hw_allocated['Invert'] = symbols('Invert')
+    symbolic_hw.hw_allocated['Add'] = symbols('Add')
+    symbolic_hw.hw_allocated['Regs'] = symbols('Regs')
+    symbolic_hw.hw_allocated['Mult'] = symbols('Mult')
+    symbolic_hw.hw_allocated['Sub'] = symbols('Sub')
+    symbolic_hw.hw_allocated['FloorDiv'] = symbols('FloorDiv')
+    symbolic_hw.hw_allocated['Gt'] = symbols('Gt')
+    symbolic_hw.hw_allocated['And'] = symbols('And')
+    symbolic_hw.hw_allocated['Or'] = symbols('Or')
+    symbolic_hw.hw_allocated['Mod'] = symbols('Mod')
+    symbolic_hw.hw_allocated['LShift'] = symbols('LShift')
+    symbolic_hw.hw_allocated['RShift'] = symbols('RShift')
+    symbolic_hw.hw_allocated['BitOr'] = symbols('BitOr')
+    symbolic_hw.hw_allocated['BitXor'] = symbols('BitXor')
+    symbolic_hw.hw_allocated['BitAnd'] = symbols('BitAnd')
+    symbolic_hw.hw_allocated['Eq'] = symbols('Eq')
+    symbolic_hw.hw_allocated['NotEq'] = symbols('NotEq')
+    symbolic_hw.hw_allocated['Lt'] = symbols('Lt')
+    symbolic_hw.hw_allocated['LtE'] = symbols('LtE')
+    symbolic_hw.hw_allocated['GtE'] = symbols('GtE')
+    symbolic_hw.hw_allocated['IsNot'] = symbols('IsNot')
+    symbolic_hw.hw_allocated['USub'] = symbols('USub')
+    symbolic_hw.hw_allocated['UAdd'] = symbols('UAdd')
+    symbolic_hw.hw_allocated['Not'] = symbols('Not')
+    symbolic_hw.hw_allocated['Invert'] = symbols('Invert')
     
     for node in cfg:
         id_to_node[str(node.id)] = node
     
     # set up sequence of cfg nodes to visit
-    with open('/home/ubuntu/codesign/src/instrumented_files/output.txt', 'r') as f:
+    with open('/Users/PatrickMcEwen/git_container/codesign/src/instrumented_files/output.txt', 'r') as f:
         src = f.read()
         l = src.split('\n')
         for i in range(len(l)):
