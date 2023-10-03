@@ -34,14 +34,11 @@ def get_hw_need(state):
         else: hw_need.hw_allocated[op.operation] += 1
     return hw_need.hw_allocated
 
-def sigmoid(x):
-    return 1 / (1 + exp(-x))
-
 def get_batch(need, spec):
     batch = 0
     for i in range(need):
         # add 1 to batch if need / spec > i
-        batch += sigmoid((need/spec) - i)
+        batch += (functions.elementary.hyperbolic.tanh((need/spec) - i + 0.5) + 1) / 2
     return batch
 
 def symbolic_cycle_sim_parallel(hw_spec, hw_need):
