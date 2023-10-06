@@ -1,5 +1,5 @@
 graph {
-	193 [label="*
+	193 [label="+
 "]
 	194 [label="x_1
 Register"]
@@ -7,15 +7,15 @@ Register"]
 	195 [label="y_1
 Register"]
 	195 -- 193 [label=""]
-	196 [label="+
+	196 [label="r_1
+Register"]
+	196 -- 193 [label=""]
+	197 [label="*
 "]
-	197 [label="x_1
+	198 [label="x_1
 Register"]
-	197 -- 196 [label=""]
-	198 [label="y_1
+	198 -- 197 [label=""]
+	199 [label="y_1
 Register"]
-	198 -- 196 [label=""]
-	199 [label="r_1
-Register"]
-	199 -- 196 [label=""]
+	199 -- 197 [label=""]
 }

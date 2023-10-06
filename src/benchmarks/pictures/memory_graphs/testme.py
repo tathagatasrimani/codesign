@@ -160,23 +160,23 @@ graph {
 	188 [label="x_1
 location: 0
 Register"]
-	188 -- 139 [label="size: 32"]
+	188 -- 109 [label="size: 32"]
 	189 [label="y_1
 location: 32
 Register"]
-	189 -- 139 [label="size: 32"]
-	190 [label="x_1
-location: 0
-Register"]
-	190 -- 109 [label="size: 32"]
-	191 [label="y_1
-location: 32
-Register"]
-	191 -- 109 [label="size: 32"]
-	192 [label="r_1
+	189 -- 109 [label="size: 32"]
+	190 [label="r_1
 location: 88
 Register"]
-	192 -- 109 [label="size: 32"]
+	190 -- 109 [label="size: 32"]
+	191 [label="x_1
+location: 0
+Register"]
+	191 -- 139 [label="size: 32"]
+	192 [label="y_1
+location: 32
+Register"]
+	192 -- 139 [label="size: 32"]
 	139 -- 109 [label=""]
 	109 -- 109 [label=""]
 	154 -- 109 [label=""]
@@ -221,32 +221,32 @@ Register"]
 location: 32
 Register"]
 	233 -- 154 [label="size: 24"]
-	238 [label="z_1
+	262 [label="z_1
 location: 144
 Register"]
-	238 -- 109 [label="size: 10.666666666666666"]
-	241 [label="z_1
+	262 -- 109 [label="size: 10.666666666666666"]
+	265 [label="z_1
 location: 144
 Register"]
-	241 -- 110 [label="size: 10.666666666666666"]
-	244 [label="z_1
+	265 -- 110 [label="size: 10.666666666666666"]
+	268 [label="z_1
 location: 144
 Register"]
-	244 -- 111 [label="size: 10.666666666666666"]
-	247 [label="z_1
+	268 -- 111 [label="size: 10.666666666666666"]
+	271 [label="z_1
 location: 144
 Register"]
-	247 -- 112 [label="size: 10.666666666666666"]
-	250 [label="z_1
+	271 -- 112 [label="size: 10.666666666666666"]
+	274 [label="z_1
 location: 144
 Register"]
-	250 -- 113 [label="size: 10.666666666666666"]
-	276 [label="a_2
+	274 -- 113 [label="size: 10.666666666666666"]
+	312 [label="a_2
 location: 88
 Register"]
-	276 -- 110 [label="size: 32"]
-	278 [label="a_2
+	312 -- 110 [label="size: 32"]
+	314 [label="a_2
 location: 88
 Register"]
-	278 -- 111 [label="size: 32"]
+	314 -- 111 [label="size: 32"]
 }
