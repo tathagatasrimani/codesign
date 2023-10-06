@@ -1,0 +1,22 @@
+digraph {
+	110 [label="source code:
+active_sequence_name = line[1:]
+if active_sequence_name not in quality_dict:
+"]
+	111 [label="line
+Read"]
+	112 [label="line[1:]
+Read"]
+	111 -> 112 [label=""]
+	113 [label="active_sequence_name
+Write"]
+	112 -> 113 [label=""]
+	114 [label="active_sequence_name
+Read"]
+	115 [label="quality_dict
+Read"]
+	116 [label="==
+"]
+	114 -> 116 [label=""]
+	115 -> 116 [label=""]
+}

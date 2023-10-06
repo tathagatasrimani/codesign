@@ -1,0 +1,13 @@
+digraph {
+	122 [label="source code:
+if random() < p:
+"]
+	123 [label="random()
+"]
+	124 [label="p
+Read"]
+	125 [label="<
+"]
+	123 -> 125 [label=""]
+	124 -> 125 [label=""]
+}

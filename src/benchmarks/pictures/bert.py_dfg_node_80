@@ -1,0 +1,16 @@
+digraph {
+	231 [label="source code:
+result = np.zeros(len(arr))
+"]
+	232 [label="np.zeros(len(arr))
+"]
+	233 [label="len(arr)
+"]
+	234 [label="arr
+Read"]
+	234 -> 233 [label=""]
+	233 -> 232 [label=""]
+	235 [label="result
+Write"]
+	232 -> 235 [label=""]
+}

@@ -1,7 +1,0 @@
-digraph {
-	67 [label="source code:
-quality_dict = {}
-"]
-	68 [label="quality_dict
-Write"]
-}

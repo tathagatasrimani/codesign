@@ -1,0 +1,16 @@
+digraph {
+	122 [label="source code:
+if g_alpha(alpha) > 0:
+"]
+	123 [label="g_alpha(alpha)
+"]
+	124 [label="alpha
+Read"]
+	124 -> 123 [label=""]
+	125 [label=0
+]
+	126 [label=">
+"]
+	123 -> 126 [label=""]
+	125 -> 126 [label=""]
+}

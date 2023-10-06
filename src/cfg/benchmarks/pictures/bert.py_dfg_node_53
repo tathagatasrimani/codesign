@@ -1,5 +1,0 @@
-digraph {
-	139 [label="source code:
-return math.sqrt(result / len(row))
-"]
-}

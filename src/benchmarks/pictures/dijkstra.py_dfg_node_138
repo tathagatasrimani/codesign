@@ -1,0 +1,16 @@
+digraph {
+	216 [label="source code:
+while len(unsureVertices) > 0:
+"]
+	217 [label="len(unsureVertices)
+"]
+	218 [label="unsureVertices
+Read"]
+	218 -> 217 [label=""]
+	219 [label=0
+]
+	220 [label=">
+"]
+	217 -> 220 [label=""]
+	219 -> 220 [label=""]
+}

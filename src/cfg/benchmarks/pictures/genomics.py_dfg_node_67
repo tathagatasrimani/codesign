@@ -1,5 +1,0 @@
-digraph {
-	152 [label="source code:
-if max_length > 0:
-"]
-}

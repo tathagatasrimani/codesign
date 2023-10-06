@@ -1,6 +1,0 @@
-digraph {
-	29 [label="source code:
-return wolfe(f, g, xk, alpha, pk) and abs(np.dot(g(xk + alpha * pk), pk)
-    ) <= c2 * abs(np.dot(g(xk), pk))
-"]
-}

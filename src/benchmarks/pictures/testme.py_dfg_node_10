@@ -1,0 +1,16 @@
+digraph {
+	91 [label="source code:
+q += 3
+"]
+	92 [label=3
+]
+	93 [label="q
+Read"]
+	94 [label="+
+"]
+	92 -> 94 [label=""]
+	93 -> 94 [label=""]
+	95 [label="q
+Write"]
+	94 -> 95 [label=""]
+}

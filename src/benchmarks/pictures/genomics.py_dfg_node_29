@@ -1,0 +1,16 @@
+digraph {
+	68 [label="source code:
+\"\"\"
+    Reads a fasta file and a quality file and returns a dictionary with sequence
+    number as keys and sequence code as values
+    \"\"\"
+fasta_dict = {}
+"]
+	69 [label="
+    Reads a fasta file and a quality file and returns a dictionary with sequence
+    number as keys and sequence code as values
+    
+"]
+	70 [label="fasta_dict
+Write"]
+}

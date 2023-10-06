@@ -1,0 +1,13 @@
+digraph {
+	284 [label="source code:
+path.append(current)
+path.reverse()
+"]
+	285 [label="path.append(current)
+"]
+	286 [label="current
+Read"]
+	286 -> 285 [label=""]
+	287 [label="path.reverse()
+"]
+}

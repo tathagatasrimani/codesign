@@ -1,0 +1,16 @@
+digraph {
+	279 [label="source code:
+path.append(current)
+current = current.parent
+"]
+	280 [label="path.append(current)
+"]
+	281 [label="current
+Read"]
+	281 -> 280 [label=""]
+	282 [label="current.parent
+Read"]
+	283 [label="current
+Write"]
+	282 -> 283 [label=""]
+}

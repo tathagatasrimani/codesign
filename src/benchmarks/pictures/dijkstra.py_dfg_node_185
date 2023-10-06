@@ -1,0 +1,13 @@
+digraph {
+	343 [label="source code:
+if v.estD == math.inf:
+"]
+	344 [label="v.estD
+Read"]
+	345 [label="math.inf
+Read"]
+	346 [label="==
+"]
+	344 -> 346 [label=""]
+	345 -> 346 [label=""]
+}

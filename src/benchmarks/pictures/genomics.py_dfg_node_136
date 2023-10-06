@@ -1,0 +1,7 @@
+digraph {
+	6 [label="source code:
+main()
+"]
+	7 [label="main()
+"]
+}

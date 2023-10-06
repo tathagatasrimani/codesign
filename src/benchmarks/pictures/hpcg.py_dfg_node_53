@@ -1,0 +1,22 @@
+digraph {
+	198 [label="source code:
+xk = xk1
+gk = gk1
+pk = pk1
+"]
+	199 [label="xk1
+Read"]
+	200 [label="xk
+Write"]
+	199 -> 200 [label=""]
+	201 [label="gk1
+Read"]
+	202 [label="gk
+Write"]
+	201 -> 202 [label=""]
+	203 [label="pk1
+Read"]
+	204 [label="pk
+Write"]
+	203 -> 204 [label=""]
+}

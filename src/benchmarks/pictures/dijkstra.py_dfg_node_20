@@ -1,0 +1,25 @@
+digraph {
+	54 [label="source code:
+if v in self.getInNeighbors() or v in self.getOutNeighbors():
+"]
+	55 [label="v
+Read"]
+	56 [label="self.getInNeighbors()
+"]
+	57 [label="==
+"]
+	55 -> 57 [label=""]
+	56 -> 57 [label=""]
+	58 [label="v
+Read"]
+	59 [label="self.getOutNeighbors()
+"]
+	60 [label="==
+"]
+	58 -> 60 [label=""]
+	59 -> 60 [label=""]
+	61 [label=or
+]
+	57 -> 61 [label=""]
+	60 -> 61 [label=""]
+}

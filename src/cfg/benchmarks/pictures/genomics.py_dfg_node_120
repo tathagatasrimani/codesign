@@ -1,5 +1,0 @@
-digraph {
-	256 [label="source code:
-while traceback_matrix[i][j] != None:
-"]
-}

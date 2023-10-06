@@ -1,0 +1,37 @@
+digraph {
+	314 [label="source code:
+v.estD = u.estD + wt
+unsureVertices[v] = u.estD + wt
+v.parent = u
+"]
+	315 [label="u.estD
+Read"]
+	316 [label="wt
+Read"]
+	317 [label="+
+"]
+	315 -> 317 [label=""]
+	316 -> 317 [label=""]
+	318 [label="v.estD
+Write"]
+	317 -> 318 [label=""]
+	319 [label="u.estD
+Read"]
+	320 [label="wt
+Read"]
+	321 [label="+
+"]
+	319 -> 321 [label=""]
+	320 -> 321 [label=""]
+	322 [label="unsureVertices
+Read"]
+	323 [label="unsureVertices[v]
+Write"]
+	322 -> 323 [label=""]
+	321 -> 323 [label=""]
+	324 [label="u
+Read"]
+	325 [label="v.parent
+Write"]
+	324 -> 325 [label=""]
+}

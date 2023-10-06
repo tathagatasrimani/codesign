@@ -115,7 +115,7 @@ class ASTUtils:
         elif type(op) == ast.In:
             return "Eq"
         elif type(op) == ast.NotIn:
-            return None
+            return "Eq"
         elif type(op) == ast.NotEq:
             return "IsNot"
         else:
@@ -148,13 +148,13 @@ class ASTUtils:
             return ASTUtils.operator_to_opname(expr)
 
         elif isinstance(expr, ast.BinOp):
-            return None
+            return ASTUtils.expr_to_opname(expr.op)
 
         elif isinstance(expr, ast.UnaryOp):
-            return None
+            return ASTUtils.expr_to_opname(expr.op)
 
         elif type(expr) == ast.BoolOp:
-            return None
+            return ASTUtils.expr_to_opname(expr.op)
 
         elif type(expr) == ast.Compare:
             return None

@@ -1,6 +1,0 @@
-digraph {
-	24 [label="source code:
-return np.array([200 * (x[1] - x[0] ** 2) * (-2 * x[0]) + 2 * (x[0] - 1), 
-    200 * (x[1] - x[0] ** 2)])
-"]
-}

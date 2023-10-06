@@ -1,6 +1,0 @@
-digraph {
-	30 [label="source code:
-return f(xk) + (1 - c) * alpha * np.dot(g(xk), pk) <= f(xk + alpha * pk) and f(
-    xk + alpha * pk) <= f(xk) + c * alpha * np.dot(g(xk), pk)
-"]
-}

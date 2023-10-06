@@ -1,5 +1,0 @@
-digraph {
-	353 [label="source code:
-if scoring_matrix[i][j] >= max_score:
-"]
-}

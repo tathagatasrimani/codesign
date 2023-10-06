@@ -1,0 +1,10 @@
+graph {
+	172 [label="*
+"]
+	173 [label="a_1
+Register"]
+	173 -- 172 [label=""]
+	174 [label="b_1
+Register"]
+	174 -- 172 [label=""]
+}

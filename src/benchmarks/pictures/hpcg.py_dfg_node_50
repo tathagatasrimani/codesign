@@ -1,0 +1,118 @@
+digraph {
+	155 [label="source code:
+alpha = step_length(f, g, xk, 1.0, pk, c2)
+xk1 = xk + alpha * pk
+gk1 = g(xk1)
+beta_k1 = np.dot(gk1, gk1) / np.dot(gk, gk)
+pk1 = -gk1 + beta_k1 * pk
+if np.linalg.norm(xk1 - xk) < error:
+"]
+	156 [label="step_length(f, g, xk, 1.0, pk, c2)
+"]
+	157 [label="f
+Read"]
+	157 -> 156 [label=""]
+	158 [label="g
+Read"]
+	158 -> 156 [label=""]
+	159 [label="xk
+Read"]
+	159 -> 156 [label=""]
+	160 [label=1.0
+]
+	160 -> 156 [label=""]
+	161 [label="pk
+Read"]
+	161 -> 156 [label=""]
+	162 [label="c2
+Read"]
+	162 -> 156 [label=""]
+	163 [label="alpha
+Write"]
+	156 -> 163 [label=""]
+	164 [label="xk
+Read"]
+	165 [label="alpha
+Read"]
+	166 [label="pk
+Read"]
+	167 [label="*
+"]
+	165 -> 167 [label=""]
+	166 -> 167 [label=""]
+	168 [label="+
+"]
+	164 -> 168 [label=""]
+	167 -> 168 [label=""]
+	169 [label="xk1
+Write"]
+	168 -> 169 [label=""]
+	170 [label="g(xk1)
+"]
+	171 [label="xk1
+Read"]
+	171 -> 170 [label=""]
+	172 [label="gk1
+Write"]
+	170 -> 172 [label=""]
+	173 [label="np.dot(gk1, gk1)
+"]
+	174 [label="gk1
+Read"]
+	174 -> 173 [label=""]
+	175 [label="gk1
+Read"]
+	175 -> 173 [label=""]
+	176 [label="np.dot(gk, gk)
+"]
+	177 [label="gk
+Read"]
+	177 -> 176 [label=""]
+	178 [label="gk
+Read"]
+	178 -> 176 [label=""]
+	179 [label="//
+"]
+	173 -> 179 [label=""]
+	176 -> 179 [label=""]
+	180 [label="beta_k1
+Write"]
+	179 -> 180 [label=""]
+	181 [label="gk1
+Read"]
+	182 [label="-
+"]
+	181 -> 182 [label=""]
+	183 [label="beta_k1
+Read"]
+	184 [label="pk
+Read"]
+	185 [label="*
+"]
+	183 -> 185 [label=""]
+	184 -> 185 [label=""]
+	186 [label="+
+"]
+	182 -> 186 [label=""]
+	185 -> 186 [label=""]
+	187 [label="pk1
+Write"]
+	186 -> 187 [label=""]
+	188 [label="np.linalg.norm(xk1 - xk)
+"]
+	189 [label="xk1
+Read"]
+	190 [label="xk
+Read"]
+	191 [label="-
+"]
+	189 -> 191 [label=""]
+	190 -> 191 [label=""]
+	191 -> 188 [label=""]
+	192 [label="error
+Read"]
+	193 [label="<
+"]
+	188 -> 193 [label=""]
+	192 -> 193 [label=""]
+}

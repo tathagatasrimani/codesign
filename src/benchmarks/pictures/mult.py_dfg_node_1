@@ -1,0 +1,15 @@
+digraph {
+	0 [label="source code:
+import numpy as np
+def main():...
+if __name__ == '__main__':
+"]
+	1 [label="__name__
+Read"]
+	2 [label=__main__
+]
+	3 [label="==
+"]
+	1 -> 3 [label=""]
+	2 -> 3 [label=""]
+}

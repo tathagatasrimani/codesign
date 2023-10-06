@@ -1,0 +1,40 @@
+digraph {
+	500 [label="source code:
+fasta_file = (
+    '/nfs/pool0/pmcewen/codesign/codesign/src/benchmarks/supplemental_files/fasta_example.fasta'
+    )
+fastq_file = (
+    '/nfs/pool0/pmcewen/codesign/codesign/src/benchmarks/supplemental_files/fastq_example.fastq'
+    )
+output_file = (
+    '/nfs/pool0/pmcewen/codesign/codesign/src/benchmarks/supplemental_files/output_file.txt'
+    )
+darwin_wga_workflow(fasta_file, fastq_file, output_file)
+"]
+	501 [label="/nfs/pool0/pmcewen/codesign/codesign/src/benchmarks/supplemental_files/fasta_example.fasta
+"]
+	502 [label="fasta_file
+Write"]
+	501 -> 502 [label=""]
+	503 [label="/nfs/pool0/pmcewen/codesign/codesign/src/benchmarks/supplemental_files/fastq_example.fastq
+"]
+	504 [label="fastq_file
+Write"]
+	503 -> 504 [label=""]
+	505 [label="/nfs/pool0/pmcewen/codesign/codesign/src/benchmarks/supplemental_files/output_file.txt
+"]
+	506 [label="output_file
+Write"]
+	505 -> 506 [label=""]
+	507 [label="darwin_wga_workflow(fasta_file, fastq_file, output_file)
+"]
+	508 [label="fasta_file
+Read"]
+	508 -> 507 [label=""]
+	509 [label="fastq_file
+Read"]
+	509 -> 507 [label=""]
+	510 [label="output_file
+Read"]
+	510 -> 507 [label=""]
+}

@@ -1,5 +1,0 @@
-digraph {
-	172 [label="source code:
-if quality > max_quality:
-"]
-}

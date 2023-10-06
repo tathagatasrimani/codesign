@@ -1,0 +1,13 @@
+digraph {
+	64 [label="source code:
+fastq_dict[active_sequence_name] = []
+"]
+	65 [label="[]
+"]
+	66 [label="fastq_dict
+Read"]
+	67 [label="fastq_dict[active_sequence_name]
+Write"]
+	66 -> 67 [label=""]
+	65 -> 67 [label=""]
+}

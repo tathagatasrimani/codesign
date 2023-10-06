@@ -1,0 +1,16 @@
+digraph {
+	221 [label="source code:
+u = None
+minD = math.inf
+"]
+	222 [label=None
+]
+	223 [label="u
+Write"]
+	222 -> 223 [label=""]
+	224 [label="math.inf
+Read"]
+	225 [label="minD
+Write"]
+	224 -> 225 [label=""]
+}

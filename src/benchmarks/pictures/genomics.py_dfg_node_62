@@ -1,0 +1,28 @@
+digraph {
+	180 [label="source code:
+if length > max_length_fraction * len(fasta_dict[key][0]):
+"]
+	181 [label="length
+Read"]
+	182 [label="max_length_fraction
+Read"]
+	183 [label="len(fasta_dict[key][0])
+"]
+	184 [label="fasta_dict
+Read"]
+	185 [label="fasta_dict[key]
+Read"]
+	184 -> 185 [label=""]
+	186 [label="fasta_dict[key][0]
+Read"]
+	185 -> 186 [label=""]
+	186 -> 183 [label=""]
+	187 [label="*
+"]
+	182 -> 187 [label=""]
+	183 -> 187 [label=""]
+	188 [label=">
+"]
+	181 -> 188 [label=""]
+	187 -> 188 [label=""]
+}

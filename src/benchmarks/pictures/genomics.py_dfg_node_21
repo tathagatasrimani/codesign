@@ -1,0 +1,10 @@
+digraph {
+	49 [label="source code:
+if line.startswith('@'):
+"]
+	50 [label="line.startswith('@')
+"]
+	51 [label="@
+"]
+	51 -> 50 [label=""]
+}

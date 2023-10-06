@@ -1,10 +1,22 @@
 #!/bin/sh
 
-FILE_DIR=/Users/PatrickMcEwen/git_container/codesign/src # change path name for local computer
+while getopts u:n:f: flag
+do
+    case "${flag}" in
+        f) filepath=${OPTARG};; # $1
+        n) name=${OPTARG};;
+        d) debug=${OPTARG};;
+    esac
+done
+
+FILE_DIR=./ #/Users/PatrickMcEwen/git_container/codesign/src # change path name for local computer
 # arguments like this: ./simulate.sh benchmarks/models/<name> <name>
-if [ $1 ]; then
-    cd $FILE_DIR
-    python3 instrument.py cfg/$1
-    python3 instrumented_files/xformed-$2 > instrumented_files/output.txt
-    python3 symbolic_simulate.py $1
+if [ $filepath ]; then
+    # cd $FILE_DIR
+
+    python instrument.py $filepath
+    python instrumented_files/xformed-$name > instrumented_files/output.txt
+    python simulate.py $filepath $debug
+    #cd destiny/config
+    #./destiny sample.cfg
 fi

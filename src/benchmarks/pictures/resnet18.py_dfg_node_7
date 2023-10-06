@@ -1,0 +1,34 @@
+digraph {
+	39 [label="source code:
+make_zero = j < zero_pad or j >= len_new - zero_pad
+"]
+	40 [label="j
+Read"]
+	41 [label="zero_pad
+Read"]
+	42 [label="<
+"]
+	40 -> 42 [label=""]
+	41 -> 42 [label=""]
+	43 [label="j
+Read"]
+	44 [label="len_new
+Read"]
+	45 [label="zero_pad
+Read"]
+	46 [label="-
+"]
+	44 -> 46 [label=""]
+	45 -> 46 [label=""]
+	47 [label=">=
+"]
+	43 -> 47 [label=""]
+	46 -> 47 [label=""]
+	48 [label=or
+]
+	42 -> 48 [label=""]
+	47 -> 48 [label=""]
+	49 [label="make_zero
+Write"]
+	48 -> 49 [label=""]
+}

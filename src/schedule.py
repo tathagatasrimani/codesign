@@ -4,6 +4,25 @@ from sympy import *
 node_operations = {}
 operation_sets = {}
 
+def schedule_one_node(graph, node):
+    #print(node.id)
+    node_ops = []
+    op_set = set()
+    queue = deque([[root, 0] for root in graph.roots])
+    max_order = 0
+    while len(queue) != 0:
+        cur_node, order = queue.popleft()
+        if cur_node not in op_set: op_set.add(cur_node)
+        max_order = max(max_order, order)
+        cur_node.order = max(order, cur_node.order)
+        for child in cur_node.children:
+            queue.append([child, order+1])
+    for i in range(max_order+1):
+        node_ops.append([])
+    for cur_node in op_set:
+        node_ops[cur_node.order].append(cur_node)
+    return node_ops
+
 def schedule(cfg, graphs, benchmark):
     for node in cfg:
         #print(node.id)
@@ -27,7 +46,8 @@ def schedule(cfg, graphs, benchmark):
             for op in state:
                 print(op.order, op.operation)
             print('')"""
-    return cfg, node_operations
+    return node_operations
+        
 
 if __name__ == '__main__':
     schedule("")

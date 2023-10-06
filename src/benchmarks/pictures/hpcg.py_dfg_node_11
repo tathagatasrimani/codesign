@@ -1,0 +1,6 @@
+digraph {
+	61 [label="source code:
+return np.array([[1200 * x[0] ** 2 - 400 * x[1] + 2, -400 * x[0]], [-400 *
+    x[0], 200]])
+"]
+}

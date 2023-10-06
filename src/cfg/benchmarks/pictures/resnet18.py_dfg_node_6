@@ -1,5 +1,0 @@
-digraph {
-	42 [label="source code:
-return new_img
-"]
-}

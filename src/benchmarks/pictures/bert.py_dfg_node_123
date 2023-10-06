@@ -1,0 +1,49 @@
+digraph {
+	408 [label="source code:
+embeddings[i][j] += math.sin(i / math.pow(10000, 2 * j / d_model))
+"]
+	409 [label="math.sin(i / math.pow(10000, 2 * j / d_model))
+"]
+	410 [label="i
+Read"]
+	411 [label="math.pow(10000, 2 * j / d_model)
+"]
+	412 [label=10000
+]
+	412 -> 411 [label=""]
+	413 [label=2
+]
+	414 [label="j
+Read"]
+	415 [label="*
+"]
+	413 -> 415 [label=""]
+	414 -> 415 [label=""]
+	416 [label="d_model
+Read"]
+	417 [label="//
+"]
+	415 -> 417 [label=""]
+	416 -> 417 [label=""]
+	417 -> 411 [label=""]
+	418 [label="//
+"]
+	410 -> 418 [label=""]
+	411 -> 418 [label=""]
+	418 -> 409 [label=""]
+	419 [label="embeddings
+Read"]
+	420 [label="+
+"]
+	409 -> 420 [label=""]
+	419 -> 420 [label=""]
+	421 [label="embeddings
+Read"]
+	422 [label="embeddings[i]
+Read"]
+	421 -> 422 [label=""]
+	423 [label="embeddings[i][j]
+Write"]
+	422 -> 423 [label=""]
+	420 -> 423 [label=""]
+}

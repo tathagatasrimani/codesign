@@ -1,0 +1,16 @@
+digraph {
+	103 [label="source code:
+a += i
+"]
+	104 [label="i
+Read"]
+	105 [label="a
+Read"]
+	106 [label="+
+"]
+	104 -> 106 [label=""]
+	105 -> 106 [label=""]
+	107 [label="a
+Write"]
+	106 -> 107 [label=""]
+}

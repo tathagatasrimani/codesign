@@ -1,0 +1,79 @@
+digraph {
+	126 [label="source code:
+\"\"\"
+    DARWIN-Whole Genome Alignment workflow
+    \"\"\"
+fasta_dict = read_fasta(fasta_file)
+fastq_dict = read_fastq(fastq_file)
+filtered_fasta_dict = filter_fasta(fasta_dict, min_length, max_length,
+    min_length_fraction, max_length_fraction)
+filtered_fastq_dict = filter_fastq(fastq_dict, min_quality, max_quality)
+write_output(filtered_fasta_dict, filtered_fastq_dict, output_file)
+"]
+	127 [label="
+    DARWIN-Whole Genome Alignment workflow
+    
+"]
+	128 [label="read_fasta(fasta_file)
+"]
+	129 [label="fasta_file
+Read"]
+	129 -> 128 [label=""]
+	130 [label="fasta_dict
+Write"]
+	128 -> 130 [label=""]
+	131 [label="read_fastq(fastq_file)
+"]
+	132 [label="fastq_file
+Read"]
+	132 -> 131 [label=""]
+	133 [label="fastq_dict
+Write"]
+	131 -> 133 [label=""]
+	134 [label="filter_fasta(fasta_dict, min_length, max_length, min_length_fraction,
+    max_length_fraction)
+"]
+	135 [label="fasta_dict
+Read"]
+	135 -> 134 [label=""]
+	136 [label="min_length
+Read"]
+	136 -> 134 [label=""]
+	137 [label="max_length
+Read"]
+	137 -> 134 [label=""]
+	138 [label="min_length_fraction
+Read"]
+	138 -> 134 [label=""]
+	139 [label="max_length_fraction
+Read"]
+	139 -> 134 [label=""]
+	140 [label="filtered_fasta_dict
+Write"]
+	134 -> 140 [label=""]
+	141 [label="filter_fastq(fastq_dict, min_quality, max_quality)
+"]
+	142 [label="fastq_dict
+Read"]
+	142 -> 141 [label=""]
+	143 [label="min_quality
+Read"]
+	143 -> 141 [label=""]
+	144 [label="max_quality
+Read"]
+	144 -> 141 [label=""]
+	145 [label="filtered_fastq_dict
+Write"]
+	141 -> 145 [label=""]
+	146 [label="write_output(filtered_fasta_dict, filtered_fastq_dict, output_file)
+"]
+	147 [label="filtered_fasta_dict
+Read"]
+	147 -> 146 [label=""]
+	148 [label="filtered_fastq_dict
+Read"]
+	148 -> 146 [label=""]
+	149 [label="output_file
+Read"]
+	149 -> 146 [label=""]
+}

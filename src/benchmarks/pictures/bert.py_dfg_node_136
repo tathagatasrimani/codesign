@@ -1,0 +1,24 @@
+digraph {
+	449 [label="source code:
+emb_cpy = np.copy(embeddings)
+multi_head_out = np.zeros((tokens, d_model))
+"]
+	450 [label="np.copy(embeddings)
+"]
+	451 [label="embeddings
+Read"]
+	451 -> 450 [label=""]
+	452 [label="emb_cpy
+Write"]
+	450 -> 452 [label=""]
+	453 [label="np.zeros((tokens, d_model))
+"]
+	454 [label="tokens
+Read"]
+	455 [label="d_model
+Read"]
+	454 -> 453 [label=""]
+	456 [label="multi_head_out
+Write"]
+	453 -> 456 [label=""]
+}

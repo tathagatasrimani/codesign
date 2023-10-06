@@ -1,8 +1,8 @@
-from cfg.staticfg.builder import CFGBuilder
+from staticfg.builder import CFGBuilder
 import graphviz as gv
 import ast
 import astor
-from cfg.staticfg.builder import CFGBuilder
+from staticfg.builder import CFGBuilder
 from ast_utils import ASTUtils
 import hardwareModel
 benchmark = None
@@ -23,17 +23,25 @@ class symbol:
         self.read = read
 
 class Node:
-    def __init__(self, value: str, operation: str):
+    def __init__(self, value: str, operation: str, id, memory_links=None, compute_id=None):
         self.value = value
         self.operation = operation
+        self.memory_links = memory_links
         self.children = []
         self.parents = []
         self.order = 0
-        
+        self.id = id
+        self.compute_id = compute_id
+
 class Graph:
-    def __init__(self, roots, id_to_Node):
+    def __init__(self, roots, id_to_Node, gv_graph):
         self.roots = roots
         self.id_to_Node = id_to_Node
+        self.gv_graph = gv_graph
+        self.max_id = 0
+    def set_gv_graph(self, graph):
+        self.gv_graph = graph
+
 
 def set_id():
     global cur_id
@@ -44,7 +52,7 @@ def set_id():
 def eval_expr(expr, graph, node):
     global unroll
     if ASTUtils.isBoolOp(expr):
-        print("visiting boolop")
+        #print("visiting boolop")
         values = []
         for value in expr.values:
             values += eval_expr(value, graph, node)
@@ -58,7 +66,7 @@ def eval_expr(expr, graph, node):
     elif ASTUtils.isNamedExpr(expr):
         return
     elif ASTUtils.isBinOp(expr):
-        print("visiting binop")
+        #print("visiting binop")
         left = eval_expr(expr.left, graph, node)
         right = eval_expr(expr.right, graph, node)
         op_id = set_id()
@@ -70,7 +78,7 @@ def eval_expr(expr, graph, node):
             make_edge(graph, node, right[0], op_id)
         return [op_id]
     elif ASTUtils.isUnaryOp(expr):
-        print("visiting unaryop")
+        #print("visiting unaryop")
         value = eval_expr(expr.operand, graph, node)
         op_id = set_id()
         opname = ASTUtils.expr_to_opname(expr.op)
@@ -100,7 +108,7 @@ def eval_expr(expr, graph, node):
     elif ASTUtils.isYieldFrom(expr):
         return
     elif ASTUtils.isCompare(expr):
-        print("visiting compare")
+        #print("visiting compare")
         ids = []
         left = eval_expr(expr.left, graph, node)
         assert(len(expr.ops) == len(expr.comparators))
@@ -115,7 +123,7 @@ def eval_expr(expr, graph, node):
             left = comparator
         return ids
     elif ASTUtils.isCall(expr):
-        print("visiting call")
+        #print("visiting call")
         func_id = set_id()
         make_node(graph, node, func_id, astor.to_source(expr)[:-1], None, None)
         for arg in expr.args:
@@ -127,12 +135,13 @@ def eval_expr(expr, graph, node):
     elif ASTUtils.isJoinedStr(expr):
         return
     elif ASTUtils.isConstant(expr):
-        print("visiting constant")
+        #print("visiting constant")
         id = set_id()
         make_node(graph, node, id, str(expr.value), None, None)
         return [id]
     elif ASTUtils.isAttribute(expr):
-        print("visiting attribute")
+        #print("visiting attribute")
+        
         if expr.attr == "start_unroll": unroll = True
         elif expr.attr == "stop_unroll": unroll = False
         if ASTUtils.isName(expr.value) or ASTUtils.isSubscript(expr.value):
@@ -146,22 +155,22 @@ def eval_expr(expr, graph, node):
             make_edge(graph, node, attr_id, target_id[0])
             return [attr_id]
     elif ASTUtils.isSubscript(expr):
-        print("visiting subscript")
+        #print("visiting subscript")
         # ignoring the index for now
-        name_id = eval_expr(expr.value, graph, node)
+        #name_id = eval_expr(expr.value, graph, node)
         sub_id = set_id()
         make_node(graph, node, sub_id, astor.to_source(expr)[:-1], type(expr.ctx), "Regs")
-        make_edge(graph, node, name_id[0], sub_id)
+        #make_edge(graph, node, name_id[0], sub_id)
         return [sub_id]
     elif ASTUtils.isStarred(expr):
         return
     elif ASTUtils.isName(expr):
-        print("visiting name")
+        #print("visiting name")
         id = set_id()
         make_node(graph, node, id, expr.id, type(expr.ctx), "Regs")
         return [id]
     elif ASTUtils.isList(expr):
-        print("visiting list")
+        #print("visiting list")
         val = []
         for elem in expr.elts:
             val += eval_expr(elem, graph, node)
@@ -171,7 +180,7 @@ def eval_expr(expr, graph, node):
             val = [none_id]
         return val
     elif ASTUtils.isTuple(expr):
-        print("visiting tuple")
+        #print("visiting tuple")
         val = []
         for elem in expr.elts:
             val += eval_expr(elem, graph, node)
@@ -188,7 +197,7 @@ def eval_stmt(stmt, graph, node):
                 break
         else:
             unroll = False
-        print(unroll)
+        #print(unroll)
     elif ASTUtils.isAsyncFunctionDef(stmt):
         return
     elif ASTUtils.isClassDef(stmt):
@@ -198,7 +207,7 @@ def eval_stmt(stmt, graph, node):
     elif ASTUtils.isDelete(stmt):
         return
     elif ASTUtils.isAssign(stmt):
-        print("visiting assign")
+        #print("visiting assign")
         value_ids = eval_expr(stmt.value, graph, node)
         targets = eval_expr(stmt.targets[0], graph, node)
         if not targets or not value_ids: return
@@ -217,36 +226,32 @@ def eval_stmt(stmt, graph, node):
                 make_edge(graph, node, value_id, targets[0])
     elif ASTUtils.isAugAssign(stmt):
         # note that target is a name
-        print("visiting augassign")
+        #print("visiting augassign")
         value_ids = eval_expr(stmt.value, graph, node)
         target = stmt.target
-        while type(target) == ast.Attribute or type(target) == ast.Subscript:
-            # this should be a name
-            target = target.value
         if not target or not value_ids: return
+        stmt.target.ctx = ast.Load()
+        target_read_id = eval_expr(stmt.target, graph, node)
+        stmt.target.ctx = ast.Store()
         if len(value_ids) > 1:
             for value_id in value_ids:
-                target_read_id = set_id()
-                make_node(graph, node, target_read_id, target.id, ast.Load, "Regs")
                 op_id = set_id()
                 opname = ASTUtils.expr_to_opname(stmt.op)
                 make_node(graph, node, op_id, hardwareModel.op2sym_map[opname], None, opname)
                 make_edge(graph, node, value_id, op_id)
-                make_edge(graph, node, target_read_id, op_id)
+                make_edge(graph, node, target_read_id[0], op_id)
                 target_write_id = eval_expr(stmt.target, graph, node)
                 make_edge(graph, node, op_id, target_write_id[0])
         else:
-            target_read_id = set_id()
-            make_node(graph, node, target_read_id, target.id, ast.Load, "Regs")
             op_id = set_id()
             opname = ASTUtils.expr_to_opname(stmt.op)
             make_node(graph, node, op_id, hardwareModel.op2sym_map[opname], None, opname)
             make_edge(graph, node, value_ids[0], op_id)
-            make_edge(graph, node, target_read_id, op_id)
+            make_edge(graph, node, target_read_id[0], op_id)
             target_write_id = eval_expr(stmt.target, graph, node)
             make_edge(graph, node, op_id, target_write_id[0])
     elif ASTUtils.isAnnAssign(stmt):
-        print("visiting annassign")
+        #print("visiting annassign")
         target_id = eval_expr(stmt.target, graph, node)
         if not stmt.value:
             none_id = set_id()
@@ -258,17 +263,17 @@ def eval_stmt(stmt, graph, node):
                 make_edge(graph, node, source_id, target_id[0])
         return target_id
     elif ASTUtils.isFor(stmt):
-        print("visiting for")
+        #print("visiting for")
         # target only evaluated once so going to ignore it here
         eval_expr(stmt.iter, graph, node)
     elif ASTUtils.isAsyncFor(stmt):
-        print("visiting async for")
+        #print("visiting async for")
         eval_expr(stmt.iter, graph, node)
     elif ASTUtils.isWhile(stmt):
-        print("visiting while")
+        #print("visiting while")
         eval_expr(stmt.test, graph, node)
     elif ASTUtils.isIf(stmt):
-        print("visiting if")
+        #print("visiting if")
         eval_expr(stmt.test, graph, node)
     elif ASTUtils.isWith(stmt):
         return
@@ -289,7 +294,7 @@ def eval_stmt(stmt, graph, node):
     elif ASTUtils.isNonlocal(stmt):
         return
     elif type(stmt) == ast.Expr:
-        print("visiting expr")
+        #print("visiting expr")
         eval_expr(stmt.value, graph, node)
     elif ASTUtils.isCall(stmt):
         return
@@ -301,16 +306,16 @@ def make_node(graph, cfg_node, id, name, ctx, opname):
         annotation = "Read"
     elif ctx == ast.Store: # deal with Del if needed
         annotation = "Write"
-    dfg_node = Node(name, opname)
+    dfg_node = Node(name, opname, id)
     graph.node(id, name + '\n' + annotation)
     graphs[cfg_node].roots.add(dfg_node)
     graphs[cfg_node].id_to_Node[id] = dfg_node
-    node_to_symbols[cfg_node].append(symbol(name, id, type(ctx) == ast.Store, type(ctx) == ast.Load))
+    node_to_symbols[cfg_node].append(symbol(name, id, ctx == ast.Store, ctx == ast.Load))
 
 # edge for a non-literal
-def make_edge(graph, node, source_id, target_id):
+def make_edge(graph, node, source_id, target_id, annotation=""):
     source, target = graphs[node].id_to_Node[source_id], graphs[node].id_to_Node[target_id]
-    graph.edge(source_id, target_id)
+    graph.edge(source_id, target_id, label=annotation)
     target_node = graphs[node].id_to_Node[target_id]
     if target_node in graphs[node].roots: graphs[node].roots.remove(target_node)
     source.children.append(target)
@@ -318,8 +323,11 @@ def make_edge(graph, node, source_id, target_id):
 
 # first pass over the basic block
 def dfg_per_node(node):
-    global node_to_unroll, unroll
+    global node_to_unroll, unroll, graphs
     graph = gv.Digraph()
+    graphs[node] = Graph(set(), {}, None)
+    node_to_symbols[node] = []
+    graphs[node].set_gv_graph(graph)
     graph.node(set_id(), "source code:\n" + node.get_source())
     for stmt in node.statements:
         eval_stmt(stmt, graph, node)
@@ -327,16 +335,24 @@ def dfg_per_node(node):
     # walk backwards over statements, link reads to previous writes
     i = len(node_to_symbols[node])-1
     while i >= 0:
+        #print(node_to_symbols[node][i].read, node_to_symbols[node][i].write, node_to_symbols[node][i].value)
         if node_to_symbols[node][i].read:
+            name = node_to_symbols[node][i].value
+            if name.find('[') != -1:
+                name = name[:name.find('[')]
             j = i-1
             while j >= 0:
-                if node_to_symbols[node][j].write and (node_to_symbols[node][j].value == node_to_symbols[node][i].value):
+                other_name = node_to_symbols[node][j].value
+                if other_name.find('[') != -1:
+                    other_name = other_name[:other_name.find('[')]
+                #print(name, other_name)
+                if node_to_symbols[node][j].write and (other_name == name):
                     make_edge(graph, node, node_to_symbols[node][j].num_id, node_to_symbols[node][i].num_id)
                     break
                 j -= 1
         i -= 1
-    graph.render(path + 'pictures/' + benchmark + "_dfg_node_" + str(node.id), view = False, format='jpeg')
-    return 0
+    graph.render(path + '/benchmarks/pictures/' + benchmark + "_dfg_node_" + str(node.id), view = False)
+    return graphs[node]
 
 
 
@@ -344,11 +360,9 @@ def main_fn(path_in, benchmark_in):
     global benchmark, path, node_to_symbols, graphs, node_to_unroll, unroll
     benchmark, path = benchmark_in, path_in
     benchmark = benchmark[benchmark.rfind('/')+1:]
-    cfg = CFGBuilder().build_from_file('main.c', path + 'models/' + benchmark)
-    cfg.build_visual(path + 'pictures/' + benchmark, 'jpeg', show = False)
+    cfg = CFGBuilder().build_from_file('main.c', path + '/instrumented_files/xformedname-' + benchmark)
+    cfg.build_visual(path + '/benchmarks/pictures/' + benchmark, 'jpeg', show = False)
     for node in cfg:
-        node_to_symbols[node] = []
-        graphs[node] = Graph(set(), {})
         dfg_per_node(node)
         for root in graphs[node].roots:
             cur_node = root
@@ -357,6 +371,7 @@ def main_fn(path_in, benchmark_in):
                 if len(cur_node.children) == 0: break
                 cur_node = cur_node.children[0]
             #print('')
+    print(node_to_unroll)
     return cfg, graphs, node_to_unroll
 
 if __name__ == "__main__":

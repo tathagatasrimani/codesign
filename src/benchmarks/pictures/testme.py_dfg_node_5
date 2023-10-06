@@ -1,0 +1,36 @@
+digraph {
+	70 [label="source code:
+z_1 = [[1, 2, 3, 4, 5, 6]]
+r_1, q_1 = 2, 3
+"]
+	71 [label=1
+]
+	72 [label=2
+]
+	73 [label=3
+]
+	74 [label=4
+]
+	75 [label=5
+]
+	76 [label=6
+]
+	77 [label="z_1
+Write"]
+	71 -> 77 [label=""]
+	72 -> 77 [label=""]
+	73 -> 77 [label=""]
+	74 -> 77 [label=""]
+	75 -> 77 [label=""]
+	76 -> 77 [label=""]
+	78 [label=2
+]
+	79 [label=3
+]
+	80 [label="r_1
+Write"]
+	81 [label="q_1
+Write"]
+	78 -> 80 [label=""]
+	79 -> 81 [label=""]
+}

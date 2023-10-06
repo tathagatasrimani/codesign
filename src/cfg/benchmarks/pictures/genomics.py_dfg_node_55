@@ -1,7 +1,0 @@
-digraph {
-	136 [label="source code:
-for key in fasta_dict:
-"]
-	137 [label="fasta_dict
-Read"]
-}

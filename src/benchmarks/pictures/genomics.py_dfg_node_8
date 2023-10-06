@@ -1,0 +1,10 @@
+digraph {
+	19 [label="source code:
+if line.startswith('>'):
+"]
+	20 [label="line.startswith('>')
+"]
+	21 [label=">
+"]
+	21 -> 20 [label=""]
+}

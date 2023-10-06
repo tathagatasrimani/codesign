@@ -1,0 +1,57 @@
+digraph {
+	4 [label="source code:
+x0 = np.zeros([16])
+error = 0.0001
+max_iterations = 10000
+start = time.time()
+x, n_iter = conjugate_gradient(rosenbrock, grad_rosen, x0, iterations=
+    max_iterations, error=error)
+end = time.time()
+"]
+	5 [label="np.zeros([16])
+"]
+	6 [label=16
+]
+	6 -> 5 [label=""]
+	7 [label="x0
+Write"]
+	5 -> 7 [label=""]
+	8 [label=0.0001
+]
+	9 [label="error
+Write"]
+	8 -> 9 [label=""]
+	10 [label=10000
+]
+	11 [label="max_iterations
+Write"]
+	10 -> 11 [label=""]
+	12 [label="time.time()
+"]
+	13 [label="start
+Write"]
+	12 -> 13 [label=""]
+	14 [label="conjugate_gradient(rosenbrock, grad_rosen, x0, iterations=max_iterations,
+    error=error)
+"]
+	15 [label="rosenbrock
+Read"]
+	15 -> 14 [label=""]
+	16 [label="grad_rosen
+Read"]
+	16 -> 14 [label=""]
+	17 [label="x0
+Read"]
+	17 -> 14 [label=""]
+	18 [label="x
+Write"]
+	19 [label="n_iter
+Write"]
+	14 -> 18 [label=""]
+	14 -> 19 [label=""]
+	20 [label="time.time()
+"]
+	21 [label="end
+Write"]
+	20 -> 21 [label=""]
+}

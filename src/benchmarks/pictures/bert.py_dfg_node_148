@@ -1,0 +1,16 @@
+digraph {
+	630 [label="source code:
+embeddings[i][j] = sum_val
+"]
+	631 [label="sum_val
+Read"]
+	632 [label="embeddings
+Read"]
+	633 [label="embeddings[i]
+Read"]
+	632 -> 633 [label=""]
+	634 [label="embeddings[i][j]
+Write"]
+	633 -> 634 [label=""]
+	631 -> 634 [label=""]
+}

@@ -1,0 +1,7 @@
+digraph {
+	253 [label="source code:
+for v in G.vertices:
+"]
+	254 [label="G.vertices
+Read"]
+}

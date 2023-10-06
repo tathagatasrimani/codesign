@@ -1,0 +1,54 @@
+digraph {
+	44 [label="source code:
+a_1 = q_1 + 3
+b_1 = a_1 * r_1
+r_1 += a_1 + 3 * 2
+"]
+	45 [label="q_1
+Read"]
+	46 [label=3
+]
+	47 [label="+
+"]
+	45 -> 47 [label=""]
+	46 -> 47 [label=""]
+	48 [label="a_1
+Write"]
+	47 -> 48 [label=""]
+	49 [label="a_1
+Read"]
+	50 [label="r_1
+Read"]
+	51 [label="*
+"]
+	49 -> 51 [label=""]
+	50 -> 51 [label=""]
+	52 [label="b_1
+Write"]
+	51 -> 52 [label=""]
+	53 [label="a_1
+Read"]
+	54 [label=3
+]
+	55 [label=2
+]
+	56 [label="*
+"]
+	54 -> 56 [label=""]
+	55 -> 56 [label=""]
+	57 [label="+
+"]
+	53 -> 57 [label=""]
+	56 -> 57 [label=""]
+	58 [label="r_1
+Read"]
+	59 [label="+
+"]
+	57 -> 59 [label=""]
+	58 -> 59 [label=""]
+	60 [label="r_1
+Write"]
+	59 -> 60 [label=""]
+	48 -> 53 [label=""]
+	48 -> 49 [label=""]
+}

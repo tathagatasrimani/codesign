@@ -1,5 +1,0 @@
-digraph {
-	40 [label="source code:
-return fastq_dict
-"]
-}

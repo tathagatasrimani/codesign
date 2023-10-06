@@ -1,0 +1,15 @@
+digraph {
+	263 [label="source code:
+scores = np.zeros((tokens, tokens))
+"]
+	264 [label="np.zeros((tokens, tokens))
+"]
+	265 [label="tokens
+Read"]
+	266 [label="tokens
+Read"]
+	265 -> 264 [label=""]
+	267 [label="scores
+Write"]
+	264 -> 267 [label=""]
+}

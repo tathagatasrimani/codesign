@@ -1,5 +1,0 @@
-digraph {
-	88 [label="source code:
-return fasta_dict, quality_dict
-"]
-}

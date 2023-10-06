@@ -1,0 +1,13 @@
+digraph {
+	246 [label="source code:
+if quality < min_quality:
+"]
+	247 [label="quality
+Read"]
+	248 [label="min_quality
+Read"]
+	249 [label="<
+"]
+	247 -> 249 [label=""]
+	248 -> 249 [label=""]
+}

@@ -1,0 +1,16 @@
+digraph {
+	188 [label="source code:
+path = []
+current = w
+"]
+	189 [label="[]
+"]
+	190 [label="path
+Write"]
+	189 -> 190 [label=""]
+	191 [label="w
+Read"]
+	192 [label="current
+Write"]
+	191 -> 192 [label=""]
+}

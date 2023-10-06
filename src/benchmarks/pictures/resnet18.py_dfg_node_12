@@ -1,0 +1,19 @@
+digraph {
+	64 [label="source code:
+new_img[i][j][k] = 0
+"]
+	65 [label=0
+]
+	66 [label="new_img
+Read"]
+	67 [label="new_img[i]
+Read"]
+	66 -> 67 [label=""]
+	68 [label="new_img[i][j]
+Read"]
+	67 -> 68 [label=""]
+	69 [label="new_img[i][j][k]
+Write"]
+	68 -> 69 [label=""]
+	65 -> 69 [label=""]
+}

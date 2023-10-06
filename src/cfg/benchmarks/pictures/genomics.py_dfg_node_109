@@ -1,5 +1,0 @@
-digraph {
-	298 [label="source code:
-if diagonal_score >= left_score:
-"]
-}

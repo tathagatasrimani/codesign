@@ -1,0 +1,10 @@
+digraph {
+	344 [label="source code:
+for d in range(w):
+"]
+	345 [label="range(w)
+"]
+	346 [label="w
+Read"]
+	346 -> 345 [label=""]
+}

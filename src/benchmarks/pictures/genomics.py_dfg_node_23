@@ -1,0 +1,16 @@
+digraph {
+	59 [label="source code:
+sequence = line
+fastq_dict[active_sequence_name].append(sequence)
+"]
+	60 [label="line
+Read"]
+	61 [label="sequence
+Write"]
+	60 -> 61 [label=""]
+	62 [label="fastq_dict[active_sequence_name].append(sequence)
+"]
+	63 [label="sequence
+Read"]
+	63 -> 62 [label=""]
+}

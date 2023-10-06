@@ -1,0 +1,103 @@
+digraph {
+	491 [label="source code:
+sumQ += embeddings[j][a] * W_Q[i][a][k]
+sumK += embeddings[j][a] * W_K[i][a][k]
+sumV += embeddings[j][a] * W_V[i][a][k]
+"]
+	492 [label="embeddings
+Read"]
+	493 [label="embeddings[j]
+Read"]
+	492 -> 493 [label=""]
+	494 [label="embeddings[j][a]
+Read"]
+	493 -> 494 [label=""]
+	495 [label="W_Q
+Read"]
+	496 [label="W_Q[i]
+Read"]
+	495 -> 496 [label=""]
+	497 [label="W_Q[i][a]
+Read"]
+	496 -> 497 [label=""]
+	498 [label="W_Q[i][a][k]
+Read"]
+	497 -> 498 [label=""]
+	499 [label="*
+"]
+	494 -> 499 [label=""]
+	498 -> 499 [label=""]
+	500 [label="sumQ
+Read"]
+	501 [label="+
+"]
+	499 -> 501 [label=""]
+	500 -> 501 [label=""]
+	502 [label="sumQ
+Write"]
+	501 -> 502 [label=""]
+	503 [label="embeddings
+Read"]
+	504 [label="embeddings[j]
+Read"]
+	503 -> 504 [label=""]
+	505 [label="embeddings[j][a]
+Read"]
+	504 -> 505 [label=""]
+	506 [label="W_K
+Read"]
+	507 [label="W_K[i]
+Read"]
+	506 -> 507 [label=""]
+	508 [label="W_K[i][a]
+Read"]
+	507 -> 508 [label=""]
+	509 [label="W_K[i][a][k]
+Read"]
+	508 -> 509 [label=""]
+	510 [label="*
+"]
+	505 -> 510 [label=""]
+	509 -> 510 [label=""]
+	511 [label="sumK
+Read"]
+	512 [label="+
+"]
+	510 -> 512 [label=""]
+	511 -> 512 [label=""]
+	513 [label="sumK
+Write"]
+	512 -> 513 [label=""]
+	514 [label="embeddings
+Read"]
+	515 [label="embeddings[j]
+Read"]
+	514 -> 515 [label=""]
+	516 [label="embeddings[j][a]
+Read"]
+	515 -> 516 [label=""]
+	517 [label="W_V
+Read"]
+	518 [label="W_V[i]
+Read"]
+	517 -> 518 [label=""]
+	519 [label="W_V[i][a]
+Read"]
+	518 -> 519 [label=""]
+	520 [label="W_V[i][a][k]
+Read"]
+	519 -> 520 [label=""]
+	521 [label="*
+"]
+	516 -> 521 [label=""]
+	520 -> 521 [label=""]
+	522 [label="sumV
+Read"]
+	523 [label="+
+"]
+	521 -> 523 [label=""]
+	522 -> 523 [label=""]
+	524 [label="sumV
+Write"]
+	523 -> 524 [label=""]
+}

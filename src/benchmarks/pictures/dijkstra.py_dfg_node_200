@@ -1,0 +1,28 @@
+digraph {
+	403 [label="source code:
+runtime = runtime / numTrials
+nValues.append(n)
+tValues.append(runtime)
+"]
+	404 [label="runtime
+Read"]
+	405 [label="numTrials
+Read"]
+	406 [label="//
+"]
+	404 -> 406 [label=""]
+	405 -> 406 [label=""]
+	407 [label="runtime
+Write"]
+	406 -> 407 [label=""]
+	408 [label="nValues.append(n)
+"]
+	409 [label="n
+Read"]
+	409 -> 408 [label=""]
+	410 [label="tValues.append(runtime)
+"]
+	411 [label="runtime
+Read"]
+	411 -> 410 [label=""]
+}

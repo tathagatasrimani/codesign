@@ -1,5 +1,0 @@
-digraph {
-	271 [label="source code:
-if traceback_matrix[i][j] == 'D':
-"]
-}

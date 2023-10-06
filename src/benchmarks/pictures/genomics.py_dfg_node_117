@@ -1,0 +1,28 @@
+digraph {
+	427 [label="source code:
+scoring_matrix[i][j] = left_score
+traceback_matrix[i][j] = 'L'
+"]
+	428 [label="left_score
+Read"]
+	429 [label="scoring_matrix
+Read"]
+	430 [label="scoring_matrix[i]
+Read"]
+	429 -> 430 [label=""]
+	431 [label="scoring_matrix[i][j]
+Write"]
+	430 -> 431 [label=""]
+	428 -> 431 [label=""]
+	432 [label=L
+]
+	433 [label="traceback_matrix
+Read"]
+	434 [label="traceback_matrix[i]
+Read"]
+	433 -> 434 [label=""]
+	435 [label="traceback_matrix[i][j]
+Write"]
+	434 -> 435 [label=""]
+	432 -> 435 [label=""]
+}

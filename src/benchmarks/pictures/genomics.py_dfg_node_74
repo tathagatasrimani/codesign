@@ -1,0 +1,16 @@
+digraph {
+	215 [label="source code:
+filtered_fasta_dict[key] = fasta_dict[key]
+"]
+	216 [label="fasta_dict
+Read"]
+	217 [label="fasta_dict[key]
+Read"]
+	216 -> 217 [label=""]
+	218 [label="filtered_fasta_dict
+Read"]
+	219 [label="filtered_fasta_dict[key]
+Write"]
+	218 -> 219 [label=""]
+	217 -> 219 [label=""]
+}

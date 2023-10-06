@@ -1,0 +1,57 @@
+digraph {
+	600 [label="source code:
+embeddings = emb_new
+embeddings = reLU(embeddings)
+W = np.random.rand(d_model * 4, d_model)
+W_0 = np.random.rand(d_model)
+emb_new = np.zeros((tokens, d_model))
+"]
+	601 [label="emb_new
+Read"]
+	602 [label="embeddings
+Write"]
+	601 -> 602 [label=""]
+	603 [label="reLU(embeddings)
+"]
+	604 [label="embeddings
+Read"]
+	604 -> 603 [label=""]
+	605 [label="embeddings
+Write"]
+	603 -> 605 [label=""]
+	606 [label="np.random.rand(d_model * 4, d_model)
+"]
+	607 [label="d_model
+Read"]
+	608 [label=4
+]
+	609 [label="*
+"]
+	607 -> 609 [label=""]
+	608 -> 609 [label=""]
+	609 -> 606 [label=""]
+	610 [label="d_model
+Read"]
+	610 -> 606 [label=""]
+	611 [label="W
+Write"]
+	606 -> 611 [label=""]
+	612 [label="np.random.rand(d_model)
+"]
+	613 [label="d_model
+Read"]
+	613 -> 612 [label=""]
+	614 [label="W_0
+Write"]
+	612 -> 614 [label=""]
+	615 [label="np.zeros((tokens, d_model))
+"]
+	616 [label="tokens
+Read"]
+	617 [label="d_model
+Read"]
+	616 -> 615 [label=""]
+	618 [label="emb_new
+Write"]
+	615 -> 618 [label=""]
+}

@@ -1,0 +1,14 @@
+digraph {
+	210 [label="source code:
+\"\"\"
+    Filters a fastq dictionary by quality
+    \"\"\"
+filtered_fastq_dict = {}
+"]
+	211 [label="
+    Filters a fastq dictionary by quality
+    
+"]
+	212 [label="filtered_fastq_dict
+Write"]
+}

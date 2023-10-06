@@ -1,0 +1,46 @@
+digraph {
+	288 [label="source code:
+scores[i][j] += Q[head][i][k] * K[head][j][k]
+"]
+	289 [label="Q
+Read"]
+	290 [label="Q[head]
+Read"]
+	289 -> 290 [label=""]
+	291 [label="Q[head][i]
+Read"]
+	290 -> 291 [label=""]
+	292 [label="Q[head][i][k]
+Read"]
+	291 -> 292 [label=""]
+	293 [label="K
+Read"]
+	294 [label="K[head]
+Read"]
+	293 -> 294 [label=""]
+	295 [label="K[head][j]
+Read"]
+	294 -> 295 [label=""]
+	296 [label="K[head][j][k]
+Read"]
+	295 -> 296 [label=""]
+	297 [label="*
+"]
+	292 -> 297 [label=""]
+	296 -> 297 [label=""]
+	298 [label="scores
+Read"]
+	299 [label="+
+"]
+	297 -> 299 [label=""]
+	298 -> 299 [label=""]
+	300 [label="scores
+Read"]
+	301 [label="scores[i]
+Read"]
+	300 -> 301 [label=""]
+	302 [label="scores[i][j]
+Write"]
+	301 -> 302 [label=""]
+	299 -> 302 [label=""]
+}

@@ -1,0 +1,43 @@
+digraph {
+	331 [label="source code:
+out[i][j] += scores[i][k] * V[head][k][j]
+"]
+	332 [label="scores
+Read"]
+	333 [label="scores[i]
+Read"]
+	332 -> 333 [label=""]
+	334 [label="scores[i][k]
+Read"]
+	333 -> 334 [label=""]
+	335 [label="V
+Read"]
+	336 [label="V[head]
+Read"]
+	335 -> 336 [label=""]
+	337 [label="V[head][k]
+Read"]
+	336 -> 337 [label=""]
+	338 [label="V[head][k][j]
+Read"]
+	337 -> 338 [label=""]
+	339 [label="*
+"]
+	334 -> 339 [label=""]
+	338 -> 339 [label=""]
+	340 [label="out
+Read"]
+	341 [label="+
+"]
+	339 -> 341 [label=""]
+	340 -> 341 [label=""]
+	342 [label="out
+Read"]
+	343 [label="out[i]
+Read"]
+	342 -> 343 [label=""]
+	344 [label="out[i][j]
+Write"]
+	343 -> 344 [label=""]
+	341 -> 344 [label=""]
+}

@@ -1,5 +1,0 @@
-digraph {
-	299 [label="source code:
-if up_score >= left_score:
-"]
-}

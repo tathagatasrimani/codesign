@@ -1,7 +1,0 @@
-digraph {
-	100 [label="source code:
-loop.stop_unroll
-"]
-	101 [label="loop.stop_unroll
-Read"]
-}

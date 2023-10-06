@@ -1,0 +1,16 @@
+digraph {
+	29 [label="source code:
+sequence = line
+fasta_dict[active_sequence_name].append(sequence)
+"]
+	30 [label="line
+Read"]
+	31 [label="sequence
+Write"]
+	30 -> 31 [label=""]
+	32 [label="fasta_dict[active_sequence_name].append(sequence)
+"]
+	33 [label="sequence
+Read"]
+	33 -> 32 [label=""]
+}

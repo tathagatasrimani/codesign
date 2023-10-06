@@ -1,5 +1,0 @@
-digraph {
-	412 [label="source code:
-return sum_val / len(row)
-"]
-}
