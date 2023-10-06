@@ -548,7 +548,7 @@ def main():
     names = args.benchmark.split('/')
     if not args.notrace:
         text = json.dumps(data, indent=4)
-        with open(simulator.path + 'benchmarks/json_data/' + names[-1], 'w') as fh:
+        with open(simulator.path + '/benchmarks/json_data/' + names[-1], 'w') as fh:
             fh.write(text)
     t = []
     for i in range(len(simulator.power_use)):
