@@ -60,8 +60,9 @@ class SymbolicHardwareSimulator():
         power_sum = 0
         # print(hw_need)
         for elem in hw_need:
-            batch = math.ceil(hw_need[elem] / hw_spec[elem])
-            # batch = self.get_batch(hw_need[elem], hw_spec[elem])
+            hw_spec[elem] = hw_need[elem] # assuming that hw_need exactly matches the spec for now (dfg is the hardware)
+            # batch = math.ceil(hw_need[elem] / hw_spec[elem])
+            batch = self.get_batch(hw_need[elem], hw_spec[elem])
             print("batch for", elem, "with need of", hw_need[elem], "and spec of", hw_spec[elem], "is", batch)
             active_power = hw_need[elem] * hardwareModel.symbolic_power[elem][2]
             power_sum += active_power
@@ -238,16 +239,16 @@ def main():
     
     print("before modification ", total_cycles.subs(expr_symbols))
     
-    cost_sum = 0
+    """cost_sum = 0
     for s in total_cycles.free_symbols:
         cost_sum += 1/(s+1)
     
     print('cost_sum', cost_sum)
-    expr_symbols_with_cost = total_cycles * cost_sum
+    expr_symbols_with_cost = total_cycles * cost_sum"""
     
     expr_symbols = {}
     cnt=0
-    for s in expr_symbols_with_cost.free_symbols:
+    for s in total_cycles.free_symbols:
         if s.name == 'latency_Add':
             continue
         if s.name == 'latency_Sub':
@@ -258,15 +259,15 @@ def main():
             expr_symbols[s] = hardwareModel.dynamic_power[simulator.transistor_size][s.name.split('_')[1]][int(s.name.split('_')[2])]
 
     # print("only keep 2 variables ", expr_symbols_with_cost.subs(expr_symbols))
-    expr_symbols_with_cost_with_2_symbols = expr_symbols_with_cost.subs(expr_symbols)
+    expr_symbols_with_2_symbols = total_cycles.subs(expr_symbols)
     
     diffs=[]
     symbol_list=[]
-    for s in expr_symbols_with_cost_with_2_symbols.free_symbols:
-        diffs.append(diff(expr_symbols_with_cost_with_2_symbols,s))
+    for s in expr_symbols_with_2_symbols.free_symbols:
+        diffs.append(diff(expr_symbols_with_2_symbols,s))
         symbol_list.append(s)
     from design_space import DesignSpace
-    ds=DesignSpace(expr_symbols_with_cost_with_2_symbols,symbol_list,diffs)
+    ds=DesignSpace(expr_symbols_with_2_symbols,symbol_list,diffs)
     ds.solve()
     
 if __name__ == '__main__':
