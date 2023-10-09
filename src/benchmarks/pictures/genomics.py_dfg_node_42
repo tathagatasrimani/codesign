@@ -1,7 +1,0 @@
-digraph {
-	85 [label="source code:
-for line in f:
-"]
-	86 [label="f
-Read"]
-}

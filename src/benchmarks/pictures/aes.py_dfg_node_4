@@ -1,5 +1,0 @@
-digraph {
-	568 [label="source code:
-return (a << 1 ^ 27) & 255
-"]
-}

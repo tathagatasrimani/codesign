@@ -1,7 +1,0 @@
-digraph {
-	213 [label="source code:
-for key in fastq_dict:
-"]
-	214 [label="fastq_dict
-Read"]
-}

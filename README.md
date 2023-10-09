@@ -9,5 +9,6 @@ For AI applications, see [this codesign framework](https://github.com/r09g/ai_co
 ### Execution
 Run `./simulate.sh` from the `src` directory with the following arguments:
 ```
-./simulate.sh -f benchmarks/models/<workload_name> -n <workload_name>
+./simulate.sh -n <workload_name>
 ```
+use optional flag `-q` to run in quiet mode. This will not print logs in the `src/benchmarks/json_dump` directory.

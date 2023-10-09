@@ -1,7 +1,0 @@
-digraph {
-	4 [label="source code:
-main()
-"]
-	5 [label="main()
-"]
-}

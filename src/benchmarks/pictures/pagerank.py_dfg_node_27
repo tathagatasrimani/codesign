@@ -1,5 +1,0 @@
-digraph {
-	221 [label="source code:
-return matrix.T
-"]
-}

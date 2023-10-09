@@ -1,7 +1,0 @@
-digraph {
-	341 [label="source code:
-for v in G.vertices:
-"]
-	342 [label="G.vertices
-Read"]
-}
