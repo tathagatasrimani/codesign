@@ -1,6 +1,6 @@
 #!/bin/sh
 
-while getopts u:n:f: flag
+while getopts d:n:f: flag
 do
     case "${flag}" in
         f) filepath=${OPTARG};; # $1
@@ -9,14 +9,17 @@ do
     esac
 done
 
-FILE_DIR=./ #/Users/PatrickMcEwen/git_container/codesign/src # change path name for local computer
-# arguments like this: ./simulate.sh benchmarks/models/<name> <name>
+# arguments like this: ./simulate.sh -f benchmarks/models/<name> -n <name>
 if [ $filepath ]; then
-    # cd $FILE_DIR
 
     python instrument.py $filepath
     python instrumented_files/xformed-$name > instrumented_files/output.txt
-    python simulate.py $filepath $debug
+    if [ $debug ]; then
+        python simulate.py $filepath --notrace
+    else
+        python simulate.py $filepath
+    fi
+    # python simulate.py $filepath --debug $debug
     #cd destiny/config
     #./destiny sample.cfg
 fi

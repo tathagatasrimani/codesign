@@ -1,3 +1,4 @@
 **/__pycache__/**
 src/benchmarks/pictures/**
 src/instrumented_files/output*
+src/instrumented_files/xformed*
