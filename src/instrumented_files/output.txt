@@ -2,117 +2,19 @@ __name__ no_ind Read 57
 enter scope 1
 1 5
 3 6
-x no_ind Read 28
-x_1 no_ind Write 28
-malloc 28 x_1
+a_1 no_ind Write 28
+malloc 28 a_1
 3 7
-y no_ind Read 28
-y_1 no_ind Write 28
-malloc 28 y_1
+b_1 no_ind Write 28
+malloc 28 b_1
 3 8
-x_1 no_ind Read 28
-y_1 no_ind Read 28
-q_1 no_ind Write 24
-malloc 24 q_1
+b_1 no_ind Read 28
+a_1 no_ind Read 28
+c_1 no_ind Write 28
+malloc 28 c_1
 3 9
-x_1 no_ind Read 28
-y_1 no_ind Read 28
-r_1 no_ind Write 28
-malloc 28 r_1
-3 10
-q_1 no_ind Read 24
-r_1 no_ind Read 28
-q_1 no_ind Write 24
-malloc 24 q_1
-3 11
-q_1 no_ind Read 24
-r_1 no_ind Read 28
-w_1 no_ind Write 24
-malloc 24 w_1
-w_1 no_ind Read 24
-6 17
-q_1 no_ind Read 24
-a_1 no_ind Write 24
-malloc 24 a_1
-6 18
-a_1 no_ind Read 24
-r_1 no_ind Read 28
-b_1 no_ind Write 24
-malloc 24 b_1
-5 19
-z_1 no_ind Write 64
-malloc 64 z_1 [1, 6]
-5 20
-q_1 no_ind Write 28
-malloc 28 q_1
-loop no_ind Read 1064
-8 23
-i_1 no_ind Read 24
-z_1 no_ind Read 64
-z_1 0 Read 152
-i_1 no_ind Read 24
-z_1 1 Read 28
-i_1 no_ind Read 24
-i_1 no_ind Read 24
-z_1 0 Write 104
-loop no_ind Read 1064
-8 23
-i_1 no_ind Read 28
-z_1 no_ind Read 64
-z_1 0 Read 152
-i_1 no_ind Read 28
-z_1 2 Read 28
-i_1 no_ind Read 28
-i_1 no_ind Read 28
-z_1 1 Write 104
-loop no_ind Read 1064
-8 23
-i_1 no_ind Read 28
-z_1 no_ind Read 64
-z_1 0 Read 152
-i_1 no_ind Read 28
-z_1 3 Read 28
-i_1 no_ind Read 28
-i_1 no_ind Read 28
-z_1 2 Write 104
-loop no_ind Read 1064
-8 23
-i_1 no_ind Read 28
-z_1 no_ind Read 64
-z_1 0 Read 152
-i_1 no_ind Read 28
-z_1 4 Read 28
-i_1 no_ind Read 28
-i_1 no_ind Read 28
-z_1 3 Write 104
-loop no_ind Read 1064
-8 23
-i_1 no_ind Read 28
-z_1 no_ind Read 64
-z_1 0 Read 152
-i_1 no_ind Read 28
-z_1 5 Read 28
-i_1 no_ind Read 28
-i_1 no_ind Read 28
-z_1 4 Write 104
-loop no_ind Read 1064
+c_1 no_ind Read 28
+a_1 no_ind Read 28
+d_1 no_ind Write 28
+malloc 28 d_1
 exit scope 1
-enter scope 2
-1 27
-12 28
-a_2 no_ind Write 28
-malloc 28 a_2
-loop no_ind Read 1064
-14 31
-i_2 no_ind Read 24
-a_2 no_ind Write 28
-loop no_ind Read 1064
-14 31
-i_2 no_ind Read 28
-a_2 no_ind Write 28
-loop no_ind Read 1064
-14 31
-i_2 no_ind Read 28
-a_2 no_ind Write 28
-loop no_ind Read 1064
-exit scope 2

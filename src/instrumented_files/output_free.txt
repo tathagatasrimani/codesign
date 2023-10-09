@@ -51,7 +51,7 @@ i_1 no_ind Read 24
 z_1 1 Read 28
 i_1 no_ind Read 24
 i_1 no_ind Read 24
-z_1 0 Write 104
+z_1 0 Write 28
 loop no_ind Read 1064
 8 23
 i_1 no_ind Read 28
@@ -61,7 +61,7 @@ i_1 no_ind Read 28
 z_1 2 Read 28
 i_1 no_ind Read 28
 i_1 no_ind Read 28
-z_1 1 Write 104
+z_1 1 Write 28
 loop no_ind Read 1064
 8 23
 i_1 no_ind Read 28
@@ -71,7 +71,7 @@ i_1 no_ind Read 28
 z_1 3 Read 28
 i_1 no_ind Read 28
 i_1 no_ind Read 28
-z_1 2 Write 104
+z_1 2 Write 28
 loop no_ind Read 1064
 8 23
 i_1 no_ind Read 28
@@ -81,7 +81,7 @@ i_1 no_ind Read 28
 z_1 4 Read 28
 i_1 no_ind Read 28
 i_1 no_ind Read 28
-z_1 3 Write 104
+z_1 3 Write 28
 loop no_ind Read 1064
 8 23
 i_1 no_ind Read 28
@@ -91,7 +91,7 @@ i_1 no_ind Read 28
 z_1 5 Read 28
 i_1 no_ind Read 28
 i_1 no_ind Read 28
-z_1 4 Write 104
+z_1 4 Write 28
 free 64 z_1
 loop no_ind Read 1064
 exit scope 1

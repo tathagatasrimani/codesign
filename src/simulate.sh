@@ -1,22 +1,24 @@
 #!/bin/sh
 
-while getopts u:n:f: flag
+while getopts qn: flag
 do
     case "${flag}" in
-        f) filepath=${OPTARG};; # $1
         n) name=${OPTARG};;
-        d) debug=${OPTARG};;
+        q)
+        QUIET=true
+        ;;
     esac
 done
 
-FILE_DIR=./ #/Users/PatrickMcEwen/git_container/codesign/src # change path name for local computer
-# arguments like this: ./simulate.sh benchmarks/models/<name> <name>
-if [ $filepath ]; then
-    # cd $FILE_DIR
-
-    python instrument.py $filepath
+# arguments like this: ./simulate.sh -n <name>
+if [ $name ]; then
+    FILEPATH=benchmarks/models/$name
+    python instrument.py $FILEPATH
     python instrumented_files/xformed-$name > instrumented_files/output.txt
-    python symbolic_simulate.py $filepath $debug
-    #cd destiny/config
-    #./destiny sample.cfg
+    if [ $QUIET ]; then
+        echo "Quiet mode"
+        python symbolic_simulate.py $FILEPATH --notrace
+    else
+        python symbolic_simulate.py $FILEPATH
+    fi
 fi

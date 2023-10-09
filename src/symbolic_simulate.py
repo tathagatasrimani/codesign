@@ -60,15 +60,17 @@ class SymbolicHardwareSimulator():
         power_sum = 0
         # print(hw_need)
         for elem in hw_need:
+            if hw_need[elem] == 0: continue
             hw_spec[elem] = hw_need[elem] # assuming that hw_need exactly matches the spec for now (dfg is the hardware)
-            # batch = math.ceil(hw_need[elem] / hw_spec[elem])
-            batch = self.get_batch(hw_need[elem], hw_spec[elem])
-            print("batch for", elem, "with need of", hw_need[elem], "and spec of", hw_spec[elem], "is", batch)
+            batch = math.ceil(hw_need[elem] / hw_spec[elem])
+            # batch = self.get_batch(hw_need[elem], hw_spec[elem])
+            # print("batch for", elem, "with need of", hw_need[elem], "and spec of", hw_spec[elem], "is", batch)
             active_power = hw_need[elem] * hardwareModel.symbolic_power[elem][2]
             power_sum += active_power
             power_sum += batch * hw_spec[elem] * hardwareModel.symbolic_power[elem][2] / 10 # idle dividor still need passive power
             cycles_per_node = batch * hardwareModel.symbolic_latency[elem] # real latency in self.cycles
             max_cycles = Max(max_cycles, cycles_per_node)
+            print("max_cycles:", max_cycles)
         
         self.cycles += max_cycles
         return max_cycles, power_sum
@@ -224,8 +226,16 @@ def main():
     total_cycles = 0
     for node_id in simulator.node_sum_cycles:
         total_cycles += simulator.node_sum_cycles[node_id]
+
+    total_power = 0
+    for node_id in simulator.node_sum_power:
+        total_power += simulator.node_sum_power[node_id]
     
-    print("total_cycles", total_cycles)
+
+    print("total_cycles:", total_cycles)
+    print("diff add latency:", diff(total_cycles, "latency_Add"))
+    print("diff add power:", diff(total_power, "power_Add_2"))
+    print("total power:", total_power)
     
     delta = 0.1
     
@@ -251,7 +261,7 @@ def main():
     for s in total_cycles.free_symbols:
         if s.name == 'latency_Add':
             continue
-        if s.name == 'latency_Sub':
+        if s.name == 'latency_Mult':
             continue
         if "latency" in s.name:
             expr_symbols[s] = hardwareModel.latency[simulator.transistor_size][s.name.split('_')[1]]
@@ -266,6 +276,7 @@ def main():
     for s in expr_symbols_with_2_symbols.free_symbols:
         diffs.append(diff(expr_symbols_with_2_symbols,s))
         symbol_list.append(s)
+    print(symbol_list)
     from design_space import DesignSpace
     ds=DesignSpace(expr_symbols_with_2_symbols,symbol_list,diffs)
     ds.solve()
