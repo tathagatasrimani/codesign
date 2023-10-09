@@ -1,7 +1,0 @@
-digraph {
-	108 [label="source code:
-for v in V:
-"]
-	109 [label="V
-Read"]
-}

@@ -1,7 +1,0 @@
-digraph {
-	163 [label="source code:
-for v in u.getOutNeighbors():
-"]
-	164 [label="u.getOutNeighbors()
-"]
-}

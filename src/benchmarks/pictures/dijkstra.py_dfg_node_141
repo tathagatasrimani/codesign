@@ -1,7 +1,0 @@
-digraph {
-	226 [label="source code:
-for x in unsureVertices:
-"]
-	227 [label="unsureVertices
-Read"]
-}
