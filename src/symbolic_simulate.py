@@ -7,113 +7,157 @@ import ast
 import hardwareModel
 import math
 import json
+import os
 import sys
 from sympy import *
 
-cycles = 0
-main_cfg = None
-id_to_node = {}
-path = '/Users/PatrickMcEwen/git_container/codesign/src/cfg/benchmarks/' # change path variable for local computer
-data_path = []
-node_intervals = []
-node_sum_power = {}
-node_sum_cycles = {}
-unroll_at = {}
+class SymbolicHardwareSimulator():
 
-def func_calls(expr, calls):
-    if type(expr) == ast.Call:
-        calls.append(expr.func.id)
-    for sub_expr in ASTUtils.get_sub_expr(expr):
-        func_calls(sub_expr, calls)
+    def __init__(self):
+        self.cycles = 0
+        self.id_to_node = {}
+        self.path = os.getcwd()
+        self.data_path = []
+        self.node_intervals = []
+        self.node_sum_power = {}
+        self.node_sum_cycles = {}
+        self.unroll_at = {}
+        self.vars_allocated = {}
+        self.where_to_free = {}
+        self.compute_element_to_node_id = {}
+        self.compute_element_neighbors = {}
+        self.memory_needed = 0
+        self.cur_memory_size = 0
+        self.new_graph = None
+        self.mem_layers = 0
+        self.transistor_size = 0
+        self.pitch = 0
+        self.cache_size = 0
+        self.reads = 0
+        self.writes = 0
+        self.total_read_size = 0
+        self.total_write_size = 0
+        self.max_regs_inuse = 0
+        self.max_mem_inuse = 0
 
-def get_hw_need(state):
-    # not the original simulate model now, so we can use a non-symbolic hardware model
-    hw_need = HardwareModel(0,0)
-    for op in state:
-        if not op.operation: continue
-        else: hw_need.hw_allocated[op.operation] += 1
-    return hw_need.hw_allocated
+    def get_hw_need(self, state):
+        # not the original simulate model now, so we can use a non-symbolic hardware model
+        hw_need = HardwareModel(0,0,self.mem_layers, self.pitch, self.transistor_size, self.cache_size)
+        for op in state:
+            if not op.operation: continue
+            else: hw_need.hw_allocated[op.operation] += 1
+        return hw_need.hw_allocated
 
-def get_batch(need, spec):
-    batch = 0
-    for i in range(need):
-        # add 1 to batch if need / spec > i
-        batch += (functions.elementary.hyperbolic.tanh((need/spec) - i + 0.5) + 1) / 2
-    return batch
+    def get_batch(self, need, spec):
+        batch = 0
+        for i in range(need):
+            # add 1 to batch if need / spec > i
+            batch += (functions.elementary.hyperbolic.tanh((need/spec) - i + 0.5) + 1) / 2
+        return batch
 
-def symbolic_cycle_sim_parallel(hw_spec, hw_need):
-    global cycles
-    max_cycles = 0
-    power_sum = 0
-    # print(hw_need)
-    for elem in hw_need:
-        # batch = math.ceil(hw_need[elem] / hw_spec[elem])
-        batch = get_batch(hw_need[elem], hw_spec[elem])
-        print("batch for", elem, "with need of", hw_need[elem], "and spec of", hw_spec[elem], "is", batch)
-        active_power = hw_need[elem] * hardwareModel.symbolic_power[elem][2]
-        power_sum += active_power
-        power_sum += batch * hw_spec[elem] * hardwareModel.symbolic_power[elem][2] / 10 # idle dividor still need passive power
-        cycles_per_node = batch * hardwareModel.symbolic_latency[elem] # real latency in cycles
-        max_cycles = Max(max_cycles, cycles_per_node)
-    
-    cycles += max_cycles
-    return max_cycles, power_sum
+    def symbolic_cycle_sim_parallel(self, hw_spec, hw_need):
+        max_cycles = 0
+        power_sum = 0
+        # print(hw_need)
+        for elem in hw_need:
+            batch = math.ceil(hw_need[elem] / hw_spec[elem])
+            # batch = self.get_batch(hw_need[elem], hw_spec[elem])
+            print("batch for", elem, "with need of", hw_need[elem], "and spec of", hw_spec[elem], "is", batch)
+            active_power = hw_need[elem] * hardwareModel.symbolic_power[elem][2]
+            power_sum += active_power
+            power_sum += batch * hw_spec[elem] * hardwareModel.symbolic_power[elem][2] / 10 # idle dividor still need passive power
+            cycles_per_node = batch * hardwareModel.symbolic_latency[elem] # real latency in self.cycles
+            max_cycles = Max(max_cycles, cycles_per_node)
+        
+        self.cycles += max_cycles
+        return max_cycles, power_sum
 
-def symbolic_simulate(cfg, data_path, symbolic_node_operations, hw_spec, symbolic_first):
-    global main_cfg, id_to_node, unroll_at, node_sum_cycles, node_sum_power
-    cur_node = cfg.entryblock
-    if symbolic_first: 
-        cur_node = cur_node.exits[0].target # skip over the first node in the main cfg
-        main_cfg = cfg
-    i = 0
-    # focus on symbolizing the node_operations
-    while i < len(data_path):
-        node_id = data_path[i][0]
-        cur_node = id_to_node[node_id]
-        node_intervals.append([node_id, [cycles, 0]])
-        if not node_id in node_sum_power:
-            node_sum_power[node_id] = 0 # just reset because we will end up overwriting it
-        if not node_id in node_sum_cycles:
-            node_sum_cycles[node_id] = 0
-        iters = 0
-        if unroll_at[cur_node.id]:
-            j = i
-            while True:
-                j += 1
-                if len(data_path) <= j: break
-                next_node_id = data_path[j][0]
-                if next_node_id != node_id: break
-                iters += 1
-            i = j - 1 # skip over loop iterations because we execute them all at once
-        for state in symbolic_node_operations[cur_node]:
-            # if unroll, take each operation in a state and create more of them
-            if unroll_at[cur_node.id]:
-                new_state = state.copy()
-                for op in state:
-                    for j in range(iters):
-                        new_state.append(op)
-                state = new_state
-            hw_need = get_hw_need(state)
-            max_cycles, power_sum = symbolic_cycle_sim_parallel(hw_spec, hw_need)
-            node_sum_power[node_id] += power_sum
-            node_sum_cycles[node_id] += max_cycles
-        node_intervals[-1][1][1] = cycles
-        i += 1
+    def symbolic_simulate(self, cfg, symbolic_node_operations, hw_spec, symbolic_first):
+        cur_node = cfg.entryblock
+        if symbolic_first: 
+            cur_node = cur_node.exits[0].target # skip over the first node in the main cfg
+        i = 0
+        # focus on symbolizing the node_operations
+        while i < len(self.data_path):
+            node_id = self.data_path[i][0]
+            cur_node = self.id_to_node[node_id]
+            self.node_intervals.append([node_id, [self.cycles, 0]])
+            if not node_id in self.node_sum_power:
+                self.node_sum_power[node_id] = 0 # just reset because we will end up overwriting it
+            if not node_id in self.node_sum_cycles:
+                self.node_sum_cycles[node_id] = 0
+            iters = 0
+            if self.unroll_at[cur_node.id]:
+                j = i
+                while True:
+                    j += 1
+                    if len(self.data_path) <= j: break
+                    next_node_id = self.data_path[j][0]
+                    if next_node_id != node_id: break
+                    iters += 1
+                i = j - 1 # skip over loop iterations because we execute them all at once
+            for state in symbolic_node_operations[cur_node]:
+                # if unroll, take each operation in a state and create more of them
+                if self.unroll_at[cur_node.id]:
+                    new_state = state.copy()
+                    for op in state:
+                        for j in range(iters):
+                            new_state.append(op)
+                    state = new_state
+                hw_need = self.get_hw_need(state)
+                max_cycles, power_sum = self.symbolic_cycle_sim_parallel(hw_spec, hw_need)
+                self.node_sum_power[node_id] += power_sum
+                self.node_sum_cycles[node_id] += max_cycles
+            self.node_intervals[-1][1][1] = self.cycles
+            i += 1
 
-cur_node_id = 0
+    def set_data_path(self):
+        with open('/Users/PatrickMcEwen/git_container/codesign/src/instrumented_files/output.txt', 'r') as f:
+            src = f.read()
+            l = src.split('\n')
+            for i in range(len(l)):
+                l[i] = l[i].split()
+            #print(l)
+            last_line = '-1'
+            last_node = '-1'
+            for item in l:
+                if len(item) == 2 and (item[0] != last_node or item[1] == last_line):
+                    last_node = item[0]
+                    last_line = item[1]
+                    self.data_path.append(item)
+            print(f"data_path: {self.data_path}")
+            print("memory needed: ", self.memory_needed)
+
+    def simulator_prep(self, benchmark):
+        cfg, graphs, self.unroll_at = dfg_algo.main_fn(self.path, benchmark)
+        node_operations = schedule.schedule(cfg, graphs, benchmark)
+        self.set_data_path()
+        for node in cfg: self.id_to_node[str(node.id)] = node
+        #print(self.id_to_node)
+        return cfg, graphs, node_operations
 
 def main():
-    global unroll_at
     benchmark = sys.argv[1]
     print(benchmark)
-    # for next step we would start from makeing unroll_at symbolic, is that right?
-    cfg, graphs, unroll_at = dfg_algo.main_fn(path, benchmark)
-    # I think we need to make graphs symbolic, so that we could optimize the schedule procedure?
-    cfg, node_operations = schedule.schedule(cfg, graphs, sys.argv[1])
-    # symbolic_hw = SymbolicHardwareModel(0, 0)
-    
-    hw = HardwareModel(0, 0)
-    symbolic_hw = HardwareModel(0, 0)
+    simulator = SymbolicHardwareSimulator()
+
+    cfg, graphs, node_operations = simulator.simulator_prep(benchmark)
+
+    simulator.transistor_size = 3 # in nm
+    simulator.pitch = 100
+    simulator.mem_layers = 2
+    if simulator.memory_needed < 1000000:
+        simulator.cache_size = 1
+    elif simulator.memory_needed < 2000000:
+        simulator.cache_size = 2
+    elif simulator.memory_needed < 4000000:
+        simulator.cache_size = 4
+    elif simulator.memory_needed < 8000000:
+        simulator.cache_size = 8
+    else: 
+        simulator.cache_size = 16
+    hw = HardwareModel(0, 0, simulator.mem_layers, simulator.pitch, simulator.transistor_size, simulator.cache_size)
+    symbolic_hw = SymbolicHardwareModel(0, 0)
     
     hw.hw_allocated['Add'] = 1
     hw.hw_allocated['Regs'] = 30
@@ -166,55 +210,19 @@ def main():
     symbolic_hw.hw_allocated['Not'] = symbols('Not')
     symbolic_hw.hw_allocated['Invert'] = symbols('Invert')
     
-    for node in cfg:
-        id_to_node[str(node.id)] = node
-    
-    # set up sequence of cfg nodes to visit
-    with open('/Users/PatrickMcEwen/git_container/codesign/src/instrumented_files/output.txt', 'r') as f:
-        src = f.read()
-        l = src.split('\n')
-        for i in range(len(l)):
-            l[i] = l[i].split()
-        #print(l)
-        last_line = '-1'
-        last_node = '-1'
-        for item in l:
-            if len(item) == 2 and (item[0] != last_node or item[1] == last_line):
-                last_node = item[0]
-                last_line = item[1]
-                data_path.append(item)
-    # but for now we just begin with symbolic simulation
-    # data = simulate(cfg, data_path, node_operations, hw.hw_allocated, True)
     first = True
     
-    symbolic_simulate(cfg, data_path, node_operations, hw.hw_allocated, first)
+    simulator.symbolic_simulate(cfg, node_operations, hw.hw_allocated, first)
     
     node_avg_power = {}
-    for node_id in node_sum_power:
+    for node_id in simulator.node_sum_power:
         # node_sum_cycles_is_zero = 0.5 * tanh(node_sum_cycles[node_id]) + 0.5
-        # probably node_sum_cycles[node_id] is not zero, because it's the max of all the cycles, just divide by it
-        node_avg_power[node_id] = (node_sum_power[node_id] / node_sum_cycles[node_id]).simplify()
-    # print("node_sum_power", node_sum_power)
-    # print("node_sum_cycles", node_sum_cycles)
-    # print("node_intervals", node_intervals)
-    
-    # node_avg_power_value = {}
-    # for node_id in node_avg_power:
-    #     expr_symbols = {}
-    #     expr = node_avg_power[node_id]
-    #     for s in expr.free_symbols:
-    #         if not s in expr_symbols:
-    #             if "latency" in s.name:
-    #                 expr_symbols[s] = hardwareModel.latency[s.name.split('_')[1]]
-    #             else:
-    #                 expr_symbols[s] = hardwareModel.power[s.name.split('_')[1]][int(s.name.split('_')[2])]
-    #     expr_value = expr.subs(expr_symbols)
-    #     node_avg_power_value[node_id] = float(expr_value)
-        
-    # node_avg_power_value = {}
+        # probably node_sum_cycles[node_id] is not zero, because it's the max of all the self.cycles, just divide by it
+        node_avg_power[node_id] = (simulator.node_sum_power[node_id] / simulator.node_sum_cycles[node_id]).simplify()
+
     total_cycles = 0
-    for node_id in node_sum_cycles:
-        total_cycles += node_sum_cycles[node_id]
+    for node_id in simulator.node_sum_cycles:
+        total_cycles += simulator.node_sum_cycles[node_id]
     
     print("total_cycles", total_cycles)
     
@@ -223,55 +231,19 @@ def main():
     expr_symbols = {}
     for s in total_cycles.free_symbols:
         if "latency" in s.name:
-            expr_symbols[s] = hardwareModel.latency[s.name.split('_')[1]]
+            expr_symbols[s] = hardwareModel.latency[simulator.transistor_size][s.name.split('_')[1]]
         else:
-            expr_symbols[s] = hardwareModel.power[s.name.split('_')[1]][int(s.name.split('_')[2])]
+            expr_symbols[s] = hardwareModel.dynamic_power[simulator.transistor_size][s.name.split('_')[1]][int(s.name.split('_')[2])]
     print("expr_symbols", expr_symbols)
     
     print("before modification ", total_cycles.subs(expr_symbols))
     
-    # prime_expr = {}
-    # prime_expr_value = {}
-    
-    # for s in total_cycles.free_symbols:
-    #     print("total_cycles", total_cycles)
-    #     print("s", s)
-    #     prime_s = total_cycles.diff(s)
-    #     print("prime_s", prime_s)
-    #     prime_expr[s] = prime_s
-    #     prime_expr_value[s] = prime_s.subs(expr_symbols)
-    
-    # print("prime_expr", prime_expr)
-    # print("prime_expr_value", prime_expr_value)
-    
-    # max_key = max(prime_expr_value, key=prime_expr_value.get) # positive, apply - 0.1
-    # print("max_key", max_key)
-    # min_key = min(prime_expr_value, key=prime_expr_value.get) # negative, apply + 0.1
-    # print("min_key", min_key)
-    
-    # expr_symbols[max_key] -= delta
-    # expr_symbols[min_key] += delta
-    
-    # print("min latency ", total_cycles.subs(expr_symbols))
-    
-    # expr_symbols[max_key] += delta
-    # expr_symbols[min_key] -= delta
-    
-    # print("original latency ", total_cycles.subs(expr_symbols))
-    
-    # expr_symbols[max_key] += delta
-    # expr_symbols[min_key] -= delta
-    
-    # print("maximum latency ", total_cycles.subs(expr_symbols))
     cost_sum = 0
     for s in total_cycles.free_symbols:
         cost_sum += 1/(s+1)
     
     print('cost_sum', cost_sum)
     expr_symbols_with_cost = total_cycles * cost_sum
-    
-    
-    
     
     expr_symbols = {}
     cnt=0
@@ -281,191 +253,22 @@ def main():
         if s.name == 'latency_Sub':
             continue
         if "latency" in s.name:
-            expr_symbols[s] = hardwareModel.latency[s.name.split('_')[1]]
+            expr_symbols[s] = hardwareModel.latency[simulator.transistor_size][s.name.split('_')[1]]
         else:
-            expr_symbols[s] = hardwareModel.power[s.name.split('_')[1]][int(s.name.split('_')[2])]
+            expr_symbols[s] = hardwareModel.dynamic_power[simulator.transistor_size][s.name.split('_')[1]][int(s.name.split('_')[2])]
 
     # print("only keep 2 variables ", expr_symbols_with_cost.subs(expr_symbols))
     expr_symbols_with_cost_with_2_symbols = expr_symbols_with_cost.subs(expr_symbols)
     
     diffs=[]
-    symbols=[]
+    symbol_list=[]
     for s in expr_symbols_with_cost_with_2_symbols.free_symbols:
         diffs.append(diff(expr_symbols_with_cost_with_2_symbols,s))
-        symbols.append(s)
+        symbol_list.append(s)
     from design_space import DesignSpace
-    ds=DesignSpace(expr_symbols_with_cost_with_2_symbols,symbols,diffs)
+    ds=DesignSpace(expr_symbols_with_cost_with_2_symbols,symbol_list,diffs)
     ds.solve()
-    return
-    import numpy as np
-    modules = ['numpy']
-    # {'Heaviside': lambda x: np.heaviside(x, 1)}, 
-    # focx_lambda = lambdify((self.symbols[0], self.symbols[1]), self.expr.subs({self.symbols[0].name: self.symbols[0]}), modules=modules)
-    # focy_lambda = lambdify((self.symbols[0], self.symbols[1]), self.expr, modules=modules)
-    # print(focx_lambda(0.3, 0.4))  # we need to check that the lambdify works, so this should print a floating point number
-    # print(focy_lambda(0.3, 0.4))
-    # f_lambda = lambdify((self.symbols[0], self.symbols[1]), self.expr, modules=modules)
-    # print(f_lambda(0.3, 0.4))
-    f0_lambda = lambdify((symbols[0], symbols[1]), diffs[0], modules=modules)
-    f1_lambda = lambdify((symbols[0], symbols[1]), diffs[1], modules=modules)
     
-    
-    def equations(p):
-        x, y = p
-        print("x, y", x, y)
-        return [f0_lambda(x, y), f1_lambda(x, y)]
-
-    sol = fsolve(equations, [1, 1])
-    print(sol)  # [0.64701372 0.61726372]
-    print("self.expr", self.expr)
-    data_dict = {self.symbols[0]:sol[0], self.symbols[1]:sol[1]}
-    print(data_dict)
-    print(self.expr.subs(data_dict))
-        
-    # print(f0_lambda)
-    # print(f0_lambda(0.3, 0.4))
-        
-    # stationary_points = solve(diffs, symbols, dict=True)   
-
-    # # Append boundary points
-    # stationary_points.append({x:0, y:0})
-    # stationary_points.append({x:1, y:0})
-    # stationary_points.append({x:1, y:1})
-    # stationary_points.append({x:0, y:1})
-    
-    # # store results after evaluation
-    # results = []
-    
-    # # iteration counter
-    # j = -1
-    
-    # for i in range(len(stationary_points)):
-    #     j = j+1
-    #     x1 = stationary_points[j].get(x)
-    #     y1 = stationary_points[j].get(y)
-        
-    #     # If point is in the domain evalute and append it
-    #     if (0 <= x1 <=  1) and ( 0 <= y1 <=  1):
-    #         tmp = f.subs({x:x1, y:y1})
-    #         results.append(tmp)
-    #     else:
-    #         # else remove the point
-    #         stationary_points.pop(j)
-    #         j = j-1
-            
-    # # Variables to store info
-    # returnMax = []
-    # returnMin = []
-    
-    # # Get the maximum value
-    # maximum = max(results)
-    
-    # # Get the position of all the maximum values
-    # maxpos = [i for i,j in enumerate(results) if j==maximum]
-    
-    # # Append only unique points
-    # append = False
-    # for item in maxpos:
-    #     for i in returnMax:
-    #         if (stationary_points[item] in i.values()):
-    #             append = True
-               
-    #     if (not(append)):
-    #         returnMax.append({maximum: stationary_points[item]})
-    
-    # # Get the minimum value
-    # minimum  = min(results)
-    
-    # # Get the position of all the minimum  values
-    # minpos = [i for i,j in enumerate(results) if j==minimum ]
-    
-    # # Append only unique points
-    # append = False
-    # for item in minpos:
-    #     for i in returnMin:
-    #         if (stationary_points[item] in i.values()):
-    #             append = True
-               
-    #     if (not(append)):
-    #         returnMin.append({minimum: stationary_points[item]})
-    
-
-    
-    # print([returnMax, returnMin])
-
-    # import scipy.optimize as optimize
-
-    # def f(params):
-    #     # print(params)  # <-- you'll see that params is a NumPy array
-    #     a, b, c = params # <-- for readability you may wish to assign names to the component variables
-    #     return a**2 + b**2 + c**2
-
-    # initial_guess = [1, 1, 1]
-    # result = optimize.minimize(f, initial_guess)
-        
-        
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    # energy delay product
-    # realistic model what you can change and how much you can change it
-    
-    # total_cycles_value = total_cycles.subs(expr_symbols)
-    # print("total_cycles_value", total_cycles_value)
-        
-    # node_sum_cycles_value = {}
-    # for node_id in node_sum_cycles:
-    #     expr_symbols = {}
-    #     expr = node_sum_cycles[node_id]
-    #     for s in expr.free_symbols:
-    #         if not s in expr_symbols:
-    #             if "latency" in s.name:
-    #                 expr_symbols[s] = hardwareModel.latency[s.name.split('_')[1]]
-    #             else:
-    #                 expr_symbols[s] = hardwareModel.power[s.name.split('_')[1]][int(s.name.split('_')[2])]
-    #     expr_value = expr.subs(expr_symbols)
-    #     node_sum_cycles_value[node_id] = float(expr_value)
-    
-    # fprime_And = total_cycles_value.diff(hardwareModel.symbolic_latency["And"])
-    # fprime_Or = total_cycles_value.diff(hardwareModel.symbolic_latency["Or"])
-    # stationary_points = solve([fprime_And, fprime_Or], [hardwareModel.symbolic_latency["And"], hardwareModel.symbolic_latency["Or"]], dict=True)   
-    # print(stationary_points)
-    
-    
-    # x_interval = [0.5, 5]
-    # y_interval = [0.5, 5]
-    # constraints = [
-    #     total_cycles_value.And(hardwareModel.symbolic_latency["Add"] >= x_interval[0], hardwareModel.symbolic_latency["Add"] <= x_interval[1]),
-    #     total_cycles_value.And(hardwareModel.symbolic_latency["Regs"] >= y_interval[0], hardwareModel.symbolic_latency["Regs"] <= y_interval[1])
-    # ]
-    
-    # prime_Add = total_cycles_value.diff(hardwareModel.symbolic_latency["Add"])
-    # prime_Regs = total_cycles_value.diff(hardwareModel.symbolic_latency["Regs"])
-    # stationary_points = solve([prime_Add, prime_Regs], [hardwareModel.symbolic_latency["Add"], hardwareModel.symbolic_latency["Regs"]], dict=True)
-    # print("stationary_points", stationary_points)
-    # valid_critical_points = [point for point in stationary_points if all(con.subs(point) for con in constraints)]
-
-    
-    
-
-
-    # print(node_sum_cycles_value)
-    # {'1': 2.0, '102': 6.0, '29': 2.0, '7': 1.0, '9': 11.76, '31': 5.0, '33': 4.12, '39': 4.06, '36': 4.06, '43': 3.0, '60': 4.06, '73': 3.0, '84': 4.0, '90': 5.359999999999999, '17': 1.0, '21': 20.759999999999998}
-    # /home/ubuntu/codesign/src/cfg/benchmarks/models/testme.py
 if __name__ == '__main__':
     main()
     

@@ -16,7 +16,7 @@ if [ $filepath ]; then
 
     python instrument.py $filepath
     python instrumented_files/xformed-$name > instrumented_files/output.txt
-    python simulate.py $filepath $debug
+    python symbolic_simulate.py $filepath $debug
     #cd destiny/config
     #./destiny sample.cfg
 fi
