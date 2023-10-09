@@ -1,4 +1,5 @@
 **/__pycache__/**
 src/benchmarks/pictures/**
+src/benchmarks/power_plots/**
 src/instrumented_files/output*
 src/instrumented_files/xformed*
