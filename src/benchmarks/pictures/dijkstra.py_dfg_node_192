@@ -1,7 +1,13 @@
 digraph {
-	359 [label="source code:
-for n in nVals:
+	432 [label="source code:
+while current_27 != w_27:
 "]
-	360 [label="nVals
+	433 [label="current_27
 Read"]
+	434 [label="w_27
+Read"]
+	435 [label="!=
+"]
+	433 -> 435 [label=""]
+	434 -> 435 [label=""]
 }

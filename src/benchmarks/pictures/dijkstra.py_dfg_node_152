@@ -1,13 +1,10 @@
 digraph {
-	249 [label="source code:
-dijkstraDumb(w, G)
+	319 [label="source code:
+unsureVertices_24.remove(u_24)
 "]
-	250 [label="dijkstraDumb(w, G)
+	320 [label="unsureVertices_24.remove(u_24)
 "]
-	251 [label="w
+	321 [label="u_24
 Read"]
-	251 -> 250 [label=""]
-	252 [label="G
-Read"]
-	252 -> 250 [label=""]
+	321 -> 320 [label=""]
 }

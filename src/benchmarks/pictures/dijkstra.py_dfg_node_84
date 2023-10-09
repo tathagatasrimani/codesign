@@ -1,7 +1,7 @@
 digraph {
-	96 [label="source code:
-for u, wt in v.getOutNeighborsWithWeights():
+	149 [label="source code:
+for u_20, wt_20 in v_20.getOutNeighborsWithWeights():
 "]
-	97 [label="v.getOutNeighborsWithWeights()
+	150 [label="v_20.getOutNeighborsWithWeights()
 "]
 }

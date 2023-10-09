@@ -1,10 +1,16 @@
 digraph {
-	361 [label="source code:
-runtime = 0
+	436 [label="source code:
+path_27.append(current_27)
+current_27 = current_27.parent
 "]
-	362 [label=0
-]
-	363 [label="runtime
+	437 [label="path_27.append(current_27)
+"]
+	438 [label="current_27
+Read"]
+	438 -> 437 [label=""]
+	439 [label="current_27.parent
+Read"]
+	440 [label="current_27
 Write"]
-	362 -> 363 [label=""]
+	439 -> 440 [label=""]
 }

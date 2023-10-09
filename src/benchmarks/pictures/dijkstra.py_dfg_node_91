@@ -1,13 +1,31 @@
 digraph {
-	104 [label="source code:
-G = CS161Graph()
-V = [CS161Vertex(x) for x in range(n)]
+	157 [label="source code:
+n_21 = n
+p_21 = p
+wts_21 = wts
+G_21 = CS161Graph()
+V_21 = [CS161Vertex(x_21) for x_21 in range(n_21)]
 "]
-	105 [label="CS161Graph()
-"]
-	106 [label="G
+	158 [label="n
+Read"]
+	159 [label="n_21
 Write"]
-	105 -> 106 [label=""]
-	107 [label="V
+	158 -> 159 [label=""]
+	160 [label="p
+Read"]
+	161 [label="p_21
+Write"]
+	160 -> 161 [label=""]
+	162 [label="wts
+Read"]
+	163 [label="wts_21
+Write"]
+	162 -> 163 [label=""]
+	164 [label="CS161Graph()
+"]
+	165 [label="G_21
+Write"]
+	164 -> 165 [label=""]
+	166 [label="V_21
 Write"]
 }

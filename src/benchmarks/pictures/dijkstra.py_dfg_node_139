@@ -1,16 +1,16 @@
 digraph {
-	221 [label="source code:
-u = None
-minD = math.inf
+	280 [label="source code:
+w_24.estD = 0
+unsureVertices_24 = G_24.vertices[:]
 "]
-	222 [label=None
+	281 [label=0
 ]
-	223 [label="u
+	282 [label="w_24.estD
 Write"]
-	222 -> 223 [label=""]
-	224 [label="math.inf
+	281 -> 282 [label=""]
+	283 [label="G_24.vertices[:]
 Read"]
-	225 [label="minD
+	284 [label="unsureVertices_24
 Write"]
-	224 -> 225 [label=""]
+	283 -> 284 [label=""]
 }

@@ -1,13 +1,27 @@
 digraph {
-	266 [label="source code:
-if v.estD == math.inf:
+	329 [label="source code:
+w_25 = w
+G_25 = G
+dijkstraDumb(w_25, G_25)
 "]
-	267 [label="v.estD
+	330 [label="w
 Read"]
-	268 [label="math.inf
+	331 [label="w_25
+Write"]
+	330 -> 331 [label=""]
+	332 [label="G
 Read"]
-	269 [label="==
+	333 [label="G_25
+Write"]
+	332 -> 333 [label=""]
+	334 [label="dijkstraDumb(w_25, G_25)
 "]
-	267 -> 269 [label=""]
-	268 -> 269 [label=""]
+	335 [label="w_25
+Read"]
+	335 -> 334 [label=""]
+	336 [label="G_25
+Read"]
+	336 -> 334 [label=""]
+	333 -> 336 [label=""]
+	331 -> 335 [label=""]
 }

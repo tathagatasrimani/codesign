@@ -1,10 +1,13 @@
 digraph {
-	196 [label="source code:
-v.estD = math.inf
+	266 [label="source code:
+path_23.append(current_23)
+path_23.reverse()
 "]
-	197 [label="math.inf
+	267 [label="path_23.append(current_23)
+"]
+	268 [label="current_23
 Read"]
-	198 [label="v.estD
-Write"]
-	197 -> 198 [label=""]
+	268 -> 267 [label=""]
+	269 [label="path_23.reverse()
+"]
 }

@@ -1,16 +1,16 @@
 digraph {
-	279 [label="source code:
-path.append(current)
-current = current.parent
+	343 [label="source code:
+path_25 = []
+current_25 = v_25
 "]
-	280 [label="path.append(current)
+	344 [label="[]
 "]
-	281 [label="current
-Read"]
-	281 -> 280 [label=""]
-	282 [label="current.parent
-Read"]
-	283 [label="current
+	345 [label="path_25
 Write"]
-	282 -> 283 [label=""]
+	344 -> 345 [label=""]
+	346 [label="v_25
+Read"]
+	347 [label="current_25
+Write"]
+	346 -> 347 [label=""]
 }

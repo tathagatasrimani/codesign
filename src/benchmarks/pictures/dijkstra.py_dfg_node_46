@@ -1,12 +1,32 @@
 digraph {
-	72 [label="source code:
-self.inNeighbors.append((v, wt))
+	97 [label="source code:
+self = self
+v_10 = v
+wt_10 = wt
+self.inNeighbors.append((v_10, wt_10))
 "]
-	73 [label="self.inNeighbors.append((v, wt))
+	98 [label="self
+Read"]
+	99 [label="self
+Write"]
+	98 -> 99 [label=""]
+	100 [label="v
+Read"]
+	101 [label="v_10
+Write"]
+	100 -> 101 [label=""]
+	102 [label="wt
+Read"]
+	103 [label="wt_10
+Write"]
+	102 -> 103 [label=""]
+	104 [label="self.inNeighbors.append((v_10, wt_10))
 "]
-	74 [label="v
+	105 [label="v_10
 Read"]
-	75 [label="wt
+	106 [label="wt_10
 Read"]
-	74 -> 73 [label=""]
+	105 -> 104 [label=""]
+	103 -> 106 [label=""]
+	101 -> 105 [label=""]
 }

@@ -1,16 +1,13 @@
 digraph {
-	282 [label="source code:
-w.estD = 0
-unsureVertices = heapdict.heapdict()
+	357 [label="source code:
+path_25.append(current_25)
+path_25.reverse()
 "]
-	283 [label=0
-]
-	284 [label="w.estD
-Write"]
-	283 -> 284 [label=""]
-	285 [label="heapdict.heapdict()
+	358 [label="path_25.append(current_25)
 "]
-	286 [label="unsureVertices
-Write"]
-	285 -> 286 [label=""]
+	359 [label="current_25
+Read"]
+	359 -> 358 [label=""]
+	360 [label="path_25.reverse()
+"]
 }

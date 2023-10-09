@@ -1,13 +1,13 @@
 digraph {
-	284 [label="source code:
-path.append(current)
-path.reverse()
+	348 [label="source code:
+while current_25 != w_25:
 "]
-	285 [label="path.append(current)
-"]
-	286 [label="current
+	349 [label="current_25
 Read"]
-	286 -> 285 [label=""]
-	287 [label="path.reverse()
+	350 [label="w_25
+Read"]
+	351 [label="!=
 "]
+	349 -> 351 [label=""]
+	350 -> 351 [label=""]
 }

@@ -1,10 +1,16 @@
 digraph {
-	39 [label="source code:
+	36 [label="source code:
+self = self
 self.vertices = []
 "]
-	40 [label="[]
-"]
-	41 [label="self.vertices
+	37 [label="self
+Read"]
+	38 [label="self
 Write"]
-	40 -> 41 [label=""]
+	37 -> 38 [label=""]
+	39 [label="[]
+"]
+	40 [label="self.vertices
+Write"]
+	39 -> 40 [label=""]
 }

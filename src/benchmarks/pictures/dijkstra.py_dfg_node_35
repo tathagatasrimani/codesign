@@ -1,5 +1,11 @@
 digraph {
-	66 [label="source code:
+	81 [label="source code:
+self = self
 return self.outNeighbors
 "]
+	82 [label="self
+Read"]
+	83 [label="self
+Write"]
+	82 -> 83 [label=""]
 }

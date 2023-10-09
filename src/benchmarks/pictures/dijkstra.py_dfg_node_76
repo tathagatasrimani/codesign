@@ -1,16 +1,42 @@
 digraph {
-	79 [label="source code:
-u.addOutNeighbor(v, wt=wt)
-v.addInNeighbor(u, wt=wt)
+	114 [label="source code:
+self = self
+u_18 = u
+v_18 = v
+wt_18 = wt
+u_18.addOutNeighbor(v_18, wt=wt_18)
+v_18.addInNeighbor(u_18, wt=wt_18)
 "]
-	80 [label="u.addOutNeighbor(v, wt=wt)
-"]
-	81 [label="v
+	115 [label="self
 Read"]
-	81 -> 80 [label=""]
-	82 [label="v.addInNeighbor(u, wt=wt)
-"]
-	83 [label="u
+	116 [label="self
+Write"]
+	115 -> 116 [label=""]
+	117 [label="u
 Read"]
-	83 -> 82 [label=""]
+	118 [label="u_18
+Write"]
+	117 -> 118 [label=""]
+	119 [label="v
+Read"]
+	120 [label="v_18
+Write"]
+	119 -> 120 [label=""]
+	121 [label="wt
+Read"]
+	122 [label="wt_18
+Write"]
+	121 -> 122 [label=""]
+	123 [label="u_18.addOutNeighbor(v_18, wt=wt_18)
+"]
+	124 [label="v_18
+Read"]
+	124 -> 123 [label=""]
+	125 [label="v_18.addInNeighbor(u_18, wt=wt_18)
+"]
+	126 [label="u_18
+Read"]
+	126 -> 125 [label=""]
+	118 -> 126 [label=""]
+	120 -> 124 [label=""]
 }

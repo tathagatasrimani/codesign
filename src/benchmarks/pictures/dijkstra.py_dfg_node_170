@@ -1,13 +1,10 @@
 digraph {
-	300 [label="source code:
-unsureVertices[v] = v.estD
+	368 [label="source code:
+v_26.estD = math.inf
 "]
-	301 [label="v.estD
+	369 [label="math.inf
 Read"]
-	302 [label="unsureVertices
-Read"]
-	303 [label="unsureVertices[v]
+	370 [label="v_26.estD
 Write"]
-	302 -> 303 [label=""]
-	301 -> 303 [label=""]
+	369 -> 370 [label=""]
 }

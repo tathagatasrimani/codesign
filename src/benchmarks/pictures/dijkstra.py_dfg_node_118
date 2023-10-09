@@ -1,7 +1,13 @@
 digraph {
-	166 [label="source code:
-for v in V:
+	227 [label="source code:
+if v_22.status == 'unvisited':
 "]
-	167 [label="V
+	228 [label="v_22.status
 Read"]
+	229 [label=unvisited
+]
+	230 [label="==
+"]
+	228 -> 230 [label=""]
+	229 -> 230 [label=""]
 }

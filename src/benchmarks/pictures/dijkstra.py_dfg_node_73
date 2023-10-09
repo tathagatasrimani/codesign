@@ -1,10 +1,23 @@
 digraph {
-	76 [label="source code:
-self.vertices.append(n)
+	107 [label="source code:
+self = self
+n_17 = n
+self.vertices.append(n_17)
 "]
-	77 [label="self.vertices.append(n)
-"]
-	78 [label="n
+	108 [label="self
 Read"]
-	78 -> 77 [label=""]
+	109 [label="self
+Write"]
+	108 -> 109 [label=""]
+	110 [label="n
+Read"]
+	111 [label="n_17
+Write"]
+	110 -> 111 [label=""]
+	112 [label="self.vertices.append(n_17)
+"]
+	113 [label="n_17
+Read"]
+	113 -> 112 [label=""]
+	111 -> 113 [label=""]
 }

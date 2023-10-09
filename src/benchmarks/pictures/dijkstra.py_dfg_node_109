@@ -1,7 +1,16 @@
 digraph {
-	141 [label="source code:
-for v in G.vertices:
+	200 [label="source code:
+w_22 = w
+G_22 = G
 "]
-	142 [label="G.vertices
+	201 [label="w
 Read"]
+	202 [label="w_22
+Write"]
+	201 -> 202 [label=""]
+	203 [label="G
+Read"]
+	204 [label="G_22
+Write"]
+	203 -> 204 [label=""]
 }

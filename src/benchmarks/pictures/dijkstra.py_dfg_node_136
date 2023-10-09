@@ -1,10 +1,16 @@
 digraph {
-	207 [label="source code:
-v.estD = math.inf
+	270 [label="source code:
+w_24 = w
+G_24 = G
 "]
-	208 [label="math.inf
+	271 [label="w
 Read"]
-	209 [label="v.estD
+	272 [label="w_24
 Write"]
-	208 -> 209 [label=""]
+	271 -> 272 [label=""]
+	273 [label="G
+Read"]
+	274 [label="G_24
+Write"]
+	273 -> 274 [label=""]
 }

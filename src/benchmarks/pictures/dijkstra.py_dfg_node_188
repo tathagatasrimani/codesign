@@ -1,16 +1,13 @@
 digraph {
-	347 [label="source code:
-path = []
-current = v
+	423 [label="source code:
+if v_27.estD == math.inf:
 "]
-	348 [label="[]
-"]
-	349 [label="path
-Write"]
-	348 -> 349 [label=""]
-	350 [label="v
+	424 [label="v_27.estD
 Read"]
-	351 [label="current
-Write"]
-	350 -> 351 [label=""]
+	425 [label="math.inf
+Read"]
+	426 [label="==
+"]
+	424 -> 426 [label=""]
+	425 -> 426 [label=""]
 }

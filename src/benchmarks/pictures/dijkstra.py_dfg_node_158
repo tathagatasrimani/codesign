@@ -1,13 +1,7 @@
 digraph {
-	264 [label="source code:
-while current != w:
+	337 [label="source code:
+for v_25 in G_25.vertices:
 "]
-	265 [label="current
+	338 [label="G_25.vertices
 Read"]
-	266 [label="w
-Read"]
-	267 [label="!=
-"]
-	265 -> 267 [label=""]
-	266 -> 267 [label=""]
 }

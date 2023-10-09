@@ -1,7 +1,22 @@
 digraph {
-	253 [label="source code:
-for v in G.vertices:
+	322 [label="source code:
+v_24.estD = u_24.estD + wt_24
+v_24.parent = u_24
 "]
-	254 [label="G.vertices
+	323 [label="u_24.estD
 Read"]
+	324 [label="wt_24
+Read"]
+	325 [label="+
+"]
+	323 -> 325 [label=""]
+	324 -> 325 [label=""]
+	326 [label="v_24.estD
+Write"]
+	325 -> 326 [label=""]
+	327 [label="u_24
+Read"]
+	328 [label="v_24.parent
+Write"]
+	327 -> 328 [label=""]
 }

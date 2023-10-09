@@ -1,13 +1,16 @@
 digraph {
-	201 [label="source code:
-path.append(current)
-path.reverse()
+	261 [label="source code:
+path_23.append(current_23)
+current_23 = current_23.parent
 "]
-	202 [label="path.append(current)
+	262 [label="path_23.append(current_23)
 "]
-	203 [label="current
+	263 [label="current_23
 Read"]
-	203 -> 202 [label=""]
-	204 [label="path.reverse()
-"]
+	263 -> 262 [label=""]
+	264 [label="current_23.parent
+Read"]
+	265 [label="current_23
+Write"]
+	264 -> 265 [label=""]
 }

@@ -1,31 +1,10 @@
 digraph {
-	146 [label="source code:
-n = len(G.vertices)
-Ls = [[] for i in range(n)]
-Ls[0] = [w]
-w.status = 'visited'
+	207 [label="source code:
+v_22.status = 'unvisited'
 "]
-	147 [label="len(G.vertices)
-"]
-	148 [label="G.vertices
-Read"]
-	148 -> 147 [label=""]
-	149 [label="n
-Write"]
-	147 -> 149 [label=""]
-	150 [label="Ls
-Write"]
-	151 [label="w
-Read"]
-	152 [label="Ls
-Read"]
-	153 [label="Ls[0]
-Write"]
-	152 -> 153 [label=""]
-	151 -> 153 [label=""]
-	154 [label=visited
+	208 [label=unvisited
 ]
-	155 [label="w.status
+	209 [label="v_22.status
 Write"]
-	154 -> 155 [label=""]
+	208 -> 209 [label=""]
 }

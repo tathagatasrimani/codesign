@@ -1,16 +1,13 @@
 digraph {
-	236 [label="source code:
-minD = x.estD
-u = x
+	297 [label="source code:
+if x_24.estD < minD_24:
 "]
-	237 [label="x.estD
+	298 [label="x_24.estD
 Read"]
-	238 [label="minD
-Write"]
-	237 -> 238 [label=""]
-	239 [label="x
+	299 [label="minD_24
 Read"]
-	240 [label="u
-Write"]
-	239 -> 240 [label=""]
+	300 [label="<
+"]
+	298 -> 300 [label=""]
+	299 -> 300 [label=""]
 }

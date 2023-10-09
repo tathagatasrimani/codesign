@@ -1,13 +1,7 @@
 digraph {
-	232 [label="source code:
-if u == None:
+	295 [label="source code:
+for x_24 in unsureVertices_24:
 "]
-	233 [label="u
+	296 [label="unsureVertices_24
 Read"]
-	234 [label=None
-]
-	235 [label="==
-"]
-	233 -> 235 [label=""]
-	234 -> 235 [label=""]
 }

@@ -1,13 +1,19 @@
 digraph {
-	326 [label="source code:
-dijkstra(w, G)
+	396 [label="source code:
+if u_26.estD + wt_26 < v_26.estD:
 "]
-	327 [label="dijkstra(w, G)
+	397 [label="u_26.estD
+Read"]
+	398 [label="wt_26
+Read"]
+	399 [label="+
 "]
-	328 [label="w
+	397 -> 399 [label=""]
+	398 -> 399 [label=""]
+	400 [label="v_26.estD
 Read"]
-	328 -> 327 [label=""]
-	329 [label="G
-Read"]
-	329 -> 327 [label=""]
+	401 [label="<
+"]
+	399 -> 401 [label=""]
+	400 -> 401 [label=""]
 }

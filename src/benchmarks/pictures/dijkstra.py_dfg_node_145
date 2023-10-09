@@ -1,16 +1,13 @@
 digraph {
-	218 [label="source code:
-Ls = BFS(w, G)
+	301 [label="source code:
+if u_24 == None:
 "]
-	219 [label="BFS(w, G)
+	302 [label="u_24
+Read"]
+	303 [label=None
+]
+	304 [label="==
 "]
-	220 [label="w
-Read"]
-	220 -> 219
-	221 [label="G
-Read"]
-	221 -> 219
-	222 [label="Ls
-Write"]
-	219 -> 222
+	302 -> 304 [label=""]
+	303 -> 304 [label=""]
 }

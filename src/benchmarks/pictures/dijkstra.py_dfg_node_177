@@ -1,19 +1,5 @@
 digraph {
-	319 [label="source code:
-if u.estD + wt < v.estD:
+	393 [label="source code:
+return
 "]
-	320 [label="u.estD
-Read"]
-	321 [label="wt
-Read"]
-	322 [label="+
-"]
-	320 -> 322 [label=""]
-	321 -> 322 [label=""]
-	323 [label="v.estD
-Read"]
-	324 [label="<
-"]
-	322 -> 324 [label=""]
-	323 -> 324 [label=""]
 }

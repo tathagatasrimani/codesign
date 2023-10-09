@@ -1,5 +1,16 @@
 digraph {
-	316 [label="source code:
-return
+	381 [label="source code:
+while len(unsureVertices_26) > 0:
 "]
+	382 [label="len(unsureVertices_26)
+"]
+	383 [label="unsureVertices_26
+Read"]
+	383 -> 382 [label=""]
+	384 [label=0
+]
+	385 [label=">
+"]
+	382 -> 385 [label=""]
+	384 -> 385 [label=""]
 }

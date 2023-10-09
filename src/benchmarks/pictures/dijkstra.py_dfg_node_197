@@ -1,5 +1,40 @@
 digraph {
-	375 [label="source code:
-return nValues, tValues
+	445 [label="source code:
+myFn_28 = myFn
+nVals_28 = nVals
+pFn_28 = pFn
+numTrials_28 = numTrials
+nValues_28 = []
+tValues_28 = []
 "]
+	446 [label="myFn
+Read"]
+	447 [label="myFn_28
+Write"]
+	446 -> 447 [label=""]
+	448 [label="nVals
+Read"]
+	449 [label="nVals_28
+Write"]
+	448 -> 449 [label=""]
+	450 [label="pFn
+Read"]
+	451 [label="pFn_28
+Write"]
+	450 -> 451 [label=""]
+	452 [label="numTrials
+Read"]
+	453 [label="numTrials_28
+Write"]
+	452 -> 453 [label=""]
+	454 [label="[]
+"]
+	455 [label="nValues_28
+Write"]
+	454 -> 455 [label=""]
+	456 [label="[]
+"]
+	457 [label="tValues_28
+Write"]
+	456 -> 457 [label=""]
 }

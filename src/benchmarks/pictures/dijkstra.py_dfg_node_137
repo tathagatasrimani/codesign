@@ -1,19 +1,7 @@
 digraph {
-	210 [label="source code:
-w.estD = 0
-unsureVertices = G.vertices[:]
+	275 [label="source code:
+for v_24 in G_24.vertices:
 "]
-	211 [label=0
-]
-	212 [label="w.estD
-Write"]
-	211 -> 212 [label=""]
-	213 [label="G.vertices
+	276 [label="G_24.vertices
 Read"]
-	214 [label="G.vertices[:]
-Read"]
-	213 -> 214 [label=""]
-	215 [label="unsureVertices
-Write"]
-	214 -> 215 [label=""]
 }

@@ -1,10 +1,16 @@
 digraph {
-	279 [label="source code:
-v.estD = math.inf
+	352 [label="source code:
+path_25.append(current_25)
+current_25 = current_25.parent
 "]
-	280 [label="math.inf
+	353 [label="path_25.append(current_25)
+"]
+	354 [label="current_25
 Read"]
-	281 [label="v.estD
+	354 -> 353 [label=""]
+	355 [label="current_25.parent
+Read"]
+	356 [label="current_25
 Write"]
-	280 -> 281 [label=""]
+	355 -> 356 [label=""]
 }

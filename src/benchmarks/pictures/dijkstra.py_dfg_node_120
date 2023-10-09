@@ -1,5 +1,22 @@
 digraph {
-	170 [label="source code:
-return G
+	231 [label="source code:
+v_22.status = 'visited'
+v_22.parent = u_22
+Ls_22[i_22 + 1].append(v_22)
 "]
+	232 [label=visited
+]
+	233 [label="v_22.status
+Write"]
+	232 -> 233 [label=""]
+	234 [label="u_22
+Read"]
+	235 [label="v_22.parent
+Write"]
+	234 -> 235 [label=""]
+	236 [label="Ls_22[i_22 + 1].append(v_22)
+"]
+	237 [label="v_22
+Read"]
+	237 -> 236 [label=""]
 }

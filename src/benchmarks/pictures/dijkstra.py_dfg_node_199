@@ -1,73 +1,10 @@
 digraph {
-	379 [label="source code:
-G = randomGraph(n * 10000, pFn(n))
-start = time.time()
-myFn(G.vertices[0], G)
-end = time.time()
-runtime += (end - start) * 1000
+	460 [label="source code:
+runtime_28 = 0
 "]
-	380 [label="randomGraph(n * 10000, pFn(n))
-"]
-	381 [label="n
-Read"]
-	382 [label=10000
+	461 [label=0
 ]
-	383 [label="*
-"]
-	381 -> 383 [label=""]
-	382 -> 383 [label=""]
-	383 -> 380 [label=""]
-	384 [label="pFn(n)
-"]
-	385 [label="n
-Read"]
-	385 -> 384 [label=""]
-	384 -> 380 [label=""]
-	386 [label="G
+	462 [label="runtime_28
 Write"]
-	380 -> 386 [label=""]
-	387 [label="time.time()
-"]
-	388 [label="start
-Write"]
-	387 -> 388 [label=""]
-	389 [label="myFn(G.vertices[0], G)
-"]
-	390 [label="G.vertices
-Read"]
-	391 [label="G.vertices[0]
-Read"]
-	390 -> 391 [label=""]
-	391 -> 389 [label=""]
-	392 [label="G
-Read"]
-	392 -> 389 [label=""]
-	393 [label="time.time()
-"]
-	394 [label="end
-Write"]
-	393 -> 394 [label=""]
-	395 [label="end
-Read"]
-	396 [label="start
-Read"]
-	397 [label="-
-"]
-	395 -> 397 [label=""]
-	396 -> 397 [label=""]
-	398 [label=1000
-]
-	399 [label="*
-"]
-	397 -> 399 [label=""]
-	398 -> 399 [label=""]
-	400 [label="runtime
-Read"]
-	401 [label="+
-"]
-	399 -> 401 [label=""]
-	400 -> 401 [label=""]
-	402 [label="runtime
-Write"]
-	401 -> 402 [label=""]
+	461 -> 462 [label=""]
 }

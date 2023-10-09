@@ -1,22 +1,50 @@
 digraph {
-	84 [label="source code:
-self.addDiEdge(u, v, wt=wt)
-self.addDiEdge(v, u, wt=wt)
+	127 [label="source code:
+self = self
+u_19 = u
+v_19 = v
+wt_19 = wt
+self.addDiEdge(u_19, v_19, wt=wt_19)
+self.addDiEdge(v_19, u_19, wt=wt_19)
 "]
-	85 [label="self.addDiEdge(u, v, wt=wt)
+	128 [label="self
+Read"]
+	129 [label="self
+Write"]
+	128 -> 129 [label=""]
+	130 [label="u
+Read"]
+	131 [label="u_19
+Write"]
+	130 -> 131 [label=""]
+	132 [label="v
+Read"]
+	133 [label="v_19
+Write"]
+	132 -> 133 [label=""]
+	134 [label="wt
+Read"]
+	135 [label="wt_19
+Write"]
+	134 -> 135 [label=""]
+	136 [label="self.addDiEdge(u_19, v_19, wt=wt_19)
 "]
-	86 [label="u
+	137 [label="u_19
 Read"]
-	86 -> 85 [label=""]
-	87 [label="v
+	137 -> 136 [label=""]
+	138 [label="v_19
 Read"]
-	87 -> 85 [label=""]
-	88 [label="self.addDiEdge(v, u, wt=wt)
+	138 -> 136 [label=""]
+	139 [label="self.addDiEdge(v_19, u_19, wt=wt_19)
 "]
-	89 [label="v
+	140 [label="v_19
 Read"]
-	89 -> 88 [label=""]
-	90 [label="u
+	140 -> 139 [label=""]
+	141 [label="u_19
 Read"]
-	90 -> 88 [label=""]
+	141 -> 139 [label=""]
+	131 -> 141 [label=""]
+	133 -> 140 [label=""]
+	133 -> 138 [label=""]
+	131 -> 137 [label=""]
 }

@@ -1,22 +1,19 @@
 digraph {
-	253 [label="source code:
-v.estD = u.estD + wt
-v.parent = u
+	313 [label="source code:
+if u_24.estD + wt_24 < v_24.estD:
 "]
-	254 [label="u.estD
+	314 [label="u_24.estD
 Read"]
-	255 [label="wt
+	315 [label="wt_24
 Read"]
-	256 [label="+
+	316 [label="+
 "]
-	254 -> 256 [label=""]
-	255 -> 256 [label=""]
-	257 [label="v.estD
-Write"]
-	256 -> 257 [label=""]
-	258 [label="u
+	314 -> 316 [label=""]
+	315 -> 316 [label=""]
+	317 [label="v_24.estD
 Read"]
-	259 [label="v.parent
-Write"]
-	258 -> 259 [label=""]
+	318 [label="<
+"]
+	316 -> 318 [label=""]
+	317 -> 318 [label=""]
 }

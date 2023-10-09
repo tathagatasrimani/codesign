@@ -1,13 +1,27 @@
 digraph {
-	341 [label="source code:
-while current != w:
+	413 [label="source code:
+w_27 = w
+G_27 = G
+dijkstra(w_27, G_27)
 "]
-	342 [label="current
+	414 [label="w
 Read"]
-	343 [label="w
+	415 [label="w_27
+Write"]
+	414 -> 415 [label=""]
+	416 [label="G
 Read"]
-	344 [label="!=
+	417 [label="G_27
+Write"]
+	416 -> 417 [label=""]
+	418 [label="dijkstra(w_27, G_27)
 "]
-	342 -> 344 [label=""]
-	343 -> 344 [label=""]
+	419 [label="w_27
+Read"]
+	419 -> 418 [label=""]
+	420 [label="G_27
+Read"]
+	420 -> 418 [label=""]
+	417 -> 420 [label=""]
+	415 -> 419 [label=""]
 }

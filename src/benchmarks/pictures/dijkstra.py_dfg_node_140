@@ -1,13 +1,16 @@
 digraph {
-	221 [label="source code:
-if u == None:
+	285 [label="source code:
+while len(unsureVertices_24) > 0:
 "]
-	222 [label="u
+	286 [label="len(unsureVertices_24)
+"]
+	287 [label="unsureVertices_24
 Read"]
-	223 [label=None
+	287 -> 286 [label=""]
+	288 [label=0
 ]
-	224 [label="==
+	289 [label=">
 "]
-	222 -> 224 [label=""]
-	223 -> 224 [label=""]
+	286 -> 289 [label=""]
+	288 -> 289 [label=""]
 }

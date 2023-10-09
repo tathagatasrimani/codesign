@@ -1,13 +1,97 @@
 digraph {
-	394 [label="source code:
-while current != w:
+	4 [label="source code:
+loop.start_unroll
+G_0 = randomGraph(5, 0.2)
+BFS_shortestPaths(G_0.vertices[0], G_0)
+dijkstraDumb_shortestPaths(G_0.vertices[0], G_0)
+G_0 = randomGraph(5, 0.4, [1, 2, 3, 4, 5])
+dijkstra_shortestPaths(G_0.vertices[0], G_0)
+nValues_0 = [10]
+nDijkstra_0, tDijkstra_0 = runTrials(BFS, nValues_0, smallFrac)
 "]
-	395 [label="current
+	5 [label="loop.start_unroll
 Read"]
-	396 [label="w
-Read"]
-	397 [label="!=
+	6 [label="randomGraph(5, 0.2)
 "]
-	395 -> 397
-	396 -> 397
+	7 [label=5
+]
+	7 -> 6 [label=""]
+	8 [label=0.2
+]
+	8 -> 6 [label=""]
+	9 [label="G_0
+Write"]
+	6 -> 9 [label=""]
+	10 [label="BFS_shortestPaths(G_0.vertices[0], G_0)
+"]
+	11 [label="G_0.vertices[0]
+Read"]
+	11 -> 10 [label=""]
+	12 [label="G_0
+Read"]
+	12 -> 10 [label=""]
+	13 [label="dijkstraDumb_shortestPaths(G_0.vertices[0], G_0)
+"]
+	14 [label="G_0.vertices[0]
+Read"]
+	14 -> 13 [label=""]
+	15 [label="G_0
+Read"]
+	15 -> 13 [label=""]
+	16 [label="randomGraph(5, 0.4, [1, 2, 3, 4, 5])
+"]
+	17 [label=5
+]
+	17 -> 16 [label=""]
+	18 [label=0.4
+]
+	18 -> 16 [label=""]
+	19 [label=1
+]
+	20 [label=2
+]
+	21 [label=3
+]
+	22 [label=4
+]
+	23 [label=5
+]
+	19 -> 16 [label=""]
+	24 [label="G_0
+Write"]
+	16 -> 24 [label=""]
+	25 [label="dijkstra_shortestPaths(G_0.vertices[0], G_0)
+"]
+	26 [label="G_0.vertices[0]
+Read"]
+	26 -> 25 [label=""]
+	27 [label="G_0
+Read"]
+	27 -> 25 [label=""]
+	28 [label=10
+]
+	29 [label="nValues_0
+Write"]
+	28 -> 29 [label=""]
+	30 [label="runTrials(BFS, nValues_0, smallFrac)
+"]
+	31 [label="BFS
+Read"]
+	31 -> 30 [label=""]
+	32 [label="nValues_0
+Read"]
+	32 -> 30 [label=""]
+	33 [label="smallFrac
+Read"]
+	33 -> 30 [label=""]
+	34 [label="nDijkstra_0
+Write"]
+	35 [label="tDijkstra_0
+Write"]
+	30 -> 34 [label=""]
+	30 -> 35 [label=""]
+	29 -> 32 [label=""]
+	24 -> 27 [label=""]
+	9 -> 15 [label=""]
+	9 -> 12 [label=""]
 }

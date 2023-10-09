@@ -1,22 +1,7 @@
 digraph {
-	158 [label="source code:
-v.status = 'visited'
-v.parent = u
-Ls[i + 1].append(v)
+	225 [label="source code:
+for v_22 in u_22.getOutNeighbors():
 "]
-	159 [label=visited
-]
-	160 [label="v.status
-Write"]
-	159 -> 160 [label=""]
-	161 [label="u
-Read"]
-	162 [label="v.parent
-Write"]
-	161 -> 162 [label=""]
-	163 [label="Ls[i + 1].append(v)
+	226 [label="u_22.getOutNeighbors()
 "]
-	164 [label="v
-Read"]
-	164 -> 163 [label=""]
 }

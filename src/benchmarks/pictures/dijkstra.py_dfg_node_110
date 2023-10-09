@@ -1,10 +1,7 @@
 digraph {
-	143 [label="source code:
-v.status = 'unvisited'
+	205 [label="source code:
+for v_22 in G_22.vertices:
 "]
-	144 [label=unvisited
-]
-	145 [label="v.status
-Write"]
-	144 -> 145 [label=""]
+	206 [label="G_22.vertices
+Read"]
 }

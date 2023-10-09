@@ -1,16 +1,10 @@
 digraph {
-	196 [label="source code:
-path.append(current)
-current = current.parent
+	258 [label="source code:
+for j_23 in range(i_23):
 "]
-	197 [label="path.append(current)
+	259 [label="range(i_23)
 "]
-	198 [label="current
+	260 [label="i_23
 Read"]
-	198 -> 197 [label=""]
-	199 [label="current.parent
-Read"]
-	200 [label="current
-Write"]
-	199 -> 200 [label=""]
+	260 -> 259 [label=""]
 }

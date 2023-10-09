@@ -1,5 +1,16 @@
 digraph {
-	241 [label="source code:
-return
+	305 [label="source code:
+minD_24 = x_24.estD
+u_24 = x_24
 "]
+	306 [label="x_24.estD
+Read"]
+	307 [label="minD_24
+Write"]
+	306 -> 307 [label=""]
+	308 [label="x_24
+Read"]
+	309 [label="u_24
+Write"]
+	308 -> 309 [label=""]
 }

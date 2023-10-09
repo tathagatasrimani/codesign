@@ -1,10 +1,13 @@
 digraph {
-	185 [label="source code:
-for w in Ls[i]:
+	247 [label="source code:
+for i_23 in range(len(Ls_23)):
 "]
-	186 [label="Ls
+	248 [label="range(len(Ls_23))
+"]
+	249 [label="len(Ls_23)
+"]
+	250 [label="Ls_23
 Read"]
-	187 [label="Ls[i]
-Read"]
-	186 -> 187 [label=""]
+	250 -> 249 [label=""]
+	249 -> 248 [label=""]
 }

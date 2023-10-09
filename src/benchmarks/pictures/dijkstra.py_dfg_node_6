@@ -1,13 +1,26 @@
 digraph {
-	42 [label="source code:
-if v in self.getOutNeighbors():
+	41 [label="source code:
+self = self
+v_2 = v
+if v_2 in self.getOutNeighbors():
 "]
-	43 [label="v
+	42 [label="self
 Read"]
-	44 [label="self.getOutNeighbors()
-"]
-	45 [label="==
-"]
-	43 -> 45 [label=""]
+	43 [label="self
+Write"]
+	42 -> 43 [label=""]
+	44 [label="v
+Read"]
+	45 [label="v_2
+Write"]
 	44 -> 45 [label=""]
+	46 [label="v_2
+Read"]
+	47 [label="self.getOutNeighbors()
+"]
+	48 [label="==
+"]
+	46 -> 48 [label=""]
+	47 -> 48 [label=""]
+	45 -> 46 [label=""]
 }

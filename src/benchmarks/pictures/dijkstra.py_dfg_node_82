@@ -1,10 +1,16 @@
 digraph {
-	91 [label="source code:
-ret = []
+	142 [label="source code:
+self = self
+ret_20 = []
 "]
-	92 [label="[]
-"]
-	93 [label="ret
+	143 [label="self
+Read"]
+	144 [label="self
 Write"]
-	92 -> 93 [label=""]
+	143 -> 144 [label=""]
+	145 [label="[]
+"]
+	146 [label="ret_20
+Write"]
+	145 -> 146 [label=""]
 }

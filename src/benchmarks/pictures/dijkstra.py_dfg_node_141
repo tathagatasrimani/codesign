@@ -1,7 +1,16 @@
 digraph {
-	226 [label="source code:
-for x in unsureVertices:
+	290 [label="source code:
+u_24 = None
+minD_24 = math.inf
 "]
-	227 [label="unsureVertices
+	291 [label=None
+]
+	292 [label="u_24
+Write"]
+	291 -> 292 [label=""]
+	293 [label="math.inf
 Read"]
+	294 [label="minD_24
+Write"]
+	293 -> 294 [label=""]
 }

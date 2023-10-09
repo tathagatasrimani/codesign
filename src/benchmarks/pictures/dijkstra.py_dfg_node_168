@@ -1,16 +1,16 @@
 digraph {
-	293 [label="source code:
-w.estD = 0
-unsureVertices = heapdict.heapdict()
+	361 [label="source code:
+w_26 = w
+G_26 = G
 "]
-	294 [label=0
-]
-	295 [label="w.estD
+	362 [label="w
+Read"]
+	363 [label="w_26
 Write"]
-	294 -> 295 [label=""]
-	296 [label="heapdict.heapdict()
-"]
-	297 [label="unsureVertices
+	362 -> 363 [label=""]
+	364 [label="G
+Read"]
+	365 [label="G_26
 Write"]
-	296 -> 297 [label=""]
+	364 -> 365 [label=""]
 }

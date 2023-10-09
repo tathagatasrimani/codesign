@@ -1,16 +1,10 @@
 digraph {
-	216 [label="source code:
-while len(unsureVertices) > 0:
+	277 [label="source code:
+v_24.estD = math.inf
 "]
-	217 [label="len(unsureVertices)
-"]
-	218 [label="unsureVertices
+	278 [label="math.inf
 Read"]
-	218 -> 217 [label=""]
-	219 [label=0
-]
-	220 [label=">
-"]
-	217 -> 220 [label=""]
-	219 -> 220 [label=""]
+	279 [label="v_24.estD
+Write"]
+	278 -> 279 [label=""]
 }

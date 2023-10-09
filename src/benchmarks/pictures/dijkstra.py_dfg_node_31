@@ -1,5 +1,11 @@
 digraph {
-	65 [label="source code:
-return [v[0] for v in self.inNeighbors]
+	78 [label="source code:
+self = self
+return [v_6[0] for v_6 in self.inNeighbors]
 "]
+	79 [label="self
+Read"]
+	80 [label="self
+Write"]
+	79 -> 80 [label=""]
 }
