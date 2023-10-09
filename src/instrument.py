@@ -371,8 +371,6 @@ def instrument_and_run(filepath:str):
                 instr = ProgramInstrumentor()
                 rewrite_tree = instr.visit(tree)
                 with open(dest_filepath, 'w') as f:
-                    f.write("import sys\n")
-                    f.write("from instrument_lib import *\n")
                     for stmt in instr.preamble:
                         f.write(ast_to_text(stmt)+"\n")
                     f.write(astor.to_source(rewrite_tree))
@@ -381,7 +379,7 @@ def instrument_and_run(filepath:str):
 
 parser = argparse.ArgumentParser(
                     prog='Instrument',
-                    description='What the program does? I\'m not yet sure myself.',
+                    description='Creates AST, CFG, and DFG for a given program in order to track various metrics of interest.',
                     epilog='Text at the bottom of help')
 
 parser.add_argument('filename')

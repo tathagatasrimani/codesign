@@ -568,7 +568,7 @@ if __name__ == '__main__':
                     description='Runs a hardware simulation on a given benchmark and technology spec',
                     epilog='Text at the bottom of help')
     parser.add_argument('benchmark', metavar='B', type=str)
-    parser.add_argument('--notrace', '-n', metavar='N', type=bool, default=False, nargs=1)
+    parser.add_argument('--notrace', action='store_true')
 
     args = parser.parse_args()
     print(f"args: {args.benchmark}, {args.notrace}")
