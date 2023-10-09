@@ -226,7 +226,7 @@ class HardwareSimulator():
 
     # adds all mallocs and frees to vectors, and finds the next cfg node in the data path,
     # returning the index of that node
-    def find_next_data_path_index(self, i, mallocs, frees, data_path):
+    def find_next_data_path_index(self, i, mallocs, frees):
         pattern_seek = False
         max_iters = 1
         while len(self.data_path[i]) != 2:
@@ -255,9 +255,9 @@ class HardwareSimulator():
         frees = []
         mallocs = []
         #print(self.data_path)
-        i, pattern_seek, max_iters = self.find_next_data_path_index(i, mallocs, frees, self.data_path)
+        i, pattern_seek, max_iters = self.find_next_data_path_index(i, mallocs, frees)
         while i < len(self.data_path):
-            next_ind, pattern_seek_next, max_iters_next = self.find_next_data_path_index(i+1, mallocs, frees, self.data_path)
+            next_ind, pattern_seek_next, max_iters_next = self.find_next_data_path_index(i+1, mallocs, frees)
             if i == len(self.data_path): break
             node_id = self.data_path[i][0]
             #print(node_id, self.memory_module.locations)
@@ -311,7 +311,7 @@ class HardwareSimulator():
                     if next_node_id != node_id: break
                     iters += 1
                     pattern_seek = pattern_seek_next
-                    j, pattern_seek_next, discard = self.find_next_data_path_index(j+1, [], [], self.data_path)
+                    j, pattern_seek_next, discard = self.find_next_data_path_index(j+1, [], [])
                 next_ind = j
             print(pattern_nodes, iters, next_ind)
             i = 0
@@ -364,8 +364,8 @@ class HardwareSimulator():
                                 self.make_node(state_graph, parent_id, hardwareModel.op2sym_map[parent.operation], None, hardwareModel.op2sym_map[parent.operation])
                                 self.make_edge(state_graph, parent_id, compute_id, "")
                         self.process_compute_element(op, state_graph, state_graph.id_to_Node[compute_id], check_duplicate=False)
-                    if op_count > 0:
-                        state_graph_viz.render(self.path + '/benchmarks/pictures/state_graphs/' + sys.argv[1][sys.argv[1].rfind('/')+1:] + '_' + str(state_graph_counter), view = True)
+                    # if op_count > 0:
+                        # state_graph_viz.render(self.path + '/benchmarks/pictures/state_graphs/' + sys.argv[1][sys.argv[1].rfind('/')+1:] + '_' + str(state_graph_counter), view = True)
                     state_graph_counter += 1
                     #print(hw_need)
                     max_cycles = 0
@@ -398,7 +398,7 @@ class HardwareSimulator():
             pattern_seek = pattern_seek_next
             max_iters = max_iters_next
         print("done with simulation")
-        self.new_graph.gv_graph.render(self.path + '/benchmarks/pictures/memory_graphs/' + sys.argv[1][sys.argv[1].rfind('/')+1:], view = True)
+        # self.new_graph.gv_graph.render(self.path + '/benchmarks/pictures/memory_graphs/' + sys.argv[1][sys.argv[1].rfind('/')+1:], view = True)
         return self.data
 
     def set_data_path(self):
@@ -548,7 +548,7 @@ def main():
     names = args.benchmark.split('/')
     if not args.notrace:
         text = json.dumps(data, indent=4)
-        with open(simulator.path + 'benchmarks/json_data/' + names[-1], 'w') as fh:
+        with open(simulator.path + '/benchmarks/json_data/' + names[-1], 'w') as fh:
             fh.write(text)
     t = []
     for i in range(len(simulator.power_use)):
