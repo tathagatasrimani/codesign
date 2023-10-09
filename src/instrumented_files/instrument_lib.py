@@ -48,7 +48,7 @@ def write_instrument_read_sub(var, var_name: str, ind, lower, upper, slice):
             else:
                 return var
     else:
-        print(var_name, ind, "Write", sys.getsizeof(var[lower:upper]))
+        print(var_name, ind, "Write", sys.getsizeof(var[ind]))
         return var[ind]
 
 def instrument_read(var, var_name: str):
