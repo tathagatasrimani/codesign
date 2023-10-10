@@ -9,6 +9,7 @@ from collections import deque
 import copy
 import argparse
 import os
+import astpretty
 
 lineno_to_node = {}
 cfg = None
@@ -37,83 +38,6 @@ def report(text,node):
     print("==== %s ====" % text)
     print(ast.dump(node))
     print("\n")
-
-class NameScopeInstrumentor(ast.NodeTransformer):
-    def __init__(self) -> None:
-        super().__init__()
-        self.scope = deque([0])
-        self.next_scope = 1
-        self.var_scopes = {}
-        self.valid_scopes = set()
-        self.dont_change_names = set(("__name__", "__main__", "loop", "range", "self", "time", "np", "int", "str", "math", "heapdict"))
-    
-    def get_name(self, name, scope):
-        return name + "_" + scope
-
-    @staticmethod
-    def mkblock(stmts):
-        block = ast.Module(stmts)
-        ast.fix_missing_locations(block)
-        return block
-    
-    def clean_up_scope(self, cur_scope):
-        for var in self.var_scopes:
-            if len(self.var_scopes[var]) > 0 and self.var_scopes[var][-1] == cur_scope: self.var_scopes[var].pop()
-        self.scope.pop()
-    
-    def enter_and_exits(self):
-        self.scope.append(self.next_scope)
-        self.next_scope += 1
-        stmt = [text_to_ast("print(\'enter scope " + str(self.scope[-1]) + "\')"), text_to_ast("print(\'exit scope " + str(self.scope[-1]) + "\')")]
-        return stmt
-
-    def visit_Stmts(self,stmts):
-        return list(map(lambda stmt: self.visit(stmt), stmts))
-    
-    def visit_AugAssign(self, node: AugAssign) -> Any:
-        if node.lineno not in lineno_to_node: return node
-        node.target = self.visit(node.target)
-        node.value = self.visit(node.value)
-        stmt = text_to_ast('print(' + str(lineno_to_node[node.lineno]) + ',' + str(node.lineno) + ')\n')
-        return ProgramInstrumentor.mkblock([stmt, node])
-    
-    def visit_Assign(self, node):
-        if node.lineno not in lineno_to_node: return node
-        node.targets = self.visit_Stmts(node.targets)
-        node.value = self.visit(node.value)
-        stmt = text_to_ast('print(' + str(lineno_to_node[node.lineno]) + ',' + str(node.lineno) + ')\n')
-        return ProgramInstrumentor.mkblock([stmt, node])
-
-    def visit_Call(self,node):
-        #report("visiting function call",node)
-        if node.args: node.args = self.visit_Stmts(node.args)
-        if node.keywords: node.keywords = self.visit_Stmts(node.keywords)
-        if type(node.func) == ast.Attribute: node.func = self.visit(node.func)
-        return ProgramInstrumentor.mkblock([node])
-
-    def visit_FunctionDef(self,node):
-        if node.lineno not in lineno_to_node: return node
-        self.dont_change_names.add(node.name)
-
-        stmt1 = text_to_ast('print(' + str(lineno_to_node[node.lineno]) + ',' + str(node.lineno) + ')')
-        #print("visiting function def", node)
-        scope = self.enter_and_exits()
-        cur_scope = self.scope[-1]
-        self.valid_scopes.add(cur_scope)
-        node.body = self.visit_Stmts(node.body)
-        if cur_scope in self.valid_scopes: self.valid_scopes.remove(cur_scope)
-        self.clean_up_scope(cur_scope)
-        #report("visiting func def",node)
-        new_body = [scope[0], stmt1] + node.body + [scope[1]]
-        return ast.FunctionDef(node.name,args=node.args, body=new_body, \
-                               decorator_list=node.decorator_list, lineno=node.lineno)
-    
-    def visit_Return(self, node):
-        if node.value: node.value = self.visit(node.value)
-        stmts = []
-        for scope in self.valid_scopes:
-            stmts.append(text_to_ast("print(\'exit scope " + str(scope) + "\')"))
-        return ProgramInstrumentor.mkblock(stmts + [node])
         
 class NameOnlyInstrumentor(ast.NodeTransformer):
     def __init__(self) -> None:
@@ -211,6 +135,83 @@ class NameOnlyInstrumentor(ast.NodeTransformer):
                 self.var_scopes[node.id] = deque([self.scope[-1]])
             return ast.Name(id=self.get_name(node.id, str(self.var_scopes[node.id][-1])), ctx=node.ctx)
 
+class NameScopeInstrumentor(ast.NodeTransformer):
+    def __init__(self) -> None:
+        super().__init__()
+        self.scope = deque([0])
+        self.next_scope = 1
+        self.var_scopes = {}
+        self.valid_scopes = set()
+        self.dont_change_names = set(("__name__", "__main__", "loop", "range", "self", "time", "np", "int", "str", "math", "heapdict"))
+    
+    def get_name(self, name, scope):
+        return name + "_" + scope
+
+    @staticmethod
+    def mkblock(stmts):
+        block = ast.Module(stmts)
+        ast.fix_missing_locations(block)
+        return block
+    
+    def clean_up_scope(self, cur_scope):
+        for var in self.var_scopes:
+            if len(self.var_scopes[var]) > 0 and self.var_scopes[var][-1] == cur_scope: self.var_scopes[var].pop()
+        self.scope.pop()
+    
+    def enter_and_exits(self):
+        self.scope.append(self.next_scope)
+        self.next_scope += 1
+        stmt = [text_to_ast("print(\'enter scope " + str(self.scope[-1]) + "\')"), text_to_ast("print(\'exit scope " + str(self.scope[-1]) + "\')")]
+        return stmt
+
+    def visit_Stmts(self,stmts):
+        return list(map(lambda stmt: self.visit(stmt), stmts))
+    
+    def visit_AugAssign(self, node: AugAssign) -> Any:
+        if node.lineno not in lineno_to_node: return node
+        node.target = self.visit(node.target)
+        node.value = self.visit(node.value)
+        stmt = text_to_ast('print(' + str(lineno_to_node[node.lineno]) + ',' + str(node.lineno) + ')\n')
+        return ProgramInstrumentor.mkblock([stmt, node])
+    
+    def visit_Assign(self, node):
+        if node.lineno not in lineno_to_node: return node
+        node.targets = self.visit_Stmts(node.targets)
+        node.value = self.visit(node.value)
+        stmt = text_to_ast('print(' + str(lineno_to_node[node.lineno]) + ',' + str(node.lineno) + ')\n')
+        return ProgramInstrumentor.mkblock([stmt, node])
+
+    def visit_Call(self,node):
+        #report("visiting function call",node)
+        if node.args: node.args = self.visit_Stmts(node.args)
+        if node.keywords: node.keywords = self.visit_Stmts(node.keywords)
+        if type(node.func) == ast.Attribute: node.func = self.visit(node.func)
+        return ProgramInstrumentor.mkblock([node])
+
+    def visit_FunctionDef(self,node):
+        if node.lineno not in lineno_to_node: return node
+        self.dont_change_names.add(node.name)
+
+        stmt1 = text_to_ast('print(' + str(lineno_to_node[node.lineno]) + ',' + str(node.lineno) + ')')
+        #print("visiting function def", node)
+        scope = self.enter_and_exits()
+        cur_scope = self.scope[-1]
+        self.valid_scopes.add(cur_scope)
+        node.body = self.visit_Stmts(node.body)
+        if cur_scope in self.valid_scopes: self.valid_scopes.remove(cur_scope)
+        self.clean_up_scope(cur_scope)
+        #report("visiting func def",node)
+        new_body = [scope[0], stmt1] + node.body + [scope[1]]
+        return ast.FunctionDef(node.name,args=node.args, body=new_body, \
+                               decorator_list=node.decorator_list, lineno=node.lineno)
+    
+    def visit_Return(self, node):
+        if node.value: node.value = self.visit(node.value)
+        stmts = []
+        for scope in self.valid_scopes:
+            stmts.append(text_to_ast("print(\'exit scope " + str(scope) + "\')"))
+        return ProgramInstrumentor.mkblock(stmts + [node])
+
 # this class transforms a program AST and injects commands
 class ProgramInstrumentor(ast.NodeTransformer):
 
@@ -300,6 +301,12 @@ class ProgramInstrumentor(ast.NodeTransformer):
         if type(node.func) == ast.Name and node.func.id == "print": return node
         node.args = self.visit_Stmts(node.args)
         if type(node.func) == ast.Attribute: node.func = self.visit(node.func)
+        if type(node.func) == ast.Name and "file" in node.func.id and "read" in node.func.id: 
+            print(f"found file read func\n")
+            astpretty.pprint(node, show_offsets=False, indent='  ',)
+            # return ast.Call()
+            return node
+
         return ProgramInstrumentor.mkblock([node])
 
     def visit_Name(self, node):

@@ -63,6 +63,9 @@ def write_instrument_read(var, var_name: str):
     print(var_name, "no_ind", "Write", sys.getsizeof(var))
     return var
 
+# def instrument_read_from_file(func):
+
+
 class Object:
     def __init__(self, value):
         self.value = value
