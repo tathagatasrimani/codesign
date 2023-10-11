@@ -8,8 +8,10 @@ import hardwareModel
 import math
 import json
 import os
+import numpy as np
 import sys
 from sympy import *
+import itertools
 
 class SymbolicHardwareSimulator():
 
@@ -231,11 +233,6 @@ def main():
     for node_id in simulator.node_sum_power:
         total_power += simulator.node_sum_power[node_id]
     
-
-    print("total_cycles:", total_cycles)
-    print("diff add latency:", diff(total_cycles, "latency_Add"))
-    print("diff add power:", diff(total_power, "power_Add_2"))
-    print("total power:", total_power)
     
     delta = 0.1
     
@@ -270,13 +267,37 @@ def main():
 
     # print("only keep 2 variables ", expr_symbols_with_cost.subs(expr_symbols))
     expr_symbols_with_2_symbols = total_cycles.subs(expr_symbols)
-    
+
     diffs=[]
     symbol_list=[]
     for s in expr_symbols_with_2_symbols.free_symbols:
         diffs.append(diff(expr_symbols_with_2_symbols,s))
         symbol_list.append(s)
     print(symbol_list)
+    
+    lam = lambdify(symbol_list, expr_symbols_with_2_symbols, 'numpy')
+    print(lam)
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    x = np.linspace(-6, 6, 30)
+    y = np.linspace(-6, 6, 30)
+
+    points = list(itertools.product(x,y))
+    x_new = list(map(lambda p: p[0], points))
+    y_new = list(map(lambda p: p[1], points))
+    Z = list(map(lambda tup: lam(tup[0], tup[1]), points))
+
+    ax.scatter(x_new, y_new, Z)
+    plt.show()
+    plt.savefig("plot.png")
+    print("total_cycles:", total_cycles)
+    print("diff add latency:", diff(total_cycles, "latency_Add"))
+    print("diff add power:", diff(total_power, "power_Add_2"))
+    print("total power:", total_power)
+    print(expr_symbols_with_2_symbols.free_symbols)
+    # plotting.plot3d(expr_symbols_with_2_symbols, ("latency_Add", 0, 5), ("latency_Mult", 0, 5))
+    # plotting.plot3d(functions.tanh(symbols('x')))
+    
     from design_space import DesignSpace
     ds=DesignSpace(expr_symbols_with_2_symbols,symbol_list,diffs)
     ds.solve()
