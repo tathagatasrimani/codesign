@@ -32,5 +32,6 @@ def read_weights_from_file(x, y, z):
 if __name__ == "__main__":
     model = NeuralNetwork().to(device)
     W_q, W_k = read_weights_from_file(12, 28, 28)
+    z = W_k + W_q
     x = torch.rand(1, 28, 28, device=device)
     model.forward(x)
