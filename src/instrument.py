@@ -257,6 +257,9 @@ class ProgramInstrumentor(ast.NodeTransformer):
         return list(map(lambda stmt: self.visit(stmt), stmts))
     
     def name_extras(self, node, var_name):
+        if "NVM" in var_name:
+            print(f"found NVM: {var_name}")
+            return [node]
         stmt1 = text_to_ast('if type(' + node.id + ') == np.ndarray:\n' + 
                             '   print(\'malloc\', sys.getsizeof(' + var_name + '), \'' + node.id + '\', ' + node.id + '.shape)\n' + 
                             'elif type(' + node.id + ') == list:\n' +
@@ -283,10 +286,14 @@ class ProgramInstrumentor(ast.NodeTransformer):
         #report("visiting assignment",node)
         block = []
         if type(node.targets[0]) == ast.Name:
+            if "NVM" in node.targets[0].id:
+                return node
             block = [node, text_to_ast('write_')] + self.name_extras(node.targets[0], node.targets[0].id)
         elif type(node.targets[0]) == ast.Tuple:
             for var in node.targets[0].elts:
                 if type(var) == ast.Name:
+                    if "NVM" in var.id:
+                        return node
                     block = [node, text_to_ast('write_')] + self.name_extras(var, var.id)
         elif type(node.targets[0]) == ast.Subscript:
             new_line = ast.Subscript(node.targets[0].value, node.targets[0].slice, ctx=ast.Load())

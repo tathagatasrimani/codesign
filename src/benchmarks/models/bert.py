@@ -98,7 +98,7 @@ def self_attn(head, tokens, d_k, Q, K, V):
                 out[i][j] += scores[i][k] * V[head][k][j]
     return out
 
-def read_weights_from_file(filename:str):
+def read_weights_from_file(filename):
     #hardcode this shit for now.
     d_model, heads, tokens, layers = 100, 12, 8, 12
     d_k = d_model // heads
