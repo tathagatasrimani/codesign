@@ -38,14 +38,15 @@ def report(text,node):
     print("==== %s ====" % text)
     print(ast.dump(node))
     print("\n")
-        
+   
 class NameOnlyInstrumentor(ast.NodeTransformer):
     def __init__(self) -> None:
         super().__init__()
-        self.scope = deque([0])
+        self.scope = deque([0]) # scope in the NameOnlyTransformer?
         self.next_scope = 1
         self.var_scopes = {}
         self.valid_scopes = set()
+        self.nvm_names = set()
         self.dont_change_names = set(("__name__", "__main__", "loop", "range", "self", "time", "np", "int", "str", "math", "heapdict"))
     
     def get_name(self, name, scope):
@@ -77,6 +78,24 @@ class NameOnlyInstrumentor(ast.NodeTransformer):
         if node.keywords: node.keywords = self.visit_Stmts(node.keywords)
         if type(node.func) == ast.Attribute: node.func = self.visit(node.func)
         return ProgramInstrumentor.mkblock([node])
+
+    def visit_Assign(self, node):
+        if type(node.value) == ast.Call:
+            if type(node.value.func) == ast.Name:
+                if ("file" in node.value.func.id and "read" in node.value.func.id):
+                    # change the node.targets[0] name to include _NVM.
+                    if type(node.targets[0]) == ast.Name:
+                        self.nvm_names.add(node.targets[0].id)
+                        node.targets[0].id = node.targets[0].id + "_NVM"
+                    elif type(node.targets[0]) == ast.Tuple:
+                        for target in node.targets[0].elts:
+                            self.nvm_names.add(target.id)
+                            target.id = target.id + "_NVM"
+                    else:
+                        raise Exception("Found file read but not name or tuple as target. node: {node}")
+                    return node
+        self.generic_visit(node)
+        return node
 
     def visit_FunctionDef(self,node):
         self.dont_change_names.add(node.name)
@@ -118,6 +137,8 @@ class NameOnlyInstrumentor(ast.NodeTransformer):
     def visit_Name(self, node):
         #report("visiting name", node)
         if node.id in self.dont_change_names: return node
+        if node.id in self.nvm_names:
+            return ast.Name(id=node.id + "_NVM", ctx=node.ctx)
         if (type(node.ctx) == ast.Store):
             if node.id not in self.var_scopes:
                 self.var_scopes[node.id] = deque([self.scope[-1]])
@@ -134,6 +155,7 @@ class NameOnlyInstrumentor(ast.NodeTransformer):
             if node.id not in self.var_scopes or len(self.var_scopes[node.id]) == 0:
                 self.var_scopes[node.id] = deque([self.scope[-1]])
             return ast.Name(id=self.get_name(node.id, str(self.var_scopes[node.id][-1])), ctx=node.ctx)
+       
 
 class NameScopeInstrumentor(ast.NodeTransformer):
     def __init__(self) -> None:
@@ -299,13 +321,18 @@ class ProgramInstrumentor(ast.NodeTransformer):
     def visit_Call(self,node):
         #report("visiting function call",node)
         if type(node.func) == ast.Name and node.func.id == "print": return node
-        node.args = self.visit_Stmts(node.args)
-        if type(node.func) == ast.Attribute: node.func = self.visit(node.func)
         if type(node.func) == ast.Name and "file" in node.func.id and "read" in node.func.id: 
             print(f"found file read func\n")
             astpretty.pprint(node, show_offsets=False, indent='  ',)
-            # return ast.Call()
-            return node
+            n = ast.Call(ast.Name('instrument_read_from_file', ast.Load()), 
+                         args=[
+                             ast.Name(id=node.func.id, ctx=ast.Load()),
+                             *node.args], keywords=[])
+            astpretty.pprint(n, show_offsets=False, indent='  ',)
+            return n
+        node.args = self.visit_Stmts(node.args)
+        if type(node.func) == ast.Attribute: node.func = self.visit(node.func)
+        
 
         return ProgramInstrumentor.mkblock([node])
 
@@ -346,6 +373,13 @@ class ProgramInstrumentor(ast.NodeTransformer):
         node.value = self.visit(node.value)
         return node
     
+    def visit_FunctionDef(self, node: FunctionDef) -> Any:
+        if "file" in node.name and "read" in node.name:
+            # astpretty.pprint(node, show_offsets=False, indent='  ',)
+            return node
+        else:
+            # astpretty.pprint(node, show_offsets=False, indent='  ',)
+            return self.generic_visit(node)
 
 def instrument_and_run(filepath:str):
     global cfg
