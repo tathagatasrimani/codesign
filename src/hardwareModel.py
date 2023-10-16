@@ -854,6 +854,40 @@ mem_leakage_power = {
      }
 }
 
+noc_3 = {
+     16: {
+          1: {
+               100: 5.658
+          }
+}
+
+noc_latency = {
+     16: {
+          1: {
+               100: 20.63
+          }
+     }
+}
+
+# in nW
+noc_dynamic_power = {
+     16: {
+          1: {
+               100: 0.014
+          }
+     }
+}
+
+# in nW: table measurements were in mW so multiplying by 10^-6
+noc_leakage_power = {
+     16: {
+          1: {
+               100: 1496.1e-6
+          }
+     }
+}
+
+
 class HardwareModel:
 
     def __init__(self,id,bandwidth,mem_layers,pitch,transistor_size,cache_size,loop_counts={},var_sizes={}):
