@@ -911,6 +911,7 @@ class HardwareModel:
         self.pitch = pitch
         self.hw_allocated = {}
         self.hw_allocated["Regs"] = 0
+	    self.hw_allocated["NoCs"] = 0
         self.loop_variables = loop_counts
         self.var_sizes = var_sizes
         self.id = id
@@ -923,11 +924,16 @@ class HardwareModel:
         self.power_scale = power_scale
         if transistor_size == 3:
             self.area["Regs"] = mem_area_3[cache_size][mem_layers][pitch]
+            self.area["NoCs"] = noc_area_3[cache_size][mem_layers][pitch]
         else:
             self.area["Regs"] = mem_area_7_5[cache_size][mem_layers][pitch]
+            self.area["NoCs"] = mem_area_7_5[cache_size][mem_layers][pitch]
         self.latency["Regs"] = mem_latency[cache_size][mem_layers][pitch]
         self.dynamic_power["Regs"] = mem_dynamic_power[cache_size][mem_layers][pitch]
         self.leakage_power["Regs"] = mem_leakage_power[cache_size][mem_layers][pitch]
+        self.latency["NoCs"] = noc_latency[cache_size][mem_layers][pitch]
+        self.dynamic_power["NoCs"] = noc_dynamic_power[cache_size][mem_layers][pitch]
+        self.leakage_power["NoCs"] = noc_leakage_power[cache_size][mem_layers][pitch]
         for key in op2sym_map.keys():
                 self.hw_allocated[key] = 0
 
