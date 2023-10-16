@@ -854,17 +854,18 @@ mem_leakage_power = {
      }
 }
 
-noc_3 = {
+noc_area_3 = {
      16: {
           1: {
-               100: 5.658
+               100: 5.658 # 100% of memory
           }
+	}
 }
 
 noc_latency = {
      16: {
           1: {
-               100: 20.63
+               100: 2.06 # 10% of memory
           }
      }
 }
@@ -873,7 +874,7 @@ noc_latency = {
 noc_dynamic_power = {
      16: {
           1: {
-               100: 0.014
+               100: 0.0105 # 75% of memory
           }
      }
 }
@@ -882,7 +883,7 @@ noc_dynamic_power = {
 noc_leakage_power = {
      16: {
           1: {
-               100: 1496.1e-6
+               100: 1496.1e-6 # 100% of memory
           }
      }
 }
