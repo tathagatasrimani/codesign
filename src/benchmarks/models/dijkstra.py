@@ -250,10 +250,13 @@ def runTrials(myFn, nVals, pFn, numTrials=1):
 def smallFrac(n):
     return float(5/n)
 
+def read_random_graph_from_file(n, p, wts=[1]):
+    return randomGraph(n, p, wts)
+
 if __name__ == "__main__":
     loop.start_unroll
     # test on a random graph
-    G = randomGraph(5,.2)
+    G = read_random_graph_from_file(5,.2)
     BFS_shortestPaths(G.vertices[0],G)
     dijkstraDumb_shortestPaths(G.vertices[0], G)    
     G = randomGraph(5,.4,[1,2,3,4,5])

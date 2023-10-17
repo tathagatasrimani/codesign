@@ -9,6 +9,7 @@ from collections import deque
 import copy
 import argparse
 import os
+import astpretty
 
 lineno_to_node = {}
 cfg = None
@@ -35,8 +36,126 @@ def unwrap_expr(node:ast.AST):
 
 def report(text,node):
     print("==== %s ====" % text)
-    print(ast.dump(node))
+    astpretty.pprint(node, show_offsets=False, indent='  ')
     print("\n")
+   
+class NameOnlyInstrumentor(ast.NodeTransformer):
+    def __init__(self) -> None:
+        super().__init__()
+        self.scope = deque([0]) # scope in the NameOnlyTransformer?
+        self.next_scope = 1
+        self.var_scopes = {}
+        self.valid_scopes = set()
+        self.nvm_names = set()
+        self.dont_change_names = set(("__name__", "__main__", "loop", "range", "self", "time", "np", "int", "str", "math", "heapdict"))
+    
+    def get_name(self, name, scope):
+        return name + "_" + scope
+
+    @staticmethod
+    def mkblock(stmts):
+        block = ast.Module(stmts)
+        ast.fix_missing_locations(block)
+        return block
+    
+    def clean_up_scope(self, cur_scope):
+        for var in self.var_scopes:
+            if len(self.var_scopes[var]) > 0 and self.var_scopes[var][-1] == cur_scope: self.var_scopes[var].pop()
+        self.scope.pop()
+    
+    def enter_and_exits(self):
+        self.scope.append(self.next_scope)
+        self.next_scope += 1
+        stmt = [text_to_ast("print(\'enter scope " + str(self.scope[-1]) + "\')"), text_to_ast("print(\'exit scope " + str(self.scope[-1]) + "\')")]
+        return stmt
+
+    def visit_Stmts(self,stmts):
+        return list(map(lambda stmt: self.visit(stmt), stmts))
+
+    def visit_Call(self,node):
+        #report("visiting function call",node)
+        if node.args: node.args = self.visit_Stmts(node.args)
+        if node.keywords: node.keywords = self.visit_Stmts(node.keywords)
+        if type(node.func) == ast.Attribute: node.func = self.visit(node.func)
+        return ProgramInstrumentor.mkblock([node])
+
+    def visit_Assign(self, node):
+        if type(node.value) == ast.Call:
+            if type(node.value.func) == ast.Name:
+                if ("file" in node.value.func.id and "read" in node.value.func.id):
+                    # change the node.targets[0] name to include _NVM.
+                    if type(node.targets[0]) == ast.Name:
+                        self.nvm_names.add(node.targets[0].id)
+                        node.targets[0].id = node.targets[0].id + "_NVM"
+                    elif type(node.targets[0]) == ast.Tuple:
+                        for target in node.targets[0].elts:
+                            self.nvm_names.add(target.id)
+                            target.id = target.id + "_NVM"
+                    else:
+                        raise Exception("Found file read but not name or tuple as target. node: {node}")
+                    return node
+        self.generic_visit(node)
+        return node
+
+    def visit_FunctionDef(self,node):
+        self.dont_change_names.add(node.name)
+        #print("visiting function def", node)
+        scope = self.enter_and_exits()
+        cur_scope = self.scope[-1]
+        self.valid_scopes.add(cur_scope)
+        stmts = []
+        for arg in node.args.args:
+            name = ast.Name(id=arg.arg, ctx=ast.Store())
+            name = self.visit(name)
+            stmts.append(ast.Assign(targets=[name], value=ast.Name(id=arg, ctx=ast.Load())))
+        node.body = self.visit_Stmts(node.body)
+        if cur_scope in self.valid_scopes: self.valid_scopes.remove(cur_scope)
+        self.clean_up_scope(cur_scope)
+        #report("visiting func def",node)
+        new_body = stmts + node.body
+        return ast.FunctionDef(node.name,args=node.args, body=new_body, \
+                               decorator_list=node.decorator_list, lineno=node.lineno)
+    
+    def visit_arguments(self, node: arguments) -> Any:
+        if node.posonlyargs: node.posonlyargs = self.visit_Stmts(node.posonlyargs)
+        if node.args: node.args = self.visit_Stmts(node.args)
+        if node.kwonlyargs: node.kwonlyargs = self.visit_Stmts(node.kwonlyargs)
+        if node.defaults: node.defaults = self.visit_Stmts(node.defaults)
+        if node.vararg: node.vararg = self.visit(node.vararg)
+        if node.kwarg: node.kwarg = self.visit(node.kwarg)
+        if node.kw_defaults: node.kw_defaults = self.visit_Stmts(node.kw_defaults)
+        #report("visiting arguments", node)
+        return node
+    
+    def visit_arg(self, node):
+        #report("visiting arg", node)
+        if node.arg not in self.var_scopes or len(self.var_scopes[node.arg]) == 0:
+            self.var_scopes[node.arg] = deque([self.scope[-1]])
+        if node.arg not in self.dont_change_names: node.arg = self.get_name(node.arg, str(self.var_scopes[node.arg][-1]))
+        return node
+
+    def visit_Name(self, node):
+        #report("visiting name", node)
+        if node.id in self.dont_change_names: return node
+        if node.id in self.nvm_names:
+            return ast.Name(id=node.id + "_NVM", ctx=node.ctx)
+        if (type(node.ctx) == ast.Store):
+            if node.id not in self.var_scopes:
+                self.var_scopes[node.id] = deque([self.scope[-1]])
+                return ast.Name(id=self.get_name(node.id, str(self.scope[-1])), ctx=node.ctx)
+            else:
+                while len(self.var_scopes[node.id]) > 0 and self.var_scopes[node.id][-1] not in self.valid_scopes:
+                    self.var_scopes[node.id].pop()
+                if len(self.var_scopes[node.id]) > 0:
+                    return ast.Name(id=self.get_name(node.id, str(self.var_scopes[node.id][-1])), ctx=node.ctx)
+                else:
+                    self.var_scopes[node.id] = deque([self.scope[-1]])
+                    return ast.Name(id=self.get_name(node.id, str(self.scope[-1])), ctx=node.ctx)
+        else:
+            if node.id not in self.var_scopes or len(self.var_scopes[node.id]) == 0:
+                self.var_scopes[node.id] = deque([self.scope[-1]])
+            return ast.Name(id=self.get_name(node.id, str(self.var_scopes[node.id][-1])), ctx=node.ctx)
+       
 
 class NameScopeInstrumentor(ast.NodeTransformer):
     def __init__(self) -> None:
@@ -114,102 +233,6 @@ class NameScopeInstrumentor(ast.NodeTransformer):
         for scope in self.valid_scopes:
             stmts.append(text_to_ast("print(\'exit scope " + str(scope) + "\')"))
         return ProgramInstrumentor.mkblock(stmts + [node])
-        
-class NameOnlyInstrumentor(ast.NodeTransformer):
-    def __init__(self) -> None:
-        super().__init__()
-        self.scope = deque([0])
-        self.next_scope = 1
-        self.var_scopes = {}
-        self.valid_scopes = set()
-        self.dont_change_names = set(("__name__", "__main__", "loop", "range", "self", "time", "np", "int", "str", "math", "heapdict"))
-    
-    def get_name(self, name, scope):
-        return name + "_" + scope
-
-    @staticmethod
-    def mkblock(stmts):
-        block = ast.Module(stmts)
-        ast.fix_missing_locations(block)
-        return block
-    
-    def clean_up_scope(self, cur_scope):
-        for var in self.var_scopes:
-            if len(self.var_scopes[var]) > 0 and self.var_scopes[var][-1] == cur_scope: self.var_scopes[var].pop()
-        self.scope.pop()
-    
-    def enter_and_exits(self):
-        self.scope.append(self.next_scope)
-        self.next_scope += 1
-        stmt = [text_to_ast("print(\'enter scope " + str(self.scope[-1]) + "\')"), text_to_ast("print(\'exit scope " + str(self.scope[-1]) + "\')")]
-        return stmt
-
-    def visit_Stmts(self,stmts):
-        return list(map(lambda stmt: self.visit(stmt), stmts))
-
-    def visit_Call(self,node):
-        #report("visiting function call",node)
-        if node.args: node.args = self.visit_Stmts(node.args)
-        if node.keywords: node.keywords = self.visit_Stmts(node.keywords)
-        if type(node.func) == ast.Attribute: node.func = self.visit(node.func)
-        return ProgramInstrumentor.mkblock([node])
-
-    def visit_FunctionDef(self,node):
-        self.dont_change_names.add(node.name)
-        #print("visiting function def", node)
-        scope = self.enter_and_exits()
-        cur_scope = self.scope[-1]
-        self.valid_scopes.add(cur_scope)
-        stmts = []
-        for arg in node.args.args:
-            name = ast.Name(id=arg.arg, ctx=ast.Store())
-            name = self.visit(name)
-            stmts.append(ast.Assign(targets=[name], value=ast.Name(id=arg, ctx=ast.Load())))
-        node.body = self.visit_Stmts(node.body)
-        if cur_scope in self.valid_scopes: self.valid_scopes.remove(cur_scope)
-        self.clean_up_scope(cur_scope)
-        #report("visiting func def",node)
-        new_body = stmts + node.body
-        return ast.FunctionDef(node.name,args=node.args, body=new_body, \
-                               decorator_list=node.decorator_list, lineno=node.lineno)
-    
-    def visit_arguments(self, node: arguments) -> Any:
-        if node.posonlyargs: node.posonlyargs = self.visit_Stmts(node.posonlyargs)
-        if node.args: node.args = self.visit_Stmts(node.args)
-        if node.kwonlyargs: node.kwonlyargs = self.visit_Stmts(node.kwonlyargs)
-        if node.defaults: node.defaults = self.visit_Stmts(node.defaults)
-        if node.vararg: node.vararg = self.visit(node.vararg)
-        if node.kwarg: node.kwarg = self.visit(node.kwarg)
-        if node.kw_defaults: node.kw_defaults = self.visit_Stmts(node.kw_defaults)
-        #report("visiting arguments", node)
-        return node
-    
-    def visit_arg(self, node):
-        #report("visiting arg", node)
-        if node.arg not in self.var_scopes or len(self.var_scopes[node.arg]) == 0:
-            self.var_scopes[node.arg] = deque([self.scope[-1]])
-        if node.arg not in self.dont_change_names: node.arg = self.get_name(node.arg, str(self.var_scopes[node.arg][-1]))
-        return node
-
-    def visit_Name(self, node):
-        #report("visiting name", node)
-        if node.id in self.dont_change_names: return node
-        if (type(node.ctx) == ast.Store):
-            if node.id not in self.var_scopes:
-                self.var_scopes[node.id] = deque([self.scope[-1]])
-                return ast.Name(id=self.get_name(node.id, str(self.scope[-1])), ctx=node.ctx)
-            else:
-                while len(self.var_scopes[node.id]) > 0 and self.var_scopes[node.id][-1] not in self.valid_scopes:
-                    self.var_scopes[node.id].pop()
-                if len(self.var_scopes[node.id]) > 0:
-                    return ast.Name(id=self.get_name(node.id, str(self.var_scopes[node.id][-1])), ctx=node.ctx)
-                else:
-                    self.var_scopes[node.id] = deque([self.scope[-1]])
-                    return ast.Name(id=self.get_name(node.id, str(self.scope[-1])), ctx=node.ctx)
-        else:
-            if node.id not in self.var_scopes or len(self.var_scopes[node.id]) == 0:
-                self.var_scopes[node.id] = deque([self.scope[-1]])
-            return ast.Name(id=self.get_name(node.id, str(self.var_scopes[node.id][-1])), ctx=node.ctx)
 
 # this class transforms a program AST and injects commands
 class ProgramInstrumentor(ast.NodeTransformer):
@@ -234,6 +257,8 @@ class ProgramInstrumentor(ast.NodeTransformer):
         return list(map(lambda stmt: self.visit(stmt), stmts))
     
     def name_extras(self, node, var_name):
+        if "NVM" in var_name:
+            return [node]
         stmt1 = text_to_ast('if type(' + node.id + ') == np.ndarray:\n' + 
                             '   print(\'malloc\', sys.getsizeof(' + var_name + '), \'' + node.id + '\', ' + node.id + '.shape)\n' + 
                             'elif type(' + node.id + ') == list:\n' +
@@ -260,10 +285,14 @@ class ProgramInstrumentor(ast.NodeTransformer):
         #report("visiting assignment",node)
         block = []
         if type(node.targets[0]) == ast.Name:
+            if "NVM" in node.targets[0].id:
+                return node
             block = [node, text_to_ast('write_')] + self.name_extras(node.targets[0], node.targets[0].id)
         elif type(node.targets[0]) == ast.Tuple:
             for var in node.targets[0].elts:
                 if type(var) == ast.Name:
+                    if "NVM" in var.id:
+                        return node
                     block = [node, text_to_ast('write_')] + self.name_extras(var, var.id)
         elif type(node.targets[0]) == ast.Subscript:
             new_line = ast.Subscript(node.targets[0].value, node.targets[0].slice, ctx=ast.Load())
@@ -286,20 +315,25 @@ class ProgramInstrumentor(ast.NodeTransformer):
             slice = copy.deepcopy(node.target.slice)
             new_line = ast.Subscript(val, slice, ctx=ast.Load())
             new_node = ast.AugAssign(node.target, node.op, node.value)
-            #print(ast_to_text(new_node))
             block = [new_node, text_to_ast('write_'), self.visit(new_line)]
-            #print(ast_to_text(new_node))
-            #print(ast_to_text(ProgramInstrumentor.mkblock(block)))
+        
         else:
-            #print("hello")
             block = [node]
         return ProgramInstrumentor.mkblock(block)
 
     def visit_Call(self,node):
         #report("visiting function call",node)
         if type(node.func) == ast.Name and node.func.id == "print": return node
+        # if type(node.func) == ast.Name and "file" in node.func.id and "read" in node.func.id: 
+        #     n = ast.Call(ast.Name('instrument_read_from_file', ast.Load()), 
+        #                  args=[
+        #                      ast.Name(id=node.func.id, ctx=ast.Load()),
+        #                      *node.args], keywords=[])
+        #     return n
         node.args = self.visit_Stmts(node.args)
         if type(node.func) == ast.Attribute: node.func = self.visit(node.func)
+        
+
         return ProgramInstrumentor.mkblock([node])
 
     def visit_Name(self, node):
@@ -331,7 +365,6 @@ class ProgramInstrumentor(ast.NodeTransformer):
                 is_slice = "True"
                 node.slice = ast.Name(id="None", ctx=ast.Load())
             retval = ast.Call(ast.Name('instrument_read_sub', ast.Load()), args=[node.value, ast.Constant(t), node.slice, ast.Name(id=lower, ctx=ast.Load()), ast.Name(id=upper, ctx=ast.Load()), ast.Name(is_slice, ast.Load())], keywords=[])
-            #print(ast_to_text(retval))
             return retval
         
     def visit_Attribute(self, node: Attribute) -> Any:
@@ -339,6 +372,11 @@ class ProgramInstrumentor(ast.NodeTransformer):
         node.value = self.visit(node.value)
         return node
     
+    def visit_FunctionDef(self, node: FunctionDef) -> Any:
+        if "file" in node.name and "read" in node.name:
+            return node
+        else:
+            return self.generic_visit(node)
 
 def instrument_and_run(filepath:str):
     global cfg
@@ -387,4 +425,4 @@ parser.add_argument('filename')
 args = parser.parse_args()
 
 instrument_and_run(args.filename)
-print(lineno_to_node)
+# print(lineno_to_node)

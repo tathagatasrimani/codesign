@@ -98,20 +98,40 @@ def self_attn(head, tokens, d_k, Q, K, V):
                 out[i][j] += scores[i][k] * V[head][k][j]
     return out
 
-
-def main():
+def read_weights_from_file(filename):
+    #hardcode this shit for now.
     d_model, heads, tokens, layers = 100, 12, 8, 12
     d_k = d_model // heads
-    embeddings = np.random.rand(tokens, d_model)
+
+    W_Q = balance_random_3d(heads, d_model, d_k) # Weight - nvm
+    W_K = balance_random_3d(heads, d_model, d_k) # Weight - nvm
+    W_V = balance_random_3d(heads, d_model, d_k) # Weight - nvm
+
+    W_attn = np.random.rand(d_model, d_model)  # Weight - nvm
+
+    weights, biases = np.random.rand(d_model), np.random.rand(d_model)  # Weight - nvm
+
+    W = np.random.rand(d_model, d_model * 4)  # Weight - nvm
+    W_0 = np.random.rand(d_model * 4)  # Weight - nvm
+    
+    W_1 = np.random.rand(d_model * 4, d_model)  # Weight - nvm
+    W_2 = np.random.rand(d_model)  # Weight - nvm
+
+    return W_Q, W_K, W_V, W_attn, weights, biases, W, W_0, W_1, W_2
+
+def main():
+    W_Q, W_K, W_V, W_attn, weights, biases, W, W_0, W_1, W_2 = read_weights_from_file("bert_weights.txt")
+
+    d_model, heads, tokens, layers = 100, 12, 8, 12
+    d_k = d_model // heads
+    embeddings = np.random.rand(tokens, d_model) # input embeddings - not NVM
     for i in range(tokens):
         for j in range(d_model):
             if j % 2 == 0:
                 embeddings[i][j] += math.sin(i / math.pow(10000, (2 * j / d_model)))
             else:
                 embeddings[i][j] += math.cos(i / math.pow(10000, (2 * j / d_model)))
-    W_Q = balance_random_3d(heads, d_model, d_k)
-    W_K = balance_random_3d(heads, d_model, d_k)
-    W_V = balance_random_3d(heads, d_model, d_k)
+   
     Q = np.zeros((heads, tokens, d_k))
     K = np.zeros((heads, tokens, d_k))
     V = np.zeros((heads, tokens, d_k))
@@ -132,7 +152,6 @@ def main():
         for j in range(heads):
             cur = self_attn(j, tokens, d_k, Q, K, V)
             multi_head_out = concat(multi_head_out, j, tokens, d_k, cur)
-        W_attn = np.random.rand(d_model, d_model)
         for i in range(tokens):
             for j in range(d_model):
                 sum_val = 0
@@ -140,21 +159,18 @@ def main():
                     sum_val += multi_head_out[i][k] * W_attn[k][j]
                 embeddings[i][j] = sum_val
         embeddings = arr_add(embeddings, emb_cpy)
-        weights, biases = np.random.rand(d_model), np.random.rand(d_model)
         embeddings = BN_layer(embeddings, weights, biases)
         emb_cpy = np.copy(embeddings)
-        W = np.random.rand(d_model, d_model * 4)
-        W_0 = np.random.rand(d_model * 4)
+        
         emb_new = np.zeros((tokens, d_model * 4))
         for i in range(tokens):
             emb_new[i] = fc_layer(embeddings[i], W, W_0)
         embeddings = emb_new
         embeddings = reLU(embeddings)
-        W = np.random.rand(d_model * 4, d_model)
-        W_0 = np.random.rand(d_model)
+
         emb_new = np.zeros((tokens, d_model))
         for i in range(tokens):
-            emb_new[i] = fc_layer(embeddings[i], W, W_0)
+            emb_new[i] = fc_layer(embeddings[i], W_1, W_2)
         embeddings = emb_new
         embeddings = arr_add(embeddings, emb_cpy)
         embeddings = BN_layer(embeddings, weights, biases)
