@@ -410,7 +410,7 @@ class HardwareSimulator():
             src = f.read()
             l = src.split('\n')
             split_lines = [l_.split() for l_ in l] # idk what's happening here.
-            
+
             last_line = '-1'
             last_node = '-1'
             valid_names = set()
@@ -436,8 +436,8 @@ class HardwareSimulator():
                     self.where_to_free[var_name] = i
 
 
-            for item in split_lines:
-                # item = split_lines[i]
+            for i in range(len(split_lines)):
+                item = split_lines[i]
                 if not (len(item) >= 3 and item[0] == "malloc" and item[2] not in self.vars_allocated):
                     f_new.write(l[i] + '\n')
                 vars_to_pop = []
