@@ -256,7 +256,7 @@ def main():
     expr_symbols = {}
     cnt=0
     for s in total_cycles.free_symbols:
-        if s.name == 'latency_Add':
+        if s.name == 'latency_Regs':
             continue
         if s.name == 'latency_Mult':
             continue
@@ -288,6 +288,9 @@ def main():
     Z = list(map(lambda tup: lam(tup[0], tup[1]), points))
 
     ax.scatter(x_new, y_new, Z)
+    plt.xlabel(symbol_list[0])
+    plt.ylabel(symbol_list[1])
+    ax.set_zlabel("delay")
     plt.show()
     plt.savefig("plot.png")
     print("total_cycles:", total_cycles)
