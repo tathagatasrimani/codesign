@@ -35,6 +35,7 @@ class HardwareSimulator():
         self.compute_element_to_node_id = {}
         self.compute_element_neighbors = {}
         self.memory_needed = 0
+        self.nvm_memory_needed = 0
         self.cur_memory_size = 0
         self.new_graph = None
         self.mem_layers = 0
@@ -231,7 +232,7 @@ class HardwareSimulator():
     def find_next_data_path_index(self, i, mallocs, frees):
         pattern_seek = False
         max_iters = 1
-        print(f"i: {i}, len(self.data_path): {len(self.data_path)}, self.data_path: {self.data_path}")
+        # print(f"i: {i}, len(self.data_path): {len(self.data_path)}, self.data_path: {self.data_path}")
         while len(self.data_path[i]) != 2:
             if len(self.data_path[i]) == 0: break
             elif len(self.data_path[i]) == 1:
@@ -414,6 +415,7 @@ class HardwareSimulator():
             last_line = '-1'
             last_node = '-1'
             valid_names = set()
+            nvm_vars = {}
             for i in range(len(split_lines)):
                 item = split_lines[i]
                 if len(item) < 2: continue
@@ -421,11 +423,15 @@ class HardwareSimulator():
                     valid_names.add(item[2])
                 if (item[-2] != "Read" and item[-2] != "Write"): continue
                 var_name = item[0]
-                if var_name not in valid_names: continue 
+                if var_name not in valid_names and "NVM" not in var_name: continue 
                 if item[-2] == "Read":
                     if "NVM" in item[0]:
                         self.nvm_reads += 1
                         self.total_nvm_read_size += int(item[-1])
+                        if item[0] not in nvm_vars.keys():
+                            nvm_vars[item[0]] = int(item[-1])
+                        else:
+                            nvm_vars[item[0]] = max(nvm_vars[item[0]], int(item[-1]))
                     else:
                         self.reads += 1
                         self.total_read_size += int(item[-1])
@@ -471,7 +477,9 @@ class HardwareSimulator():
                     self.cur_memory_size += int(item[1])
                     self.memory_needed = max(self.memory_needed, self.cur_memory_size)
         # print(f"data_path: {self.data_path}")
+        self.nvm_memory_needed = sum(nvm_vars.values())
         print("memory needed: ", self.memory_needed)
+        print("nvm memory needed: ", self.nvm_memory_needed)
 
     def simulator_prep(self, benchmark):
         cfg, graphs, self.unroll_at = dfg_algo.main_fn(self.path, benchmark)
@@ -482,7 +490,7 @@ class HardwareSimulator():
         return cfg, graphs, node_operations
 
 def main():
-    print(args.benchmark)
+    print(f"Running simulator for {args.benchmark.split('/')[-1]}")
     simulator = HardwareSimulator()
     cfg, graphs, node_operations = simulator.simulator_prep(args.benchmark)
     simulator.transistor_size = 3 # in nm
@@ -545,6 +553,8 @@ def main():
     print("total energy (nJ): ", sum(simulator.power_use))
     print("total volatile reads: ", simulator.reads)
     print("total volatile read size: ", simulator.total_read_size)
+    print("total nvm reads: ", simulator.nvm_reads)
+    print("total nvm read size: ", simulator.total_nvm_read_size)
     print("total writes: ", simulator.writes)
     print("total write size: ", simulator.total_write_size)
     print("total compute element usage: ", hw.compute_operation_totals)

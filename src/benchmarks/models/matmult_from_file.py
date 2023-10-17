@@ -9,13 +9,14 @@ def read_matrices_from_file():
 
 def main():
     a,b = read_matrices_from_file()
+    d = [9, 9, 9] # bias vector - testing nvm vs volatile reads.
     c = [[0, 0, 0], [0, 0, 0], [0, 0, 0]] # output
 
     for i in range(3):
         for j in range(3):
             loop.start_unroll
             for k in range(3):
-                c[i][j] += a[i][k] * b[k][j]
+                c[i][j] += a[i][k] * b[k][j] + d[j]
             loop.stop_unroll
 
 if __name__ == "__main__":

@@ -36,7 +36,7 @@ def unwrap_expr(node:ast.AST):
 
 def report(text,node):
     print("==== %s ====" % text)
-    print(ast.dump(node))
+    astpretty.pprint(node, show_offsets=False, indent='  ')
     print("\n")
    
 class NameOnlyInstrumentor(ast.NodeTransformer):
@@ -324,13 +324,12 @@ class ProgramInstrumentor(ast.NodeTransformer):
     def visit_Call(self,node):
         #report("visiting function call",node)
         if type(node.func) == ast.Name and node.func.id == "print": return node
-        if type(node.func) == ast.Name and "file" in node.func.id and "read" in node.func.id: 
-            astpretty.pprint(node, show_offsets=False, indent='  ',)
-            n = ast.Call(ast.Name('instrument_read_from_file', ast.Load()), 
-                         args=[
-                             ast.Name(id=node.func.id, ctx=ast.Load()),
-                             *node.args], keywords=[])
-            return n
+        # if type(node.func) == ast.Name and "file" in node.func.id and "read" in node.func.id: 
+        #     n = ast.Call(ast.Name('instrument_read_from_file', ast.Load()), 
+        #                  args=[
+        #                      ast.Name(id=node.func.id, ctx=ast.Load()),
+        #                      *node.args], keywords=[])
+        #     return n
         node.args = self.visit_Stmts(node.args)
         if type(node.func) == ast.Attribute: node.func = self.visit(node.func)
         
@@ -426,4 +425,4 @@ parser.add_argument('filename')
 args = parser.parse_args()
 
 instrument_and_run(args.filename)
-print(lineno_to_node)
+# print(lineno_to_node)
