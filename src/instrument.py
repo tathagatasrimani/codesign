@@ -258,7 +258,6 @@ class ProgramInstrumentor(ast.NodeTransformer):
     
     def name_extras(self, node, var_name):
         if "NVM" in var_name:
-            print(f"found NVM: {var_name}")
             return [node]
         stmt1 = text_to_ast('if type(' + node.id + ') == np.ndarray:\n' + 
                             '   print(\'malloc\', sys.getsizeof(' + var_name + '), \'' + node.id + '\', ' + node.id + '.shape)\n' + 
@@ -316,12 +315,9 @@ class ProgramInstrumentor(ast.NodeTransformer):
             slice = copy.deepcopy(node.target.slice)
             new_line = ast.Subscript(val, slice, ctx=ast.Load())
             new_node = ast.AugAssign(node.target, node.op, node.value)
-            #print(ast_to_text(new_node))
             block = [new_node, text_to_ast('write_'), self.visit(new_line)]
-            #print(ast_to_text(new_node))
-            #print(ast_to_text(ProgramInstrumentor.mkblock(block)))
+        
         else:
-            #print("hello")
             block = [node]
         return ProgramInstrumentor.mkblock(block)
 
@@ -329,13 +325,11 @@ class ProgramInstrumentor(ast.NodeTransformer):
         #report("visiting function call",node)
         if type(node.func) == ast.Name and node.func.id == "print": return node
         if type(node.func) == ast.Name and "file" in node.func.id and "read" in node.func.id: 
-            print(f"found file read func\n")
             astpretty.pprint(node, show_offsets=False, indent='  ',)
             n = ast.Call(ast.Name('instrument_read_from_file', ast.Load()), 
                          args=[
                              ast.Name(id=node.func.id, ctx=ast.Load()),
                              *node.args], keywords=[])
-            astpretty.pprint(n, show_offsets=False, indent='  ',)
             return n
         node.args = self.visit_Stmts(node.args)
         if type(node.func) == ast.Attribute: node.func = self.visit(node.func)
@@ -372,7 +366,6 @@ class ProgramInstrumentor(ast.NodeTransformer):
                 is_slice = "True"
                 node.slice = ast.Name(id="None", ctx=ast.Load())
             retval = ast.Call(ast.Name('instrument_read_sub', ast.Load()), args=[node.value, ast.Constant(t), node.slice, ast.Name(id=lower, ctx=ast.Load()), ast.Name(id=upper, ctx=ast.Load()), ast.Name(is_slice, ast.Load())], keywords=[])
-            #print(ast_to_text(retval))
             return retval
         
     def visit_Attribute(self, node: Attribute) -> Any:
@@ -382,10 +375,8 @@ class ProgramInstrumentor(ast.NodeTransformer):
     
     def visit_FunctionDef(self, node: FunctionDef) -> Any:
         if "file" in node.name and "read" in node.name:
-            # astpretty.pprint(node, show_offsets=False, indent='  ',)
             return node
         else:
-            # astpretty.pprint(node, show_offsets=False, indent='  ',)
             return self.generic_visit(node)
 
 def instrument_and_run(filepath:str):
