@@ -1,18 +1,20 @@
-from hardwareModel import HardwareModel
-from ast_utils import ASTUtils
+import sys
+import os
+from collections import deque
+import math
+import json
+from pathlib import Path
+import argparse
+import ast
+
+import matplotlib.pyplot as plt
+import graphviz as gv
+
 from memory import Memory
 import schedule
 import dfg_algo
-import matplotlib.pyplot as plt
-import ast
 import hardwareModel
-import math
-import json
-import sys
-from collections import deque
-import graphviz as gv
-import os
-import argparse
+from hardwareModel import HardwareModel
 
 MEMORY_SIZE = 1000000
 state_graph_counter = 0
@@ -369,6 +371,7 @@ class HardwareSimulator():
                                 self.make_edge(state_graph, parent_id, compute_id, "")
                         self.process_compute_element(op, state_graph, state_graph.id_to_Node[compute_id], check_duplicate=False)
                     # if op_count > 0:
+                        # Path(simulator.path + '/benchmarks/pictures/state_graphs/').mkdir(parents=True, exist_ok=True)
                         # state_graph_viz.render(self.path + '/benchmarks/pictures/state_graphs/' + sys.argv[1][sys.argv[1].rfind('/')+1:] + '_' + str(state_graph_counter), view = True)
                     state_graph_counter += 1
                     #print(hw_need)
@@ -402,6 +405,7 @@ class HardwareSimulator():
             pattern_seek = pattern_seek_next
             max_iters = max_iters_next
         print("done with simulation")
+        # Path(simulator.path + '/benchmarks/pictures/memory_graphs').mkdir(parents=True, exist_ok=True)
         # self.new_graph.gv_graph.render(self.path + '/benchmarks/pictures/memory_graphs/' + sys.argv[1][sys.argv[1].rfind('/')+1:], view = True)
         return self.data
 
@@ -563,6 +567,7 @@ def main():
     names = args.benchmark.split('/')
     if not args.notrace:
         text = json.dumps(data, indent=4)
+        Path(simulator.path + '/benchmarks/json_data').mkdir(parents=True, exist_ok=True)
         with open(simulator.path + '/benchmarks/json_data/' + names[-1], 'w') as fh:
             fh.write(text)
     t = []
@@ -572,6 +577,7 @@ def main():
     plt.title("power use for " + names[-1])
     plt.xlabel("Cycle")
     plt.ylabel("Power")
+    Path(simulator.path + '/benchmarks/power_plots').mkdir(parents=True, exist_ok=True)
     plt.savefig("benchmarks/power_plots/power_use_" + names[-1] + ".pdf")
     plt.clf() 
     print("done!")
