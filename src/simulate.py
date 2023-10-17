@@ -42,8 +42,10 @@ class HardwareSimulator():
         self.pitch = 0
         self.cache_size = 0
         self.reads = 0
+        self.nvm_reads = 0
         self.writes = 0
         self.total_read_size = 0
+        self.total_nvm_read_size = 0
         self.total_write_size = 0
         self.max_regs_inuse = 0
         self.max_mem_inuse = 0
@@ -174,7 +176,7 @@ class HardwareSimulator():
         parents = []
         for parent in op.parents:
             parents.append(parent.operation)
-        print(op.operation, parents)
+        # print(op.operation, parents)
         mem_in_use = 0
         for parent in op.parents:
             if not parent.operation: continue
@@ -229,6 +231,7 @@ class HardwareSimulator():
     def find_next_data_path_index(self, i, mallocs, frees):
         pattern_seek = False
         max_iters = 1
+        print(f"i: {i}, len(self.data_path): {len(self.data_path)}, self.data_path: {self.data_path}")
         while len(self.data_path[i]) != 2:
             if len(self.data_path[i]) == 0: break
             elif len(self.data_path[i]) == 1:
@@ -313,7 +316,7 @@ class HardwareSimulator():
                     pattern_seek = pattern_seek_next
                     j, pattern_seek_next, discard = self.find_next_data_path_index(j+1, [], [])
                 next_ind = j
-            print(pattern_nodes, iters, next_ind)
+            # print(pattern_nodes, iters, next_ind)
             i = 0
             while i < len(pattern_nodes):
                 #print("i: ", i)
@@ -326,7 +329,7 @@ class HardwareSimulator():
                 # try to unroll after pattern_seeking
                 node_iters = iters
                 if self.unroll_at[cur_node.id]:
-                    print(cur_node.id)
+                    # print(cur_node.id)
                     while i+1 != len(pattern_nodes) and pattern_nodes[i+1] == pattern_nodes[i]:
                         i += 1
                         node_iters += iters
@@ -334,7 +337,7 @@ class HardwareSimulator():
                     for i in range(node_iters):
                         graph = dfg_algo.dfg_per_node(cur_node)
                         node_ops = schedule.schedule_one_node(graph, cur_node)
-                        print(node_operations[cur_node], node_ops)
+                        # print(node_operations[cur_node], node_ops)
                         for i in range(len(node_ops)):
                             node_operations[cur_node][i] = node_operations[cur_node][i] + node_ops[i]
 
@@ -406,10 +409,8 @@ class HardwareSimulator():
             f_new = open(self.path + '/instrumented_files/output_free.txt', 'w+')
             src = f.read()
             l = src.split('\n')
-            split_lines = []
-            for i in range(len(l)):
-                split_lines.append(l[i].split())
-            #print(l)
+            split_lines = [l_.split() for l_ in l] # idk what's happening here.
+            
             last_line = '-1'
             last_node = '-1'
             valid_names = set()
@@ -421,18 +422,22 @@ class HardwareSimulator():
                 if (item[-2] != "Read" and item[-2] != "Write"): continue
                 var_name = item[0]
                 if var_name not in valid_names: continue 
-                if item[-2] == "Read": 
-                    self.reads += 1
-                    self.total_read_size += int(item[-1])
-                    self.where_to_free[var_name] = i+1
+                if item[-2] == "Read":
+                    if "NVM" in item[0]:
+                        self.nvm_reads += 1
+                        self.total_nvm_read_size += int(item[-1])
+                    else:
+                        self.reads += 1
+                        self.total_read_size += int(item[-1])
+                        self.where_to_free[var_name] = i+1
                 else: 
                     self.writes += 1
                     self.total_write_size += int(item[-1])
                     self.where_to_free[var_name] = i
 
 
-            for i in range(len(split_lines)):
-                item = split_lines[i]
+            for item in split_lines:
+                # item = split_lines[i]
                 if not (len(item) >= 3 and item[0] == "malloc" and item[2] not in self.vars_allocated):
                     f_new.write(l[i] + '\n')
                 vars_to_pop = []
@@ -465,7 +470,7 @@ class HardwareSimulator():
                     #print(self.vars_allocated)
                     self.cur_memory_size += int(item[1])
                     self.memory_needed = max(self.memory_needed, self.cur_memory_size)
-        print(f"data_path: {self.data_path}")
+        # print(f"data_path: {self.data_path}")
         print("memory needed: ", self.memory_needed)
 
     def simulator_prep(self, benchmark):
@@ -538,8 +543,8 @@ def main():
     data = simulator.simulate(cfg, node_operations, hw, graphs, True)
     print("total number of cycles: ", simulator.cycles)
     print("total energy (nJ): ", sum(simulator.power_use))
-    print("total reads: ", simulator.reads)
-    print("total read size: ", simulator.total_read_size)
+    print("total volatile reads: ", simulator.reads)
+    print("total volatile read size: ", simulator.total_read_size)
     print("total writes: ", simulator.writes)
     print("total write size: ", simulator.total_write_size)
     print("total compute element usage: ", hw.compute_operation_totals)
@@ -571,6 +576,6 @@ if __name__ == '__main__':
     parser.add_argument('--notrace', action='store_true')
 
     args = parser.parse_args()
-    print(f"args: {args.benchmark}, {args.notrace}")
+    # print(f"args: {args.benchmark}, {args.notrace}")
 
     main()
