@@ -76,7 +76,7 @@ class HardwareSimulator():
         target.parents.append(source)
 
     def get_hw_need(self, state, hw_spec):
-        hw_need = HardwareModel(0,0,self.mem_layers, self.pitch, self.transistor_size, self.cache_size)
+        hw_need = HardwareModel(id=0,bandwidth=0,mem_layers=self.mem_layers, pitch=self.pitch, transistor_size=self.transistor_size,cache_size= self.cache_size) # wtf is this doing?
         mem_in_use = 0
         for op in state:
             if not op.operation: continue
@@ -374,7 +374,8 @@ class HardwareSimulator():
                         # Path(simulator.path + '/benchmarks/pictures/state_graphs/').mkdir(parents=True, exist_ok=True)
                         # state_graph_viz.render(self.path + '/benchmarks/pictures/state_graphs/' + sys.argv[1][sys.argv[1].rfind('/')+1:] + '_' + str(state_graph_counter), view = True)
                     state_graph_counter += 1
-                    #print(hw_need)
+                    # print(f"needed hardware: {hw_need}")
+                    # print(f"available hardware: {hw.hw_allocated}")
                     max_cycles = 0
                     for elem in hw_need:
                         latency = hw.latency[elem]
@@ -510,31 +511,33 @@ def main():
         simulator.cache_size = 8
     else: 
         simulator.cache_size = 16
-    hw = HardwareModel(0, 0, simulator.mem_layers, simulator.pitch, simulator.transistor_size, simulator.cache_size)
-    hw.hw_allocated['Add'] = 15
-    hw.hw_allocated['Regs'] = 30
-    hw.hw_allocated['Mult'] = 15
-    hw.hw_allocated['Sub'] = 15
-    hw.hw_allocated['FloorDiv'] = 15
-    hw.hw_allocated['Gt'] = 1
-    hw.hw_allocated['And'] = 1
-    hw.hw_allocated['Or'] = 1
-    hw.hw_allocated['Mod'] = 1
-    hw.hw_allocated['LShift'] = 1
-    hw.hw_allocated['RShift'] = 1
-    hw.hw_allocated['BitOr'] = 1
-    hw.hw_allocated['BitXor'] = 1
-    hw.hw_allocated['BitAnd'] = 1
-    hw.hw_allocated['Eq'] = 1
-    hw.hw_allocated['NotEq'] = 1
-    hw.hw_allocated['Lt'] = 1
-    hw.hw_allocated['LtE'] = 1
-    hw.hw_allocated['GtE'] = 1
-    hw.hw_allocated['IsNot'] = 1
-    hw.hw_allocated['USub'] = 1
-    hw.hw_allocated['UAdd'] = 1
-    hw.hw_allocated['Not'] = 1
-    hw.hw_allocated['Invert'] = 1
+    # hw = HardwareModel(id=0, bandwidth=0, mem_layers=simulator.mem_layers, pitch=simulator.pitch, transistor_size=simulator.transistor_size, cache_size=simulator.cache_size)
+    # hw.hw_allocated['Add'] = 15
+    # hw.hw_allocated['Regs'] = 30
+    # hw.hw_allocated['Mult'] = 15
+    # hw.hw_allocated['Sub'] = 15
+    # hw.hw_allocated['FloorDiv'] = 15
+    # hw.hw_allocated['Gt'] = 1
+    # hw.hw_allocated['And'] = 1
+    # hw.hw_allocated['Or'] = 1
+    # hw.hw_allocated['Mod'] = 1
+    # hw.hw_allocated['LShift'] = 1
+    # hw.hw_allocated['RShift'] = 1
+    # hw.hw_allocated['BitOr'] = 1
+    # hw.hw_allocated['BitXor'] = 1
+    # hw.hw_allocated['BitAnd'] = 1
+    # hw.hw_allocated['Eq'] = 1
+    # hw.hw_allocated['NotEq'] = 1
+    # hw.hw_allocated['Lt'] = 1
+    # hw.hw_allocated['LtE'] = 1
+    # hw.hw_allocated['GtE'] = 1
+    # hw.hw_allocated['IsNot'] = 1
+    # hw.hw_allocated['USub'] = 1
+    # hw.hw_allocated['UAdd'] = 1
+    # hw.hw_allocated['Not'] = 1
+    # hw.hw_allocated['Invert'] = 1
+
+    hw = HardwareModel(cfg='simple')
 
     area = 0
     for key in hw.hw_allocated:
@@ -581,7 +584,6 @@ def main():
     plt.savefig("benchmarks/power_plots/power_use_" + names[-1] + ".pdf")
     plt.clf() 
     print("done!")
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
