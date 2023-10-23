@@ -76,7 +76,7 @@ class HardwareSimulator():
         target.parents.append(source)
 
     def get_hw_need(self, state, hw_spec):
-        hw_need = HardwareModel(id=0,bandwidth=0,mem_layers=self.mem_layers, pitch=self.pitch, transistor_size=self.transistor_size,cache_size= self.cache_size) # wtf is this doing?
+        hw_need = HardwareModel(id=0,bandwidth=0,mem_layers=self.mem_layers, pitch=self.pitch, transistor_size=self.transistor_size,cache_size= self.cache_size)
         mem_in_use = 0
         for op in state:
             if not op.operation: continue
@@ -412,7 +412,7 @@ class HardwareSimulator():
 
     def set_data_path(self):
         with open(self.path + '/instrumented_files/output.txt', 'r') as f:
-            f_new = open(self.path + '/instrumented_files/output_free.txt', 'w+')
+            # f_new = open(self.path + '/instrumented_files/output_free.txt', 'w+')
             src = f.read()
             l = src.split('\n')
             split_lines = [l_.split() for l_ in l] # idk what's happening here.
@@ -421,6 +421,8 @@ class HardwareSimulator():
             last_node = '-1'
             valid_names = set()
             nvm_vars = {}
+
+            # count reads and writes on first pass.
             for i in range(len(split_lines)):
                 item = split_lines[i]
                 if len(item) < 2: continue
@@ -446,16 +448,16 @@ class HardwareSimulator():
                     self.total_write_size += int(item[-1])
                     self.where_to_free[var_name] = i
 
-
+            # second pass, construct trace that simulator follows.
             for i in range(len(split_lines)):
                 item = split_lines[i]
-                if not (len(item) >= 3 and item[0] == "malloc" and item[2] not in self.vars_allocated):
-                    f_new.write(l[i] + '\n')
+                # if not (len(item) >= 3 and item[0] == "malloc" and item[2] not in self.vars_allocated):
+                #     f_new.write(l[i] + '\n')
                 vars_to_pop = []
                 for var_name in self.where_to_free:
                     if self.where_to_free[var_name] == i:
                         var_size = self.vars_allocated[var_name]
-                        f_new.write("free " + str(var_size) + " " + var_name + "\n")
+                        # f_new.write("free " + str(var_size) + " " + var_name + "\n")
                         self.data_path.append(["free", str(var_size), var_name])
                         vars_to_pop.append(var_name)
                         self.cur_memory_size -= var_size
@@ -481,7 +483,7 @@ class HardwareSimulator():
                     #print(self.vars_allocated)
                     self.cur_memory_size += int(item[1])
                     self.memory_needed = max(self.memory_needed, self.cur_memory_size)
-        # print(f"data_path: {self.data_path}")
+        print(f"data_path: {self.data_path}")
         self.nvm_memory_needed = sum(nvm_vars.values())
         print("memory needed: ", self.memory_needed)
         print("nvm memory needed: ", self.nvm_memory_needed)
@@ -511,33 +513,8 @@ def main():
         simulator.cache_size = 8
     else: 
         simulator.cache_size = 16
-    # hw = HardwareModel(id=0, bandwidth=0, mem_layers=simulator.mem_layers, pitch=simulator.pitch, transistor_size=simulator.transistor_size, cache_size=simulator.cache_size)
-    # hw.hw_allocated['Add'] = 15
-    # hw.hw_allocated['Regs'] = 30
-    # hw.hw_allocated['Mult'] = 15
-    # hw.hw_allocated['Sub'] = 15
-    # hw.hw_allocated['FloorDiv'] = 15
-    # hw.hw_allocated['Gt'] = 1
-    # hw.hw_allocated['And'] = 1
-    # hw.hw_allocated['Or'] = 1
-    # hw.hw_allocated['Mod'] = 1
-    # hw.hw_allocated['LShift'] = 1
-    # hw.hw_allocated['RShift'] = 1
-    # hw.hw_allocated['BitOr'] = 1
-    # hw.hw_allocated['BitXor'] = 1
-    # hw.hw_allocated['BitAnd'] = 1
-    # hw.hw_allocated['Eq'] = 1
-    # hw.hw_allocated['NotEq'] = 1
-    # hw.hw_allocated['Lt'] = 1
-    # hw.hw_allocated['LtE'] = 1
-    # hw.hw_allocated['GtE'] = 1
-    # hw.hw_allocated['IsNot'] = 1
-    # hw.hw_allocated['USub'] = 1
-    # hw.hw_allocated['UAdd'] = 1
-    # hw.hw_allocated['Not'] = 1
-    # hw.hw_allocated['Invert'] = 1
 
-    hw = HardwareModel(cfg='simple')
+    hw = HardwareModel(cfg='big')
 
     area = 0
     for key in hw.hw_allocated:
