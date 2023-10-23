@@ -320,12 +320,12 @@ class HardwareSimulator():
                     j, pattern_seek_next, discard = self.find_next_data_path_index(j+1, [], [])
                 next_ind = j
             # print(pattern_nodes, iters, next_ind)
-            i = 0
-            while i < len(pattern_nodes):
+            idx = 0
+            while idx < len(pattern_nodes):
                 #print("i: ", i)
-                cur_node = self.id_to_node[pattern_nodes[i]]
-                mallocs = pattern_mallocs[i]
-                frees = pattern_frees[i]
+                cur_node = self.id_to_node[pattern_nodes[idx]]
+                mallocs = pattern_mallocs[idx]
+                frees = pattern_frees[idx]
                 #print(mallocs, frees)
                 for malloc in mallocs:
                     self.process_memory_operation(malloc)
@@ -333,16 +333,16 @@ class HardwareSimulator():
                 node_iters = iters
                 if self.unroll_at[cur_node.id]:
                     # print(cur_node.id)
-                    while i+1 != len(pattern_nodes) and pattern_nodes[i+1] == pattern_nodes[i]:
-                        i += 1
+                    while idx+1 != len(pattern_nodes) and pattern_nodes[idx+1] == pattern_nodes[idx]:
+                        idx += 1
                         node_iters += iters
                 if self.unroll_at[cur_node.id] or pattern_seek:
-                    for i in range(node_iters):
+                    for _ in range(node_iters):
                         graph = dfg_algo.dfg_per_node(cur_node)
                         node_ops = schedule.schedule_one_node(graph, cur_node)
                         # print(node_operations[cur_node], node_ops)
-                        for i in range(len(node_ops)):
-                            node_operations[cur_node][i] = node_operations[cur_node][i] + node_ops[i]
+                        for k in range(len(node_ops)):
+                            node_operations[cur_node][k] = node_operations[cur_node][k] + node_ops[k]
 
                 for state in node_operations[cur_node]:
                     # if unroll, take each operation in a state and create more of them
@@ -393,7 +393,8 @@ class HardwareSimulator():
                             j = (j + 1) % hw.hw_allocated[elem]
                             cur_elem_count -= 1
                     self.node_avg_power[node_id] += self.cycle_sim(hw_inuse, hw, max_cycles)
-                i += 1
+                idx += 1
+            
             if self.cycles - start_cycles > 0: self.node_avg_power[node_id] /= self.cycles - start_cycles
             self.node_intervals[-1][1][1] = self.cycles
             for free in frees:
