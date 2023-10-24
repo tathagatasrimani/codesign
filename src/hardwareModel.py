@@ -45,6 +45,8 @@ op2sym_map = {
 # MOVE all of these out of this file into config files.
 
 # using 64 bit numbers, 5GHz clock
+# is this num cycles? or num nanoseconds? picoseconds?
+# I think num cycles because regs is exactly 2
 latency = {
     7: {
 	   "And": 1.75,
@@ -882,7 +884,6 @@ class HardwareModel:
 		Simulates the effect of 2 different constructors. Either supply cfg, or supply the rest of the arguments. 
 		In this form for backward compatability. I want to deprecate the manual construction soon.
 		'''
-		print(f"top of init; cfg: {cfg}")
 		if cfg is None:
 			self.set_hw_config_vars(id, bandwidth, mem_layers, pitch, transistor_size, cache_size)
 		else:

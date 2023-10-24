@@ -116,11 +116,12 @@ class HardwareSimulator():
                     self.power_use[self.cycles] += hw.leakage_power[elem] * len(hw_inuse[elem]) # passive power
                     cur_data += str(count) + "/" + str(len(hw_inuse[elem])) + " in use. || "
             self.data[self.cycles] = cur_data
+
             # simulate one cycle
             for elem in hw_inuse:
                 for j in range(len(hw_inuse[elem])):
                     if hw_inuse[elem][j] > 0:
-                        hw_inuse[elem][j] = max(0, hw_inuse[elem][j] - 1)
+                        hw_inuse[elem][j] = max(0, hw_inuse[elem][j] - 1) #decrement hw in use?
             node_power_sum += self.power_use[self.cycles]
             self.cycles += 1
         return node_power_sum
@@ -198,7 +199,7 @@ class HardwareSimulator():
             if child.operation == "Regs":
                 mem_in_use += self.process_compute_element_neighbor(op, child, graph, op_node, ast.Store, check_duplicate)
         return mem_in_use
-                
+
     def get_dims(self, arr):
         dims = []
         if arr[0][0] == '(': # processing tuple
@@ -256,27 +257,26 @@ class HardwareSimulator():
         hw_inuse = {}
         for elem in hw.hw_allocated:
             hw_inuse[elem] = [0] * hw.hw_allocated[elem]
-        #print(hw_inuse)
         i = 0
         frees = []
         mallocs = []
-        #print(self.data_path)
+
         i, pattern_seek, max_iters = self.find_next_data_path_index(i, mallocs, frees)
         while i < len(self.data_path):
             next_ind, pattern_seek_next, max_iters_next = self.find_next_data_path_index(i+1, mallocs, frees)
             if i == len(self.data_path): break
+
+            # init vars for new node in cfg data path
             node_id = self.data_path[i][0]
-            #print(node_id, self.memory_module.locations)
-            #print(i)
             cur_node = self.id_to_node[node_id]
             self.node_intervals.append([node_id, [self.cycles, 0]])
             self.node_avg_power[node_id] = 0 # just reset because we will end up overwriting it
             start_cycles = self.cycles # for calculating average power
-            iters = 0
+            num_unroll_iterations = 0
             pattern_nodes = [node_id]
             pattern_mallocs, pattern_frees = [mallocs],  [frees]
-            #print(pattern_seek)
             other_mallocs, other_frees = [], []
+
             if pattern_seek: 
                 #print("entering pattern seek")
                 pattern_seek = False
@@ -304,56 +304,57 @@ class HardwareSimulator():
                     pattern_seek = pattern_seek_next
                     j, pattern_seek_next, discard = self.find_next_data_path_index(j+1, [], [], self.data_path)
                     if pattern_ind == len(pattern_nodes):
-                        iters += 1
+                        num_unroll_iterations += 1
                         pattern_ind = 0
                         next_ind = j
-                        if max_iters > 1 and iters+1 == max_iters: 
+                        if max_iters > 1 and num_unroll_iterations+1 == max_iters: 
                             break
-                if iters > 0: pattern_seek = True
+                if num_unroll_iterations > 0: pattern_seek = True
             elif self.unroll_at[cur_node.id]:
+                # unroll the node: find the next node that is not the same as the current node
+                # and count consecutive number of times this node appears in the data path
                 j = next_ind
                 while j+1 < len(self.data_path):
                     next_node_id = self.data_path[j][0]
                     if next_node_id != node_id: break
-                    iters += 1
+                    num_unroll_iterations += 1
                     pattern_seek = pattern_seek_next
                     j, pattern_seek_next, discard = self.find_next_data_path_index(j+1, [], [])
                 next_ind = j
-            # print(pattern_nodes, iters, next_ind)
+
             idx = 0
             while idx < len(pattern_nodes):
-                #print("i: ", i)
                 cur_node = self.id_to_node[pattern_nodes[idx]]
                 mallocs = pattern_mallocs[idx]
                 frees = pattern_frees[idx]
-                #print(mallocs, frees)
                 for malloc in mallocs:
                     self.process_memory_operation(malloc)
+                
                 # try to unroll after pattern_seeking
-                node_iters = iters
+                node_iters = num_unroll_iterations
                 if self.unroll_at[cur_node.id]:
-                    # print(cur_node.id)
                     while idx+1 != len(pattern_nodes) and pattern_nodes[idx+1] == pattern_nodes[idx]:
                         idx += 1
-                        node_iters += iters
+                        node_iters += num_unroll_iterations
                 if self.unroll_at[cur_node.id] or pattern_seek:
                     for _ in range(node_iters):
                         graph = dfg_algo.dfg_per_node(cur_node)
-                        node_ops = schedule.schedule_one_node(graph, cur_node)
-                        # print(node_operations[cur_node], node_ops)
+                        node_ops = schedule.schedule_one_node(graph, cur_node) # cur_node does not get used in this.
                         for k in range(len(node_ops)):
                             node_operations[cur_node][k] = node_operations[cur_node][k] + node_ops[k]
 
                 for state in node_operations[cur_node]:
                     # if unroll, take each operation in a state and create more of them
-                    """if self.unroll_at[cur_node.id] or pattern_seek:
+                    """
+                    if self.unroll_at[cur_node.id] or pattern_seek:
                         print(iters, node_iters, len(state))
                         new_state = state.copy()
                         for op in state:
                             for j in range(node_iters):
                                 new_state.append(op)
-                        state = new_state"""
-                    #print(state)
+                        state = new_state
+                    """
+                    # print(f"state in node_operations[{cur_node}]: {[val.__str__() for val in state]}")
                     #print("new state")
                     hw_need = self.get_hw_need(state, hw)
                     state_graph_viz = gv.Graph()
@@ -374,24 +375,24 @@ class HardwareSimulator():
                         # Path(simulator.path + '/benchmarks/pictures/state_graphs/').mkdir(parents=True, exist_ok=True)
                         # state_graph_viz.render(self.path + '/benchmarks/pictures/state_graphs/' + sys.argv[1][sys.argv[1].rfind('/')+1:] + '_' + str(state_graph_counter), view = True)
                     state_graph_counter += 1
-                    # print(f"needed hardware: {hw_need}")
+                    print(f"needed hardware: {hw_need}\nfor state: {[val.__str__() for val in state]}")
                     # print(f"available hardware: {hw.hw_allocated}")
                     max_cycles = 0
                     for elem in hw_need:
                         latency = hw.latency[elem]
                         if elem == "Regs": latency *= hw.latency_scale[self.find_nearest_mem_to_scale(self.memory_needed)]
-                        cur_elem_count = hw_need[elem]
-                        if cur_elem_count == 0: continue
-                        if hw.hw_allocated[elem] == 0 and cur_elem_count > 0:
+                        num_elem_needed = hw_need[elem]
+                        if num_elem_needed == 0: continue
+                        if hw.hw_allocated[elem] == 0 and num_elem_needed > 0:
                             raise Exception("hardware specification insufficient to run program")
-                        cur_cycles_needed = int(math.ceil(cur_elem_count / hw.hw_allocated[elem]) * latency)
-                        #print("cycles needed for " + elem + ": " + str(cur_cycles_needed) + ' (element count = ' + str(cur_elem_count) + ')')
-                        max_cycles = max(cur_cycles_needed, max_cycles)
+                        cur_cycles_needed = int(math.ceil(num_elem_needed / hw.hw_allocated[elem]) * latency)
+                        #print("cycles needed for " + elem + ": " + str(cur_cycles_needed) + ' (element count = ' + str(num_elem_needed) + ')')
+                        max_cycles = max(cur_cycles_needed, max_cycles) # identify bottleneck element for this node.
                         j = 0
-                        while cur_elem_count > 0:
-                            hw_inuse[elem][j] += latency
+                        while num_elem_needed > 0:
+                            hw_inuse[elem][j] += latency # this keeps getting incremented, never reset.
                             j = (j + 1) % hw.hw_allocated[elem]
-                            cur_elem_count -= 1
+                            num_elem_needed -= 1
                     self.node_avg_power[node_id] += self.cycle_sim(hw_inuse, hw, max_cycles)
                 idx += 1
             
