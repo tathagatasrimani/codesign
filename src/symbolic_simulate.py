@@ -12,6 +12,14 @@ import numpy as np
 import sys
 from sympy import *
 import itertools
+import sympy
+import pyomo.environ as pyo
+from pyomo.core.expr import Expr_if
+import pyomo.core.expr.sympy_tools as sympy_tools
+from pyomo.opt import SolverFactory
+from MyPyomoSympyBimap import MyPyomoSympyBimap
+opt = pyo.SolverFactory('glpk')
+
 
 class SymbolicHardwareSimulator():
 
@@ -141,6 +149,13 @@ class SymbolicHardwareSimulator():
         #print(self.id_to_node)
         return cfg, graphs, node_operations
 
+# creates nested if expression to represent sympy Max function
+def nested_if(x0, xrest):
+    if len(xrest) == 1:
+        return Expr_if(IF=(x0>xrest[0]), THEN=x0, ELSE=xrest[0])
+    else:
+        return Expr_if(IF=(x0>xrest[0]), THEN=nested_if(x0, xrest[1:]), ELSE=nested_if(xrest[0], xrest[1:]))
+
 def main():
     benchmark = sys.argv[1]
     print(benchmark)
@@ -217,13 +232,13 @@ def main():
     
     first = True
     
-    simulator.symbolic_simulate(cfg, node_operations, hw.hw_allocated, first)
+    simulator.symbolic_simulate(cfg, node_operations, symbolic_hw.hw_allocated, first)
     
     node_avg_power = {}
-    for node_id in simulator.node_sum_power:
+    #for node_id in simulator.node_sum_power:
         # node_sum_cycles_is_zero = 0.5 * tanh(node_sum_cycles[node_id]) + 0.5
         # probably node_sum_cycles[node_id] is not zero, because it's the max of all the self.cycles, just divide by it
-        node_avg_power[node_id] = (simulator.node_sum_power[node_id] / simulator.node_sum_cycles[node_id]).simplify()
+        # node_avg_power[node_id] = (simulator.node_sum_power[node_id] / simulator.node_sum_cycles[node_id]).simplify()
 
     total_cycles = 0
     for node_id in simulator.node_sum_cycles:
@@ -235,12 +250,12 @@ def main():
     
     
     delta = 0.1
-    
+    print("total cycles:", total_cycles)
     expr_symbols = {}
     for s in total_cycles.free_symbols:
         if "latency" in s.name:
             expr_symbols[s] = hardwareModel.latency[simulator.transistor_size][s.name.split('_')[1]]
-        else:
+        elif "power" in s.name:
             expr_symbols[s] = hardwareModel.dynamic_power[simulator.transistor_size][s.name.split('_')[1]][int(s.name.split('_')[2])]
     print("expr_symbols", expr_symbols)
     
@@ -255,15 +270,46 @@ def main():
     
     expr_symbols = {}
     cnt=0
+    free_symbols = []
+    mapping = {}
     for s in total_cycles.free_symbols:
-        if s.name == 'latency_Regs':
+        free_symbols.append(s)
+        if s.name == 'latency_Add':
             continue
         if s.name == 'latency_Mult':
             continue
         if "latency" in s.name:
             expr_symbols[s] = hardwareModel.latency[simulator.transistor_size][s.name.split('_')[1]]
-        else:
+        elif "power" in s.name:
             expr_symbols[s] = hardwareModel.dynamic_power[simulator.transistor_size][s.name.split('_')[1]][int(s.name.split('_')[2])]
+        else:
+            expr_symbols[s] = hw.hw_allocated[s.name]
+
+    expr_symbols_with_2_symbols = total_cycles.subs(expr_symbols)
+
+    model = pyo.ConcreteModel()
+    model.nVars = pyo.Param(initialize=len(total_cycles.free_symbols))
+    model.N = pyo.RangeSet(model.nVars)
+    model.x = pyo.Var(model.N, domain=pyo.NonNegativeReals)
+    i = 0
+    for j in model.x:
+        mapping[free_symbols[i]] = j
+        print(j, free_symbols[i])
+        i += 1
+
+    m = MyPyomoSympyBimap()
+    for symbol in total_cycles.free_symbols:
+        m.sympy2pyomo[symbol] = model.x[mapping[symbol]]
+    sympy_tools._operatorMap.update({sympy.Max: lambda x: nested_if(x[0], x[1:])})
+    #print(mapping.sympyVars())
+    py_exp = sympy_tools.sympy2pyomo_expression(total_cycles, m)
+    print(py_exp)
+    model.obj = pyo.Objective(expr=py_exp)
+    model.cuts = pyo.ConstraintList()
+    model.Constraint = pyo.Constraint( expr= py_exp >= 1)
+    opt = SolverFactory('mindtpy')
+    results = opt.solve(model, mip_solver='glpk', nlp_solver='ipopt')  
+    model.display()
 
     # print("only keep 2 variables ", expr_symbols_with_cost.subs(expr_symbols))
     expr_symbols_with_2_symbols = total_cycles.subs(expr_symbols)
@@ -279,8 +325,8 @@ def main():
     print(lam)
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
-    x = np.linspace(-6, 6, 30)
-    y = np.linspace(-6, 6, 30)
+    x = np.linspace(1, 7, 30)
+    y = np.linspace(1, 7, 30)
 
     points = list(itertools.product(x,y))
     x_new = list(map(lambda p: p[0], points))
@@ -290,7 +336,7 @@ def main():
     ax.scatter(x_new, y_new, Z)
     plt.xlabel(symbol_list[0])
     plt.ylabel(symbol_list[1])
-    ax.set_zlabel("delay")
+    ax.set_zlabel("total program cycles")
     plt.show()
     plt.savefig("plot.png")
     print("total_cycles:", total_cycles)

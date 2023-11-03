@@ -12,9 +12,9 @@ def main():
     print(3, 7)
     b_1 = 3
     print(3, 8)
-    c_1 = b_1 * a_1
+    c_1 = b_1 + a_1
     print(3, 9)
-    d_1 = b_1 + a_1
+    d_1 = b_1 * a_1
     print('exit scope 1')
 
 

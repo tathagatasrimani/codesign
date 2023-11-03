@@ -48,7 +48,7 @@ def main():
     else:
         print('malloc', sys.getsizeof(b_1), 'b_1')
     print(3, 8)
-    c_1 = instrument_read(b_1, 'b_1') * instrument_read(a_1, 'a_1')
+    c_1 = instrument_read(b_1, 'b_1') + instrument_read(a_1, 'a_1')
     write_instrument_read(c_1, 'c_1')
     if type(c_1) == np.ndarray:
         print('malloc', sys.getsizeof(c_1), 'c_1', c_1.shape)
@@ -67,7 +67,7 @@ def main():
     else:
         print('malloc', sys.getsizeof(c_1), 'c_1')
     print(3, 9)
-    d_1 = instrument_read(b_1, 'b_1') + instrument_read(a_1, 'a_1')
+    d_1 = instrument_read(b_1, 'b_1') * instrument_read(a_1, 'a_1')
     write_instrument_read(d_1, 'd_1')
     if type(d_1) == np.ndarray:
         print('malloc', sys.getsizeof(d_1), 'd_1', d_1.shape)
