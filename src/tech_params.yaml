@@ -75,30 +75,30 @@ area: # nm^2
     UAdd: 379.6992
     USub: 282.9312
   40: # nm^2
-    Add: 1.794430e+05
-    Sub: 1.794430e+05
-    And: 5.036996e+04
-    BitAnd: 5.036996e+04
-    BitOr: 5.036996e+04
-    BitXor: 5.036996e+04
-    Eq: 1.794430e+05 # use add, unsure about this.
-    FloorDiv: 4.595000e+06
-    Gt: 1.794430e+05 # use add, unsure about this.
-    GtE: 1.794430e+05 # use add, unsure about this.
-    Invert: 5.036996e+04
-    IsNot: 5.036996e+04
-    LShift: 2.496461e+05
-    Lt: 1.794430e+05 # use add, unsure about this.
-    LtE: 1.794430e+05 # use add, unsure about this.
-    Mod: 1.794430e+05 # use add, unsure about this.
-    Mult: 4.595000e+06
-    Not: 5.036996e+04
-    NotEq: 1.794430e+05 # use add, unsure about this.
-    Or: 5.036996e+04
-    RShift: 2.496461e+05
-    Regs: 5.981433e+02
-    UAdd: 1.794430e+05 # use add, unsure about this.
-    USub: 1.794430e+05 # use add, unsure about this.
+    Add: 3.793488e+08 # 0.5 ns
+    Sub: 3.793488e+08
+    And: 5.036996e+07
+    BitAnd: 5.036996e+07
+    BitOr: 5.036996e+07
+    BitXor: 5.036996e+07
+    Eq: 3.793488e+08 # use add, unsure about this.
+    FloorDiv:  8.340007e+09
+    Gt: 3.793488e+08 # use add, unsure about this.
+    GtE: 3.793488e+08 # use add, unsure about this.
+    Invert: 5.036996e+07
+    IsNot: 5.036996e+07
+    LShift: 2.496461e+07
+    Lt: 3.793488e+08 # use add, unsure about this.
+    LtE: 3.793488e+08 # use add, unsure about this.
+    Mod: 3.793488e+08 # use add, unsure about this.
+    Mult: 8.340007e+09 # 3 stage, 0.5 ns
+    Not: 5.036996e+07
+    NotEq: 3.793488e+08 # use add, unsure about this.
+    Or: 5.036996e+07
+    RShift: 2.496461e+07
+    Regs: 5.981433e+06
+    UAdd: 3.793488e+08 # use add, unsure about this.
+    USub: 3.793488e+08 # use add, unsure about this.
 dynamic_power: # nw
   3:
     Add: 28.6781376
@@ -176,30 +176,30 @@ dynamic_power: # nw
     UAdd: 49.728
     USub: 56.896
   40:
-    Add: 1.427760e-02
-    Sub: 1.427760e-02
-    And:  3.003348e-03
-    BitAnd: 3.003348e-03
-    BitOr:  3.003348e-03
-    BitXor:  3.003348e-03
-    Eq: 1.427760e-02 # use add, unsure about this.
-    FloorDiv:  1.438864e+00
-    Gt: 1.427760e-02 # use add, unsure about this.
-    GtE: 1.427760e-02 # use add, unsure about this.
-    Invert:  3.003348e-03
-    IsNot:  3.003348e-03
-    LShift: 6.963903e-02
-    Lt: 1.427760e-02 # use add, unsure about this.
-    LtE: 1.427760e-02 # use add, unsure about this.
-    Mod: 1.427760e-02 # use add, unsure about this.
-    Mult: 1.438864e+00
-    Not:  3.003348e-03
-    NotEq: 1.427760e-02 # use add, unsure about this.
-    Or:  3.003348e-03
-    RShift: 6.963903e-02
-    Regs: 1.501882e-03
-    UAdd: 1.427760e-02 # use add, unsure about this.
-    USub: 1.427760e-02 # use add, unsure about this.
+    Add: 2.836642e+05
+    Sub: 2.836642e+05
+    And:  1.805590e+04
+    BitAnd: 1.805590e+04
+    BitOr:  1.805590e+04
+    BitXor:  1.805590e+04
+    Eq: 2.836642e+05 # use add, unsure about this.
+    FloorDiv: 1.262844e+07
+    Gt: 2.836642e+05 # use add, unsure about this.
+    GtE: 2.836642e+05 # use add, unsure about this.
+    Invert: 1.805590e+04
+    IsNot:  1.805590e+04
+    LShift: 4.172512e+05
+    Lt: 2.836642e+05 # use add, unsure about this.
+    LtE: 2.836642e+05 # use add, unsure about this.
+    Mod: 2.836642e+05 # use add, unsure about this.
+    Mult: 1.262844e+07
+    Not:  1.805590e+04
+    NotEq: 2.836642e+05 # use add, unsure about this.
+    Or:  1.805590e+04
+    RShift: 4.172512e+05
+    Regs: 8.999495e+03
+    UAdd: 2.836642e+05 # use add, unsure about this.
+    USub: 2.836642e+05 # use add, unsure about this.
 latency: # num cycles
   3:
     Add: 12.755
@@ -400,30 +400,30 @@ leakage_power:
     UAdd: 2986.666667
     USub: 3413.333333
   40:
-    Add: 2.380803e-03
-    Sub: 2.380803e-03
-    And: 6.111633e-04
-    BitAnd: 6.111633e-04
-    BitOr: 6.111633e-04
-    BitXor: 6.111633e-04
-    Eq: 2.380803e-03 # use add, unsure about this.
-    FloorDiv: 4.817683e-02
-    Gt: 2.380803e-03 # use add, unsure about this.
-    GtE: 2.380803e-03 # use add, unsure about this.
-    Invert: 6.111633e-04
-    IsNot: 6.111633e-04
-    LShift: 1.695794e-03
-    Lt: 2.380803e-03 # use add, unsure about this.
-    LtE: 2.380803e-03 # use add, unsure about this.
-    Mod: 2.380803e-03 # use add, unsure about this.
-    Mult: 4.817683e-02
-    Not: 6.111633e-04
-    NotEq: 2.380803e-03 # use add, unsure about this.
-    Or: 6.111633e-04
-    RShift: 1.695794e-03
-    Regs: 7.395312e-05
-    UAdd: 2.380803e-03 # use add, unsure about this.
-    USub: 2.380803e-03 # use add, unsure about this.
+    Add: 3.265969e+03
+    Sub: 3.265969e+03
+    And: 6.111633e+02
+    BitAnd: 6.111633e+02
+    BitOr: 6.111633e+02
+    BitXor: 6.111633e+02
+    Eq: 3.265969e+03 # use add, unsure about this.
+    FloorDiv: 1.086401e+05
+    Gt: 3.265969e+03 # use add, unsure about this.
+    GtE: 3.265969e+03 # use add, unsure about this.
+    Invert: 6.111633e+02
+    IsNot: 6.111633e+02
+    LShift: 1.697876e+03
+    Lt: 3.265969e+03 # use add, unsure about this.
+    LtE: 3.265969e+03 # use add, unsure about this.
+    Mod: 3.265969e+03 # use add, unsure about this.
+    Mult: 1.086401e+05
+    Not: 6.111633e+02
+    NotEq: 3.265969e+03 # use add, unsure about this.
+    Or: 6.111633e+02
+    RShift: 1.697876e+03
+    Regs: 7.395312e+01
+    UAdd: 3.265969e+03 # use add, unsure about this.
+    USub: 3.265969e+03 # use add, unsure about this.
 mem_area: # units?
   3:
     1:
