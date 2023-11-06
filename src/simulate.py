@@ -239,7 +239,7 @@ class HardwareSimulator():
         while len(self.data_path[i]) != 2:
             if len(self.data_path[i]) == 0: break
             elif len(self.data_path[i]) == 1:
-                if self.data_path[i][0].startswith("pattern_seek"): 
+                if self.data_path[i][0].startswith("pattern_seek"):
                     pattern_seek = True
                     max_iters = int(self.data_path[i][0][self.data_path[i][0].rfind('_')+1:])
             if self.data_path[i][0] == "malloc": mallocs.append(self.data_path[i])
@@ -286,7 +286,7 @@ class HardwareSimulator():
                     next_node_id = self.data_path[j][0]
                     pattern_nodes.append(next_node_id)
                     pattern_seek = pattern_seek_next
-                    j, pattern_seek_next, discard = self.find_next_data_path_index(j+1, other_mallocs, other_frees, self.data_path)
+                    j, pattern_seek_next, discard = self.find_next_data_path_index(j+1, other_mallocs, other_frees)
                     pattern_frees.append(other_frees)
                     pattern_mallocs.append(other_mallocs)
                     other_frees = []
@@ -302,7 +302,7 @@ class HardwareSimulator():
                     if next_node_id != pattern_nodes[pattern_ind]: break
                     pattern_ind += 1
                     pattern_seek = pattern_seek_next
-                    j, pattern_seek_next, discard = self.find_next_data_path_index(j+1, [], [], self.data_path)
+                    j, pattern_seek_next, discard = self.find_next_data_path_index(j+1, [], [])
                     if pattern_ind == len(pattern_nodes):
                         num_unroll_iterations += 1
                         pattern_ind = 0
@@ -375,7 +375,7 @@ class HardwareSimulator():
                         # Path(simulator.path + '/benchmarks/pictures/state_graphs/').mkdir(parents=True, exist_ok=True)
                         # state_graph_viz.render(self.path + '/benchmarks/pictures/state_graphs/' + sys.argv[1][sys.argv[1].rfind('/')+1:] + '_' + str(state_graph_counter), view = True)
                     state_graph_counter += 1
-                    print(f"needed hardware: {hw_need}\nfor state: {[val.__str__() for val in state]}")
+                    # print(f"needed hardware: {hw_need}\nfor state: {[val.__str__() for val in state]}")
                     # print(f"available hardware: {hw.hw_allocated}")
                     max_cycles = 0
                     for elem in hw_need:
@@ -476,9 +476,9 @@ class HardwareSimulator():
                     if item[2] in self.vars_allocated:
                         if int(item[1]) == self.vars_allocated[item[2]]: 
                             continue
-                        else: 
-                            f_new.write("free " + str(self.vars_allocated[item[2]]) + " " + var_name + "\n")
-                            f_new.write(l[i] + '\n')
+                        # else: 
+                            # f_new.write("free " + str(self.vars_allocated[item[2]]) + " " + var_name + "\n")
+                            # f_new.write(l[i] + '\n')
                         self.cur_memory_size -= int(self.vars_allocated[item[2]])
                     self.data_path.append(item)
                     self.vars_allocated[item[2]] = int(item[1])
