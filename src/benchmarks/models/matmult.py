@@ -8,7 +8,7 @@ def main():
 
     boolean = True
 
-    loop().pattern_seek()
+    # loop().pattern_seek()
     for i in range(3):
         for j in range(3):
             loop.start_unroll
