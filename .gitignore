@@ -3,6 +3,8 @@
 src/benchmarks/pictures/**
 src/benchmarks/power_plots/**
 src/benchmarks/json_data/**
+
 src/instrumented_files/output*
 src/instrumented_files/xformedpre*
 src/instrumented_files/xformedname*
+src/instrumented_files/*
