@@ -1,4 +1,4 @@
-area:
+area: # nm^2
   3:
     Add: 91.8111744
     And: 149.0576472
@@ -74,6 +74,31 @@ area:
     Sub: 379.6992
     UAdd: 379.6992
     USub: 282.9312
+  40: # nm^2
+    Add: 1.794430e+05
+    Sub: 1.794430e+05
+    And: 5.036996e+04
+    BitAnd: 5.036996e+04
+    BitOr: 5.036996e+04
+    BitXor: 5.036996e+04
+    Eq: 1.794430e+05 # use add, unsure about this.
+    FloorDiv: 4.595000e+06
+    Gt: 1.794430e+05 # use add, unsure about this.
+    GtE: 1.794430e+05 # use add, unsure about this.
+    Invert: 5.036996e+04
+    IsNot: 5.036996e+04
+    LShift: 2.496461e+05
+    Lt: 1.794430e+05 # use add, unsure about this.
+    LtE: 1.794430e+05 # use add, unsure about this.
+    Mod: 1.794430e+05 # use add, unsure about this.
+    Mult: 4.595000e+06
+    Not: 5.036996e+04
+    NotEq: 1.794430e+05 # use add, unsure about this.
+    Or: 5.036996e+04
+    RShift: 2.496461e+05
+    Regs: 5.981433e+02
+    UAdd: 1.794430e+05 # use add, unsure about this.
+    USub: 1.794430e+05 # use add, unsure about this.
 dynamic_power: # nw
   3:
     Add: 28.6781376
@@ -150,6 +175,31 @@ dynamic_power: # nw
     Sub: 56.896
     UAdd: 49.728
     USub: 56.896
+  40:
+    Add: 1.427760e-02
+    Sub: 1.427760e-02
+    And:  3.003348e-03
+    BitAnd: 3.003348e-03
+    BitOr:  3.003348e-03
+    BitXor:  3.003348e-03
+    Eq: 1.427760e-02 # use add, unsure about this.
+    FloorDiv:  1.438864e+00
+    Gt: 1.427760e-02 # use add, unsure about this.
+    GtE: 1.427760e-02 # use add, unsure about this.
+    Invert:  3.003348e-03
+    IsNot:  3.003348e-03
+    LShift: 6.963903e-02
+    Lt: 1.427760e-02 # use add, unsure about this.
+    LtE: 1.427760e-02 # use add, unsure about this.
+    Mod: 1.427760e-02 # use add, unsure about this.
+    Mult: 1.438864e+00
+    Not:  3.003348e-03
+    NotEq: 1.427760e-02 # use add, unsure about this.
+    Or:  3.003348e-03
+    RShift: 6.963903e-02
+    Regs: 1.501882e-03
+    UAdd: 1.427760e-02 # use add, unsure about this.
+    USub: 1.427760e-02 # use add, unsure about this.
 latency: # num cycles
   3:
     Add: 12.755
@@ -226,6 +276,31 @@ latency: # num cycles
     Sub: 16.175
     UAdd: 16
     USub: 16.175
+  40:
+    Add: 10.5
+    Sub: 10.5
+    And: 0.36
+    BitAnd: 0.36
+    BitOr: 0.36
+    BitXor: 0.36
+    Eq: 10.5 # use add, unsure about this.
+    FloorDiv: 25.02
+    Gt: 10.5 # use add, unsure about this.
+    GtE: 10.5 # use add, unsure about this.
+    Invert: 0.36
+    IsNot: 0.36
+    LShift: 4.2 # this is higher than for the other params.
+    Lt: 10.5 # use add, unsure about this.
+    LtE: 10.5 # use add, unsure about this.
+    Mod: 10.5 # use add, unsure about this.
+    Mult: 25.02
+    Not: 0.36
+    NotEq: 10.5 # use add, unsure about this.
+    Or: 0.36
+    RShift: 4.2 # this is higher than for the other params.
+    Regs: 2
+    UAdd: 10.5 # use add, unsure about this.
+    USub: 10.5 # use add, unsure about this.
 latency_scale:
   512: 1
   1024: 2
@@ -324,7 +399,32 @@ leakage_power:
     Sub: 3413.333333
     UAdd: 2986.666667
     USub: 3413.333333
-mem_area:
+  40:
+    Add: 2.380803e-03
+    Sub: 2.380803e-03
+    And: 6.111633e-04
+    BitAnd: 6.111633e-04
+    BitOr: 6.111633e-04
+    BitXor: 6.111633e-04
+    Eq: 2.380803e-03 # use add, unsure about this.
+    FloorDiv: 4.817683e-02
+    Gt: 2.380803e-03 # use add, unsure about this.
+    GtE: 2.380803e-03 # use add, unsure about this.
+    Invert: 6.111633e-04
+    IsNot: 6.111633e-04
+    LShift: 1.695794e-03
+    Lt: 2.380803e-03 # use add, unsure about this.
+    LtE: 2.380803e-03 # use add, unsure about this.
+    Mod: 2.380803e-03 # use add, unsure about this.
+    Mult: 4.817683e-02
+    Not: 6.111633e-04
+    NotEq: 2.380803e-03 # use add, unsure about this.
+    Or: 6.111633e-04
+    RShift: 1.695794e-03
+    Regs: 7.395312e-05
+    UAdd: 2.380803e-03 # use add, unsure about this.
+    USub: 2.380803e-03 # use add, unsure about this.
+mem_area: # units?
   3:
     1:
       1:
@@ -523,7 +623,24 @@ mem_area:
         1: 40.73
         10: 43.72
         100: 69.6
+  40:
+    1:
+      1:
+        100: 100
+    2:
+      1:
+        100: 200
+    4:
+      1:
+        100: 400
+    8:
+      1:
+        100: 800
+    16:
+      1:
+        100: 1600
 
+    
 mem_dynamic_power: # (units of nw) queried by (cache_size, mem_layers, pitch)
   1:
     1:
@@ -590,7 +707,7 @@ mem_dynamic_power: # (units of nw) queried by (cache_size, mem_layers, pitch)
       1: 0.024
       10: 0.024
       100: 0.786
-mem_latency:
+mem_latency: # num cycles
   1:
     1:
       100: 21.325

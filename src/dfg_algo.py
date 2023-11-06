@@ -370,7 +370,6 @@ def main_fn(path_in, benchmark_in):
                 if len(cur_node.children) == 0: break
                 cur_node = cur_node.children[0]
             #print('')
-    print(f"node_to_unroll: {node_to_unroll}")
     return cfg, graphs, node_to_unroll
 
 if __name__ == "__main__":

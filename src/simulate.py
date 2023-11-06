@@ -485,10 +485,10 @@ class HardwareSimulator():
                     #print(self.vars_allocated)
                     self.cur_memory_size += int(item[1])
                     self.memory_needed = max(self.memory_needed, self.cur_memory_size)
-        print(f"data_path: {self.data_path}")
+        # print(f"data_path: {self.data_path}")
         self.nvm_memory_needed = sum(nvm_vars.values())
-        print("memory needed: ", self.memory_needed)
-        print("nvm memory needed: ", self.nvm_memory_needed)
+        print(f"memory needed: {self.memory_needed} bytes")
+        print(f"nvm memory needed: {self.nvm_memory_needed} bytes")
 
     def simulator_prep(self, benchmark):
         cfg, graphs, self.unroll_at = dfg_algo.main_fn(self.path, benchmark)
@@ -516,12 +516,12 @@ def main():
     else: 
         simulator.cache_size = 16
 
-    hw = HardwareModel(cfg='big')
+    hw = HardwareModel(cfg='aladdin')
 
     area = 0
     for key in hw.hw_allocated:
         area += hw.hw_allocated[key] * hw.area[key]
-    print("compute area: ", area)
+    print(f"compute area: {area} nm^2")
 
     new_gv_graph = gv.Graph()
     simulator.new_graph = dfg_algo.Graph(set(), {}, new_gv_graph)
@@ -536,7 +536,8 @@ def main():
     
     data = simulator.simulate(cfg, node_operations, hw, graphs, True)
     print("total number of cycles: ", simulator.cycles)
-    print("total energy (nJ): ", sum(simulator.power_use))
+    print(f"Avg Power: {sum(simulator.power_use) / simulator.cycles} nW")
+    # print(f"total energy {sum(simulator.power_use)} nJ")
     print("total volatile reads: ", simulator.reads)
     print("total volatile read size: ", simulator.total_read_size)
     print("total nvm reads: ", simulator.nvm_reads)
@@ -545,7 +546,7 @@ def main():
     print("total write size: ", simulator.total_write_size)
     print("total compute element usage: ", hw.compute_operation_totals)
     print("max regs in use: ", simulator.max_regs_inuse)
-    print("max memory in use: ", simulator.max_mem_inuse)
+    print(f"max memory in use: {simulator.max_mem_inuse} bytes")
     names = args.benchmark.split('/')
     if not args.notrace:
         text = json.dumps(data, indent=4)
