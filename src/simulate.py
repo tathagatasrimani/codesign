@@ -76,7 +76,7 @@ class HardwareSimulator():
         target.parents.append(source)
 
     def get_hw_need(self, state, hw_spec):
-        hw_need = HardwareModel(0,0,self.mem_layers, self.pitch, self.transistor_size, self.cache_size)
+        hw_need = HardwareModel(id=0,bandwidth=0,mem_layers=self.mem_layers, pitch=self.pitch, transistor_size=self.transistor_size,cache_size= self.cache_size)
         mem_in_use = 0
         for op in state:
             if not op.operation: continue
@@ -116,11 +116,12 @@ class HardwareSimulator():
                     self.power_use[self.cycles] += hw.leakage_power[elem] * len(hw_inuse[elem]) # passive power
                     cur_data += str(count) + "/" + str(len(hw_inuse[elem])) + " in use. || "
             self.data[self.cycles] = cur_data
+
             # simulate one cycle
             for elem in hw_inuse:
                 for j in range(len(hw_inuse[elem])):
                     if hw_inuse[elem][j] > 0:
-                        hw_inuse[elem][j] = max(0, hw_inuse[elem][j] - 1)
+                        hw_inuse[elem][j] = max(0, hw_inuse[elem][j] - 1) #decrement hw in use?
             node_power_sum += self.power_use[self.cycles]
             self.cycles += 1
         return node_power_sum
@@ -198,7 +199,7 @@ class HardwareSimulator():
             if child.operation == "Regs":
                 mem_in_use += self.process_compute_element_neighbor(op, child, graph, op_node, ast.Store, check_duplicate)
         return mem_in_use
-                
+
     def get_dims(self, arr):
         dims = []
         if arr[0][0] == '(': # processing tuple
@@ -238,7 +239,7 @@ class HardwareSimulator():
         while len(self.data_path[i]) != 2:
             if len(self.data_path[i]) == 0: break
             elif len(self.data_path[i]) == 1:
-                if self.data_path[i][0].startswith("pattern_seek"): 
+                if self.data_path[i][0].startswith("pattern_seek"):
                     pattern_seek = True
                     max_iters = int(self.data_path[i][0][self.data_path[i][0].rfind('_')+1:])
             if self.data_path[i][0] == "malloc": mallocs.append(self.data_path[i])
@@ -256,27 +257,26 @@ class HardwareSimulator():
         hw_inuse = {}
         for elem in hw.hw_allocated:
             hw_inuse[elem] = [0] * hw.hw_allocated[elem]
-        #print(hw_inuse)
         i = 0
         frees = []
         mallocs = []
-        #print(self.data_path)
+
         i, pattern_seek, max_iters = self.find_next_data_path_index(i, mallocs, frees)
         while i < len(self.data_path):
             next_ind, pattern_seek_next, max_iters_next = self.find_next_data_path_index(i+1, mallocs, frees)
             if i == len(self.data_path): break
+
+            # init vars for new node in cfg data path
             node_id = self.data_path[i][0]
-            #print(node_id, self.memory_module.locations)
-            #print(i)
             cur_node = self.id_to_node[node_id]
             self.node_intervals.append([node_id, [self.cycles, 0]])
             self.node_avg_power[node_id] = 0 # just reset because we will end up overwriting it
             start_cycles = self.cycles # for calculating average power
-            iters = 0
+            num_unroll_iterations = 0
             pattern_nodes = [node_id]
             pattern_mallocs, pattern_frees = [mallocs],  [frees]
-            #print(pattern_seek)
             other_mallocs, other_frees = [], []
+
             if pattern_seek: 
                 #print("entering pattern seek")
                 pattern_seek = False
@@ -286,7 +286,7 @@ class HardwareSimulator():
                     next_node_id = self.data_path[j][0]
                     pattern_nodes.append(next_node_id)
                     pattern_seek = pattern_seek_next
-                    j, pattern_seek_next, discard = self.find_next_data_path_index(j+1, other_mallocs, other_frees, self.data_path)
+                    j, pattern_seek_next, discard = self.find_next_data_path_index(j+1, other_mallocs, other_frees)
                     pattern_frees.append(other_frees)
                     pattern_mallocs.append(other_mallocs)
                     other_frees = []
@@ -302,58 +302,59 @@ class HardwareSimulator():
                     if next_node_id != pattern_nodes[pattern_ind]: break
                     pattern_ind += 1
                     pattern_seek = pattern_seek_next
-                    j, pattern_seek_next, discard = self.find_next_data_path_index(j+1, [], [], self.data_path)
+                    j, pattern_seek_next, discard = self.find_next_data_path_index(j+1, [], [])
                     if pattern_ind == len(pattern_nodes):
-                        iters += 1
+                        num_unroll_iterations += 1
                         pattern_ind = 0
                         next_ind = j
-                        if max_iters > 1 and iters+1 == max_iters: 
+                        if max_iters > 1 and num_unroll_iterations+1 == max_iters: 
                             break
-                if iters > 0: pattern_seek = True
+                if num_unroll_iterations > 0: pattern_seek = True
             elif self.unroll_at[cur_node.id]:
+                # unroll the node: find the next node that is not the same as the current node
+                # and count consecutive number of times this node appears in the data path
                 j = next_ind
                 while j+1 < len(self.data_path):
                     next_node_id = self.data_path[j][0]
                     if next_node_id != node_id: break
-                    iters += 1
+                    num_unroll_iterations += 1
                     pattern_seek = pattern_seek_next
                     j, pattern_seek_next, discard = self.find_next_data_path_index(j+1, [], [])
                 next_ind = j
-            # print(pattern_nodes, iters, next_ind)
-            i = 0
-            while i < len(pattern_nodes):
-                #print("i: ", i)
-                cur_node = self.id_to_node[pattern_nodes[i]]
-                mallocs = pattern_mallocs[i]
-                frees = pattern_frees[i]
-                #print(mallocs, frees)
+
+            idx = 0
+            while idx < len(pattern_nodes):
+                cur_node = self.id_to_node[pattern_nodes[idx]]
+                mallocs = pattern_mallocs[idx]
+                frees = pattern_frees[idx]
                 for malloc in mallocs:
                     self.process_memory_operation(malloc)
+                
                 # try to unroll after pattern_seeking
-                node_iters = iters
+                node_iters = num_unroll_iterations
                 if self.unroll_at[cur_node.id]:
-                    # print(cur_node.id)
-                    while i+1 != len(pattern_nodes) and pattern_nodes[i+1] == pattern_nodes[i]:
-                        i += 1
-                        node_iters += iters
+                    while idx+1 != len(pattern_nodes) and pattern_nodes[idx+1] == pattern_nodes[idx]:
+                        idx += 1
+                        node_iters += num_unroll_iterations
                 if self.unroll_at[cur_node.id] or pattern_seek:
-                    for i in range(node_iters):
+                    for _ in range(node_iters):
                         graph = dfg_algo.dfg_per_node(cur_node)
-                        node_ops = schedule.schedule_one_node(graph, cur_node)
-                        # print(node_operations[cur_node], node_ops)
-                        for i in range(len(node_ops)):
-                            node_operations[cur_node][i] = node_operations[cur_node][i] + node_ops[i]
+                        node_ops = schedule.schedule_one_node(graph, cur_node) # cur_node does not get used in this.
+                        for k in range(len(node_ops)):
+                            node_operations[cur_node][k] = node_operations[cur_node][k] + node_ops[k]
 
                 for state in node_operations[cur_node]:
                     # if unroll, take each operation in a state and create more of them
-                    """if self.unroll_at[cur_node.id] or pattern_seek:
+                    """
+                    if self.unroll_at[cur_node.id] or pattern_seek:
                         print(iters, node_iters, len(state))
                         new_state = state.copy()
                         for op in state:
                             for j in range(node_iters):
                                 new_state.append(op)
-                        state = new_state"""
-                    #print(state)
+                        state = new_state
+                    """
+                    # print(f"state in node_operations[{cur_node}]: {[val.__str__() for val in state]}")
                     #print("new state")
                     hw_need = self.get_hw_need(state, hw)
                     state_graph_viz = gv.Graph()
@@ -374,25 +375,27 @@ class HardwareSimulator():
                         # Path(simulator.path + '/benchmarks/pictures/state_graphs/').mkdir(parents=True, exist_ok=True)
                         # state_graph_viz.render(self.path + '/benchmarks/pictures/state_graphs/' + sys.argv[1][sys.argv[1].rfind('/')+1:] + '_' + str(state_graph_counter), view = True)
                     state_graph_counter += 1
-                    #print(hw_need)
+                    # print(f"needed hardware: {hw_need}\nfor state: {[val.__str__() for val in state]}")
+                    # print(f"available hardware: {hw.hw_allocated}")
                     max_cycles = 0
                     for elem in hw_need:
                         latency = hw.latency[elem]
                         if elem == "Regs": latency *= hw.latency_scale[self.find_nearest_mem_to_scale(self.memory_needed)]
-                        cur_elem_count = hw_need[elem]
-                        if cur_elem_count == 0: continue
-                        if hw.hw_allocated[elem] == 0 and cur_elem_count > 0:
+                        num_elem_needed = hw_need[elem]
+                        if num_elem_needed == 0: continue
+                        if hw.hw_allocated[elem] == 0 and num_elem_needed > 0:
                             raise Exception("hardware specification insufficient to run program")
-                        cur_cycles_needed = int(math.ceil(cur_elem_count / hw.hw_allocated[elem]) * latency)
-                        #print("cycles needed for " + elem + ": " + str(cur_cycles_needed) + ' (element count = ' + str(cur_elem_count) + ')')
-                        max_cycles = max(cur_cycles_needed, max_cycles)
+                        cur_cycles_needed = int(math.ceil(num_elem_needed / hw.hw_allocated[elem]) * latency)
+                        #print("cycles needed for " + elem + ": " + str(cur_cycles_needed) + ' (element count = ' + str(num_elem_needed) + ')')
+                        max_cycles = max(cur_cycles_needed, max_cycles) # identify bottleneck element for this node.
                         j = 0
-                        while cur_elem_count > 0:
-                            hw_inuse[elem][j] += latency
+                        while num_elem_needed > 0:
+                            hw_inuse[elem][j] += latency # this keeps getting incremented, never reset.
                             j = (j + 1) % hw.hw_allocated[elem]
-                            cur_elem_count -= 1
+                            num_elem_needed -= 1
                     self.node_avg_power[node_id] += self.cycle_sim(hw_inuse, hw, max_cycles)
-                i += 1
+                idx += 1
+            
             if self.cycles - start_cycles > 0: self.node_avg_power[node_id] /= self.cycles - start_cycles
             self.node_intervals[-1][1][1] = self.cycles
             for free in frees:
@@ -411,7 +414,7 @@ class HardwareSimulator():
 
     def set_data_path(self):
         with open(self.path + '/instrumented_files/output.txt', 'r') as f:
-            f_new = open(self.path + '/instrumented_files/output_free.txt', 'w+')
+            # f_new = open(self.path + '/instrumented_files/output_free.txt', 'w+')
             src = f.read()
             l = src.split('\n')
             split_lines = [l_.split() for l_ in l] # idk what's happening here.
@@ -420,6 +423,8 @@ class HardwareSimulator():
             last_node = '-1'
             valid_names = set()
             nvm_vars = {}
+
+            # count reads and writes on first pass.
             for i in range(len(split_lines)):
                 item = split_lines[i]
                 if len(item) < 2: continue
@@ -445,16 +450,16 @@ class HardwareSimulator():
                     self.total_write_size += int(item[-1])
                     self.where_to_free[var_name] = i
 
-
+            # second pass, construct trace that simulator follows.
             for i in range(len(split_lines)):
                 item = split_lines[i]
-                if not (len(item) >= 3 and item[0] == "malloc" and item[2] not in self.vars_allocated):
-                    f_new.write(l[i] + '\n')
+                # if not (len(item) >= 3 and item[0] == "malloc" and item[2] not in self.vars_allocated):
+                #     f_new.write(l[i] + '\n')
                 vars_to_pop = []
                 for var_name in self.where_to_free:
                     if self.where_to_free[var_name] == i:
                         var_size = self.vars_allocated[var_name]
-                        f_new.write("free " + str(var_size) + " " + var_name + "\n")
+                        # f_new.write("free " + str(var_size) + " " + var_name + "\n")
                         self.data_path.append(["free", str(var_size), var_name])
                         vars_to_pop.append(var_name)
                         self.cur_memory_size -= var_size
@@ -471,9 +476,9 @@ class HardwareSimulator():
                     if item[2] in self.vars_allocated:
                         if int(item[1]) == self.vars_allocated[item[2]]: 
                             continue
-                        else: 
-                            f_new.write("free " + str(self.vars_allocated[item[2]]) + " " + var_name + "\n")
-                            f_new.write(l[i] + '\n')
+                        # else: 
+                            # f_new.write("free " + str(self.vars_allocated[item[2]]) + " " + var_name + "\n")
+                            # f_new.write(l[i] + '\n')
                         self.cur_memory_size -= int(self.vars_allocated[item[2]])
                     self.data_path.append(item)
                     self.vars_allocated[item[2]] = int(item[1])
@@ -482,8 +487,8 @@ class HardwareSimulator():
                     self.memory_needed = max(self.memory_needed, self.cur_memory_size)
         # print(f"data_path: {self.data_path}")
         self.nvm_memory_needed = sum(nvm_vars.values())
-        print("memory needed: ", self.memory_needed)
-        print("nvm memory needed: ", self.nvm_memory_needed)
+        print(f"memory needed: {self.memory_needed} bytes")
+        print(f"nvm memory needed: {self.nvm_memory_needed} bytes")
 
     def simulator_prep(self, benchmark):
         cfg, graphs, self.unroll_at = dfg_algo.main_fn(self.path, benchmark)
@@ -510,36 +515,13 @@ def main():
         simulator.cache_size = 8
     else: 
         simulator.cache_size = 16
-    hw = HardwareModel(0, 0, simulator.mem_layers, simulator.pitch, simulator.transistor_size, simulator.cache_size)
-    hw.hw_allocated['Add'] = 15
-    hw.hw_allocated['Regs'] = 30
-    hw.hw_allocated['Mult'] = 15
-    hw.hw_allocated['Sub'] = 15
-    hw.hw_allocated['FloorDiv'] = 15
-    hw.hw_allocated['Gt'] = 1
-    hw.hw_allocated['And'] = 1
-    hw.hw_allocated['Or'] = 1
-    hw.hw_allocated['Mod'] = 1
-    hw.hw_allocated['LShift'] = 1
-    hw.hw_allocated['RShift'] = 1
-    hw.hw_allocated['BitOr'] = 1
-    hw.hw_allocated['BitXor'] = 1
-    hw.hw_allocated['BitAnd'] = 1
-    hw.hw_allocated['Eq'] = 1
-    hw.hw_allocated['NotEq'] = 1
-    hw.hw_allocated['Lt'] = 1
-    hw.hw_allocated['LtE'] = 1
-    hw.hw_allocated['GtE'] = 1
-    hw.hw_allocated['IsNot'] = 1
-    hw.hw_allocated['USub'] = 1
-    hw.hw_allocated['UAdd'] = 1
-    hw.hw_allocated['Not'] = 1
-    hw.hw_allocated['Invert'] = 1
+
+    hw = HardwareModel(cfg='aladdin')
 
     area = 0
     for key in hw.hw_allocated:
         area += hw.hw_allocated[key] * hw.area[key]
-    print("compute area: ", area)
+    print(f"compute area: {area} nm^2")
 
     new_gv_graph = gv.Graph()
     simulator.new_graph = dfg_algo.Graph(set(), {}, new_gv_graph)
@@ -554,7 +536,8 @@ def main():
     
     data = simulator.simulate(cfg, node_operations, hw, graphs, True)
     print("total number of cycles: ", simulator.cycles)
-    print("total energy (nJ): ", sum(simulator.power_use))
+    print(f"Avg Power: {sum(simulator.power_use) / simulator.cycles} nW")
+    # print(f"total energy {sum(simulator.power_use)} nJ")
     print("total volatile reads: ", simulator.reads)
     print("total volatile read size: ", simulator.total_read_size)
     print("total nvm reads: ", simulator.nvm_reads)
@@ -563,7 +546,7 @@ def main():
     print("total write size: ", simulator.total_write_size)
     print("total compute element usage: ", hw.compute_operation_totals)
     print("max regs in use: ", simulator.max_regs_inuse)
-    print("max memory in use: ", simulator.max_mem_inuse)
+    print(f"max memory in use: {simulator.max_mem_inuse} bytes")
     names = args.benchmark.split('/')
     if not args.notrace:
         text = json.dumps(data, indent=4)
@@ -581,7 +564,6 @@ def main():
     plt.savefig("benchmarks/power_plots/power_use_" + names[-1] + ".pdf")
     plt.clf() 
     print("done!")
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(

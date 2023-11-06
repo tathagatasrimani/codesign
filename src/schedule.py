@@ -4,7 +4,9 @@ node_operations = {}
 operation_sets = {}
 
 def schedule_one_node(graph, node):
-    #print(node.id)
+    '''
+    node does not get used here. WHY?!
+    '''
     node_ops = []
     op_set = set()
     queue = deque([[root, 0] for root in graph.roots])
