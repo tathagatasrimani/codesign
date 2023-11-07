@@ -93,6 +93,7 @@ class NameOnlyInstrumentor(ast.NodeTransformer):
                             target.id = target.id + "_NVM"
                     else:
                         raise Exception("Found file read but not name or tuple as target. node: {node}")
+                    if node.value.args: node.value.args = self.visit_Stmts(node.value.args)
                     return node
         self.generic_visit(node)
         return node
