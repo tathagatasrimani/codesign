@@ -68,6 +68,7 @@ class SymbolicHardwareSimulator():
     def symbolic_cycle_sim_parallel(self, hw_spec, hw_need):
         max_cycles = 0
         power_sum = 0
+        eps = 0.001
         # print(hw_need)
         for elem in hw_need:
             if hw_need[elem] == 0: continue
@@ -79,7 +80,7 @@ class SymbolicHardwareSimulator():
             power_sum += active_power
             power_sum += batch * hw_spec[elem] * hardwareModel.symbolic_power[elem][2] / 10 # idle dividor still need passive power
             cycles_per_node = batch * hardwareModel.symbolic_latency[elem] # real latency in self.cycles
-            max_cycles = Max(max_cycles, cycles_per_node)
+            max_cycles = 0.5 * (max_cycles + cycles_per_node + sqrt(Pow(max_cycles - cycles_per_node, 2) - eps))
             print("max_cycles:", max_cycles)
         
         self.cycles += max_cycles
@@ -307,8 +308,8 @@ def main():
     model.obj = pyo.Objective(expr=py_exp)
     model.cuts = pyo.ConstraintList()
     model.Constraint = pyo.Constraint( expr= py_exp >= 1)
-    opt = SolverFactory('mindtpy')
-    results = opt.solve(model, mip_solver='glpk', nlp_solver='ipopt')  
+    opt = SolverFactory('ipopt')
+    results = opt.solve(model)  
     model.display()
 
     # print("only keep 2 variables ", expr_symbols_with_cost.subs(expr_symbols))
