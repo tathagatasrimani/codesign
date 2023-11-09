@@ -68,7 +68,6 @@ class SymbolicHardwareSimulator():
     def symbolic_cycle_sim_parallel(self, hw_spec, hw_need):
         max_cycles = 0
         power_sum = 0
-        eps = 0.001
         # print(hw_need)
         for elem in hw_need:
             if hw_need[elem] == 0: continue
@@ -80,7 +79,8 @@ class SymbolicHardwareSimulator():
             power_sum += active_power
             power_sum += batch * hw_spec[elem] * hardwareModel.symbolic_power[elem][2] / 10 # idle dividor still need passive power
             cycles_per_node = batch * hardwareModel.symbolic_latency[elem] # real latency in self.cycles
-            max_cycles = 0.5 * (max_cycles + cycles_per_node + sqrt(Pow(max_cycles - cycles_per_node, 2) - eps))
+            max_cycles = 0.5 * (max_cycles + cycles_per_node + abs(max_cycles - cycles_per_node))
+            #max_cycles = Max(max_cycles, cycles_per_node)
             print("max_cycles:", max_cycles)
         
         self.cycles += max_cycles
@@ -156,6 +156,13 @@ def nested_if(x0, xrest):
         return Expr_if(IF=(x0>xrest[0]), THEN=x0, ELSE=xrest[0])
     else:
         return Expr_if(IF=(x0>xrest[0]), THEN=nested_if(x0, xrest[1:]), ELSE=nested_if(xrest[0], xrest[1:]))
+
+
+def sum_rule(x):
+    expr = 0
+    for i in range(1, len(x)+1):
+        expr += x[i]
+    return expr >= 10
 
 def main():
     benchmark = sys.argv[1]
@@ -248,32 +255,15 @@ def main():
     total_power = 0
     for node_id in simulator.node_sum_power:
         total_power += simulator.node_sum_power[node_id]
+
+    edp = total_cycles * total_power
+    edp = edp.simplify()
     
-    
-    delta = 0.1
-    print("total cycles:", total_cycles)
-    expr_symbols = {}
-    for s in total_cycles.free_symbols:
-        if "latency" in s.name:
-            expr_symbols[s] = hardwareModel.latency[simulator.transistor_size][s.name.split('_')[1]]
-        elif "power" in s.name:
-            expr_symbols[s] = hardwareModel.dynamic_power[simulator.transistor_size][s.name.split('_')[1]][int(s.name.split('_')[2])]
-    print("expr_symbols", expr_symbols)
-    
-    print("before modification ", total_cycles.subs(expr_symbols))
-    
-    """cost_sum = 0
-    for s in total_cycles.free_symbols:
-        cost_sum += 1/(s+1)
-    
-    print('cost_sum', cost_sum)
-    expr_symbols_with_cost = total_cycles * cost_sum"""
     
     expr_symbols = {}
-    cnt=0
     free_symbols = []
     mapping = {}
-    for s in total_cycles.free_symbols:
+    for s in edp.free_symbols:
         free_symbols.append(s)
         if s.name == 'latency_Add':
             continue
@@ -282,14 +272,12 @@ def main():
         if "latency" in s.name:
             expr_symbols[s] = hardwareModel.latency[simulator.transistor_size][s.name.split('_')[1]]
         elif "power" in s.name:
-            expr_symbols[s] = hardwareModel.dynamic_power[simulator.transistor_size][s.name.split('_')[1]][int(s.name.split('_')[2])]
+            expr_symbols[s] = hardwareModel.dynamic_power[simulator.transistor_size][s.name.split('_')[1]]
         else:
             expr_symbols[s] = hw.hw_allocated[s.name]
 
-    expr_symbols_with_2_symbols = total_cycles.subs(expr_symbols)
-
     model = pyo.ConcreteModel()
-    model.nVars = pyo.Param(initialize=len(total_cycles.free_symbols))
+    model.nVars = pyo.Param(initialize=len(edp.free_symbols))
     model.N = pyo.RangeSet(model.nVars)
     model.x = pyo.Var(model.N, domain=pyo.NonNegativeReals)
     i = 0
@@ -299,58 +287,20 @@ def main():
         i += 1
 
     m = MyPyomoSympyBimap()
-    for symbol in total_cycles.free_symbols:
+    for symbol in edp.free_symbols:
         m.sympy2pyomo[symbol] = model.x[mapping[symbol]]
     sympy_tools._operatorMap.update({sympy.Max: lambda x: nested_if(x[0], x[1:])})
     #print(mapping.sympyVars())
-    py_exp = sympy_tools.sympy2pyomo_expression(total_cycles, m)
+    py_exp = sympy_tools.sympy2pyomo_expression(edp, m)
+    # py_exp = sympy_tools.sympy2pyomo_expression(hardwareModel.symbolic_latency["Add"] ** (1/2), m)
     print(py_exp)
     model.obj = pyo.Objective(expr=py_exp)
     model.cuts = pyo.ConstraintList()
-    model.Constraint = pyo.Constraint( expr= py_exp >= 1)
-    opt = SolverFactory('ipopt')
+    model.Constraint = pyo.Constraint( rule= sum_rule(model.x))
+    
+    opt = SolverFactory('scip')
     results = opt.solve(model)  
     model.display()
-
-    # print("only keep 2 variables ", expr_symbols_with_cost.subs(expr_symbols))
-    expr_symbols_with_2_symbols = total_cycles.subs(expr_symbols)
-
-    diffs=[]
-    symbol_list=[]
-    for s in expr_symbols_with_2_symbols.free_symbols:
-        diffs.append(diff(expr_symbols_with_2_symbols,s))
-        symbol_list.append(s)
-    print(symbol_list)
-    
-    lam = lambdify(symbol_list, expr_symbols_with_2_symbols, 'numpy')
-    print(lam)
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    x = np.linspace(1, 7, 30)
-    y = np.linspace(1, 7, 30)
-
-    points = list(itertools.product(x,y))
-    x_new = list(map(lambda p: p[0], points))
-    y_new = list(map(lambda p: p[1], points))
-    Z = list(map(lambda tup: lam(tup[0], tup[1]), points))
-
-    ax.scatter(x_new, y_new, Z)
-    plt.xlabel(symbol_list[0])
-    plt.ylabel(symbol_list[1])
-    ax.set_zlabel("total program cycles")
-    plt.show()
-    plt.savefig("plot.png")
-    print("total_cycles:", total_cycles)
-    print("diff add latency:", diff(total_cycles, "latency_Add"))
-    print("diff add power:", diff(total_power, "power_Add_2"))
-    print("total power:", total_power)
-    print(expr_symbols_with_2_symbols.free_symbols)
-    # plotting.plot3d(expr_symbols_with_2_symbols, ("latency_Add", 0, 5), ("latency_Mult", 0, 5))
-    # plotting.plot3d(functions.tanh(symbols('x')))
-    
-    from design_space import DesignSpace
-    ds=DesignSpace(expr_symbols_with_2_symbols,symbol_list,diffs)
-    ds.solve()
     
 if __name__ == '__main__':
     main()

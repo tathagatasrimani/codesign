@@ -10,7 +10,7 @@ class MyPyomoSympyBimap(object):
         print(sympy_object)
         res = self.sympy2pyomo.get(sympy_object, default)
         print(res)
-        input()
+        #input()
         return res
 
     def getSympySymbol(self, pyomo_object):
