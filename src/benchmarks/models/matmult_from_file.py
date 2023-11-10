@@ -10,7 +10,7 @@ def read_matrices_from_file(N):
     return a, b, d
 
 def main():
-    N = 30
+    N = 100
     a, b, d = read_matrices_from_file(N)
     c = np.zeros(shape=(N,N)) # output
 
