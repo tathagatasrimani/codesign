@@ -10,16 +10,16 @@ def read_matrices_from_file(N):
     return a, b, d
 
 def main():
-    N = 100
+    N = 30
     a, b, d = read_matrices_from_file(N)
     c = np.zeros(shape=(N,N)) # output
 
     for i in range(N):
         for j in range(N):
-            loop.start_unroll
+            # loop.start_unroll
             for k in range(N):
                 c[i][j] += a[i][k] * b[k][j] + d[j]
-            loop.stop_unroll
+            # loop.stop_unroll
 
 if __name__ == "__main__":
     main()
