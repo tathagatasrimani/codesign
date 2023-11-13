@@ -184,12 +184,18 @@ class HardwareModel:
 		self.leakage_power = tech_params['leakage_power'][self.transistor_size]
 		# print(f"t_size: {self.transistor_size}, cache: {self.cache_size}, mem_layers: {self.mem_layers}, pitch: {self.pitch}")
 		# print(f"tech_params[mem_area][t_size][cache_size][mem_layers]: {tech_params['mem_area'][self.transistor_size][self.cache_size][self.mem_layers]}")
-		self.area["Regs"] = tech_params['mem_area'][self.transistor_size][self.cache_size][self.mem_layers][self.pitch]
+		# self.area["Regs"] = tech_params['mem_area'][self.transistor_size][self.cache_size][self.mem_layers][self.pitch]
 		
+		# the following are fine, but area should not be ^^
 		self.latency["Regs"] = tech_params['mem_latency'][self.cache_size][self.mem_layers][self.pitch]
 		self.dynamic_power["Regs"] = tech_params['mem_dynamic_power'][self.cache_size][self.mem_layers][self.pitch]
 		self.leakage_power["Regs"] = tech_params['mem_leakage_power'][self.cache_size][self.mem_layers][self.pitch]
+
+		self.mem_area = tech_params['mem_area'][self.transistor_size][self.cache_size][self.mem_layers][self.pitch]
 	
+	def update_cache_size(self, cache_size):
+		pass
+
 	def init_misc_vars(self):
 		self.compute_operation_totals = {}
 

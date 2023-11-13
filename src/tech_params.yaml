@@ -402,7 +402,7 @@ leakage_power:
     Regs: 7.395312e+01
     UAdd: 3.265969e+03 # use add, unsure about this.
     USub: 3.265969e+03 # use add, unsure about this.
-mem_area: # units?
+mem_area: # mm^2 - these numbers are actually all for 65nm node
   3:
     1:
       1:
@@ -604,19 +604,19 @@ mem_area: # units?
   40:
     1:
       1:
-        100: 100
+        100: 8.26
     2:
       1:
-        100: 200
+        100: 20.83
     4:
       1:
-        100: 400
+        100: 42.1
     8:
       1:
-        100: 800
+        100: 73.12
     16:
       1:
-        100: 1600    
+        100: 137.7
 mem_dynamic_power: # (units of nw) queried by (cache_size, mem_layers, pitch)
   1:
     1:

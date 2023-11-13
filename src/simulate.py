@@ -595,6 +595,8 @@ def main():
     for elem in hw.hw_allocated:
         area += max(0,hw.hw_allocated[elem]) * hw.area[elem]
     print(f"compute area: {area * 1e-6} um^2")
+    print(f"memory area: {hw.mem_area * 1e6} um^2")
+    print(f"total area: {(area*1e-6 + hw.mem_area*1e6)} mm^2"}")
 
     # print stats
     print("total number of cycles: ", simulator.cycles)
