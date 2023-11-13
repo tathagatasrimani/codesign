@@ -90,13 +90,15 @@ class HardwareSimulator():
             if not op.operation: continue
             
             # this stuff is handling some graph stuff. 
-            if op.operation != "Regs":
-                #print(hw_spec[op.operation], op.operation, hw_need.hw_allocated[op.operation])
+            if op.operation != "Regs":                  
                 compute_element_id = hw_need.hw_allocated[op.operation] % hw_spec.hw_allocated[op.operation]
                 # print(f"compute_element_id: {compute_element_id}; compute_element_to_node_id: {self.compute_element_to_node_id}")
                 if len(self.compute_element_to_node_id[op.operation]) <= compute_element_id:
                     # print(f"entered ")
-                    self.init_new_compute_element(op.operation)
+                    if hw_spec.dynamic_allocation:
+                        self.init_new_compute_element(op.operation)
+                    else:
+                        raise Exception("hardware specification insufficient to run program")
                 # print(f"after init; op: {op.operation} compute_element_to_node_id: {self.compute_element_to_node_id}")
                 compute_node_id = self.compute_element_to_node_id[op.operation][compute_element_id]
                 hw_op_node = self.new_graph.id_to_Node[compute_node_id]
@@ -556,7 +558,7 @@ def main():
     simulator = HardwareSimulator()
     cfg, graphs, node_operation_map = simulator.simulator_prep(args.benchmark)
 
-    hw = HardwareModel(cfg='aladdin_const')
+    hw = HardwareModel(cfg='aladdin')
 
     simulator.transistor_size = hw.transistor_size # in nm
     simulator.pitch = hw.pitch # in um
@@ -591,7 +593,7 @@ def main():
 
     area = 0
     for elem in hw.hw_allocated:
-        area += hw.hw_allocated[elem] * hw.area[elem]
+        area += max(0,hw.hw_allocated[elem]) * hw.area[elem]
     print(f"compute area: {area * 1e-6} um^2")
 
     # print stats
@@ -604,7 +606,9 @@ def main():
     print("total nvm read size: ", simulator.total_nvm_read_size)
     print("total writes: ", simulator.writes)
     print("total write size: ", simulator.total_write_size)
-    print("total compute element usage: ", hw.compute_operation_totals)
+    print("total operations computed: ", hw.compute_operation_totals)
+    if hw.dynamic_allocation:
+        print(f"hw allocated: {hw.hw_allocated}")
     print("max regs in use: ", simulator.max_regs_inuse)
     print(f"max memory in use: {simulator.max_mem_inuse} bytes")
 
