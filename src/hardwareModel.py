@@ -109,6 +109,7 @@ class HardwareModel:
 
 		self.init_misc_vars()
 
+		self.dynamic_allocation = False
 		if cfg is not None:
 			self.allocate_hw_from_config(config[cfg])
 		
@@ -165,6 +166,12 @@ class HardwareModel:
 
 		for k, v in self.hw_allocated.items():
 			self.hw_allocated[k] = int(v)
+		
+		tmp = True
+		for key, value in self.hw_allocated.items():
+			tmp &= (value == -1)
+		self.dynamic_allocation = tmp
+		# print(f"dynamic_allocation flag: {self.dynamic_allocation}")
 
 
 	def set_technology_parameters(self):

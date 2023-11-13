@@ -352,7 +352,7 @@ def dfg_per_node(node):
                     break
                 j -= 1
         i -= 1
-    graph.render(path + '/benchmarks/pictures/' + benchmark + "_dfg_node_" + str(node.id), view = False)
+    # graph.render(path + '/benchmarks/pictures/' + benchmark + "_dfg_node_" + str(node.id), view = False)
     return graphs[node]
 
 def main_fn(path_in, benchmark_in):

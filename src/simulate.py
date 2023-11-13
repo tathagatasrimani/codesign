@@ -8,7 +8,9 @@ import argparse
 import ast
 
 import matplotlib.pyplot as plt
+import numpy as np
 import graphviz as gv
+
 
 from memory import Memory
 import schedule
@@ -20,10 +22,11 @@ MEMORY_SIZE = 1000000
 state_graph_counter = 0
 
 class HardwareSimulator():
+
     def __init__(self):
         self.memory_module = Memory(MEMORY_SIZE)
         self.data = {}
-        self.cycles = 0
+        self.cycles = 0 # counter for number of cycles
         self.main_cfg = None
         self.id_to_node = {}
         self.path = os.getcwd()
@@ -76,20 +79,35 @@ class HardwareSimulator():
         target.parents.append(source)
 
     def get_hw_need(self, state, hw_spec):
-        hw_need = HardwareModel(id=0,bandwidth=0,mem_layers=self.mem_layers, pitch=self.pitch, transistor_size=self.transistor_size,cache_size= self.cache_size)
+        '''
+        state - list of operations
+        hw_spec - existing hw allocation and hw specs
+        '''
+        hw_need = HardwareModel(id=0,bandwidth=0,mem_layers=self.mem_layers, pitch=self.pitch, transistor_size=self.transistor_size, cache_size= self.cache_size)
         mem_in_use = 0
         for op in state:
+            # print(f"in get_hw_need, op: {op}")
             if not op.operation: continue
-            if op.operation != "Regs":
-                #print(hw_spec[op.operation], op.operation, hw_need.hw_allocated[op.operation])
+            
+            # this stuff is handling some graph stuff. 
+            if op.operation != "Regs":                  
                 compute_element_id = hw_need.hw_allocated[op.operation] % hw_spec.hw_allocated[op.operation]
-                compute_id = self.compute_element_to_node_id[op.operation][compute_element_id]
-                hw_op_node = self.new_graph.id_to_Node[compute_id]
-                op.compute_id = compute_id
-                #print(op.value)
+                # print(f"compute_element_id: {compute_element_id}; compute_element_to_node_id: {self.compute_element_to_node_id}")
+                if len(self.compute_element_to_node_id[op.operation]) <= compute_element_id:
+                    # print(f"entered ")
+                    if hw_spec.dynamic_allocation:
+                        self.init_new_compute_element(op.operation)
+                    else:
+                        raise Exception("hardware specification insufficient to run program")
+                # print(f"after init; op: {op.operation} compute_element_to_node_id: {self.compute_element_to_node_id}")
+                compute_node_id = self.compute_element_to_node_id[op.operation][compute_element_id]
+                hw_op_node = self.new_graph.id_to_Node[compute_node_id]
+                op.compute_id = compute_node_id
                 mem_in_use += self.process_compute_element(op, self.new_graph, hw_op_node, check_duplicate=True)
+            
             hw_need.hw_allocated[op.operation] += 1
             hw_spec.compute_operation_totals[op.operation] += 1
+        
         self.max_regs_inuse = min(hw_spec.hw_allocated["Regs"], max(self.max_regs_inuse, hw_need.hw_allocated["Regs"]))
         self.max_mem_inuse = max(self.max_mem_inuse, mem_in_use)
         return hw_need.hw_allocated
@@ -98,9 +116,7 @@ class HardwareSimulator():
         node_power_sum = 0
         for i in range(max_cycles):
             self.power_use.append(0)
-            #print("This is during cycle " + str(self.cycles))
-            #print(hw_inuse)
-            #print("")
+            
             # save current state of hardware to data array
             cur_data = ""
             for elem in hw_inuse:
@@ -109,19 +125,19 @@ class HardwareSimulator():
                 if len(hw_inuse[elem]) > 0:
                     cur_data += elem + ": "
                     count = 0
+                    # active power consumption of hw in use this cycle
                     for i in hw_inuse[elem]:
                         if i > 0:
                             count += 1
                             self.power_use[self.cycles] += power
-                    self.power_use[self.cycles] += hw.leakage_power[elem] * len(hw_inuse[elem]) # passive power
+
                     cur_data += str(count) + "/" + str(len(hw_inuse[elem])) + " in use. || "
             self.data[self.cycles] = cur_data
 
             # simulate one cycle
             for elem in hw_inuse:
                 for j in range(len(hw_inuse[elem])):
-                    if hw_inuse[elem][j] > 0:
-                        hw_inuse[elem][j] = max(0, hw_inuse[elem][j] - 1) #decrement hw in use?
+                    hw_inuse[elem][j] = max(0, hw_inuse[elem][j] - 1) # decrement hw in use?
             node_power_sum += self.power_use[self.cycles]
             self.cycles += 1
         return node_power_sum
@@ -145,7 +161,7 @@ class HardwareSimulator():
                 if bracket_depth == 0: bracket_count += 1
         return bracket_count
 
-    def process_compute_element_neighbor(self, op, neighbor, graph, op_node, context, check_duplicate):
+    def process_compute_element_neighbor(self, neighbor, graph, op_node, context, check_duplicate):
         name = neighbor.value
         mem_size = 0
         bracket_ind = name.find('[')
@@ -177,15 +193,24 @@ class HardwareSimulator():
         return mem_size
 
     def process_compute_element(self, op, graph, op_node, check_duplicate):
+        '''
+            Determine the amount of memory in use by this operation.
+
+            params:
+                op: ??
+                graph: ??
+                op_node: ?? 
+                check_duplicate: boolean, ??
+        '''
         parents = []
         for parent in op.parents:
             parents.append(parent.operation)
-        # print(op.operation, parents)
+        # print(f"in process_compute_element, op: {op}")
         mem_in_use = 0
         for parent in op.parents:
             if not parent.operation: continue
             if parent.operation == "Regs":
-                mem_in_use += self.process_compute_element_neighbor(op, parent, graph, op_node, ast.Load, check_duplicate)
+                mem_in_use += self.process_compute_element_neighbor(parent, graph, op_node, ast.Load, check_duplicate)
             else:
                 if not check_duplicate: continue
                 #print(op.operation, parent.operation)
@@ -197,7 +222,7 @@ class HardwareSimulator():
         for child in op.children:
             if not child.operation: continue
             if child.operation == "Regs":
-                mem_in_use += self.process_compute_element_neighbor(op, child, graph, op_node, ast.Store, check_duplicate)
+                mem_in_use += self.process_compute_element_neighbor(child, graph, op_node, ast.Store, check_duplicate)
         return mem_in_use
 
     def get_dims(self, arr):
@@ -248,7 +273,7 @@ class HardwareSimulator():
             if i == len(self.data_path): break
         return i, pattern_seek, max_iters
 
-    def simulate(self, cfg, node_operations, hw, graphs, first):
+    def simulate(self, cfg, node_operation_map, hw, graphs, first):
         global state_graph_counter
         cur_node = cfg.entryblock
         if first: 
@@ -262,6 +287,7 @@ class HardwareSimulator():
         mallocs = []
 
         i, pattern_seek, max_iters = self.find_next_data_path_index(i, mallocs, frees)
+        # iterate through nodes in data dependency graph
         while i < len(self.data_path):
             next_ind, pattern_seek_next, max_iters_next = self.find_next_data_path_index(i+1, mallocs, frees)
             if i == len(self.data_path): break
@@ -329,7 +355,7 @@ class HardwareSimulator():
                 frees = pattern_frees[idx]
                 for malloc in mallocs:
                     self.process_memory_operation(malloc)
-                
+
                 # try to unroll after pattern_seeking
                 node_iters = num_unroll_iterations
                 if self.unroll_at[cur_node.id]:
@@ -341,26 +367,27 @@ class HardwareSimulator():
                         graph = dfg_algo.dfg_per_node(cur_node)
                         node_ops = schedule.schedule_one_node(graph, cur_node) # cur_node does not get used in this.
                         for k in range(len(node_ops)):
-                            node_operations[cur_node][k] = node_operations[cur_node][k] + node_ops[k]
+                            node_operation_map[cur_node][k] = node_operation_map[cur_node][k] + node_ops[k]
 
-                for state in node_operations[cur_node]:
+                # node_operation_map is dict of (states -> operations)
+                # cur_node appears to be a state in the data path,
+                for operations in node_operation_map[cur_node]:
                     # if unroll, take each operation in a state and create more of them
                     """
                     if self.unroll_at[cur_node.id] or pattern_seek:
-                        print(iters, node_iters, len(state))
-                        new_state = state.copy()
-                        for op in state:
+                        print(iters, node_iters, len(operations))
+                        new_operations = operations.copy()
+                        for op in operations:
                             for j in range(node_iters):
-                                new_state.append(op)
-                        state = new_state
+                                new_operations.append(op)
+                        operations = new_operations
                     """
-                    # print(f"state in node_operations[{cur_node}]: {[val.__str__() for val in state]}")
-                    #print("new state")
-                    hw_need = self.get_hw_need(state, hw)
+                    # print(f"in simulate, operations in node_operations_map: {operations}")
+                    hw_need = self.get_hw_need(operations, hw)
                     state_graph_viz = gv.Graph()
                     state_graph = dfg_algo.Graph(set(), {}, state_graph_viz)
                     op_count = 0
-                    for op in state:
+                    for op in operations:
                         if not op.operation or op.operation == "Regs": continue
                         op_count += 1
                         compute_id = dfg_algo.set_id()
@@ -375,14 +402,19 @@ class HardwareSimulator():
                         # Path(simulator.path + '/benchmarks/pictures/state_graphs/').mkdir(parents=True, exist_ok=True)
                         # state_graph_viz.render(self.path + '/benchmarks/pictures/state_graphs/' + sys.argv[1][sys.argv[1].rfind('/')+1:] + '_' + str(state_graph_counter), view = True)
                     state_graph_counter += 1
-                    # print(f"needed hardware: {hw_need}\nfor state: {[val.__str__() for val in state]}")
-                    # print(f"available hardware: {hw.hw_allocated}")
+
                     max_cycles = 0
+                    # allocate hardware for operations in this state and calculate max cycles
                     for elem in hw_need:
                         latency = hw.latency[elem]
                         if elem == "Regs": latency *= hw.latency_scale[self.find_nearest_mem_to_scale(self.memory_needed)]
                         num_elem_needed = hw_need[elem]
                         if num_elem_needed == 0: continue
+                        # check some flag for dynamic and set hw.hw_allocated = hw_need?
+                        if hw.dynamic_allocation:
+                            if hw.hw_allocated[elem] < hw_need[elem]:
+                                hw_inuse[elem] = [0] * hw_need[elem]
+                                hw.hw_allocated[elem] = hw_need[elem]
                         if hw.hw_allocated[elem] == 0 and num_elem_needed > 0:
                             raise Exception("hardware specification insufficient to run program")
                         cur_cycles_needed = int(math.ceil(num_elem_needed / hw.hw_allocated[elem]) * latency)
@@ -407,6 +439,18 @@ class HardwareSimulator():
             i = next_ind
             pattern_seek = pattern_seek_next
             max_iters = max_iters_next
+
+        # add all passive power at the end.
+        # This is done here for the dynamic allocation case where we don't know how many 
+        # compute elements we need until we run the program.
+        passive_power = 0
+        for elem in hw.hw_allocated:
+            passive_power += hw.leakage_power[elem] * hw.hw_allocated[elem]
+        
+        for c in range(self.cycles):
+            self.power_use[c] += passive_power
+
+        
         print("done with simulation")
         # Path(simulator.path + '/benchmarks/pictures/memory_graphs').mkdir(parents=True, exist_ok=True)
         # self.new_graph.gv_graph.render(self.path + '/benchmarks/pictures/memory_graphs/' + sys.argv[1][sys.argv[1].rfind('/')+1:], view = True)
@@ -492,19 +536,33 @@ class HardwareSimulator():
 
     def simulator_prep(self, benchmark):
         cfg, graphs, self.unroll_at = dfg_algo.main_fn(self.path, benchmark)
-        node_operations = schedule.schedule(cfg, graphs, benchmark)
+        node_operation_map = schedule.schedule(cfg, graphs)
         self.set_data_path()
         for node in cfg: self.id_to_node[str(node.id)] = node
         #print(self.id_to_node)
-        return cfg, graphs, node_operations
+        return cfg, graphs, node_operation_map
+
+    def init_new_compute_element(self, compute_unit):
+        '''
+        Adds to some graph shit and adds ids and stuff
+        params:
+            compute_unit: str with std cell name, eg 'Add', 'Eq', 'LShift', etc.
+        '''
+        compute_id = dfg_algo.set_id()
+        self.make_node(self.new_graph, compute_id, hardwareModel.op2sym_map[compute_unit], None, hardwareModel.op2sym_map[compute_unit])
+        self.compute_element_neighbors[compute_id] = set()
+        self.compute_element_to_node_id[compute_unit].append(compute_id)
 
 def main():
     print(f"Running simulator for {args.benchmark.split('/')[-1]}")
     simulator = HardwareSimulator()
-    cfg, graphs, node_operations = simulator.simulator_prep(args.benchmark)
-    simulator.transistor_size = 3 # in nm
-    simulator.pitch = 100
-    simulator.mem_layers = 2
+    cfg, graphs, node_operation_map = simulator.simulator_prep(args.benchmark)
+
+    hw = HardwareModel(cfg='aladdin')
+
+    simulator.transistor_size = hw.transistor_size # in nm
+    simulator.pitch = hw.pitch # in um
+    simulator.mem_layers = hw.mem_layers
     if simulator.memory_needed < 1000000:
         simulator.cache_size = 1
     elif simulator.memory_needed < 2000000:
@@ -516,27 +574,31 @@ def main():
     else: 
         simulator.cache_size = 16
 
-    hw = HardwareModel(cfg='aladdin')
-
-    area = 0
-    for key in hw.hw_allocated:
-        area += hw.hw_allocated[key] * hw.area[key]
-    print(f"compute area: {area} nm^2")
-
+   
     new_gv_graph = gv.Graph()
     simulator.new_graph = dfg_algo.Graph(set(), {}, new_gv_graph)
-    for key in hw.hw_allocated:
-        if key == "Regs": continue
-        simulator.compute_element_to_node_id[key] = []
-        for i in range(hw.hw_allocated[key]):
-            compute_id = dfg_algo.set_id()
-            simulator.make_node(simulator.new_graph, compute_id, hardwareModel.op2sym_map[key], None, hardwareModel.op2sym_map[key])
-            simulator.compute_element_neighbors[compute_id] = set()
-            simulator.compute_element_to_node_id[key].append(compute_id)
+    for elem in hw.hw_allocated:
+        if elem == "Regs": continue
+        simulator.compute_element_to_node_id[elem] = []
+        # looks like there's a lot of setup stuff that depends on the amount of hw allocated.
+        for i in range(hw.hw_allocated[elem]):
+            simulator.init_new_compute_element(elem)
+            # compute_id = dfg_algo.set_id()
+            # simulator.make_node(simulator.new_graph, compute_id, hardwareModel.op2sym_map[key], None, hardwareModel.op2sym_map[key])
+            # simulator.compute_element_neighbors[compute_id] = set()
+            # simulator.compute_element_to_node_id[key].append(compute_id)
+    # print(f"before start sim: compute_elements_to_node_id: {simulator.compute_element_to_node_id}")
     
-    data = simulator.simulate(cfg, node_operations, hw, graphs, True)
+    data = simulator.simulate(cfg, node_operation_map, hw, graphs, True)
+
+    area = 0
+    for elem in hw.hw_allocated:
+        area += max(0,hw.hw_allocated[elem]) * hw.area[elem]
+    print(f"compute area: {area * 1e-6} um^2")
+
+    # print stats
     print("total number of cycles: ", simulator.cycles)
-    print(f"Avg Power: {sum(simulator.power_use) / simulator.cycles} nW")
+    print(f"Avg Power: {1e-6 * sum(simulator.power_use) / simulator.cycles} mW")
     # print(f"total energy {sum(simulator.power_use)} nJ")
     print("total volatile reads: ", simulator.reads)
     print("total volatile read size: ", simulator.total_read_size)
@@ -544,9 +606,13 @@ def main():
     print("total nvm read size: ", simulator.total_nvm_read_size)
     print("total writes: ", simulator.writes)
     print("total write size: ", simulator.total_write_size)
-    print("total compute element usage: ", hw.compute_operation_totals)
+    print("total operations computed: ", hw.compute_operation_totals)
+    if hw.dynamic_allocation:
+        print(f"hw allocated: {hw.hw_allocated}")
     print("max regs in use: ", simulator.max_regs_inuse)
     print(f"max memory in use: {simulator.max_mem_inuse} bytes")
+
+    # save some dump of data to json file
     names = args.benchmark.split('/')
     if not args.notrace:
         text = json.dumps(data, indent=4)
