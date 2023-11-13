@@ -32,6 +32,7 @@ class HardwareSimulator():
         self.path = os.getcwd()
         self.data_path = []
         self.power_use = []
+        self.mem_power_use = []
         self.node_intervals = []
         self.node_avg_power = {}
         self.unroll_at = {}
@@ -116,6 +117,7 @@ class HardwareSimulator():
         node_power_sum = 0
         for i in range(max_cycles):
             self.power_use.append(0)
+            self.mem_power_use.append(0)
             
             # save current state of hardware to data array
             cur_data = ""
@@ -135,6 +137,7 @@ class HardwareSimulator():
             self.data[self.cycles] = cur_data
 
             # simulate one cycle
+            # these two loops loop over all hardware elements; they don't count down till 
             for elem in hw_inuse:
                 for j in range(len(hw_inuse[elem])):
                     hw_inuse[elem][j] = max(0, hw_inuse[elem][j] - 1) # decrement hw in use?
@@ -399,8 +402,8 @@ class HardwareSimulator():
                                 self.make_edge(state_graph, parent_id, compute_id, "")
                         self.process_compute_element(op, state_graph, state_graph.id_to_Node[compute_id], check_duplicate=False)
                     # if op_count > 0:
-                        # Path(simulator.path + '/benchmarks/pictures/state_graphs/').mkdir(parents=True, exist_ok=True)
-                        # state_graph_viz.render(self.path + '/benchmarks/pictures/state_graphs/' + sys.argv[1][sys.argv[1].rfind('/')+1:] + '_' + str(state_graph_counter), view = True)
+                    #     Path(self.path + '/benchmarks/pictures/state_graphs/').mkdir(parents=True, exist_ok=True)
+                    #     state_graph_viz.render(self.path + '/benchmarks/pictures/state_graphs/' + args.benchmark.split('/')[-1].split('.')[0] + '_' + str(state_graph_counter), view = True)
                     state_graph_counter += 1
 
                     max_cycles = 0
@@ -449,6 +452,7 @@ class HardwareSimulator():
         
         for c in range(self.cycles):
             self.power_use[c] += passive_power
+            self.mem_power_use[c] += hw.mem_leakage_power
 
         
         print("done with simulation")
@@ -596,12 +600,16 @@ def main():
         area += max(0,hw.hw_allocated[elem]) * hw.area[elem]
     print(f"compute area: {area * 1e-6} um^2")
     print(f"memory area: {hw.mem_area * 1e6} um^2")
-    print(f"total area: {(area*1e-6 + hw.mem_area*1e6)} mm^2"}")
+    print(f"total area: {(area*1e-6 + hw.mem_area*1e6)} um^2")
 
     # print stats
     print("total number of cycles: ", simulator.cycles)
-    print(f"Avg Power: {1e-6 * sum(simulator.power_use) / simulator.cycles} mW")
+    avg_compute_power = 1e-6 * np.mean(simulator.power_use)
+    print(f"Avg compute Power: {avg_compute_power} mW")
     # print(f"total energy {sum(simulator.power_use)} nJ")
+    avg_mem_power = np.mean(simulator.mem_power_use)
+    print(f"Avg mem Power: {avg_mem_power} mW")
+    print(f"Total power: {avg_mem_power + avg_compute_power} mW")
     print("total volatile reads: ", simulator.reads)
     print("total volatile read size: ", simulator.total_read_size)
     print("total nvm reads: ", simulator.nvm_reads)
