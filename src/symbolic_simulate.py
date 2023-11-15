@@ -158,12 +158,6 @@ def nested_if(x0, xrest):
         return Expr_if(IF=(x0>xrest[0]), THEN=nested_if(x0, xrest[1:]), ELSE=nested_if(xrest[0], xrest[1:]))
 
 
-def sum_rule(x):
-    expr = 0
-    for i in range(1, len(x)+1):
-        expr += x[i]
-    return expr >= 10
-
 def main():
     benchmark = sys.argv[1]
     print(benchmark)
@@ -296,9 +290,10 @@ def main():
     print(py_exp)
     model.obj = pyo.Objective(expr=py_exp)
     model.cuts = pyo.ConstraintList()
-    model.Constraint = pyo.Constraint( rule= sum_rule(model.x))
+    model.Constraint = pyo.Constraint( expr = py_exp >= 10)
     
-    opt = SolverFactory('scip')
+    opt = SolverFactory('ipopt')
+    #opt.options['max_iter'] = 1000
     results = opt.solve(model)  
     model.display()
     
