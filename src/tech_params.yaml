@@ -82,7 +82,7 @@ area: # nm^2
     BitOr: 5.036996e+07
     BitXor: 5.036996e+07
     Eq: 3.793488e+08 # use add, unsure about this.
-    FloorDiv:  8.340007e+09
+    FloorDiv: 8.340007e+09
     Gt: 3.793488e+08 # use add, unsure about this.
     GtE: 3.793488e+08 # use add, unsure about this.
     Invert: 5.036996e+07
@@ -838,7 +838,7 @@ power_scale:
   134217728: 19
   268435456: 20
   536870912: 21
-latency_scale:
+latency_scale: # did we just make this shit up?
   512: 1
   1024: 2
   2048: 3

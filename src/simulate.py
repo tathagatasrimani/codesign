@@ -306,6 +306,7 @@ class HardwareSimulator():
             pattern_mallocs, pattern_frees = [mallocs],  [frees]
             other_mallocs, other_frees = [], []
 
+            # modify DFG to enable parallelization:
             if pattern_seek: 
                 #print("entering pattern seek")
                 pattern_seek = False
@@ -340,6 +341,8 @@ class HardwareSimulator():
                             break
                 if num_unroll_iterations > 0: pattern_seek = True
             elif self.unroll_at[cur_node.id]:
+                print(f"found unroll at node: {cur_node.id}")
+                print(f"ops:{[str(op) for op in operations for operations in node_operation_map[cur_node]]}")
                 # unroll the node: find the next node that is not the same as the current node
                 # and count consecutive number of times this node appears in the data path
                 j = next_ind
@@ -352,6 +355,7 @@ class HardwareSimulator():
                 next_ind = j
 
             idx = 0
+            # this happens once if no pattern seeking; else happens number of times = number of unique nodes in pattern
             while idx < len(pattern_nodes):
                 cur_node = self.id_to_node[pattern_nodes[idx]]
                 mallocs = pattern_mallocs[idx]
@@ -410,27 +414,32 @@ class HardwareSimulator():
                     # allocate hardware for operations in this state and calculate max cycles
                     for elem in hw_need:
                         latency = hw.latency[elem]
-                        if elem == "Regs": latency *= hw.latency_scale[self.find_nearest_mem_to_scale(self.memory_needed)]
+                        # if elem == "Regs": latency *= hw.latency_scale[self.find_nearest_mem_to_scale(self.memory_needed)]
                         num_elem_needed = hw_need[elem]
                         if num_elem_needed == 0: continue
-                        # check some flag for dynamic and set hw.hw_allocated = hw_need?
+                        # print(f"latency of elem {elem} = {latency}")
+
+                        # check flag for dynamic and set hw.hw_allocated = hw_need
                         if hw.dynamic_allocation:
                             if hw.hw_allocated[elem] < hw_need[elem]:
                                 hw_inuse[elem] = [0] * hw_need[elem]
                                 hw.hw_allocated[elem] = hw_need[elem]
                         if hw.hw_allocated[elem] == 0 and num_elem_needed > 0:
                             raise Exception("hardware specification insufficient to run program")
-                        cur_cycles_needed = int(math.ceil(num_elem_needed / hw.hw_allocated[elem]) * latency)
-                        #print("cycles needed for " + elem + ": " + str(cur_cycles_needed) + ' (element count = ' + str(num_elem_needed) + ')')
+                        cur_cycles_needed = math.ceil(math.ceil(num_elem_needed / hw.hw_allocated[elem]) * latency)
+                        # print(f"{cur_cycles_needed} cycles needed for elem {elem} with {num_elem_needed} needed and {hw.hw_allocated[elem]} available")
                         max_cycles = max(cur_cycles_needed, max_cycles) # identify bottleneck element for this node.
                         j = 0
                         while num_elem_needed > 0:
                             hw_inuse[elem][j] += latency # this keeps getting incremented, never reset.
                             j = (j + 1) % hw.hw_allocated[elem]
                             num_elem_needed -= 1
+                    # print(f"for operations: {[str(op) for op in operations]}, max_cycles = {max_cycles}")
                     self.node_avg_power[node_id] += self.cycle_sim(hw_inuse, hw, max_cycles)
                 idx += 1
             
+            # should we be dividing by num cycles here. I think this is why P is going down as N increases
+            # we don't actually use node_avg_power. what we care about is power_use
             if self.cycles - start_cycles > 0: self.node_avg_power[node_id] /= self.cycles - start_cycles
             self.node_intervals[-1][1][1] = self.cycles
             for free in frees:
