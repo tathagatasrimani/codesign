@@ -252,17 +252,12 @@ def main():
 
     edp = total_cycles * total_power
     edp = edp.simplify()
-    
-    
+
     expr_symbols = {}
     free_symbols = []
     mapping = {}
     for s in edp.free_symbols:
         free_symbols.append(s)
-        if s.name == 'latency_Add':
-            continue
-        if s.name == 'latency_Mult':
-            continue
         if "latency" in s.name:
             expr_symbols[s] = hardwareModel.latency[simulator.transistor_size][s.name.split('_')[1]]
         elif "power" in s.name:
@@ -270,6 +265,21 @@ def main():
         else:
             expr_symbols[s] = hw.hw_allocated[s.name]
 
+    step_size = 0.0001
+    initial_val = edp.subs(expr_symbols)
+    cur_val = initial_val
+    while cur_val > initial_val / 10:
+        new_expr_symbols = {}
+        for var in free_symbols:
+            d = sympy.diff(edp, var)
+            grad = d.subs(expr_symbols)
+            #print("var name:", var, ", with gradient:", grad)
+            new_expr_symbols[var] = max(expr_symbols[var] - grad * step_size, 0)
+        expr_symbols = new_expr_symbols
+        cur_val = edp.subs(expr_symbols)
+    print(expr_symbols)
+
+    return
     model = pyo.ConcreteModel()
     model.nVars = pyo.Param(initialize=len(edp.free_symbols))
     model.N = pyo.RangeSet(model.nVars)

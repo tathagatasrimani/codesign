@@ -1,15 +1,4 @@
 import sys
-<<<<<<< HEAD
-from memory import Memory
-MEMORY_SIZE = 10000
-print(1, 2)
-memory_module = Memory(MEMORY_SIZE)
-memory_module.malloc('memory_module', sys.getsizeof(memory_module))
-print(memory_module.locations['memory_module'].location, 'memory_module', 'mem'
-    )
-print(1, 3)
-Sbox = (99, 124, 119, 123, 242, 107, 111, 197, 48, 1, 103, 43, 254, 215, 
-=======
 from instrument_lib import *
 import sys
 from instrument_lib import *
@@ -17,7 +6,6 @@ from loop import loop
 import numpy as np
 print(1, 3)
 Sbox_0 = (99, 124, 119, 123, 242, 107, 111, 197, 48, 1, 103, 43, 254, 215, 
->>>>>>> master
     171, 118, 202, 130, 201, 125, 250, 89, 71, 240, 173, 212, 162, 175, 156,
     164, 114, 192, 183, 253, 147, 38, 54, 63, 247, 204, 52, 165, 229, 241, 
     113, 216, 49, 21, 4, 199, 35, 195, 24, 150, 5, 154, 7, 18, 128, 226, 
@@ -34,12 +22,6 @@ Sbox_0 = (99, 124, 119, 123, 242, 107, 111, 197, 48, 1, 103, 43, 254, 215,
     87, 185, 134, 193, 29, 158, 225, 248, 152, 17, 105, 217, 142, 148, 155,
     30, 135, 233, 206, 85, 40, 223, 140, 161, 137, 13, 191, 230, 66, 104, 
     65, 153, 45, 15, 176, 84, 187, 22)
-<<<<<<< HEAD
-memory_module.malloc('Sbox', sys.getsizeof(Sbox))
-print(memory_module.locations['Sbox'].location, 'Sbox', 'mem')
-print(1, 262)
-InvSbox = (82, 9, 106, 213, 48, 54, 165, 56, 191, 64, 163, 158, 129, 243, 
-=======
 write_instrument_read(Sbox_0, 'Sbox_0')
 if type(Sbox_0) == np.ndarray:
     print('malloc', sys.getsizeof(Sbox_0), 'Sbox_0', Sbox_0.shape)
@@ -59,7 +41,6 @@ else:
     print('malloc', sys.getsizeof(Sbox_0), 'Sbox_0')
 print(1, 20)
 InvSbox_0 = (82, 9, 106, 213, 48, 54, 165, 56, 191, 64, 163, 158, 129, 243,
->>>>>>> master
     215, 251, 124, 227, 57, 130, 155, 47, 255, 135, 52, 142, 67, 68, 196, 
     222, 233, 203, 84, 123, 148, 50, 166, 194, 35, 61, 238, 76, 149, 11, 66,
     250, 195, 78, 8, 46, 161, 102, 40, 217, 36, 178, 118, 91, 162, 73, 109,
@@ -76,58 +57,6 @@ InvSbox_0 = (82, 9, 106, 213, 48, 54, 165, 56, 191, 64, 163, 158, 129, 243,
     122, 159, 147, 201, 156, 239, 160, 224, 59, 77, 174, 42, 245, 176, 200,
     235, 187, 60, 131, 83, 153, 97, 23, 43, 4, 126, 186, 119, 214, 38, 225,
     105, 20, 99, 85, 33, 12, 125)
-<<<<<<< HEAD
-memory_module.malloc('InvSbox', sys.getsizeof(InvSbox))
-print(memory_module.locations['InvSbox'].location, 'InvSbox', 'mem')
-
-
-def xtime(a):
-    print(1, 523)
-    memory_module = Memory(MEMORY_SIZE)
-    return (a << 1 ^ 27) & 255 if a & 128 else a << 1
-
-
-print(1, 527)
-Rcon = (0, 1, 2, 4, 8, 16, 32, 64, 128, 27, 54, 108, 216, 171, 77, 154, 47,
-    94, 188, 99, 198, 151, 53, 106, 212, 179, 125, 250, 239, 197, 145, 57)
-memory_module.malloc('Rcon', sys.getsizeof(Rcon))
-print(memory_module.locations['Rcon'].location, 'Rcon', 'mem')
-
-
-def text2matrix(text):
-    print(1, 563)
-    memory_module = Memory(MEMORY_SIZE)
-    print(7, 564)
-    matrix = []
-    memory_module.malloc('matrix', sys.getsizeof(matrix))
-    print(memory_module.locations['matrix'].location, 'matrix', 'mem')
-    for i in range(16):
-        print(9, 566)
-        byte = text >> 8 * (15 - i) & 255
-        memory_module.malloc('byte', sys.getsizeof(byte))
-        print(memory_module.locations['byte'].location, 'byte', 'mem')
-        if i % 4 == 0:
-            print(9, 567)
-            matrix.append([byte])
-        else:
-            print(9, 567)
-            matrix[int(i / 4)].append(byte)
-    return matrix
-
-
-def matrix2text(matrix):
-    print(1, 574)
-    memory_module = Memory(MEMORY_SIZE)
-    print(17, 575)
-    text = 0
-    memory_module.malloc('text', sys.getsizeof(text))
-    print(memory_module.locations['text'].location, 'text', 'mem')
-    for i in range(4):
-        for j in range(4):
-            print(21, 578)
-            text |= matrix[i][j] << 120 - 8 * (4 * i + j)
-    return text
-=======
 write_instrument_read(InvSbox_0, 'InvSbox_0')
 if type(InvSbox_0) == np.ndarray:
     print('malloc', sys.getsizeof(InvSbox_0), 'InvSbox_0', InvSbox_0.shape)
@@ -325,208 +254,11 @@ def matrix2text(matrix):
     print('exit scope 3')
     return instrument_read(text_3, 'text_3')
     print('exit scope 3')
->>>>>>> master
 
 
 class AES:
 
     def __init__(self, master_key):
-<<<<<<< HEAD
-        print(1, 583)
-        memory_module = Memory(MEMORY_SIZE)
-        self.change_key(master_key)
-
-    def change_key(self, master_key):
-        print(1, 586)
-        memory_module = Memory(MEMORY_SIZE)
-        print(29, 587)
-        self.round_keys = text2matrix(master_key)
-        for i in range(4, 4 * 11):
-            self.round_keys.append([])
-            if i % 4 == 0:
-                print(31, 592)
-                print(33, 593)
-                byte = self.round_keys[i - 4][0] ^ Sbox[self.round_keys[i -
-                    1][1]] ^ Rcon[int(i / 4)]
-                memory_module.malloc('byte', sys.getsizeof(byte))
-                print(memory_module.locations['byte'].location, 'byte', 'mem')
-                self.round_keys[i].append(byte)
-                for j in range(1, 4):
-                    print(39, 601)
-                    byte = self.round_keys[i - 4][j] ^ Sbox[self.round_keys
-                        [i - 1][(j + 1) % 4]]
-                    memory_module.malloc('byte', sys.getsizeof(byte))
-                    print(memory_module.locations['byte'].location, 'byte',
-                        'mem')
-                    self.round_keys[i].append(byte)
-            else:
-                print(31, 592)
-                for j in range(4):
-                    print(36, 608)
-                    byte = self.round_keys[i - 4][j] ^ self.round_keys[i - 1][j
-                        ]
-                    memory_module.malloc('byte', sys.getsizeof(byte))
-                    print(memory_module.locations['byte'].location, 'byte',
-                        'mem')
-                    self.round_keys[i].append(byte)
-
-    def encrypt(self, plaintext):
-        print(1, 613)
-        memory_module = Memory(MEMORY_SIZE)
-        print(43, 614)
-        self.plain_state = text2matrix(plaintext)
-        self.__add_round_key(self.plain_state, self.round_keys[:4])
-        for i in range(1, 10):
-            self.__round_encrypt(self.plain_state, self.round_keys[4 * i:4 *
-                (i + 1)])
-        self.__sub_bytes(self.plain_state)
-        self.__shift_rows(self.plain_state)
-        self.__add_round_key(self.plain_state, self.round_keys[40:])
-        return matrix2text(self.plain_state)
-
-    def decrypt(self, ciphertext):
-        print(1, 627)
-        memory_module = Memory(MEMORY_SIZE)
-        print(50, 628)
-        self.cipher_state = text2matrix(ciphertext)
-        self.__add_round_key(self.cipher_state, self.round_keys[40:])
-        self.__inv_shift_rows(self.cipher_state)
-        self.__inv_sub_bytes(self.cipher_state)
-        for i in range(9, 0, -1):
-            self.__round_decrypt(self.cipher_state, self.round_keys[4 * i:4 *
-                (i + 1)])
-        self.__add_round_key(self.cipher_state, self.round_keys[:4])
-        return matrix2text(self.cipher_state)
-
-    def __add_round_key(self, s, k):
-        print(1, 643)
-        memory_module = Memory(MEMORY_SIZE)
-        for i in range(4):
-            for j in range(4):
-                print(60, 646)
-                s[i][j] ^= k[i][j]
-
-    def __round_encrypt(self, state_matrix, key_matrix):
-        print(1, 648)
-        memory_module = Memory(MEMORY_SIZE)
-        self.__sub_bytes(state_matrix)
-        self.__shift_rows(state_matrix)
-        self.__mix_columns(state_matrix)
-        self.__add_round_key(state_matrix, key_matrix)
-
-    def __round_decrypt(self, state_matrix, key_matrix):
-        print(1, 654)
-        memory_module = Memory(MEMORY_SIZE)
-        self.__add_round_key(state_matrix, key_matrix)
-        self.__inv_mix_columns(state_matrix)
-        self.__inv_shift_rows(state_matrix)
-        self.__inv_sub_bytes(state_matrix)
-
-    def __sub_bytes(self, s):
-        print(1, 660)
-        memory_module = Memory(MEMORY_SIZE)
-        for i in range(4):
-            for j in range(4):
-                print(73, 663)
-                s[i][j] = Sbox[s[i][j]]
-
-    def __inv_sub_bytes(self, s):
-        print(1, 665)
-        memory_module = Memory(MEMORY_SIZE)
-        for i in range(4):
-            for j in range(4):
-                print(80, 668)
-                s[i][j] = InvSbox[s[i][j]]
-
-    def __shift_rows(self, s):
-        print(1, 670)
-        memory_module = Memory(MEMORY_SIZE)
-        print(84, 671)
-        s[0][1], s[1][1], s[2][1], s[3][1] = s[1][1], s[2][1], s[3][1], s[0][1]
-        print(84, 672)
-        s[0][2], s[1][2], s[2][2], s[3][2] = s[2][2], s[3][2], s[0][2], s[1][2]
-        print(84, 673)
-        s[0][3], s[1][3], s[2][3], s[3][3] = s[3][3], s[0][3], s[1][3], s[2][3]
-
-    def __inv_shift_rows(self, s):
-        print(1, 675)
-        memory_module = Memory(MEMORY_SIZE)
-        print(87, 676)
-        s[0][1], s[1][1], s[2][1], s[3][1] = s[3][1], s[0][1], s[1][1], s[2][1]
-        print(87, 677)
-        s[0][2], s[1][2], s[2][2], s[3][2] = s[2][2], s[3][2], s[0][2], s[1][2]
-        print(87, 678)
-        s[0][3], s[1][3], s[2][3], s[3][3] = s[1][3], s[2][3], s[3][3], s[0][3]
-
-    def __mix_single_column(self, a):
-        print(1, 680)
-        memory_module = Memory(MEMORY_SIZE)
-        print(90, 682)
-        t = a[0] ^ a[1] ^ a[2] ^ a[3]
-        memory_module.malloc('t', sys.getsizeof(t))
-        print(memory_module.locations['t'].location, 't', 'mem')
-        print(90, 683)
-        u = a[0]
-        memory_module.malloc('u', sys.getsizeof(u))
-        print(memory_module.locations['u'].location, 'u', 'mem')
-        print(90, 684)
-        a[0] ^= t ^ xtime(a[0] ^ a[1])
-        print(90, 685)
-        a[1] ^= t ^ xtime(a[1] ^ a[2])
-        print(90, 686)
-        a[2] ^= t ^ xtime(a[2] ^ a[3])
-        print(90, 687)
-        a[3] ^= t ^ xtime(a[3] ^ u)
-
-    def __mix_columns(self, s):
-        print(1, 689)
-        memory_module = Memory(MEMORY_SIZE)
-        for i in range(4):
-            self.__mix_single_column(s[i])
-
-    def __inv_mix_columns(self, s):
-        print(1, 693)
-        memory_module = Memory(MEMORY_SIZE)
-        for i in range(4):
-            print(99, 696)
-            u = xtime(xtime(s[i][0] ^ s[i][2]))
-            memory_module.malloc('u', sys.getsizeof(u))
-            print(memory_module.locations['u'].location, 'u', 'mem')
-            print(99, 697)
-            v = xtime(xtime(s[i][1] ^ s[i][3]))
-            memory_module.malloc('v', sys.getsizeof(v))
-            print(memory_module.locations['v'].location, 'v', 'mem')
-            print(99, 698)
-            s[i][0] ^= u
-            print(99, 699)
-            s[i][1] ^= v
-            print(99, 700)
-            s[i][2] ^= u
-            print(99, 701)
-            s[i][3] ^= v
-        self.__mix_columns(s)
-
-
-if __name__ == '__main__':
-    print(1, 705)
-    import time
-    print(102, 707)
-    start = time.time()
-    memory_module.malloc('start', sys.getsizeof(start))
-    print(memory_module.locations['start'].location, 'start', 'mem')
-    print(102, 708)
-    aes = AES(1212304810341341)
-    memory_module.malloc('aes', sys.getsizeof(aes))
-    print(memory_module.locations['aes'].location, 'aes', 'mem')
-    aes.encrypt(1212304810341341)
-    print(102, 710)
-    end = time.time()
-    memory_module.malloc('end', sys.getsizeof(end))
-    print(memory_module.locations['end'].location, 'end', 'mem')
-    print(end - start)
-else:
-    print(1, 705)
-=======
         print('enter scope 4')
         print(1, 71)
         print(26, 72)
@@ -1665,4 +1397,3 @@ if instrument_read(__name__, '__name__') == '__main__':
         print('malloc', sys.getsizeof(end_0), 'end_0', [len(end_0)])
     else:
         print('malloc', sys.getsizeof(end_0), 'end_0')
->>>>>>> master
