@@ -1,37 +1,41 @@
 from collections import deque
+
 # format: cfg_node -> {states -> operations}
 node_operations = {}
 operation_sets = {}
 
+
 def schedule_one_node(graph, node):
-    '''
+    """
     node does not get used here. WHY?!
-    '''
+    """
     node_ops = []
     op_set = set()
     queue = deque([[root, 0] for root in graph.roots])
     max_order = 0
     while len(queue) != 0:
         cur_node, order = queue.popleft()
-        if cur_node not in op_set: op_set.add(cur_node)
+        if cur_node not in op_set:
+            op_set.add(cur_node)
         max_order = max(max_order, order)
         cur_node.order = max(order, cur_node.order)
         for child in cur_node.children:
-            queue.append([child, order+1])
-    for i in range(max_order+1):
+            queue.append([child, order + 1])
+    for i in range(max_order + 1):
         node_ops.append([])
     for cur_node in op_set:
         node_ops[cur_node.order].append(cur_node)
     return node_ops
 
+
 def schedule(cfg, graphs):
-    '''
-    
+    """
+
     returns:
         node_operations: dict of cfg_node -> {states -> operations}
-    '''
+    """
     for node in cfg:
-        #print(node.id)
+        # print(node.id)
         node_operations[node] = []
         operation_sets[node] = set()
         graph = graphs[node]
@@ -39,12 +43,13 @@ def schedule(cfg, graphs):
         max_order = 0
         while len(queue) != 0:
             cur_node, order = queue.popleft()
-            if cur_node not in operation_sets[node]: operation_sets[node].add(cur_node)
+            if cur_node not in operation_sets[node]:
+                operation_sets[node].add(cur_node)
             max_order = max(max_order, order)
             cur_node.order = max(order, cur_node.order)
             for child in cur_node.children:
-                queue.append([child, order+1])
-        for i in range(max_order+1):
+                queue.append([child, order + 1])
+        for i in range(max_order + 1):
             node_operations[node].append([])
         for cur_node in operation_sets[node]:
             node_operations[node][cur_node.order].append(cur_node)
@@ -53,6 +58,3 @@ def schedule(cfg, graphs):
                 print(op.order, op.operation)
             print('')"""
     return node_operations
-
-if __name__ == '__main__':
-    schedule("")
