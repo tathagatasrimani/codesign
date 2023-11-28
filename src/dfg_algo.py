@@ -412,7 +412,3 @@ def main_fn(path_in, benchmark_in):
                 cur_node = cur_node.children[0]
             # print('')
     return cfg, graphs, node_to_unroll
-
-
-if __name__ == "__main__":
-    main_fn("")

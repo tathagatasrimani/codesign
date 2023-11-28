@@ -39,7 +39,7 @@ class HardwareSimulator:
         self.vars_allocated = {}
         self.where_to_free = {}
         self.compute_element_to_node_id = {}
-        self.compute_element_neighbors = {}
+        # self.compute_element_neighbors = {}
         self.memory_needed = 0
         self.nvm_memory_needed = 0
         self.cur_memory_size = 0
@@ -58,6 +58,15 @@ class HardwareSimulator:
         self.max_mem_inuse = 0
 
     def find_nearest_mem_to_scale(self, num):
+        """
+        Finds the nearest memory size to scale based on the input.
+
+        Parameters:
+            num (int): The memory size to be scaled.
+
+        Returns:
+            int: The nearest appropriate memory size.
+        """
         if num < 512:
             return 512
         if num > 536870912:
@@ -65,6 +74,19 @@ class HardwareSimulator:
         return 2 ** math.ceil(math.log(num, 2))
 
     def make_node(self, graph, id, name, ctx, opname):
+        """
+        Creates a node in the given graph with specified attributes.
+
+        Parameters:
+            graph (dfg_algo.Graph): The graph to which the node will be added.
+            id (str): The identifier for the new node.
+            name (str): The name of the new node.
+            ctx (AST Context): The AST context of the node ~ the operation .
+            opname (str): The operation name associated with the node.
+
+        Returns:
+            None
+        """
         annotation = ""
         if ctx == ast.Load or ctx == ast.Store:
             annotation = "Register"
@@ -84,9 +106,16 @@ class HardwareSimulator:
 
     def get_hw_need(self, state, hw_spec):
         """
-        state - list of operations
-        hw_spec - existing hw allocation and hw specs
+        Calculates the hardware requirements for a given set of operations.
+
+        Parameters:
+            state (list): A list of operations to be executed.
+            hw_spec (HardwareModel): An object representing the current hardware allocation and specifications.
+
+        Returns:
+            dict: A dictionary representing the hardware requirements for the operations.
         """
+
         hw_need = HardwareModel(
             id=0,
             bandwidth=0,
@@ -112,7 +141,8 @@ class HardwareSimulator:
                     len(self.compute_element_to_node_id[op.operation])
                     <= compute_element_id
                 ):
-                    # print(f"entered ")
+                    # this is done for dynamic allocation because statically provided
+                    # hw specs do this at init.
                     if hw_spec.dynamic_allocation:
                         self.init_new_compute_element(op.operation)
                     else:
@@ -125,9 +155,10 @@ class HardwareSimulator:
                 ]
                 hw_op_node = self.new_graph.id_to_Node[compute_node_id]
                 op.compute_id = compute_node_id
-                mem_in_use += self.process_compute_element(
+                mem_in_use += self.get_mem_usage_of_compute_element(
                     op, self.new_graph, hw_op_node, check_duplicate=True
                 )
+            # print(f"in get_hw_need after get_mem_usage; op: {op}")
 
             hw_need.hw_allocated[op.operation] += 1
             hw_spec.compute_operation_totals[op.operation] += 1
@@ -139,9 +170,20 @@ class HardwareSimulator:
         self.max_mem_inuse = max(self.max_mem_inuse, mem_in_use)
         return hw_need.hw_allocated
 
-    def cycle_sim(self, hw_inuse, hw, max_cycles):
+    def simulate_cycles(self, hw_inuse, hw, total_cycles):
+        """
+        Simulates the operation of hardware over a number of cycles.
+
+        Parameters:
+            hw_inuse (dict): A dictionary tracking the current hardware in use.
+            hw (HardwareModel): The hardware model providing the specific architecture being simulated.
+            total_cycles (int): The maximum number of cycles to simulate.
+
+        Returns:
+            int: The sum of power used by nodes in all cycles.
+        """
         node_power_sum = 0
-        for i in range(max_cycles):
+        for i in range(total_cycles):
             self.power_use.append(0)
             self.mem_power_use.append(0)
 
@@ -179,6 +221,15 @@ class HardwareSimulator:
         return node_power_sum
 
     def get_matching_bracket_count(self, name):
+        """
+        Counts matching brackets in a given name string.
+
+        Parameters:
+            name (str): The string in which to count brackets.
+
+        Returns:
+            int: The count of matching brackets in the name.
+        """
         if name.find("[") == -1:
             return 0
         bracket_count = 0
@@ -199,9 +250,21 @@ class HardwareSimulator:
                     bracket_count += 1
         return bracket_count
 
-    def process_compute_element_neighbor(
-        self, neighbor, graph, op_node, context, check_duplicate
-    ):
+    def get_reg_size(self, neighbor, graph, op_node, context, check_duplicate):
+        """
+        Only called on Regs nodes that are parents / children of an operation.
+        Checks the size of the variable in the mem heap that this register points to.
+
+        Parameters:
+            neighbor: The register node to be processed
+            (deprecated?) graph (dfg_algo.Graph): the dfg for the program. This dfg is modified if needed to re
+            (deprecated?) op_node (dfg_algo.Node): The node in the dfg corresponding to the operation
+            (deprecated?) context: The AST context of the register either Load or Store
+            (deprecated?) check_duplicate (bool): Whether or not to check for duplicate memory accesses
+
+        Returns:
+            int: The size of the variable this register is storing.
+        """
         name = neighbor.value
         mem_size = 0
         bracket_ind = name.find("[")
@@ -216,64 +279,98 @@ class HardwareSimulator:
             for i in range(bracket_count):
                 mem_size /= mem_loc.dims[i]
             # print(mem_size)
-            if check_duplicate:
-                text = name + "\nlocation: " + str(mem_loc.location)
-            else:
-                text = name
-            dfg_node_id = dfg_algo.set_id()
-            # print(dfg_node_id)
-            if check_duplicate:
-                anno = "size: " + str(mem_size)
-            else:
-                anno = ""
-            if (mem_loc.location, mem_loc.size) not in op_node.memory_links:
-                self.make_node(graph, dfg_node_id, text, context, neighbor.operation)
-                self.make_edge(graph, dfg_node_id, op_node.id, annotation=anno)
-            op_node.memory_links.add((mem_loc.location, mem_loc.size))
+            # if check_duplicate:
+            #     text = name + "\nlocation: " + str(mem_loc.location)
+            # else:
+            #     text = name
+            # dfg_node_id = dfg_algo.set_id()
+            # # print(dfg_node_id)
+            # if check_duplicate:
+            #     anno = "size: " + str(mem_size)
+            # else:
+            #     anno = ""
+
+            # I don't think memory_links is doing anything either.
+
+            # if (mem_loc.location, mem_loc.size) not in op_node.memory_links:
+            #     # self.make_node(graph, dfg_node_id, text, context, neighbor.operation)
+            #     # self.make_edge(graph, dfg_node_id, op_node.id, annotation=anno)
+            # op_node.memory_links.add((mem_loc.location, mem_loc.size))
             # print("node made for ", name)
         return mem_size
 
-    def process_compute_element(self, op, graph, op_node, check_duplicate):
+    def get_mem_usage_of_compute_element(self, op, graph, op_node, check_duplicate):
         """
         Determine the amount of memory in use by this operation.
 
-        params:
-            op: ??
-            graph: ??
-            op_node: ??
-            check_duplicate: boolean, ??
+        Parameters:
+            op (dfg_algo.Node): The operation to be processed
+                 Examples: `dfg Node 64: +, op: Add, memory_links: None, compute_id: 130`
+                           `dfg Node 43: c_1[i_1][j_1], op: Regs, memory_links: None, compute_id: None`
+            graph (dfg_algo.Graph): the dfg for the program. This dfg is modified if needed to re
+            op_node (dfg_algo.Node): The node in the dfg corresponding to the operation. why is this duplicated?
+            check_duplicate (bool): Whether or not to check for duplicate memory accesses
+
+        Returns:
+            int: The amount of memory in use by this operation.
         """
         parents = []
         for parent in op.parents:
             parents.append(parent.operation)
-        # print(f"in process_compute_element, op: {op}")
+        # print(f"in get_mem_usage_of_compute_element, op: {op}")
         mem_in_use = 0
+
+        # check if any parents are registers,
         for parent in op.parents:
             if not parent.operation:
                 continue
+
             if parent.operation == "Regs":
-                mem_in_use += self.process_compute_element_neighbor(
+                mem_in_use += self.get_reg_size(
                     parent, graph, op_node, ast.Load, check_duplicate
                 )
-            else:
-                if not check_duplicate:
-                    continue
-                # print(op.operation, parent.operation)
-                parent_compute_id = parent.compute_id
-                if parent_compute_id not in self.compute_element_neighbors[op_node.id]:
-                    self.make_edge(graph, parent_compute_id, op_node.id, "")
-                self.compute_element_neighbors[op_node.id].add(parent_compute_id)
-                self.compute_element_neighbors[parent_compute_id].add(op_node.id)
+            # this doesn't do anything at all
+            # else:
+            #     if not check_duplicate:
+            #         continue
+            #     # print(op.operation, parent.operation)
+            #     parent_compute_id = parent.compute_id
+            #     if parent_compute_id not in self.compute_element_neighbors[op_node.id]:
+            #         self.make_edge(graph, parent_compute_id, op_node.id, "")   <-- This might do something; not sure yet.
+            #     self.compute_element_neighbors[op_node.id].add(parent_compute_id)
+            #     self.compute_element_neighbors[parent_compute_id].add(op_node.id)
+
         for child in op.children:
             if not child.operation:
                 continue
             if child.operation == "Regs":
-                mem_in_use += self.process_compute_element_neighbor(
+                mem_in_use += self.get_reg_size(
                     child, graph, op_node, ast.Store, check_duplicate
                 )
         return mem_in_use
 
     def get_dims(self, arr):
+        """
+        Extracts the dimensions from a given array representation.
+
+        This function parses an array-like structure to determine its dimensions.
+        It supports both tuple and array representations. The function is typically used in
+        the context of memory operations to understand the shape and size of data structures,
+        particularly when allocating memory.
+
+        Parameters:
+        - arr (list): A list representing the array or tuple. Each element in the list is a string
+        representing the size of a dimension. The elements may be formatted as '(size,' for tuples or
+        'size,' for arrays.
+
+        Returns:
+        - list: A list of integers where each integer represents the size of a dimension in the array.
+        This list provides a multi-dimensional structure of the array or tuple.
+
+        Example:
+        - For an input like `['(3,', '4)']`, which represents a 2D tuple, the function would return `[3, 4]`.
+
+        """
         dims = []
         if arr[0][0] == "(":  # processing tuple
             dims.append(int(arr[0][1 : arr[0].find(",")]))
@@ -292,6 +389,28 @@ class HardwareSimulator:
         return dims
 
     def process_memory_operation(self, mem_op):
+        """
+        Processes a memory operation, handling memory allocation or deallocation based on the operation type.
+
+        This function interprets and acts on memory operations (like allocating or freeing memory)
+        within the hardware simulation. It modifies the state of the memory module according to the
+        specified operation, updating the memory allocation status as necessary.
+
+        Parameters:
+        - mem_op (list): A list representing a memory operation. The first element is the operation type
+        ('malloc' or 'free'), the second element is the size of the memory block, and subsequent elements
+         provide additional context or dimensions for the operation.
+
+        Usage:
+        - If `mem_op` is a 'malloc' operation, the function allocates memory of the specified size and
+            potentially with specified dimensions.
+        - If `mem_op` is a 'free' operation, the function deallocates the memory associated with the
+             given variable name.
+
+        This function is typically called during the simulation process to dynamically manage
+        memory as the simulated program executes different operations that require memory allocation
+        and deallocation.
+        """
         var_name = mem_op[2]
         size = int(mem_op[1])
         status = mem_op[0]
@@ -306,6 +425,32 @@ class HardwareSimulator:
     # adds all mallocs and frees to vectors, and finds the next cfg node in the data path,
     # returning the index of that node
     def find_next_data_path_index(self, i, mallocs, frees):
+        """
+        Finds the next index in the data path that corresponds to a new computation node,
+        updating malloc and free operations lists along the way.
+
+        This function iterates through the data path of the simulation, starting from a given index,
+        to identify the next point where a change in the hardware configuration or memory allocation occurs.
+        It updates lists of memory allocation ('malloc') and deallocation ('free') operations encountered
+        during this traversal.
+
+        The data_path is a list of lists where each element is node, a memory operation, or a
+        piece of instrumentation. For example, the following are valid elements of the data_path:
+        ['10', '16'], ['pattern_seek_3'], ['malloc', '16', 'c_1', '(3, 3)'], ['free', 'c_1']
+
+        Parameters:
+        - i (int): The starting index in the data path from which the search begins.
+        - mallocs (list): A list to be updated with memory allocation operations found during the traversal.
+        Each element is a list representing a 'malloc' operation.
+        - frees (list): A list to be updated with memory deallocation operations found during the traversal.
+        Each element is a list representing a 'free' operation.
+
+        Returns:
+        - tuple: A tuple containing three elements:
+            1. int: The index of the next configuration node in the data path.
+            2. bool: A flag indicating whether a 'pattern_seek' operation was encountered.
+            3. int: The maximum iterations to unroll if a 'pattern_seek' operation is encountered.
+        """
         pattern_seek = False
         max_iters = 1
         # print(f"i: {i}, len(self.data_path): {len(self.data_path)}, self.data_path: {self.data_path}")
@@ -327,7 +472,7 @@ class HardwareSimulator:
                 break
         return i, pattern_seek, max_iters
 
-    def simulate(self, cfg, node_operation_map, hw, graphs, first):
+    def simulate(self, cfg, node_operation_map, hw, first):
         global state_graph_counter
         cur_node = cfg.entryblock
         if first:
@@ -342,6 +487,8 @@ class HardwareSimulator:
         frees = []
         mallocs = []
 
+        print(f"data path: {self.data_path}")
+
         i, pattern_seek, max_iters = self.find_next_data_path_index(i, mallocs, frees)
         # iterate through nodes in data dependency graph
         while i < len(self.data_path):
@@ -350,6 +497,7 @@ class HardwareSimulator:
                 pattern_seek_next,
                 max_iters_next,
             ) = self.find_next_data_path_index(i + 1, mallocs, frees)
+
             if i == len(self.data_path):
                 break
 
@@ -469,6 +617,8 @@ class HardwareSimulator:
                     """
                     # print(f"in simulate, operations in node_operations_map: {operations}")
                     hw_need = self.get_hw_need(operations, hw)
+
+                    # ===== Visualization =====
                     state_graph_viz = gv.Graph()
                     state_graph = dfg_algo.Graph(set(), {}, state_graph_viz)
                     op_count = 0
@@ -495,7 +645,8 @@ class HardwareSimulator:
                                     hardwareModel.op2sym_map[parent.operation],
                                 )
                                 self.make_edge(state_graph, parent_id, compute_id, "")
-                        self.process_compute_element(
+                        # what are we doing here that we don't want to check duplicate?
+                        self.get_mem_usage_of_compute_element(
                             op,
                             state_graph,
                             state_graph.id_to_Node[compute_id],
@@ -506,8 +657,10 @@ class HardwareSimulator:
                     #     state_graph_viz.render(self.path + '/benchmarks/pictures/state_graphs/' + args.benchmark.split('/')[-1].split('.')[0] + '_' + str(state_graph_counter), view = True)
                     state_graph_counter += 1
 
-                    max_cycles = 0
-                    # allocate hardware for operations in this state and calculate max cycles
+                    # ===== End Visualization =====
+
+                    total_cycles = 0
+                    # allocate hardware for operations in this state and calculate total cycles
                     for elem in hw_need:
                         latency = hw.latency[elem]
                         # if elem == "Regs": latency *= hw.latency_scale[self.find_nearest_mem_to_scale(self.memory_needed)]
@@ -529,19 +682,18 @@ class HardwareSimulator:
                             math.ceil(num_elem_needed / hw.hw_allocated[elem]) * latency
                         )
                         # print(f"{cur_cycles_needed} cycles needed for elem {elem} with {num_elem_needed} needed and {hw.hw_allocated[elem]} available")
-                        max_cycles = max(
-                            cur_cycles_needed, max_cycles
+                        total_cycles = max(
+                            cur_cycles_needed, total_cycles
                         )  # identify bottleneck element for this node.
                         j = 0
                         while num_elem_needed > 0:
-                            hw_inuse[elem][
-                                j
-                            ] += latency  # this keeps getting incremented, never reset.
+                            # this keeps getting incremented, never reset.
+                            hw_inuse[elem][j] += latency
                             j = (j + 1) % hw.hw_allocated[elem]
                             num_elem_needed -= 1
-                    # print(f"for operations: {[str(op) for op in operations]}, max_cycles = {max_cycles}")
-                    self.node_avg_power[node_id] += self.cycle_sim(
-                        hw_inuse, hw, max_cycles
+                    # print(f"for operations: {[str(op) for op in operations]}, total_cycles = {total_cycles}")
+                    self.node_avg_power[node_id] += self.simulate_cycles(
+                        hw_inuse, hw, total_cycles
                     )
                 idx += 1
 
@@ -680,7 +832,7 @@ class HardwareSimulator:
             None,
             hardwareModel.op2sym_map[compute_unit],
         )
-        self.compute_element_neighbors[compute_id] = set()
+        # self.compute_element_neighbors[compute_id] = set()
         self.compute_element_to_node_id[compute_unit].append(compute_id)
 
 
@@ -714,13 +866,8 @@ def main():
         # looks like there's a lot of setup stuff that depends on the amount of hw allocated.
         for i in range(hw.hw_allocated[elem]):
             simulator.init_new_compute_element(elem)
-            # compute_id = dfg_algo.set_id()
-            # simulator.make_node(simulator.new_graph, compute_id, hardwareModel.op2sym_map[key], None, hardwareModel.op2sym_map[key])
-            # simulator.compute_element_neighbors[compute_id] = set()
-            # simulator.compute_element_to_node_id[key].append(compute_id)
-    # print(f"before start sim: compute_elements_to_node_id: {simulator.compute_element_to_node_id}")
 
-    data = simulator.simulate(cfg, node_operation_map, hw, graphs, True)
+    data = simulator.simulate(cfg, node_operation_map, hw, True)  # graphs
 
     area = 0
     for elem in hw.hw_allocated:
