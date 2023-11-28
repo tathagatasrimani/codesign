@@ -173,7 +173,6 @@ class HardwareModel:
 		self.dynamic_allocation = tmp
 		# print(f"dynamic_allocation flag: {self.dynamic_allocation}")
 
-
 	def set_technology_parameters(self):
 		tech_params = yaml.load(open('tech_params.yaml', 'r'), Loader=yaml.Loader)
 
@@ -184,12 +183,22 @@ class HardwareModel:
 		self.leakage_power = tech_params['leakage_power'][self.transistor_size]
 		# print(f"t_size: {self.transistor_size}, cache: {self.cache_size}, mem_layers: {self.mem_layers}, pitch: {self.pitch}")
 		# print(f"tech_params[mem_area][t_size][cache_size][mem_layers]: {tech_params['mem_area'][self.transistor_size][self.cache_size][self.mem_layers]}")
-		self.area["Regs"] = tech_params['mem_area'][self.transistor_size][self.cache_size][self.mem_layers][self.pitch]
 		
-		self.latency["Regs"] = tech_params['mem_latency'][self.cache_size][self.mem_layers][self.pitch]
-		self.dynamic_power["Regs"] = tech_params['mem_dynamic_power'][self.cache_size][self.mem_layers][self.pitch]
-		self.leakage_power["Regs"] = tech_params['mem_leakage_power'][self.cache_size][self.mem_layers][self.pitch]
+		# this reg stuff should have its own numbers. Those mem numbers are for SRAM cache
+		# self.area["Regs"] = tech_params['mem_area'][self.transistor_size][self.cache_size][self.mem_layers][self.pitch]
+		# self.latency["Regs"] = tech_params['mem_latency'][self.cache_size][self.mem_layers][self.pitch]
+		# self.dynamic_power["Regs"] = tech_params['mem_dynamic_power'][self.cache_size][self.mem_layers][self.pitch]
+		# self.leakage_power["Regs"] = 1e-6*tech_params['mem_leakage_power'][self.cache_size][self.mem_layers][self.pitch]
+
+		self.mem_area = tech_params['mem_area'][self.transistor_size][self.cache_size][self.mem_layers][self.pitch]
+		# units of mW
+		self.mem_leakage_power = tech_params['mem_leakage_power'][self.cache_size][self.mem_layers][self.pitch]
+		# how does mem latency get incorporated? Currently reg latency = mem_latency. Is this why my num clock cycles is so high?
+		## DO THIS!!!!
 	
+	def update_cache_size(self, cache_size):
+		pass
+
 	def init_misc_vars(self):
 		self.compute_operation_totals = {}
 
@@ -218,9 +227,6 @@ class HardwareModel:
 
 	def set_var_sizes(self, var_sizes):
 		self.var_sizes = var_sizes
-
-	def allocate_hw_from_file(self, filename):
-		return
 
 	def print_stats(self):
 	   s = '''

@@ -82,7 +82,7 @@ area: # nm^2
     BitOr: 5.036996e+07
     BitXor: 5.036996e+07
     Eq: 3.793488e+08 # use add, unsure about this.
-    FloorDiv:  8.340007e+09
+    FloorDiv: 8.340007e+09
     Gt: 3.793488e+08 # use add, unsure about this.
     GtE: 3.793488e+08 # use add, unsure about this.
     Invert: 5.036996e+07
@@ -277,30 +277,30 @@ latency: # num cycles
     UAdd: 16
     USub: 16.175
   40:
-    Add: 10.5
-    Sub: 10.5
-    And: 0.36
-    BitAnd: 0.36
-    BitOr: 0.36
-    BitXor: 0.36
-    Eq: 10.5 # use add, unsure about this.
-    FloorDiv: 25.02
-    Gt: 10.5 # use add, unsure about this.
-    GtE: 10.5 # use add, unsure about this.
-    Invert: 0.36
-    IsNot: 0.36
-    LShift: 4.2 # this is higher than for the other params.
-    Lt: 10.5 # use add, unsure about this.
-    LtE: 10.5 # use add, unsure about this.
-    Mod: 10.5 # use add, unsure about this.
-    Mult: 25.02
-    Not: 0.36
-    NotEq: 10.5 # use add, unsure about this.
-    Or: 0.36
-    RShift: 4.2 # this is higher than for the other params.
+    Add: 0.94
+    Sub: 0.94
+    And: 0.06
+    BitAnd: 0.06
+    BitOr: 0.06
+    BitXor: 0.06
+    Eq: 0.94 # use add, unsure about this.
+    FloorDiv: 0.98
+    Gt: 0.94 # use add, unsure about this.
+    GtE: 0.94 # use add, unsure about this.
+    Invert: 0.06
+    IsNot: 0.06
+    LShift: 0.7 # this is higher than for the other params.
+    Lt: 0.94 # use add, unsure about this.
+    LtE: 0.94 # use add, unsure about this.
+    Mod: 0.94 # use add, unsure about this.
+    Mult: 0.98 # didn't have # for 3 stage, 0.5 ns so use 1 ns
+    Not: 0.06
+    NotEq: 0.94 # use add, unsure about this.
+    Or: 0.06
+    RShift: 0.7 # this is higher than for the other params.
     Regs: 2
-    UAdd: 10.5 # use add, unsure about this.
-    USub: 10.5 # use add, unsure about this.
+    UAdd: 0.94 # use add, unsure about this.
+    USub: 0.94 # use add, unsure about this.
 leakage_power:
   3:
     Add: 1722.410667
@@ -402,7 +402,7 @@ leakage_power:
     Regs: 7.395312e+01
     UAdd: 3.265969e+03 # use add, unsure about this.
     USub: 3.265969e+03 # use add, unsure about this.
-mem_area: # units?
+mem_area: # mm^2 - these numbers are actually all for 65nm node
   3:
     1:
       1:
@@ -604,19 +604,19 @@ mem_area: # units?
   40:
     1:
       1:
-        100: 100
+        100: 8.26
     2:
       1:
-        100: 200
+        100: 20.83
     4:
       1:
-        100: 400
+        100: 42.1
     8:
       1:
-        100: 800
+        100: 73.12
     16:
       1:
-        100: 1600    
+        100: 137.7
 mem_dynamic_power: # (units of nw) queried by (cache_size, mem_layers, pitch)
   1:
     1:
@@ -749,72 +749,73 @@ mem_latency: # num cycles
       1: 7.13
       10: 8.36
       100: 12.145
-mem_leakage_power: # nw
+mem_leakage_power: # mw
   1:
     1:
-      100: 8.4488e-05
+      100: 84.488
     2:
-      0.1: 0.00016332
-      1: 0.00011361
-      10: 0.00012024
-      100: 0.000134778
+      0.1: 163.32
+      1: 113.61
+      10: 120.24
+      100: 134.778
     4:
-      0.1: 0.000125092
-      1: 0.000160134
-      10: 0.000147956
-      100: 0.000332
+      0.1: 125.092
+      1: 160.134
+      10: 147.956
+      100: 332
   2:
     1:
-      100: 0.000203537
+      100: 203.537
     2:
-      0.1: 0.00016729
-      1: 0.00020101
-      10: 0.000240276
-      100: 0.000253749
+      0.1: 167.29
+      1: 201.01
+      10: 240.276
+      100: 253.749
     4:
-      0.1: 0.000326641
-      1: 0.000297911
-      10: 0.000239929
-      100: 0.000367021
+      0.1: 326.641
+      1: 297.911
+      10: 239.929
+      100: 367.021
   4:
     1:
-      100: 0.000430711
+      100: 430.711
     2:
-      0.1: 0.00052343
-      1: 0.00044908
-      10: 0.000446145
-      100: 0.000449317
+      0.1: 523.43
+      1: 449.08
+      10: 446.145
+      100: 449.317
     4:
-      0.1: 0.000393097
-      1: 0.000470928
-      10: 0.000476738
-      100: 0.000502546
+      0.1: 393.097
+      1: 470.928
+      10: 476.738
+      100: 502.546
   8:
     1:
-      100: 0.000771303
+      100: 771.303
     2:
-      0.1: 0.00087239
-      1: 0.00087239
-      10: 0.000830644
-      100: 0.000797864
+      0.1: 872.39
+      1: 872.39
+      10: 830.644
+      100: 797.864
     4:
-      0.1: 0.00104685
-      1: 0.000898161
-      10: 0.000872388
-      100: 0.000889741
+      0.1: 1046.85
+      1: 898.161
+      10: 872.388
+      100: 889.741
   16:
     1:
-      100: 0.0014961
+      100: 1496.1
     2:
-      0.1: 0.0016214
-      1: 0.0016214
-      10: 0.00153273
-      100: 0.00162642
+      0.1: 1621.4
+      1: 1621.4
+      10: 1532.73
+      100: 1626.42
     4:
-      0.1: 0.00172853
-      1: 0.001728534
-      10: 0.00165334
-      100: 0.0016888
+      0.1: 1728.53
+      1: 1728.534
+      10: 1653.34
+      100: 1688.8
+
 power_scale:
   512: 1
   1024: 2
@@ -837,7 +838,7 @@ power_scale:
   134217728: 19
   268435456: 20
   536870912: 21
-latency_scale:
+latency_scale: # did we just make this shit up?
   512: 1
   1024: 2
   2048: 3

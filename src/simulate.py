@@ -32,6 +32,7 @@ class HardwareSimulator():
         self.path = os.getcwd()
         self.data_path = []
         self.power_use = []
+        self.mem_power_use = []
         self.node_intervals = []
         self.node_avg_power = {}
         self.unroll_at = {}
@@ -116,6 +117,7 @@ class HardwareSimulator():
         node_power_sum = 0
         for i in range(max_cycles):
             self.power_use.append(0)
+            self.mem_power_use.append(0)
             
             # save current state of hardware to data array
             cur_data = ""
@@ -135,6 +137,7 @@ class HardwareSimulator():
             self.data[self.cycles] = cur_data
 
             # simulate one cycle
+            # these two loops loop over all hardware elements; they don't count down till 
             for elem in hw_inuse:
                 for j in range(len(hw_inuse[elem])):
                     hw_inuse[elem][j] = max(0, hw_inuse[elem][j] - 1) # decrement hw in use?
@@ -303,6 +306,7 @@ class HardwareSimulator():
             pattern_mallocs, pattern_frees = [mallocs],  [frees]
             other_mallocs, other_frees = [], []
 
+            # modify DFG to enable parallelization:
             if pattern_seek: 
                 #print("entering pattern seek")
                 pattern_seek = False
@@ -337,6 +341,8 @@ class HardwareSimulator():
                             break
                 if num_unroll_iterations > 0: pattern_seek = True
             elif self.unroll_at[cur_node.id]:
+                print(f"found unroll at node: {cur_node.id}")
+                print(f"ops:{[str(op) for op in operations for operations in node_operation_map[cur_node]]}")
                 # unroll the node: find the next node that is not the same as the current node
                 # and count consecutive number of times this node appears in the data path
                 j = next_ind
@@ -349,6 +355,7 @@ class HardwareSimulator():
                 next_ind = j
 
             idx = 0
+            # this happens once if no pattern seeking; else happens number of times = number of unique nodes in pattern
             while idx < len(pattern_nodes):
                 cur_node = self.id_to_node[pattern_nodes[idx]]
                 mallocs = pattern_mallocs[idx]
@@ -399,35 +406,40 @@ class HardwareSimulator():
                                 self.make_edge(state_graph, parent_id, compute_id, "")
                         self.process_compute_element(op, state_graph, state_graph.id_to_Node[compute_id], check_duplicate=False)
                     # if op_count > 0:
-                        # Path(simulator.path + '/benchmarks/pictures/state_graphs/').mkdir(parents=True, exist_ok=True)
-                        # state_graph_viz.render(self.path + '/benchmarks/pictures/state_graphs/' + sys.argv[1][sys.argv[1].rfind('/')+1:] + '_' + str(state_graph_counter), view = True)
+                    #     Path(self.path + '/benchmarks/pictures/state_graphs/').mkdir(parents=True, exist_ok=True)
+                    #     state_graph_viz.render(self.path + '/benchmarks/pictures/state_graphs/' + args.benchmark.split('/')[-1].split('.')[0] + '_' + str(state_graph_counter), view = True)
                     state_graph_counter += 1
 
                     max_cycles = 0
                     # allocate hardware for operations in this state and calculate max cycles
                     for elem in hw_need:
                         latency = hw.latency[elem]
-                        if elem == "Regs": latency *= hw.latency_scale[self.find_nearest_mem_to_scale(self.memory_needed)]
+                        # if elem == "Regs": latency *= hw.latency_scale[self.find_nearest_mem_to_scale(self.memory_needed)]
                         num_elem_needed = hw_need[elem]
                         if num_elem_needed == 0: continue
-                        # check some flag for dynamic and set hw.hw_allocated = hw_need?
+                        # print(f"latency of elem {elem} = {latency}")
+
+                        # check flag for dynamic and set hw.hw_allocated = hw_need
                         if hw.dynamic_allocation:
                             if hw.hw_allocated[elem] < hw_need[elem]:
                                 hw_inuse[elem] = [0] * hw_need[elem]
                                 hw.hw_allocated[elem] = hw_need[elem]
                         if hw.hw_allocated[elem] == 0 and num_elem_needed > 0:
                             raise Exception("hardware specification insufficient to run program")
-                        cur_cycles_needed = int(math.ceil(num_elem_needed / hw.hw_allocated[elem]) * latency)
-                        #print("cycles needed for " + elem + ": " + str(cur_cycles_needed) + ' (element count = ' + str(num_elem_needed) + ')')
+                        cur_cycles_needed = math.ceil(math.ceil(num_elem_needed / hw.hw_allocated[elem]) * latency)
+                        # print(f"{cur_cycles_needed} cycles needed for elem {elem} with {num_elem_needed} needed and {hw.hw_allocated[elem]} available")
                         max_cycles = max(cur_cycles_needed, max_cycles) # identify bottleneck element for this node.
                         j = 0
                         while num_elem_needed > 0:
                             hw_inuse[elem][j] += latency # this keeps getting incremented, never reset.
                             j = (j + 1) % hw.hw_allocated[elem]
                             num_elem_needed -= 1
+                    # print(f"for operations: {[str(op) for op in operations]}, max_cycles = {max_cycles}")
                     self.node_avg_power[node_id] += self.cycle_sim(hw_inuse, hw, max_cycles)
                 idx += 1
             
+            # should we be dividing by num cycles here. I think this is why P is going down as N increases
+            # we don't actually use node_avg_power. what we care about is power_use
             if self.cycles - start_cycles > 0: self.node_avg_power[node_id] /= self.cycles - start_cycles
             self.node_intervals[-1][1][1] = self.cycles
             for free in frees:
@@ -449,6 +461,7 @@ class HardwareSimulator():
         
         for c in range(self.cycles):
             self.power_use[c] += passive_power
+            self.mem_power_use[c] += hw.mem_leakage_power
 
         
         print("done with simulation")
@@ -595,11 +608,17 @@ def main():
     for elem in hw.hw_allocated:
         area += max(0,hw.hw_allocated[elem]) * hw.area[elem]
     print(f"compute area: {area * 1e-6} um^2")
+    print(f"memory area: {hw.mem_area * 1e6} um^2")
+    print(f"total area: {(area*1e-6 + hw.mem_area*1e6)} um^2")
 
     # print stats
     print("total number of cycles: ", simulator.cycles)
-    print(f"Avg Power: {1e-6 * sum(simulator.power_use) / simulator.cycles} mW")
+    avg_compute_power = 1e-6 * np.mean(simulator.power_use)
+    print(f"Avg compute Power: {avg_compute_power} mW")
     # print(f"total energy {sum(simulator.power_use)} nJ")
+    avg_mem_power = np.mean(simulator.mem_power_use)
+    print(f"Avg mem Power: {avg_mem_power} mW")
+    print(f"Total power: {avg_mem_power + avg_compute_power} mW")
     print("total volatile reads: ", simulator.reads)
     print("total volatile read size: ", simulator.total_read_size)
     print("total nvm reads: ", simulator.nvm_reads)

@@ -18,8 +18,9 @@ def main():
         for j in range(N):
             # loop.start_unroll
             for k in range(N):
-                c[i][j] += a[i][k] * b[k][j] + d[j]
+                c[i][j] += a[i][k] * b[k][j]
             # loop.stop_unroll
+            c[i][j] += d[i]
 
 if __name__ == "__main__":
     main()
