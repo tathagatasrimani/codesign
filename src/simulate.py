@@ -91,20 +91,20 @@ class HardwareSimulator():
             if not op.operation: continue
             
             # this stuff is handling some graph stuff. 
-            if op.operation != "Regs":                  
-                compute_element_id = hw_need.hw_allocated[op.operation] % hw_spec.hw_allocated[op.operation]
-                # print(f"compute_element_id: {compute_element_id}; compute_element_to_node_id: {self.compute_element_to_node_id}")
-                if len(self.compute_element_to_node_id[op.operation]) <= compute_element_id:
-                    # print(f"entered ")
-                    if hw_spec.dynamic_allocation:
-                        self.init_new_compute_element(op.operation)
-                    else:
-                        raise Exception("hardware specification insufficient to run program")
-                # print(f"after init; op: {op.operation} compute_element_to_node_id: {self.compute_element_to_node_id}")
-                compute_node_id = self.compute_element_to_node_id[op.operation][compute_element_id]
-                hw_op_node = self.new_graph.id_to_Node[compute_node_id]
-                op.compute_id = compute_node_id
-                mem_in_use += self.process_compute_element(op, self.new_graph, hw_op_node, check_duplicate=True)
+            # if op.operation != "Regs":                  
+            compute_element_id = hw_need.hw_allocated[op.operation] % hw_spec.hw_allocated[op.operation]
+            # print(f"compute_element_id: {compute_element_id}; compute_element_to_node_id: {self.compute_element_to_node_id}")
+            if len(self.compute_element_to_node_id[op.operation]) <= compute_element_id:
+                # print(f"entered ")
+                if hw_spec.dynamic_allocation:
+                    self.init_new_compute_element(op.operation)
+                else:
+                    raise Exception("hardware specification insufficient to run program")
+            # print(f"after init; op: {op.operation} compute_element_to_node_id: {self.compute_element_to_node_id}")
+            compute_node_id = self.compute_element_to_node_id[op.operation][compute_element_id]
+            hw_op_node = self.new_graph.id_to_Node[compute_node_id]
+            op.compute_id = compute_node_id
+            mem_in_use += self.process_compute_element(op, self.new_graph, hw_op_node, check_duplicate=True)
             
             hw_need.hw_allocated[op.operation] += 1
             hw_spec.compute_operation_totals[op.operation] += 1
@@ -123,7 +123,7 @@ class HardwareSimulator():
             cur_data = ""
             for elem in hw_inuse:
                 power = hw.dynamic_power[elem]
-                if elem == "Regs": power *= hw.power_scale[self.find_nearest_mem_to_scale(self.memory_needed)]
+                # if elem == "Regs": power *= hw.power_scale[self.find_nearest_mem_to_scale(self.memory_needed)]
                 if len(hw_inuse[elem]) > 0:
                     cur_data += elem + ": "
                     count = 0
@@ -395,12 +395,13 @@ class HardwareSimulator():
                     state_graph = dfg_algo.Graph(set(), {}, state_graph_viz)
                     op_count = 0
                     for op in operations:
-                        if not op.operation or op.operation == "Regs": continue
+                        if not op.operation: continue
+                        # if op.operation == "Regs": continue
                         op_count += 1
                         compute_id = dfg_algo.set_id()
                         self.make_node(state_graph, compute_id, hardwareModel.op2sym_map[op.operation], None, hardwareModel.op2sym_map[op.operation])
                         for parent in op.parents:
-                            if parent.operation and parent.operation != "Regs":
+                            if parent.operation: # and parent.operation != "Regs":
                                 parent_id = dfg_algo.set_id()
                                 self.make_node(state_graph, parent_id, hardwareModel.op2sym_map[parent.operation], None, hardwareModel.op2sym_map[parent.operation])
                                 self.make_edge(state_graph, parent_id, compute_id, "")
@@ -591,7 +592,7 @@ def main():
     new_gv_graph = gv.Graph()
     simulator.new_graph = dfg_algo.Graph(set(), {}, new_gv_graph)
     for elem in hw.hw_allocated:
-        if elem == "Regs": continue
+        #if elem == "Regs": continue
         simulator.compute_element_to_node_id[elem] = []
         # looks like there's a lot of setup stuff that depends on the amount of hw allocated.
         for i in range(hw.hw_allocated[elem]):
