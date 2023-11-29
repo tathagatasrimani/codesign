@@ -86,8 +86,9 @@ class HardwareSimulator():
         '''
         hw_need = HardwareModel(id=0,bandwidth=0,mem_layers=self.mem_layers, pitch=self.pitch, transistor_size=self.transistor_size, cache_size= self.cache_size)
         mem_in_use = 0
+        # print(f"\n\n\ntop of get_hw_need")
         for op in state:
-            # print(f"in get_hw_need, op: {op}")
+            # print(f"op: {op}")
             if not op.operation: continue
             
             # this stuff is handling some graph stuff. 
@@ -108,6 +109,7 @@ class HardwareSimulator():
             
             hw_need.hw_allocated[op.operation] += 1
             hw_spec.compute_operation_totals[op.operation] += 1
+        # print(f"total compute allocated: {hw_need.hw_allocated}")
         
         self.max_regs_inuse = min(hw_spec.hw_allocated["Regs"], max(self.max_regs_inuse, hw_need.hw_allocated["Regs"]))
         self.max_mem_inuse = max(self.max_mem_inuse, mem_in_use)
@@ -378,6 +380,8 @@ class HardwareSimulator():
 
                 # node_operation_map is dict of (states -> operations)
                 # cur_node appears to be a state in the data path,
+                print(f"\n\ntotal operations in curr node:")
+                [print(f"{[str(m) for m in n]}") for n in node_operation_map[cur_node]]
                 for operations in node_operation_map[cur_node]:
                     # if unroll, take each operation in a state and create more of them
                     """
@@ -435,7 +439,7 @@ class HardwareSimulator():
                             hw_inuse[elem][j] += latency # this keeps getting incremented, never reset.
                             j = (j + 1) % hw.hw_allocated[elem]
                             num_elem_needed -= 1
-                    # print(f"for operations: {[str(op) for op in operations]}, max_cycles = {max_cycles}")
+                    print(f"total_cycl: {max_cycles}, for operations: {[str(op) for op in operations]}")
                     self.node_avg_power[node_id] += self.cycle_sim(hw_inuse, hw, max_cycles)
                 idx += 1
             
