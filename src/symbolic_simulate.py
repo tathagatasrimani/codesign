@@ -67,7 +67,8 @@ class SymbolicHardwareSimulator():
 
     def symbolic_cycle_sim_parallel(self, hw_spec, hw_need):
         max_cycles = 0
-        power_sum = 0
+        energy_sum = 0
+        passive_power = 0
         # print(hw_need)
         for elem in hw_need:
             if hw_need[elem] == 0: continue
@@ -75,16 +76,16 @@ class SymbolicHardwareSimulator():
             batch = math.ceil(hw_need[elem] / hw_spec[elem])
             # batch = self.get_batch(hw_need[elem], hw_spec[elem])
             # print("batch for", elem, "with need of", hw_need[elem], "and spec of", hw_spec[elem], "is", batch)
-            active_power = hw_need[elem] * hardwareModel.symbolic_power[elem][2]
-            power_sum += active_power
-            power_sum += batch * hw_spec[elem] * hardwareModel.symbolic_power[elem][2] / 10 # idle dividor still need passive power
+            active_energy = hw_need[elem] * hardwareModel.symbolic_power[elem][2] * hardwareModel.symbolic_latency[elem]
+            energy_sum += active_energy
+            passive_power += hw_spec[elem] * hardwareModel.symbolic_power[elem][2] / 10 # idle dividor still need passive power
             cycles_per_node = batch * hardwareModel.symbolic_latency[elem] # real latency in self.cycles
             max_cycles = 0.5 * (max_cycles + cycles_per_node + abs(max_cycles - cycles_per_node))
             #max_cycles = Max(max_cycles, cycles_per_node)
             print("max_cycles:", max_cycles)
-        
+        energy_sum += passive_power * max_cycles
         self.cycles += max_cycles
-        return max_cycles, power_sum
+        return max_cycles, energy_sum
 
     def symbolic_simulate(self, cfg, symbolic_node_operations, hw_spec, symbolic_first):
         cur_node = cfg.entryblock
@@ -268,12 +269,13 @@ def main():
     step_size = 0.0001
     initial_val = edp.subs(expr_symbols)
     cur_val = initial_val
+    print("edp equation: ", edp)
     while cur_val > initial_val / 10:
         new_expr_symbols = {}
         for var in free_symbols:
             d = sympy.diff(edp, var)
             grad = d.subs(expr_symbols)
-            #print("var name:", var, ", with gradient:", grad)
+            print("var name:", var, ", with gradient:", grad)
             new_expr_symbols[var] = max(expr_symbols[var] - grad * step_size, 0)
         expr_symbols = new_expr_symbols
         cur_val = edp.subs(expr_symbols)
