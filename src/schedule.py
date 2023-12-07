@@ -5,7 +5,9 @@ node_operations = {}
 operation_sets = {}
 
 def schedule_one_node(graph, node):
-    #print(node.id)
+    '''
+    node does not get used here. WHY?!
+    '''
     node_ops = []
     op_set = set()
     queue = deque([[root, 0] for root in graph.roots])
@@ -23,7 +25,12 @@ def schedule_one_node(graph, node):
         node_ops[cur_node.order].append(cur_node)
     return node_ops
 
-def schedule(cfg, graphs, benchmark):
+def schedule(cfg, graphs):
+    '''
+    
+    returns:
+        node_operations: dict of cfg_node -> {states -> operations}
+    '''
     for node in cfg:
         #print(node.id)
         node_operations[node] = []
@@ -47,7 +54,6 @@ def schedule(cfg, graphs, benchmark):
                 print(op.order, op.operation)
             print('')"""
     return node_operations
-        
 
 if __name__ == '__main__':
     schedule("")

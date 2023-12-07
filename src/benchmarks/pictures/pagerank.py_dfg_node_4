@@ -1,7 +1,0 @@
-digraph {
-	178 [label="source code:
-for col_key in matrix:
-"]
-	179 [label="matrix
-Read"]
-}

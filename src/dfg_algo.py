@@ -32,6 +32,9 @@ class Node:
         self.order = 0
         self.id = id
         self.compute_id = compute_id
+    
+    def __str__(self):
+        return f"dfg Node {self.id}: {self.value}, op: {self.operation}, memory_links: {self.memory_links}, compute_id: {self.compute_id}"
 
 class Graph:
     def __init__(self, roots, id_to_Node, gv_graph):
@@ -351,10 +354,8 @@ def dfg_per_node(node):
                     break
                 j -= 1
         i -= 1
-    graph.render(path + '/benchmarks/pictures/' + benchmark + "_dfg_node_" + str(node.id), view = False)
+    # graph.render(path + '/benchmarks/pictures/' + benchmark + "_dfg_node_" + str(node.id), view = False)
     return graphs[node]
-
-
 
 def main_fn(path_in, benchmark_in):
     global benchmark, path, node_to_symbols, graphs, node_to_unroll, unroll
@@ -371,7 +372,6 @@ def main_fn(path_in, benchmark_in):
                 if len(cur_node.children) == 0: break
                 cur_node = cur_node.children[0]
             #print('')
-    print(node_to_unroll)
     return cfg, graphs, node_to_unroll
 
 if __name__ == "__main__":

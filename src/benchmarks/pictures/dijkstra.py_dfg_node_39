@@ -1,5 +1,0 @@
-digraph {
-	67 [label="source code:
-return self.inNeighbors
-"]
-}

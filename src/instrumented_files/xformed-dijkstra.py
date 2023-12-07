@@ -1,7 +1,5 @@
 import sys
 from instrument_lib import *
-import sys
-from instrument_lib import *
 import heapdict as heapdict
 import math
 from random import random
@@ -2196,10 +2194,24 @@ def smallFrac(n):
     print('exit scope 29')
 
 
+def read_random_graph_from_file(n, p, wts=[1]):
+    print('enter scope 30')
+    print(1, 301)
+    print(211, 302)
+    n_30 = n
+    print(211, 303)
+    p_30 = p
+    print(211, 304)
+    wts_30 = wts
+    print('exit scope 30')
+    return randomGraph(n_30, p_30, wts_30)
+    print('exit scope 30')
+
+
 if instrument_read(__name__, '__name__') == '__main__':
     instrument_read(loop, 'loop').start_unroll
-    print(210, 303)
-    G_0 = randomGraph(5, 0.2)
+    print(214, 310)
+    G_0 = instrument_read_from_file(read_random_graph_from_file, 5, 0.2)
     write_instrument_read(G_0, 'G_0')
     if type(G_0) == np.ndarray:
         print('malloc', sys.getsizeof(G_0), 'G_0', G_0.shape)
@@ -2223,7 +2235,7 @@ if instrument_read(__name__, '__name__') == '__main__':
     dijkstraDumb_shortestPaths(instrument_read_sub(instrument_read(G_0,
         'G_0').vertices, 'G_0.vertices', 0, None, None, False),
         instrument_read(G_0, 'G_0'))
-    print(210, 306)
+    print(214, 313)
     G_0 = randomGraph(5, 0.4, [1, 2, 3, 4, 5])
     write_instrument_read(G_0, 'G_0')
     if type(G_0) == np.ndarray:
@@ -2245,7 +2257,7 @@ if instrument_read(__name__, '__name__') == '__main__':
     dijkstra_shortestPaths(instrument_read_sub(instrument_read(G_0, 'G_0').
         vertices, 'G_0.vertices', 0, None, None, False), instrument_read(
         G_0, 'G_0'))
-    print(210, 308)
+    print(214, 315)
     nValues_0 = [10]
     write_instrument_read(nValues_0, 'nValues_0')
     if type(nValues_0) == np.ndarray:
@@ -2265,7 +2277,7 @@ if instrument_read(__name__, '__name__') == '__main__':
             )
     else:
         print('malloc', sys.getsizeof(nValues_0), 'nValues_0')
-    print(210, 309)
+    print(214, 316)
     nDijkstra_0, tDijkstra_0 = runTrials(instrument_read(BFS, 'BFS'),
         instrument_read(nValues_0, 'nValues_0'), instrument_read(smallFrac,
         'smallFrac'))

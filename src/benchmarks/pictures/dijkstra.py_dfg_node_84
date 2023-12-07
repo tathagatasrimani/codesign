@@ -1,7 +1,0 @@
-digraph {
-	96 [label="source code:
-for u, wt in v.getOutNeighborsWithWeights():
-"]
-	97 [label="v.getOutNeighborsWithWeights()
-"]
-}

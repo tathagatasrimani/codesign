@@ -1,7 +1,0 @@
-digraph {
-	94 [label="source code:
-for v in self.vertices:
-"]
-	95 [label="self.vertices
-Read"]
-}
