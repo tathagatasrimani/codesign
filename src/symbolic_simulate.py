@@ -82,7 +82,7 @@ class SymbolicHardwareSimulator():
             cycles_per_node = batch * hardwareModel.symbolic_latency[elem] # real latency in self.cycles
             max_cycles = 0.5 * (max_cycles + cycles_per_node + abs(max_cycles - cycles_per_node))
             #max_cycles = Max(max_cycles, cycles_per_node)
-            print("max_cycles:", max_cycles)
+            #print("max_cycles:", max_cycles)
         energy_sum += passive_power * max_cycles
         self.cycles += max_cycles
         return max_cycles, energy_sum
@@ -262,13 +262,17 @@ def main():
         if "latency" in s.name:
             expr_symbols[s] = hardwareModel.latency[simulator.transistor_size][s.name.split('_')[1]]
         elif "power" in s.name:
-            expr_symbols[s] = hardwareModel.dynamic_power[simulator.transistor_size][s.name.split('_')[1]]
+            expr_symbols[s] = hardwareModel.dynamic_power[simulator.transistor_size][s.name.split('_')[1]] / 100
         else:
             expr_symbols[s] = hw.hw_allocated[s.name]
+
+    for s in free_symbols:
+        edp += 10 / s
 
     step_size = 0.0001
     initial_val = edp.subs(expr_symbols)
     cur_val = initial_val
+    print(expr_symbols)
     print("edp equation: ", edp)
     while cur_val > initial_val / 10:
         new_expr_symbols = {}
@@ -276,12 +280,11 @@ def main():
             d = sympy.diff(edp, var)
             grad = d.subs(expr_symbols)
             print("var name:", var, ", with gradient:", grad)
-            new_expr_symbols[var] = max(expr_symbols[var] - grad * step_size, 0)
+            new_expr_symbols[var] = expr_symbols[var] - grad * step_size
         expr_symbols = new_expr_symbols
         cur_val = edp.subs(expr_symbols)
     print(expr_symbols)
 
-    return
     model = pyo.ConcreteModel()
     model.nVars = pyo.Param(initialize=len(edp.free_symbols))
     model.N = pyo.RangeSet(model.nVars)
@@ -302,7 +305,7 @@ def main():
     print(py_exp)
     model.obj = pyo.Objective(expr=py_exp)
     model.cuts = pyo.ConstraintList()
-    model.Constraint = pyo.Constraint( expr = py_exp >= 10)
+    model.Constraint = pyo.Constraint( expr = py_exp == initial_val/10)
     
     opt = SolverFactory('ipopt')
     #opt.options['max_iter'] = 1000
