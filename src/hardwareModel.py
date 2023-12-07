@@ -230,7 +230,7 @@ class HardwareModel:
 		self.var_sizes = var_sizes
 
 	def print_stats(self):
-	   s = '''
+	   s = ''' 
 	   cycles={cycles}
 	   allocated={allocated}
 	   utilized={utilized}

@@ -1,7 +1,5 @@
 import sys
 from instrument_lib import *
-import sys
-from instrument_lib import *
 from loop import loop
 import numpy as np
 

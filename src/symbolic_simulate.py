@@ -1,4 +1,5 @@
 from hardwareModel import HardwareModel, SymbolicHardwareModel
+import hw_symbols
 from ast_utils import ASTUtils
 import schedule
 import dfg_algo
@@ -7,6 +8,7 @@ import ast
 import hardwareModel
 import math
 import json
+import argparse
 import os
 import numpy as np
 import sys
@@ -52,7 +54,7 @@ class SymbolicHardwareSimulator():
 
     def get_hw_need(self, state):
         # not the original simulate model now, so we can use a non-symbolic hardware model
-        hw_need = HardwareModel(0,0,self.mem_layers, self.pitch, self.transistor_size, self.cache_size)
+        hw_need = HardwareModel(None, 0,0,self.mem_layers, self.pitch, self.transistor_size, self.cache_size)
         for op in state:
             if not op.operation: continue
             else: hw_need.hw_allocated[op.operation] += 1
@@ -76,10 +78,10 @@ class SymbolicHardwareSimulator():
             batch = math.ceil(hw_need[elem] / hw_spec[elem])
             # batch = self.get_batch(hw_need[elem], hw_spec[elem])
             # print("batch for", elem, "with need of", hw_need[elem], "and spec of", hw_spec[elem], "is", batch)
-            active_energy = hw_need[elem] * hardwareModel.symbolic_power[elem][2] * hardwareModel.symbolic_latency[elem]
+            active_energy = hw_need[elem] * hw_symbols.symbolic_power[elem] * hw_symbols.symbolic_latency[elem]
             energy_sum += active_energy
-            passive_power += hw_spec[elem] * hardwareModel.symbolic_power[elem][2] / 10 # idle dividor still need passive power
-            cycles_per_node = batch * hardwareModel.symbolic_latency[elem] # real latency in self.cycles
+            passive_power += hw_spec[elem] * hw_symbols.symbolic_power[elem] / 10 # idle dividor still need passive power
+            cycles_per_node = batch * hw_symbols.symbolic_latency[elem] # real latency in self.cycles
             max_cycles = 0.5 * (max_cycles + cycles_per_node + abs(max_cycles - cycles_per_node))
             #max_cycles = Max(max_cycles, cycles_per_node)
             #print("max_cycles:", max_cycles)
@@ -145,7 +147,7 @@ class SymbolicHardwareSimulator():
 
     def simulator_prep(self, benchmark):
         cfg, graphs, self.unroll_at = dfg_algo.main_fn(self.path, benchmark)
-        node_operations = schedule.schedule(cfg, graphs, benchmark)
+        node_operations = schedule.schedule(cfg, graphs)
         self.set_data_path()
         for node in cfg: self.id_to_node[str(node.id)] = node
         #print(self.id_to_node)
@@ -179,7 +181,7 @@ def main():
         simulator.cache_size = 8
     else: 
         simulator.cache_size = 16
-    hw = HardwareModel(0, 0, simulator.mem_layers, simulator.pitch, simulator.transistor_size, simulator.cache_size)
+    hw = HardwareModel(None, 0, 0, simulator.mem_layers, simulator.pitch, simulator.transistor_size, simulator.cache_size)
     symbolic_hw = SymbolicHardwareModel(0, 0)
     
     hw.hw_allocated['Add'] = 1
@@ -260,20 +262,22 @@ def main():
     for s in edp.free_symbols:
         free_symbols.append(s)
         if "latency" in s.name:
-            expr_symbols[s] = hardwareModel.latency[simulator.transistor_size][s.name.split('_')[1]]
+            expr_symbols[s] = hw.latency[s.name.split('_')[1]]
         elif "power" in s.name:
-            expr_symbols[s] = hardwareModel.dynamic_power[simulator.transistor_size][s.name.split('_')[1]] / 100
+            expr_symbols[s] = hw.dynamic_power[s.name.split('_')[1]]
         else:
             expr_symbols[s] = hw.hw_allocated[s.name]
 
-    for s in free_symbols:
-        edp += 10 / s
+    # multi-objective function
+    """for s in free_symbols:
+        edp += 10 / s"""
 
-    step_size = 0.0001
     initial_val = edp.subs(expr_symbols)
-    cur_val = initial_val
     print(expr_symbols)
     print("edp equation: ", edp)
+    # gradient descent attempt
+    """step_size = 0.0001
+    cur_val = initial_val
     while cur_val > initial_val / 10:
         new_expr_symbols = {}
         for var in free_symbols:
@@ -283,7 +287,7 @@ def main():
             new_expr_symbols[var] = expr_symbols[var] - grad * step_size
         expr_symbols = new_expr_symbols
         cur_val = edp.subs(expr_symbols)
-    print(expr_symbols)
+    print(expr_symbols)"""
 
     model = pyo.ConcreteModel()
     model.nVars = pyo.Param(initialize=len(edp.free_symbols))
@@ -313,6 +317,14 @@ def main():
     model.display()
     
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(
+                    prog='Simulate',
+                    description='Runs a hardware simulation on a given benchmark and technology spec',
+                    epilog='Text at the bottom of help')
+    parser.add_argument('benchmark', metavar='B', type=str)
+    parser.add_argument('--notrace', action='store_true')
+
+    args = parser.parse_args()
     main()
     
     
