@@ -17,8 +17,8 @@ if [ $name ]; then
     python instrumented_files/xformed-$name > instrumented_files/output.txt
     if [ $QUIET ]; then
         echo "Quiet mode"
-        python simulate.py $FILEPATH --notrace
+        python symbolic_simulate.py $FILEPATH --notrace
     else
-        python simulate.py $FILEPATH
+        python symbolic_simulate.py $FILEPATH
     fi
 fi
