@@ -78,10 +78,10 @@ class SymbolicHardwareSimulator():
             batch = math.ceil(hw_need[elem] / hw_spec[elem])
             # batch = self.get_batch(hw_need[elem], hw_spec[elem])
             # print("batch for", elem, "with need of", hw_need[elem], "and spec of", hw_spec[elem], "is", batch)
-            active_energy = hw_need[elem] * hw_symbols.symbolic_power[elem] * hw_symbols.symbolic_latency[elem]
+            active_energy = hw_need[elem] * hw_symbols.symbolic_power_active[elem] * hw_symbols.symbolic_latency_wc[elem]
             energy_sum += active_energy
-            passive_power += hw_spec[elem] * hw_symbols.symbolic_power[elem] / 10 # idle dividor still need passive power
-            cycles_per_node = batch * hw_symbols.symbolic_latency[elem] # real latency in self.cycles
+            passive_power += hw_spec[elem] * hw_symbols.symbolic_power_passive[elem]
+            cycles_per_node = batch * hw_symbols.symbolic_latency_cyc[elem] # real latency in self.cycles
             max_cycles = 0.5 * (max_cycles + cycles_per_node + abs(max_cycles - cycles_per_node))
             #max_cycles = Max(max_cycles, cycles_per_node)
             #print("max_cycles:", max_cycles)
@@ -183,6 +183,12 @@ def main():
         simulator.cache_size = 16
     hw = HardwareModel(None, 0, 0, simulator.mem_layers, simulator.pitch, simulator.transistor_size, simulator.cache_size)
     symbolic_hw = SymbolicHardwareModel(0, 0)
+
+    initial_params = {}
+    initial_params["f"] = 2e9
+    initial_params["C_tr"] = 1e-12
+    initial_params["R_tr"] = 1e3
+    initial_params["I_leak"] = 1e-6
     
     hw.hw_allocated['Add'] = 1
     hw.hw_allocated['Regs'] = 30
@@ -237,7 +243,7 @@ def main():
     
     first = True
     
-    simulator.symbolic_simulate(cfg, node_operations, symbolic_hw.hw_allocated, first)
+    simulator.symbolic_simulate(cfg, node_operations, hw.hw_allocated, first)
     
     node_avg_power = {}
     #for node_id in simulator.node_sum_power:
@@ -265,8 +271,10 @@ def main():
             expr_symbols[s] = hw.latency[s.name.split('_')[1]]
         elif "power" in s.name:
             expr_symbols[s] = hw.dynamic_power[s.name.split('_')[1]]
+        elif s.name in initial_params:
+            expr_symbols[s] = initial_params[s.name]
         else:
-            expr_symbols[s] = hw.hw_allocated[s.name]
+            expr_symbols[s] = 1
 
     # multi-objective function
     """for s in free_symbols:
