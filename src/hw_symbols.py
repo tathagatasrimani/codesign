@@ -6,9 +6,10 @@ R_tr = symbols("R_tr", positive=True)
 V_dd = symbols("V_dd", positive=True)
 f = symbols("f", positive=True)
 I_leak = symbols("I_leak", positive=True)
+C_load = symbols("C_load", positive=True)
 
 latency_tr_wc = R_tr * C_tr
-power_tr_act = C_tr * (V_dd ** 2) * f
+power_tr_act = C_load * (V_dd ** 2) * f
 power_tr_pass = I_leak * V_dd
 
 nsw = {

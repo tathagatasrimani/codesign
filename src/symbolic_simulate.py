@@ -185,10 +185,12 @@ def main():
     symbolic_hw = SymbolicHardwareModel(0, 0)
 
     initial_params = {}
-    initial_params["f"] = 2e9
-    initial_params["C_tr"] = 1e-12
-    initial_params["R_tr"] = 1e3
-    initial_params["I_leak"] = 1e-6
+    initial_params["f"] = 2e12
+    initial_params["C_tr"] = 1e-9
+    initial_params["R_tr"] = 1e6
+    initial_params["I_leak"] = 1e-3
+    initial_params["Vdd"] = 12e3
+    initial_params["C_load"] = 1e-9
     
     hw.hw_allocated['Add'] = 1
     hw.hw_allocated['Regs'] = 30
