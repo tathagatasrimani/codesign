@@ -95,7 +95,9 @@ class SymbolicHardwareSimulator():
             cur_node = cur_node.exits[0].target # skip over the first node in the main cfg
         i = 0
         # focus on symbolizing the node_operations
+        print("data path length:", len(self.data_path))
         while i < len(self.data_path):
+            print(i)
             node_id = self.data_path[i][0]
             cur_node = self.id_to_node[node_id]
             self.node_intervals.append([node_id, [self.cycles, 0]])
@@ -182,15 +184,14 @@ def main():
     else: 
         simulator.cache_size = 16
     hw = HardwareModel(None, 0, 0, simulator.mem_layers, simulator.pitch, simulator.transistor_size, simulator.cache_size)
-    symbolic_hw = SymbolicHardwareModel(0, 0)
 
     initial_params = {}
-    initial_params["f"] = 2e12
-    initial_params["C_tr"] = 1e-9
-    initial_params["R_tr"] = 1e6
-    initial_params["I_leak"] = 1e-3
-    initial_params["Vdd"] = 12e3
-    initial_params["C_load"] = 1e-9
+    initial_params["f"] = 1e9
+    initial_params["C_tr"] = 1e-13
+    initial_params["R_tr"] = 1e4
+    initial_params["I_leak"] = 2e-9
+    initial_params["V_dd"] = 0.7
+    initial_params["C_eff"] = 1e-14
     
     hw.hw_allocated['Add'] = 1
     hw.hw_allocated['Regs'] = 30
@@ -216,36 +217,11 @@ def main():
     hw.hw_allocated['UAdd'] = 1
     hw.hw_allocated['Not'] = 1
     hw.hw_allocated['Invert'] = 1
-    from sympy import symbols
-    
-    symbolic_hw.hw_allocated['Add'] = symbols('Add')
-    symbolic_hw.hw_allocated['Regs'] = symbols('Regs')
-    symbolic_hw.hw_allocated['Mult'] = symbols('Mult')
-    symbolic_hw.hw_allocated['Sub'] = symbols('Sub')
-    symbolic_hw.hw_allocated['FloorDiv'] = symbols('FloorDiv')
-    symbolic_hw.hw_allocated['Gt'] = symbols('Gt')
-    symbolic_hw.hw_allocated['And'] = symbols('And')
-    symbolic_hw.hw_allocated['Or'] = symbols('Or')
-    symbolic_hw.hw_allocated['Mod'] = symbols('Mod')
-    symbolic_hw.hw_allocated['LShift'] = symbols('LShift')
-    symbolic_hw.hw_allocated['RShift'] = symbols('RShift')
-    symbolic_hw.hw_allocated['BitOr'] = symbols('BitOr')
-    symbolic_hw.hw_allocated['BitXor'] = symbols('BitXor')
-    symbolic_hw.hw_allocated['BitAnd'] = symbols('BitAnd')
-    symbolic_hw.hw_allocated['Eq'] = symbols('Eq')
-    symbolic_hw.hw_allocated['NotEq'] = symbols('NotEq')
-    symbolic_hw.hw_allocated['Lt'] = symbols('Lt')
-    symbolic_hw.hw_allocated['LtE'] = symbols('LtE')
-    symbolic_hw.hw_allocated['GtE'] = symbols('GtE')
-    symbolic_hw.hw_allocated['IsNot'] = symbols('IsNot')
-    symbolic_hw.hw_allocated['USub'] = symbols('USub')
-    symbolic_hw.hw_allocated['UAdd'] = symbols('UAdd')
-    symbolic_hw.hw_allocated['Not'] = symbols('Not')
-    symbolic_hw.hw_allocated['Invert'] = symbols('Invert')
     
     first = True
     
     simulator.symbolic_simulate(cfg, node_operations, hw.hw_allocated, first)
+    print("done with simulation")
     
     node_avg_power = {}
     #for node_id in simulator.node_sum_power:
@@ -266,47 +242,28 @@ def main():
 
     expr_symbols = {}
     free_symbols = []
-    mapping = {}
     for s in edp.free_symbols:
         free_symbols.append(s)
-        if "latency" in s.name:
-            expr_symbols[s] = hw.latency[s.name.split('_')[1]]
-        elif "power" in s.name:
-            expr_symbols[s] = hw.dynamic_power[s.name.split('_')[1]]
-        elif s.name in initial_params:
+        if s.name in initial_params:
             expr_symbols[s] = initial_params[s.name]
-        else:
-            expr_symbols[s] = 1
 
-    # multi-objective function
-    """for s in free_symbols:
-        edp += 10 / s"""
 
     initial_val = edp.subs(expr_symbols)
     print(expr_symbols)
     print("edp equation: ", edp)
-    # gradient descent attempt
-    """step_size = 0.0001
-    cur_val = initial_val
-    while cur_val > initial_val / 10:
-        new_expr_symbols = {}
-        for var in free_symbols:
-            d = sympy.diff(edp, var)
-            grad = d.subs(expr_symbols)
-            print("var name:", var, ", with gradient:", grad)
-            new_expr_symbols[var] = expr_symbols[var] - grad * step_size
-        expr_symbols = new_expr_symbols
-        cur_val = edp.subs(expr_symbols)
-    print(expr_symbols)"""
 
     model = pyo.ConcreteModel()
     model.nVars = pyo.Param(initialize=len(edp.free_symbols))
     model.N = pyo.RangeSet(model.nVars)
-    model.x = pyo.Var(model.N, domain=pyo.NonNegativeReals)
+    model.x = pyo.Var(model.N, bounds=(1e-14, 1e15))
+    mapping = {}
+    #model.add_component("y", pyo.Var(model.N, domain=pyo.NonNegativeIntegers))
+    #model.y = pyo.Var(model.N, domain=pyo.NonNegativeIntegers)
+
     i = 0
     for j in model.x:
         mapping[free_symbols[i]] = j
-        print(j, free_symbols[i])
+        print("x[{index}]".format(index=j), free_symbols[i])
         i += 1
 
     m = MyPyomoSympyBimap()
@@ -319,12 +276,37 @@ def main():
     print(py_exp)
     model.obj = pyo.Objective(expr=py_exp)
     model.cuts = pyo.ConstraintList()
-    model.Constraint = pyo.Constraint( expr = py_exp == initial_val/10)
-    
-    opt = SolverFactory('ipopt')
-    #opt.options['max_iter'] = 1000
-    results = opt.solve(model)  
+    model.Constraint = pyo.Constraint( expr = py_exp <= initial_val)
+    print(mapping)
+    def const1(model):
+        return model.x[mapping[hw_symbols.f]]>=1e6
+    def const2(model):
+        return model.x[mapping[hw_symbols.V_dd]]>=0.5
+    def const3(model):
+        return model.x[mapping[hw_symbols.R_tr]]>=1e3
+    def const4(model):
+        return model.x[mapping[hw_symbols.I_leak]]<=2e-9
+    def const5(model):
+        return model.x[mapping[hw_symbols.C_eff]]>=1e-15
+    def const6(model):
+        return model.x[mapping[hw_symbols.C_tr]]>=1e-14
+    def const7(model):
+        return model.x[mapping[hw_symbols.V_dd]]<=1.7
+    model.Constraint2 = pyo.Constraint( rule=const1)
+    model.Constraint3 = pyo.Constraint( rule=const2)
+    model.Constraint4 = pyo.Constraint( rule=const3)
+    model.Constraint5 = pyo.Constraint( rule=const4)
+    model.Constraint6 = pyo.Constraint( rule=const5)
+    model.Constraint7 = pyo.Constraint( rule=const6)
+    model.Constraint8 = pyo.Constraint( rule=const7)
+    model.Constraint7.pprint()
+    opt = SolverFactory('conopt')
+    opt.options['max_iter'] = 10000
+    print(mapping[hw_symbols.C_tr])
+    results = opt.solve(model, keepfiles=True, tee=True, symbolic_solver_labels=True)
+    print(results.solver.termination_condition)  
     model.display()
+    print(model.obj, initial_val)
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(

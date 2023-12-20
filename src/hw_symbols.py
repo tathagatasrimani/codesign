@@ -6,64 +6,145 @@ R_tr = symbols("R_tr", positive=True)
 V_dd = symbols("V_dd", positive=True)
 f = symbols("f", positive=True)
 I_leak = symbols("I_leak", positive=True)
-C_load = symbols("C_load", positive=True)
+C_eff = symbols("C_eff", positive=True)
 
 latency_tr_wc = R_tr * C_tr
-power_tr_act = C_load * (V_dd ** 2) * f
+power_tr_act = C_eff * (V_dd ** 2) * f
 power_tr_pass = I_leak * V_dd
 
 nsw = {
-    "And": symbols("nsw_And"),
-    "Or": symbols("nsw_Or"),
-    "Add": symbols("nsw_Add"),
-    "Sub": symbols("nsw_Sub"),
-    "Mult": symbols("nsw_Mul"),
-    "FloorDiv": symbols("nsw_FloorDiv"),
-    "Mod": symbols("nsw_Mod"),
-    "LShift": symbols("nsw_LShift"),
-    "RShift": symbols("nsw_RShift"),
-    "BitOr": symbols("nsw_BitOr"),
-    "BitXor": symbols("nsw_BitXor"),
-    "BitAnd": symbols("nsw_BitAnd"),
-    "Eq": symbols("nsw_Eq"),
-    "NotEq": symbols("nsw_NotEq"),
-    "Lt": symbols("nsw_Lt"),
-    "LtE": symbols("nsw_LtE"),
-    "Gt": symbols("nsw_Gt"),
-    "GtE": symbols("nsw_GtE"),
-    "USub": symbols("nsw_USub"),
-    "UAdd": symbols("nsw_UAdd"),
-    "IsNot": symbols("nsw_IsNot"),
-    "Not": symbols("nsw_Not"), 
-    "Invert": symbols("nsw_Invert"),
-    "Regs": symbols("nsw_Regs")
+    "And": 1,
+    "Or": 1,
+    "Add": 1,
+    "Sub": 1,
+    "Mult": 1,
+    "FloorDiv": 1,
+    "Mod": 1,
+    "LShift": 1,
+    "RShift": 1,
+    "BitOr": 1,
+    "BitXor": 1,
+    "BitAnd": 1,
+    "Eq": 1,
+    "NotEq": 1,
+    "Lt": 1,
+    "LtE": 1,
+    "Gt": 1,
+    "GtE": 1,
+    "USub": 1,
+    "UAdd": 1,
+    "IsNot": 1,
+    "Not": 1, 
+    "Invert": 1,
+    "Regs": 1
 }
 
 nt = {
-    "And": symbols("nt_And"),
-    "Or": symbols("nt_Or"),
-    "Add": symbols("nt_Add"),
-    "Sub": symbols("nt_Sub"),
-    "Mult": symbols("nt_Mul"),
-    "FloorDiv": symbols("nt_FloorDiv"),
-    "Mod": symbols("nt_Mod"),
-    "LShift": symbols("nt_LShift"),
-    "RShift": symbols("nt_RShift"),
-    "BitOr": symbols("nt_BitOr"),
-    "BitXor": symbols("nt_BitXor"),
-    "BitAnd": symbols("nt_BitAnd"),
-    "Eq": symbols("nt_Eq"),
-    "NotEq": symbols("nt_NotEq"),
-    "Lt": symbols("nt_Lt"),
-    "LtE": symbols("nt_LtE"),
-    "Gt": symbols("nt_Gt"),
-    "GtE": symbols("nt_GtE"),
-    "USub": symbols("nt_USub"),
-    "UAdd": symbols("nt_UAdd"),
-    "IsNot": symbols("nt_IsNot"),
-    "Not": symbols("nt_Not"), 
-    "Invert": symbols("nt_Invert"),
-    "Regs": symbols("nt_Regs")
+    "And": 2,
+    "Or": 2,
+    "Add": 2,
+    "Sub": 2,
+    "Mult": 2,
+    "FloorDiv": 2,
+    "Mod": 2,
+    "LShift": 2,
+    "RShift": 2,
+    "BitOr": 2,
+    "BitXor": 2,
+    "BitAnd": 2,
+    "Eq": 2,
+    "NotEq": 2,
+    "Lt": 2,
+    "LtE": 2,
+    "Gt": 2,
+    "GtE": 2,
+    "USub": 2,
+    "UAdd": 2,
+    "IsNot": 2,
+    "Not": 2, 
+    "Invert": 2,
+    "Regs": 2
+}
+
+gamma = {
+    "And": 1,
+    "Or": 1,
+    "Add": 1,
+    "Sub": 1,
+    "Mult": 1,
+    "FloorDiv": 1,
+    "Mod": 1,
+    "LShift": 1,
+    "RShift": 1,
+    "BitOr": 1,
+    "BitXor": 1,
+    "BitAnd": 1,
+    "Eq": 1,
+    "NotEq": 1,
+    "Lt": 1,
+    "LtE": 1,
+    "Gt": 1,
+    "GtE": 1,
+    "USub": 1,
+    "UAdd": 1,
+    "IsNot": 1,
+    "Not": 1, 
+    "Invert": 1,
+    "Regs": 1
+}
+
+"""nsw = {
+    "And": symbols("nsw_And", integer=True),
+    "Or": symbols("nsw_Or", integer=True),
+    "Add": symbols("nsw_Add", integer=True),
+    "Sub": symbols("nsw_Sub", integer=True),
+    "Mult": symbols("nsw_Mul", integer=True),
+    "FloorDiv": symbols("nsw_FloorDiv", integer=True),
+    "Mod": symbols("nsw_Mod", integer=True),
+    "LShift": symbols("nsw_LShift", integer=True),
+    "RShift": symbols("nsw_RShift", integer=True),
+    "BitOr": symbols("nsw_BitOr", integer=True),
+    "BitXor": symbols("nsw_BitXor", integer=True),
+    "BitAnd": symbols("nsw_BitAnd", integer=True),
+    "Eq": symbols("nsw_Eq", integer=True),
+    "NotEq": symbols("nsw_NotEq", integer=True),
+    "Lt": symbols("nsw_Lt", integer=True),
+    "LtE": symbols("nsw_LtE", integer=True),
+    "Gt": symbols("nsw_Gt", integer=True),
+    "GtE": symbols("nsw_GtE", integer=True),
+    "USub": symbols("nsw_USub", integer=True),
+    "UAdd": symbols("nsw_UAdd", integer=True),
+    "IsNot": symbols("nsw_IsNot", integer=True),
+    "Not": symbols("nsw_Not", integer=True), 
+    "Invert": symbols("nsw_Invert", integer=True),
+    "Regs": symbols("nsw_Regs", integer=True)
+}
+
+nt = {
+    "And": symbols("nt_And", integer=True),
+    "Or": symbols("nt_Or", integer=True),
+    "Add": symbols("nt_Add", integer=True),
+    "Sub": symbols("nt_Sub", integer=True),
+    "Mult": symbols("nt_Mul", integer=True),
+    "FloorDiv": symbols("nt_FloorDiv", integer=True),
+    "Mod": symbols("nt_Mod", integer=True),
+    "LShift": symbols("nt_LShift", integer=True),
+    "RShift": symbols("nt_RShift", integer=True),
+    "BitOr": symbols("nt_BitOr", integer=True),
+    "BitXor": symbols("nt_BitXor", integer=True),
+    "BitAnd": symbols("nt_BitAnd", integer=True),
+    "Eq": symbols("nt_Eq", integer=True),
+    "NotEq": symbols("nt_NotEq", integer=True),
+    "Lt": symbols("nt_Lt", integer=True),
+    "LtE": symbols("nt_LtE", integer=True),
+    "Gt": symbols("nt_Gt", integer=True),
+    "GtE": symbols("nt_GtE", integer=True),
+    "USub": symbols("nt_USub", integer=True),
+    "UAdd": symbols("nt_UAdd", integer=True),
+    "IsNot": symbols("nt_IsNot", integer=True),
+    "Not": symbols("nt_Not", integer=True), 
+    "Invert": symbols("nt_Invert", integer=True),
+    "Regs": symbols("nt_Regs", integer=True)
 }
 
 gamma = {
@@ -91,7 +172,7 @@ gamma = {
     "Not": symbols("gamma_Not"), 
     "Invert": symbols("gamma_Invert"),
     "Regs": symbols("gamma_Regs")
-}
+}"""
 
 symbolic_latency_wc = {
     "And": gamma["And"] * latency_tr_wc,
@@ -120,6 +201,8 @@ symbolic_latency_wc = {
     "Regs": gamma["Regs"] * latency_tr_wc,
 }
 
+
+
 symbolic_latency_cyc = {
     "And": ceiling(f*symbolic_latency_wc["And"]) / f,
     "Or": ceiling(f*symbolic_latency_wc["Or"]) / f,
@@ -146,6 +229,13 @@ symbolic_latency_cyc = {
     "Invert": ceiling(f*symbolic_latency_wc["Invert"]) / f,
     "Regs": ceiling(f*symbolic_latency_wc["Regs"]) / f,
 }
+
+def make_sym_lat_cyc(f, lat_wc):
+    #return ceiling(f*lat_wc)/f
+    return lat_wc
+
+for key in symbolic_latency_cyc:
+    symbolic_latency_cyc[key] = make_sym_lat_cyc(f, symbolic_latency_wc[key])
 
 symbolic_power_active = {
     "And": nsw["And"] * power_tr_act,

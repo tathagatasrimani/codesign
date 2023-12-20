@@ -61,8 +61,10 @@ def matrix2text(matrix):
     matrix_3 = matrix
     text_3 = 0
     for i_3 in range(4):
+        loop.start_unroll
         for j_3 in range(4):
             text_3 |= matrix_3[i_3][j_3] << 120 - 8 * (4 * i_3 + j_3)
+        loop.stop_unroll
     return text_3
 
 
@@ -149,15 +151,19 @@ class AES:
         self = self
         s_11 = s
         for i_11 in range(4):
+            loop.start_unroll
             for j_11 in range(4):
                 s_11[i_11][j_11] = Sbox_0[s_11[i_11][j_11]]
+            loop.stop_unroll
 
     def __inv_sub_bytes(self, s):
         self = self
         s_12 = s
         for i_12 in range(4):
+            loop.start_unroll
             for j_12 in range(4):
                 s_12[i_12][j_12] = InvSbox_0[s_12[i_12][j_12]]
+            loop.stop_unroll
 
     def __shift_rows(self, s):
         self = self
