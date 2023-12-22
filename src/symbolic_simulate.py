@@ -300,7 +300,7 @@ def main():
     model.Constraint7 = pyo.Constraint( rule=const6)
     model.Constraint8 = pyo.Constraint( rule=const7)
     model.Constraint7.pprint()
-    opt = SolverFactory('conopt')
+    opt = SolverFactory('ipopt')
     opt.options['max_iter'] = 10000
     print(mapping[hw_symbols.C_tr])
     results = opt.solve(model, keepfiles=True, tee=True, symbolic_solver_labels=True)
