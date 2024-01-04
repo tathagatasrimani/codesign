@@ -185,13 +185,16 @@ def main():
         simulator.cache_size = 16
     hw = HardwareModel(None, 0, 0, simulator.mem_layers, simulator.pitch, simulator.transistor_size, simulator.cache_size)
 
+
+    scale_up = 1e2
     initial_params = {}
-    initial_params["f"] = 1e9
-    initial_params["C_tr"] = 1e-13
-    initial_params["R_tr"] = 1e4
-    initial_params["I_leak"] = 2e-9
-    initial_params["V_dd"] = 0.7
-    initial_params["C_eff"] = 1e-14
+    initial_params["f"] = 1e7 * scale_up
+    initial_params["C_tr"] = 1e-8 * scale_up
+    initial_params["R_tr"] = 1e6 * scale_up
+    initial_params["I_leak"] = 2e-10 * scale_up
+    initial_params["V_dd"] = 0.7 * scale_up
+    initial_params["C_eff"] = 1e-9 * scale_up
+
     
     hw.hw_allocated['Add'] = 1
     hw.hw_allocated['Regs'] = 30
@@ -268,8 +271,12 @@ def main():
 
     m = MyPyomoSympyBimap()
     for symbol in edp.free_symbols:
+        # create mapping of sympy symbols to pyomo symbols
         m.sympy2pyomo[symbol] = model.x[mapping[symbol]]
-    sympy_tools._operatorMap.update({sympy.Max: lambda x: nested_if(x[0], x[1:])})
+        # give pyomo symbols an inital value for warm start
+        model.x[mapping[symbol]] = expr_symbols[symbol]
+        print(symbol, expr_symbols[symbol])
+    #sympy_tools._operatorMap.update({sympy.Max: lambda x: nested_if(x[0], x[1:])})
     #print(mapping.sympyVars())
     py_exp = sympy_tools.sympy2pyomo_expression(edp, m)
     # py_exp = sympy_tools.sympy2pyomo_expression(hardwareModel.symbolic_latency["Add"] ** (1/2), m)
@@ -279,19 +286,19 @@ def main():
     model.Constraint = pyo.Constraint( expr = py_exp <= initial_val)
     print(mapping)
     def const1(model):
-        return model.x[mapping[hw_symbols.f]]>=1e6
+        return model.x[mapping[hw_symbols.f]]>=1e6 * scale_up
     def const2(model):
-        return model.x[mapping[hw_symbols.V_dd]]>=0.5
+        return model.x[mapping[hw_symbols.V_dd]]>=0.5 * scale_up
     def const3(model):
-        return model.x[mapping[hw_symbols.R_tr]]>=1e3
+        return model.x[mapping[hw_symbols.R_tr]]>=1e3 * scale_up
     def const4(model):
-        return model.x[mapping[hw_symbols.I_leak]]<=2e-9
+        return model.x[mapping[hw_symbols.I_leak]]<=2e-9 * scale_up
     def const5(model):
-        return model.x[mapping[hw_symbols.C_eff]]>=1e-15
+        return model.x[mapping[hw_symbols.C_eff]]>=1e-15 * scale_up
     def const6(model):
-        return model.x[mapping[hw_symbols.C_tr]]>=1e-14
+        return model.x[mapping[hw_symbols.C_tr]]>=1e-13 * scale_up
     def const7(model):
-        return model.x[mapping[hw_symbols.V_dd]]<=1.7
+        return model.x[mapping[hw_symbols.V_dd]]<=1.7 * scale_up
     model.Constraint2 = pyo.Constraint( rule=const1)
     model.Constraint3 = pyo.Constraint( rule=const2)
     model.Constraint4 = pyo.Constraint( rule=const3)
@@ -301,9 +308,14 @@ def main():
     model.Constraint8 = pyo.Constraint( rule=const7)
     model.Constraint7.pprint()
     opt = SolverFactory('ipopt')
+    opt.options['warm_start_init_point'] = 'yes'
+    opt.options['warm_start_bound_push'] = 1e-6
+    opt.options['warm_start_mult_bound_push'] = 1e-6
+    opt.options['mu_init'] = 1e-6
     opt.options['max_iter'] = 10000
     print(mapping[hw_symbols.C_tr])
-    results = opt.solve(model, keepfiles=True, tee=True, symbolic_solver_labels=True)
+    #results = opt.solve(model, keepfiles=True, tee=True, symbolic_solver_labels=True)
+    results = opt.solve(model)
     print(results.solver.termination_condition)  
     model.display()
     print(model.obj, initial_val)
