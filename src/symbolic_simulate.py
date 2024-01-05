@@ -186,14 +186,13 @@ def main():
     hw = HardwareModel(None, 0, 0, simulator.mem_layers, simulator.pitch, simulator.transistor_size, simulator.cache_size)
 
 
-    scale_up = 1e2
     initial_params = {}
-    initial_params["f"] = 1e7 * scale_up
-    initial_params["C_tr"] = 1e-8 * scale_up
-    initial_params["R_tr"] = 1e6 * scale_up
-    initial_params["I_leak"] = 2e-10 * scale_up
-    initial_params["V_dd"] = 0.7 * scale_up
-    initial_params["C_eff"] = 1e-9 * scale_up
+    initial_params["f"] = 1e7 
+    initial_params["C_tr"] = 1e-8 
+    initial_params["R_tr"] = 1e6 
+    initial_params["I_leak"] = 2e-10 
+    initial_params["V_dd"] = 0.7 
+    initial_params["C_eff"] = 1e-9 
 
     
     hw.hw_allocated['Add'] = 1
@@ -250,7 +249,6 @@ def main():
         if s.name in initial_params:
             expr_symbols[s] = initial_params[s.name]
 
-
     initial_val = edp.subs(expr_symbols)
     print(expr_symbols)
     print("edp equation: ", edp)
@@ -258,7 +256,7 @@ def main():
     model = pyo.ConcreteModel()
     model.nVars = pyo.Param(initialize=len(edp.free_symbols))
     model.N = pyo.RangeSet(model.nVars)
-    model.x = pyo.Var(model.N, bounds=(1e-14, 1e15))
+    model.x = pyo.Var(model.N, domain=pyo.NonNegativeReals)
     mapping = {}
     #model.add_component("y", pyo.Var(model.N, domain=pyo.NonNegativeIntegers))
     #model.y = pyo.Var(model.N, domain=pyo.NonNegativeIntegers)
@@ -281,44 +279,72 @@ def main():
     py_exp = sympy_tools.sympy2pyomo_expression(edp, m)
     # py_exp = sympy_tools.sympy2pyomo_expression(hardwareModel.symbolic_latency["Add"] ** (1/2), m)
     print(py_exp)
-    model.obj = pyo.Objective(expr=py_exp)
+    model.obj = pyo.Objective(expr=py_exp, sense=pyo.minimize)
     model.cuts = pyo.ConstraintList()
-    model.Constraint = pyo.Constraint( expr = py_exp <= initial_val)
+    model.Constraint = pyo.Constraint( expr = py_exp <= initial_val/5)
+    model.Constraint1 = pyo.Constraint( expr = py_exp >= initial_val/100)
+
+    # Obtain dual solutions from first solve and send to warm start
+    model.dual = pyo.Suffix(direction=pyo.Suffix.IMPORT_EXPORT)
+
+    model.scaling_factor = pyo.Suffix(direction=pyo.Suffix.EXPORT)
+    model.scaling_factor[model.obj] = 100 # scale the objective
+    #model.scaling_factor[model.Constraint] = 100 # scale the constraint
+    model.scaling_factor[model.x[mapping[hw_symbols.f]]] = 1e-5
+    model.scaling_factor[model.x[mapping[hw_symbols.V_dd]]] = 1 # scale the x variable
+    model.scaling_factor[model.x[mapping[hw_symbols.R_tr]]] = 1e-2
+    model.scaling_factor[model.x[mapping[hw_symbols.I_leak]]] = 1e9
+    model.scaling_factor[model.x[mapping[hw_symbols.C_eff]]] = 1e15
+    model.scaling_factor[model.x[mapping[hw_symbols.C_tr]]] = 1e13
+    
+
     print(mapping)
     def const1(model):
-        return model.x[mapping[hw_symbols.f]]>=1e6 * scale_up
+        return model.x[mapping[hw_symbols.f]]>=1e6 
     def const2(model):
-        return model.x[mapping[hw_symbols.V_dd]]>=0.5 * scale_up
+        return model.x[mapping[hw_symbols.V_dd]]>=0.5 
     def const3(model):
-        return model.x[mapping[hw_symbols.R_tr]]>=1e3 * scale_up
+        return model.x[mapping[hw_symbols.R_tr]]>=1e3 
     def const4(model):
-        return model.x[mapping[hw_symbols.I_leak]]<=2e-9 * scale_up
+        return model.x[mapping[hw_symbols.I_leak]]<=2e-9 
     def const5(model):
-        return model.x[mapping[hw_symbols.C_eff]]>=1e-15 * scale_up
+        return model.x[mapping[hw_symbols.C_eff]]>=1e-15 
     def const6(model):
-        return model.x[mapping[hw_symbols.C_tr]]>=1e-13 * scale_up
+        return model.x[mapping[hw_symbols.C_tr]]>=1e-13 
     def const7(model):
-        return model.x[mapping[hw_symbols.V_dd]]<=1.7 * scale_up
-    model.Constraint2 = pyo.Constraint( rule=const1)
-    model.Constraint3 = pyo.Constraint( rule=const2)
-    model.Constraint4 = pyo.Constraint( rule=const3)
-    model.Constraint5 = pyo.Constraint( rule=const4)
-    model.Constraint6 = pyo.Constraint( rule=const5)
-    model.Constraint7 = pyo.Constraint( rule=const6)
-    model.Constraint8 = pyo.Constraint( rule=const7)
-    model.Constraint7.pprint()
+        return model.x[mapping[hw_symbols.V_dd]]<=1.7 
+    model.freq_const = pyo.Constraint( rule=const1)
+    model.V_dd_lower = pyo.Constraint( rule=const2)
+    model.R_tr_const = pyo.Constraint( rule=const3)
+    model.I_leak_const = pyo.Constraint( rule=const4)
+    model.C_eff_const = pyo.Constraint( rule=const5)
+    model.C_tr_const = pyo.Constraint( rule=const6)
+    model.V_dd_upper = pyo.Constraint( rule=const7)
+    scaled_model = pyo.TransformationFactory('core.scale_model').create_using(model)
+    scaled_preproc_model = pyo.TransformationFactory('contrib.constraints_to_var_bounds').create_using(scaled_model)
+    preproc_model = pyo.TransformationFactory('contrib.constraints_to_var_bounds').create_using(model)
     opt = SolverFactory('ipopt')
     opt.options['warm_start_init_point'] = 'yes'
-    opt.options['warm_start_bound_push'] = 1e-6
-    opt.options['warm_start_mult_bound_push'] = 1e-6
-    opt.options['mu_init'] = 1e-6
+    #opt.options['warm_start_bound_push'] = 1e-9
+    #opt.options['warm_start_mult_bound_push'] = 1e-9
+    #opt.options['warm_start_bound_frac'] = 1e-9
+    #opt.options['warm_start_slack_bound_push'] = 1e-9
+    #opt.options['warm_start_slack_bound_frac'] = 1e-9
+    #opt.options['mu_init'] = 0.1
+    #opt.options['acceptable_obj_change_tol'] = 0.5
+    #opt.options['tol'] = 0.5
+    #opt.options['print_level'] = 5
+    #opt.options['nlp_scaling_method'] = 'none'
     opt.options['max_iter'] = 10000
+    opt.options['output_file'] = 'solver_out.txt'
+    opt.options['wantsol'] = 2
     print(mapping[hw_symbols.C_tr])
-    #results = opt.solve(model, keepfiles=True, tee=True, symbolic_solver_labels=True)
-    results = opt.solve(model)
+
+    results = opt.solve(scaled_preproc_model, keepfiles=True, tee=True, symbolic_solver_labels=True)
+    pyo.TransformationFactory('core.scale_model').propagate_solution(scaled_preproc_model, preproc_model)
     print(results.solver.termination_condition)  
-    model.display()
-    print(model.obj, initial_val)
+    print("======================")
+    preproc_model.display()
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(

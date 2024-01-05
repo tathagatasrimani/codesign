@@ -1,4 +1,4 @@
-from sympy import symbols, ceiling
+from sympy import symbols, ceiling, expand
 
 
 C_tr = symbols("C_tr", positive=True)
@@ -9,7 +9,7 @@ I_leak = symbols("I_leak", positive=True)
 C_eff = symbols("C_eff", positive=True)
 
 latency_tr_wc = R_tr * C_tr
-power_tr_act = C_eff * (V_dd ** 2) * f
+power_tr_act = C_eff * V_dd * V_dd * f
 power_tr_pass = I_leak * V_dd
 
 nsw = {
@@ -205,7 +205,7 @@ symbolic_latency_wc = {
 }
 
 def make_sym_lat_cyc(f, lat_wc):
-    #return ceiling(f*lat_wc)/f
+    return ceiling(f*lat_wc)/f
     return lat_wc
 
 symbolic_latency_cyc = {
