@@ -262,7 +262,6 @@ class HardwareModel:
 
 
 class SymbolicHardwareModel:
-
     def __init__(self, id, bandwidth, loop_counts={}, var_sizes={}):
         self.max_bw = bandwidth
         self.bw_avail = bandwidth
@@ -272,7 +271,7 @@ class SymbolicHardwareModel:
         self.memory_cfgs = {}
         self.mem_state = {}
         for variable in self.memory_cfgs.keys():
-            self.mem_state[variable]=False
+            self.mem_state[variable] = False
 
         # number of non-memory elements allocated
         self.hw_allocated = {}
@@ -280,21 +279,20 @@ class SymbolicHardwareModel:
         self.loop_variables = loop_counts
         self.var_sizes = var_sizes
         self.id = id
-        
-        # a dict of symbols, only assigned and compute the value when needed
 
+        # a dict of symbols, only assigned and compute the value when needed
 
         for key in op2sym_map.keys():
             self.hw_allocated[key] = 0
 
         self.cycles = 0
 
-
     def print_stats(self):
-        s = '''
+        s = """
         cycles={cycles}
         allocated={allocated}
         utilized={utilized}
-        '''.format(cycles=self.cycles, \
-                   allocated=str(self.hw_allocated))
+        """.format(
+            cycles=self.cycles, allocated=str(self.hw_allocated)
+        )
         return s
