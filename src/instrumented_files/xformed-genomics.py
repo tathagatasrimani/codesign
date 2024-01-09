@@ -739,6 +739,22 @@ def smith_waterman(seq1, seq2, match_score=3, mismatch_score=-3, gap_score=-2):
 
 
 def main():
+<<<<<<< HEAD
+    print(1, 222)
+    print(134, 223)
+    fasta_file = (
+        '/home/ubuntu/codesign/src/cfg/benchmarks/supplemental_files/fasta_example.fasta'
+        )
+    print(134, 224)
+    fastq_file = (
+        '/home/ubuntu/codesign/src/cfg/benchmarks/supplemental_files/fastq_example.fastq'
+        )
+    print(134, 225)
+    output_file = (
+        '/home/ubuntu/codesign/src/cfg/benchmarks/supplemental_files/output_file.txt'
+        )
+    darwin_wga_workflow(fasta_file, fastq_file, output_file)
+=======
     print('enter scope 9')
     print(1, 224)
     print(134, 226)
@@ -760,6 +776,7 @@ def main():
         instrument_read(fastq_file_9, 'fastq_file_9'), instrument_read(
         output_file_9, 'output_file_9'))
     print('exit scope 9')
+>>>>>>> master
 
 
 if instrument_read(__name__, '__name__') == '__main__':

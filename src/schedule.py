@@ -1,4 +1,5 @@
 from collections import deque
+from sympy import *
 # format: cfg_node -> {states -> operations}
 node_operations = {}
 operation_sets = {}
