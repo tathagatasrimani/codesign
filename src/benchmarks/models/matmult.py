@@ -17,7 +17,7 @@ def main():
         for j in range(N):
             # loop.start_unroll
             for k in range(N):
-                # loop().pattern_seek(3)
+                loop().pattern_seek(3)
                 c[i][j] += a[i][k] * b[k][j]
             # loop.stop_unroll
             c[i][j] += d[i]
