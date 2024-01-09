@@ -125,48 +125,32 @@ class HardwareSimulator:
             cache_size=self.cache_size,
         )
         mem_in_use = 0
+        # print(f"\n\n\ntop of get_hw_need")
         for op in state:
-            # print(f"in get_hw_need, op: {op}")
-            if not op.operation:
-                continue
-
-            # this stuff is handling some graph stuff.
-            if op.operation != "Regs":
-                compute_element_id = (
-                    hw_need.hw_allocated[op.operation]
-                    % hw_spec.hw_allocated[op.operation]
-                )
-                # print(f"compute_element_id: {compute_element_id}; compute_element_to_node_id: {self.compute_element_to_node_id}")
-                if (
-                    len(self.compute_element_to_node_id[op.operation])
-                    <= compute_element_id
-                ):
-                    # this is done for dynamic allocation because statically provided
-                    # hw specs do this at init.
-                    if hw_spec.dynamic_allocation:
-                        self.init_new_compute_element(op.operation)
-                    else:
-                        raise Exception(
-                            "hardware specification insufficient to run program"
-                        )
-                # print(f"after init; op: {op.operation} compute_element_to_node_id: {self.compute_element_to_node_id}")
-                compute_node_id = self.compute_element_to_node_id[op.operation][
-                    compute_element_id
-                ]
-                hw_op_node = self.new_graph.id_to_Node[compute_node_id]
-                op.compute_id = compute_node_id
-                mem_in_use += self.get_mem_usage_of_compute_element(
-                    op, self.new_graph, hw_op_node, check_duplicate=True
-                )
-            # print(f"in get_hw_need after get_mem_usage; op: {op}")
-
+            # print(f"op: {op}")
+            if not op.operation: continue
+            
+            # this stuff is handling some graph stuff. 
+            # if op.operation != "Regs":                  
+            compute_element_id = hw_need.hw_allocated[op.operation] % hw_spec.hw_allocated[op.operation]
+            # print(f"compute_element_id: {compute_element_id}; compute_element_to_node_id: {self.compute_element_to_node_id}")
+            if len(self.compute_element_to_node_id[op.operation]) <= compute_element_id:
+                # print(f"entered ")
+                if hw_spec.dynamic_allocation:
+                    self.init_new_compute_element(op.operation)
+                else:
+                    raise Exception("hardware specification insufficient to run program")
+            # print(f"after init; op: {op.operation} compute_element_to_node_id: {self.compute_element_to_node_id}")
+            compute_node_id = self.compute_element_to_node_id[op.operation][compute_element_id]
+            hw_op_node = self.new_graph.id_to_Node[compute_node_id]
+            op.compute_id = compute_node_id
+            mem_in_use += self.process_compute_element(op, self.new_graph, hw_op_node, check_duplicate=True)
+            
             hw_need.hw_allocated[op.operation] += 1
             hw_spec.compute_operation_totals[op.operation] += 1
-
-        self.max_regs_inuse = min(
-            hw_spec.hw_allocated["Regs"],
-            max(self.max_regs_inuse, hw_need.hw_allocated["Regs"]),
-        )
+        # print(f"total compute allocated: {hw_need.hw_allocated}")
+        
+        self.max_regs_inuse = min(hw_spec.hw_allocated["Regs"], max(self.max_regs_inuse, hw_need.hw_allocated["Regs"]))
         self.max_mem_inuse = max(self.max_mem_inuse, mem_in_use)
         return hw_need.hw_allocated
 
@@ -191,10 +175,7 @@ class HardwareSimulator:
             cur_data = ""
             for elem in hw_inuse:
                 power = hw.dynamic_power[elem]
-                if elem == "Regs":
-                    power *= hw.power_scale[
-                        self.find_nearest_mem_to_scale(self.memory_needed)
-                    ]
+                # if elem == "Regs": power *= hw.power_scale[self.find_nearest_mem_to_scale(self.memory_needed)]
                 if len(hw_inuse[elem]) > 0:
                     cur_data += elem + ": "
                     count = 0
@@ -604,6 +585,8 @@ class HardwareSimulator:
 
                 # node_operation_map is dict of (states -> operations)
                 # cur_node appears to be a state in the data path,
+                print(f"\n\ntotal operations in curr node:")
+                [print(f"{[str(m) for m in n]}") for n in node_operation_map[cur_node]]
                 for operations in node_operation_map[cur_node]:
                     # if unroll, take each operation in a state and create more of them
                     """
@@ -623,8 +606,8 @@ class HardwareSimulator:
                     state_graph = dfg_algo.Graph(set(), {}, state_graph_viz)
                     op_count = 0
                     for op in operations:
-                        if not op.operation or op.operation == "Regs":
-                            continue
+                        if not op.operation: continue
+                        # if op.operation == "Regs": continue
                         op_count += 1
                         compute_id = dfg_algo.set_id()
                         self.make_node(
@@ -635,7 +618,7 @@ class HardwareSimulator:
                             hardwareModel.op2sym_map[op.operation],
                         )
                         for parent in op.parents:
-                            if parent.operation and parent.operation != "Regs":
+                            if parent.operation: # and parent.operation != "Regs":
                                 parent_id = dfg_algo.set_id()
                                 self.make_node(
                                     state_graph,
@@ -692,6 +675,7 @@ class HardwareSimulator:
                             j = (j + 1) % hw.hw_allocated[elem]
                             num_elem_needed -= 1
                     # print(f"for operations: {[str(op) for op in operations]}, total_cycles = {total_cycles}")
+                    print(f"total_cycl: {total_cycles}, for operations: {[str(op) for op in operations]}")
                     self.node_avg_power[node_id] += self.simulate_cycles(
                         hw_inuse, hw, total_cycles
                     )
@@ -860,8 +844,7 @@ def main():
     new_gv_graph = gv.Graph()
     simulator.new_graph = dfg_algo.Graph(set(), {}, new_gv_graph)
     for elem in hw.hw_allocated:
-        if elem == "Regs":
-            continue
+        #if elem == "Regs": continue
         simulator.compute_element_to_node_id[elem] = []
         # looks like there's a lot of setup stuff that depends on the amount of hw allocated.
         for i in range(hw.hw_allocated[elem]):
