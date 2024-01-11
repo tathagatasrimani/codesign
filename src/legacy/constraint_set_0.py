@@ -5,12 +5,14 @@ import pyomo.core.expr.sympy_tools as sympy_tools
 from pyomo.opt import SolverFactory
 
 scaling_factors = {
-    hw_symbols.f: 1e-6,
+    hw_symbols.f: 1e-5,
     hw_symbols.V_dd: 1,
-    hw_symbols.C_int_inv: 1e15,
-    hw_symbols.C_input_inv: 1e13,
+    hw_symbols.R_tr: 1e-2,
+    hw_symbols.I_leak: 1e9,
+    hw_symbols.C_eff: 1e15,
+    hw_symbols.C_tr: 1e13
 }
-obj_scale = 1e12
+obj_scale = 100
 
 class Preprocessor:
     def __init__(self):
@@ -21,26 +23,31 @@ class Preprocessor:
         self.free_symbols = []
         self.vars = []
 
-    def f(self, model):
+    def const1(self, model):
         return model.x[self.mapping[hw_symbols.f]]>=1e6 
-    def V_dd_lower(self, model):
+    def const2(self, model):
         return model.x[self.mapping[hw_symbols.V_dd]]>=0.5 
-    def C_int_inv(self, model):
-        return model.x[self.mapping[hw_symbols.C_int_inv]]>=1e-15 
-    def C_input_inv(self, model):
-        return model.x[self.mapping[hw_symbols.C_input_inv]]>=1e-13 
-    def V_dd_upper(self, model):
+    def const3(self, model):
+        return model.x[self.mapping[hw_symbols.R_tr]]>=1e3 
+    def const4(self, model):
+        return model.x[self.mapping[hw_symbols.I_leak]]<=2e-9 
+    def const5(self, model):
+        return model.x[self.mapping[hw_symbols.C_eff]]>=1e-15 
+    def const6(self, model):
+        return model.x[self.mapping[hw_symbols.C_tr]]>=1e-13 
+    def const7(self, model):
         return model.x[self.mapping[hw_symbols.V_dd]]<=1.7 
 
     def add_constraints(self, model):
-        model.Constraint = pyo.Constraint( expr = self.py_exp <= self.initial_val/10)
-        model.Constraint1 = pyo.Constraint( expr = self.py_exp >= self.initial_val/10e2)
-        model.freq_const = pyo.Constraint( rule=self.f)
-        model.V_dd_lower = pyo.Constraint( rule=self.V_dd_lower)
-        model.C_int_inv_constr = pyo.Constraint( rule=self.C_int_inv)
-        model.C_input_inv_constr = pyo.Constraint( rule=self.C_input_inv)
-        model.V_dd_upper = pyo.Constraint( rule=self.V_dd_upper)
-        return model
+        model.Constraint = pyo.Constraint( expr = self.py_exp <= self.initial_val/5)
+        model.Constraint1 = pyo.Constraint( expr = self.py_exp >= self.initial_val/100)
+        model.freq_const = pyo.Constraint( rule=self.const1)
+        model.V_dd_lower = pyo.Constraint( rule=self.const2)
+        model.R_tr_const = pyo.Constraint( rule=self.const3)
+        model.I_leak_const = pyo.Constraint( rule=self.const4)
+        model.C_eff_const = pyo.Constraint( rule=self.const5)
+        model.C_tr_const = pyo.Constraint( rule=self.const6)
+        model.V_dd_upper = pyo.Constraint( rule=self.const7)
 
     def get_solver(self):
         opt = SolverFactory('ipopt')
@@ -55,7 +62,7 @@ class Preprocessor:
         #opt.options['tol'] = 0.5
         #opt.options['print_level'] = 5
         #opt.options['nlp_scaling_method'] = 'none'
-        opt.options['max_iter'] = 9
+        opt.options['max_iter'] = 10000
         opt.options['output_file'] = 'solver_out.txt'
         opt.options['wantsol'] = 2
         return opt
@@ -100,7 +107,7 @@ class Preprocessor:
         #sympy_tools._operatorMap.update({sympy.Max: lambda x: nested_if(x[0], x[1:])})
         #print(self.mapping.sympyVars())
         self.py_exp = sympy_tools.sympy2pyomo_expression(simulator.edp, m)
-        # py_exp = sympy_tools.sympy2pyomo_expression(hardwaremodel.symbolic_latency["Add"] ** (1/2), m)
+        # py_exp = sympy_tools.sympy2pyomo_expression(hardwareModel.symbolic_latency["Add"] ** (1/2), m)
         print(self.py_exp)
         model.obj = pyo.Objective(expr=self.py_exp, sense=pyo.minimize)
         model.cuts = pyo.ConstraintList()
@@ -113,7 +120,6 @@ class Preprocessor:
         self.add_constraints(model)
 
         print(self.mapping)
-        print(model)
         scaled_model = pyo.TransformationFactory('core.scale_model').create_using(model)
         scaled_preproc_model = pyo.TransformationFactory('contrib.constraints_to_var_bounds').create_using(scaled_model)
         preproc_model = pyo.TransformationFactory('contrib.constraints_to_var_bounds').create_using(model)

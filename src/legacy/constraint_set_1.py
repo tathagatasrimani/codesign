@@ -20,6 +20,7 @@ class Preprocessor:
         self.expr_symbols = {}
         self.free_symbols = []
         self.vars = []
+        self.model = None
 
     def f(self, model):
         return model.x[self.mapping[hw_symbols.f]]>=1e6 
@@ -32,15 +33,15 @@ class Preprocessor:
     def V_dd_upper(self, model):
         return model.x[self.mapping[hw_symbols.V_dd]]<=1.7 
 
-    def add_constraints(self, model):
-        model.Constraint = pyo.Constraint( expr = self.py_exp <= self.initial_val/10)
-        model.Constraint1 = pyo.Constraint( expr = self.py_exp >= self.initial_val/10e2)
-        model.freq_const = pyo.Constraint( rule=self.f)
-        model.V_dd_lower = pyo.Constraint( rule=self.V_dd_lower)
-        model.C_int_inv_constr = pyo.Constraint( rule=self.C_int_inv)
-        model.C_input_inv_constr = pyo.Constraint( rule=self.C_input_inv)
-        model.V_dd_upper = pyo.Constraint( rule=self.V_dd_upper)
-        return model
+    def add_constraints(self):
+        self.model.Constraint = pyo.Constraint( expr = self.py_exp <= self.initial_val/10)
+        self.model.Constraint1 = pyo.Constraint( expr = self.py_exp >= self.initial_val/10e2)
+        self.model.freq_const = pyo.Constraint( rule=self.f)
+        self.model.V_dd_lower = pyo.Constraint( rule=self.V_dd_lower)
+        self.model.C_int_inv_constr = pyo.Constraint( rule=self.C_int_inv)
+        self.model.C_input_inv_constr = pyo.Constraint( rule=self.C_input_inv)
+        self.model.V_dd_upper = pyo.Constraint( rule=self.V_dd_upper)
+        return self.model
 
     def get_solver(self):
         opt = SolverFactory('ipopt')
@@ -55,17 +56,18 @@ class Preprocessor:
         #opt.options['tol'] = 0.5
         #opt.options['print_level'] = 5
         #opt.options['nlp_scaling_method'] = 'none'
-        opt.options['max_iter'] = 9
+        opt.options['max_iter'] = 10000
         opt.options['output_file'] = 'solver_out.txt'
         opt.options['wantsol'] = 2
         return opt
     
-    def create_scaling(self, model):
-        model.scaling_factor[model.obj] = obj_scale
+    def create_scaling(self):
+        self.model.scaling_factor[self.model.obj] = obj_scale
         for var in scaling_factors:
-            model.scaling_factor[model.x[self.mapping[var]]] = scaling_factors[var]
+            self.model.scaling_factor[self.model.x[self.mapping[var]]] = scaling_factors[var]
 
     def begin(self, model, simulator):
+        self.model = model
         self.expr_symbols = {}
         self.free_symbols = []
         for s in simulator.edp.free_symbols:
@@ -77,15 +79,15 @@ class Preprocessor:
         print(self.expr_symbols)
         print("edp equation: ", simulator.edp)
 
-        model.nVars = pyo.Param(initialize=len(simulator.edp.free_symbols))
-        model.N = pyo.RangeSet(model.nVars)
-        model.x = pyo.Var(model.N, domain=pyo.NonNegativeReals)
+        self.model.nVars = pyo.Param(initialize=len(simulator.edp.free_symbols))
+        self.model.N = pyo.RangeSet(self.model.nVars)
+        self.model.x = pyo.Var(self.model.N, domain=pyo.NonNegativeReals)
         self.mapping = {}
-        #model.add_component("y", pyo.Var(model.N, domain=pyo.NonNegativeIntegers))
-        #model.y = pyo.Var(model.N, domain=pyo.NonNegativeIntegers)
+        #self.model.add_component("y", pyo.Var(self.model.N, domain=pyo.NonNegativeIntegers))
+        #self.model.y = pyo.Var(self.model.N, domain=pyo.NonNegativeIntegers)
 
         i = 0
-        for j in model.x:
+        for j in self.model.x:
             self.mapping[self.free_symbols[i]] = j
             print("x[{index}]".format(index=j), self.free_symbols[i])
             i += 1
@@ -93,29 +95,29 @@ class Preprocessor:
         m = MyPyomoSympyBimap()
         for symbol in simulator.edp.free_symbols:
             # create self.mapping of sympy symbols to pyomo symbols
-            m.sympy2pyomo[symbol] = model.x[self.mapping[symbol]]
+            m.sympy2pyomo[symbol] = self.model.x[self.mapping[symbol]]
             # give pyomo symbols an inital value for warm start
-            model.x[self.mapping[symbol]] = self.expr_symbols[symbol]
+            self.model.x[self.mapping[symbol]] = self.expr_symbols[symbol]
             print(symbol, self.expr_symbols[symbol])
         #sympy_tools._operatorMap.update({sympy.Max: lambda x: nested_if(x[0], x[1:])})
         #print(self.mapping.sympyVars())
         self.py_exp = sympy_tools.sympy2pyomo_expression(simulator.edp, m)
-        # py_exp = sympy_tools.sympy2pyomo_expression(hardwaremodel.symbolic_latency["Add"] ** (1/2), m)
+        # py_exp = sympy_tools.sympy2pyomo_expression(hardwareself.model.symbolic_latency["Add"] ** (1/2), m)
         print(self.py_exp)
-        model.obj = pyo.Objective(expr=self.py_exp, sense=pyo.minimize)
-        model.cuts = pyo.ConstraintList()
+        self.model.obj = pyo.Objective(expr=self.py_exp, sense=pyo.minimize)
+        self.model.cuts = pyo.ConstraintList()
 
         # Obtain dual solutions from first solve and send to warm start
-        model.dual = pyo.Suffix(direction=pyo.Suffix.IMPORT_EXPORT)
+        self.model.dual = pyo.Suffix(direction=pyo.Suffix.IMPORT_EXPORT)
 
-        model.scaling_factor = pyo.Suffix(direction=pyo.Suffix.EXPORT)
-        self.create_scaling(model)
-        self.add_constraints(model)
+        self.model.scaling_factor = pyo.Suffix(direction=pyo.Suffix.EXPORT)
+        self.create_scaling()
+        self.add_constraints()
 
         print(self.mapping)
-        print(model)
-        scaled_model = pyo.TransformationFactory('core.scale_model').create_using(model)
+        print(self.model)
+        scaled_model = pyo.TransformationFactory('core.scale_model').create_using(self.model)
         scaled_preproc_model = pyo.TransformationFactory('contrib.constraints_to_var_bounds').create_using(scaled_model)
-        preproc_model = pyo.TransformationFactory('contrib.constraints_to_var_bounds').create_using(model)
+        preproc_model = pyo.TransformationFactory('contrib.constraints_to_var_bounds').create_using(self.model)
         opt = self.get_solver()
         return opt, scaled_preproc_model, preproc_model

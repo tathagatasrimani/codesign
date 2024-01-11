@@ -187,11 +187,9 @@ def main():
 
     simulator.initial_params = {}
     simulator.initial_params["f"] = 1e7 
-    simulator.initial_params["C_tr"] = 1e-8 
-    simulator.initial_params["R_tr"] = 1e6 
-    simulator.initial_params["I_leak"] = 2e-10 
+    simulator.initial_params["C_int_inv"] = 1e-8 
     simulator.initial_params["V_dd"] = 0.7 
-    simulator.initial_params["C_eff"] = 1e-9 
+    simulator.initial_params["C_input_inv"] = 1e-9 
 
     
     hw.hw_allocated['Add'] = 1
@@ -233,7 +231,7 @@ def main():
         total_power += simulator.node_sum_power[node_id]
 
     simulator.edp = total_cycles * total_power
-    simulator.edp = simulator.edp.simplify()
+    #simulator.edp = simulator.edp.simplify()
 
     model = pyo.ConcreteModel()
     opt, scaled_preproc_model, preproc_model = Preprocessor().begin(model, simulator) 
