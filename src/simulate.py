@@ -1,3 +1,4 @@
+# builtin modules
 import sys
 import os
 from collections import deque
@@ -7,11 +8,12 @@ from pathlib import Path
 import argparse
 import ast
 
+# third party modules
 import matplotlib.pyplot as plt
 import numpy as np
 import graphviz as gv
 
-
+# custom modules
 from memory import Memory
 import schedule
 import dfg_algo
@@ -19,6 +21,7 @@ import hardwareModel
 from hardwareModel import HardwareModel
 import sim_util
 import arch_search
+from arch_search import generate_new_aladdin_arch
 
 MEMORY_SIZE = 1000000
 state_graph_counter = 0
@@ -93,10 +96,6 @@ class HardwareSimulator:
             )
             # print(f"compute_element_id: {compute_element_id}; compute_element_to_node_id: {self.compute_element_to_node_id}")
             if len(self.compute_element_to_node_id[op.operation]) <= compute_element_id:
-                # print(f"entered ")
-                # if hw_spec.dynamic_allocation:
-                #     self.init_new_compute_element(op.operation)
-                # else:
                 raise Exception(
                     "hardware specification insufficient to run program"
                 )
@@ -546,11 +545,6 @@ class HardwareSimulator:
                             continue
                         # print(f"latency of elem {elem} = {latency}")
 
-                        # check flag for dynamic and set hw.hw_allocated = hw_need
-                        # if hw.dynamic_allocation:
-                        #     if hw.hw_allocated[elem] < hw_need[elem]:
-                        #         hw_inuse[elem] = [0] * hw_need[elem]
-                        #         hw.hw_allocated[elem] = hw_need[elem]
                         if hw.hw_allocated[elem] == 0 and num_elem_needed > 0:
                             raise Exception(
                                 "hardware specification insufficient to run program"
@@ -751,7 +745,7 @@ def main():
         for i in range(hw.hw_allocated[elem]):
             simulator.init_new_compute_element(elem)
 
-    data = simulator.simulate(cfg, node_operation_map, hw, True)  # graphs
+    data = simulator.simulate(cfg, node_operation_map, hw, True) # graphs
 
     area = 0
     for elem in hw.hw_allocated:
@@ -775,8 +769,7 @@ def main():
     print("total writes: ", simulator.writes)
     print("total write size: ", simulator.total_write_size)
     print("total operations computed: ", hw.compute_operation_totals)
-    if hw.dynamic_allocation:
-        print(f"hw allocated: {hw.hw_allocated}")
+    print(f"hw allocated: {hw.hw_allocated}")
     print("max regs in use: ", simulator.max_regs_inuse)
     print(f"max memory in use: {simulator.max_mem_inuse} bytes")
 
