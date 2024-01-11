@@ -104,8 +104,9 @@ class HardwareModel:
         cache_size=None,
     ):
         """
-        Simulates the effect of 2 different constructors. Either supply cfg, or supply the rest of the arguments.
+        Simulates the effect of 2 different constructors. Either supply cfg (config), or supply the rest of the arguments.
         In this form for backward compatability. I want to deprecate the manual construction soon.
+        cfg here refers to config not a control flow graph, the name collision is unfortunate.
         """
         if cfg is None:
             self.set_hw_config_vars(
