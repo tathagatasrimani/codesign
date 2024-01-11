@@ -2,6 +2,7 @@ import math
 import ast
 
 import dfg_algo
+from hardwareModel import HardwareModel
 
 
 # adds all mallocs and frees to vectors, and finds the next cfg node in the data path,
@@ -101,3 +102,51 @@ def make_edge(graph, source_id, target_id, annotation=""):
         graph.roots.remove(target_node)
     source.children.append(target)
     target.parents.append(source)
+
+
+def get_matching_bracket_count(name):
+    """
+    Counts matching brackets in a given name string.
+
+    Parameters:
+        name (str): The string in which to count brackets.
+
+    Returns:
+        int: The count of matching brackets in the name.
+    """
+    if name.find("[") == -1:
+        return 0
+    bracket_count = 0
+    name = name[name.find("[") + 1 :]
+    bracket_depth = 1
+    while len(name) > 0:
+        front_ind = name.find("[")
+        back_ind = name.find("]")
+        if back_ind == -1:
+            break
+        if front_ind != -1 and front_ind < back_ind:
+            bracket_depth += 1
+            name = name[front_ind + 1 :]
+        else:
+            bracket_depth -= 1
+            name = name[back_ind + 1 :]
+            if bracket_depth == 0:
+                bracket_count += 1
+    return bracket_count
+
+
+def get_hw_need_lite(state, hw_spec):
+    hw_need = HardwareModel(
+            id=0,
+            bandwidth=0,
+            mem_layers=hw_spec.mem_layers,
+            pitch=hw_spec.pitch,
+            transistor_size=hw_spec.transistor_size,
+            cache_size=hw_spec.cache_size,
+        )
+    for op in state:
+        # print(f"op: {op}")
+        if not op.operation:
+            continue
+        hw_need.hw_allocated[op.operation] += 1
+    return hw_need.hw_allocated

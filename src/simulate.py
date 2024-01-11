@@ -18,6 +18,7 @@ import dfg_algo
 import hardwareModel
 from hardwareModel import HardwareModel
 import sim_util
+import arch_search
 
 MEMORY_SIZE = 1000000
 state_graph_counter = 0
@@ -93,12 +94,12 @@ class HardwareSimulator:
             # print(f"compute_element_id: {compute_element_id}; compute_element_to_node_id: {self.compute_element_to_node_id}")
             if len(self.compute_element_to_node_id[op.operation]) <= compute_element_id:
                 # print(f"entered ")
-                if hw_spec.dynamic_allocation:
-                    self.init_new_compute_element(op.operation)
-                else:
-                    raise Exception(
-                        "hardware specification insufficient to run program"
-                    )
+                # if hw_spec.dynamic_allocation:
+                #     self.init_new_compute_element(op.operation)
+                # else:
+                raise Exception(
+                    "hardware specification insufficient to run program"
+                )
             # print(f"after init; op: {op.operation} compute_element_to_node_id: {self.compute_element_to_node_id}")
             compute_node_id = self.compute_element_to_node_id[op.operation][
                 compute_element_id
@@ -167,36 +168,6 @@ class HardwareSimulator:
             self.cycles += 1
         return node_power_sum
 
-    def get_matching_bracket_count(self, name):
-        """
-        Counts matching brackets in a given name string.
-
-        Parameters:
-            name (str): The string in which to count brackets.
-
-        Returns:
-            int: The count of matching brackets in the name.
-        """
-        if name.find("[") == -1:
-            return 0
-        bracket_count = 0
-        name = name[name.find("[") + 1 :]
-        bracket_depth = 1
-        while len(name) > 0:
-            front_ind = name.find("[")
-            back_ind = name.find("]")
-            if back_ind == -1:
-                break
-            if front_ind != -1 and front_ind < back_ind:
-                bracket_depth += 1
-                name = name[front_ind + 1 :]
-            else:
-                bracket_depth -= 1
-                name = name[back_ind + 1 :]
-                if bracket_depth == 0:
-                    bracket_count += 1
-        return bracket_count
-
     def get_reg_size(self, neighbor, graph, op_node, context, check_duplicate):
         """
         Only called on Regs nodes that are parents / children of an operation.
@@ -215,7 +186,7 @@ class HardwareSimulator:
         name = neighbor.value
         mem_size = 0
         bracket_ind = name.find("[")
-        bracket_count = self.get_matching_bracket_count(name)
+        bracket_count = sim_util.get_matching_bracket_count(name)
         if bracket_ind != -1:
             name = name[:bracket_ind]
         # print(name, self.memory_module.locations)
@@ -576,10 +547,10 @@ class HardwareSimulator:
                         # print(f"latency of elem {elem} = {latency}")
 
                         # check flag for dynamic and set hw.hw_allocated = hw_need
-                        if hw.dynamic_allocation:
-                            if hw.hw_allocated[elem] < hw_need[elem]:
-                                hw_inuse[elem] = [0] * hw_need[elem]
-                                hw.hw_allocated[elem] = hw_need[elem]
+                        # if hw.dynamic_allocation:
+                        #     if hw.hw_allocated[elem] < hw_need[elem]:
+                        #         hw_inuse[elem] = [0] * hw_need[elem]
+                        #         hw.hw_allocated[elem] = hw_need[elem]
                         if hw.hw_allocated[elem] == 0 and num_elem_needed > 0:
                             raise Exception(
                                 "hardware specification insufficient to run program"
@@ -719,6 +690,9 @@ class HardwareSimulator:
         print(f"nvm memory needed: {self.nvm_memory_needed} bytes")
 
     def simulator_prep(self, benchmark):
+        """
+            Creates CFG, and id_to_node
+        """
         cfg, graphs, self.unroll_at = dfg_algo.main_fn(self.path, benchmark)
         node_operation_map = schedule.schedule(cfg, graphs)
         self.set_data_path()
@@ -751,6 +725,8 @@ def main():
     cfg, graphs, node_operation_map = simulator.simulator_prep(args.benchmark)
 
     hw = HardwareModel(cfg="aladdin")
+    if hw.dynamic_allocation:
+        arch_search.generate_new_aladdin_arch(cfg, hw, node_operation_map, simulator.data_path, simulator.id_to_node)
 
     simulator.transistor_size = hw.transistor_size  # in nm
     simulator.pitch = hw.pitch  # in um
