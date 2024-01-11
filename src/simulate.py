@@ -750,7 +750,7 @@ def main():
     simulator = HardwareSimulator()
     cfg, graphs, node_operation_map = simulator.simulator_prep(args.benchmark)
 
-    hw = HardwareModel(cfg="aladdin_const")
+    hw = HardwareModel(cfg="aladdin")
 
     simulator.transistor_size = hw.transistor_size  # in nm
     simulator.pitch = hw.pitch  # in um
