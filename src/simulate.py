@@ -1,3 +1,4 @@
+# builtin modules
 import sys
 import os
 from collections import deque
@@ -7,16 +8,20 @@ from pathlib import Path
 import argparse
 import ast
 
+# third party modules
 import matplotlib.pyplot as plt
 import numpy as np
 import graphviz as gv
 
-
+# custom modules
 from memory import Memory
 import schedule
 import dfg_algo
 import hardwareModel
 from hardwareModel import HardwareModel
+import sim_util
+import arch_search
+from arch_search import generate_new_aladdin_arch
 
 MEMORY_SIZE = 1000000
 state_graph_counter = 0
@@ -57,53 +62,6 @@ class HardwareSimulator:
         self.max_regs_inuse = 0
         self.max_mem_inuse = 0
 
-    def find_nearest_mem_to_scale(self, num):
-        """
-        Finds the nearest memory size to scale based on the input.
-
-        Parameters:
-            num (int): The memory size to be scaled.
-
-        Returns:
-            int: The nearest appropriate memory size.
-        """
-        if num < 512:
-            return 512
-        if num > 536870912:
-            return 536870912
-        return 2 ** math.ceil(math.log(num, 2))
-
-    def make_node(self, graph, id, name, ctx, opname):
-        """
-        Creates a node in the given graph with specified attributes.
-
-        Parameters:
-            graph (dfg_algo.Graph): The graph to which the node will be added.
-            id (str): The identifier for the new node.
-            name (str): The name of the new node.
-            ctx (AST Context): The AST context of the node ~ the operation .
-            opname (str): The operation name associated with the node.
-
-        Returns:
-            None
-        """
-        annotation = ""
-        if ctx == ast.Load or ctx == ast.Store:
-            annotation = "Register"
-        dfg_node = dfg_algo.Node(name, opname, id, memory_links=set())
-        graph.gv_graph.node(id, name + "\n" + annotation)
-        graph.roots.add(dfg_node)
-        graph.id_to_Node[id] = dfg_node
-
-    def make_edge(self, graph, source_id, target_id, annotation=""):
-        source, target = graph.id_to_Node[source_id], graph.id_to_Node[target_id]
-        graph.gv_graph.edge(source_id, target_id, label=annotation)
-        target_node = graph.id_to_Node[target_id]
-        if target_node in graph.roots:
-            graph.roots.remove(target_node)
-        source.children.append(target)
-        target.parents.append(source)
-
     def get_hw_need(self, state, hw_spec):
         """
         Calculates the hardware requirements for a given set of operations.
@@ -138,20 +96,16 @@ class HardwareSimulator:
             )
             # print(f"compute_element_id: {compute_element_id}; compute_element_to_node_id: {self.compute_element_to_node_id}")
             if len(self.compute_element_to_node_id[op.operation]) <= compute_element_id:
-                # print(f"entered ")
-                if hw_spec.dynamic_allocation:
-                    self.init_new_compute_element(op.operation)
-                else:
-                    raise Exception(
-                        "hardware specification insufficient to run program"
-                    )
+                raise Exception(
+                    "hardware specification insufficient to run program"
+                )
             # print(f"after init; op: {op.operation} compute_element_to_node_id: {self.compute_element_to_node_id}")
             compute_node_id = self.compute_element_to_node_id[op.operation][
                 compute_element_id
             ]
             hw_op_node = self.new_graph.id_to_Node[compute_node_id]
             op.compute_id = compute_node_id
-            mem_in_use += self.process_compute_element(
+            mem_in_use += self.get_mem_usage_of_compute_element(
                 op, self.new_graph, hw_op_node, check_duplicate=True
             )
 
@@ -187,7 +141,7 @@ class HardwareSimulator:
             cur_data = ""
             for elem in hw_inuse:
                 power = hw.dynamic_power[elem]
-                # if elem == "Regs": power *= hw.power_scale[self.find_nearest_mem_to_scale(self.memory_needed)]
+                # if elem == "Regs": power *= hw.power_scale[sim_util.find_nearest_mem_to_scale(self.memory_needed)]
                 if len(hw_inuse[elem]) > 0:
                     cur_data += elem + ": "
                     count = 0
@@ -213,36 +167,6 @@ class HardwareSimulator:
             self.cycles += 1
         return node_power_sum
 
-    def get_matching_bracket_count(self, name):
-        """
-        Counts matching brackets in a given name string.
-
-        Parameters:
-            name (str): The string in which to count brackets.
-
-        Returns:
-            int: The count of matching brackets in the name.
-        """
-        if name.find("[") == -1:
-            return 0
-        bracket_count = 0
-        name = name[name.find("[") + 1 :]
-        bracket_depth = 1
-        while len(name) > 0:
-            front_ind = name.find("[")
-            back_ind = name.find("]")
-            if back_ind == -1:
-                break
-            if front_ind != -1 and front_ind < back_ind:
-                bracket_depth += 1
-                name = name[front_ind + 1 :]
-            else:
-                bracket_depth -= 1
-                name = name[back_ind + 1 :]
-                if bracket_depth == 0:
-                    bracket_count += 1
-        return bracket_count
-
     def get_reg_size(self, neighbor, graph, op_node, context, check_duplicate):
         """
         Only called on Regs nodes that are parents / children of an operation.
@@ -261,7 +185,7 @@ class HardwareSimulator:
         name = neighbor.value
         mem_size = 0
         bracket_ind = name.find("[")
-        bracket_count = self.get_matching_bracket_count(name)
+        bracket_count = sim_util.get_matching_bracket_count(name)
         if bracket_ind != -1:
             name = name[:bracket_ind]
         # print(name, self.memory_module.locations)
@@ -415,56 +339,6 @@ class HardwareSimulator:
         elif status == "free":
             self.memory_module.free(var_name)
 
-    # adds all mallocs and frees to vectors, and finds the next cfg node in the data path,
-    # returning the index of that node
-    def find_next_data_path_index(self, i, mallocs, frees):
-        """
-        Finds the next index in the data path that corresponds to a new computation node,
-        updating malloc and free operations lists along the way.
-
-        This function iterates through the data path of the simulation, starting from a given index,
-        to identify the next point where a change in the hardware configuration or memory allocation occurs.
-        It updates lists of memory allocation ('malloc') and deallocation ('free') operations encountered
-        during this traversal.
-
-        The data_path is a list of lists where each element is node, a memory operation, or a
-        piece of instrumentation. For example, the following are valid elements of the data_path:
-        ['10', '16'], ['pattern_seek_3'], ['malloc', '16', 'c_1', '(3, 3)'], ['free', 'c_1']
-
-        Parameters:
-        - i (int): The starting index in the data path from which the search begins.
-        - mallocs (list): A list to be updated with memory allocation operations found during the traversal.
-        Each element is a list representing a 'malloc' operation.
-        - frees (list): A list to be updated with memory deallocation operations found during the traversal.
-        Each element is a list representing a 'free' operation.
-
-        Returns:
-        - tuple: A tuple containing three elements:
-            1. int: The index of the next configuration node in the data path.
-            2. bool: A flag indicating whether a 'pattern_seek' operation was encountered.
-            3. int: The maximum iterations to unroll if a 'pattern_seek' operation is encountered.
-        """
-        pattern_seek = False
-        max_iters = 1
-        # print(f"i: {i}, len(self.data_path): {len(self.data_path)}, self.data_path: {self.data_path}")
-        while len(self.data_path[i]) != 2:
-            if len(self.data_path[i]) == 0:
-                break
-            elif len(self.data_path[i]) == 1:
-                if self.data_path[i][0].startswith("pattern_seek"):
-                    pattern_seek = True
-                    max_iters = int(
-                        self.data_path[i][0][self.data_path[i][0].rfind("_") + 1 :]
-                    )
-            if self.data_path[i][0] == "malloc":
-                mallocs.append(self.data_path[i])
-            elif self.data_path[i][0] == "free":
-                frees.append(self.data_path[i])
-            i += 1
-            if i == len(self.data_path):
-                break
-        return i, pattern_seek, max_iters
-
     def simulate(self, cfg, node_operation_map, hw, first):
         global state_graph_counter
         cur_node = cfg.entryblock
@@ -482,14 +356,18 @@ class HardwareSimulator:
 
         print(f"data path: {self.data_path}")
 
-        i, pattern_seek, max_iters = self.find_next_data_path_index(i, mallocs, frees)
+        i, pattern_seek, max_iters = sim_util.find_next_data_path_index(
+            self.data_path, i, mallocs, frees
+        )
         # iterate through nodes in data dependency graph
         while i < len(self.data_path):
             (
                 next_ind,
                 pattern_seek_next,
                 max_iters_next,
-            ) = self.find_next_data_path_index(i + 1, mallocs, frees)
+            ) = sim_util.find_next_data_path_index(
+                self.data_path, i + 1, mallocs, frees
+            )
 
             if i == len(self.data_path):
                 break
@@ -517,8 +395,8 @@ class HardwareSimulator:
                     next_node_id = self.data_path[j][0]
                     pattern_nodes.append(next_node_id)
                     pattern_seek = pattern_seek_next
-                    j, pattern_seek_next, discard = self.find_next_data_path_index(
-                        j + 1, other_mallocs, other_frees
+                    j, pattern_seek_next, discard = sim_util.find_next_data_path_index(
+                        self.data_path, j + 1, other_mallocs, other_frees
                     )
                     pattern_frees.append(other_frees)
                     pattern_mallocs.append(other_mallocs)
@@ -536,8 +414,8 @@ class HardwareSimulator:
                         break
                     pattern_ind += 1
                     pattern_seek = pattern_seek_next
-                    j, pattern_seek_next, discard = self.find_next_data_path_index(
-                        j + 1, [], []
+                    j, pattern_seek_next, discard = sim_util.find_next_data_path_index(
+                        self.data_path, j + 1, [], []
                     )
                     if pattern_ind == len(pattern_nodes):
                         num_unroll_iterations += 1
@@ -561,8 +439,8 @@ class HardwareSimulator:
                         break
                     num_unroll_iterations += 1
                     pattern_seek = pattern_seek_next
-                    j, pattern_seek_next, discard = self.find_next_data_path_index(
-                        j + 1, [], []
+                    j, pattern_seek_next, discard = sim_util.find_next_data_path_index(
+                        self.data_path, j + 1, [], []
                     )
                 next_ind = j
 
@@ -623,7 +501,7 @@ class HardwareSimulator:
                         # if op.operation == "Regs": continue
                         op_count += 1
                         compute_id = dfg_algo.set_id()
-                        self.make_node(
+                        sim_util.make_node(
                             state_graph,
                             compute_id,
                             hardwareModel.op2sym_map[op.operation],
@@ -633,14 +511,16 @@ class HardwareSimulator:
                         for parent in op.parents:
                             if parent.operation:  # and parent.operation != "Regs":
                                 parent_id = dfg_algo.set_id()
-                                self.make_node(
+                                sim_util.make_node(
                                     state_graph,
                                     parent_id,
                                     hardwareModel.op2sym_map[parent.operation],
                                     None,
                                     hardwareModel.op2sym_map[parent.operation],
                                 )
-                                self.make_edge(state_graph, parent_id, compute_id, "")
+                                sim_util.make_edge(
+                                    state_graph, parent_id, compute_id, ""
+                                )
                         # what are we doing here that we don't want to check duplicate?
                         self.get_mem_usage_of_compute_element(
                             op,
@@ -659,17 +539,12 @@ class HardwareSimulator:
                     # allocate hardware for operations in this state and calculate total cycles
                     for elem in hw_need:
                         latency = hw.latency[elem]
-                        # if elem == "Regs": latency *= hw.latency_scale[self.find_nearest_mem_to_scale(self.memory_needed)]
+                        # if elem == "Regs": latency *= hw.latency_scale[sim_util.find_nearest_mem_to_scale(self.memory_needed)]
                         num_elem_needed = hw_need[elem]
                         if num_elem_needed == 0:
                             continue
                         # print(f"latency of elem {elem} = {latency}")
 
-                        # check flag for dynamic and set hw.hw_allocated = hw_need
-                        if hw.dynamic_allocation:
-                            if hw.hw_allocated[elem] < hw_need[elem]:
-                                hw_inuse[elem] = [0] * hw_need[elem]
-                                hw.hw_allocated[elem] = hw_need[elem]
                         if hw.hw_allocated[elem] == 0 and num_elem_needed > 0:
                             raise Exception(
                                 "hardware specification insufficient to run program"
@@ -809,6 +684,9 @@ class HardwareSimulator:
         print(f"nvm memory needed: {self.nvm_memory_needed} bytes")
 
     def simulator_prep(self, benchmark):
+        """
+            Creates CFG, and id_to_node
+        """
         cfg, graphs, self.unroll_at = dfg_algo.main_fn(self.path, benchmark)
         node_operation_map = schedule.schedule(cfg, graphs)
         self.set_data_path()
@@ -824,7 +702,7 @@ class HardwareSimulator:
             compute_unit: str with std cell name, eg 'Add', 'Eq', 'LShift', etc.
         """
         compute_id = dfg_algo.set_id()
-        self.make_node(
+        sim_util.make_node(
             self.new_graph,
             compute_id,
             hardwareModel.op2sym_map[compute_unit],
@@ -841,6 +719,8 @@ def main():
     cfg, graphs, node_operation_map = simulator.simulator_prep(args.benchmark)
 
     hw = HardwareModel(cfg="aladdin")
+    if hw.dynamic_allocation:
+        arch_search.generate_new_aladdin_arch(cfg, hw, node_operation_map, simulator.data_path, simulator.id_to_node)
 
     simulator.transistor_size = hw.transistor_size  # in nm
     simulator.pitch = hw.pitch  # in um
@@ -865,7 +745,7 @@ def main():
         for i in range(hw.hw_allocated[elem]):
             simulator.init_new_compute_element(elem)
 
-    data = simulator.simulate(cfg, node_operation_map, hw, True)  # graphs
+    data = simulator.simulate(cfg, node_operation_map, hw, True) # graphs
 
     area = 0
     for elem in hw.hw_allocated:
@@ -889,8 +769,7 @@ def main():
     print("total writes: ", simulator.writes)
     print("total write size: ", simulator.total_write_size)
     print("total operations computed: ", hw.compute_operation_totals)
-    if hw.dynamic_allocation:
-        print(f"hw allocated: {hw.hw_allocated}")
+    print(f"hw allocated: {hw.hw_allocated}")
     print("max regs in use: ", simulator.max_regs_inuse)
     print(f"max memory in use: {simulator.max_mem_inuse} bytes")
 
