@@ -1,11 +1,13 @@
 import json
-import graphviz as gv
 import re
 from collections import deque
 import ast
 import configparser as cp
 import yaml
+
+import graphviz as gv
 from sympy import *
+import networkx as nx
 
 from staticfg.builder import CFGBuilder
 from ast_utils import ASTUtils
@@ -92,9 +94,31 @@ power_scale = {
 }
 
 
+def get_nodes_by_filter(netlist, key, value):
+    return {k: v for k, v in dict(netlist.nodes.data()).items() if v[key] == value}
+
+
+def get_in_use_nodes(netlist):
+    return get_nodes_by_filter(netlist, "in_use", True)
+
+
+def get_nodes_with_func(netlist, func):
+    '''
+    should i refactor 'function' to 'operation'?
+    '''
+    print(f"searching for {func}")
+    return get_nodes_by_filter(netlist, "function", func)
+
+
+def un_allocate_all_in_use_elements(netlist):
+    for k, v in dict(netlist.nodes.data()).items():
+        v["in_use"] = False
+
+
 class HardwareModel:
     def __init__(
         self,
+        path_to_graphml=None,
         cfg=None,
         id=None,
         bandwidth=None,
@@ -115,6 +139,7 @@ class HardwareModel:
         else:
             config = cp.ConfigParser()
             config.read(HW_CONFIG_FILE)
+            path_to_graphml = f"architectures/{cfg}.gml"
             self.set_hw_config_vars(
                 config.getint(cfg, "id"),
                 config.getint(cfg, "bandwidth"),
@@ -124,6 +149,12 @@ class HardwareModel:
                 config.getint(cfg, "cachesize"),
             )
         self.hw_allocated = {}
+
+        if path_to_graphml is not None:
+            self.netlist = nx.read_gml(path_to_graphml)
+            print(f"netlist: {self.netlist.nodes.data()}")
+        else:
+            self.netlist = nx.Graph()
 
         self.init_misc_vars()
 

@@ -5,7 +5,7 @@ node_operations = {}
 operation_sets = {}
 
 
-def schedule_one_node(graph, node):
+def schedule_one_node(graph):
     """
     node does not get used here. WHY?!
     """
