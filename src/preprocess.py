@@ -20,9 +20,12 @@ class Preprocessor:
         self.expr_symbols = {}
         self.free_symbols = []
         self.vars = []
+        self.multistart = False
 
     def f(self, model):
         return model.x[self.mapping[hw_symbols.f]]>=1e6 
+    def f_upper(self, model):
+        return model.x[self.mapping[hw_symbols.f]]<=1e10
     def V_dd_lower(self, model):
         return model.x[self.mapping[hw_symbols.V_dd]]>=0.5 
     def C_int_inv(self, model):
@@ -40,24 +43,28 @@ class Preprocessor:
         model.C_int_inv_constr = pyo.Constraint( rule=self.C_int_inv)
         model.C_input_inv_constr = pyo.Constraint( rule=self.C_input_inv)
         model.V_dd_upper = pyo.Constraint( rule=self.V_dd_upper)
+        model.f_upper = pyo.Constraint( rule=self.f_upper)
         return model
 
     def get_solver(self):
-        opt = SolverFactory('ipopt')
-        opt.options['warm_start_init_point'] = 'yes'
-        #opt.options['warm_start_bound_push'] = 1e-9
-        #opt.options['warm_start_mult_bound_push'] = 1e-9
-        #opt.options['warm_start_bound_frac'] = 1e-9
-        #opt.options['warm_start_slack_bound_push'] = 1e-9
-        #opt.options['warm_start_slack_bound_frac'] = 1e-9
-        #opt.options['mu_init'] = 0.1
-        #opt.options['acceptable_obj_change_tol'] = 0.5
-        #opt.options['tol'] = 0.5
-        #opt.options['print_level'] = 5
-        #opt.options['nlp_scaling_method'] = 'none'
-        opt.options['max_iter'] = 9
-        opt.options['output_file'] = 'solver_out.txt'
-        opt.options['wantsol'] = 2
+        if self.multistart:
+            opt = SolverFactory('multistart')
+        else:
+            opt = SolverFactory('ipopt')
+            opt.options['warm_start_init_point'] = 'yes'
+            #opt.options['warm_start_bound_push'] = 1e-9
+            #opt.options['warm_start_mult_bound_push'] = 1e-9
+            #opt.options['warm_start_bound_frac'] = 1e-9
+            #opt.options['warm_start_slack_bound_push'] = 1e-9
+            #opt.options['warm_start_slack_bound_frac'] = 1e-9
+            #opt.options['mu_init'] = 0.1
+            #opt.options['acceptable_obj_change_tol'] = 0.5
+            #opt.options['tol'] = 0.5
+            #opt.options['print_level'] = 5
+            opt.options['nlp_scaling_method'] = 'none'
+            opt.options['max_iter'] = 1000
+            opt.options['output_file'] = 'solver_out.txt'
+            opt.options['wantsol'] = 2
         return opt
     
     def create_scaling(self, model):
@@ -65,7 +72,8 @@ class Preprocessor:
         for var in scaling_factors:
             model.scaling_factor[model.x[self.mapping[var]]] = scaling_factors[var]
 
-    def begin(self, model, simulator):
+    def begin(self, model, simulator, multistart):
+        self.multistart = multistart
         self.expr_symbols = {}
         self.free_symbols = []
         for s in simulator.edp.free_symbols:

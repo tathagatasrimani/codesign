@@ -186,10 +186,12 @@ def main():
 
 
     simulator.initial_params = {}
-    simulator.initial_params["f"] = 1e7 
+    simulator.initial_params["f"] = 1e9 
     simulator.initial_params["C_int_inv"] = 1e-8 
-    simulator.initial_params["V_dd"] = 0.7 
+    simulator.initial_params["V_dd"] = 1 
     simulator.initial_params["C_input_inv"] = 1e-9 
+
+    multistart = False
 
     
     hw.hw_allocated['Add'] = 1
@@ -234,8 +236,11 @@ def main():
     #simulator.edp = simulator.edp.simplify()
 
     model = pyo.ConcreteModel()
-    opt, scaled_preproc_model, preproc_model = Preprocessor().begin(model, simulator) 
-    results = opt.solve(scaled_preproc_model, keepfiles=True, tee=True, symbolic_solver_labels=True)
+    opt, scaled_preproc_model, preproc_model = Preprocessor().begin(model, simulator, multistart=multistart) 
+    if multistart:
+        results = opt.solve(scaled_preproc_model, solver_args={'keepfiles':True, 'tee':True, 'symbolic_solver_labels':True})
+    else:
+        results = opt.solve(scaled_preproc_model, keepfiles=True, tee=True, symbolic_solver_labels=True)
     pyo.TransformationFactory('core.scale_model').propagate_solution(scaled_preproc_model, preproc_model)
     print(results.solver.termination_condition)  
     print("======================")
