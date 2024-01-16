@@ -36,8 +36,8 @@ class Preprocessor:
         return model.x[self.mapping[hw_symbols.V_dd]]<=1.7 
 
     def add_constraints(self, model):
-        model.Constraint = pyo.Constraint( expr = self.py_exp <= self.initial_val/10)
-        model.Constraint1 = pyo.Constraint( expr = self.py_exp >= self.initial_val/1e2)
+        model.Constraint = pyo.Constraint( expr = self.py_exp == self.initial_val/10)
+        #model.Constraint1 = pyo.Constraint( expr = self.py_exp >= self.initial_val/11)
         model.freq_const = pyo.Constraint( rule=self.f)
         model.V_dd_lower = pyo.Constraint( rule=self.V_dd_lower)
         model.C_int_inv_constr = pyo.Constraint( rule=self.C_int_inv)
