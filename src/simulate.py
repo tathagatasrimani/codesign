@@ -70,6 +70,9 @@ class HardwareSimulator:
         This function should construct a sub graph of PE and mem that can do the computation in this dfg node,
         then search through the overall hw spec netlist to see if this subgraph occurs in the main graph.
 
+        The way this works, if I have 10 addition operations to do in this node of the DFG, and 20 adders
+        it should always allocate 10 adders to this node. <- TODO: VERIFY EXPERIMENTALLY
+
         Parameters:
             state (list): A list of operations to be executed.
             hw_spec (HardwareModel): An object representing the current hardware allocation and specifications.
@@ -78,18 +81,9 @@ class HardwareSimulator:
             dict: A dictionary representing the hardware requirements for the operations.
         """
 
-        # hw_need = HardwareModel(
-        #     id=0,
-        #     bandwidth=0,
-        #     mem_layers=self.mem_layers,
-        #     pitch=self.pitch,
-        #     transistor_size=self.transistor_size,
-        #     cache_size=self.cache_size,
-        # )
         mem_in_use = 0
         # print(f"\ntop of get_hw_need; state: {[str(m) for m in state]}")
         for op in state:
-            # print(f"op: {op.operation}")
             if not op.operation:
                 continue
 
@@ -112,16 +106,15 @@ class HardwareSimulator:
 
         self.max_regs_inuse = min(
             hardwareModel.num_nodes_with_func(hw_spec.netlist, "Regs"),
-            self.max_regs_inuse
+            self.max_regs_inuse,
         )
         self.max_mem_inuse = max(self.max_mem_inuse, mem_in_use)
 
-    def simulate_cycles(self, hw_inuse, hw, total_cycles):
+    def simulate_cycles(self, hw, total_cycles):
         """
         Simulates the operation of hardware over a number of cycles.
 
         Parameters:
-            hw_inuse (dict): A dictionary tracking the current hardware in use.
             hw (HardwareModel): The hardware model providing the specific architecture being simulated.
             total_cycles (int): The maximum number of cycles to simulate.
 
@@ -135,30 +128,18 @@ class HardwareSimulator:
 
             # save current state of hardware to data array
             cur_data = ""
-            for elem in hw_inuse:
-                power = hw.dynamic_power[elem]
-                # if elem == "Regs": power *= hw.power_scale[sim_util.find_nearest_mem_to_scale(self.memory_needed)]
-                if len(hw_inuse[elem]) > 0:
-                    cur_data += elem + ": "
-                    count = 0
-                    # active power consumption of hw in use this cycle
-                    for i in hw_inuse[elem]:
-                        if i > 0:
-                            count += 1
-                            self.power_use[self.cycles] += power
+            for elem_name, elem_data in dict(
+                hardwareModel.get_in_use_nodes(hw.netlist)
+            ).items():
+                power = hw.dynamic_power[elem_data["function"]]
+                cur_data += elem_name + ": "
+                count = 0
+                # active power consumption of hw in use this cycle
+                self.power_use[self.cycles] += power
 
-                    cur_data += (
-                        str(count) + "/" + str(len(hw_inuse[elem])) + " in use. || "
-                    )
+                cur_data += "1 in use. || "
             self.data[self.cycles] = cur_data
 
-            # simulate one cycle
-            # these two loops loop over all hardware elements; they don't count down till
-            for elem in hw_inuse:
-                for j in range(len(hw_inuse[elem])):
-                    hw_inuse[elem][j] = max(
-                        0, hw_inuse[elem][j] - 1
-                    )  # decrement hw in use?
             node_power_sum += self.power_use[self.cycles]
             self.cycles += 1
         return node_power_sum
@@ -356,13 +337,10 @@ class HardwareSimulator:
         global state_graph_counter
         cur_node = cfg.entryblock
         if first:
-            cur_node = cur_node.exits[
-                0
-            ].target  # skip over the first node in the main cfg
+            # skip over the first node in the main cfg
+            cur_node = cur_node.exits[0].target
             self.main_cfg = cfg
-        hw_inuse = {}
-        for elem in hw.hw_allocated:
-            hw_inuse[elem] = [0] * hw.hw_allocated[elem]
+
         i = 0
         frees = []
         mallocs = []
@@ -489,45 +467,34 @@ class HardwareSimulator:
                 # print(f"\n\ntotal operations in curr node:")
                 # [print(f"{[str(m) for m in n]}") for n in node_operation_map[cur_node]]
                 for operations in node_operation_map[cur_node]:
-                    print(f"in simulate, operations in node_operations_map: {[str(m) for m in operations]}")
+                    print(
+                        f"in simulate, operations in node_operations_map: {[str(m) for m in operations]}"
+                    )
                     self.get_hw_need(operations, hw)
 
                     # self.visualize_graph(operations)
 
                     total_cycles = 0
                     # allocate hardware for operations in this state and calculate total cycles
-                    for elem_name, elem_data in dict(hardwareModel.get_in_use_nodes(hw.netlist)).items():
-
+                    for elem_name, elem_data in dict(
+                        hardwareModel.get_in_use_nodes(hw.netlist)
+                    ).items():
                         print(f"name: {elem_name}, data: {elem_data}")
                         latency = hw.latency[elem_data["function"]]
-                        # if elem == "Regs": latency *= hw.latency_scale[sim_util.find_nearest_mem_to_scale(self.memory_needed)]
-                        # num_elem_needed = hw_need[elem]
-                        # if num_elem_needed == 0:
-                        #     continue
-                        # print(f"latency of elem {elem} = {latency}")
 
-                        # if hw.hw_allocated[elem] == 0 and num_elem_needed > 0:
-                        #     raise Exception(
-                        #         "hardware specification insufficient to run program"
-                        #     )
                         cur_cycles_needed = math.ceil(latency)
-                        # math.ceil(                            math.ceil(num_elem_needed / hw.hw_allocated[elem]) * latency                        )
-                        # print(f"{cur_cycles_needed} cycles needed for elem {elem} with {num_elem_needed} needed and {hw.hw_allocated[elem]} available")
+
                         total_cycles = max(
                             cur_cycles_needed, total_cycles
                         )  # identify bottleneck element for this node.
                         j = 0
-                        # while num_elem_needed > 0:
-                            # this keeps getting incremented, never reset.
-                        hw_inuse[elem_data['function']][elem_data['idx']] += latency
-                            # j = (j + 1) % hw.hw_allocated[elem]
-                            # num_elem_needed -= 1
+
                     # print(f"for operations: {[str(op) for op in operations]}, total_cycles = {total_cycles}")
                     print(
                         f"total_cycle: {total_cycles}, for operations: {[str(op) for op in operations]}"
                     )
                     self.node_avg_power[node_id] += self.simulate_cycles(
-                        hw_inuse, hw, total_cycles
+                        hw, total_cycles
                     )
                     hardwareModel.un_allocate_all_in_use_elements(hw.netlist)
                 idx += 1
@@ -551,8 +518,8 @@ class HardwareSimulator:
         # This is done here for the dynamic allocation case where we don't know how many
         # compute elements we need until we run the program.
         passive_power = 0
-        for elem in hw.hw_allocated:
-            passive_power += hw.leakage_power[elem] * hw.hw_allocated[elem]
+        for elem_name, elem_data in dict(hw.netlist.nodes.data()).items():
+            passive_power += hw.leakage_power[elem_data['function']]
 
         for c in range(self.cycles):
             self.power_use[c] += passive_power
@@ -686,9 +653,9 @@ def main():
         arch_search.generate_new_aladdin_arch(
             cfg, hw, node_operation_map, simulator.data_path, simulator.id_to_node
         )
-    
-    nx.draw(hw.netlist, with_labels=True)
-    plt.show()
+
+    # nx.draw(hw.netlist, with_labels=True)
+    # plt.show()
 
     simulator.transistor_size = hw.transistor_size  # in nm
     simulator.pitch = hw.pitch  # in um

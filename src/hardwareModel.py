@@ -110,7 +110,6 @@ def get_nodes_with_func(netlist, func):
     """
     should i refactor 'function' to 'operation'?
     """
-    print(f"searching for {func}")
     return get_nodes_by_filter(netlist, "function", func)
 
 

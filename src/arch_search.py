@@ -30,12 +30,10 @@ def generate_new_aladdin_arch(cfg: CFG, hw: HardwareModel, node_operation_map, d
         for operations in node_operation_map[cur_node]:
             hw_need = sim_util.get_hw_need_lite(operations, hw)
             for elem in hw_need:
-                print(f"{elem} in hw need")
                 if hardwareModel.num_nodes_with_func(hw.netlist, elem) < hw_need[elem]:
                     # This is where I increase the number of PEs as needed.
                     hw.hw_allocated[elem] = hw_need[elem]
                     n = hardwareModel.num_nodes_with_func(hw.netlist, elem)
-                    print(f"currently have {n} {elem}, but need {hw_need[elem]}")
                     for i in range(n, hw_need[elem]):
                         hw.netlist.add_node((elem + str(i)), type="pe" if elem is not "Regs" else "memory", function = elem, in_use=False, idx=i)
                         if elem is not "Regs":
