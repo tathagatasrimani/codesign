@@ -94,6 +94,10 @@ power_scale = {
 }
 
 
+## WRAP ALL OF THESE METHODS INTO A 'NETLIST' CLASS
+## Shoudl have an NX graph object as the main instance variable.
+
+
 def get_nodes_by_filter(netlist, key, value):
     return {k: v for k, v in dict(netlist.nodes.data()).items() if v[key] == value}
 
@@ -103,11 +107,15 @@ def get_in_use_nodes(netlist):
 
 
 def get_nodes_with_func(netlist, func):
-    '''
+    """
     should i refactor 'function' to 'operation'?
-    '''
+    """
     print(f"searching for {func}")
     return get_nodes_by_filter(netlist, "function", func)
+
+
+def num_nodes_with_func(netlist, func):
+    return len(get_nodes_with_func(netlist, func))
 
 
 def un_allocate_all_in_use_elements(netlist):
@@ -118,8 +126,8 @@ def un_allocate_all_in_use_elements(netlist):
 class HardwareModel:
     def __init__(
         self,
-        path_to_graphml=None,
         cfg=None,
+        path_to_graphml=None,
         id=None,
         bandwidth=None,
         mem_layers=None,

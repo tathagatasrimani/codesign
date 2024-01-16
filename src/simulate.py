@@ -12,6 +12,7 @@ import ast
 import matplotlib.pyplot as plt
 import numpy as np
 import graphviz as gv
+import networkx as nx
 
 # custom modules
 from memory import Memory
@@ -92,13 +93,6 @@ class HardwareSimulator:
             if not op.operation:
                 continue
 
-            # this stuff is handling some graph stuff.
-            # hw_need.netlist.nodes.data()
-            # compute_element_id = (
-            #     hw_need.hw_allocated[op.operation] % hw_spec.hw_allocated[op.operation]
-            # )
-
-            # hw_elements = hw_spec.netlist.nodes.data()
             hw_elems = hardwareModel.get_nodes_with_func(hw_spec.netlist, op.operation)
             allocated = False
             for node, data in hw_elems.items():
@@ -110,30 +104,17 @@ class HardwareSimulator:
             if not allocated:
                 raise Exception("hardware specification insufficient to run program")
 
-            # print(f"compute_element_id: {compute_element_id}; compute_element_to_node_id: {self.compute_element_to_node_id}")
-            # if len(self.compute_element_to_node_id[op.operation]) <= compute_element_id:
-            #     raise Exception("hardware specification insufficient to run program")
-            # # print(f"after init; op: {op.operation} compute_element_to_node_id: {self.compute_element_to_node_id}")
-            # compute_node_id = self.compute_element_to_node_id[op.operation][
-            #     compute_element_id
-            # ]
-            # hw_op_node = self.new_graph.id_to_Node[compute_node_id]
-            # op.compute_id = compute_node_id
             mem_in_use += self.get_mem_usage_of_compute_element(
                 op, self.new_graph, check_duplicate=True
             )
 
-            # hw_need.hw_allocated[op.operation] += 1
             hw_spec.compute_operation_totals[op.operation] += 1
-        # print(f"total compute allocated: {hw_need.hw_allocated}")
 
         self.max_regs_inuse = min(
-            hw_spec.hw_allocated["Regs"],
+            hardwareModel.num_nodes_with_func(hw_spec.netlist, "Regs"),
             self.max_regs_inuse
-            # max(self.max_regs_inuse, hw_need.hw_allocated["Regs"]),
         )
         self.max_mem_inuse = max(self.max_mem_inuse, mem_in_use)
-        # return hw_need.hw_allocated
 
     def simulate_cycles(self, hw_inuse, hw, total_cycles):
         """
@@ -699,10 +680,15 @@ def main():
     cfg, graphs, node_operation_map = simulator.simulator_prep(args.benchmark)
 
     hw = HardwareModel(cfg="aladdin_const")
+    hw.netlist = nx.Graph()
+    hw.dynamic_allocation = True
     if hw.dynamic_allocation:
         arch_search.generate_new_aladdin_arch(
             cfg, hw, node_operation_map, simulator.data_path, simulator.id_to_node
         )
+    
+    nx.draw(hw.netlist, with_labels=True)
+    plt.show()
 
     simulator.transistor_size = hw.transistor_size  # in nm
     simulator.pitch = hw.pitch  # in um
