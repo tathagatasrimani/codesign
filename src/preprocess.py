@@ -10,7 +10,7 @@ scaling_factors = {
     hw_symbols.C_int_inv: 1e15,
     hw_symbols.C_input_inv: 1e13,
 }
-obj_scale = 1e12
+obj_scale = 1e18
 
 class Preprocessor:
     def __init__(self):
@@ -25,19 +25,19 @@ class Preprocessor:
     def f(self, model):
         return model.x[self.mapping[hw_symbols.f]]>=1e6 
     def f_upper(self, model):
-        return model.x[self.mapping[hw_symbols.f]]<=1e10
+        return model.x[self.mapping[hw_symbols.f]]<=5e9
     def V_dd_lower(self, model):
         return model.x[self.mapping[hw_symbols.V_dd]]>=0.5 
     def C_int_inv(self, model):
-        return model.x[self.mapping[hw_symbols.C_int_inv]]>=1e-15 
+        return model.x[self.mapping[hw_symbols.C_int_inv]]>=1e-14 
     def C_input_inv(self, model):
-        return model.x[self.mapping[hw_symbols.C_input_inv]]>=1e-13 
+        return model.x[self.mapping[hw_symbols.C_input_inv]]>=1e-12 
     def V_dd_upper(self, model):
         return model.x[self.mapping[hw_symbols.V_dd]]<=1.7 
 
     def add_constraints(self, model):
         model.Constraint = pyo.Constraint( expr = self.py_exp <= self.initial_val/10)
-        model.Constraint1 = pyo.Constraint( expr = self.py_exp >= self.initial_val/10e2)
+        model.Constraint1 = pyo.Constraint( expr = self.py_exp >= self.initial_val/1e2)
         model.freq_const = pyo.Constraint( rule=self.f)
         model.V_dd_lower = pyo.Constraint( rule=self.V_dd_lower)
         model.C_int_inv_constr = pyo.Constraint( rule=self.C_int_inv)
@@ -58,11 +58,13 @@ class Preprocessor:
             #opt.options['warm_start_slack_bound_push'] = 1e-9
             #opt.options['warm_start_slack_bound_frac'] = 1e-9
             #opt.options['mu_init'] = 0.1
-            #opt.options['acceptable_obj_change_tol'] = 0.5
+            #opt.options['acceptable_obj_change_tol'] = self.initial_val / 100
             #opt.options['tol'] = 0.5
             #opt.options['print_level'] = 5
-            opt.options['nlp_scaling_method'] = 'none'
-            opt.options['max_iter'] = 1000
+            #opt.options['nlp_scaling_method'] = 'none'
+            opt.options['bound_relax_factor'] = 0
+            opt.options['max_iter'] = 100
+            opt.options['print_info_string'] = 'yes'
             opt.options['output_file'] = 'solver_out.txt'
             opt.options['wantsol'] = 2
         return opt
@@ -81,7 +83,7 @@ class Preprocessor:
             if s.name in simulator.initial_params:
                 self.expr_symbols[s] = simulator.initial_params[s.name]
 
-        self.initial_val = simulator.edp.subs(self.expr_symbols)
+        self.initial_val = float(simulator.edp.subs(self.expr_symbols))
         print(self.expr_symbols)
         print("edp equation: ", simulator.edp)
 
