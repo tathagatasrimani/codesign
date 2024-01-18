@@ -1,10 +1,9 @@
 from sympy import symbols, ceiling, expand, exp
 
-
-C_int_inv = symbols("C_int_inv", positive=True)
+C_int_add = symbols("C_int_add", positive=True)
 V_dd = symbols("V_dd", positive=True)
 f = symbols("f", positive=True)
-C_input_inv = symbols("C_input_inv", positive=True)
+C_input_add = symbols("C_input_add", positive=True)
 
 u_p = 1
 C_ox = 1
@@ -24,8 +23,8 @@ I_on = (u_p*C_ox*W*(V_dd-V_T)**2)/(2*L)
 I_off = I_s*exp((q*(V_dd-V_T-V_offset)) / (n*K*T)) * (1 - exp((-q*V_dd) / (K*T)))
 I_avg = (I_on + I_off) / 2
 R_avg_inv = V_dd / I_avg
-C_inv = C_input_inv + C_int_inv
-P_act_inv = 0.5*C_inv*V_dd*V_dd*f
+C_add = C_input_add + C_int_add
+P_act_inv = 0.5*C_add*V_dd*V_dd*f
 P_pass_inv = I_off*V_dd
 
 # adder as base unit
@@ -114,7 +113,7 @@ gamma = {
 }
 
 def make_sym_lat_wc(gamma):
-    return gamma * R_avg_inv * C_input_inv + (gamma * R_avg_inv + R_wire) * C_wire
+    return gamma * R_avg_inv * C_input_add + (gamma * R_avg_inv + R_wire) * C_wire
 
 symbolic_latency_wc = {
     "And": make_sym_lat_wc(gamma["And"]),

@@ -7,8 +7,8 @@ from pyomo.opt import SolverFactory
 scaling_factors = {
     hw_symbols.f: 1e-6,
     hw_symbols.V_dd: 1,
-    hw_symbols.C_int_inv: 1e15,
-    hw_symbols.C_input_inv: 1e13,
+    hw_symbols.C_int_add: 1e15,
+    hw_symbols.C_input_add: 1e13,
 }
 obj_scale = 1e18
 
@@ -28,10 +28,10 @@ class Preprocessor:
         return model.x[self.mapping[hw_symbols.f]]<=5e9
     def V_dd_lower(self, model):
         return model.x[self.mapping[hw_symbols.V_dd]]>=0.5 
-    def C_int_inv(self, model):
-        return model.x[self.mapping[hw_symbols.C_int_inv]]>=1e-14 
-    def C_input_inv(self, model):
-        return model.x[self.mapping[hw_symbols.C_input_inv]]>=1e-12 
+    def C_int_add(self, model):
+        return model.x[self.mapping[hw_symbols.C_int_add]]>=1e-14 
+    def C_input_add(self, model):
+        return model.x[self.mapping[hw_symbols.C_input_add]]>=1e-12 
     def V_dd_upper(self, model):
         return model.x[self.mapping[hw_symbols.V_dd]]<=1.7 
 
@@ -40,8 +40,8 @@ class Preprocessor:
         #model.Constraint1 = pyo.Constraint( expr = self.py_exp >= self.initial_val/11)
         model.freq_const = pyo.Constraint( rule=self.f)
         model.V_dd_lower = pyo.Constraint( rule=self.V_dd_lower)
-        model.C_int_inv_constr = pyo.Constraint( rule=self.C_int_inv)
-        model.C_input_inv_constr = pyo.Constraint( rule=self.C_input_inv)
+        model.C_int_add_constr = pyo.Constraint( rule=self.C_int_add)
+        model.C_input_add_constr = pyo.Constraint( rule=self.C_input_add)
         model.V_dd_upper = pyo.Constraint( rule=self.V_dd_upper)
         model.f_upper = pyo.Constraint( rule=self.f_upper)
         return model

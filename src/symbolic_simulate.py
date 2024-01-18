@@ -187,9 +187,9 @@ def main():
 
     simulator.initial_params = {}
     simulator.initial_params["f"] = 1e6 
-    simulator.initial_params["C_int_inv"] = 1e-8 
+    simulator.initial_params["C_int_add"] = 1e-8 
     simulator.initial_params["V_dd"] = 1 
-    simulator.initial_params["C_input_inv"] = 1e-9 
+    simulator.initial_params["C_input_add"] = 1e-9 
 
     multistart = False
 
