@@ -20,9 +20,10 @@ T = 1
 R_wire = 1
 C_wire = 1e-10
 
-I_on = (u_p*C_ox*W*(V_dd-V_T)**2)/(2*L)
+I_L = (u_p*C_ox*W*((V_dd/2)-V_T)**2)/(2*L)
+I_H = u_p*C_ox*(W/L)*( ((V_dd*(V_dd-V_T)) / 2) - ((V_dd**2) / 2))
 I_off = I_s*exp((q*(V_dd-V_T-V_offset)) / (n*K*T)) * (1 - exp((-q*V_dd) / (K*T)))
-I_avg = (I_on + I_off) / 2
+I_avg = (I_L + I_H) / 2
 R_avg_inv = V_dd / I_avg
 C_inv = C_input_inv + C_int_inv
 P_act_inv = 0.5*C_inv*V_dd*V_dd*f
