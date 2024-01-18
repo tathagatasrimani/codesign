@@ -28,7 +28,8 @@ C_inv = C_input_inv + C_int_inv
 P_act_inv = 0.5*C_inv*V_dd*V_dd*f
 P_pass_inv = I_off*V_dd
 
-
+# coefficients used in logical effort formulation
+# active power
 alpha = {
     "And": 1,
     "Or": 1,
@@ -56,6 +57,7 @@ alpha = {
     "Regs": 1
 }
 
+# passive power
 beta = {
     "And": 2,
     "Or": 2,
@@ -83,6 +85,7 @@ beta = {
     "Regs": 2
 }
 
+# delay
 gamma = {
     "And": 1,
     "Or": 1,
