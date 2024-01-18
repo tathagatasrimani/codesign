@@ -45,7 +45,7 @@ class HardwareSimulator:
         self.unroll_at = {}
         self.vars_allocated = {}
         self.where_to_free = {}
-        self.compute_element_to_node_id = {}
+        # self.compute_element_to_node_id = {}
         # self.compute_element_neighbors = {}
         self.memory_needed = 0
         self.nvm_memory_needed = 0
@@ -519,7 +519,7 @@ class HardwareSimulator:
         # compute elements we need until we run the program.
         passive_power = 0
         for elem_name, elem_data in dict(hw.netlist.nodes.data()).items():
-            passive_power += hw.leakage_power[elem_data['function']]
+            passive_power += hw.leakage_power[elem_data["function"]]
 
         for c in range(self.cycles):
             self.power_use[c] += passive_power
@@ -638,7 +638,7 @@ class HardwareSimulator:
             hardwareModel.op2sym_map[compute_unit],
         )
         # self.compute_element_neighbors[compute_id] = set()
-        self.compute_element_to_node_id[compute_unit].append(compute_id)
+        # self.compute_element_to_node_id[compute_unit].append(compute_id)
 
 
 def main():
@@ -673,18 +673,17 @@ def main():
 
     new_gv_graph = gv.Graph()
     simulator.new_graph = dfg_algo.Graph(set(), {}, new_gv_graph)
-    for elem in hw.hw_allocated:
+    for elem_name, elem_data in dict(hw.netlist.nodes.data()).items():
         # if elem == "Regs": continue
-        simulator.compute_element_to_node_id[elem] = []
+        # simulator.compute_element_to_node_id[elem] = []
         # looks like there's a lot of setup stuff that depends on the amount of hw allocated.
-        for i in range(hw.hw_allocated[elem]):
-            simulator.init_new_compute_element(elem)
+        simulator.init_new_compute_element(elem_data["function"])
 
     data = simulator.simulate(cfg, node_operation_map, hw, True)  # graphs
 
     area = 0
-    for elem in hw.hw_allocated:
-        area += max(0, hw.hw_allocated[elem]) * hw.area[elem]
+    for elem_name, elem_data in dict(hw.netlist.nodes.data()).items():
+        area += hw.area[elem_data['function']]
     print(f"compute area: {area * 1e-6} um^2")
     print(f"memory area: {hw.mem_area * 1e6} um^2")
     print(f"total area: {(area*1e-6 + hw.mem_area*1e6)} um^2")
@@ -704,7 +703,7 @@ def main():
     print("total writes: ", simulator.writes)
     print("total write size: ", simulator.total_write_size)
     print("total operations computed: ", hw.compute_operation_totals)
-    print(f"hw allocated: {hw.hw_allocated}")
+    print(f"hw allocated: {dict(hw.netlist.nodes.data())}")
     print("max regs in use: ", simulator.max_regs_inuse)
     print(f"max memory in use: {simulator.max_mem_inuse} bytes")
 
