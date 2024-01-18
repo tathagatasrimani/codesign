@@ -28,7 +28,7 @@ C_inv = C_input_inv + C_int_inv
 P_act_inv = 0.5*C_inv*V_dd*V_dd*f
 P_pass_inv = I_off*V_dd
 
-# coefficients used in logical effort formulation
+# adder as base unit
 # active power
 alpha = {
     "And": 1,
