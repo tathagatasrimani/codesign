@@ -184,15 +184,6 @@ def main():
         simulator.cache_size = 16
     hw = HardwareModel(None, 0, 0, simulator.mem_layers, simulator.pitch, simulator.transistor_size, simulator.cache_size)
 
-
-    simulator.initial_params = {}
-    simulator.initial_params["f"] = 1e6 
-    simulator.initial_params["C_int_add"] = 1e-8 
-    simulator.initial_params["V_dd"] = 1 
-    simulator.initial_params["C_input_add"] = 1e-9 
-
-    multistart = False
-
     
     hw.hw_allocated['Add'] = 1
     hw.hw_allocated['Regs'] = 30
@@ -234,17 +225,9 @@ def main():
 
     simulator.edp = total_cycles * total_power
     #simulator.edp = simulator.edp.simplify()
-
-    model = pyo.ConcreteModel()
-    opt, scaled_preproc_model, preproc_model = Preprocessor().begin(model, simulator, multistart=multistart) 
-    if multistart:
-        results = opt.solve(scaled_preproc_model, solver_args={'keepfiles':True, 'tee':True, 'symbolic_solver_labels':True})
-    else:
-        results = opt.solve(scaled_preproc_model, keepfiles=True, tee=True, symbolic_solver_labels=True)
-    pyo.TransformationFactory('core.scale_model').propagate_solution(scaled_preproc_model, preproc_model)
-    print(results.solver.termination_condition)  
-    print("======================")
-    preproc_model.display()
+    st = str(simulator.edp)
+    with open("sympy.txt", 'w') as f:
+        f.write(st)
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(

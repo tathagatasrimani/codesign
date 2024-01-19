@@ -21,4 +21,5 @@ if [ $name ]; then
     else
         python symbolic_simulate.py $FILEPATH
     fi
+    python optimize.py
 fi
