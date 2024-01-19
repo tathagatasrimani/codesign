@@ -4,6 +4,13 @@ from MyPyomoSympyBimap import MyPyomoSympyBimap
 import pyomo.core.expr.sympy_tools as sympy_tools
 from pyomo.opt import SolverFactory
 
+updated_symbol_map = {
+    "f": hw_symbols.f,
+    "V_dd": hw_symbols.V_dd,
+    "C_int_inv": hw_symbols.C_int_inv,
+    "C_input_inv": hw_symbols.C_input_inv
+}
+
 scaling_factors = {
     hw_symbols.f: 1e-6,
     hw_symbols.V_dd: 1,
@@ -74,20 +81,22 @@ class Preprocessor:
         for var in scaling_factors:
             model.scaling_factor[model.x[self.mapping[var]]] = scaling_factors[var]
 
-    def begin(self, model, simulator, multistart):
+    def begin(self, model, edp, initial_params, multistart):
         self.multistart = multistart
         self.expr_symbols = {}
         self.free_symbols = []
-        for s in simulator.edp.free_symbols:
+        for symbol in edp.free_symbols:
+            edp = edp.subs({symbol: updated_symbol_map[symbol.name]})
+        for s in edp.free_symbols:
             self.free_symbols.append(s)
-            if s.name in simulator.initial_params:
-                self.expr_symbols[s] = simulator.initial_params[s.name]
+            if s.name in initial_params:
+                self.expr_symbols[s] = initial_params[s.name]
 
-        self.initial_val = float(simulator.edp.subs(self.expr_symbols))
+        self.initial_val = float(edp.subs(self.expr_symbols))
         print(self.expr_symbols)
-        print("edp equation: ", simulator.edp)
+        print("edp equation: ", edp)
 
-        model.nVars = pyo.Param(initialize=len(simulator.edp.free_symbols))
+        model.nVars = pyo.Param(initialize=len(edp.free_symbols))
         model.N = pyo.RangeSet(model.nVars)
         model.x = pyo.Var(model.N, domain=pyo.NonNegativeReals)
         self.mapping = {}
@@ -101,7 +110,7 @@ class Preprocessor:
             i += 1
 
         m = MyPyomoSympyBimap()
-        for symbol in simulator.edp.free_symbols:
+        for symbol in edp.free_symbols:
             # create self.mapping of sympy symbols to pyomo symbols
             m.sympy2pyomo[symbol] = model.x[self.mapping[symbol]]
             # give pyomo symbols an inital value for warm start
@@ -109,7 +118,7 @@ class Preprocessor:
             print(symbol, self.expr_symbols[symbol])
         #sympy_tools._operatorMap.update({sympy.Max: lambda x: nested_if(x[0], x[1:])})
         #print(self.mapping.sympyVars())
-        self.py_exp = sympy_tools.sympy2pyomo_expression(simulator.edp, m)
+        self.py_exp = sympy_tools.sympy2pyomo_expression(edp, m)
         # py_exp = sympy_tools.sympy2pyomo_expression(hardwaremodel.symbolic_latency["Add"] ** (1/2), m)
         print(self.py_exp)
         model.obj = pyo.Objective(expr=self.py_exp, sense=pyo.minimize)

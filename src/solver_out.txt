@@ -22,40 +22,35 @@ Total number of inequality constraints...............:        0
         inequality constraints with only upper bounds:        0
 
 iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
-   0  1.2557602e+09 1.13e-09 9.80e+01  -1.0 0.00e+00    -  0.00e+00 0.00e+00   0 
-   1  1.2184750e+09 1.09e-09 9.47e+01  -1.0 9.90e+03    -  9.91e-01 3.33e-02f  1 
-   2  4.2979451e+08 3.02e-10 3.52e+01  -1.0 9.76e+05    -  1.00e+00 1.00e+00f  1 Nhj 
-   3  2.3751380e+08 1.09e-10 1.15e+01  -1.0 8.93e+06    -  1.00e+00 7.61e-01f  1 
-   4  2.3480998e+08 1.07e-10 6.32e+00  -1.0 2.13e+06    -  8.29e-02 2.49e-02f  2 
-   5  1.5757630e+08 2.95e-11 2.11e+00  -1.0 2.08e+06    -  4.81e-01 1.00e+00f  1 
-   6  1.3643187e+08 8.33e-12 6.38e-01  -1.7 6.49e+02    -  8.04e-01 7.77e-01f  1 
-   7  1.2850466e+08 4.05e-13 3.93e-02  -2.5 7.08e+01    -  1.00e+00 1.00e+00f  1 
-   8  1.2815835e+08 5.85e-14 1.09e-03  -3.8 1.02e+02    -  9.43e-01 1.00e+00f  1 
-   9  1.2810012e+08 3.17e-16 2.59e-06  -5.7 4.72e+00    -  9.95e-01 1.00e+00f  1 
-iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
-  10  1.2809980e+08 8.27e-19 3.35e-08  -8.6 5.93e-01    -  9.91e-01 1.00e+00F  1 
-  11  1.2809980e+08 3.78e-19 6.07e-09  -8.6 8.84e+01    -  9.00e-01 1.00e+00F  1 
-  12  1.2809980e+08 1.15e-22 1.28e-12 -12.6 8.78e-02    -  1.00e+00 1.00e+00F  1 A
-  13  1.2809980e+08 1.15e-22 4.91e-12 -12.6 1.32e+02    -  8.36e-01 4.77e-07h 22 z
+   0  0.0000000e+00 0.00e+00 1.00e+00  -1.0 0.00e+00    -  0.00e+00 0.00e+00   0 
+   1  0.0000000e+00 0.00e+00 1.00e-02  -1.0 9.90e+00    -  9.90e-01 1.00e+00f  1 
+   2  0.0000000e+00 0.00e+00 1.00e-04  -1.0 9.90e+02    -  9.90e-01 1.00e+00f  1 Nh L
+   3  0.0000000e+00 0.00e+00 1.00e-06  -1.0 9.90e+04    -  1.00e+00 1.00e+00f  1 L
+   4  0.0000000e+00 0.00e+00 1.00e-06  -1.0 9.80e+06    -  1.00e+00 1.00e+00f  1 Dj Ll
+   5  0.0000000e+00 0.00e+00 2.83e-08  -2.5 1.90e-06    -  1.00e+00 1.00e+00f  1 l
+   6 -6.4765991e-09 6.48e-27 7.19e-09  -3.8 5.02e-03    -  1.00e+00 6.25e-02f  5 l
+   7 -6.4773491e-09 6.48e-27 1.84e-11  -5.7 8.54e+00    -  1.00e+00 5.00e-01f  2 l
+   8 -6.5233883e-09 6.52e-27 4.95e-11  -8.6 7.06e+02    -  9.94e-01 5.00e-01f  2 lA
+   9 -6.5239126e-09 6.52e-27 7.24e-09  -9.0 7.24e-05  -4.0 1.00e+00 1.00e+00f  1 l
 
-Number of Iterations....: 13
+Number of Iterations....: 9
 
                                    (scaled)                 (unscaled)
-Objective...............:   3.8731979852399001e+00    1.2809980358414701e+08
-Dual infeasibility......:   4.9059192247057997e-12    1.6225540018336516e-04
-Constraint violation....:   1.1523659908629367e-22    1.1523659908629367e-22
+Objective...............:  -6.5239126338369186e-09   -6.5239126338369186e-09
+Dual infeasibility......:   7.2380976164295735e-09    7.2380976164295735e-09
+Constraint violation....:   6.5239126338369187e-27    6.5239126338369187e-27
 Variable bound violation:   0.0000000000000000e+00    0.0000000000000000e+00
-Complementarity.........:   9.0292437648648815e-13    2.9862773790556295e-05
-Overall NLP error.......:   9.0292437648648815e-13    1.6225540018336516e-04
+Complementarity.........:   9.1080489841418052e-10    9.1080489841418052e-10
+Overall NLP error.......:   7.2380976164295735e-09    7.2380976164295735e-09
 
 
-Number of objective function evaluations             = 46
-Number of objective gradient evaluations             = 14
-Number of equality constraint evaluations            = 46
+Number of objective function evaluations             = 20
+Number of objective gradient evaluations             = 10
+Number of equality constraint evaluations            = 20
 Number of inequality constraint evaluations          = 0
-Number of equality constraint Jacobian evaluations   = 14
+Number of equality constraint Jacobian evaluations   = 10
 Number of inequality constraint Jacobian evaluations = 0
-Number of Lagrangian Hessian evaluations             = 13
-Total seconds in IPOPT                               = 0.021
+Number of Lagrangian Hessian evaluations             = 9
+Total seconds in IPOPT                               = 0.017
 
 EXIT: Optimal Solution Found.
