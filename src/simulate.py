@@ -151,7 +151,7 @@ class HardwareSimulator:
             ]
             hw_op_node = self.new_graph.id_to_Node[compute_node_id]
             op.compute_id = compute_node_id
-            mem_in_use += self.process_compute_element(
+            mem_in_use += self.get_mem_usage_of_compute_element(
                 op, self.new_graph, hw_op_node, check_duplicate=True
             )
 
