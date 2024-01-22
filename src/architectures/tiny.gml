@@ -1,4 +1,5 @@
 graph [
+  directed 1
   node [
     id 0
     label "Add0"
@@ -197,6 +198,10 @@ graph [
   ]
   edge [
     source 1
+    target 0
+  ]
+  edge [
+    source 1
     target 2
   ]
   edge [
@@ -282,5 +287,93 @@ graph [
   edge [
     source 1
     target 23
+  ]
+  edge [
+    source 2
+    target 1
+  ]
+  edge [
+    source 3
+    target 1
+  ]
+  edge [
+    source 4
+    target 1
+  ]
+  edge [
+    source 5
+    target 1
+  ]
+  edge [
+    source 6
+    target 1
+  ]
+  edge [
+    source 7
+    target 1
+  ]
+  edge [
+    source 8
+    target 1
+  ]
+  edge [
+    source 9
+    target 1
+  ]
+  edge [
+    source 10
+    target 1
+  ]
+  edge [
+    source 11
+    target 1
+  ]
+  edge [
+    source 12
+    target 1
+  ]
+  edge [
+    source 13
+    target 1
+  ]
+  edge [
+    source 14
+    target 1
+  ]
+  edge [
+    source 15
+    target 1
+  ]
+  edge [
+    source 16
+    target 1
+  ]
+  edge [
+    source 17
+    target 1
+  ]
+  edge [
+    source 18
+    target 1
+  ]
+  edge [
+    source 19
+    target 1
+  ]
+  edge [
+    source 20
+    target 1
+  ]
+  edge [
+    source 21
+    target 1
+  ]
+  edge [
+    source 22
+    target 1
+  ]
+  edge [
+    source 23
+    target 1
   ]
 ]

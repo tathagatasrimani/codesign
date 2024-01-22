@@ -212,9 +212,9 @@ class HardwareSimulator:
         Returns:
             int: The amount of memory in use by this operation.
         """
-        print(
-            f"in get_mem_usage; op: {op}\nop.parents: {[str(par) for par in op.parents]}\nop.children: {[str(chl) for chl in op.children]}"
-        )
+        # print(
+        #     f"in get_mem_usage; op: {op}\nop.parents: {[str(par) for par in op.parents]}\nop.children: {[str(chl) for chl in op.children]}"
+        # )
         parents = []
         for parent in op.parents:
             parents.append(parent.operation)
@@ -333,7 +333,7 @@ class HardwareSimulator:
             )
         state_graph_counter += 1  # what does this do, can I get rid of it?
 
-    def simulate(self, cfg, node_operation_map, hw, first):
+    def simulate(self, cfg, cfg_node_to_hw_map, hw, first):
         global state_graph_counter
         cur_node = cfg.entryblock
         if first:
@@ -419,7 +419,7 @@ class HardwareSimulator:
             elif self.unroll_at[cur_node.id]:
                 print(f"found unroll at node: {cur_node.id}")
                 print(
-                    f"ops:{[str(op) for op in operations for operations in node_operation_map[cur_node]]}"
+                    f"ops:{[str(op) for op in operations for operations in cfg_node_to_hw_map[cur_node]]}"
                 )
                 # unroll the node: find the next node that is not the same as the current node
                 # and count consecutive number of times this node appears in the data path
@@ -458,18 +458,18 @@ class HardwareSimulator:
                         graph = dfg_algo.dfg_per_node(cur_node)
                         node_ops = schedule.schedule_one_node(graph)
                         for k in range(len(node_ops)):
-                            node_operation_map[cur_node][k] = (
-                                node_operation_map[cur_node][k] + node_ops[k]
+                            cfg_node_to_hw_map[cur_node][k] = (
+                                cfg_node_to_hw_map[cur_node][k] + node_ops[k]
                             )
 
-                # node_operation_map is dict of (states -> operations)
+                # cfg_node_to_hw_map is dict of (states -> operations)
                 # cur_node appears to be a state in the data path,
-                # print(f"\n\ntotal operations in curr node:")
-                # [print(f"{[str(m) for m in n]}") for n in node_operation_map[cur_node]]
-                for operations in node_operation_map[cur_node]:
-                    print(
-                        f"in simulate, operations in node_operations_map: {[str(m) for m in operations]}"
-                    )
+                print(f"\n\ntotal operations in curr node:")
+                [print(f"{[str(m) for m in n]}") for n in cfg_node_to_hw_map[cur_node]]
+                for operations in cfg_node_to_hw_map[cur_node]:
+                    # print(
+                    #     f"in simulate curr_node: {cur_node}, cur_node.id: {cur_node.id}, node_id: {node_id}\noperations in node_operations_map: {[str(m) for m in operations]}"
+                    # )
                     self.get_hw_need(operations, hw)
 
                     # self.visualize_graph(operations)
@@ -479,7 +479,7 @@ class HardwareSimulator:
                     for elem_name, elem_data in dict(
                         hardwareModel.get_in_use_nodes(hw.netlist)
                     ).items():
-                        print(f"name: {elem_name}, data: {elem_data}")
+                        # print(f"name: {elem_name}, data: {elem_data}")
                         latency = hw.latency[elem_data["function"]]
 
                         cur_cycles_needed = math.ceil(latency)
@@ -490,9 +490,9 @@ class HardwareSimulator:
                         j = 0
 
                     # print(f"for operations: {[str(op) for op in operations]}, total_cycles = {total_cycles}")
-                    print(
-                        f"total_cycle: {total_cycles}, for operations: {[str(op) for op in operations]}"
-                    )
+                    # print(
+                    #     f"total_cycle: {total_cycles}, for operations: {[str(op) for op in operations]}"
+                    # )
                     self.node_avg_power[node_id] += self.simulate_cycles(
                         hw, total_cycles
                     )
@@ -616,12 +616,12 @@ class HardwareSimulator:
         Creates CFG, and id_to_node
         """
         cfg, graphs, self.unroll_at = dfg_algo.main_fn(self.path, benchmark)
-        node_operation_map = schedule.schedule(cfg, graphs)
+        cfg_node_to_hw_map = schedule.schedule(cfg, graphs)
         self.set_data_path()
         for node in cfg:
             self.id_to_node[str(node.id)] = node
         # print(self.id_to_node)
-        return cfg, graphs, node_operation_map
+        return cfg, graphs, cfg_node_to_hw_map
 
     def init_new_compute_element(self, compute_unit):
         """
@@ -644,18 +644,21 @@ class HardwareSimulator:
 def main():
     print(f"Running simulator for {args.benchmark.split('/')[-1]}")
     simulator = HardwareSimulator()
-    cfg, graphs, node_operation_map = simulator.simulator_prep(args.benchmark)
-
+    cfg, graphs, cfg_node_to_hw_map = simulator.simulator_prep(args.benchmark)
+    # print(f"cfg_node_to_hw_map:\n{cfg_node_to_hw_map}")
+    
     hw = HardwareModel(cfg="aladdin_const")
+    # these two lines are hardcoded for now, remove and put them in HardwareModel properly
     hw.netlist = nx.Graph()
-    hw.dynamic_allocation = True
+    hw.dynamic_allocation = False
+    ## END 2 lines
     if hw.dynamic_allocation:
         arch_search.generate_new_aladdin_arch(
-            cfg, hw, node_operation_map, simulator.data_path, simulator.id_to_node
+            cfg, hw, cfg_node_to_hw_map, simulator.data_path, simulator.id_to_node
         )
 
-    # nx.draw(hw.netlist, with_labels=True)
-    # plt.show()
+    nx.draw(hw.netlist, with_labels=True)
+    plt.show()
 
     simulator.transistor_size = hw.transistor_size  # in nm
     simulator.pitch = hw.pitch  # in um
@@ -679,7 +682,7 @@ def main():
         # looks like there's a lot of setup stuff that depends on the amount of hw allocated.
         simulator.init_new_compute_element(elem_data["function"])
 
-    data = simulator.simulate(cfg, node_operation_map, hw, True)  # graphs
+    data = simulator.simulate(cfg, cfg_node_to_hw_map, hw, True)  # graphs
 
     area = 0
     for elem_name, elem_data in dict(hw.netlist.nodes.data()).items():

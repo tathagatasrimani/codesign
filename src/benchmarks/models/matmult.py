@@ -1,5 +1,6 @@
 from loop import loop
 import numpy as np
+
 def main():
     N = 4
     a = np.array(np.random.randint(0, 100, size=(N, N)))

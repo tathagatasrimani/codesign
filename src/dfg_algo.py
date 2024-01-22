@@ -13,6 +13,7 @@ node_to_symbols = {}
 # format: node -> {id -> dfg_node}
 node_to_unroll = {}
 unroll = False
+# graphs is a dictionary of cfg_node to dfg_algo.Graph objects
 graphs = {}
 cur_id = 0
 
@@ -44,6 +45,11 @@ class Node:
 
 class Graph:
     def __init__(self, roots, id_to_Node, gv_graph):
+        """
+        roots - set
+        id_to_Node - dict
+        gv_graph - graphviz.Digraph
+        """
         self.roots = roots
         self.id_to_Node = id_to_Node
         self.gv_graph = gv_graph
@@ -51,6 +57,9 @@ class Graph:
 
     def set_gv_graph(self, graph):
         self.gv_graph = graph
+    
+    def __str__(self):
+        return f"dfg Graph: roots -> {[str(node) for node in self.roots]}\nid_to_node->{self.id_to_Node}\nmax_id->{self.max_id}"
 
 
 def set_id():

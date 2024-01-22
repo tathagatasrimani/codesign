@@ -182,6 +182,7 @@ class HardwareModel:
         self.transistor_size = transistor_size
         self.cache_size = cache_size
 
+    ## Deprecated
     def allocate_hw_from_config(self, config):
         """
         allocate hardware from a config file
