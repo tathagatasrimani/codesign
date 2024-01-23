@@ -240,9 +240,8 @@ def matrix2text(matrix):
     else:
         print('malloc', sys.getsizeof(text_3), 'text_3')
     for i_3 in range(4):
-        instrument_read(loop, 'loop').start_unroll
         for j_3 in range(4):
-            print(22, 66)
+            print(21, 65)
             text_3 |= instrument_read_sub(instrument_read_sub(
                 instrument_read(matrix_3, 'matrix_3'), 'matrix_3',
                 instrument_read(i_3, 'i_3'), None, None, False),
@@ -250,7 +249,6 @@ def matrix2text(matrix):
                 ) << 120 - 8 * (4 * instrument_read(i_3, 'i_3') +
                 instrument_read(j_3, 'j_3'))
             write_instrument_read(text_3, 'text_3')
-        instrument_read(loop, 'loop').stop_unroll
     print('exit scope 3')
     return instrument_read(text_3, 'text_3')
     print('exit scope 3')
@@ -260,8 +258,8 @@ class AES:
 
     def __init__(self, master_key):
         print('enter scope 4')
-        print(1, 73)
-        print(27, 74)
+        print(1, 71)
+        print(26, 72)
         self = instrument_read(self, 'self')
         write_instrument_read(self, 'self')
         if type(self) == np.ndarray:
@@ -280,7 +278,7 @@ class AES:
             print('malloc', sys.getsizeof(self), 'self', [len(self)])
         else:
             print('malloc', sys.getsizeof(self), 'self')
-        print(27, 75)
+        print(26, 73)
         master_key_4 = instrument_read(master_key, 'master_key')
         write_instrument_read(master_key_4, 'master_key_4')
         if type(master_key_4) == np.ndarray:
@@ -307,8 +305,8 @@ class AES:
 
     def change_key(self, master_key):
         print('enter scope 5')
-        print(1, 78)
-        print(30, 79)
+        print(1, 76)
+        print(29, 77)
         self = instrument_read(self, 'self')
         write_instrument_read(self, 'self')
         if type(self) == np.ndarray:
@@ -327,7 +325,7 @@ class AES:
             print('malloc', sys.getsizeof(self), 'self', [len(self)])
         else:
             print('malloc', sys.getsizeof(self), 'self')
-        print(30, 80)
+        print(29, 78)
         master_key_5 = instrument_read(master_key, 'master_key')
         write_instrument_read(master_key_5, 'master_key_5')
         if type(master_key_5) == np.ndarray:
@@ -348,13 +346,13 @@ class AES:
                 len(master_key_5)])
         else:
             print('malloc', sys.getsizeof(master_key_5), 'master_key_5')
-        print(30, 81)
+        print(29, 79)
         instrument_read(self, 'self').round_keys = text2matrix(instrument_read
             (master_key_5, 'master_key_5'))
         for i_5 in range(4, 4 * 11):
             instrument_read(self, 'self').round_keys.append([])
             if instrument_read(i_5, 'i_5') % 4 == 0:
-                print(34, 85)
+                print(33, 83)
                 byte_5 = instrument_read_sub(instrument_read_sub(
                     instrument_read(self, 'self').round_keys,
                     'self.round_keys', instrument_read(i_5, 'i_5') - 4,
@@ -392,7 +390,7 @@ class AES:
                     'i_5'), None, None, False).append(instrument_read(
                     byte_5, 'byte_5'))
                 for j_5 in range(1, 4):
-                    print(40, 89)
+                    print(39, 87)
                     byte_5 = instrument_read_sub(instrument_read_sub(
                         instrument_read(self, 'self').round_keys,
                         'self.round_keys', instrument_read(i_5, 'i_5') - 4,
@@ -430,7 +428,7 @@ class AES:
                         byte_5, 'byte_5'))
             else:
                 for j_5 in range(4):
-                    print(37, 94)
+                    print(36, 92)
                     byte_5 = instrument_read_sub(instrument_read_sub(
                         instrument_read(self, 'self').round_keys,
                         'self.round_keys', instrument_read(i_5, 'i_5') - 4,
@@ -468,8 +466,8 @@ class AES:
 
     def encrypt(self, plaintext):
         print('enter scope 6')
-        print(1, 98)
-        print(44, 99)
+        print(1, 96)
+        print(43, 97)
         self = instrument_read(self, 'self')
         write_instrument_read(self, 'self')
         if type(self) == np.ndarray:
@@ -488,7 +486,7 @@ class AES:
             print('malloc', sys.getsizeof(self), 'self', [len(self)])
         else:
             print('malloc', sys.getsizeof(self), 'self')
-        print(44, 100)
+        print(43, 98)
         plaintext_6 = instrument_read(plaintext, 'plaintext')
         write_instrument_read(plaintext_6, 'plaintext_6')
         if type(plaintext_6) == np.ndarray:
@@ -509,7 +507,7 @@ class AES:
                 (plaintext_6)])
         else:
             print('malloc', sys.getsizeof(plaintext_6), 'plaintext_6')
-        print(44, 101)
+        print(43, 99)
         instrument_read(self, 'self').plain_state = text2matrix(instrument_read
             (plaintext_6, 'plaintext_6'))
         instrument_read(self, 'self').__add_round_key(instrument_read(self,
@@ -534,8 +532,8 @@ class AES:
 
     def decrypt(self, ciphertext):
         print('enter scope 7')
-        print(1, 111)
-        print(51, 112)
+        print(1, 109)
+        print(50, 110)
         self = instrument_read(self, 'self')
         write_instrument_read(self, 'self')
         if type(self) == np.ndarray:
@@ -554,7 +552,7 @@ class AES:
             print('malloc', sys.getsizeof(self), 'self', [len(self)])
         else:
             print('malloc', sys.getsizeof(self), 'self')
-        print(51, 113)
+        print(50, 111)
         ciphertext_7 = instrument_read(ciphertext, 'ciphertext')
         write_instrument_read(ciphertext_7, 'ciphertext_7')
         if type(ciphertext_7) == np.ndarray:
@@ -575,7 +573,7 @@ class AES:
                 len(ciphertext_7)])
         else:
             print('malloc', sys.getsizeof(ciphertext_7), 'ciphertext_7')
-        print(51, 114)
+        print(50, 112)
         instrument_read(self, 'self').cipher_state = text2matrix(
             instrument_read(ciphertext_7, 'ciphertext_7'))
         instrument_read(self, 'self').__add_round_key(instrument_read(self,
@@ -600,8 +598,8 @@ class AES:
 
     def __add_round_key(self, s, k):
         print('enter scope 8')
-        print(1, 124)
-        print(58, 125)
+        print(1, 122)
+        print(57, 123)
         self = instrument_read(self, 'self')
         write_instrument_read(self, 'self')
         if type(self) == np.ndarray:
@@ -620,7 +618,7 @@ class AES:
             print('malloc', sys.getsizeof(self), 'self', [len(self)])
         else:
             print('malloc', sys.getsizeof(self), 'self')
-        print(58, 126)
+        print(57, 124)
         s_8 = instrument_read(s, 's')
         write_instrument_read(s_8, 's_8')
         if type(s_8) == np.ndarray:
@@ -639,7 +637,7 @@ class AES:
             print('malloc', sys.getsizeof(s_8), 's_8', [len(s_8)])
         else:
             print('malloc', sys.getsizeof(s_8), 's_8')
-        print(58, 127)
+        print(57, 125)
         k_8 = instrument_read(k, 'k')
         write_instrument_read(k_8, 'k_8')
         if type(k_8) == np.ndarray:
@@ -660,7 +658,7 @@ class AES:
             print('malloc', sys.getsizeof(k_8), 'k_8')
         for i_8 in range(4):
             for j_8 in range(4):
-                print(62, 130)
+                print(61, 128)
                 s_8[instrument_read(i_8, 'i_8')][instrument_read(j_8, 'j_8')
                     ] ^= instrument_read_sub(instrument_read_sub(
                     instrument_read(k_8, 'k_8'), 'k_8', instrument_read(i_8,
@@ -674,8 +672,8 @@ class AES:
 
     def __round_encrypt(self, state_matrix, key_matrix):
         print('enter scope 9')
-        print(1, 132)
-        print(66, 133)
+        print(1, 130)
+        print(65, 131)
         self = instrument_read(self, 'self')
         write_instrument_read(self, 'self')
         if type(self) == np.ndarray:
@@ -694,7 +692,7 @@ class AES:
             print('malloc', sys.getsizeof(self), 'self', [len(self)])
         else:
             print('malloc', sys.getsizeof(self), 'self')
-        print(66, 134)
+        print(65, 132)
         state_matrix_9 = instrument_read(state_matrix, 'state_matrix')
         write_instrument_read(state_matrix_9, 'state_matrix_9')
         if type(state_matrix_9) == np.ndarray:
@@ -716,7 +714,7 @@ class AES:
                 [len(state_matrix_9)])
         else:
             print('malloc', sys.getsizeof(state_matrix_9), 'state_matrix_9')
-        print(66, 135)
+        print(65, 133)
         key_matrix_9 = instrument_read(key_matrix, 'key_matrix')
         write_instrument_read(key_matrix_9, 'key_matrix_9')
         if type(key_matrix_9) == np.ndarray:
@@ -750,8 +748,8 @@ class AES:
 
     def __round_decrypt(self, state_matrix, key_matrix):
         print('enter scope 10')
-        print(1, 141)
-        print(69, 142)
+        print(1, 139)
+        print(68, 140)
         self = instrument_read(self, 'self')
         write_instrument_read(self, 'self')
         if type(self) == np.ndarray:
@@ -770,7 +768,7 @@ class AES:
             print('malloc', sys.getsizeof(self), 'self', [len(self)])
         else:
             print('malloc', sys.getsizeof(self), 'self')
-        print(69, 143)
+        print(68, 141)
         state_matrix_10 = instrument_read(state_matrix, 'state_matrix')
         write_instrument_read(state_matrix_10, 'state_matrix_10')
         if type(state_matrix_10) == np.ndarray:
@@ -792,7 +790,7 @@ class AES:
                 'state_matrix_10', [len(state_matrix_10)])
         else:
             print('malloc', sys.getsizeof(state_matrix_10), 'state_matrix_10')
-        print(69, 144)
+        print(68, 142)
         key_matrix_10 = instrument_read(key_matrix, 'key_matrix')
         write_instrument_read(key_matrix_10, 'key_matrix_10')
         if type(key_matrix_10) == np.ndarray:
@@ -827,8 +825,8 @@ class AES:
 
     def __sub_bytes(self, s):
         print('enter scope 11')
-        print(1, 150)
-        print(72, 151)
+        print(1, 148)
+        print(71, 149)
         self = instrument_read(self, 'self')
         write_instrument_read(self, 'self')
         if type(self) == np.ndarray:
@@ -847,7 +845,7 @@ class AES:
             print('malloc', sys.getsizeof(self), 'self', [len(self)])
         else:
             print('malloc', sys.getsizeof(self), 'self')
-        print(72, 152)
+        print(71, 150)
         s_11 = instrument_read(s, 's')
         write_instrument_read(s_11, 's_11')
         if type(s_11) == np.ndarray:
@@ -867,9 +865,8 @@ class AES:
         else:
             print('malloc', sys.getsizeof(s_11), 's_11')
         for i_11 in range(4):
-            instrument_read(loop, 'loop').start_unroll
             for j_11 in range(4):
-                print(77, 156)
+                print(75, 153)
                 s_11[instrument_read(instrument_read(i_11, 'i_11'), 'i_11')][
                     instrument_read(instrument_read(j_11, 'j_11'), 'j_11')
                     ] = instrument_read_sub(instrument_read(Sbox_0,
@@ -882,13 +879,12 @@ class AES:
                     instrument_read(i_11, 'i_11'), 'i_11')],
                     "s_11[instrument_read(i_11, 'i_11')]", instrument_read(
                     instrument_read(j_11, 'j_11'), 'j_11'), None, None, False)
-            instrument_read(loop, 'loop').stop_unroll
         print('exit scope 11')
 
     def __inv_sub_bytes(self, s):
         print('enter scope 12')
-        print(1, 159)
-        print(81, 160)
+        print(1, 155)
+        print(79, 156)
         self = instrument_read(self, 'self')
         write_instrument_read(self, 'self')
         if type(self) == np.ndarray:
@@ -907,7 +903,7 @@ class AES:
             print('malloc', sys.getsizeof(self), 'self', [len(self)])
         else:
             print('malloc', sys.getsizeof(self), 'self')
-        print(81, 161)
+        print(79, 157)
         s_12 = instrument_read(s, 's')
         write_instrument_read(s_12, 's_12')
         if type(s_12) == np.ndarray:
@@ -927,9 +923,8 @@ class AES:
         else:
             print('malloc', sys.getsizeof(s_12), 's_12')
         for i_12 in range(4):
-            instrument_read(loop, 'loop').start_unroll
             for j_12 in range(4):
-                print(86, 165)
+                print(83, 160)
                 s_12[instrument_read(instrument_read(i_12, 'i_12'), 'i_12')][
                     instrument_read(instrument_read(j_12, 'j_12'), 'j_12')
                     ] = instrument_read_sub(instrument_read(InvSbox_0,
@@ -942,13 +937,12 @@ class AES:
                     instrument_read(i_12, 'i_12'), 'i_12')],
                     "s_12[instrument_read(i_12, 'i_12')]", instrument_read(
                     instrument_read(j_12, 'j_12'), 'j_12'), None, None, False)
-            instrument_read(loop, 'loop').stop_unroll
         print('exit scope 12')
 
     def __shift_rows(self, s):
         print('enter scope 13')
-        print(1, 168)
-        print(90, 169)
+        print(1, 162)
+        print(87, 163)
         self = instrument_read(self, 'self')
         write_instrument_read(self, 'self')
         if type(self) == np.ndarray:
@@ -967,7 +961,7 @@ class AES:
             print('malloc', sys.getsizeof(self), 'self', [len(self)])
         else:
             print('malloc', sys.getsizeof(self), 'self')
-        print(90, 170)
+        print(87, 164)
         s_13 = instrument_read(s, 's')
         write_instrument_read(s_13, 's_13')
         if type(s_13) == np.ndarray:
@@ -986,15 +980,15 @@ class AES:
             print('malloc', sys.getsizeof(s_13), 's_13', [len(s_13)])
         else:
             print('malloc', sys.getsizeof(s_13), 's_13')
-        print(90, 171)
-        print(90, 173)
-        print(90, 175)
+        print(87, 165)
+        print(87, 167)
+        print(87, 169)
         print('exit scope 13')
 
     def __inv_shift_rows(self, s):
         print('enter scope 14')
-        print(1, 178)
-        print(93, 179)
+        print(1, 172)
+        print(90, 173)
         self = instrument_read(self, 'self')
         write_instrument_read(self, 'self')
         if type(self) == np.ndarray:
@@ -1013,7 +1007,7 @@ class AES:
             print('malloc', sys.getsizeof(self), 'self', [len(self)])
         else:
             print('malloc', sys.getsizeof(self), 'self')
-        print(93, 180)
+        print(90, 174)
         s_14 = instrument_read(s, 's')
         write_instrument_read(s_14, 's_14')
         if type(s_14) == np.ndarray:
@@ -1032,15 +1026,15 @@ class AES:
             print('malloc', sys.getsizeof(s_14), 's_14', [len(s_14)])
         else:
             print('malloc', sys.getsizeof(s_14), 's_14')
-        print(93, 181)
-        print(93, 183)
-        print(93, 185)
+        print(90, 175)
+        print(90, 177)
+        print(90, 179)
         print('exit scope 14')
 
     def __mix_single_column(self, a):
         print('enter scope 15')
-        print(1, 188)
-        print(96, 189)
+        print(1, 182)
+        print(93, 183)
         self = instrument_read(self, 'self')
         write_instrument_read(self, 'self')
         if type(self) == np.ndarray:
@@ -1059,7 +1053,7 @@ class AES:
             print('malloc', sys.getsizeof(self), 'self', [len(self)])
         else:
             print('malloc', sys.getsizeof(self), 'self')
-        print(96, 190)
+        print(93, 184)
         a_15 = instrument_read(a, 'a')
         write_instrument_read(a_15, 'a_15')
         if type(a_15) == np.ndarray:
@@ -1078,7 +1072,7 @@ class AES:
             print('malloc', sys.getsizeof(a_15), 'a_15', [len(a_15)])
         else:
             print('malloc', sys.getsizeof(a_15), 'a_15')
-        print(96, 191)
+        print(93, 185)
         t_15 = instrument_read_sub(instrument_read(a_15, 'a_15'), 'a_15', 0,
             None, None, False) ^ instrument_read_sub(instrument_read(a_15,
             'a_15'), 'a_15', 1, None, None, False) ^ instrument_read_sub(
@@ -1102,7 +1096,7 @@ class AES:
             print('malloc', sys.getsizeof(t_15), 't_15', [len(t_15)])
         else:
             print('malloc', sys.getsizeof(t_15), 't_15')
-        print(96, 192)
+        print(93, 186)
         u_15 = instrument_read_sub(instrument_read(a_15, 'a_15'), 'a_15', 0,
             None, None, False)
         write_instrument_read(u_15, 'u_15')
@@ -1122,25 +1116,25 @@ class AES:
             print('malloc', sys.getsizeof(u_15), 'u_15', [len(u_15)])
         else:
             print('malloc', sys.getsizeof(u_15), 'u_15')
-        print(96, 193)
+        print(93, 187)
         a_15[0] ^= instrument_read(t_15, 't_15') ^ xtime(
             instrument_read_sub(instrument_read(a_15, 'a_15'), 'a_15', 0,
             None, None, False) ^ instrument_read_sub(instrument_read(a_15,
             'a_15'), 'a_15', 1, None, None, False))
         write_instrument_read_sub(a_15, 'a_15', 0, None, None, False)
-        print(96, 194)
+        print(93, 188)
         a_15[1] ^= instrument_read(t_15, 't_15') ^ xtime(
             instrument_read_sub(instrument_read(a_15, 'a_15'), 'a_15', 1,
             None, None, False) ^ instrument_read_sub(instrument_read(a_15,
             'a_15'), 'a_15', 2, None, None, False))
         write_instrument_read_sub(a_15, 'a_15', 1, None, None, False)
-        print(96, 195)
+        print(93, 189)
         a_15[2] ^= instrument_read(t_15, 't_15') ^ xtime(
             instrument_read_sub(instrument_read(a_15, 'a_15'), 'a_15', 2,
             None, None, False) ^ instrument_read_sub(instrument_read(a_15,
             'a_15'), 'a_15', 3, None, None, False))
         write_instrument_read_sub(a_15, 'a_15', 2, None, None, False)
-        print(96, 196)
+        print(93, 190)
         a_15[3] ^= instrument_read(t_15, 't_15') ^ xtime(
             instrument_read_sub(instrument_read(a_15, 'a_15'), 'a_15', 3,
             None, None, False) ^ instrument_read(u_15, 'u_15'))
@@ -1149,8 +1143,8 @@ class AES:
 
     def __mix_columns(self, s):
         print('enter scope 16')
-        print(1, 198)
-        print(99, 199)
+        print(1, 192)
+        print(96, 193)
         self = instrument_read(self, 'self')
         write_instrument_read(self, 'self')
         if type(self) == np.ndarray:
@@ -1169,7 +1163,7 @@ class AES:
             print('malloc', sys.getsizeof(self), 'self', [len(self)])
         else:
             print('malloc', sys.getsizeof(self), 'self')
-        print(99, 200)
+        print(96, 194)
         s_16 = instrument_read(s, 's')
         write_instrument_read(s_16, 's_16')
         if type(s_16) == np.ndarray:
@@ -1196,8 +1190,8 @@ class AES:
 
     def __inv_mix_columns(self, s):
         print('enter scope 17')
-        print(1, 204)
-        print(105, 205)
+        print(1, 198)
+        print(102, 199)
         self = instrument_read(self, 'self')
         write_instrument_read(self, 'self')
         if type(self) == np.ndarray:
@@ -1216,7 +1210,7 @@ class AES:
             print('malloc', sys.getsizeof(self), 'self', [len(self)])
         else:
             print('malloc', sys.getsizeof(self), 'self')
-        print(105, 206)
+        print(102, 200)
         s_17 = instrument_read(s, 's')
         write_instrument_read(s_17, 's_17')
         if type(s_17) == np.ndarray:
@@ -1236,7 +1230,7 @@ class AES:
         else:
             print('malloc', sys.getsizeof(s_17), 's_17')
         for i_17 in range(4):
-            print(107, 208)
+            print(104, 202)
             u_17 = xtime(xtime(instrument_read_sub(instrument_read_sub(
                 instrument_read(s_17, 's_17'), 's_17', instrument_read(i_17,
                 'i_17'), None, None, False), 's_17[i_17]', 0, None, None,
@@ -1261,7 +1255,7 @@ class AES:
                 print('malloc', sys.getsizeof(u_17), 'u_17', [len(u_17)])
             else:
                 print('malloc', sys.getsizeof(u_17), 'u_17')
-            print(107, 209)
+            print(104, 203)
             v_17 = xtime(xtime(instrument_read_sub(instrument_read_sub(
                 instrument_read(s_17, 's_17'), 's_17', instrument_read(i_17,
                 'i_17'), None, None, False), 's_17[i_17]', 1, None, None,
@@ -1286,25 +1280,25 @@ class AES:
                 print('malloc', sys.getsizeof(v_17), 'v_17', [len(v_17)])
             else:
                 print('malloc', sys.getsizeof(v_17), 'v_17')
-            print(107, 210)
+            print(104, 204)
             s_17[instrument_read(i_17, 'i_17')][0] ^= instrument_read(u_17,
                 'u_17')
             write_instrument_read_sub(s_17[instrument_read(instrument_read(
                 i_17, 'i_17'), 'i_17')],
                 "s_17[instrument_read(i_17, 'i_17')]", 0, None, None, False)
-            print(107, 211)
+            print(104, 205)
             s_17[instrument_read(i_17, 'i_17')][1] ^= instrument_read(v_17,
                 'v_17')
             write_instrument_read_sub(s_17[instrument_read(instrument_read(
                 i_17, 'i_17'), 'i_17')],
                 "s_17[instrument_read(i_17, 'i_17')]", 1, None, None, False)
-            print(107, 212)
+            print(104, 206)
             s_17[instrument_read(i_17, 'i_17')][2] ^= instrument_read(u_17,
                 'u_17')
             write_instrument_read_sub(s_17[instrument_read(instrument_read(
                 i_17, 'i_17'), 'i_17')],
                 "s_17[instrument_read(i_17, 'i_17')]", 2, None, None, False)
-            print(107, 213)
+            print(104, 207)
             s_17[instrument_read(i_17, 'i_17')][3] ^= instrument_read(v_17,
                 'v_17')
             write_instrument_read_sub(s_17[instrument_read(instrument_read(
@@ -1317,7 +1311,7 @@ class AES:
 
 if instrument_read(__name__, '__name__') == '__main__':
     import time
-    print(110, 219)
+    print(107, 213)
     start_0 = instrument_read(time, 'time').time()
     write_instrument_read(start_0, 'start_0')
     if type(start_0) == np.ndarray:
@@ -1337,10 +1331,10 @@ if instrument_read(__name__, '__name__') == '__main__':
     else:
         print('malloc', sys.getsizeof(start_0), 'start_0')
     for i_0 in range(10):
-        print(113, 221)
+        print(110, 215)
         Sbox_0 += instrument_read(Sbox_0, 'Sbox_0')
         write_instrument_read(Sbox_0, 'Sbox_0')
-    print(114, 222)
+    print(111, 216)
     Sbox_new_0 = instrument_read(Sbox_0, 'Sbox_0')
     write_instrument_read(Sbox_new_0, 'Sbox_new_0')
     if type(Sbox_new_0) == np.ndarray:
@@ -1362,7 +1356,7 @@ if instrument_read(__name__, '__name__') == '__main__':
     else:
         print('malloc', sys.getsizeof(Sbox_new_0), 'Sbox_new_0')
     for i_0 in range(1):
-        print(116, 224)
+        print(113, 218)
         aes_0 = AES(1212304810341341)
         write_instrument_read(aes_0, 'aes_0')
         if type(aes_0) == np.ndarray:
@@ -1382,7 +1376,7 @@ if instrument_read(__name__, '__name__') == '__main__':
         else:
             print('malloc', sys.getsizeof(aes_0), 'aes_0')
         instrument_read(aes_0, 'aes_0').encrypt(1212304810341341)
-    print(117, 226)
+    print(114, 220)
     end_0 = instrument_read(time, 'time').time()
     write_instrument_read(end_0, 'end_0')
     if type(end_0) == np.ndarray:

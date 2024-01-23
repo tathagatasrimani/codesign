@@ -6,9 +6,9 @@ V_dd = symbols("V_dd", positive=True)
 f = symbols("f", positive=True)
 C_input_inv = symbols("C_input_inv", positive=True)
 
-u_p = 1
-C_ox = 1
-W = 1
+u_p = 1000
+C_ox = 2
+W = 2
 L = 1
 V_T = 1
 I_s = 1
@@ -32,86 +32,86 @@ P_pass_inv = I_off*V_dd
 # coefficients used in logical effort formulation
 # active power
 alpha = {
-    "And": 1,
-    "Or": 1,
-    "Add": 1,
-    "Sub": 1,
-    "Mult": 1,
-    "FloorDiv": 1,
-    "Mod": 1,
-    "LShift": 1,
-    "RShift": 1,
-    "BitOr": 1,
-    "BitXor": 1,
-    "BitAnd": 1,
-    "Eq": 1,
-    "NotEq": 1,
-    "Lt": 1,
-    "LtE": 1,
-    "Gt": 1,
-    "GtE": 1,
-    "USub": 1,
-    "UAdd": 1,
-    "IsNot": 1,
-    "Not": 1, 
+    "And": 10,
+    "Or": 10,
+    "Add": 100,
+    "Sub": 110,
+    "Mult": 1000,
+    "FloorDiv": 5000,
+    "Mod": 1000,
+    "LShift": 3,
+    "RShift": 3,
+    "BitOr": 2,
+    "BitXor": 2,
+    "BitAnd": 2,
+    "Eq": 20,
+    "NotEq": 20,
+    "Lt": 40,
+    "LtE": 40,
+    "Gt": 40,
+    "GtE": 40,
+    "USub": 110,
+    "UAdd": 100,
+    "IsNot": 10,
+    "Not": 10, 
     "Invert": 1,
-    "Regs": 1
+    "Regs": 5
 }
 
 # passive power
 beta = {
-    "And": 2,
-    "Or": 2,
-    "Add": 2,
-    "Sub": 2,
-    "Mult": 2,
-    "FloorDiv": 2,
-    "Mod": 2,
-    "LShift": 2,
-    "RShift": 2,
-    "BitOr": 2,
-    "BitXor": 2,
-    "BitAnd": 2,
+    "And": 1,
+    "Or": 1,
+    "Add": 10,
+    "Sub": 11,
+    "Mult": 100,
+    "FloorDiv": 500,
+    "Mod": 100,
+    "LShift": 0.3,
+    "RShift": 0.3,
+    "BitOr": 0.2,
+    "BitXor": 0.2,
+    "BitAnd": 0.2,
     "Eq": 2,
     "NotEq": 2,
-    "Lt": 2,
-    "LtE": 2,
-    "Gt": 2,
-    "GtE": 2,
-    "USub": 2,
-    "UAdd": 2,
-    "IsNot": 2,
-    "Not": 2, 
-    "Invert": 2,
-    "Regs": 2
+    "Lt": 4,
+    "LtE": 4,
+    "Gt": 4,
+    "GtE": 4,
+    "USub": 11,
+    "UAdd": 10,
+    "IsNot": 1,
+    "Not": 1, 
+    "Invert": 0.1,
+    "Regs": 0.5
 }
 
 # delay
 gamma = {
-    "And": 1,
-    "Or": 1,
-    "Add": 1,
-    "Sub": 1,
-    "Mult": 1,
-    "FloorDiv": 1,
-    "Mod": 1,
-    "LShift": 1,
-    "RShift": 1,
-    "BitOr": 1,
-    "BitXor": 1,
-    "BitAnd": 1,
-    "Eq": 1,
-    "NotEq": 1,
-    "Lt": 1,
-    "LtE": 1,
-    "Gt": 1,
-    "GtE": 1,
-    "USub": 1,
-    "UAdd": 1,
-    "IsNot": 1,
-    "Not": 1, 
+    "And": 10,
+    "Or": 10,
+    "Add": 100,
+    "Sub": 110,
+    "Mult": 1000,
+    "FloorDiv": 5000,
+    "Mod": 1000,
+    "LShift": 3,
+    "RShift": 3,
+    "BitOr": 2,
+    "BitXor": 2,
+    "BitAnd": 2,
+    "Eq": 20,
+    "NotEq": 20,
+    "Lt": 40,
+    "LtE": 40,
+    "Gt": 40,
+    "GtE": 40,
+    "USub": 110,
+    "UAdd": 100,
+    "IsNot": 10,
+    "Not": 10, 
     "Invert": 1,
-    "Regs": 1
+    "Regs": 5
 }
 
 def make_sym_lat_wc(gamma):

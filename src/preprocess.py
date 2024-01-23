@@ -17,7 +17,7 @@ scaling_factors = {
     hw_symbols.C_int_inv: 1e15,
     hw_symbols.C_input_inv: 1e13,
 }
-obj_scale = 1e18
+obj_scale = 1
 
 class Preprocessor:
     def __init__(self):
@@ -93,6 +93,8 @@ class Preprocessor:
                 self.expr_symbols[s] = initial_params[s.name]
 
         self.initial_val = float(edp.subs(self.expr_symbols))
+        global obj_scale
+        obj_scale = 1 / self.initial_val
         print(self.expr_symbols)
         print("edp equation: ", edp)
 
