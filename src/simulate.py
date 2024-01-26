@@ -38,7 +38,7 @@ class HardwareSimulator:
         self.id_to_node = {}
         self.path = os.getcwd()
         self.data_path = []
-        self.power_use = []
+        self.active_power_use = {}
         self.mem_power_use = []
         self.node_intervals = []
         self.node_avg_power = {}
@@ -73,6 +73,8 @@ class HardwareSimulator:
         The way this works, if I have 10 addition operations to do in this node of the DFG, and 20 adders
         it should always allocate 10 adders to this node. <- TODO: VERIFY EXPERIMENTALLY
 
+        set node['in_use'] = True if it's part of the monomorphism.
+
         Parameters:
             [DEPRECATED] state (list): A list of operations to be executed.
             hw_graph - nx.DiGraph of operations to be executed.
@@ -83,8 +85,8 @@ class HardwareSimulator:
         """
 
         mem_in_use = 0
-        print(f"\ntop of get_hw_need; hw_graph: {hw_graph.nodes.data()}")
-        
+        # print(f"\ntop of get_hw_need; hw_graph: {hw_graph.nodes.data()}")
+
         ## Duplicate all regs in hw_spec, so that there is a separate node for input reg A and output reg A.
         ## This doesn't scale for arbitrarily complex hw_graphs representing arbitrarily complex operations.
         ## This needs to be changed to some topological ordering based technique, but this was a quicker hack.
@@ -101,25 +103,26 @@ class HardwareSimulator:
             )
             edges = list(netlist_copy.in_edges(reg_node))
             for edge in edges:
-                print(f"edge: {edge}")
+                # print(f"edge: {edge}")
                 netlist_copy.add_edge(edge[0], reg_node + "_copy")
                 netlist_copy.remove_edge(*edge)
             # netlist_copy.add_edge(*, reg_node + "_copy")
             # netlist_copy.remove_edge(*, reg_node)
-        
-        print(f"netlist_copy: {netlist_copy.nodes.data()}\n{netlist_copy.edges.data()}")
-        nx.draw(netlist_copy, with_labels=True)
+
+        # print(f"netlist_copy: {netlist_copy.nodes.data()}\n{netlist_copy.edges.data()}")
+        # nx.draw(netlist_copy, with_labels=True)
 
         dgm = nx.isomorphism.DiGraphMatcher(
             netlist_copy,
             hw_graph,
             node_match=lambda n1, n2: n1["function"] == n2["function"]
-            or n2["function"] == None, # hw_graph can have no ops, but netlist should not
+            or n2["function"]
+            == None,  # hw_graph can have no ops, but netlist should not
         )
         if not dgm.subgraph_is_monomorphic():
             raise Exception("hardware specification insufficient to run program")
         monomorphism = dgm.subgraph_monomorphisms_iter()
-        print(f"monomorphism: {list(monomorphism)}")
+        # print(f"monomorphism: {list(monomorphism)[0]}")
 
         # for op in state:
         #     if not op.operation:
@@ -138,47 +141,69 @@ class HardwareSimulator:
 
         mem_in_use += self.get_mem_usage_of_compute_element(hw_graph)
 
-        # hw_spec.compute_operation_totals[op.operation] += 1
-
         self.max_regs_inuse = min(
             hardwareModel.num_nodes_with_func(hw_spec.netlist, "Regs"),
             self.max_regs_inuse,
         )
         self.max_mem_inuse = max(self.max_mem_inuse, mem_in_use)
 
-    def simulate_cycles(self, hw, total_cycles):
+    def simulate_cycles(self, hw_spec, computation_graph, total_cycles):
         """
         Simulates the operation of hardware over a number of cycles.
 
         Parameters:
-            hw (HardwareModel): The hardware model providing the specific architecture being simulated.
+            hw_spec (HardwareModel): The hardware model providing the specific architecture being simulated.
+            computation_graph: Nx.DiGraph of operations to be executed.
             total_cycles (int): The maximum number of cycles to simulate.
 
         Returns:
             int: The sum of power used by nodes in all cycles.
         """
+        if total_cycles == 0:
+            return 0
+
         node_power_sum = 0
-        for i in range(total_cycles):
-            self.power_use.append(0)
-            self.mem_power_use.append(0)
 
-            # save current state of hardware to data array
-            cur_data = ""
-            for elem_name, elem_data in dict(
-                hardwareModel.get_in_use_nodes(hw.netlist)
-            ).items():
-                power = hw.dynamic_power[elem_data["function"]]
-                cur_data += elem_name + ": "
-                count = 0
-                # active power consumption of hw in use this cycle
-                self.power_use[self.cycles] += power
+        self.active_power_use[self.cycles] = 0
+        self.mem_power_use.append(0)
 
-                cur_data += "1 in use. || "
-            self.data[self.cycles] = cur_data
+        print(f"\nat cycle {self.cycles}, summing total acticve power use.")
+        for n, node_data in computation_graph.nodes.data():
+            print(
+                f"adding power {1e-6 * hw_spec.dynamic_power[node_data['function']]} for node: {n}"
+            )
+            self.active_power_use[self.cycles] += (
+                hw_spec.dynamic_power[node_data["function"]]
+                * hw_spec.latency[node_data["function"]]
+            )
+            hw_spec.compute_operation_totals[node_data["function"]] += 1
+        self.active_power_use[self.cycles] /= total_cycles
 
-            node_power_sum += self.power_use[self.cycles]
-            self.cycles += 1
-        return node_power_sum
+        print(
+            f"at cycle {self.cycles}, total active power use: {1e-6 * self.active_power_use[self.cycles]}"
+        )
+        # for i in range(total_cycles):
+        #     self.power_use.append(0)
+        #     self.mem_power_use.append(0)
+
+        #     # save current state of hardware to data array
+        #     cur_data = ""
+        #     for elem_name, elem_data in dict(
+        #         hardwareModel.get_in_use_nodes(hw.netlist)
+        #     ).items():
+        #         power = hw.dynamic_power[elem_data["function"]]
+        #         cur_data += elem_name + ": "
+        #         count = 0
+        #         # active power consumption of hw in use this cycle
+        #         self.power_use[self.cycles] += power
+
+        #         cur_data += "1 in use. || "
+        #     self.data[self.cycles] = cur_data
+
+        #     node_power_sum += self.power_use[self.cycles]
+        #     self.cycles += 1
+
+        return self.active_power_use[self.cycles]
 
     # TODO: CLEAN THIS UP
     def get_var_size(self, var_name):
@@ -228,9 +253,9 @@ class HardwareSimulator:
         # check if any parents are registers,
 
         for node, data in hw_graph.nodes.data():
-            print(f"node: {node}, data: {data}")
+            # print(f"node: {node}, data: {data}")
             if data["function"] == "Regs":
-                print(f"{node} is a Regs node; var name: {node.split(';')[0]}")
+                # print(f"{node} is a Regs node; var name: {node.split(';')[0]}")
                 mem_in_use += self.get_var_size(node.split(";")[0])
         # for parent in op.parents:
 
@@ -495,8 +520,11 @@ class HardwareSimulator:
                 #         cur_cycles_needed, total_cycles
                 #     )  # identify bottleneck element for this node.
                 #     j = 0
+                self.cycles += total_cycles
 
-                self.node_avg_power[node_id] += self.simulate_cycles(hw, total_cycles)
+                self.node_avg_power[node_id] += self.simulate_cycles(
+                    hw, hw_graph, total_cycles
+                )
                 hardwareModel.un_allocate_all_in_use_elements(hw.netlist)
                 # ============================================
                 # === END UPDATE =============================
@@ -522,13 +550,15 @@ class HardwareSimulator:
         # add all passive power at the end.
         # This is done here for the dynamic allocation case where we don't know how many
         # compute elements we need until we run the program.
-        passive_power = 0
+        self.passive_power_dissipation_rate = 0
         for elem_name, elem_data in dict(hw.netlist.nodes.data()).items():
-            passive_power += hw.leakage_power[elem_data["function"]]
+            self.passive_power_dissipation_rate += hw.leakage_power[
+                elem_data["function"]
+            ]
 
-        for c in range(self.cycles):
-            self.power_use[c] += passive_power
-            self.mem_power_use[c] += hw.mem_leakage_power
+        # for c in range(self.cycles):
+        #     self.power_use[c] += passive_power
+        #     self.mem_power_use[c] += hw.mem_leakage_power
 
         print("done with simulation")
         # Path(simulator.path + '/benchmarks/pictures/memory_graphs').mkdir(parents=True, exist_ok=True)
@@ -704,10 +734,13 @@ def main():
 
     # print stats
     print("total number of cycles: ", simulator.cycles)
-    avg_compute_power = 1e-6 * np.mean(simulator.power_use)
+    avg_compute_power = 1e-6 * (
+        np.mean(list(simulator.active_power_use.values()))
+        + simulator.passive_power_dissipation_rate
+    )
     print(f"Avg compute Power: {avg_compute_power} mW")
     # print(f"total energy {sum(simulator.power_use)} nJ")
-    avg_mem_power = np.mean(simulator.mem_power_use)
+    avg_mem_power = np.mean(simulator.mem_power_use) + hw.mem_leakage_power
     print(f"Avg mem Power: {avg_mem_power} mW")
     print(f"Total power: {avg_mem_power + avg_compute_power} mW")
     print("total volatile reads: ", simulator.reads)
@@ -730,10 +763,12 @@ def main():
         )
         with open(simulator.path + "/benchmarks/json_data/" + names[-1], "w") as fh:
             fh.write(text)
-    t = []
-    for i in range(len(simulator.power_use)):
-        t.append(i)
-    plt.plot(t, simulator.power_use)
+
+    plt.plot(
+        list(simulator.active_power_use.keys()),
+        list(simulator.active_power_use.values()),
+        label="active power",
+    )
     plt.title("power use for " + names[-1])
     plt.xlabel("Cycle")
     plt.ylabel("Power")
