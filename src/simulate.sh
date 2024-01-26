@@ -19,7 +19,7 @@ if [ $name ]; then
         echo "Quiet mode"
         python symbolic_simulate.py $FILEPATH --notrace
     else
-        python symbolic_simulate.py $FILEPATH
+        python -m cProfile -o output.pstats symbolic_simulate.py $FILEPATH
     fi
     python optimize.py
 fi
