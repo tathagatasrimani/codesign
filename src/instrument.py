@@ -47,7 +47,7 @@ class NameOnlyInstrumentor(ast.NodeTransformer):
         self.var_scopes = {}
         self.valid_scopes = set()
         self.nvm_names = set()
-        self.dont_change_names = set(("__name__", "__main__", "loop", "range", "self", "time", "np", "int", "str", "math", "heapdict"))
+        self.dont_change_names = set(("__name__", "__main__", "loop", "range", "self", "time", "np", "os", "int", "str", "math", "heapdict"))
     
     def get_name(self, name, scope):
         return name + "_" + scope
