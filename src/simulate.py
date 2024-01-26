@@ -64,20 +64,19 @@ class HardwareSimulator:
         self.max_regs_inuse = 0
         self.max_mem_inuse = 0
 
-    def get_hw_need(self, hw_graph, hw_spec):
+    def get_hw_need(self, computation_graph, hw_spec):
         """
-        Calculates the hardware requirements for a given set of operations.
-        This function should construct a sub graph of PE and mem that can do the computation in this dfg node,
-        then search through the overall hw spec netlist to see if this subgraph occurs in the main graph.
+        Determines whether or not the computation graph can be executed on the netlist
+        specified in hw_spec.
 
         The way this works, if I have 10 addition operations to do in this node of the DFG, and 20 adders
         it should always allocate 10 adders to this node. <- TODO: VERIFY EXPERIMENTALLY
 
-        set node['in_use'] = True if it's part of the monomorphism.
+        See TODO below about a fix to generalize this.
 
         Parameters:
             [DEPRECATED] state (list): A list of operations to be executed.
-            hw_graph - nx.DiGraph of operations to be executed.
+            computation_graph - nx.DiGraph of operations to be executed.
             hw_spec (HardwareModel): An object representing the current hardware allocation and specifications.
 
         Returns:
@@ -109,12 +108,9 @@ class HardwareSimulator:
             # netlist_copy.add_edge(*, reg_node + "_copy")
             # netlist_copy.remove_edge(*, reg_node)
 
-        # print(f"netlist_copy: {netlist_copy.nodes.data()}\n{netlist_copy.edges.data()}")
-        # nx.draw(netlist_copy, with_labels=True)
-
         dgm = nx.isomorphism.DiGraphMatcher(
             netlist_copy,
-            hw_graph,
+            computation_graph,
             node_match=lambda n1, n2: n1["function"] == n2["function"]
             or n2["function"]
             == None,  # hw_graph can have no ops, but netlist should not
@@ -122,24 +118,8 @@ class HardwareSimulator:
         if not dgm.subgraph_is_monomorphic():
             raise Exception("hardware specification insufficient to run program")
         monomorphism = dgm.subgraph_monomorphisms_iter()
-        # print(f"monomorphism: {list(monomorphism)[0]}")
-
-        # for op in state:
-        #     if not op.operation:
-        #         continue
-
-        #     hw_elems = hardwareModel.get_nodes_with_func(hw_spec.netlist, op.operation)
-        # allocated = False
-        # for node, data in hw_elems.items():
-        #     if data["in_use"] == False:
-        #         data["in_use"] = True
-        #         allocated = True
-        #         break
-
-        # if not allocated:
-        #     raise Exception("hardware specification insufficient to run program")
-
-        mem_in_use += self.get_mem_usage_of_compute_element(hw_graph)
+        
+        mem_in_use += self.get_mem_usage_of_dfg_node(computation_graph)
 
         self.max_regs_inuse = min(
             hardwareModel.num_nodes_with_func(hw_spec.netlist, "Regs"),
@@ -182,30 +162,9 @@ class HardwareSimulator:
         print(
             f"at cycle {self.cycles}, total active power use: {1e-6 * self.active_power_use[self.cycles]}"
         )
-        # for i in range(total_cycles):
-        #     self.power_use.append(0)
-        #     self.mem_power_use.append(0)
-
-        #     # save current state of hardware to data array
-        #     cur_data = ""
-        #     for elem_name, elem_data in dict(
-        #         hardwareModel.get_in_use_nodes(hw.netlist)
-        #     ).items():
-        #         power = hw.dynamic_power[elem_data["function"]]
-        #         cur_data += elem_name + ": "
-        #         count = 0
-        #         # active power consumption of hw in use this cycle
-        #         self.power_use[self.cycles] += power
-
-        #         cur_data += "1 in use. || "
-        #     self.data[self.cycles] = cur_data
-
-        #     node_power_sum += self.power_use[self.cycles]
-        #     self.cycles += 1
-
+       
         return self.active_power_use[self.cycles]
 
-    # TODO: CLEAN THIS UP
     def get_var_size(self, var_name):
         """
         Only called on Regs nodes that are parents / children of an operation.
@@ -217,7 +176,6 @@ class HardwareSimulator:
         Returns:
             int: The size of the variable this register is storing.
         """
-        # name = var_name.value
         mem_size = 0
         bracket_ind = var_name.find("[")
         bracket_count = sim_util.get_matching_bracket_count(var_name)
@@ -232,38 +190,24 @@ class HardwareSimulator:
 
         return mem_size
 
-    # TODO: CLEAN THIS UP
-    def get_mem_usage_of_compute_element(self, hw_graph):
+    def get_mem_usage_of_dfg_node(self, hw_graph):
         """
         Determine the amount of memory in use by this node in the DFG.
-
+        Finds variables associated with all regs in this node and adds up their sizes.
         Parameters:
             hw_graph - nx.DiGraph of a single node in the DFG.
             each node in this DiGraph is a PE or a Regs node.
         Returns:
             int: The amount of memory in use by this operation.
         """
-        # print(
-        #     f"in get_mem_usage; op: {op}\nop.parents: {[str(par) for par in op.parents]}\nop.children: {[str(chl) for chl in op.children]}"
-        # )
-
-        # print(f"in get_mem_usage_of_compute_element, op: {op}")
+       
         mem_in_use = 0
 
-        # check if any parents are registers,
-
         for node, data in hw_graph.nodes.data():
-            # print(f"node: {node}, data: {data}")
             if data["function"] == "Regs":
                 # print(f"{node} is a Regs node; var name: {node.split(';')[0]}")
                 mem_in_use += self.get_var_size(node.split(";")[0])
-        # for parent in op.parents:
-
-        #     if parent.operation == "Regs":
-        #         mem_in_use += self.get_reg_size(parent)
-        # for child in op.children:
-        #     if child.operation == "Regs":
-        #         mem_in_use += self.get_reg_size(child)
+        
         return mem_in_use
 
     def process_memory_operation(self, mem_op):
@@ -301,6 +245,9 @@ class HardwareSimulator:
             self.memory_module.free(var_name)
 
     def visualize_graph(self, operations):
+        """
+        Deprecated?
+        """
         state_graph_viz = gv.Graph()
         state_graph = dfg_algo.Graph(set(), {}, state_graph_viz)
         op_count = 0
@@ -329,7 +276,7 @@ class HardwareSimulator:
                     )
                     sim_util.make_edge(state_graph, parent_id, compute_id, "")
             # what are we doing here that we don't want to check duplicate?
-            self.get_mem_usage_of_compute_element(
+            self.get_mem_usage_of_dfg_node(
                 op,
                 state_graph,
                 state_graph.id_to_Node[compute_id],
