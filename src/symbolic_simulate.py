@@ -28,7 +28,7 @@ class SymbolicHardwareSimulator():
         self.path = os.getcwd()
         self.data_path = []
         self.node_intervals = []
-        self.node_sum_power = {}
+        self.node_sum_energy = {}
         self.node_sum_cycles = {}
         self.unroll_at = {}
         self.vars_allocated = {}
@@ -50,6 +50,7 @@ class SymbolicHardwareSimulator():
         self.max_mem_inuse = 0
         self.edp = None
         self.initial_params = {}
+        self.sim_cache = {}
 
     def get_hw_need(self, state):
         # not the original simulate model now, so we can use a non-symbolic hardware model
@@ -100,8 +101,8 @@ class SymbolicHardwareSimulator():
             node_id = self.data_path[i][0]
             cur_node = self.id_to_node[node_id]
             self.node_intervals.append([node_id, [self.cycles, 0]])
-            if not node_id in self.node_sum_power:
-                self.node_sum_power[node_id] = 0 # just reset because we will end up overwriting it
+            if not node_id in self.node_sum_energy:
+                self.node_sum_energy[node_id] = 0 # just reset because we will end up overwriting it
             if not node_id in self.node_sum_cycles:
                 self.node_sum_cycles[node_id] = 0
             iters = 0
@@ -114,18 +115,27 @@ class SymbolicHardwareSimulator():
                     if next_node_id != node_id: break
                     iters += 1
                 i = j - 1 # skip over loop iterations because we execute them all at once
-            for state in symbolic_node_operations[cur_node]:
-                # if unroll, take each operation in a state and create more of them
-                if self.unroll_at[cur_node.id]:
-                    new_state = state.copy()
-                    for op in state:
-                        for j in range(iters):
-                            new_state.append(op)
-                    state = new_state
-                hw_need = self.get_hw_need(state)
-                max_cycles, power_sum = self.symbolic_cycle_sim_parallel(hw_spec, hw_need)
-                self.node_sum_power[node_id] += power_sum
-                self.node_sum_cycles[node_id] += max_cycles
+            cache_index = (iters, node_id)
+            node_energy, node_cycles = 0, 0
+            if cache_index in self.sim_cache:
+                self.node_sum_cycles[node_id] += self.sim_cache[cache_index][0]
+                self.node_sum_energy[node_id] += self.sim_cache[cache_index][1]
+            else:
+                for state in symbolic_node_operations[cur_node]:
+                    # if unroll, take each operation in a state and create more of them
+                    if self.unroll_at[cur_node.id]:
+                        new_state = state.copy()
+                        for op in state:
+                            for j in range(iters):
+                                new_state.append(op)
+                        state = new_state
+                    hw_need = self.get_hw_need(state)
+                    max_cycles, energy_sum = self.symbolic_cycle_sim_parallel(hw_spec, hw_need)
+                    self.node_sum_energy[node_id] += energy_sum
+                    node_energy += energy_sum
+                    self.node_sum_cycles[node_id] += max_cycles
+                    node_cycles += max_cycles
+                self.sim_cache[cache_index] = [node_cycles, node_energy]
             self.node_intervals[-1][1][1] = self.cycles
             i += 1
 
@@ -154,13 +164,6 @@ class SymbolicHardwareSimulator():
         #print(self.id_to_node)
         return cfg, graphs, node_operations
 
-# creates nested if expression to represent sympy Max function
-def nested_if(x0, xrest):
-    if len(xrest) == 1:
-        return Expr_if(IF=(x0>xrest[0]), THEN=x0, ELSE=xrest[0])
-    else:
-        return Expr_if(IF=(x0>xrest[0]), THEN=nested_if(x0, xrest[1:]), ELSE=nested_if(xrest[0], xrest[1:]))
-
 
 def main():
     benchmark = sys.argv[1]
@@ -183,15 +186,6 @@ def main():
     else: 
         simulator.cache_size = 16
     hw = HardwareModel(None, 0, 0, simulator.mem_layers, simulator.pitch, simulator.transistor_size, simulator.cache_size)
-
-
-    simulator.initial_params = {}
-    simulator.initial_params["f"] = 1e6 
-    simulator.initial_params["C_int_inv"] = 1e-8 
-    simulator.initial_params["V_dd"] = 1 
-    simulator.initial_params["C_input_inv"] = 1e-9 
-
-    multistart = False
 
     
     hw.hw_allocated['Add'] = 1
@@ -229,12 +223,11 @@ def main():
         total_cycles += simulator.node_sum_cycles[node_id]
 
     total_power = 0
-    for node_id in simulator.node_sum_power:
-        total_power += simulator.node_sum_power[node_id]
+    for node_id in simulator.node_sum_energy:
+        total_power += simulator.node_sum_energy[node_id]
 
     simulator.edp = total_cycles * total_power
     #simulator.edp = simulator.edp.simplify()
-
     st = str(simulator.edp)
     with open("sympy.txt", 'w') as f:
         f.write(st)
@@ -251,5 +244,8 @@ if __name__ == '__main__':
     main()
     
     
+    
+
+
     
 
