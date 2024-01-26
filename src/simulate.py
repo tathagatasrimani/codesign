@@ -227,8 +227,9 @@ class HardwareSimulator:
 
         # check if any parents are registers,
 
-        for node in list(hw_graph.nodes.data()):
-            if hw_graph[node]["function"] == "Regs":
+        for node, data in hw_graph.nodes.data():
+            print(f"node: {node}, data: {data}")
+            if data["function"] == "Regs":
                 print(f"{node} is a Regs node; var name: {node.split(';')[0]}")
                 mem_in_use += self.get_var_size(node.split(";")[0])
         # for parent in op.parents:
