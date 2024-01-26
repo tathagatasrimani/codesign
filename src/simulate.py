@@ -84,19 +84,49 @@ class HardwareSimulator:
 
         mem_in_use = 0
         print(f"\ntop of get_hw_need; hw_graph: {hw_graph.nodes.data()}")
-        dgm = nx.isomorphism.DiGraphMatcher(hw_spec.netlist, hw_graph, node_match=lambda n1, n2: n1['function'] == n2['function'] or n1['function'] == 'Regs' or n1['function'] == None or n2['function'] == None)
+        
+        ## Duplicate all regs in hw_spec, so that there is a separate node for input reg A and output reg A.
+        ## This doesn't scale for arbitrarily complex hw_graphs representing arbitrarily complex operations.
+        ## This needs to be changed to some topological ordering based technique, but this was a quicker hack.
+        ## TODO: Use some topo ordering based technique to identify whether the netlist
+        ## can do the computation prescribed by the hw_graph.
+        netlist_copy = hw_spec.netlist.copy()
+        for reg_node in hardwareModel.get_nodes_with_func(netlist_copy, "Regs"):
+            netlist_copy.add_node(
+                reg_node + "_copy",
+                type="pe",
+                function="Regs",
+                in_use=False,
+                idx=hw_spec.netlist.nodes[reg_node]["idx"],
+            )
+            edges = list(netlist_copy.in_edges(reg_node))
+            for edge in edges:
+                print(f"edge: {edge}")
+                netlist_copy.add_edge(edge[0], reg_node + "_copy")
+                netlist_copy.remove_edge(*edge)
+            # netlist_copy.add_edge(*, reg_node + "_copy")
+            # netlist_copy.remove_edge(*, reg_node)
+        
+        print(f"netlist_copy: {netlist_copy.nodes.data()}\n{netlist_copy.edges.data()}")
+        nx.draw(netlist_copy, with_labels=True)
+
+        dgm = nx.isomorphism.DiGraphMatcher(
+            netlist_copy,
+            hw_graph,
+            node_match=lambda n1, n2: n1["function"] == n2["function"]
+            or n2["function"] == None, # hw_graph can have no ops, but netlist should not
+        )
         if not dgm.subgraph_is_monomorphic():
             raise Exception("hardware specification insufficient to run program")
         monomorphism = dgm.subgraph_monomorphisms_iter()
-        print(list(monomorphism))
-
+        print(f"monomorphism: {list(monomorphism)}")
 
         # for op in state:
         #     if not op.operation:
         #         continue
 
         #     hw_elems = hardwareModel.get_nodes_with_func(hw_spec.netlist, op.operation)
-        allocated = False
+        # allocated = False
         # for node, data in hw_elems.items():
         #     if data["in_use"] == False:
         #         data["in_use"] = True
@@ -106,11 +136,9 @@ class HardwareSimulator:
         # if not allocated:
         #     raise Exception("hardware specification insufficient to run program")
 
-        mem_in_use += self.get_mem_usage_of_compute_element(
-            op, self.new_graph, check_duplicate=True
-        )
+        mem_in_use += self.get_mem_usage_of_compute_element(hw_graph)
 
-        hw_spec.compute_operation_totals[op.operation] += 1
+        # hw_spec.compute_operation_totals[op.operation] += 1
 
         self.max_regs_inuse = min(
             hardwareModel.num_nodes_with_func(hw_spec.netlist, "Regs"),
@@ -153,109 +181,63 @@ class HardwareSimulator:
         return node_power_sum
 
     # TODO: CLEAN THIS UP
-    def get_reg_size(self, neighbor, graph, op_node, context, check_duplicate):
+    def get_var_size(self, var_name):
         """
         Only called on Regs nodes that are parents / children of an operation.
         Checks the size of the variable in the mem heap that this register points to.
 
         Parameters:
             neighbor: The register node to be processed
-            (deprecated?) graph (dfg_algo.Graph): the dfg for the program. This dfg is modified if needed to re
-            (deprecated?) op_node (dfg_algo.Node): The node in the dfg corresponding to the operation
-            (deprecated?) context: The AST context of the register either Load or Store
-            (deprecated?) check_duplicate (bool): Whether or not to check for duplicate memory accesses
 
         Returns:
             int: The size of the variable this register is storing.
         """
-        name = neighbor.value
+        # name = var_name.value
         mem_size = 0
-        bracket_ind = name.find("[")
-        bracket_count = sim_util.get_matching_bracket_count(name)
+        bracket_ind = var_name.find("[")
+        bracket_count = sim_util.get_matching_bracket_count(var_name)
         if bracket_ind != -1:
-            name = name[:bracket_ind]
-        # print(name, self.memory_module.locations)
-        if name in self.memory_module.locations:
-            mem_loc = self.memory_module.locations[name]
+            var_name = var_name[:bracket_ind]
+
+        if var_name in self.memory_module.locations:
+            mem_loc = self.memory_module.locations[var_name]
             mem_size = mem_loc.size
-            # print(bracket_count, mem_loc.dims, neighbor.value)
             for i in range(bracket_count):
                 mem_size /= mem_loc.dims[i]
-            # print(mem_size)
-            # if check_duplicate:
-            #     text = name + "\nlocation: " + str(mem_loc.location)
-            # else:
-            #     text = name
-            # dfg_node_id = dfg_algo.set_id()
-            # # print(dfg_node_id)
-            # if check_duplicate:
-            #     anno = "size: " + str(mem_size)
-            # else:
-            #     anno = ""
 
-            # I don't think memory_links is doing anything either.
-
-            # if (mem_loc.location, mem_loc.size) not in op_node.memory_links:
-            #     # self.make_node(graph, dfg_node_id, text, context, neighbor.operation)
-            #     # self.make_edge(graph, dfg_node_id, op_node.id, annotation=anno)
-            # op_node.memory_links.add((mem_loc.location, mem_loc.size))
-            # print("node made for ", name)
         return mem_size
 
     # TODO: CLEAN THIS UP
-    def get_mem_usage_of_compute_element(
-        self, op, graph, op_node=None, check_duplicate=False
-    ):
+    def get_mem_usage_of_compute_element(self, hw_graph):
         """
-        Determine the amount of memory in use by this operation.
+        Determine the amount of memory in use by this node in the DFG.
 
         Parameters:
-            op (dfg_algo.Node): The operation to be processed
-                 Examples: `dfg Node 64: +, op: Add, memory_links: None, compute_id: 130`
-                           `dfg Node 43: c_1[i_1][j_1], op: Regs, memory_links: None, compute_id: None`
-            graph (dfg_algo.Graph): the dfg for the program. This dfg is modified if needed to re
-            [DEPRECATED?] op_node (dfg_algo.Node): The node in the dfg corresponding to the operation. why is this duplicated?
-            check_duplicate (bool): Whether or not to check for duplicate memory accesses
-
+            hw_graph - nx.DiGraph of a single node in the DFG.
+            each node in this DiGraph is a PE or a Regs node.
         Returns:
             int: The amount of memory in use by this operation.
         """
         # print(
         #     f"in get_mem_usage; op: {op}\nop.parents: {[str(par) for par in op.parents]}\nop.children: {[str(chl) for chl in op.children]}"
         # )
-        parents = []
-        for parent in op.parents:
-            parents.append(parent.operation)
+
         # print(f"in get_mem_usage_of_compute_element, op: {op}")
         mem_in_use = 0
 
         # check if any parents are registers,
-        for parent in op.parents:
-            if not parent.operation:
-                continue
 
-            if parent.operation == "Regs":
-                mem_in_use += self.get_reg_size(
-                    parent, graph, op_node, ast.Load, check_duplicate
-                )
-            # this doesn't do anything at all
-            # else:
-            #     if not check_duplicate:
-            #         continue
-            #     # print(op.operation, parent.operation)
-            #     parent_compute_id = parent.compute_id
-            #     if parent_compute_id not in self.compute_element_neighbors[op_node.id]:
-            #         self.make_edge(graph, parent_compute_id, op_node.id, "")   <-- This might do something; not sure yet.
-            #     self.compute_element_neighbors[op_node.id].add(parent_compute_id)
-            #     self.compute_element_neighbors[parent_compute_id].add(op_node.id)
+        for node in list(hw_graph.nodes.data()):
+            if hw_graph[node]["function"] == "Regs":
+                print(f"{node} is a Regs node; var name: {node.split(';')[0]}")
+                mem_in_use += self.get_var_size(node.split(";")[0])
+        # for parent in op.parents:
 
-        for child in op.children:
-            if not child.operation:
-                continue
-            if child.operation == "Regs":
-                mem_in_use += self.get_reg_size(
-                    child, graph, op_node, ast.Store, check_duplicate
-                )
+        #     if parent.operation == "Regs":
+        #         mem_in_use += self.get_reg_size(parent)
+        # for child in op.children:
+        #     if child.operation == "Regs":
+        #         mem_in_use += self.get_reg_size(child)
         return mem_in_use
 
     def process_memory_operation(self, mem_op):
@@ -481,8 +463,8 @@ class HardwareSimulator:
 
                 # this function just needs to allocate elements in my hw.netlist
                 # based on hw_graph. rename this to something more descriptive.
-                
-                self.get_hw_need(hw_graph, hw) # Does some mem stuff. We need this.
+
+                self.get_hw_need(hw_graph, hw)  # Does some mem stuff. We need this.
 
                 total_cycles = 0
                 # allocate hardware for operations in this state and calculate total cycles
@@ -491,15 +473,14 @@ class HardwareSimulator:
                 longest_path = nx.dag_longest_path(hw_graph)
                 print(longest_path)
                 try:
-                
                     total_cycles = sum(
                         [
                             math.ceil(hw.latency[hw_graph.nodes[n]["function"]])
                             for n in longest_path
                         ]
-                    )# + math.ceil(hw.latency["Regs"]) # add latency of Reg because initial read reg cost is not included in longest path.
+                    )  # + math.ceil(hw.latency["Regs"]) # add latency of Reg because initial read reg cost is not included in longest path.
                 except:
-                    total_cycles=0
+                    total_cycles = 0
 
                 # for elem_name, elem_data in dict(
                 #     hardwareModel.get_in_use_nodes(hw.netlist)
@@ -686,8 +667,8 @@ def main():
             cfg, hw, cfg_node_to_hw_map, simulator.data_path, simulator.id_to_node
         )
 
-    # nx.draw(hw.netlist, with_labels=True)
-    # plt.show()
+    nx.draw(hw.netlist, with_labels=True)
+    plt.show()
 
     simulator.transistor_size = hw.transistor_size  # in nm
     simulator.pitch = hw.pitch  # in um
