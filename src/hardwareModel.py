@@ -1,11 +1,13 @@
 import json
-import graphviz as gv
 import re
 from collections import deque
 import ast
 import configparser as cp
 import yaml
+
+import graphviz as gv
 from sympy import *
+import networkx as nx
 
 from staticfg.builder import CFGBuilder
 from ast_utils import ASTUtils
@@ -92,10 +94,39 @@ power_scale = {
 }
 
 
+## WRAP ALL OF THESE METHODS INTO A 'NETLIST' CLASS
+## Shoudl have an NX graph object as the main instance variable.
+
+
+def get_nodes_by_filter(netlist, key, value):
+    return {k: v for k, v in dict(netlist.nodes.data()).items() if v[key] == value}
+
+
+def get_in_use_nodes(netlist):
+    return get_nodes_by_filter(netlist, "in_use", True)
+
+
+def get_nodes_with_func(netlist, func):
+    """
+    should i refactor 'function' to 'operation'?
+    """
+    return get_nodes_by_filter(netlist, "function", func)
+
+
+def num_nodes_with_func(netlist, func):
+    return len(get_nodes_with_func(netlist, func))
+
+
+def un_allocate_all_in_use_elements(netlist):
+    for k, v in dict(netlist.nodes.data()).items():
+        v["in_use"] = False
+
+
 class HardwareModel:
     def __init__(
         self,
         cfg=None,
+        path_to_graphml=None,
         id=None,
         bandwidth=None,
         mem_layers=None,
@@ -104,8 +135,9 @@ class HardwareModel:
         cache_size=None,
     ):
         """
-        Simulates the effect of 2 different constructors. Either supply cfg, or supply the rest of the arguments.
+        Simulates the effect of 2 different constructors. Either supply cfg (config), or supply the rest of the arguments.
         In this form for backward compatability. I want to deprecate the manual construction soon.
+        cfg here refers to config not a control flow graph, the name collision is unfortunate.
         """
         if cfg is None:
             self.set_hw_config_vars(
@@ -114,6 +146,7 @@ class HardwareModel:
         else:
             config = cp.ConfigParser()
             config.read(HW_CONFIG_FILE)
+            path_to_graphml = f"architectures/{cfg}.gml"
             self.set_hw_config_vars(
                 config.getint(cfg, "id"),
                 config.getint(cfg, "bandwidth"),
@@ -123,6 +156,12 @@ class HardwareModel:
                 config.getint(cfg, "cachesize"),
             )
         self.hw_allocated = {}
+
+        if path_to_graphml is not None:
+            self.netlist = nx.read_gml(path_to_graphml)
+            print(f"netlist: {self.netlist.nodes.data()}")
+        else:
+            self.netlist = nx.Graph()
 
         self.init_misc_vars()
 
@@ -143,6 +182,7 @@ class HardwareModel:
         self.transistor_size = transistor_size
         self.cache_size = cache_size
 
+    ## Deprecated
     def allocate_hw_from_config(self, config):
         """
         allocate hardware from a config file

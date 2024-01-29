@@ -137,16 +137,56 @@ def get_matching_bracket_count(name):
 
 def get_hw_need_lite(state, hw_spec):
     hw_need = HardwareModel(
-            id=0,
-            bandwidth=0,
-            mem_layers=hw_spec.mem_layers,
-            pitch=hw_spec.pitch,
-            transistor_size=hw_spec.transistor_size,
-            cache_size=hw_spec.cache_size,
-        )
+        id=0,
+        bandwidth=0,
+        mem_layers=hw_spec.mem_layers,
+        pitch=hw_spec.pitch,
+        transistor_size=hw_spec.transistor_size,
+        cache_size=hw_spec.cache_size,
+    )
     for op in state:
         # print(f"op: {op}")
         if not op.operation:
             continue
         hw_need.hw_allocated[op.operation] += 1
     return hw_need.hw_allocated
+
+
+def get_dims(arr):
+    """
+    Extracts the dimensions from a given array representation.
+
+    This function parses an array-like structure to determine its dimensions.
+    It supports both tuple and array representations. The function is typically used in
+    the context of memory operations to understand the shape and size of data structures,
+    particularly when allocating memory.
+
+    Parameters:
+    - arr (list): A list representing the array or tuple. Each element in the list is a string
+    representing the size of a dimension. The elements may be formatted as '(size,' for tuples or
+    'size,' for arrays.
+
+    Returns:
+    - list: A list of integers where each integer represents the size of a dimension in the array.
+    This list provides a multi-dimensional structure of the array or tuple.
+
+    Example:
+    - For an input like `['(3,', '4)']`, which represents a 2D tuple, the function would return `[3, 4]`.
+
+    """
+    dims = []
+    if arr[0][0] == "(":  # processing tuple
+        dims.append(int(arr[0][1 : arr[0].find(",")]))
+        if len(arr) > 2:
+            for dim in arr[1:-1]:
+                dims.append(int(dim[:-1]))
+        if len(arr) > 1:
+            dims.append(int(arr[-1][:-1]))
+    else:  # processing array
+        dims.append(int(arr[0][1:-1]))
+        if len(arr) > 2:
+            for dim in arr[1:-1]:
+                dims.append(int(dim[:-1]))
+        if len(arr) > 1:
+            dims.append(int(arr[-1][:-1]))
+    return dims
