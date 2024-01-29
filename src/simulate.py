@@ -62,7 +62,6 @@ class HardwareSimulator:
         self.max_regs_inuse = 0
         self.max_mem_inuse = 0
 
-    # TODO: REname to something more descriptive
     def verify_can_execute(self, computation_graph, hw_spec):
         """
         Determines whether or not the computation graph can be executed on the netlist
