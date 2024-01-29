@@ -23,7 +23,7 @@ from hardwareModel import HardwareModel
 import hardwareModel
 import sim_util
 import arch_search
-from arch_search import generate_new_aladdin_arch
+from arch_search import generate_new_fc_arch
 
 MEMORY_SIZE = 1000000
 state_graph_counter = 0
@@ -45,8 +45,6 @@ class HardwareSimulator:
         self.unroll_at = {}
         self.vars_allocated = {}
         self.where_to_free = {}
-        # self.compute_element_to_node_id = {}
-        # self.compute_element_neighbors = {}
         self.memory_needed = 0
         self.nvm_memory_needed = 0
         self.cur_memory_size = 0
@@ -64,7 +62,8 @@ class HardwareSimulator:
         self.max_regs_inuse = 0
         self.max_mem_inuse = 0
 
-    def get_hw_need(self, computation_graph, hw_spec):
+    # TODO: REname to something more descriptive
+    def verify_can_execute(self, computation_graph, hw_spec):
         """
         Determines whether or not the computation graph can be executed on the netlist
         specified in hw_spec.
@@ -72,19 +71,17 @@ class HardwareSimulator:
         The way this works, if I have 10 addition operations to do in this node of the DFG, and 20 adders
         it should always allocate 10 adders to this node. <- TODO: VERIFY EXPERIMENTALLY
 
+        Counts total size of all variables accessed in this node of the dfg
+
         See TODO below about a fix to generalize this.
 
         Parameters:
-            [DEPRECATED] state (list): A list of operations to be executed.
             computation_graph - nx.DiGraph of operations to be executed.
             hw_spec (HardwareModel): An object representing the current hardware allocation and specifications.
 
         Returns:
             dict: A dictionary representing the hardware requirements for the operations.
         """
-
-        mem_in_use = 0
-        # print(f"\ntop of get_hw_need; hw_graph: {hw_graph.nodes.data()}")
 
         ## Duplicate all regs in hw_spec, so that there is a separate node for input reg A and output reg A.
         ## This doesn't scale for arbitrarily complex hw_graphs representing arbitrarily complex operations.
@@ -117,15 +114,7 @@ class HardwareSimulator:
         )
         if not dgm.subgraph_is_monomorphic():
             raise Exception("hardware specification insufficient to run program")
-        monomorphism = dgm.subgraph_monomorphisms_iter()
-        
-        mem_in_use += self.get_mem_usage_of_dfg_node(computation_graph)
-
-        self.max_regs_inuse = min(
-            hardwareModel.num_nodes_with_func(hw_spec.netlist, "Regs"),
-            self.max_regs_inuse,
-        )
-        self.max_mem_inuse = max(self.max_mem_inuse, mem_in_use)
+        monomorphism = dgm.subgraph_monomorphisms_iter()[0]
 
     def simulate_cycles(self, hw_spec, computation_graph, total_cycles):
         """
@@ -162,7 +151,7 @@ class HardwareSimulator:
         print(
             f"at cycle {self.cycles}, total active power use: {1e-6 * self.active_power_use[self.cycles]}"
         )
-       
+
         return self.active_power_use[self.cycles]
 
     def get_var_size(self, var_name):
@@ -200,14 +189,14 @@ class HardwareSimulator:
         Returns:
             int: The amount of memory in use by this operation.
         """
-       
+
         mem_in_use = 0
 
         for node, data in hw_graph.nodes.data():
             if data["function"] == "Regs":
                 # print(f"{node} is a Regs node; var name: {node.split(';')[0]}")
                 mem_in_use += self.get_var_size(node.split(";")[0])
-        
+
         return mem_in_use
 
     def process_memory_operation(self, mem_op):
@@ -425,24 +414,24 @@ class HardwareSimulator:
                                 cfg_node_to_hw_map[cur_node][k] + node_ops[k]
                             )
 
-                # cfg_node_to_hw_map is dict of (states -> operations)
-                # cur_node appears to be a state in the data path,
-                # print(f"\n\ntotal operations in curr node:")
-                # [print(f"{[str(m) for m in n]}") for n in cfg_node_to_hw_map[cur_node]]
-
                 hw_graph = cfg_node_to_hw_map[cur_node]
 
-                # TODO: UPDATE THIS TO PROCESS GRAPH INSTEAD OF STATE
+                self.verify_can_execute(hw_graph, hw)
 
-                # this function just needs to allocate elements in my hw.netlist
-                # based on hw_graph. rename this to something more descriptive.
+                # === Count mem usage in this node ===
+                mem_in_use = self.get_mem_usage_of_dfg_node(hw_graph)
 
-                self.get_hw_need(hw_graph, hw)  # Does some mem stuff. We need this.
+                self.max_regs_inuse = min(
+                    hardwareModel.num_nodes_with_func(hw.netlist, "Regs"),
+                    self.max_regs_inuse,
+                )
+                self.max_mem_inuse = max(self.max_mem_inuse, mem_in_use)
+                # === End count mem usage ===
 
                 total_cycles = 0
-                # allocate hardware for operations in this state and calculate total cycles
-                # TODO: replace this for loop with STA traversal of hw_graph.
 
+                # TODO: this doesn't account for latency of each element.
+                # just assumes all have equal latency.
                 longest_path = nx.dag_longest_path(hw_graph)
                 print(longest_path)
                 try:
@@ -455,18 +444,6 @@ class HardwareSimulator:
                 except:
                     total_cycles = 0
 
-                # for elem_name, elem_data in dict(
-                #     hardwareModel.get_in_use_nodes(hw.netlist)
-                # ).items():
-                #     # print(f"name: {elem_name}, data: {elem_data}")
-                #     latency = hw.latency[elem_data["function"]]
-
-                #     cur_cycles_needed = math.ceil(latency)
-
-                #     total_cycles = max(
-                #         cur_cycles_needed, total_cycles
-                #     )  # identify bottleneck element for this node.
-                #     j = 0
                 self.cycles += total_cycles
 
                 self.node_avg_power[node_id] += self.simulate_cycles(
@@ -637,16 +614,16 @@ def main():
     # print(f"cfg_node_to_hw_map:\n{cfg_node_to_hw_map}")
 
     # these two lines are hardcoded for now, remove and put them in HardwareModel properly
-    # hw.netlist = nx.Graph()
-    # hw.dynamic_allocation = False
+    hw.netlist = nx.DiGraph()
+    hw.dynamic_allocation = True
     ## END 2 lines
     if hw.dynamic_allocation:
-        arch_search.generate_new_aladdin_arch(
+        arch_search.generate_new_fc_arch(
             cfg, hw, cfg_node_to_hw_map, simulator.data_path, simulator.id_to_node
         )
 
-    # nx.draw(hw.netlist, with_labels=True)
-    # plt.show()
+    nx.draw(hw.netlist, with_labels=True)
+    plt.show()
 
     simulator.transistor_size = hw.transistor_size  # in nm
     simulator.pitch = hw.pitch  # in um
