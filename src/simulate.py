@@ -113,7 +113,8 @@ class HardwareSimulator:
         )
         if not dgm.subgraph_is_monomorphic():
             raise Exception("hardware specification insufficient to run program")
-        monomorphism = dgm.subgraph_monomorphisms_iter()[0]
+        # this needs to be used for resource allocation
+        monomorphism = dgm.subgraph_monomorphisms_iter()
 
     def simulate_cycles(self, hw_spec, computation_graph, total_cycles):
         """
