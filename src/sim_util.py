@@ -151,6 +151,7 @@ def get_hw_need_lite(state, hw_spec):
         hw_need.hw_allocated[op.operation] += 1
     return hw_need.hw_allocated
 
+
 def get_dims(arr):
     """
     Extracts the dimensions from a given array representation.
