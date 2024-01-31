@@ -6,16 +6,16 @@ from staticfg import CFG
 import sim_util
 
 
-def generate_new_fc_arch(
+def generate_new_min_arch(
     cfg: CFG, hw: HardwareModel, cfg_node_to_hw_map, data_path, id_to_node
 ):
     """
     Dynamically generate the asap hardware for a given DFG.
-    Just extracting the stuff that used to be in the concrete simulation.
-    But, this doesn't support unrolling and pattern matching the way it used to in the sim.
 
-    Currently allocates excessive PEs because it doesn't consider the topo ordering of 
-    the DFG. This is a TODO.
+    During the topological traversal of the DFG, we generate new hardware
+    This is a tighter bound on required hardware because we don't ensure monomrphism
+    with the whole DFG node, but instead we ensure monomorphism with pairwise levels
+    of the topological ordering of nodes within a node of the DFG.
 
     Parameters:
         cfg (CFG): The control flow graph of the program.
@@ -44,36 +44,8 @@ def generate_new_fc_arch(
         cur_node = id_to_node[node_id]
 
         hw_graph = cfg_node_to_hw_map[cur_node]
-        nodes = list(map(lambda x: x[1]["function"], list(hw_graph.nodes.data())))
-        unique_funcs, counts = np.unique(nodes, return_counts=True)
-        computation_graph_func_counts = dict(zip(unique_funcs, counts))
 
-        nodes = list(map(lambda x: x[1]["function"], list(hw.netlist.nodes.data())))
-        unique_funcs, counts = np.unique(nodes, return_counts=True)
-        netlist_func_counts = dict(zip(unique_funcs, counts))
-
-        # add new nodes to netlist if necessary
-        for func, count in computation_graph_func_counts.items():
-            if func not in netlist_func_counts.keys():
-                netlist_func_counts[func] = 0
-            if netlist_func_counts[func] < count:
-                for i in range(netlist_func_counts[func], count):
-                    hw.netlist.add_node(
-                        (func + str(i)),
-                        type="pe" if func is not "Regs" else "memory",
-                        function=func,
-                        in_use=False,
-                        idx=i,
-                    )
+        hw.netlist = sim_util.verify_can_execute(hw_graph, hw.netlist, should_update_arch=True)
 
         i = next_ind
 
-    # add edges between all nodes in netlist
-    for node in hw.netlist.nodes:
-        if "Regs" in node:
-            continue
-        for node2 in hw.netlist.nodes:
-            if node2 == node:
-                continue
-            hw.netlist.add_edge(node2, node)
-            hw.netlist.add_edge(node, node2)

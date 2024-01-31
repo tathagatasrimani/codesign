@@ -23,7 +23,7 @@ from hardwareModel import HardwareModel
 import hardwareModel
 import sim_util
 import arch_search
-from arch_search import generate_new_fc_arch
+from arch_search import generate_new_min_arch
 
 MEMORY_SIZE = 1000000
 state_graph_counter = 0
@@ -62,60 +62,6 @@ class HardwareSimulator:
         self.max_regs_inuse = 0
         self.max_mem_inuse = 0
 
-    def verify_can_execute(self, computation_graph, hw_spec):
-        """
-        Determines whether or not the computation graph can be executed on the netlist
-        specified in hw_spec.
-
-        The way this works, if I have 10 addition operations to do in this node of the DFG, and 20 adders
-        it should always allocate 10 adders to this node. <- TODO: VERIFY EXPERIMENTALLY
-
-        Counts total size of all variables accessed in this node of the dfg
-
-        See TODO below about a fix to generalize this.
-
-        Parameters:
-            computation_graph - nx.DiGraph of operations to be executed.
-            hw_spec (HardwareModel): An object representing the current hardware allocation and specifications.
-
-        Returns:
-            dict: A dictionary representing the hardware requirements for the operations.
-        """
-
-        ## Duplicate all regs in hw_spec, so that there is a separate node for input reg A and output reg A.
-        ## This doesn't scale for arbitrarily complex hw_graphs representing arbitrarily complex operations.
-        ## This needs to be changed to some topological ordering based technique, but this was a quicker hack.
-        ## TODO: Use some topo ordering based technique to identify whether the netlist
-        ## can do the computation prescribed by the hw_graph.
-        netlist_copy = hw_spec.netlist.copy()
-        for reg_node in hardwareModel.get_nodes_with_func(netlist_copy, "Regs"):
-            netlist_copy.add_node(
-                reg_node + "_copy",
-                type="pe",
-                function="Regs",
-                in_use=False,
-                idx=hw_spec.netlist.nodes[reg_node]["idx"],
-            )
-            edges = list(netlist_copy.in_edges(reg_node))
-            for edge in edges:
-                # print(f"edge: {edge}")
-                netlist_copy.add_edge(edge[0], reg_node + "_copy")
-                netlist_copy.remove_edge(*edge)
-            # netlist_copy.add_edge(*, reg_node + "_copy")
-            # netlist_copy.remove_edge(*, reg_node)
-
-        dgm = nx.isomorphism.DiGraphMatcher(
-            netlist_copy,
-            computation_graph,
-            node_match=lambda n1, n2: n1["function"] == n2["function"]
-            or n2["function"]
-            == None,  # hw_graph can have no ops, but netlist should not
-        )
-        if not dgm.subgraph_is_monomorphic():
-            raise Exception("hardware specification insufficient to run program")
-        # this needs to be used for resource allocation
-        monomorphism = dgm.subgraph_monomorphisms_iter()
-
     def simulate_cycles(self, hw_spec, computation_graph, total_cycles):
         """
         Simulates the operation of hardware over a number of cycles.
@@ -136,11 +82,11 @@ class HardwareSimulator:
         self.active_power_use[self.cycles] = 0
         self.mem_power_use.append(0)
 
-        print(f"\nat cycle {self.cycles}, summing total acticve power use.")
+        # print(f"\nat cycle {self.cycles}, summing total acticve power use.")
         for n, node_data in computation_graph.nodes.data():
-            print(
-                f"adding power {1e-6 * hw_spec.dynamic_power[node_data['function']]} for node: {n}"
-            )
+            # print(
+            #     f"adding power {1e-6 * hw_spec.dynamic_power[node_data['function']]} for node: {n}"
+            # )
             self.active_power_use[self.cycles] += (
                 hw_spec.dynamic_power[node_data["function"]]
                 * hw_spec.latency[node_data["function"]]
@@ -148,9 +94,9 @@ class HardwareSimulator:
             hw_spec.compute_operation_totals[node_data["function"]] += 1
         self.active_power_use[self.cycles] /= total_cycles
 
-        print(
-            f"at cycle {self.cycles}, total active power use: {1e-6 * self.active_power_use[self.cycles]}"
-        )
+        # print(
+        #     f"at cycle {self.cycles}, total active power use: {1e-6 * self.active_power_use[self.cycles]}"
+        # )
 
         return self.active_power_use[self.cycles]
 
@@ -416,8 +362,9 @@ class HardwareSimulator:
 
                 hw_graph = cfg_node_to_hw_map[cur_node]
 
-                self.verify_can_execute(hw_graph, hw)
-
+                if not sim_util.verify_can_execute(hw_graph, hw.netlist):
+                    raise Exception("hardware specification insufficient to run program")
+                        
                 # === Count mem usage in this node ===
                 mem_in_use = self.get_mem_usage_of_dfg_node(hw_graph)
 
@@ -433,7 +380,7 @@ class HardwareSimulator:
                 # TODO: this doesn't account for latency of each element.
                 # just assumes all have equal latency.
                 longest_path = nx.dag_longest_path(hw_graph)
-                print(longest_path)
+                # print(f"longest_path: {longest_path}")
                 try:
                     total_cycles = sum(
                         [
@@ -618,7 +565,7 @@ def main():
     hw.dynamic_allocation = True
     ## END 2 lines
     if hw.dynamic_allocation:
-        arch_search.generate_new_fc_arch(
+        arch_search.generate_new_min_arch(
             cfg, hw, cfg_node_to_hw_map, simulator.data_path, simulator.id_to_node
         )
 

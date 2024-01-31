@@ -1,5 +1,7 @@
 import math
 import ast
+import networkx as nx
+import numpy as np
 
 import dfg_algo
 from hardwareModel import HardwareModel
@@ -136,6 +138,9 @@ def get_matching_bracket_count(name):
 
 
 def get_hw_need_lite(state, hw_spec):
+    """
+    DEPRECATED.
+    """
     hw_need = HardwareModel(
         id=0,
         bandwidth=0,
@@ -190,3 +195,80 @@ def get_dims(arr):
         if len(arr) > 1:
             dims.append(int(arr[-1][:-1]))
     return dims
+
+
+def verify_can_execute(computation_graph, hw_spec_netlist, should_update_arch=False):
+    """
+    Determines whether or not the computation graph can be executed on the netlist
+    specified in hw_spec.
+
+    Topologically orders the computation graph (C) and checks if the subgraph of C determined
+    by the ith and i+1th order in the topo sort is monomorphic to the netlist.
+
+    The way this works, if I have 10 addition operations to do in this node of the DFG, and 20 adders
+    it should always allocate 10 adders to this node. <- TODO: VERIFY EXPERIMENTALLY
+
+    if should_update_arch is true, does a graph compose onto the netlist, and returns the new netlist.
+    This is done here to avoid looping over the topo ordering twice. 
+
+    Raises exception if the hardware cannot execute the computation graph.
+
+    Parameters:
+        computation_graph - nx.DiGraph of operations to be executed.
+        hw_spec (HardwareModel): An object representing the current hardware allocation and specifications.
+        should_update_arch (bool): A flag indicating whether or not the hardware architecture should be updated.
+                    Only set True from architecture search. Set false when running simulation.
+
+    Returns:
+        bool: True if the computation graph can be executed on the netlist, False otherwise.
+    """
+
+    for generation in nx.topological_generations(computation_graph):
+        temp_C = nx.DiGraph()
+        for node in generation:
+            temp_C.add_nodes_from([(node, computation_graph.nodes[node])])
+            for child in computation_graph.successors(node):
+                if child not in temp_C.nodes:
+                    temp_C.add_nodes_from([(child, computation_graph.nodes[child])])
+                temp_C.add_edge(node, child)
+        dgm = nx.isomorphism.DiGraphMatcher(
+            hw_spec_netlist,
+            temp_C,
+            node_match=lambda n1, n2: n1["function"] == n2["function"]
+            or n2["function"]
+            == None,  # hw_graph can have no ops, but netlist should not
+        )
+        if not dgm.subgraph_is_monomorphic():
+            if should_update_arch:
+                hw_spec_netlist = update_arch(temp_C, hw_spec_netlist)
+            else:
+                return False
+    if should_update_arch:
+        return hw_spec_netlist
+    else: 
+        return True
+
+
+def update_arch(computation_graph, hw_netlist):
+    """
+    Updates the hardware architecture to include the computation graph. 
+    Based on graph composition. But need to rename nodes in computation graph to s.t. nodes are not 
+    unnecessarily duplicated. For example, nodes in two different computation_graph
+    maybe named '+;39' gets renamed to 'Add0', and 'a[i][j]' gets renamed to 'Reg0';
+    This ensures the next time we're trying to compose '+;40' we can compose that onto 'Add0'
+    instead of creating a new node. 
+    """
+
+    c_graph_func_counts = {}
+    mapping = {}
+    for node in computation_graph.nodes:
+        func = computation_graph.nodes.data()[node]["function"]
+        if func not in c_graph_func_counts.keys():
+            c_graph_func_counts[func] = 0
+        mapping[node] = func + str(c_graph_func_counts[func])
+        c_graph_func_counts[func] += 1
+    nx.relabel_nodes(computation_graph, mapping, copy=False)
+    print(f"new_c_graph: {computation_graph.nodes.data()}")
+
+    composition = nx.compose(hw_netlist, computation_graph)
+    return composition
