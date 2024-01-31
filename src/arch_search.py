@@ -12,10 +12,10 @@ def generate_new_min_arch(
     """
     Dynamically generate the asap hardware for a given DFG.
 
-    Literally counts number of PEs and matches them. Doesn't consider topo monomorphicity.
-    Need to do inverse of what is happening in verify_can_execute.
-    Currently allocates excessive PEs because it doesn't consider the topo ordering of
-    the DFG. This is a TODO.
+    During the topological traversal of the DFG, we generate new hardware
+    This is a tighter bound on required hardware because we don't ensure monomrphism
+    with the whole DFG node, but instead we ensure monomorphism with pairwise levels
+    of the topological ordering of nodes within a node of the DFG.
 
     Parameters:
         cfg (CFG): The control flow graph of the program.
