@@ -23,7 +23,7 @@ from hardwareModel import HardwareModel
 import hardwareModel
 import sim_util
 import arch_search
-from arch_search import generate_new_fc_arch
+from arch_search import generate_new_min_arch
 
 MEMORY_SIZE = 1000000
 state_graph_counter = 0
@@ -565,7 +565,7 @@ def main():
     hw.dynamic_allocation = True
     ## END 2 lines
     if hw.dynamic_allocation:
-        arch_search.generate_new_fc_arch(
+        arch_search.generate_new_min_arch(
             cfg, hw, cfg_node_to_hw_map, simulator.data_path, simulator.id_to_node
         )
 
