@@ -62,45 +62,6 @@ class HardwareSimulator:
         self.max_regs_inuse = 0
         self.max_mem_inuse = 0
 
-    def verify_can_execute(self, computation_graph, hw_spec):
-        """
-        Determines whether or not the computation graph can be executed on the netlist
-        specified in hw_spec.
-
-        Topologically orders the computation graph (C) and checks if the subgraph of C determined 
-        by the ith and i+1th order in the topo sort is monomorphic to the netlist.
-
-        The way this works, if I have 10 addition operations to do in this node of the DFG, and 20 adders
-        it should always allocate 10 adders to this node. <- TODO: VERIFY EXPERIMENTALLY
-
-        Raises exception if the hardware cannot execute the computation graph.
-
-        Parameters:
-            computation_graph - nx.DiGraph of operations to be executed.
-            hw_spec (HardwareModel): An object representing the current hardware allocation and specifications.
-        """
-
-        for generation in nx.topological_generations(computation_graph):
-            temp_C = nx.DiGraph()
-            for node in generation:
-                temp_C.add_nodes_from([(node, computation_graph.nodes[node])])
-                for child in computation_graph.successors(node):
-                    if child not in temp_C.nodes:
-                        temp_C.add_nodes_from([(child, computation_graph.nodes[child])])
-                    temp_C.add_edge(node, child)
-            dgm = nx.isomorphism.DiGraphMatcher(
-                hw_spec.netlist,
-                temp_C,
-                node_match=lambda n1, n2: n1["function"] == n2["function"]
-                or n2["function"]
-                == None,  # hw_graph can have no ops, but netlist should not
-            )
-            if not dgm.subgraph_is_monomorphic():
-                raise Exception("hardware specification insufficient to run program")
-        
-            # unassign done nodes
-        # raise Exception("hardware specification insufficient to run program")
-
     def simulate_cycles(self, hw_spec, computation_graph, total_cycles):
         """
         Simulates the operation of hardware over a number of cycles.
@@ -401,8 +362,9 @@ class HardwareSimulator:
 
                 hw_graph = cfg_node_to_hw_map[cur_node]
 
-                self.verify_can_execute(hw_graph, hw)
-
+                if not sim_util.verify_can_execute(hw_graph, hw.netlist):
+                    raise Exception("hardware specification insufficient to run program")
+                        
                 # === Count mem usage in this node ===
                 mem_in_use = self.get_mem_usage_of_dfg_node(hw_graph)
 
@@ -607,8 +569,8 @@ def main():
             cfg, hw, cfg_node_to_hw_map, simulator.data_path, simulator.id_to_node
         )
 
-    # nx.draw(hw.netlist, with_labels=True)
-    # plt.show()
+    nx.draw(hw.netlist, with_labels=True)
+    plt.show()
 
     simulator.transistor_size = hw.transistor_size  # in nm
     simulator.pitch = hw.pitch  # in um

@@ -11,10 +11,10 @@ def generate_new_fc_arch(
 ):
     """
     Dynamically generate the asap hardware for a given DFG.
-    Just extracting the stuff that used to be in the concrete simulation.
-    But, this doesn't support unrolling and pattern matching the way it used to in the sim.
 
-    Currently allocates excessive PEs because it doesn't consider the topo ordering of 
+    Literally counts number of PEs and matches them. Doesn't consider topo monomorphicity.
+    Need to do inverse of what is happening in verify_can_execute.
+    Currently allocates excessive PEs because it doesn't consider the topo ordering of
     the DFG. This is a TODO.
 
     Parameters:
@@ -44,36 +44,34 @@ def generate_new_fc_arch(
         cur_node = id_to_node[node_id]
 
         hw_graph = cfg_node_to_hw_map[cur_node]
-        nodes = list(map(lambda x: x[1]["function"], list(hw_graph.nodes.data())))
-        unique_funcs, counts = np.unique(nodes, return_counts=True)
-        computation_graph_func_counts = dict(zip(unique_funcs, counts))
 
-        nodes = list(map(lambda x: x[1]["function"], list(hw.netlist.nodes.data())))
-        unique_funcs, counts = np.unique(nodes, return_counts=True)
-        netlist_func_counts = dict(zip(unique_funcs, counts))
+        print(f"netlist before: {hw.netlist.nodes.data()}")
+        hw.netlist = sim_util.verify_can_execute(hw_graph, hw.netlist, should_update_arch=True)
+        print(f"netlist after: {hw.netlist.nodes.data()}")
+            # don't compose by name, compose by function;
+            # names, idx aren't relevant.
+            # composition = nx.DiGraph()
 
-        # add new nodes to netlist if necessary
-        for func, count in computation_graph_func_counts.items():
-            if func not in netlist_func_counts.keys():
-                netlist_func_counts[func] = 0
-            if netlist_func_counts[func] < count:
-                for i in range(netlist_func_counts[func], count):
-                    hw.netlist.add_node(
-                        (func + str(i)),
-                        type="pe" if func is not "Regs" else "memory",
-                        function=func,
-                        in_use=False,
-                        idx=i,
-                    )
+            
 
+
+            # for node in temp_C.nodes:
+            #     composition.add_nodes_from([(node, hw_spec_netlist.nodes[node])])
+            # composition = nx.compose(hw_spec_netlist, temp_C)
+            # print(
+            #     f"Composition: {composition.nodes.data()}\nedges: {composition.edges}"
+            # )
+            # return composition
+
+        #     n
         i = next_ind
 
-    # add edges between all nodes in netlist
-    for node in hw.netlist.nodes:
-        if "Regs" in node:
-            continue
-        for node2 in hw.netlist.nodes:
-            if node2 == node:
-                continue
-            hw.netlist.add_edge(node2, node)
-            hw.netlist.add_edge(node, node2)
+    # # add edges between all nodes in netlist
+    # for node in hw.netlist.nodes:
+    # if "Regs" in node:
+    #     continue
+    # for node2 in hw.netlist.nodes:
+    #     if node2 == node:
+    #         continue
+    #     hw.netlist.add_edge(node2, node)
+    #     hw.netlist.add_edge(node, node2)

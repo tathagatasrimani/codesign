@@ -1,5 +1,7 @@
 import math
 import ast
+import networkx as nx
+import numpy as np
 
 import dfg_algo
 from hardwareModel import HardwareModel
@@ -136,6 +138,9 @@ def get_matching_bracket_count(name):
 
 
 def get_hw_need_lite(state, hw_spec):
+    """
+    DEPRECATED.
+    """
     hw_need = HardwareModel(
         id=0,
         bandwidth=0,
@@ -190,3 +195,140 @@ def get_dims(arr):
         if len(arr) > 1:
             dims.append(int(arr[-1][:-1]))
     return dims
+
+
+def verify_can_execute(computation_graph, hw_spec_netlist, should_update_arch=False):
+    """
+    Determines whether or not the computation graph can be executed on the netlist
+    specified in hw_spec.
+
+    Topologically orders the computation graph (C) and checks if the subgraph of C determined
+    by the ith and i+1th order in the topo sort is monomorphic to the netlist.
+
+    The way this works, if I have 10 addition operations to do in this node of the DFG, and 20 adders
+    it should always allocate 10 adders to this node. <- TODO: VERIFY EXPERIMENTALLY
+
+    Raises exception if the hardware cannot execute the computation graph.
+
+    Parameters:
+        computation_graph - nx.DiGraph of operations to be executed.
+        hw_spec (HardwareModel): An object representing the current hardware allocation and specifications.
+        should_update_arch (bool): A flag indicating whether or not the hardware architecture should be updated.
+                    Only set True from architecture search. Set false when running simulation.
+
+    Returns:
+        bool: True if the computation graph can be executed on the netlist, False otherwise.
+    """
+
+    for generation in nx.topological_generations(computation_graph):
+        temp_C = nx.DiGraph()
+        for node in generation:
+            temp_C.add_nodes_from([(node, computation_graph.nodes[node])])
+            for child in computation_graph.successors(node):
+                if child not in temp_C.nodes:
+                    temp_C.add_nodes_from([(child, computation_graph.nodes[child])])
+                temp_C.add_edge(node, child)
+        dgm = nx.isomorphism.DiGraphMatcher(
+            hw_spec_netlist,
+            temp_C,
+            node_match=lambda n1, n2: n1["function"] == n2["function"]
+            or n2["function"]
+            == None,  # hw_graph can have no ops, but netlist should not
+        )
+        if not dgm.subgraph_is_monomorphic():
+            if should_update_arch:
+                hw_spec_netlist = update_arch(temp_C, hw_spec_netlist)
+            else:
+                return False
+    if should_update_arch:
+        return hw_spec_netlist
+    else: 
+        return True
+
+
+def update_arch(computation_graph, hw_netlist):
+    """
+    
+    """
+    print(f"updating arch; computation_graph: {computation_graph.nodes.data()}")
+
+    c_graph_func_counts = {}
+    mapping = {}
+    for node in computation_graph.nodes:
+        func = computation_graph.nodes.data()[node]["function"]
+        if func not in c_graph_func_counts.keys():
+            c_graph_func_counts[func] = 0
+        mapping[node] = func + str(c_graph_func_counts[func])
+        c_graph_func_counts[func] += 1
+    nx.relabel_nodes(computation_graph, mapping, copy=False)
+    print(f"new_c_graph: {computation_graph.nodes.data()}")
+    # print(f"mapping: {mapping}")
+    # print(f"hw_netlist: {hw_netlist.nodes}")
+
+    composition = nx.compose(hw_netlist, computation_graph)
+    return composition
+    print(f"hw_netlist: {hw_netlist.nodes}")
+
+    # nodes = list(map(lambda x: x[1]["function"], list(computation_graph.nodes.data())))
+    # unique_funcs, counts = np.unique(nodes, return_counts=True)
+    # computation_graph_func_counts = dict(zip(unique_funcs, counts))
+
+    # # inefficient to build this whole dict for the netlist; TODO: fix
+    # nodes = list(map(lambda x: x[1]["function"], list(hw_netlist.nodes.data())))
+    # unique_funcs, counts = np.unique(nodes, return_counts=True)
+    # netlist_func_counts = dict(zip(unique_funcs, counts))
+
+    # # add new nodes to netlist if necessary
+    # for func, count in computation_graph_func_counts.items():
+    #     n_nodes = filter(lambda x: hw_netlist.nodes.data()[x]["function"] == func, hw_netlist.nodes)
+    #     c_nodes = filter(lambda x: computation_graph.nodes.data()[x]["function"] == func, computation_graph.nodes)
+    #     # if func not in netlist_func_counts.keys():
+    #     #     netlist_func_counts[func] = 0
+    #     # if netlist_func_counts[func] < count:
+    #     for i in range(len(n_nodes), count):
+    #         hw_netlist.add_node(
+    #             (func + str(i)),
+    #             type="pe" if func is not "Regs" else "memory",
+    #             function=func,
+    #             in_use=False,
+    #             idx=i,
+    #         )
+
+    # edges = list(
+    #     map(
+    #         lambda e: f"{computation_graph.nodes.data()[e[0]]['function']},"
+    #         + f"{computation_graph.nodes.data()[e[1]]['function']}",
+    #         list(computation_graph.edges),
+    #     )
+    # )
+    # print(f"c_edges: {edges}")
+    # unique, counts = np.unique(edges, return_counts=True)
+    # print(f"C: unique: {unique}, counts: {counts}")
+    # c_edge_counts = dict(zip(unique, counts))
+    # print(f"c_graph edge counts: {c_edge_counts}")
+
+    # edges = list(
+    #     map(
+    #         lambda e: f"{hw_netlist.nodes.data()[e[0]]['function']},"
+    #         + f"{hw_netlist.nodes.data()[e[1]]['function']}",
+    #         list(hw_netlist.edges),
+    #     )
+    # )
+    # print(f"n_edges: {edges}")
+    # unique, counts = np.unique(edges, return_counts=True)
+    # print(f"N: unique: {unique}, counts: {counts}")
+    # n_edge_counts = dict(zip(unique, counts))
+    # print(f"n_graph edge counts: {n_edge_counts}")
+
+    # for edge, count in c_edge_counts.items():
+    #     if edge not in n_edge_counts.keys():
+    #         n_edge_counts[edge] = 0
+    #     if n_edge_counts[edge] < count:
+    #         for i in range(n_edge_counts[edge], count):
+    #             hw_netlist.add_node(
+    #                 (func + str(i)),
+    #                 type="pe" if func is not "Regs" else "memory",
+    #                 function=func,
+    #                 in_use=False,
+    #                 idx=i,
+    #             )
