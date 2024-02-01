@@ -553,24 +553,22 @@ class HardwareSimulator:
 def main():
     print(f"Running simulator for {args.benchmark.split('/')[-1]}")
     simulator = HardwareSimulator()
+
+    #TODO: move this into cli arg
     hw = HardwareModel(cfg="aladdin_const")
 
     cfg, graphs, cfg_node_to_hw_map = simulator.simulator_prep(
         args.benchmark, hw.latency
     )
-    # print(f"cfg_node_to_hw_map:\n{cfg_node_to_hw_map}")
 
-    # these two lines are hardcoded for now, remove and put them in HardwareModel properly
-    hw.netlist = nx.DiGraph()
-    hw.dynamic_allocation = True
-    ## END 2 lines
-    if hw.dynamic_allocation:
+    if args.archsearch:
+        hw.netlist = nx.DiGraph()
         arch_search.generate_new_min_arch(
             cfg, hw, cfg_node_to_hw_map, simulator.data_path, simulator.id_to_node
         )
 
-    nx.draw(hw.netlist, with_labels=True)
-    plt.show()
+    # nx.draw(hw.netlist, with_labels=True)
+    # plt.show()
 
     simulator.transistor_size = hw.transistor_size  # in nm
     simulator.pitch = hw.pitch  # in um
@@ -657,8 +655,9 @@ if __name__ == "__main__":
     )
     parser.add_argument("benchmark", metavar="B", type=str)
     parser.add_argument("--notrace", action="store_true")
+    parser.add_argument("-s", "--archsearch", default=False, required=False)
 
     args = parser.parse_args()
-    # print(f"args: {args.benchmark}, {args.notrace}")
+    print(f"args: {args.benchmark}, {args.notrace}, {args.archsearch}")
 
     main()
