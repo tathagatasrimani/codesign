@@ -501,16 +501,30 @@ def smallFrac(n):
     print('exit scope 29')
 
 
+def read_random_graph_from_file(n, p, wts=[1]):
+    print('enter scope 30')
+    print(1, 301)
+    print(211, 302)
+    n_30 = n
+    print(211, 303)
+    p_30 = p
+    print(211, 304)
+    wts_30 = wts
+    print('exit scope 30')
+    return randomGraph(n_30, p_30, wts_30)
+    print('exit scope 30')
+
+
 if __name__ == '__main__':
     loop.start_unroll
-    print(210, 303)
-    G_0 = randomGraph(5, 0.2)
-    BFS_shortestPaths(G_0.vertices[0], G_0)
-    dijkstraDumb_shortestPaths(G_0.vertices[0], G_0)
-    print(210, 306)
-    G_0 = randomGraph(5, 0.4, [1, 2, 3, 4, 5])
-    dijkstra_shortestPaths(G_0.vertices[0], G_0)
-    print(210, 308)
+    print(214, 310)
+    G_NVM = read_random_graph_from_file(5, 0.2)
+    BFS_shortestPaths(G_NVM.vertices[0], G_NVM)
+    dijkstraDumb_shortestPaths(G_NVM.vertices[0], G_NVM)
+    print(214, 313)
+    G_NVM = randomGraph(5, 0.4, [1, 2, 3, 4, 5])
+    dijkstra_shortestPaths(G_NVM.vertices[0], G_NVM)
+    print(214, 315)
     nValues_0 = [10]
-    print(210, 309)
+    print(214, 316)
     nDijkstra_0, tDijkstra_0 = runTrials(BFS, nValues_0, smallFrac)

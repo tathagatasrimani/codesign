@@ -2211,52 +2211,18 @@ def read_random_graph_from_file(n, p, wts=[1]):
 if instrument_read(__name__, '__name__') == '__main__':
     instrument_read(loop, 'loop').start_unroll
     print(214, 310)
-    G_0 = instrument_read_from_file(read_random_graph_from_file, 5, 0.2)
-    write_instrument_read(G_0, 'G_0')
-    if type(G_0) == np.ndarray:
-        print('malloc', sys.getsizeof(G_0), 'G_0', G_0.shape)
-    elif type(G_0) == list:
-        dims = []
-        tmp = G_0
-        while type(tmp) == list:
-            dims.append(len(tmp))
-            if len(tmp) > 0:
-                tmp = tmp[0]
-            else:
-                tmp = None
-        print('malloc', sys.getsizeof(G_0), 'G_0', dims)
-    elif type(G_0) == tuple:
-        print('malloc', sys.getsizeof(G_0), 'G_0', [len(G_0)])
-    else:
-        print('malloc', sys.getsizeof(G_0), 'G_0')
-    BFS_shortestPaths(instrument_read_sub(instrument_read(G_0, 'G_0').
-        vertices, 'G_0.vertices', 0, None, None, False), instrument_read(
-        G_0, 'G_0'))
-    dijkstraDumb_shortestPaths(instrument_read_sub(instrument_read(G_0,
-        'G_0').vertices, 'G_0.vertices', 0, None, None, False),
-        instrument_read(G_0, 'G_0'))
+    G_NVM = read_random_graph_from_file(5, 0.2)
+    BFS_shortestPaths(instrument_read_sub(instrument_read(G_NVM, 'G_NVM').
+        vertices, 'G_NVM.vertices', 0, None, None, False), instrument_read(
+        G_NVM, 'G_NVM'))
+    dijkstraDumb_shortestPaths(instrument_read_sub(instrument_read(G_NVM,
+        'G_NVM').vertices, 'G_NVM.vertices', 0, None, None, False),
+        instrument_read(G_NVM, 'G_NVM'))
     print(214, 313)
-    G_0 = randomGraph(5, 0.4, [1, 2, 3, 4, 5])
-    write_instrument_read(G_0, 'G_0')
-    if type(G_0) == np.ndarray:
-        print('malloc', sys.getsizeof(G_0), 'G_0', G_0.shape)
-    elif type(G_0) == list:
-        dims = []
-        tmp = G_0
-        while type(tmp) == list:
-            dims.append(len(tmp))
-            if len(tmp) > 0:
-                tmp = tmp[0]
-            else:
-                tmp = None
-        print('malloc', sys.getsizeof(G_0), 'G_0', dims)
-    elif type(G_0) == tuple:
-        print('malloc', sys.getsizeof(G_0), 'G_0', [len(G_0)])
-    else:
-        print('malloc', sys.getsizeof(G_0), 'G_0')
-    dijkstra_shortestPaths(instrument_read_sub(instrument_read(G_0, 'G_0').
-        vertices, 'G_0.vertices', 0, None, None, False), instrument_read(
-        G_0, 'G_0'))
+    G_NVM = randomGraph(5, 0.4, [1, 2, 3, 4, 5])
+    dijkstra_shortestPaths(instrument_read_sub(instrument_read(G_NVM,
+        'G_NVM').vertices, 'G_NVM.vertices', 0, None, None, False),
+        instrument_read(G_NVM, 'G_NVM'))
     print(214, 315)
     nValues_0 = [10]
     write_instrument_read(nValues_0, 'nValues_0')

@@ -1,5 +1,4 @@
 #!/bin/sh
-SEARCH=false
 while getopts sqn: flag
 do
     case "${flag}" in
@@ -14,11 +13,14 @@ if [ $name ]; then
     FILEPATH=benchmarks/models/$name
     python instrument.py $FILEPATH
     python instrumented_files/xformed-$name > instrumented_files/output.txt
-
-    if [ $QUIET ]; then
-        echo "Quiet mode"
-        python simulate.py $FILEPATH --notrace --archsearch $SEARCH
-    else
-        python simulate.py $FILEPATH --notrace --archsearch $SEARCH
+    ARGS=$FILEPATH
+    echo $SEARCH
+    if [ $SEARCH ]; then
+        ARGS+=" --archsearch"
     fi
+    if [ $QUIET ]; then
+        ARGS+=" --notrace"
+    fi
+    echo $ARGS
+    python simulate.py $ARGS
 fi

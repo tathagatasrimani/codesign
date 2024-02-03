@@ -241,8 +241,20 @@ def verify_can_execute(computation_graph, hw_spec_netlist, should_update_arch=Fa
         if not dgm.subgraph_is_monomorphic():
             if should_update_arch:
                 hw_spec_netlist = update_arch(temp_C, hw_spec_netlist)
+                dgm = nx.isomorphism.DiGraphMatcher(
+                    hw_spec_netlist,
+                    temp_C,
+                    node_match=lambda n1, n2: n1["function"] == n2["function"]
+                    or n2["function"]
+                    == None,  # hw_graph can have no ops, but netlist should not
+                )
             else:
                 return False
+        
+        mapping = list(dgm.subgraph_monomorphisms_iter())[0]
+        for hw_node, op in mapping.items():
+            hw_spec_netlist.nodes[hw_node]["allocation"].append(op.split(";")[0])
+
     if should_update_arch:
         return hw_spec_netlist
     else: 

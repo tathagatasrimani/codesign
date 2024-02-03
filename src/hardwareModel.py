@@ -11,6 +11,8 @@ import networkx as nx
 
 from staticfg.builder import CFGBuilder
 from ast_utils import ASTUtils
+from memory import Memory, Cache
+
 
 HW_CONFIG_FILE = "hw_cfgs.ini"
 
@@ -43,6 +45,8 @@ op2sym_map = {
     "Not": "!",
     "Invert": "~",
     "Regs": "Regs",
+    "Buf": "Buf",
+    "MainMem": "MainMem",
 }
 
 latency_scale = {
@@ -99,6 +103,9 @@ power_scale = {
 
 
 def get_nodes_by_filter(netlist, key, value):
+    """
+    returns dict of nodes:data that satisfy the filter
+    """
     return {k: v for k, v in dict(netlist.nodes.data()).items() if v[key] == value}
 
 
@@ -120,7 +127,13 @@ def num_nodes_with_func(netlist, func):
 def un_allocate_all_in_use_elements(netlist):
     for k, v in dict(netlist.nodes.data()).items():
         v["in_use"] = False
+        v["allocation"] = []
 
+def get_memory_node(netlist):
+    """
+    returns dict
+    """
+    return get_nodes_with_func(netlist, "MainMem")
 
 class HardwareModel:
     def __init__(
@@ -182,6 +195,25 @@ class HardwareModel:
         self.transistor_size = transistor_size
         self.cache_size = cache_size
 
+    def init_memory(self):
+        for node, data in dict(
+            filter(lambda x: x[1]["function"] == "MainMem", self.netlist.nodes.data())
+        ).items():
+            data["memory_module"] = Memory(data["size"])
+        for node, data in dict(
+            filter(lambda x: x[1]["function"] == "Buf", self.netlist.nodes.data())
+        ).items():
+            edges = self.netlist.edges(node)
+
+            print(f"edges: {edges}")
+            for edge in edges:
+                if self.netlist.nodes[edge[1]]["function"] == "MainMem":
+                    # for now there is only one neighbor that is MainMem.
+                    print(f"main mem module: {self.netlist.nodes[edge[1]]['memory_module']}")
+                    data["memory_module"] = Cache(
+                        data["size"], self.netlist.nodes[edge[1]]["memory_module"]
+                    )
+
     ## Deprecated
     def allocate_hw_from_config(self, config):
         """
@@ -233,6 +265,10 @@ class HardwareModel:
         # print(f"dynamic_allocation flag: {self.dynamic_allocation}")
 
     def set_technology_parameters(self):
+        """
+        I Want to Deprecate everything that takes into account 3D with indexing by pitch size
+        and number of mem layers.
+        """
         tech_params = yaml.load(open("tech_params.yaml", "r"), Loader=yaml.Loader)
 
         self.area = tech_params["area"][self.transistor_size]

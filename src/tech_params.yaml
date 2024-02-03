@@ -99,6 +99,8 @@ area: # nm^2
     Regs: 5.981433e+06
     UAdd: 3.793488e+08 # use add, unsure about this.
     USub: 3.793488e+08 # use add, unsure about this.
+    Buf: 0.0 # per byte? PLACEHOLDER
+    MainMem: 0.0 # per byte(?) per some unit of size; PLACEHOLDER
 dynamic_power: # nw
   3:
     Add: 28.6781376
@@ -200,6 +202,8 @@ dynamic_power: # nw
     Regs: 8.999495e+03
     UAdd: 2.836642e+05 # use add, unsure about this.
     USub: 2.836642e+05 # use add, unsure about this.
+    Buf: 0.0 # per byte? PLACEHOLDER
+    MainMem: 0.0 # per byte(?) per some unit of size; PLACEHOLDER
 latency: # num cycles
   3:
     Add: 12.755
@@ -301,6 +305,8 @@ latency: # num cycles
     Regs: 2
     UAdd: 0.94 # use add, unsure about this.
     USub: 0.94 # use add, unsure about this.
+    Buf: 0.0 # per byte? PLACEHOLDER
+    MainMem: 0.0 # per byte(?) per some unit of size; PLACEHOLDER
 leakage_power:
   3:
     Add: 1722.410667
@@ -399,9 +405,11 @@ leakage_power:
     NotEq: 3.265969e+03 # use add, unsure about this.
     Or: 6.111633e+02
     RShift: 1.697876e+03
-    Regs: 7.395312e+01
+    Regs: 7.395312e+01 # this should be per bit as well. 
     UAdd: 3.265969e+03 # use add, unsure about this.
     USub: 3.265969e+03 # use add, unsure about this.
+    Buf: 0.0 # per byte? PLACEHOLDER
+    MainMem: 0.0 # per byte(?) per some unit of size; PLACEHOLDER
 mem_area: # mm^2 - these numbers are actually all for 65nm node
   3:
     1:

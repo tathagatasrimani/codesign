@@ -1,7 +1,11 @@
+import numpy as np
+
 ALIGNMENT = 8
 MAX_REQUEST_SIZE = 1 << 30
 
 # This is a memory location allocator for variables inside of programs
+
+rng = np.random.default_rng()
 
 
 class block:
@@ -70,6 +74,7 @@ class Memory:
     # Uses the first fit method, iterating through the free list from the start until the first suitable
     # block of free memory is found.
     def malloc(self, id, requested_size: int, dims):
+        print(f"in malloc: id: {id}")
         if id in self.locations:
             self.free(id)
         if requested_size == 0:
@@ -105,8 +110,10 @@ class Memory:
         self.locations[id] = alloc_block
 
     def free(self, id):
+        print(f"in free: id: {id}")
         if id not in self.locations:
-            print("variable to free was not allocated")
+            print(f"variable to free ({id}) was not allocated")
+            return
         block_to_free = self.locations[id]
         self.locations.pop(id)
         next_free = self.orient_frees(block_to_free)
@@ -120,6 +127,43 @@ class Memory:
     def realloc(self, id, new_size):
         self.free(id)
         self.malloc(id, new_size)
+
+    def read(self, id):
+        if id in self.locations:
+            return self.locations[id].size
+        else:
+            return None
+
+
+class Cache:
+    def __init__(
+        self,
+        size,
+        memory: Memory,
+        line_size=64,
+    ):
+        self.size = size
+        self.line_size = line_size
+        self.vars = {}  # dict of names to size
+        self.free_space = size
+        self.used_space = 0
+
+    def read(self, var):
+        """
+        If cache hit, return true, if miss, update vars in cache and return false.
+        """
+        if var in self.vars:
+            return True
+        else:
+            size = self.memory.read(var)
+            if size is None:
+                raise Exception("variable not found in memory")
+            var_to_remove = rng.choice(self.vars.keys())
+            self.size -= self.vars[var_to_remove]
+            self.vars.pop(var_to_remove)
+            self.vars[var] = size
+            self.size += size
+            return False
 
 
 # debugging

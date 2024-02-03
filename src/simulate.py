@@ -31,7 +31,6 @@ state_graph_counter = 0
 
 class HardwareSimulator:
     def __init__(self):
-        self.memory_module = Memory(MEMORY_SIZE)
         self.data = {}
         self.cycles = 0  # counter for number of cycles
         self.main_cfg = None
@@ -100,7 +99,7 @@ class HardwareSimulator:
 
         return self.active_power_use[self.cycles]
 
-    def get_var_size(self, var_name):
+    def get_var_size(self, var_name, mem_module: Memory):
         """
         Only called on Regs nodes that are parents / children of an operation.
         Checks the size of the variable in the mem heap that this register points to.
@@ -117,15 +116,15 @@ class HardwareSimulator:
         if bracket_ind != -1:
             var_name = var_name[:bracket_ind]
 
-        if var_name in self.memory_module.locations:
-            mem_loc = self.memory_module.locations[var_name]
+        if var_name in mem_module.locations:
+            mem_loc = mem_module.locations[var_name]
             mem_size = mem_loc.size
             for i in range(bracket_count):
                 mem_size /= mem_loc.dims[i]
 
         return mem_size
 
-    def get_mem_usage_of_dfg_node(self, hw_graph):
+    def get_mem_usage_of_dfg_node(self, hw_graph, mem_module: Memory):
         """
         Determine the amount of memory in use by this node in the DFG.
         Finds variables associated with all regs in this node and adds up their sizes.
@@ -141,11 +140,11 @@ class HardwareSimulator:
         for node, data in hw_graph.nodes.data():
             if data["function"] == "Regs":
                 # print(f"{node} is a Regs node; var name: {node.split(';')[0]}")
-                mem_in_use += self.get_var_size(node.split(";")[0])
+                mem_in_use += self.get_var_size(node.split(";")[0], mem_module)
 
         return mem_in_use
 
-    def process_memory_operation(self, mem_op):
+    def process_memory_operation(self, mem_op, mem_module: Memory):
         """
         Processes a memory operation, handling memory allocation or deallocation based on the operation type.
 
@@ -175,9 +174,19 @@ class HardwareSimulator:
             dims = []
             if len(mem_op) > 3:
                 dims = sim_util.get_dims(mem_op[3:])
-            self.memory_module.malloc(var_name, size, dims=dims)
+            mem_module.malloc(var_name, size, dims=dims)
         elif status == "free":
-            self.memory_module.free(var_name)
+            mem_module.free(var_name)
+
+    def localize_memory(self):
+        """
+        Updates memory in buffers (cache) to ensure that the data needed for the coming DFG node
+        is in the cache.
+
+        Sets a flag to indicate whether or not there was a cache hit or miss. This affects latency
+        calculations.
+        """
+        pass
 
     def visualize_graph(self, operations):
         """
@@ -248,7 +257,7 @@ class HardwareSimulator:
         i, pattern_seek, max_iters = sim_util.find_next_data_path_index(
             self.data_path, i, mallocs, frees
         )
-        # iterate through nodes in data dependency graph
+        # iterate through nodes in data flow graph
         while i < len(self.data_path):
             (
                 next_ind,
@@ -274,7 +283,8 @@ class HardwareSimulator:
             pattern_mallocs, pattern_frees = [mallocs], [frees]
             other_mallocs, other_frees = [], []
 
-            # modify DFG to enable parallelization:
+            # modify DFG to enable parallelization;
+            # move this to a diff step: modify DFG before sim.
             if pattern_seek:
                 # print("entering pattern seek")
                 pattern_seek = False
@@ -340,7 +350,9 @@ class HardwareSimulator:
                 mallocs = pattern_mallocs[idx]
                 frees = pattern_frees[idx]
                 for malloc in mallocs:
-                    self.process_memory_operation(malloc)
+                    self.process_memory_operation(
+                        malloc, list(hardwareModel.get_memory_node(hw.netlist).values())[0]["memory_module"]
+                    )
 
                 # try to unroll after pattern_seeking
                 node_iters = num_unroll_iterations
@@ -363,10 +375,14 @@ class HardwareSimulator:
                 hw_graph = cfg_node_to_hw_map[cur_node]
 
                 if not sim_util.verify_can_execute(hw_graph, hw.netlist):
-                    raise Exception("hardware specification insufficient to run program")
-                        
+                    raise Exception(
+                        "hardware specification insufficient to run program"
+                    )
+
                 # === Count mem usage in this node ===
-                mem_in_use = self.get_mem_usage_of_dfg_node(hw_graph)
+                mem_in_use = self.get_mem_usage_of_dfg_node(
+                    hw_graph, list(hardwareModel.get_memory_node(hw.netlist).values())[0]["memory_module"]
+                )
 
                 self.max_regs_inuse = min(
                     hardwareModel.num_nodes_with_func(hw.netlist, "Regs"),
@@ -374,6 +390,8 @@ class HardwareSimulator:
                 )
                 self.max_mem_inuse = max(self.max_mem_inuse, mem_in_use)
                 # === End count mem usage ===
+
+                self.localize_memory()
 
                 total_cycles = 0
 
@@ -397,9 +415,6 @@ class HardwareSimulator:
                     hw, hw_graph, total_cycles
                 )
                 hardwareModel.un_allocate_all_in_use_elements(hw.netlist)
-                # ============================================
-                # === END UPDATE =============================
-                # ============================================
 
                 idx += 1
 
@@ -409,9 +424,9 @@ class HardwareSimulator:
                 self.node_avg_power[node_id] /= self.cycles - start_cycles
             self.node_intervals[-1][1][1] = self.cycles
             for free in frees:
-                # print(free)
-                if free[2] in self.memory_module.locations:
-                    self.process_memory_operation(free)
+                self.process_memory_operation(
+                    free, list(hardwareModel.get_memory_node(hw.netlist).values())[0]["memory_module"]
+                )
             mallocs = []
             frees = []
             i = next_ind
@@ -423,13 +438,12 @@ class HardwareSimulator:
         # compute elements we need until we run the program.
         self.passive_power_dissipation_rate = 0
         for elem_name, elem_data in dict(hw.netlist.nodes.data()).items():
-            self.passive_power_dissipation_rate += hw.leakage_power[
-                elem_data["function"]
-            ]
-
-        # for c in range(self.cycles):
-        #     self.power_use[c] += passive_power
-        #     self.mem_power_use[c] += hw.mem_leakage_power
+            scaling = 1
+            if elem_data["function"] in ["Regs", "Buf", "MainMem"]:
+                scaling = elem_data["size"]
+            self.passive_power_dissipation_rate += (
+                hw.leakage_power[elem_data["function"]] * scaling
+            )
 
         print("done with simulation")
         # Path(simulator.path + '/benchmarks/pictures/memory_graphs').mkdir(parents=True, exist_ok=True)
@@ -554,8 +568,8 @@ def main():
     print(f"Running simulator for {args.benchmark.split('/')[-1]}")
     simulator = HardwareSimulator()
 
-    #TODO: move this into cli arg
-    hw = HardwareModel(cfg="aladdin_const")
+    # TODO: move this into cli arg
+    hw = HardwareModel(cfg="aladdin_const_with_mem")
 
     cfg, graphs, cfg_node_to_hw_map = simulator.simulator_prep(
         args.benchmark, hw.latency
@@ -566,6 +580,8 @@ def main():
         arch_search.generate_new_min_arch(
             cfg, hw, cfg_node_to_hw_map, simulator.data_path, simulator.id_to_node
         )
+
+    hw.init_memory()
 
     # nx.draw(hw.netlist, with_labels=True)
     # plt.show()
@@ -596,7 +612,11 @@ def main():
 
     area = 0
     for elem_name, elem_data in dict(hw.netlist.nodes.data()).items():
-        area += hw.area[elem_data["function"]]
+        scaling = 1
+        if elem_data["function"] in ["Regs", "Buf", "MainMem"]:
+            scaling = elem_data["size"]
+        area += hw.area[elem_data["function"]] * scaling
+
     print(f"compute area: {area * 1e-6} um^2")
     print(f"memory area: {hw.mem_area * 1e6} um^2")
     print(f"total area: {(area*1e-6 + hw.mem_area*1e6)} um^2")
@@ -655,7 +675,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("benchmark", metavar="B", type=str)
     parser.add_argument("--notrace", action="store_true")
-    parser.add_argument("-s", "--archsearch", default=False, required=False)
+    parser.add_argument("-s", "--archsearch", action=argparse.BooleanOptionalAction)
 
     args = parser.parse_args()
     print(f"args: {args.benchmark}, {args.notrace}, {args.archsearch}")
