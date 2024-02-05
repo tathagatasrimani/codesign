@@ -12,6 +12,7 @@ import networkx as nx
 from staticfg.builder import CFGBuilder
 from ast_utils import ASTUtils
 from memory import Memory, Cache
+from config_dicts import op2sym_map
 
 
 HW_CONFIG_FILE = "hw_cfgs.ini"
@@ -19,84 +20,6 @@ HW_CONFIG_FILE = "hw_cfgs.ini"
 benchmark = "simple"
 expr_to_node = {}
 func_ref = {}
-
-op2sym_map = {
-    "And": "and",
-    "Or": "or",
-    "Add": "+",
-    "Sub": "-",
-    "Mult": "*",
-    "FloorDiv": "//",
-    "Mod": "%",
-    "LShift": "<<",
-    "RShift": ">>",
-    "BitOr": "|",
-    "BitXor": "^",
-    "BitAnd": "&",
-    "Eq": "==",
-    "NotEq": "!=",
-    "Lt": "<",
-    "LtE": "<=",
-    "Gt": ">",
-    "GtE": ">=",
-    "IsNot": "!=",
-    "USub": "-",
-    "UAdd": "+",
-    "Not": "!",
-    "Invert": "~",
-    "Regs": "Regs",
-    "Buf": "Buf",
-    "MainMem": "MainMem",
-}
-
-latency_scale = {
-    512: 1,
-    1024: 2,
-    2048: 3,
-    4096: 4,
-    8192: 5,
-    16384: 6,
-    32768: 7,
-    65536: 8,
-    131072: 9,
-    262144: 10,
-    524288: 11,
-    1048576: 12,
-    2097152: 13,
-    4194304: 14,
-    8388608: 15,
-    16777216: 16,
-    33554432: 17,
-    67108864: 18,
-    134217728: 19,
-    268435456: 20,
-    536870912: 21,
-}
-
-power_scale = {
-    512: 1,
-    1024: 2,
-    2048: 3,
-    4096: 4,
-    8192: 5,
-    16384: 6,
-    32768: 7,
-    65536: 8,
-    131072: 9,
-    262144: 10,
-    524288: 11,
-    1048576: 12,
-    2097152: 13,
-    4194304: 14,
-    8388608: 15,
-    16777216: 16,
-    33554432: 17,
-    67108864: 18,
-    134217728: 19,
-    268435456: 20,
-    536870912: 21,
-}
-
 
 ## WRAP ALL OF THESE METHODS INTO A 'NETLIST' CLASS
 ## Shoudl have an NX graph object as the main instance variable.
@@ -196,10 +119,16 @@ class HardwareModel:
         self.cache_size = cache_size
 
     def init_memory(self):
+        """
+        Add a Memory Module to the netlist for each MainMem node.
+        Add a Cache Module to the netlist for each Buf node.
+        """
+        
         for node, data in dict(
             filter(lambda x: x[1]["function"] == "MainMem", self.netlist.nodes.data())
         ).items():
             data["memory_module"] = Memory(data["size"])
+        
         for node, data in dict(
             filter(lambda x: x[1]["function"] == "Buf", self.netlist.nodes.data())
         ).items():
@@ -273,7 +202,7 @@ class HardwareModel:
 
         self.area = tech_params["area"][self.transistor_size]
         self.latency = tech_params["latency"][self.transistor_size]
-        self.latency_scale = latency_scale
+
         self.dynamic_power = tech_params["dynamic_power"][self.transistor_size]
         self.leakage_power = tech_params["leakage_power"][self.transistor_size]
         # print(f"t_size: {self.transistor_size}, cache: {self.cache_size}, mem_layers: {self.mem_layers}, pitch: {self.pitch}")
@@ -292,7 +221,7 @@ class HardwareModel:
         self.mem_leakage_power = tech_params["mem_leakage_power"][self.cache_size][
             self.mem_layers
         ][self.pitch]
-        # how does mem latency get incorporated? Currently reg latency = mem_latency. Is this why my num clock cycles is so high?
+        # how does mem latency get incorporated?
         ## DO THIS!!!!
 
     def update_cache_size(self, cache_size):
@@ -316,10 +245,6 @@ class HardwareModel:
 
         for key in op2sym_map.keys():
             self.hw_allocated[key] = 0
-
-        # I shouldn't have the whole dict as an instance variable, the instance var
-        # should be a single scalar based on some tech/ application parameters.
-        self.power_scale = power_scale
 
     def set_loop_counts(self, loop_counts):
         self.loop_counts = loop_counts

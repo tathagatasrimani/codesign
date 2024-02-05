@@ -1,10 +1,10 @@
-from staticfg.builder import CFGBuilder
 import graphviz as gv
 import ast
 import astor
+
 from staticfg.builder import CFGBuilder
 from ast_utils import ASTUtils
-import hardwareModel
+from config_dicts import op2sym_map
 
 benchmark = None
 path = None
@@ -79,7 +79,7 @@ def eval_expr(expr, graph, node):
         op_id = set_id()
 
         opname = ASTUtils.expr_to_opname(expr.op)
-        make_node(graph, node, op_id, hardwareModel.op2sym_map[opname], None, opname)
+        make_node(graph, node, op_id, op2sym_map[opname], None, opname)
         for value in values:
             make_edge(graph, node, value, op_id)
         return [op_id]
@@ -91,7 +91,7 @@ def eval_expr(expr, graph, node):
         right = eval_expr(expr.right, graph, node)
         op_id = set_id()
         opname = ASTUtils.expr_to_opname(expr.op)
-        make_node(graph, node, op_id, hardwareModel.op2sym_map[opname], None, opname)
+        make_node(graph, node, op_id, op2sym_map[opname], None, opname)
         if left:
             make_edge(graph, node, left[0], op_id)
         if right:
@@ -102,7 +102,7 @@ def eval_expr(expr, graph, node):
         value = eval_expr(expr.operand, graph, node)
         op_id = set_id()
         opname = ASTUtils.expr_to_opname(expr.op)
-        make_node(graph, node, op_id, hardwareModel.op2sym_map[opname], None, opname)
+        make_node(graph, node, op_id, op2sym_map[opname], None, opname)
         make_edge(graph, node, value[0], op_id)
         return [op_id]
     elif ASTUtils.isLambda(expr):
@@ -138,7 +138,7 @@ def eval_expr(expr, graph, node):
             ids.append(op_id)
             opname = ASTUtils.expr_to_opname(expr.ops[i])
             make_node(
-                graph, node, op_id, hardwareModel.op2sym_map[opname], None, opname
+                graph, node, op_id, op2sym_map[opname], None, opname
             )
             make_edge(graph, node, left[0], op_id)
             make_edge(graph, node, comparator[0], op_id)
@@ -269,7 +269,7 @@ def eval_stmt(stmt, graph, node):
                 op_id = set_id()
                 opname = ASTUtils.expr_to_opname(stmt.op)
                 make_node(
-                    graph, node, op_id, hardwareModel.op2sym_map[opname], None, opname
+                    graph, node, op_id, op2sym_map[opname], None, opname
                 )
                 make_edge(graph, node, value_id, op_id)
                 make_edge(graph, node, target_read_id[0], op_id)
@@ -279,7 +279,7 @@ def eval_stmt(stmt, graph, node):
             op_id = set_id()
             opname = ASTUtils.expr_to_opname(stmt.op)
             make_node(
-                graph, node, op_id, hardwareModel.op2sym_map[opname], None, opname
+                graph, node, op_id, op2sym_map[opname], None, opname
             )
             make_edge(graph, node, value_ids[0], op_id)
             make_edge(graph, node, target_read_id[0], op_id)

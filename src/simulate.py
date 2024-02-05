@@ -24,9 +24,12 @@ import hardwareModel
 import sim_util
 import arch_search
 from arch_search import generate_new_min_arch
+from config_dicts import op2sym_map
 
 MEMORY_SIZE = 1000000
 state_graph_counter = 0
+
+rng = np.random.default_rng()
 
 
 class HardwareSimulator:
@@ -40,7 +43,6 @@ class HardwareSimulator:
         self.active_power_use = {}
         self.mem_power_use = []
         self.node_intervals = []
-        self.node_avg_power = {}
         self.unroll_at = {}
         self.vars_allocated = {}
         self.where_to_free = {}
@@ -86,16 +88,19 @@ class HardwareSimulator:
             # print(
             #     f"adding power {1e-6 * hw_spec.dynamic_power[node_data['function']]} for node: {n}"
             # )
+            scaling = 1
+            if node_data["function"] in ["Buf", "MainMem"]:
+                # active power should scale by size of the object being accessed.
+                # all regs have the saem size, so no need to scale.
+                print(f"n: {n}, scaling: {node_data['size']}")
+                scaling = node_data["size"]
             self.active_power_use[self.cycles] += (
                 hw_spec.dynamic_power[node_data["function"]]
+                * scaling
                 * hw_spec.latency[node_data["function"]]
             )
             hw_spec.compute_operation_totals[node_data["function"]] += 1
         self.active_power_use[self.cycles] /= total_cycles
-
-        # print(
-        #     f"at cycle {self.cycles}, total active power use: {1e-6 * self.active_power_use[self.cycles]}"
-        # )
 
         return self.active_power_use[self.cycles]
 
@@ -111,10 +116,8 @@ class HardwareSimulator:
             int: The size of the variable this register is storing.
         """
         mem_size = 0
-        bracket_ind = var_name.find("[")
         bracket_count = sim_util.get_matching_bracket_count(var_name)
-        if bracket_ind != -1:
-            var_name = var_name[:bracket_ind]
+        var_name = sim_util.get_var_name_from_arr_access(var_name)
 
         if var_name in mem_module.locations:
             mem_loc = mem_module.locations[var_name]
@@ -172,13 +175,16 @@ class HardwareSimulator:
         status = mem_op[0]
         if status == "malloc":
             dims = []
+            num_elem = 1
             if len(mem_op) > 3:
                 dims = sim_util.get_dims(mem_op[3:])
-            mem_module.malloc(var_name, size, dims=dims)
+                print(f"dims: {dims}")
+                num_elem = np.product(dims)
+            mem_module.malloc(var_name, size, dims=dims, elem_size=size // num_elem)
         elif status == "free":
             mem_module.free(var_name)
 
-    def localize_memory(self):
+    def localize_memory(self, hw, hw_graph):
         """
         Updates memory in buffers (cache) to ensure that the data needed for the coming DFG node
         is in the cache.
@@ -186,7 +192,80 @@ class HardwareSimulator:
         Sets a flag to indicate whether or not there was a cache hit or miss. This affects latency
         calculations.
         """
-        pass
+        # print(f"top of localize_memory, hw_graph: {hw_graph.nodes.data()}")
+        for node, data in dict(
+            filter(lambda x: x[1]["function"] == "Regs", hw_graph.nodes.data())
+        ).items():
+            var_name = node.split(";")[0]
+            # print(f"node: {node}, var_name: {var_name}")
+            # print(f"hw_graph[{node}]: {hw_graph.nodes[node]}")
+            cache_hit = False
+            # there don't exist nodes in hw_netlist with same name as those in hw_graph.
+            # print(
+            #     f"in_edges: {hw.netlist.in_edges(hw_graph.nodes[node]['allocation'], data=True)}"
+            # )
+            mapped_edges = map(
+                lambda edge: (edge[0], hw.netlist.nodes[edge[0]]),
+                hw.netlist.in_edges(hw_graph.nodes[node]["allocation"], data=True),
+            )
+
+            # print(f"mapped_edges: {mapped_edges}")
+            # for edge in mapped_edges:
+            #     print(f"edge: {edge}")
+            #     if edge["function"] == "Buf":
+            #         print(f"buf")
+            in_bufs = list(
+                filter(
+                    lambda node_data: node_data[1]["function"] == "Buf", mapped_edges
+                )
+            )
+            # print(f"in_buf: {list(in_bufs)}")
+            for buf in in_bufs:
+                cache_hit = buf[1]["memory_module"].find(var_name) or cache_hit
+                # print(f"buf: {buf}, var found: {cache_hit}")
+                if cache_hit:
+                    break
+            if not cache_hit:
+                # just choose one at random. Can make this smarter later.
+                buf = rng.choice(in_bufs)  # in_bufs[0] # just choose one at random.
+                print(f"cache miss for {var_name}; adding to buf {buf[0]}")
+
+                size = -1 * buf[1]["memory_module"].read(
+                    var_name
+                )  # size will be negative because cache miss.
+                print(f"size: {size}")
+                # add multiple bufs and mems, not just one. add a new one for each cache miss.
+                # this is required to properly count active power consumption.
+                # what about latency????
+                buf_idx = len(
+                    list(
+                        filter(
+                            lambda x: x[1]["function"] == "Buf", hw_graph.nodes.data()
+                        )
+                    )
+                )
+                mem_idx = len(
+                    list(
+                        filter(
+                            lambda x: x[1]["function"] == "MainMem",
+                            hw_graph.nodes.data(),
+                        )
+                    )
+                )
+                mem = list(
+                    filter(
+                        lambda x: x[1]["function"] == "MainMem", hw.netlist.nodes.data()
+                    )
+                )[0][0]
+                print(f"mem: {mem}")
+                hw_graph.add_node(
+                    f"Buf{buf_idx}", function="Buf", allocation=buf[0], size=size
+                )
+                hw_graph.add_node(
+                    f"Mem{mem_idx}", function="MainMem", allocation=mem, size=size
+                )
+                hw_graph.add_edge(f"Mem{mem_idx}", f"Buf{buf_idx}", function="Mem")
+                hw_graph.add_edge(f"Buf{buf_idx}", node, function="Mem")
 
     def visualize_graph(self, operations):
         """
@@ -204,9 +283,9 @@ class HardwareSimulator:
             sim_util.make_node(
                 state_graph,
                 compute_id,
-                hardwareModel.op2sym_map[op.operation],
+                op2sym_map[op.operation],
                 None,
-                hardwareModel.op2sym_map[op.operation],
+                op2sym_map[op.operation],
             )
             for parent in op.parents:
                 if parent.operation:  # and parent.operation != "Regs":
@@ -214,9 +293,9 @@ class HardwareSimulator:
                     sim_util.make_node(
                         state_graph,
                         parent_id,
-                        hardwareModel.op2sym_map[parent.operation],
+                        op2sym_map[parent.operation],
                         None,
-                        hardwareModel.op2sym_map[parent.operation],
+                        op2sym_map[parent.operation],
                     )
                     sim_util.make_edge(state_graph, parent_id, compute_id, "")
             # what are we doing here that we don't want to check duplicate?
@@ -274,10 +353,7 @@ class HardwareSimulator:
             node_id = self.data_path[i][0]
             cur_node = self.id_to_node[node_id]
             self.node_intervals.append([node_id, [self.cycles, 0]])
-            self.node_avg_power[
-                node_id
-            ] = 0  # just reset because we will end up overwriting it
-            start_cycles = self.cycles  # for calculating average power
+
             num_unroll_iterations = 0
             pattern_nodes = [node_id]
             pattern_mallocs, pattern_frees = [mallocs], [frees]
@@ -351,7 +427,10 @@ class HardwareSimulator:
                 frees = pattern_frees[idx]
                 for malloc in mallocs:
                     self.process_memory_operation(
-                        malloc, list(hardwareModel.get_memory_node(hw.netlist).values())[0]["memory_module"]
+                        malloc,
+                        list(hardwareModel.get_memory_node(hw.netlist).values())[0][
+                            "memory_module"
+                        ],
                     )
 
                 # try to unroll after pattern_seeking
@@ -372,16 +451,21 @@ class HardwareSimulator:
                                 cfg_node_to_hw_map[cur_node][k] + node_ops[k]
                             )
 
-                hw_graph = cfg_node_to_hw_map[cur_node]
+                hw_graph = cfg_node_to_hw_map[cur_node].copy()
 
                 if not sim_util.verify_can_execute(hw_graph, hw.netlist):
+                    nx.draw(hw_graph, with_labels=True)
+                    plt.show()
                     raise Exception(
                         "hardware specification insufficient to run program"
                     )
 
                 # === Count mem usage in this node ===
                 mem_in_use = self.get_mem_usage_of_dfg_node(
-                    hw_graph, list(hardwareModel.get_memory_node(hw.netlist).values())[0]["memory_module"]
+                    hw_graph,
+                    list(hardwareModel.get_memory_node(hw.netlist).values())[0][
+                        "memory_module"
+                    ],
                 )
 
                 self.max_regs_inuse = min(
@@ -391,7 +475,7 @@ class HardwareSimulator:
                 self.max_mem_inuse = max(self.max_mem_inuse, mem_in_use)
                 # === End count mem usage ===
 
-                self.localize_memory()
+                self.localize_memory(hw, hw_graph)
 
                 total_cycles = 0
 
@@ -411,21 +495,18 @@ class HardwareSimulator:
 
                 self.cycles += total_cycles
 
-                self.node_avg_power[node_id] += self.simulate_cycles(
-                    hw, hw_graph, total_cycles
-                )
+                self.simulate_cycles(hw, hw_graph, total_cycles)
                 hardwareModel.un_allocate_all_in_use_elements(hw.netlist)
 
                 idx += 1
 
-            # should we be dividing by num cycles here. I think this is why P is going down as N increases
-            # we don't actually use node_avg_power. what we care about is power_use
-            if self.cycles - start_cycles > 0:
-                self.node_avg_power[node_id] /= self.cycles - start_cycles
             self.node_intervals[-1][1][1] = self.cycles
             for free in frees:
                 self.process_memory_operation(
-                    free, list(hardwareModel.get_memory_node(hw.netlist).values())[0]["memory_module"]
+                    free,
+                    list(hardwareModel.get_memory_node(hw.netlist).values())[0][
+                        "memory_module"
+                    ],
                 )
             mallocs = []
             frees = []
@@ -556,9 +637,9 @@ class HardwareSimulator:
         sim_util.make_node(
             self.new_graph,
             compute_id,
-            hardwareModel.op2sym_map[compute_unit],
+            op2sym_map[compute_unit],
             None,
-            hardwareModel.op2sym_map[compute_unit],
+            op2sym_map[compute_unit],
         )
         # self.compute_element_neighbors[compute_id] = set()
         # self.compute_element_to_node_id[compute_unit].append(compute_id)

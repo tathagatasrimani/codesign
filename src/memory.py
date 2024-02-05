@@ -1,5 +1,7 @@
 import numpy as np
 
+import sim_util
+
 ALIGNMENT = 8
 MAX_REQUEST_SIZE = 1 << 30
 
@@ -9,12 +11,15 @@ rng = np.random.default_rng()
 
 
 class block:
-    def __init__(self, size, location, prev=None, nxt=None, dims=[]):
+    def __init__(self, size, location, prev=None, nxt=None, dims=[], elem_size=0):
         self.size = size
         self.location = location
         self.prev = prev
         self.nxt = nxt
         self.dims = dims
+        # maybe this elem_size shouldn't be a variable in this block class. 
+        # elem_size is variable specific, not memory specific 
+        self.elem_size = elem_size if elem_size != 0 else size # used for arrays. size of individual element
 
 
 class Memory:
@@ -73,7 +78,8 @@ class Memory:
     # Takes in a requested size, and clears out a space in the heap for that block, if possible.
     # Uses the first fit method, iterating through the free list from the start until the first suitable
     # block of free memory is found.
-    def malloc(self, id, requested_size: int, dims):
+    def malloc(self, id, requested_size: int, dims, elem_size=0):
+
         print(f"in malloc: id: {id}")
         if id in self.locations:
             self.free(id)
@@ -107,6 +113,7 @@ class Memory:
             alloc_block = free_block
             alloc_block.dims = dims
         # self.ablocks += 1
+        alloc_block.elem_size = elem_size
         self.locations[id] = alloc_block
 
     def free(self, id):
@@ -132,6 +139,9 @@ class Memory:
         if id in self.locations:
             return self.locations[id].size
         else:
+            arr_name = sim_util.get_var_name_from_arr_access(id)
+            if arr_name in self.locations:
+                return self.locations[arr_name].elem_size
             return None
 
 
@@ -147,23 +157,41 @@ class Cache:
         self.vars = {}  # dict of names to size
         self.free_space = size
         self.used_space = 0
-
+        self.memory = memory
+    
+    def find(self, var):
+        if var in self.vars.keys():
+            return True
+        return False
+    
+    def evict(self, var, size):
+        self.vars.pop(var)
+        self.used_space -= size
+        self.free_space += size
+    
+    def evict_random(self):
+        var = rng.choice(list(self.vars.keys()))
+        size = self.vars[var]
+        self.evict(var, size)
+    
     def read(self, var):
         """
         If cache hit, return true, if miss, update vars in cache and return false.
+        returns positive size if it is a hit, negative size if it is a miss
         """
-        if var in self.vars:
-            return True
+        if var in self.vars.keys():
+            print(f"cache hit: {var}")
+            return self.vars[var]
         else:
             size = self.memory.read(var)
             if size is None:
                 raise Exception("variable not found in memory")
-            var_to_remove = rng.choice(self.vars.keys())
-            self.size -= self.vars[var_to_remove]
-            self.vars.pop(var_to_remove)
+            if self.size - self.used_space < size:
+                self.evict_random()
             self.vars[var] = size
-            self.size += size
-            return False
+            self.used_space += size
+            self.free_space -= size
+            return -1 * size
 
 
 # debugging

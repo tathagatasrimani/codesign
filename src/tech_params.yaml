@@ -306,7 +306,7 @@ latency: # num cycles
     UAdd: 0.94 # use add, unsure about this.
     USub: 0.94 # use add, unsure about this.
     Buf: 0.0 # per byte? PLACEHOLDER
-    MainMem: 0.0 # per byte(?) per some unit of size; PLACEHOLDER
+    MainMem: 4 # latency shouldn't be per byte. it should be per line size, which is like per word
 leakage_power:
   3:
     Add: 1722.410667

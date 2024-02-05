@@ -4,7 +4,7 @@ import networkx as nx
 import numpy as np
 
 import dfg_algo
-from hardwareModel import HardwareModel
+
 
 
 # adds all mallocs and frees to vectors, and finds the next cfg node in the data path,
@@ -137,24 +137,35 @@ def get_matching_bracket_count(name):
     return bracket_count
 
 
-def get_hw_need_lite(state, hw_spec):
+# def get_hw_need_lite(state, hw_spec):
+#     """
+#     DEPRECATED.
+#     """
+#     hw_need = HardwareModel(
+#         id=0,
+#         bandwidth=0,
+#         mem_layers=hw_spec.mem_layers,
+#         pitch=hw_spec.pitch,
+#         transistor_size=hw_spec.transistor_size,
+#         cache_size=hw_spec.cache_size,
+#     )
+#     for op in state:
+#         # print(f"op: {op}")
+#         if not op.operation:
+#             continue
+#         hw_need.hw_allocated[op.operation] += 1
+#     return hw_need.hw_allocated
+
+
+def get_var_name_from_arr_access(arr_access):
     """
-    DEPRECATED.
+    Convert 'b[i][j]' -> 'b'.
+    So that memory operations can be performed on the variable b.
     """
-    hw_need = HardwareModel(
-        id=0,
-        bandwidth=0,
-        mem_layers=hw_spec.mem_layers,
-        pitch=hw_spec.pitch,
-        transistor_size=hw_spec.transistor_size,
-        cache_size=hw_spec.cache_size,
-    )
-    for op in state:
-        # print(f"op: {op}")
-        if not op.operation:
-            continue
-        hw_need.hw_allocated[op.operation] += 1
-    return hw_need.hw_allocated
+    bracket_ind = arr_access.find("[")
+    if bracket_ind != -1:
+        return arr_access[:bracket_ind]
+    return arr_access
 
 
 def get_dims(arr):
@@ -209,7 +220,7 @@ def verify_can_execute(computation_graph, hw_spec_netlist, should_update_arch=Fa
     it should always allocate 10 adders to this node. <- TODO: VERIFY EXPERIMENTALLY
 
     if should_update_arch is true, does a graph compose onto the netlist, and returns the new netlist.
-    This is done here to avoid looping over the topo ordering twice. 
+    This is done here to avoid looping over the topo ordering twice.
 
     Raises exception if the hardware cannot execute the computation graph.
 
@@ -250,25 +261,26 @@ def verify_can_execute(computation_graph, hw_spec_netlist, should_update_arch=Fa
                 )
             else:
                 return False
-        
+
         mapping = list(dgm.subgraph_monomorphisms_iter())[0]
         for hw_node, op in mapping.items():
             hw_spec_netlist.nodes[hw_node]["allocation"].append(op.split(";")[0])
+            computation_graph.nodes[op]["allocation"] = hw_node
 
     if should_update_arch:
         return hw_spec_netlist
-    else: 
+    else:
         return True
 
 
 def update_arch(computation_graph, hw_netlist):
     """
-    Updates the hardware architecture to include the computation graph. 
-    Based on graph composition. But need to rename nodes in computation graph to s.t. nodes are not 
+    Updates the hardware architecture to include the computation graph.
+    Based on graph composition. But need to rename nodes in computation graph to s.t. nodes are not
     unnecessarily duplicated. For example, nodes in two different computation_graph
     maybe named '+;39' gets renamed to 'Add0', and 'a[i][j]' gets renamed to 'Reg0';
     This ensures the next time we're trying to compose '+;40' we can compose that onto 'Add0'
-    instead of creating a new node. 
+    instead of creating a new node.
     """
 
     c_graph_func_counts = {}
