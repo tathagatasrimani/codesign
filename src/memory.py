@@ -150,30 +150,37 @@ class Cache:
         self,
         size,
         memory: Memory,
+        var_size = 1,
         line_size=64,
     ):
+        """
+        adding var_size as a hack to only allow buffer of 1 variable, therefore forcing access 
+        to main memory on every read.
+
+        """
         self.size = size
         self.line_size = line_size
         self.vars = {}  # dict of names to size
+        self.var_size = var_size
         self.free_space = size
         self.used_space = 0
         self.memory = memory
-    
+
     def find(self, var):
         if var in self.vars.keys():
             return True
         return False
-    
+
     def evict(self, var, size):
         self.vars.pop(var)
         self.used_space -= size
         self.free_space += size
-    
+
     def evict_random(self):
         var = rng.choice(list(self.vars.keys()))
         size = self.vars[var]
         self.evict(var, size)
-    
+
     def read(self, var):
         """
         If cache hit, return true, if miss, update vars in cache and return false.
@@ -186,7 +193,7 @@ class Cache:
             size = self.memory.read(var)
             if size is None:
                 raise Exception("variable not found in memory")
-            if self.size - self.used_space < size:
+            if self.size - self.used_space < size:# or len(self.vars) == self.var_size:
                 self.evict_random()
             self.vars[var] = size
             self.used_space += size

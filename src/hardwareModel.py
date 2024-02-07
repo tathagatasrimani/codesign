@@ -118,16 +118,20 @@ class HardwareModel:
         self.transistor_size = transistor_size
         self.cache_size = cache_size
 
-    def init_memory(self):
+    def init_memory(self, mem_needed, nvm_mem_needed):
         """
         Add a Memory Module to the netlist for each MainMem node.
         Add a Cache Module to the netlist for each Buf node.
+        Params:
+        mem_needed: int
+        nvm_mem_needed: int - not yet implemented
         """
-        
+        print(f"init memory: {mem_needed}, nvm: {nvm_mem_needed}")
         for node, data in dict(
             filter(lambda x: x[1]["function"] == "MainMem", self.netlist.nodes.data())
-        ).items():
-            data["memory_module"] = Memory(data["size"])
+        ).items(): # should only have 1
+            data["memory_module"] = Memory(mem_needed)
+            data["size"] = mem_needed
         
         for node, data in dict(
             filter(lambda x: x[1]["function"] == "Buf", self.netlist.nodes.data())
@@ -140,7 +144,7 @@ class HardwareModel:
                     # for now there is only one neighbor that is MainMem.
                     print(f"main mem module: {self.netlist.nodes[edge[1]]['memory_module']}")
                     data["memory_module"] = Cache(
-                        data["size"], self.netlist.nodes[edge[1]]["memory_module"]
+                        data["size"], self.netlist.nodes[edge[1]]["memory_module"], var_size=1
                     )
 
     ## Deprecated

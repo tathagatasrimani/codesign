@@ -179,7 +179,7 @@ class HardwareSimulator:
             if len(mem_op) > 3:
                 dims = sim_util.get_dims(mem_op[3:])
                 print(f"dims: {dims}")
-                num_elem = np.product(dims)
+                num_elem = np.prod(dims)
             mem_module.malloc(var_name, size, dims=dims, elem_size=size // num_elem)
         elif status == "free":
             mem_module.free(var_name)
@@ -662,10 +662,10 @@ def main():
             cfg, hw, cfg_node_to_hw_map, simulator.data_path, simulator.id_to_node
         )
 
-    hw.init_memory()
+    hw.init_memory(sim_util.find_nearest_mem_to_scale(simulator.memory_needed), sim_util.find_nearest_mem_to_scale(simulator.nvm_memory_needed))
 
-    # nx.draw(hw.netlist, with_labels=True)
-    # plt.show()
+    nx.draw(hw.netlist, with_labels=True)
+    plt.show()
 
     simulator.transistor_size = hw.transistor_size  # in nm
     simulator.pitch = hw.pitch  # in um

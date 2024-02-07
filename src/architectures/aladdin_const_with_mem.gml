@@ -58,7 +58,7 @@ graph [
     function "Buf"
     in_use 0
     idx 0
-    size 64
+    size 22
   ]
   node [
     id 7
@@ -67,7 +67,7 @@ graph [
     function "Buf"
     in_use 0
     idx 1
-    size 64
+    size 22
   ]
   node [
     id 8

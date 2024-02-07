@@ -66,6 +66,8 @@ def find_nearest_mem_to_scale(num):
     Returns:
         int: The nearest appropriate memory size.
     """
+    if num == 0:
+        return 0
     if num < 512:
         return 512
     if num > 536870912:
