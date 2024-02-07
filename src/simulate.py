@@ -78,21 +78,15 @@ class HardwareSimulator:
         if total_cycles == 0:
             return 0
 
-        node_power_sum = 0
-
         self.active_power_use[self.cycles] = 0
         self.mem_power_use.append(0)
 
-        # print(f"\nat cycle {self.cycles}, summing total acticve power use.")
         for n, node_data in computation_graph.nodes.data():
-            # print(
-            #     f"adding power {1e-6 * hw_spec.dynamic_power[node_data['function']]} for node: {n}"
-            # )
+            
             scaling = 1
             if node_data["function"] in ["Buf", "MainMem"]:
                 # active power should scale by size of the object being accessed.
                 # all regs have the saem size, so no need to scale.
-                print(f"n: {n}, scaling: {node_data['size']}")
                 scaling = node_data["size"]
             self.active_power_use[self.cycles] += (
                 hw_spec.dynamic_power[node_data["function"]]
@@ -192,37 +186,23 @@ class HardwareSimulator:
         Sets a flag to indicate whether or not there was a cache hit or miss. This affects latency
         calculations.
         """
-        # print(f"top of localize_memory, hw_graph: {hw_graph.nodes.data()}")
         for node, data in dict(
             filter(lambda x: x[1]["function"] == "Regs", hw_graph.nodes.data())
         ).items():
             var_name = node.split(";")[0]
-            # print(f"node: {node}, var_name: {var_name}")
-            # print(f"hw_graph[{node}]: {hw_graph.nodes[node]}")
             cache_hit = False
-            # there don't exist nodes in hw_netlist with same name as those in hw_graph.
-            # print(
-            #     f"in_edges: {hw.netlist.in_edges(hw_graph.nodes[node]['allocation'], data=True)}"
-            # )
             mapped_edges = map(
                 lambda edge: (edge[0], hw.netlist.nodes[edge[0]]),
                 hw.netlist.in_edges(hw_graph.nodes[node]["allocation"], data=True),
             )
 
-            # print(f"mapped_edges: {mapped_edges}")
-            # for edge in mapped_edges:
-            #     print(f"edge: {edge}")
-            #     if edge["function"] == "Buf":
-            #         print(f"buf")
             in_bufs = list(
                 filter(
                     lambda node_data: node_data[1]["function"] == "Buf", mapped_edges
                 )
             )
-            # print(f"in_buf: {list(in_bufs)}")
             for buf in in_bufs:
                 cache_hit = buf[1]["memory_module"].find(var_name) or cache_hit
-                # print(f"buf: {buf}, var found: {cache_hit}")
                 if cache_hit:
                     break
             if not cache_hit:
