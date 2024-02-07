@@ -152,7 +152,7 @@ class Cache:
         """
         Caching not actually being used. Want to leave memory heirarchy as a 
         later addition/ use existing mem simulators for it.
-        
+
         adding var_size as a hack to only allow buffer of 1 variable, therefore forcing access
         to main memory on every read.
         """
@@ -190,7 +190,9 @@ class Cache:
             size = self.memory.read(var)
             if size is None:
                 raise Exception("variable not found in memory")
-            if self.size - self.used_space < size:# or len(self.vars) == self.var_size:
+            if (
+                len(self.vars) == self.var_size
+            ):  #forget buff size for now, only allow store one var
                 self.evict_random()
             self.vars[var] = size
             self.used_space += size

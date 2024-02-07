@@ -6,9 +6,7 @@ from staticfg import CFG
 import sim_util
 
 
-def generate_new_min_arch(
-    cfg: CFG, hw: HardwareModel, cfg_node_to_hw_map, data_path, id_to_node
-):
+def generate_new_min_arch(hw: HardwareModel, cfg_node_to_hw_map, data_path, id_to_node):
     """
     Dynamically generate the asap hardware for a given DFG.
 
@@ -45,7 +43,25 @@ def generate_new_min_arch(
 
         hw_graph = cfg_node_to_hw_map[cur_node]
 
-        hw.netlist = sim_util.verify_can_execute(hw_graph, hw.netlist, should_update_arch=True)
+        hw.netlist = sim_util.verify_can_execute(
+            hw_graph, hw.netlist, should_update_arch=True
+        )
+
+        hardwareModel.un_allocate_all_in_use_elements(hw.netlist)
+
 
         i = next_ind
+    hw.netlist.add_node("Buf0", function="Buf", size=1)
+    hw.netlist.add_node("Mem0", function="MainMem", size=1)
+    hw.netlist.add_edge("Buf0", "Mem0")
+    hw.netlist.add_edge("Mem0", "Buf0")
+    for node, data in hardwareModel.get_nodes_with_func(hw.netlist, "Regs").items():
+        hw.netlist.add_edge("Buf0", node)
+        hw.netlist.add_edge(node, "Buf0")
+        data["size"] = 1
 
+
+def generate_unrolled_arch(
+    hw: HardwareModel, cfg_node_to_hw_map, data_path, id_to_node
+):
+    pass

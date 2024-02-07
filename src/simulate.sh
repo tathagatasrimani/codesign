@@ -1,10 +1,11 @@
 #!/bin/sh
-while getopts sqn: flag
+while getopts a:sqn: flag
 do
     case "${flag}" in
         n) name=${OPTARG};;
         q) QUIET=true;;
         s) SEARCH=true;;
+        a) AREA=${OPTARG};;
     esac
 done
 
@@ -20,6 +21,9 @@ if [ $name ]; then
     fi
     if [ $QUIET ]; then
         ARGS+=" --notrace"
+    fi
+    if [ $AREA ]; then
+        ARGS+=" --area $AREA"
     fi
     echo $ARGS
     python simulate.py $ARGS

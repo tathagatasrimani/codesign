@@ -172,7 +172,7 @@ class HardwareSimulator:
             num_elem = 1
             if len(mem_op) > 3:
                 dims = sim_util.get_dims(mem_op[3:])
-                print(f"dims: {dims}")
+                # print(f"dims: {dims}")
                 num_elem = np.prod(dims)
             mem_module.malloc(var_name, size, dims=dims, elem_size=size // num_elem)
         elif status == "free":
@@ -208,12 +208,10 @@ class HardwareSimulator:
             if not cache_hit:
                 # just choose one at random. Can make this smarter later.
                 buf = rng.choice(in_bufs)  # in_bufs[0] # just choose one at random.
-                print(f"cache miss for {var_name}; adding to buf {buf[0]}")
 
                 size = -1 * buf[1]["memory_module"].read(
                     var_name
                 )  # size will be negative because cache miss.
-                print(f"size: {size}")
                 # add multiple bufs and mems, not just one. add a new one for each cache miss.
                 # this is required to properly count active power consumption.
                 # what about latency????
@@ -237,7 +235,6 @@ class HardwareSimulator:
                         lambda x: x[1]["function"] == "MainMem", hw.netlist.nodes.data()
                     )
                 )[0][0]
-                print(f"mem: {mem}")
                 hw_graph.add_node(
                     f"Buf{buf_idx}", function="Buf", allocation=buf[0], size=size
                 )
@@ -600,6 +597,9 @@ class HardwareSimulator:
             latency: dict with latency of each compute element
         """
         cfg, graphs, self.unroll_at = dfg_algo.main_fn(self.path, benchmark)
+        print(f"\nlen of graphs: {len(graphs)}\n")
+        print(f"graphs in simulator_prep: {graphs}")
+        print(f"cfg in simulator_prep: {cfg}")
         cfg_node_to_hw_map = schedule.schedule(cfg, graphs, latency)
         self.set_data_path()
         for node in cfg:
@@ -621,8 +621,6 @@ class HardwareSimulator:
             None,
             op2sym_map[compute_unit],
         )
-        # self.compute_element_neighbors[compute_id] = set()
-        # self.compute_element_to_node_id[compute_unit].append(compute_id)
 
 
 def main():
@@ -639,7 +637,7 @@ def main():
     if args.archsearch:
         hw.netlist = nx.DiGraph()
         arch_search.generate_new_min_arch(
-            cfg, hw, cfg_node_to_hw_map, simulator.data_path, simulator.id_to_node
+            hw, cfg_node_to_hw_map, simulator.data_path, simulator.id_to_node
         )
 
     hw.init_memory(sim_util.find_nearest_mem_to_scale(simulator.memory_needed), sim_util.find_nearest_mem_to_scale(simulator.nvm_memory_needed))
@@ -737,8 +735,9 @@ if __name__ == "__main__":
     parser.add_argument("benchmark", metavar="B", type=str)
     parser.add_argument("--notrace", action="store_true")
     parser.add_argument("-s", "--archsearch", action=argparse.BooleanOptionalAction)
+    parser.add_argument("-a", "--area", type=float, help="Max Area of the chip in um^2")
 
     args = parser.parse_args()
-    print(f"args: {args.benchmark}, {args.notrace}, {args.archsearch}")
+    print(f"args: {args.benchmark}, {args.notrace}, {args.archsearch}, {args.area}")
 
     main()

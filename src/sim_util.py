@@ -6,7 +6,6 @@ import numpy as np
 import dfg_algo
 
 
-
 # adds all mallocs and frees to vectors, and finds the next cfg node in the data path,
 # returning the index of that node
 def find_next_data_path_index(data_path, i, mallocs, frees):
@@ -137,6 +136,7 @@ def get_matching_bracket_count(name):
             if bracket_depth == 0:
                 bracket_count += 1
     return bracket_count
+
 
 def get_var_name_from_arr_access(arr_access):
     """
@@ -272,8 +272,9 @@ def update_arch(computation_graph, hw_netlist):
             c_graph_func_counts[func] = 0
         mapping[node] = func + str(c_graph_func_counts[func])
         c_graph_func_counts[func] += 1
-    nx.relabel_nodes(computation_graph, mapping, copy=False)
-    print(f"new_c_graph: {computation_graph.nodes.data()}")
+    comp_graph = nx.relabel_nodes(computation_graph, mapping, copy=True)
 
-    composition = nx.compose(hw_netlist, computation_graph)
+    composition = nx.compose(hw_netlist, comp_graph)
+    for n in composition.nodes:
+        composition.nodes[n]["allocation"] = []
     return composition

@@ -126,7 +126,6 @@ class HardwareModel:
         mem_needed: int
         nvm_mem_needed: int - not yet implemented
         """
-        print(f"init memory: {mem_needed}, nvm: {nvm_mem_needed}")
         for node, data in dict(
             filter(lambda x: x[1]["function"] == "MainMem", self.netlist.nodes.data())
         ).items(): # should only have 1
@@ -138,11 +137,9 @@ class HardwareModel:
         ).items():
             edges = self.netlist.edges(node)
 
-            print(f"edges: {edges}")
             for edge in edges:
                 if self.netlist.nodes[edge[1]]["function"] == "MainMem":
                     # for now there is only one neighbor that is MainMem.
-                    print(f"main mem module: {self.netlist.nodes[edge[1]]['memory_module']}")
                     data["memory_module"] = Cache(
                         data["size"], self.netlist.nodes[edge[1]]["memory_module"], var_size=1
                     )

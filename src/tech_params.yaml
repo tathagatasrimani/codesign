@@ -96,11 +96,11 @@ area: # nm^2
     NotEq: 3.793488e+08 # use add, unsure about this.
     Or: 5.036996e+07
     RShift: 2.496461e+07
-    Regs: 5.981433e+06
+    Regs: 5.981433e+06 # this is area per bit
     UAdd: 3.793488e+08 # use add, unsure about this.
     USub: 3.793488e+08 # use add, unsure about this.
     Buf: 0.0 # per byte? PLACEHOLDER
-    MainMem: 0.0 # per byte(?) per some unit of size; PLACEHOLDER
+    MainMem: 5.981433e+06 # per byte(?) per some unit of size; PLACEHOLDER
 dynamic_power: # nw
   3:
     Add: 28.6781376
