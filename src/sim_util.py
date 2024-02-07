@@ -138,27 +138,6 @@ def get_matching_bracket_count(name):
                 bracket_count += 1
     return bracket_count
 
-
-# def get_hw_need_lite(state, hw_spec):
-#     """
-#     DEPRECATED.
-#     """
-#     hw_need = HardwareModel(
-#         id=0,
-#         bandwidth=0,
-#         mem_layers=hw_spec.mem_layers,
-#         pitch=hw_spec.pitch,
-#         transistor_size=hw_spec.transistor_size,
-#         cache_size=hw_spec.cache_size,
-#     )
-#     for op in state:
-#         # print(f"op: {op}")
-#         if not op.operation:
-#             continue
-#         hw_need.hw_allocated[op.operation] += 1
-#     return hw_need.hw_allocated
-
-
 def get_var_name_from_arr_access(arr_access):
     """
     Convert 'b[i][j]' -> 'b'.

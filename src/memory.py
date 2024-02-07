@@ -79,8 +79,6 @@ class Memory:
     # Uses the first fit method, iterating through the free list from the start until the first suitable
     # block of free memory is found.
     def malloc(self, id, requested_size: int, dims, elem_size=0):
-
-        print(f"in malloc: id: {id}")
         if id in self.locations:
             self.free(id)
         if requested_size == 0:
@@ -117,9 +115,7 @@ class Memory:
         self.locations[id] = alloc_block
 
     def free(self, id):
-        print(f"in free: id: {id}")
         if id not in self.locations:
-            print(f"variable to free ({id}) was not allocated")
             return
         block_to_free = self.locations[id]
         self.locations.pop(id)
@@ -154,9 +150,11 @@ class Cache:
         line_size=64,
     ):
         """
-        adding var_size as a hack to only allow buffer of 1 variable, therefore forcing access 
+        Caching not actually being used. Want to leave memory heirarchy as a 
+        later addition/ use existing mem simulators for it.
+        
+        adding var_size as a hack to only allow buffer of 1 variable, therefore forcing access
         to main memory on every read.
-
         """
         self.size = size
         self.line_size = line_size
@@ -187,7 +185,6 @@ class Cache:
         returns positive size if it is a hit, negative size if it is a miss
         """
         if var in self.vars.keys():
-            print(f"cache hit: {var}")
             return self.vars[var]
         else:
             size = self.memory.read(var)
