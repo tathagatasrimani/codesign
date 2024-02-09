@@ -126,9 +126,6 @@ class Preprocessor:
         model.obj = pyo.Objective(expr=self.py_exp, sense=pyo.minimize)
         model.cuts = pyo.ConstraintList()
 
-        # Obtain dual solutions from first solve and send to warm start
-        model.dual = pyo.Suffix(direction=pyo.Suffix.IMPORT_EXPORT)
-
         model.scaling_factor = pyo.Suffix(direction=pyo.Suffix.EXPORT)
         self.create_scaling(model)
         self.add_constraints(model)
