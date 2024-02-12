@@ -140,7 +140,7 @@ class SymbolicHardwareSimulator():
             i += 1
 
     def set_data_path(self):
-        with open('/Users/PatrickMcEwen/git_container/codesign/src/instrumented_files/output.txt', 'r') as f:
+        with open(self.path + "/instrumented_files/output.txt", "r") as f:
             src = f.read()
             l = src.split('\n')
             for i in range(len(l)):

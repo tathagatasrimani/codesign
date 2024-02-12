@@ -43,6 +43,7 @@ class Preprocessor:
         return model.x[self.mapping[hw_symbols.V_dd]]<=1.7 
 
     def add_constraints(self, model):
+        # this is where we say EDP_final = EDP_initial / 10
         model.Constraint = pyo.Constraint( expr = self.py_exp == self.initial_val/10)
         #model.Constraint1 = pyo.Constraint( expr = self.py_exp >= self.initial_val/11)
         model.freq_const = pyo.Constraint( rule=self.f)
