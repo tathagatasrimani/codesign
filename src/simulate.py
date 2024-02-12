@@ -82,7 +82,7 @@ class HardwareSimulator:
         self.mem_power_use.append(0)
 
         for n, node_data in computation_graph.nodes.data():
-            
+
             scaling = 1
             if node_data["function"] in ["Buf", "MainMem"]:
                 # active power should scale by size of the object being accessed.
@@ -589,6 +589,58 @@ class HardwareSimulator:
         print(f"memory needed: {self.memory_needed} bytes")
         print(f"nvm memory needed: {self.nvm_memory_needed} bytes")
 
+    def compose_entire_computation_graph(self, cfg_node_to_hw_map, plot=False):
+        """
+        Composes a large DFG from the smaller DFGs.
+
+        Parameters:
+            cfg (CFG): The control flow graph of the program.
+            cfg_node_to_hw_map (dict): A mapping of CFG nodes to hardware graphs represented by nx.DiGraphs.
+
+        Returns:
+            nx.DiGraph: The large DFG composed from the smaller DFGs.
+        """
+        computation_dfg = nx.DiGraph()
+        curr_last_node = ""
+        print(f"top of compose; length of data path: {len(self.data_path)}")
+        i = sim_util.find_next_data_path_index(self.data_path, 0, [], [])[0]
+        while i < len(self.data_path):
+            print(f"idx in compose: {i}")
+            node_id = self.data_path[i][0]
+            node = self.id_to_node[node_id]
+            hw_graph = cfg_node_to_hw_map[node]
+            if nx.is_empty(hw_graph):
+                i = sim_util.find_next_data_path_index(self.data_path, i+1, [], [])[0]
+                continue
+            sim_util.rename_nodes(computation_dfg, hw_graph)
+            print(f"hw_graph.nodes after rename: {hw_graph.nodes}")
+            computation_dfg = nx.union(computation_dfg, hw_graph)
+            # computation_dfg.add_nodes_from(hw_graph.nodes(data=True))
+            generations = list(nx.topological_generations(hw_graph))
+            rand_first_node = rng.choice(generations[0])
+            if curr_last_node != "":
+                print(f"adding edge from {curr_last_node} to {rand_first_node}")
+                computation_dfg.add_edge(curr_last_node, rand_first_node)
+            curr_last_node = rng.choice(generations[-1])
+
+            i = sim_util.find_next_data_path_index(self.data_path, i+1, [], [])[0]
+        print(f"done composing computation graph")
+
+        if plot:
+            for layer, nodes in enumerate(nx.topological_generations(computation_dfg)):
+            # `multipartite_layout` expects the layer as a node attribute, so add the
+            # numeric layer value as a node attribute
+                for node in nodes:
+                    computation_dfg.nodes[node]["layer"] = layer
+
+            # Compute the multipartite_layout using the "layer" node attribute
+            pos = nx.multipartite_layout(computation_dfg, subset_key="layer")
+
+            fig, ax = plt.subplots()
+            nx.draw_networkx(computation_dfg, pos=pos, ax=ax)
+            plt.show()
+        return computation_dfg
+
     def simulator_prep(self, benchmark, latency):
         """
         Creates CFG, and id_to_node
@@ -597,15 +649,15 @@ class HardwareSimulator:
             latency: dict with latency of each compute element
         """
         cfg, graphs, self.unroll_at = dfg_algo.main_fn(self.path, benchmark)
-        print(f"\nlen of graphs: {len(graphs)}\n")
-        print(f"graphs in simulator_prep: {graphs}")
-        print(f"cfg in simulator_prep: {cfg}")
+        # print(f"\nlen of graphs: {len(graphs)}\n")
+        # print(f"graphs in simulator_prep: {graphs}")
+        # print(f"cfg in simulator_prep: {cfg}")
         cfg_node_to_hw_map = schedule.schedule(cfg, graphs, latency)
         self.set_data_path()
         for node in cfg:
             self.id_to_node[str(node.id)] = node
         # print(self.id_to_node)
-        return cfg, graphs, cfg_node_to_hw_map
+        return cfg, cfg_node_to_hw_map
 
     def init_new_compute_element(self, compute_unit):
         """
@@ -630,9 +682,11 @@ def main():
     # TODO: move this into cli arg
     hw = HardwareModel(cfg="aladdin_const_with_mem")
 
-    cfg, graphs, cfg_node_to_hw_map = simulator.simulator_prep(
+    cfg, cfg_node_to_hw_map = simulator.simulator_prep(
         args.benchmark, hw.latency
     )
+
+    computation_dfg = simulator.compose_entire_computation_graph(cfg_node_to_hw_map)
 
     if args.archsearch:
         hw.netlist = nx.DiGraph()

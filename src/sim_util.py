@@ -257,7 +257,7 @@ def verify_can_execute(computation_graph, hw_spec_netlist, should_update_arch=Fa
 def update_arch(computation_graph, hw_netlist):
     """
     Updates the hardware architecture to include the computation graph.
-    Based on graph composition. But need to rename nodes in computation graph to s.t. nodes are not
+    Based on graph composition. But need to rename nodes in computation graph s.t. nodes are not
     unnecessarily duplicated. For example, nodes in two different computation_graph
     maybe named '+;39' gets renamed to 'Add0', and 'a[i][j]' gets renamed to 'Reg0';
     This ensures the next time we're trying to compose '+;40' we can compose that onto 'Add0'
@@ -278,3 +278,30 @@ def update_arch(computation_graph, hw_netlist):
     for n in composition.nodes:
         composition.nodes[n]["allocation"] = []
     return composition
+
+
+def rename_nodes(G, H):
+    """
+    Rename nodes in H to avoid collisions in G.
+    """
+    relabelling = {}
+    for node in H.nodes:
+        new_node = node
+        while new_node in G or new_node in relabelling.values():
+            # Rename the node to avoid collision
+            new_node = get_unique_node_name(G, new_node)
+        # G.nodes[new_node].update(H.nodes[node])
+        relabelling[node] = new_node
+    nx.relabel_nodes(H, relabelling, copy=False)
+
+
+
+def get_unique_node_name(G, node):
+    var_name, count = node.split(";")
+    count = int(count)
+    count += 1 
+    new_node = f"{var_name};{count}"
+    while new_node in G:
+        count += 1
+        new_node = f"{var_name};{count}"
+    return new_node

@@ -40,12 +40,12 @@ def schedule(cfg, graphs, latency):
     returns:
         cfg_node_to_hw_map: dict of cfg_node -> {states -> operations}
     """
+    computation_graph = nx.DiGraph()
     for node in cfg:
         cfg_node_to_hw_map[node] = nx.DiGraph()
         operation_sets[node] = set()
-        graph = graphs[node]
 
-        queue = deque([[root, 0] for root in graph.roots])
+        queue = deque([[root, 0] for root in graphs[node].roots])
         max_order = 0
         while len(queue) != 0:
             cur_node, order = queue.popleft()
@@ -58,6 +58,7 @@ def schedule(cfg, graphs, latency):
                     f"{cur_node.value};{cur_node.id}",
                     function=cur_node.operation,
                     idx=cur_node.id,
+                    cost=latency[cur_node.operation],
                 )
            
                 for par in cur_node.parents:
@@ -65,9 +66,6 @@ def schedule(cfg, graphs, latency):
                         cfg_node_to_hw_map[node].add_edge(
                             f"{par.value};{par.id}",
                             f"{cur_node.value};{cur_node.id}",
-                            cost=latency[
-                                cur_node.operation
-                            ],  # cost of an edge is the latency of the downstream operation.
                         )
                     except KeyError:
                         cfg_node_to_hw_map[node].add_edge(
