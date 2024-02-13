@@ -2,6 +2,7 @@ import math
 import ast
 import networkx as nx
 import numpy as np
+import matplotlib.pyplot as plt
 
 import dfg_algo
 
@@ -295,7 +296,6 @@ def rename_nodes(G, H):
     nx.relabel_nodes(H, relabelling, copy=False)
 
 
-
 def get_unique_node_name(G, node):
     var_name, count = node.split(";")
     count = int(count)
@@ -305,3 +305,17 @@ def get_unique_node_name(G, node):
         count += 1
         new_node = f"{var_name};{count}"
     return new_node
+
+def topological_layout_plot(graph):
+    for layer, nodes in enumerate(nx.topological_generations(graph)):
+            # `multipartite_layout` expects the layer as a node attribute, so add the
+            # numeric layer value as a node attribute
+        for node in nodes:
+            graph.nodes[node]["layer"] = layer
+
+    # Compute the multipartite_layout using the "layer" node attribute
+    pos = nx.multipartite_layout(graph, subset_key="layer")
+
+    fig, ax = plt.subplots()
+    nx.draw_networkx(graph, pos=pos, ax=ax)
+    plt.show()

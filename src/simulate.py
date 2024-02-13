@@ -686,13 +686,17 @@ def main():
         args.benchmark, hw.latency
     )
 
-    computation_dfg = simulator.compose_entire_computation_graph(cfg_node_to_hw_map)
+    # computation_dfg = simulator.compose_entire_computation_graph(cfg_node_to_hw_map)
 
     if args.archsearch:
         hw.netlist = nx.DiGraph()
-        arch_search.generate_new_min_arch(
+        arch_search.generate_unrolled_arch(
             hw, cfg_node_to_hw_map, simulator.data_path, simulator.id_to_node
         )
+    
+    for elem in simulator.data_path:
+        if elem[0] not in simulator.unroll_at.keys():
+            simulator.unroll_at[elem[0]] = False
 
     hw.init_memory(sim_util.find_nearest_mem_to_scale(simulator.memory_needed), sim_util.find_nearest_mem_to_scale(simulator.nvm_memory_needed))
 
