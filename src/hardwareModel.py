@@ -271,6 +271,12 @@ class HardwareModel:
             total_area += self.area[data["function"]] * scaling
         return total_area * 1e-6 # convert from nm^2 to um^2
 
+    def get_mem_compute_bw(self):
+        # get edges between buf0 and Regs
+        edges = list(filter(lambda x: "Reg" in x[0], self.netlist.in_edges("Buf0")))
+        n = len(edges)
+        print(f"number of edges between mem and compute: {n}")
+        return n
 
 class SymbolicHardwareModel:
     def __init__(self, id, bandwidth, loop_counts={}, var_sizes={}):

@@ -61,8 +61,8 @@ def generate_unrolled_arch(
     cfg_node_to_hw_map: dict
     data_path: list
     id_to_node: dict
-    area_constraint: int
-    bw_constraint: int
+    area_constraint: float
+    bw_constraint: float
     memory: int - only needed to scale up the memory area so that the area constraint can be effectively assessed
     """
     print(f"Generating Unrolled Architecture...")
@@ -105,21 +105,35 @@ def generate_unrolled_arch(
         generate_new_min_arch(hw, cfg_node_to_hw_map, unique_data_path, id_to_node)
         hw.init_memory(memory, 0)
         # if area exceeds threshold, decrease unroll factor by 2x and try again
+        if area_constraint is None and bw_constraint is None:
+            pass_area=True
+            pass_bw=True
+
         if area_constraint is not None:
             area = hw.get_total_area()
             area_ratio = area / area_constraint
             print(f"Area: {area}, Area Constraint: {area_constraint}, Area Ratio: {area_ratio}")
             if area_ratio <= 1:
                 print(f"Area Constraint Met: {area_ratio}")
-                break
+                pass_area=True
             else:
+                pass_area=False
                 unroll_factor = int(unroll_factor / area_ratio)
                 hw.netlist = nx.DiGraph()
-                if unroll_factor == 1:
-                    break
-        elif bw_constraint is not None:
-            pass
-        else:
+
+        if bw_constraint is not None:
+            curr_bw = hw.get_mem_compute_bw()
+            bw_ratio = curr_bw / bw_constraint
+            print(f"Bandwidth: {curr_bw}, Bandwidth Constraint: {bw_constraint}, Bandwidth Ratio: {bw_ratio}")
+            if bw_ratio <= 1:
+                print(f"Bandwidth Constraint Met: {bw_ratio}")
+                pass_bw=True
+            else:
+                pass_bw = False
+                unroll_factor = min(unroll_factor, int(unroll_factor / bw_ratio))
+                hw.netlist = nx.DiGraph()
+        
+        if pass_area and pass_bw:
             break
 
         # if area is less than threshold, Don't do anything for now.
