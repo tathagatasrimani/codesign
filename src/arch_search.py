@@ -52,8 +52,19 @@ def generate_new_min_arch(hw: HardwareModel, cfg_node_to_hw_map, data_path, id_t
 
 
 def generate_unrolled_arch(
-    hw: HardwareModel, cfg_node_to_hw_map, data_path, id_to_node, area_constraint, bw_constraint
+    hw: HardwareModel, cfg_node_to_hw_map, data_path, id_to_node, area_constraint, bw_constraint, memory
 ):
+    """
+    
+    params:
+    hw: HardwareModel
+    cfg_node_to_hw_map: dict
+    data_path: list
+    id_to_node: dict
+    area_constraint: int
+    bw_constraint: int
+    memory: int - only needed to scale up the memory area so that the area constraint can be effectively assessed
+    """
     print(f"Generating Unrolled Architecture...")
     # print(f"Data Path: {data_path}")
     # count statistics of data path
@@ -81,18 +92,37 @@ def generate_unrolled_arch(
         prev = elem
     print(f"Max Continuous: {max_continuous}")
 
+    unroll_factor = max_continuous
 
-    new_data_path = unroll_by_specified_factor(cfg_node_to_hw_map, data_path, id_to_node, max_continuous, saved_elem)
+    while True:
 
-    print(f"Final Data Path:\n{new_data_path}")
-    # make call to gen_min_arch with new cfg_node_to_hw_map
-    unique_data_path = [list(x) for x in set(tuple(x) for x in new_data_path)]
-    print(f"Unique Data Path: {unique_data_path}")
-    generate_new_min_arch(hw, cfg_node_to_hw_map, unique_data_path, id_to_node)
+        new_data_path = unroll_by_specified_factor(cfg_node_to_hw_map, data_path, id_to_node, unroll_factor, saved_elem)
 
-    # if area exceeds threshold, decrease unroll factor by 2x and try again
-    area = hw.get_total_area()
-    # if area is less than threshold, try to unloop next loop level.
+        print(f"Final Data Path:\n{new_data_path}")
+        # make call to gen_min_arch with new cfg_node_to_hw_map
+        unique_data_path = [list(x) for x in set(tuple(x) for x in new_data_path)]
+        print(f"Unique Data Path: {unique_data_path}")
+        generate_new_min_arch(hw, cfg_node_to_hw_map, unique_data_path, id_to_node)
+        hw.init_memory(memory, 0)
+        # if area exceeds threshold, decrease unroll factor by 2x and try again
+        if area_constraint is not None:
+            area = hw.get_total_area()
+            area_ratio = area / area_constraint
+            print(f"Area: {area}, Area Constraint: {area_constraint}, Area Ratio: {area_ratio}")
+            if area_ratio <= 1:
+                print(f"Area Constraint Met: {area_ratio}")
+                break
+            else:
+                unroll_factor = int(unroll_factor / area_ratio)
+                hw.netlist = nx.DiGraph()
+                if unroll_factor == 1:
+                    break
+        elif bw_constraint is not None:
+            pass
+        else:
+            break
+
+        # if area is less than threshold, Don't do anything for now.
 
     return new_data_path 
 
@@ -111,7 +141,7 @@ def unroll_by_specified_factor(cfg_node_to_hw_map: dict, data_path: list, id_to_
         sim_util.rename_nodes(single_node_comp_graph, copy)
         single_node_comp_graph = nx.union(single_node_comp_graph, copy)
 
-    sim_util.topological_layout_plot(single_node_comp_graph)
+    # sim_util.topological_layout_plot(single_node_comp_graph)
 
     # iterate through data path and replace nodes with unrolled nodes
     blk = Block(int(specified_node[0]) * unroll_factor)

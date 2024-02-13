@@ -695,16 +695,18 @@ def main():
     if args.archsearch:
         hw.netlist = nx.DiGraph()
         simulator.data_path = arch_search.generate_unrolled_arch(
-            hw, cfg_node_to_hw_map, simulator.data_path, simulator.id_to_node, args.area, args.bw
+            hw, cfg_node_to_hw_map, simulator.data_path, simulator.id_to_node, args.area, args.bw, 
+            sim_util.find_nearest_power_2(simulator.memory_needed)
         )
-    
-    
-    for elem in simulator.data_path:
+
+    for elem in simulator.data_path: # can I do this elsewhere?
         if elem[0] not in simulator.unroll_at.keys():
-            print(f"adding {elem[0]} to unroll_at")
             simulator.unroll_at[elem[0]] = False
 
-    hw.init_memory(sim_util.find_nearest_mem_to_scale(simulator.memory_needed), sim_util.find_nearest_mem_to_scale(simulator.nvm_memory_needed))
+    hw.init_memory(
+        sim_util.find_nearest_power_2(simulator.memory_needed),
+        sim_util.find_nearest_power_2(simulator.nvm_memory_needed),
+    )
 
     nx.draw(hw.netlist, with_labels=True)
     plt.show()
@@ -735,9 +737,9 @@ def main():
 
     area = hw.get_total_area()
 
-    print(f"compute area: {area * 1e-6} um^2")
+    print(f"compute area: {area} um^2")
     print(f"memory area: {hw.mem_area * 1e6} um^2")
-    print(f"total area: {(area*1e-6 + hw.mem_area*1e6)} um^2")
+    print(f"total area: {(area + hw.mem_area*1e6)} um^2")
 
     # print stats
     print("total number of cycles: ", simulator.cycles)

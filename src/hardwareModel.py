@@ -269,7 +269,7 @@ class HardwareModel:
             if data["function"] in ["Regs", "Buf", "MainMem"]:
                 scaling = data["size"]
             total_area += self.area[data["function"]] * scaling
-        return total_area
+        return total_area * 1e-6 # convert from nm^2 to um^2
 
 
 class SymbolicHardwareModel:

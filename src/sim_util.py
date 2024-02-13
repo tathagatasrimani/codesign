@@ -56,7 +56,7 @@ def find_next_data_path_index(data_path, i, mallocs, frees):
     return i, pattern_seek, max_iters
 
 
-def find_nearest_mem_to_scale(num):
+def find_nearest_power_2(num):
     """
     Finds the nearest memory size to scale based on the input.
 
