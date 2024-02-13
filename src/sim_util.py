@@ -244,7 +244,7 @@ def verify_can_execute(computation_graph, hw_spec_netlist, should_update_arch=Fa
             else:
                 return False
 
-        mapping = list(dgm.subgraph_monomorphisms_iter())[0]
+        mapping = dgm.subgraph_monomorphisms_iter().__next__()
         for hw_node, op in mapping.items():
             hw_spec_netlist.nodes[hw_node]["allocation"].append(op.split(";")[0])
             computation_graph.nodes[op]["allocation"] = hw_node

@@ -308,6 +308,8 @@ class HardwareSimulator:
         frees = []
         mallocs = []
 
+        visited_node_ids = set()
+
         print(f"data path: {self.data_path}")
 
         i, pattern_seek, max_iters = sim_util.find_next_data_path_index(
@@ -428,14 +430,15 @@ class HardwareSimulator:
                                 cfg_node_to_hw_map[cur_node][k] + node_ops[k]
                             )
 
-                hw_graph = cfg_node_to_hw_map[cur_node].copy()
+                hw_graph = cfg_node_to_hw_map[cur_node]#.copy()
 
-                if not sim_util.verify_can_execute(hw_graph, hw.netlist):
-                    nx.draw(hw_graph, with_labels=True)
-                    plt.show()
-                    raise Exception(
-                        "hardware specification insufficient to run program"
-                    )
+                if node_id not in visited_node_ids:
+                    if not sim_util.verify_can_execute(hw_graph, hw.netlist):
+                        nx.draw(hw_graph, with_labels=True)
+                        plt.show()
+                        raise Exception(
+                            "hardware specification insufficient to run program"
+                        )
 
                 # === Count mem usage in this node ===
                 mem_in_use = self.get_mem_usage_of_dfg_node(
@@ -487,6 +490,7 @@ class HardwareSimulator:
                 )
             mallocs = []
             frees = []
+            visited_node_ids.add(node_id)
             i = next_ind
             pattern_seek = pattern_seek_next
             max_iters = max_iters_next
@@ -690,12 +694,14 @@ def main():
 
     if args.archsearch:
         hw.netlist = nx.DiGraph()
-        arch_search.generate_unrolled_arch(
-            hw, cfg_node_to_hw_map, simulator.data_path, simulator.id_to_node
+        simulator.data_path = arch_search.generate_unrolled_arch(
+            hw, cfg_node_to_hw_map, simulator.data_path, simulator.id_to_node, args.area, args.bw
         )
+    
     
     for elem in simulator.data_path:
         if elem[0] not in simulator.unroll_at.keys():
+            print(f"adding {elem[0]} to unroll_at")
             simulator.unroll_at[elem[0]] = False
 
     hw.init_memory(sim_util.find_nearest_mem_to_scale(simulator.memory_needed), sim_util.find_nearest_mem_to_scale(simulator.nvm_memory_needed))
@@ -727,12 +733,7 @@ def main():
 
     data = simulator.simulate(cfg, cfg_node_to_hw_map, hw, True)  # graphs
 
-    area = 0
-    for elem_name, elem_data in dict(hw.netlist.nodes.data()).items():
-        scaling = 1
-        if elem_data["function"] in ["Regs", "Buf", "MainMem"]:
-            scaling = elem_data["size"]
-        area += hw.area[elem_data["function"]] * scaling
+    area = hw.get_total_area()
 
     print(f"compute area: {area * 1e-6} um^2")
     print(f"memory area: {hw.mem_area * 1e6} um^2")
@@ -794,8 +795,8 @@ if __name__ == "__main__":
     parser.add_argument("--notrace", action="store_true")
     parser.add_argument("-s", "--archsearch", action=argparse.BooleanOptionalAction)
     parser.add_argument("-a", "--area", type=float, help="Max Area of the chip in um^2")
-
+    parser.add_argument("-b", "--bw", type=float, help="Compute - Memory Bandwidth in ??GB/s??")
     args = parser.parse_args()
-    print(f"args: {args.benchmark}, {args.notrace}, {args.archsearch}, {args.area}")
+    print(f"args: benchmark: {args.benchmark}, trace:{args.notrace}, search:{args.archsearch}, area:{args.area}, bw:{args.bw}")
 
     main()

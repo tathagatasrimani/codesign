@@ -1,11 +1,12 @@
 #!/bin/sh
-while getopts a:sqn: flag
+while getopts a:b:sqn: flag
 do
     case "${flag}" in
         n) name=${OPTARG};;
         q) QUIET=true;;
         s) SEARCH=true;;
         a) AREA=${OPTARG};;
+        b) BW=${OPTARG};;
     esac
 done
 
@@ -24,6 +25,9 @@ if [ $name ]; then
     fi
     if [ $AREA ]; then
         ARGS+=" --area $AREA"
+    fi
+    if [ $BW ]; then
+        ARGS+=" --bw $BW"
     fi
     echo $ARGS
     python simulate.py $ARGS

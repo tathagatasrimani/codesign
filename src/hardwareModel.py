@@ -262,6 +262,15 @@ class HardwareModel:
             cycles=self.cycles, allocated=str(self.hw_allocated)
         )
 
+    def get_total_area(self):
+        total_area = 0
+        for node, data in self.netlist.nodes.data():
+            scaling = 1
+            if data["function"] in ["Regs", "Buf", "MainMem"]:
+                scaling = data["size"]
+            total_area += self.area[data["function"]] * scaling
+        return total_area
+
 
 class SymbolicHardwareModel:
     def __init__(self, id, bandwidth, loop_counts={}, var_sizes={}):

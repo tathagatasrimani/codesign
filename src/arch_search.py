@@ -25,22 +25,12 @@ def generate_new_min_arch(hw: HardwareModel, cfg_node_to_hw_map, data_path, id_t
         id_to_node (dict): A mapping of node ids to CFG nodes.
     """
     print(f"Architecture Search Running...")
-    i, pattern_seek, max_iters = sim_util.find_next_data_path_index(
-        data_path, i=0, mallocs=[], frees=[]
-    )
-    # iterate through nodes in data dependency graph
-    while i < len(data_path):
-        (
-            next_ind,
-            pattern_seek_next,
-            max_iters_next,
-        ) = sim_util.find_next_data_path_index(data_path, i + 1, [], [])
-
-        if i == len(data_path):
-            break
-
+    
+    for i in range(len(data_path)):
         # init vars for new node in cfg data path
         node_id = data_path[i][0]
+        if node_id not in id_to_node.keys():
+            continue
         cur_node = id_to_node[node_id]
 
         hw_graph = cfg_node_to_hw_map[cur_node]
@@ -51,8 +41,6 @@ def generate_new_min_arch(hw: HardwareModel, cfg_node_to_hw_map, data_path, id_t
 
         hardwareModel.un_allocate_all_in_use_elements(hw.netlist)
 
-
-        i = next_ind
     hw.netlist.add_node("Buf0", function="Buf", size=1)
     hw.netlist.add_node("Mem0", function="MainMem", size=1)
     hw.netlist.add_edge("Buf0", "Mem0")
@@ -64,10 +52,10 @@ def generate_new_min_arch(hw: HardwareModel, cfg_node_to_hw_map, data_path, id_t
 
 
 def generate_unrolled_arch(
-    hw: HardwareModel, cfg_node_to_hw_map, data_path, id_to_node
+    hw: HardwareModel, cfg_node_to_hw_map, data_path, id_to_node, area_constraint, bw_constraint
 ):
-    print(f"Architecture Search Running...")
-    print(f"Data Path: {data_path}")
+    print(f"Generating Unrolled Architecture...")
+    # print(f"Data Path: {data_path}")
     # count statistics of data path
     unique, count = np.unique([str(elem) for elem in data_path], return_counts=True)
     # print(f"Unique: {unique}, Count: {count}")
@@ -75,7 +63,9 @@ def generate_unrolled_arch(
     sorted_counts = sorted(count, reverse=True)
     # print(f"After sort Unique: {sorted_nodes}, Count: {sorted_counts}")
     # print(f"most common elem: {list(sorted_nodes[0])}")
+    # saved_elem = list(sorted_nodes)[0]
     # get number of continuous most common node:
+    # there should be a better way to do this
     max_continuous = 1
     prev = 0
     cont = 1
@@ -91,46 +81,65 @@ def generate_unrolled_arch(
         prev = elem
     print(f"Max Continuous: {max_continuous}")
 
-    # add entry to cfg_node_to_hw_map with unrolled dfg with 
+
+    new_data_path = unroll_by_specified_factor(cfg_node_to_hw_map, data_path, id_to_node, max_continuous, saved_elem)
+
+    print(f"Final Data Path:\n{new_data_path}")
+    # make call to gen_min_arch with new cfg_node_to_hw_map
+    unique_data_path = [list(x) for x in set(tuple(x) for x in new_data_path)]
+    print(f"Unique Data Path: {unique_data_path}")
+    generate_new_min_arch(hw, cfg_node_to_hw_map, unique_data_path, id_to_node)
+
+    # if area exceeds threshold, decrease unroll factor by 2x and try again
+    area = hw.get_total_area()
+    # if area is less than threshold, try to unloop next loop level.
+
+    return new_data_path 
+
+def unroll_by_specified_factor(cfg_node_to_hw_map: dict, data_path: list, id_to_node: dict, unroll_factor: int, specified_node):
+    """
+    
+    """
+    print(f"Unrolling by {unroll_factor}X...")
+
+    # add entry to cfg_node_to_hw_map with unrolled dfg with
     # unroll factor equal to max_continuous
-    single_node_comp_graph = cfg_node_to_hw_map[id_to_node[saved_elem[0]]].copy()
+    single_node_comp_graph = cfg_node_to_hw_map[id_to_node[specified_node[0]]].copy()
     copy = single_node_comp_graph.copy()
 
-    for i in range(max_continuous - 1):
+    for i in range(unroll_factor - 1):
         sim_util.rename_nodes(single_node_comp_graph, copy)
         single_node_comp_graph = nx.union(single_node_comp_graph, copy)
-    
+
     sim_util.topological_layout_plot(single_node_comp_graph)
 
     # iterate through data path and replace nodes with unrolled nodes
-    blk = Block(int(saved_elem[0]) * max_continuous)
+    blk = Block(int(specified_node[0]) * unroll_factor)
+    # edit these in place
     cfg_node_to_hw_map[blk] = single_node_comp_graph
     id_to_node[blk.id] = blk
 
+    new_data_path = data_path.copy()
     count = 0
     i = 0
     # print(f"initial length of data path: {len(data_path)}")
-    while i < len(data_path):
-        elem = data_path[i]
+    while i < len(new_data_path):
+        elem = new_data_path[i]
         # print(f"idx {i}, elem: {elem}, saved_elem: {saved_elem}")
-        if elem == saved_elem:
+        if elem == specified_node:
             count += 1
-            if count == max_continuous:
+            if count == unroll_factor:
                 # print(f"found {max_continuous} continuous nodes; startin popping")
                 while count > 0:
-                    elem_poppped = data_path.pop(i - max_continuous + 1)
+                    elem_poppped = new_data_path.pop(i - unroll_factor + 1)
                     # print(f"popped elem: {elem_poppped}")
                     count -= 1
-                i = i - max_continuous + 1
+                i = i - unroll_factor + 1
                 # print(f"new len of data path after poppping:{len(data_path)}\n{data_path}")
                 # print(f"i after popping: {i}; inserting new node before {data_path[i]}")
-                data_path.insert(i, [blk.id, 0])
-        elif elem != saved_elem:
+                new_data_path.insert(i, [blk.id, 0])
+        elif elem != specified_node:
             count = 0
         i += 1
-    print(f"Final Data Path:\n{data_path}")
-    # make call to gen_min_arch with new cfg_node_to_hw_map
-    generate_new_min_arch(hw, cfg_node_to_hw_map, data_path, id_to_node)
-    # if area exceeds threshold, decrease unroll factor by 2x and try again
 
-    # if area is less than threshold, try to unloop next loop level.
+    return new_data_path
