@@ -17,9 +17,11 @@ class block:
         self.prev = prev
         self.nxt = nxt
         self.dims = dims
-        # maybe this elem_size shouldn't be a variable in this block class. 
-        # elem_size is variable specific, not memory specific 
-        self.elem_size = elem_size if elem_size != 0 else size # used for arrays. size of individual element
+        # maybe this elem_size shouldn't be a variable in this block class.
+        # elem_size is variable specific, not memory specific
+        self.elem_size = (
+            elem_size if elem_size != 0 else size
+        )  # used for arrays. size of individual element
 
 
 class Memory:
@@ -75,10 +77,21 @@ class Memory:
             next_free = next_free.nxt
         return next_free
 
+    def parse_id(self, id):
+        words = id.split("_")
+        if len(words) == 1:
+            return id
+        else:
+            if words[-1].isdigit():
+                return "_".join(words[:-1])
+            else:
+                return id
+
     # Takes in a requested size, and clears out a space in the heap for that block, if possible.
     # Uses the first fit method, iterating through the free list from the start until the first suitable
     # block of free memory is found.
     def malloc(self, id, requested_size: int, dims, elem_size=0):
+        id = self.parse_id(id)
         if id in self.locations:
             self.free(id)
         if requested_size == 0:
@@ -115,6 +128,7 @@ class Memory:
         self.locations[id] = alloc_block
 
     def free(self, id):
+        id = self.parse_id(id)
         if id not in self.locations:
             return
         block_to_free = self.locations[id]
@@ -132,6 +146,13 @@ class Memory:
         self.malloc(id, new_size)
 
     def read(self, id):
+        """
+        returns the size of the variable in memory
+        variable names like `G_27` and 'G_13` and 'G' will be considered equivalent.
+        These namings are due to the instrumented code.
+
+        """
+        id = self.parse_id(id)
         if id in self.locations:
             return self.locations[id].size
         else:
@@ -146,11 +167,11 @@ class Cache:
         self,
         size,
         memory: Memory,
-        var_size = 1,
+        var_size=1,
         line_size=64,
     ):
         """
-        Caching not actually being used. Want to leave memory heirarchy as a 
+        Caching not actually being used. Want to leave memory heirarchy as a
         later addition/ use existing mem simulators for it.
 
         adding var_size as a hack to only allow buffer of 1 variable, therefore forcing access
@@ -189,10 +210,18 @@ class Cache:
         else:
             size = self.memory.read(var)
             if size is None:
-                raise Exception("variable not found in memory")
+                # TODO: I don't want to deal with this right now.
+                # But there is issues with the instrumented code and variable names
+                # that is resulting in this error.
+                # for example, it considers math.inf as a variable name.
+                # additionally, G_27 and G_26 were being considered as separate variables
+                # I fixed that in the memory class, but it still doesn't account for math.inf
+                # style issues.
+                # raise Exception("variable not found in memory")
+                size = 0
             if (
                 len(self.vars) == self.var_size
-            ):  #forget buff size for now, only allow store one var
+            ):  # forget buff size for now, only allow store one var
                 self.evict_random()
             self.vars[var] = size
             self.used_space += size

@@ -434,6 +434,8 @@ class HardwareSimulator:
 
                 if node_id not in visited_node_ids:
                     if not sim_util.verify_can_execute(hw_graph, hw.netlist):
+                        print(f"nodes: {hw_graph.nodes.data()}")
+                        print(f"edges: {hw_graph.edges}")
                         nx.draw(hw_graph, with_labels=True)
                         plt.show()
                         raise Exception(
@@ -691,7 +693,8 @@ def main():
     )
 
     # computation_dfg = simulator.compose_entire_computation_graph(cfg_node_to_hw_map)
-
+    print(f"Data Path: {simulator.data_path}")
+    
     if args.archsearch:
         hw.netlist = nx.DiGraph()
         simulator.data_path = arch_search.generate_unrolled_arch(

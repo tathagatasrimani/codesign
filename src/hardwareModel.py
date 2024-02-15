@@ -111,8 +111,8 @@ class HardwareModel:
         self, id, bandwidth, mem_layers, pitch, transistor_size, cache_size
     ):
         self.id = id
-        self.max_bw = bandwidth
-        self.bw_avail = bandwidth
+        self.max_bw = bandwidth # this doesn't really get used. deprecate?
+        self.bw_avail = bandwidth # deprecate?
         self.mem_layers = mem_layers
         self.pitch = pitch
         self.transistor_size = transistor_size

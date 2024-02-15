@@ -515,16 +515,14 @@ def read_random_graph_from_file(n, p, wts=[1]):
     print('exit scope 30')
 
 
+def main():
+    print('enter scope 31')
+    print(1, 308)
+    print(215, 309)
+    G_31 = randomGraph(7, 0.2)
+    dijkstra_shortestPaths(G_31.vertices[0], G_31)
+    print('exit scope 31')
+
+
 if __name__ == '__main__':
-    loop.start_unroll
-    print(214, 310)
-    G_NVM = read_random_graph_from_file(5, 0.2)
-    BFS_shortestPaths(G_NVM.vertices[0], G_NVM)
-    dijkstraDumb_shortestPaths(G_NVM.vertices[0], G_NVM)
-    print(214, 313)
-    G_NVM = randomGraph(5, 0.4, [1, 2, 3, 4, 5])
-    dijkstra_shortestPaths(G_NVM.vertices[0], G_NVM)
-    print(214, 315)
-    nValues_0 = [10]
-    print(214, 316)
-    nDijkstra_0, tDijkstra_0 = runTrials(BFS, nValues_0, smallFrac)
+    main()

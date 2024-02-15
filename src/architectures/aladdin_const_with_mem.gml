@@ -78,6 +78,40 @@ graph [
     idx 0
     size 1024
   ]
+  node [
+    id 9
+    label "Regs3"
+    type "memory"
+    function "Regs"
+    in_use 0
+    size 1
+    idx 3
+  ]
+  edge [
+    source 1
+    target 2
+  ]
+  edge [
+    source 2
+    target 1
+  ]
+
+  edge [
+    source 3
+    target 9
+  ]
+  edge [
+    source 9
+    target 3
+  ]
+  edge [
+    source 7
+    target 9
+  ]
+  edge [
+    source 9
+    target 7
+  ]
   edge [
     source 0
     target 1
@@ -112,7 +146,7 @@ graph [
   ]
   edge [
     source 1
-    target 6
+    target 7
   ]
   edge [
     source 2
@@ -187,11 +221,11 @@ graph [
     target 3
   ]
   edge [
-    source 6
+    source 7
     target 1
   ]
   edge [
-    source 6
+    source 7
     target 8
   ]
   edge [
@@ -201,14 +235,6 @@ graph [
   edge [
     source 7
     target 3
-  ]
-  edge [
-    source 7
-    target 8
-  ]
-  edge [
-    source 8
-    target 6
   ]
   edge [
     source 8

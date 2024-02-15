@@ -2208,61 +2208,33 @@ def read_random_graph_from_file(n, p, wts=[1]):
     print('exit scope 30')
 
 
+def main():
+    print('enter scope 31')
+    print(1, 308)
+    print(215, 309)
+    G_31 = randomGraph(7, 0.2)
+    write_instrument_read(G_31, 'G_31')
+    if type(G_31) == np.ndarray:
+        print('malloc', sys.getsizeof(G_31), 'G_31', G_31.shape)
+    elif type(G_31) == list:
+        dims = []
+        tmp = G_31
+        while type(tmp) == list:
+            dims.append(len(tmp))
+            if len(tmp) > 0:
+                tmp = tmp[0]
+            else:
+                tmp = None
+        print('malloc', sys.getsizeof(G_31), 'G_31', dims)
+    elif type(G_31) == tuple:
+        print('malloc', sys.getsizeof(G_31), 'G_31', [len(G_31)])
+    else:
+        print('malloc', sys.getsizeof(G_31), 'G_31')
+    dijkstra_shortestPaths(instrument_read_sub(instrument_read(G_31, 'G_31'
+        ).vertices, 'G_31.vertices', 0, None, None, False), instrument_read
+        (G_31, 'G_31'))
+    print('exit scope 31')
+
+
 if instrument_read(__name__, '__name__') == '__main__':
-    instrument_read(loop, 'loop').start_unroll
-    print(214, 310)
-    G_NVM = read_random_graph_from_file(5, 0.2)
-    BFS_shortestPaths(instrument_read_sub(instrument_read(G_NVM, 'G_NVM').
-        vertices, 'G_NVM.vertices', 0, None, None, False), instrument_read(
-        G_NVM, 'G_NVM'))
-    dijkstraDumb_shortestPaths(instrument_read_sub(instrument_read(G_NVM,
-        'G_NVM').vertices, 'G_NVM.vertices', 0, None, None, False),
-        instrument_read(G_NVM, 'G_NVM'))
-    print(214, 313)
-    G_NVM = randomGraph(5, 0.4, [1, 2, 3, 4, 5])
-    dijkstra_shortestPaths(instrument_read_sub(instrument_read(G_NVM,
-        'G_NVM').vertices, 'G_NVM.vertices', 0, None, None, False),
-        instrument_read(G_NVM, 'G_NVM'))
-    print(214, 315)
-    nValues_0 = [10]
-    write_instrument_read(nValues_0, 'nValues_0')
-    if type(nValues_0) == np.ndarray:
-        print('malloc', sys.getsizeof(nValues_0), 'nValues_0', nValues_0.shape)
-    elif type(nValues_0) == list:
-        dims = []
-        tmp = nValues_0
-        while type(tmp) == list:
-            dims.append(len(tmp))
-            if len(tmp) > 0:
-                tmp = tmp[0]
-            else:
-                tmp = None
-        print('malloc', sys.getsizeof(nValues_0), 'nValues_0', dims)
-    elif type(nValues_0) == tuple:
-        print('malloc', sys.getsizeof(nValues_0), 'nValues_0', [len(nValues_0)]
-            )
-    else:
-        print('malloc', sys.getsizeof(nValues_0), 'nValues_0')
-    print(214, 316)
-    nDijkstra_0, tDijkstra_0 = runTrials(instrument_read(BFS, 'BFS'),
-        instrument_read(nValues_0, 'nValues_0'), instrument_read(smallFrac,
-        'smallFrac'))
-    write_instrument_read(tDijkstra_0, 'tDijkstra_0')
-    if type(tDijkstra_0) == np.ndarray:
-        print('malloc', sys.getsizeof(tDijkstra_0), 'tDijkstra_0',
-            tDijkstra_0.shape)
-    elif type(tDijkstra_0) == list:
-        dims = []
-        tmp = tDijkstra_0
-        while type(tmp) == list:
-            dims.append(len(tmp))
-            if len(tmp) > 0:
-                tmp = tmp[0]
-            else:
-                tmp = None
-        print('malloc', sys.getsizeof(tDijkstra_0), 'tDijkstra_0', dims)
-    elif type(tDijkstra_0) == tuple:
-        print('malloc', sys.getsizeof(tDijkstra_0), 'tDijkstra_0', [len(
-            tDijkstra_0)])
-    else:
-        print('malloc', sys.getsizeof(tDijkstra_0), 'tDijkstra_0')
+    main()

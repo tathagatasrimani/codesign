@@ -305,12 +305,10 @@ def read_random_graph_from_file(n, p, wts=[1]):
     return randomGraph(n_30, p_30, wts_30)
 
 
+def main():
+    G_31 = randomGraph(7, 0.2)
+    dijkstra_shortestPaths(G_31.vertices[0], G_31)
+
+
 if __name__ == '__main__':
-    loop.start_unroll
-    G_NVM = read_random_graph_from_file(5, 0.2)
-    BFS_shortestPaths(G_NVM.vertices[0], G_NVM)
-    dijkstraDumb_shortestPaths(G_NVM.vertices[0], G_NVM)
-    G_NVM = randomGraph(5, 0.4, [1, 2, 3, 4, 5])
-    dijkstra_shortestPaths(G_NVM.vertices[0], G_NVM)
-    nValues_0 = [10]
-    nDijkstra_0, tDijkstra_0 = runTrials(BFS, nValues_0, smallFrac)
+    main()
