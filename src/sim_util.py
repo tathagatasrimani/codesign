@@ -2,9 +2,9 @@ import math
 import ast
 import networkx as nx
 import numpy as np
+import matplotlib.pyplot as plt
 
 import dfg_algo
-from hardwareModel import HardwareModel
 
 
 # adds all mallocs and frees to vectors, and finds the next cfg node in the data path,
@@ -56,7 +56,7 @@ def find_next_data_path_index(data_path, i, mallocs, frees):
     return i, pattern_seek, max_iters
 
 
-def find_nearest_mem_to_scale(num):
+def find_nearest_power_2(num):
     """
     Finds the nearest memory size to scale based on the input.
 
@@ -66,6 +66,8 @@ def find_nearest_mem_to_scale(num):
     Returns:
         int: The nearest appropriate memory size.
     """
+    if num == 0:
+        return 0
     if num < 512:
         return 512
     if num > 536870912:
@@ -137,24 +139,15 @@ def get_matching_bracket_count(name):
     return bracket_count
 
 
-def get_hw_need_lite(state, hw_spec):
+def get_var_name_from_arr_access(arr_access):
     """
-    DEPRECATED.
+    Convert 'b[i][j]' -> 'b'.
+    So that memory operations can be performed on the variable b.
     """
-    hw_need = HardwareModel(
-        id=0,
-        bandwidth=0,
-        mem_layers=hw_spec.mem_layers,
-        pitch=hw_spec.pitch,
-        transistor_size=hw_spec.transistor_size,
-        cache_size=hw_spec.cache_size,
-    )
-    for op in state:
-        # print(f"op: {op}")
-        if not op.operation:
-            continue
-        hw_need.hw_allocated[op.operation] += 1
-    return hw_need.hw_allocated
+    bracket_ind = arr_access.find("[")
+    if bracket_ind != -1:
+        return arr_access[:bracket_ind]
+    return arr_access
 
 
 def get_dims(arr):
@@ -209,7 +202,7 @@ def verify_can_execute(computation_graph, hw_spec_netlist, should_update_arch=Fa
     it should always allocate 10 adders to this node. <- TODO: VERIFY EXPERIMENTALLY
 
     if should_update_arch is true, does a graph compose onto the netlist, and returns the new netlist.
-    This is done here to avoid looping over the topo ordering twice. 
+    This is done here to avoid looping over the topo ordering twice.
 
     Raises exception if the hardware cannot execute the computation graph.
 
@@ -241,22 +234,35 @@ def verify_can_execute(computation_graph, hw_spec_netlist, should_update_arch=Fa
         if not dgm.subgraph_is_monomorphic():
             if should_update_arch:
                 hw_spec_netlist = update_arch(temp_C, hw_spec_netlist)
+                dgm = nx.isomorphism.DiGraphMatcher(
+                    hw_spec_netlist,
+                    temp_C,
+                    node_match=lambda n1, n2: n1["function"] == n2["function"]
+                    or n2["function"]
+                    == None,  # hw_graph can have no ops, but netlist should not
+                )
             else:
                 return False
+
+        mapping = dgm.subgraph_monomorphisms_iter().__next__()
+        for hw_node, op in mapping.items():
+            hw_spec_netlist.nodes[hw_node]["allocation"].append(op.split(";")[0])
+            computation_graph.nodes[op]["allocation"] = hw_node
+
     if should_update_arch:
         return hw_spec_netlist
-    else: 
+    else:
         return True
 
 
 def update_arch(computation_graph, hw_netlist):
     """
-    Updates the hardware architecture to include the computation graph. 
-    Based on graph composition. But need to rename nodes in computation graph to s.t. nodes are not 
+    Updates the hardware architecture to include the computation graph.
+    Based on graph composition. But need to rename nodes in computation graph s.t. nodes are not
     unnecessarily duplicated. For example, nodes in two different computation_graph
     maybe named '+;39' gets renamed to 'Add0', and 'a[i][j]' gets renamed to 'Reg0';
     This ensures the next time we're trying to compose '+;40' we can compose that onto 'Add0'
-    instead of creating a new node. 
+    instead of creating a new node.
     """
 
     c_graph_func_counts = {}
@@ -267,8 +273,49 @@ def update_arch(computation_graph, hw_netlist):
             c_graph_func_counts[func] = 0
         mapping[node] = func + str(c_graph_func_counts[func])
         c_graph_func_counts[func] += 1
-    nx.relabel_nodes(computation_graph, mapping, copy=False)
-    print(f"new_c_graph: {computation_graph.nodes.data()}")
+    comp_graph = nx.relabel_nodes(computation_graph, mapping, copy=True)
 
-    composition = nx.compose(hw_netlist, computation_graph)
+    composition = nx.compose(hw_netlist, comp_graph)
+    for n in composition.nodes:
+        composition.nodes[n]["allocation"] = []
     return composition
+
+
+def rename_nodes(G, H):
+    """
+    Rename nodes in H to avoid collisions in G.
+    """
+    relabelling = {}
+    for node in H.nodes:
+        new_node = node
+        while new_node in G or new_node in relabelling.values():
+            # Rename the node to avoid collision
+            new_node = get_unique_node_name(G, new_node)
+        # G.nodes[new_node].update(H.nodes[node])
+        relabelling[node] = new_node
+    nx.relabel_nodes(H, relabelling, copy=False)
+
+
+def get_unique_node_name(G, node):
+    var_name, count = node.split(";")
+    count = int(count)
+    count += 1 
+    new_node = f"{var_name};{count}"
+    while new_node in G:
+        count += 1
+        new_node = f"{var_name};{count}"
+    return new_node
+
+def topological_layout_plot(graph):
+    for layer, nodes in enumerate(nx.topological_generations(graph)):
+            # `multipartite_layout` expects the layer as a node attribute, so add the
+            # numeric layer value as a node attribute
+        for node in nodes:
+            graph.nodes[node]["layer"] = layer
+
+    # Compute the multipartite_layout using the "layer" node attribute
+    pos = nx.multipartite_layout(graph, subset_key="layer")
+
+    fig, ax = plt.subplots()
+    nx.draw_networkx(graph, pos=pos, ax=ax)
+    plt.show()

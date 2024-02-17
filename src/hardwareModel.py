@@ -11,6 +11,9 @@ import networkx as nx
 
 from staticfg.builder import CFGBuilder
 from ast_utils import ASTUtils
+from memory import Memory, Cache
+from config_dicts import op2sym_map
+
 
 HW_CONFIG_FILE = "hw_cfgs.ini"
 
@@ -18,87 +21,14 @@ benchmark = "simple"
 expr_to_node = {}
 func_ref = {}
 
-op2sym_map = {
-    "And": "and",
-    "Or": "or",
-    "Add": "+",
-    "Sub": "-",
-    "Mult": "*",
-    "FloorDiv": "//",
-    "Mod": "%",
-    "LShift": "<<",
-    "RShift": ">>",
-    "BitOr": "|",
-    "BitXor": "^",
-    "BitAnd": "&",
-    "Eq": "==",
-    "NotEq": "!=",
-    "Lt": "<",
-    "LtE": "<=",
-    "Gt": ">",
-    "GtE": ">=",
-    "IsNot": "!=",
-    "USub": "-",
-    "UAdd": "+",
-    "Not": "!",
-    "Invert": "~",
-    "Regs": "Regs",
-}
-
-latency_scale = {
-    512: 1,
-    1024: 2,
-    2048: 3,
-    4096: 4,
-    8192: 5,
-    16384: 6,
-    32768: 7,
-    65536: 8,
-    131072: 9,
-    262144: 10,
-    524288: 11,
-    1048576: 12,
-    2097152: 13,
-    4194304: 14,
-    8388608: 15,
-    16777216: 16,
-    33554432: 17,
-    67108864: 18,
-    134217728: 19,
-    268435456: 20,
-    536870912: 21,
-}
-
-power_scale = {
-    512: 1,
-    1024: 2,
-    2048: 3,
-    4096: 4,
-    8192: 5,
-    16384: 6,
-    32768: 7,
-    65536: 8,
-    131072: 9,
-    262144: 10,
-    524288: 11,
-    1048576: 12,
-    2097152: 13,
-    4194304: 14,
-    8388608: 15,
-    16777216: 16,
-    33554432: 17,
-    67108864: 18,
-    134217728: 19,
-    268435456: 20,
-    536870912: 21,
-}
-
-
 ## WRAP ALL OF THESE METHODS INTO A 'NETLIST' CLASS
 ## Shoudl have an NX graph object as the main instance variable.
 
 
 def get_nodes_by_filter(netlist, key, value):
+    """
+    returns dict of nodes:data that satisfy the filter
+    """
     return {k: v for k, v in dict(netlist.nodes.data()).items() if v[key] == value}
 
 
@@ -120,7 +50,13 @@ def num_nodes_with_func(netlist, func):
 def un_allocate_all_in_use_elements(netlist):
     for k, v in dict(netlist.nodes.data()).items():
         v["in_use"] = False
+        v["allocation"] = []
 
+def get_memory_node(netlist):
+    """
+    returns dict
+    """
+    return get_nodes_with_func(netlist, "MainMem")
 
 class HardwareModel:
     def __init__(
@@ -175,12 +111,38 @@ class HardwareModel:
         self, id, bandwidth, mem_layers, pitch, transistor_size, cache_size
     ):
         self.id = id
-        self.max_bw = bandwidth
-        self.bw_avail = bandwidth
+        self.max_bw = bandwidth # this doesn't really get used. deprecate?
+        self.bw_avail = bandwidth # deprecate?
         self.mem_layers = mem_layers
         self.pitch = pitch
         self.transistor_size = transistor_size
         self.cache_size = cache_size
+
+    def init_memory(self, mem_needed, nvm_mem_needed):
+        """
+        Add a Memory Module to the netlist for each MainMem node.
+        Add a Cache Module to the netlist for each Buf node.
+        Params:
+        mem_needed: int
+        nvm_mem_needed: int - not yet implemented
+        """
+        for node, data in dict(
+            filter(lambda x: x[1]["function"] == "MainMem", self.netlist.nodes.data())
+        ).items(): # should only have 1
+            data["memory_module"] = Memory(mem_needed)
+            data["size"] = mem_needed
+
+        for node, data in dict(
+            filter(lambda x: x[1]["function"] == "Buf", self.netlist.nodes.data())
+        ).items():
+            edges = self.netlist.edges(node)
+
+            for edge in edges:
+                if self.netlist.nodes[edge[1]]["function"] == "MainMem":
+                    # for now there is only one neighbor that is MainMem.
+                    data["memory_module"] = Cache(
+                        data["size"], self.netlist.nodes[edge[1]]["memory_module"], var_size=1
+                    )
 
     ## Deprecated
     def allocate_hw_from_config(self, config):
@@ -233,11 +195,15 @@ class HardwareModel:
         # print(f"dynamic_allocation flag: {self.dynamic_allocation}")
 
     def set_technology_parameters(self):
+        """
+        I Want to Deprecate everything that takes into account 3D with indexing by pitch size
+        and number of mem layers.
+        """
         tech_params = yaml.load(open("tech_params.yaml", "r"), Loader=yaml.Loader)
 
         self.area = tech_params["area"][self.transistor_size]
         self.latency = tech_params["latency"][self.transistor_size]
-        self.latency_scale = latency_scale
+
         self.dynamic_power = tech_params["dynamic_power"][self.transistor_size]
         self.leakage_power = tech_params["leakage_power"][self.transistor_size]
         # print(f"t_size: {self.transistor_size}, cache: {self.cache_size}, mem_layers: {self.mem_layers}, pitch: {self.pitch}")
@@ -256,7 +222,7 @@ class HardwareModel:
         self.mem_leakage_power = tech_params["mem_leakage_power"][self.cache_size][
             self.mem_layers
         ][self.pitch]
-        # how does mem latency get incorporated? Currently reg latency = mem_latency. Is this why my num clock cycles is so high?
+        # how does mem latency get incorporated?
         ## DO THIS!!!!
 
     def update_cache_size(self, cache_size):
@@ -281,10 +247,6 @@ class HardwareModel:
         for key in op2sym_map.keys():
             self.hw_allocated[key] = 0
 
-        # I shouldn't have the whole dict as an instance variable, the instance var
-        # should be a single scalar based on some tech/ application parameters.
-        self.power_scale = power_scale
-
     def set_loop_counts(self, loop_counts):
         self.loop_counts = loop_counts
 
@@ -300,6 +262,22 @@ class HardwareModel:
             cycles=self.cycles, allocated=str(self.hw_allocated)
         )
 
+    def get_total_area(self):
+        total_area = 0
+        for node, data in self.netlist.nodes.data():
+            scaling = 1
+            if data["function"] in ["Regs", "Buf", "MainMem"]:
+                scaling = data["size"]
+            total_area += self.area[data["function"]] * scaling
+        return total_area * 1e-6 # convert from nm^2 to um^2
+
+    def get_mem_compute_bw(self):
+        """
+        get edges between buf0 and Regs
+        """
+        edges = list(filter(lambda x: "Reg" in x[0], self.netlist.in_edges("Buf0")))
+        n = len(edges)
+        return n
 
 class SymbolicHardwareModel:
     def __init__(self, id, bandwidth, loop_counts={}, var_sizes={}):

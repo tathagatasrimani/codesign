@@ -51,7 +51,7 @@ class CS161Vertex:
     
     def addInNeighbor(self,v,wt):
         self.inNeighbors.append((v,wt))
-        
+
 # This is a directed graph class for use in CS161.
 # It can also be used as an undirected graph by adding edges in both directions.
 class CS161Graph:
@@ -79,7 +79,7 @@ class CS161Graph:
             for u, wt in v.getOutNeighborsWithWeights():
                 ret.append( [v,u,wt] )
         return ret
-    
+
 class CS161Graph:
     def __init__(self):
         self.vertices = []
@@ -105,7 +105,7 @@ class CS161Graph:
             for u, wt in v.getOutNeighborsWithWeights():
                 ret.append( [v,u,wt] )
         return ret
-    
+
 # make a random graph
 # This is G(n,p), where we have n vertices and each (directed) edge is present with probability p.
 # if you pass in a set of weights, then the weights are chosen uniformly from that set.
@@ -229,7 +229,7 @@ def dijkstra_shortestPaths(w,G):
         path.append(current)
         path.reverse()
 
-# generate a bunch of random graphs and run an alg to compute shortest paths (implicitly)  
+# generate a bunch of random graphs and run an alg to compute shortest paths (implicitly)
 def runTrials(myFn, nVals, pFn, numTrials=1):
     nValues = []
     tValues = []
@@ -253,13 +253,15 @@ def smallFrac(n):
 def read_random_graph_from_file(n, p, wts=[1]):
     return randomGraph(n, p, wts)
 
-if __name__ == "__main__":
-    loop.start_unroll
+def main():
     # test on a random graph
-    G = read_random_graph_from_file(5,.2)
-    BFS_shortestPaths(G.vertices[0],G)
-    dijkstraDumb_shortestPaths(G.vertices[0], G)    
-    G = randomGraph(5,.4,[1,2,3,4,5])
+    G = randomGraph(7, 0.3)
+    # BFS_shortestPaths(G.vertices[0],G)
+    # dijkstraDumb_shortestPaths(G.vertices[0], G)
+    # G = randomGraph(5,.4,[1,2,3,4,5])
     dijkstra_shortestPaths(G.vertices[0], G)
-    nValues = [10]
-    nDijkstra, tDijkstra = runTrials(BFS, nValues,smallFrac)
+    # nValues = [10]
+    # nDijkstra, tDijkstra = runTrials(BFS, nValues,smallFrac)
+
+if __name__ == "__main__":
+    main()
