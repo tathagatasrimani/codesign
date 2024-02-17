@@ -1,5 +1,5 @@
 # This file may be used to create an environment using:
-# $ conda create --name <env> --file <this file>
+# $ conda create --name <env> --file <this file> -c conda-forge
 # platform: osx-arm64
 appnope=0.1.3=pyhd8ed1ab_0
 astor=0.8.1=py311hca03da5_0
