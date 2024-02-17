@@ -131,7 +131,7 @@ class HardwareModel:
         ).items(): # should only have 1
             data["memory_module"] = Memory(mem_needed)
             data["size"] = mem_needed
-        
+
         for node, data in dict(
             filter(lambda x: x[1]["function"] == "Buf", self.netlist.nodes.data())
         ).items():
@@ -272,10 +272,11 @@ class HardwareModel:
         return total_area * 1e-6 # convert from nm^2 to um^2
 
     def get_mem_compute_bw(self):
-        # get edges between buf0 and Regs
+        """
+        get edges between buf0 and Regs
+        """
         edges = list(filter(lambda x: "Reg" in x[0], self.netlist.in_edges("Buf0")))
         n = len(edges)
-        print(f"number of edges between mem and compute: {n}")
         return n
 
 class SymbolicHardwareModel:
