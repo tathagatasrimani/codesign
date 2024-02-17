@@ -6,6 +6,12 @@ For AI applications, see [this codesign framework](https://github.com/r09g/ai_co
 
 ### Setup
 
+#### Inverse Pass
+The inverse pass builds symbolic equations using [sympy](https://docs.sympy.org/latest/index.html) and does optimization using [pyomo](https://pyomo.readthedocs.io/en/stable/index.html) using [ipopt](https://github.com/coin-or/Ipopt) as the solver. To install the dependencies appropriately follow the instructions [here](https://pyomo.readthedocs.io/en/stable/installation.html).
+
+If you are running on Apple Silicon, there are issues with the pyomo - ipopt plugin via libblas and liblapack libraries. In order to fix this follow the instructions suggested by user `fasmb24` in [this issue](https://forums.developer.apple.com/forums/thread/693696).
+
+
 ### Execution
 Run `./simulate.sh` from the `src` directory with the following arguments:
 ```
