@@ -430,7 +430,7 @@ class HardwareSimulator:
                                 cfg_node_to_hw_map[cur_node][k] + node_ops[k]
                             )
 
-                hw_graph = cfg_node_to_hw_map[cur_node]#.copy()
+                hw_graph = cfg_node_to_hw_map[cur_node]  # .copy()
 
                 if node_id not in visited_node_ids:
                     if not sim_util.verify_can_execute(hw_graph, hw.netlist):
@@ -516,7 +516,6 @@ class HardwareSimulator:
 
     def set_data_path(self):
         with open(self.path + "/instrumented_files/output.txt", "r") as f:
-            # f_new = open(self.path + '/instrumented_files/output_free.txt', 'w+')
             src = f.read()
             l = src.split("\n")
             split_lines = [l_.split() for l_ in l]  # idk what's happening here.
@@ -558,8 +557,6 @@ class HardwareSimulator:
             # second pass, construct trace that simulator follows.
             for i in range(len(split_lines)):
                 item = split_lines[i]
-                # if not (len(item) >= 3 and item[0] == "malloc" and item[2] not in self.vars_allocated):
-                #     f_new.write(l[i] + '\n')
                 vars_to_pop = []
                 for var_name in self.where_to_free:
                     if self.where_to_free[var_name] == i:
@@ -616,7 +613,7 @@ class HardwareSimulator:
             node = self.id_to_node[node_id]
             hw_graph = cfg_node_to_hw_map[node]
             if nx.is_empty(hw_graph):
-                i = sim_util.find_next_data_path_index(self.data_path, i+1, [], [])[0]
+                i = sim_util.find_next_data_path_index(self.data_path, i + 1, [], [])[0]
                 continue
             sim_util.rename_nodes(computation_dfg, hw_graph)
             print(f"hw_graph.nodes after rename: {hw_graph.nodes}")
@@ -629,13 +626,13 @@ class HardwareSimulator:
                 computation_dfg.add_edge(curr_last_node, rand_first_node)
             curr_last_node = rng.choice(generations[-1])
 
-            i = sim_util.find_next_data_path_index(self.data_path, i+1, [], [])[0]
+            i = sim_util.find_next_data_path_index(self.data_path, i + 1, [], [])[0]
         print(f"done composing computation graph")
 
         if plot:
             for layer, nodes in enumerate(nx.topological_generations(computation_dfg)):
-            # `multipartite_layout` expects the layer as a node attribute, so add the
-            # numeric layer value as a node attribute
+                # `multipartite_layout` expects the layer as a node attribute, so add the
+                # numeric layer value as a node attribute
                 for node in nodes:
                     computation_dfg.nodes[node]["layer"] = layer
 
@@ -655,9 +652,6 @@ class HardwareSimulator:
             latency: dict with latency of each compute element
         """
         cfg, graphs, self.unroll_at = dfg_algo.main_fn(self.path, benchmark)
-        # print(f"\nlen of graphs: {len(graphs)}\n")
-        # print(f"graphs in simulator_prep: {graphs}")
-        # print(f"cfg in simulator_prep: {cfg}")
         cfg_node_to_hw_map = schedule.schedule(cfg, graphs, latency)
         self.set_data_path()
         for node in cfg:
@@ -688,21 +682,26 @@ def main():
     # TODO: move this into cli arg
     hw = HardwareModel(cfg="aladdin_const_with_mem")
 
-    cfg, cfg_node_to_hw_map = simulator.simulator_prep(
-        args.benchmark, hw.latency
-    )
+    cfg, cfg_node_to_hw_map = simulator.simulator_prep(args.benchmark, hw.latency)
 
     # computation_dfg = simulator.compose_entire_computation_graph(cfg_node_to_hw_map)
     print(f"Data Path: {simulator.data_path}")
-    
+
     if args.archsearch:
         hw.netlist = nx.DiGraph()
         simulator.data_path = arch_search.generate_unrolled_arch(
-            hw, cfg_node_to_hw_map, simulator.data_path, simulator.id_to_node, args.area, args.bw, 
-            sim_util.find_nearest_power_2(simulator.memory_needed)
+            hw,
+            cfg_node_to_hw_map,
+            simulator.data_path,
+            simulator.id_to_node,
+            args.area,
+            args.bw,
+            sim_util.find_nearest_power_2(simulator.memory_needed),
         )
 
-    for elem in simulator.data_path: # can I do this elsewhere?
+    # can I do this elsewhere? needs to be done because 
+    # arch search unrolling creates new nodes
+    for elem in simulator.data_path:
         if elem[0] not in simulator.unroll_at.keys():
             simulator.unroll_at[elem[0]] = False
 
@@ -800,8 +799,12 @@ if __name__ == "__main__":
     parser.add_argument("--notrace", action="store_true")
     parser.add_argument("-s", "--archsearch", action=argparse.BooleanOptionalAction)
     parser.add_argument("-a", "--area", type=float, help="Max Area of the chip in um^2")
-    parser.add_argument("-b", "--bw", type=float, help="Compute - Memory Bandwidth in ??GB/s??")
+    parser.add_argument(
+        "-b", "--bw", type=float, help="Compute - Memory Bandwidth in ??GB/s??"
+    )
     args = parser.parse_args()
-    print(f"args: benchmark: {args.benchmark}, trace:{args.notrace}, search:{args.archsearch}, area:{args.area}, bw:{args.bw}")
+    print(
+        f"args: benchmark: {args.benchmark}, trace:{args.notrace}, search:{args.archsearch}, area:{args.area}, bw:{args.bw}"
+    )
 
     main()

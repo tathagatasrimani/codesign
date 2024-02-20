@@ -23,4 +23,5 @@ if [ $name ]; then
 
     echo $ARGS
     python symbolic_simulate.py $ARGS
+    python optimize.py
 fi

@@ -52,11 +52,13 @@ def un_allocate_all_in_use_elements(netlist):
         v["in_use"] = False
         v["allocation"] = []
 
+
 def get_memory_node(netlist):
     """
     returns dict
     """
     return get_nodes_with_func(netlist, "MainMem")
+
 
 class HardwareModel:
     def __init__(
@@ -280,6 +282,9 @@ class HardwareModel:
         return n
 
 class SymbolicHardwareModel:
+    """
+    Deprecated? Not used anymore?
+    """
     def __init__(self, id, bandwidth, loop_counts={}, var_sizes={}):
         self.max_bw = bandwidth
         self.bw_avail = bandwidth
