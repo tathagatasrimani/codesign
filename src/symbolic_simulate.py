@@ -55,7 +55,6 @@ class SymbolicHardwareSimulator:
 
     def symbolic_cycle_sim(self, computation_graph):
         """
-        Why is this called parallel?
         Don't need to do isomorphism check. Just need to generate topo generations.
         Since we'll get architectures from the forward pass. We'll assume that the architecture
         can execute the computation graph.
@@ -93,31 +92,6 @@ class SymbolicHardwareSimulator:
                         max_cycles + path_latency + abs(max_cycles - path_latency)
                     )
 
-        # for elem in hw_need:
-            # if hw_need[elem] == 0:
-            #     continue
-            # hw_spec[elem] = hw_need[
-            #     elem
-            # ]  # assuming that hw_need exactly matches the spec for now (dfg is the hardware)
-            # batch = math.ceil(hw_need[elem] / hw_spec[elem])
-            # # batch = self.get_batch(hw_need[elem], hw_spec[elem])
-            # # print("batch for", elem, "with need of", hw_need[elem], "and spec of", hw_spec[elem], "is", batch)
-            # active_energy = (
-            #     hw_need[elem]
-            #     * hw_symbols.symbolic_power_active[elem]
-            #     * hw_symbols.symbolic_latency_wc[elem]
-            # )
-            # energy_sum += active_energy
-            # passive_power += hw_spec[elem] * hw_symbols.symbolic_power_passive[elem]
-            # cycles_per_node = (
-            #     batch * hw_symbols.symbolic_latency_cyc[elem]
-            # )  # real latency in self.cycles
-            # # smooth max function
-            # max_cycles = 0.5 * (
-            #     max_cycles + cycles_per_node + abs(max_cycles - cycles_per_node)
-            # )
-            # # max_cycles = Max(max_cycles, cycles_per_node)
-            # # print("max_cycles:", max_cycles)
         energy_sum += passive_power * max_cycles
         self.cycles += max_cycles
         return max_cycles, energy_sum
