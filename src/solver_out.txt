@@ -5,7 +5,7 @@ This program contains Ipopt, a library for large-scale nonlinear optimization.
          For more information visit https://github.com/coin-or/Ipopt
 ******************************************************************************
 
-This is Ipopt version 3.14.14, running with linear solver MUMPS 5.6.2.
+This is Ipopt version 3.14.12, running with linear solver MUMPS 5.2.1.
 
 Number of nonzeros in equality constraint Jacobian...:        4
 Number of nonzeros in inequality constraint Jacobian.:        0
@@ -38,12 +38,12 @@ iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
 Number of Iterations....: 10
 
                                    (scaled)                 (unscaled)
-Objective...............:   1.0000000000126213e-01    1.0000000000126213e-01
-Dual infeasibility......:   5.8612865292022374e-12    5.8612865292022374e-12
-Constraint violation....:   1.3207799635787331e-20    1.3207799635787331e-20
+Objective...............:   1.0000000000126218e-01    1.0000000000126218e-01
+Dual infeasibility......:   5.8613771646922090e-12    5.8613771646922090e-12
+Constraint violation....:   1.3208213226093608e-20    1.3208213226093608e-20
 Variable bound violation:   0.0000000000000000e+00    0.0000000000000000e+00
-Complementarity.........:   2.5175327691685737e-09    2.5175327691685737e-09
-Overall NLP error.......:   2.5175327691685737e-09    2.5175327691685737e-09
+Complementarity.........:   2.5175327633789108e-09    2.5175327633789108e-09
+Overall NLP error.......:   2.5175327633789108e-09    2.5175327633789108e-09
 
 
 Number of objective function evaluations             = 11
@@ -53,6 +53,6 @@ Number of inequality constraint evaluations          = 0
 Number of equality constraint Jacobian evaluations   = 11
 Number of inequality constraint Jacobian evaluations = 0
 Number of Lagrangian Hessian evaluations             = 10
-Total seconds in IPOPT                               = 0.008
+Total seconds in IPOPT                               = 0.019
 
 EXIT: Optimal Solution Found.

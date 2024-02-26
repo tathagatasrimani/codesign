@@ -30,6 +30,7 @@ MEMORY_SIZE = 1000000
 state_graph_counter = 0
 
 rng = np.random.default_rng()
+args = None
 
 
 class HardwareSimulator:
@@ -675,7 +676,9 @@ class HardwareSimulator:
         )
 
 
-def main():
+def main(args_in):
+    global args 
+    args = args_in
     print(f"Running simulator for {args.benchmark.split('/')[-1]}")
     simulator = HardwareSimulator()
 
@@ -787,9 +790,10 @@ def main():
     plt.savefig("benchmarks/power_plots/power_use_" + names[-1] + ".pdf")
     plt.clf()
     print("done!")
+    return simulator
 
 
-if __name__ == "__main__":
+"""if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         prog="Simulate",
         description="Runs a hardware simulation on a given benchmark and technology spec",
@@ -807,4 +811,4 @@ if __name__ == "__main__":
         f"args: benchmark: {args.benchmark}, trace:{args.notrace}, search:{args.archsearch}, area:{args.area}, bw:{args.bw}"
     )
 
-    main()
+    main()"""

@@ -204,7 +204,9 @@ class SymbolicHardwareSimulator:
         return cfg, cfg_node_to_hw_map
 
 
-def main():
+def main(args_in):
+    global args
+    args = args_in
     print(f"Running symbolic simulator for {args.benchmark.split('/')[-1]}")
 
     simulator = SymbolicHardwareSimulator()
@@ -251,7 +253,7 @@ def main():
         f.write(st)
 
 
-if __name__ == "__main__":
+"""if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         prog="Simulate",
         description="Runs a hardware simulation on a given benchmark and technology spec",
@@ -264,4 +266,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
     print(f"args: benchmark: {args.benchmark}, trace:{args.notrace}, area:{args.area}")
 
-    main()
+    main()"""

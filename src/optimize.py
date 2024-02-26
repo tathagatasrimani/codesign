@@ -26,6 +26,7 @@ def main():
     print(results.solver.termination_condition)  
     print("======================")
     preproc_model.display()
+    return initial_params
 
 
 if __name__ == "__main__":
