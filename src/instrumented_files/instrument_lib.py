@@ -1,7 +1,7 @@
 import sys
 
 
-def instrument_read_sub(var, var_name: str, ind, lower, upper, slice):
+def instrument_read_sub(var, var_name: str, ind, lower, upper, slice, f):
     while var_name.startswith("instrument_read"):
         var_name = var_name[var_name.find('(')+1:]
     if var_name.find(',') != -1:
@@ -11,7 +11,7 @@ def instrument_read_sub(var, var_name: str, ind, lower, upper, slice):
     if var_name == "":
         var_name = "None"
     if slice:
-        print(var_name, lower, upper, "Read", sys.getsizeof(var[lower:upper]))
+        f.write(str(var_name) + ' ' + str(lower) + ' ' + str(upper) + " Read " + str(sys.getsizeof(var[lower:upper])) + '\n')
         if lower:
             if upper:
                 return var[int(lower):int(upper)]
@@ -23,10 +23,10 @@ def instrument_read_sub(var, var_name: str, ind, lower, upper, slice):
             else:
                 return var
     else:
-        print(var_name, ind, "Read", sys.getsizeof(var[ind]))
+        f.write(str(var_name) + ' ' + str(ind) + " Read " + str(sys.getsizeof(var[ind])) + '\n')
         return var[ind]
 
-def write_instrument_read_sub(var, var_name: str, ind, lower, upper, slice):
+def write_instrument_read_sub(var, var_name: str, ind, lower, upper, slice, f):
     while var_name.startswith("instrument_read"):
         var_name = var_name[var_name.find('(')+1:]
     if var_name.find(',') != -1:
@@ -36,7 +36,7 @@ def write_instrument_read_sub(var, var_name: str, ind, lower, upper, slice):
     if var_name == "":
         var_name = "None"
     if slice:
-        print(var_name, lower, upper, "Write", sys.getsizeof(var[lower:upper]))
+        f.write(str(var_name) + ' ' + str(lower) + ' ' + str(upper) + " Write " + str(sys.getsizeof(var[lower:upper])) + '\n')
         if lower:
             if upper:
                 return var[int(lower):int(upper)]
@@ -48,24 +48,24 @@ def write_instrument_read_sub(var, var_name: str, ind, lower, upper, slice):
             else:
                 return var
     else:
-        print(var_name, ind, "Write", sys.getsizeof(var[ind]))
+        f.write(str(var_name) + ' ' + str(ind) + " Write " + str(sys.getsizeof(var[ind])) + '\n')
         return var[ind]
 
-def instrument_read(var, var_name: str):
+def instrument_read(var, var_name: str, f):
     if not var_name:
         var_name = "None"
-    print(var_name, "no_ind", "Read", sys.getsizeof(var))
+    f.write(str(var_name) + " no_ind Read " + str(sys.getsizeof(var)) + '\n')
     return var
 
-def write_instrument_read(var, var_name: str):
+def write_instrument_read(var, var_name: str, f):
     if not var_name:
         var_name = "None"
-    print(var_name, "no_ind", "Write", sys.getsizeof(var))
+    f.write(str(var_name) + " no_ind Write " + str(sys.getsizeof(var)) + '\n')
     return var
 
-def instrument_read_from_file(func, *args):
+def instrument_read_from_file(func, f, *args):
     vals = func(*args)
-    print(func.__name__, "no_ind", "Read NVM", sys.getsizeof(vals))
+    f.write(str(func.__name__) + " no_ind Read NVM " + str(sys.getsizeof(vals)) + '\n')
     return vals
 
 class Object:

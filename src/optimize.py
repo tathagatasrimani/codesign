@@ -10,7 +10,7 @@ initial_params["C_input_inv"] = 1e-9
 
 multistart = False
 
-def main():
+def main(initial_params):
     with open("sympy.txt") as f:
         s = f.read()
     new = sympify(s)
@@ -29,4 +29,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main(initial_params)

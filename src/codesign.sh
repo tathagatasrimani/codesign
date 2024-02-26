@@ -10,11 +10,9 @@ do
     esac
 done
 
-# arguments like this: ./simulate.sh -n <name>
+# arguments like this: ./codesign.sh -n <name>
 if [ $name ]; then
     FILEPATH=benchmarks/models/$name
-    python instrument.py $FILEPATH
-    python instrumented_files/xformed-$name
     ARGS=$FILEPATH
     echo $SEARCH
     if [ $SEARCH ]; then
@@ -30,5 +28,5 @@ if [ $name ]; then
         ARGS+=" --bw $BW"
     fi
     echo $ARGS
-    python simulate.py $ARGS
+    python codesign.py $ARGS
 fi

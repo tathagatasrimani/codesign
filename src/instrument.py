@@ -23,6 +23,23 @@ lineno_to_node = {}
 cfg = None
 last_used = {}
 
+dont_change_names = set(
+    (
+        "__name__",
+        "__main__",
+        "loop",
+        "range",
+        "self",
+        "time",
+        "np",
+        "int",
+        "str",
+        "math",
+        "heapdict",
+        "instrument_to_output_file"
+    )
+)
+
 
 def text_to_ast(fmtstr, **kwargs):
     return ast.parse(fmtstr.format(**kwargs))
@@ -61,22 +78,7 @@ class NameOnlyInstrumentor(ast.NodeTransformer):
         self.var_scopes = {}
         self.valid_scopes = set()
         self.nvm_names = set()
-        self.dont_change_names = set(
-            (
-                "__name__",
-                "__main__",
-                "loop",
-                "range",
-                "self",
-                "time",
-                "np",
-                "os",
-                "int",
-                "str",
-                "math",
-                "heapdict",
-            )
-        )
+        self.dont_change_names = dont_change_names
 
     def get_name(self, name, scope):
         return name + "_" + scope
@@ -97,8 +99,8 @@ class NameOnlyInstrumentor(ast.NodeTransformer):
         self.scope.append(self.next_scope)
         self.next_scope += 1
         stmt = [
-            text_to_ast("print('enter scope " + str(self.scope[-1]) + "')"),
-            text_to_ast("print('exit scope " + str(self.scope[-1]) + "')"),
+            text_to_ast("instrument_to_output_file.write('enter scope " + str(self.scope[-1]) + "\\n')"),
+            text_to_ast("instrument_to_output_file.write('exit scope " + str(self.scope[-1]) + "\\n')"),
         ]
         return stmt
 
@@ -234,21 +236,7 @@ class NameScopeInstrumentor(ast.NodeTransformer):
         self.next_scope = 1
         self.var_scopes = {}
         self.valid_scopes = set()
-        self.dont_change_names = set(
-            (
-                "__name__",
-                "__main__",
-                "loop",
-                "range",
-                "self",
-                "time",
-                "np",
-                "int",
-                "str",
-                "math",
-                "heapdict",
-            )
-        )
+        self.dont_change_names = dont_change_names
 
     def get_name(self, name, scope):
         return name + "_" + scope
@@ -269,8 +257,8 @@ class NameScopeInstrumentor(ast.NodeTransformer):
         self.scope.append(self.next_scope)
         self.next_scope += 1
         stmt = [
-            text_to_ast("print('enter scope " + str(self.scope[-1]) + "')"),
-            text_to_ast("print('exit scope " + str(self.scope[-1]) + "')"),
+            text_to_ast("instrument_to_output_file.write('enter scope " + str(self.scope[-1]) + "\\n')"),
+            text_to_ast("instrument_to_output_file.write('exit scope " + str(self.scope[-1]) + "\\n')"),
         ]
         return stmt
 
@@ -283,7 +271,7 @@ class NameScopeInstrumentor(ast.NodeTransformer):
         node.target = self.visit(node.target)
         node.value = self.visit(node.value)
         stmt = text_to_ast(
-            "print(" + str(lineno_to_node[node.lineno]) + "," + str(node.lineno) + ")\n"
+            "instrument_to_output_file.write(\"" + str(lineno_to_node[node.lineno]) + " " + str(node.lineno) + "\\n\")\n"
         )
         return ProgramInstrumentor.mkblock([stmt, node])
 
@@ -293,7 +281,7 @@ class NameScopeInstrumentor(ast.NodeTransformer):
         node.targets = self.visit_Stmts(node.targets)
         node.value = self.visit(node.value)
         stmt = text_to_ast(
-            "print(" + str(lineno_to_node[node.lineno]) + "," + str(node.lineno) + ")\n"
+            "instrument_to_output_file.write(\"" + str(lineno_to_node[node.lineno]) + " " + str(node.lineno) + "\\n\")\n"
         )
         return ProgramInstrumentor.mkblock([stmt, node])
 
@@ -313,7 +301,7 @@ class NameScopeInstrumentor(ast.NodeTransformer):
         self.dont_change_names.add(node.name)
 
         stmt1 = text_to_ast(
-            "print(" + str(lineno_to_node[node.lineno]) + "," + str(node.lineno) + ")"
+            "instrument_to_output_file.write(\"" + str(lineno_to_node[node.lineno]) + " " + str(node.lineno) + "\\n\")"
         )
         # print("visiting function def", node)
         scope = self.enter_and_exits()
@@ -338,7 +326,7 @@ class NameScopeInstrumentor(ast.NodeTransformer):
             node.value = self.visit(node.value)
         stmts = []
         for scope in self.valid_scopes:
-            stmts.append(text_to_ast("print('exit scope " + str(scope) + "')"))
+            stmts.append(text_to_ast("instrument_to_output_file.write('exit scope " + str(scope) + "\\n')"))
         return ProgramInstrumentor.mkblock(stmts + [node])
 
 
@@ -347,6 +335,7 @@ class ProgramInstrumentor(ast.NodeTransformer):
     def __init__(self):
         super().__init__()
         self.preamble = []
+        self.dont_change_names = dont_change_names
 
     def add_preamble(self, stmt):
         self.preamble.append(stmt)
@@ -364,19 +353,19 @@ class ProgramInstrumentor(ast.NodeTransformer):
         return list(map(lambda stmt: self.visit(stmt), stmts))
 
     def name_extras(self, node, var_name):
-        if "NVM" in var_name:
+        if "NVM" in var_name or "instrument_to_output_file" == var_name:
             return [node]
         stmt1 = text_to_ast(
             "if type("
             + node.id
             + ") == np.ndarray:\n"
-            + "   print('malloc', sys.getsizeof("
+            + "   instrument_to_output_file.write('malloc ' + str(sys.getsizeof("
             + var_name
-            + "), '"
+            + ")) + ' "
             + node.id
-            + "', "
+            + " ' + str("
             + node.id
-            + ".shape)\n"
+            + ".shape) + '\\n')\n"
             + "elif type("
             + node.id
             + ") == list:\n"
@@ -390,27 +379,27 @@ class ProgramInstrumentor(ast.NodeTransformer):
             + "         tmp = tmp[0]\n"
             + "      else:\n"
             + "         tmp = None\n"
-            + "   print('malloc', sys.getsizeof("
+            + "   instrument_to_output_file.write('malloc ' + str(sys.getsizeof("
             + var_name
-            + "), '"
+            + ")) + ' "
             + node.id
-            + "', dims)\n"
+            + " ' + str(dims) + '\\n')\n"
             + "elif type("
             + node.id
             + ") == tuple:\n"
-            + "   print('malloc', sys.getsizeof("
+            + "   instrument_to_output_file.write('malloc ' + str(sys.getsizeof("
             + var_name
-            + "), '"
+            + ")) + ' "
             + node.id
-            + "', [len("
+            + " ' + '[' + str(len("
             + node.id
-            + ")])\n"
+            + ")) + ']\\n')\n"
             "else:\n"
-            + "   print('malloc', sys.getsizeof("
+            + "   instrument_to_output_file.write('malloc ' + str(sys.getsizeof("
             + var_name
-            + "), '"
+            + ")) + ' "
             + node.id
-            + "')"
+            + "\\n')"
         )
         new_line = ast.Name(node.id, ctx=ast.Load())
         return [self.visit(new_line), stmt1]
@@ -422,7 +411,7 @@ class ProgramInstrumentor(ast.NodeTransformer):
         # report("visiting assignment",node)
         block = []
         if type(node.targets[0]) == ast.Name:
-            if "NVM" in node.targets[0].id:
+            if "NVM" in node.targets[0].id or "instrument_to_output_file" == node.targets[0].id:
                 return node
             block = [node, text_to_ast("write_")] + self.name_extras(
                 node.targets[0], node.targets[0].id
@@ -472,6 +461,7 @@ class ProgramInstrumentor(ast.NodeTransformer):
         #     n = ast.Call(ast.Name('instrument_read_from_file', ast.Load()),
         #                  args=[
         #                      ast.Name(id=node.func.id, ctx=ast.Load()),
+        #                      ast.Name("instrument_to_output_file"),
         #                      *node.args], keywords=[])
         #     return n
         node.args = self.visit_Stmts(node.args)
@@ -481,11 +471,13 @@ class ProgramInstrumentor(ast.NodeTransformer):
         return ProgramInstrumentor.mkblock([node])
 
     def visit_Name(self, node):
+        if node.id in self.dont_change_names:
+            return node
         # report("visiting name", node)
         if type(node.ctx) == ast.Load:
             return ast.Call(
                 ast.Name("instrument_read", ast.Load()),
-                args=[node, ast.Constant(node.id)],
+                args=[node, ast.Constant(node.id), ast.Name("instrument_to_output_file")],
                 keywords=[],
             )
         return node
@@ -518,6 +510,7 @@ class ProgramInstrumentor(ast.NodeTransformer):
                     ast.Name(id=lower, ctx=ast.Load()),
                     ast.Name(id=upper, ctx=ast.Load()),
                     ast.Name(is_slice, ast.Load()),
+                    ast.Name("instrument_to_output_file")
                 ],
                 keywords=[],
             )
@@ -560,7 +553,9 @@ def instrument_and_run(filepath: str):
             with open("instrumented_files/xformedpre-%s" % names[-1], "w") as fh:
                 fh.write("import sys\n")
                 fh.write("from instrument_lib import *\n")
+                fh.write("instrument_to_output_file = open(\"instrumented_files/output.txt\", \'w\')\n")
                 fh.write(astor.to_source(first_tree))
+                fh.write("instrument_to_output_file.close()")
                 # inject print statement for total memory size"""
             with open("instrumented_files/xformedpre-%s" % names[-1], "r") as new_src:
                 src = new_src.read()
