@@ -8,3 +8,9 @@ src/instrumented_files/output*
 src/instrumented_files/xformedpre*
 src/instrumented_files/xformedname*
 src/instrumented_files/*
+
+src/output.txt
+src/solver_out.txt
+src/sympy.txt
+src/ipopt_out.txt
+
