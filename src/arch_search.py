@@ -109,8 +109,10 @@ def generate_unrolled_arch(
         hw.init_memory(memory, 0)
 
         # if area exceeds threshold, decrease unroll factor by 2x and try again
-        if area_constraint is None and bw_constraint is None:
+        if area_constraint is None:
             pass_area = True
+        
+        if bw_constraint is None:
             pass_bw = True
 
         if area_constraint is not None:
@@ -194,3 +196,12 @@ def unroll_by_specified_factor(
         i += 1
 
     return new_data_path
+
+
+def pareto_pruning(hw: HardwareModel,
+    cfg_node_to_hw_map,
+    data_path,
+    id_to_node):
+    """
+    """
+    pass

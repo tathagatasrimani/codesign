@@ -32,7 +32,7 @@ state_graph_counter = 0
 rng = np.random.default_rng()
 
 
-class HardwareSimulator:
+class ConcreteSimulator:
     def __init__(self):
         self.data = {}
         self.cycles = 0  # counter for number of cycles
@@ -677,7 +677,7 @@ class HardwareSimulator:
 
 def main():
     print(f"Running simulator for {args.benchmark.split('/')[-1]}")
-    simulator = HardwareSimulator()
+    simulator = ConcreteSimulator()
 
     # TODO: move this into cli arg
     hw = HardwareModel(cfg="aladdin_const_with_mem")
