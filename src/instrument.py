@@ -70,6 +70,7 @@ class NameOnlyInstrumentor(ast.NodeTransformer):
                 "self",
                 "time",
                 "np",
+                "os",
                 "int",
                 "str",
                 "math",

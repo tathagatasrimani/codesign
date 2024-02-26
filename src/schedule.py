@@ -37,6 +37,7 @@ def schedule(cfg, graphs, latency):
     
     graphs - is the output of dfg_algo.main(); it is a dictionary of cfg_node to dfg_algo.Graph objects
     latency - dict of operation -> latency
+        this is used to add weights to the nodes in the nx.DiGraph
     returns:
         cfg_node_to_hw_map: dict of cfg_node -> {states -> operations}
     """

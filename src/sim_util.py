@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import dfg_algo
+import schedule
 
 
 # adds all mallocs and frees to vectors, and finds the next cfg node in the data path,
@@ -306,10 +307,11 @@ def get_unique_node_name(G, node):
         new_node = f"{var_name};{count}"
     return new_node
 
+
 def topological_layout_plot(graph):
     for layer, nodes in enumerate(nx.topological_generations(graph)):
-            # `multipartite_layout` expects the layer as a node attribute, so add the
-            # numeric layer value as a node attribute
+        # `multipartite_layout` expects the layer as a node attribute, so add the
+        # numeric layer value as a node attribute
         for node in nodes:
             graph.nodes[node]["layer"] = layer
 
@@ -319,3 +321,4 @@ def topological_layout_plot(graph):
     fig, ax = plt.subplots()
     nx.draw_networkx(graph, pos=pos, ax=ax)
     plt.show()
+

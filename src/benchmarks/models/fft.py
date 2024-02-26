@@ -1,5 +1,6 @@
 import math  # Mathematical operations;
 import cmath as cm  # Complex math;
+import numpy as np
 
 
 def recursive_fft(x):

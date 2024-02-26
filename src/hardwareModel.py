@@ -52,11 +52,13 @@ def un_allocate_all_in_use_elements(netlist):
         v["in_use"] = False
         v["allocation"] = []
 
+
 def get_memory_node(netlist):
     """
     returns dict
     """
     return get_nodes_with_func(netlist, "MainMem")
+
 
 class HardwareModel:
     def __init__(
@@ -278,39 +280,3 @@ class HardwareModel:
         edges = list(filter(lambda x: "Reg" in x[0], self.netlist.in_edges("Buf0")))
         n = len(edges)
         return n
-
-class SymbolicHardwareModel:
-    def __init__(self, id, bandwidth, loop_counts={}, var_sizes={}):
-        self.max_bw = bandwidth
-        self.bw_avail = bandwidth
-
-        self.loop_counts = loop_counts
-
-        self.memory_cfgs = {}
-        self.mem_state = {}
-        for variable in self.memory_cfgs.keys():
-            self.mem_state[variable] = False
-
-        # number of non-memory elements allocated
-        self.hw_allocated = {}
-        self.hw_allocated["Regs"] = 0
-        self.loop_variables = loop_counts
-        self.var_sizes = var_sizes
-        self.id = id
-
-        # a dict of symbols, only assigned and compute the value when needed
-
-        for key in op2sym_map.keys():
-            self.hw_allocated[key] = 0
-
-        self.cycles = 0
-
-    def print_stats(self):
-        s = """
-        cycles={cycles}
-        allocated={allocated}
-        utilized={utilized}
-        """.format(
-            cycles=self.cycles, allocated=str(self.hw_allocated)
-        )
-        return s
