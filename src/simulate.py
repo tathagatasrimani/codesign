@@ -296,13 +296,13 @@ class HardwareSimulator:
             )
         state_graph_counter += 1  # what does this do, can I get rid of it?
 
-    def simulate(self, cfg, cfg_node_to_hw_map, hw, first):
+    def simulate(self, cfg, cfg_node_to_hw_map, hw):
         global state_graph_counter
         cur_node = cfg.entryblock
-        if first:
-            # skip over the first node in the main cfg
-            cur_node = cur_node.exits[0].target
-            self.main_cfg = cfg
+        
+        # skip over the first node in the main cfg
+        cur_node = cur_node.exits[0].target
+        self.main_cfg = cfg
 
         i = 0
         frees = []
@@ -735,7 +735,7 @@ def main():
         # looks like there's a lot of setup stuff that depends on the amount of hw allocated.
         simulator.init_new_compute_element(elem_data["function"])
 
-    data = simulator.simulate(cfg, cfg_node_to_hw_map, hw, True)  # graphs
+    data = simulator.simulate(cfg, cfg_node_to_hw_map, hw)
 
     area = hw.get_total_area()
 

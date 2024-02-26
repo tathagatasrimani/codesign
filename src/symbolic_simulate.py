@@ -53,40 +53,7 @@ class SymbolicHardwareSimulator:
         self.initial_params = {}
         self.sim_cache = {}
 
-    def get_hw_need(self, state):
-        """
-        Deprecated
-        """
-        # not the original simulate model now, so we can use a non-symbolic hardware model
-        hw_need = HardwareModel(
-            None,
-            0,
-            0,
-            self.mem_layers,
-            self.pitch,
-            self.transistor_size,
-            self.cache_size,
-        )
-        for op in state:
-            if not op.operation:
-                continue
-            else:
-                hw_need.hw_allocated[op.operation] += 1
-        return hw_need.hw_allocated
-
-    def get_batch(self, need, spec):
-        """
-        Deprecated.
-        """
-        batch = 0
-        for i in range(need):
-            # add 1 to batch if need / spec > i
-            batch += (
-                functions.elementary.hyperbolic.tanh((need / spec) - i + 0.5) + 1
-            ) / 2
-        return batch
-
-    def symbolic_cycle_sim_parallel(self, computation_graph):
+    def symbolic_cycle_sim(self, computation_graph):
         """
         Why is this called parallel?
         Don't need to do isomorphism check. Just need to generate topo generations.
@@ -155,13 +122,14 @@ class SymbolicHardwareSimulator:
         self.cycles += max_cycles
         return max_cycles, energy_sum
 
-    def symbolic_simulate(self, cfg, cfg_node_to_hw_map, hw: HardwareModel, symbolic_first):
+    def symbolic_simulate(self, cfg, cfg_node_to_hw_map, hw: HardwareModel):
         cur_node = cfg.entryblock
-        if symbolic_first:
-            cur_node = cur_node.exits[
-                0
-            ].target  # skip over the first node in the main cfg
+        
+        cur_node = cur_node.exits[
+            0
+        ].target  # skip over the first node in the main cfg
         i = 0
+
         # focus on symbolizing the node_operations
         print("data path length:", len(self.data_path))
         while i < len(self.data_path):
@@ -213,7 +181,7 @@ class SymbolicHardwareSimulator:
                             new_state.append(op)
                     state = new_state
 
-                max_cycles, energy_sum = self.symbolic_cycle_sim_parallel(
+                max_cycles, energy_sum = self.symbolic_cycle_sim(
                     computation_graph
                 )
                 self.node_sum_energy[node_id] += energy_sum
@@ -291,9 +259,8 @@ def main():
     else:
         simulator.cache_size = 16
 
-    first = True
 
-    simulator.symbolic_simulate(cfg, cfg_node_to_hw_map, hw, first)
+    simulator.symbolic_simulate(cfg, cfg_node_to_hw_map, hw)
 
     total_cycles = 0
     for node_id in simulator.node_sum_cycles:
