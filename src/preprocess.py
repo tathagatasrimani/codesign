@@ -4,19 +4,11 @@ from MyPyomoSympyBimap import MyPyomoSympyBimap
 import pyomo.core.expr.sympy_tools as sympy_tools
 from pyomo.opt import SolverFactory
 import yaml
-
-updated_symbol_map = {
-    "f": hw_symbols.f,
-    "V_dd": hw_symbols.V_dd,
-    "C_int_inv": hw_symbols.C_int_inv,
-    "C_input_inv": hw_symbols.C_input_inv
-}
+import hw_symbols
 
 scaling_factors = {
     hw_symbols.f: 1e-6,
     hw_symbols.V_dd: 1,
-    hw_symbols.C_int_inv: 1e15,
-    hw_symbols.C_input_inv: 1e13,
 }
 obj_scale = 1
 
@@ -88,7 +80,7 @@ class Preprocessor:
         self.expr_symbols = {}
         self.free_symbols = []
         for symbol in edp.free_symbols:
-            edp = edp.subs({symbol: updated_symbol_map[symbol.name]})
+            edp = edp.subs({symbol: hw_symbols.symbol_table[symbol.name]})
         for s in edp.free_symbols:
             self.free_symbols.append(s)
             if s.name in initial_params:
