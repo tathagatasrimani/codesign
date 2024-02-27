@@ -6,6 +6,13 @@ V_dd = symbols("V_dd", positive=True)
 f = symbols("f", positive=True)
 C_input_inv = symbols("C_input_inv", positive=True)
 
+symbol_table = {
+    "C_int_inv": C_int_inv,
+    "V_dd": V_dd,
+    "f": f,
+    "C_input_inv": C_input_inv
+}
+
 u_p = 1000
 C_ox = 2
 W = 2
