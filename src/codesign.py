@@ -3,28 +3,64 @@ import os
 import simulate
 import symbolic_simulate
 import optimize
+import hw_symbols
+import yaml
 
 
 initial_tech_params = {
-    "f": 1e6,
-    "C_int_inv": 1e-8,
-    "V_dd": 1,
-    "C_input_inv": 1e-9
+    hw_symbols.f: 1e6,
+    hw_symbols.C_int_inv: 1e-8,
+    hw_symbols.V_dd: 1,
+    hw_symbols.C_input_inv: 1e-9
 }
 
 class Codesign:
     def __init__(self):
         self.tech_params = initial_tech_params
+        self.full_tech_params = {}
         self.architecture = None
     
     def forward_pass(self):
         print("starting forward pass")
         self.architecture = simulate.main(args) 
-    
+
+    def parse_output(self, f):
+        lines = f.readlines()
+        mapping = {}
+        i = 0
+        while lines[i][0] == 'x':
+            mapping[lines[i][lines[i].find('[')+1:lines[i].find(']')]] = hw_symbols.symbol_table[lines[i].split(' ')[-1][:-1]]
+            i += 1
+        while i < len(lines) and lines[i].find('x') != 4:
+            i += 1
+        i += 2
+        for _ in range(len(mapping)):
+            key = lines[i].lstrip()[0]
+            value = float(lines[i].split(':')[2][1:-1])
+            self.tech_params[mapping[key]] = value
+            i += 1
+        print("mapping:", mapping)
+        print("tech params:", self.tech_params)
+
+    def create_full_tech_params(self):
+        self.full_tech_params["symbolic_latency_wc"] = hw_symbols.symbolic_latency_wc
+        for key in self.full_tech_params["symbolic_latency_wc"]:
+            self.full_tech_params["symbolic_latency_wc"][key] = self.full_tech_params["symbolic_latency_wc"][key].subs(self.tech_params)
+        self.full_tech_params["symbolic_power_active"] = hw_symbols.symbolic_power_active
+        for key in self.full_tech_params["symbolic_power_active"]:
+            self.full_tech_params["symbolic_power_active"][key] = self.full_tech_params["symbolic_power_active"][key].subs(self.tech_params)
+        self.full_tech_params["symbolic_power_passive"] = hw_symbols.symbolic_power_passive
+        for key in self.full_tech_params["symbolic_power_passive"]:
+            self.full_tech_params["symbolic_power_passive"][key] = self.full_tech_params["symbolic_power_passive"][key].subs(self.tech_params)
+        print(self.full_tech_params)
+
     def inverse_pass(self):
         print("starting inverse pass")
         symbolic_simulate.main(args)
-        optimize.main()
+        os.system('python3 optimize.py > ipopt_out.txt')
+        f = open("ipopt_out.txt", 'r')
+        self.parse_output(f)
+        self.create_full_tech_params()
 
 
 def main():

@@ -53,6 +53,6 @@ Number of inequality constraint evaluations          = 0
 Number of equality constraint Jacobian evaluations   = 11
 Number of inequality constraint Jacobian evaluations = 0
 Number of Lagrangian Hessian evaluations             = 10
-Total seconds in IPOPT                               = 0.019
+Total seconds in IPOPT                               = 0.016
 
 EXIT: Optimal Solution Found.

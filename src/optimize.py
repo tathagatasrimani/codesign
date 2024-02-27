@@ -17,7 +17,7 @@ def main():
     edp = new
 
     model = pyo.ConcreteModel()
-    opt, scaled_preproc_model, preproc_model = Preprocessor().begin(model, edp, initial_params, multistart=multistart) 
+    opt, scaled_preproc_model, preproc_model, free_symbols, mapping = Preprocessor().begin(model, edp, initial_params, multistart=multistart) 
     if multistart:
         results = opt.solve(scaled_preproc_model, solver_args={'keepfiles':True, 'tee':True, 'symbolic_solver_labels':True})
     else:
@@ -26,7 +26,7 @@ def main():
     print(results.solver.termination_condition)  
     print("======================")
     preproc_model.display()
-    return initial_params
+    return initial_params, free_symbols, mapping
 
 
 if __name__ == "__main__":

@@ -1,39 +1,18 @@
-benchmarks/models/testme.py
-data_path: [['1', '5'], ['3', '6'], ['6', '17'], ['5', '19'], ['8', '23'], ['8', '23'], ['8', '23'], ['8', '23'], ['8', '23'], ['1', '27'], ['12', '28'], ['14', '31'], ['14', '31'], ['14', '31']]
-memory needed:  0
-data path length: 14
-0
-1
-2
-3
-4
-9
-10
-11
-done with simulation
-{C_input_inv: 1e-09, f: 10000000.0, C_int_inv: 1e-08, V_dd: 0.7}
-edp equation:  (81*V_dd**2*f*(0.5*C_input_inv + 0.5*C_int_inv)*(C_input_inv*V_dd/((1 - exp(-V_dd))*exp(V_dd - 2)/2 + (V_dd - 1)**2/4) + 1.0e-10*V_dd/((1 - exp(-V_dd))*exp(V_dd - 2)/2 + (V_dd - 1)**2/4) + 1.0e-10) + 142*V_dd*(1 - exp(-V_dd))*(0.5*Abs(ceiling(f*(C_input_inv*V_dd/((1 - exp(-V_dd))*exp(V_dd - 2)/2 + (V_dd - 1)**2/4) + 1.0e-10*V_dd/((1 - exp(-V_dd))*exp(V_dd - 2)/2 + (V_dd - 1)**2/4) + 1.0e-10)))/f + 0.5*ceiling(f*(C_input_inv*V_dd/((1 - exp(-V_dd))*exp(V_dd - 2)/2 + (V_dd - 1)**2/4) + 1.0e-10*V_dd/((1 - exp(-V_dd))*exp(V_dd - 2)/2 + (V_dd - 1)**2/4) + 1.0e-10))/f)*exp(V_dd - 2) + 20*V_dd*(1 - exp(-V_dd))*(0.5*Abs(0.5*Abs(ceiling(f*(C_input_inv*V_dd/((1 - exp(-V_dd))*exp(V_dd - 2)/2 + (V_dd - 1)**2/4) + 1.0e-10*V_dd/((1 - exp(-V_dd))*exp(V_dd - 2)/2 + (V_dd - 1)**2/4) + 1.0e-10)))/f - 0.5*ceiling(f*(C_input_inv*V_dd/((1 - exp(-V_dd))*exp(V_dd - 2)/2 + (V_dd - 1)**2/4) + 1.0e-10*V_dd/((1 - exp(-V_dd))*exp(V_dd - 2)/2 + (V_dd - 1)**2/4) + 1.0e-10))/f) + 0.25*Abs(ceiling(f*(C_input_inv*V_dd/((1 - exp(-V_dd))*exp(V_dd - 2)/2 + (V_dd - 1)**2/4) + 1.0e-10*V_dd/((1 - exp(-V_dd))*exp(V_dd - 2)/2 + (V_dd - 1)**2/4) + 1.0e-10)))/f + 0.75*ceiling(f*(C_input_inv*V_dd/((1 - exp(-V_dd))*exp(V_dd - 2)/2 + (V_dd - 1)**2/4) + 1.0e-10*V_dd/((1 - exp(-V_dd))*exp(V_dd - 2)/2 + (V_dd - 1)**2/4) + 1.0e-10))/f)*exp(V_dd - 2))*(2.0*Abs(0.5*Abs(ceiling(f*(C_input_inv*V_dd/((1 - exp(-V_dd))*exp(V_dd - 2)/2 + (V_dd - 1)**2/4) + 1.0e-10*V_dd/((1 - exp(-V_dd))*exp(V_dd - 2)/2 + (V_dd - 1)**2/4) + 1.0e-10)))/f - 0.5*ceiling(f*(C_input_inv*V_dd/((1 - exp(-V_dd))*exp(V_dd - 2)/2 + (V_dd - 1)**2/4) + 1.0e-10*V_dd/((1 - exp(-V_dd))*exp(V_dd - 2)/2 + (V_dd - 1)**2/4) + 1.0e-10))/f) + 16.0*Abs(ceiling(f*(C_input_inv*V_dd/((1 - exp(-V_dd))*exp(V_dd - 2)/2 + (V_dd - 1)**2/4) + 1.0e-10*V_dd/((1 - exp(-V_dd))*exp(V_dd - 2)/2 + (V_dd - 1)**2/4) + 1.0e-10)))/f + 18.0*ceiling(f*(C_input_inv*V_dd/((1 - exp(-V_dd))*exp(V_dd - 2)/2 + (V_dd - 1)**2/4) + 1.0e-10*V_dd/((1 - exp(-V_dd))*exp(V_dd - 2)/2 + (V_dd - 1)**2/4) + 1.0e-10))/f)
-x[1] C_input_inv
+x[1] V_dd
 x[2] f
-x[3] C_int_inv
-x[4] V_dd
+x[3] C_input_inv
+x[4] C_int_inv
+V_dd 1
+f 1000000.0
 C_input_inv 1e-09
-f 10000000.0
 C_int_inv 1e-08
-V_dd 0.7
-(2.0*abs(0.5*x[2]**-1.0*abs(ceil(x[2]*(1e-10 + 1e-10*x[4]*(0.25*(-1.0 + x[4])**2.0 + 0.5*(1.0 - exp(- x[4]))*exp(-2.0 + x[4]))**-1.0 + x[1]*x[4]*(0.25*(-1.0 + x[4])**2.0 + 0.5*(1.0 - exp(- x[4]))*exp(-2.0 + x[4]))**-1.0))) - 0.5*x[2]**-1.0*ceil(x[2]*(1e-10 + 1e-10*x[4]*(0.25*(-1.0 + x[4])**2.0 + 0.5*(1.0 - exp(- x[4]))*exp(-2.0 + x[4]))**-1.0 + x[1]*x[4]*(0.25*(-1.0 + x[4])**2.0 + 0.5*(1.0 - exp(- x[4]))*exp(-2.0 + x[4]))**-1.0))) + 16.0*x[2]**-1.0*abs(ceil(x[2]*(1e-10 + 1e-10*x[4]*(0.25*(-1.0 + x[4])**2.0 + 0.5*(1.0 - exp(- x[4]))*exp(-2.0 + x[4]))**-1.0 + x[1]*x[4]*(0.25*(-1.0 + x[4])**2.0 + 0.5*(1.0 - exp(- x[4]))*exp(-2.0 + x[4]))**-1.0))) + 18.0*x[2]**-1.0*ceil(x[2]*(1e-10 + 1e-10*x[4]*(0.25*(-1.0 + x[4])**2.0 + 0.5*(1.0 - exp(- x[4]))*exp(-2.0 + x[4]))**-1.0 + x[1]*x[4]*(0.25*(-1.0 + x[4])**2.0 + 0.5*(1.0 - exp(- x[4]))*exp(-2.0 + x[4]))**-1.0)))*(20.0*x[4]*(1.0 - exp(- x[4]))*(0.5*abs(0.5*x[2]**-1.0*abs(ceil(x[2]*(1e-10 + 1e-10*x[4]*(0.25*(-1.0 + x[4])**2.0 + 0.5*(1.0 - exp(- x[4]))*exp(-2.0 + x[4]))**-1.0 + x[1]*x[4]*(0.25*(-1.0 + x[4])**2.0 + 0.5*(1.0 - exp(- x[4]))*exp(-2.0 + x[4]))**-1.0))) - 0.5*x[2]**-1.0*ceil(x[2]*(1e-10 + 1e-10*x[4]*(0.25*(-1.0 + x[4])**2.0 + 0.5*(1.0 - exp(- x[4]))*exp(-2.0 + x[4]))**-1.0 + x[1]*x[4]*(0.25*(-1.0 + x[4])**2.0 + 0.5*(1.0 - exp(- x[4]))*exp(-2.0 + x[4]))**-1.0))) + 0.25*x[2]**-1.0*abs(ceil(x[2]*(1e-10 + 1e-10*x[4]*(0.25*(-1.0 + x[4])**2.0 + 0.5*(1.0 - exp(- x[4]))*exp(-2.0 + x[4]))**-1.0 + x[1]*x[4]*(0.25*(-1.0 + x[4])**2.0 + 0.5*(1.0 - exp(- x[4]))*exp(-2.0 + x[4]))**-1.0))) + 0.75*x[2]**-1.0*ceil(x[2]*(1e-10 + 1e-10*x[4]*(0.25*(-1.0 + x[4])**2.0 + 0.5*(1.0 - exp(- x[4]))*exp(-2.0 + x[4]))**-1.0 + x[1]*x[4]*(0.25*(-1.0 + x[4])**2.0 + 0.5*(1.0 - exp(- x[4]))*exp(-2.0 + x[4]))**-1.0)))*exp(-2.0 + x[4]) + 81.0*x[2]*x[4]**2.0*(0.5*x[1] + 0.5*x[3])*(1e-10 + 1e-10*x[4]*(0.25*(-1.0 + x[4])**2.0 + 0.5*(1.0 - exp(- x[4]))*exp(-2.0 + x[4]))**-1.0 + x[1]*x[4]*(0.25*(-1.0 + x[4])**2.0 + 0.5*(1.0 - exp(- x[4]))*exp(-2.0 + x[4]))**-1.0) + 142.0*x[4]*(1.0 - exp(- x[4]))*(0.5*x[2]**-1.0*abs(ceil(x[2]*(1e-10 + 1e-10*x[4]*(0.25*(-1.0 + x[4])**2.0 + 0.5*(1.0 - exp(- x[4]))*exp(-2.0 + x[4]))**-1.0 + x[1]*x[4]*(0.25*(-1.0 + x[4])**2.0 + 0.5*(1.0 - exp(- x[4]))*exp(-2.0 + x[4]))**-1.0))) + 0.5*x[2]**-1.0*ceil(x[2]*(1e-10 + 1e-10*x[4]*(0.25*(-1.0 + x[4])**2.0 + 0.5*(1.0 - exp(- x[4]))*exp(-2.0 + x[4]))**-1.0 + x[1]*x[4]*(0.25*(-1.0 + x[4])**2.0 + 0.5*(1.0 - exp(- x[4]))*exp(-2.0 + x[4]))**-1.0)))*exp(-2.0 + x[4]))
-WARNING: Dynamically registering the following numeric type:
-        sympy.core.numbers.Float
-    Dynamic registration is supported for convenience, but there are known
-    limitations to this approach.  We recommend explicitly registering numeric
-    types using RegisterNumericType() or RegisterIntegerType().
-{C_input_inv: 1, f: 2, C_int_inv: 3, V_dd: 4}
-unknown
-Solver log file: '/var/folders/fd/_g3nsz7d5qj5_x7swqyg63tr0000gn/T/tmpm5pd4fnl_ipopt.log'
-Solver solution file: '/var/folders/fd/_g3nsz7d5qj5_x7swqyg63tr0000gn/T/tmpaxdtvd8d.pyomo.sol'
-Solver problem files: ('/var/folders/fd/_g3nsz7d5qj5_x7swqyg63tr0000gn/T/tmpaxdtvd8d.pyomo.nl',)
+Solver log file: '/var/folders/fd/_g3nsz7d5qj5_x7swqyg63tr0000gn/T/tmp2iokwxk4_ipopt.log'
+Solver solution file: '/var/folders/fd/_g3nsz7d5qj5_x7swqyg63tr0000gn/T/tmpckuz6_xo.pyomo.sol'
+Solver problem files: ('/var/folders/fd/_g3nsz7d5qj5_x7swqyg63tr0000gn/T/tmpckuz6_xo.pyomo.nl',)
 Ipopt 3.14.12: warm_start_init_point=yes
-max_iter=9
+bound_relax_factor=0
+max_iter=100
+print_info_string=yes
 output_file=solver_out.txt
 wantsol=2
 
@@ -46,81 +25,75 @@ This program contains Ipopt, a library for large-scale nonlinear optimization.
 
 This is Ipopt version 3.14.12, running with linear solver MUMPS 5.2.1.
 
-Number of nonzeros in equality constraint Jacobian...:        0
-Number of nonzeros in inequality constraint Jacobian.:        8
+Number of nonzeros in equality constraint Jacobian...:        4
+Number of nonzeros in inequality constraint Jacobian.:        0
 Number of nonzeros in Lagrangian Hessian.............:        9
 
 Total number of variables............................:        4
-                     variables with only lower bounds:        3
-                variables with lower and upper bounds:        1
+                     variables with only lower bounds:        2
+                variables with lower and upper bounds:        2
                      variables with only upper bounds:        0
-Total number of equality constraints.................:        0
-Total number of inequality constraints...............:        2
-        inequality constraints with only lower bounds:        1
+Total number of equality constraints.................:        1
+Total number of inequality constraints...............:        0
+        inequality constraints with only lower bounds:        0
    inequality constraints with lower and upper bounds:        0
-        inequality constraints with only upper bounds:        1
+        inequality constraints with only upper bounds:        0
 
 iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
-   0  5.3532249e+00 0.00e+00 1.83e+01  -1.0 0.00e+00    -  0.00e+00 0.00e+00   0
-   1  2.8765803e+00 0.00e+00 1.06e+01  -1.0 9.82e+00    -  6.87e-01 3.65e-01f  1
-   2  1.9872521e+00 0.00e+00 3.71e+00  -1.0 3.17e+01    -  7.53e-01 9.90e-01f  1
-   3  1.1196541e+00 0.00e+00 1.99e+00  -1.0 1.28e+02    -  9.90e-01 9.90e-01h  1
-   4  8.3393328e-01 0.00e+00 7.74e+04  -1.0 1.28e+04    -  9.91e-01 5.00e-01f  2
-   5  5.1075819e-01 0.00e+00 8.88e-01  -1.0 1.28e+06    -  1.00e+00 1.00e+00f  1
-   6  2.6449401e-01 0.00e+00 9.86e+04  -3.8 2.48e+04    -  7.80e-01 1.00e+00f  1
-   7  1.4118480e-01 0.00e+00 3.23e+02  -3.8 8.09e+04    -  9.97e-01 1.00e+00f  1
-   8  7.6014056e-02 0.00e+00 1.40e-01  -3.8 6.19e+06    -  1.00e+00 1.00e+00f  1
-   9  4.1718298e-02 0.00e+00 7.63e-02  -3.8 2.32e+06    -  1.00e+00 1.00e+00f  1
+   0  9.8029627e-01 9.21e-09 2.53e+00  -1.0 0.00e+00    -  0.00e+00 0.00e+00   0 
+   1  3.6981308e-01 2.82e-09 5.88e-01  -1.0 9.90e+00    -  7.97e-01 1.00e+00f  1 
+   2  2.2769233e-01 1.34e-09 5.92e-01  -1.0 4.87e+01    -  8.48e-01 1.00e+00f  1 Nhj 
+   3  1.3110483e-01 3.25e-10 1.08e-01  -1.0 3.21e+02    -  9.67e-01 1.00e+00f  1 
+   4  1.2619814e-01 2.74e-10 1.39e-01  -1.0 9.63e+03    -  9.05e-01 1.00e+00f  1 
+   5  1.0439613e-01 4.60e-11 1.36e-02  -1.0 1.00e+05    -  1.00e+00 1.00e+00f  1 
+   6  1.0047416e-01 4.96e-12 3.44e-03  -1.0 9.79e+06    -  1.00e+00 1.00e+00f  1 
+   7  1.0000157e-01 1.64e-14 5.93e-04  -2.5 8.97e-02    -  1.00e+00 1.00e+00f  1 
+   8  1.0000000e-01 2.18e-17 3.58e-07  -3.8 1.54e-01    -  1.00e+00 1.00e+00f  1 
+   9  1.0000000e-01 1.10e-18 4.32e-09  -5.7 3.37e-02    -  1.00e+00 1.00e+00h  1 
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+  10  1.0000000e-01 1.32e-20 5.86e-12  -8.6 3.68e-03    -  1.00e+00 1.00e+00h  1 
 
-Number of Iterations....: 9
+Number of Iterations....: 10
 
                                    (scaled)                 (unscaled)
-Objective...............:   4.1718298063660932e-02    4.1718298063660932e-02
-Dual infeasibility......:   7.6280382958233986e-02    7.6280382958233986e-02
-Constraint violation....:   0.0000000000000000e+00    0.0000000000000000e+00
+Objective...............:   1.0000000000126218e-01    1.0000000000126218e-01
+Dual infeasibility......:   5.8613771646922090e-12    5.8613771646922090e-12
+Constraint violation....:   1.3208213226093608e-20    1.3208213226093608e-20
 Variable bound violation:   0.0000000000000000e+00    0.0000000000000000e+00
-Complementarity.........:   5.0840349979136329e-04    5.0840349979136329e-04
-Overall NLP error.......:   1.1410077374860107e-03    7.6280382958233986e-02
+Complementarity.........:   2.5175327633789108e-09    2.5175327633789108e-09
+Overall NLP error.......:   2.5175327633789108e-09    2.5175327633789108e-09
 
 
 Number of objective function evaluations             = 11
-Number of objective gradient evaluations             = 10
-Number of equality constraint evaluations            = 0
-Number of inequality constraint evaluations          = 11
-Number of equality constraint Jacobian evaluations   = 0
-Number of inequality constraint Jacobian evaluations = 10
-Number of Lagrangian Hessian evaluations             = 9
-Total seconds in IPOPT                               = 0.005
+Number of objective gradient evaluations             = 11
+Number of equality constraint evaluations            = 11
+Number of inequality constraint evaluations          = 0
+Number of equality constraint Jacobian evaluations   = 11
+Number of inequality constraint Jacobian evaluations = 0
+Number of Lagrangian Hessian evaluations             = 10
+Total seconds in IPOPT                               = 0.016
 
-EXIT: Maximum Number of Iterations Exceeded.
-WARNING: Loading a SolverResults object with a warning status into
-model.name="unknown";
-    - termination condition: maxIterations
-    - message from solver: Ipopt 3.14.12\x3a Maximum Number of Iterations
-      Exceeded.
-maxIterations
+EXIT: Optimal Solution Found.
+optimal
 ======================
 Model unknown
 
   Variables:
     x : Size=4, Index=N
-        Key : Lower     : Value                 : Upper : Fixed : Stale : Domain
-          1 :     1e-13 :  1.91612226020733e-10 :  None : False : False : NonNegativeReals
-          2 : 1000000.0 :     77052990.94555987 :  None : False : False : NonNegativeReals
-          3 :     1e-15 : 9.657387459473359e-11 :  None : False : False : NonNegativeReals
-          4 :       0.5 :    0.5045311015755276 :   1.7 : False : False : NonNegativeReals
+        Key : Lower     : Value                  : Upper        : Fixed : Stale : Domain
+          1 :       0.5 :     1.3174036306588037 :          1.7 : False : False : NonNegativeReals
+          2 : 1000000.0 :      4578304.709334255 : 5000000000.0 : False : False : NonNegativeReals
+          3 :     1e-12 : 1.0001140946687473e-08 :         None : False : False : NonNegativeReals
+          4 :     1e-14 : 1.0001210555135391e-10 :         None : False : False : NonNegativeReals
 
   Objectives:
     obj : Size=1, Index=None, Active=True
         Key  : Active : Value
-        None :   True : 4.171829806366093e-14
+        None :   True : 1.046460178219941e-09
 
   Constraints:
     cuts : Size=0
         Key : Lower : Body : Upper
     Constraint : Size=1
-        Key  : Lower : Body                  : Upper
-        None :  None : 4.171829806366093e-14 : 5.35322489157933e-13
-    Constraint1 : Size=1
-        Key  : Lower                : Body                  : Upper
-        None : 5.35322489157933e-15 : 4.171829806366093e-14 :  None
+        Key  : Lower                  : Body                  : Upper
+        None : 1.0464601782067333e-09 : 1.046460178219941e-09 : 1.0464601782067333e-09
