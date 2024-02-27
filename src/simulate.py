@@ -30,7 +30,6 @@ MEMORY_SIZE = 1000000
 state_graph_counter = 0
 
 rng = np.random.default_rng()
-args = None
 
 
 class HardwareSimulator:
@@ -676,9 +675,7 @@ class HardwareSimulator:
         )
 
 
-def main(args_in):
-    global args 
-    args = args_in
+def main(args):
     print(f"Running simulator for {args.benchmark.split('/')[-1]}")
     simulator = HardwareSimulator()
 
