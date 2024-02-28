@@ -138,13 +138,17 @@ class HardwareModel:
             filter(lambda x: x[1]["function"] == "Buf", self.netlist.nodes.data())
         ).items():
             edges = self.netlist.edges(node)
-
             for edge in edges:
                 if self.netlist.nodes[edge[1]]["function"] == "MainMem":
                     # for now there is only one neighbor that is MainMem.
                     data["memory_module"] = Cache(
                         data["size"], self.netlist.nodes[edge[1]]["memory_module"], var_size=1
                     )
+
+        for node, data in dict(
+            filter(lambda x: x[1]["function"] == "Regs", self.netlist.nodes.data())
+        ).items():
+            data["var"] = '' # reg keeps track of which variable it is allocated
 
     ## Deprecated
     def allocate_hw_from_config(self, config):

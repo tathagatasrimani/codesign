@@ -22,8 +22,8 @@ import hardwareModel
 from hardwareModel import HardwareModel
 import hardwareModel
 import sim_util
-import arch_search
-from arch_search import generate_new_min_arch
+import arch_search_util
+from arch_search_util import generate_new_min_arch
 from config_dicts import op2sym_map
 
 MEMORY_SIZE = 1000000
@@ -95,6 +95,14 @@ class ConcreteSimulator:
             )
             hw_spec.compute_operation_totals[node_data["function"]] += 1
         self.active_power_use[self.cycles] /= total_cycles
+
+        # buf and mem nodes added in 'localize_memory'
+        # remove them here
+        for node, data in dict(
+            filter(lambda x: x[1]["function"] == "MainMem" or x[1]["function"] == "Buf", computation_graph.nodes.data())
+        ).items():
+            computation_graph.remove_node(node)
+
 
         return self.active_power_use[self.cycles]
 
@@ -191,6 +199,8 @@ class ConcreteSimulator:
         ).items():
             var_name = node.split(";")[0]
             cache_hit = False
+            # print(f"data[allocation]: {data['allocation']};\nhw_graph.nodes[node][allocation]: {hw_graph.nodes[node]['allocation']}")
+            cache_hit = hw.netlist.nodes[data["allocation"]]["var"] == var_name # no need to refetch from mem if var already in reg.
             mapped_edges = map(
                 lambda edge: (edge[0], hw.netlist.nodes[edge[0]]),
                 hw.netlist.in_edges(hw_graph.nodes[node]["allocation"], data=True),
@@ -213,7 +223,8 @@ class ConcreteSimulator:
                     var_name
                 )  # size will be negative because cache miss.
                 # add multiple bufs and mems, not just one. add a new one for each cache miss.
-                # this is required to properly count active power consumption.
+                # this is required to properly count active power consumption. 
+                # active power added once for each node in computation_graph.
                 # what about latency????
                 buf_idx = len(
                     list(
@@ -297,9 +308,8 @@ class ConcreteSimulator:
         state_graph_counter += 1  # what does this do, can I get rid of it?
 
     def simulate(self, cfg, cfg_node_to_hw_map, hw):
-        global state_graph_counter
         cur_node = cfg.entryblock
-        
+
         # skip over the first node in the main cfg
         cur_node = cur_node.exits[0].target
         self.main_cfg = cfg
@@ -307,6 +317,8 @@ class ConcreteSimulator:
         i = 0
         frees = []
         mallocs = []
+
+        mapping = {} # map from cfg node to digraph matcher w/ hw -> dfg node allocations 
 
         visited_node_ids = set()
 
@@ -430,10 +442,11 @@ class ConcreteSimulator:
                                 cfg_node_to_hw_map[cur_node][k] + node_ops[k]
                             )
 
+                print(f"curr_node: {cur_node}")
                 hw_graph = cfg_node_to_hw_map[cur_node]  # .copy()
-
                 if node_id not in visited_node_ids:
-                    if not sim_util.verify_can_execute(hw_graph, hw.netlist):
+                    print(f"hw_graph before verify_can_execute: {str(hw_graph)}")
+                    if not sim_util.verify_can_execute(hw_graph, hw.netlist, should_update_arch=False):
                         print(f"nodes: {hw_graph.nodes.data()}")
                         print(f"edges: {hw_graph.edges}")
                         nx.draw(hw_graph, with_labels=True)
@@ -441,6 +454,12 @@ class ConcreteSimulator:
                         raise Exception(
                             "hardware specification insufficient to run program"
                         )
+                    print(f"hw_graph after verify_can_execute: {str(hw_graph)}")
+                else:
+                    for node, data in hw_graph.nodes.data():
+                        # print(f"appending node: {node.split(';')[0]} to {data['allocation']}")
+                        hw.netlist.nodes[data["allocation"]]["allocation"].append(node.split(";")[0])
+                        # print(f"allocation: {hw.netlist.nodes[data['allocation']]}")
 
                 # === Count mem usage in this node ===
                 mem_in_use = self.get_mem_usage_of_dfg_node(
@@ -457,7 +476,9 @@ class ConcreteSimulator:
                 self.max_mem_inuse = max(self.max_mem_inuse, mem_in_use)
                 # === End count mem usage ===
 
+                print(f"hw_graph before localize_memory: {str(hw_graph)}")
                 self.localize_memory(hw, hw_graph)
+                print(f"hw_graph after localize_memory: {str(hw_graph)}")
 
                 total_cycles = 0
 
@@ -477,8 +498,11 @@ class ConcreteSimulator:
 
                 self.cycles += total_cycles
 
+                print(f"hw_graph before sim_cycle: {str(hw_graph)}")
                 self.simulate_cycles(hw, hw_graph, total_cycles)
-                hardwareModel.un_allocate_all_in_use_elements(hw.netlist)
+                print(f"hw_graph after sim_cycle: {str(hw_graph)}")
+
+                # hardwareModel.un_allocate_all_in_use_elements(hw.netlist)
 
                 idx += 1
 
@@ -508,6 +532,9 @@ class ConcreteSimulator:
             self.passive_power_dissipation_rate += (
                 hw.leakage_power[elem_data["function"]] * scaling
             )
+
+        for node in hw.netlist.nodes:
+            hw.netlist.nodes[node]['allocation'] = len(hw.netlist.nodes[node]['allocation'])
 
         print("done with simulation")
         # Path(simulator.path + '/benchmarks/pictures/memory_graphs').mkdir(parents=True, exist_ok=True)
@@ -595,6 +622,7 @@ class ConcreteSimulator:
     def compose_entire_computation_graph(self, cfg_node_to_hw_map, plot=False):
         """
         Composes a large DFG from the smaller DFGs.
+        Not currently used, doesn't handle register allocation very well.
 
         Parameters:
             cfg (CFG): The control flow graph of the program.
@@ -689,7 +717,7 @@ def main(args):
 
     if args.archsearch:
         hw.netlist = nx.DiGraph()
-        simulator.data_path = arch_search.generate_unrolled_arch(
+        simulator.data_path = arch_search_util.generate_unrolled_arch(
             hw,
             cfg_node_to_hw_map,
             simulator.data_path,
@@ -699,7 +727,7 @@ def main(args):
             sim_util.find_nearest_power_2(simulator.memory_needed),
         )
 
-    # can I do this elsewhere? needs to be done because 
+    # can I do this elsewhere? needs to be done because
     # arch search unrolling creates new nodes
     for elem in simulator.data_path:
         if elem[0] not in simulator.unroll_at.keys():
@@ -710,8 +738,8 @@ def main(args):
         sim_util.find_nearest_power_2(simulator.nvm_memory_needed),
     )
 
-    nx.draw(hw.netlist, with_labels=True)
-    plt.show()
+    # nx.draw(hw.netlist, with_labels=True)
+    # plt.show()
 
     simulator.transistor_size = hw.transistor_size  # in nm
     simulator.pitch = hw.pitch  # in um
@@ -735,6 +763,7 @@ def main(args):
         # looks like there's a lot of setup stuff that depends on the amount of hw allocated.
         simulator.init_new_compute_element(elem_data["function"])
 
+    hardwareModel.un_allocate_all_in_use_elements(hw.netlist)
     data = simulator.simulate(cfg, cfg_node_to_hw_map, hw)
 
     area = hw.get_total_area()
@@ -761,9 +790,14 @@ def main(args):
     print("total writes: ", simulator.writes)
     print("total write size: ", simulator.total_write_size)
     print("total operations computed: ", hw.compute_operation_totals)
-    print(f"hw allocated: {dict(hw.netlist.nodes.data())}")
     print("max regs in use: ", simulator.max_regs_inuse)
     print(f"max memory in use: {simulator.max_mem_inuse} bytes")
+
+    print(f"hw allocations: {[(n, len(hw.netlist.nodes[n]['allocation'])) for n in hw.netlist.nodes]}")
+    print(f"hw allocated: {dict(hw.netlist.nodes.data())}")
+
+    if args.filepath is not None:
+        nx.write_gml(hw.netlist, args.filepath, stringizer=lambda x: str(x))
 
     # save some dump of data to json file
     names = args.benchmark.split("/")
@@ -790,7 +824,7 @@ def main(args):
     return simulator
 
 
-"""if __name__ == "__main__":
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         prog="Simulate",
         description="Runs a hardware simulation on a given benchmark and technology spec",
@@ -803,9 +837,10 @@ def main(args):
     parser.add_argument(
         "-b", "--bw", type=float, help="Compute - Memory Bandwidth in ??GB/s??"
     )
+    parser.add_argument("-f", "--filepath", type=str, help="Path to the save new architecture file")
     args = parser.parse_args()
     print(
-        f"args: benchmark: {args.benchmark}, trace:{args.notrace}, search:{args.archsearch}, area:{args.area}, bw:{args.bw}"
+        f"args: benchmark: {args.benchmark}, trace:{args.notrace}, search:{args.archsearch}, area:{args.area}, bw:{args.bw}, file: {args.filepath}"
     )
 
-    main()"""
+    main(args)
