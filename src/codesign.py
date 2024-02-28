@@ -26,6 +26,8 @@ class Codesign:
         lines = f.readlines()
         mapping = {}
         i = 0
+        while lines[i][0] != 'x':
+            i += 1
         while lines[i][0] == 'x':
             mapping[lines[i][lines[i].find('[')+1:lines[i].find(']')]] = hw_symbols.symbol_table[lines[i].split(' ')[-1][:-1]]
             i += 1
@@ -41,16 +43,16 @@ class Codesign:
         print("tech params:", self.tech_params)
 
     def create_full_tech_params(self):
-        self.full_tech_params["symbolic_latency_wc"] = hw_symbols.symbolic_latency_wc
+        self.full_tech_params["symbolic_latency_wc"] = hw_symbols.symbolic_latency_wc.copy()
         for key in self.full_tech_params["symbolic_latency_wc"]:
             self.full_tech_params["symbolic_latency_wc"][key] = self.full_tech_params["symbolic_latency_wc"][key].subs(self.tech_params)
             # for the rest of the parameters, just give them back their initial values
             self.full_tech_params["symbolic_latency_wc"][key] = self.full_tech_params["symbolic_latency_wc"][key].subs(initial_tech_params)
-        self.full_tech_params["symbolic_power_active"] = hw_symbols.symbolic_power_active
+        self.full_tech_params["symbolic_power_active"] = hw_symbols.symbolic_power_active.copy()
         for key in self.full_tech_params["symbolic_power_active"]:
             self.full_tech_params["symbolic_power_active"][key] = self.full_tech_params["symbolic_power_active"][key].subs(self.tech_params)
             self.full_tech_params["symbolic_power_active"][key] = self.full_tech_params["symbolic_power_active"][key].subs(initial_tech_params)
-        self.full_tech_params["symbolic_power_passive"] = hw_symbols.symbolic_power_passive
+        self.full_tech_params["symbolic_power_passive"] = hw_symbols.symbolic_power_passive.copy()
         for key in self.full_tech_params["symbolic_power_passive"]:
             self.full_tech_params["symbolic_power_passive"][key] = self.full_tech_params["symbolic_power_passive"][key].subs(self.tech_params)
             self.full_tech_params["symbolic_power_passive"][key] = self.full_tech_params["symbolic_power_passive"][key].subs(initial_tech_params)
@@ -92,11 +94,12 @@ def main():
         initial_tech_params[hw_symbols.symbol_table["Ceff_"+elem]] = rcs["Ceff"][elem]
     with open("rcs_current.yaml", 'w') as f:
         f.write(yaml.dump(rcs))
-    while True:
+    i = 0
+    while i < 5:
         codesign_module.forward_pass()
         codesign_module.inverse_pass()
         # TODO: create stopping condition
-        break
+        i += 1
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(

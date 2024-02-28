@@ -111,16 +111,9 @@ symbol_table = {
     "Ceff_Regs": Ceff["Regs"],
 }
 
-V_T = 1
-I_s = 1
-q = 1
-V_offset = 1
-n = 1
-K = 1
-T = 1
+Roff = Reff["Invert"]*100
 
-I_off = I_s*exp((q*(V_dd-V_T-V_offset)) / (n*K*T)) * (1 - exp((-q*V_dd) / (K*T)))
-P_pass_inv = I_off*V_dd
+P_pass_inv = (V_dd**2) / Roff
 
 # passive power
 beta = yaml.load(open("coefficients.yaml", "r"), Loader=yaml.Loader)["beta"]

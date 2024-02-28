@@ -67,6 +67,7 @@ class Preprocessor:
     def create_scaling(self, model):
         model.scaling_factor[model.obj] = obj_scale
         for var in scaling_factors:
+            print(var, self.mapping)
             model.scaling_factor[model.x[self.mapping[var]]] = scaling_factors[var]
 
     def begin(self, model, edp, initial_params, multistart):
@@ -100,9 +101,6 @@ class Preprocessor:
             self.mapping[self.free_symbols[i]] = j
             print("x[{index}]".format(index=j), self.free_symbols[i])
             i += 1
-        
-        print(self.initial_val)
-        print(initial_params)
 
         m = MyPyomoSympyBimap()
         for symbol in edp.free_symbols:
@@ -115,7 +113,7 @@ class Preprocessor:
         #print(self.mapping.sympyVars())
         self.py_exp = sympy_tools.sympy2pyomo_expression(edp, m)
         # py_exp = sympy_tools.sympy2pyomo_expression(hardwaremodel.symbolic_latency["Add"] ** (1/2), m)
-        model.obj = pyo.Objective(expr=self.py_exp, sense=pyo.minimize)
+        model.obj = pyo.Objective(expr=0, sense=pyo.minimize)
         model.cuts = pyo.ConstraintList()
 
         model.scaling_factor = pyo.Suffix(direction=pyo.Suffix.EXPORT)
