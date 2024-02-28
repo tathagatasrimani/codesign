@@ -675,7 +675,7 @@ class ConcreteSimulator:
         )
 
 
-def main():
+def main(args):
     print(f"Running simulator for {args.benchmark.split('/')[-1]}")
     simulator = ConcreteSimulator()
 
@@ -787,9 +787,10 @@ def main():
     plt.savefig("benchmarks/power_plots/power_use_" + names[-1] + ".pdf")
     plt.clf()
     print("done!")
+    return simulator
 
 
-if __name__ == "__main__":
+"""if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         prog="Simulate",
         description="Runs a hardware simulation on a given benchmark and technology spec",
@@ -807,4 +808,4 @@ if __name__ == "__main__":
         f"args: benchmark: {args.benchmark}, trace:{args.notrace}, search:{args.archsearch}, area:{args.area}, bw:{args.bw}"
     )
 
-    main()
+    main()"""

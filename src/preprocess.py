@@ -3,6 +3,7 @@ import hw_symbols
 from MyPyomoSympyBimap import MyPyomoSympyBimap
 import pyomo.core.expr.sympy_tools as sympy_tools
 from pyomo.opt import SolverFactory
+import yaml
 
 updated_symbol_map = {
     "f": hw_symbols.f,
@@ -96,8 +97,7 @@ class Preprocessor:
         self.initial_val = float(edp.subs(self.expr_symbols))
         global obj_scale
         obj_scale = 1 / self.initial_val
-        print(self.expr_symbols)
-        print("edp equation: ", edp)
+        #print(self.expr_symbols)
 
         model.nVars = pyo.Param(initialize=len(edp.free_symbols))
         model.N = pyo.RangeSet(model.nVars)
@@ -123,7 +123,6 @@ class Preprocessor:
         #print(self.mapping.sympyVars())
         self.py_exp = sympy_tools.sympy2pyomo_expression(edp, m)
         # py_exp = sympy_tools.sympy2pyomo_expression(hardwaremodel.symbolic_latency["Add"] ** (1/2), m)
-        print(self.py_exp)
         model.obj = pyo.Objective(expr=self.py_exp, sense=pyo.minimize)
         model.cuts = pyo.ConstraintList()
 
@@ -131,10 +130,10 @@ class Preprocessor:
         self.create_scaling(model)
         self.add_constraints(model)
 
-        print(self.mapping)
-        print(model)
+        #print(self.mapping)
+        #print(model)
         scaled_model = pyo.TransformationFactory('core.scale_model').create_using(model)
         scaled_preproc_model = pyo.TransformationFactory('contrib.constraints_to_var_bounds').create_using(scaled_model)
         preproc_model = pyo.TransformationFactory('contrib.constraints_to_var_bounds').create_using(model)
         opt = self.get_solver()
-        return opt, scaled_preproc_model, preproc_model
+        return opt, scaled_preproc_model, preproc_model, self.free_symbols, self.mapping
