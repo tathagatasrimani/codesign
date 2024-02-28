@@ -56,12 +56,27 @@ class Codesign:
             self.full_tech_params["symbolic_power_passive"][key] = self.full_tech_params["symbolic_power_passive"][key].subs(initial_tech_params)
         print(self.full_tech_params)
 
+    def write_back_rcs(self):
+        rcs = {
+            "Reff": {},
+            "Ceff": {},
+            "other": {}
+        }
+        for elem in self.tech_params:
+            if elem.name == "f" or elem.name == "V_dd":
+                rcs["other"][elem.name] = self.tech_params[hw_symbols.symbol_table[elem.name]]
+            else:
+                rcs[elem.name[:elem.name.find('_')]][elem.name[elem.name.find('_')+1:]] = self.tech_params[elem]
+        with open("rcs_current.yaml", 'w') as f:
+            f.write(yaml.dump(rcs))
+
     def inverse_pass(self):
         print("starting inverse pass")
         symbolic_simulate.main(args)
         os.system('python3 optimize.py > ipopt_out.txt')
         f = open("ipopt_out.txt", 'r')
         self.parse_output(f)
+        self.write_back_rcs()
         self.create_full_tech_params()
 
 
