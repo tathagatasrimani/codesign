@@ -28,21 +28,15 @@ class Preprocessor:
         return model.x[self.mapping[hw_symbols.f]]<=5e9
     def V_dd_lower(self, model):
         return model.x[self.mapping[hw_symbols.V_dd]]>=0.5 
-    def C_int_inv(self, model):
-        return model.x[self.mapping[hw_symbols.C_int_inv]]>=1e-14 
-    def C_input_inv(self, model):
-        return model.x[self.mapping[hw_symbols.C_input_inv]]>=1e-12 
     def V_dd_upper(self, model):
         return model.x[self.mapping[hw_symbols.V_dd]]<=1.7 
 
     def add_constraints(self, model):
         # this is where we say EDP_final = EDP_initial / 10
-        model.Constraint = pyo.Constraint( expr = self.py_exp == self.initial_val/10)
-        #model.Constraint1 = pyo.Constraint( expr = self.py_exp >= self.initial_val/11)
+        model.Constraint = pyo.Constraint( expr = self.py_exp <= self.initial_val/10)
+        model.Constraint1 = pyo.Constraint( expr = self.py_exp >= self.initial_val/15)
         model.freq_const = pyo.Constraint( rule=self.f)
         model.V_dd_lower = pyo.Constraint( rule=self.V_dd_lower)
-        model.C_int_inv_constr = pyo.Constraint( rule=self.C_int_inv)
-        model.C_input_inv_constr = pyo.Constraint( rule=self.C_input_inv)
         model.V_dd_upper = pyo.Constraint( rule=self.V_dd_upper)
         model.f_upper = pyo.Constraint( rule=self.f_upper)
         return model
@@ -80,13 +74,16 @@ class Preprocessor:
         self.expr_symbols = {}
         self.free_symbols = []
         for symbol in edp.free_symbols:
+            #print(symbol.name)
             edp = edp.subs({symbol: hw_symbols.symbol_table[symbol.name]})
         for s in edp.free_symbols:
             self.free_symbols.append(s)
             if s.name in initial_params:
                 self.expr_symbols[s] = initial_params[s.name]
 
+        #print(edp.subs(self.expr_symbols))
         self.initial_val = float(edp.subs(self.expr_symbols))
+        
         global obj_scale
         obj_scale = 1 / self.initial_val
         #print(self.expr_symbols)
@@ -103,6 +100,9 @@ class Preprocessor:
             self.mapping[self.free_symbols[i]] = j
             print("x[{index}]".format(index=j), self.free_symbols[i])
             i += 1
+        
+        print(self.initial_val)
+        print(initial_params)
 
         m = MyPyomoSympyBimap()
         for symbol in edp.free_symbols:

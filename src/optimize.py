@@ -1,12 +1,7 @@
 from preprocess import Preprocessor
 import pyomo.environ as pyo
 from sympy import sympify
-
-initial_params = {}
-initial_params["f"] = 1e6 
-initial_params["C_int_inv"] = 1e-8 
-initial_params["V_dd"] = 1 
-initial_params["C_input_inv"] = 1e-9 
+import yaml
 
 multistart = False
 
@@ -15,6 +10,13 @@ def main():
         s = f.read()
     new = sympify(s)
     edp = new
+    initial_params = {}
+    rcs = yaml.load(open("rcs_current.yaml", "r"), Loader=yaml.Loader)
+    for elem in rcs["Reff"]:
+        initial_params["Reff_"+elem] = rcs["Reff"][elem]
+        initial_params["Ceff_"+elem] = rcs["Ceff"][elem]
+    initial_params["f"] = rcs["other"]["f"]
+    initial_params["V_dd"] = rcs["other"]["V_dd"]
 
     model = pyo.ConcreteModel()
     opt, scaled_preproc_model, preproc_model, free_symbols, mapping = Preprocessor().begin(model, edp, initial_params, multistart=multistart) 

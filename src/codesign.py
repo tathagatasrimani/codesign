@@ -10,58 +10,6 @@ import yaml
 initial_tech_params = {
     hw_symbols.f: 1e6,
     hw_symbols.V_dd: 1,
-    hw_symbols.Reff["And"]: {
-        "And": 1,
-        "Or": 1,
-        "Add": 1,
-        "Sub": 1,
-        "Mult": 1,
-        "FloorDiv": 1,
-        "Mod": 1,
-        "LShift": 1,
-        "RShift": 1,
-        "BitOr": 1,
-        "BitXor": 1,
-        "BitAnd": 1,
-        "Eq": 1,
-        "NotEq": 1,
-        "Lt": 1,
-        "LtE": 1,
-        "Gt": 1,
-        "GtE": 1,
-        "USub": 1,
-        "UAdd": 1,
-        "IsNot": 1,
-        "Not": 1,
-        "Invert": 1,
-        "Regs": 1,
-    },
-    hw_symbols.Ceff: {
-        "And": 1,
-        "Or": 1,
-        "Add": 1,
-        "Sub": 1,
-        "Mult": 1,
-        "FloorDiv": 1,
-        "Mod": 1,
-        "LShift": 1,
-        "RShift": 1,
-        "BitOr": 1,
-        "BitXor": 1,
-        "BitAnd": 1,
-        "Eq": 1,
-        "NotEq": 1,
-        "Lt": 1,
-        "LtE": 1,
-        "Gt": 1,
-        "GtE": 1,
-        "USub": 1,
-        "UAdd": 1,
-        "IsNot": 1,
-        "Not": 1,
-        "Invert": 1,
-        "Regs": 1,
-    }
 }
 
 class Codesign:
@@ -96,12 +44,16 @@ class Codesign:
         self.full_tech_params["symbolic_latency_wc"] = hw_symbols.symbolic_latency_wc
         for key in self.full_tech_params["symbolic_latency_wc"]:
             self.full_tech_params["symbolic_latency_wc"][key] = self.full_tech_params["symbolic_latency_wc"][key].subs(self.tech_params)
+            # for the rest of the parameters, just give them back their initial values
+            self.full_tech_params["symbolic_latency_wc"][key] = self.full_tech_params["symbolic_latency_wc"][key].subs(initial_tech_params)
         self.full_tech_params["symbolic_power_active"] = hw_symbols.symbolic_power_active
         for key in self.full_tech_params["symbolic_power_active"]:
             self.full_tech_params["symbolic_power_active"][key] = self.full_tech_params["symbolic_power_active"][key].subs(self.tech_params)
+            self.full_tech_params["symbolic_power_active"][key] = self.full_tech_params["symbolic_power_active"][key].subs(initial_tech_params)
         self.full_tech_params["symbolic_power_passive"] = hw_symbols.symbolic_power_passive
         for key in self.full_tech_params["symbolic_power_passive"]:
             self.full_tech_params["symbolic_power_passive"][key] = self.full_tech_params["symbolic_power_passive"][key].subs(self.tech_params)
+            self.full_tech_params["symbolic_power_passive"][key] = self.full_tech_params["symbolic_power_passive"][key].subs(initial_tech_params)
         print(self.full_tech_params)
 
     def inverse_pass(self):
@@ -118,6 +70,13 @@ def main():
     print("instrumenting application")
     os.system('python3 instrument.py '+args.benchmark)
     os.system('python3 instrumented_files/xformed-' + args.benchmark.split('/')[-1] + ' > instrumented_files/output.txt')
+    rcs = yaml.load(open("rcs.yaml", "r"), Loader=yaml.Loader)
+    rcs["other"] = {"f": 1e6, "V_dd": 1}
+    for elem in rcs["Reff"]:
+        initial_tech_params[hw_symbols.symbol_table["Reff_"+elem]] = rcs["Reff"][elem]
+        initial_tech_params[hw_symbols.symbol_table["Ceff_"+elem]] = rcs["Ceff"][elem]
+    with open("rcs_current.yaml", 'w') as f:
+        f.write(yaml.dump(rcs))
     while True:
         codesign_module.forward_pass()
         codesign_module.inverse_pass()
