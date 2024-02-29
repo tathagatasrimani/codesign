@@ -192,7 +192,8 @@ def main(args):
             unroll_factor = round(
                 (unroll_low + unroll_high + rng.choice([+1, -1]) * epsilon) / (2*area_ratio)
             )
-
+        unroll_factor = max(1, unroll_factor)
+        unroll_factor = min(max_continuous, unroll_factor)
 
         prev_edp = EDP
         prev_unroll = unroll_factor

@@ -6,7 +6,7 @@ graph [
     function "Regs"
     idx "41"
     cost 2
-    allocation 1001
+    allocation 403
     in_use 0
     size 1
     var ""
@@ -17,7 +17,7 @@ graph [
     function "Add"
     idx "40"
     cost 0.94
-    allocation 304
+    allocation 503
     in_use 0
   ]
   node [
@@ -26,7 +26,7 @@ graph [
     function "Regs"
     idx "41"
     cost 2
-    allocation 803
+    allocation 401
     in_use 0
     size 1
     var ""
@@ -37,7 +37,7 @@ graph [
     function "Mult"
     idx "38"
     cost 0.98
-    allocation 302
+    allocation 301
     in_use 0
   ]
   node [
@@ -46,7 +46,7 @@ graph [
     function "Regs"
     idx "41"
     cost 2
-    allocation 401
+    allocation 601
     in_use 0
     size 1
     var ""
@@ -55,27 +55,27 @@ graph [
     id 5
     label "Regs3"
     function "Regs"
-    idx "37"
+    idx "39"
     cost 2
-    allocation 300
+    allocation 900
     in_use 0
     size 1
     var ""
   ]
   node [
     id 6
-    label "Mult1"
-    function "Mult"
-    idx "38"
-    cost 0.98
-    allocation 301
+    label "Add1"
+    function "Add"
+    idx "40"
+    cost 0.94
+    allocation 304
     in_use 0
   ]
   node [
     id 7
     label "Regs4"
     function "Regs"
-    idx "39"
+    idx "37"
     cost 2
     allocation 300
     in_use 0
@@ -84,11 +84,11 @@ graph [
   ]
   node [
     id 8
-    label "Add1"
-    function "Add"
-    idx "40"
-    cost 0.94
-    allocation 502
+    label "Mult1"
+    function "Mult"
+    idx "38"
+    cost 0.98
+    allocation 401
     in_use 0
   ]
   node [
@@ -97,7 +97,7 @@ graph [
     function "Regs"
     idx "36"
     cost 2
-    allocation 600
+    allocation 300
     in_use 0
     size 1
     var ""
@@ -105,26 +105,6 @@ graph [
   node [
     id 10
     label "Regs6"
-    function "Regs"
-    idx "37"
-    cost 2
-    allocation 300
-    in_use 0
-    size 1
-    var ""
-  ]
-  node [
-    id 11
-    label "Mult2"
-    function "Mult"
-    idx "38"
-    cost 0.98
-    allocation 401
-    in_use 0
-  ]
-  node [
-    id 12
-    label "Regs7"
     function "Regs"
     idx "39"
     cost 2
@@ -134,12 +114,32 @@ graph [
     var ""
   ]
   node [
-    id 13
+    id 11
     label "Add2"
     function "Add"
     idx "40"
     cost 0.94
-    allocation 303
+    allocation 302
+    in_use 0
+  ]
+  node [
+    id 12
+    label "Regs7"
+    function "Regs"
+    idx "37"
+    cost 2
+    allocation 700
+    in_use 0
+    size 1
+    var ""
+  ]
+  node [
+    id 13
+    label "Mult2"
+    function "Mult"
+    idx "38"
+    cost 0.98
+    allocation 302
     in_use 0
   ]
   node [
@@ -148,7 +148,7 @@ graph [
     function "Regs"
     idx "36"
     cost 2
-    allocation 300
+    allocation 400
     in_use 0
     size 1
     var ""
@@ -158,7 +158,7 @@ graph [
     label "Buf0"
     function "Buf"
     size 1
-    memory_module "<memory.Cache object at 0x1261bb610>"
+    memory_module "<memory.Cache object at 0x116f672d0>"
     in_use 0
     allocation 0
   ]
@@ -167,17 +167,13 @@ graph [
     label "Mem0"
     function "MainMem"
     size 4096
-    memory_module "<memory.Memory object at 0x1261ba990>"
+    memory_module "<memory.Memory object at 0x116f65250>"
     in_use 0
     allocation 0
   ]
   edge [
     source 0
     target 1
-  ]
-  edge [
-    source 0
-    target 3
   ]
   edge [
     source 0
@@ -190,6 +186,10 @@ graph [
   edge [
     source 2
     target 1
+  ]
+  edge [
+    source 2
+    target 3
   ]
   edge [
     source 2
@@ -217,7 +217,7 @@ graph [
   ]
   edge [
     source 6
-    target 8
+    target 2
   ]
   edge [
     source 7
@@ -229,11 +229,11 @@ graph [
   ]
   edge [
     source 8
-    target 2
+    target 6
   ]
   edge [
     source 9
-    target 6
+    target 8
   ]
   edge [
     source 9
@@ -249,7 +249,7 @@ graph [
   ]
   edge [
     source 11
-    target 13
+    target 4
   ]
   edge [
     source 12
@@ -261,11 +261,11 @@ graph [
   ]
   edge [
     source 13
-    target 4
+    target 11
   ]
   edge [
     source 14
-    target 11
+    target 13
   ]
   edge [
     source 14
