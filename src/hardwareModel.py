@@ -92,6 +92,7 @@ class HardwareModel:
                 config.getint(cfg, "interconnectpitch"),
                 config.getint(cfg, "transistorsize"),
                 config.getint(cfg, "cachesize"),
+                config.getint(cfg, "frequency"),
             )
         self.hw_allocated = {}
 
@@ -110,7 +111,7 @@ class HardwareModel:
         self.set_technology_parameters()
 
     def set_hw_config_vars(
-        self, id, bandwidth, mem_layers, pitch, transistor_size, cache_size
+        self, id, bandwidth, mem_layers, pitch, transistor_size, cache_size, frequency
     ):
         self.id = id
         self.max_bw = bandwidth # this doesn't really get used. deprecate?
@@ -119,6 +120,7 @@ class HardwareModel:
         self.pitch = pitch
         self.transistor_size = transistor_size
         self.cache_size = cache_size
+        self.frequency = frequency
 
     def init_memory(self, mem_needed, nvm_mem_needed):
         """

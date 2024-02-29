@@ -20,23 +20,26 @@ def simulate_new_arch(hw, simulator, cfg, cfg_node_to_hw_map):
     # print(f"keys in cfg_node_to_hw_map:")
     # [print(str(key) + '\n\n') for key in cfg_node_to_hw_map.keys()]
     simulator.simulate(cfg, cfg_node_to_hw_map, hw)
-    avg_compute_power = 1e-6 * (
-        np.mean(list(simulator.active_power_use.values()))
-        + simulator.passive_power_dissipation_rate
+    simulator.calculate_edp(hw)
+    return simulator.edp
+
+
+def gen_new_arch(existing_arch, unroll_factor, cfg_node_to_hw_map, data_path, id_to_node, mem, saved_elem):
+    existing_arch.netlist = nx.DiGraph()
+    new_data_path = arch_search_util.unroll_by_specified_factor(
+        cfg_node_to_hw_map, data_path, id_to_node, unroll_factor, saved_elem
     )
-    return simulator.cycles**2 * avg_compute_power
+    # print(f"old data path: {data_path}")
+    # print(f"new data path: {new_data_path}")
+    unique_data_path = [list(x) for x in set(tuple(x) for x in new_data_path)]
+    # print(f"unqiue data path: {unique_data_path}")
+    arch_search_util.generate_new_min_arch(existing_arch, cfg_node_to_hw_map, unique_data_path, id_to_node)
+    existing_arch.init_memory(
+        sim_util.find_nearest_power_2(mem),
+        sim_util.find_nearest_power_2(0),
+    )
 
-
-def gen_new_arch(existing_arch):
-    # print(f"node data: {existing_arch.netlist.nodes.data()}")
-    removable_nodes = list(filter(lambda x: x[1]["function"] != "MainMem" and x[1]["function"] != "Buf", existing_arch.netlist.nodes.data()))
-    weights = list(map(lambda x: x[1]["allocation"], removable_nodes))
-    weights = weights / np.sum(weights)
-    # print(f"weights: {weights}")
-    node = rng.choice(removable_nodes, p=weights)
-    print(f"Removing node: {node}")
-    existing_arch.netlist.remove_node(node[0])
-    return existing_arch
+    return new_data_path
 
 
 def main(args):
@@ -54,22 +57,10 @@ def main(args):
     hw = hardwareModel.HardwareModel(cfg="aladdin_const_with_mem")
 
     cfg, cfg_node_to_hw_map = simulator.simulator_prep(args.benchmark, hw.latency)
-    print(f"type of cfg: {type(cfg)}")
 
     hw.netlist = nx.DiGraph()
-    simulator.data_path = arch_search_util.generate_unrolled_arch(
-        hw,
-        cfg_node_to_hw_map,
-        simulator.data_path,
-        simulator.id_to_node,
-        args.area,
-        args.bw,
-        sim_util.find_nearest_power_2(simulator.memory_needed),
-    )
 
-    for elem in simulator.data_path:
-        if elem[0] not in simulator.unroll_at.keys():
-            simulator.unroll_at[elem[0]] = False
+    arch_search_util.generate_new_min_arch(hw, cfg_node_to_hw_map, simulator.data_path, simulator.id_to_node)
 
     hw.init_memory(
         sim_util.find_nearest_power_2(simulator.memory_needed),
@@ -111,20 +102,105 @@ def main(args):
     # print(f"diff cfg_node_to_hw_map: {len(set1.symmetric_difference(set2))}")
     # print (f"cfgnode to hw map after: {cfg_node_to_hw_map}")
 
-    best_edp = np.inf
-    best_hw = None
-    for i in range(10):
+    unique, count = np.unique([str(elem) for elem in simulator.data_path], return_counts=True)
+
+    sorted_nodes = [
+        x for _, x in sorted(zip(count, unique), key=lambda pair: pair[0], reverse=True)
+    ]
+
+    # get number of continuous most common node:
+    # there should be a better way to do this
+    max_continuous = 1
+    prev = 0
+    cont = 1
+    saved_elem = 0
+    for elem in simulator.data_path:
+        if elem == prev and str(elem) == sorted_nodes[0]:
+            saved_elem = elem
+            cont += 1
+        else:
+            if cont > max_continuous:
+                max_continuous = cont
+            cont = 1
+        prev = elem
+
+    print(f"max continuous: {max_continuous}")
+    unroll_factor = max_continuous // 2
+    possible_unroll_factors = range(1, max_continuous + 1)
+    possible_unrolls_edp = [0] * max_continuous
+    possible_unroll_factor_probs = [1 / max_continuous] * max_continuous
+
+    orig_data_path = deepcopy(simulator.data_path)
+    # print(f"Original Data Path: {orig_data_path}")
+    simulator.calculate_edp(hw)
+    best_edp = simulator.edp
+    possible_unrolls_edp[0] = best_edp
+    best_hw = hw
+    best_unroll = 1
+
+    print(f"Original EDP: {best_edp}; power: {simulator.avg_compute_power} mW; execution time: {simulator.execution_time} s, cycles: {simulator.cycles}")
+
+    prev_edp = best_edp
+    prev_unroll = 1
+    unroll_low = 1
+    unroll_high = max_continuous
+
+    epsilon = 0.01 # randomness for rounding
+
+    for i in range(7):
         print(f"Simulating new architecture {i}...")
         hw_copy_ = deepcopy(hw)
-        gen_new_arch(hw_copy_)
+        # sim_copy_ = deepcopy(sim_copy)
+        new_data_path = gen_new_arch(hw_copy_, unroll_factor, cfg_node_to_hw_map, orig_data_path, simulator.id_to_node, simulator.memory_needed, saved_elem)
+        # print([str(key) for key in cfg_node_to_hw_map.keys()])
+        simulator.update_data_path(new_data_path)
+
         new_hw = hw_copy_
-        EDP = simulate_new_arch(new_hw, simulator, cfg, cfg_node_to_hw_map_copy)
+
+        EDP = simulate_new_arch(new_hw, simulator, cfg, cfg_node_to_hw_map)
+        print(f"EDP: {EDP}; power: {simulator.avg_compute_power} mW; execution time: {simulator.execution_time} s; cycles: {simulator.cycles}")
+        # nx.draw(new_hw.netlist, with_labels=True)
+        # plt.show()
+
+        # except:
+        #     print("new arch can't execute computation")
+        #     continue
+        area = new_hw.get_total_area()
+        print(f"Area: {area} um^2")
+        if area > args.area:
+            EDP += np.inf
+            unroll_high = unroll_factor
+        area_ratio = area / args.area
+        possible_unrolls_edp[unroll_factor - 1] = EDP
         if EDP < best_edp:
             best_edp = EDP
             best_hw = new_hw
+            best_unroll = unroll_factor
+        if EDP <= prev_edp:
+            print(f"better")
+            if unroll_factor > prev_unroll:
+                unroll_low = unroll_factor
+            elif unroll_factor < prev_unroll:
+                unroll_high = unroll_factor
+            unroll_factor = round((unroll_low + unroll_high + rng.choice([+1, -1]) * epsilon) / (2*area_ratio))
+        elif EDP > prev_edp: # backtrack
+            print(f"worse")
+            if unroll_factor > prev_unroll:
+                unroll_high = unroll_factor
+            elif unroll_factor < prev_unroll:
+                unroll_low = unroll_factor
+            unroll_factor = round(
+                (unroll_low + unroll_high + rng.choice([+1, -1]) * epsilon) / (2*area_ratio)
+            )
+
+
+        prev_edp = EDP
+        prev_unroll = unroll_factor
+    print(f"All EDPS: {possible_unrolls_edp}")
+    print(f"Best Unroll Factor: {best_unroll}")
 
     if args.filepath:
-        nx.write_gml(best_hw.netlist,f"architecures/{args.filepath}.gml", stringizer=lambda x: str(x))
+        nx.write_gml(best_hw.netlist,f"architectures/{args.filepath}.gml", stringizer=lambda x: str(x))
 
     print(f"Best EDP: {best_edp}")
     nx.draw(best_hw.netlist, with_labels=True, )
