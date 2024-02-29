@@ -253,7 +253,7 @@ def main(args_in):
         f.write(st)
 
 
-"""if __name__ == "__main__":
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         prog="Simulate",
         description="Runs a hardware simulation on a given benchmark and technology spec",
@@ -266,4 +266,4 @@ def main(args_in):
     args = parser.parse_args()
     print(f"args: benchmark: {args.benchmark}, trace:{args.notrace}, area:{args.area}")
 
-    main()"""
+    main(args)
