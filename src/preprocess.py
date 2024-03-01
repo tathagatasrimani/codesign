@@ -21,6 +21,8 @@ class Preprocessor:
         self.free_symbols = []
         self.vars = []
         self.multistart = False
+        self.obj= 0
+        self.initial_params = {}
 
     def f(self, model):
         return model.x[self.mapping[hw_symbols.f]]>=1e6 
@@ -33,13 +35,24 @@ class Preprocessor:
 
     def add_constraints(self, model):
         # this is where we say EDP_final = EDP_initial / 10
-        model.Constraint = pyo.Constraint( expr = self.py_exp <= self.initial_val/10)
-        model.Constraint1 = pyo.Constraint( expr = self.py_exp >= self.initial_val/15)
+        model.Constraint = pyo.Constraint( expr = self.py_exp <= self.initial_val/9)
+        model.Constraint1 = pyo.Constraint( expr = self.py_exp >= self.initial_val/11)
         model.freq_const = pyo.Constraint( rule=self.f)
         model.V_dd_lower = pyo.Constraint( rule=self.V_dd_lower)
         model.V_dd_upper = pyo.Constraint( rule=self.V_dd_upper)
         model.f_upper = pyo.Constraint( rule=self.f_upper)
+        """model.f = pyo.Constraint(expr = model.x[self.mapping[hw_symbols.f]] == self.initial_params["f"])
+        model.V_dd = pyo.Constraint(expr = model.x[self.mapping[hw_symbols.V_dd]] == self.initial_params["V_dd"])
+        model.AddR = pyo.Constraint(expr = model.x[self.mapping[hw_symbols.Reff["Add"]]] <= self.initial_params["Reff_Add"])
+        model.RegsR = pyo.Constraint(expr = model.x[self.mapping[hw_symbols.Reff["Regs"]]] <= self.initial_params["Reff_Regs"])
+        model.InvertR = pyo.Constraint(expr = model.x[self.mapping[hw_symbols.Reff["Invert"]]] <= self.initial_params["Reff_Invert"])
+        model.AddC = pyo.Constraint(expr = model.x[self.mapping[hw_symbols.Ceff["Add"]]] <= self.initial_params["Ceff_Add"])
+        model.RegsC = pyo.Constraint(expr = model.x[self.mapping[hw_symbols.Ceff["Regs"]]] <= self.initial_params["Ceff_Regs"])"""
         return model
+    
+    def set_objective(self, model):
+        for symbol in self.free_symbols:
+            self.obj += (self.initial_params[symbol.name] / model.x[self.mapping[hw_symbols.symbol_table[symbol.name]]] - 1)**2
 
     def get_solver(self):
         if self.multistart:
@@ -74,6 +87,7 @@ class Preprocessor:
         self.multistart = multistart
         self.expr_symbols = {}
         self.free_symbols = []
+        self.initial_params = initial_params
         for symbol in edp.free_symbols:
             #print(symbol.name)
             edp = edp.subs({symbol: hw_symbols.symbol_table[symbol.name]})
@@ -113,11 +127,12 @@ class Preprocessor:
         #print(self.mapping.sympyVars())
         self.py_exp = sympy_tools.sympy2pyomo_expression(edp, m)
         # py_exp = sympy_tools.sympy2pyomo_expression(hardwaremodel.symbolic_latency["Add"] ** (1/2), m)
-        model.obj = pyo.Objective(expr=0, sense=pyo.minimize)
+        self.set_objective(model)
+        model.obj = pyo.Objective(expr=self.obj, sense=pyo.minimize)
         model.cuts = pyo.ConstraintList()
 
         model.scaling_factor = pyo.Suffix(direction=pyo.Suffix.EXPORT)
-        self.create_scaling(model)
+        #self.create_scaling(model)
         self.add_constraints(model)
 
         #print(self.mapping)

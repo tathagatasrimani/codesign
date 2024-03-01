@@ -5,11 +5,12 @@ import symbolic_simulate
 import optimize
 import hw_symbols
 import yaml
+from sympy import sympify
 
 
 initial_tech_params = {
-    hw_symbols.f: 1e6,
-    hw_symbols.V_dd: 1,
+    hw_symbols.f: 2e9,
+    hw_symbols.V_dd: 1.1,
 }
 
 class Codesign:
@@ -65,7 +66,7 @@ class Codesign:
             "other": {}
         }
         for elem in self.tech_params:
-            if elem.name == "f" or elem.name == "V_dd":
+            if elem.name == "f" or elem.name == "V_dd" or elem.name.startswith("Mem"):
                 rcs["other"][elem.name] = self.tech_params[hw_symbols.symbol_table[elem.name]]
             else:
                 rcs[elem.name[:elem.name.find('_')]][elem.name[elem.name.find('_')+1:]] = self.tech_params[elem]
@@ -74,12 +75,14 @@ class Codesign:
 
     def inverse_pass(self):
         print("starting inverse pass")
-        symbolic_simulate.main(args)
+        edp = symbolic_simulate.main(args)
+        print("initial edp:", edp.subs(self.tech_params))
         os.system('python3 optimize.py > ipopt_out.txt')
         f = open("ipopt_out.txt", 'r')
         self.parse_output(f)
         self.write_back_rcs()
         self.create_full_tech_params()
+        print("final edp:", edp.subs(self.tech_params))
 
 
 def main():
@@ -88,7 +91,7 @@ def main():
     os.system('python3 instrument.py '+args.benchmark)
     os.system('python3 instrumented_files/xformed-' + args.benchmark.split('/')[-1] + ' > instrumented_files/output.txt')
     rcs = yaml.load(open("rcs.yaml", "r"), Loader=yaml.Loader)
-    rcs["other"] = {"f": 1e6, "V_dd": 1}
+    rcs["other"] = {"f": initial_tech_params[hw_symbols.f], "V_dd": initial_tech_params[hw_symbols.V_dd]}
     for elem in rcs["Reff"]:
         initial_tech_params[hw_symbols.symbol_table["Reff_"+elem]] = rcs["Reff"][elem]
         initial_tech_params[hw_symbols.symbol_table["Ceff_"+elem]] = rcs["Ceff"][elem]

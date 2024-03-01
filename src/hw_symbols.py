@@ -3,6 +3,11 @@ import yaml
 
 V_dd = symbols("V_dd", positive=True)
 f = symbols("f", positive=True)
+MemReadL = symbols("MemReadL", positive=True)
+MemWriteL = symbols("MemWriteL", positive=True)
+MemReadPact = symbols("MemReadPact", positive=True)
+MemWritePact = symbols("MemWritePact", positive=True)
+MemPpass = symbols("MemPpass", positive=True)
 
 Reff = {
     "And": symbols("Reff_And", positive=True),
@@ -61,6 +66,11 @@ Ceff = {
 symbol_table = {
     "V_dd": V_dd,
     "f": f,
+    "MemReadL": MemReadL,
+    "MemWriteL": MemWriteL,
+    "MemReadPact": MemReadPact,
+    "MemWritePact": MemWritePact,
+    "MemPpass": MemPpass,
     "Reff_And": Reff["And"],
     "Reff_Or": Reff["Or"],
     "Reff_Add": Reff["Add"],

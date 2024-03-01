@@ -16,7 +16,7 @@ rcs = {
 
 for elem in latency[3]:
     totalR = 0
-    for size in sizes:
+    for size in sizes[-1:]:
         totalR += 0.5 * (latency[size][elem]/power[size][elem]) * V_dd * V_dd * f
     rcs["Reff"][elem] = totalR / len(sizes)
     rcs["Ceff"][elem] = latency[size][elem] / rcs["Reff"][elem]
