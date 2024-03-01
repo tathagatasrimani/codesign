@@ -710,8 +710,8 @@ def main(args):
         sim_util.find_nearest_power_2(simulator.nvm_memory_needed),
     )
 
-    nx.draw(hw.netlist, with_labels=True)
-    plt.show()
+    # nx.draw(hw.netlist, with_labels=True)
+    # plt.show()
 
     simulator.transistor_size = hw.transistor_size  # in nm
     simulator.pitch = hw.pitch  # in um

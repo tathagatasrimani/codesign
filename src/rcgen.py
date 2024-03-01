@@ -7,7 +7,7 @@ tech_params = yaml.load(open("tech_params.yaml", "r"), Loader=yaml.Loader)
 
 latency, power = tech_params["latency"], tech_params["dynamic_power"]
 
-sizes = [3, 5, 7, 40]
+sizes = [40]
 
 rcs = {
     "Reff": {},

@@ -78,6 +78,7 @@ class Codesign:
         edp = symbolic_simulate.main(args)
         print("initial edp:", edp.subs(self.tech_params))
         os.system('python3 optimize.py > ipopt_out.txt')
+
         f = open("ipopt_out.txt", 'r')
         self.parse_output(f)
         self.write_back_rcs()
@@ -88,17 +89,18 @@ class Codesign:
 def main():
     codesign_module = Codesign()
     print("instrumenting application")
-    os.system('python3 instrument.py '+args.benchmark)
-    os.system('python3 instrumented_files/xformed-' + args.benchmark.split('/')[-1] + ' > instrumented_files/output.txt')
+    os.system('python instrument.py '+args.benchmark)
+    os.system('python instrumented_files/xformed-' + args.benchmark.split('/')[-1] + ' > instrumented_files/output.txt')
     rcs = yaml.load(open("rcs.yaml", "r"), Loader=yaml.Loader)
     rcs["other"] = {"f": initial_tech_params[hw_symbols.f], "V_dd": initial_tech_params[hw_symbols.V_dd]}
+
     for elem in rcs["Reff"]:
         initial_tech_params[hw_symbols.symbol_table["Reff_"+elem]] = rcs["Reff"][elem]
         initial_tech_params[hw_symbols.symbol_table["Ceff_"+elem]] = rcs["Ceff"][elem]
     with open("rcs_current.yaml", 'w') as f:
         f.write(yaml.dump(rcs))
     i = 0
-    while i < 5:
+    while i < 1:
         codesign_module.forward_pass()
         codesign_module.inverse_pass()
         # TODO: create stopping condition
