@@ -730,6 +730,8 @@ def main(args):
     simulator = ConcreteSimulator()
 
     # TODO: move this into cli arg
+    # if args.architecture is None:
+    #     args.architecture = "aladdin_const_with_mem"
     hw = HardwareModel(cfg="aladdin_const_with_mem")
 
     cfg, cfg_node_to_hw_map = simulator.simulator_prep(args.benchmark, hw.latency)
@@ -738,19 +740,19 @@ def main(args):
     
     # print(f"Data Path: {simulator.data_path}")
 
-    if args.archsearch:
-        hw.netlist = nx.DiGraph()
-        new_data_path = arch_search_util.generate_unrolled_arch(
-            hw,
-            cfg_node_to_hw_map,
-            simulator.data_path,
-            simulator.id_to_node,
-            args.area,
-            args.bw,
-            sim_util.find_nearest_power_2(simulator.memory_needed),
-        )
+    # if args.archsearch:
+    #     hw.netlist = nx.DiGraph()
+    #     new_data_path = arch_search_util.generate_unrolled_arch(
+    #         hw,
+    #         cfg_node_to_hw_map,
+    #         simulator.data_path,
+    #         simulator.id_to_node,
+    #         args.area,
+    #         args.bw,
+    #         sim_util.find_nearest_power_2(simulator.memory_needed),
+    #     )
     
-        simulator.update_data_path(new_data_path)
+    #     simulator.update_data_path(new_data_path)
 
     # # can I do this elsewhere? needs to be done because
     # # arch search unrolling creates new nodes
@@ -821,8 +823,8 @@ def main(args):
     print(f"hw allocations: {[(n, hw.netlist.nodes[n]['allocation']) for n in hw.netlist.nodes]}")
     print(f"hw allocated: {dict(hw.netlist.nodes.data())}")
 
-    if args.filepath is not None:
-        nx.write_gml(hw.netlist, args.filepath, stringizer=lambda x: str(x))
+    # if args.filepath is not None:
+    #     nx.write_gml(hw.netlist, args.filepath, stringizer=lambda x: str(x))
 
     # save some dump of data to json file
     names = args.benchmark.split("/")
@@ -857,15 +859,16 @@ if __name__ == "__main__":
     )
     parser.add_argument("benchmark", metavar="B", type=str)
     parser.add_argument("--notrace", action="store_true")
-    parser.add_argument("-s", "--archsearch", action=argparse.BooleanOptionalAction)
-    parser.add_argument("-a", "--area", type=float, help="Max Area of the chip in um^2")
-    parser.add_argument(
-        "-b", "--bw", type=float, help="Compute - Memory Bandwidth in ??GB/s??"
-    )
-    parser.add_argument("-f", "--filepath", type=str, help="Path to the save new architecture file")
+    parser.add_argument("--architecture", type=str, help="Path to the architecture file (.gml)")
+    # parser.add_argument("-s", "--archsearch", action=argparse.BooleanOptionalAction)
+    # parser.add_argument("-a", "--area", type=float, help="Max Area of the chip in um^2")
+    # parser.add_argument(
+    #     "-b", "--bw", type=float, help="Compute - Memory Bandwidth in ??GB/s??"
+    # )
+    # parser.add_argument("-f", "--filepath", type=str, help="Path to the save new architecture file")
     args = parser.parse_args()
     print(
-        f"args: benchmark: {args.benchmark}, trace:{args.notrace}, search:{args.archsearch}, area:{args.area}, bw:{args.bw}, file: {args.filepath}"
+        f"args: benchmark: {args.benchmark}, trace:{args.notrace}, architecture:{args.architecture}"
     )
 
     main(args)

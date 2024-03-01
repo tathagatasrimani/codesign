@@ -93,6 +93,7 @@ class HardwareModel:
                 config.getint(cfg, "transistorsize"),
                 config.getint(cfg, "cachesize"),
                 config.getint(cfg, "frequency"),
+                config.getint(cfg, "V_dd"),
             )
         self.hw_allocated = {}
 
@@ -111,7 +112,7 @@ class HardwareModel:
         self.set_technology_parameters()
 
     def set_hw_config_vars(
-        self, id, bandwidth, mem_layers, pitch, transistor_size, cache_size, frequency
+        self, id, bandwidth, mem_layers, pitch, transistor_size, cache_size, frequency, V_dd
     ):
         self.id = id
         self.max_bw = bandwidth # this doesn't really get used. deprecate?
@@ -121,6 +122,7 @@ class HardwareModel:
         self.transistor_size = transistor_size
         self.cache_size = cache_size
         self.frequency = frequency
+        self.V_dd = V_dd
 
     def init_memory(self, mem_needed, nvm_mem_needed):
         """
@@ -232,6 +234,24 @@ class HardwareModel:
         ][self.pitch]
         # how does mem latency get incorporated?
         ## DO THIS!!!!
+
+    def update_technology_parameters(self, rc_params_file="rcs_current.yaml", coeff_file = "coefficients.yaml"):
+        """
+        For full iteration, need to update the technology parameters after a run of the inverse pass.
+        """
+        rcs = yaml.load(open(rc_params_file, "r"), Loader=yaml.Loader)
+        C = rcs["Ceff"]
+        R = rcs["Reff"]
+        self.frequency = rcs["other"]["f"]
+        self.V_dd = rcs["other"]["V_dd"]
+
+        beta = yaml.load(open(coeff_file, "r"), Loader=yaml.Loader)["beta"]
+
+        for key in C:
+            self.dynamic_power[key] = C[key] * self.V_dd * self.V_dd * self.frequency
+            self.latency[key] = R[key] * C[key]
+            self.leakage_power[key] = beta[key] * self.V_dd**2 / (R["Not"]*100) 
+
 
     def update_cache_size(self, cache_size):
         pass

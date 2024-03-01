@@ -217,9 +217,7 @@ if __name__ == "__main__":
     parser.add_argument("benchmark", metavar="B", type=str)
     parser.add_argument("--notrace", action="store_true")
     parser.add_argument("-a", "--area", type=float, help="Max Area of the chip in um^2")
-    parser.add_argument(
-        "-b", "--bw", type=float, help="Compute - Memory Bandwidth in ??GB/s??"
-    )
+
     parser.add_argument(
         "-f", "--filepath", type=str, help="Path to the save new architecture file"
     )

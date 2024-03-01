@@ -1,6 +1,7 @@
 import argparse
 import os
 import simulate
+import architecture_search
 import symbolic_simulate
 import optimize
 import hw_symbols

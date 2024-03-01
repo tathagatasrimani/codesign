@@ -74,7 +74,7 @@ class SymbolicSimulator:
                 hw_symbols.symbolic_power_active[node_data["function"]]
                 * (hw_symbols.symbolic_latency_wc[node_data["function"]] / hw_symbols.f)
             )
-            print("added active energy of", hw_symbols.symbolic_power_active[node_data["function"]]* (hw_symbols.symbolic_latency_wc[node_data["function"]] / hw_symbols.f), "for", node_data["function"])
+            # print("added active energy of", hw_symbols.symbolic_power_active[node_data["function"]]* (hw_symbols.symbolic_latency_wc[node_data["function"]] / hw_symbols.f), "for", node_data["function"])
             energy_sum += active_energy
 
         passive_power += hw_symbols.symbolic_power_passive[node_data["function"]]
