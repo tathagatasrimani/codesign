@@ -163,9 +163,9 @@ def main():
 
     codesign_module.set_technology_parameters(initial_tech_params)
     
-    # for elem in rcs["Reff"]:
-    #     initial_tech_params[hw_symbols.symbol_table["Reff_" + elem]] = rcs["Reff"][elem]
-    #     initial_tech_params[hw_symbols.symbol_table["Ceff_" + elem]] = rcs["Ceff"][elem]
+    for elem in rcs["Reff"]:
+        initial_tech_params[hw_symbols.symbol_table["Reff_" + elem]] = rcs["Reff"][elem]
+        initial_tech_params[hw_symbols.symbol_table["Ceff_" + elem]] = rcs["Ceff"][elem]
     with open("rcs_current.yaml", "w") as f:
         f.write(yaml.dump(rcs))
     
