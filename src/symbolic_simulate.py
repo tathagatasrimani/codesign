@@ -53,7 +53,7 @@ class SymbolicSimulator:
         self.initial_params = {}
         self.sim_cache = {}
 
-    def symbolic_cycle_sim(self, computation_graph):
+    def cycle_sim(self, computation_graph):
         """
         Don't need to do isomorphism check. Just need to generate topo generations.
         Since we'll get architectures from the forward pass. We'll assume that the architecture
@@ -85,10 +85,10 @@ class SymbolicSimulator:
                     continue
                 for path in nx.all_simple_paths(computation_graph, start_node, end_node):
                     path_latency = 0
-                    print(f"path: {path}")
+                    # print(f"path: {path}")
                     for node in path:
-                        print(f"node: {node}")
-                        print(f"computaiton_graph[{node}]: {computation_graph.nodes()[node]}")
+                        # print(f"node: {node}")
+                        # print(f"computation_graph[{node}]: {computation_graph.nodes()[node]}")
                         path_latency += hw_symbols.symbolic_latency_wc[computation_graph.nodes()[node]["function"]]
                     max_cycles = 0.5 * (
                         max_cycles + path_latency + abs(max_cycles - path_latency)
@@ -98,9 +98,9 @@ class SymbolicSimulator:
         self.cycles += max_cycles
         return max_cycles, energy_sum
 
-    def symbolic_simulate(self, cfg, cfg_node_to_hw_map, hw: HardwareModel):
+    def simulate(self, cfg, cfg_node_to_hw_map, hw: HardwareModel):
         cur_node = cfg.entryblock
-        
+
         cur_node = cur_node.exits[
             0
         ].target  # skip over the first node in the main cfg
@@ -109,7 +109,15 @@ class SymbolicSimulator:
         # focus on symbolizing the node_operations
         print("data path length:", len(self.data_path))
         while i < len(self.data_path):
-            print(i)
+            # print(f"i: {i}")
+            (
+                next_ind,
+                _,
+                _,
+            ) = sim_util.find_next_data_path_index(
+                self.data_path, i + 1, [], []
+            )
+
             node_id = self.data_path[i][0]
             cur_node = self.id_to_node[node_id]
             self.node_intervals.append([node_id, [self.cycles, 0]])
@@ -147,8 +155,8 @@ class SymbolicSimulator:
                 self.node_sum_energy[node_id] += self.sim_cache[cache_index][1]
             else:
                 computation_graph = cfg_node_to_hw_map[cur_node]
-                print(f"computation graph: {computation_graph.nodes(data=True)}")
-                # deprecated unrolling with graph representation. 
+                # print(f"computation graph: {computation_graph.nodes(data=True)}")
+                # deprecated unrolling with graph representation.
                 # graph gets modified directly when we want to unroll.
                 if self.unroll_at[cur_node.id]:
                     new_state = state.copy()
@@ -157,7 +165,7 @@ class SymbolicSimulator:
                             new_state.append(op)
                     state = new_state
 
-                max_cycles, energy_sum = self.symbolic_cycle_sim(
+                max_cycles, energy_sum = self.cycle_sim(
                     computation_graph
                 )
                 self.node_sum_energy[node_id] += energy_sum
@@ -167,7 +175,9 @@ class SymbolicSimulator:
                 self.sim_cache[cache_index] = [node_cycles, node_energy]
 
             self.node_intervals[-1][1][1] = self.cycles
-            i += 1
+            i = next_ind
+            if i == len(self.data_path):
+                break
         print("done with simulation")
 
     def set_data_path(self):
@@ -193,6 +203,12 @@ class SymbolicSimulator:
 
         print(f"memory needed: {self.memory_needed} bytes")
 
+    def update_data_path(self, new_data_path):
+        self.data_path = new_data_path
+        for elem in self.data_path:
+            if elem[0] not in self.unroll_at.keys():
+                self.unroll_at[elem[0]] = False
+
     def simulator_prep(self, benchmark, latency):
         """
         For this also, can we just use the same function from the concrete simulator?
@@ -205,9 +221,18 @@ class SymbolicSimulator:
         # print(self.id_to_node)
         return cfg, cfg_node_to_hw_map
 
+    def calculate_edp(self):
+        total_cycles = sum(self.node_sum_cycles.values())
+        total_power = sum(self.node_sum_energy.values())
+        self.edp = (total_cycles / hw_symbols.f) * total_power
+
+    def save_edp_to_file(self):
+        st = str(self.edp)
+        with open("sympy.txt", "w") as f:
+            f.write(st)
+
 
 def main(args_in):
-    global args
     args = args_in
     print(f"Running symbolic simulator for {args.benchmark.split('/')[-1]}")
 
@@ -237,22 +262,12 @@ def main(args_in):
     else:
         simulator.cache_size = 16
 
-
-    simulator.symbolic_simulate(cfg, cfg_node_to_hw_map, hw)
-
-    total_cycles = 0
-    for node_id in simulator.node_sum_cycles:
-        total_cycles += simulator.node_sum_cycles[node_id]
-
-    total_power = 0
-    for node_id in simulator.node_sum_energy:
-        total_power += simulator.node_sum_energy[node_id]
-
-    simulator.edp = (total_cycles / hw_symbols.f) * total_power
+    simulator.simulate(cfg, cfg_node_to_hw_map, hw)
+    simulator.calculate_edp()
+    
     #simulator.edp = simulator.edp.simplify()
-    st = str(simulator.edp)
-    with open("sympy.txt", "w") as f:
-        f.write(st)
+    simulator.save_edp_to_file()
+
     return simulator.edp
 
 

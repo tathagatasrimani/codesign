@@ -166,7 +166,7 @@ def unroll_by_specified_factor(
     Create new merged nx.Digraphs and add to cfg_node_to_hw_map.
     """
     print(f"Unrolling by {unroll_factor}X...")
-    print(f"Specified Node: {specified_node}")
+    # print(f"Specified Node: {specified_node}")
     # add entry to cfg_node_to_hw_map with unrolled dfg with
     # unroll factor equal to max_continuous
     single_node_comp_graph = cfg_node_to_hw_map[id_to_node[specified_node[0]]].copy()

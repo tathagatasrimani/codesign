@@ -93,7 +93,7 @@ class HardwareModel:
                 config.getint(cfg, "transistorsize"),
                 config.getint(cfg, "cachesize"),
                 config.getint(cfg, "frequency"),
-                config.getint(cfg, "V_dd"),
+                config.getfloat(cfg, "V_dd"),
             )
         self.hw_allocated = {}
 
@@ -105,18 +105,22 @@ class HardwareModel:
 
         self.init_misc_vars()
 
-        self.dynamic_allocation = False
-        if cfg is not None:
-            self.allocate_hw_from_config(config[cfg])
-
         self.set_technology_parameters()
 
     def set_hw_config_vars(
-        self, id, bandwidth, mem_layers, pitch, transistor_size, cache_size, frequency, V_dd
+        self,
+        id,
+        bandwidth,
+        mem_layers,
+        pitch,
+        transistor_size,
+        cache_size,
+        frequency,
+        V_dd,
     ):
         self.id = id
-        self.max_bw = bandwidth # this doesn't really get used. deprecate?
-        self.bw_avail = bandwidth # deprecate?
+        self.max_bw = bandwidth  # this doesn't really get used. deprecate?
+        self.bw_avail = bandwidth  # deprecate?
         self.mem_layers = mem_layers
         self.pitch = pitch
         self.transistor_size = transistor_size
@@ -134,7 +138,7 @@ class HardwareModel:
         """
         for node, data in dict(
             filter(lambda x: x[1]["function"] == "MainMem", self.netlist.nodes.data())
-        ).items(): # should only have 1
+        ).items():  # should only have 1
             data["memory_module"] = Memory(mem_needed)
             data["size"] = mem_needed
 
@@ -146,63 +150,15 @@ class HardwareModel:
                 if self.netlist.nodes[edge[1]]["function"] == "MainMem":
                     # for now there is only one neighbor that is MainMem.
                     data["memory_module"] = Cache(
-                        data["size"], self.netlist.nodes[edge[1]]["memory_module"], var_size=1
+                        data["size"],
+                        self.netlist.nodes[edge[1]]["memory_module"],
+                        var_size=1,
                     )
 
         for node, data in dict(
             filter(lambda x: x[1]["function"] == "Regs", self.netlist.nodes.data())
         ).items():
-            data["var"] = '' # reg keeps track of which variable it is allocated
-
-    ## Deprecated
-    def allocate_hw_from_config(self, config):
-        """
-        allocate hardware from a config file
-        """
-        self.hw_allocated = dict(config)
-        # remove the other config variables from the hardware allocated dict
-        # hardware allocated should be refactored to PEs allocated or something like that.
-        self.hw_allocated.pop("id")
-        self.hw_allocated.pop("bandwidth")
-        self.hw_allocated.pop("nummemlayers")
-        self.hw_allocated.pop("interconnectpitch")
-        self.hw_allocated.pop("transistorsize")
-        self.hw_allocated.pop("cachesize")
-
-        # convert lower case to Camel Case
-        self.hw_allocated["Add"] = self.hw_allocated.pop("add")
-        self.hw_allocated["Regs"] = self.hw_allocated.pop("regs")
-        self.hw_allocated["Mult"] = self.hw_allocated.pop("mult")
-        self.hw_allocated["Sub"] = self.hw_allocated.pop("sub")
-        self.hw_allocated["FloorDiv"] = self.hw_allocated.pop("floordiv")
-        self.hw_allocated["Gt"] = self.hw_allocated.pop("gt")
-        self.hw_allocated["And"] = self.hw_allocated.pop("and")
-        self.hw_allocated["Or"] = self.hw_allocated.pop("or")
-        self.hw_allocated["Mod"] = self.hw_allocated.pop("mod")
-        self.hw_allocated["LShift"] = self.hw_allocated.pop("lshift")
-        self.hw_allocated["RShift"] = self.hw_allocated.pop("rshift")
-        self.hw_allocated["BitOr"] = self.hw_allocated.pop("bitor")
-        self.hw_allocated["BitXor"] = self.hw_allocated.pop("bitxor")
-        self.hw_allocated["BitAnd"] = self.hw_allocated.pop("bitand")
-        self.hw_allocated["Eq"] = self.hw_allocated.pop("eq")
-        self.hw_allocated["NotEq"] = self.hw_allocated.pop("noteq")
-        self.hw_allocated["Lt"] = self.hw_allocated.pop("lt")
-        self.hw_allocated["LtE"] = self.hw_allocated.pop("lte")
-        self.hw_allocated["GtE"] = self.hw_allocated.pop("gte")
-        self.hw_allocated["IsNot"] = self.hw_allocated.pop("isnot")
-        self.hw_allocated["USub"] = self.hw_allocated.pop("usub")
-        self.hw_allocated["UAdd"] = self.hw_allocated.pop("uadd")
-        self.hw_allocated["Not"] = self.hw_allocated.pop("not")
-        self.hw_allocated["Invert"] = self.hw_allocated.pop("invert")
-
-        for k, v in self.hw_allocated.items():
-            self.hw_allocated[k] = int(v)
-
-        tmp = True
-        for key, value in self.hw_allocated.items():
-            tmp &= value == -1
-        self.dynamic_allocation = tmp
-        # print(f"dynamic_allocation flag: {self.dynamic_allocation}")
+            data["var"] = ""  # reg keeps track of which variable it is allocated
 
     def set_technology_parameters(self):
         """
@@ -235,7 +191,9 @@ class HardwareModel:
         # how does mem latency get incorporated?
         ## DO THIS!!!!
 
-    def update_technology_parameters(self, rc_params_file="rcs_current.yaml", coeff_file = "coefficients.yaml"):
+    def update_technology_parameters(
+        self, rc_params_file="rcs_current.yaml", coeff_file="coefficients.yaml"
+    ):
         """
         For full iteration, need to update the technology parameters after a run of the inverse pass.
         """
@@ -250,8 +208,7 @@ class HardwareModel:
         for key in C:
             self.dynamic_power[key] = C[key] * self.V_dd * self.V_dd * self.frequency
             self.latency[key] = R[key] * C[key]
-            self.leakage_power[key] = beta[key] * self.V_dd**2 / (R["Not"]*100) 
-
+            self.leakage_power[key] = beta[key] * self.V_dd**2 / (R["Not"] * 100)
 
     def update_cache_size(self, cache_size):
         pass
@@ -291,7 +248,7 @@ class HardwareModel:
         )
 
     def get_total_area(self):
-        bw_scaling = 0.1 # check this 
+        bw_scaling = 0.1  # check this
         total_area = 0
         for node, data in self.netlist.nodes.data():
             scaling = 1
@@ -299,14 +256,16 @@ class HardwareModel:
                 scaling = data["size"]
             total_area += self.area[data["function"]] * scaling
         bw = 0
-        for node in filter(lambda x: x[1]["function"] == "Buf", self.netlist.nodes.data()):
+        for node in filter(
+            lambda x: x[1]["function"] == "Buf", self.netlist.nodes.data()
+        ):
             # print(f"node: {node[0]}")
             in_edges = self.netlist.in_edges(node[0])
             filtered_edges = list(filter(lambda x: "MainMem" not in x[0], in_edges))
             bw += len(filtered_edges)
-        total_area += (bw-1) * bw_scaling * self.area["MainMem"] 
-            
-        return total_area * 1e-6 # convert from nm^2 to um^2
+        total_area += (bw - 1) * bw_scaling * self.area["MainMem"]
+
+        return total_area * 1e-6  # convert from nm^2 to um^2
 
     def get_mem_compute_bw(self):
         """

@@ -39,6 +39,8 @@ def find_next_data_path_index(data_path, i, mallocs, frees):
     """
     pattern_seek = False
     max_iters = 1
+    if i == len(data_path):
+        return i, pattern_seek, max_iters
     # print(f"i: {i}, len(self.data_path): {len(self.data_path)}, self.data_path: {self.data_path}")
     while len(data_path[i]) != 2:
         if len(data_path[i]) == 0:
