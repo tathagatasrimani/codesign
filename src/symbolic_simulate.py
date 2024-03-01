@@ -72,7 +72,7 @@ class SymbolicSimulator:
         for node, node_data in computation_graph.nodes(data=True):
             active_energy = (
                 hw_symbols.symbolic_power_active[node_data["function"]]
-                * (hw_symbols.symbolic_latency_wc[node_data["function"]] / hw_symbols.f)
+                * (hw_symbols.symbolic_latency_wc[node_data["function"]])
             )
             # print("added active energy of", hw_symbols.symbolic_power_active[node_data["function"]]* (hw_symbols.symbolic_latency_wc[node_data["function"]] / hw_symbols.f), "for", node_data["function"])
             energy_sum += active_energy
@@ -238,7 +238,7 @@ class SymbolicSimulator:
 
     def calculate_edp(self, hw):
         total_cycles = sum(self.node_sum_cycles.values())
-        total_execution_time = total_cycles / hw_symbols.f
+        total_execution_time = total_cycles
         total_active_energy = sum(self.node_sum_energy.values())
         total_passive_energy = self.passive_energy_dissipation(hw, total_execution_time)
         self.edp = total_execution_time * (total_active_energy + total_passive_energy)
