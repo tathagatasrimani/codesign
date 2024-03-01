@@ -72,7 +72,7 @@ class SymbolicHardwareSimulator:
         for node, node_data in computation_graph.nodes(data=True):
             active_energy = (
                 hw_symbols.symbolic_power_active[node_data["function"]]
-                * (hw_symbols.symbolic_latency_wc[node_data["function"]] / hw_symbols.f)
+                * (hw_symbols.symbolic_latency_wc[node_data["function"]])
             )
             print("added active energy of", hw_symbols.symbolic_power_active[node_data["function"]]* (hw_symbols.symbolic_latency_wc[node_data["function"]] / hw_symbols.f), "for", node_data["function"])
             energy_sum += active_energy
@@ -94,7 +94,7 @@ class SymbolicHardwareSimulator:
                         max_cycles + path_latency + abs(max_cycles - path_latency)
                     )
 
-        energy_sum += passive_power * max_cycles / hw_symbols.f
+        energy_sum += passive_power * max_cycles
         self.cycles += max_cycles
         return max_cycles, energy_sum
 
@@ -248,7 +248,7 @@ def main(args_in):
     for node_id in simulator.node_sum_energy:
         total_power += simulator.node_sum_energy[node_id]
 
-    simulator.edp = (total_cycles / hw_symbols.f) * total_power
+    simulator.edp = total_cycles * total_power
     #simulator.edp = simulator.edp.simplify()
     st = str(simulator.edp)
     with open("sympy.txt", "w") as f:
