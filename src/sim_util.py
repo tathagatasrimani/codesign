@@ -282,12 +282,27 @@ def update_arch(computation_graph, hw_netlist):
     return composition
 
 
-def rename_nodes(G, H):
+def rename_nodes(G, H, H_generations=None, curr_last_nodes=None):
     """
     Rename nodes in H to avoid collisions in G.
+    try to rename the values in H_generations here?
+    currently it just gets calculated again after rename
     """
+    
     relabelling = {}
+    found_alignment = False
+    # align
+    if H_generations is not None and curr_last_nodes is not None:
+        for elem in H_generations[0]:
+            for elem_2 in curr_last_nodes:
+                if elem.split(";")[0] == elem_2.split(";")[0]:
+                    relabelling[elem] = elem_2
+                    found_alignment = True
+                    break
+
     for node in H.nodes:
+        if node in relabelling:
+            continue
         new_node = node
         while new_node in G or new_node in relabelling.values():
             # Rename the node to avoid collision
@@ -295,6 +310,7 @@ def rename_nodes(G, H):
         # G.nodes[new_node].update(H.nodes[node])
         relabelling[node] = new_node
     nx.relabel_nodes(H, relabelling, copy=False)
+    return found_alignment
 
 
 def get_unique_node_name(G, node):
