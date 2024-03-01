@@ -1,5 +1,5 @@
 #!/bin/sh
-while getopts a:b:sqn: flag
+while getopts a:b:f:sqn: flag
 do
     case "${flag}" in
         n) name=${OPTARG};;
@@ -7,6 +7,7 @@ do
         s) SEARCH=true;;
         a) AREA=${OPTARG};;
         b) BW=${OPTARG};;
+        f) SAVEFILE=${OPTARG};;
     esac
 done
 
@@ -28,6 +29,9 @@ if [ $name ]; then
     fi
     if [ $BW ]; then
         ARGS+=" --bw $BW"
+    fi
+    if [ $SAVEFILE ]; then
+        ARGS+=" --filepath $SAVEFILE"
     fi
     echo $ARGS
     python simulate.py $ARGS

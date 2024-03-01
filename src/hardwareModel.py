@@ -92,6 +92,7 @@ class HardwareModel:
                 config.getint(cfg, "interconnectpitch"),
                 config.getint(cfg, "transistorsize"),
                 config.getint(cfg, "cachesize"),
+                config.getint(cfg, "frequency"),
             )
         self.hw_allocated = {}
 
@@ -110,7 +111,7 @@ class HardwareModel:
         self.set_technology_parameters()
 
     def set_hw_config_vars(
-        self, id, bandwidth, mem_layers, pitch, transistor_size, cache_size
+        self, id, bandwidth, mem_layers, pitch, transistor_size, cache_size, frequency
     ):
         self.id = id
         self.max_bw = bandwidth # this doesn't really get used. deprecate?
@@ -119,6 +120,7 @@ class HardwareModel:
         self.pitch = pitch
         self.transistor_size = transistor_size
         self.cache_size = cache_size
+        self.frequency = frequency
 
     def init_memory(self, mem_needed, nvm_mem_needed):
         """
@@ -138,13 +140,17 @@ class HardwareModel:
             filter(lambda x: x[1]["function"] == "Buf", self.netlist.nodes.data())
         ).items():
             edges = self.netlist.edges(node)
-
             for edge in edges:
                 if self.netlist.nodes[edge[1]]["function"] == "MainMem":
                     # for now there is only one neighbor that is MainMem.
                     data["memory_module"] = Cache(
                         data["size"], self.netlist.nodes[edge[1]]["memory_module"], var_size=1
                     )
+
+        for node, data in dict(
+            filter(lambda x: x[1]["function"] == "Regs", self.netlist.nodes.data())
+        ).items():
+            data["var"] = '' # reg keeps track of which variable it is allocated
 
     ## Deprecated
     def allocate_hw_from_config(self, config):
@@ -265,12 +271,21 @@ class HardwareModel:
         )
 
     def get_total_area(self):
+        bw_scaling = 0.1 # check this 
         total_area = 0
         for node, data in self.netlist.nodes.data():
             scaling = 1
             if data["function"] in ["Regs", "Buf", "MainMem"]:
                 scaling = data["size"]
             total_area += self.area[data["function"]] * scaling
+        bw = 0
+        for node in filter(lambda x: x[1]["function"] == "Buf", self.netlist.nodes.data()):
+            # print(f"node: {node[0]}")
+            in_edges = self.netlist.in_edges(node[0])
+            filtered_edges = list(filter(lambda x: "MainMem" not in x[0], in_edges))
+            bw += len(filtered_edges)
+        total_area += (bw-1) * bw_scaling * self.area["MainMem"] 
+            
         return total_area * 1e-6 # convert from nm^2 to um^2
 
     def get_mem_compute_bw(self):

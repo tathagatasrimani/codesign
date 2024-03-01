@@ -21,7 +21,7 @@ import sim_util
 from hardwareModel import HardwareModel
 
 
-class SymbolicHardwareSimulator:
+class SymbolicSimulator:
 
     def __init__(self):
         self.cycles = 0
@@ -211,7 +211,7 @@ def main(args_in):
     args = args_in
     print(f"Running symbolic simulator for {args.benchmark.split('/')[-1]}")
 
-    simulator = SymbolicHardwareSimulator()
+    simulator = SymbolicSimulator()
 
     # TODO: move this to a cli param
     hw = HardwareModel(cfg="aladdin_const_with_mem")
