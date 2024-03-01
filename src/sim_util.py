@@ -340,3 +340,34 @@ def topological_layout_plot(graph):
     nx.draw_networkx(graph, pos=pos, ax=ax)
     plt.show()
 
+
+def convert_tech_params_to_si(latency, active_power, passive_power, frequency):
+    """
+    Convert the tech params from the input units to the SI units.
+    latency in cycles -> seconds
+    active_power in nW -> W
+    passive_power in nW -> W
+    """
+    return latency / frequency, active_power / 1e9, passive_power / 1e9
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~~~ SYMBOLIC UTILS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+def generate_init_params_from_rcs(rcs):
+    """
+    Just some format conversion
+    """
+    initial_params = {}
+    for elem in rcs["Reff"]:
+        initial_params["Reff_" + elem] = rcs["Reff"][elem]
+        initial_params["Ceff_" + elem] = rcs["Ceff"][elem]
+    initial_params["f"] = rcs["other"]["f"]
+    initial_params["V_dd"] = rcs["other"]["V_dd"]
+    initial_params["MemReadL"] = rcs["other"]["MemReadL"]
+    initial_params["MemWriteL"] = rcs["other"]["MemWriteL"]
+    initial_params["MemReadPact"] = rcs["other"]["MemReadPact"]
+    initial_params["MemWritePact"] = rcs["other"]["MemWritePact"]
+    initial_params["MemPpass"] = rcs["other"]["MemPpass"]
+    return initial_params

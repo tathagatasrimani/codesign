@@ -93,7 +93,6 @@ symbol_table = {
     "Reff_UAdd": Reff["UAdd"],
     "Reff_IsNot": Reff["IsNot"],
     "Reff_Not": Reff["Not"],
-    "Reff_Invert": Reff["Invert"],
     "Reff_Regs": Reff["Regs"],
     "Ceff_And": Ceff["And"],
     "Ceff_Or": Ceff["Or"],
@@ -117,13 +116,8 @@ symbol_table = {
     "Ceff_UAdd": Ceff["UAdd"],
     "Ceff_IsNot": Ceff["IsNot"],
     "Ceff_Not": Ceff["Not"],
-    "Ceff_Invert": Ceff["Invert"],
     "Ceff_Regs": Ceff["Regs"],
 }
-
-Roff = Reff["Invert"]*100
-
-P_pass_inv = (V_dd**2) / Roff
 
 # passive power
 beta = yaml.load(open("coefficients.yaml", "r"), Loader=yaml.Loader)["beta"]
@@ -154,7 +148,6 @@ symbolic_latency_wc = {
     "UAdd": make_sym_lat_wc("UAdd"),
     "IsNot": make_sym_lat_wc("IsNot"),
     "Not": make_sym_lat_wc("Not"),
-    "Invert": make_sym_lat_wc("Invert"),
     "Regs": make_sym_lat_wc("Regs"),
     # "Buf": make_sym_lat_wc("Buf"),
     "MainMem": (MemReadL + MemWriteL)/2, # this needs to change later to sep the two.
@@ -186,7 +179,6 @@ symbolic_latency_cyc = {
     "UAdd": make_sym_lat_cyc(f, symbolic_latency_wc["UAdd"]),
     "IsNot": make_sym_lat_cyc(f, symbolic_latency_wc["IsNot"]),
     "Not": make_sym_lat_cyc(f, symbolic_latency_wc["Not"]),
-    "Invert": make_sym_lat_cyc(f, symbolic_latency_wc["Invert"]),
     "Regs": make_sym_lat_cyc(f, symbolic_latency_wc["Regs"]),
     # "Buf": make_sym_lat_cyc(f, symbolic_latency_wc["Buf"]),
     "MainMem": make_sym_lat_cyc(f, symbolic_latency_wc["MainMem"]),
@@ -218,13 +210,13 @@ symbolic_power_active = {
     "UAdd": make_sym_power_act("UAdd"),
     "IsNot": make_sym_power_act("IsNot"),
     "Not": make_sym_power_act("Not"),
-    "Invert": make_sym_power_act("Invert"),
     "Regs": make_sym_power_act("Regs"),
     # "Buf": make_sym_power_act("Buf"),
     "MainMem": (MemReadPact + MemWritePact)/2,
 }
 
-def make_sym_power_pass(beta):
+
+def make_sym_power_pass(beta, P_pass_inv=V_dd**2 / (Reff["Not"] * 100)):
     return beta * P_pass_inv
 
 symbolic_power_passive = {
@@ -250,8 +242,12 @@ symbolic_power_passive = {
     "UAdd": make_sym_power_pass(beta["UAdd"]),
     "IsNot": make_sym_power_pass(beta["IsNot"]),
     "Not": make_sym_power_pass(beta["Not"]),
-    "Invert": make_sym_power_pass(beta["Invert"]),
     "Regs": make_sym_power_pass(beta["Regs"]),
     # "Buf": make_sym_power_pass(beta["Buf"]),
     "MainMem": MemPpass,
 }
+
+def update_symbolic_passive_power(R_off_on_ratio):
+    for elem in symbolic_power_passive:
+        if elem != "MainMem":
+            symbolic_power_passive[elem] = make_sym_power_pass(beta[elem], V_dd**2 / (R_off_on_ratio * Reff["Not"]))

@@ -13,6 +13,7 @@ from staticfg.builder import CFGBuilder
 from ast_utils import ASTUtils
 from memory import Memory, Cache
 from config_dicts import op2sym_map
+from rcgen import generate_optimization_params
 
 
 HW_CONFIG_FILE = "hw_cfgs.ini"
@@ -209,6 +210,14 @@ class HardwareModel:
             self.dynamic_power[key] = C[key] * self.V_dd * self.V_dd * self.frequency
             self.latency[key] = R[key] * C[key]
             self.leakage_power[key] = beta[key] * self.V_dd**2 / (R["Not"] * 100)
+
+    def get_optimization_params_from_tech_params(self):
+        """
+        Generate R,C, etc from the latency, power tech parameters.
+        """
+        rcs = generate_optimization_params(self.latency, self.dynamic_power, self.leakage_power, self.V_dd, self.frequency)
+        self.R_off_on_ratio = rcs["other"]["Roff_on_ratio"]
+        return rcs
 
     def update_cache_size(self, cache_size):
         pass

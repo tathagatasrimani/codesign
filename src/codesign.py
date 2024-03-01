@@ -8,16 +8,18 @@ import hw_symbols
 import yaml
 from sympy import sympify
 
+from sim_util import generate_init_params_from_rcs
+
+
 
 initial_tech_params = {
     hw_symbols.f: 2e9,
     hw_symbols.V_dd: 1.1,
 }
 
-
 class Codesign:
     def __init__(self, benchmark):
-        self.tech_params = initial_tech_params
+        self.tech_params = None
         self.full_tech_params = {}
         (
             self.sim,
@@ -31,6 +33,10 @@ class Codesign:
         self.symbolic_sim.simulator_prep(benchmark, self.hw.latency)
         self.symbolic_sim.id_to_node = self.sim.id_to_node
         self.symbolic_sim.update_data_path(self.sim.data_path)
+
+    def set_technology_parameters(self, tech_params):
+        self.tech_params = tech_params
+        # self.create_full_tech_params()
 
     def forward_pass(self, area_constraint):
         print("\nRunning Forward Pass")
@@ -151,16 +157,15 @@ def main():
 
     codesign_module = Codesign(args.benchmark)
 
+    # starting point set by the config we load into the HW model
+    rcs = codesign_module.hw.get_optimization_params_from_tech_params()
+    initial_tech_params = generate_init_params_from_rcs(rcs)
 
-    rcs = yaml.load(open("rcs.yaml", "r"), Loader=yaml.Loader)
-    rcs["other"] = {
-        "f": initial_tech_params[hw_symbols.f],
-        "V_dd": initial_tech_params[hw_symbols.V_dd],
-    }
-
-    for elem in rcs["Reff"]:
-        initial_tech_params[hw_symbols.symbol_table["Reff_" + elem]] = rcs["Reff"][elem]
-        initial_tech_params[hw_symbols.symbol_table["Ceff_" + elem]] = rcs["Ceff"][elem]
+    codesign_module.set_technology_parameters(initial_tech_params)
+    
+    # for elem in rcs["Reff"]:
+    #     initial_tech_params[hw_symbols.symbol_table["Reff_" + elem]] = rcs["Reff"][elem]
+    #     initial_tech_params[hw_symbols.symbol_table["Ceff_" + elem]] = rcs["Ceff"][elem]
     with open("rcs_current.yaml", "w") as f:
         f.write(yaml.dump(rcs))
     

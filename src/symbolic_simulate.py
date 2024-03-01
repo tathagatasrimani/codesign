@@ -106,8 +106,11 @@ class SymbolicSimulator:
         passive_power = 0
         for node, data in dict(
             filter(lambda x: x[1]["function"] != "Buf", hw.netlist.nodes.data())
-        ).items():      
-            passive_power += hw_symbols.symbolic_power_passive[data["function"]]
+        ).items():
+            scaling = 1
+            if data["function"] in ["Regs", "Buf", "MainMem"]:
+                scaling = data["size"]
+            passive_power += hw_symbols.symbolic_power_passive[data["function"]] * scaling
         return passive_power * total_execution_time
 
     def simulate(self, cfg, cfg_node_to_hw_map, hw: HardwareModel):
@@ -254,6 +257,9 @@ def main(args_in):
 
     # TODO: move this to a cli param
     hw = HardwareModel(cfg="aladdin_const_with_mem")
+    hw.get_optimization_params_from_tech_params()
+
+    hw_symbols.update_symbolic_passive_power(hw.R_off_on_ratio)
 
     cfg, cfg_node_to_hw_map = simulator.simulator_prep(args.benchmark, hw.latency)
 

@@ -1,22 +1,24 @@
-from preprocess import Preprocessor
+import yaml
+
 import pyomo.environ as pyo
 from sympy import sympify
-import yaml
+
+from preprocess import Preprocessor
+from sim_util import generate_init_params_from_rcs
+from hardwareModel import HardwareModel
 
 multistart = False
 
 def main():
     with open("sympy.txt") as f:
         s = f.read()
-    new = sympify(s)
-    edp = new
-    initial_params = {}
-    rcs = yaml.load(open("rcs_current.yaml", "r"), Loader=yaml.Loader)
-    for elem in rcs["Reff"]:
-        initial_params["Reff_"+elem] = rcs["Reff"][elem]
-        initial_params["Ceff_"+elem] = rcs["Ceff"][elem]
-    initial_params["f"] = rcs["other"]["f"]
-    initial_params["V_dd"] = rcs["other"]["V_dd"]
+    edp = sympify(s)
+
+    hw_cfg = "aladdin_const_with_mem" # this needs to be a cli arg at somepoint
+    hw = HardwareModel(cfg=hw_cfg)
+
+    rcs = hw.get_optimization_params_from_tech_params()
+    initial_params = generate_init_params_from_rcs(rcs)
 
     model = pyo.ConcreteModel()
     opt, scaled_preproc_model, preproc_model, free_symbols, mapping = Preprocessor().begin(model, edp, initial_params, multistart=multistart) 
