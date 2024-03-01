@@ -8,7 +8,7 @@ import hw_symbols
 import yaml
 from sympy import sympify
 
-from sim_util import generate_init_params_from_rcs
+from sim_util import generate_init_params_from_rcs_as_symbols
 
 
 
@@ -159,7 +159,7 @@ def main():
 
     # starting point set by the config we load into the HW model
     rcs = codesign_module.hw.get_optimization_params_from_tech_params()
-    initial_tech_params = generate_init_params_from_rcs(rcs)
+    initial_tech_params = generate_init_params_from_rcs_as_symbols(rcs)
 
     codesign_module.set_technology_parameters(initial_tech_params)
     

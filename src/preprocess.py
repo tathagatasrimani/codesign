@@ -93,7 +93,7 @@ class Preprocessor:
             edp = edp.subs({symbol: hw_symbols.symbol_table[symbol.name]})
         for s in edp.free_symbols:
             self.free_symbols.append(s)
-            if s.name in initial_params:
+            if s.name in initial_params: # change this to just s
                 self.expr_symbols[s] = initial_params[s.name]
 
         #print(edp.subs(self.expr_symbols))

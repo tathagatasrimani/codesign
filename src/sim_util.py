@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 import dfg_algo
 import schedule
-
+import hw_symbols
 
 # adds all mallocs and frees to vectors, and finds the next cfg node in the data path,
 # returning the index of that node
@@ -355,9 +355,10 @@ def convert_tech_params_to_si(latency, active_power, passive_power, frequency):
 # ~~~~~~~~~~~~~~~~~~~~~ SYMBOLIC UTILS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-def generate_init_params_from_rcs(rcs):
+def generate_init_params_from_rcs_as_strings(rcs):
     """
     Just some format conversion
+    keys are strings
     """
     initial_params = {}
     for elem in rcs["Reff"]:
@@ -370,4 +371,23 @@ def generate_init_params_from_rcs(rcs):
     initial_params["MemReadPact"] = rcs["other"]["MemReadPact"]
     initial_params["MemWritePact"] = rcs["other"]["MemWritePact"]
     initial_params["MemPpass"] = rcs["other"]["MemPpass"]
+    return initial_params
+
+
+def generate_init_params_from_rcs_as_symbols(rcs):
+    """
+    Just some format conversion
+    keys are strings
+    """
+    initial_params = {}
+    for elem in rcs["Reff"]:
+        initial_params[hw_symbols.symbol_table["Reff_" + elem]] = rcs["Reff"][elem]
+        initial_params[hw_symbols.symbol_table["Ceff_" + elem]] = rcs["Ceff"][elem]
+    initial_params[hw_symbols.f] = rcs["other"]["f"]
+    initial_params[hw_symbols.V_dd] = rcs["other"]["V_dd"]
+    initial_params[hw_symbols.MemReadL] = rcs["other"]["MemReadL"]
+    initial_params[hw_symbols.MemWriteL] = rcs["other"]["MemWriteL"]
+    initial_params[hw_symbols.MemReadPact] = rcs["other"]["MemReadPact"]
+    initial_params[hw_symbols.MemWritePact] = rcs["other"]["MemWritePact"]
+    initial_params[hw_symbols.MemPpass] = rcs["other"]["MemPpass"]
     return initial_params

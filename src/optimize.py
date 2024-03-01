@@ -4,7 +4,7 @@ import pyomo.environ as pyo
 from sympy import sympify
 
 from preprocess import Preprocessor
-from sim_util import generate_init_params_from_rcs
+from sim_util import generate_init_params_from_rcs_as_strings
 from hardwareModel import HardwareModel
 
 multistart = False
@@ -18,7 +18,7 @@ def main():
     hw = HardwareModel(cfg=hw_cfg)
 
     rcs = hw.get_optimization_params_from_tech_params()
-    initial_params = generate_init_params_from_rcs(rcs)
+    initial_params = generate_init_params_from_rcs_as_strings(rcs)
 
     model = pyo.ConcreteModel()
     opt, scaled_preproc_model, preproc_model, free_symbols, mapping = Preprocessor().begin(model, edp, initial_params, multistart=multistart) 
