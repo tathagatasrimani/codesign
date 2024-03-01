@@ -538,7 +538,7 @@ class ConcreteSimulator:
         for node in hw.netlist.nodes:
             hw.netlist.nodes[node]['allocation'] = len(hw.netlist.nodes[node]['allocation'])
 
-        print("done with simulation")
+        # print("done with simulation")
         # Path(simulator.path + '/benchmarks/pictures/memory_graphs').mkdir(parents=True, exist_ok=True)
         # self.new_graph.gv_graph.render(self.path + '/benchmarks/pictures/memory_graphs/' + sys.argv[1][sys.argv[1].rfind('/')+1:], view = True)
         return self.data

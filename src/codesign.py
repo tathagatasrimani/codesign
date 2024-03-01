@@ -67,8 +67,8 @@ class Codesign:
             value = float(lines[i].split(":")[2][1:-1])
             self.tech_params[mapping[key]] = value
             i += 1
-        print("mapping:", mapping)
-        print("tech params:", self.tech_params)
+        # print("mapping:", mapping)
+        # print("tech params:", self.tech_params)
 
     def create_full_tech_params(self):
         self.full_tech_params["symbolic_latency_wc"] = (
@@ -106,7 +106,7 @@ class Codesign:
                     initial_tech_params
                 )
             )
-        print(self.full_tech_params)
+        # print(self.full_tech_params)
 
     def write_back_rcs(self, rcs_path="rcs_current.yaml"):
         rcs = {"Reff": {}, "Ceff": {}, "other": {}}
@@ -125,19 +125,19 @@ class Codesign:
     def inverse_pass(self):
         print("\nRunning Inverse Pass")
         self.symbolic_sim.simulate(self.cfg, self.cfg_node_to_hw_map, self.hw)
-        self.symbolic_sim.calculate_edp()
+        self.symbolic_sim.calculate_edp(self.hw)
         self.symbolic_sim.save_edp_to_file()
 
         edp = self.symbolic_sim.edp
 
-        print("initial edp:", edp.subs(self.tech_params))
+        print(f"initial edp: {edp.subs(self.tech_params)} units?")
         os.system("python optimize.py > ipopt_out.txt")
 
         f = open("ipopt_out.txt", "r")
         self.parse_output(f)
         self.write_back_rcs()
         self.create_full_tech_params()
-        print("final edp:", edp.subs(self.tech_params))
+        print(f"final edp: {edp.subs(self.tech_params)} units?")
 
 
 def main():

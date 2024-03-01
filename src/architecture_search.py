@@ -26,7 +26,7 @@ def simulate_new_arch(hw, simulator, cfg, cfg_node_to_hw_map):
 def gen_new_arch(existing_arch, unroll_factor, cfg_node_to_hw_map, data_path, id_to_node, mem, saved_elem):
     existing_arch.netlist = nx.DiGraph()
     new_data_path = arch_search_util.unroll_by_specified_factor(
-        cfg_node_to_hw_map, data_path, id_to_node, unroll_factor, saved_elem
+        cfg_node_to_hw_map, data_path, id_to_node, unroll_factor, saved_elem, log=False
     )
     # print(f"old data path: {data_path}")
     # print(f"new data path: {new_data_path}")
@@ -65,8 +65,8 @@ def setup_arch_search(benchmark):
 
     simulator.simulate(cfg, cfg_node_to_hw_map, hw)
 
-    print(f"values in cfg_node_to_hw_map after:")
-    [print(str(val)) for val in cfg_node_to_hw_map.values()]
+    # print(f"values in cfg_node_to_hw_map after:")
+    # [print(str(val)) for val in cfg_node_to_hw_map.values()]
 
     unique, count = np.unique([str(elem) for elem in simulator.data_path], return_counts=True)
 
@@ -90,7 +90,7 @@ def setup_arch_search(benchmark):
             cont = 1
         prev = elem
 
-    print(f"max continuous: {max_continuous}")
+    # print(f"max continuous: {max_continuous}")
     return simulator, hw, cfg, cfg_node_to_hw_map, saved_elem, max_continuous
 
 def run_architecture_search(simulator, hw, cfg, cfg_node_to_hw_map, saved_elem, max_continuous, area_constraint):
@@ -119,7 +119,7 @@ def run_architecture_search(simulator, hw, cfg, cfg_node_to_hw_map, saved_elem, 
     epsilon = 0.01  # randomness for rounding
 
     for i in range(7):
-        print(f"Simulating new architecture {i}...")
+        # print(f"Simulating new architecture {i}...")
         hw_copy_ = deepcopy(hw)
         # sim_copy_ = deepcopy(sim_copy)
         new_data_path = gen_new_arch(
@@ -137,9 +137,9 @@ def run_architecture_search(simulator, hw, cfg, cfg_node_to_hw_map, saved_elem, 
         new_hw = hw_copy_
 
         EDP = simulate_new_arch(new_hw, simulator, cfg, cfg_node_to_hw_map)
-        print(
-            f"EDP: {EDP}; power: {simulator.avg_compute_power} mW; execution time: {simulator.execution_time} s; cycles: {simulator.cycles}"
-        )
+        # print(
+        #     f"EDP: {EDP}; power: {simulator.avg_compute_power} mW; execution time: {simulator.execution_time} s; cycles: {simulator.cycles}"
+        # )
         # nx.draw(new_hw.netlist, with_labels=True)
         # plt.show()
 
@@ -147,7 +147,7 @@ def run_architecture_search(simulator, hw, cfg, cfg_node_to_hw_map, saved_elem, 
         #     print("new arch can't execute computation")
         #     continue
         area = new_hw.get_total_area()
-        print(f"Area: {area} um^2")
+        # print(f"Area: {area} um^2")
         if area > area_constraint:
             EDP += np.inf
             unroll_high = unroll_factor
@@ -180,7 +180,7 @@ def run_architecture_search(simulator, hw, cfg, cfg_node_to_hw_map, saved_elem, 
 
         prev_edp = EDP
         prev_unroll = unroll_factor
-    print(f"All EDPS: {possible_unrolls_edp}")
+    # print(f"All EDPS: {possible_unrolls_edp}")
     print(f"Best Unroll Factor: {best_unroll}")
     return best_hw, best_edp
 

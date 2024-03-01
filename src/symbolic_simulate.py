@@ -61,7 +61,7 @@ class SymbolicSimulator:
         """
         max_cycles = 0
         energy_sum = 0
-        passive_power = 0
+        # passive_power = 0
         # print(hw_need)
 
         if nx.is_empty(computation_graph):
@@ -77,7 +77,7 @@ class SymbolicSimulator:
             # print("added active energy of", hw_symbols.symbolic_power_active[node_data["function"]]* (hw_symbols.symbolic_latency_wc[node_data["function"]] / hw_symbols.f), "for", node_data["function"])
             energy_sum += active_energy
 
-        passive_power += hw_symbols.symbolic_power_passive[node_data["function"]]
+        # passive_power += hw_symbols.symbolic_power_passive[node_data["function"]]
 
         for start_node in generations[0]: 
             for end_node in generations[-1]:
@@ -94,9 +94,21 @@ class SymbolicSimulator:
                         max_cycles + path_latency + abs(max_cycles - path_latency)
                     )
 
-        energy_sum += passive_power * max_cycles / hw_symbols.f
+        # energy_sum += passive_power * max_cycles / hw_symbols.f
         self.cycles += max_cycles
         return max_cycles, energy_sum
+
+    def passive_energy_dissipation(self, hw, total_execution_time):
+        """
+        Passive power is a function of purely the allocated hardware,
+        not the actual computation being computed. This is calculated separately at the end.
+        """
+        passive_power = 0
+        for node, data in dict(
+            filter(lambda x: x[1]["function"] != "Buf", hw.netlist.nodes.data())
+        ).items():      
+            passive_power += hw_symbols.symbolic_power_passive[data["function"]]
+        return passive_power * total_execution_time
 
     def simulate(self, cfg, cfg_node_to_hw_map, hw: HardwareModel):
         cur_node = cfg.entryblock
@@ -107,7 +119,7 @@ class SymbolicSimulator:
         i = 0
 
         # focus on symbolizing the node_operations
-        print("data path length:", len(self.data_path))
+        # print("data path length:", len(self.data_path))
         while i < len(self.data_path):
             # print(f"i: {i}")
             (
@@ -178,7 +190,7 @@ class SymbolicSimulator:
             i = next_ind
             if i == len(self.data_path):
                 break
-        print("done with simulation")
+        # print("done with simulation")
 
     def set_data_path(self):
         """
@@ -221,10 +233,12 @@ class SymbolicSimulator:
         # print(self.id_to_node)
         return cfg, cfg_node_to_hw_map
 
-    def calculate_edp(self):
+    def calculate_edp(self, hw):
         total_cycles = sum(self.node_sum_cycles.values())
-        total_power = sum(self.node_sum_energy.values())
-        self.edp = (total_cycles / hw_symbols.f) * total_power
+        total_execution_time = total_cycles / hw_symbols.f
+        total_active_energy = sum(self.node_sum_energy.values())
+        total_passive_energy = self.passive_energy_dissipation(hw, total_execution_time)
+        self.edp = total_execution_time * (total_active_energy + total_passive_energy)
 
     def save_edp_to_file(self):
         st = str(self.edp)
@@ -263,7 +277,7 @@ def main(args_in):
         simulator.cache_size = 16
 
     simulator.simulate(cfg, cfg_node_to_hw_map, hw)
-    simulator.calculate_edp()
+    simulator.calculate_edp(hw)
     
     #simulator.edp = simulator.edp.simplify()
     simulator.save_edp_to_file()

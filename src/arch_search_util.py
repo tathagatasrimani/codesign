@@ -24,7 +24,7 @@ def generate_new_min_arch(hw: HardwareModel, cfg_node_to_hw_map, data_path, id_t
         data_path (list): A list of lists representing the data path of the simulation.
         id_to_node (dict): A mapping of node ids to CFG nodes.
     """
-    print(f"Architecture Search Running...")
+    # print(f"Architecture Search Running...")
 
     for i in range(len(data_path)):
         # init vars for new node in cfg data path
@@ -160,13 +160,15 @@ def unroll_by_specified_factor(
     id_to_node: dict,
     unroll_factor: int,
     specified_node,
+    log=True,
 ):
     """
     Unroll the data path by a specified factor.
     Create new merged nx.Digraphs and add to cfg_node_to_hw_map.
     """
-    print(f"Unrolling by {unroll_factor}X...")
-    # print(f"Specified Node: {specified_node}")
+    if log:
+        print(f"Unrolling by {unroll_factor}X...")
+        print(f"Specified Node: {specified_node}")
     # add entry to cfg_node_to_hw_map with unrolled dfg with
     # unroll factor equal to max_continuous
     single_node_comp_graph = cfg_node_to_hw_map[id_to_node[specified_node[0]]].copy()

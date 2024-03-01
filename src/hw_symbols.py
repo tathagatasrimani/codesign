@@ -60,7 +60,7 @@ Ceff = {
     "IsNot": symbols("Ceff_IsNot", positive=True),
     "Not": symbols("Ceff_Not", positive=True),
     "Invert": symbols("Ceff_Invert", positive=True),
-    "Regs": symbols("Ceff_Regs", positive=True)
+    "Regs": symbols("Ceff_Regs", positive=True),
 }
 
 symbol_table = {
@@ -156,6 +156,8 @@ symbolic_latency_wc = {
     "Not": make_sym_lat_wc("Not"),
     "Invert": make_sym_lat_wc("Invert"),
     "Regs": make_sym_lat_wc("Regs"),
+    # "Buf": make_sym_lat_wc("Buf"),
+    "MainMem": (MemReadL + MemWriteL)/2, # this needs to change later to sep the two.
 }
 
 def make_sym_lat_cyc(f, lat_wc):
@@ -186,6 +188,8 @@ symbolic_latency_cyc = {
     "Not": make_sym_lat_cyc(f, symbolic_latency_wc["Not"]),
     "Invert": make_sym_lat_cyc(f, symbolic_latency_wc["Invert"]),
     "Regs": make_sym_lat_cyc(f, symbolic_latency_wc["Regs"]),
+    # "Buf": make_sym_lat_cyc(f, symbolic_latency_wc["Buf"]),
+    "MainMem": make_sym_lat_cyc(f, symbolic_latency_wc["MainMem"]),
 }
 
 def make_sym_power_act(elem):
@@ -216,6 +220,8 @@ symbolic_power_active = {
     "Not": make_sym_power_act("Not"),
     "Invert": make_sym_power_act("Invert"),
     "Regs": make_sym_power_act("Regs"),
+    # "Buf": make_sym_power_act("Buf"),
+    "MainMem": (MemReadPact + MemWritePact)/2,
 }
 
 def make_sym_power_pass(beta):
@@ -246,4 +252,6 @@ symbolic_power_passive = {
     "Not": make_sym_power_pass(beta["Not"]),
     "Invert": make_sym_power_pass(beta["Invert"]),
     "Regs": make_sym_power_pass(beta["Regs"]),
+    # "Buf": make_sym_power_pass(beta["Buf"]),
+    "MainMem": MemPpass,
 }
