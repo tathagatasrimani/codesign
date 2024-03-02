@@ -54,7 +54,6 @@ class SymbolicSimulator:
         self.max_mem_inuse = 0
         self.edp = None
         self.initial_params = {}
-        self.sim_cache = {}
 
     def reset_internal_variables(self):
         self.sim_cache = {}
@@ -212,6 +211,9 @@ class SymbolicSimulator:
         cur_node = cur_node.exits[0].target  # skip over the first node in the main cfg
         i = 0
 
+        sim_cache = {}
+
+
         while i < len(self.data_path):
             # print(f"i: {i}")
             (
@@ -252,9 +254,9 @@ class SymbolicSimulator:
             node_energy, node_cycles = 0, 0
 
             # if I've seen this node before, no need to recalculate
-            if cache_index in self.sim_cache:
-                self.node_sum_cycles[node_id] += self.sim_cache[cache_index][0]
-                self.node_sum_energy[node_id] += self.sim_cache[cache_index][1]
+            if cache_index in sim_cache:
+                self.node_sum_cycles[node_id] += sim_cache[cache_index][0]
+                self.node_sum_energy[node_id] += sim_cache[cache_index][1]
             else:
                 computation_graph = cfg_node_to_hw_map[cur_node]
                 # print(f"computation graph: {computation_graph.nodes(data=True)}")
@@ -274,7 +276,7 @@ class SymbolicSimulator:
                 node_energy += energy_sum
                 self.node_sum_cycles[node_id] += max_cycles
                 node_cycles += max_cycles
-                self.sim_cache[cache_index] = [node_cycles, node_energy]
+                sim_cache[cache_index] = [node_cycles, node_energy]
 
             self.node_intervals[-1][1][1] = self.cycles
             i = next_ind

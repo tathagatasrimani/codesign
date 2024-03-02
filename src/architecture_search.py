@@ -119,8 +119,8 @@ def run_architecture_search(simulator, hw, cfg, cfg_node_to_hw_map, saved_elem, 
 
     epsilon = 0.01  # randomness for rounding
 
-    for i in range(2):
-        print(f"Simulating new architecture {i}...")
+    for i in range(4):
+        # print(f"Simulating new architecture {i}...")
         hw_copy_ = deepcopy(hw)
         # sim_copy_ = deepcopy(sim_copy)
         new_data_path = gen_new_arch(
