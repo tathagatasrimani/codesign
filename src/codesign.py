@@ -7,6 +7,7 @@ import optimize
 import hw_symbols
 import yaml
 from sympy import sympify
+import sys
 
 from sim_util import generate_init_params_from_rcs_as_symbols
 
@@ -139,7 +140,11 @@ class Codesign:
         #print(edp)
         #print(self.tech_params)
         print(f"initial edp: {edp.subs(self.tech_params)} units?")
-        os.system("python optimize.py > ipopt_out.txt")
+        stdout = sys.stdout
+        with open("ipopt_out.txt", 'w') as sys.stdout:
+            optimize.main(self.hw, self.tech_params)
+        sys.stdout = stdout
+        #os.system("python optimize.py > ipopt_out.txt")
 
         f = open("ipopt_out.txt", "r")
         self.parse_output(f)

@@ -8,16 +8,20 @@ from sim_util import generate_init_params_from_rcs_as_strings
 from hardwareModel import HardwareModel
 
 multistart = False
-def main():
+def main(hw, tech_params):
     with open("sympy.txt") as f:
         s = f.read()
     edp = sympify(s)
 
-    hw_cfg = "aladdin_const_with_mem" # this needs to be a cli arg at somepoint
-    hw = HardwareModel(cfg=hw_cfg)
+    """hw_cfg = "aladdin_const_with_mem" # this needs to be a cli arg at somepoint
+    hw = HardwareModel(cfg=hw_cfg)"""
 
-    rcs = hw.get_optimization_params_from_tech_params()
-    initial_params = generate_init_params_from_rcs_as_strings(rcs)
+    """rcs = hw.get_optimization_params_from_tech_params()
+    print(rcs)
+    initial_params = generate_init_params_from_rcs_as_strings(rcs)"""
+    initial_params = {}
+    for key in tech_params:
+        initial_params[key.name] = tech_params[key]
 
     model = pyo.ConcreteModel()
     opt, scaled_preproc_model, preproc_model, free_symbols, mapping = Preprocessor().begin(model, edp, initial_params, multistart=multistart) 
@@ -32,5 +36,5 @@ def main():
     return initial_params, free_symbols, mapping
 
 
-if __name__ == "__main__":
-    main()
+"""if __name__ == "__main__":
+    main()"""
