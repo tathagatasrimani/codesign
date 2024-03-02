@@ -10,7 +10,7 @@ scaling_factors = {
     hw_symbols.f: 1e-6,
     hw_symbols.V_dd: 1,
 }
-obj_scale = 1
+#obj_scale = 1
 
 class Preprocessor:
     def __init__(self):
@@ -41,13 +41,13 @@ class Preprocessor:
         model.V_dd_lower = pyo.Constraint( rule=self.V_dd_lower)
         model.V_dd_upper = pyo.Constraint( rule=self.V_dd_upper)
         model.f_upper = pyo.Constraint( rule=self.f_upper)
-        """model.f = pyo.Constraint(expr = model.x[self.mapping[hw_symbols.f]] == self.initial_params["f"])
-        model.V_dd = pyo.Constraint(expr = model.x[self.mapping[hw_symbols.V_dd]] == self.initial_params["V_dd"])
+        #model.f = pyo.Constraint(expr = model.x[self.mapping[hw_symbols.f]] == self.initial_params["f"])
+        #model.V_dd = pyo.Constraint(expr = model.x[self.mapping[hw_symbols.V_dd]] == self.initial_params["V_dd"])
         model.AddR = pyo.Constraint(expr = model.x[self.mapping[hw_symbols.Reff["Add"]]] <= self.initial_params["Reff_Add"])
         model.RegsR = pyo.Constraint(expr = model.x[self.mapping[hw_symbols.Reff["Regs"]]] <= self.initial_params["Reff_Regs"])
-        model.InvertR = pyo.Constraint(expr = model.x[self.mapping[hw_symbols.Reff["Invert"]]] <= self.initial_params["Reff_Invert"])
+        model.NotR = pyo.Constraint(expr = model.x[self.mapping[hw_symbols.Reff["Not"]]] <= self.initial_params["Reff_Not"])
         model.AddC = pyo.Constraint(expr = model.x[self.mapping[hw_symbols.Ceff["Add"]]] <= self.initial_params["Ceff_Add"])
-        model.RegsC = pyo.Constraint(expr = model.x[self.mapping[hw_symbols.Ceff["Regs"]]] <= self.initial_params["Ceff_Regs"])"""
+        model.RegsC = pyo.Constraint(expr = model.x[self.mapping[hw_symbols.Ceff["Regs"]]] <= self.initial_params["Ceff_Regs"])
         return model
     
     def set_objective(self, model):
@@ -78,10 +78,11 @@ class Preprocessor:
         return opt
     
     def create_scaling(self, model):
-        model.scaling_factor[model.obj] = obj_scale
-        for var in scaling_factors:
-            print(var, self.mapping)
-            model.scaling_factor[model.x[self.mapping[var]]] = scaling_factors[var]
+        #model.scaling_factor[model.obj] = obj_scale
+        for s in self.free_symbols:
+            if s.name in self.initial_params and self.initial_params[s.name] != 0:
+                print(s.name, self.mapping)
+                model.scaling_factor[model.x[self.mapping[s]]] = 1 / self.initial_params[s.name]
 
     def begin(self, model, edp, initial_params, multistart):
         self.multistart = multistart
@@ -98,9 +99,10 @@ class Preprocessor:
 
         #print(edp.subs(self.expr_symbols))
         self.initial_val = float(edp.subs(self.expr_symbols))
+        print("initial val:", self.initial_val)
         
-        global obj_scale
-        obj_scale = 1 / self.initial_val
+        #global obj_scale
+        #obj_scale = 1 / self.initial_val
         #print(self.expr_symbols)
 
         model.nVars = pyo.Param(initialize=len(edp.free_symbols))
@@ -132,7 +134,7 @@ class Preprocessor:
         model.cuts = pyo.ConstraintList()
 
         model.scaling_factor = pyo.Suffix(direction=pyo.Suffix.EXPORT)
-        #self.create_scaling(model)
+        self.create_scaling(model)
         self.add_constraints(model)
 
         #print(self.mapping)
