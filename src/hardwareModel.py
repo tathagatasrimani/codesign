@@ -100,7 +100,7 @@ class HardwareModel:
 
         if path_to_graphml is not None:
             self.netlist = nx.read_gml(path_to_graphml)
-            print(f"netlist: {self.netlist.nodes.data()}")
+            # print(f"netlist: {self.netlist.nodes.data()}")
         else:
             self.netlist = nx.Graph()
 
@@ -204,12 +204,16 @@ class HardwareModel:
         self.frequency = rcs["other"]["f"]
         self.V_dd = rcs["other"]["V_dd"]
 
+        self.latency["MainMem"] = (rcs["other"]["MemReadL"] + rcs["other"]["MemWriteL"]) / 2
+        self.dynamic_power["MainMem"] = (rcs["other"]["MemReadPact"] + rcs["other"]["MemWritePact"]) / 2
+        self.leakage_power["MainMem"] = rcs["other"]["MemPpass"]
+
         beta = yaml.load(open(coeff_file, "r"), Loader=yaml.Loader)["beta"]
 
         for key in C:
             self.dynamic_power[key] = C[key] * self.V_dd * self.V_dd * self.frequency
             self.latency[key] = R[key] * C[key]
-            self.leakage_power[key] = beta[key] * self.V_dd**2 / (R["Not"] * 100)
+            self.leakage_power[key] = beta[key] * self.V_dd**2 / (R["Not"] * self.R_off_on_ratio)
 
     def get_optimization_params_from_tech_params(self):
         """

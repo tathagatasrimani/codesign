@@ -635,7 +635,7 @@ class ConcreteSimulator:
     def calculate_edp(self, hw):
         self.calculate_average_power()
         self.execution_time = self.cycles / hw.frequency # in seconds
-        self.edp = self.avg_compute_power * self.execution_time ** 2
+        self.edp = self.avg_compute_power * 1e-3 * self.execution_time ** 2 # convert mW to W
 
     def compose_entire_computation_graph(self, cfg_node_to_hw_map, plot=False):
         """

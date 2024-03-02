@@ -1,26 +1,27 @@
 import argparse
 import os
-import simulate
+import yaml
+import sys
+
+from sympy import sympify
+
 import architecture_search
 import symbolic_simulate
 import optimize
 import hw_symbols
-import yaml
-from sympy import sympify
-import sys
-
 from sim_util import generate_init_params_from_rcs_as_symbols
+import hardwareModel
 
 
-
-initial_tech_params = {
-    hw_symbols.f: 2e9,
-    hw_symbols.V_dd: 1.1,
-}
+# initial_tech_params = {
+#     hw_symbols.f: 2e9,
+#     hw_symbols.V_dd: 1.1,
+# }
 
 class Codesign:
     def __init__(self, benchmark):
         self.tech_params = None
+        self.initial_tech_params = None
         self.full_tech_params = {}
         (
             self.sim,
@@ -36,6 +37,8 @@ class Codesign:
         self.symbolic_sim.update_data_path(self.sim.data_path)
 
     def set_technology_parameters(self, tech_params):
+        if self.initial_tech_params == None:
+            self.initial_tech_params = tech_params
         self.tech_params = tech_params
         # self.create_full_tech_params()
 
@@ -53,7 +56,7 @@ class Codesign:
         self.hw = new_hw
         self.symbolic_sim.id_to_node = self.sim.id_to_node
 
-        print(f"New EDP: {new_edp} mJs")
+        print(f"New EDP: {new_edp} Js")
 
     def parse_output(self, f):
         lines = f.readlines()
@@ -78,44 +81,6 @@ class Codesign:
         # print("mapping:", mapping)
         # print("tech params:", self.tech_params)
 
-    def create_full_tech_params(self):
-        self.full_tech_params["symbolic_latency_wc"] = (
-            hw_symbols.symbolic_latency_wc.copy()
-        )
-        for key in self.full_tech_params["symbolic_latency_wc"]:
-            self.full_tech_params["symbolic_latency_wc"][key] = self.full_tech_params[
-                "symbolic_latency_wc"
-            ][key].subs(self.tech_params)
-            # for the rest of the parameters, just give them back their initial values
-            self.full_tech_params["symbolic_latency_wc"][key] = self.full_tech_params[
-                "symbolic_latency_wc"
-            ][key].subs(initial_tech_params)
-        self.full_tech_params["symbolic_power_active"] = (
-            hw_symbols.symbolic_power_active.copy()
-        )
-        for key in self.full_tech_params["symbolic_power_active"]:
-            self.full_tech_params["symbolic_power_active"][key] = self.full_tech_params[
-                "symbolic_power_active"
-            ][key].subs(self.tech_params)
-            self.full_tech_params["symbolic_power_active"][key] = self.full_tech_params[
-                "symbolic_power_active"
-            ][key].subs(initial_tech_params)
-        self.full_tech_params["symbolic_power_passive"] = (
-            hw_symbols.symbolic_power_passive.copy()
-        )
-        for key in self.full_tech_params["symbolic_power_passive"]:
-            self.full_tech_params["symbolic_power_passive"][key] = (
-                self.full_tech_params["symbolic_power_passive"][key].subs(
-                    self.tech_params
-                )
-            )
-            self.full_tech_params["symbolic_power_passive"][key] = (
-                self.full_tech_params["symbolic_power_passive"][key].subs(
-                    initial_tech_params
-                )
-            )
-        # print(self.full_tech_params)
-
     def write_back_rcs(self, rcs_path="rcs_current.yaml"):
         rcs = {"Reff": {}, "Ceff": {}, "other": {}}
         for elem in self.tech_params:
@@ -132,6 +97,9 @@ class Codesign:
 
     def inverse_pass(self):
         print("\nRunning Inverse Pass")
+
+        hardwareModel.un_allocate_all_in_use_elements(self.hw.netlist)
+
         self.symbolic_sim.simulate(self.cfg, self.cfg_node_to_hw_map, self.hw)
         self.symbolic_sim.calculate_edp(self.hw)
         self.symbolic_sim.save_edp_to_file()
@@ -139,7 +107,7 @@ class Codesign:
         edp = self.symbolic_sim.edp
         #print(edp)
         #print(self.tech_params)
-        print(f"initial edp: {edp.subs(self.tech_params)} units?")
+        print(f"Initial EDP: {edp.subs(self.tech_params)} Js")
         stdout = sys.stdout
         with open("ipopt_out.txt", 'w') as sys.stdout:
             optimize.main(self.hw, self.tech_params)
@@ -152,7 +120,7 @@ class Codesign:
         self.create_full_tech_params()
         #print("params after opt:", self.tech_params)
         #print("edp after opt:", edp)
-        print(f"final edp: {edp.subs(self.tech_params)} units?")
+        print(f"Final EDP: {edp.subs(self.tech_params)} Js")
 
 
 def main():
@@ -172,9 +140,9 @@ def main():
 
     codesign_module.set_technology_parameters(initial_tech_params)
     
-    for elem in rcs["Reff"]:
-        initial_tech_params[hw_symbols.symbol_table["Reff_" + elem]] = rcs["Reff"][elem]
-        initial_tech_params[hw_symbols.symbol_table["Ceff_" + elem]] = rcs["Ceff"][elem]
+    # for elem in rcs["Reff"]:
+    #     initial_tech_params[hw_symbols.symbol_table["Reff_" + elem]] = rcs["Reff"][elem]
+    #     initial_tech_params[hw_symbols.symbol_table["Ceff_" + elem]] = rcs["Ceff"][elem]
     with open("rcs_current.yaml", "w") as f:
         f.write(yaml.dump(rcs))
     
