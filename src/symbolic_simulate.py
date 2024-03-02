@@ -394,8 +394,7 @@ class SymbolicSimulator:
             f.write(st)
 
 
-def main(args_in):
-    args = args_in
+def main():
     print(f"Running symbolic simulator for {args.benchmark.split('/')[-1]}")
 
     simulator = SymbolicSimulator()
@@ -449,4 +448,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
     print(f"args: benchmark: {args.benchmark}, trace:{args.notrace}, area:{args.area}")
 
-    main(args)
+    main()

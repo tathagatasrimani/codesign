@@ -110,14 +110,14 @@ class Codesign:
         print(f"Initial EDP: {edp.subs(self.tech_params)} Js")
         stdout = sys.stdout
         with open("ipopt_out.txt", 'w') as sys.stdout:
-            optimize.main(self.hw, self.tech_params)
+            optimize.optimize(self.tech_params)
         sys.stdout = stdout
         #os.system("python optimize.py > ipopt_out.txt")
 
         f = open("ipopt_out.txt", "r")
         self.parse_output(f)
         self.write_back_rcs()
-        self.create_full_tech_params()
+        # self.create_full_tech_params()
         #print("params after opt:", self.tech_params)
         #print("edp after opt:", edp)
         print(f"Final EDP: {edp.subs(self.tech_params)} Js")

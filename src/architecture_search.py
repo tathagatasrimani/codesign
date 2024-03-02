@@ -185,7 +185,7 @@ def run_architecture_search(simulator, hw, cfg, cfg_node_to_hw_map, saved_elem, 
     return best_hw, best_edp
 
 
-def main(args):
+def main():
     """
     Currently the data path is just going to get modified once
     when I do the unrolling;
