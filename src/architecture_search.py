@@ -93,7 +93,7 @@ def setup_arch_search(benchmark):
     # print(f"max continuous: {max_continuous}")
     return simulator, hw, cfg, cfg_node_to_hw_map, saved_elem, max_continuous
 
-def run_architecture_search(simulator, hw, cfg, cfg_node_to_hw_map, saved_elem, max_continuous, area_constraint):
+def run_architecture_search(simulator, hw, cfg, cfg_node_to_hw_map, saved_elem, max_continuous, area_constraint, best_edp=None):
     unroll_factor = max_continuous // 2
     possible_unroll_factors = range(1, max_continuous + 1)
     possible_unrolls_edp = [0] * max_continuous
@@ -102,7 +102,8 @@ def run_architecture_search(simulator, hw, cfg, cfg_node_to_hw_map, saved_elem, 
     orig_data_path = deepcopy(simulator.data_path)
     # print(f"Original Data Path: {orig_data_path}")
     simulator.calculate_edp(hw)
-    best_edp = simulator.edp
+    if best_edp is None:
+        best_edp = simulator.edp
     possible_unrolls_edp[0] = best_edp
     best_hw = hw
     best_unroll = 1
@@ -118,8 +119,8 @@ def run_architecture_search(simulator, hw, cfg, cfg_node_to_hw_map, saved_elem, 
 
     epsilon = 0.01  # randomness for rounding
 
-    for i in range(7):
-        # print(f"Simulating new architecture {i}...")
+    for i in range(2):
+        print(f"Simulating new architecture {i}...")
         hw_copy_ = deepcopy(hw)
         # sim_copy_ = deepcopy(sim_copy)
         new_data_path = gen_new_arch(

@@ -198,6 +198,7 @@ class HardwareModel:
         """
         For full iteration, need to update the technology parameters after a run of the inverse pass.
         """
+        print(f"Updating Technology Parameters...")
         rcs = yaml.load(open(rc_params_file, "r"), Loader=yaml.Loader)
         C = rcs["Ceff"]
         R = rcs["Reff"]
@@ -211,9 +212,10 @@ class HardwareModel:
         beta = yaml.load(open(coeff_file, "r"), Loader=yaml.Loader)["beta"]
 
         for key in C:
-            self.dynamic_power[key] = C[key] * self.V_dd * self.V_dd * self.frequency
-            self.latency[key] = R[key] * C[key]
-            self.leakage_power[key] = beta[key] * self.V_dd**2 / (R["Not"] * self.R_off_on_ratio)
+            self.dynamic_power[key] = C[key] * self.V_dd * self.V_dd * self.frequency * 1e9 # convert to nW
+            self.latency[key] = R[key] * C[key] * self.frequency # convert to cycles
+            self.leakage_power[key] = beta[key] * self.V_dd**2 / (R["Not"] * self.R_off_on_ratio) *1e9 # convert to nW
+        
 
     def get_optimization_params_from_tech_params(self):
         """

@@ -540,7 +540,6 @@ class ConcreteSimulator:
         # print("done with simulation")
         # Path(simulator.path + '/benchmarks/pictures/memory_graphs').mkdir(parents=True, exist_ok=True)
         # self.new_graph.gv_graph.render(self.path + '/benchmarks/pictures/memory_graphs/' + sys.argv[1][sys.argv[1].rfind('/')+1:], view = True)
-        return self.data
 
     def set_data_path(self):
         with open(self.path + "/instrumented_files/output.txt", "r") as f:

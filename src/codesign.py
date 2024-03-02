@@ -35,6 +35,8 @@ class Codesign:
         self.symbolic_sim.simulator_prep(benchmark, self.hw.latency)
         self.symbolic_sim.id_to_node = self.sim.id_to_node
         self.symbolic_sim.update_data_path(self.sim.data_path)
+        self.original_data_path = self.sim.data_path
+        hardwareModel.un_allocate_all_in_use_elements(self.hw.netlist)
 
     def set_technology_parameters(self, tech_params):
         if self.initial_tech_params == None:
@@ -44,6 +46,13 @@ class Codesign:
 
     def forward_pass(self, area_constraint):
         print("\nRunning Forward Pass")
+
+        self.sim.simulate(self.cfg, self.cfg_node_to_hw_map, self.hw)
+        self.sim.calculate_edp(self.hw)
+        edp = self.sim.edp
+        print(f"Run Sim with new tech params; EDP: {edp} Js")
+
+        # self.sim.update_data_path(self.original_data_path)
         new_hw, new_edp = architecture_search.run_architecture_search(
             self.sim,
             self.hw,
@@ -51,7 +60,8 @@ class Codesign:
             self.cfg_node_to_hw_map,
             self.saved_elem,
             self.max_continuous,
-            area_constraint
+            area_constraint,
+            best_edp=edp,
         )
         self.hw = new_hw
         self.symbolic_sim.id_to_node = self.sim.id_to_node
@@ -105,21 +115,16 @@ class Codesign:
         self.symbolic_sim.save_edp_to_file()
 
         edp = self.symbolic_sim.edp
-        #print(edp)
-        #print(self.tech_params)
+  
         print(f"Initial EDP: {edp.subs(self.tech_params)} Js")
         stdout = sys.stdout
         with open("ipopt_out.txt", 'w') as sys.stdout:
             optimize.optimize(self.tech_params)
         sys.stdout = stdout
-        #os.system("python optimize.py > ipopt_out.txt")
 
         f = open("ipopt_out.txt", "r")
         self.parse_output(f)
         self.write_back_rcs()
-        # self.create_full_tech_params()
-        #print("params after opt:", self.tech_params)
-        #print("edp after opt:", edp)
         print(f"Final EDP: {edp.subs(self.tech_params)} Js")
 
 
@@ -140,9 +145,6 @@ def main():
 
     codesign_module.set_technology_parameters(initial_tech_params)
     
-    # for elem in rcs["Reff"]:
-    #     initial_tech_params[hw_symbols.symbol_table["Reff_" + elem]] = rcs["Reff"][elem]
-    #     initial_tech_params[hw_symbols.symbol_table["Ceff_" + elem]] = rcs["Ceff"][elem]
     with open("rcs_current.yaml", "w") as f:
         f.write(yaml.dump(rcs))
     
