@@ -99,6 +99,8 @@ class Preprocessor:
 
         #print(edp.subs(self.expr_symbols))
         self.initial_val = float(edp.subs(self.expr_symbols))
+        print(self.expr_symbols)
+        print("edp:", edp)
         print("initial val:", self.initial_val)
         
         #global obj_scale

@@ -53,6 +53,11 @@ class SymbolicSimulator:
         self.initial_params = {}
         self.sim_cache = {}
 
+    def reset_internal_variables(self):
+        self.sim_cache = {}
+        self.node_sum_energy = {}
+        self.node_sum_cycles = {}
+
     def cycle_sim(self, computation_graph):
         """
         Don't need to do isomorphism check. Just need to generate topo generations.
@@ -114,6 +119,7 @@ class SymbolicSimulator:
         return passive_power * total_execution_time
 
     def simulate(self, cfg, cfg_node_to_hw_map, hw: HardwareModel):
+        self.reset_internal_variables()
         cur_node = cfg.entryblock
 
         cur_node = cur_node.exits[

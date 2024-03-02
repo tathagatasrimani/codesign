@@ -69,8 +69,9 @@ class Codesign:
             i += 1
         i += 2
         for _ in range(len(mapping)):
-            key = lines[i].lstrip()[0]
+            key = lines[i].split(":")[0].lstrip().rstrip()
             value = float(lines[i].split(":")[2][1:-1])
+            #print("idx", key, "getting", value)
             self.tech_params[mapping[key]] = value
             i += 1
         # print("mapping:", mapping)
@@ -135,7 +136,8 @@ class Codesign:
         self.symbolic_sim.save_edp_to_file()
 
         edp = self.symbolic_sim.edp
-
+        #print(edp)
+        #print(self.tech_params)
         print(f"initial edp: {edp.subs(self.tech_params)} units?")
         os.system("python optimize.py > ipopt_out.txt")
 
@@ -143,6 +145,8 @@ class Codesign:
         self.parse_output(f)
         self.write_back_rcs()
         self.create_full_tech_params()
+        #print("params after opt:", self.tech_params)
+        #print("edp after opt:", edp)
         print(f"final edp: {edp.subs(self.tech_params)} units?")
 
 

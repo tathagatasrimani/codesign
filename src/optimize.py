@@ -8,7 +8,6 @@ from sim_util import generate_init_params_from_rcs_as_strings
 from hardwareModel import HardwareModel
 
 multistart = False
-
 def main():
     with open("sympy.txt") as f:
         s = f.read()
