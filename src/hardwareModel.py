@@ -192,6 +192,18 @@ class HardwareModel:
         # how does mem latency get incorporated?
         ## DO THIS!!!!
 
+    def write_technology_parameters(self, filename):
+        params = {
+            "latency": self.latency,
+            "dynamic_power": self.dynamic_power,
+            "leakage_power": self.leakage_power,
+            "area": self.area,
+            "f": self.frequency,
+            "V_dd": self.V_dd,
+        }
+        with open(filename, "w") as f:
+            f.write(yaml.dump(params))
+
     def update_technology_parameters(
         self, rc_params_file="rcs_current.yaml", coeff_file="coefficients.yaml"
     ):
@@ -205,23 +217,36 @@ class HardwareModel:
         self.frequency = rcs["other"]["f"]
         self.V_dd = rcs["other"]["V_dd"]
 
-        self.latency["MainMem"] = (rcs["other"]["MemReadL"] + rcs["other"]["MemWriteL"]) / 2
-        self.dynamic_power["MainMem"] = (rcs["other"]["MemReadPact"] + rcs["other"]["MemWritePact"]) / 2
+        self.latency["MainMem"] = (
+            rcs["other"]["MemReadL"] + rcs["other"]["MemWriteL"]
+        ) / 2
+        self.dynamic_power["MainMem"] = (
+            rcs["other"]["MemReadPact"] + rcs["other"]["MemWritePact"]
+        ) / 2
         self.leakage_power["MainMem"] = rcs["other"]["MemPpass"]
 
         beta = yaml.load(open(coeff_file, "r"), Loader=yaml.Loader)["beta"]
 
         for key in C:
-            self.dynamic_power[key] = C[key] * self.V_dd * self.V_dd * self.frequency * 1e9 # convert to nW
-            self.latency[key] = R[key] * C[key] * self.frequency # convert to cycles
-            self.leakage_power[key] = beta[key] * self.V_dd**2 / (R["Not"] * self.R_off_on_ratio) *1e9 # convert to nW
-        
+            self.dynamic_power[key] = (
+                C[key] * self.V_dd * self.V_dd * self.frequency * 1e9
+            )  # convert to nW
+            self.latency[key] = R[key] * C[key] * self.frequency  # convert to cycles
+            self.leakage_power[key] = (
+                beta[key] * self.V_dd**2 / (R["Not"] * self.R_off_on_ratio) * 1e9
+            )  # convert to nW
 
     def get_optimization_params_from_tech_params(self):
         """
         Generate R,C, etc from the latency, power tech parameters.
         """
-        rcs = generate_optimization_params(self.latency, self.dynamic_power, self.leakage_power, self.V_dd, self.frequency)
+        rcs = generate_optimization_params(
+            self.latency,
+            self.dynamic_power,
+            self.leakage_power,
+            self.V_dd,
+            self.frequency,
+        )
         self.R_off_on_ratio = rcs["other"]["Roff_on_ratio"]
         return rcs
 
