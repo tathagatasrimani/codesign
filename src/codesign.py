@@ -77,7 +77,7 @@ class Codesign:
         )
         self.hw = new_hw
         self.symbolic_sim.id_to_node = self.sim.id_to_node
-
+        self.forward_edp = new_edp
         print(f"New EDP: {new_edp} Js")
 
     def parse_output(self, f):
@@ -137,10 +137,15 @@ class Codesign:
         f = open("ipopt_out.txt", "r")
         self.parse_output(f)
         self.write_back_rcs()
-        print(f"Final EDP: {edp.subs(self.tech_params)} Js")
+        self.inverse_edp = edp.subs(self.tech_params)
+
+        print(f"Final EDP: {self.inverse_edp} Js")
 
     def log_all_to_file(self, iter_number):
-
+        with open(f"{self.save_dir}/log.txt", "a") as f:
+            f.write(f"{iter_number}\n")
+            f.write(f"Forward EDP: {self.forward_edp}\n")
+            f.write(f"Inverse EDP: {self.inverse_edp}\n")
         nx.write_gml(
             self.hw.netlist,
             f"{self.save_dir}/netlist_{iter_number}.gml",
@@ -174,7 +179,7 @@ def main():
         f.write(yaml.dump(rcs))
 
     i = 0
-    while i < 2:
+    while i < 5:
         codesign_module.forward_pass(args.area)
         codesign_module.symbolic_sim.update_data_path(codesign_module.sim.data_path)
 
