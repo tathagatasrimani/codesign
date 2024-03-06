@@ -645,6 +645,7 @@ class ConcreteSimulator:
         self.execution_time = self.cycles / hw.frequency # in seconds
         print(f"execution time: {self.execution_time}, energy: {self.total_energy}")
         self.edp = self.total_energy * self.execution_time # convert mW to W
+        print(f"calculated edp: {self.edp}")
 
     def compose_entire_computation_graph(self, cfg_node_to_hw_map, plot=False):
         """
