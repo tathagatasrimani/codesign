@@ -62,6 +62,7 @@ class ConcreteSimulator:
         self.total_write_size = 0
         self.max_regs_inuse = 0
         self.max_mem_inuse = 0
+        self.total_energy = 0
 
     def simulate_cycles(self, hw_spec, computation_graph, total_cycles):
         """
@@ -92,6 +93,10 @@ class ConcreteSimulator:
                 hw_spec.dynamic_power[node_data["function"]]
                 * scaling
                 * hw_spec.latency[node_data["function"]]
+            )
+            self.total_energy += (
+                hw_spec.dynamic_power[node_data["function"]] * 1e-9
+                * (hw_spec.latency[node_data["function"]] / hw_spec.frequency)
             )
             hw_spec.compute_operation_totals[node_data["function"]] += 1
         self.active_power_use[self.cycles] /= total_cycles
@@ -533,6 +538,10 @@ class ConcreteSimulator:
             self.passive_power_dissipation_rate += (
                 hw.leakage_power[elem_data["function"]] * scaling
             )
+            self.total_energy += (
+                hw.leakage_power[elem_data["function"]]*1e-9
+                * (self.cycles / hw.frequency)
+            )
 
         for node in hw.netlist.nodes:
             hw.netlist.nodes[node]['allocation'] = len(hw.netlist.nodes[node]['allocation'])
@@ -634,7 +643,8 @@ class ConcreteSimulator:
     def calculate_edp(self, hw):
         self.calculate_average_power()
         self.execution_time = self.cycles / hw.frequency # in seconds
-        self.edp = self.avg_compute_power * 1e-3 * self.execution_time ** 2 # convert mW to W
+        print(f"execution time: {self.execution_time}, energy: {self.total_energy}")
+        self.edp = self.total_energy * self.execution_time # convert mW to W
 
     def compose_entire_computation_graph(self, cfg_node_to_hw_map, plot=False):
         """

@@ -123,7 +123,7 @@ class Codesign:
         hardwareModel.un_allocate_all_in_use_elements(self.hw.netlist)
 
         self.symbolic_sim.simulate(self.cfg, self.cfg_node_to_hw_map, self.hw)
-        self.symbolic_sim.calculate_edp(self.hw)
+        self.symbolic_sim.calculate_edp(self.hw, self.tech_params)
         self.symbolic_sim.save_edp_to_file()
 
         edp = self.symbolic_sim.edp

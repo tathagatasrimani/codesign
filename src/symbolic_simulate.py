@@ -383,11 +383,12 @@ class SymbolicSimulator:
         # print(self.id_to_node)
         return cfg, cfg_node_to_hw_map
 
-    def calculate_edp(self, hw):
+    def calculate_edp(self, hw, tech_params):
         total_cycles = sum(self.node_sum_cycles.values())
         total_execution_time = total_cycles
         total_active_energy = sum(self.node_sum_energy.values())
         total_passive_energy = self.passive_energy_dissipation(hw, total_execution_time)
+        print(f"execution time: {total_execution_time.subs(tech_params)}, energy: {(total_active_energy+total_passive_energy).subs(tech_params)}")
         self.edp = total_execution_time * (total_active_energy + total_passive_energy)
 
     def save_edp_to_file(self):
