@@ -59,6 +59,9 @@ class Codesign:
     def forward_pass(self, area_constraint):
         print("\nRunning Forward Pass")
 
+        for elem in self.hw.leakage_power:
+            if elem == "Buf": continue
+            self.hw.leakage_power[elem] = hw_symbols.symbolic_power_passive[elem].subs(self.tech_params)*1e9
         self.sim.simulate(self.cfg, self.cfg_node_to_hw_map, self.hw)
         self.sim.calculate_edp(self.hw)
         edp = self.sim.edp
@@ -122,7 +125,7 @@ class Codesign:
 
         hardwareModel.un_allocate_all_in_use_elements(self.hw.netlist)
 
-        self.symbolic_sim.simulate(self.cfg, self.cfg_node_to_hw_map, self.hw)
+        self.symbolic_sim.simulate(self.cfg, self.cfg_node_to_hw_map, self.hw, self.tech_params)
         self.symbolic_sim.calculate_edp(self.hw, self.tech_params)
         self.symbolic_sim.save_edp_to_file()
 

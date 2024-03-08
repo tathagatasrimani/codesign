@@ -98,6 +98,11 @@ class ConcreteSimulator:
                 hw_spec.dynamic_power[node_data["function"]] * 1e-9
                 * (hw_spec.latency[node_data["function"]] / hw_spec.frequency)
             )
+            print("added active energy of", hw_spec.dynamic_power[node_data["function"]]*1e-9
+                  * (hw_spec.latency[node_data["function"]] / hw_spec.frequency), 
+                  "for", node_data["function"],
+                  "with power",
+                  hw_spec.dynamic_power[node_data["function"]]*1e-9)
             hw_spec.compute_operation_totals[node_data["function"]] += 1
         self.active_power_use[self.cycles] /= total_cycles
 
@@ -542,6 +547,11 @@ class ConcreteSimulator:
                 hw.leakage_power[elem_data["function"]]*1e-9
                 * (self.cycles / hw.frequency)
             )
+            print("added passive energy of", hw.leakage_power[elem_data["function"]]*1e-9
+                  * (self.cycles / hw.frequency), 
+                  "for", elem_data["function"],
+                  "with power of",
+                  hw.leakage_power[elem_data["function"]]*1e-9)
 
         for node in hw.netlist.nodes:
             hw.netlist.nodes[node]['allocation'] = len(hw.netlist.nodes[node]['allocation'])

@@ -54,6 +54,7 @@ class SymbolicSimulator:
         self.max_mem_inuse = 0
         self.edp = None
         self.initial_params = {}
+        self.tech_params = {}
 
     def reset_internal_variables(self):
         self.sim_cache = {}
@@ -61,6 +62,7 @@ class SymbolicSimulator:
         self.node_sum_cycles = {}
 
     def cycle_sim(self, computation_graph):
+        global tech_p
         """
         Don't need to do isomorphism check. Just need to generate topo generations.
         Since we'll get architectures from the forward pass. We'll assume that the architecture
@@ -78,10 +80,25 @@ class SymbolicSimulator:
             active_energy = hw_symbols.symbolic_power_active[node_data["function"]] * (
                 hw_symbols.symbolic_latency_wc[node_data["function"]]
             )
-            # print("added active energy of", hw_symbols.symbolic_power_active[node_data["function"]]* (hw_symbols.symbolic_latency_wc[node_data["function"]] / hw_symbols.f), "for", node_data["function"])
+            print("added active energy of", (hw_symbols.symbolic_power_active[node_data["function"]]* 
+                                             (hw_symbols.symbolic_latency_wc[node_data["function"]])).subs(self.tech_params), 
+                                             "for", node_data["function"],
+                                             "with power",
+                                             hw_symbols.symbolic_power_active[node_data["function"]].subs(self.tech_params))
             energy_sum += active_energy
 
-        for start_node in generations[0]:
+        # graph based timing
+        for generation in generations:
+            group_latency = 0
+            for node in generation:
+                node_latency = hw_symbols.symbolic_latency_wc[
+                    computation_graph.nodes()[node]["function"]
+                ]
+                group_latency = 0.5 * (
+                    group_latency + node_latency + abs(group_latency - node_latency)
+                )
+            max_cycles += group_latency
+        """for start_node in generations[0]:
             for end_node in generations[-1]:
                 if start_node == end_node:
                     continue
@@ -98,7 +115,7 @@ class SymbolicSimulator:
                         ]
                     max_cycles = 0.5 * (
                         max_cycles + path_latency + abs(max_cycles - path_latency)
-                    )
+                    )"""
 
         # remove Mem and Buf from computation graph, so it doesn't get duplicated
         # if added again in next iteration.
@@ -202,9 +219,15 @@ class SymbolicSimulator:
             passive_power += (
                 hw_symbols.symbolic_power_passive[data["function"]] * scaling
             )
+            print("added passive energy of", (hw_symbols.symbolic_power_passive[data["function"]]* 
+                                                total_execution_time).subs(self.tech_params), 
+                                                "for", data["function"],
+                                                "for power",
+                                                hw_symbols.symbolic_power_passive[data["function"]].subs(self.tech_params))
         return passive_power * total_execution_time
 
-    def simulate(self, cfg, cfg_node_to_hw_map, hw: HardwareModel):
+    def simulate(self, cfg, cfg_node_to_hw_map, hw: HardwareModel, tech_params):
+        self.tech_params = tech_params
         self.reset_internal_variables()
         cur_node = cfg.entryblock
 
@@ -390,6 +413,7 @@ class SymbolicSimulator:
         total_passive_energy = self.passive_energy_dissipation(hw, total_execution_time)
         print(f"execution time: {total_execution_time.subs(tech_params)}, energy: {(total_active_energy+total_passive_energy).subs(tech_params)}")
         self.edp = total_execution_time * (total_active_energy + total_passive_energy)
+        self.tech_params = tech_params
 
     def save_edp_to_file(self):
         st = str(self.edp)
