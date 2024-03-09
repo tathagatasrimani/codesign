@@ -7,6 +7,7 @@ from sympy import sympify
 import networkx as nx
 
 import architecture_search
+import coefficients
 import symbolic_simulate
 import optimize
 import hw_symbols
@@ -50,6 +51,18 @@ class Codesign:
         self.original_data_path = self.sim.data_path
         hardwareModel.un_allocate_all_in_use_elements(self.hw.netlist)
 
+        # starting point set by the config we load into the HW model
+        coeffs = coefficients.create_coefficients([self.hw.transistor_size])
+        with open("coefficients.yaml", "w") as f:
+            f.write(yaml.dump(coeffs))
+        rcs = self.hw.get_optimization_params_from_tech_params()
+        initial_tech_params = generate_init_params_from_rcs_as_symbols(rcs)
+
+        self.set_technology_parameters(initial_tech_params)
+
+        with open("rcs_current.yaml", "w") as f:
+            f.write(yaml.dump(rcs))
+
     def set_technology_parameters(self, tech_params):
         if self.initial_tech_params == None:
             self.initial_tech_params = tech_params
@@ -58,7 +71,6 @@ class Codesign:
 
     def forward_pass(self, area_constraint):
         print("\nRunning Forward Pass")
-
         self.sim.simulate(self.cfg, self.cfg_node_to_hw_map, self.hw)
         self.sim.calculate_edp(self.hw)
         edp = self.sim.edp
@@ -168,15 +180,6 @@ def main():
     )
 
     codesign_module = Codesign(args.benchmark, args.savedir)
-
-    # starting point set by the config we load into the HW model
-    rcs = codesign_module.hw.get_optimization_params_from_tech_params()
-    initial_tech_params = generate_init_params_from_rcs_as_symbols(rcs)
-
-    codesign_module.set_technology_parameters(initial_tech_params)
-
-    with open("rcs_current.yaml", "w") as f:
-        f.write(yaml.dump(rcs))
 
     i = 0
     while i < 5:
