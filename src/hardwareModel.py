@@ -165,7 +165,6 @@ class HardwareModel:
         I Want to Deprecate everything that takes into account 3D with indexing by pitch size
         and number of mem layers.
         """
-        print("setting technology parameters")
         tech_params = yaml.load(open("tech_params.yaml", "r"), Loader=yaml.Loader)
 
         self.area = tech_params["area"][self.transistor_size]
