@@ -56,11 +56,13 @@ class SymbolicSimulator:
         self.initial_params = {}
         self.tech_params = {}
         self.cyc = False
+        self.active_energy_elems = 0
 
     def reset_internal_variables(self):
         self.sim_cache = {}
         self.node_sum_energy = {}
         self.node_sum_cycles = {}
+        self.active_energy_elems = 0
 
     def cycle_sim(self, computation_graph):
         """
@@ -87,6 +89,7 @@ class SymbolicSimulator:
                                              hw_symbols.symbolic_power_active[node_data["function"]].subs(self.tech_params),
                                              "latency",
                                              (hw_symbols.symbolic_latency_wc[node_data["function"]]).subs(self.tech_params))"""
+            self.active_energy_elems += 1
             # print("added active energy of", hw_symbols.symbolic_power_active[node_data["function"]]* (hw_symbols.symbolic_latency_wc[node_data["function"]] / hw_symbols.f), "for", node_data["function"])
             energy_sum += active_energy
 
@@ -125,7 +128,7 @@ class SymbolicSimulator:
             computation_graph.remove_node(node)
 
         self.cycles += max_cycles
-        print(f"cycles for that node: {(max_cycles*hw_symbols.f)}")
+        #print(f"cycles for that node: {(max_cycles*hw_symbols.f)}")
         return max_cycles, energy_sum
 
     def localize_memory(self, hw, hw_graph):
@@ -276,30 +279,30 @@ class SymbolicSimulator:
             node_energy, node_cycles = 0, 0
 
             # if I've seen this node before, no need to recalculate
-            if cache_index in sim_cache:
+            """if cache_index in sim_cache:
                 self.node_sum_cycles[node_id] += sim_cache[cache_index][0]
                 self.cycles += sim_cache[cache_index][0]
                 self.node_sum_energy[node_id] += sim_cache[cache_index][1]
-            else:
-                computation_graph = cfg_node_to_hw_map[cur_node]
-                # print(f"computation graph: {computation_graph.nodes(data=True)}")
-                sim_util.verify_can_execute(computation_graph, hw.netlist)
-                # deprecated unrolling with graph representation.
-                # graph gets modified directly when we want to unroll.
-                if self.unroll_at[cur_node.id]:
-                    new_state = state.copy()
-                    for op in state:
-                        for j in range(iters):
-                            new_state.append(op)
-                    state = new_state
-                self.localize_memory(hw, computation_graph)
+            else:"""
+            computation_graph = cfg_node_to_hw_map[cur_node]
+            # print(f"computation graph: {computation_graph.nodes(data=True)}")
+            sim_util.verify_can_execute(computation_graph, hw.netlist)
+            # deprecated unrolling with graph representation.
+            # graph gets modified directly when we want to unroll.
+            if self.unroll_at[cur_node.id]:
+                new_state = state.copy()
+                for op in state:
+                    for j in range(iters):
+                        new_state.append(op)
+                state = new_state
+            self.localize_memory(hw, computation_graph)
 
-                max_cycles, energy_sum = self.cycle_sim(computation_graph)
-                self.node_sum_energy[node_id] += energy_sum
-                node_energy += energy_sum
-                self.node_sum_cycles[node_id] += max_cycles
-                node_cycles += max_cycles
-                sim_cache[cache_index] = [node_cycles, node_energy]
+            max_cycles, energy_sum = self.cycle_sim(computation_graph)
+            self.node_sum_energy[node_id] += energy_sum
+            node_energy += energy_sum
+            self.node_sum_cycles[node_id] += max_cycles
+            node_cycles += max_cycles
+            sim_cache[cache_index] = [node_cycles, node_energy]
 
             self.node_intervals[-1][1][1] = self.cycles
             i = next_ind
@@ -413,6 +416,7 @@ class SymbolicSimulator:
         total_active_energy = sum(self.node_sum_energy.values())
         total_passive_energy = self.passive_energy_dissipation(hw, total_execution_time)
         print(f"total active energy in inv pass: {total_active_energy.subs(self.tech_params)}")
+        print(f"total elements used for active energy: {self.active_energy_elems}")
         self.edp = total_execution_time * (total_active_energy + total_passive_energy)
 
     def save_edp_to_file(self):
