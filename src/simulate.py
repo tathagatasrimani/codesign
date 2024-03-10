@@ -317,6 +317,7 @@ class ConcreteSimulator:
         self.cycles = 0
         self.active_power_use = {}
         self.passive_power_dissipation_rate = 0
+        self.total_energy = 0
 
     def simulate(self, cfg, cfg_node_to_hw_map, hw):
         self.reset_internal_variables()
