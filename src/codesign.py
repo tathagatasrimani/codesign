@@ -129,12 +129,11 @@ class Codesign:
         with open(rcs_path, "w") as f:
             f.write(yaml.dump(rcs))
 
-    def inverse_pass(self):
+    def inverse_pass(self, i):
         print("\nRunning Inverse Pass")
-
         hardwareModel.un_allocate_all_in_use_elements(self.hw.netlist)
-
-        self.symbolic_sim.simulate(self.cfg, self.cfg_node_to_hw_map, self.hw)
+        cyc = True
+        self.symbolic_sim.simulate(self.cfg, self.cfg_node_to_hw_map, self.hw, self.tech_params, cyc)
         self.symbolic_sim.calculate_edp(self.hw)
         self.symbolic_sim.save_edp_to_file()
 
@@ -150,6 +149,7 @@ class Codesign:
         self.parse_output(f)
         self.write_back_rcs()
         self.inverse_edp = edp.subs(self.tech_params)
+        #print(f"tech params after inverse pass: {self.tech_params}")
 
         print(f"Final EDP: {self.inverse_edp} Js")
 
@@ -182,11 +182,11 @@ def main():
     codesign_module = Codesign(args.benchmark, args.savedir)
 
     i = 0
-    while i < 5:
+    while i < 2:
         codesign_module.forward_pass(args.area)
         codesign_module.symbolic_sim.update_data_path(codesign_module.sim.data_path)
 
-        codesign_module.inverse_pass()
+        codesign_module.inverse_pass(i)
         codesign_module.hw.update_technology_parameters()
 
         codesign_module.log_all_to_file(i)

@@ -54,6 +54,8 @@ class SymbolicSimulator:
         self.max_mem_inuse = 0
         self.edp = None
         self.initial_params = {}
+        self.tech_params = {}
+        self.cyc = False
 
     def reset_internal_variables(self):
         self.sim_cache = {}
@@ -78,6 +80,13 @@ class SymbolicSimulator:
             active_energy = hw_symbols.symbolic_power_active[node_data["function"]] * (
                 hw_symbols.symbolic_latency_wc[node_data["function"]]
             )
+            """print("added active energy of", (hw_symbols.symbolic_power_active[node_data["function"]]* 
+                                             (hw_symbols.symbolic_latency_wc[node_data["function"]])).subs(self.tech_params), 
+                                             "for", node_data["function"],
+                                             "with power",
+                                             hw_symbols.symbolic_power_active[node_data["function"]].subs(self.tech_params),
+                                             "latency",
+                                             (hw_symbols.symbolic_latency_wc[node_data["function"]]).subs(self.tech_params))"""
             # print("added active energy of", hw_symbols.symbolic_power_active[node_data["function"]]* (hw_symbols.symbolic_latency_wc[node_data["function"]] / hw_symbols.f), "for", node_data["function"])
             energy_sum += active_energy
 
@@ -93,9 +102,14 @@ class SymbolicSimulator:
                     for node in path:
                         # print(f"node: {node}")
                         # print(f"computation_graph[{node}]: {computation_graph.nodes()[node]}")
-                        path_latency += hw_symbols.symbolic_latency_wc[
-                            computation_graph.nodes()[node]["function"]
-                        ]
+                        if self.cyc:
+                            path_latency += hw_symbols.symbolic_latency_cyc[
+                                computation_graph.nodes()[node]["function"]
+                            ]
+                        else:
+                            path_latency += hw_symbols.symbolic_latency_wc[
+                                computation_graph.nodes()[node]["function"]
+                            ]
                     max_cycles = 0.5 * (
                         max_cycles + path_latency + abs(max_cycles - path_latency)
                     )
@@ -111,6 +125,7 @@ class SymbolicSimulator:
             computation_graph.remove_node(node)
 
         self.cycles += max_cycles
+        print(f"cycles for that node: {(max_cycles*hw_symbols.f)}")
         return max_cycles, energy_sum
 
     def localize_memory(self, hw, hw_graph):
@@ -202,9 +217,16 @@ class SymbolicSimulator:
             passive_power += (
                 hw_symbols.symbolic_power_passive[data["function"]] * scaling
             )
+            print("added passive energy of", (hw_symbols.symbolic_power_passive[data["function"]]* 
+                                                total_execution_time).subs(self.tech_params), 
+                                                "for", data["function"],
+                                                "for power",
+                                                hw_symbols.symbolic_power_passive[data["function"]].subs(self.tech_params))
         return passive_power * total_execution_time
 
-    def simulate(self, cfg, cfg_node_to_hw_map, hw: HardwareModel):
+    def simulate(self, cfg, cfg_node_to_hw_map, hw: HardwareModel, tech_params, cyc):
+        self.cyc = cyc
+        self.tech_params = tech_params
         self.reset_internal_variables()
         cur_node = cfg.entryblock
 
@@ -256,6 +278,7 @@ class SymbolicSimulator:
             # if I've seen this node before, no need to recalculate
             if cache_index in sim_cache:
                 self.node_sum_cycles[node_id] += sim_cache[cache_index][0]
+                self.cycles += sim_cache[cache_index][0]
                 self.node_sum_energy[node_id] += sim_cache[cache_index][1]
             else:
                 computation_graph = cfg_node_to_hw_map[cur_node]
@@ -282,6 +305,7 @@ class SymbolicSimulator:
             i = next_ind
             if i == len(self.data_path):
                 break
+        print(f"total cycles: {(sum(self.node_sum_cycles.values())*hw_symbols.f).subs(self.tech_params)}")
         # print("done with simulation")
 
     def set_data_path(self):
@@ -388,6 +412,7 @@ class SymbolicSimulator:
         total_execution_time = total_cycles
         total_active_energy = sum(self.node_sum_energy.values())
         total_passive_energy = self.passive_energy_dissipation(hw, total_execution_time)
+        print(f"total active energy in inv pass: {total_active_energy.subs(self.tech_params)}")
         self.edp = total_execution_time * (total_active_energy + total_passive_energy)
 
     def save_edp_to_file(self):
@@ -405,7 +430,7 @@ def main():
     hw = HardwareModel(cfg="aladdin_const_with_mem")
     hw.get_optimization_params_from_tech_params()
 
-    hw_symbols.update_symbolic_passive_power(hw.R_off_on_ratio)
+    #hw_symbols.update_symbolic_passive_power(hw.R_off_on_ratio)
 
     cfg, cfg_node_to_hw_map = simulator.simulator_prep(args.benchmark, hw.latency)
 

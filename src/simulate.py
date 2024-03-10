@@ -76,9 +76,9 @@ class ConcreteSimulator:
         Returns:
             int: The sum of power used by nodes in all cycles.
         """
+        #print(f"total cycles for this graph: {total_cycles}")
         if total_cycles == 0:
             return 0
-
         self.active_power_use[self.cycles] = 0
         self.mem_power_use.append(0)
 
@@ -100,6 +100,13 @@ class ConcreteSimulator:
                 hw_spec.dynamic_power[node_data["function"]] * 1e-9
                 * (hw_spec.latency[node_data["function"]] / hw_spec.frequency)
             )
+            """print("added active energy of", hw_spec.dynamic_power[node_data["function"]]*1e-9
+                  * (hw_spec.latency[node_data["function"]] / hw_spec.frequency), 
+                  "for", node_data["function"],
+                  "with power",
+                  hw_spec.dynamic_power[node_data["function"]]*1e-9,
+                  "latency:",
+                  hw_spec.latency[node_data["function"]] / hw_spec.frequency)"""
             hw_spec.compute_operation_totals[node_data["function"]] += 1
         self.active_power_use[self.cycles] /= total_cycles
 
@@ -533,6 +540,7 @@ class ConcreteSimulator:
         # add all passive power at the end.
         # This is done here for the dynamic allocation case where we don't know how many
         # compute elements we need until we run the program.
+        print(f"total active energy in fw pass: {self.total_energy}")
         for elem_name, elem_data in dict(hw.netlist.nodes.data()).items():
             scaling = 1
             if elem_data["function"] in ["Regs", "Buf", "MainMem"]:
@@ -546,6 +554,12 @@ class ConcreteSimulator:
                 hw.leakage_power[elem_data["function"]]*1e-9
                 * (self.cycles / hw.frequency)
             )
+            print("added passive energy of", hw.leakage_power[elem_data["function"]]*1e-9
+                  * (self.cycles / hw.frequency), 
+                  "for", elem_data["function"],
+                  "with power of",
+                  hw.leakage_power[elem_data["function"]]*1e-9)
+        print(f"frequency: {hw.frequency}")
 
         for node in hw.netlist.nodes:
             hw.netlist.nodes[node]['allocation'] = len(hw.netlist.nodes[node]['allocation'])

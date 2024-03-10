@@ -228,12 +228,17 @@ class HardwareModel:
 
         for key in C:
             self.dynamic_power[key] = (
-                C[key] * self.V_dd * self.V_dd * self.frequency * 1e9
+                0.5 * C[key] * self.V_dd * self.V_dd * self.frequency * 1e9
             )  # convert to nW
             self.latency[key] = R[key] * C[key] * self.frequency  # convert to cycles
             self.leakage_power[key] = (
-                beta[key] * self.V_dd**2 / (R["Not"] * self.R_off_on_ratio) * 1e9
+                beta[key] * self.V_dd**2 / (R["Not"] * 100) * 1e9
             )  # convert to nW
+        print(f"mult power after update: {self.dynamic_power['Mult']*1e-9}")
+        """print(f"rcs after update: {rcs}")
+        print(f"latency after update: {self.latency}")
+        print(f"active power after update: {self.dynamic_power}")
+        print(f"passive power after update: {self.leakage_power}")"""
 
     def get_optimization_params_from_tech_params(self):
         """
