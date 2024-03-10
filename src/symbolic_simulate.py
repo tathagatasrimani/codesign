@@ -57,14 +57,19 @@ class SymbolicSimulator:
         self.tech_params = {}
         self.cyc = False
         self.active_energy_elems = 0
+        self.sim_cycle_calls = 0
+        self.energy_sum = 0
 
     def reset_internal_variables(self):
         self.sim_cache = {}
         self.node_sum_energy = {}
         self.node_sum_cycles = {}
         self.active_energy_elems = 0
+        self.sim_cycle_calls = 0
+        self.energy_sum = 0
 
     def cycle_sim(self, computation_graph):
+        self.sim_cycle_calls += 1
         """
         Don't need to do isomorphism check. Just need to generate topo generations.
         Since we'll get architectures from the forward pass. We'll assume that the architecture
@@ -82,13 +87,16 @@ class SymbolicSimulator:
             active_energy = hw_symbols.symbolic_power_active[node_data["function"]] * (
                 hw_symbols.symbolic_latency_wc[node_data["function"]]
             )
-            """print("added active energy of", (hw_symbols.symbolic_power_active[node_data["function"]]* 
-                                             (hw_symbols.symbolic_latency_wc[node_data["function"]])).subs(self.tech_params), 
-                                             "for", node_data["function"],
-                                             "with power",
-                                             hw_symbols.symbolic_power_active[node_data["function"]].subs(self.tech_params),
-                                             "latency",
-                                             (hw_symbols.symbolic_latency_wc[node_data["function"]]).subs(self.tech_params))"""
+            self.energy_sum += active_energy
+            if self.sim_cycle_calls == 3:
+                print("added active energy of", (hw_symbols.symbolic_power_active[node_data["function"]]* 
+                                                (hw_symbols.symbolic_latency_wc[node_data["function"]])).subs(self.tech_params), 
+                                                "for", node_data["function"],
+                                                "with power",
+                                                hw_symbols.symbolic_power_active[node_data["function"]].subs(self.tech_params),
+                                                "latency",
+                                                (hw_symbols.symbolic_latency_wc[node_data["function"]]).subs(self.tech_params))
+                print(f"energy sum = {self.energy_sum.subs(self.tech_params)}")
             self.active_energy_elems += 1
             # print("added active energy of", hw_symbols.symbolic_power_active[node_data["function"]]* (hw_symbols.symbolic_latency_wc[node_data["function"]] / hw_symbols.f), "for", node_data["function"])
             energy_sum += active_energy
@@ -215,8 +223,8 @@ class SymbolicSimulator:
             filter(lambda x: x[1]["function"] != "Buf", hw.netlist.nodes.data())
         ).items():
             scaling = 1
-            if data["function"] in ["Regs", "Buf", "MainMem"]:
-                scaling = data["size"]
+            """if data["function"] in ["Regs", "Buf", "MainMem"]:
+                scaling = data["size"]"""
             passive_power += (
                 hw_symbols.symbolic_power_passive[data["function"]] * scaling
             )
@@ -230,6 +238,7 @@ class SymbolicSimulator:
     def simulate(self, cfg, cfg_node_to_hw_map, hw: HardwareModel, tech_params, cyc):
         self.cyc = cyc
         self.tech_params = tech_params
+        hw_symbols.update_symbolic_passive_power(hw.R_off_on_ratio)
         self.reset_internal_variables()
         cur_node = cfg.entryblock
 
@@ -413,10 +422,13 @@ class SymbolicSimulator:
     def calculate_edp(self, hw):
         total_cycles = sum(self.node_sum_cycles.values())
         total_execution_time = total_cycles
-        total_active_energy = sum(self.node_sum_energy.values())
+        #total_active_energy = sum(self.node_sum_energy.values())
+        total_active_energy = self.energy_sum
         total_passive_energy = self.passive_energy_dissipation(hw, total_execution_time)
         print(f"total active energy in inv pass: {total_active_energy.subs(self.tech_params)}")
         print(f"total elements used for active energy: {self.active_energy_elems}")
+        print(f"total calls to sim cycles: {self.sim_cycle_calls}")
+        print(f"sum of active and passive energy: {(total_active_energy + total_passive_energy).subs(self.tech_params)}")
         self.edp = total_execution_time * (total_active_energy + total_passive_energy)
 
     def save_edp_to_file(self):
@@ -434,7 +446,7 @@ def main():
     hw = HardwareModel(cfg="aladdin_const_with_mem")
     hw.get_optimization_params_from_tech_params()
 
-    #hw_symbols.update_symbolic_passive_power(hw.R_off_on_ratio)
+    hw_symbols.update_symbolic_passive_power(hw.R_off_on_ratio)
 
     cfg, cfg_node_to_hw_map = simulator.simulator_prep(args.benchmark, hw.latency)
 

@@ -64,8 +64,11 @@ class ConcreteSimulator:
         self.max_mem_inuse = 0
         self.total_energy = 0
         self.active_energy_elems = 0
+        self.sim_cycle_calls = 0
 
     def simulate_cycles(self, hw_spec, computation_graph, total_cycles):
+        if self.sim_cycle_calls < 5: print(self.total_energy)
+        self.sim_cycle_calls += 1
         """
         Simulates the operation of hardware over a number of cycles.
 
@@ -101,14 +104,17 @@ class ConcreteSimulator:
                 hw_spec.dynamic_power[node_data["function"]] * 1e-9
                 * (hw_spec.latency[node_data["function"]] / hw_spec.frequency)
             )
-            """print("added active energy of", hw_spec.dynamic_power[node_data["function"]]*1e-9
-                  * (hw_spec.latency[node_data["function"]] / hw_spec.frequency), 
-                  "for", node_data["function"],
-                  "with power",
-                  hw_spec.dynamic_power[node_data["function"]]*1e-9,
-                  "latency:",
-                  hw_spec.latency[node_data["function"]] / hw_spec.frequency)"""
-            self.active_energy_elems += 1
+            if self.sim_cycle_calls == 3:
+                print("added active energy of", hw_spec.dynamic_power[node_data["function"]]*1e-9
+                    * (hw_spec.latency[node_data["function"]] / hw_spec.frequency), 
+                    "for", node_data["function"],
+                    "with power",
+                    hw_spec.dynamic_power[node_data["function"]]*1e-9,
+                    "latency:",
+                    hw_spec.latency[node_data["function"]] / hw_spec.frequency)
+                print(f"energy sum = {self.total_energy}")
+            if node_data["function"] != "Buf":
+                self.active_energy_elems += 1
             hw_spec.compute_operation_totals[node_data["function"]] += 1
         self.active_power_use[self.cycles] /= total_cycles
 
@@ -327,8 +333,11 @@ class ConcreteSimulator:
         self.active_power_use = {}
         self.passive_power_dissipation_rate = 0
         self.active_energy_elems = 0
+        self.sim_cycle_calls = 0
+        self.total_energy = 0
 
     def simulate(self, cfg, cfg_node_to_hw_map, hw):
+        print(hw.leakage_power)
         self.reset_internal_variables()
         cur_node = cfg.entryblock
 
@@ -545,6 +554,7 @@ class ConcreteSimulator:
         # compute elements we need until we run the program.
         print(f"total active energy in fw pass: {self.total_energy}")
         print(f"total elements used for active energy: {self.active_energy_elems}")
+        print(f"total sim cycle function calls: {self.sim_cycle_calls}")
         for elem_name, elem_data in dict(hw.netlist.nodes.data()).items():
             scaling = 1
             if elem_data["function"] in ["Regs", "Buf", "MainMem"]:
@@ -668,6 +678,7 @@ class ConcreteSimulator:
         # OLD EDP CALCULATION
         #self.edp = self.avg_compute_power * 1e-3 * self.execution_time ** 2 # convert mW to W
         # NEW EDP CALCULATION
+        print(f"sum of active and passive energy: {self.total_energy}")
         self.edp = self.total_energy * self.execution_time
 
     def compose_entire_computation_graph(self, cfg_node_to_hw_map, plot=False):
