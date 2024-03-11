@@ -136,7 +136,8 @@ class SymbolicSimulator:
             computation_graph.remove_node(node)
 
         self.cycles += max_cycles
-        #print(f"cycles for that node: {(max_cycles*hw_symbols.f)}")
+        if self.sim_cycle_calls == 3:
+            print(f"cycles for that node: {(max_cycles*hw_symbols.f)}")
         return max_cycles, energy_sum
 
     def localize_memory(self, hw, hw_graph):

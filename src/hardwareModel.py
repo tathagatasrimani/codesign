@@ -218,11 +218,13 @@ class HardwareModel:
 
         self.latency["MainMem"] = (
             rcs["other"]["MemReadL"] + rcs["other"]["MemWriteL"]
-        ) / 2
+        ) / 2 * self.frequency
         self.dynamic_power["MainMem"] = (
             rcs["other"]["MemReadPact"] + rcs["other"]["MemWritePact"]
-        ) / 2
-        self.leakage_power["MainMem"] = rcs["other"]["MemPpass"]
+        ) / 2 * 1e9
+        self.leakage_power["MainMem"] = rcs["other"]["MemPpass"] * 1e9
+        print(f"passive power memory = {self.leakage_power['MainMem']}")
+        print(f"latency memory: {self.latency['MainMem']}")
 
         beta = yaml.load(open(coeff_file, "r"), Loader=yaml.Loader)["beta"]
 
@@ -234,7 +236,7 @@ class HardwareModel:
             self.leakage_power[key] = (
                 beta[key] * self.V_dd**2 / (R["Not"] * self.R_off_on_ratio) * 1e9
             )  # convert to nW
-        print(f"mult power after update: {self.dynamic_power['Mult']*1e-9}")
+        #print(f"mult power after update: {self.dynamic_power['Mult']*1e-9}")
         """print(f"rcs after update: {rcs}")
         print(f"latency after update: {self.latency}")
         print(f"active power after update: {self.dynamic_power}")

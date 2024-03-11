@@ -67,7 +67,7 @@ class ConcreteSimulator:
         self.sim_cycle_calls = 0
 
     def simulate_cycles(self, hw_spec, computation_graph, total_cycles):
-        if self.sim_cycle_calls < 5: print(self.total_energy)
+        #if self.sim_cycle_calls < 5: print(self.total_energy)
         self.sim_cycle_calls += 1
         """
         Simulates the operation of hardware over a number of cycles.
@@ -80,7 +80,8 @@ class ConcreteSimulator:
         Returns:
             int: The sum of power used by nodes in all cycles.
         """
-        #print(f"total cycles for this graph: {total_cycles}")
+        if self.sim_cycle_calls == 3:
+            print(f"total cycles for this graph: {total_cycles}")
         if total_cycles == 0:
             return 0
         self.active_power_use[self.cycles] = 0
@@ -105,6 +106,7 @@ class ConcreteSimulator:
                 * (hw_spec.latency[node_data["function"]] / hw_spec.frequency)
             )
             if self.sim_cycle_calls == 3:
+                print(f"main memory latency: {hw_spec.latency['MainMem']}")
                 print("added active energy of", hw_spec.dynamic_power[node_data["function"]]*1e-9
                     * (hw_spec.latency[node_data["function"]] / hw_spec.frequency), 
                     "for", node_data["function"],
@@ -337,7 +339,8 @@ class ConcreteSimulator:
         self.total_energy = 0
 
     def simulate(self, cfg, cfg_node_to_hw_map, hw):
-        print(hw.leakage_power)
+        print(f"leakage power: {hw.leakage_power}")
+        print(f"latency: {hw.latency}")
         self.reset_internal_variables()
         cur_node = cfg.entryblock
 
@@ -509,6 +512,22 @@ class ConcreteSimulator:
                 # print(f"hw_graph after localize_memory: {str(hw_graph)}")
 
                 total_cycles = 0
+                """ if not nx.is_empty(hw_graph):
+                    generations = list(nx.topological_generations(hw_graph))
+                    for start_node in generations[0]:
+                        for end_node in generations[-1]:
+                            if start_node == end_node:
+                                continue
+                            for path in nx.all_simple_paths(
+                                hw_graph, start_node, end_node
+                            ):
+                                path_latency = 0
+                                # print(f"path: {path}")
+                                for node in path:
+                                    # print(f"node: {node}")
+                                    # print(f"hw_graph[{node}]: {hw_graph.nodes()[node]}")
+                                    path_latency += hw.latency[hw_graph.nodes()[node]["function"]]
+                                total_cycles = max(path_latency, total_cycles) """
 
                 # TODO: this doesn't account for latency of each element.
                 # just assumes all have equal latency.
@@ -557,8 +576,8 @@ class ConcreteSimulator:
         print(f"total sim cycle function calls: {self.sim_cycle_calls}")
         for elem_name, elem_data in dict(hw.netlist.nodes.data()).items():
             scaling = 1
-            if elem_data["function"] in ["Regs", "Buf", "MainMem"]:
-                scaling = elem_data["size"]
+            """if elem_data["function"] in ["Regs", "Buf", "MainMem"]:
+                scaling = elem_data["size"]"""
             # OLD PASSIVE POWER CALCULATION
             self.passive_power_dissipation_rate += (
                 hw.leakage_power[elem_data["function"]] * scaling
