@@ -4,12 +4,12 @@ graph [
     id 0
     label "Regs0"
     function "Regs"
-    idx "44"
+    idx "43"
     cost 2
     allocation "b_1[k_1][j_1]"
     allocation "c_1[i_1][j_1]"
     allocation "c_1[i_1][j_1]"
-    allocation "c_1[i_1][j_1]"
+    allocation "d_1[i_1]"
     allocation "c_1[i_1][j_1]"
     allocation "c_1[i_1][j_1]"
     in_use 0
@@ -30,10 +30,10 @@ graph [
     id 2
     label "Regs1"
     function "Regs"
-    idx "43"
+    idx "44"
     cost 2
     allocation "c_1[i_1][j_1]"
-    allocation "d_1[i_1]"
+    allocation "c_1[i_1][j_1]"
     in_use 0
     size 1
     var ""
@@ -68,7 +68,7 @@ graph [
     label "Buf0"
     function "Buf"
     size 1
-    memory_module "<memory.Cache object at 0x7f8868808eb0>"
+    memory_module "<memory.Cache object at 0x7fd81265ebe0>"
     in_use 0
     allocation "[]"
   ]
@@ -77,7 +77,7 @@ graph [
     label "Mem0"
     function "MainMem"
     size 4096
-    memory_module "<memory.Memory object at 0x7f88687e9f10>"
+    memory_module "<memory.Memory object at 0x7fd820eeb9d0>"
     in_use 0
     allocation "[]"
   ]

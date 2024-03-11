@@ -93,7 +93,7 @@ class SymbolicSimulator:
                     for node in path:
                         # print(f"node: {node}")
                         # print(f"computation_graph[{node}]: {computation_graph.nodes()[node]}")
-                        path_latency += hw_symbols.symbolic_latency_wc[
+                        path_latency += hw_symbols.symbolic_latency_cyc[
                             computation_graph.nodes()[node]["function"]
                         ]
                     max_cycles = 0.5 * (

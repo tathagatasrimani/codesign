@@ -218,17 +218,17 @@ class HardwareModel:
 
         self.latency["MainMem"] = (
             rcs["other"]["MemReadL"] + rcs["other"]["MemWriteL"]
-        ) / 2
+        ) / 2 * self.frequency
         self.dynamic_power["MainMem"] = (
             rcs["other"]["MemReadPact"] + rcs["other"]["MemWritePact"]
-        ) / 2
-        self.leakage_power["MainMem"] = rcs["other"]["MemPpass"]
+        ) / 2 * 1e9
+        self.leakage_power["MainMem"] = rcs["other"]["MemPpass"] * 1e9
 
         beta = yaml.load(open(coeff_file, "r"), Loader=yaml.Loader)["beta"]
 
         for key in C:
             self.dynamic_power[key] = (
-                C[key] * self.V_dd * self.V_dd * self.frequency * 1e9
+                0.5 * C[key] * self.V_dd * self.V_dd * self.frequency * 1e9
             )  # convert to nW
             self.latency[key] = R[key] * C[key] * self.frequency  # convert to cycles
             self.leakage_power[key] = (
