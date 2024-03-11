@@ -98,6 +98,7 @@ class ConcreteSimulator:
             # NEW ACTIVE ENERGY CALCULATION
             self.total_energy += (
                 hw_spec.dynamic_power[node_data["function"]] * 1e-9
+                # * scaling
                 * (hw_spec.latency[node_data["function"]] / hw_spec.frequency)
             )
             hw_spec.compute_operation_totals[node_data["function"]] += 1

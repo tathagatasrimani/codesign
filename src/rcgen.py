@@ -3,12 +3,28 @@ import yaml
 def generate_optimization_params(latency, active_power, passive_power, V_dd, f):
     """
     Generate R,C, etc from the latency, power tech parameters.
+    rcs[other] are all stored in SI units.
+        f: frequency in Hz
+        V_dd: voltage in V
+        MemReadL: memory read latency in s
+        MemWriteL: memory write latency in s
+        MemReadPact: memory read active power in W
+        MemWritePact: memory write active power in W
+        MemPpass: memory passive power in W
+    
+        params:
+        latency: dictionary of latencies in cycles
+        active_power: dictionary of active power in nW
+        passive_power: dictionary of passive power in nW
+        V_dd: voltage in V
+        f: frequency in Hz
     """
     rcs = {"Reff": {}, "Ceff": {}, "other": {}}
 
     rcs["other"]["f"] = f
     rcs["other"]["V_dd"] = V_dd
 
+    # convert latency from cycles to seconds
     rcs["other"]["MemReadL"] = latency["MainMem"] / f
     rcs["other"]["MemWriteL"] = latency["MainMem"] / f
     rcs["other"]["MemReadPact"] = active_power["MainMem"] * 1e-9

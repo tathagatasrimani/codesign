@@ -15,12 +15,6 @@ from sim_util import generate_init_params_from_rcs_as_symbols
 import hardwareModel
 
 
-# initial_tech_params = {
-#     hw_symbols.f: 2e9,
-#     hw_symbols.V_dd: 1.1,
-# }
-
-
 class Codesign:
     def __init__(self, benchmark, save_dir):
         self.save_dir = save_dir
@@ -129,6 +123,12 @@ class Codesign:
         with open(rcs_path, "w") as f:
             f.write(yaml.dump(rcs))
 
+    def clear_dfg_allocations(self):
+        for k, computation_graph in self.cfg_node_to_hw_map.items():
+            for node in computation_graph.nodes:
+                if "allocation" in computation_graph.nodes[node]:
+                    del computation_graph.nodes[node]["allocation"]
+
     def inverse_pass(self):
         print("\nRunning Inverse Pass")
 
@@ -185,6 +185,7 @@ def main():
     while i < 5:
         codesign_module.forward_pass(args.area)
         codesign_module.symbolic_sim.update_data_path(codesign_module.sim.data_path)
+        codesign_module.clear_dfg_allocations()
 
         codesign_module.inverse_pass()
         codesign_module.hw.update_technology_parameters()

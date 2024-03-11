@@ -218,7 +218,7 @@ def verify_can_execute(computation_graph, hw_spec_netlist, should_update_arch=Fa
     Returns:
         bool: True if the computation graph can be executed on the netlist, False otherwise.
     """
-
+    
     for generation in nx.topological_generations(computation_graph):
         temp_C = nx.DiGraph()
         for node in generation:

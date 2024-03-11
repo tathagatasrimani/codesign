@@ -207,7 +207,24 @@ class HardwareModel:
         self, rc_params_file="rcs_current.yaml", coeff_file="coefficients.yaml"
     ):
         """
-        For full iteration, need to update the technology parameters after a run of the inverse pass.
+        For full codesign loop, need to update the technology parameters after a run of the inverse pass.
+        Local States:
+            latency - dictionary of latencies in cycles
+            dynamic_power - dictionary of active power in nW
+            leakage_power - dictionary of passive power in nW
+            V_dd - voltage in V
+            f - frequency in Hz
+        Inputs:
+            C - dictionary of capacitances in F
+            R - dictionary of resistances in Ohms
+            rcs[other]:
+                f: frequency in Hz
+                V_dd: voltage in V
+                MemReadL: memory read latency in s
+                MemWriteL: memory write latency in s
+                MemReadPact: memory read active power in W
+                MemWritePact: memory write active power in W
+                MemPpass: memory passive power in W
         """
         print(f"Updating Technology Parameters...")
         rcs = yaml.load(open(rc_params_file, "r"), Loader=yaml.Loader)

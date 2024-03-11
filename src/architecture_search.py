@@ -100,6 +100,7 @@ def run_architecture_search(simulator, hw, cfg, cfg_node_to_hw_map, saved_elem, 
     possible_unroll_factor_probs = [1 / max_continuous] * max_continuous
 
     orig_data_path = deepcopy(simulator.data_path)
+    best_data_path = orig_data_path
     # print(f"Original Data Path: {orig_data_path}")
     simulator.calculate_edp(hw)
     if best_edp is None:
@@ -158,6 +159,7 @@ def run_architecture_search(simulator, hw, cfg, cfg_node_to_hw_map, saved_elem, 
             best_edp = EDP
             best_hw = new_hw
             best_unroll = unroll_factor
+            best_data_path = new_data_path
         if EDP <= prev_edp:
             if unroll_factor > prev_unroll:
                 unroll_low = unroll_factor
@@ -183,6 +185,7 @@ def run_architecture_search(simulator, hw, cfg, cfg_node_to_hw_map, saved_elem, 
         prev_unroll = unroll_factor
     # print(f"All EDPS: {possible_unrolls_edp}")
     print(f"Best Unroll Factor: {best_unroll}")
+    simulator.update_data_path(best_data_path)
     return best_hw, best_edp
 
 
