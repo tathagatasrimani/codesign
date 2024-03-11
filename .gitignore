@@ -15,3 +15,5 @@ src/sympy.txt
 src/ipopt_out.txt
 
 data/**
+
+src/codesign_log_dir/**
