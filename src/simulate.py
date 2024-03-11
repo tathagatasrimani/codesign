@@ -545,7 +545,7 @@ class ConcreteSimulator:
             # NEW PASSIVE ENERGY CALCULATION
             self.total_energy += (
                 hw.leakage_power[elem_data["function"]]*1e-9
-                * (self.cycles / hw.frequency)
+                * (self.cycles / hw.frequency) * scaling
             )
 
         for node in hw.netlist.nodes:

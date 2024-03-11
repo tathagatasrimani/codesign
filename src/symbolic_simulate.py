@@ -198,8 +198,8 @@ class SymbolicSimulator:
         ).items():
             scaling = 1
             # COMMENTING OUT FOR NOW TO STAY CONSISTENT WITH FORWARD PASS
-            """if data["function"] in ["Regs", "Buf", "MainMem"]:
-                scaling = data["size"]"""
+            if data["function"] in ["Regs", "Buf", "MainMem"]:
+                scaling = data["size"]
             passive_power += (
                 hw_symbols.symbolic_power_passive[data["function"]] * scaling
             )
