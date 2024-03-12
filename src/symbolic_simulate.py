@@ -197,7 +197,6 @@ class SymbolicSimulator:
             filter(lambda x: x[1]["function"] != "Buf", hw.netlist.nodes.data())
         ).items():
             scaling = 1
-            # COMMENTING OUT FOR NOW TO STAY CONSISTENT WITH FORWARD PASS
             if data["function"] in ["Regs", "Buf", "MainMem"]:
                 scaling = data["size"]
             passive_power += (

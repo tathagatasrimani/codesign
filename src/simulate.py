@@ -90,15 +90,15 @@ class ConcreteSimulator:
                 # all regs have the saem size, so no need to scale.
                 scaling = node_data["size"]
             # OLD ACTIVE POWER CALCULATION
-            self.active_power_use[self.cycles] += (
-                hw_spec.dynamic_power[node_data["function"]]
-                * scaling
-                * hw_spec.latency[node_data["function"]]
-            )
+            # self.active_power_use[self.cycles] += (
+            #     hw_spec.dynamic_power[node_data["function"]]
+            #     * scaling
+            #     * hw_spec.latency[node_data["function"]]
+            # )
             # NEW ACTIVE ENERGY CALCULATION
             self.total_energy += (
                 hw_spec.dynamic_power[node_data["function"]] * 1e-9
-                # * scaling
+                * scaling
                 * (hw_spec.latency[node_data["function"]] / hw_spec.frequency)
             )
             hw_spec.compute_operation_totals[node_data["function"]] += 1
