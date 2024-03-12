@@ -6,11 +6,6 @@ from pyomo.opt import SolverFactory
 import yaml
 import hw_symbols
 
-scaling_factors = {
-    hw_symbols.f: 1e-6,
-    hw_symbols.V_dd: 1,
-}
-#obj_scale = 1
 
 class Preprocessor:
     def __init__(self):
