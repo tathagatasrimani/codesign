@@ -28,12 +28,14 @@ class SymbolicSimulator:
 
     def __init__(self):
         self.cycles = 0
+        self.cycles_ceil = 0
         self.id_to_node = {}
         self.path = os.getcwd()
         self.data_path = []
         self.node_intervals = []
         self.node_sum_energy = {}
         self.node_sum_cycles = {}
+        self.node_sum_cycles_ceil = {}
         self.unroll_at = {}
         self.vars_allocated = {}
         self.where_to_free = {}
@@ -53,12 +55,16 @@ class SymbolicSimulator:
         self.max_regs_inuse = 0
         self.max_mem_inuse = 0
         self.edp = None
+        self.edp_ceil = None
         self.initial_params = {}
 
     def reset_internal_variables(self):
         self.sim_cache = {}
         self.node_sum_energy = {}
         self.node_sum_cycles = {}
+        self.node_sum_cycles_ceil = {}
+        self.cycles_ceil = 0
+        self.cycles = 0
 
     def cycle_sim(self, computation_graph):
         """
@@ -67,10 +73,11 @@ class SymbolicSimulator:
         can execute the computation graph.
         """
         max_cycles = 0
+        max_cycles_ceil = 0
         energy_sum = 0
 
         if nx.is_empty(computation_graph):
-            return max_cycles, energy_sum
+            return max_cycles, max_cycles_ceil, energy_sum
 
         generations = list(nx.topological_generations(computation_graph))
 
@@ -89,15 +96,22 @@ class SymbolicSimulator:
                     computation_graph, start_node, end_node
                 ):
                     path_latency = 0
+                    path_latency_ceil = 0
                     # print(f"path: {path}")
                     for node in path:
                         # print(f"node: {node}")
                         # print(f"computation_graph[{node}]: {computation_graph.nodes()[node]}")
-                        path_latency += hw_symbols.symbolic_latency_cyc[
+                        path_latency += hw_symbols.symbolic_latency_wc[
+                            computation_graph.nodes()[node]["function"]
+                        ]
+                        path_latency_ceil += hw_symbols.symbolic_latency_cyc[
                             computation_graph.nodes()[node]["function"]
                         ]
                     max_cycles = 0.5 * (
                         max_cycles + path_latency + abs(max_cycles - path_latency)
+                    )
+                    max_cycles_ceil = 0.5 * (
+                        max_cycles_ceil + path_latency_ceil + abs(max_cycles_ceil - path_latency_ceil)
                     )
 
         # remove Mem and Buf from computation graph, so it doesn't get duplicated
@@ -111,7 +125,8 @@ class SymbolicSimulator:
             computation_graph.remove_node(node)
 
         self.cycles += max_cycles
-        return max_cycles, energy_sum
+        self.cycles_ceil += max_cycles_ceil
+        return max_cycles, max_cycles_ceil, energy_sum
 
     def localize_memory(self, hw, hw_graph):
         """
@@ -234,6 +249,7 @@ class SymbolicSimulator:
 
             if not node_id in self.node_sum_cycles:
                 self.node_sum_cycles[node_id] = 0
+                self.node_sum_cycles_ceil[node_id] = 0
             iters = 0
 
             if self.unroll_at[cur_node.id]:
@@ -252,12 +268,11 @@ class SymbolicSimulator:
 
             cache_index = (iters, node_id)
 
-            node_energy, node_cycles = 0, 0
-
             # if I've seen this node before, no need to recalculate
             if cache_index in sim_cache:
                 self.node_sum_cycles[node_id] += sim_cache[cache_index][0]
-                self.node_sum_energy[node_id] += sim_cache[cache_index][1]
+                self.node_sum_cycles_ceil[node_id] += sim_cache[cache_index][1]
+                self.node_sum_energy[node_id] += sim_cache[cache_index][2]
             else:
                 computation_graph = cfg_node_to_hw_map[cur_node]
                 # print(f"computation graph: {computation_graph.nodes(data=True)}")
@@ -272,12 +287,11 @@ class SymbolicSimulator:
                     state = new_state
                 self.localize_memory(hw, computation_graph)
 
-                max_cycles, energy_sum = self.cycle_sim(computation_graph)
+                max_cycles, max_cycles_ceil, energy_sum = self.cycle_sim(computation_graph)
                 self.node_sum_energy[node_id] += energy_sum
-                node_energy += energy_sum
                 self.node_sum_cycles[node_id] += max_cycles
-                node_cycles += max_cycles
-                sim_cache[cache_index] = [node_cycles, node_energy]
+                self.node_sum_cycles_ceil[node_id] += max_cycles_ceil
+                sim_cache[cache_index] = [max_cycles, max_cycles_ceil, energy_sum]
 
             self.node_intervals[-1][1][1] = self.cycles
             i = next_ind
@@ -386,10 +400,14 @@ class SymbolicSimulator:
 
     def calculate_edp(self, hw):
         total_cycles = sum(self.node_sum_cycles.values())
+        total_cycles_ceil = sum(self.node_sum_cycles_ceil.values())
         total_execution_time = total_cycles
+        total_execution_time_ceil = total_cycles_ceil
         total_active_energy = sum(self.node_sum_energy.values())
         total_passive_energy = self.passive_energy_dissipation(hw, total_execution_time)
+        total_passive_energy_ceil = self.passive_energy_dissipation(hw, total_execution_time_ceil)
         self.edp = total_execution_time * (total_active_energy + total_passive_energy)
+        self.edp_ceil = total_execution_time_ceil * (total_active_energy + total_passive_energy_ceil)
 
     def save_edp_to_file(self):
         st = str(self.edp)

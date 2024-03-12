@@ -18,6 +18,7 @@ class Preprocessor:
         self.multistart = False
         self.obj= 0
         self.initial_params = {}
+        self.obj_scale = 1
 
     def f(self, model):
         return model.x[self.mapping[hw_symbols.f]]>=1e6 
@@ -73,7 +74,7 @@ class Preprocessor:
         return opt
     
     def create_scaling(self, model):
-        #model.scaling_factor[model.obj] = obj_scale
+        model.scaling_factor[model.obj] = self.obj_scale
         for s in self.free_symbols:
             if s.name in self.initial_params and self.initial_params[s.name] != 0:
                 print(s.name, self.mapping)
@@ -98,8 +99,7 @@ class Preprocessor:
         print("edp:", edp)
         print("initial val:", self.initial_val)
         
-        #global obj_scale
-        #obj_scale = 1 / self.initial_val
+        #self.obj_scale = 1 / self.initial_val
         #print(self.expr_symbols)
 
         model.nVars = pyo.Param(initialize=len(edp.free_symbols))
