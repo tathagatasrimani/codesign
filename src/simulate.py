@@ -62,6 +62,7 @@ class ConcreteSimulator:
         self.total_write_size = 0
         self.max_regs_inuse = 0
         self.max_mem_inuse = 0
+        self.total_energy = 0
 
     def simulate_cycles(self, hw_spec, computation_graph, total_cycles):
         """
@@ -88,10 +89,17 @@ class ConcreteSimulator:
                 # active power should scale by size of the object being accessed.
                 # all regs have the saem size, so no need to scale.
                 scaling = node_data["size"]
-            self.active_power_use[self.cycles] += (
-                hw_spec.dynamic_power[node_data["function"]]
+            # OLD ACTIVE POWER CALCULATION
+            # self.active_power_use[self.cycles] += (
+            #     hw_spec.dynamic_power[node_data["function"]]
+            #     * scaling
+            #     * hw_spec.latency[node_data["function"]]
+            # )
+            # NEW ACTIVE ENERGY CALCULATION
+            self.total_energy += (
+                hw_spec.dynamic_power[node_data["function"]] * 1e-9
                 * scaling
-                * hw_spec.latency[node_data["function"]]
+                * (hw_spec.latency[node_data["function"]] / hw_spec.frequency)
             )
             hw_spec.compute_operation_totals[node_data["function"]] += 1
         self.active_power_use[self.cycles] /= total_cycles
@@ -310,6 +318,7 @@ class ConcreteSimulator:
         self.cycles = 0
         self.active_power_use = {}
         self.passive_power_dissipation_rate = 0
+        self.total_energy = 0
 
     def simulate(self, cfg, cfg_node_to_hw_map, hw):
         self.reset_internal_variables()
@@ -530,8 +539,14 @@ class ConcreteSimulator:
             scaling = 1
             if elem_data["function"] in ["Regs", "Buf", "MainMem"]:
                 scaling = elem_data["size"]
+            # OLD PASSIVE POWER CALCULATION
             self.passive_power_dissipation_rate += (
                 hw.leakage_power[elem_data["function"]] * scaling
+            )
+            # NEW PASSIVE ENERGY CALCULATION
+            self.total_energy += (
+                hw.leakage_power[elem_data["function"]]*1e-9
+                * (self.cycles / hw.frequency) * scaling
             )
 
         for node in hw.netlist.nodes:
@@ -634,7 +649,10 @@ class ConcreteSimulator:
     def calculate_edp(self, hw):
         self.calculate_average_power()
         self.execution_time = self.cycles / hw.frequency # in seconds
-        self.edp = self.avg_compute_power * 1e-3 * self.execution_time ** 2 # convert mW to W
+        # OLD EDP CALCULATION
+        #self.edp = self.avg_compute_power * 1e-3 * self.execution_time ** 2 # convert mW to W
+        # NEW EDP CALCULATION
+        self.edp = self.total_energy * self.execution_time
 
     def compose_entire_computation_graph(self, cfg_node_to_hw_map, plot=False):
         """

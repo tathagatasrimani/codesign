@@ -220,7 +220,6 @@ symbolic_power_active = {
     "MainMem": (MemReadPact + MemWritePact)/2,
 }
 
-
 def make_sym_power_pass(beta, P_pass_inv=V_dd**2 / (Reff["Not"] * 100)):
     return beta * P_pass_inv
 

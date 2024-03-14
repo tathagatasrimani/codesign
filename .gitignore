@@ -14,6 +14,10 @@ src/solver_out.txt
 src/sympy.txt
 src/ipopt_out.txt
 
+src/coefficients.yaml
+src/rcs.yaml
+src/rcs_current.yaml
+
 data/**
 
 src/codesign_log_dir/**

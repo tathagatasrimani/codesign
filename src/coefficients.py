@@ -6,7 +6,6 @@ latency = tech_params["latency"]
 dynamic_power = tech_params["dynamic_power"]
 leakage_power = tech_params["leakage_power"]
 
-sizes = [3, 5, 7, 40]
 
 def create_coefficients(sizes):
     coeffs = {
@@ -33,15 +32,23 @@ def create_coefficients(sizes):
         coeffs["beta"][elem] = total / len(sizes)
     return coeffs
 
-coeffs = create_coefficients(sizes)
-coeffs_individual = {}
-coeffs_individual[3] = create_coefficients([3])
-coeffs_individual[5] = create_coefficients([5])
-coeffs_individual[7] = create_coefficients([7])
-coeffs_individual[40] = create_coefficients([40])
 
-with open("coefficients.yaml", 'w') as f:
-    f.write(yaml.dump(coeffs))
+def main():
+   
+    sizes = [3, 5, 7, 40]
 
-with open("coefficients_individual.yaml", 'w') as f:
-    f.write(yaml.dump(coeffs_individual))
+    coeffs = create_coefficients(sizes)
+    coeffs_individual = {}
+    coeffs_individual[3] = create_coefficients([3])
+    coeffs_individual[5] = create_coefficients([5])
+    coeffs_individual[7] = create_coefficients([7])
+    coeffs_individual[40] = create_coefficients([40])
+
+    with open("coefficients.yaml", 'w') as f:
+        f.write(yaml.dump(coeffs))
+
+    # with open("coefficients_individual.yaml", 'w') as f:
+    #     f.write(yaml.dump(coeffs_individual))
+
+if __name__ == "__main__":
+    main()

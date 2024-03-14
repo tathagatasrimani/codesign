@@ -105,7 +105,6 @@ class HardwareModel:
             self.netlist = nx.Graph()
 
         self.init_misc_vars()
-
         self.set_technology_parameters()
 
     def set_hw_config_vars(
@@ -208,7 +207,24 @@ class HardwareModel:
         self, rc_params_file="rcs_current.yaml", coeff_file="coefficients.yaml"
     ):
         """
-        For full iteration, need to update the technology parameters after a run of the inverse pass.
+        For full codesign loop, need to update the technology parameters after a run of the inverse pass.
+        Local States:
+            latency - dictionary of latencies in cycles
+            dynamic_power - dictionary of active power in nW
+            leakage_power - dictionary of passive power in nW
+            V_dd - voltage in V
+            f - frequency in Hz
+        Inputs:
+            C - dictionary of capacitances in F
+            R - dictionary of resistances in Ohms
+            rcs[other]:
+                f: frequency in Hz
+                V_dd: voltage in V
+                MemReadL: memory read latency in s
+                MemWriteL: memory write latency in s
+                MemReadPact: memory read active power in W
+                MemWritePact: memory write active power in W
+                MemPpass: memory passive power in W
         """
         print(f"Updating Technology Parameters...")
         rcs = yaml.load(open(rc_params_file, "r"), Loader=yaml.Loader)
@@ -219,17 +235,17 @@ class HardwareModel:
 
         self.latency["MainMem"] = (
             rcs["other"]["MemReadL"] + rcs["other"]["MemWriteL"]
-        ) / 2
+        ) / 2 * self.frequency
         self.dynamic_power["MainMem"] = (
             rcs["other"]["MemReadPact"] + rcs["other"]["MemWritePact"]
-        ) / 2
-        self.leakage_power["MainMem"] = rcs["other"]["MemPpass"]
+        ) / 2 * 1e9
+        self.leakage_power["MainMem"] = rcs["other"]["MemPpass"] * 1e9
 
         beta = yaml.load(open(coeff_file, "r"), Loader=yaml.Loader)["beta"]
 
         for key in C:
             self.dynamic_power[key] = (
-                C[key] * self.V_dd * self.V_dd * self.frequency * 1e9
+                0.5 * C[key] * self.V_dd * self.V_dd * self.frequency * 1e9
             )  # convert to nW
             self.latency[key] = R[key] * C[key] * self.frequency  # convert to cycles
             self.leakage_power[key] = (
