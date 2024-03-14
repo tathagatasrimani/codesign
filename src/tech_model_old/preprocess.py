@@ -4,8 +4,21 @@ from MyPyomoSympyBimap import MyPyomoSympyBimap
 import pyomo.core.expr.sympy_tools as sympy_tools
 from pyomo.opt import SolverFactory
 import yaml
-import hw_symbols
 
+updated_symbol_map = {
+    "f": hw_symbols.f,
+    "V_dd": hw_symbols.V_dd,
+    "C_int_inv": hw_symbols.C_int_inv,
+    "C_input_inv": hw_symbols.C_input_inv
+}
+
+scaling_factors = {
+    hw_symbols.f: 1e-6,
+    hw_symbols.V_dd: 1,
+    hw_symbols.C_int_inv: 1e15,
+    hw_symbols.C_input_inv: 1e13,
+}
+obj_scale = 1
 
 class Preprocessor:
     def __init__(self):
@@ -16,9 +29,6 @@ class Preprocessor:
         self.free_symbols = []
         self.vars = []
         self.multistart = False
-        self.obj= 0
-        self.initial_params = {}
-        self.obj_scale = 1
 
     def f(self, model):
         return model.x[self.mapping[hw_symbols.f]]>=1e6 
@@ -26,29 +36,24 @@ class Preprocessor:
         return model.x[self.mapping[hw_symbols.f]]<=5e9
     def V_dd_lower(self, model):
         return model.x[self.mapping[hw_symbols.V_dd]]>=0.5 
+    def C_int_inv(self, model):
+        return model.x[self.mapping[hw_symbols.C_int_inv]]>=1e-14 
+    def C_input_inv(self, model):
+        return model.x[self.mapping[hw_symbols.C_input_inv]]>=1e-12 
     def V_dd_upper(self, model):
         return model.x[self.mapping[hw_symbols.V_dd]]<=1.7 
 
     def add_constraints(self, model):
         # this is where we say EDP_final = EDP_initial / 10
-        model.Constraint = pyo.Constraint( expr = self.py_exp <= self.initial_val/1.9)
-        model.Constraint1 = pyo.Constraint( expr = self.py_exp >= self.initial_val/2.1)
+        model.Constraint = pyo.Constraint( expr = self.py_exp == self.initial_val/10)
+        #model.Constraint1 = pyo.Constraint( expr = self.py_exp >= self.initial_val/11)
         model.freq_const = pyo.Constraint( rule=self.f)
         model.V_dd_lower = pyo.Constraint( rule=self.V_dd_lower)
+        model.C_int_inv_constr = pyo.Constraint( rule=self.C_int_inv)
+        model.C_input_inv_constr = pyo.Constraint( rule=self.C_input_inv)
         model.V_dd_upper = pyo.Constraint( rule=self.V_dd_upper)
         model.f_upper = pyo.Constraint( rule=self.f_upper)
-        #model.f = pyo.Constraint(expr = model.x[self.mapping[hw_symbols.f]] == self.initial_params["f"])
-        #model.V_dd = pyo.Constraint(expr = model.x[self.mapping[hw_symbols.V_dd]] == self.initial_params["V_dd"])
-        model.AddR = pyo.Constraint(expr = model.x[self.mapping[hw_symbols.Reff["Add"]]] <= self.initial_params["Reff_Add"])
-        model.RegsR = pyo.Constraint(expr = model.x[self.mapping[hw_symbols.Reff["Regs"]]] <= self.initial_params["Reff_Regs"])
-        model.NotR = pyo.Constraint(expr = model.x[self.mapping[hw_symbols.Reff["Not"]]] <= self.initial_params["Reff_Not"])
-        model.AddC = pyo.Constraint(expr = model.x[self.mapping[hw_symbols.Ceff["Add"]]] <= self.initial_params["Ceff_Add"])
-        model.RegsC = pyo.Constraint(expr = model.x[self.mapping[hw_symbols.Ceff["Regs"]]] <= self.initial_params["Ceff_Regs"])
         return model
-    
-    def set_objective(self, model):
-        for symbol in self.free_symbols:
-            self.obj += (self.initial_params[symbol.name] / model.x[self.mapping[hw_symbols.symbol_table[symbol.name]]] - 1)**2
 
     def get_solver(self):
         if self.multistart:
@@ -74,32 +79,24 @@ class Preprocessor:
         return opt
     
     def create_scaling(self, model):
-        model.scaling_factor[model.obj] = self.obj_scale
-        for s in self.free_symbols:
-            if s.name in self.initial_params and self.initial_params[s.name] != 0:
-                print(s.name, self.mapping)
-                model.scaling_factor[model.x[self.mapping[s]]] = 1 / self.initial_params[s.name]
+        model.scaling_factor[model.obj] = obj_scale
+        for var in scaling_factors:
+            model.scaling_factor[model.x[self.mapping[var]]] = scaling_factors[var]
 
     def begin(self, model, edp, initial_params, multistart):
         self.multistart = multistart
         self.expr_symbols = {}
         self.free_symbols = []
-        self.initial_params = initial_params
         for symbol in edp.free_symbols:
-            #print(symbol.name)
-            edp = edp.subs({symbol: hw_symbols.symbol_table[symbol.name]})
+            edp = edp.subs({symbol: updated_symbol_map[symbol.name]})
         for s in edp.free_symbols:
             self.free_symbols.append(s)
-            if s.name in initial_params: # change this to just s
+            if s.name in initial_params:
                 self.expr_symbols[s] = initial_params[s.name]
 
-        #print(edp.subs(self.expr_symbols))
         self.initial_val = float(edp.subs(self.expr_symbols))
-        print(self.expr_symbols)
-        print("edp:", edp)
-        print("initial val:", self.initial_val)
-        
-        #self.obj_scale = 1 / self.initial_val
+        global obj_scale
+        obj_scale = 1 / self.initial_val
         #print(self.expr_symbols)
 
         model.nVars = pyo.Param(initialize=len(edp.free_symbols))
@@ -126,8 +123,7 @@ class Preprocessor:
         #print(self.mapping.sympyVars())
         self.py_exp = sympy_tools.sympy2pyomo_expression(edp, m)
         # py_exp = sympy_tools.sympy2pyomo_expression(hardwaremodel.symbolic_latency["Add"] ** (1/2), m)
-        self.set_objective(model)
-        model.obj = pyo.Objective(expr=self.obj, sense=pyo.minimize)
+        model.obj = pyo.Objective(expr=self.py_exp, sense=pyo.minimize)
         model.cuts = pyo.ConstraintList()
 
         model.scaling_factor = pyo.Suffix(direction=pyo.Suffix.EXPORT)

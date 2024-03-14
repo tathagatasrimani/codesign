@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 import dfg_algo
 import schedule
-
+import hw_symbols
 
 # adds all mallocs and frees to vectors, and finds the next cfg node in the data path,
 # returning the index of that node
@@ -39,6 +39,8 @@ def find_next_data_path_index(data_path, i, mallocs, frees):
     """
     pattern_seek = False
     max_iters = 1
+    if i == len(data_path):
+        return i, pattern_seek, max_iters
     # print(f"i: {i}, len(self.data_path): {len(self.data_path)}, self.data_path: {self.data_path}")
     while len(data_path[i]) != 2:
         if len(data_path[i]) == 0:
@@ -216,7 +218,7 @@ def verify_can_execute(computation_graph, hw_spec_netlist, should_update_arch=Fa
     Returns:
         bool: True if the computation graph can be executed on the netlist, False otherwise.
     """
-
+    
     for generation in nx.topological_generations(computation_graph):
         temp_C = nx.DiGraph()
         for node in generation:
@@ -338,3 +340,54 @@ def topological_layout_plot(graph):
     nx.draw_networkx(graph, pos=pos, ax=ax)
     plt.show()
 
+
+def convert_tech_params_to_si(latency, active_power, passive_power, frequency):
+    """
+    Convert the tech params from the input units to the SI units.
+    latency in cycles -> seconds
+    active_power in nW -> W
+    passive_power in nW -> W
+    """
+    return latency / frequency, active_power / 1e9, passive_power / 1e9
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~~~ SYMBOLIC UTILS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+def generate_init_params_from_rcs_as_strings(rcs):
+    """
+    Just some format conversion
+    keys are strings
+    """
+    initial_params = {}
+    for elem in rcs["Reff"]:
+        initial_params["Reff_" + elem] = rcs["Reff"][elem]
+        initial_params["Ceff_" + elem] = rcs["Ceff"][elem]
+    initial_params["f"] = rcs["other"]["f"]
+    initial_params["V_dd"] = rcs["other"]["V_dd"]
+    initial_params["MemReadL"] = rcs["other"]["MemReadL"]
+    initial_params["MemWriteL"] = rcs["other"]["MemWriteL"]
+    initial_params["MemReadPact"] = rcs["other"]["MemReadPact"]
+    initial_params["MemWritePact"] = rcs["other"]["MemWritePact"]
+    initial_params["MemPpass"] = rcs["other"]["MemPpass"]
+    return initial_params
+
+
+def generate_init_params_from_rcs_as_symbols(rcs):
+    """
+    Just some format conversion
+    keys are strings
+    """
+    initial_params = {}
+    for elem in rcs["Reff"]:
+        initial_params[hw_symbols.symbol_table["Reff_" + elem]] = rcs["Reff"][elem]
+        initial_params[hw_symbols.symbol_table["Ceff_" + elem]] = rcs["Ceff"][elem]
+    initial_params[hw_symbols.f] = rcs["other"]["f"]
+    initial_params[hw_symbols.V_dd] = rcs["other"]["V_dd"]
+    initial_params[hw_symbols.MemReadL] = rcs["other"]["MemReadL"]
+    initial_params[hw_symbols.MemWriteL] = rcs["other"]["MemWriteL"]
+    initial_params[hw_symbols.MemReadPact] = rcs["other"]["MemReadPact"]
+    initial_params[hw_symbols.MemWritePact] = rcs["other"]["MemWritePact"]
+    initial_params[hw_symbols.MemPpass] = rcs["other"]["MemPpass"]
+    return initial_params

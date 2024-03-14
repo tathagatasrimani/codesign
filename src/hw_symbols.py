@@ -1,154 +1,159 @@
 from sympy import symbols, ceiling, expand, exp
+import yaml
 
-
-C_int_inv = symbols("C_int_inv", positive=True)
 V_dd = symbols("V_dd", positive=True)
 f = symbols("f", positive=True)
-C_input_inv = symbols("C_input_inv", positive=True)
+MemReadL = symbols("MemReadL", positive=True)
+MemWriteL = symbols("MemWriteL", positive=True)
+MemReadPact = symbols("MemReadPact", positive=True)
+MemWritePact = symbols("MemWritePact", positive=True)
+MemPpass = symbols("MemPpass", positive=True)
 
-symbol_table = {
-    "C_int_inv": C_int_inv,
-    "V_dd": V_dd,
-    "f": f,
-    "C_input_inv": C_input_inv
+Reff = {
+    "And": symbols("Reff_And", positive=True),
+    "Or": symbols("Reff_Or", positive=True),
+    "Add": symbols("Reff_Add", positive=True),
+    "Sub": symbols("Reff_Sub", positive=True),
+    "Mult": symbols("Reff_Mult", positive=True),
+    "FloorDiv": symbols("Reff_FloorDiv", positive=True),
+    "Mod": symbols("Reff_Mod", positive=True),
+    "LShift": symbols("Reff_LShift", positive=True),
+    "RShift": symbols("Reff_RShift", positive=True),
+    "BitOr": symbols("Reff_BitOr", positive=True),
+    "BitXor": symbols("Reff_BitXor", positive=True),
+    "BitAnd": symbols("Reff_BitAnd", positive=True),
+    "Eq": symbols("Reff_Eq", positive=True),
+    "NotEq": symbols("Reff_NotEq", positive=True),
+    "Lt": symbols("Reff_Lt", positive=True),
+    "LtE": symbols("Reff_LtE", positive=True),
+    "Gt": symbols("Reff_Gt", positive=True),
+    "GtE": symbols("Reff_GtE", positive=True),
+    "USub": symbols("Reff_USub", positive=True),
+    "UAdd": symbols("Reff_UAdd", positive=True),
+    "IsNot": symbols("Reff_IsNot", positive=True),
+    "Not": symbols("Reff_Not", positive=True),
+    "Invert": symbols("Reff_Invert", positive=True),
+    "Regs": symbols("Reff_Regs", positive=True)
 }
 
-u_p = 1000
-C_ox = 2
-W = 2
-L = 1
-V_T = 1
-I_s = 1
-q = 1
-V_offset = 1
-n = 1
-K = 1
-T = 1
-R_wire = 1
-C_wire = 1e-10
+Ceff = {
+    "And": symbols("Ceff_And", positive=True),
+    "Or": symbols("Ceff_Or", positive=True),
+    "Add": symbols("Ceff_Add", positive=True),
+    "Sub": symbols("Ceff_Sub", positive=True),
+    "Mult": symbols("Ceff_Mult", positive=True),
+    "FloorDiv": symbols("Ceff_FloorDiv", positive=True),
+    "Mod": symbols("Ceff_Mod", positive=True),
+    "LShift": symbols("Ceff_LShift", positive=True),
+    "RShift": symbols("Ceff_RShift", positive=True),
+    "BitOr": symbols("Ceff_BitOr", positive=True),
+    "BitXor": symbols("Ceff_BitXor", positive=True),
+    "BitAnd": symbols("Ceff_BitAnd", positive=True),
+    "Eq": symbols("Ceff_Eq", positive=True),
+    "NotEq": symbols("Ceff_NotEq", positive=True),
+    "Lt": symbols("Ceff_Lt", positive=True),
+    "LtE": symbols("Ceff_LtE", positive=True),
+    "Gt": symbols("Ceff_Gt", positive=True),
+    "GtE": symbols("Ceff_GtE", positive=True),
+    "USub": symbols("Ceff_USub", positive=True),
+    "UAdd": symbols("Ceff_UAdd", positive=True),
+    "IsNot": symbols("Ceff_IsNot", positive=True),
+    "Not": symbols("Ceff_Not", positive=True),
+    "Invert": symbols("Ceff_Invert", positive=True),
+    "Regs": symbols("Ceff_Regs", positive=True),
+}
 
-I_L = (u_p*C_ox*W*((V_dd/2)-V_T)**2)/(2*L)
-I_H = u_p*C_ox*(W/L)*( ((V_dd*(V_dd-V_T)) / 2) - ((V_dd**2) / 2))
-I_off = I_s*exp((q*(V_dd-V_T-V_offset)) / (n*K*T)) * (1 - exp((-q*V_dd) / (K*T)))
-I_avg = (I_L + I_H) / 2
-R_avg_inv = V_dd / I_avg
-C_inv = C_input_inv + C_int_inv
-P_act_inv = 0.5*C_inv*V_dd*V_dd*f
-P_pass_inv = I_off*V_dd
-
-# coefficients used in logical effort formulation
-# active power
-alpha = {
-    "And": 10,
-    "Or": 10,
-    "Add": 100,
-    "Sub": 110,
-    "Mult": 1000,
-    "FloorDiv": 5000,
-    "Mod": 1000,
-    "LShift": 3,
-    "RShift": 3,
-    "BitOr": 2,
-    "BitXor": 2,
-    "BitAnd": 2,
-    "Eq": 20,
-    "NotEq": 20,
-    "Lt": 40,
-    "LtE": 40,
-    "Gt": 40,
-    "GtE": 40,
-    "USub": 110,
-    "UAdd": 100,
-    "IsNot": 10,
-    "Not": 10, 
-    "Invert": 1,
-    "Regs": 5
+symbol_table = {
+    "V_dd": V_dd,
+    "f": f,
+    "MemReadL": MemReadL,
+    "MemWriteL": MemWriteL,
+    "MemReadPact": MemReadPact,
+    "MemWritePact": MemWritePact,
+    "MemPpass": MemPpass,
+    "Reff_And": Reff["And"],
+    "Reff_Or": Reff["Or"],
+    "Reff_Add": Reff["Add"],
+    "Reff_Sub": Reff["Sub"],
+    "Reff_Mult": Reff["Mult"],
+    "Reff_FloorDiv": Reff["FloorDiv"],
+    "Reff_Mod": Reff["Mod"],
+    "Reff_LShift": Reff["LShift"],
+    "Reff_RShift": Reff["RShift"],
+    "Reff_BitOr": Reff["BitOr"],
+    "Reff_BitXor": Reff["BitXor"],
+    "Reff_BitAnd": Reff["BitAnd"],
+    "Reff_Eq": Reff["Eq"],
+    "Reff_NotEq": Reff["NotEq"],
+    "Reff_Lt": Reff["Lt"],
+    "Reff_LtE": Reff["LtE"],
+    "Reff_Gt": Reff["Gt"],
+    "Reff_GtE": Reff["GtE"],
+    "Reff_USub": Reff["USub"],
+    "Reff_UAdd": Reff["UAdd"],
+    "Reff_IsNot": Reff["IsNot"],
+    "Reff_Not": Reff["Not"],
+    "Reff_Invert": Reff["Invert"],
+    "Reff_Regs": Reff["Regs"],
+    "Ceff_And": Ceff["And"],
+    "Ceff_Or": Ceff["Or"],
+    "Ceff_Add": Ceff["Add"],
+    "Ceff_Sub": Ceff["Sub"],
+    "Ceff_Mult": Ceff["Mult"],
+    "Ceff_FloorDiv": Ceff["FloorDiv"],
+    "Ceff_Mod": Ceff["Mod"],
+    "Ceff_LShift": Ceff["LShift"],
+    "Ceff_RShift": Ceff["RShift"],
+    "Ceff_BitOr": Ceff["BitOr"],
+    "Ceff_BitXor": Ceff["BitXor"],
+    "Ceff_BitAnd": Ceff["BitAnd"],
+    "Ceff_Eq": Ceff["Eq"],
+    "Ceff_NotEq": Ceff["NotEq"],
+    "Ceff_Lt": Ceff["Lt"],
+    "Ceff_LtE": Ceff["LtE"],
+    "Ceff_Gt": Ceff["Gt"],
+    "Ceff_GtE": Ceff["GtE"],
+    "Ceff_USub": Ceff["USub"],
+    "Ceff_UAdd": Ceff["UAdd"],
+    "Ceff_IsNot": Ceff["IsNot"],
+    "Ceff_Not": Ceff["Not"],
+    "Ceff_Invert": Ceff["Invert"],
+    "Ceff_Regs": Ceff["Regs"],
 }
 
 # passive power
-beta = {
-    "And": 1,
-    "Or": 1,
-    "Add": 10,
-    "Sub": 11,
-    "Mult": 100,
-    "FloorDiv": 500,
-    "Mod": 100,
-    "LShift": 0.3,
-    "RShift": 0.3,
-    "BitOr": 0.2,
-    "BitXor": 0.2,
-    "BitAnd": 0.2,
-    "Eq": 2,
-    "NotEq": 2,
-    "Lt": 4,
-    "LtE": 4,
-    "Gt": 4,
-    "GtE": 4,
-    "USub": 11,
-    "UAdd": 10,
-    "IsNot": 1,
-    "Not": 1, 
-    "Invert": 0.1,
-    "Regs": 0.5
-}
+beta = yaml.load(open("coefficients.yaml", "r"), Loader=yaml.Loader)["beta"]
 
-# delay
-gamma = {
-    "And": 10,
-    "Or": 10,
-    "Add": 100,
-    "Sub": 110,
-    "Mult": 1000,
-    "FloorDiv": 5000,
-    "Mod": 1000,
-    "LShift": 3,
-    "RShift": 3,
-    "BitOr": 2,
-    "BitXor": 2,
-    "BitAnd": 2,
-    "Eq": 20,
-    "NotEq": 20,
-    "Lt": 40,
-    "LtE": 40,
-    "Gt": 40,
-    "GtE": 40,
-    "USub": 110,
-    "UAdd": 100,
-    "IsNot": 10,
-    "Not": 10, 
-    "Invert": 1,
-    "Regs": 5
-}
-
-def make_sym_lat_wc(gamma):
-    return gamma * R_avg_inv * C_input_inv + (gamma * R_avg_inv + R_wire) * C_wire
+def make_sym_lat_wc(elem):
+    return Reff[elem] * Ceff[elem]
 
 symbolic_latency_wc = {
-    "And": make_sym_lat_wc(gamma["And"]),
-    "Or": make_sym_lat_wc(gamma["Or"]),
-    "Add": make_sym_lat_wc(gamma["Add"]),
-    "Sub": make_sym_lat_wc(gamma["Sub"]),
-    "Mult": make_sym_lat_wc(gamma["Mult"]),
-    "FloorDiv": make_sym_lat_wc(gamma["FloorDiv"]),
-    "Mod": make_sym_lat_wc(gamma["Mod"]),
-    "LShift": make_sym_lat_wc(gamma["LShift"]),
-    "RShift": make_sym_lat_wc(gamma["RShift"]),
-    "BitOr": make_sym_lat_wc(gamma["BitOr"]),
-    "BitXor": make_sym_lat_wc(gamma["BitXor"]),
-    "BitAnd": make_sym_lat_wc(gamma["BitAnd"]),
-    "Eq": make_sym_lat_wc(gamma["Eq"]),
-    "NotEq": make_sym_lat_wc(gamma["NotEq"]),
-    "Lt": make_sym_lat_wc(gamma["Lt"]),
-    "LtE": make_sym_lat_wc(gamma["LtE"]),
-    "Gt": make_sym_lat_wc(gamma["Gt"]),
-    "GtE": make_sym_lat_wc(gamma["GtE"]),
-    "USub": make_sym_lat_wc(gamma["USub"]),
-    "UAdd": make_sym_lat_wc(gamma["UAdd"]),
-    "IsNot": make_sym_lat_wc(gamma["IsNot"]),
-    "Not": make_sym_lat_wc(gamma["Not"]),
-    "Invert": make_sym_lat_wc(gamma["Invert"]),
-    "Regs": make_sym_lat_wc(gamma["Regs"]),
+    "And": make_sym_lat_wc("And"),
+    "Or": make_sym_lat_wc("Or"),
+    "Add": make_sym_lat_wc("Add"),
+    "Sub": make_sym_lat_wc("Sub"),
+    "Mult": make_sym_lat_wc("Mult"),
+    "FloorDiv": make_sym_lat_wc("FloorDiv"),
+    "Mod": make_sym_lat_wc("Mod"),
+    "LShift": make_sym_lat_wc("LShift"),
+    "RShift": make_sym_lat_wc("RShift"),
+    "BitOr": make_sym_lat_wc("BitOr"),
+    "BitXor": make_sym_lat_wc("BitXor"),
+    "BitAnd": make_sym_lat_wc("BitAnd"),
+    "Eq": make_sym_lat_wc("Eq"),
+    "NotEq": make_sym_lat_wc("NotEq"),
+    "Lt": make_sym_lat_wc("Lt"),
+    "LtE": make_sym_lat_wc("LtE"),
+    "Gt": make_sym_lat_wc("Gt"),
+    "GtE": make_sym_lat_wc("GtE"),
+    "USub": make_sym_lat_wc("USub"),
+    "UAdd": make_sym_lat_wc("UAdd"),
+    "IsNot": make_sym_lat_wc("IsNot"),
+    "Not": make_sym_lat_wc("Not"),
+    "Invert": make_sym_lat_wc("Invert"),
+    "Regs": make_sym_lat_wc("Regs"),
+    # "Buf": make_sym_lat_wc("Buf"),
+    "MainMem": (MemReadL + MemWriteL)/2, # this needs to change later to sep the two.
 }
 
 def make_sym_lat_cyc(f, lat_wc):
@@ -179,39 +184,43 @@ symbolic_latency_cyc = {
     "Not": make_sym_lat_cyc(f, symbolic_latency_wc["Not"]),
     "Invert": make_sym_lat_cyc(f, symbolic_latency_wc["Invert"]),
     "Regs": make_sym_lat_cyc(f, symbolic_latency_wc["Regs"]),
+    # "Buf": make_sym_lat_cyc(f, symbolic_latency_wc["Buf"]),
+    "MainMem": make_sym_lat_cyc(f, symbolic_latency_wc["MainMem"]),
 }
 
-def make_sym_power_act(alpha):
-    return alpha * P_act_inv
+def make_sym_power_act(elem):
+    return 0.5 * Ceff[elem] * V_dd * V_dd * f
 
 symbolic_power_active = {
-    "And": make_sym_power_act(alpha["And"]),
-    "Or": make_sym_power_act(alpha["Or"]),
-    "Add": make_sym_power_act(alpha["Add"]),
-    "Sub": make_sym_power_act(alpha["Sub"]),
-    "Mult": make_sym_power_act(alpha["Mult"]),
-    "FloorDiv": make_sym_power_act(alpha["FloorDiv"]),
-    "Mod": make_sym_power_act(alpha["Mod"]),
-    "LShift": make_sym_power_act(alpha["LShift"]),
-    "RShift": make_sym_power_act(alpha["RShift"]),
-    "BitOr": make_sym_power_act(alpha["BitOr"]),
-    "BitXor": make_sym_power_act(alpha["BitXor"]),
-    "BitAnd": make_sym_power_act(alpha["BitAnd"]),
-    "Eq": make_sym_power_act(alpha["Eq"]),
-    "NotEq": make_sym_power_act(alpha["NotEq"]),
-    "Lt": make_sym_power_act(alpha["Lt"]),
-    "LtE": make_sym_power_act(alpha["LtE"]),
-    "Gt": make_sym_power_act(alpha["Gt"]),
-    "GtE": make_sym_power_act(alpha["GtE"]),
-    "USub": make_sym_power_act(alpha["USub"]),
-    "UAdd": make_sym_power_act(alpha["UAdd"]),
-    "IsNot": make_sym_power_act(alpha["IsNot"]),
-    "Not": make_sym_power_act(alpha["Not"]),
-    "Invert": make_sym_power_act(alpha["Invert"]),
-    "Regs": make_sym_power_act(alpha["Regs"]),
+    "And": make_sym_power_act("And"),
+    "Or": make_sym_power_act("Or"),
+    "Add": make_sym_power_act("Add"),
+    "Sub": make_sym_power_act("Sub"),
+    "Mult": make_sym_power_act("Mult"),
+    "FloorDiv": make_sym_power_act("FloorDiv"),
+    "Mod": make_sym_power_act("Mod"),
+    "LShift": make_sym_power_act("LShift"),
+    "RShift": make_sym_power_act("RShift"),
+    "BitOr": make_sym_power_act("BitOr"),
+    "BitXor": make_sym_power_act("BitXor"),
+    "BitAnd": make_sym_power_act("BitAnd"),
+    "Eq": make_sym_power_act("Eq"),
+    "NotEq": make_sym_power_act("NotEq"),
+    "Lt": make_sym_power_act("Lt"),
+    "LtE": make_sym_power_act("LtE"),
+    "Gt": make_sym_power_act("Gt"),
+    "GtE": make_sym_power_act("GtE"),
+    "USub": make_sym_power_act("USub"),
+    "UAdd": make_sym_power_act("UAdd"),
+    "IsNot": make_sym_power_act("IsNot"),
+    "Not": make_sym_power_act("Not"),
+    "Invert": make_sym_power_act("Invert"),
+    "Regs": make_sym_power_act("Regs"),
+    # "Buf": make_sym_power_act("Buf"),
+    "MainMem": (MemReadPact + MemWritePact)/2,
 }
 
-def make_sym_power_pass(beta):
+def make_sym_power_pass(beta, P_pass_inv=V_dd**2 / (Reff["Not"] * 100)):
     return beta * P_pass_inv
 
 symbolic_power_passive = {
@@ -239,4 +248,11 @@ symbolic_power_passive = {
     "Not": make_sym_power_pass(beta["Not"]),
     "Invert": make_sym_power_pass(beta["Invert"]),
     "Regs": make_sym_power_pass(beta["Regs"]),
+    # "Buf": make_sym_power_pass(beta["Buf"]),
+    "MainMem": MemPpass,
 }
+
+def update_symbolic_passive_power(R_off_on_ratio):
+    for elem in symbolic_power_passive:
+        if elem != "MainMem":
+            symbolic_power_passive[elem] = make_sym_power_pass(beta[elem], V_dd**2 / (R_off_on_ratio * Reff["Not"]))

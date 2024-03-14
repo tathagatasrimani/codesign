@@ -62,6 +62,7 @@ class ConcreteSimulator:
         self.total_write_size = 0
         self.max_regs_inuse = 0
         self.max_mem_inuse = 0
+        self.total_energy = 0
 
     def simulate_cycles(self, hw_spec, computation_graph, total_cycles):
         """
@@ -88,10 +89,17 @@ class ConcreteSimulator:
                 # active power should scale by size of the object being accessed.
                 # all regs have the saem size, so no need to scale.
                 scaling = node_data["size"]
-            self.active_power_use[self.cycles] += (
-                hw_spec.dynamic_power[node_data["function"]]
+            # OLD ACTIVE POWER CALCULATION
+            # self.active_power_use[self.cycles] += (
+            #     hw_spec.dynamic_power[node_data["function"]]
+            #     * scaling
+            #     * hw_spec.latency[node_data["function"]]
+            # )
+            # NEW ACTIVE ENERGY CALCULATION
+            self.total_energy += (
+                hw_spec.dynamic_power[node_data["function"]] * 1e-9
                 * scaling
-                * hw_spec.latency[node_data["function"]]
+                * (hw_spec.latency[node_data["function"]] / hw_spec.frequency)
             )
             hw_spec.compute_operation_totals[node_data["function"]] += 1
         self.active_power_use[self.cycles] /= total_cycles
@@ -310,7 +318,7 @@ class ConcreteSimulator:
         self.cycles = 0
         self.active_power_use = {}
         self.passive_power_dissipation_rate = 0
-
+        self.total_energy = 0
 
     def simulate(self, cfg, cfg_node_to_hw_map, hw):
         self.reset_internal_variables()
@@ -531,17 +539,22 @@ class ConcreteSimulator:
             scaling = 1
             if elem_data["function"] in ["Regs", "Buf", "MainMem"]:
                 scaling = elem_data["size"]
+            # OLD PASSIVE POWER CALCULATION
             self.passive_power_dissipation_rate += (
                 hw.leakage_power[elem_data["function"]] * scaling
+            )
+            # NEW PASSIVE ENERGY CALCULATION
+            self.total_energy += (
+                hw.leakage_power[elem_data["function"]]*1e-9
+                * (self.cycles / hw.frequency) * scaling
             )
 
         for node in hw.netlist.nodes:
             hw.netlist.nodes[node]['allocation'] = len(hw.netlist.nodes[node]['allocation'])
 
-        print("done with simulation")
+        # print("done with simulation")
         # Path(simulator.path + '/benchmarks/pictures/memory_graphs').mkdir(parents=True, exist_ok=True)
         # self.new_graph.gv_graph.render(self.path + '/benchmarks/pictures/memory_graphs/' + sys.argv[1][sys.argv[1].rfind('/')+1:], view = True)
-        return self.data
 
     def set_data_path(self):
         with open(self.path + "/instrumented_files/output.txt", "r") as f:
@@ -636,7 +649,10 @@ class ConcreteSimulator:
     def calculate_edp(self, hw):
         self.calculate_average_power()
         self.execution_time = self.cycles / hw.frequency # in seconds
-        self.edp = self.avg_compute_power * self.execution_time ** 2
+        # OLD EDP CALCULATION
+        #self.edp = self.avg_compute_power * 1e-3 * self.execution_time ** 2 # convert mW to W
+        # NEW EDP CALCULATION
+        self.edp = self.total_energy * self.execution_time
 
     def compose_entire_computation_graph(self, cfg_node_to_hw_map, plot=False):
         """
@@ -730,6 +746,8 @@ def main(args):
     simulator = ConcreteSimulator()
 
     # TODO: move this into cli arg
+    # if args.architecture is None:
+    #     args.architecture = "aladdin_const_with_mem"
     hw = HardwareModel(cfg="aladdin_const_with_mem")
 
     cfg, cfg_node_to_hw_map = simulator.simulator_prep(args.benchmark, hw.latency)
@@ -738,19 +756,19 @@ def main(args):
     
     # print(f"Data Path: {simulator.data_path}")
 
-    if args.archsearch:
-        hw.netlist = nx.DiGraph()
-        new_data_path = arch_search_util.generate_unrolled_arch(
-            hw,
-            cfg_node_to_hw_map,
-            simulator.data_path,
-            simulator.id_to_node,
-            args.area,
-            args.bw,
-            sim_util.find_nearest_power_2(simulator.memory_needed),
-        )
+    # if args.archsearch:
+    #     hw.netlist = nx.DiGraph()
+    #     new_data_path = arch_search_util.generate_unrolled_arch(
+    #         hw,
+    #         cfg_node_to_hw_map,
+    #         simulator.data_path,
+    #         simulator.id_to_node,
+    #         args.area,
+    #         args.bw,
+    #         sim_util.find_nearest_power_2(simulator.memory_needed),
+    #     )
     
-        simulator.update_data_path(new_data_path)
+    #     simulator.update_data_path(new_data_path)
 
     # # can I do this elsewhere? needs to be done because
     # # arch search unrolling creates new nodes
@@ -821,8 +839,8 @@ def main(args):
     print(f"hw allocations: {[(n, hw.netlist.nodes[n]['allocation']) for n in hw.netlist.nodes]}")
     print(f"hw allocated: {dict(hw.netlist.nodes.data())}")
 
-    if args.filepath is not None:
-        nx.write_gml(hw.netlist, args.filepath, stringizer=lambda x: str(x))
+    # if args.filepath is not None:
+    #     nx.write_gml(hw.netlist, args.filepath, stringizer=lambda x: str(x))
 
     # save some dump of data to json file
     names = args.benchmark.split("/")
@@ -857,15 +875,16 @@ if __name__ == "__main__":
     )
     parser.add_argument("benchmark", metavar="B", type=str)
     parser.add_argument("--notrace", action="store_true")
-    parser.add_argument("-s", "--archsearch", action=argparse.BooleanOptionalAction)
-    parser.add_argument("-a", "--area", type=float, help="Max Area of the chip in um^2")
-    parser.add_argument(
-        "-b", "--bw", type=float, help="Compute - Memory Bandwidth in ??GB/s??"
-    )
-    parser.add_argument("-f", "--filepath", type=str, help="Path to the save new architecture file")
+    parser.add_argument("--architecture", type=str, help="Path to the architecture file (.gml)")
+    # parser.add_argument("-s", "--archsearch", action=argparse.BooleanOptionalAction)
+    # parser.add_argument("-a", "--area", type=float, help="Max Area of the chip in um^2")
+    # parser.add_argument(
+    #     "-b", "--bw", type=float, help="Compute - Memory Bandwidth in ??GB/s??"
+    # )
+    # parser.add_argument("-f", "--filepath", type=str, help="Path to the save new architecture file")
     args = parser.parse_args()
     print(
-        f"args: benchmark: {args.benchmark}, trace:{args.notrace}, search:{args.archsearch}, area:{args.area}, bw:{args.bw}, file: {args.filepath}"
+        f"args: benchmark: {args.benchmark}, trace:{args.notrace}, architecture:{args.architecture}"
     )
 
     main(args)

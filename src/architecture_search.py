@@ -23,11 +23,10 @@ def simulate_new_arch(hw, simulator, cfg, cfg_node_to_hw_map):
     simulator.calculate_edp(hw)
     return simulator.edp
 
-
 def gen_new_arch(existing_arch, unroll_factor, cfg_node_to_hw_map, data_path, id_to_node, mem, saved_elem):
     existing_arch.netlist = nx.DiGraph()
     new_data_path = arch_search_util.unroll_by_specified_factor(
-        cfg_node_to_hw_map, data_path, id_to_node, unroll_factor, saved_elem
+        cfg_node_to_hw_map, data_path, id_to_node, unroll_factor, saved_elem, log=False
     )
     # print(f"old data path: {data_path}")
     # print(f"new data path: {new_data_path}")
@@ -41,22 +40,13 @@ def gen_new_arch(existing_arch, unroll_factor, cfg_node_to_hw_map, data_path, id
 
     return new_data_path
 
-
-def main(args):
-    """
-    Currently the data path is just going to get modified once
-    when I do the unrolling;
-    so I can do all the setup once and then just simulate
-    a bunch of diff architectures.
-    """
-
-    print(f"Running Architecture Search for {args.benchmark.split('/')[-1]}")
+def setup_arch_search(benchmark):
     simulator = ConcreteSimulator()
 
     # TODO: move this into cli arg
     hw = hardwareModel.HardwareModel(cfg="aladdin_const_with_mem")
 
-    cfg, cfg_node_to_hw_map = simulator.simulator_prep(args.benchmark, hw.latency)
+    cfg, cfg_node_to_hw_map = simulator.simulator_prep(benchmark, hw.latency)
 
     hw.netlist = nx.DiGraph()
 
@@ -67,40 +57,16 @@ def main(args):
         sim_util.find_nearest_power_2(simulator.nvm_memory_needed),
     )
 
-    # this has data path and all setup done
-    # without having the visited set object
-    # and anhistory from the previous run
-    sim_copy = deepcopy(simulator)
-
     hardwareModel.un_allocate_all_in_use_elements(hw.netlist)
-    # orig = deepcopy(cfg_node_to_hw_map)
-    # orig_data_path = deepcopy(simulator.data_path)
-    # print(f"entry block before: {cfg.entryblock}")
-    # print(f"sim id_to_node before: {simulator.id_to_node.keys()}")
-    # print(f"keys in cfg_node_to_hw_map:")
-    # [print(str(key) + "\n") for key in cfg_node_to_hw_map.keys()]
-    print(f"values in cfg_node_to_hw_map:")
-    [print(str(val)) for val in cfg_node_to_hw_map.values()]
-
+   
     cfg_node_to_hw_map_copy = {}
     for key, val in cfg_node_to_hw_map.items():
         cfg_node_to_hw_map_copy[key] = val.copy()
 
-    data = simulator.simulate(cfg, cfg_node_to_hw_map, hw)
-    # print(f"entry block after: {cfg.entryblock}")
-    # print(f"sim id_to_node after: {simulator.id_to_node.keys()}")
+    simulator.simulate(cfg, cfg_node_to_hw_map, hw)
 
-    # print(f"data_path diff befre after: {len(set([elem[0] for elem in orig_data_path]).symmetric_difference(set([elem[0] for elem in simulator.data_path])))}")
-    # print(f"keys in cfg_node_to_hw_map after:")
-    # [print(str(key) + "\n") for key in cfg_node_to_hw_map.keys()]
-    print(f"values in cfg_node_to_hw_map after:")
-    [print(str(val)) for val in cfg_node_to_hw_map.values()]
-
-    # set1 = set(orig.keys())
-    # set2 = set(cfg_node_to_hw_map.keys())
-    # print(f"len of orig: {len(orig)}")
-    # print(f"diff cfg_node_to_hw_map: {len(set1.symmetric_difference(set2))}")
-    # print (f"cfgnode to hw map after: {cfg_node_to_hw_map}")
+    # print(f"values in cfg_node_to_hw_map after:")
+    # [print(str(val)) for val in cfg_node_to_hw_map.values()]
 
     unique, count = np.unique([str(elem) for elem in simulator.data_path], return_counts=True)
 
@@ -124,41 +90,58 @@ def main(args):
             cont = 1
         prev = elem
 
-    print(f"max continuous: {max_continuous}")
+    # print(f"max continuous: {max_continuous}")
+    return simulator, hw, cfg, cfg_node_to_hw_map, saved_elem, max_continuous
+
+def run_architecture_search(simulator, hw, cfg, cfg_node_to_hw_map, saved_elem, max_continuous, area_constraint, best_edp=None):
     unroll_factor = max_continuous // 2
     possible_unroll_factors = range(1, max_continuous + 1)
     possible_unrolls_edp = [0] * max_continuous
     possible_unroll_factor_probs = [1 / max_continuous] * max_continuous
 
     orig_data_path = deepcopy(simulator.data_path)
+    best_data_path = orig_data_path
     # print(f"Original Data Path: {orig_data_path}")
     simulator.calculate_edp(hw)
-    best_edp = simulator.edp
+    if best_edp is None:
+        best_edp = simulator.edp
     possible_unrolls_edp[0] = best_edp
     best_hw = hw
     best_unroll = 1
 
-    print(f"Original EDP: {best_edp}; power: {simulator.avg_compute_power} mW; execution time: {simulator.execution_time} s, cycles: {simulator.cycles}")
+    print(
+        f"Original EDP: {best_edp}; power: {simulator.avg_compute_power} mW; execution time: {simulator.execution_time} s, cycles: {simulator.cycles}"
+    )
 
     prev_edp = best_edp
     prev_unroll = 1
     unroll_low = 1
     unroll_high = max_continuous
 
-    epsilon = 0.01 # randomness for rounding
+    epsilon = 0.01  # randomness for rounding
 
-    for i in range(7):
-        print(f"Simulating new architecture {i}...")
+    for i in range(4):
+        # print(f"Simulating new architecture {i}...")
         hw_copy_ = deepcopy(hw)
         # sim_copy_ = deepcopy(sim_copy)
-        new_data_path = gen_new_arch(hw_copy_, unroll_factor, cfg_node_to_hw_map, orig_data_path, simulator.id_to_node, simulator.memory_needed, saved_elem)
+        new_data_path = gen_new_arch(
+            hw_copy_,
+            unroll_factor,
+            cfg_node_to_hw_map,
+            orig_data_path,
+            simulator.id_to_node,
+            simulator.memory_needed,
+            saved_elem,
+        )
         # print([str(key) for key in cfg_node_to_hw_map.keys()])
         simulator.update_data_path(new_data_path)
 
         new_hw = hw_copy_
 
         EDP = simulate_new_arch(new_hw, simulator, cfg, cfg_node_to_hw_map)
-        print(f"EDP: {EDP}; power: {simulator.avg_compute_power} mW; execution time: {simulator.execution_time} s; cycles: {simulator.cycles}")
+        # print(
+        #     f"EDP: {EDP}; power: {simulator.avg_compute_power} mW; execution time: {simulator.execution_time} s; cycles: {simulator.cycles}"
+        # )
         # nx.draw(new_hw.netlist, with_labels=True)
         # plt.show()
 
@@ -166,40 +149,59 @@ def main(args):
         #     print("new arch can't execute computation")
         #     continue
         area = new_hw.get_total_area()
-        print(f"Area: {area} um^2")
-        if area > args.area:
+        # print(f"Area: {area} um^2")
+        if area > area_constraint:
             EDP += np.inf
             unroll_high = unroll_factor
-        area_ratio = area / args.area
+        area_ratio = area / area_constraint
         possible_unrolls_edp[unroll_factor - 1] = EDP
         if EDP < best_edp:
             best_edp = EDP
             best_hw = new_hw
             best_unroll = unroll_factor
+            best_data_path = new_data_path
         if EDP <= prev_edp:
-            print(f"better")
             if unroll_factor > prev_unroll:
                 unroll_low = unroll_factor
             elif unroll_factor < prev_unroll:
                 unroll_high = unroll_factor
-            unroll_factor = round((unroll_low + unroll_high + rng.choice([+1, -1]) * epsilon) / (2*area_ratio))
-        elif EDP > prev_edp: # backtrack
-            print(f"worse")
+            unroll_factor = round(
+                (unroll_low + unroll_high + rng.choice([+1, -1]) * epsilon)
+                / (2 * area_ratio)
+            )
+        elif EDP > prev_edp:  # backtrack
             if unroll_factor > prev_unroll:
                 unroll_high = unroll_factor
             elif unroll_factor < prev_unroll:
                 unroll_low = unroll_factor
             unroll_factor = round(
-                (unroll_low + unroll_high + rng.choice([+1, -1]) * epsilon) / (2*area_ratio)
+                (unroll_low + unroll_high + rng.choice([+1, -1]) * epsilon)
+                / (2 * area_ratio)
             )
         unroll_factor = max(1, unroll_factor)
         unroll_factor = min(max_continuous, unroll_factor)
 
         prev_edp = EDP
         prev_unroll = unroll_factor
-    print(f"All EDPS: {possible_unrolls_edp}")
+    # print(f"All EDPS: {possible_unrolls_edp}")
     print(f"Best Unroll Factor: {best_unroll}")
+    simulator.update_data_path(best_data_path)
+    return best_hw, best_edp
 
+
+def main():
+    """
+    Currently the data path is just going to get modified once
+    when I do the unrolling;
+    so I can do all the setup once and then just simulate
+    a bunch of diff architectures.
+    """
+
+    print(f"Running Architecture Search for {args.benchmark.split('/')[-1]}")
+
+    simulator, hw, cfg,cfg_node_to_hw_map, saved_elem, max_continuous = setup_arch_search(args.benchmark)
+    best_hw, best_edp = run_architecture_search(simulator, hw, cfg, cfg_node_to_hw_map, saved_elem, max_continuous, args.area)
+    
     if args.filepath:
         nx.write_gml(best_hw.netlist,f"architectures/{args.filepath}.gml", stringizer=lambda x: str(x))
 
@@ -217,15 +219,13 @@ if __name__ == "__main__":
     parser.add_argument("benchmark", metavar="B", type=str)
     parser.add_argument("--notrace", action="store_true")
     parser.add_argument("-a", "--area", type=float, help="Max Area of the chip in um^2")
-    parser.add_argument(
-        "-b", "--bw", type=float, help="Compute - Memory Bandwidth in ??GB/s??"
-    )
+
     parser.add_argument(
         "-f", "--filepath", type=str, help="Path to the save new architecture file"
     )
     args = parser.parse_args()
     print(
-        f"args: benchmark: {args.benchmark}, trace:{args.notrace}, area:{args.area}, bw:{args.bw}, file: {args.filepath}"
+        f"args: benchmark: {args.benchmark}, trace:{args.notrace}, area:{args.area}, file: {args.filepath}"
     )
 
     main(args)
