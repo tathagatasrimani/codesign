@@ -101,9 +101,11 @@ class SymbolicSimulator:
                     for node in path:
                         # print(f"node: {node}")
                         # print(f"computation_graph[{node}]: {computation_graph.nodes()[node]}")
-                        path_latency += hw_symbols.symbolic_latency_wc[
+                        # THIS PATH LATENCY MAY OR MAY NOT USE CYCLE TIME OR WALL CLOCK TIME DUE TO SOLVER INSTABILITY
+                        path_latency += hw_symbols.symbolic_latency_cyc[
                             computation_graph.nodes()[node]["function"]
                         ]
+                        # THIS PATH LATENCY USES CYCLE TIME AS A REFERENCE FOR WHAT THE TRUE EDP IS
                         path_latency_ceil += hw_symbols.symbolic_latency_cyc[
                             computation_graph.nodes()[node]["function"]
                         ]

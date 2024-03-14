@@ -35,7 +35,7 @@ def create_coefficients(sizes):
 
 def main():
    
-    sizes = [3, 5, 7, 40]
+    sizes = [40]
 
     coeffs = create_coefficients(sizes)
     coeffs_individual = {}
