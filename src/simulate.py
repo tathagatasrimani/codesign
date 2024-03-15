@@ -193,77 +193,6 @@ class ConcreteSimulator:
         elif status == "free":
             mem_module.free(var_name)
 
-    def localize_memory(self, hw, computation_graph, total_computation_graph = None):
-        """
-        Updates memory in buffers (cache) to ensure that the data needed for the coming DFG node
-        is in the cache.
-
-        Sets a flag to indicate whether or not there was a cache hit or miss. This affects latency
-        calculations.
-        """
-        for node, data in dict(
-            filter(lambda x: x[1]["function"] == "Regs", computation_graph.nodes.data())
-        ).items():
-            var_name = node.split(";")[0]
-            cache_hit = False
-            # print(f"data[allocation]: {data['allocation']};\nhw_graph.nodes[node][allocation]: {hw_graph.nodes[node]['allocation']}")
-            cache_hit = hw.netlist.nodes[data["allocation"]]["var"] == var_name # no need to refetch from mem if var already in reg.
-            
-            mapped_edges = map(
-                lambda edge: (edge[0], hw.netlist.nodes[edge[0]]),
-                hw.netlist.in_edges(computation_graph.nodes[node]["allocation"], data=True),
-            )
-
-            in_bufs = list(
-                filter(
-                    lambda node_data: node_data[1]["function"] == "Buf", mapped_edges
-                )
-            )
-            for buf in in_bufs:
-                cache_hit = buf[1]["memory_module"].find(var_name) or cache_hit
-                if cache_hit:
-                    break
-            if not cache_hit:
-                # just choose one at random. Can make this smarter later.
-                buf = rng.choice(in_bufs)  # in_bufs[0] # just choose one at random.
-
-                size = -1 * buf[1]["memory_module"].read(
-                    var_name
-                )  # size will be negative because cache miss.
-                # add buf and mem nodes to indicate when explicit mem reads occur. ie. add a new one for each cache miss.
-                if total_computation_graph is not None:
-                    active_graph = total_computation_graph
-                else:
-                    active_graph = computation_graph
-                buf_idx = len(
-                    list(
-                        filter(
-                            lambda x: x[1]["function"] == "Buf", active_graph.nodes.data()
-                        )
-                    )
-                )
-                mem_idx = len(
-                    list(
-                        filter(
-                            lambda x: x[1]["function"] == "MainMem",
-                            active_graph.nodes.data(),
-                        )
-                    )
-                )
-                mem = list(
-                    filter(
-                        lambda x: x[1]["function"] == "MainMem", hw.netlist.nodes.data()
-                    )
-                )[0][0]
-                active_graph.add_node(
-                    f"Buf{buf_idx}", function="Buf", allocation=buf[0], size=size
-                )
-                active_graph.add_node(
-                    f"Mem{mem_idx}", function="MainMem", allocation=mem, size=size
-                )
-                active_graph.add_edge(f"Mem{mem_idx}", f"Buf{buf_idx}", function="Mem")
-                active_graph.add_edge(f"Buf{buf_idx}", node, function="Mem")
-
     def visualize_graph(self, operations):
         """
         Deprecated?
@@ -740,7 +669,7 @@ class ConcreteSimulator:
                 # === End count mem usage ===
 
                 # print(f"hw_graph before localize_memory: {str(hw_graph)}")
-                self.localize_memory(hw, hw_graph)
+                sim_util.localize_memory(hw, hw_graph)
                 # print(f"hw_graph after localize_memory: {str(hw_graph)}")
 
                 total_cycles = 0
@@ -970,7 +899,6 @@ class ConcreteSimulator:
             for node in nodes:
                 comp_graph.nodes[node]["layer"] = -1 * layer
         
-
     def simulator_prep(self, benchmark, latency):
         """
         Creates CFG, and id_to_node
