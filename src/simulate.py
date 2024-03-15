@@ -193,7 +193,7 @@ class ConcreteSimulator:
         elif status == "free":
             mem_module.free(var_name)
 
-    def localize_memory(self, hw, hw_graph):
+    def localize_memory(self, hw, computation_graph, total_computation_graph = None):
         """
         Updates memory in buffers (cache) to ensure that the data needed for the coming DFG node
         is in the cache.
@@ -202,15 +202,16 @@ class ConcreteSimulator:
         calculations.
         """
         for node, data in dict(
-            filter(lambda x: x[1]["function"] == "Regs", hw_graph.nodes.data())
+            filter(lambda x: x[1]["function"] == "Regs", computation_graph.nodes.data())
         ).items():
             var_name = node.split(";")[0]
             cache_hit = False
             # print(f"data[allocation]: {data['allocation']};\nhw_graph.nodes[node][allocation]: {hw_graph.nodes[node]['allocation']}")
             cache_hit = hw.netlist.nodes[data["allocation"]]["var"] == var_name # no need to refetch from mem if var already in reg.
+            
             mapped_edges = map(
                 lambda edge: (edge[0], hw.netlist.nodes[edge[0]]),
-                hw.netlist.in_edges(hw_graph.nodes[node]["allocation"], data=True),
+                hw.netlist.in_edges(computation_graph.nodes[node]["allocation"], data=True),
             )
 
             in_bufs = list(
@@ -229,14 +230,15 @@ class ConcreteSimulator:
                 size = -1 * buf[1]["memory_module"].read(
                     var_name
                 )  # size will be negative because cache miss.
-                # add multiple bufs and mems, not just one. add a new one for each cache miss.
-                # this is required to properly count active power consumption.
-                # active power added once for each node in computation_graph.
-                # what about latency????
+                # add buf and mem nodes to indicate when explicit mem reads occur. ie. add a new one for each cache miss.
+                if total_computation_graph is not None:
+                    active_graph = total_computation_graph
+                else:
+                    active_graph = computation_graph
                 buf_idx = len(
                     list(
                         filter(
-                            lambda x: x[1]["function"] == "Buf", hw_graph.nodes.data()
+                            lambda x: x[1]["function"] == "Buf", active_graph.nodes.data()
                         )
                     )
                 )
@@ -244,7 +246,7 @@ class ConcreteSimulator:
                     list(
                         filter(
                             lambda x: x[1]["function"] == "MainMem",
-                            hw_graph.nodes.data(),
+                            active_graph.nodes.data(),
                         )
                     )
                 )
@@ -253,14 +255,14 @@ class ConcreteSimulator:
                         lambda x: x[1]["function"] == "MainMem", hw.netlist.nodes.data()
                     )
                 )[0][0]
-                hw_graph.add_node(
+                active_graph.add_node(
                     f"Buf{buf_idx}", function="Buf", allocation=buf[0], size=size
                 )
-                hw_graph.add_node(
+                active_graph.add_node(
                     f"Mem{mem_idx}", function="MainMem", allocation=mem, size=size
                 )
-                hw_graph.add_edge(f"Mem{mem_idx}", f"Buf{buf_idx}", function="Mem")
-                hw_graph.add_edge(f"Buf{buf_idx}", node, function="Mem")
+                active_graph.add_edge(f"Mem{mem_idx}", f"Buf{buf_idx}", function="Mem")
+                active_graph.add_edge(f"Buf{buf_idx}", node, function="Mem")
 
     def visualize_graph(self, operations):
         """
@@ -319,6 +321,256 @@ class ConcreteSimulator:
         self.active_power_use = {}
         self.passive_power_dissipation_rate = 0
         self.total_energy = 0
+
+    def simulate(self, computation_dfg, hw):
+        """
+        Simulates one large DFG representing the whole computation.
+        can I overload function names like this?
+        """
+        self.reset_internal_variables()
+        cur_node = cfg.entryblock
+
+        # skip over the first node in the main cfg
+        cur_node = cur_node.exits[0].target
+        self.main_cfg = cfg
+
+        i = 0
+        frees = []
+        mallocs = []
+
+        mapping = (
+            {}
+        )  # map from cfg node to digraph matcher w/ hw -> dfg node allocations
+
+        visited_node_ids = set()
+
+        i, pattern_seek, max_iters = sim_util.find_next_data_path_index(
+            self.data_path, i, mallocs, frees
+        )
+        # iterate through nodes in data flow graph
+        while i < len(self.data_path):
+            (
+                next_ind,
+                pattern_seek_next,
+                max_iters_next,
+            ) = sim_util.find_next_data_path_index(
+                self.data_path, i + 1, mallocs, frees
+            )
+
+            if i == len(self.data_path):
+                break
+
+            # init vars for new node in cfg data path
+            node_id = self.data_path[i][0]
+            cur_node = self.id_to_node[node_id]
+            self.node_intervals.append([node_id, [self.cycles, 0]])
+
+            num_unroll_iterations = 0
+            pattern_nodes = [node_id]
+            pattern_mallocs, pattern_frees = [mallocs], [frees]
+            other_mallocs, other_frees = [], []
+
+            # modify DFG to enable parallelization;
+            # move this to a diff step: modify DFG before sim.
+            if pattern_seek:
+                # print("entering pattern seek")
+                pattern_seek = False
+                j = next_ind
+                while (not pattern_seek_next) and (j + 1 < len(self.data_path)):
+                    # print("hello")
+                    next_node_id = self.data_path[j][0]
+                    pattern_nodes.append(next_node_id)
+                    pattern_seek = pattern_seek_next
+                    j, pattern_seek_next, discard = sim_util.find_next_data_path_index(
+                        self.data_path, j + 1, other_mallocs, other_frees
+                    )
+                    pattern_frees.append(other_frees)
+                    pattern_mallocs.append(other_mallocs)
+                    other_frees = []
+                    other_mallocs = []
+                if pattern_seek_next:
+                    next_ind = j
+                else:
+                    pattern_nodes = [node_id]
+                # print("found pattern")
+                pattern_ind = 0
+                while j + 1 < len(self.data_path):
+                    next_node_id = self.data_path[j][0]
+                    if next_node_id != pattern_nodes[pattern_ind]:
+                        break
+                    pattern_ind += 1
+                    pattern_seek = pattern_seek_next
+                    j, pattern_seek_next, discard = sim_util.find_next_data_path_index(
+                        self.data_path, j + 1, [], []
+                    )
+                    if pattern_ind == len(pattern_nodes):
+                        num_unroll_iterations += 1
+                        pattern_ind = 0
+                        next_ind = j
+                        if max_iters > 1 and num_unroll_iterations + 1 == max_iters:
+                            break
+                if num_unroll_iterations > 0:
+                    pattern_seek = True
+            elif self.unroll_at[cur_node.id]:
+                print(f"found unroll at node: {cur_node.id}")
+                print(
+                    f"ops:{[str(op) for op in operations for operations in cfg_node_to_hw_map[cur_node]]}"
+                )
+                # unroll the node: find the next node that is not the same as the current node
+                # and count consecutive number of times this node appears in the data path
+                j = next_ind
+                while j + 1 < len(self.data_path):
+                    next_node_id = self.data_path[j][0]
+                    if next_node_id != node_id:
+                        break
+                    num_unroll_iterations += 1
+                    pattern_seek = pattern_seek_next
+                    j, pattern_seek_next, discard = sim_util.find_next_data_path_index(
+                        self.data_path, j + 1, [], []
+                    )
+                next_ind = j
+
+            idx = 0
+            # this happens once if no pattern seeking; else happens number of times = number of unique nodes in pattern
+            while idx < len(pattern_nodes):
+                cur_node = self.id_to_node[pattern_nodes[idx]]
+                mallocs = pattern_mallocs[idx]
+                frees = pattern_frees[idx]
+                for malloc in mallocs:
+                    self.process_memory_operation(
+                        malloc,
+                        list(hardwareModel.get_memory_node(hw.netlist).values())[0][
+                            "memory_module"
+                        ],
+                    )
+
+                # try to unroll after pattern_seeking
+                node_iters = num_unroll_iterations
+                if self.unroll_at[cur_node.id]:
+                    while (
+                        idx + 1 != len(pattern_nodes)
+                        and pattern_nodes[idx + 1] == pattern_nodes[idx]
+                    ):
+                        idx += 1
+                        node_iters += num_unroll_iterations
+                if self.unroll_at[cur_node.id] or pattern_seek:
+                    for _ in range(node_iters):
+                        graph = dfg_algo.dfg_per_node(cur_node)
+                        node_ops = schedule.schedule_one_node(graph)
+                        for k in range(len(node_ops)):
+                            cfg_node_to_hw_map[cur_node][k] = (
+                                cfg_node_to_hw_map[cur_node][k] + node_ops[k]
+                            )
+
+                hw_graph = cfg_node_to_hw_map[cur_node]  # .copy()
+                if node_id not in visited_node_ids:
+                    # print(f"hw_graph before verify_can_execute: {str(hw_graph)}")
+                    if not sim_util.verify_can_execute(
+                        hw_graph, hw.netlist, should_update_arch=False
+                    ):
+                        print(f"nodes: {hw_graph.nodes.data()}")
+                        print(f"edges: {hw_graph.edges}")
+                        nx.draw(hw_graph, with_labels=True)
+                        plt.show()
+                        raise Exception(
+                            "hardware specification insufficient to run program"
+                        )
+                    # print(f"hw_graph after verify_can_execute: {str(hw_graph)}")
+                else:
+                    for node, data in hw_graph.nodes.data():
+                        # print(f"appending node: {node.split(';')[0]} to {data['allocation']}")
+                        hw.netlist.nodes[data["allocation"]]["allocation"].append(
+                            node.split(";")[0]
+                        )
+                        # print(f"allocation: {hw.netlist.nodes[data['allocation']]}")
+
+                # === Count mem usage in this node ===
+                mem_in_use = self.get_mem_usage_of_dfg_node(
+                    hw_graph,
+                    list(hardwareModel.get_memory_node(hw.netlist).values())[0][
+                        "memory_module"
+                    ],
+                )
+
+                self.max_regs_inuse = min(
+                    hardwareModel.num_nodes_with_func(hw.netlist, "Regs"),
+                    self.max_regs_inuse,
+                )
+                self.max_mem_inuse = max(self.max_mem_inuse, mem_in_use)
+                # === End count mem usage ===
+
+                # print(f"hw_graph before localize_memory: {str(hw_graph)}")
+                self.localize_memory(hw, hw_graph)
+                # print(f"hw_graph after localize_memory: {str(hw_graph)}")
+
+                total_cycles = 0
+
+                # TODO: this doesn't account for latency of each element.
+                # just assumes all have equal latency.
+                longest_path = nx.dag_longest_path(hw_graph)
+                # print(f"longest_path: {longest_path}")
+                try:
+                    total_cycles = sum(
+                        [
+                            math.ceil(hw.latency[hw_graph.nodes[n]["function"]])
+                            for n in longest_path
+                        ]
+                    )  # + math.ceil(hw.latency["Regs"]) # add latency of Reg because initial read reg cost is not included in longest path.
+                except:
+                    total_cycles = 0
+
+                self.cycles += total_cycles
+
+                # print(f"hw_graph before sim_cycle: {str(hw_graph)}")
+                self.simulate_cycles(hw, hw_graph, total_cycles)
+                # print(f"hw_graph after sim_cycle: {str(hw_graph)}")
+
+                # hardwareModel.un_allocate_all_in_use_elements(hw.netlist)
+
+                idx += 1
+
+            self.node_intervals[-1][1][1] = self.cycles
+            for free in frees:
+                self.process_memory_operation(
+                    free,
+                    list(hardwareModel.get_memory_node(hw.netlist).values())[0][
+                        "memory_module"
+                    ],
+                )
+            mallocs = []
+            frees = []
+            visited_node_ids.add(node_id)
+            i = next_ind
+            pattern_seek = pattern_seek_next
+            max_iters = max_iters_next
+
+        # add all passive power at the end.
+        # This is done here for the dynamic allocation case where we don't know how many
+        # compute elements we need until we run the program.
+        for elem_name, elem_data in dict(hw.netlist.nodes.data()).items():
+            scaling = 1
+            if elem_data["function"] in ["Regs", "Buf", "MainMem"]:
+                scaling = elem_data["size"]
+            # OLD PASSIVE POWER CALCULATION
+            self.passive_power_dissipation_rate += (
+                hw.leakage_power[elem_data["function"]] * scaling
+            )
+            # NEW PASSIVE ENERGY CALCULATION
+            self.total_energy += (
+                hw.leakage_power[elem_data["function"]]
+                * 1e-9
+                * (self.cycles / hw.frequency)
+                * scaling
+            )
+
+        for node in hw.netlist.nodes:
+            hw.netlist.nodes[node]["allocation"] = len(
+                hw.netlist.nodes[node]["allocation"]
+            )
+
+        # print("done with simulation")
+        # Path(simulator.path + '/benchmarks/pictures/memory_graphs').mkdir(parents=True, exist_ok=True)
+        # self.new_graph.gv_graph.render(self.path + '/benchmarks/pictures/memory_graphs/' + sys.argv[1][sys.argv[1].rfind('/')+1:], view = True)
 
     def simulate(self, cfg, cfg_node_to_hw_map, hw):
         self.reset_internal_variables()
@@ -645,12 +897,12 @@ class ConcreteSimulator:
             np.mean(list(self.active_power_use.values()))
             + self.passive_power_dissipation_rate
         )
-    
+
     def calculate_edp(self, hw):
         self.calculate_average_power()
         self.execution_time = self.cycles / hw.frequency # in seconds
         # OLD EDP CALCULATION
-        #self.edp = self.avg_compute_power * 1e-3 * self.execution_time ** 2 # convert mW to W
+        # self.edp = self.avg_compute_power * 1e-3 * self.execution_time ** 2 # convert mW to W
         # NEW EDP CALCULATION
         self.edp = self.total_energy * self.execution_time
 
@@ -671,7 +923,7 @@ class ConcreteSimulator:
         print(f"top of compose; length of data path: {len(self.data_path)}")
         i = sim_util.find_next_data_path_index(self.data_path, 0, [], [])[0]
         while i < len(self.data_path):
-            print(f"idx in compose: {i}")
+            # print(f"idx in compose: {i}")
             node_id = self.data_path[i][0]
             node = self.id_to_node[node_id]
             hw_graph = cfg_node_to_hw_map[node]
@@ -680,7 +932,7 @@ class ConcreteSimulator:
                 continue
             generations = list(nx.topological_generations(hw_graph))
             found_alignment = sim_util.rename_nodes(computation_dfg, hw_graph, generations, curr_last_nodes)
-            print(f"hw_graph.nodes after rename: {hw_graph.nodes}")
+            # print(f"hw_graph.nodes after rename: {hw_graph.nodes}")
             computation_dfg = nx.compose(computation_dfg, hw_graph)
             # computation_dfg.add_nodes_from(hw_graph.nodes(data=True))
             generations = list(nx.topological_generations(hw_graph))
@@ -688,7 +940,7 @@ class ConcreteSimulator:
                 rand_first_node = rng.choice(generations[0])
                 if len(curr_last_nodes) != 0:
                     curr_last_node = rng.choice(curr_last_nodes)
-                    print(f"adding edge from {curr_last_node} to {rand_first_node}")
+                    # print(f"adding edge from {curr_last_node} to {rand_first_node}")
                     computation_dfg.add_edge(curr_last_node, rand_first_node)
             curr_last_nodes = generations[-1]
 
@@ -709,6 +961,15 @@ class ConcreteSimulator:
             nx.draw_networkx(computation_dfg, pos=pos, ax=ax)
             plt.show()
         return computation_dfg
+
+    def rev_topo_sort_comp_graph(self, comp_graph):
+        rev = nx.reverse(comp_graph)
+        for layer, nodes in enumerate(nx.topological_generations(rev)):
+            # `multipartite_layout` expects the layer as a node attribute, so add the
+            # numeric layer value as a node attribute
+            for node in nodes:
+                comp_graph.nodes[node]["layer"] = -1 * layer
+        
 
     def simulator_prep(self, benchmark, latency):
         """
@@ -756,26 +1017,7 @@ def main(args):
     
     # print(f"Data Path: {simulator.data_path}")
 
-    # if args.archsearch:
-    #     hw.netlist = nx.DiGraph()
-    #     new_data_path = arch_search_util.generate_unrolled_arch(
-    #         hw,
-    #         cfg_node_to_hw_map,
-    #         simulator.data_path,
-    #         simulator.id_to_node,
-    #         args.area,
-    #         args.bw,
-    #         sim_util.find_nearest_power_2(simulator.memory_needed),
-    #     )
-    
-    #     simulator.update_data_path(new_data_path)
-
-    # # can I do this elsewhere? needs to be done because
-    # # arch search unrolling creates new nodes
-    # for elem in simulator.data_path:
-    #     if elem[0] not in simulator.unroll_at.keys():
-    #         simulator.unroll_at[elem[0]] = False
-
+   
     hw.init_memory(
         sim_util.find_nearest_power_2(simulator.memory_needed),
         sim_util.find_nearest_power_2(simulator.nvm_memory_needed),

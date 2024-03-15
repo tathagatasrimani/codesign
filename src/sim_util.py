@@ -193,7 +193,7 @@ def get_dims(arr):
     return dims
 
 
-def verify_can_execute(computation_graph, hw_spec_netlist, should_update_arch=False):
+def verify_can_execute(computation_graph, hw_spec_netlist, generation = None, should_update_arch=False):
     """
     Determines whether or not the computation graph can be executed on the netlist
     specified in hw_spec.
@@ -212,16 +212,25 @@ def verify_can_execute(computation_graph, hw_spec_netlist, should_update_arch=Fa
     Parameters:
         computation_graph - nx.DiGraph of operations to be executed.
         hw_spec (HardwareModel): An object representing the current hardware allocation and specifications.
+        generation (list): A list of nodes in the computation graph at the current generation.
+                    If this is supplied, only do the check for this single generation.
         should_update_arch (bool): A flag indicating whether or not the hardware architecture should be updated.
                     Only set True from architecture search. Set false when running simulation.
 
     Returns:
+        nx.Digraph: returns the temporary local digraph created from generation if generation is not None.
+            if there's not monomorphicity, returns None instead.
+        nx.Digraph: returns the new hardware netlist if should_update_arch is True.
         bool: True if the computation graph can be executed on the netlist, False otherwise.
+            if neither generation nor should_update_arch is specified, returns True or False.
     """
-    
-    for generation in nx.topological_generations(computation_graph):
+    if generation is not None:
+        generations = [generation]
+    else:
+        generations = nx.topological_generations(computation_graph)
+    for gen in generations:
         temp_C = nx.DiGraph()
-        for node in generation:
+        for node in gen:
             temp_C.add_nodes_from([(node, computation_graph.nodes[node])])
             for child in computation_graph.successors(node):
                 if child not in temp_C.nodes:
@@ -244,6 +253,8 @@ def verify_can_execute(computation_graph, hw_spec_netlist, should_update_arch=Fa
                     or n2["function"]
                     == None,  # hw_graph can have no ops, but netlist should not
                 )
+            if generation is not None:
+                return None
             else:
                 return False
 
@@ -254,6 +265,8 @@ def verify_can_execute(computation_graph, hw_spec_netlist, should_update_arch=Fa
 
     if should_update_arch:
         return hw_spec_netlist
+    if generation is not None:
+        return temp_C
     else:
         return True
 
