@@ -61,6 +61,9 @@ def get_memory_node(netlist):
     return get_nodes_with_func(netlist, "MainMem")
 
 
+def get_unique_funcs(netlist):
+    return set(map(lambda v: v["function"], dict(netlist.nodes.data()).values()))
+
 class HardwareModel:
     def __init__(
         self,

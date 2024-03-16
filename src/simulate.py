@@ -907,7 +907,7 @@ class ConcreteSimulator:
             latency: dict with latency of each compute element
         """
         cfg, graphs, self.unroll_at = dfg_algo.main_fn(self.path, benchmark)
-        cfg_node_to_hw_map = schedule.schedule(cfg, graphs, latency)
+        cfg_node_to_hw_map = schedule.cfg_to_dfg(cfg, graphs, latency)
         self.set_data_path()
         for node in cfg:
             self.id_to_node[str(node.id)] = node

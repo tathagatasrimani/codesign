@@ -349,7 +349,7 @@ def localize_memory(hw, computation_graph, total_computation_graph=None):
             )
             active_graph.add_edge(f"Mem{mem_idx}", f"Buf{buf_idx}", function="Mem")
             active_graph.add_edge(f"Buf{buf_idx}", node, function="Mem")
-            print(f"added mem read for {var_name} to {node}")
+            # print(f"added mem read for {var_name} to {node}")
 
 
 def update_arch(computation_graph, hw_netlist):
