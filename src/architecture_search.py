@@ -81,8 +81,9 @@ def setup_arch_search(benchmark):
     cont = 1
     saved_elem = 0
     for elem in simulator.data_path:
-        if elem == prev and str(elem) == sorted_nodes[0]:
+        if str(elem) == sorted_nodes[0]:
             saved_elem = elem
+        if elem == prev and str(elem) == sorted_nodes[0]:
             cont += 1
         else:
             if cont > max_continuous:
