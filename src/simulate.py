@@ -752,8 +752,12 @@ def main(args):
 
     cfg, cfg_node_to_hw_map = simulator.simulator_prep(args.benchmark, hw.latency)
 
-    # computation_dfg = simulator.compose_entire_computation_graph(cfg_node_to_hw_map, plot=True)
-    
+    computation_dfg = simulator.compose_entire_computation_graph(cfg_node_to_hw_map, plot=False)
+
+    nodes = list(map(lambda x: x[1]["function"], computation_dfg.nodes.data(True)))
+    uniq, count = np.unique(nodes, return_counts=True)
+    print(f"unique: {uniq}\ncounts: {count}")
+
     # print(f"Data Path: {simulator.data_path}")
 
     # if args.archsearch:
@@ -767,7 +771,7 @@ def main(args):
     #         args.bw,
     #         sim_util.find_nearest_power_2(simulator.memory_needed),
     #     )
-    
+
     #     simulator.update_data_path(new_data_path)
 
     # # can I do this elsewhere? needs to be done because
