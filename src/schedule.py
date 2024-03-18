@@ -2,12 +2,16 @@ from collections import deque
 
 import networkx as nx
 import matplotlib.pyplot as plt
+import numpy as np
 
-import hardwareModel
+# can't import hardware Model else will have circular imports
+# import hardwareModel
 
 # format: cfg_node -> {states -> operations}
 cfg_node_to_hw_map = {}
 operation_sets = {}
+
+rng = np.random.default_rng()
 
 
 def schedule_one_node(graph):
@@ -83,7 +87,7 @@ def cfg_to_dfg(cfg, graphs, latency):
     return cfg_node_to_hw_map
 
 
-def schedule(computation_graph, hw_netlist):
+def schedule(computation_graph, hw_element_counts):
     """
     Schedules the computation graph on the hardware netlist
     by determining the order of operations and the states in which
@@ -91,13 +95,62 @@ def schedule(computation_graph, hw_netlist):
     data dependencies and in use elements.
     """
 
-    hw_element_counts = {}
-    for func in hardwareModel.get_unique_funcs(hw_netlist):
-        hw_element_counts[func] = hardwareModel.num_nodes_with_func(hw_netlist, func)
+    hw_element_counts["stall"] = np.inf
 
-    for layer, generation in enumerate(
-        reversed(list(nx.topological_generations(nx.reverse(computation_graph))))
-    ):
-        nodes = computation_graph[generation].data()
+    pushed = []
+    # going through the computation graph from the end to the beginning amd bubbling up operations
+    generations = list(nx.topological_generations(nx.reverse(computation_graph)))
+    layer = 0
+    while layer < len(generations) or len(pushed) != 0:
+        if layer == len(generations):
+            generation = []
+        else:
+            generation = generations[layer]
+        generation += pushed
+        pushed = []
 
+        # if any horizontal dependencies, push them to the next layer
+        for node in generation:
+            computation_graph.nodes[node]["layer"] = -layer
+            out_nodes = list(map(lambda x: x[1], computation_graph.out_edges(node)))
+            intersect = set(out_nodes).intersection(set(generation))
+            if intersect:
+                pushed.append(node)
+        generation = [
+            item for item in generation if item not in pushed
+        ]
+
+        nodes = list(filter(lambda x: x[0] in generation, computation_graph.nodes.data()))
+        funcs, counts = np.unique(list(map(lambda x: x[1]["function"], nodes)), return_counts=True)
+
+        for func, count in zip(funcs, counts): # for each function in the generation
+            if count > hw_element_counts[func]:
+                func_nodes = list(filter(lambda x: x[1]["function"] == func, nodes))
+                # diff = count - hw_element_counts[func]
+                # print(f"not enough resources for {func}; diff: {diff}")
+
+                start_idx = hw_element_counts[func]
+                for idx in range(start_idx, count):
+                    # print(f"idx: {idx}; node: {func_nodes[idx][0]}")
+                    # an out edge in comp_dfg is an in_edge in the reversed_graph
+                    out_edges = list(computation_graph.out_edges(func_nodes[idx][0]))
+                    
+                    assert len(out_edges) == 1
+                    stall_name = f"stall_{layer}_{idx}_{func}_{rng.integers(0,100)}"
+                    computation_graph.add_node(
+                        stall_name,
+                        function="stall",
+                        cost=func_nodes[idx][1]["cost"],
+                        layer=-1 * layer,
+                    )
+                    computation_graph.remove_edges_from(out_edges)
+                    computation_graph.add_edges_from(
+                        [(stall_name, out_edges[0][1]), (func_nodes[idx][0], stall_name)]
+                    )
+                    computation_graph.nodes[func_nodes[idx][0]]["layer"] = -1 * (
+                        layer + 1
+                    )
+                    pushed.append(func_nodes[idx][0])
+
+        layer = min(layer + 1, len(generations))
         pass

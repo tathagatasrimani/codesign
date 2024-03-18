@@ -89,16 +89,28 @@ class HardwareModel:
             config = cp.ConfigParser()
             config.read(HW_CONFIG_FILE)
             path_to_graphml = f"architectures/{cfg}.gml"
-            self.set_hw_config_vars(
-                config.getint(cfg, "id"),
-                config.getint(cfg, "bandwidth"),
-                config.getint(cfg, "nummemlayers"),
-                config.getint(cfg, "interconnectpitch"),
-                config.getint(cfg, "transistorsize"),
-                config.getint(cfg, "cachesize"),
-                config.getint(cfg, "frequency"),
-                config.getfloat(cfg, "V_dd"),
-            )
+            try:
+                self.set_hw_config_vars(
+                    config.getint(cfg, "id"),
+                    config.getint(cfg, "bandwidth"),
+                    config.getint(cfg, "nummemlayers"),
+                    config.getint(cfg, "interconnectpitch"),
+                    config.getint(cfg, "transistorsize"),
+                    config.getint(cfg, "cachesize"),
+                    config.getint(cfg, "frequency"),
+                    config.getfloat(cfg, "V_dd"),
+                )
+            except cp.NoSectionError:
+                self.set_hw_config_vars(
+                    config.getint("DEFAULT", "id"),
+                    config.getint("DEFAULT", "bandwidth"),
+                    config.getint("DEFAULT", "nummemlayers"),
+                    config.getint("DEFAULT", "interconnectpitch"),
+                    config.getint("DEFAULT", "transistorsize"),
+                    config.getint("DEFAULT", "cachesize"),
+                    config.getint("DEFAULT", "frequency"),
+                    config.getfloat("DEFAULT", "V_dd"),
+                )
         self.hw_allocated = {}
 
         if path_to_graphml is not None:

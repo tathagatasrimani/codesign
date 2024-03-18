@@ -10,14 +10,6 @@ graph [
   ]
   node [
     id 1
-    label "Regs1"
-    type "memory"
-    function "Regs"
-    in_use 0
-    idx 1
-  ]
-  node [
-    id 2
     label "Add0"
     type "pe"
     function "Add"
@@ -25,7 +17,7 @@ graph [
     idx 0
   ]
   node [
-    id 3
+    id 2
     label "Mult0"
     type "pe"
     function "Mult"
@@ -34,52 +26,32 @@ graph [
   ]
   edge [
     source 0
-    target 2
+    target 1
     cost 0.94
   ]
   edge [
     source 0
-    target 3
+    target 2
     cost 0.98
   ]
   edge [
     source 1
-    target 2
-    cost 0.94
+    target 0
+    cost 2
   ]
   edge [
     source 1
-    target 3
+    target 2
     cost 0.98
-  ]
-  edge [
-    source 2
-    target 0
-    cost 2
   ]
   edge [
     source 2
     target 1
-    cost 2
-  ]
-  edge [
-    source 2
-    target 3
-    cost 0.98
-  ]
-  edge [
-    source 3
-    target 2
     cost 0.94
   ]
   edge [
-    source 3
+    source 2
     target 0
-    cost 2
-  ]
-  edge [
-    source 3
-    target 1
     cost 2
   ]
 ]
