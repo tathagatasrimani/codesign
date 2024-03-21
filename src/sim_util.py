@@ -201,13 +201,14 @@ def verify_can_execute(computation_graph, hw_spec_netlist, generation = None, sh
     specified in hw_spec.
 
     Topologically orders the computation graph (C) and checks if the subgraph of C determined
-    by the ith and i+1th order in the topo sort is monomorphic to the netlist.
+    by the ith and i+1th and i-1th order in the topo sort is monomorphic to the netlist.
 
     The way this works, if I have 10 addition operations to do in this node of the DFG, and 20 adders
     it should always allocate 10 adders to this node. <- TODO: VERIFY EXPERIMENTALLY
 
     if should_update_arch is true, does a graph compose onto the netlist, and returns the new netlist.
     This is done here to avoid looping over the topo ordering twice.
+    TODO: seperate this out into a different function.
 
     Raises exception if the hardware cannot execute the computation graph.
 
@@ -238,12 +239,16 @@ def verify_can_execute(computation_graph, hw_spec_netlist, generation = None, sh
                 if child not in temp_C.nodes:
                     temp_C.add_nodes_from([(child, computation_graph.nodes[child])])
                 temp_C.add_edge(node, child)
+            for parent in computation_graph.predecessors(node):
+                if parent not in temp_C.nodes:
+                    temp_C.add_nodes_from([(parent, computation_graph.nodes[parent])])
+                temp_C.add_edge(parent, node)
         dgm = nx.isomorphism.DiGraphMatcher(
             hw_spec_netlist,
             temp_C,
             node_match=lambda n1, n2: n1["function"] == n2["function"]
-            or n2["function"]
-            == None,  # hw_graph can have no ops, but netlist should not
+            or n2["function"] == None  # hw_graph can have no ops
+            or n2["function"] == "stall"
         )
         if not dgm.subgraph_is_monomorphic():
             if should_update_arch:
@@ -256,15 +261,21 @@ def verify_can_execute(computation_graph, hw_spec_netlist, generation = None, sh
                     == None,  # hw_graph can have no ops, but netlist should not
                 )
             if generation is not None:
+                print(f"failed monomorphic")
+                print(f"temp_c: {temp_C.nodes}")
+                print(f"temp_c edges: {temp_C.edges}")
+                print(f"temp_c_nodes: {temp_C.nodes.data(True)}")
+                print(f"gen: {gen}")
                 return None
             else:
                 return False
 
         mapping = dgm.subgraph_monomorphisms_iter().__next__()
         for hw_node, op in mapping.items():
-            hw_spec_netlist.nodes[hw_node]["allocation"].append(op.split(";")[0])
-            computation_graph.nodes[op]["allocation"] = hw_node
-            temp_C.nodes[op]["allocation"] = hw_node
+            if op in gen: # only bind ops in the current generation
+                hw_spec_netlist.nodes[hw_node]["allocation"].append(op.split(";")[0])
+                computation_graph.nodes[op]["allocation"] = hw_node
+                temp_C.nodes[op]["allocation"] = hw_node
 
     if should_update_arch:
         return hw_spec_netlist

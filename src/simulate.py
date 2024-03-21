@@ -865,19 +865,30 @@ class ConcreteSimulator:
             computation_dfg = nx.compose(computation_dfg, hw_graph)
             # computation_dfg.add_nodes_from(hw_graph.nodes(data=True))
             generations = list(nx.topological_generations(hw_graph))
-            if not found_alignment:
-                rand_first_node = rng.choice(generations[0])
-                if len(curr_last_nodes) != 0:
-                    curr_last_node = rng.choice(curr_last_nodes)
-                    # print(f"adding edge from {curr_last_node} to {rand_first_node}")
-                    computation_dfg.add_edge(curr_last_node, rand_first_node)
+            
+            # if there's no alignment then independent, allow them to occur in parallel
+            # 
+
+            # if not found_alignment:
+            #     rand_first_node = rng.choice(generations[0])
+            #     if len(curr_last_nodes) != 0:
+            #         curr_last_node = rng.choice(curr_last_nodes)
+            #         # print(f"adding edge from {curr_last_node} to {rand_first_node}")
+            #         computation_dfg.add_edge(curr_last_node, rand_first_node)
             curr_last_nodes = generations[-1]
 
             i = sim_util.find_next_data_path_index(self.data_path, i + 1, [], [])[0]
+        
+        # create end node and connect all last nodes to it
+        computation_dfg.add_node("end")
+        generations = list(nx.topological_generations(computation_dfg))
+        for node in generations[-1]:
+            computation_dfg.add_edge(node, "end")
+
         print(f"done composing computation graph")
 
         if plot:
-            for layer, nodes in enumerate(nx.topological_generations(computation_dfg)):
+            for layer, nodes in enumerate(reversed(list(nx.topological_generations(nx.reverse(computation_dfg))))):
                 # `multipartite_layout` expects the layer as a node attribute, so add the
                 # numeric layer value as a node attribute
                 for node in nodes:
@@ -886,7 +897,7 @@ class ConcreteSimulator:
             # Compute the multipartite_layout using the "layer" node attribute
             pos = nx.multipartite_layout(computation_dfg, subset_key="layer")
 
-            fig, ax = plt.subplots()
+            fig, ax = plt.subplots(figsize=(9,9))
             nx.draw_networkx(computation_dfg, pos=pos, ax=ax)
             plt.show()
         return computation_dfg

@@ -23,7 +23,7 @@ def instrument_read_sub(var, var_name: str, ind, lower, upper, slice):
             else:
                 return var
     else:
-        print(var_name, ind, "Read", sys.getsizeof(var[ind]))
+        print(var_name, var[ind], "Read", sys.getsizeof(var[ind]))
         return var[ind]
 
 def write_instrument_read_sub(var, var_name: str, ind, lower, upper, slice):
@@ -48,24 +48,24 @@ def write_instrument_read_sub(var, var_name: str, ind, lower, upper, slice):
             else:
                 return var
     else:
-        print(var_name, ind, "Write", sys.getsizeof(var[ind]))
+        print(var_name, var[ind], "Write", sys.getsizeof(var[ind]))
         return var[ind]
 
 def instrument_read(var, var_name: str):
     if not var_name:
         var_name = "None"
-    print(var_name, "no_ind", "Read", sys.getsizeof(var))
+    print(var_name, var, "Read", sys.getsizeof(var))
     return var
 
 def write_instrument_read(var, var_name: str):
     if not var_name:
         var_name = "None"
-    print(var_name, "no_ind", "Write", sys.getsizeof(var))
+    print(var_name, var, "Write", sys.getsizeof(var))
     return var
 
 def instrument_read_from_file(func, *args):
     vals = func(*args)
-    print(func.__name__, "no_ind", "Read NVM", sys.getsizeof(vals))
+    print(func.__name__, vals, "Read NVM", sys.getsizeof(vals))
     return vals
 
 class Object:

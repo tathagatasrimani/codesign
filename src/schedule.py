@@ -112,6 +112,8 @@ def schedule(computation_graph, hw_element_counts):
         # if any horizontal dependencies, push them to the next layer
         for node in generation:
             computation_graph.nodes[node]["layer"] = -layer
+            computation_graph.nodes[node]["allocation"] = None
+
             out_nodes = list(map(lambda x: x[1], computation_graph.out_edges(node)))
             intersect = set(out_nodes).intersection(set(generation))
             if intersect:
