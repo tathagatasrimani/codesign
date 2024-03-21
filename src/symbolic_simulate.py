@@ -270,8 +270,8 @@ class SymbolicSimulator:
             filter(lambda x: x[1]["function"] != "Buf", hw.netlist.nodes.data())
         ).items():
             scaling = 1
-            # if data["function"] in ["Buf", "MainMem"]:
-            #     scaling = data["size"]
+            if data["function"] in ["MainMem"]:
+                scaling = data["size"]
             passive_power += (
                 hw_symbols.symbolic_power_passive[data["function"]] * scaling
             )

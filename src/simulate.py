@@ -536,8 +536,8 @@ class ConcreteSimulator:
         # compute elements we need until we run the program.
         for elem_name, elem_data in dict(hw.netlist.nodes.data()).items():
             scaling = 1
-            # if elem_data["function"] in ["Buf", "MainMem"]:
-            #     scaling = elem_data["size"]
+            if elem_data["function"] in ["MainMem"]:
+                scaling = elem_data["size"]
             # OLD PASSIVE POWER CALCULATION
             self.passive_power_dissipation_rate += (
                 hw.leakage_power[elem_data["function"]] * scaling
