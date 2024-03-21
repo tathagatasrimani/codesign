@@ -234,8 +234,8 @@ class HardwareModel:
         self.V_dd = rcs["other"]["V_dd"]
 
         self.latency["MainMem"] = (
-            rcs["other"]["MemReadL"] + rcs["other"]["MemWriteL"]
-        ) / 2 * self.frequency
+            rcs["other"]["MemReadL"] #+ rcs["other"]["MemWriteL"] # no write L
+        ) * self.frequency #/ 2
         self.dynamic_power["MainMem"] = (
             rcs["other"]["MemReadPact"] + rcs["other"]["MemWritePact"]
         ) / 2 * 1e9

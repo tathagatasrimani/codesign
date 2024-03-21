@@ -85,17 +85,15 @@ class ConcreteSimulator:
         for n, node_data in computation_graph.nodes.data():
 
             scaling = 1
-            if node_data["function"] in ["Buf", "MainMem"]:
-                # active power should scale by size of the object being accessed.
-                # all regs have the saem size, so no need to scale.
-                scaling = node_data["size"]
-            # OLD ACTIVE POWER CALCULATION
-            # self.active_power_use[self.cycles] += (
-            #     hw_spec.dynamic_power[node_data["function"]]
-            #     * scaling
-            #     * hw_spec.latency[node_data["function"]]
-            # )
-            # NEW ACTIVE ENERGY CALCULATION
+            # if node_data["function"] in ["Buf", "MainMem"]:
+            #     # active power should scale by size of the object being accessed.
+            #     # all regs have the saem size, so no need to scale.
+            #     scaling = node_data["size"]
+                # if node_data["function"] == "MainMem":
+                #     print(
+                #         f" found a mem object in active energy calc, adding scaling factor: {scaling}"
+                #     )
+
             self.total_energy += (
                 hw_spec.dynamic_power[node_data["function"]] * 1e-9
                 * scaling
@@ -229,6 +227,7 @@ class ConcreteSimulator:
                 size = -1 * buf[1]["memory_module"].read(
                     var_name
                 )  # size will be negative because cache miss.
+                # print(f"in localize memory; var: {var_name}; size: {size}")
                 # add multiple bufs and mems, not just one. add a new one for each cache miss.
                 # this is required to properly count active power consumption.
                 # active power added once for each node in computation_graph.
@@ -346,7 +345,7 @@ class ConcreteSimulator:
                 pattern_seek_next,
                 max_iters_next,
             ) = sim_util.find_next_data_path_index(
-                self.data_path, i + 1, mallocs, frees
+                self.data_path, i + 1, mallocs, frees 
             )
 
             if i == len(self.data_path):
@@ -537,8 +536,8 @@ class ConcreteSimulator:
         # compute elements we need until we run the program.
         for elem_name, elem_data in dict(hw.netlist.nodes.data()).items():
             scaling = 1
-            if elem_data["function"] in ["Regs", "Buf", "MainMem"]:
-                scaling = elem_data["size"]
+            # if elem_data["function"] in ["Buf", "MainMem"]:
+            #     scaling = elem_data["size"]
             # OLD PASSIVE POWER CALCULATION
             self.passive_power_dissipation_rate += (
                 hw.leakage_power[elem_data["function"]] * scaling
@@ -645,12 +644,12 @@ class ConcreteSimulator:
             np.mean(list(self.active_power_use.values()))
             + self.passive_power_dissipation_rate
         )
-    
+
     def calculate_edp(self, hw):
         self.calculate_average_power()
         self.execution_time = self.cycles / hw.frequency # in seconds
         # OLD EDP CALCULATION
-        #self.edp = self.avg_compute_power * 1e-3 * self.execution_time ** 2 # convert mW to W
+        # self.edp = self.avg_compute_power * 1e-3 * self.execution_time ** 2 # convert mW to W
         # NEW EDP CALCULATION
         self.edp = self.total_energy * self.execution_time
 
