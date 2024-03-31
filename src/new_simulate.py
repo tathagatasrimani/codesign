@@ -397,6 +397,7 @@ class HardwareSimulator():
             pattern_seek = pattern_seek_next
             max_iters = max_iters_next
             update_ind += 1
+            print(update_ind)
             if (update_ind % 1000 == 0): print(f"progress: {(i/len(self.data_path))*100} percent")
         #print("done with simulation")
         #self.new_graph.gv_graph.render(self.path + 'benchmarks/pictures/memory_graphs/' + sys.argv[1][sys.argv[1].rfind('/')+1:], view = True)
