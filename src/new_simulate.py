@@ -242,6 +242,7 @@ class HardwareSimulator():
     def simulate(self, cfg, node_operations, hw, graphs, first):
         global state_graph_counter
         cur_node = cfg.entryblock
+        update_ind = 0
         if first: 
             cur_node = cur_node.exits[0].target # skip over the first node in the main cfg
             self.main_cfg = cfg
@@ -395,7 +396,8 @@ class HardwareSimulator():
             i = next_ind
             pattern_seek = pattern_seek_next
             max_iters = max_iters_next
-            if (i % 10 == 0): print(f"progress: {(i/len(self.data_path))*100}percent")
+            update_ind += 1
+            if (update_ind % 1000 == 0): print(f"progress: {(i/len(self.data_path))*100} percent")
         #print("done with simulation")
         #self.new_graph.gv_graph.render(self.path + 'benchmarks/pictures/memory_graphs/' + sys.argv[1][sys.argv[1].rfind('/')+1:], view = True)
         return self.data
