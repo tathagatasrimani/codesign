@@ -397,8 +397,7 @@ class HardwareSimulator():
             pattern_seek = pattern_seek_next
             max_iters = max_iters_next
             update_ind += 1
-            print(update_ind)
-            if (update_ind % 1000 == 0): print(f"progress: {(i/len(self.data_path))*100} percent")
+            if (update_ind % 10 == 0): print(f"progress: {(i/len(self.data_path))*100} percent")
         #print("done with simulation")
         #self.new_graph.gv_graph.render(self.path + 'benchmarks/pictures/memory_graphs/' + sys.argv[1][sys.argv[1].rfind('/')+1:], view = True)
         return self.data
@@ -497,11 +496,11 @@ def main():
     else: 
         simulator.cache_size = 16
     hw = HardwareModel(0, 0, simulator.mem_layers, simulator.pitch, simulator.transistor_size, simulator.cache_size)
-    hw.hw_allocated['Add'] = 15
-    hw.hw_allocated['Regs'] = 30
-    hw.hw_allocated['Mult'] = 15
-    hw.hw_allocated['Sub'] = 15
-    hw.hw_allocated['FloorDiv'] = 15
+    hw.hw_allocated['Add'] = 1000
+    hw.hw_allocated['Regs'] = 1000
+    hw.hw_allocated['Mult'] = 1000
+    hw.hw_allocated['Sub'] = 1000
+    hw.hw_allocated['FloorDiv'] = 1000
     hw.hw_allocated['Gt'] = 1
     hw.hw_allocated['And'] = 1
     hw.hw_allocated['Or'] = 1
