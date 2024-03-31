@@ -172,7 +172,7 @@ class HardwareSimulator():
         parents = []
         for parent in op.parents:
             parents.append(parent.operation)
-        print(op.operation, parents)
+        #print(op.operation, parents)
         mem_in_use = 0
         for parent in op.parents:
             if not parent.operation: continue
@@ -311,7 +311,7 @@ class HardwareSimulator():
                     pattern_seek = pattern_seek_next
                     j, pattern_seek_next, discard = self.find_next_data_path_index(j+1, [], [], self.data_path)
                 next_ind = j
-            print(pattern_nodes, iters, next_ind)
+            #print(pattern_nodes, iters, next_ind)
             i = 0
             while i < len(pattern_nodes):
                 #print("i: ", i)
@@ -324,7 +324,7 @@ class HardwareSimulator():
                 # try to unroll after pattern_seeking
                 node_iters = iters
                 if self.unroll_at[cur_node.id]:
-                    print(cur_node.id)
+                    #print(cur_node.id)
                     while i+1 != len(pattern_nodes) and pattern_nodes[i+1] == pattern_nodes[i]:
                         i += 1
                         node_iters += iters
@@ -332,14 +332,14 @@ class HardwareSimulator():
                     for i in range(node_iters):
                         graph = dfg_algo.dfg_per_node(cur_node)
                         node_ops = schedule.schedule_one_node(graph, cur_node)
-                        print(node_operations[cur_node], node_ops)
+                        #print(node_operations[cur_node], node_ops)
                         for i in range(len(node_ops)):
                             node_operations[cur_node][i] = node_operations[cur_node][i] + node_ops[i]
 
                 for state in node_operations[cur_node]:
                     # if unroll, take each operation in a state and create more of them
                     """if self.unroll_at[cur_node.id] or pattern_seek:
-                        print(iters, node_iters, len(state))
+                        #print(iters, node_iters, len(state))
                         new_state = state.copy()
                         for op in state:
                             for j in range(node_iters):
@@ -395,7 +395,7 @@ class HardwareSimulator():
             i = next_ind
             pattern_seek = pattern_seek_next
             max_iters = max_iters_next
-        print("done with simulation")
+        #print("done with simulation")
         #self.new_graph.gv_graph.render(self.path + 'benchmarks/pictures/memory_graphs/' + sys.argv[1][sys.argv[1].rfind('/')+1:], view = True)
         return self.data
 
@@ -558,7 +558,7 @@ def main():
     plt.ylabel("Power")
     plt.savefig("benchmarks/power_plots/power_use_" + names[-1] + ".pdf")
     plt.clf() 
-    print("done!")
+    #print("done!")
 
 if __name__ == '__main__':
     main()
