@@ -1,0 +1,16 @@
+digraph {
+	940 [label="source code:
+self = self
+s_16 = s
+"]
+	941 [label="self
+Read"]
+	942 [label="self
+Write"]
+	941 -> 942 [label=""]
+	943 [label="s
+Read"]
+	944 [label="s_16
+Write"]
+	943 -> 944 [label=""]
+}

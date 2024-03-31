@@ -1,0 +1,161 @@
+{MemPpass: 2.2626137492075113e-08, Reff_Add: 1687.5245284631299, MemWriteL: 1.9999999705060226e-09, Ceff_Regs: 6.5120545961665515e-15, MemReadL: 1.9999999705060226e-09, Ceff_Mult: 2.865504600202431e-12, MemWritePact: 1.124462851503462e-12, Reff_Regs: 125284.86180663094, f: 4999999999.459547, MemReadPact: 1.1244628515034618e-12, V_dd: 0.5000000001148786, Ceff_Add: 1.7101983133609715e-13, Reff_Not: 2010.414742080441, Reff_Mult: 21.299128442307882}
+edp: (1100.0*ceiling(f*(MemReadL/2 + MemWriteL/2))/f + 1100.0*ceiling(Ceff_Add*Reff_Add*f)/f + 1000.0*ceiling(Ceff_Mult*Reff_Mult*f)/f + 2200.0*ceiling(Ceff_Regs*Reff_Regs*f)/f)*(550.0*Ceff_Add**2*Reff_Add*V_dd**2*f + 500.0*Ceff_Mult**2*Reff_Mult*V_dd**2*f + 2150.0*Ceff_Regs**2*Reff_Regs*V_dd**2*f + (4096*MemPpass + 0.18630131152698*V_dd**2/Reff_Not)*(1100.0*ceiling(f*(MemReadL/2 + MemWriteL/2))/f + 1100.0*ceiling(Ceff_Add*Reff_Add*f)/f + 1000.0*ceiling(Ceff_Mult*Reff_Mult*f)/f + 2200.0*ceiling(Ceff_Regs*Reff_Regs*f)/f) + (1600*MemReadL + 1600*MemWriteL)*(MemReadPact/2 + MemWritePact/2))
+initial val: 3.736500769299993e-15
+x[1] MemPpass
+x[2] Reff_Add
+x[3] MemWriteL
+x[4] Ceff_Regs
+x[5] MemReadL
+x[6] Ceff_Mult
+x[7] MemWritePact
+x[8] Reff_Regs
+x[9] f
+x[10] MemReadPact
+x[11] V_dd
+x[12] Ceff_Add
+x[13] Reff_Not
+x[14] Reff_Mult
+MemPpass 2.2626137492075113e-08
+Reff_Add 1687.5245284631299
+MemWriteL 1.9999999705060226e-09
+Ceff_Regs 6.5120545961665515e-15
+MemReadL 1.9999999705060226e-09
+Ceff_Mult 2.865504600202431e-12
+MemWritePact 1.124462851503462e-12
+Reff_Regs 125284.86180663094
+f 4999999999.459547
+MemReadPact 1.1244628515034618e-12
+V_dd 0.5000000001148786
+Ceff_Add 1.7101983133609715e-13
+Reff_Not 2010.414742080441
+Reff_Mult 21.299128442307882
+MemPpass {MemPpass: 1, Reff_Add: 2, MemWriteL: 3, Ceff_Regs: 4, MemReadL: 5, Ceff_Mult: 6, MemWritePact: 7, Reff_Regs: 8, f: 9, MemReadPact: 10, V_dd: 11, Ceff_Add: 12, Reff_Not: 13, Reff_Mult: 14}
+Reff_Add {MemPpass: 1, Reff_Add: 2, MemWriteL: 3, Ceff_Regs: 4, MemReadL: 5, Ceff_Mult: 6, MemWritePact: 7, Reff_Regs: 8, f: 9, MemReadPact: 10, V_dd: 11, Ceff_Add: 12, Reff_Not: 13, Reff_Mult: 14}
+MemWriteL {MemPpass: 1, Reff_Add: 2, MemWriteL: 3, Ceff_Regs: 4, MemReadL: 5, Ceff_Mult: 6, MemWritePact: 7, Reff_Regs: 8, f: 9, MemReadPact: 10, V_dd: 11, Ceff_Add: 12, Reff_Not: 13, Reff_Mult: 14}
+Ceff_Regs {MemPpass: 1, Reff_Add: 2, MemWriteL: 3, Ceff_Regs: 4, MemReadL: 5, Ceff_Mult: 6, MemWritePact: 7, Reff_Regs: 8, f: 9, MemReadPact: 10, V_dd: 11, Ceff_Add: 12, Reff_Not: 13, Reff_Mult: 14}
+MemReadL {MemPpass: 1, Reff_Add: 2, MemWriteL: 3, Ceff_Regs: 4, MemReadL: 5, Ceff_Mult: 6, MemWritePact: 7, Reff_Regs: 8, f: 9, MemReadPact: 10, V_dd: 11, Ceff_Add: 12, Reff_Not: 13, Reff_Mult: 14}
+Ceff_Mult {MemPpass: 1, Reff_Add: 2, MemWriteL: 3, Ceff_Regs: 4, MemReadL: 5, Ceff_Mult: 6, MemWritePact: 7, Reff_Regs: 8, f: 9, MemReadPact: 10, V_dd: 11, Ceff_Add: 12, Reff_Not: 13, Reff_Mult: 14}
+MemWritePact {MemPpass: 1, Reff_Add: 2, MemWriteL: 3, Ceff_Regs: 4, MemReadL: 5, Ceff_Mult: 6, MemWritePact: 7, Reff_Regs: 8, f: 9, MemReadPact: 10, V_dd: 11, Ceff_Add: 12, Reff_Not: 13, Reff_Mult: 14}
+Reff_Regs {MemPpass: 1, Reff_Add: 2, MemWriteL: 3, Ceff_Regs: 4, MemReadL: 5, Ceff_Mult: 6, MemWritePact: 7, Reff_Regs: 8, f: 9, MemReadPact: 10, V_dd: 11, Ceff_Add: 12, Reff_Not: 13, Reff_Mult: 14}
+f {MemPpass: 1, Reff_Add: 2, MemWriteL: 3, Ceff_Regs: 4, MemReadL: 5, Ceff_Mult: 6, MemWritePact: 7, Reff_Regs: 8, f: 9, MemReadPact: 10, V_dd: 11, Ceff_Add: 12, Reff_Not: 13, Reff_Mult: 14}
+MemReadPact {MemPpass: 1, Reff_Add: 2, MemWriteL: 3, Ceff_Regs: 4, MemReadL: 5, Ceff_Mult: 6, MemWritePact: 7, Reff_Regs: 8, f: 9, MemReadPact: 10, V_dd: 11, Ceff_Add: 12, Reff_Not: 13, Reff_Mult: 14}
+V_dd {MemPpass: 1, Reff_Add: 2, MemWriteL: 3, Ceff_Regs: 4, MemReadL: 5, Ceff_Mult: 6, MemWritePact: 7, Reff_Regs: 8, f: 9, MemReadPact: 10, V_dd: 11, Ceff_Add: 12, Reff_Not: 13, Reff_Mult: 14}
+Ceff_Add {MemPpass: 1, Reff_Add: 2, MemWriteL: 3, Ceff_Regs: 4, MemReadL: 5, Ceff_Mult: 6, MemWritePact: 7, Reff_Regs: 8, f: 9, MemReadPact: 10, V_dd: 11, Ceff_Add: 12, Reff_Not: 13, Reff_Mult: 14}
+Reff_Not {MemPpass: 1, Reff_Add: 2, MemWriteL: 3, Ceff_Regs: 4, MemReadL: 5, Ceff_Mult: 6, MemWritePact: 7, Reff_Regs: 8, f: 9, MemReadPact: 10, V_dd: 11, Ceff_Add: 12, Reff_Not: 13, Reff_Mult: 14}
+Reff_Mult {MemPpass: 1, Reff_Add: 2, MemWriteL: 3, Ceff_Regs: 4, MemReadL: 5, Ceff_Mult: 6, MemWritePact: 7, Reff_Regs: 8, f: 9, MemReadPact: 10, V_dd: 11, Ceff_Add: 12, Reff_Not: 13, Reff_Mult: 14}
+Solver log file: '/var/folders/fd/_g3nsz7d5qj5_x7swqyg63tr0000gn/T/tmpw0lqzwqk_ipopt.log'
+Solver solution file: '/var/folders/fd/_g3nsz7d5qj5_x7swqyg63tr0000gn/T/tmpwqn6qyq1.pyomo.sol'
+Solver problem files: ('/var/folders/fd/_g3nsz7d5qj5_x7swqyg63tr0000gn/T/tmpwqn6qyq1.pyomo.nl',)
+Ipopt 3.14.14: warm_start_init_point=yes
+bound_relax_factor=0
+max_iter=100
+print_info_string=yes
+output_file=solver_out.txt
+wantsol=2
+
+
+******************************************************************************
+This program contains Ipopt, a library for large-scale nonlinear optimization.
+ Ipopt is released as open source code under the Eclipse Public License (EPL).
+         For more information visit https://github.com/coin-or/Ipopt
+******************************************************************************
+
+This is Ipopt version 3.14.14, running with linear solver MUMPS 5.6.2.
+
+Number of nonzeros in equality constraint Jacobian...:        0
+Number of nonzeros in inequality constraint Jacobian.:       28
+Number of nonzeros in Lagrangian Hessian.............:       96
+
+Total number of variables............................:       14
+                     variables with only lower bounds:        7
+                variables with lower and upper bounds:        7
+                     variables with only upper bounds:        0
+Total number of equality constraints.................:        0
+Total number of inequality constraints...............:        2
+        inequality constraints with only lower bounds:        1
+   inequality constraints with lower and upper bounds:        0
+        inequality constraints with only upper bounds:        1
+
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+   0  7.1017081e-04 1.28e-15 1.00e+00  -1.0 0.00e+00    -  0.00e+00 0.00e+00   0 
+   1  9.8630122e-02 1.57e-15 1.00e-01  -1.0 9.72e-02    -  1.00e+00 9.90e-01f  1 
+   2  3.9932943e-02 1.79e-15 5.92e-01  -2.5 3.49e-02    -  9.76e-01 9.97e-01f  1 Nhj 
+   3  2.6140310e-02 1.68e-15 5.01e+03  -2.5 2.61e-02    -  1.00e+00 4.99e-01f  2 
+   4  1.7552611e-02 1.59e-15 1.25e+04  -2.5 2.06e-02    -  1.00e+00 4.99e-01f  2 
+   5  9.6127992e-03 1.50e-15 1.48e+02  -2.5 1.26e-02    -  1.00e+00 9.97e-01h  1 
+   6  9.3518873e-03 1.49e-15 3.99e+04  -2.5 5.45e-04    -  1.00e+00 9.97e-01h  1 
+   7  9.3508877e-03 1.49e-15 2.70e+07  -2.5 2.11e-06    -  1.00e+00 9.95e-01h  1 
+   8  9.2611980e-03 1.49e-15 8.47e+11  -2.5 1.37e-03    -  1.00e+00 5.20e-01h  1 
+   9  7.9377642e-03 1.32e-15 2.08e+14  -2.5 2.51e-01    -  1.00e+00 6.80e-02f  2 
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+  10  4.8742295e-02 1.05e-15 2.10e+14  -2.5 3.28e-01    -  1.00e+00 4.13e-01h  1 
+In iteration 10, 1 Slack too small, adjusting variable bound
+  11  2.2754878e-01 6.30e-16 4.81e+14  -2.5 3.27e-01    -  1.00e+00 4.19e-01h  1 
+In iteration 11, 1 Slack too small, adjusting variable bound
+  12  7.3180918e-01 2.21e-16 4.47e+14  -2.5 1.96e-01    -  1.00e+00 6.68e-01h  1 
+In iteration 12, 1 Slack too small, adjusting variable bound
+  13  1.2347283e+00 2.02e-17 1.29e+14  -2.5 6.86e-02    -  1.00e+00 9.19e-01h  1 
+  14  1.3042319e+00 0.00e+00 1.57e-02  -2.5 7.09e-03    -  1.00e+00 1.00e+00h  1 A
+  15  8.4243227e-01 0.00e+00 1.34e+14  -9.0 8.56e-03    -  9.06e-01 1.00e+00F  1 
+In iteration 15, 1 Slack too small, adjusting variable bound
+  16  8.1797417e-01 0.00e+00 3.82e+13  -9.0 6.32e-03    -  9.92e-01 8.95e-01f  1 
+  17  8.1528616e-01 0.00e+00 9.65e+10  -9.0 6.82e-04    -  1.00e+00 9.98e-01f  1 
+  18  8.1528039e-01 0.00e+00 8.55e-10  -9.0 3.36e-06    -  1.00e+00 1.00e+00f  1 
+
+Number of Iterations....: 18
+
+                                   (scaled)                 (unscaled)
+Objective...............:   8.1528039417423193e-01    8.1528039417423193e-01
+Dual infeasibility......:   8.5527762649917349e-10    8.5527762649917349e-10
+Constraint violation....:   0.0000000000000000e+00    0.0000000000000000e+00
+Variable bound violation:   0.0000000000000000e+00    0.0000000000000000e+00
+Complementarity.........:   9.2713882737556904e-10    9.2713882737556904e-10
+Overall NLP error.......:   9.0597864526018182e-22    9.2713882737556904e-10
+
+
+Number of objective function evaluations             = 23
+Number of objective gradient evaluations             = 19
+Number of equality constraint evaluations            = 0
+Number of inequality constraint evaluations          = 24
+Number of equality constraint Jacobian evaluations   = 0
+Number of inequality constraint Jacobian evaluations = 19
+Number of Lagrangian Hessian evaluations             = 18
+Total seconds in IPOPT                               = 0.005
+
+EXIT: Optimal Solution Found.
+optimal
+======================
+Model unknown
+
+  Variables:
+    x : Size=14, Index=N
+        Key : Lower     : Value                  : Upper                  : Fixed : Stale : Domain
+          1 :         0 : 1.2914979638225229e-08 :                   None : False : False : NonNegativeReals
+          2 :         0 :     1526.7337884711362 :     1687.5245284631299 : False : False : NonNegativeReals
+          3 :         0 : 1.9999999324561296e-09 :                   None : False : False : NonNegativeReals
+          4 :         0 : 5.8790344053069036e-15 : 6.5120545961665515e-15 :  True : False : NonNegativeReals
+          5 :         0 : 1.9999999324561296e-09 :                   None : False : False : NonNegativeReals
+          6 :         0 :  2.083679972026802e-12 :                   None : False : False : NonNegativeReals
+          7 :         0 : 1.1244628301106163e-12 :                   None : False : False : NonNegativeReals
+          8 :         0 :      118590.6986055648 :     125284.86180663094 : False : False : NonNegativeReals
+          9 : 1000000.0 :      4999999999.400079 :           5000000000.0 : False : False : NonNegativeReals
+         10 :         0 :  1.124462830110616e-12 :                   None : False : False : NonNegativeReals
+         11 :       0.5 :     0.5000000001123189 :                    1.7 : False : False : NonNegativeReals
+         12 :         0 : 1.4313076433754877e-13 : 1.7101983133609715e-13 : False : False : NonNegativeReals
+         13 :         0 :     2010.4147404980063 :      2010.414742080441 : False : False : NonNegativeReals
+         14 :         0 :      17.56280567812112 :                   None : False : False : NonNegativeReals
+
+  Objectives:
+    obj : Size=1, Index=None, Active=True
+        Key  : Active : Value
+        None :   True : 0.8152803941742319
+
+  Constraints:
+    cuts : Size=0
+        Key : Lower : Body : Upper
+    Constraint : Size=1
+        Key  : Lower : Body                   : Upper
+        None :  None : 1.9783865684359022e-15 : 1.966579352263154e-15
+    Constraint1 : Size=1
+        Key  : Lower                 : Body                   : Upper
+        None : 1.779286080619044e-15 : 1.9783865684359022e-15 :  None

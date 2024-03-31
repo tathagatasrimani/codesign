@@ -1,0 +1,29 @@
+digraph {
+	490 [label="source code:
+runtime_28 = runtime_28 / numTrials_28
+nValues_28.append(n_28)
+tValues_28.append(runtime_28)
+"]
+	491 [label="runtime_28
+Read"]
+	492 [label="numTrials_28
+Read"]
+	493 [label="//
+"]
+	491 -> 493 [label=""]
+	492 -> 493 [label=""]
+	494 [label="runtime_28
+Write"]
+	493 -> 494 [label=""]
+	495 [label="nValues_28.append(n_28)
+"]
+	496 [label="n_28
+Read"]
+	496 -> 495 [label=""]
+	497 [label="tValues_28.append(runtime_28)
+"]
+	498 [label="runtime_28
+Read"]
+	498 -> 497 [label=""]
+	494 -> 498 [label=""]
+}
