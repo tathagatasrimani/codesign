@@ -22,7 +22,7 @@ class HardwareSimulator():
         self.cycles = 0
         self.main_cfg = None
         self.id_to_node = {}
-        self.path = '/Users/PatrickMcEwen/git_container/codesign/src/' # change path variable for local computer
+        self.path = '/nfs/rsghome/pmcewen/codesign/src/' # change path variable for local computer
         self.data_path = []
         self.power_use = []
         self.node_intervals = []
@@ -362,8 +362,8 @@ class HardwareSimulator():
                                 self.make_node(state_graph, parent_id, hardwareModel.op2sym_map[parent.operation], None, hardwareModel.op2sym_map[parent.operation])
                                 self.make_edge(state_graph, parent_id, compute_id, "")
                         self.process_compute_element(op, state_graph, state_graph.id_to_Node[compute_id], check_duplicate=False)
-                    if op_count > 0:
-                        state_graph_viz.render(self.path + 'benchmarks/pictures/state_graphs/' + sys.argv[1][sys.argv[1].rfind('/')+1:] + '_' + str(state_graph_counter), view = True)
+                    #if op_count > 0:
+                        #state_graph_viz.render(self.path + 'benchmarks/pictures/state_graphs/' + sys.argv[1][sys.argv[1].rfind('/')+1:] + '_' + str(state_graph_counter), view = True)
                     state_graph_counter += 1
                     #print(hw_need)
                     max_cycles = 0
@@ -396,7 +396,7 @@ class HardwareSimulator():
             pattern_seek = pattern_seek_next
             max_iters = max_iters_next
         print("done with simulation")
-        self.new_graph.gv_graph.render(self.path + 'benchmarks/pictures/memory_graphs/' + sys.argv[1][sys.argv[1].rfind('/')+1:], view = True)
+        #self.new_graph.gv_graph.render(self.path + 'benchmarks/pictures/memory_graphs/' + sys.argv[1][sys.argv[1].rfind('/')+1:], view = True)
         return self.data
 
     def set_data_path(self):
