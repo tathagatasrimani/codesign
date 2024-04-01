@@ -134,7 +134,7 @@ def main():
     zero_pad = 3
     stride = 2
     filt = np.random.rand(3, 7, 7)
-    img = np.random.rand(3, 20, 20)
+    img = np.random.rand(3, 24, 24)
 
     # Block 1
     img = conv_layer(img, filt, 1, zero_pad, stride)
