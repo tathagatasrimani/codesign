@@ -257,11 +257,6 @@ class ConcreteSimulator:
         can I overload function names like this?
         """
         self.reset_internal_variables()
-        cur_node = cfg.entryblock
-
-        # skip over the first node in the main cfg
-        cur_node = cur_node.exits[0].target
-        self.main_cfg = cfg
 
         i = 0
         frees = []
@@ -948,11 +943,11 @@ def main(args):
     # TODO: move this into cli arg
     # if args.architecture is None:
     #     args.architecture = "aladdin_const_with_mem"
-    hw = HardwareModel(cfg="aladdin_const_with_mem")
+    hw = HardwareModel(cfg="tiny")
 
     cfg, cfg_node_to_hw_map = simulator.simulator_prep(args.benchmark, hw.latency)
 
-    # computation_dfg = simulator.compose_entire_computation_graph(cfg_node_to_hw_map, plot=True)
+    computation_dfg = simulator.compose_entire_computation_graph(cfg_node_to_hw_map, plot=True)
     
     # print(f"Data Path: {simulator.data_path}")
 
@@ -988,7 +983,7 @@ def main(args):
         simulator.init_new_compute_element(elem_data["function"])
 
     hardwareModel.un_allocate_all_in_use_elements(hw.netlist)
-    data = simulator.simulate(cfg, cfg_node_to_hw_map, hw)
+    data = simulator.simulate(computation_dfg, hw)
 
     area = hw.get_total_area()
 
