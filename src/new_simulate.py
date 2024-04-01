@@ -497,7 +497,7 @@ def main():
         simulator.cache_size = 16
     hw = HardwareModel(0, 0, simulator.mem_layers, simulator.pitch, simulator.transistor_size, simulator.cache_size)
     hw.hw_allocated['Add'] = 1000
-    hw.hw_allocated['Regs'] = 1000
+    hw.hw_allocated['Regs'] = 2000
     hw.hw_allocated['Mult'] = 1000
     hw.hw_allocated['Sub'] = 1000
     hw.hw_allocated['FloorDiv'] = 1000
