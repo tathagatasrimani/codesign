@@ -80,7 +80,7 @@ class HardwareSimulator():
                 hw_op_node = self.new_graph.id_to_Node[compute_id]
                 op.compute_id = compute_id
                 #print(op.value)
-                mem_in_use += self.process_compute_element(op, self.new_graph, hw_op_node, check_duplicate=True)
+                #mem_in_use += self.process_compute_element(op, self.new_graph, hw_op_node, check_duplicate=True)
             hw_need.hw_allocated[op.operation] += 1
             hw_spec.compute_operation_totals[op.operation] += 1
         self.max_regs_inuse = min(hw_spec.hw_allocated["Regs"], max(self.max_regs_inuse, hw_need.hw_allocated["Regs"]))
