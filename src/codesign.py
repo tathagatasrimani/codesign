@@ -13,6 +13,9 @@ import optimize
 import hw_symbols
 from sim_util import generate_init_params_from_rcs_as_symbols
 import hardwareModel
+import equinox as eqx
+import jax.numpy as jnp
+import sympy2jax
 
 
 class Codesign:

@@ -12,6 +12,10 @@ from sympy import *
 import sympy
 import pyomo.environ as pyo
 from pyomo.core.expr import Expr_if
+import sympy2jax
+import equinox as eqx
+import jax
+import jax.numpy as jnp
 
 # custom modules
 import schedule
@@ -450,6 +454,39 @@ def main():
 
     simulator.simulate(cfg, cfg_node_to_hw_map, hw)
     simulator.calculate_edp(hw)
+    
+    print(simulator.edp)
+    test = sympy.symbols("test")
+    jmod = sympy2jax.SymbolicModule(simulator.edp + test**2)
+    Reff_Add_init = jnp.array(1.1)
+    Ceff_Add_init = jnp.array(1.2)
+    Reff_Regs_init = jnp.array(1.4)
+    Ceff_Regs_init = jnp.array(1.3)
+    Reff_Not_init = jnp.array(2.0)
+    MemReadL_init = jnp.array(1.5)
+    MemWriteL_init = jnp.array(1.6)
+    MemReadPact_init = jnp.array(1.8)
+    MemWritePact_init = jnp.array(1.9)
+    MemPpass_init = jnp.array(1.7)
+    f_init = jnp.array(5.0)
+    V_dd_init = jnp.array(0.7)
+    test_init = jnp.array(2.0)
+    Reff_Add = hw_symbols.Reff["Add"]
+    Ceff_Add = hw_symbols.Ceff["Add"]
+    Reff_Regs = hw_symbols.Reff["Regs"]
+    Ceff_Regs = hw_symbols.Ceff["Regs"]
+    Reff_Not = hw_symbols.Reff["Not"]
+    MemReadL = hw_symbols.MemReadL
+    MemWriteL = hw_symbols.MemWriteL
+    MemReadPact = hw_symbols.MemReadPact
+    MemWritePact = hw_symbols.MemWritePact
+    MemPpass = hw_symbols.MemPpass
+    f = hw_symbols.f
+    V_dd = hw_symbols.V_dd
+    
+    grad_Reff = eqx.filter_grad(lambda n, b, c, d, e, f, g, h, i, j, k, l, m, a: a(test=n, Reff_Add=b, Ceff_Add=c, Reff_Regs=d, Ceff_Regs=e, Reff_Not=f, MemReadL=g, MemWriteL=h, MemReadPact=i, MemWritePact=j, MemPpass=k, f=l, V_dd=m))(test_init, Reff_Add_init, Ceff_Add_init, Reff_Regs_init, Ceff_Regs_init, Reff_Not_init, MemReadL_init, MemWriteL_init, MemReadPact_init, MemWritePact_init, MemPpass_init, f_init, V_dd_init, jmod)
+    print(f"Grad of Reff: {grad_Reff}")
+
 
     # simulator.edp = simulator.edp.simplify()
     simulator.save_edp_to_file()
