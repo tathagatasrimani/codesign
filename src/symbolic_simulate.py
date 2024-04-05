@@ -14,6 +14,7 @@ import pyomo.environ as pyo
 from pyomo.core.expr import Expr_if
 
 # custom modules
+from memory import Memory
 import schedule
 import dfg_algo
 import hw_symbols
@@ -82,8 +83,18 @@ class SymbolicSimulator:
         generations = list(nx.topological_generations(computation_graph))
 
         for node, node_data in computation_graph.nodes(data=True):
-            active_energy = hw_symbols.symbolic_power_active[node_data["function"]] * (
-                hw_symbols.symbolic_latency_wc[node_data["function"]]
+            scaling = 1
+            # if node_data["function"] in ["Buf", "MainMem"]:
+            #     # active power should scale by size of the object being accessed.
+            #     # all regs have the saem size, so no need to scale.
+            #     scaling = node_data["size"]
+            #     # if node_data["function"] == "MainMem":
+            #     #     print(f" found a mem object in active energy calc, adding scaling factor: {scaling}")
+
+            active_energy = (
+                hw_symbols.symbolic_power_active[node_data["function"]]
+                * scaling
+                * (hw_symbols.symbolic_latency_wc[node_data["function"]])
             )
             # print("added active energy of", hw_symbols.symbolic_power_active[node_data["function"]]* (hw_symbols.symbolic_latency_wc[node_data["function"]] / hw_symbols.f), "for", node_data["function"])
             energy_sum += active_energy
@@ -102,18 +113,25 @@ class SymbolicSimulator:
                         # print(f"node: {node}")
                         # print(f"computation_graph[{node}]: {computation_graph.nodes()[node]}")
                         # THIS PATH LATENCY MAY OR MAY NOT USE CYCLE TIME OR WALL CLOCK TIME DUE TO SOLVER INSTABILITY
+                        scaling = 1
+                        # if node_data["function"] in ["Buf", "MainMem"]:
+                        #     # active power should scale by size of the object being accessed.
+                        #     # all regs have the saem size, so no need to scale.
+                        #     scaling = node_data["size"]
                         path_latency += hw_symbols.symbolic_latency_cyc[
                             computation_graph.nodes()[node]["function"]
-                        ]
+                        ] * scaling
                         # THIS PATH LATENCY USES CYCLE TIME AS A REFERENCE FOR WHAT THE TRUE EDP IS
                         path_latency_ceil += hw_symbols.symbolic_latency_cyc[
                             computation_graph.nodes()[node]["function"]
-                        ]
+                        ] * scaling
                     max_cycles = 0.5 * (
                         max_cycles + path_latency + abs(max_cycles - path_latency)
                     )
                     max_cycles_ceil = 0.5 * (
-                        max_cycles_ceil + path_latency_ceil + abs(max_cycles_ceil - path_latency_ceil)
+                        max_cycles_ceil
+                        + path_latency_ceil
+                        + abs(max_cycles_ceil - path_latency_ceil)
                     )
 
         # remove Mem and Buf from computation graph, so it doesn't get duplicated
@@ -129,6 +147,43 @@ class SymbolicSimulator:
         self.cycles += max_cycles
         self.cycles_ceil += max_cycles_ceil
         return max_cycles, max_cycles_ceil, energy_sum
+
+    def process_memory_operation(self, mem_op, mem_module: Memory):
+        """
+        Processes a memory operation, handling memory allocation or deallocation based on the operation type.
+
+        This function interprets and acts on memory operations (like allocating or freeing memory)
+        within the hardware simulation. It modifies the state of the memory module according to the
+        specified operation, updating the memory allocation status as necessary.
+
+        Parameters:
+        - mem_op (list): A list representing a memory operation. The first element is the operation type
+        ('malloc' or 'free'), the second element is the size of the memory block, and subsequent elements
+         provide additional context or dimensions for the operation.
+
+        Usage:
+        - If `mem_op` is a 'malloc' operation, the function allocates memory of the specified size and
+            potentially with specified dimensions.
+        - If `mem_op` is a 'free' operation, the function deallocates the memory associated with the
+             given variable name.
+
+        This function is typically called during the simulation process to dynamically manage
+        memory as the simulated program executes different operations that require memory allocation
+        and deallocation.
+        """
+        var_name = mem_op[2]
+        size = int(mem_op[1])
+        status = mem_op[0]
+        if status == "malloc":
+            dims = []
+            num_elem = 1
+            if len(mem_op) > 3:
+                dims = sim_util.get_dims(mem_op[3:])
+                # print(f"dims: {dims}")
+                num_elem = np.prod(dims)
+            mem_module.malloc(var_name, size, dims=dims, elem_size=size // num_elem)
+        elif status == "free":
+            mem_module.free(var_name)
 
     def localize_memory(self, hw, hw_graph):
         """
@@ -170,7 +225,8 @@ class SymbolicSimulator:
 
                 size = -1 * buf[1]["memory_module"].read(
                     var_name
-                )  # size will be negative because cache miss.
+                )  # size will be negative because cache miss; size is var size not mem object size
+
                 # add multiple bufs and mems, not just one. add a new one for each cache miss.
                 # this is required to properly count active power consumption.
                 # active power added once for each node in computation_graph.
@@ -214,7 +270,7 @@ class SymbolicSimulator:
             filter(lambda x: x[1]["function"] != "Buf", hw.netlist.nodes.data())
         ).items():
             scaling = 1
-            if data["function"] in ["Regs", "Buf", "MainMem"]:
+            if data["function"] in ["MainMem"]:
                 scaling = data["size"]
             passive_power += (
                 hw_symbols.symbolic_power_passive[data["function"]] * scaling
@@ -228,9 +284,10 @@ class SymbolicSimulator:
 
         cur_node = cur_node.exits[0].target  # skip over the first node in the main cfg
         i = 0
+        mallocs = []
+        frees = []
 
         sim_cache = {}
-
 
         while i < len(self.data_path):
             # print(f"i: {i}")
@@ -238,11 +295,19 @@ class SymbolicSimulator:
                 next_ind,
                 _,
                 _,
-            ) = sim_util.find_next_data_path_index(self.data_path, i + 1, [], [])
+            ) = sim_util.find_next_data_path_index(self.data_path, i + 1, mallocs, frees)
 
             node_id = self.data_path[i][0]
             cur_node = self.id_to_node[node_id]
             self.node_intervals.append([node_id, [self.cycles, 0]])
+
+            for malloc in mallocs:
+                self.process_memory_operation(
+                    malloc,
+                    list(hardwareModel.get_memory_node(hw.netlist).values())[0][
+                        "memory_module"
+                    ],
+                )
 
             if not node_id in self.node_sum_energy:
                 self.node_sum_energy[node_id] = (
@@ -289,13 +354,25 @@ class SymbolicSimulator:
                     state = new_state
                 self.localize_memory(hw, computation_graph)
 
-                max_cycles, max_cycles_ceil, energy_sum = self.cycle_sim(computation_graph)
+                max_cycles, max_cycles_ceil, energy_sum = self.cycle_sim(
+                    computation_graph
+                )
                 self.node_sum_energy[node_id] += energy_sum
                 self.node_sum_cycles[node_id] += max_cycles
                 self.node_sum_cycles_ceil[node_id] += max_cycles_ceil
                 sim_cache[cache_index] = [max_cycles, max_cycles_ceil, energy_sum]
 
             self.node_intervals[-1][1][1] = self.cycles
+
+            for free in frees:
+                self.process_memory_operation(
+                    free,
+                    list(hardwareModel.get_memory_node(hw.netlist).values())[0][
+                        "memory_module"
+                    ],
+                )
+            mallocs = []
+            frees = []
             i = next_ind
             if i == len(self.data_path):
                 break
@@ -407,9 +484,13 @@ class SymbolicSimulator:
         total_execution_time_ceil = total_cycles_ceil
         total_active_energy = sum(self.node_sum_energy.values())
         total_passive_energy = self.passive_energy_dissipation(hw, total_execution_time)
-        total_passive_energy_ceil = self.passive_energy_dissipation(hw, total_execution_time_ceil)
+        total_passive_energy_ceil = self.passive_energy_dissipation(
+            hw, total_execution_time_ceil
+        )
         self.edp = total_execution_time * (total_active_energy + total_passive_energy)
-        self.edp_ceil = total_execution_time_ceil * (total_active_energy + total_passive_energy_ceil)
+        self.edp_ceil = total_execution_time_ceil * (
+            total_active_energy + total_passive_energy_ceil
+        )
 
     def save_edp_to_file(self):
         st = str(self.edp)
@@ -425,7 +506,6 @@ def main():
     # TODO: move this to a cli param
     hw = HardwareModel(cfg="aladdin_const_with_mem")
     hw.get_optimization_params_from_tech_params()
-
 
     cfg, cfg_node_to_hw_map = simulator.simulator_prep(args.benchmark, hw.latency)
 
