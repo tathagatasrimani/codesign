@@ -156,7 +156,7 @@ dynamic_power: # nw
     USub: 44.94784
     Buf: 0.0 # per byte? PLACEHOLDER
     MainMem: 0.0 # per byte(?) per some unit of size; PLACEHOLDER
-  7:
+  7: # these are 64 bit operators
     Add: 49.728
     And: 81.809
     BitAnd: 24.128

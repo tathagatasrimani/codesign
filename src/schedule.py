@@ -132,6 +132,7 @@ def schedule(computation_graph, hw_element_counts):
                 # print(f"not enough resources for {func}; diff: {diff}")
 
                 start_idx = hw_element_counts[func]
+                # TODO: pic this range based on upstream length. Calculated by Dijkstra
                 for idx in range(start_idx, count):
                     # print(f"idx: {idx}; node: {func_nodes[idx][0]}")
                     # an out edge in comp_dfg is an in_edge in the reversed_graph
