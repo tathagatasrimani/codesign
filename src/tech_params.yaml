@@ -209,7 +209,7 @@ dynamic_power: # nw
     UAdd: 2.836642e+05 # use add, unsure about this.
     USub: 2.836642e+05 # use add, unsure about this.
     Buf: 0.0 # per byte? PLACEHOLDER
-    MainMem: 0.0 # per byte(?) per some unit of size; PLACEHOLDER
+    MainMem: 100.0 # per byte(?) per some unit of size; PLACEHOLDER
 latency: # num cycles
   3:
     Add: 12.755

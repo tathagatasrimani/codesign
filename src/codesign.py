@@ -144,14 +144,17 @@ class Codesign:
         edp = self.symbolic_sim.edp
 
         print(f"Initial EDP: {edp.subs(self.tech_params)} Js")
-        stdout = sys.stdout
-        with open("ipopt_out.txt", "w") as sys.stdout:
-            optimize.optimize(self.tech_params)
-        sys.stdout = stdout
-
         if args.opt == "ipopt":
+            stdout = sys.stdout
+            with open("ipopt_out.txt", "w") as sys.stdout:
+                optimize.optimize(self.tech_params, edp, args.opt)
+            sys.stdout = stdout
             f = open("ipopt_out.txt", "r")
             self.parse_output(f)
+        else:
+            result, names = optimize.optimize(self.tech_params, edp, args.opt)
+            for i in range(len(names)):
+                self.tech_params[hw_symbols.symbol_table[names[i]]] = result.value[i]
         self.write_back_rcs()
         self.inverse_edp = edp.subs(self.tech_params)
 
@@ -217,6 +220,8 @@ if __name__ == "__main__":
     )
     parser.add_argument("-o", "--opt", type=str)
     args = parser.parse_args()
+    if not args.opt:
+        args.opt = "ipopt"
     print(f"args: benchmark: {args.benchmark}, trace:{args.notrace}, area:{args.area}, optimization:{args.opt}")
 
     main()
