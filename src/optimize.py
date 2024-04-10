@@ -9,7 +9,8 @@ from hardwareModel import HardwareModel
 
 multistart = False
 
-def optimize(tech_params):
+
+def ipopt(tech_params):
     with open("sympy.txt") as f:
         s = f.read()
     edp = sympify(s)
@@ -43,6 +44,15 @@ def optimize(tech_params):
     print("======================")
     preproc_model.display()
     return results, initial_params, free_symbols, mapping
+
+def scp_opt(tech_params):
+    return 
+
+def optimize(tech_params, scp=False):
+    if scp:
+        return scp_opt(tech_params)
+    else:
+        return ipopt(tech_params)
 
 
 def main():

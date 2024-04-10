@@ -149,8 +149,9 @@ class Codesign:
             optimize.optimize(self.tech_params)
         sys.stdout = stdout
 
-        f = open("ipopt_out.txt", "r")
-        self.parse_output(f)
+        if args.opt == "ipopt":
+            f = open("ipopt_out.txt", "r")
+            self.parse_output(f)
         self.write_back_rcs()
         self.inverse_edp = edp.subs(self.tech_params)
 
@@ -214,7 +215,8 @@ if __name__ == "__main__":
         default="codesign_log_dir",
         help="Path to the save new architecture file",
     )
+    parser.add_argument("-o", "--opt", type=str)
     args = parser.parse_args()
-    print(f"args: benchmark: {args.benchmark}, trace:{args.notrace}, area:{args.area}")
+    print(f"args: benchmark: {args.benchmark}, trace:{args.notrace}, area:{args.area}, optimization:{args.opt}")
 
     main()

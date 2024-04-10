@@ -1,11 +1,12 @@
 #!/bin/sh
-while getopts a:sqn:d: flag
+while getopts a:sqn:d:o: flag
 do
     case "${flag}" in
         n) name=${OPTARG};;
         q) QUIET=true;;
         a) AREA=${OPTARG};;
         d) SAVEDIR=${OPTARG};;
+        o) OPT=${OPTARG};;
     esac
 done
 
@@ -21,6 +22,11 @@ if [ $name ]; then
     fi
     if [ $SAVEFILE ]; then
         ARGS+=" --savedir $SAVEDIR"
+    fi
+    if [ $OPT ]; then
+        ARGS+=" --opt $OPT"
+    else
+        ARGS+=" --opt ipopt"
     fi
     echo $ARGS
     python codesign.py $ARGS
