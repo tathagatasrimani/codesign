@@ -107,22 +107,31 @@ def get_grad(grad_var_starting_val, args_arr, jmod):
 
 
 def scp_opt(tech_params, edp):
-    print(tech_params)
+    #print(tech_params)
     initial_val = edp.subs(tech_params)
     current_val = initial_val
+    Ceff_scale = 1e10
+    scaled_edp_map = {}
+    for name in hw_symbols.symbol_table:
+        if name.startswith("Ceff") or name.startswith("Mem"):
+            scaled_edp_map[hw_symbols.symbol_table[name]] = hw_symbols.symbol_table[name] / Ceff_scale
+    edp_scaled = edp.subs(scaled_edp_map)
+    #print(edp_scaled)
     for i in range(10):
         args_arr = []
         starting_vals = np.zeros(len(hw_symbols.symbol_table))
         i = 0
         for name in hw_symbols.symbol_table:
-            args_arr.append(jnp.array(tech_params[hw_symbols.symbol_table[name]]))
-            starting_vals[i] = tech_params[hw_symbols.symbol_table[name]]
+            value = tech_params[hw_symbols.symbol_table[name]]
+            if name.startswith("Ceff") or name.startswith("Mem"): value *= Ceff_scale
+            args_arr.append(jnp.array(value))
+            starting_vals[i] = value
             i += 1
         grad_map = {}
         grad_var = sympy.symbols("grad_var")
         ind = 0
         for name in hw_symbols.symbol_table:
-            edp_cur = edp.subs({hw_symbols.symbol_table[name]: grad_var})
+            edp_cur = edp_scaled.subs({hw_symbols.symbol_table[name]: grad_var})
             jmod = sympy2jax.SymbolicModule(edp_cur)
             grad_map[name] = get_grad(args_arr[ind], args_arr, jmod)
             #print(name, grad_map[name])
@@ -131,23 +140,26 @@ def scp_opt(tech_params, edp):
     
         #print(f"Grad map:\n {grad_map}")
         x = cp.Variable(len(hw_symbols.symbol_table), pos=True)
-        lam = 0.00001
+        lam = 0.0000001
         obj = lam * cp.norm1(starting_vals-x)
         for i in range(len(hw_symbols.symbol_table)):
             obj += grad_map[list(hw_symbols.symbol_table)[i]] * x[i]
         constr = []
         for i in range(len(hw_symbols.symbol_table)):
-            constr += [x[i] >= starting_vals[i]/2, x[i] <= starting_vals[i]*2]
+            constr += [x[i] >= starting_vals[i]*0.95, x[i] <= starting_vals[i]*1.05]
         prob = cp.Problem(cp.Minimize(obj), constr)
         prob.solve(solver=cp.GLPK)
         for i in range(len(hw_symbols.symbol_table)):
-            tech_params[hw_symbols.symbol_table[list(hw_symbols.symbol_table)[i]]] = x.value[i]
+            if list(hw_symbols.symbol_table)[i].startswith("Ceff") or list(hw_symbols.symbol_table)[i].startswith("Mem"):
+                tech_params[hw_symbols.symbol_table[list(hw_symbols.symbol_table)[i]]] = x.value[i] / Ceff_scale
+            else:
+                tech_params[hw_symbols.symbol_table[list(hw_symbols.symbol_table)[i]]] = x.value[i]
         #print(f"tech params: {tech_params}")
         current_val = edp.subs(tech_params)
-        print("result of problem:", current_val)
+        #print("result of problem:", current_val)
         if current_val <= initial_val / 2: break
     #print(f"result: {x.value}")
-    print(tech_params)
+    #print(tech_params)
     return tech_params
 
 def optimize(tech_params, edp, opt):
