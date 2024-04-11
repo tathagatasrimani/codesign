@@ -2,6 +2,7 @@ import yaml
 
 import pyomo.environ as pyo
 from sympy import sympify
+import sympy
 
 from preprocess import Preprocessor
 from sim_util import generate_init_params_from_rcs_as_symbols
@@ -12,6 +13,7 @@ import equinox as eqx
 import jax
 import jax.numpy as jnp
 import cvxpy as cp
+import numpy as np
 
 multistart = False
 
@@ -45,105 +47,108 @@ def ipopt(tech_params, edp):
     print("======================")
     preproc_model.display()
 
-def get_grad(args_arr, jmod):
-    return eqx.filter_grad(lambda arr0, arr, a: a(Reff_Add=arr0, 
-                                                  Ceff_Add=arr[1], 
-                                                  Reff_Regs=arr[2], 
-                                                  Ceff_Regs=arr[3], 
-                                                  Reff_Not=arr[4], 
-                                                  MemReadL=arr[5], 
-                                                  MemWriteL=arr[6], 
-                                                  MemReadPact=arr[7], 
-                                                  MemWritePact=arr[8], 
-                                                  MemPpass=arr[9], 
-                                                  f=arr[10], 
-                                                  V_dd=arr[11]))(args_arr[0], args_arr, jmod)
+def get_grad(grad_var_starting_val, args_arr, jmod):
+    return eqx.filter_grad(lambda gv, arr0, arr, a: a(grad_var=gv,
+                                                V_dd=arr0,
+                                                f=arr[1],
+                                                MemReadL=arr[2],
+                                                MemWriteL=arr[3],
+                                                MemReadPact=arr[4],
+                                                MemWritePact=arr[5],
+                                                MemPpass=arr[6],
+                                                Reff_And=arr[7],
+                                                Reff_Or=arr[8],
+                                                Reff_Add=arr[9],
+                                                Reff_Sub=arr[10],
+                                                Reff_Mult=arr[11],
+                                                Reff_FloorDiv=arr[12],
+                                                Reff_Mod=arr[13],
+                                                Reff_LShift=arr[14],
+                                                Reff_RShift=arr[15],
+                                                Reff_BitOr=arr[16],
+                                                Reff_BitXor=arr[17],
+                                                Reff_BitAnd=arr[18],
+                                                Reff_Eq=arr[19],
+                                                Reff_NotEq=arr[20],
+                                                Reff_Lt=arr[21],
+                                                Reff_LtE=arr[22],
+                                                Reff_Gt=arr[23],
+                                                Reff_GtE=arr[24],
+                                                Reff_USub=arr[25],
+                                                Reff_UAdd=arr[26],
+                                                Reff_IsNot=arr[27],
+                                                Reff_Not=arr[28],
+                                                Reff_Invert=arr[29],
+                                                Reff_Regs=arr[30],
+                                                Ceff_And=arr[31],
+                                                Ceff_Or=arr[32],
+                                                Ceff_Add=arr[33],
+                                                Ceff_Sub=arr[34],
+                                                Ceff_Mult=arr[35],
+                                                Ceff_FloorDiv=arr[36],
+                                                Ceff_Mod=arr[37],
+                                                Ceff_LShift=arr[38],
+                                                Ceff_RShift=arr[39],
+                                                Ceff_BitOr=arr[40],
+                                                Ceff_BitXor=arr[41],
+                                                Ceff_BitAnd=arr[42],
+                                                Ceff_Eq=arr[43],
+                                                Ceff_NotEq=arr[44],
+                                                Ceff_Lt=arr[45],
+                                                Ceff_LtE=arr[46],
+                                                Ceff_Gt=arr[47],
+                                                Ceff_GtE=arr[48],
+                                                Ceff_USub=arr[49],
+                                                Ceff_UAdd=arr[50],
+                                                Ceff_IsNot=arr[51],
+                                                Ceff_Not=arr[52],
+                                                Ceff_Invert=arr[53],
+                                                Ceff_Regs=arr[54]))(grad_var_starting_val, args_arr[0], args_arr, jmod)
 
-def rotate_arr(args_arr):
-    next_val = args_arr[0]
-    for i in range(len(args_arr))[::-1]:    
-        tmp = next_val
-        next_val = args_arr[(i-1)%len(args_arr)]
-        args_arr[(i-1)%len(args_arr)] = tmp
-    return args_arr
 
 def scp_opt(tech_params, edp):
-    #print(tech_params)
-    jmod = sympy2jax.SymbolicModule(edp)
-    starting_vals = [
-        tech_params[hw_symbols.Reff["Add"]],
-        tech_params[hw_symbols.Ceff["Add"]],
-        tech_params[hw_symbols.Reff["Regs"]],
-        tech_params[hw_symbols.Ceff["Regs"]],
-        tech_params[hw_symbols.Reff["Not"]],
-        tech_params[hw_symbols.MemReadL],
-        tech_params[hw_symbols.MemWriteL],
-        tech_params[hw_symbols.MemReadPact],
-        tech_params[hw_symbols.MemWritePact],
-        tech_params[hw_symbols.MemPpass],
-        tech_params[hw_symbols.f],
-        tech_params[hw_symbols.V_dd]
-    ]
-    Reff_Add_init = jnp.array(tech_params[hw_symbols.Reff["Add"]])
-    Ceff_Add_init = jnp.array(tech_params[hw_symbols.Ceff["Add"]])
-    Reff_Regs_init = jnp.array(tech_params[hw_symbols.Reff["Regs"]])
-    Ceff_Regs_init = jnp.array(tech_params[hw_symbols.Ceff["Regs"]])
-    Reff_Not_init = jnp.array(tech_params[hw_symbols.Reff["Not"]])
-    MemReadL_init = jnp.array(tech_params[hw_symbols.MemReadL])
-    MemWriteL_init = jnp.array(tech_params[hw_symbols.MemWriteL])
-    MemReadPact_init = jnp.array(tech_params[hw_symbols.MemReadPact])
-    MemWritePact_init = jnp.array(tech_params[hw_symbols.MemWritePact])
-    MemPpass_init = jnp.array(tech_params[hw_symbols.MemPpass])
-    f_init = jnp.array(tech_params[hw_symbols.f])
-    V_dd_init = jnp.array(tech_params[hw_symbols.V_dd])
+    print(tech_params)
+    initial_val = edp.subs(tech_params)
+    current_val = initial_val
+    for i in range(10):
+        args_arr = []
+        starting_vals = np.zeros(len(hw_symbols.symbol_table))
+        i = 0
+        for name in hw_symbols.symbol_table:
+            args_arr.append(jnp.array(tech_params[hw_symbols.symbol_table[name]]))
+            starting_vals[i] = tech_params[hw_symbols.symbol_table[name]]
+            i += 1
+        grad_map = {}
+        grad_var = sympy.symbols("grad_var")
+        ind = 0
+        for name in hw_symbols.symbol_table:
+            edp_cur = edp.subs({hw_symbols.symbol_table[name]: grad_var})
+            jmod = sympy2jax.SymbolicModule(edp_cur)
+            grad_map[name] = get_grad(args_arr[ind], args_arr, jmod)
+            #print(name, grad_map[name])
+            ind += 1
+        #print(args_arr)
     
-    args_arr = [
-        Reff_Add_init,
-        Ceff_Add_init,
-        Reff_Regs_init,
-        Ceff_Regs_init,
-        Reff_Not_init,
-        MemReadL_init,
-        MemWriteL_init,
-        MemReadPact_init,
-        MemWritePact_init,
-        MemPpass_init,
-        f_init,
-        V_dd_init
-    ]
-    grad_names = [
-        "Reff_Add",
-        "Ceff_Add",
-        "Reff_Regs",
-        "Ceff_Regs",
-        "Reff_Not",
-        "MemReadL",
-        "MemWriteL",
-        "MemReadPact",
-        "MemWritePact",
-        "MemPpass",
-        "f",
-        "V_dd"
-    ]
-    grad_map = {}
-    for name in grad_names:
-        grad_map[name] = get_grad(args_arr, jmod)
-        rotate_arr(args_arr)
-
-
-    print(f"Grad map:\n {grad_map}")
-    x = cp.Variable(len(grad_names))
-    lam = 1000
-    obj = lam * cp.norm1(starting_vals-x)
-    for i in range(len(grad_names)):
-        obj += grad_map[grad_names[i]] * x[i]
-    constr = []
-    for i in range(len(grad_names)):
-        constr += [x[i] >= starting_vals[i]*0.95, x[i] <= starting_vals[i]*1.05]
-    prob = cp.Problem(cp.Minimize(obj), constr)
-    prob.solve(solver=cp.GLPK)
-    print(f"result: {x.value}")
-    return x, grad_names
+        #print(f"Grad map:\n {grad_map}")
+        x = cp.Variable(len(hw_symbols.symbol_table), pos=True)
+        lam = 0.00001
+        obj = lam * cp.norm1(starting_vals-x)
+        for i in range(len(hw_symbols.symbol_table)):
+            obj += grad_map[list(hw_symbols.symbol_table)[i]] * x[i]
+        constr = []
+        for i in range(len(hw_symbols.symbol_table)):
+            constr += [x[i] >= starting_vals[i]/2, x[i] <= starting_vals[i]*2]
+        prob = cp.Problem(cp.Minimize(obj), constr)
+        prob.solve(solver=cp.GLPK)
+        for i in range(len(hw_symbols.symbol_table)):
+            tech_params[hw_symbols.symbol_table[list(hw_symbols.symbol_table)[i]]] = x.value[i]
+        #print(f"tech params: {tech_params}")
+        current_val = edp.subs(tech_params)
+        print("result of problem:", current_val)
+        if current_val <= initial_val / 2: break
+    #print(f"result: {x.value}")
+    print(tech_params)
+    return tech_params
 
 def optimize(tech_params, edp, opt):
     if opt == "scp":

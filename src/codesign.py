@@ -152,9 +152,7 @@ class Codesign:
             f = open("ipopt_out.txt", "r")
             self.parse_output(f)
         else:
-            result, names = optimize.optimize(self.tech_params, edp, args.opt)
-            for i in range(len(names)):
-                self.tech_params[hw_symbols.symbol_table[names[i]]] = result.value[i]
+            self.tech_params = optimize.optimize(self.tech_params, edp, args.opt)
         self.write_back_rcs()
         self.inverse_edp = edp.subs(self.tech_params)
 
