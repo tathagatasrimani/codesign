@@ -306,8 +306,10 @@ class ConcreteSimulator:
         generations = reversed(
             list(nx.topological_generations(nx.reverse(computation_dfg)))
         )
-        for gen in generations: # main loop over the computation graphs
+        for gen in generations: # main loop over the computation graphs; 
             print(f"counter: {counter}, gen: {gen}")
+            if "end" in gen:  # skip the end node (only thing in the last generation)
+                break
             counter += 1
             temp_C = nx.DiGraph()
             for node in gen:
@@ -327,6 +329,8 @@ class ConcreteSimulator:
                     # active power should scale by size of the object being accessed.
                     # all regs have the same size, so no need to scale.
                     scaling = node_data["size"]
+                if node_data["function"] == "stall" or node_data["function"] == "end":
+                    continue
                 self.total_energy += (
                     hw.dynamic_power[node_data["function"]] * 1e-9
                     * scaling
@@ -337,19 +341,15 @@ class ConcreteSimulator:
             print(f"temp_c: {temp_C.nodes.data()}")
 
             def matcher_func(n1, n2):
-                res = n1["function"] == n2["function"] or n2["function"] == None or n2["function"] == "stall"
-                if n2["function"] == None or n2["function"] == "stall":
-                    print(f"n1[function]: {n1['function']}, n2[function]: {n2['function']}, res: {res}")
+                res = n1["function"] == n2["function"] or n2["function"] == None or n2["function"] == "stall" or n2["function"] == "end"
+                # if n2["function"] == None or n2["function"] == "stall":
+                #     print(f"n1[function]: {n1['function']}, n2[function]: {n2['function']}, res: {res}")
                 return res
 
             dgm = nx.isomorphism.DiGraphMatcher(
                 fake_hw,
                 temp_C,
                 node_match=matcher_func,
-                #lambda n1, n2: n1["function"] == n2["function"]
-                #or n2["function"] == None  # hw_graph can have no ops
-                #or n2["function"] == "stall" # stalls match with anything
-                # or n2["allocation"] == f"{n1['function']}{n1['idx']}", # match with already allocated hw - TODO: VERIFY THIS
             )
 
             is_monomorphic = dgm.subgraph_is_monomorphic()
@@ -366,13 +366,15 @@ class ConcreteSimulator:
                 plt.show()
 
             mapping = dgm.subgraph_monomorphisms_iter().__next__()
-            for hw_node, op in mapping.items():
+            for hw_node, op in mapping.items(): # this binding stuff has to change now with the stalls. Implement as graph coloring outside of sim?
                 if op in gen: # only bind ops in the current generation
                     hw.netlist.nodes[hw_node]["allocation"].append(op.split(";")[0])
                     computation_dfg.nodes[op]["allocation"] = hw_node
                     temp_C.nodes[op]["allocation"] = hw_node
 
+
         self.cycles = nx.dag_longest_path_length(computation_dfg)
+        print(f"cycles: {self.cycles}")
         '''
         # iterate through nodes in data flow graph
         while i < len(self.data_path):
@@ -457,6 +459,9 @@ class ConcreteSimulator:
         # add all passive power at the end.
         # This is done here for the dynamic allocation case where we don't know how many
         # compute elements we need until we run the program.
+        print(f"total active energy: {self.total_energy}")
+        print(f"adding passive energy;")
+
         for elem_name, elem_data in dict(hw.netlist.nodes.data()).items():
             scaling = 1
             if elem_data["function"] in ["Regs", "Buf", "MainMem"]:
@@ -830,7 +835,7 @@ class ConcreteSimulator:
         # NEW EDP CALCULATION
         self.edp = self.total_energy * self.execution_time
 
-    def compose_entire_computation_graph(self, cfg_node_to_hw_map, data_path_vars, plot=False):
+    def compose_entire_computation_graph(self, cfg_node_to_dfg_map, data_path_vars, latency, plot=False):
         """
         Composes a large DFG from the smaller DFGs.
         Not currently used, doesn't handle register allocation very well.
@@ -852,14 +857,14 @@ class ConcreteSimulator:
             vars = data_path_vars[i]
 
             node = self.id_to_node[node_id]
-            hw_graph = cfg_node_to_hw_map[node]
+            dfg = cfg_node_to_dfg_map[node]
 
-            if nx.is_empty(hw_graph):
+            if nx.is_empty(dfg):
                 i = sim_util.find_next_data_path_index(self.data_path, i + 1, [], [])[0]
                 continue
 
             # plug in index values for array accesses
-            for node in hw_graph.nodes:
+            for node in dfg.nodes:
                 var, id = node.split(";")
                 if len(var) == 1:
                     continue
@@ -874,14 +879,14 @@ class ConcreteSimulator:
                     else:
                         var_name += f"[{idx}]"
                 var_name += f";{id}"
-                hw_graph = nx.relabel_nodes(hw_graph, {node: var_name})
+                dfg = nx.relabel_nodes(dfg, {node: var_name})
 
-            generations = list(nx.topological_generations(hw_graph))
-            found_alignment = sim_util.rename_nodes(computation_dfg, hw_graph, generations, curr_last_nodes)
+            generations = list(nx.topological_generations(dfg))
+            found_alignment = sim_util.rename_nodes(computation_dfg, dfg, generations, curr_last_nodes)
             # print(f"hw_graph.nodes after rename: {hw_graph.nodes}")
-            computation_dfg = nx.compose(computation_dfg, hw_graph)
+            computation_dfg = nx.compose(computation_dfg, dfg)
             # computation_dfg.add_nodes_from(hw_graph.nodes(data=True))
-            generations = list(nx.topological_generations(hw_graph))
+            generations = list(nx.topological_generations(dfg))
 
             # if there's no alignment then independent, allow them to occur in parallel
             # MIGHT BE A BUG HERE
@@ -900,7 +905,7 @@ class ConcreteSimulator:
         computation_dfg.add_node("end", function="end")
         generations = list(nx.topological_generations(computation_dfg))
         for node in generations[-1]:
-            computation_dfg.add_edge(node, "end")
+            computation_dfg.add_edge(node, "end", weight=latency[computation_dfg.nodes[node]["function"]])
 
         print(f"done composing computation graph")
 
@@ -935,14 +940,14 @@ class ConcreteSimulator:
             latency: dict with latency of each compute element
         """
         cfg, graphs, self.unroll_at = dfg_algo.main_fn(self.path, benchmark)
-        cfg_node_to_hw_map = schedule.cfg_to_dfg(cfg, graphs, latency)
+        cfg_node_to_dfg_map = schedule.cfg_to_dfg(cfg, graphs, latency)
         data_path_vars = self.set_data_path()
-        print(f"data_path_vars:")
-        [print(f"{vars}, {path}") for vars, path in zip(data_path_vars, self.data_path)]
+        # print(f"data_path_vars:")
+        # [print(f"{vars}, {path}") for vars, path in zip(data_path_vars, self.data_path)]
         for node in cfg:
             self.id_to_node[str(node.id)] = node
         # print(self.id_to_node)
-        computation_dfg = self.compose_entire_computation_graph(cfg_node_to_hw_map, data_path_vars, plot=False)
+        computation_dfg = self.compose_entire_computation_graph(cfg_node_to_dfg_map, data_path_vars, latency, plot=False)
         schedule.schedule(computation_dfg, hw_counts)
         for layer, nodes in enumerate(reversed(list(nx.topological_generations(nx.reverse(computation_dfg))))):
             # `multipartite_layout` expects the layer as a node attribute, so add the
@@ -986,8 +991,8 @@ def main(args):
         sim_util.find_nearest_power_2(simulator.nvm_memory_needed),
     )
 
-    nx.draw(hw.netlist, with_labels=True)
-    plt.show()
+    # nx.draw(hw.netlist, with_labels=True)
+    # plt.show()
 
     simulator.transistor_size = hw.transistor_size  # in nm
     simulator.pitch = hw.pitch  # in um

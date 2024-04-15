@@ -8,7 +8,7 @@ import numpy as np
 # import hardwareModel
 
 # format: cfg_node -> {states -> operations}
-cfg_node_to_hw_map = {}
+cfg_node_to_dfg_map = {}
 operation_sets = {}
 
 rng = np.random.default_rng()
@@ -47,9 +47,8 @@ def cfg_to_dfg(cfg, graphs, latency):
     returns:
         cfg_node_to_hw_map: dict of cfg_node -> {states -> operations}
     """
-    computation_graph = nx.DiGraph()
     for node in cfg:
-        cfg_node_to_hw_map[node] = nx.DiGraph()
+        cfg_node_to_dfg_map[node] = nx.DiGraph()
         operation_sets[node] = set()
 
         queue = deque([[root, 0] for root in graphs[node].roots])
@@ -60,10 +59,10 @@ def cfg_to_dfg(cfg, graphs, latency):
                 if (
                     cur_node.operation is None
                 ):  # if no operation, then we ignore in latency power calculation.
-                    cfg_node_to_hw_map[node] = nx.DiGraph()
+                    cfg_node_to_dfg_map[node] = nx.DiGraph()
                     break
                 operation_sets[node].add(cur_node)
-                cfg_node_to_hw_map[node].add_node(
+                cfg_node_to_dfg_map[node].add_node(
                     f"{cur_node.value};{cur_node.id}",
                     function=cur_node.operation,
                     idx=cur_node.id,
@@ -72,19 +71,20 @@ def cfg_to_dfg(cfg, graphs, latency):
 
                 for par in cur_node.parents:
                     try:
-                        cfg_node_to_hw_map[node].add_edge(
+                        cfg_node_to_dfg_map[node].add_edge(
                             f"{par.value};{par.id}",
                             f"{cur_node.value};{cur_node.id}",
+                            weight=latency[par.operation], # weight of edge is latency of parent
                         )
                     except KeyError:
-                        cfg_node_to_hw_map[node].add_edge(
-                            par.value, cur_node.value, cost=0
+                        cfg_node_to_dfg_map[node].add_edge(
+                            par.value, cur_node.value, weight=latency[par.operation]
                         )
 
                 for child in cur_node.children:
                     queue.append([child, order + 1])
 
-    return cfg_node_to_hw_map
+    return cfg_node_to_dfg_map
 
 
 def schedule(computation_graph, hw_element_counts):
