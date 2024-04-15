@@ -251,6 +251,26 @@ class ConcreteSimulator:
         self.passive_power_dissipation_rate = 0
         self.total_energy = 0
 
+    def construct_fake_double_hw(self, hw):
+        func_counts = hardwareModel.get_func_count(hw.netlist)
+        fake_hw = nx.DiGraph()
+        for node, num in func_counts.items():
+            name = node if node != "MainMem" else "Mem"
+            for i in range(0, 2*num):
+                fake_hw.add_node(
+                    f"{name}{i}",
+                    function=node,
+                    allocation="",
+                )
+        for node in hw.netlist.nodes:
+            for child in hw.netlist.successors(node):
+                child_func = hw.netlist.nodes[child]["function"]
+                child_idx = hw.netlist.nodes[child]["idx"] + func_counts[child_func]
+                new_child = f"{child_func}{child_idx}" if child_func != "MainMem" else f"Mem{child_idx}"
+                fake_hw.add_edge(node, new_child)
+        print(f"fake_hw: {fake_hw.nodes.data()}")
+        return fake_hw
+
     def simulate(self, computation_dfg, hw):
         """
         Simulates one large DFG representing the whole computation.
@@ -260,7 +280,6 @@ class ConcreteSimulator:
         """
         self.reset_internal_variables()
 
-        i = 0
         frees = []
         mallocs = []
 
@@ -268,8 +287,28 @@ class ConcreteSimulator:
             {}
         )  # map from cfg node to digraph matcher w/ hw -> dfg node allocations
 
-        generations = nx.topological_generations(computation_dfg)
-        for gen in generations: # main loop over the computation graph
+        print(f"hw: {hw.netlist.nodes.data()}")
+        fake_hw = self.construct_fake_double_hw(hw)
+        for layer, nodes in enumerate(nx.topological_generations(fake_hw)):
+            # `multipartite_layout` expects the layer as a node attribute, so add the
+            # numeric layer value as a node attribute
+            for node in nodes:
+                fake_hw.nodes[node]["layer"] = layer
+
+        # # Compute the multipartite_layout using the "layer" node attribute
+        # pos = nx.multipartite_layout(fake_hw, subset_key="layer")
+
+        # fig, ax = plt.subplots(figsize=(9,9))
+        # nx.draw_networkx(fake_hw, pos=pos, ax=ax)
+        # plt.show()
+        counter = 0
+
+        generations = reversed(
+            list(nx.topological_generations(nx.reverse(computation_dfg)))
+        )
+        for gen in generations: # main loop over the computation graphs
+            print(f"counter: {counter}, gen: {gen}")
+            counter += 1
             temp_C = nx.DiGraph()
             for node in gen:
                 temp_C.add_nodes_from([(node, computation_dfg.nodes[node])])
@@ -277,18 +316,54 @@ class ConcreteSimulator:
                     if child not in temp_C.nodes:
                         temp_C.add_nodes_from([(child, computation_dfg.nodes[child])])
                     temp_C.add_edge(node, child)
-                for parent in computation_dfg.predecessors(node):
-                    if parent not in temp_C.nodes:
-                        temp_C.add_nodes_from([(parent, computation_dfg.nodes[parent])])
-                    temp_C.add_edge(parent, node)
+                # for parent in computation_dfg.predecessors(node):
+                #     if parent not in temp_C.nodes:
+                #         temp_C.add_nodes_from([(parent, computation_dfg.nodes[parent])])
+                #     temp_C.add_edge(parent, node)
+                ## ================= ADD ACTIVE ENERGY CONSUMPTION =================
+                scaling = 1
+                node_data = computation_dfg.nodes[node]
+                if node_data["function"] in ["Buf", "MainMem"]:
+                    # active power should scale by size of the object being accessed.
+                    # all regs have the same size, so no need to scale.
+                    scaling = node_data["size"]
+                self.total_energy += (
+                    hw.dynamic_power[node_data["function"]] * 1e-9
+                    * scaling
+                    * (hw.latency[node_data["function"]] / hw.frequency)
+                )
+                hw.compute_operation_totals[node_data["function"]] += 1
+
+            print(f"temp_c: {temp_C.nodes.data()}")
+
+            def matcher_func(n1, n2):
+                res = n1["function"] == n2["function"] or n2["function"] == None or n2["function"] == "stall"
+                if n2["function"] == None or n2["function"] == "stall":
+                    print(f"n1[function]: {n1['function']}, n2[function]: {n2['function']}, res: {res}")
+                return res
+
             dgm = nx.isomorphism.DiGraphMatcher(
-                hw.netlist,
+                fake_hw,
                 temp_C,
-                node_match=lambda n1, n2: n1["function"] == n2["function"]
-                or n2["function"] == None  # hw_graph can have no ops
-                or n2["function"] == "stall" # stalls match with anything
-                or n2["allocation"] == f"{n1['function']}{n1['idx']}", # match with already allocated hw 
+                node_match=matcher_func,
+                #lambda n1, n2: n1["function"] == n2["function"]
+                #or n2["function"] == None  # hw_graph can have no ops
+                #or n2["function"] == "stall" # stalls match with anything
+                # or n2["allocation"] == f"{n1['function']}{n1['idx']}", # match with already allocated hw - TODO: VERIFY THIS
             )
+
+            is_monomorphic = dgm.subgraph_is_monomorphic()
+            print(f"is_monomorphic: {is_monomorphic}")
+            if not is_monomorphic:
+                print(f"fake_hw: {fake_hw.nodes.data()}")
+                fig, ax = plt.subplots(1,2, figsize=(9, 9))
+                pos = nx.multipartite_layout(temp_C, subset_key="layer")
+                nx.draw_networkx(temp_C, pos=pos, ax=ax[0])
+                ax[0].set_title("temp_C")
+                pos = nx.multipartite_layout(fake_hw, subset_key="layer")
+                nx.draw_networkx(fake_hw, pos=pos, ax=ax[1])
+                ax[1].set_title("fake_hw")
+                plt.show()
 
             mapping = dgm.subgraph_monomorphisms_iter().__next__()
             for hw_node, op in mapping.items():
@@ -297,7 +372,8 @@ class ConcreteSimulator:
                     computation_dfg.nodes[op]["allocation"] = hw_node
                     temp_C.nodes[op]["allocation"] = hw_node
 
-       
+        self.cycles = nx.dag_longest_path_length(computation_dfg)
+        '''
         # iterate through nodes in data flow graph
         while i < len(self.data_path):
             
@@ -325,7 +401,7 @@ class ConcreteSimulator:
             
             # print(f"hw_graph before verify_can_execute: {str(hw_graph)}")
             
-            '''# === Count mem usage in this node === Do this shit some better way
+            # === Count mem usage in this node === Do this shit some better way
             mem_in_use = self.get_mem_usage_of_dfg_node(
                 hw_graph,
                 list(hardwareModel.get_memory_node(hw.netlist).values())[0][
@@ -338,7 +414,7 @@ class ConcreteSimulator:
                 self.max_regs_inuse,
             )
             self.max_mem_inuse = max(self.max_mem_inuse, mem_in_use)
-            # === End count mem usage ==='''
+            # === End count mem usage ===
 
             # print(f"hw_graph before localize_memory: {str(hw_graph)}")
             self.localize_memory(hw, hw_graph)
@@ -377,7 +453,7 @@ class ConcreteSimulator:
                 )
             mallocs = []
             frees = []
-
+        '''
         # add all passive power at the end.
         # This is done here for the dynamic allocation case where we don't know how many
         # compute elements we need until we run the program.
@@ -385,7 +461,7 @@ class ConcreteSimulator:
             scaling = 1
             if elem_data["function"] in ["Regs", "Buf", "MainMem"]:
                 scaling = elem_data["size"]
-            
+
             self.total_energy += (
                 hw.leakage_power[elem_data["function"]]
                 * 1e-9
@@ -398,7 +474,7 @@ class ConcreteSimulator:
                 hw.netlist.nodes[node]["allocation"]
             )
 
-    def simulate(self, cfg, cfg_node_to_hw_map, hw):
+    def _simulate(self, cfg, cfg_node_to_hw_map, hw):
         self.reset_internal_variables()
         cur_node = cfg.entryblock
 
@@ -635,15 +711,22 @@ class ConcreteSimulator:
         # self.new_graph.gv_graph.render(self.path + '/benchmarks/pictures/memory_graphs/' + sys.argv[1][sys.argv[1].rfind('/')+1:], view = True)
 
     def set_data_path(self):
+        """
+        Keep track of variable values as they are updated.
+        This is used primarily for index values in order to properly account for data dependencies.
+        returns:
+            data_path_vars: a list of dictionaries where each dictionary represents the variable values at a given node in the data path.
+        """
         with open(self.path + "/instrumented_files/output.txt", "r") as f:
             src = f.read()
             l = src.split("\n")
-            split_lines = [l_.split() for l_ in l]  # idk what's happening here.
+            split_lines = [l_.split() for l_ in l]  # separate by whitespace
 
             last_line = "-1"
             last_node = "-1"
             valid_names = set()
             nvm_vars = {}
+            data_path_vars = []
 
             # count reads and writes on first pass.
             for i in range(len(split_lines)):
@@ -674,6 +757,8 @@ class ConcreteSimulator:
                     self.total_write_size += int(item[-1])
                     self.where_to_free[var_name] = i
 
+            vars = {}
+            self.data_path.append([""])
             # second pass, construct trace that simulator follows.
             for i in range(len(split_lines)):
                 item = split_lines[i]
@@ -683,6 +768,8 @@ class ConcreteSimulator:
                         var_size = self.vars_allocated[var_name]
                         # f_new.write("free " + str(var_size) + " " + var_name + "\n")
                         self.data_path.append(["free", str(var_size), var_name])
+                        data_path_vars.append(vars.copy())
+                        vars = {}
                         vars_to_pop.append(var_name)
                         self.cur_memory_size -= var_size
                         self.vars_allocated.pop(var_name)
@@ -692,8 +779,12 @@ class ConcreteSimulator:
                     last_node = item[0]
                     last_line = item[1]
                     self.data_path.append(item)
+                    data_path_vars.append(vars.copy())
+                    vars = {}
                 elif len(item) == 1 and item[0].startswith("pattern_seek"):
                     self.data_path.append(item)
+                    data_path_vars.append(vars.copy())
+                    vars = {}
                 elif len(item) >= 3 and item[0] == "malloc":
                     if item[2] in self.vars_allocated:
                         if int(item[1]) == self.vars_allocated[item[2]]:
@@ -703,14 +794,21 @@ class ConcreteSimulator:
                         # f_new.write(l[i] + '\n')
                         self.cur_memory_size -= int(self.vars_allocated[item[2]])
                     self.data_path.append(item)
+                    data_path_vars.append(vars.copy())
+                    vars = {}
                     self.vars_allocated[item[2]] = int(item[1])
                     # print(self.vars_allocated)
                     self.cur_memory_size += int(item[1])
                     self.memory_needed = max(self.memory_needed, self.cur_memory_size)
+                elif len(item) == 4:
+                    if item[1].isnumeric():
+                        vars[item[0]] = int(item[1])
+            data_path_vars.append(vars)
         # print(f"data_path: {self.data_path}")
         self.nvm_memory_needed = sum(nvm_vars.values())
         print(f"memory needed: {self.memory_needed} bytes")
         print(f"nvm memory needed: {self.nvm_memory_needed} bytes")
+        return data_path_vars
 
     def update_data_path(self, new_data_path):
         self.data_path = new_data_path
@@ -732,7 +830,7 @@ class ConcreteSimulator:
         # NEW EDP CALCULATION
         self.edp = self.total_energy * self.execution_time
 
-    def compose_entire_computation_graph(self, cfg_node_to_hw_map, plot=False):
+    def compose_entire_computation_graph(self, cfg_node_to_hw_map, data_path_vars, plot=False):
         """
         Composes a large DFG from the smaller DFGs.
         Not currently used, doesn't handle register allocation very well.
@@ -751,20 +849,42 @@ class ConcreteSimulator:
         while i < len(self.data_path):
             # print(f"idx in compose: {i}")
             node_id = self.data_path[i][0]
+            vars = data_path_vars[i]
+
             node = self.id_to_node[node_id]
             hw_graph = cfg_node_to_hw_map[node]
+
             if nx.is_empty(hw_graph):
                 i = sim_util.find_next_data_path_index(self.data_path, i + 1, [], [])[0]
                 continue
+
+            # plug in index values for array accesses
+            for node in hw_graph.nodes:
+                var, id = node.split(";")
+                if len(var) == 1:
+                    continue
+                array = var.split("[")
+                if len(array) == 1: # not an array
+                    continue
+                var_name = array[0]
+                indices = [arr.split("]")[0] for arr in array[1:]]
+                for idx in indices:
+                    if idx in vars.keys():
+                        var_name += f"[{vars[idx]}]"
+                    else:
+                        var_name += f"[{idx}]"
+                var_name += f";{id}"
+                hw_graph = nx.relabel_nodes(hw_graph, {node: var_name})
+
             generations = list(nx.topological_generations(hw_graph))
             found_alignment = sim_util.rename_nodes(computation_dfg, hw_graph, generations, curr_last_nodes)
             # print(f"hw_graph.nodes after rename: {hw_graph.nodes}")
             computation_dfg = nx.compose(computation_dfg, hw_graph)
             # computation_dfg.add_nodes_from(hw_graph.nodes(data=True))
             generations = list(nx.topological_generations(hw_graph))
-            
+
             # if there's no alignment then independent, allow them to occur in parallel
-            # 
+            # MIGHT BE A BUG HERE
 
             # if not found_alignment:
             #     rand_first_node = rng.choice(generations[0])
@@ -775,9 +895,9 @@ class ConcreteSimulator:
             curr_last_nodes = generations[-1]
 
             i = sim_util.find_next_data_path_index(self.data_path, i + 1, [], [])[0]
-        
+
         # create end node and connect all last nodes to it
-        computation_dfg.add_node("end")
+        computation_dfg.add_node("end", function="end")
         generations = list(nx.topological_generations(computation_dfg))
         for node in generations[-1]:
             computation_dfg.add_edge(node, "end")
@@ -806,8 +926,8 @@ class ConcreteSimulator:
             # numeric layer value as a node attribute
             for node in nodes:
                 comp_graph.nodes[node]["layer"] = -1 * layer
-        
-    def simulator_prep(self, benchmark, latency):
+
+    def simulator_prep(self, benchmark, latency, hw_counts):
         """
         Creates CFG, and id_to_node
         params:
@@ -816,11 +936,21 @@ class ConcreteSimulator:
         """
         cfg, graphs, self.unroll_at = dfg_algo.main_fn(self.path, benchmark)
         cfg_node_to_hw_map = schedule.cfg_to_dfg(cfg, graphs, latency)
-        self.set_data_path()
+        data_path_vars = self.set_data_path()
+        print(f"data_path_vars:")
+        [print(f"{vars}, {path}") for vars, path in zip(data_path_vars, self.data_path)]
         for node in cfg:
             self.id_to_node[str(node.id)] = node
         # print(self.id_to_node)
-        return cfg, cfg_node_to_hw_map
+        computation_dfg = self.compose_entire_computation_graph(cfg_node_to_hw_map, data_path_vars, plot=False)
+        schedule.schedule(computation_dfg, hw_counts)
+        for layer, nodes in enumerate(reversed(list(nx.topological_generations(nx.reverse(computation_dfg))))):
+            # `multipartite_layout` expects the layer as a node attribute, so add the
+            # numeric layer value as a node attribute
+            for node in nodes:
+                computation_dfg.nodes[node]["layer"] = layer
+
+        return computation_dfg
 
     def init_new_compute_element(self, compute_unit):
         """
@@ -845,22 +975,19 @@ def main(args):
     # TODO: move this into cli arg
     # if args.architecture is None:
     #     args.architecture = "aladdin_const_with_mem"
-    hw = HardwareModel(cfg="tiny")
+    hw = HardwareModel(cfg="aladdin_const_with_mem")
 
-    cfg, cfg_node_to_hw_map = simulator.simulator_prep(args.benchmark, hw.latency)
+    computation_dfg = simulator.simulator_prep(args.benchmark, hw.latency, hw_counts=hardwareModel.get_func_count(hw.netlist))
 
-    computation_dfg = simulator.compose_entire_computation_graph(cfg_node_to_hw_map, plot=True)
-    
     # print(f"Data Path: {simulator.data_path}")
 
-   
     hw.init_memory(
         sim_util.find_nearest_power_2(simulator.memory_needed),
         sim_util.find_nearest_power_2(simulator.nvm_memory_needed),
     )
 
-    # nx.draw(hw.netlist, with_labels=True)
-    # plt.show()
+    nx.draw(hw.netlist, with_labels=True)
+    plt.show()
 
     simulator.transistor_size = hw.transistor_size  # in nm
     simulator.pitch = hw.pitch  # in um
@@ -895,10 +1022,7 @@ def main(args):
 
     # print stats
     print("total number of cycles: ", simulator.cycles)
-    avg_compute_power = 1e-6 * (
-        np.mean(list(simulator.active_power_use.values()))
-        + simulator.passive_power_dissipation_rate
-    )
+    avg_compute_power = simulator.total_energy / (simulator.cycles / hw.frequency) * 1e-3
     print(f"Avg compute Power: {avg_compute_power} mW")
     # print(f"total energy {sum(simulator.power_use)} nJ")
     avg_mem_power = np.mean(simulator.mem_power_use) + hw.mem_leakage_power

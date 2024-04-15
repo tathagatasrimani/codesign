@@ -96,12 +96,14 @@ def schedule(computation_graph, hw_element_counts):
     """
 
     hw_element_counts["stall"] = np.inf
+    print(f"hw_element_counts: {hw_element_counts}")
 
     pushed = []
     # going through the computation graph from the end to the beginning amd bubbling up operations
     generations = list(nx.topological_generations(nx.reverse(computation_graph)))
     layer = 0
     while layer < len(generations) or len(pushed) != 0:
+        # print(f"layer: {layer}; pushed: {pushed}")
         if layer == len(generations):
             generation = []
         else:
@@ -111,8 +113,8 @@ def schedule(computation_graph, hw_element_counts):
 
         # if any horizontal dependencies, push them to the next layer
         for node in generation:
+            computation_graph.nodes[node]["allocation"] = ""
             computation_graph.nodes[node]["layer"] = -layer
-            computation_graph.nodes[node]["allocation"] = None
 
             out_nodes = list(map(lambda x: x[1], computation_graph.out_edges(node)))
             intersect = set(out_nodes).intersection(set(generation))
@@ -123,10 +125,16 @@ def schedule(computation_graph, hw_element_counts):
         ]
 
         nodes = list(filter(lambda x: x[0] in generation, computation_graph.nodes.data()))
-        funcs, counts = np.unique(list(map(lambda x: x[1]["function"], nodes)), return_counts=True)
+        funcs, counts = np.unique(
+            list(map(lambda x: x[1]["function"], nodes)), return_counts=True
+        )
 
         for func, count in zip(funcs, counts): # for each function in the generation
+            # print(f"func: {func}; count: {count}")
+            if func == "start" or func == "end":
+                continue
             if count > hw_element_counts[func]:
+                # print(f"more ops than hw elements for {func}")
                 func_nodes = list(filter(lambda x: x[1]["function"] == func, nodes))
                 # diff = count - hw_element_counts[func]
                 # print(f"not enough resources for {func}; diff: {diff}")
@@ -137,9 +145,10 @@ def schedule(computation_graph, hw_element_counts):
                     # print(f"idx: {idx}; node: {func_nodes[idx][0]}")
                     # an out edge in comp_dfg is an in_edge in the reversed_graph
                     out_edges = list(computation_graph.out_edges(func_nodes[idx][0]))
-                    
+
                     assert len(out_edges) == 1
                     stall_name = f"stall_{layer}_{idx}_{func}_{rng.integers(0,100)}"
+                    # print(f"adding stall: {stall_name} for {func}")
                     computation_graph.add_node(
                         stall_name,
                         function="stall",
@@ -156,4 +165,3 @@ def schedule(computation_graph, hw_element_counts):
                     pushed.append(func_nodes[idx][0])
 
         layer = min(layer + 1, len(generations))
-        pass

@@ -64,6 +64,10 @@ def get_memory_node(netlist):
 def get_unique_funcs(netlist):
     return set(map(lambda v: v["function"], dict(netlist.nodes.data()).values()))
 
+
+def get_func_count(netlist):
+    return {func: num_nodes_with_func(netlist, func) for func in get_unique_funcs(netlist)}
+
 class HardwareModel:
     def __init__(
         self,
