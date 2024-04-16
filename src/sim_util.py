@@ -197,6 +197,7 @@ def get_dims(arr):
 
 def verify_can_execute(computation_graph, hw_spec_netlist, generation = None, should_update_arch=False):
     """
+    DEPRECATED?
     Determines whether or not the computation graph can be executed on the netlist
     specified in hw_spec.
 
@@ -431,8 +432,12 @@ def get_unique_node_name(G, node):
     return new_node
 
 
-def topological_layout_plot(graph):
-    for layer, nodes in enumerate(nx.topological_generations(graph)):
+def topological_layout_plot(graph, reverse=False):
+    generations = reversed(
+        list(nx.topological_generations(nx.reverse(graph)))
+    ) if reverse else nx.topological_generations(graph)
+    
+    for layer, nodes in enumerate(generations):
         # `multipartite_layout` expects the layer as a node attribute, so add the
         # numeric layer value as a node attribute
         for node in nodes:
@@ -441,7 +446,7 @@ def topological_layout_plot(graph):
     # Compute the multipartite_layout using the "layer" node attribute
     pos = nx.multipartite_layout(graph, subset_key="layer")
 
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=(9,9))
     nx.draw_networkx(graph, pos=pos, ax=ax)
     plt.show()
 

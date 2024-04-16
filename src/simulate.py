@@ -338,7 +338,7 @@ class ConcreteSimulator:
                 )
                 hw.compute_operation_totals[node_data["function"]] += 1
 
-            print(f"temp_c: {temp_C.nodes.data()}")
+            # print(f"temp_c: {temp_C.nodes.data()}")
 
             def matcher_func(n1, n2):
                 res = n1["function"] == n2["function"] or n2["function"] == None or n2["function"] == "stall" or n2["function"] == "end"
@@ -353,7 +353,7 @@ class ConcreteSimulator:
             )
 
             is_monomorphic = dgm.subgraph_is_monomorphic()
-            print(f"is_monomorphic: {is_monomorphic}")
+            # print(f"is_monomorphic: {is_monomorphic}")
             if not is_monomorphic:
                 print(f"fake_hw: {fake_hw.nodes.data()}")
                 fig, ax = plt.subplots(1,2, figsize=(9, 9))
@@ -849,7 +849,6 @@ class ConcreteSimulator:
         """
         computation_dfg = nx.DiGraph()
         curr_last_nodes = []
-        print(f"top of compose; length of data path: {len(self.data_path)}")
         i = sim_util.find_next_data_path_index(self.data_path, 0, [], [])[0]
         while i < len(self.data_path):
             # print(f"idx in compose: {i}")
@@ -910,27 +909,8 @@ class ConcreteSimulator:
         print(f"done composing computation graph")
 
         if plot:
-            for layer, nodes in enumerate(reversed(list(nx.topological_generations(nx.reverse(computation_dfg))))):
-                # `multipartite_layout` expects the layer as a node attribute, so add the
-                # numeric layer value as a node attribute
-                for node in nodes:
-                    computation_dfg.nodes[node]["layer"] = layer
-
-            # Compute the multipartite_layout using the "layer" node attribute
-            pos = nx.multipartite_layout(computation_dfg, subset_key="layer")
-
-            fig, ax = plt.subplots(figsize=(9,9))
-            nx.draw_networkx(computation_dfg, pos=pos, ax=ax)
-            plt.show()
+            sim_util.topological_layout_plot(computation_dfg, reverse=True)
         return computation_dfg
-
-    def rev_topo_sort_comp_graph(self, comp_graph):
-        rev = nx.reverse(comp_graph)
-        for layer, nodes in enumerate(nx.topological_generations(rev)):
-            # `multipartite_layout` expects the layer as a node attribute, so add the
-            # numeric layer value as a node attribute
-            for node in nodes:
-                comp_graph.nodes[node]["layer"] = -1 * layer
 
     def simulator_prep(self, benchmark, latency, hw_counts):
         """
@@ -954,6 +934,8 @@ class ConcreteSimulator:
             # numeric layer value as a node attribute
             for node in nodes:
                 computation_dfg.nodes[node]["layer"] = layer
+
+        # sim_util.topological_layout_plot(computation_dfg, reverse=True)
 
         return computation_dfg
 
