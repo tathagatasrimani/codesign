@@ -51,7 +51,7 @@ class ConcreteSimulator:
         self.cur_memory_size = 0
         self.new_graph = None  # this is just for visualization
         self.mem_layers = 0
-        self.transistor_size = 0
+        self.tech_node = 0
         self.pitch = 0
         self.cache_size = 0
         self.reads = 0
@@ -247,8 +247,8 @@ class ConcreteSimulator:
 
     def reset_internal_variables(self):
         self.cycles = 0
-        self.active_power_use = {}
-        self.passive_power_dissipation_rate = 0
+        # self.active_power_use = {}
+        # self.passive_power_dissipation_rate = 0
         self.total_energy = 0
 
     def construct_fake_double_hw(self, hw):
@@ -372,7 +372,6 @@ class ConcreteSimulator:
                     computation_dfg.nodes[op]["allocation"] = hw_node
                     temp_C.nodes[op]["allocation"] = hw_node
 
-
         self.cycles = nx.dag_longest_path_length(computation_dfg)
         print(f"cycles: {self.cycles}")
         '''
@@ -459,7 +458,7 @@ class ConcreteSimulator:
         # add all passive power at the end.
         # This is done here for the dynamic allocation case where we don't know how many
         # compute elements we need until we run the program.
-        print(f"total active energy: {self.total_energy}")
+        print(f"total active energy: {self.total_energy} J")
         print(f"adding passive energy;")
 
         for elem_name, elem_data in dict(hw.netlist.nodes.data()).items():
@@ -828,11 +827,7 @@ class ConcreteSimulator:
         )
 
     def calculate_edp(self, hw):
-        self.calculate_average_power()
         self.execution_time = self.cycles / hw.frequency # in seconds
-        # OLD EDP CALCULATION
-        # self.edp = self.avg_compute_power * 1e-3 * self.execution_time ** 2 # convert mW to W
-        # NEW EDP CALCULATION
         self.edp = self.total_energy * self.execution_time
 
     def compose_entire_computation_graph(self, cfg_node_to_dfg_map, data_path_vars, latency, plot=False):
@@ -929,6 +924,10 @@ class ConcreteSimulator:
         # print(self.id_to_node)
         computation_dfg = self.compose_entire_computation_graph(cfg_node_to_dfg_map, data_path_vars, latency, plot=False)
         schedule.schedule(computation_dfg, hw_counts)
+        nx.draw(computation_dfg, with_labels=True)
+        plt.show()
+        sim_util.topological_layout_plot(computation_dfg, reverse=True)
+
         for layer, nodes in enumerate(reversed(list(nx.topological_generations(nx.reverse(computation_dfg))))):
             # `multipartite_layout` expects the layer as a node attribute, so add the
             # numeric layer value as a node attribute
@@ -960,23 +959,16 @@ def main(args):
     simulator = ConcreteSimulator()
 
     # TODO: move this into cli arg
-    # if args.architecture is None:
-    #     args.architecture = "aladdin_const_with_mem"
     hw = HardwareModel(cfg="aladdin_const_with_mem")
 
     computation_dfg = simulator.simulator_prep(args.benchmark, hw.latency, hw_counts=hardwareModel.get_func_count(hw.netlist))
-
-    # print(f"Data Path: {simulator.data_path}")
 
     hw.init_memory(
         sim_util.find_nearest_power_2(simulator.memory_needed),
         sim_util.find_nearest_power_2(simulator.nvm_memory_needed),
     )
 
-    # nx.draw(hw.netlist, with_labels=True)
-    # plt.show()
-
-    simulator.transistor_size = hw.transistor_size  # in nm
+    simulator.tech_node = hw.transistor_size  # in nm
     simulator.pitch = hw.pitch  # in um
     simulator.mem_layers = hw.mem_layers
     if simulator.memory_needed < 1000000:
@@ -1003,33 +995,33 @@ def main(args):
 
     area = hw.get_total_area()
 
-    print(f"compute area: {area} um^2")
-    print(f"memory area: {hw.mem_area * 1e6} um^2")
-    print(f"total area: {(area + hw.mem_area*1e6)} um^2")
-
     # print stats
     print("total number of cycles: ", simulator.cycles)
     avg_compute_power = simulator.total_energy / (simulator.cycles / hw.frequency) * 1e-3
     print(f"Avg compute Power: {avg_compute_power} mW")
-    # print(f"total energy {sum(simulator.power_use)} nJ")
+    print(f"total energy {simulator.total_energy} nJ")
+
+    print(f"on chip area: {area} um^2")
+    print(f"off chip memory area: {hw.mem_area * 1e6} um^2")
+    print(f"total area: {(area + hw.mem_area*1e6)} um^2")
+
     avg_mem_power = np.mean(simulator.mem_power_use) + hw.mem_leakage_power
     print(f"Avg mem Power: {avg_mem_power} mW")
     print(f"Total power: {avg_mem_power + avg_compute_power} mW")
+
     print("total volatile reads: ", simulator.reads)
     print("total volatile read size: ", simulator.total_read_size)
     print("total nvm reads: ", simulator.nvm_reads)
     print("total nvm read size: ", simulator.total_nvm_read_size)
     print("total writes: ", simulator.writes)
     print("total write size: ", simulator.total_write_size)
-    print("total operations computed: ", hw.compute_operation_totals)
+
     print("max regs in use: ", simulator.max_regs_inuse)
     print(f"max memory in use: {simulator.max_mem_inuse} bytes")
 
+    print("total operations computed: ", hw.compute_operation_totals)
     print(f"hw allocations: {[(n, hw.netlist.nodes[n]['allocation']) for n in hw.netlist.nodes]}")
     print(f"hw allocated: {dict(hw.netlist.nodes.data())}")
-
-    # if args.filepath is not None:
-    #     nx.write_gml(hw.netlist, args.filepath, stringizer=lambda x: str(x))
 
     # save some dump of data to json file
     names = args.benchmark.split("/")
@@ -1041,17 +1033,17 @@ def main(args):
         with open(simulator.path + "/benchmarks/json_data/" + names[-1], "w") as fh:
             fh.write(text)
 
-    plt.plot(
-        list(simulator.active_power_use.keys()),
-        list(simulator.active_power_use.values()),
-        label="active power",
-    )
-    plt.title("power use for " + names[-1])
-    plt.xlabel("Cycle")
-    plt.ylabel("Power")
-    Path(simulator.path + "/benchmarks/power_plots").mkdir(parents=True, exist_ok=True)
-    plt.savefig("benchmarks/power_plots/power_use_" + names[-1] + ".pdf")
-    plt.clf()
+    # plt.plot(
+    #     list(simulator.active_power_use.keys()),
+    #     list(simulator.active_power_use.values()),
+    #     label="active power",
+    # )
+    # plt.title("power use for " + names[-1])
+    # plt.xlabel("Cycle")
+    # plt.ylabel("Power")
+    # Path(simulator.path + "/benchmarks/power_plots").mkdir(parents=True, exist_ok=True)
+    # plt.savefig("benchmarks/power_plots/power_use_" + names[-1] + ".pdf")
+    # plt.clf()
     print("done!")
     return simulator
 
