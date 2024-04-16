@@ -1,5 +1,5 @@
 import sys
-
+import numpy as np
 
 def instrument_read_sub(var, var_name: str, ind, lower, upper, slice):
     while var_name.startswith("instrument_read"):
@@ -23,7 +23,7 @@ def instrument_read_sub(var, var_name: str, ind, lower, upper, slice):
             else:
                 return var
     else:
-        print(var_name, var[ind], "Read", sys.getsizeof(var[ind]))
+        print(f"{var_name} {var[ind].tolist()} Read {sys.getsizeof(var[ind])}")
         return var[ind]
 
 def write_instrument_read_sub(var, var_name: str, ind, lower, upper, slice):
@@ -48,24 +48,40 @@ def write_instrument_read_sub(var, var_name: str, ind, lower, upper, slice):
             else:
                 return var
     else:
-        print(var_name, var[ind], "Write", sys.getsizeof(var[ind]))
+        print(
+            f"{var_name} {var[ind].tolist()} Write {sys.getsizeof(var[ind])}"
+        )
         return var[ind]
 
 def instrument_read(var, var_name: str):
     if not var_name:
         var_name = "None"
-    print(var_name, var, "Read", sys.getsizeof(var))
+    if type(var) is np.ndarray:
+        val = var.tolist() #np.array2string(var, max_line_width=np.inf)
+    else:
+        val = var
+    print(
+        f"{var_name} {val} Read {sys.getsizeof(var)}"
+    )
     return var
 
 def write_instrument_read(var, var_name: str):
     if not var_name:
         var_name = "None"
-    print(var_name, var, "Write", sys.getsizeof(var))
+    if type(var) is np.ndarray:
+        val = var.tolist() #np.array2string(var, max_line_width=np.inf)
+    else:
+        val = var
+    print(
+        f"{var_name} {val} Write {sys.getsizeof(var)}"
+    )
     return var
 
 def instrument_read_from_file(func, *args):
     vals = func(*args)
-    print(func.__name__, vals, "Read NVM", sys.getsizeof(vals))
+    print(
+        f"{func.__name__} {vals.tolist()} Read NVM {sys.getsizeof(vals)}"
+    )
     return vals
 
 class Object:
