@@ -5,7 +5,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import dfg_algo
-import schedule
 import hw_symbols
 
 rng = np.random.default_rng()

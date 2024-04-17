@@ -924,7 +924,7 @@ class ConcreteSimulator:
         # print(self.id_to_node)
         computation_dfg = self.compose_entire_computation_graph(cfg_node_to_dfg_map, data_path_vars, latency, plot=True)
         print(f"computation_dfg: {computation_dfg.nodes.data()}")
-        print(f"edges: {computation_dfg.edges.data()}")
+        print(f"\nedges: {computation_dfg.edges.data()}")
         schedule.schedule(computation_dfg, hw_counts)
         nx.draw(computation_dfg, with_labels=True)
         plt.show()

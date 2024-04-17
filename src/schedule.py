@@ -4,6 +4,8 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
 
+import sim_util
+
 # can't import hardware Model else will have circular imports
 # import hardwareModel
 
@@ -102,10 +104,13 @@ def schedule(computation_graph, hw_element_counts):
     # for longest path to get to it from a gen[0] node.
 
     gen_0 = list(nx.topological_generations(computation_graph))[0]
+    #reset layer:
+    for node in computation_graph.nodes:
+        computation_graph.nodes[node]["layer"] = -np.inf
     
 
     pushed = []
-    # going through the computation graph from the end to the beginning amd bubbling up operations
+    # going through the computation graph from the end to the beginning and bubbling up operations
     generations = list(nx.topological_generations(nx.reverse(computation_graph)))
     layer = 0
     while layer < len(generations) or len(pushed) != 0:
@@ -159,15 +164,22 @@ def schedule(computation_graph, hw_element_counts):
                         stall_name,
                         function="stall",
                         cost=func_nodes[idx][1]["cost"],
-                        layer=-1 * layer,
+                        layer= -layer,
                     )
-                    computation_graph.remove_edges_from(out_edges)
+                    print(f"adding stall: {computation_graph.nodes[stall_name]}")
                     computation_graph.add_edges_from(
                         [(stall_name, out_edges[0][1]), (func_nodes[idx][0], stall_name)]
                     )
-                    computation_graph.nodes[func_nodes[idx][0]]["layer"] = -1 * (
-                        layer + 1
-                    )
+                    computation_graph.remove_edges_from(out_edges)
+
+                    computation_graph.nodes[func_nodes[idx][0]]["layer"] -= 1 # bubble up
+                    print(f"node after bubbling: {computation_graph.nodes[func_nodes[idx][0]]}")
                     pushed.append(func_nodes[idx][0])
 
+        print(f"plotting processed graph")
+        processed_nodes = list(map(lambda x: x[0], filter(lambda x: x[1]["layer"] >= -layer, computation_graph.nodes.data())))
+        print(f"processed_nodes: {processed_nodes}")
+        processed_graph = nx.subgraph(computation_graph, processed_nodes)
+        sim_util.topological_layout_plot(processed_graph, )
+    
         layer = min(layer + 1, len(generations))
