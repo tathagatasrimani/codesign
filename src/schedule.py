@@ -98,12 +98,18 @@ def schedule(computation_graph, hw_element_counts):
     hw_element_counts["stall"] = np.inf
     print(f"hw_element_counts: {hw_element_counts}")
 
+    # do topo sort from beginning and add dist attribute to each node
+    # for longest path to get to it from a gen[0] node.
+
+    gen_0 = list(nx.topological_generations(computation_graph))[0]
+    
+
     pushed = []
     # going through the computation graph from the end to the beginning amd bubbling up operations
     generations = list(nx.topological_generations(nx.reverse(computation_graph)))
     layer = 0
     while layer < len(generations) or len(pushed) != 0:
-        # print(f"layer: {layer}; pushed: {pushed}")
+        print(f"layer: {layer}; pushed: {pushed}")
         if layer == len(generations):
             generation = []
         else:
