@@ -11,7 +11,7 @@ def rosenbrock(x):
 
 def grad_rosen(x):
   arr = np.array([200*(x[1]-x[0]**2)*(-2*x[0]) + 2*(x[0]-1), 200*(x[1]-x[0]**2)])
-  arr = np.repeat(arr, 2048)
+  arr = np.repeat(arr, 128)
   return arr
 
 
@@ -92,12 +92,13 @@ def conjugate_gradient(f, g, x0, iterations, error):
   return xk, i + 1
 
 if __name__ == '__main__':
-  x0 = np.zeros([4096])
+  x0 = np.zeros([256])
   error = 1e-4
-  max_iterations = 10000
+  max_iterations = 500
 
   #print '\n======= Conjugate Gradient Method ======\n'
   start = time.time()
   x, n_iter = conjugate_gradient(rosenbrock, grad_rosen, x0,
                                  iterations=max_iterations, error=error)
   end = time.time()
+  print(f"time: {end - start} seconds")

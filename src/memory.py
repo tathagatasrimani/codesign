@@ -78,14 +78,19 @@ class Memory:
         return next_free
 
     def parse_id(self, id):
+        """
+        How Currently this doesn't allow _ in actual variable names. treats _ as a priveleged character that only we 
+        can use in the instrumentation.
+        """
         words = id.split("_")
-        if len(words) == 1:
-            return id
-        else:
-            if words[-1].isdigit():
-                return "_".join(words[:-1])
-            else:
-                return id
+        return words[0]
+        # if len(words) == 1:
+        #     return id
+        # else:
+        #     if words[-1].isdigit():
+        #         return "_".join(words[:-1])
+        #     else:
+        #         return id
 
     # Takes in a requested size, and clears out a space in the heap for that block, if possible.
     # Uses the first fit method, iterating through the free list from the start until the first suitable
@@ -154,7 +159,7 @@ class Memory:
         """
         id = self.parse_id(id)
         if id in self.locations:
-            return self.locations[id].size
+            return self.locations[id].elem_size
         else:
             arr_name = sim_util.get_var_name_from_arr_access(id)
             if arr_name in self.locations:

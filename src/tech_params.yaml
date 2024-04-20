@@ -128,7 +128,7 @@ dynamic_power: # nw
     UAdd: 28.6781376
     USub: 32.8119232
     Buf: 0.0 # per byte? PLACEHOLDER
-    MainMem: 0.0 # per byte(?) per some unit of size; PLACEHOLDER
+    MainMem: 2.1e+6 # nw per byte 65 nm SRAM
   5:
     Add: 39.28512
     And: 64.62911
@@ -155,7 +155,7 @@ dynamic_power: # nw
     UAdd: 39.28512
     USub: 44.94784
     Buf: 0.0 # per byte? PLACEHOLDER
-    MainMem: 0.0 # per byte(?) per some unit of size; PLACEHOLDER
+    MainMem: 2.1e+6 # nw per byte 65 nm SRAM
   7:
     Add: 49.728
     And: 81.809
@@ -182,7 +182,7 @@ dynamic_power: # nw
     UAdd: 49.728
     USub: 56.896
     Buf: 0.0 # per byte? PLACEHOLDER
-    MainMem: 0.0 # per byte(?) per some unit of size; PLACEHOLDER
+    MainMem: 2.1e+6 # nw per byte
   40:
     Add: 2.836642e+05
     Sub: 2.836642e+05
@@ -209,7 +209,7 @@ dynamic_power: # nw
     UAdd: 2.836642e+05 # use add, unsure about this.
     USub: 2.836642e+05 # use add, unsure about this.
     Buf: 0.0 # per byte? PLACEHOLDER
-    MainMem: 100.0 # per byte(?) per some unit of size; PLACEHOLDER
+    MainMem: 2.1e+6 # nw per byte ; 65 nm SRAM
 latency: # num cycles
   3:
     Add: 12.755
@@ -237,7 +237,7 @@ latency: # num cycles
     UAdd: 12.755
     USub: 12.895
     Buf: 0.0 # per byte? PLACEHOLDER
-    MainMem: 4 # latency shouldn't be per byte. it should be per line size, which is like per word
+    MainMem: 23.795 # cycles per byte for 65 nm sram
   5:
     Add: 14.155
     And: 1.545
@@ -264,7 +264,7 @@ latency: # num cycles
     UAdd: 14.155
     USub: 14.31
     Buf: 0.0 # per byte? PLACEHOLDER
-    MainMem: 4 # latency shouldn't be per byte. it should be per line size, which is like per word
+    MainMem: 23.795 # cycles per byte for 65 nm sram
   7:
     Add: 16
     And: 1.75
@@ -291,7 +291,7 @@ latency: # num cycles
     UAdd: 16
     USub: 16.175
     Buf: 0.0 # per byte? PLACEHOLDER
-    MainMem: 4 # latency shouldn't be per byte. it should be per line size, which is like per word
+    MainMem: 23.795 # cycles per byte for 65 nm sram
   40:
     Add: 0.94
     Sub: 0.94
@@ -318,7 +318,7 @@ latency: # num cycles
     UAdd: 0.94 # use add, unsure about this.
     USub: 0.94 # use add, unsure about this.
     Buf: 0.0 # per byte? PLACEHOLDER
-    MainMem: 4 # latency shouldn't be per byte. it should be per line size, which is like per word
+    MainMem: 23.795 # cycles per byte for 65 nm sram
 leakage_power: # nw
   3:
     Add: 1722.410667
@@ -428,6 +428,8 @@ leakage_power: # nw
     USub: 3.265969e+03 # use add, unsure about this.
     Buf: 0.0 # per byte? PLACEHOLDER
     MainMem: 84.48 # nw per byte - 65nm SRAM
+
+
 mem_area: # mm^2 - these numbers are actually all for 65nm node
   3:
     1:
