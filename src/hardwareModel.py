@@ -125,7 +125,7 @@ class HardwareModel:
         self.pitch = pitch
         self.transistor_size = transistor_size
         self.cache_size = cache_size
-        self.frequency = frequency
+        self.frequency = frequency * 1.0
         self.V_dd = V_dd
 
     def init_memory(self, mem_needed, nvm_mem_needed):

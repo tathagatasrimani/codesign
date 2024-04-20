@@ -13,6 +13,9 @@ import optimize
 import hw_symbols
 from sim_util import generate_init_params_from_rcs_as_symbols
 import hardwareModel
+import equinox as eqx
+import jax.numpy as jnp
+import sympy2jax
 
 
 class Codesign:
@@ -141,13 +144,15 @@ class Codesign:
         edp = self.symbolic_sim.edp
 
         print(f"Initial EDP: {edp.subs(self.tech_params)} Js")
-        stdout = sys.stdout
-        with open("ipopt_out.txt", "w") as sys.stdout:
-            optimize.optimize(self.tech_params)
-        sys.stdout = stdout
-
-        f = open("ipopt_out.txt", "r")
-        self.parse_output(f)
+        if args.opt == "ipopt":
+            stdout = sys.stdout
+            with open("ipopt_out.txt", "w") as sys.stdout:
+                optimize.optimize(self.tech_params, edp, args.opt)
+            sys.stdout = stdout
+            f = open("ipopt_out.txt", "r")
+            self.parse_output(f)
+        else:
+            self.tech_params = optimize.optimize(self.tech_params, edp, args.opt)
         self.write_back_rcs()
         self.inverse_edp = edp.subs(self.tech_params)
 
@@ -211,7 +216,10 @@ if __name__ == "__main__":
         default="codesign_log_dir",
         help="Path to the save new architecture file",
     )
+    parser.add_argument("-o", "--opt", type=str)
     args = parser.parse_args()
-    print(f"args: benchmark: {args.benchmark}, trace:{args.notrace}, area:{args.area}")
+    if not args.opt:
+        args.opt = "ipopt"
+    print(f"args: benchmark: {args.benchmark}, trace:{args.notrace}, area:{args.area}, optimization:{args.opt}")
 
     main()
