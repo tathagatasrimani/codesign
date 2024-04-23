@@ -2,6 +2,12 @@ import os
 import subprocess
 from cacti_input import config_values
 
+
+"""
+Generates Cacti .cfg file based on input and cacti_input.
+Feeds .cfg into Cacti and runs.
+Retrieves timing and power values from Cacti run.
+"""
 def gen_vals(filename = "base_cache", cacheSize = 131072, blockSize = 64,
              associativity = 2, cache_type = "cache", debug = False):
   # values set in cactiCfg
@@ -216,3 +222,6 @@ def gen_vals(filename = "base_cache", cacheSize = 131072, blockSize = 64,
           output_values[27], output_values[28], output_values[29],
           output_values[30]);
 
+# for debugging
+#if __name__ == '__main__':
+#  print(gen_vals("test0"))
