@@ -193,7 +193,7 @@ def gen_vals(filename = "base_cache", cacheSize = 131072, blockSize = 64,
     "# -verbose \"F\""
   ]
 
-  cactiDir = os.path.join(os.path.dirname(__file__), './cacti_modified')
+  cactiDir = os.path.join(os.path.dirname(__file__), './cacti')
 
   # write file
   input_filename = filename + ".cfg"
