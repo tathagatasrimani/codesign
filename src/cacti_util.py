@@ -1,10 +1,6 @@
 import os
-import sys
-import tempfile
-import shutil
-import re
 import subprocess
-from cactiCfg import config_values
+from cacti_input import config_values
 
 def gen_vals(filename = "base_cache", cacheSize = 131072, blockSize = 64,
              associativity = 2, cache_type = "cache", debug = False):
