@@ -432,21 +432,22 @@ def get_unique_node_name(G, node):
 
 
 def topological_layout_plot(graph, reverse=False):
+    graph_copy = graph.copy()
     generations = reversed(
-        list(nx.topological_generations(nx.reverse(graph)))
-    ) if reverse else nx.topological_generations(graph)
+        list(nx.topological_generations(nx.reverse(graph_copy)))
+    ) if reverse else nx.topological_generations(graph_copy)
     
     for layer, nodes in enumerate(generations):
         # `multipartite_layout` expects the layer as a node attribute, so add the
         # numeric layer value as a node attribute
         for node in nodes:
-            graph.nodes[node]["layer"] = layer
+            graph_copy.nodes[node]["layer"] = layer
 
     # Compute the multipartite_layout using the "layer" node attribute
-    pos = nx.multipartite_layout(graph, subset_key="layer")
+    pos = nx.multipartite_layout(graph_copy, subset_key="layer")
 
     fig, ax = plt.subplots(figsize=(9,9))
-    nx.draw_networkx(graph, pos=pos, ax=ax)
+    nx.draw_networkx(graph_copy, pos=pos, ax=ax)
     plt.show()
 
 

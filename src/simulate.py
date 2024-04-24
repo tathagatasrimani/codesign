@@ -313,11 +313,21 @@ class ConcreteSimulator:
             counter += 1
             temp_C = nx.DiGraph()
             for node in gen:
+                child_added = False
                 temp_C.add_nodes_from([(node, computation_dfg.nodes[node])])
                 for child in computation_dfg.successors(node):
+                    if (
+                        computation_dfg.nodes[node]["function"] == "stall"
+                        and (computation_dfg.nodes[child]["function"] == "stall" or computation_dfg.nodes[child]["function"] == "end")
+                    ):
+                        continue
+
                     if child not in temp_C.nodes:
                         temp_C.add_nodes_from([(child, computation_dfg.nodes[child])])
+                        child_added = True
                     temp_C.add_edge(node, child)
+                
+
                 # for parent in computation_dfg.predecessors(node):
                 #     if parent not in temp_C.nodes:
                 #         temp_C.add_nodes_from([(parent, computation_dfg.nodes[parent])])
@@ -338,7 +348,7 @@ class ConcreteSimulator:
                 )
                 hw.compute_operation_totals[node_data["function"]] += 1
 
-            # print(f"temp_c: {temp_C.nodes.data()}")
+            print(f"temp_c: {temp_C.nodes()}\nedges: {temp_C.edges()}")
 
             def matcher_func(n1, n2):
                 res = n1["function"] == n2["function"] or n2["function"] == None or n2["function"] == "stall" or n2["function"] == "end"
@@ -352,8 +362,10 @@ class ConcreteSimulator:
                 node_match=matcher_func,
             )
 
+            print(f"constructed dgm")
+
             is_monomorphic = dgm.subgraph_is_monomorphic()
-            # print(f"is_monomorphic: {is_monomorphic}")
+            print(f"is_monomorphic: {is_monomorphic}")
             if not is_monomorphic:
                 print(f"fake_hw: {fake_hw.nodes.data()}")
                 fig, ax = plt.subplots(1,2, figsize=(9, 9))
@@ -367,11 +379,13 @@ class ConcreteSimulator:
 
             mapping = dgm.subgraph_monomorphisms_iter().__next__()
             for hw_node, op in mapping.items(): # this binding stuff has to change now with the stalls. Implement as graph coloring outside of sim?
-                if op in gen: # only bind ops in the current generation
+                if op in gen and "stall" not in op: # only bind ops in the current generation
+                    print(f"binding {op} to {hw_node}")
                     hw.netlist.nodes[hw_node]["allocation"].append(op.split(";")[0])
                     computation_dfg.nodes[op]["allocation"] = hw_node
                     temp_C.nodes[op]["allocation"] = hw_node
 
+        print(f"doing longest path")
         self.cycles = nx.dag_longest_path_length(computation_dfg)
         print(f"cycles: {self.cycles}")
         '''

@@ -104,11 +104,11 @@ def schedule(computation_graph, hw_element_counts):
     # for longest path to get to it from a gen[0] node.
 
     gen_0 = list(nx.topological_generations(computation_graph))[0]
-    #reset layer:
+    # reset layers:
     for node in computation_graph.nodes:
         computation_graph.nodes[node]["layer"] = -np.inf
-    
 
+    stall_counter = 0 # used to ensure unique stall names
     pushed = []
     # going through the computation graph from the end to the beginning and bubbling up operations
     generations = list(nx.topological_generations(nx.reverse(computation_graph)))
@@ -124,31 +124,34 @@ def schedule(computation_graph, hw_element_counts):
 
         # if any horizontal dependencies, push them to the next layer
         for node in generation:
-            computation_graph.nodes[node]["allocation"] = ""
-            computation_graph.nodes[node]["layer"] = -layer
-
             out_nodes = list(map(lambda x: x[1], computation_graph.out_edges(node)))
             intersect = set(out_nodes).intersection(set(generation))
             if intersect:
                 pushed.append(node)
+            else:
+                computation_graph.nodes[node]["allocation"] = ""
+                computation_graph.nodes[node]["layer"] = -layer
+        print(f"generation before removing horizontal: {generation}")
         generation = [
             item for item in generation if item not in pushed
         ]
+        print(f"generation after removing horizontal: {generation}")
 
-        nodes = list(filter(lambda x: x[0] in generation, computation_graph.nodes.data()))
-        funcs, counts = np.unique(
-            list(map(lambda x: x[1]["function"], nodes)), return_counts=True
+        nodes_in_gen = list(filter(lambda x: x[0] in generation, computation_graph.nodes.data()))
+        funcs_in_gen, counts_in_gen = np.unique(
+            list(map(lambda x: x[1]["function"], nodes_in_gen)), return_counts=True
         )
 
-        for func, count in zip(funcs, counts): # for each function in the generation
+        for func, count in zip(funcs_in_gen, counts_in_gen): # for each function in the generation
             # print(f"func: {func}; count: {count}")
             if func == "start" or func == "end":
                 continue
             if count > hw_element_counts[func]:
                 # print(f"more ops than hw elements for {func}")
-                func_nodes = list(filter(lambda x: x[1]["function"] == func, nodes))
-                # diff = count - hw_element_counts[func]
-                # print(f"not enough resources for {func}; diff: {diff}")
+                func_nodes = list(filter(lambda x: x[1]["function"] == func, nodes_in_gen))
+                diff = count - hw_element_counts[func]
+                print(f"not enough resources for {func}; diff: {diff}")
+                print(f"nodes in gen of type {func}: {func_nodes}")
 
                 start_idx = hw_element_counts[func]
                 # TODO: pic this range based on upstream length. Calculated by Dijkstra
@@ -158,7 +161,8 @@ def schedule(computation_graph, hw_element_counts):
                     out_edges = list(computation_graph.out_edges(func_nodes[idx][0]))
 
                     assert len(out_edges) == 1
-                    stall_name = f"stall_{layer}_{idx}_{func}_{rng.integers(0,100)}"
+                    stall_name = f"stall_{layer}_{idx}_{func}_{stall_counter}"
+                    stall_counter += 1
                     # print(f"adding stall: {stall_name} for {func}")
                     computation_graph.add_node(
                         stall_name,
@@ -166,20 +170,39 @@ def schedule(computation_graph, hw_element_counts):
                         cost=func_nodes[idx][1]["cost"],
                         layer= -layer,
                     )
-                    print(f"adding stall: {computation_graph.nodes[stall_name]}")
+                    # print(f"adding stall: {stall_name}: {computation_graph.nodes[stall_name]}")
                     computation_graph.add_edges_from(
                         [(stall_name, out_edges[0][1]), (func_nodes[idx][0], stall_name)]
                     )
                     computation_graph.remove_edges_from(out_edges)
 
-                    computation_graph.nodes[func_nodes[idx][0]]["layer"] -= 1 # bubble up
-                    print(f"node after bubbling: {computation_graph.nodes[func_nodes[idx][0]]}")
+                    computation_graph.nodes[func_nodes[idx][0]]["layer"] = -(layer + 1) # bubble up
+                    # print(f"node after bubbling: {func_nodes[idx][0]}: {computation_graph.nodes[func_nodes[idx][0]]}")
                     pushed.append(func_nodes[idx][0])
 
         print(f"plotting processed graph")
-        processed_nodes = list(map(lambda x: x[0], filter(lambda x: x[1]["layer"] >= -layer, computation_graph.nodes.data())))
+        hopeful_nodes = list(filter(
+            lambda x: x[1]["layer"] >= -layer, computation_graph.nodes.data()
+        ))
+        print(f"layers: {[x[1]['layer'] for x in hopeful_nodes]}")
+        processed_nodes = list(map(lambda x: x[0], hopeful_nodes))
         print(f"processed_nodes: {processed_nodes}")
         processed_graph = nx.subgraph(computation_graph, processed_nodes)
-        sim_util.topological_layout_plot(processed_graph, )
-    
+        # try:
+        #     sim_util.topological_layout_plot(processed_graph, reverse=False)
+        # except nx.exception.NetworkXUnfeasible as e:
+        #     print(f"Nx Exception: {e}")
+        #     nodes_at_this_layer = list(map(lambda x: x[0], filter(lambda x: x[1]["layer"] == -layer, computation_graph.nodes.data())))
+        #     print(f"nodes at this layer: {nodes_at_this_layer}")
+        #     print(f"edges: {computation_graph.out_edges(nodes_at_this_layer)}")
+        #     cycle_edges = nx.find_cycle(computation_graph)
+        #     print(f"cycle: {cycle_edges}")
+        #     nodes_1 = list(map(lambda x: x[0], cycle_edges))
+        #     nodes_2 = list(map(lambda x: x[1], cycle_edges))
+        #     nodes = nodes_1 + nodes_2
+        #     print(f"nodes_1: {nodes_1}")
+        #     cycle_graph = nx.DiGraph(nodes_1)
+        #     cycle_graph.add_edges_from(cycle_edges)
+        #     nx.draw(cycle_graph, with_labels=True)
+
         layer = min(layer + 1, len(generations))
