@@ -23,7 +23,10 @@ def instrument_read_sub(var, var_name: str, ind, lower, upper, slice):
             else:
                 return var
     else:
-        print(f"{var_name} {var[ind].tolist()} Read {sys.getsizeof(var[ind])}")
+        if type(var[ind]) is np.ndarray:
+            print(f"{var_name} {var[ind].tolist()} Read {sys.getsizeof(var[ind])}")
+        else:
+            print(f"{var_name} {var[ind]} Read {sys.getsizeof(var[ind])}")
         return var[ind]
 
 def write_instrument_read_sub(var, var_name: str, ind, lower, upper, slice):
@@ -48,9 +51,10 @@ def write_instrument_read_sub(var, var_name: str, ind, lower, upper, slice):
             else:
                 return var
     else:
-        print(
-            f"{var_name} {var[ind].tolist()} Write {sys.getsizeof(var[ind])}"
-        )
+        if type(var[ind]) is np.ndarray:
+            print(f"{var_name} {var[ind].tolist()} Write {sys.getsizeof(var[ind])}")
+        else:
+            print(f"{var_name} {var[ind]} Write {sys.getsizeof(var[ind])}")
         return var[ind]
 
 def instrument_read(var, var_name: str):

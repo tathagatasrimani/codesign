@@ -348,7 +348,7 @@ class ConcreteSimulator:
                 )
                 hw.compute_operation_totals[node_data["function"]] += 1
 
-            print(f"temp_c: {temp_C.nodes()}\nedges: {temp_C.edges()}")
+            # print(f"temp_c: {temp_C.nodes()}\nedges: {temp_C.edges()}")
 
             def matcher_func(n1, n2):
                 res = n1["function"] == n2["function"] or n2["function"] == None or n2["function"] == "stall" or n2["function"] == "end"
@@ -365,7 +365,7 @@ class ConcreteSimulator:
             print(f"constructed dgm")
 
             is_monomorphic = dgm.subgraph_is_monomorphic()
-            print(f"is_monomorphic: {is_monomorphic}")
+            # print(f"is_monomorphic: {is_monomorphic}")
             if not is_monomorphic:
                 print(f"fake_hw: {fake_hw.nodes.data()}")
                 fig, ax = plt.subplots(1,2, figsize=(9, 9))
@@ -940,9 +940,9 @@ class ConcreteSimulator:
         print(f"computation_dfg: {computation_dfg.nodes.data()}")
         print(f"\nedges: {computation_dfg.edges.data()}")
         schedule.schedule(computation_dfg, hw_counts)
-        nx.draw(computation_dfg, with_labels=True)
-        plt.show()
-        sim_util.topological_layout_plot(computation_dfg, reverse=True)
+        # nx.draw(computation_dfg, with_labels=True)
+        # plt.show()
+        # sim_util.topological_layout_plot(computation_dfg, reverse=True)
 
         for layer, nodes in enumerate(reversed(list(nx.topological_generations(nx.reverse(computation_dfg))))):
             # `multipartite_layout` expects the layer as a node attribute, so add the
@@ -975,7 +975,7 @@ def main(args):
     simulator = ConcreteSimulator()
 
     # TODO: move this into cli arg
-    hw = HardwareModel(cfg="aladdin_const_with_mem")
+    hw = HardwareModel(cfg="simple")
 
     computation_dfg = simulator.simulator_prep(args.benchmark, hw.latency, hw_counts=hardwareModel.get_func_count(hw.netlist))
 

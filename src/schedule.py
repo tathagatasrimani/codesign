@@ -114,7 +114,7 @@ def schedule(computation_graph, hw_element_counts):
     generations = list(nx.topological_generations(nx.reverse(computation_graph)))
     layer = 0
     while layer < len(generations) or len(pushed) != 0:
-        print(f"layer: {layer}; pushed: {pushed}")
+        # print(f"layer: {layer}; pushed: {pushed}")
         if layer == len(generations):
             generation = []
         else:
@@ -131,11 +131,11 @@ def schedule(computation_graph, hw_element_counts):
             else:
                 computation_graph.nodes[node]["allocation"] = ""
                 computation_graph.nodes[node]["layer"] = -layer
-        print(f"generation before removing horizontal: {generation}")
+        # print(f"generation before removing horizontal: {generation}")
         generation = [
             item for item in generation if item not in pushed
         ]
-        print(f"generation after removing horizontal: {generation}")
+        # print(f"generation after removing horizontal: {generation}")
 
         nodes_in_gen = list(filter(lambda x: x[0] in generation, computation_graph.nodes.data()))
         funcs_in_gen, counts_in_gen = np.unique(
@@ -150,8 +150,8 @@ def schedule(computation_graph, hw_element_counts):
                 # print(f"more ops than hw elements for {func}")
                 func_nodes = list(filter(lambda x: x[1]["function"] == func, nodes_in_gen))
                 diff = count - hw_element_counts[func]
-                print(f"not enough resources for {func}; diff: {diff}")
-                print(f"nodes in gen of type {func}: {func_nodes}")
+                # print(f"not enough resources for {func}; diff: {diff}")
+                # print(f"nodes in gen of type {func}: {func_nodes}")
 
                 start_idx = hw_element_counts[func]
                 # TODO: pic this range based on upstream length. Calculated by Dijkstra
@@ -160,7 +160,6 @@ def schedule(computation_graph, hw_element_counts):
                     # an out edge in comp_dfg is an in_edge in the reversed_graph
                     out_edges = list(computation_graph.out_edges(func_nodes[idx][0]))
 
-                    assert len(out_edges) == 1
                     stall_name = f"stall_{layer}_{idx}_{func}_{stall_counter}"
                     stall_counter += 1
                     # print(f"adding stall: {stall_name} for {func}")
@@ -171,8 +170,12 @@ def schedule(computation_graph, hw_element_counts):
                         layer= -layer,
                     )
                     # print(f"adding stall: {stall_name}: {computation_graph.nodes[stall_name]}")
+                    new_edges = []
+                    for edge in out_edges:
+                        new_edges.append((stall_name, edge[1]))
+                        new_edges.append((edge[0], stall_name)) # edge[0] is same as func_nodes[idx][0]
                     computation_graph.add_edges_from(
-                        [(stall_name, out_edges[0][1]), (func_nodes[idx][0], stall_name)]
+                        new_edges
                     )
                     computation_graph.remove_edges_from(out_edges)
 
@@ -180,13 +183,13 @@ def schedule(computation_graph, hw_element_counts):
                     # print(f"node after bubbling: {func_nodes[idx][0]}: {computation_graph.nodes[func_nodes[idx][0]]}")
                     pushed.append(func_nodes[idx][0])
 
-        print(f"plotting processed graph")
+        # print(f"plotting processed graph")
         hopeful_nodes = list(filter(
             lambda x: x[1]["layer"] >= -layer, computation_graph.nodes.data()
         ))
-        print(f"layers: {[x[1]['layer'] for x in hopeful_nodes]}")
+        # print(f"layers: {[x[1]['layer'] for x in hopeful_nodes]}")
         processed_nodes = list(map(lambda x: x[0], hopeful_nodes))
-        print(f"processed_nodes: {processed_nodes}")
+        # print(f"processed_nodes: {processed_nodes}")
         processed_graph = nx.subgraph(computation_graph, processed_nodes)
         # try:
         #     sim_util.topological_layout_plot(processed_graph, reverse=False)
