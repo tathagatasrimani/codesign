@@ -12,11 +12,6 @@ from sympy import *
 import sympy
 import pyomo.environ as pyo
 from pyomo.core.expr import Expr_if
-import sympy2jax
-import equinox as eqx
-import jax
-import jax.numpy as jnp
-import cvxpy as cp
 
 # custom modules
 from memory import Memory
@@ -557,82 +552,6 @@ def main():
 
     simulator.simulate(cfg, cfg_node_to_hw_map, hw)
     simulator.calculate_edp(hw)
-    
-    print(simulator.edp)
-    jmod = sympy2jax.SymbolicModule(simulator.edp)
-    starting_vals = [
-        1.1,
-        1.2,
-        1.4,
-        1.3,
-        2.0,
-        1.5,
-        1.6,
-        1.8,
-        1.9,
-        1.7,
-        5.0,
-        0.7
-    ]
-    Reff_Add_init = jnp.array(starting_vals[0])
-    Ceff_Add_init = jnp.array(starting_vals[1])
-    Reff_Regs_init = jnp.array(starting_vals[2])
-    Ceff_Regs_init = jnp.array(starting_vals[3])
-    Reff_Not_init = jnp.array(starting_vals[4])
-    MemReadL_init = jnp.array(starting_vals[5])
-    MemWriteL_init = jnp.array(starting_vals[6])
-    MemReadPact_init = jnp.array(starting_vals[7])
-    MemWritePact_init = jnp.array(starting_vals[8])
-    MemPpass_init = jnp.array(starting_vals[9])
-    f_init = jnp.array(starting_vals[10])
-    V_dd_init = jnp.array(starting_vals[11])
-    
-    args_arr = [
-        Reff_Add_init,
-        Ceff_Add_init,
-        Reff_Regs_init,
-        Ceff_Regs_init,
-        Reff_Not_init,
-        MemReadL_init,
-        MemWriteL_init,
-        MemReadPact_init,
-        MemWritePact_init,
-        MemPpass_init,
-        f_init,
-        V_dd_init
-    ]
-    grad_names = [
-        "Reff_Add",
-        "Ceff_Add",
-        "Reff_Regs",
-        "Ceff_Regs",
-        "Reff_Not",
-        "MemReadL",
-        "MemWriteL",
-        "MemReadPact",
-        "MemWritePact",
-        "MemPpass",
-        "f",
-        "V_dd"
-    ]
-    grad_map = {}
-    for name in grad_names:
-        grad_map[name] = get_grad(args_arr, jmod)
-        rotate_arr(args_arr)
-
-
-    print(f"Grad map:\n {grad_map}")
-    x = cp.Variable(len(grad_names))
-    lam = 1000
-    obj = lam * cp.norm1(starting_vals-x)
-    for i in range(len(grad_names)):
-        obj += grad_map[grad_names[i]] * x[i]
-    constr = []
-    for i in range(len(grad_names)):
-        constr += [x[i] >= starting_vals[i]*0.95, x[i] <= starting_vals[i]*1.05]
-    prob = cp.Problem(cp.Minimize(obj), constr)
-    prob.solve()
-    print(f"result: {x.value}")
 
 
     # simulator.edp = simulator.edp.simplify()

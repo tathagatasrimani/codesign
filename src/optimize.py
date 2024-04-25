@@ -177,10 +177,12 @@ def main():
     rcs = hw.get_optimization_params_from_tech_params()
     print(rcs)
     initial_params = generate_init_params_from_rcs_as_symbols(rcs)
+    edp = open("sympy.txt", "r")
+    edp = sympify(edp.readline())
     
-    results, initial_params, free_symbols, mapping = optimize(initial_params)
+    results = optimize(initial_params, edp, "ipopt")
 
-    return initial_params, free_symbols, mapping
+    return results
 
 
 if __name__ == "__main__":
