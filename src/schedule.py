@@ -79,6 +79,7 @@ def cfg_to_dfg(cfg, graphs, latency):
                             weight=latency[par.operation], # weight of edge is latency of parent
                         )
                     except KeyError:
+                        print(f"KeyError: {par.operation} for {par.value};{par.id} -> {cur_node.value};{cur_node.id}")
                         cfg_node_to_dfg_map[node].add_edge(
                             par.value, cur_node.value, weight=latency[par.operation]
                         )
@@ -115,7 +116,7 @@ def schedule(computation_graph, hw_element_counts):
     layer = 0
     while layer < len(generations) or len(pushed) != 0:
         # print(f"layer: {layer}; pushed: {pushed}")
-        if layer == len(generations):
+        if layer >= len(generations):
             generation = []
         else:
             generation = generations[layer]
@@ -138,6 +139,7 @@ def schedule(computation_graph, hw_element_counts):
         # print(f"generation after removing horizontal: {generation}")
 
         nodes_in_gen = list(filter(lambda x: x[0] in generation, computation_graph.nodes.data()))
+        print(f"layers in gen: {list(map(lambda x: x[1]['layer'], nodes_in_gen))}")
         funcs_in_gen, counts_in_gen = np.unique(
             list(map(lambda x: x[1]["function"], nodes_in_gen)), return_counts=True
         )
@@ -156,7 +158,8 @@ def schedule(computation_graph, hw_element_counts):
                 start_idx = hw_element_counts[func]
                 # TODO: pic this range based on upstream length. Calculated by Dijkstra
                 for idx in range(start_idx, count):
-                    # print(f"idx: {idx}; node: {func_nodes[idx][0]}")
+                    # print(f"idx: {idx}; node: {func_nodes[idx][0]}; removing node from gen")
+                    # generation.remove(func_nodes[idx][0])
                     # an out edge in comp_dfg is an in_edge in the reversed_graph
                     out_edges = list(computation_graph.out_edges(func_nodes[idx][0]))
 
@@ -208,4 +211,17 @@ def schedule(computation_graph, hw_element_counts):
         #     cycle_graph.add_edges_from(cycle_edges)
         #     nx.draw(cycle_graph, with_labels=True)
 
-        layer = min(layer + 1, len(generations))
+        curr_gen_nodes = list(filter(lambda x: x[1]["layer"] == -layer, computation_graph.nodes.data()))
+        funcs_in_gen, counts_in_gen = np.unique(
+            list(map(lambda x: x[1]["function"], curr_gen_nodes)), return_counts=True
+        )
+
+        for i, func in enumerate(funcs_in_gen):
+            if func in ["start", "end"]:
+                continue
+            assert counts_in_gen[i] <= hw_element_counts[func]
+
+        # print(f"funcs_in_gen: {funcs_in_gen}; counts_in_gen: {counts_in_gen}")
+        # print(f"hw_element_counts: {hw_element_counts}")
+
+        layer += 1

@@ -4,8 +4,7 @@ do
     case "${flag}" in
         n) name=${OPTARG};;
         q) QUIET=true;;
-        s) SEARCH=true;;
-        a) AREA=${OPTARG};;
+        a) ARCH=${OPTARG};;
         b) BW=${OPTARG};;
     esac
 done
@@ -16,15 +15,11 @@ if [ $name ]; then
     python instrument.py $FILEPATH
     python instrumented_files/xformed-$name > instrumented_files/output.txt
     ARGS=$FILEPATH
-    echo $SEARCH
-    if [ $SEARCH ]; then
-        ARGS+=" --archsearch"
-    fi
     if [ $QUIET ]; then
         ARGS+=" --notrace"
     fi
-    if [ $AREA ]; then
-        ARGS+=" --area $AREA"
+    if [ $ARCH ]; then
+        ARGS+=" --architecture $ARCH"
     fi
     if [ $BW ]; then
         ARGS+=" --bw $BW"

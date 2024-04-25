@@ -307,7 +307,7 @@ class ConcreteSimulator:
             list(nx.topological_generations(nx.reverse(computation_dfg)))
         )
         for gen in generations: # main loop over the computation graphs; 
-            print(f"counter: {counter}, gen: {gen}")
+            # print(f"counter: {counter}, gen: {gen}")
             if "end" in gen:  # skip the end node (only thing in the last generation)
                 break
             counter += 1
@@ -348,7 +348,7 @@ class ConcreteSimulator:
                 )
                 hw.compute_operation_totals[node_data["function"]] += 1
 
-            # print(f"temp_c: {temp_C.nodes()}\nedges: {temp_C.edges()}")
+            print(f"temp_c: {temp_C.nodes()}\nedges: {temp_C.edges()}")
 
             def matcher_func(n1, n2):
                 res = n1["function"] == n2["function"] or n2["function"] == None or n2["function"] == "stall" or n2["function"] == "end"
@@ -356,34 +356,34 @@ class ConcreteSimulator:
                 #     print(f"n1[function]: {n1['function']}, n2[function]: {n2['function']}, res: {res}")
                 return res
 
-            dgm = nx.isomorphism.DiGraphMatcher(
-                fake_hw,
-                temp_C,
-                node_match=matcher_func,
-            )
+            # dgm = nx.isomorphism.DiGraphMatcher(
+            #     fake_hw,
+            #     temp_C,
+            #     node_match=matcher_func,
+            # )
 
-            print(f"constructed dgm")
+            # print(f"constructed dgm")
 
-            is_monomorphic = dgm.subgraph_is_monomorphic()
-            # print(f"is_monomorphic: {is_monomorphic}")
-            if not is_monomorphic:
-                print(f"fake_hw: {fake_hw.nodes.data()}")
-                fig, ax = plt.subplots(1,2, figsize=(9, 9))
-                pos = nx.multipartite_layout(temp_C, subset_key="layer")
-                nx.draw_networkx(temp_C, pos=pos, ax=ax[0])
-                ax[0].set_title("temp_C")
-                pos = nx.multipartite_layout(fake_hw, subset_key="layer")
-                nx.draw_networkx(fake_hw, pos=pos, ax=ax[1])
-                ax[1].set_title("fake_hw")
-                plt.show()
+            # is_monomorphic = dgm.subgraph_is_monomorphic()
+            # # print(f"is_monomorphic: {is_monomorphic}")
+            # if not is_monomorphic:
+            #     print(f"fake_hw: {fake_hw.nodes.data()}")
+            #     fig, ax = plt.subplots(1,2, figsize=(9, 9))
+            #     pos = nx.multipartite_layout(temp_C, subset_key="layer")
+            #     nx.draw_networkx(temp_C, pos=pos, ax=ax[0])
+            #     ax[0].set_title("temp_C")
+            #     pos = nx.multipartite_layout(fake_hw, subset_key="layer")
+            #     nx.draw_networkx(fake_hw, pos=pos, ax=ax[1])
+            #     ax[1].set_title("fake_hw")
+            #     plt.show()
 
-            mapping = dgm.subgraph_monomorphisms_iter().__next__()
-            for hw_node, op in mapping.items(): # this binding stuff has to change now with the stalls. Implement as graph coloring outside of sim?
-                if op in gen and "stall" not in op: # only bind ops in the current generation
-                    print(f"binding {op} to {hw_node}")
-                    hw.netlist.nodes[hw_node]["allocation"].append(op.split(";")[0])
-                    computation_dfg.nodes[op]["allocation"] = hw_node
-                    temp_C.nodes[op]["allocation"] = hw_node
+            # mapping = dgm.subgraph_monomorphisms_iter().__next__()
+            # for hw_node, op in mapping.items(): # this binding stuff has to change now with the stalls. Implement as graph coloring outside of sim?
+            #     if op in gen and "stall" not in op: # only bind ops in the current generation
+            #         # print(f"binding {op} to {hw_node}")
+            #         hw.netlist.nodes[hw_node]["allocation"].append(op.split(";")[0])
+            #         computation_dfg.nodes[op]["allocation"] = hw_node
+            #         temp_C.nodes[op]["allocation"] = hw_node
 
         print(f"doing longest path")
         self.cycles = nx.dag_longest_path_length(computation_dfg)
@@ -936,7 +936,7 @@ class ConcreteSimulator:
         for node in cfg:
             self.id_to_node[str(node.id)] = node
         # print(self.id_to_node)
-        computation_dfg = self.compose_entire_computation_graph(cfg_node_to_dfg_map, data_path_vars, latency, plot=True)
+        computation_dfg = self.compose_entire_computation_graph(cfg_node_to_dfg_map, data_path_vars, latency, plot=False)
         print(f"computation_dfg: {computation_dfg.nodes.data()}")
         print(f"\nedges: {computation_dfg.edges.data()}")
         schedule.schedule(computation_dfg, hw_counts)
@@ -974,8 +974,7 @@ def main(args):
     print(f"Running simulator for {args.benchmark.split('/')[-1]}")
     simulator = ConcreteSimulator()
 
-    # TODO: move this into cli arg
-    hw = HardwareModel(cfg="simple")
+    hw = HardwareModel(cfg=args.architecture)
 
     computation_dfg = simulator.simulator_prep(args.benchmark, hw.latency, hw_counts=hardwareModel.get_func_count(hw.netlist))
 
@@ -1072,7 +1071,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("benchmark", metavar="B", type=str)
     parser.add_argument("--notrace", action="store_true")
-    parser.add_argument("--architecture", type=str, help="Path to the architecture file (.gml)")
+    parser.add_argument("--architecture", type=str, default="aladdin_const_with_mem", help="Path to the architecture file (.gml)")
     # parser.add_argument("-s", "--archsearch", action=argparse.BooleanOptionalAction)
     # parser.add_argument("-a", "--area", type=float, help="Max Area of the chip in um^2")
     # parser.add_argument(

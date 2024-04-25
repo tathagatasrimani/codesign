@@ -24,6 +24,8 @@ area: # nm^2
     Sub: 123.2123904
     UAdd: 123.2123904
     USub: 91.8111744
+    Buf: 0.0 # per byte? PLACEHOLDER
+    MainMem: 5.981433e+06 # per byte(?) per some unit of size; PLACEHOLDER
   5:
     Add: 155.61216
     And: 252.64008
@@ -49,6 +51,8 @@ area: # nm^2
     Sub: 208.83456
     UAdd: 208.83456
     USub: 155.61216
+    Buf: 0.0 # per byte? PLACEHOLDER
+    MainMem: 5.981433e+06 # per byte(?) per some unit of size; PLACEHOLDER
   7:
     Add: 282.9312
     And: 459.3456
@@ -74,6 +78,8 @@ area: # nm^2
     Sub: 379.6992
     UAdd: 379.6992
     USub: 282.9312
+    Buf: 0.0 # per byte? PLACEHOLDER
+    MainMem: 5.981433e+06 # per byte(?) per some unit of size; PLACEHOLDER
   40: # nm^2
     Add: 3.793488e+08 # 0.5 ns
     Sub: 3.793488e+08
@@ -428,6 +434,10 @@ leakage_power: # nw
     USub: 3.265969e+03 # use add, unsure about this.
     Buf: 0.0 # per byte? PLACEHOLDER
     MainMem: 84.48 # nw per byte - 65nm SRAM
+
+
+
+# OLD
 mem_area: # mm^2 - these numbers are actually all for 65nm node
   3:
     1:
