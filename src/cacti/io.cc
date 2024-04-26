@@ -2589,11 +2589,13 @@ void output_data_csv(const uca_org_t & fin_res, string fn)
       file << "Ntsam_level_2, ";
       file << "Tag arrary area efficiency %, ";
 
+      // MODIFIED to output CACTI IO metrics
       file << "IO area, ";
       file << "IO timing, ";
       file << "IO power dynamic, ";
       file << "IO power PHY, ";
       file << "IO power termination and bias, ";
+      // MODIFIED end
 
 //      file << "Resistance per unit micron (ohm-micron), ";
 //      file << "Capacitance per unit micron (fF per micron), ";
@@ -2708,12 +2710,13 @@ void output_data_csv(const uca_org_t & fin_res, string fn)
     	file << "N/A" << ", ";
     }
 
-
+    // MODIFIED to output CACTI IO metrics
     file << testextio.extio_area() << ", ";
     file << testextio.extio_eye() << ", ";
     file << testextio.extio_power_dynamic() << ", ";
     file << testextio.extio_power_phy() << ", ";
     file << testextio.extio_power_term() << ", ";
+    // MODIFIED end
 
 //    file << g_tp.wire_inside_mat.R_per_um << ", ";
 //    file << g_tp.wire_inside_mat.C_per_um / 1e-15 << ", ";
