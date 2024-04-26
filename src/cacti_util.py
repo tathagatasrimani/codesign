@@ -1,6 +1,6 @@
 import os
 import subprocess
-from cacti_input import config_values
+import yaml
 
 
 """
@@ -8,25 +8,29 @@ Generates Cacti .cfg file based on input and cacti_input.
 Feeds .cfg into Cacti and runs.
 Retrieves timing and power values from Cacti run.
 """
-def gen_vals(filename = "base_cache", cacheSize = 131072, blockSize = 64,
-             associativity = 2, cache_type = "cache", debug = False):
-  # values set in cactiCfg
-  if config_values['cache_size'] == -1:
-    config_values['cache_size'] = cacheSize
+def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
+             cache_type = None, bus_width = None, debug = False):
+  # load in default values
+  with open("cacti_input.yaml", 'r') as yamlfile:
+    config_values = yaml.safe_load(yamlfile)
 
-  if config_values['block_size'] == -1:
-    config_values['block_size'] = blockSize
+  # If user doesn't give input, default to cacti_input vals
+  if cacheSize == None:
+    cacheSize = config_values['cache_size']
 
-  if config_values['associativity'] == -1:
-    config_values['associativity'] = associativity
+  if blockSize == None:
+    blockSize = config_values['block_size']
 
-  if config_values['cache_type'] == "none":
-    config_values['cache_type'] = cache_type
+  if cache_type == None:
+    cache_type = config_values['cache_type']
+
+  if bus_width == None:
+    bus_width = config_values['output/input_bus_width']
 
   # lines written to [filename].cfg file
   cfg_lines = [
     "# Cache size",
-    "-size (bytes) {}".format(config_values['cache_size']),
+    "-size (bytes) {}".format(cacheSize),
     "",
     "# power gating",
     "-Array Power Gating - \"{}\"".format(config_values['Array_Power_Gating']),
@@ -37,7 +41,7 @@ def gen_vals(filename = "base_cache", cacheSize = 131072, blockSize = 64,
     "-Power Gating Performance Loss \"{}\"".format(config_values['Power_Gating_Performance_Loss']),
     "",
     "# Line size",
-    "-block size (bytes) {}".format(config_values['block_size']),
+    "-block size (bytes) {}".format(blockSize),
     "",
     "# To model Fully Associative cache, set associativity to zero",
     "-associativity {}".format(config_values['associativity']),
@@ -69,13 +73,13 @@ def gen_vals(filename = "base_cache", cacheSize = 131072, blockSize = 64,
     "-Tag array peripheral type - \"{}\"".format(config_values['Tag_array_peripheral_type']),
     "",
     "# Bus width include data bits and address bits required by the decoder",
-    "-output/input bus width {}".format(config_values['output/input_bus_width']),
+    "-output/input bus width {}".format(bus_width),
     "",
     "# 300-400 in steps of 10",
     "-operating temperature (K) {}".format(config_values['operating_temperature']),
     "",
     "# Type of memory",
-    "-cache type \"{}\"".format(config_values['cache_type']),
+    "-cache type \"{}\"".format(cache_type),
     "",
     "# to model special structure like branch target buffers, directory, etc.",
     "# change the tag size parameter",
