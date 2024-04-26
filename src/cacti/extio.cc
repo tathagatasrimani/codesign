@@ -8,7 +8,7 @@ io_param(iot){}
 
 //External IO AREA. Does not include PHY or decap, includes only IO active circuit. More details can be found in the CACTI-IO technical report (), Chapter 2.3.
 
-double Extio::extio_area()
+void Extio::extio_area()
 {
 
 	//Area per IO, assuming drive stage and ODT are shared
@@ -35,12 +35,12 @@ double Extio::extio_area()
 	
 	printf("IO Area (sq.mm) = ");
 	cout << io_area << endl;
-	return io_area;
+
 }
 
 //External IO Termination Power. More details can be found in the CACTI-IO technical report (), Chapter 2.1.
 
-double Extio::extio_power_term()
+void Extio::extio_power_term()
 {
 
 	//IO Termination and Bias Power
@@ -128,13 +128,12 @@ double Extio::extio_power_term()
 
 	printf("IO Termination and Bias Power (mW) = ");
 	cout << io_power_term << endl;
-	return io_power_term;
 }
 
 
 //External PHY Power and Wakeup Times. More details can be found in the CACTI-IO technical report (), Chapter 2.1.
 
-double Extio::extio_power_phy ()
+void Extio::extio_power_phy ()
 {
 
 
@@ -180,13 +179,13 @@ double Extio::extio_power_phy ()
 	cout << phy_power << " ";
 	printf("PHY Wakeup Time (us) = ");
 	cout << phy_wtime << endl;
-	return phy_power;
+
 }
 
 
 //External IO Dynamic Power. Does not include termination or PHY. More details can be found in the CACTI-IO technical report (), Chapter 2.1.
 
-double Extio::extio_power_dynamic()
+void Extio::extio_power_dynamic()
 {
 
 	if (io_param->io_type == Serial)
@@ -346,13 +345,12 @@ double Extio::extio_power_dynamic()
 
 	printf("IO Dynamic Power (mW) = ");
 	cout << io_power_dynamic << " ";
-	return io_power_dynamic;
 }
 
 
 //External IO Timing and Voltage Margins. More details can be found in the CACTI-IO technical report (), Chapter 2.2.
 
-double Extio::extio_eye()
+void Extio::extio_eye()
 {
 
 	if (io_param->io_type == Serial)
@@ -504,5 +502,5 @@ double Extio::extio_eye()
 	cout << io_tmargin <<endl;
 	printf("IO Votlage Margin (V) = ");
 	cout << io_vmargin << endl;
-	return io_tmargin;
+
 }
