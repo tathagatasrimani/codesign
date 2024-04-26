@@ -223,7 +223,7 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
     output_values = line.strip().split(', ')
 
   # access time (ns), search power (mW), read power (mW), write power (mW), leakage bank power (mW)
-  # IO: area, timing, dynamic power, PHY power, termination and bias power
+  # IO: area (sq.mm), timing (ps), dynamic power (mW), PHY power (mW), termination and bias power (mW)
   return (output_values[5], output_values[7], output_values[8],
           output_values[9], output_values[10],output_values[26],
           output_values[27], output_values[28], output_values[29],
