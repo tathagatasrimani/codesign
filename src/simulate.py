@@ -348,7 +348,7 @@ class ConcreteSimulator:
                 )
                 hw.compute_operation_totals[node_data["function"]] += 1
 
-            print(f"temp_c: {temp_C.nodes()}\nedges: {temp_C.edges()}")
+            # print(f"temp_c: {temp_C.nodes()}\nedges: {temp_C.edges()}")
 
             def matcher_func(n1, n2):
                 res = n1["function"] == n2["function"] or n2["function"] == None or n2["function"] == "stall" or n2["function"] == "end"

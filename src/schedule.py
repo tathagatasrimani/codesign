@@ -139,7 +139,7 @@ def schedule(computation_graph, hw_element_counts):
         # print(f"generation after removing horizontal: {generation}")
 
         nodes_in_gen = list(filter(lambda x: x[0] in generation, computation_graph.nodes.data()))
-        print(f"layers in gen: {list(map(lambda x: x[1]['layer'], nodes_in_gen))}")
+        # print(f"layers in gen: {list(map(lambda x: x[1]['layer'], nodes_in_gen))}")
         funcs_in_gen, counts_in_gen = np.unique(
             list(map(lambda x: x[1]["function"], nodes_in_gen)), return_counts=True
         )

@@ -131,13 +131,14 @@ def conv_layer(img, filt, numFilt, zero_pad, stride):
 #     return result
 
 def main():
-    zero_pad = 3
+    zero_pad = 0
     stride = 2
-    filt = np.random.randint(0, 100, size=(3, 7, 7))
-    img = np.random.randint(0, 100, size = (3, 24, 24))
+    num_filt = 1
+    filt = np.random.randint(0, 100, size=(3, 3, 3))
+    img = np.random.randint(0, 100, size = (3, 21, 21))
 
     # Block 1
-    img = conv_layer(img, filt, 1, zero_pad, stride)
+    img = conv_layer(img, filt, num_filt, zero_pad, stride)
     # weights = np.random.rand(len(img[0]))
     # biases = np.random.rand(len(img[0]))
     # img = BN_layer(img, 1, weights, biases)
