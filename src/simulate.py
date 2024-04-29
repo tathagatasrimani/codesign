@@ -844,83 +844,7 @@ class ConcreteSimulator:
         self.execution_time = self.cycles / hw.frequency # in seconds
         self.edp = self.total_energy * self.execution_time
 
-    def compose_entire_computation_graph(self, cfg_node_to_dfg_map, data_path_vars, latency, plot=False):
-        """
-        Composes a large DFG from the smaller DFGs.
-        Not currently used, doesn't handle register allocation very well.
-
-        Parameters:
-            cfg (CFG): The control flow graph of the program.
-            cfg_node_to_hw_map (dict): A mapping of CFG nodes to hardware graphs represented by nx.DiGraphs.
-
-        Returns:
-            nx.DiGraph: The large DFG composed from the smaller DFGs.
-        """
-        computation_dfg = nx.DiGraph()
-        curr_last_nodes = []
-        i = sim_util.find_next_data_path_index(self.data_path, 0, [], [])[0]
-        while i < len(self.data_path):
-            # print(f"idx in compose: {i}")
-            node_id = self.data_path[i][0]
-            vars = data_path_vars[i]
-
-            node = self.id_to_node[node_id]
-            dfg = cfg_node_to_dfg_map[node]
-
-            if nx.is_empty(dfg):
-                i = sim_util.find_next_data_path_index(self.data_path, i + 1, [], [])[0]
-                continue
-
-            # plug in index values for array accesses
-            for node in dfg.nodes:
-                var, id = node.split(";")
-                if len(var) == 1:
-                    continue
-                array = var.split("[")
-                if len(array) == 1: # not an array
-                    continue
-                var_name = array[0]
-                indices = [arr.split("]")[0] for arr in array[1:]]
-                for idx in indices:
-                    if idx in vars.keys():
-                        var_name += f"[{vars[idx]}]"
-                    else:
-                        var_name += f"[{idx}]"
-                var_name += f";{id}"
-                dfg = nx.relabel_nodes(dfg, {node: var_name})
-
-            generations = list(nx.topological_generations(dfg))
-            found_alignment = sim_util.rename_nodes(computation_dfg, dfg, generations, curr_last_nodes)
-            # print(f"hw_graph.nodes after rename: {hw_graph.nodes}")
-            computation_dfg = nx.compose(computation_dfg, dfg)
-            # computation_dfg.add_nodes_from(hw_graph.nodes(data=True))
-            generations = list(nx.topological_generations(dfg))
-
-            # if there's no alignment then independent, allow them to occur in parallel
-            # MIGHT BE A BUG HERE
-
-            # if not found_alignment:
-            #     rand_first_node = rng.choice(generations[0])
-            #     if len(curr_last_nodes) != 0:
-            #         curr_last_node = rng.choice(curr_last_nodes)
-            #         # print(f"adding edge from {curr_last_node} to {rand_first_node}")
-            #         computation_dfg.add_edge(curr_last_node, rand_first_node)
-            curr_last_nodes = generations[-1]
-
-            i = sim_util.find_next_data_path_index(self.data_path, i + 1, [], [])[0]
-
-        # create end node and connect all last nodes to it
-        computation_dfg.add_node("end", function="end")
-        generations = list(nx.topological_generations(computation_dfg))
-        for node in generations[-1]:
-            computation_dfg.add_edge(node, "end", weight=latency[computation_dfg.nodes[node]["function"]])
-
-        print(f"done composing computation graph")
-
-        if plot:
-            sim_util.topological_layout_plot(computation_dfg, reverse=True)
-        return computation_dfg
-
+    
     def simulator_prep(self, benchmark, latency, hw_counts):
         """
         Creates CFG, and id_to_node
@@ -936,9 +860,9 @@ class ConcreteSimulator:
         for node in cfg:
             self.id_to_node[str(node.id)] = node
         # print(self.id_to_node)
-        computation_dfg = self.compose_entire_computation_graph(cfg_node_to_dfg_map, data_path_vars, latency, plot=False)
-        print(f"computation_dfg: {computation_dfg.nodes.data()}")
-        print(f"\nedges: {computation_dfg.edges.data()}")
+        computation_dfg = sim_util.compose_entire_computation_graph(cfg_node_to_dfg_map, self.id_to_node, self.data_path, data_path_vars, latency, plot=False)
+        # print(f"computation_dfg: {computation_dfg.nodes.data()}")
+        # print(f"\nedges: {computation_dfg.edges.data()}")
         schedule.schedule(computation_dfg, hw_counts)
         # nx.draw(computation_dfg, with_labels=True)
         # plt.show()
@@ -999,11 +923,13 @@ def main(args):
 
     new_gv_graph = gv.Graph()
     simulator.new_graph = dfg_algo.Graph(set(), {}, new_gv_graph)
-    for elem_name, elem_data in dict(hw.netlist.nodes.data()).items():
-        # if elem == "Regs": continue
-        # simulator.compute_element_to_node_id[elem] = []
-        # looks like there's a lot of setup stuff that depends on the amount of hw allocated.
-        simulator.init_new_compute_element(elem_data["function"])
+
+    # THIS SHOULD BE IN CODESIGN, NOT IN SIMULATOR
+    # for elem_name, elem_data in dict(hw.netlist.nodes.data()).items():
+    #     # if elem == "Regs": continue
+    #     # simulator.compute_element_to_node_id[elem] = []
+    #     # looks like there's a lot of setup stuff that depends on the amount of hw allocated.
+    #     simulator.init_new_compute_element(elem_data["function"])
 
     hardwareModel.un_allocate_all_in_use_elements(hw.netlist)
     data = simulator.simulate(computation_dfg, hw)
@@ -1017,7 +943,7 @@ def main(args):
     print(f"total energy {simulator.total_energy * 1e9} nJ")
 
     print(f"on chip area: {area} um^2")
-    
+
     # TODO: FIX THIS WITH CACTI
     # print(f"off chip memory area: {hw.mem_area * 1e6} um^2")
     # print(f"total area: {(area + hw.mem_area*1e6)} um^2")

@@ -4,7 +4,7 @@ do
     case "${flag}" in
         n) name=${OPTARG};;
         q) QUIET=true;;
-        a) AREA=${OPTARG};;
+        a) ARCH=${OPTARG};;
     esac
 done
 
@@ -17,9 +17,9 @@ if [ $name ]; then
     if [ $QUIET ]; then
         ARGS+=" --notrace"
     fi
-    # if [ $AREA ]; then
-    #     ARGS+=" --area $AREA"
-    # fi
+    if [ $ARCH ]; then
+        ARGS+=" --architecture $ARCH"
+    fi
 
     echo $ARGS
     python symbolic_simulate.py $ARGS
