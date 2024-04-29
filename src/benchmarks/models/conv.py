@@ -134,8 +134,8 @@ def main():
     zero_pad = 0
     stride = 2
     num_filt = 1
-    filt = np.random.randint(0, 100, size=(3, 3, 3))
-    img = np.random.randint(0, 100, size = (3, 21, 21))
+    filt = np.random.randint(0, 100, size=(1, 3, 3))
+    img = np.random.randint(0, 100, size = (1, 9, 9))
 
     # Block 1
     img = conv_layer(img, filt, num_filt, zero_pad, stride)

@@ -323,13 +323,18 @@ class HardwareModel:
         )
 
     def get_total_area(self):
+        """
+        Calculate on chip and off chip area. 
+        TODO: Implement off chip area calculation via cacti results.
+        """
         bw_scaling = 0.1  # check this
-        total_area = 0
+        self.on_chip_area = 0
+        self.off_chip_area = 0
         for node, data in self.netlist.nodes.data():
             scaling = 1
             if data["function"] in ["Regs", "Buf", "MainMem"]:
                 scaling = data["size"]
-            total_area += self.area[data["function"]] * scaling
+            self.on_chip_area += self.area[data["function"]] * scaling
         bw = 0
         for node in filter(
             lambda x: x[1]["function"] == "Buf", self.netlist.nodes.data()
@@ -338,9 +343,9 @@ class HardwareModel:
             in_edges = self.netlist.in_edges(node[0])
             filtered_edges = list(filter(lambda x: "MainMem" not in x[0], in_edges))
             bw += len(filtered_edges)
-        total_area += (bw - 1) * bw_scaling * self.area["MainMem"]
+        self.on_chip_area += (bw - 1) * bw_scaling * self.area["MainMem"]
 
-        return total_area * 1e-6  # convert from nm^2 to um^2
+        return self.on_chip_area * 1e-6  # convert from nm^2 to um^2
 
     def get_mem_compute_bw(self):
         """

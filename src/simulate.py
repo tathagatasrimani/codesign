@@ -473,7 +473,7 @@ class ConcreteSimulator:
         # This is done here for the dynamic allocation case where we don't know how many
         # compute elements we need until we run the program.
         print(f"total active energy: {self.total_energy} J")
-        print(f"adding passive energy;")
+        # print(f"adding passive energy;")
 
         for elem_name, elem_data in dict(hw.netlist.nodes.data()).items():
             scaling = 1
@@ -1012,17 +1012,20 @@ def main(args):
 
     # print stats
     print("total number of cycles: ", simulator.cycles)
-    avg_compute_power = simulator.total_energy / (simulator.cycles / hw.frequency) * 1e-3
+    avg_compute_power = simulator.total_energy / (simulator.cycles / hw.frequency) * 1e3
     print(f"Avg compute Power: {avg_compute_power} mW")
-    print(f"total energy {simulator.total_energy} nJ")
+    print(f"total energy {simulator.total_energy * 1e9} nJ")
 
     print(f"on chip area: {area} um^2")
-    print(f"off chip memory area: {hw.mem_area * 1e6} um^2")
-    print(f"total area: {(area + hw.mem_area*1e6)} um^2")
+    
+    # TODO: FIX THIS WITH CACTI
+    # print(f"off chip memory area: {hw.mem_area * 1e6} um^2")
+    # print(f"total area: {(area + hw.mem_area*1e6)} um^2")
 
-    avg_mem_power = np.mean(simulator.mem_power_use) + hw.mem_leakage_power
-    print(f"Avg mem Power: {avg_mem_power} mW")
-    print(f"Total power: {avg_mem_power + avg_compute_power} mW")
+    # TODO: FIX THESE WITH CACTI 
+    # avg_mem_power = np.mean(simulator.mem_power_use) + hw.mem_leakage_power
+    # print(f"Avg mem Power: {avg_mem_power} mW")
+    # print(f"Total power: {avg_mem_power + avg_compute_power} mW")
 
     print("total volatile reads: ", simulator.reads)
     print("total volatile read size: ", simulator.total_read_size)
@@ -1035,8 +1038,6 @@ def main(args):
     print(f"max memory in use: {simulator.max_mem_inuse} bytes")
 
     print("total operations computed: ", hw.compute_operation_totals)
-    print(f"hw allocations: {[(n, hw.netlist.nodes[n]['allocation']) for n in hw.netlist.nodes]}")
-    print(f"hw allocated: {dict(hw.netlist.nodes.data())}")
 
     # save some dump of data to json file
     names = args.benchmark.split("/")
