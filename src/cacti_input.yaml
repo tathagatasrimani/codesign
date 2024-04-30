@@ -1,5 +1,5 @@
 # Cache size
-cache_size: -1
+cache_size: 131072
 
 # Power gating
 Array_Power_Gating: "false"
@@ -10,10 +10,10 @@ Interconnect_Power_Gating: "false"
 Power_Gating_Performance_Loss: 0.01
 
 # Line size
-block_size: -1
+block_size: 64
 
 # To model Fully Associative cache, set associativity to zero
-associativity: -1
+associativity: 2
 read_write_port: 1
 exclusive_read_port: 0
 exclusive_write_port: 0
@@ -47,7 +47,7 @@ output/input_bus_width: 512
 operating_temperature: 360
 
 # Type of memory
-cache_type: "none"
+cache_type: "cache"
 
 # Tag size
 tag_size: "default"

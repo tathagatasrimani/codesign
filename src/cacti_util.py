@@ -208,11 +208,8 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
 
   cmd = ['./cacti', '-infile', input_filename]
 
-  result = subprocess.run(cmd, cwd=cactiDir, capture_output=True, text=True)
-
-  if result.returncode != 0:
-      print("Error occurred while running Cacti.")
-      print("Error output:", result.stderr)
+  p = subprocess.Popen(cmd, cwd=cactiDir)
+  p.wait()
 
   output_filename = filename + ".cfg.out"
   cactiOutput = os.path.join(cactiDir, output_filename)
@@ -231,4 +228,5 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
 
 # for debugging
 #if __name__ == '__main__':
-#  print(gen_vals("test0"))
+ # print(gen_vals("test0"))
+ # print(gen_vals("test1", 131072, 64, "cache", 512))
