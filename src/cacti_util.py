@@ -9,7 +9,8 @@ Feeds .cfg into Cacti and runs.
 Retrieves timing and power values from Cacti run.
 """
 def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
-             cache_type = None, bus_width = None, debug = False):
+             cache_type = None, bus_width = None, addr_timing = None,
+             debug = False):
   # load in default values
   with open("cacti_input.yaml", 'r') as yamlfile:
     config_values = yaml.safe_load(yamlfile)
@@ -26,6 +27,9 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
 
   if bus_width == None:
     bus_width = config_values['output/input_bus_width']
+
+  if addr_timing == None:
+    addr_timing = config_values['addr_timing']
 
   # lines written to [filename].cfg file
   cfg_lines = [
@@ -146,7 +150,7 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
     "# Memory State",
     "-io state \"{}\"".format(config_values['io_state']),
     "# Address bus timing",
-    "-addr_timing {}".format(config_values['addr_timing']),
+    "-addr_timing {}".format(addr_timing),
     "# Memory Density",
     "-mem_density {}".format(config_values['mem_density']),
     "# IO frequency",
@@ -227,6 +231,6 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
           output_values[30]);
 
 # for debugging
-#if __name__ == '__main__':
+# if __name__ == '__main__':
  # print(gen_vals("test0"))
- # print(gen_vals("test1", 131072, 64, "cache", 512))
+ # print(gen_vals("test1", 131072, 64, "cache", 512, 4.0))
