@@ -520,7 +520,7 @@ def topological_layout_plot(graph, reverse=False):
     generations = reversed(
         list(nx.topological_generations(nx.reverse(graph_copy)))
     ) if reverse else nx.topological_generations(graph_copy)
-    
+
     for layer, nodes in enumerate(generations):
         # `multipartite_layout` expects the layer as a node attribute, so add the
         # numeric layer value as a node attribute
@@ -532,6 +532,63 @@ def topological_layout_plot(graph, reverse=False):
 
     fig, ax = plt.subplots(figsize=(9,9))
     nx.draw_networkx(graph_copy, pos=pos, ax=ax)
+    plt.show()
+
+
+def topological_layout_plot_side_by_side(
+    graph1,
+    graph2,
+    reverse=False,
+    edge_labels=False,
+):
+    graph1_copy = graph1.copy()
+    generations = (
+        reversed(list(nx.topological_generations(nx.reverse(graph1_copy))))
+        if reverse
+        else nx.topological_generations(graph1_copy)
+    )
+
+    for layer, nodes in enumerate(generations):
+        # `multipartite_layout` expects the layer as a node attribute, so add the
+        # numeric layer value as a node attribute
+        for node in nodes:
+            graph1_copy.nodes[node]["layer"] = layer
+
+    # Compute the multipartite_layout using the "layer" node attribute
+    pos1 = nx.multipartite_layout(graph1_copy, subset_key="layer")
+
+    graph2_copy = graph2.copy()
+    generations = (
+        reversed(list(nx.topological_generations(nx.reverse(graph2_copy))))
+        if reverse
+        else nx.topological_generations(graph2_copy)
+    )
+
+    for layer, nodes in enumerate(generations):
+        # `multipartite_layout` expects the layer as a node attribute, so add the
+        # numeric layer value as a node attribute
+        for node in nodes:
+            graph2_copy.nodes[node]["layer"] = layer
+
+    # Compute the multipartite_layout using the "layer" node attribute
+    pos2 = nx.multipartite_layout(graph2_copy, subset_key="layer")
+
+    fig, ax = plt.subplots(1,2, figsize=(9, 9))
+    nx.draw_networkx(graph1_copy, pos=pos1, ax=ax[0])
+    nx.draw_networkx(graph2_copy, pos=pos2, ax=ax[1])
+
+    if edge_labels:
+        edges_1 = {}
+        edges_2 = {}
+        for u, v, data in graph1_copy.edges(data=True):
+            # print(f"u: {u}, v: {v}, data: {data}")
+            edges_1[(u, v)] = data['weight']  # Change 'weight' to your desired attribute name
+        for u, v, data in graph2_copy.edges(data=True):
+            # print(f"u: {u}, v: {v}, data: {data}")
+            edges_2[(u, v)] = data['weight']  # Change 'weight' to your desired attribute name
+        nx.draw_networkx_edge_labels(graph1_copy, pos1, edge_labels=edges_1, ax=ax[0])
+        nx.draw_networkx_edge_labels(graph2_copy, pos2, edge_labels=edges_2, ax=ax[1])
+       
     plt.show()
 
 

@@ -99,7 +99,7 @@ def schedule(computation_graph, hw_element_counts):
     """
 
     hw_element_counts["stall"] = np.inf
-    print(f"hw_element_counts: {hw_element_counts}")
+    # print(f"hw_element_counts: {hw_element_counts}")
 
     # do topo sort from beginning and add dist attribute to each node
     # for longest path to get to it from a gen[0] node.
@@ -175,8 +175,8 @@ def schedule(computation_graph, hw_element_counts):
                     # print(f"adding stall: {stall_name}: {computation_graph.nodes[stall_name]}")
                     new_edges = []
                     for edge in out_edges:
-                        new_edges.append((stall_name, edge[1]))
-                        new_edges.append((edge[0], stall_name)) # edge[0] is same as func_nodes[idx][0]
+                        new_edges.append((stall_name, edge[1], {"weight": computation_graph.edges[edge]["weight"]}))
+                        new_edges.append((edge[0], stall_name, {"weight": computation_graph.edges[edge]["weight"]})) # edge[0] is same as func_nodes[idx][0]
                     computation_graph.add_edges_from(
                         new_edges
                     )

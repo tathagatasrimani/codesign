@@ -4,6 +4,7 @@ from collections import deque
 import ast
 import configparser as cp
 import yaml
+import os
 
 import graphviz as gv
 from sympy import *
@@ -117,7 +118,7 @@ class HardwareModel:
                 )
         self.hw_allocated = {}
 
-        if path_to_graphml is not None:
+        if path_to_graphml is not None and os.path.exists(path_to_graphml):
             self.netlist = nx.read_gml(path_to_graphml)
             # print(f"netlist: {self.netlist.nodes.data()}")
         else:

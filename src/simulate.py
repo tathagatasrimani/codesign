@@ -66,6 +66,7 @@ class ConcreteSimulator:
 
     def simulate_cycles(self, hw_spec, computation_graph, total_cycles):
         """
+        DEPRECATED
         Simulates the operation of hardware over a number of cycles.
 
         Parameters:
@@ -268,7 +269,6 @@ class ConcreteSimulator:
                 child_idx = hw.netlist.nodes[child]["idx"] + func_counts[child_func]
                 new_child = f"{child_func}{child_idx}" if child_func != "MainMem" else f"Mem{child_idx}"
                 fake_hw.add_edge(node, new_child)
-        print(f"fake_hw: {fake_hw.nodes.data()}")
         return fake_hw
 
     def simulate(self, computation_dfg, hw):
@@ -287,7 +287,7 @@ class ConcreteSimulator:
             {}
         )  # map from cfg node to digraph matcher w/ hw -> dfg node allocations
 
-        print(f"hw: {hw.netlist.nodes.data()}")
+        # print(f"hw: {hw.netlist.nodes.data()}")
         fake_hw = self.construct_fake_double_hw(hw)
         for layer, nodes in enumerate(nx.topological_generations(fake_hw)):
             # `multipartite_layout` expects the layer as a node attribute, so add the
@@ -326,7 +326,6 @@ class ConcreteSimulator:
                         temp_C.add_nodes_from([(child, computation_dfg.nodes[child])])
                         child_added = True
                     temp_C.add_edge(node, child)
-                
 
                 # for parent in computation_dfg.predecessors(node):
                 #     if parent not in temp_C.nodes:
@@ -385,9 +384,11 @@ class ConcreteSimulator:
             #         computation_dfg.nodes[op]["allocation"] = hw_node
             #         temp_C.nodes[op]["allocation"] = hw_node
 
-        print(f"doing longest path")
+        # print(f"doing longest path")
         self.cycles = nx.dag_longest_path_length(computation_dfg)
         print(f"cycles: {self.cycles}")
+        longest_path = nx.dag_longest_path(computation_dfg)
+        print(f"longest_path: {longest_path}")
         '''
         # iterate through nodes in data flow graph
         while i < len(self.data_path):
@@ -474,23 +475,25 @@ class ConcreteSimulator:
         # compute elements we need until we run the program.
         print(f"total active energy: {self.total_energy} J")
         # print(f"adding passive energy;")
-
+        passive_energy = 0 
         for elem_name, elem_data in dict(hw.netlist.nodes.data()).items():
             scaling = 1
             if elem_data["function"] in ["Regs", "Buf", "MainMem"]:
                 scaling = elem_data["size"]
 
-            self.total_energy += (
+            passive_energy += (
                 hw.leakage_power[elem_data["function"]]
                 * 1e-9
                 * (self.cycles / hw.frequency)
                 * scaling
             )
+        print(f"total passive energy: {passive_energy} J")
 
-        for node in hw.netlist.nodes:
-            hw.netlist.nodes[node]["allocation"] = len(
-                hw.netlist.nodes[node]["allocation"]
-            )
+        # TODO: fix this before merge
+        # for node in hw.netlist.nodes:
+        #     hw.netlist.nodes[node]["allocation"] = len(
+        #         hw.netlist.nodes[node]["allocation"]
+        #     )
 
     def _simulate(self, cfg, cfg_node_to_hw_map, hw):
         self.reset_internal_variables()
@@ -844,8 +847,7 @@ class ConcreteSimulator:
         self.execution_time = self.cycles / hw.frequency # in seconds
         self.edp = self.total_energy * self.execution_time
 
-    
-    def simulator_prep(self, benchmark, latency, hw_counts):
+    def simulator_prep(self, benchmark, latency):
         """
         Creates CFG, and id_to_node
         params:
@@ -863,12 +865,18 @@ class ConcreteSimulator:
         computation_dfg = sim_util.compose_entire_computation_graph(cfg_node_to_dfg_map, self.id_to_node, self.data_path, data_path_vars, latency, plot=False)
         # print(f"computation_dfg: {computation_dfg.nodes.data()}")
         # print(f"\nedges: {computation_dfg.edges.data()}")
-        schedule.schedule(computation_dfg, hw_counts)
+        return computation_dfg
+
+    def schedule(self, computation_dfg, hw_counts):
+        copy = computation_dfg.copy()
+        schedule.schedule(copy, hw_counts)
         # nx.draw(computation_dfg, with_labels=True)
         # plt.show()
         # sim_util.topological_layout_plot(computation_dfg, reverse=True)
 
-        for layer, nodes in enumerate(reversed(list(nx.topological_generations(nx.reverse(computation_dfg))))):
+        for layer, nodes in enumerate(
+            reversed(list(nx.topological_generations(nx.reverse(computation_dfg))))
+        ):
             # `multipartite_layout` expects the layer as a node attribute, so add the
             # numeric layer value as a node attribute
             for node in nodes:
@@ -876,7 +884,7 @@ class ConcreteSimulator:
 
         # sim_util.topological_layout_plot(computation_dfg, reverse=True)
 
-        return computation_dfg
+        return copy
 
     def init_new_compute_element(self, compute_unit):
         """
@@ -900,8 +908,10 @@ def main(args):
 
     hw = HardwareModel(cfg=args.architecture)
 
-    computation_dfg = simulator.simulator_prep(args.benchmark, hw.latency, hw_counts=hardwareModel.get_func_count(hw.netlist))
-
+    computation_dfg = simulator.simulator_prep(args.benchmark, hw.latency)
+    computation_dfg = simulator.schedule(
+        computation_dfg, hw_counts=hardwareModel.get_func_count(hw.netlist)
+    )
     hw.init_memory(
         sim_util.find_nearest_power_2(simulator.memory_needed),
         sim_util.find_nearest_power_2(simulator.nvm_memory_needed),
@@ -948,7 +958,7 @@ def main(args):
     # print(f"off chip memory area: {hw.mem_area * 1e6} um^2")
     # print(f"total area: {(area + hw.mem_area*1e6)} um^2")
 
-    # TODO: FIX THESE WITH CACTI 
+    # TODO: FIX THESE WITH CACTI
     # avg_mem_power = np.mean(simulator.mem_power_use) + hw.mem_leakage_power
     # print(f"Avg mem Power: {avg_mem_power} mW")
     # print(f"Total power: {avg_mem_power + avg_compute_power} mW")

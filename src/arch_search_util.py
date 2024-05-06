@@ -8,6 +8,112 @@ from staticfg import CFG, Block
 import sim_util
 
 
+def generate_new_min_arch_on_whole_dfg(hw: HardwareModel, computation_dfg: nx.DiGraph):
+    """
+    Parameters:
+        hw (HardwareModel): The hardware model to use for simulation.
+        computation_dfg (nx.DiGraph): The data flow graph of the program.
+    """
+    func_counts = hardwareModel.get_func_count(computation_dfg)
+    for key in func_counts.keys():
+        if key in ["end", "start"]:
+            continue
+        name = f"{key}0"
+        if key in ["Regs", "MainMem", "Buf"]:
+            continue
+        else:
+            hw.netlist.add_node(name, function=key, type="pe", in_use=False, idx=0)
+    for node in hw.netlist.nodes():
+        for node_2 in hw.netlist.nodes():
+            if node != node_2:
+                hw.netlist.add_edge(node, node_2)
+
+    hw.netlist.add_nodes_from(
+        [
+            (
+                "Regs0",
+                {
+                    "function": "Regs",
+                    "size": 1,
+                    "type": "memory",
+                    "in_use": False,
+                    "idx": 0,
+                },
+            ),
+            (
+                "MainMem0",
+                {
+                    "function": "MainMem",
+                    "size": 1,
+                    "type": "memory",
+                    "in_use": False,
+                    "idx": 0,
+                },
+            ),
+            (
+                "Buf0",
+                {
+                    "function": "Buf",
+                    "size": 1,
+                    "type": "memory",
+                    "in_use": False,
+                    "idx": 0,
+                },
+            ),
+            (
+                "Regs1",
+                {
+                    "function": "Regs",
+                    "size": 1,
+                    "type": "memory",
+                    "in_use": False,
+                    "idx": 1,
+                },
+            ),
+            (
+                "MainMem1",
+                {
+                    "function": "MainMem",
+                    "size": 1,
+                    "type": "memory",
+                    "in_use": False,
+                    "idx": 1,
+                },
+            ),
+            (
+                "Buf1",
+                {
+                    "function": "Buf",
+                    "size": 1,
+                    "type": "memory",
+                    "in_use": False,
+                    "idx": 1,
+                },
+            ),
+        ]
+    )
+
+    hw.netlist.add_edges_from(
+        [
+            ("Buf0", "MainMem0"),
+            ("MainMem0", "Buf0"),
+            ("Buf1", "MainMem1"),
+            ("MainMem1", "Buf1"),
+            ("Buf0", "Regs0"),
+            ("Regs0", "Buf0"),
+            ("Buf1", "Regs1"),
+            ("Regs1", "Buf1"),
+        ]
+    )
+
+    for node in hw.netlist.nodes():
+        if hw.netlist.nodes[node]["function"] in ["Regs", "MainMem", "Buf"]:
+            continue
+        hw.netlist.add_edges_from(
+            [("Regs0", node), ("Regs1", node), (node, "Regs0"), (node, "Regs1")]
+        )
+
+
 def generate_new_min_arch(hw: HardwareModel, cfg_node_to_hw_map, data_path, id_to_node):
     """
     Dynamically generate the hardware for a given DFG.
@@ -81,11 +187,11 @@ def generate_unrolled_arch(
     print(f"Generating Unrolled Architecture...")
     # count statistics of data path
     unique, count = np.unique([str(elem) for elem in data_path], return_counts=True)
-    
+
     sorted_nodes = [
         x for _, x in sorted(zip(count, unique), key=lambda pair: pair[0], reverse=True)
     ]
-        
+
     # get number of continuous most common node:
     # there should be a better way to do this
     max_continuous = 1
@@ -114,7 +220,7 @@ def generate_unrolled_arch(
         # if area exceeds threshold, decrease unroll factor by 2x and try again
         if area_constraint is None:
             pass_area = True
-        
+
         if bw_constraint is None:
             pass_bw = True
 
@@ -205,10 +311,6 @@ def unroll_by_specified_factor(
     return new_data_path
 
 
-def pareto_pruning(hw: HardwareModel,
-    cfg_node_to_hw_map,
-    data_path,
-    id_to_node):
-    """
-    """
+def pareto_pruning(hw: HardwareModel, cfg_node_to_hw_map, data_path, id_to_node):
+    """ """
     pass

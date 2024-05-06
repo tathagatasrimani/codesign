@@ -40,60 +40,200 @@ def gen_new_arch(existing_arch, unroll_factor, cfg_node_to_hw_map, data_path, id
 
     return new_data_path
 
-def setup_arch_search(benchmark):
+def setup_arch_search(benchmark, arch_init_config):
     simulator = ConcreteSimulator()
 
-    # TODO: move this into cli arg
-    hw = hardwareModel.HardwareModel(cfg="aladdin_const_with_mem")
+    hw = hardwareModel.HardwareModel(cfg=arch_init_config)
 
-    cfg, cfg_node_to_hw_map = simulator.simulator_prep(benchmark, hw.latency)
+    # I need the unrolled dfg before I schedule.
+    computation_dfg = simulator.simulator_prep(
+        benchmark, hw.latency)
+    # make a copy of this here?
 
     hw.netlist = nx.DiGraph()
 
-    arch_search_util.generate_new_min_arch(hw, cfg_node_to_hw_map, simulator.data_path, simulator.id_to_node)
+    arch_search_util.generate_new_min_arch_on_whole_dfg(hw, computation_dfg)
 
+    print(f"hw netlist nodes: {hw.netlist.nodes}")
+    print(f"hw netlist edges: {hw.netlist.edges}")
+   
     hw.init_memory(
         sim_util.find_nearest_power_2(simulator.memory_needed),
         sim_util.find_nearest_power_2(simulator.nvm_memory_needed),
     )
 
     hardwareModel.un_allocate_all_in_use_elements(hw.netlist)
-   
-    cfg_node_to_hw_map_copy = {}
-    for key, val in cfg_node_to_hw_map.items():
-        cfg_node_to_hw_map_copy[key] = val.copy()
 
-    simulator.simulate(cfg, cfg_node_to_hw_map, hw)
+    # cfg_node_to_hw_map_copy = {}
+    # for key, val in cfg_node_to_hw_map.items():
+    #     cfg_node_to_hw_map_copy[key] = val.copy()
+
 
     # print(f"values in cfg_node_to_hw_map after:")
-    # [print(str(val)) for val in cfg_node_to_hw_map.values()]
+    # # [print(str(val)) for val in cfg_node_to_hw_map.values()]
 
-    unique, count = np.unique([str(elem) for elem in simulator.data_path], return_counts=True)
+    # unique, count = np.unique([str(elem) for elem in simulator.data_path], return_counts=True)
 
-    sorted_nodes = [
-        x for _, x in sorted(zip(count, unique), key=lambda pair: pair[0], reverse=True)
-    ]
+    # sorted_nodes = [
+    #     x for _, x in sorted(zip(count, unique), key=lambda pair: pair[0], reverse=True)
+    # ]
 
-    # get number of continuous most common node:
-    # there should be a better way to do this
-    max_continuous = 1
-    prev = 0
-    cont = 1
-    saved_elem = 0
-    for elem in simulator.data_path:
-        if elem == prev and str(elem) == sorted_nodes[0]:
-            saved_elem = elem
-            cont += 1
-        else:
-            if cont > max_continuous:
-                max_continuous = cont
-            cont = 1
-        prev = elem
+    # # get number of continuous most common node:
+    # # there should be a better way to do this
+    # max_continuous = 1
+    # prev = 0
+    # cont = 1
+    # saved_elem = 0
+    # for elem in simulator.data_path:
+    #     if elem == prev and str(elem) == sorted_nodes[0]:
+    #         saved_elem = elem
+    #         cont += 1
+    #     else:
+    #         if cont > max_continuous:
+    #             max_continuous = cont
+    #         cont = 1
+    #     prev = elem
 
     # print(f"max continuous: {max_continuous}")
-    return simulator, hw, cfg, cfg_node_to_hw_map, saved_elem, max_continuous
+    return simulator, hw, computation_dfg #cfg, cfg_node_to_hw_map, saved_elem, max_continuous
 
-def run_architecture_search(simulator, hw, cfg, cfg_node_to_hw_map, saved_elem, max_continuous, area_constraint, best_edp=None):
+def get_stalled_func_counts(scheduled_dfg):
+    # print(f"nodes in scheduled dfg: {scheduled_dfg.nodes}")
+    stalled_nodes = [node for node in scheduled_dfg.nodes(data=True) if node[1]["function"] == "stall"]
+    stalled_funcs, counts = np.unique(list(map(lambda x: x[0].split("_")[3], stalled_nodes)), return_counts=True)
+    return dict(zip(stalled_funcs, counts))
+
+def get_most_stalled_func(scheduled_dfg):
+    func_counts = get_stalled_func_counts(scheduled_dfg)
+    # print(f"most stalled funcs: {func_counts}")
+    return max(func_counts, key=func_counts.get)
+
+def sample_stalled_func(scheduled_dfg):
+    func_counts = get_stalled_func_counts(scheduled_dfg)
+    # print(f"most stalled funcs: {func_counts}")
+    try:
+        return rng.choice(list(func_counts.keys()), 1, p=list(func_counts.values())/sum(list(func_counts.values())))[0]
+    except:
+        print(f"func count values: {func_counts.values()}")
+        return rng.choice(list(func_counts.keys()), 1)[0]
+
+def update_hw_with_new_node(hw_netlist, scarce_function):
+    func_nodes = hardwareModel.get_nodes_with_func(hw_netlist, scarce_function)
+    idx = len(func_nodes)
+    hw_netlist.add_node(f"{scarce_function}{idx}", function=scarce_function, idx=idx, in_use=False, type="pe")
+    if scarce_function == "Regs":
+        hw_netlist.nodes[f"{scarce_function}{idx}"]["type"] = "memory"
+        hw_netlist.nodes[f"{scarce_function}{idx}"]["size"] = 1
+        # add edges to all pes
+        for node2 in list(map(lambda x: x[0], filter(lambda x: x[1]["type"] == "pe", hw_netlist.nodes.data()))):
+            hw_netlist.add_edge(f"{scarce_function}{idx}", node2)
+            hw_netlist.add_edge(node2, f"{scarce_function}{idx}")
+        # add add edges to all Bufs
+        for node2 in list(map(lambda x: x[0], filter(lambda x: x[1]["function"] == "Buf", hw_netlist.nodes.data()))):
+            hw_netlist.add_edge(f"{scarce_function}{idx}", node2)
+            hw_netlist.add_edge(node2, f"{scarce_function}{idx}")
+    elif scarce_function == "Buf":
+        hw_netlist[f"{scarce_function}{idx}"]["type"] = "memory"
+        hw_netlist[f"{scarce_function}{idx}"]["size"] = 1
+        # add edges to all Regs
+        for node2 in list(map(lambda x: x[0], filter(lambda x: x[1]["function"] == "Reg", hw_netlist.nodes.data()))):
+            hw_netlist.add_edge(f"{scarce_function}{idx}", node2)
+            hw_netlist.add_edge(node2, f"{scarce_function}{idx}")
+        # add edges to all MainMems
+        for node2 in list(map(lambda x: x[0], filter(lambda x: x[1]["function"] == "MainMem", hw_netlist.nodes.data()))):
+            hw_netlist.add_edge(f"{scarce_function}{idx}", node2)
+            hw_netlist.add_edge(node2, f"{scarce_function}{idx}")
+    elif scarce_function == "MainMem":
+        hw_netlist[f"{scarce_function}{idx}"]["type"] = "memory"
+        hw_netlist[f"{scarce_function}{idx}"]["size"] = 1
+        # add edges to all Bufs
+        for node2 in list(map(lambda x: x[0], filter(lambda x: x[1]["function"] == "Buf", hw_netlist.nodes.data()))):
+            hw_netlist.add_edge(f"{scarce_function}{idx}", node2)
+            hw_netlist.add_edge(node2, f"{scarce_function}{idx}")
+    else:
+        for node2 in hw_netlist.nodes:
+            if "Reg" in node2 or "Buf" in node2 or "MainMem" in node2 or node2 == f"{scarce_function}{idx}":
+                continue
+            hw_netlist.add_edge(f"{scarce_function}{idx}", node2)
+            hw_netlist.add_edge(node2, f"{scarce_function}{idx}")
+
+
+def run_arch_search(simulator, hw, computation_dfg, area_constraint, best_edp=None):
+
+    old_scheduled_dfg = simulator.schedule(
+            computation_dfg, hw_counts=hardwareModel.get_func_count(hw.netlist)
+        )
+    sim_util.topological_layout_plot_side_by_side(computation_dfg, old_scheduled_dfg, reverse=True)
+
+    simulator.simulate(old_scheduled_dfg, hw)
+    simulator.calculate_edp(hw)
+    area = hw.get_total_area()
+
+    if best_edp is None:
+        best_edp = simulator.edp
+    best_hw_netlist = hw.netlist.copy()
+
+    print(
+        f"Original EDP: {best_edp} Js; energy: {simulator.total_energy * 1e9} nJ; execution time: {simulator.execution_time} s, cycles: {simulator.cycles}; area: {area} um^2"
+    )
+
+    prev_edp = best_edp
+    prev_hw_netlist = hw.netlist.copy()
+
+    for i in range(20):
+        hw_copy = hw.netlist.copy()
+
+        func = sample_stalled_func(old_scheduled_dfg)
+        print(f"adding: {func}")
+
+        update_hw_with_new_node(hw_copy, func)
+
+        scheduled_dfg = simulator.schedule(
+            computation_dfg, hw_counts=hardwareModel.get_func_count(hw_copy)
+        )
+
+        func_counts  = get_stalled_func_counts(scheduled_dfg)
+        print(f"stalled_funcs: {func_counts}; total num stalled: {sum(func_counts.values())}")
+        # print(f"hw element counts: {hardwareModel.get_func_count(hw_copy)}")
+        if nx.is_isomorphic(old_scheduled_dfg, scheduled_dfg):
+            print("no change in schedule")
+            # continue
+        # print(f"old vs new schedule: {len(old_scheduled_dfg.nodes)} vs {len(scheduled_dfg.nodes)}")
+
+        sim_util.topological_layout_plot_side_by_side(
+            old_scheduled_dfg,
+            scheduled_dfg,
+            reverse=True,
+            edge_labels=True,
+        )
+
+        hw.netlist = hw_copy
+
+        simulator.simulate(scheduled_dfg, hw)
+        simulator.calculate_edp(hw)
+        print(f"EDP: {simulator.edp} Js")
+
+        area = hw.get_total_area()
+        print(f"Area: {area} um^2")
+        if area > area_constraint:
+            # shouldn't actually break here, because you can try other nodes that are smaller but still might have a good effect
+            break
+        elif simulator.edp < best_edp:
+            print(f"improved edp: {simulator.edp}")
+            best_edp = simulator.edp
+            best_hw_netlist = hw_copy
+
+        nx.draw(hw_copy, with_labels=True)
+        plt.show()
+
+        old_scheduled_dfg = scheduled_dfg
+
+    hw.netlist = best_hw_netlist
+
+    return best_edp
+
+
+def _run_architecture_search(simulator, hw, cfg, cfg_node_to_hw_map, saved_elem, max_continuous, area_constraint, best_edp=None):
     unroll_factor = max_continuous // 2
     possible_unroll_factors = range(1, max_continuous + 1)
     possible_unrolls_edp = [0] * max_continuous
@@ -199,14 +339,17 @@ def main():
 
     print(f"Running Architecture Search for {args.benchmark.split('/')[-1]}")
 
-    simulator, hw, cfg,cfg_node_to_hw_map, saved_elem, max_continuous = setup_arch_search(args.benchmark)
-    best_hw, best_edp = run_architecture_search(simulator, hw, cfg, cfg_node_to_hw_map, saved_elem, max_continuous, args.area)
-    
+    simulator, hw, computation_dfg= setup_arch_search(
+        args.benchmark, args.config
+    )  # cfg,cfg_node_to_hw_map, saved_elem, max_continuous
+
+    best_edp = run_arch_search(simulator, hw, computation_dfg, args.area)
+
     if args.filepath:
-        nx.write_gml(best_hw.netlist,f"architectures/{args.filepath}.gml", stringizer=lambda x: str(x))
+        nx.write_gml(hw.netlist,f"architectures/{args.filepath}.gml", stringizer=lambda x: str(x))
 
     print(f"Best EDP: {best_edp}")
-    nx.draw(best_hw.netlist, with_labels=True, )
+    nx.draw(hw.netlist, with_labels=True, )
     plt.show()
 
 
@@ -219,7 +362,7 @@ if __name__ == "__main__":
     parser.add_argument("benchmark", metavar="B", type=str)
     parser.add_argument("--notrace", action="store_true")
     parser.add_argument("-a", "--area", type=float, help="Max Area of the chip in um^2")
-
+    parser.add_argument("-c", "--config", type=str, help="Path to the architecture config file")
     parser.add_argument(
         "-f", "--filepath", type=str, help="Path to the save new architecture file"
     )
@@ -228,4 +371,4 @@ if __name__ == "__main__":
         f"args: benchmark: {args.benchmark}, trace:{args.notrace}, area:{args.area}, file: {args.filepath}"
     )
 
-    main(args)
+    main()

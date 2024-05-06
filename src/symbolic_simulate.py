@@ -114,7 +114,9 @@ class SymbolicSimulator:
                         max_cycles + path_latency + abs(max_cycles - path_latency)
                     )
                     max_cycles_ceil = 0.5 * (
-                        max_cycles_ceil + path_latency_ceil + abs(max_cycles_ceil - path_latency_ceil)
+                        max_cycles_ceil
+                        + path_latency_ceil
+                        + abs(max_cycles_ceil - path_latency_ceil)
                     )
 
         # remove Mem and Buf from computation graph, so it doesn't get duplicated
@@ -228,9 +230,9 @@ class SymbolicSimulator:
 
         counter = 0
 
-        generations = list(reversed(
-            list(nx.topological_generations(nx.reverse(computation_dfg)))
-        ))
+        generations = list(
+            reversed(list(nx.topological_generations(nx.reverse(computation_dfg))))
+        )
         for gen in generations:  # main loop over the computation graphs;
             # print(f"counter: {counter}, gen: {gen}")
             if "end" in gen:  # skip the end node (only thing in the last generation)
@@ -261,10 +263,10 @@ class SymbolicSimulator:
                     scaling = node_data["size"]
                 if node_data["function"] == "stall" or node_data["function"] == "end":
                     continue
-                self.total_active_energy += ( # WHY IS THERE NO SCALING HERE??
-                    hw_symbols.symbolic_power_active[node_data["function"]] * 
-                    scaling *
-                    hw_symbols.symbolic_latency_wc[node_data["function"]]
+                self.total_active_energy += (  # WHY IS THERE NO SCALING HERE??
+                    hw_symbols.symbolic_power_active[node_data["function"]]
+                    * scaling
+                    * hw_symbols.symbolic_latency_wc[node_data["function"]]
                 )
 
             # node_id = self.data_path[i][0]
@@ -310,9 +312,7 @@ class SymbolicSimulator:
             for end_node in generations[-1]:
                 if start_node == end_node:
                     continue
-                for path in nx.all_simple_paths(
-                    computation_dfg, start_node, end_node
-                ):
+                for path in nx.all_simple_paths(computation_dfg, start_node, end_node):
                     path_latency = 0
                     path_latency_ceil = 0
                     # print(f"path: {path}")
@@ -320,19 +320,15 @@ class SymbolicSimulator:
                         if computation_dfg.nodes()[node]["function"] == "end":
                             continue
                         elif computation_dfg.nodes()[node]["function"] == "stall":
-                            func = node.split("_")[3] # stall names have std formats
+                            func = node.split("_")[3]  # stall names have std formats
                         else:
                             func = computation_dfg.nodes()[node]["function"]
                         # print(f"node: {node}")
                         # print(f"computation_graph[{node}]: {computation_graph.nodes()[node]}")
                         # THIS PATH LATENCY MAY OR MAY NOT USE CYCLE TIME OR WALL CLOCK TIME DUE TO SOLVER INSTABILITY
-                        path_latency += hw_symbols.symbolic_latency_cyc[
-                            func
-                        ]
+                        path_latency += hw_symbols.symbolic_latency_cyc[func]
                         # THIS PATH LATENCY USES CYCLE TIME AS A REFERENCE FOR WHAT THE TRUE EDP IS
-                        path_latency_ceil += hw_symbols.symbolic_latency_cyc[
-                            func
-                        ]
+                        path_latency_ceil += hw_symbols.symbolic_latency_cyc[func]
                     self.cycles = 0.5 * (
                         self.cycles + path_latency + abs(self.cycles - path_latency)
                     )
@@ -411,7 +407,9 @@ class SymbolicSimulator:
                     state = new_state
                 self.localize_memory(hw, computation_graph)
 
-                max_cycles, max_cycles_ceil, energy_sum = self.cycle_sim(computation_graph)
+                max_cycles, max_cycles_ceil, energy_sum = self.cycle_sim(
+                    computation_graph
+                )
                 self.node_sum_energy[node_id] += energy_sum
                 self.node_sum_cycles[node_id] += max_cycles
                 self.node_sum_cycles_ceil[node_id] += max_cycles_ceil
@@ -529,7 +527,7 @@ class SymbolicSimulator:
             if elem[0] not in self.unroll_at.keys():
                 self.unroll_at[elem[0]] = False
 
-    def simulator_prep(self, benchmark, latency, hw_counts):
+    def simulator_prep(self, benchmark, latency):
         """
         Creates CFG, and id_to_node
         params:
@@ -543,12 +541,37 @@ class SymbolicSimulator:
             self.id_to_node[str(node.id)] = node
         # print(self.id_to_node)
         computation_dfg = sim_util.compose_entire_computation_graph(
-            cfg_node_to_dfg_map, self.id_to_node, self.data_path, data_path_vars, latency, plot=False
+            cfg_node_to_dfg_map,
+            self.id_to_node,
+            self.data_path,
+            data_path_vars,
+            latency,
+            plot=False,
         )
         # print(f"computation_dfg: {computation_dfg.nodes.data()}")
         # print(f"\nedges: {computation_dfg.edges.data()}")
-        schedule.schedule(computation_dfg, hw_counts)
+
         return computation_dfg
+
+    def schedule(self, computation_dfg, hw_counts):
+        """
+        Schedule the computation graph onto the hardware.
+        """
+        copy = computation_dfg.copy()
+        # print(f"computation_dfg: {computation_dfg.nodes.data()}")
+        # print(f"\nedges: {computation_dfg.edges.data()}")
+        schedule.schedule(copy, hw_counts)
+
+        # Why does this happen?
+        for layer, nodes in enumerate(
+            reversed(list(nx.topological_generations(nx.reverse(copy))))
+        ):
+            # `multipartite_layout` expects the layer as a node attribute, so add the
+            # numeric layer value as a node attribute
+            for node in nodes:
+                copy.nodes[node]["layer"] = layer
+
+        return copy
 
     def calculate_edp(self, hw):
         # total_cycles = sum(self.node_sum_cycles.values())
@@ -557,9 +580,13 @@ class SymbolicSimulator:
         # total_execution_time_ceil = total_cycles_ceil
         # total_active_energy = sum(self.node_sum_energy.values())
         self.total_passive_energy = self.passive_energy_dissipation(hw, self.cycles)
-        self.total_passive_energy_ceil = self.passive_energy_dissipation(hw, self.cycles_ceil)
+        self.total_passive_energy_ceil = self.passive_energy_dissipation(
+            hw, self.cycles_ceil
+        )
         self.edp = self.cycles * (self.total_active_energy + self.total_passive_energy)
-        self.edp_ceil = self.cycles_ceil * (self.total_active_energy + self.total_passive_energy_ceil)
+        self.edp_ceil = self.cycles_ceil * (
+            self.total_active_energy + self.total_passive_energy_ceil
+        )
 
     def save_edp_to_file(self):
         st = str(self.edp)
@@ -577,8 +604,9 @@ def main():
 
     hw.get_optimization_params_from_tech_params()
 
-    computation_dfg = simulator.simulator_prep(
-        args.benchmark, hw.latency, hw_counts=hardwareModel.get_func_count(hw.netlist)
+    computation_dfg = simulator.simulator_prep(args.benchmark, hw.latency)
+    computation_dfg = simulator.schedule(
+        computation_dfg, hw_counts=hardwareModel.get_func_count(hw.netlist)
     )
 
     hw.init_memory(
@@ -627,6 +655,8 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    print(f"args: benchmark: {args.benchmark}, trace:{args.notrace}, architecture:{args.architecture}")
+    print(
+        f"args: benchmark: {args.benchmark}, trace:{args.notrace}, architecture:{args.architecture}"
+    )
 
     main()
