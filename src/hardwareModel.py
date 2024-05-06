@@ -211,6 +211,18 @@ class HardwareModel:
         # how does mem latency get incorporated?
         ## DO THIS!!!!
 
+    def duplicate_config_section(self, cfg, new_cfg):
+        """
+        Duplicate a section in a config file.
+        """
+        config = cp.ConfigParser()
+        config.read(HW_CONFIG_FILE)
+        config.add_section(new_cfg)
+        for key, value in config.items(cfg):
+            config.set(new_cfg, key, value)
+        with open(HW_CONFIG_FILE, "w") as configfile:
+            config.write(configfile)
+
     def write_technology_parameters(self, filename):
         params = {
             "latency": self.latency,

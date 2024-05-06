@@ -93,12 +93,13 @@ def assign_upstream_path_lengths(graph):
     """
     Assigns the longest path to each node in the graph.
     Currently ignores actual latencies of nodes.
+    TODO: change this to dijkstra
     """
     for node in graph:
         graph.nodes[node]["dist"] =  0
     for i, generations in enumerate(nx.topological_generations(graph)):
         for node in generations:
-            graph[node]["dist"] = max(i, graph[node]["dist"])
+            graph.nodes[node]["dist"] = max(i, graph.nodes[node]["dist"])
     
     return graph
 
@@ -163,9 +164,9 @@ def schedule(computation_graph, hw_element_counts):
             if count > hw_element_counts[func]:
                 # print(f"more ops than hw elements for {func}")
                 func_nodes = list(filter(lambda x: x[1]["function"] == func, nodes_in_gen))
-                print(f"func_nodes: {func_nodes}")
+                # print(f"func_nodes: {func_nodes}")
                 func_nodes = sorted(func_nodes, key=lambda x: x[1]["dist"], reverse=True)
-                print(f"sorted func_nodes: {func_nodes}")
+                # print(f"sorted func_nodes: {func_nodes}")
 
                 start_idx = hw_element_counts[func]
                 # TODO: pic this range based on upstream length. Calculated by Dijkstra

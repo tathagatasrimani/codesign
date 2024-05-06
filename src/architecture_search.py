@@ -200,12 +200,12 @@ def run_arch_search(simulator, hw, computation_dfg, area_constraint, best_edp=No
             # continue
         # print(f"old vs new schedule: {len(old_scheduled_dfg.nodes)} vs {len(scheduled_dfg.nodes)}")
 
-        sim_util.topological_layout_plot_side_by_side(
-            old_scheduled_dfg,
-            scheduled_dfg,
-            reverse=True,
-            edge_labels=True,
-        )
+        # sim_util.topological_layout_plot_side_by_side(
+        #     old_scheduled_dfg,
+        #     scheduled_dfg,
+        #     reverse=True,
+        #     edge_labels=True,
+        # )
 
         hw.netlist = hw_copy
 
@@ -223,10 +223,13 @@ def run_arch_search(simulator, hw, computation_dfg, area_constraint, best_edp=No
             best_edp = simulator.edp
             best_hw_netlist = hw_copy
 
-        nx.draw(hw_copy, with_labels=True)
-        plt.show()
+        # nx.draw(hw_copy, with_labels=True)
+        # plt.show()
 
         old_scheduled_dfg = scheduled_dfg
+        if len(func_counts) == 0:
+            print(f"nothing stalled. breaking")
+            break
 
     hw.netlist = best_hw_netlist
 
@@ -347,6 +350,7 @@ def main():
 
     if args.filepath:
         nx.write_gml(hw.netlist,f"architectures/{args.filepath}.gml", stringizer=lambda x: str(x))
+        hw.duplicate_config_section(args.config, args.filepath)
 
     print(f"Best EDP: {best_edp}")
     nx.draw(hw.netlist, with_labels=True, )
