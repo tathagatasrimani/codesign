@@ -1,10 +1,10 @@
 #!/bin/sh
-while getopts a:qn: flag
+while getopts c:qn: flag
 do
     case "${flag}" in
         n) name=${OPTARG};;
         q) QUIET=true;;
-        a) ARCH=${OPTARG};;
+        c) ARCH_CONFIG=${OPTARG};;
     esac
 done
 
@@ -17,8 +17,8 @@ if [ $name ]; then
     if [ $QUIET ]; then
         ARGS+=" --notrace"
     fi
-    if [ $ARCH ]; then
-        ARGS+=" --architecture $ARCH"
+    if [ $ARCH_CONFIG ]; then
+        ARGS+=" --architecture_config $ARCH_CONFIG"
     fi
 
     echo $ARGS

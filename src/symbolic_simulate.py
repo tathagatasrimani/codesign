@@ -600,7 +600,7 @@ def main():
     simulator = SymbolicSimulator()
 
     # TODO: move this to a cli param
-    hw = HardwareModel(cfg=args.architecture)
+    hw = HardwareModel(cfg=args.architecture_config)
 
     hw.get_optimization_params_from_tech_params()
 
@@ -647,8 +647,8 @@ if __name__ == "__main__":
     parser.add_argument("benchmark", metavar="B", type=str)
     parser.add_argument("--notrace", action="store_true")
     parser.add_argument(
-        "-a",
-        "--architecture",
+        "-c",
+        "--architecture_config",
         type=str,
         default="aladdin_const_with_mem",
         help="Path to the architecture file (.gml)",

@@ -16,7 +16,7 @@ import hardwareModel
 
 
 class Codesign:
-    def __init__(self, benchmark, save_dir):
+    def __init__(self, benchmark, config, save_dir):
         self.save_dir = save_dir
 
         if not os.path.exists(self.save_dir):
@@ -32,17 +32,15 @@ class Codesign:
         (
             self.sim,
             self.hw,
-            self.cfg,
-            self.cfg_node_to_hw_map,
-            self.saved_elem,
-            self.max_continuous,
-        ) = architecture_search.setup_arch_search(benchmark)
+            self.computation_dfg,
+        ) = architecture_search.setup_arch_search(benchmark, config)
+
+        self.scheduled_dfg = self.sim.schedule(self.computation_dfg, hw_counts=hardwareModel.get_func_count(self.hw.netlist))
 
         self.symbolic_sim = symbolic_simulate.SymbolicSimulator()
         self.symbolic_sim.simulator_prep(benchmark, self.hw.latency)
-        self.symbolic_sim.id_to_node = self.sim.id_to_node
-        self.symbolic_sim.update_data_path(self.sim.data_path)
-        self.original_data_path = self.sim.data_path
+        # self.symbolic_sim.update_data_path(self.sim.data_path)
+        # self.original_data_path = self.sim.data_path
         hardwareModel.un_allocate_all_in_use_elements(self.hw.netlist)
 
         # starting point set by the config we load into the HW model
@@ -65,24 +63,21 @@ class Codesign:
 
     def forward_pass(self, area_constraint):
         print("\nRunning Forward Pass")
-        self.sim.simulate(self.cfg, self.cfg_node_to_hw_map, self.hw)
+        self.sim.simulate(self.scheduled_dfg, self.hw)
         self.sim.calculate_edp(self.hw)
         edp = self.sim.edp
         print(f"Run Sim with new tech params; EDP: {edp} Js")
 
         # self.sim.update_data_path(self.original_data_path)
-        new_hw, new_edp = architecture_search.run_architecture_search(
+        # hw updated in place, schedule and edp returned.
+        new_edp, new_schedule = architecture_search.run_arch_search(
             self.sim,
             self.hw,
-            self.cfg,
-            self.cfg_node_to_hw_map,
-            self.saved_elem,
-            self.max_continuous,
+            self.computation_dfg,
             area_constraint,
             best_edp=edp,
         )
-        self.hw = new_hw
-        self.symbolic_sim.id_to_node = self.sim.id_to_node
+        self.scheduled_dfg = new_schedule
         self.forward_edp = new_edp
         print(f"New EDP: {new_edp} Js")
 
@@ -134,7 +129,7 @@ class Codesign:
 
         hardwareModel.un_allocate_all_in_use_elements(self.hw.netlist)
 
-        self.symbolic_sim.simulate(self.cfg, self.cfg_node_to_hw_map, self.hw)
+        self.symbolic_sim.simulate(self.scheduled_dfg, self.hw)
         self.symbolic_sim.calculate_edp(self.hw)
         self.symbolic_sim.save_edp_to_file()
 
@@ -179,13 +174,13 @@ def main():
         + " > instrumented_files/output.txt"
     )
 
-    codesign_module = Codesign(args.benchmark, args.savedir)
+    codesign_module = Codesign(args.benchmark, args.architecture_config, args.savedir)
 
     i = 0
     while i < 5:
         codesign_module.forward_pass(args.area)
-        codesign_module.symbolic_sim.update_data_path(codesign_module.sim.data_path)
-        codesign_module.clear_dfg_allocations()
+        # codesign_module.symbolic_sim.update_data_path(codesign_module.sim.data_path)
+        # codesign_module.clear_dfg_allocations()
 
         codesign_module.inverse_pass()
         codesign_module.hw.update_technology_parameters()
@@ -205,7 +200,10 @@ if __name__ == "__main__":
     parser.add_argument("--notrace", action="store_true")
     parser.add_argument("-a", "--area", type=float, help="Max Area of the chip in um^2")
     parser.add_argument(
-        "-d",
+        "-c", "--architecture_config", type=str, help="Path to the architecture config file"
+    )
+    parser.add_argument(
+        "-f",
         "--savedir",
         type=str,
         default="codesign_log_dir",

@@ -1,11 +1,12 @@
 #!/bin/sh
-while getopts a:sqn:d: flag
+while getopts a:c:qn: flag
 do
     case "${flag}" in
         n) name=${OPTARG};;
         q) QUIET=true;;
         a) AREA=${OPTARG};;
-        d) SAVEDIR=${OPTARG};;
+        c) ARCH_CONFIG=${OPTARG};;
+        f) SAVEDIR=${OPTARG};;
     esac
 done
 
@@ -18,6 +19,9 @@ if [ $name ]; then
     fi
     if [ $AREA ]; then
         ARGS+=" --area $AREA"
+    fi
+    if [ $ARCH_CONFIG ]; then
+        ARGS+=" --architecture_config $ARCH_CONFIG"
     fi
     if [ $SAVEFILE ]; then
         ARGS+=" --savedir $SAVEDIR"

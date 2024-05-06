@@ -110,6 +110,8 @@ def get_most_stalled_func(scheduled_dfg):
 
 def sample_stalled_func(scheduled_dfg):
     func_counts = get_stalled_func_counts(scheduled_dfg)
+    if len(func_counts) == 0:
+        return None
     # print(f"most stalled funcs: {func_counts}")
     try:
         return rng.choice(list(func_counts.keys()), 1, p=list(func_counts.values())/sum(list(func_counts.values())))[0]
@@ -118,6 +120,8 @@ def sample_stalled_func(scheduled_dfg):
         return rng.choice(list(func_counts.keys()), 1)[0]
 
 def update_hw_with_new_node(hw_netlist, scarce_function):
+    if scarce_function == None:
+        return
     func_nodes = hardwareModel.get_nodes_with_func(hw_netlist, scarce_function)
     idx = len(func_nodes)
     hw_netlist.add_node(f"{scarce_function}{idx}", function=scarce_function, idx=idx, in_use=False, type="pe")
@@ -172,6 +176,7 @@ def run_arch_search(simulator, hw, computation_dfg, area_constraint, best_edp=No
     if best_edp is None:
         best_edp = simulator.edp
     best_hw_netlist = hw.netlist.copy()
+    best_schedule = old_scheduled_dfg
 
     print(
         f"Original EDP: {best_edp} Js; energy: {simulator.total_energy * 1e9} nJ; execution time: {simulator.execution_time} s, cycles: {simulator.cycles}; area: {area} um^2"
@@ -222,6 +227,7 @@ def run_arch_search(simulator, hw, computation_dfg, area_constraint, best_edp=No
             print(f"improved edp: {simulator.edp}")
             best_edp = simulator.edp
             best_hw_netlist = hw_copy
+            best_schedule = scheduled_dfg
 
         # nx.draw(hw_copy, with_labels=True)
         # plt.show()
@@ -233,7 +239,7 @@ def run_arch_search(simulator, hw, computation_dfg, area_constraint, best_edp=No
 
     hw.netlist = best_hw_netlist
 
-    return best_edp
+    return best_edp, best_schedule
 
 
 def _run_architecture_search(simulator, hw, cfg, cfg_node_to_hw_map, saved_elem, max_continuous, area_constraint, best_edp=None):

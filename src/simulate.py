@@ -906,7 +906,7 @@ def main(args):
     print(f"Running simulator for {args.benchmark.split('/')[-1]}")
     simulator = ConcreteSimulator()
 
-    hw = HardwareModel(cfg=args.architecture)
+    hw = HardwareModel(cfg=args.architecture_config)
 
     computation_dfg = simulator.simulator_prep(args.benchmark, hw.latency)
     computation_dfg = simulator.schedule(
@@ -1008,7 +1008,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("benchmark", metavar="B", type=str)
     parser.add_argument("--notrace", action="store_true")
-    parser.add_argument("--architecture", type=str, default="aladdin_const_with_mem", help="Path to the architecture file (.gml)")
+    parser.add_argument("--architecture_config", type=str, default="aladdin_const_with_mem", help="Path to the architecture file (.gml)")
     # parser.add_argument("-s", "--archsearch", action=argparse.BooleanOptionalAction)
     # parser.add_argument("-a", "--area", type=float, help="Max Area of the chip in um^2")
     # parser.add_argument(
