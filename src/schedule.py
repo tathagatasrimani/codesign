@@ -89,6 +89,18 @@ def cfg_to_dfg(cfg, graphs, latency):
 
     return cfg_node_to_dfg_map
 
+def assign_upstream_path_lengths(graph):
+    """
+    Assigns the longest path to each node in the graph.
+    Currently ignores actual latencies of nodes.
+    """
+    for node in graph:
+        graph.nodes[node]["dist"] =  0
+    for i, generations in enumerate(nx.topological_generations(graph)):
+        for node in generations:
+            graph[node]["dist"] = max(i, graph[node]["dist"])
+    
+    return graph
 
 def schedule(computation_graph, hw_element_counts):
     """
@@ -104,10 +116,10 @@ def schedule(computation_graph, hw_element_counts):
     # do topo sort from beginning and add dist attribute to each node
     # for longest path to get to it from a gen[0] node.
 
-    gen_0 = list(nx.topological_generations(computation_graph))[0]
     # reset layers:
     for node in computation_graph.nodes:
         computation_graph.nodes[node]["layer"] = -np.inf
+    assign_upstream_path_lengths(computation_graph)
 
     stall_counter = 0 # used to ensure unique stall names
     pushed = []
@@ -151,9 +163,9 @@ def schedule(computation_graph, hw_element_counts):
             if count > hw_element_counts[func]:
                 # print(f"more ops than hw elements for {func}")
                 func_nodes = list(filter(lambda x: x[1]["function"] == func, nodes_in_gen))
-                diff = count - hw_element_counts[func]
-                # print(f"not enough resources for {func}; diff: {diff}")
-                # print(f"nodes in gen of type {func}: {func_nodes}")
+                print(f"func_nodes: {func_nodes}")
+                func_nodes = sorted(func_nodes, key=lambda x: x[1]["dist"], reverse=True)
+                print(f"sorted func_nodes: {func_nodes}")
 
                 start_idx = hw_element_counts[func]
                 # TODO: pic this range based on upstream length. Calculated by Dijkstra
