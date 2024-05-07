@@ -216,29 +216,39 @@ class ConcreteSimulator:
                     lambda node_data: node_data[1]["function"] == "Buf", mapped_edges
                 )
             )
+            # check if cache_hit
             for buf in in_bufs:
                 cache_hit = buf[1]["memory_module"].find(var_name) or cache_hit
                 if cache_hit:
                     break
-            if not cache_hit:
-                # just choose one at random. Can make this smarter later.
-                buf = rng.choice(in_bufs)  # in_bufs[0] # just choose one at random.
-
-                size = -1 * buf[1]["memory_module"].read(
-                    var_name
-                )  # size will be negative because cache miss.
-                # print(f"in localize memory; var: {var_name}; size: {size}")
-                # add multiple bufs and mems, not just one. add a new one for each cache miss.
-                # this is required to properly count active power consumption.
-                # active power added once for each node in computation_graph.
-                # what about latency????
-                buf_idx = len(
-                    list(
-                        filter(
-                            lambda x: x[1]["function"] == "Buf", hw_graph.nodes.data()
-                        )
+                
+            # just choose one at random. Can make this smarter later.
+            buf = rng.choice(in_bufs)  # in_bufs[0] # just choose one at random.
+            size = buf[1]["memory_module"].read(
+                var_name
+            )  
+            buf_idx = len(
+                list(
+                    filter(
+                        lambda x: x[1]["function"] == "Buf", hw_graph.nodes.data()
                     )
                 )
+            )
+
+            # print(f"in localize memory; var: {var_name}; size: {size}")
+            # add multiple bufs and mems, not just one. add a new one for each cache miss.
+            # this is required to properly count active power consumption.
+            # active power added once for each node in computation_graph.
+            # what about latency????
+
+            if cache_hit:   # only add the Buf
+                hw_graph.add_node(
+                    f"Buf{buf_idx}", function="Buf", allocation=buf[0], size=size
+                )
+                hw_graph.add_edge(f"Buf{buf_idx}", node, function="Mem")
+            
+            else:           # add Buf and Mem
+                size = size * -1  # size will be negative because cache miss.
                 mem_idx = len(
                     list(
                         filter(

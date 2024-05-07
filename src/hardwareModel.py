@@ -330,3 +330,20 @@ class HardwareModel:
         edges = list(filter(lambda x: "Reg" in x[0], self.netlist.in_edges("Buf0")))
         n = len(edges)
         return n
+    
+    def gen_cacti_results(self):
+        buf_vals = cactiUtil.gen_vals("base_cache", 131072, 64,
+                                      "cache", 512)
+        mem_vals = cactiUtil.gen_vals("mem_cache", 131072, 64,
+                                      "main memory", 512)
+
+        self.latency["Buf"] = buf_vals[0]
+        self.latency["MainMem"] = mem_vals[0]
+
+        self.dynamic_power["Buf"] = buf_vals[1] + buf_vals[2] + buf_vals[3]
+        self.dynamic_power["MainMem"] = mem_vals[1] + mem_vals[2] + mem_vals[3]
+
+        self.leakage_power["Buf"] = buf_vals[4]
+        self.leakage_power["MainMem"] = mem_vals[4]
+
+        return
