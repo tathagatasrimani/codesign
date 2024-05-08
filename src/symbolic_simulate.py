@@ -221,8 +221,8 @@ class SymbolicSimulator:
                 scaling = data["size"]
             passive_power += (
                 hw_symbols.symbolic_power_passive[data["function"]] * scaling
-            )
-        return passive_power * total_execution_time
+            ) # W
+        return passive_power * total_execution_time # nJ
 
     def simulate(self, computation_dfg: nx.DiGraph, hw: HardwareModel):
         self.reset_internal_variables()
@@ -263,10 +263,10 @@ class SymbolicSimulator:
                     scaling = node_data["size"]
                 if node_data["function"] == "stall" or node_data["function"] == "end":
                     continue
-                self.total_active_energy += (  # WHY IS THERE NO SCALING HERE??
-                    hw_symbols.symbolic_power_active[node_data["function"]]
+                self.total_active_energy += (  # nJ
+                    hw_symbols.symbolic_power_active[node_data["function"]] # W
                     * scaling
-                    * hw_symbols.symbolic_latency_wc[node_data["function"]]
+                    * hw_symbols.symbolic_latency_wc[node_data["function"]] # ns
                 )
 
             # node_id = self.data_path[i][0]

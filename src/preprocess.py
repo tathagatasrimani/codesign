@@ -37,10 +37,10 @@ class Preprocessor:
         # this is where we say EDP_final = EDP_initial / 10
         model.Constraint = pyo.Constraint(expr=self.pyomo_edp_exp <= self.initial_val / 1.9)
         model.Constraint1 = pyo.Constraint(expr=self.pyomo_edp_exp >= self.initial_val / 2.1)
-        model.freq_const = pyo.Constraint(rule=self.f)
+        # model.freq_const = pyo.Constraint(rule=self.f)
         model.V_dd_lower = pyo.Constraint(rule=self.V_dd_lower)
         model.V_dd_upper = pyo.Constraint(rule=self.V_dd_upper)
-        model.f_upper = pyo.Constraint(rule=self.f_upper)
+        # model.f_upper = pyo.Constraint(rule=self.f_upper)
         # model.f = pyo.Constraint(expr = model.x[self.mapping[hw_symbols.f]] == self.initial_params["f"])
         # model.V_dd = pyo.Constraint(expr = model.x[self.mapping[hw_symbols.V_dd]] == self.initial_params["V_dd"])
         model.AddR = pyo.Constraint(
