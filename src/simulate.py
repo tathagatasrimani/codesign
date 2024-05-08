@@ -100,7 +100,8 @@ class ConcreteSimulator:
             # )
             # NEW ACTIVE ENERGY CALCULATION
             self.total_energy += (
-                hw_spec.dynamic_power[node_data["function"]] * 1e-9
+                hw_spec.dynamic_power[node_data["function"]]
+                * 1e-9
                 * scaling
                 * (hw_spec.latency[node_data["function"]] / hw_spec.frequency)
             )
@@ -110,7 +111,10 @@ class ConcreteSimulator:
         # buf and mem nodes added in 'localize_memory'
         # remove them here
         for node, data in dict(
-            filter(lambda x: x[1]["function"] == "MainMem" or x[1]["function"] == "Buf", computation_graph.nodes.data())
+            filter(
+                lambda x: x[1]["function"] == "MainMem" or x[1]["function"] == "Buf",
+                computation_graph.nodes.data(),
+            )
         ).items():
             computation_graph.remove_node(node)
 
@@ -261,7 +265,7 @@ class ConcreteSimulator:
         fake_hw = nx.DiGraph()
         for node, num in func_counts.items():
             name = node if node != "MainMem" else "Mem"
-            for i in range(0, 2*num):
+            for i in range(0, 2 * num):
                 fake_hw.add_node(
                     f"{name}{i}",
                     function=node,
@@ -271,7 +275,11 @@ class ConcreteSimulator:
             for child in hw.netlist.successors(node):
                 child_func = hw.netlist.nodes[child]["function"]
                 child_idx = hw.netlist.nodes[child]["idx"] + func_counts[child_func]
-                new_child = f"{child_func}{child_idx}" if child_func != "MainMem" else f"Mem{child_idx}"
+                new_child = (
+                    f"{child_func}{child_idx}"
+                    if child_func != "MainMem"
+                    else f"Mem{child_idx}"
+                )
                 fake_hw.add_edge(node, new_child)
         return fake_hw
 
@@ -310,7 +318,7 @@ class ConcreteSimulator:
         generations = reversed(
             list(nx.topological_generations(nx.reverse(computation_dfg)))
         )
-        for gen in generations: # main loop over the computation graphs; 
+        for gen in generations:  # main loop over the computation graphs;
             # print(f"counter: {counter}, gen: {gen}")
             if "end" in gen:  # skip the end node (only thing in the last generation)
                 break
@@ -320,9 +328,9 @@ class ConcreteSimulator:
                 child_added = False
                 temp_C.add_nodes_from([(node, computation_dfg.nodes[node])])
                 for child in computation_dfg.successors(node):
-                    if (
-                        computation_dfg.nodes[node]["function"] == "stall"
-                        and (computation_dfg.nodes[child]["function"] == "stall" or computation_dfg.nodes[child]["function"] == "end")
+                    if computation_dfg.nodes[node]["function"] == "stall" and (
+                        computation_dfg.nodes[child]["function"] == "stall"
+                        or computation_dfg.nodes[child]["function"] == "end"
                     ):
                         continue
 
@@ -345,16 +353,22 @@ class ConcreteSimulator:
                 if node_data["function"] == "stall" or node_data["function"] == "end":
                     continue
                 self.active_energy += (
-                    hw.dynamic_power[node_data["function"]] * 1e-9
+                    hw.dynamic_power[node_data["function"]]
+                    * 1e-9  # W
                     * scaling
-                    * (hw.latency[node_data["function"]] / hw.frequency)
+                    * hw.latency[node_data["function"]]  # ns
                 )
                 hw.compute_operation_totals[node_data["function"]] += 1
 
             # print(f"temp_c: {temp_C.nodes()}\nedges: {temp_C.edges()}")
 
             def matcher_func(n1, n2):
-                res = n1["function"] == n2["function"] or n2["function"] == None or n2["function"] == "stall" or n2["function"] == "end"
+                res = (
+                    n1["function"] == n2["function"]
+                    or n2["function"] == None
+                    or n2["function"] == "stall"
+                    or n2["function"] == "end"
+                )
                 # if n2["function"] == None or n2["function"] == "stall":
                 #     print(f"n1[function]: {n1['function']}, n2[function]: {n2['function']}, res: {res}")
                 return res
@@ -393,7 +407,7 @@ class ConcreteSimulator:
         # print(f"cycles: {self.cycles}")
         longest_path = nx.dag_longest_path(computation_dfg)
         # print(f"longest_path: {longest_path}")
-        '''
+        """
         # iterate through nodes in data flow graph
         while i < len(self.data_path):
             
@@ -473,23 +487,20 @@ class ConcreteSimulator:
                 )
             mallocs = []
             frees = []
-        '''
+        """
         # add all passive power at the end.
         # This is done here for the dynamic allocation case where we don't know how many
         # compute elements we need until we run the program.
-        # print(f"total active energy: {self.total_energy} J")
-        # print(f"adding passive energy;")
+        print(f"total active energy: {self.active_energy} nJ")
         for elem_name, elem_data in dict(hw.netlist.nodes.data()).items():
             scaling = 1
             if elem_data["function"] in ["Regs", "Buf", "MainMem"]:
                 scaling = elem_data["size"]
 
             self.passive_energy += (
-                hw.leakage_power[elem_data["function"]]
-                * 1e-9
-                * (self.cycles / hw.frequency)
-                * scaling
+                hw.leakage_power[elem_data["function"]] * 1e-9 * self.cycles * scaling
             )
+        print(f"total passive energy: {self.passive_energy} nJ")
 
         # TODO: fix this before merge
         # for node in hw.netlist.nodes:
@@ -509,7 +520,9 @@ class ConcreteSimulator:
         frees = []
         mallocs = []
 
-        mapping = {} # map from cfg node to digraph matcher w/ hw -> dfg node allocations 
+        mapping = (
+            {}
+        )  # map from cfg node to digraph matcher w/ hw -> dfg node allocations
 
         visited_node_ids = set()
 
@@ -634,7 +647,9 @@ class ConcreteSimulator:
                 hw_graph = cfg_node_to_hw_map[cur_node]  # .copy()
                 if node_id not in visited_node_ids:
                     # print(f"hw_graph before verify_can_execute: {str(hw_graph)}")
-                    if not sim_util.verify_can_execute(hw_graph, hw.netlist, should_update_arch=False):
+                    if not sim_util.verify_can_execute(
+                        hw_graph, hw.netlist, should_update_arch=False
+                    ):
                         print(f"nodes: {hw_graph.nodes.data()}")
                         print(f"edges: {hw_graph.edges}")
                         nx.draw(hw_graph, with_labels=True)
@@ -646,7 +661,9 @@ class ConcreteSimulator:
                 else:
                     for node, data in hw_graph.nodes.data():
                         # print(f"appending node: {node.split(';')[0]} to {data['allocation']}")
-                        hw.netlist.nodes[data["allocation"]]["allocation"].append(node.split(";")[0])
+                        hw.netlist.nodes[data["allocation"]]["allocation"].append(
+                            node.split(";")[0]
+                        )
                         # print(f"allocation: {hw.netlist.nodes[data['allocation']]}")
 
                 # === Count mem usage in this node ===
@@ -722,12 +739,16 @@ class ConcreteSimulator:
             )
             # NEW PASSIVE ENERGY CALCULATION
             self.total_energy += (
-                hw.leakage_power[elem_data["function"]]*1e-9
-                * (self.cycles / hw.frequency) * scaling
+                hw.leakage_power[elem_data["function"]]
+                * 1e-9
+                * (self.cycles / hw.frequency)
+                * scaling
             )
 
         for node in hw.netlist.nodes:
-            hw.netlist.nodes[node]['allocation'] = len(hw.netlist.nodes[node]['allocation'])
+            hw.netlist.nodes[node]["allocation"] = len(
+                hw.netlist.nodes[node]["allocation"]
+            )
 
         # print("done with simulation")
         # Path(simulator.path + '/benchmarks/pictures/memory_graphs').mkdir(parents=True, exist_ok=True)
@@ -846,7 +867,7 @@ class ConcreteSimulator:
         )
 
     def calculate_edp(self, hw):
-        self.execution_time = self.cycles / hw.frequency # in seconds
+        self.execution_time = self.cycles  # / hw.frequency # in seconds
         self.total_energy = self.active_energy + self.passive_energy
         self.edp = self.total_energy * self.execution_time
 
@@ -865,7 +886,14 @@ class ConcreteSimulator:
         for node in cfg:
             self.id_to_node[str(node.id)] = node
         # print(self.id_to_node)
-        computation_dfg = sim_util.compose_entire_computation_graph(cfg_node_to_dfg_map, self.id_to_node, self.data_path, data_path_vars, latency, plot=False)
+        computation_dfg = sim_util.compose_entire_computation_graph(
+            cfg_node_to_dfg_map,
+            self.id_to_node,
+            self.data_path,
+            data_path_vars,
+            latency,
+            plot=False,
+        )
         # print(f"computation_dfg: {computation_dfg.nodes.data()}")
         # print(f"\nedges: {computation_dfg.edges.data()}")
         return computation_dfg
@@ -946,16 +974,19 @@ def main(args):
 
     hardwareModel.un_allocate_all_in_use_elements(hw.netlist)
     data = simulator.simulate(computation_dfg, hw)
+    simulator.calculate_edp(hw)
 
     area = hw.get_total_area()
 
     # print stats
     print("total number of cycles: ", simulator.cycles)
-    avg_compute_power = simulator.total_energy / (simulator.cycles / hw.frequency) * 1e3
-    print(f"Avg compute Power: {avg_compute_power} mW")
-    print(f"total energy {simulator.total_energy * 1e9} nJ")
+    print(f"execution time: {simulator.execution_time} ns")
+    # avg_compute_power = simulator.total_energy / (simulator.cycles / hw.frequency) * 1e3
+    # print(f"Avg compute Power: {avg_compute_power} mW")
+    print(f"total energy {simulator.total_energy} nJ")
 
     print(f"on chip area: {area} um^2")
+    print(f"EDP: {simulator.edp} E-18 Js")
 
     # TODO: FIX THIS WITH CACTI
     # print(f"off chip memory area: {hw.mem_area * 1e6} um^2")
@@ -1011,7 +1042,12 @@ if __name__ == "__main__":
     )
     parser.add_argument("benchmark", metavar="B", type=str)
     parser.add_argument("--notrace", action="store_true")
-    parser.add_argument("--architecture_config", type=str, default="aladdin_const_with_mem", help="Path to the architecture file (.gml)")
+    parser.add_argument(
+        "--architecture_config",
+        type=str,
+        default="aladdin_const_with_mem",
+        help="Path to the architecture file (.gml)",
+    )
     # parser.add_argument("-s", "--archsearch", action=argparse.BooleanOptionalAction)
     # parser.add_argument("-a", "--area", type=float, help="Max Area of the chip in um^2")
     # parser.add_argument(
@@ -1020,7 +1056,7 @@ if __name__ == "__main__":
     # parser.add_argument("-f", "--filepath", type=str, help="Path to the save new architecture file")
     args = parser.parse_args()
     print(
-        f"args: benchmark: {args.benchmark}, trace:{args.notrace}, architecture:{args.architecture}"
+        f"args: benchmark: {args.benchmark}, trace:{args.notrace}, architecture:{args.architecture_config}"
     )
 
     main(args)

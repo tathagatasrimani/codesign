@@ -185,7 +185,7 @@ class HardwareModel:
         I Want to Deprecate everything that takes into account 3D with indexing by pitch size
         and number of mem layers.
         """
-        tech_params = yaml.load(open("tech_params.yaml", "r"), Loader=yaml.Loader)
+        tech_params = yaml.load(open("tech_params2.yaml", "r"), Loader=yaml.Loader)
 
         self.area = tech_params["area"][self.transistor_size]
         self.latency = tech_params["latency"][self.transistor_size]
@@ -267,7 +267,7 @@ class HardwareModel:
 
         self.latency["MainMem"] = (
             rcs["other"]["MemReadL"] + rcs["other"]["MemWriteL"]
-        ) / 2 * self.frequency
+        ) / 2 * 1e9
         self.dynamic_power["MainMem"] = (
             rcs["other"]["MemReadPact"] + rcs["other"]["MemWritePact"]
         ) / 2 * 1e9
@@ -276,10 +276,11 @@ class HardwareModel:
         beta = yaml.load(open(coeff_file, "r"), Loader=yaml.Loader)["beta"]
 
         for key in C:
-            self.dynamic_power[key] = (
-                0.5 * C[key] * self.V_dd * self.V_dd * self.frequency * 1e9
-            )  # convert to nW
-            self.latency[key] = R[key] * C[key] * self.frequency  # convert to cycles
+            self.latency[key] = R[key] * C[key] * 1e9  # convert to ns
+            self.dynamic_power[key] = ( 
+                0.5 * C[key] * self.V_dd * self.V_dd  * 1e9
+            )  / (R[key] * C[key]) # nW 
+
             self.leakage_power[key] = (
                 beta[key] * self.V_dd**2 / (R["Not"] * self.R_off_on_ratio) * 1e9
             )  # convert to nW
