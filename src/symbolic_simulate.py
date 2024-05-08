@@ -326,7 +326,7 @@ class SymbolicSimulator:
                         # print(f"node: {node}")
                         # print(f"computation_graph[{node}]: {computation_graph.nodes()[node]}")
                         # THIS PATH LATENCY MAY OR MAY NOT USE CYCLE TIME OR WALL CLOCK TIME DUE TO SOLVER INSTABILITY
-                        path_latency += hw_symbols.symbolic_latency_cyc[func]
+                        path_latency += hw_symbols.symbolic_latency_wc[func]
                         # THIS PATH LATENCY USES CYCLE TIME AS A REFERENCE FOR WHAT THE TRUE EDP IS
                         path_latency_ceil += hw_symbols.symbolic_latency_cyc[func]
                     self.cycles = 0.5 * (
@@ -592,6 +592,9 @@ class SymbolicSimulator:
         st = str(self.edp)
         with open("sympy.txt", "w") as f:
             f.write(st)
+        st_ceil = str(self.edp_ceil)
+        with open("sympy_ceil.txt", "w") as f:
+            f.write(st_ceil)
 
 
 def main():
@@ -599,7 +602,6 @@ def main():
 
     simulator = SymbolicSimulator()
 
-    # TODO: move this to a cli param
     hw = HardwareModel(cfg=args.architecture_config)
 
     hw.get_optimization_params_from_tech_params()
@@ -656,7 +658,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     print(
-        f"args: benchmark: {args.benchmark}, trace:{args.notrace}, architecture:{args.architecture}"
+        f"args: benchmark: {args.benchmark}, trace:{args.notrace}, architecture:{args.architecture_config}"
     )
 
     main()

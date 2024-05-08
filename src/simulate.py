@@ -63,6 +63,8 @@ class ConcreteSimulator:
         self.max_regs_inuse = 0
         self.max_mem_inuse = 0
         self.total_energy = 0
+        self.active_energy = 0
+        self.passive_energy = 0
 
     def simulate_cycles(self, hw_spec, computation_graph, total_cycles):
         """
@@ -248,6 +250,8 @@ class ConcreteSimulator:
 
     def reset_internal_variables(self):
         self.cycles = 0
+        self.active_energy = 0
+        self.passive_energy = 0
         # self.active_power_use = {}
         # self.passive_power_dissipation_rate = 0
         self.total_energy = 0
@@ -340,7 +344,7 @@ class ConcreteSimulator:
                     scaling = node_data["size"]
                 if node_data["function"] == "stall" or node_data["function"] == "end":
                     continue
-                self.total_energy += (
+                self.active_energy += (
                     hw.dynamic_power[node_data["function"]] * 1e-9
                     * scaling
                     * (hw.latency[node_data["function"]] / hw.frequency)
@@ -386,9 +390,9 @@ class ConcreteSimulator:
 
         # print(f"doing longest path")
         self.cycles = nx.dag_longest_path_length(computation_dfg)
-        print(f"cycles: {self.cycles}")
+        # print(f"cycles: {self.cycles}")
         longest_path = nx.dag_longest_path(computation_dfg)
-        print(f"longest_path: {longest_path}")
+        # print(f"longest_path: {longest_path}")
         '''
         # iterate through nodes in data flow graph
         while i < len(self.data_path):
@@ -473,21 +477,19 @@ class ConcreteSimulator:
         # add all passive power at the end.
         # This is done here for the dynamic allocation case where we don't know how many
         # compute elements we need until we run the program.
-        print(f"total active energy: {self.total_energy} J")
+        # print(f"total active energy: {self.total_energy} J")
         # print(f"adding passive energy;")
-        passive_energy = 0 
         for elem_name, elem_data in dict(hw.netlist.nodes.data()).items():
             scaling = 1
             if elem_data["function"] in ["Regs", "Buf", "MainMem"]:
                 scaling = elem_data["size"]
 
-            passive_energy += (
+            self.passive_energy += (
                 hw.leakage_power[elem_data["function"]]
                 * 1e-9
                 * (self.cycles / hw.frequency)
                 * scaling
             )
-        print(f"total passive energy: {passive_energy} J")
 
         # TODO: fix this before merge
         # for node in hw.netlist.nodes:
@@ -845,6 +847,7 @@ class ConcreteSimulator:
 
     def calculate_edp(self, hw):
         self.execution_time = self.cycles / hw.frequency # in seconds
+        self.total_energy = self.active_energy + self.passive_energy
         self.edp = self.total_energy * self.execution_time
 
     def simulator_prep(self, benchmark, latency):

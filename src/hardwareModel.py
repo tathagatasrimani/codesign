@@ -258,7 +258,7 @@ class HardwareModel:
                 MemWritePact: memory write active power in W
                 MemPpass: memory passive power in W
         """
-        print(f"Updating Technology Parameters...")
+        # print(f"Updating Technology Parameters...")
         rcs = yaml.load(open(rc_params_file, "r"), Loader=yaml.Loader)
         C = rcs["Ceff"]
         R = rcs["Reff"]

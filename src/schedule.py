@@ -169,7 +169,6 @@ def schedule(computation_graph, hw_element_counts):
                 # print(f"sorted func_nodes: {func_nodes}")
 
                 start_idx = hw_element_counts[func]
-                # TODO: pic this range based on upstream length. Calculated by Dijkstra
                 for idx in range(start_idx, count):
                     # print(f"idx: {idx}; node: {func_nodes[idx][0]}; removing node from gen")
                     # generation.remove(func_nodes[idx][0])
