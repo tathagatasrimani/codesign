@@ -60,7 +60,7 @@ class Codesign:
         self.sim.calculate_edp(self.hw)
         self.forward_edp = self.sim.edp
 
-        print(f"\nInitial EDP: {self.forward_edp} Js. Active Energy: {self.sim.active_energy} J. Passive Energy: {self.sim.passive_energy} J. Execution time: {self.sim.execution_time} s")
+        print(f"\nInitial EDP: {self.forward_edp} E-18 Js. Active Energy: {self.sim.active_energy} nJ. Passive Energy: {self.sim.passive_energy} nJ. Execution time: {self.sim.execution_time} ns")
 
         with open("rcs_current.yaml", "w") as f:
             f.write(yaml.dump(rcs))
@@ -76,7 +76,7 @@ class Codesign:
         self.sim.simulate(self.scheduled_dfg, self.hw)
         self.sim.calculate_edp(self.hw)
         edp = self.sim.edp
-        print(f"Initial EDP: {edp} Js. Active Energy: {self.sim.active_energy} J. Passive Energy: {self.sim.passive_energy} J. Execution time: {self.sim.execution_time} s")
+        print(f"Initial EDP: {edp} E-18 Js. Active Energy: {self.sim.active_energy} nJ. Passive Energy: {self.sim.passive_energy} nJ. Execution time: {self.sim.execution_time} ns")
 
         # self.sim.update_data_path(self.original_data_path)
         # hw updated in place, schedule and edp returned.
@@ -90,7 +90,7 @@ class Codesign:
         self.scheduled_dfg = new_schedule
         self.forward_edp = new_edp
         print(
-            f"New EDP    : {new_edp} Js. Active Energy: {self.sim.active_energy} J. Passive Energy: {self.sim.passive_energy} J. Execution time: {self.sim.execution_time} s"
+            f"New EDP    : {new_edp} E-18 Js. Active Energy: {self.sim.active_energy} nJ. Passive Energy: {self.sim.passive_energy} nJ. Execution time: {self.sim.execution_time} ns"
         )
 
     def parse_output(self, f):
@@ -149,11 +149,11 @@ class Codesign:
         self.inverse_edp_ceil = self.symbolic_sim.edp_ceil.subs(self.tech_params)
 
         print(
-            f"Initial EDP: {self.inverse_edp} Js. Active Energy: {(self.symbolic_sim.total_active_energy).subs(self.tech_params)} J. Passive Energy: {(self.symbolic_sim.total_passive_energy).subs(self.tech_params)} Execution time: {self.symbolic_sim.cycles.subs(self.tech_params)} s"
+            f"Initial EDP: {self.inverse_edp} E-18 Js. Active Energy: {(self.symbolic_sim.total_active_energy).subs(self.tech_params)} nJ. Passive Energy: {(self.symbolic_sim.total_passive_energy).subs(self.tech_params)} nJ. Execution time: {self.symbolic_sim.cycles.subs(self.tech_params)} ns"
         )
-        print(
-            f"I EDP ceil: {self.inverse_edp_ceil} Js. Active Energy: {(self.symbolic_sim.total_active_energy).subs(self.tech_params)} J. Passive Energy: {(self.symbolic_sim.total_passive_energy_ceil).subs(self.tech_params)} Execution time: {self.symbolic_sim.cycles_ceil.subs(self.tech_params)} s"
-        )
+        # print(
+        #     f"I EDP ceil: {self.inverse_edp_ceil} Js. Active Energy: {(self.symbolic_sim.total_active_energy).subs(self.tech_params)} J. Passive Energy: {(self.symbolic_sim.total_passive_energy_ceil).subs(self.tech_params)} Execution time: {self.symbolic_sim.cycles_ceil.subs(self.tech_params)} s"
+        # )
         stdout = sys.stdout
         with open("ipopt_out.txt", "w") as sys.stdout:
             optimize.optimize(self.tech_params)
@@ -166,11 +166,11 @@ class Codesign:
         self.inverse_edp_ceil = self.symbolic_sim.edp_ceil.subs(self.tech_params)
 
         print(
-            f"Final EDP  : {self.inverse_edp} Js. Active Energy: {(self.symbolic_sim.total_active_energy).subs(self.tech_params)} J. Passive Energy: {(self.symbolic_sim.total_passive_energy).subs(self.tech_params)} Execution time: {self.symbolic_sim.cycles.subs(self.tech_params)} s"
+            f"Final EDP  : {self.inverse_edp} E-18 Js. Active Energy: {(self.symbolic_sim.total_active_energy).subs(self.tech_params)} nJ. Passive Energy: {(self.symbolic_sim.total_passive_energy).subs(self.tech_params)} nJ. Execution time: {self.symbolic_sim.cycles.subs(self.tech_params)} ns"
         )
-        print(
-            f"F EDP ceil: {self.inverse_edp_ceil} Js. Active Energy: {(self.symbolic_sim.total_active_energy).subs(self.tech_params)} J. Passive Energy: {(self.symbolic_sim.total_passive_energy_ceil).subs(self.tech_params)} Execution time: {self.symbolic_sim.cycles_ceil.subs(self.tech_params)} s"
-        )
+        # print(
+        #     f"F EDP ceil: {self.inverse_edp_ceil} Js. Active Energy: {(self.symbolic_sim.total_active_energy).subs(self.tech_params)} J. Passive Energy: {(self.symbolic_sim.total_passive_energy_ceil).subs(self.tech_params)} Execution time: {self.symbolic_sim.cycles_ceil.subs(self.tech_params)} s"
+        # )
 
     def log_all_to_file(self, iter_number):
         with open(f"{self.save_dir}/log.txt", "a") as f:

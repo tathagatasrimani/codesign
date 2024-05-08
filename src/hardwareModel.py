@@ -260,8 +260,8 @@ class HardwareModel:
         """
         # print(f"Updating Technology Parameters...")
         rcs = yaml.load(open(rc_params_file, "r"), Loader=yaml.Loader)
-        C = rcs["Ceff"]
-        R = rcs["Reff"]
+        C = rcs["Ceff"] # nF
+        R = rcs["Reff"] # Ohms
         self.frequency = rcs["other"]["f"]
         self.V_dd = rcs["other"]["V_dd"]
 
@@ -276,13 +276,12 @@ class HardwareModel:
         beta = yaml.load(open(coeff_file, "r"), Loader=yaml.Loader)["beta"]
 
         for key in C:
-            self.latency[key] = R[key] * C[key] * 1e9  # convert to ns
+            self.latency[key] = R[key] * C[key]  # ns
             self.dynamic_power[key] = ( 
-                0.5 * C[key] * self.V_dd * self.V_dd  * 1e9
-            )  / (R[key] * C[key]) # nW 
+                0.5 * self.V_dd * self.V_dd * 1e9 / R[key] ) # nW 
 
             self.leakage_power[key] = (
-                beta[key] * self.V_dd**2 / (R["Not"] * self.R_off_on_ratio) * 1e9
+                beta[key] * self.V_dd**2 * 1e9 / (R["Not"] * self.R_off_on_ratio)
             )  # convert to nW
 
     def get_optimization_params_from_tech_params(self):

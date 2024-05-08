@@ -491,7 +491,7 @@ class ConcreteSimulator:
         # add all passive power at the end.
         # This is done here for the dynamic allocation case where we don't know how many
         # compute elements we need until we run the program.
-        print(f"total active energy: {self.active_energy} nJ")
+        # print(f"total active energy: {self.active_energy} nJ")
         for elem_name, elem_data in dict(hw.netlist.nodes.data()).items():
             scaling = 1
             if elem_data["function"] in ["Regs", "Buf", "MainMem"]:
@@ -500,7 +500,7 @@ class ConcreteSimulator:
             self.passive_energy += (
                 hw.leakage_power[elem_data["function"]] * 1e-9 * self.cycles * scaling
             )
-        print(f"total passive energy: {self.passive_energy} nJ")
+        # print(f"total passive energy: {self.passive_energy} nJ")
 
         # TODO: fix this before merge
         # for node in hw.netlist.nodes:
