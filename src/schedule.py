@@ -3,7 +3,7 @@ from collections import deque
 import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
-
+import cvxpy as cp
 import sim_util
 
 # can't import hardware Model else will have circular imports
@@ -15,6 +15,38 @@ operation_sets = {}
 
 rng = np.random.default_rng()
 
+def limited_topological_sorts(graph, max_sorts=10):
+    in_degree = {node: 0 for node in graph.nodes()}
+    for u, v in graph.edges():
+        in_degree[v] += 1
+
+    partial_order = []
+    sorts_found = 0
+    
+    def visit():
+        nonlocal sorts_found
+        if sorts_found >= max_sorts:
+            return
+
+        all_visited = True
+        for node in graph.nodes():
+            if in_degree[node] == 0 and node not in partial_order:
+                all_visited = False
+                partial_order.append(node)
+                for successor in graph.successors(node):
+                    in_degree[successor] -= 1
+
+                yield from visit()
+
+                partial_order.pop()
+                for successor in graph.successors(node):
+                    in_degree[successor] += 1
+        
+        if all_visited:
+            sorts_found += 1
+            yield list(partial_order)
+
+    return list(visit())
 
 def schedule_one_node(graph):
     """
@@ -103,7 +135,67 @@ def assign_upstream_path_lengths(graph):
     
     return graph
 
-def schedule(computation_graph, hw_element_counts):
+def schedule(graph, hw_element_counts):
+    all_sorted = limited_topological_sorts(graph, max_sorts = 20)
+    # print(all_sorted[0] == all_sorted[10])
+
+    final_vars = []
+    final_optim_val = float('inf')
+    all_optim_vals = []
+    print("Trying", len(all_sorted), "topological sorts")
+    graph_nodes = graph.nodes(data=True)
+    for topological_order in all_sorted:
+        curr_constraints = []
+
+        ### Introducing Variables
+        vars = []
+        id = 0
+        for node in graph_nodes:
+            curr_var = cp.Variable(2) # first one is start time and last one is end time
+            vars.append(curr_var)
+            # start time + latency = end time for each operating node
+            node[1]['scheduling_id'] = id
+            id += 1
+            curr_constraints.append(curr_var[0] >= 0)
+            curr_constraints.append(curr_var[1] >= 0)
+            if 'cost' in node[1].keys():
+                curr_constraints.append(curr_var[0] + node[1]['cost'] == curr_var[1])
+        
+        ### Data Dependencies
+        for u, v in graph.edges():
+            # if 'idx'
+            source_id = int(graph_nodes[u]['scheduling_id'])
+            dest_id = int(graph_nodes[v]['scheduling_id'])
+            curr_constraints.append(vars[source_id][1] - vars[dest_id][0] <= 0)
+            
+        ### Resource Dependencies
+        for i in range(len(sort)):
+            curr_reg_count = {'Regs': 0, 'Add': 0, 'Mult': 0, 'Buf': 0, 'Eq': 0}
+            start_node = topological_order[i]
+            if graph.nodes[start_node]['function'] not in curr_reg_count:
+                continue
+            curr_reg_count[graph.nodes[start_node]['function']] += 1
+            for j in range(i + 1, len(topological_order)):
+                curr_node = topological_order[j]
+                if graph.nodes[curr_node]['function'] not in curr_reg_count:
+                    continue
+                curr_reg_count[graph.nodes[curr_node]['function']] += 1
+                if curr_reg_count[graph.nodes[curr_node]['function']] > hw_element_counts[graph.nodes[curr_node]['function']]:
+                    # add a constraint
+                    curr_constraints.append(vars[graph.nodes[start_node]['scheduling_id']][1] - vars[graph.nodes[curr_node]['scheduling_id']][0] <= -graph.nodes[start_node]['cost'])
+
+        # constraints += curr_constraints
+        obj = cp.Minimize(vars[graph_nodes['end']['scheduling_id']][0])
+        prob = cp.Problem(obj, curr_constraints)
+        prob.solve()
+        all_optim_vals.append(prob.value)
+        if prob.value < final_optim_val:
+            final_optim_val = prob.value
+            final_vars = vars
+    print("End Node Optimal Time: ", final_optim_val)
+    return final_optim_val
+
+def greedy_schedule(computation_graph, hw_element_counts):
     """
     Schedules the computation graph on the hardware netlist
     by determining the order of operations and the states in which
