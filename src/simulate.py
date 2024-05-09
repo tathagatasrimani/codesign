@@ -1016,8 +1016,8 @@ if __name__ == "__main__":
     # )
     # parser.add_argument("-f", "--filepath", type=str, help="Path to the save new architecture file")
     args = parser.parse_args()
-    print(
-        f"args: benchmark: {args.benchmark}, trace:{args.notrace}, architecture:{args.architecture}"
-    )
+    # print(
+    #     f"args: benchmark: {args.benchmark}, trace:{args.notrace}, architecture:{args.architecture}"
+    # )
 
     main(args)

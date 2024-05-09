@@ -136,7 +136,7 @@ def assign_upstream_path_lengths(graph):
     return graph
 
 def schedule(graph, hw_element_counts):
-    all_sorted = limited_topological_sorts(graph, max_sorts = 20)
+    all_sorted = limited_topological_sorts(graph, max_sorts = 10)
     # print(all_sorted[0] == all_sorted[10])
 
     final_vars = []
@@ -169,7 +169,7 @@ def schedule(graph, hw_element_counts):
             curr_constraints.append(vars[source_id][1] - vars[dest_id][0] <= 0)
             
         ### Resource Dependencies
-        for i in range(len(sort)):
+        for i in range(len(topological_order)):
             curr_reg_count = {'Regs': 0, 'Add': 0, 'Mult': 0, 'Buf': 0, 'Eq': 0}
             start_node = topological_order[i]
             if graph.nodes[start_node]['function'] not in curr_reg_count:
