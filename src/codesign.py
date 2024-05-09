@@ -12,7 +12,7 @@ import coefficients
 import symbolic_simulate
 import optimize
 import hw_symbols
-from sim_util import generate_init_params_from_rcs_as_symbols
+import sim_util
 import hardwareModel
 
 
@@ -52,7 +52,7 @@ class Codesign:
         coefficients.create_and_save_coefficients([self.hw.transistor_size])
 
         rcs = self.hw.get_optimization_params_from_tech_params()
-        initial_tech_params = generate_init_params_from_rcs_as_symbols(rcs)
+        initial_tech_params = sim_util.generate_init_params_from_rcs_as_symbols(rcs)
 
         self.set_technology_parameters(initial_tech_params)
 
@@ -73,6 +73,9 @@ class Codesign:
 
     def forward_pass(self, area_constraint):
         print("\nRunning Forward Pass")
+        sim_util.update_schedule_with_latency(self.scheduled_dfg, self.hw.latency)
+        sim_util.update_schedule_with_latency(self.computation_dfg, self.hw.latency)
+
         self.sim.simulate(self.scheduled_dfg, self.hw)
         self.sim.calculate_edp(self.hw)
         edp = self.sim.edp
