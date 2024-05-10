@@ -14,6 +14,7 @@ from ast_utils import ASTUtils
 from memory import Memory, Cache
 from config_dicts import op2sym_map
 from rcgen import generate_optimization_params
+from cacti_util import gen_vals
 
 
 HW_CONFIG_FILE = "hw_cfgs.ini"
@@ -172,6 +173,11 @@ class HardwareModel:
 
         self.dynamic_power = tech_params["dynamic_power"][self.transistor_size]
         self.leakage_power = tech_params["leakage_power"][self.transistor_size]
+
+        # ADDED 
+        self.dynamic_energy = tech_params["dynamic_energy"][self.transistor_size]
+        self.leakage_energy = tech_params["leakage_energy"][self.transistor_size]
+        # END ADDED
         # print(f"t_size: {self.transistor_size}, cache: {self.cache_size}, mem_layers: {self.mem_layers}, pitch: {self.pitch}")
         # print(f"tech_params[mem_area][t_size][cache_size][mem_layers]: {tech_params['mem_area'][self.transistor_size][self.cache_size][self.mem_layers]}")
 
@@ -332,18 +338,29 @@ class HardwareModel:
         return n
     
     def gen_cacti_results(self):
-        buf_vals = cactiUtil.gen_vals("base_cache", 131072, 64,
+        # add I/O 
+        # latency and power to each main mem read or write
+
+        # add new dict entry, off-chip IO [latency and power], add that whenever mem interaction
+        # sizes mem set on hwmodel memsize var, add variable for cache size in hardWareModel that we set later - init small
+        # add instance for all -> cache size, bit width
+        buf_vals = gen_vals("base_cache", 131072, 64,
                                       "cache", 512)
-        mem_vals = cactiUtil.gen_vals("mem_cache", 131072, 64,
+        mem_vals = gen_vals("mem_cache", 131072, 64,
                                       "main memory", 512)
 
-        self.latency["Buf"] = buf_vals[0]
-        self.latency["MainMem"] = mem_vals[0]
+        self.latency["Buf"] = float(buf_vals[0])
+        self.latency["MainMem"] = float(mem_vals[0])
 
-        self.dynamic_power["Buf"] = buf_vals[1] + buf_vals[2] + buf_vals[3]
-        self.dynamic_power["MainMem"] = mem_vals[1] + mem_vals[2] + mem_vals[3]
+        # careful cacti gen energy
+        # need to change power to energy -> just for buf and main mem
+        # add dynamic energy, change simulate.py 
+        # store read and write energy separate, buf read & write -> dynamic energy, key for read and write
+        self.dynamic_energy["Buf"] = float(buf_vals[1]) if buf_vals[1] != "N/A" else 0.0
+        
+        self.dynamic_energy["MainMem"] = float(mem_vals[1]) if mem_vals[1] != "N/A" else 0.0
 
-        self.leakage_power["Buf"] = buf_vals[4]
-        self.leakage_power["MainMem"] = mem_vals[4]
+        self.leakage_energy["Buf"] = float(buf_vals[4])
+        self.leakage_energy["MainMem"] = float(mem_vals[4])
 
         return

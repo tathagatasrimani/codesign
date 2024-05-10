@@ -793,6 +793,7 @@ def main(args):
         sim_util.find_nearest_power_2(simulator.memory_needed),
         sim_util.find_nearest_power_2(simulator.nvm_memory_needed),
     )
+    hw.gen_cacti_results()
 
     # nx.draw(hw.netlist, with_labels=True)
     # plt.show()
