@@ -128,8 +128,12 @@ dynamic_energy: # nw
     Sub: 32.8119232
     UAdd: 28.6781376
     USub: 32.8119232
-    Buf: 0.0 # per byte? PLACEHOLDER
-    MainMem: 2.1e+6 # nw per byte 65 nm SRAM
+    Buf: 
+      Read: 0.0
+      Write: 0.0
+    MainMem: 
+      Read: 0.0
+      Write: 0.0
   5:
     Add: 39.28512
     And: 64.62911
@@ -155,8 +159,12 @@ dynamic_energy: # nw
     Sub: 44.94784
     UAdd: 39.28512
     USub: 44.94784
-    Buf: 0.0 # per byte? PLACEHOLDER
-    MainMem: 2.1e+6 # nw per byte 65 nm SRAM
+    Buf: 
+      Read: 0.0
+      Write: 0.0
+    MainMem: 
+      Read: 0.0
+      Write: 0.0
   7:
     Add: 49.728
     And: 81.809
@@ -182,8 +190,12 @@ dynamic_energy: # nw
     Sub: 56.896
     UAdd: 49.728
     USub: 56.896
-    Buf: 0.0 # per byte? PLACEHOLDER
-    MainMem: 2.1e+6 # nw per byte
+    Buf: 
+      Read: 0.0
+      Write: 0.0
+    MainMem: 
+      Read: 0.0
+      Write: 0.0
   40:
     Add: 2.836642e+05
     Sub: 2.836642e+05
@@ -209,8 +221,12 @@ dynamic_energy: # nw
     Regs: 8.999495e+03
     UAdd: 2.836642e+05 # use add, unsure about this.
     USub: 2.836642e+05 # use add, unsure about this.
-    Buf: 0.0 # per byte? PLACEHOLDER
-    MainMem: 2.1e+6 # nw per byte ; 65 nm SRAM
+    Buf: 
+      Read: 0.0
+      Write: 0.0
+    MainMem: 
+      Read: 0.0
+      Write: 0.0
 # END ADDED 
 dynamic_power: # nw
   3:
@@ -541,6 +557,21 @@ leakage_energy: # nw
     USub: 3.265969e+03 # use add, unsure about this.
     Buf: 0.0 # per byte? PLACEHOLDER
     MainMem: 84.48 # nw per byte - 65nm SRAM
+
+off_chip_io:
+  3:
+    Latency: 0.0
+    Power: 0.0
+  5:
+    Latency: 0.0
+    Power: 0.0
+  7:
+    Latency: 0.0
+    Power: 0.0
+  40:
+    Latency: 0.0
+    Power: 0.0
+
 # END ADDED
 leakage_power: # nw
   3:

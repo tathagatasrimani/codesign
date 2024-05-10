@@ -73,6 +73,8 @@ class HardwareModel:
         pitch=None,
         transistor_size=None,
         cache_size=None,
+        mem_size=None,
+        bus_width=None
     ):
         """
         Simulates the effect of 2 different constructors. Either supply cfg (config), or supply the rest of the arguments.
@@ -81,7 +83,7 @@ class HardwareModel:
         """
         if cfg is None:
             self.set_hw_config_vars(
-                id, bandwidth, mem_layers, pitch, transistor_size, cache_size
+                id, bandwidth, mem_layers, pitch, transistor_size, cache_size, mem_size, bus_width
             )
         else:
             config = cp.ConfigParser()
@@ -96,6 +98,8 @@ class HardwareModel:
                 config.getint(cfg, "cachesize"),
                 config.getint(cfg, "frequency"),
                 config.getfloat(cfg, "V_dd"),
+                config.getfloat(cfg, "memsize"),
+                config.getfloat(cfg, "buswidth"),
             )
         self.hw_allocated = {}
 
@@ -118,6 +122,8 @@ class HardwareModel:
         cache_size,
         frequency,
         V_dd,
+        mem_size,
+        bus_width
     ):
         self.id = id
         self.max_bw = bandwidth  # this doesn't really get used. deprecate?
@@ -128,6 +134,8 @@ class HardwareModel:
         self.cache_size = cache_size
         self.frequency = frequency * 1.0
         self.V_dd = V_dd
+        self.mem_size = mem_size
+        self.bus_width = bus_width
 
     def init_memory(self, mem_needed, nvm_mem_needed):
         """
@@ -177,6 +185,7 @@ class HardwareModel:
         # ADDED 
         self.dynamic_energy = tech_params["dynamic_energy"][self.transistor_size]
         self.leakage_energy = tech_params["leakage_energy"][self.transistor_size]
+        self.off_chip_io = tech_params["off_chip_io"][self.transistor_size]
         # END ADDED
         # print(f"t_size: {self.transistor_size}, cache: {self.cache_size}, mem_layers: {self.mem_layers}, pitch: {self.pitch}")
         # print(f"tech_params[mem_area][t_size][cache_size][mem_layers]: {tech_params['mem_area'][self.transistor_size][self.cache_size][self.mem_layers]}")
@@ -338,10 +347,15 @@ class HardwareModel:
         return n
     
     def gen_cacti_results(self):
+
+        # 1. add bit width, mem size, cache size DONE
+        # 2. add IO DONE
+        # 3. check simulate.py for energy instead of power ASK about this
+
         # add I/O 
         # latency and power to each main mem read or write
 
-        # add new dict entry, off-chip IO [latency and power], add that whenever mem interaction
+        # add new dict entry, off-chip IO [latency and power], add that whenever mem interaction DONE
         # sizes mem set on hwmodel memsize var, add variable for cache size in hardWareModel that we set later - init small
         # add instance for all -> cache size, bit width
         buf_vals = gen_vals("base_cache", 131072, 64,
@@ -352,13 +366,17 @@ class HardwareModel:
         self.latency["Buf"] = float(buf_vals[0])
         self.latency["MainMem"] = float(mem_vals[0])
 
-        # careful cacti gen energy
-        # need to change power to energy -> just for buf and main mem
-        # add dynamic energy, change simulate.py 
-        # store read and write energy separate, buf read & write -> dynamic energy, key for read and write
-        self.dynamic_energy["Buf"] = float(buf_vals[1]) if buf_vals[1] != "N/A" else 0.0
+        # careful cacti gen energy 
+        # need to change power to energy -> just for buf and main mem DONE 
+        # add dynamic energy, change simulate.py  
+        # store read and write energy separate, buf read & write -> dynamic energy, key for read and write DONE
+        self.dynamic_energy["Buf"]["Read"] = float(buf_vals[2]) if buf_vals[2] != "N/A" else 0.0
+        self.dynamic_energy["Buf"]["Write"] = float(buf_vals[3]) if buf_vals[3] != "N/A" else 0.0
         
-        self.dynamic_energy["MainMem"] = float(mem_vals[1]) if mem_vals[1] != "N/A" else 0.0
+        self.dynamic_energy["MainMem"]["Read"] = float(mem_vals[2]) if mem_vals[2] != "N/A" else 0.0
+        self.dynamic_energy["MainMem"]["Write"] = float(mem_vals[2]) if mem_vals[2] != "N/A" else 0.0
+        self.off_chip_io["Latency"] = float(mem_vals[6]) if mem_vals[6] != "N/A" else 0.0
+        self.off_chip_io["Power"] = float(mem_vals[7]) if mem_vals[7] != "N/A" else 0.0
 
         self.leakage_energy["Buf"] = float(buf_vals[4])
         self.leakage_energy["MainMem"] = float(mem_vals[4])
