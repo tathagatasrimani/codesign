@@ -93,12 +93,21 @@ class ConcreteSimulator:
                 #     print(
                 #         f" found a mem object in active energy calc, adding scaling factor: {scaling}"
                 #     )
-
-            self.total_energy += (
-                hw_spec.dynamic_power[node_data["function"]] * 1e-9
-                * scaling
-                * (hw_spec.latency[node_data["function"]] / hw_spec.frequency)
-            )
+            # ADDED
+            if node_data["function"] in ["Buf", "MainMem"]:
+                self.total_energy += (
+                    (hw_spec.dynamic_energy[node_data["function"]]["Read"] 
+                    + hw_spec.dynamic_energy[node_data["function"]]["Write"])
+                    * 1e-9
+                    * scaling
+                )
+            else:
+                self.total_energy += (
+                    hw_spec.dynamic_power[node_data["function"]] * 1e-9
+                    * scaling
+                    * (hw_spec.latency[node_data["function"]] / hw_spec.frequency)
+                )
+            # END ADDED
             hw_spec.compute_operation_totals[node_data["function"]] += 1
         self.active_power_use[self.cycles] /= total_cycles
 
@@ -548,15 +557,32 @@ class ConcreteSimulator:
             scaling = 1
             if elem_data["function"] in ["MainMem"]:
                 scaling = elem_data["size"]
+            
+            # ADDED
             # OLD PASSIVE POWER CALCULATION
-            self.passive_power_dissipation_rate += (
-                hw.leakage_power[elem_data["function"]] * scaling
-            )
+            if elem_data["function"] in ["Buf", "MainMem"]:
+                self.passive_power_dissipation_rate += (
+                    hw.leakage_energy[elem_data["function"]] 
+                    * scaling
+                    / (self.cycles / hw.frequency)
+                )
+            else:
+                self.passive_power_dissipation_rate += (
+                    hw.leakage_power[elem_data["function"]] * scaling
+                )
+            
             # NEW PASSIVE ENERGY CALCULATION
-            self.total_energy += (
-                hw.leakage_power[elem_data["function"]]*1e-9
-                * (self.cycles / hw.frequency) * scaling
-            )
+            if elem_data["function"] in ["Buf", "MainMem"]:
+                self.total_energy += (
+                    hw.leakage_energy[elem_data["function"]]*1e-9
+                    * scaling
+                )
+            else:
+                self.total_energy += (
+                    hw.leakage_power[elem_data["function"]]*1e-9
+                    * (self.cycles / hw.frequency) * scaling
+                )
+            # END ADDED
 
         for node in hw.netlist.nodes:
             hw.netlist.nodes[node]['allocation'] = len(hw.netlist.nodes[node]['allocation'])
