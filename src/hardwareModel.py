@@ -352,12 +352,21 @@ class HardwareModel:
         # 2. add IO DONE
         # 3. check simulate.py for energy instead of power ASK about this
 
-        # add I/O 
-        # latency and power to each main mem read or write
-
-        # add new dict entry, off-chip IO [latency and power], add that whenever mem interaction DONE
+        # 1 details
         # sizes mem set on hwmodel memsize var, add variable for cache size in hardWareModel that we set later - init small
         # add instance for all -> cache size, bit width
+
+        # 2 details
+        # add I/O 
+        # latency and power to each main mem read or write
+        # add new dict entry, off-chip IO [latency and power], add that whenever mem interaction DONE
+
+        # 3 details
+        # careful cacti gen energy 
+        # need to change power to energy -> just for buf and main mem DONE 
+        # add dynamic energy, change simulate.py  
+        # store read and write energy separate, buf read & write -> dynamic energy, key for read and write DONE
+
         buf_vals = gen_vals("base_cache", 131072, 64,
                                       "cache", 512)
         mem_vals = gen_vals("mem_cache", 131072, 64,
@@ -366,15 +375,12 @@ class HardwareModel:
         self.latency["Buf"] = float(buf_vals[0])
         self.latency["MainMem"] = float(mem_vals[0])
 
-        # careful cacti gen energy 
-        # need to change power to energy -> just for buf and main mem DONE 
-        # add dynamic energy, change simulate.py  
-        # store read and write energy separate, buf read & write -> dynamic energy, key for read and write DONE
-        self.dynamic_energy["Buf"]["Read"] = float(buf_vals[2]) if buf_vals[2] != "N/A" else 0.0
-        self.dynamic_energy["Buf"]["Write"] = float(buf_vals[3]) if buf_vals[3] != "N/A" else 0.0
+        self.dynamic_energy["Buf"]["Read"] = float(buf_vals[2])
+        self.dynamic_energy["Buf"]["Write"] = float(buf_vals[3])
         
-        self.dynamic_energy["MainMem"]["Read"] = float(mem_vals[2]) if mem_vals[2] != "N/A" else 0.0
-        self.dynamic_energy["MainMem"]["Write"] = float(mem_vals[2]) if mem_vals[2] != "N/A" else 0.0
+        self.dynamic_energy["MainMem"]["Read"] = float(mem_vals[2])
+        self.dynamic_energy["MainMem"]["Write"] = float(mem_vals[3])
+
         self.off_chip_io["Latency"] = float(mem_vals[6]) if mem_vals[6] != "N/A" else 0.0
         self.off_chip_io["Power"] = float(mem_vals[7]) if mem_vals[7] != "N/A" else 0.0
 
