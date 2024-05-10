@@ -793,7 +793,6 @@ def main(args):
         sim_util.find_nearest_power_2(simulator.memory_needed),
         sim_util.find_nearest_power_2(simulator.nvm_memory_needed),
     )
-    hw.gen_cacti_results()
 
     # nx.draw(hw.netlist, with_labels=True)
     # plt.show()
@@ -811,6 +810,8 @@ def main(args):
         simulator.cache_size = 8
     else:
         simulator.cache_size = 16
+
+    hw.gen_cacti_results()
 
     new_gv_graph = gv.Graph()
     simulator.new_graph = dfg_algo.Graph(set(), {}, new_gv_graph)
