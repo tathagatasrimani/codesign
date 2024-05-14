@@ -83,7 +83,7 @@ class HardwareModel:
         """
         if cfg is None:
             self.set_hw_config_vars(
-                id, bandwidth, mem_layers, pitch, transistor_size, cache_size, mem_size, bus_width
+                id, bandwidth, mem_layers, pitch, transistor_size, cache_size
             )
         else:
             config = cp.ConfigParser()
@@ -97,9 +97,7 @@ class HardwareModel:
                 config.getint(cfg, "transistorsize"),
                 config.getint(cfg, "cachesize"),
                 config.getint(cfg, "frequency"),
-                config.getfloat(cfg, "V_dd"),
-                config.getfloat(cfg, "memsize"),
-                config.getfloat(cfg, "buswidth"),
+                config.getfloat(cfg, "V_dd")
             )
         self.hw_allocated = {}
 
@@ -121,9 +119,7 @@ class HardwareModel:
         transistor_size,
         cache_size,
         frequency,
-        V_dd,
-        mem_size,
-        bus_width
+        V_dd
     ):
         self.id = id
         self.max_bw = bandwidth  # this doesn't really get used. deprecate?
@@ -134,8 +130,6 @@ class HardwareModel:
         self.cache_size = cache_size
         self.frequency = frequency * 1.0
         self.V_dd = V_dd
-        self.mem_size = mem_size
-        self.bus_width = bus_width
 
     def init_memory(self, mem_needed, nvm_mem_needed):
         """
@@ -169,6 +163,9 @@ class HardwareModel:
         ).items():
             data["var"] = ""  # reg keeps track of which variable it is allocated
 
+        self.mem_size = mem_needed
+        self.bus_width = 256 # ask if want as input
+
     def set_technology_parameters(self):
         """
         I Want to Deprecate everything that takes into account 3D with indexing by pitch size
@@ -184,8 +181,6 @@ class HardwareModel:
 
         # ADDED 
         self.dynamic_energy = tech_params["dynamic_energy"][self.transistor_size]
-        self.leakage_energy = tech_params["leakage_energy"][self.transistor_size]
-        self.off_chip_io = tech_params["off_chip_io"][self.transistor_size]
         # END ADDED
         # print(f"t_size: {self.transistor_size}, cache: {self.cache_size}, mem_layers: {self.mem_layers}, pitch: {self.pitch}")
         # print(f"tech_params[mem_area][t_size][cache_size][mem_layers]: {tech_params['mem_area'][self.transistor_size][self.cache_size][self.mem_layers]}")
@@ -372,19 +367,19 @@ class HardwareModel:
         mem_vals = gen_vals("mem_cache", 131072, 64,
                                       "main memory", 512)
 
-        self.latency["Buf"] = float(buf_vals[0])
-        self.latency["MainMem"] = float(mem_vals[0])
+        self.latency["Buf"] = float(buf_vals[0][0])
+        self.latency["MainMem"] = float(mem_vals[0][0])
 
-        self.dynamic_energy["Buf"]["Read"] = float(buf_vals[2])
-        self.dynamic_energy["Buf"]["Write"] = float(buf_vals[3])
+        self.dynamic_energy["Buf"]["Read"] = float(buf_vals[0][2])
+        self.dynamic_energy["Buf"]["Write"] = float(buf_vals[0][3])
         
-        self.dynamic_energy["MainMem"]["Read"] = float(mem_vals[2])
-        self.dynamic_energy["MainMem"]["Write"] = float(mem_vals[3])
+        self.dynamic_energy["MainMem"]["Read"] = float(mem_vals[0][2])
+        self.dynamic_energy["MainMem"]["Write"] = float(mem_vals[0][3])
 
-        self.off_chip_io["Latency"] = float(mem_vals[6]) if mem_vals[6] != "N/A" else 0.0
-        self.off_chip_io["Power"] = float(mem_vals[7]) if mem_vals[7] != "N/A" else 0.0
+        self.leakage_power["Buf"] = float(buf_vals[0][4])
+        self.leakage_power["MainMem"] = float(mem_vals[0][4])
 
-        self.leakage_energy["Buf"] = float(buf_vals[4])
-        self.leakage_energy["MainMem"] = float(mem_vals[4])
+        self.latency["OffChipIO"] = float(mem_vals[1][5]) if mem_vals[1][5] != "N/A" else 0.0
+        self.dynamic_power["OffChipIO"] = float(mem_vals[1][2]) if mem_vals[1][2] != "N/A" else 0.0
 
         return

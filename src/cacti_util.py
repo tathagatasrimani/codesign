@@ -223,14 +223,35 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
     line = lines[-1]
     output_values = line.strip().split(', ')
 
+  IO_freq = convert_frequency(config_values['bus_freq'])
+  IO_time = (addr_timing / IO_freq) * 10**9
+
   # CACTI: access time (ns), search energy (nJ), read energy (nJ), write energy (nJ), leakage bank power (mW)
   # CACTI IO: area (sq.mm), timing (ps), dynamic power (mW), PHY power (mW), termination and bias power (mW)
-  return (output_values[5], output_values[7], output_values[8],
-          output_values[9], output_values[10],output_values[26],
-          output_values[27], output_values[28], output_values[29],
-          output_values[30]);
+  # latency (ns)
+  return ((output_values[5], output_values[7], output_values[8],
+          output_values[9], output_values[10]),
+          (output_values[26], output_values[27], output_values[28], 
+          output_values[29], output_values[30], IO_time))
 
 # for debugging
 # if __name__ == '__main__':
  # print(gen_vals("test0"))
  # print(gen_vals("test1", 131072, 64, "cache", 512, 4.0))
+
+def convert_frequency(string):
+    parts = string.split()
+    
+    if len(parts) == 2 and parts[1].lower() in ('ghz', 'mhz'):
+        try:
+            value = int(parts[0])  # Extract the integer part
+            unit = parts[1].lower()  # Extract the unit and convert to lowercase
+
+            if unit == 'ghz':
+                return value * 10**9
+            elif unit == 'mhz':
+                return value * 10**6
+        except ValueError:
+            print("Invalid input format")
+    else:
+        print("Invalid input format")

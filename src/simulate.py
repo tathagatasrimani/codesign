@@ -101,6 +101,12 @@ class ConcreteSimulator:
                     * 1e-9
                     * scaling
                 )
+                if node_data["function"] == "MainMem":
+                    self.total_energy += (
+                    hw_spec.dynamic_power["OffChipIO"] * 1e-9
+                    * scaling
+                    * (hw_spec.latency["OffChipIO"] / hw_spec.frequency)
+                    )
             else:
                 self.total_energy += (
                     hw_spec.dynamic_power[node_data["function"]] * 1e-9
@@ -558,31 +564,16 @@ class ConcreteSimulator:
             if elem_data["function"] in ["MainMem"]:
                 scaling = elem_data["size"]
             
-            # ADDED
             # OLD PASSIVE POWER CALCULATION
-            if elem_data["function"] in ["Buf", "MainMem"]:
-                self.passive_power_dissipation_rate += (
-                    hw.leakage_energy[elem_data["function"]] 
-                    * scaling
-                    / (self.cycles / hw.frequency)
-                )
-            else:
-                self.passive_power_dissipation_rate += (
-                    hw.leakage_power[elem_data["function"]] * scaling
-                )
+            self.passive_power_dissipation_rate += (
+                hw.leakage_power[elem_data["function"]] * scaling
+            )
             
             # NEW PASSIVE ENERGY CALCULATION
-            if elem_data["function"] in ["Buf", "MainMem"]:
-                self.total_energy += (
-                    hw.leakage_energy[elem_data["function"]]*1e-9
-                    * scaling
-                )
-            else:
-                self.total_energy += (
-                    hw.leakage_power[elem_data["function"]]*1e-9
-                    * (self.cycles / hw.frequency) * scaling
-                )
-            # END ADDED
+            self.total_energy += (
+                hw.leakage_power[elem_data["function"]]*1e-9
+                * (self.cycles / hw.frequency) * scaling
+            )
 
         for node in hw.netlist.nodes:
             hw.netlist.nodes[node]['allocation'] = len(hw.netlist.nodes[node]['allocation'])
