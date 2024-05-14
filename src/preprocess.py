@@ -35,8 +35,8 @@ class Preprocessor:
 
     def add_constraints(self, model):
         # this is where we say EDP_final = EDP_initial / 10
-        model.Constraint = pyo.Constraint(expr=self.pyomo_edp_exp <= self.initial_val / 1.9)
-        model.Constraint1 = pyo.Constraint(expr=self.pyomo_edp_exp >= self.initial_val / 2.1)
+        model.Constraint = pyo.Constraint(expr=self.pyomo_edp_exp <= self.initial_val / 1.4)
+        model.Constraint1 = pyo.Constraint(expr=self.pyomo_edp_exp >= self.initial_val / 1.6)
         # model.freq_const = pyo.Constraint(rule=self.f)
         model.V_dd_lower = pyo.Constraint(rule=self.V_dd_lower)
         model.V_dd_upper = pyo.Constraint(rule=self.V_dd_upper)
@@ -65,9 +65,14 @@ class Preprocessor:
         )
         return model
 
-    def add_regularization_to_objective(self, model):
+    def add_regularization_to_objective(self, model, l=1):
+        """
+        Parameters:
+        model: pyomo model
+        l: regularization hyperparameter
+        """
         for symbol in self.free_symbols:
-            self.obj += LAMBDA * (
+            self.obj += l * (
                 self.initial_params[symbol.name]
                 / model.x[self.mapping[hw_symbols.symbol_table[symbol.name]]]
                 - 1
@@ -152,7 +157,7 @@ class Preprocessor:
         self.pyomo_edp_exp = sympy_tools.sympy2pyomo_expression(edp, m)
         # py_exp = sympy_tools.sympy2pyomo_expression(hardwaremodel.symbolic_latency["Add"] ** (1/2), m)
         self.obj = self.pyomo_edp_exp
-        self.add_regularization_to_objective(model)
+        self.add_regularization_to_objective(model, l=0.00001)
 
         model.obj = pyo.Objective(expr=self.obj, sense=pyo.minimize)
         model.cuts = pyo.ConstraintList()

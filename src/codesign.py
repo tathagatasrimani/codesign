@@ -204,7 +204,7 @@ def main():
     codesign_module = Codesign(args.benchmark, args.architecture_config, args.savedir)
 
     i = 0
-    while i < 5:
+    while i < 10:
 
         codesign_module.inverse_pass()
         codesign_module.hw.update_technology_parameters()
