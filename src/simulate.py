@@ -826,8 +826,6 @@ def main(args):
     else:
         simulator.cache_size = 16
 
-    hw.gen_cacti_results()
-
     new_gv_graph = gv.Graph()
     simulator.new_graph = dfg_algo.Graph(set(), {}, new_gv_graph)
     for elem_name, elem_data in dict(hw.netlist.nodes.data()).items():

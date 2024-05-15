@@ -109,6 +109,7 @@ class HardwareModel:
 
         self.init_misc_vars()
         self.set_technology_parameters()
+        self.gen_cacti_results()
 
     def set_hw_config_vars(
         self,
