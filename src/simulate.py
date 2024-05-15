@@ -102,9 +102,9 @@ class ConcreteSimulator:
                 )
                 if node_data["function"] == "MainMem":
                     self.total_energy += (
-                    hw_spec.dynamic_power["OffChipIO"] * 1e-9
+                    hw_spec.dynamic_power["OffChipIO"] * 1e-3   # CACTI IO uses mW
                     * scaling
-                    * (hw_spec.latency["OffChipIO"] / hw_spec.frequency)
+                    * hw_spec.latency["OffChipIO"]
                     )
             else:
                 self.total_energy += (

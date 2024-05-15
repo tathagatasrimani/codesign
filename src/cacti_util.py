@@ -224,15 +224,17 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
     output_values = line.strip().split(', ')
 
   IO_freq = convert_frequency(config_values['bus_freq'])
-  IO_time = (addr_timing / IO_freq) * 10**9
+  IO_latency = (addr_timing / IO_freq)
 
   # CACTI: access time (ns), search energy (nJ), read energy (nJ), write energy (nJ), leakage bank power (mW)
   # CACTI IO: area (sq.mm), timing (ps), dynamic power (mW), PHY power (mW), termination and bias power (mW)
   # latency (ns)
-  return ((output_values[5], output_values[7], output_values[8],
-          output_values[9], output_values[10]),
-          (output_values[26], output_values[27], output_values[28], 
-          output_values[29], output_values[30], IO_time))
+  return ({"access_time_ns": output_values[5], "search_energy_nJ": output_values[7], 
+           "read_energy_nJ": output_values[8], "write_energy_nJ": output_values[9], 
+           "leakage_bank_power_mW": output_values[10],
+           "IO_area_sqmm": output_values[26], "IO_timing_ps": output_values[27], 
+           "IO_dyanmic_power_mW": output_values[28], "IO_PHY_power_mW": output_values[29], 
+           "IO_termination_bias_power_mW": output_values[30], "IO_latency_s": IO_latency})
 
 # for debugging
 # if __name__ == '__main__':

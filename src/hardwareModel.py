@@ -366,19 +366,19 @@ class HardwareModel:
         mem_vals = gen_vals("mem_cache", 131072, 64,
                                       "main memory", 512)
 
-        self.latency["Buf"] = float(buf_vals[0][0])
-        self.latency["MainMem"] = float(mem_vals[0][0])
+        self.latency["Buf"] = float(buf_vals["access_time_ns"])
+        self.latency["MainMem"] = float(mem_vals["access_time_ns"])
 
-        self.dynamic_energy["Buf"]["Read"] = float(buf_vals[0][2])
-        self.dynamic_energy["Buf"]["Write"] = float(buf_vals[0][3])
+        self.dynamic_energy["Buf"]["Read"] = float(buf_vals["read_energy_nJ"])
+        self.dynamic_energy["Buf"]["Write"] = float(buf_vals["write_energy_nJ"])
         
-        self.dynamic_energy["MainMem"]["Read"] = float(mem_vals[0][2])
-        self.dynamic_energy["MainMem"]["Write"] = float(mem_vals[0][3])
+        self.dynamic_energy["MainMem"]["Read"] = float(mem_vals["read_energy_nJ"])
+        self.dynamic_energy["MainMem"]["Write"] = float(mem_vals["write_energy_nJ"])
 
-        self.leakage_power["Buf"] = float(buf_vals[0][4])
-        self.leakage_power["MainMem"] = float(mem_vals[0][4])
+        self.leakage_power["Buf"] = float(buf_vals["leakage_bank_power_mW"])
+        self.leakage_power["MainMem"] = float(mem_vals["leakage_bank_power_mW"])
 
-        self.latency["OffChipIO"] = float(mem_vals[1][5]) if mem_vals[1][5] != "N/A" else 0.0
-        self.dynamic_power["OffChipIO"] = float(mem_vals[1][2]) if mem_vals[1][2] != "N/A" else 0.0
+        self.latency["OffChipIO"] = float(mem_vals["IO_latency_s"]) if mem_vals["IO_latency_s"] != "N/A" else 0.0
+        self.dynamic_power["OffChipIO"] = float(mem_vals["IO_PHY_power_mW"]) if mem_vals["IO_PHY_power_mW"] != "N/A" else 0.0
 
         return
