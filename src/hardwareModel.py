@@ -83,7 +83,7 @@ class HardwareModel:
         """
         if cfg is None:
             self.set_hw_config_vars(
-                id, bandwidth, mem_layers, pitch, transistor_size, cache_size
+                id, bandwidth, mem_layers, pitch, transistor_size, cache_size, bus_width
             )
         else:
             config = cp.ConfigParser()
@@ -97,7 +97,8 @@ class HardwareModel:
                 config.getint(cfg, "transistorsize"),
                 config.getint(cfg, "cachesize"),
                 config.getint(cfg, "frequency"),
-                config.getfloat(cfg, "V_dd")
+                config.getfloat(cfg, "V_dd"),
+                config.getfloat(cfg, "buswidth")
             )
         self.hw_allocated = {}
 
@@ -119,7 +120,8 @@ class HardwareModel:
         transistor_size,
         cache_size,
         frequency,
-        V_dd
+        V_dd,
+        bus_width
     ):
         self.id = id
         self.max_bw = bandwidth  # this doesn't really get used. deprecate?
@@ -130,6 +132,7 @@ class HardwareModel:
         self.cache_size = cache_size
         self.frequency = frequency * 1.0
         self.V_dd = V_dd
+        self.bus_width = bus_width
 
     def init_memory(self, mem_needed, nvm_mem_needed):
         """
@@ -164,7 +167,7 @@ class HardwareModel:
             data["var"] = ""  # reg keeps track of which variable it is allocated
 
         self.mem_size = mem_needed
-        self.bus_width = 256 # ask if want as input
+
 
     def set_technology_parameters(self):
         """
@@ -379,6 +382,6 @@ class HardwareModel:
         self.leakage_power["MainMem"] = float(mem_vals["leakage_bank_power_mW"])
 
         self.latency["OffChipIO"] = float(mem_vals["IO_latency_s"]) if mem_vals["IO_latency_s"] != "N/A" else 0.0
-        self.dynamic_power["OffChipIO"] = float(mem_vals["IO_PHY_power_mW"]) if mem_vals["IO_PHY_power_mW"] != "N/A" else 0.0
+        self.dynamic_power["OffChipIO"] = float(mem_vals["IO_dyanmic_power_mW"]) if mem_vals["IO_dyanmic_power_mW"] != "N/A" else 0.0
 
         return
