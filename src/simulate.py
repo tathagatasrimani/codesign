@@ -93,7 +93,6 @@ class ConcreteSimulator:
                 #     print(
                 #         f" found a mem object in active energy calc, adding scaling factor: {scaling}"
                 #     )
-            # ADDED
             if node_data["function"] in ["Buf", "MainMem"]:
                 self.total_energy += (
                     (hw_spec.dynamic_energy[node_data["function"]]["Read"] 
@@ -113,7 +112,6 @@ class ConcreteSimulator:
                     * scaling
                     * (hw_spec.latency[node_data["function"]] / hw_spec.frequency)
                 )
-            # END ADDED
             hw_spec.compute_operation_totals[node_data["function"]] += 1
         self.active_power_use[self.cycles] /= total_cycles
 

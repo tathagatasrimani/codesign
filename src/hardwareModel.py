@@ -179,9 +179,8 @@ class HardwareModel:
         self.dynamic_power = tech_params["dynamic_power"][self.transistor_size]
         self.leakage_power = tech_params["leakage_power"][self.transistor_size]
 
-        # ADDED 
         self.dynamic_energy = tech_params["dynamic_energy"][self.transistor_size]
-        # END ADDED
+        
         # print(f"t_size: {self.transistor_size}, cache: {self.cache_size}, mem_layers: {self.mem_layers}, pitch: {self.pitch}")
         # print(f"tech_params[mem_area][t_size][cache_size][mem_layers]: {tech_params['mem_area'][self.transistor_size][self.cache_size][self.mem_layers]}")
 
