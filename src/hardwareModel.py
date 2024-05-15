@@ -73,7 +73,6 @@ class HardwareModel:
         pitch=None,
         transistor_size=None,
         cache_size=None,
-        mem_size=None,
         bus_width=None
     ):
         """
@@ -98,7 +97,7 @@ class HardwareModel:
                 config.getint(cfg, "cachesize"),
                 config.getint(cfg, "frequency"),
                 config.getfloat(cfg, "V_dd"),
-                config.getfloat(cfg, "buswidth")
+                config.getint(cfg, "buswidth")
             )
         self.hw_allocated = {}
 
@@ -167,7 +166,6 @@ class HardwareModel:
             data["var"] = ""  # reg keeps track of which variable it is allocated
 
         self.mem_size = mem_needed
-
 
     def set_technology_parameters(self):
         """
