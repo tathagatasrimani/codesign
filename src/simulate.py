@@ -851,6 +851,7 @@ def main(args):
     )
     print(f"Avg compute Power: {avg_compute_power} mW")
     # print(f"total energy {sum(simulator.power_use)} nJ")
+    print(f"total energy: {simulator.total_energy} J")
     avg_mem_power = np.mean(simulator.mem_power_use) + hw.mem_leakage_power
     print(f"Avg mem Power: {avg_mem_power} mW")
     print(f"Total power: {avg_mem_power + avg_compute_power} mW")
