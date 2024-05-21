@@ -9,8 +9,8 @@ Feeds .cfg into Cacti and runs.
 Retrieves timing and power values from Cacti run.
 """
 def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
-             cache_type = None, bus_width = None, addr_timing = None,
-             debug = False):
+             cache_type = None, bus_width = None, transistor_size = None,
+             addr_timing = None, debug = False):
   # load in default values
   with open("cacti_input.yaml", 'r') as yamlfile:
     config_values = yaml.safe_load(yamlfile)
@@ -27,6 +27,9 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
 
   if bus_width == None:
     bus_width = config_values['output/input_bus_width']
+
+  if transistor_size == None:
+    transistor_size = config_values['technology']
 
   if addr_timing == None:
     addr_timing = config_values['addr_timing']
@@ -57,7 +60,7 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
     "",
     "# Multiple banks connected using a bus",
     "-UCA bank count {}".format(config_values['UCA_bank_count']),
-    "-technology (u) {}".format(config_values['technology']),
+    "-technology (u) {}".format(transistor_size),
     "",
     "# following three parameters are meaningful only for main memories",
     "-page size (bits) {}".format(config_values['page_size']),

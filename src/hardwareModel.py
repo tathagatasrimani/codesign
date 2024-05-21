@@ -364,9 +364,9 @@ class HardwareModel:
         # store read and write energy separate, buf read & write -> dynamic energy, key for read and write DONE
 
         buf_vals = gen_vals("base_cache", 131072, 64,
-                                      "cache", 512)
+                                      "cache", self.bus_width)
         mem_vals = gen_vals("mem_cache", 131072, 64,
-                                      "main memory", 512)
+                                      "main memory", self.bus_width)
 
         self.latency["Buf"] = float(buf_vals["access_time_ns"])
         self.latency["MainMem"] = float(mem_vals["access_time_ns"])
