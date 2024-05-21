@@ -116,6 +116,7 @@ def generate_new_min_arch_on_whole_dfg(hw: HardwareModel, computation_dfg: nx.Di
 
 def generate_new_min_arch(hw: HardwareModel, cfg_node_to_hw_map, data_path, id_to_node):
     """
+    DEPRECATED
     Dynamically generate the hardware for a given DFG.
 
     During the topological traversal of the DFG, we generate new hardware
@@ -141,8 +142,6 @@ def generate_new_min_arch(hw: HardwareModel, cfg_node_to_hw_map, data_path, id_t
 
         hw_graph = cfg_node_to_hw_map[cur_node]
 
-        # nx.draw(hw_graph, with_labels=True, font_weight="bold")
-
         hw.netlist = sim_util.verify_can_execute(
             hw_graph, hw.netlist, should_update_arch=True
         )
@@ -157,8 +156,6 @@ def generate_new_min_arch(hw: HardwareModel, cfg_node_to_hw_map, data_path, id_t
         hw.netlist.add_edge("Buf0", node)
         hw.netlist.add_edge(node, "Buf0")
         data["size"] = 1
-    # nx.draw(hw.netlist, with_labels=True)
-    # plt.show()
 
 
 def generate_unrolled_arch(
@@ -171,7 +168,7 @@ def generate_unrolled_arch(
     memory,
 ):
     """
-
+    DEPRECATED!
     Generate the maximally unrolled architecture that meets the area and bandwidth constraints.
 
     params:
@@ -193,7 +190,6 @@ def generate_unrolled_arch(
     ]
 
     # get number of continuous most common node:
-    # there should be a better way to do this
     max_continuous = 1
     prev = 0
     cont = 1
@@ -256,7 +252,6 @@ def generate_unrolled_arch(
             break
 
         # if area is less than threshold, Don't do anything for now.
-
     return new_data_path
 
 
@@ -269,6 +264,7 @@ def unroll_by_specified_factor(
     log=True,
 ):
     """
+    DEPRECATED
     Unroll the data path by a specified factor.
     Create new merged nx.Digraphs and add to cfg_node_to_hw_map.
     """
@@ -288,7 +284,6 @@ def unroll_by_specified_factor(
     if blk.id not in id_to_node.keys():
         cfg_node_to_hw_map[blk] = single_node_comp_graph
         id_to_node[blk.id] = blk
-    # else:
 
     # iterate through data path and replace nodes with unrolled nodes
     new_data_path = data_path.copy()

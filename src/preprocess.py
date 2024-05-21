@@ -1,9 +1,10 @@
+import yaml
+
 import pyomo.environ as pyo
-import hw_symbols
 from MyPyomoSympyBimap import MyPyomoSympyBimap
 import pyomo.core.expr.sympy_tools as sympy_tools
 from pyomo.opt import SolverFactory
-import yaml
+
 import hw_symbols
 
 LAMBDA = 0.1 # regularization parameter

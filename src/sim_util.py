@@ -6,8 +6,9 @@ import matplotlib.pyplot as plt
 
 import dfg_algo
 import hw_symbols
+from global_constants import SEED
 
-rng = np.random.default_rng()
+rng = np.random.default_rng(SEED)
 
 # adds all mallocs and frees to vectors, and finds the next cfg node in the data path,
 # returning the index of that node

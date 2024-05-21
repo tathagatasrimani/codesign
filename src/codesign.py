@@ -44,8 +44,7 @@ class Codesign:
 
         self.symbolic_sim = symbolic_simulate.SymbolicSimulator()
         self.symbolic_sim.simulator_prep(benchmark, self.hw.latency)
-        # self.symbolic_sim.update_data_path(self.sim.data_path)
-        # self.original_data_path = self.sim.data_path
+       
         hardwareModel.un_allocate_all_in_use_elements(self.hw.netlist)
 
         # starting point set by the config we load into the HW model
@@ -69,7 +68,6 @@ class Codesign:
         if self.initial_tech_params == None:
             self.initial_tech_params = tech_params
         self.tech_params = tech_params
-        # self.create_full_tech_params()
 
     def forward_pass(self, area_constraint):
         print("\nRunning Forward Pass")
@@ -81,7 +79,6 @@ class Codesign:
         edp = self.sim.edp
         print(f"Initial EDP: {edp} E-18 Js. Active Energy: {self.sim.active_energy} nJ. Passive Energy: {self.sim.passive_energy} nJ. Execution time: {self.sim.execution_time} ns")
 
-        # self.sim.update_data_path(self.original_data_path)
         # hw updated in place, schedule and edp returned.
         new_edp, new_schedule = architecture_search.run_arch_search(
             self.sim,
@@ -113,11 +110,8 @@ class Codesign:
         for _ in range(len(mapping)):
             key = lines[i].split(":")[0].lstrip().rstrip()
             value = float(lines[i].split(":")[2][1:-1])
-            # print("idx", key, "getting", value)
             self.tech_params[mapping[key]] = value
             i += 1
-        # print("mapping:", mapping)
-        # print("tech params:", self.tech_params)
 
     def write_back_rcs(self, rcs_path="rcs_current.yaml"):
         rcs = {"Reff": {}, "Ceff": {}, "other": {}}

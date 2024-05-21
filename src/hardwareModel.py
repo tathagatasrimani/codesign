@@ -69,6 +69,7 @@ def get_unique_funcs(netlist):
 def get_func_count(netlist):
     return {func: num_nodes_with_func(netlist, func) for func in get_unique_funcs(netlist)}
 
+
 class HardwareModel:
     def __init__(
         self,
@@ -185,22 +186,14 @@ class HardwareModel:
         I Want to Deprecate everything that takes into account 3D with indexing by pitch size
         and number of mem layers.
         """
-        tech_params = yaml.load(open("tech_params2.yaml", "r"), Loader=yaml.Loader)
+        tech_params = yaml.load(open("tech_params.yaml", "r"), Loader=yaml.Loader)
 
         self.area = tech_params["area"][self.transistor_size]
         self.latency = tech_params["latency"][self.transistor_size]
 
         self.dynamic_power = tech_params["dynamic_power"][self.transistor_size]
         self.leakage_power = tech_params["leakage_power"][self.transistor_size]
-        # print(f"t_size: {self.transistor_size}, cache: {self.cache_size}, mem_layers: {self.mem_layers}, pitch: {self.pitch}")
-        # print(f"tech_params[mem_area][t_size][cache_size][mem_layers]: {tech_params['mem_area'][self.transistor_size][self.cache_size][self.mem_layers]}")
-
-        # this reg stuff should have its own numbers. Those mem numbers are for SRAM cache
-        # self.area["Regs"] = tech_params['mem_area'][self.transistor_size][self.cache_size][self.mem_layers][self.pitch]
-        # self.latency["Regs"] = tech_params['mem_latency'][self.cache_size][self.mem_layers][self.pitch]
-        # self.dynamic_power["Regs"] = tech_params['mem_dynamic_power'][self.cache_size][self.mem_layers][self.pitch]
-        # self.leakage_power["Regs"] = 1e-6*tech_params['mem_leakage_power'][self.cache_size][self.mem_layers][self.pitch]
-
+       
         self.mem_area = tech_params["mem_area"][self.transistor_size][self.cache_size][
             self.mem_layers
         ][self.pitch]
@@ -319,9 +312,6 @@ class HardwareModel:
 
         for key in op2sym_map.keys():
             self.hw_allocated[key] = 0
-
-    def set_loop_counts(self, loop_counts):
-        self.loop_counts = loop_counts
 
     def set_var_sizes(self, var_sizes):
         self.var_sizes = var_sizes
