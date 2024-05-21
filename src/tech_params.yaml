@@ -101,6 +101,37 @@ area: # nm^2
     USub: 3.793488e+08 # use add, unsure about this.
     Buf: 0.0 # per byte? PLACEHOLDER
     MainMem: 5.981433e+06 # per byte(?) per some unit of size; PLACEHOLDER
+# ADDED
+dynamic_energy: # nw
+  3:
+    Buf: 
+      Read: 0.0
+      Write: 0.0
+    MainMem: 
+      Read: 0.0
+      Write: 0.0
+  5:
+    Buf: 
+      Read: 0.0
+      Write: 0.0
+    MainMem: 
+      Read: 0.0
+      Write: 0.0
+  7:
+    Buf: 
+      Read: 0.0
+      Write: 0.0
+    MainMem: 
+      Read: 0.0
+      Write: 0.0
+  40:
+    Buf: 
+      Read: 0.0
+      Write: 0.0
+    MainMem: 
+      Read: 0.0
+      Write: 0.0
+# END ADDED 
 dynamic_power: # nw
   3:
     Add: 28.6781376
@@ -129,6 +160,7 @@ dynamic_power: # nw
     USub: 32.8119232
     Buf: 0.0 # per byte? PLACEHOLDER
     MainMem: 2.1e+6 # nw per byte 65 nm SRAM
+    OffChipIO: 0.0
   5:
     Add: 39.28512
     And: 64.62911
@@ -156,6 +188,7 @@ dynamic_power: # nw
     USub: 44.94784
     Buf: 0.0 # per byte? PLACEHOLDER
     MainMem: 2.1e+6 # nw per byte 65 nm SRAM
+    OffChipIO: 0.0
   7:
     Add: 49.728
     And: 81.809
@@ -183,6 +216,7 @@ dynamic_power: # nw
     USub: 56.896
     Buf: 0.0 # per byte? PLACEHOLDER
     MainMem: 2.1e+6 # nw per byte
+    OffChipIO: 0.0
   40:
     Add: 2.836642e+05
     Sub: 2.836642e+05
@@ -210,6 +244,7 @@ dynamic_power: # nw
     USub: 2.836642e+05 # use add, unsure about this.
     Buf: 0.0 # per byte? PLACEHOLDER
     MainMem: 2.1e+6 # nw per byte ; 65 nm SRAM
+    OffChipIO: 0.0
 latency: # num cycles
   3:
     Add: 12.755
@@ -238,6 +273,7 @@ latency: # num cycles
     USub: 12.895
     Buf: 0.0 # per byte? PLACEHOLDER
     MainMem: 23.795 # cycles per byte for 65 nm sram
+    OffChipIO: 0.0
   5:
     Add: 14.155
     And: 1.545
@@ -265,6 +301,7 @@ latency: # num cycles
     USub: 14.31
     Buf: 0.0 # per byte? PLACEHOLDER
     MainMem: 23.795 # cycles per byte for 65 nm sram
+    OffChipIO: 0.0
   7:
     Add: 16
     And: 1.75
@@ -292,6 +329,7 @@ latency: # num cycles
     USub: 16.175
     Buf: 0.0 # per byte? PLACEHOLDER
     MainMem: 23.795 # cycles per byte for 65 nm sram
+    OffChipIO: 0.0
   40:
     Add: 0.94
     Sub: 0.94
@@ -319,6 +357,8 @@ latency: # num cycles
     USub: 0.94 # use add, unsure about this.
     Buf: 0.0 # per byte? PLACEHOLDER
     MainMem: 23.795 # cycles per byte for 65 nm sram
+    OffChipIO: 0.0
+
 leakage_power: # nw
   3:
     Add: 1722.410667

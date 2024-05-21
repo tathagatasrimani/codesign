@@ -9,8 +9,8 @@ Feeds .cfg into Cacti and runs.
 Retrieves timing and power values from Cacti run.
 """
 def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
-             cache_type = None, bus_width = None, addr_timing = None,
-             debug = False):
+             cache_type = None, bus_width = None, transistor_size = None,
+             addr_timing = None, debug = False):
   # load in default values
   with open("cacti_input.yaml", 'r') as yamlfile:
     config_values = yaml.safe_load(yamlfile)
@@ -27,6 +27,9 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
 
   if bus_width == None:
     bus_width = config_values['output/input_bus_width']
+
+  if transistor_size == None:
+    transistor_size = config_values['technology']
 
   if addr_timing == None:
     addr_timing = config_values['addr_timing']
@@ -57,7 +60,7 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
     "",
     "# Multiple banks connected using a bus",
     "-UCA bank count {}".format(config_values['UCA_bank_count']),
-    "-technology (u) {}".format(config_values['technology']),
+    "-technology (u) {}".format(transistor_size),
     "",
     "# following three parameters are meaningful only for main memories",
     "-page size (bits) {}".format(config_values['page_size']),
@@ -223,14 +226,37 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
     line = lines[-1]
     output_values = line.strip().split(', ')
 
+  IO_freq = convert_frequency(config_values['bus_freq'])
+  IO_latency = (addr_timing / IO_freq)
+
   # CACTI: access time (ns), search energy (nJ), read energy (nJ), write energy (nJ), leakage bank power (mW)
   # CACTI IO: area (sq.mm), timing (ps), dynamic power (mW), PHY power (mW), termination and bias power (mW)
-  return (output_values[5], output_values[7], output_values[8],
-          output_values[9], output_values[10],output_values[26],
-          output_values[27], output_values[28], output_values[29],
-          output_values[30]);
+  # latency (ns)
+  return ({"access_time_ns": output_values[5], "search_energy_nJ": output_values[7], 
+           "read_energy_nJ": output_values[8], "write_energy_nJ": output_values[9], 
+           "leakage_bank_power_mW": output_values[10],
+           "IO_area_sqmm": output_values[26], "IO_timing_ps": output_values[27], 
+           "IO_dyanmic_power_mW": output_values[28], "IO_PHY_power_mW": output_values[29], 
+           "IO_termination_bias_power_mW": output_values[30], "IO_latency_s": IO_latency})
 
 # for debugging
 # if __name__ == '__main__':
  # print(gen_vals("test0"))
  # print(gen_vals("test1", 131072, 64, "cache", 512, 4.0))
+
+def convert_frequency(string):
+    parts = string.split()
+    
+    if len(parts) == 2 and parts[1].lower() in ('ghz', 'mhz'):
+        try:
+            value = int(parts[0])  # Extract the integer part
+            unit = parts[1].lower()  # Extract the unit and convert to lowercase
+
+            if unit == 'ghz':
+                return value * 10**9
+            elif unit == 'mhz':
+                return value * 10**6
+        except ValueError:
+            print("Invalid input format")
+    else:
+        print("Invalid input format")

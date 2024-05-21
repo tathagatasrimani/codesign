@@ -93,12 +93,25 @@ class ConcreteSimulator:
                 #     print(
                 #         f" found a mem object in active energy calc, adding scaling factor: {scaling}"
                 #     )
-
-            self.total_energy += (
-                hw_spec.dynamic_power[node_data["function"]] * 1e-9
-                * scaling
-                * (hw_spec.latency[node_data["function"]] / hw_spec.frequency)
-            )
+            if node_data["function"] in ["Buf", "MainMem"]:
+                self.total_energy += (
+                    (hw_spec.dynamic_energy[node_data["function"]]["Read"] 
+                    + hw_spec.dynamic_energy[node_data["function"]]["Write"])
+                    * 1e-9
+                    * scaling
+                )
+                if node_data["function"] == "MainMem":
+                    self.total_energy += (
+                    hw_spec.dynamic_power["OffChipIO"] * 1e-3   # CACTI IO uses mW
+                    * scaling
+                    * hw_spec.latency["OffChipIO"]
+                    )
+            else:
+                self.total_energy += (
+                    hw_spec.dynamic_power[node_data["function"]] * 1e-9
+                    * scaling
+                    * (hw_spec.latency[node_data["function"]] / hw_spec.frequency)
+                )
             hw_spec.compute_operation_totals[node_data["function"]] += 1
         self.active_power_use[self.cycles] /= total_cycles
 
@@ -216,29 +229,39 @@ class ConcreteSimulator:
                     lambda node_data: node_data[1]["function"] == "Buf", mapped_edges
                 )
             )
+            # check if cache_hit
             for buf in in_bufs:
                 cache_hit = buf[1]["memory_module"].find(var_name) or cache_hit
                 if cache_hit:
                     break
-            if not cache_hit:
-                # just choose one at random. Can make this smarter later.
-                buf = rng.choice(in_bufs)  # in_bufs[0] # just choose one at random.
-
-                size = -1 * buf[1]["memory_module"].read(
-                    var_name
-                )  # size will be negative because cache miss.
-                # print(f"in localize memory; var: {var_name}; size: {size}")
-                # add multiple bufs and mems, not just one. add a new one for each cache miss.
-                # this is required to properly count active power consumption.
-                # active power added once for each node in computation_graph.
-                # what about latency????
-                buf_idx = len(
-                    list(
-                        filter(
-                            lambda x: x[1]["function"] == "Buf", hw_graph.nodes.data()
-                        )
+                
+            # just choose one at random. Can make this smarter later.
+            buf = rng.choice(in_bufs)  # in_bufs[0] # just choose one at random.
+            size = buf[1]["memory_module"].read(
+                var_name
+            )  
+            buf_idx = len(
+                list(
+                    filter(
+                        lambda x: x[1]["function"] == "Buf", hw_graph.nodes.data()
                     )
                 )
+            )
+
+            # print(f"in localize memory; var: {var_name}; size: {size}")
+            # add multiple bufs and mems, not just one. add a new one for each cache miss.
+            # this is required to properly count active power consumption.
+            # active power added once for each node in computation_graph.
+            # what about latency????
+
+            if cache_hit:   # only add the Buf
+                hw_graph.add_node(
+                    f"Buf{buf_idx}", function="Buf", allocation=buf[0], size=size
+                )
+                hw_graph.add_edge(f"Buf{buf_idx}", node, function="Mem")
+            
+            else:           # add Buf and Mem
+                size = size * -1  # size will be negative because cache miss.
                 mem_idx = len(
                     list(
                         filter(
@@ -538,10 +561,12 @@ class ConcreteSimulator:
             scaling = 1
             if elem_data["function"] in ["MainMem"]:
                 scaling = elem_data["size"]
+            
             # OLD PASSIVE POWER CALCULATION
             self.passive_power_dissipation_rate += (
                 hw.leakage_power[elem_data["function"]] * scaling
             )
+            
             # NEW PASSIVE ENERGY CALCULATION
             self.total_energy += (
                 hw.leakage_power[elem_data["function"]]*1e-9
@@ -826,6 +851,7 @@ def main(args):
     )
     print(f"Avg compute Power: {avg_compute_power} mW")
     # print(f"total energy {sum(simulator.power_use)} nJ")
+    print(f"total energy: {simulator.total_energy} J")
     avg_mem_power = np.mean(simulator.mem_power_use) + hw.mem_leakage_power
     print(f"Avg mem Power: {avg_mem_power} mW")
     print(f"Total power: {avg_mem_power + avg_compute_power} mW")
