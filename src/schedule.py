@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import cvxpy as cp
 import sim_util
+import heapq
 
 # can't import hardware Model else will have circular imports
 # import hardwareModel
@@ -47,6 +48,35 @@ def limited_topological_sorts(graph, max_sorts=10):
             yield list(partial_order)
 
     return list(visit())
+
+def longest_path_first_topological_sort(graph):
+    # Calculate the longest path lengths to each node
+    longest_path_length = {node: 0 for node in graph.nodes()}
+    for node in reversed(list(nx.topological_sort(graph))):  # Use topological sort to order nodes
+        for successor in graph.successors(node):
+            longest_path_length[node] = max(longest_path_length[node], 1 + longest_path_length[successor])
+
+    # Initialize a priority queue based on longest path lengths
+    priority_queue = []
+    in_degree = {node: 0 for node in graph.nodes()}
+    for u, v in graph.edges():
+        in_degree[v] += 1
+
+    # Populate the priority queue with nodes having zero in-degree
+    for node in graph.nodes():
+        if in_degree[node] == 0:
+            heapq.heappush(priority_queue, (-longest_path_length[node], node))  # Push with negative to simulate max heap
+
+    topological_order = []
+    while priority_queue:
+        _, node = heapq.heappop(priority_queue)
+        topological_order.append(node)
+        for successor in graph.successors(node):
+            in_degree[successor] -= 1
+            if in_degree[successor] == 0:
+                heapq.heappush(priority_queue, (-longest_path_length[successor], successor))  # Maintain priority
+
+    return topological_order
 
 def schedule_one_node(graph):
     """
@@ -136,64 +166,68 @@ def assign_upstream_path_lengths(graph):
     return graph
 
 def schedule(graph, hw_element_counts):
-    all_sorted = limited_topological_sorts(graph, max_sorts = 10)
-    # print(all_sorted[0] == all_sorted[10])
+    """
+    Runs the convex optimization problem to minimize the longest path latency.
+    Encodes data dependency constraints from CDFG and resource constraints using
+    the SDC formulation published here https://www.csl.cornell.edu/~zhiruz/pdfs/sdc-dac2006.pdf.
+    TODO: Add exact hw schema constraints as resource constraints. Right now we assume hardware is
+    all to all.
+    """
+    constraints = []
+    vars = []
+    # graph nodes
+    id = 0
+    for node in graph_nodes:
+        curr_var = cp.Variable(2, name = node[0]) # first one is start time and last one is end time
+        # curr_var.name = node[0]
+        vars.append(curr_var)
+        # start time + latency = end time for each operating node
+        node[1]['scheduling_id'] = id
+        id += 1
+        constraints.append(curr_var[0] >= 0)
+        # constraints.append(curr_var[1] >= 0)
+        if 'cost' in node[1].keys():
+            constraints.append(curr_var[0] + node[1]['cost'] == curr_var[1])
 
-    final_vars = []
-    final_optim_val = float('inf')
-    all_optim_vals = []
-    print("Trying", len(all_sorted), "topological sorts")
-    graph_nodes = graph.nodes(data=True)
-    for topological_order in all_sorted:
-        curr_constraints = []
-
-        ### Introducing Variables
-        vars = []
-        id = 0
-        for node in graph_nodes:
-            curr_var = cp.Variable(2) # first one is start time and last one is end time
-            vars.append(curr_var)
-            # start time + latency = end time for each operating node
-            node[1]['scheduling_id'] = id
-            id += 1
-            curr_constraints.append(curr_var[0] >= 0)
-            curr_constraints.append(curr_var[1] >= 0)
-            if 'cost' in node[1].keys():
-                curr_constraints.append(curr_var[0] + node[1]['cost'] == curr_var[1])
-        
-        ### Data Dependencies
-        for u, v in graph.edges():
-            # if 'idx'
-            source_id = int(graph_nodes[u]['scheduling_id'])
-            dest_id = int(graph_nodes[v]['scheduling_id'])
-            curr_constraints.append(vars[source_id][1] - vars[dest_id][0] <= 0)
-            
-        ### Resource Dependencies
-        for i in range(len(topological_order)):
-            curr_reg_count = {'Regs': 0, 'Add': 0, 'Mult': 0, 'Buf': 0, 'Eq': 0}
-            start_node = topological_order[i]
-            if graph.nodes[start_node]['function'] not in curr_reg_count:
-                continue
-            curr_reg_count[graph.nodes[start_node]['function']] += 1
-            for j in range(i + 1, len(topological_order)):
-                curr_node = topological_order[j]
-                if graph.nodes[curr_node]['function'] not in curr_reg_count:
+    # print(graph_nodes)
+    # nx.set_node_attributes(graph, graph_nodes)
+    # data dependency constraints
+    for u, v in graph.edges():
+        # if 'idx'
+        source_id = int(graph_nodes[u]['scheduling_id'])
+        dest_id = int(graph_nodes[v]['scheduling_id'])
+        constraints.append(vars[source_id][1] - vars[dest_id][0] <= 0.0)
+    
+    topological_order = longest_path_first_topological_sort(graph)
+    resource_constraints = []
+    for i in range(len(topological_order)):
+        # curr_reg_count = {'Regs': 0, 'Add': 0, 'Mult': 0, 'Buf': 0, 'Eq': 0, 'stall': 0}
+        curr_func_count = 0
+        start_node = topological_order[i]
+        if graph.nodes[start_node]['function'] not in curr_reg_count:
+            continue
+        # curr_reg_count[graph.nodes[start_node]['function']] += 1
+        curr_func_count += 1
+        for j in range(i + 1, len(topological_order)):
+            curr_node = topological_order[j]
+            if graph.nodes[curr_node]['function'] not in curr_reg_count.keys():
                     continue
-                curr_reg_count[graph.nodes[curr_node]['function']] += 1
-                if curr_reg_count[graph.nodes[curr_node]['function']] > hw_element_counts[graph.nodes[curr_node]['function']]:
+            # curr_reg_count[graph.nodes[curr_node]['function']] += 1
+            if graph.nodes[curr_node]['function'] == graph.nodes[start_node]['function']:
+                curr_func_count += 1
+                if curr_func_count > 2*hw_element_counts[graph.nodes[curr_node]['function']]:
+                    break
+                if curr_func_count > hw_element_counts[graph.nodes[curr_node]['function']]:
                     # add a constraint
-                    curr_constraints.append(vars[graph.nodes[start_node]['scheduling_id']][1] - vars[graph.nodes[curr_node]['scheduling_id']][0] <= -graph.nodes[start_node]['cost'])
-
-        # constraints += curr_constraints
-        obj = cp.Minimize(vars[graph_nodes['end']['scheduling_id']][0])
-        prob = cp.Problem(obj, curr_constraints)
-        prob.solve()
-        all_optim_vals.append(prob.value)
-        if prob.value < final_optim_val:
-            final_optim_val = prob.value
-            final_vars = vars
-    print("End Node Optimal Time: ", final_optim_val)
-    return final_optim_val
+                    resource_constraints.append(vars[graph.nodes[start_node]['scheduling_id']][0] - vars[graph.nodes[curr_node]['scheduling_id']][0] <= -graph.nodes[start_node]['cost'])
+                    # break
+        # print(curr_reg_count)
+    constraints += resource_constraints
+    obj = cp.Minimize(vars[graph_nodes['end']['scheduling_id']][0])
+    # obj = cp.Minimize(all_nodes)
+    prob = cp.Problem(obj, constraints)
+    prob.solve()
+    return obj.value
 
 def greedy_schedule(computation_graph, hw_element_counts):
     """
