@@ -347,14 +347,9 @@ class ConcreteSimulator:
                 
                 return res
 
-           
         self.cycles = nx.dag_longest_path_length(computation_dfg)
         longest_path = nx.dag_longest_path(computation_dfg)
 
-        # add all passive power at the end.
-        # This is done here for the dynamic allocation case where we don't know how many
-        # compute elements we need until we run the program.
-        # print(f"total active energy: {self.active_energy} nJ")
         for elem_name, elem_data in dict(hw.netlist.nodes.data()).items():
             scaling = 1
             if elem_data["function"] in ["Regs", "Buf", "MainMem"]:

@@ -24,6 +24,12 @@ from global_constants import SEED
 
 rng = np.random.default_rng(SEED)
 
+def symbolic_convex_max(a, b):
+        """
+        An approximation to the max function that plays well with these numeric solvers.
+        """
+        return 0.5 * ( a + b + abs(a - b))
+
 class SymbolicSimulator:
 
     def __init__(self):
@@ -274,14 +280,16 @@ class SymbolicSimulator:
                         path_latency += hw_symbols.symbolic_latency_wc[func]
                         # THIS PATH LATENCY USES CYCLE TIME AS A REFERENCE FOR WHAT THE TRUE EDP IS
                         path_latency_ceil += hw_symbols.symbolic_latency_cyc[func]
-                    self.cycles = 0.5 * (
-                        self.cycles + path_latency + abs(self.cycles - path_latency)
-                    )
-                    self.cycles_ceil = 0.5 * (
-                        self.cycles_ceil
-                        + path_latency_ceil
-                        + abs(self.cycles_ceil - path_latency_ceil)
-                    )
+                    self.cycles = symbolic_convex_max(self.cycles, path_latency)
+                    # 0.5 * (
+                    #     self.cycles + path_latency + abs(self.cycles - path_latency)
+                    # )
+                    self.cycles_ceil = symbolic_convex_max(self.cycles_ceil, path_latency_ceil)
+                    # 0.5 * (
+                    #     self.cycles_ceil
+                    #     + path_latency_ceil
+                    #     + abs(self.cycles_ceil - path_latency_ceil)
+                    # )
 
     def set_data_path(self):
         """
@@ -401,7 +409,6 @@ class SymbolicSimulator:
         data_path_vars = self.set_data_path()
         for node in cfg:
             self.id_to_node[str(node.id)] = node
-        # print(self.id_to_node)
         computation_dfg = sim_util.compose_entire_computation_graph(
             cfg_node_to_dfg_map,
             self.id_to_node,
@@ -410,9 +417,7 @@ class SymbolicSimulator:
             latency,
             plot=False,
         )
-        # print(f"computation_dfg: {computation_dfg.nodes.data()}")
-        # print(f"\nedges: {computation_dfg.edges.data()}")
-
+       
         return computation_dfg
 
     def schedule(self, computation_dfg, hw_counts):
@@ -420,8 +425,7 @@ class SymbolicSimulator:
         Schedule the computation graph onto the hardware.
         """
         copy = computation_dfg.copy()
-        # print(f"computation_dfg: {computation_dfg.nodes.data()}")
-        # print(f"\nedges: {computation_dfg.edges.data()}")
+       
         schedule.schedule(copy, hw_counts)
 
         # Why does this happen?

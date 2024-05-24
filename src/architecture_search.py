@@ -257,7 +257,7 @@ def main():
 
     simulator, hw, computation_dfg = setup_arch_search(
         args.benchmark, args.config
-    )  # cfg,cfg_node_to_hw_map, saved_elem, max_continuous
+    )
 
     best_edp = run_arch_search(simulator, hw, computation_dfg, args.area)
 

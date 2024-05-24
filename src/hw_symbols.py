@@ -189,7 +189,7 @@ symbolic_latency_cyc = {
 }
 
 def make_sym_power_act(elem):
-    return 0.5 * V_dd * V_dd  / Reff[elem] # I'm a little sussed here. Why no C dependence
+    return 0.5 * V_dd * V_dd  / Reff[elem] # C dependence will reappear explicitly when we go back to Energy from power.
 
 symbolic_power_active = {
     "And": make_sym_power_act("And"),
