@@ -23,5 +23,5 @@ if [ $name ]; then
 
     echo $ARGS
     python symbolic_simulate.py $ARGS
-    python optimize.py
+    python optimize.py --architecture_config $ARCH_CONFIG
 fi

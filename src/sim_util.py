@@ -6,8 +6,9 @@ import matplotlib.pyplot as plt
 
 import dfg_algo
 import hw_symbols
+from global_constants import SEED
 
-rng = np.random.default_rng()
+rng = np.random.default_rng(SEED)
 
 # adds all mallocs and frees to vectors, and finds the next cfg node in the data path,
 # returning the index of that node
@@ -152,6 +153,29 @@ def get_var_name_from_arr_access(arr_access):
     if bracket_ind != -1:
         return arr_access[:bracket_ind]
     return arr_access
+
+
+def update_schedule_with_latency(schedule, latency):
+    """
+    Updates the schedule with the latency of each operation.
+
+    Parameters:
+        schedule (nx.Digraph): A list of operations in the schedule.
+        latency (dict): A dictionary of operation names to their latencies.
+
+    Returns:
+        None;
+        The schedule is updated in place.
+    """
+    # print(f"{list(map(lambda x: x[2]['weight'], schedule.edges.data()))}")
+    for edge in schedule.edges:
+        node = edge[0]
+        func = schedule.nodes.data()[node]["function"]
+        if func == "stall":
+            func = node.split("_")[3]
+        schedule.edges[edge]["weight"] = latency[func]
+    # print(f"{list(map(lambda x: x[2]['weight'], schedule.edges.data()))}")
+    
 
 
 def get_dims(arr):

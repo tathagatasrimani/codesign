@@ -20,9 +20,9 @@ import hw_symbols
 import sim_util
 import hardwareModel
 from hardwareModel import HardwareModel
+from global_constants import SEED
 
-rng = np.random.default_rng()
-
+rng = np.random.default_rng(SEED)
 
 class SymbolicSimulator:
 
@@ -221,8 +221,8 @@ class SymbolicSimulator:
                 scaling = data["size"]
             passive_power += (
                 hw_symbols.symbolic_power_passive[data["function"]] * scaling
-            )
-        return passive_power * total_execution_time
+            ) # W
+        return passive_power * total_execution_time # nJ
 
     def simulate(self, computation_dfg: nx.DiGraph, hw: HardwareModel):
         self.reset_internal_variables()
@@ -234,25 +234,11 @@ class SymbolicSimulator:
             reversed(list(nx.topological_generations(nx.reverse(computation_dfg))))
         )
         for gen in generations:  # main loop over the computation graphs;
-            # print(f"counter: {counter}, gen: {gen}")
             if "end" in gen:  # skip the end node (only thing in the last generation)
                 break
             counter += 1
-            # temp_C = nx.DiGraph()
             for node in gen:
                 child_added = False
-                # temp_C.add_nodes_from([(node, computation_dfg.nodes[node])])
-                # for child in computation_dfg.successors(node):
-                #     if computation_dfg.nodes[node]["function"] == "stall" and (
-                #         computation_dfg.nodes[child]["function"] == "stall"
-                #         or computation_dfg.nodes[child]["function"] == "end"
-                #     ):
-                #         continue
-
-                #     if child not in temp_C.nodes:
-                #         temp_C.add_nodes_from([(child, computation_dfg.nodes[child])])
-                #         child_added = True
-                #     temp_C.add_edge(node, child)
 
                 ## ================= ADD ACTIVE ENERGY CONSUMPTION =================
                 scaling = 1
@@ -263,49 +249,11 @@ class SymbolicSimulator:
                     scaling = node_data["size"]
                 if node_data["function"] == "stall" or node_data["function"] == "end":
                     continue
-                self.total_active_energy += (  # WHY IS THERE NO SCALING HERE??
-                    hw_symbols.symbolic_power_active[node_data["function"]]
+                self.total_active_energy += (  # nJ
+                    hw_symbols.symbolic_power_active[node_data["function"]] # W
                     * scaling
-                    * hw_symbols.symbolic_latency_wc[node_data["function"]]
+                    * hw_symbols.symbolic_latency_wc[node_data["function"]] # ns
                 )
-
-            # node_id = self.data_path[i][0]
-            # cur_node = self.id_to_node[node_id]
-            # self.node_intervals.append([node_id, [self.cycles, 0]])
-
-            # if not node_id in self.node_sum_energy:
-            #     self.node_sum_energy[node_id] = (
-            #         0  # just reset because we will end up overwriting it
-            #     )
-
-            # if not node_id in self.node_sum_cycles:
-            #     self.node_sum_cycles[node_id] = 0
-            #     self.node_sum_cycles_ceil[node_id] = 0
-            # iters = 0
-
-            # cache_index = (iters, node_id)
-
-            #     computation_graph = cfg_node_to_hw_map[cur_node]
-            #     # print(f"computation graph: {computation_graph.nodes(data=True)}")
-            #     sim_util.verify_can_execute(computation_graph, hw.netlist)
-            #     # deprecated unrolling with graph representation.
-            #     # graph gets modified directly when we want to unroll.
-
-            #     self.localize_memory(hw, computation_graph)
-
-            #     max_cycles, max_cycles_ceil, energy_sum = self.cycle_sim(
-            #         computation_graph
-            #     )
-
-            #     self.node_sum_energy[node_id] += energy_sum
-            #     self.node_sum_cycles[node_id] += max_cycles
-            #     self.node_sum_cycles_ceil[node_id] += max_cycles_ceil
-            #     sim_cache[cache_index] = [max_cycles, max_cycles_ceil, energy_sum]
-
-            # self.node_intervals[-1][1][1] = self.cycles
-            # i = next_ind
-            # if i == len(self.data_path):
-            #     break
 
         # TODO: NOW THIS MIGHT GET TOO EXPENSIVE. MAYBE NEED TO DO STA.
         for start_node in generations[0]:
@@ -315,7 +263,6 @@ class SymbolicSimulator:
                 for path in nx.all_simple_paths(computation_dfg, start_node, end_node):
                     path_latency = 0
                     path_latency_ceil = 0
-                    # print(f"path: {path}")
                     for node in path:
                         if computation_dfg.nodes()[node]["function"] == "end":
                             continue
@@ -323,10 +270,8 @@ class SymbolicSimulator:
                             func = node.split("_")[3]  # stall names have std formats
                         else:
                             func = computation_dfg.nodes()[node]["function"]
-                        # print(f"node: {node}")
-                        # print(f"computation_graph[{node}]: {computation_graph.nodes()[node]}")
                         # THIS PATH LATENCY MAY OR MAY NOT USE CYCLE TIME OR WALL CLOCK TIME DUE TO SOLVER INSTABILITY
-                        path_latency += hw_symbols.symbolic_latency_cyc[func]
+                        path_latency += hw_symbols.symbolic_latency_wc[func]
                         # THIS PATH LATENCY USES CYCLE TIME AS A REFERENCE FOR WHAT THE TRUE EDP IS
                         path_latency_ceil += hw_symbols.symbolic_latency_cyc[func]
                     self.cycles = 0.5 * (
@@ -337,89 +282,6 @@ class SymbolicSimulator:
                         + path_latency_ceil
                         + abs(self.cycles_ceil - path_latency_ceil)
                     )
-
-        # print("done with simulation")
-
-    def _simulate(self, cfg, cfg_node_to_hw_map, hw: HardwareModel):
-        self.reset_internal_variables()
-        hw_symbols.update_symbolic_passive_power(hw.R_off_on_ratio)
-        cur_node = cfg.entryblock
-
-        cur_node = cur_node.exits[0].target  # skip over the first node in the main cfg
-        i = 0
-
-        sim_cache = {}
-
-        while i < len(self.data_path):
-            # print(f"i: {i}")
-            (
-                next_ind,
-                _,
-                _,
-            ) = sim_util.find_next_data_path_index(self.data_path, i + 1, [], [])
-
-            node_id = self.data_path[i][0]
-            cur_node = self.id_to_node[node_id]
-            self.node_intervals.append([node_id, [self.cycles, 0]])
-
-            if not node_id in self.node_sum_energy:
-                self.node_sum_energy[node_id] = (
-                    0  # just reset because we will end up overwriting it
-                )
-
-            if not node_id in self.node_sum_cycles:
-                self.node_sum_cycles[node_id] = 0
-                self.node_sum_cycles_ceil[node_id] = 0
-            iters = 0
-
-            if self.unroll_at[cur_node.id]:
-                j = i
-                while True:
-                    j += 1
-                    if len(self.data_path) <= j:
-                        break
-                    next_node_id = self.data_path[j][0]
-                    if next_node_id != node_id:
-                        break
-                    iters += 1
-                i = (
-                    j - 1
-                )  # skip over loop iterations because we execute them all at once
-
-            cache_index = (iters, node_id)
-
-            # if I've seen this node before, no need to recalculate
-            if cache_index in sim_cache:
-                self.node_sum_cycles[node_id] += sim_cache[cache_index][0]
-                self.node_sum_cycles_ceil[node_id] += sim_cache[cache_index][1]
-                self.node_sum_energy[node_id] += sim_cache[cache_index][2]
-            else:
-                computation_graph = cfg_node_to_hw_map[cur_node]
-                # print(f"computation graph: {computation_graph.nodes(data=True)}")
-                sim_util.verify_can_execute(computation_graph, hw.netlist)
-                # deprecated unrolling with graph representation.
-                # graph gets modified directly when we want to unroll.
-                if self.unroll_at[cur_node.id]:
-                    new_state = state.copy()
-                    for op in state:
-                        for j in range(iters):
-                            new_state.append(op)
-                    state = new_state
-                self.localize_memory(hw, computation_graph)
-
-                max_cycles, max_cycles_ceil, energy_sum = self.cycle_sim(
-                    computation_graph
-                )
-                self.node_sum_energy[node_id] += energy_sum
-                self.node_sum_cycles[node_id] += max_cycles
-                self.node_sum_cycles_ceil[node_id] += max_cycles_ceil
-                sim_cache[cache_index] = [max_cycles, max_cycles_ceil, energy_sum]
-
-            self.node_intervals[-1][1][1] = self.cycles
-            i = next_ind
-            if i == len(self.data_path):
-                break
-        # print("done with simulation")
 
     def set_data_path(self):
         """
@@ -574,11 +436,6 @@ class SymbolicSimulator:
         return copy
 
     def calculate_edp(self, hw):
-        # total_cycles = sum(self.node_sum_cycles.values())
-        # total_cycles_ceil = sum(self.node_sum_cycles_ceil.values())
-        # total_execution_time = total_cycles
-        # total_execution_time_ceil = total_cycles_ceil
-        # total_active_energy = sum(self.node_sum_energy.values())
         self.total_passive_energy = self.passive_energy_dissipation(hw, self.cycles)
         self.total_passive_energy_ceil = self.passive_energy_dissipation(
             hw, self.cycles_ceil
@@ -592,6 +449,9 @@ class SymbolicSimulator:
         st = str(self.edp)
         with open("sympy.txt", "w") as f:
             f.write(st)
+        st_ceil = str(self.edp_ceil)
+        with open("sympy_ceil.txt", "w") as f:
+            f.write(st_ceil)
 
 
 def main():
@@ -599,7 +459,6 @@ def main():
 
     simulator = SymbolicSimulator()
 
-    # TODO: move this to a cli param
     hw = HardwareModel(cfg=args.architecture_config)
 
     hw.get_optimization_params_from_tech_params()
@@ -656,7 +515,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     print(
-        f"args: benchmark: {args.benchmark}, trace:{args.notrace}, architecture:{args.architecture}"
+        f"args: benchmark: {args.benchmark}, trace:{args.notrace}, architecture:{args.architecture_config}"
     )
 
     main()

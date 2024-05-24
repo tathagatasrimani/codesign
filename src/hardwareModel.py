@@ -69,6 +69,7 @@ def get_unique_funcs(netlist):
 def get_func_count(netlist):
     return {func: num_nodes_with_func(netlist, func) for func in get_unique_funcs(netlist)}
 
+
 class HardwareModel:
     def __init__(
         self,
@@ -192,15 +193,7 @@ class HardwareModel:
 
         self.dynamic_power = tech_params["dynamic_power"][self.transistor_size]
         self.leakage_power = tech_params["leakage_power"][self.transistor_size]
-        # print(f"t_size: {self.transistor_size}, cache: {self.cache_size}, mem_layers: {self.mem_layers}, pitch: {self.pitch}")
-        # print(f"tech_params[mem_area][t_size][cache_size][mem_layers]: {tech_params['mem_area'][self.transistor_size][self.cache_size][self.mem_layers]}")
-
-        # this reg stuff should have its own numbers. Those mem numbers are for SRAM cache
-        # self.area["Regs"] = tech_params['mem_area'][self.transistor_size][self.cache_size][self.mem_layers][self.pitch]
-        # self.latency["Regs"] = tech_params['mem_latency'][self.cache_size][self.mem_layers][self.pitch]
-        # self.dynamic_power["Regs"] = tech_params['mem_dynamic_power'][self.cache_size][self.mem_layers][self.pitch]
-        # self.leakage_power["Regs"] = 1e-6*tech_params['mem_leakage_power'][self.cache_size][self.mem_layers][self.pitch]
-
+       
         self.mem_area = tech_params["mem_area"][self.transistor_size][self.cache_size][
             self.mem_layers
         ][self.pitch]
@@ -258,16 +251,16 @@ class HardwareModel:
                 MemWritePact: memory write active power in W
                 MemPpass: memory passive power in W
         """
-        print(f"Updating Technology Parameters...")
+        # print(f"Updating Technology Parameters...")
         rcs = yaml.load(open(rc_params_file, "r"), Loader=yaml.Loader)
-        C = rcs["Ceff"]
-        R = rcs["Reff"]
+        C = rcs["Ceff"] # nF
+        R = rcs["Reff"] # Ohms
         self.frequency = rcs["other"]["f"]
         self.V_dd = rcs["other"]["V_dd"]
 
         self.latency["MainMem"] = (
             rcs["other"]["MemReadL"] + rcs["other"]["MemWriteL"]
-        ) / 2 * self.frequency
+        ) / 2 * 1e9
         self.dynamic_power["MainMem"] = (
             rcs["other"]["MemReadPact"] + rcs["other"]["MemWritePact"]
         ) / 2 * 1e9
@@ -276,12 +269,12 @@ class HardwareModel:
         beta = yaml.load(open(coeff_file, "r"), Loader=yaml.Loader)["beta"]
 
         for key in C:
-            self.dynamic_power[key] = (
-                0.5 * C[key] * self.V_dd * self.V_dd * self.frequency * 1e9
-            )  # convert to nW
-            self.latency[key] = R[key] * C[key] * self.frequency  # convert to cycles
+            self.latency[key] = R[key] * C[key]  # ns
+            self.dynamic_power[key] = ( 
+                0.5 * self.V_dd * self.V_dd * 1e9 / R[key] ) # nW 
+
             self.leakage_power[key] = (
-                beta[key] * self.V_dd**2 / (R["Not"] * self.R_off_on_ratio) * 1e9
+                beta[key] * self.V_dd**2 * 1e9 / (R["Not"] * self.R_off_on_ratio)
             )  # convert to nW
 
     def get_optimization_params_from_tech_params(self):
@@ -319,9 +312,6 @@ class HardwareModel:
 
         for key in op2sym_map.keys():
             self.hw_allocated[key] = 0
-
-    def set_loop_counts(self, loop_counts):
-        self.loop_counts = loop_counts
 
     def set_var_sizes(self, var_sizes):
         self.var_sizes = var_sizes

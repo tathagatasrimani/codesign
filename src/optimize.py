@@ -1,4 +1,5 @@
 import yaml
+import argparse
 
 import pyomo.environ as pyo
 from sympy import sympify
@@ -8,6 +9,7 @@ from sim_util import generate_init_params_from_rcs_as_symbols
 from hardwareModel import HardwareModel
 
 multistart = False
+
 
 def optimize(tech_params):
     with open("sympy.txt") as f:
@@ -22,6 +24,7 @@ def optimize(tech_params):
     opt, scaled_preproc_model, preproc_model, free_symbols, mapping = (
         Preprocessor().begin(model, edp, initial_params, multistart=multistart)
     )
+
     if multistart:
         results = opt.solve(
             scaled_preproc_model,
@@ -47,17 +50,29 @@ def optimize(tech_params):
 
 def main():
 
-    hw_cfg = "aladdin_const_with_mem" # this needs to be a cli arg at somepoint
-    hw = HardwareModel(cfg=hw_cfg)
+    hw = HardwareModel(cfg=args.architecture_config)
 
     rcs = hw.get_optimization_params_from_tech_params()
     print(rcs)
     initial_params = generate_init_params_from_rcs_as_symbols(rcs)
-    
+
     results, initial_params, free_symbols, mapping = optimize(initial_params)
+    
+    print(results)
 
     return initial_params, free_symbols, mapping
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        prog="Codesign",
+        description="Runs a two-step loop to optimize architecture and technology for a given application.",
+        epilog="Text at the bottom of help",
+    )
+   
+    parser.add_argument(
+        "-c", "--architecture_config", type=str, help="Path to the architecture config file"
+    )
+   
+    args = parser.parse_args()
     main()

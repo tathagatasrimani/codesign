@@ -25,8 +25,8 @@ def generate_optimization_params(latency, active_power, passive_power, V_dd, f):
     rcs["other"]["V_dd"] = V_dd
 
     # convert latency from cycles to seconds
-    rcs["other"]["MemReadL"] = latency["MainMem"] / f
-    rcs["other"]["MemWriteL"] = latency["MainMem"] / f
+    rcs["other"]["MemReadL"] = latency["MainMem"] # / f
+    rcs["other"]["MemWriteL"] = latency["MainMem"] # / f
     rcs["other"]["MemReadPact"] = active_power["MainMem"] * 1e-9
     rcs["other"]["MemWritePact"] = active_power["MainMem"] * 1e-9
     rcs["other"]["MemPpass"] = passive_power["MainMem"] * 1e-9
@@ -34,9 +34,10 @@ def generate_optimization_params(latency, active_power, passive_power, V_dd, f):
     for elem in latency:
         if elem in ["Buf", "MainMem"]:
             continue
-        R = 0.5 * ((latency[elem] / f) / (active_power[elem] * 1e-9)) * V_dd**2 * f
+        R = 0.5 * V_dd**2 / (active_power[elem] * 1e-9)
+        #R = 0.5 * ((latency[elem] / f) / (active_power[elem] * 1e-9)) * V_dd**2 * f
         rcs["Reff"][elem] = R
-        rcs["Ceff"][elem] = (latency[elem] / f) / rcs["Reff"][elem]
+        rcs["Ceff"][elem] = latency[elem] / rcs["Reff"][elem] # latency is ns so C is nF
 
     inv_R_off = V_dd**2 / (passive_power["Not"] * 1e-9)
 

@@ -2,6 +2,7 @@ import argparse
 import os
 import yaml
 import sys
+import datetime
 
 from sympy import sympify
 import networkx as nx
@@ -11,13 +12,15 @@ import coefficients
 import symbolic_simulate
 import optimize
 import hw_symbols
-from sim_util import generate_init_params_from_rcs_as_symbols
+import sim_util
 import hardwareModel
 
 
 class Codesign:
     def __init__(self, benchmark, config, save_dir):
-        self.save_dir = save_dir
+        self.save_dir = os.path.join(
+            save_dir, datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        )
 
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
@@ -26,6 +29,8 @@ class Codesign:
             for file in files:
                 os.remove(f"{self.save_dir}/{file}")
 
+        self.forward_edp = 0
+        self.inverse_edp = 0
         self.tech_params = None
         self.initial_tech_params = None
         self.full_tech_params = {}
@@ -39,18 +44,22 @@ class Codesign:
 
         self.symbolic_sim = symbolic_simulate.SymbolicSimulator()
         self.symbolic_sim.simulator_prep(benchmark, self.hw.latency)
-        # self.symbolic_sim.update_data_path(self.sim.data_path)
-        # self.original_data_path = self.sim.data_path
+       
         hardwareModel.un_allocate_all_in_use_elements(self.hw.netlist)
 
         # starting point set by the config we load into the HW model
-        coeffs = coefficients.create_coefficients([self.hw.transistor_size])
-        with open("coefficients.yaml", "w") as f:
-            f.write(yaml.dump(coeffs))
+        coefficients.create_and_save_coefficients([self.hw.transistor_size])
+
         rcs = self.hw.get_optimization_params_from_tech_params()
-        initial_tech_params = generate_init_params_from_rcs_as_symbols(rcs)
+        initial_tech_params = sim_util.generate_init_params_from_rcs_as_symbols(rcs)
 
         self.set_technology_parameters(initial_tech_params)
+
+        self.sim.simulate(self.scheduled_dfg, self.hw)
+        self.sim.calculate_edp(self.hw)
+        self.forward_edp = self.sim.edp
+
+        print(f"\nInitial EDP: {self.forward_edp} E-18 Js. Active Energy: {self.sim.active_energy} nJ. Passive Energy: {self.sim.passive_energy} nJ. Execution time: {self.sim.execution_time} ns")
 
         with open("rcs_current.yaml", "w") as f:
             f.write(yaml.dump(rcs))
@@ -59,16 +68,17 @@ class Codesign:
         if self.initial_tech_params == None:
             self.initial_tech_params = tech_params
         self.tech_params = tech_params
-        # self.create_full_tech_params()
 
     def forward_pass(self, area_constraint):
         print("\nRunning Forward Pass")
+        sim_util.update_schedule_with_latency(self.scheduled_dfg, self.hw.latency)
+        sim_util.update_schedule_with_latency(self.computation_dfg, self.hw.latency)
+
         self.sim.simulate(self.scheduled_dfg, self.hw)
         self.sim.calculate_edp(self.hw)
         edp = self.sim.edp
-        print(f"Run Sim with new tech params; EDP: {edp} Js")
+        print(f"Initial EDP: {edp} E-18 Js. Active Energy: {self.sim.active_energy} nJ. Passive Energy: {self.sim.passive_energy} nJ. Execution time: {self.sim.execution_time} ns")
 
-        # self.sim.update_data_path(self.original_data_path)
         # hw updated in place, schedule and edp returned.
         new_edp, new_schedule = architecture_search.run_arch_search(
             self.sim,
@@ -79,7 +89,9 @@ class Codesign:
         )
         self.scheduled_dfg = new_schedule
         self.forward_edp = new_edp
-        print(f"New EDP: {new_edp} Js")
+        print(
+            f"New EDP    : {new_edp} E-18 Js. Active Energy: {self.sim.active_energy} nJ. Passive Energy: {self.sim.passive_energy} nJ. Execution time: {self.sim.execution_time} ns"
+        )
 
     def parse_output(self, f):
         lines = f.readlines()
@@ -98,11 +110,8 @@ class Codesign:
         for _ in range(len(mapping)):
             key = lines[i].split(":")[0].lstrip().rstrip()
             value = float(lines[i].split(":")[2][1:-1])
-            # print("idx", key, "getting", value)
             self.tech_params[mapping[key]] = value
             i += 1
-        # print("mapping:", mapping)
-        # print("tech params:", self.tech_params)
 
     def write_back_rcs(self, rcs_path="rcs_current.yaml"):
         rcs = {"Reff": {}, "Ceff": {}, "other": {}}
@@ -133,9 +142,15 @@ class Codesign:
         self.symbolic_sim.calculate_edp(self.hw)
         self.symbolic_sim.save_edp_to_file()
 
-        edp = self.symbolic_sim.edp
+        self.inverse_edp = self.symbolic_sim.edp.subs(self.tech_params)
+        self.inverse_edp_ceil = self.symbolic_sim.edp_ceil.subs(self.tech_params)
 
-        print(f"Initial EDP: {edp.subs(self.tech_params)} Js")
+        print(
+            f"Initial EDP: {self.inverse_edp} E-18 Js. Active Energy: {(self.symbolic_sim.total_active_energy).subs(self.tech_params)} nJ. Passive Energy: {(self.symbolic_sim.total_passive_energy).subs(self.tech_params)} nJ. Execution time: {self.symbolic_sim.cycles.subs(self.tech_params)} ns"
+        )
+        # print(
+        #     f"I EDP ceil: {self.inverse_edp_ceil} Js. Active Energy: {(self.symbolic_sim.total_active_energy).subs(self.tech_params)} J. Passive Energy: {(self.symbolic_sim.total_passive_energy_ceil).subs(self.tech_params)} Execution time: {self.symbolic_sim.cycles_ceil.subs(self.tech_params)} s"
+        # )
         stdout = sys.stdout
         with open("ipopt_out.txt", "w") as sys.stdout:
             optimize.optimize(self.tech_params)
@@ -144,9 +159,15 @@ class Codesign:
         f = open("ipopt_out.txt", "r")
         self.parse_output(f)
         self.write_back_rcs()
-        self.inverse_edp = edp.subs(self.tech_params)
+        self.inverse_edp = self.symbolic_sim.edp.subs(self.tech_params)
+        self.inverse_edp_ceil = self.symbolic_sim.edp_ceil.subs(self.tech_params)
 
-        print(f"Final EDP: {self.inverse_edp} Js")
+        print(
+            f"Final EDP  : {self.inverse_edp} E-18 Js. Active Energy: {(self.symbolic_sim.total_active_energy).subs(self.tech_params)} nJ. Passive Energy: {(self.symbolic_sim.total_passive_energy).subs(self.tech_params)} nJ. Execution time: {self.symbolic_sim.cycles.subs(self.tech_params)} ns"
+        )
+        # print(
+        #     f"F EDP ceil: {self.inverse_edp_ceil} Js. Active Energy: {(self.symbolic_sim.total_active_energy).subs(self.tech_params)} J. Passive Energy: {(self.symbolic_sim.total_passive_energy_ceil).subs(self.tech_params)} Execution time: {self.symbolic_sim.cycles_ceil.subs(self.tech_params)} s"
+        # )
 
     def log_all_to_file(self, iter_number):
         with open(f"{self.save_dir}/log.txt", "a") as f:
@@ -177,15 +198,14 @@ def main():
     codesign_module = Codesign(args.benchmark, args.architecture_config, args.savedir)
 
     i = 0
-    while i < 5:
-        codesign_module.forward_pass(args.area)
-        # codesign_module.symbolic_sim.update_data_path(codesign_module.sim.data_path)
-        # codesign_module.clear_dfg_allocations()
+    while i < 10:
 
         codesign_module.inverse_pass()
         codesign_module.hw.update_technology_parameters()
 
         codesign_module.log_all_to_file(i)
+
+        codesign_module.forward_pass(args.area)
         # TODO: create stopping condition
         i += 1
 

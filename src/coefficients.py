@@ -32,6 +32,10 @@ def create_coefficients(sizes):
         coeffs["beta"][elem] = total / len(sizes)
     return coeffs
 
+def create_and_save_coefficients(sizes):
+    coeffs = create_coefficients(sizes)
+    with open("coefficients.yaml", 'w') as f:
+        f.write(yaml.dump(coeffs))
 
 def main():
    
