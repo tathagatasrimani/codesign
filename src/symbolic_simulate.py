@@ -303,16 +303,18 @@ class SymbolicSimulator:
                 ## ================= ADD ACTIVE ENERGY CONSUMPTION =================
                 scaling = 1
                 node_data = computation_dfg.nodes[node]
+                if node_data["function"] == "stall" or node_data["function"] == "end":
+                    continue
+                energy = hw_symbols.symbolic_power_active[node_data["function"]] * hw_symbols.symbolic_latency_wc[node_data["function"]] # W * ns
                 if node_data["function"] in ["Buf", "MainMem"]:
                     # active power should scale by size of the object being accessed.
                     # all regs have the same size, so no need to scale.
                     scaling = node_data["size"]
-                if node_data["function"] == "stall" or node_data["function"] == "end":
-                    continue
+                    energy = hw_symbols.symbolic_energy_active[node_data["function"]] # nJ
+
                 self.total_active_energy += (  # nJ
-                    hw_symbols.symbolic_power_active[node_data["function"]] # W
+                    energy
                     * scaling
-                    * hw_symbols.symbolic_latency_wc[node_data["function"]] # ns
                 )
 
         # TODO: NOW THIS MIGHT GET TOO EXPENSIVE. MAYBE NEED TO DO STA.
@@ -335,15 +337,8 @@ class SymbolicSimulator:
                         # THIS PATH LATENCY USES CYCLE TIME AS A REFERENCE FOR WHAT THE TRUE EDP IS
                         path_latency_ceil += hw_symbols.symbolic_latency_cyc[func]
                     self.cycles = symbolic_convex_max(self.cycles, path_latency)
-                    # 0.5 * (
-                    #     self.cycles + path_latency + abs(self.cycles - path_latency)
-                    # )
+                    
                     self.cycles_ceil = symbolic_convex_max(self.cycles_ceil, path_latency_ceil)
-                    # 0.5 * (
-                    #     self.cycles_ceil
-                    #     + path_latency_ceil
-                    #     + abs(self.cycles_ceil - path_latency_ceil)
-                    # )
 
     def set_data_path(self):
         """
@@ -471,7 +466,7 @@ class SymbolicSimulator:
             latency,
             plot=False,
         )
-       
+
         return computation_dfg
 
     def schedule(self, computation_dfg, hw_counts):
@@ -479,7 +474,7 @@ class SymbolicSimulator:
         Schedule the computation graph onto the hardware.
         """
         copy = computation_dfg.copy()
-       
+
         schedule.schedule(copy, hw_counts)
 
         # Why does this happen?

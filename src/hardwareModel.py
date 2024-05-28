@@ -287,6 +287,7 @@ class HardwareModel:
         rcs = generate_optimization_params(
             self.latency,
             self.dynamic_power,
+            self.dynamic_energy,
             self.leakage_power,
             self.V_dd,
         )

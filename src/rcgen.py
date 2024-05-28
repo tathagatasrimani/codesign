@@ -1,6 +1,6 @@
 import yaml
 
-def generate_optimization_params(latency, active_power, passive_power, V_dd):
+def generate_optimization_params(latency, active_power, active_energy, passive_power, V_dd):
     """
     Generate R,C, etc from the latency, power tech parameters.
     rcs[other] are all stored in SI units.
@@ -21,15 +21,22 @@ def generate_optimization_params(latency, active_power, passive_power, V_dd):
 
     rcs["other"]["V_dd"] = V_dd
 
-    # convert latency from cycles to seconds
     rcs["other"]["MemReadL"] = latency["MainMem"]
     rcs["other"]["MemWriteL"] = latency["MainMem"]
-    rcs["other"]["MemReadPact"] = active_power["MainMem"] * 1e-9
-    rcs["other"]["MemWritePact"] = active_power["MainMem"] * 1e-9
+    rcs["other"]["MemReadEact"] = active_energy["MainMem"] * 1e-9
+    rcs["other"]["MemWriteEact"] = active_energy["MainMem"] * 1e-9
     rcs["other"]["MemPpass"] = passive_power["MainMem"] * 1e-9
 
+    rcs["other"]["BufL"] = latency["Buf"]
+    rcs["other"]["BufReadEact"] = active_energy["Buf"]["Read"] * 1e-9
+    rcs["other"]["BufWriteEact"] = active_energy["Buf"]["Write"] * 1e-9
+    rcs["other"]["BufPpass"] = passive_power["Buf"] * 1e-9
+
+    rcs["other"]["OffChipIOL"] = latency["OffChipIO"]
+    rcs["other"]["OffChipIOPact"] = active_power["OffChipIO"] * 1e-3 # this is in mW
+
     for elem in latency:
-        if elem in ["Buf", "MainMem"]:
+        if elem in ["Buf", "MainMem", "OffChipIO"]:
             continue
         R = 0.5 * V_dd**2 / (active_power[elem] * 1e-9)
         rcs["Reff"][elem] = R
@@ -51,9 +58,10 @@ def main():
 
     latency = tech_params["latency"][size]
     active_power = tech_params["dynamic_power"][size]
+    active_energy = tech_params["dynamic_energy"][size]
     passive_power = tech_params["leakage_power"][size]
 
-    rcs = generate_optimization_params(latency, active_power, passive_power, V_dd)
+    rcs = generate_optimization_params(latency, active_power, active_energy, passive_power, V_dd)
 
     with open("rcs.yaml", 'w') as f:
         f.write(yaml.dump(rcs))
