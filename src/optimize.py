@@ -1,17 +1,20 @@
+# first party
 import yaml
 import argparse
 
+# third party
 import pyomo.environ as pyo
 from sympy import sympify
 import sympy
+import cvxpy as cp
+import numpy as np
 
+# custom
 from preprocess import Preprocessor
 from sim_util import generate_init_params_from_rcs_as_symbols
 from hardwareModel import HardwareModel
 import hw_symbols
 
-import cvxpy as cp
-import numpy as np
 
 multistart = False
 
