@@ -14,9 +14,6 @@ import optimize
 import hw_symbols
 import sim_util
 import hardwareModel
-import equinox as eqx
-import jax.numpy as jnp
-import sympy2jax
 
 
 class Codesign:

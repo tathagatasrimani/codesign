@@ -9,10 +9,7 @@ from preprocess import Preprocessor
 from sim_util import generate_init_params_from_rcs_as_symbols
 from hardwareModel import HardwareModel
 import hw_symbols
-import sympy2jax
-import equinox as eqx
-import jax
-import jax.numpy as jnp
+
 import cvxpy as cp
 import numpy as np
 
@@ -52,6 +49,8 @@ def ipopt(tech_params, edp):
 
 
 def get_grad(grad_var_starting_val, args_arr, jmod):
+    import equinox as eqx
+
     return eqx.filter_grad(
         lambda gv, arr0, arr, a: a(
             grad_var=gv,
@@ -115,6 +114,9 @@ def get_grad(grad_var_starting_val, args_arr, jmod):
 
 
 def scp_opt(tech_params, edp):
+    import sympy2jax
+    import jax.numpy as jnp
+
     # print(tech_params)
     initial_val = edp.subs(tech_params)
     current_val = initial_val
