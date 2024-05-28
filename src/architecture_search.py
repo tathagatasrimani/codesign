@@ -255,9 +255,7 @@ def main():
 
     print(f"Running Architecture Search for {args.benchmark.split('/')[-1]}")
 
-    simulator, hw, computation_dfg = setup_arch_search(
-        args.benchmark, args.config
-    )
+    simulator, hw, computation_dfg = setup_arch_search(args.benchmark, args.config)
 
     best_edp = run_arch_search(simulator, hw, computation_dfg, args.area)
 
@@ -287,7 +285,11 @@ if __name__ == "__main__":
     parser.add_argument("--notrace", action="store_true")
     parser.add_argument("-a", "--area", type=float, help="Max Area of the chip in um^2")
     parser.add_argument(
-        "-c", "--config", type=str, help="Path to the architecture config file"
+        "-c",
+        "--config",
+        type=str,
+        default="aladdin_const_with_mem",
+        help="Path to the architecture config file",
     )
     parser.add_argument(
         "-f", "--filepath", type=str, help="Path to the save new architecture file"

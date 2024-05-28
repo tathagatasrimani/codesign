@@ -1,10 +1,9 @@
 import yaml
 
-def generate_optimization_params(latency, active_power, passive_power, V_dd, f):
+def generate_optimization_params(latency, active_power, passive_power, V_dd):
     """
     Generate R,C, etc from the latency, power tech parameters.
     rcs[other] are all stored in SI units.
-        f: frequency in Hz
         V_dd: voltage in V
         MemReadL: memory read latency in s
         MemWriteL: memory write latency in s
@@ -17,11 +16,9 @@ def generate_optimization_params(latency, active_power, passive_power, V_dd, f):
         active_power: dictionary of active power in nW
         passive_power: dictionary of passive power in nW
         V_dd: voltage in V
-        f: frequency in Hz
     """
     rcs = {"Reff": {}, "Ceff": {}, "other": {}}
 
-    rcs["other"]["f"] = f
     rcs["other"]["V_dd"] = V_dd
 
     # convert latency from cycles to seconds
@@ -47,7 +44,6 @@ def generate_optimization_params(latency, active_power, passive_power, V_dd, f):
 
 def main():
     V_dd = 1.1
-    f = 5e9
 
     tech_params = yaml.load(open("tech_params.yaml", "r"), Loader=yaml.Loader)
 
@@ -57,7 +53,7 @@ def main():
     active_power = tech_params["dynamic_power"][size]
     passive_power = tech_params["leakage_power"][size]
 
-    rcs = generate_optimization_params(latency, active_power, passive_power, V_dd, f)
+    rcs = generate_optimization_params(latency, active_power, passive_power, V_dd)
 
     with open("rcs.yaml", 'w') as f:
         f.write(yaml.dump(rcs))

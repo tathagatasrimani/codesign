@@ -82,7 +82,8 @@ class HardwareModel:
         pitch=None,
         transistor_size=None,
         cache_size=None,
-        bus_width=None
+        V_dd=None,
+        bus_width=None,
     ):
         """
         Simulates the effect of 2 different constructors. Either supply cfg (config), or supply the rest of the arguments.
@@ -91,7 +92,7 @@ class HardwareModel:
         """
         if cfg is None:
             self.set_hw_config_vars(
-                id, bandwidth, mem_layers, pitch, transistor_size, cache_size, bus_width
+                id, bandwidth, mem_layers, pitch, transistor_size, cache_size, V_dd, bus_width
             )
         else:
             config = cp.ConfigParser()
@@ -105,8 +106,8 @@ class HardwareModel:
                     config.getint(cfg, "interconnectpitch"),
                     config.getint(cfg, "transistorsize"),
                     config.getint(cfg, "cachesize"),
-                    config.getint(cfg, "frequency"),
                     config.getfloat(cfg, "V_dd"),
+                    config.getfloat(cfg, "buswidth")
                 )
             except cp.NoSectionError:
                 self.set_hw_config_vars(
@@ -116,8 +117,8 @@ class HardwareModel:
                     config.getint("DEFAULT", "interconnectpitch"),
                     config.getint("DEFAULT", "transistorsize"),
                     config.getint("DEFAULT", "cachesize"),
-                    config.getint("DEFAULT", "frequency"),
                     config.getfloat("DEFAULT", "V_dd"),
+                    config.getfloat("DEFAULT", "buswidth")
                 )
         self.hw_allocated = {}
 
@@ -139,7 +140,6 @@ class HardwareModel:
         pitch,
         transistor_size,
         cache_size,
-        frequency,
         V_dd,
         bus_width
     ):
@@ -150,7 +150,6 @@ class HardwareModel:
         self.pitch = pitch
         self.transistor_size = transistor_size
         self.cache_size = cache_size
-        self.frequency = frequency * 1.0
         self.V_dd = V_dd
         self.bus_width = bus_width
 
@@ -230,7 +229,6 @@ class HardwareModel:
             "dynamic_power": self.dynamic_power,
             "leakage_power": self.leakage_power,
             "area": self.area,
-            "f": self.frequency,
             "V_dd": self.V_dd,
         }
         with open(filename, "w") as f:
@@ -246,12 +244,10 @@ class HardwareModel:
             dynamic_power - dictionary of active power in nW
             leakage_power - dictionary of passive power in nW
             V_dd - voltage in V
-            f - frequency in Hz
         Inputs:
             C - dictionary of capacitances in F
             R - dictionary of resistances in Ohms
             rcs[other]:
-                f: frequency in Hz
                 V_dd: voltage in V
                 MemReadL: memory read latency in s
                 MemWriteL: memory write latency in s
@@ -263,7 +259,6 @@ class HardwareModel:
         rcs = yaml.load(open(rc_params_file, "r"), Loader=yaml.Loader)
         C = rcs["Ceff"] # nF
         R = rcs["Reff"] # Ohms
-        self.frequency = rcs["other"]["f"]
         self.V_dd = rcs["other"]["V_dd"]
 
         self.latency["MainMem"] = (
@@ -294,7 +289,6 @@ class HardwareModel:
             self.dynamic_power,
             self.leakage_power,
             self.V_dd,
-            self.frequency,
         )
         self.R_off_on_ratio = rcs["other"]["Roff_on_ratio"]
         return rcs
