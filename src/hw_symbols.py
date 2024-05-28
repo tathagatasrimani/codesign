@@ -156,7 +156,7 @@ symbolic_latency_wc = {
     "MainMem": (MemReadL + MemWriteL)/2, # this needs to change later to sep the two.
 }
 
-def make_sym_lat_cyc(f, lat_wc):
+def make_sym_lat_cyc(f, lat_wc): # bad name, output is not in units of cycles, its in units of time.
     return ceiling(f*lat_wc)/f
 
 symbolic_latency_cyc = {

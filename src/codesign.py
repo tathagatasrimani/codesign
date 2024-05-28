@@ -14,6 +14,9 @@ import optimize
 import hw_symbols
 import sim_util
 import hardwareModel
+import equinox as eqx
+import jax.numpy as jnp
+import sympy2jax
 
 
 class Codesign:
@@ -151,13 +154,16 @@ class Codesign:
         # print(
         #     f"I EDP ceil: {self.inverse_edp_ceil} Js. Active Energy: {(self.symbolic_sim.total_active_energy).subs(self.tech_params)} J. Passive Energy: {(self.symbolic_sim.total_passive_energy_ceil).subs(self.tech_params)} Execution time: {self.symbolic_sim.cycles_ceil.subs(self.tech_params)} s"
         # )
-        stdout = sys.stdout
-        with open("ipopt_out.txt", "w") as sys.stdout:
-            optimize.optimize(self.tech_params)
-        sys.stdout = stdout
 
-        f = open("ipopt_out.txt", "r")
-        self.parse_output(f)
+        if args.opt == "ipopt":
+            stdout = sys.stdout
+            with open("ipopt_out.txt", "w") as sys.stdout:
+                optimize.optimize(self.tech_params, self.inverse_edp, args.opt)
+            sys.stdout = stdout
+            f = open("ipopt_out.txt", "r")
+            self.parse_output(f)
+        else:
+            self.tech_params = optimize.optimize(self.tech_params, self.inverse_edp, args.opt)
         self.write_back_rcs()
         self.inverse_edp = self.symbolic_sim.edp.subs(self.tech_params)
         self.inverse_edp_ceil = self.symbolic_sim.edp_ceil.subs(self.tech_params)
@@ -229,7 +235,10 @@ if __name__ == "__main__":
         default="codesign_log_dir",
         help="Path to the save new architecture file",
     )
+    parser.add_argument("-o", "--opt", type=str)
     args = parser.parse_args()
-    print(f"args: benchmark: {args.benchmark}, trace:{args.notrace}, area:{args.area}")
+    if not args.opt:
+        args.opt = "ipopt"
+    print(f"args: benchmark: {args.benchmark}, trace:{args.notrace}, area:{args.area}, optimization:{args.opt}")
 
     main()

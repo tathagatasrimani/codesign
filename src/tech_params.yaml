@@ -107,7 +107,36 @@ area: #nm^2
     Sub: 379348800.0
     UAdd: 379348800.0
     USub: 379348800.0
-dynamic_power: #nW
+dynamic_energy: # nw
+  3:
+    Buf: 
+      Read: 0.0
+      Write: 0.0
+    MainMem: 
+      Read: 0.0
+      Write: 0.0
+  5:
+    Buf: 
+      Read: 0.0
+      Write: 0.0
+    MainMem: 
+      Read: 0.0
+      Write: 0.0
+  7:
+    Buf: 
+      Read: 0.0
+      Write: 0.0
+    MainMem: 
+      Read: 0.0
+      Write: 0.0
+  40:
+    Buf: 
+      Read: 0.0
+      Write: 0.0
+    MainMem: 
+      Read: 0.0
+      Write: 0.0
+dynamic_power: # nw
   3:
     Add: 28.6781376
     And: 47.1792503
@@ -135,6 +164,9 @@ dynamic_power: #nW
     Sub: 32.8119232
     UAdd: 28.6781376
     USub: 32.8119232
+    Buf: 0.0 # per byte? PLACEHOLDER
+    MainMem: 2.1e+6 # nw per byte 65 nm SRAM
+    OffChipIO: 0.0
   5:
     Add: 39.28512
     And: 64.62911
@@ -162,6 +194,9 @@ dynamic_power: #nW
     Sub: 44.94784
     UAdd: 39.28512
     USub: 44.94784
+    Buf: 0.0 # per byte? PLACEHOLDER
+    MainMem: 2.1e+6 # nw per byte 65 nm SRAM
+    OffChipIO: 0.0
   7:
     Add: 49.728
     And: 81.809
@@ -189,6 +224,7 @@ dynamic_power: #nW
     Sub: 56.896
     UAdd: 49.728
     USub: 56.896
+    OffChipIO: 0.0
   40:
     Add: 283664.2
     And: 18055.9
@@ -216,6 +252,7 @@ dynamic_power: #nW
     Sub: 283664.2
     UAdd: 283664.2
     USub: 283664.2
+    OffChipIO: 0.0
 latency: # ns
   3:
     Add: 2.551
@@ -244,6 +281,7 @@ latency: # ns
     Sub: 2.5789999999999997
     UAdd: 2.551
     USub: 2.5789999999999997
+    OffChipIO: 0.0
   5:
     Add: 2.831
     And: 0.309
@@ -271,6 +309,7 @@ latency: # ns
     Sub: 2.862
     UAdd: 2.831
     USub: 2.862
+    OffChipIO: 0.0
   7:
     Add: 3.2
     And: 0.35
@@ -298,6 +337,7 @@ latency: # ns
     Sub: 3.2350000000000003
     UAdd: 3.2
     USub: 3.2350000000000003
+    OffChipIO: 0.0
   40:
     Add: 0.47
     And: 0.03
@@ -325,6 +365,7 @@ latency: # ns
     Sub: 0.47
     UAdd: 0.47
     USub: 0.47
+    OffChipIO: 0.0
 latency_scale:
   512: 1
   1024: 2

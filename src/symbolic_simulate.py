@@ -14,6 +14,7 @@ import pyomo.environ as pyo
 from pyomo.core.expr import Expr_if
 
 # custom modules
+from memory import Memory
 import schedule
 import dfg_algo
 import hw_symbols
@@ -89,8 +90,18 @@ class SymbolicSimulator:
         generations = list(nx.topological_generations(computation_graph))
 
         for node, node_data in computation_graph.nodes(data=True):
-            active_energy = hw_symbols.symbolic_power_active[node_data["function"]] * (
-                hw_symbols.symbolic_latency_wc[node_data["function"]]
+            scaling = 1
+            # if node_data["function"] in ["Buf", "MainMem"]:
+            #     # active power should scale by size of the object being accessed.
+            #     # all regs have the saem size, so no need to scale.
+            #     scaling = node_data["size"]
+            #     # if node_data["function"] == "MainMem":
+            #     #     print(f" found a mem object in active energy calc, adding scaling factor: {scaling}")
+
+            active_energy = (
+                hw_symbols.symbolic_power_active[node_data["function"]]
+                * scaling
+                * (hw_symbols.symbolic_latency_wc[node_data["function"]])
             )
             # print("added active energy of", hw_symbols.symbolic_power_active[node_data["function"]]* (hw_symbols.symbolic_latency_wc[node_data["function"]] / hw_symbols.f), "for", node_data["function"])
             energy_sum += active_energy
@@ -109,13 +120,18 @@ class SymbolicSimulator:
                         # print(f"node: {node}")
                         # print(f"computation_graph[{node}]: {computation_graph.nodes()[node]}")
                         # THIS PATH LATENCY MAY OR MAY NOT USE CYCLE TIME OR WALL CLOCK TIME DUE TO SOLVER INSTABILITY
+                        scaling = 1
+                        # if node_data["function"] in ["Buf", "MainMem"]:
+                        #     # active power should scale by size of the object being accessed.
+                        #     # all regs have the saem size, so no need to scale.
+                        #     scaling = node_data["size"]
                         path_latency += hw_symbols.symbolic_latency_cyc[
                             computation_graph.nodes()[node]["function"]
-                        ]
+                        ] * scaling
                         # THIS PATH LATENCY USES CYCLE TIME AS A REFERENCE FOR WHAT THE TRUE EDP IS
                         path_latency_ceil += hw_symbols.symbolic_latency_cyc[
                             computation_graph.nodes()[node]["function"]
-                        ]
+                        ] * scaling
                     max_cycles = 0.5 * (
                         max_cycles + path_latency + abs(max_cycles - path_latency)
                     )
@@ -138,6 +154,43 @@ class SymbolicSimulator:
         self.cycles += max_cycles
         self.cycles_ceil += max_cycles_ceil
         return max_cycles, max_cycles_ceil, energy_sum
+
+    def process_memory_operation(self, mem_op, mem_module: Memory):
+        """
+        Processes a memory operation, handling memory allocation or deallocation based on the operation type.
+
+        This function interprets and acts on memory operations (like allocating or freeing memory)
+        within the hardware simulation. It modifies the state of the memory module according to the
+        specified operation, updating the memory allocation status as necessary.
+
+        Parameters:
+        - mem_op (list): A list representing a memory operation. The first element is the operation type
+        ('malloc' or 'free'), the second element is the size of the memory block, and subsequent elements
+         provide additional context or dimensions for the operation.
+
+        Usage:
+        - If `mem_op` is a 'malloc' operation, the function allocates memory of the specified size and
+            potentially with specified dimensions.
+        - If `mem_op` is a 'free' operation, the function deallocates the memory associated with the
+             given variable name.
+
+        This function is typically called during the simulation process to dynamically manage
+        memory as the simulated program executes different operations that require memory allocation
+        and deallocation.
+        """
+        var_name = mem_op[2]
+        size = int(mem_op[1])
+        status = mem_op[0]
+        if status == "malloc":
+            dims = []
+            num_elem = 1
+            if len(mem_op) > 3:
+                dims = sim_util.get_dims(mem_op[3:])
+                # print(f"dims: {dims}")
+                num_elem = np.prod(dims)
+            mem_module.malloc(var_name, size, dims=dims, elem_size=size // num_elem)
+        elif status == "free":
+            mem_module.free(var_name)
 
     def localize_memory(self, hw, hw_graph):
         """
@@ -179,7 +232,8 @@ class SymbolicSimulator:
 
                 size = -1 * buf[1]["memory_module"].read(
                     var_name
-                )  # size will be negative because cache miss.
+                )  # size will be negative because cache miss; size is var size not mem object size
+
                 # add multiple bufs and mems, not just one. add a new one for each cache miss.
                 # this is required to properly count active power consumption.
                 # active power added once for each node in computation_graph.
@@ -223,7 +277,7 @@ class SymbolicSimulator:
             filter(lambda x: x[1]["function"] != "Buf", hw.netlist.nodes.data())
         ).items():
             scaling = 1
-            if data["function"] in ["Regs", "Buf", "MainMem"]:
+            if data["function"] in ["MainMem"]:
                 scaling = data["size"]
             passive_power += (
                 hw_symbols.symbolic_power_passive[data["function"]] * scaling
@@ -458,6 +512,28 @@ class SymbolicSimulator:
             f.write(st_ceil)
 
 
+def get_grad(args_arr, jmod):
+    return eqx.filter_grad(lambda arr0, arr, a: a(Reff_Add=arr0, 
+                                                  Ceff_Add=arr[1], 
+                                                  Reff_Regs=arr[2], 
+                                                  Ceff_Regs=arr[3], 
+                                                  Reff_Not=arr[4], 
+                                                  MemReadL=arr[5], 
+                                                  MemWriteL=arr[6], 
+                                                  MemReadPact=arr[7], 
+                                                  MemWritePact=arr[8], 
+                                                  MemPpass=arr[9], 
+                                                  f=arr[10], 
+                                                  V_dd=arr[11]))(args_arr[0], args_arr, jmod)
+
+def rotate_arr(args_arr):
+    next_val = args_arr[0]
+    for i in range(len(args_arr))[::-1]:    
+        tmp = next_val
+        next_val = args_arr[(i-1)%len(args_arr)]
+        args_arr[(i-1)%len(args_arr)] = tmp
+    return args_arr
+
 def main():
     print(f"Running symbolic simulator for {args.benchmark.split('/')[-1]}")
 
@@ -494,6 +570,7 @@ def main():
     hardwareModel.un_allocate_all_in_use_elements(hw.netlist)
     simulator.simulate(computation_dfg, hw)
     simulator.calculate_edp(hw)
+
 
     # simulator.edp = simulator.edp.simplify()
     simulator.save_edp_to_file()

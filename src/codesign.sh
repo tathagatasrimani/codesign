@@ -1,5 +1,5 @@
 #!/bin/sh
-while getopts a:c:f:qn: flag
+while getopts a:c:f:qn:o: flag
 do
     case "${flag}" in
         n) name=${OPTARG};;
@@ -7,6 +7,7 @@ do
         a) AREA=${OPTARG};;
         c) ARCH_CONFIG=${OPTARG};;
         f) SAVEDIR=${OPTARG};;
+        o) OPT=${OPTARG};;
     esac
 done
 
@@ -23,8 +24,13 @@ if [ $name ]; then
     if [ $ARCH_CONFIG ]; then
         ARGS+=" --architecture_config $ARCH_CONFIG"
     fi
-    if [ $SAVEFILE ]; then
+    if [ $SAVEDIR ]; then
         ARGS+=" --savedir $SAVEDIR"
+    fi
+    if [ $OPT ]; then
+        ARGS+=" --opt $OPT"
+    else
+        ARGS+=" --opt ipopt"
     fi
     echo $ARGS
     python codesign.py $ARGS

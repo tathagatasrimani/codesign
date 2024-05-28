@@ -15,6 +15,7 @@ from ast_utils import ASTUtils
 from memory import Memory, Cache
 from config_dicts import op2sym_map
 from rcgen import generate_optimization_params
+import cacti_util
 
 
 HW_CONFIG_FILE = "hw_cfgs.ini"
@@ -81,6 +82,7 @@ class HardwareModel:
         pitch=None,
         transistor_size=None,
         cache_size=None,
+        bus_width=None
     ):
         """
         Simulates the effect of 2 different constructors. Either supply cfg (config), or supply the rest of the arguments.
@@ -89,7 +91,7 @@ class HardwareModel:
         """
         if cfg is None:
             self.set_hw_config_vars(
-                id, bandwidth, mem_layers, pitch, transistor_size, cache_size
+                id, bandwidth, mem_layers, pitch, transistor_size, cache_size, bus_width
             )
         else:
             config = cp.ConfigParser()
@@ -127,6 +129,7 @@ class HardwareModel:
 
         self.init_misc_vars()
         self.set_technology_parameters()
+        self.gen_cacti_results()
 
     def set_hw_config_vars(
         self,
@@ -138,6 +141,7 @@ class HardwareModel:
         cache_size,
         frequency,
         V_dd,
+        bus_width
     ):
         self.id = id
         self.max_bw = bandwidth  # this doesn't really get used. deprecate?
@@ -146,8 +150,9 @@ class HardwareModel:
         self.pitch = pitch
         self.transistor_size = transistor_size
         self.cache_size = cache_size
-        self.frequency = frequency
+        self.frequency = frequency * 1.0
         self.V_dd = V_dd
+        self.bus_width = bus_width
 
     def init_memory(self, mem_needed, nvm_mem_needed):
         """
@@ -181,6 +186,8 @@ class HardwareModel:
         ).items():
             data["var"] = ""  # reg keeps track of which variable it is allocated
 
+        self.mem_size = mem_needed
+
     def set_technology_parameters(self):
         """
         I Want to Deprecate everything that takes into account 3D with indexing by pitch size
@@ -193,6 +200,7 @@ class HardwareModel:
 
         self.dynamic_power = tech_params["dynamic_power"][self.transistor_size]
         self.leakage_power = tech_params["leakage_power"][self.transistor_size]
+        self.dynamic_energy = tech_params["dynamic_energy"][self.transistor_size]
        
         self.mem_area = tech_params["mem_area"][self.transistor_size][self.cache_size][
             self.mem_layers
@@ -357,3 +365,29 @@ class HardwareModel:
         edges = list(filter(lambda x: "Reg" in x[0], self.netlist.in_edges("Buf0")))
         n = len(edges)
         return n
+    
+    def gen_cacti_results(self):
+        '''
+        Generate buffer and memory latency and energy numbers from Cacti.
+        '''
+        buf_vals = cacti_util.gen_vals("base_cache", 131072, 64,
+                                      "cache", self.bus_width)
+        mem_vals = cacti_util.gen_vals("mem_cache", 131072, 64,
+                                      "main memory", self.bus_width)
+
+        self.latency["Buf"] = float(buf_vals["access_time_ns"])
+        self.latency["MainMem"] = float(mem_vals["access_time_ns"])
+
+        self.dynamic_energy["Buf"]["Read"] = float(buf_vals["read_energy_nJ"])
+        self.dynamic_energy["Buf"]["Write"] = float(buf_vals["write_energy_nJ"])
+        
+        self.dynamic_energy["MainMem"]["Read"] = float(mem_vals["read_energy_nJ"])
+        self.dynamic_energy["MainMem"]["Write"] = float(mem_vals["write_energy_nJ"])
+
+        self.leakage_power["Buf"] = float(buf_vals["leakage_bank_power_mW"])
+        self.leakage_power["MainMem"] = float(mem_vals["leakage_bank_power_mW"])
+
+        self.latency["OffChipIO"] = float(mem_vals["IO_latency_s"]) if mem_vals["IO_latency_s"] != "N/A" else 0.0
+        self.dynamic_power["OffChipIO"] = float(mem_vals["IO_dyanmic_power_mW"]) if mem_vals["IO_dyanmic_power_mW"] != "N/A" else 0.0
+
+        return

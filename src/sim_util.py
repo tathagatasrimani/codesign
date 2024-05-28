@@ -27,6 +27,8 @@ def find_next_data_path_index(data_path, i, mallocs, frees):
     piece of instrumentation. For example, the following are valid elements of the data_path:
     ['10', '16'], ['pattern_seek_3'], ['malloc', '16', 'c_1', '(3, 3)'], ['free', 'c_1']
 
+    Mallocs and Frees updated in place.
+
     Parameters:
     - i (int): The starting index in the data path from which the search begins.
     - mallocs (list): A list to be updated with memory allocation operations found during the traversal.
