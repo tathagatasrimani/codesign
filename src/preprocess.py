@@ -36,6 +36,7 @@ class Preprocessor:
 
     def add_constraints(self, model):
         # this is where we say EDP_final = EDP_initial / 10
+        print(f"adding constraints. initial val: {self.initial_val}; edp_exp: {self.pyomo_edp_exp}")
         model.Constraint = pyo.Constraint(expr=self.pyomo_edp_exp <= self.initial_val / 1.4)
         model.Constraint1 = pyo.Constraint(expr=self.pyomo_edp_exp >= self.initial_val / 1.6)
         model.V_dd_lower = pyo.Constraint(rule=self.V_dd_lower)

@@ -27,7 +27,7 @@ if [ $name ]; then
     if [ $SAVEDIR ]; then
         ARGS+=" --savedir $SAVEDIR"
     fi
-    if [ $OPT ]; then
+    if [ $OPT ]; then  # should be scp, ipopt
         ARGS+=" --opt $OPT"
     else
         ARGS+=" --opt ipopt"

@@ -123,7 +123,7 @@ class Codesign:
     def write_back_rcs(self, rcs_path="rcs_current.yaml"):
         rcs = {"Reff": {}, "Ceff": {}, "other": {}}
         for elem in self.tech_params:
-            if elem.name == "f" or elem.name == "V_dd" or elem.name.startswith("Mem"):
+            if elem.name == "f" or elem.name == "V_dd" or elem.name.startswith("Mem") or elem.name.startswith("Buf") or elem.name.startswith("OffChipIO"):
                 rcs["other"][elem.name] = self.tech_params[
                     hw_symbols.symbol_table[elem.name]
                 ]
@@ -162,13 +162,13 @@ class Codesign:
         if args.opt == "ipopt":
             stdout = sys.stdout
             with open("ipopt_out.txt", "w") as sys.stdout:
-                optimize.optimize(self.tech_params, self.inverse_edp, args.opt)
+                optimize.optimize(self.tech_params, self.symbolic_sim.edp, args.opt)
             sys.stdout = stdout
             f = open("ipopt_out.txt", "r")
             self.parse_output(f)
         else:
             self.tech_params = optimize.optimize(
-                self.tech_params, self.inverse_edp, args.opt
+                self.tech_params, self.symbolic_sim.edp, args.opt
             )
         self.write_back_rcs()
         self.inverse_edp = self.symbolic_sim.edp.subs(self.tech_params)

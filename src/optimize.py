@@ -119,7 +119,6 @@ def get_grad(grad_var_starting_val, args_arr, jmod):
 def scp_opt(tech_params, edp):
     import sympy2jax
     import jax.numpy as jnp
-
     # print(tech_params)
     initial_val = edp.subs(tech_params)
     current_val = initial_val

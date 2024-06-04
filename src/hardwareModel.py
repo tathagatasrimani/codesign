@@ -264,10 +264,13 @@ class HardwareModel:
         self.latency["MainMem"] = (
             rcs["other"]["MemReadL"] + rcs["other"]["MemWriteL"]
         ) / 2 * 1e9
-        self.dynamic_power["MainMem"] = (
-            rcs["other"]["MemReadPact"] + rcs["other"]["MemWritePact"]
-        ) / 2 * 1e9
+        self.latency["Buf"] = rcs["other"]["BufL"] * 1e9
+        self.dynamic_energy["MainMem"]["Read"] = rcs["other"]["MemReadEact"] * 1e9
+        self.dynamic_energy["MainMem"]["Write"] = rcs["other"]["MemWriteEact"] * 1e9
+        self.dynamic_energy["Buf"]["Read"] = rcs["other"]["BufReadEact"] * 1e9
+        self.dynamic_energy["Buf"]["Write"] = rcs["other"]["BufWriteEact"] * 1e9
         self.leakage_power["MainMem"] = rcs["other"]["MemPpass"] * 1e9
+        self.leakage_power["Buf"] = rcs["other"]["BufPpass"] * 1e9
 
         beta = yaml.load(open(coeff_file, "r"), Loader=yaml.Loader)["beta"]
 
