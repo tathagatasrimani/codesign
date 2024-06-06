@@ -1,4 +1,4 @@
-# https://pytorch.org/docs/stable/fx.html#torch.fx.Tracer
+# https://pytorch.org/docs/stable/fx.html#torch.fx.Graph
 import os
 import torch
 from torch import nn
