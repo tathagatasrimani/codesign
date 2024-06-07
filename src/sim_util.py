@@ -218,6 +218,29 @@ def get_dims(arr):
     return dims
 
 
+def construct_fake_double_hw(self, hw):
+        func_counts = hardwareModel.get_func_count(hw.netlist)
+        fake_hw = nx.DiGraph()
+        for node, num in func_counts.items():
+            name = node if node != "MainMem" else "Mem"
+            for i in range(0, 2 * num):
+                fake_hw.add_node(
+                    f"{name}{i}",
+                    function=node,
+                    allocation="",
+                )
+        for node in hw.netlist.nodes:
+            for child in hw.netlist.successors(node):
+                child_func = hw.netlist.nodes[child]["function"]
+                child_idx = hw.netlist.nodes[child]["idx"] + func_counts[child_func]
+                new_child = (
+                    f"{child_func}{child_idx}"
+                    if child_func != "MainMem"
+                    else f"Mem{child_idx}"
+                )
+                fake_hw.add_edge(node, new_child)
+        return fake_hw
+
 def verify_can_execute(
     computation_graph, hw_spec_netlist, generation=None, should_update_arch=False
 ):

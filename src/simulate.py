@@ -388,7 +388,7 @@ class ConcreteSimulator:
         """
         self.reset_internal_variables()
 
-        fake_hw = self.construct_fake_double_hw(hw)
+        fake_hw = sim_util.construct_fake_double_hw(hw)
         for layer, nodes in enumerate(nx.topological_generations(fake_hw)):
             # `multipartite_layout` expects the layer as a node attribute, so add the
             # numeric layer value as a node attribute
