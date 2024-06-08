@@ -255,7 +255,7 @@ def read_random_graph_from_file(n, p, wts=[1]):
 
 def main():
     # test on a random graph
-    G = randomGraph(7, 0.3)
+    G = randomGraph(20, 0.3)
     # BFS_shortestPaths(G.vertices[0],G)
     # dijkstraDumb_shortestPaths(G.vertices[0], G)
     # G = randomGraph(5,.4,[1,2,3,4,5])

@@ -11,9 +11,9 @@ import sim_util
 
 
 
+
 # can't import hardware Model else will have circular imports
 # import hardwareModel
-
 # format: cfg_node -> {states -> operations}
 cfg_node_to_dfg_map = {}
 operation_sets = {}

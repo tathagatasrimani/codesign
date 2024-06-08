@@ -84,23 +84,44 @@ class ConcreteSimulator:
         for n, node_data in computation_graph.nodes.data():
 
             scaling = 1
-            if node_data["function"] in ["Buf", "MainMem"]:
-                # active power should scale by size of the object being accessed.
-                # all regs have the saem size, so no need to scale.
-                scaling = node_data["size"]
-            # OLD ACTIVE POWER CALCULATION
-            # self.active_power_use[self.cycles] += (
-            #     hw_spec.dynamic_power[node_data["function"]]
-            #     * scaling
-            #     * hw_spec.latency[node_data["function"]]
-            # )
-            # NEW ACTIVE ENERGY CALCULATION
+            # if node_data["function"] in ["Buf", "MainMem"]:
+            #     # active power should scale by size of the object being accessed.
+            #     # all regs have the saem size, so no need to scale.
+            #     scaling = node_data["size"]
+                # if node_data["function"] == "MainMem":
+                #     print(
+                #         f" found a mem object in active energy calc, adding scaling factor: {scaling}"
+                #     )
             self.total_energy += (
                 hw_spec.dynamic_power[node_data["function"]]
                 * 1e-9
                 * scaling
                 * (hw_spec.latency[node_data["function"]] / hw_spec.frequency)
             )
+            
+            if node_data["function"] in ["Buf", "MainMem"]:
+                # active power should scale by size of the object being accessed.
+                # all regs have the saem size, so no need to scale.
+                scaling = node_data["size"]
+            
+                self.total_energy += (
+                    (hw_spec.dynamic_energy[node_data["function"]]["Read"] 
+                    + hw_spec.dynamic_energy[node_data["function"]]["Write"]) / 2 # avg of read and write
+                    * 1e-9
+                    * scaling
+                )
+                if node_data["function"] == "MainMem":
+                    self.total_energy += (
+                    hw_spec.dynamic_power["OffChipIO"] * 1e-3   # CACTI IO uses mW
+                    * scaling
+                    * hw_spec.latency["OffChipIO"]
+                    )
+            else:
+                self.total_energy += (
+                    hw_spec.dynamic_power[node_data["function"]] * 1e-9
+                    * scaling
+                    * (hw_spec.latency[node_data["function"]] / hw_spec.frequency)
+                )
             hw_spec.compute_operation_totals[node_data["function"]] += 1
         self.active_power_use[self.cycles] /= total_cycles
 
@@ -195,6 +216,86 @@ class ConcreteSimulator:
             mem_module.malloc(var_name, size, dims=dims, elem_size=size // num_elem)
         elif status == "free":
             mem_module.free(var_name)
+
+    def localize_memory(self, hw, hw_graph):
+        """
+        Updates memory in buffers (cache) to ensure that the data needed for the coming DFG node
+        is in the cache.
+
+        Sets a flag to indicate whether or not there was a cache hit or miss. This affects latency
+        calculations.
+        """
+        for node, data in dict(
+            filter(lambda x: x[1]["function"] == "Regs", hw_graph.nodes.data())
+        ).items():
+            var_name = node.split(";")[0]
+            cache_hit = False
+            # print(f"data[allocation]: {data['allocation']};\nhw_graph.nodes[node][allocation]: {hw_graph.nodes[node]['allocation']}")
+            cache_hit = hw.netlist.nodes[data["allocation"]]["var"] == var_name # no need to refetch from mem if var already in reg.
+            mapped_edges = map(
+                lambda edge: (edge[0], hw.netlist.nodes[edge[0]]),
+                hw.netlist.in_edges(hw_graph.nodes[node]["allocation"], data=True),
+            )
+
+            in_bufs = list(
+                filter(
+                    lambda node_data: node_data[1]["function"] == "Buf", mapped_edges
+                )
+            )
+            # check if cache_hit
+            for buf in in_bufs:
+                cache_hit = buf[1]["memory_module"].find(var_name) or cache_hit
+                if cache_hit:
+                    break
+                
+            # just choose one at random. Can make this smarter later.
+            buf = rng.choice(in_bufs)  # in_bufs[0] # just choose one at random.
+            size = buf[1]["memory_module"].read(
+                var_name
+            )  
+            buf_idx = len(
+                list(
+                    filter(
+                        lambda x: x[1]["function"] == "Buf", hw_graph.nodes.data()
+                    )
+                )
+            )
+
+            # print(f"in localize memory; var: {var_name}; size: {size}")
+            # add multiple bufs and mems, not just one. add a new one for each cache miss.
+            # this is required to properly count active power consumption.
+            # active power added once for each node in computation_graph.
+            # what about latency????
+
+            if cache_hit:   # only add the Buf
+                hw_graph.add_node(
+                    f"Buf{buf_idx}", function="Buf", allocation=buf[0], size=size
+                )
+                hw_graph.add_edge(f"Buf{buf_idx}", node, function="Mem")
+            
+            else:           # add Buf and Mem
+                size = size * -1  # size will be negative because cache miss.
+                mem_idx = len(
+                    list(
+                        filter(
+                            lambda x: x[1]["function"] == "MainMem",
+                            hw_graph.nodes.data(),
+                        )
+                    )
+                )
+                mem = list(
+                    filter(
+                        lambda x: x[1]["function"] == "MainMem", hw.netlist.nodes.data()
+                    )
+                )[0][0]
+                hw_graph.add_node(
+                    f"Buf{buf_idx}", function="Buf", allocation=buf[0], size=size
+                )
+                hw_graph.add_node(
+                    f"Mem{mem_idx}", function="MainMem", allocation=mem, size=size
+                )
+                hw_graph.add_edge(f"Mem{mem_idx}", f"Buf{buf_idx}", function="Mem")
+                hw_graph.add_edge(f"Buf{buf_idx}", node, function="Mem")
 
     def visualize_graph(self, operations):
         """
@@ -347,17 +448,12 @@ class ConcreteSimulator:
                 
                 return res
 
-           
         self.cycles = nx.dag_longest_path_length(computation_dfg)
         longest_path = nx.dag_longest_path(computation_dfg)
 
-        # add all passive power at the end.
-        # This is done here for the dynamic allocation case where we don't know how many
-        # compute elements we need until we run the program.
-        # print(f"total active energy: {self.active_energy} nJ")
         for elem_name, elem_data in dict(hw.netlist.nodes.data()).items():
             scaling = 1
-            if elem_data["function"] in ["Regs", "Buf", "MainMem"]:
+            if elem_data["function"] in ["MainMem"]:
                 scaling = elem_data["size"]
 
             self.passive_energy += (
@@ -477,7 +573,7 @@ class ConcreteSimulator:
         )
 
     def calculate_edp(self, hw):
-        self.execution_time = self.cycles  # / hw.frequency # in seconds
+        self.execution_time = self.cycles # in seconds
         self.total_energy = self.active_energy + self.passive_energy
         self.edp = self.total_energy * self.execution_time
 

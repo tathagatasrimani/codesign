@@ -40,11 +40,14 @@ class Codesign:
             self.computation_dfg,
         ) = architecture_search.setup_arch_search(benchmark, config)
 
-        self.scheduled_dfg = self.sim.schedule(self.computation_dfg, hw_counts=hardwareModel.get_func_count(self.hw.netlist))
+        self.scheduled_dfg = self.sim.schedule(
+            self.computation_dfg,
+            hw_counts=hardwareModel.get_func_count(self.hw.netlist),
+        )
 
         self.symbolic_sim = symbolic_simulate.SymbolicSimulator()
         self.symbolic_sim.simulator_prep(benchmark, self.hw.latency)
-       
+
         hardwareModel.un_allocate_all_in_use_elements(self.hw.netlist)
 
         # starting point set by the config we load into the HW model
@@ -59,7 +62,9 @@ class Codesign:
         self.sim.calculate_edp(self.hw)
         self.forward_edp = self.sim.edp
 
-        print(f"\nInitial EDP: {self.forward_edp} E-18 Js. Active Energy: {self.sim.active_energy} nJ. Passive Energy: {self.sim.passive_energy} nJ. Execution time: {self.sim.execution_time} ns")
+        print(
+            f"\nInitial EDP: {self.forward_edp} E-18 Js. Active Energy: {self.sim.active_energy} nJ. Passive Energy: {self.sim.passive_energy} nJ. Execution time: {self.sim.execution_time} ns"
+        )
 
         with open("rcs_current.yaml", "w") as f:
             f.write(yaml.dump(rcs))
@@ -77,7 +82,9 @@ class Codesign:
         self.sim.simulate(self.scheduled_dfg, self.hw)
         self.sim.calculate_edp(self.hw)
         edp = self.sim.edp
-        print(f"Initial EDP: {edp} E-18 Js. Active Energy: {self.sim.active_energy} nJ. Passive Energy: {self.sim.passive_energy} nJ. Execution time: {self.sim.execution_time} ns")
+        print(
+            f"Initial EDP: {edp} E-18 Js. Active Energy: {self.sim.active_energy} nJ. Passive Energy: {self.sim.passive_energy} nJ. Execution time: {self.sim.execution_time} ns"
+        )
 
         # hw updated in place, schedule and edp returned.
         new_edp, new_schedule = architecture_search.run_arch_search(
@@ -116,7 +123,7 @@ class Codesign:
     def write_back_rcs(self, rcs_path="rcs_current.yaml"):
         rcs = {"Reff": {}, "Ceff": {}, "other": {}}
         for elem in self.tech_params:
-            if elem.name == "f" or elem.name == "V_dd" or elem.name.startswith("Mem"):
+            if elem.name == "f" or elem.name == "V_dd" or elem.name.startswith("Mem") or elem.name.startswith("Buf") or elem.name.startswith("OffChipIO"):
                 rcs["other"][elem.name] = self.tech_params[
                     hw_symbols.symbol_table[elem.name]
                 ]
@@ -151,13 +158,18 @@ class Codesign:
         # print(
         #     f"I EDP ceil: {self.inverse_edp_ceil} Js. Active Energy: {(self.symbolic_sim.total_active_energy).subs(self.tech_params)} J. Passive Energy: {(self.symbolic_sim.total_passive_energy_ceil).subs(self.tech_params)} Execution time: {self.symbolic_sim.cycles_ceil.subs(self.tech_params)} s"
         # )
-        stdout = sys.stdout
-        with open("ipopt_out.txt", "w") as sys.stdout:
-            optimize.optimize(self.tech_params)
-        sys.stdout = stdout
 
-        f = open("ipopt_out.txt", "r")
-        self.parse_output(f)
+        if args.opt == "ipopt":
+            stdout = sys.stdout
+            with open("ipopt_out.txt", "w") as sys.stdout:
+                optimize.optimize(self.tech_params, self.symbolic_sim.edp, args.opt)
+            sys.stdout = stdout
+            f = open("ipopt_out.txt", "r")
+            self.parse_output(f)
+        else:
+            self.tech_params = optimize.optimize(
+                self.tech_params, self.symbolic_sim.edp, args.opt
+            )
         self.write_back_rcs()
         self.inverse_edp = self.symbolic_sim.edp.subs(self.tech_params)
         self.inverse_edp_ceil = self.symbolic_sim.edp_ceil.subs(self.tech_params)
@@ -220,7 +232,11 @@ if __name__ == "__main__":
     parser.add_argument("--notrace", action="store_true")
     parser.add_argument("-a", "--area", type=float, help="Max Area of the chip in um^2")
     parser.add_argument(
-        "-c", "--architecture_config", type=str, help="Path to the architecture config file"
+        "-c",
+        "--architecture_config",
+        type=str,
+        default="aladdin_const_with_mem",
+        help="Path to the architecture config file",
     )
     parser.add_argument(
         "-f",
@@ -229,7 +245,12 @@ if __name__ == "__main__":
         default="codesign_log_dir",
         help="Path to the save new architecture file",
     )
+    parser.add_argument("-o", "--opt", type=str)
     args = parser.parse_args()
-    print(f"args: benchmark: {args.benchmark}, trace:{args.notrace}, area:{args.area}")
+    if not args.opt:
+        args.opt = "ipopt"
+    print(
+        f"args: benchmark: {args.benchmark}, trace:{args.notrace}, area:{args.area}, optimization:{args.opt}"
+    )
 
     main()

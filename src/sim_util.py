@@ -10,6 +10,7 @@ from global_constants import SEED
 
 rng = np.random.default_rng(SEED)
 
+
 # adds all mallocs and frees to vectors, and finds the next cfg node in the data path,
 # returning the index of that node
 def find_next_data_path_index(data_path, i, mallocs, frees):
@@ -25,6 +26,8 @@ def find_next_data_path_index(data_path, i, mallocs, frees):
     The data_path is a list of lists where each element is node, a memory operation, or a
     piece of instrumentation. For example, the following are valid elements of the data_path:
     ['10', '16'], ['pattern_seek_3'], ['malloc', '16', 'c_1', '(3, 3)'], ['free', 'c_1']
+
+    Mallocs and Frees updated in place.
 
     Parameters:
     - i (int): The starting index in the data path from which the search begins.
@@ -167,15 +170,12 @@ def update_schedule_with_latency(schedule, latency):
         None;
         The schedule is updated in place.
     """
-    # print(f"{list(map(lambda x: x[2]['weight'], schedule.edges.data()))}")
     for edge in schedule.edges:
         node = edge[0]
         func = schedule.nodes.data()[node]["function"]
         if func == "stall":
             func = node.split("_")[3]
         schedule.edges[edge]["weight"] = latency[func]
-    # print(f"{list(map(lambda x: x[2]['weight'], schedule.edges.data()))}")
-    
 
 
 def get_dims(arr):
@@ -218,7 +218,9 @@ def get_dims(arr):
     return dims
 
 
-def verify_can_execute(computation_graph, hw_spec_netlist, generation = None, should_update_arch=False):
+def verify_can_execute(
+    computation_graph, hw_spec_netlist, generation=None, should_update_arch=False
+):
     """
     DEPRECATED?
     Determines whether or not the computation graph can be executed on the netlist
@@ -272,7 +274,7 @@ def verify_can_execute(computation_graph, hw_spec_netlist, generation = None, sh
             temp_C,
             node_match=lambda n1, n2: n1["function"] == n2["function"]
             or n2["function"] == None  # hw_graph can have no ops
-            or n2["function"] == "stall"
+            or n2["function"] == "stall",
         )
         if not dgm.subgraph_is_monomorphic():
             if should_update_arch:
@@ -296,7 +298,7 @@ def verify_can_execute(computation_graph, hw_spec_netlist, generation = None, sh
 
         mapping = dgm.subgraph_monomorphisms_iter().__next__()
         for hw_node, op in mapping.items():
-            if op in gen: # only bind ops in the current generation
+            if op in gen:  # only bind ops in the current generation
                 hw_spec_netlist.nodes[hw_node]["allocation"].append(op.split(";")[0])
                 computation_graph.nodes[op]["allocation"] = hw_node
                 temp_C.nodes[op]["allocation"] = hw_node
@@ -322,22 +324,17 @@ def localize_memory(hw, computation_graph, total_computation_graph=None):
     ).items():
         var_name = node.split(";")[0]
         cache_hit = False
-        # print(f"data[allocation]: {data['allocation']};\nhw_graph.nodes[node][allocation]: {hw_graph.nodes[node]['allocation']}")
         cache_hit = (
             hw.netlist.nodes[data["allocation"]]["var"] == var_name
         )  # no need to refetch from mem if var already in reg.
 
         mapped_edges = map(
             lambda edge: (edge[0], hw.netlist.nodes[edge[0]]),
-            hw.netlist.in_edges(
-                computation_graph.nodes[node]["allocation"], data=True
-            ),
+            hw.netlist.in_edges(computation_graph.nodes[node]["allocation"], data=True),
         )
 
         in_bufs = list(
-            filter(
-                lambda node_data: node_data[1]["function"] == "Buf", mapped_edges
-            )
+            filter(lambda node_data: node_data[1]["function"] == "Buf", mapped_edges)
         )
         for buf in in_bufs:
             cache_hit = buf[1]["memory_module"].find(var_name) or cache_hit
@@ -372,9 +369,7 @@ def localize_memory(hw, computation_graph, total_computation_graph=None):
                 )
             )
             mem = list(
-                filter(
-                    lambda x: x[1]["function"] == "MainMem", hw.netlist.nodes.data()
-                )
+                filter(lambda x: x[1]["function"] == "MainMem", hw.netlist.nodes.data())
             )[0][0]
             active_graph.add_node(
                 f"Buf{buf_idx}", function="Buf", allocation=buf[0], size=size
@@ -384,7 +379,6 @@ def localize_memory(hw, computation_graph, total_computation_graph=None):
             )
             active_graph.add_edge(f"Mem{mem_idx}", f"Buf{buf_idx}", function="Mem")
             active_graph.add_edge(f"Buf{buf_idx}", node, function="Mem")
-            # print(f"added mem read for {var_name} to {node}")
 
 
 def update_arch(computation_graph, hw_netlist):
@@ -419,7 +413,7 @@ def rename_nodes(G, H, H_generations=None, curr_last_nodes=None):
     try to rename the values in H_generations here?
     currently it just gets calculated again after rename
     """
-    
+
     relabelling = {}
     found_alignment = False
     # align
@@ -447,7 +441,7 @@ def rename_nodes(G, H, H_generations=None, curr_last_nodes=None):
 def get_unique_node_name(G, node):
     var_name, count = node.split(";")
     count = int(count)
-    count += 1 
+    count += 1
     new_node = f"{var_name};{count}"
     while new_node in G:
         count += 1
@@ -473,7 +467,6 @@ def compose_entire_computation_graph(
     curr_last_nodes = []
     i = find_next_data_path_index(data_path, 0, [], [])[0]
     while i < len(data_path):
-        # print(f"idx in compose: {i}")
         node_id = data_path[i][0]
         vars = data_path_vars[i]
 
@@ -506,20 +499,9 @@ def compose_entire_computation_graph(
         found_alignment = rename_nodes(
             computation_dfg, dfg, generations, curr_last_nodes
         )
-        # print(f"hw_graph.nodes after rename: {hw_graph.nodes}")
         computation_dfg = nx.compose(computation_dfg, dfg)
-        # computation_dfg.add_nodes_from(hw_graph.nodes(data=True))
         generations = list(nx.topological_generations(dfg))
 
-        # if there's no alignment then independent, allow them to occur in parallel
-        # MIGHT BE A BUG HERE
-
-        # if not found_alignment:
-        #     rand_first_node = rng.choice(generations[0])
-        #     if len(curr_last_nodes) != 0:
-        #         curr_last_node = rng.choice(curr_last_nodes)
-        #         # print(f"adding edge from {curr_last_node} to {rand_first_node}")
-        #         computation_dfg.add_edge(curr_last_node, rand_first_node)
         curr_last_nodes = generations[-1]
 
         i = find_next_data_path_index(data_path, i + 1, [], [])[0]
@@ -541,9 +523,11 @@ def compose_entire_computation_graph(
 
 def topological_layout_plot(graph, reverse=False):
     graph_copy = graph.copy()
-    generations = reversed(
-        list(nx.topological_generations(nx.reverse(graph_copy)))
-    ) if reverse else nx.topological_generations(graph_copy)
+    generations = (
+        reversed(list(nx.topological_generations(nx.reverse(graph_copy))))
+        if reverse
+        else nx.topological_generations(graph_copy)
+    )
 
     for layer, nodes in enumerate(generations):
         # `multipartite_layout` expects the layer as a node attribute, so add the
@@ -554,7 +538,7 @@ def topological_layout_plot(graph, reverse=False):
     # Compute the multipartite_layout using the "layer" node attribute
     pos = nx.multipartite_layout(graph_copy, subset_key="layer")
 
-    fig, ax = plt.subplots(figsize=(9,9))
+    fig, ax = plt.subplots(figsize=(9, 9))
     nx.draw_networkx(graph_copy, pos=pos, ax=ax)
     plt.show()
 
@@ -597,7 +581,7 @@ def topological_layout_plot_side_by_side(
     # Compute the multipartite_layout using the "layer" node attribute
     pos2 = nx.multipartite_layout(graph2_copy, subset_key="layer")
 
-    fig, ax = plt.subplots(1,2, figsize=(9, 9))
+    fig, ax = plt.subplots(1, 2, figsize=(9, 9))
     nx.draw_networkx(graph1_copy, pos=pos1, ax=ax[0])
     nx.draw_networkx(graph2_copy, pos=pos2, ax=ax[1])
 
@@ -605,14 +589,12 @@ def topological_layout_plot_side_by_side(
         edges_1 = {}
         edges_2 = {}
         for u, v, data in graph1_copy.edges(data=True):
-            # print(f"u: {u}, v: {v}, data: {data}")
-            edges_1[(u, v)] = data['weight']  # Change 'weight' to your desired attribute name
+            edges_1[(u, v)] = data["weight"]
         for u, v, data in graph2_copy.edges(data=True):
-            # print(f"u: {u}, v: {v}, data: {data}")
-            edges_2[(u, v)] = data['weight']  # Change 'weight' to your desired attribute name
+            edges_2[(u, v)] = data["weight"]
         nx.draw_networkx_edge_labels(graph1_copy, pos1, edge_labels=edges_1, ax=ax[0])
         nx.draw_networkx_edge_labels(graph2_copy, pos2, edge_labels=edges_2, ax=ax[1])
-       
+
     plt.show()
 
 
@@ -629,6 +611,7 @@ def convert_tech_params_to_si(latency, active_power, passive_power, frequency):
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # ~~~~~~~~~~~~~~~~~~~~~ SYMBOLIC UTILS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 
 def generate_init_params_from_rcs_as_strings(rcs):
     """
@@ -658,11 +641,16 @@ def generate_init_params_from_rcs_as_symbols(rcs):
     for elem in rcs["Reff"]:
         initial_params[hw_symbols.symbol_table["Reff_" + elem]] = rcs["Reff"][elem]
         initial_params[hw_symbols.symbol_table["Ceff_" + elem]] = rcs["Ceff"][elem]
-    initial_params[hw_symbols.f] = rcs["other"]["f"]
     initial_params[hw_symbols.V_dd] = rcs["other"]["V_dd"]
     initial_params[hw_symbols.MemReadL] = rcs["other"]["MemReadL"]
     initial_params[hw_symbols.MemWriteL] = rcs["other"]["MemWriteL"]
-    initial_params[hw_symbols.MemReadPact] = rcs["other"]["MemReadPact"]
-    initial_params[hw_symbols.MemWritePact] = rcs["other"]["MemWritePact"]
+    initial_params[hw_symbols.MemReadEact] = rcs["other"]["MemReadEact"]
+    initial_params[hw_symbols.MemWriteEact] = rcs["other"]["MemWriteEact"]
     initial_params[hw_symbols.MemPpass] = rcs["other"]["MemPpass"]
+    initial_params[hw_symbols.BufL] = rcs["other"]["BufL"]
+    initial_params[hw_symbols.BufReadEact] = rcs["other"]["BufReadEact"]
+    initial_params[hw_symbols.BufWriteEact] = rcs["other"]["BufWriteEact"]
+    initial_params[hw_symbols.BufPpass] = rcs["other"]["BufPpass"]
+    initial_params[hw_symbols.OffChipIOL] = rcs["other"]["OffChipIOL"]
+    initial_params[hw_symbols.OffChipIOPact] = rcs["other"]["OffChipIOPact"]
     return initial_params

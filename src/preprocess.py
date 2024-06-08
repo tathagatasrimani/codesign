@@ -36,13 +36,11 @@ class Preprocessor:
 
     def add_constraints(self, model):
         # this is where we say EDP_final = EDP_initial / 10
+        print(f"adding constraints. initial val: {self.initial_val}; edp_exp: {self.pyomo_edp_exp}")
         model.Constraint = pyo.Constraint(expr=self.pyomo_edp_exp <= self.initial_val / 1.4)
         model.Constraint1 = pyo.Constraint(expr=self.pyomo_edp_exp >= self.initial_val / 1.6)
-        # model.freq_const = pyo.Constraint(rule=self.f)
         model.V_dd_lower = pyo.Constraint(rule=self.V_dd_lower)
         model.V_dd_upper = pyo.Constraint(rule=self.V_dd_upper)
-        # model.f_upper = pyo.Constraint(rule=self.f_upper)
-        # model.f = pyo.Constraint(expr = model.x[self.mapping[hw_symbols.f]] == self.initial_params["f"])
         # model.V_dd = pyo.Constraint(expr = model.x[self.mapping[hw_symbols.V_dd]] == self.initial_params["V_dd"])
         model.AddR = pyo.Constraint(
             expr=model.x[self.mapping[hw_symbols.Reff["Add"]]]
@@ -117,28 +115,22 @@ class Preprocessor:
         self.free_symbols = []
         self.initial_params = initial_params
         for symbol in edp.free_symbols:
-            # print(symbol.name)
             edp = edp.subs({symbol: hw_symbols.symbol_table[symbol.name]})
         for s in edp.free_symbols:
             self.free_symbols.append(s)
             if s.name in initial_params:  # change this to just s
                 self.expr_symbols[s] = initial_params[s.name]
 
-        # print(edp.subs(self.expr_symbols))
         self.initial_val = float(edp.subs(self.expr_symbols))
         print(self.expr_symbols)
         print("edp:", edp)
         print("initial val:", self.initial_val)
 
-        # self.obj_scale = 1 / self.initial_val
-        # print(self.expr_symbols)
 
         model.nVars = pyo.Param(initialize=len(edp.free_symbols))
         model.N = pyo.RangeSet(model.nVars)
         model.x = pyo.Var(model.N, domain=pyo.NonNegativeReals)
         self.mapping = {}
-        # model.add_component("y", pyo.Var(model.N, domain=pyo.NonNegativeIntegers))
-        # model.y = pyo.Var(model.N, domain=pyo.NonNegativeIntegers)
 
         i = 0
         for j in model.x:
@@ -153,10 +145,8 @@ class Preprocessor:
             # give pyomo symbols an inital value for warm start
             model.x[self.mapping[symbol]] = self.expr_symbols[symbol]
             print(symbol, self.expr_symbols[symbol])
-        # sympy_tools._operatorMap.update({sympy.Max: lambda x: nested_if(x[0], x[1:])})
-        # print(self.mapping.sympyVars())
+       
         self.pyomo_edp_exp = sympy_tools.sympy2pyomo_expression(edp, m)
-        # py_exp = sympy_tools.sympy2pyomo_expression(hardwaremodel.symbolic_latency["Add"] ** (1/2), m)
         self.obj = self.pyomo_edp_exp
         self.add_regularization_to_objective(model, l=0.00001)
 
@@ -167,8 +157,6 @@ class Preprocessor:
         self.create_scaling(model)
         self.add_constraints(model)
 
-        # print(self.mapping)
-        # print(model)
         scaled_model = pyo.TransformationFactory("core.scale_model").create_using(model)
         scaled_preproc_model = pyo.TransformationFactory(
             "contrib.constraints_to_var_bounds"
