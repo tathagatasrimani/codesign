@@ -507,7 +507,7 @@ class ConcreteSimulator:
 
     def schedule(self, computation_dfg, hw_counts):
         copy = computation_dfg.copy()
-        schedule.schedule(copy, hw_counts)
+        schedule.sdc_schedule(copy, hw_counts)
 
         for layer, nodes in enumerate(
             reversed(list(nx.topological_generations(nx.reverse(computation_dfg))))
