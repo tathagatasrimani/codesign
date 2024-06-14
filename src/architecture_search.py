@@ -205,7 +205,7 @@ def run_arch_search(simulator, hw, computation_dfg, area_constraint, best_edp=No
     best_hw_netlist = hw.netlist.copy()
     best_schedule = old_scheduled_dfg
 
-    for i in range(0):
+    for i in range(1):
         hw_copy = hw.netlist.copy()
 
         func = sample_stalled_func(old_scheduled_dfg)

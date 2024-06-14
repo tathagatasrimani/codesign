@@ -243,7 +243,7 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--opt", type=str, default="ipopt")
     args = parser.parse_args()
     print(
-        f"args: benchmark: {args.benchmark}, trace:{args.notrace}, architecture_cfg: {args.architecture_config}, area:{args.area}, optimization:{args.opt}"
+        f"args: benchmark: {args.benchmark}, trace: {args.notrace}, architecture_cfg: {args.architecture_config}, area: {args.area}, optimization: {args.opt}"
     )
 
     main()
