@@ -29,8 +29,6 @@ if [ $name ]; then
     fi
     if [ $OPT ]; then  # should be scp, ipopt
         ARGS+=" --opt $OPT"
-    else
-        ARGS+=" --opt ipopt"
     fi
     echo $ARGS
     python codesign.py $ARGS

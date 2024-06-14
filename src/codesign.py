@@ -17,10 +17,11 @@ import hardwareModel
 
 
 class Codesign:
-    def __init__(self, benchmark, config, save_dir):
+    def __init__(self, benchmark, config, save_dir, opt):
         self.save_dir = os.path.join(
             save_dir, datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         )
+        self.opt_cfg = opt
 
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
@@ -156,16 +157,16 @@ class Codesign:
             f"Initial EDP: {self.inverse_edp} E-18 Js. Active Energy: {(self.symbolic_sim.total_active_energy).subs(self.tech_params)} nJ. Passive Energy: {(self.symbolic_sim.total_passive_energy).subs(self.tech_params)} nJ. Execution time: {self.symbolic_sim.cycles.subs(self.tech_params)} ns"
         )
 
-        if args.opt == "ipopt":
+        if (self.opt_cfg == "ipopt"):
             stdout = sys.stdout
             with open("ipopt_out.txt", "w") as sys.stdout:
-                optimize.optimize(self.tech_params, self.symbolic_sim.edp, args.opt)
+                optimize.optimize(self.tech_params, self.symbolic_sim.edp, self.opt_cfg)
             sys.stdout = stdout
             f = open("ipopt_out.txt", "r")
             self.parse_output(f)
         else:
             self.tech_params = optimize.optimize(
-                self.tech_params, self.symbolic_sim.edp, args.opt
+                self.tech_params, self.symbolic_sim.edp, self.opt_cfg
             )
         self.write_back_rcs()
         self.inverse_edp = self.symbolic_sim.edp.subs(self.tech_params)
@@ -201,7 +202,7 @@ def main():
         + " > instrumented_files/output.txt"
     )
 
-    codesign_module = Codesign(args.benchmark, args.architecture_config, args.savedir)
+    codesign_module = Codesign(args.benchmark, args.architecture_config, args.savedir, args.opt)
 
     i = 0
     while i < 10:
@@ -239,12 +240,10 @@ if __name__ == "__main__":
         default="codesign_log_dir",
         help="Path to the save new architecture file",
     )
-    parser.add_argument("-o", "--opt", type=str)
+    parser.add_argument("-o", "--opt", type=str, default="ipopt")
     args = parser.parse_args()
-    if not args.opt:
-        args.opt = "ipopt"
     print(
-        f"args: benchmark: {args.benchmark}, trace:{args.notrace}, area:{args.area}, optimization:{args.opt}"
+        f"args: benchmark: {args.benchmark}, trace:{args.notrace}, architecture_cfg: {args.architecture_config}, area:{args.area}, optimization:{args.opt}"
     )
 
     main()

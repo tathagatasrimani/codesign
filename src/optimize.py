@@ -202,15 +202,15 @@ def main():
     edp = open("sympy.txt", "r")
     edp = sympify(edp.readline())
 
-    results = optimize(initial_params, edp, "ipopt")
+    results = optimize(initial_params, edp, args.opt)
 
     return results
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        prog="Codesign",
-        description="Runs a two-step loop to optimize architecture and technology for a given application.",
+        prog="Optimize",
+        description="Optimization part of the Inverse Pass. This runs after an analytic equation for the cost is created.",
         epilog="Text at the bottom of help",
     )
 
@@ -219,6 +219,12 @@ if __name__ == "__main__":
         "--architecture_config",
         type=str,
         help="Path to the architecture config file",
+    )
+    parser.add_argument(
+        "-o",
+        "--opt",
+        type=str,
+        default="ipopt",
     )
 
     args = parser.parse_args()
