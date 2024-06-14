@@ -215,7 +215,7 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
 
   cmd = ['./cacti', '-infile', input_filename]
 
-  p = subprocess.Popen(cmd, cwd=cactiDir)
+  p = subprocess.Popen(cmd, cwd=cactiDir, stdout=subprocess.DEVNULL)
   p.wait()
 
   output_filename = filename + ".cfg.out"
