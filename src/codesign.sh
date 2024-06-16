@@ -1,11 +1,12 @@
 #!/bin/sh
-while getopts a:sqn:d:o: flag
+while getopts a:c:f:qn:o: flag
 do
     case "${flag}" in
         n) name=${OPTARG};;
         q) QUIET=true;;
         a) AREA=${OPTARG};;
-        d) SAVEDIR=${OPTARG};;
+        c) ARCH_CONFIG=${OPTARG};;
+        f) SAVEDIR=${OPTARG};;
         o) OPT=${OPTARG};;
     esac
 done
@@ -20,13 +21,14 @@ if [ $name ]; then
     if [ $AREA ]; then
         ARGS+=" --area $AREA"
     fi
-    if [ $SAVEFILE ]; then
+    if [ $ARCH_CONFIG ]; then
+        ARGS+=" --architecture_config $ARCH_CONFIG"
+    fi
+    if [ $SAVEDIR ]; then
         ARGS+=" --savedir $SAVEDIR"
     fi
-    if [ $OPT ]; then
+    if [ $OPT ]; then  # should be scp, ipopt
         ARGS+=" --opt $OPT"
-    else
-        ARGS+=" --opt ipopt"
     fi
     echo $ARGS
     python codesign.py $ARGS

@@ -5,8 +5,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import dfg_algo
-import schedule
 import hw_symbols
+from global_constants import SEED
+
+rng = np.random.default_rng(SEED)
+
 
 # adds all mallocs and frees to vectors, and finds the next cfg node in the data path,
 # returning the index of that node
@@ -155,6 +158,26 @@ def get_var_name_from_arr_access(arr_access):
     return arr_access
 
 
+def update_schedule_with_latency(schedule, latency):
+    """
+    Updates the schedule with the latency of each operation.
+
+    Parameters:
+        schedule (nx.Digraph): A list of operations in the schedule.
+        latency (dict): A dictionary of operation names to their latencies.
+
+    Returns:
+        None;
+        The schedule is updated in place.
+    """
+    for edge in schedule.edges:
+        node = edge[0]
+        func = schedule.nodes.data()[node]["function"]
+        if func == "stall":
+            func = node.split("_")[3]
+        schedule.edges[edge]["weight"] = latency[func]
+
+
 def get_dims(arr):
     """
     Extracts the dimensions from a given array representation.
@@ -195,46 +218,63 @@ def get_dims(arr):
     return dims
 
 
-def verify_can_execute(computation_graph, hw_spec_netlist, should_update_arch=False):
+def verify_can_execute(
+    computation_graph, hw_spec_netlist, generation=None, should_update_arch=False
+):
     """
+    DEPRECATED?
     Determines whether or not the computation graph can be executed on the netlist
     specified in hw_spec.
 
     Topologically orders the computation graph (C) and checks if the subgraph of C determined
-    by the ith and i+1th order in the topo sort is monomorphic to the netlist.
+    by the ith and i+1th and i-1th order in the topo sort is monomorphic to the netlist.
 
     The way this works, if I have 10 addition operations to do in this node of the DFG, and 20 adders
     it should always allocate 10 adders to this node. <- TODO: VERIFY EXPERIMENTALLY
 
     if should_update_arch is true, does a graph compose onto the netlist, and returns the new netlist.
     This is done here to avoid looping over the topo ordering twice.
+    TODO: seperate this out into a different function.
 
     Raises exception if the hardware cannot execute the computation graph.
 
     Parameters:
         computation_graph - nx.DiGraph of operations to be executed.
         hw_spec (HardwareModel): An object representing the current hardware allocation and specifications.
+        generation (list): A list of nodes in the computation graph at the current generation.
+                    If this is supplied, only do the check for this single generation.
         should_update_arch (bool): A flag indicating whether or not the hardware architecture should be updated.
                     Only set True from architecture search. Set false when running simulation.
 
     Returns:
+        nx.Digraph: returns the temporary local digraph created from generation if generation is not None.
+            if there's not monomorphicity, returns None instead.
+        nx.Digraph: returns the new hardware netlist if should_update_arch is True.
         bool: True if the computation graph can be executed on the netlist, False otherwise.
+            if neither generation nor should_update_arch is specified, returns True or False.
     """
-    
-    for generation in nx.topological_generations(computation_graph):
+    if generation is not None:
+        generations = [generation]
+    else:
+        generations = nx.topological_generations(computation_graph)
+    for gen in generations:
         temp_C = nx.DiGraph()
-        for node in generation:
+        for node in gen:
             temp_C.add_nodes_from([(node, computation_graph.nodes[node])])
             for child in computation_graph.successors(node):
                 if child not in temp_C.nodes:
                     temp_C.add_nodes_from([(child, computation_graph.nodes[child])])
                 temp_C.add_edge(node, child)
+            for parent in computation_graph.predecessors(node):
+                if parent not in temp_C.nodes:
+                    temp_C.add_nodes_from([(parent, computation_graph.nodes[parent])])
+                temp_C.add_edge(parent, node)
         dgm = nx.isomorphism.DiGraphMatcher(
             hw_spec_netlist,
             temp_C,
             node_match=lambda n1, n2: n1["function"] == n2["function"]
-            or n2["function"]
-            == None,  # hw_graph can have no ops, but netlist should not
+            or n2["function"] == None  # hw_graph can have no ops
+            or n2["function"] == "stall",
         )
         if not dgm.subgraph_is_monomorphic():
             if should_update_arch:
@@ -246,18 +286,99 @@ def verify_can_execute(computation_graph, hw_spec_netlist, should_update_arch=Fa
                     or n2["function"]
                     == None,  # hw_graph can have no ops, but netlist should not
                 )
+            if generation is not None:
+                print(f"failed monomorphic")
+                print(f"temp_c: {temp_C.nodes}")
+                print(f"temp_c edges: {temp_C.edges}")
+                print(f"temp_c_nodes: {temp_C.nodes.data(True)}")
+                print(f"gen: {gen}")
+                return None
             else:
                 return False
 
         mapping = dgm.subgraph_monomorphisms_iter().__next__()
         for hw_node, op in mapping.items():
-            hw_spec_netlist.nodes[hw_node]["allocation"].append(op.split(";")[0])
-            computation_graph.nodes[op]["allocation"] = hw_node
+            if op in gen:  # only bind ops in the current generation
+                hw_spec_netlist.nodes[hw_node]["allocation"].append(op.split(";")[0])
+                computation_graph.nodes[op]["allocation"] = hw_node
+                temp_C.nodes[op]["allocation"] = hw_node
 
     if should_update_arch:
         return hw_spec_netlist
+    if generation is not None:
+        return temp_C
     else:
         return True
+
+
+def localize_memory(hw, computation_graph, total_computation_graph=None):
+    """
+    Updates memory in buffers (cache) to ensure that the data needed for the coming DFG node
+    is in the cache.
+
+    Sets a flag to indicate whether or not there was a cache hit or miss. This affects latency
+    calculations.
+    """
+    for node, data in dict(
+        filter(lambda x: x[1]["function"] == "Regs", computation_graph.nodes.data())
+    ).items():
+        var_name = node.split(";")[0]
+        cache_hit = False
+        cache_hit = (
+            hw.netlist.nodes[data["allocation"]]["var"] == var_name
+        )  # no need to refetch from mem if var already in reg.
+
+        mapped_edges = map(
+            lambda edge: (edge[0], hw.netlist.nodes[edge[0]]),
+            hw.netlist.in_edges(computation_graph.nodes[node]["allocation"], data=True),
+        )
+
+        in_bufs = list(
+            filter(lambda node_data: node_data[1]["function"] == "Buf", mapped_edges)
+        )
+        for buf in in_bufs:
+            cache_hit = buf[1]["memory_module"].find(var_name) or cache_hit
+            if cache_hit:
+                break
+        if not cache_hit:
+            # just choose one at random. Can make this smarter later.
+            buf = rng.choice(in_bufs)  # in_bufs[0] # just choose one at random.
+
+            size = -1 * buf[1]["memory_module"].read(
+                var_name
+            )  # size will be negative because cache miss.
+            # add buf and mem nodes to indicate when explicit mem reads occur. ie. add a new one for each cache miss.
+            if total_computation_graph is not None:
+                active_graph = total_computation_graph
+            else:
+                active_graph = computation_graph
+            buf_idx = len(
+                list(
+                    filter(
+                        lambda x: x[1]["function"] == "Buf",
+                        active_graph.nodes.data(),
+                    )
+                )
+            )
+            mem_idx = len(
+                list(
+                    filter(
+                        lambda x: x[1]["function"] == "MainMem",
+                        active_graph.nodes.data(),
+                    )
+                )
+            )
+            mem = list(
+                filter(lambda x: x[1]["function"] == "MainMem", hw.netlist.nodes.data())
+            )[0][0]
+            active_graph.add_node(
+                f"Buf{buf_idx}", function="Buf", allocation=buf[0], size=size
+            )
+            active_graph.add_node(
+                f"Mem{mem_idx}", function="MainMem", allocation=mem, size=size
+            )
+            active_graph.add_edge(f"Mem{mem_idx}", f"Buf{buf_idx}", function="Mem")
+            active_graph.add_edge(f"Buf{buf_idx}", node, function="Mem")
 
 
 def update_arch(computation_graph, hw_netlist):
@@ -292,7 +413,7 @@ def rename_nodes(G, H, H_generations=None, curr_last_nodes=None):
     try to rename the values in H_generations here?
     currently it just gets calculated again after rename
     """
-    
+
     relabelling = {}
     found_alignment = False
     # align
@@ -320,7 +441,7 @@ def rename_nodes(G, H, H_generations=None, curr_last_nodes=None):
 def get_unique_node_name(G, node):
     var_name, count = node.split(";")
     count = int(count)
-    count += 1 
+    count += 1
     new_node = f"{var_name};{count}"
     while new_node in G:
         count += 1
@@ -328,18 +449,152 @@ def get_unique_node_name(G, node):
     return new_node
 
 
-def topological_layout_plot(graph):
-    for layer, nodes in enumerate(nx.topological_generations(graph)):
+def compose_entire_computation_graph(
+    cfg_node_to_dfg_map, id_to_node, data_path, data_path_vars, latency, plot=False
+):
+    """
+    Composes a large DFG from the smaller DFGs.
+    Not currently used, doesn't handle register allocation very well.
+
+    Parameters:
+        cfg (CFG): The control flow graph of the program.
+        cfg_node_to_hw_map (dict): A mapping of CFG nodes to hardware graphs represented by nx.DiGraphs.
+
+    Returns:
+        nx.DiGraph: The large DFG composed from the smaller DFGs.
+    """
+    computation_dfg = nx.DiGraph()
+    curr_last_nodes = []
+    i = find_next_data_path_index(data_path, 0, [], [])[0]
+    while i < len(data_path):
+        node_id = data_path[i][0]
+        vars = data_path_vars[i]
+
+        node = id_to_node[node_id]
+        dfg = cfg_node_to_dfg_map[node]
+
+        if nx.is_empty(dfg):
+            i = find_next_data_path_index(data_path, i + 1, [], [])[0]
+            continue
+
+        # plug in index values for array accesses
+        for node in dfg.nodes:
+            var, id = node.split(";")
+            if len(var) == 1:
+                continue
+            array = var.split("[")
+            if len(array) == 1:  # not an array
+                continue
+            var_name = array[0]
+            indices = [arr.split("]")[0] for arr in array[1:]]
+            for idx in indices:
+                if idx in vars.keys():
+                    var_name += f"[{vars[idx]}]"
+                else:
+                    var_name += f"[{idx}]"
+            var_name += f";{id}"
+            dfg = nx.relabel_nodes(dfg, {node: var_name})
+
+        generations = list(nx.topological_generations(dfg))
+        found_alignment = rename_nodes(
+            computation_dfg, dfg, generations, curr_last_nodes
+        )
+        computation_dfg = nx.compose(computation_dfg, dfg)
+        generations = list(nx.topological_generations(dfg))
+
+        curr_last_nodes = generations[-1]
+
+        i = find_next_data_path_index(data_path, i + 1, [], [])[0]
+
+    # create end node and connect all last nodes to it
+    computation_dfg.add_node("end", function="end")
+    generations = list(nx.topological_generations(computation_dfg))
+    for node in generations[-1]:
+        computation_dfg.add_edge(
+            node, "end", weight=latency[computation_dfg.nodes[node]["function"]]
+        )
+
+    print(f"done composing computation graph")
+
+    if plot:
+        topological_layout_plot(computation_dfg, reverse=True)
+    return computation_dfg
+
+
+def topological_layout_plot(graph, reverse=False):
+    graph_copy = graph.copy()
+    generations = (
+        reversed(list(nx.topological_generations(nx.reverse(graph_copy))))
+        if reverse
+        else nx.topological_generations(graph_copy)
+    )
+
+    for layer, nodes in enumerate(generations):
         # `multipartite_layout` expects the layer as a node attribute, so add the
         # numeric layer value as a node attribute
         for node in nodes:
-            graph.nodes[node]["layer"] = layer
+            graph_copy.nodes[node]["layer"] = layer
 
     # Compute the multipartite_layout using the "layer" node attribute
-    pos = nx.multipartite_layout(graph, subset_key="layer")
+    pos = nx.multipartite_layout(graph_copy, subset_key="layer")
 
-    fig, ax = plt.subplots()
-    nx.draw_networkx(graph, pos=pos, ax=ax)
+    fig, ax = plt.subplots(figsize=(9, 9))
+    nx.draw_networkx(graph_copy, pos=pos, ax=ax)
+    plt.show()
+
+
+def topological_layout_plot_side_by_side(
+    graph1,
+    graph2,
+    reverse=False,
+    edge_labels=False,
+):
+    graph1_copy = graph1.copy()
+    generations = (
+        reversed(list(nx.topological_generations(nx.reverse(graph1_copy))))
+        if reverse
+        else nx.topological_generations(graph1_copy)
+    )
+
+    for layer, nodes in enumerate(generations):
+        # `multipartite_layout` expects the layer as a node attribute, so add the
+        # numeric layer value as a node attribute
+        for node in nodes:
+            graph1_copy.nodes[node]["layer"] = layer
+
+    # Compute the multipartite_layout using the "layer" node attribute
+    pos1 = nx.multipartite_layout(graph1_copy, subset_key="layer")
+
+    graph2_copy = graph2.copy()
+    generations = (
+        reversed(list(nx.topological_generations(nx.reverse(graph2_copy))))
+        if reverse
+        else nx.topological_generations(graph2_copy)
+    )
+
+    for layer, nodes in enumerate(generations):
+        # `multipartite_layout` expects the layer as a node attribute, so add the
+        # numeric layer value as a node attribute
+        for node in nodes:
+            graph2_copy.nodes[node]["layer"] = layer
+
+    # Compute the multipartite_layout using the "layer" node attribute
+    pos2 = nx.multipartite_layout(graph2_copy, subset_key="layer")
+
+    fig, ax = plt.subplots(1, 2, figsize=(9, 9))
+    nx.draw_networkx(graph1_copy, pos=pos1, ax=ax[0])
+    nx.draw_networkx(graph2_copy, pos=pos2, ax=ax[1])
+
+    if edge_labels:
+        edges_1 = {}
+        edges_2 = {}
+        for u, v, data in graph1_copy.edges(data=True):
+            edges_1[(u, v)] = data["weight"]
+        for u, v, data in graph2_copy.edges(data=True):
+            edges_2[(u, v)] = data["weight"]
+        nx.draw_networkx_edge_labels(graph1_copy, pos1, edge_labels=edges_1, ax=ax[0])
+        nx.draw_networkx_edge_labels(graph2_copy, pos2, edge_labels=edges_2, ax=ax[1])
+
     plt.show()
 
 
@@ -356,6 +611,7 @@ def convert_tech_params_to_si(latency, active_power, passive_power, frequency):
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # ~~~~~~~~~~~~~~~~~~~~~ SYMBOLIC UTILS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 
 def generate_init_params_from_rcs_as_strings(rcs):
     """
@@ -385,11 +641,16 @@ def generate_init_params_from_rcs_as_symbols(rcs):
     for elem in rcs["Reff"]:
         initial_params[hw_symbols.symbol_table["Reff_" + elem]] = rcs["Reff"][elem]
         initial_params[hw_symbols.symbol_table["Ceff_" + elem]] = rcs["Ceff"][elem]
-    initial_params[hw_symbols.f] = rcs["other"]["f"]
     initial_params[hw_symbols.V_dd] = rcs["other"]["V_dd"]
     initial_params[hw_symbols.MemReadL] = rcs["other"]["MemReadL"]
     initial_params[hw_symbols.MemWriteL] = rcs["other"]["MemWriteL"]
-    initial_params[hw_symbols.MemReadPact] = rcs["other"]["MemReadPact"]
-    initial_params[hw_symbols.MemWritePact] = rcs["other"]["MemWritePact"]
+    initial_params[hw_symbols.MemReadEact] = rcs["other"]["MemReadEact"]
+    initial_params[hw_symbols.MemWriteEact] = rcs["other"]["MemWriteEact"]
     initial_params[hw_symbols.MemPpass] = rcs["other"]["MemPpass"]
+    initial_params[hw_symbols.BufL] = rcs["other"]["BufL"]
+    initial_params[hw_symbols.BufReadEact] = rcs["other"]["BufReadEact"]
+    initial_params[hw_symbols.BufWriteEact] = rcs["other"]["BufWriteEact"]
+    initial_params[hw_symbols.BufPpass] = rcs["other"]["BufPpass"]
+    initial_params[hw_symbols.OffChipIOL] = rcs["other"]["OffChipIOL"]
+    initial_params[hw_symbols.OffChipIOPact] = rcs["other"]["OffChipIOPact"]
     return initial_params

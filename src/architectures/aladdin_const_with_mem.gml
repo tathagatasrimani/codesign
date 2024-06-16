@@ -240,4 +240,28 @@ graph [
     source 8
     target 7
   ]
+  edge [
+    source 9
+    target 0
+  ]
+  edge [
+    source 9
+    target 4
+  ]
+  edge [
+    source 9
+    target 5
+  ]
+  edge [
+    source 0
+    target 9
+  ]
+  edge [
+    source 4
+    target 9
+  ]
+  edge [
+    source 5
+    target 9
+  ]
 ]

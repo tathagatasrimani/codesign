@@ -4,6 +4,7 @@ from collections import deque
 import ast
 import configparser as cp
 import yaml
+import os
 
 import graphviz as gv
 from sympy import *
@@ -14,7 +15,7 @@ from ast_utils import ASTUtils
 from memory import Memory, Cache
 from config_dicts import op2sym_map
 from rcgen import generate_optimization_params
-from cacti_util import gen_vals
+import cacti_util
 
 
 HW_CONFIG_FILE = "hw_cfgs.ini"
@@ -62,6 +63,14 @@ def get_memory_node(netlist):
     return get_nodes_with_func(netlist, "MainMem")
 
 
+def get_unique_funcs(netlist):
+    return set(map(lambda v: v["function"], dict(netlist.nodes.data()).values()))
+
+
+def get_func_count(netlist):
+    return {func: num_nodes_with_func(netlist, func) for func in get_unique_funcs(netlist)}
+
+
 class HardwareModel:
     def __init__(
         self,
@@ -73,7 +82,8 @@ class HardwareModel:
         pitch=None,
         transistor_size=None,
         cache_size=None,
-        bus_width=None
+        V_dd=None,
+        bus_width=None,
     ):
         """
         Simulates the effect of 2 different constructors. Either supply cfg (config), or supply the rest of the arguments.
@@ -82,26 +92,37 @@ class HardwareModel:
         """
         if cfg is None:
             self.set_hw_config_vars(
-                id, bandwidth, mem_layers, pitch, transistor_size, cache_size, bus_width
+                id, bandwidth, mem_layers, pitch, transistor_size, cache_size, V_dd, bus_width
             )
         else:
             config = cp.ConfigParser()
             config.read(HW_CONFIG_FILE)
             path_to_graphml = f"architectures/{cfg}.gml"
-            self.set_hw_config_vars(
-                config.getint(cfg, "id"),
-                config.getint(cfg, "bandwidth"),
-                config.getint(cfg, "nummemlayers"),
-                config.getint(cfg, "interconnectpitch"),
-                config.getint(cfg, "transistorsize"),
-                config.getint(cfg, "cachesize"),
-                config.getint(cfg, "frequency"),
-                config.getfloat(cfg, "V_dd"),
-                config.getint(cfg, "buswidth")
-            )
+            try:
+                self.set_hw_config_vars(
+                    config.getint(cfg, "id"),
+                    config.getint(cfg, "bandwidth"),
+                    config.getint(cfg, "nummemlayers"),
+                    config.getint(cfg, "interconnectpitch"),
+                    config.getint(cfg, "transistorsize"),
+                    config.getint(cfg, "cachesize"),
+                    config.getfloat(cfg, "V_dd"),
+                    config.getfloat(cfg, "buswidth")
+                )
+            except cp.NoSectionError:
+                self.set_hw_config_vars(
+                    config.getint("DEFAULT", "id"),
+                    config.getint("DEFAULT", "bandwidth"),
+                    config.getint("DEFAULT", "nummemlayers"),
+                    config.getint("DEFAULT", "interconnectpitch"),
+                    config.getint("DEFAULT", "transistorsize"),
+                    config.getint("DEFAULT", "cachesize"),
+                    config.getfloat("DEFAULT", "V_dd"),
+                    config.getfloat("DEFAULT", "buswidth")
+                )
         self.hw_allocated = {}
 
-        if path_to_graphml is not None:
+        if path_to_graphml is not None and os.path.exists(path_to_graphml):
             self.netlist = nx.read_gml(path_to_graphml)
             # print(f"netlist: {self.netlist.nodes.data()}")
         else:
@@ -119,7 +140,6 @@ class HardwareModel:
         pitch,
         transistor_size,
         cache_size,
-        frequency,
         V_dd,
         bus_width
     ):
@@ -130,7 +150,6 @@ class HardwareModel:
         self.pitch = pitch
         self.transistor_size = transistor_size
         self.cache_size = cache_size
-        self.frequency = frequency * 1.0
         self.V_dd = V_dd
         self.bus_width = bus_width
 
@@ -180,18 +199,8 @@ class HardwareModel:
 
         self.dynamic_power = tech_params["dynamic_power"][self.transistor_size]
         self.leakage_power = tech_params["leakage_power"][self.transistor_size]
-
         self.dynamic_energy = tech_params["dynamic_energy"][self.transistor_size]
-        
-        # print(f"t_size: {self.transistor_size}, cache: {self.cache_size}, mem_layers: {self.mem_layers}, pitch: {self.pitch}")
-        # print(f"tech_params[mem_area][t_size][cache_size][mem_layers]: {tech_params['mem_area'][self.transistor_size][self.cache_size][self.mem_layers]}")
-
-        # this reg stuff should have its own numbers. Those mem numbers are for SRAM cache
-        # self.area["Regs"] = tech_params['mem_area'][self.transistor_size][self.cache_size][self.mem_layers][self.pitch]
-        # self.latency["Regs"] = tech_params['mem_latency'][self.cache_size][self.mem_layers][self.pitch]
-        # self.dynamic_power["Regs"] = tech_params['mem_dynamic_power'][self.cache_size][self.mem_layers][self.pitch]
-        # self.leakage_power["Regs"] = 1e-6*tech_params['mem_leakage_power'][self.cache_size][self.mem_layers][self.pitch]
-
+       
         self.mem_area = tech_params["mem_area"][self.transistor_size][self.cache_size][
             self.mem_layers
         ][self.pitch]
@@ -202,13 +211,24 @@ class HardwareModel:
         # how does mem latency get incorporated?
         ## DO THIS!!!!
 
+    def duplicate_config_section(self, cfg, new_cfg):
+        """
+        Duplicate a section in a config file.
+        """
+        config = cp.ConfigParser()
+        config.read(HW_CONFIG_FILE)
+        config.add_section(new_cfg)
+        for key, value in config.items(cfg):
+            config.set(new_cfg, key, value)
+        with open(HW_CONFIG_FILE, "w") as configfile:
+            config.write(configfile)
+
     def write_technology_parameters(self, filename):
         params = {
             "latency": self.latency,
             "dynamic_power": self.dynamic_power,
             "leakage_power": self.leakage_power,
             "area": self.area,
-            "f": self.frequency,
             "V_dd": self.V_dd,
         }
         with open(filename, "w") as f:
@@ -224,12 +244,10 @@ class HardwareModel:
             dynamic_power - dictionary of active power in nW
             leakage_power - dictionary of passive power in nW
             V_dd - voltage in V
-            f - frequency in Hz
         Inputs:
             C - dictionary of capacitances in F
             R - dictionary of resistances in Ohms
             rcs[other]:
-                f: frequency in Hz
                 V_dd: voltage in V
                 MemReadL: memory read latency in s
                 MemWriteL: memory write latency in s
@@ -237,30 +255,32 @@ class HardwareModel:
                 MemWritePact: memory write active power in W
                 MemPpass: memory passive power in W
         """
-        print(f"Updating Technology Parameters...")
+        # print(f"Updating Technology Parameters...")
         rcs = yaml.load(open(rc_params_file, "r"), Loader=yaml.Loader)
-        C = rcs["Ceff"]
-        R = rcs["Reff"]
-        self.frequency = rcs["other"]["f"]
+        C = rcs["Ceff"] # nF
+        R = rcs["Reff"] # Ohms
         self.V_dd = rcs["other"]["V_dd"]
 
         self.latency["MainMem"] = (
             rcs["other"]["MemReadL"] + rcs["other"]["MemWriteL"]
-        ) * self.frequency / 2
-        self.dynamic_power["MainMem"] = (
-            rcs["other"]["MemReadPact"] + rcs["other"]["MemWritePact"]
         ) / 2 * 1e9
+        self.latency["Buf"] = rcs["other"]["BufL"] * 1e9
+        self.dynamic_energy["MainMem"]["Read"] = rcs["other"]["MemReadEact"] * 1e9
+        self.dynamic_energy["MainMem"]["Write"] = rcs["other"]["MemWriteEact"] * 1e9
+        self.dynamic_energy["Buf"]["Read"] = rcs["other"]["BufReadEact"] * 1e9
+        self.dynamic_energy["Buf"]["Write"] = rcs["other"]["BufWriteEact"] * 1e9
         self.leakage_power["MainMem"] = rcs["other"]["MemPpass"] * 1e9
+        self.leakage_power["Buf"] = rcs["other"]["BufPpass"] * 1e9
 
         beta = yaml.load(open(coeff_file, "r"), Loader=yaml.Loader)["beta"]
 
         for key in C:
-            self.dynamic_power[key] = (
-                0.5 * C[key] * self.V_dd * self.V_dd * self.frequency * 1e9
-            )  # convert to nW
-            self.latency[key] = R[key] * C[key] * self.frequency  # convert to cycles
+            self.latency[key] = R[key] * C[key]  # ns
+            self.dynamic_power[key] = ( 
+                0.5 * self.V_dd * self.V_dd * 1e9 / R[key] ) # nW 
+
             self.leakage_power[key] = (
-                beta[key] * self.V_dd**2 / (R["Not"] * self.R_off_on_ratio) * 1e9
+                beta[key] * self.V_dd**2 * 1e9 / (R["Not"] * self.R_off_on_ratio)
             )  # convert to nW
 
     def get_optimization_params_from_tech_params(self):
@@ -270,9 +290,9 @@ class HardwareModel:
         rcs = generate_optimization_params(
             self.latency,
             self.dynamic_power,
+            self.dynamic_energy,
             self.leakage_power,
             self.V_dd,
-            self.frequency,
         )
         self.R_off_on_ratio = rcs["other"]["Roff_on_ratio"]
         return rcs
@@ -299,9 +319,6 @@ class HardwareModel:
         for key in op2sym_map.keys():
             self.hw_allocated[key] = 0
 
-    def set_loop_counts(self, loop_counts):
-        self.loop_counts = loop_counts
-
     def set_var_sizes(self, var_sizes):
         self.var_sizes = var_sizes
 
@@ -315,13 +332,18 @@ class HardwareModel:
         )
 
     def get_total_area(self):
+        """
+        Calculate on chip and off chip area. 
+        TODO: Implement off chip area calculation via cacti results.
+        """
         bw_scaling = 0.1  # check this
-        total_area = 0
+        self.on_chip_area = 0
+        self.off_chip_area = 0
         for node, data in self.netlist.nodes.data():
             scaling = 1
             if data["function"] in ["Regs", "Buf", "MainMem"]:
                 scaling = data["size"]
-            total_area += self.area[data["function"]] * scaling
+            self.on_chip_area += self.area[data["function"]] * scaling
         bw = 0
         for node in filter(
             lambda x: x[1]["function"] == "Buf", self.netlist.nodes.data()
@@ -330,9 +352,9 @@ class HardwareModel:
             in_edges = self.netlist.in_edges(node[0])
             filtered_edges = list(filter(lambda x: "MainMem" not in x[0], in_edges))
             bw += len(filtered_edges)
-        total_area += (bw - 1) * bw_scaling * self.area["MainMem"]
+        self.on_chip_area += (bw - 1) * bw_scaling * self.area["MainMem"]
 
-        return total_area * 1e-6  # convert from nm^2 to um^2
+        return self.on_chip_area * 1e-6  # convert from nm^2 to um^2
 
     def get_mem_compute_bw(self):
         """
@@ -343,29 +365,12 @@ class HardwareModel:
         return n
     
     def gen_cacti_results(self):
-
-        # 1. add bit width, mem size, cache size DONE
-        # 2. add IO DONE
-        # 3. check simulate.py for energy instead of power ASK about this
-
-        # 1 details
-        # sizes mem set on hwmodel memsize var, add variable for cache size in hardWareModel that we set later - init small
-        # add instance for all -> cache size, bit width
-
-        # 2 details
-        # add I/O 
-        # latency and power to each main mem read or write
-        # add new dict entry, off-chip IO [latency and power], add that whenever mem interaction DONE
-
-        # 3 details
-        # careful cacti gen energy 
-        # need to change power to energy -> just for buf and main mem DONE 
-        # add dynamic energy, change simulate.py  
-        # store read and write energy separate, buf read & write -> dynamic energy, key for read and write DONE
-
-        buf_vals = gen_vals("base_cache", 131072, 64,
+        '''
+        Generate buffer and memory latency and energy numbers from Cacti.
+        '''
+        buf_vals = cacti_util.gen_vals("base_cache", 131072, 64,
                                       "cache", self.bus_width)
-        mem_vals = gen_vals("mem_cache", 131072, 64,
+        mem_vals = cacti_util.gen_vals("mem_cache", 131072, 64,
                                       "main memory", self.bus_width)
 
         self.latency["Buf"] = float(buf_vals["access_time_ns"])

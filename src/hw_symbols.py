@@ -5,9 +5,16 @@ V_dd = symbols("V_dd", positive=True)
 f = symbols("f", positive=True)
 MemReadL = symbols("MemReadL", positive=True)
 MemWriteL = symbols("MemWriteL", positive=True)
-MemReadPact = symbols("MemReadPact", positive=True)
-MemWritePact = symbols("MemWritePact", positive=True)
+MemReadEact = symbols("MemReadEact", positive=True)
+MemWriteEact = symbols("MemWriteEact", positive=True)
 MemPpass = symbols("MemPpass", positive=True)
+BufL = symbols("BufL", positive=True)
+BufReadEact = symbols("BufReadEact", positive=True)
+BufWriteEact = symbols("BufWriteEact", positive=True)
+BufPpass = symbols("BufPpass", positive=True)
+
+OffChipIOL = symbols("OffChipIOL", positive=True)
+OffChipIOPact = symbols("OffChipIOPact", positive=True)
 
 Reff = {
     "And": symbols("Reff_And", positive=True),
@@ -65,12 +72,17 @@ Ceff = {
 
 symbol_table = {
     "V_dd": V_dd,
-    "f": f,
     "MemReadL": MemReadL,
     "MemWriteL": MemWriteL,
-    "MemReadPact": MemReadPact,
-    "MemWritePact": MemWritePact,
+    "MemReadEact": MemReadEact,
+    "MemWriteEact": MemWriteEact,
     "MemPpass": MemPpass,
+    "BufL": BufL,
+    "BufReadEact": BufReadEact,
+    "BufWriteEact": BufWriteEact,
+    "BufPpass": BufPpass,
+    "OffChipIOL": OffChipIOL,
+    "OffChipIOPact": OffChipIOPact,
     "Reff_And": Reff["And"],
     "Reff_Or": Reff["Or"],
     "Reff_Add": Reff["Add"],
@@ -152,8 +164,9 @@ symbolic_latency_wc = {
     "Not": make_sym_lat_wc("Not"),
     "Invert": make_sym_lat_wc("Invert"),
     "Regs": make_sym_lat_wc("Regs"),
-    # "Buf": make_sym_lat_wc("Buf"),
+    "Buf": BufL,
     "MainMem": (MemReadL + MemWriteL)/2, # this needs to change later to sep the two.
+    "OffChipIO": OffChipIOL,
 }
 
 def make_sym_lat_cyc(f, lat_wc): # bad name, output is not in units of cycles, its in units of time.
@@ -184,12 +197,13 @@ symbolic_latency_cyc = {
     "Not": make_sym_lat_cyc(f, symbolic_latency_wc["Not"]),
     "Invert": make_sym_lat_cyc(f, symbolic_latency_wc["Invert"]),
     "Regs": make_sym_lat_cyc(f, symbolic_latency_wc["Regs"]),
-    # "Buf": make_sym_lat_cyc(f, symbolic_latency_wc["Buf"]),
-    "MainMem": make_sym_lat_cyc(f, symbolic_latency_wc["MainMem"]),
+    "Buf": BufL,
+    "MainMem": (MemReadL + MemWriteL) / 2,
+    "OffChipIO": OffChipIOL,
 }
 
 def make_sym_power_act(elem):
-    return 0.5 * Ceff[elem] * V_dd * V_dd * f
+    return 0.5 * V_dd * V_dd  / Reff[elem] # C dependence will reappear explicitly when we go back to Energy from power.
 
 symbolic_power_active = {
     "And": make_sym_power_act("And"),
@@ -216,8 +230,13 @@ symbolic_power_active = {
     "Not": make_sym_power_act("Not"),
     "Invert": make_sym_power_act("Invert"),
     "Regs": make_sym_power_act("Regs"),
-    # "Buf": make_sym_power_act("Buf"),
-    "MainMem": (MemReadPact + MemWritePact)/2,
+    "OffChipIO": OffChipIOPact,
+}
+
+symbolic_energy_active = {
+    "Buf": (BufReadEact + BufWriteEact) / 2,
+    "MainMem": (MemReadEact + MemWriteEact)
+    / 2,
 }
 
 def make_sym_power_pass(beta, P_pass_inv=V_dd**2 / (Reff["Not"] * 100)):
@@ -248,8 +267,8 @@ symbolic_power_passive = {
     "Not": make_sym_power_pass(beta["Not"]),
     "Invert": make_sym_power_pass(beta["Invert"]),
     "Regs": make_sym_power_pass(beta["Regs"]),
-    # "Buf": make_sym_power_pass(beta["Buf"]),
     "MainMem": MemPpass,
+    "Buf": BufPpass,
 }
 
 def update_symbolic_passive_power(R_off_on_ratio):

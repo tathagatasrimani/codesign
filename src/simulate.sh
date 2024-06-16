@@ -1,11 +1,10 @@
 #!/bin/sh
-while getopts a:b:f:sqn: flag
+while getopts b:c:f:sqn: flag
 do
     case "${flag}" in
         n) name=${OPTARG};;
         q) QUIET=true;;
-        s) SEARCH=true;;
-        a) AREA=${OPTARG};;
+        c) ARCH_CONFIG=${OPTARG};;
         b) BW=${OPTARG};;
     esac
 done
@@ -16,15 +15,11 @@ if [ $name ]; then
     python instrument.py $FILEPATH
     python instrumented_files/xformed-$name > instrumented_files/output.txt
     ARGS=$FILEPATH
-    echo $SEARCH
-    if [ $SEARCH ]; then
-        ARGS+=" --archsearch"
-    fi
     if [ $QUIET ]; then
         ARGS+=" --notrace"
     fi
-    if [ $AREA ]; then
-        ARGS+=" --area $AREA"
+    if [ $ARCH_CONFIG ]; then
+        ARGS+=" --architecture_config $ARCH_CONFIG"
     fi
     if [ $BW ]; then
         ARGS+=" --bw $BW"

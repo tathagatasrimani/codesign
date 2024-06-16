@@ -127,6 +127,7 @@ graph [
     function "Regs"
     in_use 0
     idx 0
+    size 1
   ]
   node [
     id 16
@@ -135,6 +136,7 @@ graph [
     function "Regs"
     in_use 0
     idx 1
+    size 1
   ]
   node [
     id 17
@@ -143,6 +145,7 @@ graph [
     function "Regs"
     in_use 0
     idx 2
+    size 1
   ]
   node [
     id 18
@@ -151,6 +154,7 @@ graph [
     function "Regs"
     in_use 0
     idx 3
+    size 1
   ]
   node [
     id 19
@@ -159,6 +163,7 @@ graph [
     function "Regs"
     in_use 0
     idx 4
+    size 1
   ]
   node [
     id 20
@@ -167,6 +172,7 @@ graph [
     function "Regs"
     in_use 0
     idx 5
+    size 1
   ]
   node [
     id 21
@@ -175,6 +181,7 @@ graph [
     function "Regs"
     in_use 0
     idx 6
+    size 1
   ]
   node [
     id 22
@@ -183,6 +190,7 @@ graph [
     function "Regs"
     in_use 0
     idx 7
+    size 1
   ]
   node [
     id 23
@@ -191,6 +199,7 @@ graph [
     function "Regs"
     in_use 0
     idx 8
+    size 1
   ]
   node [
     id 24
@@ -199,6 +208,7 @@ graph [
     function "Regs"
     in_use 0
     idx 9
+    size 1
   ]
   node [
     id 25
@@ -207,6 +217,7 @@ graph [
     function "Regs"
     in_use 0
     idx 10
+    size 1
   ]
   node [
     id 26
@@ -215,6 +226,7 @@ graph [
     function "Regs"
     in_use 0
     idx 11
+    size 1
   ]
   node [
     id 27
@@ -223,6 +235,7 @@ graph [
     function "Regs"
     in_use 0
     idx 12
+    size 1
   ]
   node [
     id 28
@@ -231,6 +244,7 @@ graph [
     function "Regs"
     in_use 0
     idx 13
+    size 1
   ]
   node [
     id 29
@@ -239,6 +253,7 @@ graph [
     function "Regs"
     in_use 0
     idx 14
+    size 1
   ]
   node [
     id 30
@@ -247,6 +262,7 @@ graph [
     function "Regs"
     in_use 0
     idx 15
+    size 1
   ]
   node [
     id 31
@@ -255,6 +271,7 @@ graph [
     function "Regs"
     in_use 0
     idx 16
+    size 1
   ]
   node [
     id 32
@@ -263,6 +280,7 @@ graph [
     function "Regs"
     in_use 0
     idx 17
+    size 1
   ]
   node [
     id 33
@@ -271,6 +289,7 @@ graph [
     function "Regs"
     in_use 0
     idx 18
+    size 1
   ]
   node [
     id 34
@@ -279,6 +298,7 @@ graph [
     function "Regs"
     in_use 0
     idx 19
+    size 1
   ]
   node [
     id 35
@@ -287,6 +307,7 @@ graph [
     function "Regs"
     in_use 0
     idx 20
+    size 1
   ]
   node [
     id 36
@@ -295,6 +316,7 @@ graph [
     function "Regs"
     in_use 0
     idx 21
+    size 1
   ]
   node [
     id 37
@@ -303,6 +325,7 @@ graph [
     function "Regs"
     in_use 0
     idx 22
+    size 1
   ]
   node [
     id 38
@@ -311,6 +334,7 @@ graph [
     function "Regs"
     in_use 0
     idx 23
+    size 1
   ]
   node [
     id 39
@@ -319,6 +343,7 @@ graph [
     function "Regs"
     in_use 0
     idx 24
+    size 1
   ]
   node [
     id 40
@@ -327,6 +352,7 @@ graph [
     function "Regs"
     in_use 0
     idx 25
+    size 1
   ]
   node [
     id 41
@@ -335,6 +361,7 @@ graph [
     function "Regs"
     in_use 0
     idx 26
+    size 1
   ]
   node [
     id 42
@@ -343,6 +370,7 @@ graph [
     function "Regs"
     in_use 0
     idx 27
+    size 1
   ]
   node [
     id 43
@@ -351,6 +379,7 @@ graph [
     function "Regs"
     in_use 0
     idx 28
+    size 1
   ]
   node [
     id 44
@@ -359,6 +388,7 @@ graph [
     function "Regs"
     in_use 0
     idx 29
+    size 1
   ]
   node [
     id 45
