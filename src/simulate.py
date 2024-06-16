@@ -4,6 +4,8 @@ import math
 import json
 from pathlib import Path
 import argparse
+import logging
+logger = logging.getLogger(__name__)
 
 # third party modules
 import matplotlib.pyplot as plt
@@ -406,6 +408,7 @@ class ConcreteSimulator:
             counter += 1
             temp_C = nx.DiGraph()
             for node in gen:
+                logger.info(f"node: {computation_dfg.nodes[node]}")
                 child_added = False
                 temp_C.add_nodes_from([(node, computation_dfg.nodes[node])])
                 for child in computation_dfg.successors(node):
@@ -427,6 +430,7 @@ class ConcreteSimulator:
                     # active power should scale by size of the object being accessed.
                     # all regs have the same size, so no need to scale.
                     scaling = node_data["size"]
+                    logger.info(f"scaling: {scaling}")
                 if node_data["function"] == "stall" or node_data["function"] == "end":
                     continue
                 self.active_energy += (
@@ -450,6 +454,7 @@ class ConcreteSimulator:
 
         self.cycles = nx.dag_longest_path_length(computation_dfg)
         longest_path = nx.dag_longest_path(computation_dfg)
+        logger.info(f"longest path: {longest_path}")
 
         for elem_name, elem_data in dict(hw.netlist.nodes.data()).items():
             scaling = 1

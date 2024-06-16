@@ -3,6 +3,8 @@ import math
 import argparse
 import os
 import sys
+import logging
+logger = logging.getLogger(__name__)
 
 # third party modules
 import numpy as np

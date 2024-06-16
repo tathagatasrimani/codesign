@@ -3,6 +3,8 @@ import os
 import yaml
 import sys
 import datetime
+import logging
+logger = logging.getLogger("codesign")
 
 from sympy import sympify
 import networkx as nx
@@ -17,7 +19,7 @@ import hardwareModel
 
 
 class Codesign:
-    def __init__(self, benchmark, config, save_dir, opt):
+    def __init__(self, benchmark, area, config, save_dir, opt):
         self.save_dir = os.path.join(
             save_dir, datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         )
@@ -29,18 +31,30 @@ class Codesign:
             files = os.listdir(self.save_dir)
             for file in files:
                 os.remove(f"{self.save_dir}/{file}")
+        with open(f"{self.save_dir}/log.txt", "a") as f:
+            f.write("Codesign Log\n")
+            f.write(f"Benchmark: {benchmark}\n")
+            f.write(f"Architecture Config: {config}\n")
+            f.write(f"Area: {area}\n")
+            f.write(f"Optimization: {opt}\n")
 
+        logging.basicConfig(filename=f"{self.save_dir}/log.txt", level=logging.INFO)
+
+        self.area_constraint = area
         self.forward_edp = 0
         self.inverse_edp = 0
         self.tech_params = None
         self.initial_tech_params = None
         self.full_tech_params = {}
+
+        logger.info(f"Setting up architecture search; benchmark: {benchmark}, config: {config}")
         (
             self.sim,
             self.hw,
             self.computation_dfg,
         ) = architecture_search.setup_arch_search(benchmark, config)
 
+        logger.info(f"Scheduling computation graph")
         self.scheduled_dfg = self.sim.schedule(
             self.computation_dfg,
             hw_counts=hardwareModel.get_func_count(self.hw.netlist),
@@ -59,6 +73,7 @@ class Codesign:
 
         self.set_technology_parameters(initial_tech_params)
 
+        logger.info(f"Running initial forward pass")
         self.sim.simulate(self.scheduled_dfg, self.hw)
         self.sim.calculate_edp(self.hw)
         self.forward_edp = self.sim.edp
@@ -75,8 +90,10 @@ class Codesign:
             self.initial_tech_params = tech_params
         self.tech_params = tech_params
 
-    def forward_pass(self, area_constraint):
+    def forward_pass(self):
         print("\nRunning Forward Pass")
+        logger.info("Running Forward Pass")
+
         sim_util.update_schedule_with_latency(self.scheduled_dfg, self.hw.latency)
         sim_util.update_schedule_with_latency(self.computation_dfg, self.hw.latency)
 
@@ -92,7 +109,7 @@ class Codesign:
             self.sim,
             self.hw,
             self.computation_dfg,
-            area_constraint,
+            self.area_constraint,
             best_edp=edp,
         )
         self.scheduled_dfg = new_schedule
@@ -177,7 +194,7 @@ class Codesign:
         )
 
     def log_all_to_file(self, iter_number):
-        with open(f"{self.save_dir}/log.txt", "a") as f:
+        with open(f"{self.save_dir}/results.txt", "a") as f:
             f.write(f"{iter_number}\n")
             f.write(f"Forward EDP: {self.forward_edp}\n")
             f.write(f"Inverse EDP: {self.inverse_edp}\n")
@@ -202,7 +219,7 @@ def main():
         + " > instrumented_files/output.txt"
     )
 
-    codesign_module = Codesign(args.benchmark, args.architecture_config, args.savedir, args.opt)
+    codesign_module = Codesign(args.benchmark, args.area, args.architecture_config, args.savedir, args.opt)
 
     i = 0
     while i < 10:
@@ -212,7 +229,7 @@ def main():
 
         codesign_module.log_all_to_file(i)
 
-        codesign_module.forward_pass(args.area)
+        codesign_module.forward_pass()
         # TODO: create stopping condition
         i += 1
 
