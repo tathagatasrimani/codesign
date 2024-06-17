@@ -193,7 +193,7 @@ def update_hw_with_new_node(hw_netlist, scarce_function):
 def run_arch_search(simulator, hw, computation_dfg, area_constraint, best_edp=None):
 
     old_scheduled_dfg = simulator.schedule(
-        computation_dfg, hw_counts=hardwareModel.get_func_count(hw.netlist)
+        computation_dfg, hw
     )
 
     simulator.simulate(old_scheduled_dfg, hw)
@@ -206,14 +206,14 @@ def run_arch_search(simulator, hw, computation_dfg, area_constraint, best_edp=No
     best_schedule = old_scheduled_dfg
 
     for i in range(1):
-        hw_copy = hw.netlist.copy()
+        hw_copy = deepcopy(hw)
 
         func = sample_stalled_func(old_scheduled_dfg)
 
-        update_hw_with_new_node(hw_copy, func)
+        update_hw_with_new_node(hw_copy.netlist, func)
 
         scheduled_dfg = simulator.schedule(
-            computation_dfg, hw_counts=hardwareModel.get_func_count(hw_copy)
+            computation_dfg, hw_copy
         )
 
         func_counts = get_stalled_func_counts(scheduled_dfg)
@@ -222,7 +222,7 @@ def run_arch_search(simulator, hw, computation_dfg, area_constraint, best_edp=No
             print("no change in schedule")
             # continue
 
-        hw.netlist = hw_copy
+        hw = hw_copy
 
         simulator.simulate(scheduled_dfg, hw)
         simulator.calculate_edp(hw)
@@ -233,7 +233,7 @@ def run_arch_search(simulator, hw, computation_dfg, area_constraint, best_edp=No
             break
         elif simulator.edp < best_edp:
             best_edp = simulator.edp
-            best_hw_netlist = hw_copy
+            best_hw_netlist = hw_copy.netlist
             best_schedule = scheduled_dfg
 
         old_scheduled_dfg = scheduled_dfg

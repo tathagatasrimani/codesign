@@ -100,7 +100,7 @@ def assign_upstream_path_lengths(graph):
     
     return graph
 
-def schedule(computation_graph, hw_element_counts):
+def schedule(computation_graph, hw_element_counts, hw_netlist):
     """
     Schedules the computation graph on the hardware netlist
     by determining the order of operations and the states in which
@@ -152,6 +152,9 @@ def schedule(computation_graph, hw_element_counts):
         for func, count in zip(funcs_in_gen, counts_in_gen): # for each function in the generation
             if func == "start" or func == "end":
                 continue
+            # if there are more operations of this type than there are hardware elements
+            # then we need to add stalls, sort descending by distance from start
+            # ie, the ones closest the start get stalled first
             if count > hw_element_counts[func]:
                 func_nodes = list(filter(lambda x: x[1]["function"] == func, nodes_in_gen))
                 func_nodes = sorted(func_nodes, key=lambda x: x[1]["dist"], reverse=True)
@@ -168,6 +171,7 @@ def schedule(computation_graph, hw_element_counts):
                         function="stall",
                         cost=func_nodes[idx][1]["cost"],
                         layer= -layer,
+                        allocation="",
                     )
                     new_edges = []
                     for edge in out_edges:
@@ -193,8 +197,13 @@ def schedule(computation_graph, hw_element_counts):
         )
 
         for i, func in enumerate(funcs_in_gen):
-            if func in ["start", "end"]:
+            if func in ["start", "end", "stall"]:
                 continue
             assert counts_in_gen[i] <= hw_element_counts[func]
+            # do a greedy allocation of the nodes to the hardware elements
+            comp_nodes = list(filter(lambda x: x[1]["function"] == func, curr_gen_nodes))
+            hw_nodes = list(filter(lambda x: x[1]["function"] == func, hw_netlist.nodes.data()))
+            for i in range(len(comp_nodes)):
+                computation_graph.nodes[comp_nodes[i][0]]["allocation"] = hw_nodes[i][0]
 
         layer += 1

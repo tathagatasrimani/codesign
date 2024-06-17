@@ -54,10 +54,12 @@ class Codesign:
             self.computation_dfg,
         ) = architecture_search.setup_arch_search(benchmark, config)
 
+        nx.write_gml(self.computation_dfg, f"{self.save_dir}/computation_dfg.gml")
+
         logger.info(f"Scheduling computation graph")
         self.scheduled_dfg = self.sim.schedule(
             self.computation_dfg,
-            hw_counts=hardwareModel.get_func_count(self.hw.netlist),
+            self.hw,
         )
 
         self.symbolic_sim = symbolic_simulate.SymbolicSimulator()
@@ -203,6 +205,7 @@ class Codesign:
             f"{self.save_dir}/netlist_{iter_number}.gml",
             stringizer=lambda x: str(x),
         )
+        nx.write_gml(self.scheduled_dfg, f"{self.save_dir}/schedule_{iter_number}.gml")
         self.write_back_rcs(f"{self.save_dir}/rcs_{iter_number}.yaml")
         # save latency, power, and tech params
         self.hw.write_technology_parameters(
