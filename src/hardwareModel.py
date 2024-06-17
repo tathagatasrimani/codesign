@@ -200,16 +200,6 @@ class HardwareModel:
         self.dynamic_power = tech_params["dynamic_power"][self.transistor_size]
         self.leakage_power = tech_params["leakage_power"][self.transistor_size]
         self.dynamic_energy = tech_params["dynamic_energy"][self.transistor_size]
-       
-        self.mem_area = tech_params["mem_area"][self.transistor_size][self.cache_size][
-            self.mem_layers
-        ][self.pitch]
-        # units of mW
-        self.mem_leakage_power = tech_params["mem_leakage_power"][self.cache_size][
-            self.mem_layers
-        ][self.pitch]
-        # how does mem latency get incorporated?
-        ## DO THIS!!!!
 
     def duplicate_config_section(self, cfg, new_cfg):
         """

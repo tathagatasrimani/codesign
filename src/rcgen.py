@@ -21,13 +21,18 @@ def generate_optimization_params(latency, active_power, active_energy, passive_p
 
     rcs["other"]["V_dd"] = V_dd
 
+    # store in s
     rcs["other"]["MemReadL"] = latency["MainMem"]
     rcs["other"]["MemWriteL"] = latency["MainMem"]
+
+    # store in nW and nJ
     rcs["other"]["MemReadEact"] = active_energy["MainMem"]["Read"] * 1e-9
     rcs["other"]["MemWriteEact"] = active_energy["MainMem"]["Write"] * 1e-9
     rcs["other"]["MemPpass"] = passive_power["MainMem"] * 1e-9
 
-    rcs["other"]["BufL"] = latency["Buf"]
+    rcs["other"]["BufL"] = latency["Buf"] # s
+    
+    # store in nW and nJ
     rcs["other"]["BufReadEact"] = active_energy["Buf"]["Read"] * 1e-9
     rcs["other"]["BufWriteEact"] = active_energy["Buf"]["Write"] * 1e-9
     rcs["other"]["BufPpass"] = passive_power["Buf"] * 1e-9
