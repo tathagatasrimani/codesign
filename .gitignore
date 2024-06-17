@@ -17,6 +17,7 @@ src/ipopt_out.txt
 
 src/rcs.yaml
 src/rcs_current.yaml
+src/coefficients.yaml
 
 data/**
 

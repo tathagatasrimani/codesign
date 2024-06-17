@@ -211,14 +211,6 @@ class Codesign:
 
 
 def main():
-    print("instrumenting application")
-    os.system("python instrument.py " + args.benchmark)
-    os.system(
-        "python instrumented_files/xformed-"
-        + args.benchmark.split("/")[-1]
-        + " > instrumented_files/output.txt"
-    )
-
     codesign_module = Codesign(args.benchmark, args.area, args.architecture_config, args.savedir, args.opt)
 
     i = 0
