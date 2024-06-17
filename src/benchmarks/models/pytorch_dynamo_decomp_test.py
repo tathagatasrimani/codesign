@@ -4,7 +4,7 @@ import os
 from torch import nn
 
 from torch._ops import ops
-from torch._decomp  import register_decomposition, remove_decompositions, get_decompositions, decompositions
+from torch._inductor.decomposition import register_decomposition
 from torch.fx import symbolic_trace
 
 # os.environ["TORCH_COMPILE_DEBUG"] = '1'
@@ -41,5 +41,5 @@ if __name__ == "__main__":
     z = W_k + W_q
     x = torch.rand(1, 28, 28, device=device, requires_grad=True)
     model.forward(x)
-    symbolic_traced : torch.fx.GraphModule = symbolic_trace(model)
+    symbolic_traced : torch.fx.GraphModule = symbolic_trace(model, concrete_args={'x': x})
     print(symbolic_traced.code)

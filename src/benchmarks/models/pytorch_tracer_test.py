@@ -8,12 +8,23 @@ import torch.nn.functional as F
 
 # os.environ["TORCH_COMPILE_DEBUG"] = '1'
 device = "cpu"
+torch.fx.wrap('len')
 
 def relu_decomposition(x):
+    print("Custom relu is called")
     return (x > 0) * x
+
+def native_addmm(input, mat1, mat2):
+    result = torch.zeros((100,0))
+    result += input
+    for i in range(100):
+        for j in range(100):
+            result[i][0] += mat1[i][j] * mat2[j][0]
+    return result
 
 decomposition_rules = {}
 decomposition_rules[F.relu] = relu_decomposition
+decomposition_rules[F.linear] = native_addmm
 
 def decompose(model: torch.nn.Module,
               tracer_class : type = fx.Tracer) -> torch.nn.Module:
@@ -51,10 +62,13 @@ def decompose(model: torch.nn.Module,
 
 class NeuralNetwork(nn.Module):
     def __init__(self):
+        self.W_q = torch.zeros((100,100))
+        self.W_bias = torch.zeros((100,))
         super().__init__()
 
     def forward(self, x):
-        x = F.relu(x)
+        x =  torch.nn.functional.relu(x)
+        x = F.linear(x, self.W_q, self.W_bias)
         return x
 
 def read_weights_from_file(x, y, z):
