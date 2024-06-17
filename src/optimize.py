@@ -1,5 +1,4 @@
 # first party
-import yaml
 import argparse
 
 # third party

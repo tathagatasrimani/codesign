@@ -18,7 +18,7 @@ from rcgen import generate_optimization_params
 import cacti_util
 
 
-HW_CONFIG_FILE = "hw_cfgs.ini"
+HW_CONFIG_FILE = "params/hw_cfgs.ini"
 
 benchmark = "simple"
 expr_to_node = {}
@@ -192,7 +192,7 @@ class HardwareModel:
         I Want to Deprecate everything that takes into account 3D with indexing by pitch size
         and number of mem layers.
         """
-        tech_params = yaml.load(open("tech_params.yaml", "r"), Loader=yaml.Loader)
+        tech_params = yaml.load(open("params/tech_params.yaml", "r"), Loader=yaml.Loader)
 
         self.area = tech_params["area"][self.transistor_size]
         self.latency = tech_params["latency"][self.transistor_size]
@@ -225,7 +225,7 @@ class HardwareModel:
             f.write(yaml.dump(params))
 
     def update_technology_parameters(
-        self, rc_params_file="rcs_current.yaml", coeff_file="coefficients.yaml"
+        self, rc_params_file="params/rcs_current.yaml", coeff_file="params/coefficients.yaml"
     ):
         """
         For full codesign loop, need to update the technology parameters after a run of the inverse pass.

@@ -1,4 +1,3 @@
-import yaml
 
 import pyomo.environ as pyo
 from MyPyomoSympyBimap import MyPyomoSympyBimap

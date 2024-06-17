@@ -82,7 +82,7 @@ class Codesign:
             f"\nInitial EDP: {self.forward_edp} E-18 Js. Active Energy: {self.sim.active_energy} nJ. Passive Energy: {self.sim.passive_energy} nJ. Execution time: {self.sim.execution_time} ns"
         )
 
-        with open("rcs_current.yaml", "w") as f:
+        with open("params/rcs_current.yaml", "w") as f:
             f.write(yaml.dump(rcs))
 
     def set_technology_parameters(self, tech_params):
@@ -138,7 +138,7 @@ class Codesign:
             self.tech_params[mapping[key]] = value
             i += 1
 
-    def write_back_rcs(self, rcs_path="rcs_current.yaml"):
+    def write_back_rcs(self, rcs_path="params/rcs_current.yaml"):
         rcs = {"Reff": {}, "Ceff": {}, "other": {}}
         for elem in self.tech_params:
             if elem.name == "f" or elem.name == "V_dd" or elem.name.startswith("Mem") or elem.name.startswith("Buf") or elem.name.startswith("OffChipIO"):

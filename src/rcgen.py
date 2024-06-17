@@ -57,7 +57,7 @@ def generate_optimization_params(latency, active_power, active_energy, passive_p
 def main():
     V_dd = 1.1
 
-    tech_params = yaml.load(open("tech_params.yaml", "r"), Loader=yaml.Loader)
+    tech_params = yaml.load(open("params/tech_params.yaml", "r"), Loader=yaml.Loader)
 
     size = 7
 
@@ -68,7 +68,7 @@ def main():
 
     rcs = generate_optimization_params(latency, active_power, active_energy, passive_power, V_dd)
 
-    with open("rcs.yaml", 'w') as f:
+    with open("params/rcs.yaml", 'w') as f:
         f.write(yaml.dump(rcs))
 
 if __name__ == "__main__":
