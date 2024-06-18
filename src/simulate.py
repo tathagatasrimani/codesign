@@ -481,7 +481,6 @@ class ConcreteSimulator:
             valid_names = set()
             nvm_vars = {}
             data_path_vars = []
-            data_path_var_sizes = [] # UPDATE THIS VAR
 
             # count reads and writes on first pass.
             for i in range(len(split_lines)):

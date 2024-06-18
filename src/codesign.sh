@@ -1,5 +1,5 @@
 #!/bin/sh
-while getopts a:c:f:qn:o: flag
+while getopts a:c:f:qn:o:N:A: flag
 do
     case "${flag}" in
         n) name=${OPTARG};;
@@ -8,6 +8,8 @@ do
         c) ARCH_CONFIG=${OPTARG};;
         f) SAVEDIR=${OPTARG};;
         o) OPT=${OPTARG};;
+        N) NUM=${OPTARG};;
+        A) ARCH_SEARCH_NUM=${OPTARG};;
     esac
 done
 
@@ -31,6 +33,12 @@ if [ $name ]; then
     fi
     if [ $OPT ]; then  # should be scp, ipopt
         ARGS+=" --opt $OPT"
+    fi
+    if [ $NUM ]; then
+        ARGS+=" --num_iters $NUM"
+    fi
+    if [ $ARCH_SEARCH_NUM ]; then
+        ARGS+=" --num_arch_search_iters $ARCH_SEARCH_NUM"
     fi
     echo $ARGS
     python codesign.py $ARGS

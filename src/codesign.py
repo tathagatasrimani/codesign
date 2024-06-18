@@ -4,6 +4,7 @@ import yaml
 import sys
 import datetime
 import logging
+
 logger = logging.getLogger("codesign")
 
 from sympy import sympify
@@ -19,11 +20,12 @@ import hardwareModel
 
 
 class Codesign:
-    def __init__(self, benchmark, area, config, save_dir, opt):
+    def __init__(self, benchmark, area, config, arch_search_iters, save_dir, opt):
         self.save_dir = os.path.join(
             save_dir, datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         )
         self.opt_cfg = opt
+        self.num_arch_search_iters = arch_search_iters
 
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
@@ -47,7 +49,9 @@ class Codesign:
         self.initial_tech_params = None
         self.full_tech_params = {}
 
-        logger.info(f"Setting up architecture search; benchmark: {benchmark}, config: {config}")
+        logger.info(
+            f"Setting up architecture search; benchmark: {benchmark}, config: {config}"
+        )
         (
             self.sim,
             self.hw,
@@ -112,6 +116,7 @@ class Codesign:
             self.hw,
             self.computation_dfg,
             self.area_constraint,
+            self.num_arch_search_iters,
             best_edp=edp,
         )
         self.scheduled_dfg = new_schedule
@@ -143,7 +148,13 @@ class Codesign:
     def write_back_rcs(self, rcs_path="params/rcs_current.yaml"):
         rcs = {"Reff": {}, "Ceff": {}, "other": {}}
         for elem in self.tech_params:
-            if elem.name == "f" or elem.name == "V_dd" or elem.name.startswith("Mem") or elem.name.startswith("Buf") or elem.name.startswith("OffChipIO"):
+            if (
+                elem.name == "f"
+                or elem.name == "V_dd"
+                or elem.name.startswith("Mem")
+                or elem.name.startswith("Buf")
+                or elem.name.startswith("OffChipIO")
+            ):
                 rcs["other"][elem.name] = self.tech_params[
                     hw_symbols.symbol_table[elem.name]
                 ]
@@ -176,7 +187,7 @@ class Codesign:
             f"Initial EDP: {self.inverse_edp} E-18 Js. Active Energy: {(self.symbolic_sim.total_active_energy).subs(self.tech_params)} nJ. Passive Energy: {(self.symbolic_sim.total_passive_energy).subs(self.tech_params)} nJ. Execution time: {self.symbolic_sim.cycles.subs(self.tech_params)} ns"
         )
 
-        if (self.opt_cfg == "ipopt"):
+        if self.opt_cfg == "ipopt":
             stdout = sys.stdout
             with open("ipopt_out.txt", "w") as sys.stdout:
                 optimize.optimize(self.tech_params, self.symbolic_sim.edp, self.opt_cfg)
@@ -214,10 +225,12 @@ class Codesign:
 
 
 def main():
-    codesign_module = Codesign(args.benchmark, args.area, args.architecture_config, args.savedir, args.opt)
+    codesign_module = Codesign(
+        args.benchmark, args.area, args.architecture_config, args.num_arch_search_iters, args.savedir, args.opt
+    )
 
     i = 0
-    while i < 10:
+    while i < args.num_iters:
 
         codesign_module.inverse_pass()
         codesign_module.hw.update_technology_parameters()
@@ -253,6 +266,19 @@ if __name__ == "__main__":
         help="Path to the save new architecture file",
     )
     parser.add_argument("-o", "--opt", type=str, default="ipopt")
+    parser.add_argument(
+        "-N",
+        "--num_iters",
+        type=int,
+        default=10,
+        help="Number of Codesign iterations to run",
+    )
+    parser.add_argument(
+        "--num_arch_search_iters",
+        type=int,
+        default=1,
+        help="Number of Architecture Search iterations to run",
+    )
     args = parser.parse_args()
     print(
         f"args: benchmark: {args.benchmark}, trace: {args.notrace}, architecture_cfg: {args.architecture_config}, area: {args.area}, optimization: {args.opt}"
