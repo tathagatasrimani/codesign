@@ -3,6 +3,7 @@ import ast
 import networkx as nx
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pd
 
 import dfg_algo
 import hw_symbols
@@ -10,6 +11,15 @@ from global_constants import SEED
 
 rng = np.random.default_rng(SEED)
 
+def read_dataframe():
+    """
+    Reads a pandas DataFrame from a set file location in tech_node_data,
+    corresponding to data about area, R, and C for specific tech nodes and standard cells.
+
+    Returns:
+    - DataFrame with a MultiIndex for tech node and standard cell.
+    """
+    return pd.read_csv("tech_node_data/cell_data.csv", index_col=["tech node", "standard cell"])
 
 # adds all mallocs and frees to vectors, and finds the next cfg node in the data path,
 # returning the index of that node
