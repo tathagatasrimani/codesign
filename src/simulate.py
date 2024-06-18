@@ -649,13 +649,12 @@ def main(args):
     hw = HardwareModel(cfg=args.architecture_config)
 
     computation_dfg = simulator.simulator_prep(args.benchmark, hw.latency)
-    computation_dfg = simulator.schedule(
-        computation_dfg, hw
-    )
+
     hw.init_memory(
         sim_util.find_nearest_power_2(simulator.memory_needed),
         sim_util.find_nearest_power_2(simulator.nvm_memory_needed),
     )
+    computation_dfg = simulator.schedule(computation_dfg, hw)
 
     simulator.tech_node = hw.transistor_size  # in nm
     simulator.pitch = hw.pitch  # in um
@@ -718,7 +717,7 @@ def main(args):
         )
         with open(simulator.path + "/benchmarks/json_data/" + names[-1], "w") as fh:
             fh.write(text)
-    
+
     print("done!")
     return simulator
 

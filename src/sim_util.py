@@ -419,6 +419,33 @@ def add_cache_mem_access_to_dfg(
     return computation_graph
 
 
+def find_upstream_node_in_graph(graph:nx.DiGraph, func:str, node:str):
+    """
+    Find the upstream node in the graph with the specified function. Assumes all nodes have only one in edge.
+    And that the desired function exists somewhere upstream.
+    Returns the first upstream node with the desired function.
+    Parameters:
+        graph (nx.DiGraph): The graph to search.
+        func (str): The function to search for.
+        node (str): The node from which to search.
+    """
+    func_in = []
+    while len(func_in) == 0:
+                in_edges = list(map(
+                            lambda x: (x[0], graph.nodes[x[0]]),
+                            graph.in_edges(node),
+                        ))
+                if len(in_edges) == 0:
+                    raise Exception(f"Could not find upstream node with function {func}")
+                node = in_edges[0][0] # only need the name
+                func_in = list(
+                    filter(
+                        lambda x: x[1]["function"] == func,
+                        in_edges,
+                    )
+                ) # assuming only one upstream node
+    return func_in[0]
+
 def prune_buffer_and_mem_nodes(computation_graph: nx.DiGraph, hw_netlist: nx.DiGraph):
     """
     Call after allocation to remove unnecessary buffer and memory nodes.
@@ -430,39 +457,30 @@ def prune_buffer_and_mem_nodes(computation_graph: nx.DiGraph, hw_netlist: nx.DiG
     while len(gen) != 0:
         reg_nodes = list(filter(lambda x: x[1]["function"] == "Regs", gen))
         for reg_node in reg_nodes:
-            buf_in = list(
-                filter(
-                    lambda x: x[1]["function"] == "Buf",
-                    map(
-                        lambda x: computation_graph.nodes[x[0]],
-                        computation_graph.in_edges(reg_node[0]),
-                    ),
-                )
-            )
-            print(buf_in)
-            mem_in = list(
-                filter(
-                    lambda x: x[1]["function"] == "MainMem",
-                    map(
-                        lambda x: computation_graph.nodes[x[0]],
-                        computation_graph.in_edges(buf_in),
-                    ),
-                )
-            )
-            print(mem_in)
+            print(f"in nodes: {list(map(lambda x: computation_graph.nodes[x[0]],computation_graph.in_edges(reg_node[0])))}")
+            buf_in = find_upstream_node_in_graph(computation_graph, "Buf", reg_node[0]) 
+            mem_in = find_upstream_node_in_graph(computation_graph, "MainMem", buf_in[0])
             allocated_reg = reg_node[1]["allocation"]
             allocated_reg_data = hw_netlist.nodes[allocated_reg]
+            print(f"allocated_reg_data: {allocated_reg_data}")
             var_name = reg_node[0].split(";")[0]
             if allocated_reg_data["var"] == var_name:
                 # remove the buffer and memory nodes
                 computation_graph.remove_node(buf_in[0])
                 computation_graph.remove_node(mem_in[0])
-            elif buf_in["memory_module"].find(var_name):
+            elif hw_netlist.nodes[buf_in[1]["allocation"]]["memory_module"].find(var_name):
                 # remove the memory node
                 computation_graph.remove_node(mem_in[0])
+                size = hw_netlist.nodes[buf_in[1]["allocation"]]["memory_module"].read(var_name)
+                computation_graph.nodes[buf_in[0]]["size"] = size
+                computation_graph.nodes[reg_node[0]]["size"] = size
             else:
                 # read from memory and add to cache
-                buf_in["memory_module"].read(var_name)
+                size = -1*hw_netlist.nodes[buf_in[1]["allocation"]]["memory_module"].read(var_name)
+                computation_graph.nodes[mem_in[0]]["size"] = size
+                computation_graph.nodes[buf_in[0]]["size"] = size
+                computation_graph.nodes[reg_node[0]]["size"] = size
+            hw_netlist.nodes[allocated_reg]["var"] = var_name
 
         layer += 1
         gen = list(

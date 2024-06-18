@@ -106,6 +106,16 @@ def schedule(computation_graph, hw_element_counts, hw_netlist):
     by determining the order of operations and the states in which
     they are executed. Includes the adding of stalls to account for
     data dependencies and in use elements.
+
+    Allocation of operations to hardware elements is done in this function, in a greedy fashion.
+
+    Params:
+    computation_graph: nx.DiGraph
+        The computation graph to be scheduled
+    hw_element_counts: dict
+        The number of hardware elements of each type (function)
+    hw_netlist: nx.DiGraph
+        The hardware netlist to be scheduled on
     """
 
     hw_element_counts["stall"] = np.inf

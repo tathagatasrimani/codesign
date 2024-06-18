@@ -184,7 +184,6 @@ class HardwareModel:
             filter(lambda x: x[1]["function"] == "Regs", self.netlist.nodes.data())
         ).items():
             data["var"] = ""  # reg keeps track of which variable it is allocated
-
         self.mem_size = mem_needed
 
     def set_technology_parameters(self):
@@ -324,25 +323,28 @@ class HardwareModel:
     def get_total_area(self):
         """
         Calculate on chip and off chip area. 
-        TODO: Implement off chip area calculation via cacti results.
+        TODO: Get Area breakdown of cache (area efficiency) from cacti and integrate here.
         """
-        bw_scaling = 0.1  # check this
+        bw_scaling = 0.1  # get from cacti - inverse of memory efficiency
         self.on_chip_area = 0
-        self.off_chip_area = 0
+        
         for node, data in self.netlist.nodes.data():
-            scaling = 1
-            if data["function"] in ["Regs", "Buf", "MainMem"]:
-                scaling = data["size"]
-            self.on_chip_area += self.area[data["function"]] * scaling
-        bw = 0
-        for node in filter(
-            lambda x: x[1]["function"] == "Buf", self.netlist.nodes.data()
-        ):
-            # print(f"node: {node[0]}")
-            in_edges = self.netlist.in_edges(node[0])
-            filtered_edges = list(filter(lambda x: "MainMem" not in x[0], in_edges))
-            bw += len(filtered_edges)
-        self.on_chip_area += (bw - 1) * bw_scaling * self.area["MainMem"]
+            if data["function"] in ["Buf", "MainMem"]:
+                continue
+            self.on_chip_area += self.area[data["function"]]
+        self.on_chip_area += self.area["Buf"]
+        
+        # bw = 0
+        # for node in filter(
+        #     lambda x: x[1]["function"] == "Buf", self.netlist.nodes.data()
+        # ):
+        #     # print(f"node: {node[0]}")
+        #     in_edges = self.netlist.in_edges(node[0])
+        #     filtered_edges = list(filter(lambda x: "MainMem" not in x[0], in_edges))
+        #     bw += len(filtered_edges)
+        # self.on_chip_area += (bw - 1) * bw_scaling * self.area["MainMem"]
+
+        self.off_chip_area = self.area["MainMem"] + self.area["OffChipIO"]
 
         return self.on_chip_area * 1e-6  # convert from nm^2 to um^2
 
@@ -378,4 +380,7 @@ class HardwareModel:
         self.latency["OffChipIO"] = float(mem_vals["IO_latency_s"]) if mem_vals["IO_latency_s"] != "N/A" else 0.0
         self.dynamic_power["OffChipIO"] = float(mem_vals["IO_dyanmic_power_mW"]) if mem_vals["IO_dyanmic_power_mW"] != "N/A" else 0.0
 
+        self.area["OffChipIO"] = float(mem_vals["IO_area_sqmm"]) if mem_vals["IO_area_sqmm"] != "N/A" else 0.0
+        self.area["Buf"] = 0
+        self.area["MainMem"] = 0
         return
