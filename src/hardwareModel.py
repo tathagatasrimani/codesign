@@ -14,7 +14,7 @@ from staticfg.builder import CFGBuilder
 from ast_utils import ASTUtils
 from memory import Memory, Cache
 from config_dicts import op2sym_map
-from rcgen import generate_optimization_params
+import rcgen
 import cacti_util
 
 
@@ -276,7 +276,7 @@ class HardwareModel:
         """
         Generate R,C, etc from the latency, power tech parameters.
         """
-        rcs = generate_optimization_params(
+        rcs = rcgen.generate_optimization_params(
             self.latency,
             self.dynamic_power,
             self.dynamic_energy,

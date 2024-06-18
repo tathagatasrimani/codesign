@@ -124,6 +124,7 @@ def update_hw_with_new_node(hw_netlist, scarce_function):
     if scarce_function == "Regs":
         hw_netlist.nodes[f"{scarce_function}{idx}"]["type"] = "memory"
         hw_netlist.nodes[f"{scarce_function}{idx}"]["size"] = 1
+        hw_netlist.nodes[f"{scarce_function}{idx}"]["var"] = ""
         # add edges to all pes
         for node2 in list(
             map(
@@ -145,6 +146,7 @@ def update_hw_with_new_node(hw_netlist, scarce_function):
     elif scarce_function == "Buf":
         hw_netlist[f"{scarce_function}{idx}"]["type"] = "memory"
         hw_netlist[f"{scarce_function}{idx}"]["size"] = 1
+        hw_netlist[f"{scarce_function}{idx}"]["memory_module"] = func_nodes[0]["memory_module"]
         # add edges to all Regs
         for node2 in list(
             map(
@@ -168,6 +170,7 @@ def update_hw_with_new_node(hw_netlist, scarce_function):
     elif scarce_function == "MainMem":
         hw_netlist[f"{scarce_function}{idx}"]["type"] = "memory"
         hw_netlist[f"{scarce_function}{idx}"]["size"] = 1
+        hw_netlist[f"{scarce_function}{idx}"]["memory_module"] = func_nodes[0]["memory_module"]
         # add edges to all Bufs
         for node2 in list(
             map(

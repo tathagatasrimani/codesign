@@ -446,6 +446,7 @@ def find_upstream_node_in_graph(graph:nx.DiGraph, func:str, node:str):
                 ) # assuming only one upstream node
     return func_in[0]
 
+
 def prune_buffer_and_mem_nodes(computation_graph: nx.DiGraph, hw_netlist: nx.DiGraph):
     """
     Call after allocation to remove unnecessary buffer and memory nodes.
@@ -457,12 +458,10 @@ def prune_buffer_and_mem_nodes(computation_graph: nx.DiGraph, hw_netlist: nx.DiG
     while len(gen) != 0:
         reg_nodes = list(filter(lambda x: x[1]["function"] == "Regs", gen))
         for reg_node in reg_nodes:
-            print(f"in nodes: {list(map(lambda x: computation_graph.nodes[x[0]],computation_graph.in_edges(reg_node[0])))}")
             buf_in = find_upstream_node_in_graph(computation_graph, "Buf", reg_node[0]) 
             mem_in = find_upstream_node_in_graph(computation_graph, "MainMem", buf_in[0])
             allocated_reg = reg_node[1]["allocation"]
             allocated_reg_data = hw_netlist.nodes[allocated_reg]
-            print(f"allocated_reg_data: {allocated_reg_data}")
             var_name = reg_node[0].split(";")[0]
             if allocated_reg_data["var"] == var_name:
                 # remove the buffer and memory nodes
