@@ -327,13 +327,13 @@ class HardwareModel:
         """
         bw_scaling = 0.1  # get from cacti - inverse of memory efficiency
         self.on_chip_area = 0
-        
+
         for node, data in self.netlist.nodes.data():
             if data["function"] in ["Buf", "MainMem"]:
                 continue
             self.on_chip_area += self.area[data["function"]]
         self.on_chip_area += self.area["Buf"]
-        
+
         # bw = 0
         # for node in filter(
         #     lambda x: x[1]["function"] == "Buf", self.netlist.nodes.data()
@@ -355,7 +355,7 @@ class HardwareModel:
         edges = list(filter(lambda x: "Reg" in x[0], self.netlist.in_edges("Buf0")))
         n = len(edges)
         return n
-    
+
     def gen_cacti_results(self):
         '''
         Generate buffer and memory latency and energy numbers from Cacti.
@@ -364,23 +364,32 @@ class HardwareModel:
                                       "cache", self.bus_width)
         mem_vals = cacti_util.gen_vals("mem_cache", 131072, 64,
                                       "main memory", self.bus_width)
-
-        self.latency["Buf"] = float(buf_vals["access_time_ns"])
-        self.latency["MainMem"] = float(mem_vals["access_time_ns"])
-
-        self.dynamic_energy["Buf"]["Read"] = float(buf_vals["read_energy_nJ"])
-        self.dynamic_energy["Buf"]["Write"] = float(buf_vals["write_energy_nJ"])
         
-        self.dynamic_energy["MainMem"]["Read"] = float(mem_vals["read_energy_nJ"])
-        self.dynamic_energy["MainMem"]["Write"] = float(mem_vals["write_energy_nJ"])
+        self.area["Buf"] = float(buf_vals["Area (mm2)"])
+        self.area["MainMem"] = float(mem_vals["Area (mm2)"])
+        self.buf_peripheral_area_proportion = float(buf_vals["Data arrary area efficiency %"])
+        self.mem_peripheral_area_proportion = float(mem_vals["Data arrary area efficiency %"])
 
-        self.leakage_power["Buf"] = float(buf_vals["leakage_bank_power_mW"])
-        self.leakage_power["MainMem"] = float(mem_vals["leakage_bank_power_mW"])
+        self.latency["Buf"] = float(buf_vals["Access time (ns)"])
+        self.latency["MainMem"] = float(mem_vals["Access time (ns)"])
 
-        self.latency["OffChipIO"] = float(mem_vals["IO_latency_s"]) if mem_vals["IO_latency_s"] != "N/A" else 0.0
-        self.dynamic_power["OffChipIO"] = float(mem_vals["IO_dyanmic_power_mW"]) if mem_vals["IO_dyanmic_power_mW"] != "N/A" else 0.0
+        self.dynamic_energy["Buf"]["Read"] = float(buf_vals["Dynamic read energy (nJ)"])
+        self.dynamic_energy["Buf"]["Write"] = float(buf_vals["Dynamic write energy (nJ)"])
 
-        self.area["OffChipIO"] = float(mem_vals["IO_area_sqmm"]) if mem_vals["IO_area_sqmm"] != "N/A" else 0.0
+        self.dynamic_energy["MainMem"]["Read"] = float(
+            mem_vals["Dynamic read energy (nJ)"]
+        )
+        self.dynamic_energy["MainMem"]["Write"] = float(
+            mem_vals["Dynamic write energy (nJ)"]
+        )
+
+        self.leakage_power["Buf"] = float(buf_vals["Standby leakage per bank(mW)"])
+        self.leakage_power["MainMem"] = float(mem_vals["Standby leakage per bank(mW)"])
+
+        self.latency["OffChipIO"] = float(mem_vals["IO latency (s)"]) if mem_vals["IO latency (s)"] != "N/A" else 0.0
+        self.dynamic_power["OffChipIO"] = float(mem_vals["IO power dynamic"]) if mem_vals["IO power dynamic"] != "N/A" else 0.0
+
+        self.area["OffChipIO"] = float(mem_vals["IO area"]) if mem_vals["IO area"] != "N/A" else 0.0
         self.area["Buf"] = 0
         self.area["MainMem"] = 0
         return

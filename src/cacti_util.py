@@ -2,6 +2,8 @@ import os
 import subprocess
 import yaml
 
+import pandas as pd
+
 
 """
 Generates Cacti .cfg file based on input and cacti_input.
@@ -10,7 +12,7 @@ Retrieves timing and power values from Cacti run.
 """
 def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
              cache_type = None, bus_width = None, transistor_size = None,
-             addr_timing = None, debug = False):
+             addr_timing = None, debug = False) -> pd.DataFrame:
   # load in default values
   with open("params/cacti_input.yaml", 'r') as yamlfile:
     config_values = yaml.safe_load(yamlfile)
@@ -220,24 +222,29 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
 
   output_filename = filename + ".cfg.out"
   cactiOutput = os.path.join(cactiDir, output_filename)
-  with open(cactiOutput, 'r') as file:
-    # we want the latest run: note that multiple runs append to same [].cfg.out file
-    lines = file.readlines()
-    line = lines[-1]
-    output_values = line.strip().split(', ')
+  output_data = pd.read_csv(cactiOutput, sep=", ", engine='python')
+  output_data = output_data.iloc[-1] # get just the last row which is the most recent run
+  # with open(cactiOutput, 'r') as file:
+  #   # we want the latest run: note that multiple runs append to same [].cfg.out file
+  #   lines = file.readlines()
+  #   line = lines[-1]
+  #   output_values = line.strip().split(', ')
 
   IO_freq = convert_frequency(config_values['bus_freq'])
   IO_latency = (addr_timing / IO_freq)
 
+  output_data["IO latency (s)"] = IO_latency
+
   # CACTI: access time (ns), search energy (nJ), read energy (nJ), write energy (nJ), leakage bank power (mW)
   # CACTI IO: area (sq.mm), timing (ps), dynamic power (mW), PHY power (mW), termination and bias power (mW)
   # latency (ns)
-  return ({"access_time_ns": output_values[5], "search_energy_nJ": output_values[7], 
-           "read_energy_nJ": output_values[8], "write_energy_nJ": output_values[9], 
-           "leakage_bank_power_mW": output_values[10],
-           "IO_area_sqmm": output_values[26], "IO_timing_ps": output_values[27], 
-           "IO_dyanmic_power_mW": output_values[28], "IO_PHY_power_mW": output_values[29], 
-           "IO_termination_bias_power_mW": output_values[30], "IO_latency_s": IO_latency})
+  return output_data
+# ({"access_time_ns": output_values[5], "search_energy_nJ": output_values[7], 
+#            "read_energy_nJ": output_values[8], "write_energy_nJ": output_values[9], 
+#            "leakage_bank_power_mW": output_values[10],
+#            "IO_area_sqmm": output_values[26], "IO_timing_ps": output_values[27], 
+#            "IO_dyanmic_power_mW": output_values[28], "IO_PHY_power_mW": output_values[29], 
+#            "IO_termination_bias_power_mW": output_values[30], "IO_latency_s": IO_latency})
 
 # for debugging
 # if __name__ == '__main__':
