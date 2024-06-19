@@ -94,11 +94,42 @@ def assign_upstream_path_lengths(graph):
     """
     for node in graph:
         graph.nodes[node]["dist"] =  0
-    for i, generations in enumerate(nx.topological_generations(graph)):
+    q = deque()
+    for node in list(nx.topological_generations(graph))[0]:
+        q.append(node)
+        while not len(q) == 0:
+            curnode = q.popleft()
+            graph.nodes[node]["dist"] = max(graph.nodes[node]["dist"], nx.dijkstra_path_length(graph, node, curnode))
+            for child in graph.successors(curnode):
+                q.append(child)
+    sim_util.topological_layout_plot(graph)
+    print("done with dijkstra")
+
+    """for i, generations in enumerate(nx.topological_generations(graph)):
         for node in generations:
-            graph.nodes[node]["dist"] = max(i, graph.nodes[node]["dist"])
+            graph.nodes[node]["dist"] = max(i, graph.nodes[node]["dist"])"""
     
     return graph
+
+def log_register_use(computation_graph, step):
+    """
+    Logs which registers' values are being used at discrete time intervals.
+
+    Params:
+    computation_graph: nx.DiGraph
+        The computation graph containing operations to be examined
+    step: int
+        The discrete time step at which we log register use
+    """
+
+    for node in computation_graph:
+        if node == "end" or node.startswith("stall"): continue
+        print(node)
+        print(computation_graph.nodes[node]["dist"])
+        for edge in computation_graph.out_edges(node):
+            print(computation_graph.edges[edge]["weight"])
+            continue
+
 
 def schedule(computation_graph, hw_element_counts, hw_netlist):
     """
@@ -217,3 +248,4 @@ def schedule(computation_graph, hw_element_counts, hw_netlist):
                 computation_graph.nodes[comp_nodes[i][0]]["allocation"] = hw_nodes[i][0]
 
         layer += 1
+    log_register_use(computation_graph, 1)
