@@ -14,11 +14,11 @@ from staticfg.builder import CFGBuilder
 from ast_utils import ASTUtils
 from memory import Memory, Cache
 from config_dicts import op2sym_map
-from rcgen import generate_optimization_params
+import rcgen
 import cacti_util
 
 
-HW_CONFIG_FILE = "hw_cfgs.ini"
+HW_CONFIG_FILE = "params/hw_cfgs.ini"
 
 benchmark = "simple"
 expr_to_node = {}
@@ -184,7 +184,6 @@ class HardwareModel:
             filter(lambda x: x[1]["function"] == "Regs", self.netlist.nodes.data())
         ).items():
             data["var"] = ""  # reg keeps track of which variable it is allocated
-
         self.mem_size = mem_needed
 
     def set_technology_parameters(self):
@@ -192,7 +191,7 @@ class HardwareModel:
         I Want to Deprecate everything that takes into account 3D with indexing by pitch size
         and number of mem layers.
         """
-        tech_params = yaml.load(open("tech_params.yaml", "r"), Loader=yaml.Loader)
+        tech_params = yaml.load(open("params/tech_params.yaml", "r"), Loader=yaml.Loader)
 
         self.area = tech_params["area"][self.transistor_size]
         self.latency = tech_params["latency"][self.transistor_size]
@@ -200,16 +199,6 @@ class HardwareModel:
         self.dynamic_power = tech_params["dynamic_power"][self.transistor_size]
         self.leakage_power = tech_params["leakage_power"][self.transistor_size]
         self.dynamic_energy = tech_params["dynamic_energy"][self.transistor_size]
-       
-        self.mem_area = tech_params["mem_area"][self.transistor_size][self.cache_size][
-            self.mem_layers
-        ][self.pitch]
-        # units of mW
-        self.mem_leakage_power = tech_params["mem_leakage_power"][self.cache_size][
-            self.mem_layers
-        ][self.pitch]
-        # how does mem latency get incorporated?
-        ## DO THIS!!!!
 
     def duplicate_config_section(self, cfg, new_cfg):
         """
@@ -235,7 +224,7 @@ class HardwareModel:
             f.write(yaml.dump(params))
 
     def update_technology_parameters(
-        self, rc_params_file="rcs_current.yaml", coeff_file="coefficients.yaml"
+        self, rc_params_file="params/rcs_current.yaml", coeff_file="params/coefficients.yaml"
     ):
         """
         For full codesign loop, need to update the technology parameters after a run of the inverse pass.
@@ -287,7 +276,7 @@ class HardwareModel:
         """
         Generate R,C, etc from the latency, power tech parameters.
         """
-        rcs = generate_optimization_params(
+        rcs = rcgen.generate_optimization_params(
             self.latency,
             self.dynamic_power,
             self.dynamic_energy,
@@ -334,25 +323,28 @@ class HardwareModel:
     def get_total_area(self):
         """
         Calculate on chip and off chip area. 
-        TODO: Implement off chip area calculation via cacti results.
+        TODO: Get Area breakdown of cache (area efficiency) from cacti and integrate here.
         """
-        bw_scaling = 0.1  # check this
+        bw_scaling = 0.1  # get from cacti - inverse of memory efficiency
         self.on_chip_area = 0
-        self.off_chip_area = 0
+        
         for node, data in self.netlist.nodes.data():
-            scaling = 1
-            if data["function"] in ["Regs", "Buf", "MainMem"]:
-                scaling = data["size"]
-            self.on_chip_area += self.area[data["function"]] * scaling
-        bw = 0
-        for node in filter(
-            lambda x: x[1]["function"] == "Buf", self.netlist.nodes.data()
-        ):
-            # print(f"node: {node[0]}")
-            in_edges = self.netlist.in_edges(node[0])
-            filtered_edges = list(filter(lambda x: "MainMem" not in x[0], in_edges))
-            bw += len(filtered_edges)
-        self.on_chip_area += (bw - 1) * bw_scaling * self.area["MainMem"]
+            if data["function"] in ["Buf", "MainMem"]:
+                continue
+            self.on_chip_area += self.area[data["function"]]
+        self.on_chip_area += self.area["Buf"]
+        
+        # bw = 0
+        # for node in filter(
+        #     lambda x: x[1]["function"] == "Buf", self.netlist.nodes.data()
+        # ):
+        #     # print(f"node: {node[0]}")
+        #     in_edges = self.netlist.in_edges(node[0])
+        #     filtered_edges = list(filter(lambda x: "MainMem" not in x[0], in_edges))
+        #     bw += len(filtered_edges)
+        # self.on_chip_area += (bw - 1) * bw_scaling * self.area["MainMem"]
+
+        self.off_chip_area = self.area["MainMem"] + self.area["OffChipIO"]
 
         return self.on_chip_area * 1e-6  # convert from nm^2 to um^2
 
@@ -388,4 +380,7 @@ class HardwareModel:
         self.latency["OffChipIO"] = float(mem_vals["IO_latency_s"]) if mem_vals["IO_latency_s"] != "N/A" else 0.0
         self.dynamic_power["OffChipIO"] = float(mem_vals["IO_dyanmic_power_mW"]) if mem_vals["IO_dyanmic_power_mW"] != "N/A" else 0.0
 
+        self.area["OffChipIO"] = float(mem_vals["IO_area_sqmm"]) if mem_vals["IO_area_sqmm"] != "N/A" else 0.0
+        self.area["Buf"] = 0
+        self.area["MainMem"] = 0
         return

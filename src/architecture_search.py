@@ -124,6 +124,7 @@ def update_hw_with_new_node(hw_netlist, scarce_function):
     if scarce_function == "Regs":
         hw_netlist.nodes[f"{scarce_function}{idx}"]["type"] = "memory"
         hw_netlist.nodes[f"{scarce_function}{idx}"]["size"] = 1
+        hw_netlist.nodes[f"{scarce_function}{idx}"]["var"] = ""
         # add edges to all pes
         for node2 in list(
             map(
@@ -145,6 +146,9 @@ def update_hw_with_new_node(hw_netlist, scarce_function):
     elif scarce_function == "Buf":
         hw_netlist[f"{scarce_function}{idx}"]["type"] = "memory"
         hw_netlist[f"{scarce_function}{idx}"]["size"] = 1
+        hw_netlist[f"{scarce_function}{idx}"]["memory_module"] = func_nodes[0][
+            "memory_module"
+        ]
         # add edges to all Regs
         for node2 in list(
             map(
@@ -168,6 +172,9 @@ def update_hw_with_new_node(hw_netlist, scarce_function):
     elif scarce_function == "MainMem":
         hw_netlist[f"{scarce_function}{idx}"]["type"] = "memory"
         hw_netlist[f"{scarce_function}{idx}"]["size"] = 1
+        hw_netlist[f"{scarce_function}{idx}"]["memory_module"] = func_nodes[0][
+            "memory_module"
+        ]
         # add edges to all Bufs
         for node2 in list(
             map(
@@ -190,11 +197,27 @@ def update_hw_with_new_node(hw_netlist, scarce_function):
             hw_netlist.add_edge(node2, f"{scarce_function}{idx}")
 
 
-def run_arch_search(simulator, hw, computation_dfg, area_constraint, best_edp=None):
+def run_arch_search(
+    simulator: ConcreteSimulator,
+    hw: hardwareModel,
+    computation_dfg: nx.DiGraph,
+    area_constraint: float,
+    num_steps: int = 1,
+    best_edp=None,
+):
+    """
+    Run the architecture search algorithm
 
-    old_scheduled_dfg = simulator.schedule(
-        computation_dfg, hw_counts=hardwareModel.get_func_count(hw.netlist)
-    )
+    Params:
+    simulator: ConcreteSimulator - the simulator object
+    hw: HardwareModel - the hardware model
+    computation_dfg: nx.DiGraph - the computation graph
+    area_constraint: float - max area of the chip in um^2
+    num_steps: int - number of steps to run the search for
+    best_edp: float
+    """
+
+    old_scheduled_dfg = simulator.schedule(computation_dfg, hw)
 
     simulator.simulate(old_scheduled_dfg, hw)
     simulator.calculate_edp(hw)
@@ -205,16 +228,14 @@ def run_arch_search(simulator, hw, computation_dfg, area_constraint, best_edp=No
     best_hw_netlist = hw.netlist.copy()
     best_schedule = old_scheduled_dfg
 
-    for i in range(1):
-        hw_copy = hw.netlist.copy()
+    for i in range(num_steps):
+        hw_copy = deepcopy(hw)
 
         func = sample_stalled_func(old_scheduled_dfg)
 
-        update_hw_with_new_node(hw_copy, func)
+        update_hw_with_new_node(hw_copy.netlist, func)
 
-        scheduled_dfg = simulator.schedule(
-            computation_dfg, hw_counts=hardwareModel.get_func_count(hw_copy)
-        )
+        scheduled_dfg = simulator.schedule(computation_dfg, hw_copy)
 
         func_counts = get_stalled_func_counts(scheduled_dfg)
 
@@ -222,7 +243,7 @@ def run_arch_search(simulator, hw, computation_dfg, area_constraint, best_edp=No
             print("no change in schedule")
             # continue
 
-        hw.netlist = hw_copy
+        hw = hw_copy
 
         simulator.simulate(scheduled_dfg, hw)
         simulator.calculate_edp(hw)
@@ -233,7 +254,7 @@ def run_arch_search(simulator, hw, computation_dfg, area_constraint, best_edp=No
             break
         elif simulator.edp < best_edp:
             best_edp = simulator.edp
-            best_hw_netlist = hw_copy
+            best_hw_netlist = hw_copy.netlist
             best_schedule = scheduled_dfg
 
         old_scheduled_dfg = scheduled_dfg

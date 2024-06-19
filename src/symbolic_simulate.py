@@ -3,6 +3,9 @@ import math
 import argparse
 import os
 import sys
+import logging
+
+logger = logging.getLogger(__name__)
 
 # third party modules
 import numpy as np
@@ -25,11 +28,13 @@ from global_constants import SEED
 
 rng = np.random.default_rng(SEED)
 
+
 def symbolic_convex_max(a, b):
-        """
-        An approximation to the max function that plays well with these numeric solvers.
-        """
-        return 0.5 * ( a + b + abs(a - b))
+    """
+    An approximation to the max function that plays well with these numeric solvers.
+    """
+    return 0.5 * (a + b + abs(a - b))
+
 
 class SymbolicSimulator:
 
@@ -125,13 +130,19 @@ class SymbolicSimulator:
                         #     # active power should scale by size of the object being accessed.
                         #     # all regs have the saem size, so no need to scale.
                         #     scaling = node_data["size"]
-                        path_latency += hw_symbols.symbolic_latency_cyc[
-                            computation_graph.nodes()[node]["function"]
-                        ] * scaling
+                        path_latency += (
+                            hw_symbols.symbolic_latency_cyc[
+                                computation_graph.nodes()[node]["function"]
+                            ]
+                            * scaling
+                        )
                         # THIS PATH LATENCY USES CYCLE TIME AS A REFERENCE FOR WHAT THE TRUE EDP IS
-                        path_latency_ceil += hw_symbols.symbolic_latency_cyc[
-                            computation_graph.nodes()[node]["function"]
-                        ] * scaling
+                        path_latency_ceil += (
+                            hw_symbols.symbolic_latency_cyc[
+                                computation_graph.nodes()[node]["function"]
+                            ]
+                            * scaling
+                        )
                     max_cycles = 0.5 * (
                         max_cycles + path_latency + abs(max_cycles - path_latency)
                     )
@@ -281,8 +292,8 @@ class SymbolicSimulator:
                 scaling = data["size"]
             passive_power += (
                 hw_symbols.symbolic_power_passive[data["function"]] * scaling
-            ) # W
-        return passive_power * total_execution_time # nJ
+            )  # W
+        return passive_power * total_execution_time  # nJ
 
     def simulate(self, computation_dfg: nx.DiGraph, hw: HardwareModel):
         self.reset_internal_variables()
@@ -298,6 +309,8 @@ class SymbolicSimulator:
                 break
             counter += 1
             for node in gen:
+                logger.info(f"node: {computation_dfg.nodes[node]}")
+
                 child_added = False
 
                 ## ================= ADD ACTIVE ENERGY CONSUMPTION =================
@@ -305,23 +318,28 @@ class SymbolicSimulator:
                 node_data = computation_dfg.nodes[node]
                 if node_data["function"] == "stall" or node_data["function"] == "end":
                     continue
-                energy = hw_symbols.symbolic_power_active[node_data["function"]] * hw_symbols.symbolic_latency_wc[node_data["function"]] # W * ns
                 if node_data["function"] in ["Buf", "MainMem"]:
                     # active power should scale by size of the object being accessed.
                     # all regs have the same size, so no need to scale.
                     scaling = node_data["size"]
-                    energy = hw_symbols.symbolic_energy_active[node_data["function"]] # nJ
+                    energy = hw_symbols.symbolic_energy_active[
+                        node_data["function"]
+                    ]  # nJ
+                else:
+                    energy = (
+                        hw_symbols.symbolic_power_active[node_data["function"]]
+                        * hw_symbols.symbolic_latency_wc[node_data["function"]]
+                    )  # W * ns
 
-                self.total_active_energy += (  # nJ
-                    energy
-                    * scaling
-                )
+                self.total_active_energy += energy * scaling  # nJ
 
         # TODO: NOW THIS MIGHT GET TOO EXPENSIVE. MAYBE NEED TO DO STA.
+        logger.info("Starting Longest Path Calculation")
         for start_node in generations[0]:
             for end_node in generations[-1]:
                 if start_node == end_node:
                     continue
+                logger.info(f"start_node: {start_node}, end_node: {end_node}")
                 for path in nx.all_simple_paths(computation_dfg, start_node, end_node):
                     path_latency = 0
                     path_latency_ceil = 0
@@ -337,8 +355,10 @@ class SymbolicSimulator:
                         # THIS PATH LATENCY USES CYCLE TIME AS A REFERENCE FOR WHAT THE TRUE EDP IS
                         path_latency_ceil += hw_symbols.symbolic_latency_cyc[func]
                     self.cycles = symbolic_convex_max(self.cycles, path_latency)
-                    
-                    self.cycles_ceil = symbolic_convex_max(self.cycles_ceil, path_latency_ceil)
+
+                    self.cycles_ceil = symbolic_convex_max(
+                        self.cycles_ceil, path_latency_ceil
+                    )
 
     def set_data_path(self):
         """
@@ -469,13 +489,14 @@ class SymbolicSimulator:
 
         return computation_dfg
 
-    def schedule(self, computation_dfg, hw_counts):
+    def schedule(self, computation_dfg, hw):
         """
         Schedule the computation graph onto the hardware.
         """
+        hw_counts = hardwareModel.get_func_count(hw.netlist)
         copy = computation_dfg.copy()
 
-        schedule.schedule(copy, hw_counts)
+        schedule.schedule(copy, hw_counts, hw.netlist)
 
         # Why does this happen?
         for layer, nodes in enumerate(
@@ -485,7 +506,11 @@ class SymbolicSimulator:
             # numeric layer value as a node attribute
             for node in nodes:
                 copy.nodes[node]["layer"] = layer
-
+        copy = sim_util.add_cache_mem_access_to_dfg(
+            copy, hw.latency["Buf"], hw.latency["MainMem"]
+        )
+        schedule.schedule(copy, hw_counts, hw.netlist)
+        copy = sim_util.prune_buffer_and_mem_nodes(copy, hw.netlist)
         return copy
 
     def calculate_edp(self, hw):
@@ -508,26 +533,32 @@ class SymbolicSimulator:
 
 
 def get_grad(args_arr, jmod):
-    return eqx.filter_grad(lambda arr0, arr, a: a(Reff_Add=arr0, 
-                                                  Ceff_Add=arr[1], 
-                                                  Reff_Regs=arr[2], 
-                                                  Ceff_Regs=arr[3], 
-                                                  Reff_Not=arr[4], 
-                                                  MemReadL=arr[5], 
-                                                  MemWriteL=arr[6], 
-                                                  MemReadPact=arr[7], 
-                                                  MemWritePact=arr[8], 
-                                                  MemPpass=arr[9], 
-                                                  f=arr[10], 
-                                                  V_dd=arr[11]))(args_arr[0], args_arr, jmod)
+    return eqx.filter_grad(
+        lambda arr0, arr, a: a(
+            Reff_Add=arr0,
+            Ceff_Add=arr[1],
+            Reff_Regs=arr[2],
+            Ceff_Regs=arr[3],
+            Reff_Not=arr[4],
+            MemReadL=arr[5],
+            MemWriteL=arr[6],
+            MemReadPact=arr[7],
+            MemWritePact=arr[8],
+            MemPpass=arr[9],
+            f=arr[10],
+            V_dd=arr[11],
+        )
+    )(args_arr[0], args_arr, jmod)
+
 
 def rotate_arr(args_arr):
     next_val = args_arr[0]
-    for i in range(len(args_arr))[::-1]:    
+    for i in range(len(args_arr))[::-1]:
         tmp = next_val
-        next_val = args_arr[(i-1)%len(args_arr)]
-        args_arr[(i-1)%len(args_arr)] = tmp
+        next_val = args_arr[(i - 1) % len(args_arr)]
+        args_arr[(i - 1) % len(args_arr)] = tmp
     return args_arr
+
 
 def main():
     print(f"Running symbolic simulator for {args.benchmark.split('/')[-1]}")
@@ -539,14 +570,13 @@ def main():
     hw.get_optimization_params_from_tech_params()
 
     computation_dfg = simulator.simulator_prep(args.benchmark, hw.latency)
-    computation_dfg = simulator.schedule(
-        computation_dfg, hw_counts=hardwareModel.get_func_count(hw.netlist)
-    )
-
+   
     hw.init_memory(
         sim_util.find_nearest_power_2(simulator.memory_needed),
         sim_util.find_nearest_power_2(0),
     )
+
+    computation_dfg = simulator.schedule(computation_dfg, hw)
 
     simulator.transistor_size = hw.transistor_size  # in nm
     simulator.pitch = hw.pitch
@@ -566,7 +596,6 @@ def main():
     simulator.simulate(computation_dfg, hw)
     simulator.calculate_edp(hw)
 
-
     # simulator.edp = simulator.edp.simplify()
     simulator.save_edp_to_file()
 
@@ -574,6 +603,9 @@ def main():
 
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.INFO, filename="codesign_log_dir/symbolic_simulate.log"
+    )
     parser = argparse.ArgumentParser(
         prog="Simulate",
         description="Runs a hardware simulation on a given benchmark and technology spec",

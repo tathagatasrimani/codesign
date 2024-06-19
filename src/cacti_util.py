@@ -12,7 +12,7 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
              cache_type = None, bus_width = None, transistor_size = None,
              addr_timing = None, debug = False):
   # load in default values
-  with open("cacti_input.yaml", 'r') as yamlfile:
+  with open("params/cacti_input.yaml", 'r') as yamlfile:
     config_values = yaml.safe_load(yamlfile)
 
   # If user doesn't give input, default to cacti_input vals

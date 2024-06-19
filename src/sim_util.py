@@ -391,6 +391,114 @@ def localize_memory(hw, computation_graph, total_computation_graph=None):
             active_graph.add_edge(f"Buf{buf_idx}", node, function="Mem")
 
 
+def add_cache_mem_access_to_dfg(
+    computation_graph: nx.DiGraph, buf_latency: float, mem_latency: float
+):
+    """
+    Add cache and memory nodes to the computation graph to indicate when explicit memory reads occur.
+    Initially, add cache and memory nodes for all Regs nodes in the computation graph.
+    After allocation, can prune the cache and memory nodes that are not needed.
+    """
+    buf_count = 0
+    mem_count = 0
+    for node, data in dict(
+        filter(lambda x: x[1]["function"] == "Regs", computation_graph.nodes.data())
+    ).items():
+        # print(f"node: {node}, data: {data}")
+        size = 16  # data['size'] -hardcoded for now; come back and fix
+        computation_graph.add_node(
+            f"Buf{buf_count}",
+            function="Buf",
+            allocation="",
+            cost=buf_latency * size,
+            size=size,
+        )
+        computation_graph.add_node(
+            f"Mem{mem_count}",
+            function="MainMem",
+            allocation="",
+            cost=mem_latency * size,
+            size=size,
+        )
+        # weight of edge is latency of parent
+        computation_graph.add_edge(f"Mem{mem_count}", f"Buf{buf_count}", function="Mem", weight=mem_latency*size)
+        computation_graph.add_edge(f"Buf{buf_count}", node, function="Mem", weight=buf_latency*size)
+        buf_count += 1
+        mem_count += 1
+
+    return computation_graph
+
+
+def find_upstream_node_in_graph(graph:nx.DiGraph, func:str, node:str):
+    """
+    Find the upstream node in the graph with the specified function. Assumes all nodes have only one in edge.
+    And that the desired function exists somewhere upstream.
+    Returns the first upstream node with the desired function.
+    Parameters:
+        graph (nx.DiGraph): The graph to search.
+        func (str): The function to search for.
+        node (str): The node from which to search.
+    """
+    func_in = []
+    while len(func_in) == 0:
+                in_edges = list(map(
+                            lambda x: (x[0], graph.nodes[x[0]]),
+                            graph.in_edges(node),
+                        ))
+                if len(in_edges) == 0:
+                    raise Exception(f"Could not find upstream node with function {func}")
+                node = in_edges[0][0] # only need the name
+                func_in = list(
+                    filter(
+                        lambda x: x[1]["function"] == func,
+                        in_edges,
+                    )
+                ) # assuming only one upstream node
+    return func_in[0]
+
+
+def prune_buffer_and_mem_nodes(computation_graph: nx.DiGraph, hw_netlist: nx.DiGraph):
+    """
+    Call after allocation to remove unnecessary buffer and memory nodes.
+    Removes memory nodes when the data is already in the buffer.
+    Removes buffer nodes when the data is already in the registers.
+    """
+    layer = 0
+    gen = list(filter(lambda x: x[1]["layer"] == layer, computation_graph.nodes.data()))
+    while len(gen) != 0:
+        reg_nodes = list(filter(lambda x: x[1]["function"] == "Regs", gen))
+        for reg_node in reg_nodes:
+            buf_in = find_upstream_node_in_graph(computation_graph, "Buf", reg_node[0]) 
+            mem_in = find_upstream_node_in_graph(computation_graph, "MainMem", buf_in[0])
+            allocated_reg = reg_node[1]["allocation"]
+            allocated_reg_data = hw_netlist.nodes[allocated_reg]
+            var_name = reg_node[0].split(";")[0]
+            if allocated_reg_data["var"] == var_name:
+                # remove the buffer and memory nodes
+                computation_graph.remove_node(buf_in[0])
+                computation_graph.remove_node(mem_in[0])
+            elif hw_netlist.nodes[buf_in[1]["allocation"]]["memory_module"].find(var_name):
+                # remove the memory node
+                computation_graph.remove_node(mem_in[0])
+                size = hw_netlist.nodes[buf_in[1]["allocation"]]["memory_module"].read(var_name)
+                computation_graph.nodes[buf_in[0]]["size"] = size
+                computation_graph.nodes[reg_node[0]]["size"] = size
+            else:
+                # read from memory and add to cache
+                size = -1*hw_netlist.nodes[buf_in[1]["allocation"]]["memory_module"].read(var_name)
+                computation_graph.nodes[mem_in[0]]["size"] = size
+                computation_graph.nodes[buf_in[0]]["size"] = size
+                computation_graph.nodes[reg_node[0]]["size"] = size
+            hw_netlist.nodes[allocated_reg]["var"] = var_name
+
+        layer += 1
+        gen = list(
+            filter(lambda x: x[1]["layer"] == layer, computation_graph.nodes.data())
+        )
+
+    return computation_graph
+
+
 def update_arch(computation_graph, hw_netlist):
     """
     Updates the hardware architecture to include the computation graph.

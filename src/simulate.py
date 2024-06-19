@@ -4,6 +4,8 @@ import math
 import json
 from pathlib import Path
 import argparse
+import logging
+logger = logging.getLogger(__name__)
 
 # third party modules
 import matplotlib.pyplot as plt
@@ -88,22 +90,22 @@ class ConcreteSimulator:
             #     # active power should scale by size of the object being accessed.
             #     # all regs have the saem size, so no need to scale.
             #     scaling = node_data["size"]
-                # if node_data["function"] == "MainMem":
-                #     print(
-                #         f" found a mem object in active energy calc, adding scaling factor: {scaling}"
-                #     )
+            # if node_data["function"] == "MainMem":
+            #     print(
+            #         f" found a mem object in active energy calc, adding scaling factor: {scaling}"
+            #     )
             self.total_energy += (
                 hw_spec.dynamic_power[node_data["function"]]
                 * 1e-9
                 * scaling
                 * (hw_spec.latency[node_data["function"]] / hw_spec.frequency)
             )
-            
+
             if node_data["function"] in ["Buf", "MainMem"]:
                 # active power should scale by size of the object being accessed.
                 # all regs have the saem size, so no need to scale.
                 scaling = node_data["size"]
-            
+
                 self.total_energy += (
                     (hw_spec.dynamic_energy[node_data["function"]]["Read"] 
                     + hw_spec.dynamic_energy[node_data["function"]]["Write"]) / 2 # avg of read and write
@@ -247,7 +249,7 @@ class ConcreteSimulator:
                 cache_hit = buf[1]["memory_module"].find(var_name) or cache_hit
                 if cache_hit:
                     break
-                
+
             # just choose one at random. Can make this smarter later.
             buf = rng.choice(in_bufs)  # in_bufs[0] # just choose one at random.
             size = buf[1]["memory_module"].read(
@@ -272,7 +274,7 @@ class ConcreteSimulator:
                     f"Buf{buf_idx}", function="Buf", allocation=buf[0], size=size
                 )
                 hw_graph.add_edge(f"Buf{buf_idx}", node, function="Mem")
-            
+
             else:           # add Buf and Mem
                 size = size * -1  # size will be negative because cache miss.
                 mem_idx = len(
@@ -406,6 +408,7 @@ class ConcreteSimulator:
             counter += 1
             temp_C = nx.DiGraph()
             for node in gen:
+                logger.info(f"node: {computation_dfg.nodes[node]}")
                 child_added = False
                 temp_C.add_nodes_from([(node, computation_dfg.nodes[node])])
                 for child in computation_dfg.successors(node):
@@ -427,6 +430,7 @@ class ConcreteSimulator:
                     # active power should scale by size of the object being accessed.
                     # all regs have the same size, so no need to scale.
                     scaling = node_data["size"]
+                    logger.info(f"scaling: {scaling}")
                 if node_data["function"] == "stall" or node_data["function"] == "end":
                     continue
                 self.active_energy += (
@@ -437,7 +441,6 @@ class ConcreteSimulator:
                 )
                 hw.compute_operation_totals[node_data["function"]] += 1
 
-
             def matcher_func(n1, n2):
                 res = (
                     n1["function"] == n2["function"]
@@ -445,11 +448,12 @@ class ConcreteSimulator:
                     or n2["function"] == "stall"
                     or n2["function"] == "end"
                 )
-                
+
                 return res
 
         self.cycles = nx.dag_longest_path_length(computation_dfg)
         longest_path = nx.dag_longest_path(computation_dfg)
+        logger.info(f"longest path: {longest_path}")
 
         for elem_name, elem_data in dict(hw.netlist.nodes.data()).items():
             scaling = 1
@@ -601,9 +605,10 @@ class ConcreteSimulator:
 
         return computation_dfg
 
-    def schedule(self, computation_dfg, hw_counts):
+    def schedule(self, computation_dfg, hw):
+        hw_counts = hardwareModel.get_func_count(hw.netlist)
         copy = computation_dfg.copy()
-        schedule.schedule(copy, hw_counts)
+        schedule.schedule(copy, hw_counts, hw.netlist)
 
         for layer, nodes in enumerate(
             reversed(list(nx.topological_generations(nx.reverse(computation_dfg))))
@@ -611,7 +616,12 @@ class ConcreteSimulator:
             # `multipartite_layout` expects the layer as a node attribute, so add the
             # numeric layer value as a node attribute
             for node in nodes:
-                computation_dfg.nodes[node]["layer"] = layer
+                copy.nodes[node]["layer"] = layer
+        copy = sim_util.add_cache_mem_access_to_dfg(
+            copy, hw.latency["Buf"], hw.latency["MainMem"]
+        )
+        schedule.schedule(copy, hw_counts, hw.netlist)
+        copy = sim_util.prune_buffer_and_mem_nodes(copy, hw.netlist)
 
         return copy
 
@@ -638,13 +648,12 @@ def main(args):
     hw = HardwareModel(cfg=args.architecture_config)
 
     computation_dfg = simulator.simulator_prep(args.benchmark, hw.latency)
-    computation_dfg = simulator.schedule(
-        computation_dfg, hw_counts=hardwareModel.get_func_count(hw.netlist)
-    )
+
     hw.init_memory(
         sim_util.find_nearest_power_2(simulator.memory_needed),
         sim_util.find_nearest_power_2(simulator.nvm_memory_needed),
     )
+    computation_dfg = simulator.schedule(computation_dfg, hw)
 
     simulator.tech_node = hw.transistor_size  # in nm
     simulator.pitch = hw.pitch  # in um
@@ -707,12 +716,14 @@ def main(args):
         )
         with open(simulator.path + "/benchmarks/json_data/" + names[-1], "w") as fh:
             fh.write(text)
-    
+
     print("done!")
     return simulator
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, filename="codesign_log_dir/simulate.log")
+
     parser = argparse.ArgumentParser(
         prog="Simulate",
         description="Runs a hardware simulation on a given benchmark and technology spec",

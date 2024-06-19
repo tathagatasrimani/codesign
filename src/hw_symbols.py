@@ -134,7 +134,7 @@ symbol_table = {
 }
 
 # passive power
-beta = yaml.load(open("coefficients.yaml", "r"), Loader=yaml.Loader)["beta"]
+beta = yaml.load(open("params/coefficients.yaml", "r"), Loader=yaml.Loader)["beta"]
 
 def make_sym_lat_wc(elem):
     return Reff[elem] * Ceff[elem]
