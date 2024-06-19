@@ -17,6 +17,10 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
   with open("params/cacti_input.yaml", 'r') as yamlfile:
     config_values = yaml.safe_load(yamlfile)
 
+  if cache_type == None:
+    cache_type = config_values['cache_type']
+  
+
   # If user doesn't give input, default to cacti_input vals
   if cacheSize == None:
     cacheSize = config_values['cache_size']
@@ -29,6 +33,11 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
 
   if bus_width == None:
     bus_width = config_values['output/input_bus_width']
+
+  if cache_type == "main memory":
+    mem_bus_width = bus_width
+  else:
+    mem_bus_width = config_values['mem_data_width']
 
   if transistor_size == None:
     transistor_size = config_values['technology']
@@ -177,7 +186,7 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
     "# Number of Physical Ranks",
     "-num_mem_dq {}".format(config_values['num_mem_dq']),
     "# Width of the Memory Data Bus",
-    "-mem_data_width {}".format(config_values['mem_data_width']),
+    "-mem_data_width {}".format(mem_bus_width),
     "# RTT Termination Resistance",
     "-rtt_value {}".format(config_values['rtt_value']),
     "# RON Termination Resistance",

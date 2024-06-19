@@ -124,13 +124,12 @@ class HardwareModel:
 
         if path_to_graphml is not None and os.path.exists(path_to_graphml):
             self.netlist = nx.read_gml(path_to_graphml)
-            # print(f"netlist: {self.netlist.nodes.data()}")
+            self.update_netlist()
         else:
             self.netlist = nx.Graph()
 
         self.init_misc_vars()
         self.set_technology_parameters()
-        self.gen_cacti_results()
 
     def set_hw_config_vars(
         self,
@@ -151,40 +150,52 @@ class HardwareModel:
         self.transistor_size = transistor_size
         self.cache_size = cache_size
         self.V_dd = V_dd
-        self.bus_width = bus_width
+        self.buffer_bus_width = bus_width
+        self.memory_bus_width = bus_width
 
-    def init_memory(self, mem_needed, nvm_mem_needed):
+    def init_memory(self, mem_needed, nvm_mem_needed, buffer_size=64):
         """
         Add a Memory Module to the netlist for each MainMem node.
         Add a Cache Module to the netlist for each Buf node.
         Params:
         mem_needed: int
         nvm_mem_needed: int - not yet implemented
+        buffer_size: int - default 64 bits equal to one var size.
         """
+        mem_object = Memory(mem_needed)
         for node, data in dict(
             filter(lambda x: x[1]["function"] == "MainMem", self.netlist.nodes.data())
-        ).items():  # should only have 1
-            data["memory_module"] = Memory(mem_needed)
+        ).items():
+            data["memory_module"] = mem_object
             data["size"] = mem_needed
 
+        buffer_object = Cache(
+                data["size"],
+                mem_object,
+                var_size=None,
+            )
+        # loop enables multiple unshared buffers
         for node, data in dict(
             filter(lambda x: x[1]["function"] == "Buf", self.netlist.nodes.data())
         ).items():
             edges = self.netlist.edges(node)
             for edge in edges:
                 if self.netlist.nodes[edge[1]]["function"] == "MainMem":
-                    # for now there is only one neighbor that is MainMem.
-                    data["memory_module"] = Cache(
-                        data["size"],
-                        self.netlist.nodes[edge[1]]["memory_module"],
-                        var_size=1,
-                    )
+                    data["memory_module"] = buffer_object
 
         for node, data in dict(
             filter(lambda x: x[1]["function"] == "Regs", self.netlist.nodes.data())
         ).items():
             data["var"] = ""  # reg keeps track of which variable it is allocated
         self.mem_size = mem_needed
+        self.nvm_mem_size = nvm_mem_needed
+        self.buffer_size = buffer_size
+        self.gen_cacti_results()
+
+
+    def update_netlist(self):
+        self.buffer_bus_width = num_nodes_with_func(self.netlist, "Buf") * 64
+        self.memory_bus_width = num_nodes_with_func(self.netlist, "MainMem") * 64
 
     def set_technology_parameters(self):
         """
@@ -360,10 +371,10 @@ class HardwareModel:
         '''
         Generate buffer and memory latency and energy numbers from Cacti.
         '''
-        buf_vals = cacti_util.gen_vals("base_cache", 131072, 64,
-                                      "cache", self.bus_width)
-        mem_vals = cacti_util.gen_vals("mem_cache", 131072, 64,
-                                      "main memory", self.bus_width)
+        buf_vals = cacti_util.gen_vals("base_cache", cacheSize=131072, blockSize=64,
+                                      cache_type="cache", bus_width=self.buffer_bus_width)
+        mem_vals = cacti_util.gen_vals("mem_cache", cacheSize=self.mem_size, blockSize=64,
+                                      cache_type="main memory", bus_width=self.memory_bus_width)
         
         self.area["Buf"] = float(buf_vals["Area (mm2)"])
         self.area["MainMem"] = float(mem_vals["Area (mm2)"])
@@ -386,6 +397,7 @@ class HardwareModel:
         self.leakage_power["Buf"] = float(buf_vals["Standby leakage per bank(mW)"])
         self.leakage_power["MainMem"] = float(mem_vals["Standby leakage per bank(mW)"])
 
+        # get the IO parameters from the memory run
         self.latency["OffChipIO"] = float(mem_vals["IO latency (s)"]) if mem_vals["IO latency (s)"] != "N/A" else 0.0
         self.dynamic_power["OffChipIO"] = float(mem_vals["IO power dynamic"]) if mem_vals["IO power dynamic"] != "N/A" else 0.0
 

@@ -225,8 +225,8 @@ class Cache:
                 # raise Exception("variable not found in memory")
                 size = 0
             if (
-                len(self.vars) == self.var_size
-            ):  # forget buff size for now, only allow store one var
+                len(self.vars) == self.var_size or size > self.free_space
+            ):
                 self.evict_random()
             self.vars[var] = size
             self.used_space += size
