@@ -224,11 +224,6 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
   cactiOutput = os.path.join(cactiDir, output_filename)
   output_data = pd.read_csv(cactiOutput, sep=", ", engine='python')
   output_data = output_data.iloc[-1] # get just the last row which is the most recent run
-  # with open(cactiOutput, 'r') as file:
-  #   # we want the latest run: note that multiple runs append to same [].cfg.out file
-  #   lines = file.readlines()
-  #   line = lines[-1]
-  #   output_values = line.strip().split(', ')
 
   IO_freq = convert_frequency(config_values['bus_freq'])
   IO_latency = (addr_timing / IO_freq)
@@ -239,12 +234,6 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
   # CACTI IO: area (sq.mm), timing (ps), dynamic power (mW), PHY power (mW), termination and bias power (mW)
   # latency (ns)
   return output_data
-# ({"access_time_ns": output_values[5], "search_energy_nJ": output_values[7], 
-#            "read_energy_nJ": output_values[8], "write_energy_nJ": output_values[9], 
-#            "leakage_bank_power_mW": output_values[10],
-#            "IO_area_sqmm": output_values[26], "IO_timing_ps": output_values[27], 
-#            "IO_dyanmic_power_mW": output_values[28], "IO_PHY_power_mW": output_values[29], 
-#            "IO_termination_bias_power_mW": output_values[30], "IO_latency_s": IO_latency})
 
 # for debugging
 # if __name__ == '__main__':
