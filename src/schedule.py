@@ -86,6 +86,25 @@ def cfg_to_dfg(cfg, graphs, latency):
 
     return cfg_node_to_dfg_map
 
+def assign_time_of_execution(graph):
+    """
+    Calculates when each operation will take place,
+    overwriting the "dist" attribute from before.
+    """
+    for node in graph.nodes:
+        graph.nodes[node]["dist"] =  0
+    graph = nx.reverse(graph)
+    max_dist = 0
+    end_node = list(nx.topological_generations(graph))[0][0]
+    for node in graph.nodes:
+        graph.nodes[node]["dist"] = nx.dijkstra_path_length(graph, end_node, node)
+        max_dist = max(max_dist, graph.nodes[node]["dist"])
+    for node in graph.nodes:
+        # mirroring operation
+        graph.nodes[node]["dist"] = (graph.nodes[node]["dist"] - max_dist) * -1
+    graph = nx.reverse(graph)
+    return graph
+
 def assign_upstream_path_lengths(graph):
     """
     Assigns the longest path to each node in the graph.
@@ -94,20 +113,9 @@ def assign_upstream_path_lengths(graph):
     """
     for node in graph:
         graph.nodes[node]["dist"] =  0
-    q = deque()
-    for node in list(nx.topological_generations(graph))[0]:
-        q.append(node)
-        while not len(q) == 0:
-            curnode = q.popleft()
-            graph.nodes[node]["dist"] = max(graph.nodes[node]["dist"], nx.dijkstra_path_length(graph, node, curnode))
-            for child in graph.successors(curnode):
-                q.append(child)
-    sim_util.topological_layout_plot(graph)
-    print("done with dijkstra")
-
-    """for i, generations in enumerate(nx.topological_generations(graph)):
+    for i, generations in enumerate(nx.topological_generations(graph)):
         for node in generations:
-            graph.nodes[node]["dist"] = max(i, graph.nodes[node]["dist"])"""
+            graph.nodes[node]["dist"] = max(i, graph.nodes[node]["dist"])
     
     return graph
 
@@ -121,14 +129,28 @@ def log_register_use(computation_graph, step):
     step: int
         The discrete time step at which we log register use
     """
+    in_use = {}
 
     for node in computation_graph:
-        if node == "end" or node.startswith("stall"): continue
-        print(node)
-        print(computation_graph.nodes[node]["dist"])
-        for edge in computation_graph.out_edges(node):
-            print(computation_graph.edges[edge]["weight"])
-            continue
+        func = computation_graph.nodes[node]["function"]
+        if not func == "Regs": continue
+        #print(computation_graph.nodes[node]["allocation"], func, computation_graph.nodes[node]["dist"], node)
+        first_time_step = (computation_graph.nodes[node]["dist"] // step) * step
+        out_edge = list(computation_graph.out_edges(node))[0]
+        end_time = computation_graph.nodes[node]["dist"] + computation_graph.edges[out_edge]["weight"]
+        end_time_step = (end_time // step) * step
+        i = first_time_step
+        while i <= end_time_step:
+            if i not in in_use:
+                in_use[i] = []
+            in_use[i].append(computation_graph.nodes[node]["allocation"])
+            i += step
+    keys = list(in_use.keys())
+    keys.sort()
+    in_use_sorted = {i: in_use[i] for i in keys}
+    #sim_util.topological_layout_plot(computation_graph, reverse=True)
+    return in_use_sorted
+        
 
 
 def schedule(computation_graph, hw_element_counts, hw_netlist):
@@ -157,7 +179,7 @@ def schedule(computation_graph, hw_element_counts, hw_netlist):
     # reset layers:
     for node in computation_graph.nodes:
         computation_graph.nodes[node]["layer"] = -np.inf
-    assign_upstream_path_lengths(computation_graph)
+    computation_graph = assign_upstream_path_lengths(computation_graph)
 
     stall_counter = 0 # used to ensure unique stall names
     pushed = []
@@ -213,6 +235,7 @@ def schedule(computation_graph, hw_element_counts, hw_netlist):
                         cost=func_nodes[idx][1]["cost"],
                         layer= -layer,
                         allocation="",
+                        dist=0
                     )
                     new_edges = []
                     for edge in out_edges:
@@ -248,4 +271,6 @@ def schedule(computation_graph, hw_element_counts, hw_netlist):
                 computation_graph.nodes[comp_nodes[i][0]]["allocation"] = hw_nodes[i][0]
 
         layer += 1
-    log_register_use(computation_graph, 1)
+    computation_graph = assign_time_of_execution(computation_graph)
+    in_use = log_register_use(computation_graph, 0.1)
+    return in_use
