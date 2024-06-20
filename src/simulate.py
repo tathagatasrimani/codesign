@@ -623,7 +623,7 @@ class ConcreteSimulator:
         in_use = schedule.schedule(copy, hw_counts, hw.netlist)
         with open(f"register_log/test_file.txt", "w") as f:
             for key in in_use:
-                f.write(str(key) + ": " + str(in_use[key]))
+                f.write(str(key) + ": " + str(in_use[key]) + "\n")
         copy = sim_util.prune_buffer_and_mem_nodes(copy, hw.netlist)
 
         return copy
