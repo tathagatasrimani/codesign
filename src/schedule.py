@@ -148,10 +148,9 @@ def log_register_use(computation_graph, step):
     for node in computation_graph:
         func = computation_graph.nodes[node]["function"]
         if not func == "Regs": continue
-        #print(computation_graph.nodes[node]["allocation"], func, computation_graph.nodes[node]["dist"], node)
         first_time_step = (computation_graph.nodes[node]["dist"] // step) * step
         out_edge = list(computation_graph.out_edges(node))[0]
-        end_time = computation_graph.nodes[node]["dist"] + computation_graph.edges[out_edge]["weight"]
+        end_time = computation_graph.nodes[node]["dist"] + computation_graph.nodes[node]["cost"]
         end_time_step = (end_time // step) * step
         i = first_time_step
         while i <= end_time_step:
@@ -163,9 +162,9 @@ def log_register_use(computation_graph, step):
     keys.sort()
     in_use_sorted = {i: in_use[i] for i in keys}
     with open(f"register_log/test_file.txt", "w") as f:
-            for key in in_use_sorted:
-                f.write(str(key) + ": " + str(in_use[key]) + "\n")
-    sim_util.topological_layout_plot(computation_graph, reverse=True)
+        for key in in_use_sorted:
+            f.write(str(key) + ": " + str(in_use[key]) + "\n")
+    #sim_util.topological_layout_plot(computation_graph, reverse=True)
         
 
 
