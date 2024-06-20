@@ -94,6 +94,14 @@ def assign_time_of_execution(graph):
     for node in graph.nodes:
         graph.nodes[node]["dist"] =  0
     graph = nx.reverse(graph)
+    for gen in list(nx.topological_generations(graph))[1:]:
+        max_weight = 0
+        for node in gen:
+            in_edge = list(graph.in_edges(node))[0]
+            max_weight = max(max_weight, graph.edges[in_edge]["weight"])
+        for node in gen:
+            in_edge = list(graph.in_edges(node))[0]
+            graph.edges[in_edge]["weight"] = max_weight
     max_dist = 0
     end_node = list(nx.topological_generations(graph))[0][0]
     for node in graph.nodes:
