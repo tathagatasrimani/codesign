@@ -13,6 +13,10 @@ BufReadEact = symbols("BufReadEact", positive=True)
 BufWriteEact = symbols("BufWriteEact", positive=True)
 BufPpass = symbols("BufPpass", positive=True)
 
+# Where do these show up in the optimization objective
+BufPeriphAreaEff = symbols("buf_peripheral_area_proportion", positive=True)
+MemPeriphAreaEff = symbols("mem_peripheral_area_propportion", positive=True)
+
 OffChipIOL = symbols("OffChipIOL", positive=True)
 OffChipIOPact = symbols("OffChipIOPact", positive=True)
 

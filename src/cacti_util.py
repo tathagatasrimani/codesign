@@ -4,6 +4,7 @@ import yaml
 
 import pandas as pd
 
+valid_tech_nodes = [22, 32, 45, 65, 90, 180]
 
 """
 Generates Cacti .cfg file based on input and cacti_input.
@@ -20,7 +21,6 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
   if cache_type == None:
     cache_type = config_values['cache_type']
   
-
   # If user doesn't give input, default to cacti_input vals
   if cacheSize == None:
     cacheSize = config_values['cache_size']
@@ -41,6 +41,8 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
 
   if transistor_size == None:
     transistor_size = config_values['technology']
+  else:
+    transistor_size = min(valid_tech_nodes, lambda x: abs(transistor_size-x))
 
   if addr_timing == None:
     addr_timing = config_values['addr_timing']

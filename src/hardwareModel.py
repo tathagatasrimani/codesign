@@ -69,7 +69,9 @@ def get_unique_funcs(netlist):
 
 
 def get_func_count(netlist):
-    return {func: num_nodes_with_func(netlist, func) for func in get_unique_funcs(netlist)}
+    return {
+        func: num_nodes_with_func(netlist, func) for func in get_unique_funcs(netlist)
+    }
 
 
 class HardwareModel:
@@ -168,10 +170,10 @@ class HardwareModel:
             data["size"] = mem_needed
 
         buffer_object = Cache(
-                data["size"],
-                mem_object,
-                var_size=None,
-            )
+            data["size"],
+            mem_object,
+            var_size=None,
+        )
         # loop enables multiple unshared buffers
         for node, data in dict(
             filter(lambda x: x[1]["function"] == "Buf", self.netlist.nodes.data())
@@ -191,15 +193,21 @@ class HardwareModel:
         self.gen_cacti_results()
 
     def update_netlist(self):
-        self.buffer_bus_width = num_nodes_with_func(self.netlist, "Buf") * SYSTEM_BUS_SIZE
-        self.memory_bus_width = num_nodes_with_func(self.netlist, "MainMem") * SYSTEM_BUS_SIZE
+        self.buffer_bus_width = (
+            num_nodes_with_func(self.netlist, "Buf") * SYSTEM_BUS_SIZE
+        )
+        self.memory_bus_width = (
+            num_nodes_with_func(self.netlist, "MainMem") * SYSTEM_BUS_SIZE
+        )
 
     def set_technology_parameters(self):
         """
         I Want to Deprecate everything that takes into account 3D with indexing by pitch size
         and number of mem layers.
         """
-        tech_params = yaml.load(open("params/tech_params.yaml", "r"), Loader=yaml.Loader)
+        tech_params = yaml.load(
+            open("params/tech_params.yaml", "r"), Loader=yaml.Loader
+        )
 
         self.area = tech_params["area"][self.transistor_size]
         self.latency = tech_params["latency"][self.transistor_size]
@@ -225,6 +233,7 @@ class HardwareModel:
             "latency": self.latency,
             "dynamic_power": self.dynamic_power,
             "leakage_power": self.leakage_power,
+            "dynamic_energy": self.dynamic_energy,
             "area": self.area,
             "V_dd": self.V_dd,
         }
@@ -232,7 +241,9 @@ class HardwareModel:
             f.write(yaml.dump(params))
 
     def update_technology_parameters(
-        self, rc_params_file="params/rcs_current.yaml", coeff_file="params/coefficients.yaml"
+        self,
+        rc_params_file="params/rcs_current.yaml",
+        coeff_file="params/coefficients.yaml",
     ):
         """
         For full codesign loop, need to update the technology parameters after a run of the inverse pass.
@@ -254,8 +265,8 @@ class HardwareModel:
         """
         # print(f"Updating Technology Parameters...")
         rcs = yaml.load(open(rc_params_file, "r"), Loader=yaml.Loader)
-        C = rcs["Ceff"] # nF
-        R = rcs["Reff"] # Ohms
+        C = rcs["Ceff"]  # nF
+        R = rcs["Reff"]  # Ohms
         self.V_dd = rcs["other"]["V_dd"]
 
         self.latency["MainMem"] = (
@@ -276,8 +287,7 @@ class HardwareModel:
 
         for key in C:
             self.latency[key] = R[key] * C[key]  # ns
-            self.dynamic_power[key] = ( 
-                0.5 * self.V_dd * self.V_dd * 1e9 / R[key] ) # nW 
+            self.dynamic_power[key] = 0.5 * self.V_dd * self.V_dd * 1e9 / R[key]  # nW
 
             self.leakage_power[key] = (
                 beta[key] * self.V_dd**2 * 1e9 / (R["Not"] * self.R_off_on_ratio)
@@ -333,17 +343,21 @@ class HardwareModel:
 
     def get_total_area(self):
         """
-        Calculate on chip and off chip area. 
+        Calculate on chip and off chip area.
         TODO: Get Area breakdown of cache (area efficiency) from cacti and integrate here.
         """
-        bw_scaling = 0.1  # get from cacti - inverse of memory efficiency
         self.on_chip_area = 0
 
         for node, data in self.netlist.nodes.data():
             if data["function"] in ["Buf", "MainMem"]:
                 continue
             self.on_chip_area += self.area[data["function"]]
-        self.on_chip_area += self.area["Buf"]
+        
+        self.on_chip_area += self.area["Buf"] + self.area[
+            "Buf"
+        ] * self.buf_peripheral_area_proportion * (
+            num_nodes_with_func(self.netlist, "Buf") - 1
+        )
 
         # bw = 0
         # for node in filter(
@@ -368,24 +382,43 @@ class HardwareModel:
         return n
 
     def gen_cacti_results(self):
-        '''
+        """
         Generate buffer and memory latency and energy numbers from Cacti.
-        '''
-        buf_vals = cacti_util.gen_vals("base_cache", cacheSize=131072, blockSize=64,
-                                      cache_type="cache", bus_width=self.buffer_bus_width)
-        mem_vals = cacti_util.gen_vals("mem_cache", cacheSize=self.mem_size, blockSize=64,
-                                      cache_type="main memory", bus_width=self.memory_bus_width)
-        
+        """
+        buf_vals = cacti_util.gen_vals(
+            "base_cache",
+            cacheSize=2048, # TODO: Add in buffer sizing
+            blockSize=64,
+            cache_type="cache",
+            bus_width=self.buffer_bus_width,
+        )
+        mem_vals = cacti_util.gen_vals(
+            "mem_cache",
+            cacheSize=self.mem_size,
+            blockSize=64,
+            cache_type="main memory",
+            bus_width=self.memory_bus_width,
+        )
+
         self.area["Buf"] = float(buf_vals["Area (mm2)"])
         self.area["MainMem"] = float(mem_vals["Area (mm2)"])
-        self.buf_peripheral_area_proportion = float(buf_vals["Data arrary area efficiency %"])
-        self.mem_peripheral_area_proportion = float(mem_vals["Data arrary area efficiency %"])
+        self.area["OffChipIO"] = (
+            float(mem_vals["IO area"]) if mem_vals["IO area"] != "N/A" else 0.0
+        )
+        self.buf_peripheral_area_proportion = 1-float(
+            buf_vals["Data arrary area efficiency %"]
+        )
+        self.mem_peripheral_area_proportion = 1-float(
+            mem_vals["Data arrary area efficiency %"]
+        )
 
         self.latency["Buf"] = float(buf_vals["Access time (ns)"])
         self.latency["MainMem"] = float(mem_vals["Access time (ns)"])
 
         self.dynamic_energy["Buf"]["Read"] = float(buf_vals["Dynamic read energy (nJ)"])
-        self.dynamic_energy["Buf"]["Write"] = float(buf_vals["Dynamic write energy (nJ)"])
+        self.dynamic_energy["Buf"]["Write"] = float(
+            buf_vals["Dynamic write energy (nJ)"]
+        )
 
         self.dynamic_energy["MainMem"]["Read"] = float(
             mem_vals["Dynamic read energy (nJ)"]
@@ -395,15 +428,23 @@ class HardwareModel:
         )
 
         # convert to nW
-        self.leakage_power["Buf"] = float(buf_vals["Standby leakage per bank(mW)"]) * 1e6
-        self.leakage_power["MainMem"] = float(mem_vals["Standby leakage per bank(mW)"]) * 1e6 
+        self.leakage_power["Buf"] = (
+            float(buf_vals["Standby leakage per bank(mW)"]) * 1e6
+        )
+        self.leakage_power["MainMem"] = (
+            float(mem_vals["Standby leakage per bank(mW)"]) * 1e6
+        )
 
         # get the IO parameters from the memory run
-        self.latency["OffChipIO"] = float(mem_vals["IO latency (s)"]) * 1e-9 if mem_vals["IO latency (s)"] != "N/A" else 0.0
-        # what unit is this?!
-        self.dynamic_power["OffChipIO"] = float(mem_vals["IO power dynamic"]) if mem_vals["IO power dynamic"] != "N/A" else 0.0
-
-        self.area["OffChipIO"] = float(mem_vals["IO area"]) if mem_vals["IO area"] != "N/A" else 0.0
-        self.area["Buf"] = 0
-        self.area["MainMem"] = 0
+        self.latency["OffChipIO"] = (
+            float(mem_vals["IO latency (s)"]) * 1e-9
+            if mem_vals["IO latency (s)"] != "N/A"
+            else 0.0
+        )
+        # This comes in mW
+        self.dynamic_power["OffChipIO"] = (
+            float(mem_vals["IO power dynamic"]) * 1e6 # convert to nW
+            if mem_vals["IO power dynamic"] != "N/A"
+            else 0.0
+        )
         return

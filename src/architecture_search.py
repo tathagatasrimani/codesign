@@ -16,43 +16,6 @@ from global_constants import SEED
 
 rng = np.random.default_rng(SEED)
 
-
-def simulate_new_arch(hw, simulator, cfg, cfg_node_to_hw_map):
-    hardwareModel.un_allocate_all_in_use_elements(hw.netlist)
-    simulator.simulate(cfg, cfg_node_to_hw_map, hw)
-    simulator.calculate_edp(hw)
-    return simulator.edp
-
-
-def gen_new_arch(
-    existing_arch,
-    unroll_factor,
-    cfg_node_to_hw_map,
-    data_path,
-    id_to_node,
-    mem,
-    saved_elem,
-):
-    """
-    DEPRECATED!
-    """
-    existing_arch.netlist = nx.DiGraph()
-    new_data_path = arch_search_util.unroll_by_specified_factor(
-        cfg_node_to_hw_map, data_path, id_to_node, unroll_factor, saved_elem, log=False
-    )
-
-    unique_data_path = [list(x) for x in set(tuple(x) for x in new_data_path)]
-    arch_search_util.generate_new_min_arch(
-        existing_arch, cfg_node_to_hw_map, unique_data_path, id_to_node
-    )
-    existing_arch.init_memory(
-        sim_util.find_nearest_power_2(mem),
-        sim_util.find_nearest_power_2(0),
-    )
-
-    return new_data_path
-
-
 def setup_arch_search(benchmark, arch_init_config):
     simulator = ConcreteSimulator()
 
@@ -234,6 +197,8 @@ def run_arch_search(
         func = sample_stalled_func(old_scheduled_dfg)
 
         update_hw_with_new_node(hw_copy.netlist, func)
+        hw_copy.update_netlist()
+        hw_copy.gen_cacti_results()
 
         scheduled_dfg = simulator.schedule(computation_dfg, hw_copy)
 
@@ -262,6 +227,7 @@ def run_arch_search(
             break
 
     hw.netlist = best_hw_netlist
+    hw.update_netlist()
 
     return best_edp, best_schedule
 

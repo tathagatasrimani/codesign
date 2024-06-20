@@ -408,7 +408,7 @@ class ConcreteSimulator:
             counter += 1
             temp_C = nx.DiGraph()
             for node in gen:
-                logger.info(f"node: {computation_dfg.nodes[node]}")
+                logger.info(f"node -> {node}: {computation_dfg.nodes[node]}")
                 child_added = False
                 temp_C.add_nodes_from([(node, computation_dfg.nodes[node])])
                 for child in computation_dfg.successors(node):
@@ -426,19 +426,34 @@ class ConcreteSimulator:
                 ## ================= ADD ACTIVE ENERGY CONSUMPTION =================
                 scaling = 1
                 node_data = computation_dfg.nodes[node]
+                if node_data["function"] == "stall" or node_data["function"] == "end":
+                    continue
                 if node_data["function"] in ["Buf", "MainMem"]:
                     # active power should scale by size of the object being accessed.
                     # all regs have the same size, so no need to scale.
                     scaling = node_data["size"]
                     logger.info(f"scaling: {scaling}")
-                if node_data["function"] == "stall" or node_data["function"] == "end":
-                    continue
-                self.active_energy += (
-                    hw.dynamic_power[node_data["function"]]
-                    * 1e-9  # W
-                    * scaling
-                    * hw.latency[node_data["function"]]  # ns
-                )
+                    energy = (
+                        (hw.dynamic_energy[node_data["function"]]["Read"] 
+                        + hw.dynamic_energy[node_data["function"]]["Write"]) / 2 # avg of read and write
+                        * 1e-9
+                        * scaling
+                    )
+                
+                    if (node_data["function"] == "MainMem"):
+                        energy += (
+                        hw.dynamic_power["OffChipIO"] * 1e-9
+                        * scaling
+                        * hw.latency["OffChipIO"]
+                        )
+                else:
+                    energy = (
+                        hw.dynamic_power[node_data["function"]] * 1e-9 # W
+                        * scaling
+                        * hw.latency[node_data["function"]] # ns
+                    )
+
+                self.active_energy += energy
                 hw.compute_operation_totals[node_data["function"]] += 1
 
             def matcher_func(n1, n2):
