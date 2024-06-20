@@ -181,7 +181,6 @@ class Codesign:
         self.symbolic_sim.save_edp_to_file()
 
         self.inverse_edp = self.symbolic_sim.edp.subs(self.tech_params)
-        self.inverse_edp_ceil = self.symbolic_sim.edp_ceil.subs(self.tech_params)
 
         print(
             f"Initial EDP: {self.inverse_edp} E-18 Js. Active Energy: {(self.symbolic_sim.total_active_energy).subs(self.tech_params)} nJ. Passive Energy: {(self.symbolic_sim.total_passive_energy).subs(self.tech_params)} nJ. Execution time: {self.symbolic_sim.cycles.subs(self.tech_params)} ns"
@@ -200,7 +199,6 @@ class Codesign:
             )
         self.write_back_rcs()
         self.inverse_edp = self.symbolic_sim.edp.subs(self.tech_params)
-        self.inverse_edp_ceil = self.symbolic_sim.edp_ceil.subs(self.tech_params)
 
         print(
             f"Final EDP  : {self.inverse_edp} E-18 Js. Active Energy: {(self.symbolic_sim.total_active_energy).subs(self.tech_params)} nJ. Passive Energy: {(self.symbolic_sim.total_passive_energy).subs(self.tech_params)} nJ. Execution time: {self.symbolic_sim.cycles.subs(self.tech_params)} ns"

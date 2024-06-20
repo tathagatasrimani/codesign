@@ -16,6 +16,7 @@ from memory import Memory, Cache
 from config_dicts import op2sym_map
 import rcgen
 import cacti_util
+from global_constants import SYSTEM_BUS_SIZE
 
 
 HW_CONFIG_FILE = "params/hw_cfgs.ini"
@@ -92,7 +93,7 @@ class HardwareModel:
         """
         if cfg is None:
             self.set_hw_config_vars(
-                id, bandwidth, mem_layers, pitch, transistor_size, cache_size, V_dd, bus_width
+                id, bandwidth, mem_layers, pitch, transistor_size, cache_size, V_dd
             )
         else:
             config = cp.ConfigParser()
@@ -107,7 +108,6 @@ class HardwareModel:
                     config.getint(cfg, "transistorsize"),
                     config.getint(cfg, "cachesize"),
                     config.getfloat(cfg, "V_dd"),
-                    config.getfloat(cfg, "buswidth")
                 )
             except cp.NoSectionError:
                 self.set_hw_config_vars(
@@ -118,7 +118,6 @@ class HardwareModel:
                     config.getint("DEFAULT", "transistorsize"),
                     config.getint("DEFAULT", "cachesize"),
                     config.getfloat("DEFAULT", "V_dd"),
-                    config.getfloat("DEFAULT", "buswidth")
                 )
         self.hw_allocated = {}
 
@@ -140,7 +139,6 @@ class HardwareModel:
         transistor_size,
         cache_size,
         V_dd,
-        bus_width
     ):
         self.id = id
         self.max_bw = bandwidth  # this doesn't really get used. deprecate?
@@ -150,8 +148,8 @@ class HardwareModel:
         self.transistor_size = transistor_size
         self.cache_size = cache_size
         self.V_dd = V_dd
-        self.buffer_bus_width = bus_width
-        self.memory_bus_width = bus_width
+        self.buffer_bus_width = SYSTEM_BUS_SIZE
+        self.memory_bus_width = SYSTEM_BUS_SIZE
 
     def init_memory(self, mem_needed, nvm_mem_needed, buffer_size=64):
         """
@@ -192,10 +190,9 @@ class HardwareModel:
         self.buffer_size = buffer_size
         self.gen_cacti_results()
 
-
     def update_netlist(self):
-        self.buffer_bus_width = num_nodes_with_func(self.netlist, "Buf") * 64
-        self.memory_bus_width = num_nodes_with_func(self.netlist, "MainMem") * 64
+        self.buffer_bus_width = num_nodes_with_func(self.netlist, "Buf") * SYSTEM_BUS_SIZE
+        self.memory_bus_width = num_nodes_with_func(self.netlist, "MainMem") * SYSTEM_BUS_SIZE
 
     def set_technology_parameters(self):
         """

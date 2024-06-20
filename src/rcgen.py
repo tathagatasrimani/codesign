@@ -7,8 +7,8 @@ def generate_optimization_params(latency, active_power, active_energy, passive_p
         V_dd: voltage in V
         MemReadL: memory read latency in s
         MemWriteL: memory write latency in s
-        MemReadPact: memory read active power in W
-        MemWritePact: memory write active power in W
+        MemReadEact: memory read active power in W
+        MemWriteEact: memory write active power in W
         MemPpass: memory passive power in W
     
         params:

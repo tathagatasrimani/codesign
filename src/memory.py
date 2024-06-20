@@ -1,6 +1,7 @@
 import numpy as np
 
 import sim_util
+from global_constants import SYSTEM_BUS_SIZE
 
 ALIGNMENT = 8
 MAX_REQUEST_SIZE = 1 << 30
@@ -173,7 +174,7 @@ class Cache:
         size,
         memory: Memory,
         var_size=1,
-        line_size=64,
+        line_size=SYSTEM_BUS_SIZE,
     ):
         """
         Caching not actually being used. Want to leave memory heirarchy as a
