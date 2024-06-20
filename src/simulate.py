@@ -620,10 +620,7 @@ class ConcreteSimulator:
         copy = sim_util.add_cache_mem_access_to_dfg(
             copy, hw.latency["Buf"], hw.latency["MainMem"]
         )
-        in_use = schedule.schedule(copy, hw_counts, hw.netlist)
-        with open(f"register_log/test_file.txt", "w") as f:
-            for key in in_use:
-                f.write(str(key) + ": " + str(in_use[key]) + "\n")
+        schedule.schedule(copy, hw_counts, hw.netlist)
         copy = sim_util.prune_buffer_and_mem_nodes(copy, hw.netlist)
 
         return copy

@@ -154,8 +154,10 @@ def log_register_use(computation_graph, step):
     keys = list(in_use.keys())
     keys.sort()
     in_use_sorted = {i: in_use[i] for i in keys}
-    #sim_util.topological_layout_plot(computation_graph, reverse=True)
-    return in_use_sorted
+    with open(f"register_log/test_file.txt", "w") as f:
+            for key in in_use_sorted:
+                f.write(str(key) + ": " + str(in_use[key]) + "\n")
+    sim_util.topological_layout_plot(computation_graph, reverse=True)
         
 
 
@@ -278,5 +280,4 @@ def schedule(computation_graph, hw_element_counts, hw_netlist):
 
         layer += 1
     computation_graph = assign_time_of_execution(computation_graph)
-    in_use = log_register_use(computation_graph, 0.1)
-    return in_use
+    log_register_use(computation_graph, 0.1)
