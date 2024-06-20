@@ -260,14 +260,17 @@ class HardwareModel:
 
         self.latency["MainMem"] = (
             rcs["other"]["MemReadL"] + rcs["other"]["MemWriteL"]
-        ) / 2 * 1e9
-        self.latency["Buf"] = rcs["other"]["BufL"] * 1e9
+        ) / 2
+        self.latency["Buf"] = rcs["other"]["BufL"]
         self.dynamic_energy["MainMem"]["Read"] = rcs["other"]["MemReadEact"] * 1e9
         self.dynamic_energy["MainMem"]["Write"] = rcs["other"]["MemWriteEact"] * 1e9
         self.dynamic_energy["Buf"]["Read"] = rcs["other"]["BufReadEact"] * 1e9
         self.dynamic_energy["Buf"]["Write"] = rcs["other"]["BufWriteEact"] * 1e9
         self.leakage_power["MainMem"] = rcs["other"]["MemPpass"] * 1e9
         self.leakage_power["Buf"] = rcs["other"]["BufPpass"] * 1e9
+
+        self.latency["OffChipIO"] = rcs["other"]["OffChipIOL"]
+        self.dynamic_power["OffChipIO"] = rcs["other"]["OffChipIOPact"]
 
         beta = yaml.load(open(coeff_file, "r"), Loader=yaml.Loader)["beta"]
 
@@ -391,11 +394,13 @@ class HardwareModel:
             mem_vals["Dynamic write energy (nJ)"]
         )
 
-        self.leakage_power["Buf"] = float(buf_vals["Standby leakage per bank(mW)"])
-        self.leakage_power["MainMem"] = float(mem_vals["Standby leakage per bank(mW)"])
+        # convert to nW
+        self.leakage_power["Buf"] = float(buf_vals["Standby leakage per bank(mW)"]) * 1e6
+        self.leakage_power["MainMem"] = float(mem_vals["Standby leakage per bank(mW)"]) * 1e6 
 
         # get the IO parameters from the memory run
-        self.latency["OffChipIO"] = float(mem_vals["IO latency (s)"]) if mem_vals["IO latency (s)"] != "N/A" else 0.0
+        self.latency["OffChipIO"] = float(mem_vals["IO latency (s)"]) * 1e-9 if mem_vals["IO latency (s)"] != "N/A" else 0.0
+        # what unit is this?!
         self.dynamic_power["OffChipIO"] = float(mem_vals["IO power dynamic"]) if mem_vals["IO power dynamic"] != "N/A" else 0.0
 
         self.area["OffChipIO"] = float(mem_vals["IO area"]) if mem_vals["IO area"] != "N/A" else 0.0
