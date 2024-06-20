@@ -5,6 +5,8 @@ import ast
 import configparser as cp
 import yaml
 import os
+import logging
+logger = logging.getLogger(__name__)
 
 import graphviz as gv
 from sympy import *
@@ -29,18 +31,18 @@ func_ref = {}
 ## Shoudl have an NX graph object as the main instance variable.
 
 
-def get_nodes_by_filter(netlist, key, value):
+def get_nodes_by_filter(netlist, key, value) -> dict:
     """
     returns dict of nodes:data that satisfy the filter
     """
     return {k: v for k, v in dict(netlist.nodes.data()).items() if v[key] == value}
 
 
-def get_in_use_nodes(netlist):
+def get_in_use_nodes(netlist) -> dict:
     return get_nodes_by_filter(netlist, "in_use", True)
 
 
-def get_nodes_with_func(netlist, func):
+def get_nodes_with_func(netlist, func) -> dict:
     """
     should i refactor 'function' to 'operation'?
     """
@@ -193,12 +195,14 @@ class HardwareModel:
         self.gen_cacti_results()
 
     def update_netlist(self):
+        logger.info(f"Old bus_widths -> buf: {self.buffer_bus_width}, mem: {self.memory_bus_width}")
         self.buffer_bus_width = (
             num_nodes_with_func(self.netlist, "Buf") * SYSTEM_BUS_SIZE
         )
         self.memory_bus_width = (
             num_nodes_with_func(self.netlist, "MainMem") * SYSTEM_BUS_SIZE
         )
+        logger.info(f"New bus_widths -> buf: {self.buffer_bus_width}, mem: {self.memory_bus_width}")
 
     def set_technology_parameters(self):
         """
@@ -263,7 +267,7 @@ class HardwareModel:
                 MemWritePact: memory write active power in W
                 MemPpass: memory passive power in W
         """
-        # print(f"Updating Technology Parameters...")
+        logger.info("Updating Technology Parameters")
         rcs = yaml.load(open(rc_params_file, "r"), Loader=yaml.Loader)
         C = rcs["Ceff"]  # nF
         R = rcs["Reff"]  # Ohms
@@ -372,14 +376,6 @@ class HardwareModel:
         self.off_chip_area = self.area["MainMem"] + self.area["OffChipIO"]
 
         return self.on_chip_area * 1e-6  # convert from nm^2 to um^2
-
-    def get_mem_compute_bw(self):
-        """
-        get edges between buf0 and Regs
-        """
-        edges = list(filter(lambda x: "Reg" in x[0], self.netlist.in_edges("Buf0")))
-        n = len(edges)
-        return n
 
     def gen_cacti_results(self):
         """

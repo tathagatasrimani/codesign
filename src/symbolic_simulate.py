@@ -350,15 +350,8 @@ class SymbolicSimulator:
                             func = node.split("_")[3]  # stall names have std formats
                         else:
                             func = computation_dfg.nodes()[node]["function"]
-                        # THIS PATH LATENCY MAY OR MAY NOT USE CYCLE TIME OR WALL CLOCK TIME DUE TO SOLVER INSTABILITY
                         path_latency += hw_symbols.symbolic_latency_wc[func]
-                        # THIS PATH LATENCY USES CYCLE TIME AS A REFERENCE FOR WHAT THE TRUE EDP IS
-                        path_latency_ceil += hw_symbols.symbolic_latency_cyc[func]
                     self.cycles = symbolic_convex_max(self.cycles, path_latency)
-
-                    self.cycles_ceil = symbolic_convex_max(
-                        self.cycles_ceil, path_latency_ceil
-                    )
 
     def set_data_path(self):
         """

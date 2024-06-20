@@ -469,6 +469,7 @@ class ConcreteSimulator:
         self.cycles = nx.dag_longest_path_length(computation_dfg)
         longest_path = nx.dag_longest_path(computation_dfg)
         logger.info(f"longest path: {longest_path}")
+        logger.info(f"longest path length: {self.cycles}")
 
         for elem_name, elem_data in dict(hw.netlist.nodes.data()).items():
             scaling = 1
@@ -591,7 +592,7 @@ class ConcreteSimulator:
             + self.passive_power_dissipation_rate
         )
 
-    def calculate_edp(self, hw):
+    def calculate_edp(self):
         self.execution_time = self.cycles # in seconds
         self.total_energy = self.active_energy + self.passive_energy
         self.edp = self.total_energy * self.execution_time
@@ -689,7 +690,7 @@ def main(args):
 
     hardwareModel.un_allocate_all_in_use_elements(hw.netlist)
     data = simulator.simulate(computation_dfg, hw)
-    simulator.calculate_edp(hw)
+    simulator.calculate_edp()
 
     area = hw.get_total_area()
 

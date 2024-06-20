@@ -1,6 +1,8 @@
 # builtin
 import argparse
 from copy import deepcopy
+import logging
+logger = logging.getLogger(__name__)
 
 # third party
 import networkx as nx
@@ -53,12 +55,12 @@ def get_stalled_func_counts(scheduled_dfg):
     return dict(zip(stalled_funcs, counts))
 
 
-def get_most_stalled_func(scheduled_dfg):
+def get_most_stalled_func(scheduled_dfg) -> str:
     func_counts = get_stalled_func_counts(scheduled_dfg)
     return max(func_counts, key=func_counts.get)
 
 
-def sample_stalled_func(scheduled_dfg):
+def sample_stalled_func(scheduled_dfg: nx.DiGraph) -> str:
     func_counts = get_stalled_func_counts(scheduled_dfg)
     if len(func_counts) == 0:
         return None
@@ -73,9 +75,11 @@ def sample_stalled_func(scheduled_dfg):
 
 
 def update_hw_with_new_node(hw_netlist, scarce_function):
+    logger.info(f"Updating HW with scarce node: {scarce_function}")
     if scarce_function == None:
         return
     func_nodes = hardwareModel.get_nodes_with_func(hw_netlist, scarce_function)
+    logger.info(f"existing nodes with scarce function: {func_nodes}")
     idx = len(func_nodes)
     hw_netlist.add_node(
         f"{scarce_function}{idx}",
@@ -107,9 +111,9 @@ def update_hw_with_new_node(hw_netlist, scarce_function):
             hw_netlist.add_edge(f"{scarce_function}{idx}", node2)
             hw_netlist.add_edge(node2, f"{scarce_function}{idx}")
     elif scarce_function == "Buf":
-        hw_netlist[f"{scarce_function}{idx}"]["type"] = "memory"
-        hw_netlist[f"{scarce_function}{idx}"]["size"] = 1
-        hw_netlist[f"{scarce_function}{idx}"]["memory_module"] = func_nodes[0][
+        hw_netlist.nodes[f"{scarce_function}{idx}"]["type"] = "memory"
+        hw_netlist.nodes[f"{scarce_function}{idx}"]["size"] = 1
+        hw_netlist.nodes[f"{scarce_function}{idx}"]["memory_module"] = list(func_nodes.values())[0][
             "memory_module"
         ]
         # add edges to all Regs
@@ -133,9 +137,9 @@ def update_hw_with_new_node(hw_netlist, scarce_function):
             hw_netlist.add_edge(f"{scarce_function}{idx}", node2)
             hw_netlist.add_edge(node2, f"{scarce_function}{idx}")
     elif scarce_function == "MainMem":
-        hw_netlist[f"{scarce_function}{idx}"]["type"] = "memory"
-        hw_netlist[f"{scarce_function}{idx}"]["size"] = 1
-        hw_netlist[f"{scarce_function}{idx}"]["memory_module"] = func_nodes[0][
+        hw_netlist.nodes[f"{scarce_function}{idx}"]["type"] = "memory"
+        hw_netlist.nodes[f"{scarce_function}{idx}"]["size"] = 1
+        hw_netlist.nodes[f"{scarce_function}{idx}"]["memory_module"] = list(func_nodes.values())[0][
             "memory_module"
         ]
         # add edges to all Bufs
@@ -183,53 +187,63 @@ def run_arch_search(
     old_scheduled_dfg = simulator.schedule(computation_dfg, hw)
 
     simulator.simulate(old_scheduled_dfg, hw)
-    simulator.calculate_edp(hw)
+    simulator.calculate_edp()
     area = hw.get_total_area()
 
     if best_edp is None:
         best_edp = simulator.edp
-    best_hw_netlist = hw.netlist.copy()
+    logger.info(f"Best EDP: {best_edp} E-18 Js")
+    best_hw = deepcopy(hw)
     best_schedule = old_scheduled_dfg
 
+    hw_copy = deepcopy(hw)
+
     for i in range(num_steps):
-        hw_copy = deepcopy(hw)
 
         func = sample_stalled_func(old_scheduled_dfg)
 
         update_hw_with_new_node(hw_copy.netlist, func)
         hw_copy.update_netlist()
+        logger.info("updated netlist")
+        logger.info(f"new func counts: {hardwareModel.get_func_count(hw_copy.netlist)}")
         hw_copy.gen_cacti_results()
+        logger.info("generated cacti results")
 
         scheduled_dfg = simulator.schedule(computation_dfg, hw_copy)
+        logger.info("scheduled dfg")
 
         func_counts = get_stalled_func_counts(scheduled_dfg)
 
-        if nx.is_isomorphic(old_scheduled_dfg, scheduled_dfg):
-            print("no change in schedule")
+        # I don't need to do this
+        # if nx.is_isomorphic(old_scheduled_dfg, scheduled_dfg):
+        #     print("no change in schedule")
             # continue
 
         hw = hw_copy
 
         simulator.simulate(scheduled_dfg, hw)
-        simulator.calculate_edp(hw)
+        simulator.calculate_edp()
+        logger.info(f"simulated; execution time: {simulator.execution_time} ns, passive energy: {simulator.passive_energy} nJ, active energy: {simulator.active_energy} nJ, edp: {simulator.edp} E-18 Js")
 
         area = hw.get_total_area()
         if area > area_constraint:
+            logger.info("Area constraint exceeded; breaking")
             # shouldn't actually break here, because you can try other nodes that are smaller but still might have a good effect
             break
         elif simulator.edp < best_edp:
+            logger.info(f"Adding {func} improved EDP from {best_edp} to {simulator.edp}")
             best_edp = simulator.edp
-            best_hw_netlist = hw_copy.netlist
+            best_hw = deepcopy(hw_copy)
             best_schedule = scheduled_dfg
 
         old_scheduled_dfg = scheduled_dfg
         if len(func_counts) == 0:
             break
 
-    hw.netlist = best_hw_netlist
+    hw = best_hw
     hw.update_netlist()
 
-    return best_edp, best_schedule
+    return best_edp, best_schedule, best_hw
 
 
 def main():

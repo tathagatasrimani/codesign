@@ -173,38 +173,38 @@ symbolic_latency_wc = {
     "OffChipIO": OffChipIOL,
 }
 
-def make_sym_lat_cyc(f, lat_wc): # bad name, output is not in units of cycles, its in units of time.
-    return ceiling(f*lat_wc)/f
+# def make_sym_lat_cyc(f, lat_wc): # bad name, output is not in units of cycles, its in units of time.
+#     return ceiling(f*lat_wc)/f
 
-symbolic_latency_cyc = {
-    "And": make_sym_lat_cyc(f, symbolic_latency_wc["And"]),
-    "Or": make_sym_lat_cyc(f, symbolic_latency_wc["Or"]),
-    "Add": make_sym_lat_cyc(f, symbolic_latency_wc["Add"]),
-    "Sub": make_sym_lat_cyc(f, symbolic_latency_wc["Sub"]),
-    "Mult": make_sym_lat_cyc(f, symbolic_latency_wc["Mult"]),
-    "FloorDiv": make_sym_lat_cyc(f, symbolic_latency_wc["FloorDiv"]),
-    "Mod": make_sym_lat_cyc(f, symbolic_latency_wc["Mod"]),
-    "LShift": make_sym_lat_cyc(f, symbolic_latency_wc["LShift"]),
-    "RShift": make_sym_lat_cyc(f, symbolic_latency_wc["RShift"]),
-    "BitOr": make_sym_lat_cyc(f, symbolic_latency_wc["BitOr"]),
-    "BitXor": make_sym_lat_cyc(f, symbolic_latency_wc["BitXor"]),
-    "BitAnd": make_sym_lat_cyc(f, symbolic_latency_wc["BitAnd"]),
-    "Eq": make_sym_lat_cyc(f, symbolic_latency_wc["Eq"]),
-    "NotEq": make_sym_lat_cyc(f, symbolic_latency_wc["NotEq"]),
-    "Lt": make_sym_lat_cyc(f, symbolic_latency_wc["Lt"]),
-    "LtE": make_sym_lat_cyc(f, symbolic_latency_wc["LtE"]),
-    "Gt": make_sym_lat_cyc(f, symbolic_latency_wc["Gt"]),
-    "GtE": make_sym_lat_cyc(f, symbolic_latency_wc["GtE"]),
-    "USub": make_sym_lat_cyc(f, symbolic_latency_wc["USub"]),
-    "UAdd": make_sym_lat_cyc(f, symbolic_latency_wc["UAdd"]),
-    "IsNot": make_sym_lat_cyc(f, symbolic_latency_wc["IsNot"]),
-    "Not": make_sym_lat_cyc(f, symbolic_latency_wc["Not"]),
-    "Invert": make_sym_lat_cyc(f, symbolic_latency_wc["Invert"]),
-    "Regs": make_sym_lat_cyc(f, symbolic_latency_wc["Regs"]),
-    "Buf": BufL,
-    "MainMem": (MemReadL + MemWriteL) / 2,
-    "OffChipIO": OffChipIOL,
-}
+# symbolic_latency_cyc = {
+#     "And": make_sym_lat_cyc(f, symbolic_latency_wc["And"]),
+#     "Or": make_sym_lat_cyc(f, symbolic_latency_wc["Or"]),
+#     "Add": make_sym_lat_cyc(f, symbolic_latency_wc["Add"]),
+#     "Sub": make_sym_lat_cyc(f, symbolic_latency_wc["Sub"]),
+#     "Mult": make_sym_lat_cyc(f, symbolic_latency_wc["Mult"]),
+#     "FloorDiv": make_sym_lat_cyc(f, symbolic_latency_wc["FloorDiv"]),
+#     "Mod": make_sym_lat_cyc(f, symbolic_latency_wc["Mod"]),
+#     "LShift": make_sym_lat_cyc(f, symbolic_latency_wc["LShift"]),
+#     "RShift": make_sym_lat_cyc(f, symbolic_latency_wc["RShift"]),
+#     "BitOr": make_sym_lat_cyc(f, symbolic_latency_wc["BitOr"]),
+#     "BitXor": make_sym_lat_cyc(f, symbolic_latency_wc["BitXor"]),
+#     "BitAnd": make_sym_lat_cyc(f, symbolic_latency_wc["BitAnd"]),
+#     "Eq": make_sym_lat_cyc(f, symbolic_latency_wc["Eq"]),
+#     "NotEq": make_sym_lat_cyc(f, symbolic_latency_wc["NotEq"]),
+#     "Lt": make_sym_lat_cyc(f, symbolic_latency_wc["Lt"]),
+#     "LtE": make_sym_lat_cyc(f, symbolic_latency_wc["LtE"]),
+#     "Gt": make_sym_lat_cyc(f, symbolic_latency_wc["Gt"]),
+#     "GtE": make_sym_lat_cyc(f, symbolic_latency_wc["GtE"]),
+#     "USub": make_sym_lat_cyc(f, symbolic_latency_wc["USub"]),
+#     "UAdd": make_sym_lat_cyc(f, symbolic_latency_wc["UAdd"]),
+#     "IsNot": make_sym_lat_cyc(f, symbolic_latency_wc["IsNot"]),
+#     "Not": make_sym_lat_cyc(f, symbolic_latency_wc["Not"]),
+#     "Invert": make_sym_lat_cyc(f, symbolic_latency_wc["Invert"]),
+#     "Regs": make_sym_lat_cyc(f, symbolic_latency_wc["Regs"]),
+#     "Buf": BufL,
+#     "MainMem": (MemReadL + MemWriteL) / 2,
+#     "OffChipIO": OffChipIOL,
+# }
 
 def make_sym_power_act(elem):
     return 0.5 * V_dd * V_dd  / Reff[elem] # C dependence will reappear explicitly when we go back to Energy from power.
@@ -277,5 +277,5 @@ symbolic_power_passive = {
 
 def update_symbolic_passive_power(R_off_on_ratio):
     for elem in symbolic_power_passive:
-        if elem != "MainMem":
+        if elem != "MainMem" and elem != "Buf":
             symbolic_power_passive[elem] = make_sym_power_pass(beta[elem], V_dd**2 / (R_off_on_ratio * Reff["Not"]))
