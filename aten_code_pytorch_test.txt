@@ -1,0 +1,28 @@
+
+
+
+def forward(self, primals_1, primals_2, primals_3, primals_4, primals_5, primals_6, primals_7, primals_8):
+    collapse_view = torch.ops.prims.collapse_view.default(primals_8, 1, 2);  primals_8 = None
+    transpose = torch.ops.prims.transpose.default(primals_1, [1, 0]);  primals_1 = None
+    mm = torch.ops.aten.mm.default(collapse_view, transpose);  transpose = None
+    mul = torch.ops.prims.mul.default(mm, 1.0);  mm = None
+    mul_1 = torch.ops.prims.mul.default(primals_2, 1.0);  primals_2 = None
+    add = torch.ops.aten.add.Tensor(mul, mul_1);  mul = mul_1 = None
+    le = torch.ops.prims.le.default(add, 0.0)
+    scalar_tensor = torch.ops.aten.scalar_tensor.default(0, dtype = torch.float32, layout = torch.strided, device = device(type='cpu'))
+    where = torch.ops.aten.where.self(le, scalar_tensor, add);  le = scalar_tensor = add = None
+    transpose_1 = torch.ops.prims.transpose.default(primals_3, [1, 0]);  primals_3 = None
+    mm_1 = torch.ops.aten.mm.default(where, transpose_1)
+    mul_2 = torch.ops.prims.mul.default(mm_1, 1.0);  mm_1 = None
+    mul_3 = torch.ops.prims.mul.default(primals_4, 1.0);  primals_4 = None
+    add_1 = torch.ops.aten.add.Tensor(mul_2, mul_3);  mul_2 = mul_3 = None
+    le_1 = torch.ops.prims.le.default(add_1, 0.0)
+    scalar_tensor_1 = torch.ops.aten.scalar_tensor.default(0, dtype = torch.float32, layout = torch.strided, device = device(type='cpu'))
+    where_1 = torch.ops.aten.where.self(le_1, scalar_tensor_1, add_1);  le_1 = scalar_tensor_1 = add_1 = None
+    transpose_2 = torch.ops.prims.transpose.default(primals_5, [1, 0]);  primals_5 = None
+    mm_2 = torch.ops.aten.mm.default(where_1, transpose_2)
+    mul_4 = torch.ops.prims.mul.default(mm_2, 1.0);  mm_2 = None
+    mul_5 = torch.ops.prims.mul.default(primals_6, 1.0);  primals_6 = None
+    add_2 = torch.ops.aten.add.Tensor(mul_4, mul_5);  mul_4 = mul_5 = None
+    return [add_2, collapse_view, where, transpose_1, where_1, transpose_2, primals_7]
+    

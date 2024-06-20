@@ -39,7 +39,7 @@ def get_graph_backend(gm, sample_inputs):
         fw_compiler=my_compiler
     )
 
-filename = "pytorch_test" # TODO: pass this from command arg
+filename = "pytorch_test"
 from benchmarks.models.pytorch_test import NeuralNetwork
 model = NeuralNetwork()
 

@@ -1,0 +1,28 @@
+
+
+
+def forward(self, primals_1, primals_2, primals_3, primals_4, primals_5, primals_6, primals_7, primals_8):
+    collapse_view = nativePrims.collapse_view(primals_8, 1, 2);  primals_8 = None
+    transpose = nativePrims.transpose(primals_1, [1, 0]);  primals_1 = None
+    mm = nativePrims.transpose.mm(collapse_view, transpose);  transpose = None
+    mul = nativePrims.mul(mm, 1.0);  mm = None
+    mul_1 = nativePrims.mul(primals_2, 1.0);  primals_2 = None
+    add = nativePrims.add(mul, mul_1);  mul = mul_1 = None
+    le = nativePrims.le(add, 0.0)
+    scalar_tensor = nativePrims.scalar_tensor(0, dtype = torch.float32, layout = torch.strided, device = device(type='cpu'))
+    where = nativePrims.where(le, scalar_tensor, add);  le = scalar_tensor = add = None
+    transpose_1 = nativePrims.transpose(primals_3, [1, 0]);  primals_3 = None
+    mm_1 = nativePrims.transpose.mm(where, transpose_1)
+    mul_2 = nativePrims.mul(mm_1, 1.0);  mm_1 = None
+    mul_3 = nativePrims.mul(primals_4, 1.0);  primals_4 = None
+    add_1 = nativePrims.add(mul_2, mul_3);  mul_2 = mul_3 = None
+    le_1 = nativePrims.le(add_1, 0.0)
+    scalar_tensor_1 = nativePrims.scalar_tensor(0, dtype = torch.float32, layout = torch.strided, device = device(type='cpu'))
+    where_1 = nativePrims.where(le_1, scalar_tensor_1, add_1);  le_1 = scalar_tensor_1 = add_1 = None
+    transpose_2 = nativePrims.transpose(primals_5, [1, 0]);  primals_5 = None
+    mm_2 = nativePrims.transpose.mm(where_1, transpose_2)
+    mul_4 = nativePrims.mul(mm_2, 1.0);  mm_2 = None
+    mul_5 = nativePrims.mul(primals_6, 1.0);  primals_6 = None
+    add_2 = nativePrims.add(mul_4, mul_5);  mul_4 = mul_5 = None
+    return [add_2, collapse_view, where, transpose_1, where_1, transpose_2, primals_7]
+    
