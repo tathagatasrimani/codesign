@@ -11,10 +11,11 @@ prim_to_native = {"torch.ops.prims.collapse_view.default": "nativePrims.collapse
                   "torch.ops.prims.transpose.default": "nativePrims.transpose",
                   "torch.ops.aten.mm.default": "nativePrims.transpose.mm",
                   "torch.ops.prims.mul.default": "nativePrims.mul",
-                  "torch.ops.aten.add.Tensor": "nativePrims.add",
+                  "torch.ops.prims.add.default": "nativePrims.add",
                   "torch.ops.prims.le.default": "nativePrims.le",
                   "torch.ops.aten.scalar_tensor.default": "nativePrims.scalar_tensor",
-                  "torch.ops.aten.where.self": "nativePrims.where",
+                  "torch.ops.prims.where.default": "nativePrims.where",
+                  "torch.ops.prims.broadcast_in_dim": "nativePrims.broadcast_in_dim"
                   }
 
 for prim_func, native_func in prim_to_native.items():

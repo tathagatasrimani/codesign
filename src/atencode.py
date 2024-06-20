@@ -19,7 +19,11 @@ decompositions.update(
         torch.ops.aten.expand,
         torch.ops.aten.alias,
         torch.ops.aten.view,
-        torch.ops.aten.as_strided
+        torch.ops.aten.as_strided,
+        torch.ops.aten.add,
+        torch.ops.aten.where,
+        torch.ops.aten.mm,
+        torch.ops.aten.transpose,
     ])
 )
 

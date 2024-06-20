@@ -120,3 +120,33 @@ def where(condition, x, y):
     else:
         return [where(c, x_elem, y_elem) for c, x_elem, y_elem in zip(condition, x, y)]
 
+def broadcast_in_dim(a, shape, broadcast_dimensions):
+    # Calculate the number of dimensions for output matrix
+    ndim_a = len(shape)
+    ndim_result = max(ndim_a, len(broadcast_dimensions))
+    
+    # Expand dimensions of 'a' to match 'ndim_result'
+    for _ in range(ndim_result - ndim_a):
+        a = [a]
+    
+    # Adjust shape of 'a' to match 'ndim_result'
+    while len(shape) < ndim_result:
+        shape.insert(0, 1)
+    
+    # Broadcast 'a' along 'broadcast_dimensions'
+    for dim in broadcast_dimensions:
+        if shape[dim] == 1:
+            shape[dim] = len(a)
+        else:
+            assert shape[dim] == len(a), "Cannot broadcast dimensions"
+    
+    # Perform actual broadcasting
+    def recursive_broadcast(arr, idx):
+        if idx >= ndim_result:
+            return arr
+        if isinstance(arr, list):
+            return [recursive_broadcast(subarr, idx + 1) for subarr in arr]
+        else:
+            return [arr] * shape[idx]
+    
+    return recursive_broadcast(a, 0)
