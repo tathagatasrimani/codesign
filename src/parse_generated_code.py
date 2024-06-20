@@ -13,7 +13,6 @@ prim_to_native = {"torch.ops.prims.collapse_view.default": "nativePrims.collapse
                   "torch.ops.prims.mul.default": "nativePrims.mul",
                   "torch.ops.prims.add.default": "nativePrims.add",
                   "torch.ops.prims.le.default": "nativePrims.le",
-                  "torch.ops.aten.scalar_tensor.default": "nativePrims.scalar_tensor",
                   "torch.ops.prims.where.default": "nativePrims.where",
                   "torch.ops.prims.broadcast_in_dim": "nativePrims.broadcast_in_dim"
                   }

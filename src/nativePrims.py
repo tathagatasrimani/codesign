@@ -109,10 +109,6 @@ def add(matrix1, matrix2):
         return matrix1 + matrix2
     else:
         return [add(sub1, sub2) for sub1, sub2 in zip(matrix1, matrix2)]
-    
-def scalar_tensor(*arg, **args):
-    # TODO: what does this do?
-    return
 
 def where(condition, x, y):
     if isinstance(condition, bool):
