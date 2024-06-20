@@ -108,15 +108,21 @@ def assign_time_of_execution(graph):
 def assign_upstream_path_lengths(graph):
     """
     Assigns the longest path to each node in the graph.
-    Currently ignores actual latencies of nodes.
-    TODO: change this to dijkstra
+    Uses Dijkstra to take operation latency into account.
+    Params:
+    graph: nx.DiGraph
+        The computation graph
     """
-    for node in graph:
+    for node in graph.nodes:
         graph.nodes[node]["dist"] =  0
-    for i, generations in enumerate(nx.topological_generations(graph)):
-        for node in generations:
-            graph.nodes[node]["dist"] = max(i, graph.nodes[node]["dist"])
-    
+    q = deque()
+    for node in list(nx.topological_generations(graph))[0]:
+        q.append(node)
+        while not len(q) == 0:
+            curnode = q.popleft()
+            graph.nodes[curnode]["dist"] = max(graph.nodes[curnode]["dist"], nx.dijkstra_path_length(graph, node, curnode))
+            for child in graph.successors(curnode):
+                q.append(child)
     return graph
 
 def log_register_use(computation_graph, step):
