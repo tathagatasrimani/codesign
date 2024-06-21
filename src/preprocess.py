@@ -1,4 +1,3 @@
-import yaml
 
 import pyomo.environ as pyo
 from MyPyomoSympyBimap import MyPyomoSympyBimap
@@ -42,26 +41,12 @@ class Preprocessor:
         model.V_dd_lower = pyo.Constraint(rule=self.V_dd_lower)
         model.V_dd_upper = pyo.Constraint(rule=self.V_dd_upper)
         # model.V_dd = pyo.Constraint(expr = model.x[self.mapping[hw_symbols.V_dd]] == self.initial_params["V_dd"])
-        model.AddR = pyo.Constraint(
-            expr=model.x[self.mapping[hw_symbols.Reff["Add"]]]
-            <= self.initial_params["Reff_Add"]
-        )
-        model.RegsR = pyo.Constraint(
-            expr=model.x[self.mapping[hw_symbols.Reff["Regs"]]]
-            <= self.initial_params["Reff_Regs"]
-        )
-        model.NotR = pyo.Constraint(
-            expr=model.x[self.mapping[hw_symbols.Reff["Not"]]]
-            <= self.initial_params["Reff_Not"]
-        )
-        model.AddC = pyo.Constraint(
-            expr=model.x[self.mapping[hw_symbols.Ceff["Add"]]]
-            <= self.initial_params["Ceff_Add"]
-        )
-        model.RegsC = pyo.Constraint(
-            expr=model.x[self.mapping[hw_symbols.Ceff["Regs"]]]
-            <= self.initial_params["Ceff_Regs"]
-        )
+
+        # all parameters can only be less than or equal to their initial values
+        def max_val_orig_val_rule(model, i):
+            return model.x[self.mapping[self.free_symbols[i]]] <= self.initial_params[self.free_symbols[i].name]
+        model.Constraint2 = pyo.Constraint([i for i in range(len(self.free_symbols))], rule=max_val_orig_val_rule)
+        
         return model
 
     def add_regularization_to_objective(self, model, l=1):
@@ -126,7 +111,6 @@ class Preprocessor:
         print("edp:", edp)
         print("initial val:", self.initial_val)
 
-
         model.nVars = pyo.Param(initialize=len(edp.free_symbols))
         model.N = pyo.RangeSet(model.nVars)
         model.x = pyo.Var(model.N, domain=pyo.NonNegativeReals)
@@ -135,7 +119,7 @@ class Preprocessor:
         i = 0
         for j in model.x:
             self.mapping[self.free_symbols[i]] = j
-            print("x[{index}]".format(index=j), self.free_symbols[i])
+            print(f"x[{j}] {self.free_symbols[i]}")
             i += 1
 
         m = MyPyomoSympyBimap()
