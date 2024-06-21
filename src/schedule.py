@@ -165,7 +165,6 @@ def log_register_use(computation_graph, step, hw_element_counts, execution_time)
         out_edge = list(computation_graph.out_edges(node))[0]
         end_time = computation_graph.nodes[node]["dist"] + computation_graph.nodes[node]["cost"]
         end_time_step = (end_time // step) * step
-        print(first_time_step, end_time_step)
         i = round(first_time_step, 3)
         while i <= end_time_step:
             if i not in in_use:
