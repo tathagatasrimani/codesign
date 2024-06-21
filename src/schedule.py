@@ -1,8 +1,10 @@
 from collections import deque
+import math
 
 import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 
 from global_constants import SEED
 import sim_util
@@ -111,7 +113,7 @@ def assign_time_of_execution(graph):
         # mirroring operation
         graph.nodes[node]["dist"] = (graph.nodes[node]["dist"] - max_dist) * -1
     graph = nx.reverse(graph)
-    return graph
+    return graph, max_dist
 
 def assign_upstream_path_lengths(graph):
     """
@@ -133,7 +135,18 @@ def assign_upstream_path_lengths(graph):
                 q.append(child)
     return graph
 
-def log_register_use(computation_graph, step):
+def write_df(in_use, hw_element_counts, execution_time, step):
+    data = {round(i*step, 3): [0]*hw_element_counts["Regs"] for i in range(0, int(math.ceil(execution_time/step)))}
+    for key in in_use:
+        for elem in in_use[key]:
+            data[key][int(elem[-1])] = 1
+    df = pd.DataFrame(data=data).transpose()
+    cols={i:f"reg{i}" for i in range(hw_element_counts["Regs"])}
+    df = df.rename(columns=cols)
+    df.index.name = "time"
+    df.to_csv("register_log/test_file.csv")
+
+def log_register_use(computation_graph, step, hw_element_counts, execution_time):
     """
     Logs which registers' values are being used at discrete time intervals.
 
@@ -152,19 +165,18 @@ def log_register_use(computation_graph, step):
         out_edge = list(computation_graph.out_edges(node))[0]
         end_time = computation_graph.nodes[node]["dist"] + computation_graph.nodes[node]["cost"]
         end_time_step = (end_time // step) * step
-        i = first_time_step
+        print(first_time_step, end_time_step)
+        i = round(first_time_step, 3)
         while i <= end_time_step:
             if i not in in_use:
                 in_use[i] = []
             in_use[i].append(computation_graph.nodes[node]["allocation"])
-            i += step
+            i = round(i + step, 3)
     keys = list(in_use.keys())
     keys.sort()
     in_use_sorted = {i: in_use[i] for i in keys}
-    with open(f"register_log/test_file.txt", "w") as f:
-        for key in in_use_sorted:
-            f.write(str(key) + ": " + str(in_use[key]) + "\n")
-    #sim_util.topological_layout_plot(computation_graph, reverse=True)
+    write_df(in_use_sorted, hw_element_counts, execution_time, step)
+    sim_util.topological_layout_plot(computation_graph, reverse=True)
         
 
 
@@ -286,5 +298,5 @@ def schedule(computation_graph, hw_element_counts, hw_netlist):
                 computation_graph.nodes[comp_nodes[i][0]]["allocation"] = hw_nodes[i][0]
 
         layer += 1
-    computation_graph = assign_time_of_execution(computation_graph)
-    log_register_use(computation_graph, 0.1)
+    computation_graph, execution_time = assign_time_of_execution(computation_graph)
+    log_register_use(computation_graph, 0.1, hw_element_counts, execution_time)
