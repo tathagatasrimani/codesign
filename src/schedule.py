@@ -177,8 +177,6 @@ def log_register_use(computation_graph, step, hw_element_counts, execution_time)
     write_df(in_use_sorted, hw_element_counts, execution_time, step)
     sim_util.topological_layout_plot(computation_graph, reverse=True)
         
-
-
 def schedule(computation_graph, hw_element_counts, hw_netlist):
     """
     Schedules the computation graph on the hardware netlist
