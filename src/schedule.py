@@ -163,7 +163,7 @@ def log_register_use(computation_graph, step, hw_element_counts, execution_time)
         if not func == "Regs": continue
         first_time_step = (computation_graph.nodes[node]["dist"] // step) * step
         out_edge = list(computation_graph.out_edges(node))[0]
-        end_time = computation_graph.nodes[node]["dist"] + computation_graph.nodes[node]["cost"]
+        end_time = computation_graph.nodes[node]["dist"] + computation_graph.edges[out_edge]["weight"]
         end_time_step = (end_time // step) * step
         i = round(first_time_step, 3)
         while i <= end_time_step:
