@@ -1,0 +1,126 @@
+import torch
+import importlib.util
+import sys
+assert torch.__version__ >= '2.0.*'
+import re
+from torch._decomp import core_aten_decompositions
+from torch._functorch.aot_autograd import aot_module_simplified
+
+# Backends can further finetune the decompositions if needed
+# Available decompositions can be found in
+# torch/_decomp/decompositions.py and torch/_refs/__init__.py
+decompositions = core_aten_decompositions()
+decompositions.update(
+    torch._decomp.get_decompositions([
+        torch.ops.aten.addmm,
+        torch.ops.aten.permute,
+        torch.ops.aten.mul,
+        torch.ops.aten.relu,
+        torch.ops.aten.le,
+        torch.ops.aten.scalar_tensor,
+        torch.ops.aten.expand,
+        torch.ops.aten.alias,
+        torch.ops.aten.view,
+        torch.ops.aten.as_strided,
+        torch.ops.aten.add,
+        torch.ops.aten.where,
+        torch.ops.aten.mm,
+        torch.ops.aten.transpose,
+    ])
+)
+
+graph = None
+def get_graph_backend(gm, sample_inputs):
+    def my_compiler(gm, sample_inputs):
+        global graph
+        if not graph:
+          graph = gm
+        return gm
+
+    # Invoke AOTAutograd
+    return aot_module_simplified(
+        gm,
+        sample_inputs,
+        decompositions=decompositions,
+        fw_compiler=my_compiler
+    )
+
+prim_to_native = {"torch.ops.prims.collapse_view.default": "nativePrims.collapse_view",
+                  "torch.ops.prims.transpose.default": "nativePrims.transpose",
+                  "torch.ops.aten.mm.default": "nativePrims.mm",
+                  "torch.ops.prims.mul.default": "nativePrims.mul",
+                  "torch.ops.prims.add.default": "nativePrims.add",
+                  "torch.ops.prims.le.default": "nativePrims.le",
+                  "torch.ops.prims.where.default": "nativePrims.where",
+                  "torch.ops.prims.broadcast_in_dim.default": "nativePrims.broadcast_in_dim"
+                  }
+
+# Assuming the network is named as "NeuralNetwork"
+file_path = sys.argv[1] if len(sys.argv) > 1 else "src/benchmarks/models/pytorch_test.py"
+module_name = "pytorch_module"
+spec = importlib.util.spec_from_file_location(module_name, file_path)
+module = importlib.util.module_from_spec(spec)
+sys.modules[module_name] = module
+spec.loader.exec_module(module)
+NeuralNetwork = module.NeuralNetwork
+model = NeuralNetwork()
+
+match = re.search(r'([^/]+)\.py$', file_path)
+file_name = match.group(1)
+
+torch._dynamo.reset()
+fn = torch.compile(backend=get_graph_backend, dynamic=True)(model)
+input = torch.rand(1, 28, 28, device='cpu')
+out = fn(input)
+forward_code: str = graph.code
+
+with open(f"aten_code_{file_name}.py","w") as code_file:
+   code_file.write(forward_code)
+
+for prim_func, native_func in prim_to_native.items():
+   forward_code = forward_code.replace(prim_func, native_func)
+
+with open(f"native_code_{file_name}.py","w") as native_file:
+   native_file.write(forward_code)
+
+code_lines = forward_code.split("\n")
+
+def_line = ""
+ret_line = ""
+for line in code_lines:
+    if line.startswith("def"):
+        def_line = line
+    elif line.startswith("    return "):
+       ret_line = line
+
+pattern = r'def\s+\w+\s*\(([^)]*)\)'
+match = re.search(pattern, def_line)
+arguments_str = match.group(1)
+arguments = [arg.strip() for arg in arguments_str.split(',')]
+argument_lines=[]
+for argument in arguments:
+   argument_lines.append(f"{argument}=[[1,1],[1,1]]") # TODO: find appropriate shape from NN
+
+pattern = r'\s*return\s*\[\s*([^]]+)\s*\]'
+match = re.search(pattern, ret_line)
+values_str = match.group(1)
+values = [arg.strip() for arg in values_str.split(',')]
+invoke_line = ""
+for index, value in enumerate(values):
+    if index==0:
+        invoke_line = invoke_line + value
+    else:
+        invoke_line = invoke_line + ", _"
+pattern = r'(forward\(.*?\))\s*:'
+match = re.search(pattern, def_line)
+function_signature = match.group(1)
+invoke_line = invoke_line + " = " + function_signature
+
+import_line = "from src import nativePrims"
+code_lines = [import_line,] + code_lines + argument_lines + [invoke_line,]
+code = "\n".join(code_lines)
+
+with open(f"reconstructed_code_{file_name}.py","w") as reconstruct_file:
+   reconstruct_file.write(code)
+
+
