@@ -41,6 +41,11 @@ class Codesign:
             f.write(f"Area: {area}\n")
             f.write(f"Optimization: {opt}\n")
 
+        # copy the benchmark and instrumented files;
+        shutil.copy(benchmark, f"{self.save_dir}/benchmark.py")
+        shutil.copy(f"instrumented_files/output.txt", f"{self.save_dir}/output.txt")
+        shutil.copy(f"instrumented_files/output_free.txt", f"{self.save_dir}/output_free.txt")
+    
         logging.basicConfig(filename=f"{self.save_dir}/log.txt", level=logging.INFO)
 
         self.area_constraint = area
