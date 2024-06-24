@@ -189,6 +189,7 @@ class HardwareModel:
             filter(lambda x: x[1]["function"] == "Regs", self.netlist.nodes.data())
         ).items():
             data["var"] = ""  # reg keeps track of which variable it is allocated
+        self.buffer_size = 1024
         self.mem_size = mem_needed
         self.nvm_mem_size = nvm_mem_needed
         self.buffer_size = buffer_size
@@ -356,6 +357,7 @@ class HardwareModel:
             if data["function"] in ["Buf", "MainMem"]:
                 continue
             self.on_chip_area += self.area[data["function"]]
+        logger.info(f"Area of all PEs: {self.on_chip_area}")
         
         self.on_chip_area += self.area["Buf"] + self.area[
             "Buf"
@@ -374,6 +376,8 @@ class HardwareModel:
         # self.on_chip_area += (bw - 1) * bw_scaling * self.area["MainMem"]
 
         self.off_chip_area = self.area["MainMem"] + self.area["OffChipIO"]
+        logger.info(f"on_chip_area: {self.on_chip_area}")
+        logger.info(f"off_chip_area: {self.off_chip_area}")
 
         return self.on_chip_area * 1e-6  # convert from nm^2 to um^2
 
@@ -383,11 +387,12 @@ class HardwareModel:
         """
         buf_vals = cacti_util.gen_vals(
             "base_cache",
-            cacheSize=2048, # TODO: Add in buffer sizing
+            cacheSize=self.buffer_size, # TODO: Add in buffer sizing
             blockSize=64,
             cache_type="cache",
             bus_width=self.buffer_bus_width,
         )
+        logger.info(f"Buffer cacti with: {self.buffer_size} bytes, {self.buffer_bus_width} bus width")
         mem_vals = cacti_util.gen_vals(
             "mem_cache",
             cacheSize=self.mem_size,
@@ -395,18 +400,26 @@ class HardwareModel:
             cache_type="main memory",
             bus_width=self.memory_bus_width,
         )
+        logger.info(f"Memory cacti with: {self.mem_size} bytes, {self.memory_bus_width} bus width")
+        
 
-        self.area["Buf"] = float(buf_vals["Area (mm2)"])
-        self.area["MainMem"] = float(mem_vals["Area (mm2)"])
+        self.area["Buf"] = float(buf_vals["Area (mm2)"]) * 1e12 # convert to nm^2
+        self.area["MainMem"] = float(mem_vals["Area (mm2)"]) * 1e12 # convert to nm^2
         self.area["OffChipIO"] = (
-            float(mem_vals["IO area"]) if mem_vals["IO area"] != "N/A" else 0.0
+            float(mem_vals["IO area"]) * 1e12 if mem_vals["IO area"] not in ["N/A", "inf", "-inf", "nan", "-nan"] else 0.0 # convert to nm^2
         )
-        self.buf_peripheral_area_proportion = 1-float(
+        logger.info(f"Buf area from cacti: {self.area['Buf']} nm^2")
+        logger.info(f"Mem area from cacti: {self.area['MainMem']} nm^2")
+        logger.info(f"OffChipIO area from cacti: {self.area['OffChipIO']} nm^2")
+
+        self.buf_peripheral_area_proportion = (100-float(
             buf_vals["Data arrary area efficiency %"]
-        )
-        self.mem_peripheral_area_proportion = 1-float(
+        )) / 100
+        self.mem_peripheral_area_proportion = (100-float(
             mem_vals["Data arrary area efficiency %"]
-        )
+        )) / 100
+        logger.info(f"Buf peripheral area proportion from cacti: {self.buf_peripheral_area_proportion}")
+        logger.info(f"Mem peripheral area proportion from cacti: {self.mem_peripheral_area_proportion}")
 
         self.latency["Buf"] = float(buf_vals["Access time (ns)"])
         self.latency["MainMem"] = float(mem_vals["Access time (ns)"])
