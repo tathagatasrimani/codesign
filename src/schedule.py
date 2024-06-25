@@ -1,10 +1,11 @@
 from collections import deque
 import heapq
-
+import math
 import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
 import cvxpy as cp
+import pandas as pd
 
 from global_constants import SEED
 import sim_util
@@ -154,18 +155,51 @@ def cfg_to_dfg(cfg, graphs, latency):
 
     return cfg_node_to_dfg_map
 
+def assign_time_of_execution(graph):
+    """
+    Calculates when each operation will take place,
+    overwriting the "dist" attribute from before.
+    """
+    for node in graph.nodes:
+        graph.nodes[node]["dist"] =  0
+    graph = nx.reverse(graph)
+    for gen in list(nx.topological_generations(graph))[1:]:
+        max_weight = 0
+        for node in gen:
+            in_edge = list(graph.in_edges(node))[0]
+            max_weight = max(max_weight, graph.edges[in_edge]["weight"])
+        for node in gen:
+            in_edge = list(graph.in_edges(node))[0]
+            graph.edges[in_edge]["weight"] = max_weight
+    max_dist = 0
+    end_node = list(nx.topological_generations(graph))[0][0]
+    for node in graph.nodes:
+        graph.nodes[node]["dist"] = nx.dijkstra_path_length(graph, end_node, node)
+        max_dist = max(max_dist, graph.nodes[node]["dist"])
+    for node in graph.nodes:
+        # mirroring operation
+        graph.nodes[node]["dist"] = (graph.nodes[node]["dist"] - max_dist) * -1
+    graph = nx.reverse(graph)
+    return graph, max_dist
+
 def assign_upstream_path_lengths(graph):
     """
     Assigns the longest path to each node in the graph.
-    Currently ignores actual latencies of nodes.
-    TODO: change this to dijkstra
+    Uses Dijkstra to take operation latency into account.
+    Params:
+    graph: nx.DiGraph
+        The computation graph
     """
-    for node in graph:
+    for node in graph.nodes:
         graph.nodes[node]["dist"] =  0
-    for i, generations in enumerate(nx.topological_generations(graph)):
-        for node in generations:
-            graph.nodes[node]["dist"] = max(i, graph.nodes[node]["dist"])
-    
+    q = deque()
+    for node in list(nx.topological_generations(graph))[0]:
+        q.append(node)
+        while not len(q) == 0:
+            curnode = q.popleft()
+            graph.nodes[curnode]["dist"] = max(graph.nodes[curnode]["dist"], nx.dijkstra_path_length(graph, node, curnode))
+            for child in graph.successors(curnode):
+                q.append(child)
     return graph
 
 def sdc_schedule(graph, hw_element_counts):
@@ -220,8 +254,49 @@ def sdc_schedule(graph, hw_element_counts):
     prob = cp.Problem(obj, constraints)
     prob.solve()
     return obj.value
+def write_df(in_use, hw_element_counts, execution_time, step):
+    data = {round(i*step, 3): [0]*hw_element_counts["Regs"] for i in range(0, int(math.ceil(execution_time/step)))}
+    for key in in_use:
+        for elem in in_use[key]:
+            data[key][int(elem[-1])] = 1
+    df = pd.DataFrame(data=data).transpose()
+    cols={i:f"reg{i}" for i in range(hw_element_counts["Regs"])}
+    df = df.rename(columns=cols)
+    df.index.name = "time"
+    df.to_csv("register_log/test_file.csv")
 
-def greedy_schedule(computation_graph, hw_element_counts):
+def log_register_use(computation_graph, step, hw_element_counts, execution_time):
+    """
+    Logs which registers' values are being used at discrete time intervals.
+
+    Params:
+    computation_graph: nx.DiGraph
+        The computation graph containing operations to be examined
+    step: int
+        The discrete time step at which we log register use
+    """
+    in_use = {}
+
+    for node in computation_graph:
+        func = computation_graph.nodes[node]["function"]
+        if not func == "Regs": continue
+        first_time_step = (computation_graph.nodes[node]["dist"] // step) * step
+        out_edge = list(computation_graph.out_edges(node))[0]
+        end_time = computation_graph.nodes[node]["dist"] + computation_graph.edges[out_edge]["weight"]
+        end_time_step = (end_time // step) * step
+        i = round(first_time_step, 3)
+        while i <= end_time_step:
+            if i not in in_use:
+                in_use[i] = []
+            in_use[i].append(computation_graph.nodes[node]["allocation"])
+            i = round(i + step, 3)
+    keys = list(in_use.keys())
+    keys.sort()
+    in_use_sorted = {i: in_use[i] for i in keys}
+    write_df(in_use_sorted, hw_element_counts, execution_time, step)
+    sim_util.topological_layout_plot(computation_graph, reverse=True)
+        
+def greedy_schedule(computation_graph, hw_element_counts, hw_netlist):
     """
     Schedules the computation graph on the hardware netlist
     by determining the order of operations and the states in which
@@ -247,7 +322,7 @@ def greedy_schedule(computation_graph, hw_element_counts):
     # reset layers:
     for node in computation_graph.nodes:
         computation_graph.nodes[node]["layer"] = -np.inf
-    assign_upstream_path_lengths(computation_graph)
+    computation_graph = assign_upstream_path_lengths(computation_graph)
 
     stall_counter = 0 # used to ensure unique stall names
     pushed = []
@@ -303,6 +378,7 @@ def greedy_schedule(computation_graph, hw_element_counts):
                         cost=func_nodes[idx][1]["cost"],
                         layer= -layer,
                         allocation="",
+                        dist=0
                     )
                     new_edges = []
                     for edge in out_edges:
@@ -338,3 +414,5 @@ def greedy_schedule(computation_graph, hw_element_counts):
                 computation_graph.nodes[comp_nodes[i][0]]["allocation"] = hw_nodes[i][0]
 
         layer += 1
+    computation_graph, execution_time = assign_time_of_execution(computation_graph)
+    log_register_use(computation_graph, 0.1, hw_element_counts, execution_time)
