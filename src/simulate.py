@@ -624,7 +624,7 @@ class ConcreteSimulator:
     def schedule(self, computation_dfg, hw):
         hw_counts = hardwareModel.get_func_count(hw.netlist)
         copy = computation_dfg.copy()
-        schedule.schedule(copy, hw_counts, hw.netlist)
+        schedule.greedy_schedule(copy, hw_counts)
 
         for layer, nodes in enumerate(
             reversed(list(nx.topological_generations(nx.reverse(computation_dfg))))
@@ -754,6 +754,7 @@ if __name__ == "__main__":
         help="Path to the architecture file (.gml)",
     )
     args = parser.parse_args()
+
     print(
         f"args: benchmark: {args.benchmark}, trace: {args.notrace}, architecture: {args.architecture_config}"
     )
