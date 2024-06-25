@@ -1,20 +1,83 @@
 from collections import deque
+import heapq
 import math
 
 import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
+import cvxpy as cp
 import pandas as pd
 
 from global_constants import SEED
 import sim_util
-
 
 # format: cfg_node -> {states -> operations}
 cfg_node_to_dfg_map = {}
 operation_sets = {}
 
 rng = np.random.default_rng(SEED)
+
+def limited_topological_sorts(graph, max_sorts=10):
+    in_degree = {node: 0 for node in graph.nodes()}
+    for u, v in graph.edges():
+        in_degree[v] += 1
+
+    partial_order = []
+    sorts_found = 0
+    
+    def visit():
+        nonlocal sorts_found
+        if sorts_found >= max_sorts:
+            return
+
+        all_visited = True
+        for node in graph.nodes():
+            if in_degree[node] == 0 and node not in partial_order:
+                all_visited = False
+                partial_order.append(node)
+                for successor in graph.successors(node):
+                    in_degree[successor] -= 1
+
+                yield from visit()
+
+                partial_order.pop()
+                for successor in graph.successors(node):
+                    in_degree[successor] += 1
+        
+        if all_visited:
+            sorts_found += 1
+            yield list(partial_order)
+
+    return list(visit())
+
+def longest_path_first_topological_sort(graph):
+    # Calculate the longest path lengths to each node
+    longest_path_length = {node: 0 for node in graph.nodes()}
+    for node in reversed(list(nx.topological_sort(graph))):  # Use topological sort to order nodes
+        for successor in graph.successors(node):
+            longest_path_length[node] = max(longest_path_length[node], 1 + longest_path_length[successor])
+
+    # Initialize a priority queue based on longest path lengths
+    priority_queue = []
+    in_degree = {node: 0 for node in graph.nodes()}
+    for u, v in graph.edges():
+        in_degree[v] += 1
+
+    # Populate the priority queue with nodes having zero in-degree
+    for node in graph.nodes():
+        if in_degree[node] == 0:
+            heapq.heappush(priority_queue, (-longest_path_length[node], node))  # Push with negative to simulate max heap
+
+    topological_order = []
+    while priority_queue:
+        _, node = heapq.heappop(priority_queue)
+        topological_order.append(node)
+        for successor in graph.successors(node):
+            in_degree[successor] -= 1
+            if in_degree[successor] == 0:
+                heapq.heappush(priority_queue, (-longest_path_length[successor], successor))  # Maintain priority
+
+    return topological_order
 
 def schedule_one_node(graph):
     """
@@ -135,6 +198,58 @@ def assign_upstream_path_lengths(graph):
                 q.append(child)
     return graph
 
+def sdc_schedule(graph, hw_element_counts):
+    """
+    Runs the convex optimization problem to minimize the longest path latency.
+    Encodes data dependency constraints from CDFG and resource constraints using
+    the SDC formulation published here https://www.csl.cornell.edu/~zhiruz/pdfs/sdc-dac2006.pdf.
+    TODO: Add exact hw schema constraints as resource constraints. Right now we assume hardware is
+    all to all.
+    """
+    constraints = []
+    vars = []
+    graph_nodes = graph.nodes(data=True)
+    id = 0
+    for node in graph_nodes:
+        curr_var = cp.Variable(2, name = node[0]) # first one is start time and last one is end time
+        vars.append(curr_var)
+        # start time + latency = end time for each operating node
+        node[1]['scheduling_id'] = id
+        id += 1
+        constraints.append(curr_var[0] >= 0)
+        if 'cost' in node[1].keys():
+            constraints.append(curr_var[0] + node[1]['cost'] == curr_var[1])
+
+    # data dependency constraints
+    for u, v in graph.edges():
+        source_id = int(graph_nodes[u]['scheduling_id'])
+        dest_id = int(graph_nodes[v]['scheduling_id'])
+        constraints.append(vars[source_id][1] - vars[dest_id][0] <= 0.0)
+    
+    topological_order = longest_path_first_topological_sort(graph)
+    resource_constraints = []
+    for i in range(len(topological_order)):
+        curr_func_count = 0
+        start_node = topological_order[i]
+        if graph.nodes[start_node]['function'] not in curr_reg_count:
+            continue
+        curr_func_count += 1
+        for j in range(i + 1, len(topological_order)):
+            curr_node = topological_order[j]
+            if graph.nodes[curr_node]['function'] not in curr_reg_count.keys():
+                    continue
+            if graph.nodes[curr_node]['function'] == graph.nodes[start_node]['function']:
+                curr_func_count += 1
+                if curr_func_count > 2*hw_element_counts[graph.nodes[curr_node]['function']]:
+                    break
+                if curr_func_count > hw_element_counts[graph.nodes[curr_node]['function']]:
+                    # add a constraint
+                    resource_constraints.append(vars[graph.nodes[start_node]['scheduling_id']][0] - vars[graph.nodes[curr_node]['scheduling_id']][0] <= -graph.nodes[start_node]['cost'])
+    constraints += resource_constraints
+    obj = cp.Minimize(vars[graph_nodes['end']['scheduling_id']][0])
+    prob = cp.Problem(obj, constraints)
+    prob.solve()
+    return obj.value
 def write_df(in_use, hw_element_counts, execution_time, step):
     data = {round(i*step, 3): [0]*hw_element_counts["Regs"] for i in range(0, int(math.ceil(execution_time/step)))}
     for key in in_use:
@@ -177,7 +292,7 @@ def log_register_use(computation_graph, step, hw_element_counts, execution_time)
     write_df(in_use_sorted, hw_element_counts, execution_time, step)
     sim_util.topological_layout_plot(computation_graph, reverse=True)
         
-def schedule(computation_graph, hw_element_counts, hw_netlist):
+def greedy_schedule(computation_graph, hw_element_counts, hw_netlist):
     """
     Schedules the computation graph on the hardware netlist
     by determining the order of operations and the states in which
