@@ -70,26 +70,6 @@ def generate_new_min_arch_on_whole_dfg(hw: HardwareModel, computation_dfg: nx.Di
                     "idx": 1,
                 },
             ),
-            # (
-            #     "MainMem1",
-            #     {
-            #         "function": "MainMem",
-            #         "size": 1,
-            #         "type": "memory",
-            #         "in_use": False,
-            #         "idx": 1,
-            #     },
-            # ),
-            # (
-            #     "Buf1",
-            #     {
-            #         "function": "Buf",
-            #         "size": 1,
-            #         "type": "memory",
-            #         "in_use": False,
-            #         "idx": 1,
-            #     },
-            # ),
         ]
     )
 
@@ -97,8 +77,6 @@ def generate_new_min_arch_on_whole_dfg(hw: HardwareModel, computation_dfg: nx.Di
         [
             ("Buf0", "MainMem0"),
             ("MainMem0", "Buf0"),
-            # ("Buf1", "MainMem1"),
-            # ("MainMem1", "Buf1"),
             ("Buf0", "Regs0"),
             ("Regs0", "Buf0"),
             ("Buf0", "Regs1"),
@@ -156,6 +134,7 @@ def generate_new_min_arch(hw: HardwareModel, cfg_node_to_hw_map, data_path, id_t
         hw.netlist.add_edge("Buf0", node)
         hw.netlist.add_edge(node, "Buf0")
         data["size"] = 1
+
 
 def unroll_by_specified_factor(
     cfg_node_to_hw_map: dict,

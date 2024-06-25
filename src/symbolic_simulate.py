@@ -512,17 +512,11 @@ class SymbolicSimulator:
             hw, self.cycles_ceil
         )
         self.edp = self.cycles * (self.total_active_energy + self.total_passive_energy)
-        # self.edp_ceil = self.cycles_ceil * (
-        #     self.total_active_energy + self.total_passive_energy_ceil
-        # )
 
     def save_edp_to_file(self):
         st = str(self.edp)
         with open("sympy.txt", "w") as f:
             f.write(st)
-        # st_ceil = str(self.edp_ceil)
-        # with open("sympy_ceil.txt", "w") as f:
-        #     f.write(st_ceil)
 
 
 def get_grad(args_arr, jmod):

@@ -19,7 +19,6 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
         config_values = yaml.safe_load(yamlfile)
     if cache_type == None:
         cache_type = config_values["cache_type"]
-    # print(f"cache type: {cache_type}")
 
     # If user doesn't give input, default to cacti_input vals
     if cacheSize == None:

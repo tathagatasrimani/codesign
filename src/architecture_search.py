@@ -214,11 +214,6 @@ def run_arch_search(
 
         func_counts = get_stalled_func_counts(scheduled_dfg)
 
-        # I don't need to do this
-        # if nx.is_isomorphic(old_scheduled_dfg, scheduled_dfg):
-        #     print("no change in schedule")
-            # continue
-
         hw = hw_copy
 
         simulator.simulate(scheduled_dfg, hw)
