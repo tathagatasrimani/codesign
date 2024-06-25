@@ -1,6 +1,7 @@
 from collections import deque
 import heapq
 import math
+
 import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
@@ -10,11 +11,6 @@ import pandas as pd
 from global_constants import SEED
 import sim_util
 
-
-
-
-# can't import hardware Model else will have circular imports
-# import hardwareModel
 # format: cfg_node -> {states -> operations}
 cfg_node_to_dfg_map = {}
 operation_sets = {}
