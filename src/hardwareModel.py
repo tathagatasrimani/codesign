@@ -189,7 +189,6 @@ class HardwareModel:
             filter(lambda x: x[1]["function"] == "Regs", self.netlist.nodes.data())
         ).items():
             data["var"] = ""  # reg keeps track of which variable it is allocated
-        self.buffer_size = 1024
         self.mem_size = mem_needed
         self.nvm_mem_size = nvm_mem_needed
         self.buffer_size = buffer_size

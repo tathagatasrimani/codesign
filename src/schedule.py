@@ -178,7 +178,7 @@ def assign_time_of_execution(graph):
     graph = nx.reverse(graph)
     return graph, max_dist
 
-def assign_upstream_path_lengths(graph):
+def assign_upstream_path_lengths_dijkstra(graph):
     """
     Assigns the longest path to each node in the graph.
     Uses Dijkstra to take operation latency into account.
@@ -196,6 +196,19 @@ def assign_upstream_path_lengths(graph):
             graph.nodes[curnode]["dist"] = max(graph.nodes[curnode]["dist"], nx.dijkstra_path_length(graph, node, curnode))
             for child in graph.successors(curnode):
                 q.append(child)
+    return graph
+
+def assign_upstream_path_lengths_old(graph):
+    """
+    Assigns the longest path to each node in the graph.
+    Currently ignores actual latencies of nodes.
+    """
+    for node in graph:
+        graph.nodes[node]["dist"] =  0
+    for i, generations in enumerate(nx.topological_generations(graph)):
+        for node in generations:
+            graph.nodes[node]["dist"] = max(i, graph.nodes[node]["dist"])
+    
     return graph
 
 def sdc_schedule(graph, hw_element_counts):
@@ -318,7 +331,7 @@ def greedy_schedule(computation_graph, hw_element_counts, hw_netlist):
     # reset layers:
     for node in computation_graph.nodes:
         computation_graph.nodes[node]["layer"] = -np.inf
-    computation_graph = assign_upstream_path_lengths(computation_graph)
+    computation_graph = assign_upstream_path_lengths_old(computation_graph)
 
     stall_counter = 0 # used to ensure unique stall names
     pushed = []
@@ -410,5 +423,5 @@ def greedy_schedule(computation_graph, hw_element_counts, hw_netlist):
                 computation_graph.nodes[comp_nodes[i][0]]["allocation"] = hw_nodes[i][0]
 
         layer += 1
-    computation_graph, execution_time = assign_time_of_execution(computation_graph)
-    log_register_use(computation_graph, 0.1, hw_element_counts, execution_time)
+    # computation_graph, execution_time = assign_time_of_execution(computation_graph)
+    # log_register_use(computation_graph, 0.1, hw_element_counts, execution_time)

@@ -230,6 +230,8 @@ def run_arch_search(
             best_edp = simulator.edp
             best_hw = deepcopy(hw_copy)
             best_schedule = scheduled_dfg
+        else: 
+            logger.info(f"Adding node ({func}) did not improve EDP; reverting")
 
         old_scheduled_dfg = scheduled_dfg
         if len(func_counts) == 0:
