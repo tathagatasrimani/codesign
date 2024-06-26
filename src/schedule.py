@@ -250,6 +250,7 @@ def sdc_schedule(graph, hw_element_counts):
     prob = cp.Problem(obj, constraints)
     prob.solve()
     return obj.value
+
 def write_df(in_use, hw_element_counts, execution_time, step):
     data = {round(i*step, 3): [0]*hw_element_counts["Regs"] for i in range(0, int(math.ceil(execution_time/step)))}
     for key in in_use:
@@ -290,7 +291,6 @@ def log_register_use(computation_graph, step, hw_element_counts, execution_time)
     keys.sort()
     in_use_sorted = {i: in_use[i] for i in keys}
     write_df(in_use_sorted, hw_element_counts, execution_time, step)
-    sim_util.topological_layout_plot(computation_graph, reverse=True)
         
 def greedy_schedule(computation_graph, hw_element_counts, hw_netlist):
     """

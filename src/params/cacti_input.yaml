@@ -18,6 +18,7 @@ read_write_port: 1
 exclusive_read_port: 0
 exclusive_write_port: 0
 single_ended_read_ports: 0
+num_search_ports: 0
 
 # Multiple banks connected using a bus
 UCA_bank_count: 1
@@ -28,17 +29,18 @@ page_size: 8192
 burst_length: 8
 internal_prefetch_width: 8
 
+# high-performance (hp), low-power (lop), low standby power (lstp)
 # Following parameter can have one of five values
-Data_array_cell_type: "itrs-hp"
+Data_array_cell_type: "itrs-lop"
 
 # Following parameter can have one of three values
-Data_array_peripheral_type: "itrs-hp"
+Data_array_peripheral_type: "itrs-lop"
 
 # Following parameter can have one of five values
-Tag_array_cell_type: "itrs-hp"
+Tag_array_cell_type: "itrs-lop"
 
 # Following parameter can have one of three values
-Tag_array_peripheral_type: "itrs-hp"
+Tag_array_peripheral_type: "itrs-lop"
 
 # Bus width include data bits and address bits required by the decoder
 output/input_bus_width: 512

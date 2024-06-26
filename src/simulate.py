@@ -408,7 +408,7 @@ class ConcreteSimulator:
             counter += 1
             temp_C = nx.DiGraph()
             for node in gen:
-                logger.info(f"node: {computation_dfg.nodes[node]}")
+                logger.info(f"node -> {node}: {computation_dfg.nodes[node]}")
                 child_added = False
                 temp_C.add_nodes_from([(node, computation_dfg.nodes[node])])
                 for child in computation_dfg.successors(node):
@@ -426,19 +426,34 @@ class ConcreteSimulator:
                 ## ================= ADD ACTIVE ENERGY CONSUMPTION =================
                 scaling = 1
                 node_data = computation_dfg.nodes[node]
+                if node_data["function"] == "stall" or node_data["function"] == "end":
+                    continue
                 if node_data["function"] in ["Buf", "MainMem"]:
                     # active power should scale by size of the object being accessed.
                     # all regs have the same size, so no need to scale.
                     scaling = node_data["size"]
                     logger.info(f"scaling: {scaling}")
-                if node_data["function"] == "stall" or node_data["function"] == "end":
-                    continue
-                self.active_energy += (
-                    hw.dynamic_power[node_data["function"]]
-                    * 1e-9  # W
-                    * scaling
-                    * hw.latency[node_data["function"]]  # ns
-                )
+                    energy = (
+                        (hw.dynamic_energy[node_data["function"]]["Read"] 
+                        + hw.dynamic_energy[node_data["function"]]["Write"]) / 2 # avg of read and write
+                        * 1e-9
+                        * scaling
+                    )
+                
+                    if (node_data["function"] == "MainMem"):
+                        energy += (
+                        hw.dynamic_power["OffChipIO"] * 1e-9
+                        * scaling
+                        * hw.latency["OffChipIO"]
+                        )
+                else:
+                    energy = (
+                        hw.dynamic_power[node_data["function"]] * 1e-9 # W
+                        * scaling
+                        * hw.latency[node_data["function"]] # ns
+                    )
+
+                self.active_energy += energy
                 hw.compute_operation_totals[node_data["function"]] += 1
 
             def matcher_func(n1, n2):
@@ -454,6 +469,7 @@ class ConcreteSimulator:
         self.cycles = nx.dag_longest_path_length(computation_dfg)
         longest_path = nx.dag_longest_path(computation_dfg)
         logger.info(f"longest path: {longest_path}")
+        logger.info(f"longest path length: {self.cycles}")
 
         for elem_name, elem_data in dict(hw.netlist.nodes.data()).items():
             scaling = 1
@@ -576,7 +592,7 @@ class ConcreteSimulator:
             + self.passive_power_dissipation_rate
         )
 
-    def calculate_edp(self, hw):
+    def calculate_edp(self):
         self.execution_time = self.cycles # in seconds
         self.total_energy = self.active_energy + self.passive_energy
         self.edp = self.total_energy * self.execution_time
@@ -608,7 +624,7 @@ class ConcreteSimulator:
     def schedule(self, computation_dfg, hw):
         hw_counts = hardwareModel.get_func_count(hw.netlist)
         copy = computation_dfg.copy()
-        schedule.greedy_schedule(copy, hw_counts)
+        schedule.greedy_schedule(copy, hw_counts, hw.netlist)
 
         for layer, nodes in enumerate(
             reversed(list(nx.topological_generations(nx.reverse(computation_dfg))))
@@ -620,7 +636,7 @@ class ConcreteSimulator:
         copy = sim_util.add_cache_mem_access_to_dfg(
             copy, hw.latency["Buf"], hw.latency["MainMem"]
         )
-        schedule.schedule(copy, hw_counts, hw.netlist)
+        schedule.greedy_schedule(copy, hw_counts, hw.netlist)
         copy = sim_util.prune_buffer_and_mem_nodes(copy, hw.netlist)
 
         return copy
@@ -674,7 +690,7 @@ def main(args):
 
     hardwareModel.un_allocate_all_in_use_elements(hw.netlist)
     data = simulator.simulate(computation_dfg, hw)
-    simulator.calculate_edp(hw)
+    simulator.calculate_edp()
 
     area = hw.get_total_area()
 

@@ -632,8 +632,6 @@ def compose_entire_computation_graph(
             node, "end", weight=latency[computation_dfg.nodes[node]["function"]]
         )
 
-    print(f"done composing computation graph")
-
     if plot:
         topological_layout_plot(computation_dfg, reverse=True)
     return computation_dfg

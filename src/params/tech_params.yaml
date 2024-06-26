@@ -107,7 +107,7 @@ area: #nm^2
     Sub: 379348800.0
     UAdd: 379348800.0
     USub: 379348800.0
-dynamic_energy: # nw
+dynamic_energy: # nJ
   3:
     Buf: 
       Read: 0.0
@@ -143,7 +143,6 @@ dynamic_power: # nw
     BitAnd: 13.9146176
     BitOr: 13.102624
     BitXor: 14.76352
-    Buf: 0.0
     Eq: 62.7778319
     FloorDiv: 15068.34978
     Gt: 93.6076372
@@ -153,7 +152,6 @@ dynamic_power: # nw
     LShift: 45.0656448
     Lt: 98.3498413
     LtE: 92.5799578
-    MainMem: 0.0
     Mod: 66.9116175
     Mult: 5321.759918
     Not: 4.1337856
@@ -164,8 +162,6 @@ dynamic_power: # nw
     Sub: 32.8119232
     UAdd: 28.6781376
     USub: 32.8119232
-    Buf: 0.0 # per byte? PLACEHOLDER
-    MainMem: 2.1e+6 # nw per byte 65 nm SRAM
     OffChipIO: 0.0
   5:
     Add: 39.28512
@@ -173,7 +169,6 @@ dynamic_power: # nw
     BitAnd: 19.06112
     BitOr: 17.9488
     BitXor: 20.224
-    Buf: 0.0
     Eq: 85.99703
     FloorDiv: 20641.57504
     Gt: 128.22964
@@ -183,7 +178,6 @@ dynamic_power: # nw
     LShift: 61.73376
     Lt: 134.72581
     LtE: 126.82186
-    MainMem: 0.0
     Mod: 91.65975
     Mult: 7290.08208
     Not: 5.66272
@@ -194,8 +188,6 @@ dynamic_power: # nw
     Sub: 44.94784
     UAdd: 39.28512
     USub: 44.94784
-    Buf: 0.0 # per byte? PLACEHOLDER
-    MainMem: 2.1e+6 # nw per byte 65 nm SRAM
     OffChipIO: 0.0
   7:
     Add: 49.728
@@ -203,7 +195,6 @@ dynamic_power: # nw
     BitAnd: 24.128
     BitOr: 22.72
     BitXor: 25.6
-    Buf: 0.0
     Eq: 108.857
     FloorDiv: 26128.576
     Gt: 162.316
@@ -213,7 +204,6 @@ dynamic_power: # nw
     LShift: 78.144
     Lt: 170.539
     LtE: 160.534
-    MainMem: 0.0
     Mod: 116.025
     Mult: 9227.952
     Not: 7.168
@@ -231,7 +221,6 @@ dynamic_power: # nw
     BitAnd: 18055.9
     BitOr: 18055.9
     BitXor: 18055.9
-    Buf: 0.0
     Eq: 283664.2
     FloorDiv: 12628440.0
     Gt: 283664.2
@@ -241,7 +230,6 @@ dynamic_power: # nw
     LShift: 417251.2
     Lt: 283664.2
     LtE: 283664.2
-    MainMem: 0.0
     Mod: 283664.2
     Mult: 12628440.0
     Not: 18055.9
@@ -366,28 +354,7 @@ latency: # ns
     UAdd: 0.47
     USub: 0.47
     OffChipIO: 0.0
-latency_scale:
-  512: 1
-  1024: 2
-  2048: 3
-  4096: 4
-  8192: 5
-  16384: 6
-  32768: 7
-  65536: 8
-  131072: 9
-  262144: 10
-  524288: 11
-  1048576: 12
-  2097152: 13
-  4194304: 14
-  8388608: 15
-  16777216: 16
-  33554432: 17
-  67108864: 18
-  134217728: 19
-  268435456: 20
-  536870912: 21
+
 leakage_power:
   3:
     Add: 1722.410667
@@ -910,25 +877,3 @@ mem_leakage_power:
       1: 1728.534
       10: 1653.34
       100: 1688.8
-power_scale:
-  512: 1
-  1024: 2
-  2048: 3
-  4096: 4
-  8192: 5
-  16384: 6
-  32768: 7
-  65536: 8
-  131072: 9
-  262144: 10
-  524288: 11
-  1048576: 12
-  2097152: 13
-  4194304: 14
-  8388608: 15
-  16777216: 16
-  33554432: 17
-  67108864: 18
-  134217728: 19
-  268435456: 20
-  536870912: 21
