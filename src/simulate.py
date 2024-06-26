@@ -4,6 +4,8 @@ import math
 import json
 from pathlib import Path
 import argparse
+import logging
+logger = logging.getLogger(__name__)
 
 # third party modules
 import matplotlib.pyplot as plt
@@ -295,6 +297,7 @@ class ConcreteSimulator(AbstractSimulator):
             counter += 1
             temp_C = nx.DiGraph()
             for node in gen:
+                logger.info(f"node: {computation_dfg.nodes[node]}")
                 child_added = False
                 temp_C.add_nodes_from([(node, computation_dfg.nodes[node])])
                 for child in computation_dfg.successors(node):
@@ -316,6 +319,7 @@ class ConcreteSimulator(AbstractSimulator):
                     # active power should scale by size of the object being accessed.
                     # all regs have the same size, so no need to scale.
                     scaling = node_data["size"]
+                    logger.info(f"scaling: {scaling}")
                 if node_data["function"] == "stall" or node_data["function"] == "end":
                     continue
                 self.active_energy += (
@@ -325,7 +329,6 @@ class ConcreteSimulator(AbstractSimulator):
                     * hw.latency[node_data["function"]]  # ns
                 )
                 hw.compute_operation_totals[node_data["function"]] += 1
-
 
             def matcher_func(n1, n2):
                 res = (
@@ -339,6 +342,7 @@ class ConcreteSimulator(AbstractSimulator):
 
         self.cycles = nx.dag_longest_path_length(computation_dfg)
         longest_path = nx.dag_longest_path(computation_dfg)
+        logger.info(f"longest path: {longest_path}")
 
         for elem_name, elem_data in dict(hw.netlist.nodes.data()).items():
             scaling = 1
@@ -361,13 +365,12 @@ def main(args):
     hw = HardwareModel(cfg=args.architecture_config)
 
     computation_dfg = simulator.simulator_prep(args.benchmark, hw.latency)
-    computation_dfg = simulator.schedule(
-        computation_dfg, hw_counts=hardwareModel.get_func_count(hw.netlist)
-    )
+
     hw.init_memory(
         sim_util.find_nearest_power_2(simulator.memory_needed),
         sim_util.find_nearest_power_2(simulator.nvm_memory_needed),
     )
+    computation_dfg = simulator.schedule(computation_dfg, hw)
 
     simulator.tech_node = hw.transistor_size  # in nm
     simulator.pitch = hw.pitch  # in um
@@ -436,6 +439,8 @@ def main(args):
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, filename="codesign_log_dir/simulate.log")
+
     parser = argparse.ArgumentParser(
         prog="Simulate",
         description="Runs a hardware simulation on a given benchmark and technology spec",
@@ -450,8 +455,9 @@ if __name__ == "__main__":
         help="Path to the architecture file (.gml)",
     )
     args = parser.parse_args()
+
     print(
-        f"args: benchmark: {args.benchmark}, trace:{args.notrace}, architecture:{args.architecture_config}"
+        f"args: benchmark: {args.benchmark}, trace: {args.notrace}, architecture: {args.architecture_config}"
     )
 
     main(args)

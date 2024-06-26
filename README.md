@@ -1,8 +1,7 @@
 # Codesign Framework
 
-Technology aware application to architecture codesign flow
+Application aware technology - architecture co-design framework.
 
-For AI applications, see [this codesign framework](https://github.com/r09g/ai_codesign)
 
 ### Setup
 
@@ -13,10 +12,20 @@ If you are running on Apple Silicon, there are issues with the pyomo - ipopt plu
 
 
 ### Execution
+
+#### Forward Pass
 Run `./simulate.sh` from the `src` directory with the following arguments:
 ```
-./simulate.sh -n <workload_name>
+./simulate.sh -n <workload_name> -c <arch_config>
 ```
-use optional flag `-q` to run in quiet mode. This will not print logs in the `src/benchmarks/json_dump` directory.
+use optional flag `-q` to run in quiet mode. This will not print logs in the `src/benchmarks/json_dump` directory. The `workload_name` is the name of the workload to be simulated fronm `models/benchmarks/`. The `arch_config` is the architecture configuration file to be used for the simulation. The architecture configuration includes a `.gml` file in `architectures/` and an entry in `hw_cfgs.ini`. The architecture configuration file is the name of the `.gml` file without the extension.
+
+#### Inverse Pass
+The inverse pass is run similarly to the forward pass. You run the `./symbolic_simulate.sh` instead, with the added optional argument `-o` to specify the optimization technique.
+```
+./symbolic_simulate.sh -n <workload_name> -c <arch_config> -o <opt>
+```
+where `<opt>` is either `scp`, or `ipopt` (default). 
+#### Codesign
 
 The `-s` flag is used to run an architecture search. This will run the architecture search algorithm and output the best architecture found. This flag can be called with the `-a <AREA>` flag to specify the area constraint for the architecture search. This area value is in $\mu m^2$.
