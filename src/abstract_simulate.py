@@ -145,22 +145,23 @@ class AbstractSimulator:
 
         return computation_dfg
 
-    def schedule(self, computation_dfg, hw_counts):
-        """
-        Schedule the computation graph onto the hardware.
-        """
+    def schedule(self, computation_dfg, hw):
+        hw_counts = hardwareModel.get_func_count(hw.netlist)
         copy = computation_dfg.copy()
+        schedule.greedy_schedule(copy, hw_counts, hw.netlist)
 
-        schedule.schedule(copy, hw_counts)
-
-        # Why does this happen?
         for layer, nodes in enumerate(
-            reversed(list(nx.topological_generations(nx.reverse(copy))))
+            reversed(list(nx.topological_generations(nx.reverse(computation_dfg))))
         ):
             # `multipartite_layout` expects the layer as a node attribute, so add the
             # numeric layer value as a node attribute
             for node in nodes:
                 copy.nodes[node]["layer"] = layer
+        copy = sim_util.add_cache_mem_access_to_dfg(
+            copy, hw.latency["Buf"], hw.latency["MainMem"]
+        )
+        schedule.greedy_schedule(copy, hw_counts, hw.netlist)
+        copy = sim_util.prune_buffer_and_mem_nodes(copy, hw.netlist)
 
         return copy
 
