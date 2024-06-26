@@ -23,6 +23,7 @@ import hardwareModel
 import sim_util
 import arch_search_util
 from config_dicts import op2sym_map
+from abstract_simulate import AbstractSimulator
 
 MEMORY_SIZE = 1000000
 state_graph_counter = 0
@@ -30,7 +31,7 @@ state_graph_counter = 0
 rng = np.random.default_rng()
 
 
-class ConcreteSimulator:
+class ConcreteSimulator(AbstractSimulator):
     def __init__(self):
         self.data = {}
         self.cycles = 0  # counter for number of cycles
@@ -63,81 +64,6 @@ class ConcreteSimulator:
         self.total_energy = 0
         self.active_energy = 0
         self.passive_energy = 0
-
-    def simulate_cycles(self, hw_spec, computation_graph, total_cycles):
-        """
-        DEPRECATED
-        Simulates the operation of hardware over a number of cycles.
-
-        Parameters:
-            hw_spec (HardwareModel): The hardware model providing the specific architecture being simulated.
-            computation_graph: Nx.DiGraph of operations to be executed.
-            total_cycles (int): The maximum number of cycles to simulate.
-
-        Returns:
-            int: The sum of power used by nodes in all cycles.
-        """
-        if total_cycles == 0:
-            return 0
-
-        self.active_power_use[self.cycles] = 0
-        self.mem_power_use.append(0)
-
-        for n, node_data in computation_graph.nodes.data():
-
-            scaling = 1
-            # if node_data["function"] in ["Buf", "MainMem"]:
-            #     # active power should scale by size of the object being accessed.
-            #     # all regs have the saem size, so no need to scale.
-            #     scaling = node_data["size"]
-            # if node_data["function"] == "MainMem":
-            #     print(
-            #         f" found a mem object in active energy calc, adding scaling factor: {scaling}"
-            #     )
-            self.total_energy += (
-                hw_spec.dynamic_power[node_data["function"]]
-                * 1e-9
-                * scaling
-                * (hw_spec.latency[node_data["function"]] / hw_spec.frequency)
-            )
-
-            if node_data["function"] in ["Buf", "MainMem"]:
-                # active power should scale by size of the object being accessed.
-                # all regs have the saem size, so no need to scale.
-                scaling = node_data["size"]
-
-                self.total_energy += (
-                    (hw_spec.dynamic_energy[node_data["function"]]["Read"] 
-                    + hw_spec.dynamic_energy[node_data["function"]]["Write"]) / 2 # avg of read and write
-                    * 1e-9
-                    * scaling
-                )
-                if node_data["function"] == "MainMem":
-                    self.total_energy += (
-                    hw_spec.dynamic_power["OffChipIO"] * 1e-3   # CACTI IO uses mW
-                    * scaling
-                    * hw_spec.latency["OffChipIO"]
-                    )
-            else:
-                self.total_energy += (
-                    hw_spec.dynamic_power[node_data["function"]] * 1e-9
-                    * scaling
-                    * (hw_spec.latency[node_data["function"]] / hw_spec.frequency)
-                )
-            hw_spec.compute_operation_totals[node_data["function"]] += 1
-        self.active_power_use[self.cycles] /= total_cycles
-
-        # buf and mem nodes added in 'localize_memory'
-        # remove them here
-        for node, data in dict(
-            filter(
-                lambda x: x[1]["function"] == "MainMem" or x[1]["function"] == "Buf",
-                computation_graph.nodes.data(),
-            )
-        ).items():
-            computation_graph.remove_node(node)
-
-        return self.active_power_use[self.cycles]
 
     def get_var_size(self, var_name, mem_module: Memory):
         """
@@ -182,43 +108,6 @@ class ConcreteSimulator:
 
         return mem_in_use
 
-    def process_memory_operation(self, mem_op, mem_module: Memory):
-        """
-        Processes a memory operation, handling memory allocation or deallocation based on the operation type.
-
-        This function interprets and acts on memory operations (like allocating or freeing memory)
-        within the hardware simulation. It modifies the state of the memory module according to the
-        specified operation, updating the memory allocation status as necessary.
-
-        Parameters:
-        - mem_op (list): A list representing a memory operation. The first element is the operation type
-        ('malloc' or 'free'), the second element is the size of the memory block, and subsequent elements
-         provide additional context or dimensions for the operation.
-
-        Usage:
-        - If `mem_op` is a 'malloc' operation, the function allocates memory of the specified size and
-            potentially with specified dimensions.
-        - If `mem_op` is a 'free' operation, the function deallocates the memory associated with the
-             given variable name.
-
-        This function is typically called during the simulation process to dynamically manage
-        memory as the simulated program executes different operations that require memory allocation
-        and deallocation.
-        """
-        var_name = mem_op[2]
-        size = int(mem_op[1])
-        status = mem_op[0]
-        if status == "malloc":
-            dims = []
-            num_elem = 1
-            if len(mem_op) > 3:
-                dims = sim_util.get_dims(mem_op[3:])
-                # print(f"dims: {dims}")
-                num_elem = np.prod(dims)
-            mem_module.malloc(var_name, size, dims=dims, elem_size=size // num_elem)
-        elif status == "free":
-            mem_module.free(var_name)
-
     def localize_memory(self, hw, hw_graph):
         """
         Updates memory in buffers (cache) to ensure that the data needed for the coming DFG node
@@ -254,7 +143,7 @@ class ConcreteSimulator:
             buf = rng.choice(in_bufs)  # in_bufs[0] # just choose one at random.
             size = buf[1]["memory_module"].read(
                 var_name
-            )  
+            )
             buf_idx = len(
                 list(
                     filter(
@@ -464,182 +353,10 @@ class ConcreteSimulator:
                 hw.leakage_power[elem_data["function"]] * 1e-9 * self.cycles * scaling
             )
 
-    def set_data_path(self):
-        """
-        Keep track of variable values as they are updated.
-        This is used primarily for index values in order to properly account for data dependencies.
-        returns:
-            data_path_vars: a list of dictionaries where each dictionary represents the variable values at a given node in the data path.
-        """
-        with open(self.path + "/instrumented_files/output.txt", "r") as f:
-            src = f.read()
-            l = src.split("\n")
-            split_lines = [l_.split() for l_ in l]  # separate by whitespace
-
-            last_line = "-1"
-            last_node = "-1"
-            valid_names = set()
-            nvm_vars = {}
-            data_path_vars = []
-
-            # count reads and writes on first pass.
-            for i in range(len(split_lines)):
-                item = split_lines[i]
-                if len(item) < 2:
-                    continue
-                if item[0] == "malloc":
-                    valid_names.add(item[2])
-                if item[-2] != "Read" and item[-2] != "Write":
-                    continue
-                var_name = item[0]
-                if var_name not in valid_names and "NVM" not in var_name:
-                    continue
-                if item[-2] == "Read":
-                    if "NVM" in item[0]:
-                        self.nvm_reads += 1
-                        self.total_nvm_read_size += int(item[-1])
-                        if item[0] not in nvm_vars.keys():
-                            nvm_vars[item[0]] = int(item[-1])
-                        else:
-                            nvm_vars[item[0]] = max(nvm_vars[item[0]], int(item[-1]))
-                    else:
-                        self.reads += 1
-                        self.total_read_size += int(item[-1])
-                        self.where_to_free[var_name] = i + 1
-                else:
-                    self.writes += 1
-                    self.total_write_size += int(item[-1])
-                    self.where_to_free[var_name] = i
-
-            vars = {}
-            self.data_path.append([""])
-            # second pass, construct trace that simulator follows.
-            for i in range(len(split_lines)):
-                item = split_lines[i]
-                vars_to_pop = []
-                for var_name in self.where_to_free:
-                    if self.where_to_free[var_name] == i:
-                        var_size = self.vars_allocated[var_name]
-                        # f_new.write("free " + str(var_size) + " " + var_name + "\n")
-                        self.data_path.append(["free", str(var_size), var_name])
-                        data_path_vars.append(vars.copy())
-                        vars = {}
-                        vars_to_pop.append(var_name)
-                        self.cur_memory_size -= var_size
-                        self.vars_allocated.pop(var_name)
-                for var_name in vars_to_pop:
-                    self.where_to_free.pop(var_name)
-                if len(item) == 2 and (item[0] != last_node or item[1] == last_line):
-                    last_node = item[0]
-                    last_line = item[1]
-                    self.data_path.append(item)
-                    data_path_vars.append(vars.copy())
-                    vars = {}
-                elif len(item) == 1 and item[0].startswith("pattern_seek"):
-                    self.data_path.append(item)
-                    data_path_vars.append(vars.copy())
-                    vars = {}
-                elif len(item) >= 3 and item[0] == "malloc":
-                    if item[2] in self.vars_allocated:
-                        if int(item[1]) == self.vars_allocated[item[2]]:
-                            continue
-                        # else:
-                        # f_new.write("free " + str(self.vars_allocated[item[2]]) + " " + var_name + "\n")
-                        # f_new.write(l[i] + '\n')
-                        self.cur_memory_size -= int(self.vars_allocated[item[2]])
-                    self.data_path.append(item)
-                    data_path_vars.append(vars.copy())
-                    vars = {}
-                    self.vars_allocated[item[2]] = int(item[1])
-                    # print(self.vars_allocated)
-                    self.cur_memory_size += int(item[1])
-                    self.memory_needed = max(self.memory_needed, self.cur_memory_size)
-                elif len(item) == 4:
-                    if item[1].isnumeric():
-                        vars[item[0]] = int(item[1])
-            data_path_vars.append(vars)
-        # print(f"data_path: {self.data_path}")
-        self.nvm_memory_needed = sum(nvm_vars.values())
-        print(f"memory needed: {self.memory_needed} bytes")
-        print(f"nvm memory needed: {self.nvm_memory_needed} bytes")
-        return data_path_vars
-
-    def update_data_path(self, new_data_path):
-        self.data_path = new_data_path
-        for elem in self.data_path:
-            if elem[0] not in self.unroll_at.keys():
-                self.unroll_at[elem[0]] = False
-
-    def calculate_average_power(self):
-        self.avg_compute_power = 1e-6 * (
-            np.mean(list(self.active_power_use.values()))
-            + self.passive_power_dissipation_rate
-        )
-
     def calculate_edp(self, hw):
         self.execution_time = self.cycles # in seconds
         self.total_energy = self.active_energy + self.passive_energy
         self.edp = self.total_energy * self.execution_time
-
-    def simulator_prep(self, benchmark, latency):
-        """
-        Creates CFG, and id_to_node
-        params:
-            benchmark: str with path to benchmark file
-            latency: dict with latency of each compute element
-        """
-        cfg, graphs, self.unroll_at = dfg_algo.main_fn(self.path, benchmark)
-        cfg_node_to_dfg_map = schedule.cfg_to_dfg(cfg, graphs, latency)
-        data_path_vars = self.set_data_path()
-
-        for node in cfg:
-            self.id_to_node[str(node.id)] = node
-        computation_dfg = sim_util.compose_entire_computation_graph(
-            cfg_node_to_dfg_map,
-            self.id_to_node,
-            self.data_path,
-            data_path_vars,
-            latency,
-            plot=False,
-        )
-
-        return computation_dfg
-
-    def schedule(self, computation_dfg, hw):
-        hw_counts = hardwareModel.get_func_count(hw.netlist)
-        copy = computation_dfg.copy()
-        schedule.greedy_schedule(copy, hw_counts)
-
-        for layer, nodes in enumerate(
-            reversed(list(nx.topological_generations(nx.reverse(computation_dfg))))
-        ):
-            # `multipartite_layout` expects the layer as a node attribute, so add the
-            # numeric layer value as a node attribute
-            for node in nodes:
-                copy.nodes[node]["layer"] = layer
-        copy = sim_util.add_cache_mem_access_to_dfg(
-            copy, hw.latency["Buf"], hw.latency["MainMem"]
-        )
-        schedule.schedule(copy, hw_counts, hw.netlist)
-        copy = sim_util.prune_buffer_and_mem_nodes(copy, hw.netlist)
-
-        return copy
-
-    def init_new_compute_element(self, compute_unit):
-        """
-        Adds to some graph shit and adds ids and stuff
-        params:
-            compute_unit: str with std cell name, eg 'Add', 'Eq', 'LShift', etc.
-        """
-        compute_id = dfg_algo.set_id()
-        sim_util.make_node(
-            self.new_graph,
-            compute_id,
-            op2sym_map[compute_unit],
-            None,
-            op2sym_map[compute_unit],
-        )
-
 
 def main(args):
     print(f"Running simulator for {args.benchmark.split('/')[-1]}")
