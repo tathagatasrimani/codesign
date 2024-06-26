@@ -489,7 +489,7 @@ class SymbolicSimulator:
         hw_counts = hardwareModel.get_func_count(hw.netlist)
         copy = computation_dfg.copy()
 
-        schedule.schedule(copy, hw_counts, hw.netlist)
+        schedule.greedy_schedule(copy, hw_counts, hw.netlist)
 
         # Why does this happen?
         for layer, nodes in enumerate(
@@ -502,7 +502,7 @@ class SymbolicSimulator:
         copy = sim_util.add_cache_mem_access_to_dfg(
             copy, hw.latency["Buf"], hw.latency["MainMem"]
         )
-        schedule.schedule(copy, hw_counts, hw.netlist)
+        schedule.greedy_schedule(copy, hw_counts, hw.netlist)
         copy = sim_util.prune_buffer_and_mem_nodes(copy, hw.netlist)
         return copy
 
@@ -536,7 +536,6 @@ def get_grad(args_arr, jmod):
             V_dd=arr[11],
         )
     )(args_arr[0], args_arr, jmod)
-
 
 def rotate_arr(args_arr):
     next_val = args_arr[0]

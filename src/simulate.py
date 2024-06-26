@@ -624,7 +624,7 @@ class ConcreteSimulator:
     def schedule(self, computation_dfg, hw):
         hw_counts = hardwareModel.get_func_count(hw.netlist)
         copy = computation_dfg.copy()
-        schedule.greedy_schedule(copy, hw_counts)
+        schedule.greedy_schedule(copy, hw_counts, hw.netlist)
 
         for layer, nodes in enumerate(
             reversed(list(nx.topological_generations(nx.reverse(computation_dfg))))
@@ -636,7 +636,7 @@ class ConcreteSimulator:
         copy = sim_util.add_cache_mem_access_to_dfg(
             copy, hw.latency["Buf"], hw.latency["MainMem"]
         )
-        schedule.schedule(copy, hw_counts, hw.netlist)
+        schedule.greedy_schedule(copy, hw_counts, hw.netlist)
         copy = sim_util.prune_buffer_and_mem_nodes(copy, hw.netlist)
 
         return copy
