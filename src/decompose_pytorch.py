@@ -68,12 +68,14 @@ model = NeuralNetwork()
 match = re.search(r'([^/]+)\.py$', file_path)
 file_name = match.group(1)
 
+# get forward function
 torch._dynamo.reset()
 fn = torch.compile(backend=get_graph_backend, dynamic=True)(model)
 input = torch.rand(1, 28, 28, device='cpu')
 out = fn(input)
 forward_code: str = graph.code
 
+# save to file
 with open(f"aten_code_{file_name}.py","w") as code_file:
    code_file.write(forward_code)
 
@@ -83,6 +85,7 @@ for prim_func, native_func in prim_to_native.items():
 with open(f"native_code_{file_name}.py","w") as native_file:
    native_file.write(forward_code)
 
+# parse function definition and return statement
 code_lines = forward_code.split("\n")
 
 def_line = ""
@@ -93,13 +96,27 @@ for line in code_lines:
     elif line.startswith("    return "):
        ret_line = line
 
+# Initialize arguments base on model
 pattern = r'def\s+\w+\s*\(([^)]*)\)'
 match = re.search(pattern, def_line)
 arguments_str = match.group(1)
 arguments = [arg.strip() for arg in arguments_str.split(',')]
 argument_lines=[]
+model_weights: dict = model.state_dict()
+weights = list(model_weights.values())
+cur_index = 0
+num_weights = len(weights)
+# Assume weights are passed in the same order as defined in model
 for argument in arguments:
-   argument_lines.append(f"{argument}=[[1,1],[1,1]]") # TODO: find appropriate shape from NN
+    if argument=="self":
+        argument_lines.append(f"{argument}=None")
+    elif cur_index<num_weights:
+        argument_lines.append(f"{argument}={weights[cur_index].tolist()}")
+        cur_index+=1
+    else: # some arguments are not used, why are the generated?
+        argument_lines.append(f"{argument}=None")
+# Assume the input is the last argument, initiate the input with the same shape as first layer
+argument_lines.append(f"{arguments[-1]}={[1]*weights[0].shape[1]}")
 
 pattern = r'\s*return\s*\[\s*([^]]+)\s*\]'
 match = re.search(pattern, ret_line)
