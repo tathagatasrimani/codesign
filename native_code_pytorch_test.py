@@ -1,10 +1,9 @@
 
 
 
-def forward(self, primals_1, primals_2, primals_3, primals_4, primals_5, primals_6, primals_7, primals_8):
-    collapse_view = nativePrims.collapse_view(primals_8, 1, 2);  primals_8 = None
+def forward(self, primals_1, primals_2, primals_3, primals_4, primals_5, primals_6, primals_7):
     transpose = nativePrims.transpose(primals_1, [1, 0]);  primals_1 = None
-    mm = nativePrims.mm(collapse_view, transpose);  transpose = None
+    mm = nativePrims.mm(primals_7, transpose);  transpose = None
     mul = nativePrims.mul(mm, 1.0);  mm = None
     mul_1 = nativePrims.mul(primals_2, 1.0);  primals_2 = None
     broadcast_in_dim = nativePrims.broadcast_in_dim(mul_1, [1, 512], [1]);  mul_1 = None
@@ -25,5 +24,5 @@ def forward(self, primals_1, primals_2, primals_3, primals_4, primals_5, primals
     mul_5 = nativePrims.mul(primals_6, 1.0);  primals_6 = None
     broadcast_in_dim_2 = nativePrims.broadcast_in_dim(mul_5, [1, 10], [1]);  mul_5 = None
     add_2 = nativePrims.add(mul_4, broadcast_in_dim_2);  mul_4 = broadcast_in_dim_2 = None
-    return [add_2, collapse_view, where, transpose_1, where_1, transpose_2, primals_7]
+    return [add_2, primals_7, where, transpose_1, where_1, transpose_2]
     

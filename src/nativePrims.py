@@ -20,8 +20,9 @@ def collapse_view(matrix, from_dim, to_dim):
 
     return collapse(matrix, 0, from_dim, to_dim)
 
-def transpose(matrix, dims):
+def transpose(matrix, dims=[0,1]):
     # currently only implemented transposing a 2-d matrix
+    # TODO: handle 3-d, more than 3-d throw error
     rows = len(matrix)
     cols = len(matrix[0])
     

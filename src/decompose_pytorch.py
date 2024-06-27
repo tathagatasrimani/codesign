@@ -71,7 +71,7 @@ file_name = match.group(1)
 # get forward function
 torch._dynamo.reset()
 fn = torch.compile(backend=get_graph_backend, dynamic=True)(model)
-input = torch.rand(1, 28, 28, device='cpu')
+input = torch.rand(1, 28*28, device='cpu')
 out = fn(input)
 forward_code: str = graph.code
 
