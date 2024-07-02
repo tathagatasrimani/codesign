@@ -411,14 +411,12 @@ class HardwareModel:
         logger.info(f"Mem area from cacti: {self.area['MainMem']} nm^2")
         logger.info(f"OffChipIO area from cacti: {self.area['OffChipIO']} nm^2")
 
-        # self.buf_peripheral_area_proportion = (100-float(
-        #     buf_vals["Data arrary area efficiency %"]
-        # )) / 100
-        # self.mem_peripheral_area_proportion = (100-float(
-        #     mem_vals["Data arrary area efficiency %"]
-        # )) / 100
-        self.buf_peripheral_area_proportion = 1-float(buf_vals["Data arrary area efficiency %"])
-        self.mem_peripheral_area_proportion = 1-float(mem_vals["Data arrary area efficiency %"])
+        self.buf_peripheral_area_proportion = (100-float(
+            buf_vals["Data arrary area efficiency %"]
+        )) / 100
+        self.mem_peripheral_area_proportion = (100-float(
+            mem_vals["Data arrary area efficiency %"]
+        )) / 100
 
         logger.info(f"Buf peripheral area proportion from cacti: {self.buf_peripheral_area_proportion}")
         logger.info(f"Mem peripheral area proportion from cacti: {self.mem_peripheral_area_proportion}")

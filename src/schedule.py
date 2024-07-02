@@ -1,6 +1,8 @@
 from collections import deque
 import heapq
 import math
+import logging
+logger = logging.getLogger(__name__)
 
 import networkx as nx
 import matplotlib.pyplot as plt
@@ -153,9 +155,13 @@ def cfg_to_dfg(cfg, graphs, latency):
 
 def assign_time_of_execution(graph):
     """
-    Calculates when each operation will take place,
-    overwriting the "dist" attribute from before.
+    Calculates start time of each operation in the graph.
+    Adds node parameter 'start_time' to each node in the graph.
+    Params:
+        graph: nx.DiGraph
+            The computation data flow graph
     """
+    logger.info("Assigning time of execution")
     for node in graph.nodes:
         graph.nodes[node]["dist"] =  0
     graph = nx.reverse(graph)
@@ -170,11 +176,11 @@ def assign_time_of_execution(graph):
     max_dist = 0
     end_node = list(nx.topological_generations(graph))[0][0]
     for node in graph.nodes:
-        graph.nodes[node]["dist"] = nx.dijkstra_path_length(graph, end_node, node)
-        max_dist = max(max_dist, graph.nodes[node]["dist"])
+        graph.nodes[node]["start_time"] = nx.dijkstra_path_length(graph, end_node, node)
+        max_dist = max(max_dist, graph.nodes[node]["start_time"])
     for node in graph.nodes:
         # mirroring operation
-        graph.nodes[node]["dist"] = (graph.nodes[node]["dist"] - max_dist) * -1
+        graph.nodes[node]["start_time"] = (graph.nodes[node]["start_time"] - max_dist) * -1
     graph = nx.reverse(graph)
     return graph, max_dist
 
@@ -305,7 +311,7 @@ def log_register_use(computation_graph, step, hw_element_counts, execution_time)
     in_use_sorted = {i: in_use[i] for i in keys}
     write_df(in_use_sorted, hw_element_counts, execution_time, step)
         
-def greedy_schedule(computation_graph, hw_element_counts, hw_netlist):
+def greedy_schedule(computation_graph, hw_element_counts, hw_netlist, save_reg_use_table=False):
     """
     Schedules the computation graph on the hardware netlist
     by determining the order of operations and the states in which
@@ -331,7 +337,7 @@ def greedy_schedule(computation_graph, hw_element_counts, hw_netlist):
     # reset layers:
     for node in computation_graph.nodes:
         computation_graph.nodes[node]["layer"] = -np.inf
-    computation_graph = assign_upstream_path_lengths_old(computation_graph)
+    computation_graph = assign_upstream_path_lengths_dijkstra(computation_graph)
 
     stall_counter = 0 # used to ensure unique stall names
     pushed = []
@@ -423,5 +429,6 @@ def greedy_schedule(computation_graph, hw_element_counts, hw_netlist):
                 computation_graph.nodes[comp_nodes[i][0]]["allocation"] = hw_nodes[i][0]
 
         layer += 1
-    # computation_graph, execution_time = assign_time_of_execution(computation_graph)
-    # log_register_use(computation_graph, 0.1, hw_element_counts, execution_time)
+    if save_reg_use_table:
+        computation_graph, execution_time = assign_time_of_execution(computation_graph)
+        log_register_use(computation_graph, 0.1, hw_element_counts, execution_time)

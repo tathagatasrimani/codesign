@@ -231,23 +231,23 @@ class Codesign:
             f"{self.save_dir}/tech_params_{iter_number}.yaml"
         )
 
+    def execute(self, num_iters):
+        i = 0
+        while i < num_iters:
+            self.inverse_pass()
+            self.hw.update_technology_parameters()
+
+            self.log_all_to_file(i)
+
+            self.forward_pass()
+            i += 1
+
 
 def main():
     codesign_module = Codesign(
         args.benchmark, args.area, args.architecture_config, args.num_arch_search_iters, args.savedir, args.opt
     )
-
-    i = 0
-    while i < args.num_iters:
-
-        codesign_module.inverse_pass()
-        codesign_module.hw.update_technology_parameters()
-
-        codesign_module.log_all_to_file(i)
-
-        codesign_module.forward_pass()
-        # TODO: create stopping condition
-        i += 1
+    codesign_module.execute(args.num_iters)
 
 
 if __name__ == "__main__":
