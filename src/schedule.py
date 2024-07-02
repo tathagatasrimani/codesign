@@ -279,7 +279,7 @@ def write_df(in_use, hw_element_counts, execution_time, step):
     cols={i:f"reg{i}" for i in range(hw_element_counts["Regs"])}
     df = df.rename(columns=cols)
     df.index.name = "time"
-    df.to_csv("register_log/test_file.csv")
+    df.to_csv("codesign_log_dir/reg_use_table.csv")
 
 def log_register_use(computation_graph, step, hw_element_counts, execution_time):
     """

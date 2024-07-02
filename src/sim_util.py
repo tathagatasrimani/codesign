@@ -13,13 +13,13 @@ rng = np.random.default_rng(SEED)
 
 def read_dataframe():
     """
-    Reads a pandas DataFrame from a set file location in tech_node_data,
+    Reads a pandas DataFrame from a set file in params,
     corresponding to data about area, R, and C for specific tech nodes and standard cells.
 
     Returns:
     - DataFrame with a MultiIndex for tech node and standard cell.
     """
-    return pd.read_csv("tech_node_data/cell_data.csv", index_col=["tech node", "standard cell"])
+    return pd.read_csv("params/std_cell_data.csv", index_col=["tech node", "standard cell"])
 
 # adds all mallocs and frees to vectors, and finds the next cfg node in the data path,
 # returning the index of that node
