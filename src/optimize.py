@@ -19,6 +19,40 @@ import hw_symbols
 
 multistart = False
 
+class Regularizer:
+    def __init__(self, obj, x):
+        self.obj = obj
+        self.x = x
+    def l1_regularizer(self, starting_vals):
+        # FOR SPARSITY
+        obj = self.obj + cp.norm1(starting_vals - self.x) # what currently exists
+        return obj
+    
+    def l2_regularization(self):
+        obj = self.obj + cp.norm2(self.x)**2
+        return obj
+    
+    def elastic_net_regularization(self, alpha):
+        obj = self.obj * cp.norm1(self.x) + (1 - alpha) * cp.norm2(self.x) ** 2
+        return obj
+    
+    def smoothness_regularizer(self):
+        obj = 0
+        for i in range(len(self.x) - 1):
+            obj += cp.abs(self.x[i + 1] - self.x[i])
+        return obj
+
+    def generalized_tikhonov_regularization(self, symbols_table):
+        L = np.eye(len(symbols_table))
+        obj = self.obj + cp.quad_form(x, L)
+
+    def tc_norm_regularization(self):
+        obj = self.obj + cp.norm(self.x, 'nuc')
+        return obj
+
+    def outlier_regularization_huber(self, delta, starting_vals):
+        obj = self.oj + cp.sum(cp.huber(self.x - starting_vals, delta))
+        return obj
 
 def ipopt(tech_params, edp):
     logger.info("Optimizing using IPOPT")
@@ -157,11 +191,11 @@ def scp_opt(tech_params, edp):
         # print(args_arr)
 
         # print(f"Grad map:\n {grad_map}")
-        x = cp.Variable(len(hw_symbols.symbol_table), pos=True)
+        x = cp.Variable(len(hw_symbols.symbol_table), pos=True) # variable
         lam = 0.0000001
-        obj = lam * cp.norm1(starting_vals - x)
+        obj = lam * cp.norm1(starting_vals - x) # minimizing the change in hardware symbols
         for i in range(len(hw_symbols.symbol_table)):
-            obj += grad_map[list(hw_symbols.symbol_table)[i]] * x[i]
+            obj += grad_map[list(hw_symbols.symbol_table)[i]] * x[i] # change in EDP w.r.t. to this hardware symbol 
         constr = []
         for i in range(len(hw_symbols.symbol_table)):
             constr += [x[i] >= starting_vals[i] * 0.95, x[i] <= starting_vals[i] * 1.05]
