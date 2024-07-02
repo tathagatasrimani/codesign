@@ -231,12 +231,12 @@ def sdc_schedule(graph, hw_element_counts):
     for i in range(len(topological_order)):
         curr_func_count = 0
         start_node = topological_order[i]
-        if graph.nodes[start_node]['function'] not in curr_reg_count:
+        if graph.nodes[start_node]['function'] not in hw_element_counts:
             continue
         curr_func_count += 1
         for j in range(i + 1, len(topological_order)):
             curr_node = topological_order[j]
-            if graph.nodes[curr_node]['function'] not in curr_reg_count.keys():
+            if graph.nodes[curr_node]['function'] not in hw_element_counts:
                     continue
             if graph.nodes[curr_node]['function'] == graph.nodes[start_node]['function']:
                 curr_func_count += 1
