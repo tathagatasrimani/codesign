@@ -12,7 +12,7 @@ import numpy as np
 
 # custom
 from preprocess import Preprocessor
-from sim_util import generate_init_params_from_rcs_as_symbols
+import sim_util
 from hardwareModel import HardwareModel
 import hw_symbols
 
@@ -196,12 +196,20 @@ def optimize(tech_params, edp, opt):
 
 
 def main():
+    """
+    TODO. Add an entrypoint that is not main.
+    For my inverse pass, I don't want to call this 
+    """
 
     hw = HardwareModel(cfg=args.architecture_config)
+    hw.init_memory(
+        sim_util.find_nearest_power_2(131072),
+        sim_util.find_nearest_power_2(0),
+    )
 
     rcs = hw.get_optimization_params_from_tech_params()
-    print(rcs)
-    initial_params = generate_init_params_from_rcs_as_symbols(rcs)
+    print(f"optimize.__main__.rcs: {rcs}")
+    initial_params = sim_util.generate_init_params_from_rcs_as_symbols(rcs)
     edp = open("sympy.txt", "r")
     edp = sympify(edp.readline())
 
