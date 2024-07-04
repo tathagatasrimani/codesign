@@ -179,7 +179,7 @@ class SymbolicSimulator(AbstractSimulator):
         generations = list(
             reversed(list(nx.topological_generations(nx.reverse(computation_dfg))))
         )
-        for gen in generations:  # main loop over the computation graphs;
+        for gen in generations:  # main loop over the computation graph;
             if "end" in gen:  # skip the end node (only thing in the last generation)
                 break
             counter += 1
@@ -197,6 +197,7 @@ class SymbolicSimulator(AbstractSimulator):
                     # active power should scale by size of the object being accessed.
                     # all regs have the same size, so no need to scale.
                     scaling = node_data["size"]
+                    logger.info(f"energy scaling: {scaling}")
                     energy = hw_symbols.symbolic_energy_active[
                         node_data["function"]
                     ]  # nJ
@@ -217,17 +218,21 @@ class SymbolicSimulator(AbstractSimulator):
                 logger.info(f"start_node: {start_node}, end_node: {end_node}")
                 for path in nx.all_simple_paths(computation_dfg, start_node, end_node):
                     path_latency = 0
-                    path_latency_ceil = 0
                     for node in path:
-                        if computation_dfg.nodes()[node]["function"] == "end":
+                        scaling = 1
+                        node_data = computation_dfg.nodes[node]
+                        if node_data["function"] == "end":
                             continue
-                        elif computation_dfg.nodes()[node]["function"] == "stall":
+                        elif node_data["function"] == "stall":
                             func = node.split("_")[3]  # stall names have std formats
                         else:
-                            func = computation_dfg.nodes()[node]["function"]
-                        path_latency += hw_symbols.symbolic_latency_wc[func]
+                            func = node_data["function"]
+                        if func in ["Buf", "MainMem"]:
+                            scaling = node_data["size"]
+                            logger.info(f"latency scaling: {scaling}")
+
+                        path_latency += hw_symbols.symbolic_latency_wc[func] * scaling
                     self.cycles = symbolic_convex_max(self.cycles, path_latency)
-                    self.cycles_ceil = symbolic_convex_max(self.cycles_ceil, path_latency_ceil)
 
     def calculate_edp(self, hw):
         self.total_passive_energy = self.passive_energy_dissipation(hw, self.cycles)

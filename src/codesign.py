@@ -45,7 +45,7 @@ class Codesign:
         shutil.copy(benchmark, f"{self.save_dir}/benchmark.py")
         shutil.copy(f"instrumented_files/output.txt", f"{self.save_dir}/output.txt")
         shutil.copy(f"instrumented_files/output_free.txt", f"{self.save_dir}/output_free.txt")
-    
+
         logging.basicConfig(filename=f"{self.save_dir}/log.txt", level=logging.INFO)
 
         self.area_constraint = area
@@ -106,8 +106,16 @@ class Codesign:
         print("\nRunning Forward Pass")
         logger.info("Running Forward Pass")
 
-        sim_util.update_schedule_with_latency(self.scheduled_dfg, self.hw.latency)
+        print(f"longest path before update latency: {nx.dag_longest_path_length(self.scheduled_dfg)}")
+
         sim_util.update_schedule_with_latency(self.computation_dfg, self.hw.latency)
+        sim_util.update_schedule_with_latency(self.scheduled_dfg, self.hw.latency)
+
+        print(f"hw buf latency: {self.hw.latency['Buf']}, hw mem latency: {self.hw.latency['MainMem']}")
+
+        print(
+            f"longest path after update latency: {nx.dag_longest_path_length(self.scheduled_dfg)}"
+        )
 
         self.sim.simulate(self.scheduled_dfg, self.hw)
         self.sim.calculate_edp()
@@ -121,10 +129,16 @@ class Codesign:
             self.sim,
             self.hw,
             self.computation_dfg,
+            self.scheduled_dfg,
             self.area_constraint,
             self.num_arch_search_iters,
             best_edp=edp,
         )
+
+        if new_schedule == self.scheduled_dfg:
+            print("No new architecture found; schedules are the same")
+            
+
         self.hw = new_hw
         self.scheduled_dfg = new_schedule
         self.forward_edp = new_edp

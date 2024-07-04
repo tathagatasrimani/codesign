@@ -168,6 +168,7 @@ def run_arch_search(
     simulator: ConcreteSimulator,
     hw: hardwareModel,
     computation_dfg: nx.DiGraph,
+    scheduled_dfg: nx.DiGraph,
     area_constraint: float,
     num_steps: int = 1,
     best_edp=None,
@@ -184,17 +185,56 @@ def run_arch_search(
     best_edp: float
     """
 
+    print(
+        f"longest path after update latency diff scope: {nx.dag_longest_path_length(scheduled_dfg)}"
+    )
+
     old_scheduled_dfg = simulator.schedule(computation_dfg, hw)
+
+    # if old_scheduled_dfg != scheduled_dfg:
+    #     print("Scheduled DFGs are different")
+    #     print(f"Rescheduled, passed in schedule")
+    #     print(f"num nodes: {len(old_scheduled_dfg.nodes)}, {len(scheduled_dfg.nodes)}")
+    #     print(f"num edges: {len(old_scheduled_dfg.edges)}, {len(scheduled_dfg.edges)}")
+    #     print(f"num funcs: {hardwareModel.get_func_count(old_scheduled_dfg)}, {hardwareModel.get_func_count(scheduled_dfg)}")
+    #     # print(f"\nReschduled weights: {old_scheduled_dfg.edges.data()}")
+    #     # print(f"\nPassed in weights: {scheduled_dfg.edges.data()}")
+    print(f"Buf weight reschudeled: {list(filter(lambda x: 'Buf' in x[0], old_scheduled_dfg.edges.data()))[0]}")
+    print(f"Buf weight passed in: {list(filter(lambda x: 'Buf' in x[0], scheduled_dfg.edges.data()))[0]}")
+
+    print(f"Mem weight reschudeled: {list(filter(lambda x: 'Mem' in x[0], old_scheduled_dfg.edges.data()))[0]}")
+    print(f"Mem weight passed in: {list(filter(lambda x: 'Mem' in x[0], scheduled_dfg.edges.data()))[0]}")
+
+    print(
+        f"longest path unscheduled : {nx.dag_longest_path_length(computation_dfg)}"
+    )
+
+    # print(f"\nunscheduled weights: {computation_dfg.edges.data()}")
+
+    print(
+        f"longest path after update latency rescheduled: {nx.dag_longest_path_length(old_scheduled_dfg)}"
+    )
+
+    # sim_util.topological_layout_plot_side_by_side(scheduled_dfg, old_scheduled_dfg, reverse=True)
 
     simulator.simulate(old_scheduled_dfg, hw)
     simulator.calculate_edp()
     area = hw.get_total_area()
 
+    print(
+        f"AS EDP init: {simulator.edp} E-18 Js. Active Energy: {simulator.active_energy} nJ. Passive Energy: {simulator.passive_energy} nJ. Execution time: {simulator.execution_time} ns"
+    )
+
     if best_edp is None:
         best_edp = simulator.edp
+
     logger.info(f"Best EDP: {best_edp} E-18 Js")
     best_hw = deepcopy(hw)
     best_schedule = old_scheduled_dfg
+
+    best_active_energy = simulator.active_energy
+    best_passive_energy = simulator.passive_energy
+    best_execution_time = simulator.execution_time
 
     hw_copy = deepcopy(hw)
 
@@ -228,6 +268,9 @@ def run_arch_search(
         elif simulator.edp < best_edp:
             logger.info(f"Adding {func} improved EDP from {best_edp} to {simulator.edp}")
             best_edp = simulator.edp
+            best_active_energy = simulator.active_energy
+            best_passive_energy = simulator.passive_energy
+            best_execution_time = simulator.execution_time
             best_hw = deepcopy(hw_copy)
             best_schedule = scheduled_dfg
         else: 
@@ -239,6 +282,15 @@ def run_arch_search(
 
     hw = best_hw
     hw.update_netlist()
+
+    simulator.active_energy = best_active_energy
+    simulator.passive_energy = best_passive_energy
+    simulator.execution_time = best_execution_time
+    simulator.edp = best_edp
+
+    print(
+        f"AS EDP     : {simulator.edp} E-18 Js. Active Energy: {simulator.active_energy} nJ. Passive Energy: {simulator.passive_energy} nJ. Execution time: {simulator.execution_time} ns"
+    )
 
     return best_edp, best_schedule, best_hw
 

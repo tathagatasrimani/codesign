@@ -183,9 +183,12 @@ def update_schedule_with_latency(schedule, latency):
     for edge in schedule.edges:
         node = edge[0]
         func = schedule.nodes.data()[node]["function"]
+        scaling = 1
         if func == "stall":
             func = node.split("_")[3]
-        schedule.edges[edge]["weight"] = latency[func]
+        if func == "Buf" or func == "MainMem":
+            scaling = 16
+        schedule.edges[edge]["weight"] = latency[func] * scaling # multiply by 16 for buf and main mem
 
 
 def get_dims(arr):
@@ -401,6 +404,7 @@ def add_cache_mem_access_to_dfg(
     """
     buf_count = 0
     mem_count = 0
+    print(f"add_cache_mem_access: buf_latency: {buf_latency}, mem_latency: {mem_latency}")
     for node, data in dict(
         filter(lambda x: x[1]["function"] == "Regs", computation_graph.nodes.data())
     ).items():
