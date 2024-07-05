@@ -135,58 +135,6 @@ def generate_new_min_arch(hw: HardwareModel, cfg_node_to_hw_map, data_path, id_t
         hw.netlist.add_edge(node, "Buf0")
         data["size"] = 1
 
-
-def unroll_by_specified_factor(
-    cfg_node_to_hw_map: dict,
-    data_path: list,
-    id_to_node: dict,
-    unroll_factor: int,
-    specified_node,
-    log=True,
-):
-    """
-    DEPRECATED
-    Unroll the data path by a specified factor.
-    Create new merged nx.Digraphs and add to cfg_node_to_hw_map.
-    """
-    if log:
-        print(f"Unrolling by {unroll_factor}X...")
-        print(f"Specified Node: {specified_node}")
-    # add entry to cfg_node_to_hw_map with unrolled dfg with
-    # unroll factor equal to max_continuous
-    single_node_comp_graph = cfg_node_to_hw_map[id_to_node[specified_node[0]]].copy()
-    copy = single_node_comp_graph.copy()
-
-    for i in range(unroll_factor - 1):
-        sim_util.rename_nodes(single_node_comp_graph, copy)
-        single_node_comp_graph = nx.union(single_node_comp_graph, copy)
-
-    blk = Block(int(specified_node[0]) * unroll_factor)
-    if blk.id not in id_to_node.keys():
-        cfg_node_to_hw_map[blk] = single_node_comp_graph
-        id_to_node[blk.id] = blk
-
-    # iterate through data path and replace nodes with unrolled nodes
-    new_data_path = data_path.copy()
-    count = 0
-    i = 0
-    while i < len(new_data_path):
-        elem = new_data_path[i]
-        if elem == specified_node:
-            count += 1
-            if count == unroll_factor:
-                while count > 0:
-                    new_data_path.pop(i - unroll_factor + 1)
-                    count -= 1
-                i = i - unroll_factor + 1
-                new_data_path.insert(i, [blk.id, 0])
-        elif elem != specified_node:
-            count = 0
-        i += 1
-
-    return new_data_path
-
-
 def pareto_pruning(hw: HardwareModel, cfg_node_to_hw_map, data_path, id_to_node):
     """ """
     pass

@@ -393,6 +393,7 @@ def greedy_schedule(computation_graph, hw_element_counts, hw_netlist, save_reg_u
                         cost=func_nodes[idx][1]["cost"],
                         layer= -layer,
                         allocation="",
+                        size=func_nodes[idx][1]["size"] if "size" in func_nodes[idx][1] else 1,
                         dist=0
                     )
                     new_edges = []
