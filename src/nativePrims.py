@@ -1,3 +1,14 @@
+def shape(arr):
+    def get_shape_recursive(arr, current_shape):
+        if isinstance(arr, list):
+            current_shape.append(len(arr))
+            if isinstance(arr[0], list):
+                get_shape_recursive(arr[0], current_shape)
+        return current_shape
+    
+    current_shape = get_shape_recursive(arr, [])
+    return tuple(current_shape)
+
 def collapse_view(matrix, from_dim, to_dim):
     def flatten(nested_list):
         """flatten a list of lists """
@@ -137,10 +148,20 @@ def add(matrix1, matrix2):
     return result
 
 def where(condition, x, y):
-    if isinstance(condition, bool):
-        return x if condition else y
-    else:
-        return [where(c, x_elem, y_elem) for c, x_elem, y_elem in zip(condition, x, y)]
+    if isinstance(x, (int, float)):
+        x = [[x] * len(row) for row in condition]
+    if isinstance(y, (int, float)):
+        y = [[y] * len(row) for row in condition]
+    
+    result = []
+    
+    for cond_row, x_row, y_row in zip(condition, x, y):
+        result_row = []
+        for cond_val, x_val, y_val in zip(cond_row, x_row, y_row):
+            result_row.append(x_val if cond_val else y_val)
+        result.append(result_row)
+    
+    return result
 
 def broadcast_in_dim(a, shape, broadcast_dimensions):
     # Calculate the number of dimensions for output matrix
