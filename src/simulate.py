@@ -355,6 +355,8 @@ class ConcreteSimulator(AbstractSimulator):
 
                 return res
 
+
+        # ========== This Can be removed after we figure out why doesn't work
         self.cycles = nx.dag_longest_path_length(computation_dfg)
         longest_path = nx.dag_longest_path(computation_dfg)
         logger.info(f"longest path: {list(map(lambda x: (x, computation_dfg.nodes[x]['function']), longest_path))}")
@@ -364,7 +366,6 @@ class ConcreteSimulator(AbstractSimulator):
         logger.info(f"topo_order: {topo_order}")
         for node in generations[0]:
             topo_order.insert(0, topo_order.pop(topo_order.index(node)))
-        # topo_order.insert(-1, topo_order.pop(topo_order.index('end')))
         logger.info(f"new topo_order: {topo_order}")
         longest_path = nx.dag_longest_path(computation_dfg, topo_order=topo_order)
         logger.info(f"longest path custom topo: {list(map(lambda x: (x, computation_dfg.nodes[x]['function']), longest_path))}")
@@ -373,7 +374,7 @@ class ConcreteSimulator(AbstractSimulator):
             pathlength += computation_dfg[u][v]["weight"]
         logger.info(f"longest path length custom topo: {pathlength}")
         
-        
+        # ========== Explicitly calculate the longest path. This aligns with Inverse Pass.
         self.cycles = 0
         longest_path_explicit = []
         for start_node in generations[0]:

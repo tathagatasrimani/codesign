@@ -106,12 +106,8 @@ class Codesign:
         print("\nRunning Forward Pass")
         logger.info("Running Forward Pass")
 
-        # print(f"longest path before update latency: {nx.dag_longest_path_length(self.scheduled_dfg)}")
-
         sim_util.update_schedule_with_latency(self.computation_dfg, self.hw.latency)
         sim_util.update_schedule_with_latency(self.scheduled_dfg, self.hw.latency)
-
-        # print(f"hw buf latency: {self.hw.latency['Buf']}, hw mem latency: {self.hw.latency['MainMem']}")
 
         print(
             f"longest path after update latency: {nx.dag_longest_path_length(self.scheduled_dfg)}"
@@ -124,26 +120,22 @@ class Codesign:
             f"Initial EDP: {edp} E-18 Js. Active Energy: {self.sim.active_energy} nJ. Passive Energy: {self.sim.passive_energy} nJ. Execution time: {self.sim.execution_time} ns"
         )
 
-        # hw updated in place, schedule and edp returned.
-        new_edp, new_schedule, new_hw = architecture_search.run_arch_search(
+        # sim updated in place, hw, schedule and edp returned.
+        # TODO: test whether hardware can be updated in place.
+        new_schedule, new_hw = architecture_search.run_arch_search(
             self.sim,
             self.hw,
             self.computation_dfg,
-            self.scheduled_dfg,
             self.area_constraint,
             self.num_arch_search_iters,
             best_edp=edp,
         )
 
-        if new_schedule == self.scheduled_dfg:
-            print("No new architecture found; schedules are the same")
-            
-
         self.hw = new_hw
         self.scheduled_dfg = new_schedule
-        self.forward_edp = new_edp
+        self.forward_edp = self.sim.edp
         print(
-            f"Final EDP  : {new_edp} E-18 Js. Active Energy: {self.sim.active_energy} nJ. Passive Energy: {self.sim.passive_energy} nJ. Execution time: {self.sim.execution_time} ns"
+            f"Final EDP  : {self.sim.edp} E-18 Js. Active Energy: {self.sim.active_energy} nJ. Passive Energy: {self.sim.passive_energy} nJ. Execution time: {self.sim.execution_time} ns"
         )
 
     def parse_output(self, f):

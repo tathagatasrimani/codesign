@@ -168,7 +168,6 @@ def run_arch_search(
     simulator: ConcreteSimulator,
     hw: hardwareModel,
     computation_dfg: nx.DiGraph,
-    scheduled_dfg: nx.DiGraph,
     area_constraint: float,
     num_steps: int = 1,
     best_edp=None,
@@ -185,33 +184,7 @@ def run_arch_search(
     best_edp: float
     """
 
-    # print(
-    #     f"longest path after update latency diff scope: {nx.dag_longest_path_length(scheduled_dfg)}"
-    # )
-
     old_scheduled_dfg = simulator.schedule(computation_dfg, hw)
-
-    # if old_scheduled_dfg != scheduled_dfg:
-    #     print("Scheduled DFGs are different")
-    #     print(f"Rescheduled, passed in schedule")
-    #     print(f"num nodes: {len(old_scheduled_dfg.nodes)}, {len(scheduled_dfg.nodes)}")
-    #     print(f"num edges: {len(old_scheduled_dfg.edges)}, {len(scheduled_dfg.edges)}")
-    #     print(f"num funcs: {hardwareModel.get_func_count(old_scheduled_dfg)}, {hardwareModel.get_func_count(scheduled_dfg)}")
-    #     # print(f"\nReschduled weights: {old_scheduled_dfg.edges.data()}")
-    #     # print(f"\nPassed in weights: {scheduled_dfg.edges.data()}")
-    # print(f"Buf weight reschudeled: {list(filter(lambda x: 'Buf' in x[0], old_scheduled_dfg.edges.data()))[0]}")
-    # print(f"Buf weight passed in: {list(filter(lambda x: 'Buf' in x[0], scheduled_dfg.edges.data()))[0]}")
-
-    # print(f"Mem weight reschudeled: {list(filter(lambda x: 'Mem' in x[0], old_scheduled_dfg.edges.data()))[0]}")
-    # print(f"Mem weight passed in: {list(filter(lambda x: 'Mem' in x[0], scheduled_dfg.edges.data()))[0]}")
-
-    # print(f"\nunscheduled weights: {computation_dfg.edges.data()}")
-
-    # print(
-    #     f"longest path after update latency rescheduled: {nx.dag_longest_path_length(old_scheduled_dfg)}"
-    # )
-
-    # sim_util.topological_layout_plot_side_by_side(scheduled_dfg, old_scheduled_dfg, reverse=True)
 
     simulator.simulate(old_scheduled_dfg, hw)
     simulator.calculate_edp()
@@ -288,7 +261,7 @@ def run_arch_search(
         f"AS EDP     : {simulator.edp} E-18 Js. Active Energy: {simulator.active_energy} nJ. Passive Energy: {simulator.passive_energy} nJ. Execution time: {simulator.execution_time} ns"
     )
 
-    return best_edp, best_schedule, best_hw
+    return best_schedule, best_hw
 
 
 def main():
