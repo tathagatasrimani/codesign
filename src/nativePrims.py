@@ -21,46 +21,58 @@ def collapse_view(matrix, from_dim, to_dim):
     return collapse(matrix, 0, from_dim, to_dim)
 
 def transpose(matrix, dims=[0,1]):
-    # currently only implemented transposing a 2-d matrix
-    # TODO: handle 3-d, more than 3-d throw error
-    rows = len(matrix)
-    cols = len(matrix[0])
-    
-    transposed = [[0 for _ in range(rows)] for _ in range(cols)]
-    
-    for i in range(rows):
-        for j in range(cols):
-            transposed[j][i] = matrix[i][j]
+    assert len(dims)==2, "transpose take 2 dimensions"
+    assert dims[0]<3 and dims[1]<3, "suppport up to 3d transpose"
+    if dims[0]==dims[1]:
+        return matrix
+    if isinstance(matrix[0][0], list):
+        # matrix is 3d
+        if dims[0]==0 and dims[1]==1:
+            return [[[matrix[i][j][k] for k in range(len(matrix[0][0]))] for i in range(len(matrix))] for j in range(len(matrix[0]))]
+        elif dims[0]==0 and dims[1]==2:
+            return [[[matrix[i][j][k] for i in range(len(matrix))] for j in range(len(matrix[0]))] for k in range(len(matrix[0][0]))]
+        elif dims[0]==1 and dims[1]==2:
+            return [[[matrix[i][j][k] for j in range(len(matrix[0]))] for k in range(len(matrix[0][0]))] for i in range(len(matrix))]
+    else:
+        #matrix is 2d
+        rows = len(matrix)
+        cols = len(matrix[0])
+        
+        transposed = [[0 for _ in range(rows)] for _ in range(cols)]
+        
+        for i in range(rows):
+            for j in range(cols):
+                transposed[j][i] = matrix[i][j]
 
-    return transposed
+        return transposed
 
 def mm(list1, list2):
-    '''/* copied from pytorch comment。
-    Matrix product of two Tensors.
-    The behavior depends on the dimensionality of the Tensors as follows:
-    - If both Tensors are 1-dimensional, (1d) the dot product (scalar) is returned.
-    - If the arguments are 2D - 1D or 1D - 2D, the matrix-vector product is returned.
-    - If both arguments are 2D, the matrix-matrix product is returned.
-    - If one of the arguments is ND with N >= 3 and the other is 1D or 2D, and some
-    conditions on the strides apply (see should_fold) we fold the first N-1 dimensions
-    of the ND argument to form a matrix, call mm or mv, reshape it back to ND and return it
-    - Otherwise, we return bmm, after broadcasting and folding the batched dimensions if
-    there's more than one
-    TODO: Folding is not implemented
-    */'''
+    def to_floats(nested_list):
+        if isinstance(nested_list[0], list):
+            return [[float(item) for item in sublist] for sublist in nested_list]
+        else:
+            return [float(item) for item in nested_list]
+    
     def dot_product(vec1, vec2):
+        vec1 = [float(x) for x in vec1]
+        vec2 = [float(x) for x in vec2]
         return sum(x * y for x, y in zip(vec1, vec2))
     
     def matrix_vector_product(mat, vec):
+        vec = [float(x) for x in vec]
         return [dot_product(row, vec) for row in mat]
+    
+    def vector_matrix_product(vec, mat):
+        vec = [float(x) for x in vec]
+        return [dot_product(vec, col) for col in zip(*mat)]
     
     def matrix_matrix_product(mat1, mat2):
         mat2_t = list(zip(*mat2))  # Transpose mat2
         return [[dot_product(row, col) for col in mat2_t] for row in mat1]
     
-    dim1 = len(list1)
-    dim2 = len(list2)
-
+    list1 = to_floats(list1)
+    list2 = to_floats(list2)
+    
     if isinstance(list1[0], list):
         if isinstance(list2[0], list):
             # Both arguments are 2D (or higher)
@@ -71,8 +83,7 @@ def mm(list1, list2):
     else:
         if isinstance(list2[0], list):
             # list1 is 1D and list2 is 2D
-            list1 = [list1]  # Treat as single row matrix
-            return matrix_vector_product(list2, list1)[0]  # We get a single row matrix, extract the row
+            return vector_matrix_product(list1, list2)
         else:
             # Both arguments are 1D
             return dot_product(list1, list2)
@@ -107,10 +118,23 @@ def mul(input, other):
     return multiply(input, other)
 
 def add(matrix1, matrix2):
-    if isinstance(matrix1, (int, float)):
-        return matrix1 + matrix2
-    else:
-        return [add(sub1, sub2) for sub1, sub2 in zip(matrix1, matrix2)]
+    def is_vector(mat):
+        return isinstance(mat, list) and all(isinstance(i, (int, float)) for i in mat)
+    
+    def broadcast_vector_to_matrix(vec, shape):
+        return [vec for _ in range(shape[0])]
+    
+    if is_vector(matrix1):
+        matrix1 = broadcast_vector_to_matrix(matrix1, (len(matrix2), len(matrix2[0])))
+    
+    if is_vector(matrix2):
+        matrix2 = broadcast_vector_to_matrix(matrix2, (len(matrix1), len(matrix1[0])))
+    
+    result = []
+    for row1, row2 in zip(matrix1, matrix2):
+        result.append([val1 + val2 for val1, val2 in zip(row1, row2)])
+    
+    return result
 
 def where(condition, x, y):
     if isinstance(condition, bool):
