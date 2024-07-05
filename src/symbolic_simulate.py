@@ -247,6 +247,8 @@ class SymbolicSimulator(AbstractSimulator):
             hw, self.cycles_ceil
         )
         self.edp = self.cycles * (self.total_active_energy + self.total_passive_energy)
+        # TODO substitute txt for MemL and Buf here
+        
 
     def save_edp_to_file(self):
         st = str(self.edp)

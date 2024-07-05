@@ -456,4 +456,34 @@ class HardwareModel:
             if mem_vals["IO power dynamic"] != "N/A"
             else 0.0
         )
+
+        # TODO call function to generate sympy expression
+        buf_cache_cfg = ""
+        mem_cache_cfg = ""
+
+        buf_sympy_expr = self.gen_sympy_expr(buf_cache_cfg)
+        mem_sympy_expr = self.gen_sympy_expr(mem_cache_cfg)
+
+        self.save_sympy_to_file("BufL", buf_sympy_expr)
+        self.save_sympy_to_file("MemL", mem_sympy_expr)
+
+        # make helper?
+        
+
         return
+    
+    # TODO format
+    def gen_sympy_expr(self, cache_cfg):
+        return
+    
+    def save_sympy_to_file(self, name, expr):
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        filename = current_dir + f'/{name}.txt'
+        try:
+            with open(filename, 'w') as file:
+                file.write(expr)
+            print(f"Output has been written to {filename}")
+        except Exception as e:
+            print(f"Error writing to file: {e}")
+
+    
