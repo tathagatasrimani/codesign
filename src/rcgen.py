@@ -7,8 +7,8 @@ def generate_optimization_params(latency, active_power, active_energy, passive_p
         V_dd: voltage in V
         MemReadL: memory read latency in s
         MemWriteL: memory write latency in s
-        MemReadPact: memory read active power in W
-        MemWritePact: memory write active power in W
+        MemReadEact: memory read active power in W
+        MemWriteEact: memory write active power in W
         MemPpass: memory passive power in W
     
         params:
@@ -21,7 +21,7 @@ def generate_optimization_params(latency, active_power, active_energy, passive_p
 
     rcs["other"]["V_dd"] = V_dd
 
-    # store in s
+    # store in ns
     rcs["other"]["MemReadL"] = latency["MainMem"]
     rcs["other"]["MemWriteL"] = latency["MainMem"]
 
@@ -30,7 +30,7 @@ def generate_optimization_params(latency, active_power, active_energy, passive_p
     rcs["other"]["MemWriteEact"] = active_energy["MainMem"]["Write"] * 1e-9
     rcs["other"]["MemPpass"] = passive_power["MainMem"] * 1e-9
 
-    rcs["other"]["BufL"] = latency["Buf"] # s
+    rcs["other"]["BufL"] = latency["Buf"] # ns
     
     # store in nW and nJ
     rcs["other"]["BufReadEact"] = active_energy["Buf"]["Read"] * 1e-9

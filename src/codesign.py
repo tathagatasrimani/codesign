@@ -4,6 +4,7 @@ import yaml
 import sys
 import datetime
 import logging
+import shutil
 
 logger = logging.getLogger("codesign")
 
@@ -40,6 +41,11 @@ class Codesign:
             f.write(f"Area: {area}\n")
             f.write(f"Optimization: {opt}\n")
 
+        # copy the benchmark and instrumented files;
+        shutil.copy(benchmark, f"{self.save_dir}/benchmark.py")
+        shutil.copy(f"instrumented_files/output.txt", f"{self.save_dir}/output.txt")
+        shutil.copy(f"instrumented_files/output_free.txt", f"{self.save_dir}/output_free.txt")
+    
         logging.basicConfig(filename=f"{self.save_dir}/log.txt", level=logging.INFO)
 
         self.area_constraint = area
@@ -81,7 +87,7 @@ class Codesign:
 
         logger.info(f"Running initial forward pass")
         self.sim.simulate(self.scheduled_dfg, self.hw)
-        self.sim.calculate_edp(self.hw)
+        self.sim.calculate_edp()
         self.forward_edp = self.sim.edp
 
         print(
@@ -104,14 +110,14 @@ class Codesign:
         sim_util.update_schedule_with_latency(self.computation_dfg, self.hw.latency)
 
         self.sim.simulate(self.scheduled_dfg, self.hw)
-        self.sim.calculate_edp(self.hw)
+        self.sim.calculate_edp()
         edp = self.sim.edp
         print(
             f"Initial EDP: {edp} E-18 Js. Active Energy: {self.sim.active_energy} nJ. Passive Energy: {self.sim.passive_energy} nJ. Execution time: {self.sim.execution_time} ns"
         )
 
         # hw updated in place, schedule and edp returned.
-        new_edp, new_schedule = architecture_search.run_arch_search(
+        new_edp, new_schedule, new_hw = architecture_search.run_arch_search(
             self.sim,
             self.hw,
             self.computation_dfg,
@@ -119,10 +125,11 @@ class Codesign:
             self.num_arch_search_iters,
             best_edp=edp,
         )
+        self.hw = new_hw
         self.scheduled_dfg = new_schedule
         self.forward_edp = new_edp
         print(
-            f"New EDP    : {new_edp} E-18 Js. Active Energy: {self.sim.active_energy} nJ. Passive Energy: {self.sim.passive_energy} nJ. Execution time: {self.sim.execution_time} ns"
+            f"Final EDP  : {new_edp} E-18 Js. Active Energy: {self.sim.active_energy} nJ. Passive Energy: {self.sim.passive_energy} nJ. Execution time: {self.sim.execution_time} ns"
         )
 
     def parse_output(self, f):
@@ -181,7 +188,6 @@ class Codesign:
         self.symbolic_sim.save_edp_to_file()
 
         self.inverse_edp = self.symbolic_sim.edp.subs(self.tech_params)
-        self.inverse_edp_ceil = self.symbolic_sim.edp_ceil.subs(self.tech_params)
 
         print(
             f"Initial EDP: {self.inverse_edp} E-18 Js. Active Energy: {(self.symbolic_sim.total_active_energy).subs(self.tech_params)} nJ. Passive Energy: {(self.symbolic_sim.total_passive_energy).subs(self.tech_params)} nJ. Execution time: {self.symbolic_sim.cycles.subs(self.tech_params)} ns"
@@ -200,7 +206,6 @@ class Codesign:
             )
         self.write_back_rcs()
         self.inverse_edp = self.symbolic_sim.edp.subs(self.tech_params)
-        self.inverse_edp_ceil = self.symbolic_sim.edp_ceil.subs(self.tech_params)
 
         print(
             f"Final EDP  : {self.inverse_edp} E-18 Js. Active Energy: {(self.symbolic_sim.total_active_energy).subs(self.tech_params)} nJ. Passive Energy: {(self.symbolic_sim.total_passive_energy).subs(self.tech_params)} nJ. Execution time: {self.symbolic_sim.cycles.subs(self.tech_params)} ns"
@@ -218,28 +223,31 @@ class Codesign:
         )
         nx.write_gml(self.scheduled_dfg, f"{self.save_dir}/schedule_{iter_number}.gml")
         self.write_back_rcs(f"{self.save_dir}/rcs_{iter_number}.yaml")
+        shutil.copy("sympy.txt", f"{self.save_dir}/sympy_{iter_number}.txt")
+        shutil.copy("ipopt_out.txt", f"{self.save_dir}/ipopt_{iter_number}.txt")
+        shutil.copy("solver_out.txt", f"{self.save_dir}/solver_{iter_number}.txt")
         # save latency, power, and tech params
         self.hw.write_technology_parameters(
             f"{self.save_dir}/tech_params_{iter_number}.yaml"
         )
+
+    def execute(self, num_iters):
+        i = 0
+        while i < num_iters:
+            self.inverse_pass()
+            self.hw.update_technology_parameters()
+
+            self.log_all_to_file(i)
+
+            self.forward_pass()
+            i += 1
 
 
 def main():
     codesign_module = Codesign(
         args.benchmark, args.area, args.architecture_config, args.num_arch_search_iters, args.savedir, args.opt
     )
-
-    i = 0
-    while i < args.num_iters:
-
-        codesign_module.inverse_pass()
-        codesign_module.hw.update_technology_parameters()
-
-        codesign_module.log_all_to_file(i)
-
-        codesign_module.forward_pass()
-        # TODO: create stopping condition
-        i += 1
+    codesign_module.execute(args.num_iters)
 
 
 if __name__ == "__main__":

@@ -237,10 +237,7 @@ class SymbolicSimulator(AbstractSimulator):
                             func = node.split("_")[3]  # stall names have std formats
                         else:
                             func = computation_dfg.nodes()[node]["function"]
-                        # THIS PATH LATENCY MAY OR MAY NOT USE CYCLE TIME OR WALL CLOCK TIME DUE TO SOLVER INSTABILITY
                         path_latency += hw_symbols.symbolic_latency_wc[func]
-                        # THIS PATH LATENCY USES CYCLE TIME AS A REFERENCE FOR WHAT THE TRUE EDP IS
-                        path_latency_ceil += hw_symbols.symbolic_latency_cyc[func]
                     self.cycles = symbolic_convex_max(self.cycles, path_latency)
                     self.cycles_ceil = symbolic_convex_max(self.cycles_ceil, path_latency_ceil)
 
@@ -250,19 +247,11 @@ class SymbolicSimulator(AbstractSimulator):
             hw, self.cycles_ceil
         )
         self.edp = self.cycles * (self.total_active_energy + self.total_passive_energy)
-        self.edp_ceil = self.cycles_ceil * (
-            self.total_active_energy + self.total_passive_energy_ceil
-        )
-        # TODO call new functions to substitute bufl and meml
-        # TODO pull
 
     def save_edp_to_file(self):
         st = str(self.edp)
         with open("sympy.txt", "w") as f:
             f.write(st)
-        st_ceil = str(self.edp_ceil)
-        with open("sympy_ceil.txt", "w") as f:
-            f.write(st_ceil)
 
 def main():
     print(f"Running symbolic simulator for {args.benchmark.split('/')[-1]}")
