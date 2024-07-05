@@ -13,6 +13,8 @@ BufReadEact = symbols("BufReadEact", positive=True)
 BufWriteEact = symbols("BufWriteEact", positive=True)
 BufPpass = symbols("BufPpass", positive=True)
 
+#TODO Add symbols just do name equals string (no dict)
+
 OffChipIOL = symbols("OffChipIOL", positive=True)
 OffChipIOPact = symbols("OffChipIOPact", positive=True)
 
@@ -70,6 +72,7 @@ Ceff = {
     "Regs": symbols("Ceff_Regs", positive=True),
 }
 
+# TODO Cacti string keys to var 
 symbol_table = {
     "V_dd": V_dd,
     "MemReadL": MemReadL,
