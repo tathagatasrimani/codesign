@@ -404,12 +404,11 @@ def add_cache_mem_access_to_dfg(
     """
     buf_count = 0
     mem_count = 0
-    print(f"add_cache_mem_access: buf_latency: {buf_latency}, mem_latency: {mem_latency}")
     for node, data in dict(
         filter(lambda x: x[1]["function"] == "Regs", computation_graph.nodes.data())
     ).items():
         # print(f"node: {node}, data: {data}")
-        size = 16  # data['size'] -hardcoded for now; come back and fix
+        size = 16  # data['size'] -hardcoded for now; TODO: come back and fix
         computation_graph.add_node(
             f"Buf{buf_count}",
             function="Buf",

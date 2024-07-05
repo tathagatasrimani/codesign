@@ -233,6 +233,7 @@ class SymbolicSimulator(AbstractSimulator):
 
                         path_latency += hw_symbols.symbolic_latency_wc[func] * scaling
                     self.cycles = symbolic_convex_max(self.cycles, path_latency)
+        logger.info(f"execution time: {str(self.cycles)}")
 
     def calculate_edp(self, hw):
         self.total_passive_energy = self.passive_energy_dissipation(hw, self.cycles)

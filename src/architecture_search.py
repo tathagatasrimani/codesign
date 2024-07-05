@@ -185,9 +185,9 @@ def run_arch_search(
     best_edp: float
     """
 
-    print(
-        f"longest path after update latency diff scope: {nx.dag_longest_path_length(scheduled_dfg)}"
-    )
+    # print(
+    #     f"longest path after update latency diff scope: {nx.dag_longest_path_length(scheduled_dfg)}"
+    # )
 
     old_scheduled_dfg = simulator.schedule(computation_dfg, hw)
 
@@ -199,21 +199,17 @@ def run_arch_search(
     #     print(f"num funcs: {hardwareModel.get_func_count(old_scheduled_dfg)}, {hardwareModel.get_func_count(scheduled_dfg)}")
     #     # print(f"\nReschduled weights: {old_scheduled_dfg.edges.data()}")
     #     # print(f"\nPassed in weights: {scheduled_dfg.edges.data()}")
-    print(f"Buf weight reschudeled: {list(filter(lambda x: 'Buf' in x[0], old_scheduled_dfg.edges.data()))[0]}")
-    print(f"Buf weight passed in: {list(filter(lambda x: 'Buf' in x[0], scheduled_dfg.edges.data()))[0]}")
+    # print(f"Buf weight reschudeled: {list(filter(lambda x: 'Buf' in x[0], old_scheduled_dfg.edges.data()))[0]}")
+    # print(f"Buf weight passed in: {list(filter(lambda x: 'Buf' in x[0], scheduled_dfg.edges.data()))[0]}")
 
-    print(f"Mem weight reschudeled: {list(filter(lambda x: 'Mem' in x[0], old_scheduled_dfg.edges.data()))[0]}")
-    print(f"Mem weight passed in: {list(filter(lambda x: 'Mem' in x[0], scheduled_dfg.edges.data()))[0]}")
-
-    print(
-        f"longest path unscheduled : {nx.dag_longest_path_length(computation_dfg)}"
-    )
+    # print(f"Mem weight reschudeled: {list(filter(lambda x: 'Mem' in x[0], old_scheduled_dfg.edges.data()))[0]}")
+    # print(f"Mem weight passed in: {list(filter(lambda x: 'Mem' in x[0], scheduled_dfg.edges.data()))[0]}")
 
     # print(f"\nunscheduled weights: {computation_dfg.edges.data()}")
 
-    print(
-        f"longest path after update latency rescheduled: {nx.dag_longest_path_length(old_scheduled_dfg)}"
-    )
+    # print(
+    #     f"longest path after update latency rescheduled: {nx.dag_longest_path_length(old_scheduled_dfg)}"
+    # )
 
     # sim_util.topological_layout_plot_side_by_side(scheduled_dfg, old_scheduled_dfg, reverse=True)
 
@@ -221,7 +217,7 @@ def run_arch_search(
     simulator.calculate_edp()
     area = hw.get_total_area()
 
-    print(
+    logger.info(
         f"AS EDP init: {simulator.edp} E-18 Js. Active Energy: {simulator.active_energy} nJ. Passive Energy: {simulator.passive_energy} nJ. Execution time: {simulator.execution_time} ns"
     )
 
@@ -288,7 +284,7 @@ def run_arch_search(
     simulator.execution_time = best_execution_time
     simulator.edp = best_edp
 
-    print(
+    logger.info(
         f"AS EDP     : {simulator.edp} E-18 Js. Active Energy: {simulator.active_energy} nJ. Passive Energy: {simulator.passive_energy} nJ. Execution time: {simulator.execution_time} ns"
     )
 

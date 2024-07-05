@@ -288,9 +288,9 @@ class ConcreteSimulator(AbstractSimulator):
 
         counter = 0
 
-        generations = reversed(
+        generations = list(reversed(
             list(nx.topological_generations(nx.reverse(computation_dfg)))
-        )
+        ))
         for gen in generations:  # main loop over the computation graphs;
             if "end" in gen:  # skip the end node (only thing in the last generation)
                 break
@@ -328,7 +328,7 @@ class ConcreteSimulator(AbstractSimulator):
                         * 1e-9
                         * scaling
                     )
-                
+
                     if (node_data["function"] == "MainMem"):
                         energy += (
                         hw.dynamic_power["OffChipIO"] * 1e-9
@@ -355,10 +355,40 @@ class ConcreteSimulator(AbstractSimulator):
 
                 return res
 
-        self.cycles = nx.dag_longest_path_length(computation_dfg)
-        longest_path = nx.dag_longest_path(computation_dfg)
-        logger.info(f"longest path: {longest_path}")
+        self.cycles = nx.dag_longest_path_length(nx.reverse(computation_dfg))
+        longest_path = nx.dag_longest_path(nx.reverse(computation_dfg))
+        logger.info(f"longest path: {list(map(lambda x: (x, computation_dfg.nodes[x]['function']), longest_path))}")
         logger.info(f"longest path length: {self.cycles}")
+        self.cycles = 0
+        longest_path_explicit = []
+        for start_node in generations[0]:
+            for end_node in generations[-1]: # end should be the only node here
+                if start_node == end_node:
+                    continue
+                logger.info(f"start_node: {start_node}, end_node: {end_node}")
+                for path in nx.all_simple_paths(computation_dfg, start_node, end_node):
+                    path_latency = 0
+                    for node in path:
+                        scaling = 1
+                        node_data = computation_dfg.nodes[node]
+                        if node_data["function"] == "end":
+                            continue
+                        elif node_data["function"] == "stall":
+                            func = node.split("_")[3]  # stall names have std formats
+                        else:
+                            func = node_data["function"]
+                        if func in ["Buf", "MainMem"]:
+                            scaling = node_data["size"]
+                            logger.info(f"latency scaling: {scaling}")
+
+                        path_latency += hw.latency[func] * scaling
+                    if path_latency > self.cycles:
+                        longest_path_explicit = path
+                        self.cycles = path_latency
+        logger.info(
+            f"longest path explicitly calculated: {list(map(lambda x: (x, computation_dfg.nodes[x]['function']), longest_path_explicit))}"
+        )
+        logger.info(f"longest path length explicitly calculated: {self.cycles}")
 
         for elem_name, elem_data in dict(hw.netlist.nodes.data()).items():
             scaling = 1
