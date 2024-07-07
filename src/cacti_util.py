@@ -4,7 +4,44 @@ import yaml
 
 import pandas as pd
 
+from cacti.cacti_python.parameter import g_ip
+from cacti.cacti_python.parameter import g_tp
+from cacti.cacti_python.cacti_interface import uca_org_t
+from cacti.cacti_python.Ucache import *
+from cacti.cacti_python.parameter import sympy_var
+
+from cacti.cacti_python.mat import Mat
+from cacti.cacti_python.bank import Bank
+import pickle
+
 valid_tech_nodes = [22, 32, 45, 65, 90, 180]
+
+'''
+Generate sympy expression for access_time (will add for energy)
+Outputs results to text file
+'''
+def cacti_gen_sympy(name, cache_cfg):
+    g_ip.parse_cfg(cache_cfg)
+    g_ip.error_checking()
+
+    # make it so that cache cfg has Ndwl and Ndbl > 2
+    g_ip.ndwl = 2
+    g_ip.ndbl = 2
+
+    fin_res = uca_org_t()
+    fin_res = solve_single()
+
+    # diff_a = sp.diff(solve_single(fin_res), sympy_var["C_g_ideal"])
+    # print(diff_a)
+    with open(f'{name}.txt', 'w') as file:
+        file.write(f"{fin_res.access_time}")
+
+'''
+Validates output of sympy_file with cacti run.
+
+'''
+def validate(sympy_file, cfg_file, dat_file):
+    return
 
 """
 Generates Cacti .cfg file based on input and cacti_input.
@@ -259,7 +296,7 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
         '# -verbose "F"',
     ]
 
-    cactiDir = os.path.join(os.path.dirname(__file__), './cacti')
+    cactiDir = os.path.join(os.path.dirname(__file__), 'cacti')
 
     # write file
     input_filename = filename + ".cfg"
@@ -309,3 +346,7 @@ def convert_frequency(string):
             print("Invalid input format")
     else:
         print("Invalid input format")
+
+# if __name__ == "__main__":
+#     cache_cfg = "/Users/dw/Documents/codesign/cacti/cache.cfg"
+#     cacti_gen_sympy("sympy_test", cache_cfg)

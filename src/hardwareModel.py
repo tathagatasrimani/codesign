@@ -19,7 +19,6 @@ from config_dicts import op2sym_map
 import rcgen
 import cacti_util
 from global_constants import SYSTEM_BUS_SIZE
-from src.cacti.cacti_python.main import cacti_gen_sympy
 
 
 HW_CONFIG_FILE = "params/hw_cfgs.ini"
@@ -388,20 +387,20 @@ class HardwareModel:
         buf_vals = cacti_util.gen_vals(
             "base_cache",
             cacheSize=self.buffer_size, # TODO: Add in buffer sizing
-            blockSize=64,
+            blockSize=32,
             cache_type="cache",
             bus_width=self.buffer_bus_width,
         )
         logger.info(f"Buffer cacti with: {self.buffer_size} bytes, {self.buffer_bus_width} bus width")
+
         mem_vals = cacti_util.gen_vals(
             "mem_cache",
-            cacheSize=self.mem_size,
+            cacheSize=131072, #self.mem_size
             blockSize=64,
             cache_type="main memory",
-            bus_width=self.memory_bus_width,
+            bus_width=self.memory_bus_width + 64,
         )
         logger.info(f"Memory cacti with: {self.mem_size} bytes, {self.memory_bus_width} bus width")
-        
 
         self.area["Buf"] = float(buf_vals["Area (mm2)"]) * 1e12 # convert to nm^2
         self.area["MainMem"] = float(mem_vals["Area (mm2)"]) * 1e12 # convert to nm^2
@@ -461,8 +460,11 @@ class HardwareModel:
         buf_cache_cfg = "cacti/base_cache.cfg"
         mem_cache_cfg = "cacti/mem_cache.cfg"
 
-        cacti_gen_sympy("BufL", buf_cache_cfg)
-        cacti_gen_sympy("MemL", mem_cache_cfg)
+        print("made it past gen_cacti_results")
+
+        # Comment for now since it takes a while to generate
+        # cacti_util.cacti_gen_sympy("BufL", buf_cache_cfg)
+        # cacti_util.cacti_gen_sympy("MemL", mem_cache_cfg)
         
         return
     

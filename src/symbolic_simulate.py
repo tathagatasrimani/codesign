@@ -258,14 +258,11 @@ class SymbolicSimulator(AbstractSimulator):
         bufl_expr = sp.sympify(bufl_text)
 
         subs = {
-            hw_symbols.MemReadL + hw_symbols.MemWriteL: meml_expr,
+            (hw_symbols.MemReadL + hw_symbols.MemWriteL): meml_expr,
             hw_symbols.BufL: bufl_expr
         }
 
         self.edp = self.edp.subs(subs)
-
-        # TODO substitute txt for MemL and Buf here
-        
 
     def save_edp_to_file(self):
         st = str(self.edp)
