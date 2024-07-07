@@ -12,7 +12,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import networkx as nx
 from sympy import *
-import sympy
+import sympy as sp
 import pyomo.environ as pyo
 from pyomo.core.expr import Expr_if
 
@@ -247,6 +247,23 @@ class SymbolicSimulator(AbstractSimulator):
             hw, self.cycles_ceil
         )
         self.edp = self.cycles * (self.total_active_energy + self.total_passive_energy)
+
+        with open('MemL.txt', 'r') as file:
+            meml_text = file.read()
+
+        with open('BufL.txt', 'r') as file:
+            bufl_text = file.read()
+
+        meml_expr = sp.sympify(meml_text)
+        bufl_expr = sp.sympify(bufl_text)
+
+        subs = {
+            hw_symbols.MemReadL + hw_symbols.MemWriteL: meml_expr,
+            hw_symbols.BufL: bufl_expr
+        }
+
+        self.edp = self.edp.subs(subs)
+
         # TODO substitute txt for MemL and Buf here
         
 
