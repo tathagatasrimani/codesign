@@ -29,18 +29,6 @@ from abstract_simulate import AbstractSimulator
 
 rng = np.random.default_rng(SEED)
 
-# TODO need to replace Buf Latency and Mem Latency with Mem and buf expressions in txt output
-# TODO updateBufL, updateMemL functions, that call the sympify.cact
-# TODO call function to write to file
-# has self.edp, BufL and MemL
-# update BufL and memL gets called before write
-
-#TODO sympify store meta data of cfg file
-#TODO call sympfiy in hardwareModel gen_cacti_results (entrypoing)
-
-
-# TODO for validate check that metadata is the same sas cfg_file
-
 def symbolic_convex_max(a, b):
     """
     An approximation to the max function that plays well with these numeric solvers.
