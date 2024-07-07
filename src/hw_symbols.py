@@ -13,6 +13,66 @@ BufReadEact = symbols("BufReadEact", positive=True)
 BufWriteEact = symbols("BufWriteEact", positive=True)
 BufPpass = symbols("BufPpass", positive=True)
 
+# Cacti .dat technology parameters
+C_g_ideal = symbols('C_g_ideal', positive=True)
+C_fringe = symbols('C_fringe', positive=True)
+C_junc = symbols('C_junc', positive=True)
+C_junc_sw = symbols('C_junc_sw', positive=True)
+l_phy = symbols('l_phy', positive=True)
+l_elec = symbols('l_elec', positive=True)
+nmos_effective_resistance_multiplier = symbols('nmos_effective_resistance_multiplier', positive=True)
+Vdd = symbols('Vdd', positive=True)
+Vth = symbols('Vth', positive=True)
+Vdsat = symbols('Vdsat', positive=True)
+I_on_n = symbols('I_on_n', positive=True)
+I_on_p = symbols('I_on_p', positive=True)
+I_off_n = symbols('I_off_n', positive=True)
+I_g_on_n = symbols('I_g_on_n', positive=True)
+C_ox = symbols('C_ox', positive=True)
+t_ox = symbols('t_ox', positive=True)
+n2p_drv_rt = symbols('n2p_drv_rt', positive=True)
+lch_lk_rdc = symbols('lch_lk_rdc', positive=True)
+Mobility_n = symbols('Mobility_n', positive=True)
+gmp_to_gmn_multiplier = symbols('gmp_to_gmn_multiplier', positive=True)
+vpp = symbols('vpp', positive=True)
+Wmemcella = symbols('Wmemcella', positive=True)
+Wmemcellpmos = symbols('Wmemcellpmos', positive=True)
+Wmemcellnmos = symbols('Wmemcellnmos', positive=True)
+area_cell = symbols('area_cell', positive=True)
+asp_ratio_cell = symbols('asp_ratio_cell', positive=True)
+vdd_cell = symbols('vdd_cell', positive=True)
+dram_cell_I_on = symbols('dram_cell_I_on', positive=True)
+dram_cell_Vdd = symbols('dram_cell_Vdd', positive=True)
+dram_cell_C = symbols('dram_cell_C', positive=True)
+dram_cell_I_off_worst_case_len_temp = symbols('dram_cell_I_off_worst_case_len_temp', positive=True)
+logic_scaling_co_eff = symbols('logic_scaling_co_eff', positive=True)
+core_tx_density = symbols('core_tx_density', positive=True)
+sckt_co_eff = symbols('sckt_co_eff', positive=True)
+chip_layout_overhead = symbols('chip_layout_overhead', positive=True)
+macro_layout_overhead = symbols('macro_layout_overhead', positive=True)
+sense_delay = symbols('sense_delay', positive=True)
+sense_dy_power = symbols('sense_dy_power', positive=True)
+wire_pitch = symbols('wire_pitch', positive=True)
+barrier_thickness = symbols('barrier_thickness', positive=True)
+dishing_thickness = symbols('dishing_thickness', positive=True)
+alpha_scatter = symbols('alpha_scatter', positive=True)
+aspect_ratio = symbols('aspect_ratio', positive=True)
+miller_value = symbols('miller_value', positive=True)
+horiz_dielectric_constant = symbols('horiz_dielectric_constant', positive=True)
+vert_dielectric_constant = symbols('vert_dielectric_constant', positive=True)
+ild_thickness = symbols('ild_thickness', positive=True)
+fringe_cap = symbols('fringe_cap', positive=True)
+resistivity = symbols('resistivity', positive=True)
+wire_r_per_micron = symbols('wire_r_per_micron', positive=True)
+wire_c_per_micron = symbols('wire_c_per_micron', positive=True)
+tsv_pitch = symbols('tsv_pitch', positive=True)
+tsv_diameter = symbols('tsv_diameter', positive=True)
+tsv_length = symbols('tsv_length', positive=True)
+tsv_dielec_thickness = symbols('tsv_dielec_thickness', positive=True)
+tsv_contact_resistance = symbols('tsv_contact_resistance', positive=True)
+tsv_depletion_width = symbols('tsv_depletion_width', positive=True)
+tsv_liner_dielectric_cons = symbols('tsv_liner_dielectric_cons', positive=True)
+
 # Where do these show up in the optimization objective
 BufPeriphAreaEff = symbols("buf_peripheral_area_proportion", positive=True)
 MemPeriphAreaEff = symbols("mem_peripheral_area_propportion", positive=True)
@@ -136,6 +196,66 @@ symbol_table = {
     "Ceff_Not": Ceff["Not"],
     "Ceff_Invert": Ceff["Invert"],
     "Ceff_Regs": Ceff["Regs"],
+    
+    # Cacti .dat technology parameters
+    'C_g_ideal': C_g_ideal,
+    'C_fringe': C_fringe,
+    'C_junc': C_junc,
+    'C_junc_sw': C_junc_sw,
+    'l_phy': l_phy,
+    'l_elec': l_elec,
+    'nmos_effective_resistance_multiplier': nmos_effective_resistance_multiplier,
+    'Vdd': Vdd,
+    'Vth': Vth,
+    'Vdsat': Vdsat,
+    'I_on_n': I_on_n,
+    'I_on_p': I_on_p,
+    'I_off_n': I_off_n,
+    'I_g_on_n': I_g_on_n,
+    'C_ox': C_ox,
+    't_ox': t_ox,
+    'n2p_drv_rt': n2p_drv_rt,
+    'lch_lk_rdc': lch_lk_rdc,
+    'Mobility_n': Mobility_n,
+    'gmp_to_gmn_multiplier': gmp_to_gmn_multiplier,
+    'vpp': vpp,
+    'Wmemcella': Wmemcella,
+    'Wmemcellpmos': Wmemcellpmos,
+    'Wmemcellnmos': Wmemcellnmos,
+    'area_cell': area_cell,
+    'asp_ratio_cell': asp_ratio_cell,
+    'vdd_cell': vdd_cell,
+    'dram_cell_I_on': dram_cell_I_on,
+    'dram_cell_Vdd': dram_cell_Vdd,
+    'dram_cell_C': dram_cell_C,
+    'dram_cell_I_off_worst_case_len_temp': dram_cell_I_off_worst_case_len_temp,
+    'logic_scaling_co_eff': logic_scaling_co_eff,
+    'core_tx_density': core_tx_density,
+    'sckt_co_eff': sckt_co_eff,
+    'chip_layout_overhead': chip_layout_overhead,
+    'macro_layout_overhead': macro_layout_overhead,
+    'sense_delay': sense_delay,
+    'sense_dy_power': sense_dy_power,
+    'wire_pitch': wire_pitch,
+    'barrier_thickness': barrier_thickness,
+    'dishing_thickness': dishing_thickness,
+    'alpha_scatter': alpha_scatter,
+    'aspect_ratio': aspect_ratio,
+    'miller_value': miller_value,
+    'horiz_dielectric_constant': horiz_dielectric_constant,
+    'vert_dielectric_constant': vert_dielectric_constant,
+    'ild_thickness': ild_thickness,
+    'fringe_cap': fringe_cap,
+    'resistivity': resistivity,
+    'wire_r_per_micron': wire_r_per_micron,
+    'wire_c_per_micron': wire_c_per_micron,
+    'tsv_pitch': tsv_pitch,
+    'tsv_diameter': tsv_diameter,
+    'tsv_length': tsv_length,
+    'tsv_dielec_thickness': tsv_dielec_thickness,
+    'tsv_contact_resistance': tsv_contact_resistance,
+    'tsv_depletion_width': tsv_depletion_width,
+    'tsv_liner_dielectric_cons': tsv_liner_dielectric_cons
 }
 
 # passive power

@@ -19,6 +19,7 @@ from config_dicts import op2sym_map
 import rcgen
 import cacti_util
 from global_constants import SYSTEM_BUS_SIZE
+from cacti.cacti_sympy.main import cacti_gen_sympy
 
 
 HW_CONFIG_FILE = "params/hw_cfgs.ini"
@@ -457,33 +458,14 @@ class HardwareModel:
             else 0.0
         )
 
-        # TODO call function to generate sympy expression
-        buf_cache_cfg = ""
-        mem_cache_cfg = ""
+        buf_cache_cfg = "cacti/base_cache.cfg"
+        mem_cache_cfg = "cacti/mem_cache.cfg"
 
-        buf_sympy_expr = self.gen_sympy_expr(buf_cache_cfg)
-        mem_sympy_expr = self.gen_sympy_expr(mem_cache_cfg)
-
-        self.save_sympy_to_file("BufL", buf_sympy_expr)
-        self.save_sympy_to_file("MemL", mem_sympy_expr)
-
-        # make helper?
+        cacti_gen_sympy("BufL", buf_cache_cfg)
+        cacti_gen_sympy("MemL", mem_cache_cfg)
         
+        return
+    
 
-        return
-    
-    # TODO format
-    def gen_sympy_expr(self, cache_cfg):
-        return
-    
-    def save_sympy_to_file(self, name, expr):
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        filename = current_dir + f'/{name}.txt'
-        try:
-            with open(filename, 'w') as file:
-                file.write(expr)
-            print(f"Output has been written to {filename}")
-        except Exception as e:
-            print(f"Error writing to file: {e}")
 
     
