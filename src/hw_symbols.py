@@ -134,7 +134,6 @@ Ceff = {
     "Regs": symbols("Ceff_Regs", positive=True),
 }
 
-# TODO Cacti string keys to var 
 symbol_table = {
     "V_dd": V_dd,
     "MemReadL": MemReadL,
