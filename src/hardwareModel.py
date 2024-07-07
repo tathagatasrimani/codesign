@@ -19,7 +19,7 @@ from config_dicts import op2sym_map
 import rcgen
 import cacti_util
 from global_constants import SYSTEM_BUS_SIZE
-from cacti.cacti_sympy.main import cacti_gen_sympy
+from src.cacti.cacti_python.main import cacti_gen_sympy
 
 
 HW_CONFIG_FILE = "params/hw_cfgs.ini"
