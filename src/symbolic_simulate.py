@@ -12,6 +12,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import networkx as nx
 from sympy import *
+import sympy as sp
 import pyomo.environ as pyo
 from pyomo.core.expr import Expr_if
 
@@ -241,8 +242,8 @@ class SymbolicSimulator(AbstractSimulator):
         with open('BufL.txt', 'r') as file:
             bufl_text = file.read()
 
-        meml_expr = sympify(meml_text)
-        bufl_expr = sympify(bufl_text)
+        meml_expr = sp.sympify(meml_text)
+        bufl_expr = sp.sympify(bufl_text)
 
         subs = {
             (hw_symbols.MemReadL + hw_symbols.MemWriteL): meml_expr,
