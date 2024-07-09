@@ -20,5 +20,6 @@ src/params/rcs_current.yaml
 src/params/coefficients.yaml
 
 data/**
+.vscode/**
 
 src/codesign_log_dir/**
