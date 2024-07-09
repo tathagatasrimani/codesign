@@ -387,7 +387,7 @@ class HardwareModel:
         buf_vals = cacti_util.gen_vals(
             "base_cache",
             cacheSize=self.buffer_size, # TODO: Add in buffer sizing
-            blockSize=32,
+            blockSize=64,
             cache_type="cache",
             bus_width=self.buffer_bus_width,
         )
@@ -395,10 +395,10 @@ class HardwareModel:
 
         mem_vals = cacti_util.gen_vals(
             "mem_cache",
-            cacheSize=131072, #self.mem_size
+            cacheSize=self.mem_size,
             blockSize=64,
             cache_type="main memory",
-            bus_width=self.memory_bus_width + 64,
+            bus_width=self.memory_bus_width
         )
         logger.info(f"Memory cacti with: {self.mem_size} bytes, {self.memory_bus_width} bus width")
 
@@ -459,8 +459,6 @@ class HardwareModel:
 
         buf_cache_cfg = "cacti/base_cache.cfg"
         mem_cache_cfg = "cacti/mem_cache.cfg"
-
-        print("made it past gen_cacti_results")
 
         # Comment for now since it takes a while to generate
         # cacti_util.cacti_gen_sympy("BufL", buf_cache_cfg)
