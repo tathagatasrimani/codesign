@@ -33,7 +33,8 @@ def setup_arch_search(benchmark, arch_init_config):
         sim_util.find_nearest_power_2(simulator.memory_needed),
         sim_util.find_nearest_power_2(simulator.nvm_memory_needed),
     )
-
+    area = hw.get_total_area()
+    logger.info(f"Initial area: {area} um^2")
     hardwareModel.un_allocate_all_in_use_elements(hw.netlist)
 
     return (
@@ -154,8 +155,8 @@ def update_hw_with_new_node(hw_netlist, scarce_function):
     else:
         for node2 in hw_netlist.nodes:
             if (
-                "Reg" in node2
-                or "Buf" in node2
+                # "Reg" in node2
+                "Buf" in node2
                 or "MainMem" in node2
                 or node2 == f"{scarce_function}{idx}"
             ):
@@ -227,9 +228,13 @@ def run_arch_search(
 
         simulator.simulate(scheduled_dfg, hw)
         simulator.calculate_edp()
-        logger.info(f"simulated; execution time: {simulator.execution_time} ns, passive energy: {simulator.passive_energy} nJ, active energy: {simulator.active_energy} nJ, edp: {simulator.edp} E-18 Js")
+        logger.info(f"AS{i}; Best EDP: {best_edp} E-18 Js")
+        logger.info(
+            f"AS{i}; EDP: {simulator.edp} E-18 Js. Active Energy: {simulator.active_energy} nJ. Passive Energy: {simulator.passive_energy} nJ. Execution time: {simulator.execution_time} ns."
+        )
 
         area = hw.get_total_area()
+        logger.info(f"Area: {area} um^2 vs constraint: {area_constraint} um^2")
         if area > area_constraint:
             logger.info("Area constraint exceeded; breaking")
             # shouldn't actually break here, because you can try other nodes that are smaller but still might have a good effect
@@ -243,7 +248,7 @@ def run_arch_search(
             best_hw = deepcopy(hw_copy)
             best_schedule = scheduled_dfg
         else: 
-            logger.info(f"Adding node ({func}) did not improve EDP; reverting")
+            logger.info(f"Adding node ({func}) did not improve EDP")
 
         old_scheduled_dfg = scheduled_dfg
         if len(func_counts) == 0:
