@@ -149,11 +149,12 @@ class Codesign:
         for _ in range(len(mapping)):
             key = lines[i].split(":")[0].lstrip().rstrip()
             value = float(lines[i].split(":")[2][1:-1])
-            self.tech_params[mapping[key]] = value
+            self.tech_params[mapping[key]] = value  # just know that self.tech_params contains all dat
             i += 1
 
+    # TODO modify to hanlde new cacti list
     def write_back_rcs(self, rcs_path="params/rcs_current.yaml"):
-        rcs = {"Reff": {}, "Ceff": {}, "other": {}}
+        rcs = {"Reff": {}, "Ceff": {},"Cacti": {}, "other": {}}
         for elem in self.tech_params:
             if (
                 elem.name == "f"
@@ -165,6 +166,10 @@ class Codesign:
                 rcs["other"][elem.name] = self.tech_params[
                     hw_symbols.symbol_table[elem.name]
                 ]
+            # elif (elem.name in hw_symbols.cacti_tech_params):
+            #     rcs["Cacti"][elem.name] = self.tech_params[
+            #         hw_symbols.symbol_table[elem.name]
+            #     ]
             else:
                 rcs[elem.name[: elem.name.find("_")]][
                     elem.name[elem.name.find("_") + 1 :]

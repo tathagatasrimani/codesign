@@ -729,25 +729,6 @@ def convert_tech_params_to_si(latency, active_power, passive_power, frequency):
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
-def generate_init_params_from_rcs_as_strings(rcs):
-    """
-    Just some format conversion
-    keys are strings
-    """
-    initial_params = {}
-    for elem in rcs["Reff"]:
-        initial_params["Reff_" + elem] = rcs["Reff"][elem]
-        initial_params["Ceff_" + elem] = rcs["Ceff"][elem]
-    initial_params["f"] = rcs["other"]["f"]
-    initial_params["V_dd"] = rcs["other"]["V_dd"]
-    initial_params["MemReadL"] = rcs["other"]["MemReadL"]
-    initial_params["MemWriteL"] = rcs["other"]["MemWriteL"]
-    initial_params["MemReadPact"] = rcs["other"]["MemReadPact"]
-    initial_params["MemWritePact"] = rcs["other"]["MemWritePact"]
-    initial_params["MemPpass"] = rcs["other"]["MemPpass"]
-    return initial_params
-
-
 def generate_init_params_from_rcs_as_symbols(rcs):
     """
     Just some format conversion
@@ -758,15 +739,77 @@ def generate_init_params_from_rcs_as_symbols(rcs):
         initial_params[hw_symbols.symbol_table["Reff_" + elem]] = rcs["Reff"][elem]
         initial_params[hw_symbols.symbol_table["Ceff_" + elem]] = rcs["Ceff"][elem]
     initial_params[hw_symbols.V_dd] = rcs["other"]["V_dd"]
-    initial_params[hw_symbols.MemReadL] = rcs["other"]["MemReadL"]
-    initial_params[hw_symbols.MemWriteL] = rcs["other"]["MemWriteL"]
+    # initial_params[hw_symbols.MemReadL] = rcs["other"]["MemReadL"]  # remove latencies from here, have to dat file inputs, refactor to opt params
+    # initial_params[hw_symbols.MemWriteL] = rcs["other"]["MemWriteL"]
     initial_params[hw_symbols.MemReadEact] = rcs["other"]["MemReadEact"]
     initial_params[hw_symbols.MemWriteEact] = rcs["other"]["MemWriteEact"]
     initial_params[hw_symbols.MemPpass] = rcs["other"]["MemPpass"]
-    initial_params[hw_symbols.BufL] = rcs["other"]["BufL"]
+    # initial_params[hw_symbols.BufL] = rcs["other"]["BufL"]
     initial_params[hw_symbols.BufReadEact] = rcs["other"]["BufReadEact"]
     initial_params[hw_symbols.BufWriteEact] = rcs["other"]["BufWriteEact"]
     initial_params[hw_symbols.BufPpass] = rcs["other"]["BufPpass"]
     initial_params[hw_symbols.OffChipIOL] = rcs["other"]["OffChipIOL"]
     initial_params[hw_symbols.OffChipIOPact] = rcs["other"]["OffChipIOPact"]
+
+    # CACTI
+    initial_params[hw_symbols.C_g_ideal] = rcs["Cacti"]["C_g_ideal"]
+    initial_params[hw_symbols.C_fringe] = rcs["Cacti"]["C_fringe"]
+    initial_params[hw_symbols.C_junc] = rcs["Cacti"]["C_junc"]
+    initial_params[hw_symbols.C_junc_sw] = rcs["Cacti"]["C_junc_sw"]
+    initial_params[hw_symbols.l_phy] = rcs["Cacti"]["l_phy"]
+    initial_params[hw_symbols.l_elec] = rcs["Cacti"]["l_elec"]
+    initial_params[hw_symbols.nmos_effective_resistance_multiplier] = rcs["Cacti"]["nmos_effective_resistance_multiplier"]
+    initial_params[hw_symbols.Vdd] = rcs["Cacti"]["Vdd"]
+    initial_params[hw_symbols.Vth] = rcs["Cacti"]["Vth"]
+    initial_params[hw_symbols.Vdsat] = rcs["Cacti"]["Vdsat"]
+    initial_params[hw_symbols.I_on_n] = rcs["Cacti"]["I_on_n"]
+    initial_params[hw_symbols.I_on_p] = rcs["Cacti"]["I_on_p"]
+    initial_params[hw_symbols.I_off_n] = rcs["Cacti"]["I_off_n"]
+    initial_params[hw_symbols.I_g_on_n] = rcs["Cacti"]["I_g_on_n"]
+    initial_params[hw_symbols.C_ox] = rcs["Cacti"]["C_ox"]
+    initial_params[hw_symbols.t_ox] = rcs["Cacti"]["t_ox"]
+    initial_params[hw_symbols.n2p_drv_rt] = rcs["Cacti"]["n2p_drv_rt"]
+    initial_params[hw_symbols.lch_lk_rdc] = rcs["Cacti"]["lch_lk_rdc"]
+    initial_params[hw_symbols.Mobility_n] = rcs["Cacti"]["Mobility_n"]
+    initial_params[hw_symbols.gmp_to_gmn_multiplier] = rcs["Cacti"]["gmp_to_gmn_multiplier"]
+    initial_params[hw_symbols.vpp] = rcs["Cacti"]["vpp"]
+    initial_params[hw_symbols.Wmemcella] = rcs["Cacti"]["Wmemcella"]
+    initial_params[hw_symbols.Wmemcellpmos] = rcs["Cacti"]["Wmemcellpmos"]
+    initial_params[hw_symbols.Wmemcellnmos] = rcs["Cacti"]["Wmemcellnmos"]
+    initial_params[hw_symbols.area_cell] = rcs["Cacti"]["area_cell"]
+    initial_params[hw_symbols.asp_ratio_cell] = rcs["Cacti"]["asp_ratio_cell"]
+    # initial_params[hw_symbols.vdd_cell] = rcs["Cacti"]["vdd_cell"]    # TODO check use of vdd_cell
+    initial_params[hw_symbols.dram_cell_I_on] = rcs["Cacti"]["dram_cell_I_on"]
+    initial_params[hw_symbols.dram_cell_Vdd] = rcs["Cacti"]["dram_cell_Vdd"]
+    initial_params[hw_symbols.dram_cell_C] = rcs["Cacti"]["dram_cell_C"]
+    initial_params[hw_symbols.dram_cell_I_off_worst_case_len_temp] = rcs["Cacti"]["dram_cell_I_off_worst_case_len_temp"]
+    initial_params[hw_symbols.logic_scaling_co_eff] = rcs["Cacti"]["logic_scaling_co_eff"]
+    initial_params[hw_symbols.core_tx_density] = rcs["Cacti"]["core_tx_density"]
+    initial_params[hw_symbols.sckt_co_eff] = rcs["Cacti"]["sckt_co_eff"]
+    initial_params[hw_symbols.chip_layout_overhead] = rcs["Cacti"]["chip_layout_overhead"]
+    initial_params[hw_symbols.macro_layout_overhead] = rcs["Cacti"]["macro_layout_overhead"]
+    initial_params[hw_symbols.sense_delay] = rcs["Cacti"]["sense_delay"]
+    initial_params[hw_symbols.sense_dy_power] = rcs["Cacti"]["sense_dy_power"]
+    initial_params[hw_symbols.wire_pitch] = rcs["Cacti"]["wire_pitch"]
+    initial_params[hw_symbols.barrier_thickness] = rcs["Cacti"]["barrier_thickness"]
+    initial_params[hw_symbols.dishing_thickness] = rcs["Cacti"]["dishing_thickness"]
+    initial_params[hw_symbols.alpha_scatter] = rcs["Cacti"]["alpha_scatter"]
+    initial_params[hw_symbols.aspect_ratio] = rcs["Cacti"]["aspect_ratio"]
+    initial_params[hw_symbols.miller_value] = rcs["Cacti"]["miller_value"]
+    initial_params[hw_symbols.horiz_dielectric_constant] = rcs["Cacti"]["horiz_dielectric_constant"]
+    initial_params[hw_symbols.vert_dielectric_constant] = rcs["Cacti"]["vert_dielectric_constant"]
+    initial_params[hw_symbols.ild_thickness] = rcs["Cacti"]["ild_thickness"]
+    initial_params[hw_symbols.fringe_cap] = rcs["Cacti"]["fringe_cap"]
+    initial_params[hw_symbols.resistivity] = rcs["Cacti"]["resistivity"]
+    initial_params[hw_symbols.wire_r_per_micron] = rcs["Cacti"]["wire_r_per_micron"]
+    initial_params[hw_symbols.wire_c_per_micron] = rcs["Cacti"]["wire_c_per_micron"]
+    initial_params[hw_symbols.tsv_pitch] = rcs["Cacti"]["tsv_pitch"]
+    initial_params[hw_symbols.tsv_diameter] = rcs["Cacti"]["tsv_diameter"]
+    initial_params[hw_symbols.tsv_length] = rcs["Cacti"]["tsv_length"]
+    initial_params[hw_symbols.tsv_dielec_thickness] = rcs["Cacti"]["tsv_dielec_thickness"]
+    initial_params[hw_symbols.tsv_contact_resistance] = rcs["Cacti"]["tsv_contact_resistance"]
+    initial_params[hw_symbols.tsv_depletion_width] = rcs["Cacti"]["tsv_depletion_width"]
+    initial_params[hw_symbols.tsv_liner_dielectric_cons] = rcs["Cacti"]["tsv_liner_dielectric_cons"]
+
+
     return initial_params

@@ -1,6 +1,9 @@
 import yaml
+import cacti.cacti_python.get_dat as dat
+import math
 
-def generate_optimization_params(latency, active_power, active_energy, passive_power, V_dd):
+# Read in dat file, add to the rcs file
+def generate_optimization_params(latency, active_power, active_energy, passive_power, V_dd, dat_file):
     """
     Generate R,C, etc from the latency, power tech parameters.
     rcs[other] are all stored in SI units.
@@ -17,7 +20,7 @@ def generate_optimization_params(latency, active_power, active_energy, passive_p
         passive_power: dictionary of passive power in nW
         V_dd: voltage in V
     """
-    rcs = {"Reff": {}, "Ceff": {}, "other": {}}
+    rcs = {"Reff": {}, "Ceff": {}, "Cacti": {}, "other": {}}
 
     rcs["other"]["V_dd"] = V_dd
 
@@ -50,6 +53,14 @@ def generate_optimization_params(latency, active_power, active_energy, passive_p
     inv_R_off = V_dd**2 / (passive_power["Not"] * 1e-9)
 
     rcs["other"]["Roff_on_ratio"] = inv_R_off / rcs["Reff"]["Not"]
+
+    # CACTI
+    cacti_params = {}
+    # TODO, cell type, temp
+    dat.scan_dat(cacti_params, dat_file, 0, 0, 360)
+    cacti_params = {k: (1 if v is None or math.isnan(v) else (10**(-9) if v == 0 else v)) for k, v in cacti_params.items()}
+    for key, value in cacti_params.items():
+        rcs["Cacti"][key] = value
 
     return rcs
 

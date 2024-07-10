@@ -246,7 +246,9 @@ class SymbolicSimulator(AbstractSimulator):
         bufl_expr = sp.sympify(bufl_text)
 
         subs = {
-            (hw_symbols.MemReadL + hw_symbols.MemWriteL): meml_expr,
+            # TODO 
+            hw_symbols.MemReadL: (meml_expr / 2),
+            hw_symbols.MemWriteL: (meml_expr / 2),
             hw_symbols.BufL: bufl_expr
         }
 
@@ -265,6 +267,7 @@ def main():
     hw = HardwareModel(cfg=args.architecture_config)
 
     hw.get_optimization_params_from_tech_params()
+    print ("Checkpoint 1")
 
     computation_dfg = simulator.simulator_prep(args.benchmark, hw.latency)
 
@@ -273,7 +276,11 @@ def main():
         sim_util.find_nearest_power_2(0),
     )
 
+    print ("Checkpoint 2")
+
     computation_dfg = simulator.schedule(computation_dfg, hw)
+
+    print ("Checkpoint 3")
 
     simulator.transistor_size = hw.transistor_size  # in nm
     simulator.pitch = hw.pitch
@@ -288,13 +295,17 @@ def main():
         simulator.cache_size = 8
     else:
         simulator.cache_size = 16
+    print ("Checkpoint 4")
 
     hardwareModel.un_allocate_all_in_use_elements(hw.netlist)
     simulator.simulate(computation_dfg, hw)
+    print ("Checkpoint 5")
     simulator.calculate_edp(hw)
+    print ("Checkpoint 6")
 
     # simulator.edp = simulator.edp.simplify()
     simulator.save_edp_to_file()
+    print ("Checkpoint 7")
 
     return simulator.edp
 
