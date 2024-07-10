@@ -12,9 +12,13 @@ from cacti.cacti_python.parameter import sympy_var
 
 from cacti.cacti_python.mat import Mat
 from cacti.cacti_python.bank import Bank
-import pickle
 
-valid_tech_nodes = [22, 32, 45, 65, 90, 180]
+import cacti.cacti_python.get_dat as dat
+
+from hw_symbols import *
+import sympy as sp
+
+valid_tech_nodes = [0.022, 0.032, 0.045, 0.065, 0.090, 0.180]
 
 '''
 Generate sympy expression for access_time (will add for energy)
@@ -38,10 +42,41 @@ def cacti_gen_sympy(name, cache_cfg):
 
 '''
 Validates output of sympy_file with cacti run.
-
 '''
-def validate(sympy_file, cfg_file, dat_file):
-    return
+def validate(sympy_file, cache_cfg, dat_file):
+    g_ip.parse_cfg(cache_cfg)
+    g_ip.error_checking()
+
+    # TODO there are seperate tech params for each Type (Device, Memory, Interconnect)
+    tech_params = {}
+    dat.scan_dat(tech_params, dat_file, g_ip.data_arr_ram_cell_tech_type, g_ip.data_arr_ram_cell_tech_type, g_ip.temp)
+    tech_params = {k: (10**(-9) if v == 0 else v) for k, v in tech_params.items() if v is not None and not math.isnan(v)}
+    print(tech_params)
+    
+
+    with open(sympy_file, 'r') as file:
+        expression_str = file.read()
+
+    expression = sp.sympify(expression_str)
+    print(expression)
+    result = expression.subs(tech_params)
+
+
+    validate_vals = gen_vals(
+        "validate_cache",
+        cacheSize=g_ip.cache_sz, # TODO: Add in buffer sizing
+        blockSize=g_ip.block_sz,
+        cache_type="cache",
+        bus_width=g_ip.out_w,
+        transistor_size=g_ip.F_sz_um,
+        force_cache_config="true",
+    )
+
+    print(f"result : {result}")
+    validate_result = float(validate_vals["Access time (ns)"])
+    print(f"validate_result : {validate_result}")
+    
+    return result, validate_result
 
 """
 Generates Cacti .cfg file based on input and cacti_input.
@@ -50,7 +85,8 @@ Retrieves timing and power values from Cacti run.
 """
 def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
              cache_type = None, bus_width = None, transistor_size = None,
-             addr_timing = None, debug = False) -> pd.DataFrame:
+             addr_timing = None, force_cache_config = None, technology = None,
+             debug = False) -> pd.DataFrame:
     # load in default values
     with open("params/cacti_input.yaml", "r") as yamlfile:
         config_values = yaml.safe_load(yamlfile)
@@ -86,10 +122,13 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
     if transistor_size == None:
         transistor_size = config_values["technology"]
     else:
-        transistor_size = min(valid_tech_nodes, lambda x: abs(transistor_size - x))
+        transistor_size = min(valid_tech_nodes, key=lambda x: abs(transistor_size - x))
 
     if addr_timing == None:
         addr_timing = config_values["addr_timing"]
+
+    if force_cache_config == None:
+        force_cache_config = config_values["Force_cache_config"]
 
     # lines written to [filename].cfg file
     cfg_lines = [
@@ -231,7 +270,7 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
         "# force CACTI to model the cache with the",
         "# following Ndbl, Ndwl, Nspd, Ndsam,",
         "# and Ndcm values",
-        '-Force cache config - "{}"'.format(config_values["Force_cache_config"]),
+        '-Force cache config - "{}"'.format(force_cache_config),
         "-Ndwl {}".format(config_values["Ndwl"]),
         "-Ndbl {}".format(config_values["Ndbl"]),
         "-Nspd {}".format(config_values["Nspd"]),
@@ -347,6 +386,11 @@ def convert_frequency(string):
     else:
         print("Invalid input format")
 
-# if __name__ == "__main__":
-#     cache_cfg = "/Users/dw/Documents/codesign/cacti/cache.cfg"
-#     cacti_gen_sympy("sympy_test", cache_cfg)
+if __name__ == "__main__":
+    cache_cfg = "cacti/validate_cache.cfg"
+    # cacti_gen_sympy("sympy_validate", cache_cfg)
+    sympy_file = "sympy_validate.txt"
+    dat_file = "cacti/tech_params/90nm.dat"
+
+    validate(sympy_file, cache_cfg, dat_file)
+
