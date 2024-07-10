@@ -457,12 +457,13 @@ class HardwareModel:
             else 0.0
         )
 
-        buf_cache_cfg = "cacti/base_cache.cfg"
+        base_cache_cfg = "cacti/base_cache.cfg"
         mem_cache_cfg = "cacti/mem_cache.cfg"
 
         # Comment for now since it takes a while to generate
-        # cacti_util.cacti_gen_sympy("BufL", buf_cache_cfg)
-        # cacti_util.cacti_gen_sympy("MemL", mem_cache_cfg)
+        # base_cache_cfg = "/Users/dw/Documents/codesign/codesign/src/cacti/cache_works.cfg"
+        cacti_util.cacti_gen_sympy("BufL", base_cache_cfg)
+        cacti_util.cacti_gen_sympy("MemL", mem_cache_cfg)
         
         return
     
