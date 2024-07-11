@@ -230,33 +230,37 @@ class SymbolicSimulator(AbstractSimulator):
                     self.cycles_ceil = symbolic_convex_max(self.cycles_ceil, path_latency_ceil)
 
     def calculate_edp(self, hw):
-        self.total_passive_energy = self.passive_energy_dissipation(hw, self.cycles)
-        self.total_passive_energy_ceil = self.passive_energy_dissipation(
-            hw, self.cycles_ceil
-        )
-        self.edp = self.cycles * (self.total_active_energy + self.total_passive_energy)
 
-        with open('MemL.txt', 'r') as file:
+        with open("MemL.txt", "r") as file:
             meml_text = file.read()
 
-        with open('BufL.txt', 'r') as file:
+        with open("BufL.txt", "r") as file:
             bufl_text = file.read()
 
-        meml_expr = sp.sympify(meml_text)
-        bufl_expr = sp.sympify(bufl_text)
+        meml_expr = sp.sympify(meml_text, locals=hw_symbols.symbol_table)
+        bufl_expr = sp.sympify(bufl_text, locals=hw_symbols.symbol_table)
 
-        subs = {
-            # TODO 
-            # hw_symbols.MemReadL: hw_symbols.MemWriteL,
-            hw_symbols.MemWriteL: (meml_expr / 2),
-            hw_symbols.BufL: bufl_expr
+        cacti_subs = {
+            # TODO
+            hw_symbols.MemReadL: hw_symbols.MemWriteL,
+            hw_symbols.MemWriteL: meml_expr,
+            hw_symbols.BufL: bufl_expr,
         }
 
-        self.edp = self.edp.subs(subs)
+        self.cycles = self.cycles.subs(cacti_subs)
+
+        self.total_passive_energy = self.passive_energy_dissipation(hw, self.cycles)
+        # self.total_passive_energy_ceil = self.passive_energy_dissipation(
+        #     hw, self.cycles_ceil
+        # )
+        self.edp = self.cycles * (self.total_active_energy + self.total_passive_energy)
+        assert hw_symbols.MemReadL not in self.edp.free_symbols and hw_symbols.MemWriteL not in self.edp.free_symbols and hw_symbols.BufL not in self.edp.free_symbols
+
+        # self.edp = self.edp.subs(subs)
 
     def save_edp_to_file(self):
         st = str(self.edp)
-        with open("sympy.txt", "w") as f:
+        with open("symbolic_edp.txt", "w") as f:
             f.write(st)
 
 def main():

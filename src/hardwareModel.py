@@ -9,6 +9,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 import graphviz as gv
+import sympy as sp
 from sympy import *
 import networkx as nx
 
@@ -19,6 +20,8 @@ from config_dicts import op2sym_map
 import rcgen
 import cacti_util
 from global_constants import SYSTEM_BUS_SIZE
+import sim_util
+import hw_symbols
 
 
 HW_CONFIG_FILE = "params/hw_cfgs.ini"
@@ -273,10 +276,18 @@ class HardwareModel:
         R = rcs["Reff"]  # Ohms
         self.V_dd = rcs["other"]["V_dd"]
 
-        self.latency["MainMem"] = (
-            rcs["other"]["MemReadL"] + rcs["other"]["MemWriteL"]
-        ) / 2
-        self.latency["Buf"] = rcs["other"]["BufL"]
+
+        # TODO: update this to write to .dat file and then run cacti proper again.
+        opt_params = sim_util.generate_init_params_from_rcs_as_symbols(rcs)
+        # self.latency["MainMem"] = (
+        #     rcs["other"]["MemReadL"] + rcs["other"]["MemWriteL"]
+        # ) / 2
+        mem_l_expr =  sp.sympify(open("MemL.txt", "r").readline(), locals=hw_symbols.symbol_table)
+        self.latency["MainMem"] = mem_l_expr.xreplace(opt_params)
+
+        buf_l_expr =  sp.sympify(open("BufL.txt", "r").readline(), locals=hw_symbols.symbol_table)
+        self.latency["Buf"] = buf_l_expr.xreplace(opt_params)
+
         self.dynamic_energy["MainMem"]["Read"] = rcs["other"]["MemReadEact"] * 1e9
         self.dynamic_energy["MainMem"]["Write"] = rcs["other"]["MemWriteEact"] * 1e9
         self.dynamic_energy["Buf"]["Read"] = rcs["other"]["BufReadEact"] * 1e9

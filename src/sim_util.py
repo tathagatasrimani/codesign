@@ -739,7 +739,7 @@ def generate_init_params_from_rcs_as_symbols(rcs):
         initial_params[hw_symbols.symbol_table["Reff_" + elem]] = rcs["Reff"][elem]
         initial_params[hw_symbols.symbol_table["Ceff_" + elem]] = rcs["Ceff"][elem]
     initial_params[hw_symbols.V_dd] = rcs["other"]["V_dd"]
-    initial_params[hw_symbols.MemReadL] = rcs["other"]["MemReadL"]  # remove latencies from here, have to dat file inputs, refactor to opt params
+    # initial_params[hw_symbols.MemReadL] = rcs["other"]["MemReadL"]  # remove latencies from here, have to dat file inputs, refactor to opt params
     # initial_params[hw_symbols.MemWriteL] = rcs["other"]["MemWriteL"]
     initial_params[hw_symbols.MemReadEact] = rcs["other"]["MemReadEact"]
     initial_params[hw_symbols.MemWriteEact] = rcs["other"]["MemWriteEact"]

@@ -38,7 +38,7 @@ class Preprocessor:
     def add_constraints(self, model):
         logger.info("Adding Constraints")
         # this is where we say EDP_final = EDP_initial / 10
-        print(f"adding constraints. initial val: {self.initial_val}; edp_exp: {self.pyomo_edp_exp}")
+        print(f"adding constraints. initial val: {self.initial_val};") # edp_exp: {self.pyomo_edp_exp}")
         model.Constraint = pyo.Constraint(expr=self.pyomo_edp_exp <= self.initial_val / 1.4)
         model.Constraint1 = pyo.Constraint(expr=self.pyomo_edp_exp >= self.initial_val / 1.6)
         model.V_dd_lower = pyo.Constraint(rule=self.V_dd_lower)
@@ -105,16 +105,17 @@ class Preprocessor:
         self.expr_symbols = {}
         self.free_symbols = []
         self.initial_params = initial_params
-        for symbol in edp.free_symbols:
-            edp = edp.subs({symbol: hw_symbols.symbol_table[symbol.name]})
+        print(f"before free symbols loop")
+        # for symbol in edp.free_symbols:
+        #     edp = edp.xreplace({symbol: hw_symbols.symbol_table[symbol.name]})
         for s in edp.free_symbols:
             self.free_symbols.append(s)
             if s.name in initial_params:  # change this to just s
                 self.expr_symbols[s] = initial_params[s.name]
-
-        self.initial_val = float(edp.subs(self.expr_symbols))
+        print(f"calculating initial val")
+        self.initial_val = float(edp.xreplace(self.expr_symbols))
         print(f"expr_symbols: {self.expr_symbols}")
-        print("edp:", edp)
+        # print("edp:", edp)
         print("initial val:", self.initial_val)
 
         model.nVars = pyo.Param(initialize=len(edp.free_symbols))
@@ -128,6 +129,7 @@ class Preprocessor:
             print(f"x[{j}] {self.free_symbols[i]}")
             i += 1
 
+        print(f"building bimap")
         m = MyPyomoSympyBimap()
         for symbol in edp.free_symbols:
             # create self.mapping of sympy symbols to pyomo symbols
@@ -135,11 +137,13 @@ class Preprocessor:
             # give pyomo symbols an inital value for warm start
             model.x[self.mapping[symbol]] = self.expr_symbols[symbol]
             print(f"symbol: {symbol}; initial value: {self.expr_symbols[symbol]}")
-       
+        print(f"converting to pyomo exp")
         self.pyomo_edp_exp = sympy_tools.sympy2pyomo_expression(edp, m)
         self.obj = self.pyomo_edp_exp
+        # print(f"created pyomo expression: {self.pyomo_edp_exp}")
 
         self.add_regularization_to_objective(model, l=0.00001)
+        print(f"added regularization")
 
         model.obj = pyo.Objective(expr=self.obj, sense=pyo.minimize)
         model.cuts = pyo.ConstraintList()

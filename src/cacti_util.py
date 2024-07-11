@@ -38,7 +38,7 @@ def cacti_gen_sympy(name, cache_cfg):
     # diff_a = sp.diff(solve_single(fin_res), sympy_var["C_g_ideal"])
     # print(diff_a)
     with open(f'{name}.txt', 'w') as file:
-        file.write(f"{fin_res.access_time}")
+        file.write(str(fin_res.access_time))
 
 '''
 Validates output of sympy_file with cacti run.
