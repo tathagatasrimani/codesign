@@ -65,13 +65,25 @@ spec.loader.exec_module(module)
 NeuralNetwork = module.NeuralNetwork
 model = NeuralNetwork()
 
+def find_first_layer_with_weights(module):
+    for layer in module.children():
+        if hasattr(layer, 'weight'):
+            return layer.weight.shape
+        else:
+            # Recursively search in nested layers
+            result = find_first_layer_with_weights(layer)
+            if result is not None:
+                return result
+    return None
+
 match = re.search(r'([^/]+)\.py$', file_path)
 file_name = match.group(1)
 
 # get forward function
 torch._dynamo.reset()
 fn = torch.compile(backend=get_graph_backend, dynamic=True)(model)
-input = torch.rand(1, 28*28, device='cpu')
+input_shape = find_first_layer_with_weights(model)
+input = torch.rand(1, input_shape[1], device='cpu')
 out = fn(input)
 forward_code: str = graph.code
 
