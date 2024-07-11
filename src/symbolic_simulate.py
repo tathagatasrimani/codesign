@@ -247,7 +247,7 @@ class SymbolicSimulator(AbstractSimulator):
 
         subs = {
             # TODO 
-            hw_symbols.MemReadL: (meml_expr / 2),
+            hw_symbols.MemReadL: hw_symbols.MemWriteL,
             hw_symbols.MemWriteL: (meml_expr / 2),
             hw_symbols.BufL: bufl_expr
         }

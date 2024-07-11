@@ -166,10 +166,10 @@ class Codesign:
                 rcs["other"][elem.name] = self.tech_params[
                     hw_symbols.symbol_table[elem.name]
                 ]
-            # elif (elem.name in hw_symbols.cacti_tech_params):
-            #     rcs["Cacti"][elem.name] = self.tech_params[
-            #         hw_symbols.symbol_table[elem.name]
-            #     ]
+            elif (elem.name in hw_symbols.cacti_tech_params):
+                rcs["Cacti"][elem.name] = self.tech_params[
+                    hw_symbols.symbol_table[elem.name]
+                ]
             else:
                 rcs[elem.name[: elem.name.find("_")]][
                     elem.name[elem.name.find("_") + 1 :]

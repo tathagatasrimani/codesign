@@ -214,6 +214,7 @@ def main():
     edp = sympify(edp.readline())
 
     results = optimize(initial_params, edp, args.opt)
+    print ("PAST OPTIMIZE")
 
     return results
 

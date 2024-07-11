@@ -465,8 +465,8 @@ class HardwareModel:
 
         # Comment for now since it takes a while to generate
         # base_cache_cfg = "/Users/dw/Documents/codesign/codesign/src/cacti/cache_works.cfg"
-        cacti_util.cacti_gen_sympy("BufL", base_cache_cfg)
-        cacti_util.cacti_gen_sympy("MemL", mem_cache_cfg)
+        # cacti_util.cacti_gen_sympy("BufL", base_cache_cfg)
+        # cacti_util.cacti_gen_sympy("MemL", mem_cache_cfg)
         
         return
     
