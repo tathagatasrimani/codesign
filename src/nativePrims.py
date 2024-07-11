@@ -165,28 +165,9 @@ class nativePrims:
         return result
 
     def broadcast_in_dim(input_tensor, target_shape, broadcast_dimensions):
-        def get_shape(tensor):
-            if isinstance(tensor, list):
-                return [len(tensor)] + get_shape(tensor[0]) if tensor else []
-            return []
-
-        def can_broadcast(input_shape, target_shape, broadcast_dimensions):
-            input_shape = [1] * (len(target_shape) - len(input_shape)) + input_shape
-            for i, dim in enumerate(broadcast_dimensions):
-                if input_shape[dim] != target_shape[i] and input_shape[dim] != 1:
-                    return False
-            return True
-
-        def broadcast(tensor, input_shape, target_shape, broadcast_dimensions):
-            if not input_shape:
-                return tensor
-            dim = broadcast_dimensions[0]
-            if input_shape[0] == target_shape[0]:
-                return [broadcast(t, input_shape[1:], target_shape[1:], broadcast_dimensions[1:]) for t in tensor]
-            return [broadcast(tensor[0], input_shape[1:], target_shape[1:], broadcast_dimensions[1:]) for _ in range(target_shape[0])]
-
-        input_shape = get_shape(input_tensor)
-        if not can_broadcast(input_shape, target_shape, broadcast_dimensions):
-            raise ValueError("Cannot broadcast input tensor to the target shape with the given broadcast dimensions.")
-
-        return broadcast(input_tensor, input_shape, target_shape, broadcast_dimensions)
+        input_shape = nativePrims.shape(input_tensor)
+        if broadcast_dimensions == [1]:
+            target_size = target_shape[1]
+            result = []
+            for
+            return [input_tensor]
