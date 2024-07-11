@@ -145,8 +145,9 @@ match = re.search(pattern, def_line)
 function_signature = match.group(1)
 invoke_line = invoke_line + " = " + function_signature
 
-import_line = "from src import nativePrims"
-code_lines = [import_line,] + code_lines + argument_lines + [invoke_line,]
+with open(r"src/nativePrims.py", "r") as nativePrims:
+    nativePrim_lines = nativePrims.read()
+code_lines = [nativePrim_lines,"\n"] + code_lines + argument_lines + [invoke_line,]
 code = "\n".join(code_lines)
 
 with open(f"reconstructed_code_{file_name}.py","w") as reconstruct_file:
