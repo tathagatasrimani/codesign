@@ -102,7 +102,7 @@ class nativePrims:
 
     def le(input, value):
         if isinstance(input, list):
-            return [le(elem, value) for elem in input]
+            return [nativePrims.le(elem, value) for elem in input]
         else:
             return input <= value
 
@@ -164,34 +164,29 @@ class nativePrims:
         
         return result
 
-    def broadcast_in_dim(a, shape, broadcast_dimensions):
-        # Calculate the number of dimensions for output matrix
-        ndim_a = len(shape)
-        ndim_result = max(ndim_a, len(broadcast_dimensions))
-        
-        # Expand dimensions of 'a' to match 'ndim_result'
-        for _ in range(ndim_result - ndim_a):
-            a = [a]
-        
-        # Adjust shape of 'a' to match 'ndim_result'
-        while len(shape) < ndim_result:
-            shape.insert(0, 1)
-        
-        # Broadcast 'a' along 'broadcast_dimensions'
-        for dim in broadcast_dimensions:
-            if shape[dim] == 1:
-                shape[dim] = len(a)
-            else:
-                assert shape[dim] == len(a), "Cannot broadcast dimensions"
-        
-        # Perform actual broadcasting
-        def recursive_broadcast(arr, idx):
-            if idx >= ndim_result:
-                return arr
-            if isinstance(arr, list):
-                return [recursive_broadcast(subarr, idx + 1) for subarr in arr]
-            else:
-                return [arr] * shape[idx]
-        
-        return recursive_broadcast(a, 0)
-                
+    def broadcast_in_dim(input_tensor, target_shape, broadcast_dimensions):
+        def get_shape(tensor):
+            if isinstance(tensor, list):
+                return [len(tensor)] + get_shape(tensor[0]) if tensor else []
+            return []
+
+        def can_broadcast(input_shape, target_shape, broadcast_dimensions):
+            input_shape = [1] * (len(target_shape) - len(input_shape)) + input_shape
+            for i, dim in enumerate(broadcast_dimensions):
+                if input_shape[dim] != target_shape[i] and input_shape[dim] != 1:
+                    return False
+            return True
+
+        def broadcast(tensor, input_shape, target_shape, broadcast_dimensions):
+            if not input_shape:
+                return tensor
+            dim = broadcast_dimensions[0]
+            if input_shape[0] == target_shape[0]:
+                return [broadcast(t, input_shape[1:], target_shape[1:], broadcast_dimensions[1:]) for t in tensor]
+            return [broadcast(tensor[0], input_shape[1:], target_shape[1:], broadcast_dimensions[1:]) for _ in range(target_shape[0])]
+
+        input_shape = get_shape(input_tensor)
+        if not can_broadcast(input_shape, target_shape, broadcast_dimensions):
+            raise ValueError("Cannot broadcast input tensor to the target shape with the given broadcast dimensions.")
+
+        return broadcast(input_tensor, input_shape, target_shape, broadcast_dimensions)
