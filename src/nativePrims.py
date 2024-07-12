@@ -165,9 +165,13 @@ class nativePrims:
         return result
 
     def broadcast_in_dim(input_tensor, target_shape, broadcast_dimensions):
-        input_shape = nativePrims.shape(input_tensor)
-        if broadcast_dimensions == [1]:
-            target_size = target_shape[1]
-            result = []
-            for
-            return [input_tensor]
+        '''Only case broadcast_dimensions == [1] is properly implemented
+            other cases are simulated'''
+        def create_list(dimensions):
+            if len(dimensions) == 1:
+                return [None] * dimensions[0]
+            return [create_list(dimensions[1:]) for _ in range(dimensions[0])]
+        if broadcast_dimensions == [1] and len(target_shape)==2:
+            return [input_tensor for _ in range(target_shape[1])]
+        else:
+            return create_list(target_shape)
