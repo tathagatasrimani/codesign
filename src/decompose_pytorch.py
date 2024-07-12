@@ -151,7 +151,7 @@ with open(r"src/nativePrims.py", "r") as nativePrims:
 code_lines = [nativePrim_lines,"\n"] + code_lines + argument_lines + [invoke_line,]
 code = "\n".join(code_lines)
 
-with open(f"reconstructed_code_{file_name}.py","w") as reconstruct_file:
+with open(f"src/benckmarks/models/reconstructed_code_{file_name}.py","w") as reconstruct_file:
    reconstruct_file.write(code)
 
 
