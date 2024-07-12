@@ -190,11 +190,20 @@ def run_arch_search(
     simulator.calculate_edp()
     area = hw.get_total_area()
 
+    logger.info(
+        f"AS EDP init: {simulator.edp} E-18 Js. Active Energy: {simulator.active_energy} nJ. Passive Energy: {simulator.passive_energy} nJ. Execution time: {simulator.execution_time} ns"
+    )
+
     if best_edp is None:
         best_edp = simulator.edp
+
     logger.info(f"Best EDP: {best_edp} E-18 Js")
     best_hw = deepcopy(hw)
     best_schedule = old_scheduled_dfg
+
+    best_active_energy = simulator.active_energy
+    best_passive_energy = simulator.passive_energy
+    best_execution_time = simulator.execution_time
 
     hw_copy = deepcopy(hw)
 
@@ -228,6 +237,9 @@ def run_arch_search(
         elif simulator.edp < best_edp:
             logger.info(f"Adding {func} improved EDP from {best_edp} to {simulator.edp}")
             best_edp = simulator.edp
+            best_active_energy = simulator.active_energy
+            best_passive_energy = simulator.passive_energy
+            best_execution_time = simulator.execution_time
             best_hw = deepcopy(hw_copy)
             best_schedule = scheduled_dfg
         else: 
@@ -240,7 +252,16 @@ def run_arch_search(
     hw = best_hw
     hw.update_netlist()
 
-    return best_edp, best_schedule, best_hw
+    simulator.active_energy = best_active_energy
+    simulator.passive_energy = best_passive_energy
+    simulator.execution_time = best_execution_time
+    simulator.edp = best_edp
+
+    logger.info(
+        f"AS EDP     : {simulator.edp} E-18 Js. Active Energy: {simulator.active_energy} nJ. Passive Energy: {simulator.passive_energy} nJ. Execution time: {simulator.execution_time} ns"
+    )
+
+    return best_schedule, best_hw
 
 
 def main():

@@ -5,6 +5,19 @@ Application aware technology - architecture co-design framework.
 
 ### Setup
 
+You can setup the appropriate environment either by creating a new conda env with:
+```
+conda env create -f environment.yml
+```
+or 
+```
+conda env create --name codesign --file requirements_conda.txt
+```
+You can also install the dependencies using pip:
+```
+pip install -r requirements_pip.txt
+```
+
 #### Inverse Pass
 The inverse pass builds symbolic equations using [sympy](https://docs.sympy.org/latest/index.html) and does optimization using [pyomo](https://pyomo.readthedocs.io/en/stable/index.html) using [ipopt](https://github.com/coin-or/Ipopt) as the solver. To install the dependencies appropriately follow the instructions [here](https://pyomo.readthedocs.io/en/stable/installation.html).
 

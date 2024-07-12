@@ -146,6 +146,13 @@ class AbstractSimulator:
         return computation_dfg
 
     def schedule(self, computation_dfg, hw):
+        """
+        Schedule the computation graph.
+        params:
+            computation_dfg: nx.DiGraph representing the computation graph; does not have buffer
+                and memory nodes explicit.
+            hw: HardwareModel object
+        """
         hw_counts = hardwareModel.get_func_count(hw.netlist)
         copy = computation_dfg.copy()
         schedule.greedy_schedule(copy, hw_counts, hw.netlist)
