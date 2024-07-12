@@ -269,7 +269,11 @@ class Codesign:
             f"{self.save_dir}/netlist_{iter_number}.gml",
             stringizer=lambda x: str(x),
         )
-        nx.write_gml(self.scheduled_dfg, f"{self.save_dir}/schedule_{iter_number}.gml")
+        nx.write_gml(
+            self.scheduled_dfg,
+            f"{self.save_dir}/schedule_{iter_number}.gml",
+            stringizer=lambda x: str(x),
+        )
         self.write_back_rcs(f"{self.save_dir}/rcs_{iter_number}.yaml")
         shutil.copy("symbolic_edp.txt", f"{self.save_dir}/symbolic_edp_{iter_number}.txt")
         shutil.copy("ipopt_out.txt", f"{self.save_dir}/ipopt_{iter_number}.txt")
