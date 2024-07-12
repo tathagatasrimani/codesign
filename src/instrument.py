@@ -72,9 +72,11 @@ class NameOnlyInstrumentor(ast.NodeTransformer):
                 "np",
                 "os",
                 "int",
+                "float",
                 "str",
                 "math",
                 "heapdict",
+                "list"
             )
         )
 
@@ -380,12 +382,12 @@ class ProgramInstrumentor(ast.NodeTransformer):
             + "elif type("
             + node.id
             + ") == list:\n"
-            + "   dims = []\n"
+            + "   __dims = []\n"
             + "   tmp = "
             + node.id
             + "\n"
             "   while type(tmp) == list:\n"
-            "      dims.append(len(tmp))\n"
+            "      __dims.append(len(tmp))\n"
             + "      if len(tmp) > 0:\n"
             + "         tmp = tmp[0]\n"
             + "      else:\n"
@@ -394,7 +396,7 @@ class ProgramInstrumentor(ast.NodeTransformer):
             + var_name
             + "), '"
             + node.id
-            + "', dims)\n"
+            + "', __dims)\n"
             + "elif type("
             + node.id
             + ") == tuple:\n"
