@@ -145,11 +145,14 @@ def eval_expr(expr, graph, node):
             left = comparator
         return ids
     elif ASTUtils.isCall(expr):
-        # print("visiting call")
+        print("visiting call")
         func_id = set_id()
+        print(f"expr.args: {str(expr.args)}, func_id: {str(func_id)}")
         make_node(graph, node, func_id, astor.to_source(expr)[:-1], None, None)
         for arg in expr.args:
+            print(f"arg: {str(arg)}")
             arg_id = eval_expr(arg, graph, node)
+            print(f"arg_id: {str(arg_id)}")
             make_edge(graph, node, arg_id[0], func_id)
         return [func_id]
     elif ASTUtils.isFormattedValue(expr):
@@ -190,8 +193,11 @@ def eval_expr(expr, graph, node):
         )
         # make_edge(graph, node, name_id[0], sub_id)
         return [sub_id]
-    elif ASTUtils.isStarred(expr):
-        return
+    elif ASTUtils.isStarred(expr): # TODO: properly see if this cost is accounted for.
+        print(f"expr: {str(expr.value.id)}")
+        func_id = set_id()
+        make_node(graph, node, func_id, astor.to_source(expr)[:-1], None, None)
+        return [func_id]
     elif ASTUtils.isName(expr):
         # print("visiting name")
         id = set_id()
@@ -236,7 +242,8 @@ def eval_stmt(stmt, graph, node):
     elif ASTUtils.isDelete(stmt):
         return
     elif ASTUtils.isAssign(stmt):
-        # print("visiting assign")
+        print("visiting assign")
+        print(f"stmt.value: {str(stmt.value)}, targets: {str(stmt.targets)}")
         value_ids = eval_expr(stmt.value, graph, node)
         targets = eval_expr(stmt.targets[0], graph, node)
         if not targets or not value_ids:
@@ -374,6 +381,8 @@ def dfg_per_node(node):
     graphs[node].set_gv_graph(graph)
     graph.node(set_id(), "source code:\n" + node.get_source())
     for stmt in node.statements:
+        print(f"stmt: {str(stmt)}")
+        print(f"node: {str(node)}")
         eval_stmt(stmt, graph, node)
     node_to_unroll[node.id] = unroll
     # walk backwards over statements, link reads to previous writes
