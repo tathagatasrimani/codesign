@@ -4,6 +4,8 @@ import math
 import json
 from pathlib import Path
 import argparse
+import logging
+logger = logging.getLogger(__name__)
 
 # third party modules
 import matplotlib.pyplot as plt
@@ -21,6 +23,7 @@ import hardwareModel
 import sim_util
 import arch_search_util
 from config_dicts import op2sym_map
+from abstract_simulate import AbstractSimulator
 
 MEMORY_SIZE = 1000000
 state_graph_counter = 0
@@ -28,7 +31,7 @@ state_graph_counter = 0
 rng = np.random.default_rng()
 
 
-class ConcreteSimulator:
+class ConcreteSimulator(AbstractSimulator):
     def __init__(self):
         self.data = {}
         self.cycles = 0  # counter for number of cycles
@@ -61,81 +64,6 @@ class ConcreteSimulator:
         self.total_energy = 0
         self.active_energy = 0
         self.passive_energy = 0
-
-    def simulate_cycles(self, hw_spec, computation_graph, total_cycles):
-        """
-        DEPRECATED
-        Simulates the operation of hardware over a number of cycles.
-
-        Parameters:
-            hw_spec (HardwareModel): The hardware model providing the specific architecture being simulated.
-            computation_graph: Nx.DiGraph of operations to be executed.
-            total_cycles (int): The maximum number of cycles to simulate.
-
-        Returns:
-            int: The sum of power used by nodes in all cycles.
-        """
-        if total_cycles == 0:
-            return 0
-
-        self.active_power_use[self.cycles] = 0
-        self.mem_power_use.append(0)
-
-        for n, node_data in computation_graph.nodes.data():
-
-            scaling = 1
-            # if node_data["function"] in ["Buf", "MainMem"]:
-            #     # active power should scale by size of the object being accessed.
-            #     # all regs have the saem size, so no need to scale.
-            #     scaling = node_data["size"]
-                # if node_data["function"] == "MainMem":
-                #     print(
-                #         f" found a mem object in active energy calc, adding scaling factor: {scaling}"
-                #     )
-            self.total_energy += (
-                hw_spec.dynamic_power[node_data["function"]]
-                * 1e-9
-                * scaling
-                * (hw_spec.latency[node_data["function"]] / hw_spec.frequency)
-            )
-            
-            if node_data["function"] in ["Buf", "MainMem"]:
-                # active power should scale by size of the object being accessed.
-                # all regs have the saem size, so no need to scale.
-                scaling = node_data["size"]
-            
-                self.total_energy += (
-                    (hw_spec.dynamic_energy[node_data["function"]]["Read"] 
-                    + hw_spec.dynamic_energy[node_data["function"]]["Write"]) / 2 # avg of read and write
-                    * 1e-9
-                    * scaling
-                )
-                if node_data["function"] == "MainMem":
-                    self.total_energy += (
-                    hw_spec.dynamic_power["OffChipIO"] * 1e-3   # CACTI IO uses mW
-                    * scaling
-                    * hw_spec.latency["OffChipIO"]
-                    )
-            else:
-                self.total_energy += (
-                    hw_spec.dynamic_power[node_data["function"]] * 1e-9
-                    * scaling
-                    * (hw_spec.latency[node_data["function"]] / hw_spec.frequency)
-                )
-            hw_spec.compute_operation_totals[node_data["function"]] += 1
-        self.active_power_use[self.cycles] /= total_cycles
-
-        # buf and mem nodes added in 'localize_memory'
-        # remove them here
-        for node, data in dict(
-            filter(
-                lambda x: x[1]["function"] == "MainMem" or x[1]["function"] == "Buf",
-                computation_graph.nodes.data(),
-            )
-        ).items():
-            computation_graph.remove_node(node)
-
-        return self.active_power_use[self.cycles]
 
     def get_var_size(self, var_name, mem_module: Memory):
         """
@@ -180,43 +108,6 @@ class ConcreteSimulator:
 
         return mem_in_use
 
-    def process_memory_operation(self, mem_op, mem_module: Memory):
-        """
-        Processes a memory operation, handling memory allocation or deallocation based on the operation type.
-
-        This function interprets and acts on memory operations (like allocating or freeing memory)
-        within the hardware simulation. It modifies the state of the memory module according to the
-        specified operation, updating the memory allocation status as necessary.
-
-        Parameters:
-        - mem_op (list): A list representing a memory operation. The first element is the operation type
-        ('malloc' or 'free'), the second element is the size of the memory block, and subsequent elements
-         provide additional context or dimensions for the operation.
-
-        Usage:
-        - If `mem_op` is a 'malloc' operation, the function allocates memory of the specified size and
-            potentially with specified dimensions.
-        - If `mem_op` is a 'free' operation, the function deallocates the memory associated with the
-             given variable name.
-
-        This function is typically called during the simulation process to dynamically manage
-        memory as the simulated program executes different operations that require memory allocation
-        and deallocation.
-        """
-        var_name = mem_op[2]
-        size = int(mem_op[1])
-        status = mem_op[0]
-        if status == "malloc":
-            dims = []
-            num_elem = 1
-            if len(mem_op) > 3:
-                dims = sim_util.get_dims(mem_op[3:])
-                # print(f"dims: {dims}")
-                num_elem = np.prod(dims)
-            mem_module.malloc(var_name, size, dims=dims, elem_size=size // num_elem)
-        elif status == "free":
-            mem_module.free(var_name)
-
     def localize_memory(self, hw, hw_graph):
         """
         Updates memory in buffers (cache) to ensure that the data needed for the coming DFG node
@@ -247,12 +138,12 @@ class ConcreteSimulator:
                 cache_hit = buf[1]["memory_module"].find(var_name) or cache_hit
                 if cache_hit:
                     break
-                
+
             # just choose one at random. Can make this smarter later.
             buf = rng.choice(in_bufs)  # in_bufs[0] # just choose one at random.
             size = buf[1]["memory_module"].read(
                 var_name
-            )  
+            )
             buf_idx = len(
                 list(
                     filter(
@@ -272,7 +163,7 @@ class ConcreteSimulator:
                     f"Buf{buf_idx}", function="Buf", allocation=buf[0], size=size
                 )
                 hw_graph.add_edge(f"Buf{buf_idx}", node, function="Mem")
-            
+
             else:           # add Buf and Mem
                 size = size * -1  # size will be negative because cache miss.
                 mem_idx = len(
@@ -397,15 +288,16 @@ class ConcreteSimulator:
 
         counter = 0
 
-        generations = reversed(
+        generations = list(reversed(
             list(nx.topological_generations(nx.reverse(computation_dfg)))
-        )
+        ))
         for gen in generations:  # main loop over the computation graphs;
             if "end" in gen:  # skip the end node (only thing in the last generation)
                 break
             counter += 1
             temp_C = nx.DiGraph()
             for node in gen:
+                logger.info(f"node -> {node}: {computation_dfg.nodes[node]}")
                 child_added = False
                 temp_C.add_nodes_from([(node, computation_dfg.nodes[node])])
                 for child in computation_dfg.successors(node):
@@ -423,20 +315,35 @@ class ConcreteSimulator:
                 ## ================= ADD ACTIVE ENERGY CONSUMPTION =================
                 scaling = 1
                 node_data = computation_dfg.nodes[node]
+                if node_data["function"] == "stall" or node_data["function"] == "end":
+                    continue
                 if node_data["function"] in ["Buf", "MainMem"]:
                     # active power should scale by size of the object being accessed.
                     # all regs have the same size, so no need to scale.
                     scaling = node_data["size"]
-                if node_data["function"] == "stall" or node_data["function"] == "end":
-                    continue
-                self.active_energy += (
-                    hw.dynamic_power[node_data["function"]]
-                    * 1e-9  # W
-                    * scaling
-                    * hw.latency[node_data["function"]]  # ns
-                )
-                hw.compute_operation_totals[node_data["function"]] += 1
+                    logger.info(f"scaling: {scaling}")
+                    energy = (
+                        (hw.dynamic_energy[node_data["function"]]["Read"] 
+                        + hw.dynamic_energy[node_data["function"]]["Write"]) / 2 # avg of read and write
+                        * 1e-9
+                        * scaling
+                    )
 
+                    if (node_data["function"] == "MainMem"):
+                        energy += (
+                        hw.dynamic_power["OffChipIO"] * 1e-9
+                        * scaling
+                        * hw.latency["OffChipIO"]
+                        )
+                else:
+                    energy = (
+                        hw.dynamic_power[node_data["function"]] * 1e-9 # W
+                        * scaling
+                        * hw.latency[node_data["function"]] # ns
+                    )
+
+                self.active_energy += energy
+                hw.compute_operation_totals[node_data["function"]] += 1
 
             def matcher_func(n1, n2):
                 res = (
@@ -445,11 +352,59 @@ class ConcreteSimulator:
                     or n2["function"] == "stall"
                     or n2["function"] == "end"
                 )
-                
+
                 return res
 
+
+        # ========== This Can be removed after we figure out why doesn't work
         self.cycles = nx.dag_longest_path_length(computation_dfg)
         longest_path = nx.dag_longest_path(computation_dfg)
+        logger.info(f"longest path: {list(map(lambda x: (x, computation_dfg.nodes[x]['function']), longest_path))}")
+        logger.info(f"longest path length: {self.cycles}")
+
+        topo_order = list(nx.topological_sort(computation_dfg))
+        logger.info(f"topo_order: {topo_order}")
+        for node in generations[0]:
+            topo_order.insert(0, topo_order.pop(topo_order.index(node)))
+        logger.info(f"new topo_order: {topo_order}")
+        longest_path = nx.dag_longest_path(computation_dfg, topo_order=topo_order)
+        logger.info(f"longest path custom topo: {list(map(lambda x: (x, computation_dfg.nodes[x]['function']), longest_path))}")
+        pathlength = 0
+        for u, v in nx.utils.pairwise(longest_path):
+            pathlength += computation_dfg[u][v]["weight"]
+        logger.info(f"longest path length custom topo: {pathlength}")
+        
+        # ========== Explicitly calculate the longest path. This aligns with Inverse Pass.
+        self.cycles = 0
+        longest_path_explicit = []
+        for start_node in generations[0]:
+            for end_node in generations[-1]: # end should be the only node here
+                if start_node == end_node:
+                    continue
+                logger.info(f"start_node: {start_node}, end_node: {end_node}")
+                for path in nx.all_simple_paths(computation_dfg, start_node, end_node):
+                    path_latency = 0
+                    for node in path:
+                        scaling = 1
+                        node_data = computation_dfg.nodes[node]
+                        if node_data["function"] == "end":
+                            continue
+                        elif node_data["function"] == "stall":
+                            func = node.split("_")[3]  # stall names have std formats
+                        else:
+                            func = node_data["function"]
+                        if func in ["Buf", "MainMem"]:
+                            scaling = node_data["size"]
+                            logger.info(f"latency scaling: {scaling}")
+
+                        path_latency += hw.latency[func] * scaling
+                    if path_latency > self.cycles:
+                        longest_path_explicit = path
+                        self.cycles = path_latency
+        logger.info(
+            f"longest path explicitly calculated: {list(map(lambda x: (x, computation_dfg.nodes[x]['function']), longest_path_explicit))}"
+        )
+        logger.info(f"longest path length explicitly calculated: {self.cycles}")
 
         for elem_name, elem_data in dict(hw.netlist.nodes.data()).items():
             scaling = 1
@@ -460,176 +415,10 @@ class ConcreteSimulator:
                 hw.leakage_power[elem_data["function"]] * 1e-9 * self.cycles * scaling
             )
 
-    def set_data_path(self):
-        """
-        Keep track of variable values as they are updated.
-        This is used primarily for index values in order to properly account for data dependencies.
-        returns:
-            data_path_vars: a list of dictionaries where each dictionary represents the variable values at a given node in the data path.
-        """
-        with open(self.path + "/instrumented_files/output.txt", "r") as f:
-            src = f.read()
-            l = src.split("\n")
-            split_lines = [l_.split() for l_ in l]  # separate by whitespace
-
-            last_line = "-1"
-            last_node = "-1"
-            valid_names = set()
-            nvm_vars = {}
-            data_path_vars = []
-
-            # count reads and writes on first pass.
-            for i in range(len(split_lines)):
-                item = split_lines[i]
-                if len(item) < 2:
-                    continue
-                if item[0] == "malloc":
-                    valid_names.add(item[2])
-                if item[-2] != "Read" and item[-2] != "Write":
-                    continue
-                var_name = item[0]
-                if var_name not in valid_names and "NVM" not in var_name:
-                    continue
-                if item[-2] == "Read":
-                    if "NVM" in item[0]:
-                        self.nvm_reads += 1
-                        self.total_nvm_read_size += int(item[-1])
-                        if item[0] not in nvm_vars.keys():
-                            nvm_vars[item[0]] = int(item[-1])
-                        else:
-                            nvm_vars[item[0]] = max(nvm_vars[item[0]], int(item[-1]))
-                    else:
-                        self.reads += 1
-                        self.total_read_size += int(item[-1])
-                        self.where_to_free[var_name] = i + 1
-                else:
-                    self.writes += 1
-                    self.total_write_size += int(item[-1])
-                    self.where_to_free[var_name] = i
-
-            vars = {}
-            self.data_path.append([""])
-            # second pass, construct trace that simulator follows.
-            for i in range(len(split_lines)):
-                item = split_lines[i]
-                vars_to_pop = []
-                for var_name in self.where_to_free:
-                    if self.where_to_free[var_name] == i:
-                        var_size = self.vars_allocated[var_name]
-                        # f_new.write("free " + str(var_size) + " " + var_name + "\n")
-                        self.data_path.append(["free", str(var_size), var_name])
-                        data_path_vars.append(vars.copy())
-                        vars = {}
-                        vars_to_pop.append(var_name)
-                        self.cur_memory_size -= var_size
-                        self.vars_allocated.pop(var_name)
-                for var_name in vars_to_pop:
-                    self.where_to_free.pop(var_name)
-                if len(item) == 2 and (item[0] != last_node or item[1] == last_line):
-                    last_node = item[0]
-                    last_line = item[1]
-                    self.data_path.append(item)
-                    data_path_vars.append(vars.copy())
-                    vars = {}
-                elif len(item) == 1 and item[0].startswith("pattern_seek"):
-                    self.data_path.append(item)
-                    data_path_vars.append(vars.copy())
-                    vars = {}
-                elif len(item) >= 3 and item[0] == "malloc":
-                    if item[2] in self.vars_allocated:
-                        if int(item[1]) == self.vars_allocated[item[2]]:
-                            continue
-                        # else:
-                        # f_new.write("free " + str(self.vars_allocated[item[2]]) + " " + var_name + "\n")
-                        # f_new.write(l[i] + '\n')
-                        self.cur_memory_size -= int(self.vars_allocated[item[2]])
-                    self.data_path.append(item)
-                    data_path_vars.append(vars.copy())
-                    vars = {}
-                    self.vars_allocated[item[2]] = int(item[1])
-                    # print(self.vars_allocated)
-                    self.cur_memory_size += int(item[1])
-                    self.memory_needed = max(self.memory_needed, self.cur_memory_size)
-                elif len(item) == 4:
-                    if item[1].isnumeric():
-                        vars[item[0]] = int(item[1])
-            data_path_vars.append(vars)
-        # print(f"data_path: {self.data_path}")
-        self.nvm_memory_needed = sum(nvm_vars.values())
-        print(f"memory needed: {self.memory_needed} bytes")
-        print(f"nvm memory needed: {self.nvm_memory_needed} bytes")
-        return data_path_vars
-
-    def update_data_path(self, new_data_path):
-        self.data_path = new_data_path
-        for elem in self.data_path:
-            if elem[0] not in self.unroll_at.keys():
-                self.unroll_at[elem[0]] = False
-
-    def calculate_average_power(self):
-        self.avg_compute_power = 1e-6 * (
-            np.mean(list(self.active_power_use.values()))
-            + self.passive_power_dissipation_rate
-        )
-
-    def calculate_edp(self, hw):
+    def calculate_edp(self):
         self.execution_time = self.cycles # in seconds
         self.total_energy = self.active_energy + self.passive_energy
         self.edp = self.total_energy * self.execution_time
-
-    def simulator_prep(self, benchmark, latency):
-        """
-        Creates CFG, and id_to_node
-        params:
-            benchmark: str with path to benchmark file
-            latency: dict with latency of each compute element
-        """
-        cfg, graphs, self.unroll_at = dfg_algo.main_fn(self.path, benchmark)
-        cfg_node_to_dfg_map = schedule.cfg_to_dfg(cfg, graphs, latency)
-        data_path_vars = self.set_data_path()
-
-        for node in cfg:
-            self.id_to_node[str(node.id)] = node
-        computation_dfg = sim_util.compose_entire_computation_graph(
-            cfg_node_to_dfg_map,
-            self.id_to_node,
-            self.data_path,
-            data_path_vars,
-            latency,
-            plot=False,
-        )
-
-        return computation_dfg
-
-    def schedule(self, computation_dfg, hw_counts):
-        copy = computation_dfg.copy()
-        schedule.schedule(copy, hw_counts)
-
-        for layer, nodes in enumerate(
-            reversed(list(nx.topological_generations(nx.reverse(computation_dfg))))
-        ):
-            # `multipartite_layout` expects the layer as a node attribute, so add the
-            # numeric layer value as a node attribute
-            for node in nodes:
-                computation_dfg.nodes[node]["layer"] = layer
-
-        return copy
-
-    def init_new_compute_element(self, compute_unit):
-        """
-        Adds to some graph shit and adds ids and stuff
-        params:
-            compute_unit: str with std cell name, eg 'Add', 'Eq', 'LShift', etc.
-        """
-        compute_id = dfg_algo.set_id()
-        sim_util.make_node(
-            self.new_graph,
-            compute_id,
-            op2sym_map[compute_unit],
-            None,
-            op2sym_map[compute_unit],
-        )
-
 
 def main(args):
     print(f"Running simulator for {args.benchmark.split('/')[-1]}")
@@ -638,13 +427,12 @@ def main(args):
     hw = HardwareModel(cfg=args.architecture_config)
 
     computation_dfg = simulator.simulator_prep(args.benchmark, hw.latency)
-    computation_dfg = simulator.schedule(
-        computation_dfg, hw_counts=hardwareModel.get_func_count(hw.netlist)
-    )
+
     hw.init_memory(
         sim_util.find_nearest_power_2(simulator.memory_needed),
         sim_util.find_nearest_power_2(simulator.nvm_memory_needed),
     )
+    computation_dfg = simulator.schedule(computation_dfg, hw)
 
     simulator.tech_node = hw.transistor_size  # in nm
     simulator.pitch = hw.pitch  # in um
@@ -665,7 +453,7 @@ def main(args):
 
     hardwareModel.un_allocate_all_in_use_elements(hw.netlist)
     data = simulator.simulate(computation_dfg, hw)
-    simulator.calculate_edp(hw)
+    simulator.calculate_edp()
 
     area = hw.get_total_area()
 
@@ -707,12 +495,14 @@ def main(args):
         )
         with open(simulator.path + "/benchmarks/json_data/" + names[-1], "w") as fh:
             fh.write(text)
-    
+
     print("done!")
     return simulator
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, filename="codesign_log_dir/simulate.log")
+
     parser = argparse.ArgumentParser(
         prog="Simulate",
         description="Runs a hardware simulation on a given benchmark and technology spec",
@@ -727,6 +517,7 @@ if __name__ == "__main__":
         help="Path to the architecture file (.gml)",
     )
     args = parser.parse_args()
+
     print(
         f"args: benchmark: {args.benchmark}, trace: {args.notrace}, architecture: {args.architecture_config}"
     )

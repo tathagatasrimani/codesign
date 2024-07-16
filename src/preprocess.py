@@ -1,4 +1,5 @@
-import yaml
+import logging
+logger = logging.getLogger(__name__)
 
 import pyomo.environ as pyo
 from MyPyomoSympyBimap import MyPyomoSympyBimap
@@ -35,6 +36,7 @@ class Preprocessor:
         return model.x[self.mapping[hw_symbols.V_dd]] <= 1.7
 
     def add_constraints(self, model):
+        logger.info("Adding Constraints")
         # this is where we say EDP_final = EDP_initial / 10
         print(f"adding constraints. initial val: {self.initial_val}; edp_exp: {self.pyomo_edp_exp}")
         model.Constraint = pyo.Constraint(expr=self.pyomo_edp_exp <= self.initial_val / 1.4)
@@ -56,6 +58,7 @@ class Preprocessor:
         model: pyomo model
         l: regularization hyperparameter
         """
+        logger.info("Adding regularization.")
         for symbol in self.free_symbols:
             self.obj += l * (
                 self.initial_params[symbol.name]
@@ -87,10 +90,12 @@ class Preprocessor:
         return opt
 
     def create_scaling(self, model):
+        logger.info("Creating scaling")
         model.scaling_factor[model.obj] = self.obj_scale
+        print(f"mapping: {self.mapping}")
         for s in self.free_symbols:
             if s.name in self.initial_params and self.initial_params[s.name] != 0:
-                print(s.name, self.mapping)
+                print(f"symbol name: {s.name}")
                 model.scaling_factor[model.x[self.mapping[s]]] = (
                     1 / self.initial_params[s.name]
                 )
@@ -108,7 +113,7 @@ class Preprocessor:
                 self.expr_symbols[s] = initial_params[s.name]
 
         self.initial_val = float(edp.subs(self.expr_symbols))
-        print(self.expr_symbols)
+        print(f"expr_symbols: {self.expr_symbols}")
         print("edp:", edp)
         print("initial val:", self.initial_val)
 
@@ -129,10 +134,11 @@ class Preprocessor:
             m.sympy2pyomo[symbol] = model.x[self.mapping[symbol]]
             # give pyomo symbols an inital value for warm start
             model.x[self.mapping[symbol]] = self.expr_symbols[symbol]
-            print(symbol, self.expr_symbols[symbol])
+            print(f"symbol: {symbol}; initial value: {self.expr_symbols[symbol]}")
        
         self.pyomo_edp_exp = sympy_tools.sympy2pyomo_expression(edp, m)
         self.obj = self.pyomo_edp_exp
+
         self.add_regularization_to_objective(model, l=0.00001)
 
         model.obj = pyo.Objective(expr=self.obj, sense=pyo.minimize)

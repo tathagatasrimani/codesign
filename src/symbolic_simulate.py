@@ -3,6 +3,9 @@ import math
 import argparse
 import os
 import sys
+import logging
+
+logger = logging.getLogger(__name__)
 
 # third party modules
 import numpy as np
@@ -22,16 +25,18 @@ import sim_util
 import hardwareModel
 from hardwareModel import HardwareModel
 from global_constants import SEED
+from abstract_simulate import AbstractSimulator
 
 rng = np.random.default_rng(SEED)
 
 def symbolic_convex_max(a, b):
-        """
-        An approximation to the max function that plays well with these numeric solvers.
-        """
-        return 0.5 * ( a + b + abs(a - b))
+    """
+    An approximation to the max function that plays well with these numeric solvers.
+    """
+    return 0.5 * (a + b + abs(a - b))
 
-class SymbolicSimulator:
+
+class SymbolicSimulator(AbstractSimulator):
 
     def __init__(self):
         self.cycles = 0
@@ -72,125 +77,6 @@ class SymbolicSimulator:
         self.total_passive_energy_ceil = 0
         self.cycles_ceil = 0
         self.cycles = 0
-
-    def cycle_sim(self, computation_graph):
-        """
-        DEPRECATED
-        Don't need to do isomorphism check. Just need to generate topo generations.
-        Since we'll get architectures from the forward pass. We'll assume that the architecture
-        can execute the computation graph.
-        """
-        max_cycles = 0
-        max_cycles_ceil = 0
-        energy_sum = 0
-
-        if nx.is_empty(computation_graph):
-            return max_cycles, max_cycles_ceil, energy_sum
-
-        generations = list(nx.topological_generations(computation_graph))
-
-        for node, node_data in computation_graph.nodes(data=True):
-            scaling = 1
-            # if node_data["function"] in ["Buf", "MainMem"]:
-            #     # active power should scale by size of the object being accessed.
-            #     # all regs have the saem size, so no need to scale.
-            #     scaling = node_data["size"]
-            #     # if node_data["function"] == "MainMem":
-            #     #     print(f" found a mem object in active energy calc, adding scaling factor: {scaling}")
-
-            active_energy = (
-                hw_symbols.symbolic_power_active[node_data["function"]]
-                * scaling
-                * (hw_symbols.symbolic_latency_wc[node_data["function"]])
-            )
-            # print("added active energy of", hw_symbols.symbolic_power_active[node_data["function"]]* (hw_symbols.symbolic_latency_wc[node_data["function"]] / hw_symbols.f), "for", node_data["function"])
-            energy_sum += active_energy
-
-        for start_node in generations[0]:
-            for end_node in generations[-1]:
-                if start_node == end_node:
-                    continue
-                for path in nx.all_simple_paths(
-                    computation_graph, start_node, end_node
-                ):
-                    path_latency = 0
-                    path_latency_ceil = 0
-                    # print(f"path: {path}")
-                    for node in path:
-                        # print(f"node: {node}")
-                        # print(f"computation_graph[{node}]: {computation_graph.nodes()[node]}")
-                        # THIS PATH LATENCY MAY OR MAY NOT USE CYCLE TIME OR WALL CLOCK TIME DUE TO SOLVER INSTABILITY
-                        scaling = 1
-                        # if node_data["function"] in ["Buf", "MainMem"]:
-                        #     # active power should scale by size of the object being accessed.
-                        #     # all regs have the saem size, so no need to scale.
-                        #     scaling = node_data["size"]
-                        path_latency += hw_symbols.symbolic_latency_cyc[
-                            computation_graph.nodes()[node]["function"]
-                        ] * scaling
-                        # THIS PATH LATENCY USES CYCLE TIME AS A REFERENCE FOR WHAT THE TRUE EDP IS
-                        path_latency_ceil += hw_symbols.symbolic_latency_cyc[
-                            computation_graph.nodes()[node]["function"]
-                        ] * scaling
-                    max_cycles = 0.5 * (
-                        max_cycles + path_latency + abs(max_cycles - path_latency)
-                    )
-                    max_cycles_ceil = 0.5 * (
-                        max_cycles_ceil
-                        + path_latency_ceil
-                        + abs(max_cycles_ceil - path_latency_ceil)
-                    )
-
-        # remove Mem and Buf from computation graph, so it doesn't get duplicated
-        # if added again in next iteration.
-        for node, data in dict(
-            filter(
-                lambda x: x[1]["function"] == "MainMem" or x[1]["function"] == "Buf",
-                computation_graph.nodes.data(),
-            )
-        ).items():
-            computation_graph.remove_node(node)
-
-        self.cycles += max_cycles
-        self.cycles_ceil += max_cycles_ceil
-        return max_cycles, max_cycles_ceil, energy_sum
-
-    def process_memory_operation(self, mem_op, mem_module: Memory):
-        """
-        Processes a memory operation, handling memory allocation or deallocation based on the operation type.
-
-        This function interprets and acts on memory operations (like allocating or freeing memory)
-        within the hardware simulation. It modifies the state of the memory module according to the
-        specified operation, updating the memory allocation status as necessary.
-
-        Parameters:
-        - mem_op (list): A list representing a memory operation. The first element is the operation type
-        ('malloc' or 'free'), the second element is the size of the memory block, and subsequent elements
-         provide additional context or dimensions for the operation.
-
-        Usage:
-        - If `mem_op` is a 'malloc' operation, the function allocates memory of the specified size and
-            potentially with specified dimensions.
-        - If `mem_op` is a 'free' operation, the function deallocates the memory associated with the
-             given variable name.
-
-        This function is typically called during the simulation process to dynamically manage
-        memory as the simulated program executes different operations that require memory allocation
-        and deallocation.
-        """
-        var_name = mem_op[2]
-        size = int(mem_op[1])
-        status = mem_op[0]
-        if status == "malloc":
-            dims = []
-            num_elem = 1
-            if len(mem_op) > 3:
-                dims = sim_util.get_dims(mem_op[3:])
-                # print(f"dims: {dims}")
-                num_elem = np.prod(dims)
-            mem_module.malloc(var_name, size, dims=dims, elem_size=size // num_elem)
-        elif status == "free":
-            mem_module.free(var_name)
 
     def localize_memory(self, hw, hw_graph):
         """
@@ -281,8 +167,8 @@ class SymbolicSimulator:
                 scaling = data["size"]
             passive_power += (
                 hw_symbols.symbolic_power_passive[data["function"]] * scaling
-            ) # W
-        return passive_power * total_execution_time # nJ
+            )  # W
+        return passive_power * total_execution_time  # nJ
 
     def simulate(self, computation_dfg: nx.DiGraph, hw: HardwareModel):
         self.reset_internal_variables()
@@ -293,11 +179,13 @@ class SymbolicSimulator:
         generations = list(
             reversed(list(nx.topological_generations(nx.reverse(computation_dfg))))
         )
-        for gen in generations:  # main loop over the computation graphs;
+        for gen in generations:  # main loop over the computation graph;
             if "end" in gen:  # skip the end node (only thing in the last generation)
                 break
             counter += 1
             for node in gen:
+                logger.info(f"node: {computation_dfg.nodes[node]}")
+
                 child_added = False
 
                 ## ================= ADD ACTIVE ENERGY CONSUMPTION =================
@@ -305,188 +193,47 @@ class SymbolicSimulator:
                 node_data = computation_dfg.nodes[node]
                 if node_data["function"] == "stall" or node_data["function"] == "end":
                     continue
-                energy = hw_symbols.symbolic_power_active[node_data["function"]] * hw_symbols.symbolic_latency_wc[node_data["function"]] # W * ns
                 if node_data["function"] in ["Buf", "MainMem"]:
                     # active power should scale by size of the object being accessed.
                     # all regs have the same size, so no need to scale.
                     scaling = node_data["size"]
-                    energy = hw_symbols.symbolic_energy_active[node_data["function"]] # nJ
+                    logger.info(f"energy scaling: {scaling}")
+                    energy = hw_symbols.symbolic_energy_active[
+                        node_data["function"]
+                    ]  # nJ
+                else:
+                    energy = (
+                        hw_symbols.symbolic_power_active[node_data["function"]]
+                        * hw_symbols.symbolic_latency_wc[node_data["function"]]
+                    )  # W * ns
 
-                self.total_active_energy += (  # nJ
-                    energy
-                    * scaling
-                )
+                self.total_active_energy += energy * scaling  # nJ
 
         # TODO: NOW THIS MIGHT GET TOO EXPENSIVE. MAYBE NEED TO DO STA.
+        logger.info("Starting Longest Path Calculation")
         for start_node in generations[0]:
             for end_node in generations[-1]:
                 if start_node == end_node:
                     continue
+                logger.info(f"start_node: {start_node}, end_node: {end_node}")
                 for path in nx.all_simple_paths(computation_dfg, start_node, end_node):
                     path_latency = 0
-                    path_latency_ceil = 0
                     for node in path:
-                        if computation_dfg.nodes()[node]["function"] == "end":
+                        scaling = 1
+                        node_data = computation_dfg.nodes[node]
+                        if node_data["function"] == "end":
                             continue
-                        elif computation_dfg.nodes()[node]["function"] == "stall":
+                        elif node_data["function"] == "stall":
                             func = node.split("_")[3]  # stall names have std formats
                         else:
-                            func = computation_dfg.nodes()[node]["function"]
-                        # THIS PATH LATENCY MAY OR MAY NOT USE CYCLE TIME OR WALL CLOCK TIME DUE TO SOLVER INSTABILITY
-                        path_latency += hw_symbols.symbolic_latency_wc[func]
-                        # THIS PATH LATENCY USES CYCLE TIME AS A REFERENCE FOR WHAT THE TRUE EDP IS
-                        path_latency_ceil += hw_symbols.symbolic_latency_cyc[func]
+                            func = node_data["function"]
+                        if func in ["Buf", "MainMem"]:
+                            scaling = node_data["size"]
+                            logger.info(f"latency scaling: {scaling}")
+
+                        path_latency += hw_symbols.symbolic_latency_wc[func] * scaling
                     self.cycles = symbolic_convex_max(self.cycles, path_latency)
-                    
-                    self.cycles_ceil = symbolic_convex_max(self.cycles_ceil, path_latency_ceil)
-
-    def set_data_path(self):
-        """
-        Keep track of variable values as they are updated.
-        This is used primarily for index values in order to properly account for data dependencies.
-        returns:
-            data_path_vars: a list of dictionaries where each dictionary represents the variable values at a given node in the data path.
-        """
-        with open(self.path + "/instrumented_files/output.txt", "r") as f:
-            src = f.read()
-            l = src.split("\n")
-            split_lines = [l_.split() for l_ in l]  # separate by whitespace
-
-            last_line = "-1"
-            last_node = "-1"
-            valid_names = set()
-            nvm_vars = {}
-            data_path_vars = []
-
-            # count reads and writes on first pass.
-            for i in range(len(split_lines)):
-                item = split_lines[i]
-                if len(item) < 2:
-                    continue
-                if item[0] == "malloc":
-                    valid_names.add(item[2])
-                if item[-2] != "Read" and item[-2] != "Write":
-                    continue
-                var_name = item[0]
-                if var_name not in valid_names and "NVM" not in var_name:
-                    continue
-                if item[-2] == "Read":
-                    if "NVM" in item[0]:
-                        self.nvm_reads += 1
-                        self.total_nvm_read_size += int(item[-1])
-                        if item[0] not in nvm_vars.keys():
-                            nvm_vars[item[0]] = int(item[-1])
-                        else:
-                            nvm_vars[item[0]] = max(nvm_vars[item[0]], int(item[-1]))
-                    else:
-                        self.reads += 1
-                        self.total_read_size += int(item[-1])
-                        self.where_to_free[var_name] = i + 1
-                else:
-                    self.writes += 1
-                    self.total_write_size += int(item[-1])
-                    self.where_to_free[var_name] = i
-
-            vars = {}
-            self.data_path.append([""])
-            # second pass, construct trace that simulator follows.
-            for i in range(len(split_lines)):
-                item = split_lines[i]
-                vars_to_pop = []
-                for var_name in self.where_to_free:
-                    if self.where_to_free[var_name] == i:
-                        var_size = self.vars_allocated[var_name]
-                        # f_new.write("free " + str(var_size) + " " + var_name + "\n")
-                        self.data_path.append(["free", str(var_size), var_name])
-                        data_path_vars.append(vars.copy())
-                        vars = {}
-                        vars_to_pop.append(var_name)
-                        self.cur_memory_size -= var_size
-                        self.vars_allocated.pop(var_name)
-                for var_name in vars_to_pop:
-                    self.where_to_free.pop(var_name)
-                if len(item) == 2 and (item[0] != last_node or item[1] == last_line):
-                    last_node = item[0]
-                    last_line = item[1]
-                    self.data_path.append(item)
-                    data_path_vars.append(vars.copy())
-                    vars = {}
-                elif len(item) == 1 and item[0].startswith("pattern_seek"):
-                    self.data_path.append(item)
-                    data_path_vars.append(vars.copy())
-                    vars = {}
-                elif len(item) >= 3 and item[0] == "malloc":
-                    if item[2] in self.vars_allocated:
-                        if int(item[1]) == self.vars_allocated[item[2]]:
-                            continue
-                        # else:
-                        # f_new.write("free " + str(self.vars_allocated[item[2]]) + " " + var_name + "\n")
-                        # f_new.write(l[i] + '\n')
-                        self.cur_memory_size -= int(self.vars_allocated[item[2]])
-                    self.data_path.append(item)
-                    data_path_vars.append(vars.copy())
-                    vars = {}
-                    self.vars_allocated[item[2]] = int(item[1])
-                    # print(self.vars_allocated)
-                    self.cur_memory_size += int(item[1])
-                    self.memory_needed = max(self.memory_needed, self.cur_memory_size)
-                elif len(item) == 4:
-                    if item[1].isnumeric():
-                        vars[item[0]] = int(item[1])
-            data_path_vars.append(vars)
-        # print(f"data_path: {self.data_path}")
-        self.nvm_memory_needed = sum(nvm_vars.values())
-        print(f"memory needed: {self.memory_needed} bytes")
-        print(f"nvm memory needed: {self.nvm_memory_needed} bytes")
-        return data_path_vars
-
-    def update_data_path(self, new_data_path):
-        self.data_path = new_data_path
-        for elem in self.data_path:
-            if elem[0] not in self.unroll_at.keys():
-                self.unroll_at[elem[0]] = False
-
-    def simulator_prep(self, benchmark, latency):
-        """
-        Creates CFG, and id_to_node
-        params:
-            benchmark: str with path to benchmark file
-            latency: dict with latency of each compute element
-        """
-        cfg, graphs, self.unroll_at = dfg_algo.main_fn(self.path, benchmark)
-        cfg_node_to_dfg_map = schedule.cfg_to_dfg(cfg, graphs, latency)
-        data_path_vars = self.set_data_path()
-        for node in cfg:
-            self.id_to_node[str(node.id)] = node
-        computation_dfg = sim_util.compose_entire_computation_graph(
-            cfg_node_to_dfg_map,
-            self.id_to_node,
-            self.data_path,
-            data_path_vars,
-            latency,
-            plot=False,
-        )
-
-        return computation_dfg
-
-    def schedule(self, computation_dfg, hw_counts):
-        """
-        Schedule the computation graph onto the hardware.
-        """
-        copy = computation_dfg.copy()
-
-        schedule.schedule(copy, hw_counts)
-
-        # Why does this happen?
-        for layer, nodes in enumerate(
-            reversed(list(nx.topological_generations(nx.reverse(copy))))
-        ):
-            # `multipartite_layout` expects the layer as a node attribute, so add the
-            # numeric layer value as a node attribute
-            for node in nodes:
-                copy.nodes[node]["layer"] = layer
-
-        return copy
+        logger.info(f"execution time: {str(self.cycles)}")
 
     def calculate_edp(self, hw):
         self.total_passive_energy = self.passive_energy_dissipation(hw, self.cycles)
@@ -494,40 +241,11 @@ class SymbolicSimulator:
             hw, self.cycles_ceil
         )
         self.edp = self.cycles * (self.total_active_energy + self.total_passive_energy)
-        self.edp_ceil = self.cycles_ceil * (
-            self.total_active_energy + self.total_passive_energy_ceil
-        )
 
     def save_edp_to_file(self):
         st = str(self.edp)
         with open("sympy.txt", "w") as f:
             f.write(st)
-        st_ceil = str(self.edp_ceil)
-        with open("sympy_ceil.txt", "w") as f:
-            f.write(st_ceil)
-
-
-def get_grad(args_arr, jmod):
-    return eqx.filter_grad(lambda arr0, arr, a: a(Reff_Add=arr0, 
-                                                  Ceff_Add=arr[1], 
-                                                  Reff_Regs=arr[2], 
-                                                  Ceff_Regs=arr[3], 
-                                                  Reff_Not=arr[4], 
-                                                  MemReadL=arr[5], 
-                                                  MemWriteL=arr[6], 
-                                                  MemReadPact=arr[7], 
-                                                  MemWritePact=arr[8], 
-                                                  MemPpass=arr[9], 
-                                                  f=arr[10], 
-                                                  V_dd=arr[11]))(args_arr[0], args_arr, jmod)
-
-def rotate_arr(args_arr):
-    next_val = args_arr[0]
-    for i in range(len(args_arr))[::-1]:    
-        tmp = next_val
-        next_val = args_arr[(i-1)%len(args_arr)]
-        args_arr[(i-1)%len(args_arr)] = tmp
-    return args_arr
 
 def main():
     print(f"Running symbolic simulator for {args.benchmark.split('/')[-1]}")
@@ -539,14 +257,13 @@ def main():
     hw.get_optimization_params_from_tech_params()
 
     computation_dfg = simulator.simulator_prep(args.benchmark, hw.latency)
-    computation_dfg = simulator.schedule(
-        computation_dfg, hw_counts=hardwareModel.get_func_count(hw.netlist)
-    )
 
     hw.init_memory(
         sim_util.find_nearest_power_2(simulator.memory_needed),
         sim_util.find_nearest_power_2(0),
     )
+
+    computation_dfg = simulator.schedule(computation_dfg, hw)
 
     simulator.transistor_size = hw.transistor_size  # in nm
     simulator.pitch = hw.pitch
@@ -566,7 +283,6 @@ def main():
     simulator.simulate(computation_dfg, hw)
     simulator.calculate_edp(hw)
 
-
     # simulator.edp = simulator.edp.simplify()
     simulator.save_edp_to_file()
 
@@ -574,6 +290,9 @@ def main():
 
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.INFO, filename="codesign_log_dir/symbolic_simulate.log"
+    )
     parser = argparse.ArgumentParser(
         prog="Simulate",
         description="Runs a hardware simulation on a given benchmark and technology spec",

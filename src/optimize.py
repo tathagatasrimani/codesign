@@ -1,6 +1,7 @@
 # first party
-import yaml
 import argparse
+import logging
+logger = logging.getLogger(__name__)
 
 # third party
 import pyomo.environ as pyo
@@ -11,7 +12,7 @@ import numpy as np
 
 # custom
 from preprocess import Preprocessor
-from sim_util import generate_init_params_from_rcs_as_symbols
+import sim_util
 from hardwareModel import HardwareModel
 import hw_symbols
 
@@ -20,6 +21,7 @@ multistart = False
 
 
 def ipopt(tech_params, edp):
+    logger.info("Optimizing using IPOPT")
     initial_params = {}
     for key in tech_params:
         initial_params[key.name] = tech_params[key]
@@ -119,6 +121,7 @@ def get_grad(grad_var_starting_val, args_arr, jmod):
 def scp_opt(tech_params, edp):
     import sympy2jax
     import jax.numpy as jnp
+    logger.info("Optimizing SCP")
     # print(tech_params)
     initial_val = edp.subs(tech_params)
     current_val = initial_val
@@ -193,12 +196,20 @@ def optimize(tech_params, edp, opt):
 
 
 def main():
+    """
+    TODO. Add an entrypoint that is not main.
+    For my inverse pass, I don't want to call this 
+    """
 
     hw = HardwareModel(cfg=args.architecture_config)
+    hw.init_memory(
+        sim_util.find_nearest_power_2(131072),
+        sim_util.find_nearest_power_2(0),
+    )
 
     rcs = hw.get_optimization_params_from_tech_params()
-    print(rcs)
-    initial_params = generate_init_params_from_rcs_as_symbols(rcs)
+    print(f"optimize.__main__.rcs: {rcs}")
+    initial_params = sim_util.generate_init_params_from_rcs_as_symbols(rcs)
     edp = open("sympy.txt", "r")
     edp = sympify(edp.readline())
 
@@ -208,6 +219,7 @@ def main():
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, filename="codesign_log_dir/optimize.log")
     parser = argparse.ArgumentParser(
         prog="Optimize",
         description="Optimization part of the Inverse Pass. This runs after an analytic equation for the cost is created.",

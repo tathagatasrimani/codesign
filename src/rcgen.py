@@ -7,8 +7,8 @@ def generate_optimization_params(latency, active_power, active_energy, passive_p
         V_dd: voltage in V
         MemReadL: memory read latency in s
         MemWriteL: memory write latency in s
-        MemReadPact: memory read active power in W
-        MemWritePact: memory write active power in W
+        MemReadEact: memory read active power in W
+        MemWriteEact: memory write active power in W
         MemPpass: memory passive power in W
     
         params:
@@ -21,13 +21,18 @@ def generate_optimization_params(latency, active_power, active_energy, passive_p
 
     rcs["other"]["V_dd"] = V_dd
 
+    # store in ns
     rcs["other"]["MemReadL"] = latency["MainMem"]
     rcs["other"]["MemWriteL"] = latency["MainMem"]
+
+    # store in nW and nJ
     rcs["other"]["MemReadEact"] = active_energy["MainMem"]["Read"] * 1e-9
     rcs["other"]["MemWriteEact"] = active_energy["MainMem"]["Write"] * 1e-9
     rcs["other"]["MemPpass"] = passive_power["MainMem"] * 1e-9
 
-    rcs["other"]["BufL"] = latency["Buf"]
+    rcs["other"]["BufL"] = latency["Buf"] # ns
+    
+    # store in nW and nJ
     rcs["other"]["BufReadEact"] = active_energy["Buf"]["Read"] * 1e-9
     rcs["other"]["BufWriteEact"] = active_energy["Buf"]["Write"] * 1e-9
     rcs["other"]["BufPpass"] = passive_power["Buf"] * 1e-9
@@ -52,7 +57,7 @@ def generate_optimization_params(latency, active_power, active_energy, passive_p
 def main():
     V_dd = 1.1
 
-    tech_params = yaml.load(open("tech_params.yaml", "r"), Loader=yaml.Loader)
+    tech_params = yaml.load(open("params/tech_params.yaml", "r"), Loader=yaml.Loader)
 
     size = 7
 
@@ -63,7 +68,7 @@ def main():
 
     rcs = generate_optimization_params(latency, active_power, active_energy, passive_power, V_dd)
 
-    with open("rcs.yaml", 'w') as f:
+    with open("params/rcs.yaml", 'w') as f:
         f.write(yaml.dump(rcs))
 
 if __name__ == "__main__":
