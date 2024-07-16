@@ -8,6 +8,44 @@ from pyomo.opt import SolverFactory
 
 import hw_symbols
 
+
+import numpy as np
+import cvxpy as cp
+def l1_regularizer(self, starting_vals):
+        # to promote sparsity in change (deviation from starting values)
+        obj = self.obj + cp.norm1(starting_vals - self.x) # what currently exists
+        return obj
+    
+def l2_regularizer(x, starting_vals):
+    # to heavily penalize changes using the Euclidean norm: promoting general proximity to values
+    obj = obj + cp.norm2(starting_vals - x)**2
+    return obj
+
+def elastic_net_regularization(alpha, starting_vals):
+    # Weighing out L1 and L2 regularizers: selective agreement v/s general proximity
+    obj = obj + cp.norm1(starting_vals - x) + (1 - alpha) + cp.norm2(starting_vals - x) ** 2
+    return obj
+
+def smoothness_regularizer(self):
+    # Reduce total variance amongst subsequent elements: NOT RELEVANT?
+    obj = 0
+    for i in range(len(self.x) - 1):
+        obj += cp.abs(self.x[i + 1] - self.x[i])
+    return obj
+
+def generalized_tikhonov_regularization(self, symbols_table):
+    # Tikhonov Regularization: 
+    L = np.eye(len(symbols_table))
+    obj = self.obj + cp.quad_form(self.x, L)
+
+def tc_norm_regularization(self):
+    obj = self.obj + cp.norm(self.x, 'nuc')
+    return obj
+
+def outlier_regularization_huber(self, delta, starting_vals):
+    obj = self.obj + cp.sum(cp.huber(self.x - starting_vals, delta))
+    return obj
+
 LAMBDA = 0.1 # regularization parameter
 
 class Preprocessor:
