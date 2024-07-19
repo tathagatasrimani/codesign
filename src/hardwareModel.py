@@ -911,7 +911,7 @@ class HardwareModel:
         self.pitch = pitch
         self.hw_allocated = {}
         self.hw_allocated["Regs"] = 0
-	    self.hw_allocated["NoCs"] = 0
+        self.hw_allocated["NoCs"] = 0
         self.loop_variables = loop_counts
         self.var_sizes = var_sizes
         self.id = id

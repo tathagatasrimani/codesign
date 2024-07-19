@@ -482,7 +482,7 @@ def main():
     cfg, graphs, node_operations = simulator.simulator_prep(args.benchmark)
     simulator.transistor_size = 3 # in nm
     simulator.pitch = 100
-    simulator.mem_layers = 2
+    simulator.mem_layers = 1
     if simulator.memory_needed < 1000000:
         simulator.cache_size = 1
     elif simulator.memory_needed < 2000000:
@@ -518,6 +518,7 @@ def main():
     hw.hw_allocated['UAdd'] = 1
     hw.hw_allocated['Not'] = 1
     hw.hw_allocated['Invert'] = 1
+    hw.hw_allocated['NoCs'] = 1
 
     area = 0
     for key in hw.hw_allocated:

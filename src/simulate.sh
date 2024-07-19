@@ -13,12 +13,12 @@ done
 # arguments like this: ./simulate.sh -n <name>
 if [ $name ]; then
     FILEPATH=benchmarks/models/$name
-    python instrument.py $FILEPATH
-    python instrumented_files/xformed-$name > instrumented_files/output.txt
+    python3.8 instrument.py $FILEPATH
+    python3.8 instrumented_files/xformed-$name > instrumented_files/output.txt
     if [ $QUIET ]; then
         echo "Quiet mode"
-        python simulate.py $FILEPATH --notrace
+        python3.8 simulate.py $FILEPATH --notrace
     else
-        python simulate.py $FILEPATH
+        python3.8 simulate.py $FILEPATH
     fi
 fi
