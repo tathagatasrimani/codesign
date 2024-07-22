@@ -1,14 +1,46 @@
+class nativeTensor():
+    def __init__(self, data):
+        self.data = data
+        self.shape = self._get_shape_recursive(data)
+        ''' Only support broadcasting one dimension'''
+        self.broadcast_dim = None
+        self.broadcast_length = None
+    
+    def _get_shape_recursive(self, data):
+        if isinstance(data, list):
+            return [len(data)] + self._get_shape_recursive(data[0])
+        return []
+    
+    def set_broadcast(self, dim, length):
+        self.broadcast_dim = dim
+        self.broadcast_length = length
+        self.shape.insert(dim, length)
+
+    def __getitem__(self, indices):
+        if not isinstance(indices, tuple):
+            indices = (indices,)
+        data = self.data
+        if self.broadcast_dim != None:
+            if len(indices) <= self.broadcast_dim:
+                pass
+            elif indices[self.broadcast_dim] >= self.broadcast_length:
+                raise IndexError("Index out of range")
+            else:
+                list_indices = list(indices)
+                list_indices.pop(self.broadcast_dim)
+                indices = tuple(list_indices)
+        for idx in indices:
+            data = data[idx]
+        return nativeTensor(data) if isinstance(data, list) else data
+    
+    def __iter__(self):
+        for i in range(self.shape[0]):
+            return self[i]
+
 class nativePrims:
-    def shape(arr):
-        def get_shape_recursive(arr, current_shape):
-            if isinstance(arr, list):
-                current_shape.append(len(arr))
-                if isinstance(arr[0], list):
-                    get_shape_recursive(arr[0], current_shape)
-            return current_shape
-        
-        current_shape = get_shape_recursive(arr, [])
-        return tuple(current_shape)
+    ''' Inputs are assumed to be nativeTensor
+        Always create new Tensor after calculation
+    '''
 
     def collapse_view(matrix, from_dim, to_dim):
         def flatten(nested_list):
