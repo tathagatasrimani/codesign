@@ -29,8 +29,13 @@ def cacti_gen_sympy(name, cache_cfg):
     g_ip.error_checking()
 
     # make it so that cache cfg has Ndwl and Ndbl > 2
-    g_ip.ndwl = 2
+    g_ip.ndwl = 1
     g_ip.ndbl = 2
+    g_ip.nspd = 1
+    g_ip.ndcm = 1
+
+    g_ip.ndsam1 = 1
+    g_ip.ndsam2 = 1
 
     fin_res = uca_org_t()
     fin_res = solve_single()
@@ -53,24 +58,28 @@ def validate(sympy_file, cache_cfg, dat_file):
     tech_params = {k: (10**(-9) if v == 0 else v) for k, v in tech_params.items() if v is not None and not math.isnan(v)}
     print(tech_params)
     
-
+    print(f'READING {sympy_file}')
     with open(sympy_file, 'r') as file:
         expression_str = file.read()
 
     expression = sp.sympify(expression_str)
-    print(expression)
+    # print(expression)
     result = expression.subs(tech_params)
+    
+    result = result.subs(sp.I, 0)
 
 
     validate_vals = gen_vals(
-        "validate_cache",
+        "validate_mem_cache",
         cacheSize=g_ip.cache_sz, # TODO: Add in buffer sizing
         blockSize=g_ip.block_sz,
-        cache_type="cache",
+        cache_type="main memory",
         bus_width=g_ip.out_w,
         transistor_size=g_ip.F_sz_um,
-        force_cache_config="true",
+        force_cache_config="false",
     )
+
+    print(f'Transistor size: {g_ip.F_sz_um}')
 
     print(f"result : {result}")
     validate_result = float(validate_vals["Access time (ns)"])
@@ -387,10 +396,12 @@ def convert_frequency(string):
         print("Invalid input format")
 
 if __name__ == "__main__":
-    cache_cfg = "cacti/validate_cache.cfg"
-    # cacti_gen_sympy("sympy_validate", cache_cfg)
-    sympy_file = "sympy_validate.txt"
-    dat_file = "cacti/tech_params/90nm.dat"
+    cache_cfg = "cacti/base_cache.cfg"
+
+    cacti_gen_sympy("sympy_base_validate", cache_cfg)
+
+    sympy_file = "sympy_base_validate.txt"
+    dat_file = "cacti/tech_params/45nm.dat"
 
     validate(sympy_file, cache_cfg, dat_file)
 
