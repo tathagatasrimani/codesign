@@ -400,7 +400,7 @@ class HardwareModel:
         """
         buf_vals = cacti_util.gen_vals(
             "base_cache",
-            cacheSize=self.buffer_size, # TODO: Add in buffer sizing
+            cacheSize=2048, #self.buffer_size, 
             blockSize=64,
             cache_type="cache",
             bus_width=self.buffer_bus_width,
@@ -409,7 +409,7 @@ class HardwareModel:
 
         mem_vals = cacti_util.gen_vals(
             "mem_cache",
-            cacheSize=self.mem_size,
+            cacheSize=8192, #self.mem_size,
             blockSize=64,
             cache_type="main memory",
             bus_width=self.memory_bus_width
@@ -474,10 +474,11 @@ class HardwareModel:
         base_cache_cfg = "cacti/base_cache.cfg"
         mem_cache_cfg = "cacti/mem_cache.cfg"
 
+        # TODO: This only needs to be triggered if we're doing inverse pass (ie symbolic simulate or codesign)
         # Comment for now since it takes a while to generate
         # base_cache_cfg = "/Users/dw/Documents/codesign/codesign/src/cacti/cache_works.cfg"
-        # cacti_util.cacti_gen_sympy("BufL", base_cache_cfg)
-        # cacti_util.cacti_gen_sympy("MemL", mem_cache_cfg)
+        cacti_util.cacti_gen_sympy("BufL", base_cache_cfg)
+        cacti_util.cacti_gen_sympy("MemL", mem_cache_cfg)
         
         return
     
