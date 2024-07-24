@@ -49,6 +49,7 @@ def cacti_gen_sympy(name, cache_cfg):
 Validates output of sympy_file with cacti run.
 '''
 def validate(sympy_file, cache_cfg, dat_file):
+    # initalize input parameters from .cfg
     g_ip.parse_cfg(cache_cfg)
     g_ip.error_checking()
 
