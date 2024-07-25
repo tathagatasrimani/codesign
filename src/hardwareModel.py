@@ -137,26 +137,24 @@ class HardwareModel:
         self.init_misc_vars()
         self.set_technology_parameters()
 
-    def set_hw_config_vars(
-        self,
-        id,
-        bandwidth,
-        mem_layers,
-        pitch,
-        transistor_size,
-        cache_size,
-        V_dd,
-    ):
-        self.id = id
-        self.max_bw = bandwidth  # this doesn't really get used. deprecate?
-        self.bw_avail = bandwidth  # deprecate?
-        self.mem_layers = mem_layers
-        self.pitch = pitch
-        self.transistor_size = transistor_size
-        self.cache_size = cache_size
-        self.V_dd = V_dd
-        self.buffer_bus_width = SYSTEM_BUS_SIZE
-        self.memory_bus_width = SYSTEM_BUS_SIZE
+    def init_misc_vars(self):
+        self.compute_operation_totals = {}
+
+        self.memory_cfgs = {}
+        self.mem_state = {}
+        for variable in self.memory_cfgs.keys():
+            self.mem_state[variable] = False
+        self.cycles = 0
+
+        # what is this doing?
+        for op in op2sym_map:
+            self.compute_operation_totals[op] = 0
+
+        self.hw_allocated = {}
+        self.hw_allocated["Regs"] = 0
+
+        for key in op2sym_map.keys():
+            self.hw_allocated[key] = 0
 
     def init_memory(self, mem_needed, nvm_mem_needed, buffer_size=64):
         """
@@ -197,15 +195,26 @@ class HardwareModel:
         self.buffer_size = buffer_size
         self.gen_cacti_results()
 
-    def update_netlist(self):
-        logger.info(f"Old bus_widths -> buf: {self.buffer_bus_width}, mem: {self.memory_bus_width}")
-        self.buffer_bus_width = (
-            num_nodes_with_func(self.netlist, "Buf") * SYSTEM_BUS_SIZE
-        )
-        self.memory_bus_width = (
-            num_nodes_with_func(self.netlist, "MainMem") * SYSTEM_BUS_SIZE
-        )
-        logger.info(f"New bus_widths -> buf: {self.buffer_bus_width}, mem: {self.memory_bus_width}")
+    def set_hw_config_vars(
+        self,
+        id,
+        bandwidth,
+        mem_layers,
+        pitch,
+        transistor_size,
+        cache_size,
+        V_dd,
+    ):
+        self.id = id
+        self.max_bw = bandwidth  # this doesn't really get used. deprecate?
+        self.bw_avail = bandwidth  # deprecate?
+        self.mem_layers = mem_layers
+        self.pitch = pitch
+        self.transistor_size = transistor_size
+        self.cache_size = cache_size
+        self.V_dd = V_dd
+        self.buffer_bus_width = SYSTEM_BUS_SIZE
+        self.memory_bus_width = SYSTEM_BUS_SIZE
 
     def set_technology_parameters(self):
         """
@@ -222,6 +231,17 @@ class HardwareModel:
         self.dynamic_power = tech_params["dynamic_power"][self.transistor_size]
         self.leakage_power = tech_params["leakage_power"][self.transistor_size]
         self.dynamic_energy = tech_params["dynamic_energy"][self.transistor_size]
+
+        self.cacti_tech_node = min(cacti_util.valid_tech_nodes, key=lambda x: abs(x - self.transistor_size*1e-3))
+
+        self.cacti_dat_file = f"cacti/tech_params/{int(self.cacti_tech_node*1e3):2d}nm.dat"
+        print(f"self.cacti_dat_file: {self.cacti_dat_file}")
+
+    def set_var_sizes(self, var_sizes):
+        """
+        Deprecated?
+        """
+        self.var_sizes = var_sizes
 
     def duplicate_config_section(self, cfg, new_cfg):
         """
@@ -276,7 +296,6 @@ class HardwareModel:
         R = rcs["Reff"]  # Ohms
         self.V_dd = rcs["other"]["V_dd"]
 
-
         # TODO: update this to write to .dat file and then run cacti proper again.
         opt_params = sim_util.generate_init_params_from_rcs_as_symbols(rcs)
         # self.latency["MainMem"] = (
@@ -308,6 +327,35 @@ class HardwareModel:
                 beta[key] * self.V_dd**2 * 1e9 / (R["Not"] * self.R_off_on_ratio)
             )  # convert to nW
 
+    def update_netlist(self):
+        logger.info(
+            f"Old bus_widths -> buf: {self.buffer_bus_width}, mem: {self.memory_bus_width}"
+        )
+        self.buffer_bus_width = (
+            num_nodes_with_func(self.netlist, "Buf") * SYSTEM_BUS_SIZE
+        )
+        self.memory_bus_width = (
+            num_nodes_with_func(self.netlist, "MainMem") * SYSTEM_BUS_SIZE
+        )
+        logger.info(
+            f"New bus_widths -> buf: {self.buffer_bus_width}, mem: {self.memory_bus_width}"
+        )
+
+    def update_cache_size(self, cache_size):
+        pass
+
+    def print_stats(self):
+        """
+        Deprecated?
+        """
+        s = """
+	   cycles={cycles}
+	   allocated={allocated}
+	   utilized={utilized}
+	   """.format(
+            cycles=self.cycles, allocated=str(self.hw_allocated)
+        )
+
     def get_optimization_params_from_tech_params(self):
         """
         Generate R,C, etc from the latency, power tech parameters.
@@ -320,44 +368,10 @@ class HardwareModel:
             self.dynamic_energy,
             self.leakage_power,
             self.V_dd,
-            dat_file
+            dat_file,
         )
         self.R_off_on_ratio = rcs["other"]["Roff_on_ratio"]
         return rcs
-
-    def update_cache_size(self, cache_size):
-        pass
-
-    def init_misc_vars(self):
-        self.compute_operation_totals = {}
-
-        self.memory_cfgs = {}
-        self.mem_state = {}
-        for variable in self.memory_cfgs.keys():
-            self.mem_state[variable] = False
-        self.cycles = 0
-
-        # what is this doing?
-        for op in op2sym_map:
-            self.compute_operation_totals[op] = 0
-
-        self.hw_allocated = {}
-        self.hw_allocated["Regs"] = 0
-
-        for key in op2sym_map.keys():
-            self.hw_allocated[key] = 0
-
-    def set_var_sizes(self, var_sizes):
-        self.var_sizes = var_sizes
-
-    def print_stats(self):
-        s = """
-	   cycles={cycles}
-	   allocated={allocated}
-	   utilized={utilized}
-	   """.format(
-            cycles=self.cycles, allocated=str(self.hw_allocated)
-        )
 
     def get_total_area(self):
         """
@@ -371,7 +385,7 @@ class HardwareModel:
                 continue
             self.on_chip_area += self.area[data["function"]]
         logger.info(f"Area of all PEs: {self.on_chip_area}")
-        
+
         self.on_chip_area += self.area["Buf"] + self.area[
             "Buf"
         ] * self.buf_peripheral_area_proportion * (
@@ -409,10 +423,10 @@ class HardwareModel:
 
         mem_vals = cacti_util.gen_vals(
             "mem_cache",
-            cacheSize=8192, #self.mem_size,
+            cacheSize=131072,  # self.mem_size,
             blockSize=64,
             cache_type="main memory",
-            bus_width=self.memory_bus_width
+            bus_width=self.memory_bus_width,
         )
         logger.info(f"Memory cacti with: {self.mem_size} bytes, {self.memory_bus_width} bus width")
 
@@ -477,11 +491,7 @@ class HardwareModel:
         # TODO: This only needs to be triggered if we're doing inverse pass (ie symbolic simulate or codesign)
         # Comment for now since it takes a while to generate
         # base_cache_cfg = "/Users/dw/Documents/codesign/codesign/src/cacti/cache_works.cfg"
-        cacti_util.cacti_gen_sympy("BufL", base_cache_cfg)
-        cacti_util.cacti_gen_sympy("MemL", mem_cache_cfg)
-        
+        # cacti_util.cacti_gen_sympy("BufL", base_cache_cfg)
+        # cacti_util.cacti_gen_sympy("MemL", mem_cache_cfg)
+
         return
-    
-
-
-    
