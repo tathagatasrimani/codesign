@@ -1,6 +1,7 @@
 import logging
 logger = logging.getLogger(__name__)
 
+import sympy as sp
 import pyomo.environ as pyo
 from MyPyomoSympyBimap import MyPyomoSympyBimap
 import pyomo.core.expr.sympy_tools as sympy_tools
@@ -41,15 +42,15 @@ class Preprocessor:
         print(f"adding constraints. initial val: {self.initial_val};") # edp_exp: {self.pyomo_edp_exp}")
         model.Constraint = pyo.Constraint(expr=self.pyomo_edp_exp <= self.initial_val / 1.9)
         model.Constraint1 = pyo.Constraint(expr=self.pyomo_edp_exp >= self.initial_val / 2.1)
-        model.V_dd_lower = pyo.Constraint(rule=self.V_dd_lower)
-        model.V_dd_upper = pyo.Constraint(rule=self.V_dd_upper)
+        # model.V_dd_lower = pyo.Constraint(rule=self.V_dd_lower)
+        # model.V_dd_upper = pyo.Constraint(rule=self.V_dd_upper)
         # model.V_dd = pyo.Constraint(expr = model.x[self.mapping[hw_symbols.V_dd]] == self.initial_params["V_dd"])
 
         # all parameters can only be less than or equal to their initial values
         def max_val_orig_val_rule(model, i):
             return model.x[self.mapping[self.free_symbols[i]]] <= self.initial_params[self.free_symbols[i].name]
         model.Constraint2 = pyo.Constraint([i for i in range(len(self.free_symbols))], rule=max_val_orig_val_rule)
-        
+
         return model
 
     def add_regularization_to_objective(self, model, l=1):
@@ -100,6 +101,16 @@ class Preprocessor:
                     1 / self.initial_params[s.name]
                 )
 
+    def symbols_in_Buf_Mem_L(self, buf_l_file, mem_l_file):
+        memL_expr = sp.sympify(
+            open(mem_l_file, "r").readline(), locals=hw_symbols.symbol_table
+        )
+        bufL_expr = sp.sympify(
+            open(buf_l_file, "r").readline(), locals=hw_symbols.symbol_table
+        )
+        free_symbols = memL_expr.free_symbols.union(bufL_expr.free_symbols)
+        return free_symbols
+
     def begin(self, model, edp, initial_params, multistart):
         self.multistart = multistart
         self.expr_symbols = {}
@@ -108,6 +119,16 @@ class Preprocessor:
         print(f"before free symbols loop")
         # for symbol in edp.free_symbols:
         #     edp = edp.xreplace({symbol: hw_symbols.symbol_table[symbol.name]})
+
+        mem_buf_l_symbols = self.symbols_in_Buf_Mem_L("BufL.txt", "MemL.txt")
+        desired_free_symbols = ["Vdd", "C_g_ideal"]#, "C_junc", "I_on_n", "vert_dielectric_constant"] #, "Vdsat"] #, "Mobility_n"]
+
+        symbols_to_remove =  [
+            sym for sym in mem_buf_l_symbols if sym.name not in desired_free_symbols
+        ]
+        mem_buf_l_init_params = {sym: initial_params[sym.name] for sym in symbols_to_remove}
+        edp = edp.xreplace(mem_buf_l_init_params)
+
         for s in edp.free_symbols:
             self.free_symbols.append(s)
             if s.name in initial_params:  # change this to just s
@@ -142,7 +163,7 @@ class Preprocessor:
         self.obj = self.pyomo_edp_exp
         # print(f"created pyomo expression: {self.pyomo_edp_exp}")
 
-        self.add_regularization_to_objective(model, l=0.00001)
+        self.add_regularization_to_objective(model, l=0.01)
         print(f"added regularization")
 
         model.obj = pyo.Objective(expr=self.obj, sense=pyo.minimize)

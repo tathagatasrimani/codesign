@@ -90,6 +90,7 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
              addr_timing = None, force_cache_config = None, technology = None,
              debug = False) -> pd.DataFrame:
     # load in default values
+
     logger.info(f"Running Cacti with the following parameters: filename: {filename}, cacheSize: {cacheSize}, blockSize: {blockSize}, cache_type: {cache_type}, bus_width: {bus_width}, transistor_size: {transistor_size}, addr_timing: {addr_timing}, force_cache_config: {force_cache_config}, technology: {technology}")
     with open("params/cacti_input.yaml", "r") as yamlfile:
         config_values = yaml.safe_load(yamlfile)

@@ -233,6 +233,7 @@ class SymbolicSimulator(AbstractSimulator):
 
                         path_latency += hw_symbols.symbolic_latency_wc[func] * scaling
                     self.cycles = symbolic_convex_max(self.cycles, path_latency)
+        # self.cycles = hw_symbols.MemReadL + hw_symbols.MemWriteL
         logger.info(f"execution time: {str(self.cycles)}")
 
     def calculate_edp(self, hw):
@@ -251,6 +252,8 @@ class SymbolicSimulator(AbstractSimulator):
             hw_symbols.MemReadL: hw_symbols.MemWriteL,
             hw_symbols.MemWriteL: meml_expr,
             hw_symbols.BufL: bufl_expr,
+            hw_symbols.Ceff["Add"]: 0,
+            hw_symbols.Ceff["Regs"]: 0,
         }
 
         self.cycles = self.cycles.subs(cacti_subs)
@@ -259,8 +262,8 @@ class SymbolicSimulator(AbstractSimulator):
         # self.total_passive_energy_ceil = self.passive_energy_dissipation(
         #     hw, self.cycles_ceil
         # )
-        self.edp = self.cycles * (self.total_active_energy + self.total_passive_energy)
-        assert hw_symbols.MemReadL not in self.edp.free_symbols and hw_symbols.MemWriteL not in self.edp.free_symbols and hw_symbols.BufL not in self.edp.free_symbols
+        self.edp = self.cycles #+ (self.total_active_energy ) #+ self.total_passive_energy)
+        assert hw_symbols.MemReadL not in self.edp.free_symbols and hw_symbols.MemWriteL not in self.edp.free_symbols # and hw_symbols.BufL not in self.edp.free_symbols
 
         # self.edp = self.edp.subs(subs)
 
