@@ -1,0 +1,890 @@
+area: # nm^2
+  3:
+    Add: 91.8111744
+    And: 149.0576472
+    BitAnd: 43.9617024
+    BitOr: 35.887104
+    BitXor: 47.849472
+    Eq: 98.47926
+    FloorDiv: 50570.3126
+    Gt: 309.4074953
+    GtE: 269.683487
+    Invert: 31.401216
+    IsNot: 31.401216
+    LShift: 155.2117248
+    Lt: 299.5520246
+    LtE: 308.4787471
+    Mod: 129.880476
+    Mult: 16635.2708
+    Not: 31.401216
+    NotEq: 196.9071192
+    Or: 121.679712
+    RShift: 155.2117248
+    Regs: 1
+    Sub: 123.2123904
+    UAdd: 123.2123904
+    USub: 91.8111744
+  5:
+    Add: 155.61216
+    And: 252.64008
+    BitAnd: 74.51136
+    BitOr: 60.8256
+    BitXor: 81.1008
+    Eq: 166.914
+    FloorDiv: 85712.39424
+    Gt: 524.4194835
+    GtE: 457.090656
+    Invert: 53.2224
+    IsNot: 53.2224
+    LShift: 263.07072
+    Lt: 507.715296
+    LtE: 522.845334
+    Mod: 220.1364
+    Mult: 28195.37424
+    Not: 53.2224
+    NotEq: 333.74088
+    Or: 206.2368
+    RShift: 263.07072
+    Regs: 1
+    Sub: 208.83456
+    UAdd: 208.83456
+    USub: 155.61216
+  7:
+    Add: 282.9312
+    And: 459.3456
+    BitAnd: 135.4752
+    BitOr: 110.592
+    BitXor: 1147.456
+    Eq: 303.48
+    FloorDiv: 155840.7168
+    Gt: 953.48997
+    GtE: 831.07392
+    Invert: 96.768
+    IsNot: 96.768
+    LShift: 478.3104
+    Lt: 923.11872
+    LtE: 950.62788
+    Mod: 400.248
+    Mult: 51264.3168
+    Not: 96.768
+    NotEq: 606.8016
+    Or: 374.976
+    RShift: 478.3104
+    Regs: 1
+    Sub: 379.6992
+    UAdd: 379.6992
+    USub: 282.9312
+  40: # nm^2
+    Add: 3.793488e+08 # 0.5 ns
+    Sub: 3.793488e+08
+    And: 5.036996e+07
+    BitAnd: 5.036996e+07
+    BitOr: 5.036996e+07
+    BitXor: 5.036996e+07
+    Eq: 3.793488e+08 # use add, unsure about this.
+    FloorDiv: 8.340007e+09
+    Gt: 3.793488e+08 # use add, unsure about this.
+    GtE: 3.793488e+08 # use add, unsure about this.
+    Invert: 5.036996e+07
+    IsNot: 5.036996e+07
+    LShift: 2.496461e+07
+    Lt: 3.793488e+08 # use add, unsure about this.
+    LtE: 3.793488e+08 # use add, unsure about this.
+    Mod: 3.793488e+08 # use add, unsure about this.
+    Mult: 8.340007e+09 # 3 stage, 0.5 ns
+    Not: 5.036996e+07
+    NotEq: 3.793488e+08 # use add, unsure about this.
+    Or: 5.036996e+07
+    RShift: 2.496461e+07
+    Regs: 5.981433e+06 # this is area per bit
+    UAdd: 3.793488e+08 # use add, unsure about this.
+    USub: 3.793488e+08 # use add, unsure about this.
+    Buf: 0.0 # per byte? PLACEHOLDER
+    MainMem: 5.981433e+06 # per byte(?) per some unit of size; PLACEHOLDER
+dynamic_power: # nw
+  3:
+    Add: 28.6781376
+    And: 47.1792503
+    BitAnd: 13.9146176
+    BitOr: 13.102624
+    BitXor: 14.76352
+    Eq: 62.7778319
+    FloorDiv: 15068.34978
+    Gt: 93.6076372
+    GtE: 82.6018944
+    Invert: 4.1337856
+    IsNot: 4.1337856
+    LShift: 45.0656448
+    Lt: 98.3498413
+    LtE: 92.5799578
+    Mod: 66.9116175
+    Mult: 5321.759918
+    Not: 4.1337856
+    NotEq: 102.0626359
+    Or: 44.4260845
+    RShift: 45.0656448
+    Regs: 1
+    Sub: 32.8119232
+    UAdd: 28.6781376
+    USub: 32.8119232
+    Buf: 0.0 # per byte? PLACEHOLDER
+    MainMem: 2.1e+6 # nw per byte 65 nm SRAM
+  5:
+    Add: 39.28512
+    And: 64.62911
+    BitAnd: 19.06112
+    BitOr: 17.9488
+    BitXor: 20.224
+    Eq: 85.99703
+    FloorDiv: 20641.57504
+    Gt: 128.22964
+    GtE: 113.15328
+    Invert: 5.66272
+    IsNot: 5.66272
+    LShift: 61.73376
+    Lt: 134.72581
+    LtE: 126.82186
+    Mod: 91.65975
+    Mult: 7290.08208
+    Not: 5.66272
+    NotEq: 139.81183
+    Or: 60.85765
+    RShift: 61.73376
+    Regs: 1
+    Sub: 44.94784
+    UAdd: 39.28512
+    USub: 44.94784
+    Buf: 0.0 # per byte? PLACEHOLDER
+    MainMem: 2.1e+6 # nw per byte 65 nm SRAM
+  7:
+    Add: 49.728
+    And: 81.809
+    BitAnd: 24.128
+    BitOr: 22.72
+    BitXor: 25.6
+    Eq: 108.857
+    FloorDiv: 26128.576
+    Gt: 162.316
+    GtE: 143.232
+    Invert: 7.168
+    IsNot: 7.168
+    LShift: 78.144
+    Lt: 170.539
+    LtE: 160.534
+    Mod: 116.025
+    Mult: 9227.952
+    Not: 7.168
+    NotEq: 176.977
+    Or: 77.035
+    RShift: 78.144
+    Regs: 1
+    Sub: 56.896
+    UAdd: 49.728
+    USub: 56.896
+    Buf: 0.0 # per byte? PLACEHOLDER
+    MainMem: 2.1e+6 # nw per byte
+  40:
+    Add: 2.836642e+05
+    Sub: 2.836642e+05
+    And:  1.805590e+04
+    BitAnd: 1.805590e+04
+    BitOr:  1.805590e+04
+    BitXor:  1.805590e+04
+    Eq: 2.836642e+05 # use add, unsure about this.
+    FloorDiv: 1.262844e+07
+    Gt: 2.836642e+05 # use add, unsure about this.
+    GtE: 2.836642e+05 # use add, unsure about this.
+    Invert: 1.805590e+04
+    IsNot:  1.805590e+04
+    LShift: 4.172512e+05
+    Lt: 2.836642e+05 # use add, unsure about this.
+    LtE: 2.836642e+05 # use add, unsure about this.
+    Mod: 2.836642e+05 # use add, unsure about this.
+    Mult: 1.262844e+07
+    Not:  1.805590e+04
+    NotEq: 2.836642e+05 # use add, unsure about this.
+    Or:  1.805590e+04
+    RShift: 4.172512e+05
+    Regs: 8.999495e+03
+    UAdd: 2.836642e+05 # use add, unsure about this.
+    USub: 2.836642e+05 # use add, unsure about this.
+    Buf: 0.0 # per byte? PLACEHOLDER
+    MainMem: 2.1e+6 # nw per byte ; 65 nm SRAM
+latency: # num cycles
+  3:
+    Add: 12.755
+    And: 1.395
+    BitAnd: 0.192
+    BitOr: 0.2
+    BitXor: 0.188
+    Eq: 1.4
+    FloorDiv: 34.741
+    Gt: 2.085
+    GtE: 2.105
+    Invert: 0.14
+    IsNot: 0.14
+    LShift: 0.214
+    Lt: 1.54
+    LtE: 1.54
+    Mod: 1.54
+    Mult: 44.835
+    Not: 0.14
+    NotEq: 1.54
+    Or: 1.425
+    RShift: 0.214
+    Regs: 2
+    Sub: 12.895
+    UAdd: 12.755
+    USub: 12.895
+    Buf: 0.0 # per byte? PLACEHOLDER
+    MainMem: 23.795 # cycles per byte for 65 nm sram
+  5:
+    Add: 14.155
+    And: 1.545
+    BitAnd: 0.213
+    BitOr: 0.225
+    BitXor: 0.208
+    Eq: 1.555
+    FloorDiv: 38.56
+    Gt: 2.315
+    GtE: 2.335
+    Invert: 0.155
+    IsNot: 0.155
+    LShift: 0.024
+    Lt: 1.71
+    LtE: 1.71
+    Mod: 1.71
+    Mult: 49.77
+    Not: 0.155
+    NotEq: 1.71
+    Or: 1.58
+    RShift: 0.024
+    Regs: 2
+    Sub: 14.31
+    UAdd: 14.155
+    USub: 14.31
+    Buf: 0.0 # per byte? PLACEHOLDER
+    MainMem: 23.795 # cycles per byte for 65 nm sram
+  7:
+    Add: 16
+    And: 1.75
+    BitAnd: 0.24
+    BitOr: 0.256
+    BitXor: 0.236
+    Eq: 1.76
+    FloorDiv: 43.5
+    Gt: 2.615
+    GtE: 2.64
+    Invert: 0.175
+    IsNot: 0.175
+    LShift: 0.027
+    Lt: 1.935
+    LtE: 1.935
+    Mod: 1.935
+    Mult: 56.24
+    Not: 0.175
+    NotEq: 1.935
+    Or: 1.789
+    RShift: 0.027
+    Regs: 2
+    Sub: 16.175
+    UAdd: 16
+    USub: 16.175
+    Buf: 0.0 # per byte? PLACEHOLDER
+    MainMem: 23.795 # cycles per byte for 65 nm sram
+  40:
+    Add: 0.94
+    Sub: 0.94
+    And: 0.06
+    BitAnd: 0.06
+    BitOr: 0.06
+    BitXor: 0.06
+    Eq: 0.94 # use add, unsure about this.
+    FloorDiv: 0.98
+    Gt: 0.94 # use add, unsure about this.
+    GtE: 0.94 # use add, unsure about this.
+    Invert: 0.06
+    IsNot: 0.06
+    LShift: 0.7 # this is higher than for the other params.
+    Lt: 0.94 # use add, unsure about this.
+    LtE: 0.94 # use add, unsure about this.
+    Mod: 0.94 # use add, unsure about this.
+    Mult: 0.98 # didn't have # for 3 stage, 0.5 ns so use 1 ns
+    Not: 0.06
+    NotEq: 0.94 # use add, unsure about this.
+    Or: 0.06
+    RShift: 0.7 # this is higher than for the other params.
+    Regs: 2
+    UAdd: 0.94 # use add, unsure about this.
+    USub: 0.94 # use add, unsure about this.
+    Buf: 0.0 # per byte? PLACEHOLDER
+    MainMem: 23.795 # cycles per byte for 65 nm sram
+leakage_power: # nw
+  3:
+    Add: 1722.410667
+    And: 2502.878
+    BitAnd: 738.176
+    BitOr: 738.176
+    BitXor: 984.2346667
+    Eq: 1980.003333
+    FloorDiv: 820113.536
+    Gt: 2652.82
+    GtE: 2706.645333
+    Invert: 246.0586667
+    IsNot: 246.0586667
+    LShift: 2460.586667
+    Lt: 3487.112667
+    LtE: 2652.82
+    Mod: 2226.062
+    Mult: 310449.144
+    Not: 246.0586667
+    NotEq: 3487.112667
+    Or: 2502.878
+    RShift: 2460.586667
+    Regs: 1
+    Sub: 1968.469333
+    UAdd: 1722.410667
+    USub: 1968.469333
+    Buf: 0.0 # per byte? PLACEHOLDER
+    MainMem: 84.48 # nw per byte - 65nm SRAM
+  5:
+    Add: 2359.466667
+    And: 3428.6
+    BitAnd: 1011.2
+    BitOr: 1011.2
+    BitXor: 1348.266667
+    Eq: 2712.333333
+    FloorDiv: 1123443.2
+    Gt: 3634
+    GtE: 3707.733333
+    Invert: 337.0666667
+    IsNot: 337.0666667
+    LShift: 3370.666667
+    Lt: 4776.866667
+    LtE: 3634
+    Mod: 3049.4
+    Mult: 425272.8
+    Not: 337.0666667
+    NotEq: 4776.866667
+    Or: 3428.6
+    RShift: 3370.666667
+    Regs: 1
+    Sub: 2696.533333
+    UAdd: 2359.466667
+    USub: 2696.533333
+    Buf: 0.0 # per byte? PLACEHOLDER
+    MainMem: 84.48 # nw per byte - 65nm SRAM
+  7:
+    Add: 2986.666667
+    And: 4340
+    BitAnd: 1280
+    BitOr: 1280
+    BitXor: 1706.666667
+    Eq: 3433.333333
+    FloorDiv: 1422080
+    Gt: 4600
+    GtE: 4693.333333
+    Invert: 426.6666667
+    IsNot: 426.6666667
+    LShift: 4266.666667
+    Lt: 6046.666667
+    LtE: 4600
+    Mod: 3860
+    Mult: 538320
+    Not: 426.6666667
+    NotEq: 6046.666667
+    Or: 4340
+    RShift: 4266.666667
+    Regs: 426.6666667
+    Sub: 3413.333333
+    UAdd: 2986.666667
+    USub: 3413.333333
+    Buf: 0.0 # per byte? PLACEHOLDER
+    MainMem: 84.48 # nw per byte - 65nm SRAM
+  40:
+    Add: 3.265969e+03
+    Sub: 3.265969e+03
+    And: 6.111633e+02
+    BitAnd: 6.111633e+02
+    BitOr: 6.111633e+02
+    BitXor: 6.111633e+02
+    Eq: 3.265969e+03 # use add, unsure about this.
+    FloorDiv: 1.086401e+05
+    Gt: 3.265969e+03 # use add, unsure about this.
+    GtE: 3.265969e+03 # use add, unsure about this.
+    Invert: 6.111633e+02
+    IsNot: 6.111633e+02
+    LShift: 1.697876e+03
+    Lt: 3.265969e+03 # use add, unsure about this.
+    LtE: 3.265969e+03 # use add, unsure about this.
+    Mod: 3.265969e+03 # use add, unsure about this.
+    Mult: 1.086401e+05
+    Not: 6.111633e+02
+    NotEq: 3.265969e+03 # use add, unsure about this.
+    Or: 6.111633e+02
+    RShift: 1.697876e+03
+    Regs: 7.395312e+01 # this should be per bit as well. 
+    UAdd: 3.265969e+03 # use add, unsure about this.
+    USub: 3.265969e+03 # use add, unsure about this.
+    Buf: 0.0 # per byte? PLACEHOLDER
+    MainMem: 84.48 # nw per byte - 65nm SRAM
+
+
+mem_area: # mm^2 - these numbers are actually all for 65nm node
+  3:
+    1:
+      1:
+        100: 0.34
+      2:
+        0.1: 0.301
+        1: 0.221
+        10: 0.346
+        100: 0.878
+      4:
+        0.1: 0.104
+        1: 0.165
+        10: 0.308
+        100: 0.946
+    2:
+      1:
+        100: 0.856
+      2:
+        0.1: 0.331
+        1: 0.403
+        10: 0.544
+        100: 1.15
+      4:
+        0.1: 0.301
+        1: 0.331
+        10: 0.397
+        100: 0.876
+    4:
+      1:
+        100: 1.73
+      2:
+        0.1: 1.06
+        1: 0.919
+        10: 1.095
+        100: 1.774
+      4:
+        0.1: 0.38
+        1: 0.484
+        10: 0.579
+        100: 1.144
+    8:
+      1:
+        100: 3.004
+      2:
+        0.1: 1.628
+        1: 1.691
+        10: 1.779
+        100: 2.707
+      4:
+        0.1: 1.06
+        1: 0.919
+        10: 1.159
+        100: 1.767
+    16:
+      1:
+        100: 5.658
+      2:
+        0.1: 3.066
+        1: 3.162
+        10: 3.112
+        100: 4.592
+      4:
+        0.1: 1.611
+        1: 1.673
+        10: 1.796
+        100: 2.86
+  5:
+    1:
+      1:
+        100: 8.26
+      2:
+        0.1: 7.34
+        1: 5.373
+        10: 8.419
+        100: 21.38
+      4:
+        0.1: 2.535
+        1: 4.025
+        10: 7.499
+        100: 23.02
+    2:
+      1:
+        100: 20.83
+      2:
+        0.1: 8.061
+        1: 9.822
+        10: 13.249
+        100: 27.952
+      4:
+        0.1: 7.334
+        1: 8.05
+        10: 9.657
+        100: 21.33
+    4:
+      1:
+        100: 42.1
+      2:
+        0.1: 25.8
+        1: 22.363
+        10: 26.661
+        100: 43.182
+      4:
+        0.1: 25.796
+        1: 11.77
+        10: 14.089
+        100: 27.83
+    8:
+      1:
+        100: 73.12
+      2:
+        0.1: 39.63
+        1: 41.146
+        10: 43.287
+        100: 65.894
+      4:
+        0.1: 25.796
+        1: 22.36
+        10: 28.191
+        100: 43
+    16:
+      1:
+        100: 137.7
+      2:
+        0.1: 74.62
+        1: 76.972
+        10: 75.741
+        100: 111.754
+      4:
+        0.1: 39.219
+        1: 40.73
+        10: 43.72
+        100: 69.6
+  7:
+    1:
+      1:
+        100: 8.26
+      2:
+        0.1: 7.34
+        1: 5.373
+        10: 8.419
+        100: 21.38
+      4:
+        0.1: 2.535
+        1: 4.025
+        10: 7.499
+        100: 23.02
+    2:
+      1:
+        100: 20.83
+      2:
+        0.1: 8.061
+        1: 9.822
+        10: 13.249
+        100: 27.952
+      4:
+        0.1: 7.334
+        1: 8.05
+        10: 9.657
+        100: 21.33
+    4:
+      1:
+        100: 42.1
+      2:
+        0.1: 25.8
+        1: 22.363
+        10: 26.661
+        100: 43.182
+      4:
+        0.1: 25.796
+        1: 11.77
+        10: 14.089
+        100: 27.83
+    8:
+      1:
+        100: 73.12
+      2:
+        0.1: 39.63
+        1: 41.146
+        10: 43.287
+        100: 65.894
+      4:
+        0.1: 25.796
+        1: 22.36
+        10: 28.191
+        100: 43
+    16:
+      1:
+        100: 137.7
+      2:
+        0.1: 74.62
+        1: 76.972
+        10: 75.741
+        100: 111.754
+      4:
+        0.1: 39.219
+        1: 40.73
+        10: 43.72
+        100: 69.6
+  40:
+    1:
+      1:
+        100: 8.26
+    2:
+      1:
+        100: 20.83
+    4:
+      1:
+        100: 42.1
+    8:
+      1:
+        100: 73.12
+    16:
+      1:
+        100: 137.7
+mem_dynamic_power: # (units of nw) queried by (cache_size, mem_layers, pitch)
+  1:
+    1:
+      100: 0.003
+    2:
+      0.1: 0.035
+      1: 0.004
+      10: 0.026
+      100: 0.132
+    4:
+      0.1: 0.003
+      1: 0.031
+      10: 0.042
+      100: 1.914
+  2:
+    1:
+      100: 0.007
+    2:
+      0.1: 0.006
+      1: 0.007
+      10: 0.022
+      100: 0.109
+    4:
+      0.1: 0.035
+      1: 0.033
+      10: 0.036
+      100: 0.925
+  4:
+    1:
+      100: 0.022
+    2:
+      0.1: 0.027
+      1: 0.025
+      10: 0.025
+      100: 0.086
+    4:
+      0.1: 0.004
+      1: 0.028
+      10: 0.03
+      100: 1.333
+  8:
+    1:
+      100: 0.017
+    2:
+      0.1: 0.023
+      1: 0.023
+      10: 0.021
+      100: 0.07
+    4:
+      0.1: 0.027
+      1: 0.023
+      10: 0.03
+      100: 1.069
+  16:
+    1:
+      100: 0.014
+    2:
+      0.1: 0.019
+      1: 0.019
+      10: 0.017
+      100: 0.047
+    4:
+      0.1: 0.023
+      1: 0.024
+      10: 0.024
+      100: 0.786
+mem_latency: # num cycles
+  1:
+    1:
+      100: 21.325
+    2:
+      0.1: 2.14
+      1: 14.445
+      10: 3.045
+      100: 5.125
+    4:
+      0.1: 10.755
+      1: 1.895
+      10: 2.405
+      100: 4.625
+  2:
+    1:
+      100: 19.51
+    2:
+      0.1: 21.35
+      1: 21.35
+      10: 4.375
+      100: 6.44
+    4:
+      0.1: 2.14
+      1: 2.38
+      10: 3.075
+      100: 5.185
+  4:
+    1:
+      100: 7.54
+    2:
+      0.1: 4.8
+      1: 4.8225
+      10: 5.615
+      100: 8.745
+    4:
+      0.1: 21.35
+      1: 3.385
+      10: 4.285
+      100: 6.475
+  8:
+    1:
+      100: 12.825
+    2:
+      0.1: 6.98
+      1: 7.175
+      10: 8.35
+      100: 11.685
+    4:
+      0.1: 4.825
+      1: 4.825
+      10: 5.59
+      100: 8.825
+  16:
+    1:
+      100: 20.63
+    2:
+      0.1: 11.85
+      1: 12.095
+      10: 13.56
+      100: 18.575
+    4:
+      0.1: 6.935
+      1: 7.13
+      10: 8.36
+      100: 12.145
+mem_leakage_power: # mw
+  1:
+    1:
+      100: 84.488
+    2:
+      0.1: 163.32
+      1: 113.61
+      10: 120.24
+      100: 134.778
+    4:
+      0.1: 125.092
+      1: 160.134
+      10: 147.956
+      100: 332
+  2:
+    1:
+      100: 203.537
+    2:
+      0.1: 167.29
+      1: 201.01
+      10: 240.276
+      100: 253.749
+    4:
+      0.1: 326.641
+      1: 297.911
+      10: 239.929
+      100: 367.021
+  4:
+    1:
+      100: 430.711
+    2:
+      0.1: 523.43
+      1: 449.08
+      10: 446.145
+      100: 449.317
+    4:
+      0.1: 393.097
+      1: 470.928
+      10: 476.738
+      100: 502.546
+  8:
+    1:
+      100: 771.303
+    2:
+      0.1: 872.39
+      1: 872.39
+      10: 830.644
+      100: 797.864
+    4:
+      0.1: 1046.85
+      1: 898.161
+      10: 872.388
+      100: 889.741
+  16:
+    1:
+      100: 1496.1
+    2:
+      0.1: 1621.4
+      1: 1621.4
+      10: 1532.73
+      100: 1626.42
+    4:
+      0.1: 1728.53
+      1: 1728.534
+      10: 1653.34
+      100: 1688.8
+
+power_scale:
+  512: 1
+  1024: 2
+  2048: 3
+  4096: 4
+  8192: 5
+  16384: 6
+  32768: 7
+  65536: 8
+  131072: 9
+  262144: 10
+  524288: 11
+  1048576: 12
+  2097152: 13
+  4194304: 14
+  8388608: 15
+  16777216: 16
+  33554432: 17
+  67108864: 18
+  134217728: 19
+  268435456: 20
+  536870912: 21
+latency_scale: # did we just make this shit up?
+  512: 1
+  1024: 2
+  2048: 3
+  4096: 4
+  8192: 5
+  16384: 6
+  32768: 7
+  65536: 8
+  131072: 9
+  262144: 10
+  524288: 11
+  1048576: 12
+  2097152: 13
+  4194304: 14
+  8388608: 15
+  16777216: 16
+  33554432: 17
+  67108864: 18
+  134217728: 19
+  268435456: 20
+  536870912: 21
