@@ -1,17 +1,18 @@
 ### read def spef file assign net with capacitance and resistance (total resistance)
 from functions import *
 import copy
-### adding up the resistnace
-stef_file = "../test/results/generated.spef"
+from def_generator import directory
 
-# may library
+stef_file = "results/generated-tcl.spef"
+
+# map library
 
 map_pattern = fr'\*[0-9]+\s_[0-9]+_\n'
 
 net_res = {}
 net_cap = {}
 map = {}
-stef_data = open(stef_file)
+stef_data = open(directory + stef_file)
 stef_lines = stef_data.readlines()
 for line in range(len(stef_lines)):
     segment_res = []
