@@ -88,12 +88,12 @@ Print_level: "DETAILED"
 Print_input_parameters: "true"
 # Force cache config
 Force_cache_config: "false"
-Ndwl: 1
-Ndbl: 1
-Nspd: 0
+Ndwl: 2
+Ndbl: 2
+Nspd: 2
 Ndcm: 1
-Ndsam1: 0
-Ndsam2: 0
+Ndsam1: 1
+Ndsam2: 2
 
 # Default CONFIGURATION values for baseline external IO parameters to DRAM
 # Memory Type

@@ -12,7 +12,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import networkx as nx
 from sympy import *
-import sympy
+import sympy as sp
 import pyomo.environ as pyo
 from pyomo.core.expr import Expr_if
 
@@ -233,18 +233,76 @@ class SymbolicSimulator(AbstractSimulator):
 
                         path_latency += hw_symbols.symbolic_latency_wc[func] * scaling
                     self.cycles = symbolic_convex_max(self.cycles, path_latency)
+        # self.cycles = hw_symbols.MemReadL + hw_symbols.MemWriteL
         logger.info(f"execution time: {str(self.cycles)}")
 
     def calculate_edp(self, hw):
+
+        with open('Mem_access_time.txt', 'r') as file:
+            mem_access_time_text = file.read()
+
+        with open('Mem_read_dynamic.txt', 'r') as file:
+            mem_read_dynamic_text = file.read()
+
+        with open('Mem_write_dynamic.txt', 'r') as file:
+            mem_write_dynamic_text = file.read()
+
+        with open('Mem_read_leakage.txt', 'r') as file:
+            mem_read_leakage_text = file.read()
+
+        with open('Buf_access_time.txt', 'r') as file:
+            buf_access_time_text = file.read()
+
+        with open('Buf_read_dynamic.txt', 'r') as file:
+            buf_read_dynamic_text = file.read()
+
+        with open('Buf_write_dynamic.txt', 'r') as file:
+            buf_write_dynamic_text = file.read()
+
+        with open('Buf_read_leakage.txt', 'r') as file:
+            buf_read_leakage_text = file.read()
+
+
+        MemL_expr = sp.sympify(mem_access_time_text, locals=hw_symbols.symbol_table)
+        MemReadEact_expr = sp.sympify(mem_read_dynamic_text, locals=hw_symbols.symbol_table)
+        MemWriteEact_expr = sp.sympify(mem_write_dynamic_text, locals=hw_symbols.symbol_table)
+        MemPpass_expr = sp.sympify(mem_read_leakage_text, locals=hw_symbols.symbol_table)
+
+        BufL_expr = sp.sympify(buf_access_time_text, locals=hw_symbols.symbol_table)
+        BufReadEact_expr = sp.sympify(buf_read_dynamic_text, locals=hw_symbols.symbol_table)
+        BufWriteEact_expr = sp.sympify(buf_write_dynamic_text, locals=hw_symbols.symbol_table)
+        BufPpass_expr = sp.sympify(buf_read_leakage_text, locals=hw_symbols.symbol_table)
+
+        cacti_subs = {
+            hw_symbols.MemReadL: hw_symbols.MemWriteL,
+            hw_symbols.MemWriteL: (MemL_expr / 2),
+            hw_symbols.MemReadEact: MemReadEact_expr,
+            hw_symbols.MemWriteEact: MemWriteEact_expr,
+            hw_symbols.MemPpass: MemPpass_expr,
+
+            hw_symbols.BufL: BufL_expr,
+            hw_symbols.BufReadEact: BufReadEact_expr,
+            hw_symbols.BufWriteEact: BufWriteEact_expr,
+            hw_symbols.BufPpass: BufPpass_expr,
+            
+            hw_symbols.Ceff["Add"]: 0,
+            hw_symbols.Ceff["Regs"]: 0,
+        }
+
+        self.cycles = self.cycles.subs(cacti_subs)
+
         self.total_passive_energy = self.passive_energy_dissipation(hw, self.cycles)
-        self.total_passive_energy_ceil = self.passive_energy_dissipation(
-            hw, self.cycles_ceil
-        )
-        self.edp = self.cycles * (self.total_active_energy + self.total_passive_energy)
+        # self.total_passive_energy_ceil = self.passive_energy_dissipation(
+        #     hw, self.cycles_ceil
+        # )
+        self.edp = self.cycles #+ (self.total_active_energy ) #+ self.total_passive_energy)
+        assert hw_symbols.MemReadL not in self.edp.free_symbols and hw_symbols.MemWriteL not in self.edp.free_symbols # and hw_symbols.BufL not in self.edp.free_symbols
+
+        # self.edp = self.edp.subs(subs)
 
     def save_edp_to_file(self):
         st = str(self.edp)
-        with open("sympy.txt", "w") as f:
+        with open("symbolic_edp.txt", "w") as f:
             f.write(st)
 
 def main():
@@ -255,6 +313,7 @@ def main():
     hw = HardwareModel(cfg=args.architecture_config)
 
     hw.get_optimization_params_from_tech_params()
+    print ("Checkpoint 1")
 
     computation_dfg = simulator.simulator_prep(args.benchmark, hw.latency)
 
@@ -263,7 +322,11 @@ def main():
         sim_util.find_nearest_power_2(0),
     )
 
+    print ("Checkpoint 2")
+
     computation_dfg = simulator.schedule(computation_dfg, hw)
+
+    print ("Checkpoint 3")
 
     simulator.transistor_size = hw.transistor_size  # in nm
     simulator.pitch = hw.pitch
@@ -278,13 +341,17 @@ def main():
         simulator.cache_size = 8
     else:
         simulator.cache_size = 16
+    print ("Checkpoint 4")
 
     hardwareModel.un_allocate_all_in_use_elements(hw.netlist)
     simulator.simulate(computation_dfg, hw)
+    print ("Checkpoint 5")
     simulator.calculate_edp(hw)
+    print ("Checkpoint 6")
 
     # simulator.edp = simulator.edp.simplify()
     simulator.save_edp_to_file()
+    print ("Checkpoint 7")
 
     return simulator.edp
 

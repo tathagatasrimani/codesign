@@ -11,7 +11,9 @@ src/instrumented_files/*
 
 src/output.txt
 src/solver_out.txt
-src/sympy.txt
+src/symbolic_edp.txt
+src/BufL.txt
+src/MemL.txt
 src/sympy_ceil.txt
 src/ipopt_out.txt
 
@@ -20,5 +22,6 @@ src/params/rcs_current.yaml
 src/params/coefficients.yaml
 
 data/**
+.vscode/**
 
 src/codesign_log_dir/**
