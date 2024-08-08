@@ -8,7 +8,7 @@ import shutil
 
 logger = logging.getLogger("codesign")
 
-from sympy import sympify
+import sympy as sp
 import networkx as nx
 
 import architecture_search
@@ -81,6 +81,7 @@ class Codesign:
         coefficients.create_and_save_coefficients([self.hw.transistor_size])
 
         rcs = self.hw.get_optimization_params_from_tech_params()
+        print(f"original rcs keys: {rcs.keys()}")
         initial_tech_params = sim_util.generate_init_params_from_rcs_as_symbols(rcs)
 
         self.set_technology_parameters(initial_tech_params)
@@ -194,13 +195,50 @@ class Codesign:
         self.symbolic_sim.calculate_edp(self.hw)
         self.symbolic_sim.save_edp_to_file()
 
-        self.inverse_edp = self.symbolic_sim.edp.subs(self.tech_params)
+        print(f"tech params: {self.tech_params}")
+        print(f"type of tech_param keys: {type(list(self.tech_params.keys())[0])}")
 
+        for symbol in self.symbolic_sim.edp.free_symbols:
+            for key in self.tech_params.keys():
+                # print(f"key: {key}")
+                # print(f"symbol: {symbol}")
+                if key.name == symbol.name:
+                    print(f"key: {key} == symbol: {symbol}")
+                    if key != symbol:
+                        print(f"{key}: {key.assumptions0}")
+                        print(f"{symbol}: {symbol.assumptions0}")
+                # else:
+                #     print(f'key: {key} != symbol: {symbol}')
+            # assert symbol in self.tech_params.keys()
+
+        tech_params2 = {}
+        for key in self.tech_params.keys():
+            tech_params2[key.name] = self.tech_params[key]
+
+        print(f"tech params 2: {tech_params2}")
+        inverse_cycles = self.symbolic_sim.cycles.xreplace(self.tech_params)
+        print(f"free symbols in cycles after substition: {inverse_cycles.free_symbols}")
+
+        print(f"cycles: {inverse_cycles}")
+
+        self.inverse_edp = self.symbolic_sim.edp.xreplace(self.tech_params)
+
+        print(f"free symbols in inverse edp after substition: {self.inverse_edp.free_symbols}")
+        # self.inverse_edp = self.inverse_edp.subs(self.tech_params)
+
+        # print(
+        #     f"try again: free symbols in inverse edp after substition: {self.inverse_edp.free_symbols}"
+        # )
+
+        assert len(self.inverse_edp.free_symbols) == 0
+        active_energy = self.symbolic_sim.total_active_energy.xreplace(self.tech_params)#.subs(tech_params2)
+        passive_energy = self.symbolic_sim.total_passive_energy.xreplace(self.tech_params)
         print(
-            f"Initial EDP: {self.inverse_edp} E-18 Js. Active Energy: {(self.symbolic_sim.total_active_energy).subs(self.tech_params)} nJ. Passive Energy: {(self.symbolic_sim.total_passive_energy).subs(self.tech_params)} nJ. Execution time: {self.symbolic_sim.cycles.subs(self.tech_params)} ns"
+            f"Initial EDP: {self.inverse_edp} E-18 Js.\n Active Energy: {active_energy} nJ.\n Passive Energy: {passive_energy} nJ.\n Execution time: {inverse_cycles} ns"
         )
 
         if self.opt_cfg == "ipopt":
+            # sys.stdout = os.fdopen(sys.stdout.fileno(), "w")
             stdout = sys.stdout
             with open("ipopt_out.txt", "w") as sys.stdout:
                 optimize.optimize(self.tech_params, self.symbolic_sim.edp, self.opt_cfg)
@@ -212,10 +250,15 @@ class Codesign:
                 self.tech_params, self.symbolic_sim.edp, self.opt_cfg
             )
         self.write_back_rcs()
-        self.inverse_edp = self.symbolic_sim.edp.subs(self.tech_params)
+
+        # tech_params2 = {}
+        # for key in self.tech_params.keys():
+        #     tech_params2[key.name] = self.tech_params[key]
+
+        self.inverse_edp = self.symbolic_sim.edp.xreplace(self.tech_params)#.subs(tech_params2)
 
         print(
-            f"Final EDP  : {self.inverse_edp} E-18 Js. Active Energy: {(self.symbolic_sim.total_active_energy).subs(self.tech_params)} nJ. Passive Energy: {(self.symbolic_sim.total_passive_energy).subs(self.tech_params)} nJ. Execution time: {self.symbolic_sim.cycles.subs(self.tech_params)} ns"
+            f"Final EDP  : {self.inverse_edp} E-18 Js.\nActive Energy: {(self.symbolic_sim.total_active_energy).xreplace(self.tech_params)} nJ.\n Passive Energy: {(self.symbolic_sim.total_passive_energy).xreplace(self.tech_params)} nJ.\n Execution time: {self.symbolic_sim.cycles.xreplace(self.tech_params)} ns"
         )
 
     def log_all_to_file(self, iter_number):
@@ -228,9 +271,13 @@ class Codesign:
             f"{self.save_dir}/netlist_{iter_number}.gml",
             stringizer=lambda x: str(x),
         )
-        nx.write_gml(self.scheduled_dfg, f"{self.save_dir}/schedule_{iter_number}.gml")
+        nx.write_gml(
+            self.scheduled_dfg,
+            f"{self.save_dir}/schedule_{iter_number}.gml",
+            stringizer=lambda x: str(x),
+        )
         self.write_back_rcs(f"{self.save_dir}/rcs_{iter_number}.yaml")
-        shutil.copy("sympy.txt", f"{self.save_dir}/sympy_{iter_number}.txt")
+        shutil.copy("symbolic_edp.txt", f"{self.save_dir}/symbolic_edp_{iter_number}.txt")
         shutil.copy("ipopt_out.txt", f"{self.save_dir}/ipopt_{iter_number}.txt")
         shutil.copy("solver_out.txt", f"{self.save_dir}/solver_{iter_number}.txt")
         # save latency, power, and tech params

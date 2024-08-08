@@ -1,6 +1,8 @@
 import os
 import subprocess
 import yaml
+import logging
+logger = logging.getLogger(__name__)
 
 import pandas as pd
 
@@ -45,16 +47,16 @@ def cacti_gen_sympy(name, cache_cfg, opt_vals):
     fin_res = solve_single()
 
     with open(f'{name + "_access_time"}.txt', 'w') as file:
-        file.write(f"{fin_res.access_time}")
+        file.write(str(fin_res.access_time))
 
     with open(f'{name + "_read_dynamic"}.txt', 'w') as file:
-        file.write(f"{fin_res.power.readOp.dynamic}")
+        file.write(str(fin_res.power.readOp.dynamic))
 
     with open(f'{name + "_write_dynamic"}.txt', 'w') as file:
-        file.write(f"{fin_res.power.writeOp.dynamic}")
+        file.write(str(fin_res.power.writeOp.dynamic))
 
     with open(f'{name + "_read_leakage"}.txt', 'w') as file:
-        file.write(f"{fin_res.power.readOp.leakage}")
+        file.write(str(fin_res.power.readOp.leakage))
 
 
 '''
@@ -220,6 +222,8 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
              addr_timing = None, force_cache_config = None, technology = None,
              debug = False) -> pd.DataFrame:
     # load in default values
+
+    logger.info(f"Running Cacti with the following parameters: filename: {filename}, cacheSize: {cacheSize}, blockSize: {blockSize}, cache_type: {cache_type}, bus_width: {bus_width}, transistor_size: {transistor_size}, addr_timing: {addr_timing}, force_cache_config: {force_cache_config}, technology: {technology}")
     with open("params/cacti_input.yaml", "r") as yamlfile:
         config_values = yaml.safe_load(yamlfile)
     if cache_type == None:
@@ -478,8 +482,10 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
 
     cmd = ['./cacti', '-infile', input_filename]
 
-    p = subprocess.Popen(cmd, cwd=cactiDir, stdout=subprocess.DEVNULL)
+    p = subprocess.Popen(cmd, cwd=cactiDir, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     p.wait()
+    if p.returncode != 0:
+        raise Exception(f"Cacti Error in {filename}", {p.stderr.read().decode()}, {p.stdout.read().decode().split("\n")[-2]})
 
     output_filename = filename + ".cfg.out"
     cactiOutput = os.path.join(cactiDir, output_filename)

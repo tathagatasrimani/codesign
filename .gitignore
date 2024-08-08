@@ -11,7 +11,9 @@ src/instrumented_files/*
 
 src/output.txt
 src/solver_out.txt
-src/sympy.txt
+src/symbolic_edp.txt
+src/BufL.txt
+src/MemL.txt
 src/sympy_ceil.txt
 src/ipopt_out.txt
 

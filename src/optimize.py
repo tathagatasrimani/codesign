@@ -210,8 +210,8 @@ def main():
     rcs = hw.get_optimization_params_from_tech_params()
     print(f"optimize.__main__.rcs: {rcs}")
     initial_params = sim_util.generate_init_params_from_rcs_as_symbols(rcs)
-    edp = open("sympy.txt", "r")
-    edp = sympify(edp.readline())
+    edp = open("symbolic_edp.txt", "r")
+    edp = sympify(edp.readline(), locals=hw_symbols.symbol_table)
 
     results = optimize(initial_params, edp, args.opt)
     print ("PAST OPTIMIZE")
