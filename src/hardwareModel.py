@@ -395,7 +395,18 @@ class HardwareModel:
             bus_width=self.buffer_bus_width,
         )
         logger.info(f"Buffer cacti with: {self.buffer_size} bytes, {self.buffer_bus_width} bus width")
+        buf_opt = {
+            "ndwl": buf_vals["Ndwl"],
+            "ndbl": buf_vals["Ndbl"],
+            "nspd": buf_vals["Nspd"],
+            "ndcm": buf_vals["Ndcm"],
+            "ndsam1": buf_vals["Ndsam_level_1"],
+            "ndsam2": buf_vals["Ndsam_level_2"],
+            "repeater_spacing": buf_vals["Repeater spacing"],
+            "repeater_size": buf_vals["Repeater size"],
+        }
 
+        print(f"CHECK THE VALS {self.buffer_size} {self.buffer_bus_width} {self.mem_size} {self.memory_bus_width}")
         mem_vals = cacti_util.gen_vals(
             "mem_cache",
             cacheSize=self.mem_size,
@@ -403,6 +414,16 @@ class HardwareModel:
             cache_type="main memory",
             bus_width=self.memory_bus_width
         )
+        mem_opt = {
+            "ndwl": mem_vals["Ndwl"],
+            "ndbl": mem_vals["Ndbl"],
+            "nspd": mem_vals["Nspd"],
+            "ndcm": mem_vals["Ndcm"],
+            "ndsam1": mem_vals["Ndsam_level_1"],
+            "ndsam2": mem_vals["Ndsam_level_2"],
+            "repeater_spacing": mem_vals["Repeater spacing"],
+            "repeater_size": mem_vals["Repeater size"],
+        }
         logger.info(f"Memory cacti with: {self.mem_size} bytes, {self.memory_bus_width} bus width")
 
         self.area["Buf"] = float(buf_vals["Area (mm2)"]) * 1e12 # convert to nm^2
@@ -464,9 +485,8 @@ class HardwareModel:
         mem_cache_cfg = "cacti/mem_cache.cfg"
 
         # Comment for now since it takes a while to generate
-        # base_cache_cfg = "/Users/dw/Documents/codesign/codesign/src/cacti/cache_works.cfg"
-        # cacti_util.cacti_gen_sympy("BufL", base_cache_cfg)
-        # cacti_util.cacti_gen_sympy("MemL", mem_cache_cfg)
+        # cacti_util.cacti_gen_sympy("Buf", base_cache_cfg, buf_opt)
+        # cacti_util.cacti_gen_sympy("Mem", mem_cache_cfg, mem_opt)
         
         return
     

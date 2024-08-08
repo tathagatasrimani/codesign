@@ -242,20 +242,55 @@ class SymbolicSimulator(AbstractSimulator):
         )
         self.edp = self.cycles * (self.total_active_energy + self.total_passive_energy)
 
-        with open('MemL.txt', 'r') as file:
-            meml_text = file.read()
+        with open('Mem_access_time.txt', 'r') as file:
+            mem_access_time_text = file.read()
 
-        with open('BufL.txt', 'r') as file:
-            bufl_text = file.read()
+        with open('Mem_read_dynamic.txt', 'r') as file:
+            mem_read_dynamic_text = file.read()
 
-        meml_expr = sp.sympify(meml_text)
-        bufl_expr = sp.sympify(bufl_text)
+        with open('Mem_write_dynamic.txt', 'r') as file:
+            mem_write_dynamic_text = file.read()
+
+        with open('Mem_read_leakage.txt', 'r') as file:
+            mem_read_leakage_text = file.read()
+
+        with open('Buf_access_time.txt', 'r') as file:
+            buf_access_time_text = file.read()
+
+        with open('Buf_read_dynamic.txt', 'r') as file:
+            buf_read_dynamic_text = file.read()
+
+        with open('Buf_write_dynamic.txt', 'r') as file:
+            buf_write_dynamic_text = file.read()
+
+        with open('Buf_read_leakage.txt', 'r') as file:
+            buf_read_leakage_text = file.read()
+
+
+        MemL_expr = sp.sympify(mem_access_time_text)
+        MemReadEact_expr = sp.sympify(mem_read_dynamic_text)
+        MemWriteEact_expr = sp.sympify(mem_write_dynamic_text)
+        MemPpass_expr = sp.sympify(mem_read_leakage_text)
+
+        BufL_expr = sp.sympify(buf_access_time_text)
+        BufReadEact_expr = sp.sympify(buf_read_dynamic_text)
+        BufWriteEact_expr = sp.sympify(buf_write_dynamic_text)
+        BufPpass_expr = sp.sympify(buf_read_leakage_text)
+
+
+        
 
         subs = {
-            # TODO 
-            # hw_symbols.MemReadL: hw_symbols.MemWriteL,
-            hw_symbols.MemWriteL: (meml_expr / 2),
-            hw_symbols.BufL: bufl_expr
+            hw_symbols.MemReadL: hw_symbols.MemWriteL,
+            hw_symbols.MemWriteL: (MemL_expr / 2),
+            hw_symbols.MemReadEact: MemReadEact_expr,
+            hw_symbols.MemWriteEact: MemWriteEact_expr,
+            hw_symbols.MemPpass: MemPpass_expr,
+
+            hw_symbols.BufL: BufL_expr,
+            hw_symbols.BufReadEact: BufReadEact_expr,
+            hw_symbols.BufWriteEact: BufWriteEact_expr,
+            hw_symbols.BufPpass: BufPpass_expr,
         }
 
         self.edp = self.edp.subs(subs)
