@@ -277,9 +277,6 @@ class SymbolicSimulator(AbstractSimulator):
         BufWriteEact_expr = sp.sympify(buf_write_dynamic_text)
         BufPpass_expr = sp.sympify(buf_read_leakage_text)
 
-
-        
-
         subs = {
             hw_symbols.MemReadL: hw_symbols.MemWriteL,
             hw_symbols.MemWriteL: (MemL_expr / 2),
@@ -293,7 +290,7 @@ class SymbolicSimulator(AbstractSimulator):
             hw_symbols.BufPpass: BufPpass_expr,
         }
 
-        self.edp = self.edp.subs(subs)
+        self.edp = self.edp.xreplace(subs)
 
     def save_edp_to_file(self):
         st = str(self.edp)
