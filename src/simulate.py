@@ -15,6 +15,7 @@ import networkx as nx
 
 # custom modules
 from memory import Memory
+from place_and_route import placement
 import schedule
 import dfg_algo
 import hardwareModel
@@ -285,6 +286,8 @@ class ConcreteSimulator(AbstractSimulator):
             # numeric layer value as a node attribute
             for node in nodes:
                 fake_hw.nodes[node]["layer"] = layer
+        
+        annealing = placement(hw)
 
         counter = 0
 
