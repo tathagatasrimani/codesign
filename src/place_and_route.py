@@ -3,9 +3,11 @@ import numpy.random as rn
 import matplotlib.pyplot as plt 
 import random 
 import matplotlib as mpl 
+import math
 
 from hardwareModel import HardwareModel
 import networkx as nx 
+from matplotlib.patches import Rectangle
 
 # integrating with rest of code
 # change to placement()
@@ -42,7 +44,7 @@ def placement(hw): # return final positions, wirelength of each edge, (add attri
     averageSide /= N
     E = [(node_to_index[src], node_to_index[dst]) for src, dst in newEdges]
     positions = [(0, 0) for _ in range(N)]
-    interval = ((min(areas) / 3.14) ** 0.5, (max(areas) / 3.14) ** 0.5)
+    interval = (min(areas), max(areas))
     state, c, states, costs, minWireLength, optimalPos, wireLengths = annealing(positions, E, areas, interval, averageSide, maxsteps=10000)
     plotter2(optimalPos, areas, nodes, E)
 
@@ -162,26 +164,160 @@ def acceptance_probability(cost, new_cost, cur_temperature):
     else:
         p = np.exp(- (new_cost - cost) / cur_temperature)
         return p 
-
+# temperature schedules in simulated annealing
+# play with this hyperparamater
+# do some reading on temperature schedules
 def temperature(fraction):
     return max(0.01, min(1, 1 - fraction))
 
-def plotter2(positions, areas, nodes, edges):
+def plotter2(positions, areas, nodes, edges, scaling_factor=10 ** -9):
 
     G = nx.Graph()
     nodes = list(nodes)
+    #multiplier = 1000000
+
+    # Calculate the size of the side of the square based on the area
+    sizes = [(area ** 0.5) * scaling_factor * 10000000 for area in areas] 
+    sizes[-2] /= 100
+
+    # sizes = []
+
+    # for i in range(len(areas)):
+    #     if i == 8:
+    #         sizes[i] *= 100000
+    #     else:
+    #         sizes[i] *= 1000000 
 
     for i in range(len(positions)):
-        G.add_node(nodes[i], pos=(positions[i][0], positions[i][1]), size=(areas[i] / 3.14) ** 0.5 / 10)
+        G.add_node(nodes[i], pos=(positions[i][0] * scaling_factor, positions[i][1] * scaling_factor), size=sizes[i])
 
     for edge in edges:
         G.add_edge(nodes[edge[0]], nodes[edge[1]])
 
     pos = nx.get_node_attributes(G, 'pos')
-    sizes = [G.nodes[node]['size'] for node in G.nodes]
     edge_colors = [plt.cm.viridis(random.uniform(0, 1)) for _ in range(len(edges))]
+    
     plt.figure(figsize=(10, 10))
-    nx.draw(G, pos, with_labels=False, node_size=sizes, node_color='skyblue', font_size=5, font_weight='bold', edge_color=edge_colors)
+
+    for edge in G.edges():
+        x1, y1 = pos[edge[0]]
+        x2, y2 = pos[edge[1]]
+        plt.plot([x1, x2], [y1, y2], color=edge_colors.pop(), linewidth=1.5)
+    
+    ax = plt.gca()
+    for i, node in enumerate(G.nodes()):
+        x, y = pos[node]
+        size = sizes[i]
+        ax.add_patch(Rectangle((x - size/2, y - size/2), size, size, color='skyblue'))
+    
     label_pos = {node: (coords[0], coords[1]) for node, coords in pos.items()}
     nx.draw_networkx_labels(G, label_pos, font_size=10, font_weight='bold')
+    plt.axis('equal')
     plt.show()
+    # matplotlib
+    # instead of circle nodes, graph out square nodes (show relative size)
+    # make all edges straight lines
+    # areas units: nm^2
+
+# def plotter2(positions, areas, nodes, edges, zoom_factor=100000000000000):
+#     G = nx.Graph()
+#     nodes = list(nodes)
+
+#     # Calculate the size of the side of the square based on the area
+#     sizes = [(area ** 0.5) for area in areas]  # No scaling factor, keep actual sizes
+
+#     for i in range(len(positions)):
+#         G.add_node(nodes[i], pos=(positions[i][0], positions[i][1]), size=sizes[i])
+
+#     for edge in edges:
+#         G.add_edge(nodes[edge[0]], nodes[edge[1]])
+
+#     pos = nx.get_node_attributes(G, 'pos')
+#     edge_colors = [plt.cm.viridis(random.uniform(0, 1)) for _ in range(len(edges))]
+    
+#     plt.figure(figsize=(10, 10))
+    
+#     # Draw edges first as straight lines
+#     for edge in G.edges():
+#         x1, y1 = pos[edge[0]]
+#         x2, y2 = pos[edge[1]]
+#         plt.plot([x1, x2], [y1, y2], color=edge_colors.pop(), linewidth=1.5)
+    
+#     # Draw square nodes with sizes relative to their areas
+#     ax = plt.gca()
+#     for i, node in enumerate(G.nodes()):
+#         x, y = pos[node]
+#         size = sizes[i]
+#         ax.add_patch(Rectangle((x - size/2, y - size/2), size, size, color='skyblue'))
+    
+#     # Draw node labels
+#     label_pos = {node: (coords[0], coords[1]) for node, coords in pos.items()}
+#     nx.draw_networkx_labels(G, label_pos, font_size=10, font_weight='bold')
+    
+#     # Set plot limits to zoom in
+#     x_values = [x for x, y in positions]
+#     y_values = [y for x, y in positions]
+    
+#     x_center = sum(x_values) / len(x_values)
+#     y_center = sum(y_values) / len(y_values)
+    
+#     x_range = (max(x_values) - min(x_values)) / zoom_factor
+#     y_range = (max(y_values) - min(y_values)) / zoom_factor
+    
+#     plt.xlim(x_center - x_range / 2, x_center + x_range / 2)
+#     plt.ylim(y_center - y_range / 2, y_center + y_range / 2)
+    
+#     plt.axis('equal')
+#     plt.show()
+
+# def plotter2(positions, areas, nodes, edges, zoom_factor=2, size_multiplier=50000000000):
+#     G = nx.Graph()
+#     nodes = list(nodes)
+
+#     # Apply logarithmic scaling to the areas
+#     log_areas = np.log1p(areas)  # Use np.log1p to avoid issues with zero areas
+#     sizes = [(area ** 0.5) * size_multiplier for area in log_areas]  # Multiply to make sizes more visible
+
+#     for i in range(len(positions)):
+#         G.add_node(nodes[i], pos=(positions[i][0], positions[i][1]), size=sizes[i])
+
+#     for edge in edges:
+#         G.add_edge(nodes[edge[0]], nodes[edge[1]])
+
+#     pos = nx.get_node_attributes(G, 'pos')
+#     edge_colors = [plt.cm.viridis(random.uniform(0, 1)) for _ in range(len(edges))]
+    
+#     plt.figure(figsize=(10, 10))
+    
+#     # Draw edges first as straight lines
+#     for edge in G.edges():
+#         x1, y1 = pos[edge[0]]
+#         x2, y2 = pos[edge[1]]
+#         plt.plot([x1, x2], [y1, y2], color=edge_colors.pop(), linewidth=1.5)
+    
+#     # Draw square nodes with sizes relative to their logarithmically scaled areas
+#     ax = plt.gca()
+#     for i, node in enumerate(G.nodes()):
+#         x, y = pos[node]
+#         size = sizes[i]
+#         ax.add_patch(Rectangle((x - size/2, y - size/2), size, size, color='skyblue'))
+    
+#     # Draw node labels
+#     label_pos = {node: (coords[0], coords[1]) for node, coords in pos.items()}
+#     nx.draw_networkx_labels(G, label_pos, font_size=10, font_weight='bold')
+    
+#     # Set plot limits to zoom in
+#     x_values = [x for x, y in positions]
+#     y_values = [y for x, y in positions]
+    
+#     x_center = sum(x_values) / len(x_values)
+#     y_center = sum(y_values) / len(y_values)
+    
+#     x_range = (max(x_values) - min(x_values)) / zoom_factor
+#     y_range = (max(y_values) - min(y_values)) / zoom_factor
+    
+#     plt.xlim(x_center - x_range / 2, x_center + x_range / 2)
+#     plt.ylim(y_center - y_range / 2, y_center + y_range / 2)
+    
+#     plt.axis('equal')
+#     plt.show()
