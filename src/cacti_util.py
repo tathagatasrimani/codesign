@@ -126,9 +126,8 @@ def validate_energy(sympy_file, cache_cfg, dat_file):
     sympy_file_read_dynamic = sympy_filename + "_read_dynamic.txt"
     sympy_file_write_dynamic = sympy_filename + "_write_dynamic.txt"
     sympy_file_read_leakage = sympy_filename + "_read_leakage.txt"
-    sympy_file_write_leakage = sympy_filename + "_write_leakage.txt"
 
-    print(f'{sympy_file_read_dynamic, sympy_file_write_dynamic, sympy_file_read_leakage, sympy_file_write_leakage}')
+    print(f'{sympy_file_read_dynamic, sympy_file_write_dynamic, sympy_file_read_leakage}')
     
     # with open(sympy_file, 'r') as file:
     #     expression_str = file.read()
@@ -176,16 +175,6 @@ def validate_energy(sympy_file, cache_cfg, dat_file):
     
     result_read_leakage = result.subs(sp.I, 0)
 
-    with open(sympy_file_write_leakage, 'r') as file:
-        expression_str = file.read()
-
-    expression = sp.sympify(expression_str)
-    # print(expression)
-    result = expression.subs(tech_params)
-    
-    result_write_leakage = result.subs(sp.I, 0)
-
-
     validate_vals = gen_vals(
         "validate_mem_energy_cache",
         cacheSize=g_ip.cache_sz, # TODO: Add in buffer sizing
@@ -199,7 +188,7 @@ def validate_energy(sympy_file, cache_cfg, dat_file):
     print(f'Transistor size: {g_ip.F_sz_um}')
 
     print(f'access_time: {result_access_time}')
-    print(f"result : {result_read_dynamic, result_write_dynamic, result_read_leakage, result_write_leakage}")
+    print(f"result : {result_read_dynamic, result_write_dynamic, result_read_leakage}")
     # print(f"validate_vals {validate_vals}")
     validate_access_time = float(validate_vals["Access time (ns)"])
     validate_read_dynamic = float(validate_vals["Dynamic read energy (nJ)"])

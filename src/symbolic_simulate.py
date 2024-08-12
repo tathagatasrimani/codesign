@@ -289,7 +289,7 @@ class SymbolicSimulator(AbstractSimulator):
             hw_symbols.Ceff["Regs"]: 0,
         }
 
-        self.cycles = self.cycles.subs(cacti_subs)
+        self.cycles = self.cycles.xreplace(cacti_subs)
 
         self.total_passive_energy = self.passive_energy_dissipation(hw, self.cycles)
         # self.total_passive_energy_ceil = self.passive_energy_dissipation(
