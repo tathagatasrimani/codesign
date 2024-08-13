@@ -501,7 +501,7 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
 
     cmd = ['./cacti', '-infile', input_filename]
 
-    p = subprocess.Popen(cmd, cwd=cactiDir, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    p = subprocess.Popen(cmd, cwd=cactiDir) #, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     p.wait()
     if p.returncode != 0:
         raise Exception(f"Cacti Error in {filename}", {p.stderr.read().decode()}, {p.stdout.read().decode().split("\n")[-2]})

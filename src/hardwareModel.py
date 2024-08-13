@@ -451,6 +451,8 @@ class HardwareModel:
         }
         logger.info(f"Memory cacti with: {self.mem_size} bytes, {self.memory_bus_width} bus width")
 
+        print(f"CHECK THE VALS 2 {self.buffer_size} {self.buffer_bus_width} {self.mem_size} {self.memory_bus_width}")
+
         self.area["Buf"] = float(buf_vals["Area (mm2)"]) * 1e12 # convert to nm^2
         self.area["MainMem"] = float(mem_vals["Area (mm2)"]) * 1e12 # convert to nm^2
         self.area["OffChipIO"] = (
@@ -508,10 +510,11 @@ class HardwareModel:
 
         base_cache_cfg = "cacti/base_cache.cfg"
         mem_cache_cfg = "cacti/mem_cache.cfg"
+        print ("REACHED HERE")
 
         # TODO: This only needs to be triggered if we're doing inverse pass (ie symbolic simulate or codesign)
         # Comment for now since it takes a while to generate
-        cacti_util.cacti_gen_sympy("Buf", base_cache_cfg, buf_opt, use_piecewise=False)
-        cacti_util.cacti_gen_sympy("Mem", mem_cache_cfg, mem_opt, use_piecewise=False)
+        # cacti_util.cacti_gen_sympy("Buf", base_cache_cfg, buf_opt, use_piecewise=False)
+        # cacti_util.cacti_gen_sympy("Mem", mem_cache_cfg, mem_opt, use_piecewise=False)
         
         return

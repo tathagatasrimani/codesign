@@ -233,6 +233,24 @@ class Codesign:
         assert len(self.inverse_edp.free_symbols) == 0
         active_energy = self.symbolic_sim.total_active_energy.xreplace(self.tech_params)#.subs(tech_params2)
         passive_energy = self.symbolic_sim.total_passive_energy.xreplace(self.tech_params)
+
+        ### EVAL the x_replace
+        print("in calc edp")
+        if isinstance(self.inverse_edp, sp.Expr):
+            print('ha')
+            self.inverse_edp = self.inverse_edp.evalf(self.inverse_edp)
+        if isinstance(inverse_cycles, sp.Expr):
+            print('hi')
+            inverse_cycles = inverse_cycles.evalf(inverse_cycles)
+        if isinstance(active_energy, sp.Expr):
+            print('ho')
+            active_energy = active_energy.evalf(active_energy)
+        if isinstance(passive_energy, sp.Expr):
+            print('hu')
+            passive_energy = passive_energy.evalf(passive_energy)
+        print("aftrr calc edp")
+        ###
+
         print(
             f"Initial EDP: {self.inverse_edp} E-18 Js.\n Active Energy: {active_energy} nJ.\n Passive Energy: {passive_energy} nJ.\n Execution time: {inverse_cycles} ns"
         )
@@ -256,9 +274,27 @@ class Codesign:
         #     tech_params2[key.name] = self.tech_params[key]
 
         self.inverse_edp = self.symbolic_sim.edp.xreplace(self.tech_params)#.subs(tech_params2)
+        total_active_energy = (self.symbolic_sim.total_active_energy).xreplace(self.tech_params)
+        total_passive_energy = (self.symbolic_sim.total_passive_energy).xreplace(self.tech_params)
+        execution_time = self.symbolic_sim.cycles.xreplace(self.tech_params)
+
+        ### EVAL the x_replace
+        if isinstance(self.inverse_edp, sp.Expr):
+            print('ha')
+            self.inverse_edp = self.inverse_edp.evalf(self.inverse_edp)
+        if isinstance(execution_time, sp.Expr):
+            print('hi')
+            execution_time = execution_time.evalf(execution_time)
+        if isinstance(total_active_energy, sp.Expr):
+            print('ho')
+            total_active_energy = total_active_energy.evalf(total_active_energy)
+        if isinstance(total_passive_energy, sp.Expr):
+            print('hu')
+            total_passive_energy = total_passive_energy.evalf(total_passive_energy)
+        ###
 
         print(
-            f"Final EDP  : {self.inverse_edp} E-18 Js.\nActive Energy: {(self.symbolic_sim.total_active_energy).xreplace(self.tech_params)} nJ.\n Passive Energy: {(self.symbolic_sim.total_passive_energy).xreplace(self.tech_params)} nJ.\n Execution time: {self.symbolic_sim.cycles.xreplace(self.tech_params)} ns"
+            f"Final EDP  : {self.inverse_edp} E-18 Js.\nActive Energy: {total_active_energy} nJ.\n Passive Energy: {total_passive_energy} nJ.\n Execution time: {execution_time} ns"
         )
 
     def log_all_to_file(self, iter_number):
