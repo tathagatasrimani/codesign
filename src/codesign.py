@@ -217,6 +217,7 @@ class Codesign:
 
         print(f"tech params 2: {tech_params2}")
         inverse_cycles = self.symbolic_sim.cycles.xreplace(self.tech_params)
+        inverse_cycles = inverse_cycles.evalf()
         print(f"free symbols in cycles after substition: {inverse_cycles.free_symbols}")
 
         print(f"cycles: {inverse_cycles}")
