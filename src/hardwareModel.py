@@ -412,6 +412,28 @@ class HardwareModel:
         """
         Generate buffer and memory latency and energy numbers from Cacti.
         """
+        mem_vals = cacti_util.gen_vals(
+            "mem_cache",
+            cacheSize=131072,  # self.mem_size,
+            blockSize=64,
+            cache_type="main memory",
+            bus_width=self.memory_bus_width,
+        )
+        mem_opt = {
+            "ndwl": mem_vals["Ndwl"],
+            "ndbl": mem_vals["Ndbl"],
+            "nspd": mem_vals["Nspd"],
+            "ndcm": mem_vals["Ndcm"],
+            "ndsam1": mem_vals["Ndsam_level_1"],
+            "ndsam2": mem_vals["Ndsam_level_2"],
+            "repeater_spacing": mem_vals["Repeater spacing"],
+            "repeater_size": mem_vals["Repeater size"],
+        }
+        logger.info(
+            f"Memory cacti with: {self.mem_size} bytes, {self.memory_bus_width} bus width"
+        )
+        print(f"Done with mem cacti")
+
         buf_vals = cacti_util.gen_vals(
             "base_cache",
             cacheSize=2048, #self.buffer_size, 
@@ -432,24 +454,6 @@ class HardwareModel:
         }
 
         print(f"CHECK THE VALS {self.buffer_size} {self.buffer_bus_width} {self.mem_size} {self.memory_bus_width}")
-        mem_vals = cacti_util.gen_vals(
-            "mem_cache",
-            cacheSize=131072,  # self.mem_size,
-            blockSize=64,
-            cache_type="main memory",
-            bus_width=self.memory_bus_width,
-        )
-        mem_opt = {
-            "ndwl": mem_vals["Ndwl"],
-            "ndbl": mem_vals["Ndbl"],
-            "nspd": mem_vals["Nspd"],
-            "ndcm": mem_vals["Ndcm"],
-            "ndsam1": mem_vals["Ndsam_level_1"],
-            "ndsam2": mem_vals["Ndsam_level_2"],
-            "repeater_spacing": mem_vals["Repeater spacing"],
-            "repeater_size": mem_vals["Repeater size"],
-        }
-        logger.info(f"Memory cacti with: {self.mem_size} bytes, {self.memory_bus_width} bus width")
 
         self.area["Buf"] = float(buf_vals["Area (mm2)"]) * 1e12 # convert to nm^2
         self.area["MainMem"] = float(mem_vals["Area (mm2)"]) * 1e12 # convert to nm^2
@@ -511,7 +515,7 @@ class HardwareModel:
 
         # TODO: This only needs to be triggered if we're doing inverse pass (ie symbolic simulate or codesign)
         # Comment for now since it takes a while to generate
-        # cacti_util.cacti_gen_sympy("Buf", base_cache_cfg, buf_opt)
-        # cacti_util.cacti_gen_sympy("Mem", mem_cache_cfg, mem_opt)
-        
+        cacti_util.cacti_gen_sympy("Buf", base_cache_cfg, buf_opt)
+        cacti_util.cacti_gen_sympy("Mem", mem_cache_cfg, mem_opt)
+
         return
