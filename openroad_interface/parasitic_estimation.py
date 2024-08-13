@@ -2,13 +2,6 @@ from var import directory
 import re
 import math
 
-final_def_file = directory + "results/final_generated-tcl.def"
-
-final_def_data = open(final_def_file)
-final_def_lines = final_def_data.readlines()
-pattern = r"_\w+_\s+\w+\s+\+\s+PLACED\s+\(\s*\d+\s+\d+\s*\)\s+\w+\s*;"
-net_pattern = r'-\s+(_\d+_)\s+\(\s+(_\d+_)\s+\w\s+\)\s+\(\s+(_\d+_)\s+\w\s+\)'
-component_pattern = r'(_\w+_)'
 
 def total_euclidean_distance(net_list, coord_data, unit):
     the_component = net_list[0]
@@ -18,6 +11,14 @@ def total_euclidean_distance(net_list, coord_data, unit):
     return result
 
 def parasitic_estimation(lef_pitch, layer_res, layer_cap, units):
+    final_def_file = directory + "results/final_generated-tcl.def"
+
+    final_def_data = open(final_def_file)
+    final_def_lines = final_def_data.readlines()
+    pattern = r"_\w+_\s+\w+\s+\+\s+PLACED\s+\(\s*\d+\s+\d+\s*\)\s+\w+\s*;"
+    net_pattern = r'-\s+(_\d+_)\s+\(\s+(_\d+_)\s+\w\s+\)\s+\(\s+(_\d+_)\s+\w\s+\)'
+    component_pattern = r'(_\w+_)'
+
     macro_coords= {}
     component_nets= {}
     for line in final_def_lines:

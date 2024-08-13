@@ -18,48 +18,70 @@ def color(plot, shape, edge_color, fill_color):
     return plot
 
 
-def box_whiskers_plot(name, showfliers_bool,res_data, cap_data, length_data):  
+def box_whiskers_plot(directory, designs, database, openroad_color, estimated_color, units, title, show_flier):  
     fig = plt.figure(figsize =(10, 15))
     ax = fig.add_axes([0.1, 0.1, 0.8, 0.8]) 
 
+    # make iterations later
+    plot_base = []
+    position = 0
+    for data in database:
+        position += 0.4
+        position_list = []
+        position_list.append(position)
+        for instance in data: 
+            plot_base.append(ax.boxplot(instance, positions= position_list, patch_artist=True, showfliers=show_flier))
 
-    res1 = ax.boxplot(res_data[0], positions= [-0.4], patch_artist=True, showfliers=showfliers_bool)
-    res2 = ax.boxplot(res_data[1], positions= [-0.4], patch_artist=True, showfliers=showfliers_bool)
-    colored_res1 = color(res1, 'x', '#ff6161', 'None')
-    colored_res2 = color(res2, 'o','#c70000', 'None')
+    for x in range(len(plot_base)):
+        if x % 2 == 0:
+            colored_box2 = color(plot_base[x], 'o', estimated_color, 'None')
+        else:
+            colored_box1 = color(plot_base[x], 'x', openroad_color, 'None')
 
-    cap1 = ax.boxplot(cap_data[0] ,positions= [0], patch_artist=True, showfliers=showfliers_bool)
-    cap2 = ax.boxplot(cap_data[1] ,positions= [0], patch_artist=True, showfliers=showfliers_bool)
-    colored_cap1 = color(cap1, 'x', '#0080ff', 'None')
-    colored_cap2 = color(cap2, 'o', '#003694', 'None')
+    pa1 = mpatches.Patch(color=openroad_color, label='OpenROAD')
+    pb1 = mpatches.Patch(color=estimated_color, label='Estimated')
 
-    length1 = ax.boxplot(length_data[0], positions=[0.4], patch_artist=True, showfliers=showfliers_bool)
-    length2 = ax.boxplot(length_data[1], positions=[0.4], patch_artist=True, showfliers=showfliers_bool)
-    colored_length1 = color(length1, 'x', '#ffa42e', 'None')
-    colored_length2 = color(length2, 'o', '#e34400', 'None')
+    ax.legend(handles=[pa1, pb1], labels=['OpenROAD', 'Estimated'], loc='upper right', fontsize=16)
 
-    
-    pa1 = mpatches.Patch(color='#ff6161', label='OpenROAD'), 
-    pa2 = mpatches.Patch(color='#2994ff', label='OpenROAD'),     
-    pa3 = mpatches.Patch(color='#ffa42e', label='OpenROAD'),
-    pb1 = mpatches.Patch(color='#c70000', label='Estimated'),
-    pb2 = mpatches.Patch(color='#003694', label='Estimated'),
-    pb3 = mpatches.Patch(color='#e34400', label='Estimated')
-    
-
-    ax.legend(handles=[pa1, pb1, pa2, pb2, pa3, pb3],
-          labels=['', '', '', '', 'OpenROAD', 'Estimated'],
-          ncol=3, handletextpad=0.5, handlelength=1.0, columnspacing=-0.5,
-          loc='upper right', fontsize=16)
     ax.autoscale()
-    ax.set_xticklabels([" ", " Resistance", " ", "Capacitance", " ", "Length"])
-    # Creating plot
-    if showfliers_bool:
-        plt.savefig(name + '.jpeg')
+
+    xtick = []
+    for x in range(len(designs)):
+        xtick.append(" ")
+        xtick.append(designs[x])
+    ax.set_xticklabels(xtick) 
+    plt.ylabel(units)
+    plt.title(title)
+
+    if show_flier:
+        plt.savefig(directory + '.jpeg')
     else:
-        plt.savefig(name + '-noflier.jpeg')
+        plt.savefig(directory + '-noflier.jpeg')
     plt.close(fig)
-    return fig, ax
+
+
+    # cap1 = ax.boxplot(cap_data[0] ,positions= [0], patch_artist=True, showfliers=showfliers_bool)
+    # cap2 = ax.boxplot(cap_data[1] ,positions= [0], patch_artist=True, showfliers=showfliers_bool)
+    # colored_cap1 = color(cap1, 'x', '#0080ff', 'None')
+    # colored_cap2 = color(cap2, 'o', '#003694', 'None')
+
+    # length1 = ax.boxplot(length_data[0], positions=[0.4], patch_artist=True, showfliers=showfliers_bool)
+    # length2 = ax.boxplot(length_data[1], positions=[0.4], patch_artist=True, showfliers=showfliers_bool)
+    # colored_length1 = color(length1, 'x', '#ffa42e', 'None')
+    # colored_length2 = color(length2, 'o', '#e34400', 'None')
+
+    # pa2 = mpatches.Patch(color='#2994ff', label='OpenROAD') 
+    # pb2 = mpatches.Patch(color='#003694', label='Estimated')  
+
+    # pa3 = mpatches.Patch(color='#ffa42e', label='OpenROAD')
+    # pb3 = mpatches.Patch(color='#e34400', label='Estimated')
+    
+
+    # ax.legend(handles=[pa1, pb1, pa2, pb2, pa3, pb3],
+    #       labels=['', '', '', '', 'OpenROAD', 'Estimated'],
+    #       ncol=3, handletextpad=0.5, handlelength=1.0, columnspacing=-0.5,
+    #       loc='upper right', fontsize=16)
+
 
 
 # 1. get acces to the def file 
