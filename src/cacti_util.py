@@ -186,7 +186,9 @@ def validate_energy(sympy_file, cache_cfg, dat_file):
     )
 
     print(f'Transistor size: {g_ip.F_sz_um}')
+    print(f'is_cache: {g_ip.is_cache}')
 
+    # print
     print(f'access_time: {result_access_time}')
     print(f"result : {result_read_dynamic, result_write_dynamic, result_read_leakage}")
     # print(f"validate_vals {validate_vals}")
@@ -198,6 +200,32 @@ def validate_energy(sympy_file, cache_cfg, dat_file):
     print(f"validate_read_dynamic (nJ): {validate_read_dynamic}")
     print(f"validate_write_dynamic (nJ): {validate_write_dynamic}")
     print(f"validate_leakage (mW): {validate_leakage}")
+
+    # write to CSV
+    data = {
+        "access_time (ns)": [result_access_time],
+        "result_read_dynamic (nJ)": [result_read_dynamic],
+        "result_write_dynamic (nJ)": [result_write_dynamic],
+        "result_leakage (mW)": [result_read_leakage],
+        "validate_access_time (ns)": [float(validate_vals["Access time (ns)"])],
+        "validate_read_dynamic (nJ)": [float(validate_vals["Dynamic read energy (nJ)"])],
+        "validate_write_dynamic (nJ)": [float(validate_vals["Dynamic write energy (nJ)"])],
+        "validate_leakage (mW)": [float(validate_vals["Standby leakage per bank(mW)"])],
+        "transistor_size (um)": [g_ip.F_sz_um],
+        "is_cache": [g_ip.is_cache]
+    }
+
+    df = pd.DataFrame(data)
+
+    directory = "cacti_plot"
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+    csv_file = os.path.join(directory, "validate_results.csv")
+    
+    file_exists = os.path.isfile(csv_file)
+    df.to_csv(csv_file, mode='a', header=not file_exists, index=False)
+
+    print(f"Data successfully appended to {csv_file}")
     
     return result, validate_access_time
 
