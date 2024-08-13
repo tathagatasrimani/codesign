@@ -281,16 +281,16 @@ class Codesign:
         ### EVAL the x_replace
         if isinstance(self.inverse_edp, sp.Expr):
             print('ha')
-            self.inverse_edp = self.inverse_edp.evalf(self.inverse_edp)
+            self.inverse_edp = self.inverse_edp.evalf()
         if isinstance(execution_time, sp.Expr):
             print('hi')
-            execution_time = execution_time.evalf(execution_time)
+            execution_time = execution_time.evalf()
         if isinstance(total_active_energy, sp.Expr):
             print('ho')
-            total_active_energy = total_active_energy.evalf(total_active_energy)
+            total_active_energy = total_active_energy.evalf()
         if isinstance(total_passive_energy, sp.Expr):
             print('hu')
-            total_passive_energy = total_passive_energy.evalf(total_passive_energy)
+            total_passive_energy = total_passive_energy.evalf()
         ###
 
         print(
