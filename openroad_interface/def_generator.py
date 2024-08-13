@@ -4,21 +4,18 @@ import re
 from functions import *
 import os
 import math
-from exec import graph_file
-
-directory = "../../OpenROAD/test/"
+from var import *
 
 design = "gcd"
 
 test_file = "../../OpenROAD/test/test.tcl"
-# graph_file =  "test_files/mm_test.gml"
 
 and_gate = "AND2_X1"
 xor_gate = "XOR2_X1"
 reg = "DFF_X1"
 mux = "MUX2_X1"
 add = "Add64_40"
-mult = "AND2_X1"
+mult = "Mult64_40"
 
 var_file = None
 
@@ -86,7 +83,7 @@ def is_op(name):
     else:
         return False
 
-def edge_gen(dict ,in_or_out):
+def edge_gen(dict ,in_or_out, nodes, graph):
     for node in nodes:
         dict[node] = []
         if in_or_out == "in":
@@ -97,6 +94,7 @@ def edge_gen(dict ,in_or_out):
             edges = graph.out_edges(node)
             for edge in edges:
                 dict[node].append(edge[1])
+
 
 
 ### 0. reading lef file and test file###
@@ -172,7 +170,7 @@ for line in lef_tech_lines:
 # print(macro_dict)
 
 
-graph = nx.read_gml(graph_file)
+graph = nx.read_gml(graph_file_directory)
 nodes = list(graph)
 control_nodes = list(graph)
 
@@ -186,7 +184,7 @@ for node1 in control_nodes:
 # plt.show()
 
 input_dict = {}
-edge_gen(input_dict ,"in")
+edge_gen(input_dict ,"in", nodes, graph)
 
 
 ### 2. mux tree ###
@@ -197,7 +195,7 @@ for node in nodes:
         num = 1
     else:
         num = 2
-    if "Add" not in node:
+    if "Add" not in node and "Mult" not in node:
         while len(input_dict[node]) > num:
             target_node1 = input_dict[node][0]
             target_node2 = input_dict[node][1]
@@ -218,7 +216,7 @@ for node in nodes:
             input_dict[node].append(new_node)
 
 
-print (input_dict)
+# print (input_dict)
 
 
 ### 3. mapping components to nodes ###
@@ -226,14 +224,10 @@ nodes = list(graph)
 node_to_macro = {}
 for node in nodes:
     macro = macro_find(node)
-    print(macro)
     node_to_macro[node] = [macro, copy.deepcopy(macro_dict[macro])]
 # print(node_to_macro)
 
 
-# nx.draw(graph, with_labels=True)
-# plt.show()
-        
 
 ### 4.generate header ###
 header_text = []
@@ -267,7 +261,6 @@ for node in nodes:
     component_text.append("- {} {} ;".format(component_num, macro))
     node_to_num[node] = format(number)
     number += 1
-# print(component_text)
 
 component_text.insert(0, "COMPONENTS {} ;".format(len(component_text)))
 component_text.insert(len(component_text), "END COMPONENTS")
@@ -280,9 +273,10 @@ with open('generated/component.txt', 'w') as f:
 
 ## 6.generate nets ###
 net_text = []
+# component_nets= {}
 output_dict = {}
 net_out_dict = {}
-edge_gen(output_dict ,"out")
+edge_gen(output_dict ,"out", nodes, graph)
 for node in nodes:
     net_name = format(str(number))
     component_name = node_to_num[node]
@@ -290,18 +284,19 @@ for node in nodes:
     net = "- {} ( {} {} )".format(net_name, component_name, pin_out[0])
     pin_out.remove(pin_out[0])
     net_out_dict[node] = net_name
+    # components = []
 
     for output in output_dict[node]:
         pin_in = node_to_macro[output][1]["input"]
+        # components.append(node_to_num[output])
         net = net + " ( {} {} )".format(node_to_num[output], pin_in[0])
         pin_in.remove(pin_in[0])
+    # component_nets[component_name] = components
 
     number += 1
     net = net + " + USE SIGNAL ;"
     net_text.append(net)
 
-# print(net_out_dict)
-# print(output_dict)
 net_text.insert(0, "NETS {} ;".format(len(net_text)))
 net_text.insert(len(net_text), "END NETS")
 net_text.insert(len(net_text), "END DESIGN")
@@ -359,6 +354,9 @@ with open('generated/ROW.txt', 'w') as f:
 
 die_coord_x2 *= units
 die_coord_y2 *= units
+lef_pitch = 0;
+layer_res = 0;
+layer_cap = 0;
 
 ## tracks aren't made from the lef file; for some reason they have their own track file that sets the numbers
 track_text = []
@@ -368,6 +366,11 @@ for line in range(len(lef_tech_lines)):
 
         layer_min_width = float(find_val("WIDTH", lef_tech_lines, line)) * units
         # print(layer_min_width)
+        if lef_pitch == 0 :
+            lef_pitch = float(find_val_xy("PITCH", lef_tech_lines, line, "x"))
+            layer_res = float(find_val("RESISTANCE RPERSQ", lef_tech_lines, line))
+            layer_cap = float(find_val("CAPACITANCE CPERSQDIST", lef_tech_lines, line))
+
         layer_pitch_x = float(find_val_xy("PITCH", lef_tech_lines, line, "x")) * units
         layer_pitch_y = float(find_val_xy("PITCH", lef_tech_lines, line, "y")) * units
         # print(layer_x_pitch)
@@ -410,8 +413,10 @@ with open('generated/TRACK.txt', 'w') as f:
             
 if not os.path.exists("../../OpenROAD/test/results/"):
     os.makedirs("../../OpenROAD/test/results/")
+if not os.path.exists("results"):
+    os.makedirs("results")
 
-with open('../../OpenROAD/test/results/first_generated.def', 'w') as f:
+with open('results/first_generated.def', 'w') as f:
     for line in header_text:
         f.write(f"{line}\n")
     for line in row_text:
@@ -424,3 +429,5 @@ with open('../../OpenROAD/test/results/first_generated.def', 'w') as f:
         f.write(f"{line}\n")
     for line in net_text:
         f.write(f"{line}\n")
+
+os.system("cp results/first_generated.def ../../OpenROAD/test/results/first_generated.def") 

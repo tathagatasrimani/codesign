@@ -1,7 +1,7 @@
 ### read def spef file assign net with capacitance and resistance (total resistance)
 from functions import *
 import copy
-from def_generator import directory
+from var import directory
 
 stef_file = "results/generated-tcl.spef"
 
@@ -21,6 +21,7 @@ for line in range(len(stef_lines)):
     if "*D_NET" in stef_lines[line]:
         net_name = stef_lines[line].split(" ")[1]
         net_cap[net_name] = clean(stef_lines[line].split(" ")[2])
+
         num = 0
         while "*RES" not in stef_lines[line + num]:
             num += 1
@@ -30,6 +31,7 @@ for line in range(len(stef_lines)):
             segment_res.append(segment_list)
             num += 1
         net_res[net_name] = segment_res
+
     
 # print (map)
 

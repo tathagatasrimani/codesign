@@ -1,6 +1,5 @@
-
 import copy
-from def_generator import directory
+from var import directory
 
 def_file = "results/final_generated-tcl.def"
 
