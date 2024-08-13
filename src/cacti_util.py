@@ -27,7 +27,7 @@ valid_tech_nodes = [0.022, 0.032, 0.045, 0.065, 0.090, 0.180]
 Generate sympy expression for access_time (will add for energy)
 Outputs results to text file
 '''
-def cacti_gen_sympy(name, cache_cfg, opt_vals):
+def cacti_gen_sympy(name, cache_cfg, opt_vals, use_piecewise=True):
     g_ip.parse_cfg(cache_cfg)
     g_ip.error_checking()
     # g_ip.display_ip()
@@ -42,6 +42,8 @@ def cacti_gen_sympy(name, cache_cfg, opt_vals):
 
     g_ip.repeater_spacing = opt_vals["repeater_spacing"]
     g_ip.repeater_size = opt_vals["repeater_size"]
+
+    g_ip.use_piecewise = use_piecewise
 
     fin_res = uca_org_t()
     fin_res = solve_single()
@@ -564,7 +566,7 @@ if __name__ == "__main__":
 
     cache_cfg = "cacti/mem_validate_cache.cfg"
 
-    cacti_gen_sympy("sympy_mem_validate", cache_cfg, buf_opt)
+    cacti_gen_sympy("sympy_mem_validate", cache_cfg, buf_opt, use_piecewise=False)
 
     sympy_file = "sympy_mem_validate.txt"
     dat_file = "cacti/tech_params/90nm.dat"
