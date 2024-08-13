@@ -238,16 +238,16 @@ class Codesign:
         print("in calc edp")
         if isinstance(self.inverse_edp, sp.Expr):
             print('ha')
-            self.inverse_edp = self.inverse_edp.evalf(self.inverse_edp)
+            self.inverse_edp = self.inverse_edp.evalf()
         if isinstance(inverse_cycles, sp.Expr):
             print('hi')
-            inverse_cycles = inverse_cycles.evalf(inverse_cycles)
+            inverse_cycles = inverse_cycles.evalf()
         if isinstance(active_energy, sp.Expr):
             print('ho')
-            active_energy = active_energy.evalf(active_energy)
+            active_energy = active_energy.evalf()
         if isinstance(passive_energy, sp.Expr):
             print('hu')
-            passive_energy = passive_energy.evalf(passive_energy)
+            passive_energy = passive_energy.evalf()
         print("aftrr calc edp")
         ###
 
