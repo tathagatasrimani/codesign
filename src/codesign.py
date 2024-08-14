@@ -195,35 +195,34 @@ class Codesign:
         self.symbolic_sim.calculate_edp(self.hw)
         self.symbolic_sim.save_edp_to_file()
 
-        print(f"tech params: {self.tech_params}")
-        print(f"type of tech_param keys: {type(list(self.tech_params.keys())[0])}")
+        # print(f"tech params: {self.tech_params}")
+        # print(f"type of tech_param keys: {type(list(self.tech_params.keys())[0])}")
 
-        for symbol in self.symbolic_sim.edp.free_symbols:
-            for key in self.tech_params.keys():
-                # print(f"key: {key}")
-                # print(f"symbol: {symbol}")
-                if key.name == symbol.name:
-                    print(f"key: {key} == symbol: {symbol}")
-                    if key != symbol:
-                        print(f"{key}: {key.assumptions0}")
-                        print(f"{symbol}: {symbol.assumptions0}")
-                # else:
+        # for symbol in self.symbolic_sim.edp.free_symbols:
+        #     for key in self.tech_params.keys():
+        #         # print(f"key: {key}")
+        #         # print(f"symbol: {symbol}")
+        #         if key.name == symbol.name:
+        #             print(f"key: {key} == symbol: {symbol}")
+        #             if key != symbol:
+        #                 print(f"{key}: {key.assumptions0}")
+        #                 print(f"{symbol}: {symbol.assumptions0}")
+        #         # else:
                 #     print(f'key: {key} != symbol: {symbol}')
             # assert symbol in self.tech_params.keys()
 
-        tech_params2 = {}
-        for key in self.tech_params.keys():
-            tech_params2[key.name] = self.tech_params[key]
+        # tech_params2 = {}
+        # for key in self.tech_params.keys():
+        #     tech_params2[key.name] = self.tech_params[key]
 
-        print(f"tech params 2: {tech_params2}")
-        inverse_cycles = self.symbolic_sim.cycles.xreplace(self.tech_params)
-        inverse_cycles = inverse_cycles.evalf()
+        # print(f"tech params 2: {tech_params2}")
+        inverse_cycles = self.symbolic_sim.cycles.xreplace(self.tech_params).evalf()
         print(f"free symbols in cycles after substition: {inverse_cycles.free_symbols}")
 
         print(f"cycles: {inverse_cycles}")
 
-        self.inverse_edp = self.symbolic_sim.edp.xreplace(self.tech_params)
-
+        self.inverse_edp = self.symbolic_sim.edp.xreplace(self.tech_params).evalf()
+        self.inverse_edp
         print(f"free symbols in inverse edp after substition: {self.inverse_edp.free_symbols}")
         # self.inverse_edp = self.inverse_edp.subs(self.tech_params)
 

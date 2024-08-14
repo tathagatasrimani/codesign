@@ -41,7 +41,7 @@ class Preprocessor:
         # this is where we say EDP_final = EDP_initial / 10
         print(f"adding constraints. initial val: {self.initial_val};") # edp_exp: {self.pyomo_edp_exp}")
         # model.Constraint = pyo.Constraint(expr=self.pyomo_edp_exp <= self.initial_val / 1.9)
-        model.Constraint1 = pyo.Constraint(expr=self.pyomo_edp_exp >= self.initial_val / 1.5)
+        model.Constraint1 = pyo.Constraint(expr=self.pyomo_edp_exp >= self.initial_val / 1.1)
         # model.V_dd_lower = pyo.Constraint(rule=self.V_dd_lower)
         # model.V_dd_upper = pyo.Constraint(rule=self.V_dd_upper)
         # model.V_dd = pyo.Constraint(expr = model.x[self.mapping[hw_symbols.V_dd]] == self.initial_params["V_dd"])
@@ -72,7 +72,7 @@ class Preprocessor:
             opt = SolverFactory("multistart")
         else:
             opt = SolverFactory("ipopt")
-            opt.options["warm_start_init_point"] = "yes"
+            # opt.options["warm_start_init_point"] = "yes"
             # opt.options['warm_start_bound_push'] = 1e-9
             # opt.options['warm_start_mult_bound_push'] = 1e-9
             # opt.options['warm_start_bound_frac'] = 1e-9
@@ -88,6 +88,7 @@ class Preprocessor:
             opt.options["print_info_string"] = "yes"
             opt.options["output_file"] = "solver_out.txt"
             opt.options["wantsol"] = 2
+            opt.options["halt_on_ampl_error"] = "yes"
         return opt
 
     def create_scaling(self, model):
@@ -127,7 +128,7 @@ class Preprocessor:
             sym for sym in mem_buf_l_symbols if sym.name not in desired_free_symbols
         ]
         mem_buf_l_init_params = {sym: initial_params[sym.name] for sym in symbols_to_remove}
-        edp = edp.xreplace(mem_buf_l_init_params)
+        # edp = edp.xreplace(mem_buf_l_init_params)
 
         for s in edp.free_symbols:
             self.free_symbols.append(s)

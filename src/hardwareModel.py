@@ -302,10 +302,10 @@ class HardwareModel:
         #     rcs["other"]["MemReadL"] + rcs["other"]["MemWriteL"]
         # ) / 2
         mem_l_expr =  sp.sympify(open("Mem_access_time.txt", "r").readline(), locals=hw_symbols.symbol_table)
-        self.latency["MainMem"] = mem_l_expr.xreplace(opt_params)
+        self.latency["MainMem"] = float(mem_l_expr.xreplace(opt_params))
 
         buf_l_expr =  sp.sympify(open("Buf_access_time.txt", "r").readline(), locals=hw_symbols.symbol_table)
-        self.latency["Buf"] = buf_l_expr.xreplace(opt_params)
+        self.latency["Buf"] = float(buf_l_expr.xreplace(opt_params))
 
         self.dynamic_energy["MainMem"]["Read"] = rcs["other"]["MemReadEact"] * 1e9
         self.dynamic_energy["MainMem"]["Write"] = rcs["other"]["MemWriteEact"] * 1e9
@@ -497,7 +497,7 @@ class HardwareModel:
 
         # get the IO parameters from the memory run
         self.latency["OffChipIO"] = (
-            float(mem_vals["IO latency (s)"]) * 1e-9
+            float(mem_vals["IO latency (s)"]) * 1e9
             if mem_vals["IO latency (s)"] != "N/A"
             else 0.0
         )
