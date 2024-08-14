@@ -222,7 +222,6 @@ class Codesign:
         print(f"cycles: {inverse_cycles}")
 
         self.inverse_edp = self.symbolic_sim.edp.xreplace(self.tech_params).evalf()
-        self.inverse_edp
         print(f"free symbols in inverse edp after substition: {self.inverse_edp.free_symbols}")
         # self.inverse_edp = self.inverse_edp.subs(self.tech_params)
 
