@@ -2,6 +2,7 @@ class nativeTensor():
     def __init__(self, data):
         self.data = data
         self.shape = self._get_shape_recursive(data)
+        self.transpose_dim = None
         ''' Only support broadcasting one dimension'''
         self.broadcast_dim = None
         self.broadcast_length = None
@@ -11,6 +12,15 @@ class nativeTensor():
             return [len(data)] + self._get_shape_recursive(data[0])
         return []
     
+    def set_transpose(self, dim0, dim1):
+        if self.transpose_dim != None:
+            # only allow transposing once
+            self.realize()
+        self.transpose_dim = (dim0, dim1)
+        len0 = self.shape[dim0]
+        self.shape[dim0] = self.shape[dim1]
+        self.shape[dim1] = len0
+
     def set_broadcast(self, dim, length):
         self.broadcast_dim = dim
         self.broadcast_length = length
@@ -20,6 +30,12 @@ class nativeTensor():
         if not isinstance(indices, tuple):
             indices = (indices,)
         data = self.data
+        if self.transpose_dim != None:
+            list_indices = list(indices)
+            indices0 = list_indices[self.transpose_dim[0]]
+            list_indices[self.transpose_dim[0]] = list_indices[self.transpose_dim[1]]
+            list_indices[self.transpose_dim[1]] = indices0
+            indices = tuple(list_indices)
         if self.broadcast_dim != None:
             if len(indices) <= self.broadcast_dim:
                 pass
@@ -35,14 +51,25 @@ class nativeTensor():
     
     def __iter__(self):
         for i in range(self.shape[0]):
-            return self[i]
+            yield self[i]
+
+    def realize(self):
+        if len(self.shape)==3:
+            self.data = [[[self[i,j,k] for k in range(self.shape[-1])] for j in range(self.shape[-2])] for i in range(self.shape[-3])]
+        elif len(self.shape)==2:
+            self.data = [[self[j,k] for k in range(self.shape[-1])] for j in range(self.shape[-2])]
+        else:
+            raise RuntimeError("Not Implemented for more than 3d matrix")
+        self.broadcast_dim = None
+        self.broadcast_length = None
+        
 
 class nativePrims:
     ''' Inputs are assumed to be nativeTensor
         Always create new Tensor after calculation
     '''
 
-    def collapse_view(matrix, from_dim, to_dim):
+    def collapse_view(matrix: nativeTensor, from_dim, to_dim):
         def flatten(nested_list):
             """flatten a list of lists """
             result = []
@@ -53,7 +80,7 @@ class nativePrims:
                     result.append(item)
             return result
 
-        def collapse(matrix, current_dim, from_dim, to_dim):
+        def collapse(matrix: nativeTensor, current_dim, from_dim, to_dim):
             """ Recursively collapse the specified dimensions """
             if current_dim >= to_dim:
                 return matrix
@@ -64,33 +91,16 @@ class nativePrims:
 
         return collapse(matrix, 0, from_dim, to_dim)
 
-    def transpose(matrix, dims=[0,1]):
+    def transpose(matrix: nativeTensor, dims=[0,1]):
+        # cpp implementation:
+        # https://github.com/pytorch/pytorch/blob/4bdb4bbd864690d2d742d11574b661178bc2de0f/aten/src/ATen/native/vulkan/ops/Permute.cpp#L75
         assert len(dims)==2, "transpose take 2 dimensions"
         assert dims[0]<3 and dims[1]<3, "suppport up to 3d transpose"
-        if dims[0]==dims[1]:
-            return matrix
-        if isinstance(matrix[0][0], list):
-            # matrix is 3d
-            if dims[0]==0 and dims[1]==1:
-                return [[[matrix[i][j][k] for k in range(len(matrix[0][0]))] for i in range(len(matrix))] for j in range(len(matrix[0]))]
-            elif dims[0]==0 and dims[1]==2:
-                return [[[matrix[i][j][k] for i in range(len(matrix))] for j in range(len(matrix[0]))] for k in range(len(matrix[0][0]))]
-            elif dims[0]==1 and dims[1]==2:
-                return [[[matrix[i][j][k] for j in range(len(matrix[0]))] for k in range(len(matrix[0][0]))] for i in range(len(matrix))]
-        else:
-            #matrix is 2d
-            rows = len(matrix)
-            cols = len(matrix[0])
-            
-            transposed = [[0 for _ in range(rows)] for _ in range(cols)]
-            
-            for i in range(rows):
-                for j in range(cols):
-                    transposed[j][i] = matrix[i][j]
-
-            return transposed
+        return matrix.set_transpose(*dims)
 
     def mm(list1, list2):
+        # cpp implementation:
+        # https://github.com/pytorch/pytorch/blob/4bdb4bbd864690d2d742d11574b661178bc2de0f/aten/src/ATen/native/LinearAlgebra.cpp#L2187
         def to_floats(nested_list):
             if isinstance(nested_list[0], list):
                 return [[float(item) for item in sublist] for sublist in nested_list]
@@ -133,6 +143,8 @@ class nativePrims:
                 return dot_product(list1, list2)
 
     def le(input, value):
+        # cpp implementation:
+        # https://github.com/pytorch/pytorch/blob/4bdb4bbd864690d2d742d11574b661178bc2de0f/aten/src/ATen/native/BinaryOps.cpp#L1430
         if isinstance(input, list):
             return [nativePrims.le(elem, value) for elem in input]
         else:
