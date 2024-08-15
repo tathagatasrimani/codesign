@@ -60,6 +60,15 @@ def cacti_gen_sympy(name, cache_cfg, opt_vals, use_piecewise=True):
     with open(f'{name + "_read_leakage"}.txt', 'w') as file:
         file.write(str(fin_res.power.readOp.leakage))
 
+    IO_info = {
+        "io_area": fin_res.io_area,
+        "io_timing_margin": fin_res.io_timing_margin,
+        "io_dynamic_power": fin_res.io_dynamic_power,
+        "io_phy_power": fin_res.io_phy_power,
+        "io_termination_power": fin_res.io_termination_power
+    }
+    return IO_info
+
 
 '''
 Validates output of sympy_file with cacti run.
@@ -111,7 +120,7 @@ def validate(sympy_file, cache_cfg, dat_file):
     
     return result, validate_access_time
 
-def validate_energy(sympy_file, cache_cfg, dat_file):
+def validate_energy(sympy_file, cache_cfg, dat_file, IO_info):
     # initalize input parameters from .cfg
     g_ip.parse_cfg(cache_cfg)
     g_ip.error_checking()
@@ -193,6 +202,13 @@ def validate_energy(sympy_file, cache_cfg, dat_file):
     # print
     print(f'access_time: {result_access_time}')
     print(f"result : {result_read_dynamic, result_write_dynamic, result_read_leakage}")
+    
+    print(f"io_area: {IO_info['io_area']}")
+    print(f"io_timing_margin: {IO_info['io_timing_margin']}")
+    print(f"io_dynamic_power: {IO_info['io_dynamic_power']}")
+    print(f"io_phy_power: {IO_info['io_phy_power']}")
+    print(f"io_termination_power: {IO_info['io_termination_power']}")
+
     # print(f"validate_vals {validate_vals}")
     validate_access_time = float(validate_vals["Access time (ns)"])
     validate_read_dynamic = float(validate_vals["Dynamic read energy (nJ)"])
@@ -209,10 +225,20 @@ def validate_energy(sympy_file, cache_cfg, dat_file):
         "result_read_dynamic (nJ)": [result_read_dynamic],
         "result_write_dynamic (nJ)": [result_write_dynamic],
         "result_leakage (mW)": [result_read_leakage],
+        "result_io_area": [IO_info['io_area']],
+        "result_io_timing_margin": [IO_info['io_timing_margin']],
+        "result_io_dynamic_power": [IO_info['io_dynamic_power']],
+        "result_io_phy_power": [IO_info['io_phy_power']],
+        "result_io_termination_power": [IO_info['io_termination_power']],
         "validate_access_time (ns)": [float(validate_vals["Access time (ns)"])],
         "validate_read_dynamic (nJ)": [float(validate_vals["Dynamic read energy (nJ)"])],
         "validate_write_dynamic (nJ)": [float(validate_vals["Dynamic write energy (nJ)"])],
         "validate_leakage (mW)": [float(validate_vals["Standby leakage per bank(mW)"])],
+        "validate_io_area": [float(validate_vals["IO area"])],
+        "validate_io_timing": [float(validate_vals["IO timing"])],
+        "validate_io_power_dynamic": [float(validate_vals["IO power dynamic"])],
+        "validate_io_power_phy": [float(validate_vals["IO power PHY"])],
+        "validate_io_power_termination_and_bias": [float(validate_vals["IO power termination and bias"])],
         "transistor_size (um)": [g_ip.F_sz_um],
         "is_cache": [g_ip.is_cache]
     }
@@ -564,12 +590,14 @@ if __name__ == "__main__":
         "repeater_size": buf_vals["Repeater size"],
     }
 
+    print(buf_vals)
+
     cache_cfg = "cacti/mem_validate_cache.cfg"
 
-    cacti_gen_sympy("sympy_mem_validate", cache_cfg, buf_opt, use_piecewise=False)
-
+    IO_info = cacti_gen_sympy("sympy_mem_validate", cache_cfg, buf_opt, use_piecewise=False)
+    
     sympy_file = "sympy_mem_validate.txt"
     dat_file = "cacti/tech_params/90nm.dat"
 
-    validate_energy(sympy_file, cache_cfg, dat_file)
+    validate_energy(sympy_file, cache_cfg, dat_file, IO_info)
 
