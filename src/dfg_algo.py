@@ -117,7 +117,7 @@ def eval_expr(expr, graph, node):
         # print("visiting listcomp")
         # ListComp(expr elt, comprehension* generators)
         # comprehension = (expr target, expr iter, expr* ifs, int is_async)
-        ids = []
+        ids = [] # ids of for loops
         elt_id = eval_expr(expr.elt, graph, node)
         for generator in expr.generators:
             target_id = eval_expr(generator.target, graph, node)
@@ -130,11 +130,11 @@ def eval_expr(expr, graph, node):
             for if_expr in generator.ifs:
                 if_id = eval_expr(if_expr, graph, node)
                 cond_id = set_id()
-                ids.append(cond_id)
                 make_node(graph, node, cond_id, "if", None, None)
+                make_edge(graph, node, elt_id[0], if_id[0])
                 make_edge(graph, node, if_id[0], cond_id)
                 make_edge(graph, node, cond_id, loop_id)
-        make_edge(graph, node, elt_id[0], loop_id)
+        return ids
     elif ASTUtils.isSetComp(expr):
         return
     elif ASTUtils.isDictComp(expr):
