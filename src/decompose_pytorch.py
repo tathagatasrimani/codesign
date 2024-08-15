@@ -56,7 +56,7 @@ prim_to_native = {"torch.ops.prims.collapse_view.default": "nativePrims.collapse
                   }
 
 # Assuming the network is named as "NeuralNetwork"
-file_path = sys.argv[1] if len(sys.argv) > 1 else "src/benchmarks/models/pytorch_test.py"
+file_path = sys.argv[1] if len(sys.argv) > 1 else "benchmarks/models/pytorch_test.py"
 print(f"decomposing {file_path}")
 module_name = "pytorch_module"
 spec = importlib.util.spec_from_file_location(module_name, file_path)
