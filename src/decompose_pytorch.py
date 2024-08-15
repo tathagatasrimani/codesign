@@ -146,12 +146,12 @@ match = re.search(pattern, def_line)
 function_signature = match.group(1)
 invoke_line = invoke_line + " = " + function_signature
 
-with open(r"src/nativePrims.py", "r") as nativePrims:
+with open(r"nativePrims.py", "r") as nativePrims:
     nativePrim_lines = nativePrims.read()
 code_lines = [nativePrim_lines,"\n"] + code_lines + argument_lines + [invoke_line,]
 code = "\n".join(code_lines)
 
-with open(f"src/benchmarks/models/reconstructed_code_{file_name}.py","w") as reconstruct_file:
+with open(f"benchmarks/models/reconstructed_code_{file_name}.py","w") as reconstruct_file:
    reconstruct_file.write(code)
 
 
