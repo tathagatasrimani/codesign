@@ -232,14 +232,10 @@ def plot_all_box_and_whisker(df, plot_times=False):
     plt.tight_layout()
     plt.show()
 
-# Main function to run the script
-def main():
+if __name__ == "__main__":
     current_directory = os.path.dirname(os.path.realpath(__file__))
     file_path = os.path.join(current_directory, 'validate_results.csv')
     df = load_data(file_path)
     df = compute_errors(df)
     plot_all_box_and_whisker(df)
     plot_errors_dots(df)
-
-if __name__ == "__main__":
-    main()

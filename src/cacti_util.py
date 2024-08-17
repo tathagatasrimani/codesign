@@ -1,6 +1,7 @@
 import os
 import subprocess
 import yaml
+import argparse
 import logging
 logger = logging.getLogger(__name__)
 
@@ -19,7 +20,6 @@ import cacti.cacti_python.get_dat as dat
 
 from hw_symbols import *
 import sympy as sp
-import time
 
 valid_tech_nodes = [0.022, 0.032, 0.045, 0.065, 0.090, 0.180]
 
@@ -570,15 +570,23 @@ def convert_frequency(string):
         print("Invalid input format")
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Process a config file and a data file.")
+    parser.add_argument('-cfg_name', type=str, default='mem_validate_cache', help="Path to the configuration file (default: mem_validate_cache)")
+    parser.add_argument('-dat_file', type=str, default='cacti/tech_params/90nm.dat', help="Path to the data file (default: cacti/tech_params/90nm.dat)")
+    parser.add_argument('-cacheSize', type=int, default=131072, help="Path to the data file (default: 131072)")
+    parser.add_argument('-blockSize', type=int, default=64, help="Path to the data file (default: 64)")
+    parser.add_argument('-cacheType', type=str, default="main memory", help="Path to the data file (default: main memory)")
+    parser.add_argument('-busWidth', type=int, default=64, help="Path to the data file (default: 64)")
+
+    args = parser.parse_args()
+
     buf_vals = gen_vals(
-            "mem_validate_cache",
-            cacheSize=131072, # TODO: Add in buffer sizing
-            blockSize=64,
-            cache_type="main memory",
-            bus_width=64,
-        )
-    print(buf_vals)
-    
+        args.cfg_name,
+        cacheSize=args.cacheSize, # TODO: Add in buffer sizing
+        blockSize=args.blockSize,
+        cache_type=args.cacheType,
+        bus_width=args.busWidth,
+    )
     buf_opt = {
         "ndwl": buf_vals["Ndwl"],
         "ndbl": buf_vals["Ndbl"],
@@ -590,14 +598,17 @@ if __name__ == "__main__":
         "repeater_size": buf_vals["Repeater size"],
     }
 
-    print(buf_vals)
 
-    cache_cfg = "cacti/mem_validate_cache.cfg"
+    cache_cfg = f"cacti/{args.cfg_name}.cfg"
+    IO_info = cacti_gen_sympy("sympy_validate", cache_cfg, buf_opt, use_piecewise=False)
+    sympy_file = "sympy_validate.txt"
+    dat_file = f"{args.dat_file}"
 
-    IO_info = cacti_gen_sympy("sympy_mem_validate", cache_cfg, buf_opt, use_piecewise=False)
-    
-    sympy_file = "sympy_mem_validate.txt"
-    dat_file = "cacti/tech_params/90nm.dat"
+    # import time
+    # print(f'cache_cfg {cache_cfg}')
+    # print(f'dat_file {dat_file}')
+    # print(f'args {args}')
+    # time.sleep(20)
 
     validate_energy(sympy_file, cache_cfg, dat_file, IO_info)
 
