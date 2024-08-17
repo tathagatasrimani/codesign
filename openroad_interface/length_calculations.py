@@ -1,19 +1,26 @@
-def length_calculations(): 
-    import copy
-    from var import directory
+import copy
+from var import directory
+
+
+def length_calculations(units: float) -> dict: 
+    '''
+    calculates lengths of each net using the def file
+
+    params: 
+        units: to convert length into correct units
+    returns: 
+        length_dict: length with macro ID attribution
+    '''
 
     def_file = "results/final_generated-tcl.def"
 
-    ### 0. reading def file ###
+    # parsing through def file for macro coords and net names
     def_data = open(directory + def_file)
     def_lines = def_data.readlines()
-    length_list = {}
+    length_dict = {}
     after_nets = False
     in_nets = False
     macro_ID = None
-
-
-    # did info parsing here because i needed the coordinates and the def_generator doesnt have coords 
     for line in def_lines:
         if "END NETS" in line:
             after_nets = True
@@ -28,7 +35,7 @@ def length_calculations():
                     if item == "":
                         data.remove("")
                 macro_ID = data[1]
-                length_list[macro_ID] = 0
+                length_dict[macro_ID] = 0
             elif "+ ROUTED " in line or "NEW metal" in line:
                 line = line.split("(", 1)
                 data = line[1].split(" ")
@@ -45,13 +52,13 @@ def length_calculations():
                         data.remove(item)
                     elif "\n" in item:
                         data.remove(item)
+                # doing length calculations here
                 if len(data) > 2:
                     if data[2] == "*":
                         curlength = abs(int(data[1]) - int(data[3]))
                     elif data[3] == "*":
                         curlength = abs(int(data[0]) - int(data[2]))
-                length_list[macro_ID] += curlength/2000
-    return length_list
-# print(length_list )
+                length_dict[macro_ID] += curlength/units
+    return length_dict
 
 

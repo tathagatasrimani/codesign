@@ -1,24 +1,100 @@
-def def_generator(test_file_imported, graph_file_directory): 
-    import networkx as nx
-    import copy
-    import re 
-    from functions import find_val_two, find_val_xy, find_val, value, format, clean
-    import os
-    import math
-    from var import directory
+import copy
+import os
+import math
+from typing import Any
 
-    design = "gcd"
+import re 
+import networkx as nx
 
-    and_gate = "AND2_X1"
-    xor_gate = "XOR2_X1"
-    reg = "DFF_X1"
-    mux = "MUX2_X1"
-    add = "Add64_40"
-    mult = "Mult64_40"
+from var import directory
+from functions import find_val_two, find_val_xy, find_val, value, format, clean
+
+design = "gcd"
+
+and_gate = "AND2_X1"
+xor_gate = "XOR2_X1"
+reg = "DFF_X1"
+mux = "MUX2_X1"
+add = "Add50_40"
+mult = "Mult64_40"
+
+
+def component_finder(name: str) -> str:
+    '''
+    returns a blank string if the component name is not a component we need
+    '''
+    if and_gate.upper() in name.upper():
+        return  name
+    elif xor_gate.upper() in name.upper():
+        return  name
+    elif reg.upper() in name.upper():
+        return  name
+    elif mux.upper() in name.upper():
+        return  name
+    elif add.upper() in name.upper():
+        return  name
+    elif mult.upper() in name.upper():
+        return  name
+    else:
+        return ""
+    
+def find_macro(name: str) -> str:
+    '''
+    find the corresponding macro for the given node
+    '''
+    if "AND" in name.upper():
+        return  and_gate
+    if "XOR" in name.upper():
+        return  xor_gate
+    if name.startswith("Reg"):
+        return  reg
+    if "MUX" in name.upper():
+        return  mux 
+    if "ADD" in name.upper():
+        return  add
+    if "MULT" in name.upper():
+        return  mult
+    else:
+        return ""
+
+def edge_gen(in_or_out, nodes, graph) -> dict:
+    '''
+    generates a dict that contains either input or outputs of a node
+    '''
+    result = {}
+    for node in nodes:
+        result[node] = []
+        if in_or_out == "in":
+            edges = graph.in_edges(node)
+            for edge in edges:
+                result[node].append(edge[0])
+        else:
+            edges = graph.out_edges(node)
+            for edge in edges:
+                result[node].append(edge[1])
+
+    return result
+
+
+def def_generator(tcl_file_directory: str, graph_file_directory: str): 
+    '''
+     -> nx.DiGraph, dict, dict, dict (it's not working when actaully written)
+    Generates required .def file for OpenROAD.
+
+    params: 
+        tcl_file_imported: tcl file directory
+        graph_file_directory: graph file directory
+    
+    returns: 
+        graph: networkx graph that has been modified (pruned and new components)
+        net_out_dict: dict that lists nodes and thier respective edges (all nodes have one output)
+        node_output: dict that lists nodes and their respective output nodes
+        lef_data_dict: dict containing data from lef file that will be used for estimating parasitics
+    '''
 
     var_file = None
 
-    lef_std_file = None # read from v file, which would be specified from tcl
+    lef_std_file = None
     lef_tech_file =  None
 
     core_coord_x2 =  None 
@@ -40,65 +116,13 @@ def def_generator(test_file_imported, graph_file_directory):
     layer_pitch_x = None
     layer_pitch_y = None
 
-
-    def component_finder(name):
-        if and_gate.upper() in name.upper():
-            return  name
-        if xor_gate.upper() in name.upper():
-            return  name
-        if reg.upper() in name.upper():
-            return  name
-        if mux.upper() in name.upper():
-            return  name
-        if add.upper() in name.upper():
-            return  name
-        if mult.upper() in name.upper():
-            return  name
-        else:
-            return ""
-        
-    def macro_find(name):
-        if "AND" in name.upper():
-            return  and_gate
-        if "XOR" in name.upper():
-            return  xor_gate
-        if name.startswith("Reg"):
-            return  reg
-        if "MUX" in name.upper():
-            return  mux 
-        if "ADD" in name.upper():
-            return  add
-        if "MULT" in name.upper():
-            return  mult
-        else:
-            return ""
-
-    def is_op(name):
-        if "AND" in name.upper():
-            return  True
-        if "XOR" in name.upper():
-            return  True
-        else:
-            return False
-
-    def edge_gen(dict ,in_or_out, nodes, graph):
-        for node in nodes:
-            dict[node] = []
-            if in_or_out == "in":
-                edges = graph.in_edges(node)
-                for edge in edges:
-                    dict[node].append(edge[0])
-            else:
-                edges = graph.out_edges(node)
-                for edge in edges:
-                    dict[node].append(edge[1])
-
-
-
-    ### 0. reading lef file and test file###
-    test_file_data = open(test_file_imported)
+    
+    ### 0. reading tcl file and lef file ###
+    test_file_data = open(tcl_file_directory)
     test_file_lines = test_file_data.readlines()
-    for line in test_file_lines:
+
+    # extracting vars file, die area, and core area from tcl
+    for line in test_file_lines: 
         if ".vars" in line:
             var = re.findall(r'"(.*?)"', line)
             var_file = var[0]
@@ -117,7 +141,10 @@ def def_generator(test_file_imported, graph_file_directory):
             core_coord_x2 = float(core[2])
             core_coord_y2 = float(core[3])
 
-    var_file_data = open(directory  + var_file)
+
+    var_file_data = open(directory  + var_file) 
+
+    # extracting lef file directories and site name
     for line in var_file_data.readlines():
         if "tech_lef" in line:
             lef_tech_file = directory + re.findall(r'"(.*?)"', line)[0]
@@ -128,6 +155,7 @@ def def_generator(test_file_imported, graph_file_directory):
             site_name = site[0]
 
 
+    # extracting needed macros and their respective pins from lef and puts it into a dict
     lef_std_data = open(lef_std_file)
     macro_name = None
     macro_names = []
@@ -151,6 +179,7 @@ def def_generator(test_file_imported, graph_file_directory):
             elif pin_name.startswith("Z") or pin_name.startswith("Q") or pin_name.startswith("X"):
                 macro_dict[macro_name]["output"].append(pin_name)
 
+    # extracting units and sit size from tech file
     lef_data = open(lef_tech_file)
     lef_tech_lines = lef_data.readlines()
     for line in lef_tech_lines:
@@ -161,25 +190,25 @@ def def_generator(test_file_imported, graph_file_directory):
             site_x = float(site_size[0])
             site_y = float(site_size[1])
             break
-    # print(macro_dict)
 
+    # graph reading
     graph = nx.read_gml(graph_file_directory)
     nodes = list(graph)
     control_nodes = list(graph)
 
-    ### 1. pruning  (temporary) ###
+    ### 1. pruning ###
     for node1 in control_nodes:
         if "Mem" in node1 or "Buf" in node1:
                 graph.remove_node(node1)
                 nodes.remove(node1)
 
-    # nx.draw(graph, with_labels=True)
-    # plt.show()
-
-    input_dict = {}
-    edge_gen(input_dict ,"in", nodes, graph)
+    # generating dict of nodes and their respective input nodes
+    input_dict = edge_gen("in", nodes, graph)
 
     ### 2. mux tree ###
+    # due to each gate taking only 2 inputs, breaking down inputs into mux trees
+    # this will be eventually replaced to accomadate 16 bit 
+
     counter = 0 
     for node in nodes:
         num = 0
@@ -207,16 +236,14 @@ def def_generator(test_file_imported, graph_file_directory):
                 
                 graph.add_edge(new_node, node)
                 input_dict[node].append(new_node)
-    # print (input_dict)
 
 
     ### 3. mapping components to nodes ###
     nodes = list(graph)
     node_to_macro = {}
     for node in nodes:
-        macro = macro_find(node)
+        macro = find_macro(node)
         node_to_macro[node] = [macro, copy.deepcopy(macro_dict[macro])]
-    # print(node_to_macro)
 
 
     ### 4.generate header ###
@@ -232,19 +259,13 @@ def def_generator(test_file_imported, graph_file_directory):
     header_text.append("DESIGN {} ;".format(design))
     header_text.append("UNITS DISTANCE MICRONS {} ;".format(int(units)))
     header_text.append("DIEAREA ( {} {} ) ( {} {} ) ;".format(die_coord_x1 * units, die_coord_y1 * units , die_coord_x2 * units, die_coord_y2 * units))
-    # print(header_text)
-
-    with open('generated/header.txt', 'w') as f:
-        for line in header_text:
-            f.write(f"{line}\n")
 
 
     ### 5.generate components ###
+    # generating components list and a dict that translates node names to component nums in def file
     component_text = []
     number = 1
     node_to_num = {}
-
-    component_dict = {}
     for node in nodes:
         component_num = format(number)
         macro = node_to_macro[node][0]
@@ -254,16 +275,12 @@ def def_generator(test_file_imported, graph_file_directory):
 
     component_text.insert(0, "COMPONENTS {} ;".format(len(component_text)))
     component_text.insert(len(component_text), "END COMPONENTS")
-    with open('generated/component.txt', 'w') as f:
-        for line in component_text:
-            f.write(f"{line}\n")
-
 
     ## 6.generate nets ###
+    # generates list of nets in def file and makes two dicts that are returned
     net_text = []
-    output_dict = {}
+    node_output = edge_gen("out", nodes, graph)
     net_out_dict = {}
-    edge_gen(output_dict ,"out", nodes, graph)
     for node in nodes:
         net_name = format(str(number))
         component_name = node_to_num[node]
@@ -272,11 +289,10 @@ def def_generator(test_file_imported, graph_file_directory):
         pin_out.remove(pin_out[0])
         net_out_dict[node] = net_name
 
-        for output in output_dict[node]:
+        for output in node_output[node]:
             pin_in = node_to_macro[output][1]["input"]
             net = net + " ( {} {} )".format(node_to_num[output], pin_in[0])
             pin_in.remove(pin_in[0])
-        # component_nets[component_name] = components
 
         number += 1
         net = net + " + USE SIGNAL ;"
@@ -286,11 +302,7 @@ def def_generator(test_file_imported, graph_file_directory):
     net_text.insert(len(net_text), "END NETS")
     net_text.insert(len(net_text), "END DESIGN")
 
-    with open('generated/net.txt', 'w') as f:
-        for line in net_text:
-            f.write(f"{line}\n")
-
-    # generating pins
+    # generating pins because system will freak out without this
     pin_text = []
     pin_text.append("PINS 1 ;")
     pin_text.append("- clk + NET clk + DIRECTION INPUT + USE SIGNAL ;")
@@ -298,6 +310,7 @@ def def_generator(test_file_imported, graph_file_directory):
 
 
     #$# 7.generate rows ###
+    # using calculations sourced from OpenROAD
     row_text = []
     core_y = core_coord_y2 - core_coord_y1
     counter = 0
@@ -328,39 +341,32 @@ def def_generator(test_file_imported, graph_file_directory):
         counter += 1
         row_text.append(text)
 
-
-    with open('generated/ROW.txt', 'w') as f:
-        for line in row_text:
-            f.write(f"{line}\n")
-
-
     #$# 8.generate track ###
+    # using calculations sourced from OpenROAD
     die_coord_x2 *= units
     die_coord_y2 *= units
-    lef_pitch = 0;
+    lef_width = 0;
     layer_res = 0;
     layer_cap = 0;
 
-    ## tracks aren't made from the lef file; for some reason they have their own track file that sets the numbers
+    # tracks aren't made from the lef file; for some reason they have their own track file that sets the numbers
     track_text = []
     for line in range(len(lef_tech_lines)):
         if "LAYER " in lef_tech_lines[line] and "ROUTING" in lef_tech_lines[line + 1]:
             layer_name = clean(value(lef_tech_lines[line], "LAYER"))
 
-            layer_min_width = float(find_val("WIDTH", lef_tech_lines, line)) * units
-            # print(layer_min_width)
-            if lef_pitch == 0 :
-                lef_pitch = float(find_val_xy("PITCH", lef_tech_lines, line, "x"))
+            if lef_width == 0 :
+                lef_width = float(find_val("WIDTH", lef_tech_lines, line))
                 layer_res = float(find_val("RESISTANCE RPERSQ", lef_tech_lines, line))
                 layer_cap = float(find_val("CAPACITANCE CPERSQDIST", lef_tech_lines, line))
+            
+            layer_min_width = lef_width * units
 
             layer_pitch_x = float(find_val_xy("PITCH", lef_tech_lines, line, "x")) * units
             layer_pitch_y = float(find_val_xy("PITCH", lef_tech_lines, line, "y")) * units
-            # print(layer_x_pitch)
 
             layer_x_offset = float(find_val_xy("OFFSET", lef_tech_lines, line, "x")) * units
             layer_y_offset = float(find_val_xy("OFFSET", lef_tech_lines, line, "y")) * units
-
 
             x_track_count = int((die_coord_x2 - layer_x_offset)/ layer_pitch_x) + 1
             origin_x = layer_x_offset + die_coord_x1
@@ -388,17 +394,12 @@ def def_generator(test_file_imported, graph_file_directory):
             track_text.append(text)
             text = "TRACKS Y {} DO {} STEP {} LAYER {} ;".format(int(origin_y), int(y_track_count), int(layer_pitch_y), layer_name)
             track_text.append(text)
-
-    with open('generated/TRACK.txt', 'w') as f:
-        for line in track_text:
-            f.write(f"{line}\n")
-
                 
     if not os.path.exists( directory + "results/"):
         os.makedirs(directory + "results/")
-    if not os.path.exists("results"):
-        os.makedirs("results")
-
+    if not os.path.exists( "results/"):
+        os.makedirs("results/")
+        
     with open('results/first_generated.def', 'w') as f:
         for line in header_text:
             f.write(f"{line}\n")
@@ -413,5 +414,7 @@ def def_generator(test_file_imported, graph_file_directory):
         for line in net_text:
             f.write(f"{line}\n")
 
+    lef_data_dict = {"width" : lef_width, "res" : layer_res, "cap" : layer_cap, "units" : units}
     os.system("cp results/first_generated.def " + directory + "results/first_generated.def") 
-    return graph, net_out_dict, output_dict, lef_pitch, layer_res, layer_cap, units
+
+    return graph, net_out_dict, node_output, lef_data_dict
