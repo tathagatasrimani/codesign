@@ -1,9 +1,3 @@
 [submodule "src/cacti"]
 	path = src/cacti
 	url = https://github.com/fazerlicourice7/cacti.git
-[submodule "openroad_interface/OpenROAD"]
-	path = openroad_interface/OpenROAD
-	url = https://github.com/The-OpenROAD-Project/OpenROAD.git
-[submodule "openroad_interface/--force"]
-	path = openroad_interface/--force
-	url = https://github.com/The-OpenROAD-Project/OpenROAD.git
