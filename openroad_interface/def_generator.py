@@ -154,6 +154,7 @@ def def_generator(tcl_file_directory: str, graph_file_directory: str):
             site = re.findall(r'"(.*?)"', line)
             site_name = site[0]
 
+    os.system("cp std_cell_lef/Nangate45_stdcell.lef" + " ./" + lef_std_file) 
 
     # extracting needed macros and their respective pins from lef and puts it into a dict
     lef_std_data = open(lef_std_file)
