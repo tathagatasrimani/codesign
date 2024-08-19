@@ -56,41 +56,6 @@ def plot_errors_dots(df):
     plt.tight_layout()
     plt.show()
 
-# Plot box and whisker of error, organized by configuration
-# def plot_box_and_whisker_access(df, plot_times=False):
-#     df['config'] = df['transistor_size (um)'].astype(str) + ', Cache=' + df['is_cache'].astype(str)
-#     plt.figure(figsize=(12, 8))
-
-#     ax = plt.gca()
-#     df.boxplot(column='access_time_error', by='config', grid=False, showfliers=False, widths=0.6, ax=ax)
-
-#     unique_configs = df['config'].unique()
-#     positions = range(1, len(unique_configs) + 1) 
-
-#     if plot_times:
-#         for position, config in zip(positions, unique_configs):
-#             config_data = df[df['config'] == config]
-#             plt.scatter([position] * len(config_data), config_data['access_time (ns)'], color='blue', label='Access Time' if position == 1 else "", alpha=0.6)
-#             plt.scatter([position] * len(config_data), config_data['validate_access_time (ns)'], color='red', label='Validate Access Time' if position == 1 else "", alpha=0.6)
-
-#     for position, config in zip(positions, unique_configs):
-#         config_data = df[df['config'] == config]
-#         plt.scatter([position] * len(config_data), config_data['access_time_error'], color='green', label='Error (Access Time - Validate)' if position == 1 else "", alpha=0.6)
-
-#     plt.title('Access Time Error and Actual Values by Configuration')
-#     plt.suptitle('')  
-#     plt.xlabel('Configuration (Transistor Size, Cache)')
-#     plt.ylabel('Error Time (ns)')
-#     plt.xticks(positions, unique_configs, rotation=45, ha='right')
-#     plt.grid(True)
-
-#     handles, labels = plt.gca().get_legend_handles_labels()
-#     by_label = dict(zip(labels, handles))
-#     plt.legend(by_label.values(), by_label.keys())
-
-#     plt.tight_layout()
-#     plt.show()
-
 # Plot box and whisker of error depending on selector, organized by configuration
 def plot_box_and_whisker_single(df, selector="access_time", plot_times=False):
     df['config'] = df['transistor_size (um)'].astype(str) + ', Cache=' + df['is_cache'].astype(str)
