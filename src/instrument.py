@@ -75,6 +75,7 @@ class NameOnlyInstrumentor(ast.NodeTransformer):
                 "str",
                 "math",
                 "heapdict",
+                "nativePrims"
             )
         )
 

@@ -108,7 +108,23 @@ def eval_expr(expr, graph, node):
     elif ASTUtils.isLambda(expr):
         return
     elif ASTUtils.isIfExp(expr):
-        return
+        # print("visiting isIfExp")
+        # IfExp(expr test, expr body, expr orelse)
+        values = []
+        condition_id = eval_expr(expr.test, graph, node)
+        values.append(condition_id)
+        '''
+        # Assume evaluates to false
+        true_branch_id = eval_expr(expr.body, graph, node)
+        values.append(true_branch_id)
+        '''
+        false_branch_id = eval_expr(expr.orelse, graph, node)
+        values.append(false_branch_id)
+        ifexp_id = set_id()
+        make_node(graph, node, ifexp_id, "If", None, "Gt") # Picked Gt arbitrarily
+        for value in values:
+            make_edge(graph, node, value[0], ifexp_id)
+        return [ifexp_id]
     elif ASTUtils.isDict(expr):
         return
     elif ASTUtils.isSet(expr):
@@ -166,8 +182,12 @@ def eval_expr(expr, graph, node):
         return ids
     elif ASTUtils.isCall(expr):
         # print("visiting call")
+        op=None
+        if isinstance(expr.func, ast.Name):
+            if expr.func.id=="len":
+                op = "Regs"
         func_id = set_id()
-        make_node(graph, node, func_id, astor.to_source(expr)[:-1], None, None)
+        make_node(graph, node, func_id, astor.to_source(expr)[:-1], None, op)
         for arg in expr.args:
             arg_id = eval_expr(arg, graph, node)
             make_edge(graph, node, arg_id[0], func_id)
@@ -211,7 +231,13 @@ def eval_expr(expr, graph, node):
         # make_edge(graph, node, name_id[0], sub_id)
         return [sub_id]
     elif ASTUtils.isStarred(expr):
-        return
+        # print("visiting isStarred")
+        # Starred(expr value, expr_context ctx)
+        value_id = eval_expr(expr.value, graph, node)
+        id = set_id()
+        make_node(graph, node, id, str(expr.value), type(expr.ctx), None)
+        make_edge(graph, node, value_id[0], id)
+        return [id]
     elif ASTUtils.isName(expr):
         # print("visiting name")
         id = set_id()
