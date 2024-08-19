@@ -6,6 +6,7 @@ import sympy as sp
 import math
 import re
 import time
+import argparse
 
 # Change the working directory to /Users/dw/Documents/codesign/codesign/src
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
@@ -30,7 +31,37 @@ def load(cache_cfg):
     g_ip.error_checking()
     print(f'block size: {g_ip.block_sz}')
 
-def cacti_python_diff(sympy_file, tech_params):    
+def cacti_python_diff(sympy_file, tech_params, diff_var, metric=None): 
+    sympy_file
+
+    if metric:
+        file = f'{sympy_file}_{metric}.txt'      
+        metric_res = cacti_python_diff_single(file, tech_params, diff_var)
+        results = {
+            f"{metric}": metric_res
+        }
+    else:
+        file = f'{sympy_file}_access_time.txt'      
+        access_time_res = cacti_python_diff_single(file, tech_params, diff_var)
+
+        file = f'{sympy_file}_read_dynamic.txt'
+        read_dynamic_res = cacti_python_diff_single(file, tech_params, diff_var)
+
+        file = f'{sympy_file}_write_dynamic.txt'
+        write_dynamic_res = cacti_python_diff_single(file, tech_params, diff_var)
+
+        file = f'{sympy_file}_read_leakage.txt'
+        read_leakage_res = cacti_python_diff_single(file, tech_params, diff_var)
+
+        results = {
+            "access_time": access_time_res,
+            "read_dynamic": read_dynamic_res,
+            "write_dynamic": write_dynamic_res,
+            "read_leakage": read_leakage_res
+        }
+    return results
+    
+def cacti_python_diff_single(sympy_file, tech_params, diff_var):    
     # Read the sympy expression from file
     print(f'READING {sympy_file}')
     with open(sympy_file, 'r') as file:
@@ -52,8 +83,8 @@ def cacti_python_diff(sympy_file, tech_params):
     substituted_exprs = [(symbol, expr.subs(tech_params)) for symbol, expr in reduced_exprs]
     
     # differentiate
-    Vdd = sp.symbols('Vdd')  # Ensure Vdd is treated as a real variable
-    diff_expression = sp.diff(reduced_expression, Vdd)
+    var_diff = sp.symbols(diff_var)  # Ensure Vdd is treated as a real variable
+    diff_expression = sp.diff(reduced_expression, var_diff)
 
     # Back-substitute the substituted expressions into the differentiated expression
     for symbol, expr in reversed(substituted_exprs):
@@ -63,8 +94,8 @@ def cacti_python_diff(sympy_file, tech_params):
     gradient = diff_expression.subs(tech_params)
 
     # Force Vdd to be treated as real by removing re(Vdd) and any Subs expressions
-    gradient = gradient.subs(sp.re(Vdd), Vdd)
-    gradient = gradient.subs(sp.im(Vdd), 0)  # Ensure imaginary part is 0
+    gradient = gradient.subs(sp.re(var_diff), var_diff)
+    gradient = gradient.subs(sp.im(var_diff), 0)  # Ensure imaginary part is 0
 
     # Simplify the expression to eliminate unnecessary complexity
     gradient = sp.simplify(gradient)
@@ -77,10 +108,10 @@ def cacti_python_diff(sympy_file, tech_params):
     scaling_factor = 10 ** (-2 - order_of_magnitude)
     delta = scaling_factor * gradient
 
-    new_Vdd = tech_params["Vdd"] - delta
+    new_diff_var = tech_params[diff_var] - delta
     new_access_time = access_time - (gradient * delta)
 
-    print(f'new_Vdd: {new_Vdd}; Vdd: {tech_params["Vdd"]}; delta: {delta}')
+    print(f'new_{diff_var}: {new_diff_var}; {diff_var}: {tech_params[diff_var]}; delta: {delta}')
     print(f'Gradient Result: {gradient}')
     print(f'New access_time: {new_access_time}; access_time: {access_time}')
 
@@ -91,7 +122,7 @@ def cacti_python_diff(sympy_file, tech_params):
     return result
 
 
-def cacti_c_diff(dat_file_path, new_value):
+def cacti_c_diff(dat_file_path, new_value, diff_var):
     original_val = cacti_util.gen_vals(
         "validate_mem_cache",
         cacheSize=g_ip.cache_sz, # TODO: Add in buffer sizing
@@ -102,8 +133,8 @@ def cacti_c_diff(dat_file_path, new_value):
         force_cache_config="false",
     )
 
-    original_vals = replace_values_in_dat_file(dat_file_path, "Vdd", new_value)
-    time.sleep(5)
+    original_vals = replace_values_in_dat_file(dat_file_path, diff_var, new_value)
+    time.sleep(10)
 
     next_val = cacti_util.gen_vals(
         "validate_mem_cache",
@@ -122,24 +153,27 @@ def cacti_c_diff(dat_file_path, new_value):
     return gradient
 
 def replace_values_in_dat_file(dat_file_path, key, new_value):
+    print(f'KEY is {key}')
+    time.sleep(5)
     original_values = {}
+    
     with open(dat_file_path, 'r') as file:
         lines = file.readlines()
     
-    # Pattern to match the key followed by any text, ensuring the line starts with the key
-    pattern = re.compile(rf"^-{key}\s+\(\w+\)\s+(.*)$")
+    # Pattern to match the key followed by any unit in parentheses and then numeric values
+    pattern = re.compile(rf"^-{key}\s+\((.*?)\)\s+(.*)$")
     
     for i, line in enumerate(lines):
         match = pattern.match(line.strip())
         if match:
             # Extract original values and store them
-            original_values[i] = match.group(1).split()
+            original_values[i] = match.group(2).split()
             
-            # Keep the unit label (e.g., (V))
-            unit_label = re.search(r'\(\w+\)', line).group(0)
+            # Keep the unit label (e.g., (F/um), (V), etc.)
+            unit_label = match.group(1)
             
             # Replace the numeric values with the new value
-            lines[i] = f"-{key} {unit_label} " + " ".join([str(new_value)] * len(original_values[i])) + "\n"
+            lines[i] = f"-{key} ({unit_label}) " + " ".join([str(new_value)] * len(original_values[i])) + "\n"
 
     with open(dat_file_path, 'w') as file:
         file.writelines(lines)
@@ -161,17 +195,35 @@ def restore_original_values_in_dat_file(dat_file_path, original_values):
         file.writelines(lines)
 
 if __name__ == "__main__":
-    # Set default values
-    default_cfg_file = "cacti/mem_validate_cache.cfg"
-    default_sympy_file = "sympy_mem_validate_access_time.txt"
+    # Set up argument parsing
+    parser = argparse.ArgumentParser(description="Process configuration and SymPy files.")
+    parser.add_argument("-CFG", type=str, default="cacti/mem_validate_cache.cfg", help="Path to the configuration file")
+    parser.add_argument("-SYMPY", type=str, default="sympy_mem_validate", help="Path to the SymPy file")
+    parser.add_argument("-v", type=str, default="Vdd", help="Tech parameter key")
+    parser.add_argument("-gen", type=str, default="false", help="Boolean flag to generate output")
+    parser.add_argument("-metric", type=str, default="access_time", help="Metric to be used for evaluation")
 
-    # Get the cfg_file and sympy_file from command-line arguments or use defaults
-    cfg_file = sys.argv[1] if len(sys.argv) > 1 else default_cfg_file
-    sympy_file = sys.argv[2] if len(sys.argv) > 2 else default_sympy_file
+    # Parse the arguments
+    args = parser.parse_args()
+
+    # Assign values to variables
+    cfg_file = args.CFG
+    sympy_file = args.SYMPY
+    diff_var = args.v
+    gen_flag = args.gen.lower() == "true"  
+    metric = args.metric
 
     print(cfg_file)
     print(sympy_file)
-    time.sleep(10)
+    print(diff_var)
+    print(f"Generate flag is set to: {gen_flag}")
+    print(f"Metric is set to: {metric}")
+
+    if gen_flag:
+        print("Generating additional output as requested.")
+        # Include logic to handle the case when the -gen flag is True
+    else:
+        print("Skipping additional output generation.")
 
     # Since you are now in `parent_dir`, the files are referenced directly
     load(cfg_file)
@@ -196,11 +248,16 @@ if __name__ == "__main__":
     dat.scan_dat(tech_params, dat_file, g_ip.data_arr_ram_cell_tech_type, g_ip.data_arr_ram_cell_tech_type, g_ip.temp)
     tech_params = {k: (10**(-9) if v == 0 else v) for k, v in tech_params.items() if v is not None and not math.isnan(v)}
     
-    cacti_python_res = cacti_python_diff(sympy_file, tech_params)
-    new_val = tech_params["Vdd"] - cacti_python_res['delta']
-    print(f'new_val: {new_val}')
-    cacti_gradient = cacti_c_diff(dat_file, new_val)
+    # get all diff results
+    python_results = cacti_python_diff(sympy_file, tech_params, diff_var, metric)
 
-    print(f"ACCESS_TIME: python: {cacti_python_res['gradient']}; C: {cacti_gradient}")
+    # access time
+    new_val = tech_params[diff_var] - python_results[metric]['delta']
+    print(f"delta: {python_results[metric]['delta']}")
+    print(f'new_val: {new_val}')
+    cacti_gradient = cacti_c_diff(dat_file, new_val, diff_var)
+
+    print(f"{metric}: python: {python_results[metric]['gradient']}; C: {cacti_gradient}")
+
 
 
