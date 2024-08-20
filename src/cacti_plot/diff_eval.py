@@ -8,6 +8,12 @@ import re
 import time
 import argparse
 
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import csv
+
+
 # Change the working directory to /Users/dw/Documents/codesign/codesign/src
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
 os.chdir(project_root)
@@ -24,6 +30,7 @@ import cacti_util
 import hw_symbols
 from cacti.cacti_python.parameter import g_ip
 import cacti.cacti_python.get_dat as dat
+
 
 def load(cache_cfg):
     # Initialize input parameters from .cfg
@@ -104,8 +111,9 @@ def cacti_python_diff_single(sympy_file, tech_params, diff_var):
     gradient = gradient.evalf()
 
     # calcs
-    order_of_magnitude = math.floor(math.log10(abs(gradient)))
-    scaling_factor = 10 ** (-2 - order_of_magnitude)
+    print(f'before order_of_mag {gradient}')
+
+    scaling_factor = choose_scaling_factor(gradient, tech_params[diff_var])
     delta = scaling_factor * gradient
 
     new_diff_var = tech_params[diff_var] - delta
@@ -134,7 +142,7 @@ def cacti_c_diff(dat_file_path, new_value, diff_var):
     )
 
     original_vals = replace_values_in_dat_file(dat_file_path, diff_var, new_value)
-    time.sleep(10)
+    # time.sleep(10)
 
     next_val = cacti_util.gen_vals(
         "validate_mem_cache",
@@ -154,7 +162,7 @@ def cacti_c_diff(dat_file_path, new_value, diff_var):
 
 def replace_values_in_dat_file(dat_file_path, key, new_value):
     print(f'KEY is {key}')
-    time.sleep(5)
+    # time.sleep(5)
     original_values = {}
     
     with open(dat_file_path, 'r') as file:
@@ -194,6 +202,55 @@ def restore_original_values_in_dat_file(dat_file_path, original_values):
     with open(dat_file_path, 'w') as file:
         file.writelines(lines)
 
+def calculate_similarity_matrix(experimental, expected):
+    # Handle the case where both values are 0
+    if experimental == 0 and expected == 0:
+        return 100
+    # Calculate similarity normally
+    return 100 * (1 - np.abs(experimental - expected) / np.abs(expected))
+
+def choose_scaling_factor(pgrad, value):
+    # Calculate the order of magnitude difference between the gradient and the value
+    scale_factor = value / pgrad if pgrad != 0 else 1.0
+
+    # Optionally, adjust the scaling factor to make smaller adjustments
+    # For example, you might want to use only a fraction of the calculated factor
+    adjustment_factor = 0.1  # This can be tuned based on how aggressive you want the adjustments to be
+    scaled_factor = scale_factor * adjustment_factor
+
+    return scaled_factor
+
+
+def append_to_csv(config_key, diff_params_similarities, csv_filename='cacti_plot/grad_results.csv'):
+    # Check if the file exists by attempting to open it in append mode
+    try:
+        with open(csv_filename, 'r'):
+            file_exists = True
+    except FileNotFoundError:
+        file_exists = False
+
+    # Open the file in append mode
+    with open(csv_filename, 'a', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+
+        # If the file does not exist, write the header
+        if not file_exists:
+            writer.writerow(['Config Key', 'Similarities'])
+
+        # Write the config_key in one row
+        writer.writerow([config_key])
+
+        # Prepare the row data with the format 'diff_param: similarity'
+        
+        similarities_str = '; '.join(
+            [f'{param}: {similarity.real:.2f}' if isinstance(similarity, complex) else
+            f'{param}: {similarity:.2f}' if isinstance(similarity, (int, float)) and not math.isnan(similarity) else f'{param}: NaN'
+            for param, similarity in diff_params_similarities]
+        )
+        
+        # Write the similarities on the next row
+        writer.writerow([similarities_str])
+    
 if __name__ == "__main__":
     # Set up argument parsing
     parser = argparse.ArgumentParser(description="Process configuration and SymPy files.")
@@ -245,19 +302,60 @@ if __name__ == "__main__":
 
     # read from dat
     tech_params = {}
+    print(g_ip.temp)
+    # time.sleep(10)
     dat.scan_dat(tech_params, dat_file, g_ip.data_arr_ram_cell_tech_type, g_ip.data_arr_ram_cell_tech_type, g_ip.temp)
+    print(tech_params["I_off_n"])
+    print(tech_params["I_g_on_n"])
+
     tech_params = {k: (10**(-9) if v == 0 else v) for k, v in tech_params.items() if v is not None and not math.isnan(v)}
+    print(tech_params)
+    tech_param_keys = list(tech_params.keys())
+    tech_param_keys.remove("I_off_n")
+    tech_param_keys.remove("I_g_on_n")
+
+    tech_param_keys.remove("Wmemcella")
+    tech_param_keys.remove("Wmemcellpmos")
+    tech_param_keys.remove("Wmemcellnmos")
+    tech_param_keys.remove("area_cell")
+    tech_param_keys.remove("asp_ratio_cell")
     
+    print(tech_param_keys)
+    # time.sleep(30)
     # get all diff results
-    python_results = cacti_python_diff(sympy_file, tech_params, diff_var, metric)
 
-    # access time
-    new_val = tech_params[diff_var] - python_results[metric]['delta']
-    print(f"delta: {python_results[metric]['delta']}")
-    print(f'new_val: {new_val}')
-    cacti_gradient = cacti_c_diff(dat_file, new_val, diff_var)
+    # tech_param_keys = ["Vdd", "Vth"]
+    config_key = f'Cache={g_ip.is_cache}, {g_ip.F_sz_nm}'
+    
+    # Collect similarities
+    diff_params_similarities = []
+    for diff_param in tech_param_keys:
+        python_results = cacti_python_diff(sympy_file, tech_params, diff_param, metric)
 
-    print(f"{metric}: python: {python_results[metric]['gradient']}; C: {cacti_gradient}")
+        # Access time
+        new_val = tech_params[diff_param] - python_results[metric]['delta']
+        print(f"delta: {python_results[metric]['delta']}")
+        print(f'new_val: {new_val}')
+        print(f"gradient: {python_results[metric]['gradient']}")
+        print(f"diff_param {diff_param}; org_value: {tech_params[diff_param]}")
+        # time.sleep(3)
+
+        with open("cacti_plot/gradient_values.csv", 'a', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow([diff_param, f" pgrad: {python_results[metric]['gradient']}", f" value: {tech_params[diff_param]}", f" delta: {python_results[metric]['delta']}", f" new_val: {new_val}"])
+
+        if(new_val <= 0):
+            similarity = 100
+        else:
+            cacti_gradient = cacti_c_diff(dat_file, new_val, diff_param)
+            similarity = calculate_similarity_matrix(python_results[metric]['gradient'], cacti_gradient)
+            print(f"{diff_param} is {metric}: python: {python_results[metric]['gradient']}; C: {cacti_gradient}")
+            # time.sleep(2)
+
+        diff_params_similarities.append((diff_param, similarity))
+
+    # Append all the results to the CSV in one row
+    append_to_csv(config_key, diff_params_similarities)
 
 
 

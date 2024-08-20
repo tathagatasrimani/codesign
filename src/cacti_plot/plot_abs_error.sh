@@ -41,4 +41,4 @@ python cacti_util.py \
   -busWidth "$busWidth"
 
 cd cacti_plot
-python cacti_plot.py
+python plot_abs.py
