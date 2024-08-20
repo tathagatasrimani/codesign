@@ -285,8 +285,8 @@ class SymbolicSimulator(AbstractSimulator):
             hw_symbols.BufWriteEact: BufWriteEact_expr,
             hw_symbols.BufPpass: BufPpass_expr,
             
-            hw_symbols.Ceff["Add"]: 0,
-            hw_symbols.Ceff["Regs"]: 0,
+            # hw_symbols.Ceff["Add"]: 0,
+            # hw_symbols.Ceff["Regs"]: 0,
         }
 
         self.cycles = self.cycles.xreplace(cacti_subs)
@@ -295,7 +295,7 @@ class SymbolicSimulator(AbstractSimulator):
         # self.total_passive_energy_ceil = self.passive_energy_dissipation(
         #     hw, self.cycles_ceil
         # )
-        self.edp = self.cycles #+ (self.total_active_energy ) #+ self.total_passive_energy)
+        self.edp = self.cycles + (self.total_active_energy ) #+ self.total_passive_energy)
         assert hw_symbols.MemReadL not in self.edp.free_symbols and hw_symbols.MemWriteL not in self.edp.free_symbols # and hw_symbols.BufL not in self.edp.free_symbols
 
         # self.edp = self.edp.subs(subs)
