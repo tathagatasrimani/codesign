@@ -108,7 +108,7 @@ def cacti_python_diff_single(sympy_file, tech_params, diff_var):
     gradient = sp.simplify(gradient)
 
     # Evaluate the expression to a numerical value
-    gradient = gradient.evalf()
+    gradient = gradient.evalf() * 10
 
     # calcs
     print(f'before order_of_mag {gradient}')
@@ -125,7 +125,7 @@ def cacti_python_diff_single(sympy_file, tech_params, diff_var):
 
     result = {
         "delta": delta,
-        "gradient": gradient * 10**4
+        "gradient": gradient 
     }
     return result
 
@@ -215,7 +215,7 @@ def choose_scaling_factor(pgrad, value):
 
     # Optionally, adjust the scaling factor to make smaller adjustments
     # For example, you might want to use only a fraction of the calculated factor
-    adjustment_factor = 0.1  # This can be tuned based on how aggressive you want the adjustments to be
+    adjustment_factor = 0.01  # This can be tuned based on how aggressive you want the adjustments to be
     scaled_factor = scale_factor * adjustment_factor
 
     return scaled_factor
@@ -302,14 +302,11 @@ if __name__ == "__main__":
 
     # read from dat
     tech_params = {}
-    print(g_ip.temp)
+    # print(g_ip.temp)
     # time.sleep(10)
     dat.scan_dat(tech_params, dat_file, g_ip.data_arr_ram_cell_tech_type, g_ip.data_arr_ram_cell_tech_type, g_ip.temp)
-    print(tech_params["I_off_n"])
-    print(tech_params["I_g_on_n"])
-
     tech_params = {k: (10**(-9) if v == 0 else v) for k, v in tech_params.items() if v is not None and not math.isnan(v)}
-    print(tech_params)
+    # print(tech_params)
     tech_param_keys = list(tech_params.keys())
     tech_param_keys.remove("I_off_n")
     tech_param_keys.remove("I_g_on_n")
@@ -320,7 +317,7 @@ if __name__ == "__main__":
     tech_param_keys.remove("area_cell")
     tech_param_keys.remove("asp_ratio_cell")
     
-    print(tech_param_keys)
+    # print(tech_param_keys)
     # time.sleep(30)
     # get all diff results
 
@@ -334,10 +331,10 @@ if __name__ == "__main__":
 
         # Access time
         new_val = tech_params[diff_param] - python_results[metric]['delta']
-        print(f"delta: {python_results[metric]['delta']}")
-        print(f'new_val: {new_val}')
-        print(f"gradient: {python_results[metric]['gradient']}")
-        print(f"diff_param {diff_param}; org_value: {tech_params[diff_param]}")
+        # print(f"delta: {python_results[metric]['delta']}")
+        # print(f'new_val: {new_val}')
+        # print(f"gradient: {python_results[metric]['gradient']}")
+        # print(f"diff_param {diff_param}; org_value: {tech_params[diff_param]}")
         # time.sleep(3)
 
         with open("cacti_plot/gradient_values.csv", 'a', newline='') as csvfile:
@@ -348,9 +345,13 @@ if __name__ == "__main__":
             similarity = 100
         else:
             cacti_gradient = cacti_c_diff(dat_file, new_val, diff_param)
-            similarity = calculate_similarity_matrix(python_results[metric]['gradient'], cacti_gradient)
-            print(f"{diff_param} is {metric}: python: {python_results[metric]['gradient']}; C: {cacti_gradient}")
-            # time.sleep(2)
+            python_change = python_results[metric]['gradient'] * python_results[metric]['delta']
+            similarity = calculate_similarity_matrix(python_change, cacti_gradient)
+            # print(f"{diff_param} is {metric}: python: {python_change}; C: {cacti_gradient}")
+            with open("cacti_plot/gradient_values.csv", 'a', newline='') as csvfile:
+                writer = csv.writer(csvfile)
+                writer.writerow([diff_param, f" pchange: {python_change}", f" cchange: {cacti_gradient}"])
+            # time.sleep(6)
 
         diff_params_similarities.append((diff_param, similarity))
 
