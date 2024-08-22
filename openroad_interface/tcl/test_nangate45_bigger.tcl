@@ -6,9 +6,10 @@ source "Nangate45/Nangate45.vars"
 set design "gcd"
 set top_module "gcd"
 set sdc_file "gcd_nangate45.sdc"
+set image_name "results/gcd_nangate45_bigger.jpeg"
 
-set die_area {0 0 850.13 850.8}
-set core_area {10.07 11.2 830 830}
+set die_area {0 0 610 610}
+set core_area {10 10 600 600}
 
 read_libraries
 read_def results/first_generated.def

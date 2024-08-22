@@ -418,4 +418,4 @@ def def_generator(tcl_file_directory: str, graph_file_directory: str):
     lef_data_dict = {"width" : lef_width, "res" : layer_res, "cap" : layer_cap, "units" : units}
     os.system("cp results/first_generated.def " + directory + "results/first_generated.def") 
 
-    return graph, net_out_dict, node_output, lef_data_dict
+    return graph, net_out_dict, node_output, lef_data_dict, node_to_num

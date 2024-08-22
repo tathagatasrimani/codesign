@@ -2,12 +2,14 @@ import copy
 from var import directory
 
 
-def length_calculations(units: float) -> dict: 
+def length_calculations(units: float, def_file: str = "results/final_generated-tcl.def") -> dict: 
     '''
     calculates lengths of each net using the def file
 
     params: 
         units: to convert length into correct units
+        def_file: the .def file contains macro coordinates, which are used for length calculations. 
+        defaults to the name of the final generated .def file. 
     returns: 
         length_dict: length with macro ID attribution
     '''
