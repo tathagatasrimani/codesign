@@ -8,9 +8,9 @@ import pandas as pd
 
 # from hardwareModel import HardwareModel
 import estimation as est
+import place_n_route as pnr
 from var import directory
 import def_generator as df
-import detailed as det
 import graph_plotter as gp
 
 def pandas_organize(design_name: str, estimation_dict: dict, detailed_dict: dict ):
@@ -59,8 +59,8 @@ def validation(design_name: str, test_directory: str):
     graph, net_out_dict, node_output, lef_data, node_to_num= df.def_generator(test_directory, graph_directory + design_name + ".gml")
 
     # 3. extract parasitics
-    detailed_dict, detailed_graph = det.detailed_place_n_route(graph, design_name, net_out_dict, node_output, lef_data)
-    estimation_dict, estimated_graph = est.estimated_place_n_route(graph, design_name, net_out_dict, node_output, lef_data, node_to_num)
+    detailed_dict, detailed_graph = pnr.detailed_place_n_route(graph, design_name, net_out_dict, node_output, lef_data, node_to_num)
+    estimation_dict, estimated_graph = pnr.estimated_place_n_route(graph, design_name, net_out_dict, node_output, lef_data, node_to_num)
     global_length = est.global_estimation()
 
     return pandas_organize(design_name, estimation_dict, detailed_dict)
