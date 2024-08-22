@@ -1,0 +1,156 @@
+C_g_ideal, pgrad: 2.85050392483100E+15, value: 8.45e-16, delta: 8.45000000000000E-18, new_val: 8.36550000000000E-16
+C_g_ideal, pchange: 0.0240867581648220, cchange: 0.0020900000000008134,similairty: -952.476467215914
+C_fringe, pgrad: 7.75509514197914E+15, value: 8e-17, delta: 8.00000000000000E-19, new_val: 7.92000000000000E-17
+C_fringe, pchange: 0.00620407611358331, cchange: 0.011210000000000164,similairty: 55.3441223334810
+C_junc, pgrad: 169679539198454, value: 1e-15, delta: 1.00000000000000E-17, new_val: 9.90000000000000E-16
+C_junc, pchange: 0.00169679539198454, cchange: 0.0048200000000004906,similairty: 35.2032239000906
+C_junc_sw, pgrad: 1.70888644896690E+15, value: 2.5e-16, delta: 2.50000000000000E-18, new_val: 2.47500000000000E-16
+C_junc_sw, pchange: 0.00427221612241726, cchange: 0.01240000000000041,similairty: 34.4533558259445
+l_phy, pgrad: 0, value: 0.053, delta: 0, new_val: 0.0530000000000000
+l_phy, pchange: 0, cchange: 0.0,similairty: 100
+l_elec, pgrad: 0.00482021813349471, value: 0.0354, delta: 0.000354000000000000, new_val: 0.0350460000000000
+l_elec, pchange: 0.00000170635721925713, cchange: 0.0,similairty: zoo
+nmos_effective_resistance_multiplier, pgrad: 4.33845433283038, value: 1.77, delta: 0.0177000000000000, new_val: 1.75230000000000
+nmos_effective_resistance_multiplier, pchange: 0.0767906416910977, cchange: 0.05708000000000002,similairty: 65.4683922720784
+Vdd, pgrad: 8.53843925666379, value: 0.9, delta: 0.00900000000000000, new_val: 0.891000000000000
+Vdd, pchange: 0.0768459533099741, cchange: 0.07103999999999999,similairty: 91.8272053632121
+Vth, pgrad: -0.0177562518947369, value: 0.30764, delta: 0.00307640000000000, new_val: 0.304563600000000
+Vth, pchange: -0.0000546253333289685, cchange: -0.01761999999999908,similairty: 0.310018917871568
+Vdsat, pgrad: -0.00151005063651073, value: 0.113, delta: 0.00113000000000000, new_val: 0.111870000000000
+Vdsat, pchange: -0.00000170635721925713, cchange: 0.0,similairty: zoo
+I_on_n, pgrad: -19863.0733810392, value: 0.0003866, delta: 0.00000386600000000000, new_val: 0.000382734000000000
+I_on_n, pchange: -0.0767906416910977, cchange: -0.09517999999999915,similairty: 80.6793882024568
+I_on_p, pgrad: 0, value: 0.0002097, delta: 0, new_val: 0.000209700000000000
+I_on_p, pchange: 0, cchange: 0.0,similairty: 100
+C_ox, pgrad: -10731806410.4222, value: 1.59e-14, delta: 1.59000000000000E-16, new_val: 1.57410000000000E-14
+C_ox, pchange: -0.00000170635721925713, cchange: 0.0,similairty: zoo
+t_ox, pgrad: 0, value: 0.0015, delta: 0, new_val: 0.00150000000000000
+t_ox, pchange: 0, cchange: 0.0,similairty: 100
+
+
+C_g_ideal, pgrad: 2.85050392483100E+15, value: 8.45e-16, delta: 8.45000000000000E-18, new_val: 8.36550000000000E-16
+C_g_ideal, pchange: 0.0240867581648220, cchange: 0.0020900000000008134,similairty: -952.476467215914
+C_fringe, pgrad: 7.75509514197914E+15, value: 8e-17, delta: 8.00000000000000E-19, new_val: 7.92000000000000E-17
+C_fringe, pchange: 0.00620407611358331, cchange: 0.011210000000000164,similairty: 55.3441223334810
+C_junc, pgrad: 169679539198454, value: 1e-15, delta: 1.00000000000000E-17, new_val: 9.90000000000000E-16
+C_junc, pchange: 0.00169679539198454, cchange: 0.0048200000000004906,similairty: 35.2032239000906
+C_junc_sw, pgrad: 1.70888644896690E+15, value: 2.5e-16, delta: 2.50000000000000E-18, new_val: 2.47500000000000E-16
+C_junc_sw, pchange: 0.00427221612241726, cchange: 0.01240000000000041,similairty: 34.4533558259445
+l_phy, pgrad: 0, value: 0.053, delta: 0, new_val: 0.0530000000000000
+l_phy, pchange: 0, cchange: 0.0,similairty: 100
+l_elec, pgrad: 0.00482021813349471, value: 0.0354, delta: 0.000354000000000000, new_val: 0.0350460000000000
+l_elec, pchange: 0.00000170635721925713, cchange: 0.0,similairty: zoo
+nmos_effective_resistance_multiplier, pgrad: 4.33845433283038, value: 1.77, delta: 0.0177000000000000, new_val: 1.75230000000000
+nmos_effective_resistance_multiplier, pchange: 0.0767906416910977, cchange: 0.05708000000000002,similairty: 65.4683922720784
+l_elec, pgrad: 0.00482021813349471, value: 0.0354, delta: 0.000354000000000000, new_val: 0.0350460000000000
+l_elec, pchange: 0.00000170635721925713, cchange: 0.0,similairty: zoo
+
+
+C_g_ideal, pgrad: 2.85050392483100E+15, value: 8.45e-16, delta: 8.45000000000000E-18, new_val: 8.36550000000000E-16
+C_g_ideal, pchange: 0.0240867581648220, cchange: 0.0020900000000008134,similairty: -952.476467215914
+C_fringe, pgrad: 7.75509514197914E+15, value: 8e-17, delta: 8.00000000000000E-19, new_val: 7.92000000000000E-17
+C_fringe, pchange: 0.00620407611358331, cchange: 0.011210000000000164,similairty: 55.3441223334810
+C_junc, pgrad: 169679539198454, value: 1e-15, delta: 1.00000000000000E-17, new_val: 9.90000000000000E-16
+C_junc, pchange: 0.00169679539198454, cchange: 0.0048200000000004906,similairty: 35.2032239000906
+
+
+C_g_ideal, pgrad: 2.85050392483100E+15, value: 8.45e-16, delta: 8.45000000000000E-18, new_val: 8.36550000000000E-16
+C_g_ideal, pchange: 0.0240867581648220, cchange: 0.0020900000000008134,similairty: -952.476467215914
+C_fringe, pgrad: 7.75509514197914E+15, value: 8e-17, delta: 8.00000000000000E-19, new_val: 7.92000000000000E-17
+C_fringe, pchange: 0.00620407611358331, cchange: 0.011210000000000164,similairty: 55.3441223334810
+C_junc, pgrad: 169679539198454, value: 1e-15, delta: 1.00000000000000E-17, new_val: 9.90000000000000E-16
+C_junc, pchange: 0.00169679539198454, cchange: 0.0048200000000004906,similairty: 35.2032239000906
+C_junc_sw, pgrad: 1.70888644896690E+15, value: 2.5e-16, delta: 2.50000000000000E-18, new_val: 2.47500000000000E-16
+C_junc_sw, pchange: 0.00427221612241726, cchange: 0.01240000000000041,similairty: 34.4533558259445
+l_phy, pgrad: 0, value: 0.053, delta: 0, new_val: 0.0530000000000000
+l_phy, pchange: 0, cchange: 0.0,similairty: 100
+l_elec, pgrad: 0.00482021813349471, value: 0.0354, delta: 0.000354000000000000, new_val: 0.0350460000000000
+l_elec, pchange: 0.00000170635721925713, cchange: 0.0,similairty: zoo
+nmos_effective_resistance_multiplier, pgrad: 4.33845433283038, value: 1.77, delta: 0.0177000000000000, new_val: 1.75230000000000
+nmos_effective_resistance_multiplier, pchange: 0.0767906416910977, cchange: 0.05708000000000002,similairty: 65.4683922720784
+Vdd, pgrad: 8.53843925666379, value: 0.9, delta: 0.00900000000000000, new_val: 0.891000000000000
+Vdd, pchange: 0.0768459533099741, cchange: 0.07103999999999999,similairty: 91.8272053632121
+Vth, pgrad: -0.0177562518947369, value: 0.30764, delta: 0.00307640000000000, new_val: 0.304563600000000
+Vth, pchange: -0.0000546253333289685, cchange: -0.01761999999999908,similairty: 0.310018917871568
+Vdsat, pgrad: -0.00151005063651073, value: 0.113, delta: 0.00113000000000000, new_val: 0.111870000000000
+Vdsat, pchange: -0.00000170635721925713, cchange: 0.0,similairty: zoo
+I_on_n, pgrad: -19863.0733810392, value: 0.0003866, delta: 0.00000386600000000000, new_val: 0.000382734000000000
+I_on_n, pchange: -0.0767906416910977, cchange: -0.09517999999999915,similairty: 80.6793882024568
+I_on_p, pgrad: 0, value: 0.0002097, delta: 0, new_val: 0.000209700000000000
+I_on_p, pchange: 0, cchange: 0.0,similairty: 100
+C_ox, pgrad: -10731806410.4222, value: 1.59e-14, delta: 1.59000000000000E-16, new_val: 1.57410000000000E-14
+C_ox, pchange: -0.00000170635721925713, cchange: 0.0,similairty: zoo
+t_ox, pgrad: 0, value: 0.0015, delta: 0, new_val: 0.00150000000000000
+t_ox, pchange: 0, cchange: 0.0,similairty: 100
+n2p_drv_rt, pgrad: 3.54110189197434, value: 2.54, delta: 0.0254000000000000, new_val: 2.51460000000000
+n2p_drv_rt, pchange: 0.0899439880561483, cchange: 0.017240000000000144,similairty: -321.716868075102
+lch_lk_rdc, pgrad: 0, value: 1.0, delta: 0, new_val: 1.00000000000000
+lch_lk_rdc, pchange: 0, cchange: 0.0,similairty: 100
+Mobility_n, pgrad: -3.70632989260655E-15, value: 46039000000.0, delta: 460390000.000000, new_val: 45578610000.0000
+Mobility_n, pchange: -0.00000170635721925713, cchange: 0.0,similairty: zoo
+gmp_to_gmn_multiplier, pgrad: -0.0000861796575382388, value: 0.98, delta: 0.00980000000000000, new_val: 0.970200000000000
+gmp_to_gmn_multiplier, pchange: -8.44560643874740E-7, cchange: 0.0,similairty: zoo
+vpp, pgrad: 0, value: 1e-09, delta: 0, new_val: 1.00000000000000E-9
+vpp, pchange: 0, cchange: 0.0,similairty: 100
+dram_cell_I_on, pgrad: 0, value: 1e-09, delta: 0, new_val: 1.00000000000000E-9
+dram_cell_I_on, pchange: 0, cchange: 0.0,similairty: 100
+dram_cell_Vdd, pgrad: 0, value: 1e-09, delta: 0, new_val: 1.00000000000000E-9
+dram_cell_Vdd, pchange: 0, cchange: 0.0,similairty: 100
+dram_cell_C, pgrad: 0, value: 1e-09, delta: 0, new_val: 1.00000000000000E-9
+dram_cell_C, pchange: 0, cchange: 0.0,similairty: 100
+dram_cell_I_off_worst_case_len_temp, pgrad: 0, value: 1e-09, delta: 0, new_val: 1.00000000000000E-9
+dram_cell_I_off_worst_case_len_temp, pchange: 0, cchange: 0.0,similairty: 100
+logic_scaling_co_eff, pgrad: 0, value: 1.0, delta: 0, new_val: 1.00000000000000
+logic_scaling_co_eff, pchange: 0, cchange: 0.0,similairty: 100
+core_tx_density, pgrad: 0, value: 0.6125, delta: 0, new_val: 0.612500000000000
+core_tx_density, pchange: 0, cchange: 0.0,similairty: 100
+sckt_co_eff, pgrad: 0, value: 1.1539, delta: 0, new_val: 1.15390000000000
+sckt_co_eff, pchange: 0, cchange: 0.0,similairty: 100
+chip_layout_overhead, pgrad: 0, value: 1.2, delta: 0, new_val: 1.20000000000000
+chip_layout_overhead, pchange: 0, cchange: 0.0,similairty: 100
+macro_layout_overhead, pgrad: 0, value: 1.1, delta: 0, new_val: 1.10000000000000
+macro_layout_overhead, pchange: 0, cchange: 0.0,similairty: 100
+sense_delay, pgrad: 0, value: 2.8e-10, delta: 0, new_val: 2.80000000000000E-10
+sense_delay, pchange: 0, cchange: 0.0,similairty: 100
+sense_dy_power, pgrad: 0, value: 1.47e-14, delta: 0, new_val: 1.47000000000000E-14
+sense_dy_power, pchange: 0, cchange: 0.0,similairty: 100
+wire_pitch, pgrad: -0.0754257926385011, value: 8.0, delta: 0.0800000000000000, new_val: 7.92000000000000
+wire_pitch, pchange: -0.00603406341108009, cchange: 0.29710000000000036,similairty: -2.03098734805791
+barrier_thickness, pgrad: 0, value: 0.01, delta: 0, new_val: 0.0100000000000000
+barrier_thickness, pchange: 0, cchange: -0.0032800000000001717,similairty: 0
+dishing_thickness, pgrad: 0, value: 1e-09, delta: 0, new_val: 1.00000000000000E-9
+dishing_thickness, pchange: 0, cchange: 0.0,similairty: 100
+alpha_scatter, pgrad: 0, value: 1.0, delta: 0, new_val: 1.00000000000000
+alpha_scatter, pchange: 0, cchange: 0.0,similairty: 100
+aspect_ratio, pgrad: 0.561337254655408, value: 2.7, delta: 0.0270000000000000, new_val: 2.67300000000000
+aspect_ratio, pchange: 0.0151561058756960, cchange: -0.1613699999999998,similairty: -9.39214592284565
+miller_value, pgrad: 1.41392442313506, value: 1.5, delta: 0.0150000000000000, new_val: 1.48500000000000
+miller_value, pchange: 0.0212088663470259, cchange: 0.007020000000000692,similairty: -102.120603233958
+horiz_dielectric_constant, pgrad: 0.707014133951429, value: 2.709, delta: 0.0270900000000000, new_val: 2.68191000000000
+horiz_dielectric_constant, pchange: 0.0191530128887442, cchange: 0.13811000000000018,similairty: 13.8679406912926
+vert_dielectric_constant, pgrad: 0.0478928745828386, value: 3.9, delta: 0.0390000000000000, new_val: 3.86100000000000
+vert_dielectric_constant, pchange: 0.00186782210873070, cchange: 0.000700000000000145,similairty: -66.8317298186168
+ild_thickness, pgrad: -0.194564802992782, value: 0.96, delta: 0.00960000000000000, new_val: 0.950400000000000
+ild_thickness, pchange: -0.00186782210873070, cchange: 0.046830000000000815,similairty: -3.98851614078726
+fringe_cap, pgrad: 2.04422384965940E+16, value: 1.15e-16, delta: 1.15000000000000E-18, new_val: 1.13850000000000E-16
+fringe_cap, pchange: 0.0235085742710832, cchange: 0.004400000000000404,similairty: -334.285778888205
+resistivity, pgrad: 0, value: 0.022, delta: 0, new_val: 0.0220000000000000
+resistivity, pchange: 0, cchange: 0.0,similairty: 100
+wire_r_per_micron, pgrad: 0, value: 1e-09, delta: 0, new_val: 1.00000000000000E-9
+wire_r_per_micron, pchange: 0, cchange: 0.0,similairty: 100
+wire_c_per_micron, pgrad: 0, value: 1e-09, delta: 0, new_val: 1.00000000000000E-9
+wire_c_per_micron, pchange: 0, cchange: 0.0,similairty: 100
+tsv_pitch, pgrad: 0, value: 4.0, delta: 0, new_val: 4.00000000000000
+tsv_pitch, pchange: 0, cchange: 0.0,similairty: 100
+tsv_diameter, pgrad: 0, value: 2.0, delta: 0, new_val: 2.00000000000000
+tsv_diameter, pchange: 0, cchange: 0.0,similairty: 100
+tsv_length, pgrad: 0, value: 8.0, delta: 0, new_val: 8.00000000000000
+tsv_length, pchange: 0, cchange: 0.0,similairty: 100
+tsv_dielec_thickness, pgrad: 0, value: 0.1, delta: 0, new_val: 0.100000000000000
+tsv_dielec_thickness, pchange: 0, cchange: 0.0,similairty: 100
+tsv_contact_resistance, pgrad: 0, value: 0.1, delta: 0, new_val: 0.100000000000000
+tsv_contact_resistance, pchange: 0, cchange: 0.0,similairty: 100
+tsv_depletion_width, pgrad: 0, value: 0.6, delta: 0, new_val: 0.600000000000000
+tsv_depletion_width, pchange: 0, cchange: 0.0,similairty: 100
+tsv_liner_dielectric_cons, pgrad: 0, value: 2.709, delta: 0, new_val: 2.70900000000000
+tsv_liner_dielectric_cons, pchange: 0, cchange: 0.0,similairty: 100
