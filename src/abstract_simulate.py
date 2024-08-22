@@ -8,7 +8,7 @@ import sys
 import numpy as np
 import matplotlib.pyplot as plt
 import networkx as nx
-from sympy import *
+from . import sympy
 import sympy
 
 # custom modules

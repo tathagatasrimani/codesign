@@ -5,9 +5,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 
-import dfg_algo
-import hw_symbols
-from global_constants import SEED
+from .dfg_algo import *
+from .hw_symbols import *
+from .global_constants import SEED
 
 rng = np.random.default_rng(SEED)
 

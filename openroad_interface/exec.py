@@ -6,12 +6,12 @@ import sys
 import networkx as nx
 import pandas as pd 
 
-# from hardwareModel import HardwareModel
-import estimation as est
-import place_n_route as pnr
-from var import directory
-import def_generator as df
-import graph_plotter as gp
+from src.hardwareModel import *
+from . import estimation as est
+from . import place_n_route as pnr
+from .var import directory
+from . import def_generator as df
+from . import graph_plotter as gp
 
 def pandas_organize(design_name: str, estimation_dict: dict, detailed_dict: dict ):
     '''
@@ -45,7 +45,7 @@ def validation(design_name: str, test_directory: str):
     return:
         pandas dataframe: contains all parasitic information
     '''
-    graph_directory = "../src/architectures/"
+    graph_directory = "src/architectures/"
     # hardware = HardwareModel(path_to_graphml = graph_directory + design_name + ".gml")
     # hardware.get_total_area(self)
     # call the require function 
@@ -53,7 +53,7 @@ def validation(design_name: str, test_directory: str):
     # 1. generate def 
     # export PATH=./../build/src:$PATH ./../src/hardwareModel.py
     os.system("cp " + test_directory + " ./" + directory) 
-    os.system("cp tcl/codesign_flow.tcl ./" + directory) 
+    os.system("cp openroad_interface/tcl/codesign_flow.tcl ./" + directory) 
     # os.system("cp tcl/codesign_flow_short.tcl ./" + directory) once you figure out how to run this
     shutil.copyfile(test_directory, directory + "test.tcl")
     graph, net_out_dict, node_output, lef_data, node_to_num= df.def_generator(test_directory, graph_directory + design_name + ".gml")
@@ -67,11 +67,11 @@ def validation(design_name: str, test_directory: str):
 
 if __name__ == "__main__":
 
-    aes_arch_copy_data = validation("aes_arch_copy", "tcl/test_nangate45.tcl")
-    mm_test_data = validation("mm_test", "tcl/test_nangate45_bigger.tcl")
+    aes_arch_copy_data= validation("aes_arch_copy", "openroad_interface/tcl/test_nangate45.tcl")
+    mm_test_data = validation("mm_test", "openroad_interface/tcl/test_nangate45_bigger.tcl")
 
     combined_data = pd.concat([aes_arch_copy_data, mm_test_data])
-    combined_data.to_csv("results/result_rcl.csv")  
+    combined_data.to_csv("openroad_interface/results/result_rcl.csv")  
 
     designs = ["aes_arch_copy", "mm_test"]
     title = {"res":"Resistance over different designs using OpenROAD and estimation", "cap" : "Capacitance over different designs using OpenROAD and estimation", "length" : "Length over different designs using OpenROAD and estimation"}

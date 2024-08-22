@@ -40,11 +40,11 @@ def box_whiskers_plot(designs: list, units: list, title: list, show_flier: bool)
         box_plot.set_title(title[rc_or_l])
         box_plot.set_ylabel(units[rc_or_l])
 
-        if not os.path.exists("fig/"):
-            os.makedirs("fig/")
+        if not os.path.exists("openroad_interface/fig/"):
+            os.makedirs("openroad_interface/fig/")
 
         if show_flier:
-            plt.savefig("fig/" + rc_or_l + '.jpeg')
+            plt.savefig("openroad_interface/fig/" + rc_or_l + '.jpeg')
         else:
-            plt.savefig("fig/" + rc_or_l + '-noflier.jpeg')
+            plt.savefig("openroad_interface/fig/" + rc_or_l + '-noflier.jpeg')
         plt.close() 

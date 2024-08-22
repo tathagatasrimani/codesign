@@ -4,8 +4,8 @@ import re
 
 import networkx as nx
 
-from var import directory
-from functions import find_val_two, find_val_xy, find_val, value, format, clean
+from .var import directory
+from .functions import find_val_two, find_val_xy, find_val, value, format, clean
 
 ID_index = 0 
 pin_index_1 = 1

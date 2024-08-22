@@ -12,13 +12,13 @@ import graphviz as gv
 from sympy import *
 import networkx as nx
 
-from staticfg.builder import CFGBuilder
-from ast_utils import ASTUtils
-from memory import Memory, Cache
-from config_dicts import op2sym_map
-import rcgen
-import cacti_util
-from global_constants import SYSTEM_BUS_SIZE
+from .staticfg.builder import CFGBuilder
+from .ast_utils import ASTUtils
+from .memory import Memory, Cache
+from .config_dicts import op2sym_map
+from . import rcgen
+from . import cacti_util
+from .global_constants import SYSTEM_BUS_SIZE
 
 
 HW_CONFIG_FILE = "params/hw_cfgs.ini"

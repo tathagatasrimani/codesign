@@ -3,9 +3,19 @@ import os
 
 import networkx as nx
 
-from var import directory
-import estimation as est  
-import detailed as det
+from .var import directory
+from . import estimation as est  
+from . import detailed as det
+
+def openroad_run():
+    os.chdir(directory)
+    os.system("openroad test.tcl")
+    os.chdir("../../..")
+
+def export_graph(graph, design_name, est_or_det: str):
+    if not os.path.exists("openroad_interface/results/"):
+        os.makedirs("openroad_interface/results/")
+    nx.write_gml(graph, "openroad_interface/results/" + est_or_det + "_" + design_name + ".gml")
 
 def coord_scraping(graph: nx.DiGraph, node_to_num: dict, final_def_directory : str = directory + "results/final_generated-tcl.def"):
     '''
@@ -59,9 +69,7 @@ def estimated_place_n_route(graph: nx.DiGraph, design_name: str, net_out_dict: d
     '''
 
     # run openroad
-    os.chdir(directory)
-    os.system("openroad test.tcl")
-    os.chdir("../..")
+    openroad_run()
     
     graph, component_nets = coord_scraping(graph, node_to_num)
     estimated_res, estimated_res_data, estimated_cap, estimated_cap_data, estimated_length, estimated_length_data = est.parasitic_estimation(graph, component_nets, net_out_dict, lef_data, node_to_num)
@@ -76,9 +84,7 @@ def estimated_place_n_route(graph: nx.DiGraph, design_name: str, net_out_dict: d
             graph[output_pin][pin]['net_cap'] = estimated_cap[output_pin]
         net_graph_data.append(net_out_dict[output_pin])
     
-    if not os.path.exists("results/"):
-        os.makedirs("results/")
-    nx.write_gml(graph, "results/estimated_" + design_name + ".gml")
+    export_graph(graph, design_name, "estimate")
 
     return {"length":estimated_length_data, "res": estimated_res_data, "cap" : estimated_cap_data, "net": net_graph_data}, graph
 
@@ -99,9 +105,7 @@ def detailed_place_n_route(graph: nx.DiGraph, design_name: str, net_out_dict: di
         graph: newly modified digraph with rcl attributes
     '''
     # run openroad
-    os.chdir(directory)
-    os.system("openroad test.tcl")
-    os.chdir("../..")
+    openroad_run()
     
     # run parasitic_calc and length_calculations
     graph, _ = coord_scraping(graph, node_to_num)
@@ -124,9 +128,7 @@ def detailed_place_n_route(graph: nx.DiGraph, design_name: str, net_out_dict: di
         cap_graph_data.append(float(net_cap[net_out_dict[output_pin]]) * pow(10,4))
         len_graph_data.append(float(length_dict[net_out_dict[output_pin]]))
 
-    if not os.path.exists("results/"):
-        os.makedirs("results/")
-    nx.write_gml(graph, "results/openroad_" + design_name + ".gml")
+    export_graph(graph, design_name, "detailed")
 
     return {"res": res_graph_data, "cap": cap_graph_data, "length": len_graph_data, "net": net_graph_data}, graph
 

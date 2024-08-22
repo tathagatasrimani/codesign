@@ -6,8 +6,8 @@ from typing import Any
 import re 
 import networkx as nx
 
-from var import directory
-from functions import find_val_two, find_val_xy, find_val, value, format, clean
+from .var import directory
+from .functions import find_val_two, find_val_xy, find_val, value, format, clean
 
 design = "gcd"
 
@@ -401,7 +401,7 @@ def def_generator(tcl_file_directory: str, graph_file_directory: str):
     if not os.path.exists( "results/"):
         os.makedirs("results/")
         
-    with open('results/first_generated.def', 'w') as f:
+    with open('openroad_interface/results/first_generated.def', 'w') as f:
         for line in header_text:
             f.write(f"{line}\n")
         for line in row_text:
@@ -416,6 +416,6 @@ def def_generator(tcl_file_directory: str, graph_file_directory: str):
             f.write(f"{line}\n")
 
     lef_data_dict = {"width" : lef_width, "res" : layer_res, "cap" : layer_cap, "units" : units}
-    os.system("cp results/first_generated.def " + directory + "results/first_generated.def") 
+    os.system("cp openroad_interface/results/first_generated.def " + directory + "results/first_generated.def") 
 
     return graph, net_out_dict, node_output, lef_data_dict, node_to_num

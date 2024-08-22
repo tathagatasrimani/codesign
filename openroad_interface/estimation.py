@@ -5,7 +5,7 @@ import os
 import numpy as np
 import networkx as nx
 
-from var import directory
+from .var import directory
 
 def total_euclidean_distance(net_list: list, graph: nx.DiGraph, unit: float, node_to_num: dict):
     '''
