@@ -87,6 +87,7 @@ def eval_expr(expr, graph, node):
         return
     elif ASTUtils.isBinOp(expr):
         # print("visiting binop")
+        print(f"binop: {expr.op, expr.left, expr.right}")
         left = eval_expr(expr.left, graph, node)
         right = eval_expr(expr.right, graph, node)
         op_id = set_id()
@@ -130,14 +131,16 @@ def eval_expr(expr, graph, node):
     elif ASTUtils.isSet(expr):
         return
     elif ASTUtils.isListComp(expr):
-        # print("visiting listcomp")
+        print("visiting listcomp")
         # ListComp(expr elt, comprehension* generators)
         # comprehension = (expr target, expr iter, expr* ifs, int is_async)
         ids = [] # ids of for loops
         print(f"element: {expr.elt}")
         elt_id = eval_expr(expr.elt, graph, node)
+        '''
         for generator in expr.generators:
             # print(f"generator: {generator}")
+            print(f"iter: {generator.iter}")
             target_id = eval_expr(generator.target, graph, node)
             iter_id = eval_expr(generator.iter, graph, node)
             loop_id = set_id()
@@ -153,8 +156,12 @@ def eval_expr(expr, graph, node):
                 make_edge(graph, node, elt_id[0], if_id[0])
                 make_edge(graph, node, if_id[0], cond_id)
                 make_edge(graph, node, cond_id, loop_id)
+            if not generator.ifs:
+                print(f"element to loop")
+                make_edge(graph, node, elt_id[0], loop_id)
         # print(ids)
-        return ids
+        '''
+        return elt_id
     elif ASTUtils.isSetComp(expr):
         return
     elif ASTUtils.isDictComp(expr):
@@ -200,12 +207,13 @@ def eval_expr(expr, graph, node):
         if isinstance(expr.func, ast.Name):
             if expr.func.id=="len":
                 op = "Regs"
-            print(expr.func.id)
+            print(f"isCall func id:{expr.func.id}")
         func_id = set_id()
         make_node(graph, node, func_id, astor.to_source(expr)[:-1], None, op)
         for arg in expr.args:
-            print(arg)
+            print(f"isCall arg: {arg}")
             arg_id = eval_expr(arg, graph, node)
+            print(f"arg id: {arg_id}")
             make_edge(graph, node, arg_id[0], func_id)
         return [func_id]
     elif ASTUtils.isFormattedValue(expr):
@@ -250,10 +258,7 @@ def eval_expr(expr, graph, node):
         # print("visiting isStarred")
         # Starred(expr value, expr_context ctx)
         value_id = eval_expr(expr.value, graph, node)
-        id = set_id()
-        make_node(graph, node, id, str(expr.value), type(expr.ctx), None)
-        make_edge(graph, node, value_id[0], id)
-        return [id]
+        return value_id
     elif ASTUtils.isName(expr):
         # print("visiting name")
         id = set_id()
@@ -296,7 +301,7 @@ def eval_stmt(stmt, graph, node):
         print("isClassDef")
         return
     elif ASTUtils.isReturn(stmt):
-        print("isReturn")
+        # print("isReturn")
         eval_expr(stmt.value, graph, node)
         return
     elif ASTUtils.isDelete(stmt):
@@ -414,6 +419,7 @@ def eval_stmt(stmt, graph, node):
 
 # node for a non-literal
 def make_node(graph, cfg_node, id, name, ctx, opname):
+    print(f"making node {cfg_node}, id {id}, name {name}, opname {opname}")
     annotation = ""
     if ctx == ast.Load:
         annotation = "Read"
@@ -430,6 +436,7 @@ def make_node(graph, cfg_node, id, name, ctx, opname):
 
 # edge for a non-literal
 def make_edge(graph, node, source_id, target_id, annotation=""):
+    print(f"making edge from {source_id} to {target_id} with {node}")
     source, target = (
         graphs[node].id_to_Node[source_id],
         graphs[node].id_to_Node[target_id],
@@ -445,6 +452,7 @@ def make_edge(graph, node, source_id, target_id, annotation=""):
 # first pass over the basic block
 def dfg_per_node(node):
     global node_to_unroll, unroll, graphs
+    print("Start of new node", end="\n\n\n")
     graph = gv.Digraph()
     graphs[node] = Graph(set(), {}, None)
     node_to_symbols[node] = []
@@ -478,6 +486,7 @@ def dfg_per_node(node):
                 j -= 1
         i -= 1
     # graph.render(path + '/benchmarks/pictures/' + benchmark + "_dfg_node_" + str(node.id), view = False)
+    print(f"graphs node {graphs[node]}")
     return graphs[node]
 
 

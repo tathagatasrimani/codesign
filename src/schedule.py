@@ -114,6 +114,7 @@ def cfg_to_dfg(cfg, graphs, latency):
         cfg_node_to_hw_map: dict of cfg_node -> {states -> operations}
     """
     for node in cfg:
+        print("creating dfg for node {node}")
         cfg_node_to_dfg_map[node] = nx.DiGraph()
         operation_sets[node] = set()
 

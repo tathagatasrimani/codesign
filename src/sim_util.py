@@ -587,7 +587,7 @@ def compose_entire_computation_graph(
     computation_dfg = nx.DiGraph()
     curr_last_nodes = []
     i = find_next_data_path_index(data_path, 0, [], [])[0]
-    print(data_path)
+    print(f"datapath: {data_path}")
     while i < len(data_path):
         node_id = data_path[i][0]
         vars = data_path_vars[i]
@@ -595,7 +595,7 @@ def compose_entire_computation_graph(
         node = id_to_node[node_id]
         dfg = cfg_node_to_dfg_map[node]
         topological_layout_plot(dfg, reverse=True)
-        print(dfg.nodes)
+        print(f"dfg.nodes: {dfg.nodes}")
         if nx.is_empty(dfg):
             i = find_next_data_path_index(data_path, i + 1, [], [])[0]
             continue
