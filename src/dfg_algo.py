@@ -134,8 +134,10 @@ def eval_expr(expr, graph, node):
         # ListComp(expr elt, comprehension* generators)
         # comprehension = (expr target, expr iter, expr* ifs, int is_async)
         ids = [] # ids of for loops
+        print(f"element: {expr.elt}")
         elt_id = eval_expr(expr.elt, graph, node)
         for generator in expr.generators:
+            # print(f"generator: {generator}")
             target_id = eval_expr(generator.target, graph, node)
             iter_id = eval_expr(generator.iter, graph, node)
             loop_id = set_id()
@@ -144,19 +146,31 @@ def eval_expr(expr, graph, node):
             make_edge(graph, node, target_id[0], loop_id)
             make_edge(graph, node, iter_id[0], loop_id)
             for if_expr in generator.ifs:
+                # print(f"if: {if_expr}")
                 if_id = eval_expr(if_expr, graph, node)
                 cond_id = set_id()
                 make_node(graph, node, cond_id, "if", None, None)
                 make_edge(graph, node, elt_id[0], if_id[0])
                 make_edge(graph, node, if_id[0], cond_id)
                 make_edge(graph, node, cond_id, loop_id)
+        # print(ids)
         return ids
     elif ASTUtils.isSetComp(expr):
         return
     elif ASTUtils.isDictComp(expr):
         return
     elif ASTUtils.isGeneratorExp(expr):
-        return
+        '''
+        print(f"generator: {expr}")
+        target_id = eval_expr(expr.target, graph, node)
+        iter_id = eval_expr(expr.iter, graph, node)
+        loop_id = set_id()
+        ids.append(loop_id)
+        make_node(graph, node, loop_id, "for", None, None)
+        make_edge(graph, node, target_id[0], loop_id)
+        make_edge(graph, node, iter_id[0], loop_id)
+        '''
+        return None
     elif ASTUtils.isAwait(expr):
         return
     elif ASTUtils.isYield(expr):
@@ -186,9 +200,11 @@ def eval_expr(expr, graph, node):
         if isinstance(expr.func, ast.Name):
             if expr.func.id=="len":
                 op = "Regs"
+            print(expr.func.id)
         func_id = set_id()
         make_node(graph, node, func_id, astor.to_source(expr)[:-1], None, op)
         for arg in expr.args:
+            print(arg)
             arg_id = eval_expr(arg, graph, node)
             make_edge(graph, node, arg_id[0], func_id)
         return [func_id]
@@ -274,12 +290,17 @@ def eval_stmt(stmt, graph, node):
             unroll = False
         # print(unroll)
     elif ASTUtils.isAsyncFunctionDef(stmt):
+        print("isAsyncFunctionDef")
         return
     elif ASTUtils.isClassDef(stmt):
+        print("isClassDef")
         return
     elif ASTUtils.isReturn(stmt):
+        print("isReturn")
+        eval_expr(stmt.value, graph, node)
         return
     elif ASTUtils.isDelete(stmt):
+        print("isDelete")
         return
     elif ASTUtils.isAssign(stmt):
         # print("visiting assign")
@@ -357,27 +378,37 @@ def eval_stmt(stmt, graph, node):
         # print("visiting if")
         eval_expr(stmt.test, graph, node)
     elif ASTUtils.isWith(stmt):
+        print("isWith")
         return
     elif ASTUtils.isAsyncWith(stmt):
+        print("isAsyncWith")
         return
     elif ASTUtils.isRaise(stmt):
+        print("isRaise")
         return
     elif ASTUtils.isTry(stmt):
+        print("isTry")
         return
     elif ASTUtils.isAssert(stmt):
+        print("isAssert")
         return
     elif ASTUtils.isImport(stmt):
+        print("isImport")
         return
     elif ASTUtils.isImportFrom(stmt):
+        print("isImportFrom")
         return
     elif ASTUtils.isGlobal(stmt):
+        print("isGlobal")
         return
     elif ASTUtils.isNonlocal(stmt):
+        print("isNonlocal")
         return
     elif type(stmt) == ast.Expr:
         # print("visiting expr")
         eval_expr(stmt.value, graph, node)
     elif ASTUtils.isCall(stmt):
+        print("isCall")
         return
 
 
