@@ -281,7 +281,7 @@ def main():
     if args.filepath:
         nx.write_gml(
             hw.netlist,
-            f"architectures/{args.filepath}.gml",
+            f"src/architectures/{args.filepath}.gml",
             stringizer=lambda x: str(x),
         )
         hw.duplicate_config_section(args.config, args.filepath)

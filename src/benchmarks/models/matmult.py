@@ -1,5 +1,6 @@
-from loop import loop
 import numpy as np
+
+from .loop import loop
 
 def main():
     N = 2

@@ -1,6 +1,6 @@
 import numpy as np
 
-from .sim_util import *
+from . import sim_util
 from .global_constants import SYSTEM_BUS_SIZE
 
 ALIGNMENT = 8

@@ -154,7 +154,7 @@ def def_generator(tcl_file_directory: str, graph_file_directory: str):
             site = re.findall(r'"(.*?)"', line)
             site_name = site[0]
 
-    os.system("cp std_cell_lef/Nangate45_stdcell.lef" + " ./" + lef_std_file) 
+    os.system("cp openroad_interface/std_cell_lef/Nangate45_stdcell.lef" + " ./" + lef_std_file) 
 
     # extracting needed macros and their respective pins from lef and puts it into a dict
     lef_std_data = open(lef_std_file)
@@ -398,8 +398,8 @@ def def_generator(tcl_file_directory: str, graph_file_directory: str):
                 
     if not os.path.exists( directory + "results/"):
         os.makedirs(directory + "results/")
-    if not os.path.exists( "results/"):
-        os.makedirs("results/")
+    if not os.path.exists( "openroad_interface/results/"):
+        os.makedirs("openroad_interface/results/")
         
     with open('openroad_interface/results/first_generated.def', 'w') as f:
         for line in header_text:
