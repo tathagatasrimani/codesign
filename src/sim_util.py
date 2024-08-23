@@ -5,8 +5,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from .dfg_algo import *
-from .hw_symbols import *
+from . import dfg_algo
+from . import hw_symbols
 from .global_constants import SEED
 
 rng = np.random.default_rng(SEED)

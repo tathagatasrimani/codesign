@@ -456,6 +456,26 @@ def main(args):
 
     area = hw.get_total_area()
 
+    '''
+    TODO: implement openroad
+    1. take the area given her and return it to openroad interface to set the die area. this
+    can be implemented later, i need to get this data first :,)
+    2. figure out how scheduling information is added. cannot run anything rn, but it looks like
+    it's added as a node attribute. 
+    3. for energy = 1/2 c v^2. if multiple node are sending signals, it shouldn't matter because
+    it will be the same voltage throughout. therefore, it doesn't matter if we use input or output, 
+    just whatever is the easiest. and these up. 
+    4. time constant latency stuff. determines how long it takes for capacitor to get charged up. again, 
+    should not matter how many inputs are on because all the same voltage. t = rc, so that is simple. 
+    add them up probably. 
+    5. there was a third one i think, but i forgot what it was. 
+    6. the game plan is probably go through for the starting nodes and then work from there. check
+    if the node and its respective net and store that net in a set. then check the next node etc. then
+    using that net list, calculate respective information. then we go onto the next step in time. 
+    7. all of this will, probably, happen in this simulate function, but this will be checked. 
+    8. coding will be done once i can  GET THIS THING TO RUN. 
+    '''
+
     # print stats
     print("total number of cycles: ", simulator.cycles)
     print(f"execution time: {simulator.execution_time} ns")

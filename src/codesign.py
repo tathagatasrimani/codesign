@@ -44,8 +44,7 @@ class Codesign:
         # copy the benchmark and instrumented files;
         shutil.copy(benchmark, f"{self.save_dir}/benchmark.py")
         shutil.copy(f"src/instrumented_files/output.txt", f"{self.save_dir}/output.txt")
-        shutil.copy(f"src/instrumented_files/output_free.txt", f"{self.save_dir}/output_free.txt")
-
+        
         logging.basicConfig(filename=f"{self.save_dir}/log.txt", level=logging.INFO)
 
         self.area_constraint = area
@@ -94,7 +93,7 @@ class Codesign:
             f"\nInitial EDP: {self.forward_edp} E-18 Js. Active Energy: {self.sim.active_energy} nJ. Passive Energy: {self.sim.passive_energy} nJ. Execution time: {self.sim.execution_time} ns"
         )
 
-        with open("params/rcs_current.yaml", "w") as f:
+        with open("src/params/rcs_current.yaml", "w") as f:
             f.write(yaml.dump(rcs))
 
     def set_technology_parameters(self, tech_params):
