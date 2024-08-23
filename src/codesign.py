@@ -11,13 +11,13 @@ logger = logging.getLogger("codesign")
 from sympy import sympify
 import networkx as nx
 
-import architecture_search
-import coefficients
-import symbolic_simulate
-import optimize
-import hw_symbols
-import sim_util
-import hardwareModel
+from . import architecture_search
+from . import coefficients
+from . import symbolic_simulate
+from . import optimize
+from . import hw_symbols
+from . import sim_util
+from . import hardwareModel
 
 
 class Codesign:
@@ -43,8 +43,8 @@ class Codesign:
 
         # copy the benchmark and instrumented files;
         shutil.copy(benchmark, f"{self.save_dir}/benchmark.py")
-        shutil.copy(f"instrumented_files/output.txt", f"{self.save_dir}/output.txt")
-        shutil.copy(f"instrumented_files/output_free.txt", f"{self.save_dir}/output_free.txt")
+        shutil.copy(f"src/instrumented_files/output.txt", f"{self.save_dir}/output.txt")
+        shutil.copy(f"src/instrumented_files/output_free.txt", f"{self.save_dir}/output_free.txt")
 
         logging.basicConfig(filename=f"{self.save_dir}/log.txt", level=logging.INFO)
 

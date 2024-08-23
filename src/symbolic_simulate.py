@@ -17,15 +17,15 @@ import pyomo.environ as pyo
 from pyomo.core.expr import Expr_if
 
 # custom modules
-from memory import Memory
-import schedule
-import dfg_algo
-import hw_symbols
-import sim_util
-import hardwareModel
-from hardwareModel import HardwareModel
-from global_constants import SEED
-from abstract_simulate import AbstractSimulator
+from .memory import Memory
+from . import schedule
+from . import dfg_algo
+from . import hw_symbols
+from . import sim_util
+from . import hardwareModel
+from .hardwareModel import HardwareModel
+from .global_constants import SEED
+from .abstract_simulate import AbstractSimulator
 
 rng = np.random.default_rng(SEED)
 
