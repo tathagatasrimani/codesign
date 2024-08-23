@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 import graphviz as gv
 from sympy import *
 import networkx as nx
+import shutil
 
 from .staticfg.builder import CFGBuilder
 from .ast_utils import ASTUtils
@@ -19,6 +20,10 @@ from .config_dicts import op2sym_map
 from . import rcgen
 from . import cacti_util
 from .global_constants import SYSTEM_BUS_SIZE
+from openroad_interface import place_n_route
+from openroad_interface.var import directory
+from openroad_interface import def_generator
+
 
 
 HW_CONFIG_FILE = "src/params/hw_cfgs.ini"
@@ -103,6 +108,7 @@ class HardwareModel:
             config = cp.ConfigParser()
             config.read(HW_CONFIG_FILE)
             path_to_graphml = f"src/architectures/{cfg}.gml"
+            self.path_to_graphml = path_to_graphml
             try:
                 self.set_hw_config_vars(
                     config.getint(cfg, "id"),
@@ -130,6 +136,8 @@ class HardwareModel:
             self.update_netlist()
         else:
             self.netlist = nx.Graph()
+        
+        self.parasitic_graph = None # can be removed if better organization for this
 
         self.init_misc_vars()
         self.set_technology_parameters()
@@ -212,7 +220,6 @@ class HardwareModel:
         tech_params = yaml.load(
             open("src/params/tech_params.yaml", "r"), Loader=yaml.Loader
         )
-
         self.area = tech_params["area"][self.transistor_size]
         self.latency = tech_params["latency"][self.transistor_size]
 
@@ -386,7 +393,7 @@ class HardwareModel:
         """
         buf_vals = cacti_util.gen_vals(
             "base_cache",
-            cacheSize=self.buffer_size, # TODO: Add in buffer sizing
+            cacheSize=2048, # TODO: Add in buffer sizing
             blockSize=64,
             cache_type="cache",
             bus_width=self.buffer_bus_width,
@@ -394,7 +401,7 @@ class HardwareModel:
         logger.info(f"Buffer cacti with: {self.buffer_size} bytes, {self.buffer_bus_width} bus width")
         mem_vals = cacti_util.gen_vals(
             "mem_cache",
-            cacheSize=self.mem_size,
+            cacheSize= 131072,
             blockSize=64,
             cache_type="main memory",
             bus_width=self.memory_bus_width,
@@ -457,3 +464,25 @@ class HardwareModel:
             else 0.0
         )
         return
+
+    def get_wire_parasitics(self, arg_parasitics, arg_testfile):
+        os.system("cp " + arg_testfile + " ./" + directory) 
+        os.system("cp openroad_interface/tcl/codesign_flow.tcl ./" + directory) 
+        shutil.copyfile(arg_testfile, directory + "test.tcl")
+        design_name= self.path_to_graphml.split("/")[len(self.path_to_graphml.split("/")) - 1]
+        graph, net_out_dict, node_output, lef_data, node_to_num= def_generator.def_generator(arg_testfile, self.path_to_graphml)
+
+        if arg_parasitics == "detailed":
+            _, graph = place_n_route.detailed_place_n_route(graph, design_name, net_out_dict, node_output, lef_data, node_to_num)
+        elif arg_parasitics == "estimate":
+            _, graph = place_n_route.estimated_place_n_route(graph, design_name, net_out_dict, node_output, lef_data, node_to_num)
+        elif arg_parasitics == "none":
+            for output_pin in net_out_dict:
+                    for node in node_output[output_pin]:
+                        graph[output_pin][node]['net'] = 0
+                        graph[output_pin][node]['net_length'] = 0
+                        graph[output_pin][node]['net_res'] = 0
+                        graph[output_pin][node]['net_cap'] = 0
+        self.parasitic_graph = graph
+
+                    

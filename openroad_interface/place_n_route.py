@@ -91,6 +91,7 @@ def coord_scraping(graph: nx.DiGraph,
             match = re.search(component_pattern, line)
             component_nets[match.group(0)] = pins
 
+    print (graph.nodes)
     for node in node_to_num:
         coord = macro_coords[node_to_num[node]]
         graph.nodes[node]['x'] = coord['x']
@@ -141,7 +142,7 @@ def estimated_place_n_route(graph: nx.DiGraph,
     
     export_graph(graph, design_name, "estimated_nomux")
 
-    return {"length":estimated_length_data, "res": estimated_res_data, "cap" : estimated_cap_data, "net": net_graph_data}, graph
+    return {"length":estimated_length_data, "res": estimated_res_data, "cap" : estimated_cap_data, "net": net_graph_data}, new_graph
 
 def detailed_place_n_route(graph: nx.DiGraph, 
                            design_name: str, 
@@ -190,6 +191,7 @@ def detailed_place_n_route(graph: nx.DiGraph,
         res_graph_data.append(float(net_res[net_out_dict[output_pin]])) # ohms
         cap_graph_data.append(float(net_cap[net_out_dict[output_pin]])) # picofarads
 
+    new_graph = mux_removal(graph, design_name)
     export_graph(graph, design_name, "detailed")
 
 
@@ -200,3 +202,40 @@ def detailed_place_n_route(graph: nx.DiGraph,
 
 
     return {"res": res_graph_data, "cap": cap_graph_data, "length": len_graph_data, "net": net_graph_data}, graph
+
+def none_place_n_route(graph: nx.DiGraph, 
+                            design_name: str, 
+                            net_out_dict: dict, 
+                            node_output: dict, 
+                            lef_data: dict, 
+                            node_to_num: dict) -> dict:
+    '''
+    runs openroad, calculates rcl, and then adds attributes to the graph
+    params: 
+        graph: networkx graph
+        design_name: design name
+        net_out_dict: dict that lists nodes and thier respective edges (all nodes have one output)
+        node_output: dict that lists nodes and their respective output nodes
+        lef_data: dict with layer information (units, res, cap, width)
+        node_to_num: dict that gives component id equivalent for node
+    returns: 
+        dict: contains list of resistance, capacitance, length, and net data
+        graph: newly modified digraph with rcl attributes
+    '''
+    design_name = design_name.replace(".gml", "")
+
+    # edge attribution 
+    net_graph_data = []
+    for output_pin in net_out_dict:
+                    for node in node_output[output_pin]:
+                        graph[output_pin][node]['net'] = 0
+                        graph[output_pin][node]['net_length'] = 0
+                        graph[output_pin][node]['net_res'] = 0
+                        graph[output_pin][node]['net_cap'] = 0
+
+    mux_listing(graph, node_output)
+    mux_removal(graph)
+
+    export_graph(graph, design_name, "none_nomux")
+
+    return graph

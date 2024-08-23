@@ -275,6 +275,7 @@ class ConcreteSimulator(AbstractSimulator):
 
         TODO: Doesn't yet add in all buff and mem operations
         TODO: This is a great candidate to cpp ify via cppyy
+        TODO: mux exists, must account for that
         """
         self.reset_internal_variables()
 
@@ -284,7 +285,7 @@ class ConcreteSimulator(AbstractSimulator):
             # numeric layer value as a node attribute
             for node in nodes:
                 fake_hw.nodes[node]["layer"] = layer
-
+        nx.write_gml(fake_hw, "fake_hw.gml")
         counter = 0
 
         generations = list(reversed(
@@ -295,6 +296,8 @@ class ConcreteSimulator(AbstractSimulator):
                 break
             counter += 1
             temp_C = nx.DiGraph()
+            active_cap_vals = []
+            active_net = set()
             for node in gen:
                 logger.info(f"node -> {node}: {computation_dfg.nodes[node]}")
                 child_added = False
@@ -340,10 +343,20 @@ class ConcreteSimulator(AbstractSimulator):
                         * scaling
                         * hw.latency[node_data["function"]] # ns
                     )
+                active_net_len = len(active_net)
+                parasitic_node = None
+                if "allocation" in node_data and node_data["allocation"] != "" and "Mem" not in node_data["allocation"] and "Buf" not in node_data["allocation"]:
+                    parasitic_edge = hw.parasitic_graph[node_data["allocation"]][list(hw.parasitic_graph.out_edges(node_data["allocation"]))[0][1]]
+                    active_net.add(parasitic_edge["net"])
+                    if active_net_len != len(active_net):
+                        active_cap_vals.append(parasitic_edge["net_cap"])
 
                 self.active_energy += energy
                 hw.compute_operation_totals[node_data["function"]] += 1
-
+            net_energy = 0
+            for cap in active_cap_vals:
+                net_energy += (1/2) * cap * hw.V_dd * hw.V_dd
+            self.active_energy += net_energy
             def matcher_func(n1, n2):
                 res = (
                     n1["function"] == n2["function"]
@@ -395,6 +408,7 @@ class ConcreteSimulator(AbstractSimulator):
                         if func in ["Buf", "MainMem"]:
                             scaling = node_data["size"]
                             logger.info(f"latency scaling: {scaling}")
+                        # do the same thing as above for energy except rc calculation 
 
                         path_latency += hw.latency[func] * scaling
                     if path_latency > self.cycles:
@@ -451,6 +465,7 @@ def main(args):
     simulator.new_graph = dfg_algo.Graph(set(), {}, new_gv_graph)
 
     hardwareModel.un_allocate_all_in_use_elements(hw.netlist)
+    hw.get_wire_parasitics(args.parasitics, args.openroad_testfile)
     data = simulator.simulate(computation_dfg, hw)
     simulator.calculate_edp()
 
@@ -489,10 +504,10 @@ def main(args):
     names = args.benchmark.split("/")
     if not args.notrace:
         text = json.dumps(data, indent=4)
-        Path(simulator.path + "src/benchmarks/json_data").mkdir(
+        Path(simulator.path + "/src/benchmarks/json_data").mkdir(
             parents=True, exist_ok=True
         )
-        with open(simulator.path + "src/benchmarks/json_data/" + names[-1], "w") as fh:
+        with open(simulator.path + "/src/benchmarks/json_data/" + names[-1], "w") as fh:
             fh.write(text)
 
     print("done!")
@@ -507,18 +522,35 @@ if __name__ == "__main__":
         description="Runs a hardware simulation on a given benchmark and technology spec",
         epilog="Text at the bottom of help",
     )
+
+    # eventually 
+    parser.add_argument( 
+        "--parasitics",
+        type=str,
+        choices=["detailed", "estimated", "none"],
+        default="none",
+        help="determines what type of parasitic calculations are done for wires",
+    )
+
+    parser.add_argument(
+        "--openroad_testfile",
+        type=str,
+        default="openroad_interface/tcl/test_nangate45_bigger.tcl",
+        help="determines what type of parasitic calculations are done for wires",
+    )
+
     parser.add_argument("benchmark", metavar="B", type=str)
     parser.add_argument("--notrace", action="store_true")
     parser.add_argument(
         "--architecture_config",
         type=str,
-        default="aladdin_const_with_mem",
+        default="mm_test", # aladdin_const_with_mem
         help="Path to the architecture file (.gml)",
     )
     args = parser.parse_args()
 
     print(
-        f"args: benchmark: {args.benchmark}, trace: {args.notrace}, architecture: {args.architecture_config}"
+        f"args: benchmark: {args.benchmark}, trace: {args.notrace}, architecture: {args.architecture_config}, parasitics: {args.parasitics}"
     )
 
     main(args)

@@ -219,7 +219,7 @@ def main():
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, filename="codesign_log_dir/optimize.log")
+    logging.basicConfig(level=logging.INFO, filename="src/codesign_log_dir/optimize.log")
     parser = argparse.ArgumentParser(
         prog="Optimize",
         description="Optimization part of the Inverse Pass. This runs after an analytic equation for the cost is created.",
