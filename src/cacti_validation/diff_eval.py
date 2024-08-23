@@ -290,7 +290,7 @@ def append_to_csv(config_key, diff_params_similarities, csv_filename='cacti_vali
 if __name__ == "__main__":
     # Set up argument parsing
     parser = argparse.ArgumentParser(description="Process configuration and SymPy files.")
-    parser.add_argument("-CFG", type=str, default="cacti/mem_validate_cache.cfg", help="Path to the configuration file")
+    parser.add_argument("-CFG", type=str, default="mem_validate_cache", help="Path or Name to the configuration file; don't append cacti/ or .cfg")
     parser.add_argument("-SYMPY", type=str, default="sympy_mem_validate", help="Path to the SymPy file")
     parser.add_argument("-v", type=str, default="Vdd", help="Tech parameter key")
     parser.add_argument("-gen", type=str, default="false", help="Boolean flag to generate output")
@@ -313,10 +313,24 @@ if __name__ == "__main__":
     print(f"Metric is set to: {metric}")
 
     if gen_flag:
-        print("Generating additional output as requested.")
+        buf_vals = cacti_util.run_existing_cacti_cfg(cfg_file)
+
+        buf_opt = {
+            "ndwl": buf_vals["Ndwl"],
+            "ndbl": buf_vals["Ndbl"],
+            "nspd": buf_vals["Nspd"],
+            "ndcm": buf_vals["Ndcm"],
+            "ndsam1": buf_vals["Ndsam_level_1"],
+            "ndsam2": buf_vals["Ndsam_level_2"],
+            "repeater_spacing": buf_vals["Repeater spacing"],
+            "repeater_size": buf_vals["Repeater size"],
+        }
+
         # Include logic to handle the case when the -gen flag is True
+        cfg_file = "cacti/" + cfg_file + ".cfg"
+        IO_info = cacti_util.cacti_gen_sympy(sympy_file, cfg_file, buf_opt, use_piecewise=False)
     else:
-        print("Skipping additional output generation.")
+        cfg_file = f'cacti/{cfg_file}.cfg'
 
     # Since you are now in `parent_dir`, the files are referenced directly
     load(cfg_file)

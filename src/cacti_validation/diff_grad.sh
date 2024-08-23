@@ -2,7 +2,7 @@
 cd ..
 
 # Define default values for cfg_file, sympy_file, tech_param_key, gen_flag, and metric
-CFG_FILE="cacti/mem_validate_cache.cfg"
+CFG_FILE="mem_validate_cache"
 SYMPY_FILE="sympy_mem_validate"
 TECH_PARAM_KEY="Vdd"
 GEN_FLAG="false"
