@@ -76,14 +76,14 @@ def edge_gen(in_or_out, nodes, graph) -> dict:
     return result
 
 
-def def_generator(tcl_file_directory: str, graph_file_directory: str): 
+def def_generator(tcl_file_directory: str, graph: nx.DiGraph): 
     '''
      -> nx.DiGraph, dict, dict, dict (it's not working when actaully written)
     Generates required .def file for OpenROAD.
 
     params: 
         tcl_file_imported: tcl file directory
-        graph_file_directory: graph file directory
+        graph: nx.DiGraph, untouched
     
     returns: 
         graph: networkx graph that has been modified (pruned and new components)
@@ -193,7 +193,6 @@ def def_generator(tcl_file_directory: str, graph_file_directory: str):
             break
 
     # graph reading
-    graph = nx.read_gml(graph_file_directory)
     nodes = list(graph)
     control_nodes = list(graph)
 

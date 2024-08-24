@@ -45,7 +45,7 @@ def validation(design_name: str, test_directory: str):
     return:
         pandas dataframe: contains all parasitic information
     '''
-    graph_directory = "src/architectures/"
+    graph = nx.read_gml("src/architectures/" design_name + ".gml")
     # hardware = HardwareModel(path_to_graphml = graph_directory + design_name + ".gml")
     # hardware.get_total_area(self)
     # call the require function 
@@ -56,7 +56,7 @@ def validation(design_name: str, test_directory: str):
     os.system("cp openroad_interface/tcl/codesign_flow.tcl ./" + directory) 
     # os.system("cp tcl/codesign_flow_short.tcl ./" + directory) once you figure out how to run this
     shutil.copyfile(test_directory, directory + "test.tcl")
-    graph, net_out_dict, node_output, lef_data, node_to_num= df.def_generator(test_directory, graph_directory + design_name + ".gml")
+    graph, net_out_dict, node_output, lef_data, node_to_num= df.def_generator(test_directory, graph)
 
     # 3. extract parasitics
     detailed_dict, detailed_graph = pnr.detailed_place_n_route(graph, design_name, net_out_dict, node_output, lef_data, node_to_num)
