@@ -137,7 +137,7 @@ def eval_expr(expr, graph, node):
         ids = [] # ids of for loops
         print(f"element: {expr.elt}")
         elt_id = eval_expr(expr.elt, graph, node)
-        '''
+        
         for generator in expr.generators:
             # print(f"generator: {generator}")
             print(f"iter: {generator.iter}")
@@ -160,8 +160,8 @@ def eval_expr(expr, graph, node):
                 print(f"element to loop")
                 make_edge(graph, node, elt_id[0], loop_id)
         # print(ids)
-        '''
-        return elt_id
+        
+        return ids
     elif ASTUtils.isSetComp(expr):
         return
     elif ASTUtils.isDictComp(expr):
@@ -208,6 +208,8 @@ def eval_expr(expr, graph, node):
             if expr.func.id=="len":
                 op = "Regs"
             print(f"isCall func id:{expr.func.id}")
+        else:
+            print(f"expr.func.id {expr.func.value.id, expr.func.attr, expr.func.ctx}")
         func_id = set_id()
         make_node(graph, node, func_id, astor.to_source(expr)[:-1], None, op)
         for arg in expr.args:
@@ -286,6 +288,7 @@ def eval_expr(expr, graph, node):
 
 def eval_stmt(stmt, graph, node):
     global unroll
+    print(f"source: {astor.to_source(stmt)}")
     if ASTUtils.isFunctionDef(stmt):
         for decorator in stmt.decorator_list:
             if ASTUtils.isName(decorator) and decorator.id == "unroll":
@@ -413,7 +416,7 @@ def eval_stmt(stmt, graph, node):
         # print("visiting expr")
         eval_expr(stmt.value, graph, node)
     elif ASTUtils.isCall(stmt):
-        print("isCall")
+        print(f"statement: isCall {astor.to_source(stmt)}")
         return
 
 
