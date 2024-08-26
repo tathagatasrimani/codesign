@@ -29,6 +29,8 @@ def setup_arch_search(benchmark, arch_init_config):
 
     arch_search_util.generate_new_min_arch_on_whole_dfg(hw, computation_dfg)
     logger.info(f"Initial netlist: {hw.netlist.nodes}")
+    hw.update_netlist()
+
     hw.init_memory(
         sim_util.find_nearest_power_2(simulator.memory_needed),
         sim_util.find_nearest_power_2(simulator.nvm_memory_needed),

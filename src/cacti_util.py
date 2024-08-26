@@ -29,14 +29,13 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
 
     if cache_type == None:
         cache_type = config_values["cache_type"]
-    
+
     if cache_type == "cache":
         associativity = 0
         num_search_ports = 1
     else:
         associativity = config_values["associativity"]
         num_search_ports = config_values["num_search_ports"]
-        
 
     if bus_width == None:
         bus_width = config_values["output/input_bus_width"]
@@ -270,8 +269,17 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
 
     cmd = ['./cacti', '-infile', input_filename]
 
-    p = subprocess.Popen(cmd, cwd=cactiDir, stdout=subprocess.DEVNULL)
+    p = subprocess.Popen(
+        cmd, cwd=cactiDir, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    )
     p.wait()
+    print(f"Ran Cacti with exit code {p.returncode}")
+    if p.returncode != 0:
+        raise Exception(
+            f"Cacti Error",
+            {p.stderr.read().decode()},
+            {p.stdout.read().decode().split("\n")[-2]},
+        )
 
     output_filename = filename + ".cfg.out"
     cactiOutput = os.path.join(cactiDir, output_filename)

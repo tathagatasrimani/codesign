@@ -86,8 +86,8 @@ def find_nearest_power_2(num):
     """
     if num == 0:
         return 0
-    if num < 512:
-        return 512
+    if num < 32768:
+        return 32768
     if num > 536870912:
         return 536870912
     return 2 ** math.ceil(math.log(num, 2))

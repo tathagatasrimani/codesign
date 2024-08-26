@@ -48,7 +48,7 @@ class Codesign:
 
         logging.basicConfig(filename=f"{self.save_dir}/log.txt", level=logging.INFO)
 
-        self.area_constraint = area
+        self.area_constraint = area  # in um^2
         self.forward_edp = 0
         self.inverse_edp = 0
         self.tech_params = None

@@ -155,7 +155,7 @@ class HardwareModel:
         self.buffer_bus_width = SYSTEM_BUS_SIZE
         self.memory_bus_width = SYSTEM_BUS_SIZE
 
-    def init_memory(self, mem_needed, nvm_mem_needed, buffer_size=64):
+    def init_memory(self, mem_needed, nvm_mem_needed, buffer_size=2048):
         """
         Add a Memory Module to the netlist for each MainMem node.
         Add a Cache Module to the netlist for each Buf node.
@@ -364,8 +364,8 @@ class HardwareModel:
             num_nodes_with_func(self.netlist, "Buf") - 1
         )
 
-        logger.info(f"buf total area: {self.area['Buf']} nm^2")
-        logger.info(f"buf peripheral area: {self.buf_peripheral_area_proportion * self.area['Buf']} nm^2")
+        logger.info(f"buf total area: {self.area['Buf'] * 1e-6} um^2")
+        logger.info(f"buf peripheral area: {self.buf_peripheral_area_proportion * self.area['Buf'] * 1e-6} um^2")
 
         # bw = 0
         # for node in filter(
@@ -378,8 +378,8 @@ class HardwareModel:
         # self.on_chip_area += (bw - 1) * bw_scaling * self.area["MainMem"]
 
         self.off_chip_area = self.area["MainMem"] + self.area["OffChipIO"]
-        logger.info(f"on_chip_area: {self.on_chip_area} nm^2")
-        logger.info(f"off_chip_area: {self.off_chip_area} nm^2")
+        logger.info(f"on_chip_area: {self.on_chip_area * 1e-6} um^2")
+        logger.info(f"off_chip_area: {self.off_chip_area * 1e-6} um^2")
 
         return self.on_chip_area * 1e-6  # convert from nm^2 to um^2
 
