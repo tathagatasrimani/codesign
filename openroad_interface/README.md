@@ -6,7 +6,7 @@ Allows codesign to utilize OpenROAD for resistance, capacitance, and length calc
 1. Build OpenROAD using the documentation that they provide: https://openroad.readthedocs.io/en/latest/user/Build.html
 2. Once OpenROAD is built, the command "openroad", which activates the tcl shell, should be able to run everywhere. If this is not the case, just ensure that this command is able to run in the OpenROAD test directory by exporting the route. To do this, go to the root of Codesign then run:
 ```
-export PATH=/openroad_interface/build/src:$PATH
+export PATH=$PATH:$(pwd)/openroad_interface/OpenROAD/build/src:$PATH
 ```
 
 ## Usage
