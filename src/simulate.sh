@@ -11,9 +11,14 @@ do
 done
 
 # arguments like this: ./simulate.sh -n <name>
+CURRENT_DIR_NAME=$(basename "$PWD")
 if [ $name ]; then
     FILEPATH=src/benchmarks/models/$name.py
+
+    if [ "$CURRENT_DIR_NAME" == "src" ]; then
     cd ..
+    fi
+
     python -m src.instrument $FILEPATH
     python -m src.instrumented_files.xformed-$name > src/instrumented_files/output.txt
     ARGS=$FILEPATH

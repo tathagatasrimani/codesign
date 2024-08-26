@@ -20,9 +20,9 @@ from .config_dicts import op2sym_map
 from . import rcgen
 from . import cacti_util
 from .global_constants import SYSTEM_BUS_SIZE
-from openroad_interface import place_n_route
 from openroad_interface.var import directory
 from openroad_interface import def_generator
+from openroad_interface import place_n_route
 
 
 
@@ -470,11 +470,14 @@ class HardwareModel:
         os.system("cp openroad_interface/tcl/codesign_flow.tcl ./" + directory) 
         shutil.copyfile(arg_testfile, directory + "test.tcl")
         design_name= self.path_to_graphml.split("/")[len(self.path_to_graphml.split("/")) - 1]
-        graph, net_out_dict, node_output, lef_data, node_to_num= def_generator.def_generator(arg_testfile, self.path_to_graphml)
+        graph = nx.read_gml(self.path_to_graphml)
+        graph, net_out_dict, node_output, lef_data, node_to_num= def_generator.def_generator(arg_testfile, graph)
 
         if arg_parasitics == "detailed":
+            print("executing OpenROAD")
             _, graph = place_n_route.detailed_place_n_route(graph, design_name, net_out_dict, node_output, lef_data, node_to_num)
-        elif arg_parasitics == "estimate":
+        elif arg_parasitics == "estimation":
+            print("executing OpenROAD")
             _, graph = place_n_route.estimated_place_n_route(graph, design_name, net_out_dict, node_output, lef_data, node_to_num)
         elif arg_parasitics == "none":
             for output_pin in net_out_dict:
@@ -484,5 +487,6 @@ class HardwareModel:
                         graph[output_pin][node]['net_res'] = 0
                         graph[output_pin][node]['net_cap'] = 0
         self.parasitic_graph = graph
+        nx.write_gml(graph, "idk.gml")
 
                     

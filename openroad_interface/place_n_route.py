@@ -10,9 +10,7 @@ from . import detailed as det
 
 def openroad_run():
     os.chdir(directory)
-    print("running openroad")
-    os.system("openroad test.tcl > /dev/null 2>&1")
-    print("done")
+    os.system("openroad test.tcl")
     os.chdir("../../..")
 
 def export_graph(graph, design_name, est_or_det: str):
@@ -91,7 +89,6 @@ def coord_scraping(graph: nx.DiGraph,
             match = re.search(component_pattern, line)
             component_nets[match.group(0)] = pins
 
-    print (graph.nodes)
     for node in node_to_num:
         coord = macro_coords[node_to_num[node]]
         graph.nodes[node]['x'] = coord['x']
@@ -144,12 +141,8 @@ def estimated_place_n_route(graph: nx.DiGraph,
 
     return {"length":estimated_length_data, "res": estimated_res_data, "cap" : estimated_cap_data, "net": net_graph_data}, new_graph
 
-def detailed_place_n_route(graph: nx.DiGraph, 
-                           design_name: str, 
-                           net_out_dict: dict, 
-                           node_output: dict, 
-                           lef_data: dict, 
-                           node_to_num: dict) -> dict:
+
+def detailed_place_n_route(graph: nx.DiGraph, design_name: str, net_out_dict: dict, node_output: dict, lef_data: dict, node_to_num: dict) -> dict:
     '''
     runs openroad, calculates rcl, and then adds attributes to the graph
 
@@ -187,9 +180,9 @@ def detailed_place_n_route(graph: nx.DiGraph,
             graph[output_pin][node]['net_res'] = float(net_res[net_out_dict[output_pin]])
             graph[output_pin][node]['net_cap'] = float(net_cap[net_out_dict[output_pin]])
         net_graph_data.append(net_out_dict[output_pin])
-        len_graph_data.append(float(length_dict[net_out_dict[output_pin]])) # length
-        res_graph_data.append(float(net_res[net_out_dict[output_pin]])) # ohms
-        cap_graph_data.append(float(net_cap[net_out_dict[output_pin]])) # picofarads
+        res_graph_data.append(float(net_res[net_out_dict[output_pin]]))
+        cap_graph_data.append(float(net_cap[net_out_dict[output_pin]]) * pow(10,4))
+        len_graph_data.append(float(length_dict[net_out_dict[output_pin]]))
 
     new_graph = mux_removal(graph, design_name)
     export_graph(graph, design_name, "detailed")

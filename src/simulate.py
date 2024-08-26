@@ -23,6 +23,7 @@ from . import sim_util
 from . import arch_search_util
 from .config_dicts import op2sym_map
 from .abstract_simulate import AbstractSimulator
+from openroad_interface import graph_plotter
 
 MEMORY_SIZE = 1000000
 state_graph_counter = 0
@@ -285,7 +286,6 @@ class ConcreteSimulator(AbstractSimulator):
             # numeric layer value as a node attribute
             for node in nodes:
                 fake_hw.nodes[node]["layer"] = layer
-        nx.write_gml(fake_hw, "fake_hw.gml")
         counter = 0
 
         generations = list(reversed(
@@ -343,6 +343,7 @@ class ConcreteSimulator(AbstractSimulator):
                         * scaling
                         * hw.latency[node_data["function"]] # ns
                     )
+
                 active_net_len = len(active_net)
                 parasitic_node = None
                 if "allocation" in node_data and node_data["allocation"] != "" and "Mem" not in node_data["allocation"] and "Buf" not in node_data["allocation"]:
@@ -353,10 +354,12 @@ class ConcreteSimulator(AbstractSimulator):
 
                 self.active_energy += energy
                 hw.compute_operation_totals[node_data["function"]] += 1
+
             net_energy = 0
             for cap in active_cap_vals:
-                net_energy += (1/2) * cap * hw.V_dd * hw.V_dd
+                net_energy += (1/2) * cap * hw.V_dd * hw.V_dd * 1e-3 # pico -> nano
             self.active_energy += net_energy
+
             def matcher_func(n1, n2):
                 res = (
                     n1["function"] == n2["function"]
@@ -366,7 +369,6 @@ class ConcreteSimulator(AbstractSimulator):
                 )
 
                 return res
-
 
         # ========== This Can be removed after we figure out why doesn't work
         self.cycles = nx.dag_longest_path_length(computation_dfg)
@@ -408,8 +410,16 @@ class ConcreteSimulator(AbstractSimulator):
                         if func in ["Buf", "MainMem"]:
                             scaling = node_data["size"]
                             logger.info(f"latency scaling: {scaling}")
-                        # do the same thing as above for energy except rc calculation 
-
+                        
+                        node_data["in other graph"] = "allocation" in node_data and node_data["allocation"] != "" and "Mem" not in node_data["allocation"] and "Buf" not in node_data["allocation"]
+                        node_index = path.index(node)
+                        if node_index != 0:
+                            node_index_prev = node_index - 1
+                            node_data_prev = computation_dfg.nodes[path[node_index_prev]]
+                            if node_data["in other graph"] and node_data_prev["in other graph"] and hw.parasitic_graph.has_edge(node_data_prev["allocation"], node_data["allocation"]):
+                                parasitic_edge = hw.parasitic_graph[node_data_prev["allocation"]][node_data["allocation"]]
+                                net_delay = parasitic_edge["net_cap"] * parasitic_edge["net_res"] * 1e-3 # pico -> nano
+                                path_latency += net_delay
                         path_latency += hw.latency[func] * scaling
                     if path_latency > self.cycles:
                         longest_path_explicit = path
@@ -474,7 +484,7 @@ def main(args):
     # print stats
     print("total number of cycles: ", simulator.cycles)
     print(f"execution time: {simulator.execution_time} ns")
-    print(f"total energy {simulator.total_energy} nJ")
+    print(f"total energy: {simulator.total_energy} nJ")
 
     print(f"on chip area: {area} um^2")
     print(f"EDP: {simulator.edp} E-18 Js")
@@ -527,7 +537,7 @@ if __name__ == "__main__":
     parser.add_argument( 
         "--parasitics",
         type=str,
-        choices=["detailed", "estimated", "none"],
+        choices=["detailed", "estimation", "none"],
         default="none",
         help="determines what type of parasitic calculations are done for wires",
     )
@@ -536,7 +546,7 @@ if __name__ == "__main__":
         "--openroad_testfile",
         type=str,
         default="openroad_interface/tcl/test_nangate45_bigger.tcl",
-        help="determines what type of parasitic calculations are done for wires",
+        help="what tcl file will be executed for openroad",
     )
 
     parser.add_argument("benchmark", metavar="B", type=str)
@@ -552,5 +562,4 @@ if __name__ == "__main__":
     print(
         f"args: benchmark: {args.benchmark}, trace: {args.notrace}, architecture: {args.architecture_config}, parasitics: {args.parasitics}"
     )
-
     main(args)
