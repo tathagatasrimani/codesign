@@ -1,1 +1,1 @@
-directory = "OpenROAD/test/"
+directory = "openroad_interface/OpenROAD/test/"
