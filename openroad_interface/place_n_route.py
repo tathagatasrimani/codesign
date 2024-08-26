@@ -17,6 +17,26 @@ def export_graph(graph, design_name, est_or_det: str):
         os.makedirs("openroad_interface/results/")
     nx.write_gml(graph, "openroad_interface/results/" + est_or_det + "_" + design_name + ".gml")
 
+def mux_removal(graph: nx.DiGraph, design_name):
+    graph_copy = copy.deepcopy(graph)
+    for node in graph.nodes:
+        if "MUX" in node.upper():
+            input_nodes = list(graph_copy.in_edges(node))
+            output_node = list(graph_copy.out_edges(node))[0][1]
+
+            old_edge_1 = graph_copy[input_nodes[0][0]][node]
+            old_edge_2 = graph_copy[input_nodes[1][0]][node]
+
+            old_output = graph_copy[node][str(output_node)]
+            for attribute in ["net_length", "net_cap", "net_res"]:
+                old_edge_1[attribute] += float(old_output[attribute])
+                old_edge_2[attribute] += float(old_output[attribute])
+            graph_copy.add_edge(input_nodes[0][0], output_node, **old_edge_1)
+            graph_copy.add_edge(input_nodes[1][0], output_node, **old_edge_2)
+            graph_copy.remove_node(node)
+    export_graph(graph_copy, design_name, "nomux")
+    return graph_copy
+
 def coord_scraping(graph: nx.DiGraph, node_to_num: dict, final_def_directory : str = directory + "results/final_generated-tcl.def"):
     '''
     going through the .def file and getting macro placements and nets 
@@ -79,14 +99,15 @@ def estimated_place_n_route(graph: nx.DiGraph, design_name: str, net_out_dict: d
     for output_pin in net_out_dict:
         for pin in node_output[output_pin]:
             graph[output_pin][pin]['net'] = net_out_dict[output_pin]
-            graph[output_pin][pin]['net_length'] = estimated_length[output_pin]
-            graph[output_pin][pin]['net_res'] = estimated_res[output_pin]
-            graph[output_pin][pin]['net_cap'] = estimated_cap[output_pin]
+            graph[output_pin][pin]['net_length'] = estimated_length[output_pin] # microns
+            graph[output_pin][pin]['net_res'] = float(estimated_res[output_pin]) # ohms
+            graph[output_pin][pin]['net_cap'] = float(estimated_cap[output_pin]) # picofarads
         net_graph_data.append(net_out_dict[output_pin])
     
+    new_graph = mux_removal(graph, design_name)
     export_graph(graph, design_name, "estimate")
 
-    return {"length":estimated_length_data, "res": estimated_res_data, "cap" : estimated_cap_data, "net": net_graph_data}, graph
+    return {"length":estimated_length_data, "res": estimated_res_data, "cap" : estimated_cap_data, "net": net_graph_data}, new_graph
 
 
 def detailed_place_n_route(graph: nx.DiGraph, design_name: str, net_out_dict: dict, node_output: dict, lef_data: dict, node_to_num: dict) -> dict:
@@ -124,12 +145,13 @@ def detailed_place_n_route(graph: nx.DiGraph, design_name: str, net_out_dict: di
             graph[output_pin][node]['net_res'] = net_res[net_out_dict[output_pin]]
             graph[output_pin][node]['net_cap'] = net_cap[net_out_dict[output_pin]]
         net_graph_data.append(net_out_dict[output_pin])
-        res_graph_data.append(float(net_res[net_out_dict[output_pin]]))
-        cap_graph_data.append(float(net_cap[net_out_dict[output_pin]]) * pow(10,4))
-        len_graph_data.append(float(length_dict[net_out_dict[output_pin]]))
+        len_graph_data.append(float(length_dict[net_out_dict[output_pin]])) # ohms
+        res_graph_data.append(float(net_res[net_out_dict[output_pin]])) # res
+        cap_graph_data.append(float(net_cap[net_out_dict[output_pin]])) # picofarads
 
+    new_graph = mux_removal(graph, design_name)
     export_graph(graph, design_name, "detailed")
 
-    return {"res": res_graph_data, "cap": cap_graph_data, "length": len_graph_data, "net": net_graph_data}, graph
+    return {"res": res_graph_data, "cap": cap_graph_data, "length": len_graph_data, "net": net_graph_data}, new_graph
 
 
