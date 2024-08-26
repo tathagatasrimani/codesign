@@ -45,7 +45,7 @@ def validation(design_name: str, test_directory: str):
     return:
         pandas dataframe: contains all parasitic information
     '''
-    graph = nx.read_gml("src/architectures/" design_name + ".gml")
+    graph = nx.read_gml("src/architectures/" + design_name + ".gml")
     # hardware = HardwareModel(path_to_graphml = graph_directory + design_name + ".gml")
     # hardware.get_total_area(self)
     # call the require function 
