@@ -48,16 +48,23 @@ def cacti_gen_sympy(name, cache_cfg, opt_vals, use_piecewise=True):
     fin_res = uca_org_t()
     fin_res = solve_single()
 
-    with open(f'{name + "_access_time"}.txt', 'w') as file:
+    # Create the directory path
+    output_dir = os.path.join('cacti', 'sympy')
+
+    # Ensure the directory exists
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Write files to the cacti/sympy directory
+    with open(os.path.join(output_dir, f'{name + "_access_time"}.txt'), 'w') as file:
         file.write(str(fin_res.access_time))
 
-    with open(f'{name + "_read_dynamic"}.txt', 'w') as file:
+    with open(os.path.join(output_dir, f'{name + "_read_dynamic"}.txt'), 'w') as file:
         file.write(str(fin_res.power.readOp.dynamic))
 
-    with open(f'{name + "_write_dynamic"}.txt', 'w') as file:
+    with open(os.path.join(output_dir, f'{name + "_write_dynamic"}.txt'), 'w') as file:
         file.write(str(fin_res.power.writeOp.dynamic))
 
-    with open(f'{name + "_read_leakage"}.txt', 'w') as file:
+    with open(os.path.join(output_dir, f'{name + "_read_leakage"}.txt'), 'w') as file:
         file.write(str(fin_res.power.readOp.leakage))
 
     IO_info = {
@@ -245,10 +252,10 @@ def validate_energy(sympy_file, cache_cfg, dat_file, IO_info):
 
     df = pd.DataFrame(data)
 
-    directory = "cacti_plot"
+    directory = "cacti_validation"
     if not os.path.exists(directory):
         os.makedirs(directory)
-    csv_file = os.path.join(directory, "validate_results.csv")
+    csv_file = os.path.join(directory, 'results', "abs_validate_results.csv")
     
     file_exists = os.path.isfile(csv_file)
     df.to_csv(csv_file, mode='a', header=not file_exists, index=False)
@@ -552,6 +559,46 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
 # print(gen_vals("test0"))
 # print(gen_vals("test1", 131072, 64, "cache", 512, 4.0))
 
+def run_existing_cacti_cfg(filename):
+    cactiDir = os.path.join(os.path.dirname(__file__), 'cacti')
+
+    # write file
+    input_filename = filename + ".cfg"
+
+    cmd = ['./cacti', '-infile', input_filename]
+
+    p = subprocess.Popen(cmd, cwd=cactiDir) #, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    p.wait()
+    if p.returncode != 0:
+        raise Exception(f"Cacti Error in {filename}", {p.stderr.read().decode()}, {p.stdout.read().decode().split("\n")[-2]})
+
+    output_filename = filename + ".cfg.out"
+    cactiOutput = os.path.join(cactiDir, output_filename)
+    output_data = pd.read_csv(cactiOutput, sep=", ", engine='python')
+    output_data = output_data.iloc[-1] # get just the last row which is the most recent run
+
+    # get IO params
+    bus_freq = None
+    addr_timing = None
+    cacti_input_filename = "cacti/" + input_filename
+
+    with open(cacti_input_filename, 'r') as file:
+        for line in file:
+            if "-bus_freq" in line:
+                bus_freq = line.split()[1] + " " + line.split()[2]
+            elif "-addr_timing" in line:
+                addr_timing = line.split()[1]
+
+    IO_freq = convert_frequency(bus_freq)
+    IO_latency = (float(addr_timing) / IO_freq)
+
+    output_data["IO latency (s)"] = IO_latency
+
+    # CACTI: access time (ns), search energy (nJ), read energy (nJ), write energy (nJ), leakage bank power (mW)
+    # CACTI IO: area (sq.mm), timing (ps), dynamic power (mW), PHY power (mW), termination and bias power (mW)
+    # latency (ns)
+    return output_data
+
 def convert_frequency(string):
     parts = string.split()
     
@@ -571,7 +618,7 @@ def convert_frequency(string):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Process a config file and a data file.")
-    parser.add_argument('-cfg_name', type=str, default='mem_validate_cache', help="Path to the configuration file (default: mem_validate_cache)")
+    parser.add_argument('-cfg_name', type=str, default='cfg/mem_validate_cache', help="Path to the configuration file (default: mem_validate_cache)")
     parser.add_argument('-dat_file', type=str, default='cacti/tech_params/90nm.dat', help="Path to the data file (default: cacti/tech_params/90nm.dat)")
     parser.add_argument('-cacheSize', type=int, default=131072, help="Path to the data file (default: 131072)")
     parser.add_argument('-blockSize', type=int, default=64, help="Path to the data file (default: 64)")
@@ -611,4 +658,37 @@ if __name__ == "__main__":
     # time.sleep(20)
 
     validate_energy(sympy_file, cache_cfg, dat_file, IO_info)
+
+    # ### NEW
+    # # CACHE
+    # buf_vals = run_existing_cacti_cfg("cache")
+    # buf_opt = {
+    #     "ndwl": buf_vals["Ndwl"],
+    #     "ndbl": buf_vals["Ndbl"],
+    #     "nspd": buf_vals["Nspd"],
+    #     "ndcm": buf_vals["Ndcm"],
+    #     "ndsam1": buf_vals["Ndsam_level_1"],
+    #     "ndsam2": buf_vals["Ndsam_level_2"],
+    #     "repeater_spacing": buf_vals["Repeater spacing"],
+    #     "repeater_size": buf_vals["Repeater size"],
+    # }
+    # cache_cfg = f"cacti/cfg/cache.cfg"
+    # IO_info = cacti_gen_sympy("cache_results", cache_cfg, buf_opt, use_piecewise=False)
+
+    # # Main Mem
+    # buf_vals = run_existing_cacti_cfg("dram")
+    # buf_opt = {
+    #     "ndwl": buf_vals["Ndwl"],
+    #     "ndbl": buf_vals["Ndbl"],
+    #     "nspd": buf_vals["Nspd"],
+    #     "ndcm": buf_vals["Ndcm"],
+    #     "ndsam1": buf_vals["Ndsam_level_1"],
+    #     "ndsam2": buf_vals["Ndsam_level_2"],
+    #     "repeater_spacing": buf_vals["Repeater spacing"],
+    #     "repeater_size": buf_vals["Repeater size"],
+    # }
+    # cache_cfg = f"cacti/cfg/dram.cfg"
+    # IO_info = cacti_gen_sympy("dram_results", cache_cfg, buf_opt, use_piecewise=False)
+
+
 
