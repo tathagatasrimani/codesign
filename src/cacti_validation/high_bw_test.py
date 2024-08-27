@@ -5,8 +5,8 @@ import pandas as pd
 
 import cacti_util
 
-mem_size_range = [2048, 4096, 32768, 131072, 262144, 1048576, 2097152, 4194304, 8388608, 16777216, 33554432, 134217728, 67108864, 1073741824]
-bw_range = np.concatenate((np.arange(16, 257, 16), np.arange(256, 1025, 64), np.arange(1024, 8193, 256)))
+mem_size_range = [2048, 4096, 32768, 131072]#, 262144, 1048576, 2097152, 4194304, 8388608, 16777216, 33554432, 134217728, 67108864, 1073741824]
+bw_range = [16, 32, 64] #np.concatenate((np.arange(16, 257, 16), np.arange(256, 1025, 64), np.arange(1024, 8193, 256)))
 
 print(f"mem_size_range: {mem_size_range}")
 print(f"bw_range: {bw_range}")
@@ -14,6 +14,7 @@ print(f"bw_range: {bw_range}")
 
 def gen_vals_wrapper(data):
     mem_size, bw = data
+    print(f"running mem size: {mem_size} with bw: {bw}", flush=True)
     try:
         return cacti_util.gen_vals(
             "mem_cache",
@@ -31,16 +32,20 @@ print(list(data))
 
 if __name__ == "__main__":
     with Pool(8) as p:
-        res = p.map(
+        res = p.starmap(
             gen_vals_wrapper,
-            zip(
-                mem_size_range,
-                bw_range,
-            ),
+            list(data),
         )
     print(res)
-    with open("res.txt", "w") as f:
-        [f.write(str(series)) for series in res]
+    for param, series in zip(data, res):
+        print(series)
+        series['mem size'] = param[0]
+        series['bw'] = param[1]
+    res_df = pd.concat(res)
+    res_df.to_csv("cacti_validation/res.csv")
+    # with open("cacti_validation/res.txt", "w") as f:
+    #     pd.concat()
+    #     [f.write(str(series)) for series in res]
     # print(f"len(res): {len(res)}")
     # print(f"type(res): {type(res)}")
     # print(f"len(res[1]): {len(res[1])}")
