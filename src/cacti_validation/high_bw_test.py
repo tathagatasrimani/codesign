@@ -1,5 +1,5 @@
 from multiprocessing import Pool
-
+from itertools import product
 import numpy as np
 import pandas as pd
 
@@ -26,7 +26,7 @@ def gen_vals_wrapper(data):
         print(f"Error: {e}")
         return pd.Series()
 
-data = zip(mem_size_range, bw_range)
+data = product(mem_size_range, bw_range)
 print(list(data))
 
 if __name__ == "__main__":
