@@ -11,10 +11,10 @@ import cvxpy as cp
 import numpy as np
 
 # custom
-from preprocess import Preprocessor
-import sim_util
-from hardwareModel import HardwareModel
-import hw_symbols
+from .preprocess import Preprocessor
+from . import sim_util
+from .hardwareModel import HardwareModel
+from . import hw_symbols
 
 
 multistart = False

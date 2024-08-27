@@ -10,8 +10,8 @@ import numpy as np
 import cvxpy as cp
 import pandas as pd
 
-from global_constants import SEED
-import sim_util
+from .global_constants import SEED
+from . import sim_util
 
 # format: cfg_node -> {states -> operations}
 cfg_node_to_dfg_map = {}

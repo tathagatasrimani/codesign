@@ -1,11 +1,11 @@
 import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
-
-import hardwareModel
-from hardwareModel import HardwareModel
 from staticfg import CFG, Block
-import sim_util
+
+from . import hardwareModel
+from .hardwareModel import HardwareModel
+from . import sim_util
 
 
 def generate_new_min_arch_on_whole_dfg(hw: HardwareModel, computation_dfg: nx.DiGraph):

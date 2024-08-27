@@ -11,9 +11,10 @@ done
 
 # arguments like this: ./simulate.sh -n <name>
 if [ $name ]; then
-    FILEPATH=benchmarks/models/$name
-    python instrument.py $FILEPATH
-    python instrumented_files/xformed-$name > instrumented_files/output.txt
+    FILEPATH=src/benchmarks/models/$name.py
+    cd ..
+    python -m src.instrument $FILEPATH
+    python -m src.instrumented_files.xformed-$name > src/instrumented_files/output.txt
     ARGS=$FILEPATH
     OPT_ARGS=""
     if [ $QUIET ]; then
@@ -28,6 +29,6 @@ if [ $name ]; then
     fi
 
     echo $ARGS
-    python symbolic_simulate.py $ARGS
-    python optimize.py $OPT_ARGS
+    python -m src.symbolic_simulate $ARGS
+    python -m src.optimize $OPT_ARGS
 fi

@@ -12,16 +12,16 @@ import graphviz as gv
 from sympy import *
 import networkx as nx
 
-from staticfg.builder import CFGBuilder
-from ast_utils import ASTUtils
-from memory import Memory, Cache
-from config_dicts import op2sym_map
-import rcgen
-import cacti_util
-from global_constants import SYSTEM_BUS_SIZE
+from .staticfg.builder import CFGBuilder
+from .ast_utils import ASTUtils
+from .memory import Memory, Cache
+from .config_dicts import op2sym_map
+from . import rcgen
+from . import cacti_util
+from .global_constants import SYSTEM_BUS_SIZE
 
 
-HW_CONFIG_FILE = "params/hw_cfgs.ini"
+HW_CONFIG_FILE = "src/params/hw_cfgs.ini"
 
 benchmark = "simple"
 expr_to_node = {}
@@ -102,7 +102,7 @@ class HardwareModel:
         else:
             config = cp.ConfigParser()
             config.read(HW_CONFIG_FILE)
-            path_to_graphml = f"architectures/{cfg}.gml"
+            path_to_graphml = f"src/architectures/{cfg}.gml"
             try:
                 self.set_hw_config_vars(
                     config.getint(cfg, "id"),
@@ -210,7 +210,7 @@ class HardwareModel:
         and number of mem layers.
         """
         tech_params = yaml.load(
-            open("params/tech_params.yaml", "r"), Loader=yaml.Loader
+            open("src/params/tech_params.yaml", "r"), Loader=yaml.Loader
         )
 
         self.area = tech_params["area"][self.transistor_size]
@@ -246,8 +246,8 @@ class HardwareModel:
 
     def update_technology_parameters(
         self,
-        rc_params_file="params/rcs_current.yaml",
-        coeff_file="params/coefficients.yaml",
+        rc_params_file="src/params/rcs_current.yaml",
+        coeff_file="src/params/coefficients.yaml",
     ):
         """
         For full codesign loop, need to update the technology parameters after a run of the inverse pass.
