@@ -39,16 +39,18 @@ if __name__ == "__main__":
             ),
         )
     print(res)
-    print(f"len(res): {len(res)}")
-    print(f"type(res): {type(res)}")
-    print(f"len(res[1]): {len(res[1])}")
-    print(f"type(res[1]): {type(res[1])}")
-    print(f"res[1]: {res[1]}")
-    # print(f"res[1].columns: {res[1].columns}")
-    print(f"len(res[0]): {len(res[0])}")
-    print(f"type(res[0]): {type(res[0])}")
-    # print(f"res[0].columns: {res[0].columns}")
-    print(f"res[0]: {res[0]}")
+    with open("res.txt", "w") as f:
+        [f.write(str(series)) for series in res]
+    # print(f"len(res): {len(res)}")
+    # print(f"type(res): {type(res)}")
+    # print(f"len(res[1]): {len(res[1])}")
+    # print(f"type(res[1]): {type(res[1])}")
+    # print(f"res[1]: {res[1]}")
+    # # print(f"res[1].columns: {res[1].columns}")
+    # print(f"len(res[0]): {len(res[0])}")
+    # print(f"type(res[0]): {type(res[0])}")
+    # # print(f"res[0].columns: {res[0].columns}")
+    # print(f"res[0]: {res[0]}")
 
 
 # mem_vals = cacti_util.gen_vals(
