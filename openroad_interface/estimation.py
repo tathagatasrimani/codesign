@@ -84,7 +84,7 @@ def parasitic_estimation(graph: nx.DiGraph, component_nets: dict, net_out_dict: 
     estimated_cap_data = []
     estimated_cap = {}
     for key in estimated_length:
-        cap = estimated_length[key]/lef_width * layer_cap * pow(10,4)
+        cap = estimated_length[key]/lef_width * layer_cap 
         estimated_cap_data.append(cap)
         estimated_cap[key] = cap
     return estimated_res, estimated_res_data, estimated_cap, estimated_cap_data, estimated_length, estimated_length_data

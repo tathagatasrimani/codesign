@@ -6,7 +6,6 @@ import sys
 import networkx as nx
 import pandas as pd 
 
-from src.hardwareModel import *
 from . import estimation as est
 from . import place_n_route as pnr
 from .var import directory
@@ -24,6 +23,7 @@ def pandas_organize(design_name: str, estimation_dict: dict, detailed_dict: dict
     return:
         result: pandas dataframe
     '''
+    design_name = design_name.replace(".gml", "")
     d1 = {"design": [design_name] * len(detailed_dict["res"]), "net_id" : detailed_dict["net"], "method": ["openroad"] * len(detailed_dict["res"]), "res": detailed_dict["res"], "cap": detailed_dict["cap"], "length": detailed_dict["length"]}
     openroad_dataframe = pd.DataFrame(data=d1)
 
@@ -45,7 +45,8 @@ def validation(design_name: str, test_directory: str):
     return:
         pandas dataframe: contains all parasitic information
     '''
-    graph = nx.read_gml("src/architectures/" + design_name + ".gml")
+    print("reading graph")
+    graph = nx.read_gml("src/architectures/" + design_name)
     # hardware = HardwareModel(path_to_graphml = graph_directory + design_name + ".gml")
     # hardware.get_total_area(self)
     # call the require function 
@@ -59,6 +60,7 @@ def validation(design_name: str, test_directory: str):
     graph, net_out_dict, node_output, lef_data, node_to_num= df.def_generator(test_directory, graph)
 
     # 3. extract parasitics
+    print("running extractions")
     detailed_dict, detailed_graph = pnr.detailed_place_n_route(graph, design_name, net_out_dict, node_output, lef_data, node_to_num)
     estimation_dict, estimated_graph = pnr.estimated_place_n_route(graph, design_name, net_out_dict, node_output, lef_data, node_to_num)
     global_length = est.global_estimation()
@@ -67,16 +69,16 @@ def validation(design_name: str, test_directory: str):
 
 if __name__ == "__main__":
 
-    aes_arch_copy_data= validation("aes_arch_copy", "openroad_interface/tcl/test_nangate45.tcl")
-    mm_test_data = validation("mm_test", "openroad_interface/tcl/test_nangate45_bigger.tcl")
+    aes_arch_copy_data= validation("aes_arch_copy.gml", "openroad_interface/tcl/test_nangate45.tcl")
+    mm_test_data = validation("mm_test.gml", "openroad_interface/tcl/test_nangate45_bigger.tcl")
 
     combined_data = pd.concat([aes_arch_copy_data, mm_test_data])
     combined_data.to_csv("openroad_interface/results/result_rcl.csv")  
 
     designs = ["aes_arch_copy", "mm_test"]
-    title = {"res":"Resistance over different designs using OpenROAD and estimation", "cap" : "Capacitance over different designs using OpenROAD and estimation", "length" : "Length over different designs using OpenROAD and estimation"}
-    units = {"res" : "ohms log", "cap" : "Farad * 10^-5 log", "length" : "microns log"}
+    title = {"res":"Resistance over different designs \n using OpenROAD and estimation", "cap" : "Capacitance over different designs using \n OpenROAD and estimation", "length" : "Length over different designs using \n OpenROAD and estimation"}
+    units = {"res" : "ohms log", "cap" : "picofarad log", "length" : "microns log"}
 
     gp.box_whiskers_plot(designs, units, title, show_flier = True)
     gp.box_whiskers_plot(designs, units, title, show_flier = False)
-      
+    print("graphs generated")

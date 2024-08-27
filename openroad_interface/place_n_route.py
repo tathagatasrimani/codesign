@@ -44,7 +44,9 @@ def mux_removal(graph: nx.DiGraph, design_name):
     export_graph(graph_copy, design_name, "nomux")
     return graph_copy
 
-def coord_scraping(graph: nx.DiGraph, node_to_num: dict, final_def_directory : str = directory + "results/final_generated-tcl.def"):
+def coord_scraping(graph: nx.DiGraph, 
+                   node_to_num: dict, 
+                   final_def_directory : str = directory + "results/final_generated-tcl.def"):
     '''
     going through the .def file and getting macro placements and nets 
     param:
@@ -79,7 +81,12 @@ def coord_scraping(graph: nx.DiGraph, node_to_num: dict, final_def_directory : s
     return graph, component_nets
 
 
-def estimated_place_n_route(graph: nx.DiGraph, design_name: str, net_out_dict: dict, node_output: dict, lef_data: dict, node_to_num: dict) -> dict:
+def estimated_place_n_route(graph: nx.DiGraph, 
+                            design_name: str, 
+                            net_out_dict: dict, 
+                            node_output: dict, 
+                            lef_data: dict, 
+                            node_to_num: dict) -> dict:
     '''
     runs openroad, calculates rcl, and then adds attributes to the graph
 
@@ -94,7 +101,8 @@ def estimated_place_n_route(graph: nx.DiGraph, design_name: str, net_out_dict: d
         dict: contains list of resistance, capacitance, length, and net data
         graph: newly modified digraph with rcl attributes
     '''
-
+    design_name = design_name.replace(".gml", "")
+    
     # run openroad
     openroad_run()
     
@@ -117,7 +125,12 @@ def estimated_place_n_route(graph: nx.DiGraph, design_name: str, net_out_dict: d
     return {"length":estimated_length_data, "res": estimated_res_data, "cap" : estimated_cap_data, "net": net_graph_data}, new_graph
 
 
-def detailed_place_n_route(graph: nx.DiGraph, design_name: str, net_out_dict: dict, node_output: dict, lef_data: dict, node_to_num: dict) -> dict:
+def detailed_place_n_route(graph: nx.DiGraph, 
+                           design_name: str, 
+                           net_out_dict: dict, 
+                           node_output: dict, 
+                           lef_data: dict, 
+                           node_to_num: dict) -> dict:
     '''
     runs openroad, calculates rcl, and then adds attributes to the graph
 
@@ -132,6 +145,8 @@ def detailed_place_n_route(graph: nx.DiGraph, design_name: str, net_out_dict: di
         dict: contains list of resistance, capacitance, length, and net data
         graph: newly modified digraph with rcl attributes
     '''
+    design_name = design_name.replace(".gml", "")
+    
     # run openroad
     openroad_run()
     
