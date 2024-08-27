@@ -155,15 +155,24 @@ def plot_box_and_whisker_helper(df, selector="access_time", plot_times=False):
     unique_configs = df['config'].unique()
     positions = range(1, len(unique_configs) + 1)
 
+    # Plot result and validate values if plot_times is True
     if plot_times:
         for position, config in zip(positions, unique_configs):
             config_data = df[df['config'] == config]
             ax.scatter([position] * len(config_data), config_data[result_column], color='blue', label=result_column.replace('_', ' ').title() if position == 1 else "", alpha=0.6)
             ax.scatter([position] * len(config_data), config_data[validate_column], color='red', label=validate_column.replace('_', ' ').title() if position == 1 else "", alpha=0.6)
 
+    # Plot errors
     for position, config in zip(positions, unique_configs):
         config_data = df[df['config'] == config]
         ax.scatter([position] * len(config_data), config_data[error_column], color='green', label=f"Error ({result_column.replace('_', ' ').title()} - {validate_column.replace('_', ' ').title()})" if position == 1 else "", alpha=0.6)
+
+    # Adjust the y-axis range based on the maximum error value
+    max_error = df[error_column].max()
+    if max_error <= 1:
+        ax.set_ylim(-1, 1)
+    else:
+        ax.set_ylim(-3, 3)
 
     ax.set_title(title)
     ax.set_xlabel('Configuration (Transistor Size, Cache)')
@@ -199,7 +208,7 @@ def plot_all_box_and_whisker(df, plot_times=False):
 
 if __name__ == "__main__":
     current_directory = os.path.dirname(os.path.realpath(__file__))
-    file_path = os.path.join(current_directory, 'validate_results.csv')
+    file_path = os.path.join(current_directory, 'results', 'abs_validate_results.csv')
     df = load_data(file_path)
     df = compute_errors(df)
     plot_all_box_and_whisker(df)
