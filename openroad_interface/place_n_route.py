@@ -20,29 +20,65 @@ def export_graph(graph, design_name, est_or_det: str):
         os.makedirs("openroad_interface/results/")
     nx.write_gml(graph, "openroad_interface/results/" + est_or_det + "_" + design_name + ".gml")
 
-def mux_removal(graph: nx.DiGraph, design_name):
-    graph_copy = copy.deepcopy(graph)
-    for node in graph.nodes:
-        if "MUX" in node.upper():
-            input_nodes = list(graph_copy.in_edges(node))
-            output_node = list(graph_copy.out_edges(node))[0][1]
+def mux_removal(graph: nx.DiGraph):
+    reference = copy.deepcopy(graph.nodes())
+    for node in reference:
+        if "Mux" in node:
+            graph.remove_node(node)
 
-            old_edge_1 = graph_copy[input_nodes[0][0]][node]
-            old_edge_2 = graph_copy[input_nodes[1][0]][node]
+def mux_listing(graph, node_output):
+    for node in graph.nodes():
+        if "Mux" not in node:
+            for output in node_output[node]:
+                path = []
+                if "Mux" in output:
+                    while "Mux" in output:
+                        path.append(output)
+                        output = node_output[output][0]
+                graph.add_edge(node, output)
+                if len(path) != 0:
+                    for attribute in ["net_res", "net_cap", "net_length"]:
+                        val_list = []
+                        val_list.append(graph[node][path[0]][attribute])
+                        node_index = 0
+                        for node_index in range(1, len(path)):
+                            val_list.append(graph[path[node_index - 1]][path[node_index]][attribute])
+                        val_list.append(graph[path[node_index]][output][attribute])
+                        graph[node][output][attribute] = val_list
 
-            old_output = graph_copy[node][str(output_node)]
-            for attribute in ["net_length", "net_cap", "net_res"]:
-                if type(old_edge_1[attribute]) != list:
-                    old_edge_1[attribute] = [old_edge_1[attribute]]
-                if type(old_edge_2[attribute]) != list:
-                    old_edge_2[attribute] = [old_edge_2[attribute]]
-                old_edge_1[attribute].append(float(old_output[attribute]))
-                old_edge_2[attribute].append(float(old_output[attribute]))
-            graph_copy.add_edge(input_nodes[0][0], output_node, **old_edge_1)
-            graph_copy.add_edge(input_nodes[1][0], output_node, **old_edge_2)
-            graph_copy.remove_node(node)
-    export_graph(graph_copy, design_name, "nomux")
-    return graph_copy
+# def mux_adding_wrapper(node_output, net_out_dict, net_val, node_input):
+#     for node in node_output:
+#         for output in node_output[node]: 
+#             if "Mux" in output:
+#                 net_val = mux_adding(output, node_output, net_out_dict, net_val, node_input)
+#                 # for input in node_input[output]:
+#                 #     if net_out_dict[input] in net_val and net_out_dict[output] in net_val:
+#                 #         if type(net_val[net_out_dict[input]]) != list:
+#                 #             net_val[net_out_dict[input]] = [net_val[net_out_dict[input]]]
+#                 #         output_val = net_val[net_out_dict[output]]
+#                 #         output_vals = output_val if isinstance(output_val, list) else [output_val]
+#                 #         net_val[net_out_dict[input]].extend(output_vals)
+#                 if net_out_dict[output] in net_val:
+#                     del net_val[net_out_dict[output]]
+#     return net_val
+
+# def mux_adding(node, node_output, net_out_dict, net_val, node_input):
+#     if len(node_output[node]) == 1 and "Mux" not in node_output[node][0]:
+#         return net_val
+#     for output in node_output[node]:
+#         if "Mux" in output:
+#             net_val = mux_adding(output, node_output, net_out_dict, net_val, node_input)
+#             for input in node_input[output]:
+#                 if net_out_dict[input] in net_val and net_out_dict[output] in net_val:
+#                     if type(net_val[net_out_dict[input]]) != list:
+#                         net_val[net_out_dict[input]] = [net_val[net_out_dict[input]]]
+#                     output_val = net_val[net_out_dict[output]]
+#                     output_vals = output_val if isinstance(output_val, list) else [output_val]
+#                     net_val[net_out_dict[input]].extend(output_vals)
+#             if net_out_dict[output] in net_val:
+#                 del net_val[net_out_dict[output]]
+#     return net_val
+
 
 def coord_scraping(graph: nx.DiGraph, 
                    node_to_num: dict, 
@@ -118,12 +154,13 @@ def estimated_place_n_route(graph: nx.DiGraph,
             graph[output_pin][pin]['net_res'] = float(estimated_res[output_pin]) # ohms
             graph[output_pin][pin]['net_cap'] = float(estimated_cap[output_pin]) # picofarads
         net_graph_data.append(net_out_dict[output_pin])
+
+    mux_listing(graph, node_output)
+    mux_removal(graph)
     
-    new_graph = mux_removal(graph, design_name)
-    export_graph(new_graph, design_name, "estimate")
+    export_graph(graph, design_name, "estimated_nomux")
 
-    return {"length":estimated_length_data, "res": estimated_res_data, "cap" : estimated_cap_data, "net": net_graph_data}, new_graph
-
+    return {"length":estimated_length_data, "res": estimated_res_data, "cap" : estimated_cap_data, "net": net_graph_data}, graph
 
 def detailed_place_n_route(graph: nx.DiGraph, 
                            design_name: str, 
@@ -153,7 +190,13 @@ def detailed_place_n_route(graph: nx.DiGraph,
     # run parasitic_calc and length_calculations
     graph, _ = coord_scraping(graph, node_to_num)
     net_cap, net_res = det.parasitic_calc()
+    
+    # nomux_cap = copy.deepcopy(net_cap)
+    # nomux_cap = mux_adding_wrapper(node_output, net_out_dict, nomux_cap, node_input)
+
     length_dict = det.length_calculations(lef_data["units"])
+
+    # nomux_graph = mux_removal(graph, design_name)
 
     # add edge attributions
     net_graph_data = []
@@ -164,16 +207,20 @@ def detailed_place_n_route(graph: nx.DiGraph,
         for node in node_output[output_pin]:
             graph[output_pin][node]['net'] = net_out_dict[output_pin]
             graph[output_pin][node]['net_length'] = length_dict[net_out_dict[output_pin]]
-            graph[output_pin][node]['net_res'] = net_res[net_out_dict[output_pin]]
-            graph[output_pin][node]['net_cap'] = net_cap[net_out_dict[output_pin]]
+            graph[output_pin][node]['net_res'] = float(net_res[net_out_dict[output_pin]])
+            graph[output_pin][node]['net_cap'] = float(net_cap[net_out_dict[output_pin]])
         net_graph_data.append(net_out_dict[output_pin])
-        len_graph_data.append(float(length_dict[net_out_dict[output_pin]])) # ohms
-        res_graph_data.append(float(net_res[net_out_dict[output_pin]])) # res
+        len_graph_data.append(float(length_dict[net_out_dict[output_pin]])) # length
+        res_graph_data.append(float(net_res[net_out_dict[output_pin]])) # ohms
         cap_graph_data.append(float(net_cap[net_out_dict[output_pin]])) # picofarads
 
-    new_graph = mux_removal(graph, design_name)
-    export_graph(new_graph, design_name, "detailed")
-
-    return {"res": res_graph_data, "cap": cap_graph_data, "length": len_graph_data, "net": net_graph_data}, new_graph
+    export_graph(graph, design_name, "detailed")
 
 
+    mux_listing(graph, node_output)
+    mux_removal(graph)
+
+    export_graph(graph, design_name, "detailed_nomux")
+
+
+    return {"res": res_graph_data, "cap": cap_graph_data, "length": len_graph_data, "net": net_graph_data}, graph
