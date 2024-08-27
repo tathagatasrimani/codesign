@@ -19,7 +19,7 @@ def box_whiskers_plot(designs: list, units: list, title: list, show_flier: bool)
     
     for rc_or_l in ["res", "cap", "length"]:
         box_plot = None
-        rcl = pd.read_csv('results/result_rcl.csv')
+        rcl = pd.read_csv('openroad_interface/results/result_rcl.csv')
 
         sns.set_theme(rc={'figure.figsize':(10, 15)}, style="ticks")
 

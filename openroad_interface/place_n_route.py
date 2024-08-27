@@ -1,5 +1,6 @@
 import re
 import os
+import copy
 
 import networkx as nx
 
@@ -9,7 +10,9 @@ from . import detailed as det
 
 def openroad_run():
     os.chdir(directory)
-    os.system("openroad test.tcl")
+    print("running openroad")
+    os.system("openroad test.tcl > /dev/null 2>&1")
+    print("done")
     os.chdir("../../..")
 
 def export_graph(graph, design_name, est_or_det: str):
@@ -29,8 +32,12 @@ def mux_removal(graph: nx.DiGraph, design_name):
 
             old_output = graph_copy[node][str(output_node)]
             for attribute in ["net_length", "net_cap", "net_res"]:
-                old_edge_1[attribute] += float(old_output[attribute])
-                old_edge_2[attribute] += float(old_output[attribute])
+                if type(old_edge_1[attribute]) != list:
+                    old_edge_1[attribute] = [old_edge_1[attribute]]
+                if type(old_edge_2[attribute]) != list:
+                    old_edge_2[attribute] = [old_edge_2[attribute]]
+                old_edge_1[attribute].append(float(old_output[attribute]))
+                old_edge_2[attribute].append(float(old_output[attribute]))
             graph_copy.add_edge(input_nodes[0][0], output_node, **old_edge_1)
             graph_copy.add_edge(input_nodes[1][0], output_node, **old_edge_2)
             graph_copy.remove_node(node)
@@ -105,7 +112,7 @@ def estimated_place_n_route(graph: nx.DiGraph, design_name: str, net_out_dict: d
         net_graph_data.append(net_out_dict[output_pin])
     
     new_graph = mux_removal(graph, design_name)
-    export_graph(graph, design_name, "estimate")
+    export_graph(new_graph, design_name, "estimate")
 
     return {"length":estimated_length_data, "res": estimated_res_data, "cap" : estimated_cap_data, "net": net_graph_data}, new_graph
 
@@ -150,7 +157,7 @@ def detailed_place_n_route(graph: nx.DiGraph, design_name: str, net_out_dict: di
         cap_graph_data.append(float(net_cap[net_out_dict[output_pin]])) # picofarads
 
     new_graph = mux_removal(graph, design_name)
-    export_graph(graph, design_name, "detailed")
+    export_graph(new_graph, design_name, "detailed")
 
     return {"res": res_graph_data, "cap": cap_graph_data, "length": len_graph_data, "net": net_graph_data}, new_graph
 
