@@ -139,8 +139,7 @@ def estimated_place_n_route(graph: nx.DiGraph,
     
     export_graph(graph, design_name, "estimated_nomux")
 
-    return {"length":estimated_length_data, "res": estimated_res_data, "cap" : estimated_cap_data, "net": net_graph_data}, new_graph
-
+    return {"length":estimated_length_data, "res": estimated_res_data, "cap" : estimated_cap_data, "net": net_graph_data}, graph
 
 def detailed_place_n_route(graph: nx.DiGraph, design_name: str, net_out_dict: dict, node_output: dict, lef_data: dict, node_to_num: dict) -> dict:
     '''
@@ -168,6 +167,8 @@ def detailed_place_n_route(graph: nx.DiGraph, design_name: str, net_out_dict: di
     
     length_dict = det.length_calculations(lef_data["units"])
 
+    # nomux_graph = mux_removal(graph, design_name)
+
     # add edge attributions
     net_graph_data = []
     res_graph_data = []
@@ -180,11 +181,10 @@ def detailed_place_n_route(graph: nx.DiGraph, design_name: str, net_out_dict: di
             graph[output_pin][node]['net_res'] = float(net_res[net_out_dict[output_pin]])
             graph[output_pin][node]['net_cap'] = float(net_cap[net_out_dict[output_pin]])
         net_graph_data.append(net_out_dict[output_pin])
-        res_graph_data.append(float(net_res[net_out_dict[output_pin]]))
-        cap_graph_data.append(float(net_cap[net_out_dict[output_pin]]) * pow(10,4))
-        len_graph_data.append(float(length_dict[net_out_dict[output_pin]]))
+        len_graph_data.append(float(length_dict[net_out_dict[output_pin]])) # length
+        res_graph_data.append(float(net_res[net_out_dict[output_pin]])) # ohms
+        cap_graph_data.append(float(net_cap[net_out_dict[output_pin]])) # picofarads
 
-    new_graph = mux_removal(graph, design_name)
     export_graph(graph, design_name, "detailed")
 
 
