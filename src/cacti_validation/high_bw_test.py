@@ -5,15 +5,10 @@ import pandas as pd
 
 import cacti_util
 
-mem_size_range = [2048, 4096, 32768, 131072]#, 262144, 1048576, 2097152, 4194304, 8388608, 16777216, 33554432, 134217728, 67108864, 1073741824]
-bw_range = [16, 32, 64] #np.concatenate((np.arange(16, 257, 16), np.arange(256, 1025, 64), np.arange(1024, 8193, 256)))
 
-print(f"mem_size_range: {mem_size_range}")
-print(f"bw_range: {bw_range}")
-
-
-def gen_vals_wrapper(data):
-    mem_size, bw = data
+def gen_vals_wrapper(mem_size, bw):
+    # mem_size = data
+    # bw = 16
     print(f"running mem size: {mem_size} with bw: {bw}", flush=True)
     try:
         return cacti_util.gen_vals(
@@ -27,15 +22,43 @@ def gen_vals_wrapper(data):
         print(f"Error: {e}")
         return pd.Series()
 
-data = product(mem_size_range, bw_range)
-print(list(data))
+def square(x):
+    return x**2
+
+# if __name__ == "__main__":
+
+
+#     with Pool(8) as p:
+#         res = p.map(square, [1, 2, 3])
+#         print(res)
+#         p.close()
+#         p.join()
 
 if __name__ == "__main__":
-    with Pool(8) as p:
+
+    mem_size_range = [2048, 4096, 32768, 131072]#, 262144, 1048576, 2097152, 4194304, 8388608, 16777216, 33554432, 134217728, 67108864, 1073741824]
+    bw_range = [16, 32, 64] #np.concatenate((np.arange(16, 257, 16), np.arange(256, 1025, 64), np.arange(1024, 8193, 256)))
+
+    print(f"mem_size_range: {mem_size_range}")
+    print(f"bw_range: {bw_range}")
+
+
+    data = product(mem_size_range, bw_range)
+    # print(list(data))
+
+    with Pool(1) as p:
         res = p.starmap(
             gen_vals_wrapper,
-            list(data),
+            data,
         )
+        print(f"res: {res}")
+        # print(f"res.ready: {res.ready()}")
+        # res = res.get()
+        # print(f"res.succesful: {res.successful()}")
+
+        p.close()
+        p.join()
+        print(f"res: {res}")
     print(res)
     for param, series in zip(data, res):
         print(series)
