@@ -420,15 +420,11 @@ class ConcreteSimulator(AbstractSimulator):
     def calculate_edp(self):
         print("in calc edp")
         if isinstance(self.cycles, sp.Expr):
-            print('hi')
             self.cycles = self.cycles.evalf()
         if isinstance(self.active_energy, sp.Expr):
-            print('ho')
             self.active_energy = self.active_energy.evalf()
         if isinstance(self.passive_energy, sp.Expr):
-            print('hu')
             self.passive_energy = self.passive_energy.evalf()
-        print("aftrr calc edp")
 
         self.execution_time = self.cycles # in seconds
         self.total_energy = self.active_energy + self.passive_energy
