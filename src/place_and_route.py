@@ -60,12 +60,27 @@ def placement(hw): # return final positions, wirelength of each edge, (add attri
 
     return optimalPos, wireLengths
 
+# Example temperature schedules you can use
+def temperature(fraction, schedule='linear'):
+    if schedule == 'linear':
+        return max(0.01, 1 - fraction)
+    elif schedule == 'exponential':
+        return max(0.01, np.exp(-5 * fraction))
+    elif schedule == 'logarithmic':
+        return max(0.01, 1 / np.log(2 + fraction * 10))
+    elif schedule == 'quadratic':
+        return max(0.01, 1 - fraction**2)
+    else:
+        raise ValueError("Unknown temperature schedule: {}".format(schedule))
+
 def annealing(positions,
               edges,
               areas,
               interval,
               init_scale,
-              maxsteps=10):
+              maxsteps=10000,
+              temp_schedule='logarithmic'):  # Add temp_schedule as a parameter
+
     for i in range(len(positions)):
         state = init_positions(init_scale)
         positions[i] = state
@@ -79,7 +94,7 @@ def annealing(positions,
 
     for step in range(maxsteps):
         fraction = step / float(maxsteps)
-        T = temperature(fraction)
+        T = temperature(fraction, schedule=temp_schedule)  # Use the selected temperature schedule
 
         for i in range(len(positions)):
             new_state = random_neighbour(positions[i], interval, areas[i] ** 0.5, fraction)
@@ -152,7 +167,7 @@ def init_positions(scale):
 def cost_function(x, positions, areas):
     return f(x, positions, areas)
 
-def random_neighbour(x, interval, scale, fraction=1):
+def random_neighbour(x, interval, scale, fraction=.01):
     amplitude = (max(interval) - min(interval)) * (1 - fraction) / 10
     deltaX = (-amplitude/2.) + amplitude * rng.normal(loc=0.0, scale=scale, size=None)
     deltaY = (-amplitude/2.) + amplitude * rng.normal(loc=0.0, scale=scale, size=None)
@@ -164,29 +179,13 @@ def acceptance_probability(cost, new_cost, cur_temperature):
     else:
         p = np.exp(- (new_cost - cost) / cur_temperature)
         return p 
-# temperature schedules in simulated annealing
-# play with this hyperparamater
-# do some reading on temperature schedules
-def temperature(fraction):
-    return max(0.01, min(1, 1 - fraction))
 
 def plotter2(positions, areas, nodes, edges, scaling_factor=10 ** -9):
 
     G = nx.Graph()
     nodes = list(nodes)
-    #multiplier = 1000000
-
-    # Calculate the size of the side of the square based on the area
     sizes = [(area ** 0.5) * scaling_factor * 10000000 for area in areas] 
     sizes[-2] /= 100
-
-    # sizes = []
-
-    # for i in range(len(areas)):
-    #     if i == 8:
-    #         sizes[i] *= 100000
-    #     else:
-    #         sizes[i] *= 1000000 
 
     for i in range(len(positions)):
         G.add_node(nodes[i], pos=(positions[i][0] * scaling_factor, positions[i][1] * scaling_factor), size=sizes[i])
