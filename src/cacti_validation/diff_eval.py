@@ -368,7 +368,7 @@ if __name__ == "__main__":
         cfg_file = "cacti/cfg/" + cfg_file + ".cfg"
         IO_info = cacti_util.cacti_gen_sympy(sympy_file, cfg_file, buf_opt, use_piecewise=False)
     else:
-        cfg_file = f'cacti/{cfg_file}.cfg'
+        cfg_file = f'cacti/cfg/{cfg_file}.cfg'
 
     dat_file = os.path.join('cacti', 'tech_params', '90nm.dat')
     gen_diff(sympy_file, cfg_file, dat_file)
