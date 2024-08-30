@@ -234,20 +234,14 @@ class Codesign:
         passive_energy = self.symbolic_sim.total_passive_energy.xreplace(self.tech_params)
 
         ### EVAL the x_replace
-        print("in calc edp")
         if isinstance(self.inverse_edp, sp.Expr):
-            print('ha')
             self.inverse_edp = self.inverse_edp.evalf()
         if isinstance(inverse_cycles, sp.Expr):
-            print('hi')
             inverse_cycles = inverse_cycles.evalf()
         if isinstance(active_energy, sp.Expr):
-            print('ho')
             active_energy = active_energy.evalf()
         if isinstance(passive_energy, sp.Expr):
-            print('hu')
             passive_energy = passive_energy.evalf()
-        print("aftrr calc edp")
         ###
 
         print(
@@ -279,16 +273,12 @@ class Codesign:
 
         ### EVAL the x_replace
         if isinstance(self.inverse_edp, sp.Expr):
-            print('ha')
             self.inverse_edp = self.inverse_edp.evalf()
         if isinstance(execution_time, sp.Expr):
-            print('hi')
             execution_time = execution_time.evalf()
         if isinstance(total_active_energy, sp.Expr):
-            print('ho')
             total_active_energy = total_active_energy.evalf()
         if isinstance(total_passive_energy, sp.Expr):
-            print('hu')
             total_passive_energy = total_passive_energy.evalf()
         ###
 

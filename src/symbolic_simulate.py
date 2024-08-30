@@ -295,7 +295,9 @@ class SymbolicSimulator(AbstractSimulator):
         # self.total_passive_energy_ceil = self.passive_energy_dissipation(
         #     hw, self.cycles_ceil
         # )
-        self.edp = self.cycles + (self.total_active_energy ) #+ self.total_passive_energy)
+
+        # TODO change edp
+        self.edp = self.cycles * (self.total_active_energy + self.total_passive_energy)
         assert hw_symbols.MemReadL not in self.edp.free_symbols and hw_symbols.MemWriteL not in self.edp.free_symbols # and hw_symbols.BufL not in self.edp.free_symbols
 
         # self.edp = self.edp.subs(subs)
