@@ -161,7 +161,9 @@ def merge_csv_files(input_files, output_file):
 
 
 if __name__ == "__main__":
-    # INDIVIDUAL
+    # plots saved to results
+    
+    # INDIVIDUAL PLOTS
     # csv_file_path = 'results/access_time_grad_results.csv'
     # plot_diff(csv_file_path, name="access_time_similarity")
 
@@ -187,7 +189,7 @@ if __name__ == "__main__":
     # csv_file_path = 'results/read_leakage_grad_results.csv'
     # plot_diff(csv_file_path, False, True, name="read_leakage_no_num_similarity")
 
-    # COMBINED
+    # COMBINED PLOT
     csv_files = [
         ('results/access_time_grad_results.csv', "Access Time"),
         ('results/read_dynamic_grad_results.csv', "Read Dynamic"),
