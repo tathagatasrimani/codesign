@@ -91,7 +91,7 @@ class Codesign:
         self.sim.calculate_edp()
         self.forward_edp = self.sim.edp
 
-        print(
+        logger.info(
             f"\nInitial EDP: {self.forward_edp} E-18 Js. Active Energy: {self.sim.active_energy} nJ. Passive Energy: {self.sim.passive_energy} nJ. Execution time: {self.sim.execution_time} ns"
         )
 

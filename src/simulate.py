@@ -47,6 +47,8 @@ class ConcreteSimulator(AbstractSimulator):
         self.unroll_at = {}
         self.vars_allocated = {}
         self.where_to_free = {}
+        self.energy_use = {}
+        self.delay_contribution = {}
         self.memory_needed = 0
         self.nvm_memory_needed = 0
         self.cur_memory_size = 0
@@ -346,6 +348,9 @@ class ConcreteSimulator(AbstractSimulator):
 
                 self.active_energy += energy
                 hw.compute_operation_totals[node_data["function"]] += 1
+                if node_data["function"] not in self.energy_use:
+                    self.energy_use[node_data["function"]] = 0
+                self.energy_use[node_data["function"]] += energy
 
             def matcher_func(n1, n2):
                 res = (
@@ -385,6 +390,7 @@ class ConcreteSimulator(AbstractSimulator):
                     continue
                 logger.info(f"start_node: {start_node}, end_node: {end_node}")
                 for path in nx.all_simple_paths(computation_dfg, start_node, end_node):
+                    delay_contribution_path = {}
                     path_latency = 0
                     for node in path:
                         scaling = 1
@@ -398,9 +404,12 @@ class ConcreteSimulator(AbstractSimulator):
                         if func in ["Buf", "MainMem"]:
                             scaling = node_data["size"]
                             logger.info(f"latency scaling: {scaling}")
-
+                        if func not in delay_contribution_path:
+                            delay_contribution_path[func] = 0
+                        delay_contribution_path[func] += hw.latency[func] * scaling
                         path_latency += hw.latency[func] * scaling
                     if path_latency > self.cycles:
+                        self.delay_contribution = delay_contribution_path.copy()
                         longest_path_explicit = path
                         self.cycles = path_latency
         logger.info(
@@ -416,6 +425,9 @@ class ConcreteSimulator(AbstractSimulator):
             self.passive_energy += (
                 hw.leakage_power[elem_data["function"]] * 1e-9 * self.cycles * scaling
             )
+        logger.info(f"energy use of different elements in forward pass: {self.energy_use}")
+        logger.info(f"delay of different elements in forward pass: {self.delay_contribution}")
+        logger.info(f"delay of elements one use: {hw.latency}")
 
     def calculate_edp(self):
         print("in calc edp")
