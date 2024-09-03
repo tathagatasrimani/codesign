@@ -20,13 +20,16 @@ def export_graph(graph, design_name, est_or_det: str):
         os.makedirs("openroad_interface/results/")
     nx.write_gml(graph, "openroad_interface/results/" + est_or_det + "_" + design_name + ".gml")
 
-def mux_removal(graph: nx.DiGraph):
-    reference = copy.deepcopy(graph.nodes())
-    for node in reference:
-        if "Mux" in node:
-            graph.remove_node(node)
-
 def mux_listing(graph, node_output):
+    ''' 
+    goes through the graph and finds nodes that are not Muxs. If it encounters one, it will go through 
+    the graph to find the path of Muxs until the another non-Mux node is found. All rcl are put into a 
+    list and added as an edge attribute for the non-mux node to non-mux node connection 
+
+    param: 
+    	graph: graph with the net attributes already attached
+    	node_output: dict of nodes and their respective outputs
+    '''
     for node in graph.nodes():
         if "Mux" not in node:
             for output in node_output[node]:
@@ -46,39 +49,17 @@ def mux_listing(graph, node_output):
                         val_list.append(graph[path[node_index]][output][attribute])
                         graph[node][output][attribute] = val_list
 
-# def mux_adding_wrapper(node_output, net_out_dict, net_val, node_input):
-#     for node in node_output:
-#         for output in node_output[node]: 
-#             if "Mux" in output:
-#                 net_val = mux_adding(output, node_output, net_out_dict, net_val, node_input)
-#                 # for input in node_input[output]:
-#                 #     if net_out_dict[input] in net_val and net_out_dict[output] in net_val:
-#                 #         if type(net_val[net_out_dict[input]]) != list:
-#                 #             net_val[net_out_dict[input]] = [net_val[net_out_dict[input]]]
-#                 #         output_val = net_val[net_out_dict[output]]
-#                 #         output_vals = output_val if isinstance(output_val, list) else [output_val]
-#                 #         net_val[net_out_dict[input]].extend(output_vals)
-#                 if net_out_dict[output] in net_val:
-#                     del net_val[net_out_dict[output]]
-#     return net_val
 
-# def mux_adding(node, node_output, net_out_dict, net_val, node_input):
-#     if len(node_output[node]) == 1 and "Mux" not in node_output[node][0]:
-#         return net_val
-#     for output in node_output[node]:
-#         if "Mux" in output:
-#             net_val = mux_adding(output, node_output, net_out_dict, net_val, node_input)
-#             for input in node_input[output]:
-#                 if net_out_dict[input] in net_val and net_out_dict[output] in net_val:
-#                     if type(net_val[net_out_dict[input]]) != list:
-#                         net_val[net_out_dict[input]] = [net_val[net_out_dict[input]]]
-#                     output_val = net_val[net_out_dict[output]]
-#                     output_vals = output_val if isinstance(output_val, list) else [output_val]
-#                     net_val[net_out_dict[input]].extend(output_vals)
-#             if net_out_dict[output] in net_val:
-#                 del net_val[net_out_dict[output]]
-#     return net_val
-
+def mux_removal(graph: nx.DiGraph):
+    '''
+    Removes the mux nodes from the graph. Does not do the connecting
+    param:
+    	graph: graph with the new edge connections, after mux listing
+    '''
+    reference = copy.deepcopy(graph.nodes())
+    for node in reference:
+        if "Mux" in node:
+            graph.remove_node(node)
 
 def coord_scraping(graph: nx.DiGraph, 
                    node_to_num: dict, 
@@ -191,12 +172,7 @@ def detailed_place_n_route(graph: nx.DiGraph,
     graph, _ = coord_scraping(graph, node_to_num)
     net_cap, net_res = det.parasitic_calc()
     
-    # nomux_cap = copy.deepcopy(net_cap)
-    # nomux_cap = mux_adding_wrapper(node_output, net_out_dict, nomux_cap, node_input)
-
     length_dict = det.length_calculations(lef_data["units"])
-
-    # nomux_graph = mux_removal(graph, design_name)
 
     # add edge attributions
     net_graph_data = []
