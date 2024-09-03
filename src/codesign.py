@@ -98,6 +98,16 @@ class Codesign:
         with open("params/rcs_current.yaml", "w") as f:
             f.write(yaml.dump(rcs))
 
+        # Save tech node info to another file prefixed by prev_ so we can restore
+        org_dat_file = self.hw.cacti_dat_file
+        tech_nm = os.path.basename(org_dat_file) 
+        tech_nm = os.path.splitext(tech_nm)[0]
+
+        prev_dat_file = f"cacti/tech_params/prev_{tech_nm}.dat"
+        with open(org_dat_file, 'r') as src_file, open(prev_dat_file, 'w') as dest_file:
+            for line in src_file:
+                dest_file.write(line)
+
     def set_technology_parameters(self, tech_params):
         if self.initial_tech_params == None:
             self.initial_tech_params = tech_params
@@ -314,6 +324,19 @@ class Codesign:
             f"{self.save_dir}/tech_params_{iter_number}.yaml"
         )
 
+    def restore_dat(self):
+        dat_file = self.hw.cacti_dat_file
+        tech_nm = os.path.basename(dat_file) 
+        tech_nm = os.path.splitext(tech_nm)[0]
+
+        prev_dat_file = f"cacti/tech_params/prev_{tech_nm}.dat"
+
+        with open(prev_dat_file, 'r') as src_file, open(dat_file, 'w') as dest_file:
+            for line in src_file:
+                dest_file.write(line)
+        os.remove(prev_dat_file)
+
+
     def execute(self, num_iters):
         i = 0
         while i < num_iters:
@@ -324,6 +347,9 @@ class Codesign:
 
             self.forward_pass()
             i += 1
+
+        #cleanup
+        self.restore_dat()
 
 
 def main():

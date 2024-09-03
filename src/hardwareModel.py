@@ -297,10 +297,9 @@ class HardwareModel:
         R = rcs["Reff"]  # Ohms
         self.V_dd = rcs["other"]["V_dd"]
 
-        # TODO: update this to write to .dat file and then run cacti proper again.
         opt_params = sim_util.generate_init_params_from_rcs_as_symbols(rcs)
 
-        # cacti_util.update_dat(opt_params)
+        cacti_util.update_dat(rcs, self.cacti_dat_file) # update dat file
         # self.latency["MainMem"] = (
         #     rcs["other"]["MemReadL"] + rcs["other"]["MemWriteL"]
         # ) / 2
@@ -363,13 +362,7 @@ class HardwareModel:
         """
         Generate R,C, etc from the latency, power tech parameters.
         """
-        # TODO hardcoded dat_file for now
-        org_dat_file = "cacti/tech_params/90nm.dat"
-
-        # TODO empty this at the end of codesign run; also hardcode for now
-        dat_file = "cacti/tech_params/opt.dat"
-        if not os.path.exists(dat_file) or os.path.getsize(dat_file) == 0:
-            shutil.copy2(org_dat_file, dat_file)
+        dat_file = self.cacti_dat_file
 
         rcs = rcgen.generate_optimization_params(
             self.latency,

@@ -357,7 +357,7 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
 
     cmd = ['./cacti', '-infile', input_filename]
 
-    p = subprocess.Popen(cmd, cwd=cactiDir) #, stdout=stdout_file_path, stderr=subprocess.PIPE)
+    p = subprocess.Popen(cmd, cwd=cactiDir, stdout=stdout_file_path, stderr=subprocess.PIPE)
     p.wait()
     if p.returncode != 0:
         raise Exception(f"Cacti Error in {filename}", {p.stderr.read().decode()}, {p.stdout.read().decode().split("\n")[-2]})
@@ -443,6 +443,65 @@ def convert_frequency(string):
             print("Invalid input format")
     else:
         print("Invalid input format")
+
+"""
+Replace contents of opt dat file
+"""
+def update_dat(rcs, dat_file):
+    cacti_params = rcs["Cacti"]
+    cacti_params.pop("I_off_n", None)
+    cacti_params.pop("I_g_on_n", None)
+    cacti_params.pop("Wmemcella", None)
+    cacti_params.pop("Wmemcellpmos", None)
+    cacti_params.pop("Wmemcellnmos", None)
+    cacti_params.pop("area_cell", None)
+    cacti_params.pop("asp_ratio_cell", None)
+
+    for key, value in cacti_params.items():
+        replace_values_in_dat_file(dat_file, key, value)
+
+"""
+Helper to replace the original value in the dat file with the new value.
+The new value is the (original dat value - cacti_python_delta).
+"""
+def replace_values_in_dat_file(dat_file_path, key, new_value):
+    original_values = {}
+    
+    with open(dat_file_path, 'r') as file:
+        lines = file.readlines()
+    
+    pattern = re.compile(rf"^-{key}\s+\((.*?)\)\s+(.*)$")
+    for i, line in enumerate(lines):
+        match = pattern.match(line.strip())
+        if match:
+            # Extract original values and store them
+            original_values[i] = match.group(2).split()
+            # Keep the unit label (e.g., (F/um), (V), etc.)
+            unit_label = match.group(1)
+            # Replace the numeric values with the new value
+            lines[i] = f"-{key} ({unit_label}) " + " ".join([str(new_value)] * len(original_values[i])) + "\n"
+
+    with open(dat_file_path, 'w') as file:
+        file.writelines(lines)
+    
+    return original_values
+
+"""
+Helper to restore the original value in the dat file.
+"""
+def restore_original_values_in_dat_file(dat_file_path, original_values):
+    with open(dat_file_path, 'r') as file:
+        lines = file.readlines()
+    
+    for i, values in original_values.items():
+        parts = lines[i].split()
+        # Preserve the key and unit label
+        key_and_unit = " ".join(parts[:2])
+        # Replace the rest with the original values
+        lines[i] = f"{key_and_unit} " + " ".join(values) + "\n"
+
+    with open(dat_file_path, 'w') as file:
+        file.writelines(lines)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Process a config file and a data file.")
