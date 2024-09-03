@@ -4,6 +4,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import os
 import argparse
+from matplotlib.colors import LinearSegmentedColormap
 
 def calculate_similarity_matrix(experimental, expected):
     return 100 * (1 - np.abs(experimental - expected) / np.abs(expected))
@@ -78,8 +79,17 @@ def plot_diff(csv_file_path=None, show_numbers=True, square=False, width=6, name
     y_labels = y_labels[:matrix.shape[0]]
     x_labels = x_labels[:matrix.shape[1]]
 
-    # Set up the color map: green for 100, red for -100
-    cmap = sns.diverging_palette(10, 150, as_cmap=True)
+    # Custom colormap: red at -100 and 300, white at 0 and 200, green at 100
+    colors = [
+        (0.9, 0.0, 0.0),  # Red at -100
+        (1.0, 1.0, 1.0),    # White at 0
+        (0.0, 0.75, 0.0),  # Green at 100
+        (1.0, 1.0, 1.0),    # White at 200
+        (0.9, 0.0, 0.0)   # Red at 300
+    ]
+    nodes = [-100, 0, 100, 200, 300]
+    normalized_nodes = [(node - min(nodes)) / (max(nodes) - min(nodes)) for node in nodes]
+    cmap = LinearSegmentedColormap.from_list("custom_cmap", list(zip(normalized_nodes, colors)))
 
     # Create the heatmap with adjusted figure size
     plt.figure(figsize=(width, 8))  # Make the figure narrower
@@ -88,9 +98,9 @@ def plot_diff(csv_file_path=None, show_numbers=True, square=False, width=6, name
         annot=show_numbers, 
         fmt=".2f" if show_numbers else "", 
         cmap=cmap, 
-        center=0, 
-        vmin=-100, 
-        vmax=100, 
+        center=100,  # Center the colormap at 0 for white
+        vmin=-100,  # Minimum value for the colormap
+        vmax=300,  # Maximum value for the colormap
         annot_kws={"size": 10}, 
         cbar_kws={"shrink": 1},  # Adjust color bar size
         linewidths=0.5,  # Add grid lines for better separation
@@ -104,7 +114,7 @@ def plot_diff(csv_file_path=None, show_numbers=True, square=False, width=6, name
     # Set x label font sizes based on the content
     for label in ax.get_xticklabels():
         if label.get_text().startswith("End of"):
-            label.set_fontsize(4)  # Larger fontsize for labels starting with "End of"
+            label.set_fontsize(4)  # Smaller fontsize for labels starting with "End of"
         else:
             label.set_fontsize(8)  # Default fontsize for other labels
 
@@ -149,7 +159,6 @@ def merge_csv_files(input_files, output_file):
 
         # Create a buffer DataFrame with the same number of rows, only if it's not the last file
         if i < len(input_files) - 1:
-            print("APPENDING BUFFER!")
             buffer_df = df.copy()
             buffer_df['Tech Config'] = f"End of {label}"
             buffer_df['Similarities'] = 0
