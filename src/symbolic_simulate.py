@@ -295,7 +295,7 @@ class SymbolicSimulator(AbstractSimulator):
         # self.total_passive_energy_ceil = self.passive_energy_dissipation(
         #     hw, self.cycles_ceil
         # )
-        self.edp = self.cycles + (self.total_active_energy + self.total_passive_energy)
+        self.edp = self.cycles * (self.total_active_energy + self.total_passive_energy)
         self.edp = self.edp.xreplace(cacti_subs)
 
         assert hw_symbols.MemReadL not in self.edp.free_symbols and hw_symbols.MemWriteL not in self.edp.free_symbols, "Mem latency not fully substituted"

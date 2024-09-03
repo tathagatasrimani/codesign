@@ -3,6 +3,8 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 import os
+import argparse
+from matplotlib.colors import LinearSegmentedColormap
 
 def calculate_similarity_matrix(experimental, expected):
     return 100 * (1 - np.abs(experimental - expected) / np.abs(expected))
@@ -46,7 +48,8 @@ def parse_csv_to_dict(file_path):
 
     return data
 
-def plot_diff(csv_file_path=None, show_numbers=True, name="similarity_matrix"):
+def plot_diff(csv_file_path=None, show_numbers=True, square=False, width=6, name="similarity_matrix",
+              xlabel_fontsize=12, ylabel_fontsize=12, title_fontsize=14):
     # If a CSV file path is provided, parse it
     if csv_file_path:
         data = parse_csv_to_dict(csv_file_path)
@@ -76,36 +79,59 @@ def plot_diff(csv_file_path=None, show_numbers=True, name="similarity_matrix"):
     y_labels = y_labels[:matrix.shape[0]]
     x_labels = x_labels[:matrix.shape[1]]
 
-    # Set up the color map: green for 100, red for -100
-    cmap = sns.diverging_palette(10, 150, as_cmap=True)
+    # Custom colormap: red at -100 and 300, white at 0 and 200, green at 100
+    colors = [
+        (0.9, 0.0, 0.0),  # Red at -100
+        (1.0, 1.0, 1.0),    # White at 0
+        (0.0, 0.75, 0.0),  # Green at 100
+        (1.0, 1.0, 1.0),    # White at 200
+        (0.9, 0.0, 0.0)   # Red at 300
+    ]
+    nodes = [-100, 0, 100, 200, 300]
+    normalized_nodes = [(node - min(nodes)) / (max(nodes) - min(nodes)) for node in nodes]
+    cmap = LinearSegmentedColormap.from_list("custom_cmap", list(zip(normalized_nodes, colors)))
 
     # Create the heatmap with adjusted figure size
-    plt.figure(figsize=(6, 8))  # Make the figure narrower
+    plt.figure(figsize=(width, 8))  # Make the figure narrower
     ax = sns.heatmap(
         matrix, 
         annot=show_numbers, 
         fmt=".2f" if show_numbers else "", 
         cmap=cmap, 
-        center=0, 
-        vmin=-100, 
-        vmax=100, 
+        center=100,  # Center the colormap at 0 for white
+        vmin=-100,  # Minimum value for the colormap
+        vmax=300,  # Maximum value for the colormap
         annot_kws={"size": 10}, 
         cbar_kws={"shrink": 1},  # Adjust color bar size
         linewidths=0.5,  # Add grid lines for better separation
-        square=(not show_numbers)
+        square=square
     )
 
     # Set x and y labels with correct number of labels
     ax.set_xticks(np.arange(matrix.shape[1]) + 0.5)
     ax.set_yticks(np.arange(matrix.shape[0]) + 0.5)
-    ax.set_xticklabels(x_labels, rotation=45, ha='right', fontsize=8)
-    ax.set_yticklabels(y_labels, rotation=0)
 
+    # Set x label font sizes based on the content
+    for label in ax.get_xticklabels():
+        if label.get_text().startswith("End of"):
+            label.set_fontsize(4)  # Smaller fontsize for labels starting with "End of"
+        else:
+            label.set_fontsize(8)  # Default fontsize for other labels
+
+    ax.set_xticklabels(x_labels, rotation=45, ha='right', fontsize=xlabel_fontsize)
+    ax.set_yticklabels(y_labels, rotation=0, fontsize=ylabel_fontsize)
+
+    # Set the title
     title = name.replace('no_num_', '').replace('No_Num_', '')
     title = title.replace('_', ' ')
     title = title.title()
     title += " Matrix"
-    plt.title(title)
+    plt.title(title, fontsize=20)
+
+    # Add x and y labels with customizable font size
+    ax.set_xlabel('Memory Configuration', fontsize=16)
+    ax.set_ylabel('Technology Parameters', fontsize=16)
+
     plt.subplots_adjust(left=0.2, right=0.8, top=0.9, bottom=0.1)  # Adjust spacing
 
     # Save the plot
@@ -117,32 +143,79 @@ def plot_diff(csv_file_path=None, show_numbers=True, name="similarity_matrix"):
     plt.savefig(output_path, bbox_inches='tight')
     plt.close()
 
+def merge_csv_files(input_files, output_file):
+    # Create an empty DataFrame to hold the merged data
+    merged_df = pd.DataFrame()
+
+    for i, (file, label) in enumerate(input_files):
+        # Read each CSV file
+        df = pd.read_csv(file)
+
+        # Modify the Tech Config by appending the label at the beginning
+        df['Tech Config'] = label + ", " + df['Tech Config']
+
+        # Append the actual data to the merged DataFrame
+        merged_df = pd.concat([merged_df, df], ignore_index=True)
+
+        # Create a buffer DataFrame with the same number of rows, only if it's not the last file
+        if i < len(input_files) - 1:
+            buffer_df = df.copy()
+            buffer_df['Tech Config'] = f"End of {label}"
+            buffer_df['Similarities'] = 0
+
+            # Append the buffer DataFrame to the merged DataFrame
+            merged_df = pd.concat([merged_df, buffer_df], ignore_index=True)
+
+    # Write the merged DataFrame to the output file
+    merged_df.to_csv(output_file, index=False)
+
 
 if __name__ == "__main__":
-    csv_file_path = 'results/access_time_grad_results.csv'
-    plot_diff(csv_file_path, name="access_time_similarity")
+    parser = argparse.ArgumentParser(description="Specify config (-CFG), set SymPy name (-SYMPY) and optionally generate SymPy (-gen)")
+    parser.add_argument("-CFG", type=str, default="cache", help="Path or Name to the configuration file; don't append cacti/ or .cfg")
 
-    csv_file_path = 'results/read_dynamic_grad_results.csv'
-    plot_diff(csv_file_path, name="read_dynamic_similarity")
+    args = parser.parse_args()
+    cfg_name = args.CFG
+    print(cfg_name)
+    import time
+    time.sleep(5)
+    
+    # INDIVIDUAL PLOTS
+    csv_file_path = f'results/{cfg_name}_access_time_grad_results.csv'
+    plot_diff(csv_file_path, name=f"{cfg_name}_access_time_similarity")
 
-    csv_file_path = 'results/write_dynamic_grad_results.csv'
-    plot_diff(csv_file_path, name="write_dynamic_similarity")
+    csv_file_path = f'results/{cfg_name}_read_dynamic_grad_results.csv'
+    plot_diff(csv_file_path, name=f"{cfg_name}_read_dynamic_similarity")
 
-    csv_file_path = 'results/read_leakage_grad_results.csv'
-    plot_diff(csv_file_path, name="read_leakage_similarity")
+    csv_file_path = f'results/{cfg_name}_write_dynamic_grad_results.csv'
+    plot_diff(csv_file_path, name=f"{cfg_name}_write_dynamic_similarity")
 
-    # no num
-    csv_file_path = 'results/access_time_grad_results.csv'
-    plot_diff(csv_file_path, False, name="access_time_no_num_similarity")
+    csv_file_path = f'results/{cfg_name}_read_leakage_grad_results.csv'
+    plot_diff(csv_file_path, name=f"{cfg_name}_read_leakage_similarity")
 
-    csv_file_path = 'results/read_dynamic_grad_results.csv'
-    plot_diff(csv_file_path, False, name="read_dynamic_no_num_similarity")
+    # no numbers on matrix
+    # csv_file_path = f'results/{cfg_name}_access_time_grad_results.csv'
+    # plot_diff(csv_file_path, False, True, name="access_time_no_num_similarity")
 
-    csv_file_path = 'results/write_dynamic_grad_results.csv'
-    plot_diff(csv_file_path, False, name="write_dynamic_no_num_similarity")
+    # csv_file_path = f'results/{cfg_name}_read_dynamic_grad_results.csv'
+    # plot_diff(csv_file_path, False, True, name="read_dynamic_no_num_similarity")
 
-    csv_file_path = 'results/read_leakage_grad_results.csv'
-    plot_diff(csv_file_path, False, name="read_leakage_no_num_similarity")
+    # csv_file_path = f'results/{cfg_name}_write_dynamic_grad_results.csv'
+    # plot_diff(csv_file_path, False, True, name="write_dynamic_no_num_similarity")
+
+    # csv_file_path = f'results/{cfg_name}_read_leakage_grad_results.csv'
+    # plot_diff(csv_file_path, False, True, name="read_leakage_no_num_similarity")
+
+    # COMBINED PLOT
+    csv_files = [
+        (f'results/{cfg_name}_access_time_grad_results.csv', "Access Time"),
+        (f'results/{cfg_name}_read_dynamic_grad_results.csv', "Read Dynamic"),
+        (f'results/{cfg_name}_write_dynamic_grad_results.csv', "Write Dynamic"),
+        (f'results/{cfg_name}_read_leakage_grad_results.csv', "Read Leakage")
+    ]
+    combined_csv_path = f'results/{cfg_name}_combined.csv'
+    merge_csv_files(csv_files, combined_csv_path)
+    plot_diff(combined_csv_path, False, False, 16, name=f"{cfg_name}_combined_gradient_similarity")
 
     
 

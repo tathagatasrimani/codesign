@@ -232,6 +232,10 @@ def calculate_similarity_matrix(python_grad, c_grad):
     similarity = magnitude * sign * -1 if greater_than_1 else magnitude * sign
     return similarity
 
+"""
+Generates diff result for a specific choice of
+sympy expression, cache configuration, and dat technology file
+"""
 def gen_diff(sympy_file, cfg_file, dat_file=None):
     print(f"In gen_diff {sympy_file}; {cfg_file}; {dat_file}")
     # init input params from .cfg
@@ -304,8 +308,9 @@ def gen_diff(sympy_file, cfg_file, dat_file=None):
                 python_change = python_results[metric]['gradient'] * python_results[metric]['delta']
                 similarity = calculate_similarity_matrix(python_change, cacti_gradient)
 
-            # Determine the CSV filename based on the metric
-            results_csv = f'cacti_validation/results/{metric}_grad_results.csv'
+            cfg_name = cfg_file.split('/')[-1]
+            cfg_name = cfg_name.replace('.cfg', '')
+            results_csv = f'cacti_validation/results/{cfg_name}_{metric}_grad_results.csv'
             
             try:
                 with open(results_csv, 'r'):
@@ -327,77 +332,54 @@ Loads in .cfg and .dat values.
 Differentiates with respect to each parameter
 """
 if __name__ == "__main__":
-    # # Set up argument parsing
-    # parser = argparse.ArgumentParser(description="Process configuration and SymPy files.")
-    # parser.add_argument("-CFG", type=str, default="mem_validate_cache", help="Path or Name to the configuration file; don't append cacti/ or .cfg")
-    # parser.add_argument("-SYMPY", type=str, default="sympy_mem_validate", help="Path to the SymPy file")
-    # parser.add_argument("-v", type=str, default="Vdd", help="Tech parameter key")
-    # parser.add_argument("-gen", type=str, default="false", help="Boolean flag to generate output")
-    # parser.add_argument("-metric", type=str, default="access_time", help="Metric to be used for evaluation")
+    parser = argparse.ArgumentParser(description="Specify config (-CFG), set SymPy name (-SYMPY) and optionally generate SymPy (-gen)")
+    parser.add_argument("-CFG", type=str, default="cache", help="Path or Name to the configuration file; don't append cacti/ or .cfg")
+    parser.add_argument("-DAT", type=str, default="", help="nm tech -> just specify '90nm'; if not provided, 45, 90, 180 will be tested")
+    parser.add_argument("-SYMPY", type=str, default="", help="Optionally path to the SymPy file if not named the same as cfg")
+    parser.add_argument("-gen", type=str, default="false", help="Boolean flag to generate Sympy from Cache CFG")
 
-    # # Parse the arguments
-    # args = parser.parse_args()
+    args = parser.parse_args()
+    dat_nm = args.DAT
 
-    # # Assign values to variables
-    # cfg_file = args.CFG
-    # sympy_file = args.SYMPY
-    # diff_var = args.v
-    # gen_flag = args.gen.lower() == "true"  
-    # metric = args.metric
+    # try to keep convention where sympy expressions have same name as cfg
+    if (args.SYMPY):
+        sympy_file = args.SYMPY
+    else:
+        sympy_file = args.CFG
 
-    # print(cfg_file)
-    # print(sympy_file)
-    # print(diff_var)
-    # print(f"Generate flag is set to: {gen_flag}")
-    # print(f"Metric is set to: {metric}")
+    gen_flag = args.gen.lower() == "true"  
 
-    # # If you wish to generate a new cfg file
-    # if gen_flag:
-    #     buf_vals = cacti_util.run_existing_cacti_cfg(cfg_file)
+    # If you haven't generated sympy expr from cache cfg yet
+    # Gen Flag true and can set sympy flag to set the name of the sympy expr
+    if gen_flag:
+        cfg_file = "cacti/cfg/" + args.CFG + ".cfg"
+        buf_vals = cacti_util.run_existing_cacti_cfg(cfg_file)
 
-    #     buf_opt = {
-    #         "ndwl": buf_vals["Ndwl"],
-    #         "ndbl": buf_vals["Ndbl"],
-    #         "nspd": buf_vals["Nspd"],
-    #         "ndcm": buf_vals["Ndcm"],
-    #         "ndsam1": buf_vals["Ndsam_level_1"],
-    #         "ndsam2": buf_vals["Ndsam_level_2"],
-    #         "repeater_spacing": buf_vals["Repeater spacing"],
-    #         "repeater_size": buf_vals["Repeater size"],
-    #     }
-    #     cfg_file = "cacti/" + cfg_file + ".cfg"
-    #     IO_info = cacti_util.cacti_gen_sympy(sympy_file, cfg_file, buf_opt, use_piecewise=False)
-    # else:
-    #     cfg_file = f'cacti/{cfg_file}.cfg'
+        buf_opt = {
+            "ndwl": buf_vals["Ndwl"],
+            "ndbl": buf_vals["Ndbl"],
+            "nspd": buf_vals["Nspd"],
+            "ndcm": buf_vals["Ndcm"],
+            "ndsam1": buf_vals["Ndsam_level_1"],
+            "ndsam2": buf_vals["Ndsam_level_2"],
+            "repeater_spacing": buf_vals["Repeater spacing"],
+            "repeater_size": buf_vals["Repeater size"],
+        }
+        
+        sympy_name = args.CFG   # try to keep convention where sympy expressions have same name as cfg
+        IO_info = cacti_util.cacti_gen_sympy(sympy_name, cfg_file, buf_opt, use_piecewise=False)
+    else:
+        cfg_file = f'cacti/cfg/{args.CFG}.cfg'
 
-    sympy_file = "cache_results"
-    cfg_file = os.path.join('cacti', 'cfg', 'cache.cfg')
-    dat_file = os.path.join('cacti', 'tech_params', '90nm.dat')
-    gen_diff(sympy_file, cfg_file, dat_file)
+    if dat_nm:
+        dat_file = f"cacti/tech_params/{dat_nm}.dat"
+        gen_diff(sympy_file, cfg_file, dat_file)
+    else:
+        dat_file_90nm = os.path.join('cacti', 'tech_params', '90nm.dat')
+        gen_diff(sympy_file, cfg_file, dat_file_90nm)
 
-    sympy_file = "dram_results"
-    cfg_file = os.path.join('cacti', 'cfg', 'dram.cfg')
-    dat_file = os.path.join('cacti', 'tech_params', '90nm.dat')
-    gen_diff(sympy_file, cfg_file, dat_file)
+        dat_file_45nm = os.path.join('cacti', 'tech_params', '45nm.dat')
+        gen_diff(sympy_file, cfg_file, dat_file_45nm)
 
-    sympy_file = "cache_results"
-    cfg_file = os.path.join('cacti', 'cfg', 'cache.cfg')
-    dat_file = os.path.join('cacti', 'tech_params', '45nm.dat')
-    gen_diff(sympy_file, cfg_file, dat_file)
-
-    sympy_file = "dram_results"
-    cfg_file = os.path.join('cacti', 'cfg', 'dram.cfg')
-    dat_file = os.path.join('cacti', 'tech_params', '45nm.dat')
-    gen_diff(sympy_file, cfg_file, dat_file)
-
-    sympy_file = "cache_results"
-    cfg_file = os.path.join('cacti', 'cfg', 'cache.cfg')
-    dat_file = os.path.join('cacti', 'tech_params', '180nm.dat')
-    gen_diff(sympy_file, cfg_file, dat_file)
-
-    sympy_file = "dram_results"
-    cfg_file = os.path.join('cacti', 'cfg', 'dram.cfg')
-    dat_file = os.path.join('cacti', 'tech_params', '180nm.dat')
-    gen_diff(sympy_file, cfg_file, dat_file)
-
-    
+        dat_file_180nm = os.path.join('cacti', 'tech_params', '180nm.dat')
+        gen_diff(sympy_file, cfg_file, dat_file_180nm)

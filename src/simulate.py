@@ -418,7 +418,6 @@ class ConcreteSimulator(AbstractSimulator):
             )
 
     def calculate_edp(self):
-        print("in calc edp")
         if isinstance(self.cycles, sp.Expr):
             self.cycles = self.cycles.evalf()
         if isinstance(self.active_energy, sp.Expr):

@@ -431,7 +431,6 @@ class HardwareModel:
             "repeater_size": buf_vals["Repeater size"],
         }
 
-        print(f"CHECK THE VALS {self.buffer_size} {self.buffer_bus_width} {self.mem_size} {self.memory_bus_width}")
         mem_vals = cacti_util.gen_vals(
             "mem_cache",
             cacheSize=131072,  # self.mem_size,
@@ -450,8 +449,6 @@ class HardwareModel:
             "repeater_size": mem_vals["Repeater size"],
         }
         logger.info(f"Memory cacti with: {self.mem_size} bytes, {self.memory_bus_width} bus width")
-
-        print(f"CHECK THE VALS 2 {self.buffer_size} {self.buffer_bus_width} {self.mem_size} {self.memory_bus_width}")
 
         self.area["Buf"] = float(buf_vals["Area (mm2)"]) * 1e12 # convert to nm^2
         self.area["MainMem"] = float(mem_vals["Area (mm2)"]) * 1e12 # convert to nm^2
@@ -508,9 +505,8 @@ class HardwareModel:
             else 0.0
         )
 
-        base_cache_cfg = "cacti/base_cache.cfg"
-        mem_cache_cfg = "cacti/mem_cache.cfg"
-        print ("REACHED HERE")
+        base_cache_cfg = "cacti/cfg/base_cache.cfg"
+        mem_cache_cfg = "cacti/cfg/mem_cache.cfg"
 
         # TODO: This only needs to be triggered if we're doing inverse pass (ie symbolic simulate or codesign)
         # Comment for now since it takes a while to generate
