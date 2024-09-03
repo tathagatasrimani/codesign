@@ -1,5 +1,7 @@
 import yaml
 import cacti.cacti_python.get_dat as dat
+import cacti.cacti_python.get_IO as IO
+from cacti.cacti_python.parameter import InputParameter
 import math
 
 # Read in dat file, add to the rcs file
@@ -20,7 +22,7 @@ def generate_optimization_params(latency, active_power, active_energy, passive_p
         passive_power: dictionary of passive power in nW
         V_dd: voltage in V
     """
-    rcs = {"Reff": {}, "Ceff": {}, "Cacti": {}, "other": {}}
+    rcs = {"Reff": {}, "Ceff": {}, "Cacti": {}, "Cacti_IO": {}, "other": {}}
 
     rcs["other"]["V_dd"] = V_dd
 
@@ -61,6 +63,24 @@ def generate_optimization_params(latency, active_power, active_energy, passive_p
     cacti_params = {k: (1 if v is None or math.isnan(v) else (10**(-9) if v == 0 else v)) for k, v in cacti_params.items()}
     for key, value in cacti_params.items():
         rcs["Cacti"][key] = value
+
+    # CACTI IO
+    cacti_IO_params = {}
+    # TODO figure initial
+    g_ip = InputParameter()
+    g_ip.num_clk = 2
+    g_ip.io_type = "DDR3"
+    g_ip.num_mem_dq = 3
+    g_ip.mem_data_width = 2
+    g_ip.num_dq = 2
+    g_ip.dram_dimm = "UDIMM"
+    g_ip.bus_freq = 500
+    
+    IO.scan_IO(cacti_IO_params, g_ip, g_ip.io_type, g_ip.num_mem_dq, g_ip.mem_data_width, g_ip.num_dq, g_ip.dram_dimm, 1, g_ip.bus_freq)
+    cacti_IO_params = {k: (1 if v is None or math.isnan(v) else (10**(-9) if v == 0 else v)) for k, v in cacti_IO_params.items()}
+    for key, value in cacti_IO_params.items():
+        if key != "rtt1_dq_read" and key != "rtt1_dq_write" and key != "rtt2_dq_read" and key != "rtt2_dq_write":
+            rcs["Cacti_IO"][key] = value
 
     return rcs
 

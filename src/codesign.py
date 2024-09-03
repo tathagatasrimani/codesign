@@ -157,7 +157,7 @@ class Codesign:
 
     # TODO modify to hanlde new cacti list
     def write_back_rcs(self, rcs_path="params/rcs_current.yaml"):
-        rcs = {"Reff": {}, "Ceff": {},"Cacti": {}, "other": {}}
+        rcs = {"Reff": {}, "Ceff": {},"Cacti": {}, "Cacti_IO": {}, "other": {}}
         for elem in self.tech_params:
             if (
                 elem.name == "f"
@@ -171,6 +171,10 @@ class Codesign:
                 ]
             elif (elem.name in hw_symbols.cacti_tech_params):
                 rcs["Cacti"][elem.name] = self.tech_params[
+                    hw_symbols.symbol_table[elem.name]
+                ]
+            elif (elem.name in hw_symbols.cacti_io_tech_params):
+                rcs["Cacti_IO"][elem.name] = self.tech_params[
                     hw_symbols.symbol_table[elem.name]
                 ]
             else:
