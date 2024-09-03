@@ -1,7 +1,6 @@
 import shutil
 import os
-import math
-import sys
+import copy
 
 import networkx as nx
 import pandas as pd 
@@ -61,14 +60,15 @@ def validation(design_name: str, test_directory: str):
 
     # 3. extract parasitics
     print("running extractions")
-    detailed_dict, detailed_graph = pnr.detailed_place_n_route(graph, design_name, net_out_dict, node_output, lef_data, node_to_num)
-    estimation_dict, estimated_graph = pnr.estimated_place_n_route(graph, design_name, net_out_dict, node_output, lef_data, node_to_num)
-    global_length = est.global_estimation()
+    reference_graph = copy.deepcopy(graph) 
+    detailed_dict, detailed_graph = pnr.detailed_place_n_route(reference_graph, design_name, net_out_dict, node_output, lef_data, node_to_num)
+    reference_graph = copy.deepcopy(graph) 
+    estimation_dict, estimated_graph = pnr.estimated_place_n_route(reference_graph, design_name, net_out_dict, node_output, lef_data, node_to_num)
+    # global_length = est.global_estimation()
 
     return pandas_organize(design_name, estimation_dict, detailed_dict)
 
 if __name__ == "__main__":
-
     aes_arch_copy_data= validation("aes_arch_copy.gml", "openroad_interface/tcl/test_nangate45.tcl")
     mm_test_data = validation("mm_test.gml", "openroad_interface/tcl/test_nangate45_bigger.tcl")
 
@@ -82,3 +82,4 @@ if __name__ == "__main__":
     gp.box_whiskers_plot(designs, units, title, show_flier = True)
     gp.box_whiskers_plot(designs, units, title, show_flier = False)
     print("graphs generated")
+      
