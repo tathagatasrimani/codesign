@@ -3,6 +3,7 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 import os
+import argparse
 
 def calculate_similarity_matrix(experimental, expected):
     return 100 * (1 - np.abs(experimental - expected) / np.abs(expected))
@@ -161,45 +162,51 @@ def merge_csv_files(input_files, output_file):
 
 
 if __name__ == "__main__":
-    # plots saved to results
+    parser = argparse.ArgumentParser(description="Specify config (-CFG), set SymPy name (-SYMPY) and optionally generate SymPy (-gen)")
+    parser.add_argument("-CFG", type=str, default="cache", help="Path or Name to the configuration file; don't append cacti/ or .cfg")
+
+    args = parser.parse_args()
+    cfg_name = args.CFG
+    print(cfg_name)
+    import time
+    time.sleep(5)
     
     # INDIVIDUAL PLOTS
-    # csv_file_path = 'results/access_time_grad_results.csv'
-    # plot_diff(csv_file_path, name="access_time_similarity")
+    csv_file_path = f'results/{cfg_name}_access_time_grad_results.csv'
+    plot_diff(csv_file_path, name=f"{cfg_name}_access_time_similarity")
 
-    # csv_file_path = 'results/read_dynamic_grad_results.csv'
-    # plot_diff(csv_file_path, name="read_dynamic_similarity")
+    csv_file_path = f'results/{cfg_name}_read_dynamic_grad_results.csv'
+    plot_diff(csv_file_path, name=f"{cfg_name}_read_dynamic_similarity")
 
-    # csv_file_path = 'results/write_dynamic_grad_results.csv'
-    # plot_diff(csv_file_path, name="write_dynamic_similarity")
+    csv_file_path = f'results/{cfg_name}_write_dynamic_grad_results.csv'
+    plot_diff(csv_file_path, name=f"{cfg_name}_write_dynamic_similarity")
 
-    # csv_file_path = 'results/read_leakage_grad_results.csv'
-    # plot_diff(csv_file_path, name="read_leakage_similarity")
+    csv_file_path = f'results/{cfg_name}_read_leakage_grad_results.csv'
+    plot_diff(csv_file_path, name=f"{cfg_name}_read_leakage_similarity")
 
-    # # no num
-    # csv_file_path = 'results/access_time_grad_results.csv'
+    # no numbers on matrix
+    # csv_file_path = f'results/{cfg_name}_access_time_grad_results.csv'
     # plot_diff(csv_file_path, False, True, name="access_time_no_num_similarity")
 
-    # csv_file_path = 'results/read_dynamic_grad_results.csv'
+    # csv_file_path = f'results/{cfg_name}_read_dynamic_grad_results.csv'
     # plot_diff(csv_file_path, False, True, name="read_dynamic_no_num_similarity")
 
-    # csv_file_path = 'results/write_dynamic_grad_results.csv'
+    # csv_file_path = f'results/{cfg_name}_write_dynamic_grad_results.csv'
     # plot_diff(csv_file_path, False, True, name="write_dynamic_no_num_similarity")
 
-    # csv_file_path = 'results/read_leakage_grad_results.csv'
+    # csv_file_path = f'results/{cfg_name}_read_leakage_grad_results.csv'
     # plot_diff(csv_file_path, False, True, name="read_leakage_no_num_similarity")
 
     # COMBINED PLOT
     csv_files = [
-        ('results/access_time_grad_results.csv', "Access Time"),
-        ('results/read_dynamic_grad_results.csv', "Read Dynamic"),
-        ('results/write_dynamic_grad_results.csv', "Write Dynamic"),
-        ('results/read_leakage_grad_results.csv', "Read Leakage")
+        (f'results/{cfg_name}_access_time_grad_results.csv', "Access Time"),
+        (f'results/{cfg_name}_read_dynamic_grad_results.csv', "Read Dynamic"),
+        (f'results/{cfg_name}_write_dynamic_grad_results.csv', "Write Dynamic"),
+        (f'results/{cfg_name}_read_leakage_grad_results.csv', "Read Leakage")
     ]
-    merge_csv_files(csv_files, 'results/combined_2.csv')
-
-    csv_file_path = 'results/combined_2.csv'
-    plot_diff(csv_file_path, False, False, 16, name="gradient_similarity")
+    combined_csv_path = f'results/{cfg_name}_combined.csv'
+    merge_csv_files(csv_files, combined_csv_path)
+    plot_diff(combined_csv_path, False, False, 16, name=f"{cfg_name}_combined_gradient_similarity")
 
     
 
