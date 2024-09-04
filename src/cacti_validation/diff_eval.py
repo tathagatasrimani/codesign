@@ -25,12 +25,28 @@ from cacti.cacti_python.parameter import g_ip
 import cacti.cacti_python.get_dat as dat
 
 ### Python CACTI Gradient Generation
-"""
-Top function to generate the Python cacti gradient.
-Can specify a metric to isolate -> only generates for that metric.
-Otherwise, generates for access_time, read_dynamic, write_dynamic, and read_leakage.
-"""
 def cacti_python_diff(sympy_file, tech_params, diff_var, metric=None): 
+    """
+    Top function that generates the Python Cacti gradient for specified metrics. 
+    If no metric is provided, generates for access_time, read_dynamic, 
+    write_dynamic, and read_leakage.
+
+    Inputs:
+    sympy_file : str
+        Path to the base SymPy expression file.
+    tech_params : dict
+        Dictionary containing the technology parameters for substitution.
+    diff_var : str
+        The variable to differentiate with respect to.
+    metric : str, optional
+        Specific metric to isolate and generate gradients for (e.g., access_time, 
+        read_dynamic).
+
+    Returns:
+    dict
+        Dictionary containing the gradients for the specified or default metrics.
+    """
+
     sympy_file = "cacti/sympy/" + sympy_file
 
     if metric:
@@ -61,11 +77,24 @@ def cacti_python_diff(sympy_file, tech_params, diff_var, metric=None):
         }
     return results
     
-"""
-Helper to diff tech_param from a given sympy expression file.
-"""
 def cacti_python_diff_single(sympy_file, tech_params, diff_var):
-    print(f"In diff single {sympy_file}; {diff_var}")
+    """
+    Computes the gradient of a technology parameter from a SymPy expression file.
+
+    Inputs:
+    sympy_file : str
+        Path to the SymPy expression file.
+    tech_params : dict
+        Dictionary containing the technology parameters for substitution.
+    diff_var : str
+        The variable to differentiate with respect to.
+
+    Returns:
+    dict
+        Dictionary containing the gradient and delta for the specified variable.
+    """
+
+    # print(f"In diff single {sympy_file}; {diff_var}")
     with open(sympy_file, 'r') as file:
         expression_str = file.read()
 
@@ -121,10 +150,22 @@ def cacti_python_diff_single(sympy_file, tech_params, diff_var):
     }
     return result
 
-"""
-Helper to choose a reasonable delta from the calculated gradient.
-"""
 def choose_scaling_factor(pgrad, value):
+    """
+    Helper to choose a reasonable scaling factor based on the 
+    gradient and the parameter value.
+
+    Inputs:
+    pgrad : float
+        The calculated gradient.
+    value : float
+        The current value of the parameter being differentiated.
+
+    Returns:
+    float
+        A scaled factor for adjusting the parameter.
+    """
+    
     scale_factor = value / pgrad if pgrad != 0 else 1.0
     adjustment_factor = 0.01 
     scaled_factor = scale_factor * adjustment_factor
@@ -132,10 +173,26 @@ def choose_scaling_factor(pgrad, value):
     return scaled_factor
 
 ### C CACTI Gradient Generation
-"""
-Top function to generate the C cacti gradient
-"""
 def cacti_c_diff(dat_file_path, new_value, diff_var):
+    """
+    Top function to generate the C Cacti gradient by running 
+    Cacti twice (before and after changing the parameter).
+
+    Inputs:
+    dat_file_path : str
+        Path to the .dat file containing Cacti parameters.
+    new_value : float
+        The new value to be used for the parameter during the 
+        second Cacti run.
+    diff_var : str
+        The variable to differentiate with respect to.
+
+    Returns:
+    float
+        The calculated gradient, which is the difference in access 
+        time between the two Cacti runs.
+    """
+
     original_val = cacti_util.gen_vals(
         "validate_mem_cache",
         cacheSize=g_ip.cache_sz, # TODO: Add in buffer sizing
@@ -166,14 +223,24 @@ def cacti_c_diff(dat_file_path, new_value, diff_var):
     return gradient
 
 ### MAIN
-"""
-Calculates the similarity of two gradients.
-100 is same mag and same sign, -100 as same mag and different sign.
-Values can exceed 100 and -100.
-If both python_grad and c_grad are 0, return 100 similarity.
-If the c_grad is 0, then "NA" is returned.
-"""
 def calculate_similarity_matrix(python_grad, c_grad):
+    """
+    Calculates the similarity of two gradients. 
+    A score of 100 indicates same magnitude and sign, while 
+    -100 indicates same magnitude and opposite sign.
+
+    Inputs:
+    python_grad : float
+        The gradient calculated using Python.
+    c_grad : float
+        The gradient calculated using C.
+
+    Returns:
+    float or str
+        The similarity score or "NA" if the C gradient is 
+        zero. If both gradients are zero, returns 100.
+    """
+
     # Handle the case where both values are 0
     if python_grad == 0 and c_grad == 0:
         return 100
@@ -189,11 +256,25 @@ def calculate_similarity_matrix(python_grad, c_grad):
     similarity = magnitude * sign * -1 if greater_than_1 else magnitude * sign
     return similarity
 
-"""
-Generates diff result for a specific choice of
-sympy expression, cache configuration, and dat technology file
-"""
 def gen_diff(sympy_file, cfg_file, dat_file=None):
+    """
+    Generates the gradient results for a specific SymPy expression, 
+    cache configuration, and technology file.
+
+    Inputs:
+    sympy_file : str
+        Path to the SymPy expression file.
+    cfg_file : str
+        Path to the cache configuration file.
+    dat_file : str, optional
+        Path to the technology .dat file (default determined by 
+        g_ip.F_sz_nm if not provided).
+
+    Outputs:
+    Logs the gradient comparison between Python and C CACTI results, 
+    and stores them in CSV files.
+    """
+
     print(f"In gen_diff {sympy_file}; {cfg_file}; {dat_file}")
     # init input params from .cfg
     g_ip.parse_cfg(cfg_file)
@@ -283,12 +364,27 @@ def gen_diff(sympy_file, cfg_file, dat_file=None):
                     writer.writerow(['Tech Config', 'Var Name', 'Python Gradient', 'C Gradient', 'Similarities'])
                 writer.writerow([config_key, diff_param, python_change, cacti_gradient, similarity])
     
-"""
-Parses arguments. [Optionally generates the .cfg file and/or sympy expression file]
-Loads in .cfg and .dat values.
-Differentiates with respect to each parameter
-"""
 if __name__ == "__main__":
+    """
+    Parses arguments for configuration, SymPy generation, and technology parameters.
+    Optionally generates the .cfg and/or SymPy expression files and loads .cfg and .dat values.
+    Differentiates with respect to each parameter.
+
+    Inputs:
+    -CFG : str, optional
+        Name or path to the configuration file (default: "cache"). Do not include "cacti/" or ".cfg".
+    -DAT : str, optional
+        Technology node (e.g., "90nm"). If not provided, defaults to running for 45nm, 90nm, and 180nm.
+    -SYMPY : str, optional
+        Path to the SymPy expression file (if different from the config name).
+    -gen : str, optional
+        Boolean flag ("true"/"false") to generate SymPy expressions from the configuration file (default: "false").
+
+    Outputs:
+    Generates and processes the specified SymPy and Cacti configuration files, performing differentiation and gradient calculations.
+    Stores results in CSV files.
+    """
+
     parser = argparse.ArgumentParser(description="Specify config (-CFG), set SymPy name (-SYMPY) and optionally generate SymPy (-gen)")
     parser.add_argument("-CFG", type=str, default="cache", help="Path or Name to the configuration file; don't append cacti/ or .cfg")
     parser.add_argument("-DAT", type=str, default="", help="nm tech -> just specify '90nm'; if not provided, 45, 90, 180 will be tested")
