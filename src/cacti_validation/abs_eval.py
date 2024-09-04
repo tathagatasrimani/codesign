@@ -35,6 +35,23 @@ import sympy as sp
 valid_tech_nodes = [0.022, 0.032, 0.045, 0.065, 0.090, 0.180]
 
 def gen_abs_results(sympy_file, cache_cfg, dat_file):
+    """
+    Generates absolute results from SymPy and Cacti, compares with C Cacti results, and writes to a CSV file.
+
+    Inputs:
+    sympy_file : str
+        Path to the base SymPy expression file.
+    cache_cfg : str
+        Path to the cache configuration file.
+    dat_file : str
+        Path to the technology .dat file.
+
+    Outputs:
+    Logs and compares the results of SymPy expressions (access time, dynamic energy, leakage, IO properties) with C Cacti results.
+    Results are appended to 'abs_validate_results.csv'.
+    Returns the SymPy result and the C Cacti access time.
+    """
+    
     # initalize input parameters from .cfg
     g_ip.parse_cfg(cache_cfg)
     g_ip.error_checking()
