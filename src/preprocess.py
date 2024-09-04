@@ -121,7 +121,7 @@ class Preprocessor:
         # for symbol in edp.free_symbols:
         #     edp = edp.xreplace({symbol: hw_symbols.symbol_table[symbol.name]})
 
-        mem_buf_l_symbols = self.symbols_in_Buf_Mem_L("Buf_access_time.txt", "Mem_access_time.txt")
+        mem_buf_l_symbols = self.symbols_in_Buf_Mem_L("cacti/sympy/Buf_access_time.txt", "cacti/sympy/Mem_access_time.txt")
         desired_free_symbols = ["Vdd", "C_g_ideal"]#, "C_junc", "I_on_n", "vert_dielectric_constant"] #, "Vdsat"] #, "Mobility_n"]
 
         symbols_to_remove =  [

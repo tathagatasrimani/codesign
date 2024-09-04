@@ -17,6 +17,7 @@ from cacti.cacti_python.mat import Mat
 from cacti.cacti_python.bank import Bank
 
 import cacti.cacti_python.get_dat as dat
+import cacti.cacti_python.get_IO as IO
 
 from hw_symbols import *
 import sympy as sp
@@ -48,16 +49,23 @@ def cacti_gen_sympy(name, cache_cfg, opt_vals, use_piecewise=True):
     fin_res = uca_org_t()
     fin_res = solve_single()
 
-    with open(f'{name + "_access_time"}.txt', 'w') as file:
+    # Create the directory path
+    output_dir = os.path.join('cacti', 'sympy')
+
+    # Ensure the directory exists
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Write files to the cacti/sympy directory
+    with open(os.path.join(output_dir, f'{name + "_access_time"}.txt'), 'w') as file:
         file.write(str(fin_res.access_time))
 
-    with open(f'{name + "_read_dynamic"}.txt', 'w') as file:
+    with open(os.path.join(output_dir, f'{name + "_read_dynamic"}.txt'), 'w') as file:
         file.write(str(fin_res.power.readOp.dynamic))
 
-    with open(f'{name + "_write_dynamic"}.txt', 'w') as file:
+    with open(os.path.join(output_dir, f'{name + "_write_dynamic"}.txt'), 'w') as file:
         file.write(str(fin_res.power.writeOp.dynamic))
 
-    with open(f'{name + "_read_leakage"}.txt', 'w') as file:
+    with open(os.path.join(output_dir, f'{name + "_read_leakage"}.txt'), 'w') as file:
         file.write(str(fin_res.power.readOp.leakage))
 
     IO_info = {
@@ -67,195 +75,14 @@ def cacti_gen_sympy(name, cache_cfg, opt_vals, use_piecewise=True):
         "io_phy_power": fin_res.io_phy_power,
         "io_termination_power": fin_res.io_termination_power
     }
+
+    for key, value in IO_info.items():
+        file_name = f'{name + "_" + key}.txt'
+        file_path = os.path.join(output_dir, file_name)
+        with open(file_path, 'w') as file:
+            file.write(str(value))
+
     return IO_info
-
-
-'''
-Validates output of sympy_file with cacti run.
-'''
-def validate(sympy_file, cache_cfg, dat_file):
-    # initalize input parameters from .cfg
-    g_ip.parse_cfg(cache_cfg)
-    g_ip.error_checking()
-
-    # TODO there are seperate tech params for each Type (Device, Memory, Interconnect)
-    tech_params = {}
-    dat.scan_dat(tech_params, dat_file, g_ip.data_arr_ram_cell_tech_type, g_ip.data_arr_ram_cell_tech_type, g_ip.temp)
-    tech_params = {k: (10**(-9) if v == 0 else v) for k, v in tech_params.items() if v is not None and not math.isnan(v)}
-    print(tech_params)
-    
-    print(f'READING {sympy_file}')
-    with open(sympy_file, 'r') as file:
-        expression_str = file.read()
-
-    expression = sp.sympify(expression_str)
-    # print(expression)
-    result = expression.subs(tech_params)
-    
-    result = result.subs(sp.I, 0)
-
-
-    validate_vals = gen_vals(
-        "validate_mem_cache",
-        cacheSize=g_ip.cache_sz, # TODO: Add in buffer sizing
-        blockSize=g_ip.block_sz,
-        cache_type="cache",
-        bus_width=g_ip.out_w,
-        transistor_size=g_ip.F_sz_um,
-        force_cache_config="false",
-    )
-
-    print(f'Transistor size: {g_ip.F_sz_um}')
-
-    print(f"result : {result}")
-    # print(f"validate_vals {validate_vals}")
-    validate_access_time = float(validate_vals["Access time (ns)"])
-    validate_read_dynamic = float(validate_vals["Dynamic read energy (nJ)"])
-    validate_write_dynamic = float(validate_vals["Dynamic write energy (nJ)"])
-    validate_leakage = float(validate_vals["Standby leakage per bank(mW)"])
-    print(f"validate_access_time (ns): {validate_access_time}")
-    print(f"validate_read_dynamic (nJ): {validate_read_dynamic}")
-    print(f"validate_write_dynamic (nJ): {validate_write_dynamic}")
-    print(f"validate_leakage (mW): {validate_leakage}")
-    
-    return result, validate_access_time
-
-def validate_energy(sympy_file, cache_cfg, dat_file, IO_info):
-    # initalize input parameters from .cfg
-    g_ip.parse_cfg(cache_cfg)
-    g_ip.error_checking()
-
-    # TODO there are seperate tech params for each Type (Device, Memory, Interconnect)
-    tech_params = {}
-    dat.scan_dat(tech_params, dat_file, g_ip.data_arr_ram_cell_tech_type, g_ip.data_arr_ram_cell_tech_type, g_ip.temp)
-    tech_params = {k: (10**(-9) if v == 0 else v) for k, v in tech_params.items() if v is not None and not math.isnan(v)}
-    print(tech_params)
-    
-    sympy_filename = sympy_file.rstrip(".txt")
-    print(f'READING {sympy_filename}')
-    sympy_file_access_time = sympy_filename + "_access_time.txt"
-    sympy_file_read_dynamic = sympy_filename + "_read_dynamic.txt"
-    sympy_file_write_dynamic = sympy_filename + "_write_dynamic.txt"
-    sympy_file_read_leakage = sympy_filename + "_read_leakage.txt"
-
-    print(f'{sympy_file_read_dynamic, sympy_file_write_dynamic, sympy_file_read_leakage}')
-    
-    # with open(sympy_file, 'r') as file:
-    #     expression_str = file.read()
-
-    # expression = sp.sympify(expression_str)
-    # # print(expression)
-    # result = expression.subs(tech_params)
-    
-    # result = result.subs(sp.I, 0)
-
-    with open(sympy_file_access_time, 'r') as file:
-        expression_str = file.read()
-
-    expression = sp.sympify(expression_str)
-    # print(expression)
-    result = expression.subs(tech_params)
-    
-    result_access_time = result.subs(sp.I, 0)
-    result_access_time = result_access_time.evalf()
-
-    with open(sympy_file_read_dynamic, 'r') as file:
-        expression_str = file.read()
-
-    expression = sp.sympify(expression_str)
-    # print(expression)
-    result = expression.subs(tech_params)
-    
-    result_read_dynamic = result.subs(sp.I, 0)
-
-    with open(sympy_file_write_dynamic, 'r') as file:
-        expression_str = file.read()
-
-    expression = sp.sympify(expression_str)
-    # print(expression)
-    result = expression.subs(tech_params)
-    
-    result_write_dynamic = result.subs(sp.I, 0)
-
-    with open(sympy_file_read_leakage, 'r') as file:
-        expression_str = file.read()
-
-    expression = sp.sympify(expression_str)
-    # print(expression)
-    result = expression.subs(tech_params)
-    
-    result_read_leakage = result.subs(sp.I, 0)
-
-    validate_vals = gen_vals(
-        "validate_mem_energy_cache",
-        cacheSize=g_ip.cache_sz, # TODO: Add in buffer sizing
-        blockSize=g_ip.block_sz,
-        cache_type="main memory",
-        bus_width=g_ip.out_w,
-        transistor_size=g_ip.F_sz_um,
-        force_cache_config="false",
-    )
-
-    print(f'Transistor size: {g_ip.F_sz_um}')
-    print(f'is_cache: {g_ip.is_cache}')
-
-    # print
-    print(f'access_time: {result_access_time}')
-    print(f"result : {result_read_dynamic, result_write_dynamic, result_read_leakage}")
-    
-    print(f"io_area: {IO_info['io_area']}")
-    print(f"io_timing_margin: {IO_info['io_timing_margin']}")
-    print(f"io_dynamic_power: {IO_info['io_dynamic_power']}")
-    print(f"io_phy_power: {IO_info['io_phy_power']}")
-    print(f"io_termination_power: {IO_info['io_termination_power']}")
-
-    # print(f"validate_vals {validate_vals}")
-    validate_access_time = float(validate_vals["Access time (ns)"])
-    validate_read_dynamic = float(validate_vals["Dynamic read energy (nJ)"])
-    validate_write_dynamic = float(validate_vals["Dynamic write energy (nJ)"])
-    validate_leakage = float(validate_vals["Standby leakage per bank(mW)"])
-    print(f"validate_access_time (ns): {validate_access_time}")
-    print(f"validate_read_dynamic (nJ): {validate_read_dynamic}")
-    print(f"validate_write_dynamic (nJ): {validate_write_dynamic}")
-    print(f"validate_leakage (mW): {validate_leakage}")
-
-    # write to CSV
-    data = {
-        "access_time (ns)": [result_access_time],
-        "result_read_dynamic (nJ)": [result_read_dynamic],
-        "result_write_dynamic (nJ)": [result_write_dynamic],
-        "result_leakage (mW)": [result_read_leakage],
-        "result_io_area": [IO_info['io_area']],
-        "result_io_timing_margin": [IO_info['io_timing_margin']],
-        "result_io_dynamic_power": [IO_info['io_dynamic_power']],
-        "result_io_phy_power": [IO_info['io_phy_power']],
-        "result_io_termination_power": [IO_info['io_termination_power']],
-        "validate_access_time (ns)": [float(validate_vals["Access time (ns)"])],
-        "validate_read_dynamic (nJ)": [float(validate_vals["Dynamic read energy (nJ)"])],
-        "validate_write_dynamic (nJ)": [float(validate_vals["Dynamic write energy (nJ)"])],
-        "validate_leakage (mW)": [float(validate_vals["Standby leakage per bank(mW)"])],
-        "validate_io_area": [float(validate_vals["IO area"])],
-        "validate_io_timing": [float(validate_vals["IO timing"])],
-        "validate_io_power_dynamic": [float(validate_vals["IO power dynamic"])],
-        "validate_io_power_phy": [float(validate_vals["IO power PHY"])],
-        "validate_io_power_termination_and_bias": [float(validate_vals["IO power termination and bias"])],
-        "transistor_size (um)": [g_ip.F_sz_um],
-        "is_cache": [g_ip.is_cache]
-    }
-
-    df = pd.DataFrame(data)
-
-    directory = "cacti_plot"
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-    csv_file = os.path.join(directory, "validate_results.csv")
-    
-    file_exists = os.path.isfile(csv_file)
-    df.to_csv(csv_file, mode='a', header=not file_exists, index=False)
-
-    print(f"Data successfully appended to {csv_file}")
-    
-    return result, validate_access_time
 
 """
 Generates Cacti .cfg file based on input and cacti_input.
@@ -527,7 +354,7 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
 
     cmd = ['./cacti', '-infile', input_filename]
 
-    p = subprocess.Popen(cmd, cwd=cactiDir, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    p = subprocess.Popen(cmd, cwd=cactiDir) #, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     p.wait()
     if p.returncode != 0:
         #raise Exception(f"Cacti Error in {filename}", {p.stderr.read().decode()}, {p.stdout.read().decode().split("\n")[-2]})
@@ -548,11 +375,56 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
     # latency (ns)
     return output_data
 
-# for debugging
-# if __name__ == '__main__':
-# print(gen_vals("test0"))
-# print(gen_vals("test1", 131072, 64, "cache", 512, 4.0))
 
+"""
+Retrieves timing and power values from Cacti run of existing cfg.
+"""
+def run_existing_cacti_cfg(filename):
+    cactiDir = os.path.join(os.path.dirname(__file__), 'cacti')
+
+    # write file
+    input_filename = filename.replace("cacti/", "")
+    print(input_filename)
+    cmd = ['./cacti', '-infile', input_filename]
+
+    print(cmd)
+
+    p = subprocess.Popen(cmd, cwd=cactiDir) #, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    p.wait()
+    if p.returncode != 0:
+        raise Exception(f"Cacti Error in {filename}", {p.stderr.read().decode()}, {p.stdout.read().decode().split("\n")[-2]})
+
+    output_filename = input_filename + ".out"
+    cactiOutput = os.path.join(cactiDir, output_filename)
+    output_data = pd.read_csv(cactiOutput, sep=", ", engine='python')
+    output_data = output_data.iloc[-1] # get just the last row which is the most recent run
+
+    # get IO params
+    bus_freq = None
+    addr_timing = None
+    cacti_input_filename = "cacti/" + input_filename
+
+    with open(cacti_input_filename, 'r') as file:
+        for line in file:
+            if "-bus_freq" in line:
+                bus_freq = line.split()[1] + " " + line.split()[2]
+            elif "-addr_timing" in line:
+                addr_timing = line.split()[1]
+
+    IO_freq = convert_frequency(bus_freq)
+    IO_latency = (float(addr_timing) / IO_freq)
+
+    output_data["IO latency (s)"] = IO_latency
+
+    # CACTI: access time (ns), search energy (nJ), read energy (nJ), write energy (nJ), leakage bank power (mW)
+    # CACTI IO: area (sq.mm), timing (ps), dynamic power (mW), PHY power (mW), termination and bias power (mW)
+    # latency (ns)
+    return output_data
+
+
+"""
+Helper for getting IO_freq for 'run_existing_cacti_cfg' and 'gen_vals'
+"""
 def convert_frequency(string):
     parts = string.split()
     
@@ -572,7 +444,8 @@ def convert_frequency(string):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Process a config file and a data file.")
-    parser.add_argument('-cfg_name', type=str, default='mem_validate_cache', help="Path to the configuration file (default: mem_validate_cache)")
+    parser.add_argument('-cfg_name', type=str, default='cache', help="Path to the configuration file (default: mem_validate_cache)")
+    parser.add_argument("-adjust", type=str, default="false", help="Boolean flag to detail adjust cfg through arguments")
     parser.add_argument('-dat_file', type=str, default='cacti/tech_params/90nm.dat', help="Path to the data file (default: cacti/tech_params/90nm.dat)")
     parser.add_argument('-cacheSize', type=int, default=131072, help="Path to the data file (default: 131072)")
     parser.add_argument('-blockSize', type=int, default=64, help="Path to the data file (default: 64)")
@@ -580,14 +453,20 @@ if __name__ == "__main__":
     parser.add_argument('-busWidth', type=int, default=64, help="Path to the data file (default: 64)")
 
     args = parser.parse_args()
+    cache_cfg = f"cacti/cfg/{args.cfg_name}.cfg"
 
-    buf_vals = gen_vals(
-        args.cfg_name,
-        cacheSize=args.cacheSize, # TODO: Add in buffer sizing
-        blockSize=args.blockSize,
-        cache_type=args.cacheType,
-        bus_width=args.busWidth,
-    )
+    adjust = args.adjust.lower() == "true"  
+    if adjust:
+        buf_vals = gen_vals(
+            args.cfg_name,
+            cacheSize=args.cacheSize, 
+            blockSize=args.blockSize,
+            cache_type=args.cacheType,
+            bus_width=args.busWidth,
+        )
+    else:
+        buf_vals = run_existing_cacti_cfg(cache_cfg)
+
     buf_opt = {
         "ndwl": buf_vals["Ndwl"],
         "ndbl": buf_vals["Ndbl"],
@@ -599,17 +478,8 @@ if __name__ == "__main__":
         "repeater_size": buf_vals["Repeater size"],
     }
 
+    sympy_file = args.cfg_name
+    IO_info = cacti_gen_sympy(sympy_file, cache_cfg, buf_opt, use_piecewise=False)
 
-    cache_cfg = f"cacti/{args.cfg_name}.cfg"
-    IO_info = cacti_gen_sympy("sympy_validate", cache_cfg, buf_opt, use_piecewise=False)
-    sympy_file = "sympy_validate.txt"
-    dat_file = f"{args.dat_file}"
 
-    # import time
-    # print(f'cache_cfg {cache_cfg}')
-    # print(f'dat_file {dat_file}')
-    # print(f'args {args}')
-    # time.sleep(20)
-
-    validate_energy(sympy_file, cache_cfg, dat_file, IO_info)
 

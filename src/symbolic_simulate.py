@@ -238,28 +238,28 @@ class SymbolicSimulator(AbstractSimulator):
 
     def calculate_edp(self, hw):
 
-        with open('Mem_access_time.txt', 'r') as file:
+        with open('cacti/sympy/Mem_access_time.txt', 'r') as file:
             mem_access_time_text = file.read()
 
-        with open('Mem_read_dynamic.txt', 'r') as file:
+        with open('cacti/sympy/Mem_read_dynamic.txt', 'r') as file:
             mem_read_dynamic_text = file.read()
 
-        with open('Mem_write_dynamic.txt', 'r') as file:
+        with open('cacti/sympy/Mem_write_dynamic.txt', 'r') as file:
             mem_write_dynamic_text = file.read()
 
-        with open('Mem_read_leakage.txt', 'r') as file:
+        with open('cacti/sympy/Mem_read_leakage.txt', 'r') as file:
             mem_read_leakage_text = file.read()
 
-        with open('Buf_access_time.txt', 'r') as file:
+        with open('cacti/sympy/Buf_access_time.txt', 'r') as file:
             buf_access_time_text = file.read()
 
-        with open('Buf_read_dynamic.txt', 'r') as file:
+        with open('cacti/sympy/Buf_read_dynamic.txt', 'r') as file:
             buf_read_dynamic_text = file.read()
 
-        with open('Buf_write_dynamic.txt', 'r') as file:
+        with open('cacti/sympy/Buf_write_dynamic.txt', 'r') as file:
             buf_write_dynamic_text = file.read()
 
-        with open('Buf_read_leakage.txt', 'r') as file:
+        with open('cacti/sympy/Buf_read_leakage.txt', 'r') as file:
             buf_read_leakage_text = file.read()
 
 
@@ -295,7 +295,7 @@ class SymbolicSimulator(AbstractSimulator):
         # self.total_passive_energy_ceil = self.passive_energy_dissipation(
         #     hw, self.cycles_ceil
         # )
-        self.edp = self.cycles + (self.total_active_energy + self.total_passive_energy)
+        self.edp = self.cycles * (self.total_active_energy + self.total_passive_energy)
         self.edp = self.edp.xreplace(cacti_subs)
 
         assert hw_symbols.MemReadL not in self.edp.free_symbols and hw_symbols.MemWriteL not in self.edp.free_symbols, "Mem latency not fully substituted"
