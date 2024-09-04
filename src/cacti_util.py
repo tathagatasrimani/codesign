@@ -1,6 +1,7 @@
 import os
 import subprocess
 import yaml
+import traceback
 
 import pandas as pd
 
@@ -15,6 +16,8 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
              cache_type = None, bus_width = None, transistor_size = None,
              addr_timing = None, debug = False) -> pd.DataFrame:
     # load in default values
+    # for line in traceback.format_stack():
+    #     print(line.strip())
     with open("src/params/cacti_input.yaml", "r") as yamlfile:
         config_values = yaml.safe_load(yamlfile)
     if cache_type == None:

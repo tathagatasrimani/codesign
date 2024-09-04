@@ -78,9 +78,11 @@ def sample_stalled_func(scheduled_dfg: nx.DiGraph) -> str:
 
 
 def update_hw_with_new_node(hw_netlist, scarce_function):
+    """
+    
+    """
     logger.info(f"Updating HW with scarce node: {scarce_function}")
-    if scarce_function == None:
-        return
+    assert scarce_function != None
     func_nodes = hardwareModel.get_nodes_with_func(hw_netlist, scarce_function)
     logger.info(f"existing nodes with scarce function: {func_nodes}")
     idx = len(func_nodes)
@@ -166,6 +168,17 @@ def update_hw_with_new_node(hw_netlist, scarce_function):
             hw_netlist.add_edge(f"{scarce_function}{idx}", node2)
             hw_netlist.add_edge(node2, f"{scarce_function}{idx}")
 
+def remove_new_node(hw_netlist, scarce_function):
+    """
+
+    """
+    logger.info(f"Removing new node: {scarce_function}")
+    assert scarce_function != None
+    func_nodes = hardwareModel.get_nodes_with_func(hw_netlist, scarce_function)
+    logger.info(f"existing nodes with scarce function: {func_nodes}")
+    idx = len(func_nodes) - 1
+    hw_netlist.remove_node(f"{scarce_function}{idx}")
+
 
 def run_arch_search(
     simulator: ConcreteSimulator,
@@ -218,8 +231,8 @@ def run_arch_search(
         hw_copy.update_netlist()
         logger.info("updated netlist")
         logger.info(f"new func counts: {hardwareModel.get_func_count(hw_copy.netlist)}")
-        hw_copy.gen_cacti_results()
-        logger.info("generated cacti results")
+        # hw_copy.gen_cacti_results()
+        # logger.info("generated cacti results")
 
         scheduled_dfg = simulator.schedule(computation_dfg, hw_copy)
         logger.info("scheduled dfg")
@@ -238,9 +251,8 @@ def run_arch_search(
         area = hw.get_total_area()
         logger.info(f"Area: {area} um^2 vs constraint: {area_constraint} um^2")
         if area > area_constraint:
-            logger.info("Area constraint exceeded; breaking")
-            # shouldn't actually break here, because you can try other nodes that are smaller but still might have a good effect
-            break
+            logger.info("Area constraint exceeded; removing node")
+            remove_new_node(hw_copy.netlist, func)
         elif simulator.edp < best_edp:
             logger.info(f"Adding {func} improved EDP from {best_edp} to {simulator.edp}")
             best_edp = simulator.edp

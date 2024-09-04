@@ -367,6 +367,8 @@ class HardwareModel:
         logger.info(f"buf total area: {self.area['Buf'] * 1e-6} um^2")
         logger.info(f"buf peripheral area: {self.buf_peripheral_area_proportion * self.area['Buf'] * 1e-6} um^2")
 
+        # Does increasing bandwidth to off chip memory affect anything on chip? It does affect number of wires.
+        # where do those wires go? to the buffer. So should the buffer area increase with off chip bandwidth?
         # bw = 0
         # for node in filter(
         #     lambda x: x[1]["function"] == "Buf", self.netlist.nodes.data()
