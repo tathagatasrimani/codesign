@@ -15,6 +15,7 @@ res_index = 3
 output_pin_pattern = r'\*[0-9]+:[A-Za-z]'
 
 
+
 def all_pins(input_net : list) -> set:
     '''
     returns a set of nodes (like nodes on a circuit, but they will be referred to as pins) in the net. set so no duplicates.
@@ -205,7 +206,7 @@ def parasitic_calc(spef_file: str = "results/generated-tcl.spef"):
                 net_res[net], pin_dict = res_parallel(net_res[net], pin_dict)
                 net_res[net], pin_dict = res_series(net_res[net], pin_dict)
             net_res_final[mapping[net]] = net_res[net][0][3]
-            net_cap[mapping[net]] = net_cap[net]
+            net_cap[mapping[net]] = float(net_cap[net])
 
     net_res = net_res_final
     return net_cap, net_res

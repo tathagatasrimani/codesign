@@ -474,19 +474,12 @@ class HardwareModel:
         graph, net_out_dict, node_output, lef_data, node_to_num= def_generator.def_generator(arg_testfile, graph)
 
         if arg_parasitics == "detailed":
-            print("executing OpenROAD")
             _, graph = place_n_route.detailed_place_n_route(graph, design_name, net_out_dict, node_output, lef_data, node_to_num)
         elif arg_parasitics == "estimation":
-            print("executing OpenROAD")
             _, graph = place_n_route.estimated_place_n_route(graph, design_name, net_out_dict, node_output, lef_data, node_to_num)
         elif arg_parasitics == "none":
-            for output_pin in net_out_dict:
-                    for node in node_output[output_pin]:
-                        graph[output_pin][node]['net'] = 0
-                        graph[output_pin][node]['net_length'] = 0
-                        graph[output_pin][node]['net_res'] = 0
-                        graph[output_pin][node]['net_cap'] = 0
+            graph = place_n_route.none_place_n_route(graph, design_name, net_out_dict, node_output, lef_data, node_to_num)
+    
         self.parasitic_graph = graph
-        nx.write_gml(graph, "idk.gml")
 
                     

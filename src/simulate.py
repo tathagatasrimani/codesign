@@ -23,7 +23,7 @@ from . import sim_util
 from . import arch_search_util
 from .config_dicts import op2sym_map
 from .abstract_simulate import AbstractSimulator
-from openroad_interface import graph_plotter
+from openroad_interface import place_n_route
 
 MEMORY_SIZE = 1000000
 state_graph_counter = 0
@@ -291,6 +291,11 @@ class ConcreteSimulator(AbstractSimulator):
         generations = list(reversed(
             list(nx.topological_generations(nx.reverse(computation_dfg)))
         ))
+
+        place_n_route.export_graph(computation_dfg, "", "computation_dfg") # remove
+        place_n_route.export_graph(fake_hw, "", "fake_hw") # remove
+        place_n_route.export_graph(hw.parasitic_graph, "", "parasitic_graph") # remove
+
         for gen in generations:  # main loop over the computation graphs;
             if "end" in gen:  # skip the end node (only thing in the last generation)
                 break
@@ -344,20 +349,44 @@ class ConcreteSimulator(AbstractSimulator):
                         * hw.latency[node_data["function"]] # ns
                     )
 
+                # wires
                 active_net_len = len(active_net)
-                parasitic_node = None
-                if "allocation" in node_data and node_data["allocation"] != "" and "Mem" not in node_data["allocation"] and "Buf" not in node_data["allocation"]:
-                    parasitic_edge = hw.parasitic_graph[node_data["allocation"]][list(hw.parasitic_graph.out_edges(node_data["allocation"]))[0][1]]
-                    active_net.add(parasitic_edge["net"])
-                    if active_net_len != len(active_net):
-                        active_cap_vals.append(parasitic_edge["net_cap"])
+                computation_nodes = list(computation_dfg.out_edges(node))
+                node_name = node_data["allocation"]
+                node_bool = "allocation" in node_data and node_name != "" and "Mem" not in node_name and "Buf" not in node_name
+               
+                if node_bool:
+                    for comp_node in computation_nodes:
+                        child_node_data = computation_dfg.nodes[comp_node[1]]
+                        child_node_name = child_node_data["allocation"]
+                        comp_node_bool = "allocation" in child_node_data and child_node_name != "" and "Mem" not in child_node_name and "Buf" not in child_node_name
+                        if comp_node_bool:
+
+                            # temporary solution, will be changed when computation_dfg gets fixed 
+                            parasitic_edge = None
+                            if not hw.parasitic_graph.has_edge(node_name, child_node_name): 
+                                parasitic_nodes_out = list(hw.parasitic_graph.out_edges(node_name))
+                                child_node_function = child_node_data["function"]
+                                for node in parasitic_nodes_out:
+                                    if child_node_function in node[1]:
+                                        child_node_name = node[1]
+                                        break
+                                parasitic_edge = hw.parasitic_graph[node_name][child_node_name]
+                            else : 
+                                parasitic_edge = hw.parasitic_graph[node_name][child_node_name]
+                            active_net.add("({}, {})".format(node_name, child_node_name))
+                            # print("({}, {})".format(node_name, comp_node_data["allocation"]))
+
+                            if active_net_len != len(active_net):
+                                active_cap_vals.append(parasitic_edge["net_cap"])
 
                 self.active_energy += energy
                 hw.compute_operation_totals[node_data["function"]] += 1
 
             net_energy = 0
             for cap in active_cap_vals:
-                net_energy += (1/2) * cap * hw.V_dd * hw.V_dd * 1e-3 # pico -> nano
+                cap_sum = sum(cap) if isinstance(cap, list) else cap
+                net_energy += float(1/2) * float(cap_sum) * float(hw.V_dd * hw.V_dd * 1e-3) # pico -> nano
             self.active_energy += net_energy
 
             def matcher_func(n1, n2):
@@ -411,12 +440,18 @@ class ConcreteSimulator(AbstractSimulator):
                             scaling = node_data["size"]
                             logger.info(f"latency scaling: {scaling}")
                         
+                        # wire latency
+                        # can't really do a workaround here because the path is built on the computation_dfg, and that means 
+                        # I would have to find a substitute for the node for the whole path, so instead we will just ignore for now
+                        # print("wire latency")
                         node_data["in other graph"] = "allocation" in node_data and node_data["allocation"] != "" and "Mem" not in node_data["allocation"] and "Buf" not in node_data["allocation"]
                         node_index = path.index(node)
                         if node_index != 0:
                             node_index_prev = node_index - 1
                             node_data_prev = computation_dfg.nodes[path[node_index_prev]]
+                            # print("({}, {})".format(node_data_prev["allocation"], node_data["allocation"]))
                             if node_data["in other graph"] and node_data_prev["in other graph"] and hw.parasitic_graph.has_edge(node_data_prev["allocation"], node_data["allocation"]):
+                                print("true")
                                 parasitic_edge = hw.parasitic_graph[node_data_prev["allocation"]][node_data["allocation"]]
                                 net_delay = parasitic_edge["net_cap"] * parasitic_edge["net_res"] * 1e-3 # pico -> nano
                                 path_latency += net_delay

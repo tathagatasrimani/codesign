@@ -56,7 +56,7 @@ def validation(design_name: str, test_directory: str):
     os.system("cp openroad_interface/tcl/codesign_flow.tcl ./" + directory) 
     # os.system("cp tcl/codesign_flow_short.tcl ./" + directory) once you figure out how to run this
     shutil.copyfile(test_directory, directory + "test.tcl")
-    graph, net_out_dict, node_output, lef_data, node_to_num, node_input= df.def_generator(test_directory, graph)
+    graph, net_out_dict, node_output, lef_data, node_to_num= df.def_generator(test_directory, graph)
 
     # 3. extract parasitics
     print("running extractions")
@@ -76,7 +76,7 @@ if __name__ == "__main__":
     combined_data.to_csv("openroad_interface/results/result_rcl.csv")  
 
     designs = ["aes_arch_copy", "mm_test"]
-    title = {"res":"Resistance over different designs \n using OpenROAD and estimation", "cap" : "Capacitance over different designs using \n OpenROAD and estimation", "length" : "Length over different designs using \n OpenROAD and estimation"}
+    title = {"res":"Resistance", "cap" : "Capacitance", "length" : "Length"}
     units = {"res" : "ohms log", "cap" : "picofarad log", "length" : "microns log"}
 
     gp.box_whiskers_plot(designs, units, title, show_flier = True)

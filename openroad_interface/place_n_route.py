@@ -167,8 +167,6 @@ def detailed_place_n_route(graph: nx.DiGraph, design_name: str, net_out_dict: di
     
     length_dict = det.length_calculations(lef_data["units"])
 
-    # nomux_graph = mux_removal(graph, design_name)
-
     # add edge attributions
     net_graph_data = []
     res_graph_data = []
@@ -216,7 +214,6 @@ def none_place_n_route(graph: nx.DiGraph,
         graph: newly modified digraph with rcl attributes
     '''
     design_name = design_name.replace(".gml", "")
-
     # edge attribution 
     net_graph_data = []
     for output_pin in net_out_dict:
@@ -228,7 +225,6 @@ def none_place_n_route(graph: nx.DiGraph,
 
     mux_listing(graph, node_output)
     mux_removal(graph)
-
     export_graph(graph, design_name, "none_nomux")
 
     return graph
