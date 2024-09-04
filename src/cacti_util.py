@@ -15,7 +15,7 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
              cache_type = None, bus_width = None, transistor_size = None,
              addr_timing = None, debug = False) -> pd.DataFrame:
     # load in default values
-    with open("params/cacti_input.yaml", "r") as yamlfile:
+    with open("src/params/cacti_input.yaml", "r") as yamlfile:
         config_values = yaml.safe_load(yamlfile)
     if cache_type == None:
         cache_type = config_values["cache_type"]
@@ -258,7 +258,7 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
         '# -verbose "F"',
     ]
 
-    cactiDir = os.path.join(os.path.dirname(__file__), './cacti')
+    cactiDir = os.path.normpath(os.path.join(os.path.dirname(__file__), './cacti'))
 
     # write file
     input_filename = filename + ".cfg"
@@ -282,7 +282,7 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
         )
 
     output_filename = filename + ".cfg.out"
-    cactiOutput = os.path.join(cactiDir, output_filename)
+    cactiOutput = os.path.normpath(os.path.join(cactiDir, output_filename))
     output_data = pd.read_csv(cactiOutput, sep=", ", engine='python')
     output_data = output_data.iloc[-1] # get just the last row which is the most recent run
 

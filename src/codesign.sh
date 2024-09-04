@@ -15,9 +15,10 @@ done
 
 # arguments like this: ./codesign.sh -n <name>
 if [ $name ]; then
-    FILEPATH=benchmarks/models/$name
-    python instrument.py $FILEPATH
-    python instrumented_files/xformed-$name > instrumented_files/output.txt
+    FILEPATH=src/benchmarks/models/$name.py
+    cd ..
+    python -m src.instrument $FILEPATH
+    python -m src.instrumented_files.xformed-$name > src/instrumented_files/output.txt
     ARGS=$FILEPATH
     if [ $QUIET ]; then
         ARGS+=" --notrace"
@@ -41,5 +42,5 @@ if [ $name ]; then
         ARGS+=" --num_arch_search_iters $ARCH_SEARCH_NUM"
     fi
     echo $ARGS
-    python codesign.py $ARGS
+    python -m src.codesign $ARGS
 fi

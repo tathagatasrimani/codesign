@@ -2,11 +2,11 @@ import logging
 logger = logging.getLogger(__name__)
 
 import pyomo.environ as pyo
-from MyPyomoSympyBimap import MyPyomoSympyBimap
 import pyomo.core.expr.sympy_tools as sympy_tools
 from pyomo.opt import SolverFactory
 
-import hw_symbols
+from .MyPyomoSympyBimap import MyPyomoSympyBimap
+from . import hw_symbols
 
 LAMBDA = 0.1 # regularization parameter
 

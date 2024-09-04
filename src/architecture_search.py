@@ -10,11 +10,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # custom
-from simulate import ConcreteSimulator
-import hardwareModel
-import arch_search_util
-import sim_util
-from global_constants import SEED
+from .simulate import ConcreteSimulator
+from . import hardwareModel
+from . import arch_search_util
+from . import sim_util
+from .global_constants import SEED
 
 rng = np.random.default_rng(SEED)
 
@@ -288,7 +288,7 @@ def main():
     if args.filepath:
         nx.write_gml(
             hw.netlist,
-            f"architectures/{args.filepath}.gml",
+            f"src/architectures/{args.filepath}.gml",
             stringizer=lambda x: str(x),
         )
         hw.duplicate_config_section(args.config, args.filepath)
