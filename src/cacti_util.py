@@ -24,11 +24,29 @@ import sympy as sp
 
 valid_tech_nodes = [0.022, 0.032, 0.045, 0.065, 0.090, 0.180]
 
-'''
-Generate sympy expression for access_time (will add for energy)
-Outputs results to text file
-'''
 def cacti_gen_sympy(name, cache_cfg, opt_vals, use_piecewise=True):
+    """
+    Generates SymPy expressions for access time and energy, outputting results to text files.
+
+    Inputs:
+    name : str
+        Base name for the output files.
+    cache_cfg : str
+        Path to the cache configuration file.
+    opt_vals : dict
+        Optimization values with keys: "ndwl", "ndbl", "nspd", "ndcm", "ndsam1", "ndsam2",
+        "repeater_spacing", "repeater_size".
+    use_piecewise : bool, optional
+        Flag for using piecewise functions (default is True).
+
+    Returns:
+    IO_info : dict
+        Dictionary containing IO-related data (e.g., area, power, margin).
+
+    Outputs:
+    Sympy expression files for access time, dynamic and leakage power, IO details in 'cacti/sympy' directory.
+    """
+
     g_ip.parse_cfg(cache_cfg)
     g_ip.error_checking()
     # g_ip.display_ip()
@@ -84,17 +102,46 @@ def cacti_gen_sympy(name, cache_cfg, opt_vals, use_piecewise=True):
 
     return IO_info
 
-"""
-Generates Cacti .cfg file based on input and cacti_input.
-Feeds .cfg into Cacti and runs.
-Retrieves timing and power values from Cacti run.
-"""
 def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
              cache_type = None, bus_width = None, transistor_size = None,
              addr_timing = None, force_cache_config = None, technology = None,
              debug = False) -> pd.DataFrame:
-    # load in default values
+    """
+    Generates a Cacti .cfg file based on input and cacti_input, runs Cacti, 
+    and retrieves timing and power values.
 
+    Inputs:
+    filename : str, optional
+        Base name for the generated .cfg file (default is "base_cache").
+    cacheSize : int, optional
+        Size of the cache in bytes.
+    blockSize : int, optional
+        Size of each cache block in bytes.
+    cache_type : str, optional
+        Type of cache (e.g., "cache" or "main memory").
+    bus_width : int, optional
+        Width of the input/output bus in bits.
+    transistor_size : float, optional
+        Size of the transistor technology node (e.g., 45nm).
+    addr_timing : float, optional
+        Address timing value for memory access.
+    force_cache_config : str, optional
+        Force specific cache configuration settings.
+    technology : str, optional
+        Technology parameter to override defaults.
+    debug : bool, optional
+        Enables debug logging (default is False).
+
+    Returns:
+    pd.DataFrame
+        DataFrame containing timing, power, and IO-related values from the Cacti run.
+
+    Outputs:
+    A .cfg file is generated for Cacti, and Cacti run results are 
+    returned in a DataFrame.
+    """
+    
+    # load in default values
     logger.info(f"Running Cacti with the following parameters: filename: {filename}, cacheSize: {cacheSize}, blockSize: {blockSize}, cache_type: {cache_type}, bus_width: {bus_width}, transistor_size: {transistor_size}, addr_timing: {addr_timing}, force_cache_config: {force_cache_config}, technology: {technology}")
     with open("params/cacti_input.yaml", "r") as yamlfile:
         config_values = yaml.safe_load(yamlfile)
@@ -377,11 +424,22 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
     # latency (ns)
     return output_data
 
-
-"""
-Retrieves timing and power values from Cacti run of existing cfg.
-"""
 def run_existing_cacti_cfg(filename):
+    """
+    Retrieves timing and power values from a Cacti run of an existing .cfg file.
+
+    Inputs:
+    filename : str
+        Name of the existing .cfg file to run in Cacti.
+
+    Returns:
+    pd.DataFrame
+        DataFrame containing timing, power, and IO-related values from the Cacti run.
+
+    Outputs:
+    Cacti run results are returned in a DataFrame after executing the existing .cfg file.
+    """
+
     cactiDir = os.path.join(os.path.dirname(__file__), 'cacti')
 
     # write file
@@ -423,11 +481,22 @@ def run_existing_cacti_cfg(filename):
     # latency (ns)
     return output_data
 
-
-"""
-Helper for getting IO_freq for 'run_existing_cacti_cfg' and 'gen_vals'
-"""
 def convert_frequency(string):
+    """
+    Helper for converting frequency string to Hz for 'run_existing_cacti_cfg' and 'gen_vals'.
+
+    Inputs:
+    string : str
+        Frequency string with a value and unit (e.g., "2 GHz", "500 MHz").
+
+    Returns:
+    int
+        Frequency in Hz, or prints an error message if the input format is invalid.
+
+    Outputs:
+    Frequency value in Hz based on the input string.
+    """
+
     parts = string.split()
     
     if len(parts) == 2 and parts[1].lower() in ('ghz', 'mhz'):
@@ -444,10 +513,20 @@ def convert_frequency(string):
     else:
         print("Invalid input format")
 
-"""
-Replace contents of opt dat file
-"""
 def update_dat(rcs, dat_file):
+    """
+    Replaces contents of the optimization .dat file with new Cacti parameter values.
+
+    Inputs:
+    rcs : dict
+        Dictionary containing updated Cacti parameters.
+    dat_file : str
+        Path to the .dat file to be updated.
+
+    Outputs:
+    Updates the specified .dat file by replacing values with those from the `rcs["Cacti"]` dictionary.
+    """
+
     cacti_params = rcs["Cacti"]
     cacti_params.pop("I_off_n", None)
     cacti_params.pop("I_g_on_n", None)
@@ -460,11 +539,26 @@ def update_dat(rcs, dat_file):
     for key, value in cacti_params.items():
         replace_values_in_dat_file(dat_file, key, value)
 
-"""
-Helper to replace the original value in the dat file with the new value.
-The new value is the (original dat value - cacti_python_delta).
-"""
 def replace_values_in_dat_file(dat_file_path, key, new_value):
+    """
+    Helper to replace the original value in the .dat file with a new value.
+
+    Inputs:
+    dat_file_path : str
+        Path to the .dat file to be modified.
+    key : str
+        The parameter key whose value needs to be replaced.
+    new_value : float
+        The new value to replace the original, calculated as (original value - cacti_python_delta).
+
+    Returns:
+    dict
+        A dictionary containing the original values of the replaced parameters.
+    
+    Outputs:
+    Updates the specified .dat file by replacing values for the given key with the new value.
+    """
+
     original_values = {}
     
     with open(dat_file_path, 'r') as file:
@@ -486,10 +580,20 @@ def replace_values_in_dat_file(dat_file_path, key, new_value):
     
     return original_values
 
-"""
-Helper to restore the original value in the dat file.
-"""
 def restore_original_values_in_dat_file(dat_file_path, original_values):
+    """
+    Helper to restore the original values in the .dat file.
+
+    Inputs:
+    dat_file_path : str
+        Path to the .dat file to be modified.
+    original_values : dict
+        Dictionary containing the original values to restore, with line numbers as keys.
+
+    Outputs:
+    Updates the specified .dat file by restoring the original values for the parameters.
+    """
+    
     with open(dat_file_path, 'r') as file:
         lines = file.readlines()
     
