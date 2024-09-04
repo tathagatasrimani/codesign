@@ -510,7 +510,7 @@ class HardwareModel:
 
         # TODO: This only needs to be triggered if we're doing inverse pass (ie symbolic simulate or codesign)
         # Comment for now since it takes a while to generate
-        # cacti_util.cacti_gen_sympy("cacti/sympy/Buf", base_cache_cfg, buf_opt, use_piecewise=False)
-        # cacti_util.cacti_gen_sympy("cacti/sympy/Mem", mem_cache_cfg, mem_opt, use_piecewise=False)
+        # cacti_util.cacti_gen_sympy("Buf", base_cache_cfg, buf_opt, use_piecewise=False)
+        # cacti_util.cacti_gen_sympy("Mem", mem_cache_cfg, mem_opt, use_piecewise=False)
         
         return

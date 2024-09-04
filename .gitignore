@@ -21,6 +21,9 @@ src/params/rcs.yaml
 src/params/rcs_current.yaml
 src/params/coefficients.yaml
 
+src/cacti/cfg/base_cache.cfg
+src/cacti/cfg/mem_cache.cfg
+
 data/**
 .vscode/**
 
