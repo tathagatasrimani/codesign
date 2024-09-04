@@ -747,7 +747,6 @@ def generate_init_params_from_rcs_as_symbols(rcs):
     initial_params[hw_symbols.MemReadEact] = rcs["other"]["MemReadEact"]
     initial_params[hw_symbols.MemWriteEact] = rcs["other"]["MemWriteEact"]
     initial_params[hw_symbols.MemPpass] = rcs["other"]["MemPpass"]
-    # initial_params[hw_symbols.BufL] = rcs["other"]["BufL"]
     initial_params[hw_symbols.BufReadEact] = rcs["other"]["BufReadEact"]
     initial_params[hw_symbols.BufWriteEact] = rcs["other"]["BufWriteEact"]
     initial_params[hw_symbols.BufPpass] = rcs["other"]["BufPpass"]
