@@ -292,13 +292,17 @@ class SymbolicSimulator(AbstractSimulator):
         self.cycles = self.cycles.xreplace(cacti_subs)
 
         self.total_passive_energy = self.passive_energy_dissipation(hw, self.cycles)
-        # self.total_passive_energy_ceil = self.passive_energy_dissipation(
-        #     hw, self.cycles_ceil
-        # )
 
-        # TODO change edp
         self.edp = self.cycles * (self.total_active_energy + self.total_passive_energy)
-        assert hw_symbols.MemReadL not in self.edp.free_symbols and hw_symbols.MemWriteL not in self.edp.free_symbols # and hw_symbols.BufL not in self.edp.free_symbols
+        self.edp = self.edp.xreplace(cacti_subs)
+
+        assert hw_symbols.MemReadL not in self.edp.free_symbols and hw_symbols.MemWriteL not in self.edp.free_symbols, "Mem latency not fully substituted"
+        assert hw_symbols.MemReadEact not in self.edp.free_symbols and hw_symbols.MemWriteEact not in self.edp.free_symbols, "Mem energy not fully substituted"
+        assert hw_symbols.MemPpass not in self.edp.free_symbols, "Mem passive power not fully substituted"
+        assert hw_symbols.BufL not in self.edp.free_symbols, "Buf latency not fully substituted"
+        assert hw_symbols.BufReadEact not in self.edp.free_symbols, "Buf read energy not fully substituted"
+        assert hw_symbols.BufWriteEact not in self.edp.free_symbols, "Buf write energy not fully substituted"
+        assert hw_symbols.BufPpass not in self.edp.free_symbols, "Buf passive power not fully substituted"
 
         # self.edp = self.edp.subs(subs)
 

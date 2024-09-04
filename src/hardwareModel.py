@@ -362,15 +362,13 @@ class HardwareModel:
         """
         Generate R,C, etc from the latency, power tech parameters.
         """
-        dat_file = self.cacti_dat_file
-
         rcs = rcgen.generate_optimization_params(
             self.latency,
             self.dynamic_power,
             self.dynamic_energy,
             self.leakage_power,
             self.V_dd,
-            dat_file,
+            self.cacti_dat_file,
         )
         self.R_off_on_ratio = rcs["other"]["Roff_on_ratio"]
         return rcs

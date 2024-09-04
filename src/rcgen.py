@@ -27,8 +27,7 @@ def generate_optimization_params(latency, active_power, active_energy, passive_p
     rcs["other"]["V_dd"] = V_dd
 
     # store in ns
-    rcs["other"]["MemReadL"] = latency["MainMem"]   # TODO Need to commment this out
-    # rcs["other"]["MemWriteL"] = latency["MainMem"]
+    rcs["other"]["MemReadL"] = latency["MainMem"]
 
     # store in nW and nJ
     rcs["other"]["MemReadEact"] = active_energy["MainMem"]["Read"] * 1e-9

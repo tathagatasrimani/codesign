@@ -44,7 +44,6 @@ class Codesign:
         # copy the benchmark and instrumented files;
         shutil.copy(benchmark, f"{self.save_dir}/benchmark.py")
         shutil.copy(f"instrumented_files/output.txt", f"{self.save_dir}/output.txt")
-        # shutil.copy(f"instrumented_files/output_free.txt", f"{self.save_dir}/output_free.txt")
 
         logging.basicConfig(filename=f"{self.save_dir}/log.txt", level=logging.INFO)
 
@@ -81,7 +80,6 @@ class Codesign:
         coefficients.create_and_save_coefficients([self.hw.transistor_size])
 
         rcs = self.hw.get_optimization_params_from_tech_params()
-        print(f"original rcs keys: {rcs.keys()}")
         initial_tech_params = sim_util.generate_init_params_from_rcs_as_symbols(rcs)
 
         self.set_technology_parameters(initial_tech_params)
@@ -165,7 +163,6 @@ class Codesign:
             self.tech_params[mapping[key]] = value  # just know that self.tech_params contains all dat
             i += 1
 
-    # TODO modify to hanlde new cacti list
     def write_back_rcs(self, rcs_path="params/rcs_current.yaml"):
         rcs = {"Reff": {}, "Ceff": {},"Cacti": {}, "Cacti_IO": {}, "other": {}}
         for elem in self.tech_params:
