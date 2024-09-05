@@ -18,6 +18,8 @@ You can also install the dependencies using pip:
 pip install -r requirements_pip.txt
 ```
 
+You have to separately install the [staticfg](https://github.com/coetaur0/staticfg) library by folling the instructions in the repository.
+
 #### Inverse Pass
 The inverse pass builds symbolic equations using [sympy](https://docs.sympy.org/latest/index.html) and does optimization using [pyomo](https://pyomo.readthedocs.io/en/stable/index.html) using [ipopt](https://github.com/coin-or/Ipopt) as the solver. To install the dependencies appropriately follow the instructions [here](https://pyomo.readthedocs.io/en/stable/installation.html).
 

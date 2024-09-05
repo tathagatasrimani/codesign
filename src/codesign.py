@@ -153,7 +153,7 @@ class Codesign:
             self.tech_params[mapping[key]] = value
             i += 1
 
-    def write_back_rcs(self, rcs_path="params/rcs_current.yaml"):
+    def write_back_rcs(self, rcs_path="src/params/rcs_current.yaml"):
         rcs = {"Reff": {}, "Ceff": {}, "other": {}}
         for elem in self.tech_params:
             if (
