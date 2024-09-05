@@ -1,6 +1,6 @@
 import yaml
 
-tech_params = yaml.load(open("params/tech_params.yaml", "r"), Loader=yaml.Loader)
+tech_params = yaml.load(open("src/params/tech_params.yaml", "r"), Loader=yaml.Loader)
 
 latency = tech_params["latency"]
 dynamic_power = tech_params["dynamic_power"]
@@ -34,7 +34,7 @@ def create_coefficients(sizes):
 
 def create_and_save_coefficients(sizes):
     coeffs = create_coefficients(sizes)
-    with open("params/coefficients.yaml", 'w') as f:
+    with open("src/params/coefficients.yaml", 'w') as f:
         f.write(yaml.dump(coeffs))
 
 def main():

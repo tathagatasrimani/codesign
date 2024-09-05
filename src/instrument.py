@@ -12,12 +12,13 @@ from typing import Any
 import astor
 import sys
 from staticfg.builder import CFGBuilder
-from ast_utils import ASTUtils
 from collections import deque
 import copy
 import argparse
 import os
 import astpretty
+
+from .ast_utils import ASTUtils
 
 lineno_to_node = {}
 cfg = None
@@ -541,28 +542,28 @@ def instrument_and_run(filepath: str):
         src = src_file.read()
         tree = ast.parse(src, mode="exec")
         names = filepath.split("/")
-        dest_filepath = "instrumented_files/xformed-%s" % names[-1]
+        dest_filepath = "src/instrumented_files/xformed-%s" % names[-1]
         name_instr = NameOnlyInstrumentor()
         tree = name_instr.visit(tree)
-        with open("instrumented_files/xformedname-%s" % names[-1], "w") as f:
+        with open("src/instrumented_files/xformedname-%s" % names[-1], "w") as f:
             f.write(astor.to_source(tree))
-        with open("instrumented_files/xformedname-%s" % names[-1], "r") as name_f:
+        with open("src/instrumented_files/xformedname-%s" % names[-1], "r") as name_f:
             name_src = name_f.read()
             name_tree = ast.parse(name_src, mode="exec")
             cfg = CFGBuilder().build_from_file(
-                "main.c", "instrumented_files/xformedname-%s" % names[-1]
+                "main.c", "src/instrumented_files/xformedname-%s" % names[-1]
             )
             for node in cfg:
                 for statement in node.statements:
                     lineno_to_node[statement.lineno] = node.id
             test_instr = NameScopeInstrumentor()
             first_tree = test_instr.visit(name_tree)
-            with open("instrumented_files/xformedpre-%s" % names[-1], "w") as fh:
+            with open("src/instrumented_files/xformedpre-%s" % names[-1], "w") as fh:
                 fh.write("import sys\n")
-                fh.write("from instrument_lib import *\n")
+                fh.write("from .instrument_lib import *\n") ## need to find where the other import statements are
                 fh.write(astor.to_source(first_tree))
                 # inject print statement for total memory size"""
-            with open("instrumented_files/xformedpre-%s" % names[-1], "r") as new_src:
+            with open("src/instrumented_files/xformedpre-%s" % names[-1], "r") as new_src:
                 src = new_src.read()
                 tree = ast.parse(src, mode="exec")
                 instr = ProgramInstrumentor()

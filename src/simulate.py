@@ -14,16 +14,15 @@ import graphviz as gv
 import networkx as nx
 
 # custom modules
-from memory import Memory
-import schedule
-import dfg_algo
-import hardwareModel
-from hardwareModel import HardwareModel
-import hardwareModel
-import sim_util
-import arch_search_util
-from config_dicts import op2sym_map
-from abstract_simulate import AbstractSimulator
+from .memory import Memory
+from . import schedule
+from . import dfg_algo
+from . import hardwareModel
+from .hardwareModel import HardwareModel # have to import both or else python will say the class is undefined
+from . import sim_util
+from . import arch_search_util
+from .config_dicts import op2sym_map
+from .abstract_simulate import AbstractSimulator
 
 import sympy as sp
 
@@ -229,12 +228,12 @@ class ConcreteSimulator(AbstractSimulator):
                 check_duplicate=False,
             )
         if op_count > 0:
-            Path(self.path + "/benchmarks/pictures/state_graphs/").mkdir(
+            Path(self.path + "src/benchmarks/pictures/state_graphs/").mkdir(
                 parents=True, exist_ok=True
             )
             state_graph_viz.render(
                 self.path
-                + "/benchmarks/pictures/state_graphs/"
+                + "src/benchmarks/pictures/state_graphs/"
                 + args.benchmark.split("/")[-1].split(".")[0]
                 + "_"
                 + str(state_graph_counter),
@@ -501,10 +500,10 @@ def main(args):
     names = args.benchmark.split("/")
     if not args.notrace:
         text = json.dumps(data, indent=4)
-        Path(simulator.path + "/benchmarks/json_data").mkdir(
+        Path(simulator.path + "src/benchmarks/json_data").mkdir(
             parents=True, exist_ok=True
         )
-        with open(simulator.path + "/benchmarks/json_data/" + names[-1], "w") as fh:
+        with open(simulator.path + "src/benchmarks/json_data/" + names[-1], "w") as fh:
             fh.write(text)
 
     print("done!")
@@ -512,7 +511,7 @@ def main(args):
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, filename="codesign_log_dir/simulate.log")
+    logging.basicConfig(level=logging.INFO, filename="src/codesign_log_dir/simulate.log")
 
     parser = argparse.ArgumentParser(
         prog="Simulate",

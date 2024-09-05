@@ -143,7 +143,8 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
     
     # load in default values
     logger.info(f"Running Cacti with the following parameters: filename: {filename}, cacheSize: {cacheSize}, blockSize: {blockSize}, cache_type: {cache_type}, bus_width: {bus_width}, transistor_size: {transistor_size}, addr_timing: {addr_timing}, force_cache_config: {force_cache_config}, technology: {technology}")
-    with open("params/cacti_input.yaml", "r") as yamlfile:
+    with open("src/params/cacti_input.yaml", "r") as yamlfile:
+
         config_values = yaml.safe_load(yamlfile)
     if cache_type == None:
         cache_type = config_values["cache_type"]
@@ -390,7 +391,7 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
         '# -verbose "F"',
     ]
 
-    cactiDir = os.path.join(os.path.dirname(__file__), 'cacti')
+    cactiDir = os.path.normpath(os.path.join(os.path.dirname(__file__), './cacti'))
 
     # write file
     input_filename = filename + ".cfg"
@@ -410,7 +411,7 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
         raise Exception(f"Cacti Error in {filename}", {p.stderr.read().decode()}, {p.stdout.read().decode().split("\n")[-2]})
 
     output_filename = filename + ".cfg.out"
-    cactiOutput = os.path.join(cactiDir, output_filename)
+    cactiOutput = os.path.normpath(os.path.join(cactiDir, output_filename))
     output_data = pd.read_csv(cactiOutput, sep=", ", engine='python')
     output_data = output_data.iloc[-1] # get just the last row which is the most recent run
 
