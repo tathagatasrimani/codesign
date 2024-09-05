@@ -84,8 +84,15 @@ file_name = match.group(1)
 torch._dynamo.reset()
 fn = torch.compile(backend=get_graph_backend, dynamic=True)(model)
 input_shape = find_first_layer_with_weights(model)
-input = torch.rand(1, input_shape[1], device='cpu')
-out = fn(input)
+print(f"input shape: {input_shape}")
+# if FC model:
+# input = [torch.rand(1, input_shape[1], device='cpu')]
+# if Conv model:
+# input = [torch.rand(1, 28, 28, device="cpu")]
+# if Transformer model:
+input = [torch.rand((5,28), device='cpu')]#, torch.rand((5,28), device='cpu')]
+print(f"input: {input}\n")
+out = fn(*input)
 forward_code: str = graph.code
 
 # save to file
@@ -153,5 +160,3 @@ code = "\n".join(code_lines)
 
 with open(f"benchmarks/models/reconstructed_code_{file_name}.py","w") as reconstruct_file:
    reconstruct_file.write(code)
-
-
