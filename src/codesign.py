@@ -271,7 +271,7 @@ if __name__ == "__main__":
         "-f",
         "--savedir",
         type=str,
-        default="codesign_log_dir",
+        default="logs",
         help="Path to the save new architecture file",
     )
     parser.add_argument("-o", "--opt", type=str, default="ipopt")
