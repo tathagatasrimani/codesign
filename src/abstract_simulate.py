@@ -9,7 +9,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import networkx as nx
 import sympy
-import sympy
 
 # custom modules
 from .memory import Memory
