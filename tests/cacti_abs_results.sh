@@ -1,3 +1,5 @@
+### Results found in src/cacti_validation/results
+
 #!/bin/sh
 cd ..
 
