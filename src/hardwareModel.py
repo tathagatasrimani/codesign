@@ -235,7 +235,7 @@ class HardwareModel:
 
         self.cacti_tech_node = min(cacti_util.valid_tech_nodes, key=lambda x: abs(x - self.transistor_size*1e-3))
 
-        self.cacti_dat_file = f"cacti/tech_params/{int(self.cacti_tech_node*1e3):2d}nm.dat"
+        self.cacti_dat_file = f"src/cacti/tech_params/{int(self.cacti_tech_node*1e3):2d}nm.dat"
         print(f"self.cacti_dat_file: {self.cacti_dat_file}")
 
     def set_var_sizes(self, var_sizes):
@@ -303,10 +303,10 @@ class HardwareModel:
         # self.latency["MainMem"] = (
         #     rcs["other"]["MemReadL"] + rcs["other"]["MemWriteL"]
         # ) / 2
-        mem_l_expr =  sp.sympify(open("cacti/sympy/Mem_access_time.txt", "r").readline(), locals=hw_symbols.symbol_table)
+        mem_l_expr =  sp.sympify(open("src/cacti/sympy/Mem_access_time.txt", "r").readline(), locals=hw_symbols.symbol_table)
         self.latency["MainMem"] = float(mem_l_expr.xreplace(opt_params))
 
-        buf_l_expr =  sp.sympify(open("cacti/sympy/Buf_access_time.txt", "r").readline(), locals=hw_symbols.symbol_table)
+        buf_l_expr =  sp.sympify(open("src/cacti/sympy/Buf_access_time.txt", "r").readline(), locals=hw_symbols.symbol_table)
         self.latency["Buf"] = float(buf_l_expr.xreplace(opt_params))
 
         self.dynamic_energy["MainMem"]["Read"] = rcs["other"]["MemReadEact"] * 1e9
@@ -505,8 +505,8 @@ class HardwareModel:
             else 0.0
         )
 
-        base_cache_cfg = "cacti/cfg/base_cache.cfg"
-        mem_cache_cfg = "cacti/cfg/mem_cache.cfg"
+        base_cache_cfg = "src/cacti/cfg/base_cache.cfg"
+        mem_cache_cfg = "src/cacti/cfg/mem_cache.cfg"
 
         # TODO: This only needs to be triggered if we're doing inverse pass (ie symbolic simulate or codesign)
         # Comment for now since it takes a while to generate

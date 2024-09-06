@@ -238,28 +238,28 @@ class SymbolicSimulator(AbstractSimulator):
 
     def calculate_edp(self, hw):
 
-        with open('cacti/sympy/Mem_access_time.txt', 'r') as file:
+        with open('src/cacti/sympy/Mem_access_time.txt', 'r') as file:
             mem_access_time_text = file.read()
 
-        with open('cacti/sympy/Mem_read_dynamic.txt', 'r') as file:
+        with open('src/cacti/sympy/Mem_read_dynamic.txt', 'r') as file:
             mem_read_dynamic_text = file.read()
 
-        with open('cacti/sympy/Mem_write_dynamic.txt', 'r') as file:
+        with open('src/cacti/sympy/Mem_write_dynamic.txt', 'r') as file:
             mem_write_dynamic_text = file.read()
 
-        with open('cacti/sympy/Mem_read_leakage.txt', 'r') as file:
+        with open('src/cacti/sympy/Mem_read_leakage.txt', 'r') as file:
             mem_read_leakage_text = file.read()
 
-        with open('cacti/sympy/Buf_access_time.txt', 'r') as file:
+        with open('src/cacti/sympy/Buf_access_time.txt', 'r') as file:
             buf_access_time_text = file.read()
 
-        with open('cacti/sympy/Buf_read_dynamic.txt', 'r') as file:
+        with open('src/cacti/sympy/Buf_read_dynamic.txt', 'r') as file:
             buf_read_dynamic_text = file.read()
 
-        with open('cacti/sympy/Buf_write_dynamic.txt', 'r') as file:
+        with open('src/cacti/sympy/Buf_write_dynamic.txt', 'r') as file:
             buf_write_dynamic_text = file.read()
 
-        with open('cacti/sympy/Buf_read_leakage.txt', 'r') as file:
+        with open('src/cacti/sympy/Buf_read_leakage.txt', 'r') as file:
             buf_read_leakage_text = file.read()
 
 

@@ -101,7 +101,7 @@ class Codesign:
         tech_nm = os.path.basename(org_dat_file) 
         tech_nm = os.path.splitext(tech_nm)[0]
 
-        prev_dat_file = f"cacti/tech_params/prev_{tech_nm}.dat"
+        prev_dat_file = f"src/cacti/tech_params/prev_{tech_nm}.dat"
         with open(org_dat_file, 'r') as src_file, open(prev_dat_file, 'w') as dest_file:
             for line in src_file:
                 dest_file.write(line)
@@ -326,7 +326,7 @@ class Codesign:
         tech_nm = os.path.basename(dat_file) 
         tech_nm = os.path.splitext(tech_nm)[0]
 
-        prev_dat_file = f"cacti/tech_params/prev_{tech_nm}.dat"
+        prev_dat_file = f"src/cacti/tech_params/prev_{tech_nm}.dat"
 
         with open(prev_dat_file, 'r') as src_file, open(dat_file, 'w') as dest_file:
             for line in src_file:

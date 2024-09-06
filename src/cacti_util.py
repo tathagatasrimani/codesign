@@ -13,12 +13,6 @@ from src.cacti.cacti_python.cacti_interface import uca_org_t
 from src.cacti.cacti_python.Ucache import *
 from src.cacti.cacti_python.parameter import sympy_var
 
-from src.cacti.cacti_python.mat import Mat
-from src.cacti.cacti_python.bank import Bank
-
-import src.cacti.cacti_python.get_dat as dat
-import src.cacti.cacti_python.get_IO as IO
-
 from hw_symbols import *
 import sympy as sp
 
@@ -44,7 +38,7 @@ def cacti_gen_sympy(name, cache_cfg, opt_vals, use_piecewise=True):
         Dictionary containing IO-related data (e.g., area, power, margin).
 
     Outputs:
-    Sympy expression files for access time, dynamic and leakage power, IO details in 'cacti/sympy' directory.
+    Sympy expression files for access time, dynamic and leakage power, IO details in 'src/cacti/sympy' directory.
     """
 
     g_ip.parse_cfg(cache_cfg)
@@ -68,7 +62,7 @@ def cacti_gen_sympy(name, cache_cfg, opt_vals, use_piecewise=True):
     fin_res = solve_single()
 
     # Create the directory path
-    output_dir = os.path.join('cacti', 'sympy')
+    output_dir = os.path.join('src', 'cacti', 'sympy')
 
     # Ensure the directory exists
     os.makedirs(output_dir, exist_ok=True)
@@ -391,7 +385,7 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
         '# -verbose "F"',
     ]
 
-    cactiDir = os.path.normpath(os.path.join(os.path.dirname(__file__), './cacti'))
+    cactiDir = os.path.normpath(os.path.join(os.path.dirname(__file__), 'cacti'))
 
     # write file
     input_filename = filename + ".cfg"
@@ -441,10 +435,10 @@ def run_existing_cacti_cfg(filename):
     Cacti run results are returned in a DataFrame after executing the existing .cfg file.
     """
 
-    cactiDir = os.path.join(os.path.dirname(__file__), 'cacti')
+    cactiDir = os.path.normpath(os.path.join(os.path.dirname(__file__), 'cacti'))
 
     # write file
-    input_filename = filename.replace("cacti/", "")
+    input_filename = filename.replace("src/cacti/", "")
     print(input_filename)
     cmd = ['./cacti', '-infile', input_filename]
 
@@ -463,7 +457,7 @@ def run_existing_cacti_cfg(filename):
     # get IO params
     bus_freq = None
     addr_timing = None
-    cacti_input_filename = "cacti/" + input_filename
+    cacti_input_filename = "src/cacti/" + input_filename
 
     with open(cacti_input_filename, 'r') as file:
         for line in file:
@@ -612,14 +606,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Process a config file and a data file.")
     parser.add_argument('-cfg_name', type=str, default='cache', help="Path to the configuration file (default: mem_validate_cache)")
     parser.add_argument("-adjust", type=str, default="false", help="Boolean flag to detail adjust cfg through arguments")
-    parser.add_argument('-dat_file', type=str, default='cacti/tech_params/90nm.dat', help="Path to the data file (default: cacti/tech_params/90nm.dat)")
+    parser.add_argument('-dat_file', type=str, default='src/cacti/tech_params/90nm.dat', help="Path to the data file (default: src/cacti/tech_params/90nm.dat)")
     parser.add_argument('-cacheSize', type=int, default=131072, help="Path to the data file (default: 131072)")
     parser.add_argument('-blockSize', type=int, default=64, help="Path to the data file (default: 64)")
     parser.add_argument('-cacheType', type=str, default="main memory", help="Path to the data file (default: main memory)")
     parser.add_argument('-busWidth', type=int, default=64, help="Path to the data file (default: 64)")
 
     args = parser.parse_args()
-    cache_cfg = f"cacti/cfg/{args.cfg_name}.cfg"
+    cache_cfg = f"src/cacti/cfg/{args.cfg_name}.cfg"
 
     adjust = args.adjust.lower() == "true"  
     if adjust:

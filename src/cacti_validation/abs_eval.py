@@ -68,7 +68,7 @@ def gen_abs_results(sympy_file, cache_cfg, dat_file):
     IO_tech_params = {k: (10**(-9) if v == 0 else v) for k, v in IO_tech_params.items() if v is not None and not math.isnan(v)}
     
     # every file should start with this name
-    sympy_filename = "cacti/sympy/" + sympy_file.rstrip(".txt")
+    sympy_filename = "src/cacti/sympy/" + sympy_file.rstrip(".txt")
     print(f'READING {sympy_filename}')
 
     # PLUG IN CACTI
@@ -232,14 +232,14 @@ def gen_abs_results(sympy_file, cache_cfg, dat_file):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Specify config (-CFG), set SymPy name (-SYMPY) and optionally generate SymPy (-gen)")
-    parser.add_argument("-CFG", type=str, default="cache", help="Path or Name to the configuration file; don't append cacti/ or .cfg")
+    parser.add_argument("-CFG", type=str, default="cache", help="Path or Name to the configuration file; don't append src/cacti/ or .cfg")
     parser.add_argument("-DAT", type=str, default="", help="Specify technology nm -> e.g. '90nm'; if not provdied, do 45, 90, and 180")
     parser.add_argument("-SYMPY", type=str, default="", help="Optionally path to the SymPy file if not named the same as cfg")
     parser.add_argument("-gen", type=str, default="false", help="Boolean flag to generate Sympy from Cache CFG")
 
     args = parser.parse_args()
 
-    cfg_file = f"cacti/cfg/{args.CFG}.cfg"
+    cfg_file = f"src/cacti/cfg/{args.CFG}.cfg"
     gen_flag = args.gen.lower() == "true"  
 
     # If you haven't generated sympy expr from cache cfg yet
@@ -257,7 +257,7 @@ if __name__ == "__main__":
             "repeater_spacing": buf_vals["Repeater spacing"],
             "repeater_size": buf_vals["Repeater size"],
         }
-        cfg_file = "cacti/cfg/" + cfg_file + ".cfg"
+        cfg_file = "src/cacti/cfg/" + cfg_file + ".cfg"
         sympy_file = cfg_file   # try to keep convention where sympy expressions have same name as cfg
         IO_info = cacti_util.cacti_gen_sympy(sympy_file, cfg_file, buf_opt, use_piecewise=False)
     else:
@@ -268,16 +268,16 @@ if __name__ == "__main__":
             sympy_file = args.CFG
 
     if args.DAT:
-        dat_file = f"cacti/tech_params/{args.DAT}.dat"
+        dat_file = f"src/cacti/tech_params/{args.DAT}.dat"
         gen_abs_results(sympy_file, cfg_file, dat_file)
     else:
-        dat_file_90nm = os.path.join('cacti', 'tech_params', '90nm.dat')
+        dat_file_90nm = os.path.join('src', 'cacti', 'tech_params', '90nm.dat')
         gen_abs_results(sympy_file, cfg_file, dat_file_90nm)
 
-        dat_file_45nm = os.path.join('cacti', 'tech_params', '45nm.dat')
+        dat_file_45nm = os.path.join('src', 'cacti', 'tech_params', '45nm.dat')
         gen_abs_results(sympy_file, cfg_file, dat_file_45nm)
 
-        dat_file_180nm = os.path.join('cacti', 'tech_params', '180nm.dat')
+        dat_file_180nm = os.path.join('src', 'cacti', 'tech_params', '180nm.dat')
         gen_abs_results(sympy_file, cfg_file, dat_file_180nm)
 
 
