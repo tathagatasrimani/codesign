@@ -364,7 +364,7 @@ def main():
 
 if __name__ == "__main__":
     logging.basicConfig(
-        level=logging.INFO, filename="src/codesign_log_dir/symbolic_simulate.log"
+        level=logging.INFO, filename="logs/symbolic_simulate.log"
     )
     parser = argparse.ArgumentParser(
         prog="Simulate",

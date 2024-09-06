@@ -27,6 +27,6 @@ src/cacti/cfg/mem_cache.cfg
 data/**
 .vscode/**
 
-src/codesign_log_dir/**
+logs/**
 openroad_interface/fig
 openroad_interface/results

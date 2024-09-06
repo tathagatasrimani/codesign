@@ -1,5 +1,7 @@
-from sympy import symbols, ceiling, expand, exp
+import os
 import yaml
+
+from sympy import symbols, ceiling, expand, exp
 
 V_dd = symbols("V_dd", positive=True)
 f = symbols("f", positive=True)
@@ -406,8 +408,12 @@ symbol_table = {
     'phy_vrefgen_wtime': phy_vrefgen_wtime,
 }
 
+
 # passive power
-beta = yaml.load(open("src/params/coefficients.yaml", "r"), Loader=yaml.Loader)["beta"]
+beta = yaml.load(
+    open(os.path.join(os.path.dirname(__file__), "params/coefficients.yaml"), "r"),
+    Loader=yaml.Loader,
+)["beta"]
 
 def make_sym_lat_wc(elem):
     return Reff[elem] * Ceff[elem]

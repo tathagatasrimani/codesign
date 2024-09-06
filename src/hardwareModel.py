@@ -13,8 +13,8 @@ import graphviz as gv
 import sympy as sp
 from sympy import *
 import networkx as nx
+from staticfg.builder import CFGBuilder
 
-from .staticfg.builder import CFGBuilder
 from .ast_utils import ASTUtils
 from .memory import Memory, Cache
 from .config_dicts import op2sym_map
