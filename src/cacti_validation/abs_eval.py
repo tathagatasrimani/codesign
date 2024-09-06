@@ -51,7 +51,9 @@ def gen_abs_results(sympy_file, cache_cfg, dat_file):
     Results are appended to 'abs_validate_results.csv'.
     Returns the SymPy result and the C Cacti access time.
     """
-    
+    cache_cfg = cache_cfg.replace('src/', '')
+    dat_file = dat_file.replace('src/', '')
+
     # initalize input parameters from .cfg
     g_ip.parse_cfg(cache_cfg)
     g_ip.error_checking()
@@ -68,7 +70,7 @@ def gen_abs_results(sympy_file, cache_cfg, dat_file):
     IO_tech_params = {k: (10**(-9) if v == 0 else v) for k, v in IO_tech_params.items() if v is not None and not math.isnan(v)}
     
     # every file should start with this name
-    sympy_filename = "src/cacti/sympy/" + sympy_file.rstrip(".txt")
+    sympy_filename = "cacti/sympy/" + sympy_file.rstrip(".txt")
     print(f'READING {sympy_filename}')
 
     # PLUG IN CACTI

@@ -49,26 +49,4 @@ Tech Config,Var Name,Python Gradient,C Gradient,Similarities
 "Cache=True, 90.0",tsv_contact_resistance,0,0.0,100
 "Cache=True, 90.0",tsv_depletion_width,0,0.0,100
 "Cache=True, 90.0",tsv_liner_dielectric_cons,0,0.0,100
-"Cache=True, 90.0",C_g_ideal,0.00727341631442619,0.0,NA
-"Cache=True, 90.0",C_fringe,0.00226623992000372,0.0,NA
-"Cache=True, 90.0",C_junc,0.000463344536351568,0.0,NA
-"Cache=True, 90.0",C_junc_sw,0.00119625071187800,0.0,NA
-"Cache=True, 90.0",l_phy,0,0.0,100
-"Cache=True, 90.0",l_elec,1.43331737079653e-7,0.0,NA
-"Cache=True, 90.0",nmos_effective_resistance_multiplier,0.0140132005213432,0.0,NA
-"Cache=True, 90.0",Vdd,0.0140265640790219,0.0,NA
-"Cache=True, 90.0",Vth,-1.33050941263292e-5,0.0,NA
-"Cache=True, 90.0",Vdsat,-1.43331737079653e-7,0.0,NA
-"Cache=True, 90.0",I_on_n,-0.0140132005213432,0.0,NA
-"Cache=True, 90.0",I_on_p,0,0.0,100
-"Cache=True, 90.0",C_ox,-1.43331737079653e-7,0.0,NA
-"Cache=True, 90.0",t_ox,0,0.0,100
-"Cache=True, 90.0",n2p_drv_rt,0.0201793716834423,0.0,NA
-"Cache=True, 90.0",lch_lk_rdc,0,0.0,100
-"Cache=True, 90.0",Mobility_n,-1.43331737079653e-7,0.0,NA
-"Cache=True, 90.0",gmp_to_gmn_multiplier,-7.54020038665473e-8,0.0,NA
-"Cache=True, 90.0",vpp,0,0.0,100
-"Cache=True, 90.0",dram_cell_I_on,0,0.0,100
-"Cache=True, 90.0",dram_cell_Vdd,0,0.0,100
-"Cache=True, 90.0",dram_cell_C,0,0.0,100
-"Cache=True, 90.0",dram_cell_I_off_worst_case_len_temp,0,0.0,100
+
