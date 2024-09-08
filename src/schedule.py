@@ -1,17 +1,16 @@
 from collections import deque
 import heapq
 import math
-import logging
-logger = logging.getLogger(__name__)
 
 import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
 import cvxpy as cp
 import pandas as pd
+import random
 
-from .global_constants import SEED
-from . import sim_util
+from global_constants import SEED
+import sim_util
 
 # format: cfg_node -> {states -> operations}
 cfg_node_to_dfg_map = {}
@@ -155,13 +154,9 @@ def cfg_to_dfg(cfg, graphs, latency):
 
 def assign_time_of_execution(graph):
     """
-    Calculates start time of each operation in the graph.
-    Adds node parameter 'start_time' to each node in the graph.
-    Params:
-        graph: nx.DiGraph
-            The computation data flow graph
+    Calculates when each operation will take place,
+    overwriting the "dist" attribute from before.
     """
-    logger.info("Assigning time of execution")
     for node in graph.nodes:
         graph.nodes[node]["dist"] =  0
     graph = nx.reverse(graph)
@@ -176,15 +171,15 @@ def assign_time_of_execution(graph):
     max_dist = 0
     end_node = list(nx.topological_generations(graph))[0][0]
     for node in graph.nodes:
-        graph.nodes[node]["start_time"] = nx.dijkstra_path_length(graph, end_node, node)
-        max_dist = max(max_dist, graph.nodes[node]["start_time"])
+        graph.nodes[node]["dist"] = nx.dijkstra_path_length(graph, end_node, node)
+        max_dist = max(max_dist, graph.nodes[node]["dist"])
     for node in graph.nodes:
         # mirroring operation
-        graph.nodes[node]["start_time"] = (graph.nodes[node]["start_time"] - max_dist) * -1
+        graph.nodes[node]["dist"] = (graph.nodes[node]["dist"] - max_dist) * -1
     graph = nx.reverse(graph)
     return graph, max_dist
 
-def assign_upstream_path_lengths_dijkstra(graph):
+def assign_upstream_path_lengths(graph):
     """
     Assigns the longest path to each node in the graph.
     Uses Dijkstra to take operation latency into account.
@@ -204,18 +199,14 @@ def assign_upstream_path_lengths_dijkstra(graph):
                 q.append(child)
     return graph
 
-def assign_upstream_path_lengths_old(graph):
-    """
-    Assigns the longest path to each node in the graph.
-    Currently ignores actual latencies of nodes.
-    """
-    for node in graph:
-        graph.nodes[node]["dist"] =  0
-    for i, generations in enumerate(nx.topological_generations(graph)):
-        for node in generations:
-            graph.nodes[node]["dist"] = max(i, graph.nodes[node]["dist"])
-    
-    return graph
+def is_isomorphic_to_hardware(graph, hardware_graph):
+    for subgraph in nx.connected_components(graph):
+        subgraph_nodes = list(subgraph)
+        subgraph = graph.subgraph(subgraph_nodes)
+        if nx.is_isomorphic(subgraph, hardware_graph):
+            return True
+    return False
+
 
 def sdc_schedule(graph, hw_element_counts):
     """
@@ -250,12 +241,12 @@ def sdc_schedule(graph, hw_element_counts):
     for i in range(len(topological_order)):
         curr_func_count = 0
         start_node = topological_order[i]
-        if graph.nodes[start_node]['function'] not in hw_element_counts:
+        if graph.nodes[start_node]['function'] not in curr_reg_count:
             continue
         curr_func_count += 1
         for j in range(i + 1, len(topological_order)):
             curr_node = topological_order[j]
-            if graph.nodes[curr_node]['function'] not in hw_element_counts:
+            if graph.nodes[curr_node]['function'] not in curr_reg_count.keys():
                     continue
             if graph.nodes[curr_node]['function'] == graph.nodes[start_node]['function']:
                 curr_func_count += 1
@@ -279,7 +270,7 @@ def write_df(in_use, hw_element_counts, execution_time, step):
     cols={i:f"reg{i}" for i in range(hw_element_counts["Regs"])}
     df = df.rename(columns=cols)
     df.index.name = "time"
-    df.to_csv("logs/reg_use_table.csv")
+    df.to_csv("register_log/test_file.csv")
 
 def log_register_use(computation_graph, step, hw_element_counts, execution_time):
     """
@@ -310,8 +301,68 @@ def log_register_use(computation_graph, step, hw_element_counts, execution_time)
     keys.sort()
     in_use_sorted = {i: in_use[i] for i in keys}
     write_df(in_use_sorted, hw_element_counts, execution_time, step)
+    sim_util.topological_layout_plot(computation_graph, reverse=True)
+
+def check_valid_hw(computation_graph, hw_netlist):
+    """
+    Checks if every operatory node if bi-directionally connected to every register node.
+    """
+    hw_graph = nx.DiGraph()
+    
+    for node_id, attrs in hw_netlist['nodes'].items():
+        hw_graph.add_node(node_id, **attrs)
+    
+    for edge in hw_netlist['edges']:
+        hw_graph.add_edge(*edge)
+    
+    register_nodes = [node for node, data in hw_graph.nodes(data=True) 
+                      if data.get('type') == 'memory' and data.get('function') == 'Regs']
+    
+    operator_nodes = [node for node, data in hw_graph.nodes(data=True) 
+                      if data.get('type') == 'pe']
+    
+    for register in register_nodes:
+        all_bidirectional = True
+        for operator in operator_nodes:
+            if not (hw_graph.has_edge(operator, register) and hw_graph.has_edge(register, operator)):
+                all_bidirectional = False
+                break
+        if all_bidirectional:
+            return True
+    
+    print("No register is bidirectionally connected to all operators.")
+    return False
+
+def pre_schedule(computation_graph, hw_netlist):
+    if not check_valid_hw(computation_graph, hw_netlist):
+        raise ValueError("Hardware netlist is not valid. Please ensure that every operator node is bi-directionally connected to every register node.")
+    
+    operator_edges = [(u, v) for u, v in computation_graph["edges"] if computation_graph["nodes"][u]["type"] == "pe" and  computation_graph["nodes"][v]["type"] == "pe"]
+    register_nodes = [node for node, data in hw_netlist['nodes'].items() 
+                      if data.get('type') == 'memory' and data.get('function') == 'Regs']
+
+    new_node_id = max(computation_graph['nodes']) + 1
+    
+    for u, v in operator_edges:
+        if (u, v) not in hw_netlist["edges"]:
+            # Create a new node in the DFG (computation_graph)
+            computation_graph['nodes'][new_node_id] = {
+                "type": "memory",
+                "function": "Regs",
+                "name": f"tmp_op_reg_{new_node_id}",
+            }
+            
+            computation_graph.remove_edge(u, v)
+            computation_graph.add_edge(u, new_node_id)
+            computation_graph.add_edge(new_node_id, v)
+            
+            new_node_id += 1
+
+            
+
         
-def greedy_schedule(computation_graph, hw_element_counts, hw_netlist, save_reg_use_table=False):
+
+def greedy_schedule(computation_graph, hw_element_counts, hw_netlist):
     """
     Schedules the computation graph on the hardware netlist
     by determining the order of operations and the states in which
@@ -337,7 +388,7 @@ def greedy_schedule(computation_graph, hw_element_counts, hw_netlist, save_reg_u
     # reset layers:
     for node in computation_graph.nodes:
         computation_graph.nodes[node]["layer"] = -np.inf
-    computation_graph = assign_upstream_path_lengths_dijkstra(computation_graph)
+    computation_graph = assign_upstream_path_lengths(computation_graph)
 
     stall_counter = 0 # used to ensure unique stall names
     pushed = []
@@ -393,7 +444,6 @@ def greedy_schedule(computation_graph, hw_element_counts, hw_netlist, save_reg_u
                         cost=func_nodes[idx][1]["cost"],
                         layer= -layer,
                         allocation="",
-                        size=func_nodes[idx][1]["size"] if "size" in func_nodes[idx][1] else 1,
                         dist=0
                     )
                     new_edges = []
@@ -423,13 +473,12 @@ def greedy_schedule(computation_graph, hw_element_counts, hw_netlist, save_reg_u
             if func in ["start", "end", "stall"]:
                 continue
             assert counts_in_gen[i] <= hw_element_counts[func]
-            # do a greedy allocation of the nodes to the hardware elements
+            # do a greedy allocation of thehw nodes to the hardware elements
             comp_nodes = list(filter(lambda x: x[1]["function"] == func, curr_gen_nodes))
             hw_nodes = list(filter(lambda x: x[1]["function"] == func, hw_netlist.nodes.data()))
             for i in range(len(comp_nodes)):
                 computation_graph.nodes[comp_nodes[i][0]]["allocation"] = hw_nodes[i][0]
 
         layer += 1
-    if save_reg_use_table:
-        computation_graph, execution_time = assign_time_of_execution(computation_graph)
-        log_register_use(computation_graph, 0.1, hw_element_counts, execution_time)
+    computation_graph, execution_time = assign_time_of_execution(computation_graph)
+    log_register_use(computation_graph, 0.1, hw_element_counts, execution_time)
