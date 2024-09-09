@@ -411,9 +411,11 @@ class HardwareModel:
         """
         Generate buffer and memory latency and energy numbers from Cacti.
         """
+        self.buffer_size = 2048
+        self.mem_size = 131072
         buf_vals = cacti_util.gen_vals(
             "base_cache",
-            cacheSize=2048, #self.buffer_size, 
+            cacheSize=self.buffer_size, 
             blockSize=64,
             cache_type="cache",
             bus_width=self.buffer_bus_width,
@@ -432,7 +434,7 @@ class HardwareModel:
 
         mem_vals = cacti_util.gen_vals(
             "mem_cache",
-            cacheSize=131072,  # self.mem_size,
+            cacheSize= self.mem_size,
             blockSize=64,
             cache_type="main memory",
             bus_width=self.memory_bus_width,
