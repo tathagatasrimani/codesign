@@ -247,10 +247,6 @@ class Codesign:
             )
         self.write_back_rcs()
 
-        # tech_params2 = {}
-        # for key in self.tech_params.keys():
-        #     tech_params2[key.name] = self.tech_params[key]
-
         self.inverse_edp = self.symbolic_sim.edp.xreplace(self.tech_params)
         total_active_energy = (self.symbolic_sim.total_active_energy).xreplace(self.tech_params)
         total_passive_energy = (self.symbolic_sim.total_passive_energy).xreplace(self.tech_params)

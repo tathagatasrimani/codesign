@@ -300,9 +300,6 @@ class HardwareModel:
         opt_params = sim_util.generate_init_params_from_rcs_as_symbols(rcs)
 
         cacti_util.update_dat(rcs, self.cacti_dat_file) # update dat file
-        # self.latency["MainMem"] = (
-        #     rcs["other"]["MemReadL"] + rcs["other"]["MemWriteL"]
-        # ) / 2
         mem_l_expr =  sp.sympify(open("src/cacti/sympy/Mem_access_time.txt", "r").readline(), locals=hw_symbols.symbol_table)
         self.latency["MainMem"] = float(mem_l_expr.xreplace(opt_params))
 
