@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import graphviz as gv
 import networkx as nx
+import sympy as sp
 
 # custom modules
 from .memory import Memory
@@ -23,8 +24,6 @@ from . import sim_util
 from . import arch_search_util
 from .config_dicts import op2sym_map
 from .abstract_simulate import AbstractSimulator
-
-import sympy as sp
 
 MEMORY_SIZE = 1000000
 state_graph_counter = 0

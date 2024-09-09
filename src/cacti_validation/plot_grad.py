@@ -81,11 +81,11 @@ def plot_diff(csv_file_path=None, show_numbers=True, square=False, width=6, name
 
     # Custom colormap: red at -100 and 300, white at 0 and 200, green at 100
     colors = [
-        (0.9, 0.0, 0.0),  # Red at -100
+        (0.8, 0.0, 0.2),  # Red at -100
         (1.0, 1.0, 1.0),    # White at 0
-        (0.0, 0.75, 0.0),  # Green at 100
+        (0.0, 0.5, 0.3),  # Green at 100
         (1.0, 1.0, 1.0),    # White at 200
-        (0.9, 0.0, 0.0)   # Red at 300
+        (0.8, 0.0, 0.2)   # Red at 300
     ]
     nodes = [-100, 0, 100, 200, 300]
     normalized_nodes = [(node - min(nodes)) / (max(nodes) - min(nodes)) for node in nodes]
@@ -176,9 +176,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     cfg_name = args.CFG
-    print(cfg_name)
-    import time
-    time.sleep(5)
     
     # INDIVIDUAL PLOTS
     csv_file_path = f'src/cacti_validation/results/{cfg_name}_access_time_grad_results.csv'
@@ -192,19 +189,6 @@ if __name__ == "__main__":
 
     csv_file_path = f'src/cacti_validation/results/{cfg_name}_read_leakage_grad_results.csv'
     plot_diff(csv_file_path, name=f"{cfg_name}_read_leakage_similarity")
-
-    # no numbers on matrix
-    # csv_file_path = f'results/{cfg_name}_access_time_grad_results.csv'
-    # plot_diff(csv_file_path, False, True, name="access_time_no_num_similarity")
-
-    # csv_file_path = f'results/{cfg_name}_read_dynamic_grad_results.csv'
-    # plot_diff(csv_file_path, False, True, name="read_dynamic_no_num_similarity")
-
-    # csv_file_path = f'results/{cfg_name}_write_dynamic_grad_results.csv'
-    # plot_diff(csv_file_path, False, True, name="write_dynamic_no_num_similarity")
-
-    # csv_file_path = f'results/{cfg_name}_read_leakage_grad_results.csv'
-    # plot_diff(csv_file_path, False, True, name="read_leakage_no_num_similarity")
 
     # COMBINED PLOT
     csv_files = [

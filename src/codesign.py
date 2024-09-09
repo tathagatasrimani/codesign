@@ -206,27 +206,6 @@ class Codesign:
         self.symbolic_sim.calculate_edp(self.hw)
         self.symbolic_sim.save_edp_to_file()
 
-        # print(f"tech params: {self.tech_params}")
-        # print(f"type of tech_param keys: {type(list(self.tech_params.keys())[0])}")
-
-        # for symbol in self.symbolic_sim.edp.free_symbols:
-        #     for key in self.tech_params.keys():
-        #         # print(f"key: {key}")
-        #         # print(f"symbol: {symbol}")
-        #         if key.name == symbol.name:
-        #             print(f"key: {key} == symbol: {symbol}")
-        #             if key != symbol:
-        #                 print(f"{key}: {key.assumptions0}")
-        #                 print(f"{symbol}: {symbol.assumptions0}")
-        #         # else:
-                #     print(f'key: {key} != symbol: {symbol}')
-            # assert symbol in self.tech_params.keys()
-
-        # tech_params2 = {}
-        # for key in self.tech_params.keys():
-        #     tech_params2[key.name] = self.tech_params[key]
-
-        # print(f"tech params 2: {tech_params2}")
         inverse_cycles = self.symbolic_sim.cycles.xreplace(self.tech_params).evalf()
         print(f"free symbols in cycles after substition: {inverse_cycles.free_symbols}")
 
@@ -234,14 +213,9 @@ class Codesign:
 
         self.inverse_edp = self.symbolic_sim.edp.xreplace(self.tech_params).evalf()
         print(f"free symbols in inverse edp after substition: {self.inverse_edp.free_symbols}")
-        # self.inverse_edp = self.inverse_edp.subs(self.tech_params)
-
-        # print(
-        #     f"try again: free symbols in inverse edp after substition: {self.inverse_edp.free_symbols}"
-        # )
 
         assert len(self.inverse_edp.free_symbols) == 0
-        active_energy = self.symbolic_sim.total_active_energy.xreplace(self.tech_params)#.subs(tech_params2)
+        active_energy = self.symbolic_sim.total_active_energy.xreplace(self.tech_params)
         passive_energy = self.symbolic_sim.total_passive_energy.xreplace(self.tech_params)
 
         ### EVAL the x_replace
@@ -277,7 +251,7 @@ class Codesign:
         # for key in self.tech_params.keys():
         #     tech_params2[key.name] = self.tech_params[key]
 
-        self.inverse_edp = self.symbolic_sim.edp.xreplace(self.tech_params)#.subs(tech_params2)
+        self.inverse_edp = self.symbolic_sim.edp.xreplace(self.tech_params)
         total_active_energy = (self.symbolic_sim.total_active_energy).xreplace(self.tech_params)
         total_passive_energy = (self.symbolic_sim.total_passive_energy).xreplace(self.tech_params)
         execution_time = self.symbolic_sim.cycles.xreplace(self.tech_params)

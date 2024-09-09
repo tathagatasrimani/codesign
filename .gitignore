@@ -16,6 +16,7 @@ src/BufL.txt
 src/MemL.txt
 src/sympy_ceil.txt
 src/ipopt_out.txt
+src/symbolic_edp.txt
 
 src/params/rcs.yaml
 src/params/rcs_current.yaml
@@ -30,3 +31,4 @@ data/**
 logs/**
 openroad_interface/fig
 openroad_interface/results
+src/cacti_validation/results

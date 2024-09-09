@@ -134,11 +134,7 @@ class Preprocessor:
             self.free_symbols.append(s)
             if s.name in initial_params:  # change this to just s
                 self.expr_symbols[s] = initial_params[s.name]
-        print(f"calculating initial val")
         self.initial_val = float(edp.xreplace(self.expr_symbols))
-        print(f"expr_symbols: {self.expr_symbols}")
-        # print("edp:", edp)
-        print("initial val:", self.initial_val)
 
         model.nVars = pyo.Param(initialize=len(edp.free_symbols))
         model.N = pyo.RangeSet(model.nVars)
