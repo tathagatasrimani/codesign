@@ -12,8 +12,8 @@ import graphviz as gv
 from sympy import *
 import networkx as nx
 import shutil
+from staticfg.builder import CFGBuilder
 
-from .staticfg.builder import CFGBuilder
 from .ast_utils import ASTUtils
 from .memory import Memory, Cache
 from .config_dicts import op2sym_map

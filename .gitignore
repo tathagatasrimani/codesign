@@ -21,6 +21,6 @@ src/params/coefficients.yaml
 
 data/**
 
-src/codesign_log_dir/**
+logs/**
 openroad_interface/fig
 openroad_interface/results

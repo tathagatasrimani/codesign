@@ -1,8 +1,8 @@
 import graphviz as gv
 import ast
 import astor
+from staticfg.builder import CFGBuilder
 
-from .staticfg.builder import CFGBuilder
 from .ast_utils import ASTUtils
 from .config_dicts import op2sym_map
 
