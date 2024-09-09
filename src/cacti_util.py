@@ -18,7 +18,7 @@ import sympy as sp
 
 valid_tech_nodes = [0.022, 0.032, 0.045, 0.065, 0.090, 0.180]
 
-def cacti_gen_sympy(name, cache_cfg, opt_vals, use_piecewise=True):
+def gen_symbolic(name, cache_cfg, opt_vals, use_piecewise=False):
     """
     Generates SymPy expressions for access time and energy, outputting results to text files.
 
@@ -62,7 +62,7 @@ def cacti_gen_sympy(name, cache_cfg, opt_vals, use_piecewise=True):
     fin_res = solve_single()
 
     # Create the directory path
-    output_dir = os.path.join('src', 'cacti', 'sympy')
+    output_dir = os.path.join('src', 'cacti', 'symbolic_expressions')
 
     # Ensure the directory exists
     os.makedirs(output_dir, exist_ok=True)
@@ -137,7 +137,7 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
     
     # load in default values
     logger.info(f"Running Cacti with the following parameters: filename: {filename}, cacheSize: {cacheSize}, blockSize: {blockSize}, cache_type: {cache_type}, bus_width: {bus_width}, transistor_size: {transistor_size}, addr_timing: {addr_timing}, force_cache_config: {force_cache_config}, technology: {technology}")
-    with open("params/cacti_input.yaml", "r") as yamlfile:
+    with open("src/params/cacti_input.yaml", "r") as yamlfile:
         config_values = yaml.safe_load(yamlfile)
 
     if cache_type == None:
@@ -398,11 +398,12 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
     stdout_file_path = os.path.join(cactiDir, stdout_filename)
 
     cmd = ['./cacti', '-infile', input_filename]
-
-    p = subprocess.Popen(cmd, cwd=cactiDir) #, stdout=stdout_file_path, stderr=subprocess.PIPE)
-    p.wait()
-    if p.returncode != 0:
-        raise Exception(f"Cacti Error in {filename}", {p.stderr.read().decode()}, {p.stdout.read().decode().split("\n")[-2]})
+    
+    with open(stdout_file_path, "w") as f:
+        p = subprocess.Popen(cmd, cwd=cactiDir, stdout=f, stderr=subprocess.PIPE)
+        p.wait()
+        if p.returncode != 0:
+            raise Exception(f"Cacti Error in {filename}", {p.stderr.read().decode()}, {f.read().decode().split("\n")[-2]})
 
     output_filename = filename + ".cfg.out"
     cactiOutput = os.path.normpath(os.path.join(cactiDir, output_filename))
@@ -639,7 +640,7 @@ if __name__ == "__main__":
     }
 
     sympy_file = args.cfg_name
-    IO_info = cacti_gen_sympy(sympy_file, cache_cfg, buf_opt, use_piecewise=False)
+    IO_info = gen_symbolic(sympy_file, cache_cfg, buf_opt, use_piecewise=False)
 
 
 

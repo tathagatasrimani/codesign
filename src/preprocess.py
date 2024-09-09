@@ -86,7 +86,7 @@ class Preprocessor:
             opt.options["bound_relax_factor"] = 0
             opt.options["max_iter"] = 100
             opt.options["print_info_string"] = "yes"
-            opt.options["output_file"] = "solver_out.txt"
+            opt.options["output_file"] = "src/tmp/solver_out.txt"
             opt.options["wantsol"] = 2
             opt.options["halt_on_ampl_error"] = "yes"
         return opt
@@ -117,11 +117,8 @@ class Preprocessor:
         self.expr_symbols = {}
         self.free_symbols = []
         self.initial_params = initial_params
-        print(f"before free symbols loop")
-        # for symbol in edp.free_symbols:
-        #     edp = edp.xreplace({symbol: hw_symbols.symbol_table[symbol.name]})
 
-        mem_buf_l_symbols = self.symbols_in_Buf_Mem_L("src/cacti/sympy/Buf_access_time.txt", "src/cacti/sympy/Mem_access_time.txt")
+        mem_buf_l_symbols = self.symbols_in_Buf_Mem_L("src/cacti/symbolic_expressions/Buf_access_time.txt", "src/cacti/symbolic_expressions/Mem_access_time.txt")
         desired_free_symbols = ["Vdd", "C_g_ideal"]#, "C_junc", "I_on_n", "vert_dielectric_constant"] #, "Vdsat"] #, "Mobility_n"]
 
         symbols_to_remove =  [

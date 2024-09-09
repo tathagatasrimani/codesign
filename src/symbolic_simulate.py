@@ -39,7 +39,7 @@ def symbolic_convex_max(a, b):
 class SymbolicSimulator(AbstractSimulator):
 
     def __init__(self):
-        self.cycles = 0
+        self.execution_time = 0
         self.cycles_ceil = 0
         self.id_to_node = {}
         self.path = os.getcwd()
@@ -76,7 +76,7 @@ class SymbolicSimulator(AbstractSimulator):
         self.total_passive_energy = 0
         self.total_passive_energy_ceil = 0
         self.cycles_ceil = 0
-        self.cycles = 0
+        self.execution_time = 0
 
     def localize_memory(self, hw, hw_graph):
         """
@@ -232,35 +232,34 @@ class SymbolicSimulator(AbstractSimulator):
                             logger.info(f"latency scaling: {scaling}")
 
                         path_latency += hw_symbols.symbolic_latency_wc[func] * scaling
-                    self.cycles = symbolic_convex_max(self.cycles, path_latency)
-        logger.info(f"execution time: {str(self.cycles)}")
+                    self.execution_time = symbolic_convex_max(self.execution_time, path_latency)
+        logger.info(f"execution time: {str(self.execution_time)}")
 
     def calculate_edp(self, hw):
 
-        with open('src/cacti/sympy/Mem_access_time.txt', 'r') as file:
+        with open('src/cacti/symbolic_expressions/Mem_access_time.txt', 'r') as file:
             mem_access_time_text = file.read()
 
-        with open('src/cacti/sympy/Mem_read_dynamic.txt', 'r') as file:
+        with open("src/cacti/symbolic_expressions/Mem_read_dynamic.txt", "r") as file:
             mem_read_dynamic_text = file.read()
 
-        with open('src/cacti/sympy/Mem_write_dynamic.txt', 'r') as file:
+        with open("src/cacti/symbolic_expressions/Mem_write_dynamic.txt", "r") as file:
             mem_write_dynamic_text = file.read()
 
-        with open('src/cacti/sympy/Mem_read_leakage.txt', 'r') as file:
+        with open("src/cacti/symbolic_expressions/Mem_read_leakage.txt", "r") as file:
             mem_read_leakage_text = file.read()
 
-        with open('src/cacti/sympy/Buf_access_time.txt', 'r') as file:
+        with open("src/cacti/symbolic_expressions/Buf_access_time.txt", "r") as file:
             buf_access_time_text = file.read()
 
-        with open('src/cacti/sympy/Buf_read_dynamic.txt', 'r') as file:
+        with open("src/cacti/symbolic_expressions/Buf_read_dynamic.txt", "r") as file:
             buf_read_dynamic_text = file.read()
 
-        with open('src/cacti/sympy/Buf_write_dynamic.txt', 'r') as file:
+        with open("src/cacti/symbolic_expressions/Buf_write_dynamic.txt", "r") as file:
             buf_write_dynamic_text = file.read()
 
-        with open('src/cacti/sympy/Buf_read_leakage.txt', 'r') as file:
+        with open("src/cacti/symbolic_expressions/Buf_read_leakage.txt", "r") as file:
             buf_read_leakage_text = file.read()
-
 
         MemL_expr = sp.sympify(mem_access_time_text, locals=hw_symbols.symbol_table)
         MemReadEact_expr = sp.sympify(mem_read_dynamic_text, locals=hw_symbols.symbol_table)
@@ -288,11 +287,11 @@ class SymbolicSimulator(AbstractSimulator):
             # hw_symbols.Ceff["Regs"]: 0,
         }
 
-        self.cycles = self.cycles.xreplace(cacti_subs)
+        self.execution_time = self.execution_time.xreplace(cacti_subs)
 
-        self.total_passive_energy = self.passive_energy_dissipation(hw, self.cycles)
+        self.total_passive_energy = self.passive_energy_dissipation(hw, self.execution_time)
 
-        self.edp = self.cycles * (self.total_active_energy + self.total_passive_energy)
+        self.edp = self.execution_time * (self.total_active_energy + self.total_passive_energy)
         self.edp = self.edp.xreplace(cacti_subs)
 
         assert hw_symbols.MemReadL not in self.edp.free_symbols and hw_symbols.MemWriteL not in self.edp.free_symbols, "Mem latency not fully substituted"
@@ -307,7 +306,7 @@ class SymbolicSimulator(AbstractSimulator):
 
     def save_edp_to_file(self):
         st = str(self.edp)
-        with open("symbolic_edp.txt", "w") as f:
+        with open("src/tmp/symbolic_edp.txt", "w") as f:
             f.write(st)
 
 def main():

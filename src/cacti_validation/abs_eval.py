@@ -70,7 +70,7 @@ def gen_abs_results(sympy_file, cache_cfg, dat_file):
     IO_tech_params = {k: (10**(-9) if v == 0 else v) for k, v in IO_tech_params.items() if v is not None and not math.isnan(v)}
     
     # every file should start with this name
-    sympy_filename = "cacti/sympy/" + sympy_file.rstrip(".txt")
+    sympy_filename = "cacti/symbolic_expressions/" + sympy_file.rstrip(".txt")
     print(f'READING {sympy_filename}')
 
     # PLUG IN CACTI
@@ -261,7 +261,7 @@ if __name__ == "__main__":
         }
         cfg_file = "src/cacti/cfg/" + cfg_file + ".cfg"
         sympy_file = cfg_file   # try to keep convention where sympy expressions have same name as cfg
-        IO_info = cacti_util.cacti_gen_sympy(sympy_file, cfg_file, buf_opt, use_piecewise=False)
+        IO_info = cacti_util.gen_symbolic(sympy_file, cfg_file, buf_opt, use_piecewise=False)
     else:
         # try to keep convention where sympy expressions have same name as cfg
         if (args.SYMPY):

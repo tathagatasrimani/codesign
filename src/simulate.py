@@ -428,7 +428,6 @@ class ConcreteSimulator(AbstractSimulator):
         self.edp = self.total_energy * self.execution_time
 
         
-
 def main(args):
     print(f"Running simulator for {args.benchmark.split('/')[-1]}")
     simulator = ConcreteSimulator()

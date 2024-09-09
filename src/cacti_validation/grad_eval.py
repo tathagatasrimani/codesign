@@ -47,7 +47,7 @@ def cacti_python_diff(sympy_file, tech_params, diff_var, metric=None):
         Dictionary containing the gradients for the specified or default metrics.
     """
 
-    sympy_file = "cacti/sympy/" + sympy_file
+    sympy_file = "cacti/symbolic_expressions/" + sympy_file
 
     if metric:
         file = f'{sympy_file}_{metric}.txt'      
@@ -422,7 +422,7 @@ if __name__ == "__main__":
         }
         
         sympy_name = args.CFG   # try to keep convention where sympy expressions have same name as cfg
-        IO_info = cacti_util.cacti_gen_sympy(sympy_name, cfg_file, buf_opt, use_piecewise=False)
+        IO_info = cacti_util.gen_symbolic(sympy_name, cfg_file, buf_opt, use_piecewise=False)
     else:
         cfg_file = f'src/cacti/cfg/{args.CFG}.cfg'
 

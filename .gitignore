@@ -10,19 +10,21 @@ src/instrumented_files/xformedname*
 src/instrumented_files/*
 
 src/output.txt
-src/solver_out.txt
-src/symbolic_edp.txt
-src/BufL.txt
-src/MemL.txt
-src/sympy_ceil.txt
-src/ipopt_out.txt
-src/symbolic_edp.txt
+# src/solver_out.txt
+# src/symbolic_edp.txt
+# src/BufL.txt
+# src/MemL.txt
+# src/ipopt_out.txt
+# src/symbolic_edp.txt
 
 src/params/rcs.yaml
 src/params/rcs_current.yaml
 src/params/coefficients.yaml
 
+src/tmp/**
+
 src/cacti_validation/results/**
+src/cacti_validation/figs/**
 
 data/**
 .vscode/**
