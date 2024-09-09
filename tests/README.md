@@ -8,7 +8,6 @@ _____________________
 This script generates results based on cache configuration, technology parameters, and optional SymPy expressions. Results are stored in `src/cacti_validation/results`.
 
 ## Prerequisites
-- Ensure all necessary Python dependencies are installed.
 - Verify that your configuration files (`.cfg`) and technology parameter files (`.dat`) are located in the appropriate directories.
 
 ## How to Use
@@ -36,9 +35,12 @@ This script generates results based on cache configuration, technology parameter
 - `src/cacti_validation/grad_plots`
 - `src/cacti_validation/results`
 
+## Prerequisites
+- Verify that your configuration files (`.cfg`) and technology parameter files (`.dat`) are located in the appropriate directories.
+
 ## How to Use
 Run the script with the following command:
-./<script_name>.sh -CFG <config_name> -DAT <tech_size> -SYMPY <sympy_file> -gen
+./cacti_grad_results.sh -CFG <config_name> -DAT <tech_size> -SYMPY <sympy_file> -gen
 
 ### Input Arguments:
 - **`-CFG <config_name>`**:  
