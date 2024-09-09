@@ -57,6 +57,7 @@ def gen_symbolic(name, cache_cfg, opt_vals, use_piecewise=False):
     g_ip.repeater_size = opt_vals["repeater_size"]
 
     g_ip.use_piecewise = use_piecewise
+    g_ip.print_detail_debug = False
 
     fin_res = uca_org_t()
     fin_res = solve_single()
@@ -641,6 +642,3 @@ if __name__ == "__main__":
 
     sympy_file = args.cfg_name
     IO_info = gen_symbolic(sympy_file, cache_cfg, buf_opt, use_piecewise=False)
-
-
-
