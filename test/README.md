@@ -1,18 +1,18 @@
-# TEST SCRIPTS
+# Test and Validation Scripts
 Scripts to test functionalities of codesign.
 
-_____________________
-# cacti_abs_results.sh
+## Cacti Absolute Value Validation
 
-## Cache Simulation and SymPy Expression Generation
+### Cache Simulation and SymPy Expression Generation
 This script generates results based on cache configuration, technology parameters, and optional SymPy expressions. Results are stored in `src/cacti_validation/results`.
 
-## Prerequisites
+### Prerequisites
 - Verify that your configuration files (`.cfg`) and technology parameter files (`.dat`) are located in the appropriate directories.
 
-## How to Use
+### How to Use
 Run the script with the following command:
-./cacti_abs_results.sh -CFG <config_name> -DAT <tech_size> -SYMPY <sympy_file> -gen
+
+`./cacti_abs_results.sh -CFG <config_name> -DAT <tech_size> -SYMPY <sympy_file> -gen`
 
 ### Input Arguments:
 - **`-CFG <config_name>`**:  
@@ -27,20 +27,20 @@ Run the script with the following command:
 - **`-gen`**:  
   *Optional*. Set this flag to generate SymPy expressions from the cache configuration file. Defaults to `false`.
 
-_____________________
-# cacti_grad_results.sh
+## Cacti Gradient Validation
 
-## Cache Configuration and SymPy Expression Generation
+### Cache Configuration and SymPy Expression Generation
 This script generates results based on cache configuration, technology parameters, and optional SymPy expressions. Results are stored in:
 - `src/cacti_validation/grad_plots`
 - `src/cacti_validation/results`
 
-## Prerequisites
+### Prerequisites
 - Verify that your configuration files (`.cfg`) and technology parameter files (`.dat`) are located in the appropriate directories.
 
-## How to Use
+### How to Use
 Run the script with the following command:
-./cacti_grad_results.sh -CFG <config_name> -DAT <tech_size> -SYMPY <sympy_file> -gen
+
+`./cacti_grad_results.sh -CFG <config_name> -DAT <tech_size> -SYMPY <sympy_file> -gen`
 
 ### Input Arguments:
 - **`-CFG <config_name>`**:  
@@ -54,7 +54,3 @@ Run the script with the following command:
 
 - **`-gen`**:  
   *Optional*. Set this flag to generate SymPy expressions from the cache configuration file. Defaults to `false`.
-
-_____________________
-
-

@@ -406,6 +406,7 @@ if __name__ == "__main__":
     # If you haven't generated sympy expr from cache cfg yet
     # Gen Flag true and can set sympy flag to set the name of the sympy expr
     if gen_flag:
+        print(f"current directory: {os.getcwd()}", flush=True)
         cfg_file = "src/cacti/cfg/" + args.CFG + ".cfg"
         buf_vals = cacti_util.run_existing_cacti_cfg(cfg_file)
 
