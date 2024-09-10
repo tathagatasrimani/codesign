@@ -310,6 +310,67 @@ def log_register_use(computation_graph, step, hw_element_counts, execution_time)
     keys.sort()
     in_use_sorted = {i: in_use[i] for i in keys}
     write_df(in_use_sorted, hw_element_counts, execution_time, step)
+
+import networkx as nx
+from itertools import combinations
+
+def check_valid_hw(computation_graph, hw_netlist):
+    """
+    Checks if for every pair of operators, that isn't already bidirectionally connected, 
+    there exists at least one register that both operators are bidirectionally connected to.
+    """
+    hw_graph = nx.DiGraph()
+
+    for node_id, attrs in hw_netlist['nodes'].items():
+        hw_graph.add_node(node_id, **attrs)
+
+    for edge in hw_netlist['edges']:
+        hw_graph.add_edge(*edge)
+
+    register_nodes = [node for node, data in hw_graph.nodes(data=True) if data.get('type') == 'memory' and data.get('function') == 'Regs']
+
+    operator_nodes = [node for node, data in hw_graph.nodes(data=True) if data.get('type') == 'pe']
+
+    for op1, op2 in combinations(operator_nodes, 2):
+        if hw_graph.has_edge(op1, op2) and hw_graph.has_edge(op2, op1):
+            continue
+        found_valid_register = False
+        for register in register_nodes:
+            if (hw_graph.has_edge(op1, register) and hw_graph.has_edge(register, op1) and
+                hw_graph.has_edge(op2, register) and hw_graph.has_edge(register, op2)):
+                found_valid_register = True
+                break
+        
+        if not found_valid_register:
+            return False
+    
+    return True
+
+
+def pre_schedule(computation_graph, hw_netlist):
+    if not check_valid_hw(computation_graph, hw_netlist):
+        raise ValueError("Hardware netlist is not valid. Please ensure that every operator node is bi-directionally connected to every register node.")
+    
+    operator_edges = [(u, v) for u, v in computation_graph["edges"] if computation_graph["nodes"][u]["type"] == "pe" and  computation_graph["nodes"][v]["type"] == "pe"]
+    register_nodes = [node for node, data in hw_netlist['nodes'].items() 
+                      if data.get('type') == 'memory' and data.get('function') == 'Regs']
+
+    new_node_id = max(computation_graph['nodes']) + 1
+    
+    for u, v in operator_edges:
+        if (u, v) not in hw_netlist["edges"]:
+            computation_graph['nodes'][new_node_id] = {
+                "type": "memory",
+                "function": "Regs",
+                "name": f"tmp_op_reg_{new_node_id}",
+            }
+            
+            computation_graph.remove_edge(u, v)
+            computation_graph.add_edge(u, new_node_id)
+            computation_graph.add_edge(new_node_id, v)
+            
+            new_node_id += 1
+
         
 def greedy_schedule(computation_graph, hw_element_counts, hw_netlist, save_reg_use_table=False):
     """

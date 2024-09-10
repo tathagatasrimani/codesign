@@ -155,6 +155,9 @@ class AbstractSimulator:
         """
         hw_counts = hardwareModel.get_func_count(hw.netlist)
         copy = computation_dfg.copy()
+        
+        schedule.pre_schedule(computation_dfg, hw.netlist)
+
         schedule.greedy_schedule(copy, hw_counts, hw.netlist)
 
         for layer, nodes in enumerate(
