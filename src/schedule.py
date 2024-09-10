@@ -311,35 +311,41 @@ def log_register_use(computation_graph, step, hw_element_counts, execution_time)
     in_use_sorted = {i: in_use[i] for i in keys}
     write_df(in_use_sorted, hw_element_counts, execution_time, step)
 
+import networkx as nx
+from itertools import combinations
+
 def check_valid_hw(computation_graph, hw_netlist):
     """
-    Checks if every operatory node if bi-directionally connected to every register node.
+    Checks if for every pair of operators, that isn't already bidirectionally connected, 
+    there exists at least one register that both operators are bidirectionally connected to.
     """
     hw_graph = nx.DiGraph()
-    
+
     for node_id, attrs in hw_netlist['nodes'].items():
         hw_graph.add_node(node_id, **attrs)
-    
+
     for edge in hw_netlist['edges']:
         hw_graph.add_edge(*edge)
-    
-    register_nodes = [node for node, data in hw_graph.nodes(data=True) 
-                      if data.get('type') == 'memory' and data.get('function') == 'Regs']
-    
-    operator_nodes = [node for node, data in hw_graph.nodes(data=True) 
-                      if data.get('type') == 'pe']
-    
-    for register in register_nodes:
-        all_bidirectional = True
-        for operator in operator_nodes:
-            if not (hw_graph.has_edge(operator, register) and hw_graph.has_edge(register, operator)):
-                all_bidirectional = False
+
+    register_nodes = [node for node, data in hw_graph.nodes(data=True) if data.get('type') == 'memory' and data.get('function') == 'Regs']
+
+    operator_nodes = [node for node, data in hw_graph.nodes(data=True) if data.get('type') == 'pe']
+
+    for op1, op2 in combinations(operator_nodes, 2):
+        if hw_graph.has_edge(op1, op2) and hw_graph.has_edge(op2, op1):
+            continue
+        found_valid_register = False
+        for register in register_nodes:
+            if (hw_graph.has_edge(op1, register) and hw_graph.has_edge(register, op1) and
+                hw_graph.has_edge(op2, register) and hw_graph.has_edge(register, op2)):
+                found_valid_register = True
                 break
-        if all_bidirectional:
-            return True
+        
+        if not found_valid_register:
+            return False
     
-    print("No register is bidirectionally connected to all operators.")
-    return False
+    return True
+
 
 def pre_schedule(computation_graph, hw_netlist):
     if not check_valid_hw(computation_graph, hw_netlist):
@@ -353,7 +359,6 @@ def pre_schedule(computation_graph, hw_netlist):
     
     for u, v in operator_edges:
         if (u, v) not in hw_netlist["edges"]:
-            # Create a new node in the DFG (computation_graph)
             computation_graph['nodes'][new_node_id] = {
                 "type": "memory",
                 "function": "Regs",
