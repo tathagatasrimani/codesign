@@ -14,4 +14,4 @@ To run, execute from codesign root:
 ```
 python3 -m openroad_interface.validation
 ```
-exec.py can be changed to run the main validation script for different graph designs and also visual that information through a graph plotter function. 
+validation.py can be changed to run the main validation script for different graph designs and also visual that information through a graph plotter function. 

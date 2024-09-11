@@ -6,6 +6,7 @@ import configparser as cp
 import yaml
 import os
 import logging
+
 logger = logging.getLogger(__name__)
 
 import graphviz as gv
@@ -21,9 +22,7 @@ from . import rcgen
 from . import cacti_util
 from .global_constants import SYSTEM_BUS_SIZE
 from openroad_interface.var import directory
-from openroad_interface import def_generator
-from openroad_interface import place_n_route
-
+from openroad_interface import validation
 
 
 HW_CONFIG_FILE = "src/params/hw_cfgs.ini"
@@ -136,8 +135,8 @@ class HardwareModel:
             self.update_netlist()
         else:
             self.netlist = nx.Graph()
-        
-        self.parasitic_graph = None # can be removed if better organization for this
+
+        self.parasitic_graph = None  # can be removed if better organization for this
 
         self.init_misc_vars()
         self.set_technology_parameters()
@@ -203,14 +202,18 @@ class HardwareModel:
         self.gen_cacti_results()
 
     def update_netlist(self):
-        logger.info(f"Old bus_widths -> buf: {self.buffer_bus_width}, mem: {self.memory_bus_width}")
+        logger.info(
+            f"Old bus_widths -> buf: {self.buffer_bus_width}, mem: {self.memory_bus_width}"
+        )
         self.buffer_bus_width = (
             num_nodes_with_func(self.netlist, "Buf") * SYSTEM_BUS_SIZE
         )
         self.memory_bus_width = (
             num_nodes_with_func(self.netlist, "MainMem") * SYSTEM_BUS_SIZE
         )
-        logger.info(f"New bus_widths -> buf: {self.buffer_bus_width}, mem: {self.memory_bus_width}")
+        logger.info(
+            f"New bus_widths -> buf: {self.buffer_bus_width}, mem: {self.memory_bus_width}"
+        )
 
     def set_technology_parameters(self):
         """
@@ -345,12 +348,10 @@ class HardwareModel:
 
     def print_stats(self):
         s = """
-	   cycles={cycles}
-	   allocated={allocated}
-	   utilized={utilized}
-	   """.format(
-            cycles=self.cycles, allocated=str(self.hw_allocated)
-        )
+	    cycles={cycles}
+	    allocated={allocated}
+	    utilized={utilized}
+	    """.format(cycles=self.cycles, allocated=str(self.hw_allocated))
 
     def get_total_area(self):
         """
@@ -364,7 +365,7 @@ class HardwareModel:
                 continue
             self.on_chip_area += self.area[data["function"]]
         logger.info(f"Area of all PEs: {self.on_chip_area}")
-        
+
         self.on_chip_area += self.area["Buf"] + self.area[
             "Buf"
         ] * self.buf_peripheral_area_proportion * (
@@ -393,40 +394,49 @@ class HardwareModel:
         """
         buf_vals = cacti_util.gen_vals(
             "base_cache",
-            cacheSize=2048, # TODO: Add in buffer sizing
+            cacheSize=2048,  # TODO: Add in buffer sizing
             blockSize=64,
             cache_type="cache",
             bus_width=self.buffer_bus_width,
         )
-        logger.info(f"Buffer cacti with: {self.buffer_size} bytes, {self.buffer_bus_width} bus width")
+        logger.info(
+            f"Buffer cacti with: {self.buffer_size} bytes, {self.buffer_bus_width} bus width"
+        )
         mem_vals = cacti_util.gen_vals(
             "mem_cache",
-            cacheSize= 131072,
+            cacheSize=131072,
             blockSize=64,
             cache_type="main memory",
             bus_width=self.memory_bus_width,
         )
-        logger.info(f"Memory cacti with: {self.mem_size} bytes, {self.memory_bus_width} bus width")
-        
+        logger.info(
+            f"Memory cacti with: {self.mem_size} bytes, {self.memory_bus_width} bus width"
+        )
 
-        self.area["Buf"] = float(buf_vals["Area (mm2)"]) * 1e12 # convert to nm^2
-        self.area["MainMem"] = float(mem_vals["Area (mm2)"]) * 1e12 # convert to nm^2
+        self.area["Buf"] = float(buf_vals["Area (mm2)"]) * 1e12  # convert to nm^2
+        self.area["MainMem"] = float(mem_vals["Area (mm2)"]) * 1e12  # convert to nm^2
         self.area["OffChipIO"] = (
-            float(mem_vals["IO area"]) * 1e12 if mem_vals["IO area"] not in ["N/A", "inf", "-inf", "nan", "-nan"] else 0.0 # convert to nm^2
+            float(mem_vals["IO area"]) * 1e12
+            if mem_vals["IO area"] not in ["N/A", "inf", "-inf", "nan", "-nan"]
+            else 0.0  # convert to nm^2
         )
         logger.info(f"Buf area from cacti: {self.area['Buf']} nm^2")
         logger.info(f"Mem area from cacti: {self.area['MainMem']} nm^2")
         logger.info(f"OffChipIO area from cacti: {self.area['OffChipIO']} nm^2")
 
-        self.buf_peripheral_area_proportion = (100-float(
-            buf_vals["Data arrary area efficiency %"]
-        )) / 100
-        self.mem_peripheral_area_proportion = (100-float(
-            mem_vals["Data arrary area efficiency %"]
-        )) / 100
+        self.buf_peripheral_area_proportion = (
+            100 - float(buf_vals["Data arrary area efficiency %"])
+        ) / 100
+        self.mem_peripheral_area_proportion = (
+            100 - float(mem_vals["Data arrary area efficiency %"])
+        ) / 100
 
-        logger.info(f"Buf peripheral area proportion from cacti: {self.buf_peripheral_area_proportion}")
-        logger.info(f"Mem peripheral area proportion from cacti: {self.mem_peripheral_area_proportion}")
+        logger.info(
+            f"Buf peripheral area proportion from cacti: {self.buf_peripheral_area_proportion}"
+        )
+        logger.info(
+            f"Mem peripheral area proportion from cacti: {self.mem_peripheral_area_proportion}"
+        )
 
         self.latency["Buf"] = float(buf_vals["Access time (ns)"])
         self.latency["MainMem"] = float(mem_vals["Access time (ns)"])
@@ -459,27 +469,15 @@ class HardwareModel:
         )
         # This comes in mW
         self.dynamic_power["OffChipIO"] = (
-            float(mem_vals["IO power dynamic"]) * 1e6 # convert to nW
+            float(mem_vals["IO power dynamic"]) * 1e6  # convert to nW
             if mem_vals["IO power dynamic"] != "N/A"
             else 0.0
         )
         return
 
-    def get_wire_parasitics(self, arg_parasitics, arg_testfile):
-        os.system("cp " + arg_testfile + " ./" + directory) 
-        os.system("cp openroad_interface/tcl/codesign_flow.tcl ./" + directory) 
-        shutil.copyfile(arg_testfile, directory + "test.tcl")
-        design_name= self.path_to_graphml.split("/")[len(self.path_to_graphml.split("/")) - 1]
-        graph = nx.read_gml(self.path_to_graphml)
-        graph, net_out_dict, node_output, lef_data, node_to_num= def_generator.def_generator(arg_testfile, graph)
-
-        if arg_parasitics == "detailed":
-            _, graph = place_n_route.detailed_place_n_route(graph, design_name, net_out_dict, node_output, lef_data, node_to_num)
-        elif arg_parasitics == "estimation":
-            _, graph = place_n_route.estimated_place_n_route(graph, design_name, net_out_dict, node_output, lef_data, node_to_num)
-        elif arg_parasitics == "none":
-            graph = place_n_route.none_place_n_route(graph, design_name, net_out_dict, node_output, lef_data, node_to_num)
-    
+    def get_wire_parasitics(self, arg_testfile, arg_parasitics):
+        design_name = self.path_to_graphml.split("/")[
+            len(self.path_to_graphml.split("/")) - 1
+        ]
+        _, graph = validation.validation(design_name, arg_testfile, arg_parasitics)
         self.parasitic_graph = graph
-
-                    
