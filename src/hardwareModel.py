@@ -450,11 +450,6 @@ class HardwareModel:
             "repeater_size": mem_vals["Repeater size"],
         }
         logger.info(f"Memory cacti with: {self.mem_size} bytes, {self.memory_bus_width} bus width")
-        import time
-        print("HELLO! MEM CACHE IS HERE!")
-        print(mem_opt)
-        print(mem_vals)
-        time.sleep(3)
 
         self.area["Buf"] = float(buf_vals["Area (mm2)"]) * 1e12 # convert to nm^2
         self.area["MainMem"] = float(mem_vals["Area (mm2)"]) * 1e12 # convert to nm^2
