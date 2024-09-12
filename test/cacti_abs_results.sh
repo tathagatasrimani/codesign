@@ -4,9 +4,9 @@
 cd ..
 
 # Define default values for cfg_file, sympy_file, and gen_flag
-CFG_FILE="cache"
+CFG_FILE="base_cache"
 DAT_FILE=""
-SYMPY_FILE=""
+SYMPY_FILE="Buf"
 GEN_FLAG="false"
 
 # Parse command-line arguments to override defaults
