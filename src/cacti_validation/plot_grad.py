@@ -135,11 +135,11 @@ def plot_diff(csv_file_path=None, show_numbers=True, square=False, width=6, name
     plt.subplots_adjust(left=0.2, right=0.8, top=0.9, bottom=0.1)  # Adjust spacing
 
     # Save the plot
-    output_dir = 'src/cacti_validation/grad_plots'
+    output_dir = 'src/cacti_validation/figs'
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     
-    output_path = os.path.join(output_dir, f'{name}.png')
+    output_path = os.path.join(output_dir, f'grad_{name}.png')
     plt.savefig(output_path, bbox_inches='tight')
     plt.close()
 
