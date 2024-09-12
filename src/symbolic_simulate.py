@@ -311,7 +311,14 @@ class SymbolicSimulator(AbstractSimulator):
 
     def save_edp_to_file(self):
         st = str(self.edp)
-        with open("src/tmp/symbolic_edp.txt", "w") as f:
+        
+        file_path = "src/tmp/symbolic_edp.txt"
+        directory = os.path.dirname(file_path)
+        
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+
+        with open(file_path, "w") as f:
             f.write(st)
 
 def main():
