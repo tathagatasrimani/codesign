@@ -1,7 +1,7 @@
 import sys
 import numpy as np
 
-def instrument_read_sub(var, var_name: str, ind, lower, upper, slice):
+def instrument_read_sub(var, var_name: str, ind, lower, upper, step, slice):
     while var_name.startswith("instrument_read"):
         var_name = var_name[var_name.find('(')+1:]
     if var_name.find(',') != -1:
@@ -14,14 +14,17 @@ def instrument_read_sub(var, var_name: str, ind, lower, upper, slice):
         print(var_name, lower, upper, "Read", sys.getsizeof(var[lower:upper]))
         if lower:
             if upper:
-                return var[int(lower):int(upper)]
+                toreturn = var[int(lower):int(upper)]
             else:
-                return var[int(lower):]
+                toreturn = var[int(lower):]
         else:
             if upper:
-                return var[:int(upper)]
+                toreturn = var[:int(upper)]
             else:
-                return var
+                toreturn = var
+        if step != 1:
+            toreturn = toreturn[::step]
+        return toreturn
     else:
         if type(var[ind]) is np.ndarray:
             print(f"{var_name} {var[ind].tolist()} Read {sys.getsizeof(var[ind])}")

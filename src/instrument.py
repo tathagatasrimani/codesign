@@ -76,6 +76,7 @@ class NameOnlyInstrumentor(ast.NodeTransformer):
                 "str",
                 "math",
                 "heapdict",
+                "cm",
             )
         )
 
@@ -492,7 +493,6 @@ class ProgramInstrumentor(ast.NodeTransformer):
         return node
 
     def visit_Subscript(self, node: Subscript) -> Any:
-        # report("visiting subscript", node)
         if type(node.ctx) == ast.Store:
             node.value.ctx = ast.Store()
             node.value = self.visit(node.value)
@@ -502,12 +502,14 @@ class ProgramInstrumentor(ast.NodeTransformer):
             t = ast_to_text(node.value)
             node.value = self.visit(node.value)
             node.slice = self.visit(node.slice)
-            lower, upper, is_slice = "None", "None", "False"
+            lower, upper, step, is_slice = "None", "None", 1, "False"
             if type(node.slice) == ast.Slice:
                 if node.slice.lower:
                     lower = ast_to_text(node.slice.lower)[1:-1]
                 if node.slice.upper:
                     upper = ast_to_text(node.slice.upper)[1:-1]
+                if node.slice.step:
+                    step = ast_to_text(node.slice.step)[1:-1]
                 is_slice = "True"
                 node.slice = ast.Name(id="None", ctx=ast.Load())
             retval = ast.Call(
@@ -518,6 +520,7 @@ class ProgramInstrumentor(ast.NodeTransformer):
                     node.slice,
                     ast.Name(id=lower, ctx=ast.Load()),
                     ast.Name(id=upper, ctx=ast.Load()),
+                    ast.Name(id=step, ctx=ast.Load()),
                     ast.Name(is_slice, ast.Load()),
                 ],
                 keywords=[],
