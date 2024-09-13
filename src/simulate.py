@@ -29,7 +29,6 @@ from .abstract_simulate import AbstractSimulator
 from openroad_interface import place_n_route
 
 MEMORY_SIZE = 1000000
-state_graph_counter = 0
 
 rng = np.random.default_rng()
 
@@ -241,8 +240,10 @@ class ConcreteSimulator(AbstractSimulator):
 
     def reset_internal_variables(self):
         self.cycles = 0
+        self.net_delay = 0
         self.active_energy = 0
         self.passive_energy = 0
+        self.net_active_energy = 0
         self.total_energy = 0
 
     def construct_fake_double_hw(self, hw):
@@ -419,6 +420,7 @@ class ConcreteSimulator(AbstractSimulator):
                     float(1 / 2) * float(cap_sum) * float(hw.V_dd * hw.V_dd * 1e-3)
                 )  # pico -> nano
             self.active_energy += net_energy
+            self.net_active_energy += net_energy
 
             def matcher_func(n1, n2):
                 res = (
@@ -580,6 +582,7 @@ def main(args):
     print("total number of cycles: ", simulator.cycles)
     print(f"execution time: {simulator.execution_time} ns")
     print(f"total energy: {simulator.total_energy} nJ")
+    print(f"total wire energy: {simulator.net_active_energy} nJ")
 
     print(f"on chip area: {area} um^2")
     print(f"EDP: {simulator.edp} E-18 Js")

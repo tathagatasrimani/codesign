@@ -106,10 +106,10 @@ def extraction(graph, arg_parasitics, design_name, net_out_dict, node_output, le
 
 if __name__ == "__main__":
     aes_arch_detailed, _ = validation(
-        "aes_arch_copy.gml", "openroad_interface/tcl/test_nangate45.tcl", "detailed"
+        "aes_arch.gml", "openroad_interface/tcl/test_nangate45.tcl", "detailed"
     )
     aes_arch_estimated, _ = validation(
-        "aes_arch_copy.gml", "openroad_interface/tcl/test_nangate45.tcl", "estimation"
+        "aes_arch.gml", "openroad_interface/tcl/test_nangate45.tcl", "estimation"
     )
     mm_test_detailed = validation(
         "mm_test.gml", "openroad_interface/tcl/test_nangate45_bigger.tcl", "detailed"
