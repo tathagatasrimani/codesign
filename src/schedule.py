@@ -2,6 +2,8 @@ from collections import deque
 import heapq
 import math
 import logging
+from itertools import combinations
+
 logger = logging.getLogger(__name__)
 
 import networkx as nx
@@ -9,6 +11,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import cvxpy as cp
 import pandas as pd
+import networkx as nx
 
 from .global_constants import SEED
 from . import sim_util
@@ -311,9 +314,6 @@ def log_register_use(computation_graph, step, hw_element_counts, execution_time)
     in_use_sorted = {i: in_use[i] for i in keys}
     write_df(in_use_sorted, hw_element_counts, execution_time, step)
 
-import networkx as nx
-from itertools import combinations
-
 def check_valid_hw(computation_graph, hw_netlist):
     """
     Checks if for every pair of operators, that isn't already bidirectionally connected, 
@@ -321,10 +321,10 @@ def check_valid_hw(computation_graph, hw_netlist):
     """
     hw_graph = nx.DiGraph()
 
-    for node_id, attrs in hw_netlist['nodes'].items():
+    for node_id, attrs in hw_netlist.nodes(data=True):
         hw_graph.add_node(node_id, **attrs)
 
-    for edge in hw_netlist['edges']:
+    for edge in hw_netlist.edges():
         hw_graph.add_edge(*edge)
 
     register_nodes = [node for node, data in hw_graph.nodes(data=True) if data.get('type') == 'memory' and data.get('function') == 'Regs']
@@ -346,32 +346,38 @@ def check_valid_hw(computation_graph, hw_netlist):
     
     return True
 
-
 def pre_schedule(computation_graph, hw_netlist):
     if not check_valid_hw(computation_graph, hw_netlist):
         raise ValueError("Hardware netlist is not valid. Please ensure that every operator node is bi-directionally connected to every register node.")
     
-    operator_edges = [(u, v) for u, v in computation_graph["edges"] if computation_graph["nodes"][u]["type"] == "pe" and  computation_graph["nodes"][v]["type"] == "pe"]
-    register_nodes = [node for node, data in hw_netlist['nodes'].items() 
-                      if data.get('type') == 'memory' and data.get('function') == 'Regs']
+    print(computation_graph.nodes(data=True))
 
-    new_node_id = max(computation_graph['nodes']) + 1
+    operator_edges = [(u,v) for u, v in computation_graph.edges() if computation_graph.nodes(data=True)[u]["function"] not in ["Regs", "Buf", "MainMem"] and  computation_graph.nodes(data=True)[v]["function"] not in ["Regs", "Buf", "MainMem"]]
+    register_nodes = [node for node, data in computation_graph.nodes(data=True) 
+                      if data['function'] == 'Regs']
+
+    print(register_nodes)
+    reg_ids = [int(name.split(";")[1]) for name in register_nodes]
+    new_node_id = max(reg_ids) + 1
     
     for u, v in operator_edges:
-        if (u, v) not in hw_netlist["edges"]:
-            computation_graph['nodes'][new_node_id] = {
-                "type": "memory",
-                "function": "Regs",
-                "name": f"tmp_op_reg_{new_node_id}",
-            }
+        if (u, v) not in hw_netlist.edges():
+            new_node_name = f"tmp_op_reg;{new_node_id}"
+
+            print(f"u: {u}, v: {v}")
+            computation_graph.add_node(new_node_name, function="Regs")
+            #     # "type": "memory",
+            #     "function": "Regs",
+            #     "name": f"tmp_op_reg_{new_node_id}",
+            # }
             
             computation_graph.remove_edge(u, v)
-            computation_graph.add_edge(u, new_node_id)
-            computation_graph.add_edge(new_node_id, v)
+            computation_graph.add_edge(u, new_node_name)
+            computation_graph.add_edge(new_node_name, v)
             
             new_node_id += 1
 
-        
+
 def greedy_schedule(computation_graph, hw_element_counts, hw_netlist, save_reg_use_table=False):
     """
     Schedules the computation graph on the hardware netlist
