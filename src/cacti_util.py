@@ -138,7 +138,8 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
     
     # load in default values
     logger.info(f"Running Cacti with the following parameters: filename: {filename}, cacheSize: {cacheSize}, blockSize: {blockSize}, cache_type: {cache_type}, bus_width: {bus_width}, transistor_size: {transistor_size}, addr_timing: {addr_timing}, force_cache_config: {force_cache_config}, technology: {technology}")
-    with open("src/params/cacti_input.yaml", "r") as yamlfile:
+    print(f"cwd: {os.getcwd()}")
+    with open(os.path.normpath(os.path.join(os.path.dirname(__file__), 'params/cacti_input.yaml')), "r") as yamlfile:
         config_values = yaml.safe_load(yamlfile)
 
     if cache_type == None:
@@ -402,9 +403,11 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
     
     with open(stdout_file_path, "w") as f:
         p = subprocess.Popen(cmd, cwd=cactiDir, stdout=f, stderr=subprocess.PIPE)
-        p.wait()
-        if p.returncode != 0:
-            raise Exception(f"Cacti Error in {filename}", {p.stderr.read().decode()}, {f.read().decode().split("\n")[-2]})
+    
+    p.wait()
+    if p.returncode != 0:
+        with open(stdout_file_path, "r") as f:
+            raise Exception(f"Cacti Error in {filename}", {p.stderr.read().decode()}, {f.read().split("\n")[-2]})
 
     output_filename = filename + ".cfg.out"
     cactiOutput = os.path.normpath(os.path.join(cactiDir, output_filename))
