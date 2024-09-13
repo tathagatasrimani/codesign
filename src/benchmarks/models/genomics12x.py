@@ -1,4 +1,3 @@
-from loop import loop
 # Python Implementation Denovo Single Gene Nanopore Sequencing by DARWIN-Whole Genome Alignment Workload
 import numpy as np
 path = '/nfs/pool0/pmcewen/codesign/codesign/src'
@@ -231,5 +230,4 @@ def main():
 
 if __name__ == "__main__":
     for i in range(12):
-        loop().pattern_seek()
         main()

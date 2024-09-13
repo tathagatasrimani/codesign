@@ -1,4 +1,3 @@
-import loop as loop
 import numpy as np
 def main():
     a = 3

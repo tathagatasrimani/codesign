@@ -3,7 +3,6 @@ import math
 from random import random
 from random import choice
 import time
-from loop import loop
 import numpy as np
 # Implementation of directed graphs with weighted edges
 
@@ -251,9 +250,7 @@ def smallFrac(n):
     return float(5/n)
 
 if __name__ == "__main__":
-    loop.start_unroll
     for i in range(12):
-        loop().pattern_seek(6)
         # test on a random graph
         G = randomGraph(5,.2)
         BFS_shortestPaths(G.vertices[0],G)
