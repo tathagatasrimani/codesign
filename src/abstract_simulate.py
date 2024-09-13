@@ -154,7 +154,6 @@ class AbstractSimulator:
             hw: HardwareModel object
         """
         hw_counts = hardwareModel.get_func_count(hw.netlist)
-
         schedule.pre_schedule(computation_dfg, hw.netlist)
         copy = computation_dfg.copy()
 
