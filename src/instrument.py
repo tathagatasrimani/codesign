@@ -502,7 +502,7 @@ class ProgramInstrumentor(ast.NodeTransformer):
             t = ast_to_text(node.value)
             node.value = self.visit(node.value)
             node.slice = self.visit(node.slice)
-            lower, upper, step, is_slice = "None", "None", 1, "False"
+            lower, upper, step, is_slice = "None", "None", "1", "False"
             if type(node.slice) == ast.Slice:
                 if node.slice.lower:
                     lower = ast_to_text(node.slice.lower)[1:-1]
