@@ -562,7 +562,8 @@ def replace_values_in_dat_file(dat_file_path, key, new_value):
     cur_dir = os.getcwd()
     if os.path.basename(cur_dir) == 'codesign':
         # Change to the 'src' directory
-        dat_file_path = "src/" + dat_file_path
+        if not dat_file_path.startswith("src/"):
+            dat_file_path = "src/" + dat_file_path
 
     with open(dat_file_path, 'r') as file:
         lines = file.readlines()
