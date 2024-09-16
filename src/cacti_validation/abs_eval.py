@@ -51,6 +51,14 @@ def gen_abs_results(sympy_file, cache_cfg, dat_file):
     Results are appended to 'abs_validate_results.csv'.
     Returns the SymPy result and the C Cacti access time.
     """
+    
+    # Check if the last directory is 'codesign'
+    cur_dir = os.getcwd()
+    if os.path.basename(cur_dir) == 'codesign':
+        # Change to the 'src' directory
+        src_dir = os.path.join(cur_dir, 'src')
+        os.chdir(src_dir)
+
     cache_cfg = cache_cfg.replace('src/', '')
     dat_file = dat_file.replace('src/', '')
 
@@ -155,8 +163,9 @@ def gen_abs_results(sympy_file, cache_cfg, dat_file):
     result_io_termination_power = result.subs(sp.I, 0)
 
     # Get CACTI C results to verify
+    cfg_name = cache_cfg.replace('.cfg', '').replace('cacti/cfg/', '')
     validate_vals = cacti_util.gen_vals(
-        "validate_mem_energy_cache",
+        cfg_name,
         cacheSize=g_ip.cache_sz, # TODO: Add in buffer sizing
         blockSize=g_ip.block_sz,
         cache_type="main memory",
@@ -219,10 +228,12 @@ def gen_abs_results(sympy_file, cache_cfg, dat_file):
 
     df = pd.DataFrame(data)
 
-    directory = "cacti_validation"
+    print(f'Right before save into cacti_validation {os.getcwd()}')
+    directory = "src/cacti_validation/abs_results"
     if not os.path.exists(directory):
         os.makedirs(directory)
-    csv_file = os.path.join(directory, 'results', "abs_validate_results.csv")
+    csv_file = os.path.join(directory, "abs_validate_results.csv")
+    print(csv_file)
     
     file_exists = os.path.isfile(csv_file)
     df.to_csv(csv_file, mode='a', header=not file_exists, index=False)
@@ -273,9 +284,11 @@ if __name__ == "__main__":
         dat_file = f"src/cacti/tech_params/{args.DAT}.dat"
         gen_abs_results(sympy_file, cfg_file, dat_file)
     else:
+        print(cfg_file)
         dat_file_90nm = os.path.join('src', 'cacti', 'tech_params', '90nm.dat')
         gen_abs_results(sympy_file, cfg_file, dat_file_90nm)
 
+        print(cfg_file)
         dat_file_45nm = os.path.join('src', 'cacti', 'tech_params', '45nm.dat')
         gen_abs_results(sympy_file, cfg_file, dat_file_45nm)
 

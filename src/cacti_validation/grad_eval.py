@@ -47,6 +47,7 @@ def cacti_python_diff(sympy_file, tech_params, diff_var, metric=None):
         Dictionary containing the gradients for the specified or default metrics.
     """
 
+    print(f"this is cCUR: {os.getcwd()}")
     sympy_file = "cacti/symbolic_expressions/" + sympy_file
 
     if metric:
@@ -95,6 +96,10 @@ def cacti_python_diff_single(sympy_file, tech_params, diff_var):
     """
 
     print(f"In diff single {sympy_file}; {diff_var}")
+    cur_dir = os.getcwd()
+    if os.path.basename(cur_dir) == 'codesign':
+        # Change to the 'src' directory
+        sympy_file = "src/" + sympy_file
     with open(sympy_file, 'r') as file:
         expression_str = file.read()
 
@@ -136,7 +141,9 @@ def cacti_python_diff_single(sympy_file, tech_params, diff_var):
     new_access_time = access_time - (gradient * delta)
 
     # Uncomment to log the diff expression and gradient to a CSV file
-    with open("cacti_validation/results/diff_expression.csv", 'a', newline='') as csvfile:
+    os.makedirs("cacti_validation/grad_results", exist_ok=True)
+    print(f'TURRR DIR {os.getcwd()}')
+    with open("cacti_validation/grad_results/diff_expression.csv", 'a', newline='') as csvfile:
         writer = csv.writer(csvfile)
         # writer.writerow([diff_var, f" diff expression: {diff_expression}"])
         writer.writerow([diff_var, f" gradient: {gradient}"])
@@ -268,12 +275,20 @@ def gen_diff(sympy_file, cfg_file, dat_file=None):
         Path to the cache configuration file.
     dat_file : str, optional
         Path to the technology .dat file (default determined by 
-        g_ip.F_sz_nm if not provided).
+        g_ip.F_sz_nm if not provided).x
 
     Outputs:
     Logs the gradient comparison between Python and C CACTI results, 
     and stores them in CSV files.
     """
+
+    # Check if the last directory is 'codesign'
+    cur_dir = os.getcwd()
+    if os.path.basename(cur_dir) == 'codesign':
+        # Change to the 'src' directory
+        src_dir = os.path.join(cur_dir, 'src')
+        os.chdir(src_dir)
+
     cfg_file = cfg_file.replace('src/', '')
     dat_file = dat_file.replace('src/', '')
     print(f"In gen_diff {sympy_file}; {cfg_file}; {dat_file}")
@@ -323,7 +338,13 @@ def gen_diff(sympy_file, cfg_file, dat_file=None):
             new_val = tech_params[diff_param] - python_results[metric]['delta']
 
             # Log the CACTI Python Gradient Info (gradient, original value, delta, new value)
-            python_info_csv = "cacti_validation/results/python_grad_info.csv"
+            python_info_csv = "cacti_validation/grad_results/python_grad_info.csv"
+
+            cur_dir = os.getcwd()
+            if os.path.basename(cur_dir) == 'codesign':
+                # Change to the 'src' directory
+                python_info_csv = "src/" + python_info_csv
+
             try:
                 with open(python_info_csv, 'r'):
                     file_exists = True
@@ -349,7 +370,8 @@ def gen_diff(sympy_file, cfg_file, dat_file=None):
 
             cfg_name = cfg_file.split('/')[-1]
             cfg_name = cfg_name.replace('.cfg', '')
-            results_csv = f'cacti_validation/results/{cfg_name}_{metric}_grad_results.csv'
+            print(f'CUR DIRRR: {os.getcwd()}')
+            results_csv = f'cacti_validation/grad_results/{cfg_name}_{metric}_grad_results.csv'
             
             try:
                 with open(results_csv, 'r'):
@@ -358,6 +380,11 @@ def gen_diff(sympy_file, cfg_file, dat_file=None):
                     raise FileNotFoundError
             except FileNotFoundError:
                 file_exists = False
+
+            cur_dir = os.getcwd()
+            if os.path.basename(cur_dir) == 'codesign':
+                # Change to the 'src' directory
+                results_csv = "src/" + results_csv
 
             with open(results_csv, 'a', newline='') as csvfile:
                 writer = csv.writer(csvfile)
@@ -385,9 +412,9 @@ if __name__ == "__main__":
     Generates and processes the specified SymPy and Cacti configuration files, performing differentiation and gradient calculations.
     Stores results in CSV files.
     """
-
+    print(f'CUR DIR {current_directory}')
     parser = argparse.ArgumentParser(description="Specify config (-CFG), set SymPy name (-SYMPY) and optionally generate SymPy (-gen)")
-    parser.add_argument("-CFG", type=str, default="cache", help="Path or Name to the configuration file; don't append src/cacti/ or .cfg")
+    parser.add_argument("-CFG", type=str, default="Buf", help="Path or Name to the configuration file; don't append src/cacti/ or .cfg")
     parser.add_argument("-DAT", type=str, default="", help="nm tech -> just specify '90nm'; if not provided, 45, 90, 180 will be tested")
     parser.add_argument("-SYMPY", type=str, default="", help="Optionally path to the SymPy file if not named the same as cfg")
     parser.add_argument("-gen", type=str, default="false", help="Boolean flag to generate Sympy from Cache CFG")

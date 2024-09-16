@@ -388,16 +388,19 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
     ]
 
     cactiDir = os.path.normpath(os.path.join(os.path.dirname(__file__), 'cacti'))
-
     # write file
     input_filename = filename + ".cfg"
     cactiInput = os.path.join(cactiDir, input_filename)
+
     with open(cactiInput, 'w') as file:
         for line in cfg_lines:
             file.write(line + '\n')
 
     stdout_filename = "cacti_stdout.log"
     stdout_file_path = os.path.join(cactiDir, stdout_filename)
+
+    stderr_filename = "cacti_stderr.log"
+    stderr_file_path = os.path.join(cactiDir, stderr_filename)
 
     cmd = ['./cacti', '-infile', input_filename]
     
@@ -444,10 +447,7 @@ def run_existing_cacti_cfg(filename):
 
     # write file
     input_filename = filename.replace("src/cacti/", "")
-    print(input_filename)
     cmd = ['./cacti', '-infile', input_filename]
-
-    print(cmd)
 
     p = subprocess.Popen(cmd, cwd=cactiDir) #, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     p.wait()
@@ -560,7 +560,12 @@ def replace_values_in_dat_file(dat_file_path, key, new_value):
     """
 
     original_values = {}
-    
+    print(f"CHECK CUR: {os.getcwd()}")
+    cur_dir = os.getcwd()
+    if os.path.basename(cur_dir) == 'codesign':
+        # Change to the 'src' directory
+        dat_file_path = "src/" + dat_file_path
+
     with open(dat_file_path, 'r') as file:
         lines = file.readlines()
     
@@ -593,6 +598,11 @@ def restore_original_values_in_dat_file(dat_file_path, original_values):
     Outputs:
     Updates the specified .dat file by restoring the original values for the parameters.
     """
+
+    cur_dir = os.getcwd()
+    if os.path.basename(cur_dir) == 'codesign':
+        # Change to the 'src' directory
+        dat_file_path = "src/" + dat_file_path
     
     with open(dat_file_path, 'r') as file:
         lines = file.readlines()

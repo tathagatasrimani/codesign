@@ -25,6 +25,11 @@ def plot_overall_box_and_whisker(csv_file):
     # Calculate differences for each category
     diff_data = {}
     for result_col, validate_col in categories:
+        # Convert columns to numeric, forcing invalid values to NaN
+        df[result_col] = pd.to_numeric(df[result_col], errors='coerce')
+        df[validate_col] = pd.to_numeric(df[validate_col], errors='coerce')
+        
+        # Subtract validation values from result values
         diff_data[result_col.replace('result_', '').replace(' (ns)', '').replace(' (nJ)', '').replace(' (mW)', '')] = df[result_col] - df[validate_col]
     
     # Convert the differences into a DataFrame
@@ -36,11 +41,17 @@ def plot_overall_box_and_whisker(csv_file):
     plt.ylabel('Difference (Result - Validate)')
     plt.xticks(rotation=45, ha='right')
     plt.tight_layout()
-    plt.savefig('src/cacti_validation/figs/absolute_validation.png')
+    
+    # Ensure the 'figs' directory exists before saving the plot
+    figs_dir = 'src/cacti_validation/figs'
+    if not os.path.exists(figs_dir):
+        os.makedirs(figs_dir)
+
+    # Save the plot
+    plt.savefig(os.path.join(figs_dir, 'absolute_validation.png'))
     # plt.show()
 
 if __name__ == "__main__":
     current_directory = os.path.dirname(os.path.realpath(__file__))
-    csv_file_path = os.path.join(current_directory, 'results', 'abs_validate_results.csv')
+    csv_file_path = os.path.join(current_directory, 'abs_results', 'abs_validate_results.csv')
     plot_overall_box_and_whisker(csv_file_path)
-    
