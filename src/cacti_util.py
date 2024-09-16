@@ -17,6 +17,7 @@ from hw_symbols import *
 import sympy as sp
 
 valid_tech_nodes = [0.022, 0.032, 0.045, 0.065, 0.090, 0.180]
+CACTI_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), 'cacti'))
 
 def gen_symbolic(name, cache_cfg, opt_vals, use_piecewise=False):
     """
@@ -41,7 +42,8 @@ def gen_symbolic(name, cache_cfg, opt_vals, use_piecewise=False):
     Sympy expression files for access time, dynamic and leakage power, IO details in 'src/cacti/sympy' directory.
     """
 
-    g_ip.parse_cfg(cache_cfg)
+    print(f"gen_symbolic: cwd: {os.getcwd()}")
+    g_ip.parse_cfg(os.path.join(CACTI_DIR, cache_cfg))
     g_ip.error_checking()
     # g_ip.display_ip()
 
@@ -63,7 +65,7 @@ def gen_symbolic(name, cache_cfg, opt_vals, use_piecewise=False):
     fin_res = solve_single()
 
     # Create the directory path
-    output_dir = os.path.join('src', 'cacti', 'symbolic_expressions')
+    output_dir = os.path.join(CACTI_DIR, 'symbolic_expressions')
 
     # Ensure the directory exists
     os.makedirs(output_dir, exist_ok=True)
@@ -389,14 +391,13 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
     cactiDir = os.path.normpath(os.path.join(os.path.dirname(__file__), 'cacti'))
     # write file
     input_filename = filename + ".cfg"
-    cactiInput = os.path.join(cactiDir, input_filename)
-
+    cactiInput = os.path.join(CACTI_DIR, input_filename)
     with open(cactiInput, 'w') as file:
         for line in cfg_lines:
             file.write(line + '\n')
 
     stdout_filename = "cacti_stdout.log"
-    stdout_file_path = os.path.join(cactiDir, stdout_filename)
+    stdout_file_path = os.path.join(CACTI_DIR, stdout_filename)
 
     stderr_filename = "cacti_stderr.log"
     stderr_file_path = os.path.join(cactiDir, stderr_filename)
@@ -404,7 +405,7 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
     cmd = ['./cacti', '-infile', input_filename]
     
     with open(stdout_file_path, "w") as f:
-        p = subprocess.Popen(cmd, cwd=cactiDir, stdout=f, stderr=subprocess.PIPE)
+        p = subprocess.Popen(cmd, cwd=CACTI_DIR, stdout=f, stderr=subprocess.PIPE)
     
     p.wait()
     if p.returncode != 0:
@@ -412,7 +413,7 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
             raise Exception(f"Cacti Error in {filename}", {p.stderr.read().decode()}, {f.read().split("\n")[-2]})
 
     output_filename = filename + ".cfg.out"
-    cactiOutput = os.path.normpath(os.path.join(cactiDir, output_filename))
+    cactiOutput = os.path.normpath(os.path.join(CACTI_DIR, output_filename))
     output_data = pd.read_csv(cactiOutput, sep=", ", engine='python')
     output_data = output_data.iloc[-1] # get just the last row which is the most recent run
 
@@ -443,25 +444,39 @@ def run_existing_cacti_cfg(filename):
     """
 
     cactiDir = os.path.normpath(os.path.join(os.path.dirname(__file__), 'cacti'))
+    print(f"cactiDir: {CACTI_DIR}")
+    print(f"filename: {filename}")
 
     # write file
     input_filename = filename.replace("src/cacti/", "")
-    cmd = ['./cacti', '-infile', input_filename]
+    print(f"input_filename: {input_filename}")
 
-    p = subprocess.Popen(cmd, cwd=cactiDir) #, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout_filename = "cacti_stdout.log"
+    stdout_file_path = os.path.join(CACTI_DIR, stdout_filename)
+
+    cmd = ['./cacti', '-infile', input_filename]
+    
+    with open(stdout_file_path, "w") as f:
+        p = subprocess.Popen(cmd, cwd=CACTI_DIR, stdout=f, stderr=subprocess.PIPE)
+    
     p.wait()
     if p.returncode != 0:
-        raise Exception(f"Cacti Error in {filename}", {p.stderr.read().decode()}, {p.stdout.read().decode().split("\n")[-2]})
+        with open(stdout_file_path, "r") as f:
+            raise Exception(f"Cacti Error in {filename}", {p.stderr.read().decode()}, {f.read().split("\n")[-2]})
+
+    print(cmd)
 
     output_filename = input_filename + ".out"
-    cactiOutput = os.path.join(cactiDir, output_filename)
+    cactiOutput = os.path.join(CACTI_DIR, output_filename)
     output_data = pd.read_csv(cactiOutput, sep=", ", engine='python')
     output_data = output_data.iloc[-1] # get just the last row which is the most recent run
 
     # get IO params
     bus_freq = None
     addr_timing = None
-    cacti_input_filename = "src/cacti/" + input_filename
+    cacti_input_filename = os.path.join(CACTI_DIR, input_filename)
+
+    print(f"cacti_input_filename: {cacti_input_filename}")
 
     with open(cacti_input_filename, 'r') as file:
         for line in file:
@@ -478,6 +493,7 @@ def run_existing_cacti_cfg(filename):
     # CACTI: access time (ns), search energy (nJ), read energy (nJ), write energy (nJ), leakage bank power (mW)
     # CACTI IO: area (sq.mm), timing (ps), dynamic power (mW), PHY power (mW), termination and bias power (mW)
     # latency (ns)
+    print(f"exiting run_existing_cacti_cfg")
     return output_data
 
 def convert_frequency(string):

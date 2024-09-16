@@ -252,7 +252,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    cfg_file = f"src/cacti/cfg/{args.CFG}.cfg"
+    cfg_file = f"cfg/{args.CFG}.cfg"
     gen_flag = args.gen.lower() == "true"  
 
     # If you haven't generated sympy expr from cache cfg yet
@@ -270,7 +270,7 @@ if __name__ == "__main__":
             "repeater_spacing": buf_vals["Repeater spacing"],
             "repeater_size": buf_vals["Repeater size"],
         }
-        cfg_file = "src/cacti/cfg/" + cfg_file + ".cfg"
+        # cfg_file = "src/cacti/cfg/" + cfg_file + ".cfg"
         sympy_file = cfg_file   # try to keep convention where sympy expressions have same name as cfg
         IO_info = cacti_util.gen_symbolic(sympy_file, cfg_file, buf_opt, use_piecewise=False)
     else:
