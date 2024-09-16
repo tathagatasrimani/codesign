@@ -1,10 +1,12 @@
 import re
 import os
 import copy
+import shutil
 
 import networkx as nx
 
 from .var import directory
+from . import def_generator as df
 from . import estimation as est
 from . import detailed as det
 
@@ -109,6 +111,62 @@ def coord_scraping(
         graph.nodes[node]["y"] = coord["y"]
     return graph, component_nets
 
+def place_n_route(
+    design_name: str,
+    test_directory: str, 
+    arg_parasitics: str
+):
+    graph, net_out_dict, node_output, lef_data, node_to_num = setup(design_name, test_directory)
+    dict, graph = extraction(graph, arg_parasitics, design_name, net_out_dict, node_output, lef_data, node_to_num)
+    return dict, graph
+    
+def setup(
+    design_name: str,
+    test_directory: str
+):
+    """
+    the main function. generates def file, runs openroad, does all openroad and estimated calculations.
+    param:
+        design_name: design name
+        test_directory: tcl file directory
+        arg_parasitics: detailed, estimation, or none. determines which parasitic calculation is executed.
+
+    return:
+        pandas dataframe: contains all parasitic information
+    """
+    print("reading graph")
+    graph = nx.read_gml("src/architectures/" + design_name)
+
+    # 1. generate def
+    # export PATH=./../build/src:$PATH ./../src/hardwareModel.py
+    os.system("cp " + test_directory + " ./" + directory)
+    os.system("cp openroad_interface/tcl/codesign_flow.tcl ./" + directory)
+    # os.system("cp tcl/codesign_flow_short.tcl ./" + directory) once you figure out how to run this
+    shutil.copyfile(test_directory, directory + "test.tcl")
+    graph, net_out_dict, node_output, lef_data, node_to_num = df.def_generator(
+        test_directory, graph
+    )
+
+    return graph, net_out_dict, node_output, lef_data, node_to_num
+
+def extraction(graph, arg_parasitics, design_name, net_out_dict, node_output, lef_data, node_to_num): 
+    # 3. extract parasitics
+    print("running extractions")
+    dict = {}
+    if arg_parasitics == "detailed":
+        dict, graph = detailed_place_n_route(
+            graph, design_name, net_out_dict, node_output, lef_data, node_to_num
+        )
+    elif arg_parasitics == "estimation":
+        dict, graph = estimated_place_n_route(
+            graph, design_name, net_out_dict, node_output, lef_data, node_to_num
+        )
+    elif arg_parasitics == "none":
+        graph = none_place_n_route(
+            graph, design_name, net_out_dict, node_output, lef_data, node_to_num
+        )
+
+    return dict, graph
 
 def estimated_place_n_route(
     graph: nx.DiGraph,

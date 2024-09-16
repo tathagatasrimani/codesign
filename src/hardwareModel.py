@@ -22,7 +22,7 @@ from . import rcgen
 from . import cacti_util
 from .global_constants import SYSTEM_BUS_SIZE
 from openroad_interface.var import directory
-from openroad_interface import validation
+from openroad_interface import place_n_route
 
 
 HW_CONFIG_FILE = "src/params/hw_cfgs.ini"
@@ -479,5 +479,5 @@ class HardwareModel:
         design_name = self.path_to_graphml.split("/")[
             len(self.path_to_graphml.split("/")) - 1
         ]
-        _, graph = validation.validation(design_name, arg_testfile, arg_parasitics)
+        _, graph = place_n_route.place_n_route(design_name, arg_testfile, arg_parasitics)
         self.parasitic_graph = graph

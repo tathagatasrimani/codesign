@@ -1,7 +1,6 @@
 import copy
 import os
 import math
-from typing import Any
 
 import re 
 import networkx as nx
@@ -198,7 +197,7 @@ def def_generator(tcl_file_directory: str, graph: nx.DiGraph):
 
     ### 1. pruning ###
     for node1 in control_nodes:
-        if "Mem" in node1 or "Buf" in node1:
+        if "MainMem" in graph.nodes[node1]["function"] or "Buf" in graph.nodes[node1]["function"]:
                 graph.remove_node(node1)
                 nodes.remove(node1)
 

@@ -413,7 +413,6 @@ class ConcreteSimulator(AbstractSimulator):
                 if node_bool:
                     wire_energy(computation_dfg, hw, active_net_cap)
             net_energy = 0
-            print(active_net_cap)
             for net in active_net_cap:
                 cap_sum = sum(active_net_cap[net])
                 net_energy += (
@@ -490,7 +489,6 @@ class ConcreteSimulator(AbstractSimulator):
                             node_data_prev = computation_dfg.nodes[
                                 path[node_index_prev]
                             ]
-                            # print("({}, {})".format(node_data_prev["allocation"], node_data["allocation"]))
                             if (
                                 node_data["in other graph"]
                                 and node_data_prev["in other graph"]
@@ -635,7 +633,7 @@ if __name__ == "__main__":
         "--parasitics",
         type=str,
         choices=["detailed", "estimation", "none"],
-        default="none",
+        default="detailed",
         help="determines what type of parasitic calculations are done for wires",
     )
 
