@@ -46,8 +46,6 @@ def cacti_python_diff(sympy_file, tech_params, diff_var, metric=None):
     dict
         Dictionary containing the gradients for the specified or default metrics.
     """
-
-    print(f"this is cCUR: {os.getcwd()}")
     sympy_file = "cacti/symbolic_expressions/" + sympy_file
 
     if metric:
@@ -142,7 +140,6 @@ def cacti_python_diff_single(sympy_file, tech_params, diff_var):
 
     # Uncomment to log the diff expression and gradient to a CSV file
     os.makedirs("cacti_validation/grad_results", exist_ok=True)
-    print(f'TURRR DIR {os.getcwd()}')
     with open("cacti_validation/grad_results/diff_expression.csv", 'a', newline='') as csvfile:
         writer = csv.writer(csvfile)
         # writer.writerow([diff_var, f" diff expression: {diff_expression}"])
@@ -370,7 +367,6 @@ def gen_diff(sympy_file, cfg_file, dat_file=None):
 
             cfg_name = cfg_file.split('/')[-1]
             cfg_name = cfg_name.replace('.cfg', '')
-            print(f'CUR DIRRR: {os.getcwd()}')
             results_csv = f'cacti_validation/grad_results/{cfg_name}_{metric}_grad_results.csv'
             
             try:
@@ -412,7 +408,6 @@ if __name__ == "__main__":
     Generates and processes the specified SymPy and Cacti configuration files, performing differentiation and gradient calculations.
     Stores results in CSV files.
     """
-    print(f'CUR DIR {current_directory}')
     parser = argparse.ArgumentParser(description="Specify config (-CFG), set SymPy name (-SYMPY) and optionally generate SymPy (-gen)")
     parser.add_argument("-CFG", type=str, default="Buf", help="Path or Name to the configuration file; don't append src/cacti/ or .cfg")
     parser.add_argument("-DAT", type=str, default="", help="nm tech -> just specify '90nm'; if not provided, 45, 90, 180 will be tested")

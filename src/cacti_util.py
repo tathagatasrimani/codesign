@@ -138,7 +138,6 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
     
     # load in default values
     logger.info(f"Running Cacti with the following parameters: filename: {filename}, cacheSize: {cacheSize}, blockSize: {blockSize}, cache_type: {cache_type}, bus_width: {bus_width}, transistor_size: {transistor_size}, addr_timing: {addr_timing}, force_cache_config: {force_cache_config}, technology: {technology}")
-    print(f"cwd: {os.getcwd()}")
     with open(os.path.normpath(os.path.join(os.path.dirname(__file__), 'params/cacti_input.yaml')), "r") as yamlfile:
         config_values = yaml.safe_load(yamlfile)
 
@@ -560,7 +559,6 @@ def replace_values_in_dat_file(dat_file_path, key, new_value):
     """
 
     original_values = {}
-    print(f"CHECK CUR: {os.getcwd()}")
     cur_dir = os.getcwd()
     if os.path.basename(cur_dir) == 'codesign':
         # Change to the 'src' directory
