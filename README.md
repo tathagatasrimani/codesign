@@ -18,6 +18,8 @@ You can also install the dependencies using pip:
 pip install -r requirements_pip.txt
 ```
 
+You have to separately install the [staticfg](https://github.com/coetaur0/staticfg) library by following the instructions in the repository.
+
 #### Inverse Pass
 The inverse pass builds symbolic equations using [sympy](https://docs.sympy.org/latest/index.html) and does optimization using [pyomo](https://pyomo.readthedocs.io/en/stable/index.html) using [ipopt](https://github.com/coin-or/Ipopt) as the solver. To install the dependencies appropriately follow the instructions [here](https://pyomo.readthedocs.io/en/stable/installation.html).
 
@@ -31,7 +33,7 @@ Run `./simulate.sh` from the `src` directory with the following arguments:
 ```
 ./simulate.sh -n <workload_name> -c <arch_config>
 ```
-use optional flag `-q` to run in quiet mode. This will not print logs in the `src/benchmarks/json_dump` directory. The `workload_name` is the name of the workload to be simulated fronm `models/benchmarks/`. The `arch_config` is the architecture configuration file to be used for the simulation. The architecture configuration includes a `.gml` file in `architectures/` and an entry in `hw_cfgs.ini`. The architecture configuration file is the name of the `.gml` file without the extension.
+use optional flag `-q` to run in quiet mode. This will not print logs in the `src/benchmarks/json_dump` directory. The `workload_name` is the name of the workload to be simulated fronm `models/benchmarks/` (without the `.py` extension). The `arch_config` is the architecture configuration file to be used for the simulation. The architecture configuration includes a `.gml` file in `architectures/` and an entry in `hw_cfgs.ini`. The architecture configuration file is the name of the `.gml` file without the extension.
 
 #### Inverse Pass
 The inverse pass is run similarly to the forward pass. You run the `./symbolic_simulate.sh` instead, with the added optional argument `-o` to specify the optimization technique.

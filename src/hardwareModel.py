@@ -5,6 +5,7 @@ import ast
 import configparser as cp
 import yaml
 import os
+import shutil
 import logging
 logger = logging.getLogger(__name__)
 
@@ -12,19 +13,19 @@ import graphviz as gv
 import sympy as sp
 from sympy import *
 import networkx as nx
-
 from staticfg.builder import CFGBuilder
-from ast_utils import ASTUtils
-from memory import Memory, Cache
-from config_dicts import op2sym_map
-import rcgen
-import cacti_util
-from global_constants import SYSTEM_BUS_SIZE
-import sim_util
-import hw_symbols
+
+from .ast_utils import ASTUtils
+from .memory import Memory, Cache
+from .config_dicts import op2sym_map
+from . import rcgen
+from . import cacti_util
+from . import sim_util
+from . import hw_symbols
+from .global_constants import SYSTEM_BUS_SIZE
 
 
-HW_CONFIG_FILE = "params/hw_cfgs.ini"
+HW_CONFIG_FILE = "src/params/hw_cfgs.ini"
 
 benchmark = "simple"
 expr_to_node = {}
@@ -106,7 +107,7 @@ class HardwareModel:
         else:
             config = cp.ConfigParser()
             config.read(HW_CONFIG_FILE)
-            path_to_graphml = f"architectures/{cfg}.gml"
+            path_to_graphml = f"src/architectures/{cfg}.gml"
             try:
                 self.set_hw_config_vars(
                     config.getint(cfg, "id"),
@@ -226,7 +227,7 @@ class HardwareModel:
         and number of mem layers.
         """
         tech_params = yaml.load(
-            open("params/tech_params.yaml", "r"), Loader=yaml.Loader
+            open("src/params/tech_params.yaml", "r"), Loader=yaml.Loader
         )
 
         self.area = tech_params["area"][self.transistor_size]
@@ -238,7 +239,7 @@ class HardwareModel:
 
         self.cacti_tech_node = min(cacti_util.valid_tech_nodes, key=lambda x: abs(x - self.transistor_size*1e-3))
 
-        self.cacti_dat_file = f"cacti/tech_params/{int(self.cacti_tech_node*1e3):2d}nm.dat"
+        self.cacti_dat_file = f"src/cacti/tech_params/{int(self.cacti_tech_node*1e3):2d}nm.dat"
         print(f"self.cacti_dat_file: {self.cacti_dat_file}")
 
     def set_var_sizes(self, var_sizes):
@@ -273,8 +274,8 @@ class HardwareModel:
 
     def update_technology_parameters(
         self,
-        rc_params_file="params/rcs_current.yaml",
-        coeff_file="params/coefficients.yaml",
+        rc_params_file="src/params/rcs_current.yaml",
+        coeff_file="src/params/coefficients.yaml",
     ):
         """
         For full codesign loop, need to update the technology parameters after a run of the inverse pass.
@@ -300,26 +301,26 @@ class HardwareModel:
         R = rcs["Reff"]  # Ohms
         self.V_dd = rcs["other"]["V_dd"]
 
-        # TODO: update this to write to .dat file and then run cacti proper again.
         opt_params = sim_util.generate_init_params_from_rcs_as_symbols(rcs)
-        # self.latency["MainMem"] = (
-        #     rcs["other"]["MemReadL"] + rcs["other"]["MemWriteL"]
-        # ) / 2
-        mem_l_expr =  sp.sympify(open("Mem_access_time.txt", "r").readline(), locals=hw_symbols.symbol_table)
-        self.latency["MainMem"] = float(mem_l_expr.xreplace(opt_params))
 
-        buf_l_expr =  sp.sympify(open("Buf_access_time.txt", "r").readline(), locals=hw_symbols.symbol_table)
-        self.latency["Buf"] = float(buf_l_expr.xreplace(opt_params))
+        cacti_util.update_dat(rcs, self.cacti_dat_file) # update dat file
+        # mem_l_expr =  sp.sympify(open("src/cacti/sympy/Mem_access_time.txt", "r").readline(), locals=hw_symbols.symbol_table)
+        # self.latency["MainMem"] = float(mem_l_expr.xreplace(opt_params))
 
-        self.dynamic_energy["MainMem"]["Read"] = rcs["other"]["MemReadEact"] * 1e9
-        self.dynamic_energy["MainMem"]["Write"] = rcs["other"]["MemWriteEact"] * 1e9
-        self.dynamic_energy["Buf"]["Read"] = rcs["other"]["BufReadEact"] * 1e9
-        self.dynamic_energy["Buf"]["Write"] = rcs["other"]["BufWriteEact"] * 1e9
-        self.leakage_power["MainMem"] = rcs["other"]["MemPpass"] * 1e9
-        self.leakage_power["Buf"] = rcs["other"]["BufPpass"] * 1e9
+        # buf_l_expr =  sp.sympify(open("src/cacti/sympy/Buf_access_time.txt", "r").readline(), locals=hw_symbols.symbol_table)
+        # self.latency["Buf"] = float(buf_l_expr.xreplace(opt_params))
 
-        self.latency["OffChipIO"] = rcs["other"]["OffChipIOL"]
-        self.dynamic_power["OffChipIO"] = rcs["other"]["OffChipIOPact"]
+        # self.dynamic_energy["MainMem"]["Read"] = rcs["other"]["MemReadEact"] * 1e9
+        # self.dynamic_energy["MainMem"]["Write"] = rcs["other"]["MemWriteEact"] * 1e9
+        # self.dynamic_energy["Buf"]["Read"] = rcs["other"]["BufReadEact"] * 1e9
+        # self.dynamic_energy["Buf"]["Write"] = rcs["other"]["BufWriteEact"] * 1e9
+        # self.leakage_power["MainMem"] = rcs["other"]["MemPpass"] * 1e9
+        # self.leakage_power["Buf"] = rcs["other"]["BufPpass"] * 1e9
+
+        # self.latency["OffChipIO"] = rcs["other"]["OffChipIOL"]
+        # self.dynamic_power["OffChipIO"] = rcs["other"]["OffChipIOPact"]
+
+        self.gen_cacti_results()
 
         beta = yaml.load(open(coeff_file, "r"), Loader=yaml.Loader)["beta"]
 
@@ -364,15 +365,13 @@ class HardwareModel:
         """
         Generate R,C, etc from the latency, power tech parameters.
         """
-        # TODO hardcoded dat_file for now
-        dat_file = "cacti/tech_params/90nm.dat"
         rcs = rcgen.generate_optimization_params(
             self.latency,
             self.dynamic_power,
             self.dynamic_energy,
             self.leakage_power,
             self.V_dd,
-            dat_file,
+            self.cacti_dat_file,
         )
         self.R_off_on_ratio = rcs["other"]["Roff_on_ratio"]
         return rcs
@@ -416,9 +415,11 @@ class HardwareModel:
         """
         Generate buffer and memory latency and energy numbers from Cacti.
         """
+        self.buffer_size = 2048
+        self.mem_size = 131072
         buf_vals = cacti_util.gen_vals(
-            "base_cache",
-            cacheSize=2048, #self.buffer_size, 
+            "cfg/base_cache",
+            cacheSize=self.buffer_size, 
             blockSize=64,
             cache_type="cache",
             bus_width=self.buffer_bus_width,
@@ -435,10 +436,9 @@ class HardwareModel:
             "repeater_size": buf_vals["Repeater size"],
         }
 
-        print(f"CHECK THE VALS {self.buffer_size} {self.buffer_bus_width} {self.mem_size} {self.memory_bus_width}")
         mem_vals = cacti_util.gen_vals(
-            "mem_cache",
-            cacheSize=131072,  # self.mem_size,
+            "cfg/mem_cache",
+            cacheSize=self.mem_size,
             blockSize=64,
             cache_type="main memory",
             bus_width=self.memory_bus_width,
@@ -454,8 +454,6 @@ class HardwareModel:
             "repeater_size": mem_vals["Repeater size"],
         }
         logger.info(f"Memory cacti with: {self.mem_size} bytes, {self.memory_bus_width} bus width")
-
-        print(f"CHECK THE VALS 2 {self.buffer_size} {self.buffer_bus_width} {self.mem_size} {self.memory_bus_width}")
 
         self.area["Buf"] = float(buf_vals["Area (mm2)"]) * 1e12 # convert to nm^2
         self.area["MainMem"] = float(mem_vals["Area (mm2)"]) * 1e12 # convert to nm^2
@@ -512,13 +510,12 @@ class HardwareModel:
             else 0.0
         )
 
-        base_cache_cfg = "cacti/base_cache.cfg"
-        mem_cache_cfg = "cacti/mem_cache.cfg"
-        print ("REACHED HERE")
+        base_cache_cfg = "src/cacti/cfg/base_cache.cfg"
+        mem_cache_cfg = "src/cacti/cfg/mem_cache.cfg"
 
         # TODO: This only needs to be triggered if we're doing inverse pass (ie symbolic simulate or codesign)
         # Comment for now since it takes a while to generate
-        # cacti_util.cacti_gen_sympy("Buf", base_cache_cfg, buf_opt, use_piecewise=False)
-        # cacti_util.cacti_gen_sympy("Mem", mem_cache_cfg, mem_opt, use_piecewise=False)
+        cacti_util.gen_symbolic("Buf", base_cache_cfg, buf_opt, use_piecewise=False)
+        cacti_util.gen_symbolic("Mem", mem_cache_cfg, mem_opt, use_piecewise=False)
         
         return

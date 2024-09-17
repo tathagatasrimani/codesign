@@ -8,18 +8,17 @@ import sys
 import numpy as np
 import matplotlib.pyplot as plt
 import networkx as nx
-from sympy import *
 import sympy
 
 # custom modules
-from memory import Memory
-import schedule
-import dfg_algo
-import hw_symbols
-import sim_util
-import hardwareModel
-from hardwareModel import HardwareModel
-from global_constants import SEED
+from .memory import Memory
+from . import schedule
+from . import dfg_algo
+from . import hw_symbols
+from . import sim_util
+from . import hardwareModel
+from .hardwareModel import HardwareModel
+from .global_constants import SEED
 
 class AbstractSimulator:
     def set_data_path(self):
@@ -29,7 +28,7 @@ class AbstractSimulator:
         returns:
             data_path_vars: a list of dictionaries where each dictionary represents the variable values at a given node in the data path.
         """
-        with open(self.path + "/instrumented_files/output.txt", "r") as f:
+        with open(self.path + "/src/instrumented_files/output.txt", "r") as f:
             src = f.read()
             l = src.split("\n")
             split_lines = [l_.split() for l_ in l]  # separate by whitespace

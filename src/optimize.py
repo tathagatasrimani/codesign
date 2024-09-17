@@ -11,10 +11,10 @@ import cvxpy as cp
 import numpy as np
 
 # custom
-from preprocess import Preprocessor
-import sim_util
-from hardwareModel import HardwareModel
-import hw_symbols
+from .preprocess import Preprocessor
+from . import sim_util
+from .hardwareModel import HardwareModel
+from . import hw_symbols
 
 
 multistart = False
@@ -210,17 +210,16 @@ def main():
     rcs = hw.get_optimization_params_from_tech_params()
     print(f"optimize.__main__.rcs: {rcs}")
     initial_params = sim_util.generate_init_params_from_rcs_as_symbols(rcs)
-    edp = open("symbolic_edp.txt", "r")
+    edp = open("src/tmp/symbolic_edp.txt", "r")
     edp = sympify(edp.readline(), locals=hw_symbols.symbol_table)
 
     results = optimize(initial_params, edp, args.opt)
-    print ("PAST OPTIMIZE")
 
     return results
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, filename="codesign_log_dir/optimize.log")
+    logging.basicConfig(level=logging.INFO, filename="logs/optimize.log")
     parser = argparse.ArgumentParser(
         prog="Optimize",
         description="Optimization part of the Inverse Pass. This runs after an analytic equation for the cost is created.",

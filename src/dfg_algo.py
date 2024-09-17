@@ -1,10 +1,10 @@
 import graphviz as gv
 import ast
 import astor
-
 from staticfg.builder import CFGBuilder
-from ast_utils import ASTUtils
-from config_dicts import op2sym_map
+
+from .ast_utils import ASTUtils
+from .config_dicts import op2sym_map
 
 benchmark = None
 path = None
@@ -409,9 +409,9 @@ def main_fn(path_in, benchmark_in):
     benchmark, path = benchmark_in, path_in
     benchmark = benchmark[benchmark.rfind("/") + 1 :]
     cfg = CFGBuilder().build_from_file(
-        "main.c", path + "/instrumented_files/xformedname-" + benchmark
+        "main.c", path + "/src/instrumented_files/xformedname-" + benchmark
     )
-    cfg.build_visual(path + "/benchmarks/pictures/" + benchmark, "jpeg", show=False)
+    cfg.build_visual(path + "/src/benchmarks/pictures/" + benchmark, "jpeg", show=False)
     for node in cfg:
         dfg_per_node(node)
         for root in graphs[node].roots:

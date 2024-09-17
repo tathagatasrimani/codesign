@@ -12,20 +12,18 @@ import matplotlib.pyplot as plt
 import numpy as np
 import graphviz as gv
 import networkx as nx
+import sympy as sp
 
 # custom modules
-from memory import Memory
-import schedule
-import dfg_algo
-import hardwareModel
-from hardwareModel import HardwareModel
-import hardwareModel
-import sim_util
-import arch_search_util
-from config_dicts import op2sym_map
-from abstract_simulate import AbstractSimulator
-
-import sympy as sp
+from .memory import Memory
+from . import schedule
+from . import dfg_algo
+from . import hardwareModel
+from .hardwareModel import HardwareModel # have to import both or else python will say the class is undefined
+from . import sim_util
+from . import arch_search_util
+from .config_dicts import op2sym_map
+from .abstract_simulate import AbstractSimulator
 
 MEMORY_SIZE = 1000000
 state_graph_counter = 0
@@ -229,12 +227,12 @@ class ConcreteSimulator(AbstractSimulator):
                 check_duplicate=False,
             )
         if op_count > 0:
-            Path(self.path + "/benchmarks/pictures/state_graphs/").mkdir(
+            Path(self.path + "src/benchmarks/pictures/state_graphs/").mkdir(
                 parents=True, exist_ok=True
             )
             state_graph_viz.render(
                 self.path
-                + "/benchmarks/pictures/state_graphs/"
+                + "src/benchmarks/pictures/state_graphs/"
                 + args.benchmark.split("/")[-1].split(".")[0]
                 + "_"
                 + str(state_graph_counter),
@@ -418,24 +416,18 @@ class ConcreteSimulator(AbstractSimulator):
             )
 
     def calculate_edp(self):
-        print("in calc edp")
         if isinstance(self.cycles, sp.Expr):
-            print('hi')
             self.cycles = self.cycles.evalf()
         if isinstance(self.active_energy, sp.Expr):
-            print('ho')
             self.active_energy = self.active_energy.evalf()
         if isinstance(self.passive_energy, sp.Expr):
-            print('hu')
             self.passive_energy = self.passive_energy.evalf()
-        print("aftrr calc edp")
 
         self.execution_time = self.cycles # in seconds
         self.total_energy = self.active_energy + self.passive_energy
         self.edp = self.total_energy * self.execution_time
 
         
-
 def main(args):
     print(f"Running simulator for {args.benchmark.split('/')[-1]}")
     simulator = ConcreteSimulator()
@@ -506,10 +498,10 @@ def main(args):
     names = args.benchmark.split("/")
     if not args.notrace:
         text = json.dumps(data, indent=4)
-        Path(simulator.path + "/benchmarks/json_data").mkdir(
+        Path(simulator.path + "src/benchmarks/json_data").mkdir(
             parents=True, exist_ok=True
         )
-        with open(simulator.path + "/benchmarks/json_data/" + names[-1], "w") as fh:
+        with open(simulator.path + "src/benchmarks/json_data/" + names[-1], "w") as fh:
             fh.write(text)
 
     print("done!")
@@ -517,7 +509,7 @@ def main(args):
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, filename="codesign_log_dir/simulate.log")
+    logging.basicConfig(level=logging.INFO, filename="logs/simulate.log")
 
     parser = argparse.ArgumentParser(
         prog="Simulate",

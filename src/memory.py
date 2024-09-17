@@ -1,7 +1,7 @@
 import numpy as np
 
-import sim_util
-from global_constants import SYSTEM_BUS_SIZE
+from . import sim_util
+from .global_constants import SYSTEM_BUS_SIZE
 
 ALIGNMENT = 8
 MAX_REQUEST_SIZE = 1 << 30

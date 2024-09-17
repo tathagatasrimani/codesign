@@ -11,13 +11,13 @@ logger = logging.getLogger("codesign")
 import sympy as sp
 import networkx as nx
 
-import architecture_search
-import coefficients
-import symbolic_simulate
-import optimize
-import hw_symbols
-import sim_util
-import hardwareModel
+from . import architecture_search
+from . import coefficients
+from . import symbolic_simulate
+from . import optimize
+from . import hw_symbols
+from . import sim_util
+from . import hardwareModel
 
 
 class Codesign:
@@ -43,8 +43,7 @@ class Codesign:
 
         # copy the benchmark and instrumented files;
         shutil.copy(benchmark, f"{self.save_dir}/benchmark.py")
-        shutil.copy(f"instrumented_files/output.txt", f"{self.save_dir}/output.txt")
-        # shutil.copy(f"instrumented_files/output_free.txt", f"{self.save_dir}/output_free.txt")
+        shutil.copy(f"src/instrumented_files/output.txt", f"{self.save_dir}/output.txt")
 
         logging.basicConfig(filename=f"{self.save_dir}/log.txt", level=logging.INFO)
 
@@ -81,7 +80,6 @@ class Codesign:
         coefficients.create_and_save_coefficients([self.hw.transistor_size])
 
         rcs = self.hw.get_optimization_params_from_tech_params()
-        print(f"original rcs keys: {rcs.keys()}")
         initial_tech_params = sim_util.generate_init_params_from_rcs_as_symbols(rcs)
 
         self.set_technology_parameters(initial_tech_params)
@@ -95,8 +93,18 @@ class Codesign:
             f"\nInitial EDP: {self.forward_edp} E-18 Js. Active Energy: {self.sim.active_energy} nJ. Passive Energy: {self.sim.passive_energy} nJ. Execution time: {self.sim.execution_time} ns"
         )
 
-        with open("params/rcs_current.yaml", "w") as f:
+        with open("src/params/rcs_current.yaml", "w") as f:
             f.write(yaml.dump(rcs))
+
+        # Save tech node info to another file prefixed by prev_ so we can restore
+        org_dat_file = self.hw.cacti_dat_file
+        tech_nm = os.path.basename(org_dat_file)
+        tech_nm = os.path.splitext(tech_nm)[0]
+
+        prev_dat_file = f"src/cacti/tech_params/prev_{tech_nm}.dat"
+        with open(org_dat_file, "r") as src_file, open(prev_dat_file, "w") as dest_file:
+            for line in src_file:
+                dest_file.write(line)
 
     def set_technology_parameters(self, tech_params):
         if self.initial_tech_params == None:
@@ -152,12 +160,13 @@ class Codesign:
         for _ in range(len(mapping)):
             key = lines[i].split(":")[0].lstrip().rstrip()
             value = float(lines[i].split(":")[2][1:-1])
-            self.tech_params[mapping[key]] = value  # just know that self.tech_params contains all dat
+            self.tech_params[mapping[key]] = (
+                value  # just know that self.tech_params contains all dat
+            )
             i += 1
 
-    # TODO modify to hanlde new cacti list
-    def write_back_rcs(self, rcs_path="params/rcs_current.yaml"):
-        rcs = {"Reff": {}, "Ceff": {},"Cacti": {}, "other": {}}
+    def write_back_rcs(self, rcs_path="src/params/rcs_current.yaml"):
+        rcs = {"Reff": {}, "Ceff": {}, "Cacti": {}, "Cacti_IO": {}, "other": {}}
         for elem in self.tech_params:
             if (
                 elem.name == "f"
@@ -169,8 +178,12 @@ class Codesign:
                 rcs["other"][elem.name] = self.tech_params[
                     hw_symbols.symbol_table[elem.name]
                 ]
-            elif (elem.name in hw_symbols.cacti_tech_params):
+            elif elem.name in hw_symbols.cacti_tech_params:
                 rcs["Cacti"][elem.name] = self.tech_params[
+                    hw_symbols.symbol_table[elem.name]
+                ]
+            elif elem.name in hw_symbols.cacti_io_tech_params:
+                rcs["Cacti_IO"][elem.name] = self.tech_params[
                     hw_symbols.symbol_table[elem.name]
                 ]
             else:
@@ -195,72 +208,27 @@ class Codesign:
         self.symbolic_sim.calculate_edp(self.hw)
         self.symbolic_sim.save_edp_to_file()
 
-        # print(f"tech params: {self.tech_params}")
-        # print(f"type of tech_param keys: {type(list(self.tech_params.keys())[0])}")
-
-        # for symbol in self.symbolic_sim.edp.free_symbols:
-        #     for key in self.tech_params.keys():
-        #         # print(f"key: {key}")
-        #         # print(f"symbol: {symbol}")
-        #         if key.name == symbol.name:
-        #             print(f"key: {key} == symbol: {symbol}")
-        #             if key != symbol:
-        #                 print(f"{key}: {key.assumptions0}")
-        #                 print(f"{symbol}: {symbol.assumptions0}")
-        #         # else:
-                #     print(f'key: {key} != symbol: {symbol}')
-            # assert symbol in self.tech_params.keys()
-
-        # tech_params2 = {}
-        # for key in self.tech_params.keys():
-        #     tech_params2[key.name] = self.tech_params[key]
-
-        # print(f"tech params 2: {tech_params2}")
-        inverse_cycles = self.symbolic_sim.cycles.xreplace(self.tech_params).evalf()
-        print(f"free symbols in cycles after substition: {inverse_cycles.free_symbols}")
-
-        print(f"cycles: {inverse_cycles}")
-
         self.inverse_edp = self.symbolic_sim.edp.xreplace(self.tech_params).evalf()
-        print(f"free symbols in inverse edp after substition: {self.inverse_edp.free_symbols}")
-        # self.inverse_edp = self.inverse_edp.subs(self.tech_params)
-
-        # print(
-        #     f"try again: free symbols in inverse edp after substition: {self.inverse_edp.free_symbols}"
-        # )
+        inverse_exec_time = self.symbolic_sim.execution_time.xreplace(self.tech_params).evalf()
+        active_energy = self.symbolic_sim.total_active_energy.xreplace(self.tech_params).evalf()
+        passive_energy = self.symbolic_sim.total_passive_energy.xreplace(self.tech_params).evalf()
 
         assert len(self.inverse_edp.free_symbols) == 0
-        active_energy = self.symbolic_sim.total_active_energy.xreplace(self.tech_params)#.subs(tech_params2)
-        passive_energy = self.symbolic_sim.total_passive_energy.xreplace(self.tech_params)
-
-        ### EVAL the x_replace
-        print("in calc edp")
-        if isinstance(self.inverse_edp, sp.Expr):
-            print('ha')
-            self.inverse_edp = self.inverse_edp.evalf()
-        if isinstance(inverse_cycles, sp.Expr):
-            print('hi')
-            inverse_cycles = inverse_cycles.evalf()
-        if isinstance(active_energy, sp.Expr):
-            print('ho')
-            active_energy = active_energy.evalf()
-        if isinstance(passive_energy, sp.Expr):
-            print('hu')
-            passive_energy = passive_energy.evalf()
-        print("aftrr calc edp")
-        ###
 
         print(
-            f"Initial EDP: {self.inverse_edp} E-18 Js.\n Active Energy: {active_energy} nJ.\n Passive Energy: {passive_energy} nJ.\n Execution time: {inverse_cycles} ns"
+            f"Initial EDP: {self.inverse_edp} E-18 Js. Active Energy: {active_energy} nJ. Passive Energy: {passive_energy} nJ. Execution time: {inverse_exec_time} ns"
+        )
+        print(
+            f"edp: {self.inverse_edp}, should equal cycles * (active + passive): {inverse_exec_time * (active_energy + passive_energy)}"
         )
 
         if self.opt_cfg == "ipopt":
             # sys.stdout = os.fdopen(sys.stdout.fileno(), "w")
             stdout = sys.stdout
-            with open("ipopt_out.txt", "w") as sys.stdout:
+            with open("src/tmp/ipopt_out.txt", "w") as sys.stdout:
                 optimize.optimize(self.tech_params, self.symbolic_sim.edp, self.opt_cfg)
             sys.stdout = stdout
-            f = open("ipopt_out.txt", "r")
+            f = open("src/tmp/ipopt_out.txt", "r")
             self.parse_output(f)
         else:
             self.tech_params = optimize.optimize(
@@ -268,32 +236,17 @@ class Codesign:
             )
         self.write_back_rcs()
 
-        # tech_params2 = {}
-        # for key in self.tech_params.keys():
-        #     tech_params2[key.name] = self.tech_params[key]
-
-        self.inverse_edp = self.symbolic_sim.edp.xreplace(self.tech_params)#.subs(tech_params2)
-        total_active_energy = (self.symbolic_sim.total_active_energy).xreplace(self.tech_params)
-        total_passive_energy = (self.symbolic_sim.total_passive_energy).xreplace(self.tech_params)
-        execution_time = self.symbolic_sim.cycles.xreplace(self.tech_params)
-
-        ### EVAL the x_replace
-        if isinstance(self.inverse_edp, sp.Expr):
-            print('ha')
-            self.inverse_edp = self.inverse_edp.evalf()
-        if isinstance(execution_time, sp.Expr):
-            print('hi')
-            execution_time = execution_time.evalf()
-        if isinstance(total_active_energy, sp.Expr):
-            print('ho')
-            total_active_energy = total_active_energy.evalf()
-        if isinstance(total_passive_energy, sp.Expr):
-            print('hu')
-            total_passive_energy = total_passive_energy.evalf()
-        ###
+        self.inverse_edp = self.symbolic_sim.edp.xreplace(self.tech_params).evalf()
+        total_active_energy = (self.symbolic_sim.total_active_energy).xreplace(
+            self.tech_params
+        ).evalf()
+        total_passive_energy = (self.symbolic_sim.total_passive_energy).xreplace(
+            self.tech_params
+        ).evalf()
+        execution_time = self.symbolic_sim.execution_time.xreplace(self.tech_params).evalf()
 
         print(
-            f"Final EDP  : {self.inverse_edp} E-18 Js.\nActive Energy: {total_active_energy} nJ.\n Passive Energy: {total_passive_energy} nJ.\n Execution time: {execution_time} ns"
+            f"Final EDP  : {self.inverse_edp} E-18 Js. Active Energy: {total_active_energy} nJ. Passive Energy: {total_passive_energy} nJ. Execution time: {execution_time} ns"
         )
 
     def log_all_to_file(self, iter_number):
@@ -312,13 +265,33 @@ class Codesign:
             stringizer=lambda x: str(x),
         )
         self.write_back_rcs(f"{self.save_dir}/rcs_{iter_number}.yaml")
-        shutil.copy("symbolic_edp.txt", f"{self.save_dir}/symbolic_edp_{iter_number}.txt")
-        shutil.copy("ipopt_out.txt", f"{self.save_dir}/ipopt_{iter_number}.txt")
-        shutil.copy("solver_out.txt", f"{self.save_dir}/solver_{iter_number}.txt")
+        shutil.copy(
+            "src/tmp/symbolic_edp.txt",
+            f"{self.save_dir}/symbolic_edp_{iter_number}.txt",
+        )
+        shutil.copy("src/tmp/ipopt_out.txt", f"{self.save_dir}/ipopt_{iter_number}.txt")
+        shutil.copy(
+            "src/tmp/solver_out.txt", f"{self.save_dir}/solver_{iter_number}.txt"
+        )
         # save latency, power, and tech params
         self.hw.write_technology_parameters(
             f"{self.save_dir}/tech_params_{iter_number}.yaml"
         )
+
+    def restore_dat(self):
+        dat_file = self.hw.cacti_dat_file
+        tech_nm = os.path.basename(dat_file)
+        tech_nm = os.path.splitext(tech_nm)[0]
+
+        prev_dat_file = f"src/cacti/tech_params/prev_{tech_nm}.dat"
+
+        with open(prev_dat_file, "r") as src_file, open(dat_file, "w") as dest_file:
+            for line in src_file:
+                dest_file.write(line)
+        os.remove(prev_dat_file)
+
+    def cleanup(self):
+        self.restore_dat()
 
     def execute(self, num_iters):
         i = 0
@@ -331,12 +304,25 @@ class Codesign:
             self.forward_pass()
             i += 1
 
+        # cleanup
+        self.cleanup()
+
 
 def main():
     codesign_module = Codesign(
-        args.benchmark, args.area, args.architecture_config, args.num_arch_search_iters, args.savedir, args.opt
+        args.benchmark,
+        args.area,
+        args.architecture_config,
+        args.num_arch_search_iters,
+        args.savedir,
+        args.opt,
     )
-    codesign_module.execute(args.num_iters)
+    try:
+        codesign_module.execute(args.num_iters)
+    except Exception as e:
+        codesign_module.cleanup()
+        raise e
+
 
 
 if __name__ == "__main__":
@@ -359,7 +345,7 @@ if __name__ == "__main__":
         "-f",
         "--savedir",
         type=str,
-        default="codesign_log_dir",
+        default="logs",
         help="Path to the save new architecture file",
     )
     parser.add_argument("-o", "--opt", type=str, default="ipopt")

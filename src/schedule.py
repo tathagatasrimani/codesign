@@ -10,8 +10,8 @@ import numpy as np
 import cvxpy as cp
 import pandas as pd
 
-from global_constants import SEED
-import sim_util
+from .global_constants import SEED
+from . import sim_util
 
 # format: cfg_node -> {states -> operations}
 cfg_node_to_dfg_map = {}
@@ -250,12 +250,12 @@ def sdc_schedule(graph, hw_element_counts):
     for i in range(len(topological_order)):
         curr_func_count = 0
         start_node = topological_order[i]
-        if graph.nodes[start_node]['function'] not in curr_reg_count:
+        if graph.nodes[start_node]['function'] not in hw_element_counts:
             continue
         curr_func_count += 1
         for j in range(i + 1, len(topological_order)):
             curr_node = topological_order[j]
-            if graph.nodes[curr_node]['function'] not in curr_reg_count.keys():
+            if graph.nodes[curr_node]['function'] not in hw_element_counts:
                     continue
             if graph.nodes[curr_node]['function'] == graph.nodes[start_node]['function']:
                 curr_func_count += 1
@@ -279,7 +279,7 @@ def write_df(in_use, hw_element_counts, execution_time, step):
     cols={i:f"reg{i}" for i in range(hw_element_counts["Regs"])}
     df = df.rename(columns=cols)
     df.index.name = "time"
-    df.to_csv("codesign_log_dir/reg_use_table.csv")
+    df.to_csv("logs/reg_use_table.csv")
 
 def log_register_use(computation_graph, step, hw_element_counts, execution_time):
     """
