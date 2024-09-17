@@ -2,6 +2,7 @@ import os
 import subprocess
 import yaml
 import argparse
+import re
 import logging
 logger = logging.getLogger(__name__)
 
@@ -140,11 +141,11 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
     
     # load in default values
     logger.info(f"Running Cacti with the following parameters: filename: {filename}, cacheSize: {cacheSize}, blockSize: {blockSize}, cache_type: {cache_type}, bus_width: {bus_width}, transistor_size: {transistor_size}, addr_timing: {addr_timing}, force_cache_config: {force_cache_config}, technology: {technology}")
-    with open(os.path.normpath(os.path.join(os.path.dirname(__file__), 'params/cacti_input.yaml')), "r") as yamlfile:
-        config_values = yaml.safe_load(yamlfile)
+    # with open(os.path.normpath(os.path.join(os.path.dirname(__file__), 'params/cacti_input.yaml')), "r") as yamlfile:
+    #     config_values = yaml.safe_load(yamlfile)
 
-    if cache_type == None:
-        cache_type = config_values["cache_type"]
+    config_values = read_config_file(os.path.join(CACTI_DIR, f"{filename}.cfg"))
+    print(config_values)
 
     # If user doesn't give input, default to cacti_input vals
     if cacheSize == None:
@@ -165,7 +166,7 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
         
 
     if bus_width == None:
-        bus_width = config_values["output/input_bus_width"]
+        bus_width = config_values["bus_width"]
 
     if cache_type == "main memory":
         mem_bus_width = bus_width
@@ -173,7 +174,7 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
         mem_bus_width = config_values["mem_data_width"]
 
     if transistor_size == None:
-        transistor_size = config_values["technology"]
+        transistor_size = config_values["transistor_size"]
     else:
         transistor_size = min(valid_tech_nodes, key=lambda x: abs(transistor_size - x))
 
@@ -181,7 +182,7 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
         addr_timing = config_values["addr_timing"]
 
     if force_cache_config == None:
-        force_cache_config = config_values["Force_cache_config"]
+        force_cache_config = config_values["force_cache_config"]
 
     # lines written to [filename].cfg file
     cfg_lines = [
@@ -263,24 +264,24 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
         "# DESIGN OBJECTIVE for UCA (or banks in NUCA)",
         "-design objective (weight delay, dynamic power, leakage power, cycle time, area) {}".format(
             config_values[
-                "design_objective_weight_delay_dynamic_power_leakage_power_cycle_time_area"
+                "design_objective"
             ]
         ),
         "",
         "# Percentage deviation from the minimum value",
         "-deviate (delay, dynamic power, leakage power, cycle time, area) {}".format(
-            config_values["deviate_delay_dynamic_power_leakage_power_cycle_time_area"]
+            config_values["deviate"]
         ),
         "",
         "# Objective for NUCA",
         "-NUCAdesign objective (weight delay, dynamic power, leakage power, cycle time, area) {}".format(
             config_values[
-                "NUCAdesign_objective_weight_delay_dynamic_power_leakage_power_cycle_time_area"
+                "NUCAdesign_objective"
             ]
         ),
         "-NUCAdeviate (delay, dynamic power, leakage power, cycle time, area) {}".format(
             config_values[
-                "NUCAdeviate_delay_dynamic_power_leakage_power_cycle_time_area"
+                "NUCAdeviate"
             ]
         ),
         "",
@@ -631,6 +632,147 @@ def restore_original_values_in_dat_file(dat_file_path, original_values):
 
     with open(dat_file_path, 'w') as file:
         file.writelines(lines)
+
+# Function to read the file and extract values
+def read_config_file(file_path: str):
+    # Initialize dictionary to store extracted values
+    config_dict = {}
+
+    # Define regular expressions for each pattern in the file
+    patterns = {
+        "cache_size": re.compile(r"-size \(bytes\) (\d+)"),
+        "Array_Power_Gating": re.compile(r'-Array Power Gating - "([^"]*)"'),
+        "WL_Power_Gating": re.compile(r'-WL Power Gating - "([^"]*)"'),
+        "CL_Power_Gating": re.compile(r'-CL Power Gating - "([^"]*)"'),
+        "Bitline_floating": re.compile(r'-Bitline floating - "([^"]*)"'),
+        "Interconnect_Power_Gating": re.compile(r'-Interconnect Power Gating - "([^"]*)"'),
+        "Power_Gating_Performance_Loss": re.compile(r'-Power Gating Performance Loss "([^"]*)"'),
+        "block_size": re.compile(r"-block size \(bytes\) (\d+)"),
+        "associativity": re.compile(r"-associativity (\d+)"),
+        "read_write_port": re.compile(r"-read-write port (\d+)"),
+        "exclusive_read_port": re.compile(r"-exclusive read port (\d+)"),
+        "exclusive_write_port": re.compile(r"-exclusive write port (\d+)"),
+        "single_ended_read_ports": re.compile(r"-single ended read ports (\d+)"),
+        "num_search_ports": re.compile(r"-search port (\d+)"),
+        "UCA_bank_count": re.compile(r"-UCA bank count (\d+)"),
+        "transistor_size": re.compile(r"-technology \(u\) (\d+\.?\d*)"),
+        "page_size": re.compile(r"-page size \(bits\) (\d+)"),
+        "burst_length": re.compile(r"-burst length (\d+)"),
+        "internal_prefetch_width": re.compile(r"-internal prefetch width (\d+)"),
+        "Data_array_cell_type": re.compile(r'-Data array cell type - "([^"]*)"'),
+        "Data_array_peripheral_type": re.compile(r'-Data array peripheral type - "([^"]*)"'),
+        "Tag_array_cell_type": re.compile(r'-Tag array cell type - "([^"]*)"'),
+        "Tag_array_peripheral_type": re.compile(r'-Tag array peripheral type - "([^"]*)"'),
+        "bus_width": re.compile(r"-output/input bus width (\d+)"),
+        "operating_temperature": re.compile(r"-operating temperature \(K\) (\d+)"),
+        "cache_type": re.compile(r'-cache type "([^"]*)"'),
+        "tag_size": re.compile(r'-tag size \(b\) "([^"]*)"'),
+        "access_mode": re.compile(r'-access mode \(normal, sequential, fast\) - "([^"]*)"'),
+        "design_objective": re.compile(r"-design objective \(weight delay, dynamic power, leakage power, cycle time, area\) ([^,]+)"),
+        "deviate": re.compile(r"-deviate \(delay, dynamic power, leakage power, cycle time, area\) ([^,]+)"),
+        "NUCAdesign_objective": re.compile(r"-NUCAdesign objective \(weight delay, dynamic power, leakage power, cycle time, area\) ([^,]+)"),
+        "NUCAdeviate": re.compile(r"-NUCAdeviate \(delay, dynamic power, leakage power, cycle time, area\) ([^,]+)"),
+        "Optimize_ED_or_ED^2": re.compile(r'-Optimize ED or ED\^2 \(ED, ED\^2, NONE\): "([^"]*)"'),
+        "Cache_model_NUCA_UCA": re.compile(r'-Cache model \(NUCA, UCA\)  - "([^"]*)"'),
+        "NUCA_bank_count": re.compile(r"-NUCA bank count (\d+)"),
+        "Wire_signaling": re.compile(r'-Wire signaling \(fullswing, lowswing, default\) - "([^"]*)"'),
+        "Wire_inside_mat": re.compile(r'-Wire inside mat - "([^"]*)"'),
+        "Wire_outside_mat": re.compile(r'-Wire outside mat - "([^"]*)"'),
+        "Interconnect_projection": re.compile(r'-Interconnect projection - "([^"]*)"'),
+        "Core_count": re.compile(r"-Core count (\d+)"),
+        "Cache_level": re.compile(r'-Cache level \(L2/L3\) - "([^"]*)"'),
+        "Add_ECC": re.compile(r'-Add ECC - "([^"]*)"'),
+        "Print_level": re.compile(r'-Print level \(DETAILED, CONCISE\) - "([^"]*)"'),
+        "Print_input_parameters": re.compile(r'-Print input parameters - "([^"]*)"'),
+        "force_cache_config": re.compile(r'-Force cache config - "([^"]*)"'),
+        "Ndwl": re.compile(r"-Ndwl (\d+)"),
+        "Ndbl": re.compile(r"-Ndbl (\d+)"),
+        "Nspd": re.compile(r"-Nspd (\d+)"),
+        "Ndcm": re.compile(r"-Ndcm (\d+)"),
+        "Ndsam1": re.compile(r"-Ndsam1 (\d+)"),
+        "Ndsam2": re.compile(r"-Ndsam2 (\d+)"),
+        "dram_type": re.compile(r'-dram_type "([^"]*)"'),
+        "io_state": re.compile(r'-io state "([^"]*)"'),
+        "addr_timing": re.compile(r"-addr_timing (\d+)"),
+        "mem_density": re.compile(r"-mem_density (\d+)"),
+        "bus_freq": re.compile(r"-bus_freq (\d+)"),
+        "duty_cycle": re.compile(r"-duty_cycle (\d+\.?\d*)"),
+        "activity_dq": re.compile(r"-activity_dq (\d+\.?\d*)"),
+        "activity_ca": re.compile(r"-activity_ca (\d+\.?\d*)"),
+        "num_dq": re.compile(r"-num_dq (\d+)"),
+        "num_dqs": re.compile(r"-num_dqs (\d+)"),
+        "num_ca": re.compile(r"-num_ca (\d+)"),
+        "num_clk": re.compile(r"-num_clk (\d+)"),
+        "num_mem_dq": re.compile(r"-num_mem_dq (\d+)"),
+        "mem_data_width": re.compile(r"-mem_data_width (\d+)"),
+        "rtt_value": re.compile(r"-rtt_value (\d+)"),
+        "ron_value": re.compile(r"-ron_value (\d+)"),
+        "num_bobs": re.compile(r"-num_bobs (\d+)"),
+        "capacity": re.compile(r"-capacity (\d+\.?\d*)"),
+        "num_channels_per_bob": re.compile(r"-num_channels_per_bob (\d+)"),
+        "first_metric": re.compile(r'-first metric "([^"]*)"'),
+        "second_metric": re.compile(r'-second metric "([^"]*)"'),
+        "third_metric": re.compile(r'-third metric "([^"]*)"'),
+        "DIMM_model": re.compile(r'-DIMM model "([^"]*)"'),
+        "mirror_in_bob": re.compile(r'-mirror_in_bob "([^"]*)"')
+    }
+
+    # Open the file and read it line by line
+    with open(file_path, "r") as file:
+        for line in file:
+            # Check each pattern and extract values
+            for key, pattern in patterns.items():
+                match = pattern.search(line)
+                if match:
+                    # Convert to appropriate data type
+                    if key in [
+                        "cache_size",
+                        "block_size",
+                        "associativity",
+                        "read_write_port",
+                        "exclusive_read_port",
+                        "exclusive_write_port",
+                        "single_ended_read_ports",
+                        "num_search_ports",
+                        "UCA_bank_count",
+                        "bus_width",
+                        "operating_temperature",
+                        "Core_count",
+                        "Ndwl",
+                        "Ndbl",
+                        "Nspd",
+                        "Ndcm",
+                        "Ndsam1",
+                        "Ndsam2",
+                        "addr_timing",
+                        "mem_density",
+                        "bus_freq",
+                        "num_dq",
+                        "num_dqs",
+                        "num_ca",
+                        "num_clk",
+                        "num_mem_dq",
+                        "mem_data_width",
+                        "rtt_value",
+                        "ron_value",
+                        "num_bobs",
+                        "num_channels_per_bob",
+                    ]:
+                        config_dict[key] = int(match.group(1))  # Convert to integer
+                    elif key in [
+                        "transistor_size",
+                        "Power_Gating_Performance_Loss",
+                        "duty_cycle",
+                        "activity_dq",
+                        "activity_ca",
+                        "capacity",
+                    ]:
+                        config_dict[key] = float(match.group(1))  # Convert to float
+                    else:
+                        config_dict[key] = match.group(1)  # Keep as string
+                    break  # Stop checking other patterns if a match is found
+
+    return config_dict
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Process a config file and a data file.")

@@ -51,19 +51,23 @@ def gen_abs_results(sympy_file, cache_cfg, dat_file):
     Results are appended to 'abs_validate_results.csv'.
     Returns the SymPy result and the C Cacti access time.
     """
+
+    print(f"top of gen_abs_results; sympy_file: {sympy_file}, cache_cfg: {cache_cfg}, dat_file: {dat_file}")
     
     # Check if the last directory is 'codesign'
-    cur_dir = os.getcwd()
-    if os.path.basename(cur_dir) == 'codesign':
-        # Change to the 'src' directory
-        src_dir = os.path.join(cur_dir, 'src')
-        os.chdir(src_dir)
+    # cur_dir = os.getcwd()
+    # if os.path.basename(cur_dir) == 'codesign':
+    #     # Change to the 'src' directory
+    #     src_dir = os.path.join(cur_dir, 'src')
+    #     os.chdir(src_dir)
 
-    cache_cfg = cache_cfg.replace('src/', '')
-    dat_file = dat_file.replace('src/', '')
-
+    # cache_cfg = cache_cfg.replace('src/', '')
+    # dat_file = dat_file.replace('src/', '')
+    dat_file = os.path.join(CACTI_DIR, dat_file)
     # initalize input parameters from .cfg
-    g_ip.parse_cfg(cache_cfg)
+
+
+    g_ip.parse_cfg(os.path.join(CACTI_DIR, cache_cfg))
     g_ip.error_checking()
 
     # get tech_param values
@@ -78,7 +82,7 @@ def gen_abs_results(sympy_file, cache_cfg, dat_file):
     IO_tech_params = {k: (10**(-9) if v == 0 else v) for k, v in IO_tech_params.items() if v is not None and not math.isnan(v)}
     
     # every file should start with this name
-    sympy_filename = "cacti/symbolic_expressions/" + sympy_file.rstrip(".txt")
+    sympy_filename = os.path.join(CACTI_DIR, "symbolic_expressions/" + sympy_file.rstrip(".txt"))
     print(f'READING {sympy_filename}')
 
     # PLUG IN CACTI
@@ -164,14 +168,15 @@ def gen_abs_results(sympy_file, cache_cfg, dat_file):
 
     # Get CACTI C results to verify
     cfg_name = cache_cfg.replace('.cfg', '').replace('cacti/cfg/', '')
+    print(f"cfg_name: {cfg_name}")
     validate_vals = cacti_util.gen_vals(
         cfg_name,
-        cacheSize=g_ip.cache_sz, # TODO: Add in buffer sizing
-        blockSize=g_ip.block_sz,
-        cache_type="main memory",
-        bus_width=g_ip.out_w,
-        transistor_size=g_ip.F_sz_um,
-        force_cache_config="false",
+        # cacheSize=g_ip.cache_sz, # TODO: Add in buffer sizing
+        # blockSize=g_ip.block_sz,
+        # cache_type="main memory",
+        # bus_width=g_ip.out_w,
+        # transistor_size=g_ip.F_sz_um,
+        # force_cache_config="false",
     )
 
     validate_access_time = float(validate_vals["Access time (ns)"])
@@ -252,6 +257,8 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    # all paths here are relative to CACTI_DIR
+
     cfg_file = f"cfg/{args.CFG}.cfg"
     gen_flag = args.gen.lower() == "true"  
 
@@ -271,7 +278,7 @@ if __name__ == "__main__":
             "repeater_size": buf_vals["Repeater size"],
         }
         # cfg_file = "src/cacti/cfg/" + cfg_file + ".cfg"
-        sympy_file = cfg_file   # try to keep convention where sympy expressions have same name as cfg
+        sympy_file = args.CFG   # try to keep convention where sympy expressions have same name as cfg
         IO_info = cacti_util.gen_symbolic(sympy_file, cfg_file, buf_opt, use_piecewise=False)
     else:
         # try to keep convention where sympy expressions have same name as cfg
@@ -281,19 +288,21 @@ if __name__ == "__main__":
             sympy_file = args.CFG
 
     if args.DAT:
-        dat_file = f"src/cacti/tech_params/{args.DAT}.dat"
+        dat_file = os.path.join("tech_params", "{args.DAT}.dat")
         gen_abs_results(sympy_file, cfg_file, dat_file)
     else:
-        print(cfg_file)
-        dat_file_90nm = os.path.join('src', 'cacti', 'tech_params', '90nm.dat')
-        gen_abs_results(sympy_file, cfg_file, dat_file_90nm)
+        print(f"generating for 45, 90, 180 nm")
 
-        print(cfg_file)
-        dat_file_45nm = os.path.join('src', 'cacti', 'tech_params', '45nm.dat')
+        print(f"\n\nRunning for 45nm\n\n")
+        print(f"cfg file: {cfg_file}")
+        dat_file_45nm = os.path.join('tech_params', '45nm.dat')
         gen_abs_results(sympy_file, cfg_file, dat_file_45nm)
 
-        dat_file_180nm = os.path.join('src', 'cacti', 'tech_params', '180nm.dat')
+        print(f"cfg_file: {cfg_file}")
+        print(f"\n\nRunning for 90nm\n\n")
+        dat_file_90nm = os.path.join("tech_params", "90nm.dat")
+        gen_abs_results(sympy_file, cfg_file, dat_file_90nm)
+
+        print(f"\n\nRunning for 180nm\n\n")
+        dat_file_180nm = os.path.join('tech_params', '180nm.dat')
         gen_abs_results(sympy_file, cfg_file, dat_file_180nm)
-
-
-
