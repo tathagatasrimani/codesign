@@ -202,10 +202,10 @@ def gen_abs_results(sympy_file, cache_cfg, dat_file):
     print(f"validate_leakage (mW): {validate_leakage}")
 
     print(f'validate_io_area: {float(validate_vals["IO area"])}')
-    print(f'validate_io_timing": {float(validate_vals["IO timing"])}')
-    print(f'validate_io_power_dynamic": {float(validate_vals["IO power dynamic"])}')
-    print(f'validate_io_power_phy": {float(validate_vals["IO power PHY"])}')
-    print(f'validate_io_power_termination_and_bias": {float(validate_vals["IO power termination and bias"])}')
+    print(f'validate_io_timing: {float(validate_vals["IO timing"])}')
+    print(f'validate_io_power_dynamic: {float(validate_vals["IO power dynamic"])}')
+    print(f'validate_io_power_phy: {float(validate_vals["IO power PHY"])}')
+    print(f'validate_io_power_termination_and_bias: {float(validate_vals["IO power termination and bias"])}')
 
     # write to CSV
     data = {

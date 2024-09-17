@@ -138,7 +138,7 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
     A .cfg file is generated for Cacti, and Cacti run results are 
     returned in a DataFrame.
     """
-    
+
     # load in default values
     logger.info(f"Running Cacti with the following parameters: filename: {filename}, cacheSize: {cacheSize}, blockSize: {blockSize}, cache_type: {cache_type}, bus_width: {bus_width}, transistor_size: {transistor_size}, addr_timing: {addr_timing}, force_cache_config: {force_cache_config}, technology: {technology}")
     # with open(os.path.normpath(os.path.join(os.path.dirname(__file__), 'params/cacti_input.yaml')), "r") as yamlfile:
@@ -156,14 +156,13 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
 
     if cache_type == None:
         cache_type = config_values["cache_type"]
-    
+
     if cache_type == "cache":
         associativity = 0
         num_search_ports = 1
     else:
-        associativity = config_values["associativity"]
+        associativity = config_values["assoc"]
         num_search_ports = config_values["num_search_ports"]
-        
 
     if bus_width == None:
         bus_width = config_values["bus_width"]
@@ -195,11 +194,9 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
         '-CL Power Gating - "{}"'.format(config_values["cl_power_gated"]),
         '-Bitline floating - "{}"'.format(config_values["bitline_floating"]),
         '-Interconnect Power Gating - "{}"'.format(
-            config_values["interconect_power_gated"]
+            config_values["interconnect_power_gated"]
         ),
-        '-Power Gating Performance Loss "{}"'.format(
-            config_values["perfloss"]
-        ),
+        '-Power Gating Performance Loss "{}"'.format(config_values["perfloss"]),
         "",
         "# Line size",
         "-block size (bytes) {}".format(blockSize),
@@ -227,7 +224,7 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
         "",
         "# following parameter can have one of three values",
         '-Data array peripheral type - "{}"'.format(
-            config_values["Data_array_peripheral_type"]
+            config_values["data_array_peri_type"]
         ),
         "",
         "# following parameter can have one of five values",
@@ -258,86 +255,63 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
         "#          final data block is broadcasted in data array h-tree",
         "#          after getting the signal from the tag array",
         '-access mode (normal, sequential, fast) - "{}"'.format(
-            config_values["access_mode"]
+            "fast" if config_values["access_mode"] == 2 else "sequential" if config_values["access_mode"] == 1 else "normal"
         ),
-        
         # TODO the rest of these need to have config_values['key'] aligned properly with read_config function
         # You can look at parse_cfg in parameter.py to see what the keys should be named
         "",
         "# DESIGN OBJECTIVE for UCA (or banks in NUCA)",
-        "-design objective (weight delay, dynamic power, leakage power, cycle time, area) {}".format(
-            config_values[
-                "design_objective"
-            ]
-        ),
+        f"-design objective (weight delay, dynamic power, leakage power, cycle time, area) {config_values['delay_wt']}:{config_values['dynamic_power_wt']}:{config_values['leakage_power_wt']}:{config_values['cycle_time_wt']}:{config_values['area_wt']}",
         "",
         "# Percentage deviation from the minimum value",
-        "-deviate (delay, dynamic power, leakage power, cycle time, area) {}".format(
-            config_values["deviate"]
-        ),
+        f"-deviate (delay, dynamic power, leakage power, cycle time, area) {config_values['delay_dev']}:{config_values['dynamic_power_dev']}:{config_values['leakage_power_dev']}:{config_values['cycle_time_dev']}:{config_values['area_dev']}"
         "",
         "# Objective for NUCA",
-        "-NUCAdesign objective (weight delay, dynamic power, leakage power, cycle time, area) {}".format(
-            config_values[
-                "NUCAdesign_objective"
-            ]
-        ),
-        "-NUCAdeviate (delay, dynamic power, leakage power, cycle time, area) {}".format(
-            config_values[
-                "NUCAdeviate"
-            ]
-        ),
+        f"-NUCAdesign objective (weight delay, dynamic power, leakage power, cycle time, area) {config_values['delay_wt_nuca']}:{config_values['dynamic_power_wt_nuca']}:{config_values['leakage_power_wt_nuca']}:{config_values['cycle_time_wt_nuca']}:{config_values['area_wt_nuca']}",
+        f"-NUCAdeviate (delay, dynamic power, leakage power, cycle time, area) {config_values['delay_dev_nuca']}:{config_values['dynamic_power_dev_nuca']}:{config_values['leakage_power_dev_nuca']}:{config_values['cycle_time_dev_nuca']}:{config_values['area_dev_nuca']}",
         "",
         "# Set optimize tag to ED or ED^2 to obtain a cache configuration optimized for",
         "# energy-delay or energy-delay sq. product",
         "# Note: Optimize tag will disable weight or deviate values mentioned above",
         "# Set it to NONE to let weight and deviate values determine the",
         "# appropriate cache configuration",
-        '-Optimize ED or ED^2 (ED, ED^2, NONE): "{}"'.format(
-            config_values["Optimize_ED_or_ED^2"]
-        ),
-        '-Cache model (NUCA, UCA)  - "{}"'.format(
-            config_values["Cache_model_NUCA_UCA"]
-        ),
+        "-Optimize ED or ED^2 (ED, ED^2, NONE): {}".format('\"ED^2\"' if config_values['ed'] == 2 else '\"ED\"' if config_values['ed'] == 1 else '\"NONE\"'),
+        "-Cache model (NUCA, UCA)  - {}".format('\"UCA\"' if config_values['nuca'] == 0 else '\"NUCA\"'),
         "",
         "# In order for CACTI to find the optimal NUCA bank value the following",
         "# variable should be assigned 0.",
-        "-NUCA bank count {}".format(config_values["NUCA_bank_count"]),
+        "-NUCA bank count {}".format(config_values["nuca_bank_count"]),
         "",
         "# Wire signaling",
-        '-Wire signaling (fullswing, lowswing, default) - "{}"'.format(
-            config_values["Wire_signaling"]
-        ),
-        '-Wire inside mat - "{}"'.format(config_values["Wire_inside_mat"]),
-        '-Wire outside mat - "{}"'.format(config_values["Wire_outside_mat"]),
-        '-Interconnect projection - "{}"'.format(
-            config_values["Interconnect_projection"]
-        ),
+        '-Wire signaling (fullswing, lowswing, default) - "{}"'.format("default" if config_values['force_wiretype'] == 0 else config_values['wt']),
+        '-Wire inside mat - "{}"'.format("global" if config_values["wire_is_mat_type"] == 2 else "semi-global" if config_values["wire_is_mat_type"] == 1 else "local"),
+        '-Wire outside mat - "{}"'.format("global" if config_values["wire_os_mat_type"] == 2 else "semi-global"),
+        '-Interconnect projection - "{}"'.format("aggressive" if config_values["ic_proj_type"] == 0 else "conservative"),
         "",
         "# Contention in network",
-        "-Core count {}".format(config_values["Core_count"]),
-        '-Cache level (L2/L3) - "{}"'.format(config_values["Cache_level"]),
-        '-Add ECC - "{}"'.format(config_values["Add_ECC"]),
-        '-Print level (DETAILED, CONCISE) - "{}"'.format(config_values["Print_level"]),
+        "-Core count {}".format(config_values["cores"]),
+        '-Cache level (L2/L3) - "{}"'.format("L2" if config_values["cache_level"] == 0 else "L3"),
+        '-Add ECC - "{}"'.format(str(config_values["add_ecc_b_"]).lower()),
+        '-Print level (DETAILED, CONCISE) - "{}"'.format("DETAILED" if config_values["print_detail"] == 1 else "CONCISE"),
         "",
         "# for debugging",
         '-Print input parameters - "{}"'.format(
-            config_values["Print_input_parameters"]
+            str(config_values["print_input_args"]).lower()
         ),
         "# force CACTI to model the cache with the",
         "# following Ndbl, Ndwl, Nspd, Ndsam,",
         "# and Ndcm values",
-        '-Force cache config - "{}"'.format(force_cache_config),
-        "-Ndwl {}".format(config_values["Ndwl"]),
-        "-Ndbl {}".format(config_values["Ndbl"]),
-        "-Nspd {}".format(config_values["Nspd"]),
-        "-Ndcm {}".format(config_values["Ndcm"]),
-        "-Ndsam1 {}".format(config_values["Ndsam1"]),
-        "-Ndsam2 {}".format(config_values["Ndsam2"]),
+        '-Force cache config - "{}"'.format(str(force_cache_config).lower()),
+        "-Ndwl {}".format(config_values["ndwl"]),
+        "-Ndbl {}".format(config_values["ndbl"]),
+        "-Nspd {}".format(config_values["nspd"]),
+        "-Ndcm {}".format(config_values["ndcm"]),
+        "-Ndsam1 {}".format(config_values["ndsam1"]),
+        "-Ndsam2 {}".format(config_values["ndsam2"]),
         "",
         "#### Default CONFIGURATION values for baseline external IO parameters to DRAM. More details can be found in the CACTI-IO technical report (), especially Chapters 2 and 3.",
         "# Memory Type",
-        '-dram_type "{}"'.format(config_values["dram_type"]),
+        '-dram_type "{}"'.format(config_values["io_type"]),
         "# Memory State",
         '-io state "{}"'.format(config_values["io_state"]),
         "# Address bus timing",
@@ -345,7 +319,7 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
         "# Memory Density",
         "-mem_density {}".format(config_values["mem_density"]),
         "# IO frequency",
-        "-bus_freq {}".format(config_values["bus_freq"]),
+        "-bus_freq {} MHz".format(int(config_values["bus_freq"])),
         "# Duty Cycle",
         "-duty_cycle {}".format(config_values["duty_cycle"]),
         "# Activity factor for Data",
@@ -384,7 +358,7 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
         "# Third Metric for ordering different design points",
         '-third metric "{}"'.format(config_values["third_metric"]),
         "# Possible DIMM option to consider",
-        '-DIMM model "{}"'.format(config_values["DIMM_model"]),
+        '-DIMM model "{}"'.format(config_values["dimm_model"]),
         "# If channels of each bob have the same configurations",
         '-mirror_in_bob "{}"'.format(config_values["mirror_in_bob"]),
         "# if we want to see all channels/bobs/memory configurations explored",
@@ -407,10 +381,10 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
     stderr_file_path = os.path.join(cactiDir, stderr_filename)
 
     cmd = ['./cacti', '-infile', input_filename]
-    
+
     with open(stdout_file_path, "w") as f:
         p = subprocess.Popen(cmd, cwd=CACTI_DIR, stdout=f, stderr=subprocess.PIPE)
-    
+
     p.wait()
     if p.returncode != 0:
         with open(stdout_file_path, "r") as f:
@@ -421,7 +395,7 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
     output_data = pd.read_csv(cactiOutput, sep=", ", engine='python')
     output_data = output_data.iloc[-1] # get just the last row which is the most recent run
 
-    IO_freq = convert_frequency(config_values['bus_freq'])
+    IO_freq = config_values['bus_freq'] * 1e6
     IO_latency = (addr_timing / IO_freq)
 
     output_data["IO latency (s)"] = IO_latency
@@ -719,6 +693,7 @@ def read_config_file(in_file: str):
                     raise ValueError("Invalid access mode")
             elif line.startswith("-Data array cell type"):
                 config_dict["data_array_cell_type"] = line.split("\"")[1]
+                cell_type = config_dict["data_array_cell_type"]
                 if "itrs-hp" in cell_type:
                     config_dict["data_arr_ram_cell_tech_type"] = 0
                 elif "itrs-lstp" in cell_type:
@@ -732,7 +707,8 @@ def read_config_file(in_file: str):
                 else:
                     raise ValueError("Invalid data array cell type")
             elif line.startswith("-Data array peripheral type"):
-                peri_type = line.split("\"")[1]
+                config_dict["data_array_peri_type"] = line.split("\"")[1]
+                peri_type = config_dict["data_array_peri_type"]
                 if "itrs-hp" in peri_type:
                     config_dict["data_arr_peri_global_tech_type"] = 0
                 elif "itrs-lstp" in peri_type:
@@ -743,6 +719,7 @@ def read_config_file(in_file: str):
                     raise ValueError("Invalid data array peripheral type")
             elif line.startswith("-Tag array cell type"):
                 config_dict["tag_array_cell_type"] = line.split("\"")[1]
+                cell_type = config_dict["tag_array_cell_type"]
                 if "itrs-hp" in cell_type:
                     config_dict["tag_arr_ram_cell_tech_type"] = 0
                 elif "itrs-lstp" in cell_type:
@@ -757,6 +734,7 @@ def read_config_file(in_file: str):
                     raise ValueError("Invalid tag array cell type")
             elif line.startswith("-Tag array peripheral type"):
                 config_dict["tag_array_peri_type"] = line.split("\"")[1]
+                peri_type = config_dict["tag_array_peri_type"]
                 if "itrs-hp" in peri_type:
                     config_dict["tag_arr_peri_global_tech_type"] = 0
                 elif "itrs-lstp" in peri_type:
@@ -930,6 +908,7 @@ def read_config_file(in_file: str):
                     raise ValueError("Invalid Input for dram type")
             elif line.startswith("-io state"):
                 io_state = line.split("\"")[1]
+                config_dict['io_state'] = io_state
                 if "READ" in io_state:
                     config_dict["iostate"] = "READ"
                 elif "WRITE" in io_state:
@@ -974,14 +953,22 @@ def read_config_file(in_file: str):
                 config_dict["activity_ca"] = float(re.search(r'-activity_ca (\d+\.\d+)', line).group(1))
             elif line.startswith("-bus_freq"):
                 config_dict["bus_freq"] = float(re.search(r'-bus_freq (\d+)', line).group(1))
+                print(f"bus_freq: {config_dict['bus_freq']}")
+            elif line.startswith("-num_dqs"):
+                # dqs check has to be before dq check else won't pass
+                print(f"FOUND LINE STARTING WITH -num_dqs: {line}")
+                match = re.search(r"-num_dqs (\d+)", line)
+                if match:
+                    config_dict["num_dqs"] = int(match.group(1))
+                else:
+                    print(f"No num DQS found in {line}")
+                    config_dict["num_dqs"] = 0
             elif line.startswith("-num_dq"):
+                print(f"FOUND LINE STARTING WITH -num_dq: {line}")
                 match = re.search(r'-num_dq (\d+)', line)
                 if match:
                     config_dict["num_dq"] = int(match.group(1))
-            elif line.startswith("-num_dqs"):
-                match = re.search(r'-num_dqs (\d+)', line)
-                if match:
-                    config_dict["num_dqs"] = int(match.group(1))
+
             elif line.startswith("-num_ca"):
                 config_dict["num_ca"] = int(re.search(r'-num_ca (\d+)', line).group(1))
             elif line.startswith("-num_clk"):
@@ -1220,7 +1207,6 @@ def read_config_file(in_file: str):
         print(os.getcwd())
         print(f"{in_file} is missing!")
         exit(-1)
-
 
     return config_dict
 
