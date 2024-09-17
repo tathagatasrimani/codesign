@@ -3,6 +3,8 @@ import configparser as cp
 import logging
 import os
 import sys
+import matplotlib.pyplot as plt
+import numpy as np
     
 logger = logging.getLogger("inverse validation")
 
@@ -32,6 +34,7 @@ args = None
 tech_nodes = [40, 7, 5, 3]
 initial_tech_params = {}
 final_tech_params = {}
+params_exclusion_list = []
 
 class LogFilterInvVal(logging.Filter):
     def filter(self, record):
@@ -59,6 +62,21 @@ def parse_output(f):
         tech_params[mapping[key]] = value  # just know that self.tech_params contains all dat
         i += 1
     return tech_params
+
+def plot_diff(tech_node_pair):
+    
+    params_to_plot = [tech_param for tech_param in initial_tech_params[tech_node_pair[0]].keys() if tech_param not in params_exclusion_list]
+    tech_node_0_vals = [final_tech_params[tech_node_pair[0]][tech_param] for tech_param in params_to_plot]
+    tech_node_1_vals = [initial_tech_params[tech_node_pair[1]][tech_param] for tech_param in params_to_plot]
+    X_axis = np.arange(len(params_to_plot))
+    plt.bar(X_axis-0.2, tech_node_0_vals, 0.4, label=f"{tech_node_pair[0]} nm")
+    plt.bar(X_axis+0.2, tech_node_1_vals, 0.4, label=f"{tech_node_pair[1]} nm")
+    plt.xticks(X_axis, params_to_plot)
+    plt.xlabel("tech params")
+    plt.ylabel("tech param values")
+    plt.title(f"Comparison of optimized tech params for {tech_node_pair[0]} nm and initial tech params for {tech_node_pair[1]} nm")
+    plt.savefig(f"inverse_validation/{tech_node_pair[0]}_{tech_node_pair[1]}_compare.png")
+    plt.close()
 
 def run_initial():
     edps = []
@@ -157,3 +175,4 @@ if __name__ == "__main__":
     for i in range(0, len(tech_nodes)-1):
         improvement = edps[i]/edps[i+1]
         run_pairwise(tech_nodes[i:i+2], improvement, hws, dfgs)
+        plot_diff(tech_nodes[i:i+2])
