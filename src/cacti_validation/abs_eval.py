@@ -1,23 +1,24 @@
 import os
 import subprocess
-import yaml
 import argparse
-import pandas as pd
 import sys
 import logging
 logger = logging.getLogger(__name__)
 
+import yaml
+import pandas as pd
+import sympy as sp
+
 # Work in codesign/src for ease
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
-os.chdir(project_root)
-current_directory = os.getcwd()
-sys.path.insert(0, current_directory)
+# project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
+# os.chdir(project_root)
+# current_directory = os.getcwd()
+# sys.path.insert(0, current_directory)
 
-from cacti.cacti_python.parameter import g_ip
-import cacti.cacti_python.get_dat as dat
-import cacti_util
+from src.cacti.cacti_python.parameter import g_ip
+import src.cacti.cacti_python.get_dat as dat
+from src import cacti_util
 
-from cacti.cacti_python.parameter import g_ip
 from cacti.cacti_python.parameter import g_tp
 from cacti.cacti_python.cacti_interface import uca_org_t
 from cacti.cacti_python.Ucache import *
@@ -29,8 +30,7 @@ from cacti.cacti_python.bank import Bank
 import cacti.cacti_python.get_dat as dat
 import cacti.cacti_python.get_IO as IO
 
-from hw_symbols import *
-import sympy as sp
+from src.hw_symbols import *
 
 valid_tech_nodes = [0.022, 0.032, 0.045, 0.065, 0.090, 0.180]
 
@@ -53,7 +53,7 @@ def gen_abs_results(sympy_file, cache_cfg, dat_file):
     """
 
     print(f"top of gen_abs_results; sympy_file: {sympy_file}, cache_cfg: {cache_cfg}, dat_file: {dat_file}")
-    
+
     # Check if the last directory is 'codesign'
     # cur_dir = os.getcwd()
     # if os.path.basename(cur_dir) == 'codesign':
@@ -65,7 +65,6 @@ def gen_abs_results(sympy_file, cache_cfg, dat_file):
     # dat_file = dat_file.replace('src/', '')
     dat_file = os.path.join(CACTI_DIR, dat_file)
     # initalize input parameters from .cfg
-
 
     g_ip.parse_cfg(os.path.join(CACTI_DIR, cache_cfg))
     g_ip.error_checking()
@@ -80,7 +79,7 @@ def gen_abs_results(sympy_file, cache_cfg, dat_file):
     IO_tech_params = {}
     IO.scan_IO(IO_tech_params, g_ip, g_ip.io_type, g_ip.num_mem_dq, g_ip.mem_data_width, g_ip.num_dq, g_ip.dram_dimm, 1, g_ip.bus_freq)
     IO_tech_params = {k: (10**(-9) if v == 0 else v) for k, v in IO_tech_params.items() if v is not None and not math.isnan(v)}
-    
+
     # every file should start with this name
     sympy_filename = os.path.join(CACTI_DIR, "symbolic_expressions/" + sympy_file.rstrip(".txt"))
     print(f'READING {sympy_filename}')
@@ -96,7 +95,7 @@ def gen_abs_results(sympy_file, cache_cfg, dat_file):
 
     expression = sp.sympify(expression_str)
     result = expression.subs(tech_params)
-    
+
     result_access_time = result.subs(sp.I, 0)
     result_access_time = result_access_time.evalf()
 
@@ -105,7 +104,7 @@ def gen_abs_results(sympy_file, cache_cfg, dat_file):
 
     expression = sp.sympify(expression_str)
     result = expression.subs(tech_params)
-    
+
     result_read_dynamic = result.subs(sp.I, 0)
 
     with open(sympy_file_write_dynamic, 'r') as file:
@@ -113,7 +112,7 @@ def gen_abs_results(sympy_file, cache_cfg, dat_file):
 
     expression = sp.sympify(expression_str)
     result = expression.subs(tech_params)
-    
+
     result_write_dynamic = result.subs(sp.I, 0)
 
     with open(sympy_file_read_leakage, 'r') as file:
@@ -121,7 +120,7 @@ def gen_abs_results(sympy_file, cache_cfg, dat_file):
 
     expression = sp.sympify(expression_str)
     result = expression.subs(tech_params)
-    
+
     result_read_leakage = result.subs(sp.I, 0)
 
     # PLUG IN CACIT IO
@@ -167,7 +166,7 @@ def gen_abs_results(sympy_file, cache_cfg, dat_file):
     result_io_termination_power = result.subs(sp.I, 0)
 
     # Get CACTI C results to verify
-    cfg_name = cache_cfg.replace('.cfg', '').replace('cacti/cfg/', '')
+    cfg_name = cache_cfg.replace(".cfg", "").replace("cacti/cfg/", "")
     print(f"cfg_name: {cfg_name}")
     validate_vals = cacti_util.gen_vals(
         cfg_name,
@@ -190,7 +189,7 @@ def gen_abs_results(sympy_file, cache_cfg, dat_file):
 
     print(f'access_time: {result_access_time}')
     print(f"result : {result_read_dynamic, result_write_dynamic, result_read_leakage}")
-    
+
     print(f"io_area: {result_io_area}")
     print(f"io_timing_margin: {result_io_timing_margin}")
     print(f"io_dynamic_power: {result_io_dynamic_power}")
@@ -234,17 +233,17 @@ def gen_abs_results(sympy_file, cache_cfg, dat_file):
     df = pd.DataFrame(data)
 
     print(f'Right before save into cacti_validation {os.getcwd()}')
-    directory = "src/cacti_validation/abs_results"
+    directory = os.path.join(os.path.dirname(__file__), "abs_results")
     if not os.path.exists(directory):
         os.makedirs(directory)
     csv_file = os.path.join(directory, "abs_validate_results.csv")
     print(csv_file)
-    
+
     file_exists = os.path.isfile(csv_file)
     df.to_csv(csv_file, mode='a', header=not file_exists, index=False)
 
     print(f"Data successfully appended to {csv_file}")
-    
+
     return result, validate_access_time
 
 

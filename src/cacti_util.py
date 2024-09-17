@@ -43,7 +43,7 @@ def gen_symbolic(name, cache_cfg, opt_vals, use_piecewise=False):
     Sympy expression files for access time, dynamic and leakage power, IO details in 'src/cacti/sympy' directory.
     """
 
-    print(f"gen_symbolic: cwd: {os.getcwd()}")
+    print(f"gen_symbolic: cwd: {os.getcwd()}; cache_cfg: {cache_cfg}")
     g_ip.parse_cfg(os.path.join(CACTI_DIR, cache_cfg))
     g_ip.error_checking()
     # g_ip.display_ip()
@@ -139,13 +139,10 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
     returned in a DataFrame.
     """
 
-    # load in default values
     logger.info(f"Running Cacti with the following parameters: filename: {filename}, cacheSize: {cacheSize}, blockSize: {blockSize}, cache_type: {cache_type}, bus_width: {bus_width}, transistor_size: {transistor_size}, addr_timing: {addr_timing}, force_cache_config: {force_cache_config}, technology: {technology}")
-    # with open(os.path.normpath(os.path.join(os.path.dirname(__file__), 'params/cacti_input.yaml')), "r") as yamlfile:
-    #     config_values = yaml.safe_load(yamlfile)
 
+    # load in default values
     config_values = read_config_file(os.path.join(CACTI_DIR, f"{filename}.cfg"))
-    print(config_values)
 
     # If user doesn't give input, default to cacti_input vals
     if cacheSize == None:
@@ -614,600 +611,587 @@ def restore_original_values_in_dat_file(dat_file_path, original_values):
 def read_config_file(in_file: str):
     # Initialize dictionary to store extracted values
     config_dict = {}
-    try:
-        with open(in_file, "r") as fp:
-            lines = fp.readlines()
+    with open(in_file, "r") as fp:
+        lines = fp.readlines()
 
-        for line in lines:
-            line = line.strip()
-            if line.startswith("-size"):
-                config_dict["cache_size"] = int(line.split()[-1])
-            elif line.startswith("-page size"):
-                config_dict["page_sz_bits"] = int(line.split()[-1])
-            elif line.startswith("-burst length"):
-                config_dict["burst_len"] = int(line.split()[-1])
-            elif line.startswith("-internal prefetch width"):
-                config_dict["int_prefetch_w"] = int(line.split()[-1])
-            elif line.startswith("-block size (bytes)"):
-                config_dict["line_sz"] = int(line.split()[-1])
-            elif line.startswith("-associativity"):
-                config_dict["assoc"] = int(line.split()[-1])
-            elif line.startswith("-read-write port"):
-                config_dict["num_rw_ports"] = int(line.split()[-1])
-            elif line.startswith("-exclusive read port"):
-                config_dict["num_rd_ports"] = int(line.split()[-1])
-            elif line.startswith("-exclusive write port"):
-                config_dict["num_wr_ports"] = int(line.split()[-1])
-            elif line.startswith("-single"):
-                config_dict["num_se_rd_ports"] = int(line.split()[-1])
-            elif line.startswith("-search port"):
-                config_dict["num_search_ports"] = int(line.split()[-1])
-            elif line.startswith("-UCA bank"):
-                config_dict["nbanks"] = int(line.split()[-1])
-            elif line.startswith("-technology"):
-                config_dict["F_sz_um"] = float(line.split()[-1])
-                config_dict["F_sz_nm"] = config_dict["F_sz_um"] * 1000
-            elif line.startswith("-output/input bus"):
-                config_dict["bus_width"] = int(float(line.split()[-1]))
-            elif line.startswith("-operating temperature"):
-                config_dict["temp"] = int(line.split()[-1])
-            elif line.startswith("-cache type"):
-                config_dict["cache_type"] = line.split("\"")[1]
-                config_dict["is_cache"] = "cache" in config_dict["cache_type"]
-                config_dict["is_main_mem"] = "main memory" in config_dict["cache_type"]
-                config_dict["is_3d_mem"] = "3D memory or 2D main memory" in config_dict["cache_type"]
-                config_dict["pure_cam"] = "cam" in config_dict["cache_type"]
-                config_dict["pure_ram"] = "ram" in config_dict["cache_type"] or config_dict["is_main_mem"]
-            elif line.startswith("-print option"):
-                print_option = line.split("\"")[1]
-                config_dict["print_detail_debug"] = "debug detail" in print_option
-            elif line.startswith("-burst depth"):
-                config_dict["burst_depth"] = int(line.split()[-1])
-            elif line.startswith("-IO width"):
-                config_dict["io_width"] = int(line.split()[-1])
-            elif line.startswith("-system frequency"):
-                config_dict["sys_freq_MHz"] = int(line.split()[-1])
-            elif line.startswith("-stacked die"):
-                config_dict["num_die_3d"] = int(line.split()[-1])
-            elif line.startswith("-partitioning granularity"):
-                config_dict["partition_gran"] = int(line.split()[-1])
-            elif line.startswith("-TSV projection"):
-                config_dict["TSV_proj_type"] = int(line.split()[-1])
-            elif line.startswith("-tag size"):
-                config_dict["tag_size"] = line.split("\"")[1]
-                if "default" in config_dict["tag_size"]:
-                    config_dict["specific_tag"] = False
-                    config_dict["tag_w"] = 42
-                else:
-                    config_dict["specific_tag"] = True
-                    config_dict["tag_w"] = int(line.split()[-1])
-            elif line.startswith("-access mode"):
-                access_mode = line.split("\"")[1]
-                if "fast" in access_mode:
-                    config_dict["access_mode"] = 2
-                elif "sequential" in access_mode:
-                    config_dict["access_mode"] = 1
-                elif "normal" in access_mode:
-                    config_dict["access_mode"] = 0
-                else:
-                    raise ValueError("Invalid access mode")
-            elif line.startswith("-Data array cell type"):
-                config_dict["data_array_cell_type"] = line.split("\"")[1]
-                cell_type = config_dict["data_array_cell_type"]
-                if "itrs-hp" in cell_type:
-                    config_dict["data_arr_ram_cell_tech_type"] = 0
-                elif "itrs-lstp" in cell_type:
-                    config_dict["data_arr_ram_cell_tech_type"] = 1
-                elif "itrs-lop" in cell_type:
-                    config_dict["data_arr_ram_cell_tech_type"] = 2
-                elif "lp-dram" in cell_type:
-                    config_dict["data_arr_ram_cell_tech_type"] = 3
-                elif "comm-dram" in cell_type:
-                    config_dict["data_arr_ram_cell_tech_type"] = 4
-                else:
-                    raise ValueError("Invalid data array cell type")
-            elif line.startswith("-Data array peripheral type"):
-                config_dict["data_array_peri_type"] = line.split("\"")[1]
-                peri_type = config_dict["data_array_peri_type"]
-                if "itrs-hp" in peri_type:
-                    config_dict["data_arr_peri_global_tech_type"] = 0
-                elif "itrs-lstp" in peri_type:
-                    config_dict["data_arr_peri_global_tech_type"] = 1
-                elif "itrs-lop" in peri_type:
-                    config_dict["data_arr_peri_global_tech_type"] = 2
-                else:
-                    raise ValueError("Invalid data array peripheral type")
-            elif line.startswith("-Tag array cell type"):
-                config_dict["tag_array_cell_type"] = line.split("\"")[1]
-                cell_type = config_dict["tag_array_cell_type"]
-                if "itrs-hp" in cell_type:
-                    config_dict["tag_arr_ram_cell_tech_type"] = 0
-                elif "itrs-lstp" in cell_type:
-                    config_dict["tag_arr_ram_cell_tech_type"] = 1
-                elif "itrs-lop" in cell_type:
-                    config_dict["tag_arr_ram_cell_tech_type"] = 2
-                elif "lp-dram" in cell_type:
-                    config_dict["tag_arr_ram_cell_tech_type"] = 3
-                elif "comm-dram" in cell_type:
-                    config_dict["tag_arr_ram_cell_tech_type"] = 4
-                else:
-                    raise ValueError("Invalid tag array cell type")
-            elif line.startswith("-Tag array peripheral type"):
-                config_dict["tag_array_peri_type"] = line.split("\"")[1]
-                peri_type = config_dict["tag_array_peri_type"]
-                if "itrs-hp" in peri_type:
-                    config_dict["tag_arr_peri_global_tech_type"] = 0
-                elif "itrs-lstp" in peri_type:
-                    config_dict["tag_arr_peri_global_tech_type"] = 1
-                elif "itrs-lop" in peri_type:
-                    config_dict["tag_arr_peri_global_tech_type"] = 2
-                else:
-                    raise ValueError("Invalid tag array peripheral type")
-            elif line.startswith("-design"):
-                match = re.search(r'-design objective \(weight delay, dynamic power, leakage power, cycle time, area\) (\d+):(\d+):(\d+):(\d+):(\d+)', line)
-                if match:
-                    config_dict["delay_wt"] = int(match.group(1))
-                    config_dict["dynamic_power_wt"] = int(match.group(2))
-                    config_dict["leakage_power_wt"] = int(match.group(3))
-                    config_dict["cycle_time_wt"] = int(match.group(4))
-                    config_dict["area_wt"] = int(match.group(5))
-            # Repeat the same pattern for the rest of the `self.` attributes
+    for line in lines:
+        line = line.strip()
+        if line.startswith("-size"):
+            config_dict["cache_size"] = int(line.split()[-1])
+        elif line.startswith("-page size"):
+            config_dict["page_sz_bits"] = int(line.split()[-1])
+        elif line.startswith("-burst length"):
+            config_dict["burst_len"] = int(line.split()[-1])
+        elif line.startswith("-internal prefetch width"):
+            config_dict["int_prefetch_w"] = int(line.split()[-1])
+        elif line.startswith("-block size (bytes)"):
+            config_dict["line_sz"] = int(line.split()[-1])
+        elif line.startswith("-associativity"):
+            config_dict["assoc"] = int(line.split()[-1])
+        elif line.startswith("-read-write port"):
+            config_dict["num_rw_ports"] = int(line.split()[-1])
+        elif line.startswith("-exclusive read port"):
+            config_dict["num_rd_ports"] = int(line.split()[-1])
+        elif line.startswith("-exclusive write port"):
+            config_dict["num_wr_ports"] = int(line.split()[-1])
+        elif line.startswith("-single"):
+            config_dict["num_se_rd_ports"] = int(line.split()[-1])
+        elif line.startswith("-search port"):
+            config_dict["num_search_ports"] = int(line.split()[-1])
+        elif line.startswith("-UCA bank"):
+            config_dict["nbanks"] = int(line.split()[-1])
+        elif line.startswith("-technology"):
+            config_dict["F_sz_um"] = float(line.split()[-1])
+            config_dict["F_sz_nm"] = config_dict["F_sz_um"] * 1000
+        elif line.startswith("-output/input bus"):
+            config_dict["bus_width"] = int(float(line.split()[-1]))
+        elif line.startswith("-operating temperature"):
+            config_dict["temp"] = int(line.split()[-1])
+        elif line.startswith("-cache type"):
+            config_dict["cache_type"] = line.split("\"")[1]
+            config_dict["is_cache"] = "cache" in config_dict["cache_type"]
+            config_dict["is_main_mem"] = "main memory" in config_dict["cache_type"]
+            config_dict["is_3d_mem"] = "3D memory or 2D main memory" in config_dict["cache_type"]
+            config_dict["pure_cam"] = "cam" in config_dict["cache_type"]
+            config_dict["pure_ram"] = "ram" in config_dict["cache_type"] or config_dict["is_main_mem"]
+        elif line.startswith("-print option"):
+            print_option = line.split("\"")[1]
+            config_dict["print_detail_debug"] = "debug detail" in print_option
+        elif line.startswith("-burst depth"):
+            config_dict["burst_depth"] = int(line.split()[-1])
+        elif line.startswith("-IO width"):
+            config_dict["io_width"] = int(line.split()[-1])
+        elif line.startswith("-system frequency"):
+            config_dict["sys_freq_MHz"] = int(line.split()[-1])
+        elif line.startswith("-stacked die"):
+            config_dict["num_die_3d"] = int(line.split()[-1])
+        elif line.startswith("-partitioning granularity"):
+            config_dict["partition_gran"] = int(line.split()[-1])
+        elif line.startswith("-TSV projection"):
+            config_dict["TSV_proj_type"] = int(line.split()[-1])
+        elif line.startswith("-tag size"):
+            config_dict["tag_size"] = line.split("\"")[1]
+            if "default" in config_dict["tag_size"]:
+                config_dict["specific_tag"] = False
+                config_dict["tag_w"] = 42
+            else:
+                config_dict["specific_tag"] = True
+                config_dict["tag_w"] = int(line.split()[-1])
+        elif line.startswith("-access mode"):
+            access_mode = line.split("\"")[1]
+            if "fast" in access_mode:
+                config_dict["access_mode"] = 2
+            elif "sequential" in access_mode:
+                config_dict["access_mode"] = 1
+            elif "normal" in access_mode:
+                config_dict["access_mode"] = 0
+            else:
+                raise ValueError("Invalid access mode")
+        elif line.startswith("-Data array cell type"):
+            config_dict["data_array_cell_type"] = line.split("\"")[1]
+            cell_type = config_dict["data_array_cell_type"]
+            if "itrs-hp" in cell_type:
+                config_dict["data_arr_ram_cell_tech_type"] = 0
+            elif "itrs-lstp" in cell_type:
+                config_dict["data_arr_ram_cell_tech_type"] = 1
+            elif "itrs-lop" in cell_type:
+                config_dict["data_arr_ram_cell_tech_type"] = 2
+            elif "lp-dram" in cell_type:
+                config_dict["data_arr_ram_cell_tech_type"] = 3
+            elif "comm-dram" in cell_type:
+                config_dict["data_arr_ram_cell_tech_type"] = 4
+            else:
+                raise ValueError("Invalid data array cell type")
+        elif line.startswith("-Data array peripheral type"):
+            config_dict["data_array_peri_type"] = line.split("\"")[1]
+            peri_type = config_dict["data_array_peri_type"]
+            if "itrs-hp" in peri_type:
+                config_dict["data_arr_peri_global_tech_type"] = 0
+            elif "itrs-lstp" in peri_type:
+                config_dict["data_arr_peri_global_tech_type"] = 1
+            elif "itrs-lop" in peri_type:
+                config_dict["data_arr_peri_global_tech_type"] = 2
+            else:
+                raise ValueError("Invalid data array peripheral type")
+        elif line.startswith("-Tag array cell type"):
+            config_dict["tag_array_cell_type"] = line.split("\"")[1]
+            cell_type = config_dict["tag_array_cell_type"]
+            if "itrs-hp" in cell_type:
+                config_dict["tag_arr_ram_cell_tech_type"] = 0
+            elif "itrs-lstp" in cell_type:
+                config_dict["tag_arr_ram_cell_tech_type"] = 1
+            elif "itrs-lop" in cell_type:
+                config_dict["tag_arr_ram_cell_tech_type"] = 2
+            elif "lp-dram" in cell_type:
+                config_dict["tag_arr_ram_cell_tech_type"] = 3
+            elif "comm-dram" in cell_type:
+                config_dict["tag_arr_ram_cell_tech_type"] = 4
+            else:
+                raise ValueError("Invalid tag array cell type")
+        elif line.startswith("-Tag array peripheral type"):
+            config_dict["tag_array_peri_type"] = line.split("\"")[1]
+            peri_type = config_dict["tag_array_peri_type"]
+            if "itrs-hp" in peri_type:
+                config_dict["tag_arr_peri_global_tech_type"] = 0
+            elif "itrs-lstp" in peri_type:
+                config_dict["tag_arr_peri_global_tech_type"] = 1
+            elif "itrs-lop" in peri_type:
+                config_dict["tag_arr_peri_global_tech_type"] = 2
+            else:
+                raise ValueError("Invalid tag array peripheral type")
+        elif line.startswith("-design"):
+            match = re.search(r'-design objective \(weight delay, dynamic power, leakage power, cycle time, area\) (\d+):(\d+):(\d+):(\d+):(\d+)', line)
+            if match:
+                config_dict["delay_wt"] = int(match.group(1))
+                config_dict["dynamic_power_wt"] = int(match.group(2))
+                config_dict["leakage_power_wt"] = int(match.group(3))
+                config_dict["cycle_time_wt"] = int(match.group(4))
+                config_dict["area_wt"] = int(match.group(5))
+        # Repeat the same pattern for the rest of the `self.` attributes
 
-            elif line.startswith("-deviate"):
-                match = re.search(r'-deviate \(delay, dynamic power, leakage power, cycle time, area\) (\d+):(\d+):(\d+):(\d+):(\d+)', line)
-                if match:
-                    config_dict["delay_dev"] = int(match.group(1))
-                    config_dict["dynamic_power_dev"] = int(match.group(2))
-                    config_dict["leakage_power_dev"] = int(match.group(3))
-                    config_dict["cycle_time_dev"] = int(match.group(4))
-                    config_dict["area_dev"] = int(match.group(5))
-            elif line.startswith("-Optimize"):
-                optimize = line.split("\"")[1]
-                if "ED^2" in optimize:
-                    config_dict["ed"] = 2
-                elif "ED" in optimize:
-                    config_dict["ed"] = 1
-                else:
-                    config_dict["ed"] = 0
-            elif line.startswith("-NUCAdesign"):
-                match = re.search(r'-NUCAdesign objective \(weight delay, dynamic power, leakage power, cycle time, area\) (\d+):(\d+):(\d+):(\d+):(\d+)', line)
-                if match:
-                    config_dict["delay_wt_nuca"] = int(match.group(1))
-                    config_dict["dynamic_power_wt_nuca"] = int(match.group(2))
-                    config_dict["leakage_power_wt_nuca"] = int(match.group(3))
-                    config_dict["cycle_time_wt_nuca"] = int(match.group(4))
-                    config_dict["area_wt_nuca"] = int(match.group(5))
-            elif line.startswith("-NUCAdeviate"):
-                match = re.search(r'-NUCAdeviate \(delay, dynamic power, leakage power, cycle time, area\) (\d+):(\d+):(\d+):(\d+):(\d+)', line)
-                if match:
-                    config_dict["delay_dev_nuca"] = int(match.group(1))
-                    config_dict["dynamic_power_dev_nuca"] = int(match.group(2))
-                    config_dict["leakage_power_dev_nuca"] = int(match.group(3))
-                    config_dict["cycle_time_dev_nuca"] = int(match.group(4))
-                    config_dict["area_dev_nuca"] = int(match.group(5))
-            elif line.startswith("-Cache model"):
-                cache_model = line.split("\"")[1]
-                config_dict["nuca"] = 0 if "UCA" in cache_model else 1
-            elif line.startswith("-NUCA bank count"):
-                config_dict["nuca_bank_count"] = int(line.split()[-1])
-                if config_dict["nuca_bank_count"] != 0:
-                    config_dict["force_nuca_bank"] = 1
-            elif line.startswith("-Wire inside mat"):
-                wire_type = line.split("\"")[1]
-                if "global" in wire_type:
-                    config_dict["wire_is_mat_type"] = 2
-                elif "local" in wire_type:
-                    config_dict["wire_is_mat_type"] = 0
-                else:
-                    config_dict["wire_is_mat_type"] = 1
-            elif line.startswith("-Wire outside mat"):
-                wire_type = line.split("\"")[1]
-                if "global" in wire_type:
-                    config_dict["wire_os_mat_type"] = 2
-                else:
-                    config_dict["wire_os_mat_type"] = 1
-            elif line.startswith("-Interconnect projection"):
-                ic_proj_type = line.split("\"")[1]
-                config_dict["ic_proj_type"] = 0 if "aggressive" in ic_proj_type else 1
-            elif line.startswith("-Wire signaling"):
-                wire_signaling = line.split("\"")[1]
-                if "default" in wire_signaling:
-                    config_dict["force_wiretype"] = 0
-                    config_dict["wt"] = "Global"
-                elif "Global_10" in wire_signaling:
-                    config_dict["force_wiretype"] = 1
-                    config_dict["wt"] = "Global_10"
-                elif "Global_20" in wire_signaling:
-                    config_dict["force_wiretype"] = 1
-                    config_dict["wt"] = "Global_20"
-                elif "Global_30" in wire_signaling:
-                    config_dict["force_wiretype"] = 1
-                    config_dict["wt"] = "Global_30"
-                elif "Global_5" in wire_signaling:
-                    config_dict["force_wiretype"] = 1
-                    config_dict["wt"] = "Global_5"
-                elif "Global" in wire_signaling:
-                    config_dict["force_wiretype"] = 1
-                    config_dict["wt"] = "Global"
-                elif "fullswing" in wire_signaling:
-                    config_dict["force_wiretype"] = 1
-                    config_dict["wt"] = "Full_swing"
-                elif "lowswing" in wire_signaling:
-                    config_dict["force_wiretype"] = 1
-                    config_dict["wt"] = "Low_swing"
-                else:
-                    raise ValueError("Unknown wire type")
-            elif line.startswith("-Core count"):
-                config_dict["cores"] = int(line.split()[-1])
-                if config_dict["cores"] > 16:
-                    raise ValueError("No. of cores should be less than 16!")
-            elif line.startswith("-Cache level"):
-                cache_level = line.split("\"")[1]
-                config_dict["cache_level"] = 0 if "L2" in cache_level else 1
-            elif line.startswith("-Print level"):
-                print_level = line.split("\"")[1]
-                config_dict["print_detail"] = 1 if "DETAILED" in print_level else 0
-            elif line.startswith("-Add ECC"):
-                add_ecc = line.split("\"")[1]
-                config_dict["add_ecc_b_"] = True if "true" in add_ecc else False
-            elif line.startswith("-CLDriver vertical"):
-                cl_driver = line.split("\"")[1]
-                config_dict["cl_vertical"] = True if "true" in cl_driver else False
-            elif line.startswith("-Array Power Gating"):
-                array_power = line.split("\"")[1]
-                config_dict["array_power_gated"] = True if "true" in array_power else False
-            elif line.startswith("-Bitline floating"):
-                bitline_float = line.split("\"")[1]
-                config_dict["bitline_floating"] = True if "true" in bitline_float else False
-            elif line.startswith("-WL Power Gating"):
-                wl_power = line.split("\"")[1]
-                config_dict["wl_power_gated"] = True if "true" in wl_power else False
-            elif line.startswith("-CL Power Gating"):
-                cl_power = line.split("\"")[1]
-                config_dict["cl_power_gated"] = True if "true" in cl_power else False
-            elif line.startswith("-Interconnect Power Gating"):
-                interconnect_power = line.split("\"")[1]
-                config_dict["interconnect_power_gated"] = True if "true" in interconnect_power else False
-            elif line.startswith("-Power Gating Performance Loss"):
-                val = line.split()[-1]
-                cleaned_value = val.strip('"').strip()
-                config_dict["perfloss"] = float(cleaned_value)
-            elif line.startswith("-Print input parameters"):
-                print_input = line.split("\"")[1]
-                config_dict["print_input_args"] = True if "true" in print_input else False
-            elif line.startswith("-Force cache config"):
-                force_cache = line.split("\"")[1]
-                config_dict["force_cache_config"] = True if "true" in force_cache else False
-            elif line.startswith("-Ndbl"):
-                config_dict["ndbl"] = int(line.split()[-1])
-            elif line.startswith("-Ndwl"):
-                config_dict["ndwl"] = int(line.split()[-1])
-            elif line.startswith("-Nspd"):
-                config_dict["nspd"] = int(line.split()[-1])
-            elif line.startswith("-Ndsam1"):
-                config_dict["ndsam1"] = int(line.split()[-1])
-            elif line.startswith("-Ndsam2"):
-                config_dict["ndsam2"] = int(line.split()[-1])
-            elif line.startswith("-Ndcm"):
-                config_dict["ndcm"] = int(line.split()[-1])
-            elif line.startswith("-dram_type"):
-                dram_type = line.split("\"")[1]
-                if "DDR3" in dram_type:
-                    config_dict["io_type"] = "DDR3"
-                elif "DDR4" in dram_type:
-                    config_dict["io_type"] = "DDR4"
-                elif "LPDDR2" in dram_type:
-                    config_dict["io_type"] = "LPDDR2"
-                elif "WideIO" in dram_type:
-                    config_dict["io_type"] = "WideIO"
-                elif "Low_Swing_Diff" in dram_type:
-                    config_dict["io_type"] = "Low_Swing_Diff"
-                elif "Serial" in dram_type:
-                    config_dict["io_type"] = "Serial"
-                else:
-                    raise ValueError("Invalid Input for dram type")
-            elif line.startswith("-io state"):
-                io_state = line.split("\"")[1]
-                config_dict['io_state'] = io_state
-                if "READ" in io_state:
-                    config_dict["iostate"] = "READ"
-                elif "WRITE" in io_state:
-                    config_dict["iostate"] = "WRITE"
-                elif "IDLE" in io_state:
-                    config_dict["iostate"] = "IDLE"
-                elif "SLEEP" in io_state:
-                    config_dict["iostate"] = "SLEEP"
-                else:
-                    raise ValueError("Invalid Input for io state")
-            elif line.startswith("-addr_timing"):
-                config_dict["addr_timing"] = float(re.search(r'-addr_timing (\d+(\.\d+)?)', line).group(1))
-            elif line.startswith("-dram ecc"):
-                dram_ecc = line.split("\"")[1]
-                if "NO_ECC" in dram_ecc:
-                    config_dict["dram_ecc"] = "NO_ECC"
-                elif "SECDED" in dram_ecc:
-                    config_dict["dram_ecc"] = "SECDED"
-                elif "CHIP_KILL" in dram_ecc:
-                    config_dict["dram_ecc"] = "CHIP_KILL"
-                else:
-                    raise ValueError("Invalid Input for dram ecc")
-            elif line.startswith("-dram dimm"):
-                dram_dimm = line.split("\"")[1]
-                if "UDIMM" in dram_dimm:
-                    config_dict["dram_dimm"] = "UDIMM"
-                elif "RDIMM" in dram_dimm:
-                    config_dict["dram_dimm"] = "RDIMM"
-                elif "LRDIMM" in dram_dimm:
-                    config_dict["dram_dimm"] = "LRDIMM"
-                else:
-                    raise ValueError("Invalid Input for dram dimm")
-            elif line.startswith("-bus_bw"):
-                config_dict["bus_bw"] = float(line.split()[-1])
-            elif line.startswith("-duty_cycle"):
-                config_dict["duty_cycle"] = float(line.split()[-1])
-            elif line.startswith("-mem_density"):
-                config_dict["mem_density"] = float(re.search(r'-mem_density (\d+)', line).group(1))
-            elif line.startswith("-activity_dq"):
-                config_dict["activity_dq"] = float(re.search(r'-activity_dq (\d+\.\d+)', line).group(1))
-            elif line.startswith("-activity_ca"):
-                config_dict["activity_ca"] = float(re.search(r'-activity_ca (\d+\.\d+)', line).group(1))
-            elif line.startswith("-bus_freq"):
-                config_dict["bus_freq"] = float(re.search(r'-bus_freq (\d+)', line).group(1))
-                print(f"bus_freq: {config_dict['bus_freq']}")
-            elif line.startswith("-num_dqs"):
-                # dqs check has to be before dq check else won't pass
-                print(f"FOUND LINE STARTING WITH -num_dqs: {line}")
-                match = re.search(r"-num_dqs (\d+)", line)
-                if match:
-                    config_dict["num_dqs"] = int(match.group(1))
-                else:
-                    print(f"No num DQS found in {line}")
-                    config_dict["num_dqs"] = 0
-            elif line.startswith("-num_dq"):
-                print(f"FOUND LINE STARTING WITH -num_dq: {line}")
-                match = re.search(r'-num_dq (\d+)', line)
-                if match:
-                    config_dict["num_dq"] = int(match.group(1))
+        elif line.startswith("-deviate"):
+            match = re.search(r'-deviate \(delay, dynamic power, leakage power, cycle time, area\) (\d+):(\d+):(\d+):(\d+):(\d+)', line)
+            if match:
+                config_dict["delay_dev"] = int(match.group(1))
+                config_dict["dynamic_power_dev"] = int(match.group(2))
+                config_dict["leakage_power_dev"] = int(match.group(3))
+                config_dict["cycle_time_dev"] = int(match.group(4))
+                config_dict["area_dev"] = int(match.group(5))
+        elif line.startswith("-Optimize"):
+            optimize = line.split("\"")[1]
+            if "ED^2" in optimize:
+                config_dict["ed"] = 2
+            elif "ED" in optimize:
+                config_dict["ed"] = 1
+            else:
+                config_dict["ed"] = 0
+        elif line.startswith("-NUCAdesign"):
+            match = re.search(r'-NUCAdesign objective \(weight delay, dynamic power, leakage power, cycle time, area\) (\d+):(\d+):(\d+):(\d+):(\d+)', line)
+            if match:
+                config_dict["delay_wt_nuca"] = int(match.group(1))
+                config_dict["dynamic_power_wt_nuca"] = int(match.group(2))
+                config_dict["leakage_power_wt_nuca"] = int(match.group(3))
+                config_dict["cycle_time_wt_nuca"] = int(match.group(4))
+                config_dict["area_wt_nuca"] = int(match.group(5))
+        elif line.startswith("-NUCAdeviate"):
+            match = re.search(r'-NUCAdeviate \(delay, dynamic power, leakage power, cycle time, area\) (\d+):(\d+):(\d+):(\d+):(\d+)', line)
+            if match:
+                config_dict["delay_dev_nuca"] = int(match.group(1))
+                config_dict["dynamic_power_dev_nuca"] = int(match.group(2))
+                config_dict["leakage_power_dev_nuca"] = int(match.group(3))
+                config_dict["cycle_time_dev_nuca"] = int(match.group(4))
+                config_dict["area_dev_nuca"] = int(match.group(5))
+        elif line.startswith("-Cache model"):
+            cache_model = line.split("\"")[1]
+            config_dict["nuca"] = 0 if "UCA" in cache_model else 1
+        elif line.startswith("-NUCA bank count"):
+            config_dict["nuca_bank_count"] = int(line.split()[-1])
+            if config_dict["nuca_bank_count"] != 0:
+                config_dict["force_nuca_bank"] = 1
+        elif line.startswith("-Wire inside mat"):
+            wire_type = line.split("\"")[1]
+            if "global" in wire_type:
+                config_dict["wire_is_mat_type"] = 2
+            elif "local" in wire_type:
+                config_dict["wire_is_mat_type"] = 0
+            else:
+                config_dict["wire_is_mat_type"] = 1
+        elif line.startswith("-Wire outside mat"):
+            wire_type = line.split("\"")[1]
+            if "global" in wire_type:
+                config_dict["wire_os_mat_type"] = 2
+            else:
+                config_dict["wire_os_mat_type"] = 1
+        elif line.startswith("-Interconnect projection"):
+            ic_proj_type = line.split("\"")[1]
+            config_dict["ic_proj_type"] = 0 if "aggressive" in ic_proj_type else 1
+        elif line.startswith("-Wire signaling"):
+            wire_signaling = line.split("\"")[1]
+            if "default" in wire_signaling:
+                config_dict["force_wiretype"] = 0
+                config_dict["wt"] = "Global"
+            elif "Global_10" in wire_signaling:
+                config_dict["force_wiretype"] = 1
+                config_dict["wt"] = "Global_10"
+            elif "Global_20" in wire_signaling:
+                config_dict["force_wiretype"] = 1
+                config_dict["wt"] = "Global_20"
+            elif "Global_30" in wire_signaling:
+                config_dict["force_wiretype"] = 1
+                config_dict["wt"] = "Global_30"
+            elif "Global_5" in wire_signaling:
+                config_dict["force_wiretype"] = 1
+                config_dict["wt"] = "Global_5"
+            elif "Global" in wire_signaling:
+                config_dict["force_wiretype"] = 1
+                config_dict["wt"] = "Global"
+            elif "fullswing" in wire_signaling:
+                config_dict["force_wiretype"] = 1
+                config_dict["wt"] = "Full_swing"
+            elif "lowswing" in wire_signaling:
+                config_dict["force_wiretype"] = 1
+                config_dict["wt"] = "Low_swing"
+            else:
+                raise ValueError("Unknown wire type")
+        elif line.startswith("-Core count"):
+            config_dict["cores"] = int(line.split()[-1])
+            if config_dict["cores"] > 16:
+                raise ValueError("No. of cores should be less than 16!")
+        elif line.startswith("-Cache level"):
+            cache_level = line.split("\"")[1]
+            config_dict["cache_level"] = 0 if "L2" in cache_level else 1
+        elif line.startswith("-Print level"):
+            print_level = line.split("\"")[1]
+            config_dict["print_detail"] = 1 if "DETAILED" in print_level else 0
+        elif line.startswith("-Add ECC"):
+            add_ecc = line.split("\"")[1]
+            config_dict["add_ecc_b_"] = True if "true" in add_ecc else False
+        elif line.startswith("-CLDriver vertical"):
+            cl_driver = line.split("\"")[1]
+            config_dict["cl_vertical"] = True if "true" in cl_driver else False
+        elif line.startswith("-Array Power Gating"):
+            array_power = line.split("\"")[1]
+            config_dict["array_power_gated"] = True if "true" in array_power else False
+        elif line.startswith("-Bitline floating"):
+            bitline_float = line.split("\"")[1]
+            config_dict["bitline_floating"] = True if "true" in bitline_float else False
+        elif line.startswith("-WL Power Gating"):
+            wl_power = line.split("\"")[1]
+            config_dict["wl_power_gated"] = True if "true" in wl_power else False
+        elif line.startswith("-CL Power Gating"):
+            cl_power = line.split("\"")[1]
+            config_dict["cl_power_gated"] = True if "true" in cl_power else False
+        elif line.startswith("-Interconnect Power Gating"):
+            interconnect_power = line.split("\"")[1]
+            config_dict["interconnect_power_gated"] = True if "true" in interconnect_power else False
+        elif line.startswith("-Power Gating Performance Loss"):
+            val = line.split()[-1]
+            cleaned_value = val.strip('"').strip()
+            config_dict["perfloss"] = float(cleaned_value)
+        elif line.startswith("-Print input parameters"):
+            print_input = line.split("\"")[1]
+            config_dict["print_input_args"] = True if "true" in print_input else False
+        elif line.startswith("-Force cache config"):
+            force_cache = line.split("\"")[1]
+            config_dict["force_cache_config"] = True if "true" in force_cache else False
+        elif line.startswith("-Ndbl"):
+            config_dict["ndbl"] = int(line.split()[-1])
+        elif line.startswith("-Ndwl"):
+            config_dict["ndwl"] = int(line.split()[-1])
+        elif line.startswith("-Nspd"):
+            config_dict["nspd"] = int(line.split()[-1])
+        elif line.startswith("-Ndsam1"):
+            config_dict["ndsam1"] = int(line.split()[-1])
+        elif line.startswith("-Ndsam2"):
+            config_dict["ndsam2"] = int(line.split()[-1])
+        elif line.startswith("-Ndcm"):
+            config_dict["ndcm"] = int(line.split()[-1])
+        elif line.startswith("-dram_type"):
+            dram_type = line.split("\"")[1]
+            if "DDR3" in dram_type:
+                config_dict["io_type"] = "DDR3"
+            elif "DDR4" in dram_type:
+                config_dict["io_type"] = "DDR4"
+            elif "LPDDR2" in dram_type:
+                config_dict["io_type"] = "LPDDR2"
+            elif "WideIO" in dram_type:
+                config_dict["io_type"] = "WideIO"
+            elif "Low_Swing_Diff" in dram_type:
+                config_dict["io_type"] = "Low_Swing_Diff"
+            elif "Serial" in dram_type:
+                config_dict["io_type"] = "Serial"
+            else:
+                raise ValueError("Invalid Input for dram type")
+        elif line.startswith("-io state"):
+            io_state = line.split("\"")[1]
+            config_dict['io_state'] = io_state
+            if "READ" in io_state:
+                config_dict["iostate"] = "READ"
+            elif "WRITE" in io_state:
+                config_dict["iostate"] = "WRITE"
+            elif "IDLE" in io_state:
+                config_dict["iostate"] = "IDLE"
+            elif "SLEEP" in io_state:
+                config_dict["iostate"] = "SLEEP"
+            else:
+                raise ValueError("Invalid Input for io state")
+        elif line.startswith("-addr_timing"):
+            config_dict["addr_timing"] = float(re.search(r'-addr_timing (\d+(\.\d+)?)', line).group(1))
+        elif line.startswith("-dram ecc"):
+            dram_ecc = line.split("\"")[1]
+            if "NO_ECC" in dram_ecc:
+                config_dict["dram_ecc"] = "NO_ECC"
+            elif "SECDED" in dram_ecc:
+                config_dict["dram_ecc"] = "SECDED"
+            elif "CHIP_KILL" in dram_ecc:
+                config_dict["dram_ecc"] = "CHIP_KILL"
+            else:
+                raise ValueError("Invalid Input for dram ecc")
+        elif line.startswith("-dram dimm"):
+            dram_dimm = line.split("\"")[1]
+            if "UDIMM" in dram_dimm:
+                config_dict["dram_dimm"] = "UDIMM"
+            elif "RDIMM" in dram_dimm:
+                config_dict["dram_dimm"] = "RDIMM"
+            elif "LRDIMM" in dram_dimm:
+                config_dict["dram_dimm"] = "LRDIMM"
+            else:
+                raise ValueError("Invalid Input for dram dimm")
+        elif line.startswith("-bus_bw"):
+            config_dict["bus_bw"] = float(line.split()[-1])
+        elif line.startswith("-duty_cycle"):
+            config_dict["duty_cycle"] = float(line.split()[-1])
+        elif line.startswith("-mem_density"):
+            config_dict["mem_density"] = float(re.search(r'-mem_density (\d+)', line).group(1))
+        elif line.startswith("-activity_dq"):
+            config_dict["activity_dq"] = float(re.search(r'-activity_dq (\d+\.\d+)', line).group(1))
+        elif line.startswith("-activity_ca"):
+            config_dict["activity_ca"] = float(re.search(r'-activity_ca (\d+\.\d+)', line).group(1))
+        elif line.startswith("-bus_freq"):
+            config_dict["bus_freq"] = float(re.search(r'-bus_freq (\d+)', line).group(1))
+        elif line.startswith("-num_dqs"):
+            # dqs check has to be before dq check else won't pass
+            match = re.search(r"-num_dqs (\d+)", line)
+            if match:
+                config_dict["num_dqs"] = int(match.group(1))
+            else:
+                config_dict["num_dqs"] = 0
+        elif line.startswith("-num_dq"):
+            match = re.search(r'-num_dq (\d+)', line)
+            if match:
+                config_dict["num_dq"] = int(match.group(1))
+        elif line.startswith("-num_ca"):
+            config_dict["num_ca"] = int(re.search(r'-num_ca (\d+)', line).group(1))
+        elif line.startswith("-num_clk"):
+            config_dict["num_clk"] = int(re.search(r'-num_clk (\d+)', line).group(1))
+            if config_dict["num_clk"] <= 0:
+                raise ValueError("num_clk should be greater than zero!")
+        elif line.startswith("-num_mem_dq"):
+            config_dict["num_mem_dq"] = int(re.search(r'-num_mem_dq (\d+)', line).group(1))
+        elif line.startswith("-mem_data_width"):
+            config_dict["mem_data_width"] = int(re.search(r'-mem_data_width (\d+)', line).group(1))
+        elif line.startswith("-num_bobs"):
+            config_dict["num_bobs"] = int(line.split()[-1])
+        elif line.startswith("-capacity"):
+            value = line.split()[-1]
+            if '.' in value:
+                config_dict["capacity"] = float(value)
+            else:
+                config_dict["capacity"] = int(value)
+        elif line.startswith("-num_channels_per_bob"):
+            config_dict["num_channels_per_bob"] = int(line.split()[-1])
+        elif line.startswith("-first metric"):
+            first_metric = line.split("\"")[1]
+            if "Cost" in first_metric:
+                config_dict["first_metric"] = "Cost"
+            elif "Energy" in first_metric:
+                config_dict["first_metric"] = "Energy"
+            elif "Bandwidth" in first_metric:
+                config_dict["first_metric"] = "Bandwidth"
+            else:
+                raise ValueError("Invalid Input for first metric")
+        elif line.startswith("-second metric"):
+            second_metric = line.split("\"")[1]
+            if "Cost" in second_metric:
+                config_dict["second_metric"] = "Cost"
+            elif "Energy" in second_metric:
+                config_dict["second_metric"] = "Energy"
+            elif "Bandwidth" in second_metric:
+                config_dict["second_metric"] = "Bandwidth"
+            else:
+                raise ValueError("Invalid Input for second metric")
+        elif line.startswith("-third metric"):
+            third_metric = line.split("\"")[1]
+            if "Cost" in third_metric:
+                config_dict["third_metric"] = "Cost"
+            elif "Energy" in third_metric:
+                config_dict["third_metric"] = "Energy"
+            elif "Bandwidth" in third_metric:
+                config_dict["third_metric"] = "Bandwidth"
+            else:
+                raise ValueError("Invalid Input for third metric")
+        elif line.startswith("-DIMM model"):
+            dimm_model = line.split("\"")[1]
+            if "JUST_UDIMM" in dimm_model:
+                config_dict["dimm_model"] = "JUST_UDIMM"
+            elif "JUST_RDIMM" in dimm_model:
+                config_dict["dimm_model"] = "JUST_RDIMM"
+            elif "JUST_LRDIMM" in dimm_model:
+                config_dict["dimm_model"] = "JUST_LRDIMM"
+            elif "ALL" in dimm_model:
+                config_dict["dimm_model"] = "ALL"
+            else:
+                raise ValueError("Invalid Input for DIMM model")
+        elif line.startswith("-Low Power Permitted"):
+            low_power = line.split("\"")[1]
+            config_dict["low_power_permitted"] = True if "T" in low_power else False
+        elif line.startswith("-load"):
+            config_dict["load"] = float(line.split()[-1])
+        elif line.startswith("-row_buffer_hit_rate"):
+            config_dict["row_buffer_hit_rate"] = float(line.split()[-1])
+        elif line.startswith("-rd_2_wr_ratio"):
+            config_dict["rd_2_wr_ratio"] = float(line.split()[-1])
+        elif line.startswith("-same_bw_in_bob"):
+            same_bw = line.split("\"")[1]
+            config_dict["same_bw_in_bob"] = True if "T" in same_bw else False
+        elif line.startswith("-mirror_in_bob"):
+            mirror = line.split("\"")[1]
+            config_dict["mirror_in_bob"] = True if "T" in mirror else False
+        elif line.startswith("-total_power"):
+            total_power = line.split("\"")[1]
+            config_dict["total_power"] = True if "T" in total_power else False
+        elif line.startswith("-verbose"):
+            verbose = line.split("\"")[1]
+            config_dict["verbose"] = True if "T" in verbose else False
+        elif line.startswith("-rtt_value"):
+            config_dict["rtt_value"] = float(line.split()[-1])
+        elif line.startswith("-ron_value"):
+            config_dict["ron_value"] = float(line.split()[-1])
+        elif line.startswith("-tflight_value"):
+            config_dict["tflight_value"] = line.split()[-1]  # or convert it as needed
 
-            elif line.startswith("-num_ca"):
-                config_dict["num_ca"] = int(re.search(r'-num_ca (\d+)', line).group(1))
-            elif line.startswith("-num_clk"):
-                config_dict["num_clk"] = int(re.search(r'-num_clk (\d+)', line).group(1))
-                if config_dict["num_clk"] <= 0:
-                    raise ValueError("num_clk should be greater than zero!")
-            elif line.startswith("-num_mem_dq"):
-                config_dict["num_mem_dq"] = int(re.search(r'-num_mem_dq (\d+)', line).group(1))
-            elif line.startswith("-mem_data_width"):
-                config_dict["mem_data_width"] = int(re.search(r'-mem_data_width (\d+)', line).group(1))
-            elif line.startswith("-num_bobs"):
-                config_dict["num_bobs"] = int(line.split()[-1])
-            elif line.startswith("-capacity"):
-                value = line.split()[-1]
-                if '.' in value:
-                    config_dict["capacity"] = float(value)
-                else:
-                    config_dict["capacity"] = int(value)
-            elif line.startswith("-num_channels_per_bob"):
-                config_dict["num_channels_per_bob"] = int(line.split()[-1])
-            elif line.startswith("-first metric"):
-                first_metric = line.split("\"")[1]
-                if "Cost" in first_metric:
-                    config_dict["first_metric"] = "Cost"
-                elif "Energy" in first_metric:
-                    config_dict["first_metric"] = "Energy"
-                elif "Bandwidth" in first_metric:
-                    config_dict["first_metric"] = "Bandwidth"
-                else:
-                    raise ValueError("Invalid Input for first metric")
-            elif line.startswith("-second metric"):
-                second_metric = line.split("\"")[1]
-                if "Cost" in second_metric:
-                    config_dict["second_metric"] = "Cost"
-                elif "Energy" in second_metric:
-                    config_dict["second_metric"] = "Energy"
-                elif "Bandwidth" in second_metric:
-                    config_dict["second_metric"] = "Bandwidth"
-                else:
-                    raise ValueError("Invalid Input for second metric")
-            elif line.startswith("-third metric"):
-                third_metric = line.split("\"")[1]
-                if "Cost" in third_metric:
-                    config_dict["third_metric"] = "Cost"
-                elif "Energy" in third_metric:
-                    config_dict["third_metric"] = "Energy"
-                elif "Bandwidth" in third_metric:
-                    config_dict["third_metric"] = "Bandwidth"
-                else:
-                    raise ValueError("Invalid Input for third metric")
-            elif line.startswith("-DIMM model"):
-                dimm_model = line.split("\"")[1]
-                if "JUST_UDIMM" in dimm_model:
-                    config_dict["dimm_model"] = "JUST_UDIMM"
-                elif "JUST_RDIMM" in dimm_model:
-                    config_dict["dimm_model"] = "JUST_RDIMM"
-                elif "JUST_LRDIMM" in dimm_model:
-                    config_dict["dimm_model"] = "JUST_LRDIMM"
-                elif "ALL" in dimm_model:
-                    config_dict["dimm_model"] = "ALL"
-                else:
-                    raise ValueError("Invalid Input for DIMM model")
-            elif line.startswith("-Low Power Permitted"):
-                low_power = line.split("\"")[1]
-                config_dict["low_power_permitted"] = True if "T" in low_power else False
-            elif line.startswith("-load"):
-                config_dict["load"] = float(line.split()[-1])
-            elif line.startswith("-row_buffer_hit_rate"):
-                config_dict["row_buffer_hit_rate"] = float(line.split()[-1])
-            elif line.startswith("-rd_2_wr_ratio"):
-                config_dict["rd_2_wr_ratio"] = float(line.split()[-1])
-            elif line.startswith("-same_bw_in_bob"):
-                same_bw = line.split("\"")[1]
-                config_dict["same_bw_in_bob"] = True if "T" in same_bw else False
-            elif line.startswith("-mirror_in_bob"):
-                mirror = line.split("\"")[1]
-                config_dict["mirror_in_bob"] = True if "T" in mirror else False
-            elif line.startswith("-total_power"):
-                total_power = line.split("\"")[1]
-                config_dict["total_power"] = True if "T" in total_power else False
-            elif line.startswith("-verbose"):
-                verbose = line.split("\"")[1]
-                config_dict["verbose"] = True if "T" in verbose else False
-            elif line.startswith("-rtt_value"):
-                config_dict["rtt_value"] = float(line.split()[-1])
-            elif line.startswith("-ron_value"):
-                config_dict["ron_value"] = float(line.split()[-1])
-            elif line.startswith("-tflight_value"):
-                config_dict["tflight_value"] = line.split()[-1]  # or convert it as needed
+    A = 0
+    seq_access = False
+    fast_access = True
 
-        A = 0
+    if config_dict['access_mode'] == 0:
+        seq_access = False
+        fast_access = False
+    elif config_dict['access_mode'] == 1:
+        seq_access = True
+        fast_access = False
+    elif config_dict['access_mode'] == 2:
         seq_access = False
         fast_access = True
 
-        if config_dict['access_mode'] == 0:
-            seq_access = False
-            fast_access = False
-        elif config_dict['access_mode'] == 1:
-            seq_access = True
-            fast_access = False
-        elif config_dict['access_mode'] == 2:
-            seq_access = False
-            fast_access = True
+    if config_dict['is_main_mem']:
+        if config_dict['ic_proj_type'] == 0 and not g_ip.is_3d_mem:
+            print("DRAM model supports only conservative interconnect projection!\n\n")
+            return False
 
-        if config_dict['is_main_mem']:
-            if config_dict['ic_proj_type'] == 0 and not g_ip.is_3d_mem:
-                print("DRAM model supports only conservative interconnect projection!\n\n")
+    B = config_dict['line_sz']
+
+    if B < 1:
+        print("Block size must >= 1")
+        return False
+    elif B * 8 < config_dict['bus_width']:
+        print(f"Block size must be at least {config_dict['bus_width'] / 8}")
+        return False
+
+    if config_dict['F_sz_um'] <= 0:
+        print("Feature size must be > 0")
+        return False
+    elif config_dict['F_sz_um'] > 0.091:
+        print("Feature size must be <= 90 nm")
+        return False
+
+    RWP = config_dict['num_rw_ports']
+    ERP = config_dict['num_rd_ports']
+    EWP = config_dict['num_wr_ports']
+    NSER = config_dict['num_se_rd_ports']
+    SCHP = config_dict['num_search_ports']
+
+    if (RWP + ERP + EWP) < 1:
+        print("Must have at least one port")
+        return False
+
+    if not is_pow2(config_dict['nbanks']):
+        print("Number of subbanks should be greater than or equal to 1 and should be a power of 2")
+        return False
+
+    C = config_dict['cache_size'] / config_dict['nbanks']
+    if C < 64 and not g_ip.is_3d_mem:
+        print("Cache size must >=64")
+        return False
+
+    if config_dict['is_cache'] and config_dict['assoc'] == 0:
+        config_dict['fully_assoc'] = True
+    else:
+        config_dict['fully_assoc'] = False
+
+    if config_dict['pure_cam'] and config_dict['assoc'] != 0:
+        print("Pure CAM must have associativity as 0")
+        return False
+
+    if config_dict['assoc'] == 0 and not config_dict['pure_cam'] and not config_dict['is_cache']:
+        print("Only CAM or Fully associative cache can have associativity as 0")
+        return False
+
+    if (config_dict['fully_assoc'] or config_dict['pure_cam']) and (
+            config_dict['data_arr_ram_cell_tech_type'] != config_dict['tag_arr_ram_cell_tech_type']
+            or config_dict['data_arr_peri_global_tech_type'] != config_dict['tag_arr_peri_global_tech_type']):
+        print("CAM and fully associative cache must have same device type for both data and tag array")
+        return False
+
+    if (config_dict['fully_assoc'] or config_dict['pure_cam']) and (
+            config_dict['data_arr_ram_cell_tech_type'] == lp_dram or config_dict['data_arr_ram_cell_tech_type'] == comm_dram):
+        print("DRAM based CAM and fully associative cache are not supported")
+        return False
+
+    if (config_dict['fully_assoc'] or config_dict['pure_cam']) and config_dict['is_main_mem']:
+        print("CAM and fully associative cache cannot be as main memory")
+        return False
+
+    if (config_dict['fully_assoc'] or config_dict['pure_cam']) and SCHP < 1:
+        print("CAM and fully associative must have at least 1 search port")
+        return False
+
+    if RWP == 0 and ERP == 0 and SCHP > 0 and (config_dict['fully_assoc'] or config_dict['pure_cam']):
+        ERP = SCHP
+
+    if config_dict['assoc'] == 0:
+        A = C / B
+    else:
+        if config_dict['assoc'] == 1:
+            A = 1
+        else:
+            A = config_dict['assoc']
+            if not is_pow2(A):
+                print("Associativity must be a power of 2")
                 return False
 
-        B = config_dict['line_sz']
+    if C / (B * A) <= 1 and config_dict['assoc'] != 0 and not g_ip.is_3d_mem:
+        print("Number of sets is too small: ")
+        print(" Need to either increase cache size, or decrease associativity or block size")
+        print(" (or use fully associative cache)")
+        return False
 
-        if B < 1:
-            print("Block size must >= 1")
-            return False
-        elif B * 8 < config_dict['bus_width']:
-            print(f"Block size must be at least {config_dict['bus_width'] / 8}")
-            return False
+    config_dict['block_size'] = B
 
-        if config_dict['F_sz_um'] <= 0:
-            print("Feature size must be > 0")
-            return False
-        elif config_dict['F_sz_um'] > 0.091:
-            print("Feature size must be <= 90 nm")
-            return False
+    if seq_access:
+        config_dict['tag_assoc'] = A
+        config_dict['data_assoc'] = 1
+        config_dict['is_seq_acc'] = True
+    else:
+        config_dict['tag_assoc'] = A
+        config_dict['data_assoc'] = A
+        config_dict['is_seq_acc'] = False
 
-        RWP = config_dict['num_rw_ports']
-        ERP = config_dict['num_rd_ports']
-        EWP = config_dict['num_wr_ports']
-        NSER = config_dict['num_se_rd_ports']
-        SCHP = config_dict['num_search_ports']
+    if config_dict['assoc'] == 0:
+        config_dict['data_assoc'] = 1
 
-        if (RWP + ERP + EWP) < 1:
-            print("Must have at least one port")
-            return False
+    config_dict['num_rw_ports'] = RWP
+    config_dict['num_rd_ports'] = ERP
+    config_dict['num_wr_ports'] = EWP
+    config_dict['num_se_rd_ports'] = NSER
 
-        if not is_pow2(config_dict['nbanks']):
-            print("Number of subbanks should be greater than or equal to 1 and should be a power of 2")
-            return False
+    if not (config_dict['fully_assoc'] or config_dict['pure_cam']):
+        config_dict['num_search_ports'] = 0
 
-        C = config_dict['cache_size'] / config_dict['nbanks']
-        if C < 64 and not g_ip.is_3d_mem:
-            print("Cache size must >=64")
-            return False
+    config_dict['nsets'] = C / (B * A)
 
-        if config_dict['is_cache'] and config_dict['assoc'] == 0:
-            config_dict['fully_assoc'] = True
-        else:
-            config_dict['fully_assoc'] = False
+    if config_dict['temp'] < 300 or config_dict['temp'] > 400 or config_dict['temp'] % 10 != 0:
+        print(f"{config_dict['temp']} Temperature must be between 300 and 400 Kelvin and multiple of 10.")
+        return False
 
-        if config_dict['pure_cam'] and config_dict['assoc'] != 0:
-            print("Pure CAM must have associativity as 0")
-            return False
+    if config_dict['nsets'] < 1 and not g_ip.is_3d_mem:
+        print("Less than one set...")
+        return False
 
-        if config_dict['assoc'] == 0 and not config_dict['pure_cam'] and not config_dict['is_cache']:
-            print("Only CAM or Fully associative cache can have associativity as 0")
-            return False
+    config_dict['power_gating'] = (config_dict['array_power_gated'] or config_dict['bitline_floating'] or config_dict['wl_power_gated'] or
+                                config_dict['cl_power_gated'] or config_dict['interconnect_power_gated'])
 
-        if (config_dict['fully_assoc'] or config_dict['pure_cam']) and (
-                config_dict['data_arr_ram_cell_tech_type'] != config_dict['tag_arr_ram_cell_tech_type']
-                or config_dict['data_arr_peri_global_tech_type'] != config_dict['tag_arr_peri_global_tech_type']):
-            print("CAM and fully associative cache must have same device type for both data and tag array")
-            return False
-
-        if (config_dict['fully_assoc'] or config_dict['pure_cam']) and (
-                config_dict['data_arr_ram_cell_tech_type'] == lp_dram or config_dict['data_arr_ram_cell_tech_type'] == comm_dram):
-            print("DRAM based CAM and fully associative cache are not supported")
-            return False
-
-        if (config_dict['fully_assoc'] or config_dict['pure_cam']) and config_dict['is_main_mem']:
-            print("CAM and fully associative cache cannot be as main memory")
-            return False
-
-        if (config_dict['fully_assoc'] or config_dict['pure_cam']) and SCHP < 1:
-            print("CAM and fully associative must have at least 1 search port")
-            return False
-
-        if RWP == 0 and ERP == 0 and SCHP > 0 and (config_dict['fully_assoc'] or config_dict['pure_cam']):
-            ERP = SCHP
-
-        if config_dict['assoc'] == 0:
-            A = C / B
-        else:
-            if config_dict['assoc'] == 1:
-                A = 1
-            else:
-                A = config_dict['assoc']
-                if not is_pow2(A):
-                    print("Associativity must be a power of 2")
-                    return False
-
-        if C / (B * A) <= 1 and config_dict['assoc'] != 0 and not g_ip.is_3d_mem:
-            print("Number of sets is too small: ")
-            print(" Need to either increase cache size, or decrease associativity or block size")
-            print(" (or use fully associative cache)")
-            return False
-
-        config_dict['block_size'] = B
-
-        if seq_access:
-            config_dict['tag_assoc'] = A
-            config_dict['data_assoc'] = 1
-            config_dict['is_seq_acc'] = True
-        else:
-            config_dict['tag_assoc'] = A
-            config_dict['data_assoc'] = A
-            config_dict['is_seq_acc'] = False
-
-        if config_dict['assoc'] == 0:
-            config_dict['data_assoc'] = 1
-
-        config_dict['num_rw_ports'] = RWP
-        config_dict['num_rd_ports'] = ERP
-        config_dict['num_wr_ports'] = EWP
-        config_dict['num_se_rd_ports'] = NSER
-
-        if not (config_dict['fully_assoc'] or config_dict['pure_cam']):
-            config_dict['num_search_ports'] = 0
-
-        config_dict['nsets'] = C / (B * A)
-
-        if config_dict['temp'] < 300 or config_dict['temp'] > 400 or config_dict['temp'] % 10 != 0:
-            print(f"{config_dict['temp']} Temperature must be between 300 and 400 Kelvin and multiple of 10.")
-            return False
-
-        if config_dict['nsets'] < 1 and not g_ip.is_3d_mem:
-            print("Less than one set...")
-            return False
-
-        config_dict['power_gating'] = (config_dict['array_power_gated'] or config_dict['bitline_floating'] or config_dict['wl_power_gated'] or
-                                    config_dict['cl_power_gated'] or config_dict['interconnect_power_gated'])
-
-        print("SUCCESSS!!!!")
-        return config_dict
-
-    except FileNotFoundError:
-        print(os.getcwd())
-        print(f"{in_file} is missing!")
-        exit(-1)
-
+    logger.info("Done reading cacti cfg file.")
     return config_dict
 
 if __name__ == "__main__":
