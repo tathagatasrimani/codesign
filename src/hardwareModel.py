@@ -92,6 +92,7 @@ class HardwareModel:
         cache_size=None,
         V_dd=None,
         bus_width=None,
+        transistor_override=False
     ):
         """
         Simulates the effect of 2 different constructors. Either supply cfg (config), or supply the rest of the arguments.
@@ -126,6 +127,9 @@ class HardwareModel:
                     config.getint("DEFAULT", "cachesize"),
                     config.getfloat("DEFAULT", "V_dd"),
                 )
+        # allow for architecture configs to have their tech nodes swapped out
+        if transistor_override:
+            self.transistor_size = transistor_size
         self.hw_allocated = {}
 
         if path_to_graphml is not None and os.path.exists(path_to_graphml):
