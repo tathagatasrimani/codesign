@@ -510,8 +510,8 @@ class HardwareModel:
             else 0.0
         )
 
-        base_cache_cfg = "src/cacti/cfg/base_cache.cfg"
-        mem_cache_cfg = "src/cacti/cfg/mem_cache.cfg"
+        base_cache_cfg = "cfg/base_cache.cfg"
+        mem_cache_cfg = "cfg/mem_cache.cfg"
 
         # TODO: This only needs to be triggered if we're doing inverse pass (ie symbolic simulate or codesign)
         # Comment for now since it takes a while to generate
