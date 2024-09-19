@@ -249,21 +249,20 @@ def gen_abs_results(sympy_file, cache_cfg, dat_file):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Specify config (-CFG), set SymPy name (-SYMPY) and optionally generate SymPy (-gen)")
-    parser.add_argument("-CFG", type=str, default="cache", help="Path or Name to the configuration file; don't append src/cacti/ or .cfg")
-    parser.add_argument("-DAT", type=str, default="", help="Specify technology nm -> e.g. '90nm'; if not provdied, do 45, 90, and 180")
-    parser.add_argument("-SYMPY", type=str, default="", help="Optionally path to the SymPy file if not named the same as cfg")
-    parser.add_argument("-gen", type=str, default="false", help="Boolean flag to generate Sympy from Cache CFG")
+    parser.add_argument("-c", "--config" type=str, default="base_cache", help="Path or Name to the configuration file; don't append src/cacti/ or .cfg")
+    parser.add_argument("-d", "--dat", type=str,  help="Specify technology nm -> e.g. '90nm'; if not provdied, do 45, 90, and 180")
+    parser.add_argument("-s", "--sympy" type=str, help="Optionally path to the SymPy file if not named the same as cfg")
+    parser.add_argument("-g", "--gen" type=str, action="store_true", help="Boolean flag to generate Sympy from Cache CFG")
 
     args = parser.parse_args()
 
     # all paths here are relative to CACTI_DIR
 
-    cfg_file = f"cfg/{args.CFG}.cfg"
-    gen_flag = args.gen.lower() == "true"  
+    cfg_file = f"cfg/{args.config}.cfg"
 
     # If you haven't generated sympy expr from cache cfg yet
     # Gen Flag true and can set sympy flag to set the name of the sympy expr
-    if gen_flag:
+    if args.gen:
         buf_vals = cacti_util.run_existing_cacti_cfg(cfg_file)
 
         buf_opt = {
@@ -277,17 +276,17 @@ if __name__ == "__main__":
             "repeater_size": buf_vals["Repeater size"],
         }
         # cfg_file = "src/cacti/cfg/" + cfg_file + ".cfg"
-        sympy_file = args.CFG   # try to keep convention where sympy expressions have same name as cfg
+        sympy_file = args.config   # try to keep convention where sympy expressions have same name as cfg
         IO_info = cacti_util.gen_symbolic(sympy_file, cfg_file, buf_opt, use_piecewise=False)
     else:
         # try to keep convention where sympy expressions have same name as cfg
-        if (args.SYMPY):
-            sympy_file = args.SYMPY
+        if (args.sympy):
+            sympy_file = args.sympy
         else:
-            sympy_file = args.CFG
+            sympy_file = args.config
 
-    if args.DAT:
-        dat_file = os.path.join("tech_params", "{args.DAT}.dat")
+    if args.dat:
+        dat_file = os.path.join("tech_params", f"{args.dat}.dat")
         gen_abs_results(sympy_file, cfg_file, dat_file)
     else:
         print(f"generating for 45, 90, 180 nm")

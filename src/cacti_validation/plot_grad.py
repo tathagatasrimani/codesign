@@ -171,11 +171,11 @@ def merge_csv_files(input_files, output_file):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Specify config (-CFG), set SymPy name (-SYMPY) and optionally generate SymPy (-gen)")
-    parser.add_argument("-CFG", type=str, default="cache", help="Path or Name to the configuration file; don't append src/cacti/ or .cfg")
+    parser = argparse.ArgumentParser(description="Specify config (--config)")
+    parser.add_argument("-c", "--config", type=str, default="base_cache", help="Path or Name to the configuration file; don't append src/cacti/ or .cfg")
 
     args = parser.parse_args()
-    cfg_name = args.CFG
+    cfg_name = args.config
 
     current_directory = os.path.dirname(__file__)
 

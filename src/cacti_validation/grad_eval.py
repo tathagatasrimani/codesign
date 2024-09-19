@@ -408,27 +408,29 @@ if __name__ == "__main__":
     Stores results in CSV files.
     """
     parser = argparse.ArgumentParser(description="Specify config (-CFG), set SymPy name (-SYMPY) and optionally generate SymPy (-gen)")
-    parser.add_argument("-CFG", type=str, default="Buf", help="Path or Name to the configuration file; don't append src/cacti/ or .cfg")
-    parser.add_argument("-DAT", type=str, default="", help="nm tech -> just specify '90nm'; if not provided, 45, 90, 180 will be tested")
-    parser.add_argument("-SYMPY", type=str, default="", help="Optionally path to the SymPy file if not named the same as cfg")
-    parser.add_argument("-gen", type=str, default="false", help="Boolean flag to generate Sympy from Cache CFG")
+    parser.add_argument("-c", "--config", type=str, default="base_cache", help="Path or Name to the configuration file; don't append src/cacti/ or .cfg")
+    parser.add_argument("-d", "--dat", type=str, help="nm tech -> just specify '90nm'; if not provided, 45, 90, 180 will be tested")
+    parser.add_argument("-s", "--sympy", type=str, help="Optionally path to the SymPy file if not named the same as cfg")
+    parser.add_argument("-g", "--gen", action="store_true", help="Boolean flag to generate Sympy from Cache CFG")
 
     args = parser.parse_args()
-    dat_nm = args.DAT
+    dat_nm = args.dat
+
+    cfg_file = "cfg/" + args.config + ".cfg"
 
     # try to keep convention where sympy expressions have same name as cfg
-    if (args.SYMPY):
-        sympy_file = args.SYMPY
+    if (args.sympy):
+        print(f"sympy arg present")
+        sympy_file = args.sympy
     else:
-        sympy_file = args.CFG
+        sympy_file = args.config
 
-    gen_flag = args.gen.lower() == "true"  
+    # gen_flag = args.gen.lower() == "true"  
 
     # If you haven't generated sympy expr from cache cfg yet
     # Gen Flag true and can set sympy flag to set the name of the sympy expr
-    if gen_flag:
+    if args.gen:
         print(f"current directory: {os.getcwd()}", flush=True)
-        cfg_file = "cfg/" + args.CFG + ".cfg"
         buf_vals = cacti_util.run_existing_cacti_cfg(cfg_file)
 
         buf_opt = {
@@ -442,10 +444,8 @@ if __name__ == "__main__":
             "repeater_size": buf_vals["Repeater size"],
         }
         
-        sympy_name = args.CFG   # try to keep convention where sympy expressions have same name as cfg
-        IO_info = cacti_util.gen_symbolic(sympy_name, cfg_file, buf_opt, use_piecewise=False)
-    else:
-        cfg_file = f'cfg/{args.CFG}.cfg'
+        # try to keep convention where sympy expressions have same name as cfg
+        IO_info = cacti_util.gen_symbolic(sympy_file, cfg_file, buf_opt, use_piecewise=False)
 
     if dat_nm:
         dat_file = f"tech_params/{dat_nm}.dat"
