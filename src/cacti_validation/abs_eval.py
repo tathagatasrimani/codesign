@@ -149,7 +149,7 @@ def gen_abs_results(sympy_file, cache_cfg, dat_file):
     result_io_termination_power = result.subs(sp.I, 0)
 
     # Get CACTI C results to verify
-    cfg_name = cache_cfg.replace(".cfg", "").replace("cacti/cfg/", "")
+    cfg_name = cache_cfg.replace(".cfg", "").replace("cfg/", "")
     validate_vals = cacti_util.gen_vals(
         cfg_name,
     )

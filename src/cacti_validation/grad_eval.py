@@ -319,7 +319,7 @@ def gen_diff(sympy_file, cfg_file, dat_file=None):
     tech_param_keys.remove(getattr(hw_symbols, "asp_ratio_cell", None))
 
     # ============ FOR TESTING =================
-    # tech_param_keys = rng.choice(tech_param_keys, 2, replace=False)
+    tech_param_keys = rng.choice(tech_param_keys, 2, replace=False)
     # ============ END TESTING =================
 
     # diff each parameter
