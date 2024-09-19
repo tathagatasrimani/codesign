@@ -12,7 +12,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import networkx as nx
 from sympy import *
-import sympy
+import sympy as sp
 import pyomo.environ as pyo
 from pyomo.core.expr import Expr_if
 
@@ -39,7 +39,7 @@ def symbolic_convex_max(a, b):
 class SymbolicSimulator(AbstractSimulator):
 
     def __init__(self):
-        self.cycles = 0
+        self.execution_time = 0
         self.cycles_ceil = 0
         self.id_to_node = {}
         self.path = os.getcwd()
@@ -76,7 +76,7 @@ class SymbolicSimulator(AbstractSimulator):
         self.total_passive_energy = 0
         self.total_passive_energy_ceil = 0
         self.cycles_ceil = 0
-        self.cycles = 0
+        self.execution_time = 0
 
     def localize_memory(self, hw, hw_graph):
         """
@@ -232,19 +232,88 @@ class SymbolicSimulator(AbstractSimulator):
                             logger.info(f"latency scaling: {scaling}")
 
                         path_latency += hw_symbols.symbolic_latency_wc[func] * scaling
-                    self.cycles = symbolic_convex_max(self.cycles, path_latency)
-        logger.info(f"execution time: {str(self.cycles)}")
+                    self.execution_time = symbolic_convex_max(self.execution_time, path_latency)
+        logger.info(f"execution time: {str(self.execution_time)}")
 
     def calculate_edp(self, hw):
-        self.total_passive_energy = self.passive_energy_dissipation(hw, self.cycles)
-        self.total_passive_energy_ceil = self.passive_energy_dissipation(
-            hw, self.cycles_ceil
+
+        with open('src/cacti/symbolic_expressions/Mem_access_time.txt', 'r') as file:
+            mem_access_time_text = file.read()
+
+        with open("src/cacti/symbolic_expressions/Mem_read_dynamic.txt", "r") as file:
+            mem_read_dynamic_text = file.read()
+
+        with open("src/cacti/symbolic_expressions/Mem_write_dynamic.txt", "r") as file:
+            mem_write_dynamic_text = file.read()
+
+        with open("src/cacti/symbolic_expressions/Mem_read_leakage.txt", "r") as file:
+            mem_read_leakage_text = file.read()
+
+        with open("src/cacti/symbolic_expressions/Buf_access_time.txt", "r") as file:
+            buf_access_time_text = file.read()
+
+        with open("src/cacti/symbolic_expressions/Buf_read_dynamic.txt", "r") as file:
+            buf_read_dynamic_text = file.read()
+
+        with open("src/cacti/symbolic_expressions/Buf_write_dynamic.txt", "r") as file:
+            buf_write_dynamic_text = file.read()
+
+        with open("src/cacti/symbolic_expressions/Buf_read_leakage.txt", "r") as file:
+            buf_read_leakage_text = file.read()
+
+        MemL_expr = sp.sympify(mem_access_time_text, locals=hw_symbols.symbol_table)
+        MemReadEact_expr = sp.sympify(mem_read_dynamic_text, locals=hw_symbols.symbol_table)
+        MemWriteEact_expr = sp.sympify(mem_write_dynamic_text, locals=hw_symbols.symbol_table)
+        MemPpass_expr = sp.sympify(mem_read_leakage_text, locals=hw_symbols.symbol_table)
+
+        BufL_expr = sp.sympify(buf_access_time_text, locals=hw_symbols.symbol_table)
+        BufReadEact_expr = sp.sympify(buf_read_dynamic_text, locals=hw_symbols.symbol_table)
+        BufWriteEact_expr = sp.sympify(buf_write_dynamic_text, locals=hw_symbols.symbol_table)
+        BufPpass_expr = sp.sympify(buf_read_leakage_text, locals=hw_symbols.symbol_table)
+
+        cacti_subs = {
+            hw_symbols.MemReadL: (MemL_expr / 2),
+            hw_symbols.MemWriteL: (MemL_expr / 2),
+            hw_symbols.MemReadEact: MemReadEact_expr,
+            hw_symbols.MemWriteEact: MemWriteEact_expr,
+            hw_symbols.MemPpass: MemPpass_expr,
+
+            hw_symbols.BufL: BufL_expr,
+            hw_symbols.BufReadEact: BufReadEact_expr,
+            hw_symbols.BufWriteEact: BufWriteEact_expr,
+            hw_symbols.BufPpass: BufPpass_expr,
+        }
+
+        self.total_passive_energy = self.passive_energy_dissipation(
+            hw, self.execution_time
         )
-        self.edp = self.cycles * (self.total_active_energy + self.total_passive_energy)
+
+        self.edp = self.execution_time * (self.total_active_energy + self.total_passive_energy)
+
+        self.execution_time = self.execution_time.xreplace(cacti_subs)
+        self.total_active_energy = self.total_active_energy.xreplace(cacti_subs)
+        self.total_passive_energy = self.total_passive_energy.xreplace(cacti_subs)
+        self.edp = self.edp.xreplace(cacti_subs)
+
+        assert hw_symbols.MemReadL not in self.edp.free_symbols and hw_symbols.MemWriteL not in self.edp.free_symbols, "Mem latency not fully substituted"
+        assert hw_symbols.MemReadEact not in self.edp.free_symbols and hw_symbols.MemWriteEact not in self.edp.free_symbols, "Mem energy not fully substituted"
+        assert hw_symbols.MemPpass not in self.edp.free_symbols, "Mem passive power not fully substituted"
+        assert hw_symbols.BufL not in self.edp.free_symbols, "Buf latency not fully substituted"
+        assert hw_symbols.BufReadEact not in self.edp.free_symbols, "Buf read energy not fully substituted"
+        assert hw_symbols.BufWriteEact not in self.edp.free_symbols, "Buf write energy not fully substituted"
+        assert hw_symbols.BufPpass not in self.edp.free_symbols, "Buf passive power not fully substituted"
+
+        # self.edp = self.edp.subs(subs)
 
     def save_edp_to_file(self):
         st = str(self.edp)
-        with open("sympy.txt", "w") as f:
+        
+        file_path = "src/tmp/symbolic_edp.txt"
+        directory = os.path.dirname(file_path)
+        
+        os.makedirs(directory, exist_ok=True)
+
+        with open(file_path, "w") as f:
             f.write(st)
 
 def main():
@@ -291,7 +360,7 @@ def main():
 
 if __name__ == "__main__":
     logging.basicConfig(
-        level=logging.INFO, filename="src/codesign_log_dir/symbolic_simulate.log"
+        level=logging.INFO, filename="logs/symbolic_simulate.log"
     )
     parser = argparse.ArgumentParser(
         prog="Simulate",

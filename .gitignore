@@ -10,17 +10,19 @@ src/instrumented_files/xformedname*
 src/instrumented_files/*
 
 src/output.txt
-src/solver_out.txt
-src/sympy.txt
-src/sympy_ceil.txt
-src/ipopt_out.txt
 
 src/params/rcs.yaml
 src/params/rcs_current.yaml
 src/params/coefficients.yaml
 
-data/**
+src/tmp/**
 
-src/codesign_log_dir/**
+src/cacti_validation/results/**
+src/cacti_validation/figs/**
+
+data/**
+.vscode/**
+
+logs/**
 openroad_interface/fig
 openroad_interface/results

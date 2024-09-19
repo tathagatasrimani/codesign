@@ -8,7 +8,7 @@ import shutil
 
 logger = logging.getLogger("codesign")
 
-from sympy import sympify
+import sympy as sp
 import networkx as nx
 
 from . import architecture_search
@@ -44,7 +44,7 @@ class Codesign:
         # copy the benchmark and instrumented files;
         shutil.copy(benchmark, f"{self.save_dir}/benchmark.py")
         shutil.copy(f"src/instrumented_files/output.txt", f"{self.save_dir}/output.txt")
-        
+
         logging.basicConfig(filename=f"{self.save_dir}/log.txt", level=logging.INFO)
 
         self.area_constraint = area  # in um^2
@@ -95,6 +95,16 @@ class Codesign:
 
         with open("src/params/rcs_current.yaml", "w") as f:
             f.write(yaml.dump(rcs))
+
+        # Save tech node info to another file prefixed by prev_ so we can restore
+        org_dat_file = self.hw.cacti_dat_file
+        tech_nm = os.path.basename(org_dat_file)
+        tech_nm = os.path.splitext(tech_nm)[0]
+
+        prev_dat_file = f"src/cacti/tech_params/prev_{tech_nm}.dat"
+        with open(org_dat_file, "r") as src_file, open(prev_dat_file, "w") as dest_file:
+            for line in src_file:
+                dest_file.write(line)
 
     def set_technology_parameters(self, tech_params):
         if self.initial_tech_params == None:
@@ -150,11 +160,13 @@ class Codesign:
         for _ in range(len(mapping)):
             key = lines[i].split(":")[0].lstrip().rstrip()
             value = float(lines[i].split(":")[2][1:-1])
-            self.tech_params[mapping[key]] = value
+            self.tech_params[mapping[key]] = (
+                value  # just know that self.tech_params contains all dat
+            )
             i += 1
 
     def write_back_rcs(self, rcs_path="src/params/rcs_current.yaml"):
-        rcs = {"Reff": {}, "Ceff": {}, "other": {}}
+        rcs = {"Reff": {}, "Ceff": {}, "Cacti": {}, "Cacti_IO": {}, "other": {}}
         for elem in self.tech_params:
             if (
                 elem.name == "f"
@@ -164,6 +176,14 @@ class Codesign:
                 or elem.name.startswith("OffChipIO")
             ):
                 rcs["other"][elem.name] = self.tech_params[
+                    hw_symbols.symbol_table[elem.name]
+                ]
+            elif elem.name in hw_symbols.cacti_tech_params:
+                rcs["Cacti"][elem.name] = self.tech_params[
+                    hw_symbols.symbol_table[elem.name]
+                ]
+            elif elem.name in hw_symbols.cacti_io_tech_params:
+                rcs["Cacti_IO"][elem.name] = self.tech_params[
                     hw_symbols.symbol_table[elem.name]
                 ]
             else:
@@ -188,28 +208,44 @@ class Codesign:
         self.symbolic_sim.calculate_edp(self.hw)
         self.symbolic_sim.save_edp_to_file()
 
-        self.inverse_edp = self.symbolic_sim.edp.subs(self.tech_params)
+        self.inverse_edp = self.symbolic_sim.edp.xreplace(self.tech_params).evalf()
+        inverse_exec_time = self.symbolic_sim.execution_time.xreplace(self.tech_params).evalf()
+        active_energy = self.symbolic_sim.total_active_energy.xreplace(self.tech_params).evalf()
+        passive_energy = self.symbolic_sim.total_passive_energy.xreplace(self.tech_params).evalf()
+
+        assert len(self.inverse_edp.free_symbols) == 0
 
         print(
-            f"Initial EDP: {self.inverse_edp} E-18 Js. Active Energy: {(self.symbolic_sim.total_active_energy).subs(self.tech_params)} nJ. Passive Energy: {(self.symbolic_sim.total_passive_energy).subs(self.tech_params)} nJ. Execution time: {self.symbolic_sim.cycles.subs(self.tech_params)} ns"
+            f"Initial EDP: {self.inverse_edp} E-18 Js. Active Energy: {active_energy} nJ. Passive Energy: {passive_energy} nJ. Execution time: {inverse_exec_time} ns"
+        )
+        print(
+            f"edp: {self.inverse_edp}, should equal cycles * (active + passive): {inverse_exec_time * (active_energy + passive_energy)}"
         )
 
         if self.opt_cfg == "ipopt":
             stdout = sys.stdout
-            with open("ipopt_out.txt", "w") as sys.stdout:
+            with open("src/tmp/ipopt_out.txt", "w") as sys.stdout:
                 optimize.optimize(self.tech_params, self.symbolic_sim.edp, self.opt_cfg)
             sys.stdout = stdout
-            f = open("ipopt_out.txt", "r")
+            f = open("src/tmp/ipopt_out.txt", "r")
             self.parse_output(f)
         else:
             self.tech_params = optimize.optimize(
                 self.tech_params, self.symbolic_sim.edp, self.opt_cfg
             )
         self.write_back_rcs()
-        self.inverse_edp = self.symbolic_sim.edp.subs(self.tech_params)
+
+        self.inverse_edp = self.symbolic_sim.edp.xreplace(self.tech_params).evalf()
+        total_active_energy = (self.symbolic_sim.total_active_energy).xreplace(
+            self.tech_params
+        ).evalf()
+        total_passive_energy = (self.symbolic_sim.total_passive_energy).xreplace(
+            self.tech_params
+        ).evalf()
+        execution_time = self.symbolic_sim.execution_time.xreplace(self.tech_params).evalf()
 
         print(
-            f"Final EDP  : {self.inverse_edp} E-18 Js. Active Energy: {(self.symbolic_sim.total_active_energy).subs(self.tech_params)} nJ. Passive Energy: {(self.symbolic_sim.total_passive_energy).subs(self.tech_params)} nJ. Execution time: {self.symbolic_sim.cycles.subs(self.tech_params)} ns"
+            f"Final EDP  : {self.inverse_edp} E-18 Js. Active Energy: {total_active_energy} nJ. Passive Energy: {total_passive_energy} nJ. Execution time: {execution_time} ns"
         )
 
     def log_all_to_file(self, iter_number):
@@ -222,15 +258,39 @@ class Codesign:
             f"{self.save_dir}/netlist_{iter_number}.gml",
             stringizer=lambda x: str(x),
         )
-        nx.write_gml(self.scheduled_dfg, f"{self.save_dir}/schedule_{iter_number}.gml")
+        nx.write_gml(
+            self.scheduled_dfg,
+            f"{self.save_dir}/schedule_{iter_number}.gml",
+            stringizer=lambda x: str(x),
+        )
         self.write_back_rcs(f"{self.save_dir}/rcs_{iter_number}.yaml")
-        shutil.copy("sympy.txt", f"{self.save_dir}/sympy_{iter_number}.txt")
-        shutil.copy("ipopt_out.txt", f"{self.save_dir}/ipopt_{iter_number}.txt")
-        shutil.copy("solver_out.txt", f"{self.save_dir}/solver_{iter_number}.txt")
+        shutil.copy(
+            "src/tmp/symbolic_edp.txt",
+            f"{self.save_dir}/symbolic_edp_{iter_number}.txt",
+        )
+        shutil.copy("src/tmp/ipopt_out.txt", f"{self.save_dir}/ipopt_{iter_number}.txt")
+        shutil.copy(
+            "src/tmp/solver_out.txt", f"{self.save_dir}/solver_{iter_number}.txt"
+        )
         # save latency, power, and tech params
         self.hw.write_technology_parameters(
             f"{self.save_dir}/tech_params_{iter_number}.yaml"
         )
+
+    def restore_dat(self):
+        dat_file = self.hw.cacti_dat_file
+        tech_nm = os.path.basename(dat_file)
+        tech_nm = os.path.splitext(tech_nm)[0]
+
+        prev_dat_file = f"src/cacti/tech_params/prev_{tech_nm}.dat"
+
+        with open(prev_dat_file, "r") as src_file, open(dat_file, "w") as dest_file:
+            for line in src_file:
+                dest_file.write(line)
+        os.remove(prev_dat_file)
+
+    def cleanup(self):
+        self.restore_dat()
 
     def execute(self, num_iters):
         i = 0
@@ -243,12 +303,25 @@ class Codesign:
             self.forward_pass()
             i += 1
 
+        # cleanup
+        self.cleanup()
+
 
 def main():
     codesign_module = Codesign(
-        args.benchmark, args.area, args.architecture_config, args.num_arch_search_iters, args.savedir, args.opt
+        args.benchmark,
+        args.area,
+        args.architecture_config,
+        args.num_arch_search_iters,
+        args.savedir,
+        args.opt,
     )
-    codesign_module.execute(args.num_iters)
+    try:
+        codesign_module.execute(args.num_iters)
+    except Exception as e:
+        codesign_module.cleanup()
+        raise e
+
 
 
 if __name__ == "__main__":
@@ -271,7 +344,7 @@ if __name__ == "__main__":
         "-f",
         "--savedir",
         type=str,
-        default="codesign_log_dir",
+        default="logs",
         help="Path to the save new architecture file",
     )
     parser.add_argument("-o", "--opt", type=str, default="ipopt")

@@ -208,10 +208,10 @@ def main():
     )
 
     rcs = hw.get_optimization_params_from_tech_params()
-    print(f"optimize.__main__.rcs: {rcs}")
+    looger.info(f"optimize.__main__.rcs: {rcs}")
     initial_params = sim_util.generate_init_params_from_rcs_as_symbols(rcs)
-    edp = open("sympy.txt", "r")
-    edp = sympify(edp.readline())
+    edp = open("src/tmp/symbolic_edp.txt", "r")
+    edp = sympify(edp.readline(), locals=hw_symbols.symbol_table)
 
     results = optimize(initial_params, edp, args.opt)
 
@@ -219,7 +219,7 @@ def main():
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, filename="codesign_log_dir/optimize.log")
+    logging.basicConfig(level=logging.INFO, filename="logs/optimize.log")
     parser = argparse.ArgumentParser(
         prog="Optimize",
         description="Optimization part of the Inverse Pass. This runs after an analytic equation for the cost is created.",
@@ -229,6 +229,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "-c",
         "--architecture_config",
+        default="aladdin_const_with_mem",
         type=str,
         help="Path to the architecture config file",
     )
