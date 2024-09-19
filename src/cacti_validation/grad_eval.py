@@ -140,7 +140,7 @@ def cacti_python_diff_single(sympy_file, tech_params, diff_var):
     new_access_time = access_time - (gradient * delta)
 
     # Uncomment to log the diff expression and gradient to a CSV file
-    res_dir = os.path.join(os.path.dirname(__file__), "grad_results")
+    res_dir = os.path.join(os.path.dirname(__file__), "results")
     os.makedirs(res_dir, exist_ok=True)
     with open(f"{res_dir}/diff_expression.csv", 'a', newline='') as csvfile:
         writer = csv.writer(csvfile)
