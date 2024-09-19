@@ -299,23 +299,8 @@ class HardwareModel:
 
         opt_params = sim_util.generate_init_params_from_rcs_as_symbols(rcs)
 
-        cacti_util.update_dat(rcs, self.cacti_dat_file) # update dat file
-        # mem_l_expr =  sp.sympify(open("src/cacti/sympy/Mem_access_time.txt", "r").readline(), locals=hw_symbols.symbol_table)
-        # self.latency["MainMem"] = float(mem_l_expr.xreplace(opt_params))
-
-        # buf_l_expr =  sp.sympify(open("src/cacti/sympy/Buf_access_time.txt", "r").readline(), locals=hw_symbols.symbol_table)
-        # self.latency["Buf"] = float(buf_l_expr.xreplace(opt_params))
-
-        # self.dynamic_energy["MainMem"]["Read"] = rcs["other"]["MemReadEact"] * 1e9
-        # self.dynamic_energy["MainMem"]["Write"] = rcs["other"]["MemWriteEact"] * 1e9
-        # self.dynamic_energy["Buf"]["Read"] = rcs["other"]["BufReadEact"] * 1e9
-        # self.dynamic_energy["Buf"]["Write"] = rcs["other"]["BufWriteEact"] * 1e9
-        # self.leakage_power["MainMem"] = rcs["other"]["MemPpass"] * 1e9
-        # self.leakage_power["Buf"] = rcs["other"]["BufPpass"] * 1e9
-
-        # self.latency["OffChipIO"] = rcs["other"]["OffChipIOL"]
-        # self.dynamic_power["OffChipIO"] = rcs["other"]["OffChipIOPact"]
-
+        # update dat file with new parameters and re-run cacti
+        cacti_util.update_dat(rcs, self.cacti_dat_file) 
         self.gen_cacti_results()
 
         beta = yaml.load(open(coeff_file, "r"), Loader=yaml.Loader)["beta"]
@@ -414,7 +399,7 @@ class HardwareModel:
         self.buffer_size = 2048
         self.mem_size = 131072
         buf_vals = cacti_util.gen_vals(
-            "cfg/base_cache",
+            "base_cache",
             cacheSize=self.buffer_size, 
             blockSize=64,
             cache_type="cache",
@@ -433,7 +418,7 @@ class HardwareModel:
         }
 
         mem_vals = cacti_util.gen_vals(
-            "cfg/mem_cache",
+            "mem_cache",
             cacheSize=self.mem_size,
             blockSize=64,
             cache_type="main memory",
@@ -510,8 +495,7 @@ class HardwareModel:
         mem_cache_cfg = "cfg/mem_cache.cfg"
 
         # TODO: This only needs to be triggered if we're doing inverse pass (ie symbolic simulate or codesign)
-        # Comment for now since it takes a while to generate
         cacti_util.gen_symbolic("Buf", base_cache_cfg, buf_opt, use_piecewise=False)
         cacti_util.gen_symbolic("Mem", mem_cache_cfg, mem_opt, use_piecewise=False)
-        
+
         return
