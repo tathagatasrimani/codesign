@@ -249,10 +249,10 @@ def gen_abs_results(sympy_file, cache_cfg, dat_file):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Specify config (-CFG), set SymPy name (-SYMPY) and optionally generate SymPy (-gen)")
-    parser.add_argument("-c", "--config" type=str, default="base_cache", help="Path or Name to the configuration file; don't append src/cacti/ or .cfg")
+    parser.add_argument("-c", "--config", type=str, default="base_cache", help="Path or Name to the configuration file; don't append src/cacti/ or .cfg")
     parser.add_argument("-d", "--dat", type=str,  help="Specify technology nm -> e.g. '90nm'; if not provdied, do 45, 90, and 180")
-    parser.add_argument("-s", "--sympy" type=str, help="Optionally path to the SymPy file if not named the same as cfg")
-    parser.add_argument("-g", "--gen" type=str, action="store_true", help="Boolean flag to generate Sympy from Cache CFG")
+    parser.add_argument("-s", "--sympy", type=str, help="Optionally path to the SymPy file if not named the same as cfg")
+    parser.add_argument("-g", "--gen", action="store_true", help="Boolean flag to generate Sympy from Cache CFG")
 
     args = parser.parse_args()
 
