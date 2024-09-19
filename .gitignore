@@ -10,12 +10,6 @@ src/instrumented_files/xformedname*
 src/instrumented_files/*
 
 src/output.txt
-# src/solver_out.txt
-# src/symbolic_edp.txt
-# src/BufL.txt
-# src/MemL.txt
-# src/ipopt_out.txt
-# src/symbolic_edp.txt
 
 src/params/rcs.yaml
 src/params/rcs_current.yaml

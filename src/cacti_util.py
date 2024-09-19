@@ -4,6 +4,7 @@ import yaml
 import argparse
 import re
 import logging
+
 logger = logging.getLogger(__name__)
 
 import pandas as pd
@@ -18,7 +19,7 @@ from hw_symbols import *
 import sympy as sp
 
 valid_tech_nodes = [0.022, 0.032, 0.045, 0.065, 0.090, 0.180]
-CACTI_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), 'cacti'))
+
 
 def gen_symbolic(name, cache_cfg, opt_vals, use_piecewise=False):
     """
@@ -28,7 +29,7 @@ def gen_symbolic(name, cache_cfg, opt_vals, use_piecewise=False):
     name : str
         Base name for the output files.
     cache_cfg : str
-        Path to the cache configuration file.
+        Path to the cache configuration file. Relative to the Cacti directory.
     opt_vals : dict
         Optimization values with keys: "ndwl", "ndbl", "nspd", "ndcm", "ndsam1", "ndsam2",
         "repeater_spacing", "repeater_size".
@@ -43,10 +44,8 @@ def gen_symbolic(name, cache_cfg, opt_vals, use_piecewise=False):
     Sympy expression files for access time, dynamic and leakage power, IO details in 'src/cacti/sympy' directory.
     """
 
-    print(f"gen_symbolic: cwd: {os.getcwd()}; cache_cfg: {cache_cfg}")
     g_ip.parse_cfg(os.path.join(CACTI_DIR, cache_cfg))
     g_ip.error_checking()
-    # g_ip.display_ip()
 
     g_ip.ndwl = opt_vals["ndwl"]
     g_ip.ndbl = opt_vals["ndbl"]
@@ -66,22 +65,20 @@ def gen_symbolic(name, cache_cfg, opt_vals, use_piecewise=False):
     fin_res = solve_single()
 
     # Create the directory path
-    output_dir = os.path.join(CACTI_DIR, 'symbolic_expressions')
-
-    # Ensure the directory exists
+    output_dir = os.path.join(CACTI_DIR, "symbolic_expressions")
     os.makedirs(output_dir, exist_ok=True)
 
     # Write files to the cacti/sympy directory
-    with open(os.path.join(output_dir, f'{name + "_access_time"}.txt'), 'w') as file:
+    with open(os.path.join(output_dir, f'{name + "_access_time"}.txt'), "w") as file:
         file.write(str(fin_res.access_time))
 
-    with open(os.path.join(output_dir, f'{name + "_read_dynamic"}.txt'), 'w') as file:
+    with open(os.path.join(output_dir, f'{name + "_read_dynamic"}.txt'), "w") as file:
         file.write(str(fin_res.power.readOp.dynamic))
 
-    with open(os.path.join(output_dir, f'{name + "_write_dynamic"}.txt'), 'w') as file:
+    with open(os.path.join(output_dir, f'{name + "_write_dynamic"}.txt'), "w") as file:
         file.write(str(fin_res.power.writeOp.dynamic))
 
-    with open(os.path.join(output_dir, f'{name + "_read_leakage"}.txt'), 'w') as file:
+    with open(os.path.join(output_dir, f'{name + "_read_leakage"}.txt'), "w") as file:
         file.write(str(fin_res.power.readOp.leakage))
 
     IO_info = {
@@ -89,23 +86,32 @@ def gen_symbolic(name, cache_cfg, opt_vals, use_piecewise=False):
         "io_timing_margin": fin_res.io_timing_margin,
         "io_dynamic_power": fin_res.io_dynamic_power,
         "io_phy_power": fin_res.io_phy_power,
-        "io_termination_power": fin_res.io_termination_power
+        "io_termination_power": fin_res.io_termination_power,
     }
 
     for key, value in IO_info.items():
         file_name = f'{name + "_" + key}.txt'
         file_path = os.path.join(output_dir, file_name)
-        with open(file_path, 'w') as file:
+        with open(file_path, "w") as file:
             file.write(str(value))
 
     return IO_info
 
-def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
-             cache_type = None, bus_width = None, transistor_size = None,
-             addr_timing = None, force_cache_config = None, technology = None,
-             debug = False) -> pd.DataFrame:
+
+def gen_vals(
+    filename="base_cache",
+    cacheSize=None,
+    blockSize=None,
+    cache_type=None,
+    bus_width=None,
+    transistor_size=None,
+    addr_timing=None,
+    force_cache_config=None,
+    technology=None,
+    debug=False,
+) -> pd.DataFrame:
     """
-    Generates a Cacti .cfg file based on input and cacti_input, runs Cacti, 
+    Generates a Cacti .cfg file based on input and cacti_input, runs Cacti,
     and retrieves timing and power values.
 
     Inputs:
@@ -135,14 +141,16 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
         DataFrame containing timing, power, and IO-related values from the Cacti run.
 
     Outputs:
-    A .cfg file is generated for Cacti, and Cacti run results are 
+    A .cfg file is generated for Cacti, and Cacti run results are
     returned in a DataFrame.
     """
 
-    logger.info(f"Running Cacti with the following parameters: filename: {filename}, cacheSize: {cacheSize}, blockSize: {blockSize}, cache_type: {cache_type}, bus_width: {bus_width}, transistor_size: {transistor_size}, addr_timing: {addr_timing}, force_cache_config: {force_cache_config}, technology: {technology}")
+    logger.info(
+        f"Running Cacti with the following parameters: filename: {filename}, cacheSize: {cacheSize}, blockSize: {blockSize}, cache_type: {cache_type}, bus_width: {bus_width}, transistor_size: {transistor_size}, addr_timing: {addr_timing}, force_cache_config: {force_cache_config}, technology: {technology}"
+    )
 
     # load in default values
-    config_values = read_config_file(os.path.join(CACTI_DIR, f"{filename}.cfg"))
+    config_values = read_config_file(os.path.join(CACTI_DIR, f"cfg/{filename}.cfg"))
 
     # If user doesn't give input, default to cacti_input vals
     if cacheSize == None:
@@ -170,7 +178,7 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
         mem_bus_width = config_values["mem_data_width"]
 
     if transistor_size == None:
-        transistor_size = config_values["F_sz_um"] # TODO check whether nm or um
+        transistor_size = config_values["F_sz_um"]  # TODO check whether nm or um
     else:
         transistor_size = min(valid_tech_nodes, key=lambda x: abs(transistor_size - x))
 
@@ -252,7 +260,9 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
         "#          final data block is broadcasted in data array h-tree",
         "#          after getting the signal from the tag array",
         '-access mode (normal, sequential, fast) - "{}"'.format(
-            "fast" if config_values["access_mode"] == 2 else "sequential" if config_values["access_mode"] == 1 else "normal"
+            "fast"
+            if config_values["access_mode"] == 2
+            else "sequential" if config_values["access_mode"] == 1 else "normal"
         ),
         # TODO the rest of these need to have config_values['key'] aligned properly with read_config function
         # You can look at parse_cfg in parameter.py to see what the keys should be named
@@ -272,24 +282,44 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
         "# Note: Optimize tag will disable weight or deviate values mentioned above",
         "# Set it to NONE to let weight and deviate values determine the",
         "# appropriate cache configuration",
-        "-Optimize ED or ED^2 (ED, ED^2, NONE): {}".format('\"ED^2\"' if config_values['ed'] == 2 else '\"ED\"' if config_values['ed'] == 1 else '\"NONE\"'),
-        "-Cache model (NUCA, UCA)  - {}".format('\"UCA\"' if config_values['nuca'] == 0 else '\"NUCA\"'),
+        "-Optimize ED or ED^2 (ED, ED^2, NONE): {}".format(
+            '"ED^2"'
+            if config_values["ed"] == 2
+            else '"ED"' if config_values["ed"] == 1 else '"NONE"'
+        ),
+        "-Cache model (NUCA, UCA)  - {}".format(
+            '"UCA"' if config_values["nuca"] == 0 else '"NUCA"'
+        ),
         "",
         "# In order for CACTI to find the optimal NUCA bank value the following",
         "# variable should be assigned 0.",
         "-NUCA bank count {}".format(config_values["nuca_bank_count"]),
         "",
         "# Wire signaling",
-        '-Wire signaling (fullswing, lowswing, default) - "{}"'.format("default" if config_values['force_wiretype'] == 0 else config_values['wt']),
-        '-Wire inside mat - "{}"'.format("global" if config_values["wire_is_mat_type"] == 2 else "semi-global" if config_values["wire_is_mat_type"] == 1 else "local"),
-        '-Wire outside mat - "{}"'.format("global" if config_values["wire_os_mat_type"] == 2 else "semi-global"),
-        '-Interconnect projection - "{}"'.format("aggressive" if config_values["ic_proj_type"] == 0 else "conservative"),
+        '-Wire signaling (fullswing, lowswing, default) - "{}"'.format(
+            "default" if config_values["force_wiretype"] == 0 else config_values["wt"]
+        ),
+        '-Wire inside mat - "{}"'.format(
+            "global"
+            if config_values["wire_is_mat_type"] == 2
+            else "semi-global" if config_values["wire_is_mat_type"] == 1 else "local"
+        ),
+        '-Wire outside mat - "{}"'.format(
+            "global" if config_values["wire_os_mat_type"] == 2 else "semi-global"
+        ),
+        '-Interconnect projection - "{}"'.format(
+            "aggressive" if config_values["ic_proj_type"] == 0 else "conservative"
+        ),
         "",
         "# Contention in network",
         "-Core count {}".format(config_values["cores"]),
-        '-Cache level (L2/L3) - "{}"'.format("L2" if config_values["cache_level"] == 0 else "L3"),
+        '-Cache level (L2/L3) - "{}"'.format(
+            "L2" if config_values["cache_level"] == 0 else "L3"
+        ),
         '-Add ECC - "{}"'.format(str(config_values["add_ecc_b_"]).lower()),
-        '-Print level (DETAILED, CONCISE) - "{}"'.format("DETAILED" if config_values["print_detail"] == 1 else "CONCISE"),
+        '-Print level (DETAILED, CONCISE) - "{}"'.format(
+            "DETAILED" if config_values["print_detail"] == 1 else "CONCISE"
+        ),
         "",
         "# for debugging",
         '-Print input parameters - "{}"'.format(
@@ -363,13 +393,13 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
         '# -verbose "F"',
     ]
 
-    cactiDir = os.path.normpath(os.path.join(os.path.dirname(__file__), 'cacti'))
+    cactiDir = os.path.normpath(os.path.join(os.path.dirname(__file__), "cacti"))
     # write file
     input_filename = filename + ".cfg"
     cactiInput = os.path.join(CACTI_DIR, input_filename)
-    with open(cactiInput, 'w') as file:
+    with open(cactiInput, "w") as file:
         for line in cfg_lines:
-            file.write(line + '\n')
+            file.write(line + "\n")
 
     stdout_filename = "cacti_stdout.log"
     stdout_file_path = os.path.join(CACTI_DIR, stdout_filename)
@@ -377,7 +407,7 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
     stderr_filename = "cacti_stderr.log"
     stderr_file_path = os.path.join(cactiDir, stderr_filename)
 
-    cmd = ['./cacti', '-infile', input_filename]
+    cmd = ["./cacti", "-infile", input_filename]
 
     with open(stdout_file_path, "w") as f:
         p = subprocess.Popen(cmd, cwd=CACTI_DIR, stdout=f, stderr=subprocess.PIPE)
@@ -385,15 +415,21 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
     p.wait()
     if p.returncode != 0:
         with open(stdout_file_path, "r") as f:
-            raise Exception(f"Cacti Error in {filename}", {p.stderr.read().decode()}, {f.read().split("\n")[-2]})
+            raise Exception(
+                f"Cacti Error in {filename}",
+                {p.stderr.read().decode()},
+                {f.read().split("\n")[-2]},
+            )
 
     output_filename = filename + ".cfg.out"
     cactiOutput = os.path.normpath(os.path.join(CACTI_DIR, output_filename))
-    output_data = pd.read_csv(cactiOutput, sep=", ", engine='python')
-    output_data = output_data.iloc[-1] # get just the last row which is the most recent run
+    output_data = pd.read_csv(cactiOutput, sep=", ", engine="python")
+    output_data = output_data.iloc[
+        -1
+    ]  # get just the last row which is the most recent run
 
-    IO_freq = config_values['bus_freq'] * 1e6
-    IO_latency = (addr_timing / IO_freq)
+    IO_freq = config_values["bus_freq"] * 1e6
+    IO_latency = addr_timing / IO_freq
 
     output_data["IO latency (s)"] = IO_latency
 
@@ -401,6 +437,7 @@ def gen_vals(filename = "base_cache", cacheSize = None, blockSize = None,
     # CACTI IO: area (sq.mm), timing (ps), dynamic power (mW), PHY power (mW), termination and bias power (mW)
     # latency (ns)
     return output_data
+
 
 def run_existing_cacti_cfg(filename):
     """
@@ -417,41 +454,37 @@ def run_existing_cacti_cfg(filename):
     Outputs:
     Cacti run results are returned in a DataFrame after executing the existing .cfg file.
     """
-    print(f"cactiDir: {CACTI_DIR}")
-    print(f"filename: {filename}")
-
-    # write file
-    # input_filename = filename.replace("src/cacti/", "")
-    # print(f"input_filename: {input_filename}")
 
     stdout_filename = "cacti_stdout.log"
     stdout_file_path = os.path.join(CACTI_DIR, stdout_filename)
 
-    cmd = ['./cacti', '-infile', filename]
-    
+    cmd = ["./cacti", "-infile", filename]
+
     with open(stdout_file_path, "w") as f:
         p = subprocess.Popen(cmd, cwd=CACTI_DIR, stdout=f, stderr=subprocess.PIPE)
-    
+
     p.wait()
     if p.returncode != 0:
         with open(stdout_file_path, "r") as f:
-            raise Exception(f"Cacti Error in {filename}", {p.stderr.read().decode()}, {f.read().split("\n")[-2]})
-
-    print(cmd)
+            raise Exception(
+                f"Cacti Error in {filename}",
+                {p.stderr.read().decode()},
+                {f.read().split("\n")[-2]},
+            )
 
     output_filename = filename + ".out"
     cactiOutput = os.path.join(CACTI_DIR, output_filename)
-    output_data = pd.read_csv(cactiOutput, sep=", ", engine='python')
-    output_data = output_data.iloc[-1] # get just the last row which is the most recent run
+    output_data = pd.read_csv(cactiOutput, sep=", ", engine="python")
+    output_data = output_data.iloc[
+        -1
+    ]  # get just the last row which is the most recent run
 
     # get IO params
     bus_freq = None
     addr_timing = None
     cacti_input_filename = os.path.join(CACTI_DIR, filename)
 
-    print(f"cacti_input_filename: {cacti_input_filename}")
-
-    with open(cacti_input_filename, 'r') as file:
+    with open(cacti_input_filename, "r") as file:
         for line in file:
             if "-bus_freq" in line:
                 bus_freq = line.split()[1] + " " + line.split()[2]
@@ -459,15 +492,15 @@ def run_existing_cacti_cfg(filename):
                 addr_timing = line.split()[1]
 
     IO_freq = convert_frequency(bus_freq)
-    IO_latency = (float(addr_timing) / IO_freq)
+    IO_latency = float(addr_timing) / IO_freq
 
     output_data["IO latency (s)"] = IO_latency
 
     # CACTI: access time (ns), search energy (nJ), read energy (nJ), write energy (nJ), leakage bank power (mW)
     # CACTI IO: area (sq.mm), timing (ps), dynamic power (mW), PHY power (mW), termination and bias power (mW)
     # latency (ns)
-    print(f"exiting run_existing_cacti_cfg")
     return output_data
+
 
 def convert_frequency(string):
     """
@@ -486,20 +519,21 @@ def convert_frequency(string):
     """
 
     parts = string.split()
-    
-    if len(parts) == 2 and parts[1].lower() in ('ghz', 'mhz'):
+
+    if len(parts) == 2 and parts[1].lower() in ("ghz", "mhz"):
         try:
             value = int(parts[0])  # Extract the integer part
             unit = parts[1].lower()  # Extract the unit and convert to lowercase
 
-            if unit == 'ghz':
+            if unit == "ghz":
                 return value * 10**9
-            elif unit == 'mhz':
+            elif unit == "mhz":
                 return value * 10**6
         except ValueError:
             print("Invalid input format")
     else:
         print("Invalid input format")
+
 
 def update_dat(rcs, dat_file):
     """
@@ -527,6 +561,7 @@ def update_dat(rcs, dat_file):
     for key, value in cacti_params.items():
         replace_values_in_dat_file(dat_file, key, value)
 
+
 def replace_values_in_dat_file(dat_file_path, key, new_value):
     """
     Helper to replace the original value in the .dat file with a new value.
@@ -542,16 +577,16 @@ def replace_values_in_dat_file(dat_file_path, key, new_value):
     Returns:
     dict
         A dictionary containing the original values of the replaced parameters.
-    
+
     Outputs:
     Updates the specified .dat file by replacing values for the given key with the new value.
     """
 
     original_values = {}
 
-    with open(dat_file_path, 'r') as file:
+    with open(dat_file_path, "r") as file:
         lines = file.readlines()
-    
+
     pattern = re.compile(rf"^-{key}\s+\((.*?)\)\s+(.*)$")
     for i, line in enumerate(lines):
         match = pattern.match(line.strip())
@@ -561,12 +596,17 @@ def replace_values_in_dat_file(dat_file_path, key, new_value):
             # Keep the unit label (e.g., (F/um), (V), etc.)
             unit_label = match.group(1)
             # Replace the numeric values with the new value
-            lines[i] = f"-{key} ({unit_label}) " + " ".join([str(new_value)] * len(original_values[i])) + "\n"
+            lines[i] = (
+                f"-{key} ({unit_label}) "
+                + " ".join([str(new_value)] * len(original_values[i]))
+                + "\n"
+            )
 
-    with open(dat_file_path, 'w') as file:
+    with open(dat_file_path, "w") as file:
         file.writelines(lines)
-    
+
     return original_values
+
 
 def restore_original_values_in_dat_file(dat_file_path, original_values):
     """
@@ -581,10 +621,10 @@ def restore_original_values_in_dat_file(dat_file_path, original_values):
     Outputs:
     Updates the specified .dat file by restoring the original values for the parameters.
     """
-    
-    with open(dat_file_path, 'r') as file:
+
+    with open(dat_file_path, "r") as file:
         lines = file.readlines()
-    
+
     for i, values in original_values.items():
         parts = lines[i].split()
         # Preserve the key and unit label
@@ -592,8 +632,9 @@ def restore_original_values_in_dat_file(dat_file_path, original_values):
         # Replace the rest with the original values
         lines[i] = f"{key_and_unit} " + " ".join(values) + "\n"
 
-    with open(dat_file_path, 'w') as file:
+    with open(dat_file_path, "w") as file:
         file.writelines(lines)
+
 
 # Function to read the file and extract values
 def read_config_file(in_file: str):
@@ -636,14 +677,18 @@ def read_config_file(in_file: str):
         elif line.startswith("-operating temperature"):
             config_dict["temp"] = int(line.split()[-1])
         elif line.startswith("-cache type"):
-            config_dict["cache_type"] = line.split("\"")[1]
+            config_dict["cache_type"] = line.split('"')[1]
             config_dict["is_cache"] = "cache" in config_dict["cache_type"]
             config_dict["is_main_mem"] = "main memory" in config_dict["cache_type"]
-            config_dict["is_3d_mem"] = "3D memory or 2D main memory" in config_dict["cache_type"]
+            config_dict["is_3d_mem"] = (
+                "3D memory or 2D main memory" in config_dict["cache_type"]
+            )
             config_dict["pure_cam"] = "cam" in config_dict["cache_type"]
-            config_dict["pure_ram"] = "ram" in config_dict["cache_type"] or config_dict["is_main_mem"]
+            config_dict["pure_ram"] = (
+                "ram" in config_dict["cache_type"] or config_dict["is_main_mem"]
+            )
         elif line.startswith("-print option"):
-            print_option = line.split("\"")[1]
+            print_option = line.split('"')[1]
             config_dict["print_detail_debug"] = "debug detail" in print_option
         elif line.startswith("-burst depth"):
             config_dict["burst_depth"] = int(line.split()[-1])
@@ -658,7 +703,7 @@ def read_config_file(in_file: str):
         elif line.startswith("-TSV projection"):
             config_dict["TSV_proj_type"] = int(line.split()[-1])
         elif line.startswith("-tag size"):
-            config_dict["tag_size"] = line.split("\"")[1]
+            config_dict["tag_size"] = line.split('"')[1]
             if "default" in config_dict["tag_size"]:
                 config_dict["specific_tag"] = False
                 config_dict["tag_w"] = 42
@@ -666,7 +711,7 @@ def read_config_file(in_file: str):
                 config_dict["specific_tag"] = True
                 config_dict["tag_w"] = int(line.split()[-1])
         elif line.startswith("-access mode"):
-            access_mode = line.split("\"")[1]
+            access_mode = line.split('"')[1]
             if "fast" in access_mode:
                 config_dict["access_mode"] = 2
             elif "sequential" in access_mode:
@@ -676,7 +721,7 @@ def read_config_file(in_file: str):
             else:
                 raise ValueError("Invalid access mode")
         elif line.startswith("-Data array cell type"):
-            config_dict["data_array_cell_type"] = line.split("\"")[1]
+            config_dict["data_array_cell_type"] = line.split('"')[1]
             cell_type = config_dict["data_array_cell_type"]
             if "itrs-hp" in cell_type:
                 config_dict["data_arr_ram_cell_tech_type"] = 0
@@ -691,7 +736,7 @@ def read_config_file(in_file: str):
             else:
                 raise ValueError("Invalid data array cell type")
         elif line.startswith("-Data array peripheral type"):
-            config_dict["data_array_peri_type"] = line.split("\"")[1]
+            config_dict["data_array_peri_type"] = line.split('"')[1]
             peri_type = config_dict["data_array_peri_type"]
             if "itrs-hp" in peri_type:
                 config_dict["data_arr_peri_global_tech_type"] = 0
@@ -702,7 +747,7 @@ def read_config_file(in_file: str):
             else:
                 raise ValueError("Invalid data array peripheral type")
         elif line.startswith("-Tag array cell type"):
-            config_dict["tag_array_cell_type"] = line.split("\"")[1]
+            config_dict["tag_array_cell_type"] = line.split('"')[1]
             cell_type = config_dict["tag_array_cell_type"]
             if "itrs-hp" in cell_type:
                 config_dict["tag_arr_ram_cell_tech_type"] = 0
@@ -717,7 +762,7 @@ def read_config_file(in_file: str):
             else:
                 raise ValueError("Invalid tag array cell type")
         elif line.startswith("-Tag array peripheral type"):
-            config_dict["tag_array_peri_type"] = line.split("\"")[1]
+            config_dict["tag_array_peri_type"] = line.split('"')[1]
             peri_type = config_dict["tag_array_peri_type"]
             if "itrs-hp" in peri_type:
                 config_dict["tag_arr_peri_global_tech_type"] = 0
@@ -728,7 +773,10 @@ def read_config_file(in_file: str):
             else:
                 raise ValueError("Invalid tag array peripheral type")
         elif line.startswith("-design"):
-            match = re.search(r'-design objective \(weight delay, dynamic power, leakage power, cycle time, area\) (\d+):(\d+):(\d+):(\d+):(\d+)', line)
+            match = re.search(
+                r"-design objective \(weight delay, dynamic power, leakage power, cycle time, area\) (\d+):(\d+):(\d+):(\d+):(\d+)",
+                line,
+            )
             if match:
                 config_dict["delay_wt"] = int(match.group(1))
                 config_dict["dynamic_power_wt"] = int(match.group(2))
@@ -738,7 +786,10 @@ def read_config_file(in_file: str):
         # Repeat the same pattern for the rest of the `self.` attributes
 
         elif line.startswith("-deviate"):
-            match = re.search(r'-deviate \(delay, dynamic power, leakage power, cycle time, area\) (\d+):(\d+):(\d+):(\d+):(\d+)', line)
+            match = re.search(
+                r"-deviate \(delay, dynamic power, leakage power, cycle time, area\) (\d+):(\d+):(\d+):(\d+):(\d+)",
+                line,
+            )
             if match:
                 config_dict["delay_dev"] = int(match.group(1))
                 config_dict["dynamic_power_dev"] = int(match.group(2))
@@ -746,7 +797,7 @@ def read_config_file(in_file: str):
                 config_dict["cycle_time_dev"] = int(match.group(4))
                 config_dict["area_dev"] = int(match.group(5))
         elif line.startswith("-Optimize"):
-            optimize = line.split("\"")[1]
+            optimize = line.split('"')[1]
             if "ED^2" in optimize:
                 config_dict["ed"] = 2
             elif "ED" in optimize:
@@ -754,7 +805,10 @@ def read_config_file(in_file: str):
             else:
                 config_dict["ed"] = 0
         elif line.startswith("-NUCAdesign"):
-            match = re.search(r'-NUCAdesign objective \(weight delay, dynamic power, leakage power, cycle time, area\) (\d+):(\d+):(\d+):(\d+):(\d+)', line)
+            match = re.search(
+                r"-NUCAdesign objective \(weight delay, dynamic power, leakage power, cycle time, area\) (\d+):(\d+):(\d+):(\d+):(\d+)",
+                line,
+            )
             if match:
                 config_dict["delay_wt_nuca"] = int(match.group(1))
                 config_dict["dynamic_power_wt_nuca"] = int(match.group(2))
@@ -762,7 +816,10 @@ def read_config_file(in_file: str):
                 config_dict["cycle_time_wt_nuca"] = int(match.group(4))
                 config_dict["area_wt_nuca"] = int(match.group(5))
         elif line.startswith("-NUCAdeviate"):
-            match = re.search(r'-NUCAdeviate \(delay, dynamic power, leakage power, cycle time, area\) (\d+):(\d+):(\d+):(\d+):(\d+)', line)
+            match = re.search(
+                r"-NUCAdeviate \(delay, dynamic power, leakage power, cycle time, area\) (\d+):(\d+):(\d+):(\d+):(\d+)",
+                line,
+            )
             if match:
                 config_dict["delay_dev_nuca"] = int(match.group(1))
                 config_dict["dynamic_power_dev_nuca"] = int(match.group(2))
@@ -770,14 +827,14 @@ def read_config_file(in_file: str):
                 config_dict["cycle_time_dev_nuca"] = int(match.group(4))
                 config_dict["area_dev_nuca"] = int(match.group(5))
         elif line.startswith("-Cache model"):
-            cache_model = line.split("\"")[1]
+            cache_model = line.split('"')[1]
             config_dict["nuca"] = 0 if "UCA" in cache_model else 1
         elif line.startswith("-NUCA bank count"):
             config_dict["nuca_bank_count"] = int(line.split()[-1])
             if config_dict["nuca_bank_count"] != 0:
                 config_dict["force_nuca_bank"] = 1
         elif line.startswith("-Wire inside mat"):
-            wire_type = line.split("\"")[1]
+            wire_type = line.split('"')[1]
             if "global" in wire_type:
                 config_dict["wire_is_mat_type"] = 2
             elif "local" in wire_type:
@@ -785,16 +842,16 @@ def read_config_file(in_file: str):
             else:
                 config_dict["wire_is_mat_type"] = 1
         elif line.startswith("-Wire outside mat"):
-            wire_type = line.split("\"")[1]
+            wire_type = line.split('"')[1]
             if "global" in wire_type:
                 config_dict["wire_os_mat_type"] = 2
             else:
                 config_dict["wire_os_mat_type"] = 1
         elif line.startswith("-Interconnect projection"):
-            ic_proj_type = line.split("\"")[1]
+            ic_proj_type = line.split('"')[1]
             config_dict["ic_proj_type"] = 0 if "aggressive" in ic_proj_type else 1
         elif line.startswith("-Wire signaling"):
-            wire_signaling = line.split("\"")[1]
+            wire_signaling = line.split('"')[1]
             if "default" in wire_signaling:
                 config_dict["force_wiretype"] = 0
                 config_dict["wt"] = "Global"
@@ -826,41 +883,43 @@ def read_config_file(in_file: str):
             if config_dict["cores"] > 16:
                 raise ValueError("No. of cores should be less than 16!")
         elif line.startswith("-Cache level"):
-            cache_level = line.split("\"")[1]
+            cache_level = line.split('"')[1]
             config_dict["cache_level"] = 0 if "L2" in cache_level else 1
         elif line.startswith("-Print level"):
-            print_level = line.split("\"")[1]
+            print_level = line.split('"')[1]
             config_dict["print_detail"] = 1 if "DETAILED" in print_level else 0
         elif line.startswith("-Add ECC"):
-            add_ecc = line.split("\"")[1]
+            add_ecc = line.split('"')[1]
             config_dict["add_ecc_b_"] = True if "true" in add_ecc else False
         elif line.startswith("-CLDriver vertical"):
-            cl_driver = line.split("\"")[1]
+            cl_driver = line.split('"')[1]
             config_dict["cl_vertical"] = True if "true" in cl_driver else False
         elif line.startswith("-Array Power Gating"):
-            array_power = line.split("\"")[1]
+            array_power = line.split('"')[1]
             config_dict["array_power_gated"] = True if "true" in array_power else False
         elif line.startswith("-Bitline floating"):
-            bitline_float = line.split("\"")[1]
+            bitline_float = line.split('"')[1]
             config_dict["bitline_floating"] = True if "true" in bitline_float else False
         elif line.startswith("-WL Power Gating"):
-            wl_power = line.split("\"")[1]
+            wl_power = line.split('"')[1]
             config_dict["wl_power_gated"] = True if "true" in wl_power else False
         elif line.startswith("-CL Power Gating"):
-            cl_power = line.split("\"")[1]
+            cl_power = line.split('"')[1]
             config_dict["cl_power_gated"] = True if "true" in cl_power else False
         elif line.startswith("-Interconnect Power Gating"):
-            interconnect_power = line.split("\"")[1]
-            config_dict["interconnect_power_gated"] = True if "true" in interconnect_power else False
+            interconnect_power = line.split('"')[1]
+            config_dict["interconnect_power_gated"] = (
+                True if "true" in interconnect_power else False
+            )
         elif line.startswith("-Power Gating Performance Loss"):
             val = line.split()[-1]
             cleaned_value = val.strip('"').strip()
             config_dict["perfloss"] = float(cleaned_value)
         elif line.startswith("-Print input parameters"):
-            print_input = line.split("\"")[1]
+            print_input = line.split('"')[1]
             config_dict["print_input_args"] = True if "true" in print_input else False
         elif line.startswith("-Force cache config"):
-            force_cache = line.split("\"")[1]
+            force_cache = line.split('"')[1]
             config_dict["force_cache_config"] = True if "true" in force_cache else False
         elif line.startswith("-Ndbl"):
             config_dict["ndbl"] = int(line.split()[-1])
@@ -875,7 +934,7 @@ def read_config_file(in_file: str):
         elif line.startswith("-Ndcm"):
             config_dict["ndcm"] = int(line.split()[-1])
         elif line.startswith("-dram_type"):
-            dram_type = line.split("\"")[1]
+            dram_type = line.split('"')[1]
             if "DDR3" in dram_type:
                 config_dict["io_type"] = "DDR3"
             elif "DDR4" in dram_type:
@@ -891,8 +950,8 @@ def read_config_file(in_file: str):
             else:
                 raise ValueError("Invalid Input for dram type")
         elif line.startswith("-io state"):
-            io_state = line.split("\"")[1]
-            config_dict['io_state'] = io_state
+            io_state = line.split('"')[1]
+            config_dict["io_state"] = io_state
             if "READ" in io_state:
                 config_dict["iostate"] = "READ"
             elif "WRITE" in io_state:
@@ -904,9 +963,11 @@ def read_config_file(in_file: str):
             else:
                 raise ValueError("Invalid Input for io state")
         elif line.startswith("-addr_timing"):
-            config_dict["addr_timing"] = float(re.search(r'-addr_timing (\d+(\.\d+)?)', line).group(1))
+            config_dict["addr_timing"] = float(
+                re.search(r"-addr_timing (\d+(\.\d+)?)", line).group(1)
+            )
         elif line.startswith("-dram ecc"):
-            dram_ecc = line.split("\"")[1]
+            dram_ecc = line.split('"')[1]
             if "NO_ECC" in dram_ecc:
                 config_dict["dram_ecc"] = "NO_ECC"
             elif "SECDED" in dram_ecc:
@@ -916,7 +977,7 @@ def read_config_file(in_file: str):
             else:
                 raise ValueError("Invalid Input for dram ecc")
         elif line.startswith("-dram dimm"):
-            dram_dimm = line.split("\"")[1]
+            dram_dimm = line.split('"')[1]
             if "UDIMM" in dram_dimm:
                 config_dict["dram_dimm"] = "UDIMM"
             elif "RDIMM" in dram_dimm:
@@ -930,13 +991,21 @@ def read_config_file(in_file: str):
         elif line.startswith("-duty_cycle"):
             config_dict["duty_cycle"] = float(line.split()[-1])
         elif line.startswith("-mem_density"):
-            config_dict["mem_density"] = float(re.search(r'-mem_density (\d+)', line).group(1))
+            config_dict["mem_density"] = float(
+                re.search(r"-mem_density (\d+)", line).group(1)
+            )
         elif line.startswith("-activity_dq"):
-            config_dict["activity_dq"] = float(re.search(r'-activity_dq (\d+\.\d+)', line).group(1))
+            config_dict["activity_dq"] = float(
+                re.search(r"-activity_dq (\d+\.\d+)", line).group(1)
+            )
         elif line.startswith("-activity_ca"):
-            config_dict["activity_ca"] = float(re.search(r'-activity_ca (\d+\.\d+)', line).group(1))
+            config_dict["activity_ca"] = float(
+                re.search(r"-activity_ca (\d+\.\d+)", line).group(1)
+            )
         elif line.startswith("-bus_freq"):
-            config_dict["bus_freq"] = float(re.search(r'-bus_freq (\d+)', line).group(1))
+            config_dict["bus_freq"] = float(
+                re.search(r"-bus_freq (\d+)", line).group(1)
+            )
         elif line.startswith("-num_dqs"):
             # dqs check has to be before dq check else won't pass
             match = re.search(r"-num_dqs (\d+)", line)
@@ -945,31 +1014,35 @@ def read_config_file(in_file: str):
             else:
                 config_dict["num_dqs"] = 0
         elif line.startswith("-num_dq"):
-            match = re.search(r'-num_dq (\d+)', line)
+            match = re.search(r"-num_dq (\d+)", line)
             if match:
                 config_dict["num_dq"] = int(match.group(1))
         elif line.startswith("-num_ca"):
-            config_dict["num_ca"] = int(re.search(r'-num_ca (\d+)', line).group(1))
+            config_dict["num_ca"] = int(re.search(r"-num_ca (\d+)", line).group(1))
         elif line.startswith("-num_clk"):
-            config_dict["num_clk"] = int(re.search(r'-num_clk (\d+)', line).group(1))
+            config_dict["num_clk"] = int(re.search(r"-num_clk (\d+)", line).group(1))
             if config_dict["num_clk"] <= 0:
                 raise ValueError("num_clk should be greater than zero!")
         elif line.startswith("-num_mem_dq"):
-            config_dict["num_mem_dq"] = int(re.search(r'-num_mem_dq (\d+)', line).group(1))
+            config_dict["num_mem_dq"] = int(
+                re.search(r"-num_mem_dq (\d+)", line).group(1)
+            )
         elif line.startswith("-mem_data_width"):
-            config_dict["mem_data_width"] = int(re.search(r'-mem_data_width (\d+)', line).group(1))
+            config_dict["mem_data_width"] = int(
+                re.search(r"-mem_data_width (\d+)", line).group(1)
+            )
         elif line.startswith("-num_bobs"):
             config_dict["num_bobs"] = int(line.split()[-1])
         elif line.startswith("-capacity"):
             value = line.split()[-1]
-            if '.' in value:
+            if "." in value:
                 config_dict["capacity"] = float(value)
             else:
                 config_dict["capacity"] = int(value)
         elif line.startswith("-num_channels_per_bob"):
             config_dict["num_channels_per_bob"] = int(line.split()[-1])
         elif line.startswith("-first metric"):
-            first_metric = line.split("\"")[1]
+            first_metric = line.split('"')[1]
             if "Cost" in first_metric:
                 config_dict["first_metric"] = "Cost"
             elif "Energy" in first_metric:
@@ -979,7 +1052,7 @@ def read_config_file(in_file: str):
             else:
                 raise ValueError("Invalid Input for first metric")
         elif line.startswith("-second metric"):
-            second_metric = line.split("\"")[1]
+            second_metric = line.split('"')[1]
             if "Cost" in second_metric:
                 config_dict["second_metric"] = "Cost"
             elif "Energy" in second_metric:
@@ -989,7 +1062,7 @@ def read_config_file(in_file: str):
             else:
                 raise ValueError("Invalid Input for second metric")
         elif line.startswith("-third metric"):
-            third_metric = line.split("\"")[1]
+            third_metric = line.split('"')[1]
             if "Cost" in third_metric:
                 config_dict["third_metric"] = "Cost"
             elif "Energy" in third_metric:
@@ -999,7 +1072,7 @@ def read_config_file(in_file: str):
             else:
                 raise ValueError("Invalid Input for third metric")
         elif line.startswith("-DIMM model"):
-            dimm_model = line.split("\"")[1]
+            dimm_model = line.split('"')[1]
             if "JUST_UDIMM" in dimm_model:
                 config_dict["dimm_model"] = "JUST_UDIMM"
             elif "JUST_RDIMM" in dimm_model:
@@ -1011,7 +1084,7 @@ def read_config_file(in_file: str):
             else:
                 raise ValueError("Invalid Input for DIMM model")
         elif line.startswith("-Low Power Permitted"):
-            low_power = line.split("\"")[1]
+            low_power = line.split('"')[1]
             config_dict["low_power_permitted"] = True if "T" in low_power else False
         elif line.startswith("-load"):
             config_dict["load"] = float(line.split()[-1])
@@ -1020,16 +1093,16 @@ def read_config_file(in_file: str):
         elif line.startswith("-rd_2_wr_ratio"):
             config_dict["rd_2_wr_ratio"] = float(line.split()[-1])
         elif line.startswith("-same_bw_in_bob"):
-            same_bw = line.split("\"")[1]
+            same_bw = line.split('"')[1]
             config_dict["same_bw_in_bob"] = True if "T" in same_bw else False
         elif line.startswith("-mirror_in_bob"):
-            mirror = line.split("\"")[1]
+            mirror = line.split('"')[1]
             config_dict["mirror_in_bob"] = True if "T" in mirror else False
         elif line.startswith("-total_power"):
-            total_power = line.split("\"")[1]
+            total_power = line.split('"')[1]
             config_dict["total_power"] = True if "T" in total_power else False
         elif line.startswith("-verbose"):
-            verbose = line.split("\"")[1]
+            verbose = line.split('"')[1]
             config_dict["verbose"] = True if "T" in verbose else False
         elif line.startswith("-rtt_value"):
             config_dict["rtt_value"] = float(line.split()[-1])
@@ -1042,164 +1115,229 @@ def read_config_file(in_file: str):
     seq_access = False
     fast_access = True
 
-    if config_dict['access_mode'] == 0:
+    if config_dict["access_mode"] == 0:
         seq_access = False
         fast_access = False
-    elif config_dict['access_mode'] == 1:
+    elif config_dict["access_mode"] == 1:
         seq_access = True
         fast_access = False
-    elif config_dict['access_mode'] == 2:
+    elif config_dict["access_mode"] == 2:
         seq_access = False
         fast_access = True
 
-    if config_dict['is_main_mem']:
-        if config_dict['ic_proj_type'] == 0 and not g_ip.is_3d_mem:
+    if config_dict["is_main_mem"]:
+        if config_dict["ic_proj_type"] == 0 and not g_ip.is_3d_mem:
             print("DRAM model supports only conservative interconnect projection!\n\n")
             return False
 
-    B = config_dict['line_sz']
+    B = config_dict["line_sz"]
 
     if B < 1:
         print("Block size must >= 1")
         return False
-    elif B * 8 < config_dict['bus_width']:
+    elif B * 8 < config_dict["bus_width"]:
         print(f"Block size must be at least {config_dict['bus_width'] / 8}")
         return False
 
-    if config_dict['F_sz_um'] <= 0:
+    if config_dict["F_sz_um"] <= 0:
         print("Feature size must be > 0")
         return False
-    elif config_dict['F_sz_um'] > 0.091:
+    elif config_dict["F_sz_um"] > 0.091:
         print("Feature size must be <= 90 nm")
         return False
 
-    RWP = config_dict['num_rw_ports']
-    ERP = config_dict['num_rd_ports']
-    EWP = config_dict['num_wr_ports']
-    NSER = config_dict['num_se_rd_ports']
-    SCHP = config_dict['num_search_ports']
+    RWP = config_dict["num_rw_ports"]
+    ERP = config_dict["num_rd_ports"]
+    EWP = config_dict["num_wr_ports"]
+    NSER = config_dict["num_se_rd_ports"]
+    SCHP = config_dict["num_search_ports"]
 
     if (RWP + ERP + EWP) < 1:
         print("Must have at least one port")
         return False
 
-    if not is_pow2(config_dict['nbanks']):
-        print("Number of subbanks should be greater than or equal to 1 and should be a power of 2")
+    if not is_pow2(config_dict["nbanks"]):
+        print(
+            "Number of subbanks should be greater than or equal to 1 and should be a power of 2"
+        )
         return False
 
-    C = config_dict['cache_size'] / config_dict['nbanks']
+    C = config_dict["cache_size"] / config_dict["nbanks"]
     if C < 64 and not g_ip.is_3d_mem:
         print("Cache size must >=64")
         return False
 
-    if config_dict['is_cache'] and config_dict['assoc'] == 0:
-        config_dict['fully_assoc'] = True
+    if config_dict["is_cache"] and config_dict["assoc"] == 0:
+        config_dict["fully_assoc"] = True
     else:
-        config_dict['fully_assoc'] = False
+        config_dict["fully_assoc"] = False
 
-    if config_dict['pure_cam'] and config_dict['assoc'] != 0:
+    if config_dict["pure_cam"] and config_dict["assoc"] != 0:
         print("Pure CAM must have associativity as 0")
         return False
 
-    if config_dict['assoc'] == 0 and not config_dict['pure_cam'] and not config_dict['is_cache']:
+    if (
+        config_dict["assoc"] == 0
+        and not config_dict["pure_cam"]
+        and not config_dict["is_cache"]
+    ):
         print("Only CAM or Fully associative cache can have associativity as 0")
         return False
 
-    if (config_dict['fully_assoc'] or config_dict['pure_cam']) and (
-            config_dict['data_arr_ram_cell_tech_type'] != config_dict['tag_arr_ram_cell_tech_type']
-            or config_dict['data_arr_peri_global_tech_type'] != config_dict['tag_arr_peri_global_tech_type']):
-        print("CAM and fully associative cache must have same device type for both data and tag array")
+    if (config_dict["fully_assoc"] or config_dict["pure_cam"]) and (
+        config_dict["data_arr_ram_cell_tech_type"]
+        != config_dict["tag_arr_ram_cell_tech_type"]
+        or config_dict["data_arr_peri_global_tech_type"]
+        != config_dict["tag_arr_peri_global_tech_type"]
+    ):
+        print(
+            "CAM and fully associative cache must have same device type for both data and tag array"
+        )
         return False
 
-    if (config_dict['fully_assoc'] or config_dict['pure_cam']) and (
-            config_dict['data_arr_ram_cell_tech_type'] == lp_dram or config_dict['data_arr_ram_cell_tech_type'] == comm_dram):
+    if (config_dict["fully_assoc"] or config_dict["pure_cam"]) and (
+        config_dict["data_arr_ram_cell_tech_type"] == lp_dram
+        or config_dict["data_arr_ram_cell_tech_type"] == comm_dram
+    ):
         print("DRAM based CAM and fully associative cache are not supported")
         return False
 
-    if (config_dict['fully_assoc'] or config_dict['pure_cam']) and config_dict['is_main_mem']:
+    if (config_dict["fully_assoc"] or config_dict["pure_cam"]) and config_dict[
+        "is_main_mem"
+    ]:
         print("CAM and fully associative cache cannot be as main memory")
         return False
 
-    if (config_dict['fully_assoc'] or config_dict['pure_cam']) and SCHP < 1:
+    if (config_dict["fully_assoc"] or config_dict["pure_cam"]) and SCHP < 1:
         print("CAM and fully associative must have at least 1 search port")
         return False
 
-    if RWP == 0 and ERP == 0 and SCHP > 0 and (config_dict['fully_assoc'] or config_dict['pure_cam']):
+    if (
+        RWP == 0
+        and ERP == 0
+        and SCHP > 0
+        and (config_dict["fully_assoc"] or config_dict["pure_cam"])
+    ):
         ERP = SCHP
 
-    if config_dict['assoc'] == 0:
+    if config_dict["assoc"] == 0:
         A = C / B
     else:
-        if config_dict['assoc'] == 1:
+        if config_dict["assoc"] == 1:
             A = 1
         else:
-            A = config_dict['assoc']
+            A = config_dict["assoc"]
             if not is_pow2(A):
                 print("Associativity must be a power of 2")
                 return False
 
-    if C / (B * A) <= 1 and config_dict['assoc'] != 0 and not g_ip.is_3d_mem:
+    if C / (B * A) <= 1 and config_dict["assoc"] != 0 and not g_ip.is_3d_mem:
         print("Number of sets is too small: ")
-        print(" Need to either increase cache size, or decrease associativity or block size")
+        print(
+            " Need to either increase cache size, or decrease associativity or block size"
+        )
         print(" (or use fully associative cache)")
         return False
 
-    config_dict['block_size'] = B
+    config_dict["block_size"] = B
 
     if seq_access:
-        config_dict['tag_assoc'] = A
-        config_dict['data_assoc'] = 1
-        config_dict['is_seq_acc'] = True
+        config_dict["tag_assoc"] = A
+        config_dict["data_assoc"] = 1
+        config_dict["is_seq_acc"] = True
     else:
-        config_dict['tag_assoc'] = A
-        config_dict['data_assoc'] = A
-        config_dict['is_seq_acc'] = False
+        config_dict["tag_assoc"] = A
+        config_dict["data_assoc"] = A
+        config_dict["is_seq_acc"] = False
 
-    if config_dict['assoc'] == 0:
-        config_dict['data_assoc'] = 1
+    if config_dict["assoc"] == 0:
+        config_dict["data_assoc"] = 1
 
-    config_dict['num_rw_ports'] = RWP
-    config_dict['num_rd_ports'] = ERP
-    config_dict['num_wr_ports'] = EWP
-    config_dict['num_se_rd_ports'] = NSER
+    config_dict["num_rw_ports"] = RWP
+    config_dict["num_rd_ports"] = ERP
+    config_dict["num_wr_ports"] = EWP
+    config_dict["num_se_rd_ports"] = NSER
 
-    if not (config_dict['fully_assoc'] or config_dict['pure_cam']):
-        config_dict['num_search_ports'] = 0
+    if not (config_dict["fully_assoc"] or config_dict["pure_cam"]):
+        config_dict["num_search_ports"] = 0
 
-    config_dict['nsets'] = C / (B * A)
+    config_dict["nsets"] = C / (B * A)
 
-    if config_dict['temp'] < 300 or config_dict['temp'] > 400 or config_dict['temp'] % 10 != 0:
-        print(f"{config_dict['temp']} Temperature must be between 300 and 400 Kelvin and multiple of 10.")
+    if (
+        config_dict["temp"] < 300
+        or config_dict["temp"] > 400
+        or config_dict["temp"] % 10 != 0
+    ):
+        print(
+            f"{config_dict['temp']} Temperature must be between 300 and 400 Kelvin and multiple of 10."
+        )
         return False
 
-    if config_dict['nsets'] < 1 and not g_ip.is_3d_mem:
+    if config_dict["nsets"] < 1 and not g_ip.is_3d_mem:
         print("Less than one set...")
         return False
 
-    config_dict['power_gating'] = (config_dict['array_power_gated'] or config_dict['bitline_floating'] or config_dict['wl_power_gated'] or
-                                config_dict['cl_power_gated'] or config_dict['interconnect_power_gated'])
+    config_dict["power_gating"] = (
+        config_dict["array_power_gated"]
+        or config_dict["bitline_floating"]
+        or config_dict["wl_power_gated"]
+        or config_dict["cl_power_gated"]
+        or config_dict["interconnect_power_gated"]
+    )
 
     logger.info("Done reading cacti cfg file.")
     return config_dict
 
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Process a config file and a data file.")
-    parser.add_argument('-cfg_name', type=str, default='cache', help="Path to the configuration file (default: mem_validate_cache)")
-    parser.add_argument("-adjust", type=str, default="false", help="Boolean flag to detail adjust cfg through arguments")
-    parser.add_argument('-dat_file', type=str, default='src/cacti/tech_params/90nm.dat', help="Path to the data file (default: src/cacti/tech_params/90nm.dat)")
-    parser.add_argument('-cacheSize', type=int, default=131072, help="Path to the data file (default: 131072)")
-    parser.add_argument('-blockSize', type=int, default=64, help="Path to the data file (default: 64)")
-    parser.add_argument('-cacheType', type=str, default="main memory", help="Path to the data file (default: main memory)")
-    parser.add_argument('-busWidth', type=int, default=64, help="Path to the data file (default: 64)")
+    parser = argparse.ArgumentParser(
+        description="Process a config file and a data file."
+    )
+    parser.add_argument(
+        "-cfg_name",
+        type=str,
+        default="cache",
+        help="Path to the configuration file (default: mem_validate_cache)",
+    )
+    parser.add_argument(
+        "-adjust",
+        type=str,
+        default="false",
+        help="Boolean flag to detail adjust cfg through arguments",
+    )
+    parser.add_argument(
+        "-dat_file",
+        type=str,
+        default="src/cacti/tech_params/90nm.dat",
+        help="Path to the data file (default: src/cacti/tech_params/90nm.dat)",
+    )
+    parser.add_argument(
+        "-cacheSize",
+        type=int,
+        default=131072,
+        help="Path to the data file (default: 131072)",
+    )
+    parser.add_argument(
+        "-blockSize", type=int, default=64, help="Path to the data file (default: 64)"
+    )
+    parser.add_argument(
+        "-cacheType",
+        type=str,
+        default="main memory",
+        help="Path to the data file (default: main memory)",
+    )
+    parser.add_argument(
+        "-busWidth", type=int, default=64, help="Path to the data file (default: 64)"
+    )
 
     args = parser.parse_args()
     cache_cfg = f"src/cacti/cfg/{args.cfg_name}.cfg"
 
-    adjust = args.adjust.lower() == "true"  
+    adjust = args.adjust.lower() == "true"
     if adjust:
         buf_vals = gen_vals(
             args.cfg_name,
-            cacheSize=args.cacheSize, 
+            cacheSize=args.cacheSize,
             blockSize=args.blockSize,
             cache_type=args.cacheType,
             bus_width=args.busWidth,
