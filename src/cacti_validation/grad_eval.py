@@ -337,7 +337,7 @@ def gen_diff(sympy_file, cfg_file, dat_file=None):
         for metric, metric_results in python_results.items():
             new_val = tech_params[diff_param] - python_results[metric]['delta']
 
-            results_dir = os.path.join(os.path.dirnmae(__file__), "results/")
+            results_dir = os.path.join(os.path.dirname(__file__), "results/")
             # Log the CACTI Python Gradient Info (gradient, original value, delta, new value)
             python_info_csv = os.path.join(results_dir, "python_grad_info.csv")
 

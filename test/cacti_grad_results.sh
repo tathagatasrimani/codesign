@@ -12,8 +12,10 @@ do
 done
 
 ARGS=""
+PLOT_ARGS=""
 if [ $CFG_FILE ]; then
     ARGS+=" --config $CFG_FILE"
+    PLOT_ARGS+=" --config $CFG_FILE"
 fi
 if [ $DAT_FILE ]; then
     ARGS+=" --dat $DAT_FILE"
@@ -28,4 +30,4 @@ fi
 
 # Run the Python script with the defined variables
 python -m src.cacti_validation.grad_eval $ARGS
-python -m src.cacti_validation.plot_grad $ARGS
+python -m src.cacti_validation.plot_grad $PLOT_ARGS
