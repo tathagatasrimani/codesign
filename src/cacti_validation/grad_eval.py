@@ -13,17 +13,13 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import csv
 
-# Work in codesign/src for ease
-# project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
-# os.chdir(project_root)
-# current_directory = os.getcwd()
-# sys.path.insert(0, current_directory)
-
 from src import CACTI_DIR
 from src import cacti_util
 from src import hw_symbols
 from src.cacti.cacti_python.parameter import g_ip
 import src.cacti.cacti_python.get_dat as dat
+
+rng = np.random.default_rng()
 
 ### Python CACTI Gradient Generation
 def cacti_python_diff(sympy_file, tech_params, diff_var, metric=None): 
@@ -31,6 +27,8 @@ def cacti_python_diff(sympy_file, tech_params, diff_var, metric=None):
     Top function that generates the Python Cacti gradient for specified metrics. 
     If no metric is provided, generates for access_time, read_dynamic, 
     write_dynamic, and read_leakage.
+
+    Calls `cacti_python_diff_single` for each of the above output variables.
 
     Inputs:
     sympy_file : str
@@ -287,10 +285,10 @@ def gen_diff(sympy_file, cfg_file, dat_file=None):
     #     src_dir = os.path.join(cur_dir, 'src')
     #     os.chdir(src_dir)
 
-    cfg_file = os.path.join(CACTI_DIR, cfg_file)
-    dat_file = os.path.join(CACTI_DIR, dat_file)
-
     print(f"In gen_diff {sympy_file}; {cfg_file}; {dat_file}")
+
+
+    cfg_file = os.path.join(CACTI_DIR, cfg_file)
 
     # init input params from .cfg
     g_ip.parse_cfg(cfg_file)
@@ -311,6 +309,8 @@ def gen_diff(sympy_file, cfg_file, dat_file=None):
             dat_file = os.path.join(CACTI_DIR, 'tech_params', '22nm.dat')
         else:
             dat_file = os.path.join(CACTI_DIR, 'tech_params', '180nm.dat')
+    else:
+        dat_file = os.path.join(CACTI_DIR, dat_file)
 
     tech_params = {}
     dat.scan_dat(tech_params, dat_file, g_ip.data_arr_ram_cell_tech_type, g_ip.data_arr_ram_cell_tech_type, g_ip.temp)
@@ -329,7 +329,10 @@ def gen_diff(sympy_file, cfg_file, dat_file=None):
     tech_param_keys.remove(getattr(hw_symbols, "Wmemcellnmos", None))
     tech_param_keys.remove(getattr(hw_symbols, "area_cell", None))
     tech_param_keys.remove(getattr(hw_symbols, "asp_ratio_cell", None))
-    
+
+    # ============ FOR TESTING =================
+    tech_param_keys = rng.choice(tech_param_keys, 2, replace=False)
+    # ============ END TESTING =================
     # diff each parameter
     for diff_param in tech_param_keys:
         python_results = cacti_python_diff(sympy_file, tech_params, diff_param)  # format [metric]['gradient'/'delta']

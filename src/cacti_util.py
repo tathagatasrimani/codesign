@@ -548,11 +548,6 @@ def replace_values_in_dat_file(dat_file_path, key, new_value):
     """
 
     original_values = {}
-    cur_dir = os.getcwd()
-    if os.path.basename(cur_dir) == 'codesign':
-        # Change to the 'src' directory
-        if not dat_file_path.startswith("src/"):
-            dat_file_path = "src/" + dat_file_path
 
     with open(dat_file_path, 'r') as file:
         lines = file.readlines()
@@ -586,11 +581,6 @@ def restore_original_values_in_dat_file(dat_file_path, original_values):
     Outputs:
     Updates the specified .dat file by restoring the original values for the parameters.
     """
-
-    cur_dir = os.getcwd()
-    if os.path.basename(cur_dir) == 'codesign':
-        # Change to the 'src' directory
-        dat_file_path = "src/" + dat_file_path
     
     with open(dat_file_path, 'r') as file:
         lines = file.readlines()
