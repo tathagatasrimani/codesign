@@ -52,6 +52,6 @@ def plot_overall_box_and_whisker(csv_file):
     # plt.show()
 
 if __name__ == "__main__":
-    current_directory = os.path.dirname(os.path.realpath(__file__))
-    csv_file_path = os.path.join(current_directory, 'abs_results', 'abs_validate_results.csv')
+    current_directory = os.path.dirname(__file__)
+    csv_file_path = os.path.join(current_directory, 'results', 'abs_validate_results.csv')
     plot_overall_box_and_whisker(csv_file_path)

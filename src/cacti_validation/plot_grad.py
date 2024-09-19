@@ -176,30 +176,40 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     cfg_name = args.CFG
-    
+
+    current_directory = os.path.dirname(__file__)
+
     # INDIVIDUAL PLOTS
-    csv_file_path = f'src/cacti_validation/grad_results/{cfg_name}_access_time_grad_results.csv'
-    plot_diff(csv_file_path, name=f"{cfg_name}_access_time_similarity")
+    access_time_file = os.path.join(current_directory, 'results', f"{cfg_name}_access_time_grad_results.csv")
+    plot_diff(access_time_file, name=f"{cfg_name}_access_time_similarity")
 
-    csv_file_path = f'src/cacti_validation/grad_results/{cfg_name}_read_dynamic_grad_results.csv'
-    plot_diff(csv_file_path, name=f"{cfg_name}_read_dynamic_similarity")
+    read_energy_file = os.path.join(current_directory, 'results', f'{cfg_name}_read_dynamic_grad_results.csv')
+    plot_diff(read_energy_file, name=f"{cfg_name}_read_dynamic_similarity")
 
-    csv_file_path = f'src/cacti_validation/grad_results/{cfg_name}_write_dynamic_grad_results.csv'
-    plot_diff(csv_file_path, name=f"{cfg_name}_write_dynamic_similarity")
+    write_energy_file = csv_file_path = os.path.join(
+        current_directory, "results", f"{cfg_name}_write_dynamic_grad_results.csv"
+    )
+    plot_diff(write_energy_file, name=f"{cfg_name}_write_dynamic_similarity")
 
-    csv_file_path = f'src/cacti_validation/grad_results/{cfg_name}_read_leakage_grad_results.csv'
-    plot_diff(csv_file_path, name=f"{cfg_name}_read_leakage_similarity")
+    leakage_power_file = os.path.join(current_directory, 'results', f'{cfg_name}_read_leakage_grad_results.csv')
+    plot_diff(leakage_power_file, name=f"{cfg_name}_read_leakage_similarity")
 
     # COMBINED PLOT
     csv_files = [
-        (f'src/cacti_validation/grad_results/{cfg_name}_access_time_grad_results.csv', "Access Time"),
-        (f'src/cacti_validation/grad_results/{cfg_name}_read_dynamic_grad_results.csv', "Read Dynamic"),
-        (f'src/cacti_validation/grad_results/{cfg_name}_write_dynamic_grad_results.csv', "Write Dynamic"),
-        (f'src/cacti_validation/grad_results/{cfg_name}_read_leakage_grad_results.csv', "Read Leakage")
+        (access_time_file, "Access Time"),
+        (
+            read_energy_file,
+            "Read Dynamic",
+        ),
+        (
+            write_energy_file,
+            "Write Dynamic",
+        ),
+        (
+            leakage_power_file,
+            "Leakage",
+        ),
     ]
-    combined_csv_path = f'src/cacti_validation/grad_results/{cfg_name}_combined.csv'
+    combined_csv_path = os.path.join(current_directory, f'results/{cfg_name}_combined.csv')
     merge_csv_files(csv_files, combined_csv_path)
     plot_diff(combined_csv_path, False, False, 16, name=f"{cfg_name}_combined_gradient_similarity")
-
-    
-
