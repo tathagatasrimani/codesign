@@ -422,12 +422,12 @@ def run_existing_cacti_cfg(filename):
 
     # write file
     # input_filename = filename.replace("src/cacti/", "")
-    print(f"input_filename: {input_filename}")
+    # print(f"input_filename: {input_filename}")
 
     stdout_filename = "cacti_stdout.log"
     stdout_file_path = os.path.join(CACTI_DIR, stdout_filename)
 
-    cmd = ['./cacti', '-infile', input_filename]
+    cmd = ['./cacti', '-infile', filename]
     
     with open(stdout_file_path, "w") as f:
         p = subprocess.Popen(cmd, cwd=CACTI_DIR, stdout=f, stderr=subprocess.PIPE)
@@ -439,7 +439,7 @@ def run_existing_cacti_cfg(filename):
 
     print(cmd)
 
-    output_filename = input_filename + ".out"
+    output_filename = filename + ".out"
     cactiOutput = os.path.join(CACTI_DIR, output_filename)
     output_data = pd.read_csv(cactiOutput, sep=", ", engine='python')
     output_data = output_data.iloc[-1] # get just the last row which is the most recent run
@@ -447,7 +447,7 @@ def run_existing_cacti_cfg(filename):
     # get IO params
     bus_freq = None
     addr_timing = None
-    cacti_input_filename = os.path.join(CACTI_DIR, input_filename)
+    cacti_input_filename = os.path.join(CACTI_DIR, filename)
 
     print(f"cacti_input_filename: {cacti_input_filename}")
 
