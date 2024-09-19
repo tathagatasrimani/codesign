@@ -114,6 +114,8 @@ def gen_vals(
     Generates a Cacti .cfg file based on input and cacti_input, runs Cacti,
     and retrieves timing and power values.
 
+    TODO: Change to just call `run_existing_cacti_cfg`
+
     Inputs:
     filename : str, optional
         Base name for the generated .cfg file (default is "base_cache").
@@ -139,6 +141,9 @@ def gen_vals(
     Returns:
     pd.DataFrame
         DataFrame containing timing, power, and IO-related values from the Cacti run.
+            # CACTI: access time (ns), search energy (nJ), read energy (nJ), write energy (nJ), leakage bank power (mW)
+            # CACTI IO: area (sq.mm), timing (ps), dynamic power (mW), PHY power (mW), termination and bias power (mW)
+            # latency (ns)
 
     Outputs:
     A .cfg file is generated for Cacti, and Cacti run results are
@@ -264,9 +269,7 @@ def gen_vals(
             if config_values["access_mode"] == 2
             else "sequential" if config_values["access_mode"] == 1 else "normal"
         ),
-        # TODO the rest of these need to have config_values['key'] aligned properly with read_config function
-        # You can look at parse_cfg in parameter.py to see what the keys should be named
-        "",
+       "",
         "# DESIGN OBJECTIVE for UCA (or banks in NUCA)",
         f"-design objective (weight delay, dynamic power, leakage power, cycle time, area) {config_values['delay_wt']}:{config_values['dynamic_power_wt']}:{config_values['leakage_power_wt']}:{config_values['cycle_time_wt']}:{config_values['area_wt']}",
         "",
@@ -433,9 +436,6 @@ def gen_vals(
 
     output_data["IO latency (s)"] = IO_latency
 
-    # CACTI: access time (ns), search energy (nJ), read energy (nJ), write energy (nJ), leakage bank power (mW)
-    # CACTI IO: area (sq.mm), timing (ps), dynamic power (mW), PHY power (mW), termination and bias power (mW)
-    # latency (ns)
     return output_data
 
 
@@ -450,6 +450,9 @@ def run_existing_cacti_cfg(filename):
     Returns:
     pd.DataFrame
         DataFrame containing timing, power, and IO-related values from the Cacti run.
+            # CACTI: access time (ns), search energy (nJ), read energy (nJ), write energy (nJ), leakage bank power (mW)
+            # CACTI IO: area (sq.mm), timing (ps), dynamic power (mW), PHY power (mW), termination and bias power (mW)
+            # latency (ns)
 
     Outputs:
     Cacti run results are returned in a DataFrame after executing the existing .cfg file.
@@ -496,9 +499,6 @@ def run_existing_cacti_cfg(filename):
 
     output_data["IO latency (s)"] = IO_latency
 
-    # CACTI: access time (ns), search energy (nJ), read energy (nJ), write energy (nJ), leakage bank power (mW)
-    # CACTI IO: area (sq.mm), timing (ps), dynamic power (mW), PHY power (mW), termination and bias power (mW)
-    # latency (ns)
     return output_data
 
 
@@ -1294,47 +1294,45 @@ if __name__ == "__main__":
         description="Process a config file and a data file."
     )
     parser.add_argument(
-        "-cfg_name",
+        "--cfg_name",
         type=str,
         default="cache",
         help="Path to the configuration file (default: mem_validate_cache)",
     )
     parser.add_argument(
-        "-adjust",
-        type=str,
-        default="false",
+        "--adjust",
+        action="store_true",
         help="Boolean flag to detail adjust cfg through arguments",
     )
     parser.add_argument(
-        "-dat_file",
+        "--dat_file",
         type=str,
         default="src/cacti/tech_params/90nm.dat",
         help="Path to the data file (default: src/cacti/tech_params/90nm.dat)",
     )
     parser.add_argument(
-        "-cacheSize",
+        "--cacheSize",
         type=int,
         default=131072,
         help="Path to the data file (default: 131072)",
     )
     parser.add_argument(
-        "-blockSize", type=int, default=64, help="Path to the data file (default: 64)"
+        "--blockSize", type=int, default=64, help="Path to the data file (default: 64)"
     )
     parser.add_argument(
-        "-cacheType",
+        "--cacheType",
         type=str,
         default="main memory",
         help="Path to the data file (default: main memory)",
     )
     parser.add_argument(
-        "-busWidth", type=int, default=64, help="Path to the data file (default: 64)"
+        "--busWidth", type=int, default=64, help="Path to the data file (default: 64)"
     )
 
     args = parser.parse_args()
     cache_cfg = f"src/cacti/cfg/{args.cfg_name}.cfg"
 
-    adjust = args.adjust.lower() == "true"
-    if adjust:
+    if args.adjust:
         buf_vals = gen_vals(
             args.cfg_name,
             cacheSize=args.cacheSize,

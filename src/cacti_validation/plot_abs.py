@@ -48,7 +48,6 @@ def plot_overall_box_and_whisker(csv_file):
 
     # Save the plot
     plt.savefig(os.path.join(figs_dir, 'absolute_validation.png'))
-    # plt.show()
 
 if __name__ == "__main__":
     current_directory = os.path.dirname(__file__)

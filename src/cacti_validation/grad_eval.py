@@ -194,12 +194,6 @@ def cacti_c_diff(cfg_file, dat_file_path, new_value, diff_var):
 
     original_val = cacti_util.gen_vals(
         cfg_file,
-        # cacheSize=g_ip.cache_sz,  # TODO: Add in buffer sizing
-        # blockSize=g_ip.block_sz,
-        # cache_type="cache",
-        # bus_width=g_ip.out_w,
-        # transistor_size=g_ip.F_sz_um,
-        # force_cache_config="false",
     )
 
     original_vals = cacti_util.replace_values_in_dat_file(
@@ -208,12 +202,6 @@ def cacti_c_diff(cfg_file, dat_file_path, new_value, diff_var):
 
     next_val = cacti_util.gen_vals(
         cfg_file,
-        # cacheSize=g_ip.cache_sz,  # TODO: Add in buffer sizing
-        # blockSize=g_ip.block_sz,
-        # cache_type="cache",
-        # bus_width=g_ip.out_w,
-        # transistor_size=g_ip.F_sz_um,
-        # force_cache_config="false",
     )
 
     cacti_util.restore_original_values_in_dat_file(dat_file_path, original_vals)
@@ -331,8 +319,9 @@ def gen_diff(sympy_file, cfg_file, dat_file=None):
     tech_param_keys.remove(getattr(hw_symbols, "asp_ratio_cell", None))
 
     # ============ FOR TESTING =================
-    tech_param_keys = rng.choice(tech_param_keys, 2, replace=False)
+    # tech_param_keys = rng.choice(tech_param_keys, 2, replace=False)
     # ============ END TESTING =================
+
     # diff each parameter
     for diff_param in tech_param_keys:
         python_results = cacti_python_diff(

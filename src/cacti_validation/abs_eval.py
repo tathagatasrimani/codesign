@@ -249,7 +249,6 @@ if __name__ == "__main__":
             "repeater_spacing": buf_vals["Repeater spacing"],
             "repeater_size": buf_vals["Repeater size"],
         }
-        # cfg_file = "src/cacti/cfg/" + cfg_file + ".cfg"
         sympy_file = args.config   # try to keep convention where sympy expressions have same name as cfg
         IO_info = cacti_util.gen_symbolic(sympy_file, cfg_file, buf_opt, use_piecewise=False)
     else:
