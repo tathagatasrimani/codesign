@@ -233,7 +233,7 @@ def gen_abs_results(sympy_file, cache_cfg, dat_file):
     df = pd.DataFrame(data)
 
     print(f'Right before save into cacti_validation {os.getcwd()}')
-    directory = os.path.join(os.path.dirname(__file__), "abs_results")
+    directory = os.path.join(os.path.dirname(__file__), "results")
     if not os.path.exists(directory):
         os.makedirs(directory)
     csv_file = os.path.join(directory, "abs_validate_results.csv")

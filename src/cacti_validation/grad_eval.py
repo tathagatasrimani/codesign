@@ -14,13 +14,14 @@ import seaborn as sns
 import csv
 
 # Work in codesign/src for ease
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
-os.chdir(project_root)
-current_directory = os.getcwd()
-sys.path.insert(0, current_directory)
+# project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
+# os.chdir(project_root)
+# current_directory = os.getcwd()
+# sys.path.insert(0, current_directory)
 
-import cacti_util
-import hw_symbols
+from src import CACTI_DIR
+from src import cacti_util
+from src import hw_symbols
 from src.cacti.cacti_python.parameter import g_ip
 import src.cacti.cacti_python.get_dat as dat
 
@@ -46,7 +47,7 @@ def cacti_python_diff(sympy_file, tech_params, diff_var, metric=None):
     dict
         Dictionary containing the gradients for the specified or default metrics.
     """
-    sympy_file = "cacti/symbolic_expressions/" + sympy_file
+    sympy_file = os.path.join(CACTI_DIR, "symbolic_expressions/" + sympy_file)
 
     if metric:
         file = f'{sympy_file}_{metric}.txt'      
@@ -75,14 +76,14 @@ def cacti_python_diff(sympy_file, tech_params, diff_var, metric=None):
             "read_leakage": read_leakage_res
         }
     return results
-    
+
 def cacti_python_diff_single(sympy_file, tech_params, diff_var):
     """
     Computes the gradient of a technology parameter from a SymPy expression file.
 
     Inputs:
     sympy_file : str
-        Path to the SymPy expression file.
+        Absolute path to the SymPy expression file.
     tech_params : dict
         Dictionary containing the technology parameters for substitution.
     diff_var : str
@@ -94,10 +95,10 @@ def cacti_python_diff_single(sympy_file, tech_params, diff_var):
     """
 
     print(f"In diff single {sympy_file}; {diff_var}")
-    cur_dir = os.getcwd()
-    if os.path.basename(cur_dir) == 'codesign':
-        # Change to the 'src' directory
-        sympy_file = "src/" + sympy_file
+    # cur_dir = os.getcwd()
+    # if os.path.basename(cur_dir) == 'codesign':
+    #     # Change to the 'src' directory
+    #     sympy_file = "src/" + sympy_file
     with open(sympy_file, 'r') as file:
         expression_str = file.read()
 
@@ -117,7 +118,7 @@ def cacti_python_diff_single(sympy_file, tech_params, diff_var):
     substituted_exprs = [(symbol, expr.subs(tech_params_copy)) for symbol, expr in reduced_exprs]
     for symbol, expr in reversed(substituted_exprs):
         reduced_expression = reduced_expression.subs(symbol, expr)
-    
+
     # Differentiate the reduced expression with respect to diff_var
     diff_expression = sp.diff(reduced_expression, diff_var)
     print("differentiating")
@@ -139,8 +140,9 @@ def cacti_python_diff_single(sympy_file, tech_params, diff_var):
     new_access_time = access_time - (gradient * delta)
 
     # Uncomment to log the diff expression and gradient to a CSV file
-    os.makedirs("cacti_validation/grad_results", exist_ok=True)
-    with open("cacti_validation/grad_results/diff_expression.csv", 'a', newline='') as csvfile:
+    res_dir = os.path.join(os.path.dirname(__file__), "grad_results")
+    os.makedirs(res_dir, exist_ok=True)
+    with open(f"{res_dir}/diff_expression.csv", 'a', newline='') as csvfile:
         writer = csv.writer(csvfile)
         # writer.writerow([diff_var, f" diff expression: {diff_expression}"])
         writer.writerow([diff_var, f" gradient: {gradient}"])
@@ -226,7 +228,6 @@ def cacti_c_diff(dat_file_path, new_value, diff_var):
     gradient = float(original_val["Access time (ns)"]) - float(next_val["Access time (ns)"])
     return gradient
 
-### MAIN
 def calculate_similarity_matrix(python_grad, c_grad):
     """
     Calculates the similarity of two gradients. 
@@ -267,12 +268,12 @@ def gen_diff(sympy_file, cfg_file, dat_file=None):
 
     Inputs:
     sympy_file : str
-        Path to the SymPy expression file.
+        Path to the SymPy expression file. Should be relative to the CACTI_DIR
     cfg_file : str
-        Path to the cache configuration file.
+        Path to the cache configuration file. Should be relative to the CACTI_DIR
     dat_file : str, optional
         Path to the technology .dat file (default determined by 
-        g_ip.F_sz_nm if not provided).x
+        g_ip.F_sz_nm if not provided). Relative to the CACTI_DIR
 
     Outputs:
     Logs the gradient comparison between Python and C CACTI results, 
@@ -280,15 +281,17 @@ def gen_diff(sympy_file, cfg_file, dat_file=None):
     """
 
     # Check if the last directory is 'codesign'
-    cur_dir = os.getcwd()
-    if os.path.basename(cur_dir) == 'codesign':
-        # Change to the 'src' directory
-        src_dir = os.path.join(cur_dir, 'src')
-        os.chdir(src_dir)
+    # cur_dir = os.getcwd()
+    # if os.path.basename(cur_dir) == 'codesign':
+    #     # Change to the 'src' directory
+    #     src_dir = os.path.join(cur_dir, 'src')
+    #     os.chdir(src_dir)
 
-    cfg_file = cfg_file.replace('src/', '')
-    dat_file = dat_file.replace('src/', '')
+    cfg_file = os.path.join(CACTI_DIR, cfg_file)
+    dat_file = os.path.join(CACTI_DIR, dat_file)
+
     print(f"In gen_diff {sympy_file}; {cfg_file}; {dat_file}")
+
     # init input params from .cfg
     g_ip.parse_cfg(cfg_file)
     g_ip.error_checking()
@@ -297,17 +300,17 @@ def gen_diff(sympy_file, cfg_file, dat_file=None):
     if dat_file == None:
         # init tech params from .dat
         if g_ip.F_sz_nm == 90:
-            dat_file = os.path.join('src', 'cacti', 'tech_params', '90nm.dat')
+            dat_file = os.path.join(CACTI_DIR, 'tech_params', '90nm.dat')
         elif g_ip.F_sz_nm == 65:
-            dat_file = os.path.join('src', 'cacti', 'tech_params', '65nm.dat')
+            dat_file = os.path.join(CACTI_DIR, 'tech_params', '65nm.dat')
         elif g_ip.F_sz_nm == 45:
-            dat_file = os.path.join('src', 'cacti', 'tech_params', '45nm.dat')
+            dat_file = os.path.join(CACTI_DIR, 'tech_params', '45nm.dat')
         elif g_ip.F_sz_nm == 32:
-            dat_file = os.path.join('src', 'cacti', 'tech_params', '32nm.dat')
+            dat_file = os.path.join(CACTI_DIR, 'tech_params', '32nm.dat')
         elif g_ip.F_sz_nm == 22:
-            dat_file = os.path.join('src', 'cacti', 'tech_params', '22nm.dat')
+            dat_file = os.path.join(CACTI_DIR, 'tech_params', '22nm.dat')
         else:
-            dat_file = os.path.join('src', 'cacti', 'tech_params', '180nm.dat')
+            dat_file = os.path.join(CACTI_DIR, 'tech_params', '180nm.dat')
 
     tech_params = {}
     dat.scan_dat(tech_params, dat_file, g_ip.data_arr_ram_cell_tech_type, g_ip.data_arr_ram_cell_tech_type, g_ip.temp)
@@ -334,22 +337,17 @@ def gen_diff(sympy_file, cfg_file, dat_file=None):
         for metric, metric_results in python_results.items():
             new_val = tech_params[diff_param] - python_results[metric]['delta']
 
+            results_dir = os.path.join(os.path.dirnmae(__file__), "results/")
             # Log the CACTI Python Gradient Info (gradient, original value, delta, new value)
-            python_info_csv = "cacti_validation/grad_results/python_grad_info.csv"
+            python_info_csv = os.path.join(results_dir, "python_grad_info.csv")
 
-            cur_dir = os.getcwd()
-            if os.path.basename(cur_dir) == 'codesign':
-                # Change to the 'src' directory
-                python_info_csv = "src/" + python_info_csv
+            # cur_dir = os.getcwd()
+            # if os.path.basename(cur_dir) == 'codesign':
+            #     # Change to the 'src' directory
+            #     python_info_csv = "src/" + python_info_csv
 
-            try:
-                with open(python_info_csv, 'r'):
-                    file_exists = True
-                if not file_exists:
-                    raise FileNotFoundError
-            except FileNotFoundError:
-                file_exists = False
-
+            file_exists = os.path.isfile(python_info_csv)
+            
             with open(python_info_csv, 'a', newline='') as csvfile:
                 writer = csv.writer(csvfile)
                 if not file_exists:
@@ -367,27 +365,28 @@ def gen_diff(sympy_file, cfg_file, dat_file=None):
 
             cfg_name = cfg_file.split('/')[-1]
             cfg_name = cfg_name.replace('.cfg', '')
-            results_csv = f'cacti_validation/grad_results/{cfg_name}_{metric}_grad_results.csv'
+            results_csv = os.path.join(results_dir, f"{cfg_name}_{metric}_grad_results.csv")
             
-            try:
-                with open(results_csv, 'r'):
-                    file_exists = True
-                if not file_exists:
-                    raise FileNotFoundError
-            except FileNotFoundError:
-                file_exists = False
+            # try:
+            #     with open(results_csv, 'r'):
+            #         file_exists = True
+            #     if not file_exists:
+            #         raise FileNotFoundError
+            # except FileNotFoundError:
+            #     file_exists = False
+            file_exists = os.path.isfile(results_csv)
 
-            cur_dir = os.getcwd()
-            if os.path.basename(cur_dir) == 'codesign':
-                # Change to the 'src' directory
-                results_csv = "src/" + results_csv
+            # cur_dir = os.getcwd()
+            # if os.path.basename(cur_dir) == 'codesign':
+            #     # Change to the 'src' directory
+            #     results_csv = "src/" + results_csv
 
             with open(results_csv, 'a', newline='') as csvfile:
                 writer = csv.writer(csvfile)
                 if not file_exists:
                     writer.writerow(['Tech Config', 'Var Name', 'Python Gradient', 'C Gradient', 'Similarities'])
                 writer.writerow([config_key, diff_param, python_change, cacti_gradient, similarity])
-    
+
 if __name__ == "__main__":
     """
     Parses arguments for configuration, SymPy generation, and technology parameters.
@@ -429,7 +428,7 @@ if __name__ == "__main__":
     # Gen Flag true and can set sympy flag to set the name of the sympy expr
     if gen_flag:
         print(f"current directory: {os.getcwd()}", flush=True)
-        cfg_file = "src/cacti/cfg/" + args.CFG + ".cfg"
+        cfg_file = "cfg/" + args.CFG + ".cfg"
         buf_vals = cacti_util.run_existing_cacti_cfg(cfg_file)
 
         buf_opt = {
@@ -446,17 +445,17 @@ if __name__ == "__main__":
         sympy_name = args.CFG   # try to keep convention where sympy expressions have same name as cfg
         IO_info = cacti_util.gen_symbolic(sympy_name, cfg_file, buf_opt, use_piecewise=False)
     else:
-        cfg_file = f'src/cacti/cfg/{args.CFG}.cfg'
+        cfg_file = f'cfg/{args.CFG}.cfg'
 
     if dat_nm:
-        dat_file = f"src/cacti/tech_params/{dat_nm}.dat"
+        dat_file = f"tech_params/{dat_nm}.dat"
         gen_diff(sympy_file, cfg_file, dat_file)
     else:
-        dat_file_90nm = os.path.join('src', 'cacti', 'tech_params', '90nm.dat')
+        dat_file_90nm = os.path.join('tech_params', '90nm.dat')
         gen_diff(sympy_file, cfg_file, dat_file_90nm)
 
-        dat_file_45nm = os.path.join('src', 'cacti', 'tech_params', '45nm.dat')
+        dat_file_45nm = os.path.join('tech_params', '45nm.dat')
         gen_diff(sympy_file, cfg_file, dat_file_45nm)
 
-        dat_file_180nm = os.path.join('src', 'cacti', 'tech_params', '180nm.dat')
+        dat_file_180nm = os.path.join('tech_params', '180nm.dat')
         gen_diff(sympy_file, cfg_file, dat_file_180nm)

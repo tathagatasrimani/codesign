@@ -408,7 +408,7 @@ def run_existing_cacti_cfg(filename):
 
     Inputs:
     filename : str
-        Name of the existing .cfg file to run in Cacti.
+        Name of the existing .cfg file to run in Cacti. path relative to CACTI_DIR
 
     Returns:
     pd.DataFrame
@@ -417,13 +417,11 @@ def run_existing_cacti_cfg(filename):
     Outputs:
     Cacti run results are returned in a DataFrame after executing the existing .cfg file.
     """
-
-    cactiDir = os.path.normpath(os.path.join(os.path.dirname(__file__), 'cacti'))
     print(f"cactiDir: {CACTI_DIR}")
     print(f"filename: {filename}")
 
     # write file
-    input_filename = filename.replace("src/cacti/", "")
+    # input_filename = filename.replace("src/cacti/", "")
     print(f"input_filename: {input_filename}")
 
     stdout_filename = "cacti_stdout.log"
