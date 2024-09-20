@@ -43,15 +43,13 @@ def plot_overall_box_and_whisker(csv_file):
     plt.tight_layout()
     
     # Ensure the 'figs' directory exists before saving the plot
-    figs_dir = 'src/cacti_validation/figs'
-    if not os.path.exists(figs_dir):
-        os.makedirs(figs_dir)
+    figs_dir = os.path.join(os.path.dirname(__file__), 'figs')
+    os.makedirs(figs_dir, exist_ok=True)
 
     # Save the plot
     plt.savefig(os.path.join(figs_dir, 'absolute_validation.png'))
-    # plt.show()
 
 if __name__ == "__main__":
-    current_directory = os.path.dirname(os.path.realpath(__file__))
-    csv_file_path = os.path.join(current_directory, 'abs_results', 'abs_validate_results.csv')
+    current_directory = os.path.dirname(__file__)
+    csv_file_path = os.path.join(current_directory, 'results', 'abs_validate_results.csv')
     plot_overall_box_and_whisker(csv_file_path)

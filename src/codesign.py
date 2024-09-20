@@ -223,7 +223,6 @@ class Codesign:
         )
 
         if self.opt_cfg == "ipopt":
-            # sys.stdout = os.fdopen(sys.stdout.fileno(), "w")
             stdout = sys.stdout
             with open("src/tmp/ipopt_out.txt", "w") as sys.stdout:
                 optimize.optimize(self.tech_params, self.symbolic_sim.edp, self.opt_cfg)

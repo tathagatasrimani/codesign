@@ -1,45 +1,30 @@
-### Results found in src/cacti_validation/results
-
 #!/bin/sh
 cd ..
 
-# Define default values for cfg_file, sympy_file, and gen_flag
-CFG_FILE="base_cache"
-DAT_FILE=""
-SYMPY_FILE="Buf"
-GEN_FLAG="false"
-
-# Parse command-line arguments to override defaults
-while [[ $# -gt 0 ]]
+while getopts c:d:s:g flag
 do
-    key="$1"
-
-    case $key in
-        -CFG)
-        CFG_FILE="$2"
-        shift 
-        shift 
-        ;;
-        -DAT)
-        DAT_FILE="$2"
-        shift
-        shift
-        ;;
-        -SYMPY)
-        SYMPY_FILE="$2"
-        shift 
-        shift 
-        ;;
-        -gen)
-        GEN_FLAG="true"
-        shift 
-        ;;
-        *) 
-        shift 
-        ;;
+    case "${flag}" in
+        c) CFG_FILE=${OPTARG};;
+        d) DAT_FILE=${OPTARG};;
+        s) SYMPY_FILE=${OPTARG};;
+        g) GEN=true;;
     esac
 done
 
+ARGS=""
+if [ $CFG_FILE ]; then
+    ARGS+=" --config $CFG_FILE"
+fi
+if [ $DAT_FILE ]; then
+    ARGS+=" --dat $DAT_FILE"
+fi
+if [ $SYMPY_FILE ]; then
+    ARGS+=" --sympy $SYMPY_FILE"
+fi
+if [ $GEN ]; then
+    ARGS+=" --gen"
+fi
+
 # Call the Python script with the provided or default arguments
-python -m src.cacti_validation.abs_eval -CFG "$CFG_FILE" -DAT "$DAT_FILE" -SYMPY "$SYMPY_FILE" -gen "$GEN_FLAG"
+python -m src.cacti_validation.abs_eval $ARGS
 python -m src.cacti_validation.plot_abs

@@ -282,16 +282,17 @@ class SymbolicSimulator(AbstractSimulator):
             hw_symbols.BufReadEact: BufReadEact_expr,
             hw_symbols.BufWriteEact: BufWriteEact_expr,
             hw_symbols.BufPpass: BufPpass_expr,
-            
-            # hw_symbols.Ceff["Add"]: 0,
-            # hw_symbols.Ceff["Regs"]: 0,
         }
 
         self.total_passive_energy = self.passive_energy_dissipation(
             hw, self.execution_time
         )
 
+<<<<<<< HEAD
         print(f"total passive energy: {self.total_passive_energy}", flush=True)
+=======
+        self.edp = self.execution_time * (self.total_active_energy + self.total_passive_energy)
+>>>>>>> 0e54929f7443bd4f1216388ceab2d2dd86dc221f
 
         self.execution_time = self.execution_time.xreplace(cacti_subs)
         self.total_active_energy = self.total_active_energy.xreplace(cacti_subs)
@@ -315,8 +316,7 @@ class SymbolicSimulator(AbstractSimulator):
         file_path = "src/tmp/symbolic_edp.txt"
         directory = os.path.dirname(file_path)
         
-        if not os.path.exists(directory):
-            os.makedirs(directory)
+        os.makedirs(directory, exist_ok=True)
 
         with open(file_path, "w") as f:
             f.write(st)
