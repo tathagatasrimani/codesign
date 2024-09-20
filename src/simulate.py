@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import graphviz as gv
 import networkx as nx
+import sympy as sp
 
 # custom modules
 from .memory import Memory
@@ -533,11 +534,18 @@ class ConcreteSimulator(AbstractSimulator):
             )
 
     def calculate_edp(self):
-        self.execution_time = self.cycles  # in seconds
+        if isinstance(self.cycles, sp.Expr):
+            self.cycles = self.cycles.evalf()
+        if isinstance(self.active_energy, sp.Expr):
+            self.active_energy = self.active_energy.evalf()
+        if isinstance(self.passive_energy, sp.Expr):
+            self.passive_energy = self.passive_energy.evalf()
+
+        self.execution_time = self.cycles # in seconds
         self.total_energy = self.active_energy + self.passive_energy
         self.edp = self.total_energy * self.execution_time
 
-
+        
 def main(args):
     print(f"Running simulator for {args.benchmark.split('/')[-1]}")
     simulator = ConcreteSimulator()
