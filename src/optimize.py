@@ -20,7 +20,7 @@ from . import hw_symbols
 multistart = False
 
 
-def ipopt(tech_params, edp):
+def ipopt(tech_params, edp, improvement):
     logger.info("Optimizing using IPOPT")
     initial_params = {}
     for key in tech_params:
@@ -28,7 +28,7 @@ def ipopt(tech_params, edp):
 
     model = pyo.ConcreteModel()
     opt, scaled_preproc_model, preproc_model, free_symbols, mapping = (
-        Preprocessor().begin(model, edp, initial_params, multistart=multistart)
+        Preprocessor().begin(model, edp, initial_params, improvement, multistart=multistart)
     )
 
     if multistart:
@@ -187,12 +187,13 @@ def scp_opt(tech_params, edp):
     # print(tech_params)
     return tech_params
 
-
-def optimize(tech_params, edp, opt):
+# note: improvement parameter currently only for inverse pass validation, so only using it for ipopt
+# example: improvement of 1.1 = 10% improvement
+def optimize(tech_params, edp, opt, improvement=1.1):
     if opt == "scp":
         return scp_opt(tech_params, edp)
     else:
-        return ipopt(tech_params, edp)
+        return ipopt(tech_params, edp, improvement)
 
 
 def main():

@@ -63,18 +63,21 @@ def parse_output(f):
     return tech_params
 
 def plot_diff(tech_node_pair):
-    
-    params_to_plot = [tech_param for tech_param in initial_tech_params[tech_node_pair[0]].keys() if tech_param not in params_exclusion_list]
+    # use final tech params to determine params to plot because not every tech param appears in edp equation
+    tech_node_0_keys = final_tech_params[tech_node_pair[0]].keys()
+    params_to_plot = [tech_param for tech_param in tech_node_0_keys if tech_param not in params_exclusion_list]
+
     tech_node_0_vals = [final_tech_params[tech_node_pair[0]][tech_param] for tech_param in params_to_plot]
     tech_node_1_vals = [initial_tech_params[tech_node_pair[1]][tech_param] for tech_param in params_to_plot]
+
+    ratios = [tech_node_0_vals[i] / tech_node_1_vals[i] for i in range(len(tech_node_1_vals))]
     X_axis = np.arange(len(params_to_plot))
-    plt.bar(X_axis-0.2, tech_node_0_vals, 0.4, label=f"{tech_node_pair[0]} nm")
-    plt.bar(X_axis+0.2, tech_node_1_vals, 0.4, label=f"{tech_node_pair[1]} nm")
+    plt.bar(X_axis, ratios)
     plt.xticks(X_axis, params_to_plot)
     plt.xlabel("tech params")
-    plt.ylabel("tech param values")
-    plt.title(f"Comparison of optimized tech params for {tech_node_pair[0]} nm and initial tech params for {tech_node_pair[1]} nm")
-    plt.savefig(f"inverse_validation/{tech_node_pair[0]}_{tech_node_pair[1]}_compare.png")
+    plt.ylabel("tech param ratios")
+    plt.title(f"Ratio of optimized tech params for {tech_node_pair[0]} nm and initial tech params for {tech_node_pair[1]} nm")
+    plt.savefig(f"src/inverse_validation/{tech_node_pair[0]}_{tech_node_pair[1]}_compare.png")
     plt.close()
 
 def run_initial():
@@ -121,7 +124,7 @@ def run_pairwise(tech_node_pair, improvement, hws, dfgs):
 
     stdout = sys.stdout
     with open(f"{args.savedir}/ipopt_out_{tech_node_pair[0]}.txt", "w") as sys.stdout:
-        optimize.optimize(initial_tech_params[tech_node_pair[0]], symbolic_sim.edp, "ipopt")
+        optimize.optimize(initial_tech_params[tech_node_pair[0]], symbolic_sim.edp, "ipopt", improvement)
     sys.stdout = stdout
     f = open(f"{args.savedir}/ipopt_out_{tech_node_pair[0]}.txt", "r")
     final_tech_params[tech_node_pair[0]] = parse_output(f)

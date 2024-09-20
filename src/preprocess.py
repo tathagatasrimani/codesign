@@ -23,6 +23,7 @@ class Preprocessor:
         self.obj = 0
         self.initial_params = {}
         self.obj_scale = 1
+        self.improvement = 1.1
 
     def f(self, model):
         return model.x[self.mapping[hw_symbols.f]] >= 1e6
@@ -41,7 +42,7 @@ class Preprocessor:
         # this is where we say EDP_final = EDP_initial / 10
         print(f"adding constraints. initial val: {self.initial_val};") # edp_exp: {self.pyomo_edp_exp}")
         # model.Constraint = pyo.Constraint(expr=self.pyomo_edp_exp <= self.initial_val / 1.9)
-        model.Constraint1 = pyo.Constraint(expr=self.pyomo_edp_exp >= self.initial_val / 1.1)
+        model.Constraint1 = pyo.Constraint(expr=self.pyomo_edp_exp >= self.initial_val / self.improvement)
         # model.V_dd_lower = pyo.Constraint(rule=self.V_dd_lower)
         # model.V_dd_upper = pyo.Constraint(rule=self.V_dd_upper)
         # model.V_dd = pyo.Constraint(expr = model.x[self.mapping[hw_symbols.V_dd]] == self.initial_params["V_dd"])
@@ -111,11 +112,12 @@ class Preprocessor:
         free_symbols = memL_expr.free_symbols.union(bufL_expr.free_symbols)
         return free_symbols
 
-    def begin(self, model, edp, initial_params, multistart):
+    def begin(self, model, edp, initial_params, improvement, multistart):
         self.multistart = multistart
         self.expr_symbols = {}
         self.free_symbols = []
         self.initial_params = initial_params
+        self.improvement = improvement
 
         mem_buf_l_symbols = self.symbols_in_Buf_Mem_L("src/cacti/symbolic_expressions/Buf_access_time.txt", "src/cacti/symbolic_expressions/Mem_access_time.txt")
         desired_free_symbols = ["Vdd", "C_g_ideal"]#, "C_junc", "I_on_n", "vert_dielectric_constant"] #, "Vdsat"] #, "Mobility_n"]
