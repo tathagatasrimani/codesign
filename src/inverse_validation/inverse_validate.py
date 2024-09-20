@@ -8,8 +8,7 @@ import numpy as np
     
 logger = logging.getLogger("inverse validation")
 
-# Change the working directory to ~/codesign/src
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir))
 os.chdir(project_root)
 
 # Now `current_directory` should reflect the new working directory
@@ -20,14 +19,14 @@ print(current_directory)
 sys.path.insert(0, current_directory)
 
 # Now you can safely import modules that rely on the correct working directory
-import coefficients
-import symbolic_simulate
-import hardwareModel
-from hardwareModel import HardwareModel
-import hw_symbols
-import optimize
-import sim_util
-import architecture_search
+from src import coefficients
+from src import symbolic_simulate
+from src import hardwareModel
+from src.hardwareModel import HardwareModel
+from src import hw_symbols
+from src import optimize
+from src import sim_util
+from src import architecture_search
 
 args = None
 
@@ -121,10 +120,10 @@ def run_pairwise(tech_node_pair, improvement, hws, dfgs):
     symbolic_sim.calculate_edp(hws[tech_node_pair[0]])
 
     stdout = sys.stdout
-    with open("inverse_validation/ipopt_out.txt", "w") as sys.stdout:
+    with open(f"{args.savedir}/ipopt_out_{tech_node_pair[0]}.txt", "w") as sys.stdout:
         optimize.optimize(initial_tech_params[tech_node_pair[0]], symbolic_sim.edp, "ipopt")
     sys.stdout = stdout
-    f = open("inverse_validation/ipopt_out.txt", "r")
+    f = open(f"{args.savedir}/ipopt_out_{tech_node_pair[0]}.txt", "r")
     final_tech_params[tech_node_pair[0]] = parse_output(f)
     logger.warning(f"final tech params for {tech_node_pair[0]} nm: {final_tech_params[tech_node_pair[0]]}")
     logger.warning(f"initial tech params for {tech_node_pair[1]} nm: {initial_tech_params[tech_node_pair[1]]}")
@@ -152,7 +151,7 @@ if __name__ == "__main__":
         "-f",
         "--savedir",
         type=str,
-        default="inverse_validation/inverse_val_log_dir",
+        default="src/inverse_validation/inverse_val_log_dir",
         help="Path to the save new architecture file",
     )
     args = parser.parse_args()
@@ -169,7 +168,6 @@ if __name__ == "__main__":
 
     logging.basicConfig(filename=f"{args.savedir}/log.txt", level=logging.WARNING)
     logging.Filter("inverse validation")
-
     edps, hws, dfgs = run_initial()
 
     for i in range(0, len(tech_nodes)-1):

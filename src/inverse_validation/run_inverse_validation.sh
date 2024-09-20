@@ -1,5 +1,5 @@
 #!/bin/sh
-cd ..
+cd ../..
 
 while getopts c:n:f: flag
 do
@@ -11,9 +11,9 @@ do
 done
 
 if [ $name ]; then
-    FILEPATH=benchmarks/models/$name
-    python instrument.py $FILEPATH
-    python instrumented_files/xformed-$name > instrumented_files/output.txt
+    FILEPATH=src/benchmarks/models/$name.py
+    python -m src.instrument $FILEPATH
+    python -m src.instrumented_files.xformed-$name > src/instrumented_files/output.txt
     ARGS=$FILEPATH
     if [ $ARCH_CONFIG ]; then
         ARGS+=" --architecture_config $ARCH_CONFIG"
@@ -22,5 +22,5 @@ if [ $name ]; then
         ARGS+=" --savedir $SAVEDIR"
     fi
     echo $ARGS
-    python inverse_validation/inverse_validate.py $ARGS
+    python -m src.inverse_validation.inverse_validate $ARGS
 fi
