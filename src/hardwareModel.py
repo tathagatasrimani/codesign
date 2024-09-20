@@ -110,8 +110,7 @@ class HardwareModel:
         else:
             config = cp.ConfigParser()
             config.read(HW_CONFIG_FILE)
-            path_to_graphml = f"src/architectures/{cfg}.gml"
-            self.path_to_graphml = path_to_graphml
+            self.path_to_graphml = f"src/architectures/{cfg}.gml"
             try:
                 self.set_hw_config_vars(
                     config.getint(cfg, "id"),
@@ -134,8 +133,8 @@ class HardwareModel:
                 )
         self.hw_allocated = {}
 
-        if path_to_graphml is not None and os.path.exists(path_to_graphml):
-            self.netlist = nx.read_gml(path_to_graphml)
+        if self.path_to_graphml is not None and os.path.exists(self.path_to_graphml):
+            self.netlist = nx.read_gml(self.path_to_graphml)
             self.update_netlist()
         else:
             self.netlist = nx.Graph()
@@ -239,9 +238,14 @@ class HardwareModel:
         self.leakage_power = tech_params["leakage_power"][self.transistor_size]
         self.dynamic_energy = tech_params["dynamic_energy"][self.transistor_size]
 
-        self.cacti_tech_node = min(cacti_util.valid_tech_nodes, key=lambda x: abs(x - self.transistor_size*1e-3))
+        self.cacti_tech_node = min(
+            cacti_util.valid_tech_nodes,
+            key=lambda x: abs(x - self.transistor_size * 1e-3),
+        )
 
-        self.cacti_dat_file = f"src/cacti/tech_params/{int(self.cacti_tech_node*1e3):2d}nm.dat"
+        self.cacti_dat_file = (
+            f"src/cacti/tech_params/{int(self.cacti_tech_node*1e3):2d}nm.dat"
+        )
         print(f"self.cacti_dat_file: {self.cacti_dat_file}")
 
     def set_var_sizes(self, var_sizes):
@@ -306,7 +310,7 @@ class HardwareModel:
         opt_params = sim_util.generate_init_params_from_rcs_as_symbols(rcs)
 
         # update dat file with new parameters and re-run cacti
-        cacti_util.update_dat(rcs, self.cacti_dat_file) 
+        cacti_util.update_dat(rcs, self.cacti_dat_file)
         self.gen_cacti_results()
 
         beta = yaml.load(open(coeff_file, "r"), Loader=yaml.Loader)["beta"]
@@ -393,7 +397,9 @@ class HardwareModel:
 	    cycles={cycles}
 	    allocated={allocated}
 	    utilized={utilized}
-	    """.format(cycles=self.cycles, allocated=str(self.hw_allocated))
+	    """.format(
+            cycles=self.cycles, allocated=str(self.hw_allocated)
+        )
 
     def get_total_area(self):
         """
@@ -438,12 +444,14 @@ class HardwareModel:
         self.mem_size = 131072
         buf_vals = cacti_util.gen_vals(
             "base_cache",
-            cacheSize=self.buffer_size, 
+            cacheSize=self.buffer_size,
             blockSize=64,
             cache_type="cache",
             bus_width=self.buffer_bus_width,
         )
-        logger.info(f"Buffer cacti with: {self.buffer_size} bytes, {self.buffer_bus_width} bus width")
+        logger.info(
+            f"Buffer cacti with: {self.buffer_size} bytes, {self.buffer_bus_width} bus width"
+        )
         buf_opt = {
             "ndwl": buf_vals["Ndwl"],
             "ndbl": buf_vals["Ndbl"],
@@ -457,7 +465,7 @@ class HardwareModel:
 
         mem_vals = cacti_util.gen_vals(
             "mem_cache",
-            cacheSize=131072,
+            cacheSize=self.mem_size,
             blockSize=64,
             cache_type="main memory",
             bus_width=self.memory_bus_width,
@@ -472,7 +480,9 @@ class HardwareModel:
             "repeater_spacing": mem_vals["Repeater spacing"],
             "repeater_size": mem_vals["Repeater size"],
         }
-        logger.info(f"Memory cacti with: {self.mem_size} bytes, {self.memory_bus_width} bus width")
+        logger.info(
+            f"Memory cacti with: {self.mem_size} bytes, {self.memory_bus_width} bus width"
+        )
 
         self.area["Buf"] = float(buf_vals["Area (mm2)"]) * 1e12  # convert to nm^2
         self.area["MainMem"] = float(mem_vals["Area (mm2)"]) * 1e12  # convert to nm^2
@@ -548,5 +558,7 @@ class HardwareModel:
         design_name = self.path_to_graphml.split("/")[
             len(self.path_to_graphml.split("/")) - 1
         ]
-        _, graph = place_n_route.place_n_route(design_name, arg_testfile, arg_parasitics)
+        _, graph = place_n_route.place_n_route(
+            design_name, arg_testfile, arg_parasitics
+        )
         self.parasitic_graph = graph
