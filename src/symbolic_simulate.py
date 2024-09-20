@@ -288,11 +288,8 @@ class SymbolicSimulator(AbstractSimulator):
             hw, self.execution_time
         )
 
-<<<<<<< HEAD
         print(f"total passive energy: {self.total_passive_energy}", flush=True)
-=======
         self.edp = self.execution_time * (self.total_active_energy + self.total_passive_energy)
->>>>>>> 0e54929f7443bd4f1216388ceab2d2dd86dc221f
 
         self.execution_time = self.execution_time.xreplace(cacti_subs)
         self.total_active_energy = self.total_active_energy.xreplace(cacti_subs)
