@@ -81,6 +81,7 @@ def get_func_count(netlist):
 
 
 class HardwareModel:
+    # set transistor override flag to tell hw to expect values for transistor_size and optionally for cacti_transistor_size
     def __init__(
         self,
         cfg=None,
@@ -93,7 +94,8 @@ class HardwareModel:
         cache_size=None,
         V_dd=None,
         bus_width=None,
-        transistor_override=False
+        transistor_override=False,
+        cacti_transistor_size=None
     ):
         """
         Simulates the effect of 2 different constructors. Either supply cfg (config), or supply the rest of the arguments.
@@ -131,6 +133,12 @@ class HardwareModel:
         # allow for architecture configs to have their tech nodes swapped out
         if transistor_override:
             self.transistor_size = transistor_size
+        # cacti transistor size can optionally be specified separately from original transistor size
+        # if not, then set them equal
+        if cacti_transistor_size:
+            self.cacti_transistor_size = cacti_transistor_size
+        else:
+            self.cacti_transistor_size = transistor_size
         self.hw_allocated = {}
 
         if path_to_graphml is not None and os.path.exists(path_to_graphml):
@@ -237,7 +245,9 @@ class HardwareModel:
         self.leakage_power = tech_params["leakage_power"][self.transistor_size]
         self.dynamic_energy = tech_params["dynamic_energy"][self.transistor_size]
 
-        self.cacti_tech_node = min(cacti_util.valid_tech_nodes, key=lambda x: abs(x - self.transistor_size*1e-3))
+        self.cacti_tech_node = min(cacti_util.valid_tech_nodes, key=lambda x: abs(x - self.cacti_transistor_size*1e-3))
+        # DEBUG
+        print(f"cacti tech node: {self.cacti_tech_node}, specified cacti transistor size: {self.cacti_transistor_size}")
 
         self.cacti_dat_file = f"src/cacti/tech_params/{int(self.cacti_tech_node*1e3):2d}nm.dat"
         print(f"self.cacti_dat_file: {self.cacti_dat_file}")

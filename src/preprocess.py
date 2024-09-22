@@ -24,6 +24,7 @@ class Preprocessor:
         self.initial_params = {}
         self.obj_scale = 1
         self.improvement = 1.1
+        self.pow_exprs_to_constrain = []
 
     def f(self, model):
         return model.x[self.mapping[hw_symbols.f]] >= 1e6
@@ -36,6 +37,17 @@ class Preprocessor:
 
     def V_dd_upper(self, model):
         return model.x[self.mapping[hw_symbols.V_dd]] <= 1.7
+    
+    def find_pow_exprs(self, expr):
+        logger.warning(f"expr.func is {expr.func}")
+        if expr.func == sp.core.power.Pow and expr.base.func != sp.core.symbol.Symbol:
+            logger.warning(f"exponent is {expr.exp}")
+            # if we are taking an even root (i.e. square root), no negative numbers allowed
+            if expr.exp == 0.5:
+                logger.warning(f"base func is {expr.base.func}")
+                self.pow_exprs_to_constrain.append(expr.base)
+        for arg in expr.args:
+            self.find_pow_exprs(arg)
 
     def add_constraints(self, model):
         logger.info("Adding Constraints")
@@ -43,7 +55,13 @@ class Preprocessor:
         print(f"adding constraints. initial val: {self.initial_val};") # edp_exp: {self.pyomo_edp_exp}")
         # model.Constraint = pyo.Constraint(expr=self.pyomo_edp_exp <= self.initial_val / 1.9)
         model.Constraint1 = pyo.Constraint(expr=self.pyomo_edp_exp >= self.initial_val / self.improvement)
-        # model.V_dd_lower = pyo.Constraint(rule=self.V_dd_lower)
+
+        def make_pow_constraint(model, i):
+            return self.pow_exprs_to_constrain[i] >= 0
+
+        model.PowConstraint = pyo.Constraint([i for i in range(len(self.pow_exprs_to_constrain))], rule=make_pow_constraint)
+
+        model.V_dd_lower = pyo.Constraint(rule=self.V_dd_lower)
         # model.V_dd_upper = pyo.Constraint(rule=self.V_dd_upper)
         # model.V_dd = pyo.Constraint(expr = model.x[self.mapping[hw_symbols.V_dd]] == self.initial_params["V_dd"])
 
@@ -153,12 +171,18 @@ class Preprocessor:
             # give pyomo symbols an inital value for warm start
             model.x[self.mapping[symbol]] = self.expr_symbols[symbol]
             print(f"symbol: {symbol}; initial value: {self.expr_symbols[symbol]}")
+
+        # find all pow expressions within edp equation, convert to pyomo
+        self.find_pow_exprs(edp)
+        for i in range(len(self.pow_exprs_to_constrain)):
+            self.pow_exprs_to_constrain[i] = sympy_tools.sympy2pyomo_expression(self.pow_exprs_to_constrain[i], m)
+        logger.warning(f"edp equation: {edp}")
         print(f"converting to pyomo exp")
         self.pyomo_edp_exp = sympy_tools.sympy2pyomo_expression(edp, m)
         self.obj = self.pyomo_edp_exp
         # print(f"created pyomo expression: {self.pyomo_edp_exp}")
 
-        self.add_regularization_to_objective(model, l=0.01)
+        self.add_regularization_to_objective(model, l=0.1)
         print(f"added regularization")
 
         model.obj = pyo.Objective(expr=self.obj, sense=pyo.minimize)

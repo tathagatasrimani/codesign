@@ -22,7 +22,6 @@ sys.path.insert(0, current_directory)
 from src import coefficients
 from src import symbolic_simulate
 from src import hardwareModel
-from src.hardwareModel import HardwareModel
 from src import hw_symbols
 from src import optimize
 from src import sim_util
@@ -30,7 +29,7 @@ from src import architecture_search
 
 args = None
 
-tech_nodes = [40, 7, 5, 3]
+tech_nodes = [7, 5, 3]
 initial_tech_params = {}
 final_tech_params = {}
 params_exclusion_list = []
@@ -70,21 +69,28 @@ def plot_diff(tech_node_pair):
     tech_node_0_vals = [final_tech_params[tech_node_pair[0]][tech_param] for tech_param in params_to_plot]
     tech_node_1_vals = [initial_tech_params[tech_node_pair[1]][tech_param] for tech_param in params_to_plot]
 
+    # ratio of optimized params of higher tech node to initial params of lower tech node
     ratios = [tech_node_0_vals[i] / tech_node_1_vals[i] for i in range(len(tech_node_1_vals))]
-    X_axis = np.arange(len(params_to_plot))
-    plt.bar(X_axis, ratios)
-    plt.xticks(X_axis, params_to_plot)
-    plt.xlabel("tech params")
-    plt.ylabel("tech param ratios")
-    plt.title(f"Ratio of optimized tech params for {tech_node_pair[0]} nm and initial tech params for {tech_node_pair[1]} nm")
-    plt.savefig(f"src/inverse_validation/{tech_node_pair[0]}_{tech_node_pair[1]}_compare.png")
-    plt.close()
+    i = 0
+    while (i < len(params_to_plot)):
+        num_params_on_fig = min(5, len(params_to_plot)-i)
+        X_axis = np.arange(num_params_on_fig)
+        plt.bar(X_axis, ratios[i:i+num_params_on_fig])
+        plt.xticks(X_axis, params_to_plot[i:i+num_params_on_fig])
+        plt.xlabel("tech params")
+        plt.ylabel("tech param ratios")
+        plt.title(f"Ratio of optimized tech params for {tech_node_pair[0]} nm and initial tech params for {tech_node_pair[1]} nm")
+        plt.savefig(f"src/inverse_validation/figs/{tech_node_pair[0]}_{tech_node_pair[1]}_compare_{i/5}.png")
+        plt.close()
+        i += 5
 
 def run_initial():
     edps = []
     hws = {}
     dfgs = {}
     for tech_node in tech_nodes:
+        # TODO: configure cacti tech node
+        cacti_tech_node = tech_node
         # initialize hw model, override architecture config to have current tech node
         logger.info(
             f"Setting up architecture search; benchmark: {args.benchmark}, config: {args.architecture_config}"
@@ -93,7 +99,7 @@ def run_initial():
             simulator,
             hw,
             computation_dfg,
-        ) = architecture_search.setup_arch_search(args.benchmark, args.architecture_config, True, tech_node)
+        ) = architecture_search.setup_arch_search(args.benchmark, args.architecture_config, True, tech_node, cacti_tech_node)
         hw.init_memory(
             sim_util.find_nearest_power_2(simulator.memory_needed),
             sim_util.find_nearest_power_2(simulator.nvm_memory_needed),
@@ -169,7 +175,7 @@ if __name__ == "__main__":
         f.write(f"Benchmark: {args.benchmark}\n")
         f.write(f"Architecture Config: {args.architecture_config}\n")
 
-    logging.basicConfig(filename=f"{args.savedir}/log.txt", level=logging.WARNING)
+    logging.basicConfig(filename=f"{args.savedir}/log.txt", level=logging.INFO)
     logging.Filter("inverse validation")
     edps, hws, dfgs = run_initial()
 
