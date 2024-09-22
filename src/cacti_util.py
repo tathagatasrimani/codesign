@@ -404,6 +404,9 @@ def gen_vals(
         for line in cfg_lines:
             file.write(line + "\n")
 
+    # import time
+    # time.sleep(10)
+
     stdout_filename = "cacti_stdout.log"
     stdout_file_path = os.path.join(CACTI_DIR, stdout_filename)
 
@@ -431,6 +434,8 @@ def gen_vals(
     if not os.path.exists(cactiOutput):
         from collections import defaultdict
         default_dict = defaultdict(int)
+        print("ISSUE HERE!")
+        print()
         return default_dict
     
     output_data = pd.read_csv(cactiOutput, sep=", ", engine="python")
