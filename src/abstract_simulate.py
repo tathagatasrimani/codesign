@@ -9,7 +9,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import networkx as nx
 import sympy
-import sympy
 
 # custom modules
 from .memory import Memory
@@ -154,7 +153,9 @@ class AbstractSimulator:
             hw: HardwareModel object
         """
         hw_counts = hardwareModel.get_func_count(hw.netlist)
+        schedule.pre_schedule(computation_dfg, hw.netlist)
         copy = computation_dfg.copy()
+
         schedule.greedy_schedule(copy, hw_counts, hw.netlist)
 
         for layer, nodes in enumerate(
@@ -208,4 +209,3 @@ class AbstractSimulator:
             mem_module.malloc(var_name, size, dims=dims, elem_size=size // num_elem)
         elif status == "free":
             mem_module.free(var_name)
-
