@@ -1,4 +1,3 @@
-from loop import loop
 import numpy as np
 Sbox = (
     0x63,
@@ -709,7 +708,6 @@ if __name__ == "__main__" :
         Sbox += Sbox
     Sbox_new = Sbox
     for i in range(12):
-        loop().pattern_seek()
         aes = AES(1212304810341341)
         aes.encrypt(1212304810341341)
     end = time.time()
