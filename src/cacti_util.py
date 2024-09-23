@@ -1,15 +1,12 @@
 import os
 import subprocess
 import yaml
-<<<<<<< HEAD
 import traceback
-=======
 import argparse
 import re
 import logging
 
 logger = logging.getLogger(__name__)
->>>>>>> master
 
 import pandas as pd
 
