@@ -253,6 +253,7 @@ class Codesign:
             f.write(f"{iter_number}\n")
             f.write(f"Forward EDP: {self.forward_edp}\n")
             f.write(f"Inverse EDP: {self.inverse_edp}\n")
+            f.write(f"total operations computed: {self.hw.compute_operation_totals}\n")
         nx.write_gml(
             self.hw.netlist,
             f"{self.save_dir}/netlist_{iter_number}.gml",
@@ -295,7 +296,8 @@ class Codesign:
     def execute(self, num_iters):
         i = 0
         while i < num_iters:
-            self.inverse_pass()
+            print(f"{i} total operations computed: ", self.hw.compute_operation_totals)
+            # self.inverse_pass()
             self.hw.update_technology_parameters()
 
             self.log_all_to_file(i)
@@ -305,6 +307,7 @@ class Codesign:
 
         # cleanup
         self.cleanup()
+        print("END total operations computed: ", self.hw.compute_operation_totals)
 
 
 def main():
