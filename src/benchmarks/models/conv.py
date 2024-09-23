@@ -1,6 +1,5 @@
 import math
 import numpy as np
-from loop import loop
 
 def zero_pad_arr(img, zero_pad):
     len_new = len(img[0]) + 2 * zero_pad
@@ -154,5 +153,4 @@ def main():
     return 0
 
 if __name__ == "__main__":
-    loop.start_unroll
     main()

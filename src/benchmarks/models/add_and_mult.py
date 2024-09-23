@@ -1,5 +1,4 @@
 import numpy as np
-from loop import loop
 
 
 def main():
