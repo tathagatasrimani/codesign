@@ -33,7 +33,7 @@ Run `./simulate.sh` from the `src` directory with the following arguments:
 ```
 ./simulate.sh -n <workload_name> -c <arch_config> -p <wire_parasitics>
 ```
-`-p` can be set to `detailed`, `estimation`, and `none`. Wire parasitic calculations will default to `detailed`.
+`-p` can be set to `detailed`, `estimation`, and `none`. Wire parasitic calculations will default to `detailed`. Follow the directions in the `openroad_interface/README.md` to set up the OpenROAD interface. You can also choose not to do so, in which case you must run with the `-p none` flag.
 use optional flag `-q` to run in quiet mode. This will not print logs in the `src/benchmarks/json_dump` directory. The `workload_name` is the name of the workload to be simulated from `models/benchmarks/` (without the `.py` extension). The `arch_config` is the architecture configuration file to be used for the simulation. The architecture configuration includes a `.gml` file in `architectures/` and an entry in `hw_cfgs.ini`. The architecture configuration file is the name of the `.gml` file without the extension.
 
 #### Inverse Pass
