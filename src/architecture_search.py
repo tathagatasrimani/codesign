@@ -231,6 +231,7 @@ def run_arch_search(
 
         area = hw.get_total_area()
         print(f"HI I HERE! AREA {area}, {area_constraint}")
+        logger.info(f"Area constraint {area}, {area_constraint}")
         if area > area_constraint:
             logger.info("Area constraint exceeded; breaking")
             # shouldn't actually break here, because you can try other nodes that are smaller but still might have a good effect
