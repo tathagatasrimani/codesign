@@ -101,7 +101,7 @@ def gen_symbolic(name, cache_cfg, opt_vals, use_piecewise=False):
 def gen_vals(
     filename="base_cache",
     cache_size=None,
-    blockSize=None,
+    block_size=None,
     cache_type=None,
     bus_width=None,
     transistor_size=None,
@@ -121,7 +121,7 @@ def gen_vals(
         Base name for the generated .cfg file (default is "base_cache").
     cache_size : int, optional
         Size of the cache in bytes.
-    blockSize : int, optional
+    block_size : int, optional
         Size of each cache block in bytes.
     cache_type : str, optional
         Type of cache (e.g., "cache" or "main memory").
@@ -151,7 +151,7 @@ def gen_vals(
     """
 
     logger.info(
-        f"Running Cacti with the following parameters: filename: {filename}, cache_size: {cache_size}, blockSize: {blockSize}, cache_type: {cache_type}, bus_width: {bus_width}, transistor_size: {transistor_size}, addr_timing: {addr_timing}, force_cache_config: {force_cache_config}, technology: {technology}"
+        f"Running Cacti with the following parameters: filename: {filename}, cache_size: {cache_size}, block_size: {block_size}, cache_type: {cache_type}, bus_width: {bus_width}, transistor_size: {transistor_size}, addr_timing: {addr_timing}, force_cache_config: {force_cache_config}, technology: {technology}"
     )
 
     # load in default values
@@ -161,8 +161,8 @@ def gen_vals(
     if cache_size == None:
         cache_size = config_values["cache_size"]
 
-    if blockSize == None:
-        blockSize = config_values["block_size"]
+    if block_size == None:
+        block_size = config_values["block_size"]
 
     if cache_type == None:
         cache_type = config_values["cache_type"]
@@ -209,7 +209,7 @@ def gen_vals(
         '-Power Gating Performance Loss "{}"'.format(config_values["perfloss"]),
         "",
         "# Line size",
-        "-block size (bytes) {}".format(blockSize),
+        "-block size (bytes) {}".format(block_size),
         "",
         "# To model Fully Associative cache, set associativity to zero",
         "-associativity {}".format(associativity),
@@ -418,11 +418,23 @@ def gen_vals(
     p.wait()
     if p.returncode != 0:
         with open(stdout_file_path, "r") as f:
-            raise Exception(
+            output = f.read().splitlines()
+            if len(output) >= 2:
+                result = "\n".join(output[-2:])  # Get the last two lines
+            elif len(output) == 1:
+                result = output[-1]  # Get the last line
+            else:
+                result = "No output"  # Handle the empty output case explicitly
+            print(
                 f"Cacti Error in {filename}",
-                {p.stderr.read().decode()},
-                {f.read().split("\n")[-2] if f.read() else "No output"},
+                p.stderr.read().decode(),
+                result,
             )
+            # raise Exception(
+            #     f"Cacti Error in {filename}",
+            #     p.stderr.read().decode(),
+            #     result,
+            # )
 
     output_filename = filename + ".cfg.out"
     cactiOutput = os.path.normpath(os.path.join(CACTI_DIR, output_filename))
@@ -1349,7 +1361,7 @@ if __name__ == "__main__":
         help="Path to the data file (default: 131072)",
     )
     parser.add_argument(
-        "--blockSize", type=int, default=64, help="Path to the data file (default: 64)"
+        "--block_size", type=int, default=64, help="Path to the data file (default: 64)"
     )
     parser.add_argument(
         "--cacheType",
@@ -1368,7 +1380,7 @@ if __name__ == "__main__":
         buf_vals = gen_vals(
             args.cfg_name,
             cache_size=args.cache_size,
-            blockSize=args.blockSize,
+            block_size=args.block_size,
             cache_type=args.cacheType,
             bus_width=args.busWidth,
         )

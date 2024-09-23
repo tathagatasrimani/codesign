@@ -137,6 +137,7 @@ class Codesign:
         )
 
         self.hw = new_hw
+        print(f"HAVE NEW HARDWARE")
         self.scheduled_dfg = new_schedule
         self.forward_edp = self.sim.edp
         print(

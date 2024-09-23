@@ -245,6 +245,8 @@ class ConcreteSimulator(AbstractSimulator):
         self.active_energy = 0
         self.passive_energy = 0
         self.total_energy = 0
+        # TODO reset dictionary of operations done
+        # self.hw.netlist
 
     def construct_fake_double_hw(self, hw):
         func_counts = hardwareModel.get_func_count(hw.netlist)
@@ -277,6 +279,13 @@ class ConcreteSimulator(AbstractSimulator):
         TODO: Doesn't yet add in all buff and mem operations
         TODO: This is a great candidate to cpp ify via cppyy
         """
+        # print(f'FIGURE BEFORE {hw.netlist}')
+        # print(f'FIGURE BEFORE {dict(hw.netlist.nodes.data()).items()}')
+        # import time
+        # time.sleep(5)
+        # hw.netlist.clear()
+        # print(f'FIGURE AFTER {hw.netlist}')
+        # print(f'FIGURE AFTER {dict(hw.netlist.nodes.data()).items()}')
         self.reset_internal_variables()
 
         fake_hw = self.construct_fake_double_hw(hw)

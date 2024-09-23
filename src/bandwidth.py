@@ -22,7 +22,7 @@ def iter_bandwidth(bw_range, cache_size=131072, memSize=131072):
         cache_val = cacti_util.gen_vals(
                 "bw_cache",
                 cache_size=cache_size, 
-                blockSize=64,
+                block_size=64,
                 cache_type="cache",
                 bus_width=bus_width,
             )
@@ -34,7 +34,7 @@ def iter_bandwidth(bw_range, cache_size=131072, memSize=131072):
         mem_val = cacti_util.gen_vals(
                 "bw_mem",
                 cache_size=memSize, 
-                blockSize=64,
+                block_size=64,
                 cache_type="main memory",
                 bus_width=bus_width,
             )
