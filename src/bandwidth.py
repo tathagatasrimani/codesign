@@ -3,8 +3,8 @@ import pandas as pd
 import os
 
 from . import cacti_util
+from . import CACTI_DIR
 
-CACTI_DIR = "/path/to/cacti"  # Update this to your CACTI directory
 
 # Example function to convert frequency (you should replace it with actual logic)
 def convert_frequency(bus_freq):
@@ -12,16 +12,16 @@ def convert_frequency(bus_freq):
     return bus_freq * 1e6
 
 # Function to iterate over different bus widths and collect CACTI results
-def iter_bandwidth(cacheSize=131072, memSize=131072):
+def iter_bandwidth(bw_range, cache_size=131072, memSize=131072):
     cache_vals = []
     mem_vals = []
 
-    for i in range(1, 14):  # powers of 2 from 2 to 1024
-        bus_width = 2**i
+    for bus_width in bw_range:  # powers of 2 from 2 to 1024
+        # bus_width = 2**i
 
         cache_val = cacti_util.gen_vals(
                 "bw_cache",
-                cacheSize=cacheSize, 
+                cache_size=cache_size, 
                 blockSize=64,
                 cache_type="cache",
                 bus_width=bus_width,
@@ -30,10 +30,10 @@ def iter_bandwidth(cacheSize=131072, memSize=131072):
             print(f"INVALID CACHE {i}")
         cache_vals.append(cache_val)
 
-        print(f"{i} got through cache_val")
+        print(f"{bus_width} got through cache_val")
         mem_val = cacti_util.gen_vals(
                 "bw_mem",
-                cacheSize=memSize, 
+                cache_size=memSize, 
                 blockSize=64,
                 cache_type="main memory",
                 bus_width=bus_width,
@@ -41,18 +41,18 @@ def iter_bandwidth(cacheSize=131072, memSize=131072):
         if isinstance(mem_val, int) and mem_val == -1:
             print(f"INVALID MEM {i}")
         mem_vals.append(mem_val)
-        print(f"{i} got through mem_val")
+        print(f"{bus_width} got through mem_val")
 
     import time
-    time.sleep(10)
+    time.sleep(1)
     
     return cache_vals, mem_vals
 
-def plot_bw(cache_vals, mem_vals, log_scale=True):
+def plot_bw(bw_range, cache_vals, mem_vals, log_scale=True):
     # Extract relevant values for plotting
-    bus_widths = [2**i for i in range(1, 14)]  # Powers of 2 for bus widths (2, 4, 8, ..., 1024)
+    bus_widths = bw_range #[2**i for i in range(1, 14)]  # Powers of 2 for bus widths (2, 4, 8, ..., 1024)
 
-    print(f'CHECK CACHE_VALS: {cache_vals}')
+    # print(f'CHECK CACHE_VALS: {cache_vals}')
 
     # For cache values
     cache_access_time = [val.get('Access time (ns)', -1) for val in cache_vals]
@@ -149,6 +149,8 @@ def plot_bw(cache_vals, mem_vals, log_scale=True):
     # Show plots
     plt.show()
 
-# Example of how to use these functions:
-cache_vals, mem_vals = iter_bandwidth()
-plot_bw(cache_vals, mem_vals)
+if __name__ == "__main__":
+    # Example of how to use these functions:
+    bw_range = [16 * n for n in range(1, 5)]  # [2**i for i in range(1, 12)]
+    cache_vals, mem_vals = iter_bandwidth(bw_range, cache_size= 2048)
+    plot_bw(bw_range, cache_vals, mem_vals)
