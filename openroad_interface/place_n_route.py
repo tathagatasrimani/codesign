@@ -116,8 +116,13 @@ def place_n_route(
     test_directory: str, 
     arg_parasitics: str
 ):
-    graph, net_out_dict, node_output, lef_data, node_to_num = setup(design_name, test_directory)
-    dict, graph = extraction(graph, arg_parasitics, design_name, net_out_dict, node_output, lef_data, node_to_num)
+    dict = None
+    if "none" not in arg_parasitics:
+        graph, net_out_dict, node_output, lef_data, node_to_num = setup(design_name, test_directory)
+        dict, graph = extraction(graph, arg_parasitics, design_name, net_out_dict, node_output, lef_data, node_to_num)
+    else: 
+        graph = nx.read_gml("src/architectures/" + design_name)
+        graph = none_place_n_route(graph, design_name)
     return dict, graph
     
 def setup(
@@ -159,10 +164,6 @@ def extraction(graph, arg_parasitics, design_name, net_out_dict, node_output, le
         )
     elif arg_parasitics == "estimation":
         dict, graph = estimated_place_n_route(
-            graph, design_name, net_out_dict, node_output, lef_data, node_to_num
-        )
-    elif arg_parasitics == "none":
-        graph = none_place_n_route(
             graph, design_name, net_out_dict, node_output, lef_data, node_to_num
         )
 
@@ -297,35 +298,23 @@ def detailed_place_n_route(
 def none_place_n_route(
     graph: nx.DiGraph,
     design_name: str,
-    net_out_dict: dict,
-    node_output: dict,
-    lef_data: dict,
-    node_to_num: dict,
 ) -> dict:
     """
     runs openroad, calculates rcl, and then adds attributes to the graph
     params:
         graph: networkx graph
         design_name: design name
-        net_out_dict: dict that lists nodes and thier respective edges (all nodes have one output)
-        node_output: dict that lists nodes and their respective output nodes
-        lef_data: dict with layer information (units, res, cap, width)
-        node_to_num: dict that gives component id equivalent for node
     returns:
-        dict: contains list of resistance, capacitance, length, and net data
         graph: newly modified digraph with rcl attributes
     """
     design_name = design_name.replace(".gml", "")
-    # edge attribution
-    for output_pin in net_out_dict:
-        for node in node_output[output_pin]:
-            graph[output_pin][node]["net"] = 0
-            graph[output_pin][node]["net_length"] = 0
-            graph[output_pin][node]["net_res"] = 0
-            graph[output_pin][node]["net_cap"] = 0
 
-    mux_listing(graph, node_output)
-    mux_removal(graph)
-    export_graph(graph, design_name, "none_nomux")
+    # edge attribution
+    for u, v in graph.edges():
+        graph[u][v]["net"] = 0
+        graph[u][v]["net_length"] = 0
+        graph[u][v]["net_res"] = 0
+        graph[u][v]["net_cap"] = 0
+
 
     return graph
