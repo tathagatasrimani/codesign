@@ -419,6 +419,7 @@ class HardwareModel:
             cache_type="cache",
             bus_width=self.buffer_bus_width,
         )
+        logger.info(f"BUFFER VALS: read/write time {buf_vals['Access time (ns)']} ns, read energy {buf_vals['Dynamic read energy (nJ)']} nJ, write energy {buf_vals['Dynamic write energy (nJ)']} nJ, leakage power {buf_vals['Standby leakage per bank(mW)']}")
         logger.info(f"Buffer cacti with: {self.buffer_size} bytes, {self.buffer_bus_width} bus width")
         buf_opt = {
             "ndwl": buf_vals["Ndwl"],
@@ -438,6 +439,7 @@ class HardwareModel:
             cache_type="main memory",
             bus_width=self.memory_bus_width,
         )
+        logger.info(f"MEMORY VALS: read/write time {mem_vals['Access time (ns)']} ns, read energy {mem_vals['Dynamic read energy (nJ)']} nJ, write energy {mem_vals['Dynamic write energy (nJ)']} nJ, leakage power {mem_vals['Standby leakage per bank(mW)']}")
         mem_opt = {
             "ndwl": mem_vals["Ndwl"],
             "ndbl": mem_vals["Ndbl"],

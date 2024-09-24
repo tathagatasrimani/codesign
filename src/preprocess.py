@@ -24,7 +24,10 @@ class Preprocessor:
         self.initial_params = {}
         self.obj_scale = 1
         self.improvement = 1.1
-        self.pow_exprs_to_constrain = []
+        self.pow_exprs_to_constrain = set()
+        self.log_exprs_to_constrain = set()
+        # pyomo sympy bimap
+        self.m = None
 
     def f(self, model):
         return model.x[self.mapping[hw_symbols.f]] >= 1e6
@@ -38,16 +41,25 @@ class Preprocessor:
     def V_dd_upper(self, model):
         return model.x[self.mapping[hw_symbols.V_dd]] <= 1.7
     
-    def find_pow_exprs(self, expr):
+    def find_exprs_to_constrain(self, expr):
         logger.warning(f"expr.func is {expr.func}")
         if expr.func == sp.core.power.Pow and expr.base.func != sp.core.symbol.Symbol:
             logger.warning(f"exponent is {expr.exp}")
             # if we are taking an even root (i.e. square root), no negative numbers allowed
             if expr.exp == 0.5:
                 logger.warning(f"base func is {expr.base.func}")
-                self.pow_exprs_to_constrain.append(expr.base)
+                pow_expr_pyomo = sympy_tools.sympy2pyomo_expression(expr.base, m)
+                self.pow_exprs_to_constrain.add(pow_expr_pyomo)
+        elif expr.func == sp.log:
+            if not expr.args[0].is_constant():
+                log_expr_pyomo = sympy_tools.sympy2pyomo_expression(expr.args[0], m)
+                self.log_exprs_to_constrain.add(log_expr_pyomo)
+                logger.warning(f"arg of log is {expr.args[0]}, type is {type(expr.args[0])}")
+            else:
+                logger.warning(f"constant arg of log is {expr.args[0]}, type is {type(expr.args[0])}")
+        
         for arg in expr.args:
-            self.find_pow_exprs(arg)
+            self.find_exprs_to_constrain(arg)
 
     def add_constraints(self, model):
         logger.info("Adding Constraints")
@@ -58,8 +70,13 @@ class Preprocessor:
 
         def make_pow_constraint(model, i):
             return self.pow_exprs_to_constrain[i] >= 0
+        
+        def make_log_constraint(model, i):
+            return self.log_exprs_to_constrain[i] >= 0
 
         model.PowConstraint = pyo.Constraint([i for i in range(len(self.pow_exprs_to_constrain))], rule=make_pow_constraint)
+
+        model.LogConstraint = pyo.Constraint([i for i in range(len(self.log_exprs_to_constrain))], rule=make_log_constraint)
 
         model.V_dd_lower = pyo.Constraint(rule=self.V_dd_lower)
         # model.V_dd_upper = pyo.Constraint(rule=self.V_dd_upper)
@@ -91,15 +108,15 @@ class Preprocessor:
             opt = SolverFactory("multistart")
         else:
             opt = SolverFactory("ipopt")
-            # opt.options["warm_start_init_point"] = "yes"
-            # opt.options['warm_start_bound_push'] = 1e-9
-            # opt.options['warm_start_mult_bound_push'] = 1e-9
-            # opt.options['warm_start_bound_frac'] = 1e-9
-            # opt.options['warm_start_slack_bound_push'] = 1e-9
-            # opt.options['warm_start_slack_bound_frac'] = 1e-9
-            # opt.options['mu_init'] = 0.1
+            opt.options["warm_start_init_point"] = "yes"
+            opt.options['warm_start_bound_push'] = 1e-9
+            opt.options['warm_start_mult_bound_push'] = 1e-9
+            opt.options['warm_start_bound_frac'] = 1e-9
+            opt.options['warm_start_slack_bound_push'] = 1e-9
+            opt.options['warm_start_slack_bound_frac'] = 1e-9
+            opt.options['mu_init'] = 0.1
             # opt.options['acceptable_obj_change_tol'] = self.initial_val / 100
-            # opt.options['tol'] = 0.5
+            opt.options['tol'] = 1
             # opt.options['print_level'] = 5
             # opt.options['nlp_scaling_method'] = 'none'
             opt.options["bound_relax_factor"] = 0
@@ -164,7 +181,7 @@ class Preprocessor:
             i += 1
 
         print(f"building bimap")
-        m = MyPyomoSympyBimap()
+        self.m = MyPyomoSympyBimap()
         for symbol in edp.free_symbols:
             # create self.mapping of sympy symbols to pyomo symbols
             m.sympy2pyomo[symbol] = model.x[self.mapping[symbol]]
@@ -173,9 +190,7 @@ class Preprocessor:
             print(f"symbol: {symbol}; initial value: {self.expr_symbols[symbol]}")
 
         # find all pow expressions within edp equation, convert to pyomo
-        self.find_pow_exprs(edp)
-        for i in range(len(self.pow_exprs_to_constrain)):
-            self.pow_exprs_to_constrain[i] = sympy_tools.sympy2pyomo_expression(self.pow_exprs_to_constrain[i], m)
+        self.find_exprs_to_constrain(edp)
         logger.warning(f"edp equation: {edp}")
         print(f"converting to pyomo exp")
         self.pyomo_edp_exp = sympy_tools.sympy2pyomo_expression(edp, m)

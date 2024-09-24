@@ -29,7 +29,7 @@ from src import architecture_search
 
 args = None
 
-tech_nodes = [7, 5, 3]
+tech_nodes = [7, 5]
 initial_tech_params = {}
 final_tech_params = {}
 params_exclusion_list = []
@@ -175,7 +175,7 @@ if __name__ == "__main__":
         f.write(f"Benchmark: {args.benchmark}\n")
         f.write(f"Architecture Config: {args.architecture_config}\n")
 
-    logging.basicConfig(filename=f"{args.savedir}/log.txt", level=logging.INFO)
+    logging.basicConfig(filename=f"{args.savedir}/log.txt", level=logging.WARNING)
     logging.Filter("inverse validation")
     edps, hws, dfgs = run_initial()
 

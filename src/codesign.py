@@ -269,9 +269,14 @@ class Codesign:
             f"{self.save_dir}/symbolic_edp_{iter_number}.txt",
         )
         shutil.copy("src/tmp/ipopt_out.txt", f"{self.save_dir}/ipopt_{iter_number}.txt")
+        #shutil.copy(
+         #   "src/tmp/solver_out.txt", f"{self.save_dir}/solver_{iter_number}.txt"
+        #)
         shutil.copy(
-            "src/tmp/solver_out.txt", f"{self.save_dir}/solver_{iter_number}.txt"
+            "src/tmp/cacti_exprs.txt", f"{self.save_dir}/cacti_exprs_{iter_number}.txt"
         )
+        #TODO: copy cacti expressions to file, read yaml file from notebook, call sim util fn to get xreplace structure
+        #TODO: fw pass save cacti params of interest, with logger unique starting string, then write parsing script in notebook to look at them
         # save latency, power, and tech params
         self.hw.write_technology_parameters(
             f"{self.save_dir}/tech_params_{iter_number}.yaml"
