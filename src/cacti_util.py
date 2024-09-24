@@ -1,6 +1,7 @@
 import os
 import subprocess
 import yaml
+import traceback
 import argparse
 import re
 import logging
@@ -127,8 +128,8 @@ def gen_vals(
         Type of cache (e.g., "cache" or "main memory").
     bus_width : int, optional
         Width of the input/output bus in bits.
-    transistor_size : float, optional
-        Size of the transistor technology node (e.g., 45nm).
+    transistor_size : float, optional (in um)
+        Size of the transistor technology node (e.g., 0.045).
     addr_timing : float, optional
         Address timing value for memory access.
     force_cache_config : str, optional
@@ -396,9 +397,8 @@ def gen_vals(
         '# -verbose "F"',
     ]
 
-    cactiDir = os.path.normpath(os.path.join(os.path.dirname(__file__), "cacti"))
     # write file
-    input_filename = filename + ".cfg"
+    input_filename = f"cfg/{filename}.cfg"
     cactiInput = os.path.join(CACTI_DIR, input_filename)
     with open(cactiInput, "w") as file:
         for line in cfg_lines:
@@ -406,9 +406,6 @@ def gen_vals(
 
     stdout_filename = "cacti_stdout.log"
     stdout_file_path = os.path.join(CACTI_DIR, stdout_filename)
-
-    stderr_filename = "cacti_stderr.log"
-    stderr_file_path = os.path.join(cactiDir, stderr_filename)
 
     cmd = ["./cacti", "-infile", input_filename]
 

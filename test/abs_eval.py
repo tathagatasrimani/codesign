@@ -57,7 +57,6 @@ def gen_abs_results(sympy_file, cache_cfg, dat_file):
     tech_params = {}
     dat.scan_dat(tech_params, dat_file, g_ip.data_arr_ram_cell_tech_type, g_ip.data_arr_ram_cell_tech_type, g_ip.temp)
     tech_params = {k: (10**(-9) if v == 0 else v) for k, v in tech_params.items() if v is not None and not math.isnan(v)}
-    print(tech_params)
 
     # get IO tech_param values
     IO_tech_params = {}
@@ -160,27 +159,27 @@ def gen_abs_results(sympy_file, cache_cfg, dat_file):
     validate_leakage = float(validate_vals["Standby leakage per bank(mW)"])
 
     # print
-    print(f'Transistor size: {g_ip.F_sz_um}')
-    print(f'is_cache: {g_ip.is_cache}')
+    # print(f'Transistor size: {g_ip.F_sz_um}')
+    # print(f'is_cache: {g_ip.is_cache}')
 
-    print(f'access_time: {result_access_time}')
-    print(f"result : {result_read_dynamic, result_write_dynamic, result_read_leakage}")
+    # print(f'access_time: {result_access_time}')
+    # print(f"result : {result_read_dynamic, result_write_dynamic, result_read_leakage}")
 
-    print(f"io_area: {result_io_area}")
-    print(f"io_timing_margin: {result_io_timing_margin}")
-    print(f"io_dynamic_power: {result_io_dynamic_power}")
-    print(f"io_phy_power: {result_io_phy_power}")
-    print(f"io_termination_power: {result_io_termination_power}")
-    print(f"validate_access_time (ns): {validate_access_time}")
-    print(f"validate_read_dynamic (nJ): {validate_read_dynamic}")
-    print(f"validate_write_dynamic (nJ): {validate_write_dynamic}")
-    print(f"validate_leakage (mW): {validate_leakage}")
+    # print(f"io_area: {result_io_area}")
+    # print(f"io_timing_margin: {result_io_timing_margin}")
+    # print(f"io_dynamic_power: {result_io_dynamic_power}")
+    # print(f"io_phy_power: {result_io_phy_power}")
+    # print(f"io_termination_power: {result_io_termination_power}")
+    # print(f"validate_access_time (ns): {validate_access_time}")
+    # print(f"validate_read_dynamic (nJ): {validate_read_dynamic}")
+    # print(f"validate_write_dynamic (nJ): {validate_write_dynamic}")
+    # print(f"validate_leakage (mW): {validate_leakage}")
 
-    print(f'validate_io_area: {float(validate_vals["IO area"])}')
-    print(f'validate_io_timing: {float(validate_vals["IO timing"])}')
-    print(f'validate_io_power_dynamic: {float(validate_vals["IO power dynamic"])}')
-    print(f'validate_io_power_phy: {float(validate_vals["IO power PHY"])}')
-    print(f'validate_io_power_termination_and_bias: {float(validate_vals["IO power termination and bias"])}')
+    # print(f'validate_io_area: {float(validate_vals["IO area"])}')
+    # print(f'validate_io_timing: {float(validate_vals["IO timing"])}')
+    # print(f'validate_io_power_dynamic: {float(validate_vals["IO power dynamic"])}')
+    # print(f'validate_io_power_phy: {float(validate_vals["IO power PHY"])}')
+    # print(f'validate_io_power_termination_and_bias: {float(validate_vals["IO power termination and bias"])}')
 
     # write to CSV
     data = {
@@ -203,6 +202,9 @@ def gen_abs_results(sympy_file, cache_cfg, dat_file):
         "validate_io_power_phy": [float(validate_vals["IO power PHY"])],
         "validate_io_power_termination_and_bias": [float(validate_vals["IO power termination and bias"])],
         "transistor_size (um)": [g_ip.F_sz_um],
+        "bus width": [g_ip.buswidth],
+        "cache size (bytes)": [g_ip.cache_sz],
+        "block size (bytes)": [g_ip.block_sz],
         "is_cache": [g_ip.is_cache]
     }
 
@@ -237,7 +239,9 @@ if __name__ == "__main__":
     # If you haven't generated sympy expr from cache cfg yet
     # Gen Flag true and can set sympy flag to set the name of the sympy expr
     if args.gen:
-        buf_vals = cacti_util.run_existing_cacti_cfg(cfg_file)
+        transistor_size = float(args.dat[:-2])*1e-3
+        print(f"transistor size: {transistor_size}")
+        buf_vals = cacti_util.gen_vals(args.config, transistor_size=transistor_size)
 
         buf_opt = {
             "ndwl": buf_vals["Ndwl"],
