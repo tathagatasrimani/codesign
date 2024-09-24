@@ -29,9 +29,14 @@ from src import architecture_search
 
 args = None
 
-tech_nodes = [7, 5]
+logic_tech_nodes = [7, 5]
+cacti_nodes = [90, 45, 32, 22]
+default_cacti = 22
+default_logic = 7
+tech_nodes = []
 initial_tech_params = {}
 final_tech_params = {}
+rcs_m = {}
 params_exclusion_list = []
 
 class LogFilterInvVal(logging.Filter):
@@ -79,8 +84,8 @@ def plot_diff(tech_node_pair):
         plt.xticks(X_axis, params_to_plot[i:i+num_params_on_fig])
         plt.xlabel("tech params")
         plt.ylabel("tech param ratios")
-        plt.title(f"Ratio of optimized tech params for {tech_node_pair[0]} nm and initial tech params for {tech_node_pair[1]} nm")
-        plt.savefig(f"src/inverse_validation/figs/{tech_node_pair[0]}_{tech_node_pair[1]}_compare_{i/5}.png")
+        plt.title(f"Ratio of optimized {args.test_type} tech params for {tech_node_pair[0]} nm and initial tech params for {tech_node_pair[1]} nm")
+        plt.savefig(f"src/inverse_validation/figs/{args.test_type}_{tech_node_pair[0]}_{tech_node_pair[1]}_compare_{i/5}.png")
         plt.close()
         i += 5
 
@@ -88,9 +93,15 @@ def run_initial():
     edps = []
     hws = {}
     dfgs = {}
+    logic_tech_node, cacti_tech_node = None, None
     for tech_node in tech_nodes:
         # TODO: configure cacti tech node
-        cacti_tech_node = tech_node
+        if (args.test_type == "logic"):
+            cacti_tech_node = default_cacti
+            logic_tech_node = tech_node
+        elif (args.test_type == "cacti"):
+            logic_tech_node = default_logic
+            cacti_tech_node = tech_node
         # initialize hw model, override architecture config to have current tech node
         logger.info(
             f"Setting up architecture search; benchmark: {args.benchmark}, config: {args.architecture_config}"
@@ -99,7 +110,7 @@ def run_initial():
             simulator,
             hw,
             computation_dfg,
-        ) = architecture_search.setup_arch_search(args.benchmark, args.architecture_config, True, tech_node, cacti_tech_node)
+        ) = architecture_search.setup_arch_search(args.benchmark, args.architecture_config, True, logic_tech_node, cacti_tech_node)
         hw.init_memory(
             sim_util.find_nearest_power_2(simulator.memory_needed),
             sim_util.find_nearest_power_2(simulator.nvm_memory_needed),
@@ -108,12 +119,13 @@ def run_initial():
         hardwareModel.un_allocate_all_in_use_elements(hw.netlist)
         simulator.simulate(scheduled_dfg, hw)
         simulator.calculate_edp()
-        logger.warning(f"edp of simulation running on {tech_node} nm tech node: {simulator.edp} E-18 Js")
+        logger.warning(f"edp of simulation running on {tech_node} nm {args.test_type} tech node: {simulator.edp} E-18 Js")
         
         rcs = hw.get_optimization_params_from_tech_params()
         initial_tech_params[tech_node] = sim_util.generate_init_params_from_rcs_as_symbols(rcs)
         
         edps.append(simulator.edp)
+        rcs_m[tech_node] = rcs
         hws[tech_node] = hw
         dfgs[tech_node] = scheduled_dfg
     return edps, hws, dfgs
@@ -127,6 +139,14 @@ def run_pairwise(tech_node_pair, improvement, hws, dfgs):
 
     symbolic_sim.simulate(dfgs[tech_node_pair[0]], hws[tech_node_pair[0]])
     symbolic_sim.calculate_edp(hws[tech_node_pair[0]])
+
+    # we only want to optimize the variables specified by the test type, so keep the others constant by substituting concrete values
+    if (args.test_type == "cacti"):
+        logic_params = sim_util.generate_logic_init_params_from_rcs_as_symbols(rcs_m[tech_node_pair[0]])
+        symbolic_sim.edp.subs(logic_params)
+    elif (args.test_type == "logic"):
+        cacti_params = sim_util.generate_cacti_init_params_from_rcs_as_symbols(rcs_m[tech_node_pair[0]])
+        symbolic_sim.edp.subs(cacti_params)
 
     stdout = sys.stdout
     with open(f"{args.savedir}/ipopt_out_{tech_node_pair[0]}.txt", "w") as sys.stdout:
@@ -163,6 +183,13 @@ if __name__ == "__main__":
         default="src/inverse_validation/inverse_val_log_dir",
         help="Path to the save new architecture file",
     )
+    parser.add_argument(
+        "-t",
+        "--test_type",
+        type=str,
+        default="logic",
+        help="Determines whether we sweep logic or cacti tech nodes",
+    )
     args = parser.parse_args()
     if not os.path.exists(args.savedir):
         os.makedirs(args.savedir)
@@ -177,6 +204,13 @@ if __name__ == "__main__":
 
     logging.basicConfig(filename=f"{args.savedir}/log.txt", level=logging.WARNING)
     logging.Filter("inverse validation")
+    if (args.test_type == "logic"):
+        tech_nodes = logic_tech_nodes
+    elif (args.test_type == "cacti"):
+        tech_nodes = cacti_nodes
+    else:
+        raise Exception("invalid test type: must be logic or cacti")
+
     edps, hws, dfgs = run_initial()
 
     for i in range(0, len(tech_nodes)-1):

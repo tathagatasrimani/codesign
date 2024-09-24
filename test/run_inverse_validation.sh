@@ -1,12 +1,13 @@
 #!/bin/sh
-cd ../..
+cd ..
 
-while getopts c:n:f: flag
+while getopts c:n:f:t flag
 do
     case "${flag}" in
         n) name=${OPTARG};;
         c) ARCH_CONFIG=${OPTARG};;
         f) SAVEDIR=${OPTARG};;
+        t) TEST_TYPE=${OPTARG};;
     esac
 done
 
@@ -20,6 +21,9 @@ if [ $name ]; then
     fi
     if [ $SAVEDIR ]; then
         ARGS+=" --savedir $SAVEDIR"
+    fi
+    if [ $TEST_TYPE ]; then
+        ARGS+=" --test_type $TEST_TYPE"
     fi
     echo $ARGS
     python -m src.inverse_validation.inverse_validate $ARGS

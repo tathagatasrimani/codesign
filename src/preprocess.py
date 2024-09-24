@@ -24,10 +24,10 @@ class Preprocessor:
         self.initial_params = {}
         self.obj_scale = 1
         self.improvement = 1.1
-        self.pow_exprs_to_constrain = set()
-        self.log_exprs_to_constrain = set()
-        # pyomo sympy bimap
-        self.m = None
+        self.pow_exprs_s = set()
+        self.log_exprs_s = set()
+        self.pow_exprs_to_constrain = []
+        self.log_exprs_to_constrain = []
 
     def f(self, model):
         return model.x[self.mapping[hw_symbols.f]] >= 1e6
@@ -48,12 +48,10 @@ class Preprocessor:
             # if we are taking an even root (i.e. square root), no negative numbers allowed
             if expr.exp == 0.5:
                 logger.warning(f"base func is {expr.base.func}")
-                pow_expr_pyomo = sympy_tools.sympy2pyomo_expression(expr.base, m)
-                self.pow_exprs_to_constrain.add(pow_expr_pyomo)
+                self.pow_exprs_s.add(expr.base)
         elif expr.func == sp.log:
             if not expr.args[0].is_constant():
-                log_expr_pyomo = sympy_tools.sympy2pyomo_expression(expr.args[0], m)
-                self.log_exprs_to_constrain.add(log_expr_pyomo)
+                self.log_exprs_s.add(expr.args[0])
                 logger.warning(f"arg of log is {expr.args[0]}, type is {type(expr.args[0])}")
             else:
                 logger.warning(f"constant arg of log is {expr.args[0]}, type is {type(expr.args[0])}")
@@ -181,7 +179,7 @@ class Preprocessor:
             i += 1
 
         print(f"building bimap")
-        self.m = MyPyomoSympyBimap()
+        m = MyPyomoSympyBimap()
         for symbol in edp.free_symbols:
             # create self.mapping of sympy symbols to pyomo symbols
             m.sympy2pyomo[symbol] = model.x[self.mapping[symbol]]
@@ -191,6 +189,10 @@ class Preprocessor:
 
         # find all pow expressions within edp equation, convert to pyomo
         self.find_exprs_to_constrain(edp)
+        for pow_expr in self.pow_exprs_s:
+            self.pow_exprs_to_constrain.append(sympy_tools.sympy2pyomo_expression(pow_expr, m))
+        for log_expr in self.log_exprs_s:
+            self.log_exprs_to_constrain.append(sympy_tools.sympy2pyomo_expression(log_expr, m))
         logger.warning(f"edp equation: {edp}")
         print(f"converting to pyomo exp")
         self.pyomo_edp_exp = sympy_tools.sympy2pyomo_expression(edp, m)
