@@ -422,7 +422,7 @@ def gen_vals(
                 {f.read().split("\n")[-2] if f.read() else "No output"},
             )
 
-    output_filename = filename + ".cfg.out"
+    output_filename = f"cfg/{filename}.cfg.out"
     cactiOutput = os.path.normpath(os.path.join(CACTI_DIR, output_filename))
 
     # SHORTCUT FOR NOW
