@@ -9,7 +9,8 @@ from src.cacti import TRANSISTOR_SIZES
 
 
 def test_one_point(cfg, transistor_size):
-    
+    print(f"Testing {cfg} at {transistor_size} nm")
+
     buf_vals = cacti_util.gen_vals(cfg, transistor_size=transistor_size)
 
     buf_opt = {
@@ -27,6 +28,7 @@ def test_one_point(cfg, transistor_size):
 
 def test_all_points(cfgs: List, transistor_sizes: List):
     for cfg in cfgs:
+        print(f"Testing {cfg}")
         files = []
         for ts in transistor_sizes:
             test_one_point(cfg, ts)
