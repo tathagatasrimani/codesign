@@ -46,28 +46,28 @@ def test_all_points(cfgs: List, transistor_sizes: List):
         expressions = [sp.sympify(open(f).read()) for f in at_files]
         for i in range(len(at_files)):
             for j in range(i+1, len(at_files)):
-                print(f"Comparing {at_files[i].split("/")[-1]} and {at_files[j].split("/")[-1]}")
+                print(f"Comparing {at_files[i].split('/')[-1]} and {at_files[j].split('/')[-1]}")
                 print(f"Expressions equal: {sp.simplify(expressions[i] - expressions[j])}")
         rd_files = [f for f in files if "read_dynamic" in f]
         print(f"rd_files: {rd_files}")
         expressions = [sp.sympify(open(f).read()) for f in rd_files]
         for i in range(len(rd_files)):
             for j in range(i+1, len(rd_files)):
-                print(f"Comparing {rd_files[i].split("/")[-1]} and {rd_files[j].split("/")[-1]}")
+                print(f"Comparing {rd_files[i].split('/')[-1]} and {rd_files[j].split('/')[-1]}")
                 print(f"Expressions equal: {sp.simplify(expressions[i] - expressions[j])}")
         wd_files = [f for f in files if "write_dynamic" in f]
         print(f"wd_files: {wd_files}")
         expressions = [sp.sympify(open(f).read()) for f in wd_files]
         for i in range(len(wd_files)):
             for j in range(i+1, len(wd_files)):
-                print(f"Comparing {wd_files[i].split("/")[-1]} and {wd_files[j].split("/")[-1]}")
+                print(f"Comparing {wd_files[i].split('/')[-1]} and {wd_files[j].split('/')[-1]}")
                 print(f"Expressions equal: {sp.simplify(expressions[i] - expressions[j])}")
         l_files = [f for f in files if "leakage" in f]
         print(f"l_files: {l_files}")
         expressions = [sp.sympify(open(f).read()) for f in l_files]
         for i in range(len(l_files)):
             for j in range(i+1, len(l_files)):
-                print(f"Comparing {l_files[i].split("/")[-1]} and {l_files[j].split("/")[-1]}")
+                print(f"Comparing {l_files[i].split('/')[-1]} and {l_files[j].split('/')[-1]}")
                 print(f"Expressions equal: {sp.simplify(expressions[i] - expressions[j])}")
 
 if __name__ == "__main__":
