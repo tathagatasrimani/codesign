@@ -235,6 +235,9 @@ if __name__ == "__main__":
     # all paths here are relative to CACTI_DIR
 
     cfg_file = f"cfg/{args.config}.cfg"
+    sympy_file = args.config
+    if args.sympy:
+        sympy_file = args.sympy
 
     # If you haven't generated sympy expr from cache cfg yet
     # Gen Flag true and can set sympy flag to set the name of the sympy expr
@@ -253,14 +256,8 @@ if __name__ == "__main__":
             "repeater_spacing": buf_vals["Repeater spacing"],
             "repeater_size": buf_vals["Repeater size"],
         }
-        sympy_file = args.config   # try to keep convention where sympy expressions have same name as cfg
         IO_info = cacti_util.gen_symbolic(sympy_file, cfg_file, buf_opt, use_piecewise=False)
-    else:
-        # try to keep convention where sympy expressions have same name as cfg
-        if (args.sympy):
-            sympy_file = args.sympy
-        else:
-            sympy_file = args.config
+    
 
     if args.dat:
         dat_file = os.path.join("tech_params", f"{args.dat}.dat")

@@ -79,6 +79,7 @@ def gen_symbolic(name, cache_cfg, opt_vals, use_piecewise=False):
     with open(os.path.join(output_dir, f'{name + "_write_dynamic"}.txt'), "w") as file:
         file.write(str(fin_res.power.writeOp.dynamic))
 
+    # TODO: why is this read leakage? Should be standby leakage. What does read leakage even mean?
     with open(os.path.join(output_dir, f'{name + "_read_leakage"}.txt'), "w") as file:
         file.write(str(fin_res.power.readOp.leakage))
 
