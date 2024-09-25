@@ -12,7 +12,7 @@ def test_one_point(cfg, transistor_size):
     print(f"Testing {cfg} at {transistor_size} nm")
 
     buf_vals = cacti_util.gen_vals(cfg, transistor_size=transistor_size)
-
+    print(f"buf_vals: {buf_vals}")
     buf_opt = {
         "ndwl": buf_vals["Ndwl"],
         "ndbl": buf_vals["Ndbl"],
