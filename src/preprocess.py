@@ -76,7 +76,7 @@ class Preprocessor:
 
         model.LogConstraint = pyo.Constraint([i for i in range(len(self.log_exprs_to_constrain))], rule=make_log_constraint)
 
-        model.V_dd_lower = pyo.Constraint(rule=self.V_dd_lower)
+        #model.V_dd_lower = pyo.Constraint(rule=self.V_dd_lower)
         # model.V_dd_upper = pyo.Constraint(rule=self.V_dd_upper)
         # model.V_dd = pyo.Constraint(expr = model.x[self.mapping[hw_symbols.V_dd]] == self.initial_params["V_dd"])
 
@@ -87,7 +87,7 @@ class Preprocessor:
 
         return model
 
-    def add_regularization_to_objective(self, model, l=1):
+    def add_regularization_to_objective(self, model, l):
         """
         Parameters:
         model: pyomo model
@@ -145,7 +145,7 @@ class Preprocessor:
         free_symbols = memL_expr.free_symbols.union(bufL_expr.free_symbols)
         return free_symbols
 
-    def begin(self, model, edp, initial_params, improvement, multistart):
+    def begin(self, model, edp, initial_params, improvement, multistart, regularization):
         self.multistart = multistart
         self.expr_symbols = {}
         self.free_symbols = []
@@ -199,7 +199,7 @@ class Preprocessor:
         self.obj = self.pyomo_edp_exp
         # print(f"created pyomo expression: {self.pyomo_edp_exp}")
 
-        self.add_regularization_to_objective(model, l=0.1)
+        self.add_regularization_to_objective(model, l=regularization)
         print(f"added regularization")
 
         model.obj = pyo.Objective(expr=self.obj, sense=pyo.minimize)

@@ -84,7 +84,7 @@ def plot_diff(tech_node_pair):
         plt.xticks(X_axis, params_to_plot[i:i+num_params_on_fig])
         plt.xlabel("tech params")
         plt.ylabel("tech param ratios")
-        plt.title(f"Ratio of optimized {args.test_type} tech params for {tech_node_pair[0]} nm and initial tech params for {tech_node_pair[1]} nm")
+        plt.title(f"optimized {args.test_type} params for {tech_node_pair[0]} nm divided by initial params for {tech_node_pair[1]} nm")
         plt.savefig(f"src/inverse_validation/figs/{args.test_type}_{tech_node_pair[0]}_{tech_node_pair[1]}_compare_{i/5}.png")
         plt.close()
         i += 5
@@ -143,17 +143,24 @@ def run_pairwise(tech_node_pair, improvement, hws, dfgs):
     # we only want to optimize the variables specified by the test type, so keep the others constant by substituting concrete values
     if (args.test_type == "cacti"):
         logic_params = sim_util.generate_logic_init_params_from_rcs_as_symbols(rcs_m[tech_node_pair[0]])
-        symbolic_sim.edp.subs(logic_params)
+        symbolic_sim.edp = symbolic_sim.edp.subs(logic_params).simplify()
+        logger.warning(f"symbolic edp after subbing cacti params: {symbolic_sim.edp}")
     elif (args.test_type == "logic"):
         cacti_params = sim_util.generate_cacti_init_params_from_rcs_as_symbols(rcs_m[tech_node_pair[0]])
-        symbolic_sim.edp.subs(cacti_params)
+        symbolic_sim.edp = symbolic_sim.edp.subs(cacti_params).simplify()
+        logger.warning(f"symbolic edp after subbing logic params: {symbolic_sim.edp}")
+
+    improvement = symbolic_sim.edp.subs(initial_tech_params[tech_node_pair[0]]).simplify() / symbolic_sim.edp.subs(initial_tech_params[tech_node_pair[1]]).simplify()
+    logger.warning(f"jk actually asking for {improvement} edp improvement")
 
     stdout = sys.stdout
     with open(f"{args.savedir}/ipopt_out_{tech_node_pair[0]}.txt", "w") as sys.stdout:
-        optimize.optimize(initial_tech_params[tech_node_pair[0]], symbolic_sim.edp, "ipopt", improvement)
+        optimize.optimize(initial_tech_params[tech_node_pair[0]], symbolic_sim.edp, "ipopt", improvement, regularization=0.1)
     sys.stdout = stdout
     f = open(f"{args.savedir}/ipopt_out_{tech_node_pair[0]}.txt", "r")
     final_tech_params[tech_node_pair[0]] = parse_output(f)
+    logger.warning(f"final value of edp is {symbolic_sim.edp.subs(final_tech_params[tech_node_pair[0]]).simplify()} vs inital {symbolic_sim.edp.subs(initial_tech_params[tech_node_pair[0]]).simplify()}")
+    logger.warning(f"initial value of next tech node edp is {symbolic_sim.edp.subs(initial_tech_params[tech_node_pair[1]]).simplify()}")
     logger.warning(f"final tech params for {tech_node_pair[0]} nm: {final_tech_params[tech_node_pair[0]]}")
     logger.warning(f"initial tech params for {tech_node_pair[1]} nm: {initial_tech_params[tech_node_pair[1]]}")
 

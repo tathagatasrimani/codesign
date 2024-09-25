@@ -898,14 +898,6 @@ def generate_logic_init_params_from_rcs_as_symbols(rcs):
         logic_params[hw_symbols.symbol_table["Reff_" + elem]] = rcs["Reff"][elem]
         logic_params[hw_symbols.symbol_table["Ceff_" + elem]] = rcs["Ceff"][elem]
     logic_params[hw_symbols.V_dd] = rcs["other"]["V_dd"]
-    logic_params[hw_symbols.MemReadEact] = rcs["other"]["MemReadEact"]
-    logic_params[hw_symbols.MemWriteEact] = rcs["other"]["MemWriteEact"]
-    logic_params[hw_symbols.MemPpass] = rcs["other"]["MemPpass"]
-    logic_params[hw_symbols.BufReadEact] = rcs["other"]["BufReadEact"]
-    logic_params[hw_symbols.BufWriteEact] = rcs["other"]["BufWriteEact"]
-    logic_params[hw_symbols.BufPpass] = rcs["other"]["BufPpass"]
-    logic_params[hw_symbols.OffChipIOL] = rcs["other"]["OffChipIOL"]
-    logic_params[hw_symbols.OffChipIOPact] = rcs["other"]["OffChipIOPact"]
 
     return logic_params
 
@@ -915,6 +907,7 @@ def generate_cacti_init_params_from_rcs_as_symbols(rcs):
     but only for cacti parameters
     """
     cacti_params = {}
+    cacti_params[hw_symbols.V_dd] = rcs["other"]["V_dd"]
     # CACTI
     cacti_params[hw_symbols.C_g_ideal] = rcs["Cacti"]["C_g_ideal"]
     cacti_params[hw_symbols.C_fringe] = rcs["Cacti"]["C_fringe"]
