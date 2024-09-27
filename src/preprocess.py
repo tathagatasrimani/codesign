@@ -8,6 +8,7 @@ from pyomo.opt import SolverFactory
 
 from .MyPyomoSympyBimap import MyPyomoSympyBimap
 from . import hw_symbols
+from . import symbolic_simulate
 
 LAMBDA = 0.1 # regularization parameter
 
@@ -70,7 +71,7 @@ class Preprocessor:
             return self.pow_exprs_to_constrain[i] >= 0
         
         def make_log_constraint(model, i):
-            return self.log_exprs_to_constrain[i] >= 0
+            return self.log_exprs_to_constrain[i] >= 0.0001
 
         model.PowConstraint = pyo.Constraint([i for i in range(len(self.pow_exprs_to_constrain))], rule=make_pow_constraint)
 
@@ -87,20 +88,26 @@ class Preprocessor:
 
         return model
 
-    def add_regularization_to_objective(self, model, l):
+    def add_regularization_to_objective(self, obj, l):
         """
         Parameters:
-        model: pyomo model
+        obj: sympy objective function
         l: regularization hyperparameter
         """
         logger.info("Adding regularization.")
         for symbol in self.free_symbols:
-            self.obj += l * (
+            obj += l * (
                 self.initial_params[symbol.name]
-                / model.x[self.mapping[hw_symbols.symbol_table[symbol.name]]]
+                / symbol
                 - 1
             ) ** 2
 
+        """max_term = 0
+        for symbol in self.free_symbols:
+            max_term = symbolic_simulate.symbolic_convex_max(max_term, (symbol / self.initial_params[symbol.name]))
+        obj += l * max_term"""
+        return obj
+        
     def get_solver(self):
         if self.multistart:
             opt = SolverFactory("multistart")
@@ -193,14 +200,15 @@ class Preprocessor:
             self.pow_exprs_to_constrain.append(sympy_tools.sympy2pyomo_expression(pow_expr, m))
         for log_expr in self.log_exprs_s:
             self.log_exprs_to_constrain.append(sympy_tools.sympy2pyomo_expression(log_expr, m))
-        logger.warning(f"edp equation: {edp}")
         print(f"converting to pyomo exp")
         self.pyomo_edp_exp = sympy_tools.sympy2pyomo_expression(edp, m)
-        self.obj = self.pyomo_edp_exp
+
+        sympy_obj = self.add_regularization_to_objective(edp, l=regularization)
+        print(f"added regularization")
+
+        self.obj = sympy_tools.sympy2pyomo_expression(sympy_obj, m)
         # print(f"created pyomo expression: {self.pyomo_edp_exp}")
 
-        self.add_regularization_to_objective(model, l=regularization)
-        print(f"added regularization")
 
         model.obj = pyo.Objective(expr=self.obj, sense=pyo.minimize)
         model.cuts = pyo.ConstraintList()

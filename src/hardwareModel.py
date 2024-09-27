@@ -138,7 +138,7 @@ class HardwareModel:
         if cacti_transistor_size:
             self.cacti_transistor_size = cacti_transistor_size
         else:
-            self.cacti_transistor_size = transistor_size
+            self.cacti_transistor_size = self.transistor_size
         self.hw_allocated = {}
 
         if path_to_graphml is not None and os.path.exists(path_to_graphml):

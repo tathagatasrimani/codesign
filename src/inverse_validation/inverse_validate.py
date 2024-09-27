@@ -1,5 +1,4 @@
 import argparse
-import configparser as cp
 import logging
 import os
 import sys
@@ -29,8 +28,10 @@ from src import architecture_search
 
 args = None
 
+# 40, 7, 5
 logic_tech_nodes = [7, 5]
-cacti_nodes = [90, 45, 32, 22]
+# 90, 45, 32, 22
+cacti_nodes = [45, 22]
 default_cacti = 22
 default_logic = 7
 tech_nodes = []
@@ -38,10 +39,6 @@ initial_tech_params = {}
 final_tech_params = {}
 rcs_m = {}
 params_exclusion_list = []
-
-class LogFilterInvVal(logging.Filter):
-    def filter(self, record):
-        return record.getMessage().startswith("inverse")
 
 def parse_output(f):
     # mostly copied from codesign.py
@@ -143,14 +140,14 @@ def run_pairwise(tech_node_pair, improvement, hws, dfgs):
     # we only want to optimize the variables specified by the test type, so keep the others constant by substituting concrete values
     if (args.test_type == "cacti"):
         logic_params = sim_util.generate_logic_init_params_from_rcs_as_symbols(rcs_m[tech_node_pair[0]])
-        symbolic_sim.edp = symbolic_sim.edp.subs(logic_params).simplify()
-        logger.warning(f"symbolic edp after subbing cacti params: {symbolic_sim.edp}")
+        symbolic_sim.edp = symbolic_sim.edp.xreplace(logic_params)
+        #logger.warning(f"symbolic edp after subbing out logic params: {symbolic_sim.edp}")
     elif (args.test_type == "logic"):
         cacti_params = sim_util.generate_cacti_init_params_from_rcs_as_symbols(rcs_m[tech_node_pair[0]])
-        symbolic_sim.edp = symbolic_sim.edp.subs(cacti_params).simplify()
-        logger.warning(f"symbolic edp after subbing logic params: {symbolic_sim.edp}")
+        symbolic_sim.edp = symbolic_sim.edp.xreplace(cacti_params)
+        #logger.warning(f"symbolic edp after subbing out cacti params: {symbolic_sim.edp}")
 
-    improvement = symbolic_sim.edp.subs(initial_tech_params[tech_node_pair[0]]).simplify() / symbolic_sim.edp.subs(initial_tech_params[tech_node_pair[1]]).simplify()
+    improvement = (symbolic_sim.edp.xreplace(initial_tech_params[tech_node_pair[0]]) / symbolic_sim.edp.xreplace(initial_tech_params[tech_node_pair[1]])).simplify()
     logger.warning(f"jk actually asking for {improvement} edp improvement")
 
     stdout = sys.stdout
@@ -159,8 +156,8 @@ def run_pairwise(tech_node_pair, improvement, hws, dfgs):
     sys.stdout = stdout
     f = open(f"{args.savedir}/ipopt_out_{tech_node_pair[0]}.txt", "r")
     final_tech_params[tech_node_pair[0]] = parse_output(f)
-    logger.warning(f"final value of edp is {symbolic_sim.edp.subs(final_tech_params[tech_node_pair[0]]).simplify()} vs inital {symbolic_sim.edp.subs(initial_tech_params[tech_node_pair[0]]).simplify()}")
-    logger.warning(f"initial value of next tech node edp is {symbolic_sim.edp.subs(initial_tech_params[tech_node_pair[1]]).simplify()}")
+    logger.warning(f"final value of edp is {symbolic_sim.edp.xreplace(final_tech_params[tech_node_pair[0]]).simplify()} vs inital {symbolic_sim.edp.xreplace(initial_tech_params[tech_node_pair[0]]).simplify()}")
+    logger.warning(f"initial value of next tech node edp is {symbolic_sim.edp.xreplace(initial_tech_params[tech_node_pair[1]]).simplify()}")
     logger.warning(f"final tech params for {tech_node_pair[0]} nm: {final_tech_params[tech_node_pair[0]]}")
     logger.warning(f"initial tech params for {tech_node_pair[1]} nm: {initial_tech_params[tech_node_pair[1]]}")
 
@@ -188,7 +185,7 @@ if __name__ == "__main__":
         "--savedir",
         type=str,
         default="src/inverse_validation/inverse_val_log_dir",
-        help="Path to the save new architecture file",
+        help="Path to the save logs",
     )
     parser.add_argument(
         "-t",
@@ -210,7 +207,6 @@ if __name__ == "__main__":
         f.write(f"Architecture Config: {args.architecture_config}\n")
 
     logging.basicConfig(filename=f"{args.savedir}/log.txt", level=logging.WARNING)
-    logging.Filter("inverse validation")
     if (args.test_type == "logic"):
         tech_nodes = logic_tech_nodes
     elif (args.test_type == "cacti"):

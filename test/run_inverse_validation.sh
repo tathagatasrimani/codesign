@@ -1,7 +1,7 @@
 #!/bin/sh
 cd ..
 
-while getopts c:n:f:t flag
+while getopts c:n:f:t: flag
 do
     case "${flag}" in
         n) name=${OPTARG};;
