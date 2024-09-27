@@ -99,6 +99,7 @@ def test_all_points(cfgs: List, transistor_sizes: List):
         print("Results:")
         while not Q.empty():
             print(Q.get())
+        Q.close()
     
 
         
