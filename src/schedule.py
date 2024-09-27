@@ -439,7 +439,7 @@ def pre_schedule(computation_graph, hw_netlist):
     for u, v, data in operator_edges:  # this shouldn't run after the first iteration
         if (u, v) not in hw_netlist.edges():
             new_node_name = f"tmp_op_reg;{new_node_id}"
-            computation_graph.add_node(new_node_name, function="Regs")
+            computation_graph.add_node(new_node_name, function="Regs", cost=0.0)
             
             computation_graph.remove_edge(u, v)
             computation_graph.add_edge(u, new_node_name, weight=reg_weight)
@@ -532,6 +532,11 @@ def greedy_schedule(
 
                     stall_name = f"stall_{layer}_{idx}_{func}_{stall_counter}"
                     stall_counter += 1
+                    print("HELLO")
+                    print(func_nodes)
+                    print(idx)
+                    # import time
+                    # time.sleep(4)
                     computation_graph.add_node(
                         stall_name,
                         function="stall",
