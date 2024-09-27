@@ -43,19 +43,19 @@ class Preprocessor:
         return model.x[self.mapping[hw_symbols.V_dd]] <= 1.7
     
     def find_exprs_to_constrain(self, expr):
-        logger.warning(f"expr.func is {expr.func}")
+        #logger.warning(f"expr.func is {expr.func}")
         if expr.func == sp.core.power.Pow and expr.base.func != sp.core.symbol.Symbol:
-            logger.warning(f"exponent is {expr.exp}")
+            #logger.warning(f"exponent is {expr.exp}")
             # if we are taking an even root (i.e. square root), no negative numbers allowed
             if expr.exp == 0.5:
-                logger.warning(f"base func is {expr.base.func}")
+                #logger.warning(f"base func is {expr.base.func}")
                 self.pow_exprs_s.add(expr.base)
         elif expr.func == sp.log:
             if not expr.args[0].is_constant():
                 self.log_exprs_s.add(expr.args[0])
-                logger.warning(f"arg of log is {expr.args[0]}, type is {type(expr.args[0])}")
-            else:
-                logger.warning(f"constant arg of log is {expr.args[0]}, type is {type(expr.args[0])}")
+                #logger.warning(f"arg of log is {expr.args[0]}, type is {type(expr.args[0])}")
+            #else:
+                #logger.warning(f"constant arg of log is {expr.args[0]}, type is {type(expr.args[0])}")
         
         for arg in expr.args:
             self.find_exprs_to_constrain(arg)

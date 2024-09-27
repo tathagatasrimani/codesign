@@ -69,6 +69,7 @@ class SymbolicSimulator(AbstractSimulator):
         self.edp = None
         self.edp_ceil = None
         self.initial_params = {}
+        self.cacti_exprs = {}
 
     def reset_internal_variables(self):
         self.sim_cache = {}
@@ -306,7 +307,7 @@ class SymbolicSimulator(AbstractSimulator):
         assert hw_symbols.BufWriteEact not in self.edp.free_symbols, "Buf write energy not fully substituted"
         assert hw_symbols.BufPpass not in self.edp.free_symbols, "Buf passive power not fully substituted"
 
-        cacti_exprs = {
+        self.cacti_exprs = {
             "MemL_expr": MemL_expr,
             "MemReadEact_expr": MemReadEact_expr,
             "MemWriteEact_expr": MemWriteEact_expr,
@@ -318,8 +319,8 @@ class SymbolicSimulator(AbstractSimulator):
         }
         with open("src/tmp/cacti_exprs.txt", 'w') as f:
             txt = ""
-            for expr in cacti_exprs.keys():
-                txt += f"{expr}: {cacti_exprs[expr]}\n"
+            for expr in self.cacti_exprs.keys():
+                txt += f"{expr}: {self.cacti_exprs[expr]}\n"
             f.write(txt)
 
         # self.edp = self.edp.subs(subs)
