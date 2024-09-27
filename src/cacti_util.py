@@ -1159,7 +1159,7 @@ def read_config_file(in_file: str):
         # return False
     elif config_dict["F_sz_um"] > 0.091:
         print("Feature size must be <= 90 nm")
-        raise ValueError("Feature size must be <= 90 nm")
+        raise ValueError(f"Feature size must be <= 90 nm; feauture size is {config_dict['F_sz_um']}")
         # return False
 
     RWP = config_dict["num_rw_ports"]
