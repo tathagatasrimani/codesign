@@ -163,7 +163,7 @@ class HardwareModel:
         for key in op2sym_map.keys():
             self.hw_allocated[key] = 0
 
-    def init_memory(self, mem_needed, nvm_mem_needed, buffer_size=64):
+    def init_memory(self, mem_needed, nvm_mem_needed, buffer_size=2048):
         """
         Add a Memory Module to the netlist for each MainMem node.
         Add a Cache Module to the netlist for each Buf node.
@@ -412,14 +412,19 @@ class HardwareModel:
             if data["function"] in ["Buf", "MainMem"]:
                 continue
             self.on_chip_area += self.area[data["function"]]
-        logger.info(f"Area of all PEs: {self.on_chip_area}")
-
+        logger.info(f"Area of all PEs: {self.on_chip_area} um^2")
+        
         self.on_chip_area += self.area["Buf"] + self.area[
             "Buf"
         ] * self.buf_peripheral_area_proportion * (
             num_nodes_with_func(self.netlist, "Buf") - 1
         )
 
+        logger.info(f"buf total area: {self.area['Buf'] * 1e-6} um^2")
+        logger.info(f"buf peripheral area: {self.buf_peripheral_area_proportion * self.area['Buf'] * 1e-6} um^2")
+
+        # Does increasing bandwidth to off chip memory affect anything on chip? It does affect number of wires.
+        # where do those wires go? to the buffer. So should the buffer area increase with off chip bandwidth?
         # bw = 0
         # for node in filter(
         #     lambda x: x[1]["function"] == "Buf", self.netlist.nodes.data()
@@ -431,8 +436,8 @@ class HardwareModel:
         # self.on_chip_area += (bw - 1) * bw_scaling * self.area["MainMem"]
 
         self.off_chip_area = self.area["MainMem"] + self.area["OffChipIO"]
-        logger.info(f"on_chip_area: {self.on_chip_area}")
-        logger.info(f"off_chip_area: {self.off_chip_area}")
+        logger.info(f"on_chip_area: {self.on_chip_area * 1e-6} um^2")
+        logger.info(f"off_chip_area: {self.off_chip_area * 1e-6} um^2")
 
         return self.on_chip_area * 1e-6  # convert from nm^2 to um^2
 

@@ -29,11 +29,14 @@ def setup_arch_search(benchmark, arch_init_config):
 
     arch_search_util.generate_new_min_arch_on_whole_dfg(hw, computation_dfg)
     logger.info(f"Initial netlist: {hw.netlist.nodes}")
+    hw.update_netlist()
+
     hw.init_memory(
         sim_util.find_nearest_power_2(simulator.memory_needed),
         sim_util.find_nearest_power_2(simulator.nvm_memory_needed),
     )
-
+    area = hw.get_total_area()
+    logger.info(f"Initial area: {area} um^2")
     hardwareModel.un_allocate_all_in_use_elements(hw.netlist)
 
     return (
@@ -75,9 +78,11 @@ def sample_stalled_func(scheduled_dfg: nx.DiGraph) -> str:
 
 
 def update_hw_with_new_node(hw_netlist, scarce_function):
+    """
+    
+    """
     logger.info(f"Updating HW with scarce node: {scarce_function}")
-    if scarce_function == None:
-        return
+    assert scarce_function != None
     func_nodes = hardwareModel.get_nodes_with_func(hw_netlist, scarce_function)
     logger.info(f"existing nodes with scarce function: {func_nodes}")
     idx = len(func_nodes)
@@ -154,14 +159,25 @@ def update_hw_with_new_node(hw_netlist, scarce_function):
     else:
         for node2 in hw_netlist.nodes:
             if (
-                "Reg" in node2
-                or "Buf" in node2
+                # "Reg" in node2
+                "Buf" in node2
                 or "MainMem" in node2
                 or node2 == f"{scarce_function}{idx}"
             ):
                 continue
             hw_netlist.add_edge(f"{scarce_function}{idx}", node2)
             hw_netlist.add_edge(node2, f"{scarce_function}{idx}")
+
+def remove_new_node(hw_netlist, scarce_function):
+    """
+
+    """
+    logger.info(f"Removing new node: {scarce_function}")
+    assert scarce_function != None
+    func_nodes = hardwareModel.get_nodes_with_func(hw_netlist, scarce_function)
+    logger.info(f"existing nodes with scarce function: {func_nodes}")
+    idx = len(func_nodes) - 1
+    hw_netlist.remove_node(f"{scarce_function}{idx}")
 
 
 def run_arch_search(
@@ -215,8 +231,8 @@ def run_arch_search(
         hw_copy.update_netlist()
         logger.info("updated netlist")
         logger.info(f"new func counts: {hardwareModel.get_func_count(hw_copy.netlist)}")
-        hw_copy.gen_cacti_results()
-        logger.info("generated cacti results")
+        # hw_copy.gen_cacti_results()
+        # logger.info("generated cacti results")
 
         scheduled_dfg = simulator.schedule(computation_dfg, hw_copy)
         logger.info("scheduled dfg")
@@ -227,13 +243,16 @@ def run_arch_search(
 
         simulator.simulate(scheduled_dfg, hw)
         simulator.calculate_edp()
-        logger.info(f"simulated; execution time: {simulator.execution_time} ns, passive energy: {simulator.passive_energy} nJ, active energy: {simulator.active_energy} nJ, edp: {simulator.edp} E-18 Js")
+        logger.info(f"AS{i}; Best EDP: {best_edp} E-18 Js")
+        logger.info(
+            f"AS{i}; EDP: {simulator.edp} E-18 Js. Active Energy: {simulator.active_energy} nJ. Passive Energy: {simulator.passive_energy} nJ. Execution time: {simulator.execution_time} ns."
+        )
 
         area = hw.get_total_area()
+        logger.info(f"Area: {area} um^2 vs constraint: {area_constraint} um^2")
         if area > area_constraint:
-            logger.info("Area constraint exceeded; breaking")
-            # shouldn't actually break here, because you can try other nodes that are smaller but still might have a good effect
-            break
+            logger.info("Area constraint exceeded; removing node")
+            remove_new_node(hw_copy.netlist, func)
         elif simulator.edp < best_edp:
             logger.info(f"Adding {func} improved EDP from {best_edp} to {simulator.edp}")
             best_edp = simulator.edp
@@ -243,7 +262,7 @@ def run_arch_search(
             best_hw = deepcopy(hw_copy)
             best_schedule = scheduled_dfg
         else: 
-            logger.info(f"Adding node ({func}) did not improve EDP; reverting")
+            logger.info(f"Adding node ({func}) did not improve EDP")
 
         old_scheduled_dfg = scheduled_dfg
         if len(func_counts) == 0:
