@@ -269,9 +269,9 @@ class Codesign:
             f"{self.save_dir}/symbolic_edp_{iter_number}.txt",
         )
         shutil.copy("src/tmp/ipopt_out.txt", f"{self.save_dir}/ipopt_{iter_number}.txt")
-        #shutil.copy(
-         #   "src/tmp/solver_out.txt", f"{self.save_dir}/solver_{iter_number}.txt"
-        #)
+        shutil.copy(
+            "src/tmp/solver_out.txt", f"{self.save_dir}/solver_{iter_number}.txt"
+        )
         shutil.copy(
             "src/tmp/cacti_exprs.txt", f"{self.save_dir}/cacti_exprs_{iter_number}.txt"
         )

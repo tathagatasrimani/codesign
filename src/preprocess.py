@@ -127,6 +127,7 @@ class Preprocessor:
             opt.options["bound_relax_factor"] = 0
             opt.options["max_iter"] = 100
             opt.options["print_info_string"] = "yes"
+            opt.options["output_file"] = "src/tmp/solver_out.txt"
             opt.options["wantsol"] = 2
             opt.options["halt_on_ampl_error"] = "yes"
         return opt
