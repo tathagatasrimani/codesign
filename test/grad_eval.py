@@ -9,6 +9,7 @@ import time
 import argparse
 import csv
 import logging
+import glob
 import multiprocessing as mp
 
 logger = logging.getLogger(__name__)
@@ -21,7 +22,8 @@ from src import CACTI_DIR
 from src import cacti_util
 from src import hw_symbols
 from src.cacti.cacti_python.parameter import g_ip
-import src.cacti.cacti_python.get_dat as dat
+from src.cacti.cacti_python import get_dat
+# from test import differentiate_cacti
 
 rng = np.random.default_rng()
 
@@ -94,6 +96,35 @@ def cacti_python_diff(sympy_file, tech_params, diff_var, metric=None):
     #         "read_leakage": read_leakage_res,
     #     }
     return results
+
+
+def evaluate_python_diff(y_expr, y_expr_file_name, tech_params, x_symbol, y_name, Q:mp.Queue):
+    """
+        Will be called in a process
+    """
+    dydx_expr_file_name = cacti_util.differentiate(y_expr, x_symbol, y_expr_file_name, tech_params)
+    res = evaluate_derivative(dydx_expr_file_name, tech_params, x_symbol)
+    res["y_name"] = y_name
+    res["x_name"] = x_symbol
+    Q.put(res)
+    # Q.close()
+
+def evaluate_derivative(dydx_file_name, tech_params, x_symbol):
+    dydx_expr = sp.sympify(open(dydx_file_name).read(), locals=hw_symbols.symbol_table)
+    
+    dydx = dydx_expr.xreplace(tech_params).evalf()
+
+    delta_x = 0.1 * tech_params[x_symbol]
+    # choose_step_size(dydx, tech_params[diff_var])
+    delta_y = -1 * delta_x * dydx
+
+    logger.info(
+        f"x: {x_symbol}, x.val: {tech_params[x_symbol]}, dydx: {dydx}, delta_x: {delta_x}, delta_y: {delta_y}"
+    )
+
+    # TODO: Is this list parse expensive?
+    result = {"x": tech_params[x_symbol], "delta_x": delta_x, "dydx": dydx, "delta_y": delta_y}
+    return result
 
 
 def cacti_python_diff_single(y_expr_file, tech_params, y_name, x_name):
@@ -277,7 +308,7 @@ def calculate_similarity_matrix(python_delta_y, c_delta_y):
 
     # Calculate similarity
     magnitude = 100 * (1 - np.abs(python_delta_y - c_delta_y) / np.abs(c_delta_y))
-    sign = np.sign(python_delta_y * c_delta_y < 0)
+    sign = np.sign(python_delta_y * c_delta_y)
     greater_than_1 = (
         np.abs(python_delta_y - c_delta_y) / np.abs(c_delta_y) > 1
     )  # essentially if they are the same sign, but doesn't fall in the -1 to 1 range
@@ -309,7 +340,9 @@ def gen_diff(sympy_file, cfg_file, dat_file, gen_flag=True):
 
     if gen_flag:
         logger.info("Generating symbolic expressions")
-        buf_vals = cacti_util.run_existing_cacti_cfg(cfg_file)
+        buf_vals = cacti_util.gen_vals(
+            cfg_file.split("/")[1].replace(".cfg", ""), transistor_size=int(args.dat[:-2]) * 1e-3
+        )
 
         buf_opt = {
             "ndwl": buf_vals["Ndwl"],
@@ -338,7 +371,7 @@ def gen_diff(sympy_file, cfg_file, dat_file, gen_flag=True):
     dat_file = os.path.join(CACTI_DIR, dat_file)
 
     tech_params = {}
-    dat.scan_dat(
+    get_dat.scan_dat(
         tech_params,
         dat_file,
         g_ip.data_arr_ram_cell_tech_type,
@@ -350,6 +383,9 @@ def gen_diff(sympy_file, cfg_file, dat_file, gen_flag=True):
         for k, v in tech_params.items()
         if v is not None and not math.isnan(v)
     }
+    # print(f"type of tech_params: {type(tech_params)}")
+    # print(f"type of tech_param key: {type(list(tech_params.keys())[0])}")
+    # print(f"type of tech_param val: {type(list(tech_params.values())[0])}")
 
     # Get parameter list and tech_config
     tech_param_keys = list(tech_params.keys())
@@ -369,91 +405,87 @@ def gen_diff(sympy_file, cfg_file, dat_file, gen_flag=True):
     tech_param_keys.remove(getattr(hw_symbols, "asp_ratio_cell", None))
 
     # ============ FOR TESTING =================
-    tech_param_keys = rng.choice(tech_param_keys, 5, replace=False)
-    # [
-    #     hw_symbols.symbol_table["C_ox"],
-    #     hw_symbols.symbol_table["Vdsat"],
-    #     # hw_symbols.symbol_table["C_g_ideal"],
-    # ]  #
+    tech_param_keys = [
+        hw_symbols.symbol_table["C_ox"],
+        hw_symbols.symbol_table["Vdsat"],
+        hw_symbols.symbol_table["C_g_ideal"],
+    ]  # rng.choice(tech_param_keys, 5, replace=False)
     # ============ END TESTING =================
 
     print(f"tech_param_keys: {tech_param_keys}")
     # print(f"type of tech_param_keys[0]: {type(tech_param_keys[0])}")
 
-    # differentiate wrt to each parameter
-    for diff_param in tech_param_keys:
-        logger.info("Taking derivative wrt to: " + str(diff_param))
-        python_results = cacti_python_diff(
-            sympy_file, tech_params, diff_param
-        )
+    # result = {
+    #     "x": {tech_params[x_symbol]},
+    #     "delta_x": delta_x,
+    #     "dydx": dydx,
+    #     "delta_y": delta_y,
+    # }
 
-        for metric, metric_results in python_results.items():
+    results_data = {
+        "x_name": [],
+        "y_name": [],
+        "x": [],
+        "python dydx": [],
+        "delta x": [],
+        "python delta y": [],
+        "c delta y": [],
+        "similarity": [],
+    }
 
-            new_x_val = tech_params[diff_param] - python_results[metric]["delta_x"]
-            logger.info(f"metric: {metric}, old_x_val: {tech_params[diff_param]}, new_x_val: {new_x_val}")
+    cfg = cfg_file.split("/")[-1].replace(".cfg", "")
+    dat = dat_file.split("/")[-1].replace(".dat", "")[:-2]
 
-            results_dir = os.path.join(os.path.dirname(__file__), "results/")
-            # Log the CACTI Python Gradient Info (gradient, original value, delta, new value)
-            # python_info_csv = os.path.join(results_dir, "python_grad_info.csv")
+    results_save_file = os.path.join(os.path.dirname(__file__), "results", f"{cfg}_{dat}_grad_results.csv")
+    results_df = pd.DataFrame(results_data)
+    results_df.to_csv(results_save_file)
 
-            # file_exists = os.path.isfile(python_info_csv)
+    mp.set_start_method("spawn")
 
-            # with open(python_info_csv, "a", newline="") as csvfile:
-            #     writer = csv.writer(csvfile)
-            #     if not file_exists:
-            #         writer.writerow(["Python Grad", "Org Value", "Delta", "New Value"])
-            #     writer.writerow(
-            #         [
-            #             diff_param,
-            #             f"p_diff: {python_results[metric]['partial_derivative']}",
-            #             f"value: {tech_params[diff_param]}",
-            #             f"delta: {python_results[metric]['delta']}",
-            #             f"new_val: {new_val}",
-            #         ]
-            #     )
+    symbolic_expression_files = glob.glob(
+        os.path.join(CACTI_DIR, "symbolic_expressions", f"{cfg}_{dat}*.txt")
+    )
+    pd_results_dir = os.path.join(
+        CACTI_DIR, "symbolic_expressions", "partial_derivatives"
+    )
+    os.makedirs(pd_results_dir, exist_ok=True)
 
-            cfg_name = cfg_file.split("/")[-1]
-            cfg_name = cfg_name.replace(".cfg", "")
-
-            # Log the Gradient Comparison between Python and C CACTI
-            if (
-                new_x_val <= 0
-            ):  # catch in case if delta is greater than original data value
-                logger.info("New value is less than 0")
-                logger.info(f"took derivative wrt to: {diff_param}")
-                logger.info(f"python grad: {python_results[metric]['partial_derivative']}")
-                logger.info(f"python delta: {python_results[metric]['delta']}")
-                logger.info(f"python new value: {new_val}")
-                logger.info(f"new val 2: {python_results[metric]['new_value']}")
-                similarity = "NAN"
-                cacti_gradient = "NA"
-            else:
-                c_delta_y = cacti_c_diff(cfg_name, dat_file, new_x_val, diff_param, metric)
-                python_delta_y = python_results[metric]["delta_y"]
-                similarity = calculate_similarity_matrix(python_delta_y, c_delta_y)
-
-            results_csv = os.path.join(
-                results_dir, f"{cfg_name}_{metric}_grad_results.csv"
+    Q = mp.Queue()
+    processes = []
+    n = 0 # total number of processes started
+    for f in symbolic_expression_files:
+        print(f"Reading {f}")
+        y_name = f.split("/")[-1].replace(".txt", "").replace(f"{cfg}_{dat}_", "")
+        # print(f"y_name: {y_name}; cfg_dat_: '{cfg}_{dat}_'")
+        expr = sp.sympify(open(f).read(), locals=hw_symbols.symbol_table)
+        for free_symbol in expr.free_symbols:
+            if free_symbol not in tech_param_keys:
+                # print(f"Skipping {free_symbol}")
+                continue
+            # print(f"")
+            # print(f"Did not skip Free symbol: {free_symbol}")
+            processes.append(
+                mp.Process(target=evaluate_python_diff, args=(expr, f, tech_params, free_symbol, y_name, Q))
             )
+            processes[-1].start()
+            n += 1
 
-            file_exists = os.path.isfile(results_csv)
-
-            with open(results_csv, "a", newline="") as csvfile:
-                writer = csv.writer(csvfile)
-                if not file_exists:
-                    writer.writerow(
-                        [
-                            "Tech Config",
-                            "Var Name",
-                            "Python Gradient",
-                            "C Gradient",
-                            "Similarities",
-                        ]
-                    )
-                writer.writerow(
-                    [config_key, diff_param, python_delta_y, c_delta_y, similarity]
-                )
-
+    print(f"starting to dequeue")
+    for _ in range(n):
+        data = Q.get()
+        print(data)
+        new_x_val = data["x"] + data["delta_x"]
+        c_delta_y = cacti_c_diff(cfg, dat_file, new_x_val, data["x_name"], data["y_name"])
+        similarity = calculate_similarity_matrix(data["delta_y"], c_delta_y)
+        data["c delta y"] = c_delta_y
+        data["similarity"] = similarity
+        tmp = pd.DataFrame([data])
+        # print(f"tmp: {tmp}")
+        tmp.rename(columns={"delta_x": "delta x", "dydx": "python dydx", "delta_y": "python delta y"}, inplace=True)
+        results_df = pd.concat([results_df, tmp], ignore_index=True)
+        # print(f"results_df: {results_df}")
+        results_df.to_csv(results_save_file)
+    
 
 if __name__ == "__main__":
     """

@@ -5,6 +5,7 @@ import traceback
 import argparse
 import re
 import logging
+import multiprocessing as mp
 
 logger = logging.getLogger(__name__)
 
@@ -650,7 +651,7 @@ def read_config_file(in_file: str):
     config_dict = {}
     with open(in_file, "r") as fp:
         lines = fp.readlines()
-    
+
     # raise Exception()
 
     for line in lines:
@@ -1317,6 +1318,62 @@ def read_config_file(in_file: str):
 
     logger.info("Done reading cacti cfg file.")
     return config_dict
+
+
+def differentiate(expr, symbol, expr_file_name, tech_params=None):
+    """
+    Differentiate an expression with respect to a symbol and save the result to a file
+    If tech_params is given, evaluate all the parameters except the one being differentiated
+    """
+    if tech_params:
+        tech_params_copy = tech_params.copy()
+        tech_params_copy.pop(symbol, None)
+        expr = expr.xreplace(tech_params_copy).evalf()
+
+    expr = expr.replace(sp.ceiling, lambda x: x)  # sympy diff can't handle ceilings
+    diff_expr = sp.diff(expr, symbol)
+
+    pd_results_dir = os.path.join(
+        CACTI_DIR, "symbolic_expressions", "partial_derivatives"
+    )
+    base_name = expr_file_name.split("/")[-1].replace(".txt", "")
+    save_file_name = os.path.join(pd_results_dir, base_name + f"_d_{symbol}.txt")
+
+    with open(save_file_name, "w") as f:
+        f.write(str(diff_expr))
+    print(
+        f"Saved differentiated expression for {base_name} wrt {symbol} to {save_file_name}"
+    )
+    return save_file_name
+
+
+def differentiate_all(cfg: str, dat: str):
+    mp.set_start_method("spawn")
+
+    symbolic_expression_files = glob.glob(
+        os.path.join(CACTI_DIR, "symbolic_expressions", f"{cfg}_{dat[:-2]}*.txt")
+    )
+    print(symbolic_expression_files)
+
+    pd_results_dir = os.path.join(
+        CACTI_DIR, "symbolic_expressions", "partial_derivatives"
+    )
+    os.makedirs(pd_results_dir, exist_ok=True)
+
+    processes = []
+    for f in symbolic_expression_files:
+        print(f"Reading {f}")
+        expr = sp.sympify(open(f).read(), locals=hw_symbols.symbol_table)
+        for free_symbol in list(expr.free_symbols):
+            # print(f"Free symbol: {free_symbol}")
+            processes.append(
+                mp.Process(target=differentiate, args=(expr, free_symbol, f))
+            )
+            processes[-1].start()
+
+    for p in processes:
+        p.join()
+    print("All processes joined")
 
 
 if __name__ == "__main__":
