@@ -96,8 +96,6 @@ def cacti_python_diff(sympy_file, tech_params, diff_var, metric=None):
     return results
 
 
-
-
 def cacti_python_diff_single(y_expr_file, tech_params, y_name, x_name):
     """
     Computes the gradient of a technology parameter from a SymPy expression file.
@@ -120,7 +118,7 @@ def cacti_python_diff_single(y_expr_file, tech_params, y_name, x_name):
     with open(y_expr_file, "r") as f:
         y_expr = sp.sympify(f.read(), locals=hw_symbols.symbol_table)
 
-    logger.info("num free expressions")
+    logger.info(f"num free expressions: {y_expr.free_symbols}")
     # Convert string to SymPy expression
     y_expr = y_expr.replace(
         sp.ceiling, lambda x: x
@@ -371,11 +369,12 @@ def gen_diff(sympy_file, cfg_file, dat_file, gen_flag=True):
     tech_param_keys.remove(getattr(hw_symbols, "asp_ratio_cell", None))
 
     # ============ FOR TESTING =================
-    tech_param_keys = [
-        hw_symbols.symbol_table["C_ox"],
-        hw_symbols.symbol_table["Vdsat"],
-        # hw_symbols.symbol_table["C_g_ideal"],
-    ]  # rng.choice(tech_param_keys, 2, replace=False)
+    tech_param_keys = rng.choice(tech_param_keys, 5, replace=False)
+    # [
+    #     hw_symbols.symbol_table["C_ox"],
+    #     hw_symbols.symbol_table["Vdsat"],
+    #     # hw_symbols.symbol_table["C_g_ideal"],
+    # ]  #
     # ============ END TESTING =================
 
     print(f"tech_param_keys: {tech_param_keys}")
