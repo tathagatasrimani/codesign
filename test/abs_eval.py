@@ -249,25 +249,6 @@ if __name__ == "__main__":
     if args.sympy:
         sympy_file = args.sympy
 
-    # If you haven't generated sympy expr from cache cfg yet
-    # Gen Flag true and can set sympy flag to set the name of the sympy expr
-    # if args.gen:
-    #     transistor_size = float(args.dat[:-2])*1e-3
-    #     print(f"transistor size: {transistor_size}")
-    #     buf_vals = cacti_util.gen_vals(args.config, transistor_size=transistor_size)
-
-    #     buf_opt = {
-    #         "ndwl": buf_vals["Ndwl"],
-    #         "ndbl": buf_vals["Ndbl"],
-    #         "nspd": buf_vals["Nspd"],
-    #         "ndcm": buf_vals["Ndcm"],
-    #         "ndsam1": buf_vals["Ndsam_level_1"],
-    #         "ndsam2": buf_vals["Ndsam_level_2"],
-    #         "repeater_spacing": buf_vals["Repeater spacing"],
-    #         "repeater_size": buf_vals["Repeater size"],
-    #     }
-    #     IO_info = cacti_util.gen_symbolic(sympy_file, cfg_file, buf_opt, use_piecewise=False)
-    
     if args.dat:
         dat_files = [f"{args.dat}.dat"]
     else:
@@ -279,21 +260,3 @@ if __name__ == "__main__":
         print(f"Running for {dat_file}\n")
         dat_file = os.path.join("tech_params", dat_file)
         gen_abs_results(sympy_file, cfg_file, dat_file)
-
-    # if args.dat:
-    #     dat_file = os.path.join("tech_params", f"{args.dat}.dat")
-    #     gen_abs_results(sympy_file, cfg_file, dat_file)
-    # else:
-    #     print(f"generating for 45, 90, 180 nm")
-
-    #     print(f"Running for 45nm\n")
-    #     dat_file_45nm = os.path.join('tech_params', '45nm.dat')
-    #     gen_abs_results(sympy_file, cfg_file, dat_file_45nm)
-
-    #     print(f"Running for 90nm\n")
-    #     dat_file_90nm = os.path.join("tech_params", "90nm.dat")
-    #     gen_abs_results(sympy_file, cfg_file, dat_file_90nm)
-
-    #     print(f"Running for 180nm\n")
-    #     dat_file_180nm = os.path.join('tech_params', '180nm.dat')
-    #     gen_abs_results(sympy_file, cfg_file, dat_file_180nm)

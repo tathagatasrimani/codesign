@@ -23,6 +23,7 @@ from src import cacti_util
 from src import hw_symbols
 from src.cacti.cacti_python.parameter import g_ip
 from src.cacti.cacti_python import get_dat
+
 # from test import differentiate_cacti
 
 rng = np.random.default_rng()
@@ -34,9 +35,11 @@ output_label_mapping = {
     "read_leakage": "Standby leakage per bank(mW)",
 }
 
+
 ### Python CACTI Gradient Generation
 def cacti_python_diff(sympy_file, tech_params, diff_var, metric=None):
     """
+    DEPRECATED?
     Top function that generates the Python Cacti gradient for specified metrics.
     If no metric is provided, generates for access_time, read_dynamic,
     write_dynamic, and read_leakage.
@@ -59,10 +62,16 @@ def cacti_python_diff(sympy_file, tech_params, diff_var, metric=None):
     dict
         Dictionary containing the gradients for the specified or default metrics.
     """
-    logger.info(f"Top of cacti_python_diff(sympy_file: {sympy_file}, tech_params: <not printed>, diff_var: {diff_var}, metric: {metric})")
+    logger.info(
+        f"Top of cacti_python_diff(sympy_file: {sympy_file}, tech_params: <not printed>, diff_var: {diff_var}, metric: {metric})"
+    )
     sympy_file = os.path.join(CACTI_DIR, "symbolic_expressions/" + sympy_file)
 
-    metrics = [metric] if metric else ["access_time", "read_dynamic", "write_dynamic", "read_leakage"]
+    metrics = (
+        [metric]
+        if metric
+        else ["access_time", "read_dynamic", "write_dynamic", "read_leakage"]
+    )
     results = {}
     for _metric in metrics:
         file = f"{sympy_file}_{_metric}.txt"
@@ -72,66 +81,56 @@ def cacti_python_diff(sympy_file, tech_params, diff_var, metric=None):
         logger.info(f"results for {_metric}: {metric_res}")
         results[_metric] = metric_res
 
-    # if metric:
-    #     file = f"{sympy_file}_{metric}.txt"
-    #     metric_res = cacti_python_diff_single(file, tech_params, diff_var)
-    #     results = {f"{metric}": metric_res}
-    # else:
-    #     file = f"{sympy_file}_access_time.txt"
-    #     access_time_res = cacti_python_diff_single(file, tech_params, diff_var)
-
-    #     file = f"{sympy_file}_read_dynamic.txt"
-    #     read_dynamic_res = cacti_python_diff_single(file, tech_params, diff_var)
-
-    #     file = f"{sympy_file}_write_dynamic.txt"
-    #     write_dynamic_res = cacti_python_diff_single(file, tech_params, diff_var)
-
-    #     file = f"{sympy_file}_read_leakage.txt"
-    #     read_leakage_res = cacti_python_diff_single(file, tech_params, diff_var)
-
-    #     results = {
-    #         "access_time": access_time_res,
-    #         "read_dynamic": read_dynamic_res,
-    #         "write_dynamic": write_dynamic_res,
-    #         "read_leakage": read_leakage_res,
-    #     }
     return results
 
 
-def evaluate_python_diff(y_expr, y_expr_file_name, tech_params, x_symbol, y_name, Q:mp.Queue):
+def evaluate_python_diff(
+    y_expr, y_expr_file_name, tech_params, x_symbol, y_name, Q: mp.Queue
+):
     """
-        Will be called in a process
+    Will be called in a process
     """
-    dydx_expr_file_name = cacti_util.differentiate(y_expr, x_symbol, y_expr_file_name, tech_params)
+    dydx_expr_file_name = cacti_util.differentiate(
+        y_expr, x_symbol, y_expr_file_name, tech_params
+    )
     res = evaluate_derivative(dydx_expr_file_name, tech_params, x_symbol)
     res["y_name"] = y_name
     res["x_name"] = x_symbol
     Q.put(res)
     # Q.close()
 
+
 def evaluate_derivative(dydx_file_name, tech_params, x_symbol):
+    """
+    Evalualate the partial derivative expression given in the file at
+    the current technology parameters.
+    """
     dydx_expr = sp.sympify(open(dydx_file_name).read(), locals=hw_symbols.symbol_table)
-    
+
     dydx = dydx_expr.xreplace(tech_params).evalf()
 
     delta_x = 0.1 * tech_params[x_symbol]
-    # choose_step_size(dydx, tech_params[diff_var])
     delta_y = -1 * delta_x * dydx
 
     logger.info(
         f"x: {x_symbol}, x.val: {tech_params[x_symbol]}, dydx: {dydx}, delta_x: {delta_x}, delta_y: {delta_y}"
     )
 
-    # TODO: Is this list parse expensive?
-    result = {"x": tech_params[x_symbol], "delta_x": delta_x, "dydx": dydx, "delta_y": delta_y}
+    result = {
+        "x": tech_params[x_symbol],
+        "delta_x": delta_x,
+        "dydx": dydx,
+        "delta_y": delta_y,
+    }
     return result
 
 
 def cacti_python_diff_single(y_expr_file, tech_params, y_name, x_name):
     """
+    DEPRECATED?
     Computes the gradient of a technology parameter from a SymPy expression file.
 
-    calculate dy/dx 
+    calculate dy/dx
 
     Inputs:
     sympy_file : str
@@ -151,9 +150,7 @@ def cacti_python_diff_single(y_expr_file, tech_params, y_name, x_name):
 
     logger.info(f"num free expressions: {y_expr.free_symbols}")
     # Convert string to SymPy expression
-    y_expr = y_expr.replace(
-        sp.ceiling, lambda x: x
-    )  # sympy diff can't handle ceilings
+    y_expr = y_expr.replace(sp.ceiling, lambda x: x)  # sympy diff can't handle ceilings
 
     # Apply common subexpression elimination (CSE)
     # reduced_exprs, cse_expr = sp.cse(y_expr)
@@ -189,11 +186,13 @@ def cacti_python_diff_single(y_expr_file, tech_params, y_name, x_name):
 
     # step size calculation; negate step size for gradient descent
     delta_x = 0.1 * tech_params[x_name]
-    #choose_step_size(dydx, tech_params[diff_var])
+    # choose_step_size(dydx, tech_params[diff_var])
     delta_y = -1 * delta_x * dydx
 
     # new_value = tech_params[diff_var] + delta
-    logger.info(f"x: {x_name}, x.val: {tech_params[x_name]}, dydx: {dydx}, delta_x: {delta_x}, delta_y: {delta_y}")
+    logger.info(
+        f"x: {x_name}, x.val: {tech_params[x_name]}, dydx: {dydx}, delta_x: {delta_x}, delta_y: {delta_y}"
+    )
 
     # Uncomment to log the diff expression and gradient to a CSV file
     # is this whole thing unused?
@@ -211,8 +210,9 @@ def cacti_python_diff_single(y_expr_file, tech_params, y_name, x_name):
 
 def choose_step_size(dydx, y):
     """
+    DEPRECATED?
     Helper to choose a reasonable step size based on the
-    gradient and the parameter value. Get a 1% change in the 
+    gradient and the parameter value. Get a 1% change in the
     parameter value.
 
     delta_x * dydx = delta_y = 1% * y
@@ -237,7 +237,9 @@ def choose_step_size(dydx, y):
 
 
 ### C CACTI Gradient Generation
-def cacti_c_diff(cfg_file, dat_file_path, new_x_value, x_name, y_name: str="access_time"):
+def cacti_c_diff(
+    cfg_file, dat_file_path, new_x_value, x_name, y_name: str = "access_time"
+):
     """
     Top function to generate the C Cacti gradient by running
     Cacti twice (before and after changing the parameter).
@@ -251,7 +253,7 @@ def cacti_c_diff(cfg_file, dat_file_path, new_x_value, x_name, y_name: str="acce
     x_name : str
         The variable to differentiate with respect to.
     out_val : str
-        Which of the cacti outputs to consider here. Default is access time. Needs to match 
+        Which of the cacti outputs to consider here. Default is access time. Needs to match
         the key format in the output of the cacti_util.gen_vals function.
 
     Returns:
@@ -336,12 +338,15 @@ def gen_diff(sympy_file, cfg_file, dat_file, gen_flag=True):
     and stores them in CSV files.
     """
 
-    print(f"Top of gen diff: sympy_file: {sympy_file}, cfg_file: {cfg_file}, dat_file: {dat_file}")
+    print(
+        f"Top of gen diff: sympy_file: {sympy_file}, cfg_file: {cfg_file}, dat_file: {dat_file}"
+    )
 
     if gen_flag:
         logger.info("Generating symbolic expressions")
         buf_vals = cacti_util.gen_vals(
-            cfg_file.split("/")[1].replace(".cfg", ""), transistor_size=int(args.dat[:-2]) * 1e-3
+            cfg_file.split("/")[1].replace(".cfg", ""),
+            transistor_size=int(args.dat[:-2]) * 1e-3,
         )
 
         buf_opt = {
@@ -356,9 +361,7 @@ def gen_diff(sympy_file, cfg_file, dat_file, gen_flag=True):
         }
 
         # try to keep convention where sympy expressions have same name as cfg
-        cacti_util.gen_symbolic(
-            sympy_file, cfg_file, buf_opt, use_piecewise=False
-        )
+        cacti_util.gen_symbolic(sympy_file, cfg_file, buf_opt, use_piecewise=False)
 
         logger.info(f"finished gen symbolic")
 
@@ -383,13 +386,8 @@ def gen_diff(sympy_file, cfg_file, dat_file, gen_flag=True):
         for k, v in tech_params.items()
         if v is not None and not math.isnan(v)
     }
-    # print(f"type of tech_params: {type(tech_params)}")
-    # print(f"type of tech_param key: {type(list(tech_params.keys())[0])}")
-    # print(f"type of tech_param val: {type(list(tech_params.values())[0])}")
-
-    # Get parameter list and tech_config
+    
     tech_param_keys = list(tech_params.keys())
-    # print(f"tech_param_keys: {tech_param_keys}")
 
     config_key = f"Cache={g_ip.is_cache}, {g_ip.F_sz_nm}"
 
@@ -405,22 +403,13 @@ def gen_diff(sympy_file, cfg_file, dat_file, gen_flag=True):
     tech_param_keys.remove(getattr(hw_symbols, "asp_ratio_cell", None))
 
     # ============ FOR TESTING =================
+    # leave this in to make testing quicker.
     tech_param_keys = [
         hw_symbols.symbol_table["C_ox"],
         hw_symbols.symbol_table["Vdsat"],
         hw_symbols.symbol_table["C_g_ideal"],
     ]  # rng.choice(tech_param_keys, 5, replace=False)
     # ============ END TESTING =================
-
-    print(f"tech_param_keys: {tech_param_keys}")
-    # print(f"type of tech_param_keys[0]: {type(tech_param_keys[0])}")
-
-    # result = {
-    #     "x": {tech_params[x_symbol]},
-    #     "delta_x": delta_x,
-    #     "dydx": dydx,
-    #     "delta_y": delta_y,
-    # }
 
     results_data = {
         "x_name": [],
@@ -436,7 +425,9 @@ def gen_diff(sympy_file, cfg_file, dat_file, gen_flag=True):
     cfg = cfg_file.split("/")[-1].replace(".cfg", "")
     dat = dat_file.split("/")[-1].replace(".dat", "")[:-2]
 
-    results_save_file = os.path.join(os.path.dirname(__file__), "results", f"{cfg}_{dat}_grad_results.csv")
+    results_save_file = os.path.join(
+        os.path.dirname(__file__), "results", f"{cfg}_{dat}_grad_results.csv"
+    )
     results_df = pd.DataFrame(results_data)
     results_df.to_csv(results_save_file)
 
@@ -452,7 +443,9 @@ def gen_diff(sympy_file, cfg_file, dat_file, gen_flag=True):
 
     Q = mp.Queue()
     processes = []
-    n = 0 # total number of processes started
+    n = 0  # total number of processes started
+
+    # start processes for all unique input, output pairs (tech_param, cacti_output)
     for f in symbolic_expression_files:
         print(f"Reading {f}")
         y_name = f.split("/")[-1].replace(".txt", "").replace(f"{cfg}_{dat}_", "")
@@ -460,32 +453,40 @@ def gen_diff(sympy_file, cfg_file, dat_file, gen_flag=True):
         expr = sp.sympify(open(f).read(), locals=hw_symbols.symbol_table)
         for free_symbol in expr.free_symbols:
             if free_symbol not in tech_param_keys:
-                # print(f"Skipping {free_symbol}")
                 continue
-            # print(f"")
-            # print(f"Did not skip Free symbol: {free_symbol}")
+            
             processes.append(
-                mp.Process(target=evaluate_python_diff, args=(expr, f, tech_params, free_symbol, y_name, Q))
+                mp.Process(
+                    target=evaluate_python_diff,
+                    args=(expr, f, tech_params, free_symbol, y_name, Q),
+                )
             )
             processes[-1].start()
             n += 1
 
-    print(f"starting to dequeue")
+    # wait for all processes to finish, but process each one as it finishes
     for _ in range(n):
         data = Q.get()
         print(data)
         new_x_val = data["x"] + data["delta_x"]
-        c_delta_y = cacti_c_diff(cfg, dat_file, new_x_val, data["x_name"], data["y_name"])
+        c_delta_y = cacti_c_diff(
+            cfg, dat_file, new_x_val, data["x_name"], data["y_name"]
+        )
         similarity = calculate_similarity_matrix(data["delta_y"], c_delta_y)
         data["c delta y"] = c_delta_y
         data["similarity"] = similarity
         tmp = pd.DataFrame([data])
-        # print(f"tmp: {tmp}")
-        tmp.rename(columns={"delta_x": "delta x", "dydx": "python dydx", "delta_y": "python delta y"}, inplace=True)
+        tmp.rename(
+            columns={
+                "delta_x": "delta x",
+                "dydx": "python dydx",
+                "delta_y": "python delta y",
+            },
+            inplace=True,
+        )
         results_df = pd.concat([results_df, tmp], ignore_index=True)
-        # print(f"results_df: {results_df}")
         results_df.to_csv(results_save_file)
-    
+
 
 if __name__ == "__main__":
     """
@@ -549,29 +550,6 @@ if __name__ == "__main__":
     if args.sympy:
         sympy_file = args.sympy
 
-    # gen_flag = args.gen.lower() == "true"
-
-    # If you haven't generated sympy expr from cache cfg yet
-    # Gen Flag true and can set sympy flag to set the name of the sympy expr
-    # if args.gen:
-    #     buf_vals = cacti_util.run_existing_cacti_cfg(cfg_file)
-
-    #     buf_opt = {
-    #         "ndwl": buf_vals["Ndwl"],
-    #         "ndbl": buf_vals["Ndbl"],
-    #         "nspd": buf_vals["Nspd"],
-    #         "ndcm": buf_vals["Ndcm"],
-    #         "ndsam1": buf_vals["Ndsam_level_1"],
-    #         "ndsam2": buf_vals["Ndsam_level_2"],
-    #         "repeater_spacing": buf_vals["Repeater spacing"],
-    #         "repeater_size": buf_vals["Repeater size"],
-    #     }
-
-    #     # try to keep convention where sympy expressions have same name as cfg
-    #     IO_info = cacti_util.gen_symbolic(
-    #         sympy_file, cfg_file, buf_opt, use_piecewise=False
-    #     )
-
     if args.dat:
         dat_files = [f"{args.dat}.dat"]
     else:
@@ -583,16 +561,5 @@ if __name__ == "__main__":
         print(f"Running for {dat_file}\n")
         dat_file = os.path.join("tech_params", dat_file)
         gen_diff(sympy_file, cfg_file, dat_file, args.gen)
-
-    # if dat_nm:
-    #     dat_file = f"tech_params/{dat_nm}.dat"
-    #     gen_diff(sympy_file, cfg_file, dat_file)
-    # else:
-    #     dat_file_90nm = os.path.join("tech_params", "90nm.dat")
-    #     gen_diff(sympy_file, cfg_file, dat_file_90nm)
-
-    #     dat_file_45nm = os.path.join("tech_params", "45nm.dat")
-    #     gen_diff(sympy_file, cfg_file, dat_file_45nm)
-
-    #     dat_file_180nm = os.path.join("tech_params", "180nm.dat")
-    #     gen_diff(sympy_file, cfg_file, dat_file_180nm)
+    
+    print(f"Done running for all dat files")
