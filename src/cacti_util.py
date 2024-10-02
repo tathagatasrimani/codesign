@@ -426,15 +426,6 @@ def gen_vals(
     output_filename = f"cfg/{filename}.cfg.out"
     cactiOutput = os.path.normpath(os.path.join(CACTI_DIR, output_filename))
 
-    # SHORTCUT FOR NOW
-    if not os.path.exists(cactiOutput):
-        from collections import defaultdict
-
-        default_dict = defaultdict(int)
-        print("ISSUE HERE!")
-        print()
-        return default_dict
-
     output_data = pd.read_csv(cactiOutput, sep=", ", engine="python")
     output_data = output_data.iloc[
         -1
