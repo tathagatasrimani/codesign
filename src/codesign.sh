@@ -1,5 +1,5 @@
 #!/bin/sh
-while getopts a:c:f:qn:o:N:A: flag
+while getopts a:c:f:qn:o:N:A:p: flag
 do
     case "${flag}" in
         n) name=${OPTARG};;
@@ -10,6 +10,7 @@ do
         o) OPT=${OPTARG};;
         N) NUM=${OPTARG};;
         A) ARCH_SEARCH_NUM=${OPTARG};;
+        p) PARASITIC=${OPTARG};;
     esac
 done
 
@@ -31,6 +32,9 @@ if [ $name ]; then
     fi
     if [ $SAVEDIR ]; then
         ARGS+=" --savedir $SAVEDIR"
+    fi
+    if [ $PARASITIC ]; then
+        ARGS+=" --parasitic $PARASITIC"
     fi
     if [ $OPT ]; then  # should be scp, ipopt
         ARGS+=" --opt $OPT"

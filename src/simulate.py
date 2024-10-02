@@ -478,7 +478,7 @@ class ConcreteSimulator(AbstractSimulator):
                             logger.info(f"latency scaling: {scaling}")
 
                         # wire latency
-                        node_data["in other graph"] = (
+                        node_data["in_other_graph"] = (
                             "allocation" in node_data
                             and node_data["allocation"] != ""
                             and "Mem" not in node_data["allocation"]
@@ -491,8 +491,8 @@ class ConcreteSimulator(AbstractSimulator):
                                 path[node_index_prev]
                             ]
                             if (
-                                node_data["in other graph"]
-                                and node_data_prev["in other graph"]
+                                node_data["in_other_graph"]
+                                and node_data_prev["in_other_graph"]
                                 and hw.parasitic_graph.has_edge(
                                     node_data_prev["allocation"],
                                     node_data["allocation"],
