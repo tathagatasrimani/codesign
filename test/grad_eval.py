@@ -508,7 +508,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, filename="logs/cacti_grad_validation.log")
     logger.info("\n\n=====================\n\n")
     parser = argparse.ArgumentParser(
-        description="Specify config (--config), set SymPy name (--sympy, set Dat file (--dat) and optionally generate SymPy (--gen)"
+        description="Specify config (--config), set Dat file (--dat) and optionally generate SymPy (--gen)"
     )
     parser.add_argument(
         "-c",
@@ -524,12 +524,6 @@ if __name__ == "__main__":
         help="nm tech -> just specify '90nm'; if not provided, 45, 90, 180 will be tested",
     )
     parser.add_argument(
-        "-s",
-        "--sympy",
-        type=str,
-        help="Optionally path to the SymPy file if not named the same as cfg",
-    )
-    parser.add_argument(
         "-g",
         "--gen",
         action="store_false",
@@ -540,7 +534,7 @@ if __name__ == "__main__":
     dat_nm = args.dat
 
     cfg_file = "cfg/" + args.config + ".cfg"
-    sympy_file = args.config
+    sympy_file = f"{args.config}_{dat_nm[:-2]}"
 
     # try to keep convention where sympy expressions have same name as cfg
     if args.sympy:
