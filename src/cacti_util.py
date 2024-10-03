@@ -417,10 +417,17 @@ def gen_vals(
     p.wait()
     if p.returncode != 0:
         with open(stdout_file_path, "r") as f:
+            output = f.read().splitlines()
+            if len(output) >= 2:
+                err_message = "\n".join(output[-2:])
+            elif len(output) == 1:
+                err_message = output[-1]
+            else:
+                err_message = "No output"
             raise Exception(
                 f"Cacti Error in {filename}",
                 {p.stderr.read().decode()},
-                {f.read().split("\n")[-2] if f.read() else "No output"},
+                {err_message},
             )
 
     output_filename = f"cfg/{filename}.cfg.out"
@@ -469,10 +476,17 @@ def run_existing_cacti_cfg(filename):
     p.wait()
     if p.returncode != 0:
         with open(stdout_file_path, "r") as f:
+            output = f.read().splitlines()
+            if len(output) >= 2:
+                err_message = "\n".join(output[-2:])
+            elif len(output) == 1:
+                err_message = output[-1]
+            else:
+                err_message = "No output"
             raise Exception(
                 f"Cacti Error in {filename}",
                 {p.stderr.read().decode()},
-                {f.read().split("\n")[-2]},
+                {err_message},
             )
 
     output_filename = filename + ".out"

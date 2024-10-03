@@ -24,8 +24,6 @@ from src import hw_symbols
 from src.cacti.cacti_python.parameter import g_ip
 from src.cacti.cacti_python import get_dat
 
-# from test import differentiate_cacti
-
 rng = np.random.default_rng()
 
 output_label_mapping = {
@@ -36,7 +34,6 @@ output_label_mapping = {
 }
 
 
-### Python CACTI Gradient Generation
 def cacti_python_diff(sympy_file, tech_params, diff_var, metric=None):
     """
     DEPRECATED?
@@ -109,7 +106,7 @@ def evaluate_derivative(dydx_file_name, tech_params, x_symbol):
 
     dydx = dydx_expr.xreplace(tech_params).evalf()
 
-    delta_x = 0.1 * tech_params[x_symbol]
+    delta_x = 0.01 * tech_params[x_symbol]
     delta_y = -1 * delta_x * dydx
 
     logger.info(
@@ -236,7 +233,6 @@ def choose_step_size(dydx, y):
     return step_size
 
 
-### C CACTI Gradient Generation
 def cacti_c_diff(
     cfg_file, dat_file_path, new_x_value, x_name, y_name: str = "access_time"
 ):
