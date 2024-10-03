@@ -444,8 +444,8 @@ class HardwareModel:
         self.mem_size = 131072
         buf_vals = cacti_util.gen_vals(
             "base_cache",
-            cacheSize=self.buffer_size,
-            blockSize=64,
+            cache_size=self.buffer_size,
+            block_size=64,
             cache_type="cache",
             bus_width=self.buffer_bus_width,
         )
