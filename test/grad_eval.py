@@ -536,10 +536,6 @@ if __name__ == "__main__":
     cfg_file = "cfg/" + args.config + ".cfg"
     sympy_file = f"{args.config}_{dat_nm[:-2]}"
 
-    # try to keep convention where sympy expressions have same name as cfg
-    if args.sympy:
-        sympy_file = args.sympy
-
     if args.dat:
         dat_files = [f"{args.dat}.dat"]
     else:
