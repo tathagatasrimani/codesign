@@ -38,7 +38,7 @@ def plot_partial_derivative_similarity_matrix(df, config_name, tech_size):
     plt.figure(figsize=(12, 8))  # Make the figure narrower
     ax = sns.heatmap(
         tmp_sqr,
-        cmap=custom_cmap,
+        cmap=custom_cmap,  # sns.diverging_palette(0, 120, s=60, as_cmap=True)
         center=100,
         vmin=-100,  # Minimum value for the colormap
         vmax=300,  # Maximum value for the colormap

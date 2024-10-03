@@ -22,7 +22,7 @@ from src import CACTI_DIR
 from src import cacti_util
 from src import hw_symbols
 from src.cacti.cacti_python.parameter import g_ip
-from src.cacti.cacti_python import get_dat
+from src.cacti.cacti_python import get_dat, get_IO
 
 rng = np.random.default_rng()
 
@@ -382,7 +382,23 @@ def gen_diff(sympy_file, cfg_file, dat_file, gen_flag=True):
         for k, v in tech_params.items()
         if v is not None and not math.isnan(v)
     }
-    
+
+    get_IO.scan_IO(
+        tech_params,
+        g_ip,
+        g_ip.io_type,
+        g_ip.num_mem_dq,
+        g_ip.mem_data_width,
+        g_ip.num_dq,
+        g_ip.dram_dimm,
+        1,
+        g_ip.bus_freq,
+    )
+    cacti_IO_params = {
+        k: (1 if v is None or math.isnan(v) else (10 ** (-9) if v == 0 else v))
+        for k, v in cacti_IO_params.items()
+    }
+
     tech_param_keys = list(tech_params.keys())
 
     config_key = f"Cache={g_ip.is_cache}, {g_ip.F_sz_nm}"
@@ -404,7 +420,8 @@ def gen_diff(sympy_file, cfg_file, dat_file, gen_flag=True):
     #     hw_symbols.symbol_table["C_ox"],
     #     hw_symbols.symbol_table["Vdsat"],
     #     hw_symbols.symbol_table["C_g_ideal"],
-    # ]  # rng.choice(tech_param_keys, 5, replace=False)
+    # ] 
+    tech_param_keys = rng.choice(tech_param_keys, 10, replace=False)
     # ============ END TESTING =================
 
     results_data = {
@@ -450,7 +467,7 @@ def gen_diff(sympy_file, cfg_file, dat_file, gen_flag=True):
         for free_symbol in expr.free_symbols:
             if free_symbol not in tech_param_keys:
                 continue
-            
+
             processes.append(
                 mp.Process(
                     target=evaluate_python_diff,
@@ -548,4 +565,4 @@ if __name__ == "__main__":
         dat_file = os.path.join("tech_params", dat_file)
         gen_diff(sympy_file, cfg_file, dat_file, args.gen)
     
-    print(f"Done running for all dat files")
+    print(f"nDone running for all dat files")
