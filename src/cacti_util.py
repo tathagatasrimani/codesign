@@ -404,11 +404,11 @@ def gen_vals(
         for line in cfg_lines:
             file.write(line + "\n")
 
-    # import time
-    # time.sleep(10)
-
     stdout_filename = "cacti_stdout.log"
     stdout_file_path = os.path.join(CACTI_DIR, stdout_filename)
+
+    stderr_filename = "cacti_stderr.log"
+    stderr_file_path = os.path.join(cactiDir, stderr_filename)
 
     cmd = ["./cacti", "-infile", input_filename]
 
@@ -420,33 +420,24 @@ def gen_vals(
         with open(stdout_file_path, "r") as f:
             output = f.read().splitlines()
             if len(output) >= 2:
-                result = "\n".join(output[-2:])  # Get the last two lines
+                result = "\n".join(output[-2:]) 
             elif len(output) == 1:
-                result = output[-1]  # Get the last line
+                result = output[-1] 
             else:
-                result = "No output"  # Handle the empty output case explicitly
-            print(
+                result = "No output" 
+            raise Exception(
                 f"Cacti Error in {filename}",
                 p.stderr.read().decode(),
                 result,
             )
-            # raise Exception(
-            #     f"Cacti Error in {filename}",
-            #     p.stderr.read().decode(),
-            #     result,
-            # )
 
     output_filename = filename + ".cfg.out"
     cactiOutput = os.path.normpath(os.path.join(CACTI_DIR, output_filename))
 
-    # SHORTCUT FOR NOW
     if not os.path.exists(cactiOutput):
-        from collections import defaultdict
-
-        default_dict = defaultdict(int)
-        print("ISSUE HERE!")
-        print()
-        return default_dict
+        raise Exception(
+            f"Cacti Output does not exist: {filename}"
+        )
 
     output_data = pd.read_csv(cactiOutput, sep=", ", engine="python")
     output_data = output_data.iloc[
@@ -664,8 +655,6 @@ def read_config_file(in_file: str):
     config_dict = {}
     with open(in_file, "r") as fp:
         lines = fp.readlines()
-    
-    # raise Exception()
 
     for line in lines:
         line = line.strip()

@@ -532,11 +532,6 @@ def greedy_schedule(
 
                     stall_name = f"stall_{layer}_{idx}_{func}_{stall_counter}"
                     stall_counter += 1
-                    print("HELLO")
-                    print(func_nodes)
-                    print(idx)
-                    # import time
-                    # time.sleep(4)
                     computation_graph.add_node(
                         stall_name,
                         function="stall",

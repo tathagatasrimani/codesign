@@ -208,7 +208,6 @@ def run_arch_search(
     hw_copy = deepcopy(hw)
 
     for i in range(num_steps):
-        print(f"HI I HERE! {num_steps}")
         func = sample_stalled_func(old_scheduled_dfg)
 
         update_hw_with_new_node(hw_copy.netlist, func)
@@ -230,8 +229,6 @@ def run_arch_search(
         logger.info(f"simulated; execution time: {simulator.execution_time} ns, passive energy: {simulator.passive_energy} nJ, active energy: {simulator.active_energy} nJ, edp: {simulator.edp} E-18 Js")
 
         area = hw.get_total_area()
-        print(f"HI I HERE! AREA {area}, {area_constraint}")
-        logger.info(f"Area constraint {area}, {area_constraint}")
         if area > area_constraint:
             logger.info("Area constraint exceeded; breaking")
             # shouldn't actually break here, because you can try other nodes that are smaller but still might have a good effect
