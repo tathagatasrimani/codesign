@@ -155,7 +155,6 @@ def gen_vals(
     )
 
     # load in default values
-    print(f"in_file {filename}")
     config_values = read_config_file(os.path.join(CACTI_DIR, f"cfg/{filename}.cfg"))
 
     # If user doesn't give input, default to cacti_input vals
