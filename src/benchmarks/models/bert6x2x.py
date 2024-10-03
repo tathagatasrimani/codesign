@@ -1,6 +1,5 @@
 import numpy as np
 import math
-from loop import loop
 
 def balance_random_3d(depth, l, wid):
     arr = np.random.rand(depth, l, wid)
@@ -160,7 +159,5 @@ def main():
         embeddings = BN_layer(embeddings, weights, biases)
 
 if __name__ == "__main__":
-    loop.start_unroll
     for i in range(12):
-        loop().pattern_seek(6)
         main()

@@ -1,4 +1,3 @@
-from loop import loop
 Sbox = (
     0x63,
     0x7C,

@@ -21,7 +21,7 @@ def box_whiskers_plot(designs: list, units: list, title: list, show_flier: bool)
         box_plot = None
         rcl = pd.read_csv('openroad_interface/results/result_rcl.csv')
 
-        sns.set_theme(rc={'figure.figsize':(4, 7)}, style="ticks")
+        sns.set_theme(rc={'figure.figsize':(4, 8)}, style="ticks")
 
         plt.yscale("log")
         flierprops = dict(marker='o', markerfacecolor='None', markersize=10,  markeredgecolor='black')
