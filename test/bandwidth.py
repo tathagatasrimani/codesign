@@ -27,7 +27,7 @@ def iter_bandwidth(bw_range, cache_size=131072, memSize=131072):
                 bus_width=bus_width,
             )
         if isinstance(cache_val, int) and cache_val == -1:
-            print(f"INVALID CACHE {i}")
+            print(f"INVALID CACHE")
         cache_vals.append(cache_val)
 
         print(f"{bus_width} got through cache_val")
