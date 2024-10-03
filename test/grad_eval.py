@@ -396,10 +396,12 @@ def gen_diff(sympy_file, cfg_file, dat_file, gen_flag=True):
     )
     cacti_IO_params = {
         k: (1 if v is None or math.isnan(v) else (10 ** (-9) if v == 0 else v))
-        for k, v in cacti_IO_params.items()
+        for k, v in tech_params.items()
     }
 
     tech_param_keys = list(tech_params.keys())
+
+    print(f"tech_param_keys: {tech_param_keys}")
 
     config_key = f"Cache={g_ip.is_cache}, {g_ip.F_sz_nm}"
 
@@ -421,7 +423,7 @@ def gen_diff(sympy_file, cfg_file, dat_file, gen_flag=True):
     #     hw_symbols.symbol_table["Vdsat"],
     #     hw_symbols.symbol_table["C_g_ideal"],
     # ] 
-    tech_param_keys = rng.choice(tech_param_keys, 10, replace=False)
+    tech_param_keys = rng.choice(tech_param_keys, 5, replace=False)
     # ============ END TESTING =================
 
     results_data = {
