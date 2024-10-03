@@ -2,8 +2,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import os
 
-from . import cacti_util
-from . import CACTI_DIR
+from src import cacti_util
+from src import CACTI_DIR
 
 
 # Example function to convert frequency (you should replace it with actual logic)
