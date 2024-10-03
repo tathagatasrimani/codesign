@@ -400,11 +400,11 @@ def gen_diff(sympy_file, cfg_file, dat_file, gen_flag=True):
 
     # ============ FOR TESTING =================
     # leave this in to make testing quicker.
-    tech_param_keys = [
-        hw_symbols.symbol_table["C_ox"],
-        hw_symbols.symbol_table["Vdsat"],
-        hw_symbols.symbol_table["C_g_ideal"],
-    ]  # rng.choice(tech_param_keys, 5, replace=False)
+    # tech_param_keys = [
+    #     hw_symbols.symbol_table["C_ox"],
+    #     hw_symbols.symbol_table["Vdsat"],
+    #     hw_symbols.symbol_table["C_g_ideal"],
+    # ]  # rng.choice(tech_param_keys, 5, replace=False)
     # ============ END TESTING =================
 
     results_data = {
