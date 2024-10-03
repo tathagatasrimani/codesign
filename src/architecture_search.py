@@ -208,7 +208,7 @@ def run_arch_search(
     hw_copy = deepcopy(hw)
 
     for i in range(num_steps):
-        
+
         func = sample_stalled_func(old_scheduled_dfg)
 
         update_hw_with_new_node(hw_copy.netlist, func)
