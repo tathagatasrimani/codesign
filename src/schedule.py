@@ -407,7 +407,7 @@ def check_valid_hw(computation_graph, hw_netlist):
     return True
 
 
-def pre_schedule(computation_graph, hw_netlist):
+def pre_schedule(computation_graph, hw_netlist, hw_latency):
     if not check_valid_hw(computation_graph, hw_netlist):
         raise ValueError(
             "Hardware netlist is not valid. Please ensure that every operator node is bi-directionally connected to every register node."
@@ -439,7 +439,7 @@ def pre_schedule(computation_graph, hw_netlist):
     for u, v, data in operator_edges:  # this shouldn't run after the first iteration
         if (u, v) not in hw_netlist.edges():
             new_node_name = f"tmp_op_reg;{new_node_id}"
-            computation_graph.add_node(new_node_name, function="Regs", cost=0.0)
+            computation_graph.add_node(new_node_name, function="Regs", cost=hw_latency["Regs"])
             
             computation_graph.remove_edge(u, v)
             computation_graph.add_edge(u, new_node_name, weight=reg_weight)
