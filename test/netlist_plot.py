@@ -6,24 +6,12 @@ import numpy as np
 import argparse
 from collections import defaultdict
 
-def get_latest_log_folder(logs_dir):
-    log_folders = glob.glob(os.path.join(logs_dir, "*"))
-    valid_folders = []
-    
-    for folder in log_folders:
-        if os.path.isdir(folder):
-            folder_name = os.path.basename(folder)
-            # Check if the folder name matches the date-time format
-            if re.match(r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}', folder_name):
-                valid_folders.append(folder)
-    
-    if not valid_folders:
-        raise ValueError("No valid log folders found")
-    
-    return max(valid_folders, key=os.path.getctime)
-
+from src.sim_util import get_latest_log_dir
 
 def parse_and_plot_netlists(directory):
+    """
+    directory should be the absolute path
+    """
     all_functions = set()
     file_function_counts = {}
     
@@ -76,19 +64,10 @@ def parse_and_plot_netlists(directory):
     plt.tight_layout()
     
     # Show plot
+    plt.savefig(os.path.join(os.path.dirname(__file__), "figs", f"netlist_nodes_count_{directory.split('/')[-1]}.png"))
     plt.show()
-    
-    # Print counts
-    # for file in files:
-    #     print(f"\n{file}:")
-    #     for function, count in file_function_counts[file].items():
-    #         print(f"  {function}: {count}")
 
 if __name__ == "__main__":
-    print("hi")
-    # default is the latest directory
-    latest_dir = get_latest_log_folder("logs")
-
     parser = argparse.ArgumentParser(
         description="Optionally specify file -f"
     )
@@ -96,20 +75,17 @@ if __name__ == "__main__":
         "-f",
         "--file",
         type=str,
-        default=latest_dir,
         help="Log Directory is analyze.",
     )
     args = parser.parse_args()
-    filename = args.file
 
-    # if the user pastes the entire path:
-    if filename.count('/') > 1:
-        filename = '/'.join(filename.split('/')[-2:])
+    if args.file:
+        filename = args.file
+        # if the user simply puts the date
+        if "logs/" not in filename:
+            filename = os.path.normpath(os.path.join(os.path.dirname(__file__), "../logs", filename))
+    else:
+        filename = get_latest_log_dir()
 
-    # if the user simply puts the date
-    if "logs/" not in filename:
-        filename = "logs/" + filename
-
-
-    print(f"Check file: {filename} {latest_dir}")
+    print(f"Check file: {filename}")
     parse_and_plot_netlists(filename)

@@ -1,5 +1,9 @@
 import math
 import ast
+import glob
+import os
+import datetime
+
 import networkx as nx
 import numpy as np
 import matplotlib.pyplot as plt
@@ -725,6 +729,15 @@ def convert_tech_params_to_si(latency, active_power, passive_power, frequency):
     passive_power in nW -> W
     """
     return latency / frequency, active_power / 1e9, passive_power / 1e9
+
+
+def get_latest_log_dir():
+    log_dirs = glob.glob(os.path.normpath(os.path.join(os.path.dirname(__file__), "../logs/*-*-*_*-*-*")))
+    log_dirs = sorted(
+        log_dirs,
+        key=lambda x: datetime.datetime.strptime(x.split("/")[-1], "%Y-%m-%d_%H-%M-%S"),
+    )
+    return log_dirs[-1]
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
