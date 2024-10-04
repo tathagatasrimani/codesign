@@ -1,10 +1,11 @@
 import re
 import os
 import glob
-import matplotlib.pyplot as plt
-import numpy as np
 import argparse
 from collections import defaultdict
+
+import matplotlib.pyplot as plt
+import numpy as np
 
 from src.sim_util import get_latest_log_dir
 
