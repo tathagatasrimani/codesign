@@ -21,9 +21,6 @@ Run the script with the following command:
 - **`-d <tech_size>`**:  
   *Optional*. Technology size (e.g., `90nm`). If not provided, the script will process `45nm`, `90nm`, and `180nm`.
 
-- **`-s <sympy_file>`**:  
-  *Optional*. Path or name of the SymPy file (without the extension) if it's different from the cache configuration name.
-
 - **`-g`**:  
   *Optional*. Set this flag to generate SymPy expressions from the cache configuration file. Defaults to `False`.
 
@@ -48,9 +45,6 @@ Run the script with the following command:
 
 - **`-d <tech_size>`**:  
   *Optional*. Technology node (e.g., `90nm`). If not provided, the script will run for `45nm`, `90nm`, and `180nm`.
-
-- **`-s <sympy_file>`**:  
-  *Optional*. Path or name of the SymPy file (without the extension) if it's different from the cache configuration name.
 
 - **`-g`**:  
   *Optional*. Set this flag to generate SymPy expressions from the cache configuration file. Defaults to `false`.

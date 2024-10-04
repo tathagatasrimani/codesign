@@ -1,9 +1,11 @@
 import os
 import subprocess
 import yaml
+import traceback
 import argparse
 import re
 import logging
+import multiprocessing as mp
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +80,7 @@ def gen_symbolic(name, cache_cfg, opt_vals, use_piecewise=False):
     with open(os.path.join(output_dir, f'{name + "_write_dynamic"}.txt'), "w") as file:
         file.write(str(fin_res.power.writeOp.dynamic))
 
+    # TODO: why is this read leakage? Should be standby leakage. What does read leakage even mean?
     with open(os.path.join(output_dir, f'{name + "_read_leakage"}.txt'), "w") as file:
         file.write(str(fin_res.power.readOp.leakage))
 
@@ -127,8 +130,8 @@ def gen_vals(
         Type of cache (e.g., "cache" or "main memory").
     bus_width : int, optional
         Width of the input/output bus in bits.
-    transistor_size : float, optional
-        Size of the transistor technology node (e.g., 45nm).
+    transistor_size : float, optional (in um)
+        Size of the transistor technology node (e.g., 0.045).
     addr_timing : float, optional
         Address timing value for memory access.
     force_cache_config : str, optional
@@ -396,9 +399,8 @@ def gen_vals(
         '# -verbose "F"',
     ]
 
-    cactiDir = os.path.normpath(os.path.join(os.path.dirname(__file__), "cacti"))
     # write file
-    input_filename = filename + ".cfg"
+    input_filename = f"cfg/{filename}.cfg"
     cactiInput = os.path.join(CACTI_DIR, input_filename)
     with open(cactiInput, "w") as file:
         for line in cfg_lines:
@@ -406,9 +408,6 @@ def gen_vals(
 
     stdout_filename = "cacti_stdout.log"
     stdout_file_path = os.path.join(CACTI_DIR, stdout_filename)
-
-    stderr_filename = "cacti_stderr.log"
-    stderr_file_path = os.path.join(cactiDir, stderr_filename)
 
     cmd = ["./cacti", "-infile", input_filename]
 
@@ -420,18 +419,18 @@ def gen_vals(
         with open(stdout_file_path, "r") as f:
             output = f.read().splitlines()
             if len(output) >= 2:
-                result = "\n".join(output[-2:]) 
+                err_message = "\n".join(output[-2:])
             elif len(output) == 1:
-                result = output[-1] 
+                err_message = output[-1]
             else:
-                result = "No output" 
+                err_message = "No output"
             raise Exception(
                 f"Cacti Error in {filename}",
-                p.stderr.read().decode(),
-                result,
+                {p.stderr.read().decode()},
+                {err_message},
             )
 
-    output_filename = filename + ".cfg.out"
+    output_filename = f"cfg/{filename}.cfg.out"
     cactiOutput = os.path.normpath(os.path.join(CACTI_DIR, output_filename))
 
     if not os.path.exists(cactiOutput):
@@ -482,10 +481,17 @@ def run_existing_cacti_cfg(filename):
     p.wait()
     if p.returncode != 0:
         with open(stdout_file_path, "r") as f:
+            output = f.read().splitlines()
+            if len(output) >= 2:
+                err_message = "\n".join(output[-2:])
+            elif len(output) == 1:
+                err_message = output[-1]
+            else:
+                err_message = "No output"
             raise Exception(
                 f"Cacti Error in {filename}",
                 {p.stderr.read().decode()},
-                {f.read().split("\n")[-2]},
+                {err_message},
             )
 
     output_filename = filename + ".out"
@@ -655,6 +661,8 @@ def read_config_file(in_file: str):
     config_dict = {}
     with open(in_file, "r") as fp:
         lines = fp.readlines()
+
+    # raise Exception()
 
     for line in lines:
         line = line.strip()
@@ -1162,7 +1170,7 @@ def read_config_file(in_file: str):
         # return False
     elif config_dict["F_sz_um"] > 0.091:
         print("Feature size must be <= 90 nm")
-        raise ValueError("Feature size must be <= 90 nm")
+        raise ValueError(f"Feature size must be <= 90 nm; feauture size is {config_dict['F_sz_um']}")
         # return False
 
     RWP = config_dict["num_rw_ports"]
@@ -1320,6 +1328,62 @@ def read_config_file(in_file: str):
 
     logger.info("Done reading cacti cfg file.")
     return config_dict
+
+
+def differentiate(expr, symbol, expr_file_name, tech_params=None):
+    """
+    Differentiate an expression with respect to a symbol and save the result to a file
+    If tech_params is given, evaluate all the parameters except the one being differentiated
+    """
+    if tech_params:
+        tech_params_copy = tech_params.copy()
+        tech_params_copy.pop(symbol, None)
+        expr = expr.xreplace(tech_params_copy).evalf()
+
+    expr = expr.replace(sp.ceiling, lambda x: x)  # sympy diff can't handle ceilings
+    diff_expr = sp.diff(expr, symbol)
+
+    pd_results_dir = os.path.join(
+        CACTI_DIR, "symbolic_expressions", "partial_derivatives"
+    )
+    base_name = expr_file_name.split("/")[-1].replace(".txt", "")
+    save_file_name = os.path.join(pd_results_dir, base_name + f"_d_{symbol}.txt")
+
+    with open(save_file_name, "w") as f:
+        f.write(str(diff_expr))
+    print(
+        f"Saved differentiated expression for {base_name} wrt {symbol} to {save_file_name}"
+    )
+    return save_file_name
+
+
+def differentiate_all(cfg: str, dat: str):
+    mp.set_start_method("spawn")
+
+    symbolic_expression_files = glob.glob(
+        os.path.join(CACTI_DIR, "symbolic_expressions", f"{cfg}_{dat[:-2]}*.txt")
+    )
+    print(symbolic_expression_files)
+
+    pd_results_dir = os.path.join(
+        CACTI_DIR, "symbolic_expressions", "partial_derivatives"
+    )
+    os.makedirs(pd_results_dir, exist_ok=True)
+
+    processes = []
+    for f in symbolic_expression_files:
+        print(f"Reading {f}")
+        expr = sp.sympify(open(f).read(), locals=hw_symbols.symbol_table)
+        for free_symbol in list(expr.free_symbols):
+            # print(f"Free symbol: {free_symbol}")
+            processes.append(
+                mp.Process(target=differentiate, args=(expr, free_symbol, f))
+            )
+            processes[-1].start()
+
+    for p in processes:
+        p.join()
+    print("All processes joined")
 
 
 if __name__ == "__main__":
