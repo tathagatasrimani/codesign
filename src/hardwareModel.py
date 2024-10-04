@@ -445,7 +445,7 @@ class HardwareModel:
         buf_vals = cacti_util.gen_vals(
             "base_cache",
             cache_size=self.buffer_size,
-            blockSize=64,
+            block_size=64,
             cache_type="cache",
             bus_width=self.buffer_bus_width,
         )
@@ -466,7 +466,7 @@ class HardwareModel:
         mem_vals = cacti_util.gen_vals(
             "mem_cache",
             cache_size=self.mem_size,
-            blockSize=64,
+            block_size=64,
             cache_type="main memory",
             bus_width=self.memory_bus_width,
         )
