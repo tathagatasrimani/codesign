@@ -584,6 +584,9 @@ def compose_entire_computation_graph(
     Returns:
         nx.DiGraph: The large DFG composed from the smaller DFGs.
     """
+
+    # print out all vals of cfg_node_to_dfg_map
+
     computation_dfg = nx.DiGraph()
     curr_last_nodes = []
     i = find_next_data_path_index(data_path, 0, [], [])[0]

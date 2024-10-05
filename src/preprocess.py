@@ -5,6 +5,7 @@ import sympy as sp
 import pyomo.environ as pyo
 import pyomo.core.expr.sympy_tools as sympy_tools
 from pyomo.opt import SolverFactory
+import copy
 
 from .MyPyomoSympyBimap import MyPyomoSympyBimap
 from . import hw_symbols
@@ -29,6 +30,10 @@ class Preprocessor:
         self.log_exprs_s = set()
         self.pow_exprs_to_constrain = []
         self.log_exprs_to_constrain = []
+        self.exprs_to_sub_s = []
+        self.exprs_to_sub = []
+        self.symbol_idx = 0
+        self.optimizer = None
 
     def f(self, model):
         return model.x[self.mapping[hw_symbols.f]] >= 1e6
@@ -41,6 +46,30 @@ class Preprocessor:
 
     def V_dd_upper(self, model):
         return model.x[self.mapping[hw_symbols.V_dd]] <= 1.7
+    
+    def find_exprs_to_sub(self, expr):
+        if (isinstance(expr, sp.Number)): return expr
+        new_args = []
+        for i in range(len(expr.args)):
+            new_args.append(self.find_exprs_to_sub(expr.args[i]))
+        if expr.args:
+            expr = expr.func(*tuple(new_args))
+            # terms in multiply must combine for no more than degree 2;
+            # make necessary substitutions
+            if expr.func == sp.Mul and len(new_args) > 2:
+                first_arg = new_args[0]
+                for i in range(1, len(new_args)-1):
+                    sub_expr = expr.func(*((first_arg, new_args[i])))
+                    sub_symbol = sp.symbols(f"sub_var_{self.symbol_idx}")
+                    self.symbol_idx += 1
+                    self.exprs_to_sub_s.append([sub_expr, sub_symbol])
+                    first_arg = sub_symbol
+                # set expr to final value of nested sub variable * last arg
+                expr = expr.func(*((first_arg, new_args[-1])))
+        new_symbol = sp.symbols(f"sub_var_{self.symbol_idx}")
+        self.symbol_idx += 1
+        self.exprs_to_sub_s.append([expr, new_symbol])
+        return new_symbol
     
     def find_exprs_to_constrain(self, expr):
         #logger.warning(f"expr.func is {expr.func}")
@@ -72,6 +101,9 @@ class Preprocessor:
         
         def make_log_constraint(model, i):
             return self.log_exprs_to_constrain[i] >= 0.0001
+        
+        def make_sub_constraint(model, i):
+            return self.exprs_to_sub[i][0] == self.exprs_to_sub[i][1]
 
         model.PowConstraint = pyo.Constraint([i for i in range(len(self.pow_exprs_to_constrain))], rule=make_pow_constraint)
 
@@ -111,7 +143,7 @@ class Preprocessor:
     def get_solver(self):
         if self.multistart:
             opt = SolverFactory("multistart")
-        else:
+        elif self.optimizer == "ipopt":
             opt = SolverFactory("ipopt")
             opt.options["warm_start_init_point"] = "yes"
             opt.options['warm_start_bound_push'] = 1e-9
@@ -130,6 +162,11 @@ class Preprocessor:
             opt.options["output_file"] = "src/tmp/solver_out.txt"
             opt.options["wantsol"] = 2
             opt.options["halt_on_ampl_error"] = "yes"
+        elif self.optimizer == "gurobi":
+            opt = SolverFactory("gurobi", solver_io="python")
+            opt.options["LogFile"] = "src/tmp/solver_out.txt"
+        else:
+            raise Exception(f"invalid solver in use: {self.optimizer}")
         return opt
 
     def create_scaling(self, model):
@@ -153,7 +190,8 @@ class Preprocessor:
         free_symbols = memL_expr.free_symbols.union(bufL_expr.free_symbols)
         return free_symbols
 
-    def begin(self, model, edp, initial_params, improvement, multistart, regularization):
+    def begin(self, model, edp, initial_params, improvement, optimizer, multistart, regularization):
+        self.optimizer = optimizer
         self.multistart = multistart
         self.expr_symbols = {}
         self.free_symbols = []
@@ -175,25 +213,49 @@ class Preprocessor:
                 self.expr_symbols[s] = initial_params[s.name]
         self.initial_val = float(edp.xreplace(self.expr_symbols))
 
-        model.nVars = pyo.Param(initialize=len(edp.free_symbols))
+        original_edp = copy.deepcopy(edp)
+
+        if optimizer == "gurobi":
+            edp = self.find_exprs_to_sub(edp)
+            print(f"subbed edp: {edp}")
+
+        print(f"expr_symbols: {self.expr_symbols}")
+
+        for i in range(len(self.exprs_to_sub_s)):
+            symbol = self.exprs_to_sub_s[i][1]
+            equation = self.exprs_to_sub_s[i][0]
+            if (i < 2):
+                print(f"equation: {equation}: subs: {self.expr_symbols}")
+            self.expr_symbols[symbol] = equation.xreplace(self.expr_symbols)
+
+        model.nVars = pyo.Param(initialize=len(original_edp.free_symbols)+len(self.exprs_to_sub_s))
         model.N = pyo.RangeSet(model.nVars)
         model.x = pyo.Var(model.N, domain=pyo.NonNegativeReals)
         self.mapping = {}
 
         i = 0
         for j in model.x:
-            self.mapping[self.free_symbols[i]] = j
-            print(f"x[{j}] {self.free_symbols[i]}")
+            if i < len(self.free_symbols):
+                self.mapping[self.free_symbols[i]] = j
+                print(f"x[{j}] {self.free_symbols[i]}")
+            else:
+                self.mapping[self.exprs_to_sub_s[i-len(self.free_symbols)][1]] = j
+                print(f"x[{j}] {self.exprs_to_sub_s[i-len(self.exprs_to_sub_s)]}")
             i += 1
 
         print(f"building bimap")
         m = MyPyomoSympyBimap()
-        for symbol in edp.free_symbols:
+        for symbol in original_edp.free_symbols:
             # create self.mapping of sympy symbols to pyomo symbols
             m.sympy2pyomo[symbol] = model.x[self.mapping[symbol]]
             # give pyomo symbols an inital value for warm start
             model.x[self.mapping[symbol]] = self.expr_symbols[symbol]
             print(f"symbol: {symbol}; initial value: {self.expr_symbols[symbol]}")
+
+        for i in range(len(self.exprs_to_sub_s)):
+            symbol = self.exprs_to_sub_s[i][1]
+            m.sympy2pyomo[symbol] = model.x[self.mapping[symbol]]
+            model.x[self.mapping[symbol]] = self.expr_symbols[symbol]
 
         # find all pow expressions within edp equation, convert to pyomo
         self.find_exprs_to_constrain(edp)
@@ -201,6 +263,8 @@ class Preprocessor:
             self.pow_exprs_to_constrain.append(sympy_tools.sympy2pyomo_expression(pow_expr, m))
         for log_expr in self.log_exprs_s:
             self.log_exprs_to_constrain.append(sympy_tools.sympy2pyomo_expression(log_expr, m))
+        for sub_expr in self.exprs_to_sub_s:
+            self.exprs_to_sub.append(sympy_tools.sympy2pyomo_expression(sub_expr[0], m))
         print(f"converting to pyomo exp")
         self.pyomo_edp_exp = sympy_tools.sympy2pyomo_expression(edp, m)
 

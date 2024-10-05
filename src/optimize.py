@@ -19,16 +19,15 @@ from . import hw_symbols
 
 multistart = False
 
-
-def ipopt(tech_params, edp, improvement, regularization):
-    logger.info("Optimizing using IPOPT")
+def pyomo_opt(tech_params, edp, improvement, regularization, opt):
+    logger.info(f"Optimizing using {opt}")
     initial_params = {}
     for key in tech_params:
         initial_params[key.name] = tech_params[key]
 
     model = pyo.ConcreteModel()
     opt, scaled_preproc_model, preproc_model, free_symbols, mapping = (
-        Preprocessor().begin(model, edp, initial_params, improvement, multistart=multistart, regularization=regularization)
+        Preprocessor().begin(model, edp, initial_params, improvement, opt, multistart=multistart, regularization=regularization)
     )
 
     if multistart:
@@ -187,13 +186,15 @@ def scp_opt(tech_params, edp):
     # print(tech_params)
     return tech_params
 
-# note: improvement/regularization parameter currently only for inverse pass validation, so only using it for ipopt
+# note: improvement/regularization parameter currently only for inverse pass validation, so only using it for pyomo solving
 # example: improvement of 1.1 = 10% improvement
 def optimize(tech_params, edp, opt, improvement=1.1, regularization=0.1):
     if opt == "scp":
         return scp_opt(tech_params, edp)
+    elif opt == "ipopt" or opt == "gurobi":
+        return pyomo_opt(tech_params, edp, improvement, regularization, opt)
     else:
-        return ipopt(tech_params, edp, improvement, regularization)
+        raise Exception(f"invalid solver specified: {opt}")
 
 
 def main():

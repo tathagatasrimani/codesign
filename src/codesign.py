@@ -222,12 +222,15 @@ class Codesign:
             f"edp: {self.inverse_edp}, should equal cycles * (active + passive): {inverse_exec_time * (active_energy + passive_energy)}"
         )
 
-        if self.opt_cfg == "ipopt":
+        if self.opt_cfg == "ipopt" or self.opt_cfg == "gurobi":
             stdout = sys.stdout
-            with open("src/tmp/ipopt_out.txt", "w") as sys.stdout:
+            stderr = sys.stderr
+            sys.stderr = open(f"src/tmp/{self.opt_cfg}_error.txt", "w")
+            with open(f"src/tmp/{self.opt_cfg}_out.txt", "w") as sys.stdout:
                 optimize.optimize(self.tech_params, self.symbolic_sim.edp, self.opt_cfg)
             sys.stdout = stdout
-            f = open("src/tmp/ipopt_out.txt", "r")
+            sys.stderr = stderr
+            f = open(f"src/tmp/{self.opt_cfg}_out.txt", "r")
             self.parse_output(f)
         else:
             self.tech_params = optimize.optimize(
@@ -268,7 +271,7 @@ class Codesign:
             "src/tmp/symbolic_edp.txt",
             f"{self.save_dir}/symbolic_edp_{iter_number}.txt",
         )
-        shutil.copy("src/tmp/ipopt_out.txt", f"{self.save_dir}/ipopt_{iter_number}.txt")
+        shutil.copy(f"src/tmp/{self.opt_cfg}_out.txt", f"{self.save_dir}/{self.opt_cfg}_{iter_number}.txt")
         shutil.copy(
             "src/tmp/solver_out.txt", f"{self.save_dir}/solver_{iter_number}.txt"
         )
