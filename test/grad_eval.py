@@ -468,8 +468,8 @@ def gen_diff(sympy_file, cfg_file, dat_file, gen_flag=True):
         # print(f"y_name: {y_name}; cfg_dat_: '{cfg}_{dat}_'")
         expr = sp.sympify(open(f).read(), locals=hw_symbols.symbol_table)
         for free_symbol in expr.free_symbols:
-            # if free_symbol not in tech_param_keys:
-            #     continue
+            if free_symbol not in tech_param_keys: # need this to get delta x
+                continue
 
             processes.append(
                 mp.Process(
