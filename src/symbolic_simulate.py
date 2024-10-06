@@ -69,6 +69,7 @@ class SymbolicSimulator(AbstractSimulator):
         self.edp = None
         self.edp_ceil = None
         self.initial_params = {}
+        self.cacti_exprs = {}
 
     def reset_internal_variables(self):
         self.sim_cache = {}
@@ -271,6 +272,7 @@ class SymbolicSimulator(AbstractSimulator):
         BufWriteEact_expr = sp.sympify(buf_write_dynamic_text, locals=hw_symbols.symbol_table)
         BufPpass_expr = sp.sympify(buf_read_leakage_text, locals=hw_symbols.symbol_table)
 
+        # TODO: print these vs fw pass values
         cacti_subs = {
             hw_symbols.MemReadL: (MemL_expr / 2),
             hw_symbols.MemWriteL: (MemL_expr / 2),
@@ -288,11 +290,13 @@ class SymbolicSimulator(AbstractSimulator):
             hw, self.execution_time
         )
 
+        print(f"total passive energy: {self.total_passive_energy}", flush=True)
         self.edp = self.execution_time * (self.total_active_energy + self.total_passive_energy)
 
         self.execution_time = self.execution_time.xreplace(cacti_subs)
         self.total_active_energy = self.total_active_energy.xreplace(cacti_subs)
         self.total_passive_energy = self.total_passive_energy.xreplace(cacti_subs)
+        self.edp = self.execution_time * (self.total_active_energy + self.total_passive_energy)
         self.edp = self.edp.xreplace(cacti_subs)
 
         assert hw_symbols.MemReadL not in self.edp.free_symbols and hw_symbols.MemWriteL not in self.edp.free_symbols, "Mem latency not fully substituted"
@@ -302,6 +306,22 @@ class SymbolicSimulator(AbstractSimulator):
         assert hw_symbols.BufReadEact not in self.edp.free_symbols, "Buf read energy not fully substituted"
         assert hw_symbols.BufWriteEact not in self.edp.free_symbols, "Buf write energy not fully substituted"
         assert hw_symbols.BufPpass not in self.edp.free_symbols, "Buf passive power not fully substituted"
+
+        self.cacti_exprs = {
+            "MemL_expr": MemL_expr,
+            "MemReadEact_expr": MemReadEact_expr,
+            "MemWriteEact_expr": MemWriteEact_expr,
+            "MemPpass_expr": MemPpass_expr,
+            "BufL_expr": BufL_expr,
+            "BufReadEact_expr": BufReadEact_expr,
+            "BufWriteEact_expr": BufWriteEact_expr,
+            "BufPpass_expr": BufPpass_expr
+        }
+        with open("src/tmp/cacti_exprs.txt", 'w') as f:
+            txt = ""
+            for expr in self.cacti_exprs.keys():
+                txt += f"{expr}: {self.cacti_exprs[expr]}\n"
+            f.write(txt)
 
         # self.edp = self.edp.subs(subs)
 

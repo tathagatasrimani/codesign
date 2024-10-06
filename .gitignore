@@ -24,5 +24,6 @@ data/**
 .vscode/**
 
 logs/**
+src/inverse_validation/inverse_val_log_dir/**
 openroad_interface/fig
 openroad_interface/results

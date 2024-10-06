@@ -8,6 +8,7 @@ from pyomo.opt import SolverFactory
 
 from .MyPyomoSympyBimap import MyPyomoSympyBimap
 from . import hw_symbols
+from . import symbolic_simulate
 
 LAMBDA = 0.1 # regularization parameter
 
@@ -23,6 +24,11 @@ class Preprocessor:
         self.obj = 0
         self.initial_params = {}
         self.obj_scale = 1
+        self.improvement = 1.1
+        self.pow_exprs_s = set()
+        self.log_exprs_s = set()
+        self.pow_exprs_to_constrain = []
+        self.log_exprs_to_constrain = []
 
     def f(self, model):
         return model.x[self.mapping[hw_symbols.f]] >= 1e6
@@ -35,14 +41,43 @@ class Preprocessor:
 
     def V_dd_upper(self, model):
         return model.x[self.mapping[hw_symbols.V_dd]] <= 1.7
+    
+    def find_exprs_to_constrain(self, expr):
+        #logger.warning(f"expr.func is {expr.func}")
+        if expr.func == sp.core.power.Pow and expr.base.func != sp.core.symbol.Symbol:
+            #logger.warning(f"exponent is {expr.exp}")
+            # if we are taking an even root (i.e. square root), no negative numbers allowed
+            if expr.exp == 0.5:
+                #logger.warning(f"base func is {expr.base.func}")
+                self.pow_exprs_s.add(expr.base)
+        elif expr.func == sp.log:
+            if not expr.args[0].is_constant():
+                self.log_exprs_s.add(expr.args[0])
+                #logger.warning(f"arg of log is {expr.args[0]}, type is {type(expr.args[0])}")
+            #else:
+                #logger.warning(f"constant arg of log is {expr.args[0]}, type is {type(expr.args[0])}")
+        
+        for arg in expr.args:
+            self.find_exprs_to_constrain(arg)
 
     def add_constraints(self, model):
         logger.info("Adding Constraints")
         # this is where we say EDP_final = EDP_initial / 10
         print(f"adding constraints. initial val: {self.initial_val};") # edp_exp: {self.pyomo_edp_exp}")
         # model.Constraint = pyo.Constraint(expr=self.pyomo_edp_exp <= self.initial_val / 1.9)
-        model.Constraint1 = pyo.Constraint(expr=self.pyomo_edp_exp >= self.initial_val / 1.1)
-        # model.V_dd_lower = pyo.Constraint(rule=self.V_dd_lower)
+        model.Constraint1 = pyo.Constraint(expr=self.pyomo_edp_exp >= self.initial_val / self.improvement)
+
+        def make_pow_constraint(model, i):
+            return self.pow_exprs_to_constrain[i] >= 0
+        
+        def make_log_constraint(model, i):
+            return self.log_exprs_to_constrain[i] >= 0.0001
+
+        model.PowConstraint = pyo.Constraint([i for i in range(len(self.pow_exprs_to_constrain))], rule=make_pow_constraint)
+
+        model.LogConstraint = pyo.Constraint([i for i in range(len(self.log_exprs_to_constrain))], rule=make_log_constraint)
+
+        #model.V_dd_lower = pyo.Constraint(rule=self.V_dd_lower)
         # model.V_dd_upper = pyo.Constraint(rule=self.V_dd_upper)
         # model.V_dd = pyo.Constraint(expr = model.x[self.mapping[hw_symbols.V_dd]] == self.initial_params["V_dd"])
 
@@ -53,34 +88,40 @@ class Preprocessor:
 
         return model
 
-    def add_regularization_to_objective(self, model, l=1):
+    def add_regularization_to_objective(self, obj, l):
         """
         Parameters:
-        model: pyomo model
+        obj: sympy objective function
         l: regularization hyperparameter
         """
         logger.info("Adding regularization.")
         for symbol in self.free_symbols:
-            self.obj += l * (
+            obj += l * (
                 self.initial_params[symbol.name]
-                / model.x[self.mapping[hw_symbols.symbol_table[symbol.name]]]
+                / symbol
                 - 1
             ) ** 2
 
+        """max_term = 0
+        for symbol in self.free_symbols:
+            max_term = symbolic_simulate.symbolic_convex_max(max_term, (symbol / self.initial_params[symbol.name]))
+        obj += l * max_term"""
+        return obj
+        
     def get_solver(self):
         if self.multistart:
             opt = SolverFactory("multistart")
         else:
             opt = SolverFactory("ipopt")
-            # opt.options["warm_start_init_point"] = "yes"
-            # opt.options['warm_start_bound_push'] = 1e-9
-            # opt.options['warm_start_mult_bound_push'] = 1e-9
-            # opt.options['warm_start_bound_frac'] = 1e-9
-            # opt.options['warm_start_slack_bound_push'] = 1e-9
-            # opt.options['warm_start_slack_bound_frac'] = 1e-9
-            # opt.options['mu_init'] = 0.1
+            opt.options["warm_start_init_point"] = "yes"
+            opt.options['warm_start_bound_push'] = 1e-9
+            opt.options['warm_start_mult_bound_push'] = 1e-9
+            opt.options['warm_start_bound_frac'] = 1e-9
+            opt.options['warm_start_slack_bound_push'] = 1e-9
+            opt.options['warm_start_slack_bound_frac'] = 1e-9
+            opt.options['mu_init'] = 0.1
             # opt.options['acceptable_obj_change_tol'] = self.initial_val / 100
-            # opt.options['tol'] = 0.5
+            opt.options['tol'] = 1
             # opt.options['print_level'] = 5
             # opt.options['nlp_scaling_method'] = 'none'
             opt.options["bound_relax_factor"] = 0
@@ -112,11 +153,12 @@ class Preprocessor:
         free_symbols = memL_expr.free_symbols.union(bufL_expr.free_symbols)
         return free_symbols
 
-    def begin(self, model, edp, initial_params, multistart):
+    def begin(self, model, edp, initial_params, improvement, multistart, regularization):
         self.multistart = multistart
         self.expr_symbols = {}
         self.free_symbols = []
         self.initial_params = initial_params
+        self.improvement = improvement
 
         mem_buf_l_symbols = self.symbols_in_Buf_Mem_L("src/cacti/symbolic_expressions/Buf_access_time.txt", "src/cacti/symbolic_expressions/Mem_access_time.txt")
         desired_free_symbols = ["Vdd", "C_g_ideal"]#, "C_junc", "I_on_n", "vert_dielectric_constant"] #, "Vdsat"] #, "Mobility_n"]
@@ -152,13 +194,22 @@ class Preprocessor:
             # give pyomo symbols an inital value for warm start
             model.x[self.mapping[symbol]] = self.expr_symbols[symbol]
             print(f"symbol: {symbol}; initial value: {self.expr_symbols[symbol]}")
+
+        # find all pow expressions within edp equation, convert to pyomo
+        self.find_exprs_to_constrain(edp)
+        for pow_expr in self.pow_exprs_s:
+            self.pow_exprs_to_constrain.append(sympy_tools.sympy2pyomo_expression(pow_expr, m))
+        for log_expr in self.log_exprs_s:
+            self.log_exprs_to_constrain.append(sympy_tools.sympy2pyomo_expression(log_expr, m))
         print(f"converting to pyomo exp")
         self.pyomo_edp_exp = sympy_tools.sympy2pyomo_expression(edp, m)
-        self.obj = self.pyomo_edp_exp
+
+        sympy_obj = self.add_regularization_to_objective(edp, l=regularization)
+        print(f"added regularization")
+
+        self.obj = sympy_tools.sympy2pyomo_expression(sympy_obj, m)
         # print(f"created pyomo expression: {self.pyomo_edp_exp}")
 
-        self.add_regularization_to_objective(model, l=0.01)
-        print(f"added regularization")
 
         model.obj = pyo.Objective(expr=self.obj, sense=pyo.minimize)
         model.cuts = pyo.ConstraintList()
