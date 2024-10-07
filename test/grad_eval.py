@@ -107,7 +107,7 @@ def evaluate_derivative(dydx_file_name, tech_params, x_symbol):
 
     dydx = dydx_expr.xreplace(tech_params).evalf()
 
-    delta_x = 0.01 * tech_params[x_symbol]
+    delta_x = 0.001 * tech_params[x_symbol]
     delta_y = -1 * delta_x * dydx
 
     logger.info(
