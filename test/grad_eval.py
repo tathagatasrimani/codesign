@@ -384,8 +384,9 @@ def gen_diff(sympy_file, cfg_file, dat_file, gen_flag=True):
         if v is not None and not math.isnan(v)
     }
 
+    io_tech_params = {}
     get_IO.scan_IO(
-        tech_params,
+        io_tech_params,
         g_ip,
         g_ip.io_type,
         g_ip.num_mem_dq,
@@ -395,14 +396,15 @@ def gen_diff(sympy_file, cfg_file, dat_file, gen_flag=True):
         1,
         g_ip.bus_freq,
     )
-    cacti_IO_params = {
+    io_tech_params = {
         k: (1 if v is None or math.isnan(v) else (10 ** (-9) if v == 0 else v))
-        for k, v in tech_params.items()
+        for k, v in io_tech_params.items()
     }
 
     tech_param_keys = list(tech_params.keys())
 
     print(f"tech_param_keys: {tech_param_keys}")
+    print(f"io_tech_params keys: {io_tech_params.keys()}")
 
     config_key = f"Cache={g_ip.is_cache}, {g_ip.F_sz_nm}"
 

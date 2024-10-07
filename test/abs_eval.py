@@ -9,19 +9,13 @@ import yaml
 import pandas as pd
 import sympy as sp
 
-from src.cacti.cacti_python.parameter import g_ip
-import src.cacti.cacti_python.get_dat as dat
 from src import cacti_util
+from src.cacti import CACTI_DIR, TRANSISTOR_SIZES
 
-from src.cacti import TRANSISTOR_SIZES, CACTI_DIR
-from src.cacti.cacti_python.parameter import g_tp
+from src.cacti.cacti_python import parameter
 from src.cacti.cacti_python.Ucache import *
 import src.cacti.cacti_python.get_dat as dat
 import src.cacti.cacti_python.get_IO as IO
-
-from src.hw_symbols import *
-
-valid_tech_nodes = [0.022, 0.032, 0.045, 0.065, 0.090, 0.180]
 
 def gen_abs_results(sympy_file, cache_cfg, dat_file):
     """
@@ -70,6 +64,8 @@ def gen_abs_results(sympy_file, cache_cfg, dat_file):
     IO_info = cacti_util.gen_symbolic(sympy_file, cache_cfg, buf_opt, use_piecewise=False)
 
     dat_file = os.path.join(CACTI_DIR, dat_file)
+
+    g_ip = parameter.g_ip
 
     g_ip.parse_cfg(os.path.join(CACTI_DIR, cache_cfg))
     g_ip.error_checking()
