@@ -33,7 +33,7 @@ def symbolic_convex_max(a, b):
     """
     An approximation to the max function that plays well with these numeric solvers.
     """
-    return 0.5 * (a + b + abs(a - b))
+    return 0.5 * (a + b + sp.Abs(a - b, evaluate=False))
 
 
 class SymbolicSimulator(AbstractSimulator):
