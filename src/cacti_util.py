@@ -6,21 +6,21 @@ import argparse
 import re
 import logging
 import multiprocessing as mp
+import importlib
 
 logger = logging.getLogger(__name__)
 
 import pandas as pd
-
-from src.cacti.cacti_python.parameter import g_ip
-from src.cacti.cacti_python.parameter import g_tp
-from src.cacti.cacti_python.cacti_interface import uca_org_t
-from src.cacti.cacti_python.Ucache import *
-from src.cacti.cacti_python.parameter import sympy_var
-
-from hw_symbols import *
 import sympy as sp
 
-valid_tech_nodes = [0.022, 0.032, 0.045, 0.065, 0.090, 0.180]
+from src import hw_symbols
+
+from src.cacti import CACTI_DIR, TRANSISTOR_SIZES
+
+# from src.cacti import cacti_python as cp
+from src.cacti.cacti_python import parameter
+from src.cacti.cacti_python import const
+from src.cacti.cacti_python import Ucache     
 
 
 def gen_symbolic(name, cache_cfg, opt_vals, use_piecewise=False):
@@ -46,6 +46,11 @@ def gen_symbolic(name, cache_cfg, opt_vals, use_piecewise=False):
     Sympy expression files for access time, dynamic and leakage power, IO details in 'src/cacti/sympy' directory.
     """
 
+    # importlib.reload(cp)
+    # importlib.reload(cacti_interface)
+
+    g_ip = parameter.g_ip
+
     g_ip.parse_cfg(os.path.join(CACTI_DIR, cache_cfg))
     g_ip.error_checking()
 
@@ -63,8 +68,9 @@ def gen_symbolic(name, cache_cfg, opt_vals, use_piecewise=False):
     g_ip.use_piecewise = use_piecewise
     g_ip.print_detail_debug = False
 
-    fin_res = uca_org_t()
-    fin_res = solve_single()
+    # fin_res = cacti_interface.uca_org_t()
+    g_tp = parameter.g_tp
+    fin_res = Ucache.solve_single(g_ip, g_tp)
 
     # Create the directory path
     output_dir = os.path.join(CACTI_DIR, "symbolic_expressions")
@@ -188,7 +194,7 @@ def gen_vals(
     if transistor_size == None:
         transistor_size = config_values["F_sz_um"]  # TODO check whether nm or um
     else:
-        transistor_size = min(valid_tech_nodes, key=lambda x: abs(transistor_size - x))
+        transistor_size = min(TRANSISTOR_SIZES, key=lambda x: abs(transistor_size - x))
 
     if addr_timing == None:
         addr_timing = config_values["addr_timing"]
@@ -1184,7 +1190,7 @@ def read_config_file(in_file: str):
         raise ValueError("Must have at least one port")
         # return False
 
-    if not is_pow2(config_dict["nbanks"]):
+    if not parameter.is_pow2(config_dict["nbanks"]):
         print(
             "Number of subbanks should be greater than or equal to 1 and should be a power of 2"
         )
@@ -1235,8 +1241,8 @@ def read_config_file(in_file: str):
         # return False
 
     if (config_dict["fully_assoc"] or config_dict["pure_cam"]) and (
-        config_dict["data_arr_ram_cell_tech_type"] == lp_dram
-        or config_dict["data_arr_ram_cell_tech_type"] == comm_dram
+        config_dict["data_arr_ram_cell_tech_type"] == const.lp_dram
+        or config_dict["data_arr_ram_cell_tech_type"] == const.comm_dram
     ):
         print("DRAM based CAM and fully associative cache are not supported")
         raise ValueError("DRAM based CAM and fully associative cache are not supported")
@@ -1265,7 +1271,7 @@ def read_config_file(in_file: str):
             A = 1
         else:
             A = config_dict["assoc"]
-            if not is_pow2(A):
+            if not parameter.is_pow2(A):
                 print("Associativity must be a power of 2")
                 raise ValueError("Associativity must be a power of 2")
 

@@ -307,7 +307,7 @@ class HardwareModel:
         R = rcs["Reff"]  # Ohms
         self.V_dd = rcs["other"]["V_dd"]
 
-        opt_params = sim_util.generate_init_params_from_rcs_as_symbols(rcs)
+        self.opt_params = sim_util.generate_init_params_from_rcs_as_symbols(rcs)
 
         # update dat file with new parameters and re-run cacti
         cacti_util.update_dat(rcs, self.cacti_dat_file)
@@ -452,6 +452,9 @@ class HardwareModel:
         logger.info(
             f"Buffer cacti with: {self.buffer_size} bytes, {self.buffer_bus_width} bus width"
         )
+        logger.info(
+            f"BUFFER VALS: read/write time {buf_vals['Access time (ns)']} ns, read energy {buf_vals['Dynamic read energy (nJ)']} nJ, write energy {buf_vals['Dynamic write energy (nJ)']} nJ, leakage power {buf_vals['Standby leakage per bank(mW)']}"
+        )
         buf_opt = {
             "ndwl": buf_vals["Ndwl"],
             "ndbl": buf_vals["Ndbl"],
@@ -482,6 +485,9 @@ class HardwareModel:
         }
         logger.info(
             f"Memory cacti with: {self.mem_size} bytes, {self.memory_bus_width} bus width"
+        )
+        logger.info(
+            f"MEMORY VALS: read/write time {mem_vals['Access time (ns)']} ns, read energy {mem_vals['Dynamic read energy (nJ)']} nJ, write energy {mem_vals['Dynamic write energy (nJ)']} nJ, leakage power {mem_vals['Standby leakage per bank(mW)']}"
         )
 
         self.area["Buf"] = float(buf_vals["Area (mm2)"]) * 1e12  # convert to nm^2
@@ -551,6 +557,8 @@ class HardwareModel:
         # TODO: This only needs to be triggered if we're doing inverse pass (ie symbolic simulate or codesign)
         cacti_util.gen_symbolic("Buf", base_cache_cfg, buf_opt, use_piecewise=False)
         cacti_util.gen_symbolic("Mem", mem_cache_cfg, mem_opt, use_piecewise=False)
+
+
 
         return
 

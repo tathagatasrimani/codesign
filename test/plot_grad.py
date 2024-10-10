@@ -1,9 +1,11 @@
+import os
+import argparse
+
 import pandas as pd
 import numpy as np
 import seaborn as sns
+import matplotlib as mpl
 import matplotlib.pyplot as plt
-import os
-import argparse
 from matplotlib.colors import LinearSegmentedColormap
 
 
@@ -30,27 +32,41 @@ def create_custom_colormap():
     )
     return cmap
 
-def plot_partial_derivative_similarity_matrix(df, config_name, tech_size):
+def plot_partial_derivative_similarity_matrix(df, config_name, tech_size, sign_only=False):
     custom_cmap = create_custom_colormap()
 
     tmp_sqr = df.pivot(index="x_name", columns="y_name", values="similarity")
 
+    title = f"Python partial d compared to C partial d for {config_name} ({tech_size}nm)"
+    file_save_name = f"{config_name}_{tech_size}_grad_similarity"
+
     plt.figure(figsize=(12, 8))  # Make the figure narrower
-    ax = sns.heatmap(
-        tmp_sqr,
-        cmap=custom_cmap,  # sns.diverging_palette(0, 120, s=60, as_cmap=True)
-        center=100,
-        vmin=-100,  # Minimum value for the colormap
-        vmax=300,  # Maximum value for the colormap
-        annot=True,
-        fmt=".0f",
-        annot_kws={"size": 10},
-        cbar_kws={"shrink": 1},  # Adjust color bar size
-        linewidths=0.5,  # Add grid lines for better separation)
-    )
-    plt.title(
-        f"Python partial d compared to C partial d for {config_name} ({tech_size}nm)"
-    )
+    if sign_only:
+        ax = sns.heatmap(
+            np.sign(tmp_sqr),
+            cmap=mpl.colormaps['RdYlGn'],
+            annot=True,
+            fmt=".0f",
+            annot_kws={"size": 10},
+            cbar_kws={"shrink": 1},  # Adjust color bar size
+            linewidths=0.5,  # Add grid lines for better separation)
+        )
+        title += " (Sign Only)"
+        file_save_name += "_sign"
+    else:
+        ax = sns.heatmap(
+            tmp_sqr,
+            cmap=custom_cmap,  # sns.diverging_palette(0, 120, s=60, as_cmap=True)
+            center=100,
+            vmin=-100,  # Minimum value for the colormap
+            vmax=300,  # Maximum value for the colormap
+            annot=True,
+            fmt=".0f",
+            annot_kws={"size": 10},
+            cbar_kws={"shrink": 1},  # Adjust color bar size
+            linewidths=0.5,  # Add grid lines for better separation)
+        )
+    plt.title(title)
     ax.set_xlabel("Memory Output Values", fontsize=16)
     ax.set_ylabel("Technology Input Parameters", fontsize=16)
 
@@ -58,7 +74,7 @@ def plot_partial_derivative_similarity_matrix(df, config_name, tech_size):
         os.path.join(
             os.path.dirname(__file__),
             "figs",
-            f"{config_name}_{tech_size}_grad_similarity.png",
+            f"{file_save_name}.png",
         )
     )
 
@@ -69,6 +85,12 @@ if __name__ == "__main__":
         "--file",
         type=str,
         help="Path or Name to the results file; Assumed to be in codesign/test/results",
+    )
+    parser.add_argument(
+        "-s",
+        "--sign",
+        action="store_true",
+        help="Plot the sign of the gradient similarity",
     )
 
     args = parser.parse_args()
@@ -84,6 +106,6 @@ if __name__ == "__main__":
     tech_size = cfg_details.split("_")[-1]
     print(f"Plotting gradient similarity for {config_name} ({tech_size}nm)")
 
-    plot_partial_derivative_similarity_matrix(df, config_name, tech_size)
+    plot_partial_derivative_similarity_matrix(df, config_name, tech_size, args.sign)
 
     print(f"Done Plotting.")

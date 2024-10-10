@@ -271,6 +271,12 @@ class SymbolicSimulator(AbstractSimulator):
         BufWriteEact_expr = sp.sympify(buf_write_dynamic_text, locals=hw_symbols.symbol_table)
         BufPpass_expr = sp.sympify(buf_read_leakage_text, locals=hw_symbols.symbol_table)
 
+        ## ========= FOR TESTING =========
+        # MemL_expr.xreplace(hw.tech_params)
+
+
+        ## ========= END TESTING =========
+
         cacti_subs = {
             hw_symbols.MemReadL: (MemL_expr / 2),
             hw_symbols.MemWriteL: (MemL_expr / 2),
