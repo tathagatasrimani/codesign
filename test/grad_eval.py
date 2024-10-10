@@ -18,6 +18,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+from src.cacti import TRANSISTOR_SIZES, CACTI_DIR
 from src import CACTI_DIR
 from src import cacti_util
 from src import hw_symbols

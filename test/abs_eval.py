@@ -233,30 +233,103 @@ def gen_abs_results(sympy_file, cache_cfg, dat_file):
     return result, validate_access_time
 
 
+def eval_log_file(input_log, output_log, cache_cfg, dat_file):
+    print(f"top of eval_log_file; cache_cfg: {cache_cfg}, dat_file: {dat_file}")
+
+    dat_file = os.path.join(CACTI_DIR, "tech_params", dat_file)
+
+    g_ip.parse_cfg(os.path.join(CACTI_DIR, cache_cfg))
+    g_ip.error_checking()
+
+    # Get tech_param values
+    tech_params = {}
+    dat.scan_dat(tech_params, dat_file, g_ip.data_arr_ram_cell_tech_type, g_ip.data_arr_ram_cell_tech_type, g_ip.temp)
+    tech_params = {k: (10**(-9) if v == 0 else v) for k, v in tech_params.items() if v is not None and not math.isnan(v)}
+
+    # Get IO tech_param values
+    IO_tech_params = {}
+    IO.scan_IO(IO_tech_params, g_ip, g_ip.io_type, g_ip.num_mem_dq, g_ip.mem_data_width, g_ip.num_dq, g_ip.dram_dimm, 1, g_ip.bus_freq)
+    IO_tech_params = {k: (10**(-9) if v == 0 else v) for k, v in IO_tech_params.items() if v is not None and not math.isnan(v)}
+
+    # Ensure the input file exists
+    if not os.path.isfile(input_log):
+        raise FileNotFoundError(f"{input_log} not found.")
+    
+    # Open the input and output files
+    with open(input_log, 'r') as infile, open(output_log, 'w') as outfile:
+        for line in infile:
+            # Check if line starts with NO_SYM
+            if line.startswith("NO_SYM"):
+                outfile.write(line)  # Simply write the line without substitution
+                continue  # Skip to the next line
+            
+            # Try to parse the expression after the colon and keep the prefix
+            try:
+                # Split the line by colon and get the part after the colon (expression) and before the colon (prefix)
+                if ':' in line:
+                    prefix, expression_str = line.split(':', 1)
+                    expression_str = expression_str.strip()  # Remove any leading/trailing spaces
+                    prefix = prefix.strip()  # Clean up the prefix
+                else:
+                    raise ValueError(f"No colon found in line: {line.strip()}")
+                
+                # Convert the expression string to a SymPy expression
+                expression = sp.sympify(expression_str)
+                
+                # Substitute tech_params into the expression
+                result = expression.subs(tech_params)
+                
+                # Further substitute IO_tech_params if necessary
+                result = result.subs(IO_tech_params)
+                
+                # Evaluate the expression
+                evaluated_result = result.evalf()
+                
+                # Write the prefix and the evaluated result to the output file
+                outfile.write(f"{prefix}: {evaluated_result}\n")
+            except Exception as e:
+                # In case of error, write an error message and skip the line
+                outfile.write(f"Error evaluating line: {line.strip()}\nReason: {str(e)}\n")
+    
+    print(f"Evaluation completed. Results written to {output_log}")
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Specify config (--config), set SymPy name (--sympy) and optionally generate SymPy (-gen)")
-    parser.add_argument("-c", "--config", type=str, default="base_cache", help="Path or Name to the configuration file; don't append src/cacti/ or .cfg")
-    parser.add_argument("-d", "--dat", type=str,  help="Specify technology nm -> e.g. '90nm'; if not provdied, do 45, 90, and 180")
-    parser.add_argument("-s", "--sympy", type=str, help="Optionally path to the SymPy file if not named the same as cfg")
-    parser.add_argument("-g", "--gen", action="store_true", help="Boolean flag to generate Sympy from Cache CFG")
+    T_SZ = [0.090] #, 0.180]
+    cfg_file = f"cfg/debug_cache.cfg"
+    dat_files = [f"{int(tech*1e3)}nm.dat" for tech in T_SZ]
+    input_log_file = 'src/cacti/cacti_debug.log'
+    output_log_file = 'src/cacti/cacti_debug_eval.log'
 
-    args = parser.parse_args()
+    # cache_cfg = f"src/cacti/cfg/debug_cache.cfg"
+    # cacti_util.run_existing_cacti_cfg(cache_cfg)
 
-    # all paths here are relative to CACTI_DIR
+    eval_log_file(input_log_file, output_log_file, cfg_file, dat_files[0])
 
-    cfg_file = f"cfg/{args.config}.cfg"
-    sympy_file = args.config
-    if args.sympy:
-        sympy_file = args.sympy
+    # parser = argparse.ArgumentParser(description="Specify config (--config), set SymPy name (--sympy) and optionally generate SymPy (-gen)")
+    # parser.add_argument("-c", "--config", type=str, default="base_cache", help="Path or Name to the configuration file; don't append src/cacti/ or .cfg")
+    # parser.add_argument("-d", "--dat", type=str,  help="Specify technology nm -> e.g. '90nm'; if not provdied, do 45, 90, and 180")
+    # parser.add_argument("-s", "--sympy", type=str, help="Optionally path to the SymPy file if not named the same as cfg")
+    # parser.add_argument("-g", "--gen", action="store_true", help="Boolean flag to generate Sympy from Cache CFG")
 
-    if args.dat:
-        dat_files = [f"{args.dat}.dat"]
-    else:
-        dat_files = [f"{int(tech*1e3)}nm.dat" for tech in TRANSISTOR_SIZES]
+    # args = parser.parse_args()
 
-    print(f"dat files: {dat_files}")
+    # # all paths here are relative to CACTI_DIR
 
-    for dat_file in dat_files:
-        print(f"Running for {dat_file}\n")
-        dat_file = os.path.join("tech_params", dat_file)
-        gen_abs_results(sympy_file, cfg_file, dat_file)
+    # cfg_file = f"cfg/{args.config}.cfg"
+    # sympy_file = args.config
+    # if args.sympy:
+    #     sympy_file = args.sympy
+
+    # if args.dat:
+    #     dat_files = [f"{args.dat}.dat"]
+    # else:
+    #     # dat_files = [f"{int(tech*1e3)}nm.dat" for tech in TRANSISTOR_SIZES]
+    #     T_SZ = [0.090] #, 0.180]
+    #     dat_files = [f"{int(tech*1e3)}nm.dat" for tech in T_SZ]
+
+    # print(f"dat files: {dat_files}")
+
+    # for dat_file in dat_files:
+    #     print(f"Running for {dat_file}\n")
+    #     dat_file = os.path.join("tech_params", dat_file)
+    #     gen_abs_results(sympy_file, cfg_file, dat_file)

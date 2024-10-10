@@ -468,7 +468,12 @@ def run_existing_cacti_cfg(filename):
     stdout_filename = "cacti_stdout.log"
     stdout_file_path = os.path.join(CACTI_DIR, stdout_filename)
 
+    filename = filename.replace("src/cacti/", "")
+    print(f"THIS IS THE FILENAME {filename}")
+
     cmd = ["./cacti", "-infile", filename]
+    print(f"THIS IS THE cmd {cmd}")
+   
 
     with open(stdout_file_path, "w") as f:
         p = subprocess.Popen(cmd, cwd=CACTI_DIR, stdout=f, stderr=subprocess.PIPE)
@@ -1388,11 +1393,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--cfg_name",
         type=str,
-        default="cache",
+        default="debug_cache",
         help="Path to the configuration file (default: mem_validate_cache)",
     )
     parser.add_argument(
         "--adjust",
+        default=False,
         action="store_true",
         help="Boolean flag to detail adjust cfg through arguments",
     )
@@ -1414,7 +1420,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--cacheType",
         type=str,
-        default="main memory",
+        default="cache",
         help="Path to the data file (default: main memory)",
     )
     parser.add_argument(
@@ -1433,7 +1439,12 @@ if __name__ == "__main__":
             bus_width=args.busWidth,
         )
     else:
+        print(f"NO STORE TRUE {cache_cfg}")
+        import time
+        time.sleep(2)
+
         buf_vals = run_existing_cacti_cfg(cache_cfg)
+        cache_cfg = f"cfg/{args.cfg_name}.cfg"
 
     buf_opt = {
         "ndwl": buf_vals["Ndwl"],
@@ -1446,5 +1457,7 @@ if __name__ == "__main__":
         "repeater_size": buf_vals["Repeater size"],
     }
 
+    print(f"FOUND BUF {buf_vals}")
+    print(f"FOUND cache_cfg {cache_cfg}")
     sympy_file = args.cfg_name
     IO_info = gen_symbolic(sympy_file, cache_cfg, buf_opt, use_piecewise=False)
