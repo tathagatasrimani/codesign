@@ -178,7 +178,7 @@ class SymbolicSimulator(AbstractSimulator):
         counter = 0
 
         generations = list(
-            reversed(list(nx.topological_generations(nx.reverse(computation_dfg))))
+            nx.topological_generations(computation_dfg)
         )
         for gen in generations:  # main loop over the computation graph;
             if "end" in gen:  # skip the end node (only thing in the last generation)
@@ -211,7 +211,7 @@ class SymbolicSimulator(AbstractSimulator):
                 self.total_active_energy += energy * scaling  # nJ
 
         # TODO: NOW THIS MIGHT GET TOO EXPENSIVE. MAYBE NEED TO DO STA.
-        logger.info("Starting Longest Path Calculation")
+        """logger.info("Starting Longest Path Calculation")
         for start_node in generations[0]:
             for end_node in generations[-1]:
                 if start_node == end_node:
@@ -233,8 +233,31 @@ class SymbolicSimulator(AbstractSimulator):
                             logger.info(f"latency scaling: {scaling}")
 
                         path_latency += hw_symbols.symbolic_latency_wc[func] * scaling
-                    self.execution_time = symbolic_convex_max(self.execution_time, path_latency)
-        logger.info(f"execution time: {str(self.execution_time)}")
+                    self.execution_time = symbolic_convex_max(self.execution_time, path_latency)"""
+
+
+        # STA
+        logger.info("starting STA latency calculation")
+        for generation in generations:
+            gen_latency = 0
+            funcs_added = set()
+            for node in generation:
+                scaling = 1
+                node_data = computation_dfg.nodes[node]
+                if node_data["function"] == "end":
+                    continue
+                elif node_data["function"] == "stall":
+                            func = node.split("_")[3]  # stall names have std formats
+                else:
+                    func = node_data["function"]
+                if func in ["Buf", "MainMem"]:
+                    scaling = node_data["size"]
+                    logger.info(f"latency scaling: {scaling}")
+                if func*scaling not in funcs_added:
+                    gen_latency = symbolic_convex_max(gen_latency, hw_symbols.symbolic_latency_wc[func]*scaling)
+                    funcs_added.add(func*scaling)
+            self.execution_time += gen_latency
+        #logger.info(f"execution time: {str(self.execution_time)}")
 
     def calculate_edp(self, hw):
 
@@ -290,10 +313,10 @@ class SymbolicSimulator(AbstractSimulator):
             hw, self.execution_time
         )
 
-        print(f"total passive energy: {self.total_passive_energy}", flush=True)
+        #print(f"total passive energy: {self.total_passive_energy}", flush=True)
         self.edp = self.execution_time * (self.total_active_energy + self.total_passive_energy)
 
-        self.execution_time = self.execution_time.xreplace(cacti_subs)
+        """self.execution_time = self.execution_time.xreplace(cacti_subs)
         self.total_active_energy = self.total_active_energy.xreplace(cacti_subs)
         self.total_passive_energy = self.total_passive_energy.xreplace(cacti_subs)
         self.edp = self.execution_time * (self.total_active_energy + self.total_passive_energy)
@@ -306,7 +329,7 @@ class SymbolicSimulator(AbstractSimulator):
         assert hw_symbols.BufReadEact not in self.edp.free_symbols, "Buf read energy not fully substituted"
         assert hw_symbols.BufWriteEact not in self.edp.free_symbols, "Buf write energy not fully substituted"
         assert hw_symbols.BufPpass not in self.edp.free_symbols, "Buf passive power not fully substituted"
-
+        """
         self.cacti_exprs = {
             "MemL_expr": MemL_expr,
             "MemReadEact_expr": MemReadEact_expr,
@@ -324,6 +347,7 @@ class SymbolicSimulator(AbstractSimulator):
             f.write(txt)
 
         # self.edp = self.edp.subs(subs)
+        return cacti_subs
 
     def save_edp_to_file(self):
         st = str(self.edp)

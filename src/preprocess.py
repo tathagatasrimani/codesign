@@ -1,6 +1,7 @@
 import logging
 logger = logging.getLogger(__name__)
 
+import copy
 import sympy as sp
 import pyomo.environ as pyo
 import pyomo.core.expr.sympy_tools as sympy_tools
@@ -29,6 +30,8 @@ class Preprocessor:
         self.log_exprs_s = set()
         self.pow_exprs_to_constrain = []
         self.log_exprs_to_constrain = []
+        self.cacti_subs_pyo = {}
+        self.cacti_sub_vars = set()
 
     def f(self, model):
         return model.x[self.mapping[hw_symbols.f]] >= 1e6
@@ -72,12 +75,22 @@ class Preprocessor:
         
         def make_log_constraint(model, i):
             return self.log_exprs_to_constrain[i] >= 0.0001
+        
+        def make_cacti_constraint(model, i):
+            cacti_var_sp = list(self.cacti_subs_pyo.keys())[i]
+            cacti_var = model.x[self.mapping[cacti_var_sp]]
+            print(f"cacti var: {cacti_var}")
+            print(f"cacti sub: {self.cacti_subs_pyo[cacti_var_sp]}")
+            print(f"constraint: {cacti_var == self.cacti_subs_pyo[cacti_var_sp]}")
+            return cacti_var == self.cacti_subs_pyo[cacti_var_sp]
 
         model.PowConstraint = pyo.Constraint([i for i in range(len(self.pow_exprs_to_constrain))], rule=make_pow_constraint)
 
         model.LogConstraint = pyo.Constraint([i for i in range(len(self.log_exprs_to_constrain))], rule=make_log_constraint)
 
-        #model.V_dd_lower = pyo.Constraint(rule=self.V_dd_lower)
+        model.CactiConstraint = pyo.Constraint([i for i in range(len(self.cacti_subs_pyo))], rule=make_cacti_constraint)
+
+        model.V_dd_lower = pyo.Constraint(rule=self.V_dd_lower)
         # model.V_dd_upper = pyo.Constraint(rule=self.V_dd_upper)
         # model.V_dd = pyo.Constraint(expr = model.x[self.mapping[hw_symbols.V_dd]] == self.initial_params["V_dd"])
 
@@ -137,11 +150,21 @@ class Preprocessor:
         model.scaling_factor[model.obj] = self.obj_scale
         print(f"mapping: {self.mapping}")
         for s in self.free_symbols:
-            if s.name in self.initial_params and self.initial_params[s.name] != 0:
+            if s.name in self.initial_params and self.initial_params[s.name] != 0 and s not in self.cacti_sub_vars:
                 print(f"symbol name: {s.name}")
                 model.scaling_factor[model.x[self.mapping[s]]] = (
                     1 / self.initial_params[s.name]
                 )
+            elif s in self.cacti_sub_vars:
+                print(f"cacti symbol name: {s.name}")
+                new_cacti_subs = copy.copy(self.expr_symbols)
+                for param in new_cacti_subs:
+                    new_cacti_subs[param] = 1
+                scaled_value = s.subs(new_cacti_subs)
+                print(f"scaled value: {scaled_value}")
+                model.scaling_factor[model.x[self.mapping[s]]] = scaled_value / self.initial_params[s.name]
+                
+                
 
     def symbols_in_Buf_Mem_L(self, buf_l_file, mem_l_file):
         memL_expr = sp.sympify(
@@ -153,7 +176,7 @@ class Preprocessor:
         free_symbols = memL_expr.free_symbols.union(bufL_expr.free_symbols)
         return free_symbols
 
-    def begin(self, model, edp, initial_params, improvement, multistart, regularization):
+    def begin(self, model, edp, initial_params, improvement, cacti_subs, multistart, regularization):
         self.multistart = multistart
         self.expr_symbols = {}
         self.free_symbols = []
@@ -169,13 +192,37 @@ class Preprocessor:
         mem_buf_l_init_params = {sym: initial_params[sym.name] for sym in symbols_to_remove}
         # edp = edp.xreplace(mem_buf_l_init_params)
 
+        # keep track of which cacti related variables are used in the edp expression
+        cacti_free_symbols = set()
+
+        # keep track of all the variables which will need to be substituted out of the original edp equation
+        self.cacti_sub_vars = set(cacti_subs.keys())
+        print(f"cacti sub vars: {self.cacti_sub_vars}")
+
+        print(f"length of free symbols: {len(edp.free_symbols)}")
+
         for s in edp.free_symbols:
             self.free_symbols.append(s)
-            if s.name in initial_params:  # change this to just s
+            print(f"symbol name is {s.name}")
+            if s in self.cacti_sub_vars:
+                cacti_exp = cacti_subs[s]
+                for sub_symbol in cacti_exp.free_symbols:
+                    # track each cacti variable in the expression that will be substituted
+                    cacti_free_symbols.add(sub_symbol)
+                    self.expr_symbols[sub_symbol] = initial_params[sub_symbol.name]
+                self.expr_symbols[s] = cacti_subs[s].xreplace(self.expr_symbols).evalf()
+                initial_params[s.name] = self.expr_symbols[s]
+                print(f"symbol {s.name} has initial value {self.expr_symbols[s]}")
+            elif s.name in initial_params:  # change this to just s
                 self.expr_symbols[s] = initial_params[s.name]
+
+        for free_symbol in cacti_free_symbols:
+            self.free_symbols.append(free_symbol)
+
+
         self.initial_val = float(edp.xreplace(self.expr_symbols))
 
-        model.nVars = pyo.Param(initialize=len(edp.free_symbols))
+        model.nVars = pyo.Param(initialize=len(edp.free_symbols)+len(cacti_free_symbols))
         model.N = pyo.RangeSet(model.nVars)
         model.x = pyo.Var(model.N, domain=pyo.NonNegativeReals)
         self.mapping = {}
@@ -188,14 +235,23 @@ class Preprocessor:
 
         print(f"building bimap")
         m = MyPyomoSympyBimap()
-        for symbol in edp.free_symbols:
+        for symbol in self.expr_symbols.keys():
             # create self.mapping of sympy symbols to pyomo symbols
             m.sympy2pyomo[symbol] = model.x[self.mapping[symbol]]
             # give pyomo symbols an inital value for warm start
             model.x[self.mapping[symbol]] = self.expr_symbols[symbol]
             print(f"symbol: {symbol}; initial value: {self.expr_symbols[symbol]}")
 
-        # find all pow expressions within edp equation, convert to pyomo
+        # convert cacti subs expressions to pyomo
+        for cacti_var in cacti_subs.keys():
+            if cacti_var in self.mapping:
+                # find pow/log expressions within cacti expressions
+                self.find_exprs_to_constrain(cacti_subs[cacti_var])
+                self.cacti_subs_pyo[cacti_var] = sympy_tools.sympy2pyomo_expression(cacti_subs[cacti_var], m)
+
+        print(f"done with cacti subs pyomo transformation: length of dict is {len(self.cacti_subs_pyo)}")
+
+        # find all pow/log expressions within edp equation, convert to pyomo
         self.find_exprs_to_constrain(edp)
         for pow_expr in self.pow_exprs_s:
             self.pow_exprs_to_constrain.append(sympy_tools.sympy2pyomo_expression(pow_expr, m))
@@ -217,6 +273,8 @@ class Preprocessor:
         model.scaling_factor = pyo.Suffix(direction=pyo.Suffix.EXPORT)
         self.create_scaling(model)
         self.add_constraints(model)
+
+        model.display()
 
         scaled_model = pyo.TransformationFactory("core.scale_model").create_using(model)
         scaled_preproc_model = pyo.TransformationFactory(

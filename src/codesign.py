@@ -205,10 +205,12 @@ class Codesign:
         hardwareModel.un_allocate_all_in_use_elements(self.hw.netlist)
 
         self.symbolic_sim.simulate(self.scheduled_dfg, self.hw)
-        self.symbolic_sim.calculate_edp(self.hw)
-        self.symbolic_sim.save_edp_to_file()
+        cacti_subs = self.symbolic_sim.calculate_edp(self.hw)
+        print("got cacti sub expressions")
+        #self.symbolic_sim.save_edp_to_file()
+        print("edp saved to file")
 
-        self.inverse_edp = self.symbolic_sim.edp.xreplace(self.tech_params).evalf()
+        """self.inverse_edp = self.symbolic_sim.edp.xreplace(self.tech_params).evalf()
         inverse_exec_time = self.symbolic_sim.execution_time.xreplace(self.tech_params).evalf()
         active_energy = self.symbolic_sim.total_active_energy.xreplace(self.tech_params).evalf()
         passive_energy = self.symbolic_sim.total_passive_energy.xreplace(self.tech_params).evalf()
@@ -220,18 +222,18 @@ class Codesign:
         )
         print(
             f"edp: {self.inverse_edp}, should equal cycles * (active + passive): {inverse_exec_time * (active_energy + passive_energy)}"
-        )
+        )"""
 
         if self.opt_cfg == "ipopt":
             stdout = sys.stdout
             with open("src/tmp/ipopt_out.txt", "w") as sys.stdout:
-                optimize.optimize(self.tech_params, self.symbolic_sim.edp, self.opt_cfg)
+                optimize.optimize(self.tech_params, self.symbolic_sim.edp, self.opt_cfg, cacti_subs)
             sys.stdout = stdout
             f = open("src/tmp/ipopt_out.txt", "r")
             self.parse_output(f)
         else:
             self.tech_params = optimize.optimize(
-                self.tech_params, self.symbolic_sim.edp, self.opt_cfg
+                self.tech_params, self.symbolic_sim.edp, self.opt_cfg, cacti_subs
             )
         self.write_back_rcs()
 
