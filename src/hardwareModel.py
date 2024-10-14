@@ -7,12 +7,14 @@ import yaml
 import os
 import shutil
 import logging
+
 logger = logging.getLogger(__name__)
 
 import graphviz as gv
 import sympy as sp
 from sympy import *
 import networkx as nx
+import shutil
 from staticfg.builder import CFGBuilder
 
 from .ast_utils import ASTUtils
@@ -23,6 +25,8 @@ from . import cacti_util
 from . import sim_util
 from . import hw_symbols
 from .global_constants import SYSTEM_BUS_SIZE
+from openroad_interface.var import directory
+from openroad_interface import place_n_route
 
 
 HW_CONFIG_FILE = "src/params/hw_cfgs.ini"
@@ -109,7 +113,7 @@ class HardwareModel:
         else:
             config = cp.ConfigParser()
             config.read(HW_CONFIG_FILE)
-            path_to_graphml = f"src/architectures/{cfg}.gml"
+            self.path_to_graphml = f"src/architectures/{cfg}.gml"
             try:
                 self.set_hw_config_vars(
                     config.getint(cfg, "id"),
@@ -141,11 +145,13 @@ class HardwareModel:
             self.cacti_transistor_size = self.transistor_size
         self.hw_allocated = {}
 
-        if path_to_graphml is not None and os.path.exists(path_to_graphml):
-            self.netlist = nx.read_gml(path_to_graphml)
+        if self.path_to_graphml is not None and os.path.exists(self.path_to_graphml):
+            self.netlist = nx.read_gml(self.path_to_graphml)
             self.update_netlist()
         else:
             self.netlist = nx.Graph()
+
+        self.parasitic_graph = None  # can be removed if better organization for this
 
         self.init_misc_vars()
         self.set_technology_parameters()
@@ -237,7 +243,6 @@ class HardwareModel:
         tech_params = yaml.load(
             open("src/params/tech_params.yaml", "r"), Loader=yaml.Loader
         )
-
         self.area = tech_params["area"][self.transistor_size]
         self.latency = tech_params["latency"][self.transistor_size]
 
@@ -245,11 +250,16 @@ class HardwareModel:
         self.leakage_power = tech_params["leakage_power"][self.transistor_size]
         self.dynamic_energy = tech_params["dynamic_energy"][self.transistor_size]
 
-        self.cacti_tech_node = min(cacti_util.valid_tech_nodes, key=lambda x: abs(x - self.cacti_transistor_size*1e-3))
+        self.cacti_tech_node = min(
+            cacti_util.valid_tech_nodes,
+            key=lambda x: abs(x - self.transistor_size * 1e-3),
+        )
         # DEBUG
         print(f"cacti tech node: {self.cacti_tech_node}, specified cacti transistor size: {self.cacti_transistor_size}")
 
-        self.cacti_dat_file = f"src/cacti/tech_params/{int(self.cacti_tech_node*1e3):2d}nm.dat"
+        self.cacti_dat_file = (
+            f"src/cacti/tech_params/{int(self.cacti_tech_node*1e3):2d}nm.dat"
+        )
         print(f"self.cacti_dat_file: {self.cacti_dat_file}")
 
     def set_var_sizes(self, var_sizes):
@@ -314,7 +324,7 @@ class HardwareModel:
         opt_params = sim_util.generate_init_params_from_rcs_as_symbols(rcs)
 
         # update dat file with new parameters and re-run cacti
-        cacti_util.update_dat(rcs, self.cacti_dat_file) 
+        cacti_util.update_dat(rcs, self.cacti_dat_file)
         self.gen_cacti_results()
 
         beta = yaml.load(open(coeff_file, "r"), Loader=yaml.Loader)["beta"]
@@ -371,6 +381,40 @@ class HardwareModel:
         self.R_off_on_ratio = rcs["other"]["Roff_on_ratio"]
         return rcs
 
+    def update_cache_size(self, cache_size):
+        pass
+
+    def init_misc_vars(self):
+        self.compute_operation_totals = {}
+
+        self.memory_cfgs = {}
+        self.mem_state = {}
+        for variable in self.memory_cfgs.keys():
+            self.mem_state[variable] = False
+        self.cycles = 0
+
+        # what is this doing?
+        for op in op2sym_map:
+            self.compute_operation_totals[op] = 0
+
+        self.hw_allocated = {}
+        self.hw_allocated["Regs"] = 0
+
+        for key in op2sym_map.keys():
+            self.hw_allocated[key] = 0
+
+    def set_var_sizes(self, var_sizes):
+        self.var_sizes = var_sizes
+
+    def print_stats(self):
+        s = """
+	    cycles={cycles}
+	    allocated={allocated}
+	    utilized={utilized}
+	    """.format(
+            cycles=self.cycles, allocated=str(self.hw_allocated)
+        )
+
     def get_total_area(self):
         """
         Calculate on chip and off chip area.
@@ -414,8 +458,8 @@ class HardwareModel:
         self.mem_size = 131072
         buf_vals = cacti_util.gen_vals(
             "base_cache",
-            cacheSize=self.buffer_size, 
-            blockSize=64,
+            cache_size=self.buffer_size,
+            block_size=64,
             cache_type="cache",
             bus_width=self.buffer_bus_width,
         )
@@ -434,8 +478,8 @@ class HardwareModel:
 
         mem_vals = cacti_util.gen_vals(
             "mem_cache",
-            cacheSize=self.mem_size,
-            blockSize=64,
+            cache_size=self.mem_size,
+            block_size=64,
             cache_type="main memory",
             bus_width=self.memory_bus_width,
         )
@@ -450,26 +494,34 @@ class HardwareModel:
             "repeater_spacing": mem_vals["Repeater spacing"],
             "repeater_size": mem_vals["Repeater size"],
         }
-        logger.info(f"Memory cacti with: {self.mem_size} bytes, {self.memory_bus_width} bus width")
+        logger.info(
+            f"Memory cacti with: {self.mem_size} bytes, {self.memory_bus_width} bus width"
+        )
 
-        self.area["Buf"] = float(buf_vals["Area (mm2)"]) * 1e12 # convert to nm^2
-        self.area["MainMem"] = float(mem_vals["Area (mm2)"]) * 1e12 # convert to nm^2
+        self.area["Buf"] = float(buf_vals["Area (mm2)"]) * 1e12  # convert to nm^2
+        self.area["MainMem"] = float(mem_vals["Area (mm2)"]) * 1e12  # convert to nm^2
         self.area["OffChipIO"] = (
-            float(mem_vals["IO area"]) * 1e12 if mem_vals["IO area"] not in ["N/A", "inf", "-inf", "nan", "-nan"] else 0.0 # convert to nm^2
+            float(mem_vals["IO area"]) * 1e12
+            if mem_vals["IO area"] not in ["N/A", "inf", "-inf", "nan", "-nan"]
+            else 0.0  # convert to nm^2
         )
         logger.info(f"Buf area from cacti: {self.area['Buf']} nm^2")
         logger.info(f"Mem area from cacti: {self.area['MainMem']} nm^2")
         logger.info(f"OffChipIO area from cacti: {self.area['OffChipIO']} nm^2")
 
-        self.buf_peripheral_area_proportion = (100-float(
-            buf_vals["Data arrary area efficiency %"]
-        )) / 100
-        self.mem_peripheral_area_proportion = (100-float(
-            mem_vals["Data arrary area efficiency %"]
-        )) / 100
+        self.buf_peripheral_area_proportion = (
+            100 - float(buf_vals["Data arrary area efficiency %"])
+        ) / 100
+        self.mem_peripheral_area_proportion = (
+            100 - float(mem_vals["Data arrary area efficiency %"])
+        ) / 100
 
-        logger.info(f"Buf peripheral area proportion from cacti: {self.buf_peripheral_area_proportion}")
-        logger.info(f"Mem peripheral area proportion from cacti: {self.mem_peripheral_area_proportion}")
+        logger.info(
+            f"Buf peripheral area proportion from cacti: {self.buf_peripheral_area_proportion}"
+        )
+        logger.info(
+            f"Mem peripheral area proportion from cacti: {self.mem_peripheral_area_proportion}"
+        )
 
         self.latency["Buf"] = float(buf_vals["Access time (ns)"])
         self.latency["MainMem"] = float(mem_vals["Access time (ns)"])
@@ -502,7 +554,7 @@ class HardwareModel:
         )
         # This comes in mW
         self.dynamic_power["OffChipIO"] = (
-            float(mem_vals["IO power dynamic"]) * 1e6 # convert to nW
+            float(mem_vals["IO power dynamic"]) * 1e6  # convert to nW
             if mem_vals["IO power dynamic"] != "N/A"
             else 0.0
         )
@@ -515,3 +567,12 @@ class HardwareModel:
         cacti_util.gen_symbolic("Mem", mem_cache_cfg, mem_opt, use_piecewise=False)
 
         return
+
+    def get_wire_parasitics(self, arg_testfile, arg_parasitics):
+        design_name = self.path_to_graphml.split("/")[
+            len(self.path_to_graphml.split("/")) - 1
+        ]
+        _, graph = place_n_route.place_n_route(
+            design_name, arg_testfile, arg_parasitics
+        )
+        self.parasitic_graph = graph

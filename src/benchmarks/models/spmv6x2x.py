@@ -1,5 +1,4 @@
 import numpy as np
-from loop import loop
 #CSR format
 A = np.random.randint(0, 512, size=(400,400))
 B = np.random.randint(512, high=None, size=(400, 400))
@@ -40,5 +39,4 @@ def csr(matrix1, matrix2):
 
 if __name__ == "__main__":
     for i in range(12):
-        loop().pattern_seek(6)
         Result = csr(A,B)

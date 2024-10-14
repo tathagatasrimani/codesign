@@ -21,7 +21,7 @@ from . import hardwareModel
 
 
 class Codesign:
-    def __init__(self, benchmark, area, config, arch_search_iters, save_dir, opt):
+    def __init__(self, benchmark, area, config, arch_search_iters, save_dir, opt, openroad_testfile, parasitics):
         self.save_dir = os.path.join(
             save_dir, datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         )
@@ -53,6 +53,8 @@ class Codesign:
         self.tech_params = None
         self.initial_tech_params = None
         self.full_tech_params = {}
+        self.openroad_testfile = openroad_testfile
+        self.parasitics = parasitics
 
         logger.info(
             f"Setting up architecture search; benchmark: {benchmark}, config: {config}"
@@ -85,6 +87,7 @@ class Codesign:
         self.set_technology_parameters(initial_tech_params)
 
         logger.info(f"Running initial forward pass")
+        self.hw.get_wire_parasitics(self.openroad_testfile, self.parasitics)
         self.sim.simulate(self.scheduled_dfg, self.hw)
         self.sim.calculate_edp()
         self.forward_edp = self.sim.edp
@@ -118,6 +121,7 @@ class Codesign:
         sim_util.update_schedule_with_latency(self.computation_dfg, self.hw.latency)
         sim_util.update_schedule_with_latency(self.scheduled_dfg, self.hw.latency)
 
+        self.hw.get_wire_parasitics(self.openroad_testfile, self.parasitics)
         self.sim.simulate(self.scheduled_dfg, self.hw)
         self.sim.calculate_edp()
         edp = self.sim.edp
@@ -325,13 +329,14 @@ def main():
         args.num_arch_search_iters,
         args.savedir,
         args.opt,
+        args.openroad_testfile,
+        args.parasitics
     )
     try:
         codesign_module.execute(args.num_iters)
     except Exception as e:
         codesign_module.cleanup()
         raise e
-
 
 
 if __name__ == "__main__":
@@ -356,6 +361,20 @@ if __name__ == "__main__":
         type=str,
         default="logs",
         help="Path to the save new architecture file",
+    )
+    parser.add_argument(
+        "--parasitics",
+        type=str,
+        choices=["detailed", "estimation", "none"],
+        default="detailed",
+        help="determines what type of parasitic calculations are done for wires",
+    )
+
+    parser.add_argument(
+        "--openroad_testfile",
+        type=str,
+        default="openroad_interface/tcl/test_nangate45_bigger.tcl",
+        help="what tcl file will be executed for openroad",
     )
     parser.add_argument("-o", "--opt", type=str, default="ipopt")
     parser.add_argument(

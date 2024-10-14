@@ -28,6 +28,6 @@ if [ $GEN ]; then
 fi
 
 
-# Run the Python script with the defined variables
-python -m src.cacti_validation.grad_eval $ARGS
-python -m src.cacti_validation.plot_grad $PLOT_ARGS
+# Run the Python script with the provided arguments
+python -m test.grad_eval $ARGS
+python -m test.plot_grad $PLOT_ARGS

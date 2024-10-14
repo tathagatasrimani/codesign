@@ -17,8 +17,8 @@ src/params/coefficients.yaml
 
 src/tmp/**
 
-src/cacti_validation/results/**
-src/cacti_validation/figs/**
+**/results/**
+**/figs/**
 
 data/**
 .vscode/**
