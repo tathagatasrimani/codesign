@@ -64,7 +64,11 @@ def parasitic_estimation(graph: nx.DiGraph, component_nets: dict, net_out_dict: 
     estimated_res_data = []
     estimated_res = {}
     for key in component_nets:
-        node_key = list(net_out_dict.keys())[list(net_out_dict.values()).index(key)]
+        node_key = None
+        for k, v in net_out_dict.items():
+            if key in v:
+                node_key = k
+                break
         length, edge_list = total_euclidean_distance(component_nets[key], graph, units, node_to_num)
         estimated_length_data.append(length)
         estimated_length[node_key] =length
