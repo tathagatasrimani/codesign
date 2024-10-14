@@ -316,6 +316,7 @@ class SymbolicSimulator(AbstractSimulator):
         #print(f"total passive energy: {self.total_passive_energy}", flush=True)
         self.edp = self.execution_time * (self.total_active_energy + self.total_passive_energy)
 
+        # for now, do not substitute cacti expressions. will take too long
         """self.execution_time = self.execution_time.xreplace(cacti_subs)
         self.total_active_energy = self.total_active_energy.xreplace(cacti_subs)
         self.total_passive_energy = self.total_passive_energy.xreplace(cacti_subs)

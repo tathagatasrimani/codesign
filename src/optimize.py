@@ -27,13 +27,13 @@ def ipopt(tech_params, edp, improvement, regularization, cacti_subs):
         initial_params[key.name] = tech_params[key]
 
     model = pyo.ConcreteModel()
-    opt, scaled_preproc_model, preproc_model, free_symbols, mapping = (
+    opt, scaled_model, model, free_symbols, mapping = (
         Preprocessor().begin(model, edp, initial_params, improvement, cacti_subs, multistart=multistart, regularization=regularization)
     )
 
     if multistart:
         results = opt.solve(
-            scaled_preproc_model,
+            scaled_model,
             solver_args={
                 "keepfiles": True,
                 "tee": True,
@@ -42,15 +42,15 @@ def ipopt(tech_params, edp, improvement, regularization, cacti_subs):
         )
     else:
         results = opt.solve(
-            scaled_preproc_model, keepfiles=True, tee=True, symbolic_solver_labels=True
+            scaled_model, keepfiles=True, tee=True, symbolic_solver_labels=True
         )
     pyo.TransformationFactory("core.scale_model").propagate_solution(
-        scaled_preproc_model, preproc_model
+        scaled_model, model
     )
 
     print(results.solver.termination_condition)
     print("======================")
-    preproc_model.display()
+    model.display()
 
 
 def get_grad(grad_var_starting_val, args_arr, jmod):
