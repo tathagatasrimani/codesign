@@ -210,9 +210,9 @@ class Codesign:
 
         self.symbolic_sim.simulate(self.scheduled_dfg, self.hw)
         cacti_subs = self.symbolic_sim.calculate_edp(self.hw)
-        print("got cacti sub expressions")
+        #print("got cacti sub expressions")
         self.symbolic_sim.save_edp_to_file()
-        print("edp saved to file")
+        #print("edp saved to file")
 
         for cacti_var in cacti_subs:
             self.tech_params[cacti_var] = cacti_subs[cacti_var].xreplace(self.tech_params).evalf()
@@ -227,9 +227,9 @@ class Codesign:
         print(
             f"Initial EDP: {self.inverse_edp} E-18 Js. Active Energy: {active_energy} nJ. Passive Energy: {passive_energy} nJ. Execution time: {inverse_exec_time} ns"
         )
-        print(
-            f"edp: {self.inverse_edp}, should equal cycles * (active + passive): {inverse_exec_time * (active_energy + passive_energy)}"
-        )
+        #print(
+        #    f"edp: {self.inverse_edp}, should equal cycles * (active + passive): {inverse_exec_time * (active_energy + passive_energy)}"
+        #)
 
         if self.opt_cfg == "ipopt":
             stdout = sys.stdout
