@@ -13,6 +13,7 @@ from src import cacti_util
 from src.cacti import CACTI_DIR, TRANSISTOR_SIZES
 
 from src.cacti.cacti_python import parameter
+from src.cacti.cacti_python.parameter import InputParameter
 from src.cacti.cacti_python.Ucache import *
 import src.cacti.cacti_python.get_dat as dat
 import src.cacti.cacti_python.get_IO as IO
@@ -65,7 +66,7 @@ def gen_abs_results(sympy_file, cache_cfg, dat_file):
 
     dat_file = os.path.join(CACTI_DIR, dat_file)
 
-    g_ip = parameter.g_ip
+    g_ip = InputParameter()
 
     g_ip.parse_cfg(os.path.join(CACTI_DIR, cache_cfg))
     g_ip.error_checking()

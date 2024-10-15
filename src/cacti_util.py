@@ -49,7 +49,7 @@ def gen_symbolic(name, cache_cfg, opt_vals, use_piecewise=False):
     # importlib.reload(cp)
     # importlib.reload(cacti_interface)
 
-    g_ip = parameter.g_ip
+    g_ip = parameter.InputParameter()
 
     g_ip.parse_cfg(os.path.join(CACTI_DIR, cache_cfg))
     g_ip.error_checking()
@@ -69,7 +69,7 @@ def gen_symbolic(name, cache_cfg, opt_vals, use_piecewise=False):
     g_ip.print_detail_debug = False
 
     # fin_res = cacti_interface.uca_org_t()
-    g_tp = parameter.g_tp
+    g_tp = parameter.TechnologyParameter()
     fin_res = Ucache.solve_single(g_ip, g_tp)
 
     # Create the directory path
