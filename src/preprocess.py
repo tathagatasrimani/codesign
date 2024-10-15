@@ -201,7 +201,7 @@ class Preprocessor:
                 new_cacti_subs = copy.copy(self.expr_symbols)
                 for param in new_cacti_subs:
                     new_cacti_subs[param] = 1
-                scaled_value = s.subs(new_cacti_subs)
+                scaled_value = float(s.subs(new_cacti_subs))
                 model.scaling_factor[model.x[self.mapping[s]]] = scaled_value / self.initial_params[s.name]
                 print(f"scaling factor: {model.scaling_factor[model.x[self.mapping[s]]]}")
                 
@@ -252,7 +252,7 @@ class Preprocessor:
                     # track each cacti variable in the expression that will be substituted
                     cacti_free_symbols.add(sub_symbol)
                     self.expr_symbols[sub_symbol] = initial_params[sub_symbol.name]
-                self.expr_symbols[s] = cacti_subs[s].xreplace(self.expr_symbols).evalf()
+                self.expr_symbols[s] = float(cacti_subs[s].xreplace(self.expr_symbols).evalf())
                 initial_params[s.name] = self.expr_symbols[s]
                 print(f"symbol {s.name} has initial value {self.expr_symbols[s]}")
             elif s.name in initial_params:  # change this to just s
@@ -342,12 +342,6 @@ class Preprocessor:
         self.create_scaling(model)
 
         scaled_model = pyo.TransformationFactory("core.scale_model").create_using(model)
-        scaled_model.scaled_x[self.mapping[hw_symbols.BufL]] = initial_params["BufL"]
-        # scaled model was setting cacti sub variables (BufL, MemReadL, etc.) to None for some reason. 
-        # For now, manually scale the variables and set their values within the scaled model.
-        for var in self.cacti_sub_vars:
-            if var in self.mapping:
-                scaled_model.scaled_x[self.mapping[var]] = initial_params[var.name] * model.scaling_factor[model.x[self.mapping[var]]]
         # this transformation was having issues for some reason...
         # should be ok without it for the time being
         """scaled_preproc_model = pyo.TransformationFactory(
