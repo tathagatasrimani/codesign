@@ -114,6 +114,7 @@ def run_initial():
         )
         scheduled_dfg = simulator.schedule(computation_dfg, hw)
         hardwareModel.un_allocate_all_in_use_elements(hw.netlist)
+        hw.get_wire_parasitics("", "none")
         simulator.simulate(scheduled_dfg, hw)
         simulator.calculate_edp()
         logger.warning(f"edp of simulation running on {tech_node} nm {args.test_type} tech node: {simulator.edp} E-18 Js")
@@ -135,7 +136,10 @@ def run_pairwise(tech_node_pair, improvement, hws, dfgs):
     hardwareModel.un_allocate_all_in_use_elements(hws[tech_node_pair[0]].netlist)
 
     symbolic_sim.simulate(dfgs[tech_node_pair[0]], hws[tech_node_pair[0]])
-    symbolic_sim.calculate_edp(hws[tech_node_pair[0]])
+    cacti_subs = symbolic_sim.calculate_edp(hws[tech_node_pair[0]])
+
+    for cacti_var in cacti_subs:
+        initial_tech_params[tech_node_pair[0]][cacti_var] = cacti_subs[cacti_var].xreplace(initial_tech_params[tech_node_pair[0]]).evalf()
 
     # we only want to optimize the variables specified by the test type, so keep the others constant by substituting concrete values
     if (args.test_type == "cacti"):
@@ -143,7 +147,9 @@ def run_pairwise(tech_node_pair, improvement, hws, dfgs):
         symbolic_sim.edp = symbolic_sim.edp.xreplace(logic_params)
         #logger.warning(f"symbolic edp after subbing out logic params: {symbolic_sim.edp}")
     elif (args.test_type == "logic"):
-        cacti_params = sim_util.generate_cacti_init_params_from_rcs_as_symbols(rcs_m[tech_node_pair[0]])
+        cacti_params = {}
+        for cacti_var in cacti_subs:
+            cacti_params[cacti_var] = initial_tech_params[tech_node_pair[0]][cacti_var]
         symbolic_sim.edp = symbolic_sim.edp.xreplace(cacti_params)
         #logger.warning(f"symbolic edp after subbing out cacti params: {symbolic_sim.edp}")
 
@@ -152,7 +158,7 @@ def run_pairwise(tech_node_pair, improvement, hws, dfgs):
 
     stdout = sys.stdout
     with open(f"{args.savedir}/ipopt_out_{tech_node_pair[0]}.txt", "w") as sys.stdout:
-        optimize.optimize(initial_tech_params[tech_node_pair[0]], symbolic_sim.edp, "ipopt", improvement, regularization=0.1)
+        optimize.optimize(initial_tech_params[tech_node_pair[0]], symbolic_sim.edp, "ipopt", cacti_subs, improvement, regularization=0.1)
     sys.stdout = stdout
     f = open(f"{args.savedir}/ipopt_out_{tech_node_pair[0]}.txt", "r")
     final_tech_params[tech_node_pair[0]] = parse_output(f)

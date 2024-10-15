@@ -36,12 +36,6 @@ class Preprocessor:
         self.pow_subs = {}
         self.cacti_subs_s = {}
 
-    def f(self, model):
-        return model.x[self.mapping[hw_symbols.f]] >= 1e6
-
-    def f_upper(self, model):
-        return model.x[self.mapping[hw_symbols.f]] <= 5e9
-
     def V_dd_lower(self, model):
         return model.x[self.mapping[hw_symbols.V_dd]] >= 0.5
     
@@ -109,10 +103,12 @@ class Preprocessor:
 
         model.CactiConstraint = pyo.Constraint([i for i in range(len(self.cacti_subs_pyo))], rule=self.make_cacti_constraint)
 
-        model.V_dd_lower = pyo.Constraint(rule=self.V_dd_lower)
-        model.V_dd_upper = pyo.Constraint(rule=self.V_dd_upper)
+        if hw_symbols.V_dd in self.mapping: 
+            model.V_dd_lower = pyo.Constraint(rule=self.V_dd_lower)
+            model.V_dd_upper = pyo.Constraint(rule=self.V_dd_upper)
         # cacti Vdd >= Vth constraint
-        model.Vdd_not_cutoff = pyo.Constraint(rule=self.Vdd_not_cutoff)
+        if hw_symbols.Vdd in self.mapping:
+            model.Vdd_not_cutoff = pyo.Constraint(rule=self.Vdd_not_cutoff)
 
         # all parameters can only be less than or equal to their initial values
         model.Constraint2 = pyo.Constraint([i for i in range(len(self.free_symbols))], rule=self.max_val_orig_val_rule)

@@ -127,6 +127,7 @@ class InverseWalkthrough:
         )
         self.scheduled_dfg = simulator.schedule(computation_dfg, self.hw)
         hardwareModel.un_allocate_all_in_use_elements(self.hw.netlist)
+        self.hw.get_wire_parasitics("", "none")
         simulator.simulate(self.scheduled_dfg, self.hw)
         simulator.calculate_edp()
         logger.warning(f"edp of forward pass: {simulator.edp} E-18 Js")
@@ -141,14 +142,14 @@ class InverseWalkthrough:
         hardwareModel.un_allocate_all_in_use_elements(self.hw.netlist)
 
         symbolic_sim.simulate(self.scheduled_dfg, self.hw)
-        symbolic_sim.calculate_edp(self.hw)
+        cacti_subs = symbolic_sim.calculate_edp(self.hw)
 
         current_tech_params = self.initial_tech_params.copy()
 
         for _ in range(num_iters):
             stdout = sys.stdout
             with open(f"{self.args.savedir}/ipopt_out.txt", "w") as sys.stdout:
-                optimize.optimize(current_tech_params, symbolic_sim.edp, "ipopt", regularization=0.1)
+                optimize.optimize(current_tech_params, symbolic_sim.edp, "ipopt", cacti_subs, regularization=0.1)
             sys.stdout = stdout
             f = open(f"{self.args.savedir}/ipopt_out.txt", "r")
             current_tech_params = self.parse_output(f)
