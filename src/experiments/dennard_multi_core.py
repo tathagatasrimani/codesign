@@ -30,8 +30,9 @@ class DennardMultiCore:
     def __init__(self, args):
         self.args = args
         self.logic_node = 7
-        self.cacti_node = 45
+        self.cacti_node = 22
         self.tech_params = {}
+        self.hw = None
 
 
     def write_back_rcs(self, rcs_path="src/params/rcs_current.yaml"):
@@ -84,39 +85,65 @@ class DennardMultiCore:
             tech_params_out[mapping[key]] = value 
             i += 1
         return tech_params_out
+    
+    def save_dat(self):
+        # Save tech node info to another file prefixed by prev_ so we can restore
+        org_dat_file = self.hw.cacti_dat_file
+        tech_nm = os.path.basename(org_dat_file)
+        tech_nm = os.path.splitext(tech_nm)[0]
+
+        prev_dat_file = f"src/cacti/tech_params/prev_{tech_nm}.dat"
+        with open(org_dat_file, "r") as src_file, open(prev_dat_file, "w") as dest_file:
+            for line in src_file:
+                dest_file.write(line)
+
+    def restore_dat(self):
+        dat_file = self.hw.cacti_dat_file
+        tech_nm = os.path.basename(dat_file)
+        tech_nm = os.path.splitext(tech_nm)[0]
+
+        prev_dat_file = f"src/cacti/tech_params/prev_{tech_nm}.dat"
+
+        with open(prev_dat_file, "r") as src_file, open(dat_file, "w") as dest_file:
+            for line in src_file:
+                dest_file.write(line)
+        os.remove(prev_dat_file)
 
     def run_experiment(self):
         # set up framework
-        logger.warning(
+        print(
             f"Setting up architecture search; benchmark: {self.args.benchmark}, config: {self.args.architecture_config}"
         )
         (
             simulator,
-            hw,
+            self.hw,
             computation_dfg,
         ) = architecture_search.setup_arch_search(self.args.benchmark, self.args.architecture_config, True, self.logic_node, self.cacti_node)
-        hw.init_memory(
+        self.hw.init_memory(
             sim_util.find_nearest_power_2(simulator.memory_needed),
             sim_util.find_nearest_power_2(simulator.nvm_memory_needed),
         )
-        scheduled_dfg = simulator.schedule(computation_dfg, hw)
-        hardwareModel.un_allocate_all_in_use_elements(hw.netlist)
-        hw.get_wire_parasitics("", "none")
-        simulator.simulate(scheduled_dfg, hw)
+        scheduled_dfg = simulator.schedule(computation_dfg, self.hw)
+        hardwareModel.un_allocate_all_in_use_elements(self.hw.netlist)
+        self.hw.get_wire_parasitics("", "none")
+        simulator.simulate(scheduled_dfg, self.hw)
         simulator.calculate_edp()
-        logger.warning(f"edp of simulation running on {self.logic_node} nm logic tech node, {self.cacti_node} cacti tech node: {simulator.edp} E-18 Js")
+        print(f"edp of simulation running on {self.logic_node} nm logic tech node, {self.cacti_node} cacti tech node: {simulator.edp} E-18 Js")
         
-        rcs = hw.get_optimization_params_from_tech_params()
+        rcs = self.hw.get_optimization_params_from_tech_params()
         self.tech_params = sim_util.generate_init_params_from_rcs_as_symbols(rcs)
+
+        # save previous dat file
+        self.save_dat()
 
         # run initial symbolic simulation to set up inverse passes
         symbolic_sim = symbolic_simulate.SymbolicSimulator()
-        symbolic_sim.simulator_prep(self.args.benchmark, hw.latency)
-        coefficients.create_and_save_coefficients([hw.transistor_size])
-        hardwareModel.un_allocate_all_in_use_elements(hw.netlist)
+        symbolic_sim.simulator_prep(self.args.benchmark, self.hw.latency)
+        coefficients.create_and_save_coefficients([self.hw.transistor_size])
+        hardwareModel.un_allocate_all_in_use_elements(self.hw.netlist)
 
-        symbolic_sim.simulate(scheduled_dfg, hw)
-        cacti_subs = symbolic_sim.calculate_edp(hw)
+        symbolic_sim.simulate(scheduled_dfg, self.hw)
+        cacti_subs = symbolic_sim.calculate_edp(self.hw)
 
         for cacti_var in cacti_subs:
             self.tech_params[cacti_var] = cacti_subs[cacti_var].xreplace(self.tech_params).evalf()
@@ -128,7 +155,7 @@ class DennardMultiCore:
 
         assert len(inverse_edp.free_symbols) == 0
 
-        logger.warning(
+        print(
             f"Initial EDP: {inverse_edp} E-18 Js. Active Energy: {active_energy} nJ. Passive Energy: {passive_energy} nJ. Execution time: {inverse_exec_time} ns"
         )
 
@@ -142,12 +169,15 @@ class DennardMultiCore:
             sys.stdout = stdout
             f = open(f"{self.args.savedir}/ipopt_out_{i}.txt", "r")
             self.tech_params = self.parse_output(f)
+            for param in initial_tech_params:
+                if param not in self.tech_params:
+                    self.tech_params[param] = initial_tech_params[param]
             logger.warning(f"tech params after iteration {i}: {self.tech_params}")
             inverse_edp = symbolic_sim.edp.xreplace(self.tech_params).evalf()
             total_active_energy = (symbolic_sim.total_active_energy).xreplace(self.tech_params).evalf()
             total_passive_energy = (symbolic_sim.total_passive_energy).xreplace(self.tech_params).evalf()
             execution_time = symbolic_sim.execution_time.xreplace(self.tech_params).evalf()
-            logger.warning(
+            print(
                 f"EDP after iteration {i}: {inverse_edp} E-18 Js. Active Energy: {total_active_energy} nJ. Passive Energy: {total_passive_energy} nJ. Execution time: {execution_time} ns"
             )
             regularization = 0
@@ -155,25 +185,25 @@ class DennardMultiCore:
                 regularization += (self.tech_params[var]-initial_tech_params[var])**2
             logger.warning(f"regularization in iteration {i}: {regularization}")
             self.write_back_rcs()
-            hw.update_technology_parameters()
-            hw.write_technology_parameters(
+            self.hw.update_technology_parameters()
+            self.hw.write_technology_parameters(
                 f"{self.args.savedir}/tech_params_{i}.yaml"
             )
         
         # now run architecture search to demonstrate how parallelism can be added
         # to combat diminishing tech benefits at the end of dennard scaling
-        sim_util.update_schedule_with_latency(computation_dfg, hw.latency)
-        sim_util.update_schedule_with_latency(scheduled_dfg, hw.latency)
+        sim_util.update_schedule_with_latency(computation_dfg, self.hw.latency)
+        sim_util.update_schedule_with_latency(scheduled_dfg, self.hw.latency)
 
-        hw.get_wire_parasitics("", "none")
-        simulator.simulate(scheduled_dfg, hw)
+        self.hw.get_wire_parasitics("", "none")
+        simulator.simulate(scheduled_dfg, self.hw)
         simulator.calculate_edp()
         edp = simulator.edp
         logger.warning(f"edp after new forward pass: {edp} E-18 Js. {simulator.active_energy} nJ. Passive Energy: {simulator.passive_energy} nJ. Execution time: {simulator.execution_time} ns")
 
         new_schedule, new_hw = architecture_search.run_arch_search(
             simulator,
-            hw,
+            self.hw,
             computation_dfg,
             self.args.area,
             best_edp=edp,
@@ -181,6 +211,9 @@ class DennardMultiCore:
         print(
             f"Final EDP  : {simulator.edp} E-18 Js. Active Energy: {simulator.active_energy} nJ. Passive Energy: {simulator.passive_energy} nJ. Execution time: {simulator.execution_time} ns"
         )
+
+        # restore dat file
+        self.restore_dat()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
