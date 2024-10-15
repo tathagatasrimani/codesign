@@ -1,6 +1,5 @@
 import numpy as np
 
-
 def main():
     N = 2
     a = np.array(np.random.randint(0, 100, size=(N, N)))

@@ -1,4 +1,3 @@
-from loop import loop
 import numpy as np
 def mult(a, b):
     res = 0

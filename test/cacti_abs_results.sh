@@ -25,6 +25,6 @@ if [ $GEN ]; then
     ARGS+=" --gen"
 fi
 
-# Call the Python script with the provided or default arguments
-python -m src.cacti_validation.abs_eval $ARGS
-python -m src.cacti_validation.plot_abs
+# Call the Python script with the provided arguments
+python -m test.abs_eval $ARGS
+python -m test.plot_abs

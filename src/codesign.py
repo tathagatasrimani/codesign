@@ -21,7 +21,7 @@ from . import hardwareModel
 
 
 class Codesign:
-    def __init__(self, benchmark, area, config, arch_search_iters, save_dir, opt):
+    def __init__(self, benchmark, area, config, arch_search_iters, save_dir, opt, openroad_testfile, parasitics):
         self.save_dir = os.path.join(
             save_dir, datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         )
@@ -53,6 +53,8 @@ class Codesign:
         self.tech_params = None
         self.initial_tech_params = None
         self.full_tech_params = {}
+        self.openroad_testfile = openroad_testfile
+        self.parasitics = parasitics
 
         logger.info(
             f"Setting up architecture search; benchmark: {benchmark}, config: {config}"
@@ -85,6 +87,7 @@ class Codesign:
         self.set_technology_parameters(initial_tech_params)
 
         logger.info(f"Running initial forward pass")
+        self.hw.get_wire_parasitics(self.openroad_testfile, self.parasitics)
         self.sim.simulate(self.scheduled_dfg, self.hw)
         self.sim.calculate_edp()
         self.forward_edp = self.sim.edp
@@ -118,6 +121,7 @@ class Codesign:
         sim_util.update_schedule_with_latency(self.computation_dfg, self.hw.latency)
         sim_util.update_schedule_with_latency(self.scheduled_dfg, self.hw.latency)
 
+        self.hw.get_wire_parasitics(self.openroad_testfile, self.parasitics)
         self.sim.simulate(self.scheduled_dfg, self.hw)
         self.sim.calculate_edp()
         edp = self.sim.edp
@@ -205,8 +209,13 @@ class Codesign:
         hardwareModel.un_allocate_all_in_use_elements(self.hw.netlist)
 
         self.symbolic_sim.simulate(self.scheduled_dfg, self.hw)
-        self.symbolic_sim.calculate_edp(self.hw)
+        cacti_subs = self.symbolic_sim.calculate_edp(self.hw)
+        #print("got cacti sub expressions")
         self.symbolic_sim.save_edp_to_file()
+        #print("edp saved to file")
+
+        for cacti_var in cacti_subs:
+            self.tech_params[cacti_var] = cacti_subs[cacti_var].xreplace(self.tech_params).evalf()
 
         self.inverse_edp = self.symbolic_sim.edp.xreplace(self.tech_params).evalf()
         inverse_exec_time = self.symbolic_sim.execution_time.xreplace(self.tech_params).evalf()
@@ -218,20 +227,20 @@ class Codesign:
         print(
             f"Initial EDP: {self.inverse_edp} E-18 Js. Active Energy: {active_energy} nJ. Passive Energy: {passive_energy} nJ. Execution time: {inverse_exec_time} ns"
         )
-        print(
-            f"edp: {self.inverse_edp}, should equal cycles * (active + passive): {inverse_exec_time * (active_energy + passive_energy)}"
-        )
+        #print(
+        #    f"edp: {self.inverse_edp}, should equal cycles * (active + passive): {inverse_exec_time * (active_energy + passive_energy)}"
+        #)
 
         if self.opt_cfg == "ipopt":
             stdout = sys.stdout
             with open("src/tmp/ipopt_out.txt", "w") as sys.stdout:
-                optimize.optimize(self.tech_params, self.symbolic_sim.edp, self.opt_cfg)
+                optimize.optimize(self.tech_params, self.symbolic_sim.edp, self.opt_cfg, cacti_subs)
             sys.stdout = stdout
             f = open("src/tmp/ipopt_out.txt", "r")
             self.parse_output(f)
         else:
             self.tech_params = optimize.optimize(
-                self.tech_params, self.symbolic_sim.edp, self.opt_cfg
+                self.tech_params, self.symbolic_sim.edp, self.opt_cfg, cacti_subs
             )
         self.write_back_rcs()
 
@@ -272,6 +281,11 @@ class Codesign:
         shutil.copy(
             "src/tmp/solver_out.txt", f"{self.save_dir}/solver_{iter_number}.txt"
         )
+        shutil.copy(
+            "src/tmp/cacti_exprs.txt", f"{self.save_dir}/cacti_exprs_{iter_number}.txt"
+        )
+        #TODO: copy cacti expressions to file, read yaml file from notebook, call sim util fn to get xreplace structure
+        #TODO: fw pass save cacti params of interest, with logger unique starting string, then write parsing script in notebook to look at them
         # save latency, power, and tech params
         self.hw.write_technology_parameters(
             f"{self.save_dir}/tech_params_{iter_number}.yaml"
@@ -315,13 +329,14 @@ def main():
         args.num_arch_search_iters,
         args.savedir,
         args.opt,
+        args.openroad_testfile,
+        args.parasitics
     )
     try:
         codesign_module.execute(args.num_iters)
     except Exception as e:
         codesign_module.cleanup()
         raise e
-
 
 
 if __name__ == "__main__":
@@ -346,6 +361,20 @@ if __name__ == "__main__":
         type=str,
         default="logs",
         help="Path to the save new architecture file",
+    )
+    parser.add_argument(
+        "--parasitics",
+        type=str,
+        choices=["detailed", "estimation", "none"],
+        default="detailed",
+        help="determines what type of parasitic calculations are done for wires",
+    )
+
+    parser.add_argument(
+        "--openroad_testfile",
+        type=str,
+        default="openroad_interface/tcl/test_nangate45_bigger.tcl",
+        help="what tcl file will be executed for openroad",
     )
     parser.add_argument("-o", "--opt", type=str, default="ipopt")
     parser.add_argument(
