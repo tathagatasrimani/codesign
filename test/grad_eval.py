@@ -534,7 +534,7 @@ if __name__ == "__main__":
         "-c",
         "--config",
         type=str,
-        default="base_cache",
+        default="debug_cache",
         help="Path or Name to the configuration file; don't append src/cacti/ or .cfg",
     )
     parser.add_argument(

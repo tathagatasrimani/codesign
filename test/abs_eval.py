@@ -294,42 +294,42 @@ def eval_log_file(input_log, output_log, cache_cfg, dat_file):
     print(f"Evaluation completed. Results written to {output_log}")
 
 if __name__ == "__main__":
-    T_SZ = [0.090] #, 0.180]
-    cfg_file = f"cfg/debug_cache.cfg"
-    dat_files = [f"{int(tech*1e3)}nm.dat" for tech in T_SZ]
-    input_log_file = 'src/cacti/cacti_debug.log'
-    output_log_file = 'src/cacti/cacti_debug_eval.log'
+    # T_SZ = [0.090] #, 0.180]
+    # cfg_file = f"cfg/debug_cache.cfg"
+    # dat_files = [f"{int(tech*1e3)}nm.dat" for tech in T_SZ]
+    # input_log_file = 'src/cacti/cacti_debug.log'
+    # output_log_file = 'src/cacti/cacti_debug_eval.log'
 
-    # cache_cfg = f"src/cacti/cfg/debug_cache.cfg"
-    # cacti_util.run_existing_cacti_cfg(cache_cfg)
+    # # cache_cfg = f"src/cacti/cfg/debug_cache.cfg"
+    # # cacti_util.run_existing_cacti_cfg(cache_cfg)
 
-    eval_log_file(input_log_file, output_log_file, cfg_file, dat_files[0])
+    # eval_log_file(input_log_file, output_log_file, cfg_file, dat_files[0])
 
-    # parser = argparse.ArgumentParser(description="Specify config (--config), set SymPy name (--sympy) and optionally generate SymPy (-gen)")
-    # parser.add_argument("-c", "--config", type=str, default="base_cache", help="Path or Name to the configuration file; don't append src/cacti/ or .cfg")
-    # parser.add_argument("-d", "--dat", type=str,  help="Specify technology nm -> e.g. '90nm'; if not provdied, do 45, 90, and 180")
-    # parser.add_argument("-s", "--sympy", type=str, help="Optionally path to the SymPy file if not named the same as cfg")
-    # parser.add_argument("-g", "--gen", action="store_true", help="Boolean flag to generate Sympy from Cache CFG")
+    parser = argparse.ArgumentParser(description="Specify config (--config), set SymPy name (--sympy) and optionally generate SymPy (-gen)")
+    parser.add_argument("-c", "--config", type=str, default="debug_cache", help="Path or Name to the configuration file; don't append src/cacti/ or .cfg")
+    parser.add_argument("-d", "--dat", type=str,  help="Specify technology nm -> e.g. '90nm'; if not provdied, do 45, 90, and 180")
+    parser.add_argument("-s", "--sympy", type=str, help="Optionally path to the SymPy file if not named the same as cfg")
+    parser.add_argument("-g", "--gen", action="store_true", help="Boolean flag to generate Sympy from Cache CFG")
 
-    # args = parser.parse_args()
+    args = parser.parse_args()
 
-    # # all paths here are relative to CACTI_DIR
+    # all paths here are relative to CACTI_DIR
 
-    # cfg_file = f"cfg/{args.config}.cfg"
-    # sympy_file = args.config
-    # if args.sympy:
-    #     sympy_file = args.sympy
+    cfg_file = f"cfg/{args.config}.cfg"
+    sympy_file = args.config
+    if args.sympy:
+        sympy_file = args.sympy
 
-    # if args.dat:
-    #     dat_files = [f"{args.dat}.dat"]
-    # else:
-    #     # dat_files = [f"{int(tech*1e3)}nm.dat" for tech in TRANSISTOR_SIZES]
-    #     T_SZ = [0.090] #, 0.180]
-    #     dat_files = [f"{int(tech*1e3)}nm.dat" for tech in T_SZ]
+    if args.dat:
+        dat_files = [f"{args.dat}.dat"]
+    else:
+        # dat_files = [f"{int(tech*1e3)}nm.dat" for tech in TRANSISTOR_SIZES]
+        T_SZ = [0.090] #, 0.180]
+        dat_files = [f"{int(tech*1e3)}nm.dat" for tech in T_SZ]
 
-    # print(f"dat files: {dat_files}")
+    print(f"dat files: {dat_files}")
 
-    # for dat_file in dat_files:
-    #     print(f"Running for {dat_file}\n")
-    #     dat_file = os.path.join("tech_params", dat_file)
-    #     gen_abs_results(sympy_file, cfg_file, dat_file)
+    for dat_file in dat_files:
+        print(f"Running for {dat_file}\n")
+        dat_file = os.path.join("tech_params", dat_file)
+        gen_abs_results(sympy_file, cfg_file, dat_file)
