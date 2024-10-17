@@ -69,7 +69,7 @@ def gen_symbolic(name, cache_cfg, opt_vals, use_piecewise=False):
     g_ip.print_detail_debug = False
 
     # fin_res = cacti_interface.uca_org_t()
-    g_tp = parameter.TechnologyParameter()
+    g_tp = parameter.TechnologyParameter(g_ip)
     fin_res = Ucache.solve_single(g_ip, g_tp)
 
     # Create the directory path
