@@ -1,13 +1,15 @@
 #!/bin/sh
 cd ..
 
-while getopts c:n:f:N: flag
+while getopts c:n:f:a:A: flag
 do
     case "${flag}" in
         n) name=${OPTARG};;
         c) ARCH_CONFIG=${OPTARG};;
         f) SAVEDIR=${OPTARG};;
-        N) NUM_ITERS=${OPTARG};;
+        t) TEST_TYPE=${OPTARG};;
+        A) ARCH_SEARCH_NUM=${OPTARG};;
+        a) AREA=${OPTARG};;
     esac
 done
 
@@ -22,9 +24,12 @@ if [ $name ]; then
     if [ $SAVEDIR ]; then
         ARGS+=" --savedir $SAVEDIR"
     fi
-    if [ $NUM_ITERS ]; then
-        ARGS+=" --num_iters $NUM_ITERS"
+    if [ $AREA ]; then
+        ARGS+=" --area $AREA"
+    fi
+    if [ $ARCH_SEARCH_NUM ]; then
+        ARGS+=" --num_arch_search_iters $ARCH_SEARCH_NUM"
     fi
     echo $ARGS
-    python -m test.inverse_validation.inverse_walkthrough_example $ARGS
+    python -m test.experiments.dennard_multi_core $ARGS
 fi
