@@ -26,5 +26,5 @@ if [ $name ]; then
         ARGS+=" --num_iters $NUM_ITERS"
     fi
     echo $ARGS
-    python -m src.inverse_validation.inverse_walkthrough_example $ARGS
+    python -m test.inverse_validation.inverse_walkthrough_example $ARGS
 fi

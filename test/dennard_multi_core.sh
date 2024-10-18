@@ -31,5 +31,5 @@ if [ $name ]; then
         ARGS+=" --num_arch_search_iters $ARCH_SEARCH_NUM"
     fi
     echo $ARGS
-    python -m src.experiments.dennard_multi_core $ARGS
+    python -m test.experiments.dennard_multi_core $ARGS
 fi

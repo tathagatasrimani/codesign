@@ -26,5 +26,5 @@ if [ $name ]; then
         ARGS+=" --test_type $TEST_TYPE"
     fi
     echo $ARGS
-    python -m src.inverse_validation.inverse_validate $ARGS
+    python -m test.inverse_validation.inverse_validate $ARGS
 fi
