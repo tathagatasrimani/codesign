@@ -59,7 +59,10 @@ class InverseWalkthrough:
         plt.xlabel(symbol_list[0])
         plt.ylabel(symbol_list[1])
         ax.set_zlabel("EDP")
-        plt.savefig("test/inverse_validation/walkthrough_figs/3d.png")
+        fig_save_dir = "test/inverse_validation/walkthrough_figs"
+        if not os.path.exists(fig_save_dir):
+            os.makedirs(fig_save_dir)
+        plt.savefig(f"{fig_save_dir}/3d.png")
 
     def plot_results(self):
         plt.plot(self.dE_mult, label="E_mult")
@@ -71,7 +74,10 @@ class InverseWalkthrough:
         plt.ylabel("gradient value")
         plt.legend()
         plt.title("Gradients of different simulator variables across iterations")
-        plt.savefig("test/inverse_validation/walkthrough_figs/grads.png")
+        fig_save_dir = "test/inverse_validation/walkthrough_figs"
+        if not os.path.exists(fig_save_dir):
+            os.makedirs(fig_save_dir)
+        plt.savefig(f"{fig_save_dir}/grads.png")
 
     # plotting Cmult, Rmult, Emult, Vth, C_ox
     def record_grads(self, edp, cacti_exprs, current_tech_params):

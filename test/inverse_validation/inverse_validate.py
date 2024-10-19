@@ -29,7 +29,7 @@ from src import architecture_search
 args = None
 
 # 40, 7, 5
-logic_tech_nodes = [7, 5]
+logic_tech_nodes = [7, 5, 3]
 # 90, 45, 32, 22
 cacti_nodes = [45, 22]
 default_cacti = 22
@@ -82,7 +82,10 @@ def plot_diff(tech_node_pair):
         plt.xlabel("tech params")
         plt.ylabel("tech param ratios")
         plt.title(f"optimized {args.test_type} params for {tech_node_pair[0]} nm divided by initial params for {tech_node_pair[1]} nm")
-        plt.savefig(f"test/inverse_validation/figs/{args.test_type}_{tech_node_pair[0]}_{tech_node_pair[1]}_compare_{i/5}.png")
+        fig_save_dir = "test/inverse_validation/figs"
+        if not os.path.exists(fig_save_dir):
+            os.makedirs(fig_save_dir)
+        plt.savefig(f"{fig_save_dir}/{args.test_type}_{tech_node_pair[0]}_{tech_node_pair[1]}_compare_{i/5}.png")
         plt.close()
         i += 5
 
@@ -158,7 +161,7 @@ def run_pairwise(tech_node_pair, improvement, hws, dfgs):
 
     stdout = sys.stdout
     with open(f"{args.savedir}/ipopt_out_{tech_node_pair[0]}.txt", "w") as sys.stdout:
-        optimize.optimize(initial_tech_params[tech_node_pair[0]], symbolic_sim.edp, "ipopt", cacti_subs, improvement, regularization=0.1)
+        optimize.optimize(initial_tech_params[tech_node_pair[0]], symbolic_sim.edp, "ipopt", cacti_subs, improvement, regularization=1)
     sys.stdout = stdout
     f = open(f"{args.savedir}/ipopt_out_{tech_node_pair[0]}.txt", "r")
     final_tech_params[tech_node_pair[0]] = parse_output(f)
