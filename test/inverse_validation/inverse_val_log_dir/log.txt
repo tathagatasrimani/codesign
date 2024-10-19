@@ -1,0 +1,12 @@
+Codesign Log
+Benchmark: src/benchmarks/models/matmult.py
+Architecture Config: mm_test
+WARNING:inverse validation:edp of simulation running on 7 nm logic tech node: 169355461.37612525 E-18 Js
+WARNING:inverse validation:edp of simulation running on 5 nm logic tech node: 168933104.8218813 E-18 Js
+WARNING:inverse validation:tech node pair [7, 5], asking inverse pass for 1.0025001408379326 edp improvement
+WARNING:inverse validation:jk actually asking for 1.00002748850382 edp improvement
+WARNING:pyomo.common.numeric_types:Dynamically registering the following numeric type:
+    sympy.core.numbers.Float
+Dynamic registration is supported for convenience, but there are known
+limitations to this approach.  We recommend explicitly registering
+numeric types using RegisterNumericType() or RegisterIntegerType().

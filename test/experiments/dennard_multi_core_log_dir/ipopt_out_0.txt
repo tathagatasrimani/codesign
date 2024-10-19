@@ -1,0 +1,518 @@
+cacti sub vars: {MemPpass, MemReadEact, MemWriteL, MemWriteEact, BufL, BufWriteEact, MemReadL, BufReadEact, BufPpass}
+length of free symbols: 16
+symbol name is MemPpass
+symbol MemPpass has initial value 80.89575655957144
+symbol name is MemReadEact
+symbol MemReadEact has initial value 1333.3965185886059
+symbol name is BufWriteEact
+symbol BufWriteEact has initial value 25.09768304566701
+symbol name is BufL
+symbol BufL has initial value 0.007269697097743877
+symbol name is MemWriteL
+symbol MemWriteL has initial value 72239.4519995019
+symbol name is V_dd
+symbol name is Reff_Not
+symbol name is Reff_Regs
+symbol name is MemReadL
+symbol MemReadL has initial value 72239.4519995019
+symbol name is Reff_Mult
+symbol name is Ceff_Mult
+symbol name is MemWriteEact
+symbol MemWriteEact has initial value 1333.3017712019846
+symbol name is BufReadEact
+symbol BufReadEact has initial value 25.098457804997505
+symbol name is Ceff_Regs
+symbol name is Ceff_Add
+symbol name is Reff_Add
+x[1] MemPpass
+x[2] MemReadEact
+x[3] BufWriteEact
+x[4] BufL
+x[5] MemWriteL
+x[6] V_dd
+x[7] Reff_Not
+x[8] Reff_Regs
+x[9] MemReadL
+x[10] Reff_Mult
+x[11] Ceff_Mult
+x[12] MemWriteEact
+x[13] BufReadEact
+x[14] Ceff_Regs
+x[15] Ceff_Add
+x[16] Reff_Add
+x[17] asp_ratio_cell
+x[18] horiz_dielectric_constant
+x[19] Wmemcellpmos
+x[20] Wmemcella
+x[21] ild_thickness
+x[22] C_g_ideal
+x[23] vert_dielectric_constant
+x[24] Wmemcellnmos
+x[25] Vth
+x[26] area_cell
+x[27] C_fringe
+x[28] Vdd
+x[29] Mobility_n
+x[30] n2p_drv_rt
+x[31] Vdsat
+x[32] I_on_n
+x[33] I_off_n
+x[34] l_elec
+x[35] C_ox
+x[36] gmp_to_gmn_multiplier
+x[37] miller_value
+x[38] fringe_cap
+x[39] wire_pitch
+x[40] C_junc_sw
+x[41] aspect_ratio
+x[42] C_junc
+x[43] nmos_effective_resistance_multiplier
+building bimap
+symbol: asp_ratio_cell; initial value: 1.46
+symbol: n2p_drv_rt; initial value: 0.5344891339309155
+symbol: horiz_dielectric_constant; initial value: 0.37818145187664953
+symbol: Wmemcellpmos; initial value: 1.23
+symbol: C_fringe; initial value: 1.604956042088937e-17
+symbol: I_off_n; initial value: 4.256e-07
+symbol: Wmemcella; initial value: 1.31
+symbol: ild_thickness; initial value: 0.04012375857630771
+symbol: miller_value; initial value: 0.4011776985401493
+symbol: fringe_cap; initial value: 3.075086908205027e-17
+symbol: wire_pitch; initial value: 0.6297988647683767
+symbol: C_g_ideal; initial value: 8.745472550906772e-17
+symbol: vert_dielectric_constant; initial value: 1.0428459637997023
+symbol: aspect_ratio; initial value: 0.8843998527864494
+symbol: Wmemcellnmos; initial value: 2.08
+symbol: area_cell; initial value: 146.0
+symbol: Vdd; initial value: 0.17658102307352566
+symbol: MemPpass; initial value: 80.89575655957144
+symbol: I_on_n; initial value: 0.0007028154284768797
+symbol: C_junc_sw; initial value: 6.686264058748703e-17
+symbol: C_junc; initial value: 1.6961372589117513e-10
+symbol: nmos_effective_resistance_multiplier; initial value: 0.38752799464941873
+symbol: MemReadEact; initial value: 1333.3965185886059
+symbol: BufWriteEact; initial value: 25.09768304566701
+symbol: Vth; initial value: 0.037311788068134566
+symbol: BufL; initial value: 0.007269697097743877
+symbol: Mobility_n; initial value: 11396482964.200449
+symbol: Vdsat; initial value: 0.006231933514028902
+symbol: l_elec; initial value: 0.0012515745553262141
+symbol: C_ox; initial value: 9.70898664503359e-15
+symbol: gmp_to_gmn_multiplier; initial value: 0.3690902110766901
+symbol: MemWriteL; initial value: 72239.4519995019
+symbol: V_dd; initial value: 1.1
+symbol: Reff_Not; initial value: 84402901.78571428
+symbol: Reff_Regs; initial value: 605000000.0
+symbol: MemReadL; initial value: 72239.4519995019
+symbol: Reff_Mult; initial value: 65561.67609020941
+symbol: Ceff_Mult; initial value: 0.0001715636431338843
+symbol: MemWriteEact; initial value: 1333.3017712019846
+symbol: BufReadEact; initial value: 25.098457804997505
+symbol: Ceff_Regs; initial value: 6.611570247933885e-10
+symbol: Ceff_Add; initial value: 2.6302413223140494e-07
+symbol: Reff_Add; initial value: 12166184.041184042
+converting to pyomo exp
+added regularization
+adding constraints. initial val: 1.106951385372091e+17;
+mapping: {MemPpass: 1, MemReadEact: 2, BufWriteEact: 3, BufL: 4, MemWriteL: 5, V_dd: 6, Reff_Not: 7, Reff_Regs: 8, MemReadL: 9, Reff_Mult: 10, Ceff_Mult: 11, MemWriteEact: 12, BufReadEact: 13, Ceff_Regs: 14, Ceff_Add: 15, Reff_Add: 16, asp_ratio_cell: 17, horiz_dielectric_constant: 18, Wmemcellpmos: 19, Wmemcella: 20, ild_thickness: 21, C_g_ideal: 22, vert_dielectric_constant: 23, Wmemcellnmos: 24, Vth: 25, area_cell: 26, C_fringe: 27, Vdd: 28, Mobility_n: 29, n2p_drv_rt: 30, Vdsat: 31, I_on_n: 32, I_off_n: 33, l_elec: 34, C_ox: 35, gmp_to_gmn_multiplier: 36, miller_value: 37, fringe_cap: 38, wire_pitch: 39, C_junc_sw: 40, aspect_ratio: 41, C_junc: 42, nmos_effective_resistance_multiplier: 43}
+cacti symbol name: MemPpass
+scaling factor: 0.012361587832652291
+cacti symbol name: MemReadEact
+scaling factor: 0.0007499644599781132
+cacti symbol name: BufWriteEact
+scaling factor: 0.03984431543662533
+cacti symbol name: BufL
+scaling factor: 137.5573131252396
+cacti symbol name: MemWriteL
+scaling factor: 1.3842851410430066e-05
+symbol name: V_dd
+symbol name: Reff_Not
+symbol name: Reff_Regs
+cacti symbol name: MemReadL
+scaling factor: 1.3842851410430066e-05
+symbol name: Reff_Mult
+symbol name: Ceff_Mult
+cacti symbol name: MemWriteEact
+scaling factor: 0.0007500177541191521
+cacti symbol name: BufReadEact
+scaling factor: 0.03984308549033176
+symbol name: Ceff_Regs
+symbol name: Ceff_Add
+symbol name: Reff_Add
+symbol name: asp_ratio_cell
+symbol name: horiz_dielectric_constant
+symbol name: Wmemcellpmos
+symbol name: Wmemcella
+symbol name: ild_thickness
+symbol name: C_g_ideal
+symbol name: vert_dielectric_constant
+symbol name: Wmemcellnmos
+symbol name: Vth
+symbol name: area_cell
+symbol name: C_fringe
+symbol name: Vdd
+symbol name: Mobility_n
+symbol name: n2p_drv_rt
+symbol name: Vdsat
+symbol name: I_on_n
+symbol name: I_off_n
+symbol name: l_elec
+symbol name: C_ox
+symbol name: gmp_to_gmn_multiplier
+symbol name: miller_value
+symbol name: fringe_cap
+symbol name: wire_pitch
+symbol name: C_junc_sw
+symbol name: aspect_ratio
+symbol name: C_junc
+symbol name: nmos_effective_resistance_multiplier
+Solver log file: '/var/folders/fd/_g3nsz7d5qj5_x7swqyg63tr0000gn/T/tmpffd9qhfq_ipopt.log'
+Solver solution file: '/var/folders/fd/_g3nsz7d5qj5_x7swqyg63tr0000gn/T/tmp2663wzo2.pyomo.sol'
+Solver problem files: ('/var/folders/fd/_g3nsz7d5qj5_x7swqyg63tr0000gn/T/tmp2663wzo2.pyomo.nl',)
+Ipopt 3.14.14: warm_start_init_point=yes
+warm_start_bound_push=1e-09
+warm_start_mult_bound_push=1e-09
+warm_start_bound_frac=1e-09
+warm_start_slack_bound_push=1e-09
+warm_start_slack_bound_frac=1e-09
+mu_init=0.1
+tol=1
+bound_relax_factor=0
+max_iter=100
+print_info_string=yes
+output_file=src/tmp/solver_out.txt
+wantsol=2
+halt_on_ampl_error=yes
+
+
+******************************************************************************
+This program contains Ipopt, a library for large-scale nonlinear optimization.
+ Ipopt is released as open source code under the Eclipse Public License (EPL).
+         For more information visit https://github.com/coin-or/Ipopt
+******************************************************************************
+
+This is Ipopt version 3.14.14, running with linear solver MUMPS 5.6.2.
+
+Number of nonzeros in equality constraint Jacobian...:      163
+Number of nonzeros in inequality constraint Jacobian.:      559
+Number of nonzeros in Lagrangian Hessian.............:      619
+
+Total number of variables............................:       43
+                     variables with only lower bounds:       43
+                variables with lower and upper bounds:        0
+                     variables with only upper bounds:        0
+Total number of equality constraints.................:        8
+Total number of inequality constraints...............:       88
+        inequality constraints with only lower bounds:       43
+   inequality constraints with lower and upper bounds:        0
+        inequality constraints with only upper bounds:       45
+
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+   0  1.1069514e+17 1.46e-11 1.11e+09  -1.0 0.00e+00    -  0.00e+00 0.00e+00   0 
+   1  1.1069514e+17 1.31e-07 1.11e+09  -1.0 5.09e+01   6.0 1.00e+00 1.43e-09f  1 Nhj qS
+   2  1.1069406e+17 1.21e-07 1.11e+09  -1.0 8.85e+08    -  2.46e-05 1.63e-05f  1 
+   3  1.1069404e+17 1.18e-08 1.11e+09  -1.0 1.42e+06    -  2.69e-04 1.66e-04f  1 
+   4  1.1068507e+17 1.18e-08 1.11e+09  -1.0 1.95e+08    -  2.95e-06 4.64e-04f  1 
+   5  1.1068503e+17 1.18e-08 1.11e+09  -1.0 2.03e+08    -  2.40e-04 2.38e-06f  1 
+   6  1.1068512e+17 2.68e-07 2.02e+09  -1.0 4.69e+03    -  8.16e-02 1.30e-01h  1 
+   7  1.1068441e+17 1.29e-02 7.44e+10  -1.0 5.98e+03    -  8.88e-04 9.90e-01f  1 
+   8  1.1068405e+17 1.30e-04 7.50e+08  -1.0 7.15e-05   5.5 9.86e-01 9.90e-01f  1 
+   9  1.1068403e+17 3.28e-06 7.69e+11  -1.0 1.06e-03   5.0 3.15e-01 9.83e-01f  1 
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+  10  1.1067926e+17 6.26e-03 1.00e+12  -1.0 1.14e+08    -  3.53e-05 4.25e-04f  1 
+In iteration 10, 1 Slack too small, adjusting variable bound
+  11  1.1067923e+17 4.67e-03 8.09e+13  -1.0 2.05e-04   5.5 5.68e-01 2.54e-01f  1 
+In iteration 11, 1 Slack too small, adjusting variable bound
+  12  1.1067918e+17 3.87e-04 9.23e+13  -1.0 1.94e-04   5.9 3.35e-01 9.17e-01f  1 
+In iteration 12, 2 Slacks too small, adjusting variable bounds
+  13  1.1067917e+17 3.48e-05 4.03e+14  -1.0 2.43e-04   5.4 5.71e-01 9.09e-01f  1 
+In iteration 13, 1 Slack too small, adjusting variable bound
+  14  1.1067917e+17 1.87e-06 1.33e+15  -1.0 4.47e-04   4.9 5.82e-01 1.00e+00f  1 
+  15  1.1067917e+17 1.02e-05 7.99e+14  -1.0 7.96e-04   4.5 5.68e-01 1.00e+00f  1 
+  16  1.1067917e+17 4.43e-05 2.69e+14  -1.0 1.35e-03   4.0 6.63e-01 1.00e+00f  1 
+  17  1.1067917e+17 1.64e-05 6.07e+13  -1.0 1.40e-03   4.4 7.75e-01 8.52e-01f  1 
+  18  1.1067933e+17 9.06e-03 5.96e+13  -1.0 4.68e-03   6.6 1.84e-02 1.30e-01h  1 
+  19  1.1067917e+17 3.65e-09 3.89e+05  -1.0 3.58e-06  10.7 1.00e+00 1.00e+00f  1 
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+  20  1.1067917e+17 2.27e-13 4.58e+14  -8.6 4.63e-06  10.2 7.89e-01 1.00e+00f  1 
+  21  1.1067650e+17 4.17e-03 4.65e+14  -8.6 4.54e+10    -  1.17e-06 5.96e-07f  4 
+  22  1.1067646e+17 6.28e-07 7.00e+13  -8.6 5.86e-05   9.7 8.51e-01 1.00e+00f  1 
+  23  1.1067646e+17 1.46e-11 9.85e+10  -8.6 7.89e-06   9.3 9.99e-01 1.00e+00f  1 
+  24  1.1066894e+17 3.29e-04 9.88e+10  -8.6 3.05e+15    -  5.34e-13 2.47e-11f  1 qS
+  25  1.1066894e+17 8.44e-10 3.62e+10  -8.6 5.14e-06   9.7 6.32e-01 1.00e+00f  1 
+  26  1.1066894e+17 7.28e-11 1.72e+04  -8.6 7.79e-06   9.2 1.00e+00 1.00e+00f  1 
+  27  1.1066894e+17 4.37e-11 9.41e+03  -8.6 1.08e-05   8.7 1.00e+00 1.00e+00f  1 
+  28  1.1066894e+17 1.46e-11 4.91e+03  -8.6 1.45e-05   8.2 1.00e+00 1.00e+00f  1 
+  29  1.1066894e+17 1.46e-11 2.47e+03  -8.6 1.90e-05   7.8 1.00e+00 1.00e+00f  1 
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+  30  1.1066894e+17 5.82e-11 1.21e+03  -8.6 2.49e-05   7.3 1.00e+00 1.00e+00f  1 
+  31  1.1066894e+17 7.28e-11 5.86e+02  -8.6 3.24e-05   6.8 1.00e+00 1.00e+00f  1 
+  32  1.1066894e+17 1.46e-11 2.79e+02  -8.6 4.23e-05   6.3 1.00e+00 1.00e+00f  1 
+  33  1.1066894e+17 2.91e-11 1.31e+02  -8.6 5.60e-05   5.9 1.00e+00 1.00e+00f  1 qS
+  34  1.1066894e+17 4.37e-11 6.13e+01  -8.6 7.51e-05   5.4 1.00e+00 1.00e+00f  1 S
+  35  1.1066894e+17 2.91e-11 2.28e+02  -8.6 9.90e-05   4.9 1.00e+00 1.00e+00f  1 S
+  36  1.1066894e+17 2.91e-11 4.12e+02  -8.6 1.29e-04   4.4 1.00e+00 1.00e+00f  1 S
+  37  1.1066894e+17 2.91e-11 7.87e+00  -8.6 1.69e-04   4.0 1.00e+00 1.00e+00f  1 S
+  38  1.1066894e+17 4.37e-10 2.65e+03  -8.6 3.33e-04   3.5 1.00e+00 1.00e+00f  1 S
+  39  1.1066894e+17 8.73e-11 6.47e+02  -8.6 9.99e-04   3.0 1.00e+00 1.00e+00f  1 S
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+  40  1.1066894e+17 4.60e-08 2.64e+05  -8.6 3.00e-03   2.5 1.00e+00 1.00e+00f  1 S
+  41  1.1066894e+17 2.91e-11 1.84e+02  -8.6 1.76e-05   4.8 1.00e+00 1.00e+00h  1 
+  42  1.1066894e+17 4.37e-11 2.21e+02  -8.6 5.27e-05   4.3 1.00e+00 1.00e+00h  1 S
+  43  1.1066894e+17 7.28e-11 4.04e+02  -8.6 1.58e-04   3.8 1.00e+00 1.00e+00h  1 S
+  44  1.1066894e+17 3.06e-10 1.78e+03  -8.6 4.74e-04   3.3 1.00e+00 1.00e+00f  1 S
+  45  1.1066894e+17 2.33e-10 1.15e+03  -8.6 1.42e-03   2.8 1.00e+00 1.00e+00f  1 S
+  46  1.1066894e+17 3.78e-10 1.93e+03  -8.6 5.33e-04   3.3 1.00e+00 1.00e+00h  1 S
+  47  1.1066894e+17 1.28e-09 7.09e+03  -8.6 1.60e-03   2.8 1.00e+00 1.00e+00f  1 S
+  48  1.1066894e+17 8.73e-11 3.60e+02  -8.6 7.50e-05   4.1 1.00e+00 1.00e+00h  1 
+  49  1.1066894e+17 1.46e-11 1.12e+02  -8.6 2.25e-04   3.6 1.00e+00 1.00e+00h  1 S
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+  50  1.1066894e+17 2.47e-10 1.59e+03  -8.6 6.75e-04   3.2 1.00e+00 1.00e+00f  1 S
+  51  1.1066894e+17 1.79e-09 1.04e+04  -8.6 2.02e-03   2.7 1.00e+00 1.00e+00f  1 S
+  52  1.1066894e+17 4.37e-11 2.75e+02  -8.6 9.49e-05   4.0 1.00e+00 1.00e+00h  1 
+  53  1.1066894e+17 2.91e-11 2.02e+02  -8.6 2.85e-04   3.5 1.00e+00 1.00e+00h  1 S
+  54  1.1066894e+17 2.62e-10 1.29e+03  -8.6 8.54e-04   3.1 1.00e+00 1.00e+00h  1 S
+  55  1.1066894e+17 2.58e-09 1.47e+04  -8.6 2.56e-03   2.6 1.00e+00 1.00e+00f  1 S
+  56  1.1066894e+17 4.55e-13 3.49e+02  -8.6 1.20e-04   3.9 1.00e+00 1.00e+00h  1 
+  57  1.1066894e+17 5.82e-11 7.24e+01  -8.6 3.60e-04   3.4 1.00e+00 1.00e+00h  1 S
+  58  1.1066894e+17 2.76e-10 1.77e+03  -8.6 1.08e-03   3.0 1.00e+00 1.00e+00f  1 S
+  59  1.1066894e+17 5.82e-11 1.63e+02  -8.6 4.05e-04   3.4 1.00e+00 1.00e+00h  1 S
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+  60  1.1066894e+17 2.91e-10 1.69e+03  -8.6 1.22e-03   2.9 1.00e+00 1.00e+00f  1 S
+  61  1.1066894e+17 2.91e-11 1.25e+02  -8.6 4.56e-04   3.3 1.00e+00 1.00e+00h  1 S
+  62  1.1066894e+17 3.78e-10 2.33e+03  -8.6 1.37e-03   2.9 1.00e+00 1.00e+00f  1 S
+  63  1.1066894e+17 1.14e-12 1.70e+02  -8.6 5.13e-04   3.3 1.00e+00 1.00e+00h  1 S
+  64  1.1066894e+17 3.93e-10 2.02e+03  -8.6 1.54e-03   2.8 1.00e+00 1.00e+00f  1 S
+  65  1.1066894e+17 1.46e-11 7.77e+01  -8.6 5.77e-04   3.2 1.00e+00 1.00e+00h  1 S
+  66  1.1066894e+17 4.37e-10 2.56e+03  -8.6 1.73e-03   2.8 1.00e+00 1.00e+00f  1 S
+  67  1.1066894e+17 2.91e-11 5.59e+01  -8.6 6.49e-04   3.2 1.00e+00 1.00e+00h  1 S
+  68  1.1066894e+17 5.24e-10 3.09e+03  -8.6 1.95e-03   2.7 1.00e+00 1.00e+00f  1 S
+  69  1.1066894e+17 8.73e-11 4.40e+02  -8.6 7.31e-04   3.1 1.00e+00 1.00e+00h  1 S
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+  70  1.1066894e+17 2.07e-09 1.18e+04  -8.6 2.19e-03   2.7 1.00e+00 1.00e+00f  1 S
+  71  1.1066894e+17 4.37e-11 2.60e+02  -8.6 1.03e-04   4.0 1.00e+00 1.00e+00h  1 
+  72  1.1066894e+17 1.46e-11 7.47e+01  -8.6 3.08e-04   3.5 1.00e+00 1.00e+00h  1 S
+  73  1.1066894e+17 1.31e-10 7.47e+02  -8.6 9.25e-04   3.0 1.00e+00 1.00e+00h  1 S
+  74  1.1066894e+17 1.02e-10 6.63e+02  -8.6 2.77e-03   2.6 1.00e+00 1.00e+00f  1 S
+  75  1.1066894e+17 2.76e-10 1.73e+03  -8.6 1.04e-03   3.0 1.00e+00 1.00e+00f  1 S
+  76  1.1066894e+17 8.25e-09 4.74e+04  -8.6 3.12e-03   2.5 1.00e+00 1.00e+00f  1 S
+  77  1.1066894e+17 2.91e-11 2.32e+01  -8.6 1.83e-05   4.7 1.00e+00 1.00e+00f  1 
+  78  1.1066894e+17 2.91e-11 2.76e+01  -8.6 5.49e-05   4.3 1.00e+00 1.00e+00h  1 S
+  79  1.1066894e+17 4.37e-11 2.19e+02  -8.6 1.65e-04   3.8 1.00e+00 1.00e+00h  1 S
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+  80  1.1066894e+17 1.46e-11 5.61e+00  -8.6 4.94e-04   3.3 1.00e+00 1.00e+00h  1 S
+  81  1.1066894e+17 2.33e-10 1.45e+03  -8.6 1.48e-03   2.8 1.00e+00 1.00e+00f  1 S
+  82  1.1066894e+17 2.02e-07 1.16e+06  -8.6 1.83e+00   2.4 1.45e-05 1.57e-06h  5 S
+  83  1.1066894e+17 4.37e-11 2.47e+02  -8.6 4.07e-07   6.4 1.00e+00 1.00e+00h  1 
+  84  1.1066894e+17 7.28e-11 3.92e+02  -8.6 1.22e-06   5.9 1.00e+00 1.00e+00h  1 
+  85  1.1066894e+17 4.37e-11 2.73e+02  -8.6 3.66e-06   5.4 1.00e+00 1.00e+00h  1 
+  86  1.1066894e+17 9.09e-13 1.61e+01  -8.6 1.10e-05   5.0 1.00e+00 1.00e+00f  1 S
+  87  1.1066894e+17 1.82e-12 1.34e+02  -8.6 3.29e-05   4.5 1.00e+00 1.00e+00h  1 S
+  88  1.1066894e+17 2.27e-12 1.43e+02  -8.6 9.88e-05   4.0 1.00e+00 1.00e+00h  1 S
+  89  1.1066894e+17 2.91e-11 7.92e+01  -8.6 2.97e-04   3.5 1.00e+00 1.00e+00h  1 S
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+  90  1.1066894e+17 7.28e-11 4.46e+02  -8.6 8.90e-04   3.1 1.00e+00 1.00e+00f  1 S
+  91  1.1066894e+17 1.16e-10 7.67e+02  -8.6 2.67e-03   2.6 1.00e+00 1.00e+00f  1 S
+  92  1.1066894e+17 8.73e-11 3.65e+02  -8.6 1.00e-03   3.0 1.00e+00 1.00e+00f  1 S
+  93  1.1066894e+17 2.47e-10 1.28e+03  -8.6 3.00e-03   2.5 1.00e+00 1.00e+00f  1 S
+  94  1.1066894e+17 2.91e-11 2.91e+02  -8.6 1.13e-03   2.9 1.00e+00 1.00e+00f  1 S
+  95  1.1066894e+17 4.80e-10 2.76e+03  -8.6 3.38e-03   2.5 1.00e+00 1.00e+00f  1 S
+  96  1.1066894e+17 2.33e-10 1.37e+03  -8.6 1.27e-03   2.9 1.00e+00 1.00e+00f  1 S
+  97  1.1066894e+17 4.37e-11 1.77e+02  -8.6 4.75e-04   3.3 1.00e+00 1.00e+00h  1 S
+  98  1.1066894e+17 1.16e-10 6.68e+02  -8.6 1.42e-03   2.8 1.00e+00 1.00e+00f  1 S
+  99  1.1066894e+17 6.34e-08 3.65e+05  -8.6 4.27e-03   2.4 1.00e+00 1.00e+00f  1 S
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+ 100  1.1066894e+17 1.46e-11 2.89e+02  -8.6 3.13e-06   5.5 1.00e+00 1.00e+00h  1 
+
+Number of Iterations....: 100
+
+                                   (scaled)                 (unscaled)
+Objective...............:   1.1066893968677881e+09    1.1066893968677880e+17
+Dual infeasibility......:   2.8893009720348510e+02    2.8893009720348511e+10
+Constraint violation....:   5.1436858207502923e-14    1.4551915228366852e-11
+Variable bound violation:   0.0000000000000000e+00    0.0000000000000000e+00
+Complementarity.........:   2.5059038465252233e-09    2.5059038465252231e-01
+Overall NLP error.......:   1.6590842214878915e-02    2.8893009720348511e+10
+
+
+Number of objective function evaluations             = 109
+Number of objective gradient evaluations             = 101
+Number of equality constraint evaluations            = 109
+Number of inequality constraint evaluations          = 109
+Number of equality constraint Jacobian evaluations   = 101
+Number of inequality constraint Jacobian evaluations = 101
+Number of Lagrangian Hessian evaluations             = 100
+Total seconds in IPOPT                               = 28.059
+
+EXIT: Maximum Number of Iterations Exceeded.
+maxIterations
+======================
+Model unknown
+
+  Variables:
+    x : Size=43, Index=N
+        Key : Lower : Value                  : Upper : Fixed : Stale : Domain
+          1 :     0 :      80.88571524340914 :  None : False : False : NonNegativeReals
+          2 :     0 :      1333.369652696619 :  None : False : False : NonNegativeReals
+          3 :     0 :     25.097267901290223 :  None : False : False : NonNegativeReals
+          4 :     0 :   0.007269586497824102 :  None : False : False : NonNegativeReals
+          5 :     0 :      72238.72196687487 :  None : False : False : NonNegativeReals
+          6 :     0 :      1.099966866894895 :  None : False : False : NonNegativeReals
+          7 :     0 :      84401392.95491117 :  None : False : False : NonNegativeReals
+          8 :     0 :      604989186.2615826 :  None : False : False : NonNegativeReals
+          9 :     0 :      72238.72196687487 :  None : False : False : NonNegativeReals
+         10 :     0 :      65560.50383126795 :  None : False : False : NonNegativeReals
+         11 :     0 : 0.00017024285181278388 :  None : False : False : NonNegativeReals
+         12 :     0 :     1333.2749774021638 :  None : False : False : NonNegativeReals
+         13 :     0 :     25.098042065856045 :  None : False : False : NonNegativeReals
+         14 :     0 : 3.0222681661286705e-12 :  None : False : False : NonNegativeReals
+         15 :     0 :  1.199720186681126e-09 :  None : False : False : NonNegativeReals
+         16 :     0 :     12165966.623481678 :  None : False : False : NonNegativeReals
+         17 :     0 :     1.4599210865406447 :  None : False : False : NonNegativeReals
+         18 :     0 :     0.3781538273847346 :  None : False : False : NonNegativeReals
+         19 :     0 :     1.2299486618707745 :  None : False : False : NonNegativeReals
+         20 :     0 :      1.309946388717271 :  None : False : False : NonNegativeReals
+         21 :     0 :    0.04009893077263196 :  None : False : False : NonNegativeReals
+         22 :     0 :  6.316741002658928e-17 :  None : False : False : NonNegativeReals
+         23 :     0 :     1.0428133665560726 :  None : False : False : NonNegativeReals
+         24 :     0 :      2.079968235756514 :  None : False : False : NonNegativeReals
+         25 :     0 :   0.037262160064543165 :  None : False : False : NonNegativeReals
+         26 :     0 :     145.99746631164123 :  None : False : False : NonNegativeReals
+         27 :     0 : 2.5235368699535622e-17 :  None : False : False : NonNegativeReals
+         28 :     0 :     0.1765809056834904 :  None : False : False : NonNegativeReals
+         29 :     0 :      11396288623.47125 :  None : False : False : NonNegativeReals
+         30 :     0 :     0.5344717433225897 :  None : False : False : NonNegativeReals
+         31 :     0 :   0.006216109173185481 :  None : False : False : NonNegativeReals
+         32 :     0 :  0.0007028053562123085 :  None : False : False : NonNegativeReals
+         33 :     0 : 4.2556255862301266e-07 :  None : False : False : NonNegativeReals
+         34 :     0 :  0.0012470213384861426 :  None : False : False : NonNegativeReals
+         35 :     0 : 1.0134419221477748e-14 :  None : False : False : NonNegativeReals
+         36 :     0 :    0.36906164586003076 :  None : False : False : NonNegativeReals
+         37 :     0 :     0.4011505273751074 :  None : False : False : NonNegativeReals
+         38 :     0 : 3.0069588205559253e-17 :  None : False : False : NonNegativeReals
+         39 :     0 :     0.6296182228138147 :  None : False : False : NonNegativeReals
+         40 :     0 :   1.48503095814961e-16 :  None : False : False : NonNegativeReals
+         41 :     0 :     0.8842226375459185 :  None : False : False : NonNegativeReals
+         42 :     0 : 1.6948006343546663e-10 :  None : False : False : NonNegativeReals
+         43 :     0 :     0.3875196949673464 :  None : False : False : NonNegativeReals
+
+  Objectives:
+    obj : Size=1, Index=None, Active=True
+        Key  : Active : Value
+        None :   True : 1.1066893968677882e+17
+
+  Constraints:
+    cuts : Size=0
+        Key : Lower : Body : Upper
+    Constraint1 : Size=1
+        Key  : Lower                  : Body                   : Upper
+        None : 1.0063194412473554e+17 : 1.1066893968676931e+17 :  None
+    PowConstraint : Size=38
+        Key : Lower : Body                   : Upper
+          0 :   0.0 :     1.5344717433225896 :  None
+          1 :   0.0 : 1.0430612467485123e-16 :  None
+          2 :   0.0 :     0.5604070357578743 :  None
+          3 :   0.0 :    0.06289001324766344 :  None
+          4 :   0.0 :     3.5344717433225896 :  None
+          5 :   0.0 :      62.05915565694609 :  None
+          6 :   0.0 :     1187.4198693693413 :  None
+          7 :   0.0 :  5.949968931199224e-17 :  None
+          8 :   0.0 :     1.2971655055546314 :  None
+          9 :   0.0 : 2.1715129993030286e-11 :  None
+         10 :   0.0 :      1.520303803680331 :  None
+         11 :   0.0 :     1.2672358716612948 :  None
+         12 :   0.0 :     0.8822073945439869 :  None
+         13 :   0.0 : 4.2620626896113404e-16 :  None
+         14 :   0.0 :      6.384403113787551 :  None
+         15 :   0.0 :     1.1813846502314527 :  None
+         16 :   0.0 :      8.414272233886894 :  None
+         17 :   0.0 :      55.58997398645874 :  None
+         18 :   0.0 :     12.835410768975564 :  None
+         19 :   0.0 : 5.0502332710171336e-17 :  None
+         20 :   0.0 :     1.6234732528198734 :  None
+         21 :   0.0 :      2.002097312242572 :  None
+         22 :   0.0 :     1.4778766267564596 :  None
+         23 :   0.0 :      8.175487768249042 :  None
+         24 :   0.0 :     1.0227794842847293 :  None
+         25 :   0.0 :     1.0586473172084019 :  None
+         26 :   0.0 :   9.79296530650503e-16 :  None
+         27 :   0.0 :     4.1311557098124245 :  None
+         28 :   0.0 :     3683.3398085858285 :  None
+         29 :   0.0 :       5.25342650804982 :  None
+         30 :   0.0 :      1.828681779615871 :  None
+         31 :   0.0 :     1.1781572477741964 :  None
+         32 :   0.0 :     1.2821696247343084 :  None
+         33 :   0.0 : 4.5492500013675095e-17 :  None
+         34 :   0.0 :  5.371210171028492e-07 :  None
+         35 :   0.0 :     0.5596756096605875 :  None
+         36 :   0.0 :     1.7936096413983096 :  None
+         37 :   0.0 :      2.070142347462391 :  None
+    LogConstraint : Size=3
+        Key : Lower  : Body                : Upper
+          0 : 0.0001 :  1.8283210789322226 :  None
+          1 : 0.0001 :  2.2072613210436303 :  None
+          2 : 0.0001 : 0.21102032476451968 :  None
+    CactiConstraint : Size=8
+        Key : Lower : Body                    : Upper
+          0 :   0.0 : -2.9103830456733704e-11 :   0.0
+          1 :   0.0 : -2.9103830456733704e-11 :   0.0
+          2 :   0.0 :  -4.547473508864641e-13 :   0.0
+          3 :   0.0 :  -4.547473508864641e-13 :   0.0
+          4 :   0.0 : -1.4210854715202004e-14 :   0.0
+          5 :   0.0 :                     0.0 :   0.0
+          6 :   0.0 :  1.0658141036401503e-14 :   0.0
+          7 :   0.0 :  1.4210854715202004e-14 :   0.0
+    V_dd_lower : Size=1
+        Key  : Lower : Body              : Upper
+        None :   0.5 : 1.099966866894895 :  None
+    V_dd_upper : Size=1
+        Key  : Lower : Body              : Upper
+        None :  None : 1.099966866894895 :   1.7
+    Vdd_not_cutoff : Size=1
+        Key  : Lower : Body                 : Upper
+        None :  None : -0.13931874561894725 :   0.0
+    Constraint2 : Size=43
+        Key : Lower : Body                   : Upper
+          0 :  None :      80.88571524340914 :      80.89575655957144
+          1 :  None :      1333.369652696619 :     1333.3965185886059
+          2 :  None :     25.097267901290223 :      25.09768304566701
+          3 :  None :   0.007269586497824102 :   0.007269697097743877
+          4 :  None :      72238.72196687487 :       72239.4519995019
+          5 :  None :      1.099966866894895 :                    1.1
+          6 :  None :      84401392.95491117 :      84402901.78571428
+          7 :  None :      604989186.2615826 :            605000000.0
+          8 :  None :      72238.72196687487 :       72239.4519995019
+          9 :  None :      65560.50383126795 :      65561.67609020941
+         10 :  None : 0.00017024285181278388 :  0.0001715636431338843
+         11 :  None :     1333.2749774021638 :     1333.3017712019846
+         12 :  None :     25.098042065856045 :     25.098457804997505
+         13 :  None : 3.0222681661286705e-12 :  6.611570247933885e-10
+         14 :  None :  1.199720186681126e-09 : 2.6302413223140494e-07
+         15 :  None :     12165966.623481678 :     12166184.041184042
+         16 :  None :     1.4599210865406447 :                   1.46
+         17 :  None :     0.3781538273847346 :    0.37818145187664953
+         18 :  None :     1.2299486618707745 :                   1.23
+         19 :  None :      1.309946388717271 :                   1.31
+         20 :  None :    0.04009893077263196 :    0.04012375857630771
+         21 :  None :  6.316741002658928e-17 :  8.745472550906772e-17
+         22 :  None :     1.0428133665560726 :     1.0428459637997023
+         23 :  None :      2.079968235756514 :                   2.08
+         24 :  None :   0.037262160064543165 :   0.037311788068134566
+         25 :  None :     145.99746631164123 :                  146.0
+         26 :  None : 2.5235368699535622e-17 :  1.604956042088937e-17
+         27 :  None :     0.1765809056834904 :    0.17658102307352566
+         28 :  None :      11396288623.47125 :     11396482964.200449
+         29 :  None :     0.5344717433225897 :     0.5344891339309155
+         30 :  None :   0.006216109173185481 :   0.006231933514028902
+         31 :  None :  0.0007028053562123085 :  0.0007028154284768797
+         32 :  None : 4.2556255862301266e-07 :              4.256e-07
+         33 :  None :  0.0012470213384861426 :  0.0012515745553262141
+         34 :  None : 1.0134419221477748e-14 :   9.70898664503359e-15
+         35 :  None :    0.36906164586003076 :     0.3690902110766901
+         36 :  None :     0.4011505273751074 :     0.4011776985401493
+         37 :  None : 3.0069588205559253e-17 :  3.075086908205027e-17
+         38 :  None :     0.6296182228138147 :     0.6297988647683767
+         39 :  None :   1.48503095814961e-16 :  6.686264058748703e-17
+         40 :  None :     0.8842226375459185 :     0.8843998527864494
+         41 :  None : 1.6948006343546663e-10 : 1.6961372589117513e-10
+         42 :  None :     0.3875196949673464 :    0.38752799464941873

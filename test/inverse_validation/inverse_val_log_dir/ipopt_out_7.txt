@@ -1,0 +1,182 @@
+cacti sub vars: {MemWriteEact, MemReadL, MemWriteL, MemPpass, BufL, BufWriteEact, BufReadEact, BufPpass, MemReadEact}
+length of free symbols: 8
+symbol name is Reff_Add
+symbol name is Ceff_Regs
+symbol name is Reff_Mult
+symbol name is Reff_Not
+symbol name is Reff_Regs
+symbol name is Ceff_Mult
+symbol name is Ceff_Add
+symbol name is V_dd
+x[1] Reff_Add
+x[2] Ceff_Regs
+x[3] Reff_Mult
+x[4] Reff_Not
+x[5] Reff_Regs
+x[6] Ceff_Mult
+x[7] Ceff_Add
+x[8] V_dd
+building bimap
+symbol: Reff_Add; initial value: 12166184.041184042
+symbol: Ceff_Regs; initial value: 6.611570247933885e-10
+symbol: Reff_Mult; initial value: 65561.67609020941
+symbol: Reff_Not; initial value: 84402901.78571428
+symbol: Reff_Regs; initial value: 605000000.0
+symbol: Ceff_Mult; initial value: 0.0001715636431338843
+symbol: Ceff_Add; initial value: 2.6302413223140494e-07
+symbol: V_dd; initial value: 1.1
+converting to pyomo exp
+added regularization
+adding constraints. initial val: 1.1069513853607352e+17;
+mapping: {Reff_Add: 1, Ceff_Regs: 2, Reff_Mult: 3, Reff_Not: 4, Reff_Regs: 5, Ceff_Mult: 6, Ceff_Add: 7, V_dd: 8}
+symbol name: Reff_Add
+symbol name: Ceff_Regs
+symbol name: Reff_Mult
+symbol name: Reff_Not
+symbol name: Reff_Regs
+symbol name: Ceff_Mult
+symbol name: Ceff_Add
+symbol name: V_dd
+Solver log file: '/var/folders/fd/_g3nsz7d5qj5_x7swqyg63tr0000gn/T/tmprfqllj3v_ipopt.log'
+Solver solution file: '/var/folders/fd/_g3nsz7d5qj5_x7swqyg63tr0000gn/T/tmp6dsne6jo.pyomo.sol'
+Solver problem files: ('/var/folders/fd/_g3nsz7d5qj5_x7swqyg63tr0000gn/T/tmp6dsne6jo.pyomo.nl',)
+Ipopt 3.14.14: warm_start_init_point=yes
+warm_start_bound_push=1e-09
+warm_start_mult_bound_push=1e-09
+warm_start_bound_frac=1e-09
+warm_start_slack_bound_push=1e-09
+warm_start_slack_bound_frac=1e-09
+mu_init=0.1
+tol=1
+bound_relax_factor=0
+max_iter=100
+print_info_string=yes
+output_file=src/tmp/solver_out.txt
+wantsol=2
+halt_on_ampl_error=yes
+
+
+******************************************************************************
+This program contains Ipopt, a library for large-scale nonlinear optimization.
+ Ipopt is released as open source code under the Eclipse Public License (EPL).
+         For more information visit https://github.com/coin-or/Ipopt
+******************************************************************************
+
+This is Ipopt version 3.14.14, running with linear solver MUMPS 5.6.2.
+
+Number of nonzeros in equality constraint Jacobian...:        0
+Number of nonzeros in inequality constraint Jacobian.:       18
+Number of nonzeros in Lagrangian Hessian.............:       36
+
+Total number of variables............................:        8
+                     variables with only lower bounds:        8
+                variables with lower and upper bounds:        0
+                     variables with only upper bounds:        0
+Total number of equality constraints.................:        0
+Total number of inequality constraints...............:       11
+        inequality constraints with only lower bounds:        2
+   inequality constraints with lower and upper bounds:        0
+        inequality constraints with only upper bounds:        9
+
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+   0  1.1069514e+17 0.00e+00 1.72e+05  -1.0 0.00e+00    -  0.00e+00 0.00e+00   0 
+   1  1.1069514e+17 9.90e-10 1.00e+08  -1.0 2.38e+03   4.0 1.00e+00 5.69e-06f  1 Nhj 
+   2  1.1069406e+17 9.90e-10 1.00e+08  -1.0 8.08e+08    -  2.70e-05 1.78e-05f  1 
+   3  1.1069404e+17 9.90e-10 9.99e+07  -1.0 1.42e+06    -  2.69e-04 1.66e-04f  1 
+   4  1.1069248e+17 9.89e-10 9.99e+07  -1.0 1.82e+08    -  3.16e-06 8.58e-05f  1 
+   5  1.1069246e+17 9.89e-10 9.99e+07  -1.0 2.60e+07    -  7.18e-04 6.00e-06f  1 
+   6  1.1069246e+17 9.88e-10 1.26e+08  -1.0 2.07e+03    -  9.90e-01 7.56e-04f  1 
+   7  1.1069210e+17 0.00e+00 3.62e+05  -1.0 8.51e-02    -  9.90e-01 1.00e+00f  1 
+   8  1.1069210e+17 0.00e+00 5.51e+05  -1.0 7.68e-02    -  9.90e-01 1.00e+00f  1 
+   9  1.1069210e+17 0.00e+00 1.17e+04  -1.0 1.00e-01    -  9.91e-01 1.00e+00f  1 
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+  10  1.1069209e+17 1.64e+09 3.57e+06  -1.7 2.00e+00    -  9.70e-01 1.00e+00f  1 
+  11  1.1069207e+17 2.63e+10 4.24e+01  -1.7 3.81e+01    -  1.00e+00 1.00e+00h  1 
+  12  1.1069210e+17 3.31e+08 1.69e+00  -1.7 1.31e+01    -  1.00e+00 1.00e+00h  1 
+  13  1.1069210e+17 0.00e+00 8.90e+00  -1.7 3.34e+00    -  1.00e+00 1.00e+00h  1 
+  14  1.1069210e+17 0.00e+00 5.71e+02  -1.7 8.56e-03    -  9.92e-01 1.00e+00h  1 
+  15  1.1069210e+17 0.00e+00 2.31e+05  -3.8 1.98e-02    -  9.92e-01 1.00e+00h  1 
+  16  1.1069210e+17 0.00e+00 1.20e-02  -3.8 9.52e-02    -  1.00e+00 1.00e+00H  1 
+  17  1.1069210e+17 0.00e+00 1.21e+02  -5.7 2.53e-03    -  1.00e+00 1.00e+00h  1 
+  18  1.1069210e+17 0.00e+00 2.78e-05  -5.7 4.89e-01    -  1.00e+00 1.00e+00H  1 
+In iteration 18, 1 Slack too small, adjusting variable bound
+  19  1.1069210e+17 0.00e+00 4.37e+01  -8.6 5.95e-02    -  9.87e-01 1.00e+00F  1 
+In iteration 19, 1 Slack too small, adjusting variable bound
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+  20  1.1069210e+17 0.00e+00 1.74e-07  -8.6 2.83e+00    -  1.00e+00 1.00e+00H  1 
+In iteration 20, 1 Slack too small, adjusting variable bound
+  21  1.1069210e+17 4.77e+01 7.00e-08  -8.6 8.09e+00    -  1.00e+00 1.00e+00H  1 
+In iteration 21, 1 Slack too small, adjusting variable bound
+  22  1.1069210e+17 2.38e+01 2.93e-08  -8.6 2.31e+00    -  1.00e+00 1.00e+00H  1 
+In iteration 22, 1 Slack too small, adjusting variable bound
+  23  1.1069210e+17 3.35e+07 1.49e-08  -8.6 2.92e-01    -  1.00e+00 1.00e+00H  1 
+In iteration 23, 1 Slack too small, adjusting variable bound
+  24  1.1069210e+17 1.20e+08 5.45e-09  -8.6 8.01e+00    -  1.00e+00 1.00e+00H  1 
+In iteration 24, 1 Slack too small, adjusting variable bound
+  25  1.1069210e+17 6.96e+06 8.06e-10  -8.6 8.45e-01    -  1.00e+00 1.00e+00H  1 
+In iteration 25, 1 Slack too small, adjusting variable bound
+  26  1.1069210e+17 3.18e+06 6.75e-01  -8.6 7.96e-02    -  1.00e+00 5.00e-01h  2 
+In iteration 26, 1 Slack too small, adjusting variable bound
+  27  1.1069210e+17 1.53e+06 3.37e-01  -8.6 4.03e-02    -  1.00e+00 5.00e-01h  2 
+In iteration 27, 1 Slack too small, adjusting variable bound
+  28  1.1069210e+17 7.43e+05 1.68e-01  -8.6 2.41e-02    -  1.00e+00 5.00e-01h  2 
+In iteration 28, 1 Slack too small, adjusting variable bound
+  29  1.1069210e+17 3.66e+05 8.37e-02  -8.6 1.03e-02    -  1.00e+00 5.00e-01h  2 
+In iteration 29, 1 Slack too small, adjusting variable bound
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+  30  1.1069210e+17 1.82e+05 4.20e-02  -8.6 6.28e-03    -  1.00e+00 5.00e-01h  2 F+
+In iteration 30, 1 Slack too small, adjusting variable bound
+  31  1.1069210e+17 2.74e+03 1.88e-11  -8.6 2.52e-03    -  1.00e+00 1.00e+00h  1 
+In iteration 31, 1 Slack too small, adjusting variable bound
+  32  1.1069210e+17 0.00e+00 2.49e-11  -8.6 2.41e-03    -  1.00e+00 1.00e+00h  1 
+In iteration 32, 1 Slack too small, adjusting variable bound
+  33  1.1069210e+17 0.00e+00 2.20e-11  -8.6 3.81e-03    -  1.00e+00 1.00e+00H  1 
+In iteration 33, 1 Slack too small, adjusting variable bound
+  34  1.1069210e+17 2.78e+06 1.11e+00 -12.9 6.21e+00    -  9.11e-01 1.00e+00H  1 
+In iteration 34, 1 Slack too small, adjusting variable bound
+  35  1.1069210e+17 0.00e+00 3.30e-01 -12.9 9.41e+00    -  8.27e-01 1.00e+00H  1 
+In iteration 35, 1 Slack too small, adjusting variable bound
+  36  1.1069210e+17 0.00e+00 1.15e-01 -12.9 7.97e+00    -  8.27e-01 1.00e+00H  1 z
+In iteration 36, 1 Slack too small, adjusting variable bound
+  37  1.1069210e+17 2.38e+01 1.74e-01 -12.9 5.60e+00    -  9.99e-01 3.05e-05h 16 z
+In iteration 37, 1 Slack too small, adjusting variable bound
+  38  1.1069210e+17 2.38e+01 2.63e-01 -12.9 7.12e+00    -  1.00e+00 1.53e-05h 17 
+In iteration 38, 1 Slack too small, adjusting variable bound
+  39  1.1069210e+17 0.00e+00 3.05e-01 -12.9 7.85e+00    -  1.00e+00 6.10e-05h 15 
+In iteration 39, 1 Slack too small, adjusting variable bound
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+  40  1.1069210e+17 0.00e+00 3.28e-01 -12.9 8.25e+00    -  1.00e+00 3.73e-09h 29 
+In iteration 40, 1 Slack too small, adjusting variable bound
+  41  1.1069210e+17 0.00e+00 3.42e-01 -12.9 8.49e+00    -  1.00e+00 1.86e-09h 30 F+
+In iteration 41, 1 Slack too small, adjusting variable bound
+  42  1.1069210e+17 0.00e+00 3.50e-01 -12.9 8.64e+00    -  1.00e+00 4.66e-10h 32 
+In iteration 42, 1 Slack too small, adjusting variable bound
+  43  1.1069210e+17 0.00e+00 3.56e-01 -12.9 8.74e+00    -  1.00e+00 1.46e-11h 37 
+In iteration 43, 1 Slack too small, adjusting variable bound
+  44  1.1069210e+17 0.00e+00 3.59e-01 -12.9 8.80e+00    -  1.00e+00 1.82e-12h 40 
+In iteration 44, 1 Slack too small, adjusting variable bound
+  45  1.1069210e+17 0.00e+00 3.62e-01 -12.9 8.85e+00    -  1.00e+00 4.55e-13h 42 
+Cannot call restoration phase at point that is almost feasible (violation 0.000000e+00).
+Abort in line search due to no other fall back.
+
+Number of Iterations....: 45
+
+                                   (scaled)                 (unscaled)
+Objective...............:   1.1069209577597647e+09    1.1069209577597646e+17
+Dual infeasibility......:   3.6155632468868809e-01    3.6155632468868807e+07
+Constraint violation....:   0.0000000000000000e+00    0.0000000000000000e+00
+Variable bound violation:   0.0000000000000000e+00    0.0000000000000000e+00
+Complementarity.........:   9.1401442558342445e-13    9.1401442558342445e-05
+Overall NLP error.......:   3.6155632468868809e-01    3.6155632468868807e+07
+
+
+Number of objective function evaluations             = 407
+Number of objective gradient evaluations             = 47
+Number of equality constraint evaluations            = 0
+Number of inequality constraint evaluations          = 407
+Number of equality constraint Jacobian evaluations   = 0
+Number of inequality constraint Jacobian evaluations = 47
+Number of Lagrangian Hessian evaluations             = 46
+Total seconds in IPOPT                               = 0.033
+
+EXIT: Error in step computation!
