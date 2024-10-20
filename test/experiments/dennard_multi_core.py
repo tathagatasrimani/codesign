@@ -4,6 +4,7 @@ import logging
 import os
 import sys
 import yaml
+import matplotlib.pyplot as plt
 
 logger = logging.getLogger("dennard multi core")
 
@@ -33,6 +34,16 @@ class DennardMultiCore:
         self.cacti_node = 22
         self.tech_params = {}
         self.hw = None
+        self.params_over_iterations = []
+        self.plot_list = set([
+            hw_symbols.V_dd,
+            hw_symbols.Reff["Add"],
+            hw_symbols.Ceff["Add"],
+            hw_symbols.Reff["Mult"],
+            hw_symbols.Ceff["Mult"],
+            hw_symbols.Reff["Regs"],
+            hw_symbols.Ceff["Regs"]
+        ])
 
 
     def write_back_rcs(self, rcs_path="src/params/rcs_current.yaml"):
@@ -109,6 +120,22 @@ class DennardMultiCore:
                 dest_file.write(line)
         os.remove(prev_dat_file)
 
+    def plot_params_over_iterations(self):
+        fig_save_dir = "test/experiments/dennard_multi_core_figs"
+        if not os.path.exists(fig_save_dir):
+            os.makedirs(fig_save_dir)
+        for param in self.plot_list:
+            values = []
+            for i in range(len(self.params_over_iterations)):
+                values.append(self.params_over_iterations[i][param])
+                plt.plot(values)
+                plt.xlabel("iteration")
+                plt.ylabel("value")
+                plt.title(f"{param.name} over iterations")
+                plt.yscale("log")
+                plt.savefig(f"{fig_save_dir}/{param.name}_over_iters.png")
+                plt.close()
+
     def run_experiment(self):
         # set up framework
         print(
@@ -143,10 +170,12 @@ class DennardMultiCore:
         hardwareModel.un_allocate_all_in_use_elements(self.hw.netlist)
 
         symbolic_sim.simulate(scheduled_dfg, self.hw)
-        cacti_subs = symbolic_sim.calculate_edp(self.hw)
+        cacti_subs = symbolic_sim.calculate_edp(self.hw, concrete_sub=True)
+        #print(f"edp: {symbolic_sim.edp}")
 
         for cacti_var in cacti_subs:
-            self.tech_params[cacti_var] = cacti_subs[cacti_var].xreplace(self.tech_params).evalf()
+            self.tech_params[cacti_var] = cacti_subs[cacti_var]#.xreplace(self.tech_params).evalf()
+        symbolic_sim.edp = symbolic_sim.edp.xreplace(cacti_subs)
 
         inverse_edp = symbolic_sim.edp.xreplace(self.tech_params).evalf()
         inverse_exec_time = symbolic_sim.execution_time.xreplace(self.tech_params).evalf()
@@ -159,13 +188,15 @@ class DennardMultiCore:
             f"Initial EDP: {inverse_edp} E-18 Js. Active Energy: {active_energy} nJ. Passive Energy: {passive_energy} nJ. Execution time: {inverse_exec_time} ns"
         )
 
+        self.params_over_iterations.append(self.tech_params)
+
         # run technology optimization to simulate dennard scaling.
         # show that over time, as Vdd comes up to limit, benefits are more difficult to find
         for i in range(self.args.num_opt_iters):
             initial_tech_params = copy.copy(self.tech_params)
             stdout = sys.stdout
             with open(f"{self.args.savedir}/ipopt_out_{i}.txt", "w") as sys.stdout:
-                optimize.optimize(self.tech_params, symbolic_sim.edp, "ipopt", cacti_subs)
+                optimize.optimize(self.tech_params, symbolic_sim.edp, "ipopt", cacti_subs, regularization=1e-9)
             sys.stdout = stdout
             f = open(f"{self.args.savedir}/ipopt_out_{i}.txt", "r")
             self.tech_params = self.parse_output(f)
@@ -189,6 +220,9 @@ class DennardMultiCore:
             self.hw.write_technology_parameters(
                 f"{self.args.savedir}/tech_params_{i}.yaml"
             )
+            self.params_over_iterations.append(self.tech_params)
+
+        self.plot_params_over_iterations()
         
         # now run architecture search to demonstrate how parallelism can be added
         # to combat diminishing tech benefits at the end of dennard scaling
@@ -253,6 +287,12 @@ if __name__ == "__main__":
         type=int,
         default=1,
         help="Number of Architecture Search iterations to run",
+    )
+    parser.add_argument(
+        "--figdir",
+        type=str,
+        default="test/experiments/dennard_multi_core_figs",
+        help="path to save figs"
     )
     parser.add_argument("-a", "--area", type=float, default=100000, help="Max Area of the chip in um^2")
     args = parser.parse_args()
