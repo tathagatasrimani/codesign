@@ -18,10 +18,11 @@ from .global_constants import SEED
 
 rng = np.random.default_rng(SEED)
 
-def setup_arch_search(benchmark, arch_init_config):
+# optional arguments added to allow architecture configs to be used with different tech nodes
+def setup_arch_search(benchmark, arch_init_config, transistor_override=False, transistor_size=None, cacti_transistor_size=None):
     simulator = ConcreteSimulator()
 
-    hw = hardwareModel.HardwareModel(cfg=arch_init_config)
+    hw = hardwareModel.HardwareModel(cfg=arch_init_config, transistor_override=transistor_override, transistor_size=transistor_size, cacti_transistor_size=cacti_transistor_size)
 
     computation_dfg = simulator.simulator_prep(benchmark, hw.latency)
 
