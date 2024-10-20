@@ -259,7 +259,7 @@ class SymbolicSimulator(AbstractSimulator):
             self.execution_time += gen_latency
         #logger.info(f"execution time: {str(self.execution_time)}")
 
-    def calculate_edp(self, hw):
+    def calculate_edp(self, hw, concrete_sub=False):
 
         with open('src/cacti/symbolic_expressions/Mem_access_time.txt', 'r') as file:
             mem_access_time_text = file.read()
@@ -284,6 +284,16 @@ class SymbolicSimulator(AbstractSimulator):
 
         with open("src/cacti/symbolic_expressions/Buf_read_leakage.txt", "r") as file:
             buf_read_leakage_text = file.read()
+
+        if concrete_sub:
+            MemL_expr = hw.latency["MainMem"]
+            MemReadEact_expr = hw.dynamic_energy["MainMem"]["Read"]
+            MemWriteEact_expr = hw.dynamic_energy["MainMem"]["Write"]
+            MemPpass_expr = hw.leakage_power["MainMem"]
+            BufL_expr = hw.latency["Buf"]
+            BufReadEact_expr = hw.dynamic_energy["Buf"]["Read"]
+            BufWriteEact_expr = hw.dynamic_energy["Buf"]["Write"]
+            BufPpass_expr = hw.leakage_power["Buf"]
 
         MemL_expr = sp.sympify(mem_access_time_text, locals=hw_symbols.symbol_table)
         MemReadEact_expr = sp.sympify(mem_read_dynamic_text, locals=hw_symbols.symbol_table)

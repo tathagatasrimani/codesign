@@ -29,7 +29,7 @@ from src import architecture_search
 args = None
 
 # 40, 7, 5
-logic_tech_nodes = [7, 5, 3]
+logic_tech_nodes = [7, 5]
 # 90, 45, 32, 22
 cacti_nodes = [45, 22]
 default_cacti = 22
@@ -139,7 +139,7 @@ def run_pairwise(tech_node_pair, improvement, hws, dfgs):
     hardwareModel.un_allocate_all_in_use_elements(hws[tech_node_pair[0]].netlist)
 
     symbolic_sim.simulate(dfgs[tech_node_pair[0]], hws[tech_node_pair[0]])
-    cacti_subs = symbolic_sim.calculate_edp(hws[tech_node_pair[0]])
+    cacti_subs = symbolic_sim.calculate_edp(hws[tech_node_pair[0]], concrete_sub=True)
 
     for cacti_var in cacti_subs:
         initial_tech_params[tech_node_pair[0]][cacti_var] = cacti_subs[cacti_var].xreplace(initial_tech_params[tech_node_pair[0]]).evalf()
@@ -151,10 +151,10 @@ def run_pairwise(tech_node_pair, improvement, hws, dfgs):
         #logger.warning(f"symbolic edp after subbing out logic params: {symbolic_sim.edp}")
     elif (args.test_type == "logic"):
         cacti_params = {}
-        for cacti_var in cacti_subs:
-            cacti_params[cacti_var] = initial_tech_params[tech_node_pair[0]][cacti_var]
-        symbolic_sim.edp = symbolic_sim.edp.xreplace(cacti_params)
-        #logger.warning(f"symbolic edp after subbing out cacti params: {symbolic_sim.edp}")
+        #for cacti_var in cacti_subs:
+        #    cacti_params[cacti_var] = initial_tech_params[tech_node_pair[0]][cacti_var]
+        symbolic_sim.edp = symbolic_sim.edp.xreplace(cacti_subs)
+        logger.warning(f"symbolic edp after subbing out cacti params: {symbolic_sim.edp}")
 
     improvement = (symbolic_sim.edp.xreplace(initial_tech_params[tech_node_pair[0]]) / symbolic_sim.edp.xreplace(initial_tech_params[tech_node_pair[1]])).simplify()
     logger.warning(f"jk actually asking for {improvement} edp improvement")
