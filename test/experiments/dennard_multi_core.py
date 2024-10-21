@@ -307,7 +307,7 @@ if __name__ == "__main__":
         f.write(f"Benchmark: {args.benchmark}\n")
         f.write(f"Architecture Config: {args.architecture_config}\n")
 
-    logging.basicConfig(filename=f"{args.savedir}/log.txt", level=logging.WARNING)
+    logging.basicConfig(filename=f"{args.savedir}/log.txt", level=logging.INFO)
 
     experiment = DennardMultiCore(args)
     experiment.run_experiment()    

@@ -289,21 +289,21 @@ class SymbolicSimulator(AbstractSimulator):
             MemL_expr = hw.latency["MainMem"]
             MemReadEact_expr = hw.dynamic_energy["MainMem"]["Read"]
             MemWriteEact_expr = hw.dynamic_energy["MainMem"]["Write"]
-            MemPpass_expr = hw.leakage_power["MainMem"]
+            MemPpass_expr = hw.leakage_power["MainMem"] * 1e-9
             BufL_expr = hw.latency["Buf"]
             BufReadEact_expr = hw.dynamic_energy["Buf"]["Read"]
             BufWriteEact_expr = hw.dynamic_energy["Buf"]["Write"]
-            BufPpass_expr = hw.leakage_power["Buf"]
+            BufPpass_expr = hw.leakage_power["Buf"] * 1e-9
+        else:
+            MemL_expr = sp.sympify(mem_access_time_text, locals=hw_symbols.symbol_table)
+            MemReadEact_expr = sp.sympify(mem_read_dynamic_text, locals=hw_symbols.symbol_table)
+            MemWriteEact_expr = sp.sympify(mem_write_dynamic_text, locals=hw_symbols.symbol_table)
+            MemPpass_expr = sp.sympify(mem_read_leakage_text, locals=hw_symbols.symbol_table)
 
-        MemL_expr = sp.sympify(mem_access_time_text, locals=hw_symbols.symbol_table)
-        MemReadEact_expr = sp.sympify(mem_read_dynamic_text, locals=hw_symbols.symbol_table)
-        MemWriteEact_expr = sp.sympify(mem_write_dynamic_text, locals=hw_symbols.symbol_table)
-        MemPpass_expr = sp.sympify(mem_read_leakage_text, locals=hw_symbols.symbol_table)
-
-        BufL_expr = sp.sympify(buf_access_time_text, locals=hw_symbols.symbol_table)
-        BufReadEact_expr = sp.sympify(buf_read_dynamic_text, locals=hw_symbols.symbol_table)
-        BufWriteEact_expr = sp.sympify(buf_write_dynamic_text, locals=hw_symbols.symbol_table)
-        BufPpass_expr = sp.sympify(buf_read_leakage_text, locals=hw_symbols.symbol_table)
+            BufL_expr = sp.sympify(buf_access_time_text, locals=hw_symbols.symbol_table)
+            BufReadEact_expr = sp.sympify(buf_read_dynamic_text, locals=hw_symbols.symbol_table)
+            BufWriteEact_expr = sp.sympify(buf_write_dynamic_text, locals=hw_symbols.symbol_table)
+            BufPpass_expr = sp.sympify(buf_read_leakage_text, locals=hw_symbols.symbol_table)
 
         # TODO: print these vs fw pass values
         cacti_subs = {

@@ -28,6 +28,7 @@ test/inverse_validation/inverse_val_log_dir/**
 test/inverse_validation/figs/**
 test/inverse_validation/inverse_walkthrough_log_dir/**
 test/inverse_validation/walkthrough_figs/**
+test/experiments/dennard_multi_core_figs/**
 test/experiments/dennard_multi_core_log_dir/**
 openroad_interface/fig
 openroad_interface/results
