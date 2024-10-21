@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import argparse
 import logging
+from functools import reduce
 
 logger = logging.getLogger(__name__)
 
@@ -519,8 +520,31 @@ class ConcreteSimulator(AbstractSimulator):
                     if path_latency > self.cycles:
                         longest_path_explicit = path
                         self.cycles = path_latency
+        longest_path = list(map(lambda x: (x, computation_dfg.nodes[x]['function']), longest_path_explicit))
         logger.info(
-            f"longest path explicitly calculated: {list(map(lambda x: (x, computation_dfg.nodes[x]['function']), longest_path_explicit))}"
+            f"longest path explicitly calculated: {longest_path}"
+        )
+        filtered = filter(lambda x: 'Mem' not in x[1] and 'Mem' not in x[0] and 'Buf' not in x[1] and 'Buf' not in x[0] and 'end' not in x[1], longest_path)
+        # print(f"filtered: {list(filtered)}")
+        mapped1 = map(
+            lambda x: x[1] if x[1] != "stall" else x[0].split("_")[3], filtered
+        )  #
+        # mapped_1 = []
+        # for elem in filtered:
+        #     print(f"elem: {elem}")
+        #     if elem[1] != 'stall':
+        #         mapped_1.append(elem[1])
+        #     else:
+        #         mapped_1.append(elem[0].split('_')[3])
+        # print(f"mapped: {list(mapped1)}")
+        # print(f"mapped_1: {mapped_1}")
+        mapped2 = map(lambda x: hw.latency[x], mapped1)
+        tmp = list(mapped2)
+        # print(f"mapped2: {tmp}")
+        reduced = sum(tmp)
+        print(f"reduced: {reduced}")
+        logger.info(
+            f"longest path length explicitly calculated without mem: {reduced} ns"
         )
         logger.info(f"longest path length explicitly calculated: {self.cycles}")
 
@@ -545,7 +569,7 @@ class ConcreteSimulator(AbstractSimulator):
         self.total_energy = self.active_energy + self.passive_energy
         self.edp = self.total_energy * self.execution_time
 
-        
+
 def main(args):
     print(f"Running simulator for {args.benchmark.split('/')[-1]}")
     simulator = ConcreteSimulator()
