@@ -47,10 +47,10 @@ def gen_abs_results(sympy_file, cache_cfg, dat_file):
         transistor_size=transistor_size,
     )
 
-    validate_access_time = float(validate_vals["Access time (ns)"])
-    validate_read_dynamic = float(validate_vals["Dynamic read energy (nJ)"])
-    validate_write_dynamic = float(validate_vals["Dynamic write energy (nJ)"])
-    validate_leakage = float(validate_vals["Standby leakage per bank(mW)"])
+    # validate_access_time = float(validate_vals["Access time (ns)"])
+    # validate_read_dynamic = float(validate_vals["Dynamic read energy (nJ)"])
+    # validate_write_dynamic = float(validate_vals["Dynamic write energy (nJ)"])
+    # validate_leakage = float(validate_vals["Standby leakage per bank(mW)"])
 
     buf_opt = {
             "ndwl": validate_vals["Ndwl"],
@@ -165,29 +165,6 @@ def gen_abs_results(sympy_file, cache_cfg, dat_file):
     result = expression.subs(IO_tech_params)
     result_io_termination_power = result.subs(sp.I, 0).evalf()
 
-    # print
-    # print(f'Transistor size: {g_ip.F_sz_um}')
-    # print(f'is_cache: {g_ip.is_cache}')
-
-    # print(f'access_time: {result_access_time}')
-    # print(f"result : {result_read_dynamic, result_write_dynamic, result_read_leakage}")
-
-    # print(f"io_area: {result_io_area}")
-    # print(f"io_timing_margin: {result_io_timing_margin}")
-    # print(f"io_dynamic_power: {result_io_dynamic_power}")
-    # print(f"io_phy_power: {result_io_phy_power}")
-    # print(f"io_termination_power: {result_io_termination_power}")
-    # print(f"validate_access_time (ns): {validate_access_time}")
-    # print(f"validate_read_dynamic (nJ): {validate_read_dynamic}")
-    # print(f"validate_write_dynamic (nJ): {validate_write_dynamic}")
-    # print(f"validate_leakage (mW): {validate_leakage}")
-
-    # print(f'validate_io_area: {float(validate_vals["IO area"])}')
-    # print(f'validate_io_timing: {float(validate_vals["IO timing"])}')
-    # print(f'validate_io_power_dynamic: {float(validate_vals["IO power dynamic"])}')
-    # print(f'validate_io_power_phy: {float(validate_vals["IO power PHY"])}')
-    # print(f'validate_io_power_termination_and_bias: {float(validate_vals["IO power termination and bias"])}')
-
     # write to CSV
     data = {
         "access_time (ns)": [result_access_time],
@@ -227,7 +204,7 @@ def gen_abs_results(sympy_file, cache_cfg, dat_file):
 
     print(f"Data successfully appended to {csv_file}")
 
-    return result, validate_access_time
+    return result
 
 
 if __name__ == "__main__":
