@@ -245,51 +245,6 @@ def assign_upstream_path_lengths_old(graph):
     return graph
 
 
-# def add_stall_nodes_to_sdc(graph, vars):
-
-#     """
-#     Adds stall nodes to the output of the SDC schedule i.e. any time there is an edge between a node and the difference in start times is not equal to the latency add a stall node.
-#     """
-#     stall_nodes_added = 0
-#     new_edges = []
-#     nodes_to_remove = []
-
-#     for u, v in graph.edges():
-#         source_id = graph.nodes[u]["scheduling_id"]
-#         dest_id = graph.nodes[v]["scheduling_id"]
-        
-#         source_end_time = vars[source_id][1].value
-#         dest_start_time = vars[dest_id][0].value
-#         time_difference = dest_start_time - source_end_time
-
-#         if np.round(time_difference, 3) > 0:
-#             # Add a stall node
-#             stall_node = f"stall_{stall_nodes_added}"
-#             stall_start_time = source_end_time
-#             stall_end_time = dest_start_time
-
-#             graph.add_node(stall_node, 
-#                            function="stall", 
-#                            scheduling_id=len(vars),
-#                            cost=time_difference)
-            
-#             # Add edges to and from the stall node
-#             new_edges.append((u, stall_node))
-#             new_edges.append((stall_node, v))
-#             nodes_to_remove.append((u, v))
-
-#             # Add the stall node's start and end times to vars
-#             vars.append([stall_start_time, stall_end_time])
-
-#             stall_nodes_added += 1
-
-#     # Remove old edges and add new ones with stall nodes
-#     graph.remove_edges_from(nodes_to_remove)
-#     graph.add_edges_from(new_edges)
-
-#     return stall_nodes_added
-
-
 
 def sdc_schedule(graph, hw_element_counts, hw_netlist, no_resource_constraints=False):
     """
@@ -408,31 +363,6 @@ def sdc_schedule(graph, hw_element_counts, hw_netlist, no_resource_constraints=F
                     break
             if not found_hardware_element:
                 raise ValueError(f"No hardware element found for node {node[0]} with function {node_function} at time {node_start_time}")
-                
-
-
-    # generate a list of nodes by start time 
-    # gene
-    # curr_gen_nodes = list(
-    #     filter(lambda x: x[1]["layer"] == -layer, computation_graph.nodes.data())
-    # )
-    # funcs_in_gen, counts_in_gen = np.unique(
-    #     list(map(lambda x: x[1]["function"], curr_gen_nodes)), return_counts=True
-    # )
-
-    # for i, func in enumerate(funcs_in_gen):
-    #     if func in ["start", "end", "stall"]:
-    #         continue
-    #     assert counts_in_gen[i] <= hw_element_counts[func]
-    #     # do a greedy allocation of the nodes to the hardware elements
-    #     comp_nodes = list(
-    #         filter(lambda x: x[1]["function"] == func, curr_gen_nodes)
-    #     )
-    #     hw_nodes = list(
-    #         filter(lambda x: x[1]["function"] == func, hw_netlist.nodes.data())
-    #     )
-    #     for i in range(len(comp_nodes)):
-    #         graph.nodes[comp_nodes[i][0]]["allocation"] = hw_nodes[i][0]
 
     return obj.value
 
