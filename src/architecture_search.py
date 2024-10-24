@@ -15,6 +15,7 @@ from . import hardwareModel
 from . import arch_search_util
 from . import sim_util
 from .global_constants import SEED
+from .schedule import sdc_schedule
 
 rng = np.random.default_rng(SEED)
 
@@ -58,6 +59,18 @@ def get_stalled_func_counts(scheduled_dfg):
 def get_most_stalled_func(scheduled_dfg) -> str:
     func_counts = get_stalled_func_counts(scheduled_dfg)
     return max(func_counts, key=func_counts.get)
+
+def greedy_select_func_to_add(computation_dfg, scheduled_dfg):
+    # take the ideal schedule and look at the end times of each node in a topological order
+    # first node where end time of real schedule is greater than end time of ideal schedule
+    # return that node
+    topo_order = list(nx.topological_sort(computation_dfg))
+    ideal_schedule = sdc_schedule(computation_dfg, hardwareModel.get_func_count(scheduled_dfg), hardwareModel.netlist, no_resource_constraints=True)
+    for node in topo_order:
+        if scheduled_dfg.nodes[node]["end_time"] > ideal_schedule.nodes[node]["end_time"]:
+            return node
+    return None
+
 
 
 def sample_stalled_func(scheduled_dfg: nx.DiGraph) -> str:
@@ -185,7 +198,7 @@ def run_arch_search(
     """
 
     old_scheduled_dfg = simulator.schedule(computation_dfg, hw)
-
+    
     simulator.simulate(old_scheduled_dfg, hw)
     simulator.calculate_edp()
     area = hw.get_total_area()
@@ -208,8 +221,11 @@ def run_arch_search(
     hw_copy = deepcopy(hw)
 
     for i in range(num_steps):
-
-        func = sample_stalled_func(old_scheduled_dfg)
+        func = greedy_select_func_to_add(computation_dfg, old_scheduled_dfg)
+        if func is None:
+            print("Ideal schedule reached")
+            break
+        # func_to_add = greedy_select_func_to_add(computation_dfg, old_scheduled_dfg)
 
         update_hw_with_new_node(hw_copy.netlist, func)
         hw_copy.update_netlist()

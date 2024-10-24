@@ -1,5 +1,5 @@
 #!/bin/sh
-while getopts b:c:f:sqn:p: flag
+while getopts b:c:f:s:qn:p: flag
 do
     case "${flag}" in
         n) name=${OPTARG};;
@@ -7,6 +7,7 @@ do
         c) ARCH_CONFIG=${OPTARG};;
         b) BW=${OPTARG};;
         p) PARASITIC=${OPTARG};;
+        s) SCHEDULE=${OPTARG};;
     esac
 done
 
@@ -33,6 +34,9 @@ if [ $name ]; then
     fi
     if [ $PARASITIC ]; then
         ARGS+=" --parasitic $PARASITIC"
+    fi
+    if [ $SCHEDULE ]; then
+        ARGS+=" --schedule $SCHEDULE"
     fi
     echo $ARGS
     python -m src.simulate $ARGS

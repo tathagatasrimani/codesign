@@ -144,7 +144,7 @@ class AbstractSimulator:
 
         return computation_dfg
 
-    def schedule(self, computation_dfg, hw):
+    def schedule(self, computation_dfg, hw, schedule_type="greedy"):
         """
         Schedule the computation graph.
         params:
@@ -155,8 +155,11 @@ class AbstractSimulator:
         hw_counts = hardwareModel.get_func_count(hw.netlist)
         schedule.pre_schedule(computation_dfg, hw.netlist, hw.latency)
         copy = computation_dfg.copy()
-
-        schedule.greedy_schedule(copy, hw_counts, hw.netlist)
+        print("HW Netlist: ", hw.netlist.nodes.data())
+        if schedule_type == "greedy":
+            schedule.greedy_schedule(copy, hw_counts, hw.netlist)
+        elif schedule_type == "sdc":
+            schedule.sdc_schedule(copy, hw_counts, hw.netlist)
 
         for layer, nodes in enumerate(
             reversed(list(nx.topological_generations(nx.reverse(computation_dfg))))
@@ -168,8 +171,12 @@ class AbstractSimulator:
         copy = sim_util.add_cache_mem_access_to_dfg(
             copy, hw.latency["Buf"], hw.latency["MainMem"]
         )
-        schedule.greedy_schedule(copy, hw_counts, hw.netlist)
-        copy = sim_util.prune_buffer_and_mem_nodes(copy, hw.netlist)
+        if schedule_type == "greedy":
+            schedule.greedy_schedule(copy, hw_counts, hw.netlist)
+            copy = sim_util.prune_buffer_and_mem_nodes(copy, hw.netlist)
+        elif schedule_type == "sdc":
+            schedule.sdc_schedule(copy, hw_counts, hw.netlist)
+        
 
         return copy
 
