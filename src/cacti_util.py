@@ -20,7 +20,8 @@ from src.cacti import CACTI_DIR, TRANSISTOR_SIZES
 # from src.cacti import cacti_python as cp
 from src.cacti.cacti_python import parameter
 from src.cacti.cacti_python import const
-from src.cacti.cacti_python import Ucache     
+from src.cacti.cacti_python import Ucache    
+from src.cacti.cacti_python.parameter import WIRE_TYPE_MAP
 
 
 def gen_symbolic(name, cache_cfg, opt_vals, use_piecewise=False):
@@ -64,6 +65,9 @@ def gen_symbolic(name, cache_cfg, opt_vals, use_piecewise=False):
 
     g_ip.repeater_spacing = opt_vals["repeater_spacing"]
     g_ip.repeater_size = opt_vals["repeater_size"]
+
+    g_ip.tag_wire_type = WIRE_TYPE_MAP.get(opt_vals["tag_wire_type"], "Invalid_wtype")
+    g_ip.data_wire_type = WIRE_TYPE_MAP.get(opt_vals["data_wire_type"], "Invalid_wtype")
 
     g_ip.use_piecewise = use_piecewise
     g_ip.print_detail_debug = False
@@ -479,10 +483,17 @@ def run_existing_cacti_cfg(filename):
     stdout_filename = "cacti_stdout.log"
     stdout_file_path = os.path.join(CACTI_DIR, stdout_filename)
 
+    filename = filename.replace("src/cacti/", "")
+    print(f"THIS IS THE FILENAME {filename}")
+
     cmd = ["./cacti", "-infile", filename]
 
     with open(stdout_file_path, "w") as f:
         p = subprocess.Popen(cmd, cwd=CACTI_DIR, stdout=f, stderr=subprocess.PIPE)
+
+    print("Current working directory:", os.getcwd())
+    print(cmd)
+    print(stdout_file_path)
 
     p.wait()
     if p.returncode != 0:
@@ -523,6 +534,7 @@ def run_existing_cacti_cfg(filename):
     IO_latency = float(addr_timing) / IO_freq
 
     output_data["IO latency (s)"] = IO_latency
+    print("HIYA!")
 
     return output_data
 
@@ -1445,6 +1457,7 @@ if __name__ == "__main__":
         )
     else:
         buf_vals = run_existing_cacti_cfg(cache_cfg)
+        cache_cfg = f"cfg/{args.cfg_name}.cfg"
 
     buf_opt = {
         "ndwl": buf_vals["Ndwl"],
@@ -1455,7 +1468,11 @@ if __name__ == "__main__":
         "ndsam2": buf_vals["Ndsam_level_2"],
         "repeater_spacing": buf_vals["Repeater spacing"],
         "repeater_size": buf_vals["Repeater size"],
+        "tag_wire_type": buf_vals["Tag wire type"],
+        "data_wire_type": buf_vals["Data wire type"]
     }
 
+    print(f"FOUND BUF {buf_vals}")
+    print(f"FOUND cache_cfg {cache_cfg}")
     sympy_file = args.cfg_name
     IO_info = gen_symbolic(sympy_file, cache_cfg, buf_opt, use_piecewise=False)

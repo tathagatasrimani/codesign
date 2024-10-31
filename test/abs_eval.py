@@ -61,6 +61,8 @@ def gen_abs_results(sympy_file, cache_cfg, dat_file):
             "ndsam2": validate_vals["Ndsam_level_2"],
             "repeater_spacing": validate_vals["Repeater spacing"],
             "repeater_size": validate_vals["Repeater size"],
+            "tag_wire_type": validate_vals["Tag wire type"],
+            "data_wire_type": validate_vals["Data wire type"]
         }
     IO_info = cacti_util.gen_symbolic(sympy_file, cache_cfg, buf_opt, use_piecewise=False)
 
@@ -209,7 +211,7 @@ def gen_abs_results(sympy_file, cache_cfg, dat_file):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Specify config (--config), set SymPy name (--sympy) and optionally generate SymPy (-gen)")
-    parser.add_argument("-c", "--config", type=str, default="base_cache", help="Path or Name to the configuration file; don't append src/cacti/ or .cfg")
+    parser.add_argument("-c", "--config", type=str, default="cache", help="Path or Name to the configuration file; don't append src/cacti/ or .cfg")
     parser.add_argument("-d", "--dat", type=str,  help="Specify technology nm -> e.g. '90nm'; if not provdied, do 45, 90, and 180")
     parser.add_argument("-s", "--sympy", type=str, help="Optionally path to the SymPy file if not named the same as cfg")
     parser.add_argument("-g", "--gen", action="store_true", help="Boolean flag to generate Sympy from Cache CFG")
