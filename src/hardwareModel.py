@@ -85,6 +85,7 @@ def get_func_count(netlist):
 
 
 class HardwareModel:
+    # set transistor override flag to tell hw to expect values for transistor_size and optionally for cacti_transistor_size
     def __init__(
         self,
         cfg=None,
@@ -97,6 +98,8 @@ class HardwareModel:
         cache_size=None,
         V_dd=None,
         bus_width=None,
+        transistor_override=False,
+        cacti_transistor_size=None
     ):
         """
         Simulates the effect of 2 different constructors. Either supply cfg (config), or supply the rest of the arguments.
@@ -131,6 +134,15 @@ class HardwareModel:
                     config.getint("DEFAULT", "cachesize"),
                     config.getfloat("DEFAULT", "V_dd"),
                 )
+        # allow for architecture configs to have their tech nodes swapped out
+        if transistor_override:
+            self.transistor_size = transistor_size
+        # cacti transistor size can optionally be specified separately from original transistor size
+        # if not, then set them equal
+        if cacti_transistor_size:
+            self.cacti_transistor_size = cacti_transistor_size
+        else:
+            self.cacti_transistor_size = self.transistor_size
         self.hw_allocated = {}
 
         if self.path_to_graphml is not None and os.path.exists(self.path_to_graphml):
@@ -242,6 +254,8 @@ class HardwareModel:
             cacti_util.valid_tech_nodes,
             key=lambda x: abs(x - self.transistor_size * 1e-3),
         )
+        # DEBUG
+        print(f"cacti tech node: {self.cacti_tech_node}, specified cacti transistor size: {self.cacti_transistor_size}")
 
         self.cacti_dat_file = (
             f"src/cacti/tech_params/{int(self.cacti_tech_node*1e3):2d}nm.dat"
@@ -449,9 +463,8 @@ class HardwareModel:
             cache_type="cache",
             bus_width=self.buffer_bus_width,
         )
-        logger.info(
-            f"Buffer cacti with: {self.buffer_size} bytes, {self.buffer_bus_width} bus width"
-        )
+        logger.info(f"BUFFER VALS: read/write time {buf_vals['Access time (ns)']} ns, read energy {buf_vals['Dynamic read energy (nJ)']} nJ, write energy {buf_vals['Dynamic write energy (nJ)']} nJ, leakage power {buf_vals['Standby leakage per bank(mW)']}")
+        logger.info(f"Buffer cacti with: {self.buffer_size} bytes, {self.buffer_bus_width} bus width")
         buf_opt = {
             "ndwl": buf_vals["Ndwl"],
             "ndbl": buf_vals["Ndbl"],
@@ -470,6 +483,7 @@ class HardwareModel:
             cache_type="main memory",
             bus_width=self.memory_bus_width,
         )
+        logger.info(f"MEMORY VALS: read/write time {mem_vals['Access time (ns)']} ns, read energy {mem_vals['Dynamic read energy (nJ)']} nJ, write energy {mem_vals['Dynamic write energy (nJ)']} nJ, leakage power {mem_vals['Standby leakage per bank(mW)']}")
         mem_opt = {
             "ndwl": mem_vals["Ndwl"],
             "ndbl": mem_vals["Ndbl"],
