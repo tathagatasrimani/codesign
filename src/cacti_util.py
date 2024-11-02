@@ -20,7 +20,7 @@ from src.cacti.cacti_python.parameter import sympy_var
 from hw_symbols import *
 import sympy as sp
 
-valid_tech_nodes = [0.022, 0.032, 0.045, 0.065, 0.090, 0.180]
+valid_tech_nodes = [0.032, 0.045, 0.065, 0.090, 0.180] # removed 0.022 for the moment
 
 
 def gen_symbolic(name, cache_cfg, opt_vals, use_piecewise=False):
