@@ -7,20 +7,26 @@ import networkx as nx
 
 from .var import directory
 from .functions import find_val_two, find_val_xy, find_val, value, format, clean
+from . import place_n_route as pnr
 
 design = "gcd"
 
+# make it a dict
 and_gate = "AND2_X1"
 xor_gate = "XOR2_X1"
-reg = "DFF_X1"
 mux = "MUX2_X1"
+reg = "DFF_X1"
 add = "Add50_40"
 mult = "Mult64_40"
-
+floordiv = "FloorDiv50_40" 
+sub = "Sub50_40"
+eq= "Eq50_40"
 
 def component_finder(name: str) -> str:
     '''
     returns a blank string if the component name is not a component we need
+
+    redo this whole function 
     '''
     if and_gate.upper() in name.upper():
         return  name
@@ -34,12 +40,20 @@ def component_finder(name: str) -> str:
         return  name
     elif mult.upper() in name.upper():
         return  name
+    elif floordiv.upper() in name.upper():
+        return name
+    elif sub.upper() in name.upper():
+        return name
+    elif eq.upper() in name.upper():
+        return name
     else:
         return ""
     
 def find_macro(name: str) -> str:
     '''
     find the corresponding macro for the given node
+
+    redo this function 
     '''
     if "AND" in name.upper():
         return  and_gate
@@ -47,12 +61,20 @@ def find_macro(name: str) -> str:
         return  xor_gate
     if name.startswith("Reg"):
         return  reg
-    if "MUX" in name.upper():
-        return  mux 
     if "ADD" in name.upper():
         return  add
     if "MULT" in name.upper():
         return  mult
+    if "FLOORDIV" in name.upper():
+        return  floordiv
+    if "SUB" in name.upper():
+        return  sub
+    if "EQ" in name.upper():
+        return  sub
+    if "EQ" in name.upper():
+        return  sub
+    if "MUX" in name.upper():
+        return  mux 
     else:
         return ""
 
@@ -86,7 +108,7 @@ def def_generator(tcl_file_directory: str, graph: nx.DiGraph):
     
     returns: 
         graph: networkx graph that has been modified (pruned and new components)
-        net_out_dict: dict that lists nodes and thier respective edges (all nodes have one output)
+        net_out_dict: dict that lists nodes and their respective output nets
         node_output: dict that lists nodes and their respective output nodes
         lef_data_dict: dict containing data from lef file that will be used for estimating parasitics
     '''
@@ -198,53 +220,125 @@ def def_generator(tcl_file_directory: str, graph: nx.DiGraph):
     ### 1. pruning ###
     for node1 in control_nodes:
         if "MainMem" in graph.nodes[node1]["function"] or "Buf" in graph.nodes[node1]["function"]:
-                graph.remove_node(node1)
-                nodes.remove(node1)
-
-    # generating dict of nodes and their respective input nodes
-    input_dict = edge_gen("in", nodes, graph)
-
-    ### 2. mux tree ###
-    # due to each gate taking only 2 inputs, breaking down inputs into mux trees
-    # this will be eventually replaced to accomadate 16 bit 
-
-    counter = 0 
-    for node in nodes:
-        num = 0
-        if node.startswith("Reg"):
-            num = 1
+            graph.remove_node(node1)
+            nodes.remove(node1)
+        elif graph.nodes[node1]["function"] == "Regs" or graph.nodes[node1]["function"] == "And" or graph.nodes[node1]["function"] == "BitXor":
+            graph.nodes[node1]["count"] = 16
         else:
-            num = 2
-            
-        if "Add" not in node and "Mult" not in node:
-            while len(input_dict[node]) > num:
-                target_node1 = input_dict[node][0]
-                target_node2 = input_dict[node][1]
+            graph.nodes[node1]["count"] = 32
 
-                graph.remove_edge(target_node2, node)
-                graph.remove_edge(target_node1, node)
-
-                input_dict[node].remove(target_node2)
-                input_dict[node].remove(target_node1)
-
-                new_node = "Mux" + str(counter)
-                counter += 1 
-
-                graph.add_edge(target_node1, new_node)
-                graph.add_edge(target_node2, new_node)
-                
-                graph.add_edge(new_node, node)
-                input_dict[node].append(new_node)
-
-
-    ### 3. mapping components to nodes ###
+    ### 2. mapping components to nodes ###
     nodes = list(graph)
+    old_nodes = list(graph)
+    old_graph = copy.deepcopy(graph)
     node_to_macro = {}
-    for node in nodes:
+    out_edge = edge_gen("out", old_nodes, graph)
+    for node in old_nodes:
         macro = find_macro(node)
-        node_to_macro[node] = [macro, copy.deepcopy(macro_dict[macro])]
+        out_edge = edge_gen("out", old_nodes, graph)
+        if graph.nodes[node]["count"] == 16:
+            node_attribute = graph.nodes[node]
+            for x in range(16):
+                name = str(node) + "_" + str(x)
+                if not graph.has_node(name):
+                    graph.add_node(name, function=node_attribute["function"], count=16)
+                for output in out_edge[node]:
+                    if graph.nodes[output]["count"] == 16:
+                        node_attribute = graph.nodes[output]
+                        output_name = str(output) + "_" + str(x)
+                        if not graph.has_node(output_name):
+                            graph.add_node(output_name, function=node_attribute["function"], count=16)
+                        graph.add_edge(name, output_name)
+                    else:
+                        graph.add_edge(name, output)
+                macro_output = find_macro(output)
+                node_to_macro[output] = [macro_output, copy.deepcopy(macro_dict[macro_output])]
+            node_to_macro[name] = [macro, copy.deepcopy(macro_dict[macro])]
+        else:
+            for output in out_edge[node]:
+                if graph.nodes[output]["count"] == 16:
+                    for x in range(16):
+                        node_attribute = graph.nodes[output]
+                        output_name = str(output) + "_" + str(x)
+                        if not graph.has_node(output_name):
+                            graph.add_node(output_name, function=node_attribute["function"], count=16)
+                        graph.add_edge(node, output_name)
+                        macro_output = find_macro(output_name)
+                        node_to_macro[output_name] = [macro_output, copy.deepcopy(macro_dict[macro_output])]
+                else:
+                    graph.add_edge(node, output)    
+                    macro_output = find_macro(output)
+                    node_to_macro[output] = [macro_output, copy.deepcopy(macro_dict[macro_output])]
+            node_to_macro[node] = [macro, copy.deepcopy(macro_dict[macro])]
+            
+    for node in old_nodes:
+        if graph.nodes[node]["count"] == 16:
+            graph.remove_node(node)
+    pnr.export_graph(graph, "this is me trying", "idk")
+    nodes = list(graph)  
+    
+    ### 3.mux stuff ###
+    counter = 0 
 
+    input_dict = edge_gen("in", old_nodes, old_graph)
+    input_dict_new = edge_gen("in", nodes, graph)
+    for node in old_nodes:
+        max = 0
+        if "Regs" in node:
+            max = 1
+        else:
+            max = 2
+        while len(input_dict[node]) > max:
+            target_node1 = input_dict[node][0]
+            target_node2 = input_dict[node][1]
+            for x in range(16):
+                name1= None
+                name2= None
+                if old_graph.nodes[node]["count"] == 16:
+                    node_name = node + "_" + str(x)
+                else:
+                    node_name = node
+                if old_graph.nodes[target_node1]["count"] == 16 and old_graph.nodes[target_node2]["count"] == 16:
+                    name1= target_node1 + "_" + str(x)
+                    name2= target_node2 + "_" + str(x)
+                elif old_graph.nodes[target_node1]["count"] == 16:
+                    name1= target_node1 + "_" + str(x)
+                    name2= target_node2
+                elif old_graph.nodes[target_node2]["count"] == 16:
+                    name1= target_node1
+                    name2= target_node2 + "_" + str(x)
+                else:
+                    name1= target_node1
+                    name2= target_node2
+                    
+                if graph.has_edge(name1, node_name):
+                    graph.remove_edge(name1, node_name)
+                if graph.has_edge(name2, node_name):
+                    graph.remove_edge(name2, node_name)
 
+                new_node = "Mux" + str(counter) + "_" + str(x)
+
+                graph.add_node(new_node, count = 16)
+                graph.add_edge(name1, new_node)
+                graph.add_edge(name2, new_node)
+                
+                graph.add_edge(new_node, node_name)
+                
+                macro_output = find_macro(new_node)
+                node_to_macro[new_node] = [macro_output, copy.deepcopy(macro_dict[macro_output])]
+            
+            old_graph.remove_edge(target_node1, node)
+            old_graph.remove_edge(target_node2, node)
+            old_graph.add_node("Mux" + str(counter), count = 16)
+            old_graph.add_edge(target_node1, "Mux" + str(counter))
+            old_graph.add_edge(target_node2, "Mux" + str(counter))
+            old_graph.add_edge("Mux" + str(counter), node)
+            input_dict[node].append("Mux" + str(counter))
+            input_dict[node].remove(target_node2)
+            input_dict[node].remove(target_node1)
+            counter += 1 
+        
+    
     ### 4.generate header ###
     header_text = []
     header_text.append("VERSION 5.8 ;")
@@ -265,6 +359,7 @@ def def_generator(tcl_file_directory: str, graph: nx.DiGraph):
     component_text = []
     number = 1
     node_to_num = {}
+    nodes = list(graph)
     for node in nodes:
         component_num = format(number)
         macro = node_to_macro[node][0]
@@ -278,24 +373,55 @@ def def_generator(tcl_file_directory: str, graph: nx.DiGraph):
     ## 6.generate nets ###
     # generates list of nets in def file and makes two dicts that are returned
     net_text = []
-    node_output = edge_gen("out", nodes, graph)
+    nodes_old = list(old_graph)
+    node_output =  edge_gen("out", nodes_old, old_graph)
+    node_to_macro_copy = copy.deepcopy(node_to_macro)
     net_out_dict = {}
-    for node in nodes:
-        net_name = format(str(number))
-        component_name = node_to_num[node]
-        pin_out = node_to_macro[node][1]["output"]
-        net = "- {} ( {} {} )".format(net_name, component_name, pin_out[0])
-        pin_out.remove(pin_out[0])
-        net_out_dict[node] = net_name
+    for node in nodes_old:
+        net_list = []
+        for x in range(16):
+            net_name = format(str(number))
+            if old_graph.nodes[node]["count"] == 16:
+                name = node+"_" +str(x)
+                component_num = node_to_num[name]
+                pin_output = node_to_macro[name][1]["output"]
+                net = "- {} ( {} {} )".format(net_name, component_num, pin_output[0])
+            else:
+                name = node
+                component_num = node_to_num[node]
+                pin_output = node_to_macro[node][1]["output"]
+                net = "- {} ( {} {} )".format(net_name, component_num, pin_output[0])
+            pin_output.remove(pin_output[0])
+            
+            if name not in net_out_dict:
+                net_out_dict[name] = []
+            net_out_dict[name].append(net_name)
+            for output in node_output[node]:
+                if old_graph.nodes[output]["count"] == 16:
+                    outgoing_name = output+"_" +str(x)
+                    pin_input = node_to_macro[outgoing_name][1]["input"]
+                    if len(pin_input) == 0:
+                        pin_input = copy.deepcopy(node_to_macro_copy[outgoing_name][1]["input"])
+                        node_to_macro[outgoing_name][1]["input"] = copy.deepcopy(node_to_macro_copy[outgoing_name][1]["input"])
+                    net = net + " ( {} {} )".format(node_to_num[outgoing_name], pin_input[0])
 
-        for output in node_output[node]:
-            pin_in = node_to_macro[output][1]["input"]
-            net = net + " ( {} {} )".format(node_to_num[output], pin_in[0])
-            pin_in.remove(pin_in[0])
+                    node_to_macro[outgoing_name][1]["input"].remove(pin_input[0])
+                    
+                else:
+                    pin_input = node_to_macro[output][1]["input"]
+                    if len(pin_input) == 0:
+                        pin_input = copy.deepcopy(node_to_macro_copy[output][1]["input"])
+                        node_to_macro[output][1]["input"] = copy.deepcopy(node_to_macro_copy[output][1]["input"])
+    
+                    net = net + " ( {} {} )".format(node_to_num[output], pin_input[0])
 
-        number += 1
-        net = net + " + USE SIGNAL ;"
-        net_text.append(net)
+                    node_to_macro[output][1]["input"].remove(pin_input[0])
+            
+            number += 1
+            net = net + " + USE SIGNAL ;"
+            net_text.append(net)
+
+    node_output = edge_gen("out", nodes, graph)
 
     net_text.insert(0, "NETS {} ;".format(len(net_text)))
     net_text.insert(len(net_text), "END NETS")
@@ -308,7 +434,7 @@ def def_generator(tcl_file_directory: str, graph: nx.DiGraph):
     pin_text.append("END  PINS")
 
 
-    #$# 7.generate rows ###
+    ### 7.generate rows ###
     # using calculations sourced from OpenROAD
     row_text = []
     core_y = core_coord_y2 - core_coord_y1
