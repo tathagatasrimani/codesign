@@ -124,6 +124,8 @@ class DennardMultiCore:
         fig_save_dir = "test/experiments/dennard_multi_core_figs"
         if not os.path.exists(fig_save_dir):
             os.makedirs(fig_save_dir)
+        f = open(f"{fig_save_dir}/param_data.txt", 'w')
+        f.write(str(self.params_over_iterations))
         for param in self.plot_list:
             values = []
             for i in range(len(self.params_over_iterations)):

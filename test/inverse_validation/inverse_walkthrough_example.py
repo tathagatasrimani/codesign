@@ -62,6 +62,12 @@ class InverseWalkthrough:
         fig_save_dir = "test/inverse_validation/walkthrough_figs"
         if not os.path.exists(fig_save_dir):
             os.makedirs(fig_save_dir)
+        f = open(f"{fig_save_dir}/inverse_val_walkthrough_data_{symbol_list[0]}_{symbol_list[1]}.txt", 'w')
+        f.write(str(x_new))
+        f.write("\n")
+        f.write(str(y_new))
+        f.write("\n")
+        f.write(str(Z))
         plt.savefig(f"{fig_save_dir}/3d.png")
 
     def plot_results(self):

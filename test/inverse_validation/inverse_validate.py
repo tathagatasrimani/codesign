@@ -74,6 +74,13 @@ def plot_diff(tech_node_pair):
     # ratio of optimized params of higher tech node to initial params of lower tech node
     ratios = [tech_node_0_vals[i] / tech_node_1_vals[i] for i in range(len(tech_node_1_vals))]
     i = 0
+    fig_save_dir = "test/inverse_validation/figs"
+    if not os.path.exists(fig_save_dir):
+        os.makedirs(fig_save_dir)
+    f = open(f"{fig_save_dir}/inverse_val_data_{tech_node_pair[0]}_{tech_node_pair[1]}.txt", 'w')
+    f.write(str(ratios))
+    f.write("\n")
+    f.write(str(params_to_plot))
     while (i < len(params_to_plot)):
         num_params_on_fig = min(5, len(params_to_plot)-i)
         X_axis = np.arange(num_params_on_fig)
@@ -82,9 +89,6 @@ def plot_diff(tech_node_pair):
         plt.xlabel("tech params")
         plt.ylabel("tech param ratios")
         plt.title(f"optimized {args.test_type} params for {tech_node_pair[0]} nm divided by initial params for {tech_node_pair[1]} nm")
-        fig_save_dir = "test/inverse_validation/figs"
-        if not os.path.exists(fig_save_dir):
-            os.makedirs(fig_save_dir)
         plt.savefig(f"{fig_save_dir}/{args.test_type}_{tech_node_pair[0]}_{tech_node_pair[1]}_compare_{i/5}.png")
         plt.close()
         i += 5
