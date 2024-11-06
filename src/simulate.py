@@ -323,7 +323,10 @@ class ConcreteSimulator(AbstractSimulator):
                 if node_data["function"] in ["Buf", "MainMem"]:
                     # active power should scale by size of the object being accessed.
                     # all regs have the same size, so no need to scale.
-                    scaling = node_data["size"]
+                    if node_data["function"] == "MainMem":
+                        scaling = node_data["size"] / hw.memory_bus_width
+                    else:
+                        scaling = node_data["size"] / hw.buffer_bus_width
                     logger.info(f"scaling: {scaling}")
                     energy = (
                         (
@@ -525,12 +528,9 @@ class ConcreteSimulator(AbstractSimulator):
         logger.info(f"longest path length explicitly calculated: {self.cycles}")
 
         for elem_name, elem_data in dict(hw.netlist.nodes.data()).items():
-            scaling = 1
-            if elem_data["function"] in ["MainMem"]:
-                scaling = elem_data["size"]
 
             self.passive_energy += (
-                hw.leakage_power[elem_data["function"]] * 1e-9 * self.cycles * scaling
+                hw.leakage_power[elem_data["function"]] * 1e-9 * self.cycles
             )
 
     def calculate_edp(self):

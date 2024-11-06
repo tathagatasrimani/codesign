@@ -163,11 +163,8 @@ class SymbolicSimulator(AbstractSimulator):
         for node, data in dict(
             filter(lambda x: x[1]["function"] != "Buf", hw.netlist.nodes.data())
         ).items():
-            scaling = 1
-            if data["function"] in ["MainMem"]:
-                scaling = data["size"]
             passive_power += (
-                hw_symbols.symbolic_power_passive[data["function"]] * scaling
+                hw_symbols.symbolic_power_passive[data["function"]]
             )  # W
         return passive_power * total_execution_time  # nJ
 
@@ -197,7 +194,10 @@ class SymbolicSimulator(AbstractSimulator):
                 if node_data["function"] in ["Buf", "MainMem"]:
                     # active power should scale by size of the object being accessed.
                     # all regs have the same size, so no need to scale.
-                    scaling = node_data["size"]
+                    if node_data["function"] == "MainMem":
+                        scaling = node_data["size"] / hw.memory_bus_width
+                    else:
+                        scaling = node_data["size"] / hw.buffer_bus_width
                     logger.info(f"energy scaling: {scaling}")
                     energy = hw_symbols.symbolic_energy_active[
                         node_data["function"]
