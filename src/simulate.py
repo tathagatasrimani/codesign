@@ -477,7 +477,10 @@ class ConcreteSimulator(AbstractSimulator):
                         else:
                             func = node_data["function"]
                         if func in ["Buf", "MainMem"]:
-                            scaling = node_data["size"]
+                            if node_data["function"] == "MainMem":
+                                scaling = node_data["size"] / hw.memory_bus_width
+                            else:
+                                scaling = node_data["size"] / hw.buffer_bus_width
                             logger.info(f"latency scaling: {scaling}")
 
                         # wire latency
