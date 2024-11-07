@@ -247,7 +247,6 @@ class SymbolicSimulator(AbstractSimulator):
             mem_accesses = set()
             buf_accesses = set()
             for node in generation:
-                scaling = 1
                 node_data = computation_dfg.nodes[node]
                 if node_data["function"] == "end":
                     continue
@@ -257,18 +256,15 @@ class SymbolicSimulator(AbstractSimulator):
                     func = node_data["function"]
                 if func in ["Buf", "MainMem"]:
                     if node_data["function"] == "MainMem":
-                        scaling = node_data["size"] / hw.memory_bus_width
                         if node_data["size"] in mem_accesses: continue # don't want repeat terms in our max expression
                         else: mem_accesses.add(node_data["size"])
                     else:
-                        scaling = node_data["size"] / hw.buffer_bus_width
                         if node_data["size"] in buf_accesses: continue
                         else: buf_accesses.add(node_data["size"])
-                    logger.info(f"latency scaling: {scaling}")
                 else:
                     if func in funcs_added: continue
                     else: funcs_added.add(func)
-                gen_latency = symbolic_convex_max(gen_latency, hw_symbols.symbolic_latency_wc[func]*scaling)
+                gen_latency = symbolic_convex_max(gen_latency, hw_symbols.symbolic_latency_wc[func])
             self.execution_time += gen_latency
         #logger.info(f"execution time: {str(self.execution_time)}")
 
