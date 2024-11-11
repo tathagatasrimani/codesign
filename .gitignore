@@ -3,6 +3,7 @@
 src/benchmarks/pictures/**
 src/benchmarks/power_plots/**
 src/benchmarks/json_data/**
+src/benchmarks/models/reconstructed_code_pytorch_*
 
 src/instrumented_files/output*
 src/instrumented_files/xformedpre*
