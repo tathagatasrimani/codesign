@@ -1474,5 +1474,8 @@ if __name__ == "__main__":
 
     print(f"FOUND BUF {buf_vals}")
     print(f"FOUND cache_cfg {cache_cfg}")
+    print(f"FOUND cache_cfg {cache_cfg}")
+    import time
+    time.sleep(3)
     sympy_file = args.cfg_name
     IO_info = gen_symbolic(sympy_file, cache_cfg, buf_opt, use_piecewise=False)
