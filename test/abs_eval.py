@@ -170,9 +170,9 @@ def gen_abs_results(sympy_file, cache_cfg, dat_file):
     # write to CSV
     data = {
         "access_time (ns)": [result_access_time],
-        "result_read_dynamic (nJ)": [result_read_dynamic],
-        "result_write_dynamic (nJ)": [result_write_dynamic],
-        "result_leakage (mW)": [result_read_leakage],
+        "result_read_dynamic (nJ)": [result_read_dynamic * 1e9],
+        "result_write_dynamic (nJ)": [result_write_dynamic * 1e9],
+        "result_leakage (mW)": [result_read_leakage * 1e3],
         "result_io_area": [result_io_area],
         "result_io_timing_margin": [result_io_timing_margin],
         "result_io_dynamic_power": [result_io_dynamic_power],
