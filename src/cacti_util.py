@@ -23,6 +23,8 @@ from src.cacti.cacti_python import const
 from src.cacti.cacti_python import Ucache    
 from src.cacti.cacti_python.parameter import WIRE_TYPE_MAP
 
+valid_tech_nodes = [0.022, 0.032, 0.045, 0.065, 0.090, 0.180]
+
 
 def gen_symbolic(name, cache_cfg, opt_vals, use_piecewise=False):
     """
@@ -66,8 +68,8 @@ def gen_symbolic(name, cache_cfg, opt_vals, use_piecewise=False):
     g_ip.repeater_spacing = opt_vals["repeater_spacing"]
     g_ip.repeater_size = opt_vals["repeater_size"]
 
-    g_ip.tag_wire_type = WIRE_TYPE_MAP.get(opt_vals["tag_wire_type"], "Invalid_wtype")
-    g_ip.data_wire_type = WIRE_TYPE_MAP.get(opt_vals["data_wire_type"], "Invalid_wtype")
+    # g_ip.tag_wire_type = WIRE_TYPE_MAP.get(opt_vals["tag_wire_type"], "Invalid_wtype")
+    # g_ip.data_wire_type = WIRE_TYPE_MAP.get(opt_vals["data_wire_type"], "Invalid_wtype")
 
     g_ip.use_piecewise = use_piecewise
     g_ip.print_detail_debug = False
