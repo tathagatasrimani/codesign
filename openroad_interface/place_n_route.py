@@ -114,14 +114,19 @@ def coord_scraping(
 def place_n_route(
     design_name: str,
     test_directory: str, 
-    arg_parasitics: str
+    arg_parasitics: str,
+    full_cfg=None
 ):
     dict = None
     if "none" not in arg_parasitics:
         graph, net_out_dict, node_output, lef_data, node_to_num = setup(design_name, test_directory)
         dict, graph = extraction(graph, arg_parasitics, design_name, net_out_dict, node_output, lef_data, node_to_num)
     else: 
-        graph = nx.read_gml("src/architectures/" + design_name)
+        if full_cfg:
+            sr = full_cfg
+        else:
+            sr = "src/architectures/" + design_name
+        graph = nx.read_gml(sr)
         graph = none_place_n_route(graph, design_name)
     return dict, graph
     

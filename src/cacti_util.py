@@ -23,7 +23,7 @@ from src.cacti.cacti_python import const
 from src.cacti.cacti_python import Ucache    
 from src.cacti.cacti_python.parameter import WIRE_TYPE_MAP
 
-valid_tech_nodes = [0.022, 0.032, 0.045, 0.065, 0.090, 0.180]
+valid_tech_nodes = [0.032, 0.045, 0.065, 0.090, 0.180]
 
 
 def gen_symbolic(name, cache_cfg, opt_vals, use_piecewise=False):

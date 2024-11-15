@@ -113,7 +113,12 @@ class HardwareModel:
         else:
             config = cp.ConfigParser()
             config.read(HW_CONFIG_FILE)
-            self.path_to_graphml = f"src/architectures/{cfg}.gml"
+            if not "src/" in cfg:
+                self.path_to_graphml = cfg
+                print("SET OUR OWN")
+                print(self.path_to_graphml)
+            else:
+                self.path_to_graphml = f"src/architectures/{cfg}.gml"
             try:
                 self.set_hw_config_vars(
                     config.getint(cfg, "id"),
@@ -184,6 +189,7 @@ class HardwareModel:
         nvm_mem_needed: int - not yet implemented
         buffer_size: int - default 64 bits equal to one var size.
         """
+        print(f"LIST OF NODES {self.netlist.nodes.data()}")
         mem_object = Memory(mem_needed)
         for node, data in dict(
             filter(lambda x: x[1]["function"] == "MainMem", self.netlist.nodes.data())
@@ -456,6 +462,8 @@ class HardwareModel:
         """
         self.buffer_size = 2048
         self.mem_size = 131072
+        print(f"BUFSIZE {self.buffer_size}")
+        print(f"BUFWIDTH {self.buffer_bus_width}")
         buf_vals = cacti_util.gen_vals(
             "base_cache",
             cache_size=self.buffer_size,
@@ -475,7 +483,8 @@ class HardwareModel:
             "repeater_spacing": buf_vals["Repeater spacing"],
             "repeater_size": buf_vals["Repeater size"],
         }
-
+        print(f"MEMSIZE {self.mem_size}")
+        print(f"MEMWIDTH {self.memory_bus_width}")
         mem_vals = cacti_util.gen_vals(
             "mem_cache",
             cache_size=self.mem_size,
@@ -568,11 +577,11 @@ class HardwareModel:
 
         return
 
-    def get_wire_parasitics(self, arg_testfile, arg_parasitics):
+    def get_wire_parasitics(self, arg_testfile, arg_parasitics, full_cfg=None):
         design_name = self.path_to_graphml.split("/")[
             len(self.path_to_graphml.split("/")) - 1
         ]
         _, graph = place_n_route.place_n_route(
-            design_name, arg_testfile, arg_parasitics
+            design_name, arg_testfile, arg_parasitics, full_cfg
         )
         self.parasitic_graph = graph

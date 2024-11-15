@@ -205,6 +205,7 @@ class Codesign:
 
     def inverse_pass(self):
         print("\nRunning Inverse Pass")
+        logger.info("Running Inverse Pass")
 
         hardwareModel.un_allocate_all_in_use_elements(self.hw.netlist)
 
@@ -287,6 +288,12 @@ class Codesign:
         #TODO: copy cacti expressions to file, read yaml file from notebook, call sim util fn to get xreplace structure
         #TODO: fw pass save cacti params of interest, with logger unique starting string, then write parsing script in notebook to look at them
         # save latency, power, and tech params
+        # self.hw.cacti_dat_file
+        # Write the cacti_dat_file to dat_file{iter_number}.yaml
+        with open(f"{self.save_dir}/dat_file{iter_number}.yaml", "w") as file:
+            with open(self.hw.cacti_dat_file, "r") as dat_file:
+                file.write(dat_file.read())
+
         self.hw.write_technology_parameters(
             f"{self.save_dir}/tech_params_{iter_number}.yaml"
         )
@@ -308,14 +315,32 @@ class Codesign:
 
     def execute(self, num_iters):
         i = 0
-        while i < num_iters:
-            self.inverse_pass()
-            self.hw.update_technology_parameters()
+        with open(f"{self.save_dir}/dat_file_start.yaml", "w") as file:
+            with open(self.hw.cacti_dat_file, "r") as dat_file:
+                file.write(dat_file.read())
+        with open(f"{self.save_dir}/bus_widths_log.txt", "a") as bus_widths_file:
+            while i < num_iters:
+                print("inverse")
+                self.inverse_pass()
+                
+                print("updating tech params")
+                self.hw.update_technology_parameters()
 
-            self.log_all_to_file(i)
+                self.log_all_to_file(i)
+                
+                print("forward")
 
-            self.forward_pass()
-            i += 1
+                bus_widths_file.write(f"Iteration {i}:\n")
+                old_bus_widths = f"Old bus_widths {i} -> buf: {self.hw.buffer_bus_width}, mem: {self.hw.memory_bus_width}\n"
+                bus_widths_file.write(old_bus_widths)
+
+                self.forward_pass()
+
+                new_bus_widths = f"New bus_widths {i} -> buf: {self.hw.buffer_bus_width}, mem: {self.hw.memory_bus_width}\n"
+                bus_widths_file.write(new_bus_widths)
+                bus_widths_file.write("\n")  # Add a blank line between iterations
+
+                i += 1
 
         # cleanup
         self.cleanup()
@@ -340,6 +365,7 @@ def main():
 
 
 if __name__ == "__main__":
+    print("Current Directory:", os.getcwd())
     parser = argparse.ArgumentParser(
         prog="Codesign",
         description="Runs a two-step loop to optimize architecture and technology for a given application.",

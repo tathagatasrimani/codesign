@@ -546,6 +546,7 @@ def main(args):
     print(f"Running simulator for {args.benchmark.split('/')[-1]}")
     simulator = ConcreteSimulator()
 
+    print(f"arch: {args.architecture_config}")
     hw = HardwareModel(cfg=args.architecture_config)
 
     computation_dfg = simulator.simulator_prep(args.benchmark, hw.latency)
@@ -574,7 +575,8 @@ def main(args):
     simulator.new_graph = dfg_algo.Graph(set(), {}, new_gv_graph)
 
     hardwareModel.un_allocate_all_in_use_elements(hw.netlist)
-    hw.get_wire_parasitics(args.openroad_testfile, args.parasitics)
+    print(f"PARASTICI ARG: {args.parasitics}")
+    hw.get_wire_parasitics(args.openroad_testfile, args.parasitics, args.architecture_config)
     data = simulator.simulate(computation_dfg, hw)
     simulator.calculate_edp()
 
@@ -587,7 +589,7 @@ def main(args):
     print(f"total wire energy: {simulator.net_active_energy} nJ")
 
     print(f"on chip area: {area} um^2")
-    print(f"EDP: {simulator.edp} E-18 Js")
+    print(f"MERP EDP: {simulator.edp} E-18 Js")
 
     # TODO: FIX THIS WITH CACTI
     # print(f"off chip memory area: {hw.mem_area * 1e6} um^2")
