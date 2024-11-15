@@ -1,0 +1,170 @@
+cacti sub vars: {BufWriteEact, MemReadL, MemReadEact, MemPpass, MemWriteL, BufReadEact, BufL, MemWriteEact, BufPpass}
+length of free symbols: 8
+symbol name is Reff_Regs
+symbol name is V_dd
+symbol name is Reff_Add
+symbol name is Ceff_Mult
+symbol name is Ceff_Regs
+symbol name is Reff_Not
+symbol name is Ceff_Add
+symbol name is Reff_Mult
+x[1] Reff_Regs
+x[2] V_dd
+x[3] Reff_Add
+x[4] Ceff_Mult
+x[5] Ceff_Regs
+x[6] Reff_Not
+x[7] Ceff_Add
+x[8] Reff_Mult
+building bimap
+symbol: Reff_Regs; initial value: 605000.0
+symbol: V_dd; initial value: 1.1
+symbol: Reff_Add; initial value: 12166.184041184042
+symbol: Ceff_Mult; initial value: 0.1715636431338843
+symbol: Ceff_Regs; initial value: 6.611570247933884e-07
+symbol: Reff_Not; initial value: 84402.90178571429
+symbol: Ceff_Add; initial value: 0.00026302413223140496
+symbol: Reff_Mult; initial value: 65.5616760902094
+converting to pyomo exp
+added regularization
+adding constraints. initial val: 1244.0217719126279;
+mapping: {Reff_Regs: 1, V_dd: 2, Reff_Add: 3, Ceff_Mult: 4, Ceff_Regs: 5, Reff_Not: 6, Ceff_Add: 7, Reff_Mult: 8}
+symbol name: Reff_Regs
+symbol name: V_dd
+symbol name: Reff_Add
+symbol name: Ceff_Mult
+symbol name: Ceff_Regs
+symbol name: Reff_Not
+symbol name: Ceff_Add
+symbol name: Reff_Mult
+Solver log file: '/var/folders/6s/109xzbks7vvgp2c8x_qfjn3h0000gn/T/tmps5e9urfp_ipopt.log'
+Solver solution file: '/var/folders/6s/109xzbks7vvgp2c8x_qfjn3h0000gn/T/tmpkwngmxxn.pyomo.sol'
+Solver problem files: ('/var/folders/6s/109xzbks7vvgp2c8x_qfjn3h0000gn/T/tmpkwngmxxn.pyomo.nl',)
+Ipopt 3.14.16: warm_start_init_point=yes
+warm_start_bound_push=1e-09
+warm_start_mult_bound_push=1e-09
+warm_start_bound_frac=1e-09
+warm_start_slack_bound_push=1e-09
+warm_start_slack_bound_frac=1e-09
+mu_init=0.1
+tol=1
+bound_relax_factor=0
+max_iter=100
+print_info_string=yes
+output_file=src/tmp/solver_out.txt
+wantsol=2
+halt_on_ampl_error=yes
+
+
+******************************************************************************
+This program contains Ipopt, a library for large-scale nonlinear optimization.
+ Ipopt is released as open source code under the Eclipse Public License (EPL).
+         For more information visit https://github.com/coin-or/Ipopt
+******************************************************************************
+
+This is Ipopt version 3.14.16, running with linear solver MUMPS 5.6.2.
+
+Number of nonzeros in equality constraint Jacobian...:        0
+Number of nonzeros in inequality constraint Jacobian.:       18
+Number of nonzeros in Lagrangian Hessian.............:       36
+
+Total number of variables............................:        8
+                     variables with only lower bounds:        8
+                variables with lower and upper bounds:        0
+                     variables with only upper bounds:        0
+Total number of equality constraints.................:        0
+Total number of inequality constraints...............:       11
+        inequality constraints with only lower bounds:        2
+   inequality constraints with lower and upper bounds:        0
+        inequality constraints with only upper bounds:        9
+
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+   0  1.2440218e+03 0.00e+00 9.99e+01  -1.0 0.00e+00    -  0.00e+00 0.00e+00   0 
+   1  1.2440218e+03 4.95e-10 1.47e+03  -1.0 2.16e+05   2.0 1.47e-05 8.29e-14f  2 Nhj 
+   2  1.2350818e+03 0.00e+00 1.76e+04  -1.0 9.01e+01    -  1.23e-02 1.10e-02f  1 
+   3  1.1726181e+03 0.00e+00 5.37e+04  -1.0 3.91e+02    -  4.93e-01 2.55e-02f  1 
+   4  1.1756081e+03 0.00e+00 1.27e+06  -1.0 1.72e+01    -  4.23e-01 5.63e-02f  1 
+   5  1.1622191e+03 0.00e+00 1.36e+04  -1.0 3.24e+00    -  9.90e-01 1.87e-01f  1 
+   6  1.1408026e+03 0.00e+00 1.45e+03  -1.0 2.35e+00    -  6.85e-01 9.59e-01f  1 
+   7  1.1426415e+03 0.00e+00 3.88e+04  -1.0 4.51e+01    -  1.00e+00 6.80e-02f  3 
+   8  1.1359875e+03 0.00e+00 2.06e+05  -1.0 1.24e+02    -  2.35e-01 8.01e-01F  1 
+   9  1.1321832e+03 0.00e+00 4.81e+00  -1.0 2.21e-02   1.5 1.00e+00 1.00e+00h  1 
+iter    objective    inf_pr   inf_du lg(mu)  ||d||  lg(rg) alpha_du alpha_pr  ls
+  10  1.1309349e+03 0.00e+00 3.07e+04  -2.5 2.13e-01    -  1.00e+00 8.52e-01f  1 
+  11  1.1309580e+03 0.00e+00 3.37e-02  -2.5 3.03e-03   1.0 1.00e+00 1.00e+00h  1 
+  12  1.1309315e+03 0.00e+00 9.52e-03  -3.8 2.57e-03   0.6 1.00e+00 1.00e+00h  1 
+  13  1.1309304e+03 0.00e+00 1.67e-03  -3.8 1.35e-03   0.1 1.00e+00 1.00e+00h  1 
+  14  1.1309304e+03 0.00e+00 1.56e-03  -3.8 3.79e-03  -0.4 1.00e+00 1.00e+00h  1 
+  15  1.1309299e+03 0.00e+00 1.32e-03  -3.8 9.61e-03  -0.9 1.00e+00 1.00e+00h  1 
+  16  1.1309289e+03 0.00e+00 1.14e-05  -5.7 2.50e-04  -1.3 1.00e+00 1.00e+00h  1 
+
+Number of Iterations....: 16
+
+                                   (scaled)                 (unscaled)
+Objective...............:   1.0939361815552542e+02    1.1309289132012170e+03
+Dual infeasibility......:   1.1436941815461642e-05    1.1823695381678240e-04
+Constraint violation....:   0.0000000000000000e+00    0.0000000000000000e+00
+Variable bound violation:   0.0000000000000000e+00    0.0000000000000000e+00
+Complementarity.........:   1.9169501410563805e-06    1.9817740524896523e-05
+Overall NLP error.......:   1.1436941815461642e-05    1.1823695381678240e-04
+
+
+Number of objective function evaluations             = 25
+Number of objective gradient evaluations             = 17
+Number of equality constraint evaluations            = 0
+Number of inequality constraint evaluations          = 25
+Number of equality constraint Jacobian evaluations   = 0
+Number of inequality constraint Jacobian evaluations = 17
+Number of Lagrangian Hessian evaluations             = 16
+Total seconds in IPOPT                               = 0.015
+
+EXIT: Optimal Solution Found.
+optimal
+======================
+Model unknown
+
+  Variables:
+    x : Size=8, Index=N
+        Key : Lower : Value                 : Upper : Fixed : Stale : Domain
+          1 :     0 :     287380.6913947831 :  None : False : False : NonNegativeReals
+          2 :     0 :    0.9914657879685547 :  None : False : False : NonNegativeReals
+          3 :     0 :     10945.16498955198 :  None : False : False : NonNegativeReals
+          4 :     0 :    0.1406462327894921 :  None : False : False : NonNegativeReals
+          5 :     0 : 1.982645097821399e-07 :  None : False : False : NonNegativeReals
+          6 :     0 :      816.342764234263 :  None : False : False : NonNegativeReals
+          7 :     0 : 0.0002406127769062145 :  None : False : False : NonNegativeReals
+          8 :     0 :     60.29362407100585 :  None : False : False : NonNegativeReals
+
+  Objectives:
+    obj : Size=1, Index=None, Active=True
+        Key  : Active : Value
+        None :   True : 1130.9289132012163
+
+  Constraints:
+    cuts : Size=0
+        Key : Lower : Body : Upper
+    Constraint1 : Size=1
+        Key  : Lower              : Body               : Upper
+        None : 1130.9288835569344 : 1130.9289027104358 :  None
+    PowConstraint : Size=0
+        Key : Lower : Body : Upper
+    LogConstraint : Size=0
+        Key : Lower : Body : Upper
+    CactiConstraint : Size=0
+        Key : Lower : Body : Upper
+    V_dd_lower : Size=1
+        Key  : Lower : Body               : Upper
+        None :   0.5 : 0.9914657879685547 :  None
+    V_dd_upper : Size=1
+        Key  : Lower : Body               : Upper
+        None :  None : 0.9914657879685547 :   1.7
+    Constraint2 : Size=8
+        Key : Lower : Body                  : Upper
+          0 :  None :     287380.6913947831 :               605000.0
+          1 :  None :    0.9914657879685547 :                    1.1
+          2 :  None :     10945.16498955198 :     12166.184041184042
+          3 :  None :    0.1406462327894921 :     0.1715636431338843
+          4 :  None : 1.982645097821399e-07 :  6.611570247933884e-07
+          5 :  None :      816.342764234263 :      84402.90178571429
+          6 :  None : 0.0002406127769062145 : 0.00026302413223140496
+          7 :  None :     60.29362407100585 :       65.5616760902094

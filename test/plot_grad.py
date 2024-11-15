@@ -9,6 +9,43 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 
 
+def calculate_similarity_matrix(python_delta_y, c_delta_y):
+    """
+    Calculates the similarity of two gradients.
+    A score of 100 indicates same magnitude and sign, while
+    -100 indicates same magnitude and opposite sign.
+
+    delta_x is the same for both runs (python and c).
+
+    Inputs:
+    python_grad : float
+        The gradient calculated using Python.
+    c_grad : float
+        The gradient calculated using C.
+
+    Returns:
+    float or str
+        The similarity score or "NA" if the C gradient is
+        zero. If both gradients are zero, returns 100.
+    """
+
+    # Handle the case where both values are 0
+    if python_delta_y == 0 and c_delta_y == 0:
+        return 100
+    elif c_delta_y == 0:
+        return "NA"
+
+    # Calculate similarity
+    magnitude = 100 * (1 - np.abs(python_delta_y - c_delta_y) / np.abs(c_delta_y))
+    sign = np.sign(python_delta_y * c_delta_y)
+    greater_than_1 = (
+        np.abs(python_delta_y - c_delta_y) / np.abs(c_delta_y) > 1
+    )  # essentially if they are the same sign, but doesn't fall in the -1 to 1 range
+
+    similarity = magnitude * sign * -1 if greater_than_1 else magnitude * sign
+    return similarity
+
+
 def create_custom_colormap():
     """
     Trying to convey accuracy when both values are of the same magnitude and sign.
@@ -31,6 +68,7 @@ def create_custom_colormap():
         "custom_cmap", list(zip(normalized_nodes, colors))
     )
     return cmap
+
 
 def plot_partial_derivative_similarity_matrix(df, config_name, tech_size, sign_only=False):
     custom_cmap = create_custom_colormap()
@@ -78,6 +116,7 @@ def plot_partial_derivative_similarity_matrix(df, config_name, tech_size, sign_o
         )
     )
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Specify results file (--file)")
     parser.add_argument(
@@ -99,6 +138,19 @@ if __name__ == "__main__":
         raise ValueError("Please provide a results file to plot.")
 
     df = pd.read_csv(os.path.join(os.path.dirname(__file__), "results", args.file))
+
+    # Adjust 'python delta y' based on 'y_name'
+    df.loc[df['y_name'].isin(['read_dynamic', 'write_dynamic']), 'python delta y'] *= 1e9
+    df.loc[df['y_name'] == 'read_leakage', 'python delta y'] *= 1e3
+
+    # Recalculate similarity using the new function
+    df['similarity'] = df.apply(
+        lambda row: calculate_similarity_matrix(row['python delta y'], row['c delta y']),
+        axis=1
+    )
+
+    # Replace 'NA' with np.nan to handle non-numeric values properly
+    df['similarity'] = pd.to_numeric(df['similarity'], errors='coerce')
 
     # Extract the configuration name from the file name
     cfg_details = args.file.replace("_grad_results.csv", "")

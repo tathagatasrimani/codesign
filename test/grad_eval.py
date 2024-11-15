@@ -22,7 +22,7 @@ import seaborn as sns
 from src import CACTI_DIR
 from src import cacti_util
 from src import hw_symbols
-from src.cacti.cacti_python.parameter import g_ip
+from src.cacti.cacti_python.parameter import InputParameter
 from src.cacti.cacti_python import get_dat, get_IO
 
 rng = np.random.default_rng()
@@ -338,8 +338,9 @@ def gen_diff(sympy_file, cfg_file, dat_file, gen_flag=True):
     print(
         f"Top of gen diff: sympy_file: {sympy_file}, cfg_file: {cfg_file}, dat_file: {dat_file}"
     )
-
+    print("hi)")
     if gen_flag:
+        print("hello)")
         logger.info("Generating symbolic expressions")
         buf_vals = cacti_util.gen_vals(
             cfg_file.split("/")[1].replace(".cfg", ""),
@@ -364,8 +365,14 @@ def gen_diff(sympy_file, cfg_file, dat_file, gen_flag=True):
 
     cfg_file = os.path.join(CACTI_DIR, cfg_file)
 
-    # init input params from .cfg
-    g_ip.parse_cfg(cfg_file)
+    # # init input params from .cfg
+    # g_ip.parse_cfg(cfg_file)
+    # g_ip.error_checking()
+
+    g_ip = InputParameter()
+
+    print(f"CONFIG THING : {cfg_file}")
+    g_ip.parse_cfg(os.path.join(CACTI_DIR, cfg_file))
     g_ip.error_checking()
 
     dat_file = os.path.join(CACTI_DIR, dat_file)
@@ -536,7 +543,7 @@ if __name__ == "__main__":
         "-c",
         "--config",
         type=str,
-        default="base_cache",
+        default="cache",
         help="Path or Name to the configuration file; don't append src/cacti/ or .cfg",
     )
     parser.add_argument(
