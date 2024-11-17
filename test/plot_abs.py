@@ -39,7 +39,7 @@ def plot_overall_box_and_whisker(csv_file):
 
         # Subtract validation values from result values
         diff_col_name = result_col.replace("result_", "").replace(" (ns)", "").replace(" (nJ)", "").replace(" (mW)", "")
-        diff_data[diff_col_name] = ((df[result_col] - df[validate_col]) / df[result_col]) * 100
+        diff_data[diff_col_name] = ((df[result_col] - df[validate_col]) / df[validate_col]) * 100
 
         # Display actual values for each category
         print(f"{diff_col_name}: {diff_data[diff_col_name].values}")
