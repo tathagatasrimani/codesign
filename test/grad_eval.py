@@ -11,6 +11,7 @@ import csv
 import logging
 import glob
 import multiprocessing as mp
+import importlib
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +22,7 @@ import seaborn as sns
 from src import CACTI_DIR
 from src import cacti_util
 from src import hw_symbols
-from src.cacti.cacti_python.parameter import g_ip
+from src.cacti.cacti_python.parameter import InputParameter
 from src.cacti.cacti_python import get_dat, get_IO
 
 rng = np.random.default_rng()
@@ -106,7 +107,7 @@ def evaluate_derivative(dydx_file_name, tech_params, x_symbol):
 
     dydx = dydx_expr.xreplace(tech_params).evalf()
 
-    delta_x = 0.01 * tech_params[x_symbol]
+    delta_x = 0.001 * tech_params[x_symbol]
     delta_y = -1 * delta_x * dydx
 
     logger.info(
@@ -337,8 +338,9 @@ def gen_diff(sympy_file, cfg_file, dat_file, gen_flag=True):
     print(
         f"Top of gen diff: sympy_file: {sympy_file}, cfg_file: {cfg_file}, dat_file: {dat_file}"
     )
-
+    print("hi)")
     if gen_flag:
+        print("hello)")
         logger.info("Generating symbolic expressions")
         buf_vals = cacti_util.gen_vals(
             cfg_file.split("/")[1].replace(".cfg", ""),
@@ -363,8 +365,14 @@ def gen_diff(sympy_file, cfg_file, dat_file, gen_flag=True):
 
     cfg_file = os.path.join(CACTI_DIR, cfg_file)
 
-    # init input params from .cfg
-    g_ip.parse_cfg(cfg_file)
+    # # init input params from .cfg
+    # g_ip.parse_cfg(cfg_file)
+    # g_ip.error_checking()
+
+    g_ip = InputParameter()
+
+    print(f"CONFIG THING : {cfg_file}")
+    g_ip.parse_cfg(os.path.join(CACTI_DIR, cfg_file))
     g_ip.error_checking()
 
     dat_file = os.path.join(CACTI_DIR, dat_file)
@@ -383,8 +391,9 @@ def gen_diff(sympy_file, cfg_file, dat_file, gen_flag=True):
         if v is not None and not math.isnan(v)
     }
 
+    io_tech_params = {}
     get_IO.scan_IO(
-        tech_params,
+        io_tech_params,
         g_ip,
         g_ip.io_type,
         g_ip.num_mem_dq,
@@ -394,14 +403,15 @@ def gen_diff(sympy_file, cfg_file, dat_file, gen_flag=True):
         1,
         g_ip.bus_freq,
     )
-    cacti_IO_params = {
+    io_tech_params = {
         k: (1 if v is None or math.isnan(v) else (10 ** (-9) if v == 0 else v))
-        for k, v in tech_params.items()
+        for k, v in io_tech_params.items()
     }
 
     tech_param_keys = list(tech_params.keys())
 
     print(f"tech_param_keys: {tech_param_keys}")
+    print(f"io_tech_params keys: {io_tech_params.keys()}")
 
     config_key = f"Cache={g_ip.is_cache}, {g_ip.F_sz_nm}"
 
@@ -467,7 +477,7 @@ def gen_diff(sympy_file, cfg_file, dat_file, gen_flag=True):
         # print(f"y_name: {y_name}; cfg_dat_: '{cfg}_{dat}_'")
         expr = sp.sympify(open(f).read(), locals=hw_symbols.symbol_table)
         for free_symbol in expr.free_symbols:
-            if free_symbol not in tech_param_keys:
+            if free_symbol not in tech_param_keys: # need this to get delta x
                 continue
 
             processes.append(
@@ -533,7 +543,7 @@ if __name__ == "__main__":
         "-c",
         "--config",
         type=str,
-        default="base_cache",
+        default="cache",
         help="Path or Name to the configuration file; don't append src/cacti/ or .cfg",
     )
     parser.add_argument(

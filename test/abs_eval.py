@@ -9,19 +9,14 @@ import yaml
 import pandas as pd
 import sympy as sp
 
-from src.cacti.cacti_python.parameter import g_ip
-import src.cacti.cacti_python.get_dat as dat
 from src import cacti_util
+from src.cacti import CACTI_DIR, TRANSISTOR_SIZES
 
-from src.cacti import TRANSISTOR_SIZES, CACTI_DIR
-from src.cacti.cacti_python.parameter import g_tp
+from src.cacti.cacti_python import parameter
+from src.cacti.cacti_python.parameter import InputParameter
 from src.cacti.cacti_python.Ucache import *
 import src.cacti.cacti_python.get_dat as dat
 import src.cacti.cacti_python.get_IO as IO
-
-from src.hw_symbols import *
-
-valid_tech_nodes = [0.022, 0.032, 0.045, 0.065, 0.090, 0.180]
 
 def gen_abs_results(sympy_file, cache_cfg, dat_file):
     """
@@ -52,10 +47,10 @@ def gen_abs_results(sympy_file, cache_cfg, dat_file):
         transistor_size=transistor_size,
     )
 
-    validate_access_time = float(validate_vals["Access time (ns)"])
-    validate_read_dynamic = float(validate_vals["Dynamic read energy (nJ)"])
-    validate_write_dynamic = float(validate_vals["Dynamic write energy (nJ)"])
-    validate_leakage = float(validate_vals["Standby leakage per bank(mW)"])
+    # validate_access_time = float(validate_vals["Access time (ns)"])
+    # validate_read_dynamic = float(validate_vals["Dynamic read energy (nJ)"])
+    # validate_write_dynamic = float(validate_vals["Dynamic write energy (nJ)"])
+    # validate_leakage = float(validate_vals["Standby leakage per bank(mW)"])
 
     buf_opt = {
             "ndwl": validate_vals["Ndwl"],
@@ -66,10 +61,14 @@ def gen_abs_results(sympy_file, cache_cfg, dat_file):
             "ndsam2": validate_vals["Ndsam_level_2"],
             "repeater_spacing": validate_vals["Repeater spacing"],
             "repeater_size": validate_vals["Repeater size"],
+            "tag_wire_type": validate_vals["Tag wire type"],
+            "data_wire_type": validate_vals["Data wire type"]
         }
     IO_info = cacti_util.gen_symbolic(sympy_file, cache_cfg, buf_opt, use_piecewise=False)
 
     dat_file = os.path.join(CACTI_DIR, dat_file)
+
+    g_ip = InputParameter()
 
     g_ip.parse_cfg(os.path.join(CACTI_DIR, cache_cfg))
     g_ip.error_checking()
@@ -168,35 +167,12 @@ def gen_abs_results(sympy_file, cache_cfg, dat_file):
     result = expression.subs(IO_tech_params)
     result_io_termination_power = result.subs(sp.I, 0).evalf()
 
-    # print
-    # print(f'Transistor size: {g_ip.F_sz_um}')
-    # print(f'is_cache: {g_ip.is_cache}')
-
-    # print(f'access_time: {result_access_time}')
-    # print(f"result : {result_read_dynamic, result_write_dynamic, result_read_leakage}")
-
-    # print(f"io_area: {result_io_area}")
-    # print(f"io_timing_margin: {result_io_timing_margin}")
-    # print(f"io_dynamic_power: {result_io_dynamic_power}")
-    # print(f"io_phy_power: {result_io_phy_power}")
-    # print(f"io_termination_power: {result_io_termination_power}")
-    # print(f"validate_access_time (ns): {validate_access_time}")
-    # print(f"validate_read_dynamic (nJ): {validate_read_dynamic}")
-    # print(f"validate_write_dynamic (nJ): {validate_write_dynamic}")
-    # print(f"validate_leakage (mW): {validate_leakage}")
-
-    # print(f'validate_io_area: {float(validate_vals["IO area"])}')
-    # print(f'validate_io_timing: {float(validate_vals["IO timing"])}')
-    # print(f'validate_io_power_dynamic: {float(validate_vals["IO power dynamic"])}')
-    # print(f'validate_io_power_phy: {float(validate_vals["IO power PHY"])}')
-    # print(f'validate_io_power_termination_and_bias: {float(validate_vals["IO power termination and bias"])}')
-
     # write to CSV
     data = {
         "access_time (ns)": [result_access_time],
-        "result_read_dynamic (nJ)": [result_read_dynamic],
-        "result_write_dynamic (nJ)": [result_write_dynamic],
-        "result_leakage (mW)": [result_read_leakage],
+        "result_read_dynamic (nJ)": [result_read_dynamic * 1e9],
+        "result_write_dynamic (nJ)": [result_write_dynamic * 1e9],
+        "result_leakage (mW)": [result_read_leakage * 1e3],
         "result_io_area": [result_io_area],
         "result_io_timing_margin": [result_io_timing_margin],
         "result_io_dynamic_power": [result_io_dynamic_power],
@@ -230,12 +206,12 @@ def gen_abs_results(sympy_file, cache_cfg, dat_file):
 
     print(f"Data successfully appended to {csv_file}")
 
-    return result, validate_access_time
+    return result
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Specify config (--config), set SymPy name (--sympy) and optionally generate SymPy (-gen)")
-    parser.add_argument("-c", "--config", type=str, default="base_cache", help="Path or Name to the configuration file; don't append src/cacti/ or .cfg")
+    parser.add_argument("-c", "--config", type=str, default="cache", help="Path or Name to the configuration file; don't append src/cacti/ or .cfg")
     parser.add_argument("-d", "--dat", type=str,  help="Specify technology nm -> e.g. '90nm'; if not provdied, do 45, 90, and 180")
     parser.add_argument("-s", "--sympy", type=str, help="Optionally path to the SymPy file if not named the same as cfg")
     parser.add_argument("-g", "--gen", action="store_true", help="Boolean flag to generate Sympy from Cache CFG")

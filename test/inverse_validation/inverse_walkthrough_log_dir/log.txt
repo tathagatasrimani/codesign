@@ -1,0 +1,26 @@
+Codesign Log
+Benchmark: src/benchmarks/models/matmult.py
+Architecture Config: aladdin_const_with_mem
+WARNING:inverse walkthrough example:edp of forward pass: 4314.744236062861 E-18 Js
+ERROR:pyomo.core:Unable to clone Pyomo component attribute.
+Component 'obj' contains an uncopyable field '_args_' (<class 'tuple'>).  Setting field to `None` on new object
+ERROR:pyomo.core:Unable to clone Pyomo component attribute.
+Component 'obj' contains an uncopyable field 'rule' (<class 'pyomo.core.base.initializer.ConstantInitializer'>).  Setting field to `None` on new object
+ERROR:pyomo.core:Unable to clone Pyomo component attribute.
+Component 'PowConstraint' contains an uncopyable field 'rule' (<class 'pyomo.core.base.initializer.IndexedCallInitializer'>).  Setting field to `None` on new object
+ERROR:pyomo.core:Unable to clone Pyomo component attribute.
+Component 'LogConstraint' contains an uncopyable field 'rule' (<class 'pyomo.core.base.initializer.IndexedCallInitializer'>).  Setting field to `None` on new object
+ERROR:pyomo.core:Unable to clone Pyomo component attribute.
+Component 'CactiConstraint' contains an uncopyable field 'rule' (<class 'pyomo.core.base.initializer.IndexedCallInitializer'>).  Setting field to `None` on new object
+ERROR:pyomo.core:Unable to clone Pyomo component attribute.
+Component 'CactiConstraint[5]' contains an uncopyable field '_body' (<class 'pyomo.core.expr.numeric_expr.SumExpression'>).  Setting field to `None` on new object
+ERROR:pyomo.core:Unable to clone Pyomo component attribute.
+Component 'CactiConstraint[5]' contains an uncopyable field '_expr' (<class 'pyomo.core.expr.relational_expr.EqualityExpression'>).  Setting field to `None` on new object
+ERROR:pyomo.core:Unable to clone Pyomo component attribute.
+Component 'V_dd_lower' contains an uncopyable field 'rule' (<class 'pyomo.core.base.initializer.ScalarCallInitializer'>).  Setting field to `None` on new object
+ERROR:pyomo.core:Unable to clone Pyomo component attribute.
+Component 'V_dd_upper' contains an uncopyable field 'rule' (<class 'pyomo.core.base.initializer.ScalarCallInitializer'>).  Setting field to `None` on new object
+ERROR:pyomo.core:Unable to clone Pyomo component attribute.
+Component 'Vdd_not_cutoff' contains an uncopyable field 'rule' (<class 'pyomo.core.base.initializer.ScalarCallInitializer'>).  Setting field to `None` on new object
+ERROR:pyomo.core:Unable to clone Pyomo component attribute.
+Component 'Constraint2' contains an uncopyable field 'rule' (<class 'pyomo.core.base.initializer.IndexedCallInitializer'>).  Setting field to `None` on new object
