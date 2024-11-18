@@ -170,11 +170,11 @@ class DennardMultiCore:
         hardwareModel.un_allocate_all_in_use_elements(self.hw.netlist)
 
         symbolic_sim.simulate(scheduled_dfg, self.hw)
-        cacti_subs = symbolic_sim.calculate_edp(self.hw, concrete_sub=True)
+        cacti_subs = symbolic_sim.calculate_edp(self.hw, concrete_sub=False)
         #print(f"edp: {symbolic_sim.edp}")
 
         for cacti_var in cacti_subs:
-            self.tech_params[cacti_var] = cacti_subs[cacti_var]#.xreplace(self.tech_params).evalf()
+            self.tech_params[cacti_var] = cacti_subs[cacti_var].xreplace(self.tech_params).evalf()
         symbolic_sim.edp = symbolic_sim.edp.xreplace(cacti_subs)
 
         inverse_edp = symbolic_sim.edp.xreplace(self.tech_params).evalf()
