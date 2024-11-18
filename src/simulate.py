@@ -328,7 +328,10 @@ class ConcreteSimulator(AbstractSimulator):
                 if node_data["function"] in ["Buf", "MainMem"]:
                     # active power should scale by size of the object being accessed.
                     # all regs have the same size, so no need to scale.
-                    scaling = node_data["size"]
+                    if node_data["function"] == "MainMem":
+                        scaling = node_data["size"] / hw.memory_bus_width
+                    else:
+                        scaling = node_data["size"] / hw.buffer_bus_width
                     logger.info(f"scaling: {scaling}")
                     energy = (
                         (
@@ -471,7 +474,6 @@ class ConcreteSimulator(AbstractSimulator):
                 for path in nx.all_simple_paths(computation_dfg, start_node, end_node):
                     path_latency = 0
                     for node in path:
-                        scaling = 1
                         node_data = computation_dfg.nodes[node]
                         if node_data["function"] == "end":
                             continue
@@ -479,9 +481,6 @@ class ConcreteSimulator(AbstractSimulator):
                             func = node.split("_")[3]  # stall names have std formats
                         else:
                             func = node_data["function"]
-                        if func in ["Buf", "MainMem"]:
-                            scaling = node_data["size"]
-                            logger.info(f"latency scaling: {scaling}")
 
                         # wire latency
                         node_data["in_other_graph"] = (
@@ -521,7 +520,7 @@ class ConcreteSimulator(AbstractSimulator):
                                         * 1e-3
                                     )  # pico -> nano
                                 path_latency += net_delay
-                        path_latency += hw.latency[func] * scaling
+                        path_latency += hw.latency[func]
                     if path_latency > self.cycles:
                         longest_path_explicit = path
                         self.cycles = path_latency
@@ -554,12 +553,9 @@ class ConcreteSimulator(AbstractSimulator):
         logger.info(f"longest path length explicitly calculated: {self.cycles}")
 
         for elem_name, elem_data in dict(hw.netlist.nodes.data()).items():
-            scaling = 1
-            if elem_data["function"] in ["MainMem"]:
-                scaling = elem_data["size"]
 
             self.passive_energy += (
-                hw.leakage_power[elem_data["function"]] * 1e-9 * self.cycles * scaling
+                hw.leakage_power[elem_data["function"]] * 1e-9 * self.cycles
             )
             self.passive_energy_no_mem += (
                 hw.leakage_power[elem_data["function"]] * 1e-9 * self.cycles

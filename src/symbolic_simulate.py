@@ -163,11 +163,8 @@ class SymbolicSimulator(AbstractSimulator):
         for node, data in dict(
             filter(lambda x: x[1]["function"] != "Buf", hw.netlist.nodes.data())
         ).items():
-            scaling = 1
-            if data["function"] in ["MainMem"]:
-                scaling = data["size"]
             passive_power += (
-                hw_symbols.symbolic_power_passive[data["function"]] * scaling
+                hw_symbols.symbolic_power_passive[data["function"]]
             )  # W
         return passive_power * total_execution_time  # nJ
 
@@ -197,7 +194,10 @@ class SymbolicSimulator(AbstractSimulator):
                 if node_data["function"] in ["Buf", "MainMem"]:
                     # active power should scale by size of the object being accessed.
                     # all regs have the same size, so no need to scale.
-                    scaling = node_data["size"]
+                    if node_data["function"] == "MainMem":
+                        scaling = node_data["size"] / hw.memory_bus_width
+                    else:
+                        scaling = node_data["size"] / hw.buffer_bus_width
                     logger.info(f"energy scaling: {scaling}")
                     energy = hw_symbols.symbolic_energy_active[
                         node_data["function"]
@@ -240,9 +240,13 @@ class SymbolicSimulator(AbstractSimulator):
         logger.info("starting STA latency calculation")
         for generation in generations:
             gen_latency = 0
+            # for non-memory/buffer terms, keep track of which functions we have seen and
+            # do not add repeats. For memory/buffer, keep track of which size of access
+            # we have seen.
             funcs_added = set()
+            mem_accesses = set()
+            buf_accesses = set()
             for node in generation:
-                scaling = 1
                 node_data = computation_dfg.nodes[node]
                 if node_data["function"] == "end":
                     continue
@@ -251,11 +255,16 @@ class SymbolicSimulator(AbstractSimulator):
                 else:
                     func = node_data["function"]
                 if func in ["Buf", "MainMem"]:
-                    scaling = node_data["size"]
-                    logger.info(f"latency scaling: {scaling}")
-                if func*scaling not in funcs_added:
-                    gen_latency = symbolic_convex_max(gen_latency, hw_symbols.symbolic_latency_wc[func]*scaling)
-                    funcs_added.add(func*scaling)
+                    if node_data["function"] == "MainMem":
+                        if node_data["size"] in mem_accesses: continue # don't want repeat terms in our max expression
+                        else: mem_accesses.add(node_data["size"])
+                    else:
+                        if node_data["size"] in buf_accesses: continue
+                        else: buf_accesses.add(node_data["size"])
+                else:
+                    if func in funcs_added: continue
+                    else: funcs_added.add(func)
+                gen_latency = symbolic_convex_max(gen_latency, hw_symbols.symbolic_latency_wc[func])
             self.execution_time += gen_latency
         #logger.info(f"execution time: {str(self.execution_time)}")
 

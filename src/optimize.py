@@ -189,7 +189,7 @@ def scp_opt(tech_params, edp):
 
 # note: improvement/regularization parameter currently only for inverse pass validation, so only using it for ipopt
 # example: improvement of 1.1 = 10% improvement
-def optimize(tech_params, edp, opt, cacti_subs, improvement=1.1, regularization=0.1):
+def optimize(tech_params, edp, opt, cacti_subs, improvement=10, regularization=0.1):
     if opt == "scp":
         return scp_opt(tech_params, edp)
     else:
