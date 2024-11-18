@@ -33,7 +33,7 @@ def symbolic_convex_max(a, b):
     """
     An approximation to the max function that plays well with these numeric solvers.
     """
-    return 0.5 * (a + b + abs(a - b))
+    return 0.5 * (a + b + sp.Abs(a - b, evaluate=False))
 
 
 class SymbolicSimulator(AbstractSimulator):
@@ -69,6 +69,7 @@ class SymbolicSimulator(AbstractSimulator):
         self.edp = None
         self.edp_ceil = None
         self.initial_params = {}
+        self.cacti_exprs = {}
 
     def reset_internal_variables(self):
         self.sim_cache = {}
@@ -177,7 +178,7 @@ class SymbolicSimulator(AbstractSimulator):
         counter = 0
 
         generations = list(
-            reversed(list(nx.topological_generations(nx.reverse(computation_dfg))))
+            nx.topological_generations(computation_dfg)
         )
         for gen in generations:  # main loop over the computation graph;
             if "end" in gen:  # skip the end node (only thing in the last generation)
@@ -210,7 +211,7 @@ class SymbolicSimulator(AbstractSimulator):
                 self.total_active_energy += energy * scaling  # nJ
 
         # TODO: NOW THIS MIGHT GET TOO EXPENSIVE. MAYBE NEED TO DO STA.
-        logger.info("Starting Longest Path Calculation")
+        """logger.info("Starting Longest Path Calculation")
         for start_node in generations[0]:
             for end_node in generations[-1]:
                 if start_node == end_node:
@@ -232,10 +233,33 @@ class SymbolicSimulator(AbstractSimulator):
                             logger.info(f"latency scaling: {scaling}")
 
                         path_latency += hw_symbols.symbolic_latency_wc[func] * scaling
-                    self.execution_time = symbolic_convex_max(self.execution_time, path_latency)
-        logger.info(f"execution time: {str(self.execution_time)}")
+                    self.execution_time = symbolic_convex_max(self.execution_time, path_latency)"""
 
-    def calculate_edp(self, hw):
+
+        # STA
+        logger.info("starting STA latency calculation")
+        for generation in generations:
+            gen_latency = 0
+            funcs_added = set()
+            for node in generation:
+                scaling = 1
+                node_data = computation_dfg.nodes[node]
+                if node_data["function"] == "end":
+                    continue
+                elif node_data["function"] == "stall":
+                            func = node.split("_")[3]  # stall names have std formats
+                else:
+                    func = node_data["function"]
+                if func in ["Buf", "MainMem"]:
+                    scaling = node_data["size"]
+                    logger.info(f"latency scaling: {scaling}")
+                if func*scaling not in funcs_added:
+                    gen_latency = symbolic_convex_max(gen_latency, hw_symbols.symbolic_latency_wc[func]*scaling)
+                    funcs_added.add(func*scaling)
+            self.execution_time += gen_latency
+        #logger.info(f"execution time: {str(self.execution_time)}")
+
+    def calculate_edp(self, hw, concrete_sub=False):
 
         with open('src/cacti/symbolic_expressions/Mem_access_time.txt', 'r') as file:
             mem_access_time_text = file.read()
@@ -261,15 +285,25 @@ class SymbolicSimulator(AbstractSimulator):
         with open("src/cacti/symbolic_expressions/Buf_read_leakage.txt", "r") as file:
             buf_read_leakage_text = file.read()
 
-        MemL_expr = sp.sympify(mem_access_time_text, locals=hw_symbols.symbol_table)
-        MemReadEact_expr = sp.sympify(mem_read_dynamic_text, locals=hw_symbols.symbol_table)
-        MemWriteEact_expr = sp.sympify(mem_write_dynamic_text, locals=hw_symbols.symbol_table)
-        MemPpass_expr = sp.sympify(mem_read_leakage_text, locals=hw_symbols.symbol_table)
+        if concrete_sub:
+            MemL_expr = hw.latency["MainMem"]
+            MemReadEact_expr = hw.dynamic_energy["MainMem"]["Read"]
+            MemWriteEact_expr = hw.dynamic_energy["MainMem"]["Write"]
+            MemPpass_expr = hw.leakage_power["MainMem"] * 1e-9
+            BufL_expr = hw.latency["Buf"]
+            BufReadEact_expr = hw.dynamic_energy["Buf"]["Read"]
+            BufWriteEact_expr = hw.dynamic_energy["Buf"]["Write"]
+            BufPpass_expr = hw.leakage_power["Buf"] * 1e-9
+        else:
+            MemL_expr = sp.sympify(mem_access_time_text, locals=hw_symbols.symbol_table)
+            MemReadEact_expr = sp.sympify(mem_read_dynamic_text, locals=hw_symbols.symbol_table)
+            MemWriteEact_expr = sp.sympify(mem_write_dynamic_text, locals=hw_symbols.symbol_table)
+            MemPpass_expr = sp.sympify(mem_read_leakage_text, locals=hw_symbols.symbol_table)
 
-        BufL_expr = sp.sympify(buf_access_time_text, locals=hw_symbols.symbol_table)
-        BufReadEact_expr = sp.sympify(buf_read_dynamic_text, locals=hw_symbols.symbol_table)
-        BufWriteEact_expr = sp.sympify(buf_write_dynamic_text, locals=hw_symbols.symbol_table)
-        BufPpass_expr = sp.sympify(buf_read_leakage_text, locals=hw_symbols.symbol_table)
+            BufL_expr = sp.sympify(buf_access_time_text, locals=hw_symbols.symbol_table)
+            BufReadEact_expr = sp.sympify(buf_read_dynamic_text, locals=hw_symbols.symbol_table)
+            BufWriteEact_expr = sp.sympify(buf_write_dynamic_text, locals=hw_symbols.symbol_table)
+            BufPpass_expr = sp.sympify(buf_read_leakage_text, locals=hw_symbols.symbol_table)
 
         ## ========= FOR TESTING =========
         # MemL_expr.xreplace(hw.tech_params)
@@ -294,11 +328,14 @@ class SymbolicSimulator(AbstractSimulator):
             hw, self.execution_time
         )
 
+        #print(f"total passive energy: {self.total_passive_energy}", flush=True)
         self.edp = self.execution_time * (self.total_active_energy + self.total_passive_energy)
 
-        self.execution_time = self.execution_time.xreplace(cacti_subs)
+        # for now, do not substitute cacti expressions. will take too long
+        """self.execution_time = self.execution_time.xreplace(cacti_subs)
         self.total_active_energy = self.total_active_energy.xreplace(cacti_subs)
         self.total_passive_energy = self.total_passive_energy.xreplace(cacti_subs)
+        self.edp = self.execution_time * (self.total_active_energy + self.total_passive_energy)
         self.edp = self.edp.xreplace(cacti_subs)
 
         assert hw_symbols.MemReadL not in self.edp.free_symbols and hw_symbols.MemWriteL not in self.edp.free_symbols, "Mem latency not fully substituted"
@@ -308,8 +345,25 @@ class SymbolicSimulator(AbstractSimulator):
         assert hw_symbols.BufReadEact not in self.edp.free_symbols, "Buf read energy not fully substituted"
         assert hw_symbols.BufWriteEact not in self.edp.free_symbols, "Buf write energy not fully substituted"
         assert hw_symbols.BufPpass not in self.edp.free_symbols, "Buf passive power not fully substituted"
+        """
+        self.cacti_exprs = {
+            "MemL_expr": MemL_expr,
+            "MemReadEact_expr": MemReadEact_expr,
+            "MemWriteEact_expr": MemWriteEact_expr,
+            "MemPpass_expr": MemPpass_expr,
+            "BufL_expr": BufL_expr,
+            "BufReadEact_expr": BufReadEact_expr,
+            "BufWriteEact_expr": BufWriteEact_expr,
+            "BufPpass_expr": BufPpass_expr
+        }
+        with open("src/tmp/cacti_exprs.txt", 'w') as f:
+            txt = ""
+            for expr in self.cacti_exprs.keys():
+                txt += f"{expr}: {self.cacti_exprs[expr]}\n"
+            f.write(txt)
 
         # self.edp = self.edp.subs(subs)
+        return cacti_subs
 
     def save_edp_to_file(self):
         st = str(self.edp)

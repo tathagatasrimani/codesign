@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import argparse
 import logging
+from functools import reduce
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +67,9 @@ class ConcreteSimulator(AbstractSimulator):
         self.max_mem_inuse = 0
         self.total_energy = 0
         self.active_energy = 0
+        self.active_energy_no_mem = 0
         self.passive_energy = 0
+        self.passive_energy_no_mem = 0
 
     def get_var_size(self, var_name, mem_module: Memory):
         """
@@ -246,6 +249,8 @@ class ConcreteSimulator(AbstractSimulator):
         self.passive_energy = 0
         self.net_active_energy = 0
         self.total_energy = 0
+        self.active_energy_no_mem = 0
+        self.passive_energy_no_mem = 0
 
     def construct_fake_double_hw(self, hw):
         func_counts = hardwareModel.get_func_count(hw.netlist)
@@ -349,6 +354,7 @@ class ConcreteSimulator(AbstractSimulator):
                         * scaling
                         * hw.latency[node_data["function"]]  # ns
                     )
+                    self.active_energy_no_mem += energy
                 self.active_energy += energy
                 hw.compute_operation_totals[node_data["function"]] += 1
 
@@ -519,8 +525,31 @@ class ConcreteSimulator(AbstractSimulator):
                     if path_latency > self.cycles:
                         longest_path_explicit = path
                         self.cycles = path_latency
+        longest_path = list(map(lambda x: (x, computation_dfg.nodes[x]['function']), longest_path_explicit))
         logger.info(
-            f"longest path explicitly calculated: {list(map(lambda x: (x, computation_dfg.nodes[x]['function']), longest_path_explicit))}"
+            f"longest path explicitly calculated: {longest_path}"
+        )
+        filtered = filter(lambda x: 'Mem' not in x[1] and 'Mem' not in x[0] and 'Buf' not in x[1] and 'Buf' not in x[0] and 'end' not in x[1], longest_path)
+        # print(f"filtered: {list(filtered)}")
+        mapped1 = map(
+            lambda x: x[1] if x[1] != "stall" else x[0].split("_")[3], filtered
+        )  #
+        # mapped_1 = []
+        # for elem in filtered:
+        #     print(f"elem: {elem}")
+        #     if elem[1] != 'stall':
+        #         mapped_1.append(elem[1])
+        #     else:
+        #         mapped_1.append(elem[0].split('_')[3])
+        # print(f"mapped: {list(mapped1)}")
+        # print(f"mapped_1: {mapped_1}")
+        mapped2 = map(lambda x: hw.latency[x], mapped1)
+        tmp = list(mapped2)
+        # print(f"mapped2: {tmp}")
+        reduced = sum(tmp)
+        print(f"reduced: {reduced}")
+        logger.info(
+            f"longest path length explicitly calculated without mem: {reduced} ns"
         )
         logger.info(f"longest path length explicitly calculated: {self.cycles}")
 
@@ -532,6 +561,9 @@ class ConcreteSimulator(AbstractSimulator):
             self.passive_energy += (
                 hw.leakage_power[elem_data["function"]] * 1e-9 * self.cycles * scaling
             )
+            self.passive_energy_no_mem += (
+                hw.leakage_power[elem_data["function"]] * 1e-9 * self.cycles
+            ) if elem_data["function"] not in ["MainMem", "Buf"] else 0
 
     def calculate_edp(self):
         if isinstance(self.cycles, sp.Expr):
@@ -543,9 +575,13 @@ class ConcreteSimulator(AbstractSimulator):
 
         self.execution_time = self.cycles # in seconds
         self.total_energy = self.active_energy + self.passive_energy
+        self.total_energy_no_mem = self.active_energy_no_mem + self.passive_energy_no_mem
         self.edp = self.total_energy * self.execution_time
+        logger.info(f"execution time: {self.execution_time} ns")
+        logger.info(f"total energy: {self.total_energy} nJ")
+        logger.info(f"total energy no mem: {self.total_energy_no_mem} nJ")
 
-        
+
 def main(args):
     print(f"Running simulator for {args.benchmark.split('/')[-1]}")
     simulator = ConcreteSimulator()
