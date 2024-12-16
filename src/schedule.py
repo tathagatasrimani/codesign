@@ -341,28 +341,28 @@ def sdc_schedule(graph, hw_element_counts, hw_netlist, no_resource_constraints=F
     for node in hw_netlist.nodes.data():
         hardware_elements_by_next_free_time[node[0]] = 0
     
-    print("Sorted Nodes by Start Time: ", sorted_nodes_by_start_time)
-    for layer in range(len(sorted_nodes_by_start_time)):
-        curr_gen_nodes = sorted_nodes_by_start_time[layer][1]
-        for node in curr_gen_nodes:
-            node_start_time = node[1]['start_time']
-            node_end_time = node[1]['end_time']
-            node_function = node[1]['function']
-            # find the hardware element with the smallest next free time
-            # allocate the node to that hardware element
-            # update the hardware element's next free time
-            found_hardware_element = False
-            for hardware_element in hardware_elements_by_next_free_time:
-                if node_function in ["start", "end"]:
-                    found_hardware_element = True
-                    continue
-                if hardware_elements_by_next_free_time[hardware_element] <= node_start_time and hw_elements_by_name[hardware_element]['function'] == node_function:
-                    graph.nodes[node[0]]['allocation'] = hardware_element
-                    hardware_elements_by_next_free_time[hardware_element] = node_end_time
-                    found_hardware_element = True
-                    break
-            if not found_hardware_element:
-                raise ValueError(f"No hardware element found for node {node[0]} with function {node_function} at time {node_start_time}")
+    if not no_resource_constraints:
+        for layer in range(len(sorted_nodes_by_start_time)):
+            curr_gen_nodes = sorted_nodes_by_start_time[layer][1]
+            for node in curr_gen_nodes:
+                node_start_time = node[1]['start_time']
+                node_end_time = node[1]['end_time']
+                node_function = node[1]['function']
+                # find the hardware element with the smallest next free time
+                # allocate the node to that hardware element
+                # update the hardware element's next free time
+                found_hardware_element = False
+                for hardware_element in hardware_elements_by_next_free_time:
+                    if node_function in ["start", "end"]:
+                        found_hardware_element = True
+                        continue
+                    if hardware_elements_by_next_free_time[hardware_element] <= node_start_time and hw_elements_by_name[hardware_element]['function'] == node_function:
+                        graph.nodes[node[0]]['allocation'] = hardware_element
+                        hardware_elements_by_next_free_time[hardware_element] = node_end_time
+                        found_hardware_element = True
+                        break
+                if not found_hardware_element:
+                    raise ValueError(f"No hardware element found for node {node[0]} with function {node_function} at time {node_start_time}")
 
     return obj.value
 
@@ -678,26 +678,4 @@ def greedy_schedule(
         current_time += max_layer_duration
 
     return computation_graph
-    # generations = list(nx.topological_generations(nx.reverse(computation_graph)))
-    # prev_layer_end_time = 0
-    # for layer in range(len(generations)):
-
-    #     max_layer_end_time = -np.inf
-
-    #     for node in generations[layer]:
-    #         cost = 0
-    #         if "cost" in computation_graph.nodes[node]:
-    #             cost = computation_graph.nodes[node]["cost"]
-    #         max_layer_end_time = max(max_layer_end_time, cost)
-
-    #     print(max_layer_end_time)
-    #     for node in generations[layer]:
-    #         cost = 0
-    #         if "cost" in computation_graph.nodes[node]:
-    #             cost = computation_graph.nodes[node]["cost"]
-    #         computation_graph.nodes[node]["start_time"] = max(prev_layer_end_time + max_layer_end_time - cost, prev_layer_end_time)
-    #         computation_graph.nodes[node]["end_time"] = computation_graph.nodes[node]["start_time"] + cost
-    #     prev_layer_end_time = max_layer_end_time + prev_layer_end_time
-        
-    # return computation_graph
 

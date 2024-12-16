@@ -176,6 +176,7 @@ class AbstractSimulator:
             copy = sim_util.prune_buffer_and_mem_nodes(copy, hw.netlist)
         elif schedule_type == "sdc":
             schedule.sdc_schedule(copy, hw_counts, hw.netlist)
+            copy = sim_util.prune_buffer_and_mem_nodes(copy, hw.netlist, sdc_schedule=True)
         
 
         return copy

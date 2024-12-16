@@ -60,20 +60,28 @@ def get_most_stalled_func(scheduled_dfg) -> str:
     func_counts = get_stalled_func_counts(scheduled_dfg)
     return max(func_counts, key=func_counts.get)
 
-def greedy_select_func_to_add(computation_dfg, scheduled_dfg):
+def greedy_select_func_to_add(computation_dfg, scheduled_dfg, hw_nodes):
     # take the ideal schedule and look at the end times of each node in a topological order
     # first node where end time of real schedule is greater than end time of ideal schedule
     # return that node
+    # add up all the difference in end times across functions
+    hw_total_time_diff = {key: 0 for key in hardwareModel.get_func_count(scheduled_dfg).keys()}
     topo_order = list(nx.topological_sort(computation_dfg))
-    ideal_schedule = sdc_schedule(computation_dfg, hardwareModel.get_func_count(scheduled_dfg), hardwareModel.netlist, no_resource_constraints=True)
+    ideal_dfg = deepcopy(computation_dfg)
+    sdc_schedule(ideal_dfg, hardwareModel.get_func_count(ideal_dfg), hw_nodes, no_resource_constraints=True)
     for node in topo_order:
-        if scheduled_dfg.nodes[node]["end_time"] > ideal_schedule.nodes[node]["end_time"]:
-            return node
-    return None
+        if scheduled_dfg.nodes[node]["end_time"] > ideal_dfg.nodes[node]["end_time"]:
+            hw_total_time_diff[scheduled_dfg.nodes[node]["function"]] += scheduled_dfg.nodes[node]["end_time"] - ideal_dfg.nodes[node]["end_time"]
+    return rng.choice(
+            list(hw_total_time_diff.keys()),
+            1,
+            p=list(hw_total_time_diff.values()) / sum(list(hw_total_time_diff.values())),
+        )[0]
+    # return hw_total_time_diff
 
 
 
-def sample_stalled_func(scheduled_dfg: nx.DiGraph) -> str:
+def sample_stalled_func(scheduled_dfg: nx.DiGraph, sdc_schedule: bool = False) -> str:
     func_counts = get_stalled_func_counts(scheduled_dfg)
     if len(func_counts) == 0:
         return None
@@ -221,7 +229,7 @@ def run_arch_search(
     hw_copy = deepcopy(hw)
 
     for i in range(num_steps):
-        func = greedy_select_func_to_add(computation_dfg, old_scheduled_dfg)
+        func = greedy_select_func_to_add(computation_dfg, old_scheduled_dfg, hw_copy.netlist)
         if func is None:
             print("Ideal schedule reached")
             break

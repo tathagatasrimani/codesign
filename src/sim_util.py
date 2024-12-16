@@ -464,14 +464,17 @@ def find_upstream_node_in_graph(graph:nx.DiGraph, func:str, node:str):
     return func_in[0]
 
 
-def prune_buffer_and_mem_nodes(computation_graph: nx.DiGraph, hw_netlist: nx.DiGraph):
+def prune_buffer_and_mem_nodes(computation_graph: nx.DiGraph, hw_netlist: nx.DiGraph, sdc_schedule: bool = False):
     """
     Call after allocation to remove unnecessary buffer and memory nodes.
     Removes memory nodes when the data is already in the buffer.
     Removes buffer nodes when the data is already in the registers.
     """
     layer = 0
-    gen = list(filter(lambda x: x[1]["layer"] == layer, computation_graph.nodes.data()))
+    if sdc_schedule:
+        gen = list(filter(lambda x: x[1]["start_time"] == layer, computation_graph.nodes.data()))
+    else:
+        gen = list(filter(lambda x: x[1]["layer"] == layer, computation_graph.nodes.data()))
     while len(gen) != 0:
         reg_nodes = list(filter(lambda x: x[1]["function"] == "Regs", gen))
         for reg_node in reg_nodes:
@@ -499,10 +502,14 @@ def prune_buffer_and_mem_nodes(computation_graph: nx.DiGraph, hw_netlist: nx.DiG
             hw_netlist.nodes[allocated_reg]["var"] = var_name
 
         layer += 1
-        gen = list(
-            filter(lambda x: x[1]["layer"] == layer, computation_graph.nodes.data())
-        )
-
+        
+        
+        if sdc_schedule:
+            gen = list(filter(lambda x: x[1]["start_time"] == layer, computation_graph.nodes.data()))
+        else:
+            gen = list(
+                filter(lambda x: x[1]["layer"] == layer, computation_graph.nodes.data())
+            )
     return computation_graph
 
 
