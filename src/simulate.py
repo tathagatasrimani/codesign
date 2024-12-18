@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import argparse
 import logging
+from functools import reduce
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +67,9 @@ class ConcreteSimulator(AbstractSimulator):
         self.max_mem_inuse = 0
         self.total_energy = 0
         self.active_energy = 0
+        self.active_energy_no_mem = 0
         self.passive_energy = 0
+        self.passive_energy_no_mem = 0
 
     def get_var_size(self, var_name, mem_module: Memory):
         """
@@ -246,6 +249,8 @@ class ConcreteSimulator(AbstractSimulator):
         self.passive_energy = 0
         self.net_active_energy = 0
         self.total_energy = 0
+        self.active_energy_no_mem = 0
+        self.passive_energy_no_mem = 0
 
     def construct_fake_double_hw(self, hw):
         func_counts = hardwareModel.get_func_count(hw.netlist)
@@ -349,6 +354,7 @@ class ConcreteSimulator(AbstractSimulator):
                         * scaling
                         * hw.latency[node_data["function"]]  # ns
                     )
+                    self.active_energy_no_mem += energy
                 self.active_energy += energy
                 hw.compute_operation_totals[node_data["function"]] += 1
 
@@ -437,27 +443,6 @@ class ConcreteSimulator(AbstractSimulator):
         #     print(key, val)
         self.cycles = nodes_dict["end"]["start_time"]
         logger.info(f"longest path length calculated as end node start time: {self.cycles}")
-        # ========== This Can be removed after we figure out why doesn't work
-        # self.cycles = nx.dag_longest_path_length(computation_dfg)
-        # longest_path = nx.dag_longest_path(computation_dfg)
-        # logger.info(
-        #     f"longest path: {list(map(lambda x: (x, computation_dfg.nodes[x]['function']), longest_path))}"
-        # )
-        # logger.info(f"longest path length: {self.cycles}")
-
-        # topo_order = list(nx.topological_sort(computation_dfg))
-        # logger.info(f"topo_order: {topo_order}")
-        # for node in generations[0]:
-        #     topo_order.insert(0, topo_order.pop(topo_order.index(node)))
-        # logger.info(f"new topo_order: {topo_order}")
-        # longest_path = nx.dag_longest_path(computation_dfg, topo_order=topo_order)
-        # logger.info(
-        #     f"longest path custom topo: {list(map(lambda x: (x, computation_dfg.nodes[x]['function']), longest_path))}"
-        # )
-        # pathlength = 0
-        # for u, v in nx.utils.pairwise(longest_path):
-        #     pathlength += computation_dfg[u][v]["weight"]
-        # logger.info(f"longest path length custom topo: {pathlength}")
 
         # ========== Explicitly calculate the longest path. This aligns with Inverse Pass.
 
@@ -538,6 +523,9 @@ class ConcreteSimulator(AbstractSimulator):
             self.passive_energy += (
                 hw.leakage_power[elem_data["function"]] * 1e-9 * self.cycles * scaling
             )
+            self.passive_energy_no_mem += (
+                hw.leakage_power[elem_data["function"]] * 1e-9 * self.cycles
+            ) if elem_data["function"] not in ["MainMem", "Buf"] else 0
 
     def calculate_edp(self):
         if isinstance(self.cycles, sp.Expr):
@@ -549,9 +537,13 @@ class ConcreteSimulator(AbstractSimulator):
 
         self.execution_time = self.cycles # in seconds
         self.total_energy = self.active_energy + self.passive_energy
+        self.total_energy_no_mem = self.active_energy_no_mem + self.passive_energy_no_mem
         self.edp = self.total_energy * self.execution_time
+        logger.info(f"execution time: {self.execution_time} ns")
+        logger.info(f"total energy: {self.total_energy} nJ")
+        logger.info(f"total energy no mem: {self.total_energy_no_mem} nJ")
 
-        
+
 def main(args):
     print(f"Running simulator for {args.benchmark.split('/')[-1]}")
     simulator = ConcreteSimulator()
