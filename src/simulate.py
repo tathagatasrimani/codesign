@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import argparse
 import logging
+from functools import reduce
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +67,9 @@ class ConcreteSimulator(AbstractSimulator):
         self.max_mem_inuse = 0
         self.total_energy = 0
         self.active_energy = 0
+        self.active_energy_no_mem = 0
         self.passive_energy = 0
+        self.passive_energy_no_mem = 0
 
     def get_var_size(self, var_name, mem_module: Memory):
         """
@@ -246,6 +249,8 @@ class ConcreteSimulator(AbstractSimulator):
         self.passive_energy = 0
         self.net_active_energy = 0
         self.total_energy = 0
+        self.active_energy_no_mem = 0
+        self.passive_energy_no_mem = 0
 
     def construct_fake_double_hw(self, hw):
         func_counts = hardwareModel.get_func_count(hw.netlist)
@@ -352,6 +357,7 @@ class ConcreteSimulator(AbstractSimulator):
                         * scaling
                         * hw.latency[node_data["function"]]  # ns
                     )
+                    self.active_energy_no_mem += energy
                 self.active_energy += energy
                 hw.compute_operation_totals[node_data["function"]] += 1
 
@@ -434,100 +440,92 @@ class ConcreteSimulator(AbstractSimulator):
                 )
 
                 return res
-
-        # ========== This Can be removed after we figure out why doesn't work
-        self.cycles = nx.dag_longest_path_length(computation_dfg)
-        longest_path = nx.dag_longest_path(computation_dfg)
-        logger.info(
-            f"longest path: {list(map(lambda x: (x, computation_dfg.nodes[x]['function']), longest_path))}"
-        )
-        logger.info(f"longest path length: {self.cycles}")
-
-        topo_order = list(nx.topological_sort(computation_dfg))
-        logger.info(f"topo_order: {topo_order}")
-        for node in generations[0]:
-            topo_order.insert(0, topo_order.pop(topo_order.index(node)))
-        logger.info(f"new topo_order: {topo_order}")
-        longest_path = nx.dag_longest_path(computation_dfg, topo_order=topo_order)
-        logger.info(
-            f"longest path custom topo: {list(map(lambda x: (x, computation_dfg.nodes[x]['function']), longest_path))}"
-        )
-        pathlength = 0
-        for u, v in nx.utils.pairwise(longest_path):
-            pathlength += computation_dfg[u][v]["weight"]
-        logger.info(f"longest path length custom topo: {pathlength}")
+        # get start_time of end node
+        nodes_dict = {node: data for node, data in computation_dfg.nodes(data=True)}
+        # for key, val in nodes_dict.items():
+        #     print(key, val)
+        self.cycles = nodes_dict["end"]["start_time"]
+        logger.info(f"longest path length calculated as end node start time: {self.cycles}")
 
         # ========== Explicitly calculate the longest path. This aligns with Inverse Pass.
-        self.cycles = 0
-        longest_path_explicit = []
-        for start_node in generations[0]:
-            for end_node in generations[-1]:  # end should be the only node here
-                if start_node == end_node:
-                    continue
-                logger.info(f"start_node: {start_node}, end_node: {end_node}")
-                for path in nx.all_simple_paths(computation_dfg, start_node, end_node):
-                    path_latency = 0
-                    for node in path:
-                        node_data = computation_dfg.nodes[node]
-                        if node_data["function"] == "end":
-                            continue
-                        elif node_data["function"] == "stall":
-                            func = node.split("_")[3]  # stall names have std formats
-                        else:
-                            func = node_data["function"]
 
-                        # wire latency
-                        node_data["in_other_graph"] = (
-                            "allocation" in node_data
-                            and node_data["allocation"] != ""
-                            and "Mem" not in node_data["allocation"]
-                            and "Buf" not in node_data["allocation"]
-                        )
-                        node_index = path.index(node)
-                        if node_index != 0:
-                            node_index_prev = node_index - 1
-                            node_data_prev = computation_dfg.nodes[
-                                path[node_index_prev]
-                            ]
-                            if (
-                                node_data["in_other_graph"]
-                                and node_data_prev["in_other_graph"]
-                                and hw.parasitic_graph.has_edge(
-                                    node_data_prev["allocation"],
-                                    node_data["allocation"],
-                                )
-                            ):
-                                parasitic_edge = hw.parasitic_graph[
-                                    node_data_prev["allocation"]
-                                ][node_data["allocation"]]
-                                net_delay = 0
-                                if isinstance(parasitic_edge["net_cap"], list):
-                                    res_instance = 0
-                                    for x in range(parasitic_edge["net_cap"]):
-                                        res_instance += parasitic_edge["net_res"][x]
-                                        cap_instance = parasitic_edge["net_cap"][x]
-                                        net_delay += res_instance * cap_instance * 1e-3
-                                else:
-                                    net_delay = (
-                                        parasitic_edge["net_cap"]
-                                        * parasitic_edge["net_res"]
-                                        * 1e-3
-                                    )  # pico -> nano
-                                path_latency += net_delay
-                        path_latency += hw.latency[func]
-                    if path_latency > self.cycles:
-                        longest_path_explicit = path
-                        self.cycles = path_latency
-        logger.info(
-            f"longest path explicitly calculated: {list(map(lambda x: (x, computation_dfg.nodes[x]['function']), longest_path_explicit))}"
-        )
-        logger.info(f"longest path length explicitly calculated: {self.cycles}")
+        # self.cycles = 0
+        # longest_path_explicit = []
+        # for start_node in generations[0]:
+        #     for end_node in generations[-1]:  # end should be the only node here
+        #         if start_node == end_node:
+        #             continue
+        #         logger.info(f"start_node: {start_node}, end_node: {end_node}")
+        #         for path in nx.all_simple_paths(computation_dfg, start_node, end_node):
+        #             path_latency = 0
+        #             for node in path:
+        #                 scaling = 1
+        #                 node_data = computation_dfg.nodes[node]
+        #                 if node_data["function"] == "end":
+        #                     continue
+        #                 elif node_data["function"] == "stall":
+        #                     func = node.split("_")[3]  # stall names have std formats
+        #                 else:
+        #                     func = node_data["function"]
+        #                 if func in ["Buf", "MainMem"]:
+        #                     scaling = node_data["size"]
+        #                     logger.info(f"latency scaling: {scaling}")
+
+        #                 # wire latency
+        #                 node_data["in_other_graph"] = (
+        #                     "allocation" in node_data
+        #                     and node_data["allocation"] != ""
+        #                     and "Mem" not in node_data["allocation"]
+        #                     and "Buf" not in node_data["allocation"]
+        #                 )
+        #                 node_index = path.index(node)
+        #                 if node_index != 0:
+        #                     node_index_prev = node_index - 1
+        #                     node_data_prev = computation_dfg.nodes[
+        #                         path[node_index_prev]
+        #                     ]
+        #                     if (
+        #                         node_data["in_other_graph"]
+        #                         and node_data_prev["in_other_graph"]
+        #                         and hw.parasitic_graph.has_edge(
+        #                             node_data_prev["allocation"],
+        #                             node_data["allocation"],
+        #                         )
+        #                     ):
+        #                         parasitic_edge = hw.parasitic_graph[
+        #                             node_data_prev["allocation"]
+        #                         ][node_data["allocation"]]
+        #                         net_delay = 0
+        #                         if isinstance(parasitic_edge["net_cap"], list):
+        #                             res_instance = 0
+        #                             for x in range(parasitic_edge["net_cap"]):
+        #                                 res_instance += parasitic_edge["net_res"][x]
+        #                                 cap_instance = parasitic_edge["net_cap"][x]
+        #                                 net_delay += res_instance * cap_instance * 1e-3
+        #                         else:
+        #                             net_delay = (
+        #                                 parasitic_edge["net_cap"]
+        #                                 * parasitic_edge["net_res"]
+        #                                 * 1e-3
+        #                             )  # pico -> nano
+        #                         path_latency += net_delay
+        #                 path_latency += hw.latency[func]
+        #             if path_latency > self.cycles:
+        #                 longest_path_explicit = path
+        #                 self.cycles = path_latency
+        # logger.info(
+        #     f"longest path explicitly calculated: {list(map(lambda x: (x, computation_dfg.nodes[x]['function']), longest_path_explicit))}"
+        # )
+        # logger.info(f"longest path length explicitly calculated: {self.cycles}")
 
         for elem_name, elem_data in dict(hw.netlist.nodes.data()).items():
 
             self.passive_energy += (
                 hw.leakage_power[elem_data["function"]] * 1e-9 * self.cycles
             )
+            self.passive_energy_no_mem += (
+                hw.leakage_power[elem_data["function"]] * 1e-9 * self.cycles
+            ) if elem_data["function"] not in ["MainMem", "Buf"] else 0
 
     def calculate_edp(self):
         if isinstance(self.cycles, sp.Expr):
@@ -539,9 +537,13 @@ class ConcreteSimulator(AbstractSimulator):
 
         self.execution_time = self.cycles # in seconds
         self.total_energy = self.active_energy + self.passive_energy
+        self.total_energy_no_mem = self.active_energy_no_mem + self.passive_energy_no_mem
         self.edp = self.total_energy * self.execution_time
+        logger.info(f"execution time: {self.execution_time} ns")
+        logger.info(f"total energy: {self.total_energy} nJ")
+        logger.info(f"total energy no mem: {self.total_energy_no_mem} nJ")
 
-        
+
 def main(args):
     print(f"Running simulator for {args.benchmark.split('/')[-1]}")
     simulator = ConcreteSimulator()
@@ -554,7 +556,8 @@ def main(args):
         sim_util.find_nearest_power_2(simulator.memory_needed),
         sim_util.find_nearest_power_2(simulator.nvm_memory_needed),
     )
-    computation_dfg = simulator.schedule(computation_dfg, hw)
+
+    computation_dfg = simulator.schedule(computation_dfg, hw, args.schedule)
 
     simulator.tech_node = hw.transistor_size  # in nm
     simulator.pitch = hw.pitch  # in um
@@ -656,6 +659,8 @@ if __name__ == "__main__":
         default="mm_test",  # aladdin_const_with_mem
         help="Path to the architecture file (.gml)",
     )
+    parser.add_argument('--schedule', type=str, choices=['greedy', 'sdc'], default='greedy',
+                        help='Scheduling algorithm to use')
     args = parser.parse_args()
 
     print(
