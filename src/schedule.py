@@ -1,4 +1,4 @@
-from collections import deque
+from collections import deque, defaultdict
 import heapq
 import math
 import logging
@@ -245,7 +245,8 @@ def assign_upstream_path_lengths_old(graph):
     return graph
 
 
-def sdc_schedule(graph, hw_element_counts):
+
+def sdc_schedule(graph, hw_element_counts, hw_netlist, no_resource_constraints=False):
     """
     Runs the convex optimization problem to minimize the longest path latency.
     Encodes data dependency constraints from CDFG and resource constraints using
@@ -264,6 +265,7 @@ def sdc_schedule(graph, hw_element_counts):
         vars.append(curr_var)
         # start time + latency = end time for each operating node
         node[1]["scheduling_id"] = id
+        node[1]["allocation"] = ""
         id += 1
         constraints.append(curr_var[0] >= 0)
         if "cost" in node[1].keys():
@@ -276,41 +278,92 @@ def sdc_schedule(graph, hw_element_counts):
         constraints.append(vars[source_id][1] - vars[dest_id][0] <= 0.0)
 
     topological_order = longest_path_first_topological_sort(graph)
-    resource_constraints = []
-    for i in range(len(topological_order)):
-        curr_func_count = 0
-        start_node = topological_order[i]
-        if graph.nodes[start_node]["function"] not in hw_element_counts:
-            continue
-        curr_func_count += 1
-        for j in range(i + 1, len(topological_order)):
-            curr_node = topological_order[j]
-            if graph.nodes[curr_node]["function"] not in hw_element_counts:
+    if not no_resource_constraints:
+        resource_constraints = []
+        for i in range(len(topological_order)):
+            curr_func_count = 0
+            start_node = topological_order[i]
+            if graph.nodes[start_node]["function"] not in hw_element_counts:
                 continue
-            if (
-                graph.nodes[curr_node]["function"]
-                == graph.nodes[start_node]["function"]
-            ):
-                curr_func_count += 1
+            curr_func_count += 1
+            for j in range(i + 1, len(topological_order)):
+                curr_node = topological_order[j]
+                if graph.nodes[curr_node]["function"] not in hw_element_counts:
+                    continue
                 if (
-                    curr_func_count
-                    > 2 * hw_element_counts[graph.nodes[curr_node]["function"]]
+                    graph.nodes[curr_node]["function"]
+                    == graph.nodes[start_node]["function"]
                 ):
-                    break
-                if (
-                    curr_func_count
-                    > hw_element_counts[graph.nodes[curr_node]["function"]]
-                ):
-                    # add a constraint
-                    resource_constraints.append(
-                        vars[graph.nodes[start_node]["scheduling_id"]][0]
-                        - vars[graph.nodes[curr_node]["scheduling_id"]][0]
-                        <= -graph.nodes[start_node]["cost"]
-                    )
-    constraints += resource_constraints
+                    curr_func_count += 1
+                    if (
+                        curr_func_count
+                        > 2 * hw_element_counts[graph.nodes[curr_node]["function"]]
+                    ):
+                        break
+                    if (
+                        curr_func_count
+                        > hw_element_counts[graph.nodes[curr_node]["function"]]
+                    ):
+                        # add a constraint
+                        resource_constraints.append(
+                            vars[graph.nodes[start_node]["scheduling_id"]][0]
+                            - vars[graph.nodes[curr_node]["scheduling_id"]][0]
+                            <= -graph.nodes[start_node]["cost"]
+                        )
+        constraints += resource_constraints
     obj = cp.Minimize(vars[graph_nodes["end"]["scheduling_id"]][0])
     prob = cp.Problem(obj, constraints)
     prob.solve()
+
+    # num_stall_nodes_added = add_stall_nodes_to_sdc(graph, vars)
+    # assign start and end times to each node
+    for node in graph_nodes:
+        start_time, end_time = vars[node[1]['scheduling_id']].value
+        node[1]['start_time'] = np.round(start_time, 3)
+        node[1]['end_time'] = np.round(end_time, 3)
+    
+    # need a way to assert hardware nodes to nodes to the nodes in the cfg
+    nodes_by_start_time = defaultdict(list)
+
+    # Populate the dictionary
+    for node, data in graph.nodes(data=True):
+        start_time = data.get('start_time')
+        if start_time is not None:
+            nodes_by_start_time[start_time].append((node, data))
+
+    # Convert to a sorted list of (start_time, nodes) tuples
+    sorted_nodes_by_start_time = sorted(nodes_by_start_time.items())
+    # dictionary of hw elements from name to data
+    hw_elements_by_name = {node[0]: node[1] for node in hw_netlist.nodes.data()}
+    # go through each layer and allocate nodes to hardware elements
+    # keep track of each hardware element and it's next available free time and allocated accordingly
+    hardware_elements_by_next_free_time = defaultdict(float)
+    for node in hw_netlist.nodes.data():
+        hardware_elements_by_next_free_time[node[0]] = 0
+    
+    if not no_resource_constraints:
+        for layer in range(len(sorted_nodes_by_start_time)):
+            curr_gen_nodes = sorted_nodes_by_start_time[layer][1]
+            for node in curr_gen_nodes:
+                node_start_time = node[1]['start_time']
+                node_end_time = node[1]['end_time']
+                node_function = node[1]['function']
+                # find the hardware element with the smallest next free time
+                # allocate the node to that hardware element
+                # update the hardware element's next free time
+                found_hardware_element = False
+                for hardware_element in hardware_elements_by_next_free_time:
+                    if node_function in ["start", "end"]:
+                        found_hardware_element = True
+                        continue
+                    if hardware_elements_by_next_free_time[hardware_element] <= node_start_time and hw_elements_by_name[hardware_element]['function'] == node_function:
+                        graph.nodes[node[0]]['allocation'] = hardware_element
+                        hardware_elements_by_next_free_time[hardware_element] = node_end_time
+                        found_hardware_element = True
+                        break
+                if not found_hardware_element:
+                    raise ValueError(f"No hardware element found for node {node[0]} with function {node_function} at time {node_start_time}")
+
     return obj.value
 
 
@@ -467,136 +520,162 @@ def greedy_schedule(
     hw_netlist: nx.DiGraph
         The hardware netlist to be scheduled on
     """
+    def greedy_schedule_main():
+        nonlocal computation_graph, hw_element_counts, hw_netlist
+        hw_element_counts["stall"] = np.inf
+        # do topo sort from beginning and add dist attribute to each node
+        # for longest path to get to it from a gen[0] node.
+        # reset layers:
+        for node in computation_graph.nodes:
+            computation_graph.nodes[node]["layer"] = -np.inf
+        computation_graph = assign_upstream_path_lengths_dijkstra(computation_graph)
 
-    hw_element_counts["stall"] = np.inf
-
-    # do topo sort from beginning and add dist attribute to each node
-    # for longest path to get to it from a gen[0] node.
-
-    # reset layers:
-    for node in computation_graph.nodes:
-        computation_graph.nodes[node]["layer"] = -np.inf
-    computation_graph = assign_upstream_path_lengths_dijkstra(computation_graph)
-
-    stall_counter = 0  # used to ensure unique stall names
-    pushed = []
-    # going through the computation graph from the end to the beginning and bubbling up operations
-    generations = list(nx.topological_generations(nx.reverse(computation_graph)))
-    layer = 0
-    while layer < len(generations) or len(pushed) != 0:
-        if layer >= len(generations):
-            generation = []
-        else:
-            generation = generations[layer]
-        generation += pushed
+        stall_counter = 0  # used to ensure unique stall names
         pushed = []
-
-        # if any horizontal dependencies, push them to the next layer
-        for node in generation:
-            out_nodes = list(map(lambda x: x[1], computation_graph.out_edges(node)))
-            intersect = set(out_nodes).intersection(set(generation))
-            if intersect:
-                pushed.append(node)
+        # going through the computation graph from the end to the beginning and bubbling up operations
+        generations = list(nx.topological_generations(nx.reverse(computation_graph)))
+        layer = 0
+        while layer < len(generations) or len(pushed) != 0:
+            if layer >= len(generations):
+                generation = []
             else:
-                computation_graph.nodes[node]["allocation"] = ""
-                computation_graph.nodes[node]["layer"] = -layer
-        generation = [item for item in generation if item not in pushed]
+                generation = generations[layer]
+            generation += pushed
+            pushed = []
 
-        nodes_in_gen = list(
-            filter(lambda x: x[0] in generation, computation_graph.nodes.data())
-        )
-        funcs_in_gen, counts_in_gen = np.unique(
-            list(map(lambda x: x[1]["function"], nodes_in_gen)), return_counts=True
-        )
+            # if any horizontal dependencies, push them to the next layer
+            for node in generation:
+                out_nodes = list(map(lambda x: x[1], computation_graph.out_edges(node)))
+                intersect = set(out_nodes).intersection(set(generation))
+                if intersect:
+                    pushed.append(node)
+                else:
+                    computation_graph.nodes[node]["allocation"] = ""
+                    computation_graph.nodes[node]["layer"] = -layer
+            generation = [item for item in generation if item not in pushed]
 
-        for func, count in zip(
-            funcs_in_gen, counts_in_gen
-        ):  # for each function in the generation
-            if func == "start" or func == "end":
-                continue
-            # if there are more operations of this type than there are hardware elements
-            # then we need to add stalls, sort descending by distance from start
-            # ie, the ones closest the start get stalled first
-            if count > hw_element_counts[func]:
-                func_nodes = list(
-                    filter(lambda x: x[1]["function"] == func, nodes_in_gen)
-                )
-                func_nodes = sorted(
-                    func_nodes, key=lambda x: x[1]["dist"], reverse=True
-                )
+            nodes_in_gen = list(
+                filter(lambda x: x[0] in generation, computation_graph.nodes.data())
+            )
+            funcs_in_gen, counts_in_gen = np.unique(
+                list(map(lambda x: x[1]["function"], nodes_in_gen)), return_counts=True
+            )
 
-                start_idx = hw_element_counts[func]
-                for idx in range(start_idx, count):
-                    # an out edge in comp_dfg is an in_edge in the reversed_graph
-                    out_edges = list(computation_graph.out_edges(func_nodes[idx][0]))
-
-                    stall_name = f"stall_{layer}_{idx}_{func}_{stall_counter}"
-                    stall_counter += 1
-                    computation_graph.add_node(
-                        stall_name,
-                        function="stall",
-                        cost=func_nodes[idx][1]["cost"],
-                        layer=-layer,
-                        allocation="",
-                        size=(
-                            func_nodes[idx][1]["size"]
-                            if "size" in func_nodes[idx][1]
-                            else 1
-                        ),
-                        dist=0,
+            for func, count in zip(
+                funcs_in_gen, counts_in_gen
+            ):  # for each function in the generation
+                if func == "start" or func == "end":
+                    continue
+                # if there are more operations of this type than there are hardware elements
+                # then we need to add stalls, sort descending by distance from start
+                # ie, the ones closest the start get stalled first
+                if count > hw_element_counts[func]:
+                    func_nodes = list(
+                        filter(lambda x: x[1]["function"] == func, nodes_in_gen)
                     )
-                    new_edges = []
-                    for edge in out_edges:
-                        new_edges.append(
-                            (
-                                stall_name,
-                                edge[1],
-                                {"weight": computation_graph.edges[edge]["weight"]},
-                            )
+                    func_nodes = sorted(
+                        func_nodes, key=lambda x: x[1]["dist"], reverse=True
+                    )
+
+                    start_idx = hw_element_counts[func]
+                    for idx in range(start_idx, count):
+                        # an out edge in comp_dfg is an in_edge in the reversed_graph
+                        out_edges = list(computation_graph.out_edges(func_nodes[idx][0]))
+
+                        stall_name = f"stall_{layer}_{idx}_{func}_{stall_counter}"
+                        stall_counter += 1
+                        computation_graph.add_node(
+                            stall_name,
+                            function="stall",
+                            cost=func_nodes[idx][1]["cost"],
+                            layer=-layer,
+                            allocation="",
+                            size=(
+                                func_nodes[idx][1]["size"]
+                                if "size" in func_nodes[idx][1]
+                                else 1
+                            ),
+                            dist=0,
                         )
-                        new_edges.append(
-                            (
-                                edge[0],
-                                stall_name,
-                                {"weight": computation_graph.edges[edge]["weight"]},
+                        new_edges = []
+                        for edge in out_edges:
+                            new_edges.append(
+                                (
+                                    stall_name,
+                                    edge[1],
+                                    {"weight": computation_graph.edges[edge]["weight"]},
+                                )
                             )
-                        )  # edge[0] is same as func_nodes[idx][0]
-                    computation_graph.add_edges_from(new_edges)
-                    computation_graph.remove_edges_from(out_edges)
+                            new_edges.append(
+                                (
+                                    edge[0],
+                                    stall_name,
+                                    {"weight": computation_graph.edges[edge]["weight"]},
+                                )
+                            )  # edge[0] is same as func_nodes[idx][0]
+                        computation_graph.add_edges_from(new_edges)
+                        computation_graph.remove_edges_from(out_edges)
 
-                    computation_graph.nodes[func_nodes[idx][0]]["layer"] = -(
-                        layer + 1
-                    )  # bubble up
-                    pushed.append(func_nodes[idx][0])
+                        computation_graph.nodes[func_nodes[idx][0]]["layer"] = -(
+                            layer + 1
+                        )  # bubble up
+                        pushed.append(func_nodes[idx][0])
 
-        hopeful_nodes = list(
-            filter(lambda x: x[1]["layer"] >= -layer, computation_graph.nodes.data())
-        )
-        processed_nodes = list(map(lambda x: x[0], hopeful_nodes))
-        processed_graph = nx.subgraph(computation_graph, processed_nodes)
-
-        curr_gen_nodes = list(
-            filter(lambda x: x[1]["layer"] == -layer, computation_graph.nodes.data())
-        )
-        funcs_in_gen, counts_in_gen = np.unique(
-            list(map(lambda x: x[1]["function"], curr_gen_nodes)), return_counts=True
-        )
-
-        for i, func in enumerate(funcs_in_gen):
-            if func in ["start", "end", "stall"]:
-                continue
-            assert counts_in_gen[i] <= hw_element_counts[func]
-            # do a greedy allocation of the nodes to the hardware elements
-            comp_nodes = list(
-                filter(lambda x: x[1]["function"] == func, curr_gen_nodes)
+            hopeful_nodes = list(
+                filter(lambda x: x[1]["layer"] >= -layer, computation_graph.nodes.data())
             )
-            hw_nodes = list(
-                filter(lambda x: x[1]["function"] == func, hw_netlist.nodes.data())
-            )
-            for i in range(len(comp_nodes)):
-                computation_graph.nodes[comp_nodes[i][0]]["allocation"] = hw_nodes[i][0]
+            processed_nodes = list(map(lambda x: x[0], hopeful_nodes))
+            processed_graph = nx.subgraph(computation_graph, processed_nodes)
 
-        layer += 1
-    if save_reg_use_table:
-        computation_graph, execution_time = assign_time_of_execution(computation_graph)
-        log_register_use(computation_graph, 0.1, hw_element_counts, execution_time)
+            curr_gen_nodes = list(
+                filter(lambda x: x[1]["layer"] == -layer, computation_graph.nodes.data())
+            )
+            funcs_in_gen, counts_in_gen = np.unique(
+                list(map(lambda x: x[1]["function"], curr_gen_nodes)), return_counts=True
+            )
+
+            for i, func in enumerate(funcs_in_gen):
+                if func in ["start", "end", "stall"]:
+                    continue
+                assert counts_in_gen[i] <= hw_element_counts[func]
+                # do a greedy allocation of the nodes to the hardware elements
+                comp_nodes = list(
+                    filter(lambda x: x[1]["function"] == func, curr_gen_nodes)
+                )
+                hw_nodes = list(
+                    filter(lambda x: x[1]["function"] == func, hw_netlist.nodes.data())
+                )
+                for i in range(len(comp_nodes)):
+                    computation_graph.nodes[comp_nodes[i][0]]["allocation"] = hw_nodes[i][0]
+
+            layer += 1
+        if save_reg_use_table:
+            computation_graph, execution_time = assign_time_of_execution(computation_graph)
+            log_register_use(computation_graph, 0.1, hw_element_counts, execution_time)
+        # return computation_graph
+    greedy_schedule_main()
+
+    # take the output of the greedy schedule and look at end times of each node in every layer
+    # max end time is the end time of all nodes in that layer and start time = max(et) - cost of the node
+    generations = list(nx.topological_generations(computation_graph))
+    current_time = 0
+    for layer in range(len(generations)):
+        max_layer_duration = 0
+
+        # First pass: determine the maximum duration of the layer
+        for node in generations[layer]:
+            cost = computation_graph.nodes[node].get("cost", 0)
+            max_layer_duration = max(max_layer_duration, cost)
+
+        # print(max_layer_duration)
+        # Second pass: assign start and end times
+        for node in generations[layer]:
+            cost = computation_graph.nodes[node].get("cost", 0)
+            computation_graph.nodes[node]["start_time"] = current_time + max_layer_duration - cost
+            computation_graph.nodes[node]["end_time"] = max_layer_duration
+
+        # Move the current time forward by the duration of this layer
+        current_time += max_layer_duration
+
+    return computation_graph
+
