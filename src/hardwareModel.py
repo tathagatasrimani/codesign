@@ -448,7 +448,7 @@ class HardwareModel:
         logger.info(f"on_chip_area: {self.on_chip_area}")
         logger.info(f"off_chip_area: {self.off_chip_area}")
 
-        return self.on_chip_area * 1e-6  # convert from nm^2 to um^2
+        return self.on_chip_area # in um^2
 
     def gen_cacti_results(self):
         """
@@ -498,12 +498,12 @@ class HardwareModel:
             f"Memory cacti with: {self.mem_size} bytes, {self.memory_bus_width} bus width"
         )
 
-        self.area["Buf"] = float(buf_vals["Area (mm2)"]) * 1e12  # convert to nm^2
-        self.area["MainMem"] = float(mem_vals["Area (mm2)"]) * 1e12  # convert to nm^2
+        self.area["Buf"] = float(buf_vals["Area (mm2)"]) * 1e6  # convert to um^2
+        self.area["MainMem"] = float(mem_vals["Area (mm2)"]) * 1e6  # convert to um^2
         self.area["OffChipIO"] = (
-            float(mem_vals["IO area"]) * 1e12
+            float(mem_vals["IO area"]) * 1e6
             if mem_vals["IO area"] not in ["N/A", "inf", "-inf", "nan", "-nan"]
-            else 0.0  # convert to nm^2
+            else 0.0  # convert to um^2
         )
         logger.info(f"Buf area from cacti: {self.area['Buf']} nm^2")
         logger.info(f"Mem area from cacti: {self.area['MainMem']} nm^2")
