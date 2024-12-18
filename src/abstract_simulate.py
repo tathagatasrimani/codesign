@@ -155,7 +155,7 @@ class AbstractSimulator:
         hw_counts = hardwareModel.get_func_count(hw.netlist)
         schedule.pre_schedule(computation_dfg, hw.netlist, hw.latency)
         copy = computation_dfg.copy()
-        print("HW Netlist: ", hw.netlist.nodes.data())
+        #print("HW Netlist: ", hw.netlist.nodes.data())
         if schedule_type == "greedy":
             schedule.greedy_schedule(copy, hw_counts, hw.netlist)
         elif schedule_type == "sdc":

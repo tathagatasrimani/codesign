@@ -6,6 +6,7 @@ do
         q) QUIET=true;;
         c) ARCH_CONFIG=${OPTARG};;
         o) OPT=${OPTARG};;
+        s) SCHEDULE=${OPTARG};;
     esac
 done
 
@@ -27,7 +28,9 @@ if [ $name ]; then
     if [ $OPT ]; then  # options scp, ipopt
         OPT_ARGS+=" --opt $OPT"
     fi
-
+    if [ $SCHEDULE ]; then
+        ARGS+=" --schedule $SCHEDULE"
+    fi
     echo $ARGS
     python -m src.symbolic_simulate $ARGS
     python -m src.optimize $OPT_ARGS
