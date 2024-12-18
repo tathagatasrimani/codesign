@@ -175,7 +175,6 @@ class DennardMultiCore:
 
         for cacti_var in cacti_subs:
             self.tech_params[cacti_var] = cacti_subs[cacti_var].xreplace(self.tech_params).evalf()
-        symbolic_sim.edp = symbolic_sim.edp.xreplace(cacti_subs)
 
         inverse_edp = symbolic_sim.edp.xreplace(self.tech_params).evalf()
         inverse_exec_time = symbolic_sim.execution_time.xreplace(self.tech_params).evalf()
