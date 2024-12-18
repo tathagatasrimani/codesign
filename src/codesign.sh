@@ -11,6 +11,7 @@ do
         N) NUM=${OPTARG};;
         A) ARCH_SEARCH_NUM=${OPTARG};;
         p) PARASITIC=${OPTARG};;
+        s) SCHEDULE=${OPTARG};;
     esac
 done
 
@@ -44,6 +45,9 @@ if [ $name ]; then
     fi
     if [ $ARCH_SEARCH_NUM ]; then
         ARGS+=" --num_arch_search_iters $ARCH_SEARCH_NUM"
+    fi
+    if [ $SCHEDULE ]; then
+        ARGS+=" --schedule $SCHEDULE"
     fi
     echo $ARGS
     python -m src.codesign $ARGS
