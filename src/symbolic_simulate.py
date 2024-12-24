@@ -360,6 +360,8 @@ class SymbolicSimulator(AbstractSimulator):
             "BufWriteEact_expr": BufWriteEact_expr,
             "BufPpass_expr": BufPpass_expr
         }
+        if not os.path.exists("src/tmp"):
+            os.makedirs("src/tmp")
         with open("src/tmp/cacti_exprs.txt", 'w') as f:
             txt = ""
             for expr in self.cacti_exprs.keys():
