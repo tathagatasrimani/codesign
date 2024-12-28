@@ -210,10 +210,17 @@ class Codesign:
         print("active power (nW)")
         print(self.hw.dynamic_power)
 
+        print("active energy (nW)")
+        print(self.hw.dynamic_energy)
+
         print("passive power (nW)")
         print(self.hw.leakage_power)
 
-    def display_inverse_tech_params(self):
+        print("compute operation totals in fw pass")
+        print(self.hw.compute_operation_totals)
+
+
+    def display_inverse_tech_params(self, cacti_subs):
         print("symbolic active power (W)")
         for elem in hw_symbols.symbolic_power_active:
             print(elem, hw_symbols.symbolic_power_active[elem].xreplace(self.tech_params))
@@ -226,12 +233,14 @@ class Codesign:
         for elem in hw_symbols.symbolic_latency_wc:
             print(elem, hw_symbols.symbolic_latency_wc[elem].xreplace(self.tech_params))
 
+        print("\ncacti values")
+        for elem in cacti_subs:
+            print(elem, self.tech_params[elem])
+
     def inverse_pass(self):
         print("\nRunning Inverse Pass")
 
         hardwareModel.un_allocate_all_in_use_elements(self.hw.netlist)
-
-        self.display_inverse_tech_params()
 
         self.symbolic_sim.simulate(self.scheduled_dfg, self.hw)
         cacti_subs = self.symbolic_sim.calculate_edp(self.hw)
@@ -241,6 +250,8 @@ class Codesign:
 
         for cacti_var in cacti_subs:
             self.tech_params[cacti_var] = cacti_subs[cacti_var].xreplace(self.tech_params).evalf()
+
+        #self.display_inverse_tech_params(cacti_subs)
 
         self.inverse_edp = self.symbolic_sim.edp.xreplace(self.tech_params).evalf()
         inverse_exec_time = self.symbolic_sim.execution_time.xreplace(self.tech_params).evalf()
@@ -334,7 +345,7 @@ class Codesign:
     def execute(self, num_iters):
         i = 0
         while i < num_iters:
-            self.display_forward_tech_params()
+            #self.display_forward_tech_params()
             self.inverse_pass()
             self.hw.update_technology_parameters()
 

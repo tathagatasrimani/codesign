@@ -201,7 +201,7 @@ class SymbolicSimulator(AbstractSimulator):
                     logger.info(f"energy scaling: {scaling}")
                     energy = hw_symbols.symbolic_energy_active[
                         node_data["function"]
-                    ]  # nJ
+                    ] * 1e9 # J -> nJ
                 else:
                     energy = (
                         hw_symbols.symbolic_power_active[node_data["function"]]

@@ -339,7 +339,7 @@ class ConcreteSimulator(AbstractSimulator):
                             + hw.dynamic_energy[node_data["function"]]["Write"]
                         )
                         / 2  # avg of read and write
-                        * 1e-9
+                        * 1e-9 # nW to W
                         * scaling
                     )
 
@@ -353,11 +353,13 @@ class ConcreteSimulator(AbstractSimulator):
                 else:
                     energy = (
                         hw.dynamic_power[node_data["function"]]
-                        * 1e-9  # W
+                        * 1e-9  # nW to W
                         * scaling
                         * hw.latency[node_data["function"]]  # ns
                     )
                     self.active_energy_no_mem += energy
+                #fn = node_data["function"]
+                #print(f"adding {energy} to objective for {fn}")
                 self.active_energy += energy
                 hw.compute_operation_totals[node_data["function"]] += 1
 
