@@ -397,7 +397,7 @@ if __name__ == "__main__":
                         help='Scheduling algorithm to use')
     args = parser.parse_args()
     print(
-        f"args: benchmark: {args.benchmark}, trace: {args.notrace}, architecture_cfg: {args.architecture_config}, area: {args.area}, optimization: {args.opt}"
+        f"args: benchmark: {args.benchmark}, trace: {args.notrace}, architecture_cfg: {args.architecture_config}, area: {args.area}, optimization: {args.opt}, schedule: {args.schedule}"
     )
 
     main(args)

@@ -436,7 +436,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     print(
-        f"args: benchmark: {args.benchmark}, trace: {args.notrace}, architecture: {args.architecture_config}"
+        f"args: benchmark: {args.benchmark}, trace: {args.notrace}, architecture: {args.architecture_config}, schedule: {args.schedule}"
     )
 
     main(args)
