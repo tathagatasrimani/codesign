@@ -17,6 +17,7 @@ You can also install the dependencies using pip:
 ```
 pip install -r requirements_pip.txt
 ```
+Note: environment.yml may not work, so use environment_simplified.yml instead.
 
 You have to separately install the [staticfg](https://github.com/arjnpandey/staticfg) library by following the instructions in the repository.
 
