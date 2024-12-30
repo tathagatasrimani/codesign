@@ -1,5 +1,5 @@
 #!/bin/sh
-while getopts b:c:f:s:qn:p: flag
+while getopts b:c:f:s:qn:p:s: flag
 do
     case "${flag}" in
         n) name=${OPTARG};;

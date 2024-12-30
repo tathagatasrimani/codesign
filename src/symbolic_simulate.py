@@ -380,7 +380,7 @@ class SymbolicSimulator(AbstractSimulator):
         with open(file_path, "w") as f:
             f.write(st)
 
-def main():
+def main(args):
     print(f"Running symbolic simulator for {args.benchmark.split('/')[-1]}")
 
     simulator = SymbolicSimulator()
@@ -396,7 +396,7 @@ def main():
         sim_util.find_nearest_power_2(0),
     )
 
-    computation_dfg = simulator.schedule(computation_dfg, hw)
+    computation_dfg = simulator.schedule(computation_dfg, hw, args.schedule)
 
     simulator.transistor_size = hw.transistor_size  # in nm
     simulator.pitch = hw.pitch
@@ -440,10 +440,12 @@ if __name__ == "__main__":
         default="aladdin_const_with_mem",
         help="Path to the architecture file (.gml)",
     )
+    parser.add_argument('--schedule', type=str, choices=['greedy', 'sdc'], default='greedy',
+                        help='Scheduling algorithm to use')
 
     args = parser.parse_args()
     print(
-        f"args: benchmark: {args.benchmark}, trace: {args.notrace}, architecture: {args.architecture_config}"
+        f"args: benchmark: {args.benchmark}, trace: {args.notrace}, architecture: {args.architecture_config}, schedule: {args.schedule}"
     )
 
-    main()
+    main(args)

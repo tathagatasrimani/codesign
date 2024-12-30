@@ -21,7 +21,7 @@ from . import hardwareModel
 
 
 class Codesign:
-    def __init__(self, benchmark, area, config, arch_search_iters, save_dir, opt, openroad_testfile, parasitics):
+    def __init__(self, benchmark, area, config, arch_search_iters, save_dir, opt, openroad_testfile, parasitics, schedule):
         self.save_dir = os.path.join(
             save_dir, datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         )
@@ -55,6 +55,7 @@ class Codesign:
         self.full_tech_params = {}
         self.openroad_testfile = openroad_testfile
         self.parasitics = parasitics
+        self.schedule = schedule
 
         logger.info(
             f"Setting up architecture search; benchmark: {benchmark}, config: {config}"
@@ -71,6 +72,7 @@ class Codesign:
         self.scheduled_dfg = self.sim.schedule(
             self.computation_dfg,
             self.hw,
+            self.schedule
         )
 
         self.symbolic_sim = symbolic_simulate.SymbolicSimulator()
@@ -321,7 +323,7 @@ class Codesign:
         self.cleanup()
 
 
-def main():
+def main(args):
     codesign_module = Codesign(
         args.benchmark,
         args.area,
@@ -330,7 +332,8 @@ def main():
         args.savedir,
         args.opt,
         args.openroad_testfile,
-        args.parasitics
+        args.parasitics,
+        args.schedule
     )
     try:
         codesign_module.execute(args.num_iters)
@@ -390,9 +393,11 @@ if __name__ == "__main__":
         default=1,
         help="Number of Architecture Search iterations to run",
     )
+    parser.add_argument('--schedule', type=str, choices=['greedy', 'sdc'], default='greedy',
+                        help='Scheduling algorithm to use')
     args = parser.parse_args()
     print(
-        f"args: benchmark: {args.benchmark}, trace: {args.notrace}, architecture_cfg: {args.architecture_config}, area: {args.area}, optimization: {args.opt}"
+        f"args: benchmark: {args.benchmark}, trace: {args.notrace}, architecture_cfg: {args.architecture_config}, area: {args.area}, optimization: {args.opt}, schedule: {args.schedule}"
     )
 
-    main()
+    main(args)
