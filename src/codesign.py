@@ -205,39 +205,34 @@ class Codesign:
                 if "allocation" in computation_graph.nodes[node]:
                     del computation_graph.nodes[node]["allocation"]
 
-    def display_forward_tech_params(self):
-        print("latency (ns)")
-        print(self.hw.latency)
+    def log_forward_tech_params(self):
+        logger.info(f"latency (ns):\n {self.hw.latency}")
 
-        print("active power (nW)")
-        print(self.hw.dynamic_power)
+        logger.info(f"active power (nW):\n {self.hw.dynamic_power}")
 
-        print("active energy (nW)")
-        print(self.hw.dynamic_energy)
+        logger.info(f"active energy (nW):\n {self.hw.dynamic_energy}")
 
-        print("passive power (nW)")
-        print(self.hw.leakage_power)
+        logger.info(f"passive power (nW):\n {self.hw.leakage_power}")
 
-        print("compute operation totals in fw pass")
-        print(self.hw.compute_operation_totals)
+        logger.info(f"compute operation totals in fw pass:\n {self.hw.compute_operation_totals}")
 
 
-    def display_inverse_tech_params(self, cacti_subs):
-        print("symbolic active power (W)")
+    def log_inverse_tech_params(self, cacti_subs):
+        logger.info("symbolic active power (W)\n")
         for elem in hw_symbols.symbolic_power_active:
-            print(elem, hw_symbols.symbolic_power_active[elem].xreplace(self.tech_params))
+            logger.info(f"{elem}: {hw_symbols.symbolic_power_active[elem].xreplace(self.tech_params)}")
 
-        print("\nsymbolic passive power (W)")
+        logger.info("\nsymbolic passive power (W)\n")
         for elem in hw_symbols.symbolic_power_passive:
-            print(elem, hw_symbols.symbolic_power_passive[elem].xreplace(self.tech_params))
+            logger.info(f"{elem}: {hw_symbols.symbolic_power_passive[elem].xreplace(self.tech_params)}")
         
-        print("\nsymbolic latency (ns)")
+        logger.info("\nsymbolic latency (ns)\n")
         for elem in hw_symbols.symbolic_latency_wc:
-            print(elem, hw_symbols.symbolic_latency_wc[elem].xreplace(self.tech_params))
+            logger.info(f"{elem}: {hw_symbols.symbolic_latency_wc[elem].xreplace(self.tech_params)}")
 
-        print("\ncacti values")
+        logger.info("\ncacti values\n")
         for elem in cacti_subs:
-            print(elem, self.tech_params[elem])
+            logger.info(f"{elem}: {self.tech_params[elem]}")
 
     def inverse_pass(self):
         print("\nRunning Inverse Pass")
@@ -253,7 +248,7 @@ class Codesign:
         for cacti_var in cacti_subs:
             self.tech_params[cacti_var] = cacti_subs[cacti_var].xreplace(self.tech_params).evalf()
 
-        #self.display_inverse_tech_params(cacti_subs)
+        self.log_inverse_tech_params(cacti_subs)
 
         self.inverse_edp = self.symbolic_sim.edp.xreplace(self.tech_params).evalf()
         inverse_exec_time = self.symbolic_sim.execution_time.xreplace(self.tech_params).evalf()
@@ -347,7 +342,7 @@ class Codesign:
     def execute(self, num_iters):
         i = 0
         while i < num_iters:
-            #self.display_forward_tech_params()
+            self.log_forward_tech_params()
             self.inverse_pass()
             self.hw.update_technology_parameters()
 

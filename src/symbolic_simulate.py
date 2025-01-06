@@ -247,6 +247,7 @@ class SymbolicSimulator(AbstractSimulator):
             mem_accesses = set()
             buf_accesses = set()
             for node in generation:
+                scaling = 1
                 node_data = computation_dfg.nodes[node]
                 if node_data["function"] == "end":
                     continue
@@ -255,6 +256,7 @@ class SymbolicSimulator(AbstractSimulator):
                 else:
                     func = node_data["function"]
                 if func in ["Buf", "MainMem"]:
+                    scaling = node_data["size"]
                     if node_data["function"] == "MainMem":
                         if node_data["size"] in mem_accesses: continue # don't want repeat terms in our max expression
                         else: mem_accesses.add(node_data["size"])
@@ -264,9 +266,9 @@ class SymbolicSimulator(AbstractSimulator):
                 else:
                     if func in funcs_added: continue
                     else: funcs_added.add(func)
-                gen_latency = symbolic_convex_max(gen_latency, hw_symbols.symbolic_latency_wc[func])
+                gen_latency = symbolic_convex_max(gen_latency, hw_symbols.symbolic_latency_wc[func] * scaling)
             self.execution_time += gen_latency
-        #logger.info(f"execution time: {str(self.execution_time)}")
+        logger.info(f"execution time: {str(self.execution_time)}")
 
     def calculate_edp(self, hw, concrete_sub=False):
 
@@ -304,12 +306,12 @@ class SymbolicSimulator(AbstractSimulator):
             BufWriteEact_expr = hw.dynamic_energy["Buf"]["Write"]
             BufPpass_expr = hw.leakage_power["Buf"] * 1e-9
         else:
-            MemL_expr = sp.sympify(mem_access_time_text, locals=hw_symbols.symbol_table)
+            MemL_expr = sp.sympify(mem_access_time_text, locals=hw_symbols.symbol_table) * 1e9 # convert from s to ns
             MemReadEact_expr = sp.sympify(mem_read_dynamic_text, locals=hw_symbols.symbol_table)
             MemWriteEact_expr = sp.sympify(mem_write_dynamic_text, locals=hw_symbols.symbol_table)
             MemPpass_expr = sp.sympify(mem_read_leakage_text, locals=hw_symbols.symbol_table)
 
-            BufL_expr = sp.sympify(buf_access_time_text, locals=hw_symbols.symbol_table)
+            BufL_expr = sp.sympify(buf_access_time_text, locals=hw_symbols.symbol_table) * 1e9 # convert from s to ns
             BufReadEact_expr = sp.sympify(buf_read_dynamic_text, locals=hw_symbols.symbol_table)
             BufWriteEact_expr = sp.sympify(buf_write_dynamic_text, locals=hw_symbols.symbol_table)
             BufPpass_expr = sp.sympify(buf_read_leakage_text, locals=hw_symbols.symbol_table)
