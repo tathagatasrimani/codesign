@@ -417,19 +417,19 @@ def add_cache_mem_access_to_dfg(
             f"Buf{buf_count}",
             function="Buf",
             allocation="",
-            cost=buf_latency * size,
+            cost=buf_latency,
             size=size,
         )
         computation_graph.add_node(
             f"Mem{mem_count}",
             function="MainMem",
             allocation="",
-            cost=mem_latency * size,
+            cost=mem_latency,
             size=size,
         )
         # weight of edge is latency of parent
-        computation_graph.add_edge(f"Mem{mem_count}", f"Buf{buf_count}", function="Mem", weight=mem_latency*size)
-        computation_graph.add_edge(f"Buf{buf_count}", node, function="Mem", weight=buf_latency*size)
+        computation_graph.add_edge(f"Mem{mem_count}", f"Buf{buf_count}", function="Mem", weight=mem_latency)
+        computation_graph.add_edge(f"Buf{buf_count}", node, function="Mem", weight=buf_latency)
         buf_count += 1
         mem_count += 1
 
