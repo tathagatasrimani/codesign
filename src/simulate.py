@@ -381,35 +381,44 @@ class ConcreteSimulator(AbstractSimulator):
                         if comp_node_bool:
                             # temporary solution, will be changed when computation_dfg gets fixed
                             parasitic_edge = None
-                            if not hw.parasitic_graph.has_edge(
-                                node_name, child_node_name
-                            ):
-                                parasitic_nodes_out = list(
-                                    hw.parasitic_graph.out_edges(node_name)
-                                )
-                                child_node_function = child_node_data["function"]
-                                for node in parasitic_nodes_out:
-                                    if child_node_function in node[1]:
-                                        child_node_name = node[1]
-                                        break
-                                parasitic_edge = hw.parasitic_graph[node_name][
-                                    child_node_name
-                                ]
-                            else:
-                                parasitic_edge = hw.parasitic_graph[node_name][
-                                    child_node_name
-                                ]
-                            net_cap = (
+                            def check_edge(node1, node2, end_num):
+                                if not hw.parasitic_graph.has_edge(node1, node2):
+                                    parasitic_nodes_out = list(hw.parasitic_graph.out_edges(node1))
+                                    child_node_function = child_node_data["function"]
+                                    for node in parasitic_nodes_out:
+                                        if end_num != 0:
+                                            if child_node_function in node[1] and end_num in node[1]:
+                                                node2 = node[1]
+                                                break
+                                        else: 
+                                            if child_node_function in node[1]:
+                                                node2 = node[1]
+                                                break
+                                return node2
+                            
+                            def consolidate_cap(node1, node2):
+                                parasitic_edge = hw.parasitic_graph[node1][node2]
+                                net_cap = (
                                 parasitic_edge["net_cap"]
                                 if isinstance(parasitic_edge["net_cap"], list)
                                 else [parasitic_edge["net_cap"]]
-                            )
-                            net_name = parasitic_edge["net"]
-                            if (
-                                net_name not in active_net_cap
-                                or len(active_net_cap[net_name]) < len(net_cap)
-                            ):
-                                active_net_cap[net_name] = net_cap
+                                )
+                                net_name = parasitic_edge["net"]
+                                if (net_name not in active_net_cap or len(active_net_cap[net_name]) < len(net_cap)): #if net not in the capacitances recognized or the net is a ssociated with a capacitance that is shorter
+                                    active_net_cap[net_name] = net_cap
+                            
+                            if "Regs" in node_name: #or any 16 bit function, figure out a way to not explicitly state it 
+                                for x in range(16):
+                                    child_node_name = check_edge(node_name + "_" + str(x), child_node_name, 0)
+                                    consolidate_cap(node_name + "_" + str(x), child_node_name)
+                            elif "Regs" in child_node_name:
+                                for x in range(16):
+                                    child_node_name = check_edge(node_name, child_node_name + "_" + str(x), "_" + str(x))
+                                    consolidate_cap(node_name, child_node_name)
+                            else:
+                                check_edge(node_name, child_node_name)
+                                consolidate_cap(node_name, child_node_name)
+                        
 
                 if node_bool:
                     wire_energy(computation_dfg, hw, active_net_cap)
@@ -490,31 +499,94 @@ class ConcreteSimulator(AbstractSimulator):
                             node_data_prev = computation_dfg.nodes[
                                 path[node_index_prev]
                             ]
-                            if (
-                                node_data["in_other_graph"]
-                                and node_data_prev["in_other_graph"]
-                                and hw.parasitic_graph.has_edge(
-                                    node_data_prev["allocation"],
-                                    node_data["allocation"],
-                                )
-                            ):
-                                parasitic_edge = hw.parasitic_graph[
-                                    node_data_prev["allocation"]
-                                ][node_data["allocation"]]
-                                net_delay = 0
-                                if isinstance(parasitic_edge["net_cap"], list):
-                                    res_instance = 0
-                                    for x in range(parasitic_edge["net_cap"]):
-                                        res_instance += parasitic_edge["net_res"][x]
-                                        cap_instance = parasitic_edge["net_cap"][x]
-                                        net_delay += res_instance * cap_instance * 1e-3
-                                else:
-                                    net_delay = (
-                                        parasitic_edge["net_cap"]
-                                        * parasitic_edge["net_res"]
-                                        * 1e-3
-                                    )  # pico -> nano
-                                path_latency += net_delay
+                            node_name = node_data["allocation"]
+                            node_name_prev = node_data_prev["allocation"]
+                            net_delay = 0
+                            if "Regs" in node_name_prev: # again, 16 bit
+                                max_delay = 0
+                                #finding the longest time and adding that
+                                for x in range(16):
+                                    node_name_prev = node_name_prev + "_" + str(x)
+                                    if (
+                                        node_data["in_other_graph"]
+                                        and node_data_prev["in_other_graph"]
+                                        and hw.parasitic_graph.has_edge(
+                                            node_name_prev,
+                                            node_name,
+                                        )
+                                    ):
+                                        parasitic_edge = hw.parasitic_graph[node_name_prev][node_name]
+                                        net_delay = 0
+                                        if isinstance(parasitic_edge["net_cap"], list):
+                                            res_instance = 0
+                                            for y in range(len(parasitic_edge["net_cap"])): # doing second order RC
+                                                res_instance += parasitic_edge["net_res"][x]
+                                                cap_instance = parasitic_edge["net_cap"][x]
+                                                net_delay += res_instance * cap_instance * 1e-3
+                                        else:
+                                            net_delay = (
+                                                parasitic_edge["net_cap"]
+                                                * parasitic_edge["net_res"]
+                                                * 1e-3
+                                            )  # pico -> nano
+                                        if max_delay < net_delay:
+                                            max_delay = net_delay
+                                net_delay = max_delay
+                            elif "Regs" in node_name:
+                                max_delay = 0
+                                for x in range(16):
+                                    node_name = node_name + "_" + str(x)
+                                    if (
+                                        node_data["in_other_graph"]
+                                        and node_data_prev["in_other_graph"]
+                                        and hw.parasitic_graph.has_edge(
+                                            node_name_prev,
+                                            node_name,
+                                        )
+                                    ):
+                                        parasitic_edge = hw.parasitic_graph[node_name_prev][node_name]
+                                        net_delay = 0
+                                        if isinstance(parasitic_edge["net_cap"], list):
+                                            res_instance = 0
+                                            for y in range(len(parasitic_edge["net_cap"])): # doing second order RC
+                                                res_instance += parasitic_edge["net_res"][x]
+                                                cap_instance = parasitic_edge["net_cap"][x]
+                                                net_delay += res_instance * cap_instance * 1e-3
+                                        else:
+                                            net_delay = (
+                                                parasitic_edge["net_cap"]
+                                                * parasitic_edge["net_res"]
+                                                * 1e-3
+                                            )  # pico -> nano
+                                        if max_delay < net_delay:
+                                            max_delay = net_delay
+                                net_delay = max_delay
+                            else: 
+                                if (
+                                        node_data["in_other_graph"]
+                                        and node_data_prev["in_other_graph"]
+                                        and hw.parasitic_graph.has_edge(
+                                            node_name_prev,
+                                            node_name,
+                                        )
+                                    ):
+                                        parasitic_edge = hw.parasitic_graph[
+                                            node_name_prev
+                                        ][node_name]
+                                        net_delay = 0
+                                        if isinstance(parasitic_edge["net_cap"], list):
+                                            res_instance = 0
+                                            for y in range(len(parasitic_edge["net_cap"])):
+                                                res_instance += parasitic_edge["net_res"][x]
+                                                cap_instance = parasitic_edge["net_cap"][x]
+                                                net_delay += res_instance * cap_instance * 1e-3
+                                        else:
+                                            net_delay = (
+                                                parasitic_edge["net_cap"]
+                                                * parasitic_edge["net_res"]
+                                                * 1e-3
+                                            )  # pico -> nano
+                            path_latency += net_delay
                         path_latency += hw.latency[func] * scaling
                     if path_latency > self.cycles:
                         longest_path_explicit = path
