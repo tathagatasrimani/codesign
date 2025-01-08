@@ -110,6 +110,7 @@ class AbstractSimulator:
                     self.vars_allocated[item[2]] = int(item[1])
                     # print(self.vars_allocated)
                     self.cur_memory_size += int(item[1])
+                    self.total_malloc_size += int(item[1])
                     self.memory_needed = max(self.memory_needed, self.cur_memory_size)
                 elif len(item) == 4:
                     if item[1].isnumeric():
@@ -137,7 +138,7 @@ class AbstractSimulator:
         data_path_vars = self.set_data_path()
         for node in cfg:
             self.id_to_node[str(node.id)] = node
-        computation_dfg = sim_util.compose_entire_computation_graph(
+        computation_dfg, mallocs = sim_util.compose_entire_computation_graph(
             cfg_node_to_dfg_map,
             self.id_to_node,
             self.data_path,
@@ -146,7 +147,7 @@ class AbstractSimulator:
             plot=False,
         )
 
-        return computation_dfg
+        return computation_dfg, mallocs
 
     def schedule(self, computation_dfg, hw, schedule_type="greedy", prune_func=sim_util.prune_buffer_and_mem_nodes):
         """
@@ -186,40 +187,3 @@ class AbstractSimulator:
         
 
         return copy
-
-    def process_memory_operation(self, mem_op, mem_module: Memory):
-        """
-        Processes a memory operation, handling memory allocation or deallocation based on the operation type.
-
-        This function interprets and acts on memory operations (like allocating or freeing memory)
-        within the hardware simulation. It modifies the state of the memory module according to the
-        specified operation, updating the memory allocation status as necessary.
-
-        Parameters:
-        - mem_op (list): A list representing a memory operation. The first element is the operation type
-        ('malloc' or 'free'), the second element is the size of the memory block, and subsequent elements
-         provide additional context or dimensions for the operation.
-
-        Usage:
-        - If `mem_op` is a 'malloc' operation, the function allocates memory of the specified size and
-            potentially with specified dimensions.
-        - If `mem_op` is a 'free' operation, the function deallocates the memory associated with the
-             given variable name.
-
-        This function is typically called during the simulation process to dynamically manage
-        memory as the simulated program executes different operations that require memory allocation
-        and deallocation.
-        """
-        var_name = mem_op[2]
-        size = int(mem_op[1])
-        status = mem_op[0]
-        if status == "malloc":
-            dims = []
-            num_elem = 1
-            if len(mem_op) > 3:
-                dims = sim_util.get_dims(mem_op[3:])
-                # print(f"dims: {dims}")
-                num_elem = np.prod(dims)
-            mem_module.malloc(var_name, size, dims=dims, elem_size=size // num_elem)
-        elif status == "free":
-            mem_module.free(var_name)

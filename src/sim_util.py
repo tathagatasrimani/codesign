@@ -335,6 +335,8 @@ def localize_memory(hw, computation_graph, total_computation_graph=None):
 
     Sets a flag to indicate whether or not there was a cache hit or miss. This affects latency
     calculations.
+
+    Currently not in use.
     """
     for node, data in dict(
         filter(lambda x: x[1]["function"] == "Regs", computation_graph.nodes.data())
@@ -476,34 +478,38 @@ def prune_buffer_and_mem_nodes(computation_graph: nx.DiGraph, hw_netlist: nx.DiG
         allocated_reg = reg_node[1]["allocation"]
         allocated_reg_data = hw_netlist.nodes[allocated_reg]
         var_name = reg_node[0].split(";")[0]
-        print(allocated_reg_data["var"], var_name)
+        #print(allocated_reg_data["var"], var_name)
+        #print(hw_netlist.nodes[buf_in[1]["allocation"]]["memory_module"].memory.locations)
         if allocated_reg_data["var"] == var_name:
             # remove the buffer and memory nodes
+            #print(f"register hit for {var_name}")
             computation_graph.remove_node(buf_in[0])
             computation_graph.remove_node(mem_in[0])
         elif hw_netlist.nodes[buf_in[1]["allocation"]]["memory_module"].find(var_name):
             # remove the memory node
+            #print(f"cache hit for {var_name}")
             computation_graph.remove_node(mem_in[0])
             size = hw_netlist.nodes[buf_in[1]["allocation"]]["memory_module"].read(var_name)
             computation_graph.nodes[buf_in[0]]["size"] = size
             computation_graph.nodes[reg_node[0]]["size"] = size
         else:
             # read from memory and add to cache
+            #print(f"reading {var_name} from memory")
             size = -1*hw_netlist.nodes[buf_in[1]["allocation"]]["memory_module"].read(var_name)
             computation_graph.nodes[mem_in[0]]["size"] = size
             computation_graph.nodes[buf_in[0]]["size"] = size
             computation_graph.nodes[reg_node[0]]["size"] = size
         hw_netlist.nodes[allocated_reg]["var"] = var_name
-    print("starting pruning process")
+    #print("starting pruning process")
     layer = 0
     if sdc_schedule:
         regs_sorted = sorted(list(filter(lambda x: x[1]["function"] == "Regs", computation_graph.nodes.data())), key=lambda x: x[1]["start_time"])
-        print(regs_sorted)
+        #print(regs_sorted)
         for reg_node in regs_sorted:
             check_buffer_reg_hit(reg_node)
     else:
         gen = list(filter(lambda x: x[1]["layer"] == layer, computation_graph.nodes.data()))
-        print(gen)
+        #print(gen)
         while len(gen) != 0:
             reg_nodes = list(filter(lambda x: x[1]["function"] == "Regs", gen))
             for reg_node in reg_nodes:
@@ -512,7 +518,7 @@ def prune_buffer_and_mem_nodes(computation_graph: nx.DiGraph, hw_netlist: nx.DiG
             gen = list(
                 filter(lambda x: x[1]["layer"] == layer, computation_graph.nodes.data())
             )
-            print(gen)
+            #print(gen)
     return computation_graph
 
 
@@ -600,7 +606,8 @@ def compose_entire_computation_graph(
     """
     computation_dfg = nx.DiGraph()
     curr_last_nodes = []
-    i = find_next_data_path_index(data_path, 0, [], [])[0]
+    mallocs = []
+    i = find_next_data_path_index(data_path, 0, mallocs, [])[0]
     while i < len(data_path):
         node_id = data_path[i][0]
         vars = data_path_vars[i]
@@ -609,7 +616,7 @@ def compose_entire_computation_graph(
         dfg = cfg_node_to_dfg_map[node]
 
         if nx.is_empty(dfg):
-            i = find_next_data_path_index(data_path, i + 1, [], [])[0]
+            i = find_next_data_path_index(data_path, i + 1, mallocs, [])[0]
             continue
 
         # plug in index values for array accesses
@@ -640,7 +647,7 @@ def compose_entire_computation_graph(
         curr_last_nodes = list(nx.topological_generations(nx.reverse(dfg.copy())))[0]
         #print("last nodes: ", curr_last_nodes)
 
-        i = find_next_data_path_index(data_path, i + 1, [], [])[0]
+        i = find_next_data_path_index(data_path, i + 1, mallocs, [])[0]
 
     # create end node and connect all last nodes to it
     computation_dfg.add_node("end", function="end")
@@ -653,7 +660,7 @@ def compose_entire_computation_graph(
 
     if plot:
         topological_layout_plot(computation_dfg, reverse=True)
-    return computation_dfg
+    return computation_dfg, mallocs
 
 
 def topological_layout_plot(graph, reverse=False):

@@ -55,6 +55,7 @@ class SymbolicSimulator(AbstractSimulator):
         self.compute_element_neighbors = {}
         self.memory_needed = 0
         self.cur_memory_size = 0
+        self.total_malloc_size = 0
         self.new_graph = None
         self.mem_layers = 0
         self.transistor_size = 0

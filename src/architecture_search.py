@@ -25,15 +25,16 @@ def setup_arch_search(benchmark, arch_init_config, transistor_override=False, tr
 
     hw = hardwareModel.HardwareModel(cfg=arch_init_config, transistor_override=transistor_override, transistor_size=transistor_size, cacti_transistor_size=cacti_transistor_size)
 
-    computation_dfg = simulator.simulator_prep(benchmark, hw.latency)
+    computation_dfg, mallocs = simulator.simulator_prep(benchmark, hw.latency)
 
     hw.netlist = nx.DiGraph()
 
     arch_search_util.generate_new_min_arch_on_whole_dfg(hw, computation_dfg)
     logger.info(f"Initial netlist: {hw.netlist.nodes}")
     hw.init_memory(
-        sim_util.find_nearest_power_2(simulator.memory_needed),
+        sim_util.find_nearest_power_2(simulator.total_malloc_size),
         sim_util.find_nearest_power_2(simulator.nvm_memory_needed),
+        mallocs,
         gen_cacti=gen_cacti,
         gen_symbolic=gen_symbolic
     )

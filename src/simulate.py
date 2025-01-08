@@ -51,6 +51,7 @@ class ConcreteSimulator(AbstractSimulator):
         self.where_to_free = {}
         self.memory_needed = 0
         self.nvm_memory_needed = 0
+        self.total_malloc_size = 0
         self.cur_memory_size = 0
         self.new_graph = None  # this is just for visualization
         self.mem_layers = 0
