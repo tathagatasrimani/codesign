@@ -489,7 +489,7 @@ def prune_buffer_and_mem_nodes(computation_graph: nx.DiGraph, hw_netlist: nx.DiG
             computation_graph.nodes[reg_node[0]]["size"] = size
         else:
             # read from memory and add to cache
-            size = -1*hw_netlist.nodes[mem_in[1]["allocation"]]["memory_module"].read(var_name)
+            size = -1*hw_netlist.nodes[buf_in[1]["allocation"]]["memory_module"].read(var_name)
             computation_graph.nodes[mem_in[0]]["size"] = size
             computation_graph.nodes[buf_in[0]]["size"] = size
             computation_graph.nodes[reg_node[0]]["size"] = size
