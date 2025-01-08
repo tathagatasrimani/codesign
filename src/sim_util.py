@@ -471,7 +471,6 @@ def prune_buffer_and_mem_nodes(computation_graph: nx.DiGraph, hw_netlist: nx.DiG
     Removes memory nodes when the data is already in the buffer.
     Removes buffer nodes when the data is already in the registers.
     """
-    # TODO: memory module and cache module are not populated!! Therefore all reads to them will fail!
     def check_buffer_reg_hit(reg_node):
         buf_in = find_upstream_node_in_graph(computation_graph, "Buf", reg_node[0]) 
         mem_in = find_upstream_node_in_graph(computation_graph, "MainMem", buf_in[0])
@@ -595,7 +594,6 @@ def compose_entire_computation_graph(
 ):
     """
     Composes a large DFG from the smaller DFGs.
-    Not currently used, doesn't handle register allocation very well.
 
     Parameters:
         cfg (CFG): The control flow graph of the program.
