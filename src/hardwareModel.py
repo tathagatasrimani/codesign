@@ -175,7 +175,7 @@ class HardwareModel:
         for key in op2sym_map.keys():
             self.hw_allocated[key] = 0
 
-    def init_memory(self, mem_needed, nvm_mem_needed, buffer_size=64):
+    def init_memory(self, mem_needed, nvm_mem_needed, buffer_size=64, gen_cacti=True, gen_symbolic=True):
         """
         Add a Memory Module to the netlist for each MainMem node.
         Add a Cache Module to the netlist for each Buf node.
@@ -212,7 +212,7 @@ class HardwareModel:
         self.mem_size = mem_needed
         self.nvm_mem_size = nvm_mem_needed
         self.buffer_size = buffer_size
-        self.gen_cacti_results()
+        if gen_cacti: self.gen_cacti_results(gen_symbolic)
 
     def set_hw_config_vars(
         self,
@@ -296,6 +296,7 @@ class HardwareModel:
         self,
         rc_params_file="src/params/rcs_current.yaml",
         coeff_file="src/params/coefficients.yaml",
+        gen_symbolic=True
     ):
         """
         For full codesign loop, need to update the technology parameters after a run of the inverse pass.
@@ -325,7 +326,7 @@ class HardwareModel:
 
         # update dat file with new parameters and re-run cacti
         cacti_util.update_dat(rcs, self.cacti_dat_file)
-        self.gen_cacti_results()
+        self.gen_cacti_results(gen_symbolic)
 
         beta = yaml.load(open(coeff_file, "r"), Loader=yaml.Loader)["beta"]
 
@@ -450,7 +451,7 @@ class HardwareModel:
 
         return self.on_chip_area # in um^2
 
-    def gen_cacti_results(self):
+    def gen_cacti_results(self, gen_symbolic=True):
         """
         Generate buffer and memory latency and energy numbers from Cacti.
         """
@@ -563,8 +564,9 @@ class HardwareModel:
         mem_cache_cfg = "cfg/mem_cache.cfg"
 
         # TODO: This only needs to be triggered if we're doing inverse pass (ie symbolic simulate or codesign)
-        cacti_util.gen_symbolic("Buf", base_cache_cfg, buf_opt, use_piecewise=False)
-        cacti_util.gen_symbolic("Mem", mem_cache_cfg, mem_opt, use_piecewise=False)
+        if gen_symbolic:
+            cacti_util.gen_symbolic("Buf", base_cache_cfg, buf_opt, use_piecewise=False)
+            cacti_util.gen_symbolic("Mem", mem_cache_cfg, mem_opt, use_piecewise=False)
 
         return
 

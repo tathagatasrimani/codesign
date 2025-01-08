@@ -139,6 +139,7 @@ class Codesign:
             self.computation_dfg,
             self.area_constraint,
             self.num_arch_search_iters,
+            self.schedule,
             best_edp=edp,
         )
 

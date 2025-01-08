@@ -20,7 +20,7 @@ from .schedule import sdc_schedule
 rng = np.random.default_rng(SEED)
 
 # optional arguments added to allow architecture configs to be used with different tech nodes
-def setup_arch_search(benchmark, arch_init_config, transistor_override=False, transistor_size=None, cacti_transistor_size=None):
+def setup_arch_search(benchmark, arch_init_config, transistor_override=False, transistor_size=None, cacti_transistor_size=None, gen_cacti=True, gen_symbolic=True):
     simulator = ConcreteSimulator()
 
     hw = hardwareModel.HardwareModel(cfg=arch_init_config, transistor_override=transistor_override, transistor_size=transistor_size, cacti_transistor_size=cacti_transistor_size)
@@ -34,6 +34,8 @@ def setup_arch_search(benchmark, arch_init_config, transistor_override=False, tr
     hw.init_memory(
         sim_util.find_nearest_power_2(simulator.memory_needed),
         sim_util.find_nearest_power_2(simulator.nvm_memory_needed),
+        gen_cacti=gen_cacti,
+        gen_symbolic=gen_symbolic
     )
 
     hardwareModel.un_allocate_all_in_use_elements(hw.netlist)
@@ -192,6 +194,7 @@ def run_arch_search(
     computation_dfg: nx.DiGraph,
     area_constraint: float,
     num_steps: int = 1,
+    schedule: str = "greedy",
     best_edp=None,
 ):
     """
@@ -206,7 +209,7 @@ def run_arch_search(
     best_edp: float
     """
 
-    old_scheduled_dfg = simulator.schedule(computation_dfg, hw)
+    old_scheduled_dfg = simulator.schedule(computation_dfg, hw, schedule)
     
     simulator.simulate(old_scheduled_dfg, hw)
     simulator.calculate_edp()
@@ -243,7 +246,7 @@ def run_arch_search(
         hw_copy.gen_cacti_results()
         logger.info("generated cacti results")
 
-        scheduled_dfg = simulator.schedule(computation_dfg, hw_copy)
+        scheduled_dfg = simulator.schedule(computation_dfg, hw_copy, schedule)
         logger.info("scheduled dfg")
 
         func_counts = get_stalled_func_counts(scheduled_dfg)
