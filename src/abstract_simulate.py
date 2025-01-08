@@ -130,6 +130,10 @@ class AbstractSimulator:
         """
         cfg, graphs, self.unroll_at = dfg_algo.main_fn(self.path, benchmark)
         cfg_node_to_dfg_map = schedule.cfg_to_dfg(cfg, graphs, latency)
+        """i = 0
+        for cfg_node in cfg_node_to_dfg_map:
+            nx.write_gml(cfg_node_to_dfg_map[cfg_node], sim_util.get_latest_log_dir()+f"/computation_dfg_{i}.gml")
+            i += 1"""
         data_path_vars = self.set_data_path()
         for node in cfg:
             self.id_to_node[str(node.id)] = node
@@ -144,7 +148,7 @@ class AbstractSimulator:
 
         return computation_dfg
 
-    def schedule(self, computation_dfg, hw, schedule_type="greedy"):
+    def schedule(self, computation_dfg, hw, schedule_type="greedy", prune_func=sim_util.prune_buffer_and_mem_nodes):
         """
         Schedule the computation graph.
         params:
@@ -173,10 +177,12 @@ class AbstractSimulator:
         )
         if schedule_type == "greedy":
             schedule.greedy_schedule(copy, hw_counts, hw.netlist)
-            copy = sim_util.prune_buffer_and_mem_nodes(copy, hw.netlist)
+            copy = prune_func(copy, hw.netlist)
         elif schedule_type == "sdc":
             schedule.sdc_schedule(copy, hw_counts, hw.netlist)
-            copy = sim_util.prune_buffer_and_mem_nodes(copy, hw.netlist, sdc_schedule=True)
+            copy = prune_func(copy, hw.netlist, sdc_schedule=True)
+            # Once we have pruned memory/buffer nodes, critical path may have changed. So we need to redo the scheduling
+            schedule.sdc_schedule(copy, hw_counts, hw.netlist)
         
 
         return copy

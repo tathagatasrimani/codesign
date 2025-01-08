@@ -463,53 +463,56 @@ def find_upstream_node_in_graph(graph:nx.DiGraph, func:str, node:str):
                 ) # assuming only one upstream node
     return func_in[0]
 
-
 def prune_buffer_and_mem_nodes(computation_graph: nx.DiGraph, hw_netlist: nx.DiGraph, sdc_schedule: bool = False):
     """
     Call after allocation to remove unnecessary buffer and memory nodes.
     Removes memory nodes when the data is already in the buffer.
     Removes buffer nodes when the data is already in the registers.
     """
+    # TODO: memory module and cache module are not populated!! Therefore all reads to them will fail!
+    def check_buffer_reg_hit(reg_node):
+        buf_in = find_upstream_node_in_graph(computation_graph, "Buf", reg_node[0]) 
+        mem_in = find_upstream_node_in_graph(computation_graph, "MainMem", buf_in[0])
+        allocated_reg = reg_node[1]["allocation"]
+        allocated_reg_data = hw_netlist.nodes[allocated_reg]
+        var_name = reg_node[0].split(";")[0]
+        print(allocated_reg_data["var"], var_name)
+        if allocated_reg_data["var"] == var_name:
+            # remove the buffer and memory nodes
+            computation_graph.remove_node(buf_in[0])
+            computation_graph.remove_node(mem_in[0])
+        elif hw_netlist.nodes[buf_in[1]["allocation"]]["memory_module"].find(var_name):
+            # remove the memory node
+            computation_graph.remove_node(mem_in[0])
+            size = hw_netlist.nodes[buf_in[1]["allocation"]]["memory_module"].read(var_name)
+            computation_graph.nodes[buf_in[0]]["size"] = size
+            computation_graph.nodes[reg_node[0]]["size"] = size
+        else:
+            # read from memory and add to cache
+            size = -1*hw_netlist.nodes[mem_in[1]["allocation"]]["memory_module"].read(var_name)
+            computation_graph.nodes[mem_in[0]]["size"] = size
+            computation_graph.nodes[buf_in[0]]["size"] = size
+            computation_graph.nodes[reg_node[0]]["size"] = size
+        hw_netlist.nodes[allocated_reg]["var"] = var_name
+    print("starting pruning process")
     layer = 0
     if sdc_schedule:
-        gen = list(filter(lambda x: x[1]["start_time"] == layer, computation_graph.nodes.data()))
+        regs_sorted = sorted(list(filter(lambda x: x[1]["function"] == "Regs", computation_graph.nodes.data())), key=lambda x: x[1]["start_time"])
+        print(regs_sorted)
+        for reg_node in regs_sorted:
+            check_buffer_reg_hit(reg_node)
     else:
         gen = list(filter(lambda x: x[1]["layer"] == layer, computation_graph.nodes.data()))
-    while len(gen) != 0:
-        reg_nodes = list(filter(lambda x: x[1]["function"] == "Regs", gen))
-        for reg_node in reg_nodes:
-            buf_in = find_upstream_node_in_graph(computation_graph, "Buf", reg_node[0]) 
-            mem_in = find_upstream_node_in_graph(computation_graph, "MainMem", buf_in[0])
-            allocated_reg = reg_node[1]["allocation"]
-            allocated_reg_data = hw_netlist.nodes[allocated_reg]
-            var_name = reg_node[0].split(";")[0]
-            if allocated_reg_data["var"] == var_name:
-                # remove the buffer and memory nodes
-                computation_graph.remove_node(buf_in[0])
-                computation_graph.remove_node(mem_in[0])
-            elif hw_netlist.nodes[buf_in[1]["allocation"]]["memory_module"].find(var_name):
-                # remove the memory node
-                computation_graph.remove_node(mem_in[0])
-                size = hw_netlist.nodes[buf_in[1]["allocation"]]["memory_module"].read(var_name)
-                computation_graph.nodes[buf_in[0]]["size"] = size
-                computation_graph.nodes[reg_node[0]]["size"] = size
-            else:
-                # read from memory and add to cache
-                size = -1*hw_netlist.nodes[buf_in[1]["allocation"]]["memory_module"].read(var_name)
-                computation_graph.nodes[mem_in[0]]["size"] = size
-                computation_graph.nodes[buf_in[0]]["size"] = size
-                computation_graph.nodes[reg_node[0]]["size"] = size
-            hw_netlist.nodes[allocated_reg]["var"] = var_name
-
-        layer += 1
-        
-        
-        if sdc_schedule:
-            gen = list(filter(lambda x: x[1]["start_time"] == layer, computation_graph.nodes.data()))
-        else:
+        print(gen)
+        while len(gen) != 0:
+            reg_nodes = list(filter(lambda x: x[1]["function"] == "Regs", gen))
+            for reg_node in reg_nodes:
+                check_buffer_reg_hit(reg_node)
+            layer += 1
             gen = list(
                 filter(lambda x: x[1]["layer"] == layer, computation_graph.nodes.data())
             )
+            print(gen)
     return computation_graph
 
 
@@ -634,7 +637,8 @@ def compose_entire_computation_graph(
         computation_dfg = nx.compose(computation_dfg, dfg)
         generations = list(nx.topological_generations(dfg))
 
-        curr_last_nodes = generations[-1]
+        curr_last_nodes = list(nx.topological_generations(nx.reverse(dfg.copy())))[0]
+        #print("last nodes: ", curr_last_nodes)
 
         i = find_next_data_path_index(data_path, i + 1, [], [])[0]
 
@@ -645,6 +649,7 @@ def compose_entire_computation_graph(
         computation_dfg.add_edge(
             node, "end", weight=latency[computation_dfg.nodes[node]["function"]]
         )
+    nx.write_gml(computation_dfg, get_latest_log_dir()+"/computation_dfg_test.gml")
 
     if plot:
         topological_layout_plot(computation_dfg, reverse=True)

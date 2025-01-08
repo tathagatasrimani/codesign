@@ -19,6 +19,7 @@ from . import sim_util
 # format: cfg_node -> {states -> operations}
 cfg_node_to_dfg_map = {}
 operation_sets = {}
+processed = {}
 
 rng = np.random.default_rng(SEED)
 
@@ -131,44 +132,51 @@ def cfg_to_dfg(cfg, graphs, latency):
     for node in cfg:
         cfg_node_to_dfg_map[node] = nx.DiGraph()
         operation_sets[node] = set()
+        processed[node] = set()
 
         queue = deque([[root, 0] for root in graphs[node].roots])
-        max_order = 0
         while len(queue) != 0:
             cur_node, order = queue.popleft()
+            #print(cur_node, order)
             if cur_node not in operation_sets[node]:
-                if (
-                    cur_node.operation is None
-                ):  # if no operation, then we ignore in latency power calculation.
-                    cfg_node_to_dfg_map[node] = nx.DiGraph()
-                    break
-                operation_sets[node].add(cur_node)
-                cfg_node_to_dfg_map[node].add_node(
-                    f"{cur_node.value};{cur_node.id}",
-                    function=cur_node.operation,
-                    idx=cur_node.id,
-                    cost=latency[cur_node.operation],
-                )
-
-                for par in cur_node.parents:
-                    try:
-                        cfg_node_to_dfg_map[node].add_edge(
-                            f"{par.value};{par.id}",
-                            f"{cur_node.value};{cur_node.id}",
-                            weight=latency[
-                                par.operation
-                            ],  # weight of edge is latency of parent
-                        )
-                    except KeyError:
-                        print(
-                            f"KeyError: {par.operation} for {par.value};{par.id} -> {cur_node.value};{cur_node.id}"
-                        )
-                        cfg_node_to_dfg_map[node].add_edge(
-                            par.value, cur_node.value, weight=latency[par.operation]
-                        )
-
+                if not (
+                    cur_node.operation is None or cur_node.value.startswith("__")
+                ):  # if no operation or an intrinsic python name, then we ignore in latency power calculation.
+                    operation_sets[node].add(cur_node)
+                    cfg_node_to_dfg_map[node].add_node(
+                        f"{cur_node.value};{cur_node.id}",
+                        function=cur_node.operation,
+                        idx=cur_node.id,
+                        cost=latency[cur_node.operation],
+                    )
+                    for par in cur_node.parents:
+                        # print("node", cur_node, "has parent", par)
+                        # only add edges to parents which represent actual operations
+                        if par in operation_sets[node]:
+                            try:
+                                cfg_node_to_dfg_map[node].add_edge(
+                                    f"{par.value};{par.id}",
+                                    f"{cur_node.value};{cur_node.id}",
+                                    weight=latency[
+                                        par.operation
+                                    ],  # weight of edge is latency of parent
+                                )
+                            except KeyError:
+                                raise Exception(
+                                    f"KeyError: {par.operation} for {par.value};{par.id} -> {cur_node.value};{cur_node.id}"
+                                )
+                                cfg_node_to_dfg_map[node].add_edge(
+                                    par.value, cur_node.value, weight=latency[par.operation]
+                                )
+                processed[node].add(cur_node)
                 for child in cur_node.children:
-                    queue.append([child, order + 1])
+                    add_to_queue = True
+                    # We only want to add child to queue if all of its parent operations have finished.
+                    for par in child.parents:
+                        if par not in processed[node]:
+                            add_to_queue = False
+                            break
+                    if add_to_queue: queue.append([child, order + 1])
 
     return cfg_node_to_dfg_map
 
