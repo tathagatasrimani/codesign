@@ -640,17 +640,17 @@ def compose_entire_computation_graph(
             computation_dfg, dfg, generations, curr_last_nodes
         )
         computation_dfg = nx.compose(computation_dfg, dfg)
-        generations = list(nx.topological_generations(dfg))
 
         curr_last_nodes = list(nx.topological_generations(nx.reverse(dfg.copy())))[0]
         #print("last nodes: ", curr_last_nodes)
 
         i = find_next_data_path_index(data_path, i + 1, mallocs, [])[0]
 
+    last_gen = list(nx.topological_generations(nx.reverse(computation_dfg.copy())))[0]
+
     # create end node and connect all last nodes to it
     computation_dfg.add_node("end", function="end")
-    generations = list(nx.topological_generations(computation_dfg))
-    for node in generations[-1]:
+    for node in last_gen:
         computation_dfg.add_edge(
             node, "end", weight=latency[computation_dfg.nodes[node]["function"]]
         )
