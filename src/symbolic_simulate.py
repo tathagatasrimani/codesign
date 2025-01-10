@@ -169,7 +169,7 @@ class SymbolicSimulator(AbstractSimulator):
             )  # W
         return passive_power * total_execution_time  # nJ
 
-    def simulate(self, computation_dfg: nx.DiGraph, hw: HardwareModel):
+    def simulate(self, computation_dfg: nx.DiGraph, hw: HardwareModel, resource_edge_graph: nx.DiGraph=None):
         self.reset_internal_variables()
         hw_symbols.update_symbolic_passive_power(hw.R_off_on_ratio)
 
@@ -237,26 +237,34 @@ class SymbolicSimulator(AbstractSimulator):
                     self.execution_time = symbolic_convex_max(self.execution_time, path_latency)"""
 
 
-        # STA
-        logger.info("starting STA latency calculation")
-        for generation in generations:
-            gen_latency = 0
-            # for non-memory/buffer terms, keep track of which functions we have seen and
-            # do not add repeats. For memory/buffer, keep track of which size of access
-            # we have seen.
-            funcs_added = set()
-            for node in generation:
-                node_data = computation_dfg.nodes[node]
-                if node_data["function"] == "end":
-                    continue
-                elif node_data["function"] == "stall":
-                            func = node.split("_")[3]  # stall names have std formats
-                else:
-                    func = node_data["function"]
-                if func in funcs_added: continue
-                else: funcs_added.add(func)
-                gen_latency = symbolic_convex_max(gen_latency, hw_symbols.symbolic_latency_wc[func])
-            self.execution_time += gen_latency
+        if resource_edge_graph:
+            logger.info("starting critical path latency calculation")
+            critical_path = nx.dag_longest_path(resource_edge_graph)
+            assert resource_edge_graph.nodes[critical_path[-1]]["function"] == "end" , "last node of critical path should be 'end'"
+            for node in critical_path[:-1]: # exclude "end" node
+                func = resource_edge_graph.nodes[node]["function"]
+                self.execution_time += hw_symbols.symbolic_latency_wc[func]
+        else: # greedy schedule
+            # STA
+            logger.info("starting STA latency calculation")
+            for generation in generations:
+                gen_latency = 0
+                # for non-memory/buffer terms, keep track of which functions we have seen and
+                # do not add repeats. For memory/buffer, keep track of which size of access
+                # we have seen.
+                funcs_added = set()
+                for node in generation:
+                    node_data = computation_dfg.nodes[node]
+                    if node_data["function"] == "end":
+                        continue
+                    elif node_data["function"] == "stall":
+                                func = node.split("_")[3]  # stall names have std formats
+                    else:
+                        func = node_data["function"]
+                    if func in funcs_added: continue
+                    else: funcs_added.add(func)
+                    gen_latency = symbolic_convex_max(gen_latency, hw_symbols.symbolic_latency_wc[func])
+                self.execution_time += gen_latency
         logger.info(f"execution time: {str(self.execution_time)}")
 
     def calculate_edp(self, hw, concrete_sub=False):

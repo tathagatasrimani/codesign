@@ -21,7 +21,7 @@ from . import hardwareModel
 
 
 class Codesign:
-    def __init__(self, benchmark, area, config, arch_search_iters, save_dir, opt, openroad_testfile, parasitics, schedule):
+    def __init__(self, benchmark, area, config, arch_search_iters, save_dir, opt, openroad_testfile, parasitics, schedule, no_cacti):
         self.save_dir = os.path.join(
             save_dir, datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         )
@@ -56,6 +56,7 @@ class Codesign:
         self.openroad_testfile = openroad_testfile
         self.parasitics = parasitics
         self.schedule = schedule
+        self.run_cacti = not no_cacti
 
         logger.info(
             f"Setting up architecture search; benchmark: {benchmark}, config: {config}"
@@ -64,7 +65,7 @@ class Codesign:
             self.sim,
             self.hw,
             self.computation_dfg,
-        ) = architecture_search.setup_arch_search(benchmark, config)
+        ) = architecture_search.setup_arch_search(benchmark, config, gen_cacti=self.run_cacti, gen_symbolic=self.run_cacti)
 
         nx.write_gml(self.computation_dfg, f"{self.save_dir}/computation_dfg.gml")
 
@@ -240,7 +241,7 @@ class Codesign:
 
         hardwareModel.un_allocate_all_in_use_elements(self.hw.netlist)
 
-        self.symbolic_sim.simulate(self.scheduled_dfg, self.hw)
+        self.symbolic_sim.simulate(self.scheduled_dfg, self.hw, self.sim.resource_edge_graph)
         cacti_subs = self.symbolic_sim.calculate_edp(self.hw)
         #print("got cacti sub expressions")
         self.symbolic_sim.save_edp_to_file()
@@ -366,7 +367,8 @@ def main(args):
         args.opt,
         args.openroad_testfile,
         args.parasitics,
-        args.schedule
+        args.schedule,
+        args.debug_no_cacti
     )
     try:
         codesign_module.execute(args.num_iters)
@@ -428,6 +430,8 @@ if __name__ == "__main__":
     )
     parser.add_argument('--schedule', type=str, choices=['greedy', 'sdc'], default='greedy',
                         help='Scheduling algorithm to use')
+    parser.add_argument('--debug_no_cacti', type=bool, default=False, 
+                        help='disable cacti in the first iteration to decrease runtime when debugging')
     args = parser.parse_args()
     print(
         f"args: benchmark: {args.benchmark}, trace: {args.notrace}, architecture_cfg: {args.architecture_config}, area: {args.area}, optimization: {args.opt}, schedule: {args.schedule}"

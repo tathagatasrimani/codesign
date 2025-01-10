@@ -254,7 +254,7 @@ def assign_upstream_path_lengths_old(graph):
 
 
 
-def sdc_schedule(graph, hw_element_counts, hw_netlist, no_resource_constraints=False):
+def sdc_schedule(graph, hw_element_counts, hw_netlist, no_resource_constraints=False, add_resource_edges=False):
     """
     Runs the convex optimization problem to minimize the longest path latency.
     Encodes data dependency constraints from CDFG and resource constraints using
@@ -346,8 +346,10 @@ def sdc_schedule(graph, hw_element_counts, hw_netlist, no_resource_constraints=F
     # go through each layer and allocate nodes to hardware elements
     # keep track of each hardware element and it's next available free time and allocated accordingly
     hardware_elements_by_next_free_time = defaultdict(float)
+    hardware_element_allocations_by_start_time = {}
     for node in hw_netlist.nodes.data():
         hardware_elements_by_next_free_time[node[0]] = 0
+        hardware_element_allocations_by_start_time[node[0]] = []
     
     if not no_resource_constraints:
         for layer in range(len(sorted_nodes_by_start_time)):
@@ -368,12 +370,20 @@ def sdc_schedule(graph, hw_element_counts, hw_netlist, no_resource_constraints=F
                         graph.nodes[node[0]]['allocation'] = hardware_element
                         hardware_elements_by_next_free_time[hardware_element] = node_end_time
                         found_hardware_element = True
+                        hardware_element_allocations_by_start_time[hardware_element].append((node[0], node[1]['cost'])) # node name and latency
                         break
                 if not found_hardware_element:
                     raise ValueError(f"No hardware element found for node {node[0]} with function {node_function} at time {node_start_time}")
+    
+    resource_edge_graph = None
+    if add_resource_edges:
+        resource_edge_graph = graph.copy()
+        for hw_element in hw_netlist.nodes.data():
+            allocations = hardware_element_allocations_by_start_time[hw_element[0]]
+            for i in range(1, len(allocations)):
+                resource_edge_graph.add_edge(allocations[i-1][0], allocations[i][0], weight=allocations[i-1][1])
 
-    return obj.value
-
+    return resource_edge_graph
 
 def write_df(in_use, hw_element_counts, execution_time, step):
     data = {

@@ -183,7 +183,9 @@ class AbstractSimulator:
             schedule.sdc_schedule(copy, hw_counts, hw.netlist)
             copy = prune_func(copy, hw.netlist, sdc_schedule=True)
             # Once we have pruned memory/buffer nodes, critical path may have changed. So we need to redo the scheduling
-            schedule.sdc_schedule(copy, hw_counts, hw.netlist)
+            self.resource_edge_graph = schedule.sdc_schedule(copy, hw_counts, hw.netlist, add_resource_edges=True)
+            #print("longest path:", nx.dag_longest_path(self.resource_edge_graph))
+            #print("longest path length:", nx.dag_longest_path_length(self.resource_edge_graph))
         
 
         return copy

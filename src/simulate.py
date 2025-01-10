@@ -71,6 +71,7 @@ class ConcreteSimulator(AbstractSimulator):
         self.active_energy_no_mem = 0
         self.passive_energy = 0
         self.passive_energy_no_mem = 0
+        self.resource_edge_graph = None
 
     def get_var_size(self, var_name, mem_module: Memory):
         """
