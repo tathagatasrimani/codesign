@@ -148,6 +148,116 @@ class AbstractSimulator:
         )
 
         return computation_dfg, mallocs
+    
+    def add_parasitics_to_computation_dfg(self, computation_dfg, parasitic_graph):
+        """
+        Add wire parasitics from OpenROAD to computation dfg
+        params:
+            computation_dfg: nx.DiGraph representing the computation graph; does not have buffer
+                and memory nodes explicit.
+            parasitic_graph: nx.DiGraph representing wire parasitics from OpenROAD
+        """
+        # wire latency
+        for node in computation_dfg:
+            node_data = computation_dfg.nodes[node]
+        node_data["in_other_graph"] = (
+            "allocation" in node_data
+            and node_data["allocation"] != ""
+            and "Mem" not in node_data["allocation"]
+            and "Buf" not in node_data["allocation"]
+        )
+        for par in list(computation_dfg.predecessors(node)):
+            node_data_prev = computation_dfg.nodes[
+                par
+            ]
+            node_name = node_data["allocation"]
+            node_name_prev = node_data_prev["allocation"]
+            net_delay = 0
+            if "Regs" in node_name_prev: # again, 16 bit
+                max_delay = 0
+                #finding the longest time and adding that
+                for x in range(16):
+                    node_name_prev = node_name_prev + "_" + str(x)
+                    if (
+                        node_data["in_other_graph"]
+                        and node_data_prev["in_other_graph"]
+                        and parasitic_graph.has_edge(
+                            node_name_prev,
+                            node_name,
+                        )
+                    ):
+                        parasitic_edge = parasitic_graph[node_name_prev][node_name]
+                        net_delay = 0
+                        if isinstance(parasitic_edge["net_cap"], list):
+                            res_instance = 0
+                            for y in range(len(parasitic_edge["net_cap"])): # doing second order RC
+                                res_instance += parasitic_edge["net_res"][x]
+                                cap_instance = parasitic_edge["net_cap"][x]
+                                net_delay += res_instance * cap_instance * 1e-3
+                        else:
+                            net_delay = (
+                                parasitic_edge["net_cap"]
+                                * parasitic_edge["net_res"]
+                                * 1e-3
+                            )  # pico -> nano
+                        if max_delay < net_delay:
+                            max_delay = net_delay
+                net_delay = max_delay
+            elif "Regs" in node_name:
+                max_delay = 0
+                for x in range(16):
+                    node_name = node_name + "_" + str(x)
+                    if (
+                        node_data["in_other_graph"]
+                        and node_data_prev["in_other_graph"]
+                        and parasitic_graph.has_edge(
+                            node_name_prev,
+                            node_name,
+                        )
+                    ):
+                        parasitic_edge = parasitic_graph[node_name_prev][node_name]
+                        net_delay = 0
+                        if isinstance(parasitic_edge["net_cap"], list):
+                            res_instance = 0
+                            for y in range(len(parasitic_edge["net_cap"])): # doing second order RC
+                                res_instance += parasitic_edge["net_res"][x]
+                                cap_instance = parasitic_edge["net_cap"][x]
+                                net_delay += res_instance * cap_instance * 1e-3
+                        else:
+                            net_delay = (
+                                parasitic_edge["net_cap"]
+                                * parasitic_edge["net_res"]
+                                * 1e-3
+                            )  # pico -> nano
+                        if max_delay < net_delay:
+                            max_delay = net_delay
+                net_delay = max_delay
+            else: 
+                if (
+                        node_data["in_other_graph"]
+                        and node_data_prev["in_other_graph"]
+                        and parasitic_graph.has_edge(
+                            node_name_prev,
+                            node_name,
+                        )
+                    ):
+                        parasitic_edge = parasitic_graph[
+                            node_name_prev
+                        ][node_name]
+                        net_delay = 0
+                        if isinstance(parasitic_edge["net_cap"], list):
+                            res_instance = 0
+                            for y in range(len(parasitic_edge["net_cap"])):
+                                res_instance += parasitic_edge["net_res"][x]
+                                cap_instance = parasitic_edge["net_cap"][x]
+                                net_delay += res_instance * cap_instance * 1e-3
+                        else:
+                            net_delay = (
+                                parasitic_edge["net_cap"]
+                                * parasitic_edge["net_res"]
+                                * 1e-3
+                            )  # pico -> nano
+            computation_dfg.edges[(par, node)]["cost"] = net_delay
 
     def schedule(self, computation_dfg, hw, schedule_type="greedy", prune_func=sim_util.prune_buffer_and_mem_nodes):
         """

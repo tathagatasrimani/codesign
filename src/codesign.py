@@ -69,6 +69,9 @@ class Codesign:
 
         nx.write_gml(self.computation_dfg, f"{self.save_dir}/computation_dfg.gml")
 
+        self.hw.get_wire_parasitics(self.openroad_testfile, self.parasitics)
+        self.sim.add_parasitics_to_computation_dfg(self.computation_dfg, self.hw.parasitic_graph)
+
         logger.info(f"Scheduling computation graph")
         self.scheduled_dfg = self.sim.schedule(
             self.computation_dfg,
@@ -90,7 +93,6 @@ class Codesign:
         self.set_technology_parameters(initial_tech_params)
 
         logger.info(f"Running initial forward pass")
-        self.hw.get_wire_parasitics(self.openroad_testfile, self.parasitics)
         self.sim.simulate(self.scheduled_dfg, self.hw)
         self.sim.calculate_edp()
         self.forward_edp = self.sim.edp
