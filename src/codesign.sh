@@ -51,7 +51,7 @@ if [ $name ]; then
         ARGS+=" --schedule $SCHEDULE"
     fi
     if [ $DEBUG_NO_CACTI ]; then
-        ARGS+=" --schedule $SCHEDULE"
+        ARGS+=" --debug_no_cacti $DEBUG_NO_CACTI"
     fi
     echo $ARGS
     python -m src.codesign $ARGS

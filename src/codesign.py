@@ -434,7 +434,7 @@ if __name__ == "__main__":
                         help='disable cacti in the first iteration to decrease runtime when debugging')
     args = parser.parse_args()
     print(
-        f"args: benchmark: {args.benchmark}, trace: {args.notrace}, architecture_cfg: {args.architecture_config}, area: {args.area}, optimization: {args.opt}, schedule: {args.schedule}"
+        f"args: benchmark: {args.benchmark}, trace: {args.notrace}, architecture_cfg: {args.architecture_config}, area: {args.area}, parasitics: {args.parasitics}, optimization: {args.opt}, schedule: {args.schedule}"
     )
 
     main(args)
