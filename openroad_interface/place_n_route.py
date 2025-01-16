@@ -14,7 +14,7 @@ from . import detailed as det
 def openroad_run():
     os.chdir(directory)
     print("running openroad")
-    os.system("openroad test.tcl")#> /dev/null 2>&1     
+    os.system("./../build/src/openroad test.tcl")#> /dev/null 2>&1     
     print("done")
     os.chdir("../../..")
 
