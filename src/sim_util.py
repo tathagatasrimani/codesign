@@ -186,10 +186,14 @@ def update_schedule_with_latency(schedule, latency):
     """
     for edge in schedule.edges:
         node = edge[0]
+        edge_data = schedule.edges[edge]
         func = schedule.nodes.data()[node]["function"]
         if func == "stall":
             func = node.split("_")[3]
-        schedule.edges[edge]["weight"] = latency[func] # multiply by 16 for buf and main mem
+        schedule.edges[edge]["weight"] = latency[func]
+        if "cost" in edge_data:
+            schedule.edges[edge]["weight"] += edge_data["cost"] # TODO: update edge cost with values from inverse pass
+        
 
 
 def get_dims(arr):
@@ -651,7 +655,7 @@ def compose_entire_computation_graph(
         computation_dfg.add_edge(
             node, "end", weight=latency[computation_dfg.nodes[node]["function"]]
         )
-    nx.write_gml(computation_dfg, get_latest_log_dir()+"/computation_dfg_test.gml")
+    #nx.write_gml(computation_dfg, get_latest_log_dir()+"/computation_dfg_test.gml")
 
     if plot:
         topological_layout_plot(computation_dfg, reverse=True)

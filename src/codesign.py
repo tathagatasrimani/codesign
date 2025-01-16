@@ -72,7 +72,6 @@ class Codesign:
         self.hw.get_wire_parasitics(self.openroad_testfile, self.parasitics)
 
         nx.write_gml(self.hw.parasitic_graph, f"{self.save_dir}/parasitic_graph.gml")
-        self.sim.add_parasitics_to_computation_dfg(self.computation_dfg, self.hw.parasitic_graph)
 
         logger.info(f"Scheduling computation graph")
         self.scheduled_dfg = self.sim.schedule(
