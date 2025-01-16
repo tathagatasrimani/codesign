@@ -70,6 +70,8 @@ class Codesign:
         nx.write_gml(self.computation_dfg, f"{self.save_dir}/computation_dfg.gml")
 
         self.hw.get_wire_parasitics(self.openroad_testfile, self.parasitics)
+
+        nx.write_gml(self.hw.parasitic_graph, f"{self.save_dir}/parasitic_graph.gml")
         self.sim.add_parasitics_to_computation_dfg(self.computation_dfg, self.hw.parasitic_graph)
 
         logger.info(f"Scheduling computation graph")
@@ -78,7 +80,6 @@ class Codesign:
             self.hw,
             self.schedule
         )
-
         self.symbolic_sim = symbolic_simulate.SymbolicSimulator()
         self.symbolic_sim.simulator_prep(benchmark, self.hw.latency)
 
@@ -123,8 +124,8 @@ class Codesign:
         print("\nRunning Forward Pass")
         logger.info("Running Forward Pass")
 
-        sim_util.update_schedule_with_latency(self.computation_dfg, self.hw.latency)
-        sim_util.update_schedule_with_latency(self.scheduled_dfg, self.hw.latency)
+        sim_util.update_schedule_with_latency(self.computation_dfg, self.hw.latency, self.sim.resource_edge_graph)
+        sim_util.update_schedule_with_latency(self.scheduled_dfg, self.hw.latency, self.sim.resource_edge_graph)
 
         self.hw.get_wire_parasitics(self.openroad_testfile, self.parasitics)
         self.sim.simulate(self.scheduled_dfg, self.hw)
@@ -430,7 +431,7 @@ if __name__ == "__main__":
         default=1,
         help="Number of Architecture Search iterations to run",
     )
-    parser.add_argument('--schedule', type=str, choices=['greedy', 'sdc'], default='greedy',
+    parser.add_argument('--schedule', type=str, choices=['sdc'], default='sdc',
                         help='Scheduling algorithm to use')
     parser.add_argument('--debug_no_cacti', type=bool, default=False, 
                         help='disable cacti in the first iteration to decrease runtime when debugging')
