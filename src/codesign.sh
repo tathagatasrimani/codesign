@@ -24,34 +24,34 @@ if [ $name ]; then
     python -m src.instrumented_files.xformed-$name > src/instrumented_files/output.txt
     ARGS=$FILEPATH
     if [ $QUIET ]; then
-        ARGS+=" --notrace"
+        ARGS="$ARGS --notrace"
     fi
     if [ $AREA ]; then
-        ARGS+=" --area $AREA"
+        ARGS="$ARGS --area $AREA"
     fi
     if [ $ARCH_CONFIG ]; then
-        ARGS+=" --architecture_config $ARCH_CONFIG"
+        ARGS="$ARGS --architecture_config $ARCH_CONFIG"
     fi
     if [ $SAVEDIR ]; then
-        ARGS+=" --savedir $SAVEDIR"
+        ARGS="$ARGS --savedir $SAVEDIR"
     fi
     if [ $PARASITIC ]; then
-        ARGS+=" --parasitic $PARASITIC"
+        ARGS="$ARGS --parasitic $PARASITIC"
     fi
     if [ $OPT ]; then  # should be scp, ipopt
-        ARGS+=" --opt $OPT"
+        ARGS="$ARGS --opt $OPT"
     fi
     if [ $NUM ]; then
-        ARGS+=" --num_iters $NUM"
+        ARGS="$ARGS --num_iters $NUM"
     fi
     if [ $ARCH_SEARCH_NUM ]; then
-        ARGS+=" --num_arch_search_iters $ARCH_SEARCH_NUM"
+        ARGS="$ARGS --num_arch_search_iters $ARCH_SEARCH_NUM"
     fi
     if [ $SCHEDULE ]; then
-        ARGS+=" --schedule $SCHEDULE"
+        ARGS="$ARGS --schedule $SCHEDULE"
     fi
     if [ $DEBUG_NO_CACTI ]; then
-        ARGS+=" --debug_no_cacti $DEBUG_NO_CACTI"
+        ARGS="$ARGS --debug_no_cacti $DEBUG_NO_CACTI"
     fi
     echo $ARGS
     python -m src.codesign $ARGS
