@@ -187,12 +187,9 @@ def update_schedule_with_latency(schedule, latency):
     for edge in schedule.edges:
         node = edge[0]
         func = schedule.nodes.data()[node]["function"]
-        scaling = 1
         if func == "stall":
             func = node.split("_")[3]
-        if func == "Buf" or func == "MainMem":
-            scaling = schedule.nodes.data()[node]["size"]
-        schedule.edges[edge]["weight"] = latency[func] * scaling # multiply by 16 for buf and main mem
+        schedule.edges[edge]["weight"] = latency[func] # multiply by 16 for buf and main mem
 
 
 def get_dims(arr):
