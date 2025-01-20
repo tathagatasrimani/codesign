@@ -335,6 +335,8 @@ def localize_memory(hw, computation_graph, total_computation_graph=None):
 
     Sets a flag to indicate whether or not there was a cache hit or miss. This affects latency
     calculations.
+
+    Currently not in use.
     """
     for node, data in dict(
         filter(lambda x: x[1]["function"] == "Regs", computation_graph.nodes.data())
@@ -417,19 +419,19 @@ def add_cache_mem_access_to_dfg(
             f"Buf{buf_count}",
             function="Buf",
             allocation="",
-            cost=buf_latency * size,
+            cost=buf_latency,
             size=size,
         )
         computation_graph.add_node(
             f"Mem{mem_count}",
             function="MainMem",
             allocation="",
-            cost=mem_latency * size,
+            cost=mem_latency,
             size=size,
         )
         # weight of edge is latency of parent
-        computation_graph.add_edge(f"Mem{mem_count}", f"Buf{buf_count}", function="Mem", weight=mem_latency*size)
-        computation_graph.add_edge(f"Buf{buf_count}", node, function="Mem", weight=buf_latency*size)
+        computation_graph.add_edge(f"Mem{mem_count}", f"Buf{buf_count}", function="Mem", weight=mem_latency)
+        computation_graph.add_edge(f"Buf{buf_count}", node, function="Mem", weight=buf_latency)
         buf_count += 1
         mem_count += 1
 
@@ -463,53 +465,59 @@ def find_upstream_node_in_graph(graph:nx.DiGraph, func:str, node:str):
                 ) # assuming only one upstream node
     return func_in[0]
 
-
 def prune_buffer_and_mem_nodes(computation_graph: nx.DiGraph, hw_netlist: nx.DiGraph, sdc_schedule: bool = False):
     """
     Call after allocation to remove unnecessary buffer and memory nodes.
     Removes memory nodes when the data is already in the buffer.
     Removes buffer nodes when the data is already in the registers.
     """
+    def check_buffer_reg_hit(reg_node):
+        buf_in = find_upstream_node_in_graph(computation_graph, "Buf", reg_node[0]) 
+        mem_in = find_upstream_node_in_graph(computation_graph, "MainMem", buf_in[0])
+        allocated_reg = reg_node[1]["allocation"]
+        allocated_reg_data = hw_netlist.nodes[allocated_reg]
+        var_name = reg_node[0].split(";")[0]
+        #print(allocated_reg_data["var"], var_name)
+        #print(hw_netlist.nodes[buf_in[1]["allocation"]]["memory_module"].memory.locations)
+        if allocated_reg_data["var"] == var_name:
+            # remove the buffer and memory nodes
+            #print(f"register hit for {var_name}")
+            computation_graph.remove_node(buf_in[0])
+            computation_graph.remove_node(mem_in[0])
+        elif hw_netlist.nodes[buf_in[1]["allocation"]]["memory_module"].find(var_name):
+            # remove the memory node
+            #print(f"cache hit for {var_name}")
+            computation_graph.remove_node(mem_in[0])
+            size = hw_netlist.nodes[buf_in[1]["allocation"]]["memory_module"].read(var_name)
+            computation_graph.nodes[buf_in[0]]["size"] = size
+            computation_graph.nodes[reg_node[0]]["size"] = size
+        else:
+            # read from memory and add to cache
+            #print(f"reading {var_name} from memory")
+            size = -1*hw_netlist.nodes[buf_in[1]["allocation"]]["memory_module"].read(var_name)
+            computation_graph.nodes[mem_in[0]]["size"] = size
+            computation_graph.nodes[buf_in[0]]["size"] = size
+            computation_graph.nodes[reg_node[0]]["size"] = size
+        hw_netlist.nodes[allocated_reg]["var"] = var_name
+    #print("starting pruning process")
     layer = 0
     if sdc_schedule:
-        gen = list(filter(lambda x: x[1]["start_time"] == layer, computation_graph.nodes.data()))
+        regs_sorted = sorted(list(filter(lambda x: x[1]["function"] == "Regs", computation_graph.nodes.data())), key=lambda x: x[1]["start_time"])
+        #print(regs_sorted)
+        for reg_node in regs_sorted:
+            check_buffer_reg_hit(reg_node)
     else:
         gen = list(filter(lambda x: x[1]["layer"] == layer, computation_graph.nodes.data()))
-    while len(gen) != 0:
-        reg_nodes = list(filter(lambda x: x[1]["function"] == "Regs", gen))
-        for reg_node in reg_nodes:
-            buf_in = find_upstream_node_in_graph(computation_graph, "Buf", reg_node[0]) 
-            mem_in = find_upstream_node_in_graph(computation_graph, "MainMem", buf_in[0])
-            allocated_reg = reg_node[1]["allocation"]
-            allocated_reg_data = hw_netlist.nodes[allocated_reg]
-            var_name = reg_node[0].split(";")[0]
-            if allocated_reg_data["var"] == var_name:
-                # remove the buffer and memory nodes
-                computation_graph.remove_node(buf_in[0])
-                computation_graph.remove_node(mem_in[0])
-            elif hw_netlist.nodes[buf_in[1]["allocation"]]["memory_module"].find(var_name):
-                # remove the memory node
-                computation_graph.remove_node(mem_in[0])
-                size = hw_netlist.nodes[buf_in[1]["allocation"]]["memory_module"].read(var_name)
-                computation_graph.nodes[buf_in[0]]["size"] = size
-                computation_graph.nodes[reg_node[0]]["size"] = size
-            else:
-                # read from memory and add to cache
-                size = -1*hw_netlist.nodes[buf_in[1]["allocation"]]["memory_module"].read(var_name)
-                computation_graph.nodes[mem_in[0]]["size"] = size
-                computation_graph.nodes[buf_in[0]]["size"] = size
-                computation_graph.nodes[reg_node[0]]["size"] = size
-            hw_netlist.nodes[allocated_reg]["var"] = var_name
-
-        layer += 1
-        
-        
-        if sdc_schedule:
-            gen = list(filter(lambda x: x[1]["start_time"] == layer, computation_graph.nodes.data()))
-        else:
+        #print(gen)
+        while len(gen) != 0:
+            reg_nodes = list(filter(lambda x: x[1]["function"] == "Regs", gen))
+            for reg_node in reg_nodes:
+                check_buffer_reg_hit(reg_node)
+            layer += 1
             gen = list(
                 filter(lambda x: x[1]["layer"] == layer, computation_graph.nodes.data())
             )
+            #print(gen)
     return computation_graph
 
 
@@ -586,7 +594,6 @@ def compose_entire_computation_graph(
 ):
     """
     Composes a large DFG from the smaller DFGs.
-    Not currently used, doesn't handle register allocation very well.
 
     Parameters:
         cfg (CFG): The control flow graph of the program.
@@ -597,7 +604,8 @@ def compose_entire_computation_graph(
     """
     computation_dfg = nx.DiGraph()
     curr_last_nodes = []
-    i = find_next_data_path_index(data_path, 0, [], [])[0]
+    mallocs = []
+    i = find_next_data_path_index(data_path, 0, mallocs, [])[0]
     while i < len(data_path):
         node_id = data_path[i][0]
         vars = data_path_vars[i]
@@ -606,7 +614,7 @@ def compose_entire_computation_graph(
         dfg = cfg_node_to_dfg_map[node]
 
         if nx.is_empty(dfg):
-            i = find_next_data_path_index(data_path, i + 1, [], [])[0]
+            i = find_next_data_path_index(data_path, i + 1, mallocs, [])[0]
             continue
 
         # plug in index values for array accesses
@@ -632,23 +640,25 @@ def compose_entire_computation_graph(
             computation_dfg, dfg, generations, curr_last_nodes
         )
         computation_dfg = nx.compose(computation_dfg, dfg)
-        generations = list(nx.topological_generations(dfg))
 
-        curr_last_nodes = generations[-1]
+        curr_last_nodes = list(nx.topological_generations(nx.reverse(dfg.copy())))[0]
+        #print("last nodes: ", curr_last_nodes)
 
-        i = find_next_data_path_index(data_path, i + 1, [], [])[0]
+        i = find_next_data_path_index(data_path, i + 1, mallocs, [])[0]
+
+    last_gen = list(nx.topological_generations(nx.reverse(computation_dfg.copy())))[0]
 
     # create end node and connect all last nodes to it
     computation_dfg.add_node("end", function="end")
-    generations = list(nx.topological_generations(computation_dfg))
-    for node in generations[-1]:
+    for node in last_gen:
         computation_dfg.add_edge(
             node, "end", weight=latency[computation_dfg.nodes[node]["function"]]
         )
+    nx.write_gml(computation_dfg, get_latest_log_dir()+"/computation_dfg_test.gml")
 
     if plot:
         topological_layout_plot(computation_dfg, reverse=True)
-    return computation_dfg
+    return computation_dfg, mallocs
 
 
 def topological_layout_plot(graph, reverse=False):

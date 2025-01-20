@@ -1,5 +1,5 @@
 #!/bin/sh
-while getopts a:c:f:qn:o:N:A:p:s: flag
+while getopts a:c:f:qn:o:N:A:p:s:d: flag
 do
     case "${flag}" in
         n) name=${OPTARG};;
@@ -12,6 +12,7 @@ do
         A) ARCH_SEARCH_NUM=${OPTARG};;
         p) PARASITIC=${OPTARG};;
         s) SCHEDULE=${OPTARG};;
+        d) DEBUG_NO_CACTI=${OPTARG};;
     esac
 done
 
@@ -47,6 +48,9 @@ if [ $name ]; then
         ARGS+=" --num_arch_search_iters $ARCH_SEARCH_NUM"
     fi
     if [ $SCHEDULE ]; then
+        ARGS+=" --schedule $SCHEDULE"
+    fi
+    if [ $DEBUG_NO_CACTI ]; then
         ARGS+=" --schedule $SCHEDULE"
     fi
     echo $ARGS

@@ -150,7 +150,8 @@ def eval_expr(expr, graph, node):
         make_node(graph, node, func_id, astor.to_source(expr)[:-1], None, None)
         for arg in expr.args:
             arg_id = eval_expr(arg, graph, node)
-            make_edge(graph, node, arg_id[0], func_id)
+            if arg_id: # some args are in formats we don't care to deal with, like JoinedStr
+                make_edge(graph, node, arg_id[0], func_id)
         return [func_id]
     elif ASTUtils.isFormattedValue(expr):
         return

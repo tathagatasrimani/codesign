@@ -19,6 +19,7 @@ from . import sim_util
 # format: cfg_node -> {states -> operations}
 cfg_node_to_dfg_map = {}
 operation_sets = {}
+processed = {}
 
 rng = np.random.default_rng(SEED)
 
@@ -131,44 +132,51 @@ def cfg_to_dfg(cfg, graphs, latency):
     for node in cfg:
         cfg_node_to_dfg_map[node] = nx.DiGraph()
         operation_sets[node] = set()
+        processed[node] = set()
 
         queue = deque([[root, 0] for root in graphs[node].roots])
-        max_order = 0
         while len(queue) != 0:
             cur_node, order = queue.popleft()
+            #print(cur_node, order)
             if cur_node not in operation_sets[node]:
-                if (
-                    cur_node.operation is None
-                ):  # if no operation, then we ignore in latency power calculation.
-                    cfg_node_to_dfg_map[node] = nx.DiGraph()
-                    break
-                operation_sets[node].add(cur_node)
-                cfg_node_to_dfg_map[node].add_node(
-                    f"{cur_node.value};{cur_node.id}",
-                    function=cur_node.operation,
-                    idx=cur_node.id,
-                    cost=latency[cur_node.operation],
-                )
-
-                for par in cur_node.parents:
-                    try:
-                        cfg_node_to_dfg_map[node].add_edge(
-                            f"{par.value};{par.id}",
-                            f"{cur_node.value};{cur_node.id}",
-                            weight=latency[
-                                par.operation
-                            ],  # weight of edge is latency of parent
-                        )
-                    except KeyError:
-                        print(
-                            f"KeyError: {par.operation} for {par.value};{par.id} -> {cur_node.value};{cur_node.id}"
-                        )
-                        cfg_node_to_dfg_map[node].add_edge(
-                            par.value, cur_node.value, weight=latency[par.operation]
-                        )
-
+                if not (
+                    cur_node.operation is None or cur_node.value.startswith("__")
+                ):  # if no operation or an intrinsic python name, then we ignore in latency power calculation.
+                    operation_sets[node].add(cur_node)
+                    cfg_node_to_dfg_map[node].add_node(
+                        f"{cur_node.value};{cur_node.id}",
+                        function=cur_node.operation,
+                        idx=cur_node.id,
+                        cost=latency[cur_node.operation],
+                    )
+                    for par in cur_node.parents:
+                        # print("node", cur_node, "has parent", par)
+                        # only add edges to parents which represent actual operations
+                        if par in operation_sets[node]:
+                            try:
+                                cfg_node_to_dfg_map[node].add_edge(
+                                    f"{par.value};{par.id}",
+                                    f"{cur_node.value};{cur_node.id}",
+                                    weight=latency[
+                                        par.operation
+                                    ],  # weight of edge is latency of parent
+                                )
+                            except KeyError:
+                                raise Exception(
+                                    f"KeyError: {par.operation} for {par.value};{par.id} -> {cur_node.value};{cur_node.id}"
+                                )
+                                cfg_node_to_dfg_map[node].add_edge(
+                                    par.value, cur_node.value, weight=latency[par.operation]
+                                )
+                processed[node].add(cur_node)
                 for child in cur_node.children:
-                    queue.append([child, order + 1])
+                    add_to_queue = True
+                    # We only want to add child to queue if all of its parent operations have finished.
+                    for par in child.parents:
+                        if par not in processed[node]:
+                            add_to_queue = False
+                            break
+                    if add_to_queue: queue.append([child, order + 1])
 
     return cfg_node_to_dfg_map
 
@@ -246,7 +254,7 @@ def assign_upstream_path_lengths_old(graph):
 
 
 
-def sdc_schedule(graph, hw_element_counts, hw_netlist, no_resource_constraints=False):
+def sdc_schedule(graph, hw_element_counts, hw_netlist, no_resource_constraints=False, add_resource_edges=False):
     """
     Runs the convex optimization problem to minimize the longest path latency.
     Encodes data dependency constraints from CDFG and resource constraints using
@@ -338,8 +346,10 @@ def sdc_schedule(graph, hw_element_counts, hw_netlist, no_resource_constraints=F
     # go through each layer and allocate nodes to hardware elements
     # keep track of each hardware element and it's next available free time and allocated accordingly
     hardware_elements_by_next_free_time = defaultdict(float)
+    hardware_element_allocations_by_start_time = {}
     for node in hw_netlist.nodes.data():
         hardware_elements_by_next_free_time[node[0]] = 0
+        hardware_element_allocations_by_start_time[node[0]] = []
     
     if not no_resource_constraints:
         for layer in range(len(sorted_nodes_by_start_time)):
@@ -360,12 +370,20 @@ def sdc_schedule(graph, hw_element_counts, hw_netlist, no_resource_constraints=F
                         graph.nodes[node[0]]['allocation'] = hardware_element
                         hardware_elements_by_next_free_time[hardware_element] = node_end_time
                         found_hardware_element = True
+                        hardware_element_allocations_by_start_time[hardware_element].append((node[0], node[1]['cost'])) # node name and latency
                         break
                 if not found_hardware_element:
                     raise ValueError(f"No hardware element found for node {node[0]} with function {node_function} at time {node_start_time}")
+    
+    resource_edge_graph = None
+    if add_resource_edges:
+        resource_edge_graph = graph.copy()
+        for hw_element in hw_netlist.nodes.data():
+            allocations = hardware_element_allocations_by_start_time[hw_element[0]]
+            for i in range(1, len(allocations)):
+                resource_edge_graph.add_edge(allocations[i-1][0], allocations[i][0], weight=allocations[i-1][1])
 
-    return obj.value
-
+    return resource_edge_graph
 
 def write_df(in_use, hw_element_counts, execution_time, step):
     data = {

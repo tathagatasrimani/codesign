@@ -21,7 +21,7 @@ from . import hardwareModel
 
 
 class Codesign:
-    def __init__(self, benchmark, area, config, arch_search_iters, save_dir, opt, openroad_testfile, parasitics, schedule):
+    def __init__(self, benchmark, area, config, arch_search_iters, save_dir, opt, openroad_testfile, parasitics, schedule, no_cacti):
         self.save_dir = os.path.join(
             save_dir, datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         )
@@ -56,6 +56,7 @@ class Codesign:
         self.openroad_testfile = openroad_testfile
         self.parasitics = parasitics
         self.schedule = schedule
+        self.run_cacti = not no_cacti
 
         logger.info(
             f"Setting up architecture search; benchmark: {benchmark}, config: {config}"
@@ -64,7 +65,7 @@ class Codesign:
             self.sim,
             self.hw,
             self.computation_dfg,
-        ) = architecture_search.setup_arch_search(benchmark, config)
+        ) = architecture_search.setup_arch_search(benchmark, config, gen_cacti=self.run_cacti, gen_symbolic=self.run_cacti)
 
         nx.write_gml(self.computation_dfg, f"{self.save_dir}/computation_dfg.gml")
 
@@ -139,6 +140,7 @@ class Codesign:
             self.computation_dfg,
             self.area_constraint,
             self.num_arch_search_iters,
+            self.schedule,
             best_edp=edp,
         )
 
@@ -205,12 +207,41 @@ class Codesign:
                 if "allocation" in computation_graph.nodes[node]:
                     del computation_graph.nodes[node]["allocation"]
 
+    def log_forward_tech_params(self):
+        logger.info(f"latency (ns):\n {self.hw.latency}")
+
+        logger.info(f"active power (nW):\n {self.hw.dynamic_power}")
+
+        logger.info(f"active energy (nW):\n {self.hw.dynamic_energy}")
+
+        logger.info(f"passive power (nW):\n {self.hw.leakage_power}")
+
+        logger.info(f"compute operation totals in fw pass:\n {self.hw.compute_operation_totals}")
+
+
+    def log_inverse_tech_params(self, cacti_subs):
+        logger.info("symbolic active power (W)\n")
+        for elem in hw_symbols.symbolic_power_active:
+            logger.info(f"{elem}: {hw_symbols.symbolic_power_active[elem].xreplace(self.tech_params)}")
+
+        logger.info("\nsymbolic passive power (W)\n")
+        for elem in hw_symbols.symbolic_power_passive:
+            logger.info(f"{elem}: {hw_symbols.symbolic_power_passive[elem].xreplace(self.tech_params)}")
+        
+        logger.info("\nsymbolic latency (ns)\n")
+        for elem in hw_symbols.symbolic_latency_wc:
+            logger.info(f"{elem}: {hw_symbols.symbolic_latency_wc[elem].xreplace(self.tech_params)}")
+
+        logger.info("\ncacti values\n")
+        for elem in cacti_subs:
+            logger.info(f"{elem}: {self.tech_params[elem]}")
+
     def inverse_pass(self):
         print("\nRunning Inverse Pass")
 
         hardwareModel.un_allocate_all_in_use_elements(self.hw.netlist)
 
-        self.symbolic_sim.simulate(self.scheduled_dfg, self.hw)
+        self.symbolic_sim.simulate(self.scheduled_dfg, self.hw, self.sim.resource_edge_graph)
         cacti_subs = self.symbolic_sim.calculate_edp(self.hw)
         #print("got cacti sub expressions")
         self.symbolic_sim.save_edp_to_file()
@@ -218,6 +249,8 @@ class Codesign:
 
         for cacti_var in cacti_subs:
             self.tech_params[cacti_var] = cacti_subs[cacti_var].xreplace(self.tech_params).evalf()
+
+        self.log_inverse_tech_params(cacti_subs)
 
         self.inverse_edp = self.symbolic_sim.edp.xreplace(self.tech_params).evalf()
         inverse_exec_time = self.symbolic_sim.execution_time.xreplace(self.tech_params).evalf()
@@ -311,6 +344,7 @@ class Codesign:
     def execute(self, num_iters):
         i = 0
         while i < num_iters:
+            self.log_forward_tech_params()
             self.inverse_pass()
             self.hw.update_technology_parameters()
 
@@ -333,7 +367,8 @@ def main(args):
         args.opt,
         args.openroad_testfile,
         args.parasitics,
-        args.schedule
+        args.schedule,
+        args.debug_no_cacti
     )
     try:
         codesign_module.execute(args.num_iters)
@@ -395,6 +430,8 @@ if __name__ == "__main__":
     )
     parser.add_argument('--schedule', type=str, choices=['greedy', 'sdc'], default='greedy',
                         help='Scheduling algorithm to use')
+    parser.add_argument('--debug_no_cacti', type=bool, default=False, 
+                        help='disable cacti in the first iteration to decrease runtime when debugging')
     args = parser.parse_args()
     print(
         f"args: benchmark: {args.benchmark}, trace: {args.notrace}, architecture_cfg: {args.architecture_config}, area: {args.area}, optimization: {args.opt}, schedule: {args.schedule}"

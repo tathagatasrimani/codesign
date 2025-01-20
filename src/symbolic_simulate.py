@@ -55,6 +55,7 @@ class SymbolicSimulator(AbstractSimulator):
         self.compute_element_neighbors = {}
         self.memory_needed = 0
         self.cur_memory_size = 0
+        self.total_malloc_size = 0
         self.new_graph = None
         self.mem_layers = 0
         self.transistor_size = 0
@@ -168,7 +169,7 @@ class SymbolicSimulator(AbstractSimulator):
             )  # W
         return passive_power * total_execution_time  # nJ
 
-    def simulate(self, computation_dfg: nx.DiGraph, hw: HardwareModel):
+    def simulate(self, computation_dfg: nx.DiGraph, hw: HardwareModel, resource_edge_graph: nx.DiGraph=None):
         self.reset_internal_variables()
         hw_symbols.update_symbolic_passive_power(hw.R_off_on_ratio)
 
@@ -201,7 +202,7 @@ class SymbolicSimulator(AbstractSimulator):
                     logger.info(f"energy scaling: {scaling}")
                     energy = hw_symbols.symbolic_energy_active[
                         node_data["function"]
-                    ]  # nJ
+                    ] * 1e9 # J -> nJ
                 else:
                     energy = (
                         hw_symbols.symbolic_power_active[node_data["function"]]
@@ -236,37 +237,35 @@ class SymbolicSimulator(AbstractSimulator):
                     self.execution_time = symbolic_convex_max(self.execution_time, path_latency)"""
 
 
-        # STA
-        logger.info("starting STA latency calculation")
-        for generation in generations:
-            gen_latency = 0
-            # for non-memory/buffer terms, keep track of which functions we have seen and
-            # do not add repeats. For memory/buffer, keep track of which size of access
-            # we have seen.
-            funcs_added = set()
-            mem_accesses = set()
-            buf_accesses = set()
-            for node in generation:
-                node_data = computation_dfg.nodes[node]
-                if node_data["function"] == "end":
-                    continue
-                elif node_data["function"] == "stall":
-                            func = node.split("_")[3]  # stall names have std formats
-                else:
-                    func = node_data["function"]
-                if func in ["Buf", "MainMem"]:
-                    if node_data["function"] == "MainMem":
-                        if node_data["size"] in mem_accesses: continue # don't want repeat terms in our max expression
-                        else: mem_accesses.add(node_data["size"])
+        if resource_edge_graph:
+            logger.info("starting critical path latency calculation")
+            critical_path = nx.dag_longest_path(resource_edge_graph)
+            assert resource_edge_graph.nodes[critical_path[-1]]["function"] == "end" , "last node of critical path should be 'end'"
+            for node in critical_path[:-1]: # exclude "end" node
+                func = resource_edge_graph.nodes[node]["function"]
+                self.execution_time += hw_symbols.symbolic_latency_wc[func]
+        else: # greedy schedule
+            # STA
+            logger.info("starting STA latency calculation")
+            for generation in generations:
+                gen_latency = 0
+                # for non-memory/buffer terms, keep track of which functions we have seen and
+                # do not add repeats. For memory/buffer, keep track of which size of access
+                # we have seen.
+                funcs_added = set()
+                for node in generation:
+                    node_data = computation_dfg.nodes[node]
+                    if node_data["function"] == "end":
+                        continue
+                    elif node_data["function"] == "stall":
+                                func = node.split("_")[3]  # stall names have std formats
                     else:
-                        if node_data["size"] in buf_accesses: continue
-                        else: buf_accesses.add(node_data["size"])
-                else:
+                        func = node_data["function"]
                     if func in funcs_added: continue
                     else: funcs_added.add(func)
-                gen_latency = symbolic_convex_max(gen_latency, hw_symbols.symbolic_latency_wc[func])
-            self.execution_time += gen_latency
-        #logger.info(f"execution time: {str(self.execution_time)}")
+                    gen_latency = symbolic_convex_max(gen_latency, hw_symbols.symbolic_latency_wc[func])
+                self.execution_time += gen_latency
+        logger.info(f"execution time: {str(self.execution_time)}")
 
     def calculate_edp(self, hw, concrete_sub=False):
 
@@ -304,12 +303,12 @@ class SymbolicSimulator(AbstractSimulator):
             BufWriteEact_expr = hw.dynamic_energy["Buf"]["Write"]
             BufPpass_expr = hw.leakage_power["Buf"] * 1e-9
         else:
-            MemL_expr = sp.sympify(mem_access_time_text, locals=hw_symbols.symbol_table)
+            MemL_expr = sp.sympify(mem_access_time_text, locals=hw_symbols.symbol_table) * 1e9 # convert from s to ns
             MemReadEact_expr = sp.sympify(mem_read_dynamic_text, locals=hw_symbols.symbol_table)
             MemWriteEact_expr = sp.sympify(mem_write_dynamic_text, locals=hw_symbols.symbol_table)
             MemPpass_expr = sp.sympify(mem_read_leakage_text, locals=hw_symbols.symbol_table)
 
-            BufL_expr = sp.sympify(buf_access_time_text, locals=hw_symbols.symbol_table)
+            BufL_expr = sp.sympify(buf_access_time_text, locals=hw_symbols.symbol_table) * 1e9 # convert from s to ns
             BufReadEact_expr = sp.sympify(buf_read_dynamic_text, locals=hw_symbols.symbol_table)
             BufWriteEact_expr = sp.sympify(buf_write_dynamic_text, locals=hw_symbols.symbol_table)
             BufPpass_expr = sp.sympify(buf_read_leakage_text, locals=hw_symbols.symbol_table)
@@ -360,6 +359,8 @@ class SymbolicSimulator(AbstractSimulator):
             "BufWriteEact_expr": BufWriteEact_expr,
             "BufPpass_expr": BufPpass_expr
         }
+        if not os.path.exists("src/tmp"):
+            os.makedirs("src/tmp")
         with open("src/tmp/cacti_exprs.txt", 'w') as f:
             txt = ""
             for expr in self.cacti_exprs.keys():

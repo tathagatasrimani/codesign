@@ -157,6 +157,7 @@ MemPeriphAreaEff = symbols("mem_peripheral_area_propportion", positive=True)
 OffChipIOL = symbols("OffChipIOL", positive=True)
 OffChipIOPact = symbols("OffChipIOPact", positive=True)
 
+# UNITS: Ohms
 Reff = {
     "And": symbols("Reff_And", positive=True),
     "Or": symbols("Reff_Or", positive=True),
@@ -184,6 +185,7 @@ Reff = {
     "Regs": symbols("Reff_Regs", positive=True)
 }
 
+# UNITS: nF
 Ceff = {
     "And": symbols("Ceff_And", positive=True),
     "Or": symbols("Ceff_Or", positive=True),
@@ -418,6 +420,7 @@ beta = yaml.load(
 def make_sym_lat_wc(elem):
     return Reff[elem] * Ceff[elem]
 
+# UNITS: ns
 symbolic_latency_wc = {
     "And": make_sym_lat_wc("And"),
     "Or": make_sym_lat_wc("Or"),
@@ -484,6 +487,7 @@ symbolic_latency_wc = {
 def make_sym_power_act(elem):
     return 0.5 * V_dd * V_dd  / Reff[elem] # C dependence will reappear explicitly when we go back to Energy from power.
 
+# UNITS: W
 symbolic_power_active = {
     "And": make_sym_power_act("And"),
     "Or": make_sym_power_act("Or"),
@@ -521,6 +525,8 @@ symbolic_energy_active = {
 def make_sym_power_pass(beta, P_pass_inv=V_dd**2 / (Reff["Not"] * 100)):
     return beta * P_pass_inv
 
+
+# UNITS: W
 symbolic_power_passive = {
     "And": make_sym_power_pass(beta["And"]),
     "Or": make_sym_power_pass(beta["Or"]),

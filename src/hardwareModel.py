@@ -16,6 +16,7 @@ from sympy import *
 import networkx as nx
 import shutil
 from staticfg.builder import CFGBuilder
+import numpy as np
 
 from .ast_utils import ASTUtils
 from .memory import Memory, Cache
@@ -175,16 +176,22 @@ class HardwareModel:
         for key in op2sym_map.keys():
             self.hw_allocated[key] = 0
 
-    def init_memory(self, mem_needed, nvm_mem_needed, buffer_size=64):
+    def init_memory(self, mem_needed, nvm_mem_needed, mallocs, buffer_size=64, gen_cacti=True, gen_symbolic=True):
         """
         Add a Memory Module to the netlist for each MainMem node.
         Add a Cache Module to the netlist for each Buf node.
         Params:
-        mem_needed: int
+        mem_needed: int - determined by total size of malloc operations. Since we are scheduling statically,
+                          we just assume that variables will be in memory when we access them. Separately,
+                          we can dynamically track how much memory will actually be needed (i.e. if a compiler
+                          is freeing up space when variables are dead), but that is not relevant here.
         nvm_mem_needed: int - not yet implemented
         buffer_size: int - default 64 bits equal to one var size.
         """
         mem_object = Memory(mem_needed)
+        # allocate space for all variables we will need to access
+        for malloc in mallocs:
+            self.process_memory_operation(malloc, mem_object)
         for node, data in dict(
             filter(lambda x: x[1]["function"] == "MainMem", self.netlist.nodes.data())
         ).items():
@@ -212,7 +219,7 @@ class HardwareModel:
         self.mem_size = mem_needed
         self.nvm_mem_size = nvm_mem_needed
         self.buffer_size = buffer_size
-        self.gen_cacti_results()
+        if gen_cacti: self.gen_cacti_results(gen_symbolic)
 
     def set_hw_config_vars(
         self,
@@ -296,6 +303,7 @@ class HardwareModel:
         self,
         rc_params_file="src/params/rcs_current.yaml",
         coeff_file="src/params/coefficients.yaml",
+        gen_symbolic=True
     ):
         """
         For full codesign loop, need to update the technology parameters after a run of the inverse pass.
@@ -325,7 +333,7 @@ class HardwareModel:
 
         # update dat file with new parameters and re-run cacti
         cacti_util.update_dat(rcs, self.cacti_dat_file)
-        self.gen_cacti_results()
+        self.gen_cacti_results(gen_symbolic)
 
         beta = yaml.load(open(coeff_file, "r"), Loader=yaml.Loader)["beta"]
 
@@ -450,7 +458,7 @@ class HardwareModel:
 
         return self.on_chip_area # in um^2
 
-    def gen_cacti_results(self):
+    def gen_cacti_results(self, gen_symbolic=True):
         """
         Generate buffer and memory latency and energy numbers from Cacti.
         """
@@ -563,8 +571,9 @@ class HardwareModel:
         mem_cache_cfg = "cfg/mem_cache.cfg"
 
         # TODO: This only needs to be triggered if we're doing inverse pass (ie symbolic simulate or codesign)
-        cacti_util.gen_symbolic("Buf", base_cache_cfg, buf_opt, use_piecewise=False)
-        cacti_util.gen_symbolic("Mem", mem_cache_cfg, mem_opt, use_piecewise=False)
+        if gen_symbolic:
+            cacti_util.gen_symbolic("Buf", base_cache_cfg, buf_opt, use_piecewise=False)
+            cacti_util.gen_symbolic("Mem", mem_cache_cfg, mem_opt, use_piecewise=False)
 
         return
 
@@ -576,3 +585,40 @@ class HardwareModel:
             design_name, arg_testfile, arg_parasitics
         )
         self.parasitic_graph = graph
+
+    def process_memory_operation(self, mem_op, mem_module: Memory):
+        """
+        Processes a memory operation, handling memory allocation or deallocation based on the operation type.
+
+        This function interprets and acts on memory operations (like allocating or freeing memory)
+        within the hardware simulation. It modifies the state of the memory module according to the
+        specified operation, updating the memory allocation status as necessary.
+
+        Parameters:
+        - mem_op (list): A list representing a memory operation. The first element is the operation type
+        ('malloc' or 'free'), the second element is the size of the memory block, and subsequent elements
+         provide additional context or dimensions for the operation.
+
+        Usage:
+        - If `mem_op` is a 'malloc' operation, the function allocates memory of the specified size and
+            potentially with specified dimensions.
+        - If `mem_op` is a 'free' operation, the function deallocates the memory associated with the
+             given variable name.
+
+        This function is typically called during the simulation process to dynamically manage
+        memory as the simulated program executes different operations that require memory allocation
+        and deallocation.
+        """
+        var_name = mem_op[2]
+        size = int(mem_op[1])
+        status = mem_op[0]
+        if status == "malloc":
+            dims = []
+            num_elem = 1
+            if len(mem_op) > 3:
+                dims = sim_util.get_dims(mem_op[3:])
+                # print(f"dims: {dims}")
+                num_elem = np.prod(dims)
+            mem_module.malloc(var_name, size, dims=dims, elem_size=size // num_elem)
+        elif status == "free":
+            mem_module.free(var_name)
