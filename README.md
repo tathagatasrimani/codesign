@@ -19,15 +19,15 @@ pip install -r requirements_pip.txt
 ```
 Note: environment.yml may not work, so use environment_simplified.yml instead.
 
-## Submodules
+#### Submodules
 
-# Staticfg
+##### Staticfg
 You have to separately install the [staticfg](https://github.com/arjnpandey/staticfg) library by following the instructions in the repository.
 
-# Cacti
+##### Cacti
 Run make in the cacti directory.
 
-# OpenROAD
+##### OpenROAD
 To install and build OpenROAD, follow the instructions on [this page](https://github.com/The-OpenROAD-Project/OpenROAD/blob/master/docs/user/Build.md). Not all OSes are supported. One known to work is Ubuntu 22.04. 
 
 #### Inverse Pass
