@@ -153,6 +153,7 @@ class HardwareModel:
             self.netlist = nx.Graph()
 
         self.parasitic_graph = None  # can be removed if better organization for this
+        self.parasitics = "none" # by default, can be overwritten later
 
         self.init_misc_vars()
         self.set_technology_parameters()
@@ -584,6 +585,7 @@ class HardwareModel:
         _, graph = place_n_route.place_n_route(
             design_name, arg_testfile, arg_parasitics
         )
+        self.parasitics = arg_parasitics
         self.parasitic_graph = graph
 
     def process_memory_operation(self, mem_op, mem_module: Memory):

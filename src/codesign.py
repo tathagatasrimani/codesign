@@ -123,8 +123,8 @@ class Codesign:
         print("\nRunning Forward Pass")
         logger.info("Running Forward Pass")
 
-        sim_util.update_schedule_with_latency(self.computation_dfg, self.hw.latency, self.sim.resource_edge_graph)
-        sim_util.update_schedule_with_latency(self.scheduled_dfg, self.hw.latency, self.sim.resource_edge_graph)
+        sim_util.update_schedule_with_latency(self.computation_dfg, self.hw.latency)
+        sim_util.update_schedule_with_latency(self.scheduled_dfg, self.hw.latency)
 
         self.hw.get_wire_parasitics(self.openroad_testfile, self.parasitics)
         self.sim.simulate(self.scheduled_dfg, self.hw)

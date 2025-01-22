@@ -254,6 +254,77 @@ class ConcreteSimulator(AbstractSimulator):
         self.active_energy_no_mem = 0
         self.passive_energy_no_mem = 0
 
+    def get_parasitic_energy(self, node, computation_dfg, hw, active_net_cap):
+        node_data = computation_dfg.nodes[node]
+        out_nodes = list(computation_dfg.out_edges(node))
+        node_name = node_data["allocation"]
+        node_bool = (
+            "allocation" in node_data
+            and node_name != ""
+            and "Mem" not in node_name
+            and "Buf" not in node_name
+        )
+
+        def wire_energy(computation_dfg, hw, active_net_cap):
+            """
+            param:
+                computation_dfg: to access the computation node to node
+                hw: to access the graph with net and cap info
+                active_net_cap: dict with nets and the respective caps.
+            """
+            for out_node in out_nodes:
+                child_node_data = computation_dfg.nodes[out_node[1]]
+                child_node_name = child_node_data["allocation"]
+                comp_node_bool = (
+                    "allocation" in child_node_data
+                    and child_node_name != ""
+                    and "Mem" not in child_node_name
+                    and "Buf" not in child_node_name
+                )
+                if comp_node_bool:
+                    # temporary solution, will be changed when computation_dfg gets fixed
+                    parasitic_edge = None
+                    def check_edge(node1, node2, end_num):
+                        if not hw.parasitic_graph.has_edge(node1, node2):
+                            parasitic_nodes_out = list(hw.parasitic_graph.out_edges(node1))
+                            child_node_function = child_node_data["function"]
+                            for node in parasitic_nodes_out:
+                                if end_num != 0:
+                                    if child_node_function in node[1] and end_num in node[1]:
+                                        node2 = node[1]
+                                        break
+                                else: 
+                                    if child_node_function in node[1]:
+                                        node2 = node[1]
+                                        break
+                        return node2
+                    
+                    def consolidate_cap(node1, node2):
+                        parasitic_edge = hw.parasitic_graph[node1][node2]
+                        net_cap = (
+                        parasitic_edge["net_cap"]
+                        if isinstance(parasitic_edge["net_cap"], list)
+                        else [parasitic_edge["net_cap"]]
+                        )
+                        net_name = parasitic_edge["net"]
+                        if (net_name not in active_net_cap or len(active_net_cap[net_name]) < len(net_cap)): #if net not in the capacitances recognized or the net is a ssociated with a capacitance that is shorter
+                            active_net_cap[net_name] = net_cap
+                    
+                    if "Regs" in node_name: #or any 16 bit function, figure out a way to not explicitly state it 
+                        for x in range(16):
+                            child_node_name = check_edge(node_name + "_" + str(x), child_node_name, 0)
+                            consolidate_cap(node_name + "_" + str(x), child_node_name)
+                    elif "Regs" in child_node_name:
+                        for x in range(16):
+                            child_node_name = check_edge(node_name, child_node_name + "_" + str(x), "_" + str(x))
+                            consolidate_cap(node_name, child_node_name)
+                    else:
+                        check_edge(node_name, child_node_name)
+                        consolidate_cap(node_name, child_node_name)
+                
+        if node_bool:
+            wire_energy(computation_dfg, hw, active_net_cap)
+
     def simulate(self, computation_dfg, hw):
         """
         Simulates one large DFG representing the whole computation.
@@ -320,75 +391,9 @@ class ConcreteSimulator(AbstractSimulator):
                 hw.compute_operation_totals[node_data["function"]] += 1
 
                 # wires
-                out_nodes = list(computation_dfg.out_edges(node))
-                node_name = node_data["allocation"]
-                node_bool = (
-                    "allocation" in node_data
-                    and node_name != ""
-                    and "Mem" not in node_name
-                    and "Buf" not in node_name
-                )
-
-                def wire_energy(computation_dfg, hw, active_net_cap):
-                    """
-                    param:
-                        computation_dfg: to access the computation node to node
-                        hw: to access the graph with net and cap info
-                        active_net_cap: dict with nets and the respective caps.
-                    """
-                    for out_node in out_nodes:
-                        child_node_data = computation_dfg.nodes[out_node[1]]
-                        child_node_name = child_node_data["allocation"]
-                        comp_node_bool = (
-                            "allocation" in child_node_data
-                            and child_node_name != ""
-                            and "Mem" not in child_node_name
-                            and "Buf" not in child_node_name
-                        )
-                        if comp_node_bool:
-                            # temporary solution, will be changed when computation_dfg gets fixed
-                            parasitic_edge = None
-                            def check_edge(node1, node2, end_num):
-                                if not hw.parasitic_graph.has_edge(node1, node2):
-                                    parasitic_nodes_out = list(hw.parasitic_graph.out_edges(node1))
-                                    child_node_function = child_node_data["function"]
-                                    for node in parasitic_nodes_out:
-                                        if end_num != 0:
-                                            if child_node_function in node[1] and end_num in node[1]:
-                                                node2 = node[1]
-                                                break
-                                        else: 
-                                            if child_node_function in node[1]:
-                                                node2 = node[1]
-                                                break
-                                return node2
-                            
-                            def consolidate_cap(node1, node2):
-                                parasitic_edge = hw.parasitic_graph[node1][node2]
-                                net_cap = (
-                                parasitic_edge["net_cap"]
-                                if isinstance(parasitic_edge["net_cap"], list)
-                                else [parasitic_edge["net_cap"]]
-                                )
-                                net_name = parasitic_edge["net"]
-                                if (net_name not in active_net_cap or len(active_net_cap[net_name]) < len(net_cap)): #if net not in the capacitances recognized or the net is a ssociated with a capacitance that is shorter
-                                    active_net_cap[net_name] = net_cap
-                            
-                            if "Regs" in node_name: #or any 16 bit function, figure out a way to not explicitly state it 
-                                for x in range(16):
-                                    child_node_name = check_edge(node_name + "_" + str(x), child_node_name, 0)
-                                    consolidate_cap(node_name + "_" + str(x), child_node_name)
-                            elif "Regs" in child_node_name:
-                                for x in range(16):
-                                    child_node_name = check_edge(node_name, child_node_name + "_" + str(x), "_" + str(x))
-                                    consolidate_cap(node_name, child_node_name)
-                            else:
-                                check_edge(node_name, child_node_name)
-                                consolidate_cap(node_name, child_node_name)
-                        
-
-                if node_bool:
-                    wire_energy(computation_dfg, hw, active_net_cap)
+                if hw.parasitics != "none":
+                    self.get_parasitic_energy(node, computation_dfg, hw, active_net_cap)
+                
             net_energy = 0
             for net in active_net_cap:
                 cap_sum = sum(active_net_cap[net])
