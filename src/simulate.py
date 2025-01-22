@@ -441,11 +441,12 @@ def main(args):
 
     hw = HardwareModel(cfg=args.architecture_config)
 
-    computation_dfg = simulator.simulator_prep(args.benchmark, hw.latency)
+    computation_dfg, mallocs = simulator.simulator_prep(args.benchmark, hw.latency)
 
     hw.init_memory(
         sim_util.find_nearest_power_2(simulator.memory_needed),
         sim_util.find_nearest_power_2(simulator.nvm_memory_needed),
+        mallocs
     )
 
     computation_dfg = simulator.schedule(computation_dfg, hw, args.schedule)
