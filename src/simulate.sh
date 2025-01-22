@@ -1,5 +1,5 @@
 #!/bin/sh
-while getopts b:c:f:s:qn:p:s: flag
+while getopts b:c:f:s:qn:p:s:d: flag
 do
     case "${flag}" in
         n) name=${OPTARG};;
@@ -8,6 +8,7 @@ do
         b) BW=${OPTARG};;
         p) PARASITIC=${OPTARG};;
         s) SCHEDULE=${OPTARG};;
+        d) DEBUG_NO_CACTI=${OPTARG};;
     esac
 done
 
@@ -37,6 +38,9 @@ if [ $name ]; then
     fi
     if [ $SCHEDULE ]; then
         ARGS+=" --schedule $SCHEDULE"
+    fi
+    if [ $DEBUG_NO_CACTI ]; then
+        ARGS="$ARGS --debug_no_cacti $DEBUG_NO_CACTI"
     fi
     echo $ARGS
     python -m src.simulate $ARGS
