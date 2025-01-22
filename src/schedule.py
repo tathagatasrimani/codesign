@@ -252,8 +252,6 @@ def assign_upstream_path_lengths_old(graph):
 
     return graph
 
-
-
 def sdc_schedule(graph, hw_element_counts, hw_netlist, no_resource_constraints=False, add_resource_edges=False):
     """
     Runs the convex optimization problem to minimize the longest path latency.

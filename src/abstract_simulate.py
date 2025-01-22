@@ -148,6 +148,94 @@ class AbstractSimulator:
         )
 
         return computation_dfg, mallocs
+    
+    def update_schedule_with_parasitics(self, scheduled_dfg):
+        """
+        After adding wire parasitics to the scheduled dfg, update start and end times for each node,
+        and edge weights for longest path calculation. To do this, we use the resource edge graph to
+        ensure that we take resource dependencies into account while updating these latencies
+        params:
+            scheduled_dfg: nx.DiGraph representing the scheduled graph
+        """
+        for gen in list(nx.topological_generations(self.resource_edge_graph)):
+            for node in gen:
+                for parent in self.resource_edge_graph.predecessors(node):
+                    edge = (parent, node)
+                    if edge in scheduled_dfg.edges:
+                        scheduled_dfg.edges[edge]["weight"] = (scheduled_dfg.nodes[parent]["cost"] 
+                                                               + scheduled_dfg.edges[edge]["cost"]) # update edge weight with parasitic
+                        self.resource_edge_graph.edges[edge]["weight"] = (scheduled_dfg.nodes[parent]["cost"] 
+                                                               + scheduled_dfg.edges[edge]["cost"])
+                    scheduled_dfg.nodes[node]["start_time"] = max(scheduled_dfg.nodes[node]["start_time"], 
+                                                                  scheduled_dfg.nodes[parent]["start_time"] + 
+                                                                  self.resource_edge_graph.edges[edge]["weight"]) # start time may be later now
+                if scheduled_dfg.nodes[node]["function"] != "end":
+                    scheduled_dfg.nodes[node]["end_time"] = scheduled_dfg.nodes[node]["start_time"] + scheduled_dfg.nodes[node]["cost"] # update end time
+                    self.resource_edge_graph.nodes[node]["start_time"] = scheduled_dfg.nodes[node]["start_time"] # keep consistent with resource edge graph
+                    self.resource_edge_graph.nodes[node]["end_time"] = scheduled_dfg.nodes[node]["end_time"]
+    
+    def add_parasitics_to_scheduled_dfg(self, scheduled_dfg, parasitic_graph):
+        """
+        Add wire parasitics from OpenROAD to computation dfg
+        params:
+            scheduled_dfg: nx.DiGraph representing the scheduled graph
+            parasitic_graph: nx.DiGraph representing wire parasitics from OpenROAD
+        """
+
+        def check_in_parasitic_graph(node_data):
+            return ("allocation" in node_data
+                and node_data["allocation"] != ""
+                and "Mem" not in node_data["allocation"]
+                and "Buf" not in node_data["allocation"])
+        def accumulate_delay_over_segments(parasitic_edge):
+            net_delay = 0
+            res_instance = 0
+            for y in range(len(parasitic_edge["net_cap"])): # doing second order RC
+                res_instance += parasitic_edge["net_res"][y]
+                cap_instance = parasitic_edge["net_cap"][y]
+                net_delay += res_instance * cap_instance * 1e-3
+            return net_delay
+        def update_net_delay(node_name_prev, node_name):
+            parasitic_edge = parasitic_graph[node_name_prev][node_name]
+            net_delay = 0
+            if isinstance(parasitic_edge["net_cap"], list):
+                net_delay = accumulate_delay_over_segments(parasitic_edge)
+            else:
+                net_delay = (
+                    parasitic_edge["net_cap"]
+                    * parasitic_edge["net_res"]
+                    * 1e-3
+                )  # pico -> nano
+            return net_delay
+        # wire latency
+        for edge in scheduled_dfg.edges:
+            prev_node, node = edge
+            node_data = scheduled_dfg.nodes[node]
+            node_data_prev = scheduled_dfg.nodes[prev_node]
+            node_name = node_data["allocation"]
+            node_name_prev = node_data_prev["allocation"]
+            net_delay = 0
+            if (check_in_parasitic_graph(node_data) and 
+                    check_in_parasitic_graph(node_data_prev)):  
+                if "Regs" in node_name_prev or "Regs" in node_name: # again, 16 bit
+                    max_delay = 0
+                    #finding the longest time and adding that
+                    for x in range(16):
+                        if "Regs" in node_name_prev:
+                            node_name_prev = node_name_prev + "_" + str(x)
+                        elif "Regs" in node_name:
+                            node_name = node_name + "_" + str(x)
+                        if parasitic_graph.has_edge(node_name_prev, node_name):
+                            net_delay = update_net_delay(node_name_prev, node_name)
+                            if max_delay < net_delay:
+                                max_delay = net_delay
+                    net_delay = max_delay
+                else: 
+                    if parasitic_graph.has_edge(node_name_prev, node_name):
+                        net_delay = update_net_delay(node_name_prev, node_name)
+            scheduled_dfg.edges[edge]["cost"] = net_delay
+            self.resource_edge_graph.edges[edge]["cost"] = net_delay
+        self.update_schedule_with_parasitics(scheduled_dfg)
 
     def schedule(self, computation_dfg, hw, schedule_type="greedy", prune_func=sim_util.prune_buffer_and_mem_nodes):
         """
@@ -184,6 +272,7 @@ class AbstractSimulator:
             copy = prune_func(copy, hw.netlist, sdc_schedule=True)
             # Once we have pruned memory/buffer nodes, critical path may have changed. So we need to redo the scheduling
             self.resource_edge_graph = schedule.sdc_schedule(copy, hw_counts, hw.netlist, add_resource_edges=True)
+            self.add_parasitics_to_scheduled_dfg(copy, hw.parasitic_graph)
             #print("longest path:", nx.dag_longest_path(self.resource_edge_graph))
             #print("longest path length:", nx.dag_longest_path_length(self.resource_edge_graph))
         

@@ -254,28 +254,76 @@ class ConcreteSimulator(AbstractSimulator):
         self.active_energy_no_mem = 0
         self.passive_energy_no_mem = 0
 
-    def construct_fake_double_hw(self, hw):
-        func_counts = hardwareModel.get_func_count(hw.netlist)
-        fake_hw = nx.DiGraph()
-        for node, num in func_counts.items():
-            name = node if node != "MainMem" else "Mem"
-            for i in range(0, 2 * num):
-                fake_hw.add_node(
-                    f"{name}{i}",
-                    function=node,
-                    allocation="",
+    def get_parasitic_energy(self, node, computation_dfg, hw, active_net_cap):
+        node_data = computation_dfg.nodes[node]
+        out_nodes = list(computation_dfg.out_edges(node))
+        node_name = node_data["allocation"]
+        node_bool = (
+            "allocation" in node_data
+            and node_name != ""
+            and "Mem" not in node_name
+            and "Buf" not in node_name
+        )
+
+        def wire_energy(computation_dfg, hw, active_net_cap):
+            """
+            param:
+                computation_dfg: to access the computation node to node
+                hw: to access the graph with net and cap info
+                active_net_cap: dict with nets and the respective caps.
+            """
+            for out_node in out_nodes:
+                child_node_data = computation_dfg.nodes[out_node[1]]
+                child_node_name = child_node_data["allocation"]
+                comp_node_bool = (
+                    "allocation" in child_node_data
+                    and child_node_name != ""
+                    and "Mem" not in child_node_name
+                    and "Buf" not in child_node_name
                 )
-        for node in hw.netlist.nodes:
-            for child in hw.netlist.successors(node):
-                child_func = hw.netlist.nodes[child]["function"]
-                child_idx = hw.netlist.nodes[child]["idx"] + func_counts[child_func]
-                new_child = (
-                    f"{child_func}{child_idx}"
-                    if child_func != "MainMem"
-                    else f"Mem{child_idx}"
-                )
-                fake_hw.add_edge(node, new_child)
-        return fake_hw
+                if comp_node_bool:
+                    # temporary solution, will be changed when computation_dfg gets fixed
+                    parasitic_edge = None
+                    def check_edge(node1, node2, end_num):
+                        if not hw.parasitic_graph.has_edge(node1, node2):
+                            parasitic_nodes_out = list(hw.parasitic_graph.out_edges(node1))
+                            child_node_function = child_node_data["function"]
+                            for node in parasitic_nodes_out:
+                                if end_num != 0:
+                                    if child_node_function in node[1] and end_num in node[1]:
+                                        node2 = node[1]
+                                        break
+                                else: 
+                                    if child_node_function in node[1]:
+                                        node2 = node[1]
+                                        break
+                        return node2
+                    
+                    def consolidate_cap(node1, node2):
+                        parasitic_edge = hw.parasitic_graph[node1][node2]
+                        net_cap = (
+                        parasitic_edge["net_cap"]
+                        if isinstance(parasitic_edge["net_cap"], list)
+                        else [parasitic_edge["net_cap"]]
+                        )
+                        net_name = parasitic_edge["net"]
+                        if (net_name not in active_net_cap or len(active_net_cap[net_name]) < len(net_cap)): #if net not in the capacitances recognized or the net is a ssociated with a capacitance that is shorter
+                            active_net_cap[net_name] = net_cap
+                    
+                    if "Regs" in node_name: #or any 16 bit function, figure out a way to not explicitly state it 
+                        for x in range(16):
+                            child_node_name = check_edge(node_name + "_" + str(x), child_node_name, 0)
+                            consolidate_cap(node_name + "_" + str(x), child_node_name)
+                    elif "Regs" in child_node_name:
+                        for x in range(16):
+                            child_node_name = check_edge(node_name, child_node_name + "_" + str(x), "_" + str(x))
+                            consolidate_cap(node_name, child_node_name)
+                    else:
+                        check_edge(node_name, child_node_name)
+                        consolidate_cap(node_name, child_node_name)
+                
+        if node_bool:
+            wire_energy(computation_dfg, hw, active_net_cap)
 
     def simulate(self, computation_dfg, hw):
         """
@@ -288,14 +336,6 @@ class ConcreteSimulator(AbstractSimulator):
         """
         self.reset_internal_variables()
 
-        fake_hw = self.construct_fake_double_hw(hw)
-        for layer, nodes in enumerate(nx.topological_generations(fake_hw)):
-            # `multipartite_layout` expects the layer as a node attribute, so add the
-            # numeric layer value as a node attribute
-            for node in nodes:
-                fake_hw.nodes[node]["layer"] = layer
-        counter = 0
-
         generations = list(
             reversed(list(nx.topological_generations(nx.reverse(computation_dfg))))
         )
@@ -303,24 +343,9 @@ class ConcreteSimulator(AbstractSimulator):
         for gen in generations:  # main loop over the computation graphs;
             if "end" in gen:  # skip the end node (only thing in the last generation)
                 break
-            counter += 1
-            temp_C = nx.DiGraph()
             active_net_cap = {}
             for node in gen:
                 logger.info(f"node -> {node}: {computation_dfg.nodes[node]}")
-                child_added = False
-                temp_C.add_nodes_from([(node, computation_dfg.nodes[node])])
-                for child in computation_dfg.successors(node):
-                    if computation_dfg.nodes[node]["function"] == "stall" and (
-                        computation_dfg.nodes[child]["function"] == "stall"
-                        or computation_dfg.nodes[child]["function"] == "end"
-                    ):
-                        continue
-
-                    if child not in temp_C.nodes:
-                        temp_C.add_nodes_from([(child, computation_dfg.nodes[child])])
-                        child_added = True
-                    temp_C.add_edge(node, child)
 
                 ## ================= ADD ACTIVE ENERGY CONSUMPTION =================
                 scaling = 1
@@ -366,66 +391,9 @@ class ConcreteSimulator(AbstractSimulator):
                 hw.compute_operation_totals[node_data["function"]] += 1
 
                 # wires
-                out_nodes = list(computation_dfg.out_edges(node))
-                node_name = node_data["allocation"]
-                node_bool = (
-                    "allocation" in node_data
-                    and node_name != ""
-                    and "Mem" not in node_name
-                    and "Buf" not in node_name
-                )
-
-                def wire_energy(computation_dfg, hw, active_net_cap):
-                    """
-                    param:
-                        computation_dfg: to access the computation node to node
-                        hw: to access the graph with net and cap info
-                        active_net_cap: dict with nets and the respective caps.
-                    """
-                    for out_node in out_nodes:
-                        child_node_data = computation_dfg.nodes[out_node[1]]
-                        child_node_name = child_node_data["allocation"]
-                        comp_node_bool = (
-                            "allocation" in child_node_data
-                            and child_node_name != ""
-                            and "Mem" not in child_node_name
-                            and "Buf" not in child_node_name
-                        )
-                        if comp_node_bool:
-                            # temporary solution, will be changed when computation_dfg gets fixed
-                            parasitic_edge = None
-                            if not hw.parasitic_graph.has_edge(
-                                node_name, child_node_name
-                            ):
-                                parasitic_nodes_out = list(
-                                    hw.parasitic_graph.out_edges(node_name)
-                                )
-                                child_node_function = child_node_data["function"]
-                                for node in parasitic_nodes_out:
-                                    if child_node_function in node[1]:
-                                        child_node_name = node[1]
-                                        break
-                                parasitic_edge = hw.parasitic_graph[node_name][
-                                    child_node_name
-                                ]
-                            else:
-                                parasitic_edge = hw.parasitic_graph[node_name][
-                                    child_node_name
-                                ]
-                            net_cap = (
-                                parasitic_edge["net_cap"]
-                                if isinstance(parasitic_edge["net_cap"], list)
-                                else [parasitic_edge["net_cap"]]
-                            )
-                            net_name = parasitic_edge["net"]
-                            if (
-                                net_name not in active_net_cap
-                                or len(active_net_cap[net_name]) < len(net_cap)
-                            ):
-                                active_net_cap[net_name] = net_cap
-
-                if node_bool:
-                    wire_energy(computation_dfg, hw, active_net_cap)
+                if hw.parasitics != "none":
+                    self.get_parasitic_energy(node, computation_dfg, hw, active_net_cap)
+                
             net_energy = 0
             for net in active_net_cap:
                 cap_sum = sum(active_net_cap[net])
@@ -434,93 +402,12 @@ class ConcreteSimulator(AbstractSimulator):
                 )  # pico -> nano
             self.active_energy += net_energy
             self.net_active_energy += net_energy
-
-            def matcher_func(n1, n2):
-                res = (
-                    n1["function"] == n2["function"]
-                    or n2["function"] == None
-                    or n2["function"] == "stall"
-                    or n2["function"] == "end"
-                )
-
-                return res
         # get start_time of end node
         nodes_dict = {node: data for node, data in computation_dfg.nodes(data=True)}
         # for key, val in nodes_dict.items():
         #     print(key, val)
         self.cycles = nodes_dict["end"]["start_time"]
         logger.info(f"longest path length calculated as end node start time: {self.cycles}")
-
-        # ========== Explicitly calculate the longest path. This aligns with Inverse Pass.
-
-        # self.cycles = 0
-        # longest_path_explicit = []
-        # for start_node in generations[0]:
-        #     for end_node in generations[-1]:  # end should be the only node here
-        #         if start_node == end_node:
-        #             continue
-        #         logger.info(f"start_node: {start_node}, end_node: {end_node}")
-        #         for path in nx.all_simple_paths(computation_dfg, start_node, end_node):
-        #             path_latency = 0
-        #             for node in path:
-        #                 scaling = 1
-        #                 node_data = computation_dfg.nodes[node]
-        #                 if node_data["function"] == "end":
-        #                     continue
-        #                 elif node_data["function"] == "stall":
-        #                     func = node.split("_")[3]  # stall names have std formats
-        #                 else:
-        #                     func = node_data["function"]
-        #                 if func in ["Buf", "MainMem"]:
-        #                     scaling = node_data["size"]
-        #                     logger.info(f"latency scaling: {scaling}")
-
-        #                 # wire latency
-        #                 node_data["in_other_graph"] = (
-        #                     "allocation" in node_data
-        #                     and node_data["allocation"] != ""
-        #                     and "Mem" not in node_data["allocation"]
-        #                     and "Buf" not in node_data["allocation"]
-        #                 )
-        #                 node_index = path.index(node)
-        #                 if node_index != 0:
-        #                     node_index_prev = node_index - 1
-        #                     node_data_prev = computation_dfg.nodes[
-        #                         path[node_index_prev]
-        #                     ]
-        #                     if (
-        #                         node_data["in_other_graph"]
-        #                         and node_data_prev["in_other_graph"]
-        #                         and hw.parasitic_graph.has_edge(
-        #                             node_data_prev["allocation"],
-        #                             node_data["allocation"],
-        #                         )
-        #                     ):
-        #                         parasitic_edge = hw.parasitic_graph[
-        #                             node_data_prev["allocation"]
-        #                         ][node_data["allocation"]]
-        #                         net_delay = 0
-        #                         if isinstance(parasitic_edge["net_cap"], list):
-        #                             res_instance = 0
-        #                             for x in range(parasitic_edge["net_cap"]):
-        #                                 res_instance += parasitic_edge["net_res"][x]
-        #                                 cap_instance = parasitic_edge["net_cap"][x]
-        #                                 net_delay += res_instance * cap_instance * 1e-3
-        #                         else:
-        #                             net_delay = (
-        #                                 parasitic_edge["net_cap"]
-        #                                 * parasitic_edge["net_res"]
-        #                                 * 1e-3
-        #                             )  # pico -> nano
-        #                         path_latency += net_delay
-        #                 path_latency += hw.latency[func]
-        #             if path_latency > self.cycles:
-        #                 longest_path_explicit = path
-        #                 self.cycles = path_latency
-        # logger.info(
-        #     f"longest path explicitly calculated: {list(map(lambda x: (x, computation_dfg.nodes[x]['function']), longest_path_explicit))}"
-        # )
-        # logger.info(f"longest path length explicitly calculated: {self.cycles}")
 
         for elem_name, elem_data in dict(hw.netlist.nodes.data()).items():
 
@@ -554,11 +441,12 @@ def main(args):
 
     hw = HardwareModel(cfg=args.architecture_config)
 
-    computation_dfg = simulator.simulator_prep(args.benchmark, hw.latency)
+    computation_dfg, mallocs = simulator.simulator_prep(args.benchmark, hw.latency)
 
     hw.init_memory(
         sim_util.find_nearest_power_2(simulator.memory_needed),
         sim_util.find_nearest_power_2(simulator.nvm_memory_needed),
+        mallocs
     )
 
     computation_dfg = simulator.schedule(computation_dfg, hw, args.schedule)

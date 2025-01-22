@@ -14,7 +14,7 @@ from . import detailed as det
 def openroad_run():
     os.chdir(directory)
     print("running openroad")
-    os.system("openroad test.tcl > /dev/null 2>&1")
+    os.system("./../build/src/openroad test.tcl")#> /dev/null 2>&1     
     print("done")
     os.chdir("../../..")
 
@@ -210,13 +210,13 @@ def estimated_place_n_route(
 
     # edge attribution
     net_graph_data = []
-    for output_pin in net_out_dict:
-        for pin in node_output[output_pin]:
-            graph[output_pin][pin]["net"] = net_out_dict[output_pin]
-            graph[output_pin][pin]["net_length"] = estimated_length[output_pin]  # microns
-            graph[output_pin][pin]["net_res"] = float(estimated_res[output_pin])  # ohms
-            graph[output_pin][pin]["net_cap"] = float(estimated_cap[output_pin])  # picofarads
-        net_graph_data.append(net_out_dict[output_pin])
+    for output_net in net_out_dict:
+        for pin in node_output[output_net]:
+            graph[output_net][pin]["net"] = net_out_dict[output_net]
+            graph[output_net][pin]["net_length"] = estimated_length[output_net]
+            graph[output_net][pin]["net_res"] = float(estimated_res[output_net])
+            graph[output_net][pin]["net_cap"] = float(estimated_cap[output_net])
+        net_graph_data.append(net_out_dict[output_net])
 
     mux_listing(graph, node_output)
     mux_removal(graph)
@@ -269,16 +269,20 @@ def detailed_place_n_route(
     res_graph_data = []
     cap_graph_data = []
     len_graph_data = []
-    for output_pin in net_out_dict:
-        for node in node_output[output_pin]:
-            graph[output_pin][node]["net"] = net_out_dict[output_pin]
-            graph[output_pin][node]["net_length"] = length_dict[net_out_dict[output_pin]]
-            graph[output_pin][node]["net_res"] = float(net_res[net_out_dict[output_pin]])
-            graph[output_pin][node]["net_cap"] = float(net_cap[net_out_dict[output_pin]])
-        net_graph_data.append(net_out_dict[output_pin])
-        len_graph_data.append(float(length_dict[net_out_dict[output_pin]]))  # length
-        res_graph_data.append(float(net_res[net_out_dict[output_pin]]))  # ohms
-        cap_graph_data.append(float(net_cap[net_out_dict[output_pin]]))  # picofarads
+    
+    for output_net in net_out_dict:
+        for net in net_out_dict[output_net]:
+            for node in node_output[output_net]:
+                graph[output_net][node]["net"] = net
+                graph[output_net][node]["net_length"] = length_dict[net]
+                graph[output_net][node]["net_res"] = float(net_res[net])
+                graph[output_net][node]["net_cap"] = float(net_cap[net])
+            net_graph_data.append(net)
+            len_graph_data.append(float(length_dict[net]))  # length
+            res_graph_data.append(float(net_res[net]))  # ohms
+            cap_graph_data.append(float(net_cap[net]))  # picofarads
+        
+        
 
     export_graph(graph, design_name, "detailed")
 

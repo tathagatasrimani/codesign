@@ -69,13 +69,16 @@ class Codesign:
 
         nx.write_gml(self.computation_dfg, f"{self.save_dir}/computation_dfg.gml")
 
+        self.hw.get_wire_parasitics(self.openroad_testfile, self.parasitics)
+
+        nx.write_gml(self.hw.parasitic_graph, f"{self.save_dir}/parasitic_graph.gml")
+
         logger.info(f"Scheduling computation graph")
         self.scheduled_dfg = self.sim.schedule(
             self.computation_dfg,
             self.hw,
             self.schedule
         )
-
         self.symbolic_sim = symbolic_simulate.SymbolicSimulator()
         self.symbolic_sim.simulator_prep(benchmark, self.hw.latency)
 
@@ -90,7 +93,6 @@ class Codesign:
         self.set_technology_parameters(initial_tech_params)
 
         logger.info(f"Running initial forward pass")
-        self.hw.get_wire_parasitics(self.openroad_testfile, self.parasitics)
         self.sim.simulate(self.scheduled_dfg, self.hw)
         self.sim.calculate_edp()
         self.forward_edp = self.sim.edp
@@ -428,13 +430,13 @@ if __name__ == "__main__":
         default=1,
         help="Number of Architecture Search iterations to run",
     )
-    parser.add_argument('--schedule', type=str, choices=['greedy', 'sdc'], default='greedy',
+    parser.add_argument('--schedule', type=str, choices=['sdc'], default='sdc',
                         help='Scheduling algorithm to use')
     parser.add_argument('--debug_no_cacti', type=bool, default=False, 
                         help='disable cacti in the first iteration to decrease runtime when debugging')
     args = parser.parse_args()
     print(
-        f"args: benchmark: {args.benchmark}, trace: {args.notrace}, architecture_cfg: {args.architecture_config}, area: {args.area}, optimization: {args.opt}, schedule: {args.schedule}"
+        f"args: benchmark: {args.benchmark}, trace: {args.notrace}, architecture_cfg: {args.architecture_config}, area: {args.area}, parasitics: {args.parasitics}, optimization: {args.opt}, schedule: {args.schedule}"
     )
 
     main(args)
