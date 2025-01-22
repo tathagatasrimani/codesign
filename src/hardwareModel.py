@@ -424,7 +424,7 @@ class HardwareModel:
             cycles=self.cycles, allocated=str(self.hw_allocated)
         )
 
-    def get_total_area(self):
+    def get_total_area(self, include_mem=True):
         """
         Calculate on chip and off chip area.
         TODO: Get Area breakdown of cache (area efficiency) from cacti and integrate here.
@@ -437,23 +437,26 @@ class HardwareModel:
             self.on_chip_area += self.area[data["function"]]
         logger.info(f"Area of all PEs: {self.on_chip_area}")
 
-        self.on_chip_area += self.area["Buf"] + self.area[
-            "Buf"
-        ] * self.buf_peripheral_area_proportion * (
-            num_nodes_with_func(self.netlist, "Buf") - 1
-        )
+        self.off_chip_area = self.area["MainMem"]
 
-        # bw = 0
-        # for node in filter(
-        #     lambda x: x[1]["function"] == "Buf", self.netlist.nodes.data()
-        # ):
-        #     # print(f"node: {node[0]}")
-        #     in_edges = self.netlist.in_edges(node[0])
-        #     filtered_edges = list(filter(lambda x: "MainMem" not in x[0], in_edges))
-        #     bw += len(filtered_edges)
-        # self.on_chip_area += (bw - 1) * bw_scaling * self.area["MainMem"]
+        if include_mem: 
+            self.on_chip_area += self.area["Buf"] + self.area[
+                "Buf"
+            ] * self.buf_peripheral_area_proportion * (
+                num_nodes_with_func(self.netlist, "Buf") - 1
+            )
 
-        self.off_chip_area = self.area["MainMem"] + self.area["OffChipIO"]
+            # bw = 0
+            # for node in filter(
+            #     lambda x: x[1]["function"] == "Buf", self.netlist.nodes.data()
+            # ):
+            #     # print(f"node: {node[0]}")
+            #     in_edges = self.netlist.in_edges(node[0])
+            #     filtered_edges = list(filter(lambda x: "MainMem" not in x[0], in_edges))
+            #     bw += len(filtered_edges)
+            # self.on_chip_area += (bw - 1) * bw_scaling * self.area["MainMem"]
+            self.off_chip_area += self.area["OffChipIO"]
+
         logger.info(f"on_chip_area: {self.on_chip_area}")
         logger.info(f"off_chip_area: {self.off_chip_area}")
 

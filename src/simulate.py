@@ -443,10 +443,13 @@ def main(args):
 
     computation_dfg, mallocs = simulator.simulator_prep(args.benchmark, hw.latency)
 
+    gen_cacti = not args.debug_no_cacti
+
     hw.init_memory(
         sim_util.find_nearest_power_2(simulator.memory_needed),
         sim_util.find_nearest_power_2(simulator.nvm_memory_needed),
-        mallocs
+        mallocs,
+        gen_cacti=gen_cacti
     )
 
     computation_dfg = simulator.schedule(computation_dfg, hw, args.schedule)
@@ -473,7 +476,7 @@ def main(args):
     data = simulator.simulate(computation_dfg, hw)
     simulator.calculate_edp()
 
-    area = hw.get_total_area()
+    area = hw.get_total_area(gen_cacti)
 
     # print stats
     print("total number of cycles: ", simulator.cycles)
@@ -553,6 +556,8 @@ if __name__ == "__main__":
     )
     parser.add_argument('--schedule', type=str, choices=['greedy', 'sdc'], default='greedy',
                         help='Scheduling algorithm to use')
+    parser.add_argument('--debug_no_cacti', type=bool, default=False, 
+                        help='disable cacti in the first iteration to decrease runtime when debugging')
     args = parser.parse_args()
 
     print(
