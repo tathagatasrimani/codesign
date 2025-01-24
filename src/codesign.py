@@ -256,7 +256,9 @@ class Codesign:
 
         self.inverse_edp = self.symbolic_sim.edp.xreplace(self.tech_params).evalf()
         inverse_exec_time = self.symbolic_sim.execution_time.xreplace(self.tech_params).evalf()
+        print(f"execution time: {self.symbolic_sim.execution_time}")
         active_energy = self.symbolic_sim.total_active_energy.xreplace(self.tech_params).evalf()
+        print(f"total active energy: {total_active_energy}")
         passive_energy = self.symbolic_sim.total_passive_energy.xreplace(self.tech_params).evalf()
 
         # substitute cacti expressions into edp expression
@@ -278,6 +280,9 @@ class Codesign:
             sys.stdout = stdout
             f = open("src/tmp/ipopt_out.txt", "r")
             self.parse_output(f)
+            # update cacti subs variables
+            for cacti_expr in cacti_subs:
+                self.tech_params[cacti_expr] = cacti_subs[cacti_expr].xreplace(self.tech_params).evalf()
         else:
             self.tech_params = optimize.optimize(
                 self.tech_params, self.symbolic_sim.edp, self.opt_cfg, cacti_subs
