@@ -281,7 +281,9 @@ class Preprocessor:
             print(f"symbol: {symbol}; initial value: {self.expr_symbols[symbol]}")
 
         # find all pow/log expressions within edp equation and cacti equations, convert to pyomo
-        self.find_exprs_to_constrain(edp)
+        # We shouldn't need to find any pow/log expressions in the edp expression itself. Cacti sub expressions
+        # should suffice, but keep an eye on this.
+        #self.find_exprs_to_constrain(edp)
         for cacti_var in cacti_subs.keys():
             if cacti_var in self.mapping:
                 self.find_exprs_to_constrain(cacti_subs[cacti_var])
@@ -295,7 +297,7 @@ class Preprocessor:
         # negative inside a sqrt/log. So substitute all log(expr) with log(max(expr, 1e-3)) and 
         # all sqrt(expr) with sqrt(abs(expr))
         edp = edp.xreplace(self.log_subs)
-        edp = self.sub_pow_exprs(edp)
+        #edp = self.sub_pow_exprs(edp)
         for cacti_var in cacti_subs.keys():
             if cacti_var in self.mapping:
                 cacti_subs[cacti_var] = self.sub_pow_exprs(cacti_subs[cacti_var])

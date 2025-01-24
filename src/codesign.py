@@ -259,6 +259,9 @@ class Codesign:
         active_energy = self.symbolic_sim.total_active_energy.xreplace(self.tech_params).evalf()
         passive_energy = self.symbolic_sim.total_passive_energy.xreplace(self.tech_params).evalf()
 
+        # substitute cacti expressions into edp expression
+        self.symbolic_sim.edp = self.symbolic_sim.edp.xreplace(cacti_subs)
+
         assert len(self.inverse_edp.free_symbols) == 0
 
         print(
