@@ -576,8 +576,8 @@ class HardwareModel:
 
         # TODO: This only needs to be triggered if we're doing inverse pass (ie symbolic simulate or codesign)
         if gen_symbolic:
-            cacti_util.gen_symbolic("Buf", base_cache_cfg, buf_opt, use_piecewise=False)
-            cacti_util.gen_symbolic("Mem", mem_cache_cfg, mem_opt, use_piecewise=False)
+            self.symbolic_buf = cacti_util.gen_symbolic("Buf", base_cache_cfg, buf_opt, use_piecewise=False)
+            self.symbolic_mem = cacti_util.gen_symbolic("Mem", mem_cache_cfg, mem_opt, use_piecewise=False)
 
         return
 

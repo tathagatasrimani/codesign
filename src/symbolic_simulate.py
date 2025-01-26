@@ -303,15 +303,15 @@ class SymbolicSimulator(AbstractSimulator):
             BufWriteEact_expr = hw.dynamic_energy["Buf"]["Write"]
             BufPpass_expr = hw.leakage_power["Buf"] * 1e-9
         else:
-            MemL_expr = sp.sympify(mem_access_time_text, locals=hw_symbols.symbol_table) * 1e9 # convert from s to ns
-            MemReadEact_expr = sp.sympify(mem_read_dynamic_text, locals=hw_symbols.symbol_table)
-            MemWriteEact_expr = sp.sympify(mem_write_dynamic_text, locals=hw_symbols.symbol_table)
-            MemPpass_expr = sp.sympify(mem_read_leakage_text, locals=hw_symbols.symbol_table)
+            MemL_expr = hw.symbolic_mem.access_time * 1e9 # convert from s to ns
+            MemReadEact_expr = hw.symbolic_mem.power.readOp.dynamic
+            MemWriteEact_expr = hw.symbolic_mem.power.writeOp.dynamic
+            MemPpass_expr = hw.symbolic_mem.power.readOp.leakage
 
-            BufL_expr = sp.sympify(buf_access_time_text, locals=hw_symbols.symbol_table) * 1e9 # convert from s to ns
-            BufReadEact_expr = sp.sympify(buf_read_dynamic_text, locals=hw_symbols.symbol_table)
-            BufWriteEact_expr = sp.sympify(buf_write_dynamic_text, locals=hw_symbols.symbol_table)
-            BufPpass_expr = sp.sympify(buf_read_leakage_text, locals=hw_symbols.symbol_table)
+            BufL_expr = hw.symbolic_buf.access_time * 1e9 # convert from s to ns
+            BufReadEact_expr = hw.symbolic_buf.power.readOp.dynamic
+            BufWriteEact_expr = hw.symbolic_buf.power.writeOp.dynamic
+            BufPpass_expr = hw.symbolic_buf.power.readOp.leakage
 
         # TODO: print these vs fw pass values
         cacti_subs = {

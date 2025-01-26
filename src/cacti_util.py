@@ -110,7 +110,7 @@ def gen_symbolic(name, cache_cfg, opt_vals, use_piecewise=False):
         with open(file_path, "w") as file:
             file.write(str(value))
 
-    return IO_info
+    return fin_res
 
 
 def gen_vals(
