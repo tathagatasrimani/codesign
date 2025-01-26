@@ -2,11 +2,16 @@ import os
 import sys
 import sympy as sp
 import yaml
+import concurrent.futures
+import time
 os.chdir("..")
 sys.path.append(os.getcwd())
 from src import sim_util
 from src import hw_symbols
 from src import optimize
+
+
+NUM_CORES = os.cpu_count()
 
 def parse_output(f, tech_params):
     lines = f.readlines()
@@ -31,82 +36,101 @@ def parse_output(f, tech_params):
         )
         i += 1
 
-transistor_size = 7
+def run_sympify(file):
+    return sp.sympify(file, locals=hw_symbols.symbol_table)
 
-log_dir = sim_util.get_latest_log_dir()
+def main():
+    start_time = time.time()
 
-with open('src/cacti/symbolic_expressions/Mem_access_time.txt', 'r') as file:
-    mem_access_time_text = file.read()
+    log_dir = sim_util.get_latest_log_dir()
 
-with open("src/cacti/symbolic_expressions/Mem_read_dynamic.txt", "r") as file:
-    mem_read_dynamic_text = file.read()
+    text_files = {}
 
-with open("src/cacti/symbolic_expressions/Mem_write_dynamic.txt", "r") as file:
-    mem_write_dynamic_text = file.read()
+    with open('src/cacti/symbolic_expressions/Mem_access_time.txt', 'r') as file:
+        text_files["MemL"] = file.read()
 
-with open("src/cacti/symbolic_expressions/Mem_read_leakage.txt", "r") as file:
-    mem_read_leakage_text = file.read()
+    with open("src/cacti/symbolic_expressions/Mem_read_dynamic.txt", "r") as file:
+        text_files["MemR"] = file.read()
 
-with open("src/cacti/symbolic_expressions/Buf_access_time.txt", "r") as file:
-    buf_access_time_text = file.read()
+    with open("src/cacti/symbolic_expressions/Mem_write_dynamic.txt", "r") as file:
+        text_files["MemW"] = file.read()
 
-with open("src/cacti/symbolic_expressions/Buf_read_dynamic.txt", "r") as file:
-    buf_read_dynamic_text = file.read()
+    with open("src/cacti/symbolic_expressions/Mem_read_leakage.txt", "r") as file:
+        text_files["MemRL"] = file.read()
 
-with open("src/cacti/symbolic_expressions/Buf_write_dynamic.txt", "r") as file:
-    buf_write_dynamic_text = file.read()
+    with open("src/cacti/symbolic_expressions/Buf_access_time.txt", "r") as file:
+        text_files["BufL"] = file.read()
 
-with open("src/cacti/symbolic_expressions/Buf_read_leakage.txt", "r") as file:
-    buf_read_leakage_text = file.read()
+    with open("src/cacti/symbolic_expressions/Buf_read_dynamic.txt", "r") as file:
+        text_files["BufR"] = file.read()
 
-with open(log_dir+"/symbolic_edp_0.txt", "r") as file:
-    edp_txt = file.read()
+    with open("src/cacti/symbolic_expressions/Buf_write_dynamic.txt", "r") as file:
+        text_files["BufW"] = file.read()
 
-print("file reads completed")
+    with open("src/cacti/symbolic_expressions/Buf_read_leakage.txt", "r") as file:
+        text_files["BufRL"] = file.read()
+
+    with open(log_dir+"/symbolic_edp_0.txt", "r") as file:
+        text_files["edp"] = file.read()
+
+    print("file reads completed")
+    print(time.time()-start_time)
+
+    exprs = {}
+
+    processes = {}
+    with concurrent.futures.ProcessPoolExecutor(max_workers=NUM_CORES) as executor:
+        for file in text_files:
+            process = executor.submit(run_sympify, text_files[file])
+            processes[process] = file
+
+        for future in concurrent.futures.as_completed(processes):
+            name = processes[future]
+            try:
+                exprs[name] = future.result()
+                print(f"saving result for {name}")
+            except Exception as exc:
+                print('%r generated an exception: %s' % (name, exc))
+
+    exprs["MemL"] *= 1e9
+    exprs["BufL"] *= 1e9
+
+    # TODO: print these vs fw pass values
+    cacti_subs = {
+        hw_symbols.MemReadL: (exprs["MemL"] / 2),
+        hw_symbols.MemWriteL: (exprs["MemL"] / 2),
+        hw_symbols.MemReadEact: exprs["MemR"],
+        hw_symbols.MemWriteEact: exprs["MemW"],
+        hw_symbols.MemPpass: exprs["MemRL"],
+        hw_symbols.BufL: exprs["BufL"],
+        hw_symbols.BufReadEact: exprs["BufR"],
+        hw_symbols.BufWriteEact: exprs["BufW"],
+        hw_symbols.BufPpass: exprs["BufRL"],
+    }
+
+    edp = exprs["edp"]
+
+    print("exprs converted to sympy")
+    print(time.time()-start_time)
+
+    rcs_dict = yaml.load(open(log_dir+"/rcs_0.yaml", "r"), Loader=yaml.Loader)
+    tech_params = sim_util.generate_init_params_from_rcs_as_symbols(rcs_dict)
+
+    print("generated tech params")
+
+    edp = edp.xreplace(cacti_subs)
+    initial_value = edp.xreplace(tech_params).simplify()
+    print(f"initial value: {initial_value}")
+
+    stdout = sys.stdout
+    with open("notebooks/test_files/ipopt_out.txt", "w") as sys.stdout:
+        optimize.optimize(tech_params, edp, "ipopt", cacti_subs)
+    sys.stdout = stdout
+    f = open("notebooks/test_files/ipopt_out.txt", "r")
+    parse_output(f, tech_params)
+    final_value = edp.xreplace(tech_params).simplify()
+    print(f"final value: {final_value}")
 
 
-MemL_expr = sp.sympify(mem_access_time_text, locals=hw_symbols.symbol_table) * 1e9 # convert from s to ns
-MemReadEact_expr = sp.sympify(mem_read_dynamic_text, locals=hw_symbols.symbol_table)
-MemWriteEact_expr = sp.sympify(mem_write_dynamic_text, locals=hw_symbols.symbol_table)
-MemPpass_expr = sp.sympify(mem_read_leakage_text, locals=hw_symbols.symbol_table)
-
-BufL_expr = sp.sympify(buf_access_time_text, locals=hw_symbols.symbol_table) * 1e9 # convert from s to ns
-BufReadEact_expr = sp.sympify(buf_read_dynamic_text, locals=hw_symbols.symbol_table)
-BufWriteEact_expr = sp.sympify(buf_write_dynamic_text, locals=hw_symbols.symbol_table)
-BufPpass_expr = sp.sympify(buf_read_leakage_text, locals=hw_symbols.symbol_table)
-
-# TODO: print these vs fw pass values
-cacti_subs = {
-    hw_symbols.MemReadL: (MemL_expr / 2),
-    hw_symbols.MemWriteL: (MemL_expr / 2),
-    hw_symbols.MemReadEact: MemReadEact_expr,
-    hw_symbols.MemWriteEact: MemWriteEact_expr,
-    hw_symbols.MemPpass: MemPpass_expr,
-
-    hw_symbols.BufL: BufL_expr,
-    hw_symbols.BufReadEact: BufReadEact_expr,
-    hw_symbols.BufWriteEact: BufWriteEact_expr,
-    hw_symbols.BufPpass: BufPpass_expr,
-}
-
-edp = sp.sympify(edp_txt, locals=hw_symbols.symbol_table)
-
-print("exprs converted to sympy")
-
-rcs_dict = yaml.load(open(log_dir+"/rcs_0.yaml", "r"), Loader=yaml.Loader)
-tech_params = sim_util.generate_init_params_from_rcs_as_symbols(rcs_dict)
-
-print("generated tech params")
-
-edp = edp.xreplace(cacti_subs)
-initial_value = edp.xreplace(tech_params).simplify()
-print(f"initial value: {initial_value}")
-
-stdout = sys.stdout
-with open("notebooks/test_files/ipopt_out.txt", "w") as sys.stdout:
-    optimize.optimize(tech_params, edp, "ipopt", cacti_subs)
-sys.stdout = stdout
-f = open("notebooks/test_files/ipopt_out.txt", "r")
-parse_output(f, tech_params)
-final_value = edp.xreplace(tech_params).simplify()
-print(f"final value: {final_value}")
+if __name__ == "__main__":
+    main()
