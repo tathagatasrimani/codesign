@@ -34,7 +34,7 @@ class Codesign:
             files = os.listdir(self.save_dir)
             for file in files:
                 os.remove(f"{self.save_dir}/{file}")
-        with open(f"{self.save_dir}/log.txt", "a") as f:
+        with open(f"{self.save_dir}/codesign.log", "a") as f:
             f.write("Codesign Log\n")
             f.write(f"Benchmark: {benchmark}\n")
             f.write(f"Architecture Config: {config}\n")
@@ -45,7 +45,7 @@ class Codesign:
         shutil.copy(benchmark, f"{self.save_dir}/benchmark.py")
         shutil.copy(f"src/instrumented_files/output.txt", f"{self.save_dir}/output.txt")
 
-        logging.basicConfig(filename=f"{self.save_dir}/log.txt", level=logging.INFO)
+        logging.basicConfig(filename=f"{self.save_dir}/codesign.log", level=logging.INFO)
 
         self.area_constraint = area
         self.forward_edp = 0
@@ -256,10 +256,11 @@ class Codesign:
 
         self.inverse_edp = self.symbolic_sim.edp.xreplace(self.tech_params).evalf()
         inverse_exec_time = self.symbolic_sim.execution_time.xreplace(self.tech_params).evalf()
-        print(f"execution time: {self.symbolic_sim.execution_time}")
+        logger.info(f"execution time: {self.symbolic_sim.execution_time}")
         active_energy = self.symbolic_sim.total_active_energy.xreplace(self.tech_params).evalf()
-        print(f"total active energy: {total_active_energy}")
+        logger.info(f"active energy: {self.symbolic_sim.total_active_energy}")
         passive_energy = self.symbolic_sim.total_passive_energy.xreplace(self.tech_params).evalf()
+        logger.info(f"passive energy: {self.symbolic_sim.total_passive_energy}")
 
         # substitute cacti expressions into edp expression
         self.symbolic_sim.edp = self.symbolic_sim.edp.xreplace(cacti_subs)

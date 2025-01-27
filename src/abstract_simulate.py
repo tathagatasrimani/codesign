@@ -3,6 +3,8 @@ import math
 import argparse
 import os
 import sys
+import logging
+logger = logging.getLogger(__name__)
 
 # third party modules
 import numpy as np
@@ -245,6 +247,8 @@ class AbstractSimulator:
                 and memory nodes explicit.
             hw: HardwareModel object
         """
+        hw.init_buffers_and_registers()
+
         hw_counts = hardwareModel.get_func_count(hw.netlist)
         schedule.pre_schedule(computation_dfg, hw.netlist, hw.latency)
         copy = computation_dfg.copy()
@@ -273,7 +277,7 @@ class AbstractSimulator:
             # Once we have pruned memory/buffer nodes, critical path may have changed. So we need to redo the scheduling
             self.resource_edge_graph = schedule.sdc_schedule(copy, hw_counts, hw.netlist, add_resource_edges=True)
             self.add_parasitics_to_scheduled_dfg(copy, hw.parasitic_graph)
-            #print("longest path:", nx.dag_longest_path(self.resource_edge_graph))
+            logger.info(f"longest path: {nx.dag_longest_path(self.resource_edge_graph)}")
             #print("longest path length:", nx.dag_longest_path_length(self.resource_edge_graph))
         
 

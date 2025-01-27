@@ -161,9 +161,8 @@ class SymbolicSimulator(AbstractSimulator):
         not the actual computation being computed. This is calculated separately at the end.
         """
         passive_power = 0
-        for node, data in dict(
-            filter(lambda x: x[1]["function"] != "Buf", hw.netlist.nodes.data())
-        ).items():
+        for node in hw.netlist.nodes:
+            data = hw.netlist.nodes[node]
             passive_power += (
                 hw_symbols.symbolic_power_passive[data["function"]]
             )  # W
@@ -265,7 +264,6 @@ class SymbolicSimulator(AbstractSimulator):
                     else: funcs_added.add(func)
                     gen_latency = symbolic_convex_max(gen_latency, hw_symbols.symbolic_latency_wc[func])
                 self.execution_time += gen_latency
-        logger.info(f"execution time: {str(self.execution_time)}")
 
     def calculate_edp(self, hw, concrete_sub=False):
 
@@ -293,7 +291,8 @@ class SymbolicSimulator(AbstractSimulator):
         with open("src/cacti/symbolic_expressions/Buf_read_leakage.txt", "r") as file:
             buf_read_leakage_text = file.read()
 
-        if concrete_sub:
+        if concrete_sub: 
+            # OUT OF DATE: CHECK UNITS IF YOU WANT TO USE THIS AGAIN
             MemL_expr = hw.latency["MainMem"]
             MemReadEact_expr = hw.dynamic_energy["MainMem"]["Read"]
             MemWriteEact_expr = hw.dynamic_energy["MainMem"]["Write"]

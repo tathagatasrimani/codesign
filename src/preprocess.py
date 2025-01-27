@@ -319,12 +319,13 @@ class Preprocessor:
         print(f"converting to pyomo exp")
         self.pyomo_edp_exp = sympy_tools.sympy2pyomo_expression(edp, m)
 
-        logger.info(f"time to convert all exprs to pyomo: {time.time()-start_time}")
-
         sympy_obj = self.add_regularization_to_objective(edp, l=regularization)
         print(f"added regularization")
 
         self.obj = sympy_tools.sympy2pyomo_expression(sympy_obj, m)
+
+        logger.info(f"time to convert all exprs to pyomo: {time.time()-start_time}")
+        start_time = time.time()
         # print(f"created pyomo expression: {self.pyomo_edp_exp}")
 
 
@@ -334,6 +335,8 @@ class Preprocessor:
         model.scaling_factor = pyo.Suffix(direction=pyo.Suffix.EXPORT)
         self.add_constraints(model)
         self.create_scaling(model)
+
+        logger.info(f"time to add constraints and create scaling: {time.time()-start_time}")
 
         scaled_model = pyo.TransformationFactory("core.scale_model").create_using(model)
         # this transformation was having issues for some reason...

@@ -1,6 +1,7 @@
 # first party
 import argparse
 import logging
+import time
 logger = logging.getLogger(__name__)
 
 # third party
@@ -31,6 +32,8 @@ def ipopt(tech_params, edp, improvement, regularization, cacti_subs):
         Preprocessor().begin(model, edp, initial_params, improvement, cacti_subs, multistart=multistart, regularization=regularization)
     )
 
+
+    start_time = time.time()
     if multistart:
         results = opt.solve(
             scaled_model,
@@ -44,6 +47,7 @@ def ipopt(tech_params, edp, improvement, regularization, cacti_subs):
         results = opt.solve(
             scaled_model, keepfiles=True, tee=True, symbolic_solver_labels=True
         )
+    logger.info(f"time to run IPOPT: {time.time()-start_time}")
     pyo.TransformationFactory("core.scale_model").propagate_solution(
         scaled_model, model
     )

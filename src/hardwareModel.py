@@ -7,6 +7,7 @@ import yaml
 import os
 import shutil
 import logging
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -177,7 +178,30 @@ class HardwareModel:
         for key in op2sym_map.keys():
             self.hw_allocated[key] = 0
 
-    def init_memory(self, mem_needed, nvm_mem_needed, mallocs, buffer_size=64, gen_cacti=True, gen_symbolic=True):
+    def init_buffers_and_registers(self):
+        # loop enables multiple unshared buffers
+        buffer_dict = dict(
+            filter(lambda x: x[1]["function"] == "Buf", self.netlist.nodes.data())
+        ).items()
+        assert len(buffer_dict) == 1, "we should only have one buffer for now"
+        for node, data in buffer_dict:
+            self.buffer_size = data["size"]
+            edges = self.netlist.edges(node)
+            for edge in edges:
+                if self.netlist.nodes[edge[1]]["function"] == "MainMem":
+                    buffer_object = Cache(
+                        data["size"],
+                        self.netlist.nodes[edge[1]]["memory_module"],
+                        var_size=None,
+                    )
+                    data["memory_module"] = buffer_object
+
+        for node, data in dict(
+            filter(lambda x: x[1]["function"] == "Regs", self.netlist.nodes.data())
+        ).items():
+            data["var"] = ""  # reg keeps track of which variable it is allocated
+
+    def init_memory(self, mem_needed, nvm_mem_needed, mallocs, gen_cacti=True, gen_symbolic=True):
         """
         Add a Memory Module to the netlist for each MainMem node.
         Add a Cache Module to the netlist for each Buf node.
@@ -187,39 +211,25 @@ class HardwareModel:
                           we can dynamically track how much memory will actually be needed (i.e. if a compiler
                           is freeing up space when variables are dead), but that is not relevant here.
         nvm_mem_needed: int - not yet implemented
-        buffer_size: int - default 64 bits equal to one var size.
         """
-        mem_object = Memory(mem_needed)
+
         # allocate space for all variables we will need to access
+        memory_dict = dict(
+            filter(lambda x: x[1]["function"] == "MainMem", self.netlist.nodes.data())
+        ).items()
+        assert len(memory_dict) == 1, "we should only have 1 memory module for now"
+        for node, data in memory_dict:
+            mem_needed = data["size"]
+            mem_object = Memory(data["size"])
+            data["memory_module"] = mem_object
+        
         for malloc in mallocs:
             self.process_memory_operation(malloc, mem_object)
-        for node, data in dict(
-            filter(lambda x: x[1]["function"] == "MainMem", self.netlist.nodes.data())
-        ).items():
-            data["memory_module"] = mem_object
-            data["size"] = mem_needed
 
-        buffer_object = Cache(
-            data["size"],
-            mem_object,
-            var_size=None,
-        )
-        # loop enables multiple unshared buffers
-        for node, data in dict(
-            filter(lambda x: x[1]["function"] == "Buf", self.netlist.nodes.data())
-        ).items():
-            edges = self.netlist.edges(node)
-            for edge in edges:
-                if self.netlist.nodes[edge[1]]["function"] == "MainMem":
-                    data["memory_module"] = buffer_object
+        self.init_buffers_and_registers()
 
-        for node, data in dict(
-            filter(lambda x: x[1]["function"] == "Regs", self.netlist.nodes.data())
-        ).items():
-            data["var"] = ""  # reg keeps track of which variable it is allocated
         self.mem_size = mem_needed
         self.nvm_mem_size = nvm_mem_needed
-        self.buffer_size = buffer_size
         if gen_cacti: self.gen_cacti_results(gen_symbolic)
 
     def set_hw_config_vars(
@@ -466,8 +476,7 @@ class HardwareModel:
         """
         Generate buffer and memory latency and energy numbers from Cacti.
         """
-        self.buffer_size = 2048
-        self.mem_size = 131072
+        start_time = time.time()
         buf_vals = cacti_util.gen_vals(
             "base_cache",
             cache_size=self.buffer_size,
@@ -574,10 +583,16 @@ class HardwareModel:
         base_cache_cfg = "cfg/base_cache.cfg"
         mem_cache_cfg = "cfg/mem_cache.cfg"
 
+        logger.info(f"time to generate concrete cacti values: {time.time()-start_time}")
+
         # TODO: This only needs to be triggered if we're doing inverse pass (ie symbolic simulate or codesign)
         if gen_symbolic:
+            start_time = time.time()
             self.symbolic_buf = cacti_util.gen_symbolic("Buf", base_cache_cfg, buf_opt, use_piecewise=False)
+            logger.info(f"time to generate symbolic buffer values: {time.time()-start_time}")
+            start_time = time.time()
             self.symbolic_mem = cacti_util.gen_symbolic("Mem", mem_cache_cfg, mem_opt, use_piecewise=False)
+            logger.info(f"time to generate symbolic memory values: {time.time()-start_time}")
 
         return
 
@@ -585,9 +600,11 @@ class HardwareModel:
         design_name = self.path_to_graphml.split("/")[
             len(self.path_to_graphml.split("/")) - 1
         ]
+        start_time = time.time()
         _, graph = place_n_route.place_n_route(
             design_name, arg_testfile, arg_parasitics
         )
+        logger.info(f"time to generate wire parasitics: {time.time()-start_time}")
         self.parasitics = arg_parasitics
         self.parasitic_graph = graph
 

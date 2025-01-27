@@ -27,9 +27,9 @@ def setup_arch_search(benchmark, arch_init_config, transistor_override=False, tr
 
     computation_dfg, mallocs = simulator.simulator_prep(benchmark, hw.latency)
 
-    hw.netlist = nx.DiGraph()
+    #hw.netlist = nx.DiGraph()
 
-    arch_search_util.generate_new_min_arch_on_whole_dfg(hw, computation_dfg)
+    #arch_search_util.generate_new_min_arch_on_whole_dfg(hw, computation_dfg)
     logger.info(f"Initial netlist: {hw.netlist.nodes}")
     hw.init_memory(
         sim_util.find_nearest_power_2(simulator.total_malloc_size),

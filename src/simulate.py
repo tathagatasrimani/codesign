@@ -385,8 +385,8 @@ class ConcreteSimulator(AbstractSimulator):
                         * hw.latency[node_data["function"]]  # ns
                     )
                     self.active_energy_no_mem += energy
-                #fn = node_data["function"]
-                #print(f"adding {energy} to objective for {fn}")
+                fn = node_data["function"]
+                logger.info(f"adding {energy} nJ to objective for {fn}")
                 self.active_energy += energy
                 hw.compute_operation_totals[node_data["function"]] += 1
 
@@ -411,11 +411,13 @@ class ConcreteSimulator(AbstractSimulator):
 
         for elem_name, elem_data in dict(hw.netlist.nodes.data()).items():
 
+            energy = hw.leakage_power[elem_data["function"]] * 1e-9 * self.cycles
             self.passive_energy += (
-                hw.leakage_power[elem_data["function"]] * 1e-9 * self.cycles
+                energy
             )
+            logger.info(f"adding {energy} nJ to passive energy consumption for {elem_name}")
             self.passive_energy_no_mem += (
-                hw.leakage_power[elem_data["function"]] * 1e-9 * self.cycles
+                energy
             ) if elem_data["function"] not in ["MainMem", "Buf"] else 0
 
     def calculate_edp(self):
