@@ -129,8 +129,6 @@ class Codesign:
 
         self.scheduled_dfg = self.sim.schedule(self.computation_dfg, self.hw, self.schedule)
 
-        
-
         self.sim.simulate(self.scheduled_dfg, self.hw)
         self.sim.calculate_edp()
         edp = self.sim.edp
