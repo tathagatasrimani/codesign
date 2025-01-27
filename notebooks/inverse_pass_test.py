@@ -4,6 +4,8 @@ import sympy as sp
 import yaml
 import concurrent.futures
 import time
+import logging
+logger = logging.getLogger("inverse_test")
 os.chdir("..")
 sys.path.append(os.getcwd())
 from src import sim_util
@@ -40,6 +42,8 @@ def run_sympify(file):
     return sp.sympify(file, locals=hw_symbols.symbol_table)
 
 def main():
+
+    logging.basicConfig(filename=f"notebooks/test_files/log.txt", level=logging.INFO)
     start_time = time.time()
 
     log_dir = sim_util.get_latest_log_dir()
