@@ -1,4 +1,5 @@
 import logging
+import time
 logger = logging.getLogger(__name__)
 
 import copy
@@ -30,7 +31,6 @@ class Preprocessor:
         self.log_exprs_s = set()
         self.pow_exprs_to_constrain = []
         self.log_exprs_to_constrain = []
-        self.cacti_subs_pyo = {}
         self.cacti_sub_vars = set()
         self.log_subs = {}
         self.pow_subs = {}
@@ -50,11 +50,6 @@ class Preprocessor:
         
     def make_log_constraint(self, model, i):
         return self.log_exprs_to_constrain[i] >= 0.0001
-    
-    def make_cacti_constraint(self, model, i):
-        cacti_var_sp = list(self.cacti_subs_pyo.keys())[i]
-        cacti_var = model.x[self.mapping[cacti_var_sp]]
-        return cacti_var == self.cacti_subs_pyo[cacti_var_sp]
 
     def max_val_orig_val_rule(self, model, i):
         return model.x[self.mapping[self.free_symbols[i]]] <= self.initial_params[self.free_symbols[i].name]
@@ -100,8 +95,6 @@ class Preprocessor:
         model.PowConstraint = pyo.Constraint([i for i in range(len(self.pow_exprs_to_constrain))], rule=self.make_pow_constraint)
 
         model.LogConstraint = pyo.Constraint([i for i in range(len(self.log_exprs_to_constrain))], rule=self.make_log_constraint)
-
-        model.CactiConstraint = pyo.Constraint([i for i in range(len(self.cacti_subs_pyo))], rule=self.make_cacti_constraint)
 
         if hw_symbols.V_dd in self.mapping: 
             model.V_dd_lower = pyo.Constraint(rule=self.V_dd_lower)
@@ -284,9 +277,15 @@ class Preprocessor:
         # We shouldn't need to find any pow/log expressions in the edp expression itself. Cacti sub expressions
         # should suffice, but keep an eye on this.
         #self.find_exprs_to_constrain(edp)
+            
+        start_time = time.time()
         for cacti_var in cacti_subs.keys():
             if cacti_var in self.mapping:
                 self.find_exprs_to_constrain(cacti_subs[cacti_var])
+
+        logger.info(f"time to find exprs to constrain: {time.time()-start_time}")
+
+        start_time = time.time()
 
         # hotfix: substitute each log expression with max(expr, 1e-3) to avoid negatives inside log
         for log_expr in self.log_exprs_s:
@@ -297,24 +296,19 @@ class Preprocessor:
         # negative inside a sqrt/log. So substitute all log(expr) with log(max(expr, 1e-3)) and 
         # all sqrt(expr) with sqrt(abs(expr))
         edp = edp.xreplace(self.log_subs)
-        #edp = self.sub_pow_exprs(edp)
-        for cacti_var in cacti_subs.keys():
-            if cacti_var in self.mapping:
-                cacti_subs[cacti_var] = self.sub_pow_exprs(cacti_subs[cacti_var])
-                cacti_subs[cacti_var] = cacti_subs[cacti_var].xreplace(self.log_subs)
+        edp = self.sub_pow_exprs(edp)
+
+        logger.info(f"time to sub low and pow exprs: {time.time()-start_time}")
 
         # save subbed expressions to tmp file for debugging purposes
-        with open("src/tmp/symbolic_edp_subbed.txt", "w") as f:
+        """with open("src/tmp/symbolic_edp_subbed.txt", "w") as f:
             f.write(str(edp))
             f.write("\n")
             for cacti_var in cacti_subs.keys():
                 if cacti_var in self.mapping:
-                    f.write(f"{cacti_var.name}: {str(cacti_subs[cacti_var])}\n")
+                    f.write(f"{cacti_var.name}: {str(cacti_subs[cacti_var])}\n")"""
 
-        # convert cacti subs expressions to pyomo
-        for cacti_var in cacti_subs.keys():
-            if cacti_var in self.mapping:
-                self.cacti_subs_pyo[cacti_var] = sympy_tools.sympy2pyomo_expression(cacti_subs[cacti_var], m)
+        start_time = time.time()
 
         for pow_expr in self.pow_exprs_s:
             # pow expressions may have log exprs inside them, so substitute first
@@ -324,6 +318,8 @@ class Preprocessor:
             self.log_exprs_to_constrain.append(sympy_tools.sympy2pyomo_expression(log_expr, m))
         print(f"converting to pyomo exp")
         self.pyomo_edp_exp = sympy_tools.sympy2pyomo_expression(edp, m)
+
+        logger.info(f"time to convert all exprs to pyomo: {time.time()-start_time}")
 
         sympy_obj = self.add_regularization_to_objective(edp, l=regularization)
         print(f"added regularization")
