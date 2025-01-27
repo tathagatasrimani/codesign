@@ -273,12 +273,14 @@ class AbstractSimulator:
             copy = prune_func(copy, hw.netlist)
         elif schedule_type == "sdc":
             schedule.sdc_schedule(copy, hw_counts, hw.netlist)
+            logger.info("completed initial schedule")
             copy = prune_func(copy, hw.netlist, sdc_schedule=True)
             # Once we have pruned memory/buffer nodes, critical path may have changed. So we need to redo the scheduling
+            logger.info("completed buffer/memory pruning. Beginning next round of schedule")
             self.resource_edge_graph = schedule.sdc_schedule(copy, hw_counts, hw.netlist, add_resource_edges=True)
             self.add_parasitics_to_scheduled_dfg(copy, hw.parasitic_graph)
             logger.info(f"longest path: {nx.dag_longest_path(self.resource_edge_graph)}")
-            #print("longest path length:", nx.dag_longest_path_length(self.resource_edge_graph))
+            logger.info(f"longest path length: {nx.dag_longest_path_length(self.resource_edge_graph)}")
         
 
         return copy

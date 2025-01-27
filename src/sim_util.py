@@ -3,6 +3,9 @@ import ast
 import glob
 import os
 import datetime
+import logging
+
+logger = logging.getLogger(__name__)
 
 import networkx as nx
 import numpy as np
@@ -172,27 +175,28 @@ def get_var_name_from_arr_access(arr_access):
     return arr_access
 
 
-def update_schedule_with_latency(schedule, latency):
+def update_computation_dfg_with_latency(computation_dfg, latency):
     """
-    Updates the schedule with the latency of each operation.
+    Updates the computation dfg with the latency of each operation.
 
     Parameters:
-        schedule (nx.Digraph): A list of operations in the schedule.
+        computation_dfg (nx.Digraph): A list of operations in the computation dfg.
         latency (dict): A dictionary of operation names to their latencies.
 
     Returns:
         None;
-        The schedule is updated in place.
+        The computation dfg is updated in place.
     """
-    for edge in schedule.edges:
+    for node in computation_dfg.nodes:
+        func = computation_dfg.nodes[node]["function"]
+        if func in latency:
+            computation_dfg.nodes[node]["weight"] = latency[func]
+    for edge in computation_dfg.edges:
         node = edge[0]
-        edge_data = schedule.edges[edge]
-        func = schedule.nodes.data()[node]["function"]
+        func = computation_dfg.nodes.data()[node]["function"]
         if func == "stall":
             func = node.split("_")[3]
-        schedule.edges[edge]["weight"] = latency[func]
-        if "cost" in edge_data:
-            schedule.edges[edge]["weight"] += edge_data["cost"] # TODO: update edge cost with values from inverse pass
+        computation_dfg.edges[edge]["weight"] = latency[func]
         
 
 
@@ -478,29 +482,29 @@ def prune_buffer_and_mem_nodes(computation_graph: nx.DiGraph, hw_netlist: nx.DiG
         allocated_reg = reg_node[1]["allocation"]
         allocated_reg_data = hw_netlist.nodes[allocated_reg]
         var_name = reg_node[0].split(";")[0]
-        #print(allocated_reg_data["var"], var_name)
+        logger.info(f"allocated reg data for {allocated_reg} is {allocated_reg_data}, var name is {var_name}")
         #print(hw_netlist.nodes[buf_in[1]["allocation"]]["memory_module"].memory.locations)
         if allocated_reg_data["var"] == var_name:
             # remove the buffer and memory nodes
-            #print(f"register hit for {var_name}")
+            logger.info(f"register hit for {var_name} in {reg_node}")
             computation_graph.remove_node(buf_in[0])
             computation_graph.remove_node(mem_in[0])
         elif hw_netlist.nodes[buf_in[1]["allocation"]]["memory_module"].find(var_name):
             # remove the memory node
-            #print(f"cache hit for {var_name}")
+            logger.info(f"cache hit for {var_name}")
             computation_graph.remove_node(mem_in[0])
             size = hw_netlist.nodes[buf_in[1]["allocation"]]["memory_module"].read(var_name)
             computation_graph.nodes[buf_in[0]]["size"] = size
             computation_graph.nodes[reg_node[0]]["size"] = size
         else:
             # read from memory and add to cache
-            #print(f"reading {var_name} from memory")
+            logger.info(f"reading {var_name} from memory, adding to cache")
             size = -1*hw_netlist.nodes[buf_in[1]["allocation"]]["memory_module"].read(var_name)
             computation_graph.nodes[mem_in[0]]["size"] = size
             computation_graph.nodes[buf_in[0]]["size"] = size
             computation_graph.nodes[reg_node[0]]["size"] = size
         hw_netlist.nodes[allocated_reg]["var"] = var_name
-    #print("starting pruning process")
+    logger.info("starting pruning process")
     layer = 0
     if sdc_schedule:
         regs_sorted = sorted(list(filter(lambda x: x[1]["function"] == "Regs", computation_graph.nodes.data())), key=lambda x: x[1]["start_time"])

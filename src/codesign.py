@@ -52,7 +52,6 @@ class Codesign:
         self.inverse_edp = 0
         self.tech_params = None
         self.initial_tech_params = None
-        self.full_tech_params = {}
         self.openroad_testfile = openroad_testfile
         self.parasitics = parasitics
         self.schedule = schedule
@@ -92,6 +91,8 @@ class Codesign:
 
         self.set_technology_parameters(initial_tech_params)
 
+        self.hw.write_technology_parameters(self.save_dir+"/initial_tech_params.yaml")
+
         logger.info(f"Running initial forward pass")
         self.sim.simulate(self.scheduled_dfg, self.hw)
         self.sim.calculate_edp()
@@ -123,10 +124,13 @@ class Codesign:
         print("\nRunning Forward Pass")
         logger.info("Running Forward Pass")
 
-        sim_util.update_schedule_with_latency(self.computation_dfg, self.hw.latency)
-        sim_util.update_schedule_with_latency(self.scheduled_dfg, self.hw.latency)
-
+        sim_util.update_computation_dfg_with_latency(self.computation_dfg, self.hw.latency)
         self.hw.get_wire_parasitics(self.openroad_testfile, self.parasitics)
+
+        self.scheduled_dfg = self.sim.schedule(self.computation_dfg, self.hw, self.schedule)
+
+        
+
         self.sim.simulate(self.scheduled_dfg, self.hw)
         self.sim.calculate_edp()
         edp = self.sim.edp
