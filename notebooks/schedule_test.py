@@ -6,6 +6,7 @@ import os
 import sys
 import yaml
 import logging
+import matplotlib.pyplot as plt
 
 logger = logging.getLogger("codesign")
 os.chdir("..")
@@ -26,7 +27,7 @@ logging.basicConfig(filename=f"{save_dir}/schedule_test.log", level=logging.INFO
 log_dir = sim_util.get_latest_log_dir()
 
 tech_params_init = yaml.load(open(log_dir+"/initial_tech_params.yaml", "r"), Loader=yaml.Loader)
-tech_params_next = yaml.load(open(log_dir+"/tech_params_0.yaml", "r"), Loader=yaml.Loader)
+#tech_params_next = yaml.load(open(log_dir+"/tech_params_0.yaml", "r"), Loader=yaml.Loader)
 
 logger.info(
     f"Setting up architecture search; benchmark: {benchmark}, config: {config}"
@@ -35,10 +36,14 @@ logger.info(
     sim,
     hw,
     computation_dfg,
-) = architecture_search.setup_arch_search(benchmark, config, gen_cacti=False, gen_symbolic=False)
-
-hw.latency = tech_params_init["latency"]
+) = architecture_search.setup_arch_search(benchmark, config, gen_cacti=True, gen_symbolic=False)
 
 hw.get_wire_parasitics(openroad_testfile, "none")
 
 scheduled_dfg = sim.schedule(computation_dfg, hw, "sdc")
+nx.write_gml(scheduled_dfg, "notebooks/test_files/scheduled_dfg.gml")
+
+fig, ax = sim_util.plot_schedule_gantt(scheduled_dfg)
+
+# Show the plot
+fig.savefig("notebooks/test_files/schedule_plot.png")

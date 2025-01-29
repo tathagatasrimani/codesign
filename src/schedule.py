@@ -148,6 +148,7 @@ def cfg_to_dfg(cfg, graphs, latency):
                         function=cur_node.operation,
                         idx=cur_node.id,
                         cost=latency[cur_node.operation],
+                        write=cur_node.write
                     )
                     for par in cur_node.parents:
                         # print("node", cur_node, "has parent", par)
@@ -264,6 +265,8 @@ def sdc_schedule(graph, hw_element_counts, hw_netlist, no_resource_constraints=F
     vars = []
     graph_nodes = graph.nodes(data=True)
     id = 0
+    reg_to_interval_id = {}
+
     for node in graph_nodes:
         curr_var = cp.Variable(
             2, name=node[0]
@@ -276,13 +279,30 @@ def sdc_schedule(graph, hw_element_counts, hw_netlist, no_resource_constraints=F
         constraints.append(curr_var[0] >= 0)
         if "cost" in node[1].keys():
             constraints.append(curr_var[0] + node[1]["cost"] == curr_var[1])
+    
+    for node in graph_nodes:
+        if node[1]["function"] == "Regs":
+            # create additional variable encoding interval between register access and subsequent operation
+            curr_var = vars[node[1]["scheduling_id"]]
+            successors = list(graph.successors(node[0]))
+            op_count = 0
+            for successor in successors:
+                child = graph.nodes[successor]
+                if child["function"] in ["Regs", "end"]: continue
+                op_count += 1
+                interval_var = cp.Variable(2, name=node[0]+"_interval")
+                vars.append(interval_var)
+                reg_to_interval_id[node[1]["scheduling_id"]] = id
+                id += 1
+                constraints += [interval_var[0] == curr_var[0], interval_var[1] == vars[child["scheduling_id"]][0]]
+            assert op_count <= 1, "each node should have at most 1 arithmetic op child"
 
     # data dependency constraints
     for u, v in graph.edges():
         source_id = int(graph_nodes[u]["scheduling_id"])
         dest_id = int(graph_nodes[v]["scheduling_id"])
         constraints.append(vars[source_id][1] - vars[dest_id][0] <= 0.0)
-
+    
     topological_order = longest_path_first_topological_sort(graph)
     if not no_resource_constraints:
         resource_constraints = []
@@ -316,6 +336,13 @@ def sdc_schedule(graph, hw_element_counts, hw_netlist, no_resource_constraints=F
                             - vars[graph.nodes[curr_node]["scheduling_id"]][0]
                             <= -graph.nodes[start_node]["cost"]
                         )
+                        if graph.nodes[curr_node]["function"] == "Regs" and graph.nodes[start_node]["scheduling_id"] in reg_to_interval_id:
+                            # encode register liveness interval constraints. 
+                            # register must hold its value until subsequent operation begins
+                            resource_constraints.append(
+                                vars[reg_to_interval_id[graph.nodes[start_node]["scheduling_id"]]][1]
+                                <= vars[graph.nodes[curr_node]["scheduling_id"]][0]
+                            )
         constraints += resource_constraints
     obj = cp.Minimize(vars[graph_nodes["end"]["scheduling_id"]][0])
     prob = cp.Problem(obj, constraints)
@@ -509,7 +536,7 @@ def pre_schedule(computation_graph, hw_netlist, hw_latency):
     for u, v, data in operator_edges:  # this shouldn't run after the first iteration
         if (u, v) not in hw_netlist.edges():
             new_node_name = f"tmp_op_reg;{new_node_id}"
-            computation_graph.add_node(new_node_name, function="Regs", cost=hw_latency["Regs"])
+            computation_graph.add_node(new_node_name, function="Regs", cost=hw_latency["Regs"], write=True)
             
             computation_graph.remove_edge(u, v)
             computation_graph.add_edge(u, new_node_name, weight=reg_weight)

@@ -28,7 +28,7 @@ class symbol:
 
 class Node:
     def __init__(
-        self, value: str, operation: str, id, memory_links=None, compute_id=None
+        self, value: str, operation: str, id, memory_links=None, compute_id=None, write=False
     ):
         self.value = value
         self.operation = operation
@@ -38,9 +38,10 @@ class Node:
         self.order = 0
         self.id = id
         self.compute_id = compute_id
+        self.write = write # only relevant for register nodes
 
     def __str__(self):
-        return f"dfg Node {self.id}: {self.value}, op: {self.operation}, memory_links: {self.memory_links}, compute_id: {self.compute_id}"
+        return f"dfg Node {self.id}: {self.value}, op: {self.operation}, memory_links: {self.memory_links}, compute_id: {self.compute_id}, write: {self.write}"
 
 
 class Graph:
@@ -343,7 +344,7 @@ def make_node(graph, cfg_node, id, name, ctx, opname):
         annotation = "Read"
     elif ctx == ast.Store:  # deal with Del if needed
         annotation = "Write"
-    dfg_node = Node(name, opname, id)
+    dfg_node = Node(name, opname, id, write=(ctx==ast.Store))
     graph.node(id, name + "\n" + annotation)
     graphs[cfg_node].roots.add(dfg_node)
     graphs[cfg_node].id_to_Node[id] = dfg_node

@@ -418,7 +418,7 @@ def add_cache_mem_access_to_dfg(
     for node, data in dict(
         filter(lambda x: x[1]["function"] == "Regs", computation_graph.nodes.data())
     ).items():
-        # print(f"node: {node}, data: {data}")
+        if data["write"]: continue # don't need memory accesses for register writes
         size = 16 #data['size'] #-hardcoded for now; TODO: come back and fix
         computation_graph.add_node(
             f"Buf{buf_count}",
@@ -485,37 +485,39 @@ def prune_buffer_and_mem_nodes(computation_graph: nx.DiGraph, hw_netlist: nx.DiG
     Removes buffer nodes when the data is already in the registers.
     """
     def check_buffer_reg_hit(reg_node):
-        buf_in = find_upstream_node_in_graph(computation_graph, "Buf", reg_node[0]) 
-        io_in = find_upstream_node_in_graph(computation_graph, "OffChipIO", buf_in[0])
-        mem_in = find_upstream_node_in_graph(computation_graph, "MainMem", io_in[0])
+        var_name = reg_node[0].split(";")[0]
         allocated_reg = reg_node[1]["allocation"]
         allocated_reg_data = hw_netlist.nodes[allocated_reg]
-        var_name = reg_node[0].split(";")[0]
         logger.info(f"allocated reg data for {allocated_reg} is {allocated_reg_data}, var name is {var_name}")
-        #print(hw_netlist.nodes[buf_in[1]["allocation"]]["memory_module"].memory.locations)
-        if allocated_reg_data["var"] == var_name:
-            # remove the buffer and memory nodes
-            logger.info(f"register hit for {var_name} in {reg_node}")
-            computation_graph.remove_node(buf_in[0])
-            computation_graph.remove_node(mem_in[0])
-            computation_graph.remove_node(io_in[0])
-        elif hw_netlist.nodes[buf_in[1]["allocation"]]["memory_module"].find(var_name):
-            # remove the memory node
-            logger.info(f"cache hit for {var_name}")
-            computation_graph.remove_node(mem_in[0])
-            computation_graph.remove_node(io_in[0])
-            size = hw_netlist.nodes[buf_in[1]["allocation"]]["memory_module"].read(var_name)
-            computation_graph.nodes[buf_in[0]]["size"] = size
-            computation_graph.nodes[reg_node[0]]["size"] = size
-        else:
-            # read from memory and add to cache
-            logger.info(f"reading {var_name} from memory, adding to cache")
-            size = -1*hw_netlist.nodes[buf_in[1]["allocation"]]["memory_module"].read(var_name)
-            computation_graph.nodes[mem_in[0]]["size"] = size
-            computation_graph.nodes[io_in[0]]["size"] = size
-            computation_graph.nodes[buf_in[0]]["size"] = size
-            computation_graph.nodes[reg_node[0]]["size"] = size
+        if not reg_node[1]["write"]:
+            buf_in = find_upstream_node_in_graph(computation_graph, "Buf", reg_node[0]) 
+            io_in = find_upstream_node_in_graph(computation_graph, "OffChipIO", buf_in[0])
+            mem_in = find_upstream_node_in_graph(computation_graph, "MainMem", io_in[0])
+            #print(hw_netlist.nodes[buf_in[1]["allocation"]]["memory_module"].memory.locations)
+            if allocated_reg_data["var"] == var_name:
+                # remove the buffer and memory nodes
+                logger.info(f"register hit for {var_name} in {reg_node}")
+                computation_graph.remove_node(buf_in[0])
+                computation_graph.remove_node(mem_in[0])
+                computation_graph.remove_node(io_in[0])
+            elif hw_netlist.nodes[buf_in[1]["allocation"]]["memory_module"].find(var_name):
+                # remove the memory node
+                logger.info(f"cache hit for {var_name}")
+                computation_graph.remove_node(mem_in[0])
+                computation_graph.remove_node(io_in[0])
+                size = hw_netlist.nodes[buf_in[1]["allocation"]]["memory_module"].read(var_name)
+                computation_graph.nodes[buf_in[0]]["size"] = size
+                computation_graph.nodes[reg_node[0]]["size"] = size
+            else:
+                # read from memory and add to cache
+                logger.info(f"reading {var_name} from memory, adding to cache")
+                size = -1*hw_netlist.nodes[buf_in[1]["allocation"]]["memory_module"].read(var_name)
+                computation_graph.nodes[mem_in[0]]["size"] = size
+                computation_graph.nodes[io_in[0]]["size"] = size
+                computation_graph.nodes[buf_in[0]]["size"] = size
+                computation_graph.nodes[reg_node[0]]["size"] = size
         hw_netlist.nodes[allocated_reg]["var"] = var_name
+        logger.info(f"writing {var_name} to {allocated_reg}")
     logger.info("starting pruning process")
     layer = 0
     if sdc_schedule:
@@ -753,6 +755,42 @@ def topological_layout_plot_side_by_side(
         nx.draw_networkx_edge_labels(graph2_copy, pos2, edge_labels=edges_2, ax=ax[1])
 
     plt.show()
+
+def plot_schedule_gantt(scheduled_dfg : nx.DiGraph):
+    """
+    Create a Gantt Plot of all operations in the scheduled DFG.
+    """
+    sorted_nodes = sorted(scheduled_dfg.nodes(data=True), key=lambda x: x[1]["start_time"])[:-1]
+
+    operations = [
+        (node[0], node[1]["start_time"], node[1]["end_time"], node[1]["function"]) for node in sorted_nodes
+    ]
+
+    # Generate unique colors for each resource
+    unique_resources = list(set(op[3] for op in operations))
+    color_map = {resource: plt.cm.tab10(i / len(unique_resources)) for i, resource in enumerate(unique_resources)}
+
+    # Create figure and axis
+    fig, ax = plt.subplots(figsize=(10, 5))
+
+    # Plot each operation with corresponding color
+    for i, (operation, start, end, resource) in enumerate(operations):
+        ax.barh(operation, (end - start), left=start, align='center', color=color_map.get(resource, "gray"))
+
+    # Create legend
+    handles = [plt.Rectangle((0,0),1,1, color=color_map[resource]) for resource in unique_resources]
+    ax.legend(handles, unique_resources, title="Resources")
+
+    # Format x-axis
+    plt.xticks(rotation=45)
+
+    # Labels and title
+    plt.xlabel("Time (seconds)")
+    plt.ylabel("Operations")
+    plt.title("Scheduled Operations Timeline")
+    plt.grid(True, which='both', linestyle='--', linewidth=0.5)
+
+    return fig, ax
 
 
 def convert_tech_params_to_si(latency, active_power, passive_power, frequency):
