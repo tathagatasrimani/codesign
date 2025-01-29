@@ -323,8 +323,6 @@ class Codesign:
             f"{self.save_dir}/schedule_{iter_number}.gml",
             stringizer=lambda x: str(x),
         )
-        ax, fig = sim_util.plot_schedule_gantt(self.scheduled_dfg)
-        fig.savefig(f"{self.save_dir}/schedule_plot_{iter_number}.gml")
         self.write_back_rcs(f"{self.save_dir}/rcs_{iter_number}.yaml")
         shutil.copy(
             "src/tmp/symbolic_edp.txt",
