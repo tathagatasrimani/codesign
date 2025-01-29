@@ -78,8 +78,7 @@ def generate_optimization_params(latency, active_power, active_energy, passive_p
     IO.scan_IO(cacti_IO_params, g_ip, g_ip.io_type, g_ip.num_mem_dq, g_ip.mem_data_width, g_ip.num_dq, g_ip.dram_dimm, 1, g_ip.bus_freq)
     cacti_IO_params = {k: (1 if v is None or math.isnan(v) else (10**(-9) if v == 0 else v)) for k, v in cacti_IO_params.items()}
     for key, value in cacti_IO_params.items():
-        if key != "rtt1_dq_read" and key != "rtt1_dq_write" and key != "rtt2_dq_read" and key != "rtt2_dq_write":
-            rcs["Cacti_IO"][key] = value
+        rcs["Cacti_IO"][key] = value
 
     return rcs
 

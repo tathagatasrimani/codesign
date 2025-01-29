@@ -27,6 +27,7 @@ op2sym_map = {
     "Regs": "Regs",
     "Buf": "Buf",
     "MainMem": "MainMem",
+    "OffChipIO": "OffChipIO"
 }
 
 latency_scale = {

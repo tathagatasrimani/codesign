@@ -403,25 +403,6 @@ class HardwareModel:
     def update_cache_size(self, cache_size):
         pass
 
-    def init_misc_vars(self):
-        self.compute_operation_totals = {}
-
-        self.memory_cfgs = {}
-        self.mem_state = {}
-        for variable in self.memory_cfgs.keys():
-            self.mem_state[variable] = False
-        self.cycles = 0
-
-        # what is this doing?
-        for op in op2sym_map:
-            self.compute_operation_totals[op] = 0
-
-        self.hw_allocated = {}
-        self.hw_allocated["Regs"] = 0
-
-        for key in op2sym_map.keys():
-            self.hw_allocated[key] = 0
-
     def set_var_sizes(self, var_sizes):
         self.var_sizes = var_sizes
 

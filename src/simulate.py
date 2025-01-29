@@ -363,10 +363,9 @@ class ConcreteSimulator(AbstractSimulator):
                     energy = (
                         (
                             hw.dynamic_energy[node_data["function"]]["Read"]
-                            + hw.dynamic_energy[node_data["function"]]["Write"]
+                            + hw.dynamic_energy[node_data["function"]]["Write"] #already in nJ
                         )
                         / 2  # avg of read and write
-                        * 1e-9 # nW to W
                         * scaling
                     )
 

@@ -253,6 +253,8 @@ class Codesign:
 
         for cacti_var in cacti_subs:
             self.tech_params[cacti_var] = cacti_subs[cacti_var].xreplace(self.tech_params).evalf()
+        
+        self.tech_params[hw_symbols.OffChipIOL] = self.hw.latency["OffChipIO"]
 
         self.log_inverse_tech_params(cacti_subs)
 

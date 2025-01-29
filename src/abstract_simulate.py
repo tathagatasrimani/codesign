@@ -266,7 +266,7 @@ class AbstractSimulator:
             for node in nodes:
                 copy.nodes[node]["layer"] = layer
         copy = sim_util.add_cache_mem_access_to_dfg(
-            copy, hw.latency["Buf"], hw.latency["MainMem"]
+            copy, hw.latency["Buf"], hw.latency["MainMem"], hw.latency["OffChipIO"]
         )
         if schedule_type == "greedy":
             schedule.greedy_schedule(copy, hw_counts, hw.netlist)

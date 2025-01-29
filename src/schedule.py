@@ -359,6 +359,7 @@ def sdc_schedule(graph, hw_element_counts, hw_netlist, no_resource_constraints=F
                 # find the hardware element with the smallest next free time
                 # allocate the node to that hardware element
                 # update the hardware element's next free time
+                if node_function == "OffChipIO": continue
                 found_hardware_element = False
                 for hardware_element in hardware_elements_by_next_free_time:
                     if node_function in ["start", "end"]:

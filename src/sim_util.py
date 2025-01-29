@@ -406,7 +406,7 @@ def localize_memory(hw, computation_graph, total_computation_graph=None):
 
 
 def add_cache_mem_access_to_dfg(
-    computation_graph: nx.DiGraph, buf_latency: float, mem_latency: float
+    computation_graph: nx.DiGraph, buf_latency: float, mem_latency: float, io_latency : float
 ):
     """
     Add cache and memory nodes to the computation graph to indicate when explicit memory reads occur.
@@ -434,9 +434,17 @@ def add_cache_mem_access_to_dfg(
             cost=mem_latency,
             size=size,
         )
+        computation_graph.add_node(
+            f"IO{mem_count}",
+            function="OffChipIO",
+            allocation="",
+            cost=io_latency,
+            size=size,
+        )
         # weight of edge is latency of parent
-        computation_graph.add_edge(f"Mem{mem_count}", f"Buf{buf_count}", function="Mem", weight=mem_latency)
-        computation_graph.add_edge(f"Buf{buf_count}", node, function="Mem", weight=buf_latency)
+        computation_graph.add_edge(f"Mem{mem_count}", f"IO{mem_count}", function="MainMem", weight=mem_latency)
+        computation_graph.add_edge(f"IO{mem_count}", f"Buf{buf_count}", function="OffChipIO", weight=io_latency)
+        computation_graph.add_edge(f"Buf{buf_count}", node, function="Buf", weight=buf_latency)
         buf_count += 1
         mem_count += 1
 
@@ -478,7 +486,8 @@ def prune_buffer_and_mem_nodes(computation_graph: nx.DiGraph, hw_netlist: nx.DiG
     """
     def check_buffer_reg_hit(reg_node):
         buf_in = find_upstream_node_in_graph(computation_graph, "Buf", reg_node[0]) 
-        mem_in = find_upstream_node_in_graph(computation_graph, "MainMem", buf_in[0])
+        io_in = find_upstream_node_in_graph(computation_graph, "OffChipIO", buf_in[0])
+        mem_in = find_upstream_node_in_graph(computation_graph, "MainMem", io_in[0])
         allocated_reg = reg_node[1]["allocation"]
         allocated_reg_data = hw_netlist.nodes[allocated_reg]
         var_name = reg_node[0].split(";")[0]
@@ -489,10 +498,12 @@ def prune_buffer_and_mem_nodes(computation_graph: nx.DiGraph, hw_netlist: nx.DiG
             logger.info(f"register hit for {var_name} in {reg_node}")
             computation_graph.remove_node(buf_in[0])
             computation_graph.remove_node(mem_in[0])
+            computation_graph.remove_node(io_in[0])
         elif hw_netlist.nodes[buf_in[1]["allocation"]]["memory_module"].find(var_name):
             # remove the memory node
             logger.info(f"cache hit for {var_name}")
             computation_graph.remove_node(mem_in[0])
+            computation_graph.remove_node(io_in[0])
             size = hw_netlist.nodes[buf_in[1]["allocation"]]["memory_module"].read(var_name)
             computation_graph.nodes[buf_in[0]]["size"] = size
             computation_graph.nodes[reg_node[0]]["size"] = size
@@ -501,6 +512,7 @@ def prune_buffer_and_mem_nodes(computation_graph: nx.DiGraph, hw_netlist: nx.DiG
             logger.info(f"reading {var_name} from memory, adding to cache")
             size = -1*hw_netlist.nodes[buf_in[1]["allocation"]]["memory_module"].read(var_name)
             computation_graph.nodes[mem_in[0]]["size"] = size
+            computation_graph.nodes[io_in[0]]["size"] = size
             computation_graph.nodes[buf_in[0]]["size"] = size
             computation_graph.nodes[reg_node[0]]["size"] = size
         hw_netlist.nodes[allocated_reg]["var"] = var_name
@@ -878,10 +890,10 @@ def generate_init_params_from_rcs_as_symbols(rcs):
     initial_params[hw_symbols.t_jitter_addr_hold] = rcs["Cacti_IO"]["t_jitter_addr_hold"]
     initial_params[hw_symbols.t_cor_margin] = rcs["Cacti_IO"]["t_cor_margin"]
     initial_params[hw_symbols.r_diff_term] = rcs["Cacti_IO"]["r_diff_term"]
-    # initial_params[hw_symbols.rtt1_dq_read] = rcs["Cacti_IO"]["rtt1_dq_read"]
-    # initial_params[hw_symbols.rtt2_dq_read] = rcs["Cacti_IO"]["rtt2_dq_read"]
-    # initial_params[hw_symbols.rtt1_dq_write] = rcs["Cacti_IO"]["rtt1_dq_write"]
-    # initial_params[hw_symbols.rtt2_dq_write] = rcs["Cacti_IO"]["rtt2_dq_write"]
+    initial_params[hw_symbols.rtt1_dq_read] = rcs["Cacti_IO"]["rtt1_dq_read"]
+    initial_params[hw_symbols.rtt2_dq_read] = rcs["Cacti_IO"]["rtt2_dq_read"]
+    initial_params[hw_symbols.rtt1_dq_write] = rcs["Cacti_IO"]["rtt1_dq_write"]
+    initial_params[hw_symbols.rtt2_dq_write] = rcs["Cacti_IO"]["rtt2_dq_write"]
     initial_params[hw_symbols.rtt_ca] = rcs["Cacti_IO"]["rtt_ca"]
     initial_params[hw_symbols.rs1_dq] = rcs["Cacti_IO"]["rs1_dq"]
     initial_params[hw_symbols.rs2_dq] = rcs["Cacti_IO"]["rs2_dq"]
@@ -1035,10 +1047,10 @@ def generate_cacti_init_params_from_rcs_as_symbols(rcs):
     cacti_params[hw_symbols.t_jitter_addr_hold] = rcs["Cacti_IO"]["t_jitter_addr_hold"]
     cacti_params[hw_symbols.t_cor_margin] = rcs["Cacti_IO"]["t_cor_margin"]
     cacti_params[hw_symbols.r_diff_term] = rcs["Cacti_IO"]["r_diff_term"]
-    # cacti_params[hw_symbols.rtt1_dq_read] = rcs["Cacti_IO"]["rtt1_dq_read"]
-    # cacti_params[hw_symbols.rtt2_dq_read] = rcs["Cacti_IO"]["rtt2_dq_read"]
-    # cacti_params[hw_symbols.rtt1_dq_write] = rcs["Cacti_IO"]["rtt1_dq_write"]
-    # cacti_params[hw_symbols.rtt2_dq_write] = rcs["Cacti_IO"]["rtt2_dq_write"]
+    cacti_params[hw_symbols.rtt1_dq_read] = rcs["Cacti_IO"]["rtt1_dq_read"]
+    cacti_params[hw_symbols.rtt2_dq_read] = rcs["Cacti_IO"]["rtt2_dq_read"]
+    cacti_params[hw_symbols.rtt1_dq_write] = rcs["Cacti_IO"]["rtt1_dq_write"]
+    cacti_params[hw_symbols.rtt2_dq_write] = rcs["Cacti_IO"]["rtt2_dq_write"]
     cacti_params[hw_symbols.rtt_ca] = rcs["Cacti_IO"]["rtt_ca"]
     cacti_params[hw_symbols.rs1_dq] = rcs["Cacti_IO"]["rs1_dq"]
     cacti_params[hw_symbols.rs2_dq] = rcs["Cacti_IO"]["rs2_dq"]

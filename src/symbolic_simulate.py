@@ -191,22 +191,28 @@ class SymbolicSimulator(AbstractSimulator):
                 node_data = computation_dfg.nodes[node]
                 if node_data["function"] == "stall" or node_data["function"] == "end":
                     continue
-                if node_data["function"] in ["Buf", "MainMem"]:
+                if node_data["function"] in ["Buf", "MainMem", "OffChipIO"]:
                     # active power should scale by size of the object being accessed.
                     # all regs have the same size, so no need to scale.
-                    if node_data["function"] == "MainMem":
-                        scaling = node_data["size"] / hw.memory_bus_width
-                    else:
+                    if node_data["function"] == "Buf":
                         scaling = node_data["size"] / hw.buffer_bus_width
+                    else:
+                        scaling = node_data["size"] / hw.memory_bus_width
                     logger.info(f"energy scaling: {scaling}")
-                    energy = hw_symbols.symbolic_energy_active[
-                        node_data["function"]
-                    ] * 1e9 # J -> nJ
+                    if node_data["function"] == "OffChipIO":
+                        energy = (hw_symbols.symbolic_power_active["OffChipIO"]
+                                  * hw.latency["OffChipIO"])
+                    else:   
+                        energy = hw_symbols.symbolic_energy_active[
+                            node_data["function"]
+                        ] * 1e9 # J -> nJ
                 else:
                     energy = (
                         hw_symbols.symbolic_power_active[node_data["function"]]
                         * hw_symbols.symbolic_latency_wc[node_data["function"]]
                     )  # W * ns
+
+                logger.info(f"adding {energy} nJ to active energy")
 
                 self.total_active_energy += energy * scaling  # nJ
 
@@ -305,12 +311,13 @@ class SymbolicSimulator(AbstractSimulator):
             MemL_expr = hw.symbolic_mem.access_time * 1e9 # convert from s to ns
             MemReadEact_expr = hw.symbolic_mem.power.readOp.dynamic
             MemWriteEact_expr = hw.symbolic_mem.power.writeOp.dynamic
-            MemPpass_expr = hw.symbolic_mem.power.readOp.leakage
+            MemPpass_expr = hw.symbolic_mem.power.readOp.leakage # TODO: investigate units of this expr
+            OffChipIOPact_expr = hw.symbolic_mem.io_dynamic_power * 1e-3 # convert from mW to W
 
             BufL_expr = hw.symbolic_buf.access_time * 1e9 # convert from s to ns
             BufReadEact_expr = hw.symbolic_buf.power.readOp.dynamic
             BufWriteEact_expr = hw.symbolic_buf.power.writeOp.dynamic
-            BufPpass_expr = hw.symbolic_buf.power.readOp.leakage
+            BufPpass_expr = hw.symbolic_buf.power.readOp.leakage # TODO: investigate units of this expr
 
         # TODO: print these vs fw pass values
         cacti_subs = {
@@ -319,6 +326,7 @@ class SymbolicSimulator(AbstractSimulator):
             hw_symbols.MemReadEact: MemReadEact_expr,
             hw_symbols.MemWriteEact: MemWriteEact_expr,
             hw_symbols.MemPpass: MemPpass_expr,
+            hw_symbols.OffChipIOPact: OffChipIOPact_expr,
 
             hw_symbols.BufL: BufL_expr,
             hw_symbols.BufReadEact: BufReadEact_expr,
