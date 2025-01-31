@@ -678,7 +678,7 @@ def compose_entire_computation_graph(
         found_alignment = rename_nodes(
             computation_dfg, dfg, generations, curr_last_nodes, modified_regs
         )
-        print(modified_regs)
+        #print(modified_regs)
         computation_dfg = nx.compose(computation_dfg, dfg)
 
         curr_last_nodes = list(nx.topological_generations(nx.reverse(dfg.copy())))[0]

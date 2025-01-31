@@ -306,7 +306,7 @@ def process_nodes_in_topo_order(graph, topological_order, opt_vars, hw_element_c
                     )
                     break
 
-def sdc_schedule(graph, hw_element_counts, hw_netlist, no_resource_constraints=False, add_resource_edges=False, debug=True):
+def sdc_schedule(graph, hw_element_counts, hw_netlist, no_resource_constraints=False, add_resource_edges=False, debug=False):
     """
     Runs the convex optimization problem to minimize the longest path latency.
     Encodes data dependency constraints from CDFG and resource constraints using
@@ -318,7 +318,7 @@ def sdc_schedule(graph, hw_element_counts, hw_netlist, no_resource_constraints=F
     opt_vars = []
     graph_nodes = graph.nodes(data=True)
     id = 0
-    sim_util.topological_layout_plot(graph)
+    if debug: sim_util.topological_layout_plot(graph)
 
     for node in graph_nodes:
         curr_var = cp.Variable(
@@ -388,7 +388,7 @@ def sdc_schedule(graph, hw_element_counts, hw_netlist, no_resource_constraints=F
 
     obj = cp.Minimize(opt_vars[graph_nodes["end"]["scheduling_id"]][0])
     prob = cp.Problem(obj, constraints)
-    prob.solve(verbose=True)
+    prob.solve()
     #print(prob.status)
 
     # num_stall_nodes_added = add_stall_nodes_to_sdc(graph, opt_vars)
@@ -482,7 +482,7 @@ class LiveInterval:
     def split(self, time, graph):
         # create two new live intervals split at t=time
         new_op_names = list(filter(lambda x: graph.nodes[x]["start_time"] >= time, self.op_names))
-        print(new_op_names)
+        #print(new_op_names)
         new_op_names = sorted(new_op_names, key=lambda x: graph.nodes[x]["start_time"])
         return LiveInterval(graph.nodes[new_op_names[0]]["start_time"], self.end, self.variable, self.id, new_op_names)
 
@@ -534,7 +534,7 @@ def register_allocate(graph, hw_element_counts, hw_netlist):
     op_allocation = {}
 
     for interval in intervals:
-        print(interval)
+        logger.info(str(interval))
 
     num_registers = hw_element_counts["Regs"]
     reg_instances = list(filter(lambda x: x[1]["function"] == "Regs", hw_netlist.nodes(data=True)))
@@ -557,7 +557,7 @@ def register_allocate(graph, hw_element_counts, hw_netlist):
                 for candidate_reg_op in spill_candidate.op_names:
                     candidate_reg_data = graph.nodes[candidate_reg_op]
                     if overlaps(first_reg_in_current_interval, candidate_reg_data): # move to next spill candidate
-                        print(candidate_reg_op, interval.op_names[0], "overlap")
+                        #print(candidate_reg_op, interval.op_names[0], "overlap")
                         break
                     elif candidate_reg_data["start_time"] >= first_reg_in_current_interval["end_time"]:
                         active.remove(spill_candidate)
@@ -575,14 +575,14 @@ def register_allocate(graph, hw_element_counts, hw_netlist):
             assert completed_spill, "Could not spill any active interval"
         else:
             # Allocate a register
-            print(allocation)
+            #print(allocation)
             free_register = next(i for i in range(num_registers) if i not in [allocation.get(i.variable) for i in active])
             allocation[interval.variable] = free_register
-            print(free_register)
+            #print(free_register)
             for op in interval.op_names:
                 op_allocation[op] = free_register
             active.append(interval)
-    print(op_allocation)
+    #print(op_allocation)
     for op in op_allocation:
         graph.nodes[op]["allocation"] = reg_instances[op_allocation[op]][0]
 
