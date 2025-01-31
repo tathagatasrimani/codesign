@@ -15,8 +15,8 @@ from src import hardwareModel
 from src import architecture_search
 from src import sim_util
 
-benchmark = "add_and_mult.py"
-config = "aladdin_const_with_mem"
+benchmark = "matmult.py"
+config = "tiny"
 
 openroad_testfile = "openroad_interface/tcl/test_nangate45_bigger.tcl"
 
@@ -46,4 +46,5 @@ nx.write_gml(scheduled_dfg, "notebooks/test_files/scheduled_dfg.gml")
 fig, ax = sim_util.plot_schedule_gantt(scheduled_dfg)
 
 # Show the plot
+plt.show()
 fig.savefig("notebooks/test_files/schedule_plot.png")

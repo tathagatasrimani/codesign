@@ -258,6 +258,9 @@ class AbstractSimulator:
         elif schedule_type == "sdc":
             schedule.sdc_schedule(copy, hw_counts, hw.netlist)
 
+        # after first scheduling, perform register allocation using linear scan algorithm
+        schedule.register_allocate(copy, hw_counts, hw.netlist)
+
         for layer, nodes in enumerate(
             reversed(list(nx.topological_generations(nx.reverse(computation_dfg))))
         ):

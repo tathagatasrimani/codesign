@@ -253,7 +253,60 @@ def assign_upstream_path_lengths_old(graph):
 
     return graph
 
-def sdc_schedule(graph, hw_element_counts, hw_netlist, no_resource_constraints=False, add_resource_edges=False):
+def process_register_topo(graph, node, topo_order_regs, seen, check_arith=False):
+    """
+    typical arithmetic op:      (Reg read)--->(op)<---(Reg read)
+                                                |
+                                                |
+                                            (reg write)
+    We want all three of these registers to be grouped in topological ordering so that
+    resource edge chains do not create infeasible schedules.
+    """
+    topo_order_regs.append(node)
+    seen.add(node)
+    if check_arith:
+        parents = list(graph.predecessors(node))
+        assert len(parents) <= 1, f"reg op has more than one parent, {parents} -> {node}"
+        for parent in parents:
+            # if parent is an arithmetic operator, its input register operations should be grouped 
+            # in topological order with the output register
+            if graph.nodes[parent]["function"] not in ["Regs", "Buf"] and graph.nodes[node]["write"]:
+                parents = graph.predecessors(parent)
+                for parent in parents:
+                    if graph.nodes[parent]["function"] == "Regs" and parent not in seen:
+                        process_register_topo(graph, parent, topo_order_regs, seen) 
+
+def process_nodes_in_topo_order(graph, topological_order, opt_vars, hw_element_counts, resource_constraints, debug=False, resource_chain_edges=None):
+    for i in range(len(topological_order)):
+        curr_func_count = 0
+        start_node = topological_order[i]
+        if graph.nodes[start_node]["function"] not in hw_element_counts:
+            continue
+        curr_func_count += 1
+        for j in range(i + 1, len(topological_order)):
+            curr_node = topological_order[j]
+            if graph.nodes[curr_node]["function"] not in hw_element_counts:
+                continue
+            if (
+                graph.nodes[curr_node]["function"]
+                == graph.nodes[start_node]["function"]
+            ):
+                curr_func_count += 1
+                if (
+                    curr_func_count
+                    > hw_element_counts[graph.nodes[curr_node]["function"]]
+                ):
+                    logger.info(f"constraining {curr_node} to be later than {start_node}")
+                    if debug: resource_chain_edges.append((start_node, curr_node))
+                    # add a constraint
+                    resource_constraints.append(
+                        opt_vars[graph.nodes[start_node]["scheduling_id"]][0]
+                        - opt_vars[graph.nodes[curr_node]["scheduling_id"]][0]
+                        <= -graph.nodes[start_node]["cost"]
+                    )
+                    break
+
+def sdc_schedule(graph, hw_element_counts, hw_netlist, no_resource_constraints=False, add_resource_edges=False, debug=True):
     """
     Runs the convex optimization problem to minimize the longest path latency.
     Encodes data dependency constraints from CDFG and resource constraints using
@@ -262,96 +315,88 @@ def sdc_schedule(graph, hw_element_counts, hw_netlist, no_resource_constraints=F
     all to all.
     """
     constraints = []
-    vars = []
+    opt_vars = []
     graph_nodes = graph.nodes(data=True)
     id = 0
-    reg_to_interval_id = {}
+    sim_util.topological_layout_plot(graph)
 
     for node in graph_nodes:
         curr_var = cp.Variable(
             2, name=node[0]
         )  # first one is start time and last one is end time
-        vars.append(curr_var)
+        opt_vars.append(curr_var)
         # start time + latency = end time for each operating node
         node[1]["scheduling_id"] = id
-        node[1]["allocation"] = ""
+        if node[1]["function"] != "Regs": node[1]["allocation"] = "" # register allocation done elsewhere
         id += 1
         constraints.append(curr_var[0] >= 0)
         if "cost" in node[1].keys():
             constraints.append(curr_var[0] + node[1]["cost"] == curr_var[1])
     
     for node in graph_nodes:
-        if node[1]["function"] == "Regs":
-            # create additional variable encoding interval between register access and subsequent operation
-            curr_var = vars[node[1]["scheduling_id"]]
-            successors = list(graph.successors(node[0]))
+        # constrain arithmetic ops to load from register right before they begin, and store right after to prevent value overwrites
+        curr_var = opt_vars[node[1]["scheduling_id"]]
+        successors = list(graph.successors(node[0]))
+        if node[1]["function"] != "Buf": #todo: figure out how to deal with buf-> reg edges
             op_count = 0
             for successor in successors:
                 child = graph.nodes[successor]
-                if child["function"] in ["Regs", "end"]: continue
-                op_count += 1
-                interval_var = cp.Variable(2, name=node[0]+"_interval")
-                vars.append(interval_var)
-                reg_to_interval_id[node[1]["scheduling_id"]] = id
-                id += 1
-                constraints += [interval_var[0] == curr_var[0], interval_var[1] == vars[child["scheduling_id"]][0]]
-            assert op_count <= 1, "each node should have at most 1 arithmetic op child"
+                reg_to_arith_op = node[1]["function"] == "Regs" and child["function"] not in ["Regs", "end"]
+                arith_op_to_reg = node[1]["function"] not in ["Regs", "Buf"] and child["function"] == "Regs"
+                if reg_to_arith_op or arith_op_to_reg:
+                    op_count += 1
+                    constraints += [curr_var[1] == opt_vars[child["scheduling_id"]][0]]
+                    logger.info(f"constraining {node[0]} to execute right before {successor}")
+            assert op_count <= 1, f"each node should have at most 1 arithmetic op or reg child, violating node is {node[0]}"
 
     # data dependency constraints
     for u, v in graph.edges():
         source_id = int(graph_nodes[u]["scheduling_id"])
         dest_id = int(graph_nodes[v]["scheduling_id"])
-        constraints.append(vars[source_id][1] - vars[dest_id][0] <= 0.0)
+        constraints.append(opt_vars[source_id][1] - opt_vars[dest_id][0] <= 0.0)
     
     topological_order = longest_path_first_topological_sort(graph)
+    topo_order_regs= []
+    all_regs = []
+    seen = set()
+    # set topological order for register dependency chain. We should ensure that
+    # input registers to an arithmetic operation and the corresponding output register are grouped together
+    # to avoid an infeasible scheduling problem.
+    for node in topological_order[::-1]:
+        if graph.nodes[node]["function"] == "Regs" and node not in seen:
+            process_register_topo(graph, node, topo_order_regs, seen, check_arith=True)                   
+        if graph.nodes[node]["function"] == "Regs":
+            all_regs.append(node)
+    assert len(all_regs) == len(topo_order_regs), f"topo order did not include all register operations"
+    
+
+    resource_chain_edges = []
+    topo_order_regs = topo_order_regs[::-1]
+    topo_order_no_regs = list(filter(lambda x: graph.nodes[x]["function"] != "Regs", topological_order))
+    assert len(topo_order_no_regs) + len(topo_order_regs) == len(topological_order)
     if not no_resource_constraints:
         resource_constraints = []
-        for i in range(len(topological_order)):
-            curr_func_count = 0
-            start_node = topological_order[i]
-            if graph.nodes[start_node]["function"] not in hw_element_counts:
-                continue
-            curr_func_count += 1
-            for j in range(i + 1, len(topological_order)):
-                curr_node = topological_order[j]
-                if graph.nodes[curr_node]["function"] not in hw_element_counts:
-                    continue
-                if (
-                    graph.nodes[curr_node]["function"]
-                    == graph.nodes[start_node]["function"]
-                ):
-                    curr_func_count += 1
-                    if (
-                        curr_func_count
-                        > 2 * hw_element_counts[graph.nodes[curr_node]["function"]]
-                    ):
-                        break
-                    if (
-                        curr_func_count
-                        > hw_element_counts[graph.nodes[curr_node]["function"]]
-                    ):
-                        # add a constraint
-                        resource_constraints.append(
-                            vars[graph.nodes[start_node]["scheduling_id"]][0]
-                            - vars[graph.nodes[curr_node]["scheduling_id"]][0]
-                            <= -graph.nodes[start_node]["cost"]
-                        )
-                        if graph.nodes[curr_node]["function"] == "Regs" and graph.nodes[start_node]["scheduling_id"] in reg_to_interval_id:
-                            # encode register liveness interval constraints. 
-                            # register must hold its value until subsequent operation begins
-                            resource_constraints.append(
-                                vars[reg_to_interval_id[graph.nodes[start_node]["scheduling_id"]]][1]
-                                <= vars[graph.nodes[curr_node]["scheduling_id"]][0]
-                            )
+        process_nodes_in_topo_order(graph, topo_order_no_regs, opt_vars, hw_element_counts, resource_constraints, debug, resource_chain_edges)
+        process_nodes_in_topo_order(graph, topo_order_regs, opt_vars, hw_element_counts, resource_constraints, debug, resource_chain_edges)       
         constraints += resource_constraints
-    obj = cp.Minimize(vars[graph_nodes["end"]["scheduling_id"]][0])
-    prob = cp.Problem(obj, constraints)
-    prob.solve()
 
-    # num_stall_nodes_added = add_stall_nodes_to_sdc(graph, vars)
+    if debug:
+        resource_chain_graph = graph.copy()
+        for edge in resource_chain_edges:
+            resource_chain_graph.add_edge(edge[0], edge[1])
+        sim_util.topological_layout_plot(resource_chain_graph, extra_edges=resource_chain_edges)
+
+    obj = cp.Minimize(opt_vars[graph_nodes["end"]["scheduling_id"]][0])
+    prob = cp.Problem(obj, constraints)
+    prob.solve(verbose=True)
+    #print(prob.status)
+
+    # num_stall_nodes_added = add_stall_nodes_to_sdc(graph, opt_vars)
     # assign start and end times to each node
     for node in graph_nodes:
-        start_time, end_time = vars[node[1]['scheduling_id']].value
+        #print(node)
+        #print(opt_vars[0])
+        start_time, end_time = opt_vars[node[1]['scheduling_id']].value
         node[1]['start_time'] = np.round(start_time, 3)
         node[1]['end_time'] = np.round(end_time, 3)
     
@@ -386,7 +431,12 @@ def sdc_schedule(graph, hw_element_counts, hw_netlist, no_resource_constraints=F
                 # find the hardware element with the smallest next free time
                 # allocate the node to that hardware element
                 # update the hardware element's next free time
-                if node_function == "OffChipIO": continue
+                if node_function == "OffChipIO": continue # IO allocation not necessary
+                if node_function == "Regs": # register allocation done elsewhere
+                    if "allocation" in node[1]:
+                        hardware_element_allocations_by_start_time[node[1]["allocation"]].append((node[0], node[1]['cost']))
+                        hardware_elements_by_next_free_time[node[1]["allocation"]] = node_end_time
+                    continue
                 found_hardware_element = False
                 for hardware_element in hardware_elements_by_next_free_time:
                     if node_function in ["start", "end"]:
@@ -410,6 +460,132 @@ def sdc_schedule(graph, hw_element_counts, hw_netlist, no_resource_constraints=F
                 resource_edge_graph.add_edge(allocations[i-1][0], allocations[i][0], weight=allocations[i-1][1])
 
     return resource_edge_graph
+
+
+class LiveInterval:
+    def __init__(self, start, end, variable, id, op_names=[]):
+        self.start = start
+        self.end = end
+        self.variable = variable
+        self.id = id
+        self.op_names = op_names
+
+    def extend(self, new_end):
+        self.end = new_end
+    
+    def add_op(self, op):
+        self.op_names.append(op)
+
+    def name(self):
+        return self.variable
+    
+    def split(self, time, graph):
+        # create two new live intervals split at t=time
+        new_op_names = list(filter(lambda x: graph.nodes[x]["start_time"] >= time, self.op_names))
+        print(new_op_names)
+        new_op_names = sorted(new_op_names, key=lambda x: graph.nodes[x]["start_time"])
+        return LiveInterval(graph.nodes[new_op_names[0]]["start_time"], self.end, self.variable, self.id, new_op_names)
+
+    def __str__(self):
+        return f"{self.variable} ({self.op_names}): [{self.start}, {self.end}]"
+
+    def __lt__(self, other):
+        return self.start < other.start
+    
+    
+def get_live_intervals(sorted_regs):
+    active = {}
+    intervals = []
+    id = 0
+    for reg_node in sorted_regs:
+        #print(reg_node)
+        var_name = reg_node[0][:reg_node[0].find(';')]
+        if var_name in active:
+            # if write, then we create a new interval for the variable and save the current one
+            if reg_node[1]["write"]:
+                intervals.append(active[var_name])
+                active[var_name] = LiveInterval(reg_node[1]["start_time"], reg_node[1]["end_time"], var_name, id, [reg_node[0]])
+                id = id + 1
+            # if read, then we can extend the current interval
+            else:
+                active[var_name].extend(reg_node[1]["end_time"])
+                active[var_name].add_op(reg_node[0])
+        else:
+            #print(f"creating interval for {var_name} with op {reg_node[0]}")
+            # if no interval exists yet for the variable, create one
+            active[var_name] = LiveInterval(reg_node[1]["start_time"], reg_node[1]["end_time"], var_name, id, [reg_node[0]])
+            id = id + 1
+    # add remaining active intervals
+    for var in active:
+        intervals.append(active[var])
+    return intervals
+
+
+def overlaps(node_1, node_2):
+    return node_1["start_time"] < node_2["end_time"] and node_2["start_time"] < node_1["end_time"]
+
+
+def register_allocate(graph, hw_element_counts, hw_netlist):
+    reg_nodes = filter(lambda x: x[1]["function"] == "Regs", graph.nodes(data=True))
+    sorted_regs = sorted(reg_nodes, key=lambda x: x[1]["start_time"])
+    intervals = deque(get_live_intervals(sorted_regs))
+    active = []
+    allocation = {}
+    op_allocation = {}
+
+    for interval in intervals:
+        print(interval)
+
+    num_registers = hw_element_counts["Regs"]
+    reg_instances = list(filter(lambda x: x[1]["function"] == "Regs", hw_netlist.nodes(data=True)))
+
+
+    while len(intervals) != 0:
+        interval = intervals.popleft()
+        # Expire old intervals
+        active = [i for i in active if i.end > interval.start]
+
+        if len(active) == num_registers:
+            # Spill a register
+            spill_candidates = sorted(active, key=lambda i: i.end)[::-1] # from latest end time to earliest
+            completed_spill = False
+            for spill_candidate in spill_candidates:
+                # ensure that no register operation in spill candidate is allocated at exactly the same time as the first one in
+                # the current interval. That way, we can assign the current interval to spill_candidate's register
+                first_reg_in_current_interval = graph.nodes[interval.op_names[0]]
+                assert first_reg_in_current_interval["start_time"] == interval.start
+                for candidate_reg_op in spill_candidate.op_names:
+                    candidate_reg_data = graph.nodes[candidate_reg_op]
+                    if overlaps(first_reg_in_current_interval, candidate_reg_data): # move to next spill candidate
+                        print(candidate_reg_op, interval.op_names[0], "overlap")
+                        break
+                    elif candidate_reg_data["start_time"] >= first_reg_in_current_interval["end_time"]:
+                        active.remove(spill_candidate)
+                        spilled_interval = spill_candidate.split(first_reg_in_current_interval["end_time"], graph)
+                        for op in spilled_interval.op_names:
+                            op_allocation[op] = None
+                        for op in interval.op_names:
+                            op_allocation[op] = allocation[spill_candidate.variable]
+                        allocation[interval.variable] = allocation[spill_candidate.variable]
+                        allocation[spill_candidate.variable] = None  # Mark as spilled
+                        completed_spill= True
+                        intervals.appendleft(spilled_interval)
+                        break
+                if completed_spill: break
+            assert completed_spill, "Could not spill any active interval"
+        else:
+            # Allocate a register
+            print(allocation)
+            free_register = next(i for i in range(num_registers) if i not in [allocation.get(i.variable) for i in active])
+            allocation[interval.variable] = free_register
+            print(free_register)
+            for op in interval.op_names:
+                op_allocation[op] = free_register
+            active.append(interval)
+    print(op_allocation)
+    for op in op_allocation:
+        graph.nodes[op]["allocation"] = reg_instances[op_allocation[op]][0]
+
 
 def write_df(in_use, hw_element_counts, execution_time, step):
     data = {
@@ -535,12 +711,15 @@ def pre_schedule(computation_graph, hw_netlist, hw_latency):
 
     for u, v, data in operator_edges:  # this shouldn't run after the first iteration
         if (u, v) not in hw_netlist.edges():
-            new_node_name = f"tmp_op_reg;{new_node_id}"
-            computation_graph.add_node(new_node_name, function="Regs", cost=hw_latency["Regs"], write=True)
+            new_node_name_r = f"tmp_op_reg_r;{new_node_id}"
+            new_node_name_w = f"tmp_op_reg_w;{new_node_id}"
+            computation_graph.add_node(new_node_name_w, function="Regs", cost=hw_latency["Regs"], write=True)
+            computation_graph.add_node(new_node_name_r, function="Regs", cost=hw_latency["Regs"], write=False)
             
             computation_graph.remove_edge(u, v)
-            computation_graph.add_edge(u, new_node_name, weight=reg_weight)
-            computation_graph.add_edge(new_node_name, v, **data)
+            computation_graph.add_edge(u, new_node_name_w, weight=reg_weight)
+            computation_graph.add_edge(new_node_name_w, new_node_name_r, weight=reg_weight)
+            computation_graph.add_edge(new_node_name_r, v, **data)
 
             new_node_id += 1
 

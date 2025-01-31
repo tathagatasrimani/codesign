@@ -4,6 +4,7 @@ import glob
 import os
 import datetime
 import logging
+from collections import deque, defaultdict
 
 logger = logging.getLogger(__name__)
 
@@ -451,7 +452,7 @@ def add_cache_mem_access_to_dfg(
     return computation_graph
 
 
-def find_upstream_node_in_graph(graph:nx.DiGraph, func:str, node:str):
+def find_upstream_node_in_graph(graph:nx.DiGraph, func:str, node:str, kill=True):
     """
     Find the upstream node in the graph with the specified function. Assumes all nodes have only one in edge.
     And that the desired function exists somewhere upstream.
@@ -460,6 +461,7 @@ def find_upstream_node_in_graph(graph:nx.DiGraph, func:str, node:str):
         graph (nx.DiGraph): The graph to search.
         func (str): The function to search for.
         node (str): The node from which to search.
+        kill (bool): raise an exception if no valid upstream node is found
     """
     func_in = []
     while len(func_in) == 0:
@@ -468,7 +470,10 @@ def find_upstream_node_in_graph(graph:nx.DiGraph, func:str, node:str):
                             graph.in_edges(node),
                         ))
                 if len(in_edges) == 0:
-                    raise Exception(f"Could not find upstream node with function {func}")
+                    if kill:
+                        raise Exception(f"Could not find upstream node with function {func}")
+                    else:
+                        return None
                 node = in_edges[0][0] # only need the name
                 func_in = list(
                     filter(
@@ -505,13 +510,13 @@ def prune_buffer_and_mem_nodes(computation_graph: nx.DiGraph, hw_netlist: nx.DiG
                 logger.info(f"cache hit for {var_name}")
                 computation_graph.remove_node(mem_in[0])
                 computation_graph.remove_node(io_in[0])
-                size = hw_netlist.nodes[buf_in[1]["allocation"]]["memory_module"].read(var_name)
+                size = int(hw_netlist.nodes[buf_in[1]["allocation"]]["memory_module"].read(var_name))
                 computation_graph.nodes[buf_in[0]]["size"] = size
                 computation_graph.nodes[reg_node[0]]["size"] = size
             else:
                 # read from memory and add to cache
                 logger.info(f"reading {var_name} from memory, adding to cache")
-                size = -1*hw_netlist.nodes[buf_in[1]["allocation"]]["memory_module"].read(var_name)
+                size = int(-1*hw_netlist.nodes[buf_in[1]["allocation"]]["memory_module"].read(var_name))
                 computation_graph.nodes[mem_in[0]]["size"] = size
                 computation_graph.nodes[io_in[0]]["size"] = size
                 computation_graph.nodes[buf_in[0]]["size"] = size
@@ -566,7 +571,7 @@ def update_arch(computation_graph, hw_netlist):
     return composition
 
 
-def rename_nodes(G, H, H_generations=None, curr_last_nodes=None):
+def rename_nodes(G, H, H_generations=None, curr_last_nodes=None, modified_regs=set()):
     """
     Rename nodes in H to avoid collisions in G.
     try to rename the values in H_generations here?
@@ -579,6 +584,20 @@ def rename_nodes(G, H, H_generations=None, curr_last_nodes=None):
     if H_generations is not None and curr_last_nodes is not None:
         for elem in H_generations[0]:
             for elem_2 in curr_last_nodes:
+                if G.nodes[elem_2]["function"] == "Regs" and elem_2 not in modified_regs:
+                    parents = list(G.predecessors(elem_2))
+                    assert len(parents) == 1, "more than 1 parent for Reg"
+                    name = get_unique_node_name(G, elem_2)
+                    G.add_node(
+                        name,
+                        function=G.nodes[elem_2]["function"],
+                        cost=G.nodes[elem_2]["cost"],
+                        write=True
+                    )
+                    G.remove_edge(parents[0], elem_2)
+                    G.add_edge(parents[0], name, weight=G.nodes[elem_2]["cost"])
+                    G.add_edge(name, elem_2, weight=G.nodes[elem_2]["cost"])
+                    modified_regs.add(elem_2)
                 if elem.split(";")[0] == elem_2.split(";")[0]:
                     relabelling[elem] = elem_2
                     found_alignment = True
@@ -624,6 +643,7 @@ def compose_entire_computation_graph(
     computation_dfg = nx.DiGraph()
     curr_last_nodes = []
     mallocs = []
+    modified_regs = set()
     i = find_next_data_path_index(data_path, 0, mallocs, [])[0]
     while i < len(data_path):
         node_id = data_path[i][0]
@@ -656,8 +676,9 @@ def compose_entire_computation_graph(
 
         generations = list(nx.topological_generations(dfg))
         found_alignment = rename_nodes(
-            computation_dfg, dfg, generations, curr_last_nodes
+            computation_dfg, dfg, generations, curr_last_nodes, modified_regs
         )
+        print(modified_regs)
         computation_dfg = nx.compose(computation_dfg, dfg)
 
         curr_last_nodes = list(nx.topological_generations(nx.reverse(dfg.copy())))[0]
@@ -680,25 +701,48 @@ def compose_entire_computation_graph(
     return computation_dfg, mallocs
 
 
-def topological_layout_plot(graph, reverse=False):
-    graph_copy = graph.copy()
-    generations = (
-        reversed(list(nx.topological_generations(nx.reverse(graph_copy))))
-        if reverse
-        else nx.topological_generations(graph_copy)
-    )
+def topological_layout_plot(graph, reverse=False, extra_edges=None):
+    # Compute the topological order of the nodes
+    if nx.is_directed_acyclic_graph(graph):
+        topological_order = list(nx.topological_sort(graph))
+    else:
+        raise ValueError("Graph is not a Directed Acyclic Graph (DAG), topological sorting is not possible.")
+    
+    # Group nodes by level in topological order
+    levels = defaultdict(int)
+    in_degrees = {node: graph.in_degree(node) for node in graph.nodes()}
+    
+    for node in topological_order:
+        level = 0 if in_degrees[node] == 0 else max(levels[parent] + 1 for parent in graph.predecessors(node))
+        levels[node] = level
+    
+    # Arrange nodes in horizontal groups based on level
+    level_nodes = defaultdict(list)
+    for node, level in levels.items():
+        level_nodes[level].append(node)
+    
+    # Assign positions: group nodes by levels from top to bottom
+    pos = {}
+    for level, nodes in level_nodes.items():
+        x_positions = np.linspace(-len(nodes)/2, len(nodes)/2, num=len(nodes))
+        for x, node in zip(x_positions, nodes):
+            pos[node] = (x, -level)
 
-    for layer, nodes in enumerate(generations):
-        # `multipartite_layout` expects the layer as a node attribute, so add the
-        # numeric layer value as a node attribute
-        for node in nodes:
-            graph_copy.nodes[node]["layer"] = layer
+    if extra_edges:
+        edge_colors = ['red' if (u, v) in extra_edges else 'gray' for (u, v) in graph.edges()]
+    else:
+        edge_colors = ['gray' for (u, v) in graph.edges()]
+    
+    # Draw the graph with curved edges to avoid overlap
+    plt.figure(figsize=(10, 6))
+    nx.draw(graph, pos, with_labels=True, node_color='lightblue', edge_color=edge_colors, node_size=700, font_size=10, connectionstyle="arc3,rad=0.2")
+    
+    # Draw dashed lines between topological levels
+    max_level = max(level_nodes.keys())
+    for level in range(max_level):
+        plt.axhline(y=-(level + 0.5), color='gray', linestyle='dashed', linewidth=0.5)
 
-    # Compute the multipartite_layout using the "layer" node attribute
-    pos = nx.multipartite_layout(graph_copy, subset_key="layer")
-
-    fig, ax = plt.subplots(figsize=(9, 9))
-    nx.draw_networkx(graph_copy, pos=pos, ax=ax)
+    # Show the graph
     plt.show()
 
 
