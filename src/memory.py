@@ -234,6 +234,82 @@ class Cache:
             self.free_space -= size
             return -1 * size
 
+# storage unit keeps track of total space, used space, variables currently there, and trace of operations on it
+class Buffer:
+    def __init__(self, size):
+        self.size = size
+        self.vars = {}
+        self.free_space = size
+        self.ops = []
+        self.last_write_op = {}
+        self.dirty = {}
+
+    def evict(self, var, size):
+        self.vars.pop(var)
+        self.free_space += size
+
+    def evict_random(self):
+        var = rng.choice(list(self.vars.keys()))
+        size = self.vars[var]
+        self.evict(var, size)
+        self.ops.append(f"evict {var}")
+        return var
+
+    # write variable, return any which had to be evicted along with their last write ops
+    def write(self, var, op_name, size=16):
+        assert size <= self.size, f"Buffer does not have enough space for {var} of size {size}, opname {op_name}"
+        evicted = []
+        if var not in self.vars:
+            while self.free_space - size < 0:
+                evicted.append(self.evict_random())
+            self.vars.add(var)
+            self.free_space -= size
+            self.ops.append(f"write {var} for {op_name}")
+            self.dirty[var] = False
+        else:
+            self.ops.append(f"update value of {var} in {op_name}")
+            self.dirty[var] = True
+        self.last_write_op[var] = op_name
+        retval = [(i, self.last_write_op[i], self.dirty[i]) for i in evicted]
+        for evictee in evicted:
+            self.last_write_op.pop(evictee)
+            self.dirty.pop(evictee)
+        return retval
+
+    def check_hit(self, var):
+        print(self.vars, var)
+        if var in self.vars:
+            self.ops.append(f"read {var}")
+        return var in self.vars
+    
+class Register(Buffer):
+    def __init__(self):
+        super().__init__(16) # reg is 16 bit
+    
+    # register write is different because we assert that only 1 element should be there at a time
+    def write(self, var, op_name, size=16):
+        evicted = []
+        if var not in self.vars:
+            keys = list(self.vars.keys())
+            if len(keys) > 0:
+                evicted = keys
+                assert len(evicted) == 1, "reg should hold 1 value"
+                self.ops.append(f"evict {evicted[0]}")
+            self.vars = {var: 16}
+            self.ops.append(f"write {var}")
+            self.dirty[var] = False
+        else:
+            self.ops.append(f"update value of {var}")
+            self.dirty[var] = True
+        self.last_write_op[var] = op_name
+        retval = []
+        if len(evicted) > 0:
+            retval = [(evicted[0], self.last_write_op[evicted[0]], self.dirty[evicted[0]])]
+            self.last_write_op.pop(evicted[0])
+            self.dirty.pop(evicted[0])
+        print(retval)
+        return retval
+        
 
 # debugging
 if __name__ == "__main__":

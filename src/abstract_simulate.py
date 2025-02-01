@@ -256,10 +256,11 @@ class AbstractSimulator:
         if schedule_type == "greedy":
             schedule.greedy_schedule(copy, hw_counts, hw.netlist)
         elif schedule_type == "sdc":
-            schedule.sdc_schedule(copy, hw_counts, hw.netlist)
+            schedule.sdc_schedule(copy, hw_counts, hw.netlist, regs_allocated=False)
 
         # after first scheduling, perform register allocation using linear scan algorithm
-        schedule.register_allocate(copy, hw_counts, hw.netlist)
+        op_allocation, reg_ops_sorted = schedule.register_allocate(copy, hw_counts, hw.netlist)
+        reg_chains, buf_chain = schedule.add_buffer_accesses_to_scheduled_graph(copy, hw_counts, hw.netlist, op_allocation, reg_ops_sorted, hw.latency["Buf"])
 
         for layer, nodes in enumerate(
             reversed(list(nx.topological_generations(nx.reverse(computation_dfg))))
@@ -268,19 +269,12 @@ class AbstractSimulator:
             # numeric layer value as a node attribute
             for node in nodes:
                 copy.nodes[node]["layer"] = layer
-        copy = sim_util.add_cache_mem_access_to_dfg(
-            copy, hw.latency["Buf"], hw.latency["MainMem"], hw.latency["OffChipIO"]
-        )
         if schedule_type == "greedy":
             schedule.greedy_schedule(copy, hw_counts, hw.netlist)
             copy = prune_func(copy, hw.netlist)
         elif schedule_type == "sdc":
-            schedule.sdc_schedule(copy, hw_counts, hw.netlist)
+            self.resource_edge_graph = schedule.sdc_schedule(copy, hw_counts, hw.netlist, regs_allocated=True, reg_chains=reg_chains, buf_chain=buf_chain, add_resource_edges=True)
             logger.info("completed initial schedule")
-            copy = prune_func(copy, hw.netlist, sdc_schedule=True)
-            # Once we have pruned memory/buffer nodes, critical path may have changed. So we need to redo the scheduling
-            logger.info("completed buffer/memory pruning. Beginning next round of schedule")
-            self.resource_edge_graph = schedule.sdc_schedule(copy, hw_counts, hw.netlist, add_resource_edges=True)
             self.add_parasitics_to_scheduled_dfg(copy, hw.parasitic_graph)
             logger.info(f"longest path: {nx.dag_longest_path(self.resource_edge_graph)}")
             logger.info(f"longest path length: {nx.dag_longest_path_length(self.resource_edge_graph)}")

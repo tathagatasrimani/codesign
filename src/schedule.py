@@ -15,6 +15,7 @@ import networkx as nx
 
 from .global_constants import SEED
 from . import sim_util
+from . import memory
 
 # format: cfg_node -> {states -> operations}
 cfg_node_to_dfg_map = {}
@@ -253,7 +254,7 @@ def assign_upstream_path_lengths_old(graph):
 
     return graph
 
-def process_register_topo(graph, node, topo_order_regs, seen, check_arith=False):
+def process_register_topo(graph, node, topo_order_regs, topo_order_ops_grouped, seen, check_arith=False):
     """
     typical arithmetic op:      (Reg read)--->(op)<---(Reg read)
                                                 |
@@ -263,18 +264,22 @@ def process_register_topo(graph, node, topo_order_regs, seen, check_arith=False)
     resource edge chains do not create infeasible schedules.
     """
     topo_order_regs.append(node)
+    topo_order_ops_grouped.append(node)
     seen.add(node)
+    logger.info(f"processing register node {node} with check_arith {check_arith}")
     if check_arith:
         parents = list(graph.predecessors(node))
         assert len(parents) <= 1, f"reg op has more than one parent, {parents} -> {node}"
         for parent in parents:
             # if parent is an arithmetic operator, its input register operations should be grouped 
             # in topological order with the output register
-            if graph.nodes[parent]["function"] not in ["Regs", "Buf"] and graph.nodes[node]["write"]:
-                parents = graph.predecessors(parent)
-                for parent in parents:
-                    if graph.nodes[parent]["function"] == "Regs" and parent not in seen:
-                        process_register_topo(graph, parent, topo_order_regs, seen) 
+            if graph.nodes[parent]["function"] not in ["Regs", "Buf"] and graph.nodes[node]["write"] and parent not in seen:
+                topo_order_ops_grouped.append(parent)
+                seen.add(parent)
+                grandparents = graph.predecessors(parent)
+                for grandparent in grandparents:
+                    if graph.nodes[grandparent]["function"] == "Regs" and grandparent not in seen:
+                        process_register_topo(graph, grandparent, topo_order_regs, topo_order_ops_grouped, seen) 
 
 def process_nodes_in_topo_order(graph, topological_order, opt_vars, hw_element_counts, resource_constraints, debug=False, resource_chain_edges=None):
     for i in range(len(topological_order)):
@@ -290,6 +295,7 @@ def process_nodes_in_topo_order(graph, topological_order, opt_vars, hw_element_c
             if (
                 graph.nodes[curr_node]["function"]
                 == graph.nodes[start_node]["function"]
+                #and graph.nodes[start_node]["function"] != "Buf"
             ):
                 curr_func_count += 1
                 if (
@@ -298,6 +304,7 @@ def process_nodes_in_topo_order(graph, topological_order, opt_vars, hw_element_c
                 ):
                     logger.info(f"constraining {curr_node} to be later than {start_node}")
                     if debug: resource_chain_edges.append((start_node, curr_node))
+                    assert not nx.has_path(graph, curr_node, start_node)
                     # add a constraint
                     resource_constraints.append(
                         opt_vars[graph.nodes[start_node]["scheduling_id"]][0]
@@ -306,7 +313,24 @@ def process_nodes_in_topo_order(graph, topological_order, opt_vars, hw_element_c
                     )
                     break
 
-def sdc_schedule(graph, hw_element_counts, hw_netlist, no_resource_constraints=False, add_resource_edges=False, debug=False):
+def create_register_dependence_chain(graph, topological_order, opt_vars, resource_constraints, debug=False, resource_chain_edges=None):
+    for i in range(len(topological_order)):
+        start_node = topological_order[i]
+        for j in range(i + 1, len(topological_order)):
+            curr_node = topological_order[j]
+            if graph.nodes[curr_node]["allocation"] == graph.nodes[start_node]["allocation"]:
+                allocation = graph.nodes[curr_node]["allocation"]
+                logger.info(f"constraining {curr_node} to be later than {start_node} (register allocation dependence on {allocation})")
+                if debug: resource_chain_edges.append((start_node, curr_node))
+                # add a constraint
+                resource_constraints.append(
+                    opt_vars[graph.nodes[start_node]["scheduling_id"]][0]
+                    - opt_vars[graph.nodes[curr_node]["scheduling_id"]][0]
+                    <= -graph.nodes[start_node]["cost"]
+                )
+                break
+
+def sdc_schedule(graph, hw_element_counts, hw_netlist, regs_allocated=False, reg_chains=None, buf_chain=None, no_resource_constraints=False, add_resource_edges=False, debug=True):
     """
     Runs the convex optimization problem to minimize the longest path latency.
     Encodes data dependency constraints from CDFG and resource constraints using
@@ -327,7 +351,7 @@ def sdc_schedule(graph, hw_element_counts, hw_netlist, no_resource_constraints=F
         opt_vars.append(curr_var)
         # start time + latency = end time for each operating node
         node[1]["scheduling_id"] = id
-        if node[1]["function"] != "Regs": node[1]["allocation"] = "" # register allocation done elsewhere
+        if node[1]["function"] != "Regs" or not regs_allocated: node[1]["allocation"] = "" # register allocation done elsewhere
         id += 1
         constraints.append(curr_var[0] >= 0)
         if "cost" in node[1].keys():
@@ -341,8 +365,8 @@ def sdc_schedule(graph, hw_element_counts, hw_netlist, no_resource_constraints=F
             op_count = 0
             for successor in successors:
                 child = graph.nodes[successor]
-                reg_to_arith_op = node[1]["function"] == "Regs" and child["function"] not in ["Regs", "end"]
-                arith_op_to_reg = node[1]["function"] not in ["Regs", "Buf"] and child["function"] == "Regs"
+                reg_to_arith_op = node[1]["function"] == "Regs" and child["function"] not in ["Regs", "end", "Buf"]
+                arith_op_to_reg = node[1]["function"] not in ["Regs"] and child["function"] == "Regs"
                 if reg_to_arith_op or arith_op_to_reg:
                     op_count += 1
                     constraints += [curr_var[1] == opt_vars[child["scheduling_id"]][0]]
@@ -356,6 +380,8 @@ def sdc_schedule(graph, hw_element_counts, hw_netlist, no_resource_constraints=F
         constraints.append(opt_vars[source_id][1] - opt_vars[dest_id][0] <= 0.0)
     
     topological_order = longest_path_first_topological_sort(graph)
+    
+    topo_order_ops_grouped = []
     topo_order_regs= []
     all_regs = []
     seen = set()
@@ -364,20 +390,44 @@ def sdc_schedule(graph, hw_element_counts, hw_netlist, no_resource_constraints=F
     # to avoid an infeasible scheduling problem.
     for node in topological_order[::-1]:
         if graph.nodes[node]["function"] == "Regs" and node not in seen:
-            process_register_topo(graph, node, topo_order_regs, seen, check_arith=True)                   
+            process_register_topo(graph, node, topo_order_regs, topo_order_ops_grouped, seen, check_arith=True)                   
         if graph.nodes[node]["function"] == "Regs":
             all_regs.append(node)
-    assert len(all_regs) == len(topo_order_regs), f"topo order did not include all register operations"
+        if node not in seen:
+            topo_order_ops_grouped.append(node)
+            seen.add(node)
+    assert len(all_regs) == len(topo_order_regs), "topo order did not include all register operations"
+    assert len(topo_order_ops_grouped) == len(topological_order), f"grouped topo order did not include all ops. {topo_order_ops_grouped}, {topological_order}"
     
 
     resource_chain_edges = []
     topo_order_regs = topo_order_regs[::-1]
-    topo_order_no_regs = list(filter(lambda x: graph.nodes[x]["function"] != "Regs", topological_order))
+    logger.info(f"register topo order is {topo_order_regs}")     
+    logger.info(f"topological order is {topological_order}")
+    topo_order_no_regs = list(filter(lambda x: graph.nodes[x]["function"] != "Regs", topo_order_ops_grouped))[::-1]
+    logger.info(f"topological order no regs is {topo_order_no_regs}")
     assert len(topo_order_no_regs) + len(topo_order_regs) == len(topological_order)
     if not no_resource_constraints:
         resource_constraints = []
         process_nodes_in_topo_order(graph, topo_order_no_regs, opt_vars, hw_element_counts, resource_constraints, debug, resource_chain_edges)
-        process_nodes_in_topo_order(graph, topo_order_regs, opt_vars, hw_element_counts, resource_constraints, debug, resource_chain_edges)       
+        if regs_allocated:
+            for reg_chain in reg_chains:
+                if len(reg_chain) == 0: continue
+                for i in range(len(reg_chain)-1):
+                    resource_constraints += [
+                        opt_vars[graph.nodes[reg_chain[i]]["scheduling_id"]][1] <= 
+                        opt_vars[graph.nodes[reg_chain[i+1]]["scheduling_id"]][0]
+                    ]
+                    if debug: resource_chain_edges.append((reg_chain[i], reg_chain[i+1]))
+            """for i in range(len(buf_chain)-1):
+                resource_constraints += [
+                    opt_vars[graph.nodes[buf_chain[i]]["scheduling_id"]][1] <=
+                    opt_vars[graph.nodes[buf_chain[i+1]]["scheduling_id"]][0]
+                ]
+                if debug: resource_chain_edges.append((buf_chain[i], buf_chain[i+1]))"""
+            #create_register_dependence_chain(graph, topo_order_regs, opt_vars, resource_constraints, debug, resource_chain_edges)
+        else:
+            process_nodes_in_topo_order(graph, topo_order_regs, opt_vars, hw_element_counts, resource_constraints, debug, resource_chain_edges=resource_chain_edges)  
         constraints += resource_constraints
 
     if debug:
@@ -433,7 +483,7 @@ def sdc_schedule(graph, hw_element_counts, hw_netlist, no_resource_constraints=F
                 # update the hardware element's next free time
                 if node_function == "OffChipIO": continue # IO allocation not necessary
                 if node_function == "Regs": # register allocation done elsewhere
-                    if "allocation" in node[1]:
+                    if node[1]["allocation"] != "":
                         hardware_element_allocations_by_start_time[node[1]["allocation"]].append((node[0], node[1]['cost']))
                         hardware_elements_by_next_free_time[node[1]["allocation"]] = node_end_time
                     continue
@@ -518,6 +568,7 @@ def get_live_intervals(sorted_regs):
     # add remaining active intervals
     for var in active:
         intervals.append(active[var])
+    intervals = sorted(intervals, key=lambda x:x.start)
     return intervals
 
 
@@ -528,7 +579,7 @@ def overlaps(node_1, node_2):
 def register_allocate(graph, hw_element_counts, hw_netlist):
     reg_nodes = filter(lambda x: x[1]["function"] == "Regs", graph.nodes(data=True))
     sorted_regs = sorted(reg_nodes, key=lambda x: x[1]["start_time"])
-    intervals = deque(get_live_intervals(sorted_regs))
+    intervals = get_live_intervals(sorted_regs)
     active = []
     allocation = {}
     op_allocation = {}
@@ -541,9 +592,12 @@ def register_allocate(graph, hw_element_counts, hw_netlist):
 
 
     while len(intervals) != 0:
-        interval = intervals.popleft()
+        logger.info(f"intervals list is {[str(i) for i in intervals]}")
+        interval = intervals[0]
+        intervals = intervals[1:]
         # Expire old intervals
         active = [i for i in active if i.end > interval.start]
+        logger.info(f"active intervals are {[str(i) for i in active]}")
 
         if len(active) == num_registers:
             # Spill a register
@@ -557,11 +611,15 @@ def register_allocate(graph, hw_element_counts, hw_netlist):
                 for candidate_reg_op in spill_candidate.op_names:
                     candidate_reg_data = graph.nodes[candidate_reg_op]
                     if overlaps(first_reg_in_current_interval, candidate_reg_data): # move to next spill candidate
-                        #print(candidate_reg_op, interval.op_names[0], "overlap")
+                        logger.info(f"{candidate_reg_op} and {interval.op_names[0]} overlap")
                         break
                     elif candidate_reg_data["start_time"] >= first_reg_in_current_interval["end_time"]:
+                        logger.info(f"choosing {spill_candidate} to spill to memory. Was previously allocated to {allocation[spill_candidate.variable]}")
                         active.remove(spill_candidate)
                         spilled_interval = spill_candidate.split(first_reg_in_current_interval["end_time"], graph)
+                        logger.info(f"split interval to deallocate is {spilled_interval}")
+                        logger.info(f"new interval allocated to that register is {interval}")
+                        active.append(interval)
                         for op in spilled_interval.op_names:
                             op_allocation[op] = None
                         for op in interval.op_names:
@@ -569,7 +627,16 @@ def register_allocate(graph, hw_element_counts, hw_netlist):
                         allocation[interval.variable] = allocation[spill_candidate.variable]
                         allocation[spill_candidate.variable] = None  # Mark as spilled
                         completed_spill= True
-                        intervals.appendleft(spilled_interval)
+                        # must re-insert spilled interval so that it is sorted by start time
+                        for i in range(len(intervals)):
+                            if intervals[i].start > spilled_interval.start:
+                                if i == 0:
+                                    intervals = [spilled_interval] + intervals
+                                else:
+                                    intervals = intervals[:i] + [spilled_interval] + intervals[i:]
+                                break
+                            if i == len(intervals) - 1:
+                                intervals.append(spilled_interval)
                         break
                 if completed_spill: break
             assert completed_spill, "Could not spill any active interval"
@@ -582,10 +649,145 @@ def register_allocate(graph, hw_element_counts, hw_netlist):
             for op in interval.op_names:
                 op_allocation[op] = free_register
             active.append(interval)
+            logger.info(f"allocated {interval} to {reg_instances[free_register]}")
     #print(op_allocation)
     for op in op_allocation:
         graph.nodes[op]["allocation"] = reg_instances[op_allocation[op]][0]
 
+    reg_ops_sorted = sorted([op for op in op_allocation], key=lambda x: graph.nodes[x]["start_time"])
+    for reg_op in reg_ops_sorted:
+        print(reg_op, graph.nodes[reg_op]["start_time"], graph.nodes[reg_op]["end_time"])
+    return op_allocation, reg_ops_sorted
+
+def add_buffer_accesses_to_scheduled_graph(graph, hw_element_counts, hw_netlist, op_allocation, reg_ops_sorted, buf_latency):
+    #sim_util.topological_layout_plot(graph)
+    num_registers = hw_element_counts["Regs"]
+    reg_instances = list(filter(lambda x: x[1]["function"] == "Regs", hw_netlist.nodes(data=True)))
+    reg_latency = graph.nodes[reg_ops_sorted[0]]["cost"]
+    reg_ops_by_allocation = [[] for _ in range(num_registers)]
+    buf_ops = []
+    # group sorted reg ops by which register they are allocated to
+
+    print(op_allocation)
+
+
+    buf_nodes = list(filter(lambda x: x[1]["function"] == "Buf", hw_netlist.nodes(data=True)))
+    assert len(buf_nodes) == 1
+    Buffer = memory.Buffer(buf_nodes[0][1]["size"])
+    Regs = [memory.Register() for i in range(num_registers)]
+    print(Buffer, Regs)
+
+    buf_count = 0
+    evicted_var_last_reg_writes = {}
+    evicted_var_last_buf_writes = {}
+    buf_write_on_eviction = {}
+    latest_register_for_variable = {}
+    reg_write_to_link_for_buf_write = {}
+    for reg_op in reg_ops_sorted:
+        reg_index = op_allocation[reg_op]
+        Reg_object = Regs[reg_index]
+        reg_node = reg_instances[reg_index]
+        reg_name = reg_node[0]
+        write_status = graph.nodes[reg_op]["write"]
+        var_name = reg_op.split(';')[0]
+        evicted = []
+        if not write_status:
+            reg_hit = Reg_object.check_hit(var_name)
+            logger.info(f"{reg_op} hit status in {reg_name} is {reg_hit}")
+
+            if not reg_hit:
+
+                # link up buffer write/read and register write for current variable that we want in register
+                if var_name in evicted_var_last_buf_writes:
+                    last_buffer_write = evicted_var_last_buf_writes[var_name]
+                    logger.info(f"retrieving buffer write {last_buffer_write}")
+                else:
+                    last_buffer_write = f"Buf{buf_count}"
+                    buf_count += 1
+                    buf_ops.append(last_buffer_write)
+                    evicted_var_last_buf_writes[var_name] = last_buffer_write
+                    logger.info(f"no previous buffer write existed, creating {last_buffer_write}")
+                graph.add_node(
+                    last_buffer_write,
+                    function="Buf",
+                    allocation="",
+                    cost=buf_latency,
+                    size=16,
+                    write=True
+                )
+                if last_buffer_write in reg_write_to_link_for_buf_write:
+                    last_reg_write = reg_write_to_link_for_buf_write[last_buffer_write]
+                    reg_write_to_link_for_buf_write.pop(last_buffer_write)
+                    if graph.has_edge(last_reg_write, reg_op):
+                        graph.remove_edge(last_reg_write, reg_op)
+                        logger.info(f"removed edge {last_reg_write}->{reg_op}")
+                    graph.add_edge(last_reg_write, last_buffer_write, function="Regs", weight=reg_latency)
+                    logger.info(f"adding edge {last_reg_write}->{last_buffer_write}")
+                    buf_write_on_eviction[var_name] = False
+                # add buffer read, reg write
+                buf_read_name = f"Buf{buf_count}"
+                buf_count += 1
+                graph.add_node(
+                    buf_read_name,
+                    function="Buf",
+                    allocation="",
+                    cost=buf_latency,
+                    size=16,
+                    write=False
+                )
+                buf_ops.append(buf_read_name)
+                new_reg_write_name = sim_util.get_unique_node_name(graph, reg_op)
+                graph.add_node(
+                    new_reg_write_name,
+                    function="Regs",
+                    allocation=reg_name,
+                    cost=reg_latency,
+                    size=16,
+                    write=True
+                )
+                reg_ops_by_allocation[reg_index].append(new_reg_write_name)
+                # add buffer read, reg write
+                graph.add_edge(last_buffer_write, buf_read_name, function="Buf", weight=buf_latency)
+                graph.add_edge(buf_read_name, new_reg_write_name, function="Buf", weight=buf_latency)
+                graph.add_edge(new_reg_write_name, reg_op, function="Regs", weight=reg_latency)
+                evicted_var_last_reg_writes[var_name] = new_reg_write_name
+
+                evicted = Reg_object.write(var_name, reg_op)
+                
+        else:
+            logger.info(f"writing {reg_op} to {reg_name}")
+            if var_name in evicted_var_last_buf_writes: 
+                evicted_var_last_buf_writes.pop(var_name)
+            evicted_var_last_reg_writes[var_name] = reg_op
+            evicted = Reg_object.write(var_name, reg_op)
+        latest_register_for_variable[var_name] = reg_name
+
+        reg_ops_by_allocation[reg_index].append(reg_op)
+        if len(evicted) != 0: # register was occupied
+            assert len(evicted) == 1
+            evicted_name, _, evicted_dirty_status = evicted[0]
+            evicted_last_write_op = evicted_var_last_reg_writes[evicted_name]
+            logger.info(f"{evicted_name} was evicted from register, dirty status is {evicted_dirty_status}, existing buffer write {evicted_name in evicted_var_last_buf_writes}")
+            if (latest_register_for_variable[var_name] == reg_name): # if variable was written to another register, just move on
+                buf_write_on_eviction[evicted_name] = (evicted_dirty_status or evicted_name not in evicted_var_last_buf_writes)
+                # if not dirty and already in buffer, we can simply overwrite the register value
+                if buf_write_on_eviction[evicted_name]: # track the last register write, so if we read this variable again we know where to insert the buffer operations
+                    buffer_write = f"Buf{buf_count}"
+                    buf_count += 1
+                    buf_ops.append(buffer_write)
+                    logger.info(f"creating buffer write {buffer_write} which would be linked from {evicted_last_write_op}")
+                    reg_write_to_link_for_buf_write[buffer_write] = evicted_last_write_op
+                    evicted_var_last_reg_writes[evicted_name] = evicted_last_write_op
+                    evicted_var_last_buf_writes[evicted_name] = buffer_write
+        print(evicted_var_last_reg_writes)
+    print(reg_ops_sorted)
+    print(reg_ops_by_allocation)
+    print(buf_ops)
+    print(num_registers)
+    # some buf ops may have been created for dirty register eviction but were never needed because that variable was never used again
+    buf_ops_final = [op for op in buf_ops if graph.has_node(op)]
+    sim_util.topological_layout_plot(graph)
+    return reg_ops_by_allocation, buf_ops_final
 
 def write_df(in_use, hw_element_counts, execution_time, step):
     data = {
@@ -708,11 +910,12 @@ def pre_schedule(computation_graph, hw_netlist, hw_latency):
 
     reg_ids = [int(name.split(";")[1]) for name in register_nodes]
     new_node_id = max(reg_ids) + 1
+    tmp_op_id = 0
 
     for u, v, data in operator_edges:  # this shouldn't run after the first iteration
         if (u, v) not in hw_netlist.edges():
-            new_node_name_r = f"tmp_op_reg_r;{new_node_id}"
-            new_node_name_w = f"tmp_op_reg_w;{new_node_id}"
+            new_node_name_r = f"tmp_op_reg_{tmp_op_id};{new_node_id}"
+            new_node_name_w = f"tmp_op_reg_{tmp_op_id};{new_node_id+1}"
             computation_graph.add_node(new_node_name_w, function="Regs", cost=hw_latency["Regs"], write=True)
             computation_graph.add_node(new_node_name_r, function="Regs", cost=hw_latency["Regs"], write=False)
             
@@ -721,7 +924,8 @@ def pre_schedule(computation_graph, hw_netlist, hw_latency):
             computation_graph.add_edge(new_node_name_w, new_node_name_r, weight=reg_weight)
             computation_graph.add_edge(new_node_name_r, v, **data)
 
-            new_node_id += 1
+            new_node_id += 2
+            tmp_op_id += 1
 
 
 def greedy_schedule(

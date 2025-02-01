@@ -407,49 +407,40 @@ def localize_memory(hw, computation_graph, total_computation_graph=None):
 
 
 def add_cache_mem_access_to_dfg(
-    computation_graph: nx.DiGraph, buf_latency: float, mem_latency: float, io_latency : float
+    scheduled_graph: nx.DiGraph, node_name, buf_latency: float, mem_latency: float, io_latency : float, mem_count, buf_count
 ):
     """
-    Add cache and memory nodes to the computation graph to indicate when explicit memory reads occur.
-    Initially, add cache and memory nodes for all Regs nodes in the computation graph.
-    After allocation, can prune the cache and memory nodes that are not needed.
+    Add cache and memory nodes to the scheduled graph to indicate when explicit memory reads occur.
     """
-    buf_count = 0
-    mem_count = 0
-    for node, data in dict(
-        filter(lambda x: x[1]["function"] == "Regs", computation_graph.nodes.data())
-    ).items():
-        if data["write"]: continue # don't need memory accesses for register writes
-        size = 16 #data['size'] #-hardcoded for now; TODO: come back and fix
-        computation_graph.add_node(
-            f"Buf{buf_count}",
-            function="Buf",
-            allocation="",
-            cost=buf_latency,
-            size=size,
-        )
-        computation_graph.add_node(
-            f"Mem{mem_count}",
-            function="MainMem",
-            allocation="",
-            cost=mem_latency,
-            size=size,
-        )
-        computation_graph.add_node(
-            f"IO{mem_count}",
-            function="OffChipIO",
-            allocation="",
-            cost=io_latency,
-            size=size,
-        )
-        # weight of edge is latency of parent
-        computation_graph.add_edge(f"Mem{mem_count}", f"IO{mem_count}", function="MainMem", weight=mem_latency)
-        computation_graph.add_edge(f"IO{mem_count}", f"Buf{buf_count}", function="OffChipIO", weight=io_latency)
-        computation_graph.add_edge(f"Buf{buf_count}", node, function="Buf", weight=buf_latency)
-        buf_count += 1
-        mem_count += 1
+    node, data = scheduled_graph.nodes[node_name]
+    size = 16 #data['size'] #-hardcoded for now; TODO: come back and fix
+    scheduled_graph.add_node(
+        f"Buf{buf_count}",
+        function="Buf",
+        allocation="",
+        cost=buf_latency,
+        size=size,
+    )
+    scheduled_graph.add_node(
+        f"Mem{mem_count}",
+        function="MainMem",
+        allocation="",
+        cost=mem_latency,
+        size=size,
+    )
+    scheduled_graph.add_node(
+        f"IO{mem_count}",
+        function="OffChipIO",
+        allocation="",
+        cost=io_latency,
+        size=size,
+    )
+    # weight of edge is latency of parent
+    scheduled_graph.add_edge(f"Mem{mem_count}", f"IO{mem_count}", function="MainMem", weight=mem_latency)
+    scheduled_graph.add_edge(f"IO{mem_count}", f"Buf{buf_count}", function="OffChipIO", weight=io_latency)
+    scheduled_graph.add_edge(f"Buf{buf_count}", node, function="Buf", weight=buf_latency)
 
-    return computation_graph
+    return scheduled_graph
 
 
 def find_upstream_node_in_graph(graph:nx.DiGraph, func:str, node:str, kill=True):
@@ -706,7 +697,8 @@ def topological_layout_plot(graph, reverse=False, extra_edges=None):
     if nx.is_directed_acyclic_graph(graph):
         topological_order = list(nx.topological_sort(graph))
     else:
-        raise ValueError("Graph is not a Directed Acyclic Graph (DAG), topological sorting is not possible.")
+        cycle = nx.find_cycle(graph)
+        raise ValueError(f"Graph is not a Directed Acyclic Graph (DAG), topological sorting is not possible. Cycle is {cycle}")
     
     # Group nodes by level in topological order
     levels = defaultdict(int)
