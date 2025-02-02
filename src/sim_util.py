@@ -577,7 +577,7 @@ def rename_nodes(G, H, H_generations=None, curr_last_nodes=None, modified_regs=s
             for elem_2 in curr_last_nodes:
                 if G.nodes[elem_2]["function"] == "Regs" and elem_2 not in modified_regs:
                     parents = list(G.predecessors(elem_2))
-                    assert len(parents) == 1, "more than 1 parent for Reg"
+                    assert len(parents) <= 1, f"more than 1 parent for Reg. {elem_2}: {G.nodes[elem_2]} has parents {[G.nodes[parent] for parent in parents]}"
                     name = get_unique_node_name(G, elem_2)
                     G.add_node(
                         name,
@@ -585,8 +585,9 @@ def rename_nodes(G, H, H_generations=None, curr_last_nodes=None, modified_regs=s
                         cost=G.nodes[elem_2]["cost"],
                         write=True
                     )
-                    G.remove_edge(parents[0], elem_2)
-                    G.add_edge(parents[0], name, weight=G.nodes[elem_2]["cost"])
+                    if parents:
+                        G.remove_edge(parents[0], elem_2)
+                        G.add_edge(parents[0], name, weight=G.nodes[elem_2]["cost"])
                     G.add_edge(name, elem_2, weight=G.nodes[elem_2]["cost"])
                     modified_regs.add(elem_2)
                 if elem.split(";")[0] == elem_2.split(";")[0]:
