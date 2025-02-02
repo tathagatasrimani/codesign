@@ -622,8 +622,9 @@ class HardwareModel:
             num_elem = 1
             if len(mem_op) > 3:
                 dims = sim_util.get_dims(mem_op[3:])
-                # print(f"dims: {dims}")
+                #print(f"dims: {dims}")
                 num_elem = np.prod(dims)
+                if num_elem == 0: return
             mem_module.malloc(var_name, size, dims=dims, elem_size=size // num_elem)
         elif status == "free":
             mem_module.free(var_name)

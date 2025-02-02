@@ -260,7 +260,18 @@ class AbstractSimulator:
 
         # after first scheduling, perform register allocation using linear scan algorithm
         op_allocation, reg_ops_sorted = schedule.register_allocate(copy, hw_counts, hw.netlist)
-        reg_chains, buf_chain = schedule.add_buffer_accesses_to_scheduled_graph(copy, hw_counts, hw.netlist, op_allocation, reg_ops_sorted, hw.latency["Buf"])
+
+        logger.info(f"reg ops sorted: {[op[1] for op in reg_ops_sorted]}")
+
+        topo_order_other = []
+        seen = set()
+        for _, op in reg_ops_sorted:
+            children = copy.successors(op)
+            for child in children:
+                if child not in seen and copy.nodes[child]["function"] not in ["Regs", "Buf", "MainMem"]:
+                    topo_order_other.append(child)
+                    seen.add(child)
+        logger.info(f"non reg topo order: {topo_order_other}")
 
         for layer, nodes in enumerate(
             reversed(list(nx.topological_generations(nx.reverse(computation_dfg))))
@@ -273,7 +284,18 @@ class AbstractSimulator:
             schedule.greedy_schedule(copy, hw_counts, hw.netlist)
             copy = prune_func(copy, hw.netlist)
         elif schedule_type == "sdc":
-            self.resource_edge_graph = schedule.sdc_schedule(copy, hw_counts, hw.netlist, regs_allocated=True, reg_chains=reg_chains, buf_chain=buf_chain, add_resource_edges=True)
+            hw.latency["Buf"] = 2
+            hw.latency["MainMem"] = 4
+            reg_chains, buf_chain = schedule.add_higher_memory_accesses_to_scheduled_graph(copy, hw_counts, hw.netlist, op_allocation, "Regs", "Buf", reg_ops_sorted, hw.latency["Regs"], hw.latency["Buf"])
+            buf_allocation = {buf_op[1]: 0 for buf_op in buf_chain}
+            #print(reg_chains)
+            #print([buf_op[1] for buf_op in buf_chain])
+            schedule.sdc_schedule(copy, hw_counts, hw.netlist, regs_allocated=True, topo_order=topo_order_other, reg_chains=reg_chains, buf_chain=[buf_op[1] for buf_op in buf_chain])
+
+            buf_chains, mem_chain = schedule.add_higher_memory_accesses_to_scheduled_graph(copy, hw_counts, hw.netlist, buf_allocation, "Buf", "MainMem", buf_chain, hw.latency["Buf"], hw.latency["MainMem"])
+            #print(buf_chains[0])
+            #print([mem_op[1] for mem_op in mem_chain])
+            self.resource_edge_graph = schedule.sdc_schedule(copy, hw_counts, hw.netlist, regs_allocated=True, bufs_allocated=True, topo_order=topo_order_other, reg_chains=reg_chains, buf_chain=buf_chains[0], mem_chain=[mem_op[1] for mem_op in mem_chain], add_resource_edges=True)
             logger.info("completed initial schedule")
             self.add_parasitics_to_scheduled_dfg(copy, hw.parasitic_graph)
             logger.info(f"longest path: {nx.dag_longest_path(self.resource_edge_graph)}")

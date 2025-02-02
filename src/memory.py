@@ -260,7 +260,7 @@ class Buffer:
         if var not in self.vars:
             while self.free_space - size < 0:
                 evicted.append(self.evict_random())
-            self.vars.add(var)
+            self.vars[var] = size
             self.free_space -= size
             self.ops.append(f"write {var} for {op_name}")
         else:
