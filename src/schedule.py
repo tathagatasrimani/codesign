@@ -660,130 +660,160 @@ def register_allocate(graph, hw_element_counts, hw_netlist):
     return op_allocation, reg_ops_sorted
 
 def add_buffer_accesses_to_scheduled_graph(graph, hw_element_counts, hw_netlist, op_allocation, reg_ops_sorted, buf_latency):
-    #sim_util.topological_layout_plot(graph)
+    # Assume all data is available in the buffer, add buffer writes/reads for memory spills based on register allocation
+
     num_registers = hw_element_counts["Regs"]
     reg_instances = list(filter(lambda x: x[1]["function"] == "Regs", hw_netlist.nodes(data=True)))
     reg_latency = graph.nodes[reg_ops_sorted[0]]["cost"]
     reg_ops_by_allocation = [[] for _ in range(num_registers)]
     buf_ops = []
-    # group sorted reg ops by which register they are allocated to
 
-    print(op_allocation)
+    #print(op_allocation)
+    #print(reg_ops_sorted)
 
 
     buf_nodes = list(filter(lambda x: x[1]["function"] == "Buf", hw_netlist.nodes(data=True)))
     assert len(buf_nodes) == 1
-    Buffer = memory.Buffer(buf_nodes[0][1]["size"])
     Regs = [memory.Register() for i in range(num_registers)]
-    print(Buffer, Regs)
-
     buf_count = 0
-    evicted_var_last_reg_writes = {}
-    evicted_var_last_buf_writes = {}
-    buf_write_on_eviction = {}
-    latest_register_for_variable = {}
-    reg_write_to_link_for_buf_write = {}
+
+    #########################################################
+    # STATE ELEMENTS
+    # each of these are indexed by a variable name
+    #########################################################
+
+    # is data in the buffer updated for this variable?
+    buffer_updated = {}
+    # if a last buffer write exists (with most recent data), it is stored here
+    last_buffer_write = {}
+    # is this variable in a register?
+    in_register = {}
+    # which register is the variable currently in, or most recently in?
+    which_register = {}
+    # if a previous register write exists (with most recent data), it is stored here
+    last_reg_write = {}
+
     for reg_op in reg_ops_sorted:
+        var_name = reg_op.split(';')[0]
+        # Initialize state elements
+        buffer_updated[var_name] = True
+        last_buffer_write[var_name] = None
+        in_register[var_name] = False
+        which_register[var_name] = None
+        last_reg_write[var_name] = None
+
+    for reg_op in reg_ops_sorted:
+        # variable info
+        var_name = reg_op.split(';')[0]
+        
+        # register info corresponding to variable allocation
         reg_index = op_allocation[reg_op]
         Reg_object = Regs[reg_index]
         reg_node = reg_instances[reg_index]
         reg_name = reg_node[0]
-        write_status = graph.nodes[reg_op]["write"]
-        var_name = reg_op.split(';')[0]
-        evicted = []
-        if not write_status:
-            reg_hit = Reg_object.check_hit(var_name)
-            logger.info(f"{reg_op} hit status in {reg_name} is {reg_hit}")
 
-            if not reg_hit:
+        evicted = None
 
-                # link up buffer write/read and register write for current variable that we want in register
-                if var_name in evicted_var_last_buf_writes:
-                    last_buffer_write = evicted_var_last_buf_writes[var_name]
-                    logger.info(f"retrieving buffer write {last_buffer_write}")
-                else:
-                    last_buffer_write = f"Buf{buf_count}"
-                    buf_count += 1
-                    buf_ops.append(last_buffer_write)
-                    evicted_var_last_buf_writes[var_name] = last_buffer_write
-                    logger.info(f"no previous buffer write existed, creating {last_buffer_write}")
-                graph.add_node(
-                    last_buffer_write,
-                    function="Buf",
-                    allocation="",
-                    cost=buf_latency,
-                    size=16,
-                    write=True
-                )
-                if last_buffer_write in reg_write_to_link_for_buf_write:
-                    last_reg_write = reg_write_to_link_for_buf_write[last_buffer_write]
-                    reg_write_to_link_for_buf_write.pop(last_buffer_write)
-                    if graph.has_edge(last_reg_write, reg_op):
-                        graph.remove_edge(last_reg_write, reg_op)
-                        logger.info(f"removed edge {last_reg_write}->{reg_op}")
-                    graph.add_edge(last_reg_write, last_buffer_write, function="Regs", weight=reg_latency)
-                    logger.info(f"adding edge {last_reg_write}->{last_buffer_write}")
-                    buf_write_on_eviction[var_name] = False
+        if not graph.nodes[reg_op]["write"]: # REGISTER READ
+            logger.info(f"{reg_op} hit status in {reg_name} is {in_register[var_name]}")
+            if in_register[var_name]:
+                assert which_register[var_name] == reg_name, "We should not be reading a variable from a register if it is already allocated to another one"
+                assert Reg_object.check_hit(var_name)
+            else: # not a register hit
+                assert not Reg_object.check_hit(var_name)
+
                 # add buffer read, reg write
-                buf_read_name = f"Buf{buf_count}"
+                buffer_read = f"Buf{buf_count}"
                 buf_count += 1
                 graph.add_node(
-                    buf_read_name,
+                    buffer_read,
                     function="Buf",
                     allocation="",
                     cost=buf_latency,
                     size=16,
                     write=False
                 )
-                buf_ops.append(buf_read_name)
-                new_reg_write_name = sim_util.get_unique_node_name(graph, reg_op)
+                buf_ops.append(buffer_read)
+                new_reg_write = sim_util.get_unique_node_name(graph, reg_op)
                 graph.add_node(
-                    new_reg_write_name,
+                    new_reg_write,
                     function="Regs",
                     allocation=reg_name,
                     cost=reg_latency,
                     size=16,
                     write=True
                 )
-                reg_ops_by_allocation[reg_index].append(new_reg_write_name)
-                # add buffer read, reg write
-                graph.add_edge(last_buffer_write, buf_read_name, function="Buf", weight=buf_latency)
-                graph.add_edge(buf_read_name, new_reg_write_name, function="Buf", weight=buf_latency)
-                graph.add_edge(new_reg_write_name, reg_op, function="Regs", weight=reg_latency)
-                evicted_var_last_reg_writes[var_name] = new_reg_write_name
+                reg_ops_by_allocation[reg_index].append(new_reg_write)
+                # link buffer read -> reg write -> this register read op
+                graph.add_edge(buffer_read, new_reg_write, function="Buf", weight=buf_latency)
+                graph.add_edge(new_reg_write, reg_op, function="Regs", weight=reg_latency)
+
+                buffer_write = None
+                if buffer_updated[var_name]:
+                    if last_buffer_write[var_name]:
+                        buffer_write = last_buffer_write[var_name]
+                        graph.add_edge(buffer_write, buffer_read, function="Buf", weight=buf_latency)
+                        logger.info(f"retrieving buffer write {buffer_write}")
+                    else:
+                        logger.info(f"no previous buffer write existed")
+                else:
+                    assert last_reg_write[var_name] and last_buffer_write[var_name]
+                    buffer_write = last_buffer_write[var_name]
+                    assert not graph.has_node(buffer_write)
+                    graph.add_node(
+                        buffer_write,
+                        function="Buf",
+                        allocation="",
+                        cost=buf_latency,
+                        size=16,
+                        write=True
+                    )
+                    logger.info(f"retrieving buffer write {buffer_write}")
+                    old_reg_write = last_reg_write[var_name]
+                    logger.info(f"adding edge {last_reg_write}->{last_buffer_write}")
+                    graph.add_edge(old_reg_write, buffer_write, function="Regs", weight=reg_latency)
+                    graph.add_edge(buffer_write, buffer_read, function="Buf", weight=buf_latency)
+                    if graph.has_edge(old_reg_write, reg_op):
+                        graph.remove_edge(old_reg_write, reg_op)
+                        logger.info(f"removed edge {old_reg_write}->{reg_op}")
 
                 evicted = Reg_object.write(var_name, reg_op)
-                
-        else:
-            logger.info(f"writing {reg_op} to {reg_name}")
-            if var_name in evicted_var_last_buf_writes: 
-                evicted_var_last_buf_writes.pop(var_name)
-            evicted_var_last_reg_writes[var_name] = reg_op
-            evicted = Reg_object.write(var_name, reg_op)
-        latest_register_for_variable[var_name] = reg_name
+                logger.info(f"writing {reg_op} to {reg_name}")
 
+                # UPDATE STATE ELEMENTS
+                buffer_updated[var_name] = True
+                last_buffer_write[var_name] = buffer_write
+                in_register[var_name] = True
+                which_register[var_name] = reg_name
+                last_reg_write[var_name] = new_reg_write
+        else: # REGISTER WRITE
+            evicted = Reg_object.write(var_name, reg_op)
+
+            # UPDATE STATE ELEMENTS
+            buffer_updated[var_name] = False
+            last_buffer_write[var_name] = None
+            in_register[var_name] = True
+            which_register[var_name] = reg_name
+            last_reg_write[var_name] = reg_op
+
+            logger.info(f"writing {reg_op} to {reg_name}")
+        
         reg_ops_by_allocation[reg_index].append(reg_op)
-        if len(evicted) != 0: # register was occupied
+        if evicted:
             assert len(evicted) == 1
-            evicted_name, _, evicted_dirty_status = evicted[0]
-            evicted_last_write_op = evicted_var_last_reg_writes[evicted_name]
-            logger.info(f"{evicted_name} was evicted from register, dirty status is {evicted_dirty_status}, existing buffer write {evicted_name in evicted_var_last_buf_writes}")
-            if (latest_register_for_variable[var_name] == reg_name): # if variable was written to another register, just move on
-                buf_write_on_eviction[evicted_name] = (evicted_dirty_status or evicted_name not in evicted_var_last_buf_writes)
-                # if not dirty and already in buffer, we can simply overwrite the register value
-                if buf_write_on_eviction[evicted_name]: # track the last register write, so if we read this variable again we know where to insert the buffer operations
-                    buffer_write = f"Buf{buf_count}"
-                    buf_count += 1
-                    buf_ops.append(buffer_write)
-                    logger.info(f"creating buffer write {buffer_write} which would be linked from {evicted_last_write_op}")
-                    reg_write_to_link_for_buf_write[buffer_write] = evicted_last_write_op
-                    evicted_var_last_reg_writes[evicted_name] = evicted_last_write_op
-                    evicted_var_last_buf_writes[evicted_name] = buffer_write
-        print(evicted_var_last_reg_writes)
-    print(reg_ops_sorted)
-    print(reg_ops_by_allocation)
-    print(buf_ops)
-    print(num_registers)
+            evicted_name = evicted[0]
+            logger.info(f"{evicted_name} was evicted from {reg_name}, its buffer updated status is {buffer_updated[evicted_name]} and latest register allocation was {which_register[evicted_name]}")
+            # if evicted variable was most recently in this register and it is "dirty", must save some state for it in case a subsequent read is needed
+            if not buffer_updated[evicted_name] and which_register[evicted_name] == reg_name:
+                buffer_write = f"Buf{buf_count}"
+                buf_count += 1
+                buf_ops.append(buffer_write)
+                logger.info(f"creating buffer write {buffer_write} which would be linked from {last_reg_write[evicted_name]}")
+
+                # UPDATE STATE ELEMENTS FOR EVICTED VAR
+                last_buffer_write[evicted_name] = buffer_write
+            in_register[evicted_name] = False
+
     # some buf ops may have been created for dirty register eviction but were never needed because that variable was never used again
     buf_ops_final = [op for op in buf_ops if graph.has_node(op)]
     sim_util.topological_layout_plot(graph)

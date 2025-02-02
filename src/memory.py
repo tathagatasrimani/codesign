@@ -241,8 +241,6 @@ class Buffer:
         self.vars = {}
         self.free_space = size
         self.ops = []
-        self.last_write_op = {}
-        self.dirty = {}
 
     def evict(self, var, size):
         self.vars.pop(var)
@@ -265,19 +263,11 @@ class Buffer:
             self.vars.add(var)
             self.free_space -= size
             self.ops.append(f"write {var} for {op_name}")
-            self.dirty[var] = False
         else:
             self.ops.append(f"update value of {var} in {op_name}")
-            self.dirty[var] = True
-        self.last_write_op[var] = op_name
-        retval = [(i, self.last_write_op[i], self.dirty[i]) for i in evicted]
-        for evictee in evicted:
-            self.last_write_op.pop(evictee)
-            self.dirty.pop(evictee)
-        return retval
+        return evicted
 
     def check_hit(self, var):
-        print(self.vars, var)
         if var in self.vars:
             self.ops.append(f"read {var}")
         return var in self.vars
@@ -297,18 +287,9 @@ class Register(Buffer):
                 self.ops.append(f"evict {evicted[0]}")
             self.vars = {var: 16}
             self.ops.append(f"write {var}")
-            self.dirty[var] = False
         else:
             self.ops.append(f"update value of {var}")
-            self.dirty[var] = True
-        self.last_write_op[var] = op_name
-        retval = []
-        if len(evicted) > 0:
-            retval = [(evicted[0], self.last_write_op[evicted[0]], self.dirty[evicted[0]])]
-            self.last_write_op.pop(evicted[0])
-            self.dirty.pop(evicted[0])
-        print(retval)
-        return retval
+        return evicted
         
 
 # debugging
