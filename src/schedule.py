@@ -281,46 +281,67 @@ def process_register_topo(graph, node, topo_order_regs, topo_order_ops_grouped, 
                     if graph.nodes[grandparent]["function"] == "Regs" and grandparent not in seen:
                         process_register_topo(graph, grandparent, topo_order_regs, topo_order_ops_grouped, seen) 
 
-def process_nodes_in_topo_order(graph, topological_order, opt_vars, hw_element_counts, resource_constraints, debug=False, resource_chain_edges=None):
-    for i in range(len(topological_order)):
-        curr_func_count = 0
-        start_node = topological_order[i]
-        if graph.nodes[start_node]["function"] not in hw_element_counts:
-            continue
-        curr_func_count += 1
-        for j in range(i + 1, len(topological_order)):
-            curr_node = topological_order[j]
-            if graph.nodes[curr_node]["function"] not in hw_element_counts:
-                continue
-            if (
-                graph.nodes[curr_node]["function"]
-                == graph.nodes[start_node]["function"]
-                and graph.nodes[start_node]["function"] not in ["Buf", "MainMem"]
-            ):
-                
-                if graph.nodes[curr_node]["function"] == "Regs" and curr_func_count == 1:
-                    resource_constraints.append(
-                        opt_vars[graph.nodes[start_node]["scheduling_id"]][0]
-                        <= opt_vars[graph.nodes[curr_node]["scheduling_id"]][0] - 0.001 # hacky fix to maintain register op ordering in the first scheduling pass. This constraint does not apply to future passes
-                    )
-                    logger.info(f"constraining {curr_node} to start no earlier than {start_node}")
-                curr_func_count += 1
-                if (
-                    curr_func_count
-                    > hw_element_counts[graph.nodes[curr_node]["function"]]
-                ):
-                    logger.info(f"constraining {curr_node} to be later than {start_node}")
-                    if debug: resource_chain_edges.append((start_node, curr_node))
-                    assert not nx.has_path(graph, curr_node, start_node)
-                    # add a constraint
-                    resource_constraints.append(
-                        opt_vars[graph.nodes[start_node]["scheduling_id"]][0]
-                        - opt_vars[graph.nodes[curr_node]["scheduling_id"]][0]
-                        <= -graph.nodes[start_node]["cost"]
-                    )
-                    break
+def get_topological_order(graph, mem_stage, hw_element_counts, hw_netlist, reg_chains=None, topo_order_override=None, buf_chain=None, mem_chain=None):
+    assert mem_stage in ["Regs", "Buf", "MainMem"]
+    topo_order_by_func = {}
+    func_instances = {func: list(filter(lambda x: hw_netlist.nodes[x]["function"] == func, hw_netlist.nodes())) for func in hw_element_counts}
+    print(func_instances)
+    topo_order_by_elem = {elem: [] for elem in hw_netlist.nodes()}
+    extra_constraints = []
+    if mem_stage == "Regs":
+        topological_order = longest_path_first_topological_sort(graph)
+        topo_order_ops_grouped = []
+        topo_order_regs= []
+        all_regs = []
+        seen = set()
+        # set topological order for register dependency chain. We should ensure that
+        # input registers to an arithmetic operation and the corresponding output register are grouped together
+        # to avoid an infeasible scheduling problem.
+        for node in topological_order[::-1]:
+            if graph.nodes[node]["function"] == "Regs" and node not in seen:
+                process_register_topo(graph, node, topo_order_regs, topo_order_ops_grouped, seen, check_arith=True)                   
+            if graph.nodes[node]["function"] == "Regs":
+                all_regs.append(node)
+            if node not in seen:
+                topo_order_ops_grouped.append(node)
+                seen.add(node)
+        assert len(all_regs) == len(topo_order_regs), "topo order did not include all register operations"
+        assert len(topo_order_ops_grouped) == len(topological_order), f"grouped topo order did not include all ops. {topo_order_ops_grouped}, {topological_order}"
+        topo_order_by_func = {}
+        for op in topological_order:
+            func = graph.nodes[op]["function"]
+            if func == "end": continue
+            if func not in topo_order_by_func:
+                topo_order_by_func[func] = []
+            topo_order_by_func[func].append(op)
+        topo_order_by_func["Regs"] = topo_order_regs[::-1]
+        # hacky fix to maintain register op ordering in the first scheduling pass. This constraint does not apply to future passes
+        for i in range(len(topo_order_by_func["Regs"])-1):
+            extra_constraints.append((topo_order_by_func["Regs"][i], topo_order_by_func["Regs"][i+1]))
+    else:
+        for op in topo_order_override:
+            func = graph.nodes[op]["function"]
+            if func in ["end", "Regs"]: continue
+            if func not in topo_order_by_func:
+                topo_order_by_func[func] = []
+            topo_order_by_func[func].append(op)
+        print(topo_order_by_func)
+        print(type(topo_order_by_func))
+        topo_order_by_func["Buf"] = buf_chain
+        if mem_stage=="MainMem":
+            topo_order_by_func["MainMem"] = mem_chain
+        for i in range(len(reg_chains)):
+            hw_element = func_instances["Regs"][i]
+            for op in reg_chains[i]:
+                topo_order_by_elem[hw_element].append(op)
+    for func in topo_order_by_func:
+        assert len(func_instances[func]) == hw_element_counts[func]
+        for i in range(len(topo_order_by_func[func])):
+            hw_element = func_instances[func][i%hw_element_counts[func]]
+            topo_order_by_elem[hw_element].append(topo_order_by_func[func][i])
+    return topo_order_by_elem, extra_constraints
 
-def sdc_schedule(graph, hw_element_counts, hw_netlist, regs_allocated=False, bufs_allocated=False, topo_order=None, reg_chains=None, buf_chain=None, mem_chain=None, no_resource_constraints=False, add_resource_edges=False, debug=True):
+def sdc_schedule(graph, topo_order_by_elem, extra_constraints=[], add_resource_edges=False, debug=True):
     """
     Runs the convex optimization problem to minimize the longest path latency.
     Encodes data dependency constraints from CDFG and resource constraints using
@@ -341,7 +362,7 @@ def sdc_schedule(graph, hw_element_counts, hw_netlist, regs_allocated=False, buf
         opt_vars.append(curr_var)
         # start time + latency = end time for each operating node
         node[1]["scheduling_id"] = id
-        if node[1]["function"] != "Regs" or not regs_allocated: node[1]["allocation"] = "" # register allocation done elsewhere
+        node[1]["allocation"] = ""
         id += 1
         constraints.append(curr_var[0] >= 0)
         if "cost" in node[1].keys():
@@ -359,7 +380,7 @@ def sdc_schedule(graph, hw_element_counts, hw_netlist, regs_allocated=False, buf
             op_to_reg = node[1]["function"] not in ["Regs"] and child["function"] == "Regs"
             if reg_to_arith_op or op_to_reg or main_mem_to_buf:
                 op_count += 1
-                constraints += [curr_var[1] <= opt_vars[child["scheduling_id"]][0] + 0.001, curr_var[1] >= opt_vars[child["scheduling_id"]][0] - 0.001] # allow a slight variation to accommodate register topological order hacky fix
+                constraints += [curr_var[1] <= opt_vars[child["scheduling_id"]][0] + 0.00001, curr_var[1] >= opt_vars[child["scheduling_id"]][0] - 0.00001] # allow a slight variation to accommodate register topological order hacky fix
                 logger.info(f"constraining {node[0]} to execute right before {successor}")
         assert op_count <= 1, f"each node should have at most 1 arithmetic op or reg child, violating node is {node[0]}"
 
@@ -368,143 +389,48 @@ def sdc_schedule(graph, hw_element_counts, hw_netlist, regs_allocated=False, buf
         source_id = int(graph_nodes[u]["scheduling_id"])
         dest_id = int(graph_nodes[v]["scheduling_id"])
         constraints.append(opt_vars[source_id][1] - opt_vars[dest_id][0] <= 0.0)
-    
-    topological_order = longest_path_first_topological_sort(graph)
-    
-    topo_order_ops_grouped = []
-    topo_order_regs= []
-    all_regs = []
-    seen = set()
-    # set topological order for register dependency chain. We should ensure that
-    # input registers to an arithmetic operation and the corresponding output register are grouped together
-    # to avoid an infeasible scheduling problem.
-    for node in topological_order[::-1]:
-        if graph.nodes[node]["function"] == "Regs" and node not in seen:
-            process_register_topo(graph, node, topo_order_regs, topo_order_ops_grouped, seen, check_arith=True)                   
-        if graph.nodes[node]["function"] == "Regs":
-            all_regs.append(node)
-        if node not in seen:
-            topo_order_ops_grouped.append(node)
-            seen.add(node)
-    assert len(all_regs) == len(topo_order_regs), "topo order did not include all register operations"
-    assert len(topo_order_ops_grouped) == len(topological_order), f"grouped topo order did not include all ops. {topo_order_ops_grouped}, {topological_order}"
-    
 
     resource_chain_edges = []
-    topo_order_regs = topo_order_regs[::-1]
-    logger.info(f"register topo order is {topo_order_regs}")     
-    logger.info(f"topological order is {topological_order}")
-    topo_order_no_regs = list(filter(lambda x: graph.nodes[x]["function"] != "Regs", topo_order_ops_grouped))[::-1] if not topo_order else topo_order
-    logger.info(f"topological order no regs is {topo_order_no_regs}")
-    #assert len(topo_order_no_regs) + len(topo_order_regs) == len(topological_order)
-    if not no_resource_constraints:
-        resource_constraints = []
-        process_nodes_in_topo_order(graph, topo_order_no_regs, opt_vars, hw_element_counts, resource_constraints, debug, resource_chain_edges)
-        if regs_allocated:
-            for reg_chain in reg_chains:
-                if len(reg_chain) == 0: continue
-                for i in range(len(reg_chain)-1):
-                    resource_constraints += [
-                        opt_vars[graph.nodes[reg_chain[i]]["scheduling_id"]][1] <= 
-                        opt_vars[graph.nodes[reg_chain[i+1]]["scheduling_id"]][0]
-                    ]
-                    if debug: resource_chain_edges.append((reg_chain[i], reg_chain[i+1]))
-            for i in range(len(buf_chain)-1):
-                resource_constraints += [
-                    opt_vars[graph.nodes[buf_chain[i]]["scheduling_id"]][1] <=
-                    opt_vars[graph.nodes[buf_chain[i+1]]["scheduling_id"]][0]
-                ]
-                if debug: resource_chain_edges.append((buf_chain[i], buf_chain[i+1]))
-            if bufs_allocated:
-                for i in range(len(mem_chain) - 1):
-                    resource_constraints += [
-                        opt_vars[graph.nodes[mem_chain[i]]["scheduling_id"]][1] <=
-                        opt_vars[graph.nodes[mem_chain[i+1]]["scheduling_id"]][0]
-                    ]
-                    if debug: resource_chain_edges.append((mem_chain[i], mem_chain[i+1]))
-        else:
-            process_nodes_in_topo_order(graph, topo_order_regs, opt_vars, hw_element_counts, resource_constraints, debug, resource_chain_edges=resource_chain_edges)  
-        constraints += resource_constraints
+    resource_edge_graph = None
+    if add_resource_edges or debug: resource_edge_graph = graph.copy()
+
+    resource_constraints = []
+    for elem in topo_order_by_elem:
+        for i in range(len(topo_order_by_elem[elem])-1):
+            first_node = topo_order_by_elem[elem][i]
+            next_node = topo_order_by_elem[elem][i+1]
+            resource_constraints += [
+                opt_vars[graph.nodes[first_node]["scheduling_id"]][1] <=
+                opt_vars[graph.nodes[next_node]["scheduling_id"]][0]
+            ]
+            if debug: resource_chain_edges.append((first_node, next_node))
+            if add_resource_edges or debug: 
+                resource_edge_graph.add_edge(first_node, next_node, weight=graph.nodes[first_node]["cost"])
+            graph.nodes[first_node]["allocation"] = elem
+            graph.nodes[next_node]["allocation"] = elem
+            logger.info(f"constraining {next_node} to be later than {first_node}")
+    for extra_constraint in extra_constraints: # used for register ordering in first scheduling pass
+        resource_constraints += [
+            opt_vars[graph.nodes[extra_constraint[0]]["scheduling_id"]][0] + 0.00001
+            <= opt_vars[graph.nodes[extra_constraint[1]]["scheduling_id"]][0]
+        ]
+    constraints += resource_constraints
 
     if debug:
-        resource_chain_graph = graph.copy()
-        for edge in resource_chain_edges:
-            resource_chain_graph.add_edge(edge[0], edge[1])
-        sim_util.topological_layout_plot(resource_chain_graph, extra_edges=resource_chain_edges)
+        sim_util.topological_layout_plot(resource_edge_graph, extra_edges=resource_chain_edges)
 
     obj = cp.Minimize(opt_vars[graph_nodes["end"]["scheduling_id"]][0])
     prob = cp.Problem(obj, constraints)
     prob.solve()
     #print(prob.status)
 
-    # num_stall_nodes_added = add_stall_nodes_to_sdc(graph, opt_vars)
     # assign start and end times to each node
     for node in graph_nodes:
         #print(node)
         #print(opt_vars[0])
         start_time, end_time = opt_vars[node[1]['scheduling_id']].value
-        node[1]['start_time'] = np.round(start_time, 3)
-        node[1]['end_time'] = np.round(end_time, 3)
-    
-    # need a way to assert hardware nodes to nodes to the nodes in the cfg
-    nodes_by_start_time = defaultdict(list)
-
-    # Populate the dictionary
-    for node, data in graph.nodes(data=True):
-        start_time = data.get('start_time')
-        if start_time is not None:
-            nodes_by_start_time[start_time].append((node, data))
-
-    # Convert to a sorted list of (start_time, nodes) tuples
-    sorted_nodes_by_start_time = sorted(nodes_by_start_time.items())
-    # dictionary of hw elements from name to data
-    hw_elements_by_name = {node[0]: node[1] for node in hw_netlist.nodes.data()}
-    # go through each layer and allocate nodes to hardware elements
-    # keep track of each hardware element and it's next available free time and allocated accordingly
-    hardware_elements_by_next_free_time = defaultdict(float)
-    hardware_element_allocations_by_start_time = {}
-    for node in hw_netlist.nodes.data():
-        hardware_elements_by_next_free_time[node[0]] = 0
-        hardware_element_allocations_by_start_time[node[0]] = []
-    
-    if not no_resource_constraints:
-        for layer in range(len(sorted_nodes_by_start_time)):
-            curr_gen_nodes = sorted_nodes_by_start_time[layer][1]
-            for node in curr_gen_nodes:
-                node_start_time = node[1]['start_time']
-                node_end_time = node[1]['end_time']
-                node_function = node[1]['function']
-                # find the hardware element with the smallest next free time
-                # allocate the node to that hardware element
-                # update the hardware element's next free time
-                if node_function == "OffChipIO": continue # IO allocation not necessary
-                if node_function == "Regs": # register allocation done elsewhere
-                    if node[1]["allocation"] != "":
-                        hardware_element_allocations_by_start_time[node[1]["allocation"]].append((node[0], node[1]['cost']))
-                        hardware_elements_by_next_free_time[node[1]["allocation"]] = node_end_time
-                    continue
-                found_hardware_element = False
-                for hardware_element in hardware_elements_by_next_free_time:
-                    if node_function in ["start", "end"]:
-                        found_hardware_element = True
-                        continue
-                    if hardware_elements_by_next_free_time[hardware_element] <= node_start_time and hw_elements_by_name[hardware_element]['function'] == node_function:
-                        graph.nodes[node[0]]['allocation'] = hardware_element
-                        hardware_elements_by_next_free_time[hardware_element] = node_end_time
-                        found_hardware_element = True
-                        hardware_element_allocations_by_start_time[hardware_element].append((node[0], node_end_time-node_start_time)) # node name and latency
-                        break
-                if not found_hardware_element:
-                    raise ValueError(f"No hardware element found for node {node[0]} with function {node_function} at time {node_start_time}")
-    resource_edge_graph = None
-    if add_resource_edges:
-        resource_edge_graph = graph.copy()
-        for hw_element in hw_netlist.nodes.data():
-            allocations = hardware_element_allocations_by_start_time[hw_element[0]]
-            for i in range(1, len(allocations)):
-                resource_edge_graph.add_edge(allocations[i-1][0], allocations[i][0], weight=allocations[i-1][1])
-                #print(f"adding edge between {allocations[i-1][0]} and {allocations[i][0]}")
-        sim_util.topological_layout_plot(resource_edge_graph)
+        node[1]['start_time'] = np.round(start_time, 5)
+        node[1]['end_time'] = np.round(end_time, 5)
 
     return resource_edge_graph
 
@@ -530,7 +456,7 @@ class LiveInterval:
         # create two new live intervals split at t=time
         new_op_names = list(filter(lambda x: graph.nodes[x]["start_time"] >= time, self.op_names))
         #print(new_op_names)
-        new_op_names = sorted(new_op_names, key=lambda x: graph.nodes[x]["start_time"])
+        new_op_names = sorted(new_op_names, key=lambda x: graph.nodes[x]["start_time"]) # I don't think this is necessary
         return LiveInterval(graph.nodes[new_op_names[0]]["start_time"], self.end, self.variable, self.id, new_op_names)
 
     def __str__(self):
@@ -570,7 +496,9 @@ def get_live_intervals(sorted_regs):
 
 
 def overlaps(node_1, node_2):
-    return node_1["start_time"] < node_2["end_time"] and node_2["start_time"] < node_1["end_time"]
+    n1_start, n1_end = np.round(node_1["start_time"], 3), np.round(node_2["start_time"], 3)
+    n2_start, n2_end = np.round(node_2["start_time"], 3), np.round(node_2["end_time"], 3)
+    return n1_start < n2_end and n2_start < n1_end
 
 
 def register_allocate(graph, hw_element_counts, hw_netlist):

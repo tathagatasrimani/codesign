@@ -256,7 +256,8 @@ class AbstractSimulator:
         if schedule_type == "greedy":
             schedule.greedy_schedule(copy, hw_counts, hw.netlist)
         elif schedule_type == "sdc":
-            schedule.sdc_schedule(copy, hw_counts, hw.netlist, regs_allocated=False)
+            topo_order_by_elem, extra_constraints = schedule.get_topological_order(copy, "Regs", hw_counts, hw.netlist)
+            schedule.sdc_schedule(copy, topo_order_by_elem, extra_constraints)
 
         # after first scheduling, perform register allocation using linear scan algorithm
         op_allocation, reg_ops_sorted = schedule.register_allocate(copy, hw_counts, hw.netlist)
@@ -290,12 +291,14 @@ class AbstractSimulator:
             buf_allocation = {buf_op[1]: 0 for buf_op in buf_chain}
             #print(reg_chains)
             #print([buf_op[1] for buf_op in buf_chain])
-            schedule.sdc_schedule(copy, hw_counts, hw.netlist, regs_allocated=True, topo_order=topo_order_other, reg_chains=reg_chains, buf_chain=[buf_op[1] for buf_op in buf_chain])
+            topo_order_by_elem, _ = schedule.get_topological_order(copy, "Buf", hw_counts, hw.netlist, reg_chains, topo_order_other, [buf_op[1] for buf_op in buf_chain])
+            schedule.sdc_schedule(copy, topo_order_by_elem)
 
             buf_chains, mem_chain = schedule.add_higher_memory_accesses_to_scheduled_graph(copy, hw_counts, hw.netlist, buf_allocation, "Buf", "MainMem", buf_chain, hw.latency["Buf"], hw.latency["MainMem"])
             #print(buf_chains[0])
             #print([mem_op[1] for mem_op in mem_chain])
-            self.resource_edge_graph = schedule.sdc_schedule(copy, hw_counts, hw.netlist, regs_allocated=True, bufs_allocated=True, topo_order=topo_order_other, reg_chains=reg_chains, buf_chain=buf_chains[0], mem_chain=[mem_op[1] for mem_op in mem_chain], add_resource_edges=True)
+            topo_order_by_elem, _ = schedule.get_topological_order(copy, "MainMem", hw_counts, hw.netlist, reg_chains, topo_order_other, buf_chains[0], [mem_op[1] for mem_op in mem_chain])
+            self.resource_edge_graph = schedule.sdc_schedule(copy, topo_order_by_elem, add_resource_edges=True)
             logger.info("completed initial schedule")
             self.add_parasitics_to_scheduled_dfg(copy, hw.parasitic_graph)
             logger.info(f"longest path: {nx.dag_longest_path(self.resource_edge_graph)}")
