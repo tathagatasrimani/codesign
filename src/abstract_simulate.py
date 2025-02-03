@@ -239,7 +239,7 @@ class AbstractSimulator:
             self.resource_edge_graph.edges[edge]["cost"] = net_delay
         self.update_schedule_with_parasitics(scheduled_dfg)
 
-    def schedule(self, computation_dfg, hw, schedule_type="greedy", prune_func=sim_util.prune_buffer_and_mem_nodes):
+    def schedule(self, computation_dfg, hw, schedule_type="greedy"):
         """
         Schedule the computation graph.
         params:
@@ -258,6 +258,7 @@ class AbstractSimulator:
         elif schedule_type == "sdc":
             topo_order_by_elem, extra_constraints = schedule.get_topological_order(copy, "Regs", hw_counts, hw.netlist)
             schedule.sdc_schedule(copy, topo_order_by_elem, extra_constraints)
+        logger.info("completed initial schedule")
 
         # after first scheduling, perform register allocation using linear scan algorithm
         op_allocation, reg_ops_sorted = schedule.register_allocate(copy, hw_counts, hw.netlist)
@@ -283,7 +284,6 @@ class AbstractSimulator:
                 copy.nodes[node]["layer"] = layer
         if schedule_type == "greedy":
             schedule.greedy_schedule(copy, hw_counts, hw.netlist)
-            copy = prune_func(copy, hw.netlist)
         elif schedule_type == "sdc":
             hw.latency["Buf"] = 2
             hw.latency["MainMem"] = 4
@@ -299,7 +299,6 @@ class AbstractSimulator:
             #print([mem_op[1] for mem_op in mem_chain])
             topo_order_by_elem, _ = schedule.get_topological_order(copy, "MainMem", hw_counts, hw.netlist, reg_chains, topo_order_other, buf_chains[0], [mem_op[1] for mem_op in mem_chain])
             self.resource_edge_graph = schedule.sdc_schedule(copy, topo_order_by_elem, add_resource_edges=True)
-            logger.info("completed initial schedule")
             self.add_parasitics_to_scheduled_dfg(copy, hw.parasitic_graph)
             logger.info(f"longest path: {nx.dag_longest_path(self.resource_edge_graph)}")
             logger.info(f"longest path length: {nx.dag_longest_path_length(self.resource_edge_graph)}")

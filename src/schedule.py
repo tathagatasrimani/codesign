@@ -307,8 +307,9 @@ def get_topological_order(graph, mem_stage, hw_element_counts, hw_netlist, reg_c
                 seen.add(node)
         assert len(all_regs) == len(topo_order_regs), "topo order did not include all register operations"
         assert len(topo_order_ops_grouped) == len(topological_order), f"grouped topo order did not include all ops. {topo_order_ops_grouped}, {topological_order}"
+        topo_order_no_regs = list(filter(lambda x: graph.nodes[x]["function"] != "Regs", topo_order_ops_grouped))[::-1]
         topo_order_by_func = {}
-        for op in topological_order:
+        for op in topo_order_no_regs:
             func = graph.nodes[op]["function"]
             if func == "end": continue
             if func not in topo_order_by_func:
@@ -414,6 +415,7 @@ def sdc_schedule(graph, topo_order_by_elem, extra_constraints=[], add_resource_e
             opt_vars[graph.nodes[extra_constraint[0]]["scheduling_id"]][0] + 0.00001
             <= opt_vars[graph.nodes[extra_constraint[1]]["scheduling_id"]][0]
         ]
+        logger.info(f"constraining {extra_constraint[1]} to be later than {extra_constraint[0]} (register ordering constraint)")
     constraints += resource_constraints
 
     if debug:
