@@ -285,7 +285,6 @@ def get_topological_order(graph, mem_stage, hw_element_counts, hw_netlist, reg_c
     assert mem_stage in ["Regs", "Buf", "MainMem"]
     topo_order_by_func = {}
     func_instances = {func: list(filter(lambda x: hw_netlist.nodes[x]["function"] == func, hw_netlist.nodes())) for func in hw_element_counts}
-    print(func_instances)
     topo_order_by_elem = {elem: [] for elem in hw_netlist.nodes()}
     extra_constraints = []
     if mem_stage == "Regs":
@@ -326,8 +325,6 @@ def get_topological_order(graph, mem_stage, hw_element_counts, hw_netlist, reg_c
             if func not in topo_order_by_func:
                 topo_order_by_func[func] = []
             topo_order_by_func[func].append(op)
-        print(topo_order_by_func)
-        print(type(topo_order_by_func))
         topo_order_by_func["Buf"] = buf_chain
         if mem_stage=="MainMem":
             topo_order_by_func["MainMem"] = mem_chain
@@ -433,6 +430,10 @@ def sdc_schedule(graph, topo_order_by_elem, extra_constraints=[], add_resource_e
         start_time, end_time = opt_vars[node[1]['scheduling_id']].value
         node[1]['start_time'] = np.round(start_time, 5)
         node[1]['end_time'] = np.round(end_time, 5)
+
+    if debug:
+        fig, ax = sim_util.plot_schedule_gantt(graph)
+        plt.show()
 
     return resource_edge_graph
 
