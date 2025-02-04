@@ -575,24 +575,24 @@ def rename_nodes(G, H, H_generations=None, curr_last_nodes=None, modified_regs=s
     if H_generations is not None and curr_last_nodes is not None:
         for elem in H_generations[0]:
             for elem_2 in curr_last_nodes:
-                if G.nodes[elem_2]["function"] == "Regs" and elem_2 not in modified_regs:
-                    parents = list(G.predecessors(elem_2))
-                    assert len(parents) <= 1, f"more than 1 parent for Reg. {elem_2}: {G.nodes[elem_2]} has parents {[G.nodes[parent] for parent in parents]}"
-                    name = get_unique_node_name(G, elem_2)
-                    G.add_node(
-                        name,
-                        function=G.nodes[elem_2]["function"],
-                        cost=G.nodes[elem_2]["cost"],
-                        write=True
-                    )
-                    if parents:
-                        G.remove_edge(parents[0], elem_2)
-                        G.add_edge(parents[0], name, weight=G.nodes[elem_2]["cost"])
-                    G.add_edge(name, elem_2, weight=G.nodes[elem_2]["cost"])
-                    modified_regs.add(elem_2)
                 if elem.split(";")[0] == elem_2.split(";")[0]:
                     relabelling[elem] = elem_2
                     found_alignment = True
+                    if G.nodes[elem_2]["function"] == "Regs" and elem_2 not in modified_regs:
+                        parents = list(G.predecessors(elem_2))
+                        assert len(parents) <= 1, f"more than 1 parent for Reg. {elem_2}: {G.nodes[elem_2]} has parents {[G.nodes[parent] for parent in parents]}"
+                        name = get_unique_node_name(G, elem_2)
+                        G.add_node(
+                            name,
+                            function=G.nodes[elem_2]["function"],
+                            cost=G.nodes[elem_2]["cost"],
+                            write=True
+                        )
+                        if parents:
+                            G.remove_edge(parents[0], elem_2)
+                            G.add_edge(parents[0], name, weight=G.nodes[elem_2]["cost"])
+                        G.add_edge(name, elem_2, weight=G.nodes[elem_2]["cost"])
+                        modified_regs.add(elem_2)
                     break
 
     for node in H.nodes:
@@ -670,7 +670,7 @@ def compose_entire_computation_graph(
         found_alignment = rename_nodes(
             computation_dfg, dfg, generations, curr_last_nodes, modified_regs
         )
-        #print(modified_regs)
+        print(modified_regs)
         computation_dfg = nx.compose(computation_dfg, dfg)
 
         curr_last_nodes = list(nx.topological_generations(nx.reverse(dfg.copy())))[0]

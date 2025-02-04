@@ -531,6 +531,7 @@ def register_allocate(graph, hw_element_counts, hw_netlist):
             # Spill a register
             spill_candidates = sorted(active, key=lambda i: i.end)[::-1] # from latest end time to earliest
             completed_spill = False
+            assert len(spill_candidates)
             for spill_candidate in spill_candidates:
                 # ensure that no register operation in spill candidate is allocated at exactly the same time as the first one in
                 # the current interval. That way, we can assign the current interval to spill_candidate's register
@@ -538,6 +539,7 @@ def register_allocate(graph, hw_element_counts, hw_netlist):
                 assert first_reg_in_current_interval["start_time"] == interval.start
                 for candidate_reg_op in spill_candidate.op_names:
                     candidate_reg_data = graph.nodes[candidate_reg_op]
+                    logger.info(f"considering {candidate_reg_op} and {first_reg_in_current_interval}")
                     if overlaps(first_reg_in_current_interval, candidate_reg_data): # move to next spill candidate
                         logger.info(f"{candidate_reg_op} and {interval.op_names[0]} overlap")
                         break
@@ -567,7 +569,7 @@ def register_allocate(graph, hw_element_counts, hw_netlist):
                                 intervals.append(spilled_interval)
                         break
                 if completed_spill: break
-            assert completed_spill, "Could not spill any active interval"
+            assert completed_spill, f"Could not spill any active interval, {spill_candidates}"
         else:
             # Allocate a register
             #print(allocation)
