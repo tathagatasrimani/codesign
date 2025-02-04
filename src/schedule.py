@@ -899,6 +899,7 @@ def greedy_schedule(
     computation_graph, hw_element_counts, hw_netlist, save_reg_use_table=False
 ):
     """
+    DEPRACATED
     Schedules the computation graph on the hardware netlist
     by determining the order of operations and the states in which
     they are executed. Includes the adding of stalls to account for

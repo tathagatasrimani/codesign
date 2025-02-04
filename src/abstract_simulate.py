@@ -252,12 +252,10 @@ class AbstractSimulator:
         hw_counts = hardwareModel.get_func_count(hw.netlist)
         schedule.pre_schedule(computation_dfg, hw.netlist, hw.latency)
         copy = computation_dfg.copy()
-        #print("HW Netlist: ", hw.netlist.nodes.data())
-        if schedule_type == "greedy":
-            schedule.greedy_schedule(copy, hw_counts, hw.netlist)
-        elif schedule_type == "sdc":
-            topo_order_by_elem, extra_constraints = schedule.get_topological_order(copy, "Regs", hw_counts, hw.netlist)
-            schedule.sdc_schedule(copy, topo_order_by_elem, extra_constraints)
+
+
+        topo_order_by_elem, extra_constraints = schedule.get_topological_order(copy, "Regs", hw_counts, hw.netlist)
+        schedule.sdc_schedule(copy, topo_order_by_elem, extra_constraints)
         logger.info("completed initial schedule")
 
         # after first scheduling, perform register allocation using linear scan algorithm
@@ -265,43 +263,33 @@ class AbstractSimulator:
 
         logger.info(f"reg ops sorted: {[op[1] for op in reg_ops_sorted]}")
 
-        topo_order_other = []
+        topologocial_order_arith = []
         seen = set()
         for _, op in reg_ops_sorted:
             children = copy.successors(op)
             for child in children:
                 if child not in seen and copy.nodes[child]["function"] not in ["Regs", "Buf", "MainMem"]:
-                    topo_order_other.append(child)
+                    topologocial_order_arith.append(child)
                     seen.add(child)
-        logger.info(f"non reg topo order: {topo_order_other}")
+        logger.info(f"processing element topological order: {topologocial_order_arith}")
 
-        for layer, nodes in enumerate(
-            reversed(list(nx.topological_generations(nx.reverse(computation_dfg))))
-        ):
-            # `multipartite_layout` expects the layer as a node attribute, so add the
-            # numeric layer value as a node attribute
-            for node in nodes:
-                copy.nodes[node]["layer"] = layer
-        if schedule_type == "greedy":
-            schedule.greedy_schedule(copy, hw_counts, hw.netlist)
-        elif schedule_type == "sdc":
-            hw.latency["Buf"] = 2
-            hw.latency["MainMem"] = 4
-            reg_chains, buf_chain = schedule.add_higher_memory_accesses_to_scheduled_graph(copy, hw_counts, hw.netlist, op_allocation, "Regs", "Buf", reg_ops_sorted, hw.latency["Regs"], hw.latency["Buf"])
-            buf_allocation = {buf_op[1]: 0 for buf_op in buf_chain}
-            #print(reg_chains)
-            #print([buf_op[1] for buf_op in buf_chain])
-            topo_order_by_elem, _ = schedule.get_topological_order(copy, "Buf", hw_counts, hw.netlist, reg_chains, topo_order_other, [buf_op[1] for buf_op in buf_chain])
-            schedule.sdc_schedule(copy, topo_order_by_elem)
+        hw.latency["Buf"] = 2
+        hw.latency["MainMem"] = 4
+        reg_chains, buf_chain = schedule.add_higher_memory_accesses_to_scheduled_graph(copy, hw_counts, hw.netlist, op_allocation, "Regs", "Buf", reg_ops_sorted, hw.latency["Regs"], hw.latency["Buf"])
+        buf_allocation = {buf_op[1]: 0 for buf_op in buf_chain}
+        #print(reg_chains)
+        #print([buf_op[1] for buf_op in buf_chain])
+        topo_order_by_elem, _ = schedule.get_topological_order(copy, "Buf", hw_counts, hw.netlist, reg_chains, topologocial_order_arith, [buf_op[1] for buf_op in buf_chain])
+        schedule.sdc_schedule(copy, topo_order_by_elem)
 
-            buf_chains, mem_chain = schedule.add_higher_memory_accesses_to_scheduled_graph(copy, hw_counts, hw.netlist, buf_allocation, "Buf", "MainMem", buf_chain, hw.latency["Buf"], hw.latency["MainMem"])
-            #print(buf_chains[0])
-            #print([mem_op[1] for mem_op in mem_chain])
-            topo_order_by_elem, _ = schedule.get_topological_order(copy, "MainMem", hw_counts, hw.netlist, reg_chains, topo_order_other, buf_chains[0], [mem_op[1] for mem_op in mem_chain])
-            self.resource_edge_graph = schedule.sdc_schedule(copy, topo_order_by_elem, add_resource_edges=True)
-            self.add_parasitics_to_scheduled_dfg(copy, hw.parasitic_graph)
-            logger.info(f"longest path: {nx.dag_longest_path(self.resource_edge_graph)}")
-            logger.info(f"longest path length: {nx.dag_longest_path_length(self.resource_edge_graph)}")
+        buf_chains, mem_chain = schedule.add_higher_memory_accesses_to_scheduled_graph(copy, hw_counts, hw.netlist, buf_allocation, "Buf", "MainMem", buf_chain, hw.latency["Buf"], hw.latency["MainMem"])
+        #print(buf_chains[0])
+        #print([mem_op[1] for mem_op in mem_chain])
+        topo_order_by_elem, _ = schedule.get_topological_order(copy, "MainMem", hw_counts, hw.netlist, reg_chains, topologocial_order_arith, buf_chains[0], [mem_op[1] for mem_op in mem_chain])
+        self.resource_edge_graph = schedule.sdc_schedule(copy, topo_order_by_elem, add_resource_edges=True)
+        self.add_parasitics_to_scheduled_dfg(copy, hw.parasitic_graph)
+        logger.info(f"longest path: {nx.dag_longest_path(self.resource_edge_graph)}")
+        logger.info(f"longest path length: {nx.dag_longest_path_length(self.resource_edge_graph)}")
         
 
         return copy
