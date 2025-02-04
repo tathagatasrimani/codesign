@@ -574,10 +574,10 @@ def rename_nodes(G, H, H_generations=None, curr_last_nodes=None, modified_regs=s
     # align
     if H_generations is not None and curr_last_nodes is not None:
         for elem in H_generations[0]:
-            for elem_2 in curr_last_nodes:
-                if elem.split(";")[0] == elem_2.split(";")[0]:
-                    relabelling[elem] = elem_2
-                    found_alignment = True
+            for elem_2 in curr_last_nodes: # last generation of G
+                if elem.split(";")[0] == elem_2.split(";")[0]: # element names are the same, so we will merge them in the composition
+                    # for registers ops, last generation should always be writes and first gen should be reads. So we don't want to merge these nodes. Instead, create
+                    # a read node in G that will be merged with its corresponding read node in H
                     if G.nodes[elem_2]["function"] == "Regs" and elem_2 not in modified_regs:
                         parents = list(G.predecessors(elem_2))
                         assert len(parents) <= 1, f"more than 1 parent for Reg. {elem_2}: {G.nodes[elem_2]} has parents {[G.nodes[parent] for parent in parents]}"
@@ -593,6 +593,10 @@ def rename_nodes(G, H, H_generations=None, curr_last_nodes=None, modified_regs=s
                             G.add_edge(parents[0], name, weight=G.nodes[elem_2]["cost"])
                         G.add_edge(name, elem_2, weight=G.nodes[elem_2]["cost"])
                         modified_regs.add(elem_2)
+                    else:
+                        # non-register case, we can just merge the nodes as normal
+                        relabelling[elem] = elem_2
+                        found_alignment = True
                     break
 
     for node in H.nodes:
@@ -673,7 +677,7 @@ def compose_entire_computation_graph(
         print(modified_regs)
         computation_dfg = nx.compose(computation_dfg, dfg)
 
-        curr_last_nodes = list(nx.topological_generations(nx.reverse(dfg.copy())))[0]
+        curr_last_nodes = list(nx.topological_generations(nx.reverse(computation_dfg.copy())))[0]
         #print("last nodes: ", curr_last_nodes)
 
         i = find_next_data_path_index(data_path, i + 1, mallocs, [])[0]
