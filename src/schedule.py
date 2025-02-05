@@ -339,7 +339,7 @@ def get_topological_order(graph, mem_stage, hw_element_counts, hw_netlist, reg_c
             topo_order_by_elem[hw_element].append(topo_order_by_func[func][i])
     return topo_order_by_elem, extra_constraints
 
-def sdc_schedule(graph, topo_order_by_elem, extra_constraints=[], add_resource_edges=False, debug=True):
+def sdc_schedule(graph, topo_order_by_elem, extra_constraints=[], add_resource_edges=False, debug=False):
     """
     Runs the convex optimization problem to minimize the longest path latency.
     Encodes data dependency constraints from CDFG and resource constraints using
@@ -365,7 +365,7 @@ def sdc_schedule(graph, topo_order_by_elem, extra_constraints=[], add_resource_e
         constraints.append(curr_var[0] >= 0)
         if "cost" in node[1].keys():
             constraints.append(curr_var[0] + node[1]["cost"] == curr_var[1])
-    
+
     for node in graph_nodes:
         # constrain arithmetic ops to load from register right before they begin, and store right after to prevent value overwrites
         curr_var = opt_vars[node[1]["scheduling_id"]]
@@ -394,6 +394,8 @@ def sdc_schedule(graph, topo_order_by_elem, extra_constraints=[], add_resource_e
 
     resource_constraints = []
     for elem in topo_order_by_elem:
+        #print(elem)
+        if elem.startswith("Buf"): continue
         for i in range(len(topo_order_by_elem[elem])-1):
             first_node = topo_order_by_elem[elem][i]
             next_node = topo_order_by_elem[elem][i+1]
@@ -457,7 +459,10 @@ class LiveInterval:
     
     def split(self, time, graph):
         # create two new live intervals split at t=time
-        new_op_names = list(filter(lambda x: graph.nodes[x]["start_time"] >= time, self.op_names))
+        logger.info(f"splitting interval at time {time}, current ops are {self.op_names}")
+        new_op_names = list(filter(lambda x: graph.nodes[x]["end_time"] >= time, self.op_names))
+        disp = [(op, graph.nodes[op]) for op in new_op_names]
+        logger.info(f"new ops are {disp}")
         #print(new_op_names)
         new_op_names = sorted(new_op_names, key=lambda x: graph.nodes[x]["start_time"]) # I don't think this is necessary
         return LiveInterval(graph.nodes[new_op_names[0]]["start_time"], self.end, self.variable, self.id, new_op_names)
@@ -499,7 +504,7 @@ def get_live_intervals(sorted_regs):
 
 
 def overlaps(node_1, node_2):
-    n1_start, n1_end = np.round(node_1["start_time"], 3), np.round(node_2["start_time"], 3)
+    n1_start, n1_end = np.round(node_1["start_time"], 3), np.round(node_1["end_time"], 3)
     n2_start, n2_end = np.round(node_2["start_time"], 3), np.round(node_2["end_time"], 3)
     return n1_start < n2_end and n2_start < n1_end
 
@@ -530,46 +535,56 @@ def register_allocate(graph, hw_element_counts, hw_netlist):
         if len(active) == num_registers:
             # Spill a register
             spill_candidates = sorted(active, key=lambda i: i.end)[::-1] # from latest end time to earliest
-            completed_spill = False
-            assert len(spill_candidates)
+            spill_ready = False
+            assert len(spill_candidates) == num_registers
+            overlapping_ops = {}
             for spill_candidate in spill_candidates:
                 # ensure that no register operation in spill candidate is allocated at exactly the same time as the first one in
                 # the current interval. That way, we can assign the current interval to spill_candidate's register
                 first_reg_in_current_interval = graph.nodes[interval.op_names[0]]
+                overlap=False
                 assert first_reg_in_current_interval["start_time"] == interval.start
                 for candidate_reg_op in spill_candidate.op_names:
                     candidate_reg_data = graph.nodes[candidate_reg_op]
-                    logger.info(f"considering {candidate_reg_op} and {first_reg_in_current_interval}")
+                    logger.info(f"considering {candidate_reg_op} and {interval.op_names[0]}")
+                    logger.info(f"data is {candidate_reg_data} and {first_reg_in_current_interval} respectively")
                     if overlaps(first_reg_in_current_interval, candidate_reg_data): # move to next spill candidate
                         logger.info(f"{candidate_reg_op} and {interval.op_names[0]} overlap")
+                        overlap=True
+                        overlapping_ops[candidate_reg_op] = spill_candidate
                         break
-                    elif candidate_reg_data["start_time"] >= first_reg_in_current_interval["end_time"]:
-                        logger.info(f"choosing {spill_candidate} to spill to memory. Was previously allocated to {allocation[spill_candidate.variable]}")
-                        active.remove(spill_candidate)
-                        spilled_interval = spill_candidate.split(first_reg_in_current_interval["end_time"], graph)
-                        logger.info(f"split interval to deallocate is {spilled_interval}")
-                        logger.info(f"new interval allocated to that register is {interval}")
-                        active.append(interval)
-                        for op in spilled_interval.op_names:
-                            op_allocation[op] = None
-                        for op in interval.op_names:
-                            op_allocation[op] = allocation[spill_candidate.variable]
-                        allocation[interval.variable] = allocation[spill_candidate.variable]
-                        allocation[spill_candidate.variable] = None  # Mark as spilled
-                        completed_spill= True
-                        # must re-insert spilled interval so that it is sorted by start time
-                        for i in range(len(intervals)):
-                            if intervals[i].start > spilled_interval.start:
-                                if i == 0:
-                                    intervals = [spilled_interval] + intervals
-                                else:
-                                    intervals = intervals[:i] + [spilled_interval] + intervals[i:]
-                                break
-                            if i == len(intervals) - 1:
-                                intervals.append(spilled_interval)
-                        break
-                if completed_spill: break
-            assert completed_spill, f"Could not spill any active interval, {spill_candidates}"
+                # if this interval has no overlapping operations with the candidate interval, we can safely spill it
+                if not overlap: 
+                    spill_ready = True
+                    break
+            if not spill_ready:
+                # if all candidates have at least one overlapping op with current interval, then at the very least,
+                # the candidate intervals should not all overlap with each other. So spill the interval of the latest overlapping operation
+                latest_overlap = max(overlapping_ops.keys(), key=lambda x: graph.nodes[x]["start_time"])
+                logger.info(f"no non-overlapping intervals were found, so spilling the one with the latest starting op that overlaps.")
+                spill_candidate = overlapping_ops[latest_overlap]
+            logger.info(f"choosing {spill_candidate} to spill to memory. Was previously allocated to {allocation[spill_candidate.variable]}")
+            active.remove(spill_candidate)
+            spilled_interval = spill_candidate.split(first_reg_in_current_interval["end_time"], graph)
+            logger.info(f"split interval to deallocate is {spilled_interval}")
+            logger.info(f"new interval allocated to that register is {interval}")
+            active.append(interval)
+            for op in spilled_interval.op_names:
+                op_allocation[op] = None
+            for op in interval.op_names:
+                op_allocation[op] = allocation[spill_candidate.variable]
+            allocation[interval.variable] = allocation[spill_candidate.variable]
+            allocation[spill_candidate.variable] = None  # Mark as spilled
+            # must re-insert spilled interval so that it is sorted by start time
+            for i in range(len(intervals)):
+                if intervals[i].start > spilled_interval.start:
+                    if i == 0:
+                        intervals = [spilled_interval] + intervals
+                    else:
+                        intervals = intervals[:i] + [spilled_interval] + intervals[i:]
+                    break
+                if i == len(intervals) - 1:
+                    intervals.append(spilled_interval)
         else:
             # Allocate a register
             #print(allocation)
@@ -601,7 +616,7 @@ def register_allocate(graph, hw_element_counts, hw_netlist):
     return op_allocation, reg_ops_sorted
 
 # deals with Regs -> Buf and Buf -> MainMem
-def add_higher_memory_accesses_to_scheduled_graph(graph, hw_element_counts, hw_netlist, op_allocation, lower_func, higher_func, lower_ops_sorted, lower_level_latency, higher_level_latency):
+def add_higher_memory_accesses_to_scheduled_graph(graph, hw_element_counts, hw_netlist, op_allocation, lower_func, higher_func, lower_ops_sorted, lower_level_latency, higher_level_latency, debug=False):
     # Assume all data is available in the higher level, add reads/writes to higher level based on lower level allocation
 
     num_lower_levels = hw_element_counts[lower_func]
@@ -755,7 +770,7 @@ def add_higher_memory_accesses_to_scheduled_graph(graph, hw_element_counts, hw_n
 
     # some higher_level ops may have been created for dirty lower_level eviction but were never needed because that variable was never used again
     higher_level_ops_final = [op for op in higher_level_ops if graph.has_node(op[1])]
-    sim_util.topological_layout_plot(graph)
+    if debug: sim_util.topological_layout_plot(graph)
     return lower_level_ops_by_allocation, higher_level_ops_final
 
 def write_df(in_use, hw_element_counts, execution_time, step):

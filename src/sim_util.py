@@ -593,10 +593,10 @@ def rename_nodes(G, H, H_generations=None, curr_last_nodes=None, modified_regs=s
                             G.add_edge(parents[0], name, weight=G.nodes[elem_2]["cost"])
                         G.add_edge(name, elem_2, weight=G.nodes[elem_2]["cost"])
                         modified_regs.add(elem_2)
-                    else:
-                        # non-register case, we can just merge the nodes as normal
                         relabelling[elem] = elem_2
-                        found_alignment = True
+                        logger.info(f"found read after write dependency for {elem_2}")
+                    relabelling[elem] = elem_2
+                    found_alignment = True
                     break
 
     for node in H.nodes:

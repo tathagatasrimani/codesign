@@ -239,6 +239,19 @@ class AbstractSimulator:
             self.resource_edge_graph.edges[edge]["cost"] = net_delay
         self.update_schedule_with_parasitics(scheduled_dfg)
 
+
+    def verify_register_chain_order(self, graph, reg_ops_sorted, func_instances):
+        reg_chains_test = [[] for instance in func_instances["Regs"]]
+        for name, op in reg_ops_sorted:
+            for i in range(len(func_instances["Regs"])):
+                if graph.nodes[op]["allocation"] == func_instances["Regs"][i]:
+                    reg_chains_test[i].append(op)
+        for chain in reg_chains_test:
+            for i in range(len(chain) - 1):
+                first_op, next_op = graph.nodes[chain[i]], graph.nodes[chain[i+1]]
+                assert np.round(first_op["end_time"],3) <= np.round(next_op["start_time"], 3), f"register allocator assigned overlapping ops to the same register. \
+                                                                                                first op is {chain[i]}:{first_op}, next is {chain[i+1]}:{next_op}. This may be due to nonsensical write after write dependencies, or maybe not ;)."
+
     def schedule(self, computation_dfg, hw, schedule_type="greedy"):
         """
         Schedule the computation graph.
@@ -273,13 +286,19 @@ class AbstractSimulator:
                     seen.add(child)
         logger.info(f"processing element topological order: {topologocial_order_arith}")
 
-        hw.latency["Buf"] = 2
-        hw.latency["MainMem"] = 4
+        """hw.latency["Buf"] = 2
+        hw.latency["MainMem"] = 4"""
+        func_instances = {func: list(filter(lambda x: hw.netlist.nodes[x]["function"] == func, hw.netlist.nodes())) for func in hw_counts}
+        
+        self.verify_register_chain_order(copy, reg_ops_sorted, func_instances)
+        #buf_chain = []
         reg_chains, buf_chain = schedule.add_higher_memory_accesses_to_scheduled_graph(copy, hw_counts, hw.netlist, op_allocation, "Regs", "Buf", reg_ops_sorted, hw.latency["Regs"], hw.latency["Buf"])
         buf_allocation = {buf_op[1]: 0 for buf_op in buf_chain}
-        #print(reg_chains)
+        logger.info(f"reg chains: {reg_chains}")
         #print([buf_op[1] for buf_op in buf_chain])
         topo_order_by_elem, _ = schedule.get_topological_order(copy, "Buf", hw_counts, hw.netlist, reg_chains, topologocial_order_arith, [buf_op[1] for buf_op in buf_chain])
+        #print(topo_order_by_elem["Regs0"])
+        #print(topo_order_by_elem["Regs1"])
         schedule.sdc_schedule(copy, topo_order_by_elem)
 
         buf_chains, mem_chain = schedule.add_higher_memory_accesses_to_scheduled_graph(copy, hw_counts, hw.netlist, buf_allocation, "Buf", "MainMem", buf_chain, hw.latency["Buf"], hw.latency["MainMem"])
