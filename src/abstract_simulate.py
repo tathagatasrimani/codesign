@@ -153,28 +153,15 @@ class AbstractSimulator:
     
     def update_schedule_with_parasitics(self, scheduled_dfg):
         """
-        After adding wire parasitics to the scheduled dfg, update start and end times for each node,
-        and edge weights for longest path calculation. To do this, we use the resource edge graph to
-        ensure that we take resource dependencies into account while updating these latencies
-        params:
+        After adding wire parasitics to the scheduled dfg, update edge weights for longest path calculation.
             scheduled_dfg: nx.DiGraph representing the scheduled graph
         """
-        for gen in list(nx.topological_generations(self.resource_edge_graph)):
+        for gen in list(nx.topological_generations(scheduled_dfg)):
             for node in gen:
-                for parent in self.resource_edge_graph.predecessors(node):
+                for parent in scheduled_dfg.predecessors(node):
                     edge = (parent, node)
-                    if edge in scheduled_dfg.edges:
-                        scheduled_dfg.edges[edge]["weight"] = (scheduled_dfg.nodes[parent]["cost"] 
-                                                               + scheduled_dfg.edges[edge]["cost"]) # update edge weight with parasitic
-                        self.resource_edge_graph.edges[edge]["weight"] = (scheduled_dfg.nodes[parent]["cost"] 
-                                                               + scheduled_dfg.edges[edge]["cost"])
-                    scheduled_dfg.nodes[node]["start_time"] = max(scheduled_dfg.nodes[node]["start_time"], 
-                                                                  scheduled_dfg.nodes[parent]["start_time"] + 
-                                                                  self.resource_edge_graph.edges[edge]["weight"]) # start time may be later now
-                if scheduled_dfg.nodes[node]["function"] != "end":
-                    scheduled_dfg.nodes[node]["end_time"] = scheduled_dfg.nodes[node]["start_time"] + scheduled_dfg.nodes[node]["cost"] # update end time
-                    self.resource_edge_graph.nodes[node]["start_time"] = scheduled_dfg.nodes[node]["start_time"] # keep consistent with resource edge graph
-                    self.resource_edge_graph.nodes[node]["end_time"] = scheduled_dfg.nodes[node]["end_time"]
+                    scheduled_dfg.edges[edge]["weight"] = (scheduled_dfg.nodes[parent]["cost"] 
+                                                            + scheduled_dfg.edges[edge]["cost"]) # update edge weight with parasitic
     
     def add_parasitics_to_scheduled_dfg(self, scheduled_dfg, parasitic_graph):
         """
@@ -236,7 +223,6 @@ class AbstractSimulator:
                     if parasitic_graph.has_edge(node_name_prev, node_name):
                         net_delay = update_net_delay(node_name_prev, node_name)
             scheduled_dfg.edges[edge]["cost"] = net_delay
-            self.resource_edge_graph.edges[edge]["cost"] = net_delay
         self.update_schedule_with_parasitics(scheduled_dfg)
 
 
@@ -305,8 +291,8 @@ class AbstractSimulator:
         #print(buf_chains[0])
         #print([mem_op[1] for mem_op in mem_chain])
         topo_order_by_elem, _ = schedule.get_topological_order(copy, "MainMem", hw_counts, hw.netlist, reg_chains, topologocial_order_arith, buf_chains[0], [mem_op[1] for mem_op in mem_chain])
-        self.resource_edge_graph = schedule.sdc_schedule(copy, topo_order_by_elem, add_resource_edges=True)
         self.add_parasitics_to_scheduled_dfg(copy, hw.parasitic_graph)
+        self.resource_edge_graph = schedule.sdc_schedule(copy, topo_order_by_elem, add_resource_edges=True)
         logger.info(f"longest path: {nx.dag_longest_path(self.resource_edge_graph)}")
         logger.info(f"longest path length: {nx.dag_longest_path_length(self.resource_edge_graph)}")
         

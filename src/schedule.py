@@ -364,7 +364,19 @@ def sdc_schedule(graph, topo_order_by_elem, extra_constraints=[], add_resource_e
         id += 1
         constraints.append(curr_var[0] >= 0)
         if "cost" in node[1].keys():
-            constraints.append(curr_var[0] + node[1]["cost"] == curr_var[1])
+            parents = list(graph.successors(node[0]))
+            net_delay = 0
+            num_net_delays = 0
+            for parent in parents:
+                print(parent, node[0])
+                edge_data = list(graph.edges([parent, node[0]]))[0]
+                print(edge_data)
+                if "cost" in edge_data:
+                    num_net_delays += 1
+                    net_delay += edge_data["cost"]
+                    print(f"adding net delay of {net_delay}")
+            assert num_net_delays <= 1
+            constraints.append(curr_var[0] + node[1]["cost"] + net_delay == curr_var[1])
 
     for node in graph_nodes:
         # constrain arithmetic ops to load from register right before they begin, and store right after to prevent value overwrites
