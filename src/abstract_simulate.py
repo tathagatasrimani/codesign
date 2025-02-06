@@ -272,8 +272,8 @@ class AbstractSimulator:
                     seen.add(child)
         logger.info(f"processing element topological order: {topologocial_order_arith}")
 
-        """hw.latency["Buf"] = 2
-        hw.latency["MainMem"] = 4"""
+        hw.latency["Buf"] = 2
+        hw.latency["MainMem"] = 4
         func_instances = {func: list(filter(lambda x: hw.netlist.nodes[x]["function"] == func, hw.netlist.nodes())) for func in hw_counts}
         
         self.verify_register_chain_order(copy, reg_ops_sorted, func_instances)
@@ -293,8 +293,10 @@ class AbstractSimulator:
         topo_order_by_elem, _ = schedule.get_topological_order(copy, "MainMem", hw_counts, hw.netlist, reg_chains, topologocial_order_arith, buf_chains[0], [mem_op[1] for mem_op in mem_chain])
         self.add_parasitics_to_scheduled_dfg(copy, hw.parasitic_graph)
         self.resource_edge_graph = schedule.sdc_schedule(copy, topo_order_by_elem, add_resource_edges=True)
-        logger.info(f"longest path: {nx.dag_longest_path(self.resource_edge_graph)}")
-        logger.info(f"longest path length: {nx.dag_longest_path_length(self.resource_edge_graph)}")
-        
 
+        self.longest_paths = schedule.get_longest_paths(self.resource_edge_graph)
+        assert self.longest_paths[0][1] == nx.dag_longest_path(self.resource_edge_graph), f"{self.longest_paths[0]}, {nx.dag_longest_path(self.resource_edge_graph)}"
+        logger.info(f"longest path: {self.longest_paths[0][1]}")
+        logger.info(f"longest path length: {self.longest_paths[0][0]}")
+        
         return copy

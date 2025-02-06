@@ -254,6 +254,89 @@ def assign_upstream_path_lengths_old(graph):
 
     return graph
 
+def get_longest_paths(G: nx.DiGraph, num_paths=5, num_unique_slacks=5):
+    """
+    Returns at most num_paths longest paths in G. num_unique_slacks can be optionally
+    specified to remove any node from the graph which has too large of a slack.
+    """
+    # Topological sorting to process nodes in order
+    top_order = list(nx.topological_sort(G))
+    
+    # Compute earliest arrival times (forward propagation)
+    earliest = {node: 0 for node in G.nodes}
+    earliest[top_order[0]] = 0  # Assuming first node is the start point
+    
+    for u in top_order:
+        for v in G.successors(u):
+            assert "weight" in G[u][v]
+            weight = G[u][v].get("weight")
+            earliest[v] = max(earliest[v], earliest[u] + weight)
+    
+    # Compute latest arrival times (backward propagation)
+    latest = {node: float('inf') for node in G.nodes}
+    latest[top_order[-1]] = earliest[top_order[-1]]  # Critical path end node
+    
+    for u in reversed(top_order):
+        for v in G.successors(u):
+            weight = G[u][v].get("weight")
+            latest[u] = min(latest[u], latest[v] - weight)
+    
+    # Compute slacks
+    slacks = {node: np.round(latest[node] - earliest[node], 5) for node in G.nodes}
+
+    # only want to look at nodes with the worst slack. As a heuristic, take the k worst
+    # unique slacks and disregard all other nodes
+    sorted_slacks = sorted(slacks.keys(), key=lambda x: slacks[x])
+    print(slacks)
+    unique_slacks = sorted(list(set(slacks.values())))
+    print(sorted_slacks)
+    k = min(num_unique_slacks, len(unique_slacks))
+    nodes_to_remove = []
+    for i in range(len(sorted_slacks)):
+        if slacks[sorted_slacks[i]] > unique_slacks[k-1]:
+            sorted_slacks = sorted_slacks[:i]
+            nodes_to_remove = sorted_slacks[i:]
+            break
+
+    # create a copy of G with negative weights. Only consider nodes below some threshold of slack.
+    # We will use this to run bellman ford, which can handle negative weights,
+    # and find longest paths by negating the path lengths at the end.
+    copy = G.copy()
+    copy.add_node("start", weight=0)
+    for node in nodes_to_remove:
+        copy.remove_node(node)
+    root_nodes = [node for node, in_degree in G.in_degree() if in_degree == 0]
+
+    for edge in copy.edges():
+        copy.edges[edge]["weight"] *= -1
+    for node in root_nodes:
+        print(f"connecting start to {node}")
+        copy.add_edge("start", node, weight=0)
+    forward_paths = nx.single_source_bellman_ford(copy, "start")
+    reverse_paths = nx.single_source_bellman_ford(copy.reverse(), "end")
+    
+    nodes_seen = set()
+    i = 0
+    paths = []
+    for node in sorted_slacks:
+        if node not in nodes_seen:
+            # exclude "start" node and last node (already in reverse path) in forward path.
+            # reverse the reverse path so that it goes from node -> "end"
+            path = forward_paths[1][node][1:-1] + reverse_paths[1][node][::-1]
+            length = forward_paths[0][node] + reverse_paths[0][node]
+            for path_node in path:
+                nodes_seen.add(path_node)
+            paths.append([length, path])
+
+    paths_sorted = sorted(paths, key=lambda x: x[0]) # sort by longest length
+    for i in range(len(paths_sorted)):
+        paths_sorted[i][0] *= -1
+    
+    # may only want a certain number of paths
+    n = min(len(paths_sorted), num_paths)
+    return paths_sorted[:n]
+
+
 def process_register_topo(graph, node, topo_order_regs, topo_order_ops_grouped, seen, check_arith=False):
     """
     typical arithmetic op:      (Reg read)--->(op)<---(Reg read)
@@ -368,13 +451,11 @@ def sdc_schedule(graph, topo_order_by_elem, extra_constraints=[], add_resource_e
             net_delay = 0
             num_net_delays = 0
             for parent in parents:
-                print(parent, node[0])
                 edge_data = list(graph.edges([parent, node[0]]))[0]
-                print(edge_data)
                 if "cost" in edge_data:
                     num_net_delays += 1
                     net_delay += edge_data["cost"]
-                    print(f"adding net delay of {net_delay}")
+            if num_net_delays: logger.info(f"adding net delay of {net_delay}")
             assert num_net_delays <= 1
             constraints.append(curr_var[0] + node[1]["cost"] + net_delay == curr_var[1])
 
