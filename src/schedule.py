@@ -234,6 +234,8 @@ def assign_upstream_path_lengths_dijkstra(graph):
             curnode = q.popleft()
             graph.nodes[curnode]["dist"] = max(
                 graph.nodes[curnode]["dist"],
+                # NOTE: this is wrong. dijkstra is shortest paths. If we 
+                # want to un-depracate greedy schedule gotta change this part
                 nx.dijkstra_path_length(graph, node, curnode),
             )
             for child in graph.successors(curnode):
