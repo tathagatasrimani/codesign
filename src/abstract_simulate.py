@@ -272,8 +272,8 @@ class AbstractSimulator:
                     seen.add(child)
         logger.info(f"processing element topological order: {topologocial_order_arith}")
 
-        hw.latency["Buf"] = 2
-        hw.latency["MainMem"] = 4
+        """hw.latency["Buf"] = 2
+        hw.latency["MainMem"] = 4"""
         func_instances = {func: list(filter(lambda x: hw.netlist.nodes[x]["function"] == func, hw.netlist.nodes())) for func in hw_counts}
         
         self.verify_register_chain_order(copy, reg_ops_sorted, func_instances)

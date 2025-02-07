@@ -246,7 +246,7 @@ class Codesign:
 
         hardwareModel.un_allocate_all_in_use_elements(self.hw.netlist)
 
-        self.symbolic_sim.simulate(self.scheduled_dfg, self.hw, self.sim.resource_edge_graph)
+        self.symbolic_sim.simulate(self.scheduled_dfg, self.hw, self.sim.longest_paths)
         cacti_subs = self.symbolic_sim.calculate_edp(self.hw)
         #print("got cacti sub expressions")
         self.symbolic_sim.save_edp_to_file()

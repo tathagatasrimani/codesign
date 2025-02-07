@@ -168,7 +168,7 @@ class SymbolicSimulator(AbstractSimulator):
             )  # W
         return passive_power * total_execution_time  # nJ
 
-    def simulate(self, computation_dfg: nx.DiGraph, hw: HardwareModel, resource_edge_graph: nx.DiGraph=None):
+    def simulate(self, computation_dfg: nx.DiGraph, hw: HardwareModel, longest_paths):
         self.reset_internal_variables()
         hw_symbols.update_symbolic_passive_power(hw.R_off_on_ratio)
 
@@ -216,60 +216,19 @@ class SymbolicSimulator(AbstractSimulator):
 
                 self.total_active_energy += energy * scaling  # nJ
 
-        # TODO: NOW THIS MIGHT GET TOO EXPENSIVE. MAYBE NEED TO DO STA.
-        """logger.info("Starting Longest Path Calculation")
-        for start_node in generations[0]:
-            for end_node in generations[-1]:
-                if start_node == end_node:
-                    continue
-                logger.info(f"start_node: {start_node}, end_node: {end_node}")
-                for path in nx.all_simple_paths(computation_dfg, start_node, end_node):
-                    path_latency = 0
-                    for node in path:
-                        scaling = 1
-                        node_data = computation_dfg.nodes[node]
-                        if node_data["function"] == "end":
-                            continue
-                        elif node_data["function"] == "stall":
-                            func = node.split("_")[3]  # stall names have std formats
-                        else:
-                            func = node_data["function"]
-                        if func in ["Buf", "MainMem"]:
-                            scaling = node_data["size"]
-                            logger.info(f"latency scaling: {scaling}")
 
-                        path_latency += hw_symbols.symbolic_latency_wc[func] * scaling
-                    self.execution_time = symbolic_convex_max(self.execution_time, path_latency)"""
-
-
-        if resource_edge_graph:
-            logger.info("starting critical path latency calculation")
-            critical_path = nx.dag_longest_path(resource_edge_graph)
-            assert resource_edge_graph.nodes[critical_path[-1]]["function"] == "end" , "last node of critical path should be 'end'"
-            for node in critical_path[:-1]: # exclude "end" node
-                func = resource_edge_graph.nodes[node]["function"]
-                self.execution_time += hw_symbols.symbolic_latency_wc[func]
-        else: # greedy schedule
-            # STA
-            logger.info("starting STA latency calculation")
-            for generation in generations:
-                gen_latency = 0
-                # for non-memory/buffer terms, keep track of which functions we have seen and
-                # do not add repeats. For memory/buffer, keep track of which size of access
-                # we have seen.
-                funcs_added = set()
-                for node in generation:
-                    node_data = computation_dfg.nodes[node]
-                    if node_data["function"] == "end":
-                        continue
-                    elif node_data["function"] == "stall":
-                                func = node.split("_")[3]  # stall names have std formats
-                    else:
-                        func = node_data["function"]
-                    if func in funcs_added: continue
-                    else: funcs_added.add(func)
-                    gen_latency = symbolic_convex_max(gen_latency, hw_symbols.symbolic_latency_wc[func])
-                self.execution_time += gen_latency
+        logger.info("starting critical path latency calculation")
+        for path in longest_paths:
+            assert computation_dfg.nodes[path[-1]]["function"] == "end"
+            symbolic_path = 0
+            for node in longest_paths[:-1]: # exclude "end" node
+                func = computation_dfg.nodes[node]["function"]
+                symbolic_path += hw_symbols.symbolic_latency_wc[func]
+            if self.execution_time == 0:
+                self.execution_time = symbolic_path
+            else:
+                self.execution_time += symbolic_convex_max(self.execution_time, symbolic_path)
+            logger.info(f"adding symbolic path to execution time: {symbolic_path}")
 
     def calculate_edp(self, hw, concrete_sub=False):
 
