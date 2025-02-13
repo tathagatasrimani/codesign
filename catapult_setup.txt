@@ -1,0 +1,14 @@
+For catapult setup at CMU:
+
+Add the following to your .bashrc
+# siemens catapult and questasim ###########
+export SALT_LICENSE_SERVER=29000@siemens-lic.ece.local.cmu.edu
+export MGLS_LICENSE_FILE=29000@siemens-lic.ece.local.cmu.edu
+
+export PATH=/afs/ece.cmu.edu/support/mgc/mgc.release/questa_sim-2024.3/questasim/bin:$PATH
+
+export PATH=/afs/ece.cmu.edu/support/mgc/mgc.release/catapult_synth_2024.2/Mgc_home/bin:$PATH
+
+###########################################
+
+To use it, open a session to an ece numbered machine through fastx. Source your bashrc and then run the command> catapult & 
