@@ -1,11 +1,15 @@
 import logging
 import configparser as cp
 import yaml
+import time
 
 logger = logging.getLogger(__name__)
 
+import networkx as nx
+
 from . import rcgen
 from . import cacti_util
+from openroad_interface import place_n_route
 
 HW_CONFIG_FILE = "src/params/hw_cfgs.ini"
 
@@ -26,6 +30,16 @@ class HardwareModel:
                 config.getfloat("DEFAULT", "V_dd"),
             )
         self.set_technology_parameters()
+        self.netlist = nx.DiGraph()
+        self.symbolic_mem = {}
+        self.symbolic_buf = {}
+        self.memories = []
+
+    def reset_state(self):
+        self.symbolic_buf = {}
+        self.symbolic_mem = {}
+        self.netlist = nx.DiGraph()
+        self.memories = []
 
     def set_hw_config_vars(
         self,
@@ -38,10 +52,6 @@ class HardwareModel:
         self.V_dd = V_dd
 
     def set_technology_parameters(self):
-        """
-        I Want to Deprecate everything that takes into account 3D with indexing by pitch size
-        and number of mem layers.
-        """
         tech_params = yaml.load(
             open("src/params/tech_params.yaml", "r"), Loader=yaml.Loader
         )
@@ -78,3 +88,68 @@ class HardwareModel:
         )
         self.R_off_on_ratio = rcs["other"]["Roff_on_ratio"]
         return rcs
+    
+    def write_technology_parameters(self, filename):
+        params = {
+            "latency": self.latency,
+            "dynamic_power": self.dynamic_power,
+            "leakage_power": self.leakage_power,
+            "dynamic_energy": self.dynamic_energy,
+            "area": self.area,
+            "V_dd": self.V_dd,
+        }
+        with open(filename, "w") as f:
+            f.write(yaml.dump(params))
+    
+    def update_technology_parameters(
+        self,
+        rc_params_file="src/params/rcs_current.yaml",
+        coeff_file="src/params/coefficients.yaml",
+    ):
+        """
+        For full codesign loop, need to update the technology parameters after a run of the inverse pass.
+        Local States:
+            latency - dictionary of latencies in cycles
+            dynamic_power - dictionary of active power in nW
+            leakage_power - dictionary of passive power in nW
+            V_dd - voltage in V
+        Inputs:
+            C - dictionary of capacitances in F
+            R - dictionary of resistances in Ohms
+            rcs[other]:
+                V_dd: voltage in V
+                MemReadL: memory read latency in s
+                MemWriteL: memory write latency in s
+                MemReadPact: memory read active power in W
+                MemWritePact: memory write active power in W
+                MemPpass: memory passive power in W
+        """
+        logger.info("Updating Technology Parameters")
+        rcs = yaml.load(open(rc_params_file, "r"), Loader=yaml.Loader)
+        C = rcs["Ceff"]  # nF
+        R = rcs["Reff"]  # Ohms
+        self.V_dd = rcs["other"]["V_dd"]
+
+        # update dat file with new parameters
+        cacti_util.update_dat(rcs, self.cacti_dat_file)
+
+        beta = yaml.load(open(coeff_file, "r"), Loader=yaml.Loader)["beta"]
+
+        for key in C:
+            self.latency[key] = R[key] * C[key]  # ns
+
+            # power calculations may need to change with reintroduction of clock frequency
+            self.dynamic_power[key] = 0.5 * self.V_dd * self.V_dd * 1e9 / R[key]  # nW
+
+            self.leakage_power[key] = (
+                beta[key] * self.V_dd**2 * 1e9 / (R["Not"] * self.R_off_on_ratio)
+            )  # convert to nW
+    
+    def get_wire_parasitics(self, arg_testfile, arg_parasitics):
+        start_time = time.time()
+        _, graph = place_n_route.place_n_route(
+            self.netlist, arg_testfile, arg_parasitics
+        )
+        logger.info(f"time to generate wire parasitics: {time.time()-start_time}")
+        self.parasitics = arg_parasitics
+        self.parasitic_graph = graph

@@ -9,13 +9,15 @@ import shutil
 import networkx as nx
 
 logger = logging.getLogger("codesign")
-os.chdir("..")
-sys.path.append(os.getcwd())
 
 from . import cacti_util
 from . import coefficients
 from . import sim_util
 from . import hardwareModel
+from . import hw_symbols
+from . import optimize
+from . import simulate 
+from . import symbolic_simulate
 
 class Codesign:
     def __init__(self, benchmark_name, save_dir, openroad_testfile, parasitics, no_cacti):
@@ -34,7 +36,7 @@ class Codesign:
             f.write("Codesign Log\n")
             f.write(f"Benchmark: {self.benchmark}\n")
 
-        shutil.copy(self.benchmark, f"{self.save_dir}/benchmark.py")
+        #shutil.copy(self.benchmark, f"{self.save_dir}/benchmark")
 
         logging.basicConfig(filename=f"{self.save_dir}/codesign.log", level=logging.INFO)
 
@@ -46,6 +48,8 @@ class Codesign:
         self.parasitics = parasitics
         self.run_cacti = not no_cacti
         self.hw = hardwareModel.HardwareModel()
+        self.sim = simulate.ConcreteSimulator()
+        self.symbolic_sim = symbolic_simulate.SymbolicSimulator()
 
         # starting point set by the config we load into the HW model
         coefficients.create_and_save_coefficients([self.hw.transistor_size])
@@ -57,32 +61,216 @@ class Codesign:
 
         self.hw.write_technology_parameters(self.save_dir+"/initial_tech_params.yaml")
 
+    def set_technology_parameters(self, tech_params):
+        if self.initial_tech_params == None:
+            self.initial_tech_params = tech_params
+        self.tech_params = tech_params
+
+    def log_forward_tech_params(self):
+        logger.info(f"latency (ns):\n {self.hw.latency}")
+
+        logger.info(f"active power (nW):\n {self.hw.dynamic_power}")
+
+        logger.info(f"active energy (nW):\n {self.hw.dynamic_energy}")
+
+        logger.info(f"passive power (nW):\n {self.hw.leakage_power}")
+
+        #logger.info(f"compute operation totals in fw pass:\n {self.hw.compute_operation_totals}")
+
+    def log_inverse_tech_params(self, cacti_subs):
+        logger.info("symbolic active power (W)\n")
+        for elem in hw_symbols.symbolic_power_active:
+            logger.info(f"{elem}: {hw_symbols.symbolic_power_active[elem].xreplace(self.tech_params)}")
+
+        logger.info("\nsymbolic passive power (W)\n")
+        for elem in hw_symbols.symbolic_power_passive:
+            logger.info(f"{elem}: {hw_symbols.symbolic_power_passive[elem].xreplace(self.tech_params)}")
+        
+        logger.info("\nsymbolic latency (ns)\n")
+        for elem in hw_symbols.symbolic_latency_wc:
+            logger.info(f"{elem}: {hw_symbols.symbolic_latency_wc[elem].xreplace(self.tech_params)}")
+
+        logger.info("\ncacti values\n")
+        for elem in cacti_subs:
+            logger.info(f"{elem}: {self.tech_params[elem]}")
+
     def run_catapult(self, memory_configs=None):
-        memories = None
+        self.hw.memories = []
         # add directives, make files, run, save hw_netlist
-        self.hw_netlist = None
-        return memories
+        #self.hw.netlist = None
 
     def forward_pass(self):
+        print("\nRunning Forward Pass")
+        logger.info("Running Forward Pass")
         # run catapult, extract hardware netlist and memory sizes
-        memories = self.run_catapult()
-        memory_configs = {}
+        self.run_catapult()
+        self.memory_configs_concrete = {}
 
         # send memory configs to cacti
-        for memory in memories:
+        for memory in self.hw.memories:
             cacti_results = cacti_util.gen_vals()
-            memory_configs[memory] = cacti_results # TODO: get area and timing specifically
+            # TODO: SAVE RESULTS TO HW
+            self.memory_configs_concrete[memory] = cacti_results # TODO: get area and timing specifically
 
         # run catapult again with memory configs specified
-        self.run_catapult(memory_configs)
+        self.run_catapult(self.memory_configs_concrete)
+
+        # calculate wire parasitics with hardware netlist
+        self.hw.get_wire_parasitics(self.openroad_testfile, self.parasitics)
 
     def parse_catapult_timing(self):
         paths = None
-        return paths
+        operations = None
+        return paths, operations
+    
+    def parse_output(self, f):
+        lines = f.readlines()
+        mapping = {}
+        i = 0
+        while lines[i][0] != "x":
+            i += 1
+        while lines[i][0] == "x":
+            mapping[lines[i][lines[i].find("[") + 1 : lines[i].find("]")]] = (
+                hw_symbols.symbol_table[lines[i].split(" ")[-1][:-1]]
+            )
+            i += 1
+        while i < len(lines) and lines[i].find("x") != 4:
+            i += 1
+        i += 2
+        for _ in range(len(mapping)):
+            key = lines[i].split(":")[0].lstrip().rstrip()
+            value = float(lines[i].split(":")[2][1:-1])
+            self.tech_params[mapping[key]] = (
+                value  # just know that self.tech_params contains all dat
+            )
+            i += 1
+
+    def write_back_rcs(self, rcs_path="src/params/rcs_current.yaml"):
+        rcs = {"Reff": {}, "Ceff": {}, "Cacti": {}, "Cacti_IO": {}, "other": {}}
+        for elem in self.tech_params:
+            if (
+                elem.name == "f"
+                or elem.name == "V_dd"
+                or elem.name.startswith("Mem")
+                or elem.name.startswith("Buf")
+                or elem.name.startswith("OffChipIO")
+            ):
+                rcs["other"][elem.name] = self.tech_params[
+                    hw_symbols.symbol_table[elem.name]
+                ]
+            elif elem.name in hw_symbols.cacti_tech_params:
+                rcs["Cacti"][elem.name] = self.tech_params[
+                    hw_symbols.symbol_table[elem.name]
+                ]
+            elif elem.name in hw_symbols.cacti_io_tech_params:
+                rcs["Cacti_IO"][elem.name] = self.tech_params[
+                    hw_symbols.symbol_table[elem.name]
+                ]
+            else:
+                rcs[elem.name[: elem.name.find("_")]][
+                    elem.name[elem.name.find("_") + 1 :]
+                ] = self.tech_params[elem]
+        with open(rcs_path, "w") as f:
+            f.write(yaml.dump(rcs))
 
     def inverse_pass(self):
         # parse catapult timing report, which saves critical paths
-        paths = self.parse_catapult_timing()
+        paths, operations = self.parse_catapult_timing()
+
+        for memory in self.hw.memories:
+            # generate mem or buf depending on type of memory
+            if memory.type == "Mem":
+                self.hw.symbolic_mem[memory] = cacti_util.gen_symbolic("Mem")
+            else:
+                self.hw.symbolic_buf[memory] = cacti_util.gen_symbolic("Buf")
+
+
+        cacti_subs = self.symbolic_sim.calculate_edp(self.hw, paths, operations)
+
+        self.symbolic_sim.save_edp_to_file()
+
+        for cacti_var in cacti_subs:
+            self.tech_params[cacti_var] = cacti_subs[cacti_var].xreplace(self.tech_params).evalf()
+        
+        self.tech_params[hw_symbols.OffChipIOL] = self.hw.latency["OffChipIO"]
+
+        self.log_inverse_tech_params(cacti_subs)
+
+        self.inverse_edp = self.symbolic_sim.edp.xreplace(self.tech_params).evalf()
+        inverse_exec_time = self.symbolic_sim.execution_time.xreplace(self.tech_params).evalf()
+        logger.info(f"execution time: {self.symbolic_sim.execution_time}")
+        active_energy = self.symbolic_sim.total_active_energy.xreplace(self.tech_params).evalf()
+        logger.info(f"active energy: {self.symbolic_sim.total_active_energy}")
+        passive_energy = self.symbolic_sim.total_passive_energy.xreplace(self.tech_params).evalf()
+        logger.info(f"passive energy: {self.symbolic_sim.total_passive_energy}")
+
+        # substitute cacti expressions into edp expression
+        self.symbolic_sim.edp = self.symbolic_sim.edp.xreplace(cacti_subs)
+
+        assert len(self.inverse_edp.free_symbols) == 0
+
+        print(
+            f"Initial EDP: {self.inverse_edp} E-18 Js. Active Energy: {active_energy} nJ. Passive Energy: {passive_energy} nJ. Execution time: {inverse_exec_time} ns"
+        )
+
+        stdout = sys.stdout
+        with open("src/tmp/ipopt_out.txt", "w") as sys.stdout:
+            optimize.optimize(self.tech_params, self.symbolic_sim.edp, self.opt_cfg, cacti_subs)
+        sys.stdout = stdout
+        f = open("src/tmp/ipopt_out.txt", "r")
+        self.parse_output(f)
+        # update cacti subs variables
+        for cacti_expr in cacti_subs:
+            self.tech_params[cacti_expr] = cacti_subs[cacti_expr].xreplace(self.tech_params).evalf()
+        
+        self.write_back_rcs()
+
+        self.inverse_edp = self.symbolic_sim.edp.xreplace(self.tech_params).evalf()
+        total_active_energy = (self.symbolic_sim.total_active_energy).xreplace(
+            self.tech_params
+        ).evalf()
+        total_passive_energy = (self.symbolic_sim.total_passive_energy).xreplace(
+            self.tech_params
+        ).evalf()
+        execution_time = self.symbolic_sim.execution_time.xreplace(self.tech_params).evalf()
+
+        print(
+            f"Final EDP  : {self.inverse_edp} E-18 Js. Active Energy: {total_active_energy} nJ. Passive Energy: {total_passive_energy} nJ. Execution time: {execution_time} ns"
+        )
+
+    def log_all_to_file(self, iter_number):
+        with open(f"{self.save_dir}/results.txt", "a") as f:
+            f.write(f"{iter_number}\n")
+            f.write(f"Forward EDP: {self.forward_edp}\n")
+            f.write(f"Inverse EDP: {self.inverse_edp}\n")
+        nx.write_gml(
+            self.hw.netlist,
+            f"{self.save_dir}/netlist_{iter_number}.gml",
+            stringizer=lambda x: str(x),
+        )
+        nx.write_gml(
+            self.scheduled_dfg,
+            f"{self.save_dir}/schedule_{iter_number}.gml",
+            stringizer=lambda x: str(x),
+        )
+        self.write_back_rcs(f"{self.save_dir}/rcs_{iter_number}.yaml")
+        shutil.copy(
+            "src/tmp/symbolic_edp.txt",
+            f"{self.save_dir}/symbolic_edp_{iter_number}.txt",
+        )
+        shutil.copy("src/tmp/ipopt_out.txt", f"{self.save_dir}/ipopt_{iter_number}.txt")
+        shutil.copy(
+            "src/tmp/solver_out.txt", f"{self.save_dir}/solver_{iter_number}.txt"
+        )
+        shutil.copy(
+            "src/tmp/cacti_exprs.txt", f"{self.save_dir}/cacti_exprs_{iter_number}.txt"
+        )
+        #TODO: copy cacti expressions to file, read yaml file from notebook, call sim util fn to get xreplace structure
+        #TODO: fw pass save cacti params of interest, with logger unique starting string, then write parsing script in notebook to look at them
+        # save latency, power, and tech params
+        self.hw.write_technology_parameters(
+            f"{self.save_dir}/tech_params_{iter_number}.yaml"
+        )
 
     def restore_dat(self):
         dat_file = self.hw.cacti_dat_file
@@ -91,10 +279,11 @@ class Codesign:
 
         prev_dat_file = f"src/cacti/tech_params/prev_{tech_nm}.dat"
 
-        with open(prev_dat_file, "r") as src_file, open(dat_file, "w") as dest_file:
-            for line in src_file:
-                dest_file.write(line)
-        os.remove(prev_dat_file)
+        if os.path.exists(prev_dat_file):
+            with open(prev_dat_file, "r") as src_file, open(dat_file, "w") as dest_file:
+                for line in src_file:
+                    dest_file.write(line)
+            os.remove(prev_dat_file)
 
     def cleanup(self):
         self.restore_dat()
@@ -107,6 +296,7 @@ class Codesign:
             self.inverse_pass()
             self.hw.update_technology_parameters()
             self.log_all_to_file(i)
+            self.hw.reset_state()
             i += 1
 
         # cleanup
