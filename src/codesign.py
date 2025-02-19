@@ -9,6 +9,8 @@ import shutil
 import networkx as nx
 
 logger = logging.getLogger("codesign")
+os.chdir("..")
+sys.path.append(os.getcwd())
 
 class Codesign:
     def __init__(self, benchmark, save_dir, openroad_testfile, parasitics, no_cacti):
