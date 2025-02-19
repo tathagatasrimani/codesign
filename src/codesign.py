@@ -12,8 +12,14 @@ logger = logging.getLogger("codesign")
 os.chdir("..")
 sys.path.append(os.getcwd())
 
+from . import cacti_util
+from . import coefficients
+from . import sim_util
+from . import hardwareModel
+
 class Codesign:
-    def __init__(self, benchmark, save_dir, openroad_testfile, parasitics, no_cacti):
+    def __init__(self, benchmark_name, save_dir, openroad_testfile, parasitics, no_cacti):
+        self.benchmark = f"src/benchmarks/{benchmark_name}"
         self.save_dir = os.path.join(
             save_dir, datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         )
@@ -26,7 +32,57 @@ class Codesign:
                 os.remove(f"{self.save_dir}/{file}")
         with open(f"{self.save_dir}/codesign.log", "a") as f:
             f.write("Codesign Log\n")
-            f.write(f"Benchmark: {benchmark}\n")
+            f.write(f"Benchmark: {self.benchmark}\n")
+
+        shutil.copy(self.benchmark, f"{self.save_dir}/benchmark.py")
+
+        logging.basicConfig(filename=f"{self.save_dir}/codesign.log", level=logging.INFO)
+
+        self.forward_edp = 0
+        self.inverse_edp = 0
+        self.tech_params = None
+        self.initial_tech_params = None
+        self.openroad_testfile = openroad_testfile
+        self.parasitics = parasitics
+        self.run_cacti = not no_cacti
+        self.hw = hardwareModel.HardwareModel()
+
+        # starting point set by the config we load into the HW model
+        coefficients.create_and_save_coefficients([self.hw.transistor_size])
+
+        rcs = self.hw.get_optimization_params_from_tech_params()
+        initial_tech_params = sim_util.generate_init_params_from_rcs_as_symbols(rcs)
+
+        self.set_technology_parameters(initial_tech_params)
+
+        self.hw.write_technology_parameters(self.save_dir+"/initial_tech_params.yaml")
+
+    def run_catapult(self, memory_configs=None):
+        memories = None
+        # add directives, make files, run, save hw_netlist
+        self.hw_netlist = None
+        return memories
+
+    def forward_pass(self):
+        # run catapult, extract hardware netlist and memory sizes
+        memories = self.run_catapult()
+        memory_configs = {}
+
+        # send memory configs to cacti
+        for memory in memories:
+            cacti_results = cacti_util.gen_vals()
+            memory_configs[memory] = cacti_results # TODO: get area and timing specifically
+
+        # run catapult again with memory configs specified
+        self.run_catapult(memory_configs)
+
+    def parse_catapult_timing(self):
+        paths = None
+        return paths
+
+    def inverse_pass(self):
+        # parse catapult timing report, which saves critical paths
+        paths = self.parse_catapult_timing()
 
     def restore_dat(self):
         dat_file = self.hw.cacti_dat_file
@@ -57,8 +113,6 @@ class Codesign:
         self.cleanup()
 
         
-
-
 def main(args):
     codesign_module = Codesign(
         args.benchmark,
