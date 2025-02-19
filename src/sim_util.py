@@ -1,6 +1,11 @@
 import logging
+from collections import defaultdict
 
 logger = logging.getLogger(__name__)
+
+import networkx as nx
+import matplotlib.pyplot as plt
+import numpy as np
 
 from . import hw_symbols
 
@@ -158,3 +163,48 @@ def generate_init_params_from_rcs_as_symbols(rcs):
     initial_params[hw_symbols.phy_vrefgen_wtime] = rcs["Cacti_IO"]["phy_vrefgen_wtime"]
 
     return initial_params
+
+def topological_layout_plot(graph, reverse=False, extra_edges=None):
+    # Compute the topological order of the nodes
+    if nx.is_directed_acyclic_graph(graph):
+        topological_order = list(nx.topological_sort(graph))
+    else:
+        cycle = nx.find_cycle(graph)
+        raise ValueError(f"Graph is not a Directed Acyclic Graph (DAG), topological sorting is not possible. Cycle is {cycle}")
+    
+    # Group nodes by level in topological order
+    levels = defaultdict(int)
+    in_degrees = {node: graph.in_degree(node) for node in graph.nodes()}
+    
+    for node in topological_order:
+        level = 0 if in_degrees[node] == 0 else max(levels[parent] + 1 for parent in graph.predecessors(node))
+        levels[node] = level
+    
+    # Arrange nodes in horizontal groups based on level
+    level_nodes = defaultdict(list)
+    for node, level in levels.items():
+        level_nodes[level].append(node)
+    
+    # Assign positions: group nodes by levels from top to bottom
+    pos = {}
+    for level, nodes in level_nodes.items():
+        x_positions = np.linspace(-len(nodes)/2, len(nodes)/2, num=len(nodes))
+        for x, node in zip(x_positions, nodes):
+            pos[node] = (x, -level)
+
+    if extra_edges:
+        edge_colors = ['red' if (u, v) in extra_edges else 'gray' for (u, v) in graph.edges()]
+    else:
+        edge_colors = ['gray' for (u, v) in graph.edges()]
+    
+    # Draw the graph with curved edges to avoid overlap
+    plt.figure(figsize=(10, 6))
+    nx.draw(graph, pos, with_labels=True, node_color='lightblue', edge_color=edge_colors, node_size=700, font_size=10, connectionstyle="arc3,rad=0.2")
+    
+    # Draw dashed lines between topological levels
+    max_level = max(level_nodes.keys())
+    for level in range(max_level):
+        plt.axhline(y=-(level + 0.5), color='gray', linestyle='dashed', linewidth=0.5)
+
+    # Show the graph
+    plt.show()

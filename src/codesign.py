@@ -18,6 +18,7 @@ from . import hw_symbols
 from . import optimize
 from . import simulate 
 from . import symbolic_simulate
+from . import schedule
 
 class Codesign:
     def __init__(self, benchmark_name, save_dir, openroad_testfile, parasitics, no_cacti):
@@ -118,10 +119,16 @@ class Codesign:
         # calculate wire parasitics with hardware netlist
         self.hw.get_wire_parasitics(self.openroad_testfile, self.parasitics)
 
+        # parse catapult timing report, which saves critical paths
+        self.parse_catapult_timing()
+
     def parse_catapult_timing(self):
-        paths = None
-        operations = None
-        return paths, operations
+        # make sure to use parasitics here
+        self.paths = None
+        self.operations = None
+
+        # schedule operations with parasitic delays
+        #schedule.sdc_schedule(self.operations)
     
     def parse_output(self, f):
         lines = f.readlines()
@@ -174,9 +181,6 @@ class Codesign:
             f.write(yaml.dump(rcs))
 
     def inverse_pass(self):
-        # parse catapult timing report, which saves critical paths
-        paths, operations = self.parse_catapult_timing()
-
         for memory in self.hw.memories:
             # generate mem or buf depending on type of memory
             if memory.type == "Mem":
@@ -184,8 +188,7 @@ class Codesign:
             else:
                 self.hw.symbolic_buf[memory] = cacti_util.gen_symbolic("Buf")
 
-
-        cacti_subs = self.symbolic_sim.calculate_edp(self.hw, paths, operations)
+        cacti_subs = self.symbolic_sim.calculate_edp(self.hw, self.paths, self.operations)
 
         self.symbolic_sim.save_edp_to_file()
 
