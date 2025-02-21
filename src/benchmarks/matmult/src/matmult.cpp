@@ -17,31 +17,29 @@ class MatMult {
                 PackedInt2D<PRECISION, 5, 5> a = a_chan.read();
                 PackedInt2D<PRECISION, 5, 5> b = b_chan.read();
                 PackedInt2D<PRECISION, 5, 5> c;
-                do_matmult(a, b, c);
+                #pragma hls_unroll yes
+                for (int i = 0; i < 5; i++) {
+                    #pragma hls_unroll yes
+                    for (int j = 0; j < 5; j++) {
+                        c.value[i].value[j] = 0;
+                    }
+                }
+                #pragma hls_unroll yes
+                for (int i = 0; i < 5; i++) {
+                    #pragma hls_unroll yes
+                    for (int j = 0; j < 5; j++) {
+                        ac_int<PRECISION> tmp = 0;
+                        #pragma hls_pipeline_init_interval 1
+                        for (int k = 0; k < 5; k++) {
+                            tmp += a.value[i].value[k] * b.value[k].value[j];
+                        }
+                        c.value[i].value[j] = tmp;
+                    }
+                }
                 c_chan.write(c);
             #ifndef __SYNTHESIS__
             }
             #endif
         }
     private:
-        #pragma hls_design ccore
-        void do_matmult(PackedInt2D<PRECISION, 5, 5> &a,
-                        PackedInt2D<PRECISION, 5, 5> &b,
-                        PackedInt2D<PRECISION, 5, 5> &c) {
-            for (int i = 0; i < 5; i++) {
-                for (int j = 0; j < 5; j++) {
-                    c.value[i].value[j] = 0;
-                }
-            }
-            
-            for (int i = 0; i < 5; i++) {
-                for (int j = 0; j < 5; j++) {
-                    ac_int<PRECISION> tmp = 0; 
-                    for (int k = 0; k < 5; k++) {
-                        tmp += a.value[i].value[k] * b.value[k].value[j];
-                    }
-                    c.value[i].value[j] = tmp;
-                }
-            }
-        }
 };
