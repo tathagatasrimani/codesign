@@ -33,6 +33,5 @@ go analyze
 directive set -DESIGN_HIERARCHY { 
     {MatMult}
 }
-directive set -CCORE_TYPE combinational
 
 go compile
