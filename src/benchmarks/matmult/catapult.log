@@ -14,12 +14,13 @@
 //                       CDS_OASYS v19.1_2.4, CDS_PSR v19.1_1.16, 
 //                       DesignPad v2.78_1.0
 //  
-//  Start time Thu Feb 20 21:20:39 2025
+//  Start time Thu Feb 27 14:20:44 2025
 # -------------------------------------------------
-# Logging session transcript to file "/tmp/log9932542ba9bc.0"
+# Logging session transcript to file "/tmp/log11494c02ba396.0"
 # Moving session transcript to file "/nfs/rsghome/pmcewen/codesign/src/benchmarks/matmult/catapult.log"
 # Warning: No Encrypted Liberty technology libraries have been specified (LIB-192)
 # Warning: No Process Technology File (PTF) technology libraries have been specified (LIB-192)
 # Warning: No Synopsys DB technology libraries have been specified (LIB-192)
-# Reading solution library '/nfs/rsghome/pmcewen/codesign/src/benchmarks/matmult/build/td_ccore_solutions/do_matmult_e4f2d77afd5e676beeef7d83b28b856ef624_0/solIndex.xml' ... (LIB-129)
-flow run /DesignAnalyzer/launch
+quit
+# Saving project file '/nfs/rsghome/pmcewen/codesign/src/benchmarks/matmult/build.ccs'. (PRJ-5)
+// Finish time Thu Feb 27 14:21:57 2025, time elapsed 1:13, peak memory 1.13GB, exit status 0

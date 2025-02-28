@@ -15,6 +15,7 @@ src/tmp/**
 **/results/**
 **/figs/**
 **/build/**
+**.log
 
 data/**
 .vscode/**
