@@ -1453,8 +1453,8 @@ if __name__ == "__main__":
         buf_vals = gen_vals(
             args.cfg_name,
             cache_size=args.cache_size,
-            block_size=args.block_size,
-            cache_type=args.cacheType,
+            #block_size=args.block_size,
+            #cache_type=args.cacheType,
             bus_width=args.busWidth,
         )
     else:
