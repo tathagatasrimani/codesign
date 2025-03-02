@@ -42,4 +42,4 @@ go architect
 go allocate
 go extract
 
-project report -filename input_db_project.rpt -memories true -area true
+project report -filename memories.rpt -memories true

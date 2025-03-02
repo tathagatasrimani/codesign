@@ -5,6 +5,7 @@ import sys
 import datetime
 import logging
 import shutil
+import subprocess
 
 import networkx as nx
 
@@ -19,10 +20,12 @@ from . import optimize
 from . import simulate 
 from . import symbolic_simulate
 from . import schedule
+from . import memory
 
 class Codesign:
     def __init__(self, benchmark_name, save_dir, openroad_testfile, parasitics, no_cacti):
         self.benchmark = f"src/benchmarks/{benchmark_name}"
+        self.benchmark_name = benchmark_name
         self.save_dir = os.path.join(
             save_dir, datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         )
@@ -36,8 +39,13 @@ class Codesign:
         with open(f"{self.save_dir}/codesign.log", "a") as f:
             f.write("Codesign Log\n")
             f.write(f"Benchmark: {self.benchmark}\n")
+        if not os.path.exists("src/tmp"):
+            os.mkdir("src/tmp")
+        else:
+            files = shutil.rmtree("src/tmp")
+        shutil.copytree(self.benchmark, "src/tmp/benchmark")
 
-        #shutil.copy(self.benchmark, f"{self.save_dir}/benchmark")
+        shutil.copytree(self.benchmark, f"{self.save_dir}/benchmark")
 
         logging.basicConfig(filename=f"{self.save_dir}/codesign.log", level=logging.INFO)
 
@@ -95,26 +103,37 @@ class Codesign:
         for elem in cacti_subs:
             logger.info(f"{elem}: {self.tech_params[elem]}")
 
-    def run_catapult(self, memory_configs=None):
-        self.hw.memories = []
-        # add directives, make files, run, save hw_netlist
+    def run_catapult(self):
+        os.chdir("src/tmp/benchmark")
+        subprocess.run(["make", "clean"])
+        cmd = ["make", "build_design"]
+        p = subprocess.run(cmd, capture_output=True, text=True)
+        print(os.getcwd())
+        print(f"process run completed on {cmd}")
+        print(p.returncode)
+        if p.returncode == 0:
+            logger.info(f"first catapult run output: {p.stdout}")
+        else:
+            print(p.stderr)
+        os.chdir("../../..")
+        memory.customize_catapult_memories(f"src/tmp/benchmark/memories.rpt", self.benchmark_name)
+        os.chdir("src/tmp/benchmark")
+        subprocess.run(["make", "clean"])
+        p_new = subprocess.run(cmd, capture_output=True, text=True)
+        if p_new.returncode == 0:
+            logger.info(f"custom memory catapult run output: {p_new.stdout}")
+        else:
+            print(p_new.stderr)
+        os.chdir("../../..")
+
+        # TODO: extract hw netlist
         #self.hw.netlist = None
 
     def forward_pass(self):
         print("\nRunning Forward Pass")
         logger.info("Running Forward Pass")
-        # run catapult, extract hardware netlist and memory sizes
+        # run catapult with custom memory configurations
         self.run_catapult()
-        self.memory_configs_concrete = {}
-
-        # send memory configs to cacti
-        for memory in self.hw.memories:
-            cacti_results = cacti_util.gen_vals()
-            # TODO: SAVE RESULTS TO HW
-            self.memory_configs_concrete[memory] = cacti_results # TODO: get area and timing specifically
-
-        # run catapult again with memory configs specified
-        self.run_catapult(self.memory_configs_concrete)
 
         # calculate wire parasitics with hardware netlist
         self.hw.get_wire_parasitics(self.openroad_testfile, self.parasitics)

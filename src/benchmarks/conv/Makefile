@@ -50,6 +50,9 @@ rtl_test_no_gui: build/Conv.v1/rtl.v
 rtl_test: build/Conv.v1/rtl.v
 	$(CATAPULT) -shell -file scripts/run_rtl_test.tcl
 
+build_design: 
+	$(CATAPULT) -shell -file scripts/conv.tcl
+
 .PHONY: clean gui c_test InputDoubleBuffer WeightDoubleBuffer SystolicArrayCore ProcessingElement
 clean:
 	rm -rf build.ccs

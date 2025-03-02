@@ -5,7 +5,7 @@ RTLTOOL          DesignCompiler
 TECHNOLOGY       045nm
 LIBRARY          custom_ram_sync_singleport
 MODULE           ccs_ram_sync_singleport
-OUTPUT_DIR       /nfs/rsghome/pmcewen/codesign/src/tmp/mem_gen/ram_sync
+OUTPUT_DIR       /nfs/rsghome/pmcewen/codesign/src/tmp/benchmark/ram_sync
 FILES {
   { FILENAME /cad/mentor/2019.11/Catapult_Synthesis_10.4b-841621/Mgc_home/pkgs/siflibs/ccs_ram_sync_singleport.v FILETYPE Verilog MODELTYPE generic PARSE 1 PATHTYPE copy STATICFILE 1 VHDL_LIB_MAPS work }
 }

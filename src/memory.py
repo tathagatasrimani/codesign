@@ -7,11 +7,16 @@ logger = logging.getLogger(__name__)
 
 from . import cacti_util
 
+def get_resource_name_for_file(resource_name):
+    # replace weird characters with _
+    return resource_name.replace("/", "_").replace("<", "_").replace(">", "_").replace(",", "_").replace(".", "_").replace(":", "_")
+
+
 def generate_sample_memory(latency, area, clk_period, mem_type, resource_name):
     num_cycles = math.ceil(latency/clk_period)
     input_delay = latency % clk_period # remainder of delay
     print(num_cycles)
-    resource_name_for_file = resource_name.replace("/", "_") # for file naming purposes
+    resource_name_for_file = get_resource_name_for_file(resource_name)
     library_name = f"{mem_type}_{resource_name_for_file}"
     with open(f"src/mem_gen/{mem_type}.tcl", "r") as f:
         lines = f.readlines()
@@ -30,10 +35,10 @@ def generate_sample_memory(latency, area, clk_period, mem_type, resource_name):
             elif (line.find("AREA") != -1):
                 new_line = lines[i].replace(item_quantity, str(area))
             output.append(new_line)
-        with open(f"src/tmp/mem_gen/{mem_type}_{resource_name_for_file}.tcl", "w") as f_new:
+        with open(f"src/tmp/benchmark/{mem_type}_{resource_name_for_file}.tcl", "w") as f_new:
             f_new.writelines(output)
         f_new.close()
-    tcl_file = f"src/tmp/mem_gen/{mem_type}_{resource_name_for_file}.tcl"
+    tcl_file = f"src/tmp/benchmark/{mem_type}_{resource_name_for_file}.tcl"
     tcl_command = f"directive set {resource_name} -MAP_TO_MODULE {library_name}.{mem_type}\n"
     return tcl_file, tcl_command, library_name
     
@@ -91,38 +96,55 @@ def parse_memory_report(filename):
 
 def gen_cacti_on_memories(memories):
     memory_vals = {}
+    existing_memories = {}
     for memory in memories:
         mem_file = "mem_cache" if memory.off_chip else "base_cache"
-        memory_vals[memory.name] = cacti_util.gen_vals(
-            filename=mem_file, 
-            cache_size=memory.depth * memory.word_width, 
-            bus_width=memory.word_width
-        )
-    return memory_vals
+        mem_info = (memory.depth, memory.word_width)
+        print(f"mem info: {mem_info}")
+        if mem_info in existing_memories:
+            print(f"reusing old mem")
+            memory_vals[memory.name] = memory_vals[existing_memories[mem_info].name]
+        else:
+            memory_vals[memory.name] = cacti_util.gen_vals(
+                filename=mem_file, 
+                cache_size=memory.depth * memory.word_width, 
+                bus_width=memory.word_width
+            )
+            existing_memories[mem_info] = memory
+    return memory_vals, existing_memories
 
 def customize_catapult_memories(mem_rpt_file, benchmark_name): #takes in a memory report from initial catapult run
-    if not os.path.exists("src/tmp/mem_gen/ram_sync"):
-        os.makedirs("src/tmp/mem_gen/ram_sync")
+    if not os.path.exists("src/tmp/benchmark/ram_sync"):
+        os.makedirs("src/tmp/benchmark/ram_sync")
     memories = parse_memory_report(mem_rpt_file)
-    memory_vals = gen_cacti_on_memories(memories)
+    memory_vals, existing_memories = gen_cacti_on_memories(memories)
     tcl_commands = []
     libraries = []
     top_tcl_text = ""
+    mem_seen = {} # mark off existing memories when we see them
     for memory in memories:
+        mem_info = (memory.depth, memory.word_width)
         cur_mem_vals = memory_vals[memory.name]
-        tcl_file, tcl_cmd, library = generate_sample_memory(
-            cur_mem_vals["Access time (ns)"], 
-            cur_mem_vals["Area (mm2)"]*1e6, 
-            5, #TODO: specify clk period
-            memory.component, memory.name
-        )
-        top_tcl_text += f"source {tcl_file}\n"
+        if mem_info in mem_seen:
+            assert mem_info in existing_memories
+            resource_name_for_file = get_resource_name_for_file(existing_memories[mem_info].name) 
+            library_name = f"{existing_memories[mem_info].component}_{resource_name_for_file}"
+            tcl_cmd = f"directive set {memory.name} -MAP_TO_MODULE {library_name}.{existing_memories[mem_info].component}\n"
+        else:
+            mem_seen[mem_info] = True
+            tcl_file, tcl_cmd, library = generate_sample_memory(
+                cur_mem_vals["Access time (ns)"], 
+                cur_mem_vals["Area (mm2)"]*1e6, 
+                5, #TODO: specify clk period
+                memory.component, memory.name
+            )
+            top_tcl_text += f"source {tcl_file}\n"
+            libraries.append(library)
         tcl_commands.append(tcl_cmd)
-        libraries.append(library)
-    with open("src/tmp/mem_gen/mem_gen.tcl", "w") as f:
+    with open("src/tmp/benchmark/mem_gen.tcl", "w") as f:
         f.write(top_tcl_text)
     print(tcl_commands)
-    cmd = ["catapult", "-shell", "-file", f"src/tmp/mem_gen/mem_gen.tcl"]
+    cmd = ["catapult", "-shell", "-file", f"src/tmp/benchmark/mem_gen.tcl"]
     res = subprocess.run(cmd, capture_output=True, text=True)
     if res.returncode == 0:
         print(res.stdout)
@@ -132,6 +154,7 @@ def customize_catapult_memories(mem_rpt_file, benchmark_name): #takes in a memor
     for library in libraries:
         library_tcl_commands.append(f"solution library add {library}\n")
 
+    # add tcl commands to import libraries
     with open("src/tmp/benchmark/scripts/generic_libraries.tcl", "a") as f:
         f.writelines(library_tcl_commands)
 
@@ -143,6 +166,7 @@ def customize_catapult_memories(mem_rpt_file, benchmark_name): #takes in a memor
             if line.lstrip().rstrip() == "go assembly":
                 for tcl_command in tcl_commands:
                     new_lines.append(tcl_command)
+    # add map to module tcl commands to top level benchmark script
     with open(f"src/tmp/benchmark/scripts/{benchmark_name}.tcl", "w") as f:
         f.writelines(new_lines)
 
@@ -150,7 +174,7 @@ def main():
     shutil.rmtree("src/tmp")
     os.mkdir("src/tmp")
     shutil.copytree("src/benchmarks/conv", "src/tmp/benchmark")
-    customize_catapult_memories("../dnn-accelerator-hls-master/input_db_project.rpt", "InputDoubleBuffer")
+    customize_catapult_memories("../dnn-accelerator-hls-master/input_db_project.rpt", "conv")
     #generate_sample_memory(2.1, 400, 5, "ccs_ram_sync_1R1W")
 
 if __name__ == "__main__":
