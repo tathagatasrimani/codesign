@@ -45,7 +45,7 @@ class Codesign:
             files = shutil.rmtree("src/tmp")
         shutil.copytree(self.benchmark, "src/tmp/benchmark")
 
-        shutil.copytree(self.benchmark, f"{self.save_dir}/benchmark")
+        #shutil.copytree(self.benchmark, f"{self.save_dir}/benchmark")
 
         logging.basicConfig(filename=f"{self.save_dir}/codesign.log", level=logging.INFO)
 
@@ -105,25 +105,20 @@ class Codesign:
 
     def run_catapult(self):
         os.chdir("src/tmp/benchmark")
-        subprocess.run(["make", "clean"])
+        p = subprocess.run(["make", "clean"], capture_output=True, text=True)
         cmd = ["make", "build_design"]
         p = subprocess.run(cmd, capture_output=True, text=True)
-        print(os.getcwd())
-        print(f"process run completed on {cmd}")
-        print(p.returncode)
-        if p.returncode == 0:
-            logger.info(f"first catapult run output: {p.stdout}")
-        else:
-            print(p.stderr)
+        logger.info(f"first catapult run output: {p.stdout}")
+        if p.returncode != 0:
+            raise Exception(p.stderr)
         os.chdir("../../..")
         memory.customize_catapult_memories(f"src/tmp/benchmark/memories.rpt", self.benchmark_name)
         os.chdir("src/tmp/benchmark")
-        subprocess.run(["make", "clean"])
-        p_new = subprocess.run(cmd, capture_output=True, text=True)
-        if p_new.returncode == 0:
-            logger.info(f"custom memory catapult run output: {p_new.stdout}")
-        else:
-            print(p_new.stderr)
+        p = subprocess.run(["make", "clean"], capture_output=True, text=True)
+        p = subprocess.run(cmd, capture_output=True, text=True)
+        logger.info(f"custom memory catapult run output: {p.stdout}")
+        if p.returncode != 0:
+            raise Exception(p.stderr)
         os.chdir("../../..")
 
         # TODO: extract hw netlist
@@ -136,7 +131,7 @@ class Codesign:
         self.run_catapult()
 
         # calculate wire parasitics with hardware netlist
-        self.hw.get_wire_parasitics(self.openroad_testfile, self.parasitics)
+        #self.hw.get_wire_parasitics(self.openroad_testfile, self.parasitics)
 
         # parse catapult timing report, which saves critical paths
         self.parse_catapult_timing()
@@ -145,6 +140,15 @@ class Codesign:
         # make sure to use parasitics here
         self.paths = None
         self.operations = None
+        build_dir = os.listdir("src/tmp/benchmark/build")
+        schedule_dir = build_dir[0]
+        for dir in build_dir:
+            if not dir.startswith("SIF"):
+                schedule_dir = dir
+                break
+        schedule_file = f"src/tmp/benchmark/build/{schedule_dir}/schedule.gnt"
+        schedule.parse_gnt_to_graph(schedule_file)
+
 
         # schedule operations with parasitic delays
         #schedule.sdc_schedule(self.operations)

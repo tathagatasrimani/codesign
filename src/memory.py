@@ -15,7 +15,7 @@ def get_resource_name_for_file(resource_name):
 def generate_sample_memory(latency, area, clk_period, mem_type, resource_name):
     num_cycles = math.ceil(latency/clk_period)
     input_delay = latency % clk_period # remainder of delay
-    print(num_cycles)
+    logger.info(f"num cycles for memory {resource_name}: {num_cycles}")
     resource_name_for_file = get_resource_name_for_file(resource_name)
     library_name = f"{mem_type}_{resource_name_for_file}"
     with open(f"src/mem_gen/{mem_type}.tcl", "r") as f:
@@ -100,9 +100,9 @@ def gen_cacti_on_memories(memories):
     for memory in memories:
         mem_file = "mem_cache" if memory.off_chip else "base_cache"
         mem_info = (memory.depth, memory.word_width)
-        print(f"mem info: {mem_info}")
+        logger.info(f"mem info: {mem_info}")
         if mem_info in existing_memories:
-            print(f"reusing old mem")
+            logger.info(f"reusing old mem created for {existing_memories[mem_info].name} instead of {memory.name}")
             memory_vals[memory.name] = memory_vals[existing_memories[mem_info].name]
         else:
             memory_vals[memory.name] = cacti_util.gen_vals(
@@ -143,13 +143,12 @@ def customize_catapult_memories(mem_rpt_file, benchmark_name): #takes in a memor
         tcl_commands.append(tcl_cmd)
     with open("src/tmp/benchmark/mem_gen.tcl", "w") as f:
         f.write(top_tcl_text)
-    print(tcl_commands)
+    logger.info(f"map to module directives: {tcl_commands}")
     cmd = ["catapult", "-shell", "-file", f"src/tmp/benchmark/mem_gen.tcl"]
     res = subprocess.run(cmd, capture_output=True, text=True)
-    if res.returncode == 0:
-        print(res.stdout)
-    else:
-        print(res.stderr)
+    logger.info(f"stdout of memory generation tcl script: {res.stdout}")
+    if res.returncode != 0:
+        raise Exception(res.stderr)
     library_tcl_commands = []
     for library in libraries:
         library_tcl_commands.append(f"solution library add {library}\n")

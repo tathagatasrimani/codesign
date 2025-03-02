@@ -9,6 +9,88 @@ import networkx as nx
 
 from . import sim_util
 
+def get_longest_paths(G: nx.DiGraph, num_paths=5, num_unique_slacks=5):
+    """
+    Returns at most num_paths longest paths in G. num_unique_slacks can be optionally
+    specified to remove any node from the graph which has too large of a slack.
+    """
+    # Topological sorting to process nodes in order
+    top_order = list(nx.topological_sort(G))
+    
+    # Compute earliest arrival times (forward propagation)
+    earliest = {node: 0 for node in G.nodes}
+    earliest[top_order[0]] = 0  # Assuming first node is the start point
+    
+    for u in top_order:
+        for v in G.successors(u):
+            assert "weight" in G[u][v]
+            weight = G[u][v].get("weight")
+            earliest[v] = max(earliest[v], earliest[u] + weight)
+    
+    # Compute latest arrival times (backward propagation)
+    latest = {node: float('inf') for node in G.nodes}
+    latest[top_order[-1]] = earliest[top_order[-1]]  # Critical path end node
+    
+    for u in reversed(top_order):
+        for v in G.successors(u):
+            weight = G[u][v].get("weight")
+            latest[u] = min(latest[u], latest[v] - weight)
+    
+    # Compute slacks
+    slacks = {node: np.round(latest[node] - earliest[node], 5) for node in G.nodes}
+
+    # only want to look at nodes with the worst slack. As a heuristic, take the k worst
+    # unique slacks and disregard all other nodes
+    sorted_slacks = sorted(slacks.keys(), key=lambda x: slacks[x])
+    logger.info(f"slacks: {slacks}")
+    unique_slacks = sorted(list(set(slacks.values())))
+    logger.info(f"sorted slacks: {sorted_slacks}")
+    k = min(num_unique_slacks, len(unique_slacks))
+    nodes_to_remove = []
+    for i in range(len(sorted_slacks)):
+        if slacks[sorted_slacks[i]] > unique_slacks[k-1]:
+            sorted_slacks = sorted_slacks[:i]
+            nodes_to_remove = sorted_slacks[i:]
+            break
+
+    # create a copy of G with negative weights. Only consider nodes below some threshold of slack.
+    # We will use this to run bellman ford, which can handle negative weights,
+    # and find longest paths by negating the path lengths at the end.
+    copy = G.copy()
+    copy.add_node("start", weight=0)
+    for node in nodes_to_remove:
+        copy.remove_node(node)
+    root_nodes = [node for node, in_degree in G.in_degree() if in_degree == 0]
+
+    for edge in copy.edges():
+        copy.edges[edge]["weight"] *= -1
+    for node in root_nodes:
+        logger.info(f"connecting start to {node}")
+        copy.add_edge("start", node, weight=0)
+    forward_paths = nx.single_source_bellman_ford(copy, "start")
+    reverse_paths = nx.single_source_bellman_ford(copy.reverse(), "end")
+    
+    nodes_seen = set()
+    i = 0
+    paths = []
+    for node in sorted_slacks:
+        if node not in nodes_seen:
+            # exclude "start" node and last node (already in reverse path) in forward path.
+            # reverse the reverse path so that it goes from node -> "end"
+            path = forward_paths[1][node][1:-1] + reverse_paths[1][node][::-1]
+            length = forward_paths[0][node] + reverse_paths[0][node]
+            for path_node in path:
+                nodes_seen.add(path_node)
+            paths.append([length, path])
+
+    paths_sorted = sorted(paths, key=lambda x: x[0]) # sort by longest length
+    for i in range(len(paths_sorted)):
+        paths_sorted[i][0] *= -1
+    
+    # may only want a certain number of paths
+    n = min(len(paths_sorted), num_paths)
+    return paths_sorted[:n]
+
 def sdc_schedule(graph, topo_order_by_elem, extra_constraints=[], add_resource_edges=False, debug=False):
     """
     Runs the convex optimization problem to minimize the longest path latency.
@@ -119,84 +201,149 @@ def sdc_schedule(graph, topo_order_by_elem, extra_constraints=[], add_resource_e
 
     return resource_edge_graph
 
-def get_longest_paths(G: nx.DiGraph, num_paths=5, num_unique_slacks=5):
+class node:
+    def __init__(self, id, name, tp, module, delay):
+        self.id = id
+        self.name = name
+        self.type = tp
+        self.module = module
+        self.delay = delay
+
+    def __str__(self):
+        return f"========================\nNode id: {self.id}\nName: {self.name}\ntype: {self.type}\nmodule: {self.module}\n========================\n"
+
+    def label(self):
+        return f"{self.module}-{self.id}-{self.type}"
+    
+def convert_to_standard_dfg(graph: nx.DiGraph, node_objects, module_map):
     """
-    Returns at most num_paths longest paths in G. num_unique_slacks can be optionally
-    specified to remove any node from the graph which has too large of a slack.
+    takes the output of parse_gnt_to_graph and converts
+    it to our standard dfg format for use in the rest of the flow.
+    We discard catapult-specific information and convert each node
+    to one of our standard operators with the correct delay value.
+
+    Arguments:
+    - graph: output of parse_gnt_to_graph
+    - node_objects: mapping of node -> node class object
+    - module_map: mapping from ccore module to standard operator name
     """
-    # Topological sorting to process nodes in order
-    top_order = list(nx.topological_sort(G))
-    
-    # Compute earliest arrival times (forward propagation)
-    earliest = {node: 0 for node in G.nodes}
-    earliest[top_order[0]] = 0  # Assuming first node is the start point
-    
-    for u in top_order:
-        for v in G.successors(u):
-            assert "weight" in G[u][v]
-            weight = G[u][v].get("weight")
-            earliest[v] = max(earliest[v], earliest[u] + weight)
-    
-    # Compute latest arrival times (backward propagation)
-    latest = {node: float('inf') for node in G.nodes}
-    latest[top_order[-1]] = earliest[top_order[-1]]  # Critical path end node
-    
-    for u in reversed(top_order):
-        for v in G.successors(u):
-            weight = G[u][v].get("weight")
-            latest[u] = min(latest[u], latest[v] - weight)
-    
-    # Compute slacks
-    slacks = {node: np.round(latest[node] - earliest[node], 5) for node in G.nodes}
+    modified_graph = nx.DiGraph()
+    for node in graph:
+        if node_objects[node].module in module_map:
+            modified_graph.add_node(
+                node,
+                id=node_objects[node].id,
+                function=module_map[node_objects[node].module],
+                cost=node_objects[node].delay,
+                start_time=0,
+                end_time=0,
+                allocation=""
+            )
+    for node in graph:
+        if node_objects[node].module in module_map:
+            for child in graph.successors(node):
+                if node_objects[child].module in module_map:
+                    modified_graph.add_edge(
+                        node, 
+                        child, 
+                        cost=graph.nodes[node]["cost"], 
+                        weight=0 # weight to be set after parasitic extraction
+                    ) 
 
-    # only want to look at nodes with the worst slack. As a heuristic, take the k worst
-    # unique slacks and disregard all other nodes
-    sorted_slacks = sorted(slacks.keys(), key=lambda x: slacks[x])
-    print(slacks)
-    unique_slacks = sorted(list(set(slacks.values())))
-    print(sorted_slacks)
-    k = min(num_unique_slacks, len(unique_slacks))
-    nodes_to_remove = []
-    for i in range(len(sorted_slacks)):
-        if slacks[sorted_slacks[i]] > unique_slacks[k-1]:
-            sorted_slacks = sorted_slacks[:i]
-            nodes_to_remove = sorted_slacks[i:]
-            break
+    sim_util.topological_layout_plot(modified_graph)
+    return modified_graph
 
-    # create a copy of G with negative weights. Only consider nodes below some threshold of slack.
-    # We will use this to run bellman ford, which can handle negative weights,
-    # and find longest paths by negating the path lengths at the end.
-    copy = G.copy()
-    copy.add_node("start", weight=0)
-    for node in nodes_to_remove:
-        copy.remove_node(node)
-    root_nodes = [node for node, in_degree in G.in_degree() if in_degree == 0]
 
-    for edge in copy.edges():
-        copy.edges[edge]["weight"] *= -1
-    for node in root_nodes:
-        print(f"connecting start to {node}")
-        copy.add_edge("start", node, weight=0)
-    forward_paths = nx.single_source_bellman_ford(copy, "start")
-    reverse_paths = nx.single_source_bellman_ford(copy.reverse(), "end")
+def parse_gnt_to_graph(file_path):
+    """
+    Parses a .gnt file and creates a directed graph.
     
-    nodes_seen = set()
-    i = 0
-    paths = []
-    for node in sorted_slacks:
-        if node not in nodes_seen:
-            # exclude "start" node and last node (already in reverse path) in forward path.
-            # reverse the reverse path so that it goes from node -> "end"
-            path = forward_paths[1][node][1:-1] + reverse_paths[1][node][::-1]
-            length = forward_paths[0][node] + reverse_paths[0][node]
-            for path_node in path:
-                nodes_seen.add(path_node)
-            paths.append([length, path])
+    :param file_path: Path to the .gnt file.
+    :return: A NetworkX directed graph.
+    """
+    G = nx.DiGraph()
 
-    paths_sorted = sorted(paths, key=lambda x: x[0]) # sort by longest length
-    for i in range(len(paths_sorted)):
-        paths_sorted[i][0] *= -1
+    ignore_types = ["{C-CORE", "LOOP", "ASSIGN"]
+
+    nodes = {}
+    node_successors = {}
     
-    # may only want a certain number of paths
-    n = min(len(paths_sorted), num_paths)
-    return paths_sorted[:n]
+    with open(file_path, 'r') as file:
+        lines = file.readlines()
+        for line in lines:
+            line = line.strip()
+            if not line.startswith("set a("):
+                continue
+            node_id = line[line.find('(')+1:line.find(')')]
+            tokens = line.split()
+            node_name = ""
+            if (line.find(" NAME ") != -1):
+                for i in range(len(tokens)):
+                    if (tokens[i] == "NAME"):
+                        node_name = tokens[i+1]
+                        break
+                assert node_name != "", f"{line}"
+            node_type = None
+            if (line.find(" TYPE ") != -1):
+                for i in range(len(tokens)):
+                    if (tokens[i] == "TYPE"):
+                        node_type = tokens[i+1]
+                        break
+                assert node_type, f"{line}"
+            node_module = None
+            if (line.find(" MODULE ") != -1):
+                for i in range(len(tokens)):
+                    if (tokens[i] == "MODULE"):
+                        node_module = tokens[i+1]
+                        break
+                assert node_module, f"{line}"
+            node_delay = 0
+            if (line.find(" DELAY ") != -1): # todo: investigate if CYCLES need to be added to delay
+                for i in range(len(tokens)):
+                    if (tokens[i] == "DELAY"):
+                        node_delay = float(tokens[i+1][1:-1]) # take out brackets with [1:-1]
+                #print(node_delay)
+
+            nodes[node_id] = node(node_id, node_name, node_type, node_module, node_delay)
+        
+
+        for line in lines:
+            line = line.strip()
+            if not line.startswith("set a("):
+                continue
+            node_id = line[line.find('(')+1:line.find(')')]
+            tokens = line.split(' ')
+            successors = []
+            if (line.find(" SUCCS ") != -1):
+                for i in range(len(tokens)):
+                    if (tokens[i] == "SUCCS"):
+                        for j in range(i+1, len(tokens)):
+                            if (tokens[j] == "CYCLES"): break
+                            if tokens[j] in nodes:
+                                successors.append(nodes[tokens[j]])
+                        break
+                
+                
+            node_successors[node_id] = successors
+        
+        for n in nodes:
+            G.add_node(
+                nodes[n].label(),
+                name=nodes[n].name,
+                id=nodes[n].id,
+                tp=nodes[n].type,
+                module=nodes[n].module
+            )
+        for n in nodes:
+            for successor in node_successors[nodes[n].id]:
+                G.add_edge(nodes[n].label(), successor.label())
+
+        for n in nodes:
+            if nodes[n].type in ignore_types:
+                G.remove_node(nodes[n].label())
+    
+    return G
+
+
+if __name__ == "__main__":
+    parse_gnt_to_graph("src/benchmarks/matmult/build/MatMult.v1/schedule.gnt")

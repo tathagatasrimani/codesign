@@ -20,7 +20,7 @@ flow package option set /SCVerify/USE_MSIM false
 flow package require /NCSim
 
 solution options set Flows/NCSim/NC_ROOT /cad/cadence/INCISIVE15.20.022/
-
+solution options set ComponentLibs/SearchPath ./ram_sync -append
 
 # Delete solution if already exists
 catch {
