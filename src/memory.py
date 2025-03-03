@@ -11,6 +11,20 @@ def get_resource_name_for_file(resource_name):
     # replace weird characters with _
     return resource_name.replace("/", "_").replace("<", "_").replace(">", "_").replace(",", "_").replace(".", "_").replace(":", "_")
 
+def rewrite_filepath_in_memory(filename):
+    current_directory = os.getcwd()
+    if current_directory.find("/codesign") != -1:
+        current_directory = current_directory[:current_directory.find("/codesign")] # only get the base of the filepath
+    new_lines = []
+    with open(filename, "r") as f:
+        lines = f.readlines()
+        for line in lines:
+            new_line= line
+            if line.find("OUTPUT_DIR") != -1:
+                new_line = line.replace("/nfs/rsghome/pmcewen", current_directory) # assume we are working out of codesign module
+            new_lines.append(new_line)
+    with open(filename, "w") as f:
+        f.writelines(new_lines)
 
 def generate_sample_memory(latency, area, clk_period, mem_type, resource_name):
     num_cycles = math.ceil(latency/clk_period)
@@ -177,4 +191,5 @@ def main():
     #generate_sample_memory(2.1, 400, 5, "ccs_ram_sync_1R1W")
 
 if __name__ == "__main__":
-    main()
+    rewrite_filepath_in_memory("src/tmp/benchmark/ram_sync/ccs_ram_sync_1R1W.tcl")
+    #main()
