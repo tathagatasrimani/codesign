@@ -103,8 +103,13 @@ class Codesign:
         for elem in cacti_subs:
             logger.info(f"{elem}: {self.tech_params[elem]}")
 
+
     def run_catapult(self):
         os.chdir("src/tmp/benchmark")
+        clk_period = (1 / self.hw.f) * 1e9 # ns
+        # set correct clk period
+        sim_util.change_clk_period_in_script("scripts/common.tcl", clk_period)
+
         p = subprocess.run(["make", "clean"], capture_output=True, text=True)
         cmd = ["make", "build_design"]
         p = subprocess.run(cmd, capture_output=True, text=True)

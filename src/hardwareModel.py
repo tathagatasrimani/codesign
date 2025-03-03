@@ -22,12 +22,14 @@ class HardwareModel:
                 config.getint(cfg, "id"),
                 config.getint(cfg, "transistorsize"),
                 config.getfloat(cfg, "V_dd"),
+                config.getint(cfg, "frequency")
             )
         except cp.NoSectionError:
             self.set_hw_config_vars(
                 config.getint("DEFAULT", "id"),
                 config.getint("DEFAULT", "transistorsize"),
                 config.getfloat("DEFAULT", "V_dd"),
+                config.getint("DEFAULT", "frequency")
             )
         self.set_technology_parameters()
         self.netlist = nx.DiGraph()
@@ -46,10 +48,12 @@ class HardwareModel:
         id,
         transistor_size,
         V_dd,
+        f
     ):
         self.id = id
         self.transistor_size = transistor_size
         self.V_dd = V_dd
+        self.f = f
 
     def set_technology_parameters(self):
         tech_params = yaml.load(

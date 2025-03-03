@@ -11,22 +11,12 @@ def get_resource_name_for_file(resource_name):
     # replace weird characters with _
     return resource_name.replace("/", "_").replace("<", "_").replace(">", "_").replace(",", "_").replace(".", "_").replace(":", "_")
 
-def rewrite_filepath_in_memory(filename):
+def generate_sample_memory(latency, area, clk_period, mem_type, resource_name):
+    # for setting correct filepath
     current_directory = os.getcwd()
     if current_directory.find("/codesign") != -1:
         current_directory = current_directory[:current_directory.find("/codesign")] # only get the base of the filepath
-    new_lines = []
-    with open(filename, "r") as f:
-        lines = f.readlines()
-        for line in lines:
-            new_line= line
-            if line.find("OUTPUT_DIR") != -1:
-                new_line = line.replace("/nfs/rsghome/pmcewen", current_directory) # assume we are working out of codesign module
-            new_lines.append(new_line)
-    with open(filename, "w") as f:
-        f.writelines(new_lines)
 
-def generate_sample_memory(latency, area, clk_period, mem_type, resource_name):
     num_cycles = math.ceil(latency/clk_period)
     input_delay = latency % clk_period # remainder of delay
     logger.info(f"num cycles for memory {resource_name}: {num_cycles}")
@@ -48,6 +38,8 @@ def generate_sample_memory(latency, area, clk_period, mem_type, resource_name):
                 new_line = lines[i].replace(item_quantity, str(num_cycles))
             elif (line.find("AREA") != -1):
                 new_line = lines[i].replace(item_quantity, str(area))
+            elif line.find("OUTPUT_DIR") != -1:
+                new_line = lines[i].replace("/nfs/rsghome/pmcewen", current_directory) # assume we are working out of codesign module"""
             output.append(new_line)
         with open(f"src/tmp/benchmark/{mem_type}_{resource_name_for_file}.tcl", "w") as f_new:
             f_new.writelines(output)
