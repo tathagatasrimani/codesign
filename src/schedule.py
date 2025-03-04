@@ -215,7 +215,7 @@ class node:
     def label(self):
         return f"{self.module}-{self.id}-{self.type}"
     
-def convert_to_standard_dfg(graph: nx.DiGraph, node_objects, module_map):
+def convert_to_standard_dfg(graph: nx.DiGraph, module_map):
     """
     takes the output of parse_gnt_to_graph and converts
     it to our standard dfg format for use in the rest of the flow.
@@ -227,30 +227,78 @@ def convert_to_standard_dfg(graph: nx.DiGraph, node_objects, module_map):
     - node_objects: mapping of node -> node class object
     - module_map: mapping from ccore module to standard operator name
     """
+    nodes_removed = []
+    edges_to_remove = []
+    for node in graph:
+        node_data = graph.nodes[node]
+        if node_data["module"] and node_data["module"][:node_data["module"].find('(')] in module_map:
+            assert node_data["module"].find('(') != -1
+            logger.info(f"{node} remaining in pruned graph")
+        else:
+            logger.info(f"removing {node}")
+            nodes_removed.append(node)
+        if graph.has_edge(node, node):
+            edges_to_remove.append((node, node))
+
+    logger.info(edges_to_remove)
+    for edge in edges_to_remove:
+        graph.remove_edge(edge[0], edge[1])
+
+    for node in nodes_removed:
+        if node in graph:
+            predecessors = list(graph.predecessors(node))
+            successors = list(graph.successors(node))
+            
+            # Create edges from predecessors to successors
+            for pred in predecessors:
+                for succ in successors:
+                    if pred != succ:  # Avoid self-loops
+                        logger.info(f"adding edge between {pred} and {succ}")
+                        graph.add_edge(pred, succ)
+            
+            # Remove the node
+            graph.remove_node(node)
+
+    sim_util.topological_layout_plot(graph)
+
     modified_graph = nx.DiGraph()
     for node in graph:
-        if node_objects[node].module in module_map:
-            modified_graph.add_node(
-                node,
-                id=node_objects[node].id,
-                function=module_map[node_objects[node].module],
-                cost=node_objects[node].delay,
-                start_time=0,
-                end_time=0,
-                allocation=""
-            )
+        node_data = graph.nodes[node]
+        module_prefix = node_data["module"][:node_data["module"].find('(')]
+        fn = module_map[module_prefix]
+        modified_graph.add_node(
+            node,
+            id=node_data["id"],
+            function=fn,
+            cost=node_data["delay"],
+            start_time=0,
+            end_time=0,
+            allocation=""
+        )
+    modified_graph.add_node(
+        "end",
+        function="end"
+    )
     for node in graph:
-        if node_objects[node].module in module_map:
-            for child in graph.successors(node):
-                if node_objects[child].module in module_map:
-                    modified_graph.add_edge(
-                        node, 
-                        child, 
-                        cost=graph.nodes[node]["cost"], 
-                        weight=0 # weight to be set after parasitic extraction
-                    ) 
+        node_data = graph.nodes[node]
+        for child in graph.successors(node):
+            modified_graph.add_edge(
+                node, 
+                child, 
+                cost=0, # cost to be set after parasitic extraction 
+                weight=modified_graph.nodes[node]["cost"]
+            ) 
+        if not len(list(graph.successors(node))):
+            modified_graph.add_edge(
+                node, "end",
+                weight=modified_graph.nodes[node]["cost"]
+            )
+
+    
 
     sim_util.topological_layout_plot(modified_graph)
+    logger.info(f"longest path length: {nx.dag_longest_path_length(modified_graph)}")
+    logger.info(f"longest path: {nx.dag_longest_path(modified_graph)}")
     return modified_graph
 
 
@@ -263,7 +311,7 @@ def parse_gnt_to_graph(file_path):
     """
     G = nx.DiGraph()
 
-    ignore_types = ["{C-CORE", "LOOP", "ASSIGN"]
+    ignore_types = ["{C-CORE", "ASSIGN"]
 
     nodes = {}
     node_successors = {}
@@ -332,11 +380,16 @@ def parse_gnt_to_graph(file_path):
                 name=nodes[n].name,
                 id=nodes[n].id,
                 tp=nodes[n].type,
-                module=nodes[n].module
+                module=nodes[n].module,
+                delay=nodes[n].delay
             )
         for n in nodes:
             for successor in node_successors[nodes[n].id]:
-                G.add_edge(nodes[n].label(), successor.label())
+                logger.info(f"adding edge between {nodes[n].label()} and {successor.label()}")
+                if G.has_edge(successor.label(), nodes[n].label()):
+                    G.remove_edge(successor.label(), nodes[n].label()) # no cycles, usually created by io constraints not data dependencies
+                else:
+                    G.add_edge(nodes[n].label(), successor.label())
 
         for n in nodes:
             if nodes[n].type in ignore_types:
@@ -346,4 +399,14 @@ def parse_gnt_to_graph(file_path):
 
 
 if __name__ == "__main__":
-    parse_gnt_to_graph("src/benchmarks/matmult/build/MatMult.v1/schedule.gnt")
+    G = parse_gnt_to_graph("src/tmp/benchmark/build/InputDoubleBufferless_4096comma_16comma_16greater_.v1/schedule.gnt")
+    module_map = {
+        "mgc_add": "Add",
+        "mgc_mul": "Mult",
+        "mgc_and": "And",
+        "mgc_or": "Or",
+        "ccs_ram_sync_1R1W_wport": "Buf",
+        "ccs_ram_sync_1R1W_rport": "Buf"
+    }
+    nx.write_gml(G, "src/tmp/catapult_graph.gml", stringizer=lambda x: str(x))
+    modified_G = convert_to_standard_dfg(G, module_map)

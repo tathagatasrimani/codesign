@@ -54,6 +54,7 @@ class Codesign:
         self.tech_params = None
         self.initial_tech_params = None
         self.openroad_testfile = openroad_testfile
+        self.longest_paths = []
         self.parasitics = parasitics
         self.run_cacti = not no_cacti
         self.hw = hardwareModel.HardwareModel()
@@ -117,7 +118,7 @@ class Codesign:
         if p.returncode != 0:
             raise Exception(p.stderr)
         os.chdir("../../..")
-        memory.customize_catapult_memories(f"src/tmp/benchmark/memories.rpt", self.benchmark_name)
+        self.hw.memories = memory.customize_catapult_memories(f"src/tmp/benchmark/memories.rpt", self.benchmark_name, self.hw)
         os.chdir("src/tmp/benchmark")
         p = subprocess.run(["make", "clean"], capture_output=True, text=True)
         p = subprocess.run(cmd, capture_output=True, text=True)
@@ -152,8 +153,20 @@ class Codesign:
                 schedule_dir = dir
                 break
         schedule_file = f"src/tmp/benchmark/build/{schedule_dir}/schedule.gnt"
-        schedule.parse_gnt_to_graph(schedule_file)
+        catapult_schedule = schedule.parse_gnt_to_graph(schedule_file)
+        module_map = {
+            "mgc_add": "Add",
+            "mgc_mul": "Mult",
+            "mgc_and": "And",
+            "mgc_or": "Or",
+            "ccs_ram_sync_1R1W_wport": "Buf",
+            "ccs_ram_sync_1R1W_rport": "Buf"
+        }
+        dfg = schedule.convert_to_standard_dfg(catapult_schedule, module_map)
+        dfg.nodes["end"]["start_time"] = nx.dag_longest_path_length(dfg)
 
+        self.longest_paths = schedule.get_longest_paths(dfg)
+        self.hw.netlist = dfg
 
         # schedule operations with parasitic delays
         #schedule.sdc_schedule(self.operations)
@@ -209,14 +222,29 @@ class Codesign:
             f.write(yaml.dump(rcs))
 
     def inverse_pass(self):
+        base_cache_cfg = "cfg/base_cache.cfg"
+        mem_cache_cfg = "cfg/mem_cache.cfg"
         for memory in self.hw.memories:
+            opt_vals = {
+                "ndwl": 2,#self.hw.memories[memory]["Ndwl"],
+                "ndbl": self.hw.memories[memory]["Ndbl"],
+                "nspd": self.hw.memories[memory]["Nspd"],
+                "ndcm": self.hw.memories[memory]["Ndcm"],
+                "ndsam1": self.hw.memories[memory]["Ndsam_level_1"],
+                "ndsam2": self.hw.memories[memory]["Ndsam_level_2"],
+                "repeater_spacing": self.hw.memories[memory]["Repeater spacing"],
+                "repeater_size": self.hw.memories[memory]["Repeater size"],
+            }
+            logger.info(f"memory vals: {self.hw.memories[memory]}")
+            mem_type = self.hw.memories[memory]["type"]
+            logger.info(f"generating symbolic cacti for {memory} of type {mem_type}")
             # generate mem or buf depending on type of memory
-            if memory.type == "Mem":
-                self.hw.symbolic_mem[memory] = cacti_util.gen_symbolic("Mem")
+            if mem_type == "Mem":
+                self.hw.symbolic_mem[memory] = cacti_util.gen_symbolic("Mem", mem_cache_cfg, opt_vals, use_piecewise=False)
             else:
-                self.hw.symbolic_buf[memory] = cacti_util.gen_symbolic("Buf")
+                self.hw.symbolic_buf[memory] = cacti_util.gen_symbolic("Buf", base_cache_cfg, opt_vals, use_piecewise=False)
 
-        cacti_subs = self.symbolic_sim.calculate_edp(self.hw, self.paths, self.operations)
+        cacti_subs = self.symbolic_sim.calculate_edp(self.hw, self.longest_paths, self.operations)
 
         self.symbolic_sim.save_edp_to_file()
 

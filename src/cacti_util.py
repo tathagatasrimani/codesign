@@ -172,6 +172,8 @@ def gen_vals(
     # load in default values
     config_values = read_config_file(os.path.join(CACTI_DIR, f"cfg/{filename}.cfg"))
 
+    logger.info(f"config values: {config_values}")
+
     # If user doesn't give input, default to cacti_input vals
     if cache_size == None:
         cache_size = config_values["cache_size"]

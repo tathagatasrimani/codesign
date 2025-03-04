@@ -100,30 +100,38 @@ def parse_memory_report(filename):
                 i += 1
     return memories
 
-def gen_cacti_on_memories(memories):
+def gen_cacti_on_memories(memories, hw):
     memory_vals = {}
     existing_memories = {}
     for memory in memories:
         mem_file = "mem_cache" if memory.off_chip else "base_cache"
+        cache_type = "main memory" if memory.off_chip else "cache"
         mem_info = (memory.depth, memory.word_width)
         logger.info(f"mem info: {mem_info}")
         if mem_info in existing_memories:
             logger.info(f"reusing old mem created for {existing_memories[mem_info].name} instead of {memory.name}")
             memory_vals[memory.name] = memory_vals[existing_memories[mem_info].name]
         else:
+            logger.info(f"cacti tech node: {hw.cacti_tech_node}")
             memory_vals[memory.name] = cacti_util.gen_vals(
                 filename=mem_file, 
                 cache_size=memory.depth * memory.word_width, 
-                bus_width=memory.word_width
+                cache_type=cache_type,
+                bus_width=memory.word_width,
+                transistor_size=hw.cacti_tech_node,
             )
             existing_memories[mem_info] = memory
+        logger.info(f"config vals: {memory_vals[memory.name]}")
+        logger.info(f"{cache_type} VALS: read/write time {memory_vals[memory.name]['Access time (ns)']} ns, read energy {memory_vals[memory.name]['Dynamic read energy (nJ)']} nJ, write energy {memory_vals[memory.name]['Dynamic write energy (nJ)']} nJ, leakage power {memory_vals[memory.name]['Standby leakage per bank(mW)']}")
+        logger.info(f"{cache_type} cacti with: {memory.depth * memory.word_width} bytes, {memory.word_width} bus width")
+        memory_vals[memory.name]["type"] = "Mem" if memory.off_chip else "Buf"
     return memory_vals, existing_memories
 
-def customize_catapult_memories(mem_rpt_file, benchmark_name): #takes in a memory report from initial catapult run
+def customize_catapult_memories(mem_rpt_file, benchmark_name, hw): #takes in a memory report from initial catapult run
     if not os.path.exists("src/tmp/benchmark/ram_sync"):
         os.makedirs("src/tmp/benchmark/ram_sync")
     memories = parse_memory_report(mem_rpt_file)
-    memory_vals, existing_memories = gen_cacti_on_memories(memories)
+    memory_vals, existing_memories = gen_cacti_on_memories(memories, hw)
     tcl_commands = []
     libraries = []
     top_tcl_text = ""
@@ -175,13 +183,15 @@ def customize_catapult_memories(mem_rpt_file, benchmark_name): #takes in a memor
     with open(f"src/tmp/benchmark/scripts/{benchmark_name}.tcl", "w") as f:
         f.writelines(new_lines)
 
+    return memory_vals
+
+class dummy_class:
+    def __init__(self):
+        self.cacti_tech_node = 0.032
 def main():
-    shutil.rmtree("src/tmp")
-    os.mkdir("src/tmp")
-    shutil.copytree("src/benchmarks/conv", "src/tmp/benchmark")
-    customize_catapult_memories("../dnn-accelerator-hls-master/input_db_project.rpt", "conv")
+    logging.basicConfig(filename=f"src/tmp/memory.log", level=logging.INFO)
+    customize_catapult_memories("src/tmp/benchmark/memories.rpt", "matmult", dummy_class())
     #generate_sample_memory(2.1, 400, 5, "ccs_ram_sync_1R1W")
 
 if __name__ == "__main__":
-    rewrite_filepath_in_memory("src/tmp/benchmark/ram_sync/ccs_ram_sync_1R1W.tcl")
-    #main()
+    main()
