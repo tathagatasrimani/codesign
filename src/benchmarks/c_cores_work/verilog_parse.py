@@ -1,4 +1,5 @@
 import json
+import sys
 import networkx as nx
 import matplotlib.pyplot as plt
 
@@ -43,23 +44,34 @@ def parse_yosys_json(json_file):
                 for i in range(len(connected_cells) - 1):
                     G.add_edge(connected_cells[i], connected_cells[i + 1], signal=net)
 
+
+        # Filter out edges that loop back to the same node
+        for u, v in list(G.edges()):
+            if u == v:
+                G.remove_edge(u, v)
+
     return G
 
 # Load and parse Yosys JSON file
-json_file = "netlist.json"
+json_file = sys.argv[1]
+if not json_file.endswith(".json"):
+    raise ValueError("Input file must be a Yosys JSON file.")
 G = parse_yosys_json(json_file)
 
 # Export the graph to a GML file
-nx.write_gml(G, "filtered_netlist.gml")
+output_gml_file_name = sys.argv[2]
+if not output_gml_file_name.endswith(".gml"):
+    output_gml_file_name += ".gml"
+nx.write_gml(G, output_gml_file_name)
 
 # Draw the graph
-plt.figure(figsize=(10, 7))
-pos = nx.spring_layout(G)  # Layout for visualization
-nx.draw(G, pos, with_labels=True, node_color="lightblue", edge_color="gray", node_size=800, font_size=8)
+# plt.figure(figsize=(10, 7))
+# pos = nx.spring_layout(G)  # Layout for visualization
+# nx.draw(G, pos, with_labels=True, node_color="lightblue", edge_color="gray", node_size=800, font_size=8)
 
-# Add signal labels to edges
-edge_labels = {(u, v): d["signal"] for u, v, d in G.edges(data=True)}
-nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_size=6)
+# # Add signal labels to edges
+# edge_labels = {(u, v): d["signal"] for u, v, d in G.edges(data=True)}
+# nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_size=6)
 
-plt.title("Filtered Circuit Netlist Graph (Multipliers and Adders Only)")
-plt.show()
+# plt.title("Filtered Circuit Netlist Graph (Multipliers and Adders Only)")
+# plt.show()
