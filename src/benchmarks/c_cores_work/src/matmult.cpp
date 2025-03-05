@@ -1,12 +1,12 @@
 //#include "c_cores.h"  // Include the CCORE header
-#include "adder.h"  // Include the adder CCORE
+#include "add.h"  // Include the adder CCORE
 #include "mult.h"  // Include the multiplier CCORE
 #include "matmult.h"
 #include <mc_scverify.h>
 
 #pragma hls_design top
 class MatMult { 
-    adder add_inst;  // Instantiate the adder blackbox
+    add add_inst;  // Instantiate the adder blackbox
     mult mul_inst;  // Instantiate the multiplier blackbox
     public:
         MatMult(){}

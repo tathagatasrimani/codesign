@@ -4,7 +4,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 
 def parse_yosys_json(json_file):
-    """Parses Yosys JSON netlist and converts it into a NetworkX graph, keeping only exact 'mult' and 'adder' nodes."""
+    """Parses Yosys JSON netlist and converts it into a NetworkX graph, keeping only exact 'mult' and 'add' nodes."""
     with open(json_file, "r") as f:
         yosys_data = json.load(f)
 
@@ -22,7 +22,7 @@ def parse_yosys_json(json_file):
         # Process cells (operations like adders, multipliers, etc.)
         for cell_name, cell_data in module_data["cells"].items():
             cell_type = cell_data["type"]
-            if cell_type == "mult" or cell_type == "adder":
+            if cell_type == "mult" or cell_type == "add":
                 G.add_node(cell_name, type=cell_type, label=cell_type)  # Node for operation
 
         # Process connections (nets as edges)
@@ -30,7 +30,7 @@ def parse_yosys_json(json_file):
 
         for cell_name, cell_data in module_data["cells"].items():
             cell_type = cell_data["type"]
-            if cell_type == "mult" or cell_type == "adder":
+            if cell_type == "mult" or cell_type == "add":
                 for port, net_list in cell_data["connections"].items():
                     for net in net_list:
                         net_name = signal_map.get(net, f"net_{net}")  # Use original name if available

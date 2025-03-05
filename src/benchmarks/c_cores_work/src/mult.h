@@ -11,8 +11,8 @@ public:
             .entity("mult")
             .verilog_files("mult.v")
             .outputs("z")
-            .area(102.5)
-            .delay(0.50)
+            .area(40.1533125)
+            .delay(0.6807)
             .end();
         z = a * b;
     }
