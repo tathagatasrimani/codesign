@@ -31,7 +31,7 @@ class SymbolicSimulator(AbstractSimulator):
             data = hw.netlist.nodes[node]
             if data["function"] == "Buf" or data["function"] == "MainMem":
                 rsc_name = data["library"][data["library"].find("__")+1:]
-                print(f"(passive energy) rsc name: {rsc_name}, data: {data['function']}")
+                logger.info(f"(passive energy) rsc name: {rsc_name}, data: {data['function']}")
                 passive_power += hw_symbols.symbolic_power_passive[data["function"]]()[rsc_name]
             else:
                 passive_power += (
@@ -47,8 +47,8 @@ class SymbolicSimulator(AbstractSimulator):
             data = scheduled_dfg.nodes[node]
             if data["function"] == "Buf" or data["function"] == "MainMem":
                 rsc_name = data["library"][data["library"].find("__")+1:]
-                print(f"(active energy) rsc name: {rsc_name}, data: {data['function']}")
-                print(f"dict: {hw_symbols.symbolic_power_active[data['function']]()}")
+                logger.info(f"(active energy) rsc name: {rsc_name}, data: {data['function']}")
+                logger.info(f"dict: {hw_symbols.symbolic_power_active[data['function']]()}")
                 self.total_active_energy += hw_symbols.symbolic_power_active[data["function"]]()[rsc_name] * hw_symbols.symbolic_latency_wc[data["function"]]()[rsc_name]
             else:
                 self.total_active_energy += hw_symbols.symbolic_power_active[data["function"]]() * hw_symbols.symbolic_latency_wc[data["function"]]()
@@ -64,7 +64,7 @@ class SymbolicSimulator(AbstractSimulator):
                 data = scheduled_dfg.nodes[node]
                 if data["function"] == "Buf" or data["function"] == "MainMem":
                     rsc_name = data["library"][data["library"].find("__")+1:]
-                    print(f"(execution time) rsc name: {rsc_name}, data: {data['function']}")
+                    logger.info(f"(execution time) rsc name: {rsc_name}, data: {data['function']}")
                     path_execution_time += hw_symbols.symbolic_latency_wc[data["function"]]()[rsc_name]
                 else:
                     path_execution_time += hw_symbols.symbolic_latency_wc[data["function"]]()
@@ -89,27 +89,41 @@ class SymbolicSimulator(AbstractSimulator):
         for mem in hw.memories:
             if hw.memories[mem]["type"] == "Mem":
                 MemL_expr = hw.symbolic_mem[mem].access_time * 1e9 # convert from s to ns
-                MemReadEact_expr = hw.symbolic_mem[mem].power.readOp.dynamic
-                MemWriteEact_expr = hw.symbolic_mem[mem].power.writeOp.dynamic
+                MemReadEact_expr = hw.symbolic_mem[mem].power.readOp.dynamic * 1e9 # convert from J to nJ
+                MemWriteEact_expr = hw.symbolic_mem[mem].power.writeOp.dynamic * 1e9 # convert from J to nJ
                 MemPpass_expr = hw.symbolic_mem[mem].power.readOp.leakage # TODO: investigate units of this expr
                 OffChipIOPact_expr = hw.symbolic_mem[mem].io_dynamic_power * 1e-3 # convert from mW to W
 
             else:
                 BufL_expr = hw.symbolic_buf[mem].access_time * 1e9 # convert from s to ns
-                BufReadEact_expr = hw.symbolic_buf[mem].power.readOp.dynamic
-                BufWriteEact_expr = hw.symbolic_buf[mem].power.writeOp.dynamic
+                BufReadEact_expr = hw.symbolic_buf[mem].power.readOp.dynamic * 1e9 # convert from J to nJ
+                BufWriteEact_expr = hw.symbolic_buf[mem].power.writeOp.dynamic * 1e9 # convert from J to nJ
                 BufPpass_expr = hw.symbolic_buf[mem].power.readOp.leakage # TODO: investigate units of this expr
 
-            hw_symbols.MemReadL[mem] = sp.symbols(f"MemReadL_{mem}")
-            hw_symbols.MemWriteL[mem] = sp.symbols(f"MemWriteL_{mem}")
-            hw_symbols.MemReadEact[mem] = sp.symbols(f"MemReadEact_{mem}")
-            hw_symbols.MemWriteEact[mem] = sp.symbols(f"MemWriteEact_{mem}")
-            hw_symbols.MemPpass[mem] = sp.symbols(f"MemPpass_{mem}")
-            hw_symbols.OffChipIOPact[mem] = sp.symbols(f"OffChipIOPact_{mem}")
-            hw_symbols.BufL[mem] = sp.symbols(f"BufL_{mem}")
-            hw_symbols.BufReadEact[mem] = sp.symbols(f"BufReadEact_{mem}")
-            hw_symbols.BufWriteEact[mem] = sp.symbols(f"BufWriteEact_{mem}")
-            hw_symbols.BufPpass[mem] = sp.symbols(f"BufPpass_{mem}")
+            # only need to do in first iteration
+            if mem not in hw_symbols.MemReadL:
+                hw_symbols.MemReadL[mem] = sp.symbols(f"MemReadL_{mem}")
+                hw_symbols.MemWriteL[mem] = sp.symbols(f"MemWriteL_{mem}")
+                hw_symbols.MemReadEact[mem] = sp.symbols(f"MemReadEact_{mem}")
+                hw_symbols.MemWriteEact[mem] = sp.symbols(f"MemWriteEact_{mem}")
+                hw_symbols.MemPpass[mem] = sp.symbols(f"MemPpass_{mem}")
+                hw_symbols.OffChipIOPact[mem] = sp.symbols(f"OffChipIOPact_{mem}")
+                hw_symbols.BufL[mem] = sp.symbols(f"BufL_{mem}")
+                hw_symbols.BufReadEact[mem] = sp.symbols(f"BufReadEact_{mem}")
+                hw_symbols.BufWriteEact[mem] = sp.symbols(f"BufWriteEact_{mem}")
+                hw_symbols.BufPpass[mem] = sp.symbols(f"BufPpass_{mem}")
+
+                # update symbol table
+                hw_symbols.symbol_table[f"MemReadL_{mem}"] = hw_symbols.MemReadL[mem]
+                hw_symbols.symbol_table[f"MemWriteL_{mem}"] = hw_symbols.MemWriteL[mem]
+                hw_symbols.symbol_table[f"MemReadEact_{mem}"] = hw_symbols.MemReadEact[mem]
+                hw_symbols.symbol_table[f"MemWriteEact_{mem}"] = hw_symbols.MemWriteEact[mem]
+                hw_symbols.symbol_table[f"MemPpass_{mem}"] = hw_symbols.MemPpass[mem]
+                hw_symbols.symbol_table[f"OffChipIOPact_{mem}"] = hw_symbols.OffChipIOPact[mem]
+                hw_symbols.symbol_table[f"BufL_{mem}"] = hw_symbols.BufL[mem]
+                hw_symbols.symbol_table[f"BufReadEact_{mem}"] = hw_symbols.BufReadEact[mem]
+                hw_symbols.symbol_table[f"BufWriteEact_{mem}"] = hw_symbols.BufWriteEact[mem]
+                hw_symbols.symbol_table[f"BufPpass_{mem}"] = hw_symbols.BufPpass[mem]
         
             # TODO: support multiple memories in hw_symbols
             cacti_subs_new = {

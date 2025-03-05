@@ -163,8 +163,8 @@ class Codesign:
             "mgc_mul": "Mult",
             "mgc_and": "And",
             "mgc_or": "Or",
-            "ccs_ram_sync_1R1W_wport": "Mem",
-            "ccs_ram_sync_1R1W_rport": "Mem"
+            "ccs_ram_sync_1R1W_wport": "Buf",
+            "ccs_ram_sync_1R1W_rport": "Buf"
         }
         self.scheduled_dfg = schedule.convert_to_standard_dfg(catapult_schedule, module_map)
         self.scheduled_dfg.nodes["end"]["start_time"] = nx.dag_longest_path_length(self.scheduled_dfg)
@@ -239,10 +239,10 @@ class Codesign:
                 if mem_type == "Mem":
                     self.hw.symbolic_mem[memory] = self.hw.symbolic_mem[existing_memories[data_tuple]]
                 else:
-                    self.hw.symbolic_buf[memory] = self.hw.symbolic_mem[existing_memories[data_tuple]]
+                    self.hw.symbolic_buf[memory] = self.hw.symbolic_buf[existing_memories[data_tuple]]
             else:
                 opt_vals = {
-                    "ndwl": 2,#self.hw.memories[memory]["Ndwl"],
+                    "ndwl": self.hw.memories[memory]["Ndwl"],
                     "ndbl": self.hw.memories[memory]["Ndbl"],
                     "nspd": self.hw.memories[memory]["Nspd"],
                     "ndcm": self.hw.memories[memory]["Ndcm"],

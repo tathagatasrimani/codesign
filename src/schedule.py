@@ -9,7 +9,7 @@ import networkx as nx
 
 from . import sim_util
 
-def get_longest_paths(G: nx.DiGraph, num_paths=5, num_unique_slacks=5):
+def get_longest_paths(G: nx.DiGraph, num_paths=1, num_unique_slacks=5):
     """
     Returns at most num_paths longest paths in G. num_unique_slacks can be optionally
     specified to remove any node from the graph which has too large of a slack.

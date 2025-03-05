@@ -85,11 +85,12 @@ def parse_memory_report(filename):
             
             #print(f"component and size: {component_and_size}, {component}, {depth} x {word_width}")
             external_and_mode = lines[i+2].split()
-            off_chip = True
+            off_chip = False # only dealing with on chip buffers for now
+            """off_chip = True
             if external_and_mode[1] == "false":
                 off_chip = False
             else:
-                assert external_and_mode[1] == "true"
+                assert external_and_mode[1] == "true" """
             mode = external_and_mode[-1]
             
             if component in valid_components:
@@ -112,7 +113,7 @@ def gen_cacti_on_memories(memories, hw):
     for memory in memories:
         mem_file = "mem_cache" if memory.off_chip else "base_cache"
         cache_type = "main memory" if memory.off_chip else "cache"
-        mem_info = (memory.off_chip, memory.depth, memory.word_width)
+        mem_info = (memory.depth, memory.word_width)
         logger.info(f"mem info: {mem_info}")
         if mem_info in existing_memories:
             logger.info(f"reusing old mem created for {existing_memories[mem_info].name} instead of {memory.name}")
@@ -143,7 +144,7 @@ def customize_catapult_memories(mem_rpt_file, benchmark_name, hw): #takes in a m
     top_tcl_text = ""
     mem_seen = {} # mark off existing memories when we see them
     for memory in memories:
-        mem_info = (memory.off_chip, memory.depth, memory.word_width)
+        mem_info = (memory.depth, memory.word_width)
         cur_mem_vals = memory_vals[memory.name]
         if mem_info in mem_seen:
             assert mem_info in existing_memories

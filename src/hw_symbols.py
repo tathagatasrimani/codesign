@@ -500,10 +500,8 @@ def make_sym_power_act(elem):
 
 def make_buf_power_active_dict():
     d = {}
-    print("making buf power active")
     for mem in BufReadEact:
         d[mem] = ((BufReadEact[mem] + BufWriteEact[mem]) / 2) / symbolic_latency_wc["Buf"]()[mem]
-        print("adding to buf power active")
     return d
 
 def make_mainmem_power_active_dict():
