@@ -39,11 +39,9 @@ class Codesign:
         with open(f"{self.save_dir}/codesign.log", "a") as f:
             f.write("Codesign Log\n")
             f.write(f"Benchmark: {self.benchmark}\n")
-        if not os.path.exists("src/tmp"):
-            os.mkdir("src/tmp")
-        else:
-            files = shutil.rmtree("src/tmp")
-        shutil.copytree(self.benchmark, "src/tmp/benchmark")
+        if os.path.exists("src/tmp"):
+            shutil.rmtree("src/tmp")
+        os.mkdir("src/tmp")
 
         #shutil.copytree(self.benchmark, f"{self.save_dir}/benchmark")
 
@@ -112,6 +110,10 @@ class Codesign:
 
 
     def run_catapult(self):
+        if os.path.exists("src/tmp/benchmark"):
+            shutil.rmtree("src/tmp/benchmark")
+        shutil.copytree(self.benchmark, "src/tmp/benchmark")
+
         os.chdir("src/tmp/benchmark")
         clk_period = (1 / self.hw.f) * 1e9 # ns
         # set correct clk period
@@ -228,6 +230,8 @@ class Codesign:
             f.write(yaml.dump(rcs))
 
     def inverse_pass(self):
+        print("\nRunning Inverse Pass")
+        logger.info("Running Inverse Pass")
         base_cache_cfg = "cfg/base_cache.cfg"
         mem_cache_cfg = "cfg/mem_cache.cfg"
         existing_memories = {}
@@ -345,9 +349,10 @@ class Codesign:
         shutil.copy(
             "src/tmp/solver_out.txt", f"{self.save_dir}/solver_{iter_number}.txt"
         )
-        shutil.copy(
-            "src/tmp/cacti_exprs.txt", f"{self.save_dir}/cacti_exprs_{iter_number}.txt"
-        )
+        for mem in self.hw.memories:
+            shutil.copy(
+                f"src/tmp/cacti_exprs_{mem}.txt", f"{self.save_dir}/cacti_exprs_{mem}_{iter_number}.txt"
+            )
         #TODO: copy cacti expressions to file, read yaml file from notebook, call sim util fn to get xreplace structure
         #TODO: fw pass save cacti params of interest, with logger unique starting string, then write parsing script in notebook to look at them
         # save latency, power, and tech params

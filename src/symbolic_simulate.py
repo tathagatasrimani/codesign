@@ -68,7 +68,7 @@ class SymbolicSimulator(AbstractSimulator):
                     path_execution_time += hw_symbols.symbolic_latency_wc[data["function"]]()[rsc_name]
                 else:
                     path_execution_time += hw_symbols.symbolic_latency_wc[data["function"]]()
-            self.execution_time = symbolic_convex_max(self.execution_time, path_execution_time)
+            self.execution_time = symbolic_convex_max(self.execution_time, path_execution_time) if self.execution_time != 0 else path_execution_time
 
     
     def calculate_edp(self, hw, paths, scheduled_dfg):
@@ -89,15 +89,15 @@ class SymbolicSimulator(AbstractSimulator):
         for mem in hw.memories:
             if hw.memories[mem]["type"] == "Mem":
                 MemL_expr = hw.symbolic_mem[mem].access_time * 1e9 # convert from s to ns
-                MemReadEact_expr = hw.symbolic_mem[mem].power.readOp.dynamic * 1e9 # convert from J to nJ
-                MemWriteEact_expr = hw.symbolic_mem[mem].power.writeOp.dynamic * 1e9 # convert from J to nJ
+                MemReadEact_expr = (hw.symbolic_mem[mem].power.readOp.dynamic + hw.symbolic_mem[mem].power.searchOp.dynamic) * 1e9 # convert from J to nJ
+                MemWriteEact_expr = (hw.symbolic_mem[mem].power.writeOp.dynamic + hw.symbolic_mem[mem].power.searchOp.dynamic) * 1e9 # convert from J to nJ
                 MemPpass_expr = hw.symbolic_mem[mem].power.readOp.leakage # TODO: investigate units of this expr
                 OffChipIOPact_expr = hw.symbolic_mem[mem].io_dynamic_power * 1e-3 # convert from mW to W
 
             else:
                 BufL_expr = hw.symbolic_buf[mem].access_time * 1e9 # convert from s to ns
-                BufReadEact_expr = hw.symbolic_buf[mem].power.readOp.dynamic * 1e9 # convert from J to nJ
-                BufWriteEact_expr = hw.symbolic_buf[mem].power.writeOp.dynamic * 1e9 # convert from J to nJ
+                BufReadEact_expr = (hw.symbolic_buf[mem].power.readOp.dynamic + hw.symbolic_buf[mem].power.searchOp.dynamic) * 1e9 # convert from J to nJ
+                BufWriteEact_expr = (hw.symbolic_buf[mem].power.writeOp.dynamic + hw.symbolic_buf[mem].power.searchOp.dynamic) * 1e9 # convert from J to nJ
                 BufPpass_expr = hw.symbolic_buf[mem].power.readOp.leakage # TODO: investigate units of this expr
 
             # only need to do in first iteration
