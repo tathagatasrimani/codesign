@@ -19,14 +19,14 @@ def generate_init_params_from_rcs_as_symbols(rcs):
         initial_params[hw_symbols.symbol_table["Reff_" + elem]] = rcs["Reff"][elem]
         initial_params[hw_symbols.symbol_table["Ceff_" + elem]] = rcs["Ceff"][elem]
     initial_params[hw_symbols.V_dd] = rcs["other"]["V_dd"]
-    initial_params[hw_symbols.MemReadEact] = rcs["other"]["MemReadEact"]
+    """initial_params[hw_symbols.MemReadEact] = rcs["other"]["MemReadEact"]
     initial_params[hw_symbols.MemWriteEact] = rcs["other"]["MemWriteEact"]
     initial_params[hw_symbols.MemPpass] = rcs["other"]["MemPpass"]
     initial_params[hw_symbols.BufReadEact] = rcs["other"]["BufReadEact"]
     initial_params[hw_symbols.BufWriteEact] = rcs["other"]["BufWriteEact"]
     initial_params[hw_symbols.BufPpass] = rcs["other"]["BufPpass"]
     initial_params[hw_symbols.OffChipIOL] = rcs["other"]["OffChipIOL"]
-    initial_params[hw_symbols.OffChipIOPact] = rcs["other"]["OffChipIOPact"]
+    initial_params[hw_symbols.OffChipIOPact] = rcs["other"]["OffChipIOPact"]"""
 
     # CACTI
     initial_params[hw_symbols.C_g_ideal] = rcs["Cacti"]["C_g_ideal"]

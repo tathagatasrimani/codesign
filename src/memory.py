@@ -49,13 +49,17 @@ def generate_sample_memory(latency, area, clk_period, mem_type, resource_name):
     return tcl_file, tcl_command, library_name
     
 class memory:
-    def __init__(self, name, off_chip, depth, word_width, component, mode):
+    def __init__(self, path_name, name, off_chip, depth, word_width, component, mode):
         self.off_chip = off_chip # cache or off chip
         self.depth = depth
         self.word_width = word_width
+        self.path_name = path_name
         self.name = name
         self.component = component
         self.mode = mode
+
+    def __str__(self):
+        return f"==MEMORY {self.name}==\noff chip? {self.off_chip}\ncomponent: {self.component}\ndepth: {self.depth}\nword width: {self.word_width}"
 
 def parse_memory_report(filename):
     memories = []
@@ -89,7 +93,9 @@ def parse_memory_report(filename):
             mode = external_and_mode[-1]
             
             if component in valid_components:
-                memories.append(memory(resource_name, off_chip, depth, word_width, component, mode))
+                mem = memory(resource_name, get_resource_name_for_file(resource_name), off_chip, depth, word_width, component, mode)
+                logger.info(str(mem))
+                memories.append(mem)
 
             #print(f"external and mode: {external_and_mode}, {off_chip}, {mode}")
 
@@ -106,7 +112,7 @@ def gen_cacti_on_memories(memories, hw):
     for memory in memories:
         mem_file = "mem_cache" if memory.off_chip else "base_cache"
         cache_type = "main memory" if memory.off_chip else "cache"
-        mem_info = (memory.depth, memory.word_width)
+        mem_info = (memory.off_chip, memory.depth, memory.word_width)
         logger.info(f"mem info: {mem_info}")
         if mem_info in existing_memories:
             logger.info(f"reusing old mem created for {existing_memories[mem_info].name} instead of {memory.name}")
@@ -137,20 +143,20 @@ def customize_catapult_memories(mem_rpt_file, benchmark_name, hw): #takes in a m
     top_tcl_text = ""
     mem_seen = {} # mark off existing memories when we see them
     for memory in memories:
-        mem_info = (memory.depth, memory.word_width)
+        mem_info = (memory.off_chip, memory.depth, memory.word_width)
         cur_mem_vals = memory_vals[memory.name]
         if mem_info in mem_seen:
             assert mem_info in existing_memories
             resource_name_for_file = get_resource_name_for_file(existing_memories[mem_info].name) 
             library_name = f"{existing_memories[mem_info].component}_{resource_name_for_file}"
-            tcl_cmd = f"directive set {memory.name} -MAP_TO_MODULE {library_name}.{existing_memories[mem_info].component}\n"
+            tcl_cmd = f"directive set {memory.path_name} -MAP_TO_MODULE {library_name}.{existing_memories[mem_info].component}\n"
         else:
             mem_seen[mem_info] = True
             tcl_file, tcl_cmd, library = generate_sample_memory(
                 cur_mem_vals["Access time (ns)"], 
                 cur_mem_vals["Area (mm2)"]*1e6, 
                 5, #TODO: specify clk period
-                memory.component, memory.name
+                memory.component, memory.path_name
             )
             top_tcl_text += f"source {tcl_file}\n"
             libraries.append(library)

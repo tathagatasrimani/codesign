@@ -19,6 +19,7 @@ class SymbolicSimulator(AbstractSimulator):
         self.total_passive_energy = 0
         self.execution_time = 0
         self.total_active_energy = 0
+        self.cacti_exprs = {}
     
     def calculate_passive_energy(self, hw, total_execution_time):
         """
@@ -28,20 +29,49 @@ class SymbolicSimulator(AbstractSimulator):
         passive_power = 0
         for node in hw.netlist.nodes:
             data = hw.netlist.nodes[node]
-            passive_power += (
-                hw_symbols.symbolic_power_passive[data["function"]]
-            )  # W
+            if data["function"] == "Buf" or data["function"] == "MainMem":
+                rsc_name = data["library"][data["library"].find("__")+1:]
+                print(f"(passive energy) rsc name: {rsc_name}, data: {data['function']}")
+                passive_power += hw_symbols.symbolic_power_passive[data["function"]]()[rsc_name]
+            else:
+                passive_power += (
+                    hw_symbols.symbolic_power_passive[data["function"]]()
+                )  # W
         self.total_passive_energy = passive_power * total_execution_time  # nJ
 
-    def calculate_active_energy(self, hw, operations):
+    def calculate_active_energy(self, hw, scheduled_dfg):
         # for each op, take power * latency
         self.total_active_energy = 0
+        for node in scheduled_dfg:
+            if node == "end": continue
+            data = scheduled_dfg.nodes[node]
+            if data["function"] == "Buf" or data["function"] == "MainMem":
+                rsc_name = data["library"][data["library"].find("__")+1:]
+                print(f"(active energy) rsc name: {rsc_name}, data: {data['function']}")
+                print(f"dict: {hw_symbols.symbolic_power_active[data['function']]()}")
+                self.total_active_energy += hw_symbols.symbolic_power_active[data["function"]]()[rsc_name] * hw_symbols.symbolic_latency_wc[data["function"]]()[rsc_name]
+            else:
+                self.total_active_energy += hw_symbols.symbolic_power_active[data["function"]]() * hw_symbols.symbolic_latency_wc[data["function"]]()
     
-    def calculate_execution_time(self, paths):
+    def calculate_execution_time(self, paths, scheduled_dfg):
         # take max over the critical paths
         self.execution_time = 0
+        for path in paths:
+            logger.info(f"adding path to execution time calculation: {path}")
+            path_execution_time = 0
+            for node in path[1]:
+                if node == "end": continue
+                data = scheduled_dfg.nodes[node]
+                if data["function"] == "Buf" or data["function"] == "MainMem":
+                    rsc_name = data["library"][data["library"].find("__")+1:]
+                    print(f"(execution time) rsc name: {rsc_name}, data: {data['function']}")
+                    path_execution_time += hw_symbols.symbolic_latency_wc[data["function"]]()[rsc_name]
+                else:
+                    path_execution_time += hw_symbols.symbolic_latency_wc[data["function"]]()
+            self.execution_time = symbolic_convex_max(self.execution_time, path_execution_time)
+
     
-    def calculate_edp(self, hw, paths, operations):
+    def calculate_edp(self, hw, paths, scheduled_dfg):
 
         # TEMPORARY SO FUNCTION COMPLETES
         MemL_expr = 0
@@ -53,63 +83,76 @@ class SymbolicSimulator(AbstractSimulator):
         BufReadEact_expr = 0
         BufWriteEact_expr = 0
         BufPpass_expr = 0
+
+        cacti_subs = {}
         
-        for memory in hw.memories:
-            if memory.type == "Mem":
-                MemL_expr = hw.symbolic_mem[memory].access_time * 1e9 # convert from s to ns
-                MemReadEact_expr = hw.symbolic_mem[memory].power.readOp.dynamic
-                MemWriteEact_expr = hw.symbolic_mem[memory].power.writeOp.dynamic
-                MemPpass_expr = hw.symbolic_mem[memory].power.readOp.leakage # TODO: investigate units of this expr
-                OffChipIOPact_expr = hw.symbolic_mem[memory].io_dynamic_power * 1e-3 # convert from mW to W
+        for mem in hw.memories:
+            if hw.memories[mem]["type"] == "Mem":
+                MemL_expr = hw.symbolic_mem[mem].access_time * 1e9 # convert from s to ns
+                MemReadEact_expr = hw.symbolic_mem[mem].power.readOp.dynamic
+                MemWriteEact_expr = hw.symbolic_mem[mem].power.writeOp.dynamic
+                MemPpass_expr = hw.symbolic_mem[mem].power.readOp.leakage # TODO: investigate units of this expr
+                OffChipIOPact_expr = hw.symbolic_mem[mem].io_dynamic_power * 1e-3 # convert from mW to W
 
             else:
-                BufL_expr = hw.symbolic_buf[memory].access_time * 1e9 # convert from s to ns
-                BufReadEact_expr = hw.symbolic_buf[memory].power.readOp.dynamic
-                BufWriteEact_expr = hw.symbolic_buf[memory].power.writeOp.dynamic
-                BufPpass_expr = hw.symbolic_buf[memory].power.readOp.leakage # TODO: investigate units of this expr
+                BufL_expr = hw.symbolic_buf[mem].access_time * 1e9 # convert from s to ns
+                BufReadEact_expr = hw.symbolic_buf[mem].power.readOp.dynamic
+                BufWriteEact_expr = hw.symbolic_buf[mem].power.writeOp.dynamic
+                BufPpass_expr = hw.symbolic_buf[mem].power.readOp.leakage # TODO: investigate units of this expr
 
+            hw_symbols.MemReadL[mem] = sp.symbols(f"MemReadL_{mem}")
+            hw_symbols.MemWriteL[mem] = sp.symbols(f"MemWriteL_{mem}")
+            hw_symbols.MemReadEact[mem] = sp.symbols(f"MemReadEact_{mem}")
+            hw_symbols.MemWriteEact[mem] = sp.symbols(f"MemWriteEact_{mem}")
+            hw_symbols.MemPpass[mem] = sp.symbols(f"MemPpass_{mem}")
+            hw_symbols.OffChipIOPact[mem] = sp.symbols(f"OffChipIOPact_{mem}")
+            hw_symbols.BufL[mem] = sp.symbols(f"BufL_{mem}")
+            hw_symbols.BufReadEact[mem] = sp.symbols(f"BufReadEact_{mem}")
+            hw_symbols.BufWriteEact[mem] = sp.symbols(f"BufWriteEact_{mem}")
+            hw_symbols.BufPpass[mem] = sp.symbols(f"BufPpass_{mem}")
         
-        # TODO: support multiple memories in hw_symbols
-        cacti_subs = {
-            hw_symbols.MemReadL: (MemL_expr / 2),
-            hw_symbols.MemWriteL: (MemL_expr / 2),
-            hw_symbols.MemReadEact: MemReadEact_expr,
-            hw_symbols.MemWriteEact: MemWriteEact_expr,
-            hw_symbols.MemPpass: MemPpass_expr,
-            hw_symbols.OffChipIOPact: OffChipIOPact_expr,
+            # TODO: support multiple memories in hw_symbols
+            cacti_subs_new = {
+                hw_symbols.MemReadL[mem]: MemL_expr,
+                hw_symbols.MemWriteL[mem]: MemL_expr,
+                hw_symbols.MemReadEact[mem]: MemReadEact_expr,
+                hw_symbols.MemWriteEact[mem]: MemWriteEact_expr,
+                hw_symbols.MemPpass[mem]: MemPpass_expr,
+                hw_symbols.OffChipIOPact[mem]: OffChipIOPact_expr,
 
-            hw_symbols.BufL: BufL_expr,
-            hw_symbols.BufReadEact: BufReadEact_expr,
-            hw_symbols.BufWriteEact: BufWriteEact_expr,
-            hw_symbols.BufPpass: BufPpass_expr,
-        }
+                hw_symbols.BufL[mem]: BufL_expr,
+                hw_symbols.BufReadEact[mem]: BufReadEact_expr,
+                hw_symbols.BufWriteEact[mem]: BufWriteEact_expr,
+                hw_symbols.BufPpass[mem]: BufPpass_expr,
+            }
+            cacti_subs.update(cacti_subs_new)
 
-        self.cacti_exprs = {
-            "MemL_expr": MemL_expr,
-            "MemReadEact_expr": MemReadEact_expr,
-            "MemWriteEact_expr": MemWriteEact_expr,
-            "MemPpass_expr": MemPpass_expr,
-            "BufL_expr": BufL_expr,
-            "BufReadEact_expr": BufReadEact_expr,
-            "BufWriteEact_expr": BufWriteEact_expr,
-            "BufPpass_expr": BufPpass_expr
-        }
+            self.cacti_exprs[mem] = {
+                "MemL_expr": MemL_expr,
+                "MemReadEact_expr": MemReadEact_expr,
+                "MemWriteEact_expr": MemWriteEact_expr,
+                "MemPpass_expr": MemPpass_expr,
+                "BufL_expr": BufL_expr,
+                "BufReadEact_expr": BufReadEact_expr,
+                "BufWriteEact_expr": BufWriteEact_expr,
+                "BufPpass_expr": BufPpass_expr
+            }
 
-        self.calculate_execution_time(paths)
+            if not os.path.exists("src/tmp"):
+                os.makedirs("src/tmp")
+            with open(f"src/tmp/cacti_exprs_{mem}.txt", 'w') as f:
+                txt = ""
+                for expr in self.cacti_exprs[mem].keys():
+                    txt += f"{expr}: {self.cacti_exprs[mem][expr]}\n"
+                f.write(txt)
 
-        self.calculate_active_energy(hw, operations)
+        self.calculate_execution_time(paths, scheduled_dfg)
+
+        self.calculate_active_energy(hw, scheduled_dfg)
 
         self.calculate_passive_energy(hw, self.execution_time)
 
         self.edp = self.execution_time * (self.total_active_energy + self.total_passive_energy)
-
-        if not os.path.exists("src/tmp"):
-            os.makedirs("src/tmp")
-        with open("src/tmp/cacti_exprs.txt", 'w') as f:
-            txt = ""
-            for expr in self.cacti_exprs.keys():
-                txt += f"{expr}: {self.cacti_exprs[expr]}\n"
-            f.write(txt)
 
         return cacti_subs
 

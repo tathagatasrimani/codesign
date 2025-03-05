@@ -55,6 +55,7 @@ class Codesign:
         self.initial_tech_params = None
         self.openroad_testfile = openroad_testfile
         self.longest_paths = []
+        self.scheduled_dfg = None
         self.parasitics = parasitics
         self.run_cacti = not no_cacti
         self.hw = hardwareModel.HardwareModel()
@@ -65,6 +66,8 @@ class Codesign:
         coefficients.create_and_save_coefficients([self.hw.transistor_size])
 
         rcs = self.hw.get_optimization_params_from_tech_params()
+        with open("src/tmp/rcs_0.yaml", "w") as f:
+            f.write(yaml.dump(rcs))
         initial_tech_params = sim_util.generate_init_params_from_rcs_as_symbols(rcs)
 
         self.set_technology_parameters(initial_tech_params)
@@ -90,15 +93,18 @@ class Codesign:
     def log_inverse_tech_params(self, cacti_subs):
         logger.info("symbolic active power (W)\n")
         for elem in hw_symbols.symbolic_power_active:
-            logger.info(f"{elem}: {hw_symbols.symbolic_power_active[elem].xreplace(self.tech_params)}")
+            if elem not in ["MainMem", "Buf", "OffChipIO"]:
+                logger.info(f"{elem}: {hw_symbols.symbolic_power_active[elem]().xreplace(self.tech_params)}")
 
         logger.info("\nsymbolic passive power (W)\n")
         for elem in hw_symbols.symbolic_power_passive:
-            logger.info(f"{elem}: {hw_symbols.symbolic_power_passive[elem].xreplace(self.tech_params)}")
+            if elem not in ["MainMem", "Buf", "OffChipIO"]:
+                logger.info(f"{elem}: {hw_symbols.symbolic_power_passive[elem]().xreplace(self.tech_params)}")
         
         logger.info("\nsymbolic latency (ns)\n")
         for elem in hw_symbols.symbolic_latency_wc:
-            logger.info(f"{elem}: {hw_symbols.symbolic_latency_wc[elem].xreplace(self.tech_params)}")
+            if elem not in ["MainMem", "Buf", "OffChipIO"]:
+                logger.info(f"{elem}: {hw_symbols.symbolic_latency_wc[elem]().xreplace(self.tech_params)}")
 
         logger.info("\ncacti values\n")
         for elem in cacti_subs:
@@ -144,8 +150,6 @@ class Codesign:
 
     def parse_catapult_timing(self):
         # make sure to use parasitics here
-        self.paths = None
-        self.operations = None
         build_dir = os.listdir("src/tmp/benchmark/build")
         schedule_dir = build_dir[0]
         for dir in build_dir:
@@ -159,14 +163,16 @@ class Codesign:
             "mgc_mul": "Mult",
             "mgc_and": "And",
             "mgc_or": "Or",
-            "ccs_ram_sync_1R1W_wport": "Buf",
-            "ccs_ram_sync_1R1W_rport": "Buf"
+            "ccs_ram_sync_1R1W_wport": "Mem",
+            "ccs_ram_sync_1R1W_rport": "Mem"
         }
-        dfg = schedule.convert_to_standard_dfg(catapult_schedule, module_map)
-        dfg.nodes["end"]["start_time"] = nx.dag_longest_path_length(dfg)
+        self.scheduled_dfg = schedule.convert_to_standard_dfg(catapult_schedule, module_map)
+        self.scheduled_dfg.nodes["end"]["start_time"] = nx.dag_longest_path_length(self.scheduled_dfg)
 
-        self.longest_paths = schedule.get_longest_paths(dfg)
-        self.hw.netlist = dfg
+        self.longest_paths = schedule.get_longest_paths(self.scheduled_dfg)
+        netlist_dfg = self.scheduled_dfg.copy()
+        netlist_dfg.remove_node("end")
+        self.hw.netlist = netlist_dfg
 
         # schedule operations with parasitic delays
         #schedule.sdc_schedule(self.operations)
@@ -224,34 +230,49 @@ class Codesign:
     def inverse_pass(self):
         base_cache_cfg = "cfg/base_cache.cfg"
         mem_cache_cfg = "cfg/mem_cache.cfg"
+        existing_memories = {}
         for memory in self.hw.memories:
-            opt_vals = {
-                "ndwl": 2,#self.hw.memories[memory]["Ndwl"],
-                "ndbl": self.hw.memories[memory]["Ndbl"],
-                "nspd": self.hw.memories[memory]["Nspd"],
-                "ndcm": self.hw.memories[memory]["Ndcm"],
-                "ndsam1": self.hw.memories[memory]["Ndsam_level_1"],
-                "ndsam2": self.hw.memories[memory]["Ndsam_level_2"],
-                "repeater_spacing": self.hw.memories[memory]["Repeater spacing"],
-                "repeater_size": self.hw.memories[memory]["Repeater size"],
-            }
-            logger.info(f"memory vals: {self.hw.memories[memory]}")
-            mem_type = self.hw.memories[memory]["type"]
-            logger.info(f"generating symbolic cacti for {memory} of type {mem_type}")
-            # generate mem or buf depending on type of memory
-            if mem_type == "Mem":
-                self.hw.symbolic_mem[memory] = cacti_util.gen_symbolic("Mem", mem_cache_cfg, opt_vals, use_piecewise=False)
+            data_tuple = tuple(self.hw.memories[memory])
+            if data_tuple in existing_memories:
+                logger.info(f"reusing symbolic cacti values of {existing_memories[data_tuple]} for {memory}")
+                mem_type = self.hw.memories[memory]["type"]
+                if mem_type == "Mem":
+                    self.hw.symbolic_mem[memory] = self.hw.symbolic_mem[existing_memories[data_tuple]]
+                else:
+                    self.hw.symbolic_buf[memory] = self.hw.symbolic_mem[existing_memories[data_tuple]]
             else:
-                self.hw.symbolic_buf[memory] = cacti_util.gen_symbolic("Buf", base_cache_cfg, opt_vals, use_piecewise=False)
+                opt_vals = {
+                    "ndwl": 2,#self.hw.memories[memory]["Ndwl"],
+                    "ndbl": self.hw.memories[memory]["Ndbl"],
+                    "nspd": self.hw.memories[memory]["Nspd"],
+                    "ndcm": self.hw.memories[memory]["Ndcm"],
+                    "ndsam1": self.hw.memories[memory]["Ndsam_level_1"],
+                    "ndsam2": self.hw.memories[memory]["Ndsam_level_2"],
+                    "repeater_spacing": self.hw.memories[memory]["Repeater spacing"],
+                    "repeater_size": self.hw.memories[memory]["Repeater size"],
+                }
+                logger.info(f"memory vals: {self.hw.memories[memory]}")
+                mem_type = self.hw.memories[memory]["type"]
+                logger.info(f"generating symbolic cacti for {memory} of type {mem_type}")
+                # generate mem or buf depending on type of memory
+                if mem_type == "Mem":
+                    self.hw.symbolic_mem[memory] = cacti_util.gen_symbolic("Mem", mem_cache_cfg, opt_vals, use_piecewise=False)
+                else:
+                    self.hw.symbolic_buf[memory] = cacti_util.gen_symbolic("Buf", base_cache_cfg, opt_vals, use_piecewise=False)
+                existing_memories[data_tuple] = memory
 
-        cacti_subs = self.symbolic_sim.calculate_edp(self.hw, self.longest_paths, self.operations)
+        cacti_subs = self.symbolic_sim.calculate_edp(self.hw, self.longest_paths, self.scheduled_dfg)
 
         self.symbolic_sim.save_edp_to_file()
 
         for cacti_var in cacti_subs:
-            self.tech_params[cacti_var] = cacti_subs[cacti_var].xreplace(self.tech_params).evalf()
+            if cacti_subs[cacti_var] == 0:
+                self.tech_params[cacti_var] = 0
+            else:   
+                self.tech_params[cacti_var] = cacti_subs[cacti_var].xreplace(self.tech_params).evalf()
         
-        self.tech_params[hw_symbols.OffChipIOL] = self.hw.latency["OffChipIO"]
+        for mem in hw_symbols.OffChipIOL:
+            self.tech_params[hw_symbols.OffChipIOL[mem]] = self.hw.latency["OffChipIO"]
 
         self.log_inverse_tech_params(cacti_subs)
 
@@ -274,14 +295,17 @@ class Codesign:
 
         stdout = sys.stdout
         with open("src/tmp/ipopt_out.txt", "w") as sys.stdout:
-            optimize.optimize(self.tech_params, self.symbolic_sim.edp, self.opt_cfg, cacti_subs)
+            optimize.optimize(self.tech_params, self.symbolic_sim.edp, "ipopt", cacti_subs)
         sys.stdout = stdout
         f = open("src/tmp/ipopt_out.txt", "r")
         self.parse_output(f)
         # update cacti subs variables
         for cacti_expr in cacti_subs:
-            self.tech_params[cacti_expr] = cacti_subs[cacti_expr].xreplace(self.tech_params).evalf()
-        
+            if cacti_subs[cacti_expr] == 0:
+                self.tech_params[cacti_expr] = 0
+            else:
+                self.tech_params[cacti_expr] = cacti_subs[cacti_expr].xreplace(self.tech_params).evalf()
+
         self.write_back_rcs()
 
         self.inverse_edp = self.symbolic_sim.edp.xreplace(self.tech_params).evalf()
@@ -347,6 +371,15 @@ class Codesign:
     def cleanup(self):
         self.restore_dat()
 
+    def save_checkpoint(self):
+        if os.path.exists("src/checkpoint"):
+            shutil.rmtree("src/checkpoint")
+        os.mkdir("src/checkpoint")
+        shutil.copytree("src/tmp/benchmark", "src/checkpoint/benchmark")
+        shutil.copy("src/tmp/rcs_0.yaml", "src/checkpoint/rcs_0.yaml")
+        if self.scheduled_dfg:
+            nx.write_gml(self.scheduled_dfg, "src/checkpoint/schedule.gml")
+
     def execute(self, num_iters):
         i = 0
         while i < num_iters:
@@ -368,11 +401,13 @@ def main(args):
         args.savedir,
         args.openroad_testfile,
         args.parasitics,
-        args.debug_no_cacti
+        args.debug_no_cacti,
     )
     try:
         codesign_module.execute(args.num_iters)
     except Exception as e:
+        if args.checkpoint:
+            codesign_module.save_checkpoint()
         codesign_module.cleanup()
         raise e
 
@@ -418,9 +453,10 @@ if __name__ == "__main__":
     )
     parser.add_argument('--debug_no_cacti', type=bool, default=False, 
                         help='disable cacti in the first iteration to decrease runtime when debugging')
+    parser.add_argument("-c", "--checkpoint", type=bool, default=False, help="save a design checkpoint upon exit")
     args = parser.parse_args()
     print(
-        f"args: benchmark: {args.benchmark}, parasitics: {args.parasitics}, num iterations: {args.num_iters}"
+        f"args: benchmark: {args.benchmark}, parasitics: {args.parasitics}, num iterations: {args.num_iters}, checkpointing: {args.checkpoint}"
     )
 
     main(args)

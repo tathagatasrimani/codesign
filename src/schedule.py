@@ -202,12 +202,13 @@ def sdc_schedule(graph, topo_order_by_elem, extra_constraints=[], add_resource_e
     return resource_edge_graph
 
 class node:
-    def __init__(self, id, name, tp, module, delay):
+    def __init__(self, id, name, tp, module, delay, library):
         self.id = id
         self.name = name
         self.type = tp
         self.module = module
         self.delay = delay
+        self.library = library
 
     def __str__(self):
         return f"========================\nNode id: {self.id}\nName: {self.name}\ntype: {self.type}\nmodule: {self.module}\n========================\n"
@@ -259,7 +260,7 @@ def convert_to_standard_dfg(graph: nx.DiGraph, module_map):
             # Remove the node
             graph.remove_node(node)
 
-    sim_util.topological_layout_plot(graph)
+    #sim_util.topological_layout_plot(graph)
 
     modified_graph = nx.DiGraph()
     for node in graph:
@@ -273,7 +274,8 @@ def convert_to_standard_dfg(graph: nx.DiGraph, module_map):
             cost=node_data["delay"],
             start_time=0,
             end_time=0,
-            allocation=""
+            allocation="",
+            library=node_data["library"]
         )
     modified_graph.add_node(
         "end",
@@ -296,7 +298,7 @@ def convert_to_standard_dfg(graph: nx.DiGraph, module_map):
 
     
 
-    sim_util.topological_layout_plot(modified_graph)
+    nx.write_gml(modified_graph, "src/tmp/schedule.gml")
     logger.info(f"longest path length: {nx.dag_longest_path_length(modified_graph)}")
     logger.info(f"longest path: {nx.dag_longest_path(modified_graph)}")
     return modified_graph
@@ -351,8 +353,13 @@ def parse_gnt_to_graph(file_path):
                     if (tokens[i] == "DELAY"):
                         node_delay = float(tokens[i+1][1:-1]) # take out brackets with [1:-1]
                 #print(node_delay)
+            node_library = None
+            if (line.find(" LIBRARY ") != -1):
+                for i in range(len(tokens)):
+                    if (tokens[i] == "LIBRARY"):
+                        node_library = tokens[i+1]
 
-            nodes[node_id] = node(node_id, node_name, node_type, node_module, node_delay)
+            nodes[node_id] = node(node_id, node_name, node_type, node_module, node_delay, node_library)
         
 
         for line in lines:
@@ -381,7 +388,8 @@ def parse_gnt_to_graph(file_path):
                 id=nodes[n].id,
                 tp=nodes[n].type,
                 module=nodes[n].module,
-                delay=nodes[n].delay
+                delay=nodes[n].delay,
+                library=nodes[n].library
             )
         for n in nodes:
             for successor in node_successors[nodes[n].id]:

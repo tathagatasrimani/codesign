@@ -237,6 +237,7 @@ class Preprocessor:
             print(f"symbol name is {s.name}")
             if s in self.cacti_sub_vars:
                 cacti_exp = cacti_subs[s]
+                if cacti_exp == 0: continue
                 for sub_symbol in cacti_exp.free_symbols:
                     # track each cacti variable in the expression that will be substituted
                     cacti_free_symbols.add(sub_symbol)
@@ -280,7 +281,7 @@ class Preprocessor:
             
         start_time = time.time()
         for cacti_var in cacti_subs.keys():
-            if cacti_var in self.mapping:
+            if cacti_var in self.mapping and cacti_subs[cacti_var] != 0:
                 self.find_exprs_to_constrain(cacti_subs[cacti_var])
 
         logger.info(f"time to find exprs to constrain: {time.time()-start_time}")
