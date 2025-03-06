@@ -348,7 +348,7 @@ class gnt_schedule_parser:
                 assert node_data["module"].find('(') != -1
                 logger.info(f"{node} remaining in pruned graph")
             else:
-                logger.info(f"removing {node}")
+                #logger.info(f"removing {node}")
                 nodes_removed.append(node)
             if self.G.has_edge(node, node):
                 edges_to_remove.append((node, node))
@@ -358,7 +358,7 @@ class gnt_schedule_parser:
             self.G.remove_edge(edge[0], edge[1])
 
         for node in nodes_removed:
-            logger.info(f"turning {node} into a nop")
+            #logger.info(f"turning {node} into a nop")
             if node in self.G:
                 self.G.nodes[node]["module"] = "nop()"
                 self.G.nodes[node]["delay"] = 0
