@@ -1,4 +1,7 @@
 import logging
+import os
+import glob
+import datetime
 from collections import defaultdict
 
 logger = logging.getLogger(__name__)
@@ -163,6 +166,14 @@ def generate_init_params_from_rcs_as_symbols(rcs):
     initial_params[hw_symbols.phy_vrefgen_wtime] = rcs["Cacti_IO"]["phy_vrefgen_wtime"]
 
     return initial_params
+
+def get_latest_log_dir():
+    log_dirs = glob.glob(os.path.normpath(os.path.join(os.path.dirname(__file__), "../logs/*-*-*_*-*-*")))
+    log_dirs = sorted(
+        log_dirs,
+        key=lambda x: datetime.datetime.strptime(x.split("/")[-1], "%Y-%m-%d_%H-%M-%S"),
+    )
+    return log_dirs[-1]
 
 def change_clk_period_in_script(filename, new_period):
     new_lines = []

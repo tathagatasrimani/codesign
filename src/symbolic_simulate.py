@@ -29,6 +29,7 @@ class SymbolicSimulator(AbstractSimulator):
         passive_power = 0
         for node in hw.netlist.nodes:
             data = hw.netlist.nodes[node]
+            if node == "end" or data["function"] == "nop": continue
             if data["function"] == "Buf" or data["function"] == "MainMem":
                 rsc_name = data["library"][data["library"].find("__")+1:]
                 logger.info(f"(passive energy) rsc name: {rsc_name}, data: {data['function']}")
@@ -43,8 +44,8 @@ class SymbolicSimulator(AbstractSimulator):
         # for each op, take power * latency
         self.total_active_energy = 0
         for node in scheduled_dfg:
-            if node == "end": continue
             data = scheduled_dfg.nodes[node]
+            if node == "end" or data["function"] == "nop": continue
             if data["function"] == "Buf" or data["function"] == "MainMem":
                 rsc_name = data["library"][data["library"].find("__")+1:]
                 logger.info(f"(active energy) rsc name: {rsc_name}, data: {data['function']}")
@@ -60,8 +61,8 @@ class SymbolicSimulator(AbstractSimulator):
             logger.info(f"adding path to execution time calculation: {path}")
             path_execution_time = 0
             for node in path[1]:
-                if node == "end": continue
                 data = scheduled_dfg.nodes[node]
+                if node == "end" or data["function"] == "nop": continue
                 if data["function"] == "Buf" or data["function"] == "MainMem":
                     rsc_name = data["library"][data["library"].find("__")+1:]
                     logger.info(f"(execution time) rsc name: {rsc_name}, data: {data['function']}")
