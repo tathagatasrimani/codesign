@@ -209,6 +209,8 @@ class node:
         self.module = module
         self.delay = delay
         self.library = library
+        self.successors = []
+        self.predecessors = []
 
     def __str__(self):
         return f"========================\nNode id: {self.id}\nName: {self.name}\ntype: {self.type}\nmodule: {self.module}\n========================\n"
@@ -254,7 +256,7 @@ def convert_to_standard_dfg(graph: nx.DiGraph, module_map):
             for pred in predecessors:
                 for succ in successors:
                     if pred != succ:  # Avoid self-loops
-                        logger.info(f"adding edge between {pred} and {succ}")
+                        #logger.info(f"adding edge between {pred} and {succ}")
                         graph.add_edge(pred, succ)
             
             # Remove the node
@@ -296,118 +298,373 @@ def convert_to_standard_dfg(graph: nx.DiGraph, module_map):
                 weight=modified_graph.nodes[node]["cost"]
             )
 
-    
+    #sim_util.topological_layout_plot(modified_graph)
 
     nx.write_gml(modified_graph, "src/tmp/schedule.gml")
     logger.info(f"longest path length: {nx.dag_longest_path_length(modified_graph)}")
     logger.info(f"longest path: {nx.dag_longest_path(modified_graph)}")
     return modified_graph
 
+class gnt_schedule_parser:
+    def __init__(self, filename):
+        self.filename = filename
+        self.line_map = {}
+        self.loop_indices = []
+        self.top_loop = None
+        self.node_names = set()
+        self.G = nx.DiGraph()
+        self.modified_G = nx.DiGraph()
+        self.ignore_types = ["{C-CORE", "ASSIGN", "TERMINATE"]
+        self.latest_names = {}
 
-def parse_gnt_to_graph(file_path):
-    """
-    Parses a .gnt file and creates a directed graph.
-    
-    :param file_path: Path to the .gnt file.
-    :return: A NetworkX directed graph.
-    """
-    G = nx.DiGraph()
+    def parse(self):
+        self.parse_gnt_loops()
+        self.create_graph_for_loop(self.top_loop)
+        self.remove_loop_nodes()
 
-    ignore_types = ["{C-CORE", "ASSIGN"]
+    def convert(self, module_map):
+        self.convert_to_standard_dfg(module_map)
 
-    nodes = {}
-    node_successors = {}
-    
-    with open(file_path, 'r') as file:
-        lines = file.readlines()
-        for line in lines:
-            line = line.strip()
-            if not line.startswith("set a("):
-                continue
-            node_id = line[line.find('(')+1:line.find(')')]
-            tokens = line.split()
-            node_name = ""
-            if (line.find(" NAME ") != -1):
-                for i in range(len(tokens)):
-                    if (tokens[i] == "NAME"):
-                        node_name = tokens[i+1]
-                        break
-                assert node_name != "", f"{line}"
-            node_type = None
-            if (line.find(" TYPE ") != -1):
-                for i in range(len(tokens)):
-                    if (tokens[i] == "TYPE"):
-                        node_type = tokens[i+1]
-                        break
-                assert node_type, f"{line}"
-            node_module = None
-            if (line.find(" MODULE ") != -1):
-                for i in range(len(tokens)):
-                    if (tokens[i] == "MODULE"):
-                        node_module = tokens[i+1]
-                        break
-                assert node_module, f"{line}"
-            node_delay = 0
-            if (line.find(" DELAY ") != -1): # todo: investigate if CYCLES need to be added to delay
-                for i in range(len(tokens)):
-                    if (tokens[i] == "DELAY"):
-                        node_delay = float(tokens[i+1][1:-1]) # take out brackets with [1:-1]
-                #print(node_delay)
-            node_library = None
-            if (line.find(" LIBRARY ") != -1):
-                for i in range(len(tokens)):
-                    if (tokens[i] == "LIBRARY"):
-                        node_library = tokens[i+1]
+    def convert_to_standard_dfg(self, module_map):
+        """
+        takes the output of parse_gnt_to_graph and converts
+        it to our standard dfg format for use in the rest of the flow.
+        We discard catapult-specific information and convert each node
+        to one of our standard operators with the correct delay value.
 
-            nodes[node_id] = node(node_id, node_name, node_type, node_module, node_delay, node_library)
-        
+        Arguments:
+        - graph: output of parse_gnt_to_graph
+        - node_objects: mapping of node -> node class object
+        - module_map: mapping from ccore module to standard operator name
+        """
+        nodes_removed = []
+        edges_to_remove = []
+        for node in self.G:
+            node_data = self.G.nodes[node]
+            #print(node, node_data)
+            if node_data["module"] and node_data["module"][:node_data["module"].find('(')] in module_map:
+                assert node_data["module"].find('(') != -1
+                logger.info(f"{node} remaining in pruned graph")
+            else:
+                logger.info(f"removing {node}")
+                nodes_removed.append(node)
+            if self.G.has_edge(node, node):
+                edges_to_remove.append((node, node))
 
-        for line in lines:
-            line = line.strip()
-            if not line.startswith("set a("):
-                continue
-            node_id = line[line.find('(')+1:line.find(')')]
-            tokens = line.split(' ')
-            successors = []
-            if (line.find(" SUCCS ") != -1):
-                for i in range(len(tokens)):
-                    if (tokens[i] == "SUCCS"):
-                        for j in range(i+1, len(tokens)):
-                            if (tokens[j] == "CYCLES"): break
-                            if tokens[j] in nodes:
-                                successors.append(nodes[tokens[j]])
-                        break
+        logger.info(edges_to_remove)
+        for edge in edges_to_remove:
+            self.G.remove_edge(edge[0], edge[1])
+
+        for node in nodes_removed:
+            if node in self.G:
+                predecessors = list(self.G.predecessors(node))
+                successors = list(self.G.successors(node))
                 
+                # Create edges from predecessors to successors
+                for pred in predecessors:
+                    for succ in successors:
+                        if pred != succ:  # Avoid self-loops
+                            #logger.info(f"adding edge between {pred} and {succ}")
+                            self.G.add_edge(pred, succ)
                 
-            node_successors[node_id] = successors
-        
-        for n in nodes:
-            G.add_node(
-                nodes[n].label(),
-                name=nodes[n].name,
-                id=nodes[n].id,
-                tp=nodes[n].type,
-                module=nodes[n].module,
-                delay=nodes[n].delay,
-                library=nodes[n].library
+                # Remove the node
+                self.G.remove_node(node)
+
+        #sim_util.topological_layout_plot(self.G)
+
+        for node in self.G:
+            node_data = self.G.nodes[node]
+            module_prefix = node_data["module"][:node_data["module"].find('(')]
+            fn = module_map[module_prefix]
+            self.modified_G.add_node(
+                node,
+                id=node_data["id"],
+                function=fn,
+                cost=node_data["delay"],
+                start_time=0,
+                end_time=0,
+                allocation="",
+                library=node_data["library"]
             )
-        for n in nodes:
-            for successor in node_successors[nodes[n].id]:
-                logger.info(f"adding edge between {nodes[n].label()} and {successor.label()}")
-                if G.has_edge(successor.label(), nodes[n].label()):
-                    G.remove_edge(successor.label(), nodes[n].label()) # no cycles, usually created by io constraints not data dependencies
-                else:
-                    G.add_edge(nodes[n].label(), successor.label())
+        self.modified_G.add_node(
+            "end",
+            function="end"
+        )
+        for node in self.G:
+            node_data = self.G.nodes[node]
+            for child in self.G.successors(node):
+                self.modified_G.add_edge(
+                    node, 
+                    child, 
+                    cost=0, # cost to be set after parasitic extraction 
+                    weight=self.modified_G.nodes[node]["cost"]
+                ) 
+            if not len(list(self.G.successors(node))):
+                self.modified_G.add_edge(
+                    node, "end",
+                    weight=self.modified_G.nodes[node]["cost"]
+                )
 
-        for n in nodes:
-            if nodes[n].type in ignore_types:
-                G.remove_node(nodes[n].label())
+        #sim_util.topological_layout_plot(self.modified_G)
+        assert nx.is_directed_acyclic_graph(self.modified_G), f"Graph is not a Directed Acyclic Graph (DAG). Cycle is {nx.find_cycle(self.modified_G)}"
+
+        nx.write_gml(self.modified_G, "src/tmp/schedule.gml")
+        logger.info(f"longest path length: {nx.dag_longest_path_length(self.modified_G)}")
+        logger.info(f"longest path: {nx.dag_longest_path(self.modified_G)}")
+
+    def get_unique_node_name(self, node_id):
+        if node_id not in self.latest_names:
+            self.latest_names[node_id] = 0
+            name = f"{node_id};0"
+        else:
+            i = self.latest_names[node_id]
+            name = f"{node_id};{i}"
+            while name in self.node_names:
+                i += 1
+                name = f"{node_id};{i}"
+                assert i < 100000000
+            self.latest_names[node_id] = i
+            
+        return name
     
-    return G
+    def remove_loop_nodes(self):
+        nodes_to_remove = []
+        for node in self.G:
+            if self.G.nodes[node]["id"] in self.loop_indices:
+                nodes_to_remove.append(node)
+        for node in nodes_to_remove:
+            logger.info(f"removing loop node {node}")
+            self.G.remove_node(node)
+        
+        for node in self.G:
+            assert self.G.nodes[node]["id"] not in self.loop_indices
+
+    def parse_gnt_loops(self):
+        with open(self.filename, 'r') as file:
+            lines = file.readlines()
+            for line in lines:
+                if not line.startswith("set a("): continue
+
+                node_id = line[line.find('(')+1:line.find(')')]
+                self.line_map[node_id] = line
+                tokens = line.split()
+                node_type = None
+                if (line.find(" TYPE ") != -1):
+                    for i in range(len(tokens)):
+                        if (tokens[i] == "TYPE"):
+                            node_type = tokens[i+1]
+                            break
+                    assert node_type, f"{line}"
+                if node_type != "LOOP": continue
+                self.loop_indices.append(node_id)
+            logger.info(f"loop indices: {self.loop_indices}")
+
+            # ind -> successor inds
+            loop_successors = {}
+
+            # determine loop nesting
+            for ind in self.loop_indices:
+                line = self.line_map[ind]
+                tokens = line.split()
+                loop_successors[ind] = []
+                if (line.find("{CHI ") != -1):
+                    for i in range(len(tokens)):
+                        if (tokens[i] == "{CHI"):
+                            for j in range(i+1, len(tokens)):
+                                if tokens[j].startswith('{'): tokens[j] = tokens[j][1:]
+                                if tokens[j].endswith('}'): tokens[j] = tokens[j][:-1]
+                                if (tokens[j] == "ITERATIONS"): break
+                                if tokens[j] in self.loop_indices:
+                                    loop_successors[ind].append(tokens[j])
+                            break
+            
+            # determine top loop       
+            all_loops = set(self.loop_indices)
+            logger.info(f"loop hierarchy: {loop_successors}")
+            for ind in self.loop_indices:
+                for successor in loop_successors[ind]:
+                    if successor in all_loops: all_loops.remove(successor)
+            assert len(all_loops) == 1, list(all_loops)
+            self.top_loop = list(all_loops)[0]
+
+    def get_node_type(self, node_id):
+        line = self.line_map[node_id]
+        tokens = self.line_map[node_id].split(' ')
+        node_type = ""
+        if (line.find(" TYPE ") != -1):
+            for i in range(len(tokens)):
+                if (tokens[i] == "TYPE"):
+                    node_type = tokens[i+1]
+                    break
+            assert node_type, f"{line}"
+        return node_type
+
+    def find_successors(self, node_id):
+        tokens = self.line_map[node_id].split(' ')
+        successors = []
+        if (self.line_map[node_id].find(" SUCCS ") != -1):
+            for i in range(len(tokens)):
+                if (tokens[i] == "SUCCS"):
+                    for j in range(i+1, len(tokens)):
+                        if (tokens[j] == "CYCLES"): break
+                        if tokens[j] in self.line_map and self.get_node_type(tokens[j]) not in self.ignore_types:
+                            successors.append(tokens[j])
+                
+        return successors
+
+    def find_predecessors(self, node_id):
+        tokens = self.line_map[node_id].split(' ')
+        predecessors = []
+        if (self.line_map[node_id].find(" PREDS ") != -1):
+            for i in range(len(tokens)):
+                if self.get_node_type(node_id) in self.ignore_types: continue
+                if (tokens[i] == "PREDS"):
+                    for j in range(i+1, len(tokens)):
+                        if (tokens[j] == "SUCCS"): break
+                        if tokens[j] in self.line_map and self.get_node_type(tokens[j]) not in self.ignore_types: 
+                            predecessors.append(tokens[j])
+        return predecessors
+
+    def find_loop_children(self, loop_id):
+        assert "{CHI" in self.line_map[loop_id]
+        tokens = self.line_map[loop_id].split()
+
+        ids = []
+        for i in range(len(tokens)):
+            if tokens[i] == "{CHI":
+                for j in range(i+1, len(tokens)):
+                    if tokens[j] == "ITERATIONS": break
+                    if tokens[j].startswith("{"): tokens[j] = tokens[j][1:]
+                    if tokens[j].endswith("}"): tokens[j] = tokens[j][:-1]
+                    if self.get_node_type(tokens[j]) in self.ignore_types: continue
+                    ids.append(tokens[j])
+        return ids
+    
+    def get_num_iterations(self, loop_id):
+        assert " ITERATIONS " in self.line_map[loop_id]
+        tokens = self.line_map[loop_id].split()
+        iters = tokens[tokens.index("ITERATIONS")+1]
+        if iters == "Infinite": iters = "1"
+        return int(iters)
+    
+    def connect_set_of_nodes(self, preds, succs):
+        for pred in preds:
+            for succ in succs:
+                self.G.add_edge(pred, succ)
+                #logger.info(f"connecting {pred} to {succ}")
+
+    def get_node_info(self, node_id):
+        line = self.line_map[node_id].strip()
+        assert line.startswith("set a(")
+        node_id = line[line.find('(')+1:line.find(')')]
+        tokens = line.split()
+        node_name = ""
+        if (line.find(" NAME ") != -1):
+            for i in range(len(tokens)):
+                if (tokens[i] == "NAME"):
+                    node_name = tokens[i+1]
+                    break
+            assert node_name != "", f"{line}"
+        node_type = self.get_node_type(node_id)
+        node_module = ""
+        if (line.find(" MODULE ") != -1):
+            for i in range(len(tokens)):
+                if (tokens[i] == "MODULE"):
+                    node_module = tokens[i+1]
+                    break
+            assert node_module, f"{line}"
+        node_delay = 0
+        if (line.find(" DELAY ") != -1): # todo: investigate if CYCLES need to be added to delay
+            for i in range(len(tokens)):
+                if (tokens[i] == "DELAY"):
+                    node_delay = float(tokens[i+1][1:-1]) # take out brackets with [1:-1]
+            #print(node_delay)
+        node_library = ""
+        if (line.find(" LIBRARY ") != -1):
+            for i in range(len(tokens)):
+                if (tokens[i] == "LIBRARY"):
+                    node_library = tokens[i+1]
+        return node_name, node_type, node_module, node_delay, node_library
+    
+    # return labels of roots and leaves
+    def create_graph_for_loop(self, loop_id):
+        node_ids = self.find_loop_children(loop_id)
+        names = {}
+        has_successor = {}
+        has_predecessor = {}
+        successors = {}
+        predecessors = {}
+        for node_id in node_ids:
+            names[node_id] = self.get_unique_node_name(node_id)
+            self.node_names.add(names[node_id])
+            has_predecessor[names[node_id]] = False
+            has_successor[names[node_id]] = False
+            predecessors[names[node_id]] = []
+            successors[names[node_id]] = []
+            node_name, node_type, node_module, node_delay, node_library = self.get_node_info(node_id)
+            self.G.add_node(
+                names[node_id],
+                name=node_name,
+                id=node_id,
+                tp=node_type,
+                module=node_module,
+                delay=node_delay,
+                library=node_library
+            )
+        for node_id in node_ids:
+            all_successors = self.find_successors(node_id)
+            for successor in all_successors:
+                assert successor in names
+
+                if names[successor] not in predecessors[names[successor]] and names[node_id] not in successors[names[node_id]]:
+                    self.G.add_edge(names[node_id], names[successor])
+                    #logger.info(f"in original function, connecting {names[node_id]} with {names[successor]}")
+                    has_predecessor[names[successor]] = True
+                    has_successor[names[node_id]] = True
+                    predecessors[names[successor]].append(names[node_id])
+                    successors[names[node_id]].append(names[successor])
+                else:
+                    logger.warning(f"{node_id} contains self loop")
+
+        roots = []
+        leaves = []
+        for node_id in node_ids:
+            if not has_predecessor[names[node_id]]:
+                roots.append(names[node_id])
+            if not has_successor[names[node_id]]:
+                leaves.append(names[node_id])
+
+        for node_id in node_ids:
+            if node_id in self.loop_indices:
+                iters = self.get_num_iterations(node_id)
+                logger.info(f"creating nested loop for {node_id} with {iters} iters")
+                loop_roots, loop_leaves = [], []
+                for _ in range(iters):
+                    loop_roots_i, loop_leaves_i = self.create_graph_for_loop(node_id)
+                    loop_roots.append(loop_roots_i)
+                    loop_leaves.append(loop_leaves_i)
+                #connect incoming nodes to first iteration of loop, and outgoing nodes to outgoing nodes of last loop iteration
+                self.connect_set_of_nodes(predecessors[names[node_id]], loop_roots[0])
+                self.connect_set_of_nodes(loop_leaves[-1], successors[names[node_id]])
+                # connect intermediate loop iterations
+                for i in range(1, iters):
+                    self.connect_set_of_nodes(loop_leaves[i-1], loop_roots[i])
+
+                # if loop node was a root or leaf, replace that with its actual roots/leaves
+                if not has_predecessor[names[node_id]]:
+                    roots += loop_roots[0]
+                if not has_successor[names[node_id]]:
+                    leaves += loop_leaves[-1]
+                
+        return roots, leaves
 
 
 if __name__ == "__main__":
-    G = parse_gnt_to_graph("src/tmp/benchmark/build/InputDoubleBufferless_4096comma_16comma_16greater_.v1/schedule.gnt")
+    logging.basicConfig(filename=f"src/tmp/schedule.log", level=logging.INFO)
+    parser = gnt_schedule_parser("src/tmp/benchmark/build/MatMult.v1/schedule.gnt")
+    parser.parse()
+    nx.write_gml(parser.G, "src/tmp/test_graph.gml")
+    #sim_util.topological_layout_plot(parser.G)
     module_map = {
         "mgc_add": "Add",
         "mgc_mul": "Mult",
@@ -416,5 +673,6 @@ if __name__ == "__main__":
         "ccs_ram_sync_1R1W_wport": "Buf",
         "ccs_ram_sync_1R1W_rport": "Buf"
     }
-    nx.write_gml(G, "src/tmp/catapult_graph.gml", stringizer=lambda x: str(x))
-    modified_G = convert_to_standard_dfg(G, module_map)
+    parser.convert(module_map)
+    #sim_util.topological_layout_plot(parser.modified_G)
+    nx.write_gml(parser.modified_G, "src/tmp/modified_test_graph.gml")

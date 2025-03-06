@@ -159,7 +159,8 @@ class Codesign:
                 schedule_dir = dir
                 break
         schedule_file = f"src/tmp/benchmark/build/{schedule_dir}/schedule.gnt"
-        catapult_schedule = schedule.parse_gnt_to_graph(schedule_file)
+        schedule_parser = schedule.gnt_schedule_parser(schedule_file)
+        schedule_parser.parse()
         module_map = {
             "mgc_add": "Add",
             "mgc_mul": "Mult",
@@ -168,7 +169,8 @@ class Codesign:
             "ccs_ram_sync_1R1W_wport": "Buf",
             "ccs_ram_sync_1R1W_rport": "Buf"
         }
-        self.scheduled_dfg = schedule.convert_to_standard_dfg(catapult_schedule, module_map)
+        schedule_parser.convert(module_map)
+        self.scheduled_dfg = schedule_parser.modified_G
         self.scheduled_dfg.nodes["end"]["start_time"] = nx.dag_longest_path_length(self.scheduled_dfg)
 
         self.longest_paths = schedule.get_longest_paths(self.scheduled_dfg)

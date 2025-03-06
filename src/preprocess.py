@@ -100,7 +100,7 @@ class Preprocessor:
             model.V_dd_lower = pyo.Constraint(rule=self.V_dd_lower)
             model.V_dd_upper = pyo.Constraint(rule=self.V_dd_upper)
         # cacti Vdd >= Vth constraint
-        if hw_symbols.Vdd in self.mapping:
+        if hw_symbols.Vdd in self.mapping and hw_symbols.Vth in self.mapping:
             model.Vdd_not_cutoff = pyo.Constraint(rule=self.Vdd_not_cutoff)
 
         # all parameters can only be less than or equal to their initial values
