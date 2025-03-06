@@ -1,4 +1,5 @@
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -316,6 +317,7 @@ class gnt_schedule_parser:
         self.modified_G = nx.DiGraph()
         self.ignore_types = ["{C-CORE", "ASSIGN", "TERMINATE"]
         self.latest_names = {}
+        self.warning_emitted = False
 
     def parse(self):
         self.parse_gnt_loops()
@@ -356,8 +358,11 @@ class gnt_schedule_parser:
             self.G.remove_edge(edge[0], edge[1])
 
         for node in nodes_removed:
+            logger.info(f"turning {node} into a nop")
             if node in self.G:
-                predecessors = list(self.G.predecessors(node))
+                self.G.nodes[node]["module"] = "nop()"
+                self.G.nodes[node]["delay"] = 0
+                """predecessors = list(self.G.predecessors(node))
                 successors = list(self.G.successors(node))
                 
                 # Create edges from predecessors to successors
@@ -368,7 +373,7 @@ class gnt_schedule_parser:
                             self.G.add_edge(pred, succ)
                 
                 # Remove the node
-                self.G.remove_node(node)
+                self.G.remove_node(node)"""
 
         #sim_util.topological_layout_plot(self.G)
 
@@ -406,7 +411,11 @@ class gnt_schedule_parser:
                 )
 
         #sim_util.topological_layout_plot(self.modified_G)
-        assert nx.is_directed_acyclic_graph(self.modified_G), f"Graph is not a Directed Acyclic Graph (DAG). Cycle is {nx.find_cycle(self.modified_G)}"
+        while not nx.is_directed_acyclic_graph(self.modified_G):
+            cycle = nx.find_cycle(self.modified_G)
+            logger.info(f"Graph is not a Directed Acyclic Graph (DAG). Cycle is {cycle}")
+            for edge in cycle:
+                self.modified_G.remove_edge(edge[0], edge[1])
 
         nx.write_gml(self.modified_G, "src/tmp/schedule.gml")
         logger.info(f"longest path length: {nx.dag_longest_path_length(self.modified_G)}")
@@ -616,15 +625,19 @@ class gnt_schedule_parser:
             for successor in all_successors:
                 assert successor in names
 
-                if names[successor] not in predecessors[names[successor]] and names[node_id] not in successors[names[node_id]]:
+                self_loop = names[successor] in predecessors[names[successor]] or names[node_id] in successors[names[node_id]]
+                single_loop = names[successor] in successors[names[node_id]] and names[node_id] in successors[names[successor]]
+
+                if self_loop or single_loop:
                     self.G.add_edge(names[node_id], names[successor])
                     #logger.info(f"in original function, connecting {names[node_id]} with {names[successor]}")
                     has_predecessor[names[successor]] = True
                     has_successor[names[node_id]] = True
                     predecessors[names[successor]].append(names[node_id])
                     successors[names[node_id]].append(names[successor])
-                else:
-                    logger.warning(f"{node_id} contains self loop")
+                elif not self.warning_emitted:
+                    self.warning_emitted = True
+                    logger.warning(f"{node_id} contains self loop or single loop")
 
         roots = []
         leaves = []
@@ -660,6 +673,7 @@ class gnt_schedule_parser:
 
 
 if __name__ == "__main__":
+    if os.path.exists("src/tmp/schedule.log"): os.remove("src/tmp/schedule.log")
     logging.basicConfig(filename=f"src/tmp/schedule.log", level=logging.INFO)
     parser = gnt_schedule_parser("src/tmp/benchmark/build/MatMult.v1/schedule.gnt")
     parser.parse()
@@ -671,7 +685,8 @@ if __name__ == "__main__":
         "mgc_and": "And",
         "mgc_or": "Or",
         "ccs_ram_sync_1R1W_wport": "Buf",
-        "ccs_ram_sync_1R1W_rport": "Buf"
+        "ccs_ram_sync_1R1W_rport": "Buf",
+        "nop": "nop"
     }
     parser.convert(module_map)
     #sim_util.topological_layout_plot(parser.modified_G)

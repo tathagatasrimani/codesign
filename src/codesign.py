@@ -167,7 +167,8 @@ class Codesign:
             "mgc_and": "And",
             "mgc_or": "Or",
             "ccs_ram_sync_1R1W_wport": "Buf",
-            "ccs_ram_sync_1R1W_rport": "Buf"
+            "ccs_ram_sync_1R1W_rport": "Buf",
+            "nop": "nop"
         }
         schedule_parser.convert(module_map)
         self.scheduled_dfg = schedule_parser.modified_G
@@ -310,7 +311,7 @@ class Codesign:
             if cacti_subs[cacti_expr] == 0:
                 self.tech_params[cacti_expr] = 0
             else:
-                self.tech_params[cacti_expr] = cacti_subs[cacti_expr].xreplace(self.tech_params).evalf()
+                self.tech_params[cacti_expr] = float(cacti_subs[cacti_expr].xreplace(self.tech_params).evalf())
 
         self.write_back_rcs()
 

@@ -137,6 +137,7 @@ def gen_cacti_on_memories(memories, hw):
 def customize_catapult_memories(mem_rpt_file, benchmark_name, hw): #takes in a memory report from initial catapult run
     if not os.path.exists("src/tmp/benchmark/ram_sync"):
         os.makedirs("src/tmp/benchmark/ram_sync")
+    clk_period = (1 / hw.f) * 1e9 # ns
     memories = parse_memory_report(mem_rpt_file)
     memory_vals, existing_memories = gen_cacti_on_memories(memories, hw)
     tcl_commands = []
@@ -156,7 +157,7 @@ def customize_catapult_memories(mem_rpt_file, benchmark_name, hw): #takes in a m
             tcl_file, tcl_cmd, library = generate_sample_memory(
                 cur_mem_vals["Access time (ns)"], 
                 cur_mem_vals["Area (mm2)"]*1e6, 
-                5, #TODO: specify clk period
+                clk_period,
                 memory.component, memory.path_name
             )
             top_tcl_text += f"source {tcl_file}\n"
