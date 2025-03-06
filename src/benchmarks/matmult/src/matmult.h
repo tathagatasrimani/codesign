@@ -21,5 +21,6 @@ struct PackedInt2D {
 };
 
 #define PRECISION 16
+#define TILE_SIZE 10
 
 typedef ac_int<PRECISION,true> DTYPE;
