@@ -680,8 +680,8 @@ if __name__ == "__main__":
     nx.write_gml(parser.G, "src/tmp/test_graph.gml")
     #sim_util.topological_layout_plot(parser.G)
     module_map = {
-        "mgc_add": "Add",
-        "mgc_mul": "Mult",
+        "add": "Add",
+        "mul": "Mult",
         "mgc_and": "And",
         "mgc_or": "Or",
         "ccs_ram_sync_1R1W_wport": "Buf",

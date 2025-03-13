@@ -16,9 +16,9 @@ directive set -CLOCKS $clocks
 
 go assembly
 
-directive set /MatMult/run/a_tmp.value.value:rsc -MAP_TO_MODULE {[Register]}
-directive set /MatMult/run/b_tmp.value.value:rsc -MAP_TO_MODULE {[Register]}
-directive set /MatMult/run/c_tmp.value.value:rsc -MAP_TO_MODULE {[Register]}
+#directive set /MatMult/run/a_tmp.value.value:rsc -MAP_TO_MODULE {[Register]}
+#directive set /MatMult/run/b_tmp.value.value:rsc -MAP_TO_MODULE {[Register]}
+#directive set /MatMult/run/c_tmp.value.value:rsc -MAP_TO_MODULE {[Register]}
 
 go architect
 

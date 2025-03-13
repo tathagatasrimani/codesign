@@ -21,6 +21,7 @@ from . import simulate
 from . import symbolic_simulate
 from . import schedule
 from . import memory
+from . import ccore_update
 
 class Codesign:
     def __init__(self, benchmark_name, save_dir, openroad_testfile, parasitics, no_cacti):
@@ -110,9 +111,6 @@ class Codesign:
 
 
     def run_catapult(self):
-        if os.path.exists("src/tmp/benchmark"):
-            shutil.rmtree("src/tmp/benchmark")
-        shutil.copytree(self.benchmark, "src/tmp/benchmark")
 
         os.chdir("src/tmp/benchmark")
         clk_period = (1 / self.hw.f) * 1e9 # ns
@@ -141,6 +139,15 @@ class Codesign:
     def forward_pass(self):
         print("\nRunning Forward Pass")
         logger.info("Running Forward Pass")
+
+        if os.path.exists("src/tmp/benchmark"):
+            shutil.rmtree("src/tmp/benchmark")
+        shutil.copytree(self.benchmark, "src/tmp/benchmark")
+        shutil.copytree("src/ccores_base", "src/tmp/benchmark/src/ccores")
+
+        # update delay and area of ccores
+        ccore_update.update_ccores(self.hw.area, self.hw.latency)
+
         # run catapult with custom memory configurations
         self.run_catapult()
 
@@ -162,14 +169,12 @@ class Codesign:
         schedule_parser = schedule.gnt_schedule_parser(schedule_file)
         schedule_parser.parse()
         module_map = {
-            "mgc_add": "Add",
-            "mgc_mul": "Mult",
-            "mgc_and": "And",
-            "mgc_or": "Or",
             "ccs_ram_sync_1R1W_wport": "Buf",
             "ccs_ram_sync_1R1W_rport": "Buf",
             "nop": "nop"
         }
+        for unit in self.hw.area.keys():
+            module_map[unit.lower()] = unit
         schedule_parser.convert(module_map)
         self.scheduled_dfg = schedule_parser.modified_G
         self.scheduled_dfg.nodes["end"]["start_time"] = nx.dag_longest_path_length(self.scheduled_dfg)
@@ -352,10 +357,10 @@ class Codesign:
         shutil.copy(
             "src/tmp/solver_out.txt", f"{self.save_dir}/solver_{iter_number}.txt"
         )
-        for mem in self.hw.memories:
+        """for mem in self.hw.memories:
             shutil.copy(
                 f"src/tmp/cacti_exprs_{mem}.txt", f"{self.save_dir}/cacti_exprs_{mem}_{iter_number}.txt"
-            )
+            )"""
         #TODO: copy cacti expressions to file, read yaml file from notebook, call sim util fn to get xreplace structure
         #TODO: fw pass save cacti params of interest, with logger unique starting string, then write parsing script in notebook to look at them
         # save latency, power, and tech params

@@ -153,13 +153,13 @@ class SymbolicSimulator(AbstractSimulator):
                 "BufPpass_expr": BufPpass_expr
             }
 
-            if not os.path.exists("src/tmp"):
+            """if not os.path.exists("src/tmp"):
                 os.makedirs("src/tmp")
             with open(f"src/tmp/cacti_exprs_{mem}.txt", 'w') as f:
                 txt = ""
                 for expr in self.cacti_exprs[mem].keys():
                     txt += f"{expr}: {self.cacti_exprs[mem][expr]}\n"
-                f.write(txt)
+                f.write(txt)"""
 
         self.calculate_execution_time(paths, scheduled_dfg)
 
