@@ -400,14 +400,14 @@ class gnt_schedule_parser:
         for node in self.G:
             node_data = self.G.nodes[node]
             #print(node, node_data)
-            assert node_data["module"] and node_data["module"][:node_data["module"].find('(')] in module_map
+            assert node_data["module"] and node_data["module"][:node_data["module"].find('(')] in self.module_map
 
         #sim_util.topological_layout_plot(self.G)
 
         for node in self.G:
             node_data = self.G.nodes[node]
             module_prefix = node_data["module"][:node_data["module"].find('(')]
-            fn = module_map[module_prefix]
+            fn = self.module_map[module_prefix]
             self.modified_G.add_node(
                 node,
                 id=node_data["id"],
