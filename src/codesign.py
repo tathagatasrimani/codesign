@@ -166,8 +166,6 @@ class Codesign:
                 schedule_dir = dir
                 break
         schedule_file = f"src/tmp/benchmark/build/{schedule_dir}/schedule.gnt"
-        schedule_parser = schedule.gnt_schedule_parser(schedule_file)
-        schedule_parser.parse()
         module_map = {
             "ccs_ram_sync_1R1W_wport": "Buf",
             "ccs_ram_sync_1R1W_rport": "Buf",
@@ -175,7 +173,9 @@ class Codesign:
         }
         for unit in self.hw.area.keys():
             module_map[unit.lower()] = unit
-        schedule_parser.convert(module_map)
+        schedule_parser = schedule.gnt_schedule_parser(schedule_file, module_map)
+        schedule_parser.parse()
+        schedule_parser.convert()
         self.scheduled_dfg = schedule_parser.modified_G
         self.scheduled_dfg.nodes["end"]["start_time"] = nx.dag_longest_path_length(self.scheduled_dfg)
 

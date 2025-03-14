@@ -71,6 +71,9 @@ class SymbolicSimulator(AbstractSimulator):
                     path_execution_time += hw_symbols.symbolic_latency_wc[data["function"]]()
             self.execution_time = symbolic_convex_max(self.execution_time, path_execution_time) if self.execution_time != 0 else path_execution_time
 
+        logger.info(f"simplifying execution time expression, initially {self.execution_time}")
+        self.execution_time = self.execution_time.simplify()
+        logger.info(f"simplification completed, now changed to {self.execution_time}")
     
     def calculate_edp(self, hw, paths, scheduled_dfg):
 

@@ -10,11 +10,42 @@ import networkx as nx
 
 from . import sim_util
 
-def get_longest_paths(G: nx.DiGraph, num_paths=1, num_unique_slacks=5):
+def calculate_similarity(G, p1, p2):
+    # calculate the portion of operations shared between two paths as a decimal
+    p1_funcs = []
+    for node in p1:
+        if G.nodes[node]["function"] not in ["nop", "end"]:
+            p1_funcs.append(G.nodes[node]["function"])
+    p2_funcs = []
+    for node in p2:
+        if G.nodes[node]["function"] not in ["nop", "end"]:
+            p2_funcs.append(G.nodes[node]["function"])
+    
+    p_shorter_funcs, p_longer_funcs = (p1_funcs, p2_funcs) if len(p1_funcs) < len(p2_funcs) else (p2_funcs, p1_funcs)
+
+    logger.info(f"{p_longer_funcs}, {p_shorter_funcs}")
+    if not len(p_shorter_funcs): 
+        logger.info("returning 1")
+        return 1
+    unique_ops = {}
+    for func in p_shorter_funcs:
+        if func not in unique_ops:
+            unique_ops[func] = 0
+        unique_ops[func] += 1
+    matched_ops = 0
+    for func in p_longer_funcs:
+        if func in unique_ops and unique_ops[func] > 0:
+            unique_ops[func] -= 1
+            matched_ops += 1
+    logger.info(f"similarity is {matched_ops / len(p_shorter_funcs)}")
+    return matched_ops / len(p_shorter_funcs)
+
+def get_longest_paths(G: nx.DiGraph, num_paths=5, num_unique_slacks=100):
     """
     Returns at most num_paths longest paths in G. num_unique_slacks can be optionally
     specified to remove any node from the graph which has too large of a slack.
     """
+
     # Topological sorting to process nodes in order
     top_order = list(nx.topological_sort(G))
     
@@ -45,14 +76,20 @@ def get_longest_paths(G: nx.DiGraph, num_paths=1, num_unique_slacks=5):
     sorted_slacks = sorted(slacks.keys(), key=lambda x: slacks[x])
     logger.info(f"slacks: {slacks}")
     unique_slacks = sorted(list(set(slacks.values())))
+    slacks_seen = set()
     logger.info(f"sorted slacks: {sorted_slacks}")
     k = min(num_unique_slacks, len(unique_slacks))
     nodes_to_remove = []
+    sorted_unique_slacks = []
     for i in range(len(sorted_slacks)):
         if slacks[sorted_slacks[i]] > unique_slacks[k-1]:
             sorted_slacks = sorted_slacks[:i]
             nodes_to_remove = sorted_slacks[i:]
             break
+        if slacks[sorted_slacks[i]] not in slacks_seen:
+            sorted_unique_slacks.append(sorted_slacks[i])
+            slacks_seen.add(slacks[sorted_slacks[i]])
+
 
     # create a copy of G with negative weights. Only consider nodes below some threshold of slack.
     # We will use this to run bellman ford, which can handle negative weights,
@@ -74,7 +111,7 @@ def get_longest_paths(G: nx.DiGraph, num_paths=1, num_unique_slacks=5):
     nodes_seen = set()
     i = 0
     paths = []
-    for node in sorted_slacks:
+    for node in sorted_unique_slacks:
         if node not in nodes_seen:
             # exclude "start" node and last node (already in reverse path) in forward path.
             # reverse the reverse path so that it goes from node -> "end"
@@ -87,10 +124,30 @@ def get_longest_paths(G: nx.DiGraph, num_paths=1, num_unique_slacks=5):
     paths_sorted = sorted(paths, key=lambda x: x[0]) # sort by longest length
     for i in range(len(paths_sorted)):
         paths_sorted[i][0] *= -1
+
+    logger.info(f"paths sorted: {paths_sorted}")
+    logger.info(f"k is {k}")
     
     # may only want a certain number of paths
     n = min(len(paths_sorted), num_paths)
-    return paths_sorted[:n]
+
+    paths_sorted_pruned = [paths_sorted[0]]
+    paths_added = 1
+    for i in range(1, k):
+        next_path = paths_sorted[i]
+        logger.info(f"considering path {next_path}")
+        similar = False
+        # only add a path to the final list if it is less than 50% similar to
+        # all the other paths we are currently considering
+        for path in paths_sorted_pruned:
+            if calculate_similarity(G, path[1], next_path[1]) >= 0.8:
+                similar = True
+        if not similar: 
+            paths_sorted_pruned.append(next_path)
+            paths_added += 1
+        if paths_added == n: break
+
+    return paths_sorted_pruned
 
 def sdc_schedule(graph, topo_order_by_elem, extra_constraints=[], add_resource_edges=False, debug=False):
     """
@@ -307,7 +364,7 @@ def convert_to_standard_dfg(graph: nx.DiGraph, module_map):
     return modified_graph
 
 class gnt_schedule_parser:
-    def __init__(self, filename):
+    def __init__(self, filename, module_map):
         self.filename = filename
         self.line_map = {}
         self.loop_indices = []
@@ -315,19 +372,21 @@ class gnt_schedule_parser:
         self.node_names = set()
         self.G = nx.DiGraph()
         self.modified_G = nx.DiGraph()
-        self.ignore_types = ["{C-CORE", "ASSIGN", "TERMINATE"]
+        self.ignore_types = ["ASSIGN", "TERMINATE"]
         self.latest_names = {}
         self.warning_emitted = False
+        self.loop_graphs = {} # loop id -> saved graph
+        self.module_map = module_map # mapping from ccore module to standard operator name
 
     def parse(self):
         self.parse_gnt_loops()
-        self.create_graph_for_loop(self.top_loop)
-        self.remove_loop_nodes()
+        self.G, _, _ = self.create_graph_for_loop(self.top_loop)
+        #self.remove_loop_nodes()
 
-    def convert(self, module_map):
-        self.convert_to_standard_dfg(module_map)
+    def convert(self):
+        self.convert_to_standard_dfg()
 
-    def convert_to_standard_dfg(self, module_map):
+    def convert_to_standard_dfg(self):
         """
         takes the output of parse_gnt_to_graph and converts
         it to our standard dfg format for use in the rest of the flow.
@@ -337,43 +396,11 @@ class gnt_schedule_parser:
         Arguments:
         - graph: output of parse_gnt_to_graph
         - node_objects: mapping of node -> node class object
-        - module_map: mapping from ccore module to standard operator name
         """
-        nodes_removed = []
-        edges_to_remove = []
         for node in self.G:
             node_data = self.G.nodes[node]
             #print(node, node_data)
-            if node_data["module"] and node_data["module"][:node_data["module"].find('(')] in module_map:
-                assert node_data["module"].find('(') != -1
-                logger.info(f"{node} remaining in pruned graph")
-            else:
-                #logger.info(f"removing {node}")
-                nodes_removed.append(node)
-            if self.G.has_edge(node, node):
-                edges_to_remove.append((node, node))
-
-        logger.info(edges_to_remove)
-        for edge in edges_to_remove:
-            self.G.remove_edge(edge[0], edge[1])
-
-        for node in nodes_removed:
-            #logger.info(f"turning {node} into a nop")
-            if node in self.G:
-                self.G.nodes[node]["module"] = "nop()"
-                self.G.nodes[node]["delay"] = 0
-                """predecessors = list(self.G.predecessors(node))
-                successors = list(self.G.successors(node))
-                
-                # Create edges from predecessors to successors
-                for pred in predecessors:
-                    for succ in successors:
-                        if pred != succ:  # Avoid self-loops
-                            #logger.info(f"adding edge between {pred} and {succ}")
-                            self.G.add_edge(pred, succ)
-                
-                # Remove the node
-                self.G.remove_node(node)"""
+            assert node_data["module"] and node_data["module"][:node_data["module"].find('(')] in module_map
 
         #sim_util.topological_layout_plot(self.G)
 
@@ -433,20 +460,9 @@ class gnt_schedule_parser:
                 name = f"{node_id};{i}"
                 assert i < 100000000
             self.latest_names[node_id] = i
+        self.node_names.add(name)
             
         return name
-    
-    def remove_loop_nodes(self):
-        nodes_to_remove = []
-        for node in self.G:
-            if self.G.nodes[node]["id"] in self.loop_indices:
-                nodes_to_remove.append(node)
-        for node in nodes_to_remove:
-            logger.info(f"removing loop node {node}")
-            self.G.remove_node(node)
-        
-        for node in self.G:
-            assert self.G.nodes[node]["id"] not in self.loop_indices
 
     def parse_gnt_loops(self):
         with open(self.filename, 'r') as file:
@@ -556,10 +572,10 @@ class gnt_schedule_parser:
         if iters == "Infinite": iters = "1"
         return int(iters)
     
-    def connect_set_of_nodes(self, preds, succs):
+    def connect_set_of_nodes(self, preds, succs, G):
         for pred in preds:
             for succ in succs:
-                self.G.add_edge(pred, succ)
+                G.add_edge(pred, succ)
                 #logger.info(f"connecting {pred} to {succ}")
 
     def get_node_info(self, node_id):
@@ -586,7 +602,7 @@ class gnt_schedule_parser:
         if (line.find(" DELAY ") != -1): # todo: investigate if CYCLES need to be added to delay
             for i in range(len(tokens)):
                 if (tokens[i] == "DELAY"):
-                    node_delay = float(tokens[i+1][1:-1]) # take out brackets with [1:-1]
+                    node_delay = float(tokens[i+1][1:]) # take out brackets with [1:-1]
             #print(node_delay)
         node_library = ""
         if (line.find(" LIBRARY ") != -1):
@@ -597,97 +613,161 @@ class gnt_schedule_parser:
     
     # return labels of roots and leaves
     def create_graph_for_loop(self, loop_id):
-        node_ids = self.find_loop_children(loop_id)
-        names = {}
-        has_successor = {}
-        has_predecessor = {}
-        successors = {}
-        predecessors = {}
-        for node_id in node_ids:
-            names[node_id] = self.get_unique_node_name(node_id)
-            self.node_names.add(names[node_id])
-            has_predecessor[names[node_id]] = False
-            has_successor[names[node_id]] = False
-            predecessors[names[node_id]] = []
-            successors[names[node_id]] = []
-            node_name, node_type, node_module, node_delay, node_library = self.get_node_info(node_id)
-            self.G.add_node(
-                names[node_id],
-                name=node_name,
-                id=node_id,
-                tp=node_type,
-                module=node_module,
-                delay=node_delay,
-                library=node_library
-            )
-        for node_id in node_ids:
-            all_successors = self.find_successors(node_id)
-            for successor in all_successors:
-                assert successor in names
+        G = nx.DiGraph()
+        if loop_id in self.loop_graphs:
+            logger.info(f"using presaved version of graph for {loop_id}")
+            G_saved = self.loop_graphs[loop_id]
+            node_mapping = {}
+            # maintain the same structure from the saved graph, but change all the node names
+            for node in G_saved:
+                assert ';' in node
+                new_name = self.get_unique_node_name(node[:node.find(';')])
+                node_mapping[node] = new_name
+                logger.info(f"changed {node} from presaved graph to {new_name}")
+                G.add_node(new_name, **G_saved.nodes[node])
+            for node in G_saved:
+                for successor in G_saved.successors(node):
+                    G.add_edge(node_mapping[node], node_mapping[successor])
+        else:
+            node_ids = self.find_loop_children(loop_id)
+            logger.info(f"loop children for {loop_id}: {node_ids}")
+            names = {}
+            successors = {}
+            predecessors = {}
 
-                self_loop = names[successor] in predecessors[names[successor]] or names[node_id] in successors[names[node_id]]
-                single_loop = names[successor] in successors[names[node_id]] and names[node_id] in successors[names[successor]]
-
-                if self_loop or single_loop:
-                    self.G.add_edge(names[node_id], names[successor])
-                    #logger.info(f"in original function, connecting {names[node_id]} with {names[successor]}")
-                    has_predecessor[names[successor]] = True
-                    has_successor[names[node_id]] = True
+            # add node objects for each id in loop children
+            for node_id in node_ids:
+                names[node_id] = self.get_unique_node_name(node_id)
+                predecessors[names[node_id]] = []
+                successors[names[node_id]] = []
+                node_name, node_type, node_module, node_delay, node_library = self.get_node_info(node_id)
+                G.add_node(
+                    names[node_id],
+                    name=node_name,
+                    id=node_id,
+                    tp=node_type,
+                    module=node_module,
+                    delay=node_delay,
+                    library=node_library
+                )
+            
+            # add edges between nodes
+            for node_id in node_ids:
+                all_successors = self.find_successors(node_id)
+                for successor in all_successors:
+                    assert successor in names
                     predecessors[names[successor]].append(names[node_id])
                     successors[names[node_id]].append(names[successor])
-                elif not self.warning_emitted:
-                    self.warning_emitted = True
-                    logger.warning(f"{node_id} contains self loop or single loop")
 
-        roots = []
-        leaves = []
-        for node_id in node_ids:
-            if not has_predecessor[names[node_id]]:
-                roots.append(names[node_id])
-            if not has_successor[names[node_id]]:
-                leaves.append(names[node_id])
+            for node_id in node_ids:
+                for successor in successors[names[node_id]]:
+                    self_loop = successor in predecessors[successor] or names[node_id] in successors[names[node_id]]
+                    single_loop = successor in successors[names[node_id]] and names[node_id] in successors[successor]
 
-        for node_id in node_ids:
-            if node_id in self.loop_indices:
-                iters = self.get_num_iterations(node_id)
-                logger.info(f"creating nested loop for {node_id} with {iters} iters")
-                loop_roots, loop_leaves = [], []
-                for _ in range(iters):
-                    loop_roots_i, loop_leaves_i = self.create_graph_for_loop(node_id)
-                    loop_roots.append(loop_roots_i)
-                    loop_leaves.append(loop_leaves_i)
-                #connect incoming nodes to first iteration of loop, and outgoing nodes to outgoing nodes of last loop iteration
-                self.connect_set_of_nodes(predecessors[names[node_id]], loop_roots[0])
-                self.connect_set_of_nodes(loop_leaves[-1], successors[names[node_id]])
-                # connect intermediate loop iterations
-                for i in range(1, iters):
-                    self.connect_set_of_nodes(loop_leaves[i-1], loop_roots[i])
+                    if not (self_loop or single_loop):
+                        G.add_edge(names[node_id], successor)
+                        logger.info(f"in original function, connecting {names[node_id]} with {successor}")
+                    elif not self.warning_emitted:
+                        self.warning_emitted = True
+                        logger.warning(f"{node_id} contains self loop or single loop")
 
-                # if loop node was a root or leaf, replace that with its actual roots/leaves
-                if not has_predecessor[names[node_id]]:
-                    roots += loop_roots[0]
-                if not has_successor[names[node_id]]:
-                    leaves += loop_leaves[-1]
+
+            
+            # create nested loops
+            for node_id in node_ids:
+                if node_id in self.loop_indices:
+                    iters = self.get_num_iterations(node_id)
+                    logger.info(f"creating nested loop for {node_id} with {iters} iters")
+                    loop_roots, loop_leaves = [], []
+                    for _ in range(iters):
+                        sub_G, loop_roots_i, loop_leaves_i = self.create_graph_for_loop(node_id)
+                        # add all nodes and edges from subgraph into current graph
+                        for node in sub_G:
+                            logger.info(f"adding node {node} from subgraph")
+                            G.add_node(node, **sub_G.nodes[node])
+                        for node in sub_G:
+                            for successor in sub_G.successors(node):
+                                logger.info(f"adding edge between {node} and {successor} after subgraph")
+                                G.add_edge(node, successor)
+                        loop_roots.append(loop_roots_i)
+                        loop_leaves.append(loop_leaves_i)
+                    #connect incoming nodes to first iteration of loop, and outgoing nodes to outgoing nodes of last loop iteration
+                    self.connect_set_of_nodes(predecessors[names[node_id]], loop_roots[0], G)
+                    self.connect_set_of_nodes(loop_leaves[-1], successors[names[node_id]], G)
+                    # connect intermediate loop iterations
+                    for i in range(1, iters):
+                        self.connect_set_of_nodes(loop_leaves[i-1], loop_roots[i], G)
+            
+            #prune graph for unnecessary node types
+            nodes_removed = []
+            edges_to_remove = []
+            for node in G:
+                node_data = G.nodes[node]
+                #print(node, node_data)
+                if node_data["module"] and node_data["module"][:node_data["module"].find('(')] in self.module_map:
+                    assert node_data["module"].find('(') != -1
+                    logger.info(f"{node} remaining in pruned graph")
+                else:
+                    logger.info(f"removing {node}")
+                    nodes_removed.append(node)
+                if G.has_edge(node, node):
+                    edges_to_remove.append((node, node))
+
+            logger.info(edges_to_remove)
+            for edge in edges_to_remove:
+                G.remove_edge(edge[0], edge[1])
+
+            for node in nodes_removed:
+                if node in G:
+                    preds = list(G.predecessors(node))
+                    succs = list(G.successors(node))
+                    
+                    if node[:node.find(';')] not in self.loop_indices:
+                        # Create edges from predecessors to successors
+                        for pred in preds:
+                            for succ in succs:
+                                if pred != succ:  # Avoid self-loops
+                                    logger.info(f"adding edge between {pred} and {succ}")
+                                    G.add_edge(pred, succ)
+                    else:
+                        logger.info(f"{node} is a loop; just remove it")
+                    
+                    logger.info(f"actually removing {node}")
+                    # Remove the node
+                    G.remove_node(node)
+
+            # save graph in case we want to create one from this loop id again
+            self.loop_graphs[loop_id] = G
+        
+        assert nx.is_directed_acyclic_graph(G), nx.find_cycle(G)
+        topo_gens = list(nx.topological_generations(G))
+        roots, leaves = ([], []) if not len(topo_gens) else (topo_gens[0], topo_gens[-1])
                 
-        return roots, leaves
+        return G, roots, leaves
 
 
 if __name__ == "__main__":
     if os.path.exists("src/tmp/schedule.log"): os.remove("src/tmp/schedule.log")
     logging.basicConfig(filename=f"src/tmp/schedule.log", level=logging.INFO)
-    parser = gnt_schedule_parser("src/tmp/benchmark/build/MatMult.v1/schedule.gnt")
-    parser.parse()
-    nx.write_gml(parser.G, "src/tmp/test_graph.gml")
-    #sim_util.topological_layout_plot(parser.G)
     module_map = {
         "add": "Add",
-        "mul": "Mult",
-        "mgc_and": "And",
-        "mgc_or": "Or",
+        "mult": "Mult",
         "ccs_ram_sync_1R1W_wport": "Buf",
         "ccs_ram_sync_1R1W_rport": "Buf",
         "nop": "nop"
     }
-    parser.convert(module_map)
+    parser = gnt_schedule_parser("src/tmp/benchmark/build/MatMult.v1/schedule.gnt", module_map)
+    parser.parse()
+    print("finished parsing")
+    nx.write_gml(parser.G, "src/tmp/test_graph.gml")
+    #sim_util.topological_layout_plot(parser.G)
+    parser.convert()
+    print("finished converting")
     #sim_util.topological_layout_plot(parser.modified_G)
     nx.write_gml(parser.modified_G, "src/tmp/modified_test_graph.gml")
+    lp = get_longest_paths(parser.modified_G)
+
+    """logging.basicConfig(filename=f"src/tmp/schedule.log", level=logging.INFO)
+    G = nx.read_gml("src/tmp/modified_test_graph.gml")
+    lp = get_longest_paths(G)"""
+    print(f"number of paths found: {len(lp)}")
