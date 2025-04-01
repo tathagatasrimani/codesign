@@ -275,93 +275,6 @@ class node:
 
     def label(self):
         return f"{self.module}-{self.id}-{self.type}"
-    
-def convert_to_standard_dfg(graph: nx.DiGraph, module_map):
-    """
-    takes the output of parse_gnt_to_graph and converts
-    it to our standard dfg format for use in the rest of the flow.
-    We discard catapult-specific information and convert each node
-    to one of our standard operators with the correct delay value.
-
-    Arguments:
-    - graph: output of parse_gnt_to_graph
-    - node_objects: mapping of node -> node class object
-    - module_map: mapping from ccore module to standard operator name
-    """
-    nodes_removed = []
-    edges_to_remove = []
-    for node in graph:
-        node_data = graph.nodes[node]
-        if node_data["module"] and node_data["module"][:node_data["module"].find('(')] in module_map:
-            assert node_data["module"].find('(') != -1
-            logger.info(f"{node} remaining in pruned graph")
-        else:
-            logger.info(f"removing {node}")
-            nodes_removed.append(node)
-        if graph.has_edge(node, node):
-            edges_to_remove.append((node, node))
-
-    logger.info(edges_to_remove)
-    for edge in edges_to_remove:
-        graph.remove_edge(edge[0], edge[1])
-
-    for node in nodes_removed:
-        if node in graph:
-            predecessors = list(graph.predecessors(node))
-            successors = list(graph.successors(node))
-            
-            # Create edges from predecessors to successors
-            for pred in predecessors:
-                for succ in successors:
-                    if pred != succ:  # Avoid self-loops
-                        #logger.info(f"adding edge between {pred} and {succ}")
-                        graph.add_edge(pred, succ)
-            
-            # Remove the node
-            graph.remove_node(node)
-
-    #sim_util.topological_layout_plot(graph)
-
-    modified_graph = nx.DiGraph()
-    for node in graph:
-        node_data = graph.nodes[node]
-        module_prefix = node_data["module"][:node_data["module"].find('(')]
-        fn = module_map[module_prefix]
-        modified_graph.add_node(
-            node,
-            id=node_data["id"],
-            function=fn,
-            cost=node_data["delay"],
-            start_time=0,
-            end_time=0,
-            allocation="",
-            library=node_data["library"]
-        )
-    modified_graph.add_node(
-        "end",
-        function="end"
-    )
-    for node in graph:
-        node_data = graph.nodes[node]
-        for child in graph.successors(node):
-            modified_graph.add_edge(
-                node, 
-                child, 
-                cost=0, # cost to be set after parasitic extraction 
-                weight=modified_graph.nodes[node]["cost"]
-            ) 
-        if not len(list(graph.successors(node))):
-            modified_graph.add_edge(
-                node, "end",
-                weight=modified_graph.nodes[node]["cost"]
-            )
-
-    #sim_util.topological_layout_plot(modified_graph)
-
-    nx.write_gml(modified_graph, "src/tmp/schedule.gml")
-    logger.info(f"longest path length: {nx.dag_longest_path_length(modified_graph)}")
-    logger.info(f"longest path: {nx.dag_longest_path(modified_graph)}")
-    return modified_graph
 
 class gnt_schedule_parser:
     def __init__(self, filename, module_map):
@@ -374,7 +287,6 @@ class gnt_schedule_parser:
         self.modified_G = nx.DiGraph()
         self.ignore_types = ["ASSIGN", "TERMINATE"]
         self.latest_names = {}
-        self.warning_emitted = False
         self.loop_graphs = {} # loop id -> saved graph
         self.module_map = module_map # mapping from ccore module to standard operator name
 
@@ -534,7 +446,7 @@ class gnt_schedule_parser:
                         if (tokens[j] == "CYCLES"): break
                         if tokens[j] in self.line_map and self.get_node_type(tokens[j]) not in self.ignore_types:
                             successors.append(tokens[j])
-                
+        logger.info(f"successors of {node_id} are {successors}")
         return successors
 
     def find_predecessors(self, node_id):
@@ -667,9 +579,15 @@ class gnt_schedule_parser:
                     if not (self_loop or single_loop):
                         G.add_edge(names[node_id], successor)
                         logger.info(f"in original function, connecting {names[node_id]} with {successor}")
-                    elif not self.warning_emitted:
-                        self.warning_emitted = True
-                        logger.warning(f"{node_id} contains self loop or single loop")
+                    elif self_loop:
+                        logger.warning(f"{node_id} contains self loop")
+                    else: 
+                        assert single_loop
+                        if not G.nodes[names[node_id]]["module"]: # meaning its a ccore port
+                            assert self.get_node_type(node_id) == "{C-CORE"
+                            G.add_edge(names[node_id], successor)
+                            logger.info(f"in original function, connecting {names[node_id]} with {successor} as c-core to unit pair")
+
 
 
             
@@ -752,7 +670,7 @@ if __name__ == "__main__":
     module_map = {
         "add": "Add",
         "mult": "Mult",
-        "ccs_ram_sync_1R1W_wport": "Buf",
+        "ccs_ram_sync_1R1W_rwport": "Buf",
         "ccs_ram_sync_1R1W_rport": "Buf",
         "nop": "nop"
     }
@@ -763,7 +681,7 @@ if __name__ == "__main__":
     #sim_util.topological_layout_plot(parser.G)
     parser.convert()
     print("finished converting")
-    #sim_util.topological_layout_plot(parser.modified_G)
+    sim_util.topological_layout_plot(parser.modified_G)
     nx.write_gml(parser.modified_G, "src/tmp/modified_test_graph.gml")
     lp = get_longest_paths(parser.modified_G)
 
