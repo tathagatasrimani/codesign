@@ -1,5 +1,6 @@
 import logging
 import os
+import heapq
 
 logger = logging.getLogger(__name__)
 
@@ -149,6 +150,43 @@ def get_longest_paths(G: nx.DiGraph, num_paths=5, num_unique_slacks=100):
 
     return paths_sorted_pruned
 
+def longest_path_first_topological_sort(graph):
+    # Calculate the longest path lengths to each node
+    longest_path_length = {node: 0 for node in graph.nodes()}
+    for node in reversed(
+        list(nx.topological_sort(graph))
+    ):  # Use topological sort to order nodes
+        for successor in graph.successors(node):
+            longest_path_length[node] = max(
+                longest_path_length[node], 1 + longest_path_length[successor]
+            )
+
+    # Initialize a priority queue based on longest path lengths
+    priority_queue = []
+    in_degree = {node: 0 for node in graph.nodes()}
+    for u, v in graph.edges():
+        in_degree[v] += 1
+
+    # Populate the priority queue with nodes having zero in-degree
+    for node in graph.nodes():
+        if in_degree[node] == 0:
+            heapq.heappush(
+                priority_queue, (-longest_path_length[node], node)
+            )  # Push with negative to simulate max heap
+
+    topological_order = []
+    while priority_queue:
+        _, node = heapq.heappop(priority_queue)
+        topological_order.append(node)
+        for successor in graph.successors(node):
+            in_degree[successor] -= 1
+            if in_degree[successor] == 0:
+                heapq.heappush(
+                    priority_queue, (-longest_path_length[successor], successor)
+                )  # Maintain priority
+
+    return topological_order
+
 def sdc_schedule(graph, topo_order_by_elem, extra_constraints=[], add_resource_edges=False, debug=False):
     """
     Runs the convex optimization problem to minimize the longest path latency.
@@ -277,8 +315,9 @@ class node:
         return f"{self.module}-{self.id}-{self.type}"
 
 class gnt_schedule_parser:
-    def __init__(self, filename, module_map):
-        self.filename = filename
+    def __init__(self, build_dir, module_map):
+        self.filename = build_dir + "/schedule.gnt"
+        self.bom_file = build_dir + "/rtl.rpt"
         self.line_map = {}
         self.loop_indices = []
         self.top_loop = None
@@ -289,8 +328,11 @@ class gnt_schedule_parser:
         self.latest_names = {}
         self.loop_graphs = {} # loop id -> saved graph
         self.module_map = module_map # mapping from ccore module to standard operator name
+        self.extra_edges = [] # resource edges
+        self.element_counts = {}
 
     def parse(self):
+        self.parse_bom()
         self.parse_gnt_loops()
         self.G, _, _ = self.create_graph_for_loop(self.top_loop)
         #self.remove_loop_nodes()
@@ -298,12 +340,38 @@ class gnt_schedule_parser:
     def convert(self):
         self.convert_to_standard_dfg()
 
+    def parse_bom(self):
+        file = open(self.bom_file, "r")
+        lines = file.readlines()
+        i = 0
+        while (i < len(lines)):
+            if lines[i].strip().startswith("[Lib: assembly]"):
+                break
+            i += 1
+        i += 1
+        while (i < len(lines)):
+            if lines[i].strip().startswith("[Lib: nangate") or lines[i].strip().startswith("TOTAL AREA"):
+                break
+            data = lines[i].strip().split()
+            if data:
+                module_type = data[0].split('(')[0]
+                if module_type in module_map:
+                    if data[-1] == 0:
+                        logger.warning(f"{module_type} has zero count post assign, setting to 1")
+                    if module_map[module_type] not in self.element_counts:
+                        self.element_counts[module_map[module_type]] = 0
+                    # if multiple modules are mapped to the same module type, just add them up for count purposes
+                    self.element_counts[module_map[module_type]] += max(int(data[-1]), 1)
+            i += 1
+        logger.info(str(self.element_counts))
+
     def convert_to_standard_dfg(self):
         """
         takes the output of parse_gnt_to_graph and converts
         it to our standard dfg format for use in the rest of the flow.
         We discard catapult-specific information and convert each node
         to one of our standard operators with the correct delay value.
+        Also add resource dependencies.
 
         Arguments:
         - graph: output of parse_gnt_to_graph
@@ -355,6 +423,32 @@ class gnt_schedule_parser:
             logger.info(f"Graph is not a Directed Acyclic Graph (DAG). Cycle is {cycle}")
             for edge in cycle:
                 self.modified_G.remove_edge(edge[0], edge[1])
+
+        # add resource dependencies
+        topo_order = longest_path_first_topological_sort(self.modified_G)
+        topo_order_by_func = {func: [] for func in self.element_counts.keys()}
+        for node in topo_order:
+            node_data = self.modified_G.nodes[node]
+            if node_data["function"] in self.element_counts:
+                topo_order_by_func[node_data["function"]].append(node)
+        #print(topo_order_by_func)
+        topo_order_by_elem = {func: {i: [] for i in range(self.element_counts[func])} for func in self.element_counts.keys()}
+        for func in topo_order_by_func:
+            for i in range(len(topo_order_by_func[func])):
+                topo_order_by_elem[func][i%self.element_counts[func]].append(topo_order_by_func[func][i])
+        #print(topo_order_by_elem)
+        for func in topo_order_by_elem:
+            for elem in topo_order_by_elem[func]:
+                for i in range(len(topo_order_by_elem[func][elem])-1):
+                    assert self.modified_G.has_node(topo_order_by_elem[func][elem][i])
+                    assert self.modified_G.has_node(topo_order_by_elem[func][elem][i+1])
+                    self.modified_G.add_edge(
+                        topo_order_by_elem[func][elem][i],
+                        topo_order_by_elem[func][elem][i+1],
+                        weight=0
+                    )
+                    logger.info(f"adding resource dependency between {topo_order_by_elem[func][elem][i]} and {topo_order_by_elem[func][elem][i+1]}")
+                    self.extra_edges.append((topo_order_by_elem[func][elem][i], topo_order_by_elem[func][elem][i+1]))
 
         nx.write_gml(self.modified_G, "src/tmp/schedule.gml")
         logger.info(f"longest path length: {nx.dag_longest_path_length(self.modified_G)}")
@@ -502,6 +596,7 @@ class gnt_schedule_parser:
                     node_name = tokens[i+1]
                     break
             assert node_name != "", f"{line}"
+        # print(node_name)
         node_type = self.get_node_type(node_id)
         node_module = ""
         if (line.find(" MODULE ") != -1):
@@ -622,6 +717,7 @@ class gnt_schedule_parser:
             for node in G:
                 node_data = G.nodes[node]
                 #print(node, node_data)
+
                 if node_data["module"] and node_data["module"][:node_data["module"].find('(')] in self.module_map:
                     assert node_data["module"].find('(') != -1
                     logger.info(f"{node} remaining in pruned graph")
@@ -662,7 +758,7 @@ class gnt_schedule_parser:
         roots, leaves = ([], []) if not len(topo_gens) else (topo_gens[0], topo_gens[-1])
                 
         return G, roots, leaves
-
+    
 
 if __name__ == "__main__":
     if os.path.exists("src/tmp/schedule.log"): os.remove("src/tmp/schedule.log")
@@ -674,14 +770,14 @@ if __name__ == "__main__":
         "ccs_ram_sync_1R1W_rport": "Buf",
         "nop": "nop"
     }
-    parser = gnt_schedule_parser("src/tmp/benchmark/build/MatMult.v1/schedule.gnt", module_map)
+    parser = gnt_schedule_parser("src/tmp/benchmark/build/MatMult.v1", module_map)
     parser.parse()
     print("finished parsing")
     nx.write_gml(parser.G, "src/tmp/test_graph.gml")
     #sim_util.topological_layout_plot(parser.G)
     parser.convert()
     print("finished converting")
-    sim_util.topological_layout_plot(parser.modified_G)
+    sim_util.topological_layout_plot(parser.modified_G, extra_edges=parser.extra_edges)
     nx.write_gml(parser.modified_G, "src/tmp/modified_test_graph.gml")
     lp = get_longest_paths(parser.modified_G)
 
