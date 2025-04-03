@@ -11,35 +11,38 @@ import networkx as nx
 
 from . import sim_util
 
+
+
 def calculate_similarity(G, p1, p2):
-    # calculate the portion of operations shared between two paths as a decimal
+    # calculate the similarity between these sets using overlap coefficient
+    p1_fn_counts = {}
     p1_funcs = []
+    p2_fn_counts = {}
     for node in p1:
-        if G.nodes[node]["function"] not in ["nop", "end"]:
-            p1_funcs.append(G.nodes[node]["function"])
+        fn = G.nodes[node]["function"] 
+        if fn not in ["nop", "end"]:
+            if fn not in p1_fn_counts:
+                p1_fn_counts[fn] = 0
+            p1_funcs.append(f"{fn};{p1_fn_counts[fn]}")
+            p1_fn_counts[fn] += 1
     p2_funcs = []
     for node in p2:
-        if G.nodes[node]["function"] not in ["nop", "end"]:
-            p2_funcs.append(G.nodes[node]["function"])
+        fn = G.nodes[node]["function"] 
+        if fn not in ["nop", "end"]:
+            if fn not in p2_fn_counts:
+                p2_fn_counts[fn] = 0
+            p2_funcs.append(f"{fn};{p2_fn_counts[fn]}")
+            p2_fn_counts[fn] += 1
     
-    p_shorter_funcs, p_longer_funcs = (p1_funcs, p2_funcs) if len(p1_funcs) < len(p2_funcs) else (p2_funcs, p1_funcs)
+    p_shorter_funcs, p_longer_funcs = (set(p1_funcs), set(p2_funcs)) if len(p1_funcs) < len(p2_funcs) else (set(p2_funcs), set(p1_funcs))
+    longer_path = len(p2_funcs) > len(p1_funcs)
+    logger.info(f"{p2_funcs}, {p1_funcs}")
+    
+    intersect = p_longer_funcs.intersection(p_shorter_funcs)
+    logger.info(f"intersection is {intersect}")
 
-    logger.info(f"{p_longer_funcs}, {p_shorter_funcs}")
-    if not len(p_shorter_funcs): 
-        logger.info("returning 1")
-        return 1
-    unique_ops = {}
-    for func in p_shorter_funcs:
-        if func not in unique_ops:
-            unique_ops[func] = 0
-        unique_ops[func] += 1
-    matched_ops = 0
-    for func in p_longer_funcs:
-        if func in unique_ops and unique_ops[func] > 0:
-            unique_ops[func] -= 1
-            matched_ops += 1
-    logger.info(f"similarity is {matched_ops / len(p_shorter_funcs)}")
-    return matched_ops / len(p_shorter_funcs)
+    logger.info(f"similarity is {len(intersect) / len(p_shorter_funcs)}, p2 longer path status is {longer_path}")
+    return longer_path, len(intersect) / len(p_shorter_funcs)
 
 def get_longest_paths(G: nx.DiGraph, num_paths=5, num_unique_slacks=100):
     """
@@ -138,10 +141,18 @@ def get_longest_paths(G: nx.DiGraph, num_paths=5, num_unique_slacks=100):
         next_path = paths_sorted[i]
         logger.info(f"considering path {next_path}")
         similar = False
-        # only add a path to the final list if it is less than 50% similar to
+        # only add a path to the final list if it is less than a certain amount similar to
         # all the other paths we are currently considering
-        for path in paths_sorted_pruned:
-            if calculate_similarity(G, path[1], next_path[1]) >= 0.8:
+        # if a path is a superset of another one, remove the first path and add this one in
+
+        for i in range(len(paths_sorted_pruned)):
+            NEXT_PATH_LONGER = True
+            longer_path, similarity = calculate_similarity(G, paths_sorted_pruned[i][1], next_path[1])
+            if similarity >= 0.8:
+                if longer_path == NEXT_PATH_LONGER and similarity == 1:
+                    # replace current path if next one is a superset of it
+                    paths_sorted_pruned[i] = next_path
+                    logger.info(f"replacing {paths_sorted_pruned[i]} with {next_path}")
                 similar = True
         if not similar: 
             paths_sorted_pruned.append(next_path)
@@ -777,7 +788,7 @@ if __name__ == "__main__":
     #sim_util.topological_layout_plot(parser.G)
     parser.convert()
     print("finished converting")
-    sim_util.topological_layout_plot(parser.modified_G, extra_edges=parser.extra_edges)
+    #sim_util.topological_layout_plot(parser.modified_G, extra_edges=parser.extra_edges)
     nx.write_gml(parser.modified_G, "src/tmp/modified_test_graph.gml")
     lp = get_longest_paths(parser.modified_G)
 
