@@ -366,13 +366,13 @@ class gnt_schedule_parser:
             data = lines[i].strip().split()
             if data:
                 module_type = data[0].split('(')[0]
-                if module_type in module_map:
+                if module_type in self.module_map:
                     if data[-1] == 0:
                         logger.warning(f"{module_type} has zero count post assign, setting to 1")
-                    if module_map[module_type] not in self.element_counts:
-                        self.element_counts[module_map[module_type]] = 0
+                    if self.module_map[module_type] not in self.element_counts:
+                        self.element_counts[self.module_map[module_type]] = 0
                     # if multiple modules are mapped to the same module type, just add them up for count purposes
-                    self.element_counts[module_map[module_type]] += max(int(data[-1]), 1)
+                    self.element_counts[self.module_map[module_type]] += max(int(data[-1]), 1)
             i += 1
         logger.info(str(self.element_counts))
 
