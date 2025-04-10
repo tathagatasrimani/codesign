@@ -1,4 +1,4 @@
-CATAPULT = /cad/mentor/2019.11/Catapult_Synthesis_10.4b-841621/Mgc_home/bin/catapult
+CATAPULT = /cad/mentor/2024.2/Mgc_home/bin/catapult
 
 gui:
 	$(CATAPULT) build.ccs

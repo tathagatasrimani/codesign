@@ -160,19 +160,31 @@ class Codesign:
     def parse_catapult_timing(self):
         # make sure to use parasitics here
         build_dir = os.listdir("src/tmp/benchmark/build")
-        schedule_dir = build_dir[0]
+        schedule_dir = None
         for dir in build_dir:
-            if not dir.startswith("SIF"):
+            if dir.endswith(".v1"):
                 schedule_dir = dir
                 break
+        assert schedule_dir
         schedule_path = f"src/tmp/benchmark/build/{schedule_dir}"
         module_map = {
-            "ccs_ram_sync_1R1W_wport": "Buf",
+            "add": "Add",
+            "mult": "Mult",
+            "ccs_ram_sync_1R1W_rwport": "Buf",
             "ccs_ram_sync_1R1W_rport": "Buf",
             "nop": "nop"
         }
+        print(module_map)
         for unit in self.hw.area.keys():
             module_map[unit.lower()] = unit
+        print(module_map)
+        module_map = {
+            "add": "Add",
+            "mult": "Mult",
+            "ccs_ram_sync_1R1W_rwport": "Buf",
+            "ccs_ram_sync_1R1W_rport": "Buf",
+            "nop": "nop"
+        }
         schedule_parser = schedule.gnt_schedule_parser(schedule_path, module_map)
         schedule_parser.parse()
         schedule_parser.convert()

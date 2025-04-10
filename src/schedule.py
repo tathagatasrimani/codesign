@@ -691,8 +691,15 @@ class gnt_schedule_parser:
                         assert single_loop
                         if not G.nodes[names[node_id]]["module"]: # meaning its a ccore port
                             assert self.get_node_type(node_id) == "{C-CORE"
-                            G.add_edge(names[node_id], successor)
-                            logger.info(f"in original function, connecting {names[node_id]} with {successor} as c-core to unit pair")
+                            port_name = G.nodes[names[node_id]]["name"]
+                            if port_name.find('.') != -1:
+                                port_id = port_name.split('.')[1][0]
+                                if port_id == "z": # output
+                                    G.add_edge(successor, names[node_id])
+                                    logger.info(f"in original function, connecting {names[node_id]} with {successor} as unit to c-core pair")
+                                else:
+                                    G.add_edge(names[node_id], successor)
+                                    logger.info(f"in original function, connecting {names[node_id]} with {successor} as c-core to unit pair")
 
 
 
@@ -788,7 +795,7 @@ if __name__ == "__main__":
     #sim_util.topological_layout_plot(parser.G)
     parser.convert()
     print("finished converting")
-    #sim_util.topological_layout_plot(parser.modified_G, extra_edges=parser.extra_edges)
+    sim_util.topological_layout_plot(parser.modified_G, extra_edges=parser.extra_edges)
     nx.write_gml(parser.modified_G, "src/tmp/modified_test_graph.gml")
     lp = get_longest_paths(parser.modified_G)
 
