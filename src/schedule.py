@@ -44,7 +44,7 @@ def calculate_similarity(G, p1, p2):
     logger.info(f"similarity is {len(intersect) / len(p_shorter_funcs)}, p2 longer path status is {longer_path}")
     return longer_path, len(intersect) / len(p_shorter_funcs)
 
-def get_longest_paths(G: nx.DiGraph, num_paths=5, num_unique_slacks=100):
+def get_longest_paths(G: nx.DiGraph, num_paths=2, num_unique_slacks=100):
     """
     Returns at most num_paths longest paths in G. num_unique_slacks can be optionally
     specified to remove any node from the graph which has too large of a slack.
@@ -456,7 +456,7 @@ class gnt_schedule_parser:
                     self.modified_G.add_edge(
                         topo_order_by_elem[func][elem][i],
                         topo_order_by_elem[func][elem][i+1],
-                        weight=0
+                        weight=self.modified_G.nodes[topo_order_by_elem[func][elem][i]]["cost"]
                     )
                     logger.info(f"adding resource dependency between {topo_order_by_elem[func][elem][i]} and {topo_order_by_elem[func][elem][i+1]}")
                     self.extra_edges.append((topo_order_by_elem[func][elem][i], topo_order_by_elem[func][elem][i+1]))
@@ -795,9 +795,11 @@ if __name__ == "__main__":
     #sim_util.topological_layout_plot(parser.G)
     parser.convert()
     print("finished converting")
-    sim_util.topological_layout_plot(parser.modified_G, extra_edges=parser.extra_edges)
+    print("hi")
+    #sim_util.topological_layout_plot(parser.modified_G, extra_edges=parser.extra_edges)
     nx.write_gml(parser.modified_G, "src/tmp/modified_test_graph.gml")
     lp = get_longest_paths(parser.modified_G)
+    print(lp)
 
     """logging.basicConfig(filename=f"src/tmp/schedule.log", level=logging.INFO)
     G = nx.read_gml("src/tmp/modified_test_graph.gml")

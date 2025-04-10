@@ -22,6 +22,8 @@ go assembly
 
 go architect
 
+options set Architectural/DesignGoal latency
+
 go allocate
 
 go extract

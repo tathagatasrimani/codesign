@@ -168,23 +168,12 @@ class Codesign:
         assert schedule_dir
         schedule_path = f"src/tmp/benchmark/build/{schedule_dir}"
         module_map = {
-            "add": "Add",
-            "mult": "Mult",
             "ccs_ram_sync_1R1W_rwport": "Buf",
             "ccs_ram_sync_1R1W_rport": "Buf",
             "nop": "nop"
         }
-        print(module_map)
         for unit in self.hw.area.keys():
             module_map[unit.lower()] = unit
-        print(module_map)
-        module_map = {
-            "add": "Add",
-            "mult": "Mult",
-            "ccs_ram_sync_1R1W_rwport": "Buf",
-            "ccs_ram_sync_1R1W_rport": "Buf",
-            "nop": "nop"
-        }
         schedule_parser = schedule.gnt_schedule_parser(schedule_path, module_map)
         schedule_parser.parse()
         schedule_parser.convert()

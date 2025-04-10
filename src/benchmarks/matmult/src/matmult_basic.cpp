@@ -23,21 +23,22 @@ class MatMult {
                 PackedInt2D<PRECISION, 10, 10> b = b_chan.read();
                 PackedInt2D<PRECISION, 10, 10> c;
 
-                #pragma hls_pipeline_init_interval 1
-                //#pragma hls_unroll yes
+                //#pragma hls_pipeline_init_interval 1
+                #pragma hls_unroll yes
                 for (int i = 0; i < 10; i++) {
-                    //#pragma hls_unroll yes
+                    #pragma hls_unroll yes
                     for (int j = 0; j < 10; j++) {
                         c.value[i].value[j] = 0;
                     }
                 }
-                #pragma hls_pipeline_init_interval 1
-                //#pragma hls_unroll yes
+                //#pragma hls_pipeline_init_interval 1
+                #pragma hls_unroll yes
                 for (int i = 0; i < 10; i++) {
-                    //#pragma hls_unroll yes
+                    #pragma hls_unroll yes
                     for (int j = 0; j < 10; j++) {
                         ac_int<PRECISION> tmp = 0;
                         //#pragma hls_pipeline_init_interval 1
+                        #pragma hls_unroll yes
                         for (int k = 0; k < 10; k++) {
                             // tmp += a.value[i].value[k] * b.value[k].value[j];
                             // Use CCOREs for multiplication and addition

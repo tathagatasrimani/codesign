@@ -11,31 +11,31 @@ class MatMult {
     public:
         MatMult(){}
         #pragma hls_design interface
-        void CCS_BLOCK(run)(ac_channel<PackedInt2D<PRECISION, 10, 10> > &a_chan, 
-                            ac_channel<PackedInt2D<PRECISION, 10, 10> > &b_chan,
-                            ac_channel<PackedInt2D<PRECISION, 10, 10> > &c_chan)
+        void CCS_BLOCK(run)(ac_channel<PackedInt2D<PRECISION, 4, 4> > &a_chan, 
+                            ac_channel<PackedInt2D<PRECISION, 4, 4> > &b_chan,
+                            ac_channel<PackedInt2D<PRECISION, 4, 4> > &c_chan)
         {
             #ifndef __SYNTHESIS__
             while (a_chan.available(1)) {
             #endif
-                PackedInt2D<PRECISION, 10, 10> a = a_chan.read();
-                PackedInt2D<PRECISION, 10, 10> b = b_chan.read();
-                PackedInt2D<PRECISION, 10, 10> c;
+                PackedInt2D<PRECISION, 4, 4> a = a_chan.read();
+                PackedInt2D<PRECISION, 4, 4> b = b_chan.read();
+                PackedInt2D<PRECISION, 4, 4> c;
                 PackedInt2D<PRECISION, TILE_SIZE, TILE_SIZE> add_out;
                 PackedInt2D<PRECISION, TILE_SIZE, TILE_SIZE> mul_out;
                 //#pragma hls_unroll yes
-                for (int i = 0; i < 10; i++) {
+                for (int i = 0; i < 4; i++) {
                     //#pragma hls_unroll yes
-                    for (int j = 0; j < 10; j++) {
+                    for (int j = 0; j < 4; j++) {
                         c.value[i].value[j] = 0;
                     }
                 }
                 PackedInt2D<PRECISION, TILE_SIZE, TILE_SIZE> c_tmp;
                 PackedInt2D<PRECISION, TILE_SIZE, TILE_SIZE> a_tmp;
                 PackedInt2D<PRECISION, TILE_SIZE, TILE_SIZE> b_tmp;
-                for (int i = 0; i < 10; i+= TILE_SIZE) {
-                    for (int j = 0; j < 10; j+= TILE_SIZE) {
-                        for (int k = 0; k < 10; k+= TILE_SIZE) {
+                for (int i = 0; i < 4; i+= TILE_SIZE) {
+                    for (int j = 0; j < 4; j+= TILE_SIZE) {
+                        for (int k = 0; k < 4; k+= TILE_SIZE) {
                             for (int ii = 0; ii < TILE_SIZE; ii++) {
                                 for (int jj = 0; jj < TILE_SIZE; jj++) {
                                     a_tmp.value[ii].value[jj] = a.value[ii+i].value[jj+k];

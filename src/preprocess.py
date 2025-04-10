@@ -1,5 +1,6 @@
 import logging
 import time
+import os
 logger = logging.getLogger(__name__)
 
 import copy
@@ -197,13 +198,17 @@ class Preprocessor:
                 
 
     def symbols_in_Buf_Mem_L(self, buf_l_file, mem_l_file):
-        memL_expr = sp.sympify(
-            open(mem_l_file, "r").readline(), locals=hw_symbols.symbol_table
-        )
-        bufL_expr = sp.sympify(
-            open(buf_l_file, "r").readline(), locals=hw_symbols.symbol_table
-        )
-        free_symbols = memL_expr.free_symbols.union(bufL_expr.free_symbols)
+        free_symbols = set()
+        if os.path.exists(mem_l_file):
+            memL_expr = sp.sympify(
+                open(mem_l_file, "r").readline(), locals=hw_symbols.symbol_table
+            )
+            free_symbols = free_symbols.union(memL_expr.free_symbols)
+        if os.path.exists(buf_l_file):
+            bufL_expr = sp.sympify(
+                open(buf_l_file, "r").readline(), locals=hw_symbols.symbol_table
+            )
+            free_symbols = free_symbols.union(bufL_expr.free_symbols)
         return free_symbols
 
     def begin(self, model, edp, initial_params, improvement, cacti_subs, multistart, regularization):
@@ -214,13 +219,13 @@ class Preprocessor:
         self.improvement = improvement
         self.cacti_subs_s = cacti_subs
 
-        mem_buf_l_symbols = self.symbols_in_Buf_Mem_L("src/cacti/symbolic_expressions/Buf_access_time.txt", "src/cacti/symbolic_expressions/Mem_access_time.txt")
-        desired_free_symbols = ["Vdd", "C_g_ideal"]#, "C_junc", "I_on_n", "vert_dielectric_constant"] #, "Vdsat"] #, "Mobility_n"]
+        #mem_buf_l_symbols = self.symbols_in_Buf_Mem_L("src/cacti/symbolic_expressions/Buf_access_time.txt", "src/cacti/symbolic_expressions/Mem_access_time.txt")
+        #desired_free_symbols = ["Vdd", "C_g_ideal"]#, "C_junc", "I_on_n", "vert_dielectric_constant"] #, "Vdsat"] #, "Mobility_n"]
 
-        symbols_to_remove =  [
-            sym for sym in mem_buf_l_symbols if sym.name not in desired_free_symbols
-        ]
-        mem_buf_l_init_params = {sym: initial_params[sym.name] for sym in symbols_to_remove}
+        #symbols_to_remove =  [
+        #    sym for sym in mem_buf_l_symbols if sym.name not in desired_free_symbols
+        #]
+        #mem_buf_l_init_params = {sym: initial_params[sym.name] for sym in symbols_to_remove}
         # edp = edp.xreplace(mem_buf_l_init_params)
 
         # keep track of which cacti related variables are used in the edp expression
