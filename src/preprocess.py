@@ -16,7 +16,15 @@ from . import symbolic_simulate
 LAMBDA = 0.1 # regularization parameter
 
 class Preprocessor:
+    """
+    Prepares and processes symbolic and Pyomo-based optimization models. Handles
+    mapping between symbolic and Pyomo variables, applies constraints, and manages substitutions for
+    technology parameters.
+    """
     def __init__(self):
+        """
+        Initialize the Preprocessor instance, setting up mappings, initial values, and constraint sets.
+        """
         self.mapping = {}
         self.pyomo_edp_exp = None
         self.initial_val = 0
@@ -47,15 +55,46 @@ class Preprocessor:
         return model.x[self.mapping[hw_symbols.V_dd]] <= 1.7
     
     def make_pow_constraint(self, model, i):
+        """
+        Constraint: Ensure that each power expression to constrain is non-negative.
+
+        Args:
+            model (pyomo.ConcreteModel): The Pyomo model instance.
+            i (int): Index of the power expression to constrain.
+
+        Returns:
+            pyomo.Constraint: Pyomo constraint enforcing power >= 0.
+        """
         return self.pow_exprs_to_constrain[i] >= 0
         
     def make_log_constraint(self, model, i):
+        """
+        Constraint: Ensure that each log expression to constrain is above a small positive threshold.
+
+        Args:
+            model (pyomo.ConcreteModel): The Pyomo model instance.
+            i (int): Index of the log expression to constrain.
+
+        Returns:
+            pyomo.Constraint: Pyomo constraint enforcing log argument >= 0.0001.
+        """
         return self.log_exprs_to_constrain[i] >= 0.0001
 
     def max_val_orig_val_rule(self, model, i):
+        # may remove this later as its a bit arbitrary. Found in the past that optimizer works better with this.
         return model.x[self.mapping[self.free_symbols[i]]] <= self.initial_params[self.free_symbols[i].name]
     
     def find_exprs_to_constrain(self, expr, debug=False):
+        """
+        Recursively identify expressions (e.g., square roots, logs) that should be constrained to nonnegative values.
+
+        Args:
+            expr (sympy.Expr): Symbolic expression to analyze.
+            debug (bool, optional): If True, log debug information. Defaults to False.
+
+        Returns:
+            None
+        """
         if debug: logger.info(f"expr.func is {expr.func}")
         if expr.func == sp.core.power.Pow and expr.base.func != sp.core.symbol.Symbol:
             if debug: logger.info(f"exponent is {expr.exp}")
@@ -74,7 +113,16 @@ class Preprocessor:
             self.find_exprs_to_constrain(arg)
 
     def sub_pow_exprs(self,expr, prnt=False):
-        # replace each square root expression with sqrt(abs()) to avoid negative inside sqrt
+        """
+        Replace each square root expression with sqrt(abs()) to avoid negative values inside sqrt.
+
+        Args:
+            expr (sympy.Expr): Symbolic expression to process.
+            prnt (bool, optional): If True, print debug information. Defaults to False.
+
+        Returns:
+            sympy.Expr: Modified symbolic expression with safe square roots.
+        """
         if (isinstance(expr, sp.Number)): return expr
         new_args = []
         for i in range(len(expr.args)):
@@ -89,6 +137,15 @@ class Preprocessor:
 
 
     def add_constraints(self, model):
+        """
+        Add all relevant constraints (EDP, power, log, V_dd, etc.) to the Pyomo model.
+
+        Args:
+            model (pyomo.ConcreteModel): The Pyomo model instance.
+
+        Returns:
+            None
+        """
         logger.info("Adding Constraints")
         print(f"adding constraints. initial val: {self.initial_val};") # edp_exp: {self.pyomo_edp_exp}")
         model.Constraint1 = pyo.Constraint(expr=self.pyomo_edp_exp >= self.initial_val / self.improvement)

@@ -6,6 +6,16 @@ import logging
 logger = logging.getLogger(__name__)
 
 def update_ccores(area_data, delay_data):
+    """
+    Update the area and delay values for ccore hardware units by modifying their header files.
+
+    Args:
+        area_data (dict): Dictionary mapping unit names to area values.
+        delay_data (dict): Dictionary mapping unit names to delay values.
+
+    Returns:
+        None
+    """
 
     # Iterate through the units in the YAML file
     for unit in area_data.keys():

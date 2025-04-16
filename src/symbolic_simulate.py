@@ -55,7 +55,7 @@ class SymbolicSimulator(AbstractSimulator):
                 self.total_active_energy += hw_symbols.symbolic_power_active[data["function"]]() * hw_symbols.symbolic_latency_wc[data["function"]]()
     
     def calculate_execution_time(self, paths, scheduled_dfg):
-        # take max over the critical paths
+        # take symbolic max over the critical paths
         self.execution_time = 0
         for path in paths:
             logger.info(f"adding path to execution time calculation: {path}")
@@ -74,6 +74,17 @@ class SymbolicSimulator(AbstractSimulator):
         logger.info(f"symbolic execution time: {self.execution_time}")
     
     def calculate_edp(self, hw, paths, scheduled_dfg):
+        """
+        Calculate energy-delay product.
+
+        Args:
+            hw (object): Hardware object.
+            paths (list): List of longest paths from forward pass.
+            scheduled_dfg (nx.DiGraph): Scheduled data flow graph.
+
+        Returns:
+            dict: CACTI substitutions.
+        """
 
         # TEMPORARY SO FUNCTION COMPLETES
         MemL_expr = 0

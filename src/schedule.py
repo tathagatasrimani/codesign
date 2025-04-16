@@ -14,7 +14,17 @@ from . import sim_util
 
 
 def calculate_similarity(G, p1, p2):
-    # calculate the similarity between these sets using overlap coefficient
+    """
+    Calculate the similarity between two sets of nodes in a graph using the overlap coefficient.
+
+    Args:
+        G (nx.DiGraph): The data flow graph.
+        p1 (list): First set of node identifiers.
+        p2 (list): Second set of node identifiers.
+
+    Returns:
+        tuple: (longer_path (bool), similarity (float))
+    """
     p1_fn_counts = {}
     p1_funcs = []
     p2_fn_counts = {}
@@ -46,8 +56,16 @@ def calculate_similarity(G, p1, p2):
 
 def get_longest_paths(G: nx.DiGraph, num_paths=2, num_unique_slacks=100):
     """
-    Returns at most num_paths longest paths in G. num_unique_slacks can be optionally
-    specified to remove any node from the graph which has too large of a slack.
+    Find and return up to num_paths longest paths in the graph. Optionally restricts to nodes with
+    the worst slacks (up to num_unique_slacks unique slack values).
+
+    Args:
+        G (nx.DiGraph): Directed acyclic graph representing the data flow.
+        num_paths (int, optional): Maximum number of longest paths to return. Defaults to 2.
+        num_unique_slacks (int, optional): Maximum number of unique slack values to consider. Defaults to 100.
+
+    Returns:
+        list: List of longest paths (each path is a list of node identifiers).
     """
 
     # Topological sorting to process nodes in order
@@ -205,6 +223,16 @@ def sdc_schedule(graph, topo_order_by_elem, extra_constraints=[], add_resource_e
     the SDC formulation published here https://www.csl.cornell.edu/~zhiruz/pdfs/sdc-dac2006.pdf.
     TODO: Add exact hw schema constraints as resource constraints. Right now we assume hardware is
     all to all.
+
+    Args:
+        graph (nx.DiGraph): The data flow graph.
+        topo_order_by_elem (dict): Topological orderings by element type.
+        extra_constraints (list, optional): Additional constraints to include. Defaults to [].
+        add_resource_edges (bool, optional): Whether to add hardware resource constraints. Defaults to False.
+        debug (bool, optional): If True, print debug information. Defaults to False.
+
+    Returns:
+        dict: Schedule results, including node timings and resource assignments.
     """
     constraints = []
     opt_vars = []
@@ -309,6 +337,17 @@ def sdc_schedule(graph, topo_order_by_elem, extra_constraints=[], add_resource_e
     return resource_edge_graph
 
 class node:
+    """
+    Represents a node in the data flow graph for scheduling, including its attributes and connections.
+
+    Args:
+        id (int): Node identifier.
+        name (str): Name of the node.
+        tp (str): Type of the node.
+        module (str): Hardware module name.
+        delay (float): Delay associated with the node.
+        library (str): Library name for the node.
+    """
     def __init__(self, id, name, tp, module, delay, library):
         self.id = id
         self.name = name
@@ -326,6 +365,14 @@ class node:
         return f"{self.module}-{self.id}-{self.type}"
 
 class gnt_schedule_parser:
+    """
+    Parses and converts Catapult-generated schedule files (.gnt) into standard data flow graphs (DFGs)
+    for further analysis and scheduling.
+
+    Args:
+        build_dir (str): Directory containing schedule and report files.
+        module_map (dict): Mapping from ccore module names to standard operator names.
+    """
     def __init__(self, build_dir, module_map):
         self.filename = build_dir + "/schedule.gnt"
         self.bom_file = build_dir + "/rtl.rpt"

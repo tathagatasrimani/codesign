@@ -25,6 +25,20 @@ from . import ccore_update
 
 class Codesign:
     def __init__(self, benchmark_name, save_dir, openroad_testfile, parasitics, no_cacti):
+        """
+        Initializes a Codesign object, sets up directories and logging, initializes hardware and
+        simulation models, and prepares technology parameters.
+
+        Args:
+            benchmark_name (str): Name of the benchmark to use.
+            save_dir (str): Directory to save logs and results.
+            openroad_testfile (str): Path to the OpenROAD test file.
+            parasitics (Any): Parasitics configuration.
+            no_cacti (bool): If True, disables CACTI memory modeling.
+
+        Returns:
+            None
+        """
         self.benchmark = f"src/benchmarks/{benchmark_name}"
         self.benchmark_name = benchmark_name
         self.save_dir = os.path.join(
@@ -74,6 +88,16 @@ class Codesign:
         self.hw.write_technology_parameters(self.save_dir+"/initial_tech_params.yaml")
 
     def set_technology_parameters(self, tech_params):
+        """
+        Sets the technology parameters for the design. If not previously set, also stores the
+        initial technology parameters.
+
+        Args:
+            tech_params (dict): Technology parameters to set.
+
+        Returns:
+            None
+        """
         if self.initial_tech_params == None:
             self.initial_tech_params = tech_params
         self.tech_params = tech_params
@@ -111,6 +135,15 @@ class Codesign:
 
 
     def run_catapult(self):
+        """
+        Runs the Catapult synthesis tool, updates the memory configuration, and logs the output.
+        Handles directory changes and cleans up temporary files.
+
+        Args:
+            None
+        Returns:
+            None
+        """
 
         os.chdir("src/tmp/benchmark")
         clk_period = (1 / self.hw.f) * 1e9 # ns
@@ -137,6 +170,15 @@ class Codesign:
         #self.hw.netlist = None
 
     def forward_pass(self):
+        """
+        Executes the forward pass of the codesign process: prepares benchmark, updates ccore
+        delays/areas, runs Catapult, calculates wire parasitics, and parses timing reports.
+
+        Args:
+            None
+        Returns:
+            None
+        """
         print("\nRunning Forward Pass")
         logger.info("Running Forward Pass")
 
@@ -152,12 +194,21 @@ class Codesign:
         self.run_catapult()
 
         # calculate wire parasitics with hardware netlist
-        #self.hw.get_wire_parasitics(self.openroad_testfile, self.parasitics)
+        self.hw.get_wire_parasitics(self.openroad_testfile, self.parasitics)
 
         # parse catapult timing report, which saves critical paths
         self.parse_catapult_timing()
 
     def parse_catapult_timing(self):
+        """
+        Parses the Catapult timing report, extracts and schedules the data flow graph (DFG), and
+        updates the hardware netlist and longest paths.
+
+        Args:
+            None
+        Returns:
+            None
+        """
         # make sure to use parasitics here
         build_dir = os.listdir("src/tmp/benchmark/build")
         schedule_dir = None
@@ -189,6 +240,16 @@ class Codesign:
         #schedule.sdc_schedule(self.operations)
     
     def parse_output(self, f):
+        """
+        Parses the output file from the optimizer in the inverse pass, mapping variable names to
+        technology parameters and updating them accordingly.
+
+        Args:
+            f (file-like): Opened file object containing the output to parse.
+
+        Returns:
+            None
+        """
         lines = f.readlines()
         mapping = {}
         i = 0
@@ -211,7 +272,23 @@ class Codesign:
             i += 1
 
     def write_back_rcs(self, rcs_path="src/params/rcs_current.yaml"):
-        rcs = {"Reff": {}, "Ceff": {}, "Cacti": {}, "Cacti_IO": {}, "other": {}}
+        """
+        Writes the technology parameters back to a YAML file in the (Resistance, Capacitance,
+        Cacti, etc.) format.
+
+        Args:
+            rcs_path (str): Path to the output YAML file. Defaults to 'src/params/rcs_current.yaml'.
+
+        Returns:
+            None
+        """
+        rcs = {
+            "Reff": {},
+            "Ceff": {},
+            "Cacti": {},
+            "Cacti_IO": {},
+            "other": {}
+        }
         for elem in self.tech_params:
             if (
                 elem.name == "f"
@@ -239,6 +316,16 @@ class Codesign:
             f.write(yaml.dump(rcs))
 
     def inverse_pass(self):
+        """
+        Executes the inverse pass of the codesign process: generates symbolic CACTI values for
+        memories, computes EDP (Energy Delay Product), runs optimizer to find better technology
+        parameters, and logs results.
+
+        Args:
+            None
+        Returns:
+            None
+        """
         print("\nRunning Inverse Pass")
         logger.info("Running Inverse Pass")
         base_cache_cfg = "cfg/base_cache.cfg"

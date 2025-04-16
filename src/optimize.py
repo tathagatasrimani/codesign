@@ -22,6 +22,19 @@ multistart = False
 
 
 def ipopt(tech_params, edp, improvement, regularization, cacti_subs):
+    """
+    Run the IPOPT optimization routine for the hardware model using Pyomo.
+
+    Args:
+        tech_params (dict): Technology parameters for optimization.
+        edp (sympy.Expr): Symbolic EDP Expression.
+        improvement (float): Improvement factor for optimization.
+        regularization (float): Regularization parameter for inverse pass validation.
+        cacti_subs (dict): Substitution dictionary for CACTI parameters.
+
+    Returns:
+        None
+    """
     logger.info("Optimizing using IPOPT")
     initial_params = {}
     for key in tech_params:
@@ -58,6 +71,18 @@ def ipopt(tech_params, edp, improvement, regularization, cacti_subs):
 
 
 def get_grad(grad_var_starting_val, args_arr, jmod):
+    """
+    (NOT USED)
+    Compute the gradient of a model function with respect to a variable using Equinox.
+
+    Args:
+        grad_var_starting_val: Starting value for the gradient variable.
+        args_arr: Array of arguments to pass to the model function.
+        jmod: Model function to differentiate.
+
+    Returns:
+        Gradient of the model function with respect to grad_var_starting_val.
+    """
     import equinox as eqx
 
     return eqx.filter_grad(
@@ -123,6 +148,17 @@ def get_grad(grad_var_starting_val, args_arr, jmod):
 
 
 def scp_opt(tech_params, edp):
+    """
+    (NOT USED)
+    Run the SCP (Successive Convex Programming) optimization routine for the hardware model.
+
+    Args:
+        tech_params (dict): Technology parameters for optimization.
+        edp (float): Energy-delay product target or constraint.
+
+    Returns:
+        None
+    """
     import sympy2jax
     import jax.numpy as jnp
     logger.info("Optimizing SCP")
@@ -194,6 +230,20 @@ def scp_opt(tech_params, edp):
 # note: improvement/regularization parameter currently only for inverse pass validation, so only using it for ipopt
 # example: improvement of 1.1 = 10% improvement
 def optimize(tech_params, edp, opt, cacti_subs, improvement=10, regularization=0.1):
+    """
+    Optimize the hardware model using the specified optimization method.
+
+    Args:
+        tech_params (dict): Technology parameters for optimization.
+        edp (sympy.Expr): Symbolic EDP Expression.
+        opt (str): Optimization method to use ('ipopt', 'scp', etc.).
+        cacti_subs (dict): Substitution dictionary for CACTI parameters.
+        improvement (float, optional): Improvement factor for optimization. Defaults to 10.
+        regularization (float, optional): Regularization parameter. Defaults to 0.1.
+
+    Returns:
+        None
+    """
     if opt == "scp":
         return scp_opt(tech_params, edp)
     else:

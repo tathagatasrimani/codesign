@@ -14,6 +14,11 @@ from openroad_interface import place_n_route
 HW_CONFIG_FILE = "src/params/hw_cfgs.ini"
 
 class HardwareModel:
+    """
+    Represents a hardware model with configurable technology and hardware parameters. Provides methods
+    to set up the hardware, manage netlists, and extract technology-specific timing and power data for
+    optimization and simulation purposes.
+    """
     def __init__(self, cfg="default"):
         config = cp.ConfigParser()
         config.read(HW_CONFIG_FILE)
@@ -56,6 +61,14 @@ class HardwareModel:
         self.f = f
 
     def set_technology_parameters(self):
+        """
+        Load and set technology-specific parameters (area, latency, power, energy) from the YAML file
+        for the given transistor size. Also determines the closest CACTI technology node and associated
+        data file.
+
+        Returns:
+            None
+        """
         tech_params = yaml.load(
             open("src/params/tech_params.yaml", "r"), Loader=yaml.Loader
         )
@@ -80,7 +93,11 @@ class HardwareModel:
 
     def get_optimization_params_from_tech_params(self):
         """
-        Generate R,C, etc from the latency, power tech parameters.
+        Generate optimization parameters (R, C, etc.) from the loaded latency and power technology
+        parameters.
+
+        Returns:
+            rcs: Dictionary containing optimization parameters for the hardware model.
         """
         rcs = rcgen.generate_optimization_params(
             self.latency,

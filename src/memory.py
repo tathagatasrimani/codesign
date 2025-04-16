@@ -8,10 +8,33 @@ logger = logging.getLogger(__name__)
 from . import cacti_util
 
 def get_resource_name_for_file(resource_name):
+    """
+    Sanitize a resource name by replacing special characters with underscores for safe file naming.
+
+    Args:
+        resource_name (str): The original resource name string.
+
+    Returns:
+        str: Sanitized resource name with special characters replaced by underscores.
+    """
     # replace weird characters with _
     return resource_name.replace("/", "_").replace("<", "_").replace(">", "_").replace(",", "_").replace(".", "_").replace(":", "_")
 
 def generate_sample_memory(latency, area, clk_period, mem_type, resource_name):
+    """
+    Generate a sample memory TCL file with specified latency, area, and clock period, and return
+    relevant file paths and commands for Catapult integration.
+
+    Args:
+        latency (float): Memory access latency.
+        area (float): Memory area.
+        clk_period (float): Clock period.
+        mem_type (str): Type of memory (off chip or on chip).
+        resource_name (str): Name of the memory resource.
+
+    Returns:
+        tuple: (tcl_file, tcl_command, library_name) for Catapult integration.
+    """
     # for setting correct filepath
     current_directory = os.getcwd()
     if current_directory.find("/codesign") != -1:
@@ -49,6 +72,19 @@ def generate_sample_memory(latency, area, clk_period, mem_type, resource_name):
     return tcl_file, tcl_command, library_name
     
 class memory:
+    """
+    Represents a memory resource with attributes for off-chip/on-chip, depth, word width, and
+    component type.
+
+    Args:
+        path_name (str): File path for the memory resource.
+        name (str): Name of the memory.
+        off_chip (bool): Whether the memory is off-chip.
+        depth (int): Depth of the memory.
+        word_width (int): Width of each memory word.
+        component (str): Component type string.
+        mode (str): Memory operation mode.
+    """
     def __init__(self, path_name, name, off_chip, depth, word_width, component, mode):
         self.off_chip = off_chip # cache or off chip
         self.depth = depth
@@ -62,6 +98,15 @@ class memory:
         return f"==MEMORY {self.name}==\noff chip? {self.off_chip}\ncomponent: {self.component}\ndepth: {self.depth}\nword width: {self.word_width}"
 
 def parse_memory_report(filename):
+    """
+    Parse a memory report file to extract memory resource information into memory objects.
+
+    Args:
+        filename (str): Path to the memory report file to parse.
+
+    Returns:
+        list: List of memory objects extracted from the report.
+    """
     memories = []
     valid_components = ["ccs_ram_sync_1R1W", "ccs_ram_sync_dualport", "ccs_ram_sync_singleport"]
     with open(filename, "r") as f:

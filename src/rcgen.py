@@ -7,20 +7,20 @@ import math
 # Read in dat file, add to the rcs file
 def generate_optimization_params(latency, active_power, active_energy, passive_power, V_dd, dat_file):
     """
-    Generate R,C, etc from the latency, power tech parameters.
-    rcs[other] are all stored in SI units.
-        V_dd: voltage in V
-        MemReadL: memory read latency in s
-        MemWriteL: memory write latency in s
-        MemReadEact: memory read active power in W
-        MemWriteEact: memory write active power in W
-        MemPpass: memory passive power in W
-    
-        params:
-        latency: dictionary of latencies in cycles
-        active_power: dictionary of active power in nW
-        passive_power: dictionary of passive power in nW
-        V_dd: voltage in V
+    Generate optimization parameters (R, C, etc.) from latency, power, and energy technology parameters.
+    All returned values are stored in SI units.
+
+    Args:
+        latency (dict): Dictionary of latencies for each element.
+        active_power (dict): Dictionary of active power values for each element (nW).
+        active_energy (dict): Dictionary of active energy values for each element (nJ).
+        passive_power (dict): Dictionary of passive power values for each element (nW).
+        V_dd (float): Supply voltage in volts.
+        dat_file (str): Path to the CACTI .dat file for technology parameters.
+
+    Returns:
+        dict: Dictionary containing calculated optimization parameters, including 'Reff', 'Ceff', 'Cacti',
+            and 'other' (miscellaneous parameters in SI units).
     """
     rcs = {"Reff": {}, "Ceff": {}, "Cacti": {}, "Cacti_IO": {}, "other": {}}
 
