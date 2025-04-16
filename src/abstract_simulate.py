@@ -7,8 +7,15 @@ class AbstractSimulator:
 
     def update_schedule_with_parasitics(self, scheduled_dfg):
         """
-        After adding wire parasitics to the scheduled dfg, update edge weights for longest path calculation.
-            scheduled_dfg: nx.DiGraph representing the scheduled graph
+        Update edge weights in the scheduled data flow graph (DFG) after adding wire parasitics. This is
+        used to ensure that the longest path calculation reflects the impact of parasitics.
+
+        Args:
+            scheduled_dfg (nx.DiGraph): Scheduled graph with nodes and edges representing the computation
+                and their dependencies.
+
+        Returns:
+            None
         """
         for gen in list(nx.topological_generations(scheduled_dfg)):
             for node in gen:
