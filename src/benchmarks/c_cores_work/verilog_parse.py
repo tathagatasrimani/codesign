@@ -22,21 +22,21 @@ def parse_yosys_json(json_file):
         # Process cells (operations like adders, multipliers, etc.)
         for cell_name, cell_data in module_data["cells"].items():
             cell_type = cell_data["type"]
-            if cell_type == "mult" or cell_type == "add":
-                G.add_node(cell_name, type=cell_type, label=cell_type)  # Node for operation
+            #if cell_type == "mult" or cell_type == "add":
+            G.add_node(cell_name, type=cell_type, label=cell_type)  # Node for operation
 
         # Process connections (nets as edges)
         net_to_cells = {}  # Map nets to connected cells
 
         for cell_name, cell_data in module_data["cells"].items():
             cell_type = cell_data["type"]
-            if cell_type == "mult" or cell_type == "add":
-                for port, net_list in cell_data["connections"].items():
-                    for net in net_list:
-                        net_name = signal_map.get(net, f"net_{net}")  # Use original name if available
-                        if net_name not in net_to_cells:
-                            net_to_cells[net_name] = []
-                        net_to_cells[net_name].append(cell_name)
+            #if cell_type == "mult" or cell_type == "add":
+            for port, net_list in cell_data["connections"].items():
+                for net in net_list:
+                    net_name = signal_map.get(net, f"net_{net}")  # Use original name if available
+                    if net_name not in net_to_cells:
+                        net_to_cells[net_name] = []
+                    net_to_cells[net_name].append(cell_name)
 
         # Create direct edges between operations (removing explicit net nodes)
         for net, connected_cells in net_to_cells.items():
@@ -65,13 +65,13 @@ if not output_gml_file_name.endswith(".gml"):
 nx.write_gml(G, output_gml_file_name)
 
 # Draw the graph
-# plt.figure(figsize=(10, 7))
-# pos = nx.spring_layout(G)  # Layout for visualization
-# nx.draw(G, pos, with_labels=True, node_color="lightblue", edge_color="gray", node_size=800, font_size=8)
+plt.figure(figsize=(10, 7))
+pos = nx.spring_layout(G)  # Layout for visualization
+nx.draw(G, pos, with_labels=True, node_color="lightblue", edge_color="gray", node_size=800, font_size=8)
 
-# # Add signal labels to edges
-# edge_labels = {(u, v): d["signal"] for u, v, d in G.edges(data=True)}
-# nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_size=6)
+# Add signal labels to edges
+edge_labels = {(u, v): d["signal"] for u, v, d in G.edges(data=True)}
+nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_size=6)
 
-# plt.title("Filtered Circuit Netlist Graph (Multipliers and Adders Only)")
-# plt.show()
+plt.title("Filtered Circuit Netlist Graph (Multipliers and Adders Only)")
+plt.show()

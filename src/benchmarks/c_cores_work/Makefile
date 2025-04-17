@@ -15,6 +15,12 @@ build/MatMult.v1:
 build_design: build/MatMult.v1
 
 
+build/Jacobi2D.v1:
+	$(CATAPULT) -shell -file scripts/matmult.tcl
+
+build_design: build/MatMult.v1
+
+
 clean:
 	rm -rf build.ccs
 	rm -rf build
