@@ -119,7 +119,7 @@ def place_n_route(
     dict = None
     if "none" not in arg_parasitics:
         graph, net_out_dict, node_output, lef_data, node_to_num = setup(graph, test_directory)
-        dict, graph = extraction(graph, arg_parasitics, graph, net_out_dict, node_output, lef_data, node_to_num)
+        dict, graph = extraction(graph, arg_parasitics, net_out_dict, node_output, lef_data, node_to_num)
     else: 
         graph = none_place_n_route(graph)
     return dict, graph
