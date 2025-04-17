@@ -194,7 +194,7 @@ class Codesign:
         self.run_catapult()
 
         # calculate wire parasitics with hardware netlist
-        self.hw.get_wire_parasitics(self.openroad_testfile, self.parasitics)
+        # self.hw.get_wire_parasitics(self.openroad_testfile, self.parasitics)
 
         # parse catapult timing report, which saves critical paths
         self.parse_catapult_timing()
