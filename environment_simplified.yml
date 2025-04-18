@@ -41,6 +41,8 @@ dependencies:
   - wheel=0.41.2
   - yaml=0.2.5
   - yosys
+  - gcc_linux-64=13.*
+  - gxx_linux-64=13.*
   - pip:
       - astpretty==3.0.0
       - equinox==0.11.4
@@ -50,4 +52,3 @@ dependencies:
       - opt-einsum==3.3.0
       - sympy2jax==0.0.5
       - typeguard==2.13.3
-prefix: /Users/vbalanaga/anaconda3/envs/codesign
