@@ -1,5 +1,9 @@
 # Edited: Eric Dubberstein on 1/20/2024
 # All 7nm tech params are based on basic verilog designed synthesized using mflowgen & cadence genus with ASAP7 PDK.
+# All 130nm tech params are based on basic verilog designed synthesized using mflowgen & cadence genus with SKY130 PDK.
+# All other tech params are INVALID and should not be used.
+
+# TODO: The values for the bitwise NOT operations are estimated until a more thorough estimation can be done. 
 area: #um^2
   3:
     Add: 22.9527936
@@ -109,6 +113,30 @@ area: #um^2
     Sub: 379.3488000
     UAdd: 379.3488000
     USub: 379.3488000
+  130: 
+    BitAnd: 100.096
+    And: 31.28
+    BitOr: 100.096
+    Or: 31.28
+    Add: 312.8
+    Sub: 362.848
+    BitXOR: 140.134
+    Eq: 171.414
+    NOTEq: 171.414
+    Lt: 275.264
+    LtE: 271.51
+    Gt: 275.264 
+    Gte: 271.51  
+    Usub: 362.848 
+    Uadd: 312.8  
+    Not: 46.29
+    FloorDiv: 9471.584
+    LeftShift: 623.098
+    RightShift: 611.837
+    Modulus: 11100.646
+    Multiplier: 2571.216
+    Register: 26.275
+
 dynamic_energy: # nJ
   3:
     Buf: 
@@ -243,6 +271,29 @@ dynamic_power: # nw
     UAdd: 283664.2
     USub: 283664.2
     OffChipIO: 0.0
+  130: 
+    BitAnd: 6623
+    And: 1000
+    BitOr: 6839
+    Or: 9640
+    Add: 23770
+    Sub: 28210
+    BitXOR: 8278
+    Eq: 8775
+    NOTEq: 6867
+    Lt: 18029
+    LtE: 17764
+    Gt: 18029 
+    Gte: 17764 
+    Usub: 28210
+    Uadd: 23770  
+    Not: 7598
+    FloorDiv: 1202000
+    LeftShift: 46470
+    RightShift: 46210
+    Modulus: 1540900
+    Multiplier: 282600
+    Register: 4772.4
 latency: # ns
   3:
     Add: 0.6378059475
@@ -356,6 +407,29 @@ latency: # ns
     UAdd: 0.47
     USub: 0.47
     OffChipIO: 0.0
+  130: 
+    BitAnd: 0.32
+    And: 0.747
+    BitOr: 0.303
+    Or: 0.929
+    Add: 6.006
+    Sub: 5.979
+    BitXOR: 0.466
+    Eq: 1.048
+    NOTEq: 1.078
+    Lt: 1.641
+    LtE: 1.619
+    Gt: 1.641
+    Gte: 1.619 
+    Usub: 5.979
+    Uadd: 6.006  
+    Not: 0.515
+    FloorDiv: 9.823
+    LeftShift: 1.352
+    RightShift: 1.474
+    Modulus: 9.395
+    Multiplier: 6.803
+    Register: 0.294
 
 leakage_power: #nW
   3:
@@ -466,6 +540,31 @@ leakage_power: #nW
     Sub: 3265.969
     UAdd: 3265.969
     USub: 3265.969
+
+  130: 
+    BitAnd: 0.0308
+    And: 0.00215
+    BitOr: 0.0296
+    Or: 0.00203
+    Add: 0.114
+    Sub: 0.134
+    BitXOR: 0.0684
+    Eq: 0.0352
+    NOTEq: 0.0705
+    Lt: 0.076
+    LtE: 0.0813
+    Gt: 0.076
+    Gte: 0.0813
+    Usub: 0.134
+    Uadd: 0.114
+    Not: 0.0000648
+    FloorDiv: 4.32
+    LeftShift: 0.158
+    RightShift: 0.166
+    Modulus: 5.15
+    Multiplier: 0.869
+    Register: 0.0105
+    
 mem_area:
   3:
     1:

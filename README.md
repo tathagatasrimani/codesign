@@ -2,31 +2,6 @@
 
 Application aware technology - architecture co-design framework.
 
-
-### Setup
-
-You can setup the appropriate environment either by creating a new conda env with:
-```
-conda env create -f environment.yml
-```
-or 
-```
-conda env create --name codesign --file requirements_conda.txt
-```
-You can also install the dependencies using pip:
-```
-pip install -r requirements_pip.txt
-```
-Note: environment.yml may not work, so use environment_simplified.yml instead.
-
-#### Submodules
-
-##### Staticfg
-You have to separately install the [staticfg](https://github.com/arjnpandey/staticfg) library by following the instructions in the repository.
-
-##### Cacti
-Run make in the cacti directory.
-
 ##### OpenROAD
 To install and build OpenROAD, follow the instructions on [this page](https://github.com/The-OpenROAD-Project/OpenROAD/blob/master/docs/user/Build.md). Not all OSes are supported. One known to work is Ubuntu 22.04. 
 
@@ -36,22 +11,14 @@ The inverse pass builds symbolic equations using [sympy](https://docs.sympy.org/
 If you are running on Apple Silicon, there are issues with the pyomo - ipopt plugin via libblas and liblapack libraries. In order to fix this follow the instructions suggested by user `fasmb24` in [this issue](https://forums.developer.apple.com/forums/thread/693696).
 
 
-### Execution
+#### Install instructions RSG Linux machines: 
+1. Make sure you are running bash. You can check by running "echo $0".
+2. Then, cd into codesign folder and source full_env_start.sh
 
-#### Forward Pass
-Run `./simulate.sh` from the `src` directory with the following arguments:
-```
-./simulate.sh -n <workload_name> -c <arch_config> -p <wire_parasitics>
-```
-`-p` can be set to `detailed`, `estimation`, and `none`. Wire parasitic calculations will default to `detailed`. Follow the directions in the `openroad_interface/README.md` to set up the OpenROAD interface. You can also choose not to do so, in which case you must run with the `-p none` flag.
-use optional flag `-q` to run in quiet mode. This will not print logs in the `src/benchmarks/json_dump` directory. The `workload_name` is the name of the workload to be simulated from `models/benchmarks/` (without the `.py` extension). The `arch_config` is the architecture configuration file to be used for the simulation. The architecture configuration includes a `.gml` file in `architectures/` and an entry in `hw_cfgs.ini`. The architecture configuration file is the name of the `.gml` file without the extension.
 
-#### Inverse Pass
-The inverse pass is run similarly to the forward pass. You run the `./symbolic_simulate.sh` instead, with the added optional argument `-o` to specify the optimization technique.
-```
-./symbolic_simulate.sh -n <workload_name> -c <arch_config> -o <opt>
-```
-where `<opt>` is either `scp`, or `ipopt` (default). 
-#### Codesign
-
-The `-s` flag is used to run an architecture search. This will run the architecture search algorithm and output the best architecture found. This flag can be called with the `-a <AREA>` flag to specify the area constraint for the architecture search. This area value is in $\mu m^2$.
+#### Install instructions on other machines:
+1. Make sure you are running bash. You can check by by running "echo $0". If you're not, you can start by running "bash"
+2. Then, cd into codesign folder. 
+3. Create a new bash script to source catapult based on your particular installation. 
+4. source this script instead of stanford_catapult_env.sh at the end of full_env_start.sh
+5. source full_env_start.sh

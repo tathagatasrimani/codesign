@@ -8,6 +8,17 @@ leakage_power = tech_params["leakage_power"]
 
 
 def create_coefficients(sizes):
+    """
+    Compute logical-effort-like coefficients (alpha, beta, gamma) for latency, dynamic power, and leakage
+    power across technology sizes.
+
+    Args:
+        sizes (list of int): List of technology node sizes to compute coefficients for.
+
+    Returns:
+        dict: Dictionary with keys 'alpha', 'beta', and 'gamma', each mapping to a sub-dictionary
+            of normalized coefficients for each element.
+    """
     coeffs = {
         "alpha": {},
         "beta": {},
@@ -33,6 +44,15 @@ def create_coefficients(sizes):
     return coeffs
 
 def create_and_save_coefficients(sizes):
+    """
+    Compute coefficients for the given sizes and save them to 'src/params/coefficients.yaml'.
+
+    Args:
+        sizes (list of int): List of technology node sizes to compute coefficients for.
+
+    Returns:
+        None
+    """
     coeffs = create_coefficients(sizes)
     with open("src/params/coefficients.yaml", 'w') as f:
         f.write(yaml.dump(coeffs))

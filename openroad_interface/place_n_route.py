@@ -19,11 +19,11 @@ def openroad_run():
     os.chdir("../../..")
 
 
-def export_graph(graph, design_name, est_or_det: str):
+def export_graph(graph, est_or_det: str):
     if not os.path.exists("openroad_interface/results/"):
         os.makedirs("openroad_interface/results/")
     nx.write_gml(
-        graph, "openroad_interface/results/" + est_or_det + "_" + design_name + ".gml"
+        graph, "openroad_interface/results/" + est_or_det + ".gml"
     )
 
 
@@ -112,35 +112,32 @@ def coord_scraping(
     return graph, component_nets
 
 def place_n_route(
-    design_name: str,
+    graph: nx.DiGraph,
     test_directory: str, 
     arg_parasitics: str
 ):
     dict = None
     if "none" not in arg_parasitics:
-        graph, net_out_dict, node_output, lef_data, node_to_num = setup(design_name, test_directory)
-        dict, graph = extraction(graph, arg_parasitics, design_name, net_out_dict, node_output, lef_data, node_to_num)
+        graph, net_out_dict, node_output, lef_data, node_to_num = setup(graph, test_directory)
+        dict, graph = extraction(graph, arg_parasitics, net_out_dict, node_output, lef_data, node_to_num)
     else: 
-        graph = nx.read_gml("src/architectures/" + design_name)
-        graph = none_place_n_route(graph, design_name)
+        graph = none_place_n_route(graph)
     return dict, graph
     
 def setup(
-    design_name: str,
+    graph: nx.DiGraph,
     test_directory: str
 ):
     """
     the main function. generates def file, runs openroad, does all openroad and estimated calculations.
     param:
-        design_name: design name
+        graph: hardware netlist graph
         test_directory: tcl file directory
         arg_parasitics: detailed, estimation, or none. determines which parasitic calculation is executed.
 
     return:
         pandas dataframe: contains all parasitic information
     """
-    print("reading graph")
-    graph = nx.read_gml("src/architectures/" + design_name)
 
     # 1. generate def
     # export PATH=./../build/src:$PATH ./../src/hardwareModel.py
@@ -154,24 +151,23 @@ def setup(
 
     return graph, net_out_dict, node_output, lef_data, node_to_num
 
-def extraction(graph, arg_parasitics, design_name, net_out_dict, node_output, lef_data, node_to_num): 
+def extraction(graph, arg_parasitics, net_out_dict, node_output, lef_data, node_to_num): 
     # 3. extract parasitics
     print("running extractions")
     dict = {}
     if arg_parasitics == "detailed":
         dict, graph = detailed_place_n_route(
-            graph, design_name, net_out_dict, node_output, lef_data, node_to_num
+            graph, net_out_dict, node_output, lef_data, node_to_num
         )
     elif arg_parasitics == "estimation":
         dict, graph = estimated_place_n_route(
-            graph, design_name, net_out_dict, node_output, lef_data, node_to_num
+            graph, net_out_dict, node_output, lef_data, node_to_num
         )
 
     return dict, graph
 
 def estimated_place_n_route(
     graph: nx.DiGraph,
-    design_name: str,
     net_out_dict: dict,
     node_output: dict,
     lef_data: dict,
@@ -182,7 +178,6 @@ def estimated_place_n_route(
 
     params:
         graph: networkx graph
-        design_name: design name
         net_out_dict: dict that lists nodes and thier respective edges (all nodes have one output)
         node_output: dict that lists nodes and their respective output nodes
         lef_data: dict with layer information (units, res, cap, width)
@@ -191,7 +186,6 @@ def estimated_place_n_route(
         dict: contains list of resistance, capacitance, length, and net data
         graph: newly modified digraph with rcl attributes
     """
-    design_name = design_name.replace(".gml", "")
 
     # run openroad
     openroad_run()
@@ -221,7 +215,7 @@ def estimated_place_n_route(
     mux_listing(graph, node_output)
     mux_removal(graph)
 
-    export_graph(graph, design_name, "estimated_nomux")
+    export_graph(graph, "estimated_nomux")
 
     return {
         "length": estimated_length_data,
@@ -233,7 +227,6 @@ def estimated_place_n_route(
 
 def detailed_place_n_route(
     graph: nx.DiGraph,
-    design_name: str,
     net_out_dict: dict,
     node_output: dict,
     lef_data: dict,
@@ -244,7 +237,6 @@ def detailed_place_n_route(
 
     params:
         graph: networkx graph
-        design_name: design name
         net_out_dict:  dict that lists nodes and their respective net (all components utilize one output, therefore this is a same assumption to use)
         node_output: dict that lists nodes and their respective output nodes
         lef_data: dict with layer information (units, res, cap, width)
@@ -253,7 +245,6 @@ def detailed_place_n_route(
         dict: contains list of resistance, capacitance, length, and net data
         graph: newly modified digraph with rcl attributes
     """
-    design_name = design_name.replace(".gml", "")
 
     # run openroad
     openroad_run()
@@ -284,12 +275,12 @@ def detailed_place_n_route(
         
         
 
-    export_graph(graph, design_name, "detailed")
+    export_graph(graph, "detailed")
 
     mux_listing(graph, node_output)
     mux_removal(graph)
 
-    export_graph(graph, design_name, "detailed_nomux")
+    export_graph(graph, "detailed_nomux")
 
     return {
         "res": res_graph_data,
@@ -301,17 +292,14 @@ def detailed_place_n_route(
 
 def none_place_n_route(
     graph: nx.DiGraph,
-    design_name: str,
 ) -> dict:
     """
     runs openroad, calculates rcl, and then adds attributes to the graph
     params:
         graph: networkx graph
-        design_name: design name
     returns:
         graph: newly modified digraph with rcl attributes
     """
-    design_name = design_name.replace(".gml", "")
 
     # edge attribution
     for u, v in graph.edges():

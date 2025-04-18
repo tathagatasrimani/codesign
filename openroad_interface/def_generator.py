@@ -274,7 +274,7 @@ def def_generator(tcl_file_directory: str, graph: nx.DiGraph):
     for node in old_nodes:
         if graph.nodes[node]["count"] == 16:
             graph.remove_node(node)
-    pnr.export_graph(graph, "this is me trying", "idk")
+    pnr.export_graph(graph, "result")
     nodes = list(graph)  
     
     ### 3.mux stuff ###

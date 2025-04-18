@@ -1,4 +1,6 @@
 import logging
+import time
+import os
 logger = logging.getLogger(__name__)
 
 import copy
@@ -14,7 +16,15 @@ from . import symbolic_simulate
 LAMBDA = 0.1 # regularization parameter
 
 class Preprocessor:
+    """
+    Prepares and processes symbolic and Pyomo-based optimization models. Handles
+    mapping between symbolic and Pyomo variables, applies constraints, and manages substitutions for
+    technology parameters.
+    """
     def __init__(self):
+        """
+        Initialize the Preprocessor instance, setting up mappings, initial values, and constraint sets.
+        """
         self.mapping = {}
         self.pyomo_edp_exp = None
         self.initial_val = 0
@@ -30,7 +40,6 @@ class Preprocessor:
         self.log_exprs_s = set()
         self.pow_exprs_to_constrain = []
         self.log_exprs_to_constrain = []
-        self.cacti_subs_pyo = {}
         self.cacti_sub_vars = set()
         self.log_subs = {}
         self.pow_subs = {}
@@ -46,20 +55,46 @@ class Preprocessor:
         return model.x[self.mapping[hw_symbols.V_dd]] <= 1.7
     
     def make_pow_constraint(self, model, i):
+        """
+        Constraint: Ensure that each power expression to constrain is non-negative.
+
+        Args:
+            model (pyomo.ConcreteModel): The Pyomo model instance.
+            i (int): Index of the power expression to constrain.
+
+        Returns:
+            pyomo.Constraint: Pyomo constraint enforcing power >= 0.
+        """
         return self.pow_exprs_to_constrain[i] >= 0
         
     def make_log_constraint(self, model, i):
+        """
+        Constraint: Ensure that each log expression to constrain is above a small positive threshold.
+
+        Args:
+            model (pyomo.ConcreteModel): The Pyomo model instance.
+            i (int): Index of the log expression to constrain.
+
+        Returns:
+            pyomo.Constraint: Pyomo constraint enforcing log argument >= 0.0001.
+        """
         return self.log_exprs_to_constrain[i] >= 0.0001
-    
-    def make_cacti_constraint(self, model, i):
-        cacti_var_sp = list(self.cacti_subs_pyo.keys())[i]
-        cacti_var = model.x[self.mapping[cacti_var_sp]]
-        return cacti_var == self.cacti_subs_pyo[cacti_var_sp]
 
     def max_val_orig_val_rule(self, model, i):
+        # may remove this later as its a bit arbitrary. Found in the past that optimizer works better with this.
         return model.x[self.mapping[self.free_symbols[i]]] <= self.initial_params[self.free_symbols[i].name]
     
     def find_exprs_to_constrain(self, expr, debug=False):
+        """
+        Recursively identify expressions (e.g., square roots, logs) that should be constrained to nonnegative values.
+
+        Args:
+            expr (sympy.Expr): Symbolic expression to analyze.
+            debug (bool, optional): If True, log debug information. Defaults to False.
+
+        Returns:
+            None
+        """
         if debug: logger.info(f"expr.func is {expr.func}")
         if expr.func == sp.core.power.Pow and expr.base.func != sp.core.symbol.Symbol:
             if debug: logger.info(f"exponent is {expr.exp}")
@@ -78,7 +113,16 @@ class Preprocessor:
             self.find_exprs_to_constrain(arg)
 
     def sub_pow_exprs(self,expr, prnt=False):
-        # replace each square root expression with sqrt(abs()) to avoid negative inside sqrt
+        """
+        Replace each square root expression with sqrt(abs()) to avoid negative values inside sqrt.
+
+        Args:
+            expr (sympy.Expr): Symbolic expression to process.
+            prnt (bool, optional): If True, print debug information. Defaults to False.
+
+        Returns:
+            sympy.Expr: Modified symbolic expression with safe square roots.
+        """
         if (isinstance(expr, sp.Number)): return expr
         new_args = []
         for i in range(len(expr.args)):
@@ -93,6 +137,15 @@ class Preprocessor:
 
 
     def add_constraints(self, model):
+        """
+        Add all relevant constraints (EDP, power, log, V_dd, etc.) to the Pyomo model.
+
+        Args:
+            model (pyomo.ConcreteModel): The Pyomo model instance.
+
+        Returns:
+            None
+        """
         logger.info("Adding Constraints")
         print(f"adding constraints. initial val: {self.initial_val};") # edp_exp: {self.pyomo_edp_exp}")
         model.Constraint1 = pyo.Constraint(expr=self.pyomo_edp_exp >= self.initial_val / self.improvement)
@@ -101,13 +154,11 @@ class Preprocessor:
 
         model.LogConstraint = pyo.Constraint([i for i in range(len(self.log_exprs_to_constrain))], rule=self.make_log_constraint)
 
-        model.CactiConstraint = pyo.Constraint([i for i in range(len(self.cacti_subs_pyo))], rule=self.make_cacti_constraint)
-
         if hw_symbols.V_dd in self.mapping: 
             model.V_dd_lower = pyo.Constraint(rule=self.V_dd_lower)
             model.V_dd_upper = pyo.Constraint(rule=self.V_dd_upper)
         # cacti Vdd >= Vth constraint
-        if hw_symbols.Vdd in self.mapping:
+        if hw_symbols.Vdd in self.mapping and hw_symbols.Vth in self.mapping:
             model.Vdd_not_cutoff = pyo.Constraint(rule=self.Vdd_not_cutoff)
 
         # all parameters can only be less than or equal to their initial values
@@ -204,13 +255,17 @@ class Preprocessor:
                 
 
     def symbols_in_Buf_Mem_L(self, buf_l_file, mem_l_file):
-        memL_expr = sp.sympify(
-            open(mem_l_file, "r").readline(), locals=hw_symbols.symbol_table
-        )
-        bufL_expr = sp.sympify(
-            open(buf_l_file, "r").readline(), locals=hw_symbols.symbol_table
-        )
-        free_symbols = memL_expr.free_symbols.union(bufL_expr.free_symbols)
+        free_symbols = set()
+        if os.path.exists(mem_l_file):
+            memL_expr = sp.sympify(
+                open(mem_l_file, "r").readline(), locals=hw_symbols.symbol_table
+            )
+            free_symbols = free_symbols.union(memL_expr.free_symbols)
+        if os.path.exists(buf_l_file):
+            bufL_expr = sp.sympify(
+                open(buf_l_file, "r").readline(), locals=hw_symbols.symbol_table
+            )
+            free_symbols = free_symbols.union(bufL_expr.free_symbols)
         return free_symbols
 
     def begin(self, model, edp, initial_params, improvement, cacti_subs, multistart, regularization):
@@ -221,13 +276,13 @@ class Preprocessor:
         self.improvement = improvement
         self.cacti_subs_s = cacti_subs
 
-        mem_buf_l_symbols = self.symbols_in_Buf_Mem_L("src/cacti/symbolic_expressions/Buf_access_time.txt", "src/cacti/symbolic_expressions/Mem_access_time.txt")
-        desired_free_symbols = ["Vdd", "C_g_ideal"]#, "C_junc", "I_on_n", "vert_dielectric_constant"] #, "Vdsat"] #, "Mobility_n"]
+        #mem_buf_l_symbols = self.symbols_in_Buf_Mem_L("src/cacti/symbolic_expressions/Buf_access_time.txt", "src/cacti/symbolic_expressions/Mem_access_time.txt")
+        #desired_free_symbols = ["Vdd", "C_g_ideal"]#, "C_junc", "I_on_n", "vert_dielectric_constant"] #, "Vdsat"] #, "Mobility_n"]
 
-        symbols_to_remove =  [
-            sym for sym in mem_buf_l_symbols if sym.name not in desired_free_symbols
-        ]
-        mem_buf_l_init_params = {sym: initial_params[sym.name] for sym in symbols_to_remove}
+        #symbols_to_remove =  [
+        #    sym for sym in mem_buf_l_symbols if sym.name not in desired_free_symbols
+        #]
+        #mem_buf_l_init_params = {sym: initial_params[sym.name] for sym in symbols_to_remove}
         # edp = edp.xreplace(mem_buf_l_init_params)
 
         # keep track of which cacti related variables are used in the edp expression
@@ -244,6 +299,7 @@ class Preprocessor:
             print(f"symbol name is {s.name}")
             if s in self.cacti_sub_vars:
                 cacti_exp = cacti_subs[s]
+                if cacti_exp == 0: continue
                 for sub_symbol in cacti_exp.free_symbols:
                     # track each cacti variable in the expression that will be substituted
                     cacti_free_symbols.add(sub_symbol)
@@ -281,10 +337,18 @@ class Preprocessor:
             print(f"symbol: {symbol}; initial value: {self.expr_symbols[symbol]}")
 
         # find all pow/log expressions within edp equation and cacti equations, convert to pyomo
-        self.find_exprs_to_constrain(edp)
+        # We shouldn't need to find any pow/log expressions in the edp expression itself. Cacti sub expressions
+        # should suffice, but keep an eye on this.
+        #self.find_exprs_to_constrain(edp)
+            
+        start_time = time.time()
         for cacti_var in cacti_subs.keys():
-            if cacti_var in self.mapping:
+            if cacti_var in self.mapping and cacti_subs[cacti_var] != 0:
                 self.find_exprs_to_constrain(cacti_subs[cacti_var])
+
+        logger.info(f"time to find exprs to constrain: {time.time()-start_time}")
+
+        start_time = time.time()
 
         # hotfix: substitute each log expression with max(expr, 1e-3) to avoid negatives inside log
         for log_expr in self.log_exprs_s:
@@ -296,23 +360,18 @@ class Preprocessor:
         # all sqrt(expr) with sqrt(abs(expr))
         edp = edp.xreplace(self.log_subs)
         edp = self.sub_pow_exprs(edp)
-        for cacti_var in cacti_subs.keys():
-            if cacti_var in self.mapping:
-                cacti_subs[cacti_var] = self.sub_pow_exprs(cacti_subs[cacti_var])
-                cacti_subs[cacti_var] = cacti_subs[cacti_var].xreplace(self.log_subs)
+
+        logger.info(f"time to sub low and pow exprs: {time.time()-start_time}")
 
         # save subbed expressions to tmp file for debugging purposes
-        with open("src/tmp/symbolic_edp_subbed.txt", "w") as f:
+        """with open("src/tmp/symbolic_edp_subbed.txt", "w") as f:
             f.write(str(edp))
             f.write("\n")
             for cacti_var in cacti_subs.keys():
                 if cacti_var in self.mapping:
-                    f.write(f"{cacti_var.name}: {str(cacti_subs[cacti_var])}\n")
+                    f.write(f"{cacti_var.name}: {str(cacti_subs[cacti_var])}\n")"""
 
-        # convert cacti subs expressions to pyomo
-        for cacti_var in cacti_subs.keys():
-            if cacti_var in self.mapping:
-                self.cacti_subs_pyo[cacti_var] = sympy_tools.sympy2pyomo_expression(cacti_subs[cacti_var], m)
+        start_time = time.time()
 
         for pow_expr in self.pow_exprs_s:
             # pow expressions may have log exprs inside them, so substitute first
@@ -327,6 +386,9 @@ class Preprocessor:
         print(f"added regularization")
 
         self.obj = sympy_tools.sympy2pyomo_expression(sympy_obj, m)
+
+        logger.info(f"time to convert all exprs to pyomo: {time.time()-start_time}")
+        start_time = time.time()
         # print(f"created pyomo expression: {self.pyomo_edp_exp}")
 
 
@@ -336,6 +398,8 @@ class Preprocessor:
         model.scaling_factor = pyo.Suffix(direction=pyo.Suffix.EXPORT)
         self.add_constraints(model)
         self.create_scaling(model)
+
+        logger.info(f"time to add constraints and create scaling: {time.time()-start_time}")
 
         scaled_model = pyo.TransformationFactory("core.scale_model").create_using(model)
         # this transformation was having issues for some reason...

@@ -4,11 +4,6 @@ src/benchmarks/pictures/**
 src/benchmarks/power_plots/**
 src/benchmarks/json_data/**
 
-src/instrumented_files/output*
-src/instrumented_files/xformedpre*
-src/instrumented_files/xformedname*
-src/instrumented_files/*
-
 src/output.txt
 
 src/params/rcs.yaml
@@ -19,6 +14,8 @@ src/tmp/**
 
 **/results/**
 **/figs/**
+**/build/**
+**.log
 
 data/**
 .vscode/**
@@ -32,3 +29,7 @@ test/experiments/dennard_multi_core_figs/**
 test/experiments/dennard_multi_core_log_dir/**
 openroad_interface/fig
 openroad_interface/results
+
+src/benchmarks/c_cores_work/venv
+miniconda3/
+Miniconda3-latest-Linux-x86_64.sh

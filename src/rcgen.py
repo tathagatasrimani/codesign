@@ -7,20 +7,20 @@ import math
 # Read in dat file, add to the rcs file
 def generate_optimization_params(latency, active_power, active_energy, passive_power, V_dd, dat_file):
     """
-    Generate R,C, etc from the latency, power tech parameters.
-    rcs[other] are all stored in SI units.
-        V_dd: voltage in V
-        MemReadL: memory read latency in s
-        MemWriteL: memory write latency in s
-        MemReadEact: memory read active power in W
-        MemWriteEact: memory write active power in W
-        MemPpass: memory passive power in W
-    
-        params:
-        latency: dictionary of latencies in cycles
-        active_power: dictionary of active power in nW
-        passive_power: dictionary of passive power in nW
-        V_dd: voltage in V
+    Generate optimization parameters (R, C, etc.) from latency, power, and energy technology parameters.
+    All returned values are stored in SI units.
+
+    Args:
+        latency (dict): Dictionary of latencies for each element.
+        active_power (dict): Dictionary of active power values for each element (nW).
+        active_energy (dict): Dictionary of active energy values for each element (nJ).
+        passive_power (dict): Dictionary of passive power values for each element (nW).
+        V_dd (float): Supply voltage in volts.
+        dat_file (str): Path to the CACTI .dat file for technology parameters.
+
+    Returns:
+        dict: Dictionary containing calculated optimization parameters, including 'Reff', 'Ceff', 'Cacti',
+            and 'other' (miscellaneous parameters in SI units).
     """
     rcs = {"Reff": {}, "Ceff": {}, "Cacti": {}, "Cacti_IO": {}, "other": {}}
 
@@ -78,8 +78,7 @@ def generate_optimization_params(latency, active_power, active_energy, passive_p
     IO.scan_IO(cacti_IO_params, g_ip, g_ip.io_type, g_ip.num_mem_dq, g_ip.mem_data_width, g_ip.num_dq, g_ip.dram_dimm, 1, g_ip.bus_freq)
     cacti_IO_params = {k: (1 if v is None or math.isnan(v) else (10**(-9) if v == 0 else v)) for k, v in cacti_IO_params.items()}
     for key, value in cacti_IO_params.items():
-        if key != "rtt1_dq_read" and key != "rtt1_dq_write" and key != "rtt2_dq_read" and key != "rtt2_dq_write":
-            rcs["Cacti_IO"][key] = value
+        rcs["Cacti_IO"][key] = value
 
     return rcs
 

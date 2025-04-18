@@ -28,25 +28,21 @@ valid_tech_nodes = [0.032, 0.045, 0.065, 0.090, 0.180] # remove 0.022 for now
 
 def gen_symbolic(name, cache_cfg, opt_vals, use_piecewise=False):
     """
-    Generates SymPy expressions for access time and energy, outputting results to text files.
+    Generate SymPy expressions for access time and energy, and output results to text files.
 
-    Inputs:
-    name : str
-        Base name for the output files.
-    cache_cfg : str
-        Path to the cache configuration file. Relative to the Cacti directory.
-    opt_vals : dict
-        Optimization values with keys: "ndwl", "ndbl", "nspd", "ndcm", "ndsam1", "ndsam2",
-        "repeater_spacing", "repeater_size".
-    use_piecewise : bool, optional
-        Flag for using piecewise functions (default is True).
+    Args:
+        name (str): Base name for the output files.
+        cache_cfg (str): Path to the cache configuration file (relative to CACTI directory).
+        opt_vals (dict): Optimization values with keys: "ndwl", "ndbl", "nspd", "ndcm",
+            "ndsam1", "ndsam2", "repeater_spacing", "repeater_size".
+        use_piecewise (bool, optional): Whether to use piecewise functions (default: False).
 
     Returns:
-    IO_info : dict
-        Dictionary containing IO-related data (e.g., area, power, margin).
+        fin_res: Dictionary containing IO-related data (e.g., area, power, margin).
 
     Outputs:
-    Sympy expression files for access time, dynamic and leakage power, IO details in 'src/cacti/sympy' directory.
+        SymPy expression files for access time, dynamic and leakage power, and IO details are saved
+        in 'src/cacti/sympy'.
     """
 
     # importlib.reload(cp)
@@ -110,7 +106,7 @@ def gen_symbolic(name, cache_cfg, opt_vals, use_piecewise=False):
         with open(file_path, "w") as file:
             file.write(str(value))
 
-    return IO_info
+    return fin_res
 
 
 def gen_vals(
@@ -171,6 +167,8 @@ def gen_vals(
 
     # load in default values
     config_values = read_config_file(os.path.join(CACTI_DIR, f"cfg/{filename}.cfg"))
+
+    logger.info(f"config values: {config_values}")
 
     # If user doesn't give input, default to cacti_input vals
     if cache_size == None:
@@ -1453,8 +1451,8 @@ if __name__ == "__main__":
         buf_vals = gen_vals(
             args.cfg_name,
             cache_size=args.cache_size,
-            block_size=args.block_size,
-            cache_type=args.cacheType,
+            #block_size=args.block_size,
+            #cache_type=args.cacheType,
             bus_width=args.busWidth,
         )
     else:

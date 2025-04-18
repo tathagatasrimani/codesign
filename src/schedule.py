@@ -1,62 +1,183 @@
-from collections import deque, defaultdict
-import heapq
-import math
 import logging
-from itertools import combinations
+import os
+import heapq
 
 logger = logging.getLogger(__name__)
 
-import networkx as nx
+import cvxpy as cp
 import matplotlib.pyplot as plt
 import numpy as np
-import cvxpy as cp
-import pandas as pd
 import networkx as nx
 
-from .global_constants import SEED
 from . import sim_util
 
-# format: cfg_node -> {states -> operations}
-cfg_node_to_dfg_map = {}
-operation_sets = {}
-processed = {}
-
-rng = np.random.default_rng(SEED)
 
 
-def limited_topological_sorts(graph, max_sorts=10):
-    in_degree = {node: 0 for node in graph.nodes()}
-    for u, v in graph.edges():
-        in_degree[v] += 1
+def calculate_similarity(G, p1, p2):
+    """
+    Calculate the similarity between two sets of nodes in a graph using the overlap coefficient.
 
-    partial_order = []
-    sorts_found = 0
+    Args:
+        G (nx.DiGraph): The data flow graph.
+        p1 (list): First set of node identifiers.
+        p2 (list): Second set of node identifiers.
 
-    def visit():
-        nonlocal sorts_found
-        if sorts_found >= max_sorts:
-            return
+    Returns:
+        tuple: (longer_path (bool), similarity (float))
+    """
+    p1_fn_counts = {}
+    p1_funcs = []
+    p2_fn_counts = {}
+    for node in p1:
+        fn = G.nodes[node]["function"] 
+        if fn not in ["nop", "end"]:
+            if fn not in p1_fn_counts:
+                p1_fn_counts[fn] = 0
+            p1_funcs.append(f"{fn};{p1_fn_counts[fn]}")
+            p1_fn_counts[fn] += 1
+    p2_funcs = []
+    for node in p2:
+        fn = G.nodes[node]["function"] 
+        if fn not in ["nop", "end"]:
+            if fn not in p2_fn_counts:
+                p2_fn_counts[fn] = 0
+            p2_funcs.append(f"{fn};{p2_fn_counts[fn]}")
+            p2_fn_counts[fn] += 1
+    
+    p_shorter_funcs, p_longer_funcs = (set(p1_funcs), set(p2_funcs)) if len(p1_funcs) < len(p2_funcs) else (set(p2_funcs), set(p1_funcs))
+    longer_path = len(p2_funcs) > len(p1_funcs)
+    logger.info(f"{p2_funcs}, {p1_funcs}")
+    
+    intersect = p_longer_funcs.intersection(p_shorter_funcs)
+    logger.info(f"intersection is {intersect}")
 
-        all_visited = True
-        for node in graph.nodes():
-            if in_degree[node] == 0 and node not in partial_order:
-                all_visited = False
-                partial_order.append(node)
-                for successor in graph.successors(node):
-                    in_degree[successor] -= 1
+    logger.info(f"similarity is {len(intersect) / len(p_shorter_funcs)}, p2 longer path status is {longer_path}")
+    return longer_path, len(intersect) / len(p_shorter_funcs)
 
-                yield from visit()
+def get_longest_paths(G: nx.DiGraph, num_paths=2, num_unique_slacks=100):
+    """
+    Find and return up to num_paths longest paths in the graph. Optionally restricts to nodes with
+    the worst slacks (up to num_unique_slacks unique slack values).
 
-                partial_order.pop()
-                for successor in graph.successors(node):
-                    in_degree[successor] += 1
+    Args:
+        G (nx.DiGraph): Directed acyclic graph representing the data flow.
+        num_paths (int, optional): Maximum number of longest paths to return. Defaults to 2.
+        num_unique_slacks (int, optional): Maximum number of unique slack values to consider. Defaults to 100.
 
-        if all_visited:
-            sorts_found += 1
-            yield list(partial_order)
+    Returns:
+        list: List of longest paths (each path is a list of node identifiers).
+    """
 
-    return list(visit())
+    # Topological sorting to process nodes in order
+    top_order = list(nx.topological_sort(G))
+    
+    # Compute earliest arrival times (forward propagation)
+    earliest = {node: 0 for node in G.nodes}
+    earliest[top_order[0]] = 0  # Assuming first node is the start point
+    
+    for u in top_order:
+        for v in G.successors(u):
+            assert "weight" in G[u][v]
+            weight = G[u][v].get("weight")
+            earliest[v] = max(earliest[v], earliest[u] + weight)
+    
+    # Compute latest arrival times (backward propagation)
+    latest = {node: float('inf') for node in G.nodes}
+    latest[top_order[-1]] = earliest[top_order[-1]]  # Critical path end node
+    
+    for u in reversed(top_order):
+        for v in G.successors(u):
+            weight = G[u][v].get("weight")
+            latest[u] = min(latest[u], latest[v] - weight)
+    
+    # Compute slacks
+    slacks = {node: np.round(latest[node] - earliest[node], 5) for node in G.nodes}
 
+    # only want to look at nodes with the worst slack. As a heuristic, take the k worst
+    # unique slacks and disregard all other nodes
+    sorted_slacks = sorted(slacks.keys(), key=lambda x: slacks[x])
+    logger.info(f"slacks: {slacks}")
+    unique_slacks = sorted(list(set(slacks.values())))
+    slacks_seen = set()
+    logger.info(f"sorted slacks: {sorted_slacks}")
+    k = min(num_unique_slacks, len(unique_slacks))
+    nodes_to_remove = []
+    sorted_unique_slacks = []
+    for i in range(len(sorted_slacks)):
+        if slacks[sorted_slacks[i]] > unique_slacks[k-1]:
+            sorted_slacks = sorted_slacks[:i]
+            nodes_to_remove = sorted_slacks[i:]
+            break
+        if slacks[sorted_slacks[i]] not in slacks_seen:
+            sorted_unique_slacks.append(sorted_slacks[i])
+            slacks_seen.add(slacks[sorted_slacks[i]])
+
+
+    # create a copy of G with negative weights. Only consider nodes below some threshold of slack.
+    # We will use this to run bellman ford, which can handle negative weights,
+    # and find longest paths by negating the path lengths at the end.
+    copy = G.copy()
+    copy.add_node("start", weight=0)
+    for node in nodes_to_remove:
+        copy.remove_node(node)
+    root_nodes = [node for node, in_degree in G.in_degree() if in_degree == 0]
+
+    for edge in copy.edges():
+        copy.edges[edge]["weight"] *= -1
+    for node in root_nodes:
+        logger.info(f"connecting start to {node}")
+        copy.add_edge("start", node, weight=0)
+    forward_paths = nx.single_source_bellman_ford(copy, "start")
+    reverse_paths = nx.single_source_bellman_ford(copy.reverse(), "end")
+    
+    nodes_seen = set()
+    i = 0
+    paths = []
+    for node in sorted_unique_slacks:
+        if node not in nodes_seen:
+            # exclude "start" node and last node (already in reverse path) in forward path.
+            # reverse the reverse path so that it goes from node -> "end"
+            path = forward_paths[1][node][1:-1] + reverse_paths[1][node][::-1]
+            length = forward_paths[0][node] + reverse_paths[0][node]
+            for path_node in path:
+                nodes_seen.add(path_node)
+            paths.append([length, path])
+
+    paths_sorted = sorted(paths, key=lambda x: x[0]) # sort by longest length
+    for i in range(len(paths_sorted)):
+        paths_sorted[i][0] *= -1
+
+    logger.info(f"paths sorted: {paths_sorted}")
+    logger.info(f"k is {k}")
+    
+    # may only want a certain number of paths
+    n = min(len(paths_sorted), num_paths)
+
+    paths_sorted_pruned = [paths_sorted[0]]
+    paths_added = 1
+    for i in range(1, k):
+        next_path = paths_sorted[i]
+        logger.info(f"considering path {next_path}")
+        similar = False
+        # only add a path to the final list if it is less than a certain amount similar to
+        # all the other paths we are currently considering
+        # if a path is a superset of another one, remove the first path and add this one in
+
+        for i in range(len(paths_sorted_pruned)):
+            NEXT_PATH_LONGER = True
+            longer_path, similarity = calculate_similarity(G, paths_sorted_pruned[i][1], next_path[1])
+            if similarity >= 0.8:
+                if longer_path == NEXT_PATH_LONGER and similarity == 1:
+                    # replace current path if next one is a superset of it
+                    paths_sorted_pruned[i] = next_path
+                    logger.info(f"replacing {paths_sorted_pruned[i]} with {next_path}")
+                similar = True
+        if not similar: 
+            paths_sorted_pruned.append(next_path)
+            paths_added += 1
+        if paths_added == n: break
+
+    return paths_sorted_pruned
 
 def longest_path_first_topological_sort(graph):
     # Calculate the longest path lengths to each node
@@ -95,603 +216,639 @@ def longest_path_first_topological_sort(graph):
 
     return topological_order
 
-
-def schedule_one_node(graph):
-    """
-    node does not get used here. WHY?!
-    """
-    node_ops = []
-    op_set = set()
-    queue = deque([[root, 0] for root in graph.roots])
-    max_order = 0
-    while len(queue) != 0:
-        cur_node, order = queue.popleft()
-        if cur_node not in op_set:
-            op_set.add(cur_node)
-        max_order = max(max_order, order)
-        cur_node.order = max(order, cur_node.order)
-        for child in cur_node.children:
-            queue.append([child, order + 1])
-    for i in range(max_order + 1):
-        node_ops.append([])
-    for cur_node in op_set:
-        node_ops[cur_node.order].append(cur_node)
-    return node_ops
-
-
-def cfg_to_dfg(cfg, graphs, latency):
-    """
-    Literally just construct a nx.DiGraph from dfg_algo.Graph object
-
-    graphs - is the output of dfg_algo.main(); it is a dictionary of cfg_node to dfg_algo.Graph objects
-    latency - dict of operation -> latency
-        this is used to add weights to the nodes in the nx.DiGraph
-    returns:
-        cfg_node_to_hw_map: dict of cfg_node -> {states -> operations}
-    """
-    for node in cfg:
-        cfg_node_to_dfg_map[node] = nx.DiGraph()
-        operation_sets[node] = set()
-        processed[node] = set()
-
-        queue = deque([[root, 0] for root in graphs[node].roots])
-        while len(queue) != 0:
-            cur_node, order = queue.popleft()
-            #print(cur_node, order)
-            if cur_node not in operation_sets[node]:
-                if not (
-                    cur_node.operation is None or cur_node.value.startswith("__")
-                ):  # if no operation or an intrinsic python name, then we ignore in latency power calculation.
-                    operation_sets[node].add(cur_node)
-                    cfg_node_to_dfg_map[node].add_node(
-                        f"{cur_node.value};{cur_node.id}",
-                        function=cur_node.operation,
-                        idx=cur_node.id,
-                        cost=latency[cur_node.operation],
-                    )
-                    for par in cur_node.parents:
-                        # print("node", cur_node, "has parent", par)
-                        # only add edges to parents which represent actual operations
-                        if par in operation_sets[node]:
-                            try:
-                                cfg_node_to_dfg_map[node].add_edge(
-                                    f"{par.value};{par.id}",
-                                    f"{cur_node.value};{cur_node.id}",
-                                    weight=latency[
-                                        par.operation
-                                    ],  # weight of edge is latency of parent
-                                )
-                            except KeyError:
-                                raise Exception(
-                                    f"KeyError: {par.operation} for {par.value};{par.id} -> {cur_node.value};{cur_node.id}"
-                                )
-                                cfg_node_to_dfg_map[node].add_edge(
-                                    par.value, cur_node.value, weight=latency[par.operation]
-                                )
-                processed[node].add(cur_node)
-                for child in cur_node.children:
-                    add_to_queue = True
-                    # We only want to add child to queue if all of its parent operations have finished.
-                    for par in child.parents:
-                        if par not in processed[node]:
-                            add_to_queue = False
-                            break
-                    if add_to_queue: queue.append([child, order + 1])
-
-    return cfg_node_to_dfg_map
-
-
-def assign_time_of_execution(graph):
-    """
-    Calculates start time of each operation in the graph.
-    Adds node parameter 'start_time' to each node in the graph.
-    Params:
-        graph: nx.DiGraph
-            The computation data flow graph
-    """
-    logger.info("Assigning time of execution")
-    for node in graph.nodes:
-        graph.nodes[node]["dist"] = 0
-    graph = nx.reverse(graph)
-    for gen in list(nx.topological_generations(graph))[1:]:
-        max_weight = 0
-        for node in gen:
-            in_edge = list(graph.in_edges(node))[0]
-            max_weight = max(max_weight, graph.edges[in_edge]["weight"])
-        for node in gen:
-            in_edge = list(graph.in_edges(node))[0]
-            graph.edges[in_edge]["weight"] = max_weight
-    max_dist = 0
-    end_node = list(nx.topological_generations(graph))[0][0]
-    for node in graph.nodes:
-        graph.nodes[node]["start_time"] = nx.dijkstra_path_length(graph, end_node, node)
-        max_dist = max(max_dist, graph.nodes[node]["start_time"])
-    for node in graph.nodes:
-        # mirroring operation
-        graph.nodes[node]["start_time"] = (
-            graph.nodes[node]["start_time"] - max_dist
-        ) * -1
-    graph = nx.reverse(graph)
-    return graph, max_dist
-
-
-def assign_upstream_path_lengths_dijkstra(graph):
-    """
-    Assigns the longest path to each node in the graph.
-    Uses Dijkstra to take operation latency into account.
-    Params:
-    graph: nx.DiGraph
-        The computation graph
-    """
-    for node in graph.nodes:
-        graph.nodes[node]["dist"] = 0
-    q = deque()
-    for node in list(nx.topological_generations(graph))[0]:
-        q.append(node)
-        while not len(q) == 0:
-            curnode = q.popleft()
-            graph.nodes[curnode]["dist"] = max(
-                graph.nodes[curnode]["dist"],
-                nx.dijkstra_path_length(graph, node, curnode),
-            )
-            for child in graph.successors(curnode):
-                q.append(child)
-    return graph
-
-
-def assign_upstream_path_lengths_old(graph):
-    """
-    Assigns the longest path to each node in the graph.
-    Currently ignores actual latencies of nodes.
-    """
-    for node in graph:
-        graph.nodes[node]["dist"] = 0
-    for i, generations in enumerate(nx.topological_generations(graph)):
-        for node in generations:
-            graph.nodes[node]["dist"] = max(i, graph.nodes[node]["dist"])
-
-    return graph
-
-def sdc_schedule(graph, hw_element_counts, hw_netlist, no_resource_constraints=False, add_resource_edges=False):
+def sdc_schedule(graph, topo_order_by_elem, extra_constraints=[], add_resource_edges=False, debug=False):
     """
     Runs the convex optimization problem to minimize the longest path latency.
     Encodes data dependency constraints from CDFG and resource constraints using
     the SDC formulation published here https://www.csl.cornell.edu/~zhiruz/pdfs/sdc-dac2006.pdf.
     TODO: Add exact hw schema constraints as resource constraints. Right now we assume hardware is
     all to all.
+
+    Args:
+        graph (nx.DiGraph): The data flow graph.
+        topo_order_by_elem (dict): Topological orderings by element type.
+        extra_constraints (list, optional): Additional constraints to include. Defaults to [].
+        add_resource_edges (bool, optional): Whether to add hardware resource constraints. Defaults to False.
+        debug (bool, optional): If True, print debug information. Defaults to False.
+
+    Returns:
+        dict: Schedule results, including node timings and resource assignments.
     """
     constraints = []
-    vars = []
+    opt_vars = []
     graph_nodes = graph.nodes(data=True)
     id = 0
+    if debug: sim_util.topological_layout_plot(graph)
+
     for node in graph_nodes:
         curr_var = cp.Variable(
             2, name=node[0]
         )  # first one is start time and last one is end time
-        vars.append(curr_var)
+        opt_vars.append(curr_var)
         # start time + latency = end time for each operating node
         node[1]["scheduling_id"] = id
         node[1]["allocation"] = ""
         id += 1
         constraints.append(curr_var[0] >= 0)
         if "cost" in node[1].keys():
-            constraints.append(curr_var[0] + node[1]["cost"] == curr_var[1])
+            parents = list(graph.successors(node[0]))
+            net_delay = 0
+            num_net_delays = 0
+            for parent in parents:
+                edge_data = list(graph.edges([parent, node[0]]))[0]
+                if "cost" in edge_data:
+                    num_net_delays += 1
+                    net_delay += edge_data["cost"]
+            if num_net_delays: logger.info(f"adding net delay of {net_delay}")
+            assert num_net_delays <= 1
+            constraints.append(curr_var[0] + node[1]["cost"] + net_delay == curr_var[1])
+
+    for node in graph_nodes:
+        # constrain arithmetic ops to load from register right before they begin, and store right after to prevent value overwrites
+        curr_var = opt_vars[node[1]["scheduling_id"]]
+        successors = list(graph.successors(node[0]))
+        op_count = 0
+        for successor in successors:
+            child = graph.nodes[successor]
+            reg_to_arith_op = node[1]["function"] == "Regs" and child["function"] not in ["Regs", "end", "Buf"]
+            main_mem_to_buf = node[1]["function"] == "MainMem" and child["function"] == "Buf"
+            op_to_reg = node[1]["function"] not in ["Regs"] and child["function"] == "Regs"
+            if reg_to_arith_op or op_to_reg or main_mem_to_buf:
+                op_count += 1
+                constraints += [curr_var[1] <= opt_vars[child["scheduling_id"]][0] + 0.00001, curr_var[1] >= opt_vars[child["scheduling_id"]][0] - 0.00001] # allow a slight variation to accommodate register topological order hacky fix
+                logger.info(f"constraining {node[0]} to execute right before {successor}")
+        assert op_count <= 1, f"each node should have at most 1 arithmetic op or reg child, violating node is {node[0]}"
 
     # data dependency constraints
     for u, v in graph.edges():
         source_id = int(graph_nodes[u]["scheduling_id"])
         dest_id = int(graph_nodes[v]["scheduling_id"])
-        constraints.append(vars[source_id][1] - vars[dest_id][0] <= 0.0)
+        constraints.append(opt_vars[source_id][1] - opt_vars[dest_id][0] <= 0.0)
 
-    topological_order = longest_path_first_topological_sort(graph)
-    if not no_resource_constraints:
-        resource_constraints = []
-        for i in range(len(topological_order)):
-            curr_func_count = 0
-            start_node = topological_order[i]
-            if graph.nodes[start_node]["function"] not in hw_element_counts:
-                continue
-            curr_func_count += 1
-            for j in range(i + 1, len(topological_order)):
-                curr_node = topological_order[j]
-                if graph.nodes[curr_node]["function"] not in hw_element_counts:
-                    continue
-                if (
-                    graph.nodes[curr_node]["function"]
-                    == graph.nodes[start_node]["function"]
-                ):
-                    curr_func_count += 1
-                    if (
-                        curr_func_count
-                        > 2 * hw_element_counts[graph.nodes[curr_node]["function"]]
-                    ):
-                        break
-                    if (
-                        curr_func_count
-                        > hw_element_counts[graph.nodes[curr_node]["function"]]
-                    ):
-                        # add a constraint
-                        resource_constraints.append(
-                            vars[graph.nodes[start_node]["scheduling_id"]][0]
-                            - vars[graph.nodes[curr_node]["scheduling_id"]][0]
-                            <= -graph.nodes[start_node]["cost"]
-                        )
-        constraints += resource_constraints
-    obj = cp.Minimize(vars[graph_nodes["end"]["scheduling_id"]][0])
+    resource_chain_edges = []
+    resource_edge_graph = None
+    if add_resource_edges or debug: resource_edge_graph = graph.copy()
+
+    resource_constraints = []
+    for elem in topo_order_by_elem:
+        #print(elem)
+        if elem.startswith("Buf"): continue
+        for i in range(len(topo_order_by_elem[elem])-1):
+            first_node = topo_order_by_elem[elem][i]
+            next_node = topo_order_by_elem[elem][i+1]
+            resource_constraints += [
+                opt_vars[graph.nodes[first_node]["scheduling_id"]][1] <=
+                opt_vars[graph.nodes[next_node]["scheduling_id"]][0]
+            ]
+            if debug: resource_chain_edges.append((first_node, next_node))
+            if add_resource_edges or debug: 
+                resource_edge_graph.add_edge(first_node, next_node, weight=graph.nodes[first_node]["cost"])
+            graph.nodes[first_node]["allocation"] = elem
+            graph.nodes[next_node]["allocation"] = elem
+            logger.info(f"constraining {next_node} to be later than {first_node}")
+    for extra_constraint in extra_constraints: # used for register ordering in first scheduling pass
+        resource_constraints += [
+            opt_vars[graph.nodes[extra_constraint[0]]["scheduling_id"]][0] + 0.00001
+            <= opt_vars[graph.nodes[extra_constraint[1]]["scheduling_id"]][0]
+        ]
+        logger.info(f"constraining {extra_constraint[1]} to be later than {extra_constraint[0]} (register ordering constraint)")
+    constraints += resource_constraints
+
+    if debug:
+        sim_util.topological_layout_plot(resource_edge_graph, extra_edges=resource_chain_edges)
+
+    obj = cp.Minimize(opt_vars[graph_nodes["end"]["scheduling_id"]][0])
     prob = cp.Problem(obj, constraints)
     prob.solve()
+    #print(prob.status)
 
-    # num_stall_nodes_added = add_stall_nodes_to_sdc(graph, vars)
     # assign start and end times to each node
     for node in graph_nodes:
-        start_time, end_time = vars[node[1]['scheduling_id']].value
-        node[1]['start_time'] = np.round(start_time, 3)
-        node[1]['end_time'] = np.round(end_time, 3)
-    
-    # need a way to assert hardware nodes to nodes to the nodes in the cfg
-    nodes_by_start_time = defaultdict(list)
+        #print(node)
+        #print(opt_vars[0])
+        start_time, end_time = opt_vars[node[1]['scheduling_id']].value
+        node[1]['start_time'] = np.round(start_time, 5)
+        node[1]['end_time'] = np.round(end_time, 5)
 
-    # Populate the dictionary
-    for node, data in graph.nodes(data=True):
-        start_time = data.get('start_time')
-        if start_time is not None:
-            nodes_by_start_time[start_time].append((node, data))
-
-    # Convert to a sorted list of (start_time, nodes) tuples
-    sorted_nodes_by_start_time = sorted(nodes_by_start_time.items())
-    # dictionary of hw elements from name to data
-    hw_elements_by_name = {node[0]: node[1] for node in hw_netlist.nodes.data()}
-    # go through each layer and allocate nodes to hardware elements
-    # keep track of each hardware element and it's next available free time and allocated accordingly
-    hardware_elements_by_next_free_time = defaultdict(float)
-    hardware_element_allocations_by_start_time = {}
-    for node in hw_netlist.nodes.data():
-        hardware_elements_by_next_free_time[node[0]] = 0
-        hardware_element_allocations_by_start_time[node[0]] = []
-    
-    if not no_resource_constraints:
-        for layer in range(len(sorted_nodes_by_start_time)):
-            curr_gen_nodes = sorted_nodes_by_start_time[layer][1]
-            for node in curr_gen_nodes:
-                node_start_time = node[1]['start_time']
-                node_end_time = node[1]['end_time']
-                node_function = node[1]['function']
-                # find the hardware element with the smallest next free time
-                # allocate the node to that hardware element
-                # update the hardware element's next free time
-                found_hardware_element = False
-                for hardware_element in hardware_elements_by_next_free_time:
-                    if node_function in ["start", "end"]:
-                        found_hardware_element = True
-                        continue
-                    if hardware_elements_by_next_free_time[hardware_element] <= node_start_time and hw_elements_by_name[hardware_element]['function'] == node_function:
-                        graph.nodes[node[0]]['allocation'] = hardware_element
-                        hardware_elements_by_next_free_time[hardware_element] = node_end_time
-                        found_hardware_element = True
-                        hardware_element_allocations_by_start_time[hardware_element].append((node[0], node[1]['cost'])) # node name and latency
-                        break
-                if not found_hardware_element:
-                    raise ValueError(f"No hardware element found for node {node[0]} with function {node_function} at time {node_start_time}")
-    
-    resource_edge_graph = None
-    if add_resource_edges:
-        resource_edge_graph = graph.copy()
-        for hw_element in hw_netlist.nodes.data():
-            allocations = hardware_element_allocations_by_start_time[hw_element[0]]
-            for i in range(1, len(allocations)):
-                resource_edge_graph.add_edge(allocations[i-1][0], allocations[i][0], weight=allocations[i-1][1])
+    if debug:
+        fig, ax = sim_util.plot_schedule_gantt(graph)
+        plt.show()
 
     return resource_edge_graph
 
-def write_df(in_use, hw_element_counts, execution_time, step):
-    data = {
-        round(i * step, 3): [0] * hw_element_counts["Regs"]
-        for i in range(0, int(math.ceil(execution_time / step)))
-    }
-    for key in in_use:
-        for elem in in_use[key]:
-            data[key][int(elem[-1])] = 1
-    df = pd.DataFrame(data=data).transpose()
-    cols = {i: f"reg{i}" for i in range(hw_element_counts["Regs"])}
-    df = df.rename(columns=cols)
-    df.index.name = "time"
-    df.to_csv("logs/reg_use_table.csv")
-
-
-def log_register_use(computation_graph, step, hw_element_counts, execution_time):
+class node:
     """
-    Logs which registers' values are being used at discrete time intervals.
+    Represents a node in the data flow graph for scheduling, including its attributes and connections.
 
-    Params:
-    computation_graph: nx.DiGraph
-        The computation graph containing operations to be examined
-    step: int
-        The discrete time step at which we log register use
+    Args:
+        id (int): Node identifier.
+        name (str): Name of the node.
+        tp (str): Type of the node.
+        module (str): Hardware module name.
+        delay (float): Delay associated with the node.
+        library (str): Library name for the node.
     """
-    in_use = {}
+    def __init__(self, id, name, tp, module, delay, library):
+        self.id = id
+        self.name = name
+        self.type = tp
+        self.module = module
+        self.delay = delay
+        self.library = library
+        self.successors = []
+        self.predecessors = []
 
-    for node in computation_graph:
-        func = computation_graph.nodes[node]["function"]
-        if not func == "Regs":
-            continue
-        first_time_step = (computation_graph.nodes[node]["dist"] // step) * step
-        out_edge = list(computation_graph.out_edges(node))[0]
-        end_time = (
-            computation_graph.nodes[node]["dist"]
-            + computation_graph.edges[out_edge]["weight"]
-        )
-        end_time_step = (end_time // step) * step
-        i = round(first_time_step, 3)
-        while i <= end_time_step:
-            if i not in in_use:
-                in_use[i] = []
-            in_use[i].append(computation_graph.nodes[node]["allocation"])
-            i = round(i + step, 3)
-    keys = list(in_use.keys())
-    keys.sort()
-    in_use_sorted = {i: in_use[i] for i in keys}
-    write_df(in_use_sorted, hw_element_counts, execution_time, step)
+    def __str__(self):
+        return f"========================\nNode id: {self.id}\nName: {self.name}\ntype: {self.type}\nmodule: {self.module}\n========================\n"
 
+    def label(self):
+        return f"{self.module}-{self.id}-{self.type}"
 
-def check_valid_hw(computation_graph, hw_netlist):
+class gnt_schedule_parser:
     """
-    Checks if for every pair of operators, that isn't already bidirectionally connected,
-    there exists at least one register that both operators are bidirectionally connected to.
+    Parses and converts Catapult-generated schedule files (.gnt) into standard data flow graphs (DFGs)
+    for further analysis and scheduling.
+
+    Args:
+        build_dir (str): Directory containing schedule and report files.
+        module_map (dict): Mapping from ccore module names to standard operator names.
     """
-    hw_graph = nx.DiGraph()
+    def __init__(self, build_dir, module_map):
+        self.filename = build_dir + "/schedule.gnt"
+        self.bom_file = build_dir + "/rtl.rpt"
+        self.line_map = {}
+        self.loop_indices = []
+        self.top_loop = None
+        self.node_names = set()
+        self.G = nx.DiGraph()
+        self.modified_G = nx.DiGraph()
+        self.ignore_types = ["ASSIGN", "TERMINATE"]
+        self.latest_names = {}
+        self.loop_graphs = {} # loop id -> saved graph
+        self.module_map = module_map # mapping from ccore module to standard operator name
+        self.extra_edges = [] # resource edges
+        self.element_counts = {}
 
-    for node_id, attrs in hw_netlist.nodes(data=True):
-        hw_graph.add_node(node_id, **attrs)
+    def parse(self):
+        self.parse_bom()
+        self.parse_gnt_loops()
+        self.G, _, _ = self.create_graph_for_loop(self.top_loop)
+        #self.remove_loop_nodes()
 
-    for edge in hw_netlist.edges():
-        hw_graph.add_edge(*edge)
+    def convert(self):
+        self.convert_to_standard_dfg()
 
-    register_nodes = [
-        node
-        for node, data in hw_graph.nodes(data=True)
-        if data.get("type") == "memory" and data.get("function") == "Regs"
-    ]
-
-    operator_nodes = [
-        node for node, data in hw_graph.nodes(data=True) if data.get("type") == "pe"
-    ]
-
-    for op1, op2 in combinations(operator_nodes, 2):
-        if hw_graph.has_edge(op1, op2) and hw_graph.has_edge(op2, op1):
-            continue
-        found_valid_register = False
-        for register in register_nodes:
-            if (
-                hw_graph.has_edge(op1, register)
-                and hw_graph.has_edge(register, op1)
-                and hw_graph.has_edge(op2, register)
-                and hw_graph.has_edge(register, op2)
-            ):
-                found_valid_register = True
+    def parse_bom(self):
+        file = open(self.bom_file, "r")
+        lines = file.readlines()
+        i = 0
+        while (i < len(lines)):
+            if lines[i].strip().startswith("[Lib: assembly]"):
                 break
+            i += 1
+        i += 1
+        while (i < len(lines)):
+            if lines[i].strip().startswith("[Lib: nangate") or lines[i].strip().startswith("TOTAL AREA"):
+                break
+            data = lines[i].strip().split()
+            if data:
+                module_type = data[0].split('(')[0]
+                if module_type in self.module_map:
+                    if data[-1] == 0:
+                        logger.warning(f"{module_type} has zero count post assign, setting to 1")
+                    if self.module_map[module_type] not in self.element_counts:
+                        self.element_counts[self.module_map[module_type]] = 0
+                    # if multiple modules are mapped to the same module type, just add them up for count purposes
+                    self.element_counts[self.module_map[module_type]] += max(int(data[-1]), 1)
+            i += 1
+        logger.info(str(self.element_counts))
 
-        if not found_valid_register:
-            return False
+    def convert_to_standard_dfg(self):
+        """
+        takes the output of parse_gnt_to_graph and converts
+        it to our standard dfg format for use in the rest of the flow.
+        We discard catapult-specific information and convert each node
+        to one of our standard operators with the correct delay value.
+        Also add resource dependencies.
 
-    return True
+        Arguments:
+        - graph: output of parse_gnt_to_graph
+        - node_objects: mapping of node -> node class object
+        """
+        for node in self.G:
+            node_data = self.G.nodes[node]
+            #print(node, node_data)
+            assert node_data["module"] and node_data["module"][:node_data["module"].find('(')] in self.module_map
 
+        #sim_util.topological_layout_plot(self.G)
 
-def pre_schedule(computation_graph, hw_netlist, hw_latency):
-    if not check_valid_hw(computation_graph, hw_netlist):
-        raise ValueError(
-            "Hardware netlist is not valid. Please ensure that every operator node is bi-directionally connected to every register node."
+        for node in self.G:
+            node_data = self.G.nodes[node]
+            module_prefix = node_data["module"][:node_data["module"].find('(')]
+            fn = self.module_map[module_prefix]
+            self.modified_G.add_node(
+                node,
+                id=node_data["id"],
+                function=fn,
+                cost=node_data["delay"],
+                start_time=0,
+                end_time=0,
+                allocation="",
+                library=node_data["library"]
+            )
+        self.modified_G.add_node(
+            "end",
+            function="end"
         )
+        for node in self.G:
+            node_data = self.G.nodes[node]
+            for child in self.G.successors(node):
+                self.modified_G.add_edge(
+                    node, 
+                    child, 
+                    cost=0, # cost to be set after parasitic extraction 
+                    weight=self.modified_G.nodes[node]["cost"]
+                ) 
+            if not len(list(self.G.successors(node))):
+                self.modified_G.add_edge(
+                    node, "end",
+                    weight=self.modified_G.nodes[node]["cost"]
+                )
 
+        #sim_util.topological_layout_plot(self.modified_G)
+        while not nx.is_directed_acyclic_graph(self.modified_G):
+            cycle = nx.find_cycle(self.modified_G)
+            logger.info(f"Graph is not a Directed Acyclic Graph (DAG). Cycle is {cycle}")
+            for edge in cycle:
+                self.modified_G.remove_edge(edge[0], edge[1])
 
-    operator_edges = [
-        (u, v, data)
-        for u, v, data in computation_graph.edges(data=True)
-        if computation_graph.nodes(data=True)[u]["function"]
-        not in ["Regs", "Buf", "MainMem"]
-        and computation_graph.nodes(data=True)[v]["function"]
-        not in ["Regs", "Buf", "MainMem"]
-    ]
-    register_nodes = [
-        node
-        for node, data in computation_graph.nodes(data=True)
-        if data["function"] == "Regs"
-    ]
+        # add resource dependencies
+        topo_order = longest_path_first_topological_sort(self.modified_G)
+        topo_order_by_func = {func: [] for func in self.element_counts.keys()}
+        for node in topo_order:
+            node_data = self.modified_G.nodes[node]
+            if node_data["function"] in self.element_counts:
+                topo_order_by_func[node_data["function"]].append(node)
+        #print(topo_order_by_func)
+        topo_order_by_elem = {func: {i: [] for i in range(self.element_counts[func])} for func in self.element_counts.keys()}
+        for func in topo_order_by_func:
+            for i in range(len(topo_order_by_func[func])):
+                topo_order_by_elem[func][i%self.element_counts[func]].append(topo_order_by_func[func][i])
+        #print(topo_order_by_elem)
+        for func in topo_order_by_elem:
+            for elem in topo_order_by_elem[func]:
+                for i in range(len(topo_order_by_elem[func][elem])-1):
+                    assert self.modified_G.has_node(topo_order_by_elem[func][elem][i])
+                    assert self.modified_G.has_node(topo_order_by_elem[func][elem][i+1])
+                    self.modified_G.add_edge(
+                        topo_order_by_elem[func][elem][i],
+                        topo_order_by_elem[func][elem][i+1],
+                        weight=self.modified_G.nodes[topo_order_by_elem[func][elem][i]]["cost"]
+                    )
+                    logger.info(f"adding resource dependency between {topo_order_by_elem[func][elem][i]} and {topo_order_by_elem[func][elem][i+1]}")
+                    self.extra_edges.append((topo_order_by_elem[func][elem][i], topo_order_by_elem[func][elem][i+1]))
 
-    for edge in computation_graph.edges(data=True):
-        if edge[1] in register_nodes:
-            reg_weight = edge[2]["weight"]
-            break
+        nx.write_gml(self.modified_G, "src/tmp/schedule.gml")
+        logger.info(f"longest path length: {nx.dag_longest_path_length(self.modified_G)}")
+        logger.info(f"longest path: {nx.dag_longest_path(self.modified_G)}")
 
-    reg_ids = [int(name.split(";")[1]) for name in register_nodes]
-    new_node_id = max(reg_ids) + 1
-
-    for u, v, data in operator_edges:  # this shouldn't run after the first iteration
-        if (u, v) not in hw_netlist.edges():
-            new_node_name = f"tmp_op_reg;{new_node_id}"
-            computation_graph.add_node(new_node_name, function="Regs", cost=hw_latency["Regs"])
+    def get_unique_node_name(self, node_id):
+        if node_id not in self.latest_names:
+            self.latest_names[node_id] = 0
+            name = f"{node_id};0"
+        else:
+            i = self.latest_names[node_id]
+            name = f"{node_id};{i}"
+            while name in self.node_names:
+                i += 1
+                name = f"{node_id};{i}"
+                assert i < 100000000
+            self.latest_names[node_id] = i
+        self.node_names.add(name)
             
-            computation_graph.remove_edge(u, v)
-            computation_graph.add_edge(u, new_node_name, weight=reg_weight)
-            computation_graph.add_edge(new_node_name, v, **data)
+        return name
 
-            new_node_id += 1
+    def parse_gnt_loops(self):
+        with open(self.filename, 'r') as file:
+            lines = file.readlines()
+            for line in lines:
+                if not line.startswith("set a("): continue
+
+                node_id = line[line.find('(')+1:line.find(')')]
+                self.line_map[node_id] = line
+                tokens = line.split()
+                node_type = None
+                if (line.find(" TYPE ") != -1):
+                    for i in range(len(tokens)):
+                        if (tokens[i] == "TYPE"):
+                            node_type = tokens[i+1]
+                            break
+                    assert node_type, f"{line}"
+                if node_type != "LOOP": continue
+                self.loop_indices.append(node_id)
+            logger.info(f"loop indices: {self.loop_indices}")
+
+            # ind -> successor inds
+            loop_successors = {}
+
+            # determine loop nesting
+            for ind in self.loop_indices:
+                line = self.line_map[ind]
+                tokens = line.split()
+                loop_successors[ind] = []
+                if (line.find("{CHI ") != -1):
+                    for i in range(len(tokens)):
+                        if (tokens[i] == "{CHI"):
+                            for j in range(i+1, len(tokens)):
+                                if tokens[j].startswith('{'): tokens[j] = tokens[j][1:]
+                                if tokens[j].endswith('}'): tokens[j] = tokens[j][:-1]
+                                if (tokens[j] == "ITERATIONS"): break
+                                if tokens[j] in self.loop_indices:
+                                    loop_successors[ind].append(tokens[j])
+                            break
+            
+            # determine top loop       
+            all_loops = set(self.loop_indices)
+            logger.info(f"loop hierarchy: {loop_successors}")
+            for ind in self.loop_indices:
+                for successor in loop_successors[ind]:
+                    if successor in all_loops: all_loops.remove(successor)
+            assert len(all_loops) == 1, list(all_loops)
+            self.top_loop = list(all_loops)[0]
+
+    def get_node_type(self, node_id):
+        line = self.line_map[node_id]
+        tokens = self.line_map[node_id].split(' ')
+        node_type = ""
+        if (line.find(" TYPE ") != -1):
+            for i in range(len(tokens)):
+                if (tokens[i] == "TYPE"):
+                    node_type = tokens[i+1]
+                    break
+            assert node_type, f"{line}"
+        return node_type
+
+    def find_successors(self, node_id):
+        tokens = self.line_map[node_id].split(' ')
+        successors = []
+        if (self.line_map[node_id].find(" SUCCS ") != -1):
+            for i in range(len(tokens)):
+                if (tokens[i] == "SUCCS"):
+                    for j in range(i+1, len(tokens)):
+                        if (tokens[j] == "CYCLES"): break
+                        if tokens[j] in self.line_map and self.get_node_type(tokens[j]) not in self.ignore_types:
+                            successors.append(tokens[j])
+        logger.info(f"successors of {node_id} are {successors}")
+        return successors
+
+    def find_predecessors(self, node_id):
+        tokens = self.line_map[node_id].split(' ')
+        predecessors = []
+        if (self.line_map[node_id].find(" PREDS ") != -1):
+            for i in range(len(tokens)):
+                if self.get_node_type(node_id) in self.ignore_types: continue
+                if (tokens[i] == "PREDS"):
+                    for j in range(i+1, len(tokens)):
+                        if (tokens[j] == "SUCCS"): break
+                        if tokens[j] in self.line_map and self.get_node_type(tokens[j]) not in self.ignore_types: 
+                            predecessors.append(tokens[j])
+        return predecessors
+
+    def find_loop_children(self, loop_id):
+        assert "{CHI" in self.line_map[loop_id]
+        tokens = self.line_map[loop_id].split()
+
+        ids = []
+        for i in range(len(tokens)):
+            if tokens[i] == "{CHI":
+                for j in range(i+1, len(tokens)):
+                    if tokens[j] == "ITERATIONS": break
+                    if tokens[j].startswith("{"): tokens[j] = tokens[j][1:]
+                    if tokens[j].endswith("}"): tokens[j] = tokens[j][:-1]
+                    if self.get_node_type(tokens[j]) in self.ignore_types: continue
+                    ids.append(tokens[j])
+        return ids
+    
+    def get_num_iterations(self, loop_id):
+        assert " ITERATIONS " in self.line_map[loop_id]
+        tokens = self.line_map[loop_id].split()
+        iters = tokens[tokens.index("ITERATIONS")+1]
+        if iters == "Infinite": iters = "1"
+        return int(iters)
+    
+    def connect_set_of_nodes(self, preds, succs, G):
+        for pred in preds:
+            for succ in succs:
+                G.add_edge(pred, succ)
+                #logger.info(f"connecting {pred} to {succ}")
+
+    def get_node_info(self, node_id):
+        line = self.line_map[node_id].strip()
+        assert line.startswith("set a(")
+        node_id = line[line.find('(')+1:line.find(')')]
+        tokens = line.split()
+        node_name = ""
+        if (line.find(" NAME ") != -1):
+            for i in range(len(tokens)):
+                if (tokens[i] == "NAME"):
+                    node_name = tokens[i+1]
+                    break
+            assert node_name != "", f"{line}"
+        # print(node_name)
+        node_type = self.get_node_type(node_id)
+        node_module = ""
+        if (line.find(" MODULE ") != -1):
+            for i in range(len(tokens)):
+                if (tokens[i] == "MODULE"):
+                    node_module = tokens[i+1]
+                    break
+            assert node_module, f"{line}"
+        node_delay = 0
+        if (line.find(" DELAY ") != -1): # todo: investigate if CYCLES need to be added to delay
+            for i in range(len(tokens)):
+                if (tokens[i] == "DELAY"):
+                    node_delay = float(tokens[i+1][1:]) # take out brackets with [1:-1]
+            #print(node_delay)
+        node_library = ""
+        if (line.find(" LIBRARY ") != -1):
+            for i in range(len(tokens)):
+                if (tokens[i] == "LIBRARY"):
+                    node_library = tokens[i+1]
+        return node_name, node_type, node_module, node_delay, node_library
+    
+    # return labels of roots and leaves
+    def create_graph_for_loop(self, loop_id):
+        G = nx.DiGraph()
+        if loop_id in self.loop_graphs:
+            logger.info(f"using presaved version of graph for {loop_id}")
+            G_saved = self.loop_graphs[loop_id]
+            node_mapping = {}
+            # maintain the same structure from the saved graph, but change all the node names
+            for node in G_saved:
+                assert ';' in node
+                new_name = self.get_unique_node_name(node[:node.find(';')])
+                node_mapping[node] = new_name
+                logger.info(f"changed {node} from presaved graph to {new_name}")
+                G.add_node(new_name, **G_saved.nodes[node])
+            for node in G_saved:
+                for successor in G_saved.successors(node):
+                    G.add_edge(node_mapping[node], node_mapping[successor])
+        else:
+            node_ids = self.find_loop_children(loop_id)
+            logger.info(f"loop children for {loop_id}: {node_ids}")
+            names = {}
+            successors = {}
+            predecessors = {}
+
+            # add node objects for each id in loop children
+            for node_id in node_ids:
+                names[node_id] = self.get_unique_node_name(node_id)
+                predecessors[names[node_id]] = []
+                successors[names[node_id]] = []
+                node_name, node_type, node_module, node_delay, node_library = self.get_node_info(node_id)
+                G.add_node(
+                    names[node_id],
+                    name=node_name,
+                    id=node_id,
+                    tp=node_type,
+                    module=node_module,
+                    delay=node_delay,
+                    library=node_library
+                )
+            
+            # add edges between nodes
+            for node_id in node_ids:
+                all_successors = self.find_successors(node_id)
+                for successor in all_successors:
+                    assert successor in names
+                    predecessors[names[successor]].append(names[node_id])
+                    successors[names[node_id]].append(names[successor])
+
+            for node_id in node_ids:
+                for successor in successors[names[node_id]]:
+                    self_loop = successor in predecessors[successor] or names[node_id] in successors[names[node_id]]
+                    single_loop = successor in successors[names[node_id]] and names[node_id] in successors[successor]
+
+                    if not (self_loop or single_loop):
+                        G.add_edge(names[node_id], successor)
+                        logger.info(f"in original function, connecting {names[node_id]} with {successor}")
+                    elif self_loop:
+                        logger.warning(f"{node_id} contains self loop")
+                    else: 
+                        assert single_loop
+                        if not G.nodes[names[node_id]]["module"]: # meaning its a ccore port
+                            assert self.get_node_type(node_id) == "{C-CORE"
+                            port_name = G.nodes[names[node_id]]["name"]
+                            if port_name.find('.') != -1:
+                                port_id = port_name.split('.')[1][0]
+                                if port_id == "z": # output
+                                    G.add_edge(successor, names[node_id])
+                                    logger.info(f"in original function, connecting {names[node_id]} with {successor} as unit to c-core pair")
+                                else:
+                                    G.add_edge(names[node_id], successor)
+                                    logger.info(f"in original function, connecting {names[node_id]} with {successor} as c-core to unit pair")
 
 
-def greedy_schedule(
-    computation_graph, hw_element_counts, hw_netlist, save_reg_use_table=False
-):
-    """
-    Schedules the computation graph on the hardware netlist
-    by determining the order of operations and the states in which
-    they are executed. Includes the adding of stalls to account for
-    data dependencies and in use elements.
 
-    Allocation of operations to hardware elements is done in this function, in a greedy fashion.
+            
+            # create nested loops
+            for node_id in node_ids:
+                if node_id in self.loop_indices:
+                    iters = self.get_num_iterations(node_id)
+                    logger.info(f"creating nested loop for {node_id} with {iters} iters")
+                    loop_roots, loop_leaves = [], []
+                    for _ in range(iters):
+                        sub_G, loop_roots_i, loop_leaves_i = self.create_graph_for_loop(node_id)
+                        # add all nodes and edges from subgraph into current graph
+                        for node in sub_G:
+                            logger.info(f"adding node {node} from subgraph")
+                            G.add_node(node, **sub_G.nodes[node])
+                        for node in sub_G:
+                            for successor in sub_G.successors(node):
+                                logger.info(f"adding edge between {node} and {successor} after subgraph")
+                                G.add_edge(node, successor)
+                        loop_roots.append(loop_roots_i)
+                        loop_leaves.append(loop_leaves_i)
+                    #connect incoming nodes to first iteration of loop, and outgoing nodes to outgoing nodes of last loop iteration
+                    self.connect_set_of_nodes(predecessors[names[node_id]], loop_roots[0], G)
+                    self.connect_set_of_nodes(loop_leaves[-1], successors[names[node_id]], G)
+                    # connect intermediate loop iterations
+                    for i in range(1, iters):
+                        self.connect_set_of_nodes(loop_leaves[i-1], loop_roots[i], G)
+            
+            #prune graph for unnecessary node types
+            nodes_removed = []
+            edges_to_remove = []
+            for node in G:
+                node_data = G.nodes[node]
+                #print(node, node_data)
 
-    Params:
-    computation_graph: nx.DiGraph
-        The computation graph to be scheduled
-    hw_element_counts: dict
-        The number of hardware elements of each type (function)
-    hw_netlist: nx.DiGraph
-        The hardware netlist to be scheduled on
-    """
-    def greedy_schedule_main():
-        nonlocal computation_graph, hw_element_counts, hw_netlist
-        hw_element_counts["stall"] = np.inf
-        # do topo sort from beginning and add dist attribute to each node
-        # for longest path to get to it from a gen[0] node.
-        # reset layers:
-        for node in computation_graph.nodes:
-            computation_graph.nodes[node]["layer"] = -np.inf
-        computation_graph = assign_upstream_path_lengths_dijkstra(computation_graph)
-
-        stall_counter = 0  # used to ensure unique stall names
-        pushed = []
-        # going through the computation graph from the end to the beginning and bubbling up operations
-        generations = list(nx.topological_generations(nx.reverse(computation_graph)))
-        layer = 0
-        while layer < len(generations) or len(pushed) != 0:
-            if layer >= len(generations):
-                generation = []
-            else:
-                generation = generations[layer]
-            generation += pushed
-            pushed = []
-
-            # if any horizontal dependencies, push them to the next layer
-            for node in generation:
-                out_nodes = list(map(lambda x: x[1], computation_graph.out_edges(node)))
-                intersect = set(out_nodes).intersection(set(generation))
-                if intersect:
-                    pushed.append(node)
+                if node_data["module"] and node_data["module"][:node_data["module"].find('(')] in self.module_map:
+                    assert node_data["module"].find('(') != -1
+                    logger.info(f"{node} remaining in pruned graph")
                 else:
-                    computation_graph.nodes[node]["allocation"] = ""
-                    computation_graph.nodes[node]["layer"] = -layer
-            generation = [item for item in generation if item not in pushed]
+                    logger.info(f"removing {node}")
+                    nodes_removed.append(node)
+                if G.has_edge(node, node):
+                    edges_to_remove.append((node, node))
 
-            nodes_in_gen = list(
-                filter(lambda x: x[0] in generation, computation_graph.nodes.data())
-            )
-            funcs_in_gen, counts_in_gen = np.unique(
-                list(map(lambda x: x[1]["function"], nodes_in_gen)), return_counts=True
-            )
+            logger.info(edges_to_remove)
+            for edge in edges_to_remove:
+                G.remove_edge(edge[0], edge[1])
 
-            for func, count in zip(
-                funcs_in_gen, counts_in_gen
-            ):  # for each function in the generation
-                if func == "start" or func == "end":
-                    continue
-                # if there are more operations of this type than there are hardware elements
-                # then we need to add stalls, sort descending by distance from start
-                # ie, the ones closest the start get stalled first
-                if count > hw_element_counts[func]:
-                    func_nodes = list(
-                        filter(lambda x: x[1]["function"] == func, nodes_in_gen)
-                    )
-                    func_nodes = sorted(
-                        func_nodes, key=lambda x: x[1]["dist"], reverse=True
-                    )
+            for node in nodes_removed:
+                if node in G:
+                    preds = list(G.predecessors(node))
+                    succs = list(G.successors(node))
+                    
+                    if node[:node.find(';')] not in self.loop_indices:
+                        # Create edges from predecessors to successors
+                        for pred in preds:
+                            for succ in succs:
+                                if pred != succ:  # Avoid self-loops
+                                    logger.info(f"adding edge between {pred} and {succ}")
+                                    G.add_edge(pred, succ)
+                    else:
+                        logger.info(f"{node} is a loop; just remove it")
+                    
+                    logger.info(f"actually removing {node}")
+                    # Remove the node
+                    G.remove_node(node)
 
-                    start_idx = hw_element_counts[func]
-                    for idx in range(start_idx, count):
-                        # an out edge in comp_dfg is an in_edge in the reversed_graph
-                        out_edges = list(computation_graph.out_edges(func_nodes[idx][0]))
+            # save graph in case we want to create one from this loop id again
+            self.loop_graphs[loop_id] = G
+        
+        assert nx.is_directed_acyclic_graph(G), nx.find_cycle(G)
+        topo_gens = list(nx.topological_generations(G))
+        roots, leaves = ([], []) if not len(topo_gens) else (topo_gens[0], topo_gens[-1])
+                
+        return G, roots, leaves
+    
 
-                        stall_name = f"stall_{layer}_{idx}_{func}_{stall_counter}"
-                        stall_counter += 1
-                        computation_graph.add_node(
-                            stall_name,
-                            function="stall",
-                            cost=func_nodes[idx][1]["cost"],
-                            layer=-layer,
-                            allocation="",
-                            size=(
-                                func_nodes[idx][1]["size"]
-                                if "size" in func_nodes[idx][1]
-                                else 1
-                            ),
-                            dist=0,
-                        )
-                        new_edges = []
-                        for edge in out_edges:
-                            new_edges.append(
-                                (
-                                    stall_name,
-                                    edge[1],
-                                    {"weight": computation_graph.edges[edge]["weight"]},
-                                )
-                            )
-                            new_edges.append(
-                                (
-                                    edge[0],
-                                    stall_name,
-                                    {"weight": computation_graph.edges[edge]["weight"]},
-                                )
-                            )  # edge[0] is same as func_nodes[idx][0]
-                        computation_graph.add_edges_from(new_edges)
-                        computation_graph.remove_edges_from(out_edges)
+if __name__ == "__main__":
+    if os.path.exists("src/tmp/schedule.log"): os.remove("src/tmp/schedule.log")
+    logging.basicConfig(filename=f"src/tmp/schedule.log", level=logging.INFO)
+    module_map = {
+        "add": "Add",
+        "mult": "Mult",
+        "ccs_ram_sync_1R1W_rwport": "Buf",
+        "ccs_ram_sync_1R1W_rport": "Buf",
+        "nop": "nop"
+    }
+    parser = gnt_schedule_parser("src/tmp/benchmark/build/MatMult.v1", module_map)
+    parser.parse()
+    print("finished parsing")
+    nx.write_gml(parser.G, "src/tmp/test_graph.gml")
+    #sim_util.topological_layout_plot(parser.G)
+    parser.convert()
+    print("finished converting")
+    print("hi")
+    #sim_util.topological_layout_plot(parser.modified_G, extra_edges=parser.extra_edges)
+    nx.write_gml(parser.modified_G, "src/tmp/modified_test_graph.gml")
+    lp = get_longest_paths(parser.modified_G)
+    print(lp)
 
-                        computation_graph.nodes[func_nodes[idx][0]]["layer"] = -(
-                            layer + 1
-                        )  # bubble up
-                        pushed.append(func_nodes[idx][0])
-
-            hopeful_nodes = list(
-                filter(lambda x: x[1]["layer"] >= -layer, computation_graph.nodes.data())
-            )
-            processed_nodes = list(map(lambda x: x[0], hopeful_nodes))
-            processed_graph = nx.subgraph(computation_graph, processed_nodes)
-
-            curr_gen_nodes = list(
-                filter(lambda x: x[1]["layer"] == -layer, computation_graph.nodes.data())
-            )
-            funcs_in_gen, counts_in_gen = np.unique(
-                list(map(lambda x: x[1]["function"], curr_gen_nodes)), return_counts=True
-            )
-
-            for i, func in enumerate(funcs_in_gen):
-                if func in ["start", "end", "stall"]:
-                    continue
-                assert counts_in_gen[i] <= hw_element_counts[func]
-                # do a greedy allocation of the nodes to the hardware elements
-                comp_nodes = list(
-                    filter(lambda x: x[1]["function"] == func, curr_gen_nodes)
-                )
-                hw_nodes = list(
-                    filter(lambda x: x[1]["function"] == func, hw_netlist.nodes.data())
-                )
-                for i in range(len(comp_nodes)):
-                    computation_graph.nodes[comp_nodes[i][0]]["allocation"] = hw_nodes[i][0]
-
-            layer += 1
-        if save_reg_use_table:
-            computation_graph, execution_time = assign_time_of_execution(computation_graph)
-            log_register_use(computation_graph, 0.1, hw_element_counts, execution_time)
-        # return computation_graph
-    greedy_schedule_main()
-
-    # take the output of the greedy schedule and look at end times of each node in every layer
-    # max end time is the end time of all nodes in that layer and start time = max(et) - cost of the node
-    generations = list(nx.topological_generations(computation_graph))
-    current_time = 0
-    for layer in range(len(generations)):
-        max_layer_duration = 0
-
-        # First pass: determine the maximum duration of the layer
-        for node in generations[layer]:
-            cost = computation_graph.nodes[node].get("cost", 0)
-            max_layer_duration = max(max_layer_duration, cost)
-
-        # print(max_layer_duration)
-        # Second pass: assign start and end times
-        for node in generations[layer]:
-            cost = computation_graph.nodes[node].get("cost", 0)
-            computation_graph.nodes[node]["start_time"] = current_time + max_layer_duration - cost
-            computation_graph.nodes[node]["end_time"] = max_layer_duration
-
-        # Move the current time forward by the duration of this layer
-        current_time += max_layer_duration
-
-    return computation_graph
-
+    """logging.basicConfig(filename=f"src/tmp/schedule.log", level=logging.INFO)
+    G = nx.read_gml("src/tmp/modified_test_graph.gml")
+    lp = get_longest_paths(G)"""
+    print(f"number of paths found: {len(lp)}")

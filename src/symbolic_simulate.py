@@ -1,373 +1,186 @@
-# builtin modules
-import math
-import argparse
-import os
-import sys
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
-# third party modules
-import numpy as np
-import matplotlib.pyplot as plt
-import networkx as nx
-from sympy import *
 import sympy as sp
-import pyomo.environ as pyo
-from pyomo.core.expr import Expr_if
 
-# custom modules
-from .memory import Memory
-from . import schedule
-from . import dfg_algo
-from . import hw_symbols
-from . import sim_util
-from . import hardwareModel
-from .hardwareModel import HardwareModel
-from .global_constants import SEED
 from .abstract_simulate import AbstractSimulator
-
-rng = np.random.default_rng(SEED)
+from . import hw_symbols
 
 def symbolic_convex_max(a, b):
     """
-    An approximation to the max function that plays well with these numeric solvers.
+    Max(a, b) in a format which ipopt accepts.
     """
-    return 0.5 * (a + b + sp.Abs(a - b, evaluate=False))
-
+    return 0.5 * (a + b + sp.Abs(a - b))
 
 class SymbolicSimulator(AbstractSimulator):
-
     def __init__(self):
-        self.execution_time = 0
-        self.cycles_ceil = 0
-        self.id_to_node = {}
-        self.path = os.getcwd()
-        self.data_path = []
-        self.node_intervals = []
-        self.node_sum_energy = {}
-        self.node_sum_cycles = {}
-        self.node_sum_cycles_ceil = {}
-        self.unroll_at = {}
-        self.vars_allocated = {}
-        self.where_to_free = {}
-        self.compute_element_to_node_id = {}
-        self.compute_element_neighbors = {}
-        self.memory_needed = 0
-        self.cur_memory_size = 0
-        self.total_malloc_size = 0
-        self.new_graph = None
-        self.mem_layers = 0
-        self.transistor_size = 0
-        self.pitch = 0
-        self.cache_size = 0
-        self.reads = 0
-        self.writes = 0
-        self.total_read_size = 0
-        self.total_write_size = 0
-        self.max_regs_inuse = 0
-        self.max_mem_inuse = 0
-        self.edp = None
-        self.edp_ceil = None
-        self.initial_params = {}
-        self.cacti_exprs = {}
-
-    def reset_internal_variables(self):
-        self.sim_cache = {}
-        self.total_active_energy = 0
         self.total_passive_energy = 0
-        self.total_passive_energy_ceil = 0
-        self.cycles_ceil = 0
         self.execution_time = 0
-
-    def localize_memory(self, hw, hw_graph):
-        """
-        Updates memory in buffers (cache) to ensure that the data needed for the coming DFG node
-        is in the cache.
-
-        Sets a flag to indicate whether or not there was a cache hit or miss. This affects latency
-        calculations.
-
-        This is kind of bypassed right now after we removed the caching.
-        """
-        # print(f"hw_graph.nodes.data(): {hw_graph.nodes.data()}")
-        for node, data in dict(
-            filter(lambda x: x[1]["function"] == "Regs", hw_graph.nodes.data())
-        ).items():
-            var_name = node.split(";")[0]
-            cache_hit = False
-            # print(f"data[allocation]: {data['allocation']};\nhw_graph.nodes[node][allocation]: {hw_graph.nodes[node]['allocation']}")
-            cache_hit = (
-                hw.netlist.nodes[data["allocation"]]["var"] == var_name
-            )  # no need to refetch from mem if var already in reg.
-            mapped_edges = map(
-                lambda edge: (edge[0], hw.netlist.nodes[edge[0]]),
-                hw.netlist.in_edges(hw_graph.nodes[node]["allocation"], data=True),
-            )
-
-            in_bufs = list(
-                filter(
-                    lambda node_data: node_data[1]["function"] == "Buf", mapped_edges
-                )
-            )
-            for buf in in_bufs:
-                cache_hit = buf[1]["memory_module"].find(var_name) or cache_hit
-                if cache_hit:
-                    break
-            if not cache_hit:
-                # just choose one at random. Can make this smarter later.
-                buf = rng.choice(in_bufs)  # in_bufs[0] # just choose one at random.
-
-                size = -1 * buf[1]["memory_module"].read(
-                    var_name
-                )  # size will be negative because cache miss; size is var size not mem object size
-
-                # add multiple bufs and mems, not just one. add a new one for each cache miss.
-                # this is required to properly count active power consumption.
-                # active power added once for each node in computation_graph.
-                # what about latency????
-                buf_idx = len(
-                    list(
-                        filter(
-                            lambda x: x[1]["function"] == "Buf", hw_graph.nodes.data()
-                        )
-                    )
-                )
-                mem_idx = len(
-                    list(
-                        filter(
-                            lambda x: x[1]["function"] == "MainMem",
-                            hw_graph.nodes.data(),
-                        )
-                    )
-                )
-                mem = list(
-                    filter(
-                        lambda x: x[1]["function"] == "MainMem", hw.netlist.nodes.data()
-                    )
-                )[0][0]
-                # hw_graph.add_node(
-                #     f"Buf{buf_idx}", function="Buf", allocation=buf[0], size=size
-                # )
-                hw_graph.add_node(
-                    f"Mem{mem_idx}", function="MainMem", allocation=mem, size=size
-                )
-                hw_graph.add_edge(f"Mem{mem_idx}", node, function="Mem")
-                # hw_graph.add_edge(f"Buf{buf_idx}", node, function="Mem")
-
-    def passive_energy_dissipation(self, hw, total_execution_time):
+        self.total_active_energy = 0
+        self.cacti_exprs = {}
+    
+    def calculate_passive_energy(self, hw, total_execution_time):
         """
         Passive power is a function of purely the allocated hardware,
         not the actual computation being computed. This is calculated separately at the end.
         """
         passive_power = 0
-        for node, data in dict(
-            filter(lambda x: x[1]["function"] != "Buf", hw.netlist.nodes.data())
-        ).items():
-            passive_power += (
-                hw_symbols.symbolic_power_passive[data["function"]]
-            )  # W
-        return passive_power * total_execution_time  # nJ
+        for node in hw.netlist.nodes:
+            data = hw.netlist.nodes[node]
+            if node == "end" or data["function"] == "nop": continue
+            if data["function"] == "Buf" or data["function"] == "MainMem":
+                rsc_name = data["library"][data["library"].find("__")+1:]
+                logger.info(f"(passive energy) rsc name: {rsc_name}, data: {data['function']}")
+                passive_power += hw_symbols.symbolic_power_passive[data["function"]]()[rsc_name]
+            else:
+                passive_power += (
+                    hw_symbols.symbolic_power_passive[data["function"]]()
+                )  # W
+        self.total_passive_energy = passive_power * total_execution_time  # nJ
 
-    def simulate(self, computation_dfg: nx.DiGraph, hw: HardwareModel, resource_edge_graph: nx.DiGraph=None):
-        self.reset_internal_variables()
-        hw_symbols.update_symbolic_passive_power(hw.R_off_on_ratio)
-
-        counter = 0
-
-        generations = list(
-            nx.topological_generations(computation_dfg)
-        )
-        for gen in generations:  # main loop over the computation graph;
-            if "end" in gen:  # skip the end node (only thing in the last generation)
-                break
-            counter += 1
-            for node in gen:
-                logger.info(f"node: {computation_dfg.nodes[node]}")
-
-                child_added = False
-
-                ## ================= ADD ACTIVE ENERGY CONSUMPTION =================
-                scaling = 1
-                node_data = computation_dfg.nodes[node]
-                if node_data["function"] == "stall" or node_data["function"] == "end":
-                    continue
-                if node_data["function"] in ["Buf", "MainMem"]:
-                    # active power should scale by size of the object being accessed.
-                    # all regs have the same size, so no need to scale.
-                    if node_data["function"] == "MainMem":
-                        scaling = node_data["size"] / hw.memory_bus_width
-                    else:
-                        scaling = node_data["size"] / hw.buffer_bus_width
-                    logger.info(f"energy scaling: {scaling}")
-                    energy = hw_symbols.symbolic_energy_active[
-                        node_data["function"]
-                    ] * 1e9 # J -> nJ
+    def calculate_active_energy(self, hw, scheduled_dfg):
+        # for each op, take power * latency
+        self.total_active_energy = 0
+        for node in scheduled_dfg:
+            data = scheduled_dfg.nodes[node]
+            if node == "end" or data["function"] == "nop": continue
+            if data["function"] == "Buf" or data["function"] == "MainMem":
+                rsc_name = data["library"][data["library"].find("__")+1:]
+                logger.info(f"(active energy) rsc name: {rsc_name}, data: {data['function']}")
+                logger.info(f"dict: {hw_symbols.symbolic_power_active[data['function']]()}")
+                self.total_active_energy += hw_symbols.symbolic_power_active[data["function"]]()[rsc_name] * hw_symbols.symbolic_latency_wc[data["function"]]()[rsc_name]
+            else:
+                self.total_active_energy += hw_symbols.symbolic_power_active[data["function"]]() * hw_symbols.symbolic_latency_wc[data["function"]]()
+    
+    def calculate_execution_time(self, paths, scheduled_dfg):
+        # take symbolic max over the critical paths
+        self.execution_time = 0
+        for path in paths:
+            logger.info(f"adding path to execution time calculation: {path}")
+            path_execution_time = 0
+            for node in path[1]:
+                data = scheduled_dfg.nodes[node]
+                if node == "end" or data["function"] == "nop": continue
+                if data["function"] == "Buf" or data["function"] == "MainMem":
+                    rsc_name = data["library"][data["library"].find("__")+1:]
+                    logger.info(f"(execution time) rsc name: {rsc_name}, data: {data['function']}")
+                    path_execution_time += hw_symbols.symbolic_latency_wc[data["function"]]()[rsc_name]
                 else:
-                    energy = (
-                        hw_symbols.symbolic_power_active[node_data["function"]]
-                        * hw_symbols.symbolic_latency_wc[node_data["function"]]
-                    )  # W * ns
+                    path_execution_time += hw_symbols.symbolic_latency_wc[data["function"]]()
+            self.execution_time = symbolic_convex_max(self.execution_time, path_execution_time).simplify() if self.execution_time != 0 else path_execution_time
 
-                self.total_active_energy += energy * scaling  # nJ
-
-        # TODO: NOW THIS MIGHT GET TOO EXPENSIVE. MAYBE NEED TO DO STA.
-        """logger.info("Starting Longest Path Calculation")
-        for start_node in generations[0]:
-            for end_node in generations[-1]:
-                if start_node == end_node:
-                    continue
-                logger.info(f"start_node: {start_node}, end_node: {end_node}")
-                for path in nx.all_simple_paths(computation_dfg, start_node, end_node):
-                    path_latency = 0
-                    for node in path:
-                        scaling = 1
-                        node_data = computation_dfg.nodes[node]
-                        if node_data["function"] == "end":
-                            continue
-                        elif node_data["function"] == "stall":
-                            func = node.split("_")[3]  # stall names have std formats
-                        else:
-                            func = node_data["function"]
-                        if func in ["Buf", "MainMem"]:
-                            scaling = node_data["size"]
-                            logger.info(f"latency scaling: {scaling}")
-
-                        path_latency += hw_symbols.symbolic_latency_wc[func] * scaling
-                    self.execution_time = symbolic_convex_max(self.execution_time, path_latency)"""
-
-
-        if resource_edge_graph:
-            logger.info("starting critical path latency calculation")
-            critical_path = nx.dag_longest_path(resource_edge_graph)
-            assert resource_edge_graph.nodes[critical_path[-1]]["function"] == "end" , "last node of critical path should be 'end'"
-            for node in critical_path[:-1]: # exclude "end" node
-                func = resource_edge_graph.nodes[node]["function"]
-                self.execution_time += hw_symbols.symbolic_latency_wc[func]
-        else: # greedy schedule
-            # STA
-            logger.info("starting STA latency calculation")
-            for generation in generations:
-                gen_latency = 0
-                # for non-memory/buffer terms, keep track of which functions we have seen and
-                # do not add repeats. For memory/buffer, keep track of which size of access
-                # we have seen.
-                funcs_added = set()
-                for node in generation:
-                    node_data = computation_dfg.nodes[node]
-                    if node_data["function"] == "end":
-                        continue
-                    elif node_data["function"] == "stall":
-                                func = node.split("_")[3]  # stall names have std formats
-                    else:
-                        func = node_data["function"]
-                    if func in funcs_added: continue
-                    else: funcs_added.add(func)
-                    gen_latency = symbolic_convex_max(gen_latency, hw_symbols.symbolic_latency_wc[func])
-                self.execution_time += gen_latency
-        logger.info(f"execution time: {str(self.execution_time)}")
-
-    def calculate_edp(self, hw, concrete_sub=False):
-
-        with open('src/cacti/symbolic_expressions/Mem_access_time.txt', 'r') as file:
-            mem_access_time_text = file.read()
-
-        with open("src/cacti/symbolic_expressions/Mem_read_dynamic.txt", "r") as file:
-            mem_read_dynamic_text = file.read()
-
-        with open("src/cacti/symbolic_expressions/Mem_write_dynamic.txt", "r") as file:
-            mem_write_dynamic_text = file.read()
-
-        with open("src/cacti/symbolic_expressions/Mem_read_leakage.txt", "r") as file:
-            mem_read_leakage_text = file.read()
-
-        with open("src/cacti/symbolic_expressions/Buf_access_time.txt", "r") as file:
-            buf_access_time_text = file.read()
-
-        with open("src/cacti/symbolic_expressions/Buf_read_dynamic.txt", "r") as file:
-            buf_read_dynamic_text = file.read()
-
-        with open("src/cacti/symbolic_expressions/Buf_write_dynamic.txt", "r") as file:
-            buf_write_dynamic_text = file.read()
-
-        with open("src/cacti/symbolic_expressions/Buf_read_leakage.txt", "r") as file:
-            buf_read_leakage_text = file.read()
-
-        if concrete_sub:
-            MemL_expr = hw.latency["MainMem"]
-            MemReadEact_expr = hw.dynamic_energy["MainMem"]["Read"]
-            MemWriteEact_expr = hw.dynamic_energy["MainMem"]["Write"]
-            MemPpass_expr = hw.leakage_power["MainMem"] * 1e-9
-            BufL_expr = hw.latency["Buf"]
-            BufReadEact_expr = hw.dynamic_energy["Buf"]["Read"]
-            BufWriteEact_expr = hw.dynamic_energy["Buf"]["Write"]
-            BufPpass_expr = hw.leakage_power["Buf"] * 1e-9
-        else:
-            MemL_expr = sp.sympify(mem_access_time_text, locals=hw_symbols.symbol_table) * 1e9 # convert from s to ns
-            MemReadEact_expr = sp.sympify(mem_read_dynamic_text, locals=hw_symbols.symbol_table)
-            MemWriteEact_expr = sp.sympify(mem_write_dynamic_text, locals=hw_symbols.symbol_table)
-            MemPpass_expr = sp.sympify(mem_read_leakage_text, locals=hw_symbols.symbol_table)
-
-            BufL_expr = sp.sympify(buf_access_time_text, locals=hw_symbols.symbol_table) * 1e9 # convert from s to ns
-            BufReadEact_expr = sp.sympify(buf_read_dynamic_text, locals=hw_symbols.symbol_table)
-            BufWriteEact_expr = sp.sympify(buf_write_dynamic_text, locals=hw_symbols.symbol_table)
-            BufPpass_expr = sp.sympify(buf_read_leakage_text, locals=hw_symbols.symbol_table)
-
-        # TODO: print these vs fw pass values
-        cacti_subs = {
-            hw_symbols.MemReadL: (MemL_expr / 2),
-            hw_symbols.MemWriteL: (MemL_expr / 2),
-            hw_symbols.MemReadEact: MemReadEact_expr,
-            hw_symbols.MemWriteEact: MemWriteEact_expr,
-            hw_symbols.MemPpass: MemPpass_expr,
-
-            hw_symbols.BufL: BufL_expr,
-            hw_symbols.BufReadEact: BufReadEact_expr,
-            hw_symbols.BufWriteEact: BufWriteEact_expr,
-            hw_symbols.BufPpass: BufPpass_expr,
-        }
-
-        self.total_passive_energy = self.passive_energy_dissipation(
-            hw, self.execution_time
-        )
-
-        #print(f"total passive energy: {self.total_passive_energy}", flush=True)
-        self.edp = self.execution_time * (self.total_active_energy + self.total_passive_energy)
-
-        # for now, do not substitute cacti expressions. will take too long
-        """self.execution_time = self.execution_time.xreplace(cacti_subs)
-        self.total_active_energy = self.total_active_energy.xreplace(cacti_subs)
-        self.total_passive_energy = self.total_passive_energy.xreplace(cacti_subs)
-        self.edp = self.execution_time * (self.total_active_energy + self.total_passive_energy)
-        self.edp = self.edp.xreplace(cacti_subs)
-
-        assert hw_symbols.MemReadL not in self.edp.free_symbols and hw_symbols.MemWriteL not in self.edp.free_symbols, "Mem latency not fully substituted"
-        assert hw_symbols.MemReadEact not in self.edp.free_symbols and hw_symbols.MemWriteEact not in self.edp.free_symbols, "Mem energy not fully substituted"
-        assert hw_symbols.MemPpass not in self.edp.free_symbols, "Mem passive power not fully substituted"
-        assert hw_symbols.BufL not in self.edp.free_symbols, "Buf latency not fully substituted"
-        assert hw_symbols.BufReadEact not in self.edp.free_symbols, "Buf read energy not fully substituted"
-        assert hw_symbols.BufWriteEact not in self.edp.free_symbols, "Buf write energy not fully substituted"
-        assert hw_symbols.BufPpass not in self.edp.free_symbols, "Buf passive power not fully substituted"
+        logger.info(f"symbolic execution time: {self.execution_time}")
+    
+    def calculate_edp(self, hw, paths, scheduled_dfg):
         """
-        self.cacti_exprs = {
-            "MemL_expr": MemL_expr,
-            "MemReadEact_expr": MemReadEact_expr,
-            "MemWriteEact_expr": MemWriteEact_expr,
-            "MemPpass_expr": MemPpass_expr,
-            "BufL_expr": BufL_expr,
-            "BufReadEact_expr": BufReadEact_expr,
-            "BufWriteEact_expr": BufWriteEact_expr,
-            "BufPpass_expr": BufPpass_expr
-        }
-        if not os.path.exists("src/tmp"):
-            os.makedirs("src/tmp")
-        with open("src/tmp/cacti_exprs.txt", 'w') as f:
-            txt = ""
-            for expr in self.cacti_exprs.keys():
-                txt += f"{expr}: {self.cacti_exprs[expr]}\n"
-            f.write(txt)
+        Calculate energy-delay product.
 
-        # self.edp = self.edp.subs(subs)
+        Args:
+            hw (object): Hardware object.
+            paths (list): List of longest paths from forward pass.
+            scheduled_dfg (nx.DiGraph): Scheduled data flow graph.
+
+        Returns:
+            dict: CACTI substitutions.
+        """
+
+        # TEMPORARY SO FUNCTION COMPLETES
+        MemL_expr = 0
+        MemReadEact_expr = 0
+        MemWriteEact_expr = 0
+        MemPpass_expr = 0
+        OffChipIOPact_expr = 0
+        BufL_expr = 0
+        BufReadEact_expr = 0
+        BufWriteEact_expr = 0
+        BufPpass_expr = 0
+
+        cacti_subs = {}
+        
+        for mem in hw.memories:
+            if hw.memories[mem]["type"] == "Mem":
+                MemL_expr = hw.symbolic_mem[mem].access_time * 1e9 # convert from s to ns
+                MemReadEact_expr = (hw.symbolic_mem[mem].power.readOp.dynamic + hw.symbolic_mem[mem].power.searchOp.dynamic) * 1e9 # convert from J to nJ
+                MemWriteEact_expr = (hw.symbolic_mem[mem].power.writeOp.dynamic + hw.symbolic_mem[mem].power.searchOp.dynamic) * 1e9 # convert from J to nJ
+                MemPpass_expr = hw.symbolic_mem[mem].power.readOp.leakage # TODO: investigate units of this expr
+                OffChipIOPact_expr = hw.symbolic_mem[mem].io_dynamic_power * 1e-3 # convert from mW to W
+
+            else:
+                BufL_expr = hw.symbolic_buf[mem].access_time * 1e9 # convert from s to ns
+                BufReadEact_expr = (hw.symbolic_buf[mem].power.readOp.dynamic + hw.symbolic_buf[mem].power.searchOp.dynamic) * 1e9 # convert from J to nJ
+                BufWriteEact_expr = (hw.symbolic_buf[mem].power.writeOp.dynamic + hw.symbolic_buf[mem].power.searchOp.dynamic) * 1e9 # convert from J to nJ
+                BufPpass_expr = hw.symbolic_buf[mem].power.readOp.leakage # TODO: investigate units of this expr
+
+            # only need to do in first iteration
+            if mem not in hw_symbols.MemReadL:
+                hw_symbols.MemReadL[mem] = sp.symbols(f"MemReadL_{mem}")
+                hw_symbols.MemWriteL[mem] = sp.symbols(f"MemWriteL_{mem}")
+                hw_symbols.MemReadEact[mem] = sp.symbols(f"MemReadEact_{mem}")
+                hw_symbols.MemWriteEact[mem] = sp.symbols(f"MemWriteEact_{mem}")
+                hw_symbols.MemPpass[mem] = sp.symbols(f"MemPpass_{mem}")
+                hw_symbols.OffChipIOPact[mem] = sp.symbols(f"OffChipIOPact_{mem}")
+                hw_symbols.BufL[mem] = sp.symbols(f"BufL_{mem}")
+                hw_symbols.BufReadEact[mem] = sp.symbols(f"BufReadEact_{mem}")
+                hw_symbols.BufWriteEact[mem] = sp.symbols(f"BufWriteEact_{mem}")
+                hw_symbols.BufPpass[mem] = sp.symbols(f"BufPpass_{mem}")
+
+                # update symbol table
+                hw_symbols.symbol_table[f"MemReadL_{mem}"] = hw_symbols.MemReadL[mem]
+                hw_symbols.symbol_table[f"MemWriteL_{mem}"] = hw_symbols.MemWriteL[mem]
+                hw_symbols.symbol_table[f"MemReadEact_{mem}"] = hw_symbols.MemReadEact[mem]
+                hw_symbols.symbol_table[f"MemWriteEact_{mem}"] = hw_symbols.MemWriteEact[mem]
+                hw_symbols.symbol_table[f"MemPpass_{mem}"] = hw_symbols.MemPpass[mem]
+                hw_symbols.symbol_table[f"OffChipIOPact_{mem}"] = hw_symbols.OffChipIOPact[mem]
+                hw_symbols.symbol_table[f"BufL_{mem}"] = hw_symbols.BufL[mem]
+                hw_symbols.symbol_table[f"BufReadEact_{mem}"] = hw_symbols.BufReadEact[mem]
+                hw_symbols.symbol_table[f"BufWriteEact_{mem}"] = hw_symbols.BufWriteEact[mem]
+                hw_symbols.symbol_table[f"BufPpass_{mem}"] = hw_symbols.BufPpass[mem]
+        
+            # TODO: support multiple memories in hw_symbols
+            cacti_subs_new = {
+                hw_symbols.MemReadL[mem]: MemL_expr,
+                hw_symbols.MemWriteL[mem]: MemL_expr,
+                hw_symbols.MemReadEact[mem]: MemReadEact_expr,
+                hw_symbols.MemWriteEact[mem]: MemWriteEact_expr,
+                hw_symbols.MemPpass[mem]: MemPpass_expr,
+                hw_symbols.OffChipIOPact[mem]: OffChipIOPact_expr,
+
+                hw_symbols.BufL[mem]: BufL_expr,
+                hw_symbols.BufReadEact[mem]: BufReadEact_expr,
+                hw_symbols.BufWriteEact[mem]: BufWriteEact_expr,
+                hw_symbols.BufPpass[mem]: BufPpass_expr,
+            }
+            cacti_subs.update(cacti_subs_new)
+
+            self.cacti_exprs[mem] = {
+                "MemL_expr": MemL_expr,
+                "MemReadEact_expr": MemReadEact_expr,
+                "MemWriteEact_expr": MemWriteEact_expr,
+                "MemPpass_expr": MemPpass_expr,
+                "BufL_expr": BufL_expr,
+                "BufReadEact_expr": BufReadEact_expr,
+                "BufWriteEact_expr": BufWriteEact_expr,
+                "BufPpass_expr": BufPpass_expr
+            }
+
+            """if not os.path.exists("src/tmp"):
+                os.makedirs("src/tmp")
+            with open(f"src/tmp/cacti_exprs_{mem}.txt", 'w') as f:
+                txt = ""
+                for expr in self.cacti_exprs[mem].keys():
+                    txt += f"{expr}: {self.cacti_exprs[mem][expr]}\n"
+                f.write(txt)"""
+
+        self.calculate_execution_time(paths, scheduled_dfg)
+
+        self.calculate_active_energy(hw, scheduled_dfg)
+
+        self.calculate_passive_energy(hw, self.execution_time)
+
+        self.edp = self.execution_time * (self.total_active_energy + self.total_passive_energy)
+
         return cacti_subs
 
     def save_edp_to_file(self):
@@ -380,73 +193,3 @@ class SymbolicSimulator(AbstractSimulator):
 
         with open(file_path, "w") as f:
             f.write(st)
-
-def main(args):
-    print(f"Running symbolic simulator for {args.benchmark.split('/')[-1]}")
-
-    simulator = SymbolicSimulator()
-
-    hw = HardwareModel(cfg=args.architecture_config)
-
-    hw.get_optimization_params_from_tech_params()
-
-    computation_dfg = simulator.simulator_prep(args.benchmark, hw.latency)
-
-    hw.init_memory(
-        sim_util.find_nearest_power_2(simulator.memory_needed),
-        sim_util.find_nearest_power_2(0),
-    )
-
-    computation_dfg = simulator.schedule(computation_dfg, hw, args.schedule)
-
-    simulator.transistor_size = hw.transistor_size  # in nm
-    simulator.pitch = hw.pitch
-    simulator.mem_layers = hw.mem_layers
-    if simulator.memory_needed < 1000000:
-        simulator.cache_size = 1
-    elif simulator.memory_needed < 2000000:
-        simulator.cache_size = 2
-    elif simulator.memory_needed < 4000000:
-        simulator.cache_size = 4
-    elif simulator.memory_needed < 8000000:
-        simulator.cache_size = 8
-    else:
-        simulator.cache_size = 16
-
-    hardwareModel.un_allocate_all_in_use_elements(hw.netlist)
-    simulator.simulate(computation_dfg, hw)
-    simulator.calculate_edp(hw)
-
-    # simulator.edp = simulator.edp.simplify()
-    simulator.save_edp_to_file()
-
-    return simulator.edp
-
-
-if __name__ == "__main__":
-    logging.basicConfig(
-        level=logging.INFO, filename="logs/symbolic_simulate.log"
-    )
-    parser = argparse.ArgumentParser(
-        prog="Simulate",
-        description="Runs a hardware simulation on a given benchmark and technology spec",
-        epilog="Text at the bottom of help",
-    )
-    parser.add_argument("benchmark", metavar="B", type=str)
-    parser.add_argument("--notrace", action="store_true")
-    parser.add_argument(
-        "-c",
-        "--architecture_config",
-        type=str,
-        default="aladdin_const_with_mem",
-        help="Path to the architecture file (.gml)",
-    )
-    parser.add_argument('--schedule', type=str, choices=['greedy', 'sdc'], default='greedy',
-                        help='Scheduling algorithm to use')
-
-    args = parser.parse_args()
-    print(
-        f"args: benchmark: {args.benchmark}, trace: {args.notrace}, architecture: {args.architecture_config}, schedule: {args.schedule}"
-    )
-
-    main(args)
