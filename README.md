@@ -12,13 +12,13 @@ If you are running on Apple Silicon, there are issues with the pyomo - ipopt plu
 
 
 #### Install instructions RSG Linux machines: 
-1. Make sure you are running bash. You can check by by running "echo $0".
+1. Make sure you are running bash. You can check by running "echo $0".
 2. Then, cd into codesign folder and source full_env_start.sh
 
 
 #### Install instructions on other machines:
-1. Make sure you are running bash. You can check by by running "echo $0".
+1. Make sure you are running bash. You can check by by running "echo $0". If you're not, you can start by running "bash"
 2. Then, cd into codesign folder. 
-3. Create a new bash script to source catapult. 
+3. Create a new bash script to source catapult based on your particular installation. 
 4. source this script instead of stanford_catapult_env.sh at the end of full_env_start.sh
 5. source full_env_start.sh
