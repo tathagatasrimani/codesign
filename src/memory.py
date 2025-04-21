@@ -2,7 +2,6 @@ import math
 import os
 import subprocess
 import logging
-import shutil
 logger = logging.getLogger(__name__)
 
 from . import cacti_util
@@ -20,57 +19,152 @@ def get_resource_name_for_file(resource_name):
     # replace weird characters with _
     return resource_name.replace("/", "_").replace("<", "_").replace(">", "_").replace(",", "_").replace(".", "_").replace(":", "_")
 
-def generate_sample_memory(latency, area, clk_period, mem_type, resource_name):
+def generate_sample_memory(latency, area, clk_period, mem_type, resource_name, bandwidth):
     """
-    Generate a sample memory TCL file with specified latency, area, and clock period, and return
-    relevant file paths and commands for Catapult integration.
-
-    Args:
-        latency (float): Memory access latency.
-        area (float): Memory area.
-        clk_period (float): Clock period.
-        mem_type (str): Type of memory (off chip or on chip).
-        resource_name (str): Name of the memory resource.
-
-    Returns:
-        tuple: (tcl_file, tcl_command, library_name) for Catapult integration.
+    Generate a sample memory TCL and Verilog file with specified latency, area, clock period, and bandwidth (number of ports).
+    Duplicate the ports and signals in both files according to the bandwidth argument, giving each a unique name.
     """
-    # for setting correct filepath
+    bandwidth = 100
     current_directory = os.getcwd()
     if current_directory.find("/codesign") != -1:
-        current_directory = current_directory[:current_directory.find("/codesign")] # only get the base of the filepath
-
+        current_directory = current_directory[:current_directory.find("/codesign")]
     num_cycles = math.ceil(latency/clk_period)
     input_delay = latency % clk_period # remainder of delay
     logger.info(f"num cycles for memory {resource_name}: {num_cycles}")
     resource_name_for_file = get_resource_name_for_file(resource_name)
     library_name = f"{mem_type}_{resource_name_for_file}"
+    os.makedirs("src/tmp/benchmark/mem_gen", exist_ok=True)
+
+    # --- TCL Generation ---
     with open(f"src/mem_gen/{mem_type}.tcl", "r") as f:
         lines = f.readlines()
         output = []
-        for i in range(len(lines)):
-            line = lines[i].lstrip().rstrip()
-            new_line = lines[i]
-            items = line.split(' ')
+        ports_section = []
+        pinmaps_section = []
+        for line in lines:
+            l = line.strip()
+            # Regular replacements for the rest of the TCL
+            items = l.split(' ')
             item_quantity = items[-1]
-            if (line.find("LIBRARY") != -1):
-                new_line = lines[i].replace(item_quantity, library_name)
-            elif (line.find("WRITEDELAY") != -1) or (line.find("READDELAY") != -1):
-                new_line = lines[i].replace(item_quantity, str(input_delay))
-            elif (line.find("READLATENCY") != -1) or (line.find("WRITELATENCY") != -1):
-                new_line = lines[i].replace(item_quantity, str(num_cycles))
-            elif (line.find("AREA") != -1):
-                new_line = lines[i].replace(item_quantity, str(area))
-            elif line.find("OUTPUT_DIR") != -1:
-                new_line = lines[i].replace("/nfs/rsghome/pmcewen", current_directory) # assume we are working out of codesign module"""
+            new_line = line
+            if (l.find("LIBRARY") != -1):
+                new_line = line.replace(item_quantity, library_name)
+            elif (l.find("WRITEDELAY") != -1) or (l.find("READDELAY") != -1):
+                new_line = line.replace(item_quantity, str(input_delay))
+            elif (l.find("READLATENCY") != -1) or (l.find("WRITELATENCY") != -1):
+                new_line = line.replace(item_quantity, str(num_cycles))
+            elif (l.find("AREA") != -1):
+                new_line = line.replace(item_quantity, str(area))
+            elif l.find("OUTPUT_DIR") != -1:
+                new_line = line.replace("/nfs/rsghome/pmcewen", current_directory)
+            elif l.find("FILENAME") != -1:
+                new_line = line.replace(f"{items[2]}", f"{current_directory}/codesign/src/tmp/benchmark/mem_gen/{mem_type}_{resource_name_for_file}.v")
             output.append(new_line)
-        with open(f"src/tmp/benchmark/{mem_type}_{resource_name_for_file}.tcl", "w") as f_new:
+
+        # Insert PORTS section after PARAMETERS or after DEPTH if no PARAMETERS
+        insert_idx = 0
+        for idx, line in enumerate(output):
+            if line.strip().startswith("PARAMETERS {"):
+                # find the closing }
+                for j in range(idx+1, len(output)):
+                    if output[j].strip() == "}":
+                        insert_idx = j+1
+                        break
+                break
+            elif line.strip().startswith("DEPTH"):
+                insert_idx = idx+1
+        # Generate PORTS section
+        ports_section.append("PORTS {\n")
+        ports_section += ["  { NAME port_%d MODE Read  }\n" % i for i in range(bandwidth)]
+        ports_section += ["  { NAME port_%d MODE Write }\n" % (i+bandwidth) for i in range(bandwidth)]
+        ports_section.append("}\n")
+        # Insert PINMAPS section after PORTS
+        pinmaps_section.append("PINMAPS {\n")
+        clk_ports = " ".join([f"port_{i}" for i in range(2*bandwidth)])
+        pinmaps_section.append(f"  {{ PHYPIN clk   LOGPIN CLOCK        DIRECTION in  WIDTH 1.0        PHASE 1  DEFAULT {{}} PORTS {{{clk_ports}}} }}\n")
+        for i in range(bandwidth):
+            pinmaps_section.append(f"  {{ PHYPIN re_{i}   LOGPIN READ_ENABLE  DIRECTION in  WIDTH 1.0        PHASE 1  DEFAULT {{}} PORTS port_{i}          }}\n")
+            pinmaps_section.append(f"  {{ PHYPIN radr_{i} LOGPIN ADDRESS      DIRECTION in  WIDTH addr_width PHASE {{}} DEFAULT {{}} PORTS port_{i}          }}\n")
+            pinmaps_section.append(f"  {{ PHYPIN q_{i}    LOGPIN DATA_OUT     DIRECTION out WIDTH data_width PHASE {{}} DEFAULT {{}} PORTS port_{i}          }}\n")
+        for i in range(bandwidth):
+            idx = i + bandwidth
+            pinmaps_section.append(f"  {{ PHYPIN we_{i}   LOGPIN WRITE_ENABLE DIRECTION in  WIDTH 1.0        PHASE 1  DEFAULT {{}} PORTS port_{idx}          }}\n")
+            pinmaps_section.append(f"  {{ PHYPIN wadr_{i} LOGPIN ADDRESS      DIRECTION in  WIDTH addr_width PHASE {{}} DEFAULT {{}} PORTS port_{idx}          }}\n")
+            pinmaps_section.append(f"  {{ PHYPIN d_{i}    LOGPIN DATA_IN      DIRECTION in  WIDTH data_width PHASE {{}} DEFAULT {{}} PORTS port_{idx}          }}\n")
+        pinmaps_section.append("}\n")
+        # Insert sections
+        output = output[:insert_idx] + ports_section + pinmaps_section + ["}\n"]
+        with open(f"src/tmp/benchmark/mem_gen/{mem_type}_{resource_name_for_file}.tcl", "w") as f_new:
             f_new.writelines(output)
-        f_new.close()
-    tcl_file = f"src/tmp/benchmark/{mem_type}_{resource_name_for_file}.tcl"
+
+    # --- Verilog Generation ---
+    with open(f"src/mem_gen/verilog/{mem_type}.v", "r") as f:
+        vlines = f.readlines()
+    # Find module line and parameter block
+    module_line = None
+    param_block = []
+    param_start = None
+    param_end = None
+    for idx, line in enumerate(vlines):
+        if line.strip().startswith("module "):
+            module_line = line
+        if line.strip().startswith("#("):
+            param_start = idx
+        if param_start is not None and line.strip().startswith(")"):
+            param_end = idx
+            break
+    if module_line is None or param_start is None or param_end is None:
+        raise RuntimeError("Verilog template missing module or parameter block.")
+    param_block = vlines[param_start:param_end+1]
+    # Generate port declarations
+    port_decls = ["    input clk,\n"]
+    for i in range(bandwidth):
+        port_decls.append(f"    input [addr_width-1:0] radr_{i},\n")
+        port_decls.append(f"    input [addr_width-1:0] wadr_{i},\n")
+        port_decls.append(f"    input [data_width-1:0] d_{i},\n")
+        port_decls.append(f"    input we_{i},\n")
+        port_decls.append(f"    input re_{i},\n")
+        port_decls.append(f"    output reg [data_width-1:0] q_{i},\n")
+    if port_decls:
+        port_decls[-1] = port_decls[-1].rstrip(',\n') + '\n'
+    # Compose new module header
+    header = []
+    header.append(module_line)
+    header.extend(param_block)
+    header.extend(port_decls)
+    header.append(");\n")
+    # Copy reg declaration
+    after_ports = []
+    for idx in range(param_end+1, len(vlines)):
+        if vlines[idx].strip().startswith("reg [data_width-1:0] mem "):
+            after_ports.append(vlines[idx])
+            break
+    # Generate always block for all ports
+    always_block = ["    always @(posedge clk) begin\n"]
+    for i in range(bandwidth):
+        always_block.append(f"        // Write port {i}\n")
+        always_block.append(f"        if (we_{i}) begin\n")
+        always_block.append(f"            mem[wadr_{i}] <= d_{i};\n")
+        always_block.append(f"        end\n")
+    for i in range(bandwidth):
+        always_block.append(f"        // Read port {i}\n")
+        always_block.append(f"        if (re_{i}) begin\n")
+        always_block.append(f"            q_{i} <= mem[radr_{i}];\n")
+        always_block.append(f"        end\n")
+    always_block.append("    end\n")
+    # Insert endmodule
+    after_always = ["endmodule\n"]
+    # Write the new Verilog file
+    with open(f"src/tmp/benchmark/mem_gen/{mem_type}_{resource_name_for_file}.v", "w") as f_new:
+        f_new.writelines(header)
+        f_new.writelines(after_ports)
+        f_new.writelines(always_block)
+        f_new.writelines(after_always)
+
+    tcl_file = f"src/tmp/benchmark/mem_gen/{mem_type}_{resource_name_for_file}.tcl"
     tcl_command = f"directive set {resource_name} -MAP_TO_MODULE {library_name}.{mem_type}\n"
     return tcl_file, tcl_command, library_name
-    
+
 class memory:
     """
     Represents a memory resource with attributes for off-chip/on-chip, depth, word width, and
@@ -80,8 +174,8 @@ class memory:
         path_name (str): File path for the memory resource.
         name (str): Name of the memory.
         off_chip (bool): Whether the memory is off-chip.
-        depth (int): Depth of the memory.
-        word_width (int): Width of each memory word.
+        depth (int): number of elements in the memory.
+        word_width (int): Width of each element.
         component (str): Component type string.
         mode (str): Memory operation mode.
     """
@@ -179,7 +273,37 @@ def gen_cacti_on_memories(memories, hw):
         memory_vals[memory.name]["type"] = "Mem" if memory.off_chip else "Buf"
     return memory_vals, existing_memories
 
-def customize_catapult_memories(mem_rpt_file, benchmark_name, hw): #takes in a memory report from initial catapult run
+def get_pre_assign_counts(bom_file, module_map):
+    # calculate pre-assign PE counts to determine what memory ports are needed to saturate them
+    element_counts = {}
+    file = open(bom_file, "r")
+    lines = file.readlines()
+    i = 0
+    while (i < len(lines)):
+        if lines[i].strip().startswith("[Lib: assembly]"):
+            break
+        i += 1
+    i += 1
+    while (i < len(lines)):
+        if lines[i].strip().startswith("[Lib: nangate") or lines[i].strip().startswith("TOTAL AREA"):
+            break
+        data = lines[i].strip().split()
+        if data:
+            module_type = data[0].split('(')[0]
+            if module_type in module_map:
+                # pre assign count is second to last column
+                if data[-2] == 0:
+                    logger.warning(f"{module_type} has zero count pre assign, setting to 1")
+                if module_map[module_type] not in element_counts:
+                    element_counts[module_map[module_type]] = 0
+                # if multiple modules are mapped to the same module type, just add them up for count purposes
+                element_counts[module_map[module_type]] += max(int(data[-2]), 1)
+        i += 1
+    logger.info(str(element_counts))
+    return element_counts
+    
+
+def customize_catapult_memories(mem_rpt_file, benchmark_name, hw, pre_assign_counts): #takes in a memory report from initial catapult run
     if not os.path.exists("src/tmp/benchmark/ram_sync"):
         os.makedirs("src/tmp/benchmark/ram_sync")
     clk_period = (1 / hw.f) * 1e9 # ns
@@ -189,6 +313,11 @@ def customize_catapult_memories(mem_rpt_file, benchmark_name, hw): #takes in a m
     libraries = []
     top_tcl_text = ""
     mem_seen = {} # mark off existing memories when we see them
+
+    # maximum number of memory ports (to create ports for sample memory)
+    bandwidth = max(list(pre_assign_counts.values()))
+    logger.info(f"bandwidth: {bandwidth}")
+
     for memory in memories:
         mem_info = (memory.depth, memory.word_width)
         cur_mem_vals = memory_vals[memory.name]
@@ -203,7 +332,7 @@ def customize_catapult_memories(mem_rpt_file, benchmark_name, hw): #takes in a m
                 cur_mem_vals["Access time (ns)"], 
                 cur_mem_vals["Area (mm2)"]*1e6, 
                 clk_period,
-                memory.component, memory.path_name
+                memory.component, memory.path_name, bandwidth
             )
             top_tcl_text += f"source {tcl_file}\n"
             libraries.append(library)

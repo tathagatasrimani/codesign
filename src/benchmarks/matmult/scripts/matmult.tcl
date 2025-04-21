@@ -28,5 +28,5 @@ go allocate
 
 go extract
 
-solution timing -filename conv_timing.rpt -count 1000000
 project report -filename memories.rpt -memories true
+project report -filename bom.rpt -bom true

@@ -74,6 +74,7 @@ class Codesign:
         self.hw = hardwareModel.HardwareModel()
         self.sim = simulate.ConcreteSimulator()
         self.symbolic_sim = symbolic_simulate.SymbolicSimulator()
+        self.module_map = {}
 
         # starting point set by the config we load into the HW model
         coefficients.create_and_save_coefficients([self.hw.transistor_size])
@@ -144,6 +145,13 @@ class Codesign:
         Returns:
             None
         """
+        self.module_map = {
+            "ccs_ram_sync_1R1W_rwport": "Buf",
+            "ccs_ram_sync_1R1W_rport": "Buf",
+            "nop": "nop"
+        }
+        for unit in self.hw.area.keys():
+            self.module_map[unit.lower()] = unit
 
         os.chdir("src/tmp/benchmark")
         clk_period = (1 / self.hw.f) * 1e9 # ns
@@ -157,7 +165,8 @@ class Codesign:
         if p.returncode != 0:
             raise Exception(p.stderr)
         os.chdir("../../..")
-        self.hw.memories = memory.customize_catapult_memories(f"src/tmp/benchmark/memories.rpt", self.benchmark_name, self.hw)
+        pre_assign_counts = memory.get_pre_assign_counts(f"src/tmp/benchmark/bom.rpt", self.module_map)
+        self.hw.memories = memory.customize_catapult_memories(f"src/tmp/benchmark/memories.rpt", self.benchmark_name, self.hw, pre_assign_counts)
         os.chdir("src/tmp/benchmark")
         p = subprocess.run(["make", "clean"], capture_output=True, text=True)
         p = subprocess.run(cmd, capture_output=True, text=True)
@@ -218,14 +227,7 @@ class Codesign:
                 break
         assert schedule_dir
         schedule_path = f"src/tmp/benchmark/build/{schedule_dir}"
-        module_map = {
-            "ccs_ram_sync_1R1W_rwport": "Buf",
-            "ccs_ram_sync_1R1W_rport": "Buf",
-            "nop": "nop"
-        }
-        for unit in self.hw.area.keys():
-            module_map[unit.lower()] = unit
-        schedule_parser = schedule.gnt_schedule_parser(schedule_path, module_map)
+        schedule_parser = schedule.gnt_schedule_parser(schedule_path, self.module_map)
         schedule_parser.parse()
         schedule_parser.convert()
         self.scheduled_dfg = schedule_parser.modified_G
