@@ -9,6 +9,8 @@ import subprocess
 
 import networkx as nx
 
+from src.netlist_parse import parse_yosys_json
+
 logger = logging.getLogger("codesign")
 
 from . import cacti_util
@@ -167,7 +169,14 @@ class Codesign:
         os.chdir("../../..")
 
         # TODO: extract hw netlist
-        #self.hw.netlist = None
+        ## yosys -p "read_verilog src/tmp/benchmark/rtl.v; write_json netlist.json"
+        cmd = ["yosys", "-p", "read_verilog src/tmp/benchmark/rtl.v; write_json src/tmp/benchmark/netlist.json"]
+        p = subprocess.run(cmd, capture_output=True, text=True)
+        logger.info(f"Yosys output: {p.stdout}")
+        if p.returncode != 0:
+            raise Exception(f"Yosys failed with error: {p.stderr}")
+
+        self.hw.netlist = parse_yosys_json("src/tmp/benchmark/netlist.json")
 
     def forward_pass(self):
         """
