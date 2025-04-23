@@ -320,7 +320,7 @@ def get_area_data(memories, max_bandwidth, hw):
                 transistor_size=hw.cacti_tech_node,
                 num_rw_ports=i,
             )
-            area_data[memory_type][i] = memory_vals["Area (mm2)"]
+            area_data[memory_type][i] = memory_vals["Area (mm2)"]*1e6 # convert to um^2
     return area_data
     
     
@@ -331,7 +331,7 @@ def match_bandwidths(memories, pre_assign_counts, hw):
     mem_ports = cp.Variable(len(memories), pos=True)
     pe_counts = cp.Variable(len(pre_assign_counts), pos=True)
     constr = []
-    obj = 0
+    tot_area = 0
     area_data = get_area_data(memories, max_bandwidth, hw)
     logger.info(f"area data: {str(area_data)}")
     for i, memory in enumerate(memories):
@@ -343,19 +343,20 @@ def match_bandwidths(memories, pre_assign_counts, hw):
         constr.append(mem_ports[i] <= min(pre_assign_counts[memory.name], memory.depth))
         constr.append(mem_ports[i] >= 1)
         # add polynomial to objective
-        obj += coeffs[0]*cp.Square(mem_ports[i]) + coeffs[1]*mem_ports[i] + coeffs[2]
+        tot_area += coeffs[0]*cp.Square(mem_ports[i]) + coeffs[1]*mem_ports[i] + coeffs[2]
     for i, elem in enumerate(pre_assign_counts):
         # add constraints on counts
         constr.append(pe_counts[i] <= pre_assign_counts[elem])
         constr.append(pe_counts[i] >= 1)
         # add to objective
-        obj += hw.area[elem]*pe_counts[i]
+        tot_area += hw.area[elem]*pe_counts[i]
     # add constraints to ensure ratios between different types of PEs are the same as in pre_assign_counts
     for i, elem in enumerate(pre_assign_counts):
         for j, other_elem in enumerate(pre_assign_counts):
             if i <= j:
                 continue
             constr.append(pe_counts[i] / pre_assign_counts[elem] == pe_counts[j] / pre_assign_counts[other_elem])
+    obj = cp.Minimize(cp.Square(hw.area - tot_area))
     prob = cp.Problem(obj, constr)
     prob.solve()
     assert prob.status == "optimal"

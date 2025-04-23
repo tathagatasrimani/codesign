@@ -24,7 +24,7 @@ from . import memory
 from . import ccore_update
 
 class Codesign:
-    def __init__(self, benchmark_name, save_dir, openroad_testfile, parasitics, no_cacti):
+    def __init__(self, benchmark_name, save_dir, openroad_testfile, parasitics, no_cacti, area):
         """
         Initializes a Codesign object, sets up directories and logging, initializes hardware and
         simulation models, and prepares technology parameters.
@@ -35,7 +35,7 @@ class Codesign:
             openroad_testfile (str): Path to the OpenROAD test file.
             parasitics (Any): Parasitics configuration.
             no_cacti (bool): If True, disables CACTI memory modeling.
-
+            area (float): Area constraint in um2.
         Returns:
             None
         """
@@ -71,7 +71,8 @@ class Codesign:
         self.scheduled_dfg = None
         self.parasitics = parasitics
         self.run_cacti = not no_cacti
-        self.hw = hardwareModel.HardwareModel()
+        self.area = area
+        self.hw = hardwareModel.HardwareModel(area=area)
         self.sim = simulate.ConcreteSimulator()
         self.symbolic_sim = symbolic_simulate.SymbolicSimulator()
         self.module_map = {}
@@ -505,6 +506,7 @@ def main(args):
         args.openroad_testfile,
         args.parasitics,
         args.debug_no_cacti,
+        args.area,
     )
     try:
         codesign_module.execute(args.num_iters)
@@ -554,12 +556,19 @@ if __name__ == "__main__":
         default=10,
         help="Number of Codesign iterations to run",
     )
+    parser.add_argument(
+        "-a",
+        "--area",
+        type=float,
+        default=100000,
+        help="Area constraint in um2",
+    )
     parser.add_argument('--debug_no_cacti', type=bool, default=False, 
                         help='disable cacti in the first iteration to decrease runtime when debugging')
     parser.add_argument("-c", "--checkpoint", type=bool, default=False, help="save a design checkpoint upon exit")
     args = parser.parse_args()
     print(
-        f"args: benchmark: {args.benchmark}, parasitics: {args.parasitics}, num iterations: {args.num_iters}, checkpointing: {args.checkpoint}"
+        f"args: benchmark: {args.benchmark}, parasitics: {args.parasitics}, num iterations: {args.num_iters}, checkpointing: {args.checkpoint}, area: {args.area}"
     )
 
     main(args)
