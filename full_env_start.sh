@@ -35,4 +35,4 @@ cd ../..
 
 
 ## Change for the catapult environment name you want to use
-source setenv.csh
+source stanford_catapult_env.sh
