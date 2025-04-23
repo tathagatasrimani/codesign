@@ -2,6 +2,8 @@ import math
 import os
 import subprocess
 import logging
+import cvxpy as cp
+import numpy as np
 logger = logging.getLogger(__name__)
 
 from . import cacti_util
@@ -24,7 +26,6 @@ def generate_sample_memory(latency, area, clk_period, mem_type, resource_name, b
     Generate a sample memory TCL and Verilog file with specified latency, area, clock period, and bandwidth (number of ports).
     Duplicate the ports and signals in both files according to the bandwidth argument, giving each a unique name.
     """
-    bandwidth = 100
     current_directory = os.getcwd()
     if current_directory.find("/codesign") != -1:
         current_directory = current_directory[:current_directory.find("/codesign")]
@@ -301,6 +302,68 @@ def get_pre_assign_counts(bom_file, module_map):
         i += 1
     logger.info(str(element_counts))
     return element_counts
+
+def get_area_data(memories, max_bandwidth, hw):
+    # assuming on chip memories
+    # calculate memory areas for different memory types and port counts
+    interval = 10
+    area_data = {}
+    unique_memory_types = set([memory.component for memory in memories])
+    for memory_type in unique_memory_types:
+        area_data[memory_type] = {}
+        for i in range(1, min(max_bandwidth, memory.depth)+1, interval):
+            memory_vals = cacti_util.gen_vals(
+                filename="base_cache",
+                cache_size=memory.depth * memory.word_width,
+                cache_type="cache",
+                bus_width=memory.word_width,
+                transistor_size=hw.cacti_tech_node,
+                num_rw_ports=i,
+            )
+            area_data[memory_type][i] = memory_vals["Area (mm2)"]
+    return area_data
+    
+    
+def match_bandwidths(memories, pre_assign_counts, hw):
+    max_bandwidth = max(list(pre_assign_counts.values()))
+    bandwidths = {}
+    logger.info(f"max bandwidth: {max_bandwidth}")
+    mem_ports = cp.Variable(len(memories), pos=True)
+    pe_counts = cp.Variable(len(pre_assign_counts), pos=True)
+    constr = []
+    obj = 0
+    area_data = get_area_data(memories, max_bandwidth, hw)
+    logger.info(f"area data: {str(area_data)}")
+    for i, memory in enumerate(memories):
+        # fit polynomial to area data
+        ports = np.array([point[0] for point in area_data[memory.component].items()])
+        area = np.array([point[1] for point in area_data[memory.component].items()])
+        coeffs = np.polyfit(ports, area, deg=2)
+        # add constraints on ports
+        constr.append(mem_ports[i] <= min(pre_assign_counts[memory.name], memory.depth))
+        constr.append(mem_ports[i] >= 1)
+        # add polynomial to objective
+        obj += coeffs[0]*cp.Square(mem_ports[i]) + coeffs[1]*mem_ports[i] + coeffs[2]
+    for i, elem in enumerate(pre_assign_counts):
+        # add constraints on counts
+        constr.append(pe_counts[i] <= pre_assign_counts[elem])
+        constr.append(pe_counts[i] >= 1)
+        # add to objective
+        obj += hw.area[elem]*pe_counts[i]
+    # add constraints to ensure ratios between different types of PEs are the same as in pre_assign_counts
+    for i, elem in enumerate(pre_assign_counts):
+        for j, other_elem in enumerate(pre_assign_counts):
+            if i <= j:
+                continue
+            constr.append(pe_counts[i] / pre_assign_counts[elem] == pe_counts[j] / pre_assign_counts[other_elem])
+    prob = cp.Problem(obj, constr)
+    prob.solve()
+    assert prob.status == "optimal"
+    # convert value to integer for port count
+    bandwidths = {memory.name: int(mem_ports.value[i]) for i, memory in enumerate(memories)}
+    logger.info(f"match_bandwidths result: {bandwidths}")
+    return bandwidths
+
     
 
 def customize_catapult_memories(mem_rpt_file, benchmark_name, hw, pre_assign_counts): #takes in a memory report from initial catapult run
@@ -314,9 +377,8 @@ def customize_catapult_memories(mem_rpt_file, benchmark_name, hw, pre_assign_cou
     top_tcl_text = ""
     mem_seen = {} # mark off existing memories when we see them
 
-    # maximum number of memory ports (to create ports for sample memory)
-    bandwidth = max(list(pre_assign_counts.values()))
-    logger.info(f"bandwidth: {bandwidth}")
+
+    bandwidths = match_bandwidths(memories, pre_assign_counts, hw) 
 
     for memory in memories:
         mem_info = (memory.depth, memory.word_width)
@@ -332,7 +394,7 @@ def customize_catapult_memories(mem_rpt_file, benchmark_name, hw, pre_assign_cou
                 cur_mem_vals["Access time (ns)"], 
                 cur_mem_vals["Area (mm2)"]*1e6, 
                 clk_period,
-                memory.component, memory.path_name, bandwidth
+                memory.component, memory.path_name, bandwidths[memory.name]
             )
             top_tcl_text += f"source {tcl_file}\n"
             libraries.append(library)

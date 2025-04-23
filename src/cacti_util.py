@@ -120,6 +120,7 @@ def gen_vals(
     force_cache_config=None,
     technology=None,
     debug=False,
+    num_rw_ports=None,
 ) -> pd.DataFrame:
     """
     Generates a Cacti .cfg file based on input and cacti_input, runs Cacti,
@@ -227,7 +228,7 @@ def gen_vals(
         "# To model Fully Associative cache, set associativity to zero",
         "-associativity {}".format(associativity),
         "",
-        "-read-write port {}".format(config_values["num_rw_ports"]),
+        "-read-write port {}".format(config_values["num_rw_ports"] if num_rw_ports is None else num_rw_ports),
         "-exclusive read port {}".format(config_values["num_rd_ports"]),
         "-exclusive write port {}".format(config_values["num_wr_ports"]),
         "-single ended read ports {}".format(config_values["num_se_rd_ports"]),
