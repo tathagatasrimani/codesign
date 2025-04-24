@@ -8,11 +8,11 @@ import sympy as sp
 from .abstract_simulate import AbstractSimulator
 from . import hw_symbols
 
-def symbolic_convex_max(a, b):
+def symbolic_convex_max(a, b, evaluate=True):
     """
     Max(a, b) in a format which ipopt accepts.
     """
-    return 0.5 * (a + b + sp.Abs(a - b))
+    return 0.5 * (a + b + sp.Abs(a - b, evaluate=evaluate))
 
 class SymbolicSimulator(AbstractSimulator):
     def __init__(self):

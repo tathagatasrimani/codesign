@@ -6,4 +6,38 @@ from .abstract_simulate import AbstractSimulator
 
 class ConcreteSimulator(AbstractSimulator):
     def __init__(self):
-        return
+        self.total_passive_energy = 0
+        self.total_active_energy = 0
+        self.execution_time = 0
+
+    def calculate_passive_energy(self, hw, total_execution_time):
+        passive_power = 0
+        for node in hw.netlist:
+            data = hw.netlist.nodes[node]
+            if data["function"] == "Buf" or data["function"] == "MainMem":
+                rsc_name = data["library"][data["library"].find("__")+1:]
+                passive_power += hw.memories[rsc_name]["Standby leakage per bank(mW)"] * 1e6 # convert from mW to nW
+            else:
+                passive_power += hw.leakage_power[data["function"]]
+        self.total_passive_energy = passive_power * total_execution_time*1e-9
+        
+    def calculate_active_energy(self, hw, scheduled_dfg):
+        self.total_active_energy = 0
+        for node in scheduled_dfg:
+            data = scheduled_dfg.nodes[node]
+            if node == "end" or data["function"] == "nop": continue
+            if data["function"] == "Buf" or data["function"] == "MainMem":
+                rsc_name = data["library"][data["library"].find("__")+1:]
+                if data["module"].find("wport") != -1:
+                    self.total_active_energy += hw.memories[rsc_name]["Dynamic write energy (nJ)"] * hw.memories[rsc_name]["Access time (ns)"]*1e-9
+                else:
+                    self.total_active_energy += hw.memories[rsc_name]["Dynamic read energy (nJ)"] * hw.memories[rsc_name]["Access time (ns)"]*1e-9
+            else:
+                self.total_active_energy += hw.dynamic_power[data["function"]] * hw.latency[data["function"]]
+    
+    def calculate_edp(self, hw, scheduled_dfg):
+        self.execution_time = scheduled_dfg.nodes["end"]["start_time"]
+        self.calculate_passive_energy(hw, self.execution_time)
+        self.calculate_active_energy(hw, scheduled_dfg)
+        return self.total_passive_energy * self.execution_time + self.total_active_energy
+        

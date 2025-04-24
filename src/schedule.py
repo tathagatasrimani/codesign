@@ -455,7 +455,8 @@ class gnt_schedule_parser:
                 start_time=0,
                 end_time=0,
                 allocation="",
-                library=node_data["library"]
+                library=node_data["library"],
+                module=node_data["module"]
             )
         self.modified_G.add_node(
             "end",

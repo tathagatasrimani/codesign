@@ -194,11 +194,11 @@ class Preprocessor:
         # expressions inside a log/sqrt must not be negative
         for log_expr in self.log_exprs_s:
             obj += 1e15*(
-                symbolic_simulate.symbolic_convex_max(-log_expr, 0)
+                symbolic_simulate.symbolic_convex_max(-log_expr, 0, evaluate=False)
             ) ** 2
         for pow_expr in self.pow_exprs_s:
             obj += 1e15 * (
-                symbolic_simulate.symbolic_convex_max(-pow_expr, 0)
+                symbolic_simulate.symbolic_convex_max(-pow_expr, 0, evaluate=False)
             ) ** 2
 
 
@@ -352,7 +352,8 @@ class Preprocessor:
 
         # hotfix: substitute each log expression with max(expr, 1e-3) to avoid negatives inside log
         for log_expr in self.log_exprs_s:
-            self.log_subs[log_expr] = symbolic_simulate.symbolic_convex_max(log_expr, 0.001)
+            self.log_subs[log_expr] = symbolic_simulate.symbolic_convex_max(log_expr, 0.001, evaluate=False)
+            logger.info(f"log expr: {log_expr}; sub: {self.log_subs[log_expr]}")
         
 
         # for overall edp expression and cacti sub expressions, we must ensure there is no

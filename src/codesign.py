@@ -220,6 +220,12 @@ class Codesign:
         # parse catapult timing report, which saves critical paths
         self.parse_catapult_timing()
 
+        # finally, calculate EDP
+        self.forward_edp = self.sim.calculate_edp(self.hw, self.scheduled_dfg)
+        print(
+            f"Final EDP: {self.forward_edp} E-18 Js. Active Energy: {self.sim.total_active_energy} nJ. Passive Energy: {self.sim.total_passive_energy} nJ. Execution time: {self.sim.execution_time} ns"
+        )
+
     def parse_catapult_timing(self):
         """
         Parses the Catapult timing report, extracts and schedules the data flow graph (DFG), and
