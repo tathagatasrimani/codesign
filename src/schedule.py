@@ -757,12 +757,15 @@ class gnt_schedule_parser:
                 for successor in successors[names[node_id]]:
                     self_loop = successor in predecessors[successor] or names[node_id] in successors[names[node_id]]
                     single_loop = successor in successors[names[node_id]] and names[node_id] in successors[successor]
-
+                    # have to deal with a bunch of weird edge cases because of how catapult specifies edges in the schedule
                     if not (self_loop or single_loop):
                         G.add_edge(names[node_id], successor)
                         logger.info(f"in original function, connecting {names[node_id]} with {successor}")
                     elif self_loop:
                         logger.warning(f"{node_id} contains self loop")
+                        if G.nodes[successor]["module"].find("wport") != -1 and G.nodes[names[node_id]]["module"].find("wport") == -1:
+                            logger.info(f"connecting {names[node_id]} with {successor} as output to write port pair")
+                            G.add_edge(names[node_id], successor)
                     else: 
                         assert single_loop
                         if not G.nodes[names[node_id]]["module"]: # meaning its a ccore port

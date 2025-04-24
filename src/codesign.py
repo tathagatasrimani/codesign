@@ -24,7 +24,7 @@ from . import memory
 from . import ccore_update
 
 class Codesign:
-    def __init__(self, benchmark_name, save_dir, openroad_testfile, parasitics, no_cacti, area):
+    def __init__(self, benchmark_name, save_dir, openroad_testfile, parasitics, no_cacti, area, no_memory):
         """
         Initializes a Codesign object, sets up directories and logging, initializes hardware and
         simulation models, and prepares technology parameters.
@@ -34,8 +34,9 @@ class Codesign:
             save_dir (str): Directory to save logs and results.
             openroad_testfile (str): Path to the OpenROAD test file.
             parasitics (Any): Parasitics configuration.
-            no_cacti (bool): If True, disables CACTI memory modeling.
+            no_cacti (bool): If True, disables CACTI memory modeling for the first iteration.
             area (float): Area constraint in um2.
+            no_memory (bool): If True, disables memory modeling in general.
         Returns:
             None
         """
@@ -72,6 +73,7 @@ class Codesign:
         self.parasitics = parasitics
         self.run_cacti = not no_cacti
         self.area_constraint = area
+        self.no_memory = no_memory
         self.hw = hardwareModel.HardwareModel(area_constraint=area)
         self.sim = simulate.ConcreteSimulator()
         self.symbolic_sim = symbolic_simulate.SymbolicSimulator()
@@ -146,11 +148,15 @@ class Codesign:
         Returns:
             None
         """
-        self.module_map = {
-            "ccs_ram_sync_1R1W_rwport": "Buf",
-            "ccs_ram_sync_1R1W_rport": "Buf",
-            "nop": "nop"
-        }
+        self.module_map = {}
+        # if no_memory flag set, scheduler will cut out all memory nodes
+        if not self.no_memory:
+            self.module_map = {
+                "ccs_ram_sync_1R1W_rwport": "Buf",
+                "ccs_ram_sync_1R1W_rport": "Buf",
+                "ccs_ram_sync_1R1W_wport": "Buf",
+                "nop": "nop"
+            }
         for unit in self.hw.area.keys():
             self.module_map[unit.lower()] = unit
 
@@ -166,16 +172,20 @@ class Codesign:
         if p.returncode != 0:
             raise Exception(p.stderr)
         os.chdir("../../..")
-        pre_assign_counts = memory.get_pre_assign_counts(f"src/tmp/benchmark/bom.rpt", self.module_map)
-        self.hw.memories = memory.customize_catapult_memories(f"src/tmp/benchmark/memories.rpt", self.benchmark_name, self.hw, pre_assign_counts)
-        logger.info(f"custom catapult memories: {self.hw.memories}")
-        os.chdir("src/tmp/benchmark")
-        p = subprocess.run(["make", "clean"], capture_output=True, text=True)
-        p = subprocess.run(cmd, capture_output=True, text=True)
-        logger.info(f"custom memory catapult run output: {p.stdout}")
-        if p.returncode != 0:
-            raise Exception(p.stderr)
-        os.chdir("../../..")
+        if not self.no_memory:
+            pre_assign_counts = memory.get_pre_assign_counts(f"src/tmp/benchmark/bom.rpt", self.module_map)
+            self.hw.memories = memory.customize_catapult_memories(f"src/tmp/benchmark/memories.rpt", self.benchmark_name, self.hw, pre_assign_counts)
+            logger.info(f"custom catapult memories: {self.hw.memories}")
+            os.chdir("src/tmp/benchmark")
+            p = subprocess.run(["make", "clean"], capture_output=True, text=True)
+            p = subprocess.run(cmd, capture_output=True, text=True)
+            logger.info(f"custom memory catapult run output: {p.stdout}")
+            if p.returncode != 0:
+                raise Exception(p.stderr)
+            os.chdir("../../..")
+        else:
+            logger.info("skipping memory customization and second catapult run")
+            self.hw.memories = {}
 
         # TODO: extract hw netlist
         #self.hw.netlist = None
@@ -508,6 +518,7 @@ def main(args):
         args.parasitics,
         args.debug_no_cacti,
         args.area,
+        args.no_memory,
     )
     try:
         codesign_module.execute(args.num_iters)
@@ -564,12 +575,18 @@ if __name__ == "__main__":
         default=1000000,
         help="Area constraint in um2",
     )
+    parser.add_argument(
+        "--no_memory",
+        type=bool,
+        default=False,
+        help="disable memory modeling",
+    )
     parser.add_argument('--debug_no_cacti', type=bool, default=False, 
                         help='disable cacti in the first iteration to decrease runtime when debugging')
     parser.add_argument("-c", "--checkpoint", type=bool, default=False, help="save a design checkpoint upon exit")
     args = parser.parse_args()
     print(
-        f"args: benchmark: {args.benchmark}, parasitics: {args.parasitics}, num iterations: {args.num_iters}, checkpointing: {args.checkpoint}, area: {args.area}"
+        f"args: benchmark: {args.benchmark}, parasitics: {args.parasitics}, num iterations: {args.num_iters}, checkpointing: {args.checkpoint}, area: {args.area}, memory included: {not args.no_memory}"
     )
 
     main(args)
