@@ -339,12 +339,12 @@ class Preprocessor:
         # find all pow/log expressions within edp equation and cacti equations, convert to pyomo
         # We shouldn't need to find any pow/log expressions in the edp expression itself. Cacti sub expressions
         # should suffice, but keep an eye on this.
-        #self.find_exprs_to_constrain(edp)
-            
         start_time = time.time()
-        for cacti_var in cacti_subs.keys():
+        self.find_exprs_to_constrain(edp)
+            
+        """for cacti_var in cacti_subs.keys():
             if cacti_var in self.mapping and cacti_subs[cacti_var] != 0:
-                self.find_exprs_to_constrain(cacti_subs[cacti_var])
+                self.find_exprs_to_constrain(cacti_subs[cacti_var])"""
 
         logger.info(f"time to find exprs to constrain: {time.time()-start_time}")
 

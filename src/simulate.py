@@ -33,7 +33,7 @@ class ConcreteSimulator(AbstractSimulator):
                 else:
                     self.total_active_energy += hw.memories[rsc_name]["Dynamic read energy (nJ)"] * hw.memories[rsc_name]["Access time (ns)"]*1e-9
             else:
-                self.total_active_energy += hw.dynamic_power[data["function"]] * hw.latency[data["function"]]
+                self.total_active_energy += hw.dynamic_power[data["function"]] * hw.latency[data["function"]]*1e-9
     
     def calculate_edp(self, hw, scheduled_dfg):
         self.execution_time = scheduled_dfg.nodes["end"]["start_time"]
