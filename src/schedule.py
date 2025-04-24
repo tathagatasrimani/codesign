@@ -1,6 +1,7 @@
 import logging
 import os
 import heapq
+from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 
@@ -395,8 +396,8 @@ class gnt_schedule_parser:
         self.G, _, _ = self.create_graph_for_loop(self.top_loop)
         #self.remove_loop_nodes()
 
-    def convert(self):
-        self.convert_to_standard_dfg()
+    def convert(self, memories):
+        self.convert_to_standard_dfg(memories)
 
     def parse_bom(self):
         file = open(self.bom_file, "r")
@@ -423,7 +424,7 @@ class gnt_schedule_parser:
             i += 1
         logger.info(str(self.element_counts))
 
-    def convert_to_standard_dfg(self):
+    def convert_to_standard_dfg(self, memories):
         """
         takes the output of parse_gnt_to_graph and converts
         it to our standard dfg format for use in the rest of the flow.
@@ -484,11 +485,26 @@ class gnt_schedule_parser:
 
         # add resource dependencies
         topo_order = longest_path_first_topological_sort(self.modified_G)
+        # includes logic + mem/buf, but only add operations for non-memory
         topo_order_by_func = {func: [] for func in self.element_counts.keys()}
+        # track memory ops by memory resource
+        topo_order_by_rsc = defaultdict(list)
         for node in topo_order:
             node_data = self.modified_G.nodes[node]
-            if node_data["function"] in self.element_counts:
+            if node_data["function"] in self.element_counts and node_data["function"] != "Buf":
                 topo_order_by_func[node_data["function"]].append(node)
+            elif node_data["function"] == "Buf":
+                topo_order_by_rsc[node_data["library"]].append(node)
+
+        topo_order_by_mem_port = defaultdict(list)
+        for rsc in topo_order_by_rsc:
+            for i in range(len(topo_order_by_rsc[rsc])):
+                memory_name = "_"+rsc.split("__")[1]
+                port_name = f"{rsc}_{i%memories[memory_name].bandwidth}"
+                topo_order_by_mem_port[port_name].append(topo_order_by_rsc[rsc][i])
+        
+        logger.info(f"topo_order_by_mem_port: {topo_order_by_mem_port}")
+
         #print(topo_order_by_func)
         topo_order_by_elem = {func: {i: [] for i in range(self.element_counts[func])} for func in self.element_counts.keys()}
         for func in topo_order_by_func:
@@ -496,17 +512,30 @@ class gnt_schedule_parser:
                 topo_order_by_elem[func][i%self.element_counts[func]].append(topo_order_by_func[func][i])
         #print(topo_order_by_elem)
         for func in topo_order_by_elem:
-            for elem in topo_order_by_elem[func]:
-                for i in range(len(topo_order_by_elem[func][elem])-1):
-                    assert self.modified_G.has_node(topo_order_by_elem[func][elem][i])
-                    assert self.modified_G.has_node(topo_order_by_elem[func][elem][i+1])
-                    self.modified_G.add_edge(
-                        topo_order_by_elem[func][elem][i],
-                        topo_order_by_elem[func][elem][i+1],
-                        weight=self.modified_G.nodes[topo_order_by_elem[func][elem][i]]["cost"]
-                    )
-                    logger.info(f"adding resource dependency between {topo_order_by_elem[func][elem][i]} and {topo_order_by_elem[func][elem][i+1]}")
-                    self.extra_edges.append((topo_order_by_elem[func][elem][i], topo_order_by_elem[func][elem][i+1]))
+            if func == "Buf":
+                for port in topo_order_by_mem_port:
+                    for i in range(len(topo_order_by_mem_port[port])-1):
+                        assert self.modified_G.has_node(topo_order_by_mem_port[port][i])
+                        assert self.modified_G.has_node(topo_order_by_mem_port[port][i+1])
+                        self.modified_G.add_edge(
+                            topo_order_by_mem_port[port][i],
+                            topo_order_by_mem_port[port][i+1],
+                            weight=self.modified_G.nodes[topo_order_by_mem_port[port][i]]["cost"]
+                        )
+                        logger.info(f"adding memory port resource dependency between {topo_order_by_mem_port[port][i]} and {topo_order_by_mem_port[port][i+1]} for port {port}")
+                        self.extra_edges.append((topo_order_by_mem_port[port][i], topo_order_by_mem_port[port][i+1]))
+            else:
+                for elem in topo_order_by_elem[func]:
+                    for i in range(len(topo_order_by_elem[func][elem])-1):
+                        assert self.modified_G.has_node(topo_order_by_elem[func][elem][i])
+                        assert self.modified_G.has_node(topo_order_by_elem[func][elem][i+1])
+                        self.modified_G.add_edge(
+                            topo_order_by_elem[func][elem][i],
+                            topo_order_by_elem[func][elem][i+1],
+                            weight=self.modified_G.nodes[topo_order_by_elem[func][elem][i]]["cost"]
+                        )
+                        logger.info(f"adding resource dependency between {topo_order_by_elem[func][elem][i]} and {topo_order_by_elem[func][elem][i+1]}")
+                        self.extra_edges.append((topo_order_by_elem[func][elem][i], topo_order_by_elem[func][elem][i+1]))
 
         nx.write_gml(self.modified_G, "src/tmp/schedule.gml")
         logger.info(f"longest path length: {nx.dag_longest_path_length(self.modified_G)}")

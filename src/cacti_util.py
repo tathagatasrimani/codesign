@@ -163,7 +163,7 @@ def gen_vals(
     """
 
     logger.info(
-        f"Running Cacti with the following parameters: filename: {filename}, cache_size: {cache_size}, block_size: {block_size}, cache_type: {cache_type}, bus_width: {bus_width}, transistor_size: {transistor_size}, addr_timing: {addr_timing}, force_cache_config: {force_cache_config}, technology: {technology}"
+        f"Running Cacti with the following parameters: filename: {filename}, cache_size: {cache_size}, block_size: {block_size}, cache_type: {cache_type}, bus_width: {bus_width}, transistor_size: {transistor_size}, addr_timing: {addr_timing}, force_cache_config: {force_cache_config}, technology: {technology}, num_rw_ports: {num_rw_ports}"
     )
 
     # load in default values

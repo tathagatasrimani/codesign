@@ -71,8 +71,8 @@ class Codesign:
         self.scheduled_dfg = None
         self.parasitics = parasitics
         self.run_cacti = not no_cacti
-        self.area = area
-        self.hw = hardwareModel.HardwareModel(area=area)
+        self.area_constraint = area
+        self.hw = hardwareModel.HardwareModel(area_constraint=area)
         self.sim = simulate.ConcreteSimulator()
         self.symbolic_sim = symbolic_simulate.SymbolicSimulator()
         self.module_map = {}
@@ -168,6 +168,7 @@ class Codesign:
         os.chdir("../../..")
         pre_assign_counts = memory.get_pre_assign_counts(f"src/tmp/benchmark/bom.rpt", self.module_map)
         self.hw.memories = memory.customize_catapult_memories(f"src/tmp/benchmark/memories.rpt", self.benchmark_name, self.hw, pre_assign_counts)
+        logger.info(f"custom catapult memories: {self.hw.memories}")
         os.chdir("src/tmp/benchmark")
         p = subprocess.run(["make", "clean"], capture_output=True, text=True)
         p = subprocess.run(cmd, capture_output=True, text=True)
@@ -230,7 +231,7 @@ class Codesign:
         schedule_path = f"src/tmp/benchmark/build/{schedule_dir}"
         schedule_parser = schedule.gnt_schedule_parser(schedule_path, self.module_map)
         schedule_parser.parse()
-        schedule_parser.convert()
+        schedule_parser.convert(memories=self.hw.memories)
         self.scheduled_dfg = schedule_parser.modified_G
         self.scheduled_dfg.nodes["end"]["start_time"] = nx.dag_longest_path_length(self.scheduled_dfg)
 
@@ -560,7 +561,7 @@ if __name__ == "__main__":
         "-a",
         "--area",
         type=float,
-        default=100000,
+        default=1000000,
         help="Area constraint in um2",
     )
     parser.add_argument('--debug_no_cacti', type=bool, default=False, 

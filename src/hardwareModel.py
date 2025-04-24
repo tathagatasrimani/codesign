@@ -19,7 +19,7 @@ class HardwareModel:
     to set up the hardware, manage netlists, and extract technology-specific timing and power data for
     optimization and simulation purposes.
     """
-    def __init__(self, cfg="default", area=100000):
+    def __init__(self, cfg="default", area_constraint=1000000):
         config = cp.ConfigParser()
         config.read(HW_CONFIG_FILE)
         try:
@@ -41,7 +41,7 @@ class HardwareModel:
         self.symbolic_mem = {}
         self.symbolic_buf = {}
         self.memories = []
-        self.area = area
+        self.area_constraint = area_constraint
 
     def reset_state(self):
         self.symbolic_buf = {}

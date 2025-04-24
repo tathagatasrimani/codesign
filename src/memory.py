@@ -2,6 +2,7 @@ import math
 import os
 import subprocess
 import logging
+from collections import defaultdict
 import cvxpy as cp
 import numpy as np
 logger = logging.getLogger(__name__)
@@ -247,13 +248,13 @@ def parse_memory_report(filename):
                 i += 1
     return memories
 
-def gen_cacti_on_memories(memories, hw):
+def gen_cacti_on_memories(memories, hw, bandwidths):
     memory_vals = {}
     existing_memories = {}
     for memory in memories:
         mem_file = "mem_cache" if memory.off_chip else "base_cache"
         cache_type = "main memory" if memory.off_chip else "cache"
-        mem_info = (memory.depth, memory.word_width)
+        mem_info = (memory.depth, memory.word_width, bandwidths[memory.name])
         logger.info(f"mem info: {mem_info}")
         if mem_info in existing_memories:
             logger.info(f"reusing old mem created for {existing_memories[mem_info].name} instead of {memory.name}")
@@ -266,12 +267,14 @@ def gen_cacti_on_memories(memories, hw):
                 cache_type=cache_type,
                 bus_width=memory.word_width,
                 transistor_size=hw.cacti_tech_node,
+                num_rw_ports=bandwidths[memory.name]
             )
             existing_memories[mem_info] = memory
         logger.info(f"config vals: {memory_vals[memory.name]}")
         logger.info(f"{cache_type} VALS: read/write time {memory_vals[memory.name]['Access time (ns)']} ns, read energy {memory_vals[memory.name]['Dynamic read energy (nJ)']} nJ, write energy {memory_vals[memory.name]['Dynamic write energy (nJ)']} nJ, leakage power {memory_vals[memory.name]['Standby leakage per bank(mW)']}")
         logger.info(f"{cache_type} cacti with: {memory.depth * memory.word_width} bytes, {memory.word_width} bus width")
         memory_vals[memory.name]["type"] = "Mem" if memory.off_chip else "Buf"
+        memory_vals[memory.name]["bandwidth"] = bandwidths[memory.name]
     return memory_vals, existing_memories
 
 def get_pre_assign_counts(bom_file, module_map):
@@ -309,12 +312,15 @@ def get_area_data(memories, max_bandwidth, hw):
     interval = 10
     area_data = {}
     unique_memory_types = set([memory.component for memory in memories])
+    memory_depths = defaultdict(int)
+    for memory in memories:
+        memory_depths[memory.component] = max(memory_depths[memory.component], memory.depth)
     for memory_type in unique_memory_types:
         area_data[memory_type] = {}
-        for i in range(1, min(max_bandwidth, memory.depth)+1, interval):
+        for i in range(1, min(memory_depths[memory_type], max_bandwidth)+1, interval):
             memory_vals = cacti_util.gen_vals(
                 filename="base_cache",
-                cache_size=memory.depth * memory.word_width,
+                cache_size=memory_depths[memory_type] * memory.word_width,
                 cache_type="cache",
                 bus_width=memory.word_width,
                 transistor_size=hw.cacti_tech_node,
@@ -338,12 +344,12 @@ def match_bandwidths(memories, pre_assign_counts, hw):
         # fit polynomial to area data
         ports = np.array([point[0] for point in area_data[memory.component].items()])
         area = np.array([point[1] for point in area_data[memory.component].items()])
-        coeffs = np.polyfit(ports, area, deg=2)
+        coeffs = np.polyfit(ports, area, deg=1)
         # add constraints on ports
-        constr.append(mem_ports[i] <= min(pre_assign_counts[memory.name], memory.depth))
+        constr.append(mem_ports[i] <= min(max_bandwidth, memory.depth))
         constr.append(mem_ports[i] >= 1)
         # add polynomial to objective
-        tot_area += coeffs[0]*cp.Square(mem_ports[i]) + coeffs[1]*mem_ports[i] + coeffs[2]
+        tot_area += coeffs[0]*mem_ports[i] + coeffs[1]
     for i, elem in enumerate(pre_assign_counts):
         # add constraints on counts
         constr.append(pe_counts[i] <= pre_assign_counts[elem])
@@ -356,7 +362,7 @@ def match_bandwidths(memories, pre_assign_counts, hw):
             if i <= j:
                 continue
             constr.append(pe_counts[i] / pre_assign_counts[elem] == pe_counts[j] / pre_assign_counts[other_elem])
-    obj = cp.Minimize(cp.Square(hw.area - tot_area))
+    obj = cp.Minimize(cp.square(hw.area_constraint - tot_area))
     prob = cp.Problem(obj, constr)
     prob.solve()
     assert prob.status == "optimal"
@@ -372,33 +378,32 @@ def customize_catapult_memories(mem_rpt_file, benchmark_name, hw, pre_assign_cou
         os.makedirs("src/tmp/benchmark/ram_sync")
     clk_period = (1 / hw.f) * 1e9 # ns
     memories = parse_memory_report(mem_rpt_file)
-    memory_vals, existing_memories = gen_cacti_on_memories(memories, hw)
+
+    bandwidths = match_bandwidths(memories, pre_assign_counts, hw) 
+    memory_vals, existing_memories = gen_cacti_on_memories(memories, hw, bandwidths)
     tcl_commands = []
     libraries = []
     top_tcl_text = ""
     mem_seen = {} # mark off existing memories when we see them
 
-
-    bandwidths = match_bandwidths(memories, pre_assign_counts, hw) 
-
     for memory in memories:
-        mem_info = (memory.depth, memory.word_width)
+        mem_info = (memory.depth, memory.word_width, bandwidths[memory.name])
         cur_mem_vals = memory_vals[memory.name]
-        if mem_info in mem_seen:
+        """if mem_info in mem_seen:
             assert mem_info in existing_memories
             resource_name_for_file = get_resource_name_for_file(existing_memories[mem_info].name) 
             library_name = f"{existing_memories[mem_info].component}_{resource_name_for_file}"
             tcl_cmd = f"directive set {memory.path_name} -MAP_TO_MODULE {library_name}.{existing_memories[mem_info].component}\n"
-        else:
-            mem_seen[mem_info] = True
-            tcl_file, tcl_cmd, library = generate_sample_memory(
-                cur_mem_vals["Access time (ns)"], 
-                cur_mem_vals["Area (mm2)"]*1e6, 
-                clk_period,
-                memory.component, memory.path_name, bandwidths[memory.name]
-            )
-            top_tcl_text += f"source {tcl_file}\n"
-            libraries.append(library)
+        else:"""
+        mem_seen[mem_info] = True
+        tcl_file, tcl_cmd, library = generate_sample_memory(
+            cur_mem_vals["Access time (ns)"], 
+            cur_mem_vals["Area (mm2)"]*1e6, 
+            clk_period,
+            memory.component, memory.path_name, bandwidths[memory.name]
+        )
+        top_tcl_text += f"source {tcl_file}\n"
+        libraries.append(library)
         tcl_commands.append(tcl_cmd)
     with open("src/tmp/benchmark/mem_gen.tcl", "w") as f:
         f.write(top_tcl_text)
