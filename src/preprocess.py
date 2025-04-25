@@ -84,9 +84,10 @@ class Preprocessor:
         # may remove this later as its a bit arbitrary. Found in the past that optimizer works better with this.
         return model.x[self.mapping[self.free_symbols[i]]] <= self.initial_params[self.free_symbols[i].name]
     
-    def find_exprs_to_constrain(self, expr, debug=False):
+
+    def find_pow_exprs_to_constrain(self, expr, debug=False):
         """
-        Recursively identify expressions (e.g., square roots, logs) that should be constrained to nonnegative values.
+        Recursively identify power expressions that should be constrained to nonnegative values.
 
         Args:
             expr (sympy.Expr): Symbolic expression to analyze.
@@ -99,10 +100,26 @@ class Preprocessor:
         if expr.func == sp.core.power.Pow and expr.base.func != sp.core.symbol.Symbol:
             if debug: logger.info(f"exponent is {expr.exp}")
             # if we are taking an even root (i.e. square root), no negative numbers allowed
-            if abs(expr.exp) == 0.5:
+            if abs(expr.exp.evalf()) == 0.5:
                 if debug: logger.info(f"base func is {expr.base.func}")
                 self.pow_exprs_s.add(expr.base)
-        elif expr.func == sp.log:
+        
+        for arg in expr.args:
+            self.find_pow_exprs_to_constrain(arg, debug=debug)
+
+    def find_log_exprs_to_constrain(self, expr, debug=False):
+        """
+        Recursively identify log expressions that should be constrained to nonnegative values.
+
+        Args:
+            expr (sympy.Expr): Symbolic expression to analyze.
+            debug (bool, optional): If True, log debug information. Defaults to False.
+
+        Returns:
+            None
+        """
+        if debug: logger.info(f"expr.func is {expr.func}")
+        if expr.func == sp.log:
             if not expr.args[0].is_constant():
                 self.log_exprs_s.add(expr.args[0])
                 if debug: logger.info(f"arg of log is {expr.args[0]}, type is {type(expr.args[0])}")
@@ -110,7 +127,7 @@ class Preprocessor:
                 logger.info(f"constant arg of log is {expr.args[0]}, type is {type(expr.args[0])}")
         
         for arg in expr.args:
-            self.find_exprs_to_constrain(arg)
+            self.find_log_exprs_to_constrain(arg, debug=debug)
 
     def sub_pow_exprs(self,expr, prnt=False):
         """
@@ -340,13 +357,13 @@ class Preprocessor:
         # We shouldn't need to find any pow/log expressions in the edp expression itself. Cacti sub expressions
         # should suffice, but keep an eye on this.
         start_time = time.time()
-        self.find_exprs_to_constrain(edp)
+        self.find_log_exprs_to_constrain(edp)
             
         """for cacti_var in cacti_subs.keys():
             if cacti_var in self.mapping and cacti_subs[cacti_var] != 0:
                 self.find_exprs_to_constrain(cacti_subs[cacti_var])"""
 
-        logger.info(f"time to find exprs to constrain: {time.time()-start_time}")
+        logger.info(f"time to find log exprs to constrain: {time.time()-start_time}")
 
         start_time = time.time()
 
@@ -360,9 +377,20 @@ class Preprocessor:
         # negative inside a sqrt/log. So substitute all log(expr) with log(max(expr, 1e-3)) and 
         # all sqrt(expr) with sqrt(abs(expr))
         edp = edp.xreplace(self.log_subs)
-        edp = self.sub_pow_exprs(edp)
 
-        logger.info(f"time to sub low and pow exprs: {time.time()-start_time}")
+        logger.info(f"time to sub log exprs: {time.time()-start_time}")
+
+        start_time = time.time()
+        self.find_pow_exprs_to_constrain(edp)
+        logger.info(f"time to find pow exprs to constrain: {time.time()-start_time}")
+
+        start_time = time.time()
+        
+        for pow_expr in self.pow_exprs_s:
+            self.pow_subs[pow_expr] = symbolic_simulate.symbolic_convex_max(pow_expr, 0, evaluate=False)
+            #logger.info(f"pow expr: {pow_expr}; sub: {self.pow_subs[pow_expr]}")
+        edp = edp.xreplace(self.pow_subs)
+        logger.info(f"time to sub pow exprs: {time.time()-start_time}")
 
         # save subbed expressions to tmp file for debugging purposes
         """with open("src/tmp/symbolic_edp_subbed.txt", "w") as f:

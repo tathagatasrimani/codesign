@@ -29,9 +29,9 @@ class ConcreteSimulator(AbstractSimulator):
             if data["function"] == "Buf" or data["function"] == "MainMem":
                 rsc_name = data["library"][data["library"].find("__")+1:]
                 if data["module"].find("wport") != -1:
-                    self.total_active_energy += hw.memories[rsc_name]["Dynamic write energy (nJ)"] * hw.memories[rsc_name]["Access time (ns)"]*1e-9
+                    self.total_active_energy += hw.memories[rsc_name]["Dynamic write energy (nJ)"]
                 else:
-                    self.total_active_energy += hw.memories[rsc_name]["Dynamic read energy (nJ)"] * hw.memories[rsc_name]["Access time (ns)"]*1e-9
+                    self.total_active_energy += hw.memories[rsc_name]["Dynamic read energy (nJ)"]
             else:
                 self.total_active_energy += hw.dynamic_power[data["function"]] * hw.latency[data["function"]]*1e-9
     
