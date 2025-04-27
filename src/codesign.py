@@ -79,6 +79,8 @@ class Codesign:
         self.symbolic_sim = symbolic_simulate.SymbolicSimulator()
         self.module_map = {}
 
+        self.save_dat()
+
         # starting point set by the config we load into the HW model
         coefficients.create_and_save_coefficients([self.hw.transistor_size])
 
@@ -475,6 +477,17 @@ class Codesign:
         self.hw.write_technology_parameters(
             f"{self.save_dir}/tech_params_{iter_number}.yaml"
         )
+
+    def save_dat(self):
+        # Save tech node info to another file prefixed by prev_ so we can restore
+        org_dat_file = self.hw.cacti_dat_file
+        tech_nm = os.path.basename(org_dat_file)
+        tech_nm = os.path.splitext(tech_nm)[0]
+
+        prev_dat_file = f"src/cacti/tech_params/prev_{tech_nm}.dat"
+        with open(org_dat_file, "r") as src_file, open(prev_dat_file, "w") as dest_file:
+            for line in src_file:
+                dest_file.write(line)
 
     def restore_dat(self):
         dat_file = self.hw.cacti_dat_file
