@@ -22,6 +22,7 @@ sys.path.insert(0, current_directory)
 # Now you can safely import modules that rely on the correct working directory
 from src import hw_symbols
 from src import codesign
+from src import sim_util
 
 class DennardMultiCore:
     def __init__(self, args):
@@ -57,13 +58,7 @@ class DennardMultiCore:
 
     def run_experiment(self):
         self.codesign_module = codesign.Codesign(
-            self.args.benchmark,
-            self.args.savedir,
-            self.args.openroad_testfile,
-            self.args.parasitics,
-            False,
-            self.args.area,
-            self.args.no_memory,
+            self.args
         )
         self.codesign_module.forward_pass()
         self.codesign_module.log_forward_tech_params()
@@ -83,6 +78,10 @@ class DennardMultiCore:
             self.codesign_module.hw.update_technology_parameters()
             self.codesign_module.log_all_to_file(i)
             self.params_over_iterations.append(copy.copy(self.codesign_module.tech_params))
+
+            # update schedule with modified technology parameters
+            sim_util.update_schedule_with_latency(self.codesign_module.schedule, self.codesign_module.hw.latency)
+            self.codesign_module.prepare_schedule()
 
         self.plot_params_over_iterations()
         
@@ -151,6 +150,12 @@ if __name__ == "__main__":
         type=str,
         default="test/experiments/dennard_multi_core_figs",
         help="path to save figs"
+    )
+    parser.add_argument(
+        "--debug_no_cacti",
+        type=bool,
+        default=False,
+        help="disable cacti in the first iteration to decrease runtime when debugging"
     )
     args = parser.parse_args()
     if not os.path.exists(args.savedir):

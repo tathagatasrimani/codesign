@@ -42,5 +42,5 @@ class ConcreteSimulator(AbstractSimulator):
         self.execution_time = scheduled_dfg.nodes["end"]["start_time"]
         self.calculate_passive_energy(hw, self.execution_time)
         self.calculate_active_energy(hw, scheduled_dfg)
-        return self.total_passive_energy * self.execution_time + self.total_active_energy
+        return (self.total_passive_energy + self.total_active_energy) * self.execution_time
         

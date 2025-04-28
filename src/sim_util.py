@@ -167,6 +167,27 @@ def generate_init_params_from_rcs_as_symbols(rcs):
 
     return initial_params
 
+def update_schedule_with_latency(schedule, latency):
+    """
+    Updates the schedule with the latency of each operation.
+
+    Parameters:
+        schedule (nx.Digraph): A list of operations in the schedule.
+        latency (dict): A dictionary of operation names to their latencies.
+
+    Returns:
+        None;
+        The schedule is updated in place.
+    """
+    for node in schedule.nodes:
+        schedule.nodes[node]["cost"] = latency[schedule.nodes.data()[node]["function"]]
+    for edge in schedule.edges:
+        edge_data = schedule.edges[edge]
+        func = schedule.nodes.data()[edge[0]]["function"]
+        schedule.edges[edge]["weight"] = latency[func]
+        if "cost" in edge_data:
+            schedule.edges[edge]["weight"] += edge_data["cost"] # TODO: update edge cost with values from inverse pass
+
 def get_latest_log_dir():
     log_dirs = glob.glob(os.path.normpath(os.path.join(os.path.dirname(__file__), "../logs/*-*-*_*-*-*")))
     log_dirs = sorted(

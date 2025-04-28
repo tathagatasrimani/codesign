@@ -24,7 +24,7 @@ from . import memory
 from . import ccore_update
 
 class Codesign:
-    def __init__(self, benchmark_name, save_dir, openroad_testfile, parasitics, no_cacti, area, no_memory):
+    def __init__(self, args):
         """
         Initializes a Codesign object, sets up directories and logging, initializes hardware and
         simulation models, and prepares technology parameters.
@@ -40,10 +40,10 @@ class Codesign:
         Returns:
             None
         """
-        self.benchmark = f"src/benchmarks/{benchmark_name}"
-        self.benchmark_name = benchmark_name
+        self.benchmark = f"src/benchmarks/{args.benchmark}"
+        self.benchmark_name = args.benchmark
         self.save_dir = os.path.join(
-            save_dir, datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            args.savedir, datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         )
 
         if not os.path.exists(self.save_dir):
@@ -67,17 +67,21 @@ class Codesign:
         self.inverse_edp = 0
         self.tech_params = None
         self.initial_tech_params = None
-        self.openroad_testfile = openroad_testfile
+        self.openroad_testfile = args.openroad_testfile
         self.longest_paths = []
         self.scheduled_dfg = None
-        self.parasitics = parasitics
-        self.run_cacti = not no_cacti
-        self.area_constraint = area
-        self.no_memory = no_memory
-        self.hw = hardwareModel.HardwareModel(area_constraint=area)
+        self.parasitics = args.parasitics
+        self.run_cacti = not args.debug_no_cacti
+        self.area_constraint = args.area
+        self.no_memory = args.no_memory
+        self.hw = hardwareModel.HardwareModel(args)
         self.sim = simulate.ConcreteSimulator()
         self.symbolic_sim = symbolic_simulate.SymbolicSimulator()
         self.module_map = {}
+        if hasattr(args, "inverse_pass_improvement"):
+            self.inverse_pass_improvement = args.inverse_pass_improvement
+        else:
+            self.inverse_pass_improvement = 10
 
         self.save_dat()
 
@@ -216,11 +220,11 @@ class Codesign:
         # run catapult with custom memory configurations
         self.run_catapult()
 
-        # calculate wire parasitics with hardware netlist
-        # self.hw.get_wire_parasitics(self.openroad_testfile, self.parasitics)
-
-        # parse catapult timing report, which saves critical paths
+        # parse catapult timing report and create schedule
         self.parse_catapult_timing()
+
+        # prepare schedule
+        self.prepare_schedule()
 
         # finally, calculate EDP
         self.forward_edp = self.sim.calculate_edp(self.hw, self.scheduled_dfg)
@@ -230,8 +234,7 @@ class Codesign:
 
     def parse_catapult_timing(self):
         """
-        Parses the Catapult timing report, extracts and schedules the data flow graph (DFG), and
-        updates the hardware netlist and longest paths.
+        Parses the Catapult timing report, extracts and schedules the data flow graph (DFG).
 
         Args:
             None
@@ -251,6 +254,17 @@ class Codesign:
         schedule_parser.parse()
         schedule_parser.convert(memories=self.hw.memories)
         self.scheduled_dfg = schedule_parser.modified_G
+    
+    def prepare_schedule(self):
+        """
+        Prepares the schedule by setting the end node's start time and getting the longest paths.
+        Also updates the hardware netlist with wire parasitics and determines the longest paths.
+
+        Args:
+            None
+        Returns:
+            None
+        """
         self.scheduled_dfg.nodes["end"]["start_time"] = nx.dag_longest_path_length(self.scheduled_dfg)
 
         self.longest_paths = schedule.get_longest_paths(self.scheduled_dfg)
@@ -258,8 +272,14 @@ class Codesign:
         netlist_dfg.remove_node("end")
         self.hw.netlist = netlist_dfg
 
-        # schedule operations with parasitic delays
-        #schedule.sdc_schedule(self.operations)
+        # update netlist with wire parasitics
+        # self.hw.get_wire_parasitics(self.openroad_testfile, self.parasitics)
+
+        # map parasitics to schedule
+        # self.hw.map_parasitics_to_schedule(self.scheduled_dfg) placeholder function
+
+        # update schedule with parasitic delays
+        # sim_util.update_schedule_with_latency(self.schedule, self.hw.latency)
     
     def parse_output(self, f):
         """
@@ -337,19 +357,13 @@ class Codesign:
         with open(rcs_path, "w") as f:
             f.write(yaml.dump(rcs))
 
-    def inverse_pass(self):
+    def symbolic_conversion(self):
         """
-        Executes the inverse pass of the codesign process: generates symbolic CACTI values for
-        memories, computes EDP (Energy Delay Product), runs optimizer to find better technology
-        parameters, and logs results.
+        Runs symbolic cacti and saves initial values of symbolic parameters.
 
-        Args:
-            None
         Returns:
-            None
+            dict: Dictionary of symbolic parameters and their initial values.
         """
-        print("\nRunning Inverse Pass")
-        logger.info("Running Inverse Pass")
         base_cache_cfg = "cfg/base_cache.cfg"
         mem_cache_cfg = "cfg/mem_cache.cfg"
         existing_memories = {}
@@ -391,12 +405,28 @@ class Codesign:
             if cacti_subs[cacti_var] == 0:
                 self.tech_params[cacti_var] = 0
             else:   
-                self.tech_params[cacti_var] = cacti_subs[cacti_var].xreplace(self.tech_params).evalf()
+                self.tech_params[cacti_var] = float(cacti_subs[cacti_var].xreplace(self.tech_params).evalf())
         
         for mem in hw_symbols.OffChipIOL:
             self.tech_params[hw_symbols.OffChipIOL[mem]] = self.hw.latency["OffChipIO"]
 
-        self.log_inverse_tech_params(cacti_subs)
+        self.log_inverse_tech_params(cacti_subs)       
+        return cacti_subs
+
+    def inverse_pass(self):
+        """
+        Executes the inverse pass of the codesign process: generates symbolic CACTI values for
+        memories, computes EDP (Energy Delay Product), runs optimizer to find better technology
+        parameters, and logs results.
+
+        Args:
+            None
+        Returns:
+            None
+        """
+        print("\nRunning Inverse Pass")
+        logger.info("Running Inverse Pass")
+        cacti_subs = self.symbolic_conversion()
 
         self.inverse_edp = self.symbolic_sim.edp.xreplace(self.tech_params).evalf()
         inverse_exec_time = self.symbolic_sim.execution_time.xreplace(self.tech_params).evalf()
@@ -417,7 +447,7 @@ class Codesign:
 
         stdout = sys.stdout
         with open("src/tmp/ipopt_out.txt", "w") as sys.stdout:
-            optimize.optimize(self.tech_params, self.symbolic_sim.edp, "ipopt", cacti_subs)
+            optimize.optimize(self.tech_params, self.symbolic_sim.edp, "ipopt", cacti_subs, improvement=self.inverse_pass_improvement)
         sys.stdout = stdout
         f = open("src/tmp/ipopt_out.txt", "r")
         self.parse_output(f)
@@ -531,13 +561,7 @@ class Codesign:
         
 def main(args):
     codesign_module = Codesign(
-        args.benchmark,
-        args.savedir,
-        args.openroad_testfile,
-        args.parasitics,
-        args.debug_no_cacti,
-        args.area,
-        args.no_memory,
+        args
     )
     try:
         codesign_module.execute(args.num_iters)
@@ -603,6 +627,9 @@ if __name__ == "__main__":
     parser.add_argument('--debug_no_cacti', type=bool, default=False, 
                         help='disable cacti in the first iteration to decrease runtime when debugging')
     parser.add_argument("-c", "--checkpoint", type=bool, default=False, help="save a design checkpoint upon exit")
+    parser.add_argument("--logic_node", type=int, default=7, help="logic node size")
+    parser.add_argument("--mem_node", type=int, default=32, help="memory node size")
+    parser.add_argument("--inverse_pass_improvement", type=float, help="improvement factor for inverse pass")
     args = parser.parse_args()
     print(
         f"args: benchmark: {args.benchmark}, parasitics: {args.parasitics}, num iterations: {args.num_iters}, checkpointing: {args.checkpoint}, area: {args.area}, memory included: {not args.no_memory}"

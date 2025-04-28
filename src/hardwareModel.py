@@ -19,7 +19,7 @@ class HardwareModel:
     to set up the hardware, manage netlists, and extract technology-specific timing and power data for
     optimization and simulation purposes.
     """
-    def __init__(self, cfg="default", area_constraint=1000000):
+    def __init__(self, args, cfg="default"):
         config = cp.ConfigParser()
         config.read(HW_CONFIG_FILE)
         try:
@@ -36,12 +36,16 @@ class HardwareModel:
                 config.getfloat("DEFAULT", "V_dd"),
                 config.getint("DEFAULT", "frequency")
             )
+        self.area_constraint = args.area
+        if hasattr(args, "logic_node"):
+            self.transistor_size = args.logic_node
+        if hasattr(args, "mem_node"):
+            self.cacti_tech_node = args.mem_node
         self.set_technology_parameters()
         self.netlist = nx.DiGraph()
         self.symbolic_mem = {}
         self.symbolic_buf = {}
         self.memories = []
-        self.area_constraint = area_constraint
 
     def reset_state(self):
         self.symbolic_buf = {}
@@ -60,6 +64,10 @@ class HardwareModel:
         self.transistor_size = transistor_size
         self.V_dd = V_dd
         self.f = f
+        self.cacti_tech_node = min(
+            cacti_util.valid_tech_nodes,
+            key=lambda x: abs(x - self.transistor_size * 1e-3),
+        )
 
     def set_technology_parameters(self):
         """
@@ -80,10 +88,6 @@ class HardwareModel:
         self.leakage_power = tech_params["leakage_power"][self.transistor_size]
         self.dynamic_energy = tech_params["dynamic_energy"][self.transistor_size]
 
-        self.cacti_tech_node = min(
-            cacti_util.valid_tech_nodes,
-            key=lambda x: abs(x - self.transistor_size * 1e-3),
-        )
         # DEBUG
         print(f"cacti tech node: {self.cacti_tech_node}")
 

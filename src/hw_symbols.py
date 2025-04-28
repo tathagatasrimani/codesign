@@ -544,7 +544,7 @@ symbolic_power_active = {
     "OffChipIO": lambda: make_io_power_active_dict(),
 }
 
-def make_sym_power_pass(beta, P_pass_inv=V_dd**2 / (Reff["Not"] * 100)):
+def make_sym_power_pass(beta, P_pass_inv=V_dd**2 / (Reff["Not"] * 700000)):
     return beta * P_pass_inv
 
 def make_mainmem_power_passive_dict():
