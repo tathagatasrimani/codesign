@@ -171,7 +171,7 @@ class Codesign:
         # TODO: extract hw netlist
         ## yosys -p "read_verilog src/tmp/benchmark/rtl.v; write_json netlist.json"
         top_module_name = "MatMult"
-        cmd = ["yosys", "-p", f"read_verilog src/tmp/benchmark/build/{top_module_name}.v1/rtl.v; proc; write_json src/tmp/benchmark/netlist.json"]
+        cmd = ["yosys", "-p", f"read_verilog src/tmp/benchmark/build/{top_module_name}.v1/rtl.v; hierarchy -top MatMult; proc; write_json src/tmp/benchmark/netlist.json"]
         p = subprocess.run(cmd, capture_output=True, text=True)
         logger.info(f"Yosys output: {p.stdout}")
         if p.returncode != 0:
