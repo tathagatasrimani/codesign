@@ -14,7 +14,7 @@ def check_if_nodes_are_in_graph(graph, nodes):
     assert all_found, f"Not all nodes are in the graph. Missing node: {node_not_found}"
 
 # This script parses a Yosys JSON netlist and converts it into a NetworkX graph.
-def parse_yosys_json(json_file):
+def parse_yosys_json(json_file, include_memories=True):
     """Parses Yosys JSON netlist and converts it into a NetworkX graph, keeping only exact 'mult' and 'add' nodes."""
     with open(json_file, "r") as f:
         yosys_data = json.load(f)
@@ -33,7 +33,7 @@ def parse_yosys_json(json_file):
     queue = [(top_level_module_type, top_level_module_type, top_level_module_type)]
         #### in general, the queue should contain tuples of (module_name, module_type, hierarchy_path)
 
-    print("Queue initialized with top-level module:", queue)
+    # print("Queue initialized with top-level module:", queue)
 
 
     # add the top-level module's input/output ports to the full graph
@@ -56,7 +56,7 @@ def parse_yosys_json(json_file):
 
             port_bit += 1
 
-
+    all_proc_modules_found = {}
 
     while queue:
         current_module_tuple = queue.pop(0)
@@ -64,7 +64,7 @@ def parse_yosys_json(json_file):
 
         ## get the current module data
         current_module = yosys_data["modules"][current_module_type]
-        print(f"Processing module: {current_module_name} of type {current_module_type}")  
+        # print(f"Processing module: {current_module_name} of type {current_module_type}")  
 
         ## add nets to full graph for internal nets. 
         for net_name, net_data in current_module["netnames"].items():
@@ -101,11 +101,9 @@ def parse_yosys_json(json_file):
 
         # Process cells (modules instantiated in this module)
         for cell_name, cell_data in current_module["cells"].items():
-            print(f"  Cell: {cell_name}")
+            # print(f"  Cell: {cell_name}")
             cell_type = cell_data["type"]
             in_final_graph = False
-
-            
             
             if cell_type == "mgc_in_sync_v2" or cell_type == "mgc_io_sync_v2":
                 continue
@@ -113,8 +111,11 @@ def parse_yosys_json(json_file):
                 final_graph.add_node(hierarchy_path + "**" + cell_name, type="c-core", module_type=cell_type, hierarchy_path=hierarchy_path + "**" + cell_name)  # include c-cores in final graph.
                 in_final_graph = True
             elif "MatMult_ccs_ram_sync_1R1W" in cell_type:
-                final_graph.add_node(hierarchy_path + "**" + cell_name, type="memory", module_type=cell_type, hierarchy_path=hierarchy_path + "**" + cell_name)  # include mem in final graph.
-                in_final_graph = True
+                if include_memories:
+                    final_graph.add_node(hierarchy_path + "**" + cell_name, type="memory", module_type=cell_type, hierarchy_path=hierarchy_path + "**" + cell_name)  # include mem in final graph.
+                    in_final_graph = True
+                else:
+                    continue ## completely ignore the memory instance.
             elif cell_type[0] != "$":
                 ## add the cell in this module to the queue 
                 queue.append((cell_name, cell_type, hierarchy_path + "**" + cell_name))
@@ -163,6 +164,7 @@ def parse_yosys_json(json_file):
             
             ## This code will make connection between the inputs/outputs of a automatically generated cell. 
             if cell_type[0] == "$":
+                all_proc_modules_found[cell_type] = True
                 ## this is an automatically generated cell by Yosys from running the proc command.
                 ## we need to make connections between the inputs/outputs as needed based on the cell type.
                 if cell_type == "$adff":
@@ -174,8 +176,73 @@ def parse_yosys_json(json_file):
                             #print(f"  Adding edge between {curr_cell_node} and {output_port_node}")
                             check_if_nodes_are_in_graph(full_graph, [curr_cell_node, output_port_node])
                             full_graph.add_edge(curr_cell_node, output_port_node)
+                elif cell_type == "$not":
+                    ## iterate through the added ports and make connections between the input and output ports "internally" in this module.
+                    for curr_cell_node in list_nodes_added:
+                        if full_graph.nodes[curr_cell_node]["orig_port_name"] == "A":
+                            ## this is the input port, so we need to connect it to the output port.
+                            output_port_node = curr_cell_node.split("$$")[0] + "$$" + "Y" + "#" + str(full_graph.nodes[curr_cell_node]["bit_pos"])
+                            #print(f"  Adding edge between {curr_cell_node} and {output_port_node}")
+                            check_if_nodes_are_in_graph(full_graph, [curr_cell_node, output_port_node])
+                            full_graph.add_edge(curr_cell_node, output_port_node)
+                elif cell_type == "$logic_not" or cell_type == "$reduce_bool":
+                    ## iterate through the added ports and make connections between the input and output ports "internally" in this module.
+                    for curr_cell_node in list_nodes_added:
+                        if full_graph.nodes[curr_cell_node]["orig_port_name"] == "A":
+                            ## this is the input port, so we need to connect it to the output port.
+                            output_port_node = curr_cell_node.split("$$")[0] + "$$" + "Y" + "#" + "0"
+                            #print(f"  Adding edge between {curr_cell_node} and {output_port_node}")
+                            check_if_nodes_are_in_graph(full_graph, [curr_cell_node, output_port_node])
+                            full_graph.add_edge(curr_cell_node, output_port_node)
+                elif cell_type == "$eq" or cell_type == "$ne":
+                    ## iterate through the added ports and make connections between the input and output ports "internally" in this module.
+                    for curr_cell_node in list_nodes_added:
+                        if full_graph.nodes[curr_cell_node]["orig_port_name"] == "A":
+                            ## this is the input port, so we need to connect it to the output port.
+                            output_port_node = curr_cell_node.split("$$")[0] + "$$" + "Y" + "#0"
+                            #print(f"  Adding edge between {curr_cell_node} and {output_port_node}")
+                            check_if_nodes_are_in_graph(full_graph, [curr_cell_node, output_port_node])
+                            full_graph.add_edge(curr_cell_node, output_port_node)
+                elif cell_type == "$and" or cell_type == "$or" or cell_type == "$xor":
+                    ## iterate through the added ports and make connections between the input and output ports "internally" in this module.
+                    for curr_cell_node in list_nodes_added:
+                        if full_graph.nodes[curr_cell_node]["orig_port_name"] == "A" or full_graph.nodes[curr_cell_node]["orig_port_name"] == "B":
+                            ## this is the input port, so we need to connect it to the output port.
+                            output_port_node = curr_cell_node.split("$$")[0] + "$$" + "Y" + "#" + str(full_graph.nodes[curr_cell_node]["bit_pos"])
+                            #print(f"  Adding edge between {curr_cell_node} and {output_port_node}")
+                            check_if_nodes_are_in_graph(full_graph, [curr_cell_node, output_port_node])
+                            full_graph.add_edge(curr_cell_node, output_port_node)
 
-    print("Queue after processing cells:", queue)
+                elif cell_type == "$mux":
+                    ## iterate through the added ports and make connections between the input and output ports "internally" in this module.
+                    for curr_cell_node in list_nodes_added:
+                        if full_graph.nodes[curr_cell_node]["orig_port_name"] == "A" or full_graph.nodes[curr_cell_node]["orig_port_name"] == "B":
+                            ## this is the input port, so we need to connect it to the output port.
+                            output_port_node = curr_cell_node.split("$$")[0] + "$$" + "Y" + "#" + str(full_graph.nodes[curr_cell_node]["bit_pos"])
+                            #print(f"  Adding edge between {curr_cell_node} and {output_port_node}")
+                            check_if_nodes_are_in_graph(full_graph, [curr_cell_node, output_port_node])
+                            full_graph.add_edge(curr_cell_node, output_port_node)
+                        elif full_graph.nodes[curr_cell_node]["orig_port_name"] == "S":
+                            ## This is the select port, so we need to connect it to ALL the output ports.
+                            for curr_output_cell_node in list_nodes_added:
+                                if full_graph.nodes[curr_output_cell_node]["orig_port_name"] == "Y":
+
+                                    #print(f"  Adding edge between {curr_cell_node} and {output_port_node}")
+                                    check_if_nodes_are_in_graph(full_graph, [curr_cell_node, curr_output_cell_node])
+                                    full_graph.add_edge(curr_cell_node, curr_output_cell_node)
+                elif cell_type == "$memrd_v2" or cell_type == "$meminit":
+                    ## skip these cell types. It stores the state for the control state machine. We aren't modeling this in the final graph. 
+                    pass 
+
+    ### Raise error message if we have unhandled proc modules. This may happen as we test different designs. 
+    current_handled_proc_modules = {'$and': True, '$not': True, '$eq': True, '$logic_not': True, '$reduce_bool': True, '$ne': True, '$or': True, '$adff': True, '$mux': True, '$xor': True, '$memrd_v2': True, '$meminit': True}
+    
+    for proc_module in all_proc_modules_found:
+        if proc_module not in current_handled_proc_modules:
+            print(f"WARNING: Unhandled proc module type: {proc_module}. Please add handling for this module type.")
+            
+
+    #print("Queue after processing cells:", queue)
 
 
     ############ Now, add edges between the cells in the final graph.
@@ -229,8 +296,6 @@ def parse_yosys_json(json_file):
                         ## add this edge to the final graph.
                         final_graph.add_edge(data["hierarchy_path"], reachable_node_hierarchy_path)
 
-            
-
     
 
     return final_graph, full_graph
@@ -239,8 +304,8 @@ def parse_yosys_json(json_file):
 def main():
     ### for testing
     top_module_name = "MatMult"
-    #cmd = ["yosys", "-p", f"read_verilog benchmarks/test_verilog_file.v; hierarchy -top MatMult; proc; write_json tmp/benchmark/netlist.json"] ## toy test case
-    cmd = ["yosys", "-p", f"read_verilog tmp/benchmark/build/MatMult.v1/rtl.v; hierarchy -top MatMult; proc; write_json tmp/benchmark/netlist.json"] # the real deal
+    cmd = ["yosys", "-p", f"read_verilog benchmarks/test_verilog_file.v; hierarchy -top MatMult; proc; write_json tmp/benchmark/netlist.json"] ## toy test case
+    ##cmd = ["yosys", "-p", f"read_verilog tmp/benchmark/build/MatMult.v1/rtl.v; hierarchy -top MatMult; proc; write_json tmp/benchmark/netlist.json"] # the real deal
     
     p = subprocess.run(cmd, capture_output=True, text=True)
     print(f"Yosys output: {p.stdout}")
