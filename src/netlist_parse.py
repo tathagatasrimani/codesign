@@ -3,7 +3,15 @@ import subprocess
 import networkx as nx
 import matplotlib.pyplot as plt
 
-## TODO: Need to add a way to connect the 
+def check_if_nodes_are_in_graph(graph, nodes):
+    """Check if all nodes in the list are present in the graph."""
+    all_found = True   
+    node_not_found = None
+    for node in nodes:
+        if node not in graph.nodes:
+            all_found = False
+            node_not_found = node
+    assert all_found, f"Not all nodes are in the graph. Missing node: {node_not_found}"
 
 # This script parses a Yosys JSON netlist and converts it into a NetworkX graph.
 def parse_yosys_json(json_file):
@@ -13,7 +21,7 @@ def parse_yosys_json(json_file):
 
     final_graph = nx.DiGraph()  # Directed graph for the final circuit
 
-    full_graph = nx.MultiDiGraph()  # Graph for all nodes in the design
+    full_graph = nx.DiGraph()  # Graph for all nodes in the design
     ## each graph node is a node in a module. Ex: MatMult_19 is node 19 in module MatMult. It can be an integer value or a string. 
     ## each graph edge is a connection between two nodes Ex: MatMult_19 -> MatMult_instance101insidematmult_20
 
@@ -26,6 +34,30 @@ def parse_yosys_json(json_file):
         #### in general, the queue should contain tuples of (module_name, module_type, hierarchy_path)
 
     print("Queue initialized with top-level module:", queue)
+
+
+    # add the top-level module's input/output ports to the full graph
+    top_level_module_info = yosys_data["modules"][top_level_module_type]
+
+    for port_name, port_data in top_level_module_info["ports"].items():
+                
+        ## input/output is from the perspective of the cell.
+        input_port = False
+        
+        if port_data["direction"] == "input":
+            input_port = True
+        
+        port_bit = 0 # the port bit is the index within the port. Ex: a[0] is the MSB bit of port a (note not the LSB!!!)
+
+        ## the net numbers is an ordered list of net numbers from the current module connect to the cell port.
+        for net_number in port_data["bits"]:
+            #print(f"  Port: {port_name}, Net: {net_number}")
+            full_graph.add_node(top_level_module_type + "$$" + port_name + '#' + str(port_bit), type="module_port", text_label= port_name + "[" + str(port_bit) + "]", hierarchy_path= top_level_module_type, in_final_graph=False)
+
+            port_bit += 1
+
+
+
     while queue:
         current_module_tuple = queue.pop(0)
         current_module_name, current_module_type, hierarchy_path = current_module_tuple
@@ -38,9 +70,11 @@ def parse_yosys_json(json_file):
         ## add nets to full graph for internal nets. 
         for net_name, net_data in current_module["netnames"].items():
             net_numbers = net_data["bits"]
+            index_num = 0
             for net_number in net_numbers:
                 #print(f"  Net: {net_name}, Number: {net_number}")
-                full_graph.add_node(hierarchy_path + '#' + str(net_number), type="net")
+                full_graph.add_node(hierarchy_path + '#' + str(net_number), type="internal_net", text_label= net_name + "[" + str(index_num) + "]", in_final_graph=False, hierarchy_path= hierarchy_path)
+                index_num += 1
 
 
         ## then add the connections from input/output ports to the internal nets for this module.
@@ -57,10 +91,12 @@ def parse_yosys_json(json_file):
             for internal_node_num in interal_node_numbers:
                 #print(f"  Port: {port_name}, Number: {port_number}")
 
+                check_if_nodes_are_in_graph(full_graph, [hierarchy_path + '#' + str(internal_node_num), hierarchy_path + "$$" + port_name + '#' + str(port_bit)])
+
                 if input_port:
-                    full_graph.add_edge(hierarchy_path + port_name + '#' + str(port_bit), hierarchy_path + '#' + str(internal_node_num))
+                    full_graph.add_edge(hierarchy_path + "$$" + port_name + '#' + str(port_bit), hierarchy_path + '#' + str(internal_node_num))
                 else:
-                    full_graph.add_edge(hierarchy_path + '#' + str(internal_node_num), hierarchy_path + port_name + '#' + str(port_bit))
+                    full_graph.add_edge(hierarchy_path + '#' + str(internal_node_num), hierarchy_path + "$$" + port_name + '#' + str(port_bit))
 
                 port_bit += 1
 
@@ -68,24 +104,29 @@ def parse_yosys_json(json_file):
         for cell_name, cell_data in current_module["cells"].items():
             print(f"  Cell: {cell_name}")
             cell_type = cell_data["type"]
+            in_final_graph = False
             
             if cell_type == "mgc_in_sync_v2" or cell_type == "mgc_io_sync_v2":
                 continue
             elif cell_type == "mult" or cell_type == "add":
-                final_graph.add_node(cell_name, type=cell_type)  # include c-cores in final graph.
+                final_graph.add_node(hierarchy_path + "**" + cell_name, type="c-core", module_type=cell_type, hierarchy_path=hierarchy_path + "**" + cell_name)  # include c-cores in final graph.
+                in_final_graph = True
             elif "MatMult_ccs_ram_sync_1R1W" in cell_type:
-                final_graph.add_node(cell_name, type=cell_type)  # include mem in final graph.
+                final_graph.add_node(hierarchy_path + "**" + cell_name, type="memory", module_type=cell_type, hierarchy_path=hierarchy_path + "**" + cell_name)  # include mem in final graph.
+                in_final_graph = True
             else:
                 ## add the cell in this module to the queue
                 if cell_type[0] != "$":
                     ### don't need to dig deeper into the primitive cells. 
-                    queue.append((cell_name, cell_type, hierarchy_path + cell_name))
+                    queue.append((cell_name, cell_type, hierarchy_path + "**" + cell_name))
 
             ### add to the full_graph
             for port_name, net_numbers in cell_data["connections"].items():
                 
                 ## input/output is from the perspective of the cell.
                 input_port = False
+
+                
 
                 ## the ccore modules don't have a port direction, so we need assign direction manually.
                 if cell_data["type"] == "add" or cell_data["type"] == "mult":
@@ -94,37 +135,106 @@ def parse_yosys_json(json_file):
                 
                 elif cell_data["port_directions"][port_name] == "input":
                     input_port = True
+
+                in_out_direction = "input" if input_port else "output"
                 
                 port_bit = 0 # the port bit is the index within the port. Ex: a[0] is the MSB bit of port a (note not the LSB!!!)
 
                 ## the net numbers is an ordered list of net numbers from the current module connect to the cell port.
                 for net_number in net_numbers:
+                    ## check if the net number isn't actually a net number and is a constant.
+                    ## if it is a constnant, it will be a string instead of an int.
+                    if isinstance(net_number, str):
+                        port_bit += 1
+                        continue
+
                     #print(f"  Port: {port_name}, Net: {net_number}")
-                    full_graph.add_node(hierarchy_path + cell_name + port_name + '#' + str(port_bit), type=cell_type)
+                    full_graph.add_node(hierarchy_path + "**" + cell_name + "$$" + port_name + '#' + str(port_bit), type="module_port", text_label= port_name + "[" + str(port_bit) + "]", hierarchy_path= hierarchy_path + "**" + cell_name, in_final_graph=in_final_graph, direction=in_out_direction)
 
                     ### make a connection between the internal net and the cell port.
+                    check_if_nodes_are_in_graph(full_graph, [hierarchy_path + '#' + str(net_number), hierarchy_path + "**" + cell_name + "$$" + port_name + '#' + str(port_bit)])
                     if input_port:
-                        full_graph.add_edge(hierarchy_path + '#' + str(net_number), hierarchy_path + cell_name + port_name + '#' + str(port_bit))
+                        full_graph.add_edge(hierarchy_path + '#' + str(net_number), hierarchy_path + "**" + cell_name + "$$" + port_name + '#' + str(port_bit))
                     else:
-                        full_graph.add_edge(hierarchy_path + cell_name + port_name + '#' + str(port_bit), hierarchy_path + '#' + str(net_number))
+                        full_graph.add_edge(hierarchy_path + "**" + cell_name + "$$" + port_name + '#' + str(port_bit), hierarchy_path + '#' + str(net_number))
 
                     port_bit += 1
 
     print("Queue after processing cells:", queue)
+
+
+    ############ Now, add edges between the cells in the final graph.
+    
+    
+    ## First, create a mapping from the hierarchy path to a list of single bit port nodes in the full graph for each C-CORE cell instance or memory instance.
+    
+    final_graph_node_hierarchy_paths_dict = {}
+    for node, data in final_graph.nodes(data=True): 
+        final_graph_node_hierarchy_paths_dict[data["hierarchy_path"]] = { "inputs" : [] , "outputs" : [] }
+    
+    
+    
+    cell_port_mapping = {}
+    for node, data in full_graph.nodes(data=True):
+        # print(f"Node: {node}, Data: {data}")
+        if data['in_final_graph'] == True:
+            if data['hierarchy_path'] in final_graph_node_hierarchy_paths_dict:
+                if data['direction'] == "input":
+                    final_graph_node_hierarchy_paths_dict[data['hierarchy_path']]["inputs"].append(node)
+                elif data['direction'] == "output":
+                    final_graph_node_hierarchy_paths_dict[data['hierarchy_path']]["outputs"].append(node)
+                
+            
+        
+    ### print final_graph_node_hierarchy_paths_dict
+    # print("Final graph node hierarchy paths dictionary:")
+    # for key, value in final_graph_node_hierarchy_paths_dict.items():
+    #     print(f"  {key}: {value}")
+    #     print("="*20)
+
+    ##############################
+
+
+    for node, data in final_graph.nodes(data=True):
+        ## iterate through all of the corresponding OUTPUT port nodes in the full graph.
+        for port_node in final_graph_node_hierarchy_paths_dict[data["hierarchy_path"]]["outputs"]:
+            ### get a list of all reachable nodes from the output port nodes.
+            reachable_nodes = nx.descendants(full_graph, port_node)
+            #print(f"  Port node: {port_node}, Reachable nodes: {reachable_nodes}")
+
+            ## go through each reachable node and see if it is an input port of a C-CORE cell instance or memory instance.
+            for reachable_node in reachable_nodes:
+                rechable_node_data = full_graph.nodes[reachable_node]
+                #print(f"    Reachable node: {reachable_node}, Data: {rechable_node_data}")
+
+                if rechable_node_data['in_final_graph'] == True and rechable_node_data['direction'] == "input":
+                    ## see if the reachable node is one we are looking for. 
+                    reachable_node_hierarchy_path = rechable_node_data['hierarchy_path']
+                    if reachable_node_hierarchy_path in final_graph_node_hierarchy_paths_dict:
+                        ## add this edge to the final graph.
+                        final_graph.add_edge(data["hierarchy_path"], reachable_node_hierarchy_path)
+
+            
+
+    
 
     return final_graph, full_graph
 
 
 def main():
     ### for testing
-    # top_module_name = "MatMult"
-    # cmd = ["yosys", "-p", f"read_verilog tmp/benchmark/build/{top_module_name}.v1/rtl.v; hierarchy -top MatMult; proc; write_json tmp/benchmark/netlist.json"]
-    # p = subprocess.run(cmd, capture_output=True, text=True)
-    # print(f"Yosys output: {p.stdout}")
-    # if p.returncode != 0:
-    #     raise Exception(f"Yosys failed with error: {p.stderr}")
+    top_module_name = "MatMult"
+    #cmd = ["yosys", "-p", f"read_verilog benchmarks/test_verilog_file.v; hierarchy -top MatMult; proc; write_json tmp/benchmark/netlist.json"] ## toy test case
+    cmd = ["yosys", "-p", f"read_verilog tmp/benchmark/build/MatMult.v1/rtl.v; hierarchy -top MatMult; proc; write_json tmp/benchmark/netlist.json"] # the real deal
+    
+    p = subprocess.run(cmd, capture_output=True, text=True)
+    print(f"Yosys output: {p.stdout}")
+    if p.returncode != 0:
+        raise Exception(f"Yosys failed with error: {p.stderr}")
 
     G, full_graph = parse_yosys_json("tmp/benchmark/netlist.json")
+    # G, full_graph = parse_yosys_json("benchmarks/test_verilog_file.sv")
+
 
     ## write the netlist to a file
     with open("tmp/benchmark/netlist.gml", "wb") as f:
