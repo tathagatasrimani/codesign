@@ -66,7 +66,6 @@ def parse_yosys_json(json_file):
         current_module = yosys_data["modules"][current_module_type]
         print(f"Processing module: {current_module_name} of type {current_module_type}")  
 
-
         ## add nets to full graph for internal nets. 
         for net_name, net_data in current_module["netnames"].items():
             net_numbers = net_data["bits"]
@@ -105,6 +104,8 @@ def parse_yosys_json(json_file):
             print(f"  Cell: {cell_name}")
             cell_type = cell_data["type"]
             in_final_graph = False
+
+            
             
             if cell_type == "mgc_in_sync_v2" or cell_type == "mgc_io_sync_v2":
                 continue
@@ -114,12 +115,11 @@ def parse_yosys_json(json_file):
             elif "MatMult_ccs_ram_sync_1R1W" in cell_type:
                 final_graph.add_node(hierarchy_path + "**" + cell_name, type="memory", module_type=cell_type, hierarchy_path=hierarchy_path + "**" + cell_name)  # include mem in final graph.
                 in_final_graph = True
-            else:
-                ## add the cell in this module to the queue
-                if cell_type[0] != "$":
-                    ### don't need to dig deeper into the primitive cells. 
-                    queue.append((cell_name, cell_type, hierarchy_path + "**" + cell_name))
+            elif cell_type[0] != "$":
+                ## add the cell in this module to the queue 
+                queue.append((cell_name, cell_type, hierarchy_path + "**" + cell_name))
 
+            list_nodes_added = []
             ### add to the full_graph
             for port_name, net_numbers in cell_data["connections"].items():
                 
@@ -129,7 +129,7 @@ def parse_yosys_json(json_file):
                 
 
                 ## the ccore modules don't have a port direction, so we need assign direction manually.
-                if cell_data["type"] == "add" or cell_data["type"] == "mult":
+                if cell_type == "add" or cell_type == "mult":
                     if port_name == "a" or port_name == "b":
                         input_port = True
                 
@@ -149,7 +149,8 @@ def parse_yosys_json(json_file):
                         continue
 
                     #print(f"  Port: {port_name}, Net: {net_number}")
-                    full_graph.add_node(hierarchy_path + "**" + cell_name + "$$" + port_name + '#' + str(port_bit), type="module_port", text_label= port_name + "[" + str(port_bit) + "]", hierarchy_path= hierarchy_path + "**" + cell_name, in_final_graph=in_final_graph, direction=in_out_direction)
+                    full_graph.add_node(hierarchy_path + "**" + cell_name + "$$" + port_name + '#' + str(port_bit), type="module_port", text_label= port_name + "[" + str(port_bit) + "]", hierarchy_path= hierarchy_path + "**" + cell_name, in_final_graph=in_final_graph, direction=in_out_direction, cell_type=cell_type, orig_port_name=port_name, bit_pos=port_bit)
+                    list_nodes_added.append(hierarchy_path + "**" + cell_name + "$$" + port_name + '#' + str(port_bit))
 
                     ### make a connection between the internal net and the cell port.
                     check_if_nodes_are_in_graph(full_graph, [hierarchy_path + '#' + str(net_number), hierarchy_path + "**" + cell_name + "$$" + port_name + '#' + str(port_bit)])
@@ -159,6 +160,20 @@ def parse_yosys_json(json_file):
                         full_graph.add_edge(hierarchy_path + "**" + cell_name + "$$" + port_name + '#' + str(port_bit), hierarchy_path + '#' + str(net_number))
 
                     port_bit += 1
+            
+            ## This code will make connection between the inputs/outputs of a automatically generated cell. 
+            if cell_type[0] == "$":
+                ## this is an automatically generated cell by Yosys from running the proc command.
+                ## we need to make connections between the inputs/outputs as needed based on the cell type.
+                if cell_type == "$adff":
+                    ## iterate through the added ports and make connections between the input and output ports "internally" in this module.
+                    for curr_cell_node in list_nodes_added:
+                        if full_graph.nodes[curr_cell_node]["orig_port_name"] == "D":
+                            ## this is the input port, so we need to connect it to the output port.
+                            output_port_node = curr_cell_node.split("$$")[0] + "$$" + "Q" + "#" + str(full_graph.nodes[curr_cell_node]["bit_pos"])
+                            #print(f"  Adding edge between {curr_cell_node} and {output_port_node}")
+                            check_if_nodes_are_in_graph(full_graph, [curr_cell_node, output_port_node])
+                            full_graph.add_edge(curr_cell_node, output_port_node)
 
     print("Queue after processing cells:", queue)
 
@@ -210,7 +225,7 @@ def parse_yosys_json(json_file):
                 if rechable_node_data['in_final_graph'] == True and rechable_node_data['direction'] == "input":
                     ## see if the reachable node is one we are looking for. 
                     reachable_node_hierarchy_path = rechable_node_data['hierarchy_path']
-                    if reachable_node_hierarchy_path in final_graph_node_hierarchy_paths_dict:
+                    if reachable_node_hierarchy_path in final_graph_node_hierarchy_paths_dict and reachable_node_hierarchy_path != data["hierarchy_path"]:
                         ## add this edge to the final graph.
                         final_graph.add_edge(data["hierarchy_path"], reachable_node_hierarchy_path)
 
