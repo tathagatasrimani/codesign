@@ -40,7 +40,7 @@ class HardwareModel:
         if hasattr(args, "logic_node"):
             self.transistor_size = args.logic_node
         if hasattr(args, "mem_node"):
-            self.cacti_tech_node = args.mem_node
+            self.cacti_tech_node = args.mem_node * 1e-3
         self.set_technology_parameters()
         self.netlist = nx.DiGraph()
         self.symbolic_mem = {}
