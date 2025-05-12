@@ -168,8 +168,7 @@ class Codesign:
             raise Exception(p.stderr)
         os.chdir("../../..")
 
-        # TODO: extract hw netlist
-        ## yosys -p "read_verilog src/tmp/benchmark/rtl.v; write_json netlist.json"
+        # Extract Hardware Netlist
         top_module_name = "MatMult"
         cmd = ["yosys", "-p", f"read_verilog src/tmp/benchmark/build/{top_module_name}.v1/rtl.v; hierarchy -top MatMult; proc; write_json src/tmp/benchmark/netlist.json"]
         p = subprocess.run(cmd, capture_output=True, text=True)
@@ -177,7 +176,7 @@ class Codesign:
         if p.returncode != 0:
             raise Exception(f"Yosys failed with error: {p.stderr}")
 
-        self.hw.netlist, _ = parse_yosys_json("src/tmp/benchmark/netlist.json")
+        self.hw.netlist, _ = parse_yosys_json("src/tmp/benchmark/netlist.json", include_memories=True, top_level_module_type=top_module_name)
 
         ## write the netlist to a file
         with open("src/tmp/benchmark/netlist.gml", "wb") as f:
