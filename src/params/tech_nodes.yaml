@@ -1,0 +1,15 @@
+
+default:
+  u_p: 1000
+  C_ox: 2
+  W: 2
+  L: 1
+  q: 1
+  n: 1
+  K: 1
+  T: 1
+  V_offset: 1
+  I_s: 1
+  V_th: 1
+  V_dd: 5
+  area: 200

@@ -10,8 +10,7 @@ import pyomo.core.expr.sympy_tools as sympy_tools
 from pyomo.opt import SolverFactory
 
 from .MyPyomoSympyBimap import MyPyomoSympyBimap
-from . import hw_symbols
-from . import symbolic_simulate
+from . import hardwareModel
 
 LAMBDA = 0.1 # regularization parameter
 
@@ -21,7 +20,7 @@ class Preprocessor:
     mapping between symbolic and Pyomo variables, applies constraints, and manages substitutions for
     technology parameters.
     """
-    def __init__(self):
+    def __init__(self, params):
         """
         Initialize the Preprocessor instance, setting up mappings, initial values, and constraint sets.
         """
@@ -33,7 +32,8 @@ class Preprocessor:
         self.vars = []
         self.multistart = False
         self.obj = 0
-        self.initial_params = {}
+        self.params = params
+        self.initial_params = params.values
         self.obj_scale = 1
         self.improvement = 1.1
         self.pow_exprs_s = set()
@@ -46,13 +46,17 @@ class Preprocessor:
         self.cacti_subs_s = {}
 
     def V_dd_lower(self, model):
-        return model.x[self.mapping[hw_symbols.V_dd]] >= 0.5
+        return model.x[self.mapping[self.params.V_dd]] >= 0.5
     
+    # memory
     def Vdd_not_cutoff(self, model):
-        return model.x[self.mapping[hw_symbols.Vdd]] >= model.x[self.mapping[hw_symbols.Vth]]
+        return model.x[self.mapping[self.params.Vdd]] >= model.x[self.mapping[self.params.Vth]]
+    # logic
+    def V_dd_not_cutoff(self, model):
+        return model.x[self.mapping[self.params.V_dd]] >= model.x[self.mapping[self.params.V_th]]
 
     def V_dd_upper(self, model):
-        return model.x[self.mapping[hw_symbols.V_dd]] <= 1.7
+        return model.x[self.mapping[self.params.V_dd]] <= 1.7
     
     def make_pow_constraint(self, model, i):
         """
@@ -171,12 +175,15 @@ class Preprocessor:
 
         model.LogConstraint = pyo.Constraint([i for i in range(len(self.log_exprs_to_constrain))], rule=self.make_log_constraint)
 
-        if hw_symbols.V_dd in self.mapping: 
+        if self.params.V_dd in self.mapping: 
             model.V_dd_lower = pyo.Constraint(rule=self.V_dd_lower)
             model.V_dd_upper = pyo.Constraint(rule=self.V_dd_upper)
         # cacti Vdd >= Vth constraint
-        if hw_symbols.Vdd in self.mapping and hw_symbols.Vth in self.mapping:
+        if self.params.Vdd in self.mapping and self.params.Vth in self.mapping:
             model.Vdd_not_cutoff = pyo.Constraint(rule=self.Vdd_not_cutoff)
+        
+        if self.params.V_dd in self.mapping and self.params.V_th in self.mapping:
+            model.V_dd_not_cutoff = pyo.Constraint(rule=self.V_dd_not_cutoff)
 
         # all parameters can only be less than or equal to their initial values
         model.Constraint2 = pyo.Constraint([i for i in range(len(self.free_symbols))], rule=self.max_val_orig_val_rule)
@@ -211,18 +218,18 @@ class Preprocessor:
         # expressions inside a log/sqrt must not be negative
         for log_expr in self.log_exprs_s:
             obj += 1e15*(
-                symbolic_simulate.symbolic_convex_max(-log_expr, 0, evaluate=False)
+                hardwareModel.symbolic_convex_max(-log_expr, 0, evaluate=False)
             ) ** 2
         for pow_expr in self.pow_exprs_s:
             obj += 1e15 * (
-                symbolic_simulate.symbolic_convex_max(-pow_expr, 0, evaluate=False)
+                hardwareModel.symbolic_convex_max(-pow_expr, 0, evaluate=False)
             ) ** 2
 
 
         # alternative: minimax regularization. solver didn't really like it.
         """max_term = 0
         for symbol in self.free_symbols:
-            max_term = symbolic_simulate.symbolic_convex_max(max_term, (symbol / self.initial_params[symbol.name]))
+            max_term = hardwareModel.symbolic_convex_max(max_term, (symbol / self.initial_params[symbol.name]))
         obj += l * max_term"""
         return obj
         
@@ -275,12 +282,12 @@ class Preprocessor:
         free_symbols = set()
         if os.path.exists(mem_l_file):
             memL_expr = sp.sympify(
-                open(mem_l_file, "r").readline(), locals=hw_symbols.symbol_table
+                open(mem_l_file, "r").readline(), locals=self.params.symbol_table
             )
             free_symbols = free_symbols.union(memL_expr.free_symbols)
         if os.path.exists(buf_l_file):
             bufL_expr = sp.sympify(
-                open(buf_l_file, "r").readline(), locals=hw_symbols.symbol_table
+                open(buf_l_file, "r").readline(), locals=self.params.symbol_table
             )
             free_symbols = free_symbols.union(bufL_expr.free_symbols)
         return free_symbols
@@ -369,7 +376,7 @@ class Preprocessor:
 
         # hotfix: substitute each log expression with max(expr, 1e-3) to avoid negatives inside log
         for log_expr in self.log_exprs_s:
-            self.log_subs[log_expr] = symbolic_simulate.symbolic_convex_max(log_expr, 0.001, evaluate=False)
+            self.log_subs[log_expr] = hardwareModel.symbolic_convex_max(log_expr, 0.001, evaluate=False)
             logger.info(f"log expr: {log_expr}; sub: {self.log_subs[log_expr]}")
         
 
@@ -387,7 +394,7 @@ class Preprocessor:
         start_time = time.time()
         
         for pow_expr in self.pow_exprs_s:
-            self.pow_subs[pow_expr] = symbolic_simulate.symbolic_convex_max(pow_expr, 0, evaluate=False)
+            self.pow_subs[pow_expr] = hardwareModel.symbolic_convex_max(pow_expr, 0, evaluate=False)
             #logger.info(f"pow expr: {pow_expr}; sub: {self.pow_subs[pow_expr]}")
         edp = edp.xreplace(self.pow_subs)
         logger.info(f"time to sub pow exprs: {time.time()-start_time}")
@@ -440,4 +447,4 @@ class Preprocessor:
             "contrib.constraints_to_var_bounds"
         ).create_using(model)"""
         opt = self.get_solver()
-        return opt, scaled_model, model, self.free_symbols, self.mapping
+        return opt, scaled_model, model

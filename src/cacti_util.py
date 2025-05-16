@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 import pandas as pd
 import sympy as sp
 
-from src import hw_symbols
+from src import parameters
 
 from src.cacti import CACTI_DIR, TRANSISTOR_SIZES
 
@@ -1389,10 +1389,12 @@ def differentiate_all(cfg: str, dat: str):
     )
     os.makedirs(pd_results_dir, exist_ok=True)
 
+    params = parameters.Parameters("default", dat)
+
     processes = []
     for f in symbolic_expression_files:
         print(f"Reading {f}")
-        expr = sp.sympify(open(f).read(), locals=hw_symbols.symbol_table)
+        expr = sp.sympify(open(f).read(), locals=params.symbol_table)
         for free_symbol in list(expr.free_symbols):
             # print(f"Free symbol: {free_symbol}")
             processes.append(

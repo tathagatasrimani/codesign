@@ -1,17 +1,22 @@
 import logging
-import configparser as cp
 import yaml
 import time
 
 logger = logging.getLogger(__name__)
 
 import networkx as nx
-
-from . import rcgen
+import sympy as sp
 from . import cacti_util
+from . import parameters
 from openroad_interface import place_n_route
 
 HW_CONFIG_FILE = "src/params/hw_cfgs.ini"
+
+def symbolic_convex_max(a, b, evaluate=True):
+    """
+    Max(a, b) in a format which ipopt accepts.
+    """
+    return 0.5 * (a + b + sp.Abs(a - b, evaluate=evaluate))
 
 class HardwareModel:
     """
@@ -19,157 +24,52 @@ class HardwareModel:
     to set up the hardware, manage netlists, and extract technology-specific timing and power data for
     optimization and simulation purposes.
     """
-    def __init__(self, args, cfg="default"):
-        config = cp.ConfigParser()
-        config.read(HW_CONFIG_FILE)
-        try:
-            self.set_hw_config_vars(
-                config.getint(cfg, "id"),
-                config.getint(cfg, "transistorsize"),
-                config.getfloat(cfg, "V_dd"),
-                config.getint(cfg, "frequency")
-            )
-        except cp.NoSectionError:
-            self.set_hw_config_vars(
-                config.getint("DEFAULT", "id"),
-                config.getint("DEFAULT", "transistorsize"),
-                config.getfloat("DEFAULT", "V_dd"),
-                config.getint("DEFAULT", "frequency")
-            )
-        self.area_constraint = args.area
-        if hasattr(args, "logic_node"):
-            self.transistor_size = args.logic_node
-        if hasattr(args, "mem_node"):
-            self.cacti_tech_node = args.mem_node * 1e-3
-        self.set_technology_parameters()
-        self.netlist = nx.DiGraph()
-        self.symbolic_mem = {}
-        self.symbolic_buf = {}
-        self.memories = []
-
-    def reset_state(self):
-        self.symbolic_buf = {}
-        self.symbolic_mem = {}
-        self.netlist = nx.DiGraph()
-        self.memories = []
-
-    def set_hw_config_vars(
-        self,
-        id,
-        transistor_size,
-        V_dd,
-        f
-    ):
-        self.id = id
-        self.transistor_size = transistor_size
-        self.V_dd = V_dd
-        self.f = f
+    def __init__(self, args):
+        # HARDCODED UNTIL WE COME BACK TO MEMORY MODELING
         self.cacti_tech_node = min(
             cacti_util.valid_tech_nodes,
-            key=lambda x: abs(x - self.transistor_size * 1e-3),
+            key=lambda x: abs(x - 7 * 1e-3),
         )
-
-    def set_technology_parameters(self):
-        """
-        Load and set technology-specific parameters (area, latency, power, energy) from the YAML file
-        for the given transistor size. Also determines the closest CACTI technology node and associated
-        data file.
-
-        Returns:
-            None
-        """
-        tech_params = yaml.load(
-            open("src/params/tech_params.yaml", "r"), Loader=yaml.Loader
-        )
-        self.area = tech_params["area"][self.transistor_size]
-        self.latency = tech_params["latency"][self.transistor_size]
-
-        self.dynamic_power = tech_params["dynamic_power"][self.transistor_size]
-        self.leakage_power = tech_params["leakage_power"][self.transistor_size]
-        self.dynamic_energy = tech_params["dynamic_energy"][self.transistor_size]
-
-        # DEBUG
         print(f"cacti tech node: {self.cacti_tech_node}")
 
         self.cacti_dat_file = (
             f"src/cacti/tech_params/{int(self.cacti_tech_node*1e3):2d}nm.dat"
         )
         print(f"self.cacti_dat_file: {self.cacti_dat_file}")
+        self.params = parameters.Parameters(args.tech_node, self.cacti_dat_file)
+        self.netlist = nx.DiGraph()
+        self.scheduled_dfg = nx.DiGraph()
+        self.symbolic_mem = {}
+        self.symbolic_buf = {}
+        self.memories = []
+        self.obj_fn = "edp"
+        self.obj = 0
+        self.obj_sub_exprs = {}
+        self.symbolic_obj = 0
+        self.symbolic_obj_sub_exprs = {}
+        self.longest_paths = []
 
-    def get_optimization_params_from_tech_params(self):
-        """
-        Generate optimization parameters (R, C, etc.) from the loaded latency and power technology
-        parameters.
+    def reset_state(self):
+        self.symbolic_buf = {}
+        self.symbolic_mem = {}
+        self.netlist = nx.DiGraph()
+        self.memories = []
+        self.obj = 0
+        self.symbolic_obj = 0
+        self.scheduled_dfg = nx.DiGraph()
+        self.longest_paths = []
+        self.obj_sub_exprs = {}
+        self.symbolic_obj_sub_exprs = {}
 
-        Returns:
-            rcs: Dictionary containing optimization parameters for the hardware model.
-        """
-        rcs = rcgen.generate_optimization_params(
-            self.latency,
-            self.dynamic_power,
-            self.dynamic_energy,
-            self.leakage_power,
-            self.V_dd,
-            self.cacti_dat_file,
-        )
-        self.R_off_on_ratio = rcs["other"]["Roff_on_ratio"]
-        return rcs
-    
     def write_technology_parameters(self, filename):
         params = {
-            "latency": self.latency,
-            "dynamic_power": self.dynamic_power,
-            "leakage_power": self.leakage_power,
-            "dynamic_energy": self.dynamic_energy,
-            "area": self.area,
-            "V_dd": self.V_dd,
+            "latency": self.params.circuit_values["latency"],
+            "dynamic_energy": self.params.circuit_values["dynamic_energy"],
+            "passive_power": self.params.circuit_values["passive_power"],
+            "area": self.params.circuit_values["area"], # TODO: make sure we have this
         }
         with open(filename, "w") as f:
             f.write(yaml.dump(params))
-    
-    def update_technology_parameters(
-        self,
-        rc_params_file="src/params/rcs_current.yaml",
-        coeff_file="src/params/coefficients.yaml",
-    ):
-        """
-        For full codesign loop, need to update the technology parameters after a run of the inverse pass.
-        Local States:
-            latency - dictionary of latencies in cycles
-            dynamic_power - dictionary of active power in nW
-            leakage_power - dictionary of passive power in nW
-            V_dd - voltage in V
-        Inputs:
-            C - dictionary of capacitances in F
-            R - dictionary of resistances in Ohms
-            rcs[other]:
-                V_dd: voltage in V
-                MemReadL: memory read latency in s
-                MemWriteL: memory write latency in s
-                MemReadPact: memory read active power in W
-                MemWritePact: memory write active power in W
-                MemPpass: memory passive power in W
-        """
-        logger.info("Updating Technology Parameters")
-        rcs = yaml.load(open(rc_params_file, "r"), Loader=yaml.Loader)
-        C = rcs["Ceff"]  # nF
-        R = rcs["Reff"]  # Ohms
-        self.V_dd = rcs["other"]["V_dd"]
-
-        # update dat file with new parameters
-        cacti_util.update_dat(rcs, self.cacti_dat_file)
-
-        beta = yaml.load(open(coeff_file, "r"), Loader=yaml.Loader)["beta"]
-
-        for key in C:
-            self.latency[key] = R[key] * C[key]  # ns
-
-            # power calculations may need to change with reintroduction of clock frequency
-            self.dynamic_power[key] = 0.5 * self.V_dd * self.V_dd * 1e9 / R[key]  # nW
-
-            self.leakage_power[key] = (
-                beta[key] * self.V_dd**2 * 1e9 / (R["Not"] * self.R_off_on_ratio)
-            )  # convert to nW
     
     def get_wire_parasitics(self, arg_testfile, arg_parasitics):
         start_time = time.time()
@@ -179,3 +79,158 @@ class HardwareModel:
         logger.info(f"time to generate wire parasitics: {time.time()-start_time}")
         self.parasitics = arg_parasitics
         self.parasitic_graph = graph
+
+    def save_symbolic_memories(self):
+        MemL_expr = 0
+        MemReadEact_expr = 0
+        MemWriteEact_expr = 0
+        MemPpass_expr = 0
+        OffChipIOPact_expr = 0
+        BufL_expr = 0
+        BufReadEact_expr = 0
+        BufWriteEact_expr = 0
+        BufPpass_expr = 0
+
+        self.params.symbolic_rsc_exprs = {}
+        
+        for mem in self.memories:
+            if self.memories[mem]["type"] == "Mem":
+                MemL_expr = self.params.symbolic_mem[mem].access_time * 1e9 # convert from s to ns
+                MemReadEact_expr = (self.params.symbolic_mem[mem].power.readOp.dynamic + self.params.symbolic_mem[mem].power.searchOp.dynamic) * 1e9 # convert from J to nJ
+                MemWriteEact_expr = (self.params.symbolic_mem[mem].power.writeOp.dynamic + self.params.symbolic_mem[mem].power.searchOp.dynamic) * 1e9 # convert from J to nJ
+                MemPpass_expr = self.params.symbolic_mem[mem].power.readOp.leakage # TODO: investigate units of this expr
+                OffChipIOPact_expr = self.params.symbolic_mem[mem].io_dynamic_power * 1e-3 # convert from mW to W
+
+            else:
+                BufL_expr = self.params.symbolic_buf[mem].access_time * 1e9 # convert from s to ns
+                BufReadEact_expr = (self.params.symbolic_buf[mem].power.readOp.dynamic + self.params.symbolic_buf[mem].power.searchOp.dynamic) * 1e9 # convert from J to nJ
+                BufWriteEact_expr = (self.params.symbolic_buf[mem].power.writeOp.dynamic + self.params.symbolic_buf[mem].power.searchOp.dynamic) * 1e9 # convert from J to nJ
+                BufPpass_expr = self.params.symbolic_buf[mem].power.readOp.leakage # TODO: investigate units of this expr
+
+            # only need to do in first iteration
+            if mem not in self.params.MemReadL:
+                self.params.MemReadL[mem] = sp.symbols(f"MemReadL_{mem}")
+                self.params.MemWriteL[mem] = sp.symbols(f"MemWriteL_{mem}")
+                self.params.MemReadEact[mem] = sp.symbols(f"MemReadEact_{mem}")
+                self.params.MemWriteEact[mem] = sp.symbols(f"MemWriteEact_{mem}")
+                self.params.MemPpass[mem] = sp.symbols(f"MemPpass_{mem}")
+                self.params.OffChipIOPact[mem] = sp.symbols(f"OffChipIOPact_{mem}")
+                self.params.BufL[mem] = sp.symbols(f"BufL_{mem}")
+                self.params.BufReadEact[mem] = sp.symbols(f"BufReadEact_{mem}")
+                self.params.BufWriteEact[mem] = sp.symbols(f"BufWriteEact_{mem}")
+                self.params.BufPpass[mem] = sp.symbols(f"BufPpass_{mem}")
+
+                # update symbol table
+                self.params.symbol_table[f"MemReadL_{mem}"] = self.params.MemReadL[mem]
+                self.params.symbol_table[f"MemWriteL_{mem}"] = self.params.MemWriteL[mem]
+                self.params.symbol_table[f"MemReadEact_{mem}"] = self.params.MemReadEact[mem]
+                self.params.symbol_table[f"MemWriteEact_{mem}"] = self.params.MemWriteEact[mem]
+                self.params.symbol_table[f"MemPpass_{mem}"] = self.params.MemPpass[mem]
+                self.params.symbol_table[f"OffChipIOPact_{mem}"] = self.params.OffChipIOPact[mem]
+                self.params.symbol_table[f"BufL_{mem}"] = self.params.BufL[mem]
+                self.params.symbol_table[f"BufReadEact_{mem}"] = self.params.BufReadEact[mem]
+                self.params.symbol_table[f"BufWriteEact_{mem}"] = self.params.BufWriteEact[mem]
+                self.params.symbol_table[f"BufPpass_{mem}"] = self.params.BufPpass[mem]
+        
+            # TODO: support multiple memories in self.params
+            cacti_subs_new = {
+                self.params.MemReadL[mem]: MemL_expr,
+                self.params.MemWriteL[mem]: MemL_expr,
+                self.params.MemReadEact[mem]: MemReadEact_expr,
+                self.params.MemWriteEact[mem]: MemWriteEact_expr,
+                self.params.MemPpass[mem]: MemPpass_expr,
+                self.params.OffChipIOPact[mem]: OffChipIOPact_expr,
+
+                self.params.BufL[mem]: BufL_expr,
+                self.params.BufReadEact[mem]: BufReadEact_expr,
+                self.params.BufWriteEact[mem]: BufWriteEact_expr,
+                self.params.BufPpass[mem]: BufPpass_expr,
+            }
+            self.params.symbolic_rsc_exprs.update(cacti_subs_new)
+
+    def calculate_execution_time(self, symbolic):
+        if symbolic:
+            # take symbolic max over the critical paths
+            execution_time = 0
+            for path in self.longest_paths:
+                logger.info(f"adding path to execution time calculation: {path}")
+                path_execution_time = 0
+                for node in path[1]:
+                    data = self.scheduled_dfg.nodes[node]
+                    if node == "end" or data["function"] == "nop": continue
+                    if data["function"] == "Buf" or data["function"] == "MainMem":
+                        rsc_name = data["library"][data["library"].find("__")+1:]
+                        logger.info(f"(execution time) rsc name: {rsc_name}, data: {data['function']}")
+                        path_execution_time += self.params.symbolic_latency_wc[data["function"]]()[rsc_name]
+                    else:
+                        path_execution_time += self.params.symbolic_latency_wc[data["function"]]()
+                execution_time = symbolic_convex_max(execution_time, path_execution_time).simplify() if execution_time != 0 else path_execution_time
+
+            logger.info(f"symbolic execution time: {execution_time}")
+        else:
+            execution_time = self.scheduled_dfg.nodes["end"]["start_time"]
+        return execution_time
+    
+    def calculate_passive_energy(self, total_execution_time, symbolic):
+        passive_power = 0
+        for node in self.netlist:
+            data = self.netlist.nodes[node]
+            if node == "end" or data["function"] == "nop": continue
+            if data["function"] == "Buf" or data["function"] == "MainMem":
+                rsc_name = data["library"][data["library"].find("__")+1:]
+                if symbolic:
+                    passive_power += self.params.symbolic_power_passive[data["function"]]()[rsc_name]
+                else:
+                    passive_power += self.params.memories[rsc_name]["Standby leakage per bank(mW)"] * 1e6 # convert from mW to nW
+            else:
+                if symbolic:
+                    passive_power += self.params.symbolic_power_passive[data["function"]]()
+                else:
+                    passive_power += self.params.circuit_values["passive_power"][data["function"]]
+                logger.info(f"(passive power) {data['function']}: {self.params.circuit_values['passive_power'][data['function']]}")
+        total_passive_energy = passive_power * total_execution_time*1e-9
+        return total_passive_energy
+        
+    def calculate_active_energy(self, symbolic):
+        total_active_energy = 0
+        for node in self.scheduled_dfg:
+            data = self.scheduled_dfg.nodes[node]
+            if node == "end" or data["function"] == "nop": continue
+            if data["function"] == "Buf" or data["function"] == "MainMem":
+                rsc_name = data["library"][data["library"].find("__")+1:]
+                if symbolic:
+                    total_active_energy += self.params.symbolic_energy_active[data["function"]]()[rsc_name]
+                else:
+                    if data["module"].find("wport") != -1:
+                        total_active_energy += self.params.memories[rsc_name]["Dynamic write energy (nJ)"]
+                    else:
+                        total_active_energy += self.params.memories[rsc_name]["Dynamic read energy (nJ)"]
+            else:
+                if symbolic:
+                    total_active_energy += self.params.symbolic_energy_active[data["function"]]()
+                else:
+                    total_active_energy += self.params.circuit_values["dynamic_energy"][data["function"]]
+                logger.info(f"(active energy) {data['function']}: {total_active_energy}")
+        return total_active_energy
+    
+    def calculate_objective(self, symbolic=False):
+        if self.obj_fn == "edp":
+            execution_time = self.calculate_execution_time(symbolic)
+            total_passive_energy = self.calculate_passive_energy(execution_time, symbolic)
+            total_active_energy = self.calculate_active_energy(symbolic)
+            if symbolic:
+                self.symbolic_obj = total_passive_energy + total_active_energy * execution_time
+                self.symbolic_obj_sub_exprs = {
+                    "execution_time": execution_time,
+                    "total_passive_energy": total_passive_energy,
+                    "total_active_energy": total_active_energy,
+                }
+            else:
+                self.obj = (total_passive_energy + total_active_energy) * execution_time
+                self.obj_sub_exprs = {
+                    "execution_time": execution_time,
+                    "total_passive_energy": total_passive_energy,
+                    "total_active_energy": total_active_energy,
+                }
+        else:
+            raise ValueError(f"Objective function {self.obj_fn} not supported")
