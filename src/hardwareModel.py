@@ -42,7 +42,7 @@ class HardwareModel:
         self.symbolic_mem = {}
         self.symbolic_buf = {}
         self.memories = []
-        self.obj_fn = "edp"
+        self.obj_fn = args.obj
         self.obj = 0
         self.obj_sub_exprs = {}
         self.symbolic_obj = 0

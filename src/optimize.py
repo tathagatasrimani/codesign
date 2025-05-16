@@ -6,10 +6,6 @@ logger = logging.getLogger(__name__)
 
 # third party
 import pyomo.environ as pyo
-from sympy import sympify
-import sympy
-import cvxpy as cp
-import numpy as np
 
 # custom
 from .preprocess import Preprocessor
@@ -39,7 +35,7 @@ class Optimizer:
 
         model = pyo.ConcreteModel()
         opt, scaled_model, model = (
-            Preprocessor(self.hw.params).begin(model, improvement, multistart=multistart, regularization=regularization)
+            Preprocessor(self.hw.params).begin(model, self.hw.symbolic_obj, improvement, multistart=multistart, regularization=regularization)
         )
 
 

@@ -25,7 +25,7 @@ class Preprocessor:
         Initialize the Preprocessor instance, setting up mappings, initial values, and constraint sets.
         """
         self.mapping = {}
-        self.pyomo_edp_exp = None
+        self.pyomo_obj_exp = None
         self.initial_val = 0
         self.expr_symbols = {}
         self.free_symbols = []
@@ -33,7 +33,6 @@ class Preprocessor:
         self.multistart = False
         self.obj = 0
         self.params = params
-        self.initial_params = params.values
         self.obj_scale = 1
         self.improvement = 1.1
         self.pow_exprs_s = set()
@@ -43,7 +42,7 @@ class Preprocessor:
         self.cacti_sub_vars = set()
         self.log_subs = {}
         self.pow_subs = {}
-        self.cacti_subs_s = {}
+        self.params.symbolic_rsc_exprs = {}
 
     def V_dd_lower(self, model):
         return model.x[self.mapping[self.params.V_dd]] >= 0.5
@@ -86,7 +85,7 @@ class Preprocessor:
 
     def max_val_orig_val_rule(self, model, i):
         # may remove this later as its a bit arbitrary. Found in the past that optimizer works better with this.
-        return model.x[self.mapping[self.free_symbols[i]]] <= self.initial_params[self.free_symbols[i].name]
+        return model.x[self.mapping[self.free_symbols[i]]] <= self.params.tech_values[self.free_symbols[i]]
     
 
     def find_pow_exprs_to_constrain(self, expr, debug=False):
@@ -159,7 +158,7 @@ class Preprocessor:
 
     def add_constraints(self, model):
         """
-        Add all relevant constraints (EDP, power, log, V_dd, etc.) to the Pyomo model.
+        Add all relevant constraints (obj, power, log, V_dd, etc.) to the Pyomo model.
 
         Args:
             model (pyomo.ConcreteModel): The Pyomo model instance.
@@ -168,8 +167,8 @@ class Preprocessor:
             None
         """
         logger.info("Adding Constraints")
-        print(f"adding constraints. initial val: {self.initial_val};") # edp_exp: {self.pyomo_edp_exp}")
-        model.Constraint1 = pyo.Constraint(expr=self.pyomo_edp_exp >= self.initial_val / self.improvement)
+        print(f"adding constraints. initial val: {self.initial_val};") # obj_exp: {self.pyomo_obj_exp}")
+        model.Constraint1 = pyo.Constraint(expr=self.pyomo_obj_exp >= self.initial_val / self.improvement)
 
         model.PowConstraint = pyo.Constraint([i for i in range(len(self.pow_exprs_to_constrain))], rule=self.make_pow_constraint)
 
@@ -201,7 +200,7 @@ class Preprocessor:
         for symbol in self.free_symbols:
             if symbol not in self.cacti_sub_vars:
                 obj += l * (
-                    self.initial_params[symbol.name]
+                    self.params.tech_values[symbol]
                     / symbol
                     - 1
                 ) ** 2
@@ -212,7 +211,7 @@ class Preprocessor:
             # cacti expressions must equal their corresponding variable
             if cacti_var in self.mapping:
                 obj += 1e15*(
-                    cacti_var-self.cacti_subs_s[cacti_var]
+                    cacti_var-self.params.symbolic_rsc_exprs[cacti_var]
                 ) ** 2
 
         # expressions inside a log/sqrt must not be negative
@@ -229,7 +228,7 @@ class Preprocessor:
         # alternative: minimax regularization. solver didn't really like it.
         """max_term = 0
         for symbol in self.free_symbols:
-            max_term = hardwareModel.symbolic_convex_max(max_term, (symbol / self.initial_params[symbol.name]))
+            max_term = hardwareModel.symbolic_convex_max(max_term, (symbol / self.params.tech_values[symbol]))
         obj += l * max_term"""
         return obj
         
@@ -262,10 +261,10 @@ class Preprocessor:
         model.scaling_factor[model.obj] = self.obj_scale
         print(f"mapping: {self.mapping}")
         for s in self.free_symbols:
-            if s.name in self.initial_params and self.initial_params[s.name] != 0 and s not in self.cacti_sub_vars:
+            if s in self.params.tech_values and self.params.tech_values[s] != 0 and s not in self.cacti_sub_vars:
                 print(f"symbol name: {s.name}")
                 model.scaling_factor[model.x[self.mapping[s]]] = (
-                    1 / self.initial_params[s.name]
+                    1 / self.params.tech_values[s]
                 )
             elif s in self.cacti_sub_vars:
                 print(f"cacti symbol name: {s.name}")
@@ -273,7 +272,7 @@ class Preprocessor:
                 for param in new_cacti_subs:
                     new_cacti_subs[param] = 1
                 scaled_value = float(s.subs(new_cacti_subs))
-                model.scaling_factor[model.x[self.mapping[s]]] = scaled_value / self.initial_params[s.name]
+                model.scaling_factor[model.x[self.mapping[s]]] = scaled_value / self.params.tech_values[s]
                 print(f"scaling factor: {model.scaling_factor[model.x[self.mapping[s]]]}")
                 
                 
@@ -292,13 +291,11 @@ class Preprocessor:
             free_symbols = free_symbols.union(bufL_expr.free_symbols)
         return free_symbols
 
-    def begin(self, model, edp, initial_params, improvement, cacti_subs, multistart, regularization):
+    def begin(self, model, obj, improvement, multistart, regularization):
         self.multistart = multistart
         self.expr_symbols = {}
         self.free_symbols = []
-        self.initial_params = initial_params
         self.improvement = improvement
-        self.cacti_subs_s = cacti_subs
 
         #mem_buf_l_symbols = self.symbols_in_Buf_Mem_L("src/cacti/symbolic_expressions/Buf_access_time.txt", "src/cacti/symbolic_expressions/Mem_access_time.txt")
         #desired_free_symbols = ["Vdd", "C_g_ideal"]#, "C_junc", "I_on_n", "vert_dielectric_constant"] #, "Vdsat"] #, "Mobility_n"]
@@ -306,41 +303,41 @@ class Preprocessor:
         #symbols_to_remove =  [
         #    sym for sym in mem_buf_l_symbols if sym.name not in desired_free_symbols
         #]
-        #mem_buf_l_init_params = {sym: initial_params[sym.name] for sym in symbols_to_remove}
-        # edp = edp.xreplace(mem_buf_l_init_params)
+        #mem_buf_l_init_params = {sym: self.params.tech_values[sym.name] for sym in symbols_to_remove}
+        # obj = obj.xreplace(mem_buf_l_init_params)
 
-        # keep track of which cacti related variables are used in the edp expression
+        # keep track of which cacti related variables are used in the obj expression
         cacti_free_symbols = set()
 
-        # keep track of all the variables which will need to be substituted out of the original edp equation
-        self.cacti_sub_vars = set(cacti_subs.keys())
+        # keep track of all the variables which will need to be substituted out of the original obj equation
+        self.cacti_sub_vars = set(self.params.symbolic_rsc_exprs.keys())
         print(f"cacti sub vars: {self.cacti_sub_vars}")
 
-        print(f"length of free symbols: {len(edp.free_symbols)}")
+        print(f"length of free symbols: {len(obj.free_symbols)}")
 
-        for s in edp.free_symbols:
+        for s in obj.free_symbols:
             self.free_symbols.append(s)
             print(f"symbol name is {s.name}")
             if s in self.cacti_sub_vars:
-                cacti_exp = cacti_subs[s]
+                cacti_exp = self.params.symbolic_rsc_exprs[s]
                 if cacti_exp == 0: continue
                 for sub_symbol in cacti_exp.free_symbols:
                     # track each cacti variable in the expression that will be substituted
                     cacti_free_symbols.add(sub_symbol)
-                    self.expr_symbols[sub_symbol] = initial_params[sub_symbol.name]
-                self.expr_symbols[s] = float(cacti_subs[s].xreplace(self.expr_symbols).evalf())
-                initial_params[s.name] = self.expr_symbols[s]
+                    self.expr_symbols[sub_symbol] = self.params.tech_values[sub_symbol]
+                self.expr_symbols[s] = float(self.params.symbolic_rsc_exprs[s].xreplace(self.expr_symbols).evalf())
+                self.params.tech_values[s] = self.expr_symbols[s]
                 print(f"symbol {s.name} has initial value {self.expr_symbols[s]}")
-            elif s.name in initial_params:  # change this to just s
-                self.expr_symbols[s] = initial_params[s.name]
+            elif s in self.params.tech_values:  # change this to just s
+                self.expr_symbols[s] = self.params.tech_values[s]
 
         for free_symbol in cacti_free_symbols:
             self.free_symbols.append(free_symbol)
 
 
-        self.initial_val = float(edp.xreplace(self.expr_symbols))
+        self.initial_val = float(obj.xreplace(self.expr_symbols))
 
-        model.nVars = pyo.Param(initialize=len(edp.free_symbols)+len(cacti_free_symbols))
+        model.nVars = pyo.Param(initialize=len(obj.free_symbols)+len(cacti_free_symbols))
         model.N = pyo.RangeSet(model.nVars)
         model.x = pyo.Var(model.N, domain=pyo.NonNegativeReals)
         self.mapping = {}
@@ -360,15 +357,15 @@ class Preprocessor:
             model.x[self.mapping[symbol]] = self.expr_symbols[symbol]
             print(f"symbol: {symbol}; initial value: {self.expr_symbols[symbol]}")
 
-        # find all pow/log expressions within edp equation and cacti equations, convert to pyomo
-        # We shouldn't need to find any pow/log expressions in the edp expression itself. Cacti sub expressions
+        # find all pow/log expressions within obj equation and cacti equations, convert to pyomo
+        # We shouldn't need to find any pow/log expressions in the obj expression itself. Cacti sub expressions
         # should suffice, but keep an eye on this.
         start_time = time.time()
-        self.find_log_exprs_to_constrain(edp)
+        self.find_log_exprs_to_constrain(obj)
             
-        """for cacti_var in cacti_subs.keys():
-            if cacti_var in self.mapping and cacti_subs[cacti_var] != 0:
-                self.find_exprs_to_constrain(cacti_subs[cacti_var])"""
+        """for cacti_var in self.params.symbolic_rsc_exprs.keys():
+            if cacti_var in self.mapping and self.params.symbolic_rsc_exprs[cacti_var] != 0:
+                self.find_exprs_to_constrain(self.params.symbolic_rsc_exprs[cacti_var])"""
 
         logger.info(f"time to find log exprs to constrain: {time.time()-start_time}")
 
@@ -380,15 +377,15 @@ class Preprocessor:
             logger.info(f"log expr: {log_expr}; sub: {self.log_subs[log_expr]}")
         
 
-        # for overall edp expression and cacti sub expressions, we must ensure there is no
+        # for overall obj expression and cacti sub expressions, we must ensure there is no
         # negative inside a sqrt/log. So substitute all log(expr) with log(max(expr, 1e-3)) and 
         # all sqrt(expr) with sqrt(abs(expr))
-        edp = edp.xreplace(self.log_subs)
+        obj = obj.xreplace(self.log_subs)
 
         logger.info(f"time to sub log exprs: {time.time()-start_time}")
 
         start_time = time.time()
-        self.find_pow_exprs_to_constrain(edp)
+        self.find_pow_exprs_to_constrain(obj)
         logger.info(f"time to find pow exprs to constrain: {time.time()-start_time}")
 
         start_time = time.time()
@@ -396,16 +393,16 @@ class Preprocessor:
         for pow_expr in self.pow_exprs_s:
             self.pow_subs[pow_expr] = hardwareModel.symbolic_convex_max(pow_expr, 0, evaluate=False)
             #logger.info(f"pow expr: {pow_expr}; sub: {self.pow_subs[pow_expr]}")
-        edp = edp.xreplace(self.pow_subs)
+        obj = obj.xreplace(self.pow_subs)
         logger.info(f"time to sub pow exprs: {time.time()-start_time}")
 
         # save subbed expressions to tmp file for debugging purposes
-        """with open("src/tmp/symbolic_edp_subbed.txt", "w") as f:
-            f.write(str(edp))
+        """with open("src/tmp/symbolic_obj_subbed.txt", "w") as f:
+            f.write(str(obj))
             f.write("\n")
-            for cacti_var in cacti_subs.keys():
+            for cacti_var in self.params.symbolic_rsc_exprs.keys():
                 if cacti_var in self.mapping:
-                    f.write(f"{cacti_var.name}: {str(cacti_subs[cacti_var])}\n")"""
+                    f.write(f"{cacti_var.name}: {str(self.params.symbolic_rsc_exprs[cacti_var])}\n")"""
 
         start_time = time.time()
 
@@ -416,16 +413,16 @@ class Preprocessor:
         for log_expr in self.log_exprs_s:
             self.log_exprs_to_constrain.append(sympy_tools.sympy2pyomo_expression(log_expr, m))
         print(f"converting to pyomo exp")
-        self.pyomo_edp_exp = sympy_tools.sympy2pyomo_expression(edp, m)
+        self.pyomo_obj_exp = sympy_tools.sympy2pyomo_expression(obj, m)
 
-        sympy_obj = self.add_regularization_to_objective(edp, l=regularization)
+        sympy_obj = self.add_regularization_to_objective(obj, l=regularization)
         print(f"added regularization")
 
         self.obj = sympy_tools.sympy2pyomo_expression(sympy_obj, m)
 
         logger.info(f"time to convert all exprs to pyomo: {time.time()-start_time}")
         start_time = time.time()
-        # print(f"created pyomo expression: {self.pyomo_edp_exp}")
+        # print(f"created pyomo expression: {self.pyomo_obj_exp}")
 
 
         model.obj = pyo.Objective(expr=self.obj, sense=pyo.minimize)

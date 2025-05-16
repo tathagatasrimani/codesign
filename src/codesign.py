@@ -14,12 +14,9 @@ from src.netlist_parse import parse_yosys_json
 logger = logging.getLogger("codesign")
 
 from . import cacti_util
-from . import coefficients
 from . import sim_util
 from . import hardwareModel
 from . import optimize
-from . import simulate 
-from . import symbolic_simulate
 from . import schedule
 from . import memory
 from . import ccore_update
@@ -72,14 +69,10 @@ class Codesign:
         self.area_constraint = args.area
         self.no_memory = args.no_memory
         self.hw = hardwareModel.HardwareModel(args)
-        self.sim = simulate.ConcreteSimulator()
-        self.symbolic_sim = symbolic_simulate.SymbolicSimulator()
         self.opt = optimize.Optimizer(self.hw)
         self.module_map = {}
-        if hasattr(args, "inverse_pass_improvement"):
-            self.inverse_pass_improvement = args.inverse_pass_improvement
-        else:
-            self.inverse_pass_improvement = 10
+        self.inverse_pass_improvement = args.inverse_pass_improvement if args.inverse_pass_improvement else 10
+        self.obj_fn = args.obj
 
         self.save_dat()
 
@@ -93,9 +86,7 @@ class Codesign:
         logger.info(f"latency (ns):\n {latency}")
 
         active_energy_logic = self.hw.params.circuit_values["dynamic_energy"]
-        logger.info(f"active energy logic (nW):\n {active_energy_logic}")
-
-        logger.info(f"active energy (nW):\n {self.hw.dynamic_energy}")
+        logger.info(f"active energy (nW):\n {active_energy_logic}")
 
         passive_power = self.hw.params.circuit_values["passive_power"]
         logger.info(f"passive power (nW):\n {passive_power}")
@@ -160,11 +151,11 @@ class Codesign:
         if p.returncode != 0:
             raise Exception(f"Yosys failed with error: {p.stderr}")
 
-        self.hw.netlist, _ = parse_yosys_json("src/tmp/benchmark/netlist.json", include_memories=True, top_level_module_type=top_module_name)
+        """self.hw.netlist, _ = parse_yosys_json("src/tmp/benchmark/netlist.json", include_memories=True, top_level_module_type=top_module_name)
 
         ## write the netlist to a file
         with open("src/tmp/benchmark/netlist.gml", "wb") as f:
-            nx.write_gml(self.hw.netlist, f)
+            nx.write_gml(self.hw.netlist, f)"""
 
     def forward_pass(self):
         """
@@ -199,12 +190,6 @@ class Codesign:
         self.hw.calculate_objective()
 
         self.display_objective("after forward pass")
-
-        # finally, calculate EDP
-        self.forward_edp = self.sim.calculate_edp(self.hw, self.hw.scheduled_dfg)
-        print(
-            f"Final EDP: {self.forward_edp} E-18 Js. Active Energy: {self.sim.total_active_energy} nJ. Passive Energy: {self.sim.total_passive_energy} nJ. Execution time: {self.sim.execution_time} ns"
-        )
 
     def parse_catapult_timing(self):
         """
@@ -345,15 +330,15 @@ class Codesign:
     
     def display_objective(self, message,symbolic=False):
         if symbolic:
-            obj = self.hw.symbolic_obj.xreplace(self.hw.params.tech_values)
+            obj = float(self.hw.symbolic_obj.xreplace(self.hw.params.tech_values))
             sub_exprs = {
-                key: self.hw.symbolic_obj_sub_exprs[key].xreplace(self.hw.params.tech_values)
+                key: float(self.hw.symbolic_obj_sub_exprs[key].xreplace(self.hw.params.tech_values))
                 for key in self.hw.symbolic_obj_sub_exprs
             }
         else:
             obj = self.hw.obj
             sub_exprs = self.hw.obj_sub_exprs
-        print(f"{message}\n objective: {obj}, sub expressions: {sub_exprs}")
+        print(f"{message}\n {self.obj_fn}: {obj}, sub expressions: {sub_exprs}")
 
 
     def inverse_pass(self):
@@ -399,10 +384,6 @@ class Codesign:
             stringizer=lambda x: str(x),
         )
         self.write_back_params(f"{self.save_dir}/tech_params_{iter_number}.yaml")
-        shutil.copy(
-            "src/tmp/symbolic_edp.txt",
-            f"{self.save_dir}/symbolic_edp_{iter_number}.txt",
-        )
         shutil.copy("src/tmp/ipopt_out.txt", f"{self.save_dir}/ipopt_{iter_number}.txt")
         shutil.copy(
             "src/tmp/solver_out.txt", f"{self.save_dir}/solver_{iter_number}.txt"
@@ -541,9 +522,10 @@ if __name__ == "__main__":
     parser.add_argument("--mem_node", type=int, default=32, help="memory node size")
     parser.add_argument("--inverse_pass_improvement", type=float, help="improvement factor for inverse pass")
     parser.add_argument("--tech_node", "-T", type=str, help="technology node to use as starting point")
+    parser.add_argument("--obj", type=str, default="edp", help="objective function")
     args = parser.parse_args()
     print(
-        f"args: benchmark: {args.benchmark}, parasitics: {args.parasitics}, num iterations: {args.num_iters}, checkpointing: {args.checkpoint}, area: {args.area}, memory included: {not args.no_memory}, tech node: {args.tech_node}"
+        f"args: benchmark: {args.benchmark}, parasitics: {args.parasitics}, num iterations: {args.num_iters}, checkpointing: {args.checkpoint}, area: {args.area}, memory included: {not args.no_memory}, tech node: {args.tech_node}, obj: {args.obj}"
     )
 
     main(args)
