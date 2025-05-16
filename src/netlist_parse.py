@@ -14,8 +14,8 @@ def check_if_nodes_are_in_graph(graph, nodes):
     assert all_found, f"Not all nodes are in the graph. Missing node: {node_not_found}"
 
 # This script parses a Yosys JSON netlist and converts it into a NetworkX graph.
-def parse_yosys_json(json_file, include_memories=True):
-    """Parses Yosys JSON netlist and converts it into a NetworkX graph, keeping only exact 'mult' and 'add' nodes."""
+def parse_yosys_json(json_file, include_memories=True, top_level_module_type="MatMult"):
+    """Parses Yosys JSON netlist and converts it into a NetworkX graph, keeping only CCORE cells and memories."""
     with open(json_file, "r") as f:
         yosys_data = json.load(f)
 
@@ -24,10 +24,6 @@ def parse_yosys_json(json_file, include_memories=True):
     full_graph = nx.DiGraph()  # Graph for all nodes in the design
     ## each graph node is a node in a module. Ex: MatMult_19 is node 19 in module MatMult. It can be an integer value or a string. 
     ## each graph edge is a connection between two nodes Ex: MatMult_19 -> MatMult_instance101insidematmult_20
-
-
-    top_level_module_type = "MatMult"  # Specify the top-level module name (which is also its type)
-    #top_level_module_data = yosys_data["modules"][top_level_module_type]
 
     # do a DFS on the design hierarchy
     queue = [(top_level_module_type, top_level_module_type, top_level_module_type)]
@@ -107,7 +103,7 @@ def parse_yosys_json(json_file, include_memories=True):
             
             if cell_type == "mgc_in_sync_v2" or cell_type == "mgc_io_sync_v2":
                 continue
-            elif cell_type == "mult" or cell_type == "add":
+            elif cell_type == "mult" or cell_type == "add": ### TODO: Add more CORES Here. 
                 final_graph.add_node(hierarchy_path + "**" + cell_name, type="c-core", module_type=cell_type, hierarchy_path=hierarchy_path + "**" + cell_name)  # include c-cores in final graph.
                 in_final_graph = True
             elif "MatMult_ccs_ram_sync_1R1W" in cell_type:
@@ -130,7 +126,7 @@ def parse_yosys_json(json_file, include_memories=True):
                 
 
                 ## the ccore modules don't have a port direction, so we need assign direction manually.
-                if cell_type == "add" or cell_type == "mult":
+                if cell_type == "add" or cell_type == "mult": ## TODO: Add more CORES Here.
                     if port_name == "a" or port_name == "b":
                         input_port = True
                 
@@ -304,17 +300,15 @@ def parse_yosys_json(json_file, include_memories=True):
 def main():
     ### for testing
     top_module_name = "MatMult"
-    cmd = ["yosys", "-p", f"read_verilog benchmarks/test_verilog_file.v; hierarchy -top MatMult; proc; write_json tmp/benchmark/netlist.json"] ## toy test case
-    ##cmd = ["yosys", "-p", f"read_verilog tmp/benchmark/build/MatMult.v1/rtl.v; hierarchy -top MatMult; proc; write_json tmp/benchmark/netlist.json"] # the real deal
+    ## cmd = ["yosys", "-p", f"read_verilog benchmarks/test_verilog_file.v; hierarchy -top MatMult; proc; write_json tmp/benchmark/netlist.json"] ## toy test case
+    cmd = ["yosys", "-p", f"read_verilog tmp/benchmark/build/MatMult.v1/rtl.v; hierarchy -top {top_module_name}; proc; write_json tmp/benchmark/netlist.json"] # the real deal
     
     p = subprocess.run(cmd, capture_output=True, text=True)
     print(f"Yosys output: {p.stdout}")
     if p.returncode != 0:
         raise Exception(f"Yosys failed with error: {p.stderr}")
 
-    G, full_graph = parse_yosys_json("tmp/benchmark/netlist.json")
-    # G, full_graph = parse_yosys_json("benchmarks/test_verilog_file.sv")
-
+    G, full_graph = parse_yosys_json("tmp/benchmark/netlist.json", top_level_module_type=top_module_name, include_memories=True)
 
     ## write the netlist to a file
     with open("tmp/benchmark/netlist.gml", "wb") as f:

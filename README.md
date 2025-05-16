@@ -10,6 +10,10 @@ The inverse pass builds symbolic equations using [sympy](https://docs.sympy.org/
 
 If you are running on Apple Silicon, there are issues with the pyomo - ipopt plugin via libblas and liblapack libraries. In order to fix this follow the instructions suggested by user `fasmb24` in [this issue](https://forums.developer.apple.com/forums/thread/693696).
 
+#### Running the flow: 
+To run the codesign flow, run the following command from this directory: 
+python3 -m src.codesign -b matmult
+
 
 #### Install instructions RSG Linux machines: 
 1. Make sure you are running bash. You can check by running "echo $0".
