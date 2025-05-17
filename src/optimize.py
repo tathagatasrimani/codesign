@@ -24,7 +24,7 @@ class Optimizer:
         constraints.append(self.hw.params.V_dd <= 5)
         return constraints
 
-    def ipopt(self, improvement, regularization):
+    def ipopt(self, improvement):
         """
         Run the IPOPT optimization routine for the hardware model using Pyomo.
 
@@ -32,7 +32,6 @@ class Optimizer:
             tech_params (dict): Technology parameters for optimization.
             edp (sympy.Expr): Symbolic EDP Expression.
             improvement (float): Improvement factor for optimization.
-            regularization (float): Regularization parameter for inverse pass validation.
             cacti_subs (dict): Substitution dictionary for CACTI parameters.
 
         Returns:
@@ -44,7 +43,7 @@ class Optimizer:
 
         model = pyo.ConcreteModel()
         opt, scaled_model, model = (
-            Preprocessor(self.hw.params).begin(model, self.hw.symbolic_obj, improvement, multistart=multistart, regularization=regularization, constraints=constraints)
+            Preprocessor(self.hw.params).begin(model, self.hw.symbolic_obj, improvement, multistart=multistart, constraints=constraints)
         )
 
 
@@ -73,7 +72,7 @@ class Optimizer:
 
     # note: improvement/regularization parameter currently only for inverse pass validation, so only using it for ipopt
     # example: improvement of 1.1 = 10% improvement
-    def optimize(self, opt, improvement=10, regularization=0.1):
+    def optimize(self, opt, improvement=10):
         """
         Optimize the hardware model using the specified optimization method.
 
@@ -83,7 +82,7 @@ class Optimizer:
             None
         """
         assert opt == "ipopt"
-        return self.ipopt(improvement, regularization)
+        return self.ipopt(improvement)
 
 
 def main():
