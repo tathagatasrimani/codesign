@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 
 # third party
 import pyomo.environ as pyo
-
+import sympy as sp
 # custom
 from .preprocess import Preprocessor
 
@@ -16,6 +16,13 @@ multistart = False
 class Optimizer:
     def __init__(self, hw):
         self.hw = hw
+
+    def create_constraints(self, improvement):
+        constraints = []
+        constraints.append(self.hw.symbolic_obj >= float(self.hw.symbolic_obj.subs(self.hw.params.tech_values) / improvement))
+        constraints.append(self.hw.params.V_dd >= self.hw.params.V_th)
+        constraints.append(self.hw.params.V_dd <= 5)
+        return constraints
 
     def ipopt(self, improvement, regularization):
         """
@@ -33,9 +40,11 @@ class Optimizer:
         """
         logger.info("Optimizing using IPOPT")
 
+        constraints = self.create_constraints(improvement)
+
         model = pyo.ConcreteModel()
         opt, scaled_model, model = (
-            Preprocessor(self.hw.params).begin(model, self.hw.symbolic_obj, improvement, multistart=multistart, regularization=regularization)
+            Preprocessor(self.hw.params).begin(model, self.hw.symbolic_obj, improvement, multistart=multistart, regularization=regularization, constraints=constraints)
         )
 
 

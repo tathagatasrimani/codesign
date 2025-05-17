@@ -375,9 +375,7 @@ class Parameters:
 
     def compare_symbolic_mem(self):
         for key in self.symbolic_mem:
-            assert key in self.memories, f"symbolic memory {key} not found in memories"
-
-            
+            assert key in self.memories, f"symbolic memory {key} not found in memories"       
 
     def update_circuit_values(self):
         # derive curcuit level values from technology values

@@ -374,7 +374,9 @@ class gnt_schedule_parser:
         build_dir (str): Directory containing schedule and report files.
         module_map (dict): Mapping from ccore module names to standard operator names.
     """
-    def __init__(self, build_dir, module_map):
+    def __init__(self, build_dir, module_map, circuit_delays):
+        # use for accurate circuit delays (not rounded to nearest hundredth)
+        self.circuit_delays = circuit_delays
         self.filename = build_dir + "/schedule.gnt"
         self.bom_file = build_dir + "/rtl.rpt"
         self.line_map = {}
@@ -451,7 +453,7 @@ class gnt_schedule_parser:
                 node,
                 id=node_data["id"],
                 function=fn,
-                cost=node_data["delay"],
+                cost=self.circuit_delays[fn],
                 start_time=0,
                 end_time=0,
                 allocation="",

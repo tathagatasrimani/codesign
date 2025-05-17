@@ -209,7 +209,7 @@ class Codesign:
                 break
         assert schedule_dir
         schedule_path = f"src/tmp/benchmark/build/{schedule_dir}"
-        schedule_parser = schedule.gnt_schedule_parser(schedule_path, self.module_map)
+        schedule_parser = schedule.gnt_schedule_parser(schedule_path, self.module_map, self.hw.params.circuit_values["latency"])
         schedule_parser.parse()
         schedule_parser.convert(memories=self.hw.params.memories)
         self.hw.scheduled_dfg = schedule_parser.modified_G
@@ -283,7 +283,13 @@ class Codesign:
             None
         """
         with open(params_path, "w") as f:
-            f.write(yaml.dump(self.hw.params.tech_values))
+            d = {}
+            for key in self.hw.params.tech_values:
+                if isinstance(key, str):
+                    d[key] = float(self.hw.params.tech_values[key])
+                else:
+                    d[key.name] = float(self.hw.params.tech_values[key])
+            f.write(yaml.dump(d))
 
     def symbolic_conversion(self):
         """
@@ -396,7 +402,7 @@ class Codesign:
         #TODO: fw pass save cacti params of interest, with logger unique starting string, then write parsing script in notebook to look at them
         # save latency, power, and tech params
         self.hw.write_technology_parameters(
-            f"{self.save_dir}/tech_params_{iter_number}.yaml"
+            f"{self.save_dir}/circuit_values_{iter_number}.yaml"
         )
 
     def save_dat(self):

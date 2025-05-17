@@ -18,6 +18,12 @@ def symbolic_convex_max(a, b, evaluate=True):
     """
     return 0.5 * (a + b + sp.Abs(a - b, evaluate=evaluate))
 
+def symbolic_convex_min(a, b, evaluate=True):
+    """
+    Min(a, b) in a format which ipopt accepts.
+    """
+    return 0.5 * (a + b - sp.Abs(a - b, evaluate=evaluate))
+
 class HardwareModel:
     """
     Represents a hardware model with configurable technology and hardware parameters. Provides methods
