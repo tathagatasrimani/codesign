@@ -1,10 +1,8 @@
 import copy
 import re
 
-import networkx as nx
-
-from .var import directory
 from .functions import clean
+from .working_directory import directory
 
 ID_index = 0
 pin_index_1 = 1
@@ -12,7 +10,6 @@ pin_index_2 = 2
 res_index = 3
 
 output_pin_pattern = r"\*[0-9]+:[A-Za-z]"
-
 
 def all_pins(input_net: list) -> set:
     '''
@@ -115,7 +112,7 @@ def res_series(net_list: list, pin_count: dict):
 
 
 def length_calculations(
-    units: float, def_file: str = "results/final_generated-tcl.def"
+    units: float, def_file: str = "/results/final_generated-tcl.def"
 ) -> dict:
     '''
     calculates lengths of each net using the def file
@@ -127,8 +124,6 @@ def length_calculations(
     returns:
         length_dict: length with macro ID attribution
     '''
-
-    def_file = "results/final_generated-tcl.def"
 
     # parsing through def file for macro coords and net names
     def_data = open(directory + def_file)
@@ -178,7 +173,7 @@ def length_calculations(
     return length_dict
 
 
-def parasitic_calc(spef_file: str = "results/generated-tcl.spef"):
+def parasitic_calc(spef_file: str = "/results/generated-tcl.spef"):
     '''
     reads spef file and finds capacitance and does resistance calculations for each net.
 

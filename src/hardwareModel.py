@@ -45,6 +45,7 @@ class HardwareModel:
         self.params = parameters.Parameters(args.tech_node, self.cacti_dat_file)
         self.netlist = nx.DiGraph()
         self.scheduled_dfg = nx.DiGraph()
+        self.parasitic_graph = nx.DiGraph()
         self.symbolic_mem = {}
         self.symbolic_buf = {}
         self.memories = []
@@ -63,6 +64,7 @@ class HardwareModel:
         self.obj = 0
         self.symbolic_obj = 0
         self.scheduled_dfg = nx.DiGraph()
+        self.parasitic_graph = nx.DiGraph()
         self.longest_paths = []
         self.obj_sub_exprs = {}
         self.symbolic_obj_sub_exprs = {}
@@ -79,12 +81,19 @@ class HardwareModel:
     
     def get_wire_parasitics(self, arg_testfile, arg_parasitics):
         start_time = time.time()
-        _, graph = place_n_route.place_n_route(
+        self.params.wire_length_by_edge, _ = place_n_route.place_n_route(
             self.netlist, arg_testfile, arg_parasitics
         )
         logger.info(f"time to generate wire parasitics: {time.time()-start_time}")
-        self.parasitics = arg_parasitics
-        self.parasitic_graph = graph
+        # update scheduled dfg with wire delays
+        for edge in self.scheduled_dfg.edges:
+            if edge in self.netlist.edges:
+                # wire delay = R * C * length^2
+                self.scheduled_dfg.edges[edge]["cost"] = self.params.wire_delay(edge)
+                logger.info(f"(wire delay) {edge}: {self.scheduled_dfg.edges[edge]['cost']} ns")
+                self.scheduled_dfg.edges[edge]["weight"] += self.scheduled_dfg.edges[edge]["cost"]
+            else:
+                self.scheduled_dfg.edges[edge]["cost"] = 0
 
     def save_symbolic_memories(self):
         MemL_expr = 0
@@ -161,7 +170,8 @@ class HardwareModel:
             for path in self.longest_paths:
                 logger.info(f"adding path to execution time calculation: {path}")
                 path_execution_time = 0
-                for node in path[1]:
+                for i in range(len(path[1])):
+                    node = path[1][i]
                     data = self.scheduled_dfg.nodes[node]
                     if node == "end" or data["function"] == "nop": continue
                     if data["function"] == "Buf" or data["function"] == "MainMem":
@@ -170,6 +180,8 @@ class HardwareModel:
                         path_execution_time += self.params.symbolic_latency_wc[data["function"]]()[rsc_name]
                     else:
                         path_execution_time += self.params.symbolic_latency_wc[data["function"]]()
+                    if i > 0:
+                        path_execution_time += self.params.wire_delay((path[1][i-1], node), symbolic)
                 execution_time = symbolic_convex_max(execution_time, path_execution_time).simplify() if execution_time != 0 else path_execution_time
 
             logger.info(f"symbolic execution time: {execution_time}")
@@ -217,6 +229,11 @@ class HardwareModel:
                 else:
                     total_active_energy += self.params.circuit_values["dynamic_energy"][data["function"]]
                 logger.info(f"(active energy) {data['function']}: {total_active_energy}")
+        for edge in self.scheduled_dfg.edges:
+            if edge in self.netlist.edges:
+                wire_energy = self.params.wire_energy(edge, symbolic)
+                logger.info(f"(wire energy) {edge}: {wire_energy} nJ")
+                total_active_energy += wire_energy
         return total_active_energy
     
     def calculate_objective(self, symbolic=False):

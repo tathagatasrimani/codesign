@@ -1,4 +1,4 @@
-
+set_debug_level DPL place 1
 ################################################################
 # IO Placement (random)
 place_pins -random -hor_layers $io_placer_hor_layer -ver_layers $io_placer_ver_layer
@@ -60,19 +60,7 @@ repair_tie_fanout -separation $tie_separation $tielo_port
 repair_tie_fanout -separation $tie_separation $tiehi_port
 
 set_placement_padding -global -left $detail_place_pad -right $detail_place_pad
-detailed_placement
-
-# post resize timing report (ideal clocks)
-report_worst_slack -min -digits 3
-report_worst_slack -max -digits 3
-report_tns -digits 3
-# Check slew repair
-report_check_types -max_slew -max_capacitance -max_fanout -violators
-
-utl::metric "RSZ::repair_design_buffer_count" [rsz::repair_design_buffer_count]
-utl::metric "RSZ::max_slew_slack" [expr [sta::max_slew_check_slack_limit] * 100]
-utl::metric "RSZ::max_fanout_slack" [expr [sta::max_fanout_check_slack_limit] * 100]
-utl::metric "RSZ::max_capacitance_slack" [expr [sta::max_capacitance_check_slack_limit] * 100]
+detailed_placement -max_displacement 500
 
 ################################################################
 # Clock Tree Synthesis
@@ -149,68 +137,6 @@ global_route -guide_file $route_guide \
 set verilog_file [make_result_file ${design}_${platform}.v]
 write_verilog -remove_cells $filler_cells $verilog_file
 
-report_wire_length -net * -file "results/wire_length_global.txt" -global_route
-
-################################################################
-# Antenna repair
-
-repair_antennas -iterations 5
-
-check_antennas
-utl::metric "GRT::ANT::errors" [ant::antenna_violation_count]
-
-################################################################
-# Filler placement
-
-filler_placement $filler_cells
-check_placement -verbose
-
-################################################################
-# Detailed routing
-
-# set multithreading only for detailed route due to instability
-# in repair_antennas
-set_thread_count [exec getconf _NPROCESSORS_ONLN]
-
-# Run pin access again after inserting diodes and moving cells
-pin_access -bottom_routing_layer $min_routing_layer \
-           -top_routing_layer $max_routing_layer
-
-detailed_route -output_drc [make_result_file "${design}_${platform}_route_drc.rpt"] \
-               -output_maze [make_result_file "${design}_${platform}_maze.log"] \
-               -no_pin_access \
-               -save_guide_updates \
-               -bottom_routing_layer $min_routing_layer \
-               -top_routing_layer $max_routing_layer \
-               -verbose 0
-
-write_guides [make_result_file "${design}_${platform}_output_guide.mod"]
-set drv_count [detailed_route_num_drvs]
-utl::metric "DRT::drv" $drv_count
-
-check_antennas
-utl::metric "DRT::ANT::errors" [ant::antenna_violation_count]
-
-
-set routed_def [make_result_file final_generated.def]
-write_def $routed_def
-
-report_wire_length -net * -file "results/wire_length_detailed.txt" -detailed_route
-
-################################################################
-# Extraction
-
-if { $rcx_rules_file != "" } {
-  define_process_corner -ext_model_index 0 X
-  extract_parasitics -ext_model_file $rcx_rules_file -debug_net_id metal1
-
-  set spef_file [make_result_file generated.spef]
-  write_spef $spef_file
-
-  read_spef $spef_file
-} else {
-  # Use global routing based parasitics inlieu of rc extraction
-  estimate_parasitics -global_routing
-}
+report_wire_length -net * -file "../results/wire_length_global.txt" -global_route
 
 exit

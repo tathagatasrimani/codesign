@@ -1,5 +1,6 @@
 import os
 import yaml
+import logging
 from src import coefficients
 import src.cacti.cacti_python.get_dat as dat
 import src.cacti.cacti_python.get_IO as IO
@@ -9,11 +10,15 @@ from src import global_symbol_table
 import math
 from sympy import symbols, ceiling, expand, exp
 
+logger = logging.getLogger(__name__)
+
 TECH_NODE_FILE = "src/params/tech_nodes.yaml"
+WIRE_RC_FILE = "src/params/wire_rc.yaml"
 
 class Parameters:
     def __init__(self, tech_node, dat_file):
         self.tech_node = tech_node
+        print(f"tech node: {self.tech_node}")
         # hardcoded tech node to reference for logical effort coefficients
         self.coeffs = coefficients.create_and_save_coefficients([7])
         # initialize symbolic variables and equations
@@ -22,25 +27,55 @@ class Parameters:
         # Logic parameters
         self.V_dd = symbols("V_dd", positive=True)
         self.V_th = symbols("V_th", positive=True)
-        self.u_p = symbols("u_p", positive=True)
+        self.u_n = symbols("u_n", positive=True)  # Electron mobility for NMOS
+        self.u_p = self.u_n/2.5  # Hole mobility for PMOS, hardcoded for now.
         self.C_ox = symbols("C_ox", positive=True)
         self.W = symbols("W", positive=True)
         self.L = symbols("L", positive=True)
-        self.I_s = symbols("I_s", positive=True)
-        self.q = symbols("q", positive=True)
+        self.q = 1.6e-19  # electron charge (C)
         self.V_offset = symbols("V_offset", positive=True)
         self.n = symbols("n", positive=True)
-        self.K = symbols("K", positive=True)
-        self.T = symbols("T", positive=True)
+        self.K = 1.38e-23  # Boltzmann constant (J/K)
+        self.T = 300  # Temperature (K)
         self.area = symbols("area", positive=True)
 
+        self.m1_Rsq = symbols("m1_Rsq", positive=True)
+        self.m2_Rsq = symbols("m2_Rsq", positive=True)
+        self.m3_Rsq = symbols("m3_Rsq", positive=True)
+
+        self.m1_Csq = symbols("m1_Csq", positive=True)
+        self.m2_Csq = symbols("m2_Csq", positive=True)
+        self.m3_Csq = symbols("m3_Csq", positive=True)
+        self.wire_parasitics = {
+            "R": {
+                "metal1": self.m1_Rsq,
+                "metal2": self.m2_Rsq,
+                "metal3": self.m3_Rsq,
+            },
+            "C": {
+                "metal1": self.m1_Csq,
+                "metal2": self.m2_Csq,
+                "metal3": self.m3_Csq,
+            }
+        }
         self.C_gate = self.C_ox*self.W*self.L
-        self.I_d = self.u_p*self.C_ox*self.W*(self.V_dd-self.V_th)**2 / (2*self.L)
-        self.I_off = self.I_s*exp((self.q*(self.V_dd-self.V_th-self.V_offset)) / (self.n*self.K*self.T)) * (1 - exp((-self.q*self.V_dd) / (self.K*self.T)))
-        self.R_avg_inv = self.V_dd / self.I_d
-        self.C_inv = 2*self.C_gate
-        self.E_act_inv = 0.5*self.C_inv*self.V_dd*self.V_dd
-        self.P_pass_inv = self.I_off*self.V_dd
+
+        self.I_d_nmos = self.u_n*self.C_ox*self.W*(self.V_dd-self.V_th)**2 / (2*self.L)
+        self.I_d_pmos = self.u_p*self.C_ox*self.W*(self.V_dd-self.V_th)**2 / (2*self.L)
+
+        self.R_avg_inv = self.V_dd / ((self.I_d_nmos + self.I_d_pmos)/2)
+
+        self.C_inv = 2*self.C_gate + 0.5*self.C_gate + self.C_gate  # gate cap + Miller cap + load cap
+        self.delay = (self.R_avg_inv * self.C_inv) * 1e9  
+        self.E_act_inv = (0.5*self.C_inv*self.V_dd*self.V_dd) * 1e9  
+        
+        self.I_off_nmos = self.u_n*self.C_ox*(self.W/self.L)*(self.K*self.T/self.q)**2*exp(-self.V_th*self.q/(self.n*self.K*self.T))
+        
+
+        self.I_off_pmos = self.u_p*self.C_ox*(self.W/self.L)*(self.K*self.T/self.q)**2*exp(-self.V_th*self.q/(self.n*self.K*self.T))
+        
+        self.I_off = self.I_off_nmos + self.I_off_pmos
+        self.P_pass_inv = self.I_off*self.V_dd  
 
         # Memory parameters
         self.C_g_ideal = symbols("C_g_ideal", positive=True)
@@ -333,13 +368,29 @@ class Parameters:
         # circuit level parameter values
         self.circuit_values = {}
 
+        # wire length by edge
+        self.wire_length_by_edge = {}
+
+        self.metal_layers = ["metal1", "metal2", "metal3"]
+
         # set initial values for technology parameters based on tech node
         config = yaml.load(open(TECH_NODE_FILE), Loader=yaml.Loader)
+        print(config[self.tech_node])
         for key in config["default"]:
             try:
-                self.tech_values[self.symbol_table[key]] = config[key]
+                self.tech_values[self.symbol_table[key]] = config[self.tech_node][key]
             except:
+                logger.info(f"using default value for {key}")
                 self.tech_values[self.symbol_table[key]] = config["default"][key]
+
+        wire_rc_init = "" # can set later
+        wire_rc_config = yaml.load(open(WIRE_RC_FILE), Loader=yaml.Loader)
+        for key in wire_rc_config["default"]:
+            try:
+                self.tech_values[self.symbol_table[key]] = wire_rc_config[wire_rc_init][key]
+            except:
+                logger.info(f"using default value for {key}")
+                self.tech_values[self.symbol_table[key]] = wire_rc_config["default"][key]
 
         # set initial values for memory parameters
         # CACTI
@@ -411,6 +462,30 @@ class Parameters:
             key: self.memories[key]["Area (mm2)"] * 1e6 for key in self.memories
         }
 
+    def wire_delay(self, edge, symbolic=False):
+        # wire delay = R * C * length^2 (ns)
+        if symbolic:
+            return sum([self.wire_length_by_edge[edge][layer]**2 * 
+                        self.wire_parasitics["R"][layer] * 
+                        self.wire_parasitics["C"][layer] 
+                        for layer in self.metal_layers]) * 1e9
+        else:
+            return sum([self.wire_length_by_edge[edge][layer]**2 * 
+                        self.tech_values[self.wire_parasitics["R"][layer]] * 
+                        self.tech_values[self.wire_parasitics["C"][layer]] 
+                        for layer in self.metal_layers]) * 1e9
+        
+    def wire_energy(self, edge, symbolic=False):
+        # wire energy = 0.5 * C * V_dd^2 * length
+        if symbolic:
+            return 0.5*sum([self.wire_length_by_edge[edge][layer] * 
+                        self.wire_parasitics["C"][layer] * self.V_dd**2 
+                        for layer in self.metal_layers]) * 1e9
+        else:
+            return 0.5*sum([self.wire_length_by_edge[edge][layer] * 
+                        self.tech_values[self.wire_parasitics["C"][layer]] * self.tech_values[self.V_dd]**2 
+                        for layer in self.metal_layers]) * 1e9
+
     def set_coefficients(self, coeffs):
         self.alpha = coeffs["alpha"]
         self.beta = coeffs["beta"]
@@ -418,7 +493,7 @@ class Parameters:
         self.area_coeffs = coeffs["area"]
 
     def make_sym_lat_wc(self, gamma):
-        return gamma * self.R_avg_inv * self.C_inv
+        return gamma * self.delay
 
     def make_buf_lat_dict(self):
         return self.BufL
@@ -468,11 +543,11 @@ class Parameters:
             "V_dd": self.V_dd,
             "V_th": self.V_th,
             "C_gate": self.C_gate,
+            "u_n": self.u_n,
             "u_p": self.u_p,
             "C_ox": self.C_ox,
             "W": self.W,
             "L": self.L,
-            "I_s": self.I_s,
             "q": self.q,
             "V_offset": self.V_offset,
             "n": self.n,
@@ -490,6 +565,14 @@ class Parameters:
             "BufPpass": self.BufPpass,
             "OffChipIOL": self.OffChipIOL,
             "OffChipIOPact": self.OffChipIOPact,
+
+            # wire parasitics
+            "m1_Rsq": self.m1_Rsq,
+            "m2_Rsq": self.m2_Rsq,
+            "m3_Rsq": self.m3_Rsq,
+            "m1_Csq": self.m1_Csq,
+            "m2_Csq": self.m2_Csq,
+            "m3_Csq": self.m3_Csq,
             
             # Cacti .dat technology parameters
             'C_g_ideal': self.C_g_ideal,

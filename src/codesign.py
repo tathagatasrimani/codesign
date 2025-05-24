@@ -117,7 +117,7 @@ class Codesign:
             self.module_map[unit.lower()] = unit
 
         os.chdir("src/tmp/benchmark")
-        clk_period = 10 # ns, TODO: change to actual clk period
+        clk_period = 150 # ns, TODO: change to actual clk period
         # set correct clk period
         sim_util.change_clk_period_in_script("scripts/common.tcl", clk_period)
 
@@ -224,21 +224,18 @@ class Codesign:
         Returns:
             None
         """
-        self.hw.scheduled_dfg.nodes["end"]["start_time"] = nx.dag_longest_path_length(self.hw.scheduled_dfg)
 
-        self.hw.longest_paths = schedule.get_longest_paths(self.hw.scheduled_dfg)
         netlist_dfg = self.hw.scheduled_dfg.copy()
         netlist_dfg.remove_node("end")
         self.hw.netlist = netlist_dfg
 
-        # update netlist with wire parasitics
-        # self.hw.get_wire_parasitics(self.openroad_testfile, self.parasitics)
+        # update netlist and scheduled dfg with wire parasitics
+        self.hw.get_wire_parasitics(self.openroad_testfile, self.parasitics)
 
-        # map parasitics to schedule
-        # self.hw.map_parasitics_to_schedule(self.hw.scheduled_dfg) placeholder function
+        # set end node's start time to longest path length
+        self.hw.scheduled_dfg.nodes["end"]["start_time"] = nx.dag_longest_path_length(self.hw.scheduled_dfg)
 
-        # update schedule with parasitic delays
-        # sim_util.update_schedule_with_latency(self.schedule, self.hw.latency)
+        self.hw.longest_paths = schedule.get_longest_paths(self.hw.scheduled_dfg)
     
     def parse_output(self, f):
         """
@@ -491,14 +488,14 @@ if __name__ == "__main__":
         "--parasitics",
         type=str,
         choices=["detailed", "estimation", "none"],
-        default="detailed",
+        default="estimation",
         help="determines what type of parasitic calculations are done for wires",
     )
 
     parser.add_argument(
         "--openroad_testfile",
         type=str,
-        default="openroad_interface/tcl/test_nangate45_bigger.tcl",
+        default="openroad_interface/tcl/codesign_top.tcl",
         help="what tcl file will be executed for openroad",
     )
     parser.add_argument(

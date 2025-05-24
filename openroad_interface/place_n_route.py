@@ -5,18 +5,18 @@ import shutil
 
 import networkx as nx
 
-from .var import directory
 from . import def_generator as df
 from . import estimation as est
 from . import detailed as det
-
+from .working_directory import directory
 
 def openroad_run():
-    os.chdir(directory)
+    old_dir = os.getcwd()
+    os.chdir(directory + "/tcl")
     print("running openroad")
-    os.system("./../build/src/openroad test.tcl")#> /dev/null 2>&1     
+    os.system(os.path.dirname(os.path.abspath(__file__)) + "/OpenROAD/build/src/openroad codesign_top.tcl > " + directory + "/codesign_pd.log")#> /dev/null 2>&1     
     print("done")
-    os.chdir("../../..")
+    os.chdir(old_dir)
 
 
 def export_graph(graph, est_or_det: str):
@@ -76,7 +76,7 @@ def mux_removal(graph: nx.DiGraph):
 def coord_scraping(
     graph: nx.DiGraph,
     node_to_num: dict,
-    final_def_directory: str = directory + "results/final_generated-tcl.def",
+    final_def_directory: str = directory + "/results/final_generated-tcl.def",
 ):
     """
     going through the .def file and getting macro placements and nets
@@ -113,12 +113,12 @@ def coord_scraping(
 
 def place_n_route(
     graph: nx.DiGraph,
-    test_directory: str, 
+    test_file: str, 
     arg_parasitics: str
 ):
     dict = None
     if "none" not in arg_parasitics:
-        graph, net_out_dict, node_output, lef_data, node_to_num = setup(graph, test_directory)
+        graph, net_out_dict, node_output, lef_data, node_to_num = setup(graph, test_file)
         dict, graph = extraction(graph, arg_parasitics, net_out_dict, node_output, lef_data, node_to_num)
     else: 
         graph = none_place_n_route(graph)
@@ -126,27 +126,27 @@ def place_n_route(
     
 def setup(
     graph: nx.DiGraph,
-    test_directory: str
+    test_file: str
 ):
     """
     the main function. generates def file, runs openroad, does all openroad and estimated calculations.
     param:
         graph: hardware netlist graph
-        test_directory: tcl file directory
+        test_file: tcl file
         arg_parasitics: detailed, estimation, or none. determines which parasitic calculation is executed.
 
     return:
         pandas dataframe: contains all parasitic information
     """
 
-    # 1. generate def
-    # export PATH=./../build/src:$PATH ./../src/hardwareModel.py
-    os.system("cp " + test_directory + " ./" + directory)
-    os.system("cp openroad_interface/tcl/codesign_flow.tcl ./" + directory)
-    # os.system("cp tcl/codesign_flow_short.tcl ./" + directory) once you figure out how to run this
-    shutil.copyfile(test_directory, directory + "test.tcl")
+    if os.path.exists(directory):
+        shutil.rmtree(directory)
+    os.makedirs(directory)
+    shutil.copytree(os.path.dirname(os.path.abspath(__file__)) + "/tcl", directory + "/tcl")
+    shutil.copytree(os.path.dirname(os.path.abspath(__file__)) + "/results", directory + "/results")
+
     graph, net_out_dict, node_output, lef_data, node_to_num = df.def_generator(
-        test_directory, graph
+        test_file, graph
     )
 
     return graph, net_out_dict, node_output, lef_data, node_to_num
@@ -190,39 +190,22 @@ def estimated_place_n_route(
     # run openroad
     openroad_run()
 
-    graph, component_nets = coord_scraping(graph, node_to_num)
-    (
-        estimated_res,
-        estimated_res_data,
-        estimated_cap,
-        estimated_cap_data,
-        estimated_length,
-        estimated_length_data,
-    ) = est.parasitic_estimation(
-        graph, component_nets, net_out_dict, lef_data, node_to_num
-    )
+    wire_length_df = est.parse_route_guide_with_layer_breakdown(directory + "/results/codesign_codesign-tcl.route_guide")
+    wire_length_by_edge = {}
+    for node in net_out_dict:
+        for output in node_output[node]:
+            for net in net_out_dict[node]:
+                if (node, output) not in wire_length_by_edge:
+                    wire_length_by_edge[(node, output)] = wire_length_df.loc[net]
+                else:
+                    wire_length_by_edge[(node, output)] += wire_length_df.loc[net]
 
-    # edge attribution
-    net_graph_data = []
-    for output_net in net_out_dict:
-        for pin in node_output[output_net]:
-            graph[output_net][pin]["net"] = net_out_dict[output_net]
-            graph[output_net][pin]["net_length"] = estimated_length[output_net]
-            graph[output_net][pin]["net_res"] = float(estimated_res[output_net])
-            graph[output_net][pin]["net_cap"] = float(estimated_cap[output_net])
-        net_graph_data.append(net_out_dict[output_net])
-
-    mux_listing(graph, node_output)
-    mux_removal(graph)
+    #mux_listing(graph, node_output)
+    #mux_removal(graph)
 
     export_graph(graph, "estimated_nomux")
 
-    return {
-        "length": estimated_length_data,
-        "res": estimated_res_data,
-        "cap": estimated_cap_data,
-        "net": net_graph_data,
-    }, graph
+    return wire_length_by_edge, graph
 
 
 def detailed_place_n_route(
@@ -270,8 +253,8 @@ def detailed_place_n_route(
                 graph[output_net][node]["net_cap"] = float(net_cap[net])
             net_graph_data.append(net)
             len_graph_data.append(float(length_dict[net]))  # length
-            res_graph_data.append(float(net_res[net]))  # ohms
-            cap_graph_data.append(float(net_cap[net]))  # picofarads
+            res_graph_data.append(float(net_res[net]) if net in net_res else 0)  # ohms
+            cap_graph_data.append(float(net_cap[net]) if net in net_cap else 0)  # picofarads
         
         
 

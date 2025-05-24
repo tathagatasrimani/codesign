@@ -5,11 +5,10 @@ import math
 import re 
 import networkx as nx
 
-from .var import directory
 from .functions import find_val_two, find_val_xy, find_val, value, format, clean
 from . import place_n_route as pnr
-
-design = "gcd"
+from .working_directory import directory
+design = "codesign"
 
 # make it a dict
 and_gate = "AND2_X1"
@@ -76,7 +75,7 @@ def find_macro(name: str) -> str:
     if "MUX" in name.upper():
         return  mux 
     else:
-        return ""
+        raise ValueError(f"Macro not found for {name}")
 
 def edge_gen(in_or_out, nodes, graph) -> dict:
     '''
@@ -97,13 +96,13 @@ def edge_gen(in_or_out, nodes, graph) -> dict:
     return result
 
 
-def def_generator(tcl_file_directory: str, graph: nx.DiGraph): 
+def def_generator(test_file: str, graph: nx.DiGraph): 
     '''
      -> nx.DiGraph, dict, dict, dict (it's not working when actaully written)
     Generates required .def file for OpenROAD.
 
     params: 
-        tcl_file_imported: tcl file directory
+        test_file: tcl file
         graph: nx.DiGraph, untouched
     
     returns: 
@@ -139,7 +138,7 @@ def def_generator(tcl_file_directory: str, graph: nx.DiGraph):
 
     
     ### 0. reading tcl file and lef file ###
-    test_file_data = open(tcl_file_directory)
+    test_file_data = open(test_file)
     test_file_lines = test_file_data.readlines()
 
     # extracting vars file, die area, and core area from tcl
@@ -163,19 +162,19 @@ def def_generator(tcl_file_directory: str, graph: nx.DiGraph):
             core_coord_y2 = float(core[3])
 
 
-    var_file_data = open(directory  + var_file) 
+    var_file_data = open(directory  +"/tcl/"+ var_file) 
 
     # extracting lef file directories and site name
     for line in var_file_data.readlines():
         if "tech_lef" in line:
-            lef_tech_file = directory + re.findall(r'"(.*?)"', line)[0]
+            lef_tech_file = directory + "/tcl/" + re.findall(r'"(.*?)"', line)[0]
         if "std_cell_lef" in line:
-            lef_std_file = directory + re.findall(r'"(.*?)"', line)[0]
+            lef_std_file = directory + "/tcl/" + re.findall(r'"(.*?)"', line)[0]
         if "site" in line:
             site = re.findall(r'"(.*?)"', line)
             site_name = site[0]
 
-    os.system("cp openroad_interface/std_cell_lef/Nangate45_stdcell.lef" + " ./" + lef_std_file) 
+    os.system("cp openroad_interface/std_cell_lef/codesign_stdcell.lef" + " " + lef_std_file) 
 
     # extracting needed macros and their respective pins from lef and puts it into a dict
     lef_std_data = open(lef_std_file)
@@ -234,7 +233,7 @@ def def_generator(tcl_file_directory: str, graph: nx.DiGraph):
     node_to_macro = {}
     out_edge = edge_gen("out", old_nodes, graph)
     for node in old_nodes:
-        macro = find_macro(node)
+        macro = find_macro(graph.nodes[node]["function"])
         out_edge = edge_gen("out", old_nodes, graph)
         if graph.nodes[node]["count"] == 16:
             node_attribute = graph.nodes[node]
@@ -251,7 +250,7 @@ def def_generator(tcl_file_directory: str, graph: nx.DiGraph):
                         graph.add_edge(name, output_name)
                     else:
                         graph.add_edge(name, output)
-                macro_output = find_macro(output)
+                macro_output = find_macro(graph.nodes[output]["function"])
                 node_to_macro[output] = [macro_output, copy.deepcopy(macro_dict[macro_output])]
             node_to_macro[name] = [macro, copy.deepcopy(macro_dict[macro])]
         else:
@@ -263,11 +262,11 @@ def def_generator(tcl_file_directory: str, graph: nx.DiGraph):
                         if not graph.has_node(output_name):
                             graph.add_node(output_name, function=node_attribute["function"], count=16)
                         graph.add_edge(node, output_name)
-                        macro_output = find_macro(output_name)
+                        macro_output = find_macro(graph.nodes[output]["function"])
                         node_to_macro[output_name] = [macro_output, copy.deepcopy(macro_dict[macro_output])]
                 else:
                     graph.add_edge(node, output)    
-                    macro_output = find_macro(output)
+                    macro_output = find_macro(graph.nodes[output]["function"])
                     node_to_macro[output] = [macro_output, copy.deepcopy(macro_dict[macro_output])]
             node_to_macro[node] = [macro, copy.deepcopy(macro_dict[macro])]
             
@@ -520,8 +519,8 @@ def def_generator(tcl_file_directory: str, graph: nx.DiGraph):
             text = "TRACKS Y {} DO {} STEP {} LAYER {} ;".format(int(origin_y), int(y_track_count), int(layer_pitch_y), layer_name)
             track_text.append(text)
                 
-    if not os.path.exists( directory + "results/"):
-        os.makedirs(directory + "results/")
+    if not os.path.exists( directory + "/results/"):
+        os.makedirs(directory + "/results/")
     if not os.path.exists( "openroad_interface/results/"):
         os.makedirs("openroad_interface/results/")
         
@@ -540,6 +539,6 @@ def def_generator(tcl_file_directory: str, graph: nx.DiGraph):
             f.write(f"{line}\n")
 
     lef_data_dict = {"width" : lef_width, "res" : layer_res, "cap" : layer_cap, "units" : units}
-    os.system("cp openroad_interface/results/first_generated.def " + directory + "results/first_generated.def") 
+    os.system("cp openroad_interface/results/first_generated.def " + directory + "/results/first_generated.def") 
 
     return graph, net_out_dict, node_output, lef_data_dict, node_to_num
