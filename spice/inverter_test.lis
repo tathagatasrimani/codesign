@@ -1,0 +1,84 @@
+ ****** PrimeSim HSPICE -- R-2020.12-SP1 linux64 (Apr 10 2021 6983340) ******
+  Copyright (c) 1986 - 2025 by Synopsys, Inc. All Rights Reserved.
+  This software and the associated documentation are proprietary
+  to Synopsys, Inc. This software may only be used in accordance
+  with the terms and conditions of a written license agreement with
+  Synopsys, Inc. All other use, reproduction, or distribution of
+  this software is strictly prohibited.
+  Input File: inverter_test.sp                                                  
+  Command line options: /cad/synopsys/hspice/R-2020.12-SP1/hspice/linux64/hspice inverter_test.sp -o inverter_test
+  Start time: Thu May 22 10:54:14 2025
+ lic:  
+ lic: FLEXlm: SDK_12.9.5 
+ lic: USER:   pmcewen              HOSTNAME: rsgvm13.stanford.edu 
+ lic: HOSTID: "bc24119dd2f2"       PID:      1615389 
+ lic: Using FLEXlm license file: 
+ lic: 27000@cadlic0.stanford.edu 
+ lic: Checkout 1 hspice 
+ lic: License/Maintenance for hspice will expire on 06-nov-2026/2024.09 
+ lic: 1(in_use)/200(total) FLOATING license(s) on SERVER 27000@cadlic0.stanford.edu 
+ lic:   
+ **info** *pvaI* current limit stacksize=8388608, set new limit stacksize=62914560
+
+  **warning** (inverter_test.sp:31) runlvl smaller than 5, reset to 5 when accurate turned on
+  **error** (inverter_test.sp:20) Definition of model/subckt "pfet" is not found for the element "m1". Please specify a defined model/subckt name.
+  **error** (inverter_test.sp:21) Definition of model/subckt "nfet" is not found for the element "m2". Please specify a defined model/subckt name.
+
+          ***** job aborted
+1****** PrimeSim HSPICE -- R-2020.12-SP1 linux64 (Apr 10 2021 6983340) ******
+ ******  
+ * inverter test simulation using bsim-cmg
+
+ ****** job statistics summary tnom=  25.000 temp=  25.000 ******
+  
+ ******  Machine Information  ******
+ CPU:
+ model name	: AMD EPYC 7742 64-Core Processor
+ cpu MHz	: 2249.998
+ CPU(s)		: 128
+  
+ OS:
+ Linux version 5.14.0-503.40.1.el9_5.x86_64 (mockbuild@iad1-prod-build001.bld.equ.rockylinux.org) (gcc (GCC) 11.5.0 20240719 (Red Hat 11.5.0-5), GNU ld version 2.35.2-54.el9) #1 SMP PREEMPT_DYNAMIC Wed Apr 30 17:38:54 UTC 2025
+
+ System loadavg : 0.03 0.16 0.19 1/1981 1615434
+
+
+  ******  HSPICE Threads Information  ******
+
+  Command Line Threads Count :     1
+  Available CPU Count        :   128
+  Actual Threads Count       :     1
+
+
+  ******  Circuit Statistics  ******
+  # nodes       =       0 # elements   =       4
+  # resistors   =       0 # capacitors =       0 # inductors   =       0
+  # mutual_inds =       0 # vccs       =       0 # vcvs        =       0
+  # cccs        =       0 # ccvs       =       0 # volt_srcs   =       2
+  # curr_srcs   =       0 # diodes     =       0 # bjts        =       0
+  # jfets       =       0 # mosfets    =       2 # U elements  =       0
+  # T elements  =       0 # W elements =       0 # B elements  =       0
+  # S elements  =       0 # P elements =       0 # va device   =       0
+  # vector_srcs =       0 # N elements =       0
+
+
+  ******  Runtime Statistics (seconds)  ******
+
+  analysis           time    # points   tot. iter  conv.iter
+  op point           0.00           1           0
+  readin             2.23
+  errchk             0.00
+  setup              0.00
+  output             0.00
+
+
+           peak memory used        424.84 megabytes
+           total cpu time            2.23 seconds
+           total elapsed time        2.32 seconds
+           job started at     10:54:14 05/22/2025
+           job ended   at     10:54:16 05/22/2025
+           job total runtime         2.32 seconds
+
+
+ lic: Release hspice token(s) 
+ lic: total license checkout elapse time:        0.07(s)
