@@ -150,11 +150,11 @@ class Codesign:
         if p.returncode != 0:
             raise Exception(f"Yosys failed with error: {p.stderr}")
 
-        """self.hw.netlist, _ = parse_yosys_json("src/tmp/benchmark/netlist.json", include_memories=True, top_level_module_type=top_module_name)
+        self.hw.netlist, _ = parse_yosys_json("src/tmp/benchmark/netlist.json", include_memories=True, top_level_module_type=top_module_name)
 
         ## write the netlist to a file
         with open("src/tmp/benchmark/netlist.gml", "wb") as f:
-            nx.write_gml(self.hw.netlist, f)"""
+            nx.write_gml(self.hw.netlist, f)
 
     def forward_pass(self):
         """
@@ -224,8 +224,8 @@ class Codesign:
             None
         """
 
-        netlist_dfg = self.hw.scheduled_dfg.copy()
-        netlist_dfg.remove_node("end")
+        # netlist_dfg = self.hw.scheduled_dfg.copy() 
+        # netlist_dfg.remove_node("end")
         # self.hw.netlist = netlist_dfg
 
         # update netlist and scheduled dfg with wire parasitics

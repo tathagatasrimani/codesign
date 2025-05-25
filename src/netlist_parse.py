@@ -4,7 +4,7 @@ import subprocess
 import networkx as nx
 import matplotlib.pyplot as plt
 
-DEBUG_PRINT = True
+DEBUG_PRINT = False
 
 def debug_print(*args, **kwargs):
     if DEBUG_PRINT:
