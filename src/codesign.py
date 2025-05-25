@@ -226,7 +226,7 @@ class Codesign:
 
         netlist_dfg = self.hw.scheduled_dfg.copy()
         netlist_dfg.remove_node("end")
-        self.hw.netlist = netlist_dfg
+        # self.hw.netlist = netlist_dfg
 
         # update netlist and scheduled dfg with wire parasitics
         self.hw.get_wire_parasitics(self.openroad_testfile, self.parasitics)
