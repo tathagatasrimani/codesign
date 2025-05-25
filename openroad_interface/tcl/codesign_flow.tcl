@@ -1,4 +1,3 @@
-set_debug_level DPL place 1
 ################################################################
 # IO Placement (random)
 place_pins -random -hor_layers $io_placer_hor_layer -ver_layers $io_placer_ver_layer

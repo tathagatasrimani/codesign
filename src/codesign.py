@@ -66,12 +66,11 @@ class Codesign:
         self.openroad_testfile = args.openroad_testfile
         self.parasitics = args.parasitics
         self.run_cacti = not args.debug_no_cacti
-        self.area_constraint = args.area
         self.no_memory = args.no_memory
         self.hw = hardwareModel.HardwareModel(args)
         self.opt = optimize.Optimizer(self.hw)
         self.module_map = {}
-        self.inverse_pass_improvement = args.inverse_pass_improvement if args.inverse_pass_improvement else 10
+        self.inverse_pass_improvement = args.inverse_pass_improvement if (hasattr(args, "inverse_pass_improvement") and args.inverse_pass_improvement) else 10
         self.obj_fn = args.obj
 
         self.save_dat()

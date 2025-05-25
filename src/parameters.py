@@ -17,12 +17,14 @@ WIRE_RC_FILE = "src/params/wire_rc.yaml"
 
 class Parameters:
     def __init__(self, tech_node, dat_file):
-        self.tech_node = tech_node
+        self.tech_node = tech_node if tech_node else "default"
         print(f"tech node: {self.tech_node}")
         # hardcoded tech node to reference for logical effort coefficients
         self.coeffs = coefficients.create_and_save_coefficients([7])
         # initialize symbolic variables and equations
         self.set_coefficients(self.coeffs)
+
+        self.f = symbols("f", positive=True)
 
         # Logic parameters
         self.V_dd = symbols("V_dd", positive=True)
@@ -468,11 +470,15 @@ class Parameters:
             return sum([self.wire_length_by_edge[edge][layer]**2 * 
                         self.wire_parasitics["R"][layer] * 
                         self.wire_parasitics["C"][layer] 
+                        if layer in self.wire_length_by_edge[edge]
+                        else 0
                         for layer in self.metal_layers]) * 1e9
         else:
             return sum([self.wire_length_by_edge[edge][layer]**2 * 
                         self.tech_values[self.wire_parasitics["R"][layer]] * 
                         self.tech_values[self.wire_parasitics["C"][layer]] 
+                        if layer in self.wire_length_by_edge[edge]
+                        else 0
                         for layer in self.metal_layers]) * 1e9
         
     def wire_energy(self, edge, symbolic=False):
@@ -480,10 +486,14 @@ class Parameters:
         if symbolic:
             return 0.5*sum([self.wire_length_by_edge[edge][layer] * 
                         self.wire_parasitics["C"][layer] * self.V_dd**2 
+                        if layer in self.wire_length_by_edge[edge]
+                        else 0
                         for layer in self.metal_layers]) * 1e9
         else:
             return 0.5*sum([self.wire_length_by_edge[edge][layer] * 
                         self.tech_values[self.wire_parasitics["C"][layer]] * self.tech_values[self.V_dd]**2 
+                        if layer in self.wire_length_by_edge[edge]
+                        else 0
                         for layer in self.metal_layers]) * 1e9
 
     def set_coefficients(self, coeffs):
@@ -542,6 +552,7 @@ class Parameters:
         self.symbol_table = {
             "V_dd": self.V_dd,
             "V_th": self.V_th,
+            "f": self.f,
             "C_gate": self.C_gate,
             "u_n": self.u_n,
             "u_p": self.u_p,

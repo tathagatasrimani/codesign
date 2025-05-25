@@ -7,8 +7,8 @@ set top_module "codesign"
 set sdc_file "codesign_files/codesign.sdc"
 #set image_name "results/codesign.jpeg"
 
-set die_area {0 0 2000 2000}
-set core_area {10 10 1990 1990}
+set die_area {0 0 10000 10000}
+set core_area {10 10 9990 9990}
 
 read_libraries
 read_def ../results/first_generated.def

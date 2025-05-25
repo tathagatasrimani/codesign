@@ -8,6 +8,7 @@ import networkx as nx
 import sympy as sp
 from . import cacti_util
 from . import parameters
+from . import schedule
 from openroad_interface import place_n_route
 
 HW_CONFIG_FILE = "src/params/hw_cfgs.ini"
@@ -55,6 +56,7 @@ class HardwareModel:
         self.symbolic_obj = 0
         self.symbolic_obj_sub_exprs = {}
         self.longest_paths = []
+        self.area_constraint = args.area
 
     def reset_state(self):
         self.symbolic_buf = {}
@@ -85,6 +87,9 @@ class HardwareModel:
             self.netlist, arg_testfile, arg_parasitics
         )
         logger.info(f"time to generate wire parasitics: {time.time()-start_time}")
+        self.add_wire_delays_to_schedule()
+
+    def add_wire_delays_to_schedule(self):
         # update scheduled dfg with wire delays
         for edge in self.scheduled_dfg.edges:
             if edge in self.netlist.edges:
@@ -94,6 +99,27 @@ class HardwareModel:
                 self.scheduled_dfg.edges[edge]["weight"] += self.scheduled_dfg.edges[edge]["cost"]
             else:
                 self.scheduled_dfg.edges[edge]["cost"] = 0
+
+    def update_schedule_with_latency(self):
+        """
+        Updates the schedule with the latency of each operation.
+
+        Parameters:
+            schedule (nx.Digraph): A list of operations in the schedule.
+            latency (dict): A dictionary of operation names to their latencies.
+
+        Returns:
+            None;
+            The schedule is updated in place.
+        """
+        for node in self.scheduled_dfg.nodes:
+            if node in self.params.circuit_values["latency"]:
+                self.scheduled_dfg.nodes[node]["cost"] = self.params.circuit_values["latency"][self.scheduled_dfg.nodes.data()[node]["function"]]
+        for edge in self.scheduled_dfg.edges:
+            func = self.scheduled_dfg.nodes.data()[edge[0]]["function"]
+            self.scheduled_dfg.edges[edge]["weight"] = self.params.circuit_values["latency"][func]
+        self.add_wire_delays_to_schedule()
+        self.longest_paths = schedule.get_longest_paths(self.scheduled_dfg)
 
     def save_symbolic_memories(self):
         MemL_expr = 0
@@ -247,6 +273,7 @@ class HardwareModel:
                     "execution_time": execution_time,
                     "total_passive_energy": total_passive_energy,
                     "total_active_energy": total_active_energy,
+                    "passive power": total_passive_energy/execution_time,
                 }
             else:
                 self.obj = (total_passive_energy + total_active_energy) * execution_time
@@ -254,6 +281,7 @@ class HardwareModel:
                     "execution_time": execution_time,
                     "total_passive_energy": total_passive_energy,
                     "total_active_energy": total_active_energy,
+                    "passive power": total_passive_energy/execution_time,
                 }
         else:
             raise ValueError(f"Objective function {self.obj_fn} not supported")

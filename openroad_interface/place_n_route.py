@@ -116,7 +116,7 @@ def place_n_route(
     test_file: str, 
     arg_parasitics: str
 ):
-    dict = None
+    dict = {edge: {} for edge in graph.edges()}
     if "none" not in arg_parasitics:
         graph, net_out_dict, node_output, lef_data, node_to_num = setup(graph, test_file)
         dict, graph = extraction(graph, arg_parasitics, net_out_dict, node_output, lef_data, node_to_num)

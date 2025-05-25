@@ -355,7 +355,7 @@ def match_bandwidths(memories, pre_assign_counts, hw):
         constr.append(pe_counts[i] <= pre_assign_counts[elem])
         constr.append(pe_counts[i] >= 1)
         # add to objective
-        tot_area += hw.area[elem]*pe_counts[i]
+        tot_area += hw.params.circuit_values["area"][elem]*pe_counts[i]
     # add constraints to ensure ratios between different types of PEs are the same as in pre_assign_counts
     for i, elem in enumerate(pre_assign_counts):
         for j, other_elem in enumerate(pre_assign_counts):
@@ -376,7 +376,7 @@ def match_bandwidths(memories, pre_assign_counts, hw):
 def customize_catapult_memories(mem_rpt_file, benchmark_name, hw, pre_assign_counts): #takes in a memory report from initial catapult run
     if not os.path.exists("src/tmp/benchmark/ram_sync"):
         os.makedirs("src/tmp/benchmark/ram_sync")
-    clk_period = (1 / hw.f) * 1e9 # ns
+    clk_period = (1 / hw.params.f) * 1e9 # ns
     memories = parse_memory_report(mem_rpt_file)
 
     bandwidths = match_bandwidths(memories, pre_assign_counts, hw) 

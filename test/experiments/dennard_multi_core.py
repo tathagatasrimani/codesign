@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 
 logger = logging.getLogger("dennard multi core")
 
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir))
+"""project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir))
 os.chdir(project_root)
 
 # Now `current_directory` should reflect the new working directory
@@ -17,25 +17,25 @@ current_directory = os.getcwd()
 print(current_directory)
 
 # Add the parent directory to sys.path
-sys.path.insert(0, current_directory)
+sys.path.insert(0, current_directory)"""
 
 # Now you can safely import modules that rely on the correct working directory
-from src import hw_symbols
 from src import codesign
-from src import sim_util
 
 class DennardMultiCore:
     def __init__(self, args):
         self.args = args
-        self.logic_node = 7
-        self.cacti_node = 22
+        self.codesign_module = codesign.Codesign(
+            self.args
+        )
         self.params_over_iterations = []
         self.plot_list = set([
-            hw_symbols.V_dd,
-            hw_symbols.Reff["Add"],
-            hw_symbols.Ceff["Add"],
-            hw_symbols.Reff["Mult"],
-            hw_symbols.Ceff["Mult"],
+            self.codesign_module.hw.params.V_dd,
+            self.codesign_module.hw.params.V_th,
+            self.codesign_module.hw.params.u_n,
+            self.codesign_module.hw.params.L,
+            self.codesign_module.hw.params.W,
+            self.codesign_module.hw.params.C_ox,
         ])
 
     def plot_params_over_iterations(self):
@@ -57,31 +57,26 @@ class DennardMultiCore:
                 plt.close()
 
     def run_experiment(self):
-        self.codesign_module = codesign.Codesign(
-            self.args
-        )
         self.codesign_module.forward_pass()
         self.codesign_module.log_forward_tech_params()
 
-        self.params_over_iterations.append(copy.copy(self.codesign_module.tech_params))
+        self.params_over_iterations.append(copy.copy(self.codesign_module.hw.params.tech_values))
 
         # run technology optimization to simulate dennard scaling.
         # show that over time, as Vdd comes up to limit, benefits are more difficult to find
         for i in range(self.args.num_opt_iters):
-            initial_tech_params = copy.copy(self.codesign_module.tech_params)
+            initial_tech_params = copy.copy(self.codesign_module.hw.params.tech_values)
             self.codesign_module.inverse_pass()
             
             regularization = 0
-            for var in self.codesign_module.tech_params:
-                regularization += (self.codesign_module.tech_params[var]-initial_tech_params[var])**2
+            for var in self.codesign_module.hw.params.tech_values:
+                regularization += (self.codesign_module.hw.params.tech_values[var]-initial_tech_params[var])**2
             logger.info(f"regularization in iteration {i}: {regularization}")
-            self.codesign_module.hw.update_technology_parameters()
             self.codesign_module.log_all_to_file(i)
-            self.params_over_iterations.append(copy.copy(self.codesign_module.tech_params))
+            self.params_over_iterations.append(copy.copy(self.codesign_module.hw.params.tech_values))
 
             # update schedule with modified technology parameters
-            sim_util.update_schedule_with_latency(self.codesign_module.schedule, self.codesign_module.hw.latency)
-            self.codesign_module.prepare_schedule()
+            self.codesign_module.hw.update_schedule_with_latency()
 
         self.plot_params_over_iterations()
         
@@ -115,14 +110,14 @@ if __name__ == "__main__":
         "--parasitics",
         type=str,
         choices=["detailed", "estimation", "none"],
-        default="detailed",
+        default="estimation",
         help="determines what type of parasitic calculations are done for wires",
     )
 
     parser.add_argument(
         "--openroad_testfile",
         type=str,
-        default="openroad_interface/tcl/test_nangate45_bigger.tcl",
+        default="src/tmp/pd/tcl/codesign_top.tcl",
         help="what tcl file will be executed for openroad",
     )
     parser.add_argument(
@@ -156,6 +151,18 @@ if __name__ == "__main__":
         type=bool,
         default=False,
         help="disable cacti in the first iteration to decrease runtime when debugging"
+    )
+    parser.add_argument(
+        "--tech_node",
+        type=str,
+        default="default",
+        help="tech node in nm"
+    )
+    parser.add_argument(
+        "--obj",
+        type=str,
+        default="edp",
+        help="objective function to optimize"
     )
     args = parser.parse_args()
     if not os.path.exists(args.savedir):
