@@ -107,15 +107,18 @@ def parse_yosys_json(json_file, include_memories=True, top_level_module_type="Ma
             debug_print(f"  Cell: {cell_name}")
             cell_type = cell_data["type"]
             in_final_graph = False
+
+            ## required for compatibility with the inverse pass.
+            cell_type_camal_case = cell_type[0].upper() + cell_type[1:]
             
             if cell_type == "mgc_in_sync_v2" or cell_type == "mgc_io_sync_v2":
                 continue
             elif cell_type == "mult" or cell_type == "add": ### TODO: Add more CORES Here. 
-                final_graph.add_node(hierarchy_path + "**" + cell_name, type="c-core", module_type=cell_type, hierarchy_path=hierarchy_path + "**" + cell_name, in_use=0, function=cell_type)  # include c-cores in final graph.
+                final_graph.add_node(hierarchy_path + "**" + cell_name, type="c-core", module_type=cell_type, hierarchy_path=hierarchy_path + "**" + cell_name, in_use=0, function=cell_type_camal_case)  # include c-cores in final graph.
                 in_final_graph = True
             elif "MatMult_ccs_ram_sync_1R1W" in cell_type:
                 if include_memories:
-                    final_graph.add_node(hierarchy_path + "**" + cell_name, type="memory", module_type=cell_type, hierarchy_path=hierarchy_path + "**" + cell_name, in_use=0, function=cell_type)  # include mem in final graph.
+                    final_graph.add_node(hierarchy_path + "**" + cell_name, type="memory", module_type=cell_type, hierarchy_path=hierarchy_path + "**" + cell_name, in_use=0, function=cell_type_camal_case)  # include mem in final graph.
                     in_final_graph = True
                 else:
                     continue ## completely ignore the memory instance.
