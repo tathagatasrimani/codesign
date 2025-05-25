@@ -247,7 +247,7 @@ class Codesign:
         self.longest_paths = schedule.get_longest_paths(self.scheduled_dfg)
         netlist_dfg = self.scheduled_dfg.copy()
         netlist_dfg.remove_node("end")
-        self.hw.netlist = netlist_dfg
+        # self.hw.netlist = netlist_dfg
 
         # schedule operations with parasitic delays
         #schedule.sdc_schedule(self.operations)

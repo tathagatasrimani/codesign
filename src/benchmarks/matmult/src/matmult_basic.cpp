@@ -4,6 +4,8 @@
 #include "matmult.h"
 #include <mc_scverify.h>
 
+#define MATRIX_SIZE 3
+
 #pragma hls_design top
 class MatMult { 
     add add_inst;  // Instantiate the adder blackbox
@@ -12,34 +14,34 @@ class MatMult {
         MatMult(){}
 
         #pragma hls_design interface
-        void CCS_BLOCK(run)(ac_channel<PackedInt2D<PRECISION, 10, 10> > &a_chan, 
-                            ac_channel<PackedInt2D<PRECISION, 10, 10> > &b_chan,
-                            ac_channel<PackedInt2D<PRECISION, 10, 10> > &c_chan)
+        void CCS_BLOCK(run)(ac_channel<PackedInt2D<PRECISION, MATRIX_SIZE, MATRIX_SIZE> > &a_chan, 
+                            ac_channel<PackedInt2D<PRECISION, MATRIX_SIZE, MATRIX_SIZE> > &b_chan,
+                            ac_channel<PackedInt2D<PRECISION, MATRIX_SIZE, MATRIX_SIZE> > &c_chan)
         {
             #ifndef __SYNTHESIS__
             while (a_chan.available(1)) {
             #endif
-                PackedInt2D<PRECISION, 10, 10> a = a_chan.read();
-                PackedInt2D<PRECISION, 10, 10> b = b_chan.read();
-                PackedInt2D<PRECISION, 10, 10> c;
+                PackedInt2D<PRECISION, MATRIX_SIZE, MATRIX_SIZE> a = a_chan.read();
+                PackedInt2D<PRECISION, MATRIX_SIZE, MATRIX_SIZE> b = b_chan.read();
+                PackedInt2D<PRECISION, MATRIX_SIZE, MATRIX_SIZE> c;
 
                 //#pragma hls_pipeline_init_interval 1
                 #pragma hls_unroll yes
-                for (int i = 0; i < 10; i++) {
+                for (int i = 0; i < MATRIX_SIZE; i++) {
                     #pragma hls_unroll yes
-                    for (int j = 0; j < 10; j++) {
+                    for (int j = 0; j < MATRIX_SIZE; j++) {
                         c.value[i].value[j] = 0;
                     }
                 }
                 //#pragma hls_pipeline_init_interval 1
                 #pragma hls_unroll yes
-                for (int i = 0; i < 10; i++) {
+                for (int i = 0; i < MATRIX_SIZE; i++) {
                     #pragma hls_unroll yes
-                    for (int j = 0; j < 10; j++) {
+                    for (int j = 0; j < MATRIX_SIZE; j++) {
                         ac_int<PRECISION> tmp = 0;
                         //#pragma hls_pipeline_init_interval 1
                         #pragma hls_unroll yes
-                        for (int k = 0; k < 10; k++) {
+                        for (int k = 0; k < MATRIX_SIZE; k++) {
                             // tmp += a.value[i].value[k] * b.value[k].value[j];
                             // Use CCOREs for multiplication and addition
                             // ac_int<PRECISION> product;
