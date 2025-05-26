@@ -57,6 +57,9 @@ class HardwareModel:
         self.symbolic_obj_sub_exprs = {}
         self.longest_paths = []
         self.area_constraint = args.area
+        self.inst_name_map = {}
+        self.dfg_to_netlist_map = {}
+        self.dfg_to_netlist_edge_map = {}
 
     def reset_state(self):
         self.symbolic_buf = {}
@@ -70,7 +73,9 @@ class HardwareModel:
         self.longest_paths = []
         self.obj_sub_exprs = {}
         self.symbolic_obj_sub_exprs = {}
-
+        self.inst_name_map = {}
+        self.dfg_to_netlist_map = {}
+        self.dfg_to_netlist_edge_map = {}
     def write_technology_parameters(self, filename):
         params = {
             "latency": self.params.circuit_values["latency"],
@@ -80,12 +85,33 @@ class HardwareModel:
         }
         with open(filename, "w") as f:
             f.write(yaml.dump(params))
+
+    def map_netlist_to_scheduled_dfg(self):
+        for node in self.scheduled_dfg:
+            if self.scheduled_dfg.nodes[node]["function"] not in self.params.circuit_values["latency"]:
+                self.dfg_to_netlist_map[node] = None
+            else:
+                for elem in self.netlist:
+                    if self.inst_name_map[node] in elem:
+                        self.dfg_to_netlist_map[node] = elem
+                        break
+                assert self.dfg_to_netlist_map[node] is not None, f"node {node}, {self.inst_name_map[node]} not found in netlist"
+
+        for edge in self.scheduled_dfg.edges:
+            edge_mapped = (self.dfg_to_netlist_map[edge[0]], self.dfg_to_netlist_map[edge[1]])
+            if edge_mapped not in self.netlist.edges:
+                logger.info(f"edge {edge} not found in netlist")
+            else:
+                self.dfg_to_netlist_edge_map[edge] = edge_mapped
+                logger.info(f"edge {edge} mapped to {edge_mapped}")
+
     
     def get_wire_parasitics(self, arg_testfile, arg_parasitics):
         start_time = time.time()
         self.params.wire_length_by_edge, _ = place_n_route.place_n_route(
             self.netlist, arg_testfile, arg_parasitics
         )
+        self.map_netlist_to_scheduled_dfg()
         logger.info(f"time to generate wire parasitics: {time.time()-start_time}")
         self.add_wire_delays_to_schedule()
 
@@ -94,7 +120,7 @@ class HardwareModel:
         for edge in self.scheduled_dfg.edges:
             if edge in self.netlist.edges:
                 # wire delay = R * C * length^2
-                self.scheduled_dfg.edges[edge]["cost"] = self.params.wire_delay(edge)
+                self.scheduled_dfg.edges[edge]["cost"] = self.params.wire_delay(self.dfg_to_netlist_edge_map[edge])
                 logger.info(f"(wire delay) {edge}: {self.scheduled_dfg.edges[edge]['cost']} ns")
                 self.scheduled_dfg.edges[edge]["weight"] += self.scheduled_dfg.edges[edge]["cost"]
             else:
@@ -207,7 +233,7 @@ class HardwareModel:
                     else:
                         path_execution_time += self.params.symbolic_latency_wc[data["function"]]()
                     if i > 0:
-                        path_execution_time += self.params.wire_delay((path[1][i-1], node), symbolic)
+                        path_execution_time += self.params.wire_delay(self.dfg_to_netlist_edge_map[(path[1][i-1], node)], symbolic)
                 execution_time = symbolic_convex_max(execution_time, path_execution_time).simplify() if execution_time != 0 else path_execution_time
 
             logger.info(f"symbolic execution time: {execution_time}")
@@ -257,7 +283,7 @@ class HardwareModel:
                 logger.info(f"(active energy) {data['function']}: {total_active_energy}")
         for edge in self.scheduled_dfg.edges:
             if edge in self.netlist.edges:
-                wire_energy = self.params.wire_energy(edge, symbolic)
+                wire_energy = self.params.wire_energy(self.dfg_to_netlist_edge_map[edge], symbolic)
                 logger.info(f"(wire energy) {edge}: {wire_energy} nJ")
                 total_active_energy += wire_energy
         return total_active_energy

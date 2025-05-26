@@ -12,8 +12,6 @@ import networkx as nx
 
 from . import sim_util
 
-
-
 def calculate_similarity(G, p1, p2):
     """
     Calculate the similarity between two sets of nodes in a graph using the overlap coefficient.
@@ -391,6 +389,7 @@ class gnt_schedule_parser:
         self.module_map = module_map # mapping from ccore module to standard operator name
         self.extra_edges = [] # resource edges
         self.element_counts = {}
+        self.inst_name_map = {}
 
     def parse(self):
         self.parse_bom()
@@ -426,6 +425,14 @@ class gnt_schedule_parser:
             i += 1
         logger.info(str(self.element_counts))
 
+    def format_inst_name(self, inst_name):
+        chars_to_remove = ["#", "-", ":", "."]
+        for char in chars_to_remove:
+            inst_name = inst_name.replace(char, "_")
+        inst_name = inst_name.replace("()", "_rg")
+        return inst_name
+            
+
     def convert_to_standard_dfg(self, memories):
         """
         takes the output of parse_gnt_to_graph and converts
@@ -460,6 +467,7 @@ class gnt_schedule_parser:
                 library=node_data["library"],
                 module=node_data["module"]
             )
+            self.inst_name_map[node] = self.format_inst_name(node_data["name"])
         self.modified_G.add_node(
             "end",
             function="end"

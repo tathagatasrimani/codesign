@@ -211,6 +211,8 @@ class Codesign:
         schedule_parser = schedule.gnt_schedule_parser(schedule_path, self.module_map, self.hw.params.circuit_values["latency"])
         schedule_parser.parse()
         schedule_parser.convert(memories=self.hw.params.memories)
+        print(schedule_parser.inst_name_map)
+        self.hw.inst_name_map = schedule_parser.inst_name_map
         self.hw.scheduled_dfg = schedule_parser.modified_G
     
     def prepare_schedule(self):
