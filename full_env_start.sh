@@ -1,5 +1,17 @@
 #!/bin/bash
 
+## update submodules
+git submodule update --init --recursive
+
+# check if the openroad executable exists
+if [ -f "openroad_interface/OpenROAD/build/src/openroad" ]; then
+    echo "OpenROAD executable already exists."
+else
+    echo "OpenROAD executable not found. Running openroad_install.sh..."
+    # Run the OpenROAD installation script
+    ./openroad_install.sh
+fi
+
 # Check if the directory miniconda3 exists
 if [ -d "miniconda3" ]; then
     export PATH="$(pwd)/miniconda3/bin:$PATH"
@@ -19,8 +31,6 @@ else
     cd ../../../..
 fi
 
-## update submodules
-git submodule update --init --recursive
 
 ## update conda packages
 conda update -n base -c defaults conda # update conda itself
