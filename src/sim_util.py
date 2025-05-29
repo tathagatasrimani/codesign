@@ -30,6 +30,19 @@ def change_clk_period_in_script(filename, new_period):
     with open(filename, "w") as f:
         f.writelines(new_lines)
 
+def add_area_constraint_to_script(filename, area_constraint):
+    new_lines = []
+    with open(filename, "r") as f:
+        lines = f.readlines()
+        for line in lines:
+            new_line = line
+            if line.find("go architect") != -1:
+                new_lines.append(new_line)
+                new_line = f"directive set -AREA_GOAL {area_constraint}\n"
+            new_lines.append(new_line)
+    with open(filename, "w") as f:
+        f.writelines(new_lines)
+
 def topological_layout_plot(graph, reverse=False, extra_edges=None):
     # Compute the topological order of the nodes
     if nx.is_directed_acyclic_graph(graph):

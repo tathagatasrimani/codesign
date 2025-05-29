@@ -87,6 +87,7 @@ class HardwareModel:
             f.write(yaml.dump(params))
 
     def map_netlist_to_scheduled_dfg(self):
+        # TODO: include resource sharing information
         for node in self.scheduled_dfg:
             if self.scheduled_dfg.nodes[node]["function"] not in self.params.circuit_values["latency"]:
                 self.dfg_to_netlist_map[node] = None
@@ -95,9 +96,11 @@ class HardwareModel:
                     if self.inst_name_map[node] in elem:
                         self.dfg_to_netlist_map[node] = elem
                         break
-                assert self.dfg_to_netlist_map[node] is not None, f"node {node}, {self.inst_name_map[node]} not found in netlist"
+                if node not in self.dfg_to_netlist_map:
+                    logger.warning(f"node {node}, {self.inst_name_map[node]} not found in netlist")
 
         for edge in self.scheduled_dfg.edges:
+            if edge[0] not in self.dfg_to_netlist_map or edge[1] not in self.dfg_to_netlist_map: continue
             edge_mapped = (self.dfg_to_netlist_map[edge[0]], self.dfg_to_netlist_map[edge[1]])
             if edge_mapped not in self.netlist.edges:
                 logger.info(f"edge {edge} not found in netlist")
@@ -118,7 +121,7 @@ class HardwareModel:
     def add_wire_delays_to_schedule(self):
         # update scheduled dfg with wire delays
         for edge in self.scheduled_dfg.edges:
-            if edge in self.netlist.edges:
+            if edge in self.dfg_to_netlist_edge_map:
                 # wire delay = R * C * length^2
                 self.scheduled_dfg.edges[edge]["cost"] = self.params.wire_delay(self.dfg_to_netlist_edge_map[edge])
                 logger.info(f"(wire delay) {edge}: {self.scheduled_dfg.edges[edge]['cost']} ns")
@@ -232,7 +235,7 @@ class HardwareModel:
                         path_execution_time += self.params.symbolic_latency_wc[data["function"]]()[rsc_name]
                     else:
                         path_execution_time += self.params.symbolic_latency_wc[data["function"]]()
-                    if i > 0:
+                    if i > 0 and (path[1][i-1], node) in self.dfg_to_netlist_edge_map:
                         path_execution_time += self.params.wire_delay(self.dfg_to_netlist_edge_map[(path[1][i-1], node)], symbolic)
                 execution_time = symbolic_convex_max(execution_time, path_execution_time).simplify() if execution_time != 0 else path_execution_time
 
@@ -282,7 +285,7 @@ class HardwareModel:
                     total_active_energy += self.params.circuit_values["dynamic_energy"][data["function"]]
                 logger.info(f"(active energy) {data['function']}: {total_active_energy}")
         for edge in self.scheduled_dfg.edges:
-            if edge in self.netlist.edges:
+            if edge in self.dfg_to_netlist_edge_map:
                 wire_energy = self.params.wire_energy(self.dfg_to_netlist_edge_map[edge], symbolic)
                 logger.info(f"(wire energy) {edge}: {wire_energy} nJ")
                 total_active_energy += wire_energy

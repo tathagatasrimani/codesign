@@ -143,7 +143,7 @@ def setup(
         shutil.rmtree(directory)
     os.makedirs(directory)
     shutil.copytree(os.path.dirname(os.path.abspath(__file__)) + "/tcl", directory + "/tcl")
-    shutil.copytree(os.path.dirname(os.path.abspath(__file__)) + "/results", directory + "/results")
+    os.makedirs(directory + "/results")
 
     graph, net_out_dict, node_output, lef_data, node_to_num = df.def_generator(
         test_file, graph

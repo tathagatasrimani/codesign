@@ -53,6 +53,7 @@ class DennardMultiCore:
                 plt.ylabel("value")
                 plt.title(f"{param.name} over iterations")
                 plt.yscale("log")
+                plt.grid(True)
                 plt.savefig(f"{fig_save_dir}/{param.name}_over_iters.png")
                 plt.close()
 
@@ -70,7 +71,8 @@ class DennardMultiCore:
             
             regularization = 0
             for var in self.codesign_module.hw.params.tech_values:
-                regularization += (self.codesign_module.hw.params.tech_values[var]-initial_tech_params[var])**2
+                regularization += (max(self.codesign_module.hw.params.tech_values[var]/initial_tech_params[var] - 1,
+                                initial_tech_params[var]/self.codesign_module.hw.params.tech_values[var] - 1)**2)
             logger.info(f"regularization in iteration {i}: {regularization}")
             self.codesign_module.log_all_to_file(i)
             self.params_over_iterations.append(copy.copy(self.codesign_module.hw.params.tech_values))
@@ -82,7 +84,7 @@ class DennardMultiCore:
         
         # now run forward pass to demonstrate how parallelism can be added
         # to combat diminishing tech benefits at the end of Dennard scaling
-        self.codesign_module.forward_pass()
+        #self.codesign_module.forward_pass()
 
         # restore dat file
         self.codesign_module.restore_dat()

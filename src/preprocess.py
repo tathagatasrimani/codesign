@@ -38,7 +38,8 @@ class Preprocessor:
         self.log_subs = {}
         self.pow_subs = {}
         self.exp_subs = {}
-    
+        self.regularization = 0
+
     def make_pow_constraint(self, model, i):
         """
         Constraint: Ensure that each power expression to constrain is non-negative.
@@ -173,7 +174,7 @@ class Preprocessor:
         logger.info("Adding Constraints")
         print(f"adding constraints. initial val: {self.initial_val};") # obj_exp: {self.pyomo_obj_exp}")
         model.Constraints = pyo.Constraint([i for i in range(len(self.constraints))], rule=self.pyomo_constraint)
-
+        model.Regularization = pyo.Constraint(expr=self.regularization <= 0.65)
         return model
 
     def add_regularization_to_objective(self, obj):
@@ -183,21 +184,22 @@ class Preprocessor:
         """
         l = self.initial_val / 1e3
         logger.info("Adding regularization.")
+        self.regularization = 0
         # normal regularization for each variable
         for symbol in self.free_symbols:
-            obj += l * hardwareModel.symbolic_convex_max((self.params.tech_values[symbol]/ symbol- 1), 
+            self.regularization += hardwareModel.symbolic_convex_max((self.params.tech_values[symbol]/ symbol- 1), 
                                                          (symbol/self.params.tech_values[symbol] - 1)) ** 2
 
         # expressions inside a log/sqrt must not be negative
         for log_expr in self.log_exprs_s:
-            obj += 1e15*(
+            self.regularization += 1e15*(
                 hardwareModel.symbolic_convex_max(-log_expr, 0, evaluate=False)
             ) ** 2
         for pow_expr in self.pow_exprs_s:
-            obj += 1e15 * (
+            self.regularization += 1e15 * (
                 hardwareModel.symbolic_convex_max(-pow_expr, 0, evaluate=False)
             ) ** 2
-
+        obj += l * self.regularization
         # alternative: minimax regularization. solver didn't really like it.
         """max_term = 0
         for symbol in self.free_symbols:
@@ -331,6 +333,7 @@ class Preprocessor:
         self.pyomo_obj_exp = sympy_tools.sympy2pyomo_expression(obj, m)
 
         sympy_obj = self.add_regularization_to_objective(obj)
+        self.regularization = sympy_tools.sympy2pyomo_expression(self.regularization, m)
         print(f"added regularization")
 
         self.obj = sympy_tools.sympy2pyomo_expression(sympy_obj, m)

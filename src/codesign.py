@@ -119,6 +119,9 @@ class Codesign:
         clk_period = 150 # ns, TODO: change to actual clk period
         # set correct clk period
         sim_util.change_clk_period_in_script("scripts/common.tcl", clk_period)
+        
+        # add area constraint
+        sim_util.add_area_constraint_to_script("scripts/matmult.tcl", self.hw.area_constraint)
 
         p = subprocess.run(["make", "clean"], capture_output=True, text=True)
         cmd = ["make", "build_design"]
