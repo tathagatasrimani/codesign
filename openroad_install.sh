@@ -27,4 +27,6 @@ export CMAKE_PREFIX_PATH="/usr/local:/rsghome/$(whoami)/.local"
 
 ./etc/Build.sh
 
+mkdir results
+
 
