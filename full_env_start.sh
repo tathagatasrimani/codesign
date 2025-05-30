@@ -9,7 +9,7 @@ if [ -f "openroad_interface/OpenROAD/build/src/openroad" ]; then
 else
     echo "OpenROAD executable not found. Running openroad_install.sh..."
     # Run the OpenROAD installation script
-    ./openroad_install.sh
+    bash openroad_install.sh
 fi
 
 # Check if the directory miniconda3 exists
