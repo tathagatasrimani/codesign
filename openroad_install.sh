@@ -23,7 +23,7 @@ fi
 echo "\n\n\nOpenROAD dependencies installed successfully.\n\n\n"
 echo "Installing OpenROAD..."
 
-export CMAKE_PREFIX_PATH="/usr/local:/rsghome/$(whoami)/.local"
+export CMAKE_PREFIX_PATH="/usr/local:$HOME/.local"
 
 ./etc/Build.sh
 
