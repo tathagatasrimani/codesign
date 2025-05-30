@@ -12,6 +12,14 @@ else
     bash openroad_install.sh
 fi
 
+# Ensure that the OpenROAD executable was created
+if [ -f "openroad_interface/OpenROAD/build/src/openroad" ]; then
+    echo "OpenROAD installation completed successfully."
+else
+    echo "OpenROAD installation failed."
+    exit 1
+fi
+
 # Check if the directory miniconda3 exists
 if [ -d "miniconda3" ]; then
     export PATH="$(pwd)/miniconda3/bin:$PATH"
