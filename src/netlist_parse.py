@@ -1,14 +1,16 @@
 import json
+import logging
 import os
 import subprocess
 import networkx as nx
 import matplotlib.pyplot as plt
+logger = logging.getLogger(__name__)
 
 DEBUG_PRINT = True
 
 def debug_print(*args, **kwargs):
     if DEBUG_PRINT:
-        print(*args, **kwargs)
+        logger.info(' '.join(str(arg) for arg in args))
 
 def check_if_nodes_are_in_graph(graph, nodes):
     """Check if all nodes in the list are present in the graph."""
