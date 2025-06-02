@@ -60,32 +60,32 @@ area: #um^2
     UAdd: 52.20864
     USub: 38.90304
   7:
-    Add: 5.5258125
-    And: 0.437375
-    BitAnd: 1.3996875
-    BitOr: 1.3996875
-    BitXor: 2.0995
-    Buf: 0.0
-    Eq: 2.5369375
-    FloorDiv: 95.2803125
-    Gt: 2.916
-    GtE: 2.8868125
-    Invert: 0.699875
-    IsNot: 0.699875
-    LShift: 7.24625
-    Lt: 2.916
-    LtE: 2.8868125
-    MainMem: 5981433.0
-    Mod: 117.7189375
-    Mult: 40.1533125
-    Not: 0.699875
-    NotEq: 2.5369375
-    Or: 0.437375
-    RShift: 6.8963125
-    Regs: 5.78825
-    Sub: 5.70075
-    UAdd: 5.5258125
-    USub: 5.70075
+    Add: 82.115
+    And: 8.165
+    BitAnd: 22.395
+    BitOr: 22.395
+    BitXor: 33.592
+    Buf: 0.0 # temporary (same as before)
+    Eq: 40.591
+    FloorDiv: 1276.741
+    Gt: 47.589 # using same as Lt
+    GtE: 51.322 # using same as LtE
+    Invert: 11.197 # using same as NOT
+    IsNot: 40.591 # using same as NOTEQ
+    LShift: 113.841
+    Lt: 47.589
+    LtE: 51.322
+    MainMem: 5981433.0 # temporary (same as before)
+    Mod: 1469.431
+    Mult: 1132.574
+    Not: 11.197
+    NotEq: 40.591
+    Or: 8.165
+    RShift: 114.774
+    Regs: 1 # temporary (same as before)
+    Sub: 93.079
+    UAdd: 82.115 # using same as Add
+    USub: 93.079 # using same as Sub
   40:
     Add: 379.3488000
     And: 50.3699600
@@ -220,31 +220,31 @@ dynamic_power: # nw
     USub: 11236.96
     OffChipIO: 0.0
   7:
-    Add: 5074
-    And: 76.1
-    BitAnd: 1128.8
-    BitOr: 75.9
-    BitXor: 962
-    Eq: 942.1
-    FloorDiv: 111410
-    Gt: 1776.3
-    GtE: 1991.6
-    Invert: 1068
-    IsNot: 1068
-    LShift: 3698
-    Lt: 1776.3
-    LtE: 1991.6
-    Mod: 156210
-    Mult: 49720
-    Not: 1068
-    NotEq: 945.2
-    Or: 75.9
-    RShift: 4275
-    Regs: 4752
-    Sub: 5851
-    UAdd: 5074
-    USub: 5851
-    OffChipIO: 0.0
+    Add: 1247.10
+    And: 14.08
+    BitAnd: 357.79
+    BitOr: 361.44
+    BitXor: 354.64
+    Eq: 176.63
+    FloorDiv: 17439.39
+    Gt: 350.32
+    GtE: 409.35
+    Invert: 202.53
+    IsNot: 175.49
+    LShift: 661.64
+    Lt: 350.32
+    LtE: 409.35
+    Mod: 26330.92
+    Mult: 34667.56
+    Not: 202.53
+    NotEq: 175.49
+    Or: 19.22
+    RShift: 702.65
+    Regs: 4752 # temporary (same as before)
+    Sub: 1466.13
+    UAdd: 1247.10
+    USub: 1466.13
+    OffChipIO: 0.0 # temporary (same as before)
   40:
     Add: 283664.2
     And: 18055.9
@@ -352,33 +352,33 @@ latency: # ns
     USub: 0.7389380531
     OffChipIO: 0.0
   7:
-    Add: 0.7336
-    And: 0.0521
-    BitAnd: 0.0189
-    BitOr: 0.0188
-    BitXor: 0.0225
-    Buf: 0.0
-    Eq: 0.1166
-    FloorDiv: 1.9997
-    Gt: 0.2016
-    GtE: 0.2522
-    Invert: 0.0586
-    IsNot: 0.0586
-    LShift: 0.2278
-    Lt: 0.2016
-    LtE: 0.2522
-    MainMem: 0.8
-    Mod: 1.9552
-    Mult: 0.6807
-    Not: 0.0586
-    NotEq: 0.0896
-    Or: 0.0552
-    RShift: 0.3064
-    Regs: 0.1159
-    Sub: 0.4991
-    UAdd: 0.7336
-    USub: 0.4991
-    OffChipIO: 0.0
+    Add: 0.645
+    And: 0.132
+    BitAnd: 0.032
+    BitOr: 0.034
+    BitXor: 0.039
+    Buf: 0.0 # temporary (same as before)
+    Eq: 0.16
+    FloorDiv: 7.057
+    Gt: 0.239
+    GtE: 0.295
+    Invert: 0.042
+    IsNot: 0.141
+    LShift: 0.218
+    Lt: 0.239
+    LtE: 0.295
+    MainMem: 0.8 # temporary (same as before)
+    Mod: 7.254
+    Mult: 1.89
+    Not: 0.042
+    NotEq: 0.141
+    Or: 0.12
+    RShift: 0.218
+    Regs: 0.1159 # temporary (same as before)
+    Sub: 0.555
+    UAdd: 0.645
+    USub: 0.555
+    OffChipIO: 0.0 # temporary (same as before)
   40:
     Add: 0.47
     And: 0.03
@@ -487,32 +487,32 @@ leakage_power: #nW
     UAdd: 589.8666667
     USub: 674.1333333
   7:
-    Add: 5.19
-    And: 0.165
+    Add: 4.69
+    And: 0.42
     BitAnd: 2.4
     BitOr: 2.4
     BitXor: 2.15
     Buf: 0.0
-    Eq: 2.33
-    FloorDiv: 90.3
-    Gt: 2.21
-    GtE: 2.39
-    Invert: 0.003
-    IsNot: 0.003
-    LShift: 6.10
-    Lt: 2.21
-    LtE: 2.39
+    Eq: 2.31
+    FloorDiv: 79.30
+    Gt: 2.15
+    GtE: 2.55
+    Invert: 0.27
+    IsNot: 2.3
+    LShift: 5.68
+    Lt: 2.15
+    LtE: 2.55
     MainMem: 84.48
-    Mod: 116
-    Mult: 38.7
-    Not: 0.003
-    NotEq: 2.31
-    Or: 0.142
-    RShift: 6.02
+    Mod: 90.38
+    Mult: 63.34
+    Not: 0.27
+    NotEq: 2.3
+    Or: 0.41
+    RShift: 5.73
     Regs: 4.58
-    Sub: 6.19
-    UAdd: 5.19
-    USub: 6.19
+    Sub: 6.81
+    UAdd: 4.69
+    USub: 6.81
   40:
     Add: 3265.969
     And: 611.1633
