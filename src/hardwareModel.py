@@ -292,12 +292,12 @@ class HardwareModel:
         return total_active_energy
     
     def calculate_objective(self, symbolic=False):
+        execution_time = self.calculate_execution_time(symbolic)
+        total_passive_energy = self.calculate_passive_energy(execution_time, symbolic)
+        total_active_energy = self.calculate_active_energy(symbolic)
         if self.obj_fn == "edp":
-            execution_time = self.calculate_execution_time(symbolic)
-            total_passive_energy = self.calculate_passive_energy(execution_time, symbolic)
-            total_active_energy = self.calculate_active_energy(symbolic)
             if symbolic:
-                self.symbolic_obj = total_passive_energy + total_active_energy * execution_time
+                self.symbolic_obj = (total_passive_energy + total_active_energy) * execution_time
                 self.symbolic_obj_sub_exprs = {
                     "execution_time": execution_time,
                     "total_passive_energy": total_passive_energy,
@@ -306,6 +306,23 @@ class HardwareModel:
                 }
             else:
                 self.obj = (total_passive_energy + total_active_energy) * execution_time
+                self.obj_sub_exprs = {
+                    "execution_time": execution_time,
+                    "total_passive_energy": total_passive_energy,
+                    "total_active_energy": total_active_energy,
+                    "passive power": total_passive_energy/execution_time,
+                }
+        elif self.obj_fn == "ed2":
+            if symbolic:
+                self.symbolic_obj = (total_passive_energy + total_active_energy) * (execution_time)**2
+                self.symbolic_obj_sub_exprs = {
+                    "execution_time": execution_time,
+                    "total_passive_energy": total_passive_energy,
+                    "total_active_energy": total_active_energy,
+                    "passive power": total_passive_energy/execution_time,
+                }
+            else:   
+                self.obj = (total_passive_energy + total_active_energy) * (execution_time)**2
                 self.obj_sub_exprs = {
                     "execution_time": execution_time,
                     "total_passive_energy": total_passive_energy,
