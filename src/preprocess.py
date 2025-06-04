@@ -131,30 +131,6 @@ class Preprocessor:
         
         for arg in expr.args:
             self.find_exp_exprs_to_constrain(arg, debug=debug)
-
-
-    def sub_pow_exprs(self,expr, prnt=False):
-        """
-        Replace each square root expression with sqrt(abs()) to avoid negative values inside sqrt.
-
-        Args:
-            expr (sympy.Expr): Symbolic expression to process.
-            prnt (bool, optional): If True, print debug information. Defaults to False.
-
-        Returns:
-            sympy.Expr: Modified symbolic expression with safe square roots.
-        """
-        if (isinstance(expr, sp.Number)): return expr
-        new_args = []
-        for i in range(len(expr.args)):
-            new_args.append(self.sub_pow_exprs(expr.args[i], prnt=prnt))
-        if len(new_args):
-            expr = expr.func(*tuple(new_args), evaluate=False)
-            if expr.func == sp.core.power.Pow and expr.exp == 0.5:
-                expr = sp.sqrt(sp.Abs(expr.base, evaluate=False))
-            elif expr.func == sp.core.power.Pow and expr.exp == -0.5:
-                expr = 1 / (sp.sqrt(sp.Abs(expr.base, evaluate=False)))
-        return expr
     
     def pyomo_constraint(self, model, i):
         print(f"constraint: {self.constraints[i]}")

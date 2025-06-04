@@ -8,12 +8,18 @@ from src.cacti.cacti_python.parameter import InputParameter
 from src import global_symbol_table
 
 import math
-from sympy import symbols, ceiling, expand, exp
+from sympy import symbols, ceiling, expand, exp, Abs
 
 logger = logging.getLogger(__name__)
 
 TECH_NODE_FILE = "src/params/tech_nodes.yaml"
 WIRE_RC_FILE = "src/params/wire_rc.yaml"
+
+def symbolic_convex_max(a, b, evaluate=True):
+    """
+    Max(a, b) in a format which ipopt accepts.
+    """
+    return 0.5 * (a + b + Abs(a - b, evaluate=evaluate))
 
 class Parameters:
     def __init__(self, tech_node, dat_file):
@@ -29,16 +35,20 @@ class Parameters:
         # Logic parameters
         self.V_dd = symbols("V_dd", positive=True)
         self.V_th = symbols("V_th", positive=True)
-        self.u_n = symbols("u_n", positive=True)  # Electron mobility for NMOS
-        self.u_p = self.u_n/2.5  # Hole mobility for PMOS, hardcoded for now.
-        self.C_ox = symbols("C_ox", positive=True)
+        self.Cox = symbols("Cox", positive=True)
         self.W = symbols("W", positive=True)
         self.L = symbols("L", positive=True)
+        self.V_offset = 0.1 #symbols("V_offset", positive=True)
+        self.n = 1.0 #symbols("n", positive=True)
         self.q = 1.6e-19  # electron charge (C)
-        self.V_offset = symbols("V_offset", positive=True)
-        self.n = symbols("n", positive=True)
+        self.e_ox = 3.9*8.854e-12  # permittivity of oxide (F/m)
+        self.tox = self.e_ox/self.Cox
         self.K = 1.38e-23  # Boltzmann constant (J/K)
         self.T = 300  # Temperature (K)
+        self.phi_b = 3.1*self.q  # Schottky barrier height (eV)
+        self.m_0 = 9.109e-31  # electron mass (kg)
+        self.m_ox = 0.5*self.m_0  # effective mass of electron in oxide (g)
+        
         self.area = symbols("area", positive=True)
 
         self.m1_Rsq = symbols("m1_Rsq", positive=True)
@@ -60,23 +70,57 @@ class Parameters:
                 "metal3": self.m3_Csq,
             }
         }
-        self.C_gate = self.C_ox*self.W*self.L
+        self.A_gate = self.W*self.L
+        self.C_gate = self.Cox*self.A_gate
 
-        self.I_d_nmos = self.u_n*self.C_ox*self.W*(self.V_dd-self.V_th)**2 / (2*self.L)
-        self.I_d_pmos = self.u_p*self.C_ox*self.W*(self.V_dd-self.V_th)**2 / (2*self.L)
+        self.L_critical = 0.5e-6
+        self.m = 2
+        # Sakurai alpha-power law
+        self.alpha_L = 1 + 1/(1 + (self.L/self.L_critical)**self.m)
+
+        self.lambda_L = 0.1
+
+        self.eta_L = 0.2/(1+(self.L/15e-9)**self.m)
+
+        self.V_ref = 1
+
+        self.V_th_eff = self.V_th - self.eta_L * (symbolic_convex_max(self.V_dd - self.V_ref, 0))
+
+        theta_1 = 1
+        theta_2 = 1
+         # Electron mobility for NMOS, including mobility degradation. taken from bsim
+        self.u_n = 0.063/(1+theta_1*(self.V_dd-self.V_th_eff)/(1+theta_2*(self.V_dd-self.V_th_eff)))#symbols("u_n", positive=True)
+        self.u_p = self.u_n/2.5  # Hole mobility for PMOS, hardcoded for now.
+
+        # drive current, including alpha power law and channel length modulation
+        self.I_d_nmos = self.u_n*self.Cox*self.W*(Abs(self.V_dd-self.V_th_eff))**self.alpha_L * (1+self.lambda_L*self.V_dd) / (2*self.L)
+        self.I_d_pmos = self.u_p*self.Cox*self.W*(Abs(self.V_dd-self.V_th_eff))**self.alpha_L * (1+self.lambda_L*self.V_dd) / (2*self.L)
 
         self.R_avg_inv = self.V_dd / ((self.I_d_nmos + self.I_d_pmos)/2)
 
-        self.C_inv = 2*self.C_gate + 0.5*self.C_gate + self.C_gate  # gate cap + Miller cap + load cap
-        self.delay = (self.R_avg_inv * self.C_inv) * 1e9  
-        self.E_act_inv = (0.5*self.C_inv*self.V_dd*self.V_dd) * 1e9  
-        
-        self.I_off_nmos = self.u_n*self.C_ox*(self.W/self.L)*(self.K*self.T/self.q)**2*exp(-self.V_th*self.q/(self.n*self.K*self.T))
-        
+        C_load_wire = 0.3e-15 * 100# (F) assume 100 um wire, 0.3 fF/um
+        print(f"C_load_wire: {C_load_wire}")
+        print(f"C_gate: {self.C_gate}")
 
-        self.I_off_pmos = self.u_p*self.C_ox*(self.W/self.L)*(self.K*self.T/self.q)**2*exp(-self.V_th*self.q/(self.n*self.K*self.T))
+        self.C_load = 2*self.C_gate + C_load_wire  # gate cap + constant wire load
+        print(f"C_load: {self.C_load}")
+        self.delay = (self.R_avg_inv * self.C_load) * 1e9  # ns
+        self.E_act_inv = (0.5*self.C_load*self.V_dd*self.V_dd) * 1e9  # nJ
+
+        self.h = 6.626e-34  # planck's constant (J*s)
+        self.V_ox = self.V_dd - self.V_th_eff
+        self.E_ox = Abs(self.V_ox/self.tox)
+        self.A = (self.q**3) / (8*math.pi*self.h*self.phi_b)
+        self.B = (8*math.pi*(2*self.m_ox)**(1/2) * self.phi_b**(3/2)) / (3*self.q*self.h)
+
+        # gate tunneling current (Fowler-Nordheim)
+        self.I_tunnel = self.A_gate * self.A * self.E_ox**2 * (exp(-self.B/self.E_ox)) 
         
-        self.I_off = self.I_off_nmos + self.I_off_pmos
+        # subthreshold current
+        self.I_off_nmos = self.u_n*self.Cox*(self.W/self.L)*(self.K*self.T/self.q)**2*exp(-self.V_th_eff*self.q/(self.n*self.K*self.T))
+        self.I_off_pmos = self.u_p*self.Cox*(self.W/self.L)*(self.K*self.T/self.q)**2*exp(-self.V_th_eff*self.q/(self.n*self.K*self.T))
+        
+        self.I_off = self.I_off_nmos + self.I_off_pmos + self.I_tunnel*2 # 2 for both NMOS and PMOS
         self.P_pass_inv = self.I_off*self.V_dd  
 
         # Memory parameters
@@ -394,6 +438,13 @@ class Parameters:
                 logger.info(f"using default value for {key}")
                 self.tech_values[self.symbol_table[key]] = wire_rc_config["default"][key]
 
+        print(self.I_tunnel)
+        tunnel = self.I_tunnel.subs(self.tech_values)
+        print(f"i tunnel: {tunnel}")
+
+        print(f"u_n: {self.u_n.subs(self.tech_values)}")
+
+
         # set initial values for memory parameters
         # CACTI
         cacti_params = {}
@@ -556,7 +607,7 @@ class Parameters:
             "C_gate": self.C_gate,
             "u_n": self.u_n,
             "u_p": self.u_p,
-            "C_ox": self.C_ox,
+            "Cox": self.Cox,
             "W": self.W,
             "L": self.L,
             "q": self.q,

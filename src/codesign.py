@@ -116,7 +116,7 @@ class Codesign:
             self.module_map[unit.lower()] = unit
 
         os.chdir("src/tmp/benchmark")
-        clk_period = 150 # ns, TODO: change to actual clk period
+        clk_period = 300 # ns, TODO: change to actual clk period
         # set correct clk period
         sim_util.change_clk_period_in_script("scripts/common.tcl", clk_period)
         

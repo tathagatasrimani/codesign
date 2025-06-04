@@ -295,39 +295,40 @@ class HardwareModel:
         execution_time = self.calculate_execution_time(symbolic)
         total_passive_energy = self.calculate_passive_energy(execution_time, symbolic)
         total_active_energy = self.calculate_active_energy(symbolic)
+        self.symbolic_obj_sub_exprs = {
+            "execution_time": execution_time,
+            "total_passive_energy": total_passive_energy,
+            "total_active_energy": total_active_energy,
+            "passive power": total_passive_energy/execution_time,
+            "subthreshold leakage current": self.params.I_off,
+            "gate tunneling current": self.params.I_tunnel,
+            "effective threshold voltage": self.params.V_th_eff,
+        }
+        self.obj_sub_exprs = {
+            "execution_time": execution_time,
+            "total_passive_energy": total_passive_energy,
+            "total_active_energy": total_active_energy,
+            "passive power": total_passive_energy/execution_time,
+        }
         if self.obj_fn == "edp":
             if symbolic:
                 self.symbolic_obj = (total_passive_energy + total_active_energy) * execution_time
-                self.symbolic_obj_sub_exprs = {
-                    "execution_time": execution_time,
-                    "total_passive_energy": total_passive_energy,
-                    "total_active_energy": total_active_energy,
-                    "passive power": total_passive_energy/execution_time,
-                }
             else:
                 self.obj = (total_passive_energy + total_active_energy) * execution_time
-                self.obj_sub_exprs = {
-                    "execution_time": execution_time,
-                    "total_passive_energy": total_passive_energy,
-                    "total_active_energy": total_active_energy,
-                    "passive power": total_passive_energy/execution_time,
-                }
         elif self.obj_fn == "ed2":
             if symbolic:
                 self.symbolic_obj = (total_passive_energy + total_active_energy) * (execution_time)**2
-                self.symbolic_obj_sub_exprs = {
-                    "execution_time": execution_time,
-                    "total_passive_energy": total_passive_energy,
-                    "total_active_energy": total_active_energy,
-                    "passive power": total_passive_energy/execution_time,
-                }
             else:   
                 self.obj = (total_passive_energy + total_active_energy) * (execution_time)**2
-                self.obj_sub_exprs = {
-                    "execution_time": execution_time,
-                    "total_passive_energy": total_passive_energy,
-                    "total_active_energy": total_active_energy,
-                    "passive power": total_passive_energy/execution_time,
-                }
+        elif self.obj_fn == "delay":
+            if symbolic:
+                self.symbolic_obj = execution_time
+            else:
+                self.obj = execution_time
+        elif self.obj_fn == "energy":
+            if symbolic:
+                self.symbolic_obj = total_active_energy + total_passive_energy
+            else:
+                self.obj = total_active_energy + total_passive_energy/ execution_time
         else:
             raise ValueError(f"Objective function {self.obj_fn} not supported")

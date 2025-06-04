@@ -32,10 +32,10 @@ class DennardMultiCore:
         self.plot_list = set([
             self.codesign_module.hw.params.V_dd,
             self.codesign_module.hw.params.V_th,
-            self.codesign_module.hw.params.u_n,
+            #self.codesign_module.hw.params.u_n,
             self.codesign_module.hw.params.L,
             self.codesign_module.hw.params.W,
-            self.codesign_module.hw.params.C_ox,
+            self.codesign_module.hw.params.Cox,
         ])
 
     def plot_params_over_iterations(self):

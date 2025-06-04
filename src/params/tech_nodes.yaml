@@ -1,10 +1,10 @@
 default:
-  u_n: 700.0e-4  # Electron mobility (m²/V·s)
-  C_ox: 3.45e-4  # Gate oxide capacitance (F/m²)
+  #u_n: 700.0e-4  # Electron mobility (m²/V·s)
+  Cox: 3.45e-4  # Gate oxide capacitance (F/m²)
   W: 9.0e-6  # Channel width (m)
   L: 3.0e-6  # Channel length (m)
-  n: 1.0  # Subthreshold slope factor
-  V_offset: 0.1  # Threshold voltage variation (V)
+  #n: 1.0  # Subthreshold slope factor
+  #V_offset: 0.1  # Threshold voltage variation (V)
   V_th: 0.9  # Threshold voltage (V)
   V_dd: 5.0  # Supply voltage (V)
   area: 2.0  # Transistor area (μm²)
@@ -13,7 +13,7 @@ tech-1982:
   L: 2.1e-06
   W: 6.3e-06
   area: 0.98
-  C_ox: 0.0004929
+  Cox: 0.0004929
   V_dd: 3.5
   V_th: 0.63
   u_n: 0.0693
@@ -22,7 +22,7 @@ tech-1984:
   L: 1.47e-06
   W: 4.41e-06
   area: 0.4802
-  C_ox: 0.0007041
+  Cox: 0.0007041
   V_dd: 2.45
   V_th: 0.44
   u_n: 0.0686
@@ -31,7 +31,7 @@ tech-1986:
   L: 1.029e-06
   W: 3.087e-06
   area: 0.235298
-  C_ox: 0.0010058
+  Cox: 0.0010058
   V_dd: 1.71
   V_th: 0.31
   u_n: 0.0679
@@ -40,7 +40,7 @@ tech-1988:
   L: 7.203e-07
   W: 2.1609e-06
   area: 0.11529602
-  C_ox: 0.0014369
+  Cox: 0.0014369
   V_dd: 1.2
   V_th: 0.22
   u_n: 0.0672
@@ -49,7 +49,7 @@ tech-1990:
   L: 5.042e-07
   W: 1.5126e-06
   area: 0.0564950498
-  C_ox: 0.0020527
+  Cox: 0.0020527
   V_dd: 1.0
   V_th: 0.2
   u_n: 0.0665
@@ -58,7 +58,7 @@ tech-1992:
   L: 3.529e-07
   W: 1.0588e-06
   area: 0.0276825744
-  C_ox: 0.0029325
+  Cox: 0.0029325
   V_dd: 1.0
   V_th: 0.2
   u_n: 0.0658
@@ -67,7 +67,7 @@ tech-1994:
   L: 2.471e-07
   W: 7.412e-07
   area: 0.0135644615
-  C_ox: 0.0041892
+  Cox: 0.0041892
   V_dd: 1.0
   V_th: 0.2
   u_n: 0.0651
@@ -76,7 +76,7 @@ tech-1996:
   L: 1.729e-07
   W: 5.188e-07
   area: 0.0066465861
-  C_ox: 0.0059846
+  Cox: 0.0059846
   V_dd: 1.0
   V_th: 0.2
   u_n: 0.0644
@@ -85,7 +85,7 @@ tech-1998:
   L: 1.211e-07
   W: 3.632e-07
   area: 0.0032568272
-  C_ox: 0.0085494
+  Cox: 0.0085494
   V_dd: 1.0
   V_th: 0.2
   u_n: 0.0637
@@ -94,16 +94,16 @@ tech-2000:
   L: 8.47e-08
   W: 2.542e-07
   area: 0.0015958453
-  C_ox: 0.0122135
+  Cox: 0.0122135
   V_dd: 1.0
   V_th: 0.2
-  u_n: 0.063
+  #u_n: 0.063
 
 tech-2002:
   L: 5.93e-08
   W: 1.78e-07
   area: 0.0007819642
-  C_ox: 0.0174478
+  Cox: 0.0174478
   V_dd: 1.0
   V_th: 0.2
   u_n: 0.0623
@@ -112,7 +112,7 @@ tech-2004:
   L: 4.15e-08
   W: 1.246e-07
   area: 0.0003831625
-  C_ox: 0.0249254
+  Cox: 0.0249254
   V_dd: 1.0
   V_th: 0.2
   u_n: 0.0616
@@ -121,7 +121,7 @@ tech-2006:
   L: 2.91e-08
   W: 8.72e-08
   area: 0.0001877496
-  C_ox: 0.0356078
+  Cox: 0.0356078
   V_dd: 1.0
   V_th: 0.2
   u_n: 0.0609
@@ -130,7 +130,7 @@ tech-2008:
   L: 2.03e-08
   W: 6.1e-08
   area: 9.19973e-05
-  C_ox: 0.0508682
+  Cox: 0.0508682
   V_dd: 1.0
   V_th: 0.2
   u_n: 0.0602
@@ -139,7 +139,7 @@ tech-2010:
   L: 1.42e-08
   W: 4.27e-08
   area: 4.50787e-05
-  C_ox: 0.0726689
+  Cox: 0.0726689
   V_dd: 1.0
   V_th: 0.2
   u_n: 0.0595

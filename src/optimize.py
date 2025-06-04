@@ -20,8 +20,17 @@ class Optimizer:
     def create_constraints(self, improvement):
         constraints = []
         constraints.append(self.hw.symbolic_obj >= float(self.hw.symbolic_obj.subs(self.hw.params.tech_values) / improvement))
-        constraints.append(self.hw.params.V_dd >= self.hw.params.V_th)
+        constraints.append(self.hw.params.V_dd >= self.hw.params.V_th_eff)
+        constraints.append(self.hw.params.V_th_eff >= 0)
         constraints.append(self.hw.params.V_dd <= 5)
+        constraints.append(self.hw.params.V_ox >= 0)
+        total_latency = self.hw.calculate_execution_time(True)
+        active_energy = self.hw.calculate_active_energy(True)
+        passive_energy = self.hw.calculate_passive_energy(total_latency, True)
+        total_power = (passive_energy + active_energy) / total_latency
+        constraints.append(total_power <= 50) # hard limit on power
+        #constraints.append(self.hw.params.L >= 15e-9)
+        #constraints.append(self.hw.params.W >= 15e-9)
         return constraints
 
     def ipopt(self, improvement):
@@ -38,6 +47,12 @@ class Optimizer:
             None
         """
         logger.info("Optimizing using IPOPT")
+
+        param_replace = {param: sp.Abs(param, evaluate=False) for param in self.hw.params.tech_values}
+        print("param_replace: ", param_replace)
+        print("symbolic obj before abs: ", self.hw.symbolic_obj)
+        self.hw.symbolic_obj = self.hw.symbolic_obj.xreplace(param_replace)
+        print("symbolic obj after abs: ", self.hw.symbolic_obj)
 
         constraints = self.create_constraints(improvement)
 
