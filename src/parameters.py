@@ -30,6 +30,16 @@ class Parameters:
         # initialize symbolic variables and equations
         self.set_coefficients(self.coeffs)
 
+        self.effects = {
+            "channel_length_modulation": True,
+            "velocity_saturation": True,
+            "gate_tunneling": True,
+            "mobility_degradation": True,
+            "subthreshold_slope_effect": True,
+            "DIBL": True,
+            "area_and_latency_scaling": True,
+        }
+
         self.f = symbols("f", positive=True)
 
         # Logic parameters
@@ -39,10 +49,11 @@ class Parameters:
         self.W = symbols("W", positive=True)
         self.L = symbols("L", positive=True)
         self.V_offset = 0.1 #symbols("V_offset", positive=True)
-        self.n = 1.0 #symbols("n", positive=True)
         self.q = 1.6e-19  # electron charge (C)
+        self.e_si = 11.9*8.854e-12  # permittivity of silicon (F/m)
         self.e_ox = 3.9*8.854e-12  # permittivity of oxide (F/m)
         self.tox = self.e_ox/self.Cox
+        self.n = 1.0
         self.K = 1.38e-23  # Boltzmann constant (J/K)
         self.T = 300  # Temperature (K)
         self.phi_b = 3.1*self.q  # Schottky barrier height (eV)
@@ -70,31 +81,64 @@ class Parameters:
                 "metal3": self.m3_Csq,
             }
         }
+
         self.A_gate = self.W*self.L
         self.C_gate = self.Cox*self.A_gate
 
         self.L_critical = 0.5e-6
         self.m = 2
-        # Sakurai alpha-power law
-        self.alpha_L = 1 + 1/(1 + (self.L/self.L_critical)**self.m)
 
-        self.lambda_L = 0.1
+        self.alpha_L = 2
+
+        self.lambda_L = 0
 
         self.eta_L = 0.2/(1+(self.L/15e-9)**self.m)
 
         self.V_ref = 1
 
-        self.V_th_eff = self.V_th - self.eta_L * (symbolic_convex_max(self.V_dd - self.V_ref, 0))
+        self.V_th_eff = self.V_th
 
-        theta_1 = 1
-        theta_2 = 1
-         # Electron mobility for NMOS, including mobility degradation. taken from bsim
-        self.u_n = 0.063/(1+theta_1*(self.V_dd-self.V_th_eff)/(1+theta_2*(self.V_dd-self.V_th_eff)))#symbols("u_n", positive=True)
+         # Electron mobility for NMOS
+        self.u_n = 0.063#symbols("u_n", positive=True)
         self.u_p = self.u_n/2.5  # Hole mobility for PMOS, hardcoded for now.
+
+        self.init_memory_params()
+
+        # technology level parameter values
+        self.tech_values = {}
+        self.init_symbol_table()
+        self.init_memory_param_list()
+
+        wire_rc_init = "" # can set later
+        wire_rc_config = yaml.load(open(WIRE_RC_FILE), Loader=yaml.Loader)
+        for key in wire_rc_config["default"]:
+            try:
+                self.tech_values[self.symbol_table[key]] = wire_rc_config[wire_rc_init][key]
+            except:
+                logger.info(f"using default value for {key}")
+                self.tech_values[self.symbol_table[key]] = wire_rc_config["default"][key]
+
+        # set initial values for technology parameters based on tech node
+        config = yaml.load(open(TECH_NODE_FILE), Loader=yaml.Loader)
+        print(config[self.tech_node])
+        for key in config["default"]:
+            try:
+                self.tech_values[self.symbol_table[key]] = config[self.tech_node][key]
+            except:
+                logger.info(f"using default value for {key}")
+                self.tech_values[self.symbol_table[key]] = config["default"][key]
+
+        self.area_scale = (self.W * self.L).subs(self.tech_values) / (self.W * self.L)
+
+        print(f"area scale: {self.area_scale.subs(self.tech_values)}")
+
+        self.latency_scale = 1/self.area_scale
+
+        self.apply_base_parameter_effects()
 
         # drive current, including alpha power law and channel length modulation
         self.I_d_nmos = self.u_n*self.Cox*self.W*(Abs(self.V_dd-self.V_th_eff))**self.alpha_L * (1+self.lambda_L*self.V_dd) / (2*self.L)
-        self.I_d_pmos = self.u_p*self.Cox*self.W*(Abs(self.V_dd-self.V_th_eff))**self.alpha_L * (1+self.lambda_L*self.V_dd) / (2*self.L)
+        self.I_d_pmos = self.I_d_nmos * self.u_p / self.u_n
 
         self.R_avg_inv = self.V_dd / ((self.I_d_nmos + self.I_d_pmos)/2)
 
@@ -123,6 +167,178 @@ class Parameters:
         self.I_off = self.I_off_nmos + self.I_off_pmos + self.I_tunnel*2 # 2 for both NMOS and PMOS
         self.P_pass_inv = self.I_off*self.V_dd  
 
+        self.apply_additional_effects()
+
+        # UNITS: ns
+        self.symbolic_latency_wc = {
+            "And": lambda: self.make_sym_lat_wc(self.gamma["And"]),
+            "Or": lambda: self.make_sym_lat_wc(self.gamma["Or"]),
+            "Add": lambda: self.make_sym_lat_wc(self.gamma["Add"]),
+            "Sub": lambda: self.make_sym_lat_wc(self.gamma["Sub"]),
+            "Mult": lambda: self.make_sym_lat_wc(self.gamma["Mult"]),
+            "FloorDiv": lambda: self.make_sym_lat_wc(self.gamma["FloorDiv"]),
+            "Mod": lambda: self.make_sym_lat_wc(self.gamma["Mod"]),
+            "LShift": lambda: self.make_sym_lat_wc(self.gamma["LShift"]),
+            "RShift": lambda: self.make_sym_lat_wc(self.gamma["RShift"]),
+            "BitOr": lambda: self.make_sym_lat_wc(self.gamma["BitOr"]),
+            "BitXor": lambda: self.make_sym_lat_wc(self.gamma["BitXor"]),
+            "BitAnd": lambda: self.make_sym_lat_wc(self.gamma["BitAnd"]),
+            "Eq": lambda: self.make_sym_lat_wc(self.gamma["Eq"]),
+            "NotEq": lambda: self.make_sym_lat_wc(self.gamma["NotEq"]),
+            "Lt": lambda: self.make_sym_lat_wc(self.gamma["Lt"]),
+            "LtE": lambda: self.make_sym_lat_wc(self.gamma["LtE"]),
+            "Gt": lambda: self.make_sym_lat_wc(self.gamma["Gt"]),
+            "GtE": lambda: self.make_sym_lat_wc(self.gamma["GtE"]), 
+            "USub": lambda: self.make_sym_lat_wc(self.gamma["USub"]),   
+            "UAdd": lambda: self.make_sym_lat_wc(self.gamma["UAdd"]),
+            "IsNot": lambda: self.make_sym_lat_wc(self.gamma["IsNot"]),
+            "Not": lambda: self.make_sym_lat_wc(self.gamma["Not"]),
+            "Invert": lambda: self.make_sym_lat_wc(self.gamma["Invert"]),
+            "Regs": lambda: self.make_sym_lat_wc(self.gamma["Regs"]),   
+            "Buf": lambda: self.make_buf_lat_dict(),    
+            "MainMem": lambda: self.make_mem_lat_dict(),
+            "OffChipIO": lambda: self.make_io_lat_dict(),
+        }
+
+        # UNITS: nJ
+        self.symbolic_energy_active = {
+            "And": lambda: self.make_sym_energy_act(self.alpha["And"]),
+            "Or": lambda: self.make_sym_energy_act(self.alpha["Or"]),
+            "Add": lambda: self.make_sym_energy_act(self.alpha["Add"]),
+            "Sub": lambda: self.make_sym_energy_act(self.alpha["Sub"]),
+            "Mult": lambda: self.make_sym_energy_act(self.alpha["Mult"]),
+            "FloorDiv": lambda: self.make_sym_energy_act(self.alpha["FloorDiv"]),
+            "Mod": lambda: self.make_sym_energy_act(self.alpha["Mod"]),
+            "LShift": lambda: self.make_sym_energy_act(self.alpha["LShift"]),
+            "RShift": lambda: self.make_sym_energy_act(self.alpha["RShift"]),
+            "BitOr": lambda: self.make_sym_energy_act(self.alpha["BitOr"]),
+            "BitXor": lambda: self.make_sym_energy_act(self.alpha["BitXor"]),
+            "BitAnd": lambda: self.make_sym_energy_act(self.alpha["BitAnd"]),
+            "Eq": lambda: self.make_sym_energy_act(self.alpha["Eq"]),
+            "NotEq": lambda: self.make_sym_energy_act(self.alpha["NotEq"]),
+            "Lt": lambda: self.make_sym_energy_act(self.alpha["Lt"]),
+            "LtE": lambda: self.make_sym_energy_act(self.alpha["LtE"]),
+            "Gt": lambda: self.make_sym_energy_act(self.alpha["Gt"]),
+            "GtE": lambda: self.make_sym_energy_act(self.alpha["GtE"]),
+            "USub": lambda: self.make_sym_energy_act(self.alpha["USub"]),
+            "UAdd": lambda: self.make_sym_energy_act(self.alpha["UAdd"]),
+            "IsNot": lambda: self.make_sym_energy_act(self.alpha["IsNot"]),
+            "Not": lambda: self.make_sym_energy_act(self.alpha["Not"]),
+            "Invert": lambda: self.make_sym_energy_act(self.alpha["Invert"]),   
+            "Regs": lambda: self.make_sym_energy_act(self.alpha["Regs"]),
+            "Buf": lambda: self.make_buf_energy_active_dict(),
+            "MainMem": lambda: self.make_mainmem_energy_active_dict(),
+            "OffChipIO": lambda: self.make_io_energy_active_dict(),
+        }
+
+        # UNITS: W
+        self.symbolic_power_passive = {
+            "And": lambda: self.make_sym_power_pass(self.beta["And"]),
+            "Or": lambda: self.make_sym_power_pass(self.beta["Or"]),
+            "Add": lambda: self.make_sym_power_pass(self.beta["Add"]),
+            "Sub": lambda: self.make_sym_power_pass(self.beta["Sub"]),
+            "Mult": lambda: self.make_sym_power_pass(self.beta["Mult"]),
+            "FloorDiv": lambda: self.make_sym_power_pass(self.beta["FloorDiv"]),
+            "Mod": lambda: self.make_sym_power_pass(self.beta["Mod"]),
+            "LShift": lambda: self.make_sym_power_pass(self.beta["LShift"]),
+            "RShift": lambda: self.make_sym_power_pass(self.beta["RShift"]),
+            "BitOr": lambda: self.make_sym_power_pass(self.beta["BitOr"]),
+            "BitXor": lambda: self.make_sym_power_pass(self.beta["BitXor"]),
+            "BitAnd": lambda: self.make_sym_power_pass(self.beta["BitAnd"]),
+            "Eq": lambda: self.make_sym_power_pass(self.beta["Eq"]),
+            "NotEq": lambda: self.make_sym_power_pass(self.beta["NotEq"]),
+            "Lt": lambda: self.make_sym_power_pass(self.beta["Lt"]),
+            "LtE": lambda: self.make_sym_power_pass(self.beta["LtE"]),
+            "Gt": lambda: self.make_sym_power_pass(self.beta["Gt"]),
+            "GtE": lambda: self.make_sym_power_pass(self.beta["GtE"]),
+            "USub": lambda: self.make_sym_power_pass(self.beta["USub"]),
+            "UAdd": lambda: self.make_sym_power_pass(self.beta["UAdd"]),
+            "IsNot": lambda: self.make_sym_power_pass(self.beta["IsNot"]),
+            "Not": lambda: self.make_sym_power_pass(self.beta["Not"]),
+            "Invert": lambda: self.make_sym_power_pass(self.beta["Invert"]),
+            "Regs": lambda: self.make_sym_power_pass(self.beta["Regs"]),
+            "MainMem": lambda: self.make_mainmem_power_passive_dict(),
+            "Buf": lambda: self.make_buf_power_passive_dict(),
+        }
+
+        # UNITS: um^2
+        self.symbolic_area = {
+            "And": lambda: self.make_sym_area(self.area_coeffs["And"]),
+            "Or": lambda: self.make_sym_area(self.area_coeffs["Or"]),
+            "Add": lambda: self.make_sym_area(self.area_coeffs["Add"]),
+            "Sub": lambda: self.make_sym_area(self.area_coeffs["Sub"]),
+            "Mult": lambda: self.make_sym_area(self.area_coeffs["Mult"]),
+            "FloorDiv": lambda: self.make_sym_area(self.area_coeffs["FloorDiv"]),
+            "Mod": lambda: self.make_sym_area(self.area_coeffs["Mod"]), 
+            "LShift": lambda: self.make_sym_area(self.area_coeffs["LShift"]),
+            "RShift": lambda: self.make_sym_area(self.area_coeffs["RShift"]),
+            "BitOr": lambda: self.make_sym_area(self.area_coeffs["BitOr"]),
+            "BitXor": lambda: self.make_sym_area(self.area_coeffs["BitXor"]),
+            "BitAnd": lambda: self.make_sym_area(self.area_coeffs["BitAnd"]),
+            "Eq": lambda: self.make_sym_area(self.area_coeffs["Eq"]),
+            "NotEq": lambda: self.make_sym_area(self.area_coeffs["NotEq"]),
+            "Lt": lambda: self.make_sym_area(self.area_coeffs["Lt"]),
+            "LtE": lambda: self.make_sym_area(self.area_coeffs["LtE"]),
+            "Gt": lambda: self.make_sym_area(self.area_coeffs["Gt"]),
+            "GtE": lambda: self.make_sym_area(self.area_coeffs["GtE"]),
+            "USub": lambda: self.make_sym_area(self.area_coeffs["USub"]),
+            "UAdd": lambda: self.make_sym_area(self.area_coeffs["UAdd"]),
+            "IsNot": lambda: self.make_sym_area(self.area_coeffs["IsNot"]),
+            "Not": lambda: self.make_sym_area(self.area_coeffs["Not"]),
+            "Invert": lambda: self.make_sym_area(self.area_coeffs["Invert"]),
+            "Regs": lambda: self.make_sym_area(self.area_coeffs["Regs"]),
+        }
+
+        # memories output from forward pass
+        self.memories = {}
+
+        # main mem from inverse pass
+        self.symbolic_mem = {}
+
+        # buffers from inverse pass
+        self.symbolic_buf = {}
+
+        # symbolic expressions for resource attributes (i.e. Buf latency) from inverse pass
+        self.symbolic_rsc_exprs = {}
+
+        # circuit level parameter values
+        self.circuit_values = {}
+
+        # wire length by edge
+        self.wire_length_by_edge = {}
+
+        self.metal_layers = ["metal1", "metal2", "metal3"]
+
+
+        # set initial values for memory parameters
+        # CACTI
+        cacti_params = {}
+        # TODO, cell type, temp
+        dat.scan_dat(cacti_params, dat_file, 0, 0, 360)
+        cacti_params = {k: (1 if v is None or math.isnan(v) else (10**(-9) if v == 0 else v)) for k, v in cacti_params.items()}
+        for key, value in cacti_params.items():
+            self.tech_values[key] = value
+
+        # CACTI IO
+        cacti_IO_params = {}
+        # TODO figure initial
+        g_ip = InputParameter()
+        g_ip.num_clk = 2
+        g_ip.io_type = "DDR3"
+        g_ip.num_mem_dq = 3
+        g_ip.mem_data_width = 2
+        g_ip.num_dq = 2
+        g_ip.dram_dimm = "UDIMM"
+        g_ip.bus_freq = 500
+        
+        IO.scan_IO(cacti_IO_params, g_ip, g_ip.io_type, g_ip.num_mem_dq, g_ip.mem_data_width, g_ip.num_dq, g_ip.dram_dimm, 1, g_ip.bus_freq)
+        cacti_IO_params = {k: (1 if v is None or math.isnan(v) else (10**(-9) if v == 0 else v)) for k, v in cacti_IO_params.items()}
+        for key, value in cacti_IO_params.items():
+            self.tech_values[key] = value
+
+        self.update_circuit_values()
+
+    def init_memory_params(self):
         # Memory parameters
         self.C_g_ideal = symbols("C_g_ideal", positive=True)
         self.C_fringe = symbols("C_fringe", positive=True)
@@ -273,206 +489,35 @@ class Parameters:
         self.OffChipIOL = {}
         self.OffChipIOPact = {} 
 
-        self.init_symbol_table()
-        self.init_memory_param_list()
+    def apply_base_parameter_effects(self):
+        if self.effects["velocity_saturation"]:
+            # Sakurai alpha-power law
+            self.alpha_L =1 + 1/(1 + (self.L/self.L_critical)**self.m)
+        if self.effects["channel_length_modulation"]:
+            self.lambda_L = 0.1
+        if self.effects["mobility_degradation"]:
+            theta_1 = 1
+            theta_2 = 1
+            self.u_n = self.u_n / (1+theta_1*(self.V_dd-self.V_th_eff)/(1+theta_2*(self.V_dd-self.V_th_eff)))
+            self.u_p = self.u_n / 2.5
+        if self.effects["subthreshold_slope_effect"]:
+            self.n += (self.e_si/self.e_ox) * (self.tox/self.L)**(1/2)
+        if self.effects["DIBL"]:
+            self.V_th_eff -= self.eta_L * (symbolic_convex_max(self.V_dd - self.V_ref, 0))
 
-        # UNITS: ns
-        self.symbolic_latency_wc = {
-            "And": lambda: self.make_sym_lat_wc(self.gamma["And"]),
-            "Or": lambda: self.make_sym_lat_wc(self.gamma["Or"]),
-            "Add": lambda: self.make_sym_lat_wc(self.gamma["Add"]),
-            "Sub": lambda: self.make_sym_lat_wc(self.gamma["Sub"]),
-            "Mult": lambda: self.make_sym_lat_wc(self.gamma["Mult"]),
-            "FloorDiv": lambda: self.make_sym_lat_wc(self.gamma["FloorDiv"]),
-            "Mod": lambda: self.make_sym_lat_wc(self.gamma["Mod"]),
-            "LShift": lambda: self.make_sym_lat_wc(self.gamma["LShift"]),
-            "RShift": lambda: self.make_sym_lat_wc(self.gamma["RShift"]),
-            "BitOr": lambda: self.make_sym_lat_wc(self.gamma["BitOr"]),
-            "BitXor": lambda: self.make_sym_lat_wc(self.gamma["BitXor"]),
-            "BitAnd": lambda: self.make_sym_lat_wc(self.gamma["BitAnd"]),
-            "Eq": lambda: self.make_sym_lat_wc(self.gamma["Eq"]),
-            "NotEq": lambda: self.make_sym_lat_wc(self.gamma["NotEq"]),
-            "Lt": lambda: self.make_sym_lat_wc(self.gamma["Lt"]),
-            "LtE": lambda: self.make_sym_lat_wc(self.gamma["LtE"]),
-            "Gt": lambda: self.make_sym_lat_wc(self.gamma["Gt"]),
-            "GtE": lambda: self.make_sym_lat_wc(self.gamma["GtE"]), 
-            "USub": lambda: self.make_sym_lat_wc(self.gamma["USub"]),   
-            "UAdd": lambda: self.make_sym_lat_wc(self.gamma["UAdd"]),
-            "IsNot": lambda: self.make_sym_lat_wc(self.gamma["IsNot"]),
-            "Not": lambda: self.make_sym_lat_wc(self.gamma["Not"]),
-            "Invert": lambda: self.make_sym_lat_wc(self.gamma["Invert"]),
-            "Regs": lambda: self.make_sym_lat_wc(self.gamma["Regs"]),   
-            "Buf": lambda: self.make_buf_lat_dict(),    
-            "MainMem": lambda: self.make_mem_lat_dict(),
-            "OffChipIO": lambda: self.make_io_lat_dict(),
-        }
-
-        # UNITS: nJ
-        self.symbolic_energy_active = {
-            "And": lambda: self.make_sym_energy_act(self.alpha["And"]),
-            "Or": lambda: self.make_sym_energy_act(self.alpha["Or"]),
-            "Add": lambda: self.make_sym_energy_act(self.alpha["Add"]),
-            "Sub": lambda: self.make_sym_energy_act(self.alpha["Sub"]),
-            "Mult": lambda: self.make_sym_energy_act(self.alpha["Mult"]),
-            "FloorDiv": lambda: self.make_sym_energy_act(self.alpha["FloorDiv"]),
-            "Mod": lambda: self.make_sym_energy_act(self.alpha["Mod"]),
-            "LShift": lambda: self.make_sym_energy_act(self.alpha["LShift"]),
-            "RShift": lambda: self.make_sym_energy_act(self.alpha["RShift"]),
-            "BitOr": lambda: self.make_sym_energy_act(self.alpha["BitOr"]),
-            "BitXor": lambda: self.make_sym_energy_act(self.alpha["BitXor"]),
-            "BitAnd": lambda: self.make_sym_energy_act(self.alpha["BitAnd"]),
-            "Eq": lambda: self.make_sym_energy_act(self.alpha["Eq"]),
-            "NotEq": lambda: self.make_sym_energy_act(self.alpha["NotEq"]),
-            "Lt": lambda: self.make_sym_energy_act(self.alpha["Lt"]),
-            "LtE": lambda: self.make_sym_energy_act(self.alpha["LtE"]),
-            "Gt": lambda: self.make_sym_energy_act(self.alpha["Gt"]),
-            "GtE": lambda: self.make_sym_energy_act(self.alpha["GtE"]),
-            "USub": lambda: self.make_sym_energy_act(self.alpha["USub"]),
-            "UAdd": lambda: self.make_sym_energy_act(self.alpha["UAdd"]),
-            "IsNot": lambda: self.make_sym_energy_act(self.alpha["IsNot"]),
-            "Not": lambda: self.make_sym_energy_act(self.alpha["Not"]),
-            "Invert": lambda: self.make_sym_energy_act(self.alpha["Invert"]),   
-            "Regs": lambda: self.make_sym_energy_act(self.alpha["Regs"]),
-            "Buf": lambda: self.make_buf_energy_active_dict(),
-            "MainMem": lambda: self.make_mainmem_energy_active_dict(),
-            "OffChipIO": lambda: self.make_io_energy_active_dict(),
-        }
-
-        # UNITS: W
-        self.symbolic_power_passive = {
-            "And": lambda: self.make_sym_power_pass(self.beta["And"]),
-            "Or": lambda: self.make_sym_power_pass(self.beta["Or"]),
-            "Add": lambda: self.make_sym_power_pass(self.beta["Add"]),
-            "Sub": lambda: self.make_sym_power_pass(self.beta["Sub"]),
-            "Mult": lambda: self.make_sym_power_pass(self.beta["Mult"]),
-            "FloorDiv": lambda: self.make_sym_power_pass(self.beta["FloorDiv"]),
-            "Mod": lambda: self.make_sym_power_pass(self.beta["Mod"]),
-            "LShift": lambda: self.make_sym_power_pass(self.beta["LShift"]),
-            "RShift": lambda: self.make_sym_power_pass(self.beta["RShift"]),
-            "BitOr": lambda: self.make_sym_power_pass(self.beta["BitOr"]),
-            "BitXor": lambda: self.make_sym_power_pass(self.beta["BitXor"]),
-            "BitAnd": lambda: self.make_sym_power_pass(self.beta["BitAnd"]),
-            "Eq": lambda: self.make_sym_power_pass(self.beta["Eq"]),
-            "NotEq": lambda: self.make_sym_power_pass(self.beta["NotEq"]),
-            "Lt": lambda: self.make_sym_power_pass(self.beta["Lt"]),
-            "LtE": lambda: self.make_sym_power_pass(self.beta["LtE"]),
-            "Gt": lambda: self.make_sym_power_pass(self.beta["Gt"]),
-            "GtE": lambda: self.make_sym_power_pass(self.beta["GtE"]),
-            "USub": lambda: self.make_sym_power_pass(self.beta["USub"]),
-            "UAdd": lambda: self.make_sym_power_pass(self.beta["UAdd"]),
-            "IsNot": lambda: self.make_sym_power_pass(self.beta["IsNot"]),
-            "Not": lambda: self.make_sym_power_pass(self.beta["Not"]),
-            "Invert": lambda: self.make_sym_power_pass(self.beta["Invert"]),
-            "Regs": lambda: self.make_sym_power_pass(self.beta["Regs"]),
-            "MainMem": lambda: self.make_mainmem_power_passive_dict(),
-            "Buf": lambda: self.make_buf_power_passive_dict(),
-        }
-
-        # UNITS: um^2
-        self.symbolic_area = {
-            "And": lambda: self.make_sym_area(self.area_coeffs["And"]),
-            "Or": lambda: self.make_sym_area(self.area_coeffs["Or"]),
-            "Add": lambda: self.make_sym_area(self.area_coeffs["Add"]),
-            "Sub": lambda: self.make_sym_area(self.area_coeffs["Sub"]),
-            "Mult": lambda: self.make_sym_area(self.area_coeffs["Mult"]),
-            "FloorDiv": lambda: self.make_sym_area(self.area_coeffs["FloorDiv"]),
-            "Mod": lambda: self.make_sym_area(self.area_coeffs["Mod"]), 
-            "LShift": lambda: self.make_sym_area(self.area_coeffs["LShift"]),
-            "RShift": lambda: self.make_sym_area(self.area_coeffs["RShift"]),
-            "BitOr": lambda: self.make_sym_area(self.area_coeffs["BitOr"]),
-            "BitXor": lambda: self.make_sym_area(self.area_coeffs["BitXor"]),
-            "BitAnd": lambda: self.make_sym_area(self.area_coeffs["BitAnd"]),
-            "Eq": lambda: self.make_sym_area(self.area_coeffs["Eq"]),
-            "NotEq": lambda: self.make_sym_area(self.area_coeffs["NotEq"]),
-            "Lt": lambda: self.make_sym_area(self.area_coeffs["Lt"]),
-            "LtE": lambda: self.make_sym_area(self.area_coeffs["LtE"]),
-            "Gt": lambda: self.make_sym_area(self.area_coeffs["Gt"]),
-            "GtE": lambda: self.make_sym_area(self.area_coeffs["GtE"]),
-            "USub": lambda: self.make_sym_area(self.area_coeffs["USub"]),
-            "UAdd": lambda: self.make_sym_area(self.area_coeffs["UAdd"]),
-            "IsNot": lambda: self.make_sym_area(self.area_coeffs["IsNot"]),
-            "Not": lambda: self.make_sym_area(self.area_coeffs["Not"]),
-            "Invert": lambda: self.make_sym_area(self.area_coeffs["Invert"]),
-            "Regs": lambda: self.make_sym_area(self.area_coeffs["Regs"]),
-        }
-
-        # memories output from forward pass
-        self.memories = {}
-
-        # main mem from inverse pass
-        self.symbolic_mem = {}
-
-        # buffers from inverse pass
-        self.symbolic_buf = {}
-
-        # symbolic expressions for resource attributes (i.e. Buf latency) from inverse pass
-        self.symbolic_rsc_exprs = {}
-
-        # technology level parameter values
-        self.tech_values = {}
-
-        # circuit level parameter values
-        self.circuit_values = {}
-
-        # wire length by edge
-        self.wire_length_by_edge = {}
-
-        self.metal_layers = ["metal1", "metal2", "metal3"]
-
-        # set initial values for technology parameters based on tech node
-        config = yaml.load(open(TECH_NODE_FILE), Loader=yaml.Loader)
-        print(config[self.tech_node])
-        for key in config["default"]:
-            try:
-                self.tech_values[self.symbol_table[key]] = config[self.tech_node][key]
-            except:
-                logger.info(f"using default value for {key}")
-                self.tech_values[self.symbol_table[key]] = config["default"][key]
-
-        wire_rc_init = "" # can set later
-        wire_rc_config = yaml.load(open(WIRE_RC_FILE), Loader=yaml.Loader)
-        for key in wire_rc_config["default"]:
-            try:
-                self.tech_values[self.symbol_table[key]] = wire_rc_config[wire_rc_init][key]
-            except:
-                logger.info(f"using default value for {key}")
-                self.tech_values[self.symbol_table[key]] = wire_rc_config["default"][key]
-
+    def apply_additional_effects(self):
         print(self.I_tunnel)
         tunnel = self.I_tunnel.subs(self.tech_values)
         print(f"i tunnel: {tunnel}")
 
         print(f"u_n: {self.u_n.subs(self.tech_values)}")
-
-
-        # set initial values for memory parameters
-        # CACTI
-        cacti_params = {}
-        # TODO, cell type, temp
-        dat.scan_dat(cacti_params, dat_file, 0, 0, 360)
-        cacti_params = {k: (1 if v is None or math.isnan(v) else (10**(-9) if v == 0 else v)) for k, v in cacti_params.items()}
-        for key, value in cacti_params.items():
-            self.tech_values[key] = value
-
-        # CACTI IO
-        cacti_IO_params = {}
-        # TODO figure initial
-        g_ip = InputParameter()
-        g_ip.num_clk = 2
-        g_ip.io_type = "DDR3"
-        g_ip.num_mem_dq = 3
-        g_ip.mem_data_width = 2
-        g_ip.num_dq = 2
-        g_ip.dram_dimm = "UDIMM"
-        g_ip.bus_freq = 500
-        
-        IO.scan_IO(cacti_IO_params, g_ip, g_ip.io_type, g_ip.num_mem_dq, g_ip.mem_data_width, g_ip.num_dq, g_ip.dram_dimm, 1, g_ip.bus_freq)
-        cacti_IO_params = {k: (1 if v is None or math.isnan(v) else (10**(-9) if v == 0 else v)) for k, v in cacti_IO_params.items()}
-        for key, value in cacti_IO_params.items():
-            self.tech_values[key] = value
-
-        self.update_circuit_values()
-
+        if self.effects["gate_tunneling"]:
+            self.I_off += self.I_tunnel*2 # 2 for both NMOS and PMOS
+            self.P_pass_inv = self.I_off * self.V_dd
+        if self.effects["area_and_latency_scaling"]:
+            self.delay = self.delay * self.latency_scale
+            self.P_pass_inv = self.P_pass_inv * self.area_scale
+            
     def set_memories(self, memories):
         self.memories = memories
         self.update_circuit_values()
@@ -604,7 +649,6 @@ class Parameters:
             "V_dd": self.V_dd,
             "V_th": self.V_th,
             "f": self.f,
-            "C_gate": self.C_gate,
             "u_n": self.u_n,
             "u_p": self.u_p,
             "Cox": self.Cox,
