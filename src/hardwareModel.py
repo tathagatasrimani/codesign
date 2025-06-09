@@ -97,6 +97,134 @@ class HardwareModel:
 
     def map_netlist_to_scheduled_dfg(self):
         # TODO: include resource sharing information
+
+        ## create a set of all netlist nodes
+        unmapped_dfg_nodes = set(self.scheduled_dfg.nodes)
+        
+        for node in self.scheduled_dfg:
+            if self.scheduled_dfg.nodes[node]["function"] not in self.params.circuit_values["latency"]:
+                continue
+
+            ## get the catapult name from the scheduled DFG node
+            catapult_name = self.scheduled_dfg.nodes[node]["catapult_name"]
+
+            ##E.g. catapult name: for#1-1:for-2:for-6:add_inst.run()
+
+            ## replace all the # and - with _ to match the netlist node names
+            catapult_name = catapult_name.replace("#", "_").replace("-", "_")
+
+            ##E.g. catapult_name: for_1_1:for_2:for_6:add_inst.run()
+
+            ## remove the last part of the catapult name and rejoin with _
+            netlist_name = "_".join(catapult_name.split(":")[0:3])
+
+            ##E.g. netlist_name: for_1_1_for_2_for_6
+
+            ## get the function type from the scheduled DFG node
+            function_type = self.scheduled_dfg.nodes[node]["function"]
+
+            ## see if there is a node in the netlist with the same function type and whose hierarchy path contains the netlist_name
+            for netlist_node in self.netlist.nodes:
+                if (self.netlist.nodes[netlist_node]["function"] == function_type and
+                    netlist_name in self.netlist.nodes[netlist_node]["hierarchy_path"]):
+                    ## if so, map the scheduled DFG node to the netlist node
+                    #self.dfg_to_netlist_map[node] = netlist_node
+                    self.scheduled_dfg.nodes[node]["netlist_node"] = netlist_node
+                    unmapped_dfg_nodes.remove(node)
+                    break
+
+        direct_name_match_count = len(self.scheduled_dfg.nodes) - len(unmapped_dfg_nodes)
+        logger.info(f"number of mapped dfg nodes using direct name match: {direct_name_match_count}")
+        logger.info(f"number of unmapped dfg nodes after direct name match: {len(unmapped_dfg_nodes)}")
+        
+
+        ## read in the res_sharing.tcl file 
+        res_sharing_file = "src/tmp/benchmark/build/MatMult.v1/res_sharing.tcl"
+        res_sharing_lines = []
+        with open(res_sharing_file, "r") as f:
+            res_sharing_lines = f.readlines()
+
+        ## parse the res_sharing.tcl file to get the resource sharing information
+        ## E.g. of one line: directive set /MatMult/MatMult.struct/MatMult:run/MatMult:run:conc/for#1-5:for-6:for-3:mul_inst.run() RESOURCE_NAME for#1-1:for-2:for-8:mul_inst.run():rg
+        res_sharing_map = {}
+        for line in res_sharing_lines:
+            logger.info(f"res_sharing.tcl line: {line.strip()}")
+            parts = line.strip().split("RESOURCE_NAME")
+            key_dirty_text = parts[0]
+            value_dirty_text = parts[1]
+
+            logger.info(f"res_sharing.tcl key: {key_dirty_text.strip()}")
+            logger.info(f"res_sharing.tcl value: {value_dirty_text.strip()}")
+
+            key_2 = "_".join(key_dirty_text.split("/")[-1].strip().split(":")[0:3])
+            logger.info(f"res_sharing.tcl key_2: {key_2}")
+            key = key_2.replace("#", "_").replace("-", "_").strip()  # replace all the # and - with _ to match the netlist node names
+
+            value_2 = "_".join(value_dirty_text.split(":")[0:3])
+            logger.info(f"res_sharing.tcl value_2: {value_2}")
+            value = value_2.replace("#", "_").replace("-", "_").strip()  # replace all the # and - with _ to match the netlist node names
+            if key not in res_sharing_map:
+                res_sharing_map[key] = value
+                logger.info(f"res_sharing_map: {key} -> {value}")
+            else:
+                logger.warning(f"duplicate key {key} in res_sharing.tcl file.")
+
+        
+        num_res_sharing_mapped = 0
+
+        resource_sharing_mapped_nodes = set()
+
+        ## map the unmapped dfg nodes to the netlist nodes using the resource sharing information
+        for node in unmapped_dfg_nodes:
+            if self.scheduled_dfg.nodes[node]["function"] not in self.params.circuit_values["latency"]:
+                continue
+            
+            ## get the catapult name from the scheduled DFG node
+            catapult_name = self.scheduled_dfg.nodes[node]["catapult_name"]
+
+            ##E.g. catapult name: for#1-1:for-2:for-6:add_inst.run()
+
+            ## replace all the # and - with _ to match the netlist node names
+            catapult_name = catapult_name.replace("#", "_").replace("-", "_")
+
+            ##E.g. catapult_name: for_1_1:for_2:for_6:add_inst.run()
+
+            ## remove the last part of the catapult name and rejoin with _
+            netlist_name = "_".join(catapult_name.split(":")[0:3])
+
+            ##E.g. netlist_name: for_1_1_for_2_for_6
+
+            ## get the function type from the scheduled DFG node
+            function_type = self.scheduled_dfg.nodes[node]["function"]
+
+            ## see if there is a node in the netlist with the same function type and whose hierarchy path contains the netlist_name
+            if netlist_name in res_sharing_map:
+                for netlist_node in self.netlist.nodes:
+                    if (self.netlist.nodes[netlist_node]["function"] == function_type and
+                        res_sharing_map[netlist_name] in self.netlist.nodes[netlist_node]["hierarchy_path"]):
+                        ## if so, map the scheduled DFG node to the netlist node
+                        #self.dfg_to_netlist_map[node] = netlist_node
+                        self.scheduled_dfg.nodes[node]["netlist_node"] = netlist_node
+                        resource_sharing_mapped_nodes.add(node)
+                        num_res_sharing_mapped += 1
+                        break
+
+        # ## remove the resource sharing mapped nodes from the unmapped dfg nodes
+        unmapped_dfg_nodes = unmapped_dfg_nodes - resource_sharing_mapped_nodes
+        
+        logger.info(f"number of mapped dfg nodes using resource sharing:{num_res_sharing_mapped}")
+        logger.info(f"number of unmapped dfg nodes after resource sharing: {len(unmapped_dfg_nodes)}")
+
+
+
+
+
+
+        with open("src/tmp/benchmark/scheduled-dfg-after-mapping.gml", "wb") as f:
+            nx.write_gml(self.scheduled_dfg, f)
+
+        
+        ### old method:
         for node in self.scheduled_dfg:
             if self.scheduled_dfg.nodes[node]["function"] not in self.params.circuit_values["latency"]:
                 self.dfg_to_netlist_map[node] = None
@@ -119,13 +247,19 @@ class HardwareModel:
 
     
     def get_wire_parasitics(self, arg_testfile, arg_parasitics):
+        self.map_netlist_to_scheduled_dfg()
+        
         start_time = time.time()
         self.params.wire_length_by_edge, _ = place_n_route.place_n_route(
             self.netlist, arg_testfile, arg_parasitics
         )
-        self.map_netlist_to_scheduled_dfg()
+        logger.info(f"wire lengths: {self.params.wire_length_by_edge}")
+        
         logger.info(f"time to generate wire parasitics: {time.time()-start_time}")
         self.add_wire_delays_to_schedule()
+
+        with open("src/tmp/benchmark/scheduled-dfg-after-openroad.gml", "wb") as f:
+            nx.write_gml(self.scheduled_dfg, f)
 
     def add_wire_delays_to_schedule(self):
         # update scheduled dfg with wire delays
