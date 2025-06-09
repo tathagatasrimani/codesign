@@ -466,7 +466,8 @@ class gnt_schedule_parser:
                 end_time=0,
                 allocation="",
                 library=node_data["library"],
-                module=node_data["module"]
+                module=node_data["module"],
+                catapult_name=node_data["name"]
             )
             self.inst_name_map[node] = self.format_inst_name(node_data["name"])
         self.modified_G.add_node(

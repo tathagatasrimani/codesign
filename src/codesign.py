@@ -155,8 +155,8 @@ class Codesign:
 
         self.hw.netlist, _ = parse_yosys_json("src/tmp/benchmark/netlist.json", include_memories=True, top_level_module_type=top_module_name)
 
-        ## write the netlist to a file
-        with open("src/tmp/benchmark/netlist.gml", "wb") as f:
+        ## write the netlist to a files
+        with open("src/tmp/benchmark/netlist-from-catapult.gml", "wb") as f:
             nx.write_gml(self.hw.netlist, f)
 
     def forward_pass(self):
@@ -186,9 +186,12 @@ class Codesign:
         # parse catapult timing report and create schedule
         self.parse_catapult_timing()
 
-        # prepare schedule
+        
+
+        # prepare schedule & calculate wire parasitics
         self.prepare_schedule()
 
+        ## create the EDP equation 
         self.hw.calculate_objective()
 
         self.display_objective("after forward pass")
@@ -216,6 +219,10 @@ class Codesign:
         schedule_parser.convert(memories=self.hw.params.memories)
         self.hw.inst_name_map = schedule_parser.inst_name_map
         self.hw.scheduled_dfg = schedule_parser.modified_G
+
+        ## write the scheduled dfg to a file
+        with open("src/tmp/benchmark/scheduled-dfg-from-catapult.gml", "wb") as f:
+            nx.write_gml(self.hw.scheduled_dfg, f)
     
     def prepare_schedule(self):
         """
