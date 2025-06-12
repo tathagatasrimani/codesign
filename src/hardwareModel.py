@@ -207,6 +207,15 @@ class HardwareModel:
         logger.info(f"number of unmapped dfg nodes after resource sharing: {len(unmapped_dfg_nodes)}")
 
 
+        ## for remaining nodes, do matching based on the the inputs and outputs of the dfg nodes.
+        
+
+        mapped_nodes_input_output_match = self.dfg_to_netlist_i_o_match(unmapped_dfg_nodes)
+        logger.info(f"succesfully mapped {len(mapped_nodes_input_output_match)} nodes based on input/output matching")
+        unmapped_dfg_nodes = unmapped_dfg_nodes - mapped_nodes_input_output_match
+        logger.info(f"number of unmapped dfg nodes after input/output matching: {len(unmapped_dfg_nodes)}")
+
+        
 
 
 
@@ -235,6 +244,91 @@ class HardwareModel:
             else:
                 self.dfg_to_netlist_edge_map[edge] = edge_mapped
                 logger.info(f"edge {edge} mapped to {edge_mapped}")
+
+
+    def dfg_to_netlist_i_o_match(self, unmapped_dfg_nodes):
+        """
+        Matches the unmapped DFG nodes to the netlist nodes based on the inputs and outputs of the DFG nodes and netlist nodes.
+        """
+        mapped_nodes_input_output_match = set()
+        for node in unmapped_dfg_nodes:
+            if self.scheduled_dfg.nodes[node]["function"] not in self.params.circuit_values["latency"]:
+                continue
+
+            ## get the function type from the scheduled DFG node
+            function_type = self.scheduled_dfg.nodes[node]["function"]
+
+            ## get all of the inputs and outputs of the dfg node
+            dfg_inputs = set(self.scheduled_dfg.predecessors(node))
+            dfg_outputs = set(self.scheduled_dfg.successors(node))
+            logger.info(f"dfg node {node} inputs: {dfg_inputs}, outputs: {dfg_outputs}")
+
+            ## see if any of the input or output nodes in the dfg from the main node have mappings to the netlist
+            dfg_inputs_mapped = []
+            for dfg_input in dfg_inputs:
+                if "netlist_node" in self.scheduled_dfg.nodes[dfg_input]:
+                    # logger.info(f"dfg input {dfg_input} is mapped to netlist node {self.scheduled_dfg.nodes[dfg_input]['netlist_node']}")
+                    
+                    ## store an ordered pair of the node in the dfg and the netlist node it is mapped to
+                    dfg_inputs_mapped.append((dfg_input, self.scheduled_dfg.nodes[dfg_input]["netlist_node"])) 
+            
+            dfg_outputs_mapped = []
+            for dfg_output in dfg_outputs:
+                if "netlist_node" in self.scheduled_dfg.nodes[dfg_output]:
+                    # logger.info(f"dfg output {dfg_output} is mapped to netlist node {self.scheduled_dfg.nodes[dfg_output]['netlist_node']}")
+                    
+                    ## store an ordered pair of the node in the dfg and the netlist node it is mapped to
+                    dfg_outputs_mapped.append((dfg_output, self.scheduled_dfg.nodes[dfg_output]["netlist_node"]))
+
+            logger.info(f"dfg inputs mapped: {dfg_inputs_mapped}")
+            logger.info(f"dfg outputs mapped: {dfg_outputs_mapped}")
+
+            if len(dfg_inputs_mapped) == 0 and len(dfg_outputs_mapped) == 0:
+                logger.warning(f"no inputs or outputs mapped for dfg node {node}, skipping")
+                continue
+
+
+            ## now, see if there is a node in the netlist with the same input and output nodes as the dfg node
+            potential_netlist_nodes = [] # list of potential netlist nodes that match the dfg node inputs and outputs
+            
+            for netlist_node in self.netlist.nodes:
+                if (self.netlist.nodes[netlist_node]["function"] != function_type):
+                    continue
+                netlist_inputs = self.netlist.predecessors(netlist_node)
+                netlist_outputs = self.netlist.successors(netlist_node)
+
+                input_node_match = True
+                for dfg_node, netlist_node in dfg_inputs_mapped:
+                    if netlist_node not in netlist_inputs:
+                        # logger.info(f"dfg input {dfg_node} not found in netlist inputs for node {netlist_node}")
+                        input_node_match = False
+                        break
+
+                if not input_node_match:
+                    continue
+
+                output_node_match = True
+                for dfg_node, netlist_node in dfg_outputs_mapped:
+                    if netlist_node not in netlist_outputs:
+                        # logger.info(f"dfg output {dfg_node} not found in netlist outputs for node {netlist_node}")
+                        output_node_match = False
+                        break
+
+                if input_node_match and output_node_match:
+                    logger.info(f"found potential netlist node {netlist_node} for dfg node {node}")
+                    potential_netlist_nodes.append(netlist_node)
+
+            if len(potential_netlist_nodes) == 0:
+                logger.warning(f"no potential netlist nodes found for dfg node {node}, skipping")
+            elif len(potential_netlist_nodes) > 1:
+                logger.warning(f"multiple potential netlist nodes found for dfg node {node}: {potential_netlist_nodes}, skipping")
+            else:
+                netlist_node = potential_netlist_nodes[0]
+                logger.info(f"mapping dfg node {node} to netlist node {netlist_node}")
+                self.scheduled_dfg.nodes[node]["netlist_node"] = netlist_node
+                mapped_nodes_input_output_match.add(node)
+            
+        return mapped_nodes_input_output_match
 
     
     def get_wire_parasitics(self, arg_testfile, arg_parasitics):
