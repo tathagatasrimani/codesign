@@ -3,6 +3,7 @@ import os
 import glob
 import datetime
 from collections import defaultdict
+import math
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +44,7 @@ def add_area_constraint_to_script(filename, area_constraint):
     with open(filename, "w") as f:
         f.writelines(new_lines)
 
-def topological_layout_plot(graph, reverse=False, extra_edges=None):
+def topological_layout_plot(graph, filename, reverse=False, extra_edges=None):
     # Compute the topological order of the nodes
     if nx.is_directed_acyclic_graph(graph):
         topological_order = list(nx.topological_sort(graph))
@@ -86,4 +87,63 @@ def topological_layout_plot(graph, reverse=False, extra_edges=None):
         plt.axhline(y=-(level + 0.5), color='gray', linestyle='dashed', linewidth=0.5)
 
     # Show the graph
-    plt.show()
+    plt.savefig(filename, format='svg')
+    plt.close()
+
+def svg_plot(G, filename, extra_edges=None):
+
+    # Create custom labels using the 'function' attribute if available
+    labels = {}
+    for node, data in G.nodes(data=True):
+        if 'function' in data:
+            labels[node] = f"{node}\n{data['function']}"
+        elif 'module' in data:
+            labels[node] = f"{node}\n{data['module']}"
+        else:
+            labels[node] = str(node)
+
+    if extra_edges:
+        edge_colors = ['red' if (u, v) in extra_edges else 'gray' for (u, v) in G.edges()]
+    else:
+        edge_colors = ['gray' for (u, v) in G.edges()]
+
+    if not nx.is_directed_acyclic_graph(G):
+        raise ValueError("Graph must be a DAG for topological layout")
+
+    # Compute topological depth
+    depth = {}
+    for node in nx.topological_sort(G):
+        preds = list(G.predecessors(node))
+        depth[node] = 0 if not preds else 1 + max(depth[p] for p in preds)
+
+    # Group nodes by depth
+    layers = defaultdict(list)
+    for node, d in depth.items():
+        layers[d].append(node)
+
+    # Position nodes by layer
+    pos = {}
+    layer_spacing = 2.0
+    node_spacing = 2.0
+    for d, nodes in layers.items():
+        for i, node in enumerate(nodes):
+            x = i * node_spacing
+            y = -d * layer_spacing
+            pos[node] = (x, y)
+
+    # Dynamic figure size
+    max_width = max(len(nodes) for nodes in layers.values())
+    fig_width = max(10, max_width * 2)
+    fig_height = max(6, len(layers) * 2)
+    plt.figure(figsize=(fig_width, fig_height))
+
+    # Draw
+    nx.draw(
+        G, pos, labels=labels, with_labels=True,
+        node_color='lightblue', edge_color=edge_colors,
+        node_size=600, font_size=8
+    )
+
+    # Save the figure as SVG
+    plt.savefig(filename, format='svg')
+    plt.close()

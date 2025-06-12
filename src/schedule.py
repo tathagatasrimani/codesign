@@ -395,6 +395,7 @@ class gnt_schedule_parser:
         self.parse_bom()
         self.parse_gnt_loops()
         self.G, _, _ = self.create_graph_for_loop(self.top_loop)
+        #sim_util.svg_plot(self.G, "src/tmp/test_graph.svg")
         #self.remove_loop_nodes()
 
     def convert(self, memories):
@@ -479,12 +480,14 @@ class gnt_schedule_parser:
                     node, 
                     child, 
                     cost=0, # cost to be set after parasitic extraction 
-                    weight=self.modified_G.nodes[node]["cost"]
+                    weight=self.modified_G.nodes[node]["cost"],
+                    resource_edge=False
                 ) 
             if not len(list(self.G.successors(node))):
                 self.modified_G.add_edge(
                     node, "end",
-                    weight=self.modified_G.nodes[node]["cost"]
+                    weight=self.modified_G.nodes[node]["cost"],
+                    resource_edge=False
                 )
 
         #sim_util.topological_layout_plot(self.modified_G)
@@ -531,7 +534,8 @@ class gnt_schedule_parser:
                         self.modified_G.add_edge(
                             topo_order_by_mem_port[port][i],
                             topo_order_by_mem_port[port][i+1],
-                            weight=self.modified_G.nodes[topo_order_by_mem_port[port][i]]["cost"]
+                            weight=self.modified_G.nodes[topo_order_by_mem_port[port][i]]["cost"],
+                            resource_edge=True
                         )
                         logger.info(f"adding memory port resource dependency between {topo_order_by_mem_port[port][i]} and {topo_order_by_mem_port[port][i+1]} for port {port}")
                         self.extra_edges.append((topo_order_by_mem_port[port][i], topo_order_by_mem_port[port][i+1]))
@@ -543,12 +547,14 @@ class gnt_schedule_parser:
                         self.modified_G.add_edge(
                             topo_order_by_elem[func][elem][i],
                             topo_order_by_elem[func][elem][i+1],
-                            weight=self.modified_G.nodes[topo_order_by_elem[func][elem][i]]["cost"]
+                            weight=self.modified_G.nodes[topo_order_by_elem[func][elem][i]]["cost"],
+                            resource_edge=True
                         )
                         logger.info(f"adding resource dependency between {topo_order_by_elem[func][elem][i]} and {topo_order_by_elem[func][elem][i+1]}")
                         self.extra_edges.append((topo_order_by_elem[func][elem][i], topo_order_by_elem[func][elem][i+1]))
 
         nx.write_gml(self.modified_G, "src/tmp/schedule.gml")
+        #sim_util.svg_plot(self.modified_G, "src/tmp/schedule.svg", extra_edges=self.extra_edges)
         logger.info(f"longest path length: {nx.dag_longest_path_length(self.modified_G)}")
         logger.info(f"longest path: {nx.dag_longest_path(self.modified_G)}")
 
@@ -874,19 +880,22 @@ if __name__ == "__main__":
     module_map = {
         "add": "Add",
         "mult": "Mult",
-        "ccs_ram_sync_1R1W_rwport": "Buf",
-        "ccs_ram_sync_1R1W_rport": "Buf",
+        #"ccs_ram_sync_1R1W_rwport": "Buf",
+        #"ccs_ram_sync_1R1W_rport": "Buf",
         "nop": "nop"
     }
-    parser = gnt_schedule_parser("src/tmp/benchmark/build/MatMult.v1", module_map)
+    circuit_delays = {
+        "Add": 1,
+        "Mult": 1
+    }
+    parser = gnt_schedule_parser("src/tmp/benchmark/build/MatMult.v1", module_map, circuit_delays)
     parser.parse()
     print("finished parsing")
     nx.write_gml(parser.G, "src/tmp/test_graph.gml")
-    #sim_util.topological_layout_plot(parser.G)
-    parser.convert()
+    sim_util.svg_plot(parser.G, "src/tmp/test_graph.svg")
+    parser.convert({})
     print("finished converting")
-    print("hi")
-    #sim_util.topological_layout_plot(parser.modified_G, extra_edges=parser.extra_edges)
+    sim_util.svg_plot(parser.modified_G, "src/tmp/modified_test_graph.svg", extra_edges=parser.extra_edges)
     nx.write_gml(parser.modified_G, "src/tmp/modified_test_graph.gml")
     lp = get_longest_paths(parser.modified_G)
     print(lp)
