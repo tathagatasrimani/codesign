@@ -268,8 +268,21 @@ class HardwareModel:
             function_type = self.scheduled_dfg.nodes[node]["function"]
 
             ## get all of the inputs and outputs of the dfg node
-            dfg_inputs = set(self.scheduled_dfg.predecessors(node))
-            dfg_outputs = set(self.scheduled_dfg.successors(node))
+            dfg_inputs_unfiltered = set(self.scheduled_dfg.predecessors(node))
+            dfg_outputs_unfiltered = set(self.scheduled_dfg.successors(node))
+
+            dfg_inputs = set()
+            dfg_outputs = set()
+
+            ## filter out the edges that are resource dependencies
+            for dfg_input in dfg_inputs_unfiltered:
+                if self.scheduled_dfg.get_edge_data(dfg_input, node).get("resource_edge", False) == 0:
+                    dfg_inputs.add(dfg_input)
+
+            for dfg_output in dfg_outputs_unfiltered:
+                if self.scheduled_dfg.get_edge_data(node, dfg_output).get("resource_edge", False) == 0:
+                    dfg_outputs.add(dfg_output)
+
             logger.info(f"dfg node {node} inputs: {dfg_inputs}, outputs: {dfg_outputs}")
 
             ## see if any of the input or output nodes in the dfg from the main node have mappings to the netlist
