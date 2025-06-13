@@ -467,7 +467,8 @@ class gnt_schedule_parser:
                 allocation="",
                 library=node_data["library"],
                 module=node_data["module"],
-                catapult_name=node_data["name"]
+                catapult_name=node_data["name"],
+                loc=node_data["loc"]
             )
             self.inst_name_map[node] = self.format_inst_name(node_data["name"])
         self.modified_G.add_node(
@@ -721,7 +722,19 @@ class gnt_schedule_parser:
             for i in range(len(tokens)):
                 if (tokens[i] == "LIBRARY"):
                     node_library = tokens[i+1]
-        return node_name, node_type, node_module, node_delay, node_library
+        ## parse LOC out of the line
+        if (line.find(" LOC ") != -1):
+            loc_data = ""
+            reading_loc = False
+            for i in range(len(tokens)):
+                if (tokens[i] == "LOC"):
+                    reading_loc = True
+                elif reading_loc:
+                    loc_data += tokens[i] + " "
+                    if tokens[i].endswith("}"):
+                        break
+
+        return node_name, node_type, node_module, node_delay, node_library, loc_data
     
     # return labels of roots and leaves
     def create_graph_for_loop(self, loop_id):
@@ -752,7 +765,7 @@ class gnt_schedule_parser:
                 names[node_id] = self.get_unique_node_name(node_id)
                 predecessors[names[node_id]] = []
                 successors[names[node_id]] = []
-                node_name, node_type, node_module, node_delay, node_library = self.get_node_info(node_id)
+                node_name, node_type, node_module, node_delay, node_library, loc_data = self.get_node_info(node_id)
                 G.add_node(
                     names[node_id],
                     name=node_name,
@@ -760,7 +773,8 @@ class gnt_schedule_parser:
                     tp=node_type,
                     module=node_module,
                     delay=node_delay,
-                    library=node_library
+                    library=node_library,
+                    loc=loc_data,
                 )
             
             # add edges between nodes
