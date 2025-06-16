@@ -21,6 +21,8 @@ from . import schedule
 from . import memory
 from . import ccore_update
 
+DEBUG_YOSYS = False  # set to True to debug yosys output.
+
 class Codesign:
     def __init__(self, args):
         """
@@ -108,9 +110,9 @@ class Codesign:
         # if no_memory flag set, scheduler will cut out all memory nodes
         if not self.no_memory:
             self.module_map = {
-                "ccs_ram_sync_1R1W_rwport": "Buf",
-                "ccs_ram_sync_1R1W_rport": "Buf",
-                "ccs_ram_sync_1R1W_wport": "Buf",
+                "ccs_ram_sync_1R1W_rwport": "Rsc",
+                "ccs_ram_sync_1R1W_rport": "Rsc",
+                "ccs_ram_sync_1R1W_wport": "Rsc",
                 "nop": "nop"
             }
         for unit in self.hw.params.circuit_values["area"].keys():
@@ -131,32 +133,35 @@ class Codesign:
         if p.returncode != 0:
             raise Exception(p.stderr)
         os.chdir("../../..")
-        if not self.no_memory:
-            pre_assign_counts = memory.get_pre_assign_counts(f"src/tmp/benchmark/bom.rpt", self.module_map)
-            self.hw.params.set_memories(memory.customize_catapult_memories(f"src/tmp/benchmark/memories.rpt", self.benchmark_name, self.hw, pre_assign_counts))
-            logger.info(f"custom catapult memories: {self.hw.params.memories}")
-            os.chdir("src/tmp/benchmark")
-            p = subprocess.run(["make", "clean"], capture_output=True, text=True)
-            p = subprocess.run(cmd, capture_output=True, text=True)
-            logger.info(f"custom memory catapult run output: {p.stdout}")
-            if p.returncode != 0:
-                raise Exception(p.stderr)
-            os.chdir("../../..")
-        else:
-            logger.info("skipping memory customization and second catapult run")
-            self.hw.params.set_memories({})
+        # if not self.no_memory:
+        #     ## If we are running with memory, we need to run Cacti to get the memory parameters and then rerun Catapult. 
+        #     pre_assign_counts = memory.get_pre_assign_counts(f"src/tmp/benchmark/bom.rpt", self.module_map)
+        #     logger.info(f"hw.params.circuit_values: {self.hw.params.circuit_values}")
+        #     self.hw.params.set_memories(memory.customize_catapult_memories(f"src/tmp/benchmark/memories.rpt", self.benchmark_name, self.hw, pre_assign_counts))
+        #     logger.info(f"custom catapult memories: {self.hw.params.memories}")
+        #     os.chdir("src/tmp/benchmark")
+        #     p = subprocess.run(["make", "clean"], capture_output=True, text=True)
+        #     p = subprocess.run(cmd, capture_output=True, text=True)
+        #     logger.info(f"custom memory catapult run output: {p.stdout}")
+        #     if p.returncode != 0:
+        #         raise Exception(p.stderr)
+        #     os.chdir("../../..")
+        # else:
+        logger.info("skipping memory customization and second catapult run")
+        self.hw.params.set_memories({})
 
         # Extract Hardware Netlist
         top_module_name = "MatMult"
         cmd = ["yosys", "-p", f"read_verilog src/tmp/benchmark/build/{top_module_name}.v1/rtl.v; hierarchy -top MatMult; proc; write_json src/tmp/benchmark/netlist.json"]
         p = subprocess.run(cmd, capture_output=True, text=True)
-        logger.info(f"Yosys output: {p.stdout}")
+        if DEBUG_YOSYS:
+            logger.info(f"Yosys output: {p.stdout}")
         if p.returncode != 0:
             raise Exception(f"Yosys failed with error: {p.stderr}")
 
-        self.hw.netlist, _ = parse_yosys_json("src/tmp/benchmark/netlist.json", include_memories=True, top_level_module_type=top_module_name)
+        self.hw.netlist, _ = parse_yosys_json("src/tmp/benchmark/netlist.json", include_memories=(not self.no_memory), top_level_module_type=top_module_name)
 
-        ## write the netlist to a files
+        ## write the netlist to a file
         with open("src/tmp/benchmark/netlist-from-catapult.gml", "wb") as f:
             nx.write_gml(self.hw.netlist, f)
 

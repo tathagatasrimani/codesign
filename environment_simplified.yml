@@ -49,6 +49,16 @@ dependencies:
   - lld
   - pybind11
   - pybind11-global
+  - autoconf
+  - automake
+  - libtool
+  - gperf
+  - flex
+  - bison
+  - perl
+  - make
+  - git
+  - help2man
   - pip:
       - astpretty==3.0.0
       - equinox==0.11.4

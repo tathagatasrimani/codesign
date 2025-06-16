@@ -60,6 +60,9 @@ cd src/cacti
 make
 cd ../..
 
+## make verilator
+source verilator_install.sh
+
 
 ############### LOAD VITIS HLS #################
 module load vitis/2024.2
