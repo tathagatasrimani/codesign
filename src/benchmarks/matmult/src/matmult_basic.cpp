@@ -4,7 +4,7 @@
 #include "matmult.h"
 #include <mc_scverify.h>
 
-#define MATRIX_SIZE 3
+#define MATRIX_SIZE 10
 
 #pragma hls_design top
 class MatMult { 
@@ -52,9 +52,13 @@ class MatMult {
 
                             ac_int<PRECISION> product;
                             ac_int<PRECISION> new_tmp;
+                            ac_int<PRECISION> tag;
+
+                            // tag needs to have i j and k to be unique
+                            tag = i * MATRIX_SIZE * MATRIX_SIZE + j * MATRIX_SIZE + k;
 
                             // Perform multiplication using blackbox
-                            mul_inst.run(a.value[i].value[k], b.value[k].value[j], product);
+                            mul_inst.run(a.value[i].value[k], b.value[k].value[j], tag, product);
 
                             // Perform addition using blackbox
                             add_inst.run(tmp, product, new_tmp);

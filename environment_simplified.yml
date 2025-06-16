@@ -43,6 +43,16 @@ dependencies:
   - yosys
   - gcc_linux-64=13.*
   - gxx_linux-64=13.*
+  - autoconf
+  - automake
+  - libtool
+  - gperf
+  - flex
+  - bison
+  - perl
+  - make
+  - git
+  - help2man
   - pip:
       - astpretty==3.0.0
       - equinox==0.11.4

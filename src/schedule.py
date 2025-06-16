@@ -453,10 +453,18 @@ class gnt_schedule_parser:
 
         #sim_util.topological_layout_plot(self.G)
 
+        logger.info(f"circuit delays: {self.circuit_delays}")
+
         for node in self.G:
             node_data = self.G.nodes[node]
             module_prefix = node_data["module"][:node_data["module"].find('(')]
             fn = self.module_map[module_prefix]
+
+            ### temporary hack to handle Buf nodes
+            if fn not in self.circuit_delays:
+                logger.warning(f"Function {fn} not found in circuit delays, using default delay of 1")
+                self.circuit_delays[fn] = 1
+
             self.modified_G.add_node(
                 node,
                 id=node_data["id"],
@@ -515,6 +523,7 @@ class gnt_schedule_parser:
         topo_order_by_mem_port = defaultdict(list)
         for rsc in topo_order_by_rsc:
             for i in range(len(topo_order_by_rsc[rsc])):
+                logger.info(f"adding memory port resource dependency for {rsc} at index {i}")
                 memory_name = "_"+rsc.split("__")[1]
                 port_name = f"{rsc}_{i%memories[memory_name].bandwidth}"
                 topo_order_by_mem_port[port_name].append(topo_order_by_rsc[rsc][i])
