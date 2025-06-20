@@ -34,3 +34,5 @@ openroad_interface/results
 src/benchmarks/c_cores_work/venv
 miniconda3/
 Miniconda3-latest-Linux-x86_64.sh
+
+tools/
