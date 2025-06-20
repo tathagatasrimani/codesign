@@ -43,6 +43,12 @@ dependencies:
   - yosys
   - gcc_linux-64=13.*
   - gxx_linux-64=13.*
+  - cmake>=3.22
+  - ninja
+  - clang
+  - lld
+  - pybind11
+  - pybind11-global
   - pip:
       - astpretty==3.0.0
       - equinox==0.11.4
