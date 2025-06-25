@@ -61,5 +61,8 @@ make
 cd ../..
 
 
+############### LOAD VITIS HLS #################
+module load vitis/2024.2
+
 ## Change for the catapult environment name you want to use
 source stanford_catapult_env.sh
