@@ -36,3 +36,7 @@ miniconda3/
 Miniconda3-latest-Linux-x86_64.sh
 
 tools/
+
+test_vitis_resnet/resnet_18/
+
+test_vitis/test_gemm/
