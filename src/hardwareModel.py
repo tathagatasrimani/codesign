@@ -73,9 +73,13 @@ class HardwareModel:
         self.longest_paths = []
         self.obj_sub_exprs = {}
         self.symbolic_obj_sub_exprs = {}
+        self.execution_time = 0
+        self.total_passive_energy = 0
+        self.total_active_energy = 0
         self.inst_name_map = {}
         self.dfg_to_netlist_map = {}
         self.dfg_to_netlist_edge_map = {}
+
     def write_technology_parameters(self, filename):
         params = {
             "latency": self.params.circuit_values["latency"],
@@ -562,43 +566,43 @@ class HardwareModel:
         return total_active_energy
     
     def calculate_objective(self, symbolic=False):
-        execution_time = self.calculate_execution_time(symbolic)
-        total_passive_energy = self.calculate_passive_energy(execution_time, symbolic)
-        total_active_energy = self.calculate_active_energy(symbolic)
+        self.execution_time = self.calculate_execution_time(symbolic)
+        self.total_passive_energy = self.calculate_passive_energy(self.execution_time, symbolic)
+        self.total_active_energy = self.calculate_active_energy(symbolic)
         self.symbolic_obj_sub_exprs = {
-            "execution_time": execution_time,
-            "total_passive_energy": total_passive_energy,
-            "total_active_energy": total_active_energy,
-            "passive power": total_passive_energy/execution_time,
+            "execution_time": self.execution_time,
+            "total_passive_energy": self.total_passive_energy,
+            "total_active_energy": self.total_active_energy,
+            "passive power": self.total_passive_energy/self.execution_time,
             "subthreshold leakage current": self.params.I_off,
             "gate tunneling current": self.params.I_tunnel,
             "effective threshold voltage": self.params.V_th_eff,
         }
         self.obj_sub_exprs = {
-            "execution_time": execution_time,
-            "total_passive_energy": total_passive_energy,
-            "total_active_energy": total_active_energy,
-            "passive power": total_passive_energy/execution_time,
+            "execution_time": self.execution_time,
+            "total_passive_energy": self.total_passive_energy,
+            "total_active_energy": self.total_active_energy,
+            "passive power": self.total_passive_energy/self.execution_time,
         }
         if self.obj_fn == "edp":
             if symbolic:
-                self.symbolic_obj = (total_passive_energy + total_active_energy) * execution_time
+                self.symbolic_obj = (self.total_passive_energy + self.total_active_energy) * self.execution_time
             else:
-                self.obj = (total_passive_energy + total_active_energy) * execution_time
+                self.obj = (self.total_passive_energy + self.total_active_energy) * self.execution_time
         elif self.obj_fn == "ed2":
             if symbolic:
-                self.symbolic_obj = (total_passive_energy + total_active_energy) * (execution_time)**2
+                self.symbolic_obj = (self.total_passive_energy + self.total_active_energy) * (self.execution_time)**2
             else:   
-                self.obj = (total_passive_energy + total_active_energy) * (execution_time)**2
+                self.obj = (self.total_passive_energy + self.total_active_energy) * (self.execution_time)**2
         elif self.obj_fn == "delay":
             if symbolic:
-                self.symbolic_obj = execution_time
+                self.symbolic_obj = self.execution_time
             else:
-                self.obj = execution_time
+                self.obj = self.execution_time
         elif self.obj_fn == "energy":
             if symbolic:
-                self.symbolic_obj = total_active_energy + total_passive_energy
+                self.symbolic_obj = self.total_active_energy + self.total_passive_energy
             else:
-                self.obj = total_active_energy + total_passive_energy/ execution_time
+                self.obj = self.total_active_energy + self.total_passive_energy/ self.execution_time
         else:
             raise ValueError(f"Objective function {self.obj_fn} not supported")

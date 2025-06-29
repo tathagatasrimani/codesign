@@ -16,6 +16,7 @@ multistart = False
 class Optimizer:
     def __init__(self, hw):
         self.hw = hw
+        self.disabled_knobs = []
 
     def create_constraints(self, improvement):
         constraints = []
@@ -24,11 +25,12 @@ class Optimizer:
         constraints.append(self.hw.params.V_th_eff >= 0)
         constraints.append(self.hw.params.V_dd <= 5)
         constraints.append(self.hw.params.V_ox >= 0)
-        total_latency = self.hw.calculate_execution_time(True)
-        active_energy = self.hw.calculate_active_energy(True)
-        passive_energy = self.hw.calculate_passive_energy(total_latency, True)
-        total_power = (passive_energy + active_energy) / total_latency
+        for knob in self.disabled_knobs:
+            constraints.append(sp.Eq(knob, self.hw.params.tech_values[knob]))
+        total_power = (self.hw.total_passive_energy + self.hw.total_active_energy) / self.hw.execution_time
         constraints.append(total_power <= 50) # hard limit on power
+        if self.hw.params.f in self.hw.params.tech_values:
+            constraints.append(self.hw.params.delay <= 1e9/self.hw.params.f)
         #constraints.append(self.hw.params.L >= 15e-9)
         #constraints.append(self.hw.params.W >= 15e-9)
         return constraints
@@ -87,7 +89,8 @@ class Optimizer:
 
     # note: improvement/regularization parameter currently only for inverse pass validation, so only using it for ipopt
     # example: improvement of 1.1 = 10% improvement
-    def optimize(self, opt, improvement=10):
+    def optimize(self, opt, improvement=10, disabled_knobs=[]):
+        self.disabled_knobs = disabled_knobs
         """
         Optimize the hardware model using the specified optimization method.
 

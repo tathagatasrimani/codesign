@@ -28,6 +28,7 @@ class DennardMultiCore:
         self.codesign_module = codesign.Codesign(
             self.args
         )
+        self.dummy_app = args.dummy
         self.params_over_iterations = []
         self.plot_list = set([
             self.codesign_module.hw.params.V_dd,
@@ -57,8 +58,74 @@ class DennardMultiCore:
                 plt.savefig(f"{fig_save_dir}/{param.name}_over_iters.png")
                 plt.close()
 
+    def run_dummy_forward_pass(self):
+        #self.codesign_module.hw.params.L = 5e-7
+        #self.codesign_module.hw.params.W = 1.51e-6
+        #self.codesign_module.hw.params.Cox = 0.002
+        self.num_inverters = 1e8
+        self.utilization = 0.1
+        self.codesign_module.hw.params.tech_values[self.codesign_module.hw.params.f] = 100e6
+        self.cycle_time = 1e9/self.codesign_module.hw.params.f # ns
+        self.codesign_module.hw.execution_time = (self.codesign_module.hw.params.delay*(1e5/self.utilization)).subs(self.codesign_module.hw.params.tech_values) #ns
+        self.plot_list.add(self.codesign_module.hw.params.f)
+        self.codesign_module.hw.total_passive_energy = (self.num_inverters * self.codesign_module.hw.params.P_pass_inv * self.codesign_module.hw.execution_time).subs(self.codesign_module.hw.params.tech_values)
+        self.codesign_module.hw.total_active_energy = (self.num_inverters * self.codesign_module.hw.params.C_gate * self.codesign_module.hw.params.V_dd**2 * self.codesign_module.hw.params.f * self.codesign_module.hw.execution_time * self.utilization).subs(self.codesign_module.hw.params.tech_values)
+        if self.args.obj == "edp":
+            self.codesign_module.hw.obj = (self.codesign_module.hw.total_passive_energy + self.codesign_module.hw.total_active_energy) * self.codesign_module.hw.execution_time
+        elif self.args.obj == "delay":
+            self.codesign_module.hw.obj = self.codesign_module.hw.execution_time
+        self.codesign_module.hw.obj_sub_exprs = {
+            "execution_time": self.codesign_module.hw.execution_time,
+            "total_passive_energy": self.codesign_module.hw.total_passive_energy,
+            "total_active_energy": self.codesign_module.hw.total_active_energy,
+            "passive power": self.codesign_module.hw.total_passive_energy/self.codesign_module.hw.execution_time,
+        }
+        self.codesign_module.display_objective("after forward pass")
+
+        print(f"initial area: {(self.num_inverters * self.codesign_module.hw.params.A_gate * 2).subs(self.codesign_module.hw.params.tech_values)}")
+
+
+
+    def run_dummy_inverse_pass(self):
+
+        self.codesign_module.hw.execution_time = self.codesign_module.hw.params.delay*(1e5/self.utilization)
+        self.codesign_module.hw.total_passive_energy = self.num_inverters * self.codesign_module.hw.params.P_pass_inv * self.codesign_module.hw.execution_time
+        self.codesign_module.hw.total_active_energy = self.num_inverters * self.codesign_module.hw.params.C_gate * self.codesign_module.hw.params.V_dd**2 * self.codesign_module.hw.params.f * self.codesign_module.hw.execution_time * self.utilization
+        if self.args.obj == "edp":
+            self.codesign_module.hw.symbolic_obj = (self.codesign_module.hw.total_passive_energy + self.codesign_module.hw.total_active_energy) * self.codesign_module.hw.execution_time
+        elif self.args.obj == "delay":
+            self.codesign_module.hw.symbolic_obj = self.codesign_module.hw.execution_time
+        self.codesign_module.hw.symbolic_obj_sub_exprs = {
+            "execution_time": self.codesign_module.hw.execution_time,
+            "passive power": self.codesign_module.hw.total_passive_energy/self.codesign_module.hw.execution_time,
+            "active power": self.codesign_module.hw.total_active_energy/self.codesign_module.hw.execution_time,
+            "subthreshold leakage current": self.codesign_module.hw.params.I_off,
+            "gate tunneling current": self.codesign_module.hw.params.I_tunnel,
+            "FN term": self.codesign_module.hw.params.FN_term,
+            "WKB term": self.codesign_module.hw.params.WKB_term,
+            "effective threshold voltage": self.codesign_module.hw.params.V_th_eff,
+            "supply voltage": self.codesign_module.hw.params.V_dd,
+        }
+        self.codesign_module.display_objective("before inverse pass", symbolic=True)
+
+        self.disabled_knobs = [self.codesign_module.hw.params.f]
+
+        stdout = sys.stdout
+        with open("src/tmp/ipopt_out.txt", "w") as sys.stdout:
+            self.codesign_module.opt.optimize("ipopt", improvement=self.codesign_module.inverse_pass_improvement, disabled_knobs=self.disabled_knobs)
+        sys.stdout = stdout
+        f = open("src/tmp/ipopt_out.txt", "r")
+        self.codesign_module.parse_output(f)
+
+        self.codesign_module.write_back_params()
+
+        self.codesign_module.display_objective("after inverse pass", symbolic=True)
+
     def run_experiment(self):
-        self.codesign_module.forward_pass()
+        if self.dummy_app:
+            self.run_dummy_forward_pass()
+        else:
+            self.codesign_module.forward_pass()
         self.codesign_module.log_forward_tech_params()
 
         self.params_over_iterations.append(copy.copy(self.codesign_module.hw.params.tech_values))
@@ -67,7 +134,10 @@ class DennardMultiCore:
         # show that over time, as Vdd comes up to limit, benefits are more difficult to find
         for i in range(self.args.num_opt_iters):
             initial_tech_params = copy.copy(self.codesign_module.hw.params.tech_values)
-            self.codesign_module.inverse_pass()
+            if self.dummy_app:
+                self.run_dummy_inverse_pass()
+            else:
+                self.codesign_module.inverse_pass()
             
             regularization = 0
             for var in self.codesign_module.hw.params.tech_values:
@@ -78,7 +148,8 @@ class DennardMultiCore:
             self.params_over_iterations.append(copy.copy(self.codesign_module.hw.params.tech_values))
 
             # update schedule with modified technology parameters
-            self.codesign_module.hw.update_schedule_with_latency()
+            if not self.dummy_app:
+                self.codesign_module.hw.update_schedule_with_latency()
 
         self.plot_params_over_iterations()
         
@@ -165,6 +236,12 @@ if __name__ == "__main__":
         type=str,
         default="edp",
         help="objective function to optimize"
+    )
+    parser.add_argument(
+        "--dummy",
+        type=bool,
+        default=False,
+        help="dummy application"
     )
     args = parser.parse_args()
     if not os.path.exists(args.savedir):
