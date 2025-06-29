@@ -21,6 +21,12 @@ def symbolic_convex_max(a, b, evaluate=True):
     """
     return 0.5 * (a + b + Abs(a - b, evaluate=evaluate))
 
+def symbolic_convex_min(a, b, evaluate=True):
+    """
+    Min(a, b) in a format which ipopt accepts.
+    """
+    return 0.5 * (a + b - Abs(a - b, evaluate=evaluate))
+
 class Parameters:
     def __init__(self, tech_node, dat_file):
         self.tech_node = tech_node if tech_node else "default"
@@ -38,6 +44,7 @@ class Parameters:
             "subthreshold_slope_effect": True,
             "DIBL": True,
             "area_and_latency_scaling": True,
+            "GIDL": True,
         }
 
         self.f = symbols("f", positive=True)
@@ -56,7 +63,10 @@ class Parameters:
         self.n = 1.0
         self.K = 1.38e-23  # Boltzmann constant (J/K)
         self.T = 300  # Temperature (K)
-        self.phi_b = 3.1*self.q  # Schottky barrier height (eV)
+        self.alpha_bg = 0.473
+        self.beta_bg = 636
+        self.Eg_0 = 1.17 # bandgap at 0K (eV)
+        self.phi_b = 3.1  # Schottky barrier height (eV)
         self.m_0 = 9.109e-31  # electron mass (kg)
         self.m_ox = 0.5*self.m_0  # effective mass of electron in oxide (g)
         
@@ -154,12 +164,18 @@ class Parameters:
         self.h = 6.626e-34  # planck's constant (J*s)
         self.V_ox = self.V_dd - self.V_th_eff
         self.E_ox = Abs(self.V_ox/self.tox)
-        self.A = (self.q**3) / (8*math.pi*self.h*self.phi_b)
-        self.B = (8*math.pi*(2*self.m_ox)**(1/2) * self.phi_b**(3/2)) / (3*self.q*self.h)
+        self.A = ((self.q)**3) / (8*math.pi*self.h*self.phi_b*self.q)
+        self.B = (8*math.pi*(2*self.m_ox)**(1/2) * (self.phi_b*self.q)**(3/2)) / (3*self.q*self.h)
+        print(f"B: {self.B}, A: {self.A}, t_ox: {self.tox.subs(self.tech_values)}, E_ox: {self.E_ox.subs(self.tech_values)}, intermediate: {(1-(1-self.V_ox/self.phi_b)**3/2).subs(self.tech_values)}")
 
-        # gate tunneling current (Fowler-Nordheim)
-        self.I_tunnel = self.A_gate * self.A * self.E_ox**2 * (exp(-self.B/self.E_ox)) 
-        
+        # gate tunneling current (Fowler-Nordheim and WKB)
+        # minimums are to avoid exponential explosion in solver. Normal values in exponent are negative.
+        self.FN_term = self.A_gate * self.A * self.E_ox**2 * (exp(symbolic_convex_min(10, -self.B/self.E_ox)))
+        self.WKB_term = self.A_gate * self.A * self.E_ox**2 * (exp(symbolic_convex_min(10, -self.B*(1-(1-self.V_ox/self.phi_b)**3/2)/self.E_ox)))
+        self.I_tunnel = self.FN_term + self.WKB_term
+        print(f"I_tunnel: {self.I_tunnel.subs(self.tech_values)}")
+
+
         # subthreshold current
         self.I_off_nmos = self.u_n*self.Cox*(self.W/self.L)*(self.K*self.T/self.q)**2*exp(-self.V_th_eff*self.q/(self.n*self.K*self.T))
         self.I_off_pmos = self.u_p*self.Cox*(self.W/self.L)*(self.K*self.T/self.q)**2*exp(-self.V_th_eff*self.q/(self.n*self.K*self.T))
