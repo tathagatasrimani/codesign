@@ -337,10 +337,12 @@ class Codesign:
     def display_objective(self, message,symbolic=False):
         if symbolic:
             obj = float(self.hw.symbolic_obj.xreplace(self.hw.params.tech_values))
-            sub_exprs = {
-                key: float(self.hw.symbolic_obj_sub_exprs[key].xreplace(self.hw.params.tech_values))
-                for key in self.hw.symbolic_obj_sub_exprs
-            }
+            sub_exprs = {}
+            for key in self.hw.symbolic_obj_sub_exprs:
+                if not isinstance(self.hw.symbolic_obj_sub_exprs[key], float):
+                    sub_exprs[key] = float(self.hw.symbolic_obj_sub_exprs[key].xreplace(self.hw.params.tech_values))
+                else:   
+                    sub_exprs[key] = self.hw.symbolic_obj_sub_exprs[key]
         else:
             obj = self.hw.obj
             sub_exprs = self.hw.obj_sub_exprs

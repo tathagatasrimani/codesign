@@ -158,7 +158,7 @@ class Preprocessor:
         Parameters:
         obj: sympy objective function
         """
-        l = self.initial_val / 1e3
+        l = 0
         logger.info("Adding regularization.")
         self.regularization = 0
         # normal regularization for each variable
@@ -221,14 +221,18 @@ class Preprocessor:
     def begin(self, model, obj, improvement, multistart, constraints):
         self.multistart = multistart
         self.free_symbols = list(obj.free_symbols)
+        for i in range(len(constraints)):
+            self.free_symbols.extend(constraints[i].free_symbols)
+        self.free_symbols = list(set(self.free_symbols))
+
         self.improvement = improvement
         self.constraints = constraints
 
         self.initial_val = float(obj.subs(self.params.tech_values))
 
-        print(f"length of free symbols: {len(obj.free_symbols)}")
+        print(f"length of free symbols: {len(self.free_symbols)}")
 
-        model.nVars = pyo.Param(initialize=len(obj.free_symbols))
+        model.nVars = pyo.Param(initialize=len(self.free_symbols))
         model.N = pyo.RangeSet(model.nVars)
         model.x = pyo.Var(model.N, domain=pyo.NonNegativeReals)
         self.mapping = {}
@@ -242,7 +246,7 @@ class Preprocessor:
         print("building bimap")
         m = MyPyomoSympyBimap()
         self.bimap = m
-        for symbol in obj.free_symbols:
+        for symbol in self.free_symbols:
             # create self.mapping of sympy symbols to pyomo symbols
             m.sympy2pyomo[symbol] = model.x[self.mapping[symbol]]
             # give pyomo symbols an inital value for warm start
