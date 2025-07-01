@@ -37,14 +37,14 @@ class Parameters:
         self.set_coefficients(self.coeffs)
 
         self.effects = {
-            "channel_length_modulation": True,
-            "velocity_saturation": True,
-            "gate_tunneling": True,
-            "mobility_degradation": True,
-            "subthreshold_slope_effect": True,
-            "DIBL": True,
+            "channel_length_modulation": False,
+            "velocity_saturation": False,
+            "gate_tunneling": False,
+            "mobility_degradation": False,
+            "subthreshold_slope_effect": False,
+            "DIBL": False,
             "area_and_latency_scaling": True,
-            "GIDL": True,
+            "GIDL": False,
         }
 
         self.f = symbols("f", positive=True)
@@ -69,6 +69,10 @@ class Parameters:
         self.phi_b = 3.1  # Schottky barrier height (eV)
         self.m_0 = 9.109e-31  # electron mass (kg)
         self.m_ox = 0.5*self.m_0  # effective mass of electron in oxide (g)
+
+        # dennard scaling factors, used for dennard scaling test
+        self.alpha_dennard = symbols("alpha_dennard", positive=True)
+        self.epsilon_dennard = symbols("epsilon_dennard", positive=True)
         
         self.area = symbols("area", positive=True)
 
@@ -109,7 +113,7 @@ class Parameters:
         self.V_th_eff = self.V_th
 
          # Electron mobility for NMOS
-        self.u_n = 0.063#symbols("u_n", positive=True)
+        self.u_n = symbols("u_n", positive=True)
         self.u_p = self.u_n/2.5  # Hole mobility for PMOS, hardcoded for now.
 
         self.init_memory_params()
@@ -152,13 +156,19 @@ class Parameters:
 
         self.R_avg_inv = self.V_dd / ((self.I_d_nmos + self.I_d_pmos)/2)
 
-        C_load_wire = 0.3e-15 * 100# (F) assume 100 um wire, 0.3 fF/um
-        print(f"C_load_wire: {C_load_wire}")
+        self.wire_len = 100 #um
+        #print(f"C_load_wire: {C_load_wire}")
         print(f"C_gate: {self.C_gate}")
 
-        self.C_load = 2*self.C_gate + C_load_wire  # gate cap + constant wire load
+        self.C_wire = self.wire_parasitics["C"]["metal1"] * self.wire_len
+        self.R_wire = self.wire_parasitics["R"]["metal1"] * self.wire_len
+
+        self.gamma_diff = 1.0
+        self.C_diff = self.gamma_diff * self.C_gate
+        self.C_load = self.C_gate # gate cap
         print(f"C_load: {self.C_load}")
-        self.delay = (self.R_avg_inv * self.C_load) * 1e9  # ns
+        self.delay = (self.R_avg_inv * (self.C_diff + self.C_wire/2) + (self.R_avg_inv + self.R_wire) * (self.C_wire/2 + self.C_load)) * 1e9  # ns
+        #self.delay = self.R_avg_inv * (self.C_diff + self.C_load + 0.3e-15 * 100) * 1e9  # ns
         self.E_act_inv = (0.5*self.C_load*self.V_dd*self.V_dd) * 1e9  # nJ
 
         self.h = 6.626e-34  # planck's constant (J*s)
@@ -180,10 +190,13 @@ class Parameters:
         self.I_off_nmos = self.u_n*self.Cox*(self.W/self.L)*(self.K*self.T/self.q)**2*exp(-self.V_th_eff*self.q/(self.n*self.K*self.T))
         self.I_off_pmos = self.u_p*self.Cox*(self.W/self.L)*(self.K*self.T/self.q)**2*exp(-self.V_th_eff*self.q/(self.n*self.K*self.T))
         
-        self.I_off = self.I_off_nmos + self.I_off_pmos + self.I_tunnel*2 # 2 for both NMOS and PMOS
+        self.I_off = self.I_off_nmos + self.I_off_pmos # 2 for both NMOS and PMOS
         self.P_pass_inv = self.I_off*self.V_dd  
 
         self.apply_additional_effects()
+
+        print(f"I_d: {self.I_d_nmos}")
+        print(f"I_off: {self.I_off}")
 
         # UNITS: ns
         self.symbolic_latency_wc = {
@@ -334,6 +347,9 @@ class Parameters:
         cacti_params = {k: (1 if v is None or math.isnan(v) else (10**(-9) if v == 0 else v)) for k, v in cacti_params.items()}
         for key, value in cacti_params.items():
             self.tech_values[key] = value
+        # set initial values for dennard scaling factors (no actual meaning, they will be set by the optimizer)
+        self.tech_values[self.alpha_dennard] = 1
+        self.tech_values[self.epsilon_dennard] = 1
 
         # CACTI IO
         cacti_IO_params = {}
@@ -526,13 +542,14 @@ class Parameters:
         tunnel = self.I_tunnel.subs(self.tech_values)
         print(f"i tunnel: {tunnel}")
 
-        print(f"u_n: {self.u_n.subs(self.tech_values)}")
+        #print(f"u_n: {self.u_n.subs(self.tech_values)}")
         if self.effects["gate_tunneling"]:
             self.I_off += self.I_tunnel*2 # 2 for both NMOS and PMOS
             self.P_pass_inv = self.I_off * self.V_dd
         if self.effects["area_and_latency_scaling"]:
             self.delay = self.delay * self.latency_scale
             self.P_pass_inv = self.P_pass_inv * self.area_scale
+            self.wire_len = self.wire_len * self.latency_scale
             
     def set_memories(self, memories):
         self.memories = memories
@@ -829,6 +846,10 @@ class Parameters:
             'phy_bandgap_wtime': self.phy_bandgap_wtime,
             'phy_deskew_wtime': self.phy_deskew_wtime,
             'phy_vrefgen_wtime': self.phy_vrefgen_wtime,
+
+            # dennard scaling factors
+            "alpha_dennard": self.alpha_dennard,
+            "epsilon_dennard": self.epsilon_dennard,
         }
         global_symbol_table.global_symbol_table = self.symbol_table
     

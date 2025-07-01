@@ -150,7 +150,7 @@ class Preprocessor:
         logger.info("Adding Constraints")
         print(f"adding constraints. initial val: {self.initial_val};") # obj_exp: {self.pyomo_obj_exp}")
         model.Constraints = pyo.Constraint([i for i in range(len(self.constraints))], rule=self.pyomo_constraint)
-        model.Regularization = pyo.Constraint(expr=self.regularization <= 0.65)
+        #model.Regularization = pyo.Constraint(expr=self.regularization <= self.initial_val / 50)
         return model
 
     def add_regularization_to_objective(self, obj):
@@ -158,29 +158,39 @@ class Preprocessor:
         Parameters:
         obj: sympy objective function
         """
-        l = 0
+        l = self.initial_val / 100
         logger.info("Adding regularization.")
         self.regularization = 0
         # normal regularization for each variable
-        for symbol in self.free_symbols:
+        """for symbol in self.free_symbols:
             self.regularization += hardwareModel.symbolic_convex_max((self.params.tech_values[symbol]/ symbol- 1), 
-                                                         (symbol/self.params.tech_values[symbol] - 1)) ** 2
+                                                         (symbol/self.params.tech_values[symbol] - 1)) ** 2"""
 
         # expressions inside a log/sqrt must not be negative
-        for log_expr in self.log_exprs_s:
+        """for log_expr in self.log_exprs_s:
             self.regularization += 1e15*(
                 hardwareModel.symbolic_convex_max(-log_expr, 0, evaluate=False)
             ) ** 2
         for pow_expr in self.pow_exprs_s:
             self.regularization += 1e15 * (
                 hardwareModel.symbolic_convex_max(-pow_expr, 0, evaluate=False)
-            ) ** 2
-        obj += l * self.regularization
+            ) ** 2"""
+        ##obj += l * self.regularization
         # alternative: minimax regularization. solver didn't really like it.
-        """max_term = 0
+        sym_list = [(symbol/self.params.tech_values[symbol] + self.params.tech_values[symbol]/symbol) for symbol in self.free_symbols]
+        while len(sym_list) > 2:
+            new_sym_list = []
+            for i in range(len(sym_list)-1)[::2]:
+                new_sym_list.append(hardwareModel.symbolic_convex_max(sym_list[i], sym_list[i+1]))
+            if len(sym_list) % 2 == 1:
+                new_sym_list.append(sym_list[-1])
+            sym_list = new_sym_list
+        self.regularization = hardwareModel.symbolic_convex_max(sym_list[0], sym_list[1])
+        print(f"regularization: {self.regularization}")
+                
         for symbol in self.free_symbols:
-            max_term = hardwareModel.symbolic_convex_max(max_term, (symbol / self.params.tech_values[symbol]))
-        obj += l * max_term"""
+            self.regularization += hardwareModel.symbolic_convex_max(symbol, (symbol / self.params.tech_values[symbol] + self.params.tech_values[symbol] / symbol))
+        obj += l * self.regularization
         return obj
         
     def get_solver(self):
@@ -323,7 +333,6 @@ class Preprocessor:
 
 
         model.obj = pyo.Objective(expr=self.obj, sense=pyo.minimize)
-        model.cuts = pyo.ConstraintList()
 
         model.scaling_factor = pyo.Suffix(direction=pyo.Suffix.EXPORT)
         self.add_constraints(model)
@@ -340,4 +349,4 @@ class Preprocessor:
             "contrib.constraints_to_var_bounds"
         ).create_using(model)
         opt = self.get_solver()
-        return opt, scaled_preproc_model, preproc_model
+        return opt, scaled_preproc_model, preproc_model    

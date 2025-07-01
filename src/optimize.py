@@ -17,12 +17,15 @@ class Optimizer:
     def __init__(self, hw):
         self.hw = hw
         self.disabled_knobs = []
+        self.dennard_scaling_mode = False
+        self.dennard_scaling_type = "constant_field"
 
     def create_constraints(self, improvement):
         constraints = []
         constraints.append(self.hw.symbolic_obj >= float(self.hw.symbolic_obj.subs(self.hw.params.tech_values) / improvement))
         constraints.append(self.hw.params.V_dd >= self.hw.params.V_th_eff)
-        constraints.append(self.hw.params.V_th_eff >= 0)
+        if self.hw.params.V_th_eff != self.hw.params.V_th:
+            constraints.append(self.hw.params.V_th_eff >= 0)
         constraints.append(self.hw.params.V_dd <= 5)
         constraints.append(self.hw.params.V_ox >= 0)
         for knob in self.disabled_knobs:
@@ -31,9 +34,40 @@ class Optimizer:
         constraints.append(total_power <= 50) # hard limit on power
         if self.hw.params.f in self.hw.params.tech_values:
             constraints.append(self.hw.params.delay <= 1e9/self.hw.params.f)
+        
+        if self.dennard_scaling_mode:
+            if self.dennard_scaling_type == "constant_field":
+                constraints.append(sp.Eq(self.hw.params.W/self.hw.params.tech_values[self.hw.params.W], 1/self.hw.params.alpha_dennard))
+                constraints.append(sp.Eq(self.hw.params.L/self.hw.params.tech_values[self.hw.params.L], 1/self.hw.params.alpha_dennard))
+                constraints.append(sp.Eq(self.hw.params.V_dd/self.hw.params.tech_values[self.hw.params.V_dd], 1/self.hw.params.alpha_dennard))
+                constraints.append(sp.Eq(self.hw.params.V_th_eff/self.hw.params.tech_values[self.hw.params.V_th_eff], 1/self.hw.params.alpha_dennard))
+                constraints.append(sp.Eq(self.hw.params.Cox/self.hw.params.tech_values[self.hw.params.Cox], self.hw.params.alpha_dennard))
+            elif self.dennard_scaling_type == "constant_voltage":
+                constraints.append(sp.Eq(self.hw.params.W/self.hw.params.tech_values[self.hw.params.W], 1/self.hw.params.alpha_dennard))
+                constraints.append(sp.Eq(self.hw.params.L/self.hw.params.tech_values[self.hw.params.L], 1/self.hw.params.alpha_dennard))
+                constraints.append(sp.Eq(self.hw.params.V_dd, self.hw.params.tech_values[self.hw.params.V_dd]))
+                constraints.append(sp.Eq(self.hw.params.V_th_eff, self.hw.params.tech_values[self.hw.params.V_th_eff]))
+                #constraints.append(sp.Eq(self.hw.params.V_dd/self.hw.params.tech_values[self.hw.params.V_dd], self.hw.params.epsilon_dennard/self.hw.params.alpha_dennard))
+                #constraints.append(sp.Eq(self.hw.params.V_th_eff/self.hw.params.tech_values[self.hw.params.V_th_eff], self.hw.params.epsilon_dennard/self.hw.params.alpha_dennard))
+                constraints.append(sp.Eq(self.hw.params.Cox/self.hw.params.tech_values[self.hw.params.Cox], self.hw.params.alpha_dennard))
+
+            elif self.dennard_scaling_type == "generalized":
+                constraints.append(sp.Eq(self.hw.params.alpha_dennard, 1))
+                
+        
+        print(f"constraints: {constraints}")
         #constraints.append(self.hw.params.L >= 15e-9)
         #constraints.append(self.hw.params.W >= 15e-9)
         return constraints
+    
+    def create_opt_model(self, improvement):
+        constraints = self.create_constraints(improvement)
+        model = pyo.ConcreteModel()
+        preprocessor = Preprocessor(self.hw.params)
+        opt, scaled_model, model = (
+            preprocessor.begin(model, self.hw.symbolic_obj, improvement, multistart=multistart, constraints=constraints)
+        )
+        return opt, scaled_model, model
 
     def ipopt(self, improvement):
         """
@@ -58,14 +92,47 @@ class Optimizer:
 
         constraints = self.create_constraints(improvement)
 
-        model = pyo.ConcreteModel()
-        opt, scaled_model, model = (
-            Preprocessor(self.hw.params).begin(model, self.hw.symbolic_obj, improvement, multistart=multistart, constraints=constraints)
-        )
+        opt, scaled_model, model = self.create_opt_model(improvement)
 
 
         start_time = time.time()
-        if multistart:
+        if self.dennard_scaling_mode:
+            results = opt.solve(
+                scaled_model, keepfiles=True, tee=True, symbolic_solver_labels=True
+            )
+            pyo.TransformationFactory("core.scale_model").propagate_solution(
+                scaled_model, model
+            )
+            final_value = pyo.value(model.Constraints[0]) # assume that the first constraint is the objective
+            print(f"obj value: {final_value}")
+            lower_bound = pyo.value(model.Constraints[0].lower)
+            print(f"lower bound: {lower_bound}")
+            if final_value > lower_bound*1.1: # if the objective is not improving within some margin, run with constant voltage scaling
+                print(f"obj value: {final_value} > {lower_bound*1.1}")
+                print(f"running with constant voltage scaling")
+                self.dennard_scaling_type = "constant_voltage"
+                opt, scaled_model, model = self.create_opt_model(improvement)
+                results = opt.solve(
+                    scaled_model, keepfiles=True, tee=True, symbolic_solver_labels=True
+                )
+                pyo.TransformationFactory("core.scale_model").propagate_solution(
+                    scaled_model, model
+                )
+                final_value = pyo.value(model.Constraints[0]) # assume that the first constraint is the objective
+                lower_bound = pyo.value(model.Constraints[0].lower)
+                print(f"obj value: {final_value}")
+                print(f"lower bound: {lower_bound}")
+                if final_value > lower_bound*1.1: # if the objective is not improving within some margin, run with general scaling
+                    print(f"obj value: {final_value} > {lower_bound*1.1}")
+                    self.dennard_scaling_type = "generalized"
+                    opt, scaled_model, model = self.create_opt_model(improvement)
+                    results = opt.solve(
+                        scaled_model, keepfiles=True, tee=True, symbolic_solver_labels=True
+                    )
+                    pyo.TransformationFactory("core.scale_model").propagate_solution(
+                        scaled_model, model
+                    )
+        elif multistart:
             results = opt.solve(
                 scaled_model,
                 solver_args={
@@ -74,14 +141,17 @@ class Optimizer:
                     "symbolic_solver_labels": True,
                 },
             )
+            pyo.TransformationFactory("core.scale_model").propagate_solution(
+                scaled_model, model
+            )
         else:
             results = opt.solve(
                 scaled_model, keepfiles=True, tee=True, symbolic_solver_labels=True
             )
+            pyo.TransformationFactory("core.scale_model").propagate_solution(
+                scaled_model, model
+            )
         logger.info(f"time to run IPOPT: {time.time()-start_time}")
-        pyo.TransformationFactory("core.scale_model").propagate_solution(
-            scaled_model, model
-        )
 
         print(results.solver.termination_condition)
         print("======================")
@@ -89,7 +159,8 @@ class Optimizer:
 
     # note: improvement/regularization parameter currently only for inverse pass validation, so only using it for ipopt
     # example: improvement of 1.1 = 10% improvement
-    def optimize(self, opt, improvement=10, disabled_knobs=[]):
+    def optimize(self, opt, improvement=10, disabled_knobs=[], dennard_scaling_mode=False):
+        self.dennard_scaling_mode = dennard_scaling_mode
         self.disabled_knobs = disabled_knobs
         """
         Optimize the hardware model using the specified optimization method.

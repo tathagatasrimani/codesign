@@ -1,5 +1,5 @@
 default:
-  #u_n: 700.0e-4  # Electron mobility (m²/V·s)
+  u_n: 700.0e-4  # Electron mobility (m²/V·s)
   Cox: 3.45e-4  # Gate oxide capacitance (F/m²)
   W: 9.0e-6  # Channel width (m)
   L: 3.0e-6  # Channel length (m)
@@ -8,6 +8,8 @@ default:
   V_th: 0.9  # Threshold voltage (V)
   V_dd: 5.0  # Supply voltage (V)
   area: 2.0  # Transistor area (μm²)
+  m1_Rsq: 0.05 # ohm / sq
+  m1_Csq: 0.02e-15 # F / sq
 
 tech-1982:
   L: 2.1e-06
@@ -48,7 +50,7 @@ tech-1988:
 tech-1990:
   L: 5.042e-07
   W: 1.5126e-06
-  area: 0.0564950498
+  #area: 0.0564950498
   Cox: 0.0020527
   V_dd: 1.0
   V_th: 0.2
