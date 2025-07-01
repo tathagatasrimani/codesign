@@ -600,9 +600,10 @@ class HardwareModel:
             else:
                 self.obj = self.execution_time
         elif self.obj_fn == "energy":
+            print(f"setting energy objective to {self.total_active_energy + self.total_passive_energy}")
             if symbolic:
                 self.symbolic_obj = self.total_active_energy + self.total_passive_energy
             else:
-                self.obj = self.total_active_energy + self.total_passive_energy/ self.execution_time
+                self.obj = self.total_active_energy + self.total_passive_energy
         else:
             raise ValueError(f"Objective function {self.obj_fn} not supported")

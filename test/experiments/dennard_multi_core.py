@@ -62,7 +62,7 @@ class DennardMultiCore:
         #self.codesign_module.hw.params.L = 5e-7
         #self.codesign_module.hw.params.W = 1.51e-6
         #self.codesign_module.hw.params.Cox = 0.002
-        self.num_inverters = 1e8
+        self.num_inverters = 1e5
         self.utilization = 0.1
         self.codesign_module.hw.params.tech_values[self.codesign_module.hw.params.f] = 100e6
         self.cycle_time = 1e9/self.codesign_module.hw.params.f # ns
@@ -74,6 +74,8 @@ class DennardMultiCore:
             self.codesign_module.hw.obj = (self.codesign_module.hw.total_passive_energy + self.codesign_module.hw.total_active_energy) * self.codesign_module.hw.execution_time
         elif self.args.obj == "delay":
             self.codesign_module.hw.obj = self.codesign_module.hw.execution_time
+        elif self.args.obj == "energy":
+            self.codesign_module.hw.obj = self.codesign_module.hw.total_active_energy + self.codesign_module.hw.total_passive_energy
         self.codesign_module.hw.obj_sub_exprs = {
             "execution_time": self.codesign_module.hw.execution_time,
             "total_passive_energy": self.codesign_module.hw.total_passive_energy,
@@ -95,6 +97,8 @@ class DennardMultiCore:
             self.codesign_module.hw.symbolic_obj = (self.codesign_module.hw.total_passive_energy + self.codesign_module.hw.total_active_energy) * self.codesign_module.hw.execution_time
         elif self.args.obj == "delay":
             self.codesign_module.hw.symbolic_obj = self.codesign_module.hw.execution_time
+        elif self.args.obj == "energy":
+            self.codesign_module.hw.symbolic_obj = self.codesign_module.hw.total_active_energy + self.codesign_module.hw.total_passive_energy
         self.codesign_module.hw.symbolic_obj_sub_exprs = {
             "execution_time": self.codesign_module.hw.execution_time,
             "passive power": self.codesign_module.hw.total_passive_energy/self.codesign_module.hw.execution_time,
@@ -108,11 +112,11 @@ class DennardMultiCore:
         }
         self.codesign_module.display_objective("before inverse pass", symbolic=True)
 
-        self.disabled_knobs = [self.codesign_module.hw.params.f]
+        self.disabled_knobs = [self.codesign_module.hw.params.f, self.codesign_module.hw.params.u_n, self.codesign_module.hw.params.m1_Rsq, self.codesign_module.hw.params.m1_Csq]
 
         stdout = sys.stdout
         with open("src/tmp/ipopt_out.txt", "w") as sys.stdout:
-            self.codesign_module.opt.optimize("ipopt", improvement=self.codesign_module.inverse_pass_improvement, disabled_knobs=self.disabled_knobs)
+            self.codesign_module.opt.optimize("ipopt", improvement=self.codesign_module.inverse_pass_improvement, disabled_knobs=self.disabled_knobs, dennard_scaling_mode=True)
         sys.stdout = stdout
         f = open("src/tmp/ipopt_out.txt", "r")
         self.codesign_module.parse_output(f)
@@ -178,6 +182,13 @@ if __name__ == "__main__":
         type=str,
         default="test/experiments/dennard_multi_core_logs",
         help="Path to the save new architecture file",
+    )
+    parser.add_argument(
+        "-i",
+        "--inverse_pass_improvement",
+        type=float,
+        default=10,
+        help="Improvement factor for inverse pass",
     )
     parser.add_argument(
         "--parasitics",
