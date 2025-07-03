@@ -61,6 +61,7 @@ class Parameters:
         self.m_0 = 9.109e-31  # electron mass (kg)
         self.m_ox = 0.5*self.m_0  # effective mass of electron in oxide (g)
         self.t_ox_ = symbols("t_ox_", positive=True)
+        self.t_ox_ = symbols("t_ox_", positive=True)
 
         # dennard scaling factors, used for dennard scaling test
         self.alpha_dennard = symbols("alpha_dennard", positive=True)
@@ -159,15 +160,10 @@ class Parameters:
         self.C_diff = self.gamma_diff * self.C_gate
         self.C_load = self.C_gate # gate cap
         print(f"C_load: {self.C_load}")
-        if model_cfg["delay_parasitics"] == "all":
-            self.delay = (self.R_avg_inv * (self.C_diff + self.C_wire/2) + (self.R_avg_inv + self.R_wire) * (self.C_wire/2 + self.C_load)) * 1e9  # ns
-        elif model_cfg["delay_parasitics"] == "Csq only":
-            self.delay = (self.R_avg_inv * (self.C_diff + self.C_wire/2) + (self.R_avg_inv) * (self.C_wire/2 + self.C_load)) * 1e9  # ns
-        elif model_cfg["delay_parasitics"] == "const":
-            self.delay = self.R_avg_inv * (self.C_diff + self.C_load + 0.3e-15 * 100) * 1e9  # ns
-        else:
-            self.delay = self.R_avg_inv * (self.C_load + self.C_diff) * 1e9
-
+        #self.delay = self.R_avg_inv * (self.C_load + self.C_diff) * 1e9
+        #self.delay = (self.R_avg_inv * (self.C_diff + self.C_wire/2) + (self.R_avg_inv + self.R_wire) * (self.C_wire/2 + self.C_load)) * 1e9  # ns
+        self.delay = (self.R_avg_inv * (self.C_diff + self.C_wire/2) + (self.R_avg_inv) * (self.C_wire/2 + self.C_load)) * 1e9  # ns
+        #self.delay = self.R_avg_inv * (self.C_diff + self.C_load + 0.3e-15 * 100) * 1e9  # ns
         self.E_act_inv = (0.5*self.C_load*self.V_dd*self.V_dd) * 1e9  # nJ
 
         self.h = 6.626e-34  # planck's constant (J*s)
@@ -349,6 +345,7 @@ class Parameters:
         # set initial values for dennard scaling factors (no actual meaning, they will be set by the optimizer)
         self.tech_values[self.alpha_dennard] = 1
         self.tech_values[self.epsilon_dennard] = 1
+        self.tech_values[self.t_ox_] = self.e_ox / self.tech_values[self.Cox]
         self.tech_values[self.t_ox_] = self.e_ox / self.tech_values[self.Cox]
 
         # CACTI IO
@@ -685,6 +682,7 @@ class Parameters:
             "u_n": self.u_n,
             "u_p": self.u_p,
             "Cox": self.Cox,
+            "t_ox_": self.t_ox_,
             "t_ox_": self.t_ox_,
             "W": self.W,
             "L": self.L,
