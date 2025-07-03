@@ -162,9 +162,9 @@ class Preprocessor:
         logger.info("Adding regularization.")
         self.regularization = 0
         # normal regularization for each variable
-        """for symbol in self.free_symbols:
+        for symbol in self.free_symbols:
             self.regularization += hardwareModel.symbolic_convex_max((self.params.tech_values[symbol]/ symbol- 1), 
-                                                         (symbol/self.params.tech_values[symbol] - 1)) ** 2"""
+                                                         (symbol/self.params.tech_values[symbol] - 1)) ** 2
 
         # expressions inside a log/sqrt must not be negative
         """for log_expr in self.log_exprs_s:
@@ -177,7 +177,7 @@ class Preprocessor:
             ) ** 2"""
         ##obj += l * self.regularization
         # alternative: minimax regularization. solver didn't really like it.
-        sym_list = [(symbol/self.params.tech_values[symbol] + self.params.tech_values[symbol]/symbol) for symbol in self.free_symbols]
+        """sym_list = [(symbol/self.params.tech_values[symbol] + self.params.tech_values[symbol]/symbol) for symbol in self.free_symbols]
         while len(sym_list) > 2:
             new_sym_list = []
             for i in range(len(sym_list)-1)[::2]:
@@ -185,7 +185,7 @@ class Preprocessor:
             if len(sym_list) % 2 == 1:
                 new_sym_list.append(sym_list[-1])
             sym_list = new_sym_list
-        self.regularization = hardwareModel.symbolic_convex_max(sym_list[0], sym_list[1])
+        self.regularization = hardwareModel.symbolic_convex_max(sym_list[0], sym_list[1])"""
         print(f"regularization: {self.regularization}")
                 
         for symbol in self.free_symbols:

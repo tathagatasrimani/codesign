@@ -36,7 +36,7 @@ class DennardMultiCore:
             #self.codesign_module.hw.params.u_n,
             self.codesign_module.hw.params.L,
             self.codesign_module.hw.params.W,
-            self.codesign_module.hw.params.Cox,
+            self.codesign_module.hw.params.t_ox_,
         ])
 
     def plot_params_over_iterations(self):
