@@ -5,10 +5,31 @@ place_pins -random -hor_layers $io_placer_hor_layer -ver_layers $io_placer_ver_l
 
 ################################################################
 # Macro Placement
-if { [have_macros] } {
-  global_placement -density $global_place_density
-  macro_placement -halo $macro_place_halo -channel $macro_place_channel
-}
+# global_placement -density $global_place_density
+
+
+
+################################################################
+# Macro Placement (using rtl_macro_placer)
+rtl_macro_placer \
+    -target_util 0.25 \
+    -target_dead_space 0.05 \
+    -min_ar 0.33 \
+    -area_weight 0.1 \
+    -outline_weight 100.0 \
+    -wirelength_weight 100.0 \
+    -guidance_weight 10.0 \
+    -fence_weight 10.0 \
+    -boundary_weight 50.0 \
+    -notch_weight 10.0 \
+    -macro_blockage_weight 10.0 \
+    -halo_width 10 \
+    -halo_height 10 \
+    -report_directory reports \
+    -write_macro_placement macro_place.tcl
+
+# Lock macro positions by sourcing the generated macro placement file
+#source macro_place.tcl
 
 ################################################################
 # Tapcell insertion

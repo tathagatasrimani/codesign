@@ -248,9 +248,22 @@ class HardwareModel:
         unmapped_dfg_nodes = unmapped_dfg_nodes - mapped_nodes_input_output_match
         logger.info(f"number of unmapped dfg nodes after input/output matching: {len(unmapped_dfg_nodes)}")
 
-        
+        ### log the unmapped dfg nodes
+        if len(unmapped_dfg_nodes) > 0:
+            logger.warning(f"unmapped dfg nodes after all mapping attempts: {unmapped_dfg_nodes}")
+            logger.warning("These nodes may not have a corresponding netlist node. Please check the netlist and DFG for consistency.")
 
 
+        ## print all netlist nodes that don't have a mapping in the scheduled DFG
+
+        # create a set of all netlist nodes that are not mapped to any scheduled DFG node
+        netlist_nodes_mapped = set()
+        for node in self.scheduled_dfg.nodes:
+            if "netlist_node" in self.scheduled_dfg.nodes[node]:
+                netlist_nodes_mapped.add(self.scheduled_dfg.nodes[node]["netlist_node"])
+
+        unmapped_netlist_nodes = set(self.netlist.nodes) - netlist_nodes_mapped
+        logger.info(f"unmapped netlist nodes: {unmapped_netlist_nodes}")
 
 
         with open("src/tmp/benchmark/scheduled-dfg-after-mapping.gml", "wb") as f:
@@ -258,25 +271,25 @@ class HardwareModel:
 
         
         ### old method:
-        for node in self.scheduled_dfg:
-            if self.scheduled_dfg.nodes[node]["function"] not in self.params.circuit_values["latency"]:
-                self.dfg_to_netlist_map[node] = None
-            else:
-                for elem in self.netlist:
-                    if self.inst_name_map[node] in elem:
-                        self.dfg_to_netlist_map[node] = elem
-                        break
-                if node not in self.dfg_to_netlist_map:
-                    logger.warning(f"node {node}, {self.inst_name_map[node]} not found in netlist")
+        # for node in self.scheduled_dfg:
+        #     if self.scheduled_dfg.nodes[node]["function"] not in self.params.circuit_values["latency"]:
+        #         self.dfg_to_netlist_map[node] = None
+        #     else:
+        #         for elem in self.netlist:
+        #             if self.inst_name_map[node] in elem:
+        #                 self.dfg_to_netlist_map[node] = elem
+        #                 break
+        #         if node not in self.dfg_to_netlist_map:
+        #             logger.warning(f"node {node}, {self.inst_name_map[node]} not found in netlist")
 
-        for edge in self.scheduled_dfg.edges:
-            if edge[0] not in self.dfg_to_netlist_map or edge[1] not in self.dfg_to_netlist_map: continue
-            edge_mapped = (self.dfg_to_netlist_map[edge[0]], self.dfg_to_netlist_map[edge[1]])
-            if edge_mapped not in self.netlist.edges:
-                logger.info(f"edge {edge} not found in netlist")
-            else:
-                self.dfg_to_netlist_edge_map[edge] = edge_mapped
-                logger.info(f"edge {edge} mapped to {edge_mapped}")
+        # for edge in self.scheduled_dfg.edges:
+        #     if edge[0] not in self.dfg_to_netlist_map or edge[1] not in self.dfg_to_netlist_map: continue
+        #     edge_mapped = (self.dfg_to_netlist_map[edge[0]], self.dfg_to_netlist_map[edge[1]])
+        #     if edge_mapped not in self.netlist.edges:
+        #         logger.info(f"edge {edge} not found in netlist")
+        #     else:
+        #         self.dfg_to_netlist_edge_map[edge] = edge_mapped
+        #         logger.info(f"edge {edge} mapped to {edge_mapped}")
 
 
     def dfg_to_netlist_i_o_match(self, unmapped_dfg_nodes):
