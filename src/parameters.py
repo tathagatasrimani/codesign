@@ -28,7 +28,7 @@ def symbolic_convex_min(a, b, evaluate=True):
     return 0.5 * (a + b - Abs(a - b, evaluate=evaluate))
 
 class Parameters:
-    def __init__(self, tech_node, dat_file):
+    def __init__(self, tech_node, dat_file, model_cfg):
         self.tech_node = tech_node if tech_node else "default"
         print(f"tech node: {self.tech_node}")
         # hardcoded tech node to reference for logical effort coefficients
@@ -36,16 +36,7 @@ class Parameters:
         # initialize symbolic variables and equations
         self.set_coefficients(self.coeffs)
 
-        self.effects = {
-            "channel_length_modulation": False,
-            "velocity_saturation": False,
-            "gate_tunneling": False,
-            "mobility_degradation": False,
-            "subthreshold_slope_effect": False,
-            "DIBL": False,
-            "area_and_latency_scaling": True,
-            "GIDL": False,
-        }
+        self.effects = model_cfg["effects"]
 
         self.f = symbols("f", positive=True)
 
@@ -168,10 +159,15 @@ class Parameters:
         self.C_diff = self.gamma_diff * self.C_gate
         self.C_load = self.C_gate # gate cap
         print(f"C_load: {self.C_load}")
-        #self.delay = self.R_avg_inv * (self.C_load + self.C_diff) * 1e9
-        #self.delay = (self.R_avg_inv * (self.C_diff + self.C_wire/2) + (self.R_avg_inv + self.R_wire) * (self.C_wire/2 + self.C_load)) * 1e9  # ns
-        self.delay = (self.R_avg_inv * (self.C_diff + self.C_wire/2) + (self.R_avg_inv) * (self.C_wire/2 + self.C_load)) * 1e9  # ns
-        #self.delay = self.R_avg_inv * (self.C_diff + self.C_load + 0.3e-15 * 100) * 1e9  # ns
+        if model_cfg["delay_parasitics"] == "all":
+            self.delay = (self.R_avg_inv * (self.C_diff + self.C_wire/2) + (self.R_avg_inv + self.R_wire) * (self.C_wire/2 + self.C_load)) * 1e9  # ns
+        elif model_cfg["delay_parasitics"] == "Csq only":
+            self.delay = (self.R_avg_inv * (self.C_diff + self.C_wire/2) + (self.R_avg_inv) * (self.C_wire/2 + self.C_load)) * 1e9  # ns
+        elif model_cfg["delay_parasitics"] == "const":
+            self.delay = self.R_avg_inv * (self.C_diff + self.C_load + 0.3e-15 * 100) * 1e9  # ns
+        else:
+            self.delay = self.R_avg_inv * (self.C_load + self.C_diff) * 1e9
+
         self.E_act_inv = (0.5*self.C_load*self.V_dd*self.V_dd) * 1e9  # nJ
 
         self.h = 6.626e-34  # planck's constant (J*s)

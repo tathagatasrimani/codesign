@@ -116,12 +116,13 @@ class DennardMultiCore:
 
         stdout = sys.stdout
         with open("src/tmp/ipopt_out.txt", "w") as sys.stdout:
-            self.codesign_module.opt.optimize("ipopt", improvement=self.codesign_module.inverse_pass_improvement, disabled_knobs=self.disabled_knobs, dennard_scaling_mode=True)
+            self.codesign_module.inverse_pass_lag_factor *= self.codesign_module.opt.optimize("ipopt", improvement=self.codesign_module.inverse_pass_improvement, disabled_knobs=self.disabled_knobs)
         sys.stdout = stdout
         f = open("src/tmp/ipopt_out.txt", "r")
         self.codesign_module.parse_output(f)
 
         self.codesign_module.write_back_params()
+        print(f"inverse pass lag factor: {self.codesign_module.inverse_pass_lag_factor}")
 
         self.codesign_module.display_objective("after inverse pass", symbolic=True)
 
@@ -253,6 +254,12 @@ if __name__ == "__main__":
         type=bool,
         default=False,
         help="dummy application"
+    )
+    parser.add_argument(
+        "--model_cfg",
+        type=str,
+        default="default",
+        help="symbolic model configuration"
     )
     args = parser.parse_args()
     if not os.path.exists(args.savedir):

@@ -1,0 +1,21 @@
+default:
+  effects:
+    channel_length_modulation: False
+    velocity_saturation: False
+    gate_tunneling: False
+    mobility_degradation: False
+    subthreshold_slope_effect: False
+    DIBL: False
+    area_and_latency_scaling: False
+    GIDL: False
+  delay_parasitics: all
+  scaling_mode: None
+
+dennard_scaling_cfg:
+  scaling_mode: dennard
+
+test_cfg:
+  effects:
+    area_and_latency_scaling: True
+  delay_parasitics: Csq only
+  scaling_mode: dennard_implicit
