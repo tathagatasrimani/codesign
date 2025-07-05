@@ -160,10 +160,15 @@ class Parameters:
         self.C_diff = self.gamma_diff * self.C_gate
         self.C_load = self.C_gate # gate cap
         print(f"C_load: {self.C_load}")
-        #self.delay = self.R_avg_inv * (self.C_load + self.C_diff) * 1e9
-        #self.delay = (self.R_avg_inv * (self.C_diff + self.C_wire/2) + (self.R_avg_inv + self.R_wire) * (self.C_wire/2 + self.C_load)) * 1e9  # ns
-        self.delay = (self.R_avg_inv * (self.C_diff + self.C_wire/2) + (self.R_avg_inv) * (self.C_wire/2 + self.C_load)) * 1e9  # ns
-        #self.delay = self.R_avg_inv * (self.C_diff + self.C_load + 0.3e-15 * 100) * 1e9  # ns
+        if model_cfg["delay_parasitics"] == "all":
+            self.delay = (self.R_avg_inv * (self.C_diff + self.C_wire/2) + (self.R_avg_inv + self.R_wire) * (self.C_wire/2 + self.C_load)) * 1e9  # ns
+        elif model_cfg["delay_parasitics"] == "Csq only":
+            self.delay = (self.R_avg_inv * (self.C_diff + self.C_wire/2) + (self.R_avg_inv) * (self.C_wire/2 + self.C_load)) * 1e9  # ns
+        elif model_cfg["delay_parasitics"] == "const":
+            self.delay = self.R_avg_inv * (self.C_diff + self.C_load + 0.3e-15 * 100) * 1e9  # ns
+        else:
+            self.delay = self.R_avg_inv * (self.C_load + self.C_diff) * 1e9
+
         self.E_act_inv = (0.5*self.C_load*self.V_dd*self.V_dd) * 1e9  # nJ
 
         self.h = 6.626e-34  # planck's constant (J*s)

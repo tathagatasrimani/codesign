@@ -76,17 +76,6 @@ class Codesign:
         self.obj_fn = args.obj
         self.inverse_pass_lag_factor = 1
 
-        self.params_over_iterations = []
-        self.plot_list = set([
-            self.hw.params.V_dd,
-            self.hw.params.V_th,
-            #self.hw.params.u_n,
-            self.hw.params.L,
-            self.hw.params.W,
-            self.hw.params.t_ox_,
-        ])
-        self.max_unroll = 64
-
         self.save_dat()
 
         with open("src/tmp/tech_params_0.yaml", "w") as f:
@@ -420,6 +409,7 @@ class Codesign:
         stdout = sys.stdout
         with open("src/tmp/ipopt_out.txt", "w") as sys.stdout:
             self.inverse_pass_lag_factor *= self.opt.optimize("ipopt", improvement=self.inverse_pass_improvement)
+            self.inverse_pass_lag_factor *= self.opt.optimize("ipopt", improvement=self.inverse_pass_improvement)
         sys.stdout = stdout
         f = open("src/tmp/ipopt_out.txt", "r")
         self.parse_output(f)
@@ -604,8 +594,10 @@ if __name__ == "__main__":
     parser.add_argument("--tech_node", "-T", type=str, help="technology node to use as starting point")
     parser.add_argument("--obj", type=str, default="edp", help="objective function")
     parser.add_argument("--model_cfg", type=str, default="default", help="symbolic model configuration")
+    parser.add_argument("--model_cfg", type=str, default="default", help="symbolic model configuration")
     args = parser.parse_args()
     print(
+        f"args: benchmark: {args.benchmark}, parasitics: {args.parasitics}, num iterations: {args.num_iters}, checkpointing: {args.checkpoint}, area: {args.area}, memory included: {not args.no_memory}, tech node: {args.tech_node}, obj: {args.obj}, model cfg: {args.model_cfg}"
         f"args: benchmark: {args.benchmark}, parasitics: {args.parasitics}, num iterations: {args.num_iters}, checkpointing: {args.checkpoint}, area: {args.area}, memory included: {not args.no_memory}, tech node: {args.tech_node}, obj: {args.obj}, model cfg: {args.model_cfg}"
     )
 
