@@ -10,6 +10,7 @@ import sympy as sp
 from . import cacti_util
 from . import parameters
 from . import schedule
+from . import sim_util
 from openroad_interface import place_n_route
 
 HW_CONFIG_FILE = "src/params/hw_cfgs.ini"
@@ -44,7 +45,11 @@ class HardwareModel:
             f"src/cacti/tech_params/{int(self.cacti_tech_node*1e3):2d}nm.dat"
         )
         print(f"self.cacti_dat_file: {self.cacti_dat_file}")
-        self.params = parameters.Parameters(args.tech_node, self.cacti_dat_file)
+        with open("src/params/model_cfg.yaml", "r") as f:
+            model_cfg = yaml.safe_load(f)
+        self.model_cfg = sim_util.deep_merge(model_cfg["default"], model_cfg[args.model_cfg])
+        print(f"self.model_cfg: {self.model_cfg}")
+        self.params = parameters.Parameters(args.tech_node, self.cacti_dat_file, self.model_cfg)
         self.netlist = nx.DiGraph()
         self.scheduled_dfg = nx.DiGraph()
         self.parasitic_graph = nx.DiGraph()

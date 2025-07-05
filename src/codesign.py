@@ -74,6 +74,7 @@ class Codesign:
         self.module_map = {}
         self.inverse_pass_improvement = args.inverse_pass_improvement if (hasattr(args, "inverse_pass_improvement") and args.inverse_pass_improvement) else 10
         self.obj_fn = args.obj
+        self.inverse_pass_lag_factor = 1
 
         self.save_dat()
 
@@ -383,7 +384,7 @@ class Codesign:
 
         stdout = sys.stdout
         with open("src/tmp/ipopt_out.txt", "w") as sys.stdout:
-            self.opt.optimize("ipopt", improvement=self.inverse_pass_improvement)
+            self.inverse_pass_lag_factor *= self.opt.optimize("ipopt", improvement=self.inverse_pass_improvement)
         sys.stdout = stdout
         f = open("src/tmp/ipopt_out.txt", "r")
         self.parse_output(f)
@@ -547,9 +548,10 @@ if __name__ == "__main__":
     parser.add_argument("--inverse_pass_improvement", type=float, help="improvement factor for inverse pass")
     parser.add_argument("--tech_node", "-T", type=str, help="technology node to use as starting point")
     parser.add_argument("--obj", type=str, default="edp", help="objective function")
+    parser.add_argument("--model_cfg", type=str, default="default", help="symbolic model configuration")
     args = parser.parse_args()
     print(
-        f"args: benchmark: {args.benchmark}, parasitics: {args.parasitics}, num iterations: {args.num_iters}, checkpointing: {args.checkpoint}, area: {args.area}, memory included: {not args.no_memory}, tech node: {args.tech_node}, obj: {args.obj}"
+        f"args: benchmark: {args.benchmark}, parasitics: {args.parasitics}, num iterations: {args.num_iters}, checkpointing: {args.checkpoint}, area: {args.area}, memory included: {not args.no_memory}, tech node: {args.tech_node}, obj: {args.obj}, model cfg: {args.model_cfg}"
     )
 
     main(args)

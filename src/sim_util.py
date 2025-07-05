@@ -11,6 +11,15 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
 
+def deep_merge(dict1, dict2):
+    result = dict(dict1)
+    for key, value in dict2.items():
+        if isinstance(value, dict) and key in result and isinstance(result[key], dict):
+            result[key] = deep_merge(result.get(key, {}), value)
+        else:
+            result[key] = value
+    return result
+
 def get_latest_log_dir():
     log_dirs = glob.glob(os.path.normpath(os.path.join(os.path.dirname(__file__), "../logs/*-*-*_*-*-*")))
     log_dirs = sorted(

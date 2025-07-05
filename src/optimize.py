@@ -17,16 +17,14 @@ class Optimizer:
     def __init__(self, hw):
         self.hw = hw
         self.disabled_knobs = []
-        self.dennard_scaling_mode = False
         self.dennard_scaling_type = "constant_field"
+        self.objective_constraint_inds = []
 
     def create_constraints(self, improvement):
         constraints = []
-        #constraints.append(self.hw.symbolic_obj >= float(self.hw.symbolic_obj.subs(self.hw.params.tech_values) / improvement))
-        constraints.append(self.hw.execution_time >= self.hw.execution_time.subs(self.hw.params.tech_values)/1.3)
-        constraints.append(self.hw.total_active_energy + self.hw.total_passive_energy >= (self.hw.total_active_energy + self.hw.total_passive_energy).subs(self.hw.params.tech_values)/2.7)
+        self.objective_constraint_inds = [0]
+        constraints.append(self.hw.symbolic_obj >= float(self.hw.symbolic_obj.subs(self.hw.params.tech_values) / improvement))
         constraints.append(self.hw.params.V_dd >= self.hw.params.V_th_eff)
-        constraints.append(sp.Eq(self.hw.params.V_dd/self.hw.params.V_dd.subs(self.hw.params.tech_values) , self.hw.params.L/self.hw.params.L.subs(self.hw.params.tech_values)))
         if self.hw.params.V_th_eff != self.hw.params.V_th:
             constraints.append(self.hw.params.V_th_eff >= 0)
         constraints.append(self.hw.params.V_dd <= 5)
@@ -39,21 +37,15 @@ class Optimizer:
             constraints.append(self.hw.params.delay <= 1e9/self.hw.params.f)
         constraints.append(sp.Eq(self.hw.params.t_ox_, self.hw.params.e_ox/self.hw.params.Cox))
 
-        constraints.append(self.hw.params.t_ox_ <= self.hw.params.t_ox_.subs(self.hw.params.tech_values))
-        constraints.append(self.hw.params.L <= self.hw.params.L.subs(self.hw.params.tech_values))
-        constraints.append(self.hw.params.W <= self.hw.params.W.subs(self.hw.params.tech_values))
-        constraints.append(self.hw.params.V_dd <= self.hw.params.V_dd.subs(self.hw.params.tech_values))
-        constraints.append(self.hw.params.V_th_eff <= self.hw.params.V_th_eff.subs(self.hw.params.tech_values))
-        constraints.append(sp.Eq(self.hw.params.W/self.hw.params.W.subs(self.hw.params.tech_values), self.hw.params.L/self.hw.params.L.subs(self.hw.params.tech_values)))
-        
-        """if self.dennard_scaling_mode:
+        if self.hw.model_cfg["scaling_mode"] == "dennard":
             if self.dennard_scaling_type == "constant_field":
                 constraints.append(sp.Eq(self.hw.params.W/self.hw.params.tech_values[self.hw.params.W], 1/self.hw.params.alpha_dennard))
                 constraints.append(sp.Eq(self.hw.params.L/self.hw.params.tech_values[self.hw.params.L], 1/self.hw.params.alpha_dennard))
                 constraints.append(sp.Eq(self.hw.params.V_dd/self.hw.params.tech_values[self.hw.params.V_dd], 1/self.hw.params.alpha_dennard))
                 constraints.append(sp.Eq(self.hw.params.V_th_eff/self.hw.params.tech_values[self.hw.params.V_th_eff], 1/self.hw.params.alpha_dennard))
                 constraints.append(sp.Eq(self.hw.params.Cox/self.hw.params.tech_values[self.hw.params.Cox], self.hw.params.alpha_dennard))
-            elif self.dennard_scaling_type == "constant_voltage":
+            else:
+                constraints.append(sp.Eq(self.hw.params.alpha_dennard, self.hw.params.tech_values[self.hw.params.alpha_dennard]))
                 constraints.append(sp.Eq(self.hw.params.W/self.hw.params.tech_values[self.hw.params.W], 1/self.hw.params.alpha_dennard))
                 constraints.append(sp.Eq(self.hw.params.L/self.hw.params.tech_values[self.hw.params.L], 1/self.hw.params.alpha_dennard))
                 constraints.append(sp.Eq(self.hw.params.V_dd, self.hw.params.tech_values[self.hw.params.V_dd]))
@@ -62,10 +54,21 @@ class Optimizer:
                 #constraints.append(sp.Eq(self.hw.params.V_th_eff/self.hw.params.tech_values[self.hw.params.V_th_eff], self.hw.params.epsilon_dennard/self.hw.params.alpha_dennard))
                 constraints.append(sp.Eq(self.hw.params.Cox/self.hw.params.tech_values[self.hw.params.Cox], self.hw.params.alpha_dennard))
 
-            elif self.dennard_scaling_type == "generalized":
-                constraints.append(sp.Eq(self.hw.params.alpha_dennard, 1))"""
-                
-        
+            #elif self.dennard_scaling_type == "generalized":
+            #    constraints.append(sp.Eq(self.hw.params.alpha_dennard, 1))
+        elif self.hw.model_cfg["scaling_mode"] == "dennard_implicit":
+            constraints.append(self.hw.params.t_ox_ <= self.hw.params.t_ox_.subs(self.hw.params.tech_values))
+            constraints.append(self.hw.params.L <= self.hw.params.L.subs(self.hw.params.tech_values))
+            constraints.append(self.hw.params.W <= self.hw.params.W.subs(self.hw.params.tech_values))
+            constraints.append(self.hw.params.V_dd <= self.hw.params.V_dd.subs(self.hw.params.tech_values))
+            constraints.append(self.hw.params.V_th_eff <= self.hw.params.V_th_eff.subs(self.hw.params.tech_values))
+            constraints.append(sp.Eq(self.hw.params.W/self.hw.params.W.subs(self.hw.params.tech_values), self.hw.params.L/self.hw.params.L.subs(self.hw.params.tech_values)))
+            constraints.append(sp.Eq(self.hw.params.V_dd/self.hw.params.V_dd.subs(self.hw.params.tech_values) , self.hw.params.L/self.hw.params.L.subs(self.hw.params.tech_values))) # lateral electric field scaling
+            constraints.append(sp.Eq(self.hw.params.V_dd/self.hw.params.V_dd.subs(self.hw.params.tech_values) , self.hw.params.t_ox_/self.hw.params.t_ox_.subs(self.hw.params.tech_values))) # lateral electric field scaling
+            constraints[0] = self.hw.execution_time >= self.hw.execution_time.subs(self.hw.params.tech_values)/1.3 # replace objective constraint with latency constraint
+            constraints.append(self.hw.total_active_energy + self.hw.total_passive_energy >= (self.hw.total_active_energy + self.hw.total_passive_energy).subs(self.hw.params.tech_values)/2.7)
+            self.objective_constraint_inds.append(len(constraints)-1)
+
         print(f"constraints: {constraints}")
         #constraints.append(self.hw.params.L >= 15e-9)
         #constraints.append(self.hw.params.W >= 15e-9)
@@ -107,7 +110,7 @@ class Optimizer:
 
 
         start_time = time.time()
-        if self.dennard_scaling_mode:
+        if self.hw.model_cfg["scaling_mode"].startswith("dennard"):
             results = opt.solve(
                 scaled_model, keepfiles=True, tee=True, symbolic_solver_labels=True
             )
@@ -129,8 +132,7 @@ class Optimizer:
                 pyo.TransformationFactory("core.scale_model").propagate_solution(
                     scaled_model, model
                 )
-                final_value = pyo.value(model.Constraints[0]) # assume that the first constraint is the objective
-                lower_bound = pyo.value(model.Constraints[0].lower)
+                """
                 print(f"obj value: {final_value}")
                 print(f"lower bound: {lower_bound}")
                 if final_value > lower_bound*1.1: # if the objective is not improving within some margin, run with general scaling
@@ -142,7 +144,7 @@ class Optimizer:
                     )
                     pyo.TransformationFactory("core.scale_model").propagate_solution(
                         scaled_model, model
-                    )
+                    )"""
         elif multistart:
             results = opt.solve(
                 scaled_model,
@@ -167,11 +169,15 @@ class Optimizer:
         print(results.solver.termination_condition)
         print("======================")
         model.display()
+        lag_factor = 1
+        for ind in self.objective_constraint_inds:
+            lag_factor *= pyo.value(model.Constraints[ind]) / pyo.value(model.Constraints[ind].lower)
+        print(f"lag factor: {lag_factor}")
+        return lag_factor
 
     # note: improvement/regularization parameter currently only for inverse pass validation, so only using it for ipopt
     # example: improvement of 1.1 = 10% improvement
-    def optimize(self, opt, improvement=10, disabled_knobs=[], dennard_scaling_mode=False):
-        self.dennard_scaling_mode = dennard_scaling_mode
+    def optimize(self, opt, improvement=10, disabled_knobs=[]):
         self.disabled_knobs = disabled_knobs
         """
         Optimize the hardware model using the specified optimization method.
