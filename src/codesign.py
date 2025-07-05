@@ -206,12 +206,11 @@ class Codesign:
                         matrix_size = int(lines[i].strip().split()[-1])
                 assert matrix_size > 0
                 unroll_ordering = [2, 1, 0] # order of unroll statements to change (innermost first)
-                cur_max_unroll = min(self.max_unroll, int(self.inverse_pass_lag_factor))
                 for i in unroll_ordering:
-                    amount_to_unroll = cur_max_unroll
+                    amount_to_unroll = int(self.inverse_pass_lag_factor)
                     lines[unroll_lines[unroll_stmts[i]]] = unroll_stmts[i].replace("no", str(min(amount_to_unroll, matrix_size)))
-                    cur_max_unroll //= min(amount_to_unroll, matrix_size)
-
+                    self.inverse_pass_lag_factor /= min(amount_to_unroll, matrix_size)
+                    
                 f.writelines(lines)
 
         # run catapult with custom memory configurations
