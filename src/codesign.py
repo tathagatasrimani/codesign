@@ -190,6 +190,29 @@ class Codesign:
         # update delay and area of ccores
         ccore_update.update_ccores(self.hw.params.circuit_values["area"], self.hw.params.circuit_values["latency"])
 
+        if self.benchmark_name == "matmult":
+            # change the unroll factors in the matmult_basic.cpp file
+            with open("src/benchmarks/matmult/src/matmult_basic.cpp", "r") as f:
+                lines = f.readlines()
+            with open("src/tmp/benchmark/src/matmult_basic.cpp", "w") as f:
+                unroll_stmts = []
+                unroll_lines = {}
+                matrix_size = 0
+                for i in range(len(lines)):
+                    if "pragma hls_unroll no" in lines[i]:
+                        unroll_stmts.append(lines[i])
+                        unroll_lines[lines[i]] = i
+                    if "#define MATRIX_SIZE" in lines[i]:
+                        matrix_size = int(lines[i].strip().split()[-1])
+                assert matrix_size > 0
+                unroll_ordering = [2, 1, 0] # order of unroll statements to change (innermost first)
+                for i in unroll_ordering:
+                    amount_to_unroll = int(self.inverse_pass_lag_factor)
+                    lines[unroll_lines[unroll_stmts[i]]] = unroll_stmts[i].replace("no", str(min(amount_to_unroll, matrix_size)))
+                    self.inverse_pass_lag_factor /= min(amount_to_unroll, matrix_size)
+                    
+                f.writelines(lines)
+
         # run catapult with custom memory configurations
         self.run_catapult()
 
