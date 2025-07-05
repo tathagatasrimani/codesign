@@ -4,7 +4,7 @@
 #include "matmult.h"
 #include <mc_scverify.h>
 
-#define MATRIX_SIZE 10
+#define MATRIX_SIZE 4
 
 #pragma hls_design top
 class MatMult { 
