@@ -453,10 +453,18 @@ class gnt_schedule_parser:
 
         #sim_util.topological_layout_plot(self.G)
 
+        logger.info(f"circuit delays: {self.circuit_delays}")
+
         for node in self.G:
             node_data = self.G.nodes[node]
             module_prefix = node_data["module"][:node_data["module"].find('(')]
             fn = self.module_map[module_prefix]
+
+            ### temporary hack to handle Buf nodes
+            if fn not in self.circuit_delays:
+                logger.warning(f"Function {fn} not found in circuit delays, using default delay of 1")
+                self.circuit_delays[fn] = 1
+
             self.modified_G.add_node(
                 node,
                 id=node_data["id"],
@@ -466,7 +474,9 @@ class gnt_schedule_parser:
                 end_time=0,
                 allocation="",
                 library=node_data["library"],
-                module=node_data["module"]
+                module=node_data["module"],
+                catapult_name=node_data["name"],
+                loc=node_data["loc"]
             )
             self.inst_name_map[node] = self.format_inst_name(node_data["name"])
         self.modified_G.add_node(
@@ -513,6 +523,7 @@ class gnt_schedule_parser:
         topo_order_by_mem_port = defaultdict(list)
         for rsc in topo_order_by_rsc:
             for i in range(len(topo_order_by_rsc[rsc])):
+                logger.info(f"adding memory port resource dependency for {rsc} at index {i}")
                 memory_name = "_"+rsc.split("__")[1]
                 port_name = f"{rsc}_{i%memories[memory_name].bandwidth}"
                 topo_order_by_mem_port[port_name].append(topo_order_by_rsc[rsc][i])
@@ -720,7 +731,19 @@ class gnt_schedule_parser:
             for i in range(len(tokens)):
                 if (tokens[i] == "LIBRARY"):
                     node_library = tokens[i+1]
-        return node_name, node_type, node_module, node_delay, node_library
+        ## parse LOC out of the line
+        if (line.find(" LOC ") != -1):
+            loc_data = ""
+            reading_loc = False
+            for i in range(len(tokens)):
+                if (tokens[i] == "LOC"):
+                    reading_loc = True
+                elif reading_loc:
+                    loc_data += tokens[i] + " "
+                    if tokens[i].endswith("}"):
+                        break
+
+        return node_name, node_type, node_module, node_delay, node_library, loc_data
     
     # return labels of roots and leaves
     def create_graph_for_loop(self, loop_id):
@@ -751,7 +774,7 @@ class gnt_schedule_parser:
                 names[node_id] = self.get_unique_node_name(node_id)
                 predecessors[names[node_id]] = []
                 successors[names[node_id]] = []
-                node_name, node_type, node_module, node_delay, node_library = self.get_node_info(node_id)
+                node_name, node_type, node_module, node_delay, node_library, loc_data = self.get_node_info(node_id)
                 G.add_node(
                     names[node_id],
                     name=node_name,
@@ -759,7 +782,8 @@ class gnt_schedule_parser:
                     tp=node_type,
                     module=node_module,
                     delay=node_delay,
-                    library=node_library
+                    library=node_library,
+                    loc=loc_data,
                 )
             
             # add edges between nodes

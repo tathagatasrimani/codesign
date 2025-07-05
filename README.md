@@ -14,6 +14,9 @@ If you are running on Apple Silicon, there are issues with the pyomo - ipopt plu
 To run the codesign flow, run the following command from this directory: 
 python3 -m src.codesign -b matmult
 
+To run the flow without considering memory as part of the system, run:
+python3 -m src.codesign -b matmult --no_memory true
+
 
 #### Install instructions RSG Linux machines: 
 1. Make sure you are running bash. You can check by running "echo $0".

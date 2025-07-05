@@ -162,9 +162,9 @@ class Preprocessor:
         logger.info("Adding regularization.")
         self.regularization = 0
         # normal regularization for each variable
-        for symbol in self.free_symbols:
+        """for symbol in self.free_symbols:
             self.regularization += hardwareModel.symbolic_convex_max((self.params.tech_values[symbol]/ symbol- 1), 
-                                                         (symbol/self.params.tech_values[symbol] - 1)) ** 2
+                                                         (symbol/self.params.tech_values[symbol] - 1)) ** 2"""
 
         # expressions inside a log/sqrt must not be negative
         """for log_expr in self.log_exprs_s:

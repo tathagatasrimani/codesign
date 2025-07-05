@@ -51,6 +51,9 @@ cd src/cacti
 make
 cd ../..
 
+## make verilator
+source verilator_install.sh
+
 
 ## Change for the catapult environment name you want to use
 source stanford_catapult_env.sh
