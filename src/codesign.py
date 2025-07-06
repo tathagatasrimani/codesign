@@ -223,7 +223,33 @@ class Codesign:
                     max_unroll //= min(amount_to_unroll, matrix_size)
 
                 f.writelines(lines)
+        elif self.benchmark_name == "basic_aes":
+            # change the unroll factors in the basic_aes.cpp file
+            with open("src/benchmarks/basic_aes/src/basic_aes.cpp", "r") as f:
+                lines = f.readlines()
+            with open("src/tmp/benchmark/src/basic_aes.cpp", "w") as f:
+                unroll_stmts = []
+                unroll_lines = []
+                block_size = 0
+                for i in range(len(lines)):
+                    if "pragma hls_unroll no" in lines[i]:
+                        unroll_stmts.append(lines[i])
+                        unroll_lines.append(i)
+                    if "#define BLOCK_SIZE" in lines[i]:
+                        block_size = int(lines[i].strip().split()[2])
+                #print(f"unroll stmts: {unroll_stmts}")
+                #print(f"unroll lines: {unroll_lines}")
+                assert block_size > 0
+                assert len(unroll_stmts) == 3
+                max_unrolls = [block_size, 4, block_size] # maximum value of unroll for each statement
+                cur_max_unroll = min(self.max_unroll, int(self.inverse_pass_lag_factor))
+                for i in range(3):
+                    amount_to_unroll = cur_max_unroll
+                    lines[unroll_lines[i]] = unroll_stmts[i].replace("no", str(min(amount_to_unroll, max_unrolls[i])))
+                    #print(f"new line: {lines[unroll_lines[i]]}")
+                    #print(f"unrolling {unroll_stmts[i]} by {min(amount_to_unroll, max_unrolls[i])}")
 
+                f.writelines(lines)
         # run catapult with custom memory configurations
         self.run_catapult()
 
@@ -449,8 +475,8 @@ class Codesign:
     def log_all_to_file(self, iter_number):
         with open(f"{self.save_dir}/results.txt", "a") as f:
             f.write(f"{iter_number}\n")
-            f.write(f"Forward EDP: {self.forward_edp}\n")
-            f.write(f"Inverse EDP: {self.inverse_edp}\n")
+            f.write(f"Forward EDP: {self.hw.obj}\n")
+            f.write(f"Inverse EDP: {self.hw.symbolic_obj.xreplace(self.hw.params.tech_values)}\n")
         nx.write_gml(
             self.hw.netlist,
             f"{self.save_dir}/netlist_{iter_number}.gml",
