@@ -52,13 +52,9 @@ class matmult {
 
                             ac_int<PRECISION> product;
                             ac_int<PRECISION> new_tmp;
-                            ac_int<PRECISION> tag;
-
-                            // tag needs to have i j and k to be unique
-                            tag = i * MATRIX_SIZE * MATRIX_SIZE + j * MATRIX_SIZE + k;
 
                             // Perform multiplication using blackbox
-                            mul_inst.run(a.value[i].value[k], b.value[k].value[j], tag, product);
+                            mul_inst.run(a.value[i].value[k], b.value[k].value[j], product);
 
                             // Perform addition using blackbox
                             add_inst.run(tmp, product, new_tmp);

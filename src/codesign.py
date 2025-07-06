@@ -6,9 +6,9 @@ import datetime
 import logging
 import shutil
 import subprocess
-
+import copy
 import networkx as nx
-
+import matplotlib.pyplot as plt
 from src.netlist_parse import parse_yosys_json
 
 logger = logging.getLogger("codesign")
@@ -75,6 +75,16 @@ class Codesign:
         self.inverse_pass_improvement = args.inverse_pass_improvement if (hasattr(args, "inverse_pass_improvement") and args.inverse_pass_improvement) else 10
         self.obj_fn = args.obj
         self.inverse_pass_lag_factor = 1
+
+        self.params_over_iterations = []
+        self.plot_list = set([
+            self.hw.params.V_dd,
+            self.hw.params.V_th,
+            #self.hw.params.u_n,
+            self.hw.params.L,
+            self.hw.params.W,
+            self.hw.params.t_ox_,
+        ])
 
         self.save_dat()
 
@@ -206,11 +216,12 @@ class Codesign:
                         matrix_size = int(lines[i].strip().split()[-1])
                 assert matrix_size > 0
                 unroll_ordering = [2, 1, 0] # order of unroll statements to change (innermost first)
+                max_unroll = int(self.inverse_pass_lag_factor)
                 for i in unroll_ordering:
-                    amount_to_unroll = int(self.inverse_pass_lag_factor)
+                    amount_to_unroll = max_unroll
                     lines[unroll_lines[unroll_stmts[i]]] = unroll_stmts[i].replace("no", str(min(amount_to_unroll, matrix_size)))
-                    self.inverse_pass_lag_factor /= min(amount_to_unroll, matrix_size)
-                    
+                    max_unroll //= min(amount_to_unroll, matrix_size)
+
                 f.writelines(lines)
 
         # run catapult with custom memory configurations
@@ -416,6 +427,24 @@ class Codesign:
 
         self.display_objective("after inverse pass", symbolic=True)
 
+    def plot_params_over_iterations(self):
+        if not os.path.exists(self.save_dir):
+            os.makedirs(self.save_dir)
+        f = open(f"{self.save_dir}/param_data.txt", 'w')
+        f.write(str(self.params_over_iterations))
+        for param in self.plot_list:
+            values = []
+            for i in range(len(self.params_over_iterations)):
+                values.append(self.params_over_iterations[i][param])
+                plt.plot(values)
+                plt.xlabel("iteration")
+                plt.ylabel("value")
+                plt.title(f"{param.name} over iterations")
+                plt.yscale("log")
+                plt.grid(True)
+                plt.savefig(f"{self.save_dir}/{param.name}_over_iters.png")
+                plt.close()
+
     def log_all_to_file(self, iter_number):
         with open(f"{self.save_dir}/results.txt", "a") as f:
             f.write(f"{iter_number}\n")
@@ -446,6 +475,7 @@ class Codesign:
         self.hw.write_technology_parameters(
             f"{self.save_dir}/circuit_values_{iter_number}.yaml"
         )
+        self.params_over_iterations.append(copy.copy(self.hw.params.tech_values))
 
     def save_dat(self):
         # Save tech node info to another file prefixed by prev_ so we can restore
@@ -493,6 +523,7 @@ class Codesign:
             self.log_all_to_file(i)
             self.hw.reset_state()
             i += 1
+        self.plot_params_over_iterations()
 
         # cleanup
         self.cleanup()
