@@ -160,4 +160,7 @@ write_verilog -remove_cells $filler_cells $verilog_file
 
 report_wire_length -net * -file "../results/wire_length_global.txt" -global_route
 
+set routed_def [make_result_file final_generated.def]
+write_def $routed_def
+
 exit

@@ -27,7 +27,7 @@ def export_graph(graph, est_or_det: str):
     )
 
 
-def mux_listing(graph, node_output):
+def mux_listing(graph, node_output, wire_length_by_edge):
     """
     goes through the graph and finds nodes that are not Muxs. If it encounters one, it will go through
     the graph to find the path of Muxs until the another non-Mux node is found. All rcl are put into a
@@ -37,28 +37,40 @@ def mux_listing(graph, node_output):
         graph: graph with the net attributes already attached
         node_output: dict of nodes and their respective outputs
     """
+    #print(f"wire_length_by_edge before modification: {wire_length_by_edge}")
+    edges_to_remove = set()
     for node in graph.nodes():
+        #print(f"considering node {node}")
         if "Mux" not in node:
+            #print(f"outputs of {node}: {node_output[node]}")
             for output in node_output[node]:
-                net_name = graph[node][output]["net"]
                 path = []
                 if "Mux" in output:
                     while "Mux" in output:
                         path.append(output)
                         output = node_output[output][0]
-                graph.add_edge(node, output)
-                if len(path) != 0:
-                    for attribute in ["net_res", "net_cap", "net_length"]:
-                        val_list = []
-                        val_list.append(graph[node][path[0]][attribute])
-                        node_index = 0
-                        for node_index in range(1, len(path)):
-                            val_list.append(
-                                graph[path[node_index - 1]][path[node_index]][attribute]
-                            )
-                        val_list.append(graph[path[node_index]][output][attribute])
-                        graph[node][output][attribute] = val_list
-                    graph[node][output]["net"] = net_name
+                    graph.add_edge(node, output)
+                    #print(f"path from {node} to {output}: {path}")
+                    if len(path) != 0 and (node, output) not in wire_length_by_edge:
+                        #print(f"adding wire length by edge")
+                        wire_length_by_edge[(node, output)] = wire_length_by_edge[(node, path[0])]
+                        edges_to_remove.add((node, path[0]))
+                        for i in range(1, len(path)):
+                            wire_length_by_edge[(node, output)]["total_wl"] += wire_length_by_edge[(path[i-1], path[i])]["total_wl"]
+                            wire_length_by_edge[(node, output)]["metal1"] += wire_length_by_edge[(path[i-1], path[i])]["metal1"]
+                            wire_length_by_edge[(node, output)]["metal2"] += wire_length_by_edge[(path[i-1], path[i])]["metal2"]
+                            wire_length_by_edge[(node, output)]["metal3"] += wire_length_by_edge[(path[i-1], path[i])]["metal3"]
+                            edges_to_remove.add((path[i-1], path[i]))
+                        wire_length_by_edge[(node, output)]["total_wl"] += wire_length_by_edge[(path[-1], output)]["total_wl"]
+                        wire_length_by_edge[(node, output)]["metal1"] += wire_length_by_edge[(path[-1], output)]["metal1"]
+                        wire_length_by_edge[(node, output)]["metal2"] += wire_length_by_edge[(path[-1], output)]["metal2"]
+                        wire_length_by_edge[(node, output)]["metal3"] += wire_length_by_edge[(path[-1], output)]["metal3"]
+                        edges_to_remove.add((path[-1], output))
+                        #print(f"wire length by edge after modification: {wire_length_by_edge[(node, output)]}")
+    for edge in edges_to_remove:
+        #print(f"removing edge {edge}")
+        wire_length_by_edge.pop(edge)
+    return wire_length_by_edge
 
 
 def mux_removal(graph: nx.DiGraph):
@@ -199,9 +211,10 @@ def estimated_place_n_route(
                     wire_length_by_edge[(node, output)] = wire_length_df.loc[net]
                 else:
                     wire_length_by_edge[(node, output)] += wire_length_df.loc[net]
+    export_graph(graph, "estimated_with_mux")
 
-    #mux_listing(graph, node_output)
-    #mux_removal(graph)
+    wire_length_by_edge = mux_listing(graph, node_output, wire_length_by_edge)
+    mux_removal(graph)
 
     export_graph(graph, "estimated_nomux")
 
