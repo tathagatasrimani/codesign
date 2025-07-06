@@ -7,11 +7,11 @@
 #define MATRIX_SIZE 4
 
 #pragma hls_design top
-class MatMult { 
+class matmult { 
     add add_inst;  // Instantiate the adder blackbox
     mult mul_inst;  // Instantiate the multiplier blackbox
     public:
-        MatMult(){}
+        matmult(){}
 
         #pragma hls_design interface
         void CCS_BLOCK(run)(ac_channel<PackedInt2D<PRECISION, MATRIX_SIZE, MATRIX_SIZE> > &a_chan, 

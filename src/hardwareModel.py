@@ -95,7 +95,7 @@ class HardwareModel:
         with open(filename, "w") as f:
             f.write(yaml.dump(params))
 
-    def map_netlist_to_scheduled_dfg(self):
+    def map_netlist_to_scheduled_dfg(self, benchmark_name):
 
         ## create a set of all netlist nodes
         unmapped_dfg_nodes = set(self.scheduled_dfg.nodes)
@@ -169,8 +169,8 @@ class HardwareModel:
         logger.info(f"number of unmapped dfg nodes after direct name match: {len(unmapped_dfg_nodes)}")
         
         ### Next, attempt to map the remaining unmapped DFG nodes using resource sharing information.
-        ## read in the res_sharing.tcl file 
-        res_sharing_file = "src/tmp/benchmark/build/MatMult.v1/res_sharing.tcl"
+        ## read in the res_sharing.tcl file
+        res_sharing_file = f"src/tmp/benchmark/build/{benchmark_name}.v1/res_sharing.tcl"
         res_sharing_lines = []
         with open(res_sharing_file, "r") as f:
             res_sharing_lines = f.readlines()
@@ -395,8 +395,8 @@ class HardwareModel:
         return mapped_nodes_input_output_match
 
     
-    def get_wire_parasitics(self, arg_testfile, arg_parasitics):
-        self.map_netlist_to_scheduled_dfg()
+    def get_wire_parasitics(self, arg_testfile, arg_parasitics, benchmark_name):
+        self.map_netlist_to_scheduled_dfg(benchmark_name)
         
         start_time = time.time()
         self.params.wire_length_by_edge, _ = place_n_route.place_n_route(
@@ -540,6 +540,7 @@ class HardwareModel:
         passive_power = 0
         for node in self.netlist:
             data = self.netlist.nodes[node]
+            logger.info(f"calculating passive power for node {node}, data: {data}")
             if node == "end" or data["function"] == "nop": continue
             if data["function"] == "Buf" or data["function"] == "MainMem":
                 rsc_name = data["library"][data["library"].find("__")+1:]
