@@ -689,6 +689,9 @@ class gnt_schedule_parser:
     def get_num_iterations(self, loop_id):
         assert " ITERATIONS " in self.line_map[loop_id]
         tokens = self.line_map[loop_id].split()
+
+        ## print self.line_map[loop_id] to debug
+        logger.info(f"loop {loop_id} line map: {self.line_map[loop_id]}")
         iters = tokens[tokens.index("ITERATIONS")+1]
         if iters == "Infinite": iters = "1"
         return int(iters)

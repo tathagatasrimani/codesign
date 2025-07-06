@@ -124,7 +124,7 @@ class Codesign:
         sim_util.change_clk_period_in_script("scripts/common.tcl", clk_period)
         
         # add area constraint
-        sim_util.add_area_constraint_to_script("scripts/matmult.tcl", self.hw.area_constraint)
+        sim_util.add_area_constraint_to_script(f"scripts/{self.benchmark_name}.tcl", self.hw.area_constraint)
 
         p = subprocess.run(["make", "clean"], capture_output=True, text=True)
         cmd = ["make", "build_design"]
@@ -151,19 +151,21 @@ class Codesign:
         self.hw.params.set_memories({})
 
         # Extract Hardware Netlist
-        top_module_name = "MatMult"
-        cmd = ["yosys", "-p", f"read_verilog src/tmp/benchmark/build/{top_module_name}.v1/rtl.v; hierarchy -top MatMult; proc; write_json src/tmp/benchmark/netlist.json"]
+        cmd = ["yosys", "-p", f"read_verilog src/tmp/benchmark/build/{self.benchmark_name}.v1/rtl.v; hierarchy -top {self.benchmark_name}; proc; write_json src/tmp/benchmark/netlist.json"]
         p = subprocess.run(cmd, capture_output=True, text=True)
         if DEBUG_YOSYS:
             logger.info(f"Yosys output: {p.stdout}")
         if p.returncode != 0:
             raise Exception(f"Yosys failed with error: {p.stderr}")
 
-        self.hw.netlist, _ = parse_yosys_json("src/tmp/benchmark/netlist.json", include_memories=(not self.no_memory), top_level_module_type=top_module_name)
+        self.hw.netlist, full_netlist = parse_yosys_json("src/tmp/benchmark/netlist.json", include_memories=(not self.no_memory), top_level_module_type=self.benchmark_name)
 
         ## write the netlist to a file
         with open("src/tmp/benchmark/netlist-from-catapult.gml", "wb") as f:
             nx.write_gml(self.hw.netlist, f)
+
+        with open("src/tmp/benchmark/full_netlist_debug.gml", "wb") as f:
+            nx.write_gml(full_netlist, f)
 
     def forward_pass(self):
         """
@@ -178,6 +180,8 @@ class Codesign:
         print("\nRunning Forward Pass")
         logger.info("Running Forward Pass")
 
+
+        ## clear out the existing tmp benchmark directory and copy the benchmark files from the desired benchmark
         if os.path.exists("src/tmp/benchmark"):
             shutil.rmtree("src/tmp/benchmark")
         shutil.copytree(self.benchmark, "src/tmp/benchmark")
@@ -269,7 +273,7 @@ class Codesign:
         # self.hw.netlist = netlist_dfg
 
         # update netlist and scheduled dfg with wire parasitics
-        self.hw.get_wire_parasitics(self.openroad_testfile, self.parasitics)
+        self.hw.get_wire_parasitics(self.openroad_testfile, self.parasitics, self.benchmark_name)
 
         # set end node's start time to longest path length
         self.hw.scheduled_dfg.nodes["end"]["start_time"] = nx.dag_longest_path_length(self.hw.scheduled_dfg)

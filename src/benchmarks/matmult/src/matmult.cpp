@@ -5,11 +5,11 @@
 #include <mc_scverify.h>
 
 #pragma hls_design top
-class MatMult {
+class matmult {
     add add_inst[TILE_SIZE][TILE_SIZE];  // Instantiate the adder blackbox
     mult mul_inst[TILE_SIZE][TILE_SIZE];  // Instantiate the multiplier blackbox
     public:
-        MatMult(){}
+        matmult(){}
         #pragma hls_design interface
         void CCS_BLOCK(run)(ac_channel<PackedInt2D<PRECISION, 4, 4> > &a_chan, 
                             ac_channel<PackedInt2D<PRECISION, 4, 4> > &b_chan,

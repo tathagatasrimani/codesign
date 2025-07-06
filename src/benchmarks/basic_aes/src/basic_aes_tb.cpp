@@ -1,7 +1,7 @@
 #include "matmult.cpp"
 #include "matmult_gold.cpp"
 
-int run_matmult() {
+int run_basic_aes() {
     DTYPE a[5][5];
     DTYPE b[5][5];
     DTYPE c[5][5];
@@ -28,7 +28,7 @@ int run_matmult() {
 
     printf("Running HLS C Design\n");
 
-    matmult mm;
+    MatMult mm;
     mm.run(a_chan, b_chan, c_chan);
 
     printf("Running reference C model\n");
