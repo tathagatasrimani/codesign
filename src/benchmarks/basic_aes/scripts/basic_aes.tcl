@@ -3,7 +3,7 @@ set blockname [file rootname [file tail [info script] ]]
 source scripts/common.tcl
 
 directive set -DESIGN_HIERARCHY { 
-    {matmult}
+    {basic_aes}
 }
 
 go compile

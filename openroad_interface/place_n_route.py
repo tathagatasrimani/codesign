@@ -1,7 +1,12 @@
+import logging
 import re
 import os
 import copy
 import shutil
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 import networkx as nx
 

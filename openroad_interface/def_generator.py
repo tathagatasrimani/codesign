@@ -2,13 +2,17 @@ import copy
 import os
 import math
 
+import pprint
 import re 
 import networkx as nx
+import logging
 
 from .functions import find_val_two, find_val_xy, find_val, value, format, clean
 from . import place_n_route as pnr
 from .working_directory import directory
 design = "codesign"
+
+logger = logging.getLogger(__name__)
 
 # make it a dict
 and_gate = "AND2_X1"
@@ -17,6 +21,7 @@ mux = "MUX2_X1"
 reg = "DFF_X1"
 add = "Add50_40"
 mult = "Mult64_40"
+bitxor = "BitXor50_40"
 floordiv = "FloorDiv50_40" 
 sub = "Sub50_40"
 eq= "Eq50_40"
@@ -28,6 +33,8 @@ def component_finder(name: str) -> str:
     redo this whole function 
     '''
     if and_gate.upper() in name.upper():
+        return  name
+    elif bitxor.upper() in name.upper():
         return  name
     elif xor_gate.upper() in name.upper():
         return  name
@@ -56,6 +63,8 @@ def find_macro(name: str) -> str:
     '''
     if "AND" in name.upper():
         return  and_gate
+    if "BITXOR" in name.upper():
+        return  bitxor
     if "XOR" in name.upper():
         return  xor_gate
     if name.startswith("Reg"):
@@ -361,6 +370,9 @@ def def_generator(test_file: str, graph: nx.DiGraph):
     nodes = list(graph)
     for node in nodes:
         component_num = format(number)
+        logger.info(f"Generating component for node: {node} with number: {component_num}")
+        ## log the whole node to macro dict in a human readable way
+        logger.info(f"Node to macro mapping: {node_to_macro}")
         macro = node_to_macro[node][0]
         component_text.append("- {} {} ;".format(component_num, macro))
         node_to_num[node] = format(number)
