@@ -36,6 +36,7 @@ class Optimizer:
         if self.hw.params.f in self.hw.params.tech_values:
             constraints.append(self.hw.params.delay <= 1e9/self.hw.params.f)
         constraints.append(sp.Eq(self.hw.params.t_ox_, self.hw.params.e_ox/self.hw.params.Cox))
+        constraints.append(self.hw.params.I_off/(self.hw.params.W*self.hw.params.L) <= 100e-9 / (1e-6 * 1e-6))
 
         if self.hw.model_cfg["scaling_mode"] == "dennard":
             if self.dennard_scaling_type == "constant_field":
