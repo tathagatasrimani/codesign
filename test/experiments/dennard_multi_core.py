@@ -143,6 +143,7 @@ class DennardMultiCore:
                 self.run_dummy_inverse_pass()
             else:
                 self.codesign_module.inverse_pass()
+                self.codesign_module.hw.params.update_circuit_values()
             
             regularization = 0
             for var in self.codesign_module.hw.params.tech_values:
@@ -155,6 +156,11 @@ class DennardMultiCore:
             # update schedule with modified technology parameters
             if not self.dummy_app:
                 self.codesign_module.hw.update_schedule_with_latency()
+            
+            if self.codesign_module.inverse_pass_lag_factor >= 2.0:
+                self.codesign_module.hw.reset_state()
+                self.codesign_module.forward_pass()
+                self.codesign_module.log_forward_tech_params()
 
         self.plot_params_over_iterations()
         
