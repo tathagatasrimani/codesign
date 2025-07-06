@@ -45,7 +45,7 @@ public:
                 // Do AES-like rounds
                 for (int r = 0; r < ROUNDS; r++) {
                     // SubBytes + AddRoundKey (here just xor with key using CCORE)
-                    #pragma hls_unroll yes
+                    #pragma hls_unroll no
                     for (int i = 0; i < BLOCK_SIZE; i++) {
                         ac_int<16,true> a_ext = block[i];
                         ac_int<16,true> k_ext = key[i % BLOCK_SIZE];
@@ -63,7 +63,7 @@ public:
                     tmp = block[3]; block[3] = block[15]; block[15] = block[11]; block[11] = block[7]; block[7] = tmp;
 
                     // MixColumns: simple xor + adds replaced by CCOREs
-                    #pragma hls_unroll yes
+                    #pragma hls_unroll no
                     for (int c = 0; c < 4; c++) {
                         int base = c * 4;
                         ac_int<PRECISION> a = block[base];
@@ -105,7 +105,7 @@ public:
                     }
 
                     // Final AddRoundKey again with XOR CCORE
-                    #pragma hls_unroll yes
+                    #pragma hls_unroll no
                     for (int i = 0; i < BLOCK_SIZE; i++) {
                         ac_int<16,true> a_ext = block[i];
                         ac_int<16,true> k_ext = key[i % BLOCK_SIZE];
