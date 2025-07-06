@@ -322,6 +322,23 @@ class HardwareModel:
         if len(unmapped_dfg_nodes) > 0:
             logger.warning(f"unmapped dfg nodes after all mapping attempts, including approximate mapping: {unmapped_dfg_nodes}")
 
+        ### Finally, just map the rest of the nodes randomly to the netlist nodes (of the same function type).
+        mapped_randomly = set()
+        for node in unmapped_dfg_nodes:
+            function_type = self.scheduled_dfg.nodes[node]["function"]
+            netlist_nodes_of_same_type = [n for n in self.netlist.nodes if self.netlist.nodes[n]["function"] == function_type]
+            if netlist_nodes_of_same_type:
+                random_netlist_node = random.choice(netlist_nodes_of_same_type)
+                self.scheduled_dfg.nodes[node]["netlist_node"] = random_netlist_node
+                logger.info(f"mapping dfg node {node} to netlist node {random_netlist_node} (randomly)")
+                mapped_randomly.add(node)
+
+        unmapped_dfg_nodes = unmapped_dfg_nodes - mapped_randomly
+        
+        logger.info(f"number of unmapped dfg nodes after random mapping: {len(unmapped_dfg_nodes)}")
+        if len(unmapped_dfg_nodes) > 0:
+            logger.warning(f"unmapped dfg nodes after all mapping attempts, including random mapping: {unmapped_dfg_nodes}")
+
         with open("src/tmp/benchmark/scheduled-dfg-after-mapping.gml", "wb") as f:
             nx.write_gml(self.scheduled_dfg, f)
 
