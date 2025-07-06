@@ -38,9 +38,11 @@ class DennardMultiCore:
             self.codesign_module.hw.params.W,
             self.codesign_module.hw.params.t_ox_,
         ])
+        self.edp_over_iterations = []
+        self.lag_factor_over_iterations = [1.0]
 
     def plot_params_over_iterations(self):
-        fig_save_dir = "test/experiments/dennard_multi_core_figs"
+        fig_save_dir = self.codesign_module.save_dir + "/figs"
         if not os.path.exists(fig_save_dir):
             os.makedirs(fig_save_dir)
         f = open(f"{fig_save_dir}/param_data.txt", 'w')
@@ -57,6 +59,45 @@ class DennardMultiCore:
                 plt.grid(True)
                 plt.savefig(f"{fig_save_dir}/{param.name}_over_iters.png")
                 plt.close()
+    
+    def plot_edp_over_iterations(self):
+        fig_save_dir = self.codesign_module.save_dir + "/figs"
+        if not os.path.exists(fig_save_dir):
+            os.makedirs(fig_save_dir)
+
+        x = [i/2.0 for i in range(len(self.edp_over_iterations))]
+
+        # Create alternating red and blue line segments
+        for i in range(len(self.edp_over_iterations) - 1)[::2]:
+            x_start = x[i]
+            x_end = x[i + 2]
+            x_mid = (x_start + x_end) / 2
+            
+            # Red line from x to x.5
+            plt.plot([x_start, x_mid], [self.edp_over_iterations[i], self.edp_over_iterations[i + 1]], 'r-', linewidth=2)
+            
+            # Blue line from x.5 to x+1
+            plt.plot([x_mid, x_end], [self.edp_over_iterations[i + 1], self.edp_over_iterations[i + 2]], 'b-', linewidth=2)
+
+        plt.xlabel("iteration")
+        plt.ylabel("EDP")
+        plt.title("EDP over iterations")
+        plt.yscale("log")
+        plt.grid(True)
+        plt.legend(["inverse pass", "forward pass"])
+        plt.savefig(f"{fig_save_dir}/edp_over_iters.png")
+    
+    def plot_lag_factor_over_iterations(self):
+        fig_save_dir = self.codesign_module.save_dir + "/figs"
+        if not os.path.exists(fig_save_dir):
+            os.makedirs(fig_save_dir)
+        x = [i for i in range(len(self.lag_factor_over_iterations))]
+        plt.plot(x, self.lag_factor_over_iterations)
+        plt.xlabel("iteration")
+        plt.ylabel("max unroll factor")
+        plt.title("max unroll factor over iterations")
+        plt.grid(True)
+        plt.savefig(f"{fig_save_dir}/lag_factor_over_iters.png")
 
     def run_dummy_forward_pass(self):
         #self.codesign_module.hw.params.L = 5e-7
@@ -134,6 +175,7 @@ class DennardMultiCore:
         self.codesign_module.log_forward_tech_params()
 
         self.params_over_iterations.append(copy.copy(self.codesign_module.hw.params.tech_values))
+        self.edp_over_iterations.append(self.codesign_module.hw.obj)
 
         # run technology optimization to simulate dennard scaling.
         # show that over time, as Vdd comes up to limit, benefits are more difficult to find
@@ -144,7 +186,9 @@ class DennardMultiCore:
             else:
                 self.codesign_module.inverse_pass()
                 self.codesign_module.hw.params.update_circuit_values()
-            
+            self.edp_over_iterations.append(self.codesign_module.hw.symbolic_obj.subs(self.codesign_module.hw.params.tech_values))
+            self.lag_factor_over_iterations.append(self.codesign_module.inverse_pass_lag_factor)
+
             regularization = 0
             for var in self.codesign_module.hw.params.tech_values:
                 regularization += (max(self.codesign_module.hw.params.tech_values[var]/initial_tech_params[var] - 1,
@@ -161,8 +205,13 @@ class DennardMultiCore:
                 self.codesign_module.hw.reset_state()
                 self.codesign_module.forward_pass()
                 self.codesign_module.log_forward_tech_params()
+                self.edp_over_iterations.append(self.codesign_module.hw.obj)
+            else:
+                self.edp_over_iterations.append(self.codesign_module.hw.symbolic_obj.subs(self.codesign_module.hw.params.tech_values))
 
         self.plot_params_over_iterations()
+        self.plot_edp_over_iterations()
+        self.plot_lag_factor_over_iterations()
         
         # now run forward pass to demonstrate how parallelism can be added
         # to combat diminishing tech benefits at the end of Dennard scaling
@@ -234,7 +283,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--figdir",
         type=str,
-        default="test/experiments/dennard_multi_core_figs",
+        default="test/experiments/dennard_multi_core_logs/figs",
         help="path to save figs"
     )
     parser.add_argument(

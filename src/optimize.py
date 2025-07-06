@@ -19,6 +19,7 @@ class Optimizer:
         self.disabled_knobs = []
         self.dennard_scaling_type = "constant_field"
         self.objective_constraint_inds = []
+        self.initial_alpha = None
 
     def create_constraints(self, improvement):
         constraints = []
@@ -45,8 +46,10 @@ class Optimizer:
                 constraints.append(sp.Eq(self.hw.params.V_dd/self.hw.params.tech_values[self.hw.params.V_dd], 1/self.hw.params.alpha_dennard))
                 constraints.append(sp.Eq(self.hw.params.V_th_eff/self.hw.params.tech_values[self.hw.params.V_th_eff], 1/self.hw.params.alpha_dennard))
                 constraints.append(sp.Eq(self.hw.params.Cox/self.hw.params.tech_values[self.hw.params.Cox], self.hw.params.alpha_dennard))
+                if self.initial_alpha is None and self.hw.params.tech_values[self.hw.params.alpha_dennard] != 1:
+                    self.initial_alpha = self.hw.params.tech_values[self.hw.params.alpha_dennard]
             else:
-                constraints.append(sp.Eq(self.hw.params.alpha_dennard, self.hw.params.tech_values[self.hw.params.alpha_dennard]))
+                constraints.append(sp.Eq(self.hw.params.alpha_dennard, self.initial_alpha))
                 constraints.append(sp.Eq(self.hw.params.W/self.hw.params.tech_values[self.hw.params.W], 1/self.hw.params.alpha_dennard))
                 constraints.append(sp.Eq(self.hw.params.L/self.hw.params.tech_values[self.hw.params.L], 1/self.hw.params.alpha_dennard))
                 constraints.append(sp.Eq(self.hw.params.V_dd, self.hw.params.tech_values[self.hw.params.V_dd]))
