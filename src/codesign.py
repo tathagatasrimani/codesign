@@ -76,6 +76,16 @@ class Codesign:
         self.obj_fn = args.obj
         self.inverse_pass_lag_factor = 1
 
+        self.params_over_iterations = []
+        self.plot_list = set([
+            self.hw.params.V_dd,
+            self.hw.params.V_th,
+            #self.hw.params.u_n,
+            self.hw.params.L,
+            self.hw.params.W,
+            self.hw.params.t_ox_,
+        ])
+
         self.save_dat()
 
         with open("src/tmp/tech_params_0.yaml", "w") as f:
@@ -206,11 +216,12 @@ class Codesign:
                         matrix_size = int(lines[i].strip().split()[-1])
                 assert matrix_size > 0
                 unroll_ordering = [2, 1, 0] # order of unroll statements to change (innermost first)
+                max_unroll = int(self.inverse_pass_lag_factor)
                 for i in unroll_ordering:
-                    amount_to_unroll = int(self.inverse_pass_lag_factor)
+                    amount_to_unroll = max_unroll
                     lines[unroll_lines[unroll_stmts[i]]] = unroll_stmts[i].replace("no", str(min(amount_to_unroll, matrix_size)))
-                    self.inverse_pass_lag_factor /= min(amount_to_unroll, matrix_size)
-                    
+                    max_unroll //= min(amount_to_unroll, matrix_size)
+
                 f.writelines(lines)
 
         # run catapult with custom memory configurations

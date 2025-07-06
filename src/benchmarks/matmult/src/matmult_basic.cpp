@@ -55,6 +55,7 @@ class matmult {
 
                             // Perform multiplication using blackbox
                             mul_inst.run(a.value[i].value[k], b.value[k].value[j], product);
+                            mul_inst.run(a.value[i].value[k], b.value[k].value[j], product);
 
                             // Perform addition using blackbox
                             add_inst.run(tmp, product, new_tmp);

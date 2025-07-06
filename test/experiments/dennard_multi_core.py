@@ -186,9 +186,7 @@ class DennardMultiCore:
             else:
                 self.codesign_module.inverse_pass()
                 self.codesign_module.hw.params.update_circuit_values()
-            self.edp_over_iterations.append(self.codesign_module.hw.symbolic_obj.subs(self.codesign_module.hw.params.tech_values))
-            self.lag_factor_over_iterations.append(self.codesign_module.inverse_pass_lag_factor)
-
+            
             regularization = 0
             for var in self.codesign_module.hw.params.tech_values:
                 regularization += (max(self.codesign_module.hw.params.tech_values[var]/initial_tech_params[var] - 1,
@@ -205,9 +203,6 @@ class DennardMultiCore:
                 self.codesign_module.hw.reset_state()
                 self.codesign_module.forward_pass()
                 self.codesign_module.log_forward_tech_params()
-                self.edp_over_iterations.append(self.codesign_module.hw.obj)
-            else:
-                self.edp_over_iterations.append(self.codesign_module.hw.symbolic_obj.subs(self.codesign_module.hw.params.tech_values))
 
         self.plot_params_over_iterations()
         self.plot_edp_over_iterations()
