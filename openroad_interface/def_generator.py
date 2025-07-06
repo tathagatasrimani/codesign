@@ -230,7 +230,7 @@ def def_generator(test_file: str, graph: nx.DiGraph):
         if "MainMem" in graph.nodes[node1]["function"] or "Buf" in graph.nodes[node1]["function"]:
             graph.remove_node(node1)
             nodes.remove(node1)
-        elif graph.nodes[node1]["function"] == "Regs" or graph.nodes[node1]["function"] == "And" or graph.nodes[node1]["function"] == "BitXor":
+        elif graph.nodes[node1]["function"] == "Regs": ##or graph.nodes[node1]["function"] == "And" or graph.nodes[node1]["function"] == "BitXor":
             graph.nodes[node1]["count"] = 16
         else:
             graph.nodes[node1]["count"] = 32
