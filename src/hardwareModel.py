@@ -1,4 +1,5 @@
 import logging
+import random
 import yaml
 import time
 
@@ -101,60 +102,95 @@ class HardwareModel:
         unmapped_dfg_nodes = set(self.scheduled_dfg.nodes)
         
         ### First, attempt direct name matching between scheduled DFG nodes and netlist nodes.
-        for node in self.scheduled_dfg:
-            if self.scheduled_dfg.nodes[node]["function"] not in self.params.circuit_values["latency"]:
-                continue
+        if benchmark_name == "matmult":
+            for node in self.scheduled_dfg:
+                if self.scheduled_dfg.nodes[node]["function"] not in self.params.circuit_values["latency"]:
+                    continue
 
-            ## get the catapult name from the scheduled DFG node
-            catapult_name = self.scheduled_dfg.nodes[node]["catapult_name"]
+                ## get the catapult name from the scheduled DFG node
+                catapult_name = self.scheduled_dfg.nodes[node]["catapult_name"]
 
-            ##E.g. catapult name: for#1-1:for-2:for-6:add_inst.run()
+                ##E.g. catapult name: for#1-1:for-2:for-6:add_inst.run()
 
-            ## replace all the # and - with _ to match the netlist node names
-            catapult_name = catapult_name.replace("#", "_").replace("-", "_")
+                ## replace all the # and - with _ to match the netlist node names
+                catapult_name = catapult_name.replace("#", "_").replace("-", "_")
 
-            ##E.g. catapult_name: for_1_1:for_2:for_6:add_inst.run()
+                ##E.g. catapult_name: for_1_1:for_2:for_6:add_inst.run()
 
-            if "ccs_ram_sync_" in self.scheduled_dfg.nodes[node]["module"]:
-                ## This is a memory node, so we must map it to the DFG differently.
-                module_name = self.scheduled_dfg.nodes[node]["module"]
+                if "ccs_ram_sync_" in self.scheduled_dfg.nodes[node]["module"]:
+                    ## This is a memory node, so we must map it to the DFG differently.
+                    module_name = self.scheduled_dfg.nodes[node]["module"]
 
-                ## ccs_ram_sync_1R1W_wport(9,16,7,100,100,16,5)
+                    ## ccs_ram_sync_1R1W_wport(9,16,7,100,100,16,5)
 
-                ## remove the last character of module name and replace all the , and ( with _
-                module_name = module_name[:-1].replace(",", "_").replace("(", "_")
+                    ## remove the last character of module name and replace all the , and ( with _
+                    module_name = module_name[:-1].replace(",", "_").replace("(", "_")
 
 
-                ### catapult_name "for#1:for:write_mem(c_chan:rsc.@)#98"
-                ## extract only the part inside the parentheses
-                catapult_name = catapult_name.split("(")[-1].split(")")[0]
+                    ### catapult_name "for#1:for:write_mem(c_chan:rsc.@)#98"
+                    ## extract only the part inside the parentheses
+                    catapult_name = catapult_name.split("(")[-1].split(")")[0]
 
-                ## c_chan:rsc.@
-                ## replace : with _ and .@ with 'i'
-                instance_name = catapult_name.replace(":", "_").replace(".@", "i")
+                    ## c_chan:rsc.@
+                    ## replace : with _ and .@ with 'i'
+                    instance_name = catapult_name.replace(":", "_").replace(".@", "i")
 
-                ## see if there is a node in the netlist where the module name in the DFG matches part of the module type in the netlist
-                for netlist_node in self.netlist.nodes:
-                    if (module_name in self.netlist.nodes[netlist_node]["module_type"] and
-                        instance_name in self.netlist.nodes[netlist_node]["hierarchy_path"]):
-                        ## if so, map the scheduled DFG node to the netlist node
-                        #self.dfg_to_netlist_map[node] = netlist_node
-                        self.scheduled_dfg.nodes[node]["netlist_node"] = netlist_node
-                        unmapped_dfg_nodes.remove(node)
-                        break
+                    ## see if there is a node in the netlist where the module name in the DFG matches part of the module type in the netlist
+                    for netlist_node in self.netlist.nodes:
+                        if (module_name in self.netlist.nodes[netlist_node]["module_type"] and
+                            instance_name in self.netlist.nodes[netlist_node]["hierarchy_path"]):
+                            ## if so, map the scheduled DFG node to the netlist node
+                            #self.dfg_to_netlist_map[node] = netlist_node
+                            self.scheduled_dfg.nodes[node]["netlist_node"] = netlist_node
+                            unmapped_dfg_nodes.remove(node)
+                            break
 
-            else:
-                ## This is NOT a memory node
-                
-                ## remove the last part of the catapult name and rejoin with _
-                netlist_name = "_".join(catapult_name.split(":")[0:3])
+                else:
+                    ## This is NOT a memory node
+                    
+                    ## remove the last part of the catapult name and rejoin with _
+                    netlist_name = "_".join(catapult_name.split(":")[0:3])
 
-                ##E.g. netlist_name: for_1_1_for_2_for_6
+                    ##E.g. netlist_name: for_1_1_for_2_for_6
+
+                    ## get the function type from the scheduled DFG node
+                    function_type = self.scheduled_dfg.nodes[node]["function"]
+
+                    ## see if there is a node in the netlist with the same function type and whose hierarchy path contains the netlist_name
+                    for netlist_node in self.netlist.nodes:
+                        if (self.netlist.nodes[netlist_node]["function"] == function_type and
+                            netlist_name in self.netlist.nodes[netlist_node]["hierarchy_path"]):
+                            ## if so, map the scheduled DFG node to the netlist node
+                            #self.dfg_to_netlist_map[node] = netlist_node
+                            self.scheduled_dfg.nodes[node]["netlist_node"] = netlist_node
+                            unmapped_dfg_nodes.remove(node)
+                            break
+
+        elif benchmark_name == "basic_aes":
+            ### similar as matmult, but the catapult names are different.
+            ## for example catapult_name "mul_inst.run()#1" in the DFG should map to label "basic_aes**basic_aes_run_inst**mul_inst_run_1_rg" in the netlist. 
+            for node in self.scheduled_dfg:
+                if self.scheduled_dfg.nodes[node]["function"] not in self.params.circuit_values["latency"]:
+                    logger.warning(f"skipping node {node} with function {self.scheduled_dfg.nodes[node]['function']} as it is not in the circuit values")
+                    continue
+
+                ## get the catapult name from the scheduled DFG node
+                catapult_name = self.scheduled_dfg.nodes[node]["catapult_name"]
+
+                ##E.g. catapult name: mul_inst.run()#1
+
+                ## replace all the # and - and . and () with _ to match the netlist node names
+                netlist_name = catapult_name.replace("#", "_").replace("-", "_").replace(".", "_").replace("()", "_")
+
+                ##E.g. netlist_name: mul_inst_run_1
+
+                logger.info(f"netlist_name: {netlist_name}")
 
                 ## get the function type from the scheduled DFG node
                 function_type = self.scheduled_dfg.nodes[node]["function"]
 
                 ## see if there is a node in the netlist with the same function type and whose hierarchy path contains the netlist_name
+                found_match = False
                 for netlist_node in self.netlist.nodes:
                     if (self.netlist.nodes[netlist_node]["function"] == function_type and
                         netlist_name in self.netlist.nodes[netlist_node]["hierarchy_path"]):
@@ -162,7 +198,12 @@ class HardwareModel:
                         #self.dfg_to_netlist_map[node] = netlist_node
                         self.scheduled_dfg.nodes[node]["netlist_node"] = netlist_node
                         unmapped_dfg_nodes.remove(node)
+                        found_match = True
                         break
+
+                if not found_match:
+                    logger.warning(f"no direct name match found for node {node} with catapult name {catapult_name} and function type {function_type}")
+
 
         direct_name_match_count = len(self.scheduled_dfg.nodes) - len(unmapped_dfg_nodes)
         logger.info(f"number of mapped dfg nodes using direct name match: {direct_name_match_count}")
@@ -256,7 +297,6 @@ class HardwareModel:
         ### log the unmapped dfg nodes
         if len(unmapped_dfg_nodes) > 0:
             logger.warning(f"unmapped dfg nodes after all mapping attempts: {unmapped_dfg_nodes}")
-            logger.warning("These nodes may not have a corresponding netlist node. Please check the netlist and DFG for consistency.")
 
 
         ## print all netlist nodes that don't have a mapping in the scheduled DFG
@@ -271,33 +311,22 @@ class HardwareModel:
         logger.info(f"unmapped netlist nodes: {unmapped_netlist_nodes}")
 
 
+        ### Finally, if there are still unmapped DFG nodes, try to match them to the netlist nodes based on the inputs and outputs of the DFG nodes and netlist nodes. 
+        ### This round, if more than one resource matches, just take a random one. 
+        mapped_nodes_input_output_match_approx = self.dfg_to_netlist_i_o_match(unmapped_dfg_nodes, approx_match=True)
+        logger.info(f"succesfully mapped {len(mapped_nodes_input_output_match_approx)} nodes based on input/output matching")
+        unmapped_dfg_nodes = unmapped_dfg_nodes - mapped_nodes_input_output_match_approx
+        logger.info(f"number of unmapped dfg nodes after input/output matching: {len(unmapped_dfg_nodes)}")
+
+        ### log the unmapped dfg nodes
+        if len(unmapped_dfg_nodes) > 0:
+            logger.warning(f"unmapped dfg nodes after all mapping attempts, including approximate mapping: {unmapped_dfg_nodes}")
+
         with open("src/tmp/benchmark/scheduled-dfg-after-mapping.gml", "wb") as f:
             nx.write_gml(self.scheduled_dfg, f)
 
-        
-        ### old method:
-        # for node in self.scheduled_dfg:
-        #     if self.scheduled_dfg.nodes[node]["function"] not in self.params.circuit_values["latency"]:
-        #         self.dfg_to_netlist_map[node] = None
-        #     else:
-        #         for elem in self.netlist:
-        #             if self.inst_name_map[node] in elem:
-        #                 self.dfg_to_netlist_map[node] = elem
-        #                 break
-        #         if node not in self.dfg_to_netlist_map:
-        #             logger.warning(f"node {node}, {self.inst_name_map[node]} not found in netlist")
 
-        # for edge in self.scheduled_dfg.edges:
-        #     if edge[0] not in self.dfg_to_netlist_map or edge[1] not in self.dfg_to_netlist_map: continue
-        #     edge_mapped = (self.dfg_to_netlist_map[edge[0]], self.dfg_to_netlist_map[edge[1]])
-        #     if edge_mapped not in self.netlist.edges:
-        #         logger.info(f"edge {edge} not found in netlist")
-        #     else:
-        #         self.dfg_to_netlist_edge_map[edge] = edge_mapped
-        #         logger.info(f"edge {edge} mapped to {edge_mapped}")
-
-
-    def dfg_to_netlist_i_o_match(self, unmapped_dfg_nodes):
+    def dfg_to_netlist_i_o_match(self, unmapped_dfg_nodes, approx_match=False):
         """
         Matches the unmapped DFG nodes to the netlist nodes based on the inputs and outputs of the DFG nodes and netlist nodes.
         """
@@ -384,8 +413,14 @@ class HardwareModel:
 
             if len(potential_netlist_nodes) == 0:
                 logger.warning(f"no potential netlist nodes found for dfg node {node}, skipping")
-            elif len(potential_netlist_nodes) > 1:
+            elif len(potential_netlist_nodes) > 1 and not approx_match:
                 logger.warning(f"multiple potential netlist nodes found for dfg node {node}: {potential_netlist_nodes}, skipping")
+            elif len(potential_netlist_nodes) > 1 and approx_match:
+                logger.warning(f"multiple potential netlist nodes found for dfg node {node}: {potential_netlist_nodes}, using random one")
+                random_netlist_node = random.choice(potential_netlist_nodes)
+                logger.info(f"mapping dfg node {node} to netlist node {random_netlist_node}")
+                self.scheduled_dfg.nodes[node]["netlist_node"] = random_netlist_node
+                mapped_nodes_input_output_match.add(node)
             else:
                 netlist_node = potential_netlist_nodes[0]
                 logger.info(f"mapping dfg node {node} to netlist node {netlist_node}")
