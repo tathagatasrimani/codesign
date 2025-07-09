@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 import pandas as pd
 import sympy as sp
 
-from src import hw_symbols
+from src import parameters
 
 from src.cacti import CACTI_DIR, TRANSISTOR_SIZES
 
@@ -120,6 +120,7 @@ def gen_vals(
     force_cache_config=None,
     technology=None,
     debug=False,
+    num_rw_ports=None,
 ) -> pd.DataFrame:
     """
     Generates a Cacti .cfg file based on input and cacti_input, runs Cacti,
@@ -162,7 +163,7 @@ def gen_vals(
     """
 
     logger.info(
-        f"Running Cacti with the following parameters: filename: {filename}, cache_size: {cache_size}, block_size: {block_size}, cache_type: {cache_type}, bus_width: {bus_width}, transistor_size: {transistor_size}, addr_timing: {addr_timing}, force_cache_config: {force_cache_config}, technology: {technology}"
+        f"Running Cacti with the following parameters: filename: {filename}, cache_size: {cache_size}, block_size: {block_size}, cache_type: {cache_type}, bus_width: {bus_width}, transistor_size: {transistor_size}, addr_timing: {addr_timing}, force_cache_config: {force_cache_config}, technology: {technology}, num_rw_ports: {num_rw_ports}"
     )
 
     # load in default values
@@ -227,7 +228,7 @@ def gen_vals(
         "# To model Fully Associative cache, set associativity to zero",
         "-associativity {}".format(associativity),
         "",
-        "-read-write port {}".format(config_values["num_rw_ports"]),
+        "-read-write port {}".format(config_values["num_rw_ports"] if num_rw_ports is None else num_rw_ports),
         "-exclusive read port {}".format(config_values["num_rd_ports"]),
         "-exclusive write port {}".format(config_values["num_wr_ports"]),
         "-single ended read ports {}".format(config_values["num_se_rd_ports"]),
@@ -1388,10 +1389,12 @@ def differentiate_all(cfg: str, dat: str):
     )
     os.makedirs(pd_results_dir, exist_ok=True)
 
+    params = parameters.Parameters("default", dat)
+
     processes = []
     for f in symbolic_expression_files:
         print(f"Reading {f}")
-        expr = sp.sympify(open(f).read(), locals=hw_symbols.symbol_table)
+        expr = sp.sympify(open(f).read(), locals=params.symbol_table)
         for free_symbol in list(expr.free_symbols):
             # print(f"Free symbol: {free_symbol}")
             processes.append(

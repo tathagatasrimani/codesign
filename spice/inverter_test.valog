@@ -1,0 +1,58 @@
+
+*pvaI* current limit stacksize=8388608, set new limit stacksize=62914560
+ ---------------------------------------------------------
+|                                                         |
+|             Synopsys Unified Verilog-A (pVA)            |
+|                                                         |
+|            Machine Name: rsgvm13.stanford.edu           |
+| Copyright (c) 2015 Synopsys Inc., All Rights Reserved.  |
+|                                                         |
+ ---------------------------------------------------------
+
+libepva built by pvamgr synmake_pva_build  on Fri Mar 26 16:01:43 PDT 2021 - p4:6957362
+HSP_HOME:   /cad/synopsys/hspice/R-2020.12-SP1/hspice
+HSP_ARCH:   linux64
+HSP_GCC :   /cad/synopsys/hspice/R-2020.12-SP1/hspice/GNU/linux64/gcc/bin/gcc -m64 
+HSP_GCC_VER:   7.3.0
+Working-Dir:     /nfs/pool0/pmcewen/codesign/spice
+Args:            -p hsp -t spi -f inverter_test.pvadir/pvaHDL.lis -o inverter_test.pvadir 
+
+### optimize mode ###
+
+Begin of pVA compiling on Thu May 22 10:54:14 2025	GTM/In-use: 0.2500/0.1496 MB
+
+Parsing 'BSIM-CMG_112.0.0_12262024/code/bsimcmg.va'
+Parsing include file '/cad/synopsys/hspice/R-2020.12-SP1/hspice/include/constants.vams'
+Parsing include file '/cad/synopsys/hspice/R-2020.12-SP1/hspice/include/disciplines.vams'
+Parsing include file 'BSIM-CMG_112.0.0_12262024/code/bsimcmg_macros.include'
+Parsing include file 'BSIM-CMG_112.0.0_12262024/code/bsimcmg_parameters.include'
+Parsing include file 'BSIM-CMG_112.0.0_12262024/code/bsimcmg_variables.include'
+Parsing include file 'BSIM-CMG_112.0.0_12262024/code/bsimcmg_body.include'
+Parsing include file 'BSIM-CMG_112.0.0_12262024/code/bsimcmg_initialization.include'
+Parsing include file 'BSIM-CMG_112.0.0_12262024/code/bsimcmg_checking.include'
+Parsing include file 'BSIM-CMG_112.0.0_12262024/code/bsimcmg_noise.include'
+
+End of pVA compiling on Thu May 22 10:54:14 2025	GTM/In-use: 12.3750/12.2749 MB
+
+
+End of build pVA DB on Thu May 22 10:54:16 2025	GTM/In-use: 15.1250/15.0987 MB
+
+
+inverter_test.pvadir/pvaRTL_linux64.so is reused
+
+
+End of pVA simulation reached at time 0 on Thu May 22 10:54:16 2025	GTM/In-use: 16.1250/14.6220 MB
+
+
+		pVA malloc          2.426 Mbytes        44226 times
+		pVA calloc         14.705 Mbytes       154568 times
+		pVA realloc        15.950 Mbytes         2428 times
+		pVA valloc          0.000 Mbytes            0 times
+		pVA alloca          0.000 Mbytes            0 times
+
+		pVA TOT-MEM        33.081 Mbytes       201222 times
+		pVA free                                38696 times
+		pVA strdup          0.000 Mbytes            0 times
+
+pVA concluded on Thu May 22 10:54:16 2025	GTM/In-use: 16.1250/14.6220 MB
+

@@ -1,0 +1,22 @@
+name: Python Tests
+
+on:
+  push:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Set up bash and run environment setup
+        run: |
+          bash full_env_start.sh
+
+      - name: Run pytest
+        shell: bash -l {0}
+        run: |
+          source miniconda3/etc/profile.d/conda.sh
+          conda activate codesign
+          pytest test/

@@ -1,0 +1,24 @@
+// Inverter Test Simulation using BSIM-CMG in Spectre
+
+ahdl_include "BSIM-CMG_112.0.0_12262024/code/bsimcmg.va"
+
+// Parameter block
+parameters VDD=0.8 Wn=1u Ln=30n Wp=1u Lp=30n
+
+// Model definitions
+model nfet mos3 type=1
+model pfet mos3 type=0
+
+// Power supplies
+Vdd (vdd 0) vsource dc=VDD
+Vin (in 0) vsource type=pulse val0=0 val1=VDD delay=0 rise=10p fall=10p width=100p period=200p
+
+// Inverter
+M1 (out in vdd vdd) nfet w=Wp l=Lp
+M2 (out in 0   0  ) pfet w=Wn l=Ln
+
+// Simulation
+tran tran stop=4n step=10f maxstep=10f
+dcOp dc write="dcOp.dc" print=yes
+
+save in out vdd

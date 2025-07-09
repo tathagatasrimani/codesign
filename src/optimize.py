@@ -6,248 +6,193 @@ logger = logging.getLogger(__name__)
 
 # third party
 import pyomo.environ as pyo
-from sympy import sympify
-import sympy
-import cvxpy as cp
-import numpy as np
-
+import sympy as sp
 # custom
 from .preprocess import Preprocessor
-from . import sim_util
-from .hardwareModel import HardwareModel
-from . import hw_symbols
 
 
 multistart = False
 
+class Optimizer:
+    def __init__(self, hw):
+        self.hw = hw
+        self.disabled_knobs = []
+        self.dennard_scaling_type = "constant_field"
+        self.objective_constraint_inds = []
+        self.initial_alpha = None
 
-def ipopt(tech_params, edp, improvement, regularization, cacti_subs):
-    """
-    Run the IPOPT optimization routine for the hardware model using Pyomo.
+    def create_constraints(self, improvement):
+        constraints = []
+        self.objective_constraint_inds = [0]
+        constraints.append(self.hw.symbolic_obj >= float(self.hw.symbolic_obj.subs(self.hw.params.tech_values) / improvement))
+        constraints.append(self.hw.params.V_dd >= self.hw.params.V_th_eff)
+        if self.hw.params.V_th_eff != self.hw.params.V_th:
+            constraints.append(self.hw.params.V_th_eff >= 0)
+        constraints.append(self.hw.params.V_dd <= 5)
+        constraints.append(self.hw.params.V_ox >= 0)
+        for knob in self.disabled_knobs:
+            constraints.append(sp.Eq(knob, self.hw.params.tech_values[knob]))
+        total_power = (self.hw.total_passive_energy + self.hw.total_active_energy) / self.hw.execution_time
+        constraints.append(total_power <= 50) # hard limit on power
+        if self.hw.params.f in self.hw.params.tech_values:
+            constraints.append(self.hw.params.delay <= 1e9/self.hw.params.f)
+        constraints.append(sp.Eq(self.hw.params.t_ox_, self.hw.params.e_ox/self.hw.params.Cox))
+        constraints.append(self.hw.params.I_off/(self.hw.params.W*self.hw.params.L) <= 100e-9 / (1e-6 * 1e-6))
 
-    Args:
-        tech_params (dict): Technology parameters for optimization.
-        edp (sympy.Expr): Symbolic EDP Expression.
-        improvement (float): Improvement factor for optimization.
-        regularization (float): Regularization parameter for inverse pass validation.
-        cacti_subs (dict): Substitution dictionary for CACTI parameters.
-
-    Returns:
-        None
-    """
-    logger.info("Optimizing using IPOPT")
-    initial_params = {}
-    for key in tech_params:
-        initial_params[key.name] = tech_params[key]
-
-    model = pyo.ConcreteModel()
-    opt, scaled_model, model, free_symbols, mapping = (
-        Preprocessor().begin(model, edp, initial_params, improvement, cacti_subs, multistart=multistart, regularization=regularization)
-    )
-
-
-    start_time = time.time()
-    if multistart:
-        results = opt.solve(
-            scaled_model,
-            solver_args={
-                "keepfiles": True,
-                "tee": True,
-                "symbolic_solver_labels": True,
-            },
-        )
-    else:
-        results = opt.solve(
-            scaled_model, keepfiles=True, tee=True, symbolic_solver_labels=True
-        )
-    logger.info(f"time to run IPOPT: {time.time()-start_time}")
-    pyo.TransformationFactory("core.scale_model").propagate_solution(
-        scaled_model, model
-    )
-
-    print(results.solver.termination_condition)
-    print("======================")
-    model.display()
-
-
-def get_grad(grad_var_starting_val, args_arr, jmod):
-    """
-    (NOT USED)
-    Compute the gradient of a model function with respect to a variable using Equinox.
-
-    Args:
-        grad_var_starting_val: Starting value for the gradient variable.
-        args_arr: Array of arguments to pass to the model function.
-        jmod: Model function to differentiate.
-
-    Returns:
-        Gradient of the model function with respect to grad_var_starting_val.
-    """
-    import equinox as eqx
-
-    return eqx.filter_grad(
-        lambda gv, arr0, arr, a: a(
-            grad_var=gv,
-            V_dd=arr0,
-            f=arr[1],
-            MemReadL=arr[2],
-            MemWriteL=arr[3],
-            MemReadPact=arr[4],
-            MemWritePact=arr[5],
-            MemPpass=arr[6],
-            Reff_And=arr[7],
-            Reff_Or=arr[8],
-            Reff_Add=arr[9],
-            Reff_Sub=arr[10],
-            Reff_Mult=arr[11],
-            Reff_FloorDiv=arr[12],
-            Reff_Mod=arr[13],
-            Reff_LShift=arr[14],
-            Reff_RShift=arr[15],
-            Reff_BitOr=arr[16],
-            Reff_BitXor=arr[17],
-            Reff_BitAnd=arr[18],
-            Reff_Eq=arr[19],
-            Reff_NotEq=arr[20],
-            Reff_Lt=arr[21],
-            Reff_LtE=arr[22],
-            Reff_Gt=arr[23],
-            Reff_GtE=arr[24],
-            Reff_USub=arr[25],
-            Reff_UAdd=arr[26],
-            Reff_IsNot=arr[27],
-            Reff_Not=arr[28],
-            Reff_Invert=arr[29],
-            Reff_Regs=arr[30],
-            Ceff_And=arr[31],
-            Ceff_Or=arr[32],
-            Ceff_Add=arr[33],
-            Ceff_Sub=arr[34],
-            Ceff_Mult=arr[35],
-            Ceff_FloorDiv=arr[36],
-            Ceff_Mod=arr[37],
-            Ceff_LShift=arr[38],
-            Ceff_RShift=arr[39],
-            Ceff_BitOr=arr[40],
-            Ceff_BitXor=arr[41],
-            Ceff_BitAnd=arr[42],
-            Ceff_Eq=arr[43],
-            Ceff_NotEq=arr[44],
-            Ceff_Lt=arr[45],
-            Ceff_LtE=arr[46],
-            Ceff_Gt=arr[47],
-            Ceff_GtE=arr[48],
-            Ceff_USub=arr[49],
-            Ceff_UAdd=arr[50],
-            Ceff_IsNot=arr[51],
-            Ceff_Not=arr[52],
-            Ceff_Invert=arr[53],
-            Ceff_Regs=arr[54],
-        )
-    )(grad_var_starting_val, args_arr[0], args_arr, jmod)
-
-
-def scp_opt(tech_params, edp):
-    """
-    (NOT USED)
-    Run the SCP (Successive Convex Programming) optimization routine for the hardware model.
-
-    Args:
-        tech_params (dict): Technology parameters for optimization.
-        edp (float): Energy-delay product target or constraint.
-
-    Returns:
-        None
-    """
-    import sympy2jax
-    import jax.numpy as jnp
-    logger.info("Optimizing SCP")
-    # print(tech_params)
-    initial_val = edp.subs(tech_params)
-    current_val = initial_val
-    Ceff_scale = 1e10
-    scaled_edp_map = {}
-    for name in hw_symbols.symbol_table:
-        if name.startswith("Ceff") or name.startswith("Mem"):
-            scaled_edp_map[hw_symbols.symbol_table[name]] = (
-                hw_symbols.symbol_table[name] / Ceff_scale
-            )
-    edp_scaled = edp.subs(scaled_edp_map)
-    # print(edp_scaled)
-    for i in range(10):
-        args_arr = []
-        starting_vals = np.zeros(len(hw_symbols.symbol_table))
-        i = 0
-        for name in hw_symbols.symbol_table:
-            value = tech_params[hw_symbols.symbol_table[name]]
-            if name.startswith("Ceff") or name.startswith("Mem"):
-                value *= Ceff_scale
-            args_arr.append(jnp.array(value))
-            starting_vals[i] = value
-            i += 1
-        grad_map = {}
-        grad_var = sympy.symbols("grad_var")
-        ind = 0
-        for name in hw_symbols.symbol_table:
-            edp_cur = edp_scaled.subs({hw_symbols.symbol_table[name]: grad_var})
-            jmod = sympy2jax.SymbolicModule(edp_cur)
-            grad_map[name] = get_grad(args_arr[ind], args_arr, jmod)
-            # print(name, grad_map[name])
-            ind += 1
-        # print(args_arr)
-
-        # print(f"Grad map:\n {grad_map}")
-        x = cp.Variable(len(hw_symbols.symbol_table), pos=True)
-        lam = 0.0000001
-        obj = lam * cp.norm1(starting_vals - x)
-        for i in range(len(hw_symbols.symbol_table)):
-            obj += grad_map[list(hw_symbols.symbol_table)[i]] * x[i]
-        constr = []
-        for i in range(len(hw_symbols.symbol_table)):
-            constr += [x[i] >= starting_vals[i] * 0.95, x[i] <= starting_vals[i] * 1.05]
-        prob = cp.Problem(cp.Minimize(obj), constr)
-        prob.solve(solver=cp.GLPK)
-        for i in range(len(hw_symbols.symbol_table)):
-            if list(hw_symbols.symbol_table)[i].startswith("Ceff") or list(
-                hw_symbols.symbol_table
-            )[i].startswith("Mem"):
-                tech_params[
-                    hw_symbols.symbol_table[list(hw_symbols.symbol_table)[i]]
-                ] = (x.value[i] / Ceff_scale)
+        if self.hw.model_cfg["scaling_mode"] == "dennard":
+            if self.dennard_scaling_type == "constant_field":
+                constraints.append(sp.Eq(self.hw.params.W/self.hw.params.tech_values[self.hw.params.W], 1/self.hw.params.alpha_dennard))
+                constraints.append(sp.Eq(self.hw.params.L/self.hw.params.tech_values[self.hw.params.L], 1/self.hw.params.alpha_dennard))
+                constraints.append(sp.Eq(self.hw.params.V_dd/self.hw.params.tech_values[self.hw.params.V_dd], 1/self.hw.params.alpha_dennard))
+                constraints.append(sp.Eq(self.hw.params.V_th_eff/self.hw.params.tech_values[self.hw.params.V_th_eff], 1/self.hw.params.alpha_dennard))
+                constraints.append(sp.Eq(self.hw.params.Cox/self.hw.params.tech_values[self.hw.params.Cox], self.hw.params.alpha_dennard))
+                if self.initial_alpha is None and self.hw.params.tech_values[self.hw.params.alpha_dennard] != 1:
+                    self.initial_alpha = self.hw.params.tech_values[self.hw.params.alpha_dennard]
             else:
-                tech_params[
-                    hw_symbols.symbol_table[list(hw_symbols.symbol_table)[i]]
-                ] = x.value[i]
-        # print(f"tech params: {tech_params}")
-        current_val = edp.subs(tech_params)
-        # print("result of problem:", current_val)
-        if current_val <= initial_val / 2:
-            break
-    # print(f"result: {x.value}")
-    # print(tech_params)
-    return tech_params
+                constraints.append(sp.Eq(self.hw.params.alpha_dennard, self.initial_alpha))
+                constraints.append(sp.Eq(self.hw.params.W/self.hw.params.tech_values[self.hw.params.W], 1/self.hw.params.alpha_dennard))
+                constraints.append(sp.Eq(self.hw.params.L/self.hw.params.tech_values[self.hw.params.L], 1/self.hw.params.alpha_dennard))
+                constraints.append(sp.Eq(self.hw.params.V_dd, self.hw.params.tech_values[self.hw.params.V_dd]))
+                constraints.append(sp.Eq(self.hw.params.V_th_eff, self.hw.params.tech_values[self.hw.params.V_th_eff]))
+                #constraints.append(sp.Eq(self.hw.params.V_dd/self.hw.params.tech_values[self.hw.params.V_dd], self.hw.params.epsilon_dennard/self.hw.params.alpha_dennard))
+                #constraints.append(sp.Eq(self.hw.params.V_th_eff/self.hw.params.tech_values[self.hw.params.V_th_eff], self.hw.params.epsilon_dennard/self.hw.params.alpha_dennard))
+                constraints.append(sp.Eq(self.hw.params.Cox/self.hw.params.tech_values[self.hw.params.Cox], self.hw.params.alpha_dennard))
 
-# note: improvement/regularization parameter currently only for inverse pass validation, so only using it for ipopt
-# example: improvement of 1.1 = 10% improvement
-def optimize(tech_params, edp, opt, cacti_subs, improvement=10, regularization=0.1):
-    """
-    Optimize the hardware model using the specified optimization method.
+            #elif self.dennard_scaling_type == "generalized":
+            #    constraints.append(sp.Eq(self.hw.params.alpha_dennard, 1))
+        elif self.hw.model_cfg["scaling_mode"] == "dennard_implicit":
+            constraints.append(self.hw.params.t_ox_ <= self.hw.params.t_ox_.subs(self.hw.params.tech_values))
+            constraints.append(self.hw.params.L <= self.hw.params.L.subs(self.hw.params.tech_values))
+            constraints.append(self.hw.params.W <= self.hw.params.W.subs(self.hw.params.tech_values))
+            constraints.append(self.hw.params.V_dd <= self.hw.params.V_dd.subs(self.hw.params.tech_values))
+            constraints.append(self.hw.params.V_th_eff <= self.hw.params.V_th_eff.subs(self.hw.params.tech_values))
+            constraints.append(sp.Eq(self.hw.params.W/self.hw.params.W.subs(self.hw.params.tech_values), self.hw.params.L/self.hw.params.L.subs(self.hw.params.tech_values)))
+            constraints.append(sp.Eq(self.hw.params.V_dd/self.hw.params.V_dd.subs(self.hw.params.tech_values) , self.hw.params.L/self.hw.params.L.subs(self.hw.params.tech_values))) # lateral electric field scaling
+            constraints.append(sp.Eq(self.hw.params.V_dd/self.hw.params.V_dd.subs(self.hw.params.tech_values) , self.hw.params.t_ox_/self.hw.params.t_ox_.subs(self.hw.params.tech_values))) # lateral electric field scaling
+            constraints[0] = self.hw.execution_time >= self.hw.execution_time.subs(self.hw.params.tech_values)/1.3 # replace objective constraint with latency constraint
+            constraints.append(self.hw.total_active_energy + self.hw.total_passive_energy >= (self.hw.total_active_energy + self.hw.total_passive_energy).subs(self.hw.params.tech_values)/2.7)
+            self.objective_constraint_inds.append(len(constraints)-1)
 
-    Args:
-        tech_params (dict): Technology parameters for optimization.
-        edp (sympy.Expr): Symbolic EDP Expression.
-        opt (str): Optimization method to use ('ipopt', 'scp', etc.).
-        cacti_subs (dict): Substitution dictionary for CACTI parameters.
-        improvement (float, optional): Improvement factor for optimization. Defaults to 10.
-        regularization (float, optional): Regularization parameter. Defaults to 0.1.
+        print(f"constraints: {constraints}")
+        #constraints.append(self.hw.params.L >= 15e-9)
+        #constraints.append(self.hw.params.W >= 15e-9)
+        return constraints
+    
+    def create_opt_model(self, improvement):
+        constraints = self.create_constraints(improvement)
+        model = pyo.ConcreteModel()
+        preprocessor = Preprocessor(self.hw.params)
+        opt, scaled_model, model = (
+            preprocessor.begin(model, self.hw.symbolic_obj, improvement, multistart=multistart, constraints=constraints)
+        )
+        return opt, scaled_model, model
 
-    Returns:
-        None
-    """
-    if opt == "scp":
-        return scp_opt(tech_params, edp)
-    else:
-        return ipopt(tech_params, edp, improvement, regularization, cacti_subs)
+    def ipopt(self, improvement):
+        """
+        Run the IPOPT optimization routine for the hardware model using Pyomo.
+
+        Args:
+            tech_params (dict): Technology parameters for optimization.
+            edp (sympy.Expr): Symbolic EDP Expression.
+            improvement (float): Improvement factor for optimization.
+            cacti_subs (dict): Substitution dictionary for CACTI parameters.
+
+        Returns:
+            None
+        """
+        logger.info("Optimizing using IPOPT")
+
+        param_replace = {param: sp.Abs(param, evaluate=False) for param in self.hw.params.tech_values}
+        print("param_replace: ", param_replace)
+        print("symbolic obj before abs: ", self.hw.symbolic_obj)
+        self.hw.symbolic_obj = self.hw.symbolic_obj.xreplace(param_replace)
+        print("symbolic obj after abs: ", self.hw.symbolic_obj)
+
+        constraints = self.create_constraints(improvement)
+
+        opt, scaled_model, model = self.create_opt_model(improvement)
+
+
+        start_time = time.time()
+        if self.hw.model_cfg["scaling_mode"].startswith("dennard"):
+            results = opt.solve(
+                scaled_model, keepfiles=True, tee=True, symbolic_solver_labels=True
+            )
+            pyo.TransformationFactory("core.scale_model").propagate_solution(
+                scaled_model, model
+            )
+            final_value = pyo.value(model.Constraints[0]) # assume that the first constraint is the objective
+            print(f"obj value: {final_value}")
+            lower_bound = pyo.value(model.Constraints[0].lower)
+            print(f"lower bound: {lower_bound}")
+            if final_value > lower_bound*1.1: # if the objective is not improving within some margin, run with constant voltage scaling
+                print(f"obj value: {final_value} > {lower_bound*1.1}")
+                print(f"running with constant voltage scaling")
+                self.dennard_scaling_type = "constant_voltage"
+                opt, scaled_model, model = self.create_opt_model(improvement)
+                results = opt.solve(
+                    scaled_model, keepfiles=True, tee=True, symbolic_solver_labels=True
+                )
+                pyo.TransformationFactory("core.scale_model").propagate_solution(
+                    scaled_model, model
+                )
+                """
+                print(f"obj value: {final_value}")
+                print(f"lower bound: {lower_bound}")
+                if final_value > lower_bound*1.1: # if the objective is not improving within some margin, run with general scaling
+                    print(f"obj value: {final_value} > {lower_bound*1.1}")
+                    self.dennard_scaling_type = "generalized"
+                    opt, scaled_model, model = self.create_opt_model(improvement)
+                    results = opt.solve(
+                        scaled_model, keepfiles=True, tee=True, symbolic_solver_labels=True
+                    )
+                    pyo.TransformationFactory("core.scale_model").propagate_solution(
+                        scaled_model, model
+                    )"""
+        elif multistart:
+            results = opt.solve(
+                scaled_model,
+                solver_args={
+                    "keepfiles": True,
+                    "tee": True,
+                    "symbolic_solver_labels": True,
+                },
+            )
+            pyo.TransformationFactory("core.scale_model").propagate_solution(
+                scaled_model, model
+            )
+        else:
+            results = opt.solve(
+                scaled_model, keepfiles=True, tee=True, symbolic_solver_labels=True
+            )
+            pyo.TransformationFactory("core.scale_model").propagate_solution(
+                scaled_model, model
+            )
+        logger.info(f"time to run IPOPT: {time.time()-start_time}")
+
+        print(results.solver.termination_condition)
+        print("======================")
+        model.display()
+        lag_factor = 1
+        for ind in self.objective_constraint_inds:
+            lag_factor *= pyo.value(model.Constraints[ind]) / pyo.value(model.Constraints[ind].lower)
+        print(f"lag factor: {lag_factor}")
+        return lag_factor
+
+    # note: improvement/regularization parameter currently only for inverse pass validation, so only using it for ipopt
+    # example: improvement of 1.1 = 10% improvement
+    def optimize(self, opt, improvement=10, disabled_knobs=[]):
+        self.disabled_knobs = disabled_knobs
+        """
+        Optimize the hardware model using the specified optimization method.
+
+        Args:
+
+        Returns:
+            None
+        """
+        assert opt == "ipopt"
+        return self.ipopt(improvement)
 
 
 def main():
@@ -256,7 +201,7 @@ def main():
     For my inverse pass, I don't want to call this 
     """
 
-    hw = HardwareModel(cfg=args.architecture_config)
+    """hw = HardwareModel(cfg=args.architecture_config)
     hw.init_memory(
         sim_util.find_nearest_power_2(131072),
         sim_util.find_nearest_power_2(0),
@@ -270,7 +215,8 @@ def main():
 
     results = optimize(initial_params, edp, args.opt)
 
-    return results
+    return results"""
+    return
 
 
 if __name__ == "__main__":

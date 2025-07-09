@@ -12,7 +12,7 @@ def debug_print(*args, **kwargs):
     if DEBUG_PRINT:
         logger.info(' '.join(str(arg) for arg in args))
 
-def check_if_nodes_are_in_graph(graph, nodes):
+def check_if_nodes_are_in_graph(graph, nodes, warn=False):
     """Check if all nodes in the list are present in the graph."""
     all_found = True   
     node_not_found = None
@@ -20,7 +20,13 @@ def check_if_nodes_are_in_graph(graph, nodes):
         if node not in graph.nodes:
             all_found = False
             node_not_found = node
-    assert all_found, f"Not all nodes are in the graph. Missing node: {node_not_found}"
+    if not all_found:
+        if warn:
+            logger.warning(f"Not all nodes are in the graph. Missing node: {node_not_found}")
+            return False
+        else:
+            assert False, f"Node {node_not_found} not found in the graph. Please check the netlist."
+    return True
 
 # This script parses a Yosys JSON netlist and converts it into a NetworkX graph.
 def parse_yosys_json(json_file, include_memories=True, top_level_module_type="MatMult"):
@@ -111,16 +117,19 @@ def parse_yosys_json(json_file, include_memories=True, top_level_module_type="Ma
             in_final_graph = False
 
             ## required for compatibility with the inverse pass.
-            cell_type_camal_case = cell_type[0].upper() + cell_type[1:]
-            
+            cell_type_camel_case = cell_type[0].upper() + cell_type[1:]
+            if cell_type_camel_case == "Bitxor":
+                cell_type_camel_case = "BitXor"
+
             if cell_type == "mgc_in_sync_v2" or cell_type == "mgc_io_sync_v2":
+                ## don't parse the IO sync cells, they are not needed in the final graph.
                 continue
-            elif cell_type == "mult" or cell_type == "add": ### TODO: Add more CORES Here. 
-                final_graph.add_node(hierarchy_path + "**" + cell_name, type="c-core", module_type=cell_type, hierarchy_path=hierarchy_path + "**" + cell_name, in_use=0, function=cell_type_camal_case)  # include c-cores in final graph.
+            elif cell_type == "mult" or cell_type == "add" or cell_type == "bitxor": ### TODO: Add more CORES Here. 
+                final_graph.add_node(hierarchy_path + "**" + cell_name, type="c-core", module_type=cell_type, hierarchy_path=hierarchy_path + "**" + cell_name, in_use=0, function=cell_type_camel_case)  # include c-cores in final graph.
                 in_final_graph = True
-            elif "MatMult_ccs_ram_sync_1R1W" in cell_type:
+            elif "ccs_sample_mem_ccs_ram" in cell_type:
                 if include_memories:
-                    final_graph.add_node(hierarchy_path + "**" + cell_name, type="memory", module_type=cell_type, hierarchy_path=hierarchy_path + "**" + cell_name, in_use=0, function=cell_type_camal_case)  # include mem in final graph.
+                    final_graph.add_node(hierarchy_path + "**" + cell_name, type="memory", module_type=cell_type, hierarchy_path=hierarchy_path + "**" + cell_name, in_use=0, function=cell_type_camel_case)  # include mem in final graph.
                     in_final_graph = True
                 else:
                     continue ## completely ignore the memory instance.
@@ -138,7 +147,7 @@ def parse_yosys_json(json_file, include_memories=True, top_level_module_type="Ma
                 
 
                 ## the ccore modules don't have a port direction, so we need assign direction manually.
-                if cell_type == "add" or cell_type == "mult": ## TODO: Add more CORES Here.
+                if cell_type == "add" or cell_type == "mult" or cell_type == "bitxor": ## TODO: Add more CORES Here.
                     if port_name == "a" or port_name == "b":
                         input_port = True
 
@@ -181,6 +190,7 @@ def parse_yosys_json(json_file, include_memories=True, top_level_module_type="Ma
                         continue
 
                     debug_print(f"  Port: {port_name}, Net: {net_number}")
+                    debug_print(f"  Adding node for port: {hierarchy_path + '**' + cell_name + '$$' + port_name + '#' + str(port_bit)}")
                     full_graph.add_node(hierarchy_path + "**" + cell_name + "$$" + port_name + '#' + str(port_bit), type="module_port", text_label= port_name + "[" + str(port_bit) + "]", hierarchy_path= hierarchy_path + "**" + cell_name, in_final_graph=in_final_graph, direction=in_out_direction, cell_type=cell_type, orig_port_name=port_name, bit_pos=port_bit)
                     list_nodes_added.append(hierarchy_path + "**" + cell_name + "$$" + port_name + '#' + str(port_bit))
 
@@ -244,14 +254,15 @@ def parse_yosys_json(json_file, include_memories=True, top_level_module_type="Ma
                             check_if_nodes_are_in_graph(full_graph, [curr_cell_node, output_port_node])
                             full_graph.add_edge(curr_cell_node, output_port_node)
 
-                elif cell_type == "$mux":
+                elif cell_type == "$mux" or cell_type == "$pmux":
                     ## iterate through the added ports and make connections between the input and output ports "internally" in this module.
                     for curr_cell_node in list_nodes_added:
                         if full_graph.nodes[curr_cell_node]["orig_port_name"] == "A" or full_graph.nodes[curr_cell_node]["orig_port_name"] == "B":
                             ## this is the input port, so we need to connect it to the output port.
                             output_port_node = curr_cell_node.split("$$")[0] + "$$" + "Y" + "#" + str(full_graph.nodes[curr_cell_node]["bit_pos"])
                             debug_print(f"  Adding edge between {curr_cell_node} and {output_port_node}")
-                            check_if_nodes_are_in_graph(full_graph, [curr_cell_node, output_port_node])
+                            if not check_if_nodes_are_in_graph(full_graph, [curr_cell_node, output_port_node], warn=True):
+                                continue
                             full_graph.add_edge(curr_cell_node, output_port_node)
                         elif full_graph.nodes[curr_cell_node]["orig_port_name"] == "S":
                             ## This is the select port, so we need to connect it to ALL the output ports.

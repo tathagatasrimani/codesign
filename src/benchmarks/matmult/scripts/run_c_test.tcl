@@ -31,7 +31,7 @@ solution file add ./src/matmult_tb.cpp -exclude true
 go analyze
 
 directive set -DESIGN_HIERARCHY { 
-    {MatMult}
+    {matmult}
 }
 
 go compile

@@ -1,11 +1,55 @@
 import re
 import math
-import os
 
 import numpy as np
 import networkx as nx
+import pandas as pd
 
-from .var import directory
+from .working_directory import directory
+
+def parse_route_guide_with_layer_breakdown(
+    filepath: str, units_per_micron: float = 2000.0
+) -> pd.DataFrame:
+    """
+    Parses a route guide file and computes estimated wire lengths for each net,
+    broken down by metal layer.
+
+    Parameters:
+        filepath (str): Path to the route guide file.
+        units_per_micron (float): Conversion factor from internal units to microns.
+
+    Returns:
+        pd.DataFrame: DataFrame with columns ["net", "total_wl", "metal1", "metal2", "metal3"]
+    """
+    with open(filepath, 'r') as f:
+        content = f.read()
+
+    # Match net names and their route block
+    net_blocks = re.findall(r'_(\d+)_\s*\((.*?)\)', content, re.DOTALL)
+
+    results = []
+
+    for net_id, block in net_blocks:
+        # Match each routing box and its metal layer
+        boxes = re.findall(r'(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(metal\d+)', block)
+        layer_lengths = {"metal1": 0.0, "metal2": 0.0, "metal3": 0.0}
+
+        for x1, y1, x2, y2, layer in boxes:
+            x1, y1, x2, y2 = map(float, (x1, y1, x2, y2))
+            # Metal2 is vertical, metal1 and metal3 are horizontal
+            length = y2 - y1 if layer == "metal2" else x2 - x1
+            if layer in layer_lengths:
+                layer_lengths[layer] += length
+
+        total_length = sum(layer_lengths.values()) / units_per_micron
+        layer_lengths_microns = {k: round(v / units_per_micron, 1) for k, v in layer_lengths.items()}
+        results.append({
+            "net": f"_{net_id}_",
+            "total_wl": round(total_length, 1),
+            **layer_lengths_microns
+        })
+
+    return pd.DataFrame(results).set_index("net")
 
 def total_euclidean_distance(net_list: list, graph: nx.DiGraph, unit: float, node_to_num: dict):
     '''
@@ -23,7 +67,7 @@ def total_euclidean_distance(net_list: list, graph: nx.DiGraph, unit: float, nod
         result += edge
     return result, edge_list
 
-def global_estimation(wire_global_file : str = directory + "results/wire_length_global.txt"):
+def global_estimation(wire_global_file : str = directory + "/results/wire_length_global.txt"):
     global_pattern = r"grt:\s_[0-9]+_\s[0-9]*\.[0-9]+\s[0-9]+"
     global_length_data = []
     wire_global_data = open(wire_global_file)

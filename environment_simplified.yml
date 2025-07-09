@@ -43,6 +43,16 @@ dependencies:
   - yosys
   - gcc_linux-64=13.*
   - gxx_linux-64=13.*
+  - autoconf
+  - automake
+  - libtool
+  - gperf
+  - flex
+  - bison
+  - perl
+  - make
+  - git
+  - help2man
   - pip:
       - astpretty==3.0.0
       - equinox==0.11.4
@@ -52,3 +62,4 @@ dependencies:
       - opt-einsum==3.3.0
       - sympy2jax==0.0.5
       - typeguard==2.13.3
+      - pytest==8.3.0

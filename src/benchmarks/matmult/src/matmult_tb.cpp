@@ -28,7 +28,7 @@ int run_matmult() {
 
     printf("Running HLS C Design\n");
 
-    MatMult mm;
+    matmult mm;
     mm.run(a_chan, b_chan, c_chan);
 
     printf("Running reference C model\n");

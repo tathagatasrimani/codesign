@@ -5,7 +5,7 @@ tech_params = yaml.load(open("src/params/tech_params.yaml", "r"), Loader=yaml.Lo
 latency = tech_params["latency"]
 dynamic_power = tech_params["dynamic_power"]
 leakage_power = tech_params["leakage_power"]
-
+area = tech_params["area"]
 
 def create_coefficients(sizes):
     """
@@ -22,7 +22,8 @@ def create_coefficients(sizes):
     coeffs = {
         "alpha": {},
         "beta": {},
-        "gamma": {}
+        "gamma": {},
+        "area": {}
     }
     for elem in latency[3]:
         total = 0
@@ -41,6 +42,12 @@ def create_coefficients(sizes):
         for size in sizes:
             total += leakage_power[size][elem] / leakage_power[size]["Invert"]
         coeffs["beta"][elem] = total / len(sizes)
+
+    for elem in area[3]:
+        total = 0
+        for size in sizes:
+            total += area[size][elem] / area[size]["Invert"]
+        coeffs["area"][elem] = total / len(sizes)
     return coeffs
 
 def create_and_save_coefficients(sizes):
@@ -56,6 +63,7 @@ def create_and_save_coefficients(sizes):
     coeffs = create_coefficients(sizes)
     with open("src/params/coefficients.yaml", 'w') as f:
         f.write(yaml.dump(coeffs))
+    return coeffs
 
 def main():
    

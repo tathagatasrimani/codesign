@@ -1,6 +1,7 @@
 import logging
 import os
 import heapq
+from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 
@@ -10,8 +11,6 @@ import numpy as np
 import networkx as nx
 
 from . import sim_util
-
-
 
 def calculate_similarity(G, p1, p2):
     """
@@ -373,7 +372,9 @@ class gnt_schedule_parser:
         build_dir (str): Directory containing schedule and report files.
         module_map (dict): Mapping from ccore module names to standard operator names.
     """
-    def __init__(self, build_dir, module_map):
+    def __init__(self, build_dir, module_map, circuit_delays):
+        # use for accurate circuit delays (not rounded to nearest hundredth)
+        self.circuit_delays = circuit_delays
         self.filename = build_dir + "/schedule.gnt"
         self.bom_file = build_dir + "/rtl.rpt"
         self.line_map = {}
@@ -388,15 +389,17 @@ class gnt_schedule_parser:
         self.module_map = module_map # mapping from ccore module to standard operator name
         self.extra_edges = [] # resource edges
         self.element_counts = {}
+        self.inst_name_map = {}
 
     def parse(self):
         self.parse_bom()
         self.parse_gnt_loops()
         self.G, _, _ = self.create_graph_for_loop(self.top_loop)
+        #sim_util.svg_plot(self.G, "src/tmp/test_graph.svg")
         #self.remove_loop_nodes()
 
-    def convert(self):
-        self.convert_to_standard_dfg()
+    def convert(self, memories):
+        self.convert_to_standard_dfg(memories)
 
     def parse_bom(self):
         file = open(self.bom_file, "r")
@@ -423,7 +426,15 @@ class gnt_schedule_parser:
             i += 1
         logger.info(str(self.element_counts))
 
-    def convert_to_standard_dfg(self):
+    def format_inst_name(self, inst_name):
+        chars_to_remove = ["#", "-", ":", "."]
+        for char in chars_to_remove:
+            inst_name = inst_name.replace(char, "_")
+        inst_name = inst_name.replace("()", "_rg")
+        return inst_name
+            
+
+    def convert_to_standard_dfg(self, memories):
         """
         takes the output of parse_gnt_to_graph and converts
         it to our standard dfg format for use in the rest of the flow.
@@ -442,20 +453,32 @@ class gnt_schedule_parser:
 
         #sim_util.topological_layout_plot(self.G)
 
+        logger.info(f"circuit delays: {self.circuit_delays}")
+
         for node in self.G:
             node_data = self.G.nodes[node]
             module_prefix = node_data["module"][:node_data["module"].find('(')]
             fn = self.module_map[module_prefix]
+
+            ### temporary hack to handle Buf nodes
+            if fn not in self.circuit_delays:
+                logger.warning(f"Function {fn} not found in circuit delays, using default delay of 1")
+                self.circuit_delays[fn] = 1
+
             self.modified_G.add_node(
                 node,
                 id=node_data["id"],
                 function=fn,
-                cost=node_data["delay"],
+                cost=self.circuit_delays[fn],
                 start_time=0,
                 end_time=0,
                 allocation="",
-                library=node_data["library"]
+                library=node_data["library"],
+                module=node_data["module"],
+                catapult_name=node_data["name"],
+                loc=node_data["loc"]
             )
+            self.inst_name_map[node] = self.format_inst_name(node_data["name"])
         self.modified_G.add_node(
             "end",
             function="end"
@@ -467,12 +490,14 @@ class gnt_schedule_parser:
                     node, 
                     child, 
                     cost=0, # cost to be set after parasitic extraction 
-                    weight=self.modified_G.nodes[node]["cost"]
+                    weight=self.modified_G.nodes[node]["cost"],
+                    resource_edge=False
                 ) 
             if not len(list(self.G.successors(node))):
                 self.modified_G.add_edge(
                     node, "end",
-                    weight=self.modified_G.nodes[node]["cost"]
+                    weight=self.modified_G.nodes[node]["cost"],
+                    resource_edge=False
                 )
 
         #sim_util.topological_layout_plot(self.modified_G)
@@ -484,11 +509,27 @@ class gnt_schedule_parser:
 
         # add resource dependencies
         topo_order = longest_path_first_topological_sort(self.modified_G)
+        # includes logic + mem/buf, but only add operations for non-memory
         topo_order_by_func = {func: [] for func in self.element_counts.keys()}
+        # track memory ops by memory resource
+        topo_order_by_rsc = defaultdict(list)
         for node in topo_order:
             node_data = self.modified_G.nodes[node]
-            if node_data["function"] in self.element_counts:
+            if node_data["function"] in self.element_counts and node_data["function"] != "Buf":
                 topo_order_by_func[node_data["function"]].append(node)
+            elif node_data["function"] == "Buf":
+                topo_order_by_rsc[node_data["library"]].append(node)
+
+        topo_order_by_mem_port = defaultdict(list)
+        for rsc in topo_order_by_rsc:
+            for i in range(len(topo_order_by_rsc[rsc])):
+                logger.info(f"adding memory port resource dependency for {rsc} at index {i}")
+                memory_name = "_"+rsc.split("__")[1]
+                port_name = f"{rsc}_{i%memories[memory_name].bandwidth}"
+                topo_order_by_mem_port[port_name].append(topo_order_by_rsc[rsc][i])
+        
+        logger.info(f"topo_order_by_mem_port: {topo_order_by_mem_port}")
+
         #print(topo_order_by_func)
         topo_order_by_elem = {func: {i: [] for i in range(self.element_counts[func])} for func in self.element_counts.keys()}
         for func in topo_order_by_func:
@@ -496,19 +537,35 @@ class gnt_schedule_parser:
                 topo_order_by_elem[func][i%self.element_counts[func]].append(topo_order_by_func[func][i])
         #print(topo_order_by_elem)
         for func in topo_order_by_elem:
-            for elem in topo_order_by_elem[func]:
-                for i in range(len(topo_order_by_elem[func][elem])-1):
-                    assert self.modified_G.has_node(topo_order_by_elem[func][elem][i])
-                    assert self.modified_G.has_node(topo_order_by_elem[func][elem][i+1])
-                    self.modified_G.add_edge(
-                        topo_order_by_elem[func][elem][i],
-                        topo_order_by_elem[func][elem][i+1],
-                        weight=self.modified_G.nodes[topo_order_by_elem[func][elem][i]]["cost"]
-                    )
-                    logger.info(f"adding resource dependency between {topo_order_by_elem[func][elem][i]} and {topo_order_by_elem[func][elem][i+1]}")
-                    self.extra_edges.append((topo_order_by_elem[func][elem][i], topo_order_by_elem[func][elem][i+1]))
+            if func == "Buf":
+                for port in topo_order_by_mem_port:
+                    for i in range(len(topo_order_by_mem_port[port])-1):
+                        assert self.modified_G.has_node(topo_order_by_mem_port[port][i])
+                        assert self.modified_G.has_node(topo_order_by_mem_port[port][i+1])
+                        self.modified_G.add_edge(
+                            topo_order_by_mem_port[port][i],
+                            topo_order_by_mem_port[port][i+1],
+                            weight=self.modified_G.nodes[topo_order_by_mem_port[port][i]]["cost"],
+                            resource_edge=True
+                        )
+                        logger.info(f"adding memory port resource dependency between {topo_order_by_mem_port[port][i]} and {topo_order_by_mem_port[port][i+1]} for port {port}")
+                        self.extra_edges.append((topo_order_by_mem_port[port][i], topo_order_by_mem_port[port][i+1]))
+            else:
+                for elem in topo_order_by_elem[func]:
+                    for i in range(len(topo_order_by_elem[func][elem])-1):
+                        assert self.modified_G.has_node(topo_order_by_elem[func][elem][i])
+                        assert self.modified_G.has_node(topo_order_by_elem[func][elem][i+1])
+                        self.modified_G.add_edge(
+                            topo_order_by_elem[func][elem][i],
+                            topo_order_by_elem[func][elem][i+1],
+                            weight=self.modified_G.nodes[topo_order_by_elem[func][elem][i]]["cost"],
+                            resource_edge=True
+                        )
+                        logger.info(f"adding resource dependency between {topo_order_by_elem[func][elem][i]} and {topo_order_by_elem[func][elem][i+1]}")
+                        self.extra_edges.append((topo_order_by_elem[func][elem][i], topo_order_by_elem[func][elem][i+1]))
 
         nx.write_gml(self.modified_G, "src/tmp/schedule.gml")
+        #sim_util.svg_plot(self.modified_G, "src/tmp/schedule.svg", extra_edges=self.extra_edges)
         logger.info(f"longest path length: {nx.dag_longest_path_length(self.modified_G)}")
         logger.info(f"longest path: {nx.dag_longest_path(self.modified_G)}")
 
@@ -632,6 +689,9 @@ class gnt_schedule_parser:
     def get_num_iterations(self, loop_id):
         assert " ITERATIONS " in self.line_map[loop_id]
         tokens = self.line_map[loop_id].split()
+
+        ## print self.line_map[loop_id] to debug
+        logger.info(f"loop {loop_id} line map: {self.line_map[loop_id]}")
         iters = tokens[tokens.index("ITERATIONS")+1]
         if iters == "Infinite": iters = "1"
         return int(iters)
@@ -674,7 +734,19 @@ class gnt_schedule_parser:
             for i in range(len(tokens)):
                 if (tokens[i] == "LIBRARY"):
                     node_library = tokens[i+1]
-        return node_name, node_type, node_module, node_delay, node_library
+        ## parse LOC out of the line
+        if (line.find(" LOC ") != -1):
+            loc_data = ""
+            reading_loc = False
+            for i in range(len(tokens)):
+                if (tokens[i] == "LOC"):
+                    reading_loc = True
+                elif reading_loc:
+                    loc_data += tokens[i] + " "
+                    if tokens[i].endswith("}"):
+                        break
+
+        return node_name, node_type, node_module, node_delay, node_library, loc_data
     
     # return labels of roots and leaves
     def create_graph_for_loop(self, loop_id):
@@ -705,7 +777,7 @@ class gnt_schedule_parser:
                 names[node_id] = self.get_unique_node_name(node_id)
                 predecessors[names[node_id]] = []
                 successors[names[node_id]] = []
-                node_name, node_type, node_module, node_delay, node_library = self.get_node_info(node_id)
+                node_name, node_type, node_module, node_delay, node_library, loc_data = self.get_node_info(node_id)
                 G.add_node(
                     names[node_id],
                     name=node_name,
@@ -713,7 +785,8 @@ class gnt_schedule_parser:
                     tp=node_type,
                     module=node_module,
                     delay=node_delay,
-                    library=node_library
+                    library=node_library,
+                    loc=loc_data,
                 )
             
             # add edges between nodes
@@ -728,12 +801,15 @@ class gnt_schedule_parser:
                 for successor in successors[names[node_id]]:
                     self_loop = successor in predecessors[successor] or names[node_id] in successors[names[node_id]]
                     single_loop = successor in successors[names[node_id]] and names[node_id] in successors[successor]
-
+                    # have to deal with a bunch of weird edge cases because of how catapult specifies edges in the schedule
                     if not (self_loop or single_loop):
                         G.add_edge(names[node_id], successor)
                         logger.info(f"in original function, connecting {names[node_id]} with {successor}")
                     elif self_loop:
                         logger.warning(f"{node_id} contains self loop")
+                        if G.nodes[successor]["module"].find("wport") != -1 and G.nodes[names[node_id]]["module"].find("wport") == -1:
+                            logger.info(f"connecting {names[node_id]} with {successor} as output to write port pair")
+                            G.add_edge(names[node_id], successor)
                     else: 
                         assert single_loop
                         if not G.nodes[names[node_id]]["module"]: # meaning its a ccore port
@@ -831,19 +907,22 @@ if __name__ == "__main__":
     module_map = {
         "add": "Add",
         "mult": "Mult",
-        "ccs_ram_sync_1R1W_rwport": "Buf",
-        "ccs_ram_sync_1R1W_rport": "Buf",
+        #"ccs_ram_sync_1R1W_rwport": "Buf",
+        #"ccs_ram_sync_1R1W_rport": "Buf",
         "nop": "nop"
     }
-    parser = gnt_schedule_parser("src/tmp/benchmark/build/MatMult.v1", module_map)
+    circuit_delays = {
+        "Add": 1,
+        "Mult": 1
+    }
+    parser = gnt_schedule_parser("src/tmp/benchmark/build/MatMult.v1", module_map, circuit_delays)
     parser.parse()
     print("finished parsing")
     nx.write_gml(parser.G, "src/tmp/test_graph.gml")
-    #sim_util.topological_layout_plot(parser.G)
-    parser.convert()
+    sim_util.svg_plot(parser.G, "src/tmp/test_graph.svg")
+    parser.convert({})
     print("finished converting")
-    print("hi")
-    #sim_util.topological_layout_plot(parser.modified_G, extra_edges=parser.extra_edges)
+    sim_util.svg_plot(parser.modified_G, "src/tmp/modified_test_graph.svg", extra_edges=parser.extra_edges)
     nx.write_gml(parser.modified_G, "src/tmp/modified_test_graph.gml")
     lp = get_longest_paths(parser.modified_G)
     print(lp)
