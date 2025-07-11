@@ -46,10 +46,11 @@ class Parameters:
         self.Cox = symbols("Cox", positive=True)
         self.W = symbols("W", positive=True)
         self.L = symbols("L", positive=True)
+        self.k_gate = symbols("k_gate", positive=True)
         self.V_offset = 0.1 #symbols("V_offset", positive=True)
         self.q = 1.6e-19  # electron charge (C)
         self.e_si = 11.9*8.854e-12  # permittivity of silicon (F/m)
-        self.e_ox = 3.9*8.854e-12  # permittivity of oxide (F/m)
+        self.e_ox = self.k_gate*8.854e-12  # permittivity of oxide (F/m)
         self.tox = self.e_ox/self.Cox
         self.n = 1.0
         self.K = 1.38e-23  # Boltzmann constant (J/K)
@@ -98,8 +99,6 @@ class Parameters:
 
         self.lambda_L = 0
 
-        self.eta_L = 0.2/(1+(self.L/15e-9)**self.m)
-
         self.V_ref = 1
 
         self.V_th_eff = self.V_th
@@ -107,6 +106,9 @@ class Parameters:
          # Electron mobility for NMOS
         self.u_n = symbols("u_n", positive=True)
         self.u_p = self.u_n/2.5  # Hole mobility for PMOS, hardcoded for now.
+
+        self.u_n_eff = self.u_n
+        self.u_p_eff = self.u_p
 
         self.init_memory_params()
 
@@ -143,8 +145,8 @@ class Parameters:
         self.apply_base_parameter_effects()
 
         # drive current, including alpha power law and channel length modulation
-        self.I_d_nmos = self.u_n*self.Cox*self.W*(Abs(self.V_dd-self.V_th_eff))**self.alpha_L * (1+self.lambda_L*self.V_dd) / (2*self.L)
-        self.I_d_pmos = self.I_d_nmos * self.u_p / self.u_n
+        self.I_d_nmos = self.u_n_eff*self.Cox*self.W*(Abs(self.V_dd-self.V_th_eff))**self.alpha_L * (1+self.lambda_L*self.V_dd) / (2*self.L)
+        self.I_d_pmos = self.I_d_nmos * self.u_p_eff / self.u_n_eff
 
         self.R_avg_inv = self.V_dd / ((self.I_d_nmos + self.I_d_pmos)/2)
 
@@ -184,10 +186,15 @@ class Parameters:
         self.I_tunnel = self.FN_term + self.WKB_term
         print(f"I_tunnel: {self.I_tunnel.subs(self.tech_values)}")
 
+        self.A_GIDL = 1e-12
+        self.B_GIDL = 2.3e9
+        self.E_GIDL = 0.8
+        self.I_GIDL = self.A_GIDL * ((self.V_dd - self.E_GIDL)/(3*self.tox)) * exp(symbolic_convex_min(10, -3*self.tox*self.B_GIDL / (self.V_dd - self.E_GIDL))) # simplified from BSIM
+        print(f"I_GIDL: {self.I_GIDL.subs(self.tech_values)}")
 
         # subthreshold current
-        self.I_off_nmos = self.u_n*self.Cox*(self.W/self.L)*(self.K*self.T/self.q)**2*exp(-self.V_th_eff*self.q/(self.n*self.K*self.T))
-        self.I_off_pmos = self.u_p*self.Cox*(self.W/self.L)*(self.K*self.T/self.q)**2*exp(-self.V_th_eff*self.q/(self.n*self.K*self.T))
+        self.I_off_nmos = self.u_n_eff*self.Cox*(self.W/self.L)*(self.K*self.T/self.q)**2*exp(-self.V_th_eff*self.q/(self.n*self.K*self.T))
+        self.I_off_pmos = self.u_p_eff*self.Cox*(self.W/self.L)*(self.K*self.T/self.q)**2*exp(-self.V_th_eff*self.q/(self.n*self.K*self.T))
         
         self.I_off = self.I_off_nmos + self.I_off_pmos # 2 for both NMOS and PMOS
         self.P_pass_inv = self.I_off*self.V_dd  
@@ -349,7 +356,7 @@ class Parameters:
         # set initial values for dennard scaling factors (no actual meaning, they will be set by the optimizer)
         self.tech_values[self.alpha_dennard] = 1
         self.tech_values[self.epsilon_dennard] = 1
-        self.tech_values[self.t_ox_] = self.e_ox / self.tech_values[self.Cox]
+        self.tech_values[self.t_ox_] = self.tech_values[self.k_gate] * 8.854e-12 / self.tech_values[self.Cox]
 
         # CACTI IO
         cacti_IO_params = {}
@@ -530,12 +537,15 @@ class Parameters:
         if self.effects["mobility_degradation"]:
             theta_1 = 1
             theta_2 = 1
-            self.u_n = self.u_n / (1+theta_1*(self.V_dd-self.V_th_eff)/(1+theta_2*(self.V_dd-self.V_th_eff)))
-            self.u_p = self.u_n / 2.5
+            self.u_n_eff = self.u_n / (1+theta_1*(self.V_dd-self.V_th_eff)/(1+theta_2*(self.V_dd-self.V_th_eff)))
+            self.u_p_eff = self.u_n_eff / 2.5
         if self.effects["subthreshold_slope_effect"]:
             self.n += (self.e_si/self.e_ox) * (self.tox/self.L)**(1/2)
+        if not self.effects["high_k_gate"]:
+            self.e_ox = 3.9*8.854e-12
+            self.tox = self.e_ox/self.Cox
         if self.effects["DIBL"]:
-            self.V_th_eff -= self.eta_L * (symbolic_convex_max(self.V_dd - self.V_ref, 0))
+            self.V_th_eff -= self.V_dd * exp(-self.L/((self.e_si/self.e_ox) * self.tox)) # approximate DIBL effect
 
     def apply_additional_effects(self):
         print(self.I_tunnel)
@@ -545,6 +555,9 @@ class Parameters:
         #print(f"u_n: {self.u_n.subs(self.tech_values)}")
         if self.effects["gate_tunneling"]:
             self.I_off += self.I_tunnel*2 # 2 for both NMOS and PMOS
+            self.P_pass_inv = self.I_off * self.V_dd
+        if self.effects["GIDL"]:
+            self.I_off += self.I_GIDL*2 # 2 for both NMOS and PMOS
             self.P_pass_inv = self.I_off * self.V_dd
         if self.effects["area_and_latency_scaling"]:
             self.delay = self.delay * self.latency_scale
@@ -693,6 +706,7 @@ class Parameters:
             "n": self.n,
             "K": self.K,
             "T": self.T,
+            "k_gate": self.k_gate,
             "area": self.area,
             "MemReadL": self.MemReadL,
             "MemWriteL": self.MemWriteL,

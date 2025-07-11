@@ -26,6 +26,7 @@ class Optimizer:
         self.objective_constraint_inds = [0]
         constraints.append(self.hw.symbolic_obj >= float(self.hw.symbolic_obj.subs(self.hw.params.tech_values) / improvement))
         constraints.append(self.hw.params.V_dd >= self.hw.params.V_th_eff)
+        constraints.append(self.hw.params.V_dd >= self.hw.params.V_th)
         if self.hw.params.V_th_eff != self.hw.params.V_th:
             constraints.append(self.hw.params.V_th_eff >= 0)
         constraints.append(self.hw.params.V_dd <= 5)

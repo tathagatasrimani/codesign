@@ -37,6 +37,7 @@ class DennardMultiCore:
             self.codesign_module.hw.params.L,
             self.codesign_module.hw.params.W,
             self.codesign_module.hw.params.t_ox_,
+            self.codesign_module.hw.params.k_gate,
         ])
         self.edp_over_iterations = []
         self.lag_factor_over_iterations = [1.0]
@@ -148,6 +149,7 @@ class DennardMultiCore:
             "gate tunneling current": self.codesign_module.hw.params.I_tunnel,
             "FN term": self.codesign_module.hw.params.FN_term,
             "WKB term": self.codesign_module.hw.params.WKB_term,
+            "GIDL current": self.codesign_module.hw.params.I_GIDL,
             "effective threshold voltage": self.codesign_module.hw.params.V_th_eff,
             "supply voltage": self.codesign_module.hw.params.V_dd,
         }
@@ -201,7 +203,7 @@ class DennardMultiCore:
             if not self.dummy_app:
                 self.codesign_module.hw.update_schedule_with_latency()
             
-            if self.codesign_module.inverse_pass_lag_factor >= 2.0:
+            if self.codesign_module.inverse_pass_lag_factor >= 2.0 and not self.dummy_app:
                 self.codesign_module.hw.reset_state()
                 self.codesign_module.forward_pass()
                 self.codesign_module.log_forward_tech_params()

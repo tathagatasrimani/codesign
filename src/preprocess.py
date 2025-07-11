@@ -188,8 +188,8 @@ class Preprocessor:
         self.regularization = hardwareModel.symbolic_convex_max(sym_list[0], sym_list[1])"""
         print(f"regularization: {self.regularization}")
                 
-        for symbol in self.free_symbols:
-            self.regularization += hardwareModel.symbolic_convex_max(symbol, (symbol / self.params.tech_values[symbol] + self.params.tech_values[symbol] / symbol))
+        #for symbol in self.free_symbols:
+            #self.regularization += hardwareModel.symbolic_convex_max(symbol, (symbol / self.params.tech_values[symbol] + self.params.tech_values[symbol] / symbol))
         obj += l * self.regularization
         return obj
         
@@ -300,12 +300,12 @@ class Preprocessor:
 
 
         start_time = time.time()
-        self.find_exp_exprs_to_constrain(obj)
-        for exp_expr in self.exp_exprs_s:
+        #self.find_exp_exprs_to_constrain(obj)
+        """for exp_expr in self.exp_exprs_s:
             self.exp_subs[exp_expr] = hardwareModel.symbolic_convex_min(exp_expr, 100, evaluate=False)
             obj = obj.xreplace(self.exp_subs)
         for i in range(len(self.constraints)):
-            self.constraints[i] = self.constraints[i].xreplace(self.exp_subs)
+            self.constraints[i] = self.constraints[i].xreplace(self.exp_subs)"""
 
         logger.info(f"time to sub exp exprs: {time.time()-start_time}")
 
