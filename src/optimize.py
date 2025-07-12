@@ -19,6 +19,7 @@ class Optimizer:
         self.disabled_knobs = []
         self.dennard_scaling_type = "constant_field"
         self.objective_constraint_inds = []
+        self.initial_alpha = None
 
     def create_constraints(self, improvement):
         constraints = []
@@ -45,8 +46,10 @@ class Optimizer:
                 constraints.append(sp.Eq(self.hw.params.V_dd/self.hw.params.tech_values[self.hw.params.V_dd], 1/self.hw.params.alpha_dennard))
                 constraints.append(sp.Eq(self.hw.params.V_th_eff/self.hw.params.tech_values[self.hw.params.V_th_eff], 1/self.hw.params.alpha_dennard))
                 constraints.append(sp.Eq(self.hw.params.Cox/self.hw.params.tech_values[self.hw.params.Cox], self.hw.params.alpha_dennard))
+                if self.initial_alpha is None and self.hw.params.tech_values[self.hw.params.alpha_dennard] != 1:
+                    self.initial_alpha = self.hw.params.tech_values[self.hw.params.alpha_dennard]
             else:
-                constraints.append(sp.Eq(self.hw.params.alpha_dennard, self.hw.params.tech_values[self.hw.params.alpha_dennard]))
+                constraints.append(sp.Eq(self.hw.params.alpha_dennard, self.initial_alpha))
                 constraints.append(sp.Eq(self.hw.params.W/self.hw.params.tech_values[self.hw.params.W], 1/self.hw.params.alpha_dennard))
                 constraints.append(sp.Eq(self.hw.params.L/self.hw.params.tech_values[self.hw.params.L], 1/self.hw.params.alpha_dennard))
                 constraints.append(sp.Eq(self.hw.params.V_dd, self.hw.params.tech_values[self.hw.params.V_dd]))
@@ -112,7 +115,6 @@ class Optimizer:
 
         start_time = time.time()
         if self.hw.model_cfg["scaling_mode"].startswith("dennard"):
-        if self.hw.model_cfg["scaling_mode"].startswith("dennard"):
             results = opt.solve(
                 scaled_model, keepfiles=True, tee=True, symbolic_solver_labels=True
             )
@@ -135,7 +137,6 @@ class Optimizer:
                     scaled_model, model
                 )
                 """
-                """
                 print(f"obj value: {final_value}")
                 print(f"lower bound: {lower_bound}")
                 if final_value > lower_bound*1.1: # if the objective is not improving within some margin, run with general scaling
@@ -147,7 +148,6 @@ class Optimizer:
                     )
                     pyo.TransformationFactory("core.scale_model").propagate_solution(
                         scaled_model, model
-                    )"""
                     )"""
         elif multistart:
             results = opt.solve(
@@ -178,15 +178,9 @@ class Optimizer:
             lag_factor *= pyo.value(model.Constraints[ind]) / pyo.value(model.Constraints[ind].lower)
         print(f"lag factor: {lag_factor}")
         return lag_factor
-        lag_factor = 1
-        for ind in self.objective_constraint_inds:
-            lag_factor *= pyo.value(model.Constraints[ind]) / pyo.value(model.Constraints[ind].lower)
-        print(f"lag factor: {lag_factor}")
-        return lag_factor
 
     # note: improvement/regularization parameter currently only for inverse pass validation, so only using it for ipopt
     # example: improvement of 1.1 = 10% improvement
-    def optimize(self, opt, improvement=10, disabled_knobs=[]):
     def optimize(self, opt, improvement=10, disabled_knobs=[]):
         self.disabled_knobs = disabled_knobs
         """

@@ -40,7 +40,16 @@ class Codesign:
         Returns:
             None
         """
-        self.benchmark = f"src/benchmarks/{args.benchmark}"
+
+        self.hls_tool = args.hls_tool
+
+        if self.hls_tool == "catapult":
+            self.benchmark = f"src/benchmarks/{args.benchmark}"
+        elif self.hls_tool == "vitis":
+            self.benchmark = f"src/benchmarks_vitis/{args.benchmark}"
+        else:
+            raise ValueError(f"Unknown HLS tool: {self.hls_tool}")
+
         self.benchmark_name = args.benchmark
         self.save_dir = os.path.join(
             args.savedir, datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -75,6 +84,7 @@ class Codesign:
         self.inverse_pass_improvement = args.inverse_pass_improvement if (hasattr(args, "inverse_pass_improvement") and args.inverse_pass_improvement) else 10
         self.obj_fn = args.obj
         self.inverse_pass_lag_factor = 1
+        
 
         self.params_over_iterations = []
         self.plot_list = set([
@@ -178,6 +188,90 @@ class Codesign:
             nx.write_gml(full_netlist, f)
 
     def forward_pass(self):
+        """Runs the appropriate forward pass based on the HLS tool specified in the configuration."""
+        if self.hls_tool == "catapult":
+            self.forward_pass_catapult()
+        elif self.hls_tool == "vitis":
+            self.forward_pass_vitis()
+        else:
+            raise ValueError(f"Unknown HLS tool: {self.hls_tool}")
+
+    def forward_pass_vitis(self):
+        """
+        Executes the forward pass of the codesign process for the Vitis HLS tool.
+        """
+
+        print("\nRunning Forward Pass for Vitis")
+        logger.info("Running Forward Pass for Vitis")
+
+        ## clear out the existing tmp benchmark directory and copy the benchmark files from the desired benchmark
+        if os.path.exists("src/tmp/benchmark_vitis"):
+            shutil.rmtree("src/tmp/benchmark_vitis")
+        shutil.copytree(self.benchmark, f"src/tmp/benchmark_vitis/{self.benchmark_name}")
+
+
+        # run scaleHLS
+        self.run_scaleHLS()
+
+        exit(0) # exit after running scaleHLS for debugging purposes
+
+        # run vitis 
+        self.run_vitis()
+
+        # parse vitis timing report and create schedule
+        self.parse_vitis_timing()
+
+
+
+        # prepare schedule & calculate wire parasitics
+        # self.prepare_schedule()
+
+        # ## create the EDP equation 
+        # self.hw.calculate_objective()
+
+        self.display_objective("after forward pass")
+
+
+    def run_scaleHLS(self):
+        """
+        Runs the scaleHLS tool to generate the HLS design for the benchmark.
+
+        Args:
+            None
+        Returns:
+            None
+        """
+
+        ## get CWD
+        cwd = os.getcwd()
+        print(f"Running scaleHLS in {cwd}")
+        
+        cmd = [
+            'bash', '-c',
+            f'''
+            cd {cwd}
+            source full_env_start.sh
+            conda deactivate
+            conda activate torch-mlir
+            cd src/tmp/benchmark_vitis/{self.benchmark_name}
+            python3 {self.benchmark_name}.py > {self.benchmark_name}.mlir
+            scalehls-opt {self.benchmark_name}.mlir -scaleflow-pytorch-pipeline="top-func=forward loop-tile-size=8 loop-unroll-factor=4" | scalehls-translate -scalehls-emit-hlscpp > {self.benchmark_name}.cpp
+            '''
+        ]
+
+        with open(f"src/tmp/benchmark_vitis/{self.benchmark_name}/scalehls_out.log", "w") as outfile:
+            p = subprocess.Popen(cmd, stdout=outfile, stderr=subprocess.STDOUT, env=os.environ)
+            p.wait()
+        with open(f"src/tmp/benchmark_vitis/{self.benchmark_name}/scalehls_out.log", "r") as f:
+            logger.info(f"scaleHLS output:\n{f.read()}")
+
+        if p.returncode != 0:
+            raise Exception(f"scaleHLS failed with error: {p.stderr}")
+        
+
+
+
+    def forward_pass_catapult(self):
         """
         Executes the forward pass of the codesign process: prepares benchmark, updates ccore
         delays/areas, runs Catapult, calculates wire parasitics, and parses timing reports.
@@ -621,6 +715,14 @@ if __name__ == "__main__":
         default=False,
         help="disable memory modeling",
     )
+    parser.add_argument(
+        "--hls_tool",
+        type=str,
+        choices=["catapult", "vitis"],
+        default="catapult",
+        help="determines what HLS tool is used for the forward pass",
+    )
+    
     parser.add_argument('--debug_no_cacti', type=bool, default=False, 
                         help='disable cacti in the first iteration to decrease runtime when debugging')
     parser.add_argument("-c", "--checkpoint", type=bool, default=False, help="save a design checkpoint upon exit")
@@ -630,11 +732,9 @@ if __name__ == "__main__":
     parser.add_argument("--tech_node", "-T", type=str, help="technology node to use as starting point")
     parser.add_argument("--obj", type=str, default="edp", help="objective function")
     parser.add_argument("--model_cfg", type=str, default="default", help="symbolic model configuration")
-    parser.add_argument("--model_cfg", type=str, default="default", help="symbolic model configuration")
     args = parser.parse_args()
     print(
-        f"args: benchmark: {args.benchmark}, parasitics: {args.parasitics}, num iterations: {args.num_iters}, checkpointing: {args.checkpoint}, area: {args.area}, memory included: {not args.no_memory}, tech node: {args.tech_node}, obj: {args.obj}, model cfg: {args.model_cfg}"
-        f"args: benchmark: {args.benchmark}, parasitics: {args.parasitics}, num iterations: {args.num_iters}, checkpointing: {args.checkpoint}, area: {args.area}, memory included: {not args.no_memory}, tech node: {args.tech_node}, obj: {args.obj}, model cfg: {args.model_cfg}"
+        f"args: benchmark: {args.benchmark}, parasitics: {args.parasitics}, num iterations: {args.num_iters}, checkpointing: {args.checkpoint}, area: {args.area}, memory included: {not args.no_memory}, tech node: {args.tech_node}, obj: {args.obj}, model cfg: {args.model_cfg}, HLS tool: {args.hls_tool}"
     )
 
     main(args)
