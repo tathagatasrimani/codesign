@@ -65,7 +65,7 @@ source verilator_install.sh
 
 
 ############### LOAD VITIS HLS #################
-module load vitis/2024.2
+module load vitis/2022.1
 
 ## Change for the catapult environment name you want to use
 source stanford_catapult_env.sh

@@ -9,6 +9,7 @@ import subprocess
 import copy
 import networkx as nx
 import matplotlib.pyplot as plt
+import re
 from src.netlist_parse import parse_yosys_json
 
 logger = logging.getLogger("codesign")
@@ -213,14 +214,17 @@ class Codesign:
         # run scaleHLS
         self.run_scaleHLS()
 
-        exit(0) # exit after running scaleHLS for debugging purposes
+        
 
         # run vitis 
         self.run_vitis()
 
+        exit(0) # exit for debugging purposes
+
+        self.parse_vitis_netlist()
+
         # parse vitis timing report and create schedule
         self.parse_vitis_timing()
-
 
 
         # prepare schedule & calculate wire parasitics
@@ -230,6 +234,109 @@ class Codesign:
         # self.hw.calculate_objective()
 
         self.display_objective("after forward pass")
+
+    def generate_hls_axi_pragmas(self, filename):
+        with open(filename, 'r') as f:
+            content = f.read()
+
+        # Regex to find the forward function signature (across multiple lines)
+        match = re.search(r'void\s+forward\s*\((.*?)\)\s*{', content, re.S)
+        if not match:
+            logger.error("Could not find 'forward' function signature in the file.")
+            return
+
+        # Extract the inside of the parameter list
+        params_text = match.group(1)
+
+        # Now extract all parameter names, assuming format: "float name[sizes...]"
+        param_lines = params_text.split(',')
+        param_names = []
+        for line in param_lines:
+            line = line.strip()
+            # Find last word before possible '[' or end
+            name_match = re.search(r'(\w+)(?:\s*\[.*)?$', line)
+            if name_match:
+                param_names.append(name_match.group(1))
+
+        # Generate pragmas
+        pragmas = []
+        for name in param_names:
+            pragmas.append(f'#pragma HLS interface s_axilite port={name} bundle=ctrl')
+
+        # Log all pragmas that will be added
+        logger.info(f"Generated {len(pragmas)} pragmas for {filename}:")
+        for pragma in pragmas:
+            logger.info(pragma)
+
+        # Find the opening brace of the forward function and insert after it
+        forward_func_match = re.search(r'(void\s+forward\s*\(.*?\)\s*{)', content, re.S)
+        if forward_func_match:
+            insert_pos = forward_func_match.end()
+            new_content = (
+                content[:insert_pos] +
+                '\n' + '\n'.join(pragmas) + '\n' +
+                content[insert_pos:]
+            )
+            with open(filename, 'w') as f:
+                f.write(new_content)
+            logger.info(f"Inserted {len(pragmas)} pragmas into {filename} after the start of 'forward'.")
+        else:
+            logger.error("Could not find the start of the 'forward' function to insert pragmas.")
+
+
+    def run_vitis(self):
+        """
+        Runs the Vitis HL synthesis tooland logs the output.
+        Handles directory changes and cleans up temporary files.
+
+        Args:
+            None
+        Returns:
+            None
+        """
+
+        os.chdir(f"src/tmp/benchmark_vitis/{self.benchmark_name}")
+
+        ## add pragmas for AXI interface port (not for unrolling/pipelining)
+        self.generate_hls_axi_pragmas(f'{self.benchmark_name}.cpp')
+
+        # TODO: set correct clk period
+        
+        # TODO: add area constraint
+
+        with open(f"vitis_out.log", "w") as outfile:
+            p = subprocess.Popen(
+            ["vitis_hls", "-f", f"{self.benchmark_name}_vitis.tcl"],
+            stdout=outfile,
+            stderr=subprocess.STDOUT,
+            env=os.environ
+            )
+            p.wait()
+        if p.returncode != 0:
+            raise Exception(f"Vitis HLS failed, see vitis_out.log for details.")
+        
+        
+        os.chdir("../../..")
+
+    
+
+    
+
+
+
+        
+    def parse_vitis_netlist(self):
+
+        # TODO: Parse the Vitis netlist and write it to netlist-from-vitis.gml
+        
+        ## write the netlist to a file
+        with open(f"netlist-from-vitis.gml", "wb") as f:
+            nx.write_gml(self.hw.netlist, f)
+
+        
+    def parse_vitis_timing(self):
+        # TODO: Parse the Vitis timing report and create a DFG
+        pass
 
 
     def run_scaleHLS(self):
