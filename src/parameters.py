@@ -37,6 +37,7 @@ class Parameters:
         self.set_coefficients(self.coeffs)
 
         self.effects = model_cfg["effects"]
+        logger.info(f"effects: {self.effects}")
 
         self.f = symbols("f", positive=True)
 
@@ -50,7 +51,7 @@ class Parameters:
         self.V_offset = 0.1 #symbols("V_offset", positive=True)
         self.q = 1.6e-19  # electron charge (C)
         self.e_si = 11.9*8.854e-12  # permittivity of silicon (F/m)
-        self.e_ox = self.k_gate*8.854e-12  # permittivity of oxide (F/m)
+        self.e_ox = self.k_gate*8.854e-12  if self.effects["high_k_gate"] else 3.9*8.854e-12 # permittivity of oxide (F/m)
         self.tox = self.e_ox/self.Cox
         self.n = 1.0
         self.K = 1.38e-23  # Boltzmann constant (J/K)
@@ -175,7 +176,7 @@ class Parameters:
         self.h = 6.626e-34  # planck's constant (J*s)
         self.V_ox = self.V_dd - self.V_th_eff
         self.E_ox = Abs(self.V_ox/self.tox)
-        self.A = ((self.q)**3) / (8*math.pi*self.h*self.phi_b*self.q)
+        self.A = ((self.q)**3) / (8*math.pi*self.h*self.phi_b*self.m_ox)
         self.B = (8*math.pi*(2*self.m_ox)**(1/2) * (self.phi_b*self.q)**(3/2)) / (3*self.q*self.h)
         print(f"B: {self.B}, A: {self.A}, t_ox: {self.tox.subs(self.tech_values)}, E_ox: {self.E_ox.subs(self.tech_values)}, intermediate: {(1-(1-self.V_ox/self.phi_b)**3/2).subs(self.tech_values)}")
 
@@ -531,7 +532,7 @@ class Parameters:
     def apply_base_parameter_effects(self):
         if self.effects["velocity_saturation"]:
             # Sakurai alpha-power law
-            self.alpha_L =1 + 1/(1 + (self.L/self.L_critical)**self.m)
+            self.alpha_L =2 - 1/(1 + (self.L/self.L_critical)**self.m)
         if self.effects["channel_length_modulation"]:
             self.lambda_L = 0.1
         if self.effects["mobility_degradation"]:
@@ -541,9 +542,6 @@ class Parameters:
             self.u_p_eff = self.u_n_eff / 2.5
         if self.effects["subthreshold_slope_effect"]:
             self.n += (self.e_si/self.e_ox) * (self.tox/self.L)**(1/2)
-        if not self.effects["high_k_gate"]:
-            self.e_ox = 3.9*8.854e-12
-            self.tox = self.e_ox/self.Cox
         if self.effects["DIBL"]:
             self.V_th_eff -= self.V_dd * exp(-self.L/((self.e_si/self.e_ox) * self.tox)) # approximate DIBL effect
 

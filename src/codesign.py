@@ -62,6 +62,7 @@ class Codesign:
         #shutil.copytree(self.benchmark, f"{self.save_dir}/benchmark")
 
         logging.basicConfig(filename=f"{self.save_dir}/codesign.log", level=logging.INFO)
+        logger.info(f"args: {args}")
 
         self.forward_edp = 0
         self.inverse_edp = 0
