@@ -36,9 +36,17 @@ class DennardMultiCore:
             #self.codesign_module.hw.params.u_n,
             self.codesign_module.hw.params.L,
             self.codesign_module.hw.params.W,
-            self.codesign_module.hw.params.t_ox_,
+            self.codesign_module.hw.params.tox,
             self.codesign_module.hw.params.k_gate,
         ])
+        self.plot_list_names = {
+            self.codesign_module.hw.params.V_dd: "Logic Supply Voltage per iteration (V)",
+            self.codesign_module.hw.params.V_th: "Transistor Vth per iteration (V)",
+            self.codesign_module.hw.params.L: "Gate Length per iteration (m)",
+            self.codesign_module.hw.params.W: "Gate Width per iteration (m)",
+            self.codesign_module.hw.params.tox: "Gate Oxide Thickness per iteration (m)",
+            self.codesign_module.hw.params.k_gate: "Gate Permittivity per iteration (F/m)",
+        }
         self.edp_over_iterations = []
         self.lag_factor_over_iterations = [1.0]
 
@@ -48,18 +56,38 @@ class DennardMultiCore:
             os.makedirs(fig_save_dir)
         f = open(f"{fig_save_dir}/param_data.txt", 'w')
         f.write(str(self.params_over_iterations))
+        # Set larger font sizes and better styling
+        plt.rcParams.update({
+            "font.size": 18,
+            "axes.titlesize": 24,
+            "axes.labelsize": 18,
+            "xtick.labelsize": 18,
+            "ytick.labelsize": 18,
+            "legend.fontsize": 18,
+            "figure.titlesize": 24
+        })
         for param in self.plot_list:
             values = []
             for i in range(len(self.params_over_iterations)):
                 values.append(self.params_over_iterations[i][param])
-                plt.plot(values)
-                plt.xlabel("iteration")
-                plt.ylabel("value")
-                plt.title(f"{param.name} over iterations")
-                plt.yscale("log")
-                plt.grid(True)
-                plt.savefig(f"{fig_save_dir}/{param.name}_over_iters.png")
-                plt.close()
+            
+            # Create figure with better sizing
+            fig, ax = plt.subplots(figsize=(10, 6))
+            
+            # Plot with improved styling
+            ax.plot(values, linewidth=2, markersize=6, color="#1f77b4")
+            ax.set_xlabel("Iteration", fontweight="bold")
+            ax.set_title(f"{self.plot_list_names[param]}", fontweight="bold", pad=20)
+            ax.set_yscale("log")
+            
+            # Improve grid and styling
+            #ax.grid(True, alpha=0.3, linestyle='--')
+            fig.patch.set_facecolor("#f8f9fa")
+            
+            # Adjust layout and save
+            plt.tight_layout()
+            plt.savefig(f"{fig_save_dir}/{param}_over_iters.png", dpi=300, bbox_inches='tight')
+            plt.close()
     
     def plot_edp_over_iterations(self):
         fig_save_dir = self.codesign_module.save_dir + "/figs"
@@ -68,6 +96,18 @@ class DennardMultiCore:
 
         x = [i/2.0 for i in range(len(self.edp_over_iterations))]
 
+        # Set larger font sizes and better styling
+        plt.rcParams.update({
+            "font.size": 18,
+            "axes.titlesize": 24,
+            "axes.labelsize": 18,
+            "xtick.labelsize": 18,
+            "ytick.labelsize": 18,
+            "legend.fontsize": 18,
+            "figure.titlesize": 24
+        })
+        fig, ax = plt.subplots(figsize=(10, 6))
+
         # Create alternating red and blue line segments
         for i in range(len(self.edp_over_iterations) - 1)[::2]:
             x_start = x[i]
@@ -75,18 +115,20 @@ class DennardMultiCore:
             x_mid = (x_start + x_end) / 2
             
             # Red line from x to x.5
-            plt.plot([x_start, x_mid], [self.edp_over_iterations[i], self.edp_over_iterations[i + 1]], 'r-', linewidth=2)
+            ax.plot([x_start, x_mid], [self.edp_over_iterations[i], self.edp_over_iterations[i + 1]], 'r-', linewidth=3)
             
             # Blue line from x.5 to x+1
-            plt.plot([x_mid, x_end], [self.edp_over_iterations[i + 1], self.edp_over_iterations[i + 2]], 'b-', linewidth=2)
+            ax.plot([x_mid, x_end], [self.edp_over_iterations[i + 1], self.edp_over_iterations[i + 2]], 'b-', linewidth=3)
 
-        plt.xlabel("iteration")
-        plt.ylabel("EDP")
-        plt.title("EDP over iterations")
-        plt.yscale("log")
-        plt.grid(True)
-        plt.legend(["inverse pass", "forward pass"])
-        plt.savefig(f"{fig_save_dir}/edp_over_iters.png")
+        ax.set_xlabel("Iteration", fontweight="bold")
+        ax.set_title("Energy-Delay Product per iteration (nJ*ns)", fontweight="bold", pad=20)
+        ax.set_yscale("log")
+        #ax.grid(True, alpha=0.3, linestyle='--')
+        fig.patch.set_facecolor("#f8f9fa")
+        ax.legend(["inverse pass", "forward pass"], fontsize=18)
+        plt.tight_layout()
+        plt.savefig(f"{fig_save_dir}/edp_over_iters.png", dpi=300, bbox_inches='tight')
+        plt.close()
     
     def plot_lag_factor_over_iterations(self):
         fig_save_dir = self.codesign_module.save_dir + "/figs"
@@ -109,7 +151,7 @@ class DennardMultiCore:
         self.codesign_module.hw.params.tech_values[self.codesign_module.hw.params.f] = 100e6
         self.cycle_time = 1e9/self.codesign_module.hw.params.f # ns
         self.codesign_module.hw.execution_time = (self.codesign_module.hw.params.delay*(1e5/self.utilization)).subs(self.codesign_module.hw.params.tech_values) #ns
-        self.plot_list.add(self.codesign_module.hw.params.f)
+        #self.plot_list.add(self.codesign_module.hw.params.f)
         self.codesign_module.hw.total_passive_energy = (self.num_inverters * self.codesign_module.hw.params.P_pass_inv * self.codesign_module.hw.execution_time).subs(self.codesign_module.hw.params.tech_values)
         self.codesign_module.hw.total_active_energy = (self.num_inverters * self.codesign_module.hw.params.C_gate * self.codesign_module.hw.params.V_dd**2 * self.codesign_module.hw.params.f * self.codesign_module.hw.execution_time * self.utilization).subs(self.codesign_module.hw.params.tech_values)
         if self.args.obj == "edp":
@@ -169,6 +211,12 @@ class DennardMultiCore:
 
         self.codesign_module.display_objective("after inverse pass", symbolic=True)
 
+    def update_params_over_iterations(self):
+        latest_params = {}
+        for param in self.plot_list:
+            latest_params[self.plot_list_names[param]] = param.subs(self.codesign_module.hw.params.tech_values)
+        self.params_over_iterations.append(latest_params)
+
     def run_experiment(self):
         if self.dummy_app:
             self.run_dummy_forward_pass()
@@ -176,7 +224,7 @@ class DennardMultiCore:
             self.codesign_module.forward_pass()
         self.codesign_module.log_forward_tech_params()
 
-        self.params_over_iterations.append(copy.copy(self.codesign_module.hw.params.tech_values))
+        self.update_params_over_iterations()
         self.edp_over_iterations.append(self.codesign_module.hw.obj)
 
         # run technology optimization to simulate dennard scaling.
@@ -197,7 +245,7 @@ class DennardMultiCore:
                                 initial_tech_params[var]/self.codesign_module.hw.params.tech_values[var] - 1)**2)
             logger.info(f"regularization in iteration {i}: {regularization}")
             self.codesign_module.log_all_to_file(i)
-            self.params_over_iterations.append(copy.copy(self.codesign_module.hw.params.tech_values))
+            self.update_params_over_iterations()
 
             # update schedule with modified technology parameters
             if not self.dummy_app:
