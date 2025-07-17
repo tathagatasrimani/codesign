@@ -40,11 +40,11 @@ class DennardMultiCore:
             self.codesign_module.hw.params.k_gate,
         ])
         self.plot_list_names = {
-            self.codesign_module.hw.params.V_dd: "Logic Supply Voltage per iteration (V)",
-            self.codesign_module.hw.params.V_th: "Transistor Vth per iteration (V)",
+            self.codesign_module.hw.params.V_dd: "(b) Logic Supply Voltage per iteration (V)",
+            self.codesign_module.hw.params.V_th: "(c) Transistor Vth per iteration (V)",
             self.codesign_module.hw.params.L: "Gate Length per iteration (m)",
             self.codesign_module.hw.params.W: "Gate Width per iteration (m)",
-            self.codesign_module.hw.params.tox: "Gate Oxide Thickness per iteration (m)",
+            self.codesign_module.hw.params.tox: "(d) Gate Oxide Thickness per iteration (m)",
             self.codesign_module.hw.params.k_gate: "Gate Permittivity per iteration (F/m)",
         }
         self.edp_over_iterations = []
@@ -58,13 +58,13 @@ class DennardMultiCore:
         f.write(str(self.params_over_iterations))
         # Set larger font sizes and better styling
         plt.rcParams.update({
-            "font.size": 18,
-            "axes.titlesize": 24,
-            "axes.labelsize": 18,
-            "xtick.labelsize": 18,
-            "ytick.labelsize": 18,
-            "legend.fontsize": 18,
-            "figure.titlesize": 24
+            "font.size": 24,
+            "axes.titlesize": 30,
+            "axes.labelsize": 24,
+            "xtick.labelsize": 24,
+            "ytick.labelsize": 24,
+            "legend.fontsize": 24,
+            "figure.titlesize": 30
         })
         for param in self.plot_list:
             values = []
@@ -98,13 +98,13 @@ class DennardMultiCore:
 
         # Set larger font sizes and better styling
         plt.rcParams.update({
-            "font.size": 18,
-            "axes.titlesize": 24,
-            "axes.labelsize": 18,
-            "xtick.labelsize": 18,
-            "ytick.labelsize": 18,
-            "legend.fontsize": 18,
-            "figure.titlesize": 24
+            "font.size": 24,
+            "axes.titlesize": 30,
+            "axes.labelsize": 24,
+            "xtick.labelsize": 24,
+            "ytick.labelsize": 24,
+            "legend.fontsize": 24,
+            "figure.titlesize": 30
         })
         fig, ax = plt.subplots(figsize=(10, 6))
 
@@ -121,7 +121,7 @@ class DennardMultiCore:
             ax.plot([x_mid, x_end], [self.edp_over_iterations[i + 1], self.edp_over_iterations[i + 2]], 'b-', linewidth=3)
 
         ax.set_xlabel("Iteration", fontweight="bold")
-        ax.set_title("Energy-Delay Product per iteration (nJ*ns)", fontweight="bold", pad=20)
+        ax.set_title("(a) Energy-Delay Product per iteration (nJ*ns)", fontweight="bold", pad=20)
         ax.set_yscale("log")
         #ax.grid(True, alpha=0.3, linestyle='--')
         fig.patch.set_facecolor("#f8f9fa")
