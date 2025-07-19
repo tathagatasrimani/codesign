@@ -120,7 +120,6 @@ def parse_fsm_report_to_cdfg(report_lines):
     cdfg = {}
     current_state = None
     state_pattern = re.compile(r"State\s+(\d+)\s*<SV\s*=\s*\d+>\s*<Delay\s*=\s*[\d\.]+>")
-    # Pattern to match the IR operation in the second "-->" section
     call_pattern = re.compile(
         r'"(?P<dest>%\w+)\s*=\s*call\s+void\s+@(?P<func>\w+),\s*(?P<args>.+)"'
     )
@@ -130,8 +129,11 @@ def parse_fsm_report_to_cdfg(report_lines):
     delay_pattern = re.compile(
         r"<Delay\s*=\s*([\d\.]+)>"
     )
-    # Pattern to extract the fraction [current/total]
     fraction_pattern = re.compile(r"\[\s*(\d+)\s*/\s*(\d+)\s*\]")
+
+    # Pattern to extract type from alloca and read ops
+    type_pattern = re.compile(r'alloca\s+(\w+)\s+\d+')
+    read_pattern = re.compile(r'read\s+(\w+)\s+@[^,]+,\s*(\w+)\s+(%?\w+)')
 
     for line in report_lines:
         # Detect state header
@@ -156,21 +158,19 @@ def parse_fsm_report_to_cdfg(report_lines):
             continue
         ir = parts[1].strip()
         op_info = parts[2] if len(parts) > 2 else ""
+
         # Try to match a call
         m = call_pattern.search(ir)
         if m:
             dest = m.group('dest')
             func = m.group('func')
             args = m.group('args')
-            # Extract all operands (remove type, keep variable)
             sources = []
             for arg in args.split(','):
                 arg = arg.strip()
-                # e.g., "i32 %v2508"
                 if ' ' in arg:
-                    _, var = arg.split(' ', 1)
-                    sources.append(var)
-            # Find delay in op_info
+                    dtype, var = arg.split(' ', 1)
+                    sources.append({"source": var, "type": dtype})
             delay_match = delay_pattern.search(op_info)
             delay = float(delay_match.group(1)) if delay_match else 0.0
             op_dict = {
@@ -185,27 +185,59 @@ def parse_fsm_report_to_cdfg(report_lines):
                 op_dict["total_steps"] = total_steps
             cdfg[current_state].append(op_dict)
             continue
+
         # Try to match other operations
         m = other_pattern.search(ir)
         if m:
             dest = m.group('dest')
             op = m.group('op')
             rest = m.group(3)
-            # Extract all operands (remove type, keep variable)
             sources = []
-            for arg in rest.split(','):
-                arg = arg.strip()
-                if ' ' in arg:
-                    _, var = arg.split(' ', 1)
-                    sources.append(var)
-            delay_match = delay_pattern.search(op_info)
-            delay = float(delay_match.group(1)) if delay_match else 0.0
-            op_dict = {
-                "operator": op,
-                "sources": sources,
-                "destination": dest,
-                "delay": delay
-            }
+            # Special handling for alloca and read
+            if op == "alloca":
+                tpm = type_pattern.search(ir)
+                dtype = tpm.group(1) if tpm else None
+                src = rest.split()[-1] if rest.split() else ""
+                sources = [{"source": src, "type": dtype}]
+                op_dict = {
+                    "operator": op,
+                    "sources": sources,
+                    "destination": dest,
+                    "dest_data_type": dtype,
+                    "delay": float(delay_pattern.search(op_info).group(1)) if delay_pattern.search(op_info) else 0.0
+                }
+            elif op == "read":
+                rpm = read_pattern.search(ir)
+                if rpm:
+                    dtype = rpm.group(1)
+                    src = rpm.group(3)
+                    sources = [{"source": src, "type": dtype}]
+                    op_dict = {
+                        "operator": op,
+                        "sources": sources,
+                        "destination": dest,
+                        "dest_data_type": dtype,
+                        "delay": float(delay_pattern.search(op_info).group(1)) if delay_pattern.search(op_info) else 0.0
+                    }
+                else:
+                    op_dict = {
+                        "operator": op,
+                        "sources": sources,
+                        "destination": dest,
+                        "delay": float(delay_pattern.search(op_info).group(1)) if delay_pattern.search(op_info) else 0.0
+                    }
+            else:
+                for arg in rest.split(','):
+                    arg = arg.strip()
+                    if ' ' in arg:
+                        dtype, var = arg.split(' ', 1)
+                        sources.append({"source": var, "type": dtype})
+                op_dict = {
+                    "operator": op,
+                    "sources": sources,
+                    "destination": dest,
+                    "delay": float(delay_pattern.search(op_info).group(1)) if delay_pattern.search(op_info) else 0.0
+                }
             if steps_remaining is not None and total_steps is not None:
                 op_dict["steps_remaining"] = steps_remaining
                 op_dict["total_steps"] = total_steps
@@ -250,18 +282,14 @@ def parse_all_fsm_reports(output_folder):
             for fname in os.listdir(subfolder_path):
                 if fname.endswith('_fsm.rpt'):
                     fsm_path = os.path.join(subfolder_path, fname)
-                    cdfg_path = os.path.join(subfolder_path, fname.replace('_fsm.rpt', '_cdfg.txt'))
+                    cdfg_path = os.path.join(subfolder_path, fname.replace('_fsm.rpt', '_fsm.json'))
                     transitions_path = os.path.join(subfolder_path, fname.replace('_fsm.rpt', '_state_transitions.json'))
-                    # print(f"Parsing FSM report: {fsm_path}")
                     with open(fsm_path, 'r') as f:
                         lines = f.readlines()
                     cdfg = parse_fsm_report_to_cdfg(lines)
                     with open(cdfg_path, 'w') as f:
                         f.write(cdfg)
                     # Parse and write state transitions
-                    
-                    # print(f"Created CDFG: {cdfg_path}")
-                    # print(f"Created state transitions: {transitions_path}")
 
 # Example usage after extract_all_files:
 if __name__ == "__main__":
