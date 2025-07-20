@@ -3,6 +3,7 @@ import os
 import re
 import json
 
+
 def extract_sections(filename, output_folder="."):
     netlist_lines = []
     complist_lines = []
@@ -13,6 +14,11 @@ def extract_sections(filename, output_folder="."):
     inside_complist = False
     inside_fsm = False
     inside_transitions = False
+    inside_stg = False
+    stg_lines = []
+
+    stg_start = "---------------- STG Properties BEGIN ----------------"
+    stg_end = "---------------- STG Properties END ------------------"
 
     with open(filename, 'r') as f:
         for line in f:
@@ -75,6 +81,16 @@ def extract_sections(filename, output_folder="."):
                     # End of transitions section if line doesn't match
                     inside_transitions = False
 
+            # Collect STG Properties section
+            if stg_start in line:
+                inside_stg = True
+                continue
+            if stg_end in line:
+                inside_stg = False
+                continue
+            if inside_stg:
+                stg_lines.append(line.rstrip())
+
     base_name = os.path.splitext(os.path.basename(filename))[0]
 
     if not os.path.exists(output_folder):
@@ -93,8 +109,16 @@ def extract_sections(filename, output_folder="."):
             ff.writelines(fsm_lines)
 
     if transitions:
+        # Convert keys to int for JSON output
+        transitions_int_keys = {int(k): v for k, v in transitions.items()}
         with open(os.path.join(output_folder, f"{base_name}_state_transitions.json"), 'w') as tf:
-            json.dump(transitions, tf, indent=2)
+            json.dump(transitions_int_keys, tf, indent=2)
+
+    if stg_lines:
+        stg_out_path = os.path.join(output_folder, f"{base_name}_stg.rpt")
+        with open(stg_out_path, 'w') as out_f:
+            for line in stg_lines:
+                out_f.write(line + "\n")
 
     # last, copy the original file to the output folder
     with open(filename, 'r') as f:
@@ -126,9 +150,13 @@ def parse_fsm_report_to_cdfg(report_lines):
     other_pattern = re.compile(
         r'"(?P<dest>%\w+)\s*=\s*(?P<op>\w+)\s+(.+)"'
     )
+    ret_pattern = re.compile(
+        r'"(?P<dest>%\w+)\s*=\s*ret"'
+    )
     delay_pattern = re.compile(
         r"<Delay\s*=\s*([\d\.]+)>"
     )
+    predicate_pattern = re.compile(r"<Predicate\s*=\s*([^\>]+)>")
     fraction_pattern = re.compile(r"\[\s*(\d+)\s*/\s*(\d+)\s*\]")
 
     # Pattern to extract type from alloca and read ops
@@ -139,7 +167,7 @@ def parse_fsm_report_to_cdfg(report_lines):
         # Detect state header
         state_match = state_pattern.match(line)
         if state_match:
-            current_state = state_match.group(1)
+            current_state = int(state_match.group(1))
             if current_state not in cdfg:
                 cdfg[current_state] = []
             continue
@@ -158,6 +186,10 @@ def parse_fsm_report_to_cdfg(report_lines):
             continue
         ir = parts[1].strip()
         op_info = parts[2] if len(parts) > 2 else ""
+
+        # Extract predicate if present
+        predicate_match = predicate_pattern.search(op_info)
+        predicate = predicate_match.group(1).strip() if predicate_match else None
 
         # Try to match a call
         m = call_pattern.search(ir)
@@ -180,6 +212,28 @@ def parse_fsm_report_to_cdfg(report_lines):
                 "destination": dest,
                 "delay": delay
             }
+            if predicate is not None:
+                op_dict["predicate"] = predicate
+            if steps_remaining is not None and total_steps is not None:
+                op_dict["steps_remaining"] = steps_remaining
+                op_dict["total_steps"] = total_steps
+            cdfg[current_state].append(op_dict)
+            continue
+
+        # Try to match ret operation
+        m = ret_pattern.search(ir)
+        if m:
+            dest = m.group('dest')
+            delay_match = delay_pattern.search(op_info)
+            delay = float(delay_match.group(1)) if delay_match else 0.0
+            op_dict = {
+                "operator": "ret",
+                "sources": [],
+                "destination": dest,
+                "delay": delay
+            }
+            if predicate is not None:
+                op_dict["predicate"] = predicate
             if steps_remaining is not None and total_steps is not None:
                 op_dict["steps_remaining"] = steps_remaining
                 op_dict["total_steps"] = total_steps
@@ -238,42 +292,16 @@ def parse_fsm_report_to_cdfg(report_lines):
                     "destination": dest,
                     "delay": float(delay_pattern.search(op_info).group(1)) if delay_pattern.search(op_info) else 0.0
                 }
+            if predicate is not None:
+                op_dict["predicate"] = predicate
             if steps_remaining is not None and total_steps is not None:
                 op_dict["steps_remaining"] = steps_remaining
                 op_dict["total_steps"] = total_steps
             cdfg[current_state].append(op_dict)
-    return json.dumps(cdfg, indent=2)
 
-def parse_fsm_state_transitions(report_lines, output_path):
-    transitions = {}
-    inside_transitions = False
-    for line in report_lines:
-        if '* FSM state transitions:' in line:
-            inside_transitions = True
-            # print("Parsing FSM state transitions...")
-            continue
-        if inside_transitions:
-            line = line.strip()
-            if not line:
-                continue
-            if '-->' in line:
-                parts = line.split('-->')
-                if len(parts) != 2:
-                    continue
-                from_state = parts[0].strip()
-                to_state = parts[1].strip()
-                if from_state.isdigit():
-                    if to_state == '':
-                        transitions[int(from_state)] = -1
-                    elif to_state.isdigit():
-                        transitions[int(from_state)] = int(to_state)
-            else:
-                # End of transitions section if line doesn't match
-                break
-    # Write transitions to JSON file
-    import json
-    with open(output_path, 'w') as f:
-        json.dump(transitions, f, indent=2)
+    # Ensure top-level keys are integers in the output JSON
+    cdfg_int_keys = {int(k): v for k, v in cdfg.items()}
+    return json.dumps(cdfg_int_keys, indent=2)
 
 def parse_all_fsm_reports(output_folder):
     for subfolder in os.listdir(output_folder):
@@ -283,13 +311,87 @@ def parse_all_fsm_reports(output_folder):
                 if fname.endswith('_fsm.rpt'):
                     fsm_path = os.path.join(subfolder_path, fname)
                     cdfg_path = os.path.join(subfolder_path, fname.replace('_fsm.rpt', '_fsm.json'))
-                    transitions_path = os.path.join(subfolder_path, fname.replace('_fsm.rpt', '_state_transitions.json'))
                     with open(fsm_path, 'r') as f:
                         lines = f.readlines()
                     cdfg = parse_fsm_report_to_cdfg(lines)
                     with open(cdfg_path, 'w') as f:
                         f.write(cdfg)
-                    # Parse and write state transitions
+                    # Parse and write stg report to JSON
+                    stg_path = os.path.join(subfolder_path, fname.replace('_fsm.rpt', '_stg.rpt'))
+                    if os.path.exists(stg_path):
+                        parse_stg_rpt_to_json(stg_path)
+
+def parse_stg_rpt_to_json(stg_rpt_path):
+
+    base_name = os.path.basename(stg_rpt_path).replace('.verbose_stg.rpt', '')
+    output_json = os.path.join(os.path.dirname(stg_rpt_path), base_name + '.verbose_STG_IN_OUT.json')
+
+    with open(stg_rpt_path, 'r') as f:
+        lines = [line.strip() for line in f if line.strip()]
+
+    result = {
+        "metadata": {},
+        "inputs": [],
+        "outputs": [],
+        "completion": None
+    }
+
+    # Parse metadata lines at the start
+    for line in lines:
+        if line.startswith('- Is '):
+            meta_match = re.match(r"- Is\s+(.+?):\s*(.+)", line)
+            if meta_match:
+                key = meta_match.group(1).strip()
+                val = meta_match.group(2).strip()
+                try:
+                    val = int(val)
+                except ValueError:
+                    pass
+                result["metadata"][key] = val
+        elif line.startswith("Port ["):
+            # Stop parsing metadata when ports start
+            break
+
+    # Now parse ports and completion
+    for line in lines:
+        # Parse Return port
+        if line.startswith("Port [ Return ]"):
+            port_info = {"name": "Return"}
+            io_mode_match = re.search(r"IO mode=([^\s:;]+)", line)
+            if io_mode_match:
+                port_info["io_mode"] = io_mode_match.group(1)
+            wired_match = re.search(r"wired[:=](\d+)", line)
+            if wired_match:
+                port_info["wired"] = int(wired_match.group(1))
+            result["completion"] = port_info
+            continue
+
+        # Parse other ports
+        port_match = re.match(r"Port \[ ([^\]]+)]:\s*(.*)", line)
+        if port_match:
+            port_name = port_match.group(1)
+            rest = port_match.group(2)
+            port_info = {"name": port_name}
+            # Extract all flags and IO mode
+            for key in ["wired", "compound", "hidden", "nouse", "global", "static", "extern", "dir", "type", "pingpong", "private_global"]:
+                m = re.search(rf"{key}[:=](\d+)", rest)
+                if m:
+                    port_info[key] = int(m.group(1))
+            io_mode_match = re.search(r"IO mode=([^\s:;]+)", rest)
+            if io_mode_match:
+                port_info["io_mode"] = io_mode_match.group(1)
+            # Determine input/output direction
+            # dir=0: input, dir=1: output
+            if "dir" in port_info:
+                if port_info["dir"] == 0:
+                    result["inputs"].append(port_info)
+                elif port_info["dir"] == 1:
+                    result["outputs"].append(port_info)
+            else:
+                result["inputs"].append(port_info)
+
+    with open(output_json, 'w') as f:
+        json.dump(result, f, indent=2)
 
 # Example usage after extract_all_files:
 if __name__ == "__main__":
