@@ -21,6 +21,7 @@ sys.path.insert(0, current_directory)"""
 
 # Now you can safely import modules that rely on the correct working directory
 from src import codesign
+from src import trend_plot
 
 class DennardMultiCore:
     def __init__(self, args):
@@ -30,117 +31,8 @@ class DennardMultiCore:
         )
         self.dummy_app = args.dummy
         self.params_over_iterations = []
-        self.plot_list = set([
-            self.codesign_module.hw.params.V_dd,
-            self.codesign_module.hw.params.V_th,
-            #self.codesign_module.hw.params.u_n,
-            self.codesign_module.hw.params.L,
-            self.codesign_module.hw.params.W,
-            self.codesign_module.hw.params.tox,
-            self.codesign_module.hw.params.k_gate,
-        ])
-        self.plot_list_names = {
-            self.codesign_module.hw.params.V_dd: "(b) Logic Supply Voltage per iteration (V)",
-            self.codesign_module.hw.params.V_th: "(c) Transistor Vth per iteration (V)",
-            self.codesign_module.hw.params.L: "Gate Length per iteration (m)",
-            self.codesign_module.hw.params.W: "Gate Width per iteration (m)",
-            self.codesign_module.hw.params.tox: "(d) Gate Oxide Thickness per iteration (m)",
-            self.codesign_module.hw.params.k_gate: "Gate Permittivity per iteration (F/m)",
-        }
         self.edp_over_iterations = []
         self.lag_factor_over_iterations = [1.0]
-
-    def plot_params_over_iterations(self):
-        fig_save_dir = self.codesign_module.save_dir + "/figs"
-        if not os.path.exists(fig_save_dir):
-            os.makedirs(fig_save_dir)
-        f = open(f"{fig_save_dir}/param_data.txt", 'w')
-        f.write(str(self.params_over_iterations))
-        # Set larger font sizes and better styling
-        plt.rcParams.update({
-            "font.size": 24,
-            "axes.titlesize": 30,
-            "axes.labelsize": 24,
-            "xtick.labelsize": 24,
-            "ytick.labelsize": 24,
-            "legend.fontsize": 24,
-            "figure.titlesize": 30
-        })
-        for param in self.plot_list:
-            values = []
-            for i in range(len(self.params_over_iterations)):
-                values.append(self.params_over_iterations[i][param])
-            
-            # Create figure with better sizing
-            fig, ax = plt.subplots(figsize=(10, 6))
-            
-            # Plot with improved styling
-            ax.plot(values, linewidth=2, markersize=6, color="#1f77b4")
-            ax.set_xlabel("Iteration", fontweight="bold")
-            ax.set_title(f"{self.plot_list_names[param]}", fontweight="bold", pad=20)
-            ax.set_yscale("log")
-            
-            # Improve grid and styling
-            #ax.grid(True, alpha=0.3, linestyle='--')
-            fig.patch.set_facecolor("#f8f9fa")
-            
-            # Adjust layout and save
-            plt.tight_layout()
-            plt.savefig(f"{fig_save_dir}/{param}_over_iters.png", dpi=300, bbox_inches='tight')
-            plt.close()
-    
-    def plot_edp_over_iterations(self):
-        fig_save_dir = self.codesign_module.save_dir + "/figs"
-        if not os.path.exists(fig_save_dir):
-            os.makedirs(fig_save_dir)
-
-        x = [i/2.0 for i in range(len(self.edp_over_iterations))]
-
-        # Set larger font sizes and better styling
-        plt.rcParams.update({
-            "font.size": 24,
-            "axes.titlesize": 30,
-            "axes.labelsize": 24,
-            "xtick.labelsize": 24,
-            "ytick.labelsize": 24,
-            "legend.fontsize": 24,
-            "figure.titlesize": 30
-        })
-        fig, ax = plt.subplots(figsize=(10, 6))
-
-        # Create alternating red and blue line segments
-        for i in range(len(self.edp_over_iterations) - 1)[::2]:
-            x_start = x[i]
-            x_end = x[i + 2]
-            x_mid = (x_start + x_end) / 2
-            
-            # Red line from x to x.5
-            ax.plot([x_start, x_mid], [self.edp_over_iterations[i], self.edp_over_iterations[i + 1]], 'r-', linewidth=3)
-            
-            # Blue line from x.5 to x+1
-            ax.plot([x_mid, x_end], [self.edp_over_iterations[i + 1], self.edp_over_iterations[i + 2]], 'b-', linewidth=3)
-
-        ax.set_xlabel("Iteration", fontweight="bold")
-        ax.set_title("(a) Energy-Delay Product per iteration (nJ*ns)", fontweight="bold", pad=20)
-        ax.set_yscale("log")
-        #ax.grid(True, alpha=0.3, linestyle='--')
-        fig.patch.set_facecolor("#f8f9fa")
-        ax.legend(["inverse pass", "forward pass"], fontsize=18)
-        plt.tight_layout()
-        plt.savefig(f"{fig_save_dir}/edp_over_iters.png", dpi=300, bbox_inches='tight')
-        plt.close()
-    
-    def plot_lag_factor_over_iterations(self):
-        fig_save_dir = self.codesign_module.save_dir + "/figs"
-        if not os.path.exists(fig_save_dir):
-            os.makedirs(fig_save_dir)
-        x = [i for i in range(len(self.lag_factor_over_iterations))]
-        plt.plot(x, self.lag_factor_over_iterations)
-        plt.xlabel("iteration")
-        plt.ylabel("max unroll factor")
-        plt.title("max unroll factor over iterations")
-        plt.grid(True)
-        plt.savefig(f"{fig_save_dir}/lag_factor_over_iters.png")
 
     def run_dummy_forward_pass(self):
         #self.codesign_module.hw.params.L = 5e-7
@@ -194,17 +86,20 @@ class DennardMultiCore:
             "GIDL current": self.codesign_module.hw.params.I_GIDL,
             "effective threshold voltage": self.codesign_module.hw.params.V_th_eff,
             "supply voltage": self.codesign_module.hw.params.V_dd,
+            "wire RC": self.codesign_module.hw.params.m1_Rsq * self.codesign_module.hw.params.m1_Csq,
         }
         self.codesign_module.display_objective("before inverse pass", symbolic=True)
 
-        self.disabled_knobs = [self.codesign_module.hw.params.f, self.codesign_module.hw.params.u_n, self.codesign_module.hw.params.m1_Rsq, self.codesign_module.hw.params.m1_Csq]
+        self.disabled_knobs = [self.codesign_module.hw.params.f, self.codesign_module.hw.params.u_n]
 
         stdout = sys.stdout
         with open("src/tmp/ipopt_out.txt", "w") as sys.stdout:
-            self.codesign_module.inverse_pass_lag_factor *= self.codesign_module.opt.optimize("ipopt", improvement=self.codesign_module.inverse_pass_improvement, disabled_knobs=self.disabled_knobs)
+            lag_factor, error = self.codesign_module.opt.optimize("ipopt", improvement=self.codesign_module.inverse_pass_improvement, disabled_knobs=self.disabled_knobs)
+            self.codesign_module.inverse_pass_lag_factor *= lag_factor
         sys.stdout = stdout
         f = open("src/tmp/ipopt_out.txt", "r")
-        self.codesign_module.parse_output(f)
+        if not error:
+            self.codesign_module.parse_output(f)
 
         self.codesign_module.write_back_params()
         print(f"inverse pass lag factor: {self.codesign_module.inverse_pass_lag_factor}")
@@ -212,10 +107,7 @@ class DennardMultiCore:
         self.codesign_module.display_objective("after inverse pass", symbolic=True)
 
     def update_params_over_iterations(self):
-        latest_params = {}
-        for param in self.plot_list:
-            latest_params[self.plot_list_names[param]] = param.subs(self.codesign_module.hw.params.tech_values)
-        self.params_over_iterations.append(latest_params)
+        self.params_over_iterations.append(self.codesign_module.hw.params.tech_values.copy())
 
     def run_experiment(self):
         if self.dummy_app:
@@ -259,9 +151,10 @@ class DennardMultiCore:
             else:
                 self.edp_over_iterations.append(self.codesign_module.hw.symbolic_obj.subs(self.codesign_module.hw.params.tech_values))
 
-        self.plot_params_over_iterations()
-        self.plot_edp_over_iterations()
-        self.plot_lag_factor_over_iterations()
+        trend_plotter = trend_plot.TrendPlot(self.codesign_module, self.params_over_iterations, self.edp_over_iterations, self.lag_factor_over_iterations, self.codesign_module.save_dir + "/figs")
+        trend_plotter.plot_params_over_iterations()
+        trend_plotter.plot_edp_over_iterations()
+        trend_plotter.plot_lag_factor_over_iterations()
         
         # now run forward pass to demonstrate how parallelism can be added
         # to combat diminishing tech benefits at the end of Dennard scaling

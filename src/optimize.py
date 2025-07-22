@@ -32,13 +32,28 @@ class Optimizer:
         constraints.append(self.hw.params.V_dd <= 5)
         constraints.append(self.hw.params.V_ox >= 0)
         for knob in self.disabled_knobs:
-            constraints.append(sp.Eq(knob, self.hw.params.tech_values[knob]))
+            constraints.append(sp.Eq(knob, knob.subs(self.hw.params.tech_values)))
         total_power = (self.hw.total_passive_energy + self.hw.total_active_energy) / self.hw.execution_time
         constraints.append(total_power <= 50) # hard limit on power
         if self.hw.params.f in self.hw.params.tech_values:
             constraints.append(self.hw.params.delay <= 1e9/self.hw.params.f)
-        constraints.append(sp.Eq(self.hw.params.t_ox_, self.hw.params.e_ox/self.hw.params.Cox))
         constraints.append(self.hw.params.I_off/(self.hw.params.W*self.hw.params.L) <= 100e-9 / (1e-6 * 1e-6))
+
+        constraints.append(self.hw.params.W / self.hw.params.L <= 50)
+        constraints.append(self.hw.params.W / self.hw.params.L >= 0.2)
+
+        # wire material constraints
+        constraints.append(self.hw.params.m1_rho >= 2e-8)
+        constraints.append(self.hw.params.m1_k >= 2)
+        constraints.append(self.hw.params.m2_rho >= 2e-8)
+        constraints.append(self.hw.params.m2_k >= 2)
+        constraints.append(self.hw.params.m3_rho >= 2e-8)
+        constraints.append(self.hw.params.m3_k >= 2)
+
+        if self.hw.model_cfg["effects"]["high_k_gate"]:
+            constraints.append(self.hw.params.k_gate >= 2)
+            constraints.append(self.hw.params.k_gate <= 25)
+
 
         if self.hw.model_cfg["scaling_mode"] == "dennard":
             if self.dennard_scaling_type == "constant_field":
@@ -62,14 +77,14 @@ class Optimizer:
             #elif self.dennard_scaling_type == "generalized":
             #    constraints.append(sp.Eq(self.hw.params.alpha_dennard, 1))
         elif self.hw.model_cfg["scaling_mode"] == "dennard_implicit":
-            constraints.append(self.hw.params.t_ox_ <= self.hw.params.t_ox_.subs(self.hw.params.tech_values))
+            constraints.append(self.hw.params.tox <= self.hw.params.tox.subs(self.hw.params.tech_values))
             constraints.append(self.hw.params.L <= self.hw.params.L.subs(self.hw.params.tech_values))
             constraints.append(self.hw.params.W <= self.hw.params.W.subs(self.hw.params.tech_values))
             constraints.append(self.hw.params.V_dd <= self.hw.params.V_dd.subs(self.hw.params.tech_values))
             constraints.append(self.hw.params.V_th_eff <= self.hw.params.V_th_eff.subs(self.hw.params.tech_values))
             constraints.append(sp.Eq(self.hw.params.W/self.hw.params.W.subs(self.hw.params.tech_values), self.hw.params.L/self.hw.params.L.subs(self.hw.params.tech_values)))
             constraints.append(sp.Eq(self.hw.params.V_dd/self.hw.params.V_dd.subs(self.hw.params.tech_values) , self.hw.params.L/self.hw.params.L.subs(self.hw.params.tech_values))) # lateral electric field scaling
-            constraints.append(sp.Eq(self.hw.params.V_dd/self.hw.params.V_dd.subs(self.hw.params.tech_values) , self.hw.params.t_ox_/self.hw.params.t_ox_.subs(self.hw.params.tech_values))) # lateral electric field scaling
+            constraints.append(sp.Eq(self.hw.params.V_dd/self.hw.params.V_dd.subs(self.hw.params.tech_values) , self.hw.params.tox/self.hw.params.tox.subs(self.hw.params.tech_values))) # lateral electric field scaling
             constraints[0] = self.hw.execution_time >= self.hw.execution_time.subs(self.hw.params.tech_values)/1.3 # replace objective constraint with latency constraint
             constraints.append(self.hw.total_active_energy + self.hw.total_passive_energy >= (self.hw.total_active_energy + self.hw.total_passive_energy).subs(self.hw.params.tech_values)/2.7)
             self.objective_constraint_inds.append(len(constraints)-1)
@@ -113,6 +128,7 @@ class Optimizer:
 
         opt, scaled_model, model = self.create_opt_model(improvement)
 
+        Error = False
 
         start_time = time.time()
         if self.hw.model_cfg["scaling_mode"].startswith("dennard"):
@@ -131,12 +147,16 @@ class Optimizer:
                 print(f"running with constant voltage scaling")
                 self.dennard_scaling_type = "constant_voltage"
                 opt, scaled_model, model = self.create_opt_model(improvement)
-                results = opt.solve(
-                    scaled_model, keepfiles=True, tee=True, symbolic_solver_labels=True
-                )
-                pyo.TransformationFactory("core.scale_model").propagate_solution(
-                    scaled_model, model
-                )
+                try:
+                    results = opt.solve(
+                        scaled_model, keepfiles=True, tee=True, symbolic_solver_labels=True
+                    )
+                    pyo.TransformationFactory("core.scale_model").propagate_solution(
+                        scaled_model, model
+                    )
+                except Exception as e:
+                    print(f"Error: {e}")
+                    Error = True
                 """
                 print(f"obj value: {final_value}")
                 print(f"lower bound: {lower_bound}")
@@ -151,34 +171,47 @@ class Optimizer:
                         scaled_model, model
                     )"""
         elif multistart:
-            results = opt.solve(
-                scaled_model,
-                solver_args={
-                    "keepfiles": True,
-                    "tee": True,
-                    "symbolic_solver_labels": True,
-                },
-            )
-            pyo.TransformationFactory("core.scale_model").propagate_solution(
-                scaled_model, model
-            )
+            try:
+                results = opt.solve(
+                    scaled_model,
+                    solver_args={
+                        "keepfiles": True,
+                        "tee": True,
+                        "symbolic_solver_labels": True,
+                    },
+                )
+                pyo.TransformationFactory("core.scale_model").propagate_solution(
+                    scaled_model, model
+                )
+            except Exception as e:
+                print(f"Error: {e}")
+                Error = True
         else:
-            results = opt.solve(
-                scaled_model, keepfiles=True, tee=True, symbolic_solver_labels=True
-            )
-            pyo.TransformationFactory("core.scale_model").propagate_solution(
-                scaled_model, model
-            )
+            try:
+                results = opt.solve(
+                    scaled_model, keepfiles=True, tee=True, symbolic_solver_labels=True
+                )
+                pyo.TransformationFactory("core.scale_model").propagate_solution(
+                    scaled_model, model
+                )
+            except Exception as e:
+                print(f"Error: {e}")
+                Error = True
         logger.info(f"time to run IPOPT: {time.time()-start_time}")
 
-        print(results.solver.termination_condition)
-        print("======================")
+        if not Error:
+            print(results.solver.termination_condition)
+            print("======================")
         model.display()
         lag_factor = 1
         for ind in self.objective_constraint_inds:
             lag_factor *= pyo.value(model.Constraints[ind]) / pyo.value(model.Constraints[ind].lower)
+        # guard against bad max iterations failures
+        if lag_factor > improvement * len(self.objective_constraint_inds):
+            Error = True
+            lag_factor = improvement * len(self.objective_constraint_inds)
         print(f"lag factor: {lag_factor}")
-        return lag_factor
+        return lag_factor, Error
 
     # note: improvement/regularization parameter currently only for inverse pass validation, so only using it for ipopt
     # example: improvement of 1.1 = 10% improvement

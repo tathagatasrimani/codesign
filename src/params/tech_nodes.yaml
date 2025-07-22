@@ -8,8 +8,12 @@ default:
   V_th: 0.9  # Threshold voltage (V)
   V_dd: 5.0  # Supply voltage (V)
   area: 2.0  # Transistor area (μm²)
-  m1_Rsq: 0.05 # ohm / sq
-  m1_Csq: 0.02e-15 # F / sq
+  m1_rho: 4.0e-8 # ohm * m
+  m1_k: 3.9 # F / m
+  m2_rho: 4.0e-8 # ohm * m
+  m2_k: 3.9 # F / m
+  m3_rho: 4.0e-8 # ohm * m
+  m3_k: 3.9 # F / m
   k_gate: 3.9 # dielectric constant
 
 tech-1982:

@@ -1,0 +1,148 @@
+import matplotlib.pyplot as plt
+import os
+
+class TrendPlot:
+    def __init__(self, codesign_module, params_over_iterations, edp_over_iterations, lag_factor_over_iterations, save_dir):
+        self.codesign_module = codesign_module
+        self.params_over_iterations = params_over_iterations
+        self.plot_list = set([
+            self.codesign_module.hw.params.V_dd,
+            self.codesign_module.hw.params.V_th_eff,
+            #self.codesign_module.hw.params.u_n,
+            self.codesign_module.hw.params.L,
+            self.codesign_module.hw.params.W,
+            self.codesign_module.hw.params.tox,
+            self.codesign_module.hw.params.k_gate,
+            self.codesign_module.hw.params.m1_Rsq,
+            self.codesign_module.hw.params.m1_Csq,
+            self.codesign_module.hw.params.m1_rho,
+            self.codesign_module.hw.params.m1_k,
+        ])
+        self.plot_list_labels = {
+            self.codesign_module.hw.params.V_dd: "Vdd",
+            self.codesign_module.hw.params.V_th_eff: "Vth",
+            self.codesign_module.hw.params.L: "L",
+            self.codesign_module.hw.params.W: "W",
+            self.codesign_module.hw.params.tox: "tox",
+            self.codesign_module.hw.params.k_gate: "k_gate",
+            self.codesign_module.hw.params.m1_Rsq: "m1_Rsq",
+            self.codesign_module.hw.params.m1_Csq: "m1_Csq",
+            self.codesign_module.hw.params.m1_rho: "m1_rho",
+            self.codesign_module.hw.params.m1_k: "m1_k",
+        }
+        self.plot_list_names = {
+            self.codesign_module.hw.params.V_dd: "Logic Supply Voltage per iteration (V)",
+            self.codesign_module.hw.params.V_th_eff: "Transistor Vth per iteration (V)",
+            self.codesign_module.hw.params.L: "Gate Length per iteration (m)",
+            self.codesign_module.hw.params.W: "Gate Width per iteration (m)",
+            self.codesign_module.hw.params.tox: "Gate Oxide Thickness per iteration (m)",
+            self.codesign_module.hw.params.k_gate: "Gate Permittivity per iteration (F/m)",
+            self.codesign_module.hw.params.m1_Rsq: "metal 1 Rsq per iteration (Ohm*um)",
+            self.codesign_module.hw.params.m1_Csq: "metal 1 Csq per iteration (F/um)",
+            self.codesign_module.hw.params.m1_rho: "metal 1 rho per iteration (Ohm*m)",
+            self.codesign_module.hw.params.m1_k: "metal 1 k per iteration (F/m)",
+        }
+        self.edp_over_iterations = edp_over_iterations
+        self.lag_factor_over_iterations = lag_factor_over_iterations
+        self.save_dir = save_dir
+
+    def plot_params_over_iterations(self):
+        if not os.path.exists(self.save_dir):
+            os.makedirs(self.save_dir)
+        f = open(f"{self.save_dir}/param_data.txt", 'w')
+        f.write(str(self.params_over_iterations))
+        # Set larger font sizes and better styling
+        plt.rcParams.update({
+            "font.size": 24,
+            "axes.titlesize": 30,
+            "axes.labelsize": 24,
+            "xtick.labelsize": 24,
+            "ytick.labelsize": 24,
+            "legend.fontsize": 24,
+            "figure.titlesize": 30
+        })
+        for param in self.plot_list:
+            values = []
+            for i in range(len(self.params_over_iterations)):
+                values.append(param.subs(self.params_over_iterations[i]))
+            
+            # Create figure with better sizing
+            fig, ax = plt.subplots(figsize=(10, 6))
+            
+            # Plot with improved styling
+            ax.plot(values, linewidth=3, markersize=15, marker="o", color="black")
+            ax.set_xlabel("Iteration", fontweight="bold")
+            ax.set_title(f"{self.plot_list_names[param]}", fontweight="bold", pad=20)
+            ax.set_yscale("log")
+            
+            # Improve grid and styling
+            #ax.grid(True, alpha=0.3, linestyle='--')
+            fig.patch.set_facecolor("#f8f9fa")
+            
+            # Adjust layout and save
+            plt.tight_layout()
+            plt.savefig(f"{self.save_dir}/{self.plot_list_labels[param]}_over_iters.png", dpi=300, bbox_inches='tight')
+            plt.close()
+    
+    def plot_edp_over_iterations(self):
+        if not os.path.exists(self.save_dir):
+            os.makedirs(self.save_dir)
+
+        x = [i/2.0 for i in range(len(self.edp_over_iterations))]
+
+        # Set larger font sizes and better styling
+        plt.rcParams.update({
+            "font.size": 24,
+            "axes.titlesize": 30,
+            "axes.labelsize": 24,
+            "xtick.labelsize": 24,
+            "ytick.labelsize": 24,
+            "legend.fontsize": 24,
+            "figure.titlesize": 30
+        })
+        fig, ax = plt.subplots(figsize=(10, 6))
+
+        # Create alternating red and blue line segments
+        for i in range(len(self.edp_over_iterations) - 1)[::2]:
+            x_start = x[i]
+            x_end = x[i + 2]
+            x_mid = (x_start + x_end) / 2
+
+            # Blue line from x.5 to x+1
+            ax.plot([x_mid, x_end], [self.edp_over_iterations[i + 1], self.edp_over_iterations[i + 2]], 'b-', linewidth=3, markersize=10, marker="o", markerfacecolor="black", markeredgecolor="black")
+            
+            # Red line from x to x.5
+            ax.plot([x_start, x_mid], [self.edp_over_iterations[i], self.edp_over_iterations[i + 1]], 'r-', linewidth=3, markersize=10, marker="o", markerfacecolor="black", markeredgecolor="black")
+        
+
+        ax.set_xlabel("Iteration", fontweight="bold")
+        ax.set_title("Energy-Delay Product per iteration (nJ*ns)", fontweight="bold", pad=20)
+        ax.set_yscale("log")
+        #ax.grid(True, alpha=0.3, linestyle='--')
+        fig.patch.set_facecolor("#f8f9fa")
+        ax.legend(["inverse pass", "forward pass"], fontsize=18)
+        plt.tight_layout()
+        plt.savefig(f"{self.save_dir}/edp_over_iters.png", dpi=300, bbox_inches='tight')
+        plt.close()
+    
+    def plot_lag_factor_over_iterations(self):
+        if not os.path.exists(self.save_dir):
+            os.makedirs(self.save_dir)
+        x = [i for i in range(len(self.lag_factor_over_iterations))]
+        # Create figure with better sizing
+        fig, ax = plt.subplots(figsize=(10, 6))
+        
+        # Plot with improved styling
+        ax.plot(x, self.lag_factor_over_iterations, linewidth=3, markersize=15, marker="o", color="black")
+        ax.set_xlabel("Iteration", fontweight="bold")
+        ax.set_title("Inverse Pass Lag Factor per iteration", fontweight="bold", pad=20)
+        ax.set_yscale("log")
+        
+        # Improve grid and styling
+        #ax.grid(True, alpha=0.3, linestyle='--')
+        fig.patch.set_facecolor("#f8f9fa")
+        
+        # Adjust layout and save
+        plt.tight_layout()
+        plt.savefig(f"{self.save_dir}/lag_factor_over_iters.png", dpi=300, bbox_inches='tight')
+        plt.close()

@@ -20,6 +20,7 @@ from . import optimize
 from . import schedule
 from . import memory
 from . import ccore_update
+from . import trend_plot
 
 DEBUG_YOSYS = False  # set to True to debug yosys output.
 
@@ -78,14 +79,8 @@ class Codesign:
         self.inverse_pass_lag_factor = 1
 
         self.params_over_iterations = []
-        self.plot_list = set([
-            self.hw.params.V_dd,
-            self.hw.params.V_th,
-            #self.hw.params.u_n,
-            self.hw.params.L,
-            self.hw.params.W,
-            self.hw.params.t_ox_,
-        ])
+        self.edp_over_iterations = []
+        self.lag_factor_over_iterations = [1.0]
         self.max_unroll = 64
 
         self.save_dat()
@@ -268,6 +263,8 @@ class Codesign:
 
         self.display_objective("after forward pass")
 
+        self.edp_over_iterations.append(self.hw.obj)
+
     def parse_catapult_timing(self):
         """
         Parses the Catapult timing report, extracts and schedules the data flow graph (DFG).
@@ -446,32 +443,19 @@ class Codesign:
 
         stdout = sys.stdout
         with open("src/tmp/ipopt_out.txt", "w") as sys.stdout:
-            self.inverse_pass_lag_factor *= self.opt.optimize("ipopt", improvement=self.inverse_pass_improvement)
+            lag_factor, error = self.opt.optimize("ipopt", improvement=self.inverse_pass_improvement)
+            self.inverse_pass_lag_factor *= lag_factor
         sys.stdout = stdout
         f = open("src/tmp/ipopt_out.txt", "r")
-        self.parse_output(f)
+        if not error:
+            self.parse_output(f)
 
         self.write_back_params()
 
         self.display_objective("after inverse pass", symbolic=True)
 
-    def plot_params_over_iterations(self):
-        if not os.path.exists(self.save_dir):
-            os.makedirs(self.save_dir)
-        f = open(f"{self.save_dir}/param_data.txt", 'w')
-        f.write(str(self.params_over_iterations))
-        for param in self.plot_list:
-            values = []
-            for i in range(len(self.params_over_iterations)):
-                values.append(self.params_over_iterations[i][param])
-                plt.plot(values)
-                plt.xlabel("iteration")
-                plt.ylabel("value")
-                plt.title(f"{param.name} over iterations")
-                plt.yscale("log")
-                plt.grid(True)
-                plt.savefig(f"{self.save_dir}/{param.name}_over_iters.png")
-                plt.close()
+        self.edp_over_iterations.append(self.hw.symbolic_obj.xreplace(self.hw.params.tech_values))
+        self.lag_factor_over_iterations.append(self.inverse_pass_lag_factor)
 
     def log_all_to_file(self, iter_number):
         with open(f"{self.save_dir}/results.txt", "a") as f:
@@ -551,7 +535,10 @@ class Codesign:
             self.log_all_to_file(i)
             self.hw.reset_state()
             i += 1
-        self.plot_params_over_iterations()
+        trend_plotter = trend_plot.TrendPlot(self, self.params_over_iterations, self.edp_over_iterations, self.lag_factor_over_iterations, self.save_dir + "/figs")
+        trend_plotter.plot_params_over_iterations()
+        trend_plotter.plot_edp_over_iterations()
+        trend_plotter.plot_lag_factor_over_iterations()
 
         # cleanup
         self.cleanup()

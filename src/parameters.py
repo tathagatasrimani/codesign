@@ -50,6 +50,7 @@ class Parameters:
         self.k_gate = symbols("k_gate", positive=True)
         self.V_offset = 0.1 #symbols("V_offset", positive=True)
         self.q = 1.6e-19  # electron charge (C)
+        self.e_0 = 8.854e-12  # permittivity of free space (F/m)
         self.e_si = 11.9*8.854e-12  # permittivity of silicon (F/m)
         self.e_ox = self.k_gate*8.854e-12  if self.effects["high_k_gate"] else 3.9*8.854e-12 # permittivity of oxide (F/m)
         self.tox = self.e_ox/self.Cox
@@ -62,7 +63,6 @@ class Parameters:
         self.phi_b = 3.1  # Schottky barrier height (eV)
         self.m_0 = 9.109e-31  # electron mass (kg)
         self.m_ox = 0.5*self.m_0  # effective mass of electron in oxide (g)
-        self.t_ox_ = symbols("t_ox_", positive=True)
 
         # dennard scaling factors, used for dennard scaling test
         self.alpha_dennard = symbols("alpha_dennard", positive=True)
@@ -70,13 +70,27 @@ class Parameters:
         
         self.area = symbols("area", positive=True)
 
-        self.m1_Rsq = symbols("m1_Rsq", positive=True)
-        self.m2_Rsq = symbols("m2_Rsq", positive=True)
-        self.m3_Rsq = symbols("m3_Rsq", positive=True)
+        self.m1_rho = symbols("m1_rho", positive=True)
+        self.m2_rho = symbols("m2_rho", positive=True)
+        self.m3_rho = symbols("m3_rho", positive=True)
 
-        self.m1_Csq = symbols("m1_Csq", positive=True)
-        self.m2_Csq = symbols("m2_Csq", positive=True)
-        self.m3_Csq = symbols("m3_Csq", positive=True)
+        self.m1_k = symbols("m1_k", positive=True)
+        self.m2_k = symbols("m2_k", positive=True)
+        self.m3_k = symbols("m3_k", positive=True)
+
+        # assume for now that wire width and thickness are both L (same as gate length)
+        # and spacing between wire and dielectric is 2L
+        self.dist = 2*self.L
+        self.wire_dim = 2*self.L
+
+        self.m1_Rsq = (self.m1_rho * 1e-6) / (self.wire_dim**2) # resistance per square (Ohm*um)
+        self.m2_Rsq = (self.m2_rho * 1e-6) / (self.wire_dim**2) # resistance per square (Ohm*um)
+        self.m3_Rsq = (self.m3_rho * 1e-6) / (self.wire_dim**2) # resistance per square (Ohm*um)
+
+        self.m1_Csq = (self.L * self.m1_k * self.e_0 * 1e-6) / (self.dist) # capacitance per square (F/um)
+        self.m2_Csq = (self.L * self.m2_k * self.e_0 * 1e-6) / (self.dist) # capacitance per square (F/um)
+        self.m3_Csq = (self.L * self.m3_k * self.e_0 * 1e-6) / (self.dist) # capacitance per square (F/um)
+
         self.wire_parasitics = {
             "R": {
                 "metal1": self.m1_Rsq,
@@ -118,14 +132,14 @@ class Parameters:
         self.init_symbol_table()
         self.init_memory_param_list()
 
-        wire_rc_init = "" # can set later
+        """wire_rc_init = "" # can set later
         wire_rc_config = yaml.load(open(WIRE_RC_FILE), Loader=yaml.Loader)
         for key in wire_rc_config["default"]:
             try:
                 self.tech_values[self.symbol_table[key]] = wire_rc_config[wire_rc_init][key]
             except:
                 logger.info(f"using default value for {key}")
-                self.tech_values[self.symbol_table[key]] = wire_rc_config["default"][key]
+                self.tech_values[self.symbol_table[key]] = wire_rc_config["default"][key]"""
 
         # set initial values for technology parameters based on tech node
         config = yaml.load(open(TECH_NODE_FILE), Loader=yaml.Loader)
@@ -357,7 +371,6 @@ class Parameters:
         # set initial values for dennard scaling factors (no actual meaning, they will be set by the optimizer)
         self.tech_values[self.alpha_dennard] = 1
         self.tech_values[self.epsilon_dennard] = 1
-        self.tech_values[self.t_ox_] = self.tech_values[self.k_gate] * 8.854e-12 / self.tech_values[self.Cox]
 
         # CACTI IO
         cacti_IO_params = {}
@@ -696,7 +709,6 @@ class Parameters:
             "u_n": self.u_n,
             "u_p": self.u_p,
             "Cox": self.Cox,
-            "t_ox_": self.t_ox_,
             "W": self.W,
             "L": self.L,
             "q": self.q,
@@ -719,12 +731,12 @@ class Parameters:
             "OffChipIOPact": self.OffChipIOPact,
 
             # wire parasitics
-            "m1_Rsq": self.m1_Rsq,
-            "m2_Rsq": self.m2_Rsq,
-            "m3_Rsq": self.m3_Rsq,
-            "m1_Csq": self.m1_Csq,
-            "m2_Csq": self.m2_Csq,
-            "m3_Csq": self.m3_Csq,
+            "m1_rho": self.m1_rho,
+            "m2_rho": self.m2_rho,
+            "m3_rho": self.m3_rho,
+            "m1_k": self.m1_k,
+            "m2_k": self.m2_k,
+            "m3_k": self.m3_k,
             
             # Cacti .dat technology parameters
             'C_g_ideal': self.C_g_ideal,

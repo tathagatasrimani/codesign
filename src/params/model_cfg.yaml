@@ -21,15 +21,29 @@ test_cfg:
   delay_parasitics: Csq only
   scaling_mode: dennard_implicit
 
-full_effects_cfg:
+NTL_example_cfg:
+  full_effects_cfg:
   effects:
-    #channel_length_modulation: True
-    #velocity_saturation: True
+    channel_length_modulation: True
+    velocity_saturation: True
     gate_tunneling: True
-    #mobility_degradation: True
-    #subthreshold_slope_effect: True
+    mobility_degradation: True
+    subthreshold_slope_effect: True
     DIBL: True
     GIDL: True
     area_and_latency_scaling: True
     #high_k_gate: True
   delay_parasitics: Csq only
+
+full_effects_cfg:
+  effects:
+    channel_length_modulation: True
+    velocity_saturation: True
+    gate_tunneling: True
+    mobility_degradation: True
+    subthreshold_slope_effect: True
+    DIBL: True
+    GIDL: True
+    area_and_latency_scaling: True
+    high_k_gate: True
+  delay_parasitics: all
