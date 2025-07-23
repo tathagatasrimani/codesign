@@ -22,82 +22,31 @@ class Optimizer:
         self.initial_alpha = None
 
     def create_constraints(self, improvement):
+        # system level and objective constraints, and pull in tech model constraints
+
         constraints = []
+        constraints.append(self.hw.symbolic_obj >= float(self.hw.symbolic_obj.subs(self.hw.circuit_model.tech_model.base_params.tech_values) / improvement))
         self.objective_constraint_inds = [0]
-        constraints.append(self.hw.symbolic_obj >= float(self.hw.symbolic_obj.subs(self.hw.params.tech_values) / improvement))
-        constraints.append(self.hw.params.V_dd >= self.hw.params.V_th_eff)
-        constraints.append(self.hw.params.V_dd >= self.hw.params.V_th)
-        if self.hw.params.V_th_eff != self.hw.params.V_th:
-            constraints.append(self.hw.params.V_th_eff >= 0)
-        constraints.append(self.hw.params.V_dd <= 5)
-        constraints.append(self.hw.params.V_ox >= 0)
         for knob in self.disabled_knobs:
-            constraints.append(sp.Eq(knob, knob.subs(self.hw.params.tech_values)))
+            constraints.append(sp.Eq(knob, knob.subs(self.hw.circuit_model.tech_model.base_params.tech_values)))
         total_power = (self.hw.total_passive_energy + self.hw.total_active_energy) / self.hw.execution_time
         constraints.append(total_power <= 50) # hard limit on power
-        if self.hw.params.f in self.hw.params.tech_values:
-            constraints.append(self.hw.params.delay <= 1e9/self.hw.params.f)
-        constraints.append(self.hw.params.I_off/(self.hw.params.W*self.hw.params.L) <= 100e-9 / (1e-6 * 1e-6))
 
-        constraints.append(self.hw.params.W / self.hw.params.L <= 50)
-        constraints.append(self.hw.params.W / self.hw.params.L >= 0.2)
-
-        # wire material constraints
-        constraints.append(self.hw.params.m1_rho >= 2e-8)
-        constraints.append(self.hw.params.m1_k >= 2)
-        constraints.append(self.hw.params.m2_rho >= 2e-8)
-        constraints.append(self.hw.params.m2_k >= 2)
-        constraints.append(self.hw.params.m3_rho >= 2e-8)
-        constraints.append(self.hw.params.m3_k >= 2)
-
-        if self.hw.model_cfg["effects"]["high_k_gate"]:
-            constraints.append(self.hw.params.k_gate >= 2)
-            constraints.append(self.hw.params.k_gate <= 25)
-
-
-        if self.hw.model_cfg["scaling_mode"] == "dennard":
-            if self.dennard_scaling_type == "constant_field":
-                constraints.append(sp.Eq(self.hw.params.W/self.hw.params.tech_values[self.hw.params.W], 1/self.hw.params.alpha_dennard))
-                constraints.append(sp.Eq(self.hw.params.L/self.hw.params.tech_values[self.hw.params.L], 1/self.hw.params.alpha_dennard))
-                constraints.append(sp.Eq(self.hw.params.V_dd/self.hw.params.tech_values[self.hw.params.V_dd], 1/self.hw.params.alpha_dennard))
-                constraints.append(sp.Eq(self.hw.params.V_th_eff/self.hw.params.tech_values[self.hw.params.V_th_eff], 1/self.hw.params.alpha_dennard))
-                constraints.append(sp.Eq(self.hw.params.Cox/self.hw.params.tech_values[self.hw.params.Cox], self.hw.params.alpha_dennard))
-                if self.initial_alpha is None and self.hw.params.tech_values[self.hw.params.alpha_dennard] != 1:
-                    self.initial_alpha = self.hw.params.tech_values[self.hw.params.alpha_dennard]
-            else:
-                constraints.append(sp.Eq(self.hw.params.alpha_dennard, self.initial_alpha))
-                constraints.append(sp.Eq(self.hw.params.W/self.hw.params.tech_values[self.hw.params.W], 1/self.hw.params.alpha_dennard))
-                constraints.append(sp.Eq(self.hw.params.L/self.hw.params.tech_values[self.hw.params.L], 1/self.hw.params.alpha_dennard))
-                constraints.append(sp.Eq(self.hw.params.V_dd, self.hw.params.tech_values[self.hw.params.V_dd]))
-                constraints.append(sp.Eq(self.hw.params.V_th_eff, self.hw.params.tech_values[self.hw.params.V_th_eff]))
-                #constraints.append(sp.Eq(self.hw.params.V_dd/self.hw.params.tech_values[self.hw.params.V_dd], self.hw.params.epsilon_dennard/self.hw.params.alpha_dennard))
-                #constraints.append(sp.Eq(self.hw.params.V_th_eff/self.hw.params.tech_values[self.hw.params.V_th_eff], self.hw.params.epsilon_dennard/self.hw.params.alpha_dennard))
-                constraints.append(sp.Eq(self.hw.params.Cox/self.hw.params.tech_values[self.hw.params.Cox], self.hw.params.alpha_dennard))
-
-            #elif self.dennard_scaling_type == "generalized":
-            #    constraints.append(sp.Eq(self.hw.params.alpha_dennard, 1))
-        elif self.hw.model_cfg["scaling_mode"] == "dennard_implicit":
-            constraints.append(self.hw.params.tox <= self.hw.params.tox.subs(self.hw.params.tech_values))
-            constraints.append(self.hw.params.L <= self.hw.params.L.subs(self.hw.params.tech_values))
-            constraints.append(self.hw.params.W <= self.hw.params.W.subs(self.hw.params.tech_values))
-            constraints.append(self.hw.params.V_dd <= self.hw.params.V_dd.subs(self.hw.params.tech_values))
-            constraints.append(self.hw.params.V_th_eff <= self.hw.params.V_th_eff.subs(self.hw.params.tech_values))
-            constraints.append(sp.Eq(self.hw.params.W/self.hw.params.W.subs(self.hw.params.tech_values), self.hw.params.L/self.hw.params.L.subs(self.hw.params.tech_values)))
-            constraints.append(sp.Eq(self.hw.params.V_dd/self.hw.params.V_dd.subs(self.hw.params.tech_values) , self.hw.params.L/self.hw.params.L.subs(self.hw.params.tech_values))) # lateral electric field scaling
-            constraints.append(sp.Eq(self.hw.params.V_dd/self.hw.params.V_dd.subs(self.hw.params.tech_values) , self.hw.params.tox/self.hw.params.tox.subs(self.hw.params.tech_values))) # lateral electric field scaling
-            constraints[0] = self.hw.execution_time >= self.hw.execution_time.subs(self.hw.params.tech_values)/1.3 # replace objective constraint with latency constraint
-            constraints.append(self.hw.total_active_energy + self.hw.total_passive_energy >= (self.hw.total_active_energy + self.hw.total_passive_energy).subs(self.hw.params.tech_values)/2.7)
+        if self.hw.model_cfg["scaling_mode"] == "dennard_implicit":
+            constraints[0] = self.hw.execution_time >= self.hw.execution_time.subs(self.hw.circuit_model.tech_model.base_params.tech_values)/1.3 # replace objective constraint with latency constraint
+            constraints.append(self.hw.total_active_energy + self.hw.total_passive_energy >= (self.hw.total_active_energy + self.hw.total_passive_energy).subs(self.hw.circuit_model.tech_model.base_params.tech_values)/2.7)
             self.objective_constraint_inds.append(len(constraints)-1)
 
+        self.hw.circuit_model.tech_model.create_constraints(self.dennard_scaling_type)
+        constraints.extend(self.hw.circuit_model.tech_model.constraints)
+
         print(f"constraints: {constraints}")
-        #constraints.append(self.hw.params.L >= 15e-9)
-        #constraints.append(self.hw.params.W >= 15e-9)
         return constraints
     
     def create_opt_model(self, improvement):
         constraints = self.create_constraints(improvement)
         model = pyo.ConcreteModel()
-        preprocessor = Preprocessor(self.hw.params)
+        preprocessor = Preprocessor(self.hw.circuit_model.tech_model.base_params)
         opt, scaled_model, model = (
             preprocessor.begin(model, self.hw.symbolic_obj, improvement, multistart=multistart, constraints=constraints)
         )
@@ -118,13 +67,11 @@ class Optimizer:
         """
         logger.info("Optimizing using IPOPT")
 
-        param_replace = {param: sp.Abs(param, evaluate=False) for param in self.hw.params.tech_values}
+        param_replace = {param: sp.Abs(param, evaluate=False) for param in self.hw.circuit_model.tech_model.base_params.tech_values}
         print("param_replace: ", param_replace)
         print("symbolic obj before abs: ", self.hw.symbolic_obj)
         self.hw.symbolic_obj = self.hw.symbolic_obj.xreplace(param_replace)
         print("symbolic obj after abs: ", self.hw.symbolic_obj)
-
-        constraints = self.create_constraints(improvement)
 
         opt, scaled_model, model = self.create_opt_model(improvement)
 

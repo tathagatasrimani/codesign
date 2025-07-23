@@ -86,18 +86,18 @@ class Codesign:
         self.save_dat()
 
         with open("src/tmp/tech_params_0.yaml", "w") as f:
-            f.write(yaml.dump(self.hw.params.tech_values))
+            f.write(yaml.dump(self.hw.circuit_model.tech_model.base_params.tech_values))
 
         self.hw.write_technology_parameters(self.save_dir+"/initial_tech_params.yaml")
 
     def log_forward_tech_params(self):
-        latency = self.hw.params.circuit_values["latency"]
+        latency = self.hw.circuit_model.circuit_values["latency"]
         logger.info(f"latency (ns):\n {latency}")
 
-        active_energy_logic = self.hw.params.circuit_values["dynamic_energy"]
+        active_energy_logic = self.hw.circuit_model.circuit_values["dynamic_energy"]
         logger.info(f"active energy (nW):\n {active_energy_logic}")
 
-        passive_power = self.hw.params.circuit_values["passive_power"]
+        passive_power = self.hw.circuit_model.circuit_values["passive_power"]
         logger.info(f"passive power (nW):\n {passive_power}")
 
         #logger.info(f"compute operation totals in fw pass:\n {self.hw.compute_operation_totals}")
@@ -122,7 +122,7 @@ class Codesign:
                 "ccs_ram_sync_1R1W_wport": "Rsc",
                 "nop": "nop"
             }
-        for unit in self.hw.params.circuit_values["area"].keys():
+        for unit in self.hw.circuit_model.circuit_values["area"].keys():
             self.module_map[unit.lower()] = unit
 
         os.chdir("src/tmp/benchmark")
@@ -143,9 +143,9 @@ class Codesign:
         # if not self.no_memory:
         #     ## If we are running with memory, we need to run Cacti to get the memory parameters and then rerun Catapult. 
         #     pre_assign_counts = memory.get_pre_assign_counts(f"src/tmp/benchmark/bom.rpt", self.module_map)
-        #     logger.info(f"hw.params.circuit_values: {self.hw.params.circuit_values}")
-        #     self.hw.params.set_memories(memory.customize_catapult_memories(f"src/tmp/benchmark/memories.rpt", self.benchmark_name, self.hw, pre_assign_counts))
-        #     logger.info(f"custom catapult memories: {self.hw.params.memories}")
+        #     logger.info(f"hw.circuit_model.circuit_values: {self.hw.circuit_model.circuit_values}")
+        #     self.hw.circuit_model.set_memories(memory.customize_catapult_memories(f"src/tmp/benchmark/memories.rpt", self.benchmark_name, self.hw, pre_assign_counts))
+        #     logger.info(f"custom catapult memories: {self.hw.circuit_model.memories}")
         #     os.chdir("src/tmp/benchmark")
         #     p = subprocess.run(["make", "clean"], capture_output=True, text=True)
         #     p = subprocess.run(cmd, capture_output=True, text=True)
@@ -155,7 +155,7 @@ class Codesign:
         #     os.chdir("../../..")
         # else:
         logger.info("skipping memory customization and second catapult run")
-        self.hw.params.set_memories({})
+        self.hw.circuit_model.set_memories({})
 
         # Extract Hardware Netlist
         cmd = ["yosys", "-p", f"read_verilog src/tmp/benchmark/build/{self.benchmark_name}.v1/rtl.v; hierarchy -top {self.benchmark_name}; proc; write_json src/tmp/benchmark/netlist.json"]
@@ -195,7 +195,7 @@ class Codesign:
         shutil.copytree("src/ccores_base", "src/tmp/benchmark/src/ccores")
 
         # update delay and area of ccores
-        ccore_update.update_ccores(self.hw.params.circuit_values["area"], self.hw.params.circuit_values["latency"])
+        ccore_update.update_ccores(self.hw.circuit_model.circuit_values["area"], self.hw.circuit_model.circuit_values["latency"])
 
         if self.benchmark_name == "matmult":
             # change the unroll factors in the matmult_basic.cpp file
@@ -283,9 +283,9 @@ class Codesign:
                 break
         assert schedule_dir
         schedule_path = f"src/tmp/benchmark/build/{schedule_dir}"
-        schedule_parser = schedule.gnt_schedule_parser(schedule_path, self.module_map, self.hw.params.circuit_values["latency"])
+        schedule_parser = schedule.gnt_schedule_parser(schedule_path, self.module_map, self.hw.circuit_model.circuit_values["latency"])
         schedule_parser.parse()
-        schedule_parser.convert(memories=self.hw.params.memories)
+        schedule_parser.convert(memories=self.hw.circuit_model.memories)
         self.hw.inst_name_map = schedule_parser.inst_name_map
         self.hw.scheduled_dfg = schedule_parser.modified_G
 
@@ -334,7 +334,7 @@ class Codesign:
             i += 1
         while lines[i][0] == "x":
             mapping[lines[i][lines[i].find("[") + 1 : lines[i].find("]")]] = (
-                self.hw.params.symbol_table[lines[i].split(" ")[-1][:-1]]
+                self.hw.circuit_model.tech_model.base_params.symbol_table[lines[i].split(" ")[-1][:-1]]
             )
             i += 1
         while i < len(lines) and lines[i].find("x") != 4:
@@ -343,8 +343,8 @@ class Codesign:
         for _ in range(len(mapping)):
             key = lines[i].split(":")[0].lstrip().rstrip()
             value = float(lines[i].split(":")[2][1:-1])
-            self.hw.params.tech_values[mapping[key]] = (
-                value  # just know that self.hw.params.tech_values contains all dat
+            self.hw.circuit_model.tech_model.base_params.tech_values[mapping[key]] = (
+                value  # just know that self.hw.circuit_model.tech_model.base_params.tech_values contains all dat
             )
             i += 1
 
@@ -360,11 +360,11 @@ class Codesign:
         """
         with open(params_path, "w") as f:
             d = {}
-            for key in self.hw.params.tech_values:
+            for key in self.hw.circuit_model.tech_model.base_params.tech_values:
                 if isinstance(key, str):
-                    d[key] = float(self.hw.params.tech_values[key])
+                    d[key] = float(self.hw.circuit_model.tech_model.base_params.tech_values[key])
                 else:
-                    d[key.name] = float(self.hw.params.tech_values[key])
+                    d[key.name] = float(self.hw.circuit_model.tech_model.base_params.tech_values[key])
             f.write(yaml.dump(d))
 
     def symbolic_conversion(self):
@@ -377,34 +377,34 @@ class Codesign:
         base_cache_cfg = "cfg/base_cache.cfg"
         mem_cache_cfg = "cfg/mem_cache.cfg"
         existing_memories = {}
-        for memory in self.hw.params.memories:
-            data_tuple = tuple(self.hw.params.memories[memory])
+        for memory in self.hw.circuit_model.memories:
+            data_tuple = tuple(self.hw.circuit_model.memories[memory])
             if data_tuple in existing_memories:
                 logger.info(f"reusing symbolic cacti values of {existing_memories[data_tuple]} for {memory}")
-                mem_type = self.hw.params.memories[memory]["type"]
+                mem_type = self.hw.circuit_model.memories[memory]["type"]
                 if mem_type == "Mem":
-                    self.hw.params.symbolic_mem[memory] = self.hw.params.symbolic_mem[existing_memories[data_tuple]]
+                    self.hw.circuit_model.symbolic_mem[memory] = self.hw.circuit_model.symbolic_mem[existing_memories[data_tuple]]
                 else:
-                    self.hw.params.symbolic_buf[memory] = self.hw.params.symbolic_buf[existing_memories[data_tuple]]
+                    self.hw.circuit_model.symbolic_buf[memory] = self.hw.circuit_model.symbolic_buf[existing_memories[data_tuple]]
             else:
                 opt_vals = {
-                    "ndwl": self.hw.params.memories[memory]["Ndwl"],
-                    "ndbl": self.hw.params.memories[memory]["Ndbl"],
-                    "nspd": self.hw.params.memories[memory]["Nspd"],
-                    "ndcm": self.hw.params.memories[memory]["Ndcm"],
-                    "ndsam1": self.hw.params.memories[memory]["Ndsam_level_1"],
-                    "ndsam2": self.hw.params.memories[memory]["Ndsam_level_2"],
-                    "repeater_spacing": self.hw.params.memories[memory]["Repeater spacing"],
-                    "repeater_size": self.hw.params.memories[memory]["Repeater size"],
+                    "ndwl": self.hw.circuit_model.memories[memory]["Ndwl"],
+                    "ndbl": self.hw.circuit_model.memories[memory]["Ndbl"],
+                    "nspd": self.hw.circuit_model.memories[memory]["Nspd"],
+                    "ndcm": self.hw.circuit_model.memories[memory]["Ndcm"],
+                    "ndsam1": self.hw.circuit_model.memories[memory]["Ndsam_level_1"],
+                    "ndsam2": self.hw.circuit_model.memories[memory]["Ndsam_level_2"],
+                    "repeater_spacing": self.hw.circuit_model.memories[memory]["Repeater spacing"],
+                    "repeater_size": self.hw.circuit_model.memories[memory]["Repeater size"],
                 }
-                logger.info(f"memory vals: {self.hw.params.memories[memory]}")
-                mem_type = self.hw.params.memories[memory]["type"]
+                logger.info(f"memory vals: {self.hw.circuit_model.memories[memory]}")
+                mem_type = self.hw.circuit_model.memories[memory]["type"]
                 logger.info(f"generating symbolic cacti for {memory} of type {mem_type}")
                 # generate mem or buf depending on type of memory
                 if mem_type == "Mem":
-                    self.hw.params.symbolic_mem[memory] = cacti_util.gen_symbolic("Mem", mem_cache_cfg, opt_vals, use_piecewise=False)
+                    self.hw.circuit_model.symbolic_mem[memory] = cacti_util.gen_symbolic("Mem", mem_cache_cfg, opt_vals, use_piecewise=False)
                 else:
-                    self.hw.params.symbolic_buf[memory] = cacti_util.gen_symbolic("Buf", base_cache_cfg, opt_vals, use_piecewise=False)
+                    self.hw.circuit_model.symbolic_buf[memory] = cacti_util.gen_symbolic("Buf", base_cache_cfg, opt_vals, use_piecewise=False)
                 existing_memories[data_tuple] = memory
         self.hw.save_symbolic_memories()
         self.hw.calculate_objective(symbolic=True)
@@ -412,11 +412,11 @@ class Codesign:
     
     def display_objective(self, message,symbolic=False):
         if symbolic:
-            obj = float(self.hw.symbolic_obj.xreplace(self.hw.params.tech_values))
+            obj = float(self.hw.symbolic_obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values))
             sub_exprs = {}
             for key in self.hw.symbolic_obj_sub_exprs:
                 if not isinstance(self.hw.symbolic_obj_sub_exprs[key], float):
-                    sub_exprs[key] = float(self.hw.symbolic_obj_sub_exprs[key].xreplace(self.hw.params.tech_values))
+                    sub_exprs[key] = float(self.hw.symbolic_obj_sub_exprs[key].xreplace(self.hw.circuit_model.tech_model.base_params.tech_values))
                 else:   
                     sub_exprs[key] = self.hw.symbolic_obj_sub_exprs[key]
         else:
@@ -454,14 +454,14 @@ class Codesign:
 
         self.display_objective("after inverse pass", symbolic=True)
 
-        self.edp_over_iterations.append(self.hw.symbolic_obj.xreplace(self.hw.params.tech_values))
+        self.edp_over_iterations.append(self.hw.symbolic_obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values))
         self.lag_factor_over_iterations.append(self.inverse_pass_lag_factor)
 
     def log_all_to_file(self, iter_number):
         with open(f"{self.save_dir}/results.txt", "a") as f:
             f.write(f"{iter_number}\n")
             f.write(f"Forward EDP: {self.hw.obj}\n")
-            f.write(f"Inverse EDP: {self.hw.symbolic_obj.xreplace(self.hw.params.tech_values)}\n")
+            f.write(f"Inverse EDP: {self.hw.symbolic_obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values)}\n")
         nx.write_gml(
             self.hw.netlist,
             f"{self.save_dir}/netlist_{iter_number}.gml",
@@ -477,7 +477,7 @@ class Codesign:
         shutil.copy(
             "src/tmp/solver_out.txt", f"{self.save_dir}/solver_{iter_number}.txt"
         )
-        """for mem in self.hw.params.memories:
+        """for mem in self.hw.circuit_model.memories:
             shutil.copy(
                 f"src/tmp/cacti_exprs_{mem}.txt", f"{self.save_dir}/cacti_exprs_{mem}_{iter_number}.txt"
             )"""
@@ -487,7 +487,7 @@ class Codesign:
         self.hw.write_technology_parameters(
             f"{self.save_dir}/circuit_values_{iter_number}.yaml"
         )
-        self.params_over_iterations.append(copy.copy(self.hw.params.tech_values))
+        self.params_over_iterations.append(copy.copy(self.hw.circuit_model.tech_model.base_params.tech_values))
 
     def save_dat(self):
         # Save tech node info to another file prefixed by prev_ so we can restore
@@ -531,7 +531,7 @@ class Codesign:
             self.forward_pass()
             self.log_forward_tech_params()
             self.inverse_pass()
-            self.hw.params.update_circuit_values()
+            self.hw.circuit_model.update_circuit_values()
             self.log_all_to_file(i)
             self.hw.reset_state()
             i += 1

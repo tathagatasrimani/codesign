@@ -4,12 +4,25 @@ import glob
 import datetime
 from collections import defaultdict
 import math
+from sympy import Abs
 
 logger = logging.getLogger(__name__)
 
 import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
+
+def symbolic_convex_max(a, b, evaluate=True):
+    """
+    Max(a, b) in a format which ipopt accepts.
+    """
+    return 0.5 * (a + b + Abs(a - b, evaluate=evaluate))
+
+def symbolic_convex_min(a, b, evaluate=True):
+    """
+    Min(a, b) in a format which ipopt accepts.
+    """
+    return 0.5 * (a + b - Abs(a - b, evaluate=evaluate))
 
 def deep_merge(dict1, dict2):
     result = dict(dict1)

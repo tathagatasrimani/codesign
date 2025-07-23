@@ -21,8 +21,7 @@ test_cfg:
   delay_parasitics: Csq only
   scaling_mode: dennard_implicit
 
-NTL_example_cfg:
-  full_effects_cfg:
+NTC_example_cfg:
   effects:
     channel_length_modulation: True
     velocity_saturation: True
