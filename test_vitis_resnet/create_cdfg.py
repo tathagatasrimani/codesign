@@ -14,6 +14,8 @@ def debug_print(message):
 ## NOTE: The data dependencies in this function are represeted as edges in the graph where the source node 
 # is the operation that produces the data and the destination node is the operation that consumes the data.
 def create_cdfg_one_file(fsm_data, state_transitions, stg_data, dir_name):
+
+    debug_print(f"Creating CDFG for {dir_name} with {len(fsm_data)} states and {len(state_transitions)} transitions.")
     ## First, identify if there is a loop in the FSM.
     fsm_graph = nx.DiGraph()
     for state, next_state in state_transitions.items():
@@ -35,7 +37,7 @@ def create_cdfg_one_file(fsm_data, state_transitions, stg_data, dir_name):
 
     ## When there is a cycle, it means that we'll need to keep track of program
     ## variables to determine the CDFG. These will be stored here
-    control_vars = {}
+    # control_vars = {}
 
     # Create the graph
     G = nx.DiGraph()
@@ -56,10 +58,16 @@ def create_cdfg_one_file(fsm_data, state_transitions, stg_data, dir_name):
 
     prev_state_end_node = None
 
+    ## Create a start and end node for the entire CDFG.
+    cdfg_start_node_name = f"START_CDFG_{dir_name}"
+    cdfg_end_node_name = f"END_CDFG_{dir_name}"
+    G.add_node(cdfg_start_node_name, type='CONTROL_NODE')
+    G.add_node(cdfg_end_node_name, type='CONTROL_NODE')
+
     ## This loop will continue until we have followed the state transition flow through all states in the FSM.
     while curr_state in fsm_data:
         ## Iterate through all FSM nodes in the current state.
-        #print(f"Processing FSM state: {curr_state} with step count: {curr_step_count_local}")
+        print(f"Processing FSM state: {curr_state} with step count: {curr_step_count_local}")
 
         ## if there are cycles in the FSM and this state is one of the states in the cycle, we will
         ## need to handle it differently
@@ -78,50 +86,23 @@ def create_cdfg_one_file(fsm_data, state_transitions, stg_data, dir_name):
         G.add_node(start_node_name, state=curr_state, cycle=curr_step_count_local, type='CONTROL_NODE')
         G.add_node(end_node_name, state=curr_state, cycle=curr_step_count_local, type='CONTROL_NODE')
 
+        if prev_state_end_node is not None:
+            ## if there is a previous state end node, we will connect the start node of this state to the end node of the previous state
+            G.add_edge(prev_state_end_node, start_node_name, type='CONTROL_DEPENDENCY')
+            #debug_print(f"Added control edge from {prev_state_end_node} to {start_node_name} (previous state end to current state start)")
+        else:
+            ## if there is no previous state end node, we will connect the start node of this state to the CDFG start node
+            G.add_edge(cdfg_start_node_name, start_node_name, type='CONTROL_DEPENDENCY')
+            #debug_print(f"Added control edge from {cdfg_start_node_name} to {start_node_name} (CDFG start to current state start)")
+
         nodes_added_in_this_state = []
 
+        ## Add nodes for each op in this state. 
         for fsm_node in fsm_data[curr_state]:
             #print(f"Processing FSM node: {fsm_node} in state {curr_state}")
-            
-            # if curr_state_in_cycle:
-            #     ## see if it is a phi op. If it is, do the operation.
-            #     # if fsm_node["operator"] == "phi":
-            #     #     if fsm_node["destination"] not in control_vars:
-            #     #         control_vars[fsm_node["destination"]] = int(fsm_node["sources"][0]["source"])
-            #     #     else:
-            #     #         control_vars[fsm_node["destination"]] = control_vars[fsm_node["sources"][2]["source"]]
-                
-            #     # ## otherwise, see if it is an icmp_eq op. If it is, do that operation.
-            #     # elif fsm_node["operator"] == "icmp_eq":
-            #     #     control_vars[fsm_node["destination"]] = 1 if control_vars[fsm_node["sources"][0]["source"]] == control_vars[fsm_node["sources"][1]["source"]] else 0
-
-            #     ## otherwise, see if it is
-            # else:
-            ## if we are on the first step of a multi step operation (or a single step operation), we will add the node to the graph
-            # if fsm_node["steps_remaining"] == fsm_node["total_steps"]:
-                curr_node_name = f"{fsm_node['operator']}_op_{curr_step_count_local}_{fsm_node['destination']}"
-                G.add_node(curr_node_name, fsm_node=fsm_node, start_state=int(curr_state), start_step_count=curr_step_count_local)
-                nodes_added_in_this_state.append(curr_node_name)
-            # else:
-            #     ## we need to find the node in the graph that corresponds to the current operation
-            #     continue
-            ## first, look at the sources for this operation
-            # if "sources" in fsm_node:
-            #     for source in fsm_node["sources"]:
-            #         ## if the source is directly parsable as in integer, then it is a constant and 
-            #         ## not a true dependency
-            #         if isinstance(source, int):
-            #             continue
-            #         ## otherwise, if the source starts with an '@', we will assume it is also a constant 
-            #         ## and not a true dependency
-            #         elif isinstance(source, str) and source.startswith('@'):
-            #             continue
-            #         ## otherwise, if the source starts with a % then it is a variable and we will add it as a dependency
-            #         elif isinstance(source, str) and source.startswith('%'):
-            #             ## see if the source is currently in the graph
-            #             if source in G:
-            #                 G.add_edge(source, f"{curr_state}_op_{idx}")
-                ## then, add the operation node itself
+            curr_node_name = f"{fsm_node['operator']}_op_{curr_step_count_local}_{fsm_node['destination']}"
+            G.add_node(curr_node_name, fsm_node=fsm_node, start_state=int(curr_state), start_step_count=curr_step_count_local)
+            nodes_added_in_this_state.append(curr_node_name)
 
         ## add edges based on the data dependencies
         ## go through the sources of all nodes added in this state and add a dependency edge to that node
@@ -143,7 +124,7 @@ def create_cdfg_one_file(fsm_data, state_transitions, stg_data, dir_name):
                         for added_node in nodes_added_in_this_state:
                             if G.nodes[added_node]['fsm_node']['destination'] == source['source']:
                                 G.add_edge(node_name, added_node, type='DATA_DEPENDENCY', var_name=source['source'])
-                                debug_print(f"Added edge from {node_name} to {added_node} based on source {source['source']}")
+                                #debug_print(f"Added edge from {node_name} to {added_node} based on source {source['source']}")
 
         ## Add control dependency edges
         for node_name in nodes_added_in_this_state:
@@ -151,13 +132,13 @@ def create_cdfg_one_file(fsm_data, state_transitions, stg_data, dir_name):
             ## this means it has an in degree of 0
             if G.in_degree(node_name) == 0:
                 G.add_edge(node_name, start_node_name, type='CONTROL_DEPENDENCY')
-                debug_print(f"Added control edge from {node_name} to {start_node_name} (no data dependencies)")
+                #debug_print(f"Added control edge from {node_name} to {start_node_name} (no data dependencies)")
 
             ## If the node doesn't produce any data that is consumed by another node, we will connect it to the end node.
             ## this means it has an out degree of 0
             if G.out_degree(node_name) == 0:
                 G.add_edge(end_node_name, node_name, type='CONTROL_DEPENDENCY')
-                debug_print(f"Added control edge from {end_node_name} to {node_name} (no data produced)")
+                #debug_print(f"Added control edge from {end_node_name} to {node_name} (no data produced)")
 
         ## go to the next state
         if curr_state in state_transitions:
@@ -167,11 +148,39 @@ def create_cdfg_one_file(fsm_data, state_transitions, stg_data, dir_name):
             print(f"No transition found for state {curr_state}. Ending processing.")
             break
 
-    ## TODO: At the end, create a start and end node for the entire CDFG. 
+        prev_state_end_node = end_node_name
 
-    ## TODO: All nodes that have an data dependency on an input to the CDFG should be connected to the start node.
+    ## After processing all states, we will connect the end node of the last state to the CDFG end node.
+    if prev_state_end_node is not None:
+        G.add_edge(prev_state_end_node, cdfg_end_node_name, type='CONTROL_DEPENDENCY')
+        #debug_print(f"Added control edge from {prev_state_end_node} to {cdfg_end_node_name} (last state end to CDFG end)")
 
-    ## TODO: All nodes that produce an output that is an output of the CDFG should be connected to the end node.
+    for node in G.nodes:
+        ## We need to check each input to each node to see if it is a variable that is an input to the CDFG.
+        if 'fsm_node' in G.nodes[node]:
+            fsm_node = G.nodes[node]['fsm_node']
+
+            ## All nodes that have an data dependency on an input to the CDFG should be connected to the start node.
+            if 'sources' in fsm_node:
+                for source in fsm_node['sources']:
+                    if isinstance(source['source'], str) and source['source'].startswith('%'):
+                        ## If the source is a variable that is an input to the CDFG, we will connect it to the start node.
+                        source_var = source['source'].strip('%')
+                        for input_var in stg_data.get('inputs', []):
+                            if input_var['name'] == source_var:
+                                G.add_edge(cdfg_start_node_name, node, type='INPUT_DEPENDENCY', var_name=source_var)
+                                #debug_print(f"Added input dependency edge from {cdfg_start_node_name} to {node} for variable {source_var}")
+
+            ## All nodes that produce an output that is an output of the CDFG should be connected to the end node.
+            if 'destination' in fsm_node:
+                output_var = fsm_node['destination'].strip('%')
+                for output_var_info in stg_data.get('outputs', []):
+                    if output_var_info['name'] == output_var:
+                        G.add_edge(node, cdfg_end_node_name, type='OUTPUT_DEPENDENCY', var_name=output_var)
+                        #debug_print(f"Added output dependency edge from {node} to {cdfg_end_node_name} for variable {output_var}")
+            
+
+                        
     
     return G
 
