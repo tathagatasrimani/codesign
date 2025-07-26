@@ -2,7 +2,7 @@ import logging
 from src.tech_model import TechModel
 from src.sim_util import symbolic_convex_max, symbolic_convex_min
 import math
-from sympy import symbols, ceiling, expand, exp, Abs
+from sympy import symbols, ceiling, expand, exp, Abs, cosh
 
 
 logger = logging.getLogger(__name__)
@@ -38,6 +38,19 @@ class BulkModel(TechModel):
 
         # inverter diffusion capacitance constant
         self.gamma_diff = 1.0
+
+        # subthreshold slope effect parameters 
+        # we assume Vbs = 0 so ignore CDSCB, and using default value 0 for CDSCD
+        self.t_dep = 1 # TODO is this ok?
+        self.C_dep = self.e_si/self.t_dep
+        self.NFACTOR = 1
+        self.CDSC = 2.4e-4 # default value for CDSC (F/m^2)
+        self.DVT1 = 0.53 # default value for DVT1
+        self.phi_s = 0.5
+        self.NDEP = 1.7e23 #m^-3, original value is 1.7e17 cm^-3
+        self.X_dep = (2*self.e_si*self.phi_s/(self.q*self.NDEP))**(1/2)
+        self.lt = ((self.e_si*self.base_params.tox * self.X_dep)/(self.base_params.k_gate)**(1/2))
+        self.Cdsc_term = self.CDSC*(0.5/(cosh(self.DVT1*self.V_th_eff/self.V_T)-1))
 
     def init_transistor_equations(self):
         super().init_transistor_equations()
@@ -110,8 +123,12 @@ class BulkModel(TechModel):
             self.u_n_eff = self.base_params.u_n / (1+self.theta_1*(self.base_params.V_dd-self.V_th_eff)/(1+self.theta_2*(self.base_params.V_dd-self.V_th_eff)))
             self.u_p_eff = self.u_n_eff / 2.5
         if self.model_cfg["effects"]["subthreshold_slope_effect"]:
-            self.n += (self.e_si/self.e_ox) * (self.base_params.tox/self.base_params.L)**(1/2)
+            NFACTOR = 1
+            t_dep = 1 # TODO is this ok?
+            self.Cdep = self.e_si/t_dep
+            self.n += NFACTOR * (self.Cdep/self.Cox) * (self.base_params.tox/self.base_params.L)**(1/2)
         if self.model_cfg["effects"]["DIBL"]:
+            # linear dependance on Vdd. Exponential suppression with large L. Exponential suppression with small tox.
             self.V_th_eff -= self.base_params.V_dd * exp(-self.base_params.L/((self.e_si/self.e_ox) * self.base_params.tox)) # approximate DIBL effect
 
     def apply_additional_effects(self):
