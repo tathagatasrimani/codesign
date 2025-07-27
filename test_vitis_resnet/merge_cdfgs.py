@@ -76,7 +76,33 @@ def parse_module(root_dir, current_module):
     for submodule_name, submodule_cdfg in submodule_cdfgs.items():
         if submodule_cdfg is not None:
             full_cdfg = nx.compose(full_cdfg, submodule_cdfg)
+            #full_cdfg = merge_cdfgs(full_cdfg, submodule_cdfg, submodule_name)
             debug_print(f"Merged CDFG for submodule {submodule_name} into full CDFG.")
+
+    return full_cdfg
+
+def merge_cdfgs(full_cdfg, submodule_cdfg, submodule_name):
+    """
+    Merge the submodule CDFG into the full CDFG.
+    """
+    debug_print(f"Merging CDFG for submodule {submodule_name} into full CDFG.")
+
+    
+    # Find all nodes in the full CDFG that are call functions to the submodule
+
+    # See if there are duplicate nodes in the full CDFG that match the submodule name
+
+    # if there are, check if they are part of the same submodule call. (i.e. multi-cycle ops)
+    # if they are, remove all of them as a group, recording the inputs of the first node and the outputs of the last node.
+    # then, insert the submodule CDFG in place of the removed nodes, connecting the inputs and outputs to the first and last nodes respectively.
+    # make sure the start and stop nodes at the top level of the submodule CDFG no longer exist in the full CDFG, as they are now part of the full CDFG.
+    # intermediate start and stop nodes in the submodule CDFG should be preserved, as they are part of the submodule's internal flow.
+
+    # if they are not, error out for now. 
+
+    # add stall nodes to the full CDFG to keep the timing correct between the start and stop nodes of the original CDFG (on other branches).
+
+
 
     return full_cdfg
 
