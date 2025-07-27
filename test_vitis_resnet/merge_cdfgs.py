@@ -29,21 +29,42 @@ def main(root_dir, top_level_module_name):
 
 def parse_module(root_dir, current_module):
 
+    debug_print(f"Parsing module: {current_module}")
+
     ## open the _cdfg.gml file for the current module. Read it in as a NetworkX graph.
     cdfg_file_path = os.path.join(root_dir, current_module, f"{current_module}_cdfg.gml")
-    debug_print(f"Opening CDFG file for module {current_module}: {cdfg_file_path}")
 
     if not os.path.exists(cdfg_file_path):
         print(f"Error: CDFG file {cdfg_file_path} does not exist.")
         return
     else:
         full_cdfg = nx.read_gml(cdfg_file_path)
-    debug_print(f"Successfully opened CDFG for module {current_module}")
 
-    ## 
+    ## read in the _modules.json file for the current module
+    modules_file_path = os.path.join(root_dir, current_module, f"{current_module}_modules.json")
+    if not os.path.exists(modules_file_path):
+        print(f"Error: Modules file {modules_file_path} does not exist.")
+        return
 
+    with open(modules_file_path, 'r') as mf:
+        module_dependences = json.load(mf)
 
-    
+    if module_dependences:
+        debug_print(f"Instantiated modules for {current_module}: {module_dependences}")
+
+    ## get the CDFGs for each of the instantiated modules recursively
+    submodule_cdfgs = {}
+    for module_name in module_dependences:
+        submodule_cdfgs[module_name] = parse_module(root_dir, module_name)
+
+    ## merge the CDFGs of the submodules into the full CDFG
+    ## TODO: merge properly.
+    for submodule_name, submodule_cdfg in submodule_cdfgs.items():
+        if submodule_cdfg is not None:
+            full_cdfg = nx.compose(full_cdfg, submodule_cdfg)
+            debug_print(f"Merged CDFG for submodule {submodule_name} into full CDFG.")
+
+    return full_cdfg
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
