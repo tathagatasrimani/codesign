@@ -225,7 +225,10 @@ def main(root_dir):
         with open(stg_file, 'r') as f:
             stg_data = json.load(f)
 
-        G, module_dependences = create_cdfg_one_file(fsm_data, state_transitions, stg_data, subdir_path)
+        result = create_cdfg_one_file(fsm_data, state_transitions, stg_data, subdir_path)
+
+        if result is not None:
+            G, module_dependences = result
 
         if G is None:
             debug_print(f"Graph creation failed for {fsm_file}. Skipping.")
@@ -236,11 +239,13 @@ def main(root_dir):
         nx.write_gml(G, gml_file)
         debug_print(f"Created GML graph: {gml_file} with {G.number_of_nodes()} nodes and {G.number_of_edges()} edges.")
 
-        if module_dependences:
-            module_file = fsm_file.replace('_fsm.json', '_modules.json')
-            with open(module_file, 'w') as mf:
-                json.dump(module_dependences, mf, indent=4)
-            debug_print(f"Created module dependencies file: {module_file} with {len(module_dependences)} modules.")
+        if not module_dependences:
+            module_dependences = []
+
+        module_file = fsm_file.replace('_fsm.json', '_modules.json')
+        with open(module_file, 'w') as mf:
+            json.dump(module_dependences, mf, indent=4)
+        debug_print(f"Created module dependencies file: {module_file} with {len(module_dependences)} modules.")
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:

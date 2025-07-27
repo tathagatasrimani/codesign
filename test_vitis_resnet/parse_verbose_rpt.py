@@ -144,8 +144,9 @@ def parse_fsm_report_to_cdfg(report_lines):
     cdfg = {}
     current_state = None
     state_pattern = re.compile(r"State\s+(\d+)\s*<SV\s*=\s*\d+>\s*<Delay\s*=\s*[\d\.]+>")
+    # Updated call_pattern to match both void and non-void return types
     call_pattern = re.compile(
-        r'"(?P<dest>%\w+)\s*=\s*call\s+void\s+@(?P<func>\w+),\s*(?P<args>.+)"'
+        r'"(?P<dest>%\w+)\s*=\s*call\s+(?P<rettype>\w+)\s+@(?P<func>\w+),\s*(?P<args>.+)"'
     )
     other_pattern = re.compile(
         r'"(?P<dest>%\w+)\s*=\s*(?P<op>\w+)\s+(.+)"'
@@ -191,10 +192,11 @@ def parse_fsm_report_to_cdfg(report_lines):
         predicate_match = predicate_pattern.search(op_info)
         predicate = predicate_match.group(1).strip() if predicate_match else None
 
-        # Try to match a call
+        # Try to match a call (void or non-void)
         m = call_pattern.search(ir)
         if m:
             dest = m.group('dest')
+            rettype = m.group('rettype')
             func = m.group('func')
             args = m.group('args')
             sources = []
@@ -208,6 +210,7 @@ def parse_fsm_report_to_cdfg(report_lines):
             op_dict = {
                 "operator": "call",
                 "function": func,
+                "return_type": rettype,
                 "sources": sources,
                 "destination": dest,
                 "delay": delay
