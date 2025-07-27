@@ -25,16 +25,16 @@ class Optimizer:
         # system level and objective constraints, and pull in tech model constraints
 
         constraints = []
-        constraints.append(self.hw.symbolic_obj >= float(self.hw.symbolic_obj.subs(self.hw.circuit_model.tech_model.base_params.tech_values) / improvement))
+        constraints.append(self.hw.symbolic_obj >= float(self.hw.symbolic_obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values) / improvement))
         self.objective_constraint_inds = [0]
         for knob in self.disabled_knobs:
-            constraints.append(sp.Eq(knob, knob.subs(self.hw.circuit_model.tech_model.base_params.tech_values)))
+            constraints.append(sp.Eq(knob, knob.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values)))
         total_power = (self.hw.total_passive_energy + self.hw.total_active_energy) / self.hw.execution_time
         constraints.append(total_power <= 50) # hard limit on power
 
         if self.hw.model_cfg["scaling_mode"] == "dennard_implicit":
-            constraints[0] = self.hw.execution_time >= self.hw.execution_time.subs(self.hw.circuit_model.tech_model.base_params.tech_values)/1.3 # replace objective constraint with latency constraint
-            constraints.append(self.hw.total_active_energy + self.hw.total_passive_energy >= (self.hw.total_active_energy + self.hw.total_passive_energy).subs(self.hw.circuit_model.tech_model.base_params.tech_values)/2.7)
+            constraints[0] = self.hw.execution_time >= self.hw.execution_time.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values)/1.3 # replace objective constraint with latency constraint
+            constraints.append(self.hw.total_active_energy + self.hw.total_passive_energy >= (self.hw.total_active_energy + self.hw.total_passive_energy).xreplace(self.hw.circuit_model.tech_model.base_params.tech_values)/2.7)
             self.objective_constraint_inds.append(len(constraints)-1)
 
         self.hw.circuit_model.tech_model.create_constraints(self.dennard_scaling_type)

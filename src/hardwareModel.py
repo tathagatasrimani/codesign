@@ -12,6 +12,7 @@ from . import base_parameters
 from . import circuit_model
 from . import tech_model
 from . import bulk_model
+from . import bulk_bsim4_model
 from . import schedule
 from . import sim_util
 from openroad_interface import place_n_route
@@ -55,9 +56,16 @@ class HardwareModel:
 
         #self.params = parameters.Parameters(args.tech_node, self.cacti_dat_file, self.model_cfg)
         self.base_params = base_parameters.BaseParameters(args.tech_node, self.cacti_dat_file)
-        self.bulk_model = bulk_model.BulkModel(args.tech_node, self.model_cfg, self.base_params)
+
+        if self.model_cfg["model_type"] == "bulk":
+            self.tech_model = bulk_model.BulkModel(args.tech_node, self.model_cfg, self.base_params)
+        elif self.model_cfg["model_type"] == "bulk_bsim4":
+            self.tech_model = bulk_bsim4_model.BulkBSIM4Model(args.tech_node, self.model_cfg, self.base_params)
+        else:
+            raise ValueError(f"Invalid model type: {self.model_cfg['model_type']}")
+
         # by convention, we should always access bulk model and base params through circuit model
-        self.circuit_model = circuit_model.CircuitModel(self.bulk_model)
+        self.circuit_model = circuit_model.CircuitModel(self.tech_model)
 
         self.netlist = nx.DiGraph()
         self.scheduled_dfg = nx.DiGraph()

@@ -64,7 +64,7 @@ class TrendPlot:
         for param in self.plot_list:
             values = []
             for i in range(len(self.params_over_iterations)):
-                values.append(param.subs(self.params_over_iterations[i]))
+                values.append(param.xreplace(self.params_over_iterations[i]))
             
             # Create figure with better sizing
             fig, ax = plt.subplots(figsize=(10, 6))

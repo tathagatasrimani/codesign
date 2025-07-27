@@ -2,7 +2,7 @@ import logging
 from src.tech_model import TechModel
 from src.sim_util import symbolic_convex_max, symbolic_convex_min
 import math
-from sympy import symbols, ceiling, expand, exp, Abs, cosh
+from sympy import symbols, ceiling, expand, exp, Abs, cosh, log
 
 
 logger = logging.getLogger(__name__)
@@ -49,8 +49,8 @@ class BulkModel(TechModel):
         self.phi_s = 0.5
         self.NDEP = 1.7e23 #m^-3, original value is 1.7e17 cm^-3
         self.X_dep = (2*self.e_si*self.phi_s/(self.q*self.NDEP))**(1/2)
-        self.lt = ((self.e_si*self.base_params.tox * self.X_dep)/(self.base_params.k_gate)**(1/2))
-        self.Cdsc_term = self.CDSC*(0.5/(cosh(self.DVT1*self.V_th_eff/self.V_T)-1))
+        self.lt = ((self.e_si*self.base_params.tox * self.X_dep)/(self.base_params.k_gate))**(1/2)
+        self.Cdsc_term = self.CDSC*(0.5/(cosh(symbolic_convex_min(10, self.DVT1*self.base_params.L/self.lt))-1))
 
     def init_transistor_equations(self):
         super().init_transistor_equations()
@@ -74,8 +74,10 @@ class BulkModel(TechModel):
         self.R_avg_inv = self.base_params.V_dd / ((self.I_d_nmos + self.I_d_pmos)/2)
 
         # transistor delay equations
-        self.C_diff = self.gamma_diff * self.C_gate
+        self.C_diff = (2*self.e_ox/math.pi) * log(1+(4.0e-7)/self.base_params.tox) * self.base_params.W # fringing capacitance
+        print(f"C_diff: {self.C_diff.xreplace(self.base_params.tech_values)}")
         self.C_load = self.C_gate # gate cap
+        print(f"C_load: {self.C_load.xreplace(self.base_params.tech_values)}")
         logger.info(f"C_load: {self.C_load}")
         if self.model_cfg["delay_parasitics"] == "all":
             self.delay = (self.R_avg_inv * (self.C_diff + self.C_wire/2) + (self.R_avg_inv + self.R_wire) * (self.C_wire/2 + self.C_load)) * 1e9  # ns
@@ -94,18 +96,17 @@ class BulkModel(TechModel):
         # gate tunneling
         self.V_ox = self.base_params.V_dd - self.V_th_eff
         self.E_ox = Abs(self.V_ox/self.base_params.tox)
-        logger.info(f"B: {self.B}, A: {self.A}, t_ox: {self.base_params.tox.subs(self.base_params.tech_values)}, E_ox: {self.E_ox.subs(self.base_params.tech_values)}, intermediate: {(1-(1-self.V_ox/self.phi_b)**3/2).subs(self.base_params.tech_values)}")
+        logger.info(f"B: {self.B}, A: {self.A}, t_ox: {self.base_params.tox.xreplace(self.base_params.tech_values)}, E_ox: {self.E_ox.xreplace(self.base_params.tech_values)}, intermediate: {(1-(1-self.V_ox/self.phi_b)**3/2).xreplace(self.base_params.tech_values)}")
         self.FN_term = self.A_gate * self.A * self.E_ox**2 * (exp(symbolic_convex_min(10, -self.B/self.E_ox)))
         self.WKB_term = self.A_gate * self.A * self.E_ox**2 * (exp(symbolic_convex_min(10, -self.B*(1-(1-self.V_ox/self.phi_b)**3/2)/self.E_ox)))
         self.I_tunnel = self.FN_term + self.WKB_term
-        logger.info(f"I_tunnel: {self.I_tunnel.subs(self.base_params.tech_values)}")
+        logger.info(f"I_tunnel: {self.I_tunnel.xreplace(self.base_params.tech_values)}")
 
         # GIDL current
         self.I_GIDL = self.A_GIDL * ((self.base_params.V_dd - self.E_GIDL)/(3*self.base_params.tox)) * exp(symbolic_convex_min(10, -3*self.base_params.tox*self.B_GIDL / (self.base_params.V_dd - self.E_GIDL))) # simplified from BSIM
-        logger.info(f"I_GIDL: {self.I_GIDL.subs(self.base_params.tech_values)}")
+        logger.info(f"I_GIDL: {self.I_GIDL.xreplace(self.base_params.tech_values)}")
 
         # subthreshold current
-        self.V_T = self.K*self.T/self.q
         self.I_off_nmos = self.u_n_eff*self.Cox*(self.base_params.W/self.base_params.L)*(self.V_T)**2*exp(-self.V_th_eff/(self.n*self.V_T))
         self.I_off_pmos = self.I_off_nmos * self.u_p_eff / self.u_n_eff
         self.I_off = self.I_off_nmos + self.I_off_pmos # 2 for both NMOS and PMOS
@@ -126,7 +127,7 @@ class BulkModel(TechModel):
             NFACTOR = 1
             t_dep = 1 # TODO is this ok?
             self.Cdep = self.e_si/t_dep
-            self.n += NFACTOR * (self.Cdep/self.Cox) * (self.base_params.tox/self.base_params.L)**(1/2)
+            self.n += NFACTOR * (self.Cdep/self.Cox) * (self.Cdsc_term/self.Cox)
         if self.model_cfg["effects"]["DIBL"]:
             # linear dependance on Vdd. Exponential suppression with large L. Exponential suppression with small tox.
             self.V_th_eff -= self.base_params.V_dd * exp(-self.base_params.L/((self.e_si/self.e_ox) * self.base_params.tox)) # approximate DIBL effect

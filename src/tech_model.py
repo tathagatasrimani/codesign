@@ -17,12 +17,14 @@ class TechModel(ABC):
     def init_physical_constants(self):
         self.q = 1.6e-19  # electron charge (C)
         self.e_0 = 8.854e-12  # permittivity of free space (F/m)
-        self.e_si = 11.9*8.854e-12  # permittivity of silicon (F/m)
+        self.e_si = 11.9*self.e_0  # permittivity of silicon (F/m)
+        self.e_sio2 = 3.9*self.e_0  # permittivity of silicon dioxide (F/m)
         self.n = 1.0
         self.K = 1.38e-23  # Boltzmann constant (J/K)
         self.T = 300  # Temperature (K)
         self.m_0 = 9.109e-31  # electron mass (kg)
         self.h = 6.626e-34  # planck's constant (J*s)
+        self.V_T = self.K*self.T/self.q # thermal voltage (V)
 
     @abstractmethod
     def init_tech_specific_constants(self):
@@ -33,8 +35,8 @@ class TechModel(ABC):
         # set up generic stuff here
 
         # mock area and latency scaling for experimental purposes
-        self.area_scale = (self.base_params.W * self.base_params.L).subs(self.base_params.tech_values) / (self.base_params.W * self.base_params.L)
-        logger.info(f"area scale: {self.area_scale.subs(self.base_params.tech_values)}")
+        self.area_scale = (self.base_params.W * self.base_params.L).xreplace(self.base_params.tech_values) / (self.base_params.W * self.base_params.L)
+        logger.info(f"area scale: {self.area_scale.xreplace(self.base_params.tech_values)}")
         self.latency_scale = 1/self.area_scale
 
         # interconnect model
@@ -132,12 +134,12 @@ class TechModel(ABC):
             #elif dennard_scaling_type == "generalized":
             #    self.constraints.append(sp.Eq(self.base_params.alpha_dennard, 1))
         elif self.model_cfg["scaling_mode"] == "dennard_implicit":
-            self.constraints.append(self.base_params.tox <= self.base_params.tox.subs(self.base_params.tech_values))
-            self.constraints.append(self.base_params.L <= self.base_params.L.subs(self.base_params.tech_values))
-            self.constraints.append(self.base_params.W <= self.base_params.W.subs(self.base_params.tech_values))
-            self.constraints.append(self.base_params.V_dd <= self.base_params.V_dd.subs(self.base_params.tech_values))
-            self.constraints.append(self.V_th_eff <= self.V_th_eff.subs(self.base_params.tech_values))
-            self.constraints.append(sp.Eq(self.base_params.W/self.base_params.W.subs(self.base_params.tech_values), self.base_params.L/self.base_params.L.subs(self.base_params.tech_values)))
-            self.constraints.append(sp.Eq(self.base_params.V_dd/self.base_params.V_dd.subs(self.base_params.tech_values) , self.base_params.L/self.base_params.L.subs(self.base_params.tech_values))) # lateral electric field scaling
-            self.constraints.append(sp.Eq(self.base_params.V_dd/self.base_params.V_dd.subs(self.base_params.tech_values) , self.base_params.tox/self.base_params.tox.subs(self.base_params.tech_values))) # lateral electric field scaling
+            self.constraints.append(self.base_params.tox <= self.base_params.tox.xreplace(self.base_params.tech_values))
+            self.constraints.append(self.base_params.L <= self.base_params.L.xreplace(self.base_params.tech_values))
+            self.constraints.append(self.base_params.W <= self.base_params.W.xreplace(self.base_params.tech_values))
+            self.constraints.append(self.base_params.V_dd <= self.base_params.V_dd.xreplace(self.base_params.tech_values))
+            self.constraints.append(self.V_th_eff <= self.V_th_eff.xreplace(self.base_params.tech_values))
+            self.constraints.append(sp.Eq(self.base_params.W/self.base_params.W.xreplace(self.base_params.tech_values), self.base_params.L/self.base_params.L.xreplace(self.base_params.tech_values)))
+            self.constraints.append(sp.Eq(self.base_params.V_dd/self.base_params.V_dd.xreplace(self.base_params.tech_values) , self.base_params.L/self.base_params.L.xreplace(self.base_params.tech_values))) # lateral electric field scaling
+            self.constraints.append(sp.Eq(self.base_params.V_dd/self.base_params.V_dd.xreplace(self.base_params.tech_values) , self.base_params.tox/self.base_params.tox.xreplace(self.base_params.tech_values))) # lateral electric field scaling
         

@@ -238,7 +238,7 @@ class Preprocessor:
         self.improvement = improvement
         self.constraints = constraints
 
-        self.initial_val = float(obj.subs(self.params.tech_values))
+        self.initial_val = float(obj.xreplace(self.params.tech_values))
 
         print(f"length of free symbols: {len(self.free_symbols)}")
 
