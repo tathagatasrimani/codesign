@@ -57,15 +57,7 @@ class HardwareModel:
         #self.params = parameters.Parameters(args.tech_node, self.cacti_dat_file, self.model_cfg)
         self.base_params = base_parameters.BaseParameters(args.tech_node, self.cacti_dat_file)
 
-        if self.model_cfg["model_type"] == "bulk":
-            self.tech_model = bulk_model.BulkModel(args.tech_node, self.model_cfg, self.base_params)
-        elif self.model_cfg["model_type"] == "bulk_bsim4":
-            self.tech_model = bulk_bsim4_model.BulkBSIM4Model(args.tech_node, self.model_cfg, self.base_params)
-        else:
-            raise ValueError(f"Invalid model type: {self.model_cfg['model_type']}")
-
-        # by convention, we should always access bulk model and base params through circuit model
-        self.circuit_model = circuit_model.CircuitModel(self.tech_model)
+        self.reset_tech_model()
 
         self.netlist = nx.DiGraph()
         self.scheduled_dfg = nx.DiGraph()
@@ -112,6 +104,18 @@ class HardwareModel:
         }
         with open(filename, "w") as f:
             f.write(yaml.dump(params))
+
+    def reset_tech_model(self):
+        if self.model_cfg["model_type"] == "bulk":
+            self.tech_model = bulk_model.BulkModel(self.model_cfg, self.base_params)
+        elif self.model_cfg["model_type"] == "bulk_bsim4":
+            self.tech_model = bulk_bsim4_model.BulkBSIM4Model(self.model_cfg, self.base_params)
+        else:
+            raise ValueError(f"Invalid model type: {self.model_cfg['model_type']}")
+
+        # by convention, we should always access bulk model and base params through circuit model
+        self.circuit_model = circuit_model.CircuitModel(self.tech_model)
+
 
     def map_netlist_to_scheduled_dfg(self, benchmark_name):
 
@@ -598,7 +602,7 @@ class HardwareModel:
                         path_execution_time += self.circuit_model.symbolic_latency_wc[data["function"]]()
                     if i > 0 and (path[1][i-1], node) in self.dfg_to_netlist_edge_map:
                         path_execution_time += self.circuit_model.wire_delay(self.dfg_to_netlist_edge_map[(path[1][i-1], node)], symbolic)
-                execution_time = symbolic_convex_max(execution_time, path_execution_time).simplify() if execution_time != 0 else path_execution_time
+                execution_time = symbolic_convex_max(execution_time, path_execution_time) if execution_time != 0 else path_execution_time
 
             logger.info(f"symbolic execution time: {execution_time}")
         else:

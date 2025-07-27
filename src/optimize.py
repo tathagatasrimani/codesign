@@ -40,7 +40,7 @@ class Optimizer:
         self.hw.circuit_model.tech_model.create_constraints(self.dennard_scaling_type)
         constraints.extend(self.hw.circuit_model.tech_model.constraints)
 
-        print(f"constraints: {constraints}")
+        #print(f"constraints: {constraints}")
         return constraints
     
     def create_opt_model(self, improvement):
@@ -68,10 +68,10 @@ class Optimizer:
         logger.info("Optimizing using IPOPT")
 
         param_replace = {param: sp.Abs(param, evaluate=False) for param in self.hw.circuit_model.tech_model.base_params.tech_values}
-        print("param_replace: ", param_replace)
-        print("symbolic obj before abs: ", self.hw.symbolic_obj)
+        #print("param_replace: ", param_replace)
+        #print("symbolic obj before abs: ", self.hw.symbolic_obj)
         self.hw.symbolic_obj = self.hw.symbolic_obj.xreplace(param_replace)
-        print("symbolic obj after abs: ", self.hw.symbolic_obj)
+        #print("symbolic obj after abs: ", self.hw.symbolic_obj)
 
         opt, scaled_model, model = self.create_opt_model(improvement)
 

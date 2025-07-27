@@ -171,16 +171,16 @@ class CircuitModel:
     def update_circuit_values(self):
         # derive curcuit level values from technology values
         self.circuit_values["latency"] = {
-            key: float(self.symbolic_latency_wc[key]().xreplace(self.tech_model.base_params.tech_values)) for key in self.symbolic_latency_wc if key not in ["Buf", "MainMem", "OffChipIO"]
+            key: float(self.symbolic_latency_wc[key]().xreplace(self.tech_model.base_params.tech_values).evalf()) for key in self.symbolic_latency_wc if key not in ["Buf", "MainMem", "OffChipIO"]
         }
         self.circuit_values["dynamic_energy"] = {
-            key: float(self.symbolic_energy_active[key]().xreplace(self.tech_model.base_params.tech_values)) for key in self.symbolic_energy_active if key not in ["Buf", "MainMem", "OffChipIO"]
+            key: float(self.symbolic_energy_active[key]().xreplace(self.tech_model.base_params.tech_values).evalf()) for key in self.symbolic_energy_active if key not in ["Buf", "MainMem", "OffChipIO"]
         }
         self.circuit_values["passive_power"] = {
-            key: float(self.symbolic_power_passive[key]().xreplace(self.tech_model.base_params.tech_values)) for key in self.symbolic_power_passive if key not in ["Buf", "MainMem"]
+            key: float(self.symbolic_power_passive[key]().xreplace(self.tech_model.base_params.tech_values).evalf()) for key in self.symbolic_power_passive if key not in ["Buf", "MainMem"]
         }
         self.circuit_values["area"] = {
-            key: float(self.symbolic_area[key]().xreplace(self.tech_model.base_params.tech_values)) for key in self.symbolic_area
+            key: float(self.symbolic_area[key]().xreplace(self.tech_model.base_params.tech_values).evalf()) for key in self.symbolic_area
         }
 
         # memory values

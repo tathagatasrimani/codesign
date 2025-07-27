@@ -8,8 +8,8 @@ from sympy import symbols, ceiling, expand, exp, Abs, cosh, log
 logger = logging.getLogger(__name__)
 
 class BulkModel(TechModel):
-    def __init__(self, tech_type, model_cfg, base_params):
-        super().__init__(tech_type, model_cfg, base_params)
+    def __init__(self, model_cfg, base_params):
+        super().__init__(model_cfg, base_params)
 
     def init_tech_specific_constants(self):
         self.phi_b = 3.1  # Schottky barrier height (eV)
@@ -87,6 +87,10 @@ class BulkModel(TechModel):
             self.delay = self.R_avg_inv * (self.C_diff + self.C_load + 0.3e-15 * 100) * 1e9  # ns
         else:
             self.delay = self.R_avg_inv * (self.C_load + self.C_diff) * 1e9
+
+
+        print(f"I_d_nmos: {self.I_d_nmos.xreplace(self.base_params.tech_values).evalf()}")
+        print(f"delay: {self.delay.xreplace(self.base_params.tech_values).evalf()}")
 
         # active energy
         self.E_act_inv = (0.5*self.C_load*self.base_params.V_dd*self.base_params.V_dd) * 1e9  # nJ

@@ -133,7 +133,7 @@ class Preprocessor:
             self.find_exp_exprs_to_constrain(arg, debug=debug)
     
     def pyomo_constraint(self, model, i):
-        print(f"constraint: {self.constraints[i]}")
+        #print(f"constraint: {self.constraints[i]}")
         pyo_expr = sympy_tools.sympy2pyomo_expression(self.constraints[i], self.bimap)
         return pyo_expr
 
@@ -186,7 +186,7 @@ class Preprocessor:
                 new_sym_list.append(sym_list[-1])
             sym_list = new_sym_list
         self.regularization = hardwareModel.symbolic_convex_max(sym_list[0], sym_list[1])"""
-        print(f"regularization: {self.regularization}")
+        #print(f"regularization: {self.regularization}")
                 
         #for symbol in self.free_symbols:
             #self.regularization += hardwareModel.symbolic_convex_max(symbol, (symbol / self.params.tech_values[symbol] + self.params.tech_values[symbol] / symbol))
@@ -266,7 +266,7 @@ class Preprocessor:
         # find all pow/log expressions within obj equation and cacti equations, convert to pyomo
         # We shouldn't need to find any pow/log expressions in the obj expression itself. Cacti sub expressions
         # should suffice, but keep an eye on this.
-        start_time = time.time()
+        """start_time = time.time()
         self.find_log_exprs_to_constrain(obj)
 
         logger.info(f"time to find log exprs to constrain: {time.time()-start_time}")
@@ -296,16 +296,16 @@ class Preprocessor:
             self.pow_subs[pow_expr] = hardwareModel.symbolic_convex_max(pow_expr, 0, evaluate=False)
             #logger.info(f"pow expr: {pow_expr}; sub: {self.pow_subs[pow_expr]}")
         obj = obj.xreplace(self.pow_subs)
-        logger.info(f"time to sub pow exprs: {time.time()-start_time}")
+        logger.info(f"time to sub pow exprs: {time.time()-start_time}")"""
 
 
-        start_time = time.time()
+        """start_time = time.time()
         #self.find_exp_exprs_to_constrain(obj)
-        """for exp_expr in self.exp_exprs_s:
+        for exp_expr in self.exp_exprs_s:
             self.exp_subs[exp_expr] = hardwareModel.symbolic_convex_min(exp_expr, 100, evaluate=False)
             obj = obj.xreplace(self.exp_subs)
         for i in range(len(self.constraints)):
-            self.constraints[i] = self.constraints[i].xreplace(self.exp_subs)"""
+            self.constraints[i] = self.constraints[i].xreplace(self.exp_subs)
 
         logger.info(f"time to sub exp exprs: {time.time()-start_time}")
 
@@ -316,10 +316,11 @@ class Preprocessor:
             pow_expr = pow_expr.xreplace(self.log_subs)
             self.pow_exprs_to_constrain.append(sympy_tools.sympy2pyomo_expression(pow_expr, m))
         for log_expr in self.log_exprs_s:
-            self.log_exprs_to_constrain.append(sympy_tools.sympy2pyomo_expression(log_expr, m))
+            self.log_exprs_to_constrain.append(sympy_tools.sympy2pyomo_expression(log_expr, m))"""
         print(f"converting to pyomo exp")
-        print(f"obj: {obj}")
-        print(f"m: {m}")
+        #print(f"obj: {obj}")
+        #print(f"m: {m}")
+        start_time = time.time()
         self.pyomo_obj_exp = sympy_tools.sympy2pyomo_expression(obj, m)
 
         sympy_obj = self.add_regularization_to_objective(obj)

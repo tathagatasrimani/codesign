@@ -4,7 +4,7 @@ import glob
 import datetime
 from collections import defaultdict
 import math
-from sympy import Abs
+from sympy import Abs, exp, cosh
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +23,18 @@ def symbolic_convex_min(a, b, evaluate=True):
     Min(a, b) in a format which ipopt accepts.
     """
     return 0.5 * (a + b - Abs(a - b, evaluate=evaluate))
+
+def custom_exp(x, evaluate=True):
+    """
+    Custom exp function to guard against overflow.
+    """
+    return exp(symbolic_convex_min(500, x))
+
+def custom_cosh(x, evaluate=True):
+    """
+    Custom cosh function to guard against overflow.
+    """
+    return cosh(symbolic_convex_min(500, x))
 
 def deep_merge(dict1, dict2):
     result = dict(dict1)

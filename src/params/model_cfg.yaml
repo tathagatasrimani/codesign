@@ -11,6 +11,7 @@ default:
     high_k_gate: False
   delay_parasitics: all
   scaling_mode: None
+  model_type: bulk
 
 dennard_scaling_cfg:
   scaling_mode: dennard
@@ -35,6 +36,20 @@ NTC_example_cfg:
   delay_parasitics: Csq only
 
 full_effects_cfg:
+  effects:
+    channel_length_modulation: True
+    velocity_saturation: True
+    gate_tunneling: True
+    mobility_degradation: True
+    subthreshold_slope_effect: True
+    DIBL: True
+    GIDL: True
+    area_and_latency_scaling: True
+    high_k_gate: True
+  delay_parasitics: all
+
+bsim4_cfg:
+  model_type: bulk_bsim4
   effects:
     channel_length_modulation: True
     velocity_saturation: True

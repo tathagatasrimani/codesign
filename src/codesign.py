@@ -85,8 +85,8 @@ class Codesign:
 
         self.save_dat()
 
-        with open("src/tmp/tech_params_0.yaml", "w") as f:
-            f.write(yaml.dump(self.hw.circuit_model.tech_model.base_params.tech_values))
+        #with open("src/tmp/tech_params_0.yaml", "w") as f:
+        #    f.write(yaml.dump(self.hw.circuit_model.tech_model.base_params.tech_values))
 
         self.hw.write_technology_parameters(self.save_dir+"/initial_tech_params.yaml")
 
@@ -525,6 +525,13 @@ class Codesign:
         if self.hw.scheduled_dfg:
             nx.write_gml(self.hw.scheduled_dfg, "src/checkpoint/schedule.gml")
 
+    def end_of_run_plots(self, edp_over_iterations, lag_factor_over_iterations, params_over_iterations):
+        assert len(params_over_iterations) > 1 
+        trend_plotter = trend_plot.TrendPlot(self, params_over_iterations, edp_over_iterations, lag_factor_over_iterations, self.save_dir + "/figs")
+        trend_plotter.plot_params_over_iterations()
+        trend_plotter.plot_edp_over_iterations()
+        trend_plotter.plot_lag_factor_over_iterations()
+
     def execute(self, num_iters):
         i = 0
         while i < num_iters:
@@ -534,11 +541,9 @@ class Codesign:
             self.hw.circuit_model.update_circuit_values()
             self.log_all_to_file(i)
             self.hw.reset_state()
+            self.hw.reset_tech_model()
             i += 1
-        trend_plotter = trend_plot.TrendPlot(self, self.params_over_iterations, self.edp_over_iterations, self.lag_factor_over_iterations, self.save_dir + "/figs")
-        trend_plotter.plot_params_over_iterations()
-        trend_plotter.plot_edp_over_iterations()
-        trend_plotter.plot_lag_factor_over_iterations()
+        self.end_of_run_plots(self.edp_over_iterations, self.lag_factor_over_iterations, self.params_over_iterations)
 
         # cleanup
         self.cleanup()
@@ -550,11 +555,11 @@ def main(args):
     )
     try:
         codesign_module.execute(args.num_iters)
-    except Exception as e:
+    finally:
         if args.checkpoint:
             codesign_module.save_checkpoint()
+        codesign_module.end_of_run_plots(codesign_module.edp_over_iterations, codesign_module.lag_factor_over_iterations, codesign_module.params_over_iterations)
         codesign_module.cleanup()
-        raise e
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(

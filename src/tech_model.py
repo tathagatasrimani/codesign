@@ -5,8 +5,7 @@ import sympy as sp
 logger = logging.getLogger(__name__)
 
 class TechModel(ABC):
-    def __init__(self, tech_type, model_cfg, base_params):
-        self.tech_type = tech_type
+    def __init__(self, model_cfg, base_params):
         self.model_cfg = model_cfg
         self.base_params = base_params
         self.constraints = []
