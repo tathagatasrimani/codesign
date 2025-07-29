@@ -82,8 +82,8 @@ def create_cdfg_one_file(fsm_data, state_transitions, stg_data, dir_name):
 
 
         ## create the start and end nodes for the current state
-        start_node_name = f"START_{curr_state}_{curr_step_count_local}"
-        end_node_name = f"END_{curr_state}_{curr_step_count_local}"
+        start_node_name = f"START_CYCLE_{curr_state}_{curr_step_count_local}"
+        end_node_name = f"END_CYCLE_{curr_state}_{curr_step_count_local}"
 
         G.add_node(start_node_name, state=curr_state, cycle=curr_step_count_local, type='CONTROL_NODE')
         G.add_node(end_node_name, state=curr_state, cycle=curr_step_count_local, type='CONTROL_NODE')
