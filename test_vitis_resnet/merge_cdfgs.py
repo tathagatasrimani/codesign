@@ -11,6 +11,7 @@ def debug_print(message):
         print(message)
 
 
+all_modules_visited = set()
 
 
 def main(root_dir, top_level_module_name):
@@ -33,6 +34,11 @@ def main(root_dir, top_level_module_name):
         print(f"Error: Failed to parse the top-level module {top_level_module_name}.")
         return
     
+    ## print out the visited modules
+    debug_print(f"Visited modules: {all_modules_visited}")
+    ## print out the number of visited modules
+    debug_print(f"Number of visited modules: {len(all_modules_visited)}")
+    
     ## save the full CDFG to a file
     output_file_path = os.path.join(root_dir, f"{top_level_module_name}_full_cdfg.gml")
     nx.write_gml(full_cdfg, output_file_path)
@@ -43,22 +49,32 @@ def parse_module(root_dir, current_module):
 
     debug_print(f"Parsing module: {current_module}")
 
+    ## add module to the vitised modules list
+    all_modules_visited.add(current_module)
+
     ## open the _cdfg.gml file for the current module. Read it in as a NetworkX graph.
     cdfg_file_path = os.path.join(root_dir, current_module, f"{current_module}.verbose_cdfg.gml")
 
+    append_s_to_path = False
     if not os.path.exists(cdfg_file_path):
-        print(f"Error: CDFG file {cdfg_file_path} does not exist.")
-        exit(1)
-        return
-    else:
-        full_cdfg = nx.read_gml(cdfg_file_path)
+        cdfg_file_path = os.path.join(root_dir, current_module + "s", f"{current_module}s.verbose_cdfg.gml")
+        if not os.path.exists(cdfg_file_path):
+            print(f"Error: CDFG file {cdfg_file_path} does not exist.")
+            exit(1)
+            return
+        else:
+            current_module += "s"
+
+    full_cdfg = nx.read_gml(cdfg_file_path)
 
     ## read in the _modules.json file for the current module
     modules_file_path = os.path.join(root_dir, current_module, f"{current_module}.verbose_modules.json")
     if not os.path.exists(modules_file_path):
-        print(f"Error: Modules file {modules_file_path} does not exist.")
-        exit(1)
-        return
+        modules_file_path = os.path.join(root_dir, current_module + "s", f"{current_module}s.verbose_modules.json")
+        if not os.path.exists(modules_file_path):
+            print(f"Error: Modules file {modules_file_path} does not exist.")
+            exit(1)
+            return
 
     with open(modules_file_path, 'r') as mf:
         module_dependences = json.load(mf)
@@ -66,18 +82,25 @@ def parse_module(root_dir, current_module):
     if module_dependences:
         debug_print(f"Instantiated modules for {current_module}: {module_dependences}")
 
+    if module_dependences is None or len(module_dependences) == 0:
+        debug_print(f"No submodules found for {current_module}. Returning CDFG as is.")
+
     ## get the CDFGs for each of the instantiated modules recursively
     submodule_cdfgs = {}
     for module_name in module_dependences:
         submodule_cdfgs[module_name] = parse_module(root_dir, module_name)
 
     ## merge the CDFGs of the submodules into the full CDFG
-    ## TODO: merge properly.
     for submodule_name, submodule_cdfg in submodule_cdfgs.items():
         if submodule_cdfg is not None:
             #full_cdfg = nx.compose(full_cdfg, submodule_cdfg)
             full_cdfg = merge_cdfgs(full_cdfg, submodule_cdfg, submodule_name)
             debug_print(f"Merged CDFG for submodule {submodule_name} into full CDFG.")
+
+    ## write out the full CDFG for the current module for debugging purposes
+    output_file_path = os.path.join(root_dir, current_module, f"{current_module}_full_cdfg.gml")
+    nx.write_gml(full_cdfg, output_file_path)
+    debug_print(f"Full CDFG for module {current_module} saved to {output_file_path}")
 
     return full_cdfg
 
@@ -149,16 +172,6 @@ def remove_start_end_cycle_nodes(submodule_cdfg, sub_cdfg_start_node, sub_cdfg_e
         submodule_cdfg.remove_node(end_cycle_node_to_remove)
         debug_print(f"Removed END_CYCLE node {end_cycle_node_to_remove} from submodule CDFG {submodule_name}.")
 
-        ## get all of the predecessors of the END_CYCLE node and connect them to the submodule CDFG exit node
-        predecessors = list(submodule_cdfg.predecessors(end_cycle_node_to_remove))
-        debug_print(f"Predecessors of END_CYCLE node {end_cycle_node_to_remove}: {predecessors}")
-        for pred in predecessors:
-            submodule_cdfg.add_edge(pred, sub_cdfg_exit_node)
-        
-        # remove the END_CYCLE node from the submodule CDFG
-        submodule_cdfg.remove_node(end_cycle_node_to_remove)
-        debug_print(f"Removed END_CYCLE node {end_cycle_node_to_remove} from submodule CDFG {submodule_name}.")
-
         return submodule_cdfg
     
 def find_cycle_start_node(full_cdfg, start_search_node):
@@ -220,20 +233,31 @@ def merge_cdfgs(full_cdfg, submodule_cdfg, submodule_name):
     sub_cdfg_start_node = next(n for n, d in submodule_cdfg.nodes(data=True) if d.get('type') == 'CONTROL_NODE' and 'START_CDFG' in n)
     sub_cdfg_exit_node = next(n for n, d in submodule_cdfg.nodes(data=True) if d.get('type') == 'CONTROL_NODE' and 'END_CDFG' in n)
 
+    if sub_cdfg_start_node is None or sub_cdfg_exit_node is None:
+        debug_print(f"Error: Could not find START_CDFG or END_CDFG nodes in submodule CDFG {submodule_name}.")
+        exit(1)
+
 
     ## First, remove the first START_CYCLE and the last END_CYCLE nodes from the submodule CDFG. 
     submodule_cdfg = remove_start_end_cycle_nodes(submodule_cdfg, sub_cdfg_start_node, sub_cdfg_exit_node, submodule_name)
-
     
     # Find all nodes in the full CDFG that are call functions to the submodule
-    submodule_call_nodes = [n for n, d in full_cdfg.nodes(data=True) if d.get('type') == 'call' and d.get('module') == submodule_name]
+    submodule_call_nodes = []
+    for n, d in full_cdfg.nodes(data=True):
+        fsm_node = d.get('fsm_node')
+        if isinstance(fsm_node, dict):
+            if fsm_node.get('operator') == 'call' and fsm_node.get('function') == submodule_name:
+                submodule_call_nodes.append(n)
 
     # See if there are duplicate nodes in the full CDFG that match the submodule name
     if len(submodule_call_nodes) > 1:
         debug_print(f"Found multiple call nodes for submodule {submodule_name}: {submodule_call_nodes}")
 
-        ## not implemented yet.
+        ## not implemented yet. TODO: implement this.
         exit(1)
+    elif len(submodule_call_nodes) == 0:
+        debug_print(f"No call nodes found for submodule {submodule_name}, so no work to do.")
+        return full_cdfg
 
     # if there are, check if they are part of the same submodule call. (i.e. multi-cycle ops)
     # if they are, remove all of them as a group, recording the inputs of the first node and the outputs of the last node.
@@ -260,17 +284,16 @@ def merge_cdfgs(full_cdfg, submodule_cdfg, submodule_name):
     full_cdfg.remove_nodes_from(submodule_call_nodes)
     debug_print(f"Removed nodes {submodule_call_nodes} from full CDFG.")
 
-
     ## then, insert the submodule CDFG in place of the removed nodes, connecting the inputs and outputs to the first and last nodes respectively.
-    full_cdfg = nx.compose(full_cdfg, submodule_cdfg)
+    new_full_cdfg = nx.compose(full_cdfg, submodule_cdfg)
 
     # Reconnect input edges to entry node
     for src, _ in input_edges:
-        full_cdfg.add_edge(src, sub_cdfg_start_node)
+        new_full_cdfg.add_edge(src, sub_cdfg_start_node)
 
     # Reconnect output edges from exit node
     for _, dst in output_edges:
-        full_cdfg.add_edge(sub_cdfg_exit_node, dst)
+        new_full_cdfg.add_edge(sub_cdfg_exit_node, dst)
 
     # intermediate start and stop nodes in the submodule CDFG should be preserved, as they are part of the submodule's internal flow.
     
@@ -283,7 +306,7 @@ def merge_cdfgs(full_cdfg, submodule_cdfg, submodule_name):
 
     if cycle_start_node_before_submodule_call is not None and cycle_end_node_after_submodule_call is not None:
         all_paths = list(nx.all_simple_paths(
-            full_cdfg,
+            new_full_cdfg,
             source=cycle_start_node_before_submodule_call,
             target=cycle_end_node_after_submodule_call
         ))
@@ -294,7 +317,7 @@ def merge_cdfgs(full_cdfg, submodule_cdfg, submodule_name):
         exit(1)
 
     # NOTE: The call could be multi-cycle. In this case we would need to merge the intermediate cycle start and stop nodes.
-
+    
 
     return full_cdfg
 

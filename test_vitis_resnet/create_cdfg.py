@@ -25,6 +25,7 @@ def create_cdfg_one_file(fsm_data, state_transitions, stg_data, dir_name):
 
     dag_cycles = []
     cycles_present = False
+    states_visited = set()
 
     if not nx.is_directed_acyclic_graph(fsm_graph):
         cycles_present = True
@@ -33,7 +34,6 @@ def create_cdfg_one_file(fsm_data, state_transitions, stg_data, dir_name):
         dag_cycles = list(nx.simple_cycles(fsm_graph))
         for cycle in dag_cycles:
             debug_print(f"Cycle detected: {cycle}")
-        return
 
     ## When there is a cycle, it means that we'll need to keep track of program
     ## variables to determine the CDFG. These will be stored here
@@ -73,12 +73,17 @@ def create_cdfg_one_file(fsm_data, state_transitions, stg_data, dir_name):
 
         ## if there are cycles in the FSM and this state is one of the states in the cycle, we will
         ## need to handle it differently
-        # curr_state_in_cycle = False
-        # if cycles_present:
-        #     for cycle in dag_cycles:
-        #         if curr_state in cycle:
-        #             curr_state_in_cycle = True
-        #             break
+        curr_state_in_cycle = False
+        if cycles_present:
+            for cycle in dag_cycles:
+                if curr_state in cycle:
+                    curr_state_in_cycle = True
+                    break
+
+        if curr_state_in_cycle and curr_state in states_visited:
+            break ## if we are in a cycle and we have already visited this state, we will break out of the loop
+
+        states_visited.add(curr_state)
 
 
         ## create the start and end nodes for the current state
