@@ -94,6 +94,10 @@ class BaseParameters:
         for key, value in cacti_IO_params.items():
             self.tech_values[key] = value
 
+        # mock area and latency scaling for experimental purposes
+        self.area_scale = (self.W * self.L).xreplace(self.tech_values) / (self.W * self.L)
+        self.latency_scale = 1/self.area_scale
+
     def init_memory_params(self):
         # Memory parameters
         self.C_g_ideal = symbols("C_g_ideal", positive=True)

@@ -89,8 +89,8 @@ class BulkModel(TechModel):
             self.delay = self.R_avg_inv * (self.C_load + self.C_diff) * 1e9
 
 
-        print(f"I_d_nmos: {self.I_d_nmos.xreplace(self.base_params.tech_values).evalf()}")
-        print(f"delay: {self.delay.xreplace(self.base_params.tech_values).evalf()}")
+        print(f"I_d_nmos: {self.I_d_nmos}")
+        #print(f"delay: {self.delay.xreplace(self.base_params.tech_values).evalf()}")
 
         # active energy
         self.E_act_inv = (0.5*self.C_load*self.base_params.V_dd*self.base_params.V_dd) * 1e9  # nJ
@@ -144,9 +144,9 @@ class BulkModel(TechModel):
             self.I_off += self.I_GIDL*2 # 2 for both NMOS and PMOS
             self.P_pass_inv = self.I_off * self.base_params.V_dd
         if self.model_cfg["effects"]["area_and_latency_scaling"]:
-            self.delay = self.delay * self.latency_scale
-            self.P_pass_inv = self.P_pass_inv * self.area_scale
-            self.wire_len = self.wire_len * self.latency_scale
+            self.delay = self.delay * self.base_params.latency_scale
+            self.P_pass_inv = self.P_pass_inv * self.base_params.area_scale
+            self.wire_len = self.wire_len * self.base_params.latency_scale
 
     def create_constraints(self, dennard_scaling_type="constant_field"):
         super().create_constraints(dennard_scaling_type)
