@@ -33,11 +33,6 @@ class TechModel(ABC):
     def init_transistor_equations(self):
         # set up generic stuff here
 
-        # mock area and latency scaling for experimental purposes
-        self.area_scale = (self.base_params.W * self.base_params.L).xreplace(self.base_params.tech_values) / (self.base_params.W * self.base_params.L)
-        logger.info(f"area scale: {self.area_scale.xreplace(self.base_params.tech_values)}")
-        self.latency_scale = 1/self.area_scale
-
         # interconnect model
         # assume for now that wire width and thickness are both L (same as gate length)
         # and spacing between wire and dielectric is 2L
