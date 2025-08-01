@@ -41,7 +41,7 @@ def validate_bsim4_model(args):
     delay_ref = {}
     delay_bsim4 = {}
     V_th_eff_bsim4 = {}
-    Vgsteff_bsim4 = {}
+    #Vgsteff_bsim4 = {}
     Gate_tunneling_ref = {}
     Gate_tunneling_bsim4 = {}
     I_GIDL_ref = {}
@@ -59,7 +59,7 @@ def validate_bsim4_model(args):
         u_n_bsim4[tech_node] = codesign_model.hw.circuit_model.tech_model.u_n_eff.xreplace(codesign_model.hw.circuit_model.tech_model.base_params.tech_values).evalf()
         delay_bsim4[tech_node] = codesign_model.hw.circuit_model.tech_model.delay.xreplace(codesign_model.hw.circuit_model.tech_model.base_params.tech_values).evalf()
         V_th_eff_bsim4[tech_node] = codesign_model.hw.circuit_model.tech_model.V_th_eff.xreplace(codesign_model.hw.circuit_model.tech_model.base_params.tech_values).evalf()
-        Vgsteff_bsim4[tech_node] = codesign_model.hw.circuit_model.tech_model.Vgsteff.xreplace(codesign_model.hw.circuit_model.tech_model.base_params.tech_values).evalf()
+        #Vgsteff_bsim4[tech_node] = codesign_model.hw.circuit_model.tech_model.Vgsteff.xreplace(codesign_model.hw.circuit_model.tech_model.base_params.tech_values).evalf()
         Gate_tunneling_bsim4[tech_node] = (codesign_model.hw.circuit_model.tech_model.I_tunnel/(codesign_model.hw.circuit_model.tech_model.base_params.W*1e6)).xreplace(codesign_model.hw.circuit_model.tech_model.base_params.tech_values).evalf()
         I_GIDL_bsim4[tech_node] = (codesign_model.hw.circuit_model.tech_model.I_GIDL/(codesign_model.hw.circuit_model.tech_model.base_params.W*1e6)).xreplace(codesign_model.hw.circuit_model.tech_model.base_params.tech_values).evalf()
         delta_vt_dibl_bsim4[tech_node] = codesign_model.hw.circuit_model.tech_model.dVth_DIBL.xreplace(codesign_model.hw.circuit_model.tech_model.base_params.tech_values).evalf()
@@ -87,7 +87,7 @@ def validate_bsim4_model(args):
         logger.info(f"delay_ref[{tech_node}]: {delay_ref[tech_node]}")
         logger.info(f"delay_bsim4[{tech_node}]: {delay_bsim4[tech_node]}")
         logger.info(f"V_th_eff_bsim4[{tech_node}]: {V_th_eff_bsim4[tech_node]}")
-        logger.info(f"Vgsteff_bsim4[{tech_node}]: {Vgsteff_bsim4[tech_node]}")
+        #logger.info(f"Vgsteff_bsim4[{tech_node}]: {Vgsteff_bsim4[tech_node]}")
         logger.info(f"Gate_tunneling_ref[{tech_node}]: {Gate_tunneling_ref[tech_node]}")
         logger.info(f"Gate_tunneling_bsim4[{tech_node}] per um: {Gate_tunneling_bsim4[tech_node]}")
         logger.info(f"delta_vt_dibl_bsim4[{tech_node}]: {delta_vt_dibl_bsim4[tech_node]}")
@@ -106,7 +106,7 @@ def validate_bsim4_model(args):
     logger.info(f"delay_ref: {delay_ref}")
     logger.info(f"delay_bsim4: {delay_bsim4}")
     logger.info(f"V_th_eff_bsim4: {V_th_eff_bsim4}")
-    logger.info(f"Vgsteff_bsim4: {Vgsteff_bsim4}")
+    #logger.info(f"Vgsteff_bsim4: {Vgsteff_bsim4}")
     logger.info(f"Gate_tunneling_ref: {Gate_tunneling_ref}")
     logger.info(f"Gate_tunneling_bsim4 per um: {Gate_tunneling_bsim4}")
     logger.info(f"delta_vt_dibl_bsim4: {delta_vt_dibl_bsim4}")

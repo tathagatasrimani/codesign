@@ -27,7 +27,7 @@ class BulkBSIM4Model(TechModel):
         self.m = 2
 
         #1.1
-        self.EPSRSUB = self.e_si
+        self.EPSRSUB = self.e_si/self.e_0
 
         #2.1
         self.NDEP = 1.7e23 #m^-3, original value is 1.7e17 cm^-3
@@ -159,8 +159,8 @@ class BulkBSIM4Model(TechModel):
         # 1.1 gate dielectric. modified
         self.EPSROX = self.base_params.k_gate
         self.TOXE = self.base_params.tox
+        self.TOXP = self.TOXE * self.EPSROX/3.9
         self.EOT = self.TOXE
-        self.TOXP = self.EOT * 3.9/self.EPSROX
         self.VDDEOT = self.base_params.V_dd
 
         # skip 1.2 (seemingly irrelevant) and 1.3 (just use W and L directly)
@@ -172,12 +172,13 @@ class BulkBSIM4Model(TechModel):
 
         logger.info(f"TOXE: {self.TOXE}")
         logger.info(f"Coxe: {self.Coxe}")
+        logger.info(f"Coxe value: {self.Coxe.xreplace(self.base_params.tech_values)}")
 
 
         # 2.4 SCE and DIBL
         self.X_dep = (2*self.e_si*self.phi_s/(self.q*self.NDEP))**(1/2)
         logger.info(f"X_dep: {self.X_dep}")
-        self.lt = ((self.e_si*self.base_params.tox * self.X_dep)/(self.e_0*self.EPSROX))**(1/2)
+        self.lt = ((self.e_si*self.TOXE * self.X_dep)/(self.e_0*self.EPSROX))**(1/2)
         self.theta_SCE = (0.5*self.DVT0)/(custom_cosh(self.DVT1*self.base_params.L/self.lt)-1)
         coshs.append(self.DVT1*self.base_params.L/self.lt)
         logger.info(f"lt: {self.lt.xreplace(self.base_params.tech_values)}")
@@ -221,13 +222,19 @@ class BulkBSIM4Model(TechModel):
         self.Vgse_off = -self.VOFF
         self.V_off_prime = self.VOFF + self.VOFFL/self.base_params.L
         # can try also Vgsteff = Vgse_on - V_th_eff and same for off
-        self.Vgsteff = self.n * self.V_T * log(1 + custom_exp((self.m_star*(self.Vgse_on - self.V_th_eff))/(self.n*self.V_T)))/ (self.m_star + self.n*self.Coxe * (2*self.phi_s/(self.q*self.NDEP*self.e_si))**(1/2) * custom_exp(-((1-self.m_star)*(self.Vgse_on - self.V_th_eff) - self.V_off_prime)/(self.n*self.V_T)))
-        self.Vgsteff_off = self.n * self.V_T * log(1 + custom_exp((self.m_star*(self.Vgse_off - self.V_th_eff))/(self.n*self.V_T)))/ (self.m_star + self.n*self.Coxe * (2*self.phi_s/(self.q*self.NDEP*self.e_si))**(1/2) * custom_exp(-((1-self.m_star)*(self.Vgse_off - self.V_th_eff) - self.V_off_prime)/(self.n*self.V_T)))
-        self.Vgsteff = self.n * self.V_T * log(1 + custom_exp((self.m_star*(self.Vgse_on - self.V_th_eff))/(self.n*self.V_T)))/ (self.m_star + self.n*self.Coxe * (2*self.phi_s/(self.q*self.NDEP*self.e_si))**(1/2) * custom_exp(-((1-self.m_star)*(self.Vgse_on - self.V_th_eff) - self.V_off_prime)/(self.n*self.V_T)))
-        self.Vgsteff_off = self.n * self.V_T * log(1 + custom_exp((self.m_star*(self.Vgse_off - self.V_th_eff))/(self.n*self.V_T)))/ (self.m_star + self.n*self.Coxe * (2*self.phi_s/(self.q*self.NDEP*self.e_si))**(1/2) * custom_exp(-((1-self.m_star)*(self.Vgse_off - self.V_th_eff) - self.V_off_prime)/(self.n*self.V_T)))
-        self.X_DC = (self.ADOS*1.9e-9)/(1+((self.Vgsteff + 4 * (self.base_params.V_th - self.VFB - self.phi_s))/(2*self.TOXP))**(0.7*self.BDOS))
+        #self.Vgsteff = self.n * self.V_T * log(1 + custom_exp((self.m_star*(self.Vgse_on - self.V_th_eff))/(self.n*self.V_T)))/ (self.m_star + self.n*self.Coxe * (2*self.phi_s/(self.q*self.NDEP*self.e_si))**(1/2) * custom_exp(-((1-self.m_star)*(self.Vgse_on - self.V_th_eff) - self.V_off_prime)/(self.n*self.V_T)))
+        #self.Vgsteff_off = self.n * self.V_T * log(1 + custom_exp((self.m_star*(self.Vgse_off - self.V_th_eff))/(self.n*self.V_T)))/ (self.m_star + self.n*self.Coxe * (2*self.phi_s/(self.q*self.NDEP*self.e_si))**(1/2) * custom_exp(-((1-self.m_star)*(self.Vgse_off - self.V_th_eff) - self.V_off_prime)/(self.n*self.V_T)))
+        self.Vgsteff = self.Vgse_on
+        self.Vgsteff_off = self.Vgse_off
+        #self.X_DC = (self.TOXP-self.TOXE)*(-self.EPSRSUB/3.9)
+        # must convert TOXP to nm here or else this blows up
+        self.X_DC = (self.ADOS*1.9e-9)/(1+((self.Vgsteff + 4 * (self.base_params.V_th - self.VFB - self.phi_s))/(2*self.TOXP*1e9))**(0.7*self.BDOS))
         self.Ccen = self.e_si/self.X_DC
-        self.Coxeff = (self.Coxe*self.Ccen)/(self.Coxe + self.Ccen)
+        #self.Coxeff = (self.Coxe*self.Ccen)/(self.Coxe + self.Ccen)
+        self.Coxeff = self.Coxe
+
+        logger.info(f"Ccen: {self.Ccen.xreplace(self.base_params.tech_values)}")
+        logger.info(f"X_DC: {self.X_DC.xreplace(self.base_params.tech_values)}")
 
         logger.info(f"n: {self.n.xreplace(self.base_params.tech_values)}")
 
@@ -257,6 +264,7 @@ class BulkBSIM4Model(TechModel):
         exps.append(self.base_params.L/self.LP)
         self.u_n_eff = self.base_params.u_n * self.f_L_eff / (1 + self.UA*((self.Vgsteff + self.C0 * (self.base_params.V_th - self.VFB - self.phi_s))/ self.TOXE)**self.EU + self.UD * (self.V_th_eff * self.TOXE / (self.Vgsteff + 2 * Abs(self.V_th_eff))))
         self.u_p_eff = self.u_n_eff / 2.5
+        self.u_p = self.base_params.u_n / 2.5
         logger.info(f"intermediate in u_n calculation: {(self.UA*((self.Vgsteff + self.C0 * (self.base_params.V_th - self.VFB - self.phi_s))/ self.TOXE)**self.EU).xreplace(self.base_params.tech_values)}")
 
 
@@ -281,8 +289,8 @@ class BulkBSIM4Model(TechModel):
         self.E_sat = 2*self.VSAT/self.u_n_eff
         self.E_sat_p = 2*self.VSAT/self.u_p_eff
         #5.4 drain current triode
-        self.I_ds0 = self.u_n_eff * self.base_params.W/self.base_params.L * self.Qch0 * self.base_params.V_dd * (1-self.base_params.V_dd/(2*self.Vb))/(1+self.base_params.V_dd/(self.E_sat*self.base_params.L))
-        self.I_ds0_p = self.u_p_eff * self.base_params.W/self.base_params.L * self.Qch0 * self.base_params.V_dd * (1-self.base_params.V_dd/(2*self.Vb))/(1+self.base_params.V_dd/(self.E_sat_p*self.base_params.L))
+        self.I_ds0 = self.base_params.u_n * self.base_params.W/self.base_params.L * self.Qch0 * self.base_params.V_dd * (1-self.base_params.V_dd/(2*self.Vb))/(1+self.base_params.V_dd/(self.E_sat*self.base_params.L))
+        self.I_ds0_p = self.u_p * self.base_params.W/self.base_params.L * self.Qch0 * self.base_params.V_dd * (1-self.base_params.V_dd/(2*self.Vb))/(1+self.base_params.V_dd/(self.E_sat_p*self.base_params.L))
         logger.info(f"self.Vb: {self.Vb.xreplace(self.base_params.tech_values)}")
         
         # 5.6 Vdsat
@@ -309,28 +317,31 @@ class BulkBSIM4Model(TechModel):
         # 4.3 tunneling (need to know Vdsat for Vdseff)
         # ignore 4.3.1 gate to substrate
         # 4.3.2 gate to channel, gate to s/d
-        self.Toxratio = self.TOXP/self.TOXE
         # use igcMod = 2
         # gate to channel happens in on state
+        # USING TOXP instead of TOXE for all expressions in gate tunneling
+        self.Toxratio = self.TOXE/self.TOXP
         self.Vaux = self.NIGC * self.V_T * log(1 + custom_exp((self.Vgse_on - self.V_th_eff)/(self.NIGC * self.V_T)))
-        self.Igc0 = self.base_params.W * self.base_params.L * self.A * self.Toxratio * self.Vgse_on * self.Vaux * custom_exp(-self.B*self.TOXE*(self.AIGC - self.BIGC * self.Voxdepinv)*(1+self.CIGC*self.Voxdepinv))
+        self.Igc0 = self.base_params.W * self.base_params.L * self.A * self.Toxratio * self.Vgse_on * self.Vaux * custom_exp(-self.B*self.TOXP*(self.AIGC - self.BIGC * self.Voxdepinv)*(1+self.CIGC*self.Voxdepinv))
         self.Vdseff = self.Vdsat - 0.5*(self.Vdsat-self.base_params.V_dd-self.DELTA + ((self.Vdsat-self.base_params.V_dd-self.DELTA)**2 + 4*self.DELTA*self.Vdsat)**(1/2))
-        self.PIGCD = (self.B * self.TOXE / (self.Vgsteff**2)) * (1 - self.Vdseff/(2*self.Vgsteff))
+        self.PIGCD = (self.B * self.TOXP / (self.Vgsteff**2)) * (1 - self.Vdseff/(2*self.Vgsteff))
         self.Igcs = self.Igc0 * (self.PIGCD * self.Vdseff * custom_exp(-self.PIGCD * self.Vdseff) - 1 + 1e-4) / (self.PIGCD**2 * self.Vdseff**2 + 2e-4)
         self.Igcd = self.Igc0 * (1 - (self.PIGCD * self.Vdseff + 1) * custom_exp(-self.PIGCD * self.Vdseff) + 1e-4) / (self.PIGCD**2 * self.Vdseff**2 + 2e-4)
         self.Igc = self.Igcs + self.Igcd
 
         # we say NGATE = 0 so Vfbsd goes to 0
         self.Vfbsd = 0
-        self.Vg_ = self.base_params.V_dd # see 4.16 and 4.17 for expanded equation
-        # have to scale TOXE in second term or else this blows up
-        self.Toxratioedge = (self.TOXREF/(self.TOXE*self.POXEDGE))**self.NTOX * 1/((self.TOXE*self.POXEDGE)**2)
+        
+        #self.Vg_ = self.base_params.V_dd # see 4.16 and 4.17 for expanded equation
+        self.Vg_ = self.Vgsteff_off
+        # have to scale TOX in second term or else this blows up
+        self.Toxratioedge = (self.TOXREF/(self.TOXP*self.POXEDGE))**self.NTOX * 1/((self.TOXP*1e9*self.POXEDGE)**2)
         # gate to source/drain happens in off state, only get Igs or Igd so lump them
-        self.Igsd = self.base_params.W * self.DLCIG * self.A * self.Toxratioedge * self.Vg_**2 * custom_exp(-self.B*self.TOXE*self.POXEDGE*(self.AIGS-self.BIGS*self.Vg_)*(1+self.CIGS*self.Vg_))
+        self.Igsd = self.base_params.W * self.DLCIG * self.A * self.Toxratioedge * self.Vg_**2 * custom_exp(-self.B*self.TOXP*self.POXEDGE*(self.AIGS-self.BIGS*self.Vg_)*(1+self.CIGS*self.Vg_))
 
         self.I_tunnel = self.Igc + self.Igsd
         exps.append((self.Vgse_off - self.V_th_eff)/(self.NIGC * self.V_T))
-        exps.append(-self.B*self.TOXE*(self.AIGC - self.BIGC * self.Voxdepinv)*(1+self.CIGC*self.Voxdepinv))
+        exps.append(-self.B*self.TOXP*(self.AIGC - self.BIGC * self.Voxdepinv)*(1+self.CIGC*self.Voxdepinv))
         exps.append(-self.PIGCD * self.Vdseff)
 
         logger.info(f"self.Toxratioedge: {self.Toxratioedge.xreplace(self.base_params.tech_values)}")
@@ -352,8 +363,8 @@ class BulkBSIM4Model(TechModel):
         self.C_clm_p = 1/self.PCLM * self.F * (1 + self.PVAG * (self.Vgsteff/(self.base_params.L*self.E_sat_p))) * (1 + self.Rds*self.I_ds0_p/self.Vdseff)*(self.base_params.L + self.Vdsat_p/self.E_sat_p) / self.litl
 
         logger.info(f"self.E_sat: {self.E_sat.xreplace(self.base_params.tech_values)}")
-        logger.info(f"self.Vgsteff: {self.Vgsteff.xreplace(self.base_params.tech_values)}")
-        logger.info(f"self.Vgsteff_off: {self.Vgsteff_off.xreplace(self.base_params.tech_values)}")
+        #logger.info(f"self.Vgsteff: {self.Vgsteff.xreplace(self.base_params.tech_values)}")
+        #logger.info(f"self.Vgsteff_off: {self.Vgsteff_off.xreplace(self.base_params.tech_values)}")
         logger.info(f"self.Qch0: {self.Qch0.xreplace(self.base_params.tech_values)}")
         logger.info(f"self.Voxdepinv: {self.Voxdepinv.xreplace(self.base_params.tech_values)}")
 
@@ -390,7 +401,8 @@ class BulkBSIM4Model(TechModel):
 
         self.V_a = self.V_asat_n + self.V_aclm_n
         self.V_a_p = self.V_asat_p + self.V_aclm_p
-
+        #BSIM I_d model
+        
         self.I_d_n = (self.I_ds0 * self.NF)/(1+self.Rds*self.I_ds0/self.Vdseff)*(1+(1/self.C_clm_n)*log(self.V_a/self.V_asat_n)) * (1+(self.base_params.V_dd-self.Vdseff)/self.V_adibl_n)
         self.I_d_p = (self.I_ds0_p * self.NF)/(1+self.Rds*self.I_ds0_p/self.Vdseff)*(1+(1/self.C_clm_p)*log(self.V_a_p/self.V_asat_p)) * (1+(self.base_params.V_dd-self.Vdseff)/self.V_adibl_p)
         logs.append(self.V_a/self.V_asat_n)
@@ -403,6 +415,11 @@ class BulkBSIM4Model(TechModel):
         self.I_ii = self.I_ii_n + self.I_ii_p
         self.I_d = self.I_d_n + self.I_d_p + self.I_ii
 
+        # alpha power and textbook I_d model with BSIM clm and dibl effects
+        """self.alpha_L =2 - 1/(1 + (self.base_params.L/self.L_critical)**self.m)
+        self.I_d_n = 0.5* self.base_params.u_n * self.Coxe * self.base_params.W / self.base_params.L *(Abs(self.base_params.V_dd-self.V_th_eff))**self.alpha_L
+        self.I_d_p = self.I_d_n * self.u_p/self.base_params.u_n
+        self.I_d = (self.I_d_n + self.I_d_p) / 2"""
         logger.info(f"I_ds0: {self.I_ds0.xreplace(self.base_params.tech_values)}")
         logger.info(f"self.Rds: {self.Rds.xreplace(self.base_params.tech_values)}")
         logger.info(f"self.Vdseff: {self.Vdseff.xreplace(self.base_params.tech_values)}")
@@ -411,7 +428,7 @@ class BulkBSIM4Model(TechModel):
         logger.info(f"I_d_n: {self.I_d_n.xreplace(self.base_params.tech_values)}")
 
         logger.info(f"self.I_d/2: {((self.I_d_n + self.I_d_p)/2).xreplace(self.base_params.tech_values)}")
-        logger.info(f"self.I_ii: {self.I_ii.xreplace(self.base_params.tech_values)}")
+        #logger.info(f"self.I_ii: {self.I_ii.xreplace(self.base_params.tech_values)}")
 
         # coming back to subthreshold current from 3.2 now that we have mobility model
         self.I_0_n = self.u_n_eff * self.base_params.W/self.base_params.L * self.V_T**2 * (self.q*self.e_si*self.NDEP/(2*self.phi_s))**(1/2)
@@ -436,11 +453,14 @@ class BulkBSIM4Model(TechModel):
         self.CGSO = 0.6*self.XJ * self.Coxe
         self.C_overlap = self.CGSO * self.base_params.W # just considering gate to source overlap for now
 
-        self.R_avg_inv = self.base_params.V_dd / ((self.I_d)/2)
+        self.R_avg_inv = self.base_params.V_dd / (self.I_d)
 
         # transistor delay equations
         self.gamma_diff = 1 # for inverter
-        self.C_diff = self.C_fringe + self.C_overlap + self.gamma_diff * self.C_gate
+        self.C_diff = self.gamma_diff * self.C_gate
+        #self.C_diff = self.C_fringe + self.C_overlap + self.gamma_diff * self.C_gate
+        logger.info(f"C_fringe: {self.C_fringe.xreplace(self.base_params.tech_values)}")
+        logger.info(f"C_overlap: {self.C_overlap.xreplace(self.base_params.tech_values)}")
         logger.info(f"C_diff: {self.C_diff.xreplace(self.base_params.tech_values)}")
         self.C_load = self.C_gate # gate cap
         logger.info(f"C_load: {self.C_load.xreplace(self.base_params.tech_values)}")
@@ -465,9 +485,13 @@ class BulkBSIM4Model(TechModel):
         # active energy
         self.E_act_inv = (0.5*self.C_tot*self.base_params.V_dd*self.base_params.V_dd) * 1e9  # nJ
 
-        self.I_off = self.I_sub + self.I_ii + self.I_GIDL + self.I_tunnel
+
+        self.print_stuff_for_tox_scaling()
+        #logger.info(f"diff of delay wrt toxe: {sp.diff(expression_to_diff, self.TOXE).xreplace(self.base_params.tech_values).evalf()}")
+
+        self.I_off = self.I_sub + self.I_GIDL + self.I_tunnel
         logger.info(f"I_sub: {self.I_sub.xreplace(self.base_params.tech_values)}")
-        logger.info(f"I_ii: {self.I_ii.xreplace(self.base_params.tech_values)}")
+        #logger.info(f"I_ii: {self.I_ii.xreplace(self.base_params.tech_values)}")
         logger.info(f"I_GIDL: {self.I_GIDL.xreplace(self.base_params.tech_values)}")
         logger.info(f"I_tunnel: {self.I_tunnel.xreplace(self.base_params.tech_values)}")
         logger.info(f"I_off: {self.I_off.xreplace(self.base_params.tech_values)}")
@@ -502,3 +526,27 @@ class BulkBSIM4Model(TechModel):
 
         self.constraints.append(self.V_ox >= 0)
         #self.constraints.append(self.V_th_eff - self.base_params.V_th >= -0.4)
+
+    def print_stuff_for_tox_scaling(self):
+        everything_but_toxe = {}
+        for param in self.base_params.tech_values:
+            if param != self.base_params.tox:
+                everything_but_toxe[param] = self.base_params.tech_values[param]
+        self.main_RC = self.R_avg_inv * self.C_load
+        self.Rwire_Cload = self.R_wire * self.C_load
+        self.Rwire_Cdiff = self.R_wire * self.C_diff
+        self.R_inv_Cwire = self.R_avg_inv * self.C_wire
+        self.R_inv_Cdiff = self.R_avg_inv * self.C_diff
+        things_to_eval = [self.delay, self.main_RC, self.Rwire_Cload, self.Rwire_Cdiff, self.R_inv_Cwire, self.R_inv_Cdiff, self.Ccen, self.Coxe, self.C_fringe, self.C_overlap, self.I_d_n, self.C_clm_n, self.u_n_eff, self.Vb, self.E_sat]
+        names = ["delay", "main_RC", "Rwire_Cload", "Rwire_Cdiff", "R_inv_Cwire", "R_inv_Cdiff", "Ccen", "Coxe", "C_fringe", "C_overlap", "I_d_n", "C_clm_n", "u_n_eff", "Vb", "E_sat"]
+        for thing, name in zip(things_to_eval, names):
+            logger.info(f"{name} at tox=150nm: {thing.xreplace(everything_but_toxe).xreplace({self.TOXE: 150e-9}).evalf()}")
+            logger.info(f"{name} at tox=100nm: {thing.xreplace(everything_but_toxe).xreplace({self.TOXE: 100e-9}).evalf()}")
+            logger.info(f"{name} at tox=50nm: {thing.xreplace(everything_but_toxe).xreplace({self.TOXE: 50e-9}).evalf()}")
+            logger.info(f"{name} at tox=25nm: {thing.xreplace(everything_but_toxe).xreplace({self.TOXE: 25e-9}).evalf()}")
+            logger.info(f"{name} at tox=10nm: {thing.xreplace(everything_but_toxe).xreplace({self.TOXE: 10e-9}).evalf()}")
+            logger.info(f"{name} at tox=5nm: {thing.xreplace(everything_but_toxe).xreplace({self.TOXE: 5e-9}).evalf()}")
+            logger.info(f"{name} at tox=2nm: {thing.xreplace(everything_but_toxe).xreplace({self.TOXE: 2e-9}).evalf()}")
+            logger.info(f"{name} at tox=1nm: {thing.xreplace(everything_but_toxe).xreplace({self.TOXE: 1e-9}).evalf()}")
+            logger.info(f"{name} at tox=0.5nm: {thing.xreplace(everything_but_toxe).xreplace({self.TOXE: 0.5e-9}).evalf()}")
+            logger.info("\n")
