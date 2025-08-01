@@ -26,6 +26,10 @@ class Optimizer:
 
         constraints = []
         constraints.append(self.hw.symbolic_obj >= float(self.hw.symbolic_obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values) / improvement))
+
+        # don't want a leakage-dominated design
+        constraints.append(self.hw.total_active_energy >= 2*self.hw.total_passive_energy)
+
         self.objective_constraint_inds = [0]
         for knob in self.disabled_knobs:
             constraints.append(sp.Eq(knob, knob.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values)))

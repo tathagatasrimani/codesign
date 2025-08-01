@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import os
 
 class TrendPlot:
-    def __init__(self, codesign_module, params_over_iterations, edp_over_iterations, lag_factor_over_iterations, save_dir):
+    def __init__(self, codesign_module, params_over_iterations, edp_over_iterations, lag_factor_over_iterations, save_dir, obj="Energy Delay Product", units="nJ*ns", obj_fn="edp"):
         self.codesign_module = codesign_module
         self.params_over_iterations = params_over_iterations
         self.plot_list = set([
@@ -45,6 +45,9 @@ class TrendPlot:
         self.edp_over_iterations = edp_over_iterations
         self.lag_factor_over_iterations = lag_factor_over_iterations
         self.save_dir = save_dir
+        self.obj = obj
+        self.units = units
+        self.obj_fn = obj_fn
 
     def plot_params_over_iterations(self):
         if not os.path.exists(self.save_dir):
@@ -116,13 +119,13 @@ class TrendPlot:
         
 
         ax.set_xlabel("Iteration", fontweight="bold")
-        ax.set_title("Energy-Delay Product per iteration (nJ*ns)", fontweight="bold", pad=20)
+        ax.set_title(f"{self.obj} per iteration ({self.units})", fontweight="bold", pad=20)
         ax.set_yscale("log")
         #ax.grid(True, alpha=0.3, linestyle='--')
         fig.patch.set_facecolor("#f8f9fa")
         ax.legend(["inverse pass", "forward pass"], fontsize=18)
         plt.tight_layout()
-        plt.savefig(f"{self.save_dir}/edp_over_iters.png", dpi=300, bbox_inches='tight')
+        plt.savefig(f"{self.save_dir}/{self.obj_fn}_over_iters.png", dpi=300, bbox_inches='tight')
         plt.close()
     
     def plot_lag_factor_over_iterations(self):

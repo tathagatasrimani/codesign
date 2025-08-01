@@ -36,16 +36,16 @@ class TechModel(ABC):
         # interconnect model
         # assume for now that wire width and thickness are both L (same as gate length)
         # and spacing between wire and dielectric is 2L
-        self.dist = 2*self.base_params.L
+        self.dist = 20*self.base_params.L
         self.wire_dim = 2*self.base_params.L
 
-        self.m1_Rsq = (self.base_params.m1_rho * 1e-6) / (self.wire_dim**2) # resistance per square (Ohm*um)
-        self.m2_Rsq = (self.base_params.m2_rho * 1e-6) / (self.wire_dim**2) # resistance per square (Ohm*um)
-        self.m3_Rsq = (self.base_params.m3_rho * 1e-6) / (self.wire_dim**2) # resistance per square (Ohm*um)
+        self.m1_Rsq = (self.base_params.m1_rho) / (self.wire_dim**2) # resistance per square (Ohm*m)
+        self.m2_Rsq = (self.base_params.m2_rho) / (self.wire_dim**2) # resistance per square (Ohm*m)
+        self.m3_Rsq = (self.base_params.m3_rho) / (self.wire_dim**2) # resistance per square (Ohm*m)
 
-        self.m1_Csq = (self.base_params.L * self.base_params.m1_k * self.e_0 * 1e-6) / (self.dist) # capacitance per square (F/um)
-        self.m2_Csq = (self.base_params.L * self.base_params.m2_k * self.e_0 * 1e-6) / (self.dist) # capacitance per square (F/um)
-        self.m3_Csq = (self.base_params.L * self.base_params.m3_k * self.e_0 * 1e-6) / (self.dist) # capacitance per square (F/um)
+        self.m1_Csq = (self.base_params.L * self.base_params.m1_k * self.e_0) / (self.dist) # capacitance per square (F/m)
+        self.m2_Csq = (self.base_params.L * self.base_params.m2_k * self.e_0) / (self.dist) # capacitance per square (F/m)
+        self.m3_Csq = (self.base_params.L * self.base_params.m3_k * self.e_0) / (self.dist) # capacitance per square (F/m)
 
         self.wire_parasitics = {
             "R": {
@@ -60,7 +60,7 @@ class TechModel(ABC):
             }
         }
 
-        self.wire_len = 2*self.base_params.L #um
+        self.wire_len = 2*self.base_params.L
 
         self.C_wire = self.wire_parasitics["C"]["metal1"] * self.wire_len
         self.R_wire = self.wire_parasitics["R"]["metal1"] * self.wire_len
@@ -103,7 +103,7 @@ class TechModel(ABC):
 
         if self.model_cfg["effects"]["high_k_gate"]:
             self.constraints.append(self.base_params.k_gate >= 2)
-            self.constraints.append(self.base_params.k_gate <= 25)
+            self.constraints.append(self.base_params.k_gate <= 20)
 
 
         if self.model_cfg["scaling_mode"] == "dennard":

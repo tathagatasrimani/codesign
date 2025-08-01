@@ -527,7 +527,15 @@ class Codesign:
 
     def end_of_run_plots(self, edp_over_iterations, lag_factor_over_iterations, params_over_iterations):
         assert len(params_over_iterations) > 1 
-        trend_plotter = trend_plot.TrendPlot(self, params_over_iterations, edp_over_iterations, lag_factor_over_iterations, self.save_dir + "/figs")
+        obj = "Energy Delay Product"
+        units = "nJ*ns"
+        if self.obj_fn == "energy":
+            obj = "Energy"
+            units = "nJ"
+        elif self.obj_fn == "delay":
+            obj = "Delay"
+            units = "ns"
+        trend_plotter = trend_plot.TrendPlot(self, params_over_iterations, edp_over_iterations, lag_factor_over_iterations, self.save_dir + "/figs", obj, units, self.obj_fn)
         trend_plotter.plot_params_over_iterations()
         trend_plotter.plot_edp_over_iterations()
         trend_plotter.plot_lag_factor_over_iterations()
