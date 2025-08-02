@@ -141,15 +141,29 @@ def create_cdfg_one_file(fsm_data, state_transitions, stg_data, dir_name):
         ## Add control dependency edges
         for node_name in nodes_added_in_this_state:
             ## if the node doesn't rely on any previous data, we will connect it to the start node. 
-            ## this means it has an in degree of 0
-            if G.in_degree(node_name) == 0:
-                G.add_edge(node_name, start_node_name, type='CONTROL_DEPENDENCY')
+            ## to determine this, we will need to go through the incoming edges of this node and see
+            ## if any are data dependencies
+            has_data_dependency = False
+            for src, dst, attrs in G.in_edges(node_name, data=True):
+                #debug_print(f"Checking edge from {src} to {dst} with attributes {attrs}")
+                if attrs.get('type') == 'DATA_DEPENDENCY':
+                    has_data_dependency = True
+                    break
+            if not has_data_dependency:
+                G.add_edge(start_node_name, node_name, type='CONTROL_DEPENDENCY')
                 #debug_print(f"Added control edge from {node_name} to {start_node_name} (no data dependencies)")
-
+            #debug_print(f"Done checking......")
             ## If the node doesn't produce any data that is consumed by another node, we will connect it to the end node.
-            ## this means it has an out degree of 0
-            if G.out_degree(node_name) == 0:
-                G.add_edge(end_node_name, node_name, type='CONTROL_DEPENDENCY')
+            ## to determine this, we will need to go through the outgoing edges of this node and see
+            ## if any are data dependencies
+            has_output_dependency = False
+            for src, dst, attrs in G.out_edges(node_name, data=True):
+                #debug_print(f"Checking edge from {src} to {dst} with attributes {attrs}")
+                if attrs.get('type') == 'DATA_DEPENDENCY':
+                    has_output_dependency = True
+                    break
+            if not has_output_dependency:
+                G.add_edge(node_name, end_node_name, type='CONTROL_DEPENDENCY')
                 #debug_print(f"Added control edge from {end_node_name} to {node_name} (no data produced)")
 
         ## go to the next state
