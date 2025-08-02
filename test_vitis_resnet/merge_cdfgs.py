@@ -49,7 +49,18 @@ def parse_module(root_dir, current_module):
 
     debug_print(f"Parsing module: {current_module}")
 
-    ## add module to the vitised modules list
+    ## check if the current module has already been visited
+    # if it has, we can read the CDFG from the file and return it.
+    if current_module in all_modules_visited:
+        debug_print(f"Module {current_module} already visited. Returning existing CDFG.")
+        cdfg_file_path = os.path.join(root_dir, current_module, f"{current_module}_full_cdfg.gml")
+        if not os.path.exists(cdfg_file_path):
+            print(f"Error: CDFG file {cdfg_file_path} does not exist.")
+            exit(1)
+            return None
+        return nx.read_gml(cdfg_file_path)
+
+    ## add module to the visited modules list
     all_modules_visited.add(current_module)
 
     ## open the _cdfg.gml file for the current module. Read it in as a NetworkX graph.
@@ -317,6 +328,8 @@ def merge_cdfgs(full_cdfg, submodule_cdfg, submodule_name):
 
     ## find all paths between the CYCLE_START and CYCLE_END nodes in the full CDFG 
 
+    #TODO: We need to do it through the original cdfg, not the submodule CDFG as this will take too long and won't give us any useful information.
+
     all_paths = []
     if cycle_start_node_before_submodule_call is not None and cycle_end_node_after_submodule_call is not None:
         all_paths = list(nx.all_simple_paths(
@@ -361,7 +374,7 @@ def merge_cdfgs(full_cdfg, submodule_cdfg, submodule_name):
     # NOTE: The call could be multi-cycle. In this case we would need to merge the intermediate cycle start and stop nodes.
     #exit(0)
 
-    return full_cdfg
+    return new_full_cdfg
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
