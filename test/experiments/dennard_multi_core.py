@@ -62,7 +62,7 @@ class DennardMultiCore:
 
 
 
-    def run_dummy_inverse_pass(self):
+    def run_dummy_inverse_pass(self, k_gate_disabled=True):
 
         self.codesign_module.hw.execution_time = self.codesign_module.hw.circuit_model.tech_model.delay*(1e5/self.utilization)
         self.codesign_module.hw.total_passive_energy = self.num_inverters * self.codesign_module.hw.circuit_model.tech_model.P_pass_inv * self.codesign_module.hw.execution_time
@@ -103,6 +103,8 @@ class DennardMultiCore:
         self.codesign_module.display_objective("before inverse pass", symbolic=True)
 
         self.disabled_knobs = [self.codesign_module.hw.circuit_model.tech_model.base_params.f, self.codesign_module.hw.circuit_model.tech_model.base_params.u_n]
+        if k_gate_disabled:
+            self.disabled_knobs.append(self.codesign_module.hw.circuit_model.tech_model.base_params.k_gate)
 
         stdout = sys.stdout
         with open("src/tmp/ipopt_out.txt", "w") as sys.stdout:
@@ -136,7 +138,7 @@ class DennardMultiCore:
         for i in range(self.args.num_opt_iters):
             initial_tech_params = copy.copy(self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values)
             if self.dummy_app:
-                self.run_dummy_inverse_pass()
+                self.run_dummy_inverse_pass(k_gate_disabled=(i<11))
             else:
                 self.codesign_module.inverse_pass()
                 self.codesign_module.hw.circuit_model.update_circuit_values()

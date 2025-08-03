@@ -178,7 +178,7 @@ if __name__ == "__main__":
     parser.add_argument("--inverse_pass_improvement", type=float, help="improvement factor for inverse pass")
     parser.add_argument("--tech_node", "-T", type=str, help="technology node to use as starting point")
     parser.add_argument("--obj", type=str, default="edp", help="objective function")
-    parser.add_argument("--model_cfg", type=str, default="bsim4_cfg", help="symbolic model configuration")
+    parser.add_argument("--model_cfg", type=str, default="bsim4_limited", help="symbolic model configuration")
 
     args = parser.parse_args()
     validate_bsim4_model(args)
