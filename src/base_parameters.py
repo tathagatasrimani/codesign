@@ -50,6 +50,9 @@ class BaseParameters:
 
         self.init_memory_params()
 
+        # semiconductor capacitance for virtual source model
+        self.Cs = symbols("Cs", positive=True)
+
         # technology level parameter values
         self.tech_values = {}
         self.init_symbol_table()
@@ -261,6 +264,7 @@ class BaseParameters:
             "W": self.W,
             "L": self.L,
             "k_gate": self.k_gate,
+            "Cs": self.Cs,
             "area": self.area,
             "MemReadL": self.MemReadL,
             "MemWriteL": self.MemWriteL,

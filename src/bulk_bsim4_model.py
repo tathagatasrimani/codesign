@@ -30,11 +30,17 @@ class BulkBSIM4Model(TechModel):
         self.EPSRSUB = self.e_si/self.e_0
 
         #2.1
+        # adjusted values
         self.NDEP = 1.7e23 #m^-3, original value is 1.7e17 cm^-3
+        #self.NDEP = 5.5e17 # m^-3
 
         #2.4
         self.DVT0 = 2.2
         self.DVT1 = 0.53
+        #self.PHIN = 0
+        # adjusted values
+        #self.NSD = 1.0e26 # m^-3
+        #self.ni = 1.0e16 # m^-3
         self.Vbi = 0.9
         self.phi_s = 0.4
         self.ETA0 = 0.08
@@ -176,6 +182,10 @@ class BulkBSIM4Model(TechModel):
 
 
         # 2.4 SCE and DIBL
+        #self.Vbi = self.V_T * log(self.NDEP*self.NSD/(self.ni**2))
+        #self.phi_s = 0.4 + self.V_T * log(self.NDEP/self.ni) + self.PHIN
+        #logger.info(f"Vbi: {self.Vbi.xreplace(self.base_params.tech_values)}")
+        #logger.info(f"phi_s: {self.phi_s.xreplace(self.base_params.tech_values)}")
         self.X_dep = (2*self.e_si*self.phi_s/(self.q*self.NDEP))**(1/2)
         logger.info(f"X_dep: {self.X_dep}")
         self.lt = ((self.e_si*self.TOXE * self.X_dep)/(self.e_0*self.EPSROX))**(1/2)

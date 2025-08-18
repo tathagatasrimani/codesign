@@ -15,6 +15,7 @@ default:
   m3_rho: 4.0e-8 # ohm * m
   m3_k: 3.9 # F / m
   k_gate: 3.9 # dielectric constant
+  Cs: 100 # F/m^2
 
 tech-1982:
   L: 2.1e-06
@@ -153,3 +154,13 @@ tech-2010:
   V_th: 0.2
   u_n: 0.07
   k_gate: 20
+
+tech-vs-65:
+  L: 35.0e-08
+  W: 1.5e-07
+  area: 0.0001877496
+  tox: 9.698999999999999e-10
+  V_dd: 1.2
+  V_th: 0.2
+  u_n: 0.07
+  k_gate: 3.9

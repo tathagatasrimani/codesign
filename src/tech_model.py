@@ -22,6 +22,7 @@ class TechModel(ABC):
         self.K = 1.38e-23  # Boltzmann constant (J/K)
         self.T = 300  # Temperature (K)
         self.m_0 = 9.109e-31  # electron mass (kg)
+        self.m_e = self.m_0
         self.h = 6.626e-34  # planck's constant (J*s)
         self.V_T = self.K*self.T/self.q # thermal voltage (V)
 

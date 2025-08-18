@@ -146,7 +146,7 @@ class BulkModel(TechModel):
         if self.model_cfg["effects"]["area_and_latency_scaling"]:
             self.delay = self.delay * self.base_params.latency_scale
             self.P_pass_inv = self.P_pass_inv * self.base_params.area_scale
-            self.wire_len = self.wire_len * self.base_params.latency_scale
+            #self.wire_len = self.wire_len * self.base_params.latency_scale
 
     def create_constraints(self, dennard_scaling_type="constant_field"):
         super().create_constraints(dennard_scaling_type)

@@ -628,7 +628,7 @@ if __name__ == "__main__":
     parser.add_argument("--logic_node", type=int, default=7, help="logic node size")
     parser.add_argument("--mem_node", type=int, default=32, help="memory node size")
     parser.add_argument("--inverse_pass_improvement", type=float, help="improvement factor for inverse pass")
-    parser.add_argument("--tech_node", "-T", type=str, help="technology node to use as starting point")
+    parser.add_argument("--tech_node", "-T", type=str, default="default", help="technology node to use as starting point")
     parser.add_argument("--obj", type=str, default="edp", help="objective function")
     parser.add_argument("--model_cfg", type=str, default="default", help="symbolic model configuration")
     args = parser.parse_args()

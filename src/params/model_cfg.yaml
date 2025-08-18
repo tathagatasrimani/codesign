@@ -139,3 +139,10 @@ bsim4_cfg_all_toxe:
     C_overlap: True
     gate_leakage_TOXE: True
   delay_parasitics: all
+
+
+vs_cfg:
+  model_type: vs
+  effects:
+    area_and_latency_scaling: True
+  delay_parasitics: all
