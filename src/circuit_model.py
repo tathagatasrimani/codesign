@@ -1,6 +1,7 @@
 import logging
 
 from src import coefficients
+import cvxpy as cp
 
 logger = logging.getLogger(__name__)
 
@@ -153,12 +154,42 @@ class CircuitModel:
         self.metal_layers = ["metal1", "metal2", "metal3"]
 
         self.update_circuit_values()
+
+        self.set_uarch_parameters()
     
     def set_coefficients(self):
         self.alpha = self.coeffs["alpha"]
         self.beta = self.coeffs["beta"]
         self.gamma = self.coeffs["gamma"]
         self.area_coeffs = self.coeffs["area"]
+
+    def set_uarch_parameters(self):
+        self.clk_period = cp.Variable(pos=True)
+        self.clk_period.value = float((1e9/self.tech_model.base_params.f).subs(self.tech_model.base_params.tech_values).evalf())
+        self.logic_delay = cp.Variable(pos=True)
+        self.logic_delay.value = float(self.tech_model.delay.subs(self.tech_model.base_params.tech_values).evalf())
+        self.logic_energy_active = cp.Variable(pos=True)
+        self.logic_energy_active.value = float(self.tech_model.E_act_inv.subs(self.tech_model.base_params.tech_values).evalf())
+        self.logic_power_passive = cp.Variable(pos=True)
+        self.logic_power_passive.value = float(self.tech_model.P_pass_inv.subs(self.tech_model.base_params.tech_values).evalf())
+        self.uarch_lat = {
+            key: self.gamma[key]*self.logic_delay for key in self.gamma
+        }
+        self.uarch_energy_active = {
+            key: self.alpha[key]*self.logic_energy_active for key in self.alpha
+        }
+        self.uarch_power_passive = {
+            key: self.beta[key]*self.logic_power_passive for key in self.beta
+        }
+        self.wire_unit_delay = {
+            layer: cp.Variable(pos=True) for layer in self.metal_layers
+        }
+        self.wire_unit_energy = {
+            layer: cp.Variable(pos=True) for layer in self.metal_layers
+        }
+        for layer in self.metal_layers:
+            self.wire_unit_delay[layer].value = float((self.tech_model.wire_parasitics["R"][layer]*self.tech_model.wire_parasitics["C"][layer]).subs(self.tech_model.base_params.tech_values).evalf())
+            self.wire_unit_energy[layer].value = float((0.5*self.tech_model.wire_parasitics["C"][layer]*self.tech_model.base_params.V_dd**2).subs(self.tech_model.base_params.tech_values).evalf())
 
     def set_memories(self, memories):
         self.memories = memories
@@ -218,6 +249,13 @@ class CircuitModel:
                         if layer in self.wire_length_by_edge[edge]
                         else 0
                         for layer in self.metal_layers]) * 1e9
+    
+    def wire_delay_uarch(self, edge):
+        return sum([self.wire_length_by_edge[edge][layer]**2 * 
+                        self.wire_unit_delay[layer]
+                        if layer in self.wire_length_by_edge[edge]
+                        else 0
+                        for layer in self.metal_layers]) * 1e9
         
     def wire_energy(self, edge, symbolic=False):
         # wire energy = 0.5 * C * V_dd^2 * length
@@ -230,6 +268,13 @@ class CircuitModel:
         else:
             return 0.5*sum([self.wire_length_by_edge[edge][layer] * 
                         self.tech_model.base_params.tech_values[self.tech_model.wire_parasitics["C"][layer]] * self.tech_model.base_params.tech_values[self.tech_model.base_params.V_dd]**2 
+                        if layer in self.wire_length_by_edge[edge]
+                        else 0
+                        for layer in self.metal_layers]) * 1e9
+
+    def wire_energy_uarch(self, edge):
+        return sum([self.wire_length_by_edge[edge][layer] * 
+                        self.wire_unit_energy[layer]
                         if layer in self.wire_length_by_edge[edge]
                         else 0
                         for layer in self.metal_layers]) * 1e9

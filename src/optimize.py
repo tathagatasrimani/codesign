@@ -34,7 +34,7 @@ class Optimizer:
         for knob in self.disabled_knobs:
             constraints.append(sp.Eq(knob, knob.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values)))
         total_power = (self.hw.total_passive_energy + self.hw.total_active_energy) / self.hw.execution_time
-        constraints.append(total_power <= 50) # hard limit on power
+        constraints.append(total_power <= 150) # hard limit on power
 
         if self.hw.model_cfg["scaling_mode"] == "dennard_implicit":
             constraints[0] = self.hw.execution_time >= self.hw.execution_time.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values)/1.3 # replace objective constraint with latency constraint

@@ -15,7 +15,10 @@ from . import bulk_model
 from . import bulk_bsim4_model
 from . import schedule
 from . import sim_util
+from . import vs_model
 from openroad_interface import place_n_route
+
+import cvxpy as cp
 
 HW_CONFIG_FILE = "src/params/hw_cfgs.ini"
 
@@ -110,6 +113,8 @@ class HardwareModel:
             self.tech_model = bulk_model.BulkModel(self.model_cfg, self.base_params)
         elif self.model_cfg["model_type"] == "bulk_bsim4":
             self.tech_model = bulk_bsim4_model.BulkBSIM4Model(self.model_cfg, self.base_params)
+        elif self.model_cfg["model_type"] == "vs":
+            self.tech_model = vs_model.VSModel(self.model_cfg, self.base_params)
         else:
             raise ValueError(f"Invalid model type: {self.model_cfg['model_type']}")
 
@@ -605,6 +610,22 @@ class HardwareModel:
                 execution_time = symbolic_convex_max(execution_time, path_execution_time) if execution_time != 0 else path_execution_time
 
             logger.info(f"symbolic execution time: {execution_time}")
+
+            # cvxpy implementation
+            node_arrivals = {}
+            gens = list(nx.topological_generations(self.scheduled_dfg))
+            constr = []
+            for node in gens[0]:
+                node_arrivals[node] = 0
+            for gen in gens[1:]:
+                for node in gen:
+                    node_arrivals[node] = cp.Variable()
+                    this_delay = self.circuit_model.uarch_lat
+                    constr.extend([(node_arrivals[node] >= node_arrivals[pred] + self.scheduled_dfg.edges[pred, node]["weight"]) for pred in self.scheduled_dfg.predecessors(node)])
+            obj = node_arrivals["end"]
+            prob = cp.Problem(cp.Minimize(obj), constr)
+            prob.solve()
+            print(f"cvxpy symbolic execution time: {prob.value}")
         else:
             execution_time = self.scheduled_dfg.nodes["end"]["start_time"]
         return execution_time

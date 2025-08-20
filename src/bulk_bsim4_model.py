@@ -238,7 +238,7 @@ class BulkBSIM4Model(TechModel):
             self.Vgsteff = self.n * self.V_T * log(1 + custom_exp((self.m_star*(self.Vgse_on - self.V_th_eff))/(self.n*self.V_T)))/ (self.m_star + self.n*self.Coxe * (2*self.phi_s/(self.q*self.NDEP*self.e_si))**(1/2) * custom_exp(-((1-self.m_star)*(self.Vgse_on - self.V_th_eff) - self.V_off_prime)/(self.n*self.V_T)))
             self.Vgsteff_off = self.n * self.V_T * log(1 + custom_exp((self.m_star*(self.Vgse_off - self.V_th_eff))/(self.n*self.V_T)))/ (self.m_star + self.n*self.Coxe * (2*self.phi_s/(self.q*self.NDEP*self.e_si))**(1/2) * custom_exp(-((1-self.m_star)*(self.Vgse_off - self.V_th_eff) - self.V_off_prime)/(self.n*self.V_T)))
         else:
-            self.Vgsteff = self.Vgse_on
+            self.Vgsteff = self.Vgse_on - self.V_th_eff
             self.Vgsteff_off = self.Vgse_off
         #self.X_DC = (self.TOXP-self.TOXE)*(-self.EPSRSUB/3.9)
         # must convert TOXP to nm here or else this blows up
@@ -476,7 +476,9 @@ class BulkBSIM4Model(TechModel):
 
         # 6.2 GIDL, ignore GISL
         self.Vdb = self.base_params.V_dd
-        self.I_GIDL = self.A_GIDL * self.base_params.W * self.NF * (self.base_params.V_dd - self.Vgse_off - self.E_GIDL)/(3*self.TOXE)*custom_exp(-self.B_GIDL * 3 * self.TOXE / (self.base_params.V_dd - self.Vgse_off - self.E_GIDL)) * (self.Vdb**3)/ (self.C_GIDL * self.Vdb**3)
+        #self.I_GIDL = self.A_GIDL * self.base_params.W * self.NF * (self.base_params.V_dd - self.Vgse_off - self.E_GIDL)/(3*self.TOXE)*custom_exp(-self.B_GIDL * 3 * self.TOXE / (self.base_params.V_dd - self.Vgse_off - self.E_GIDL)) * (self.Vdb**3)/ (self.C_GIDL * self.Vdb**3)
+        # to fix bug with negative GIDL current
+        self.I_GIDL = self.A_GIDL * self.base_params.W * self.NF * log(1+exp(self.base_params.V_dd - self.Vgse_off - self.E_GIDL))/(3*self.TOXE)*custom_exp(-self.B_GIDL * 3 * self.TOXE / (self.base_params.V_dd - self.Vgse_off - self.E_GIDL)) * (self.Vdb**3)/ (self.C_GIDL * self.Vdb**3)
         exps.append(-self.B_GIDL * 3 * self.TOXE / (self.base_params.V_dd - self.Vgse_off - self.E_GIDL))
 
         # 7.4 intrinsic capacitance

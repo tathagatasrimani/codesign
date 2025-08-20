@@ -31,9 +31,11 @@ class VSModel(TechModel):
         self.Cox = self.e_0 * self.base_params.k_gate / self.base_params.tox
         print(f"Cox: {self.Cox.xreplace(self.base_params.tech_values).evalf()}")
 
-        self.C_inv = (self.Cox * self.base_params.Cs) / (self.Cox + self.base_params.Cs)
+        #self.C_inv = (self.Cox * self.base_params.Cs) / (self.Cox + self.base_params.Cs)
+        self.C_inv = self.Cox
 
-        self.delta = 0.12 # todo model dependence on Lg
+        self.delta = 0.12 + 0.01 * (32e-9)/(self.base_params.L) # todo model dependence on Lg
+        print(f"delta: {self.delta.xreplace(self.base_params.tech_values).evalf()}")
         self.delta_32n = 0.12 # todo model dependence on Lg
         self.V_th_eff = (self.base_params.V_th - self.delta * self.V_dsp).xreplace(self.on_state).evalf()
         self.alpha = 3.5
@@ -43,8 +45,8 @@ class VSModel(TechModel):
         self.L_ov = 0.15 * self.base_params.L # given as good typical value in paper
         self.vx0_32n = 1.35e5 # m/s (vs paper uses 35nm as reference but only data for 32nm)
         self.u = 250e-4 # m^2/V.s
-        self.R_s = 75 / self.base_params.W # ohm/m, need to get rid of constant 75
-        self.R_d = 0 ##
+        self.R_s = 75 # ohm*um, need to get rid of constant 75
+        self.R_d = self.R_s
         self.C_g = 1.9e-2 # F/m^2
 
         self.vx0 = self.vx0_32n + 1e5 * (self.delta - self.delta_32n)
@@ -69,6 +71,9 @@ class VSModel(TechModel):
         self.A_gate = self.base_params.W * self.base_params.L
 
         self.C_gate = self.Cox * self.A_gate
+
+        print(f"A_gate: {self.A_gate.xreplace(self.base_params.tech_values).evalf()}")
+        print(f"area_scale: {self.base_params.area_scale.xreplace(self.base_params.tech_values).evalf()}")
 
         self.C_diff = self.C_gate
         self.C_load = self.C_gate
@@ -95,12 +100,16 @@ class VSModel(TechModel):
         print(f"I_d_on per um: {self.I_d_on_per_um.xreplace(self.base_params.tech_values).evalf()}")
         print(f"I_d_off per um: {self.I_d_off_per_um.xreplace(self.base_params.tech_values).evalf()}")
 
-        self.E_act_inv = (0.5*self.C_load*self.base_params.V_dd*self.base_params.V_dd) * 1e9  # nJ
+        self.E_act_inv = (0.5*(self.C_load + self.C_diff + self.C_wire)*self.base_params.V_dd*self.base_params.V_dd) * 1e9  # nJ
+        print(f"C_load: {self.C_load.xreplace(self.base_params.tech_values).evalf()}")
+        print(f"C_diff: {self.C_diff.xreplace(self.base_params.tech_values).evalf()}")
+        print(f"C_wire: {self.C_wire.xreplace(self.base_params.tech_values).evalf()}")
 
         self.P_pass_inv = self.I_off * self.base_params.V_dd
 
 
         self.apply_additional_effects()
+        print(f"E_act_inv: {self.E_act_inv.xreplace(self.base_params.tech_values).evalf()}")
 
     def apply_base_parameter_effects(self):
         pass
