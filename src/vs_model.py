@@ -62,37 +62,43 @@ class VSModel(TechModel):
         self.beta = 2.5 # for nmos
         self.L_ov = 0.15 * self.base_params.L # given as good typical value in paper
         self.vx0_32n = 1.35e5 # m/s (vs paper uses 35nm as reference but only data for 32nm)
-        self.u = 250e-4 # m^2/V.s
+        #self.u = 250e-4 # m^2/V.s
         self.R_s = 75 # ohm*um, need to get rid of constant 75
         self.R_d = self.R_s
         self.C_g = self.C_inv # TODO: check if this is correct. GPT says Cg <= Cinv <= Cox
 
-        self.vx0 = self.vx0_32n + 1e5 * (self.delta - self.delta.subs({self.base_params.L: 32e-9}))
+        self.vx0 = self.vx0_32n + 1e5 * (self.delta - self.delta.xreplace({self.base_params.L: 32e-9}))
         self.alpha_g = 1
         self.S = self.phi_t * log(10) / (1 - 2*self.alpha_g*exp(-math.pi*self.base_params.L/(2*self.scale_length)))
         self.n = self.S / (self.phi_t * log(10))
 
         # note: we only care about ON state and saturation region for digital applications
+        if self.model_cfg["effects"]["F_f"]:
+            self.F_f = 1/(1+custom_exp((self.V_gsp - (self.V_th_eff - self.alpha * self.phi_t / 2))/(self.alpha * self.phi_t)))
+            self.F_f = self.F_f.xreplace(self.on_state)
+        else:
+            self.F_f = 0.0 # for saturation region where Vgs sufficiently larger than Vth. Can look into near threshold region later
 
-        #self.F_f = 1/(1+custom_exp((self.V_gsp - (self.V_th_eff - self.alpha * self.phi_t / 2))/(self.alpha * self.phi_t)))
-        self.F_f = 0 # for saturation region where Vgs sufficiently larger than Vth. Can look into near threshold region later
         #self.Q_ix0 = self.C_inv * self.n * self.phi_t * log(1 + custom_exp((self.V_gsp - (self.V_th_eff - self.alpha * self.phi_t * self.F_f))/(self.n*self.phi_t)))
         self.Q_ix0 = self.C_inv * self.n * self.phi_t * log(1 + exp((self.V_gsp - (self.V_th_eff - self.alpha * self.phi_t * self.F_f))/(self.n*self.phi_t)))
-        self.Q_ix0_0 = self.Q_ix0.subs({self.V_dsp: 0})
+        self.Q_ix0_0 = self.Q_ix0.xreplace({self.V_dsp: 0})
 
         
         self.v = self.vx0 * (self.F_f + (1 - self.F_f) / (1 + self.base_params.W * self.R_s * self.C_g * (1 + 2*self.delta)*self.vx0))
-        #self.L_c = self.base_params.L - 2 * self.L_ov
-        #self.Vdsats = self.v * self.L_c / self.u + (self.R_s + self.R_d) * self.base_params.W * self.Q_ix0_0 * self.v
-        #self.Vdsat = self.Vdsats * (1 - self.F_f) + self.phi_t * self.F_f
-        #self.F_s = (self.V_dsp / self.Vdsat) / (1 + (self.V_dsp / self.Vdsat)**self.beta)**(1/self.beta)
-        self.F_s = 1 # in saturation region
+        if self.model_cfg["effects"]["F_s"]:
+            self.L_c = self.base_params.L - 2 * self.L_ov
+            self.Vdsats = self.v * self.L_c / self.u_n_eff + (self.R_s + self.R_d) * self.base_params.W * self.Q_ix0_0 * self.v
+            self.Vdsat = self.Vdsats * (1 - self.F_f) + self.phi_t * self.F_f
+            self.F_s = (self.V_dsp / self.Vdsat) / (1 + (self.V_dsp / self.Vdsat)**self.beta)**(1/self.beta)
+            self.F_s = self.F_s.xreplace(self.on_state)
+        else:
+            self.F_s = 1.0 # in saturation region
 
-        #self.R_cmin = self.L_c / (self.Q_ix0_0 * self.u)
+        #self.R_cmin = self.L_c / (self.Q_ix0_0 * self.u_n_eff)
         self.I_d = self.base_params.W * self.Q_ix0 * self.v * self.F_s
 
-        self.I_d_on = (self.I_d).subs(self.on_state)
-        logger.info(f"I_d_on equation: {self.I_d_on.simplify()}")
+        self.I_d_on = (self.I_d).xreplace(self.on_state)
+        #logger.info(f"I_d_on equation: {self.I_d_on.simplify()}")
 
         self.A_gate = self.base_params.W * self.base_params.L
 
@@ -117,7 +123,7 @@ class VSModel(TechModel):
             self.delay = self.R_avg_inv * (self.C_diff + self.C_load + 0.3e-15 * 100) * 1e9  # ns
         else:
             self.delay = self.R_avg_inv * (self.C_load + self.C_diff) * 1e9
-        #self.I_d_off = (self.base_params.W * self.Q_ix0_0 * self.vx0 * self.F_s).subs(self.off_state)
+        #self.I_d_off = (self.base_params.W * self.Q_ix0_0 * self.vx0 * self.F_s).xreplace(self.off_state)
         self.I_sub = self.u_n_eff * self.Cox * self.base_params.W / self.base_params.L * self.V_T**2 * custom_exp(-self.V_th_eff / (self.n * self.V_T))
 
         # gate tunneling current (Fowler-Nordheim and WKB)

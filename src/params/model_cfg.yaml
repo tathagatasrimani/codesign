@@ -17,6 +17,8 @@ default:
     gate_leakage_TOXE: False
     max_parallel_en: False
     max_parallel_val: 100
+    F_f: False
+    F_s: False
   delay_parasitics: all
   scaling_mode: None
   model_type: bulk
@@ -188,4 +190,26 @@ vs_cfg_capped_parallel:
     gate_tunneling: True
     max_parallel_en: True
     max_parallel_val: 1000
+  delay_parasitics: all
+
+vs_cfg_F_f_F_s:
+  model_type: vs
+  effects:
+    area_and_latency_scaling: True
+    high_k_gate: True
+    GIDL: False
+    gate_tunneling: True
+    F_f: True
+    F_s: True
+  delay_parasitics: all
+
+vs_cfg_F_s:
+  model_type: vs
+  effects:
+    area_and_latency_scaling: True
+    high_k_gate: True
+    GIDL: False
+    gate_tunneling: True
+    F_f: False
+    F_s: True
   delay_parasitics: all
