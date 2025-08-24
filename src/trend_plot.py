@@ -17,6 +17,8 @@ class TrendPlot:
             self.codesign_module.hw.circuit_model.tech_model.m1_Csq,
             self.codesign_module.hw.circuit_model.tech_model.base_params.m1_rho,
             self.codesign_module.hw.circuit_model.tech_model.base_params.m1_k,
+            self.codesign_module.hw.circuit_model.tech_model.base_params.t_1,
+            self.codesign_module.hw.circuit_model.tech_model.eot,
         ])
         self.plot_list_labels = {
             self.codesign_module.hw.circuit_model.tech_model.base_params.V_dd: "Vdd",
@@ -30,6 +32,8 @@ class TrendPlot:
             self.codesign_module.hw.circuit_model.tech_model.m1_Csq: "m1_Csq",
             self.codesign_module.hw.circuit_model.tech_model.base_params.m1_rho: "m1_rho",
             self.codesign_module.hw.circuit_model.tech_model.base_params.m1_k: "m1_k",
+            self.codesign_module.hw.circuit_model.tech_model.base_params.t_1: "t_1",
+            self.codesign_module.hw.circuit_model.tech_model.eot: "eot",
         }
         self.plot_list_names = {
             self.codesign_module.hw.circuit_model.tech_model.base_params.V_dd: "Logic Supply Voltage per iteration (V)",
@@ -43,6 +47,8 @@ class TrendPlot:
             self.codesign_module.hw.circuit_model.tech_model.m1_Csq: "metal 1 Csq per iteration (F/um)",
             self.codesign_module.hw.circuit_model.tech_model.base_params.m1_rho: "metal 1 rho per iteration (Ohm*m)",
             self.codesign_module.hw.circuit_model.tech_model.base_params.m1_k: "metal 1 k per iteration (F/m)",
+            self.codesign_module.hw.circuit_model.tech_model.base_params.t_1: "physical body thickness per iteration (m)",
+            self.codesign_module.hw.circuit_model.tech_model.eot: "electrical oxide thickness per iteration (m)",
         }
         self.edp_over_iterations = edp_over_iterations
         self.lag_factor_over_iterations = lag_factor_over_iterations

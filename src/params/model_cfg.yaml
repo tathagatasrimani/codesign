@@ -19,6 +19,7 @@ default:
     max_parallel_val: 100
     F_f: False
     F_s: False
+    t_1: False
   delay_parasitics: all
   scaling_mode: None
   model_type: bulk
@@ -212,4 +213,26 @@ vs_cfg_F_s:
     gate_tunneling: True
     F_f: False
     F_s: True
+  delay_parasitics: all
+
+vs_cfg_t_1:
+  model_type: vs
+  effects:
+    area_and_latency_scaling: True
+    high_k_gate: True
+    GIDL: False
+    gate_tunneling: True
+    t_1: True
+  delay_parasitics: all
+
+vs_cfg_t_1_capped_parallel:
+  model_type: vs
+  effects:
+    area_and_latency_scaling: True
+    high_k_gate: True
+    GIDL: False
+    gate_tunneling: True
+    t_1: True
+    max_parallel_en: True
+    max_parallel_val: 1000
   delay_parasitics: all

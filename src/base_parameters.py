@@ -29,6 +29,7 @@ class BaseParameters:
         self.W = symbols("W", positive=True)
         self.L = symbols("L", positive=True)
         self.k_gate = symbols("k_gate", positive=True)
+        self.t_1 = symbols("t_1", positive=True) # physical body thickness, used for scale length in vs model
 
         # dennard scaling factors, used for dennard scaling test
         self.alpha_dennard = symbols("alpha_dennard", positive=True)
@@ -261,6 +262,7 @@ class BaseParameters:
             "f": self.f,
             "u_n": self.u_n,
             "tox": self.tox,
+            "t_1": self.t_1,
             "W": self.W,
             "L": self.L,
             "k_gate": self.k_gate,

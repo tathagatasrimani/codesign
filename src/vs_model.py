@@ -48,10 +48,13 @@ class VSModel(TechModel):
         self.C_inv = self.Cox
 
         self.eot = self.base_params.tox * 3.9/self.base_params.k_gate
-        self.W_dm = 10e-9 # TODO: come back to this
-        self.scale_length = self.eot + self.W_dm
+        if self.model_cfg["effects"]["t_1"]:
+            self.t_1 = self.base_params.t_1
+        else:
+            self.t_1 = 10e-9 # TODO: come back to this
+        self.scale_length = self.eot + self.t_1
 
-        self.delta_32n = 0.12 
+        #self.delta_32n = 0.12 
 
         self.delta = exp(-math.pi*self.base_params.L/(2*self.scale_length))
         logger.info(f"delta: {self.delta.xreplace(self.base_params.tech_values).evalf()}")
@@ -69,7 +72,9 @@ class VSModel(TechModel):
 
         self.vx0 = self.vx0_32n + 1e5 * (self.delta - self.delta.xreplace({self.base_params.L: 32e-9}))
         self.alpha_g = 1
-        self.S = self.phi_t * log(10) / (1 - 2*self.alpha_g*exp(-math.pi*self.base_params.L/(2*self.scale_length)))
+        # value of denominator clamped to avoid solver issues
+        self.S = self.phi_t * log(10) / symbolic_convex_max(1 - 2*self.alpha_g*exp(-math.pi*self.base_params.L/(2*self.scale_length)), 1e-5)
+        assert (1 - 2*self.alpha_g*exp(-math.pi*self.base_params.L/(2*self.scale_length))).xreplace(self.base_params.tech_values).evalf() > 1e-5, f"SS denominator is too small, clamping for solver will cause inaccuracies"
         self.n = self.S / (self.phi_t * log(10))
 
         # note: we only care about ON state and saturation region for digital applications

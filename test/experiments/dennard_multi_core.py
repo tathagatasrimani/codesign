@@ -129,6 +129,7 @@ class DennardMultiCore:
                 "F_s": self.codesign_module.hw.circuit_model.tech_model.F_s,
                 "vx0": self.codesign_module.hw.circuit_model.tech_model.vx0,
                 "v": self.codesign_module.hw.circuit_model.tech_model.v,
+                "t_1": self.codesign_module.hw.circuit_model.tech_model.t_1,
             }
         else:
             raise ValueError(f"Model type {self.codesign_module.hw.circuit_model.tech_model.model_cfg['model_type']} not supported")

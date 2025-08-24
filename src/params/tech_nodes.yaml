@@ -17,6 +17,7 @@ default:
   k_gate: 3.9 # dielectric constant
   Cs: 100 # F/m^2
   f: 100e6
+  t_1: 1.0e-6
 
 tech-1982:
   L: 2.1e-06
