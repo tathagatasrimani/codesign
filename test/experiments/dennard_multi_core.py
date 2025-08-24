@@ -107,11 +107,24 @@ class DennardMultiCore:
                 "passive power": self.codesign_module.hw.total_passive_energy/self.codesign_module.hw.execution_time,
                 "active power": self.codesign_module.hw.total_active_energy/self.codesign_module.hw.execution_time,
                 "subthreshold leakage current": self.codesign_module.hw.circuit_model.tech_model.I_off,
+                "long channel threshold voltage": self.codesign_module.hw.circuit_model.tech_model.base_params.V_th,
                 "effective threshold voltage": self.codesign_module.hw.circuit_model.tech_model.V_th_eff,
                 "supply voltage": self.codesign_module.hw.circuit_model.tech_model.base_params.V_dd,
                 "wire RC": self.codesign_module.hw.circuit_model.tech_model.m1_Rsq * self.codesign_module.hw.circuit_model.tech_model.m1_Csq,
                 "on current per um": self.codesign_module.hw.circuit_model.tech_model.I_d_on_per_um,
                 "off current per um": self.codesign_module.hw.circuit_model.tech_model.I_d_off_per_um,
+                "gate tunneling current per um": self.codesign_module.hw.circuit_model.tech_model.I_tunnel_per_um,
+                "subthreshold leakage current per um": self.codesign_module.hw.circuit_model.tech_model.I_sub_per_um,
+                "GIDL current per um": self.codesign_module.hw.circuit_model.tech_model.I_GIDL_per_um,
+                "DIBL factor": self.codesign_module.hw.circuit_model.tech_model.delta,
+                "t_ox": self.codesign_module.hw.circuit_model.tech_model.base_params.tox,
+                "eot": self.codesign_module.hw.circuit_model.tech_model.eot,
+                "scale length": self.codesign_module.hw.circuit_model.tech_model.scale_length,
+                "C_load": self.codesign_module.hw.circuit_model.tech_model.C_load,
+                "C_wire": self.codesign_module.hw.circuit_model.tech_model.C_wire,
+                "R_wire": self.codesign_module.hw.circuit_model.tech_model.R_wire,
+                "R_device": self.codesign_module.hw.circuit_model.tech_model.base_params.V_dd/self.codesign_module.hw.circuit_model.tech_model.I_d_on,
+                "SS": self.codesign_module.hw.circuit_model.tech_model.S,
             }
         else:
             raise ValueError(f"Model type {self.codesign_module.hw.circuit_model.tech_model.model_cfg['model_type']} not supported")
@@ -154,7 +167,7 @@ class DennardMultiCore:
         for i in range(self.args.num_opt_iters):
             initial_tech_params = copy.copy(self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values)
             if self.dummy_app:
-                self.run_dummy_inverse_pass(k_gate_disabled=False) # k_gate_disabled=(i<11) as alternative
+                self.run_dummy_inverse_pass(k_gate_disabled=(i<11)) # k_gate_disabled=(i<11) as alternative
             else:
                 self.codesign_module.inverse_pass()
                 self.codesign_module.hw.circuit_model.update_circuit_values()

@@ -571,6 +571,8 @@ class BulkBSIM4Model(TechModel):
         self.param_db["I_tunnel"] = self.I_tunnel
         self.param_db["I_GIDL"] = self.I_GIDL
         self.param_db["delta_vt_dibl"] = self.dVth_DIBL
+        self.param_db["delta_vt_sce"] = self.dVth_SCE
+        self.param_db["delta_vt_nw_1"] = self.dVth_nw_1
         self.param_db["R_wire"] = self.R_wire
         self.param_db["C_wire"] = self.C_wire
         self.param_db["I_sub"] = self.I_sub
@@ -592,7 +594,7 @@ class BulkBSIM4Model(TechModel):
         super().create_constraints(dennard_scaling_type)
 
         self.constraints.append(self.V_ox >= 0)
-        self.constraints.append(self.dVth_SCE + self.dVth_DIBL >= -0.2)
+        self.constraints.append((self.dVth_SCE + self.dVth_DIBL)/self.base_params.V_dd >= -0.15) # 0.15 V/V dibl and sce
         self.constraints.append(self.dVth_nw_1 + self.dVth_nw_2 <= 0.2)
         self.constraints.append(self.base_params.L <= self.base_params.W)
 

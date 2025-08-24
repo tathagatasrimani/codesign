@@ -38,8 +38,8 @@ class TechModel(ABC):
         # interconnect model
         # assume for now that wire width and thickness are both L (same as gate length)
         # and spacing between wire and dielectric is 2L
-        self.dist = 20*self.base_params.L
-        self.wire_dim = 2*self.base_params.L
+        self.dist = 3*self.base_params.L
+        self.wire_dim = 0.5*self.base_params.L
 
         self.m1_Rsq = (self.base_params.m1_rho) / (self.wire_dim**2) # resistance per square (Ohm*m)
         self.m2_Rsq = (self.base_params.m2_rho) / (self.wire_dim**2) # resistance per square (Ohm*m)
@@ -62,7 +62,7 @@ class TechModel(ABC):
             }
         }
 
-        self.wire_len = 2*self.base_params.L
+        self.wire_len = 20*self.base_params.L
 
         self.C_wire = self.wire_parasitics["C"]["metal1"] * self.wire_len
         self.R_wire = self.wire_parasitics["R"]["metal1"] * self.wire_len
@@ -96,8 +96,17 @@ class TechModel(ABC):
             self.constraints.append(self.delay <= 1e9/self.base_params.f)
         self.constraints.append(self.I_off/(self.base_params.W) <= 100e-9 / (1e-6))
 
+
+        delta_V_th_process = 20e-3 # account for 20mV variation in Vth
+        V_th_min = self.V_th_eff - delta_V_th_process
+        V_th_max = self.V_th_eff + delta_V_th_process
+        max_I_off = self.I_off.subs({self.V_th_eff: V_th_min})
+        self.constraints.append(max_I_off <= 100e-9 / (1e-6))
+        self.constraints.append(V_th_min >= 0)
+        self.constraints.append(V_th_max <= self.base_params.V_dd)
+
         self.constraints.append(self.base_params.W / self.base_params.L <= 50)
-        self.constraints.append(self.base_params.W / self.base_params.L >= 0.2)
+        self.constraints.append(self.base_params.W / self.base_params.L >= 1)
 
         # wire material constraints
         self.constraints.append(self.base_params.m1_rho >= 2e-8)
@@ -110,6 +119,8 @@ class TechModel(ABC):
         if self.model_cfg["effects"]["high_k_gate"]:
             self.constraints.append(self.base_params.k_gate >= 2)
             self.constraints.append(self.base_params.k_gate <= 20)
+        
+        self.constraints.append(self.base_params.u_n <= 0.1)
 
 
         if self.model_cfg["scaling_mode"] == "dennard":

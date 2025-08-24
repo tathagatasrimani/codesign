@@ -8,7 +8,7 @@ class TrendPlot:
         self.plot_list = set([
             self.codesign_module.hw.circuit_model.tech_model.base_params.V_dd,
             self.codesign_module.hw.circuit_model.tech_model.V_th_eff,
-            #self.codesign_module.hw.circuit_model.tech_model.base_params.u_n,
+            self.codesign_module.hw.circuit_model.tech_model.base_params.u_n,
             self.codesign_module.hw.circuit_model.tech_model.base_params.L,
             self.codesign_module.hw.circuit_model.tech_model.base_params.W,
             self.codesign_module.hw.circuit_model.tech_model.base_params.tox,
@@ -21,6 +21,7 @@ class TrendPlot:
         self.plot_list_labels = {
             self.codesign_module.hw.circuit_model.tech_model.base_params.V_dd: "Vdd",
             self.codesign_module.hw.circuit_model.tech_model.V_th_eff: "Vth",
+            self.codesign_module.hw.circuit_model.tech_model.base_params.u_n: "u_n",
             self.codesign_module.hw.circuit_model.tech_model.base_params.L: "L",
             self.codesign_module.hw.circuit_model.tech_model.base_params.W: "W",
             self.codesign_module.hw.circuit_model.tech_model.base_params.tox: "tox",
@@ -33,6 +34,7 @@ class TrendPlot:
         self.plot_list_names = {
             self.codesign_module.hw.circuit_model.tech_model.base_params.V_dd: "Logic Supply Voltage per iteration (V)",
             self.codesign_module.hw.circuit_model.tech_model.V_th_eff: "Transistor Vth per iteration (V)",
+            self.codesign_module.hw.circuit_model.tech_model.base_params.u_n: "Transistor u_n per iteration (m²/V·s)",
             self.codesign_module.hw.circuit_model.tech_model.base_params.L: "Gate Length per iteration (m)",
             self.codesign_module.hw.circuit_model.tech_model.base_params.W: "Gate Width per iteration (m)",
             self.codesign_module.hw.circuit_model.tech_model.base_params.tox: "Gate Oxide Thickness per iteration (m)",

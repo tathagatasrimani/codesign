@@ -8,8 +8,14 @@ vs:
   - R_wire
   - C_wire
   - I_sub
+  - I_tunnel
   - I_d_on_per_um
   - I_sub_per_um
+  - I_tunnel_per_um
+  - I_d_off_per_um
+  - I_GIDL_per_um
+  - Eox
+  - Vox
 bsim4:
   - I_d
   - C_load
@@ -17,6 +23,8 @@ bsim4:
   - u_n_eff
   - V_th_eff
   - delta_vt_dibl
+  - delta_vt_sce
+  - delta_vt_nw_1
   - R_wire
   - C_wire
   - I_sub

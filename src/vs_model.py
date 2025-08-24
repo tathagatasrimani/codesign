@@ -15,6 +15,19 @@ class VSModel(TechModel):
     def init_tech_specific_constants(self):
         super().init_tech_specific_constants()
 
+        # gate tunneling parameters
+        self.phi_b = 3.1  # Schottky barrier height (eV)
+        self.m_ox = 0.5*self.m_0  # effective mass of electron in oxide (g)
+        self.A = ((self.q)**3) / (8*math.pi*self.h*self.phi_b*self.m_ox)
+        self.B = (8*math.pi*(2*self.m_ox)**(1/2) * (self.phi_b*self.q)**(3/2)) / (3*self.q*self.h)
+        #self.A = 4.97232 # for NMOS
+        #self.B = 7.45669e11 # for NMOS
+
+        # GIDL parameters
+        self.A_GIDL = 1e-12
+        self.B_GIDL = 2.3e9
+        self.E_GIDL = 0.8
+
     def init_transistor_equations(self):
         super().init_transistor_equations()
         
@@ -34,8 +47,13 @@ class VSModel(TechModel):
         #self.C_inv = (self.Cox * self.base_params.Cs) / (self.Cox + self.base_params.Cs)
         self.C_inv = self.Cox
 
+        self.eot = self.base_params.tox * 3.9/self.base_params.k_gate
+        self.W_dm = 10e-9 # TODO: come back to this
+        self.scale_length = self.eot + self.W_dm
+
         self.delta_32n = 0.12 
-        self.delta = self.delta_32n + 0.01 * (32e-9)/(self.base_params.L)
+
+        self.delta = exp(-math.pi*self.base_params.L/(2*self.scale_length))
         logger.info(f"delta: {self.delta.xreplace(self.base_params.tech_values).evalf()}")
         self.V_th_eff = (self.base_params.V_th - self.delta * self.V_dsp).xreplace(self.on_state).evalf()
         self.alpha = 3.5
@@ -49,8 +67,9 @@ class VSModel(TechModel):
         self.R_d = self.R_s
         self.C_g = self.C_inv # TODO: check if this is correct. GPT says Cg <= Cinv <= Cox
 
-        self.vx0 = self.vx0_32n + 1e5 * (self.delta - self.delta_32n)
-        self.S = self.S_32n + 0.1 * (self.delta * self.delta_32n)
+        self.vx0 = self.vx0_32n + 1e5 * (self.delta - self.delta.subs({self.base_params.L: 32e-9}))
+        self.alpha_g = 1
+        self.S = self.phi_t * log(10) / (1 - 2*self.alpha_g*exp(-math.pi*self.base_params.L/(2*self.scale_length)))
         self.n = self.S / (self.phi_t * log(10))
 
         # note: we only care about ON state and saturation region for digital applications
@@ -99,14 +118,41 @@ class VSModel(TechModel):
         else:
             self.delay = self.R_avg_inv * (self.C_load + self.C_diff) * 1e9
         #self.I_d_off = (self.base_params.W * self.Q_ix0_0 * self.vx0 * self.F_s).subs(self.off_state)
-        self.I_off = self.u_n_eff * self.Cox * self.base_params.W / self.base_params.L * self.V_T**2 * custom_exp(-self.V_th_eff / (self.n * self.V_T))
+        self.I_sub = self.u_n_eff * self.Cox * self.base_params.W / self.base_params.L * self.V_T**2 * custom_exp(-self.V_th_eff / (self.n * self.V_T))
+
+        # gate tunneling current (Fowler-Nordheim and WKB)
+        # minimums are to avoid exponential explosion in solver. Normal values in exponent are negative.
+        # gate tunneling
+        self.V_ox = self.base_params.V_dd - self.V_th_eff
+        self.E_ox = Abs(self.V_ox/self.base_params.tox)
+        logger.info(f"B: {self.B}, A: {self.A}, t_ox: {self.base_params.tox.xreplace(self.base_params.tech_values)}, E_ox: {self.E_ox.xreplace(self.base_params.tech_values)}, intermediate: {(1-(1-self.V_ox/self.phi_b)**3/2).xreplace(self.base_params.tech_values)}")
+        self.FN_term = self.A_gate * self.A * self.E_ox**2 * (custom_exp(-self.B/self.E_ox))
+        self.WKB_term = self.A_gate * self.A * self.E_ox**2 * (custom_exp(-self.B*(1-(1-self.V_ox/self.phi_b)**3/2)/self.E_ox))
+        self.I_tunnel = self.FN_term + self.WKB_term
+        logger.info(f"I_tunnel: {self.I_tunnel.xreplace(self.base_params.tech_values)}")
+
+        # GIDL current
+        self.I_GIDL = self.A_GIDL * ((self.base_params.V_dd - self.E_GIDL)/(3*self.base_params.tox)) * custom_exp(-3*self.base_params.tox*self.B_GIDL / (self.base_params.V_dd - self.E_GIDL)) # simplified from BSIM
+        logger.info(f"I_GIDL: {self.I_GIDL.xreplace(self.base_params.tech_values)}")
+
+        self.I_off = self.I_sub
+
+        if self.model_cfg["effects"]["GIDL"]:
+            self.I_off = self.I_off + self.I_GIDL
+        
+        if self.model_cfg["effects"]["gate_tunneling"]:
+            self.I_off = self.I_off + self.I_tunnel
 
         self.I_d_on_per_um = self.I_d_on / (self.base_params.W* 1e6)
+        self.I_sub_per_um = self.I_sub / (self.base_params.W* 1e6)
+        self.I_tunnel_per_um = self.I_tunnel / (self.base_params.W* 1e6)
         self.I_d_off_per_um = self.I_off / (self.base_params.W* 1e6)
+        self.I_GIDL_per_um = self.I_GIDL / (self.base_params.W* 1e6)
 
         logger.info(f"I_d_on per um: {self.I_d_on_per_um.xreplace(self.base_params.tech_values).evalf()}")
-        logger.info(f"I_d_off per um: {self.I_d_off_per_um.xreplace(self.base_params.tech_values).evalf()}")
-
+        logger.info(f"I_sub per um: {self.I_sub_per_um.xreplace(self.base_params.tech_values).evalf()}")
+        logger.info(f"I_tunnel per um: {self.I_tunnel_per_um.xreplace(self.base_params.tech_values).evalf()}")
+        logger.info(f"I_off per um: {self.I_d_off_per_um.xreplace(self.base_params.tech_values).evalf()}")
         self.E_act_inv = (0.5*(self.C_load + self.C_diff + self.C_wire)*self.base_params.V_dd*self.base_params.V_dd) * 1e9  # nJ
         logger.info(f"C_load: {self.C_load.xreplace(self.base_params.tech_values).evalf()}")
         logger.info(f"C_diff: {self.C_diff.xreplace(self.base_params.tech_values).evalf()}")
@@ -130,19 +176,31 @@ class VSModel(TechModel):
         self.param_db["delta_vt_dibl"] = (-self.delta * self.V_dsp).xreplace(self.on_state).evalf()
         self.param_db["R_wire"] = self.R_wire
         self.param_db["C_wire"] = self.C_wire
-        self.param_db["I_sub"] = self.I_off
+        self.param_db["I_sub"] = self.I_sub
+        self.param_db["I_tunnel"] = self.I_tunnel
         self.param_db["I_d_on_per_um"] = self.I_d_on_per_um
-        self.param_db["I_sub_per_um"] = self.I_d_off_per_um
+        self.param_db["I_sub_per_um"] = self.I_sub_per_um
+        self.param_db["I_tunnel_per_um"] = self.I_tunnel_per_um
+        self.param_db["I_d_off_per_um"] = self.I_d_off_per_um
+        self.param_db["I_GIDL_per_um"] = self.I_GIDL_per_um
+        self.param_db["Eox"] = self.E_ox
+        self.param_db["Vox"] = self.V_ox
+        self.param_db["scale_length"] = self.scale_length
 
     def apply_base_parameter_effects(self):
         pass
 
     def apply_additional_effects(self):
         if self.model_cfg["effects"]["area_and_latency_scaling"]:
-            self.delay = self.delay * self.base_params.latency_scale
-            self.P_pass_inv = self.P_pass_inv * self.base_params.area_scale
-            #self.wire_len = self.wire_len * self.base_params.latency_scale
+            if self.model_cfg["effects"]["max_parallel_en"]:
+                MAX_PARALLEL = self.model_cfg["effects"]["max_parallel_val"]
+                self.delay = self.delay * symbolic_convex_max(self.base_params.latency_scale, 1/MAX_PARALLEL)
+                self.P_pass_inv = self.P_pass_inv * symbolic_convex_min(self.base_params.area_scale, MAX_PARALLEL)
+            else:
+                self.delay = self.delay * self.base_params.latency_scale
+                self.P_pass_inv = self.P_pass_inv * self.base_params.area_scale
 
     def create_constraints(self, dennard_scaling_type="constant_field"):
         super().create_constraints(dennard_scaling_type)
+        self.constraints.append(self.delta <= 0.15)
         
