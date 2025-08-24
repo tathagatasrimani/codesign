@@ -9,6 +9,7 @@ class TechModel(ABC):
         self.model_cfg = model_cfg
         self.base_params = base_params
         self.constraints = []
+        self.param_db = {}
         self.init_physical_constants()
         self.init_tech_specific_constants()
         self.init_transistor_equations()
@@ -68,6 +69,10 @@ class TechModel(ABC):
 
         self.V_th_eff = self.base_params.V_th
         self.u_n_eff = self.base_params.u_n
+
+    @abstractmethod
+    def config_param_db(self):
+        self.param_db["tox"] = self.base_params.tox
 
     @abstractmethod
     def apply_base_parameter_effects(self):

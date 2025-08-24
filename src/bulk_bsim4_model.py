@@ -209,7 +209,13 @@ class BulkBSIM4Model(TechModel):
 
 
         # overall Vth
-        self.V_th_eff = self.base_params.V_th + self.dVth_SCE + self.dVth_DIBL + self.dVth_nw_1
+        self.V_th_eff = self.base_params.V_th
+        if self.model_cfg["effects"]["SCE"]:
+            self.V_th_eff += self.dVth_SCE
+        if self.model_cfg["effects"]["narrow_width"]:
+            self.V_th_eff += self.dVth_nw_1
+        if self.model_cfg["effects"]["DIBL"]:
+            self.V_th_eff += self.dVth_DIBL
 
         # 13.1 temperature dependance of Vth
         self.dVth_T = (self.KT1 + self.KT1L/self.base_params.L + self.KT2*self.Vbseff) * (self.T / self.TNOM - 1)
@@ -527,7 +533,7 @@ class BulkBSIM4Model(TechModel):
         self.E_act_inv = (0.5*self.C_tot*self.base_params.V_dd*self.base_params.V_dd) * 1e9  # nJ
 
 
-        self.print_stuff_for_tox_scaling()
+        #self.print_stuff_for_tox_scaling()
         #logger.info(f"diff of delay wrt toxe: {sp.diff(expression_to_diff, self.TOXE).xreplace(self.base_params.tech_values).evalf()}")
 
         self.I_off = self.I_sub + self.I_GIDL + self.I_tunnel
@@ -552,6 +558,26 @@ class BulkBSIM4Model(TechModel):
         self.P_pass_inv = self.I_off * self.base_params.V_dd
 
         self.apply_additional_effects()
+
+        self.config_param_db()
+
+    def config_param_db(self):
+        super().config_param_db()
+        self.param_db["I_d"] = self.I_d
+        self.param_db["C_load"] = self.C_load
+        self.param_db["delay"] = self.delay
+        self.param_db["u_n_eff"] = self.u_n_eff
+        self.param_db["V_th_eff"] = self.V_th_eff
+        self.param_db["I_tunnel"] = self.I_tunnel
+        self.param_db["I_GIDL"] = self.I_GIDL
+        self.param_db["delta_vt_dibl"] = self.dVth_DIBL
+        self.param_db["R_wire"] = self.R_wire
+        self.param_db["C_wire"] = self.C_wire
+        self.param_db["I_sub"] = self.I_sub
+        self.param_db["I_d_on_per_um"] = self.I_d/(self.base_params.W*1e6)
+        self.param_db["I_sub_per_um"] = self.I_sub/(self.base_params.W*1e6)
+        self.param_db["I_GIDL_per_um"] = self.I_GIDL/(self.base_params.W*1e6)
+        self.param_db["I_tunnel_per_um"] = self.I_tunnel/(self.base_params.W*1e6)
 
     def apply_base_parameter_effects(self):
         return

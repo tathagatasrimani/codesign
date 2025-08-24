@@ -6,6 +6,8 @@ default:
     mobility_degradation: False
     subthreshold_slope_effect: False
     DIBL: False
+    SCE: True
+    narrow_width: False
     area_and_latency_scaling: False
     GIDL: False
     high_k_gate: False
@@ -34,6 +36,7 @@ NTC_example_cfg:
     mobility_degradation: True
     subthreshold_slope_effect: True
     DIBL: True
+    narrow_width: True
     GIDL: True
     area_and_latency_scaling: True
     #high_k_gate: True
@@ -47,6 +50,7 @@ full_effects_cfg:
     mobility_degradation: True
     subthreshold_slope_effect: True
     DIBL: True
+    narrow_width: True
     GIDL: True
     area_and_latency_scaling: True
     high_k_gate: True
@@ -61,6 +65,7 @@ bsim4_cfg_most:
     mobility_degradation: True
     subthreshold_slope_effect: True
     DIBL: True
+    narrow_width: True
     GIDL: True
     area_and_latency_scaling: True
     high_k_gate: True
@@ -77,6 +82,7 @@ bsim4_limited:
     mobility_degradation: False
     subthreshold_slope_effect: True
     DIBL: True
+    narrow_width: True
     GIDL: True
     area_and_latency_scaling: True
     high_k_gate: True
@@ -93,6 +99,7 @@ bsim4_cfg_all:
     mobility_degradation: True
     subthreshold_slope_effect: True
     DIBL: True
+    narrow_width: True
     GIDL: True
     area_and_latency_scaling: True
     high_k_gate: True
@@ -111,6 +118,7 @@ bsim4_cfg_all_detailed:
     mobility_degradation: True
     subthreshold_slope_effect: True
     DIBL: True
+    narrow_width: True
     GIDL: True
     area_and_latency_scaling: True
     high_k_gate: True
@@ -130,6 +138,7 @@ bsim4_cfg_all_toxe:
     mobility_degradation: True
     subthreshold_slope_effect: True
     DIBL: True
+    narrow_width: True
     GIDL: True
     area_and_latency_scaling: True
     high_k_gate: True
@@ -140,6 +149,25 @@ bsim4_cfg_all_toxe:
     gate_leakage_TOXE: True
   delay_parasitics: all
 
+bsim4_cfg_all_toxe_no_narrow_sce:
+  model_type: bulk_bsim4
+  effects:
+    channel_length_modulation: True
+    velocity_saturation: True
+    gate_tunneling: True
+    mobility_degradation: True
+    subthreshold_slope_effect: True
+    DIBL: True
+    SCE: False
+    GIDL: True
+    area_and_latency_scaling: True
+    high_k_gate: True
+    DIBL_current_scaling: True
+    Rds: True
+    C_fringe: True
+    C_overlap: True
+    gate_leakage_TOXE: True
+  delay_parasitics: all
 
 vs_cfg:
   model_type: vs
