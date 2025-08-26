@@ -210,7 +210,7 @@ class Preprocessor:
             # opt.options['print_level'] = 12
             # opt.options['nlp_scaling_method'] = 'none'
             opt.options["bound_relax_factor"] = 0
-            opt.options["max_iter"] = 100
+            opt.options["max_iter"] = 1500
             opt.options["print_info_string"] = "yes"
             opt.options["output_file"] = "src/tmp/solver_out.txt"
             opt.options["wantsol"] = 2
@@ -232,6 +232,7 @@ class Preprocessor:
         self.multistart = multistart
         self.free_symbols = list(obj.free_symbols)
         for i in range(len(constraints)):
+            print(f"constraint {i}: {constraints[i]}")
             self.free_symbols.extend(constraints[i].free_symbols)
         self.free_symbols = list(set(self.free_symbols))
 

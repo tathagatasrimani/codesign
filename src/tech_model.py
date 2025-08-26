@@ -41,13 +41,13 @@ class TechModel(ABC):
         self.dist = 3*self.base_params.L
         self.wire_dim = 0.5*self.base_params.L
 
-        self.m1_Rsq = (self.base_params.m1_rho) / (self.wire_dim**2) # resistance per square (Ohm*m)
-        self.m2_Rsq = (self.base_params.m2_rho) / (self.wire_dim**2) # resistance per square (Ohm*m)
-        self.m3_Rsq = (self.base_params.m3_rho) / (self.wire_dim**2) # resistance per square (Ohm*m)
+        self.m1_Rsq = (self.base_params.m1_rho) / (self.wire_dim**2) # resistance per square (Ohm/m)
+        self.m2_Rsq = (self.base_params.m2_rho) / (self.wire_dim**2) # resistance per square (Ohm/m)
+        self.m3_Rsq = (self.base_params.m3_rho) / (self.wire_dim**2) # resistance per square (Ohm/m)
 
-        self.m1_Csq = (self.base_params.L * self.base_params.m1_k * self.e_0) / (self.dist) # capacitance per square (F/m)
-        self.m2_Csq = (self.base_params.L * self.base_params.m2_k * self.e_0) / (self.dist) # capacitance per square (F/m)
-        self.m3_Csq = (self.base_params.L * self.base_params.m3_k * self.e_0) / (self.dist) # capacitance per square (F/m)
+        self.m1_Csq = (self.wire_dim * self.base_params.m1_k * self.e_0) / (self.dist) # capacitance per square (F/m)
+        self.m2_Csq = (self.wire_dim * self.base_params.m2_k * self.e_0) / (self.dist) # capacitance per square (F/m)
+        self.m3_Csq = (self.wire_dim * self.base_params.m3_k * self.e_0) / (self.dist) # capacitance per square (F/m)
 
         self.wire_parasitics = {
             "R": {
@@ -101,7 +101,7 @@ class TechModel(ABC):
         V_th_min = self.V_th_eff - delta_V_th_process
         V_th_max = self.V_th_eff + delta_V_th_process
         max_I_off = self.I_off.subs({self.V_th_eff: V_th_min})
-        self.constraints.append(max_I_off <= 100e-9 / (1e-6))
+        self.constraints.append(max_I_off/(self.base_params.W) <= 100e-9 / (1e-6))
         self.constraints.append(V_th_min >= 0)
         self.constraints.append(V_th_max <= self.base_params.V_dd)
 

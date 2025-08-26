@@ -20,32 +20,22 @@ default:
     F_f: False
     F_s: False
     t_1: False
+    I_sub_unified: False
   delay_parasitics: all
   scaling_mode: None
   model_type: bulk
+  base_cfg: default
 
 dennard_scaling_cfg:
   scaling_mode: dennard
+  base_cfg: default
 
 test_cfg:
   effects:
     area_and_latency_scaling: True
   delay_parasitics: Csq only
   scaling_mode: dennard_implicit
-
-NTC_example_cfg:
-  effects:
-    channel_length_modulation: True
-    velocity_saturation: True
-    gate_tunneling: True
-    mobility_degradation: True
-    subthreshold_slope_effect: True
-    DIBL: True
-    narrow_width: True
-    GIDL: True
-    area_and_latency_scaling: True
-    #high_k_gate: True
-  delay_parasitics: Csq only
+  base_cfg: default
 
 full_effects_cfg:
   effects:
@@ -60,6 +50,7 @@ full_effects_cfg:
     area_and_latency_scaling: True
     high_k_gate: True
   delay_parasitics: all
+  base_cfg: default
 
 bsim4_cfg_most:
   model_type: bulk_bsim4
@@ -76,7 +67,8 @@ bsim4_cfg_most:
     high_k_gate: True
     DIBL_current_scaling: True
     Rds: True
-  delay_parasitics: all
+  delay_parasitics: all 
+  base_cfg: default
 
 bsim4_limited:
   model_type: bulk_bsim4
@@ -94,6 +86,7 @@ bsim4_limited:
     DIBL_current_scaling: False
     Rds: False
   delay_parasitics: all
+  base_cfg: default
 
 bsim4_cfg_all:
   model_type: bulk_bsim4
@@ -113,65 +106,22 @@ bsim4_cfg_all:
     C_fringe: True
     C_overlap: True
   delay_parasitics: all
+  base_cfg: default
 
 bsim4_cfg_all_detailed:
-  model_type: bulk_bsim4
   effects:
-    channel_length_modulation: True
-    velocity_saturation: True
-    gate_tunneling: True
-    mobility_degradation: True
-    subthreshold_slope_effect: True
-    DIBL: True
-    narrow_width: True
-    GIDL: True
-    area_and_latency_scaling: True
-    high_k_gate: True
-    DIBL_current_scaling: True
-    Rds: True
-    C_fringe: True
-    C_overlap: True
     Vgsteff_detailed: True
-  delay_parasitics: all
+  base_cfg: bsim4_cfg_all
 
 bsim4_cfg_all_toxe:
-  model_type: bulk_bsim4
   effects:
-    channel_length_modulation: True
-    velocity_saturation: True
-    gate_tunneling: True
-    mobility_degradation: True
-    subthreshold_slope_effect: True
-    DIBL: True
-    narrow_width: True
-    GIDL: True
-    area_and_latency_scaling: True
-    high_k_gate: True
-    DIBL_current_scaling: True
-    Rds: True
-    C_fringe: True
-    C_overlap: True
     gate_leakage_TOXE: True
-  delay_parasitics: all
+  base_cfg: bsim4_cfg_all
 
 bsim4_cfg_all_toxe_no_narrow:
-  model_type: bulk_bsim4
   effects:
-    channel_length_modulation: True
-    velocity_saturation: True
-    gate_tunneling: True
-    mobility_degradation: True
-    subthreshold_slope_effect: True
-    DIBL: True
-    GIDL: True
-    area_and_latency_scaling: True
-    high_k_gate: True
-    DIBL_current_scaling: True
-    Rds: True
-    C_fringe: True
-    C_overlap: True
-    gate_leakage_TOXE: True
-  delay_parasitics: all
+    narrow_width: False
+  base_cfg: bsim4_cfg_all_toxe
 
 vs_cfg:
   model_type: vs
@@ -181,58 +131,56 @@ vs_cfg:
     GIDL: False
     gate_tunneling: True
   delay_parasitics: all
+  base_cfg: default
 
 vs_cfg_capped_parallel:
-  model_type: vs
   effects:
-    area_and_latency_scaling: True
-    high_k_gate: True
-    GIDL: False
-    gate_tunneling: True
     max_parallel_en: True
     max_parallel_val: 1000
-  delay_parasitics: all
+  base_cfg: vs_cfg
 
 vs_cfg_F_f_F_s:
-  model_type: vs
+  base_cfg: vs_cfg
   effects:
-    area_and_latency_scaling: True
-    high_k_gate: True
-    GIDL: False
-    gate_tunneling: True
     F_f: True
     F_s: True
-  delay_parasitics: all
 
 vs_cfg_F_s:
-  model_type: vs
+  base_cfg: vs_cfg
   effects:
-    area_and_latency_scaling: True
-    high_k_gate: True
-    GIDL: False
-    gate_tunneling: True
     F_f: False
     F_s: True
-  delay_parasitics: all
 
 vs_cfg_t_1:
-  model_type: vs
+  base_cfg: vs_cfg
   effects:
-    area_and_latency_scaling: True
-    high_k_gate: True
-    GIDL: False
-    gate_tunneling: True
     t_1: True
-  delay_parasitics: all
 
 vs_cfg_t_1_capped_parallel:
-  model_type: vs
   effects:
-    area_and_latency_scaling: True
-    high_k_gate: True
-    GIDL: False
-    gate_tunneling: True
-    t_1: True
     max_parallel_en: True
     max_parallel_val: 1000
-  delay_parasitics: all
+  base_cfg: vs_cfg_t_1
+
+# latest means F_s and unified I_sub
+vs_cfg_latest:
+  base_cfg: vs_cfg
+  effects:
+    F_s: True
+    I_sub_unified: True
+
+vs_cfg_latest_t_1:
+  base_cfg: vs_cfg_latest
+  effects:
+    t_1: True
+
+vs_cfg_latest_capped_parallel:
+  base_cfg: vs_cfg_latest
+  effects:
+    max_parallel_en: True
+    max_parallel_val: 1000
+
+vs_cfg_latest_capped_parallel_t_1:
+  base_cfg: vs_cfg_latest_capped_parallel
+  effects:
+    t_1: True

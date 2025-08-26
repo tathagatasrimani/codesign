@@ -25,12 +25,21 @@ class Optimizer:
         # system level and objective constraints, and pull in tech model constraints
 
         constraints = []
+        #constraints.append(1/self.hw.circuit_model.tech_model.S <= 1e5)
+        #constraints.append(1/self.hw.circuit_model.tech_model.V_ox <= 1e3)
+        #constraints.append(1/self.hw.circuit_model.tech_model.n <= 1e30)
+        #constraints.append(1/self.hw.circuit_model.tech_model.Q_ix0.xreplace(self.hw.circuit_model.tech_model.off_state) <= 1e30)
+        #constraints.append(1/self.hw.circuit_model.tech_model.v.xreplace(self.hw.circuit_model.tech_model.off_state) <= 1e30)
+        #constraints.append(1/self.hw.circuit_model.tech_model.F_s.xreplace(self.hw.circuit_model.tech_model.off_state) <= 1e30)
+        #constraints.append(1/self.hw.circuit_model.tech_model.I_sub <= 1e30)
+        #constraints.append(1/self.hw.circuit_model.tech_model.I_tunnel >= 1e-10)
+        #constraints.append(1/self.hw.circuit_model.tech_model.I_d_on <= 1e10)
         constraints.append(self.hw.symbolic_obj >= float(self.hw.symbolic_obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values) / improvement))
+
+        self.objective_constraint_inds = [len(constraints)-1]
 
         # don't want a leakage-dominated design
         constraints.append(self.hw.total_active_energy >= 2*self.hw.total_passive_energy)
-
-        self.objective_constraint_inds = [0]
         for knob in self.disabled_knobs:
             constraints.append(sp.Eq(knob, knob.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values)))
         total_power = (self.hw.total_passive_energy + self.hw.total_active_energy) / self.hw.execution_time

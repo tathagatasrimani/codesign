@@ -53,8 +53,10 @@ class HardwareModel:
         )
         print(f"self.cacti_dat_file: {self.cacti_dat_file}")
         with open("src/params/model_cfg.yaml", "r") as f:
-            model_cfg = yaml.safe_load(f)
-        self.model_cfg = sim_util.deep_merge(model_cfg["default"], model_cfg[args.model_cfg])
+            model_cfgs = yaml.safe_load(f)
+
+        # model cfg is an extension of its base cfg, can create a tree of configs which need to be merged
+        self.model_cfg = sim_util.recursive_cfg_merge(model_cfgs, args.model_cfg)
         print(f"self.model_cfg: {self.model_cfg}")
 
         #self.params = parameters.Parameters(args.tech_node, self.cacti_dat_file, self.model_cfg)

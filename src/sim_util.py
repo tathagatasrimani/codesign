@@ -45,6 +45,16 @@ def deep_merge(dict1, dict2):
             result[key] = value
     return result
 
+def recursive_cfg_merge(model_cfgs, model_cfg_name):
+    base_cfg = model_cfgs[model_cfg_name]["base_cfg"]
+    model_cfg = model_cfgs[model_cfg_name]
+    while True:
+        model_cfg = deep_merge(model_cfgs[base_cfg], model_cfg)
+        if base_cfg == "default":
+            break
+        base_cfg = model_cfgs[base_cfg]["base_cfg"]
+    return model_cfg
+
 def get_latest_log_dir():
     log_dirs = glob.glob(os.path.normpath(os.path.join(os.path.dirname(__file__), "../logs/*-*-*_*-*-*")))
     log_dirs = sorted(

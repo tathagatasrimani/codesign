@@ -58,10 +58,11 @@ class VSModel(TechModel):
 
         self.delta = exp(-math.pi*self.base_params.L/(2*self.scale_length))
         logger.info(f"delta: {self.delta.xreplace(self.base_params.tech_values).evalf()}")
-        self.V_th_eff = (self.base_params.V_th - self.delta * self.V_dsp).xreplace(self.on_state).evalf()
+        self.V_th_eff_general = self.base_params.V_th - self.delta * self.V_dsp
+        self.V_th_eff = self.V_th_eff.xreplace(self.on_state)
         self.alpha = 3.5
         self.phi_t = self.V_T
-        self.S_32n = 0.098 # V/decade
+        #self.S_32n = 0.098 # V/decade
         self.beta = 2.5 # for nmos
         self.L_ov = 0.15 * self.base_params.L # given as good typical value in paper
         self.vx0_32n = 1.35e5 # m/s (vs paper uses 35nm as reference but only data for 32nm)
@@ -80,13 +81,16 @@ class VSModel(TechModel):
         # note: we only care about ON state and saturation region for digital applications
         if self.model_cfg["effects"]["F_f"]:
             self.F_f = 1/(1+custom_exp((self.V_gsp - (self.V_th_eff - self.alpha * self.phi_t / 2))/(self.alpha * self.phi_t)))
-            self.F_f = self.F_f.xreplace(self.on_state)
+            self.F_f_eval = self.F_f.xreplace(self.on_state)
         else:
             self.F_f = 0.0 # for saturation region where Vgs sufficiently larger than Vth. Can look into near threshold region later
+            self.F_f_eval = 0.0
 
-        #self.Q_ix0 = self.C_inv * self.n * self.phi_t * log(1 + custom_exp((self.V_gsp - (self.V_th_eff - self.alpha * self.phi_t * self.F_f))/(self.n*self.phi_t)))
-        self.Q_ix0 = self.C_inv * self.n * self.phi_t * log(1 + exp((self.V_gsp - (self.V_th_eff - self.alpha * self.phi_t * self.F_f))/(self.n*self.phi_t)))
-        self.Q_ix0_0 = self.Q_ix0.xreplace({self.V_dsp: 0})
+        self.Q_ix0 = self.C_inv * self.n * self.phi_t * log(1 + custom_exp((self.V_gsp - (self.V_th_eff - self.alpha * self.phi_t * self.F_f))/(self.n*self.phi_t)))
+        # clamp result of softplus so it doesn't go to 0, causing issues in solver
+        #self.Q_ix0 = self.C_inv * self.n * self.phi_t * symbolic_convex_max(1e-10,log(1 + exp((self.V_gsp - (self.V_th_eff - self.alpha * self.phi_t * self.F_f))/(self.n*self.phi_t))))
+        self.Q_ix0_0 = self.Q_ix0.xreplace({self.V_th_eff: self.V_th_eff_general})
+        self.Q_ix0_0 = self.Q_ix0_0.xreplace({self.V_dsp: 0})
 
         
         self.v = self.vx0 * (self.F_f + (1 - self.F_f) / (1 + self.base_params.W * self.R_s * self.C_g * (1 + 2*self.delta)*self.vx0))
@@ -95,9 +99,10 @@ class VSModel(TechModel):
             self.Vdsats = self.v * self.L_c / self.u_n_eff + (self.R_s + self.R_d) * self.base_params.W * self.Q_ix0_0 * self.v
             self.Vdsat = self.Vdsats * (1 - self.F_f) + self.phi_t * self.F_f
             self.F_s = (self.V_dsp / self.Vdsat) / (1 + (self.V_dsp / self.Vdsat)**self.beta)**(1/self.beta)
-            self.F_s = self.F_s.xreplace(self.on_state)
+            self.F_s_eval = self.F_s.xreplace(self.on_state)
         else:
             self.F_s = 1.0 # in saturation region
+            self.F_s_eval = 1.0
 
         #self.R_cmin = self.L_c / (self.Q_ix0_0 * self.u_n_eff)
         self.I_d = self.base_params.W * self.Q_ix0 * self.v * self.F_s
@@ -129,11 +134,15 @@ class VSModel(TechModel):
         else:
             self.delay = self.R_avg_inv * (self.C_load + self.C_diff) * 1e9
         #self.I_d_off = (self.base_params.W * self.Q_ix0_0 * self.vx0 * self.F_s).xreplace(self.off_state)
-        self.I_sub = self.u_n_eff * self.Cox * self.base_params.W / self.base_params.L * self.V_T**2 * custom_exp(-self.V_th_eff / (self.n * self.V_T))
+        if self.model_cfg["effects"]["I_sub_unified"]:
+            self.I_sub = self.I_d.xreplace(self.off_state) # max subthreshold leakage
+        else:
+            self.I_sub = (self.u_n_eff * self.Cox * self.base_params.W / self.base_params.L * self.V_T**2 * custom_exp(-self.V_th_eff / (self.n * self.V_T))).xreplace(self.off_state)
 
         # gate tunneling current (Fowler-Nordheim and WKB)
         # minimums are to avoid exponential explosion in solver. Normal values in exponent are negative.
         # gate tunneling
+        #self.V_ox = symbolic_convex_max(self.base_params.V_dd - self.V_th_eff, self.V_th_eff).xreplace(self.off_state)
         self.V_ox = self.base_params.V_dd - self.V_th_eff
         self.E_ox = Abs(self.V_ox/self.base_params.tox)
         logger.info(f"B: {self.B}, A: {self.A}, t_ox: {self.base_params.tox.xreplace(self.base_params.tech_values)}, E_ox: {self.E_ox.xreplace(self.base_params.tech_values)}, intermediate: {(1-(1-self.V_ox/self.phi_b)**3/2).xreplace(self.base_params.tech_values)}")
