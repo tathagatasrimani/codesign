@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import networkx as nx
 
-from . import sim_util
+from src import sim_util
 
 def calculate_similarity(G, p1, p2):
     """

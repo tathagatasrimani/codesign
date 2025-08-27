@@ -9,18 +9,18 @@ import subprocess
 import copy
 import networkx as nx
 import matplotlib.pyplot as plt
-from src.netlist_parse import parse_yosys_json
+from src.forward_pass.netlist_parse import parse_yosys_json
 
 logger = logging.getLogger("codesign")
 
-from . import cacti_util
-from . import sim_util
-from . import hardwareModel
-from . import optimize
-from . import schedule
-from . import memory
-from . import ccore_update
-from . import trend_plot
+from src import cacti_util
+from src import sim_util
+from src.hardware_model import hardwareModel
+from src.inverse_pass import optimize
+from src.forward_pass import schedule
+from src import memory
+from src.forward_pass import ccore_update
+from src import trend_plot
 
 DEBUG_YOSYS = False  # set to True to debug yosys output.
 
@@ -192,7 +192,7 @@ class Codesign:
         if os.path.exists("src/tmp/benchmark"):
             shutil.rmtree("src/tmp/benchmark")
         shutil.copytree(self.benchmark, "src/tmp/benchmark")
-        shutil.copytree("src/ccores_base", "src/tmp/benchmark/src/ccores")
+        shutil.copytree("src/forward_pass/ccores_base", "src/tmp/benchmark/src/ccores")
 
         # update delay and area of ccores
         ccore_update.update_ccores(self.hw.circuit_model.circuit_values["area"], self.hw.circuit_model.circuit_values["latency"])
@@ -348,12 +348,12 @@ class Codesign:
             )
             i += 1
 
-    def write_back_params(self, params_path="src/params/params_current.yaml"):
+    def write_back_params(self, params_path="src/yaml/params_current.yaml"):
         """
         Writes the technology parameters back to a YAML file
 
         Args:
-            params_path (str): Path to the output YAML file. Defaults to 'src/params/params_current.yaml'.
+            params_path (str): Path to the output YAML file. Defaults to 'src/yaml/params_current.yaml'.
 
         Returns:
             None

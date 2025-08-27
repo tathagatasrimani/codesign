@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 import pandas as pd
 import sympy as sp
 
-from src import base_parameters
+from src.hardware_model.base_parameters import base_parameters
 
 from src.cacti import CACTI_DIR, TRANSISTOR_SIZES
 

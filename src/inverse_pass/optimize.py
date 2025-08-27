@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 import pyomo.environ as pyo
 import sympy as sp
 # custom
-from .preprocess import Preprocessor
+from src.inverse_pass.preprocess import Preprocessor
 
 
 multistart = False

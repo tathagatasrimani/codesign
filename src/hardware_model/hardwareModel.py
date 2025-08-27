@@ -7,20 +7,19 @@ logger = logging.getLogger(__name__)
 
 import networkx as nx
 import sympy as sp
-from . import cacti_util
-from . import base_parameters
-from . import circuit_model
-from . import tech_model
-from . import bulk_model
-from . import bulk_bsim4_model
-from . import schedule
-from . import sim_util
-from . import vs_model
+from src import cacti_util
+from src.hardware_model.base_parameters import base_parameters
+from src.hardware_model.circuit_models import circuit_model
+
+from src.forward_pass import schedule
+from src import sim_util
+
+from src.hardware_model.tech_models import bulk_model
+from src.hardware_model.tech_models import bulk_bsim4_model
+from src.hardware_model.tech_models import vs_model
 from openroad_interface import place_n_route
 
 import cvxpy as cp
-
-HW_CONFIG_FILE = "src/params/hw_cfgs.ini"
 
 def symbolic_convex_max(a, b, evaluate=True):
     """
@@ -52,7 +51,7 @@ class HardwareModel:
             f"src/cacti/tech_params/{int(self.cacti_tech_node*1e3):2d}nm.dat"
         )
         print(f"self.cacti_dat_file: {self.cacti_dat_file}")
-        with open("src/params/model_cfg.yaml", "r") as f:
+        with open("src/yaml/model_cfg.yaml", "r") as f:
             model_cfgs = yaml.safe_load(f)
 
         # model cfg is an extension of its base cfg, can create a tree of configs which need to be merged

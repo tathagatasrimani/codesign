@@ -9,8 +9,8 @@ import pyomo.environ as pyo
 import pyomo.core.expr.sympy_tools as sympy_tools
 from pyomo.opt import SolverFactory
 
-from .MyPyomoSympyBimap import MyPyomoSympyBimap
-from . import hardwareModel
+from src.inverse_pass.MyPyomoSympyBimap import MyPyomoSympyBimap
+from src.hardware_model import hardwareModel
 
 class Preprocessor:
     """
@@ -163,6 +163,7 @@ class Preprocessor:
         self.regularization = 0
         # normal regularization for each variable
         for symbol in self.free_symbols:
+            print(f"symbol: {symbol}; value: {self.params.tech_values[symbol]}; type: {type(self.params.tech_values[symbol])}")
             self.regularization += hardwareModel.symbolic_convex_max((self.params.tech_values[symbol]/ symbol- 1), 
                                                          (symbol/self.params.tech_values[symbol] - 1)) ** 2
 

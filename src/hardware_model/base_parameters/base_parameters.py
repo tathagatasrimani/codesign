@@ -11,8 +11,8 @@ from sympy import symbols, ceiling, expand, exp, Abs
 
 logger = logging.getLogger(__name__)
 
-TECH_NODE_FILE = "src/params/tech_nodes.yaml"
-WIRE_RC_FILE = "src/params/wire_rc.yaml"
+TECH_NODE_FILE = "src/yaml/tech_nodes.yaml"
+WIRE_RC_FILE = "src/yaml/wire_rc.yaml"
 
 # create sympy variables and initial tech values
 class BaseParameters:

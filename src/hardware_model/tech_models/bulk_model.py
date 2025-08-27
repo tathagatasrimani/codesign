@@ -1,5 +1,5 @@
 import logging
-from src.tech_model import TechModel
+from src.hardware_model.tech_models.tech_model_base import TechModel
 from src.sim_util import symbolic_convex_max, symbolic_convex_min
 import math
 from sympy import symbols, ceiling, expand, exp, Abs, cosh, log
@@ -51,6 +51,9 @@ class BulkModel(TechModel):
         self.X_dep = (2*self.e_si*self.phi_s/(self.q*self.NDEP))**(1/2)
         self.lt = ((self.e_si*self.base_params.tox * self.X_dep)/(self.base_params.k_gate))**(1/2)
         self.Cdsc_term = self.CDSC*(0.5/(cosh(symbolic_convex_min(10, self.DVT1*self.base_params.L/self.lt))-1))
+
+    def config_param_db(self):
+        super().config_param_db()
 
     def init_transistor_equations(self):
         super().init_transistor_equations()
