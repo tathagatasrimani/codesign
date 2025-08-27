@@ -42,3 +42,5 @@ test_vitis_resnet/resnet_18/
 test_vitis/test_gemm/
 
 test_vitis_resnet/test_parse/
+
+test_vitis_resnet/test_parse*/

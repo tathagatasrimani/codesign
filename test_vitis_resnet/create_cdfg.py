@@ -114,7 +114,8 @@ def create_cdfg_one_file(fsm_data, state_transitions, stg_data, dir_name):
             if fsm_node['operator'] == 'call':
                 ## if the operator is a call, we will treat it as a submodule and add it to the graph
                 module_name = fsm_node['function']
-                instantiated_modules.append(module_name)
+                if module_name not in instantiated_modules:
+                    instantiated_modules.append(module_name)
 
         ## add edges based on the data dependencies
         ## go through the sources of all nodes added in this state and add a dependency edge to that node

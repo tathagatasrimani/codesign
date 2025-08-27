@@ -311,67 +311,74 @@ def merge_cdfgs(full_cdfg, submodule_cdfg, submodule_name):
     ## then, insert the submodule CDFG in place of the removed nodes, connecting the inputs and outputs to the first and last nodes respectively.
     new_full_cdfg = nx.compose(full_cdfg, submodule_cdfg)
 
+    debug_print(f"Composed full CDFG with submodule CDFG for {submodule_name}.")
+
     # Reconnect input edges to entry node
     for src, _ in input_edges:
         new_full_cdfg.add_edge(src, sub_cdfg_start_node)
 
+    debug_print(f"Reconnected input edges to submodule CDFG start node {sub_cdfg_start_node}.")
+
     # Reconnect output edges from exit node
     for _, dst in output_edges:
         new_full_cdfg.add_edge(sub_cdfg_exit_node, dst)
+    
+    debug_print(f"Reconnected output edges from submodule CDFG exit node {sub_cdfg_exit_node}.")
 
     # intermediate start and stop nodes in the submodule CDFG should be preserved, as they are part of the submodule's internal flow.
     
     ## add stall nodes to the full CDFG to keep the timing correct between the start and stop nodes of the original CDFG (on other branches).
     
     # first, calculate the cycle count - 1 of the submodule CDFG. It is 1 less because the first start node is removed.
-    submodule_cycle_count = get_submodule_cycle_count(submodule_cdfg, sub_cdfg_start_node)
+    # submodule_cycle_count = get_submodule_cycle_count(submodule_cdfg, sub_cdfg_start_node)
 
     ## find all paths between the CYCLE_START and CYCLE_END nodes in the full CDFG 
 
     #TODO: We need to do it through the original cdfg, not the submodule CDFG as this will take too long and won't give us any useful information.
 
-    all_paths = []
-    if cycle_start_node_before_submodule_call is not None and cycle_end_node_after_submodule_call is not None:
-        all_paths = list(nx.all_simple_paths(
-            new_full_cdfg,
-            source=cycle_start_node_before_submodule_call,
-            target=cycle_end_node_after_submodule_call
-        ))
-        debug_print(f"Found {len(all_paths)} paths between {cycle_start_node_before_submodule_call} and {cycle_end_node_after_submodule_call}")
+    # all_paths = []
+    # if cycle_start_node_before_submodule_call is not None and cycle_end_node_after_submodule_call is not None:
+    #     all_paths = list(nx.all_simple_paths(
+    #         new_full_cdfg,
+    #         source=cycle_start_node_before_submodule_call,
+    #         target=cycle_end_node_after_submodule_call
+    #     ))
+    #     debug_print(f"Found {len(all_paths)} paths between {cycle_start_node_before_submodule_call} and {cycle_end_node_after_submodule_call}")
 
-        for path in all_paths:
-            debug_print(f"Path found: {path}")
+    #     for path in all_paths:
+    #         debug_print(f"Path found: {path}")
 
         
-    else:
-        debug_print("Could not find CYCLE_START or CYCLE_END node for path search.")
-        exit(1)
+    # else:
+    #     debug_print("Could not find CYCLE_START or CYCLE_END node for path search.")
+    #     exit(1)
 
     ## In the simplest case, the only paths are through the submodule CDFG, so no additional stall nodes are needed.
     # check if the second node in the path is the submodule CDFG start node and the second to last node is the submodule CDFG exit node.
     # if this is the case, then we know the path goes through the submodule CDFG and we don't need any stall nodes for this path.
-    paths_to_add_stall_nodes = []
-    for path in all_paths:
-        if len(path) < 3:
-            paths_to_add_stall_nodes.append(path)
-            debug_print(f"Path {path} is too short to go through the submodule CDFG, so we need to add stall nodes.")
-        elif path[1] == sub_cdfg_start_node and path[-2] == sub_cdfg_exit_node:
-            debug_print(f"Path {path} goes through the submodule CDFG {submodule_name}. No stall nodes needed for this path.")
-            continue
-        else:
-            paths_to_add_stall_nodes.append(path)
-            debug_print(f"Path {path} does not go through the submodule CDFG {submodule_name}. Stall nodes needed for this path.")
+    # paths_to_add_stall_nodes = []
+    # for path in all_paths:
+    #     if len(path) < 3:
+    #         paths_to_add_stall_nodes.append(path)
+    #         debug_print(f"Path {path} is too short to go through the submodule CDFG, so we need to add stall nodes.")
+    #     elif path[1] == sub_cdfg_start_node and path[-2] == sub_cdfg_exit_node:
+    #         debug_print(f"Path {path} goes through the submodule CDFG {submodule_name}. No stall nodes needed for this path.")
+    #         continue
+    #     else:
+    #         paths_to_add_stall_nodes.append(path)
+    #         debug_print(f"Path {path} does not go through the submodule CDFG {submodule_name}. Stall nodes needed for this path.")
     
-    if len(paths_to_add_stall_nodes) > 0:
-        ## TODO: implement adding stall nodes to the full CDFG.
-        debug_print(f"Adding stall nodes not implemented yet. Paths that require stall nodes: {paths_to_add_stall_nodes}. Exiting.")
-        exit(1)
+    # if len(paths_to_add_stall_nodes) > 0:
+    #     ## TODO: implement adding stall nodes to the full CDFG.
+    #     debug_print(f"Adding stall nodes not implemented yet. Paths that require stall nodes: {paths_to_add_stall_nodes}. Exiting.")
+    #     ##exit(1)
 
-    else:
-        debug_print("No paths found that require stall nodes. The submodule CDFG is fully integrated into the full CDFG.")
-        pass
+    # else:
+    #     debug_print("No paths found that require stall nodes. The submodule CDFG is fully integrated into the full CDFG.")
+    #     pass
 
     # NOTE: The call could be multi-cycle. In this case we would need to merge the intermediate cycle start and stop nodes.
+    ## TODO: add identifiers to cycle start and ends nodes when merging to avoid naming conflicts.
     #exit(0)
 
     return new_full_cdfg
