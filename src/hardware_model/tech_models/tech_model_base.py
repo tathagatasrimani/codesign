@@ -92,8 +92,9 @@ class TechModel(ABC):
             self.constraints.append(self.V_th_eff >= 0)
         self.constraints.append(self.base_params.V_dd <= 5)
 
-        if self.base_params.f in self.base_params.tech_values:
-            self.constraints.append(self.delay <= 1e9/self.base_params.f)
+        #if self.base_params.f in self.base_params.tech_values:
+        #    self.constraints.append(self.delay <= 1e9/self.base_params.f)
+        #self.constraints.append(self.base_params.f <= 5e9)
         self.constraints.append(self.I_off/(self.base_params.W) <= 100e-9 / (1e-6))
 
 

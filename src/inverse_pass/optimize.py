@@ -34,8 +34,8 @@ class Optimizer:
         #constraints.append(1/self.hw.circuit_model.tech_model.I_sub <= 1e30)
         #constraints.append(1/self.hw.circuit_model.tech_model.I_tunnel >= 1e-10)
         #constraints.append(1/self.hw.circuit_model.tech_model.I_d_on <= 1e10)
-        constraints.append(self.hw.symbolic_obj >= float(self.hw.symbolic_obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values) / improvement))
-
+        lower_bound = float(self.hw.symbolic_obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values) / improvement)
+        constraints.append(self.hw.symbolic_obj >= lower_bound)
         self.objective_constraint_inds = [len(constraints)-1]
 
         # don't want a leakage-dominated design
@@ -50,7 +50,8 @@ class Optimizer:
             constraints.append(self.hw.total_active_energy + self.hw.total_passive_energy >= (self.hw.total_active_energy + self.hw.total_passive_energy).xreplace(self.hw.circuit_model.tech_model.base_params.tech_values)/2.7)
             self.objective_constraint_inds.append(len(constraints)-1)
 
-        self.hw.circuit_model.tech_model.create_constraints(self.dennard_scaling_type)
+        #self.hw.circuit_model.tech_model.create_constraints(self.dennard_scaling_type)
+        assert len(self.hw.circuit_model.tech_model.constraints) > 0, "tech model constraints are empty"
         constraints.extend(self.hw.circuit_model.tech_model.constraints)
 
         #print(f"constraints: {constraints}")

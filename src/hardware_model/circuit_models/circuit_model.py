@@ -2,6 +2,7 @@ import logging
 
 from src import coefficients
 import cvxpy as cp
+import sympy as sp
 
 logger = logging.getLogger(__name__)
 
@@ -163,15 +164,54 @@ class CircuitModel:
         self.gamma = self.coeffs["gamma"]
         self.area_coeffs = self.coeffs["area"]
 
+    def set_uarch_constraints(self):
+        self.tech_model.constraints.append(self.clk_period >= 1/self.tech_model.base_params.f * 1.0e9)
+        self.tech_model.constraints.append(self.logic_delay >= self.tech_model.delay)
+        self.tech_model.constraints.append(self.logic_energy_active >= self.tech_model.E_act_inv)
+        self.tech_model.constraints.append(self.logic_power_passive >= self.tech_model.P_pass_inv)
+        for layer in self.metal_layers:
+            self.tech_model.constraints.append(self.wire_unit_delay[layer] >= self.tech_model.wire_parasitics["R"][layer]*self.tech_model.wire_parasitics["C"][layer])
+            self.tech_model.constraints.append(self.wire_unit_energy[layer] >= 0.5*self.tech_model.wire_parasitics["C"][layer]*self.tech_model.base_params.V_dd**2)
+
     def set_uarch_parameters(self):
-        self.clk_period = cp.Variable(pos=True)
-        self.clk_period.value = float((1e9/self.tech_model.base_params.f).subs(self.tech_model.base_params.tech_values).evalf())
-        self.logic_delay = cp.Variable(pos=True)
-        self.logic_delay.value = float(self.tech_model.delay.subs(self.tech_model.base_params.tech_values).evalf())
-        self.logic_energy_active = cp.Variable(pos=True)
-        self.logic_energy_active.value = float(self.tech_model.E_act_inv.subs(self.tech_model.base_params.tech_values).evalf())
-        self.logic_power_passive = cp.Variable(pos=True)
-        self.logic_power_passive.value = float(self.tech_model.P_pass_inv.subs(self.tech_model.base_params.tech_values).evalf())
+        self.clk_period_cvx = cp.Variable(pos=True)
+        self.clk_period_cvx.value = float((1e9/self.tech_model.base_params.f).subs(self.tech_model.base_params.tech_values).evalf())
+        self.logic_delay_cvx = cp.Variable(pos=True)
+        self.logic_delay_cvx.value = float(self.tech_model.delay.subs(self.tech_model.base_params.tech_values).evalf())
+        self.logic_energy_active_cvx = cp.Variable(pos=True)
+        self.logic_energy_active_cvx.value = float(self.tech_model.E_act_inv.subs(self.tech_model.base_params.tech_values).evalf())
+        self.logic_power_passive_cvx = cp.Variable(pos=True)
+        self.logic_power_passive_cvx.value = float(self.tech_model.P_pass_inv.subs(self.tech_model.base_params.tech_values).evalf())
+
+        
+        self.uarch_lat_cvx = {
+            key: self.gamma[key]*self.logic_delay_cvx for key in self.gamma
+        }
+        self.uarch_energy_active_cvx = {
+            key: self.alpha[key]*self.logic_energy_active_cvx for key in self.alpha
+        }
+        self.uarch_power_passive_cvx = {
+            key: self.beta[key]*self.logic_power_passive_cvx for key in self.beta
+        }
+        self.wire_unit_delay_cvx = {
+            layer: cp.Variable(pos=True) for layer in self.metal_layers
+        }
+        self.wire_unit_energy_cvx = {
+            layer: cp.Variable(pos=True) for layer in self.metal_layers
+        }
+        for layer in self.metal_layers:
+            self.wire_unit_delay_cvx[layer].value = float((self.tech_model.wire_parasitics["R"][layer]*self.tech_model.wire_parasitics["C"][layer]).subs(self.tech_model.base_params.tech_values).evalf())
+            self.wire_unit_energy_cvx[layer].value = float((0.5*self.tech_model.wire_parasitics["C"][layer]*self.tech_model.base_params.V_dd**2).subs(self.tech_model.base_params.tech_values).evalf())
+
+        self.clk_period = sp.symbols("clk_period")
+        self.tech_model.base_params.tech_values[self.clk_period] = float((1e9/self.tech_model.base_params.f).subs(self.tech_model.base_params.tech_values).evalf())
+        self.logic_delay = sp.symbols("logic_delay")
+        self.tech_model.base_params.tech_values[self.logic_delay] = float(self.tech_model.delay.subs(self.tech_model.base_params.tech_values).evalf())
+        self.logic_energy_active = sp.symbols("logic_energy_active")
+        self.tech_model.base_params.tech_values[self.logic_energy_active] = float(self.tech_model.E_act_inv.subs(self.tech_model.base_params.tech_values).evalf())
+        self.logic_power_passive = sp.symbols("logic_power_passive")
+        self.tech_model.base_params.tech_values[self.logic_power_passive] = float(self.tech_model.P_pass_inv.subs(self.tech_model.base_params.tech_values).evalf())
+
         self.uarch_lat = {
             key: self.gamma[key]*self.logic_delay for key in self.gamma
         }
@@ -181,15 +221,16 @@ class CircuitModel:
         self.uarch_power_passive = {
             key: self.beta[key]*self.logic_power_passive for key in self.beta
         }
+
         self.wire_unit_delay = {
-            layer: cp.Variable(pos=True) for layer in self.metal_layers
+            layer: sp.symbols(f"wire_unit_delay_{layer}") for layer in self.metal_layers
         }
         self.wire_unit_energy = {
-            layer: cp.Variable(pos=True) for layer in self.metal_layers
+            layer: sp.symbols(f"wire_unit_energy_{layer}") for layer in self.metal_layers
         }
         for layer in self.metal_layers:
-            self.wire_unit_delay[layer].value = float((self.tech_model.wire_parasitics["R"][layer]*self.tech_model.wire_parasitics["C"][layer]).subs(self.tech_model.base_params.tech_values).evalf())
-            self.wire_unit_energy[layer].value = float((0.5*self.tech_model.wire_parasitics["C"][layer]*self.tech_model.base_params.V_dd**2).subs(self.tech_model.base_params.tech_values).evalf())
+            self.tech_model.base_params.tech_values[self.wire_unit_delay[layer]] = float((self.tech_model.wire_parasitics["R"][layer]*self.tech_model.wire_parasitics["C"][layer]).subs(self.tech_model.base_params.tech_values).evalf())
+            self.tech_model.base_params.tech_values[self.wire_unit_energy[layer]] = float((0.5*self.tech_model.wire_parasitics["C"][layer]*self.tech_model.base_params.V_dd**2).subs(self.tech_model.base_params.tech_values).evalf())
 
     def set_memories(self, memories):
         self.memories = memories

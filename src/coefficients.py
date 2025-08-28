@@ -29,19 +29,19 @@ def create_coefficients(sizes):
         total = 0
         for size in sizes:
             total += latency[size][elem] / latency[size]["Invert"]
-        coeffs["gamma"][elem] = total / len(sizes)
+        coeffs["gamma"][elem] = total / len(sizes) * 100
 
     for elem in dynamic_power[3]:
         total = 0
         for size in sizes:
             total += dynamic_power[size][elem] / dynamic_power[size]["Invert"]
-        coeffs["alpha"][elem] = total / len(sizes)
+        coeffs["alpha"][elem] = total / len(sizes) * 100
 
     for elem in leakage_power[3]:
         total = 0
         for size in sizes:
             total += leakage_power[size][elem] / leakage_power[size]["Invert"]
-        coeffs["beta"][elem] = total / len(sizes)
+        coeffs["beta"][elem] = total / len(sizes) * 100
 
     for elem in area[3]:
         total = 0

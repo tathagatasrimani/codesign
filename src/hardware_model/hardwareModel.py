@@ -118,6 +118,7 @@ class HardwareModel:
             self.tech_model = vs_model.VSModel(self.model_cfg, self.base_params)
         else:
             raise ValueError(f"Invalid model type: {self.model_cfg['model_type']}")
+        self.tech_model.create_constraints(self.model_cfg["scaling_mode"])
 
         # by convention, we should always access bulk model and base params through circuit model
         self.circuit_model = circuit_model.CircuitModel(self.tech_model)
@@ -591,9 +592,52 @@ class HardwareModel:
 
     def calculate_execution_time(self, symbolic):
         if symbolic:
+            # reset the constraints
+            self.circuit_model.tech_model.create_constraints(self.model_cfg["scaling_mode"])
+            #self.circuit_model.set_uarch_parameters()
+            #self.circuit_model.set_uarch_constraints()
             # take symbolic max over the critical paths
             execution_time = 0
-            for path in self.longest_paths:
+            node_arrivals = {}
+            node_arrivals_cvx = {}
+            constr_cvx = []
+            for node in self.scheduled_dfg.nodes:
+                if node == "end":
+                    node_arrivals[node] = self.circuit_model.tech_model.base_params.node_arrivals_end
+                    node_arrivals_cvx[node] = cp.Variable()
+                elif len(list(self.scheduled_dfg.predecessors(node))) == 0:
+                    node_arrivals[node] = 0
+                    node_arrivals_cvx[node] = 0
+                    continue
+                else:
+                    node_arrivals[node] = sp.symbols(f"node_arrivals_{node}")
+                    node_arrivals_cvx[node] = cp.Variable()
+                for pred in self.scheduled_dfg.predecessors(node):
+                    assert self.scheduled_dfg.nodes[pred]["function"] != "nop"
+                    if self.scheduled_dfg.edges[pred, node]["resource_edge"]:
+                        #pred_delay = self.circuit_model.clk_period # convert to ns
+                        pred_delay = 1/self.circuit_model.tech_model.base_params.f * 1e9 # convert to ns
+                    elif self.scheduled_dfg.nodes[pred]["function"] in ["Buf", "MainMem"]:
+                        rsc_name = self.scheduled_dfg.nodes[pred]["library"][self.scheduled_dfg.nodes[pred]["library"].find("__")+1:]
+                        pred_delay = self.circuit_model.symbolic_latency_wc[self.scheduled_dfg.nodes[pred]["function"]]()[rsc_name]
+                    else:
+                        pred_delay = self.circuit_model.symbolic_latency_wc[self.scheduled_dfg.nodes[pred]["function"]]()
+                    if (pred, node) in self.dfg_to_netlist_edge_map:
+                        pred_delay += self.circuit_model.wire_delay(self.dfg_to_netlist_edge_map[(pred, node)], symbolic)
+                    self.circuit_model.tech_model.constraints.append(node_arrivals[node] >= node_arrivals[pred] + pred_delay)
+                    constr_cvx.append(node_arrivals_cvx[node] >= node_arrivals_cvx[pred] + pred_delay.xreplace(self.circuit_model.tech_model.base_params.tech_values).evalf())
+            obj = node_arrivals_cvx["end"]
+            prob = cp.Problem(cp.Minimize(obj), constr_cvx)
+            prob.solve()
+            for node in node_arrivals:
+                if type(node_arrivals_cvx[node]) != int:
+                    self.circuit_model.tech_model.base_params.tech_values[node_arrivals[node]] = node_arrivals_cvx[node].value
+            print(f"cvxpy symbolic execution time: {prob.value}")
+            self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.node_arrivals_end] = self.scheduled_dfg.nodes["end"]["start_time"]
+            execution_time = self.circuit_model.tech_model.base_params.node_arrivals_end
+            print(f"at the end of symbolic execution time calc, there are {len(self.circuit_model.tech_model.constraints)} constraints")
+
+            """for path in self.longest_paths:
                 logger.info(f"adding path to execution time calculation: {path}")
                 path_execution_time = 0
                 for i in range(len(path[1])):
@@ -626,7 +670,7 @@ class HardwareModel:
             obj = node_arrivals["end"]
             prob = cp.Problem(cp.Minimize(obj), constr)
             prob.solve()
-            print(f"cvxpy symbolic execution time: {prob.value}")
+            print(f"cvxpy symbolic execution time: {prob.value}")"""
         else:
             execution_time = self.scheduled_dfg.nodes["end"]["start_time"]
         return execution_time
@@ -683,15 +727,68 @@ class HardwareModel:
         self.execution_time = self.calculate_execution_time(symbolic)
         self.total_passive_energy = self.calculate_passive_energy(self.execution_time, symbolic)
         self.total_active_energy = self.calculate_active_energy(symbolic)
-        self.symbolic_obj_sub_exprs = {
-            "execution_time": self.execution_time,
-            "total_passive_energy": self.total_passive_energy,
-            "total_active_energy": self.total_active_energy,
-            "passive power": self.total_passive_energy/self.execution_time,
-            "subthreshold leakage current": self.circuit_model.tech_model.I_off,
-            "gate tunneling current": self.circuit_model.tech_model.I_tunnel,
-            "effective threshold voltage": self.circuit_model.tech_model.V_th_eff,
-        }
+        if self.model_cfg["model_type"] == "bulk_bsim4":
+            self.symbolic_obj_sub_exprs = {
+                "execution_time": self.execution_time,
+                "passive power": self.total_passive_energy/self.execution_time,
+                "active power": self.total_active_energy/self.execution_time,
+                "subthreshold leakage current": self.circuit_model.tech_model.I_sub,
+                "gate tunneling current": self.circuit_model.tech_model.I_tunnel,
+                "GIDL current": self.circuit_model.tech_model.I_GIDL,
+                "long channel threshold voltage": self.circuit_model.tech_model.base_params.V_th,
+                "effective threshold voltage": self.circuit_model.tech_model.V_th_eff,
+                "supply voltage": self.circuit_model.tech_model.base_params.V_dd,
+                "wire RC": self.circuit_model.tech_model.m1_Rsq * self.circuit_model.tech_model.m1_Csq,
+                "f": self.circuit_model.tech_model.base_params.f,
+            }
+        elif self.circuit_model.tech_model.model_cfg["model_type"] == "bulk":
+            self.symbolic_obj_sub_exprs = {
+                "execution_time": self.execution_time,
+                "passive power": self.total_passive_energy/self.execution_time,
+                "active power": self.total_active_energy/self.execution_time,
+                "subthreshold leakage current": self.circuit_model.tech_model.I_off,
+                "gate tunneling current": self.circuit_model.tech_model.I_tunnel,
+                "FN term": self.circuit_model.tech_model.FN_term,
+                "WKB term": self.circuit_model.tech_model.WKB_term,
+                "GIDL current": self.circuit_model.tech_model.I_GIDL,
+                "effective threshold voltage": self.circuit_model.tech_model.V_th_eff,
+                "supply voltage": self.circuit_model.tech_model.base_params.V_dd,
+                "wire RC": self.circuit_model.tech_model.m1_Rsq * self.circuit_model.tech_model.m1_Csq,
+                "f": self.circuit_model.tech_model.base_params.f,
+            }
+        elif self.circuit_model.tech_model.model_cfg["model_type"] == "vs":
+            self.symbolic_obj_sub_exprs = {
+                "execution_time": self.execution_time,
+                "passive power": self.total_passive_energy/self.execution_time,
+                "active power": self.total_active_energy/self.execution_time,
+                "subthreshold leakage current": self.circuit_model.tech_model.I_off,
+                "long channel threshold voltage": self.circuit_model.tech_model.base_params.V_th,
+                "effective threshold voltage": self.circuit_model.tech_model.V_th_eff.xreplace(self.circuit_model.tech_model.on_state).evalf(),
+                "supply voltage": self.circuit_model.tech_model.base_params.V_dd,
+                "wire RC": self.circuit_model.tech_model.m1_Rsq * self.circuit_model.tech_model.m1_Csq,
+                "on current per um": self.circuit_model.tech_model.I_d_on_per_um,
+                "off current per um": self.circuit_model.tech_model.I_d_off_per_um,
+                "gate tunneling current per um": self.circuit_model.tech_model.I_tunnel_per_um,
+                "subthreshold leakage current per um": self.circuit_model.tech_model.I_sub_per_um,
+                "GIDL current per um": self.circuit_model.tech_model.I_GIDL_per_um,
+                "DIBL factor": self.circuit_model.tech_model.delta,
+                "t_ox": self.circuit_model.tech_model.base_params.tox,
+                "eot": self.circuit_model.tech_model.eot,
+                "scale length": self.circuit_model.tech_model.scale_length,
+                "C_load": self.circuit_model.tech_model.C_load,
+                "C_wire": self.circuit_model.tech_model.C_wire,
+                "R_wire": self.circuit_model.tech_model.R_wire,
+                "R_device": self.circuit_model.tech_model.base_params.V_dd/self.circuit_model.tech_model.I_d_on,
+                "SS": self.circuit_model.tech_model.S,
+                "F_f": self.circuit_model.tech_model.F_f_eval,
+                "F_s": self.circuit_model.tech_model.F_s_eval,
+                "vx0": self.circuit_model.tech_model.vx0,
+                "v": self.circuit_model.tech_model.v,
+                "t_1": self.circuit_model.tech_model.t_1,
+                "f": self.circuit_model.tech_model.base_params.f,
+            }
+        else: 
+            raise ValueError(f"Objective function {self.obj_fn} not supported")
         self.obj_sub_exprs = {
             "execution_time": self.execution_time,
             "total_passive_energy": self.total_passive_energy,

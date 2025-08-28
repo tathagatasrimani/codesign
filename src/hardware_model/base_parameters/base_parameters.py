@@ -20,6 +20,8 @@ class BaseParameters:
         self.tech_node = tech_node
         self.dat_file = dat_file
 
+        self.node_arrivals_end = symbols("node_arrivals_end", positive=True)
+
         self.f = symbols("f", positive=True)
 
         # Logic parameters
@@ -257,6 +259,7 @@ class BaseParameters:
     def init_symbol_table(self):
         # initialize string to symbol mapping
         self.symbol_table = {
+            "node_arrivals_end": self.node_arrivals_end,
             "V_dd": self.V_dd,
             "V_th": self.V_th,
             "f": self.f,

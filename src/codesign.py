@@ -78,7 +78,7 @@ class Codesign:
         self.obj_fn = args.obj
         self.inverse_pass_lag_factor = 1
 
-        self.params_over_iterations = []
+        self.params_over_iterations = [copy.copy(self.hw.circuit_model.tech_model.base_params.tech_values)]
         self.edp_over_iterations = []
         self.lag_factor_over_iterations = [1.0]
         self.max_unroll = 64
@@ -126,7 +126,7 @@ class Codesign:
             self.module_map[unit.lower()] = unit
 
         os.chdir("src/tmp/benchmark")
-        clk_period = 300 # ns, TODO: change to actual clk period
+        clk_period = 1/self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.f] * 1e9 # ns
         # set correct clk period
         sim_util.change_clk_period_in_script("scripts/common.tcl", clk_period)
         
@@ -283,7 +283,7 @@ class Codesign:
                 break
         assert schedule_dir
         schedule_path = f"src/tmp/benchmark/build/{schedule_dir}"
-        schedule_parser = schedule.gnt_schedule_parser(schedule_path, self.module_map, self.hw.circuit_model.circuit_values["latency"])
+        schedule_parser = schedule.gnt_schedule_parser(schedule_path, self.module_map, self.hw.circuit_model.circuit_values["latency"], self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.f])
         schedule_parser.parse()
         schedule_parser.convert(memories=self.hw.circuit_model.memories)
         self.hw.inst_name_map = schedule_parser.inst_name_map
@@ -329,6 +329,7 @@ class Codesign:
         """
         lines = f.readlines()
         mapping = {}
+        max_ind = 0
         i = 0
         while lines[i][0] != "x":
             i += 1
@@ -336,16 +337,20 @@ class Codesign:
             mapping[lines[i][lines[i].find("[") + 1 : lines[i].find("]")]] = (
                 self.hw.circuit_model.tech_model.base_params.symbol_table[lines[i].split(" ")[-1][:-1]]
             )
+            max_ind = int(lines[i][lines[i].find("[") + 1 : lines[i].find("]")])
             i += 1
         while i < len(lines) and lines[i].find("x") != 4:
             i += 1
         i += 2
-        for _ in range(len(mapping)):
+        #print(f"mapping: {mapping}, max_ind: {max_ind}")
+        for _ in range(max_ind):
             key = lines[i].split(":")[0].lstrip().rstrip()
             value = float(lines[i].split(":")[2][1:-1])
-            self.hw.circuit_model.tech_model.base_params.tech_values[mapping[key]] = (
-                value  # just know that self.hw.circuit_model.tech_model.base_params.tech_values contains all dat
-            )
+            if key in mapping:
+                #print(f"key: {key}; mapping: {mapping[key]}; value: {value}")
+                self.hw.circuit_model.tech_model.base_params.tech_values[mapping[key]] = (
+                    value  # just know that self.hw.circuit_model.tech_model.base_params.tech_values contains all dat
+                )
             i += 1
 
     def write_back_params(self, params_path="src/yaml/params_current.yaml"):

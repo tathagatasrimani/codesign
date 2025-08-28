@@ -18,6 +18,7 @@ default:
   Cs: 100 # F/m^2
   f: 100.0e+6
   t_1: 1.0e-6
+  node_arrivals_end: 0
 
 tech-1982:
   L: 2.1e-06

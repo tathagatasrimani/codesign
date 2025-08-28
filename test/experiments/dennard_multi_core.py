@@ -179,11 +179,6 @@ class DennardMultiCore:
             self.edp_over_iterations.append(self.codesign_module.hw.symbolic_obj.xreplace(self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values).evalf())
             self.lag_factor_over_iterations.append(self.codesign_module.inverse_pass_lag_factor)
 
-            regularization = 0
-            for var in self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values:
-                regularization += (max(self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values[var]/initial_tech_params[var] - 1,
-                                initial_tech_params[var]/self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values[var] - 1)**2)
-            logger.info(f"regularization in iteration {i}: {regularization}")
             self.codesign_module.log_all_to_file(i)
             self.update_params_over_iterations()
 

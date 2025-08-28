@@ -158,14 +158,15 @@ class Preprocessor:
         Parameters:
         obj: sympy objective function
         """
-        l = self.initial_val / 100
+        #l = self.initial_val / 100
+        l = self.initial_val / (100 + len(self.free_symbols))
         logger.info("Adding regularization.")
         self.regularization = 0
         # normal regularization for each variable
         for symbol in self.free_symbols:
-            print(f"symbol: {symbol}; value: {self.params.tech_values[symbol]}; type: {type(self.params.tech_values[symbol])}")
-            self.regularization += hardwareModel.symbolic_convex_max((self.params.tech_values[symbol]/ symbol- 1), 
-                                                         (symbol/self.params.tech_values[symbol] - 1)) ** 2
+            if symbol.name in self.params.symbol_table:
+                self.regularization += hardwareModel.symbolic_convex_max((self.params.tech_values[symbol]/ symbol- 1), 
+                                                            (symbol/self.params.tech_values[symbol] - 1)) ** 2
 
         # expressions inside a log/sqrt must not be negative
         """for log_expr in self.log_exprs_s:
@@ -252,7 +253,8 @@ class Preprocessor:
         i = 0
         for j in model.x:
             self.mapping[self.free_symbols[i]] = j
-            print(f"x[{j}] {self.free_symbols[i]}")
+            if self.free_symbols[i].name in self.params.symbol_table:
+                print(f"x[{j}] {self.free_symbols[i]}")
             i += 1
 
         print("building bimap")
@@ -262,8 +264,9 @@ class Preprocessor:
             # create self.mapping of sympy symbols to pyomo symbols
             m.sympy2pyomo[symbol] = model.x[self.mapping[symbol]]
             # give pyomo symbols an inital value for warm start
-            model.x[self.mapping[symbol]] = self.params.tech_values[symbol]
-            print(f"symbol: {symbol}; initial value: {self.params.tech_values[symbol]}")
+            if symbol in self.params.tech_values:# and not symbol.name.startswith("node_arrivals_"):
+                model.x[self.mapping[symbol]] = self.params.tech_values[symbol]
+                print(f"symbol: {symbol}; initial value: {self.params.tech_values[symbol]}")
 
         # find all pow/log expressions within obj equation and cacti equations, convert to pyomo
         # We shouldn't need to find any pow/log expressions in the obj expression itself. Cacti sub expressions
@@ -328,6 +331,7 @@ class Preprocessor:
         sympy_obj = self.add_regularization_to_objective(obj)
         self.regularization = sympy_tools.sympy2pyomo_expression(self.regularization, m)
         print(f"added regularization")
+        print(f"value of objective after regularization: {sympy_obj.xreplace(self.params.tech_values)}")
 
         self.obj = sympy_tools.sympy2pyomo_expression(sympy_obj, m)
 
