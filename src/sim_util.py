@@ -67,14 +67,22 @@ def get_latest_log_dir():
     )
     return log_dirs[-1]
 
-def change_clk_period_in_script(filename, new_period):
+def change_clk_period_in_script(filename, new_period, hls_tool):
+    CATAPULT_PERIOD_POSITION = -1
+    VITIS_PERIOD_POSITION = 2
     new_lines = []
     with open(filename, "r") as f:
         lines = f.readlines()
         for line in lines:
             new_line= line
-            if line.find("set clk_period") != -1:
-                new_line = line.replace(line.split()[-1], str(new_period))
+            if hls_tool == "catapult":
+                if line.find("set clk_period") != -1:
+                    new_line = line.replace(line.split()[CATAPULT_PERIOD_POSITION], str(new_period))
+            elif hls_tool == "vitis":
+                if line.find("create_clock") != -1:
+                    new_line = line.replace(line.split()[VITIS_PERIOD_POSITION], str(new_period))
+            else:
+                raise ValueError(f"Invalid hls tool: {hls_tool}")
             new_lines.append(new_line)
     with open(filename, "w") as f:
         f.writelines(new_lines)

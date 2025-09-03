@@ -4,6 +4,7 @@ import yaml
 import sys
 import datetime
 import json
+import math
 import logging
 import shutil
 import subprocess
@@ -143,9 +144,6 @@ class Codesign:
             self.module_map[unit.lower()] = unit
 
         os.chdir("src/tmp/benchmark")
-        clk_period = 1/self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.f] * 1e9 # ns
-        # set correct clk period
-        sim_util.change_clk_period_in_script("scripts/common.tcl", clk_period)
         
         # add area constraint
         sim_util.add_area_constraint_to_script(f"scripts/{self.benchmark_name}.tcl", self.hw.area_constraint)
@@ -193,12 +191,17 @@ class Codesign:
 
     def set_resource_constraint_scalehls(self):
         """
-        Sets the resource constraint for ScaleHLS.
+        Sets the resource constraint and op latencies for ScaleHLS.
         """
         with open(f"scalehls-hida/test/Transforms/Directive/config.json", "r") as f:
             config = json.load(f)
         dsp_multiplier = 1e15 # TODO replace with more comprehensive model
         config["dsp"] = int(self.cfg["args"]["area"] / (self.hw.circuit_model.tech_model.param_db["A_gate"].xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf() * dsp_multiplier))
+        # I don't think "100MHz" has any meaning because scaleHLS should be agnostic to frequency
+        config["100MHz"]["fadd"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["Add"] / self.clk_period)
+        config["100MHz"]["fmul"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["Mult"] / self.clk_period)
+        config["100MHz"]["fdiv"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["FloorDiv"] / self.clk_period)
+        config["100MHz"]["fcmp"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["GtE"] / self.clk_period)
         with open(f"scalehls-hida/test/Transforms/Directive/config.json", "w") as f:
             json.dump(config, f)
 
@@ -360,9 +363,13 @@ class Codesign:
             shutil.rmtree("src/tmp/benchmark")
         shutil.copytree(self.benchmark, "src/tmp/benchmark")
 
+        self.clk_period = 1/self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.f] * 1e9 # ns
+
         if self.hls_tool == "catapult":
+            sim_util.change_clk_period_in_script("src/tmp/benchmark/scripts/common.tcl", self.clk_period, self.cfg["args"]["hls_tool"])
             self.catapult_forward_pass()
         else:
+            sim_util.change_clk_period_in_script("src/tmp/benchmark/tcl_script.tcl", self.clk_period, self.cfg["args"]["hls_tool"])
             self.vitis_forward_pass()
 
         # prepare schedule & calculate wire parasitics
