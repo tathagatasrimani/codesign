@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 import pandas as pd
 import sympy as sp
 
-from src import parameters
+from src.hardware_model.base_parameters import base_parameters
 
 from src.cacti import CACTI_DIR, TRANSISTOR_SIZES
 
@@ -1389,7 +1389,7 @@ def differentiate_all(cfg: str, dat: str):
     )
     os.makedirs(pd_results_dir, exist_ok=True)
 
-    params = parameters.Parameters("default", dat)
+    params = base_parameters.BaseParameters("default", dat)
 
     processes = []
     for f in symbolic_expression_files:

@@ -1,6 +1,6 @@
 default:
-  u_n: 700.0e-4  # Electron mobility (m²/V·s)
-  Cox: 3.45e-4  # Gate oxide capacitance (F/m²)
+  u_n: 0.07 # 700.0e-4  # Electron mobility (m²/V·s)
+  tox: 1.0002260869565218e-07  # Gate oxide thickness (m)
   W: 9.0e-6  # Channel width (m)
   L: 3.0e-6  # Channel length (m)
   #n: 1.0  # Subthreshold slope factor
@@ -8,140 +8,162 @@ default:
   V_th: 0.9  # Threshold voltage (V)
   V_dd: 5.0  # Supply voltage (V)
   area: 2.0  # Transistor area (μm²)
-  m1_Rsq: 0.05 # ohm / sq
-  m1_Csq: 0.02e-15 # F / sq
+  m1_rho: 4.0e-8 # ohm * m
+  m1_k: 3.9 # F / m
+  m2_rho: 4.0e-8 # ohm * m
+  m2_k: 3.9 # F / m
+  m3_rho: 4.0e-8 # ohm * m
+  m3_k: 3.9 # F / m
+  k_gate: 3.9 # dielectric constant
+  Cs: 100 # F/m^2
+  f: 4.0e+6
+  t_1: 1.0e-6
+  node_arrivals_end: 0
 
 tech-1982:
   L: 2.1e-06
   W: 6.3e-06
   area: 0.98
-  Cox: 0.0004929
+  tox: 6.999237964052287e-08
   V_dd: 3.5
   V_th: 0.63
-  u_n: 0.0693
+  u_n: 0.07
 
 tech-1984:
   L: 1.47e-06
   W: 4.41e-06
   area: 0.4802
-  Cox: 0.0007041
+  tox: 4.864964285714286e-08
   V_dd: 2.45
   V_th: 0.44
-  u_n: 0.0686
+  u_n: 0.07
 
 tech-1986:
   L: 1.029e-06
   W: 3.087e-06
   area: 0.235298
-  Cox: 0.0010058
+  tox: 3.426003099019514e-08
   V_dd: 1.71
   V_th: 0.31
-  u_n: 0.0679
+  u_n: 0.07
 
 tech-1988:
   L: 7.203e-07
   W: 2.1609e-06
   area: 0.11529602
-  Cox: 0.0014369
+  tox: 2.4000999999999997e-08
   V_dd: 1.2
   V_th: 0.22
-  u_n: 0.0672
+  u_n: 0.07
 
 tech-1990:
   L: 5.042e-07
   W: 1.5126e-06
   #area: 0.0564950498
-  Cox: 0.0020527
+  tox: 1.679019024970772e-08
   V_dd: 1.0
   V_th: 0.2
-  u_n: 0.0665
+  u_n: 0.07
 
 tech-1992:
   L: 3.529e-07
   W: 1.0588e-06
   area: 0.0276825744
-  Cox: 0.0029325
+  tox: 1.1770128571428572e-08
   V_dd: 1.0
   V_th: 0.2
-  u_n: 0.0658
+  u_n: 0.07
 
 tech-1994:
   L: 2.471e-07
   W: 7.412e-07
   area: 0.0135644615
-  Cox: 0.0041892
+  tox: 8.242999999999999e-09
   V_dd: 1.0
   V_th: 0.2
-  u_n: 0.0651
+  u_n: 0.07
 
 tech-1996:
   L: 1.729e-07
   W: 5.188e-07
   area: 0.0066465861
-  Cox: 0.0059846
+  tox: 5.774999999999999e-09
   V_dd: 1.0
   V_th: 0.2
-  u_n: 0.0644
+  u_n: 0.07
 
 tech-1998:
   L: 1.211e-07
   W: 3.632e-07
   area: 0.0032568272
-  Cox: 0.0085494
+  tox: 4.038999999999999e-09
   V_dd: 1.0
   V_th: 0.2
-  u_n: 0.0637
+  u_n: 0.07
 
 tech-2000:
   L: 8.47e-08
   W: 2.542e-07
   area: 0.0015958453
-  Cox: 0.0122135
+  tox: 2.8259999999999997e-09
   V_dd: 1.0
   V_th: 0.2
-  #u_n: 0.063
+  #u_n: 0.07
 
 tech-2002:
   L: 5.93e-08
   W: 1.78e-07
   area: 0.0007819642
-  Cox: 0.0174478
+  tox: 1.9789999999999997e-09
   V_dd: 1.0
   V_th: 0.2
-  u_n: 0.0623
+  u_n: 0.07
 
 tech-2004:
   L: 4.15e-08
   W: 1.246e-07
   area: 0.0003831625
-  Cox: 0.0249254
+  tox: 1.3879999999999998e-09
   V_dd: 1.0
   V_th: 0.2
-  u_n: 0.0616
+  u_n: 0.07
 
 tech-2006:
   L: 2.91e-08
   W: 8.72e-08
   area: 0.0001877496
-  Cox: 0.0356078
+  tox: 9.698999999999999e-10
   V_dd: 1.0
   V_th: 0.2
-  u_n: 0.0609
+  u_n: 0.07
+  k_gate: 3.9
 
 tech-2008:
   L: 2.03e-08
   W: 6.1e-08
   area: 9.19973e-05
-  Cox: 0.0508682
+  tox: 6.784999999999999e-10
   V_dd: 1.0
   V_th: 0.2
-  u_n: 0.0602
+  u_n: 0.07
+  k_gate: 20
 
 tech-2010:
   L: 1.42e-08
   W: 4.27e-08
   area: 4.50787e-05
-  Cox: 0.0726689
+  tox: 4.748999999999999e-10
   V_dd: 1.0
   V_th: 0.2
-  u_n: 0.0595
+  u_n: 0.07
+  k_gate: 20
+
+tech-vs-65:
+  L: 35.0e-08
+  W: 1.5e-07
+  area: 0.0001877496
+  tox: 9.698999999999999e-10
+  V_dd: 1.2
+  V_th: 0.2
+  u_n: 0.07
+  k_gate: 3.9

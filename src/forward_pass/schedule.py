@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import networkx as nx
 
-from . import sim_util
+from src import sim_util
 
 def calculate_similarity(G, p1, p2):
     """
@@ -372,7 +372,7 @@ class gnt_schedule_parser:
         build_dir (str): Directory containing schedule and report files.
         module_map (dict): Mapping from ccore module names to standard operator names.
     """
-    def __init__(self, build_dir, module_map, circuit_delays):
+    def __init__(self, build_dir, module_map, circuit_delays, f):
         # use for accurate circuit delays (not rounded to nearest hundredth)
         self.circuit_delays = circuit_delays
         self.filename = build_dir + "/schedule.gnt"
@@ -390,6 +390,7 @@ class gnt_schedule_parser:
         self.extra_edges = [] # resource edges
         self.element_counts = {}
         self.inst_name_map = {}
+        self.f = f
 
     def parse(self):
         self.parse_bom()
@@ -545,7 +546,7 @@ class gnt_schedule_parser:
                         self.modified_G.add_edge(
                             topo_order_by_mem_port[port][i],
                             topo_order_by_mem_port[port][i+1],
-                            weight=self.modified_G.nodes[topo_order_by_mem_port[port][i]]["cost"],
+                            weight=(1/self.f)*1e9, # convert to ns
                             resource_edge=True
                         )
                         logger.info(f"adding memory port resource dependency between {topo_order_by_mem_port[port][i]} and {topo_order_by_mem_port[port][i+1]} for port {port}")
@@ -558,7 +559,7 @@ class gnt_schedule_parser:
                         self.modified_G.add_edge(
                             topo_order_by_elem[func][elem][i],
                             topo_order_by_elem[func][elem][i+1],
-                            weight=self.modified_G.nodes[topo_order_by_elem[func][elem][i]]["cost"],
+                            weight=(1/self.f)*1e9, # convert to ns
                             resource_edge=True
                         )
                         logger.info(f"adding resource dependency between {topo_order_by_elem[func][elem][i]} and {topo_order_by_elem[func][elem][i+1]}")
@@ -727,7 +728,12 @@ class gnt_schedule_parser:
         if (line.find(" DELAY ") != -1): # todo: investigate if CYCLES need to be added to delay
             for i in range(len(tokens)):
                 if (tokens[i] == "DELAY"):
-                    node_delay = float(tokens[i+1][1:]) # take out brackets with [1:-1]
+                    node_delay_str = tokens[i+1][1:]
+                    if node_delay_str.find("cy+") != -1:
+                        parts = node_delay_str.split("cy+")
+                        node_delay = float(parts[0]) * 1/self.f * 1e9 + float(parts[1])
+                    else:
+                        node_delay = float(tokens[i+1][1:]) # take out brackets with [1:-1]
             #print(node_delay)
         node_library = ""
         if (line.find(" LIBRARY ") != -1):

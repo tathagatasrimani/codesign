@@ -3,23 +3,26 @@ import os
 import yaml
 import sys
 import datetime
+import json
+import math
 import logging
 import shutil
 import subprocess
 import copy
 import networkx as nx
 import matplotlib.pyplot as plt
-from src.netlist_parse import parse_yosys_json
+from src.forward_pass.netlist_parse import parse_yosys_json
 
 logger = logging.getLogger("codesign")
 
-from . import cacti_util
-from . import sim_util
-from . import hardwareModel
-from . import optimize
-from . import schedule
-from . import memory
-from . import ccore_update
+from src import cacti_util
+from src import sim_util
+from src.hardware_model import hardwareModel
+from src.inverse_pass import optimize
+from src.forward_pass import schedule
+from src import memory
+from src.forward_pass import ccore_update
+from src import trend_plot
 
 DEBUG_YOSYS = False  # set to True to debug yosys output.
 
@@ -40,10 +43,14 @@ class Codesign:
         Returns:
             None
         """
-        self.benchmark = f"src/benchmarks/{args.benchmark}"
-        self.benchmark_name = args.benchmark
+        self.set_config(args)
+
+
+        self.hls_tool = self.cfg["args"]["hls_tool"]
+        self.benchmark = f"src/benchmarks/{self.hls_tool}/{self.cfg['args']['benchmark']}"
+        self.benchmark_name = self.cfg["args"]["benchmark"]
         self.save_dir = os.path.join(
-            args.savedir, datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            self.cfg["args"]["savedir"], datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         )
 
         if not os.path.exists(self.save_dir):
@@ -59,49 +66,56 @@ class Codesign:
             shutil.rmtree("src/tmp")
         os.mkdir("src/tmp")
 
-        #shutil.copytree(self.benchmark, f"{self.save_dir}/benchmark")
-
         logging.basicConfig(filename=f"{self.save_dir}/codesign.log", level=logging.INFO)
+        logger.info(f"args: {self.cfg['args']}")
 
-        self.forward_edp = 0
-        self.inverse_edp = 0
-        self.openroad_testfile = args.openroad_testfile
-        self.parasitics = args.parasitics
-        self.run_cacti = not args.debug_no_cacti
-        self.no_memory = args.no_memory
-        self.hw = hardwareModel.HardwareModel(args)
+        self.forward_obj = 0
+        self.inverse_obj = 0
+        self.openroad_testfile = self.cfg["args"]["openroad_testfile"]
+        self.parasitics = self.cfg["args"]["parasitics"]
+        self.run_cacti = not self.cfg["args"]["debug_no_cacti"]
+        self.no_memory = self.cfg["args"]["no_memory"]
+        self.hw = hardwareModel.HardwareModel(self.cfg["args"])
         self.opt = optimize.Optimizer(self.hw)
         self.module_map = {}
-        self.inverse_pass_improvement = args.inverse_pass_improvement if (hasattr(args, "inverse_pass_improvement") and args.inverse_pass_improvement) else 10
-        self.obj_fn = args.obj
+        self.inverse_pass_improvement = self.cfg["args"]["inverse_pass_improvement"]
+        self.obj_fn = self.cfg["args"]["obj"]
         self.inverse_pass_lag_factor = 1
 
-        self.params_over_iterations = []
-        self.plot_list = set([
-            self.hw.params.V_dd,
-            self.hw.params.V_th,
-            #self.hw.params.u_n,
-            self.hw.params.L,
-            self.hw.params.W,
-            self.hw.params.t_ox_,
-        ])
+        self.params_over_iterations = [copy.copy(self.hw.circuit_model.tech_model.base_params.tech_values)]
+        self.obj_over_iterations = []
+        self.lag_factor_over_iterations = [1.0]
         self.max_unroll = 64
 
         self.save_dat()
 
-        with open("src/tmp/tech_params_0.yaml", "w") as f:
-            f.write(yaml.dump(self.hw.params.tech_values))
+        #with open("src/tmp/tech_params_0.yaml", "w") as f:
+        #    f.write(yaml.dump(self.hw.circuit_model.tech_model.base_params.tech_values))
 
         self.hw.write_technology_parameters(self.save_dir+"/initial_tech_params.yaml")
 
+    # any arguments specified on CLI will override the default config
+    def set_config(self, args):
+        with open(f"src/yaml/codesign_cfg.yaml", "r") as f:
+            cfgs = yaml.load(f, Loader=yaml.FullLoader)
+        overwrite_args_all = vars(args)
+        overwrite_args = {}
+        for key, value in overwrite_args_all.items():
+            if value is not None:
+                overwrite_args[key] = value
+        overwrite_cfg = {"base_cfg": args.config, "args": overwrite_args}
+        cfgs["overwrite_cfg"] = overwrite_cfg
+        self.cfg = sim_util.recursive_cfg_merge(cfgs, "overwrite_cfg")
+        print(f"args: {self.cfg['args']}")
+
     def log_forward_tech_params(self):
-        latency = self.hw.params.circuit_values["latency"]
+        latency = self.hw.circuit_model.circuit_values["latency"]
         logger.info(f"latency (ns):\n {latency}")
 
-        active_energy_logic = self.hw.params.circuit_values["dynamic_energy"]
+        active_energy_logic = self.hw.circuit_model.circuit_values["dynamic_energy"]
         logger.info(f"active energy (nW):\n {active_energy_logic}")
 
-        passive_power = self.hw.params.circuit_values["passive_power"]
+        passive_power = self.hw.circuit_model.circuit_values["passive_power"]
         logger.info(f"passive power (nW):\n {passive_power}")
 
         #logger.info(f"compute operation totals in fw pass:\n {self.hw.compute_operation_totals}")
@@ -126,13 +140,10 @@ class Codesign:
                 "ccs_ram_sync_1R1W_wport": "Rsc",
                 "nop": "nop"
             }
-        for unit in self.hw.params.circuit_values["area"].keys():
+        for unit in self.hw.circuit_model.circuit_values["area"].keys():
             self.module_map[unit.lower()] = unit
 
         os.chdir("src/tmp/benchmark")
-        clk_period = 300 # ns, TODO: change to actual clk period
-        # set correct clk period
-        sim_util.change_clk_period_in_script("scripts/common.tcl", clk_period)
         
         # add area constraint
         sim_util.add_area_constraint_to_script(f"scripts/{self.benchmark_name}.tcl", self.hw.area_constraint)
@@ -147,9 +158,9 @@ class Codesign:
         # if not self.no_memory:
         #     ## If we are running with memory, we need to run Cacti to get the memory parameters and then rerun Catapult. 
         #     pre_assign_counts = memory.get_pre_assign_counts(f"src/tmp/benchmark/bom.rpt", self.module_map)
-        #     logger.info(f"hw.params.circuit_values: {self.hw.params.circuit_values}")
-        #     self.hw.params.set_memories(memory.customize_catapult_memories(f"src/tmp/benchmark/memories.rpt", self.benchmark_name, self.hw, pre_assign_counts))
-        #     logger.info(f"custom catapult memories: {self.hw.params.memories}")
+        #     logger.info(f"hw.circuit_model.circuit_values: {self.hw.circuit_model.circuit_values}")
+        #     self.hw.circuit_model.set_memories(memory.customize_catapult_memories(f"src/tmp/benchmark/memories.rpt", self.benchmark_name, self.hw, pre_assign_counts))
+        #     logger.info(f"custom catapult memories: {self.hw.circuit_model.memories}")
         #     os.chdir("src/tmp/benchmark")
         #     p = subprocess.run(["make", "clean"], capture_output=True, text=True)
         #     p = subprocess.run(cmd, capture_output=True, text=True)
@@ -159,7 +170,7 @@ class Codesign:
         #     os.chdir("../../..")
         # else:
         logger.info("skipping memory customization and second catapult run")
-        self.hw.params.set_memories({})
+        self.hw.circuit_model.set_memories({})
 
         # Extract Hardware Netlist
         cmd = ["yosys", "-p", f"read_verilog src/tmp/benchmark/build/{self.benchmark_name}.v1/rtl.v; hierarchy -top {self.benchmark_name}; proc; write_json src/tmp/benchmark/netlist.json"]
@@ -178,32 +189,107 @@ class Codesign:
         with open("src/tmp/benchmark/full_netlist_debug.gml", "wb") as f:
             nx.write_gml(full_netlist, f)
 
-    def forward_pass(self):
+    def set_resource_constraint_scalehls(self):
         """
-        Executes the forward pass of the codesign process: prepares benchmark, updates ccore
-        delays/areas, runs Catapult, calculates wire parasitics, and parses timing reports.
+        Sets the resource constraint and op latencies for ScaleHLS.
+        """
+        with open(f"scalehls-hida/test/Transforms/Directive/config.json", "r") as f:
+            config = json.load(f)
+        dsp_multiplier = 1e15 # TODO replace with more comprehensive model
+        config["dsp"] = int(self.cfg["args"]["area"] / (self.hw.circuit_model.tech_model.param_db["A_gate"].xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf() * dsp_multiplier))
+        # I don't think "100MHz" has any meaning because scaleHLS should be agnostic to frequency
+        config["100MHz"]["fadd"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["Add"] / self.clk_period)
+        config["100MHz"]["fmul"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["Mult"] / self.clk_period)
+        config["100MHz"]["fdiv"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["FloorDiv"] / self.clk_period)
+        config["100MHz"]["fcmp"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["GtE"] / self.clk_period)
+        with open(f"scalehls-hida/test/Transforms/Directive/config.json", "w") as f:
+            json.dump(config, f)
+
+    def run_scalehls(self):
+        """
+        Runs ScaleHLS synthesis tool in a different environment with modified PATH and PYTHONPATH.
+        Updates the memory configuration and logs the output.
+        Handles directory changes and cleans up temporary files.
 
         Args:
             None
         Returns:
             None
         """
-        print("\nRunning Forward Pass")
-        logger.info("Running Forward Pass")
+        self.set_resource_constraint_scalehls()
+
+        # Store original environment variables
+        original_path = os.environ.get('PATH', '')
+        original_pythonpath = os.environ.get('PYTHONPATH', '')
+        
+        # Set up ScaleHLS environment
+        scalehls_path = f"{os.path.dirname(__file__)}/../scalehls-hida/build/bin:{os.path.dirname(__file__)}/../scalehls-hida/polygeist/build/bin"  
+        scalehls_pythonpath = f"{os.path.dirname(__file__)}/../scalehls-hida/python"  # Update this path
+        
+        # Modify environment variables
+        new_path = f"{scalehls_path}:{original_path}" if scalehls_path not in original_path else original_path
+        new_pythonpath = f"{scalehls_pythonpath}:{original_pythonpath}" if original_pythonpath else scalehls_pythonpath
+        
+        # Create modified environment
+        modified_env = os.environ.copy()
+        modified_env['PATH'] = new_path
+        modified_env['PYTHONPATH'] = new_pythonpath
+        
+        try:
+            os.chdir(f"scalehls-hida/samples/polybench/{self.benchmark_name}")
+
+            # ScaleHLS commands with shell redirection and pipes
+            scalehls_commands = [
+                f"cgeist test_{self.benchmark_name}.c -function=test_{self.benchmark_name} -S -memref-fullrank -raise-scf-to-affine > test_{self.benchmark_name}.mlir",
+                f"scalehls-opt test_{self.benchmark_name}.mlir -scalehls-dse-pipeline=\"top-func=test_{self.benchmark_name} target-spec=../../../test/Transforms/Directive/config.json\" | scalehls-translate -scalehls-emit-hlscpp > {os.path.join(os.path.dirname(__file__), 'tmp/benchmark')}/test_{self.benchmark_name}_dse.cpp",
+            ]
+            
+            for cmd in scalehls_commands:
+                logger.info(f"Running ScaleHLS command: {cmd}")
+                p = subprocess.run(cmd, shell=True, capture_output=True, text=True, env=modified_env)
+                logger.info(f"ScaleHLS command output: {p.stdout}")
+                if p.returncode != 0:
+                    logger.error(f"ScaleHLS command failed: {p.stderr}")
+                    raise Exception(f"ScaleHLS command failed: {p.stderr}")
+        
+                
+        finally:
+            # Restore original environment variables
+            os.environ['PATH'] = original_path
+            if original_pythonpath:
+                os.environ['PYTHONPATH'] = original_pythonpath
+            elif 'PYTHONPATH' in os.environ:
+                del os.environ['PYTHONPATH']
+
+    def vitis_forward_pass(self):
+        """
+        Runs Vitis version of forward pass, updates the memory configuration, and logs the output.
+        """
+        self.run_scalehls()
+        os.chdir(os.path.join(os.path.dirname(__file__), "tmp/benchmark"))
+        command = ["vitis_hls -f tcl_script.tcl"]
+        p = subprocess.run(command, shell=True, capture_output=True, text=True)
+        logger.info(f"Vitis HLS command output: {p.stdout}")
+        if p.returncode != 0:
+            logger.error(f"Vitis HLS command failed: {p.stderr}")
+            raise Exception(f"Vitis HLS command failed: {p.stderr}")
+        os.chdir(os.path.join(os.path.dirname(__file__), ".."))
+        # PARSE OUTPUT, set schedule and read netlist
+        raise Exception("Not implemented")
 
 
-        ## clear out the existing tmp benchmark directory and copy the benchmark files from the desired benchmark
-        if os.path.exists("src/tmp/benchmark"):
-            shutil.rmtree("src/tmp/benchmark")
-        shutil.copytree(self.benchmark, "src/tmp/benchmark")
-        shutil.copytree("src/ccores_base", "src/tmp/benchmark/src/ccores")
+    def catapult_forward_pass(self):
+        """
+        Runs Catapult version of forward pass, updates the memory configuration, and logs the output.
+        """
+        shutil.copytree("src/forward_pass/ccores_base", "src/tmp/benchmark/src/ccores")
 
         # update delay and area of ccores
-        ccore_update.update_ccores(self.hw.params.circuit_values["area"], self.hw.params.circuit_values["latency"])
+        ccore_update.update_ccores(self.hw.circuit_model.circuit_values["area"], self.hw.circuit_model.circuit_values["latency"])
 
         if self.benchmark_name == "matmult":
             # change the unroll factors in the matmult_basic.cpp file
-            with open("src/benchmarks/matmult/src/matmult_basic.cpp", "r") as f:
+            with open(f"{self.benchmark}/src/matmult_basic.cpp", "r") as f:
                 lines = f.readlines()
             with open("src/tmp/benchmark/src/matmult_basic.cpp", "w") as f:
                 unroll_stmts = []
@@ -226,7 +312,7 @@ class Codesign:
                 f.writelines(lines)
         elif self.benchmark_name == "basic_aes":
             # change the unroll factors in the basic_aes.cpp file
-            with open("src/benchmarks/basic_aes/src/basic_aes.cpp", "r") as f:
+            with open(f"{self.benchmark}/src/basic_aes.cpp", "r") as f:
                 lines = f.readlines()
             with open("src/tmp/benchmark/src/basic_aes.cpp", "w") as f:
                 unroll_stmts = []
@@ -251,21 +337,50 @@ class Codesign:
                     #print(f"unrolling {unroll_stmts[i]} by {min(amount_to_unroll, max_unrolls[i])}")
 
                 f.writelines(lines)
+
         # run catapult with custom memory configurations
         self.run_catapult()
 
         # parse catapult timing report and create schedule
         self.parse_catapult_timing()
 
-        
+    def forward_pass(self):
+        """
+        Executes the forward pass of the codesign process: prepares benchmark, updates ccore
+        delays/areas, runs hls, calculates wire parasitics, and parses timing reports.
+
+        Args:
+            None
+        Returns:
+            None
+        """
+        print("\nRunning Forward Pass")
+        logger.info("Running Forward Pass")
+
+
+        ## clear out the existing tmp benchmark directory and copy the benchmark files from the desired benchmark
+        if os.path.exists("src/tmp/benchmark"):
+            shutil.rmtree("src/tmp/benchmark")
+        shutil.copytree(self.benchmark, "src/tmp/benchmark")
+
+        self.clk_period = 1/self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.f] * 1e9 # ns
+
+        if self.hls_tool == "catapult":
+            sim_util.change_clk_period_in_script("src/tmp/benchmark/scripts/common.tcl", self.clk_period, self.cfg["args"]["hls_tool"])
+            self.catapult_forward_pass()
+        else:
+            sim_util.change_clk_period_in_script("src/tmp/benchmark/tcl_script.tcl", self.clk_period, self.cfg["args"]["hls_tool"])
+            self.vitis_forward_pass()
 
         # prepare schedule & calculate wire parasitics
         self.prepare_schedule()
 
-        ## create the EDP equation 
+        ## create the obj equation 
         self.hw.calculate_objective()
 
         self.display_objective("after forward pass")
+
+        self.obj_over_iterations.append(self.hw.obj)
 
     def parse_catapult_timing(self):
         """
@@ -285,9 +400,9 @@ class Codesign:
                 break
         assert schedule_dir
         schedule_path = f"src/tmp/benchmark/build/{schedule_dir}"
-        schedule_parser = schedule.gnt_schedule_parser(schedule_path, self.module_map, self.hw.params.circuit_values["latency"])
+        schedule_parser = schedule.gnt_schedule_parser(schedule_path, self.module_map, self.hw.circuit_model.circuit_values["latency"], self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.f])
         schedule_parser.parse()
-        schedule_parser.convert(memories=self.hw.params.memories)
+        schedule_parser.convert(memories=self.hw.circuit_model.memories)
         self.hw.inst_name_map = schedule_parser.inst_name_map
         self.hw.scheduled_dfg = schedule_parser.modified_G
 
@@ -315,8 +430,6 @@ class Codesign:
 
         # set end node's start time to longest path length
         self.hw.scheduled_dfg.nodes["end"]["start_time"] = nx.dag_longest_path_length(self.hw.scheduled_dfg)
-
-        self.hw.longest_paths = schedule.get_longest_paths(self.hw.scheduled_dfg)
     
     def parse_output(self, f):
         """
@@ -331,42 +444,47 @@ class Codesign:
         """
         lines = f.readlines()
         mapping = {}
+        max_ind = 0
         i = 0
         while lines[i][0] != "x":
             i += 1
         while lines[i][0] == "x":
             mapping[lines[i][lines[i].find("[") + 1 : lines[i].find("]")]] = (
-                self.hw.params.symbol_table[lines[i].split(" ")[-1][:-1]]
+                self.hw.circuit_model.tech_model.base_params.symbol_table[lines[i].split(" ")[-1][:-1]]
             )
+            max_ind = int(lines[i][lines[i].find("[") + 1 : lines[i].find("]")])
             i += 1
         while i < len(lines) and lines[i].find("x") != 4:
             i += 1
         i += 2
-        for _ in range(len(mapping)):
+        #print(f"mapping: {mapping}, max_ind: {max_ind}")
+        for _ in range(max_ind):
             key = lines[i].split(":")[0].lstrip().rstrip()
             value = float(lines[i].split(":")[2][1:-1])
-            self.hw.params.tech_values[mapping[key]] = (
-                value  # just know that self.hw.params.tech_values contains all dat
-            )
+            if key in mapping:
+                #print(f"key: {key}; mapping: {mapping[key]}; value: {value}")
+                self.hw.circuit_model.tech_model.base_params.tech_values[mapping[key]] = (
+                    value  # just know that self.hw.circuit_model.tech_model.base_params.tech_values contains all dat
+                )
             i += 1
 
-    def write_back_params(self, params_path="src/params/params_current.yaml"):
+    def write_back_params(self, params_path="src/yaml/params_current.yaml"):
         """
         Writes the technology parameters back to a YAML file
 
         Args:
-            params_path (str): Path to the output YAML file. Defaults to 'src/params/params_current.yaml'.
+            params_path (str): Path to the output YAML file. Defaults to 'src/yaml/params_current.yaml'.
 
         Returns:
             None
         """
         with open(params_path, "w") as f:
             d = {}
-            for key in self.hw.params.tech_values:
+            for key in self.hw.circuit_model.tech_model.base_params.tech_values:
                 if isinstance(key, str):
-                    d[key] = float(self.hw.params.tech_values[key])
+                    d[key] = float(self.hw.circuit_model.tech_model.base_params.tech_values[key])
                 else:
-                    d[key.name] = float(self.hw.params.tech_values[key])
+                    d[key.name] = float(self.hw.circuit_model.tech_model.base_params.tech_values[key])
             f.write(yaml.dump(d))
 
     def symbolic_conversion(self):
@@ -379,34 +497,34 @@ class Codesign:
         base_cache_cfg = "cfg/base_cache.cfg"
         mem_cache_cfg = "cfg/mem_cache.cfg"
         existing_memories = {}
-        for memory in self.hw.params.memories:
-            data_tuple = tuple(self.hw.params.memories[memory])
+        for memory in self.hw.circuit_model.memories:
+            data_tuple = tuple(self.hw.circuit_model.memories[memory])
             if data_tuple in existing_memories:
                 logger.info(f"reusing symbolic cacti values of {existing_memories[data_tuple]} for {memory}")
-                mem_type = self.hw.params.memories[memory]["type"]
+                mem_type = self.hw.circuit_model.memories[memory]["type"]
                 if mem_type == "Mem":
-                    self.hw.params.symbolic_mem[memory] = self.hw.params.symbolic_mem[existing_memories[data_tuple]]
+                    self.hw.circuit_model.symbolic_mem[memory] = self.hw.circuit_model.symbolic_mem[existing_memories[data_tuple]]
                 else:
-                    self.hw.params.symbolic_buf[memory] = self.hw.params.symbolic_buf[existing_memories[data_tuple]]
+                    self.hw.circuit_model.symbolic_buf[memory] = self.hw.circuit_model.symbolic_buf[existing_memories[data_tuple]]
             else:
                 opt_vals = {
-                    "ndwl": self.hw.params.memories[memory]["Ndwl"],
-                    "ndbl": self.hw.params.memories[memory]["Ndbl"],
-                    "nspd": self.hw.params.memories[memory]["Nspd"],
-                    "ndcm": self.hw.params.memories[memory]["Ndcm"],
-                    "ndsam1": self.hw.params.memories[memory]["Ndsam_level_1"],
-                    "ndsam2": self.hw.params.memories[memory]["Ndsam_level_2"],
-                    "repeater_spacing": self.hw.params.memories[memory]["Repeater spacing"],
-                    "repeater_size": self.hw.params.memories[memory]["Repeater size"],
+                    "ndwl": self.hw.circuit_model.memories[memory]["Ndwl"],
+                    "ndbl": self.hw.circuit_model.memories[memory]["Ndbl"],
+                    "nspd": self.hw.circuit_model.memories[memory]["Nspd"],
+                    "ndcm": self.hw.circuit_model.memories[memory]["Ndcm"],
+                    "ndsam1": self.hw.circuit_model.memories[memory]["Ndsam_level_1"],
+                    "ndsam2": self.hw.circuit_model.memories[memory]["Ndsam_level_2"],
+                    "repeater_spacing": self.hw.circuit_model.memories[memory]["Repeater spacing"],
+                    "repeater_size": self.hw.circuit_model.memories[memory]["Repeater size"],
                 }
-                logger.info(f"memory vals: {self.hw.params.memories[memory]}")
-                mem_type = self.hw.params.memories[memory]["type"]
+                logger.info(f"memory vals: {self.hw.circuit_model.memories[memory]}")
+                mem_type = self.hw.circuit_model.memories[memory]["type"]
                 logger.info(f"generating symbolic cacti for {memory} of type {mem_type}")
                 # generate mem or buf depending on type of memory
                 if mem_type == "Mem":
-                    self.hw.params.symbolic_mem[memory] = cacti_util.gen_symbolic("Mem", mem_cache_cfg, opt_vals, use_piecewise=False)
+                    self.hw.circuit_model.symbolic_mem[memory] = cacti_util.gen_symbolic("Mem", mem_cache_cfg, opt_vals, use_piecewise=False)
                 else:
-                    self.hw.params.symbolic_buf[memory] = cacti_util.gen_symbolic("Buf", base_cache_cfg, opt_vals, use_piecewise=False)
+                    self.hw.circuit_model.symbolic_buf[memory] = cacti_util.gen_symbolic("Buf", base_cache_cfg, opt_vals, use_piecewise=False)
                 existing_memories[data_tuple] = memory
         self.hw.save_symbolic_memories()
         self.hw.calculate_objective(symbolic=True)
@@ -414,11 +532,11 @@ class Codesign:
     
     def display_objective(self, message,symbolic=False):
         if symbolic:
-            obj = float(self.hw.symbolic_obj.xreplace(self.hw.params.tech_values))
+            obj = float(self.hw.symbolic_obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values))
             sub_exprs = {}
             for key in self.hw.symbolic_obj_sub_exprs:
                 if not isinstance(self.hw.symbolic_obj_sub_exprs[key], float):
-                    sub_exprs[key] = float(self.hw.symbolic_obj_sub_exprs[key].xreplace(self.hw.params.tech_values))
+                    sub_exprs[key] = float(self.hw.symbolic_obj_sub_exprs[key].xreplace(self.hw.circuit_model.tech_model.base_params.tech_values))
                 else:   
                     sub_exprs[key] = self.hw.symbolic_obj_sub_exprs[key]
         else:
@@ -430,7 +548,7 @@ class Codesign:
     def inverse_pass(self):
         """
         Executes the inverse pass of the codesign process: generates symbolic CACTI values for
-        memories, computes EDP (Energy Delay Product), runs optimizer to find better technology
+        memories, computes obj, runs optimizer to find better technology
         parameters, and logs results.
 
         Args:
@@ -445,38 +563,25 @@ class Codesign:
 
         stdout = sys.stdout
         with open("src/tmp/ipopt_out.txt", "w") as sys.stdout:
-            self.inverse_pass_lag_factor *= self.opt.optimize("ipopt", improvement=self.inverse_pass_improvement)
+            lag_factor, error = self.opt.optimize("ipopt", improvement=self.inverse_pass_improvement)
+            self.inverse_pass_lag_factor *= lag_factor
         sys.stdout = stdout
         f = open("src/tmp/ipopt_out.txt", "r")
-        self.parse_output(f)
+        if not error:
+            self.parse_output(f)
 
         self.write_back_params()
 
         self.display_objective("after inverse pass", symbolic=True)
 
-    def plot_params_over_iterations(self):
-        if not os.path.exists(self.save_dir):
-            os.makedirs(self.save_dir)
-        f = open(f"{self.save_dir}/param_data.txt", 'w')
-        f.write(str(self.params_over_iterations))
-        for param in self.plot_list:
-            values = []
-            for i in range(len(self.params_over_iterations)):
-                values.append(self.params_over_iterations[i][param])
-                plt.plot(values)
-                plt.xlabel("iteration")
-                plt.ylabel("value")
-                plt.title(f"{param.name} over iterations")
-                plt.yscale("log")
-                plt.grid(True)
-                plt.savefig(f"{self.save_dir}/{param.name}_over_iters.png")
-                plt.close()
+        self.obj_over_iterations.append(self.hw.symbolic_obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values))
+        self.lag_factor_over_iterations.append(self.inverse_pass_lag_factor)
 
     def log_all_to_file(self, iter_number):
         with open(f"{self.save_dir}/results.txt", "a") as f:
             f.write(f"{iter_number}\n")
-            f.write(f"Forward EDP: {self.hw.obj}\n")
-            f.write(f"Inverse EDP: {self.hw.symbolic_obj.xreplace(self.hw.params.tech_values)}\n")
+            f.write(f"Forward {self.obj_fn}: {self.hw.obj}\n")
+            f.write(f"Inverse {self.obj_fn}: {self.hw.symbolic_obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values)}\n")
         nx.write_gml(
             self.hw.netlist,
             f"{self.save_dir}/netlist_{iter_number}.gml",
@@ -492,7 +597,7 @@ class Codesign:
         shutil.copy(
             "src/tmp/solver_out.txt", f"{self.save_dir}/solver_{iter_number}.txt"
         )
-        """for mem in self.hw.params.memories:
+        """for mem in self.hw.circuit_model.memories:
             shutil.copy(
                 f"src/tmp/cacti_exprs_{mem}.txt", f"{self.save_dir}/cacti_exprs_{mem}_{iter_number}.txt"
             )"""
@@ -502,7 +607,7 @@ class Codesign:
         self.hw.write_technology_parameters(
             f"{self.save_dir}/circuit_values_{iter_number}.yaml"
         )
-        self.params_over_iterations.append(copy.copy(self.hw.params.tech_values))
+        self.params_over_iterations.append(copy.copy(self.hw.circuit_model.tech_model.base_params.tech_values))
 
     def save_dat(self):
         # Save tech node info to another file prefixed by prev_ so we can restore
@@ -540,17 +645,33 @@ class Codesign:
         if self.hw.scheduled_dfg:
             nx.write_gml(self.hw.scheduled_dfg, "src/checkpoint/schedule.gml")
 
+    def end_of_run_plots(self, obj_over_iterations, lag_factor_over_iterations, params_over_iterations):
+        assert len(params_over_iterations) > 1 
+        obj = "Energy Delay Product"
+        units = "nJ*ns"
+        if self.obj_fn == "energy":
+            obj = "Energy"
+            units = "nJ"
+        elif self.obj_fn == "delay":
+            obj = "Delay"
+            units = "ns"
+        trend_plotter = trend_plot.TrendPlot(self, params_over_iterations, obj_over_iterations, lag_factor_over_iterations, self.save_dir + "/figs", obj, units, self.obj_fn)
+        trend_plotter.plot_params_over_iterations()
+        trend_plotter.plot_obj_over_iterations()
+        trend_plotter.plot_lag_factor_over_iterations()
+
     def execute(self, num_iters):
         i = 0
         while i < num_iters:
             self.forward_pass()
             self.log_forward_tech_params()
             self.inverse_pass()
-            self.hw.params.update_circuit_values()
+            self.hw.circuit_model.update_circuit_values()
             self.log_all_to_file(i)
             self.hw.reset_state()
+            self.hw.reset_tech_model()
             i += 1
-        self.plot_params_over_iterations()
+        self.end_of_run_plots(self.obj_over_iterations, self.lag_factor_over_iterations, self.params_over_iterations)
 
         # cleanup
         self.cleanup()
@@ -561,12 +682,12 @@ def main(args):
         args
     )
     try:
-        codesign_module.execute(args.num_iters)
-    except Exception as e:
-        if args.checkpoint:
+        codesign_module.execute(codesign_module.cfg["args"]["num_iters"])
+    finally:
+        if codesign_module.cfg["args"]["checkpoint"]:
             codesign_module.save_checkpoint()
+        codesign_module.end_of_run_plots(codesign_module.obj_over_iterations, codesign_module.lag_factor_over_iterations, codesign_module.params_over_iterations)
         codesign_module.cleanup()
-        raise e
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -584,55 +705,48 @@ if __name__ == "__main__":
         "-f",
         "--savedir",
         type=str,
-        default="logs",
         help="Path to the save new architecture file",
     )
     parser.add_argument(
         "--parasitics",
         type=str,
         choices=["detailed", "estimation", "none"],
-        default="estimation",
         help="determines what type of parasitic calculations are done for wires",
     )
 
     parser.add_argument(
         "--openroad_testfile",
         type=str,
-        default="openroad_interface/tcl/codesign_top.tcl",
         help="what tcl file will be executed for openroad",
     )
     parser.add_argument(
         "-N",
         "--num_iters",
         type=int,
-        default=10,
         help="Number of Codesign iterations to run",
     )
     parser.add_argument(
         "-a",
         "--area",
         type=float,
-        default=1000000,
         help="Area constraint in um2",
     )
     parser.add_argument(
         "--no_memory",
         type=bool,
-        default=False,
         help="disable memory modeling",
     )
-    parser.add_argument('--debug_no_cacti', type=bool, default=False, 
+    parser.add_argument('--debug_no_cacti', type=bool,
                         help='disable cacti in the first iteration to decrease runtime when debugging')
-    parser.add_argument("-c", "--checkpoint", type=bool, default=False, help="save a design checkpoint upon exit")
-    parser.add_argument("--logic_node", type=int, default=7, help="logic node size")
-    parser.add_argument("--mem_node", type=int, default=32, help="memory node size")
+    parser.add_argument("-c", "--checkpoint", type=bool, help="save a design checkpoint upon exit")
+    parser.add_argument("--logic_node", type=int, help="logic node size")
+    parser.add_argument("--mem_node", type=int, help="memory node size")
     parser.add_argument("--inverse_pass_improvement", type=float, help="improvement factor for inverse pass")
     parser.add_argument("--tech_node", "-T", type=str, help="technology node to use as starting point")
-    parser.add_argument("--obj", type=str, default="edp", help="objective function")
-    parser.add_argument("--model_cfg", type=str, default="default", help="symbolic model configuration")
+    parser.add_argument("--obj", type=str, help="objective function")
+    parser.add_argument("--model_cfg", type=str, help="symbolic model configuration")
+    parser.add_argument("--hls_tool", type=str, help="hls tool to use")
+    parser.add_argument("--config", type=str, default="default", help="config to use")
     args = parser.parse_args()
-    print(
-        f"args: benchmark: {args.benchmark}, parasitics: {args.parasitics}, num iterations: {args.num_iters}, checkpointing: {args.checkpoint}, area: {args.area}, memory included: {not args.no_memory}, tech node: {args.tech_node}, obj: {args.obj}, model cfg: {args.model_cfg}"
-    )
 
     main(args)

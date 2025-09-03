@@ -16,6 +16,8 @@ directive set -CLOCKS $clocks
 
 go assembly
 
+directive set SCHED_USE_MULTICYCLE true
+
 go architect
 
 options set Architectural/DesignGoal latency

@@ -4,6 +4,7 @@ import glob
 import datetime
 from collections import defaultdict
 import math
+from sympy import Abs, exp, cosh
 
 logger = logging.getLogger(__name__)
 
@@ -11,6 +12,33 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
 
+def symbolic_convex_max(a, b, evaluate=True):
+    """
+    Max(a, b) in a format which ipopt accepts.
+    """
+    return 0.5 * (a + b + Abs(a - b, evaluate=evaluate))
+
+def symbolic_convex_min(a, b, evaluate=True):
+    """
+    Min(a, b) in a format which ipopt accepts.
+    """
+    return 0.5 * (a + b - Abs(a - b, evaluate=evaluate))
+
+def custom_exp(x, evaluate=True):
+    """
+    Custom exp function to guard against overflow.
+    """
+    return exp(symbolic_convex_min(500, x))
+
+def custom_cosh(x, evaluate=True):
+    """
+    Custom cosh function to guard against overflow.
+    """
+    return cosh(symbolic_convex_min(500, x))
+
+# overwrite values of dict1 with values of dict2
+# if a key is not present in dict1, still takes values from dict2
+# if key is not present in dict2, keeps value from dict1
 def deep_merge(dict1, dict2):
     result = dict(dict1)
     for key, value in dict2.items():
@@ -20,6 +48,17 @@ def deep_merge(dict1, dict2):
             result[key] = value
     return result
 
+# merge model config up hierarchy to base cfg
+def recursive_cfg_merge(model_cfgs, model_cfg_name):
+    base_cfg = model_cfgs[model_cfg_name]["base_cfg"]
+    model_cfg = model_cfgs[model_cfg_name]
+    while True:
+        model_cfg = deep_merge(model_cfgs[base_cfg], model_cfg)
+        if base_cfg == "default":
+            break
+        base_cfg = model_cfgs[base_cfg]["base_cfg"]
+    return model_cfg
+
 def get_latest_log_dir():
     log_dirs = glob.glob(os.path.normpath(os.path.join(os.path.dirname(__file__), "../logs/*-*-*_*-*-*")))
     log_dirs = sorted(
@@ -28,14 +67,22 @@ def get_latest_log_dir():
     )
     return log_dirs[-1]
 
-def change_clk_period_in_script(filename, new_period):
+def change_clk_period_in_script(filename, new_period, hls_tool):
+    CATAPULT_PERIOD_POSITION = -1
+    VITIS_PERIOD_POSITION = 2
     new_lines = []
     with open(filename, "r") as f:
         lines = f.readlines()
         for line in lines:
             new_line= line
-            if line.find("set clk_period") != -1:
-                new_line = line.replace(line.split()[-1], str(new_period))
+            if hls_tool == "catapult":
+                if line.find("set clk_period") != -1:
+                    new_line = line.replace(line.split()[CATAPULT_PERIOD_POSITION], str(new_period))
+            elif hls_tool == "vitis":
+                if line.find("create_clock") != -1:
+                    new_line = line.replace(line.split()[VITIS_PERIOD_POSITION], str(new_period))
+            else:
+                raise ValueError(f"Invalid hls tool: {hls_tool}")
             new_lines.append(new_line)
     with open(filename, "w") as f:
         f.writelines(new_lines)

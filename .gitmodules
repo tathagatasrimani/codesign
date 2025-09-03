@@ -7,3 +7,6 @@
 [submodule "scalehls"]
 	path = scalehls
 	url = https://github.com/UIUC-ChenLab/scalehls.git
+[submodule "scalehls-hida"]
+	path = scalehls-hida
+	url = https://github.com/patrickmcewen/ScaleHLS-HIDA.git

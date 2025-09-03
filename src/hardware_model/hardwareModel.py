@@ -7,13 +7,19 @@ logger = logging.getLogger(__name__)
 
 import networkx as nx
 import sympy as sp
-from . import cacti_util
-from . import parameters
-from . import schedule
-from . import sim_util
+from src import cacti_util
+from src.hardware_model.base_parameters import base_parameters
+from src.hardware_model.circuit_models import circuit_model
+
+from src.forward_pass import schedule
+from src import sim_util
+
+from src.hardware_model.tech_models import bulk_model
+from src.hardware_model.tech_models import bulk_bsim4_model
+from src.hardware_model.tech_models import vs_model
 from openroad_interface import place_n_route
 
-HW_CONFIG_FILE = "src/params/hw_cfgs.ini"
+import cvxpy as cp
 
 def symbolic_convex_max(a, b, evaluate=True):
     """
@@ -45,24 +51,30 @@ class HardwareModel:
             f"src/cacti/tech_params/{int(self.cacti_tech_node*1e3):2d}nm.dat"
         )
         print(f"self.cacti_dat_file: {self.cacti_dat_file}")
-        with open("src/params/model_cfg.yaml", "r") as f:
-            model_cfg = yaml.safe_load(f)
-        self.model_cfg = sim_util.deep_merge(model_cfg["default"], model_cfg[args.model_cfg])
+        with open("src/yaml/model_cfg.yaml", "r") as f:
+            model_cfgs = yaml.safe_load(f)
+
+        # model cfg is an extension of its base cfg, can create a tree of configs which need to be merged
+        self.model_cfg = sim_util.recursive_cfg_merge(model_cfgs, args["model_cfg"])
         print(f"self.model_cfg: {self.model_cfg}")
-        self.params = parameters.Parameters(args.tech_node, self.cacti_dat_file, self.model_cfg)
+
+        self.base_params = base_parameters.BaseParameters(args["tech_node"], self.cacti_dat_file)
+
+        self.reset_tech_model()
+
         self.netlist = nx.DiGraph()
         self.scheduled_dfg = nx.DiGraph()
         self.parasitic_graph = nx.DiGraph()
         self.symbolic_mem = {}
         self.symbolic_buf = {}
         self.memories = []
-        self.obj_fn = args.obj
+        self.obj_fn = args["obj"]
         self.obj = 0
         self.obj_sub_exprs = {}
         self.symbolic_obj = 0
         self.symbolic_obj_sub_exprs = {}
-        self.longest_paths = []
-        self.area_constraint = args.area
+        self.area_constraint = args["area"]
+        self.hls_tool = args["hls_tool"]
         self.inst_name_map = {}
         self.dfg_to_netlist_map = {}
         self.dfg_to_netlist_edge_map = {}
@@ -76,7 +88,6 @@ class HardwareModel:
         self.symbolic_obj = 0
         self.scheduled_dfg = nx.DiGraph()
         self.parasitic_graph = nx.DiGraph()
-        self.longest_paths = []
         self.obj_sub_exprs = {}
         self.symbolic_obj_sub_exprs = {}
         self.execution_time = 0
@@ -88,15 +99,34 @@ class HardwareModel:
 
     def write_technology_parameters(self, filename):
         params = {
-            "latency": self.params.circuit_values["latency"],
-            "dynamic_energy": self.params.circuit_values["dynamic_energy"],
-            "passive_power": self.params.circuit_values["passive_power"],
-            "area": self.params.circuit_values["area"], # TODO: make sure we have this
+            "latency": self.circuit_model.circuit_values["latency"],
+            "dynamic_energy": self.circuit_model.circuit_values["dynamic_energy"],
+            "passive_power": self.circuit_model.circuit_values["passive_power"],
+            "area": self.circuit_model.circuit_values["area"], # TODO: make sure we have this
         }
         with open(filename, "w") as f:
             f.write(yaml.dump(params))
 
-    def map_netlist_to_scheduled_dfg(self, benchmark_name):
+    def reset_tech_model(self):
+        if self.model_cfg["model_type"] == "bulk":
+            self.tech_model = bulk_model.BulkModel(self.model_cfg, self.base_params)
+        elif self.model_cfg["model_type"] == "bulk_bsim4":
+            self.tech_model = bulk_bsim4_model.BulkBSIM4Model(self.model_cfg, self.base_params)
+        elif self.model_cfg["model_type"] == "vs":
+            self.tech_model = vs_model.VSModel(self.model_cfg, self.base_params)
+        else:
+            raise ValueError(f"Invalid model type: {self.model_cfg['model_type']}")
+        self.tech_model.create_constraints(self.model_cfg["scaling_mode"])
+
+        # by convention, we should always access bulk model and base params through circuit model
+        self.circuit_model = circuit_model.CircuitModel(self.tech_model)
+
+
+    def vitis_map_netlist_to_scheduled_dfg(self, benchmark_name):
+        pass # TODO: implement vitis map netlist to scheduled dfg
+
+
+    def catapult_map_netlist_to_scheduled_dfg(self, benchmark_name):
 
         ## create a set of all netlist nodes
         unmapped_dfg_nodes = set(self.scheduled_dfg.nodes)
@@ -104,7 +134,7 @@ class HardwareModel:
         ### First, attempt direct name matching between scheduled DFG nodes and netlist nodes.
         if benchmark_name == "matmult":
             for node in self.scheduled_dfg:
-                if self.scheduled_dfg.nodes[node]["function"] not in self.params.circuit_values["latency"]:
+                if self.scheduled_dfg.nodes[node]["function"] not in self.circuit_model.circuit_values["latency"]:
                     continue
 
                 ## get the catapult name from the scheduled DFG node
@@ -170,7 +200,7 @@ class HardwareModel:
             ### similar as matmult, but the catapult names are different.
             ## for example catapult_name "mul_inst.run()#1" in the DFG should map to label "basic_aes**basic_aes_run_inst**mul_inst_run_1_rg" in the netlist. 
             for node in self.scheduled_dfg:
-                if self.scheduled_dfg.nodes[node]["function"] not in self.params.circuit_values["latency"]:
+                if self.scheduled_dfg.nodes[node]["function"] not in self.circuit_model.circuit_values["latency"]:
                     logger.warning(f"skipping node {node} with function {self.scheduled_dfg.nodes[node]['function']} as it is not in the circuit values")
                     continue
 
@@ -248,7 +278,7 @@ class HardwareModel:
 
         ## map the unmapped dfg nodes to the netlist nodes using the resource sharing information
         for node in unmapped_dfg_nodes:
-            if self.scheduled_dfg.nodes[node]["function"] not in self.params.circuit_values["latency"]:
+            if self.scheduled_dfg.nodes[node]["function"] not in self.circuit_model.circuit_values["latency"]:
                 continue
             
             ## get the catapult name from the scheduled DFG node
@@ -349,7 +379,7 @@ class HardwareModel:
         """
         mapped_nodes_input_output_match = set()
         for node in unmapped_dfg_nodes:
-            if self.scheduled_dfg.nodes[node]["function"] not in self.params.circuit_values["latency"]:
+            if self.scheduled_dfg.nodes[node]["function"] not in self.circuit_model.circuit_values["latency"]:
                 continue
 
             ## get the function type from the scheduled DFG node
@@ -448,13 +478,18 @@ class HardwareModel:
 
     
     def get_wire_parasitics(self, arg_testfile, arg_parasitics, benchmark_name):
-        self.map_netlist_to_scheduled_dfg(benchmark_name)
+        if self.hls_tool == "catapult":
+            self.catapult_map_netlist_to_scheduled_dfg(benchmark_name)
+        elif self.hls_tool == "vitis":
+            self.vitis_map_netlist_to_scheduled_dfg(benchmark_name)
+        else:
+            raise ValueError(f"Invalid hls tool: {self.hls_tool}")
         
         start_time = time.time()
-        self.params.wire_length_by_edge, _ = place_n_route.place_n_route(
+        self.circuit_model.wire_length_by_edge, _ = place_n_route.place_n_route(
             self.netlist, arg_testfile, arg_parasitics
         )
-        logger.info(f"wire lengths: {self.params.wire_length_by_edge}")
+        logger.info(f"wire lengths: {self.circuit_model.wire_length_by_edge}")
         
         logger.info(f"time to generate wire parasitics: {time.time()-start_time}")
         self.add_wire_delays_to_schedule()
@@ -467,7 +502,7 @@ class HardwareModel:
         for edge in self.scheduled_dfg.edges:
             if edge in self.dfg_to_netlist_edge_map:
                 # wire delay = R * C * length^2
-                self.scheduled_dfg.edges[edge]["cost"] = self.params.wire_delay(self.dfg_to_netlist_edge_map[edge])
+                self.scheduled_dfg.edges[edge]["cost"] = self.circuit_model.wire_delay(self.dfg_to_netlist_edge_map[edge])
                 logger.info(f"(wire delay) {edge}: {self.scheduled_dfg.edges[edge]['cost']} ns")
                 self.scheduled_dfg.edges[edge]["weight"] += self.scheduled_dfg.edges[edge]["cost"]
             else:
@@ -486,13 +521,12 @@ class HardwareModel:
             The schedule is updated in place.
         """
         for node in self.scheduled_dfg.nodes:
-            if node in self.params.circuit_values["latency"]:
-                self.scheduled_dfg.nodes[node]["cost"] = self.params.circuit_values["latency"][self.scheduled_dfg.nodes.data()[node]["function"]]
+            if node in self.circuit_model.circuit_values["latency"]:
+                self.scheduled_dfg.nodes[node]["cost"] = self.circuit_model.circuit_values["latency"][self.scheduled_dfg.nodes.data()[node]["function"]]
         for edge in self.scheduled_dfg.edges:
             func = self.scheduled_dfg.nodes.data()[edge[0]]["function"]
-            self.scheduled_dfg.edges[edge]["weight"] = self.params.circuit_values["latency"][func]
+            self.scheduled_dfg.edges[edge]["weight"] = self.circuit_model.circuit_values["latency"][func]
         self.add_wire_delays_to_schedule()
-        self.longest_paths = schedule.get_longest_paths(self.scheduled_dfg)
 
     def save_symbolic_memories(self):
         MemL_expr = 0
@@ -505,85 +539,109 @@ class HardwareModel:
         BufWriteEact_expr = 0
         BufPpass_expr = 0
 
-        self.params.symbolic_rsc_exprs = {}
+        self.circuit_model.symbolic_rsc_exprs = {}
         
         for mem in self.memories:
             if self.memories[mem]["type"] == "Mem":
-                MemL_expr = self.params.symbolic_mem[mem].access_time * 1e9 # convert from s to ns
-                MemReadEact_expr = (self.params.symbolic_mem[mem].power.readOp.dynamic + self.params.symbolic_mem[mem].power.searchOp.dynamic) * 1e9 # convert from J to nJ
-                MemWriteEact_expr = (self.params.symbolic_mem[mem].power.writeOp.dynamic + self.params.symbolic_mem[mem].power.searchOp.dynamic) * 1e9 # convert from J to nJ
-                MemPpass_expr = self.params.symbolic_mem[mem].power.readOp.leakage # TODO: investigate units of this expr
-                OffChipIOPact_expr = self.params.symbolic_mem[mem].io_dynamic_power * 1e-3 # convert from mW to W
+                MemL_expr = self.circuit_model.symbolic_mem[mem].access_time * 1e9 # convert from s to ns
+                MemReadEact_expr = (self.circuit_model.symbolic_mem[mem].power.readOp.dynamic + self.circuit_model.symbolic_mem[mem].power.searchOp.dynamic) * 1e9 # convert from J to nJ
+                MemWriteEact_expr = (self.circuit_model.symbolic_mem[mem].power.writeOp.dynamic + self.circuit_model.symbolic_mem[mem].power.searchOp.dynamic) * 1e9 # convert from J to nJ
+                MemPpass_expr = self.circuit_model.symbolic_mem[mem].power.readOp.leakage # TODO: investigate units of this expr
+                OffChipIOPact_expr = self.circuit_model.symbolic_mem[mem].io_dynamic_power * 1e-3 # convert from mW to W
 
             else:
-                BufL_expr = self.params.symbolic_buf[mem].access_time * 1e9 # convert from s to ns
-                BufReadEact_expr = (self.params.symbolic_buf[mem].power.readOp.dynamic + self.params.symbolic_buf[mem].power.searchOp.dynamic) * 1e9 # convert from J to nJ
-                BufWriteEact_expr = (self.params.symbolic_buf[mem].power.writeOp.dynamic + self.params.symbolic_buf[mem].power.searchOp.dynamic) * 1e9 # convert from J to nJ
-                BufPpass_expr = self.params.symbolic_buf[mem].power.readOp.leakage # TODO: investigate units of this expr
+                BufL_expr = self.circuit_model.symbolic_buf[mem].access_time * 1e9 # convert from s to ns
+                BufReadEact_expr = (self.circuit_model.symbolic_buf[mem].power.readOp.dynamic + self.circuit_model.symbolic_buf[mem].power.searchOp.dynamic) * 1e9 # convert from J to nJ
+                BufWriteEact_expr = (self.circuit_model.symbolic_buf[mem].power.writeOp.dynamic + self.circuit_model.symbolic_buf[mem].power.searchOp.dynamic) * 1e9 # convert from J to nJ
+                BufPpass_expr = self.circuit_model.symbolic_buf[mem].power.readOp.leakage # TODO: investigate units of this expr
 
             # only need to do in first iteration
-            if mem not in self.params.MemReadL:
-                self.params.MemReadL[mem] = sp.symbols(f"MemReadL_{mem}")
-                self.params.MemWriteL[mem] = sp.symbols(f"MemWriteL_{mem}")
-                self.params.MemReadEact[mem] = sp.symbols(f"MemReadEact_{mem}")
-                self.params.MemWriteEact[mem] = sp.symbols(f"MemWriteEact_{mem}")
-                self.params.MemPpass[mem] = sp.symbols(f"MemPpass_{mem}")
-                self.params.OffChipIOPact[mem] = sp.symbols(f"OffChipIOPact_{mem}")
-                self.params.BufL[mem] = sp.symbols(f"BufL_{mem}")
-                self.params.BufReadEact[mem] = sp.symbols(f"BufReadEact_{mem}")
-                self.params.BufWriteEact[mem] = sp.symbols(f"BufWriteEact_{mem}")
-                self.params.BufPpass[mem] = sp.symbols(f"BufPpass_{mem}")
+            if mem not in self.circuit_model.tech_model.base_params.MemReadL:
+                self.circuit_model.tech_model.base_params.MemReadL[mem] = sp.symbols(f"MemReadL_{mem}")
+                self.circuit_model.tech_model.base_params.MemWriteL[mem] = sp.symbols(f"MemWriteL_{mem}")
+                self.circuit_model.tech_model.base_params.MemReadEact[mem] = sp.symbols(f"MemReadEact_{mem}")
+                self.circuit_model.tech_model.base_params.MemWriteEact[mem] = sp.symbols(f"MemWriteEact_{mem}")
+                self.circuit_model.tech_model.base_params.MemPpass[mem] = sp.symbols(f"MemPpass_{mem}")
+                self.circuit_model.tech_model.base_params.OffChipIOPact[mem] = sp.symbols(f"OffChipIOPact_{mem}")
+                self.circuit_model.tech_model.base_params.BufL[mem] = sp.symbols(f"BufL_{mem}")
+                self.circuit_model.tech_model.base_params.BufReadEact[mem] = sp.symbols(f"BufReadEact_{mem}")
+                self.circuit_model.tech_model.base_params.BufWriteEact[mem] = sp.symbols(f"BufWriteEact_{mem}")
+                self.circuit_model.tech_model.base_params.BufPpass[mem] = sp.symbols(f"BufPpass_{mem}")
 
                 # update symbol table
-                self.params.symbol_table[f"MemReadL_{mem}"] = self.params.MemReadL[mem]
-                self.params.symbol_table[f"MemWriteL_{mem}"] = self.params.MemWriteL[mem]
-                self.params.symbol_table[f"MemReadEact_{mem}"] = self.params.MemReadEact[mem]
-                self.params.symbol_table[f"MemWriteEact_{mem}"] = self.params.MemWriteEact[mem]
-                self.params.symbol_table[f"MemPpass_{mem}"] = self.params.MemPpass[mem]
-                self.params.symbol_table[f"OffChipIOPact_{mem}"] = self.params.OffChipIOPact[mem]
-                self.params.symbol_table[f"BufL_{mem}"] = self.params.BufL[mem]
-                self.params.symbol_table[f"BufReadEact_{mem}"] = self.params.BufReadEact[mem]
-                self.params.symbol_table[f"BufWriteEact_{mem}"] = self.params.BufWriteEact[mem]
-                self.params.symbol_table[f"BufPpass_{mem}"] = self.params.BufPpass[mem]
+                self.circuit_model.tech_model.base_params.symbol_table[f"MemReadL_{mem}"] = self.circuit_model.tech_model.base_params.MemReadL[mem]
+                self.circuit_model.tech_model.base_params.symbol_table[f"MemWriteL_{mem}"] = self.circuit_model.tech_model.base_params.MemWriteL[mem]
+                self.circuit_model.tech_model.base_params.symbol_table[f"MemReadEact_{mem}"] = self.circuit_model.tech_model.base_params.MemReadEact[mem]
+                self.circuit_model.tech_model.base_params.symbol_table[f"MemWriteEact_{mem}"] = self.circuit_model.tech_model.base_params.MemWriteEact[mem]
+                self.circuit_model.tech_model.base_params.symbol_table[f"MemPpass_{mem}"] = self.circuit_model.tech_model.base_params.MemPpass[mem]
+                self.circuit_model.tech_model.base_params.symbol_table[f"OffChipIOPact_{mem}"] = self.circuit_model.tech_model.base_params.OffChipIOPact[mem]
+                self.circuit_model.tech_model.base_params.symbol_table[f"BufL_{mem}"] = self.circuit_model.tech_model.base_params.BufL[mem]
+                self.circuit_model.tech_model.base_params.symbol_table[f"BufReadEact_{mem}"] = self.circuit_model.tech_model.base_params.BufReadEact[mem]
+                self.circuit_model.tech_model.base_params.symbol_table[f"BufWriteEact_{mem}"] = self.circuit_model.tech_model.base_params.BufWriteEact[mem]
+                self.circuit_model.tech_model.base_params.symbol_table[f"BufPpass_{mem}"] = self.circuit_model.tech_model.base_params.BufPpass[mem]
         
             # TODO: support multiple memories in self.params
             cacti_subs_new = {
-                self.params.MemReadL[mem]: MemL_expr,
-                self.params.MemWriteL[mem]: MemL_expr,
-                self.params.MemReadEact[mem]: MemReadEact_expr,
-                self.params.MemWriteEact[mem]: MemWriteEact_expr,
-                self.params.MemPpass[mem]: MemPpass_expr,
-                self.params.OffChipIOPact[mem]: OffChipIOPact_expr,
+                self.circuit_model.tech_model.base_params.MemReadL[mem]: MemL_expr,
+                self.circuit_model.tech_model.base_params.MemWriteL[mem]: MemL_expr,
+                self.circuit_model.tech_model.base_params.MemReadEact[mem]: MemReadEact_expr,
+                self.circuit_model.tech_model.base_params.MemWriteEact[mem]: MemWriteEact_expr,
+                self.circuit_model.tech_model.base_params.MemPpass[mem]: MemPpass_expr,
+                self.circuit_model.tech_model.base_params.OffChipIOPact[mem]: OffChipIOPact_expr,
 
-                self.params.BufL[mem]: BufL_expr,
-                self.params.BufReadEact[mem]: BufReadEact_expr,
-                self.params.BufWriteEact[mem]: BufWriteEact_expr,
-                self.params.BufPpass[mem]: BufPpass_expr,
+                self.circuit_model.tech_model.base_params.BufL[mem]: BufL_expr,
+                self.circuit_model.tech_model.base_params.BufReadEact[mem]: BufReadEact_expr,
+                self.circuit_model.tech_model.base_params.BufWriteEact[mem]: BufWriteEact_expr,
+                self.circuit_model.tech_model.base_params.BufPpass[mem]: BufPpass_expr,
             }
-            self.params.symbolic_rsc_exprs.update(cacti_subs_new)
+            self.circuit_model.symbolic_rsc_exprs.update(cacti_subs_new)
 
     def calculate_execution_time(self, symbolic):
         if symbolic:
+            # reset the constraints
+            self.circuit_model.tech_model.create_constraints(self.model_cfg["scaling_mode"])
+            #self.circuit_model.set_uarch_parameters()
+            #self.circuit_model.set_uarch_constraints()
             # take symbolic max over the critical paths
             execution_time = 0
-            for path in self.longest_paths:
-                logger.info(f"adding path to execution time calculation: {path}")
-                path_execution_time = 0
-                for i in range(len(path[1])):
-                    node = path[1][i]
-                    data = self.scheduled_dfg.nodes[node]
-                    if node == "end" or data["function"] == "nop": continue
-                    if data["function"] == "Buf" or data["function"] == "MainMem":
-                        rsc_name = data["library"][data["library"].find("__")+1:]
-                        logger.info(f"(execution time) rsc name: {rsc_name}, data: {data['function']}")
-                        path_execution_time += self.params.symbolic_latency_wc[data["function"]]()[rsc_name]
+            node_arrivals = {}
+            node_arrivals_cvx = {}
+            constr_cvx = []
+            for node in self.scheduled_dfg.nodes:
+                if node == "end":
+                    node_arrivals[node] = self.circuit_model.tech_model.base_params.node_arrivals_end
+                    node_arrivals_cvx[node] = cp.Variable()
+                elif len(list(self.scheduled_dfg.predecessors(node))) == 0:
+                    node_arrivals[node] = 0
+                    node_arrivals_cvx[node] = 0
+                    continue
+                else:
+                    node_arrivals[node] = sp.symbols(f"node_arrivals_{node}")
+                    node_arrivals_cvx[node] = cp.Variable()
+                for pred in self.scheduled_dfg.predecessors(node):
+                    assert self.scheduled_dfg.nodes[pred]["function"] != "nop"
+                    if self.scheduled_dfg.edges[pred, node]["resource_edge"]:
+                        #pred_delay = self.circuit_model.clk_period # convert to ns
+                        pred_delay = 1/self.circuit_model.tech_model.base_params.f * 1e9 # convert to ns
+                    elif self.scheduled_dfg.nodes[pred]["function"] in ["Buf", "MainMem"]:
+                        rsc_name = self.scheduled_dfg.nodes[pred]["library"][self.scheduled_dfg.nodes[pred]["library"].find("__")+1:]
+                        pred_delay = self.circuit_model.symbolic_latency_wc[self.scheduled_dfg.nodes[pred]["function"]]()[rsc_name]
                     else:
-                        path_execution_time += self.params.symbolic_latency_wc[data["function"]]()
-                    if i > 0 and (path[1][i-1], node) in self.dfg_to_netlist_edge_map:
-                        path_execution_time += self.params.wire_delay(self.dfg_to_netlist_edge_map[(path[1][i-1], node)], symbolic)
-                execution_time = symbolic_convex_max(execution_time, path_execution_time).simplify() if execution_time != 0 else path_execution_time
-
-            logger.info(f"symbolic execution time: {execution_time}")
+                        pred_delay = self.circuit_model.symbolic_latency_wc[self.scheduled_dfg.nodes[pred]["function"]]()
+                    if (pred, node) in self.dfg_to_netlist_edge_map:
+                        pred_delay += self.circuit_model.wire_delay(self.dfg_to_netlist_edge_map[(pred, node)], symbolic)
+                    self.circuit_model.tech_model.constraints.append(node_arrivals[node] >= node_arrivals[pred] + pred_delay)
+                    constr_cvx.append(node_arrivals_cvx[node] >= node_arrivals_cvx[pred] + pred_delay.xreplace(self.circuit_model.tech_model.base_params.tech_values).evalf())
+            obj = node_arrivals_cvx["end"]
+            prob = cp.Problem(cp.Minimize(obj), constr_cvx)
+            prob.solve()
+            for node in node_arrivals:
+                if type(node_arrivals_cvx[node]) != int:
+                    self.circuit_model.tech_model.base_params.tech_values[node_arrivals[node]] = node_arrivals_cvx[node].value
+            print(f"cvxpy symbolic execution time: {prob.value}")
+            self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.node_arrivals_end] = self.scheduled_dfg.nodes["end"]["start_time"]
+            execution_time = self.circuit_model.tech_model.base_params.node_arrivals_end
+            print(f"at the end of symbolic execution time calc, there are {len(self.circuit_model.tech_model.constraints)} constraints")
         else:
             execution_time = self.scheduled_dfg.nodes["end"]["start_time"]
         return execution_time
@@ -597,15 +655,15 @@ class HardwareModel:
             if data["function"] == "Buf" or data["function"] == "MainMem":
                 rsc_name = data["library"][data["library"].find("__")+1:]
                 if symbolic:
-                    passive_power += self.params.symbolic_power_passive[data["function"]]()[rsc_name]
+                    passive_power += self.circuit_model.symbolic_power_passive[data["function"]]()[rsc_name]
                 else:
-                    passive_power += self.params.memories[rsc_name]["Standby leakage per bank(mW)"] * 1e6 # convert from mW to nW
+                    passive_power += self.circuit_model.memories[rsc_name]["Standby leakage per bank(mW)"] * 1e6 # convert from mW to nW
             else:
                 if symbolic:
-                    passive_power += self.params.symbolic_power_passive[data["function"]]()
+                    passive_power += self.circuit_model.symbolic_power_passive[data["function"]]()
                 else:
-                    passive_power += self.params.circuit_values["passive_power"][data["function"]]
-                logger.info(f"(passive power) {data['function']}: {self.params.circuit_values['passive_power'][data['function']]}")
+                    passive_power += self.circuit_model.circuit_values["passive_power"][data["function"]]
+                logger.info(f"(passive power) {data['function']}: {self.circuit_model.circuit_values['passive_power'][data['function']]}")
         total_passive_energy = passive_power * total_execution_time*1e-9
         return total_passive_energy
         
@@ -617,21 +675,21 @@ class HardwareModel:
             if data["function"] == "Buf" or data["function"] == "MainMem":
                 rsc_name = data["library"][data["library"].find("__")+1:]
                 if symbolic:
-                    total_active_energy += self.params.symbolic_energy_active[data["function"]]()[rsc_name]
+                    total_active_energy += self.circuit_model.symbolic_energy_active[data["function"]]()[rsc_name]
                 else:
                     if data["module"].find("wport") != -1:
-                        total_active_energy += self.params.memories[rsc_name]["Dynamic write energy (nJ)"]
+                        total_active_energy += self.circuit_model.memories[rsc_name]["Dynamic write energy (nJ)"]
                     else:
-                        total_active_energy += self.params.memories[rsc_name]["Dynamic read energy (nJ)"]
+                        total_active_energy += self.circuit_model.memories[rsc_name]["Dynamic read energy (nJ)"]
             else:
                 if symbolic:
-                    total_active_energy += self.params.symbolic_energy_active[data["function"]]()
+                    total_active_energy += self.circuit_model.symbolic_energy_active[data["function"]]()
                 else:
-                    total_active_energy += self.params.circuit_values["dynamic_energy"][data["function"]]
+                    total_active_energy += self.circuit_model.circuit_values["dynamic_energy"][data["function"]]
                 logger.info(f"(active energy) {data['function']}: {total_active_energy}")
         for edge in self.scheduled_dfg.edges:
             if edge in self.dfg_to_netlist_edge_map:
-                wire_energy = self.params.wire_energy(self.dfg_to_netlist_edge_map[edge], symbolic)
+                wire_energy = self.circuit_model.wire_energy(self.dfg_to_netlist_edge_map[edge], symbolic)
                 logger.info(f"(wire energy) {edge}: {wire_energy} nJ")
                 total_active_energy += wire_energy
         return total_active_energy
@@ -640,15 +698,68 @@ class HardwareModel:
         self.execution_time = self.calculate_execution_time(symbolic)
         self.total_passive_energy = self.calculate_passive_energy(self.execution_time, symbolic)
         self.total_active_energy = self.calculate_active_energy(symbolic)
-        self.symbolic_obj_sub_exprs = {
-            "execution_time": self.execution_time,
-            "total_passive_energy": self.total_passive_energy,
-            "total_active_energy": self.total_active_energy,
-            "passive power": self.total_passive_energy/self.execution_time,
-            "subthreshold leakage current": self.params.I_off,
-            "gate tunneling current": self.params.I_tunnel,
-            "effective threshold voltage": self.params.V_th_eff,
-        }
+        if self.model_cfg["model_type"] == "bulk_bsim4":
+            self.symbolic_obj_sub_exprs = {
+                "execution_time": self.execution_time,
+                "passive power": self.total_passive_energy/self.execution_time,
+                "active power": self.total_active_energy/self.execution_time,
+                "subthreshold leakage current": self.circuit_model.tech_model.I_sub,
+                "gate tunneling current": self.circuit_model.tech_model.I_tunnel,
+                "GIDL current": self.circuit_model.tech_model.I_GIDL,
+                "long channel threshold voltage": self.circuit_model.tech_model.base_params.V_th,
+                "effective threshold voltage": self.circuit_model.tech_model.V_th_eff,
+                "supply voltage": self.circuit_model.tech_model.base_params.V_dd,
+                "wire RC": self.circuit_model.tech_model.m1_Rsq * self.circuit_model.tech_model.m1_Csq,
+                "f": self.circuit_model.tech_model.base_params.f,
+            }
+        elif self.circuit_model.tech_model.model_cfg["model_type"] == "bulk":
+            self.symbolic_obj_sub_exprs = {
+                "execution_time": self.execution_time,
+                "passive power": self.total_passive_energy/self.execution_time,
+                "active power": self.total_active_energy/self.execution_time,
+                "subthreshold leakage current": self.circuit_model.tech_model.I_off,
+                "gate tunneling current": self.circuit_model.tech_model.I_tunnel,
+                "FN term": self.circuit_model.tech_model.FN_term,
+                "WKB term": self.circuit_model.tech_model.WKB_term,
+                "GIDL current": self.circuit_model.tech_model.I_GIDL,
+                "effective threshold voltage": self.circuit_model.tech_model.V_th_eff,
+                "supply voltage": self.circuit_model.tech_model.base_params.V_dd,
+                "wire RC": self.circuit_model.tech_model.m1_Rsq * self.circuit_model.tech_model.m1_Csq,
+                "f": self.circuit_model.tech_model.base_params.f,
+            }
+        elif self.circuit_model.tech_model.model_cfg["model_type"] == "vs":
+            self.symbolic_obj_sub_exprs = {
+                "execution_time": self.execution_time,
+                "passive power": self.total_passive_energy/self.execution_time,
+                "active power": self.total_active_energy/self.execution_time,
+                "subthreshold leakage current": self.circuit_model.tech_model.I_off,
+                "long channel threshold voltage": self.circuit_model.tech_model.base_params.V_th,
+                "effective threshold voltage": self.circuit_model.tech_model.V_th_eff.xreplace(self.circuit_model.tech_model.on_state).evalf(),
+                "supply voltage": self.circuit_model.tech_model.base_params.V_dd,
+                "wire RC": self.circuit_model.tech_model.m1_Rsq * self.circuit_model.tech_model.m1_Csq,
+                "on current per um": self.circuit_model.tech_model.I_d_on_per_um,
+                "off current per um": self.circuit_model.tech_model.I_d_off_per_um,
+                "gate tunneling current per um": self.circuit_model.tech_model.I_tunnel_per_um,
+                "subthreshold leakage current per um": self.circuit_model.tech_model.I_sub_per_um,
+                "GIDL current per um": self.circuit_model.tech_model.I_GIDL_per_um,
+                "DIBL factor": self.circuit_model.tech_model.delta,
+                "t_ox": self.circuit_model.tech_model.base_params.tox,
+                "eot": self.circuit_model.tech_model.eot,
+                "scale length": self.circuit_model.tech_model.scale_length,
+                "C_load": self.circuit_model.tech_model.C_load,
+                "C_wire": self.circuit_model.tech_model.C_wire,
+                "R_wire": self.circuit_model.tech_model.R_wire,
+                "R_device": self.circuit_model.tech_model.base_params.V_dd/self.circuit_model.tech_model.I_d_on,
+                "SS": self.circuit_model.tech_model.S,
+                "F_f": self.circuit_model.tech_model.F_f_eval,
+                "F_s": self.circuit_model.tech_model.F_s_eval,
+                "vx0": self.circuit_model.tech_model.vx0,
+                "v": self.circuit_model.tech_model.v,
+                "t_1": self.circuit_model.tech_model.t_1,
+                "f": self.circuit_model.tech_model.base_params.f,
+            }
+        else: 
+            raise ValueError(f"Objective function {self.obj_fn} not supported")
         self.obj_sub_exprs = {
             "execution_time": self.execution_time,
             "total_passive_energy": self.total_passive_energy,
