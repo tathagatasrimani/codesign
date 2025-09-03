@@ -580,6 +580,7 @@ class BulkBSIM4Model(TechModel):
         self.param_db["I_sub_per_um"] = self.I_sub/(self.base_params.W*1e6)
         self.param_db["I_GIDL_per_um"] = self.I_GIDL/(self.base_params.W*1e6)
         self.param_db["I_tunnel_per_um"] = self.I_tunnel/(self.base_params.W*1e6)
+        self.param_db["A_gate"] = self.A_gate
 
     def apply_base_parameter_effects(self):
         return

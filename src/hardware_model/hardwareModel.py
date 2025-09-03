@@ -55,11 +55,10 @@ class HardwareModel:
             model_cfgs = yaml.safe_load(f)
 
         # model cfg is an extension of its base cfg, can create a tree of configs which need to be merged
-        self.model_cfg = sim_util.recursive_cfg_merge(model_cfgs, args.model_cfg)
+        self.model_cfg = sim_util.recursive_cfg_merge(model_cfgs, args["model_cfg"])
         print(f"self.model_cfg: {self.model_cfg}")
 
-        #self.params = parameters.Parameters(args.tech_node, self.cacti_dat_file, self.model_cfg)
-        self.base_params = base_parameters.BaseParameters(args.tech_node, self.cacti_dat_file)
+        self.base_params = base_parameters.BaseParameters(args["tech_node"], self.cacti_dat_file)
 
         self.reset_tech_model()
 
@@ -69,13 +68,13 @@ class HardwareModel:
         self.symbolic_mem = {}
         self.symbolic_buf = {}
         self.memories = []
-        self.obj_fn = args.obj
+        self.obj_fn = args["obj"]
         self.obj = 0
         self.obj_sub_exprs = {}
         self.symbolic_obj = 0
         self.symbolic_obj_sub_exprs = {}
         self.longest_paths = []
-        self.area_constraint = args.area
+        self.area_constraint = args["area"]
         self.inst_name_map = {}
         self.dfg_to_netlist_map = {}
         self.dfg_to_netlist_edge_map = {}

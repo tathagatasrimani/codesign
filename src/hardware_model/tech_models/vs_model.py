@@ -206,6 +206,7 @@ class VSModel(TechModel):
         self.param_db["Eox"] = self.E_ox
         self.param_db["Vox"] = self.V_ox
         self.param_db["scale_length"] = self.scale_length
+        self.param_db["A_gate"] = self.A_gate
 
     def apply_base_parameter_effects(self):
         pass

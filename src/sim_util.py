@@ -36,6 +36,9 @@ def custom_cosh(x, evaluate=True):
     """
     return cosh(symbolic_convex_min(500, x))
 
+# overwrite values of dict1 with values of dict2
+# if a key is not present in dict1, still takes values from dict2
+# if key is not present in dict2, keeps value from dict1
 def deep_merge(dict1, dict2):
     result = dict(dict1)
     for key, value in dict2.items():
@@ -45,6 +48,7 @@ def deep_merge(dict1, dict2):
             result[key] = value
     return result
 
+# merge model config up hierarchy to base cfg
 def recursive_cfg_merge(model_cfgs, model_cfg_name):
     base_cfg = model_cfgs[model_cfg_name]["base_cfg"]
     model_cfg = model_cfgs[model_cfg_name]

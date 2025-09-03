@@ -1,0 +1,25 @@
+default:
+  base_cfg: default
+  args:
+    benchmark: matmult
+    savedir: logs
+    parasitics: estimation
+    openroad_testfile: openroad_interface/tcl/codesign_top.tcl
+    num_iters: 10
+    area: 1000000
+    no_memory: False
+    debug_no_cacti: False
+    checkpoint: False
+    logic_node: 7
+    mem_node: 32
+    inverse_pass_improvement: 10
+    tech_node: default
+    obj: edp
+    model_cfg: default
+    hls_tool: catapult
+
+vitis_test:
+  base_cfg: default
+  args:
+    benchmark: gemm
+    hls_tool: vitis

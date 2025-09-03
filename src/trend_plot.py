@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import os
 
 class TrendPlot:
-    def __init__(self, codesign_module, params_over_iterations, edp_over_iterations, lag_factor_over_iterations, save_dir, obj="Energy Delay Product", units="nJ*ns", obj_fn="edp"):
+    def __init__(self, codesign_module, params_over_iterations, obj_over_iterations, lag_factor_over_iterations, save_dir, obj="Energy Delay Product", units="nJ*ns", obj_fn="edp"):
         self.codesign_module = codesign_module
         self.params_over_iterations = params_over_iterations
         self.plot_list = set([
@@ -53,7 +53,7 @@ class TrendPlot:
             self.codesign_module.hw.circuit_model.tech_model.eot: "electrical oxide thickness per iteration (m)",
             self.codesign_module.hw.circuit_model.tech_model.base_params.f: "f per iteration (Hz)",
         }
-        self.edp_over_iterations = edp_over_iterations
+        self.obj_over_iterations = obj_over_iterations
         self.lag_factor_over_iterations = lag_factor_over_iterations
         self.save_dir = save_dir
         self.obj = obj
@@ -98,11 +98,11 @@ class TrendPlot:
             plt.savefig(f"{self.save_dir}/{self.plot_list_labels[param]}_over_iters.png", dpi=300, bbox_inches='tight')
             plt.close()
     
-    def plot_edp_over_iterations(self):
+    def plot_obj_over_iterations(self):
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
 
-        x = [i/2.0 for i in range(len(self.edp_over_iterations))]
+        x = [i/2.0 for i in range(len(self.obj_over_iterations))]
 
         # Set larger font sizes and better styling
         plt.rcParams.update({
@@ -117,16 +117,16 @@ class TrendPlot:
         fig, ax = plt.subplots(figsize=(10, 6))
 
         # Create alternating red and blue line segments
-        for i in range(len(self.edp_over_iterations) - 1)[::2]:
+        for i in range(len(self.obj_over_iterations) - 1)[::2]:
             x_start = x[i]
             x_end = x[i + 2]
             x_mid = (x_start + x_end) / 2
 
             # Blue line from x.5 to x+1
-            ax.plot([x_mid, x_end], [self.edp_over_iterations[i + 1], self.edp_over_iterations[i + 2]], 'b-', linewidth=3, markersize=10, marker="o", markerfacecolor="black", markeredgecolor="black")
+            ax.plot([x_mid, x_end], [self.obj_over_iterations[i + 1], self.obj_over_iterations[i + 2]], 'b-', linewidth=3, markersize=10, marker="o", markerfacecolor="black", markeredgecolor="black")
             
             # Red line from x to x.5
-            ax.plot([x_start, x_mid], [self.edp_over_iterations[i], self.edp_over_iterations[i + 1]], 'r-', linewidth=3, markersize=10, marker="o", markerfacecolor="black", markeredgecolor="black")
+            ax.plot([x_start, x_mid], [self.obj_over_iterations[i], self.obj_over_iterations[i + 1]], 'r-', linewidth=3, markersize=10, marker="o", markerfacecolor="black", markeredgecolor="black")
         
 
         ax.set_xlabel("Iteration", fontweight="bold")

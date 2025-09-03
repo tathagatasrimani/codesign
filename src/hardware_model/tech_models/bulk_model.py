@@ -54,6 +54,7 @@ class BulkModel(TechModel):
 
     def config_param_db(self):
         super().config_param_db()
+        self.param_db["A_gate"] = self.A_gate
 
     def init_transistor_equations(self):
         super().init_transistor_equations()
@@ -120,6 +121,7 @@ class BulkModel(TechModel):
         self.P_pass_inv = self.I_off*self.base_params.V_dd # base leakage power
 
         self.apply_additional_effects()
+        self.config_param_db()
 
     def apply_base_parameter_effects(self):
         if self.model_cfg["effects"]["velocity_saturation"]:

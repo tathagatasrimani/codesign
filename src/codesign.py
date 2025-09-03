@@ -3,6 +3,7 @@ import os
 import yaml
 import sys
 import datetime
+import json
 import logging
 import shutil
 import subprocess
@@ -41,10 +42,14 @@ class Codesign:
         Returns:
             None
         """
-        self.benchmark = f"src/benchmarks/{args.benchmark}"
-        self.benchmark_name = args.benchmark
+        self.set_config(args)
+
+
+        self.hls_tool = self.cfg["args"]["hls_tool"]
+        self.benchmark = f"src/benchmarks/{self.hls_tool}/{self.cfg['args']['benchmark']}"
+        self.benchmark_name = self.cfg["args"]["benchmark"]
         self.save_dir = os.path.join(
-            args.savedir, datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            self.cfg["args"]["savedir"], datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         )
 
         if not os.path.exists(self.save_dir):
@@ -60,26 +65,24 @@ class Codesign:
             shutil.rmtree("src/tmp")
         os.mkdir("src/tmp")
 
-        #shutil.copytree(self.benchmark, f"{self.save_dir}/benchmark")
-
         logging.basicConfig(filename=f"{self.save_dir}/codesign.log", level=logging.INFO)
-        logger.info(f"args: {args}")
+        logger.info(f"args: {self.cfg['args']}")
 
-        self.forward_edp = 0
-        self.inverse_edp = 0
-        self.openroad_testfile = args.openroad_testfile
-        self.parasitics = args.parasitics
-        self.run_cacti = not args.debug_no_cacti
-        self.no_memory = args.no_memory
-        self.hw = hardwareModel.HardwareModel(args)
+        self.forward_obj = 0
+        self.inverse_obj = 0
+        self.openroad_testfile = self.cfg["args"]["openroad_testfile"]
+        self.parasitics = self.cfg["args"]["parasitics"]
+        self.run_cacti = not self.cfg["args"]["debug_no_cacti"]
+        self.no_memory = self.cfg["args"]["no_memory"]
+        self.hw = hardwareModel.HardwareModel(self.cfg["args"])
         self.opt = optimize.Optimizer(self.hw)
         self.module_map = {}
-        self.inverse_pass_improvement = args.inverse_pass_improvement if (hasattr(args, "inverse_pass_improvement") and args.inverse_pass_improvement) else 10
-        self.obj_fn = args.obj
+        self.inverse_pass_improvement = self.cfg["args"]["inverse_pass_improvement"]
+        self.obj_fn = self.cfg["args"]["obj"]
         self.inverse_pass_lag_factor = 1
 
         self.params_over_iterations = [copy.copy(self.hw.circuit_model.tech_model.base_params.tech_values)]
-        self.edp_over_iterations = []
+        self.obj_over_iterations = []
         self.lag_factor_over_iterations = [1.0]
         self.max_unroll = 64
 
@@ -89,6 +92,20 @@ class Codesign:
         #    f.write(yaml.dump(self.hw.circuit_model.tech_model.base_params.tech_values))
 
         self.hw.write_technology_parameters(self.save_dir+"/initial_tech_params.yaml")
+
+    # any arguments specified on CLI will override the default config
+    def set_config(self, args):
+        with open(f"src/yaml/codesign_cfg.yaml", "r") as f:
+            cfgs = yaml.load(f, Loader=yaml.FullLoader)
+        overwrite_args_all = vars(args)
+        overwrite_args = {}
+        for key, value in overwrite_args_all.items():
+            if value is not None:
+                overwrite_args[key] = value
+        overwrite_cfg = {"base_cfg": args.config, "args": overwrite_args}
+        cfgs["overwrite_cfg"] = overwrite_cfg
+        self.cfg = sim_util.recursive_cfg_merge(cfgs, "overwrite_cfg")
+        print(f"args: {self.cfg['args']}")
 
     def log_forward_tech_params(self):
         latency = self.hw.circuit_model.circuit_values["latency"]
@@ -174,24 +191,94 @@ class Codesign:
         with open("src/tmp/benchmark/full_netlist_debug.gml", "wb") as f:
             nx.write_gml(full_netlist, f)
 
-    def forward_pass(self):
+    def set_resource_constraint_scalehls(self):
         """
-        Executes the forward pass of the codesign process: prepares benchmark, updates ccore
-        delays/areas, runs Catapult, calculates wire parasitics, and parses timing reports.
+        Sets the resource constraint for ScaleHLS.
+        """
+        with open(f"scalehls-hida/test/Transforms/Directive/config.json", "r") as f:
+            config = json.load(f)
+        dsp_multiplier = 1e15 # TODO replace with more comprehensive model
+        config["dsp"] = int(self.cfg["args"]["area"] / (self.hw.circuit_model.tech_model.param_db["A_gate"].xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf() * dsp_multiplier))
+        with open(f"scalehls-hida/test/Transforms/Directive/config.json", "w") as f:
+            json.dump(config, f)
+
+    def run_scalehls(self):
+        """
+        Runs ScaleHLS synthesis tool in a different environment with modified PATH and PYTHONPATH.
+        Updates the memory configuration and logs the output.
+        Handles directory changes and cleans up temporary files.
 
         Args:
             None
         Returns:
             None
         """
-        print("\nRunning Forward Pass")
-        logger.info("Running Forward Pass")
+        self.set_resource_constraint_scalehls()
+
+        # Store original environment variables
+        original_path = os.environ.get('PATH', '')
+        original_pythonpath = os.environ.get('PYTHONPATH', '')
+        
+        # Set up ScaleHLS environment
+        scalehls_path = f"{os.path.dirname(__file__)}/../scalehls-hida/build/bin:{os.path.dirname(__file__)}/../scalehls-hida/polygeist/build/bin"  
+        scalehls_pythonpath = f"{os.path.dirname(__file__)}/../scalehls-hida/python"  # Update this path
+        
+        # Modify environment variables
+        new_path = f"{scalehls_path}:{original_path}" if scalehls_path not in original_path else original_path
+        new_pythonpath = f"{scalehls_pythonpath}:{original_pythonpath}" if original_pythonpath else scalehls_pythonpath
+        
+        # Create modified environment
+        modified_env = os.environ.copy()
+        modified_env['PATH'] = new_path
+        modified_env['PYTHONPATH'] = new_pythonpath
+        
+        try:
+            os.chdir(f"scalehls-hida/samples/polybench/{self.benchmark_name}")
+
+            # ScaleHLS commands with shell redirection and pipes
+            scalehls_commands = [
+                f"cgeist test_{self.benchmark_name}.c -function=test_{self.benchmark_name} -S -memref-fullrank -raise-scf-to-affine > test_{self.benchmark_name}.mlir",
+                f"scalehls-opt test_{self.benchmark_name}.mlir -scalehls-dse-pipeline=\"top-func=test_{self.benchmark_name} target-spec=../../../test/Transforms/Directive/config.json\" | scalehls-translate -scalehls-emit-hlscpp > {os.path.join(os.path.dirname(__file__), 'tmp/benchmark')}/test_{self.benchmark_name}_dse.cpp",
+            ]
+            
+            for cmd in scalehls_commands:
+                logger.info(f"Running ScaleHLS command: {cmd}")
+                p = subprocess.run(cmd, shell=True, capture_output=True, text=True, env=modified_env)
+                logger.info(f"ScaleHLS command output: {p.stdout}")
+                if p.returncode != 0:
+                    logger.error(f"ScaleHLS command failed: {p.stderr}")
+                    raise Exception(f"ScaleHLS command failed: {p.stderr}")
+        
+                
+        finally:
+            # Restore original environment variables
+            os.environ['PATH'] = original_path
+            if original_pythonpath:
+                os.environ['PYTHONPATH'] = original_pythonpath
+            elif 'PYTHONPATH' in os.environ:
+                del os.environ['PYTHONPATH']
+
+    def vitis_forward_pass(self):
+        """
+        Runs Vitis version of forward pass, updates the memory configuration, and logs the output.
+        """
+        self.run_scalehls()
+        os.chdir(os.path.join(os.path.dirname(__file__), "tmp/benchmark"))
+        command = ["vitis_hls -f tcl_script.tcl"]
+        p = subprocess.run(command, shell=True, capture_output=True, text=True)
+        logger.info(f"Vitis HLS command output: {p.stdout}")
+        if p.returncode != 0:
+            logger.error(f"Vitis HLS command failed: {p.stderr}")
+            raise Exception(f"Vitis HLS command failed: {p.stderr}")
+        os.chdir(os.path.join(os.path.dirname(__file__), ".."))
+        # PARSE OUTPUT
+        raise Exception("Not implemented")
 
 
-        ## clear out the existing tmp benchmark directory and copy the benchmark files from the desired benchmark
-        if os.path.exists("src/tmp/benchmark"):
-            shutil.rmtree("src/tmp/benchmark")
-        shutil.copytree(self.benchmark, "src/tmp/benchmark")
+    def catapult_forward_pass(self):
+        """
+        Runs Catapult version of forward pass, updates the memory configuration, and logs the output.
+        """
         shutil.copytree("src/forward_pass/ccores_base", "src/tmp/benchmark/src/ccores")
 
         # update delay and area of ccores
@@ -199,7 +286,7 @@ class Codesign:
 
         if self.benchmark_name == "matmult":
             # change the unroll factors in the matmult_basic.cpp file
-            with open("src/benchmarks/matmult/src/matmult_basic.cpp", "r") as f:
+            with open(f"{self.benchmark}/src/matmult_basic.cpp", "r") as f:
                 lines = f.readlines()
             with open("src/tmp/benchmark/src/matmult_basic.cpp", "w") as f:
                 unroll_stmts = []
@@ -222,7 +309,7 @@ class Codesign:
                 f.writelines(lines)
         elif self.benchmark_name == "basic_aes":
             # change the unroll factors in the basic_aes.cpp file
-            with open("src/benchmarks/basic_aes/src/basic_aes.cpp", "r") as f:
+            with open(f"{self.benchmark}/src/basic_aes.cpp", "r") as f:
                 lines = f.readlines()
             with open("src/tmp/benchmark/src/basic_aes.cpp", "w") as f:
                 unroll_stmts = []
@@ -247,23 +334,46 @@ class Codesign:
                     #print(f"unrolling {unroll_stmts[i]} by {min(amount_to_unroll, max_unrolls[i])}")
 
                 f.writelines(lines)
+
         # run catapult with custom memory configurations
         self.run_catapult()
 
         # parse catapult timing report and create schedule
         self.parse_catapult_timing()
 
-        
+    def forward_pass(self):
+        """
+        Executes the forward pass of the codesign process: prepares benchmark, updates ccore
+        delays/areas, runs hls, calculates wire parasitics, and parses timing reports.
+
+        Args:
+            None
+        Returns:
+            None
+        """
+        print("\nRunning Forward Pass")
+        logger.info("Running Forward Pass")
+
+
+        ## clear out the existing tmp benchmark directory and copy the benchmark files from the desired benchmark
+        if os.path.exists("src/tmp/benchmark"):
+            shutil.rmtree("src/tmp/benchmark")
+        shutil.copytree(self.benchmark, "src/tmp/benchmark")
+
+        if self.hls_tool == "catapult":
+            self.catapult_forward_pass()
+        else:
+            self.vitis_forward_pass()
 
         # prepare schedule & calculate wire parasitics
         self.prepare_schedule()
 
-        ## create the EDP equation 
+        ## create the obj equation 
         self.hw.calculate_objective()
 
         self.display_objective("after forward pass")
 
-        self.edp_over_iterations.append(self.hw.obj)
+        self.obj_over_iterations.append(self.hw.obj)
 
     def parse_catapult_timing(self):
         """
@@ -433,7 +543,7 @@ class Codesign:
     def inverse_pass(self):
         """
         Executes the inverse pass of the codesign process: generates symbolic CACTI values for
-        memories, computes EDP (Energy Delay Product), runs optimizer to find better technology
+        memories, computes obj, runs optimizer to find better technology
         parameters, and logs results.
 
         Args:
@@ -459,14 +569,14 @@ class Codesign:
 
         self.display_objective("after inverse pass", symbolic=True)
 
-        self.edp_over_iterations.append(self.hw.symbolic_obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values))
+        self.obj_over_iterations.append(self.hw.symbolic_obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values))
         self.lag_factor_over_iterations.append(self.inverse_pass_lag_factor)
 
     def log_all_to_file(self, iter_number):
         with open(f"{self.save_dir}/results.txt", "a") as f:
             f.write(f"{iter_number}\n")
-            f.write(f"Forward EDP: {self.hw.obj}\n")
-            f.write(f"Inverse EDP: {self.hw.symbolic_obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values)}\n")
+            f.write(f"Forward {self.obj_fn}: {self.hw.obj}\n")
+            f.write(f"Inverse {self.obj_fn}: {self.hw.symbolic_obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values)}\n")
         nx.write_gml(
             self.hw.netlist,
             f"{self.save_dir}/netlist_{iter_number}.gml",
@@ -530,7 +640,7 @@ class Codesign:
         if self.hw.scheduled_dfg:
             nx.write_gml(self.hw.scheduled_dfg, "src/checkpoint/schedule.gml")
 
-    def end_of_run_plots(self, edp_over_iterations, lag_factor_over_iterations, params_over_iterations):
+    def end_of_run_plots(self, obj_over_iterations, lag_factor_over_iterations, params_over_iterations):
         assert len(params_over_iterations) > 1 
         obj = "Energy Delay Product"
         units = "nJ*ns"
@@ -540,9 +650,9 @@ class Codesign:
         elif self.obj_fn == "delay":
             obj = "Delay"
             units = "ns"
-        trend_plotter = trend_plot.TrendPlot(self, params_over_iterations, edp_over_iterations, lag_factor_over_iterations, self.save_dir + "/figs", obj, units, self.obj_fn)
+        trend_plotter = trend_plot.TrendPlot(self, params_over_iterations, obj_over_iterations, lag_factor_over_iterations, self.save_dir + "/figs", obj, units, self.obj_fn)
         trend_plotter.plot_params_over_iterations()
-        trend_plotter.plot_edp_over_iterations()
+        trend_plotter.plot_obj_over_iterations()
         trend_plotter.plot_lag_factor_over_iterations()
 
     def execute(self, num_iters):
@@ -556,7 +666,7 @@ class Codesign:
             self.hw.reset_state()
             self.hw.reset_tech_model()
             i += 1
-        self.end_of_run_plots(self.edp_over_iterations, self.lag_factor_over_iterations, self.params_over_iterations)
+        self.end_of_run_plots(self.obj_over_iterations, self.lag_factor_over_iterations, self.params_over_iterations)
 
         # cleanup
         self.cleanup()
@@ -567,11 +677,11 @@ def main(args):
         args
     )
     try:
-        codesign_module.execute(args.num_iters)
+        codesign_module.execute(codesign_module.cfg["args"]["num_iters"])
     finally:
-        if args.checkpoint:
+        if codesign_module.cfg["args"]["checkpoint"]:
             codesign_module.save_checkpoint()
-        codesign_module.end_of_run_plots(codesign_module.edp_over_iterations, codesign_module.lag_factor_over_iterations, codesign_module.params_over_iterations)
+        codesign_module.end_of_run_plots(codesign_module.obj_over_iterations, codesign_module.lag_factor_over_iterations, codesign_module.params_over_iterations)
         codesign_module.cleanup()
 
 if __name__ == "__main__":
@@ -590,55 +700,48 @@ if __name__ == "__main__":
         "-f",
         "--savedir",
         type=str,
-        default="logs",
         help="Path to the save new architecture file",
     )
     parser.add_argument(
         "--parasitics",
         type=str,
         choices=["detailed", "estimation", "none"],
-        default="estimation",
         help="determines what type of parasitic calculations are done for wires",
     )
 
     parser.add_argument(
         "--openroad_testfile",
         type=str,
-        default="openroad_interface/tcl/codesign_top.tcl",
         help="what tcl file will be executed for openroad",
     )
     parser.add_argument(
         "-N",
         "--num_iters",
         type=int,
-        default=10,
         help="Number of Codesign iterations to run",
     )
     parser.add_argument(
         "-a",
         "--area",
         type=float,
-        default=1000000,
         help="Area constraint in um2",
     )
     parser.add_argument(
         "--no_memory",
         type=bool,
-        default=False,
         help="disable memory modeling",
     )
-    parser.add_argument('--debug_no_cacti', type=bool, default=False, 
+    parser.add_argument('--debug_no_cacti', type=bool,
                         help='disable cacti in the first iteration to decrease runtime when debugging')
-    parser.add_argument("-c", "--checkpoint", type=bool, default=False, help="save a design checkpoint upon exit")
-    parser.add_argument("--logic_node", type=int, default=7, help="logic node size")
-    parser.add_argument("--mem_node", type=int, default=32, help="memory node size")
+    parser.add_argument("-c", "--checkpoint", type=bool, help="save a design checkpoint upon exit")
+    parser.add_argument("--logic_node", type=int, help="logic node size")
+    parser.add_argument("--mem_node", type=int, help="memory node size")
     parser.add_argument("--inverse_pass_improvement", type=float, help="improvement factor for inverse pass")
-    parser.add_argument("--tech_node", "-T", type=str, default="default", help="technology node to use as starting point")
-    parser.add_argument("--obj", type=str, default="edp", help="objective function")
-    parser.add_argument("--model_cfg", type=str, default="default", help="symbolic model configuration")
+    parser.add_argument("--tech_node", "-T", type=str, help="technology node to use as starting point")
+    parser.add_argument("--obj", type=str, help="objective function")
+    parser.add_argument("--model_cfg", type=str, help="symbolic model configuration")
+    parser.add_argument("--hls_tool", type=str, help="hls tool to use")
+    parser.add_argument("--config", type=str, default="default", help="config to use")
     args = parser.parse_args()
-    print(
-        f"args: benchmark: {args.benchmark}, parasitics: {args.parasitics}, num iterations: {args.num_iters}, checkpointing: {args.checkpoint}, area: {args.area}, memory included: {not args.no_memory}, tech node: {args.tech_node}, obj: {args.obj}, model cfg: {args.model_cfg}"
-    )
 
     main(args)
