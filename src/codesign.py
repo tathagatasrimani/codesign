@@ -274,7 +274,7 @@ class Codesign:
             logger.error(f"Vitis HLS command failed: {p.stderr}")
             raise Exception(f"Vitis HLS command failed: {p.stderr}")
         os.chdir(os.path.join(os.path.dirname(__file__), ".."))
-        # PARSE OUTPUT
+        # PARSE OUTPUT, set schedule and read netlist
         raise Exception("Not implemented")
 
 
@@ -430,8 +430,6 @@ class Codesign:
 
         # set end node's start time to longest path length
         self.hw.scheduled_dfg.nodes["end"]["start_time"] = nx.dag_longest_path_length(self.hw.scheduled_dfg)
-
-        self.hw.longest_paths = schedule.get_longest_paths(self.hw.scheduled_dfg)
     
     def parse_output(self, f):
         """

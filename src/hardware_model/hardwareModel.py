@@ -73,8 +73,8 @@ class HardwareModel:
         self.obj_sub_exprs = {}
         self.symbolic_obj = 0
         self.symbolic_obj_sub_exprs = {}
-        self.longest_paths = []
         self.area_constraint = args["area"]
+        self.hls_tool = args["hls_tool"]
         self.inst_name_map = {}
         self.dfg_to_netlist_map = {}
         self.dfg_to_netlist_edge_map = {}
@@ -88,7 +88,6 @@ class HardwareModel:
         self.symbolic_obj = 0
         self.scheduled_dfg = nx.DiGraph()
         self.parasitic_graph = nx.DiGraph()
-        self.longest_paths = []
         self.obj_sub_exprs = {}
         self.symbolic_obj_sub_exprs = {}
         self.execution_time = 0
@@ -123,7 +122,11 @@ class HardwareModel:
         self.circuit_model = circuit_model.CircuitModel(self.tech_model)
 
 
-    def map_netlist_to_scheduled_dfg(self, benchmark_name):
+    def vitis_map_netlist_to_scheduled_dfg(self, benchmark_name):
+        pass # TODO: implement vitis map netlist to scheduled dfg
+
+
+    def catapult_map_netlist_to_scheduled_dfg(self, benchmark_name):
 
         ## create a set of all netlist nodes
         unmapped_dfg_nodes = set(self.scheduled_dfg.nodes)
@@ -475,7 +478,12 @@ class HardwareModel:
 
     
     def get_wire_parasitics(self, arg_testfile, arg_parasitics, benchmark_name):
-        self.map_netlist_to_scheduled_dfg(benchmark_name)
+        if self.hls_tool == "catapult":
+            self.catapult_map_netlist_to_scheduled_dfg(benchmark_name)
+        elif self.hls_tool == "vitis":
+            self.vitis_map_netlist_to_scheduled_dfg(benchmark_name)
+        else:
+            raise ValueError(f"Invalid hls tool: {self.hls_tool}")
         
         start_time = time.time()
         self.circuit_model.wire_length_by_edge, _ = place_n_route.place_n_route(
@@ -519,7 +527,6 @@ class HardwareModel:
             func = self.scheduled_dfg.nodes.data()[edge[0]]["function"]
             self.scheduled_dfg.edges[edge]["weight"] = self.circuit_model.circuit_values["latency"][func]
         self.add_wire_delays_to_schedule()
-        self.longest_paths = schedule.get_longest_paths(self.scheduled_dfg)
 
     def save_symbolic_memories(self):
         MemL_expr = 0
@@ -635,41 +642,6 @@ class HardwareModel:
             self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.node_arrivals_end] = self.scheduled_dfg.nodes["end"]["start_time"]
             execution_time = self.circuit_model.tech_model.base_params.node_arrivals_end
             print(f"at the end of symbolic execution time calc, there are {len(self.circuit_model.tech_model.constraints)} constraints")
-
-            """for path in self.longest_paths:
-                logger.info(f"adding path to execution time calculation: {path}")
-                path_execution_time = 0
-                for i in range(len(path[1])):
-                    node = path[1][i]
-                    data = self.scheduled_dfg.nodes[node]
-                    if node == "end" or data["function"] == "nop": continue
-                    if data["function"] == "Buf" or data["function"] == "MainMem":
-                        rsc_name = data["library"][data["library"].find("__")+1:]
-                        logger.info(f"(execution time) rsc name: {rsc_name}, data: {data['function']}")
-                        path_execution_time += self.circuit_model.symbolic_latency_wc[data["function"]]()[rsc_name]
-                    else:
-                        path_execution_time += self.circuit_model.symbolic_latency_wc[data["function"]]()
-                    if i > 0 and (path[1][i-1], node) in self.dfg_to_netlist_edge_map:
-                        path_execution_time += self.circuit_model.wire_delay(self.dfg_to_netlist_edge_map[(path[1][i-1], node)], symbolic)
-                execution_time = symbolic_convex_max(execution_time, path_execution_time) if execution_time != 0 else path_execution_time
-
-            logger.info(f"symbolic execution time: {execution_time}")
-
-            # cvxpy implementation
-            node_arrivals = {}
-            gens = list(nx.topological_generations(self.scheduled_dfg))
-            constr = []
-            for node in gens[0]:
-                node_arrivals[node] = 0
-            for gen in gens[1:]:
-                for node in gen:
-                    node_arrivals[node] = cp.Variable()
-                    this_delay = self.circuit_model.uarch_lat
-                    constr.extend([(node_arrivals[node] >= node_arrivals[pred] + self.scheduled_dfg.edges[pred, node]["weight"]) for pred in self.scheduled_dfg.predecessors(node)])
-            obj = node_arrivals["end"]
-            prob = cp.Problem(cp.Minimize(obj), constr)
-            prob.solve()
-            print(f"cvxpy symbolic execution time: {prob.value}")"""
         else:
             execution_time = self.scheduled_dfg.nodes["end"]["start_time"]
         return execution_time
