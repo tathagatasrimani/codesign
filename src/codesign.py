@@ -11,6 +11,10 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import re
 from src.netlist_parse import parse_yosys_json
+from src.vitis_create_netlist import create_vitis_netlist
+from src.vitis_parse_verbose_rpt import parse_verbose_rpt
+from src.vitis_create_cdfg import create_cdfg_vitis
+from src.vitis_merge_cdfgs import merge_cdfgs_vitis
 
 logger = logging.getLogger("codesign")
 
@@ -205,30 +209,45 @@ class Codesign:
         print("\nRunning Forward Pass for Vitis")
         logger.info("Running Forward Pass for Vitis")
 
-        ## clear out the existing tmp benchmark directory and copy the benchmark files from the desired benchmark
-        if os.path.exists("src/tmp/benchmark_vitis"):
-            shutil.rmtree("src/tmp/benchmark_vitis")
-        shutil.copytree(self.benchmark, f"src/tmp/benchmark_vitis/{self.benchmark_name}")
 
+        ## DEBUG MODE speeds up testing by using pre-run vitis output.
+        forward_pass_debug = True
 
-        # run scaleHLS
-        self.run_scaleHLS()
+        ## for the first time, run with debug mode off and copy over the src/tmp/benchmark_vitis folder to test_vitis_resnet/tmp/benchmark_vitis
+        ## to then use debug mode and avoid the overhead of running vitis again. 
 
         
+        if forward_pass_debug:
+            ## pwd
+            print("Current working directory in vitis parse: ", os.getcwd())
 
-        # run vitis 
-        self.run_vitis()
+            test_tmp_folder = "test_vitis_resnet/tmp/benchmark_vitis"
+            print("Debugging Forward Pass for Vitis. Using ", test_tmp_folder)
 
-        exit(0) # exit for debugging purposes
+            ## copy the test vitis folder to the tmp folder
+            shutil.copytree(test_tmp_folder, "src/tmp/benchmark_vitis", dirs_exist_ok=True)
+            # Add any additional debugging information here
 
-        self.parse_vitis_netlist()
+        else:
+            ## clear out the existing tmp benchmark directory and copy the benchmark files from the desired benchmark
+            if os.path.exists("src/tmp/benchmark_vitis"):
+                shutil.rmtree("src/tmp/benchmark_vitis")
+            shutil.copytree(self.benchmark, f"src/tmp/benchmark_vitis/{self.benchmark_name}")
 
-        # parse vitis timing report and create schedule
-        self.parse_vitis_timing()
+            # run scaleHLS
+            self.run_scaleHLS()
 
+            # run vitis 
+            self.run_vitis()
 
-        # prepare schedule & calculate wire parasitics
-        # self.prepare_schedule()
+            exit(0) # exit for debugging purposes
+
+        # parse vitis output data to create netlist & CDFG
+        self.parse_vitis_data()
+
+        exit(0)
+
+        # calculate wire parasitics
 
         # ## create the EDP equation 
         # self.hw.calculate_objective()
@@ -286,7 +305,7 @@ class Codesign:
 
     def run_vitis(self):
         """
-        Runs the Vitis HL synthesis tooland logs the output.
+        Runs the Vitis HL synthesis tool and logs the output.
         Handles directory changes and cleans up temporary files.
 
         Args:
@@ -296,6 +315,10 @@ class Codesign:
         """
 
         os.chdir(f"src/tmp/benchmark_vitis/{self.benchmark_name}")
+
+        ## get CWD
+        cwd = os.getcwd()
+        print(f"Running scaleHLS in {cwd}")
 
         ## add pragmas for AXI interface port (not for unrolling/pipelining)
         self.generate_hls_axi_pragmas(f'{self.benchmark_name}.cpp')
@@ -317,26 +340,33 @@ class Codesign:
         
         
         os.chdir("../../..")
-
-    
-
-    
-
-
-
         
-    def parse_vitis_netlist(self):
+    def parse_vitis_data(self):
 
-        # TODO: Parse the Vitis netlist and write it to netlist-from-vitis.gml
-        
+        # TODO: Parse the Vitis netlist and write it to netlist-from-vitis.gml and cdfg-from-vitis.gml
+
+        ## print the cwd
+        print(f"Current working directory in vitis parse data: {os.getcwd()}")
+
+        parse_results_dir = "src/tmp/benchmark_vitis/resnet18/parse_results"
+
+        ## Do preprocessing to the vitis data for the next scripts
+        parse_verbose_rpt("src/tmp/benchmark_vitis/resnet18/resnet18/resnet18_sol/.autopilot/db", parse_results_dir)
+
+        ## Create the netlist
+        create_vitis_netlist(parse_results_dir)
+
+        ## Create the CDFGs for each FSM
+        create_cdfg_vitis(parse_results_dir)
+
+        ## Merge the CDFGs recursivley through the FSM module hierarchy to produce overall CDFG
+        merge_cdfgs_vitis(parse_results_dir, "forward")
+
+        print(f"Current working directory at end of vitis parse data: {os.getcwd()}")
+
         ## write the netlist to a file
         with open(f"netlist-from-vitis.gml", "wb") as f:
             nx.write_gml(self.hw.netlist, f)
-
-        
-    def parse_vitis_timing(self):
-        # TODO: Parse the Vitis timing report and create a DFG
-        pass
 
 
     def run_scaleHLS(self):

@@ -209,7 +209,7 @@ def create_cdfg_one_file(fsm_data, state_transitions, stg_data, dir_name):
 
     return G, instantiated_modules
 
-def main(root_dir):
+def create_cdfg_vitis(root_dir):
     for subdir in os.listdir(root_dir):
         subdir_path = os.path.join(root_dir, subdir)
         if not os.path.isdir(subdir_path):
@@ -266,6 +266,11 @@ def main(root_dir):
         with open(module_file, 'w') as mf:
             json.dump(module_dependences, mf, indent=4)
         debug_print(f"Created module dependencies file: {module_file} with {len(module_dependences)} modules.")
+
+
+def main(root_dir):
+    create_cdfg(root_dir)
+
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:

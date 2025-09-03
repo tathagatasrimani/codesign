@@ -131,7 +131,7 @@ def create_networkX_netlist(json_netlist, json_complist):
     return G
     
 
-def main(root_dir):
+def create_vitis_netlist(root_dir):
     for subdir in os.listdir(root_dir):
         subdir_path = os.path.join(root_dir, subdir)
         if not os.path.isdir(subdir_path):
@@ -177,6 +177,10 @@ def main(root_dir):
 
         # Write out the networkX graph to a gml file
         nx.write_gml(final_netlist, f"{subdir_path}/{netlist_prefix}_netlist.gml")
+
+
+def main(root_dir):
+    create_vitis_netlist_for_root_dir(root_dir)
 
 
 if __name__ == "__main__":

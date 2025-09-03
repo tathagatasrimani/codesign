@@ -396,6 +396,11 @@ def parse_stg_rpt_to_json(stg_rpt_path):
     with open(output_json, 'w') as f:
         json.dump(result, f, indent=2)
 
+
+def parse_verbose_rpt(input_dir, output_dir):
+    extract_all_files(input_dir, output_dir)
+    parse_all_fsm_reports(output_dir)
+
 # Example usage after extract_all_files:
 if __name__ == "__main__":
     if len(sys.argv) not in [2, 3]:
@@ -403,8 +408,5 @@ if __name__ == "__main__":
     else:
         input_directory = sys.argv[1]
         output_folder = sys.argv[2] if len(sys.argv) == 3 else "."
-        extract_all_files(input_directory, output_folder)
-        parse_all_fsm_reports(output_folder)
 
-
-
+        parse_verbose_rpt(input_directory, output_folder)
