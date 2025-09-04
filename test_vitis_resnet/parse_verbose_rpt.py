@@ -3,6 +3,12 @@ import os
 import re
 import json
 
+# Regexes
+_LOOP_SECTION_RX = re.compile(r'^\s*\*\s*Loop:\s*$', re.IGNORECASE)
+_HEADER_RX       = re.compile(r'\|\s*Loop Name\s*\|', re.IGNORECASE)
+_SEP_RX          = re.compile(r'^\s*-+\s*(\|\s*-+\s*)+$')       # -----|-----|---
+_DATA_ROW_RX     = re.compile(r'^\s*\|\s*(?:-\s*)?(?P<name>[^|]+?)\s*\|')  # first cell only
+
 
 def extract_sections(filename, output_folder="."):
     netlist_lines = []
@@ -16,6 +22,13 @@ def extract_sections(filename, output_folder="."):
     inside_transitions = False
     inside_stg = False
     stg_lines = []
+
+    # Required variables for the loops.
+    has_loop = False
+    trip_counts : dict[str, int] = {}
+    within_loop = False
+    loop_count = 0
+    loops = {}
 
     stg_start = "---------------- STG Properties BEGIN ----------------"
     stg_end = "---------------- STG Properties END ------------------"
@@ -91,6 +104,19 @@ def extract_sections(filename, output_folder="."):
             if inside_stg:
                 stg_lines.append(line.rstrip())
 
+            # Checking for the loops.
+            # And if the loop is found then storing the trip count.
+            if(within_loop):
+                within_loop = process_loop_line(line, trip_counts, loop_count)
+                loop_count = loop_count + 1
+            if(not within_loop):
+                within_loop = check_loop(line)
+                has_loop = has_loop or within_loop
+        for line in fsm_lines:
+            loops1 = populate_loop(line, loops, trip_counts)
+            if(loops1):
+                loops[loops1["id"]] = loops1
+
     base_name = os.path.splitext(os.path.basename(filename))[0]
 
     if not os.path.exists(output_folder):
@@ -114,6 +140,17 @@ def extract_sections(filename, output_folder="."):
         with open(os.path.join(output_folder, f"{base_name}_state_transitions.json"), 'w') as tf:
             json.dump(transitions_int_keys, tf, indent=2)
 
+    if loops:
+        for props in loops.values():
+            props["body_states"]  = list(props["body_states"])
+            props["latch_states"] = list(props["latch_states"])
+
+        #  Dumping the loop into a _loop.json
+        with open(os.path.join(output_folder, f"{base_name}_loops_state.json"), 'w') as tf:
+            json.dump(loops, tf, indent=2)
+            if hasattr(populate_loop, "_ctx"):
+                delattr(populate_loop, "_ctx")
+
     if stg_lines:
         stg_out_path = os.path.join(output_folder, f"{base_name}_stg.rpt")
         with open(stg_out_path, 'w') as out_f:
@@ -127,6 +164,205 @@ def extract_sections(filename, output_folder="."):
     with open(original_file_path, 'w') as of:
         of.write(original_content)
     print(f"Copied original file to {original_file_path}")
+
+def check_loop(line : str) -> bool:
+    if 'Loop Name' in line:
+        return True
+    return False
+
+def process_loop_line(line: str, trip_counts: dict, loop_count) -> bool:
+# Process one line of a Vitis .rpt file.
+# If the line contains a VITIS_LOOP row, extract loop_name and trip_count.
+# Updates trip_counts in place and returns has_loop (True/False).
+    # Checking if the loop_name is present in the line.
+    if '+----------' in line:
+        if(loop_count == 0 ):
+            return True
+        return False
+    else:
+        cols = [c.strip() for c in line.split("|") if c.strip()]
+
+        if len(cols) < 7:
+            return False  # not enough columns to safely parse
+
+        loop_name = cols[0].lstrip("-").strip()
+        try:
+            trip_count = int(cols[6])   # 7th column (index 6)
+        except ValueError:
+            trip_count = 0
+
+        trip_counts[loop_name] = trip_count
+        return True
+    return False
+
+
+
+def print_loops_summary(has_loop: bool, trip_counts: dict):
+    """
+    Nicely print loops and their trip counts.
+    """
+    print("\n================ LOOP ANALYSIS ================")
+    if not has_loop or not trip_counts:
+        print("❌ No loops detected in this report.")
+    else:
+        print(f"✅ Loops detected: {len(trip_counts)}")
+        for name, tc in trip_counts.items():
+            print(f"   🔹 {name:<25} → Trip Count: {tc}")
+    print("===============================================\n")
+
+# ---------- regex helpers ----------
+_RX_STATE_HDR = re.compile(r'^\s*State\s+(\d+)\b', re.IGNORECASE)      # "State 2 <SV=...>"
+_RX_ST_LINE   = re.compile(r'\bST[_\s]*(\d+)\s*:', re.IGNORECASE)       # "ST_2 : Operation ..."
+_RX_BR_I1     = re.compile(r'\bbr\s+i1\b.*?,\s*void\s*(%[A-Za-z0-9._]+)\s*,\s*void\s*(%[A-Za-z0-9._]+)')
+# Back-edge to loop header label; tolerates "br void %for.cond..." / "br label %for.cond..."
+_RX_BR_BACK   = re.compile(r'\bbr\b[^%]*(%for\.cond[0-9A-Za-z._]*)', re.IGNORECASE)
+_RX_TRIPNUM   = re.compile(r'(?:i64|i32)\s+(\d+)')
+
+def _ensure_entry(loops, loop_id) -> dict:
+    """Create default loop entry if missing and return it."""
+    if(loop_id not in loops):
+        loops[loop_id] = {
+            "id": loop_id,
+            "target": None,
+            "trip_count": 0,
+            "header_label": None,
+            "body_label": None,
+            "exit_label": None,
+            "backedge": False,
+            "header_state": None,    # 'ST_<n>'
+            "body_states": set(),
+            "latch_states": set(),
+        }
+    return loops[loop_id]
+
+def _state_name_from_line(line):
+    """Return 'ST_<n>' if the line defines/mentions a state; else None."""
+    m = _RX_STATE_HDR.match(line)
+    if m:
+        return f"ST_{int(m.group(1))}"
+    m = _RX_ST_LINE.search(line)  # search because 'ST_2 :' can be later in line
+    if m:
+        return f"ST_{int(m.group(1))}"
+    return None
+
+def populate_loop(line, loops, known_loops):
+    """
+    Streaming parser: feed one line at a time.
+    - Uses known loop IDs to associate info.
+    - Tracks states as 'ST_<n>'.
+    - Correctly fills latch_states even when the back-edge line doesn't mention the loop.
+
+    Returns the loop entry updated by this line ({} if nothing updated).
+    """
+    s = line.rstrip("\n")
+
+    # one shared sticky context across calls
+    if not hasattr(populate_loop, "_ctx"):
+        populate_loop._ctx = {
+            "current_state": None,      # 'ST_<n>'
+            "current_loop": None,       # loop id string
+            "pending_trip": None,       # trip count seen before loop id
+            "latch_by_header": {},      # header_label -> set('ST_<n>')
+        }
+    ctx = populate_loop._ctx
+    updated = None
+
+    # 1) track/normalize current state
+    st = _state_name_from_line(s)
+    if st:
+        ctx["current_state"] = st
+
+    # 2) if this line mentions any known loop id, select it as current loop & enrich
+    hit_loop = None
+    for lid in known_loops.keys():
+        if lid in s:
+            hit_loop = lid
+            break
+    if hit_loop:
+        ent = _ensure_entry(loops, hit_loop)
+
+        # best-effort target: token after '@' if it also contains the loop id
+        at = s.find('@')
+        if at != -1 and s.find(hit_loop, at) != -1:
+            token = s[at+1:].split()[0].rstrip(',(')
+            if token:
+                ent["target"] = token
+
+        # attach any earlier tripcount
+        if ctx.get("pending_trip") is not None:
+            ent["trip_count"] = known_loops[hit_loop]
+            ctx["pending_trip"] = None
+
+        # record body state
+        if ctx.get("current_state"):
+            ent["body_states"].add(ctx["current_state"])
+
+        # if this loop already has a header_label, merge cached latch states
+        hdr = ent.get("header_label")
+        if hdr and hdr in ctx["latch_by_header"]:
+            for st_name in ctx["latch_by_header"][hdr]:
+                ent["latch_states"].add(st_name)
+                ent["backedge"] = True
+
+        ctx["current_loop"] = hit_loop
+        updated = ent
+
+    # 3) trip count: use current loop if known; else stash
+    if "speclooptripcount" in s:
+        nums = _RX_TRIPNUM.findall(s)
+        tc = int(nums[-1]) if nums else 0
+        if ctx.get("current_loop"):
+            ent = _ensure_entry(loops, ctx["current_loop"])
+            ent["trip_count"] = tc
+            updated = ent
+        else:
+            ctx["pending_trip"] = tc
+    # 4) header test: conditional branch with two successors → body/exit + header_state
+    m_hdr = _RX_BR_I1.search(s)
+    if m_hdr and ctx.get("current_loop"):
+        ent = _ensure_entry(loops, ctx["current_loop"])
+        if ent["body_label"] is None:
+            ent["body_label"] = m_hdr.group(1)
+        if ent["exit_label"] is None:
+            ent["exit_label"] = m_hdr.group(2)
+        if ent["header_state"] is None and ctx.get("current_state"):
+            ent["header_state"] = ctx["current_state"]
+
+        # If we already know header_label from a prior back-edge, merge cached latches now
+        hdr = ent.get("header_label")
+        if hdr and hdr in ctx["latch_by_header"]:
+            for st_name in ctx["latch_by_header"][hdr]:
+                ent["latch_states"].add(st_name)
+                ent["backedge"] = True
+
+        updated = ent
+    # 5) latch/back-edge: check with `in` instead of regex
+    if "br void %for.cond.i.i" in s or "br label %for.cond.i.i" in s:
+        # extract the label (take the last token starting with %for.cond)
+        header_label = None
+        for token in s.split():
+            if token.startswith("%for.cond"):
+                header_label = token
+        st_name = ctx.get("current_state")
+        if header_label and st_name:
+            ctx["latch_by_header"].setdefault(header_label, set()).add(st_name)
+
+        if ctx.get("current_loop"):
+            ent = _ensure_entry(loops, ctx["current_loop"])
+            if ent["header_label"] is None:
+                ent["header_label"] = header_label
+            if st_name:
+                ent["latch_states"].add(st_name)
+            ent["backedge"] = True
+            updated = ent
+        else:
+            for ent in loops.values():
+                if ent.get("header_label") == header_label:
+                    if st_name:
+                        ent["latch_states"].add(st_name)
+                    ent["backedge"] = True
+                    updated = ent
+    return updated
 
 
 def extract_all_files(input_folder, output_folder):

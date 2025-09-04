@@ -209,6 +209,19 @@ def create_cdfg_one_file(fsm_data, state_transitions, stg_data, dir_name):
 
     return G, instantiated_modules
 
+def draw_graph(loop_control):
+    loop_graph = nx.DiGraph()
+    for loop_id, props in loop_control.items():
+        print(loop_id)
+        edges = list(zip(sorted(props["body_states"]), sorted(props["body_states"][1:])))
+        for i in range(props["trip_count"]):
+                loop_graph.add_nodes_from(props["body_states"])
+                loop_graph.add_edges_from(edges)
+    return loop_graph
+            
+
+
+
 def main(root_dir):
     for subdir in os.listdir(root_dir):
         subdir_path = os.path.join(root_dir, subdir)
@@ -220,6 +233,7 @@ def main(root_dir):
         # Find _fsm.json and _state_transitions.json files
         fsm_file = None
         transitions_file = None
+        loop_control_file = None
         for fname in os.listdir(subdir_path):
             if fname.endswith('_fsm.json'):
                 fsm_file = os.path.join(subdir_path, fname)
@@ -227,6 +241,8 @@ def main(root_dir):
                 transitions_file = os.path.join(subdir_path, fname)
             elif fname.endswith('_STG_IN_OUT.json'):
                 stg_file = os.path.join(subdir_path, fname)
+            elif fname.endswith("_loops_state.json"):
+                loop_control_file = os.path.join(subdir_path, fname)
 
         if not fsm_file or not transitions_file:
             continue
@@ -240,12 +256,21 @@ def main(root_dir):
         with open(transitions_file, 'r') as f:
             state_transitions_raw = json.load(f)
             state_transitions = {int(k): v for k, v in state_transitions_raw.items()}
+        if(loop_control_file):
+            with open(loop_control_file,'r' ) as f:
+                loop_control_raw = json.load(f)
+                loop_control_file = {k : v for k, v in loop_control_raw.items()}
+
+        
 
         # Load the STG data
         with open(stg_file, 'r') as f:
             stg_data = json.load(f)
 
         result = create_cdfg_one_file(fsm_data, state_transitions, stg_data, subdir_path)
+
+
+        loop_results = draw_graph(loop_control_file)
 
         if result is not None:
             G, module_dependences = result
