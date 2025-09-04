@@ -210,13 +210,22 @@ def create_cdfg_one_file(fsm_data, state_transitions, stg_data, dir_name):
     return G, instantiated_modules
 
 def draw_graph(loop_control):
+    if not loop_control:
+        return
+    loops_graphs = {}
+    loops_info = {}
+    loops_info_indvsl = {}
     loop_graph = nx.DiGraph()
+    latch_nodes = set()
     for loop_id, props in loop_control.items():
-        print(loop_id)
-        edges = list(zip(sorted(props["body_states"]), sorted(props["body_states"][1:])))
-        for i in range(props["trip_count"]):
-                loop_graph.add_nodes_from(props["body_states"])
-                loop_graph.add_edges_from(edges)
+            latch_nodes.update(set(props["latch_states"]))
+            start_state = sorted(props["body_states"])[0]
+            loops_info["start_state"] = 
+            for i in range(props["trip_count"]):
+                    loop_graph.add_nodes_from(props["body_states"])
+                    loop_graph.add_edges_from(edges)
+            loops_graphs[loop_id] = loop_graph
+
     return loop_graph
             
 
