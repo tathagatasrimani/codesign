@@ -209,6 +209,60 @@ def create_cdfg_one_file(fsm_data, state_transitions, stg_data, dir_name):
 
     return G, instantiated_modules
 
+
+def prune_to_functional_unit_graph(G: nx.DiGraph,
+                      target_ops={"add", "mul", "call"},
+                      op_attr="operator") -> nx.DiGraph:
+    """
+    Return a new DiGraph H that contains only the 'functional unit' nodes
+    (operator in target_ops) from G, as well as any node with type 'CONTROL_NODE'.
+    H has an edge u->v iff in G there exists a directed path u -> ... -> v whose internal nodes are all NON-target
+    (i.e., no internal node has operator in target_ops or type 'CONTROL_NODE').
+    Each node in H will have the full fsm_node dictionary as an attribute.
+    """
+    # Identify target nodes and control nodes
+    is_target = {
+        n: (
+            G.nodes[n].get('fsm_node', {}).get(op_attr) in target_ops
+            or G.nodes[n].get('type') == 'CONTROL_NODE'
+        )
+        for n in G.nodes
+    }
+    targets = [n for n, t in is_target.items() if t]
+
+    # Initialize the pruned graph with the target nodes and full fsm_node dict
+    H = nx.DiGraph()
+    for n in targets:
+        attrs = {}
+        if 'fsm_node' in G.nodes[n]:
+            attrs['fsm_node'] = G.nodes[n]['fsm_node']
+        if 'start_state' in G.nodes[n]:
+            attrs['start_state'] = G.nodes[n]['start_state']
+        if 'start_step_count' in G.nodes[n]:
+            attrs['start_step_count'] = G.nodes[n]['start_step_count']
+        if 'type' in G.nodes[n]:
+            attrs['type'] = G.nodes[n]['type']
+        H.add_node(n, **attrs)
+
+    # For each target, walk outward through only non-target nodes.
+    for u in targets:
+        stack = list(G.successors(u))
+        visited = set()
+
+        while stack:
+            x = stack.pop()
+            if x in visited:
+                continue
+            visited.add(x)
+
+            if is_target.get(x, False):
+                H.add_edge(u, x)
+                continue
+
+            stack.extend(G.successors(x))
+
+    return H
+
 def create_cdfg_vitis(root_dir):
     for subdir in os.listdir(root_dir):
         subdir_path = os.path.join(root_dir, subdir)
@@ -254,10 +308,18 @@ def create_cdfg_vitis(root_dir):
             debug_print(f"Graph creation failed for {fsm_file}. Skipping.")
             continue
 
-        # Save the graph as a .gml file with the name based on the fsm file
-        gml_file = fsm_file.replace('_fsm.json', '_cdfg.gml')
+        ## Save the full graph as a .gml file with the name based on the fsm file
+        gml_file = fsm_file.replace('_fsm.json', '_unpruned_cdfg.gml')
         nx.write_gml(G, gml_file)
         debug_print(f"Created GML graph: {gml_file} with {G.number_of_nodes()} nodes and {G.number_of_edges()} edges.")
+
+        ## prune the graph down to only include the functional unit ops.
+        pruned_G = prune_to_functional_unit_graph(G)
+
+        # Save the pruned graph as a .gml file with the name based on the fsm file
+        gml_file = fsm_file.replace('_fsm.json', '_cdfg.gml')
+        nx.write_gml(pruned_G, gml_file)
+        debug_print(f"Created GML graph: {gml_file} with {pruned_G.number_of_nodes()} nodes and {pruned_G.number_of_edges()} edges.")
 
         if not module_dependences:
             module_dependences = []
@@ -269,7 +331,7 @@ def create_cdfg_vitis(root_dir):
 
 
 def main(root_dir):
-    create_cdfg(root_dir)
+    create_cdfg_vitis(root_dir)
 
 
 if __name__ == "__main__":
