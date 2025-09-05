@@ -13,7 +13,7 @@ def debug_print(message):
 
 ## NOTE: The data dependencies in this function are represeted as edges in the graph where the source node 
 # is the operation that produces the data and the destination node is the operation that consumes the data.
-def create_cdfg_one_file(fsm_data, state_transitions, stg_data, dir_name):
+def create_cdfg_one_file(fsm_data, state_transitions, stg_data, dir_name, loop_data_extracted):
 
     debug_print(f"Creating CDFG for {dir_name} with {len(fsm_data)} states and {len(state_transitions)} transitions.")
     ## First, identify if there is a loop in the FSM.
@@ -65,12 +65,15 @@ def create_cdfg_one_file(fsm_data, state_transitions, stg_data, dir_name):
     G.add_node(cdfg_end_node_name, type='CONTROL_NODE')
 
     instantiated_modules = []  ## This will keep track of the submodules that have been used
-
+    in_a_loop = False
+    loop_count = 0
     ## This loop will continue until we have followed the state transition flow through all states in the FSM.
     while curr_state in fsm_data:
         ## Iterate through all FSM nodes in the current state.
         print(f"Processing FSM state: {curr_state} with step count: {curr_step_count_local}")
-
+        
+        
+        
         ## if there are cycles in the FSM and this state is one of the states in the cycle, we will
         ## need to handle it differently
         curr_state_in_cycle = False
@@ -79,11 +82,12 @@ def create_cdfg_one_file(fsm_data, state_transitions, stg_data, dir_name):
                 if curr_state in cycle:
                     curr_state_in_cycle = True
                     break
-
-        if curr_state_in_cycle and curr_state in states_visited:
+        
+        if (not in_a_loop) and curr_state_in_cycle and curr_state in states_visited:
             break ## if we are in a cycle and we have already visited this state, we will break out of the loop
-
-        states_visited.add(curr_state)
+        
+        if (not in_a_loop):
+            states_visited.add(curr_state)
 
 
         ## create the start and end nodes for the current state
@@ -167,13 +171,30 @@ def create_cdfg_one_file(fsm_data, state_transitions, stg_data, dir_name):
                 G.add_edge(node_name, end_node_name, type='CONTROL_DEPENDENCY')
                 #debug_print(f"Added control edge from {end_node_name} to {node_name} (no data produced)")
 
-        ## go to the next state
-        if curr_state in state_transitions:
-            curr_state = state_transitions[curr_state]
-            curr_step_count_local += 1
+        if loop_data_extracted and str(curr_state) in loop_data_extracted.keys():
+            if loop_count < loop_data_extracted[str(curr_state)]["trip_count"]:
+                in_a_loop = True
+                curr_state = int(loop_data_extracted[str(curr_state)]["start_state"])
+                loop_count = loop_count + 1
+            else :
+                in_a_loop = False
+                loop_count = 0
+                ## go to the next state
+                if curr_state in state_transitions:
+                    curr_state = state_transitions[curr_state]
+                    curr_step_count_local += 1
+                elif curr_state not in state_transitions:
+                    print(f"No transition found for state {curr_state}. Ending processing.")
+                    break
         else:
-            print(f"No transition found for state {curr_state}. Ending processing.")
-            break
+            ## go to the next state
+            if curr_state in state_transitions:
+                print("SHOULD NOT GO HERE!", in_a_loop)
+                curr_state = state_transitions[curr_state]
+                curr_step_count_local += 1
+            elif curr_state not in state_transitions:
+                print(f"No transition found for state {curr_state}. Ending processing.")
+                break
 
         prev_state_end_node = end_node_name
 
@@ -209,24 +230,19 @@ def create_cdfg_one_file(fsm_data, state_transitions, stg_data, dir_name):
 
     return G, instantiated_modules
 
-def draw_graph(loop_control):
+def fetch_data_for_loops(loop_control):
     if not loop_control:
         return
-    loops_graphs = {}
     loops_info = {}
     loops_info_indvsl = {}
-    loop_graph = nx.DiGraph()
-    latch_nodes = set()
     for loop_id, props in loop_control.items():
-            latch_nodes.update(set(props["latch_states"]))
             start_state = sorted(props["body_states"])[0]
-            loops_info["start_state"] = 
-            for i in range(props["trip_count"]):
-                    loop_graph.add_nodes_from(props["body_states"])
-                    loop_graph.add_edges_from(edges)
-            loops_graphs[loop_id] = loop_graph
-
-    return loop_graph
+            end_state = sorted(props["body_states"])[-1]
+            loops_info_indvsl["start_state"] = start_state.removeprefix("ST_")
+            loops_info_indvsl["end_state"] = end_state.removeprefix("ST_")
+            loops_info_indvsl["trip_count"] = props["trip_count"]
+            loops_info[end_state.removeprefix("ST_")] = loops_info_indvsl
+    return loops_info
             
 
 
@@ -276,10 +292,12 @@ def main(root_dir):
         with open(stg_file, 'r') as f:
             stg_data = json.load(f)
 
-        result = create_cdfg_one_file(fsm_data, state_transitions, stg_data, subdir_path)
+        loop_data_extracted = fetch_data_for_loops(loop_control_file)
+
+        result = create_cdfg_one_file(fsm_data, state_transitions, stg_data, subdir_path, loop_data_extracted)
 
 
-        loop_results = draw_graph(loop_control_file)
+        
 
         if result is not None:
             G, module_dependences = result
