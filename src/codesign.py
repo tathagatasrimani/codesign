@@ -16,6 +16,7 @@ from src.vitis_parse_verbose_rpt import parse_verbose_rpt
 from src.vitis_create_cdfg import create_cdfg_vitis
 from src.vitis_merge_cdfgs import merge_cdfgs_vitis
 from src.vitis_create_cdfg_netlist_mapping import create_cdfg_to_netlist_mapping_vitis
+from src.vitis_merge_netlists import merge_netlists_vitis
 
 logger = logging.getLogger("codesign")
 
@@ -367,6 +368,9 @@ class Codesign:
 
         ## Merge the CDFGs recursivley through the FSM module hierarchy to produce overall CDFG
         merge_cdfgs_vitis(parse_results_dir, top_level_module_name_vitis)
+
+        ## Merge the netlists recursivley through the module hierarchy to produce overall netlist
+        merge_netlists_vitis(parse_results_dir, top_level_module_name_vitis)
 
         print(f"Current working directory at end of vitis parse data: {os.getcwd()}")
 
