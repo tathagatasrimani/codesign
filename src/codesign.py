@@ -375,12 +375,20 @@ class Codesign:
         print(f"Current working directory at end of vitis parse data: {os.getcwd()}")
 
         ## copy final netlist and CDFG to the hw object
-        ##self.hw.netlist = nx.read_gml(f"{parse_results_dir}/{top_level_module_name_vitis}/forward_full_netlist.gml")
-        self.hw.scheduled_dfg = nx.read_gml(f"{parse_results_dir}/{top_level_module_name_vitis}/forward_full_cdfg.gml")
+        self.hw.scheduled_dfg = nx.read_gml(f"{parse_results_dir}/{top_level_module_name_vitis}/{top_level_module_name_vitis}_full_cdfg.gml")
+
+        self.hw.netlist = nx.read_gml(f"{parse_results_dir}/{top_level_module_name_vitis}/{top_level_module_name_vitis}_full_netlist.gml")
+
+        ## print the cwd
+        print(f"Current working directory in vitis parse data: {os.getcwd()}")
 
         ## write the netlist to a file
-        with open(f"netlist-from-vitis.gml", "wb") as f:
+        with open(f"{parse_results_dir}/netlist-from-vitis.gml", "wb") as f:
             nx.write_gml(self.hw.netlist, f)
+
+        ## write the scheduled dfg to a file
+        with open(f"{parse_results_dir}/cdfg-from-vitis.gml", "wb") as f:
+            nx.write_gml(self.hw.scheduled_dfg, f)
 
 
     def run_scaleHLS(self):
