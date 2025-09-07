@@ -15,6 +15,7 @@ from src.vitis_create_netlist import create_vitis_netlist
 from src.vitis_parse_verbose_rpt import parse_verbose_rpt
 from src.vitis_create_cdfg import create_cdfg_vitis
 from src.vitis_merge_cdfgs import merge_cdfgs_vitis
+from src.vitis_create_cdfg_netlist_mapping import create_cdfg_to_netlist_mapping_vitis
 
 logger = logging.getLogger("codesign")
 
@@ -350,6 +351,8 @@ class Codesign:
 
         parse_results_dir = "src/tmp/benchmark_vitis/resnet18/parse_results"
 
+        top_level_module_name_vitis = "forward"
+
         ## Do preprocessing to the vitis data for the next scripts
         parse_verbose_rpt("src/tmp/benchmark_vitis/resnet18/resnet18/resnet18_sol/.autopilot/db", parse_results_dir)
 
@@ -359,10 +362,17 @@ class Codesign:
         ## Create the CDFGs for each FSM
         create_cdfg_vitis(parse_results_dir)
 
+        ## Create the mapping from CDFG nodes to netlist nodes
+        create_cdfg_to_netlist_mapping_vitis(parse_results_dir)
+
         ## Merge the CDFGs recursivley through the FSM module hierarchy to produce overall CDFG
-        merge_cdfgs_vitis(parse_results_dir, "forward")
+        merge_cdfgs_vitis(parse_results_dir, top_level_module_name_vitis)
 
         print(f"Current working directory at end of vitis parse data: {os.getcwd()}")
+
+        ## copy final netlist and CDFG to the hw object
+        ##self.hw.netlist = nx.read_gml(f"{parse_results_dir}/{top_level_module_name_vitis}/forward_full_netlist.gml")
+        self.hw.scheduled_dfg = nx.read_gml(f"{parse_results_dir}/{top_level_module_name_vitis}/forward_full_cdfg.gml")
 
         ## write the netlist to a file
         with open(f"netlist-from-vitis.gml", "wb") as f:

@@ -15,6 +15,7 @@ def parse_complist(complist_file_path):
     '''
         Converts a complist text file into a dictionary for easy access.
         Top-level keys are comp ids, values are dicts of all other data for each entry.
+        Also parses the fcode field from <opcode=... fcode="..."/> and opset from <opset=...>.
     '''
     import re
 
@@ -64,6 +65,14 @@ def parse_complist(complist_file_path):
                     memport_match = re.search(r'<MemPortTyVec>([^<]+)</MemPortTyVec>', bind_line)
                     if memport_match:
                         bind_data['memport'] = memport_match.group(1).strip()
+                # Parse opcode and fcode
+                opcode_fcode_match = re.search(r'<opcode=[^>]*fcode="([^"]+)"', bind_line)
+                if opcode_fcode_match:
+                    bind_data['fcode'] = opcode_fcode_match.group(1)
+                # Parse opset
+                opset_match = re.search(r'<opset="([^"]+)"', bind_line)
+                if opset_match:
+                    bind_data['opset'] = opset_match.group(1)
             comp_data['bind'] = bind_data
 
             comps[int(comp_id)] = comp_data
@@ -180,7 +189,7 @@ def create_vitis_netlist(root_dir):
 
 
 def main(root_dir):
-    create_vitis_netlist_for_root_dir(root_dir)
+    create_vitis_netlist(root_dir)
 
 
 if __name__ == "__main__":

@@ -20,8 +20,13 @@ def extract_sections(filename, output_folder="."):
     stg_start = "---------------- STG Properties BEGIN ----------------"
     stg_end = "---------------- STG Properties END ------------------"
 
+    # For resource instance table section
+    resource_instance_lines = []
+    inside_resource_instance = False
+
     with open(filename, 'r') as f:
         for line in f:
+            # Instance names section
             if '<net_list>' in line:
                 inside_netlist = True
                 netlist_lines.append(line)
@@ -91,6 +96,20 @@ def extract_sections(filename, output_folder="."):
             if inside_stg:
                 stg_lines.append(line.rstrip())
 
+            # Resource instance table section
+            if not inside_resource_instance and "+ Detail:" in line:
+                # Look ahead for "* Instance:" in the next lines
+                next_line = next(f)
+                if "* Instance:" in next_line:
+                    inside_resource_instance = True
+                    continue
+            if inside_resource_instance:
+                # Stop collecting at the next blank line or when the section obviously ends
+                if line.strip() == "" or (line.strip().startswith("+") and "Total" in line):
+                    inside_resource_instance = False
+                    continue
+                resource_instance_lines.append(line.rstrip())
+
     base_name = os.path.splitext(os.path.basename(filename))[0]
 
     if not os.path.exists(output_folder):
@@ -119,6 +138,34 @@ def extract_sections(filename, output_folder="."):
         with open(stg_out_path, 'w') as out_f:
             for line in stg_lines:
                 out_f.write(line + "\n")
+
+    # Write resource instance table section
+    if resource_instance_lines:
+        resource_instance_out_path = os.path.join(output_folder, f"{base_name}_instance_names.rpt")
+        with open(resource_instance_out_path, 'w') as inst_f:
+            for line in resource_instance_lines:
+                inst_f.write(line + "\n")
+
+        ### now, convert to json where the instance name is the key and the module name is the value for a dictionary:
+        instance_dict = {}
+        # Only parse lines that look like table rows (start with | and have at least two columns)
+        for line in resource_instance_lines:
+            line = line.strip()
+            if line.startswith("|"):
+                # Split by | and strip whitespace from each field
+                fields = [f.strip() for f in line.split("|")]
+                # Table rows have instance name in column 1 and module name in column 2
+                # Skip header row (where instance/module are literally "Instance"/"Module")
+                if len(fields) > 2 and fields[1] and fields[2]:
+                    if fields[1] == "Instance" and fields[2] == "Module":
+                        continue
+                    instance_name = fields[1]
+                    module_name = fields[2]
+                    instance_dict[instance_name] = module_name
+        # Write to JSON
+        instance_json_path = os.path.join(output_folder, f"{base_name}_instance_names.json")
+        with open(instance_json_path, 'w') as jf:
+            json.dump(instance_dict, jf, indent=2)
 
     # last, copy the original file to the output folder
     with open(filename, 'r') as f:
