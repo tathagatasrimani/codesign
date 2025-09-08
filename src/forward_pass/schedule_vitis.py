@@ -1,18 +1,20 @@
 import logging
 import os
 from collections import defaultdict
+import copy
 
 logger = logging.getLogger(__name__)
 
 import networkx as nx
 import re
 import networkx as nx
+import xml.etree.ElementTree as ET
 
 from src.forward_pass import llvm_ir_parse
 from src.forward_pass import vitis_create_netlist
 from src import sim_util
 
-DEBUG = True
+DEBUG = False
 
 def debug_print(msg):
     if DEBUG:
@@ -40,22 +42,6 @@ class VariableTracker:
         self.variable_states[var_name] = f"{var_name};{ts}"
         return self.variable_states[var_name]
 
-def get_rsc_mapping(netlist_file):
-    netlist = nx.read_gml(netlist_file)
-    netlist_op_dest_to_node = {}
-    for n, d in netlist.nodes(data=True):
-        ## extract name and bind->opset fields
-        name = d.get('name')
-        bind = d.get('bind', {})
-        opset = bind.get('opset')
-        ## remove the slash and everything after it from the opset
-        if opset and '/' in opset:
-            opset = opset.split('/')[0]
-        if name and opset:
-            netlist_op_dest_to_node[opset] = name
-    return netlist_op_dest_to_node
-
-
 class VariableDB:
     def __init__(self):
         self.VariableTrackers = {}
@@ -69,6 +55,76 @@ class VariableDB:
         if var_name not in self.VariableTrackers:
             self.VariableTrackers[var_name] = VariableTracker()
         return self.VariableTrackers[var_name].update_write_node(var_name)
+
+class ResourceTracker:
+    def __init__(self, is_core, core_info, resource_name):
+        self.resource_name = resource_name
+        self.num_ports = core_info["Ports"] if is_core else 1
+        self.reset_resource()
+    
+    def log_resource_usage(self, var_name):
+        self.resource_usage[self.resource_idx].append(var_name)
+        #print(f"Logging resource usage for {var_name} on port {self.resource_idx} of {self.resource_name}: {self.resource_usage[self.resource_idx]}")
+        self.resource_idx = (self.resource_idx + 1) % self.num_ports
+
+    def get_latest_resource_usage(self):
+        return self.resource_usage[self.resource_idx][-1] if self.resource_usage[self.resource_idx] else None
+
+    def reset_resource(self):
+        self.resource_usage = {idx: [] for idx in range(self.num_ports)}
+        self.resource_idx = 0
+
+class ResourceDB:
+    def __init__(self):
+        self.resources = {}
+
+    def check_resource_added(self, resource_name):
+        return resource_name in self.resources
+    
+    def add_resource(self, resource_name, is_core=False, core_info=None):
+        self.resources[resource_name] = ResourceTracker(is_core, core_info, resource_name)
+    
+    def log_resource_usage(self, resource_name, var_name):
+        assert resource_name in self.resources, f"Resource {resource_name} not found"
+        self.resources[resource_name].log_resource_usage(var_name)
+
+    def get_latest_resource_usage(self, resource_name):
+        assert resource_name in self.resources, f"Resource {resource_name} not found"
+        return self.resources[resource_name].get_latest_resource_usage()
+
+    def reset_resources(self):
+        for resource_name in self.resources:
+            self.resources[resource_name].reset_resource()
+
+def get_core_info(line):
+    core_info = {}
+    pattern = r'<II = (\d+)>'
+    match = re.search(pattern, line)
+    core_info["II"] = int(match.group(1))
+
+    pattern = r'<Ports = (\d+)>'
+    match = re.search(pattern, line)
+    core_info["Ports"] = int(match.group(1)) if match else 1
+    return core_info
+
+
+
+def get_rsc_mapping(netlist_file):
+    netlist = nx.read_gml(netlist_file)
+    netlist_op_dest_to_node = {}
+    for n, d in netlist.nodes(data=True):
+        ## extract name and bind->opset fields
+        name = d.get('name')
+        bind = d.get('bind', {})
+        opset = bind.get('opset')
+        ## remove the slash and everything after it from the opset
+        if opset and '/' in opset:
+            opsets = opset.split()
+            for opset in opsets:
+                netlist_op_dest_to_node[opset.split('/')[0]] = name
+        else:
+            netlist_op_dest_to_node[opset] = name
+    return netlist_op_dest_to_node
 
 class vitis_schedule_parser:
     def __init__(self, build_dir, benchmark_name, clk_period):
@@ -91,11 +147,20 @@ class vitis_schedule_parser:
             "ret",
             "specpipeline",
             "specloopname",
-            "specdataflowpipeline"
+            "specdataflowpipeline",
+            "speclooptripcount"
         ])
+        self.benchmark_name = benchmark_name
+        self.resource_db_map= {
+            "2x": ResourceDB(),
+            "1x": ResourceDB(),
+            "full": ResourceDB()
+        }
 
 
     def parse(self):
+        self.resource_mapping = get_rsc_mapping(os.path.join(self.solution_dir, f"{self.benchmark_name}/{self.benchmark_name}.verbose_netlist.gml"))
+        print(self.resource_mapping)
         for file in os.listdir(self.solution_dir):
             if file.endswith(".verbose.sched.rpt"):
                 intf_file = file.replace(".verbose.sched.rpt", ".tbgen.tcl")
@@ -108,7 +173,13 @@ class vitis_schedule_parser:
 
     def convert_to_standard_dfg(self):
         for basic_block_name in self.basic_blocks:
-            self.standard_dfg_basic_block(basic_block_name)
+            self.standard_dfg_basic_block(basic_block_name, "G_loop_2x", "G_loop_2x_standard")
+            extra_edges = [edge for edge in self.basic_blocks[basic_block_name]["G_loop_2x"].edges() if self.basic_blocks[basic_block_name]["G_loop_2x"].edges[edge]["resource_edge"] == 1]
+            sim_util.svg_plot(self.basic_blocks[basic_block_name]["G_loop_2x"], f"src/tmp_for_test/benchmark/{basic_block_name}_graph_loop_2x.svg", extra_edges)
+            self.standard_dfg_basic_block(basic_block_name, "G_loop_1x", "G_loop_1x_standard")
+            extra_edges = [edge for edge in self.basic_blocks[basic_block_name]["G_loop_1x"].edges() if self.basic_blocks[basic_block_name]["G_loop_1x"].edges[edge]["resource_edge"] == 1]
+            sim_util.svg_plot(self.basic_blocks[basic_block_name]["G_loop_1x"], f"src/tmp_for_test/benchmark/{basic_block_name}_graph_loop_1x.svg", extra_edges)
+            self.standard_dfg_basic_block(basic_block_name, "G", "G_standard")
 
     # label looks like "State _ <SV = _> <Delay = _>"
     def find_next_state(self, lines, idx, basic_block_name):
@@ -166,12 +237,56 @@ class vitis_schedule_parser:
         match = re.search(pattern, line)
         return match
 
+    def extract_loop_info_xml(self, xml_file_path):
+        tree = ET.parse(xml_file_path)
+        root = tree.getroot()
+        
+        # Find the Loop table
+        loop_table = None
+        for item in root.findall(".//item[@name='Loop']"):
+            loop_table = item.find("table")
+            break
+        
+        if loop_table is None:
+            return None
+        
+        # Get the column names (keys)
+        keys_elem = loop_table.find(".//keys")
+        if keys_elem is not None:
+            keys = keys_elem.text.split(', ')[1:] # skip loop name field here
+        else:
+            keys = ['min', 'max', 'Latency', 'achieved', 'target', 'Count', 'Pipelined']
+        
+        # Extract loop data
+        loops = []
+        for column in loop_table.findall(".//column"):
+            loop_name = column.get('name', '').split('-')[1].strip()
+            values = column.text.split(', ')
+            loop_data = {"Loop Name": loop_name}
+            for i, value in enumerate(values):
+                if i < len(keys):
+                    key = keys[i]
+                    print(f"key: {key}, value: {value}")
+                    # Convert numeric values
+                    if key in keys:
+                        try:
+                            loop_data[key] = int(value)
+                        except ValueError:
+                            loop_data[key] = value
+                    else:
+                        loop_data[key] = value
+            
+            loops.append(loop_data)
+        
+        return loops[0] # only one loop per basic block for now
+
     def parse_one_file(self, file_path, intf_file_path):
         basic_block_name = file_path.split("/")[-1].split(".")[0]
         self.basic_blocks[basic_block_name] = {}
         self.basic_blocks[basic_block_name]["variable_db"] = VariableDB()
         self.basic_blocks[basic_block_name]["variable_db_2x"] = VariableDB()
-        print(file_path)
+        self.basic_blocks[basic_block_name]["variable_db_1x"] = VariableDB()
+        debug_print(file_path)
         with open(intf_file_path, "r") as file:
             tcl_content = file.read()
             self.basic_blocks[basic_block_name]["C_modelArgMapList"] = self.extract_c_model_arg_map_list(tcl_content)
@@ -179,13 +294,8 @@ class vitis_schedule_parser:
         with open(file_path, "r") as file:
             lines = file.readlines()
             idx = 0
-            while lines[idx].find("* Loop:") == -1:
-                idx += 1
-            assert lines[idx].find("* Loop:") != -1
-            if lines[idx+1].strip() == "N/A":
-                self.basic_blocks[basic_block_name]["loopname"] = "N/A"
-            else:
-                self.basic_blocks[basic_block_name]["loopname"] = lines[idx+5].split("|")[1].strip()[2:]
+
+            self.basic_blocks[basic_block_name]["loop_info"] = self.extract_loop_info_xml(file_path + ".xml")
 
             # parse FSM state transitions
             while lines[idx].find("FSM state transitions:") == -1:
@@ -230,11 +340,20 @@ class vitis_schedule_parser:
                     operation_progress = self.match_pattern_in_line(lines[idx], pattern).group().split("/")
                     first_op = int(operation_progress[0]) == int(operation_progress[1])
 
-                    if operation_name == "speclooptripcount":
-                        self.basic_blocks[basic_block_name]["tripcount"] = int(instruction.split()[-1])
-                    elif operation_name not in self.ignore_ops and first_op:
+                    pattern = r'--->   Core (\d+) \'(\w+)\''
+                    core_inst = self.match_pattern_in_line(lines[idx], pattern)
+
+                    if operation_name not in self.ignore_ops and first_op:
                         parsed_op = llvm_ir_parse.parse_op(instruction, operation_name)
                         parsed_op["delay"] = operation_delay
+                        if core_inst:
+                            parsed_op["core_inst"] = core_inst.group(2)
+                            parsed_op["core_id"] = core_inst.group(1)
+                            parsed_op["core_info"] = get_core_info(lines[idx])
+                        else:
+                            parsed_op["core_inst"] = "N/A"
+                            parsed_op["core_id"] = "N/A"
+                            parsed_op["core_info"] = None
                         debug_print(parsed_op)
                         self.basic_blocks[basic_block_name][int(next_state)].append(parsed_op)
                     idx += 1
@@ -246,17 +365,32 @@ class vitis_schedule_parser:
         for _ in range(2):
             for state in self.basic_blocks[basic_block_name]["cycle_nodes"]:
                 self.basic_blocks[basic_block_name]["G_loop_2x"], self.basic_blocks[basic_block_name][state] = \
-                    self.add_one_state_to_graph(self.basic_blocks[basic_block_name]["G_loop_2x"], basic_block_name, self.basic_blocks[basic_block_name][state], variable_db="variable_db_2x")
-        
-        nx.write_gml(self.basic_blocks[basic_block_name]["G_loop_2x"], f"src/tmp/benchmark/{basic_block_name}_graph_loop_2x.gml")
+                    self.add_one_state_to_graph(self.basic_blocks[basic_block_name]["G_loop_2x"], basic_block_name, self.basic_blocks[basic_block_name][state], variable_db="variable_db_2x", graph_type="2x")
+        self.basic_blocks[basic_block_name]["G_loop_2x"].add_node("loop_end", node_type="serial")
+        self.track_resource_usage(self.basic_blocks[basic_block_name]["G_loop_2x"], "loop_end", basic_block_name, "2x")
+        nx.write_gml(self.basic_blocks[basic_block_name]["G_loop_2x"], f"src/tmp_for_test/benchmark/{basic_block_name}_graph_loop_2x.gml")
 
+    def loop_1x_graph(self, basic_block_name):
+        self.basic_blocks[basic_block_name]["G_loop_1x"] = nx.DiGraph()
+        for state in self.basic_blocks[basic_block_name]["cycle_nodes"]:
+            self.basic_blocks[basic_block_name]["G_loop_1x"], self.basic_blocks[basic_block_name][state] = \
+                self.add_one_state_to_graph(self.basic_blocks[basic_block_name]["G_loop_1x"], basic_block_name, self.basic_blocks[basic_block_name][state], variable_db="variable_db_1x", graph_type="1x")
+        self.basic_blocks[basic_block_name]["G_loop_1x"].add_node("loop_end", node_type="serial")
+        self.track_resource_usage(self.basic_blocks[basic_block_name]["G_loop_1x"], "loop_end", basic_block_name, "1x")
+        nx.write_gml(self.basic_blocks[basic_block_name]["G_loop_1x"], f"src/tmp_for_test/benchmark/{basic_block_name}_graph_loop_1x.gml")
 
-    def add_one_state_to_graph(self, G, basic_block_name, state, start_node=None, use_start_node=False, variable_db="variable_db"):
+    def add_one_state_to_graph(self, G, basic_block_name, state, start_node=None, use_start_node=False, variable_db="variable_db", graph_type="full"):
         debug_print(f"Adding one state to graph: {state}")
         for idx in range(len(state)):
             instruction = state[idx]
             op_name = self.basic_blocks[basic_block_name][variable_db].update_write_node(instruction["op"])
-            G.add_node(op_name, node_type="op")
+            rsc_name = self.resource_mapping[instruction['dst'].split("%")[1]]
+            core_id = instruction["core_id"]
+            rsc_name_unique = f"{rsc_name}_{core_id}"
+            if not self.resource_db_map[graph_type].check_resource_added(rsc_name_unique):
+                self.resource_db_map[graph_type].add_resource(rsc_name_unique, instruction["core_inst"] != "N/A", instruction["core_info"])
+            G.add_node(op_name, node_type="op", rsc=rsc_name, core_inst=instruction["core_inst"], core_id=core_id, rsc_name_unique=rsc_name_unique)
+            self.track_resource_usage(G, op_name, basic_block_name, graph_type)
             debug_print(f"Instruction: {instruction}")
             for src in instruction["src"]:
                 src_name = self.basic_blocks[basic_block_name][variable_db].get_read_node_name(src)
@@ -270,7 +404,7 @@ class vitis_schedule_parser:
                     G.add_edge(src_name, op_name, weight=0.0, resource_edge=0)
             dst = self.basic_blocks[basic_block_name][variable_db].update_write_node(instruction["dst"])
             G.add_node(dst, node_type="var")
-            G.add_edge(op_name, dst, weight=instruction['delay'])
+            G.add_edge(op_name, dst, weight=instruction['delay'], resource_edge=0)
         assert nx.is_directed_acyclic_graph(G), f"Graph is not a DAG, cycle found: {nx.find_cycle(G)}"
         debug_print(f"longest path after adding one state: {nx.dag_longest_path_length(G)} ({nx.dag_longest_path(G)})")
         return G, state
@@ -278,7 +412,7 @@ class vitis_schedule_parser:
     def get_graph_leaves(self, G):
         return [node for node, out_degree in G.out_degree() if out_degree == 0]
 
-    def add_loop_nodes(self, basic_block_name):
+    def add_loop_nodes(self, basic_block_name, graph_type="full"):
         in_nodes_loop_start = self.get_graph_leaves(self.basic_blocks[basic_block_name]["G"])
         self.basic_blocks[basic_block_name]["G"].add_node("loop_start", node_type="serial")
         for node in in_nodes_loop_start:
@@ -292,12 +426,22 @@ class vitis_schedule_parser:
                     "loop_start", 
                     True
                 )
-        in_nodes_loop_end = self.get_graph_leaves(self.basic_blocks[basic_block_name]["G"])
+        self.basic_blocks[basic_block_name]["G"].add_node("II_delay", node_type="serial")
+        self.track_resource_usage(self.basic_blocks[basic_block_name]["G"], "II_delay", basic_block_name, graph_type)
         self.basic_blocks[basic_block_name]["G"].add_node("loop_end", node_type="serial")
-        for node in in_nodes_loop_end:
-            self.basic_blocks[basic_block_name]["G"].add_edge(node, "loop_end", weight=0.0, resource_edge=0)
+        self.track_resource_usage(self.basic_blocks[basic_block_name]["G"], "loop_end", basic_block_name, graph_type)
+        debug_print(self.basic_blocks[basic_block_name]["loop_info"])
+        if self.basic_blocks[basic_block_name]["loop_info"]["Pipelined"] == "yes":
+            II_delay = self.basic_blocks[basic_block_name]["loop_info"]["achieved"] * self.clk_period * (self.basic_blocks[basic_block_name]["loop_info"]["Count"]-1)
+        else:
+            II_delay = int(self.basic_blocks[basic_block_name]["loop_info"]["Latency"]) * self.clk_period
+        debug_print(f"II_delay: {II_delay}")
+        self.basic_blocks[basic_block_name]["G"].add_edge("II_delay", "loop_end", weight=II_delay, resource_edge=1)
+
     
-    def dfg_basic_block(self, basic_block_name):
+    def dfg_basic_block(self, basic_block_name, graph_type="full"):
+        self.resource_db_map[graph_type].reset_resources()
+
         state_machine_graph = nx.DiGraph()
         for state in self.basic_blocks[basic_block_name]["FSM state transitions"]:
             state_machine_graph.add_node(state)
@@ -310,25 +454,28 @@ class vitis_schedule_parser:
         debug_print(self.basic_blocks[basic_block_name]["non_cycle_nodes"])
         assert len(self.basic_blocks[basic_block_name]["cycle_nodes"]) == self.basic_blocks[basic_block_name]["cycle_nodes"][-1] - self.basic_blocks[basic_block_name]["cycle_nodes"][0] + 1, f"Cycle nodes are not consecutive: {self.basic_blocks[basic_block_name]['cycle_nodes']}"
         self.basic_blocks[basic_block_name]["G"] = nx.DiGraph()
+        self.basic_blocks[basic_block_name]["G"].add_node("graph_start", node_type="serial")
         for state in self.basic_blocks[basic_block_name]["non_cycle_nodes"]:
             self.basic_blocks[basic_block_name]["G"], self.basic_blocks[basic_block_name][state] = \
                 self.add_one_state_to_graph(
                     self.basic_blocks[basic_block_name]["G"], 
                     basic_block_name, 
-                    self.basic_blocks[basic_block_name][state]
+                    self.basic_blocks[basic_block_name][state],
+                    "graph_start",
+                    True
                 )
             # cover loop nodes at the same time, because we add serialization nodes at the start and end
             if state+1 == self.basic_blocks[basic_block_name]["cycle_nodes"][0]:
                 self.add_loop_nodes(basic_block_name)
                 self.loop_2x_graph(basic_block_name)
+                self.loop_1x_graph(basic_block_name)
         if len(self.basic_blocks[basic_block_name]["non_cycle_nodes"]) == 0:
             self.add_loop_nodes(basic_block_name)
             self.loop_2x_graph(basic_block_name)
-        in_nodes_graph_end = self.get_graph_leaves(self.basic_blocks[basic_block_name]["G"])
+            self.loop_1x_graph(basic_block_name)
         self.basic_blocks[basic_block_name]["G"].add_node("graph_end", node_type="serial")
-        for node in in_nodes_graph_end:
-            self.basic_blocks[basic_block_name]["G"].add_edge(node, "graph_end", weight=0.0, resource_edge=0)
-        nx.write_gml(self.basic_blocks[basic_block_name]["G"], f"src/tmp/benchmark/{basic_block_name}_graph.gml")
+        self.track_resource_usage(self.basic_blocks[basic_block_name]["G"], "graph_end", basic_block_name)
+        nx.write_gml(self.basic_blocks[basic_block_name]["G"], f"src/tmp_for_test/benchmark/{basic_block_name}_graph.gml")
 
     def remove_node(self, G, node):
         for src in G.predecessors(node):
@@ -336,18 +483,45 @@ class vitis_schedule_parser:
                 G.add_edge(src, dst, weight=G.edges[src, node]["weight"], resource_edge=0)
         G.remove_node(node)
 
-    def standard_dfg_basic_block(self, basic_block_name):
-        self.basic_blocks[basic_block_name]["G_standard"] = self.basic_blocks[basic_block_name]["G"].copy()
-        for node in self.basic_blocks[basic_block_name]["G"].nodes():
-            if self.basic_blocks[basic_block_name]["G"].nodes[node]["node_type"] == "var":
-                self.remove_node(self.basic_blocks[basic_block_name]["G_standard"], node)
-        debug_print(f"longest path after removing var nodes: {nx.dag_longest_path_length(self.basic_blocks[basic_block_name]['G_standard'])}")
-        nx.write_gml(self.basic_blocks[basic_block_name]["G_standard"], f"src/tmp/benchmark/{basic_block_name}_graph_standard.gml")
+    def track_resource_usage(self, G, node, basic_block_name, graph_type="full"):
+        if G.nodes[node]["node_type"] == "op" and G.nodes[node]["core_inst"] != "N/A":
+            #print(f"Tracking resource usage for {node}: {G.nodes[node]['rsc']}")
+            # check for previous resource usage, add resource edge
+            if self.resource_db_map[graph_type].check_resource_added(G.nodes[node]["rsc_name_unique"]) and self.resource_db_map[graph_type].get_latest_resource_usage(G.nodes[node]["rsc_name_unique"]) is not None:
+                G.add_edge(self.resource_db_map[graph_type].get_latest_resource_usage(G.nodes[node]["rsc_name_unique"]), node, weight=self.clk_period, resource_edge=1)
+            else:
+                self.resource_db_map[graph_type].add_resource(G.nodes[node]["rsc_name_unique"], False, None)
+            self.resource_db_map[graph_type].log_resource_usage(G.nodes[node]["rsc_name_unique"], node)
+        elif G.nodes[node]["node_type"] == "serial":
+            # add resource edges for all latest used resources to the serial node
+            for rsc_name_unique in self.resource_db_map[graph_type].resources:
+                latest_resource_usage = self.resource_db_map[graph_type].get_latest_resource_usage(rsc_name_unique)
+                if latest_resource_usage is not None and (latest_resource_usage, node) not in G.edges():
+                    G.add_edge(latest_resource_usage, node, weight=self.clk_period, resource_edge=1)
+                    #debug_print(f"Adding resource edge from {latest_resource_usage} to {node}")
+                self.resource_db_map[graph_type].log_resource_usage(rsc_name_unique, node)
+            leaves = self.get_graph_leaves(G)
+            debug_print(f"leaves: {leaves} for {node}")
+            for leaf in leaves:
+                if G.nodes[leaf]["node_type"] != "serial":
+                    G.add_edge(leaf, node, weight=0.0, resource_edge=0)
+
+
+    def standard_dfg_basic_block(self, basic_block_name, G_name, G_standard_name):
+        self.basic_blocks[basic_block_name][G_standard_name] = copy.deepcopy(self.basic_blocks[basic_block_name][G_name])
+        #print("nodes before removing var nodes: ", self.basic_blocks[basic_block_name][G_name].nodes())
+        for node in self.basic_blocks[basic_block_name][G_name].nodes():
+            if self.basic_blocks[basic_block_name][G_name].nodes[node]["node_type"] == "var":
+                self.remove_node(self.basic_blocks[basic_block_name][G_standard_name], node)
+        #print("nodes left: ", self.basic_blocks[basic_block_name][G_standard_name].nodes())
+        assert nx.is_directed_acyclic_graph(self.basic_blocks[basic_block_name][G_standard_name]), f"Graph is not a DAG, cycle found: {nx.find_cycle(self.basic_blocks[basic_block_name][G_standard_name])}"
+        debug_print(f"longest path after removing var nodes: {nx.dag_longest_path_length(self.basic_blocks[basic_block_name][G_standard_name])} ({nx.dag_longest_path(self.basic_blocks[basic_block_name][G_standard_name])})")
+        nx.write_gml(self.basic_blocks[basic_block_name][G_standard_name], f"src/tmp_for_test/benchmark/{basic_block_name}_graph_{G_standard_name}.gml")
 
 
 
 if __name__ == "__main__":
-    parser = vitis_schedule_parser("src/tmp/benchmark", "resnet", 250.0)
+    parser = vitis_schedule_parser("src/tmp_for_test/benchmark", "test_gemm", 250.0)
     parser.parse()
     parser.convert()
     parser.convert_to_standard_dfg()
