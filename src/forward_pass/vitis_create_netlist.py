@@ -188,12 +188,9 @@ def create_vitis_netlist(root_dir):
         nx.write_gml(final_netlist, f"{subdir_path}/{netlist_prefix}_netlist.gml")
 
 
-def main(root_dir):
-    create_vitis_netlist(root_dir)
+def main():
+    create_vitis_netlist(os.path.join(os.path.dirname(__file__), "../tmp_for_test/benchmark/test_gemm/solution1/.autopilot/db"))
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print("Usage: python create_cdfg.py <root_directory>")
-        sys.exit(1)
-    main(sys.argv[1])
+    main()
