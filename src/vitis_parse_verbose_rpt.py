@@ -173,7 +173,6 @@ def extract_sections(filename, output_folder="."):
     original_file_path = os.path.join(output_folder, f"{base_name}.rpt")
     with open(original_file_path, 'w') as of:
         of.write(original_content)
-    print(f"Copied original file to {original_file_path}")
 
 
 def extract_all_files(input_folder, output_folder):

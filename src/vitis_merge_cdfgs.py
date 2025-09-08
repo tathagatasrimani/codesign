@@ -4,7 +4,7 @@ import json
 import networkx as nx
 
 
-DEBUG = True
+DEBUG = False
 
 def debug_print(message):
     if DEBUG:

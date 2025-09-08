@@ -114,7 +114,7 @@ def parse_netlist(netlist_file_path):
             }
     return netlist
 
-def create_networkX_netlist(json_netlist, json_complist):
+def create_networkX_netlist(json_netlist, json_complist, module_name):
     '''
         Takes in the json netlist and json complist and creates one unified NetworkX graph.
         The nodes are the components, and the edges are the nets connecting them.
@@ -127,13 +127,13 @@ def create_networkX_netlist(json_netlist, json_complist):
 
     # Add nodes for each component, with attributes from complist
     for comp_id, comp_data in json_complist.items():
-        G.add_node(comp_id, **comp_data)
+        G.add_node(str(comp_id) + "_" + module_name, **comp_data)
 
     # Add edges for each net, connecting src comp to sink comp
     for net_id, net_data in json_netlist.items():
-        src = net_data['src']['comp']
+        src = str(net_data['src']['comp']) + "_" + module_name
         src_pin = net_data['src']['pin']
-        sink = net_data['sink']['comp']
+        sink = str(net_data['sink']['comp']) + "_" + module_name
         sink_pin = net_data['sink']['pin']
         G.add_edge(src, sink, net_id=net_id, src_pin=src_pin, sink_pin=sink_pin)
 
@@ -182,7 +182,7 @@ def create_vitis_netlist(root_dir):
 
 
         ## create the networkX graph:
-        final_netlist = create_networkX_netlist(netlist, complist)
+        final_netlist = create_networkX_netlist(netlist, complist, subdir)
 
         # Write out the networkX graph to a gml file
         nx.write_gml(final_netlist, f"{subdir_path}/{netlist_prefix}_netlist.gml")
