@@ -168,10 +168,20 @@ def merge_netlists(root_dir, full_netlist, current_module, submodule_netlist, su
         return full_netlist
     
     first_call_node = submodule_call_nodes[0]
-    predecessors = list(full_netlist.predecessors(first_call_node))
-    successors = list(full_netlist.successors(first_call_node))
-    
 
+    ## the predecessors of the call node are the dependences that need to be reconnected after the merge
+    predecessors = list(full_netlist.predecessors(first_call_node))
+
+    ## find the edge data for each predecessor edge to get the pin number
+    predecessor_edges = {}
+    for pred in predecessors:
+        edge_data = full_netlist.get_edge_data(pred, first_call_node)
+        if edge_data is not None:
+            predecessor_edges[pred] = edge_data
+        else:
+            debug_print(f"ERROR: No edge data found from predecessor {pred} to call node {first_call_node}.")
+            exit(1)
+            continue
 
     debug_print(f"Number of nodes in full netlist before merge: {full_netlist.number_of_nodes()}")
     debug_print(f"Number of nodes in submodule netlist: {submodule_netlist.number_of_nodes()}")
@@ -181,9 +191,102 @@ def merge_netlists(root_dir, full_netlist, current_module, submodule_netlist, su
 
     #debug_print(f"Composed full netlist with submodule netlist for {submodule_name}.")
 
-    # intermediate start and stop nodes in the submodule netlist should be preserved, as they are part of the submodule's internal flow.
+    ## read in the stg file for this submodule to get the input/output port names
+    stg_file_path = os.path.join(root_dir, submodule_name, f"{submodule_name}.verbose_stg.rpt")
+
+    if not os.path.exists(stg_file_path):
+        stg_file_path = os.path.join(root_dir, submodule_name + "s", f"{submodule_name}s.verbose_stg.rpt")
+        if not os.path.exists(stg_file_path):
+            print(f"Error: STG file {stg_file_path} does not exist.")
+            exit(1)
+            return
+    with open(stg_file_path, 'r') as sf:
+        stg_lines = sf.readlines()
+
+    pin_to_port = parse_stg_ports(stg_lines)
+
+    ## go through each predecessor and add an edge from it to another node in the graph with the same name field
+    for pred in predecessors:
+        pred_data = full_netlist.nodes[pred]
+        pred_name = pred_data.get('name')
+        if pred_name is None:
+            debug_print(f"Predecessor node {pred} has no name field.")
+            exit(1)
+            continue
+
+        # find the corresponding node in the submodule netlist
+        target_node = None
+        for n, d in submodule_netlist.nodes(data=True):
+            if d.get('name') == pred_name:
+                target_node = n
+                break
+
+        if target_node is not None:
+            # add an edge from the predecessor to the target node in the new full netlist
+            new_full_netlist.add_edge(pred, target_node)
+            debug_print(f"Added edge from predecessor {pred} to target node {target_node} in submodule {submodule_name}.")
+        else:
+            debug_print(f"No matching node found in submodule {submodule_name} for predecessor {pred} with name {pred_name}.")
+            ## we will need to use STG matching instead:
+            # find the pin number for this predecessor node. This will be encoded in the edge data
+            edge_data = predecessor_edges[pred]
+            if edge_data is None:
+                debug_print(f"No edge data found from predecessor {pred} to call node {first_call_node}.")
+                exit(1)
+                continue
+            pin_num = edge_data.get('sink_pin')
+            if pin_num is None:
+                debug_print(f"No sink_pin number found in edge data from predecessor {pred} to call node {first_call_node}.")
+                exit(1)
+                continue
+            port_name = pin_to_port.get(pin_num)
+            if port_name is None:
+                debug_print(f"No port name found for pin number {pin_num} in submodule {submodule_name}.")
+                exit(1)
+                continue
+            # find the node in the submodule netlist with this port name
+            target_node = None
+            for n, d in submodule_netlist.nodes(data=True):
+                if d.get('name') == port_name:
+                    target_node = n
+                    break
+            if target_node is not None:
+                new_full_netlist.add_edge(pred, target_node)
+                debug_print(f"Added edge from predecessor {pred} to target node {target_node} in submodule {submodule_name} using STG port name {port_name}.")
+            else:
+                debug_print(f"No matching node found in submodule {submodule_name} for predecessor {pred} with STG port name {port_name}.")
+                if port_name == "Return":
+                    debug_print(f"Skipping Return port connection for predecessor {pred}.")
+                    continue
+                exit(1)
+                continue
 
     return new_full_netlist
+
+def parse_stg_ports(stg_lines):
+    """
+    Parse the STG file lines and return a mapping from pin number to port name.
+    Pin numbers start at 0, and each Port line is assigned the next pin number.
+    """
+    pin_to_port = {}
+    pin_num = 0
+    for line in stg_lines:
+        line = line.strip()
+        # Match lines like: Port [ port_name ] ...
+        if line.startswith("Port ["):
+            # Extract port name between brackets
+            import re
+            match = re.match(r'Port\s*\[\s*([^\]]+)\s*\]', line)
+            if match:
+                port_name = match.group(1).strip()
+                pin_to_port[pin_num] = port_name
+                pin_num += 1
+    return pin_to_port
+
+# Example usage:
+# with open(stg_file_path, 'r') as sf:
+#     stg_lines = sf.readlines()
+# pin_to_port = parse_stg_ports(stg_lines)
 
 def main(root_dir, top_level_module_name):
     merge_netlists_vitis(root_dir, top_level_module_name)
