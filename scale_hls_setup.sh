@@ -1,0 +1,35 @@
+#!/bin/bash
+
+git submodule update --init scalehls
+git clone --recursive git@github.com:UIUC-ChenLab/ScaleHLS-HIDA.git scalehls-hida
+cd scalehls-hida
+
+./build-scalehls.sh
+
+export PATH=$PATH:$PWD/build/bin:$PWD/polygeist/build/bin
+export PYTHONPATH=$PYTHONPATH:$PWD/build/tools/scalehls/python_packages/scalehls_core
+
+echo "current directory: $(pwd)"
+
+## check if the torch-mlir conda environment already exists
+if conda env list | grep -q "torch-mlir"; then
+    echo "torch-mlir environment already exists."
+else
+    echo "Creating torch-mlir environment..."
+    conda create -n torch-mlir python=3.11 numpy=1.24
+    conda activate torch-mlir
+    python -m pip install --upgrade pip
+
+    wget https://cmu.box.com/shared/static/8hz00av1wm93pttfz7212xagtv0nkd6x -O torch-2.2.0.dev20231204+cpu-cp311-cp311-linux_x86_64.whl
+
+    wget https://cmu.box.com/shared/static/ag5ofnldjtrkr2uw6h4af6sew6f3cw6h -O torch_mlir-20231229.1067-cp311-cp311-linux_x86_64.whl
+
+    pip install torch-2.2.0.dev20231204+cpu-cp311-cp311-linux_x86_64.whl
+    pip install torch_mlir-20231229.1067-cp311-cp311-linux_x86_64.whl
+
+    rm -rf torch-2.2.0.dev20231204+cpu-cp311-cp311-linux_x86_64.whl torch_mlir-20231229.1067-cp311-cp311-linux_x86_64.whl
+
+    conda deactivate
+fi
+
+cd ..
