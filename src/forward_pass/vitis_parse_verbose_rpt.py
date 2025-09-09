@@ -115,8 +115,6 @@ def extract_sections(filename, output_folder="."):
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
 
-    print(netlist_lines)
-    print(f"writing netlist to {os.path.join(output_folder, f'{base_name}_netlist.rpt')}")
     if netlist_lines:
         with open(os.path.join(output_folder, f"{base_name}_netlist.rpt"), 'w') as nf:
             nf.writelines(netlist_lines)
@@ -175,14 +173,12 @@ def extract_sections(filename, output_folder="."):
     original_file_path = os.path.join(output_folder, f"{base_name}.rpt")
     with open(original_file_path, 'w') as of:
         of.write(original_content)
-    print(f"Copied original file to {original_file_path}")
 
 
 def extract_all_files(input_folder, output_folder):
     for filename in os.listdir(input_folder):
         if filename.endswith('verbose.rpt'):
             full_path = os.path.join(input_folder, filename)
-            print(f"Processing {full_path}")
             subfolder_name = filename.replace('.verbose.rpt', '')
             subfolder_path = os.path.join(output_folder, subfolder_name)
             extract_sections(full_path, subfolder_path)

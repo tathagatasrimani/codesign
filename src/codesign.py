@@ -22,6 +22,12 @@ from src.inverse_pass import optimize
 from src.forward_pass import schedule
 from src import memory
 from src.forward_pass import ccore_update
+from src.forward_pass import schedule_vitis
+from src.forward_pass.scale_hls_port_fix import scale_hls_port_fix
+from src.forward_pass.vitis_create_netlist import create_vitis_netlist
+from src.forward_pass.vitis_parse_verbose_rpt import parse_verbose_rpt
+from src.forward_pass.vitis_merge_netlists import merge_netlists_vitis
+from src.forward_pass.vitis_create_cdfg import create_cdfg_vitis
 from src import trend_plot
 
 DEBUG_YOSYS = False  # set to True to debug yosys output.
@@ -49,6 +55,7 @@ class Codesign:
         self.hls_tool = self.cfg["args"]["hls_tool"]
         self.benchmark = f"src/benchmarks/{self.hls_tool}/{self.cfg['args']['benchmark']}"
         self.benchmark_name = self.cfg["args"]["benchmark"]
+        self.benchmark_dir = "src/tmp/benchmark"
         self.save_dir = os.path.join(
             self.cfg["args"]["savedir"], datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         )
@@ -143,7 +150,7 @@ class Codesign:
         for unit in self.hw.circuit_model.circuit_values["area"].keys():
             self.module_map[unit.lower()] = unit
 
-        os.chdir("src/tmp/benchmark")
+        os.chdir(self.benchmark_dir)
         
         # add area constraint
         sim_util.add_area_constraint_to_script(f"scripts/{self.benchmark_name}.tcl", self.hw.area_constraint)
@@ -161,7 +168,7 @@ class Codesign:
         #     logger.info(f"hw.circuit_model.circuit_values: {self.hw.circuit_model.circuit_values}")
         #     self.hw.circuit_model.set_memories(memory.customize_catapult_memories(f"src/tmp/benchmark/memories.rpt", self.benchmark_name, self.hw, pre_assign_counts))
         #     logger.info(f"custom catapult memories: {self.hw.circuit_model.memories}")
-        #     os.chdir("src/tmp/benchmark")
+        #     os.chdir(self.benchmark_dir)
         #     p = subprocess.run(["make", "clean"], capture_output=True, text=True)
         #     p = subprocess.run(cmd, capture_output=True, text=True)
         #     logger.info(f"custom memory catapult run output: {p.stdout}")
@@ -240,8 +247,8 @@ class Codesign:
 
             # ScaleHLS commands with shell redirection and pipes
             scalehls_commands = [
-                f"cgeist test_{self.benchmark_name}.c -function=test_{self.benchmark_name} -S -memref-fullrank -raise-scf-to-affine > test_{self.benchmark_name}.mlir",
-                f"scalehls-opt test_{self.benchmark_name}.mlir -scalehls-dse-pipeline=\"top-func=test_{self.benchmark_name} target-spec=../../../test/Transforms/Directive/config.json\" | scalehls-translate -scalehls-emit-hlscpp > {os.path.join(os.path.dirname(__file__), 'tmp/benchmark')}/test_{self.benchmark_name}_dse.cpp",
+                f"cgeist {self.benchmark_name}.c -function={self.benchmark_name} -S -memref-fullrank -raise-scf-to-affine > {self.benchmark_name}.mlir",
+                f"scalehls-opt {self.benchmark_name}.mlir -scalehls-dse-pipeline=\"top-func={self.benchmark_name} target-spec=../../../test/Transforms/Directive/config.json\" | scalehls-translate -scalehls-emit-hlscpp > {os.path.join(os.path.dirname(__file__), 'tmp/benchmark')}/{self.benchmark_name}.cpp",
             ]
             
             for cmd in scalehls_commands:
@@ -261,12 +268,61 @@ class Codesign:
             elif 'PYTHONPATH' in os.environ:
                 del os.environ['PYTHONPATH']
 
+    def parse_vitis_data(self):
+
+        # TODO: Parse the Vitis netlist and write it to netlist-from-vitis.gml and cdfg-from-vitis.gml
+
+        ## print the cwd
+        print(f"Current working directory in vitis parse data: {os.getcwd()}")
+
+        parse_results_dir = f"{self.benchmark_dir}/parse_results"
+
+        ## Do preprocessing to the vitis data for the next scripts
+        parse_verbose_rpt(f"{self.benchmark_dir}/{self.benchmark_name}/solution1/.autopilot/db", parse_results_dir)
+
+        ## Create the netlist
+        create_vitis_netlist(parse_results_dir)
+
+        ## Create the CDFGs for each FSM
+        create_cdfg_vitis(parse_results_dir)
+
+        ## Create the mapping from CDFG nodes to netlist nodes
+        #create_cdfg_to_netlist_mapping_vitis(parse_results_dir)
+
+        ## Merge the CDFGs recursivley through the FSM module hierarchy to produce overall CDFG
+        #merge_cdfgs_vitis(parse_results_dir, self.vitis_top_function)
+
+        ## Merge the netlists recursivley through the module hierarchy to produce overall netlist
+        merge_netlists_vitis(parse_results_dir, self.vitis_top_function)
+
+        schedule_parser = schedule_vitis.vitis_schedule_parser(self.benchmark_dir, self.benchmark_name, self.vitis_top_function, self.clk_period)
+        schedule_parser.create_dfgs()
+
+        print(f"Current working directory at end of vitis parse data: {os.getcwd()}")
+
+        self.hw.netlist = nx.read_gml(f"{parse_results_dir}/{self.vitis_top_function}/{self.vitis_top_function}_full_netlist.gml")
+
+        ## print the cwd
+        print(f"Current working directory in vitis parse data: {os.getcwd()}")
+
+        """## write the netlist to a file
+        with open(f"{parse_results_dir}/netlist-from-vitis.gml", "wb") as f:
+            nx.write_gml(self.hw.netlist, f)
+
+        ## write the scheduled dfg to a file
+        with open(f"{parse_results_dir}/cdfg-from-vitis.gml", "wb") as f:
+            nx.write_gml(self.hw.scheduled_dfg, f)"""
+
     def vitis_forward_pass(self):
         """
         Runs Vitis version of forward pass, updates the memory configuration, and logs the output.
         """
         self.run_scalehls()
         os.chdir(os.path.join(os.path.dirname(__file__), "tmp/benchmark"))
+        self.vitis_top_function = scale_hls_port_fix(f"{self.benchmark_name}.cpp")
+        if self.cfg["args"]["pytorch"]:
+            self.vitis_top_function = "forward"
+        logger.info(f"Vitis top function: {self.vitis_top_function}")
         command = ["vitis_hls -f tcl_script.tcl"]
         p = subprocess.run(command, shell=True, capture_output=True, text=True)
         logger.info(f"Vitis HLS command output: {p.stdout}")
@@ -275,7 +331,8 @@ class Codesign:
             raise Exception(f"Vitis HLS command failed: {p.stderr}")
         os.chdir(os.path.join(os.path.dirname(__file__), ".."))
         # PARSE OUTPUT, set schedule and read netlist
-        raise Exception("Not implemented")
+        self.parse_vitis_data()
+        
 
 
     def catapult_forward_pass(self):
@@ -359,9 +416,9 @@ class Codesign:
 
 
         ## clear out the existing tmp benchmark directory and copy the benchmark files from the desired benchmark
-        if os.path.exists("src/tmp/benchmark"):
-            shutil.rmtree("src/tmp/benchmark")
-        shutil.copytree(self.benchmark, "src/tmp/benchmark")
+        if os.path.exists(self.benchmark_dir):
+            shutil.rmtree(self.benchmark_dir)
+        shutil.copytree(self.benchmark, self.benchmark_dir)
 
         self.clk_period = 1/self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.f] * 1e9 # ns
 
@@ -640,7 +697,7 @@ class Codesign:
         if os.path.exists("src/checkpoint"):
             shutil.rmtree("src/checkpoint")
         os.mkdir("src/checkpoint")
-        shutil.copytree("src/tmp/benchmark", "src/checkpoint/benchmark")
+        shutil.copytree(self.benchmark_dir, "src/checkpoint/benchmark")
         shutil.copy("src/tmp/params_0.yaml", "src/checkpoint/params_0.yaml")
         if self.hw.scheduled_dfg:
             nx.write_gml(self.hw.scheduled_dfg, "src/checkpoint/schedule.gml")

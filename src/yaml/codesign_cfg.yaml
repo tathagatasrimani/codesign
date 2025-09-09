@@ -17,9 +17,16 @@ default:
     obj: edp
     model_cfg: default
     hls_tool: catapult
+    pytorch: False
 
 vitis_test:
   base_cfg: default
   args:
     benchmark: gemm
     hls_tool: vitis
+
+vitis_resnet:
+  base_cfg: vitis_test
+  args:
+    pytorch: True
+    benchmark: resnet
