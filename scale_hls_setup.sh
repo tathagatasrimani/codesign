@@ -1,8 +1,14 @@
 #!/bin/bash
 
-git submodule update --init scalehls
-git clone --recursive git@github.com:UIUC-ChenLab/ScaleHLS-HIDA.git scalehls-hida
+git submodule update --init scalehls-hida
+git clone https://github.com/UIUC-ChenLab/ScaleHLS-HIDA.git
 cd scalehls-hida
+
+sed -i "s|git@github\.com:|https://github.com/|g" .gitmodules
+git submodule update --init polygeist
+cd polygeist
+git submodule update --init llvm-project
+cd ..
 
 ./build-scalehls.sh
 
@@ -16,20 +22,26 @@ if conda env list | grep -q "torch-mlir"; then
     echo "torch-mlir environment already exists."
 else
     echo "Creating torch-mlir environment..."
-    conda create -n torch-mlir python=3.11 numpy=1.24
+    # Create env (add pip so we can install wheels/reqs)
+    conda create -y -n torch-mlir python=3.11 numpy=1.24 pip
+
+    # Ensure 'conda activate' works inside a non-interactive script
     conda activate torch-mlir
+
     python -m pip install --upgrade pip
 
-    wget https://cmu.box.com/shared/static/8hz00av1wm93pttfz7212xagtv0nkd6x -O torch-2.2.0.dev20231204+cpu-cp311-cp311-linux_x86_64.whl
+    # We should be in the ScaleHLS-HIDA repo root when running this block
+    # (requirements.txt lives there, per README)
+    if [ -f requirements.txt ]; then
+        # Install prebuilt Torch-MLIR stack as specified by the repo
+        pip install --no-deps -r requirements.txt
+    else
+        echo "ERROR: requirements.txt not found in $(pwd). Please run this from the scalehls-hida repo root."
+        conda deactivate
+        exit 1
+    fi
 
-    wget https://cmu.box.com/shared/static/ag5ofnldjtrkr2uw6h4af6sew6f3cw6h -O torch_mlir-20231229.1067-cp311-cp311-linux_x86_64.whl
-
-    pip install torch-2.2.0.dev20231204+cpu-cp311-cp311-linux_x86_64.whl
-    pip install torch_mlir-20231229.1067-cp311-cp311-linux_x86_64.whl
-
-    rm -rf torch-2.2.0.dev20231204+cpu-cp311-cp311-linux_x86_64.whl torch_mlir-20231229.1067-cp311-cp311-linux_x86_64.whl
-
-    conda deactivate
+conda deactivate
 fi
 
 cd ..
