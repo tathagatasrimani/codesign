@@ -17,31 +17,35 @@ export PYTHONPATH=$PYTHONPATH:$PWD/build/tools/scalehls/python_packages/scalehls
 
 echo "current directory: $(pwd)"
 
-## check if the torch-mlir conda environment already exists
-if conda env list | grep -q "torch-mlir"; then
-    echo "torch-mlir environment already exists."
-else
-    echo "Creating torch-mlir environment..."
-    # Create env (add pip so we can install wheels/reqs)
-    conda create -y -n torch-mlir python=3.11 numpy=1.24 pip
-
-    # Ensure 'conda activate' works inside a non-interactive script
-    conda activate torch-mlir
+# Create venv only if it does not exist
+if [ ! -d "mlir_venv" ]; then
+    echo "Creating new Torch-MLIR venv..."
+    python3 -m venv mlir_venv
+    source mlir_venv/bin/activate
 
     python -m pip install --upgrade pip
-
-    # We should be in the ScaleHLS-HIDA repo root when running this block
-    # (requirements.txt lives there, per README)
     if [ -f requirements.txt ]; then
-        # Install prebuilt Torch-MLIR stack as specified by the repo
         pip install --no-deps -r requirements.txt
     else
-        echo "ERROR: requirements.txt not found in $(pwd). Please run this from the scalehls-hida repo root."
-        conda deactivate
+        echo "ERROR: requirements.txt not found in $(pwd)."
+        deactivate
         exit 1
     fi
 
-conda deactivate
+    echo "Torch-MLIR venv setup complete."
+    deactivate
+else
+    echo "Torch-MLIR venv already exists. Skipping creation."
 fi
+
+# Optional: test that torch + torchvision import cleanly
+source mlir_venv/bin/activate
+python - <<'PY'
+import torch, torchvision
+print("torch:", torch.__version__)
+print("torchvision:", torchvision.__version__)
+print("cuda available:", torch.cuda.is_available())
+PY
+deactivate
 
 cd ..
