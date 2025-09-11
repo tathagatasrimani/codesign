@@ -20,6 +20,13 @@ def debug_print(msg):
     if DEBUG:
         print(msg)
 
+module_map = {
+    "add": "Add",
+    "mul": "Mult",
+    "fmul": "Mult",
+    "call": "Call"
+}
+
 class VariableTracker:
     def __init__(self):
         # Maps variable name to (current_node_id, timestamp)
@@ -121,8 +128,6 @@ def get_rsc_mapping(netlist_file):
         name = d.get('name')
         bind = d.get('bind', {})
         opset = bind.get('opset')
-        if opset and opset.startswith("rem_urem_i"):
-            print(f"opset: {opset}, name: {name}")
         ## remove the slash and everything after it from the opset
         if opset and '/' in opset:
             opsets = opset.split()
@@ -133,7 +138,7 @@ def get_rsc_mapping(netlist_file):
     return netlist_op_dest_to_node
 
 class vitis_schedule_parser:
-    def __init__(self, build_dir, benchmark_name, top_level_module_name, clk_period):
+    def __init__(self, build_dir, benchmark_name, top_level_module_name, clk_period, allowed_functions):
         self.build_dir = build_dir
         self.solution_dir = os.path.join(build_dir, benchmark_name, "solution1/.autopilot/db")
         self.clk_period = clk_period
@@ -156,6 +161,7 @@ class vitis_schedule_parser:
             "speclooptripcount"
         ])
         self.benchmark_name = benchmark_name
+        self.allowed_functions = allowed_functions
 
     def create_dfgs(self):
         self.parse()
@@ -382,7 +388,7 @@ class vitis_schedule_parser:
             for state in self.basic_blocks[basic_block_name]["cycle_nodes"]:
                 self.basic_blocks[basic_block_name]["G_loop_2x"], self.basic_blocks[basic_block_name][state] = \
                     self.add_one_state_to_graph(self.basic_blocks[basic_block_name]["G_loop_2x"], basic_block_name, self.basic_blocks[basic_block_name][state], variable_db="variable_db_2x", graph_type="2x")
-        self.basic_blocks[basic_block_name]["G_loop_2x"].add_node(f"loop_end_{basic_block_name}", node_type="serial")
+        self.basic_blocks[basic_block_name]["G_loop_2x"].add_node(f"loop_end_{basic_block_name}", node_type="serial", function="serial")
         self.track_resource_usage(self.basic_blocks[basic_block_name]["G_loop_2x"], f"loop_end_{basic_block_name}", basic_block_name, "2x")
         assert nx.is_directed_acyclic_graph(self.basic_blocks[basic_block_name]["G_loop_2x"]), f"Graph is not a DAG, cycle found: {nx.find_cycle(self.basic_blocks[basic_block_name]['G_loop_2x'])}"
         #nx.write_gml(self.basic_blocks[basic_block_name]["G_loop_2x"], f"{self.build_dir}/{basic_block_name}_graph_loop_2x.gml")
@@ -392,7 +398,7 @@ class vitis_schedule_parser:
         for state in self.basic_blocks[basic_block_name]["cycle_nodes"]:
             self.basic_blocks[basic_block_name]["G_loop_1x"], self.basic_blocks[basic_block_name][state] = \
                 self.add_one_state_to_graph(self.basic_blocks[basic_block_name]["G_loop_1x"], basic_block_name, self.basic_blocks[basic_block_name][state], variable_db="variable_db_1x", graph_type="1x")
-        self.basic_blocks[basic_block_name]["G_loop_1x"].add_node(f"loop_end_{basic_block_name}", node_type="serial")
+        self.basic_blocks[basic_block_name]["G_loop_1x"].add_node(f"loop_end_{basic_block_name}", node_type="serial", function="serial")
         self.track_resource_usage(self.basic_blocks[basic_block_name]["G_loop_1x"], f"loop_end_{basic_block_name}", basic_block_name, "1x")
         assert nx.is_directed_acyclic_graph(self.basic_blocks[basic_block_name]["G_loop_1x"]), f"Graph is not a DAG, cycle found: {nx.find_cycle(self.basic_blocks[basic_block_name]['G_loop_1x'])}"
         #nx.write_gml(self.basic_blocks[basic_block_name]["G_loop_1x"], f"{self.build_dir}/{basic_block_name}_graph_loop_1x.gml")
@@ -407,7 +413,8 @@ class vitis_schedule_parser:
             rsc_name_unique = f"{rsc_name}_{core_id}"
             if not self.basic_blocks[basic_block_name]['resource_db_map'][graph_type].check_resource_added(rsc_name_unique):
                 self.basic_blocks[basic_block_name]['resource_db_map'][graph_type].add_resource(rsc_name_unique, instruction["core_inst"] != "N/A", instruction["core_info"])
-            G.add_node(op_name, node_type="op", rsc=rsc_name, core_inst=instruction["core_inst"], core_id=core_id, rsc_name_unique=rsc_name_unique)
+            fn_out = module_map[instruction["op"]] if instruction["op"] in module_map else instruction["op"]
+            G.add_node(op_name, node_type="op", function=instruction["op"], function_out=fn_out, rsc=rsc_name, core_inst=instruction["core_inst"], core_id=core_id, rsc_name_unique=rsc_name_unique)
             self.track_resource_usage(G, op_name, basic_block_name, graph_type)
             debug_print(f"Instruction: {instruction}")
             for src in instruction["src"]:
@@ -415,13 +422,13 @@ class vitis_schedule_parser:
                 if src_name in G:
                     G.add_edge(src_name, op_name, weight=0.0, resource_edge=0)
                 else:
-                    G.add_node(src_name, node_type="var")
+                    G.add_node(src_name, node_type="var", function="serial")
                     if use_start_node:
                         assert start_node is not None, "Start node is not provided"
                         G.add_edge(start_node, src_name, weight=0.0, resource_edge=0)
                     G.add_edge(src_name, op_name, weight=0.0, resource_edge=0)
             dst = self.basic_blocks[basic_block_name][variable_db].update_write_node(instruction["dst"])
-            G.add_node(dst, node_type="var")
+            G.add_node(dst, node_type="var", function="N/A")
             G.add_edge(op_name, dst, weight=instruction['delay'], resource_edge=0)
         assert nx.is_directed_acyclic_graph(G), f"Graph is not a DAG, cycle found: {nx.find_cycle(G)}"
         debug_print(f"longest path after adding one state: {nx.dag_longest_path_length(G)} ({nx.dag_longest_path(G)})")
@@ -432,7 +439,7 @@ class vitis_schedule_parser:
 
     def add_loop_nodes(self, basic_block_name, graph_type="full"):
         in_nodes_loop_start = self.get_graph_leaves(self.basic_blocks[basic_block_name]["G"])
-        self.basic_blocks[basic_block_name]["G"].add_node("loop_start", node_type="serial")
+        self.basic_blocks[basic_block_name]["G"].add_node("loop_start", node_type="serial", function="serial")
         for node in in_nodes_loop_start:
             self.basic_blocks[basic_block_name]["G"].add_edge(node, "loop_start", weight=0.0, resource_edge=0)
         for state in self.basic_blocks[basic_block_name]["cycle_nodes"]:
@@ -444,9 +451,9 @@ class vitis_schedule_parser:
                     "loop_start", 
                     True
                 )
-        self.basic_blocks[basic_block_name]["G"].add_node(f"II_delay_{basic_block_name}", node_type="serial")
+        self.basic_blocks[basic_block_name]["G"].add_node(f"II_delay_{basic_block_name}", node_type="serial", function="serial")
         self.track_resource_usage(self.basic_blocks[basic_block_name]["G"], f"II_delay_{basic_block_name}", basic_block_name, graph_type)
-        self.basic_blocks[basic_block_name]["G"].add_node(f"loop_end_{basic_block_name}", node_type="serial")
+        self.basic_blocks[basic_block_name]["G"].add_node(f"loop_end_{basic_block_name}", node_type="serial", function="serial")
         self.track_resource_usage(self.basic_blocks[basic_block_name]["G"], f"loop_end_{basic_block_name}", basic_block_name, graph_type)
         #print(self.basic_blocks[basic_block_name]["loop_info"], basic_block_name)
         if self.basic_blocks[basic_block_name]["loop_info"]["Pipelined"] == "yes":
@@ -477,7 +484,7 @@ class vitis_schedule_parser:
             self.basic_blocks[basic_block_name]["non_cycle_nodes"] = [node for node in state_machine_graph.nodes()]
 
         self.basic_blocks[basic_block_name]["G"] = nx.DiGraph()
-        self.basic_blocks[basic_block_name]["G"].add_node("graph_start", node_type="serial")
+        self.basic_blocks[basic_block_name]["G"].add_node("graph_start", node_type="serial", function="serial")
         for state in self.basic_blocks[basic_block_name]["non_cycle_nodes"]:
             self.basic_blocks[basic_block_name]["G"], self.basic_blocks[basic_block_name][state] = \
                 self.add_one_state_to_graph(
@@ -499,7 +506,7 @@ class vitis_schedule_parser:
             self.add_loop_nodes(basic_block_name)
             self.loop_2x_graph(basic_block_name)
             self.loop_1x_graph(basic_block_name)
-        self.basic_blocks[basic_block_name]["G"].add_node("graph_end", node_type="serial")
+        self.basic_blocks[basic_block_name]["G"].add_node("graph_end", node_type="serial", function="serial")
         self.track_resource_usage(self.basic_blocks[basic_block_name]["G"], "graph_end", basic_block_name)
         #nx.write_gml(self.basic_blocks[basic_block_name]["G"], f"{self.build_dir}/{basic_block_name}_graph.gml")
 
@@ -543,6 +550,7 @@ class vitis_schedule_parser:
             if self.basic_blocks[basic_block_name][G_name].nodes[node]["node_type"] == "var":
                 self.remove_node(self.basic_blocks[basic_block_name][G_standard_name], node)
         #debug_print("nodes left: ", self.basic_blocks[basic_block_name][G_standard_name].nodes())
+        self.basic_blocks[basic_block_name][G_standard_name] = sim_util.filter_graph_by_function(self.basic_blocks[basic_block_name][G_standard_name], self.allowed_functions)
         assert nx.is_directed_acyclic_graph(self.basic_blocks[basic_block_name][G_standard_name]), f"Graph is not a DAG, cycle found: {nx.find_cycle(self.basic_blocks[basic_block_name][G_standard_name])}"
         debug_print(f"longest path after removing var nodes: {nx.dag_longest_path_length(self.basic_blocks[basic_block_name][G_standard_name])} ({nx.dag_longest_path(self.basic_blocks[basic_block_name][G_standard_name])})")
         #nx.write_gml(self.basic_blocks[basic_block_name][G_standard_name], f"{self.build_dir}/{basic_block_name}_graph_{G_standard_name}.gml")

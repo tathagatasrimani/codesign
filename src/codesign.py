@@ -275,6 +275,11 @@ class Codesign:
         ## print the cwd
         print(f"Current working directory in vitis parse data: {os.getcwd()}")
 
+        if self.no_memory:
+            allowed_functions = {"fmul", "mul", "add", "call", "serial"}
+        else:
+            allowed_functions = {"fmul", "mul", "add", "load", "store", "call", "serial"}
+
         parse_results_dir = f"{self.benchmark_dir}/parse_results"
 
         ## Do preprocessing to the vitis data for the next scripts

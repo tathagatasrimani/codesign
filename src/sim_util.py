@@ -5,6 +5,7 @@ import datetime
 from collections import defaultdict
 import math
 from sympy import Abs, exp, cosh
+import copy
 
 logger = logging.getLogger(__name__)
 
@@ -99,6 +100,22 @@ def add_area_constraint_to_script(filename, area_constraint):
             new_lines.append(new_line)
     with open(filename, "w") as f:
         f.writelines(new_lines)
+
+def remove_node(G, node):
+    for src in G.predecessors(node):
+        for dst in G.successors(node):
+            # only keep data dependencies if dealing with dfg
+            if "resource_edge" in G[src][node] and not G[src][node]["resource_edge"]:
+                continue
+            G.add_edge(src, dst, weight=G.edges[src, node]["weight"], resource_edge=0)
+    G.remove_node(node)
+
+def filter_graph_by_function(graph, allowed_functions):
+    filtered_graph = copy.deepcopy(graph)
+    for node in graph.nodes():
+        if graph.nodes[node]['function'] not in allowed_functions:
+            remove_node(filtered_graph, node)
+    return filtered_graph
 
 def topological_layout_plot(graph, filename, reverse=False, extra_edges=None):
     # Compute the topological order of the nodes

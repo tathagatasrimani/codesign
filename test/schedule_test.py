@@ -12,6 +12,7 @@ def main(benchmark_dir, benchmark_name, just_schedule=False, pytorch=False):
     else:
         top_level_module_name = benchmark_name
 
+    allowed_functions = {"fmul", "mul", "add", "call"}
 
     if not just_schedule:
         ## Do preprocessing to the vitis data for the next scripts
@@ -23,9 +24,9 @@ def main(benchmark_dir, benchmark_name, just_schedule=False, pytorch=False):
         ## Create the CDFGs for each FSM
         create_cdfg_vitis(parse_results_dir)
 
-        merge_netlists_vitis(parse_results_dir, top_level_module_name)
-
-    schedule_parser = schedule_vitis.vitis_schedule_parser(f"{benchmark_dir}", benchmark_name, top_level_module_name, 250)
+        merge_netlists_vitis(parse_results_dir, top_level_module_name, allowed_functions)
+    
+    schedule_parser = schedule_vitis.vitis_schedule_parser(f"{benchmark_dir}", benchmark_name, top_level_module_name, 250, allowed_functions)
     schedule_parser.create_dfgs()
 
 

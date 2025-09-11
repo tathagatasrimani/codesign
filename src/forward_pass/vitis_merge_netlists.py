@@ -2,7 +2,7 @@ import os
 import sys
 import json
 import networkx as nx
-
+from src import sim_util
 
 DEBUG = True
 
@@ -13,7 +13,7 @@ def debug_print(message):
 
 all_modules_visited = set()
 
-def merge_netlists_vitis(root_dir, top_level_module_name):
+def merge_netlists_vitis(root_dir, top_level_module_name, allowed_functions):
     """
     Main function to create a unified netlist for all files in the given directory.
     """
@@ -43,9 +43,11 @@ def merge_netlists_vitis(root_dir, top_level_module_name):
     nx.write_gml(full_netlist, output_file_path)
     #debug_print(f"Full netlist saved to {output_file_path}")
 
+    for node in full_netlist:
+        full_netlist.nodes[node]['function'] = full_netlist.nodes[node].get('bind', {}).get('fcode')
+
     ## filter the netlist to only include desired node types
-    desired_node_types = {'add', 'mul', 'fmul'}
-    filtered_netlist = filter_netlist(full_netlist, desired_node_types)
+    filtered_netlist = sim_util.filter_graph_by_function(full_netlist, allowed_functions)
 
     ## save the filtered netlist to a file
     output_filtered_file_path = os.path.join(root_dir, f"{top_level_module_name}_full_netlist.gml")
@@ -87,7 +89,7 @@ def filter_netlist(full_netlist, desired_node_types={"add", "mul", "fmul"}, op_a
             if is_target.get(x, False) and x != u:
                 # Copy edge attributes if present
                 edge_attrs = full_netlist.get_edge_data(u, x, default={})
-                H.add_edge(u, x, **edge_attrs)
+                H.add_edge(u, x, **edge_attrs, weight=0)
                 continue
             stack.extend(full_netlist.successors(x))
 
@@ -289,7 +291,7 @@ def merge_netlists(root_dir, current_netlist, current_module, submodule_name):
 
         if target_node is not None:
             # add an edge from the predecessor to the target node in the new full netlist
-            new_full_netlist.add_edge(pred, target_node)
+            new_full_netlist.add_edge(pred, target_node, weight=0)
             debug_print(f"Added edge from predecessor {pred} to target node {target_node} in submodule {submodule_name}.")
         else:
             debug_print(f"No matching node found in submodule {submodule_name} for predecessor {pred} with name {pred_name}.")
@@ -317,7 +319,7 @@ def merge_netlists(root_dir, current_netlist, current_module, submodule_name):
                     target_node = n
                     break
             if target_node is not None:
-                new_full_netlist.add_edge(pred, target_node)
+                new_full_netlist.add_edge(pred, target_node, weight=0)
                 debug_print(f"Added edge from predecessor {pred} to target node {target_node} in submodule {submodule_name} using STG port name {port_name}.")
             else:
                 debug_print(f"No matching node found in submodule {submodule_name} for predecessor {pred} with STG port name {port_name}.")
