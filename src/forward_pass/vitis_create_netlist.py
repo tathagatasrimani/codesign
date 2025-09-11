@@ -137,7 +137,7 @@ def create_networkX_netlist(json_netlist, json_complist, module_name):
         src_pin = net_data['src']['pin']
         sink = str(net_data['sink']['comp']) + "_" + module_name
         sink_pin = net_data['sink']['pin']
-        G.add_edge(src, sink, net_id=net_id, src_pin=src_pin, sink_pin=sink_pin)
+        G.add_edge(src, sink, net_id=net_id, src_pin=src_pin, sink_pin=sink_pin, weight=0)
 
     return G
     
