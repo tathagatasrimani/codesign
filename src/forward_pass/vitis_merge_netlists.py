@@ -13,7 +13,7 @@ def debug_print(message):
 
 all_modules_visited = set()
 
-def merge_netlists_vitis(root_dir, top_level_module_name, filter_nodes=True):
+def merge_netlists_vitis(root_dir, top_level_module_name):
     """
     Main function to create a unified netlist for all files in the given directory.
     """
@@ -45,13 +45,13 @@ def merge_netlists_vitis(root_dir, top_level_module_name, filter_nodes=True):
 
     ## filter the netlist to only include desired node types
     desired_node_types = {'add', 'mul', 'fmul'}
-    filtered_netlist = filter_netlist(full_netlist, desired_node_types, filter_nodes)
+    filtered_netlist = filter_netlist(full_netlist, desired_node_types)
 
     ## save the filtered netlist to a file
     output_filtered_file_path = os.path.join(root_dir, f"{top_level_module_name}_full_netlist.gml")
     nx.write_gml(filtered_netlist, output_filtered_file_path)
 
-def filter_netlist(full_netlist, desired_node_types={"add", "mul", "fmul"}, filter_nodes=True, op_attr="fcode"):
+def filter_netlist(full_netlist, desired_node_types={"add", "mul", "fmul"}, op_attr="fcode"):
     """
     Return a new DiGraph H that contains only the 'functional unit' nodes
     (bind[op_attr] in desired_node_types) from full_netlist, as well as any node with type 'CONTROL_NODE'.
@@ -61,7 +61,7 @@ def filter_netlist(full_netlist, desired_node_types={"add", "mul", "fmul"}, filt
     # Identify target nodes and control nodes
     is_target = {
         n: (
-            (filter_nodes and full_netlist.nodes[n].get('bind', {}).get(op_attr) in desired_node_types)
+            (full_netlist.nodes[n].get('bind', {}).get(op_attr) in desired_node_types)
             or (full_netlist.nodes[n].get('type') == 'CONTROL_NODE')
         )
         for n in full_netlist.nodes
@@ -93,8 +93,6 @@ def filter_netlist(full_netlist, desired_node_types={"add", "mul", "fmul"}, filt
 
     return H
 
-
-
 def parse_module(root_dir, current_module):
 
     debug_print(f"!!!!!!!!!!!!!!!!!!!!!!!Parsing module for netlist merge: {current_module}")
@@ -103,11 +101,14 @@ def parse_module(root_dir, current_module):
     # if it has, we can read the netlist from the file and return it.
     if current_module in all_modules_visited:
         #debug_print(f"Module {current_module} already visited. Returning existing netlist.")
-        netlist_file_path = os.path.join(root_dir, f"{current_module}_full_netlist.gml")
+        netlist_file_path = os.path.join(root_dir, current_module, f"{current_module}_full_netlist.gml")
         if not os.path.exists(netlist_file_path):
-            print(f"Error: netlist file {netlist_file_path} does not exist.")
-            exit(1)
-            return None
+            # Try with 's' suffix for file path only
+            netlist_file_path = os.path.join(root_dir, current_module + "s", f"{current_module}s_full_netlist.gml")
+            if not os.path.exists(netlist_file_path):
+                print(f"Error: netlist file {netlist_file_path} does not exist.")
+                exit(1)
+                return None
         return nx.read_gml(netlist_file_path)
 
     ## add module to the visited modules list
@@ -116,7 +117,6 @@ def parse_module(root_dir, current_module):
     ## open the _netlist.gml file for the current module. Read it in as a NetworkX graph.
     netlist_file_path = os.path.join(root_dir, current_module, f"{current_module}.verbose_netlist.gml")
 
-    append_s_to_path = False
     if not os.path.exists(netlist_file_path):
         netlist_file_path = os.path.join(root_dir, current_module + "s", f"{current_module}s.verbose_netlist.gml")
         if not os.path.exists(netlist_file_path):
@@ -148,21 +148,19 @@ def parse_module(root_dir, current_module):
         #debug_print(f"No submodules found for {current_module}. Returning netlist as is.")
         pass
 
-    ## get the netlists for each of the instantiated modules recursively
-    submodule_netlists = {}
+    ## generate the netlists for each of the instantiated modules recursively
     for module_name in module_dependences:
-        submodule_netlists[module_name] = parse_module(root_dir, module_name)
+        parse_module(root_dir, module_name)
 
     ## merge the netlists of the submodules into the full netlist
-    for submodule_name, submodule_netlist in submodule_netlists.items():
-        if submodule_netlist is not None:
-            #full_netlist = nx.compose(full_netlist, submodule_netlist)
-            # print the number of nodes in the full_netlist before and after the merge
-            debug_print(f"Before merging {submodule_name}, full netlist has {full_netlist.number_of_nodes()} nodes.")
-            full_netlist_new = merge_netlists(root_dir, full_netlist, current_module, submodule_netlist, submodule_name)
-            debug_print(f"After merging {submodule_name}, full netlist has {full_netlist_new.number_of_nodes()} nodes.")
-            full_netlist = full_netlist_new
-            #debug_print(f"Merged netlist for submodule {submodule_name} into full netlist.")
+    for submodule_name in module_dependences:
+        #full_netlist = nx.compose(full_netlist, submodule_netlist)
+        # print the number of nodes in the full_netlist before and after the merge
+        debug_print(f"Before merging {submodule_name}, full netlist has {full_netlist.number_of_nodes()} nodes.")
+        full_netlist_new = merge_netlists(root_dir, full_netlist, current_module, submodule_name)
+        debug_print(f"After merging {submodule_name}, full netlist has {full_netlist_new.number_of_nodes()} nodes.")
+        full_netlist = full_netlist_new
+        #debug_print(f"Merged netlist for submodule {submodule_name} into full netlist.")
 
     ## write out the full netlist for the current module
     output_file_path = os.path.join(root_dir, current_module, f"{current_module}_full_netlist.gml")
@@ -171,57 +169,98 @@ def parse_module(root_dir, current_module):
 
     return full_netlist
 
-def merge_netlists(root_dir, full_netlist, current_module, submodule_netlist, submodule_name): 
+def merge_netlists(root_dir, current_netlist, current_module, submodule_name): 
     """
     Merge the submodule netlist into the full netlist.
+
+    args: 
+        root_dir: the root directory containing all module subdirectories
+        current_netlist: the current full netlist as a NetworkX DiGraph. This is the graph that the submodule netlist will be merged into.
+        current_module: the name of the current module being processed (the one that instantiates the submodule)
+        submodule_name: the name of the submodule to be merged into the full netlist
+
+    This function will read the submodule netlist from disk and merge it into the current netlist.
     """
     debug_print(f"Merging netlist for submodule {submodule_name} into full netlist for module {current_module}.")
 
+    ## read in the submodule netlist
+    submodule_netlist_file = os.path.join(root_dir, submodule_name, f"{submodule_name}_full_netlist.gml")
+    if not os.path.exists(submodule_netlist_file):
+        submodule_netlist_file = os.path.join(root_dir, submodule_name + "s", f"{submodule_name}s_full_netlist.gml")
+        if not os.path.exists(submodule_netlist_file):
+            debug_print(f"Error: Submodule netlist file {submodule_netlist_file} does not exist.")
+            exit(1)
+            return
+        else:
+            debug_print(f"Warning: Submodule {submodule_name} not found, adding s worked though:  {submodule_name}s")
+            submodule_name += "s"
+    
+    submodule_netlist = nx.read_gml(submodule_netlist_file)
 
     # Read the submodule instance to module name mapping for this module
     module_instance_file = os.path.join(root_dir, current_module, f"{current_module}.verbose_instance_names.json")
     if not os.path.exists(module_instance_file):
         module_instance_file = os.path.join(root_dir, current_module + "s", f"{current_module}s.verbose_instance_names.json")
         if not os.path.exists(module_instance_file):
-            print(f"Error: Instance to module file {module_instance_file} does not exist.")
+            debug_print(f"Error: Instance to module file {module_instance_file} does not exist.")
             exit(1)
             return
 
     with open(module_instance_file, 'r') as f:
         module_instance_mapping = json.load(f)
-    #debug_print(f"module instance mapping for {current_module}: {module_instance_mapping}")
+    debug_print(f"module instance mapping for {current_module}: {module_instance_mapping}")
 
     # Find all nodes in the full netlist that are call functions to the submodule
     # these nodes will have fcode="call"
     submodule_call_nodes = []
-    for n, d in full_netlist.nodes(data=True):
+    for n, d in current_netlist.nodes(data=True):
         bind_node = d.get('bind')
         if isinstance(bind_node, dict):
             ## remove the part before the first _ and after the second to last _ to get the curr_node_submodule name
             ## for example, grp_VITIS_LOOP_5859_1_proc31_fu_82 -> VITIS_LOOP_5859_1_proc31
             curr_node_full_name = d.get('name')
             if curr_node_full_name is None:
-                #debug_print(f"current node name full is None")
+                debug_print(f"current node name full is None")
                 exit(1)
                 continue
             curr_node_submodule_name = '_'.join(curr_node_full_name.split('_')[1:-2])
-            #debug_print(f"current node submodule name: {curr_node_submodule_name}")
+            debug_print(f"current node submodule name: {curr_node_submodule_name}")
 
             if bind_node.get('fcode') == 'call' and curr_node_submodule_name == submodule_name:
                 submodule_call_nodes.append(n)
 
+    ## first step is to find all of the predecessor and sucessor nodes of the first submodule call node (the rest are duplicates of the param info)
+    if len(submodule_call_nodes) == 0:
+        debug_print(f"No call nodes found for submodule {submodule_name} in module {current_module}.")
+        return current_netlist
 
-    debug_print(f"Number of nodes in full netlist before merge: {full_netlist.number_of_nodes()}")
+    first_call_node = submodule_call_nodes[0]
+
+    ## the predecessors of the call node are the dependences that need to be reconnected after the merge
+    predecessors = list(current_netlist.predecessors(first_call_node))
+
+    ## find the edge data for each predecessor edge to get the pin number
+    predecessor_edges = {}
+    for pred in predecessors:
+        edge_data = current_netlist.get_edge_data(pred, first_call_node)
+        if edge_data is not None:
+            predecessor_edges[pred] = edge_data
+        else:
+            debug_print(f"ERROR: No edge data found from predecessor {pred} to call node {first_call_node}.")
+            exit(1)
+            continue
+
+    debug_print(f"Number of nodes in full netlist before merge: {current_netlist.number_of_nodes()}")
     debug_print(f"Number of nodes in submodule netlist: {submodule_netlist.number_of_nodes()}")
 
+    new_full_netlist = nx.compose(current_netlist, submodule_netlist)
 
-    new_full_netlist = nx.compose(full_netlist, submodule_netlist)
-
-    #debug_print(f"Composed full netlist with submodule netlist for {submodule_name}.")
+    debug_print(f"Composed full netlist with submodule netlist for {submodule_name}.")
 
     ## read in the stg file for this submodule to get the input/output port names
     stg_file_path = os.path.join(root_dir, submodule_name, f"{submodule_name}.verbose_stg.rpt")
-    if not os.path.exists(stg_file_path): 
+
+    if not os.path.exists(stg_file_path):
         stg_file_path = os.path.join(root_dir, submodule_name + "s", f"{submodule_name}s.verbose_stg.rpt")
         if not os.path.exists(stg_file_path):
             print(f"Error: STG file {stg_file_path} does not exist.")
@@ -232,32 +271,9 @@ def merge_netlists(root_dir, full_netlist, current_module, submodule_netlist, su
 
     pin_to_port = parse_stg_ports(stg_lines)
 
-    ## TODO: Handle the netlist edges across the submodule boundaries
-
-    ## first step is to find all of the predecessor and sucessor nodes of the first submodule call node (the rest are duplicates of the param info)
-    if len(submodule_call_nodes) == 0:
-        debug_print(f"No call nodes found for submodule {submodule_name} in module {current_module}.")
-        return new_full_netlist
-    
-    first_call_node = submodule_call_nodes[0]
-
-    ## the predecessors of the call node are the dependences that need to be reconnected after the merge
-    predecessors = list(full_netlist.predecessors(first_call_node))
-
-    ## find the edge data for each predecessor edge to get the pin number
-    predecessor_edges = {}
-    for pred in predecessors:
-        edge_data = full_netlist.get_edge_data(pred, first_call_node)
-        if edge_data is not None:
-            predecessor_edges[pred] = edge_data
-        else:
-            debug_print(f"ERROR: No edge data found from predecessor {pred} to call node {first_call_node}.")
-            exit(1)
-            continue
-
     ## go through each predecessor and add an edge from it to another node in the graph with the same name field
     for pred in predecessors:
-        pred_data = full_netlist.nodes[pred]
+        pred_data = current_netlist.nodes[pred]
         pred_name = pred_data.get('name')
         if pred_name is None:
             debug_print(f"Predecessor node {pred} has no name field.")
@@ -266,7 +282,7 @@ def merge_netlists(root_dir, full_netlist, current_module, submodule_netlist, su
 
         # find the corresponding node in the submodule netlist
         target_node = None
-        for n, d in submodule_netlist.nodes(data=True):
+        for n, d in current_netlist.nodes(data=True):
             if d.get('name') == pred_name:
                 target_node = n
                 break
@@ -338,8 +354,8 @@ def parse_stg_ports(stg_lines):
 #     stg_lines = sf.readlines()
 # pin_to_port = parse_stg_ports(stg_lines)
 
-def main(root_dir, top_level_module_name, filter_nodes=True):
-    merge_netlists_vitis(root_dir, top_level_module_name, filter_nodes)
+def main(root_dir, top_level_module_name):
+    merge_netlists_vitis(root_dir, top_level_module_name)
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
