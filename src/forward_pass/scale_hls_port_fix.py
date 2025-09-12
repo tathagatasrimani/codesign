@@ -1,21 +1,20 @@
 import os
 import re
 
-def scale_hls_port_fix(file_path):
+def scale_hls_port_fix(file_path, benchmark_name, pytorch):
     with open(file_path, "r") as f:
         lines = f.readlines()
     ports_to_create = []
-    top_function_name = None
     idx = 0
+    # TODO have more general condition for pytorch stuff, this is just for resnet
+    top_function_name = benchmark_name if not pytorch else "forward"
     while idx < len(lines):
         line = lines[idx]
-        if line.startswith("/// This is top function"):
-            while (lines[idx].startswith("///")):
-                idx += 1
-            top_function_name = lines[idx].split()[1].split("(")[0]
+        if line.find(f" {top_function_name}(") != -1:
             idx += 1
             break
         idx += 1
+    assert idx < len(lines)
     while idx < len(lines):
         line = lines[idx]
         if line.startswith(") {"):
@@ -39,7 +38,6 @@ def scale_hls_port_fix(file_path):
         print(f"Writing to {file_path}")
         f.writelines(new_lines)
     
-    assert top_function_name is not None
     return top_function_name
 
 if __name__ == "__main__":

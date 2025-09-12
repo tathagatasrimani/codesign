@@ -324,7 +324,7 @@ class Codesign:
         """
         self.run_scalehls()
         os.chdir(os.path.join(os.path.dirname(__file__), "tmp/benchmark"))
-        self.vitis_top_function = scale_hls_port_fix(f"{self.benchmark_name}.cpp")
+        self.vitis_top_function = scale_hls_port_fix(f"{self.benchmark_name}.cpp", self.benchmark_name, self.cfg["args"]["pytorch"])
         if self.cfg["args"]["pytorch"]:
             self.vitis_top_function = "forward"
         logger.info(f"Vitis top function: {self.vitis_top_function}")
