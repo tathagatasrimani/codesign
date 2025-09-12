@@ -29,3 +29,7 @@ python3 -m src.codesign -b matmult --no_memory true
 3. Create a new bash script to source catapult based on your particular installation. 
 4. source this script instead of stanford_catapult_env.sh at the end of full_env_start.sh
 5. source full_env_start.sh
+
+
+# Acknowledgements
+NSF GRFP, NSF FuSe2 Award 2425218, Stanford System X, Samsung, U.S. DoE, TSMC, Stanford Precourt Institute
