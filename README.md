@@ -32,4 +32,4 @@ python3 -m src.codesign -b matmult --no_memory true
 
 
 # Acknowledgements
-NSF GRFP, NSF FuSe2 Award 2425218, Stanford System X, TSMC
+NSF FuSe2 Award 2425218, NSF GRFP, Stanford System X, TSMC
