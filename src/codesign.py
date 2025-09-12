@@ -224,49 +224,35 @@ class Codesign:
             None
         """
         self.set_resource_constraint_scalehls()
-
-        # Store original environment variables
-        original_path = os.environ.get('PATH', '')
-        original_pythonpath = os.environ.get('PYTHONPATH', '')
-        
-        # Set up ScaleHLS environment
-        scalehls_path = f"{os.path.dirname(__file__)}/../scalehls-hida/build/bin:{os.path.dirname(__file__)}/../scalehls-hida/polygeist/build/bin"  
-        scalehls_pythonpath = f"{os.path.dirname(__file__)}/../scalehls-hida/python"  # Update this path
-        
-        # Modify environment variables
-        new_path = f"{scalehls_path}:{original_path}" if scalehls_path not in original_path else original_path
-        new_pythonpath = f"{scalehls_pythonpath}:{original_pythonpath}" if original_pythonpath else scalehls_pythonpath
-        
-        # Create modified environment
-        modified_env = os.environ.copy()
-        modified_env['PATH'] = new_path
-        modified_env['PYTHONPATH'] = new_pythonpath
-        
-        try:
-            os.chdir(f"scalehls-hida/samples/polybench/{self.benchmark_name}")
-
-            # ScaleHLS commands with shell redirection and pipes
-            scalehls_commands = [
-                f"cgeist {self.benchmark_name}.c -function={self.benchmark_name} -S -memref-fullrank -raise-scf-to-affine > {self.benchmark_name}.mlir",
-                f"scalehls-opt {self.benchmark_name}.mlir -scalehls-dse-pipeline=\"top-func={self.benchmark_name} target-spec=../../../test/Transforms/Directive/config.json\" | scalehls-translate -scalehls-emit-hlscpp > {os.path.join(os.path.dirname(__file__), 'tmp/benchmark')}/{self.benchmark_name}.cpp",
-            ]
             
-            for cmd in scalehls_commands:
-                logger.info(f"Running ScaleHLS command: {cmd}")
-                p = subprocess.run(cmd, shell=True, capture_output=True, text=True, env=modified_env)
-                logger.info(f"ScaleHLS command output: {p.stdout}")
-                if p.returncode != 0:
-                    logger.error(f"ScaleHLS command failed: {p.stderr}")
-                    raise Exception(f"ScaleHLS command failed: {p.stderr}")
-        
-                
-        finally:
-            # Restore original environment variables
-            os.environ['PATH'] = original_path
-            if original_pythonpath:
-                os.environ['PYTHONPATH'] = original_pythonpath
-            elif 'PYTHONPATH' in os.environ:
-                del os.environ['PYTHONPATH']
+        ## get CWD
+        cwd = os.getcwd()
+        print(f"Running scaleHLS in {cwd}")
+
+        cmd = [
+            'bash', '-c',
+            f'''
+            cd {cwd}
+            cd scalehls-hida/
+            export PATH=$PATH:$PWD/build/bin:$PWD/polygeist/build/bin
+            export PYTHONPATH=$PYTHONPATH:$PWD/build/tools/scalehls/python_packages/scalehls_core
+            source mlir_venv/bin/activate
+            cd samples/polybench/{self.benchmark_name}
+            cgeist test_{self.benchmark_name}.c -function=test_{self.benchmark_name} -S -memref-fullrank -raise-scf-to-affine > {self.benchmark_name}.mlir
+            scalehls-opt {self.benchmark_name}.mlir -scalehls-dse-pipeline=\"top-func={self.benchmark_name} target-spec=../../../test/Transforms/Directive/config.json\" | scalehls-translate -scalehls-emit-hlscpp > {os.path.join(os.path.dirname(__file__), 'tmp/benchmark')}/{self.benchmark_name}.cpp
+            deactivate
+            pwd
+            '''
+        ]
+
+        with open(f"src/tmp/scalehls_out.log", "w") as outfile:
+            p = subprocess.Popen(cmd, stdout=outfile, stderr=subprocess.STDOUT, env=os.environ)
+            p.wait()
+        with open(f"src/tmp/scalehls_out.log", "r") as f:
+            logger.info(f"scaleHLS output:\n{f.read()}")
+
+        if p.returncode != 0:
+            raise Exception(f"scaleHLS failed with error: {p.stderr}")
 
     def parse_vitis_data(self):
 
