@@ -20,10 +20,10 @@ echo "current directory: $(pwd)"
 # Create venv only if it does not exist
 if [ ! -d "mlir_venv" ]; then
     echo "Creating new Torch-MLIR venv..."
-    python3 -m venv mlir_venv
+    python3.11 -m venv mlir_venv
     source mlir_venv/bin/activate
 
-    python -m pip install --upgrade pip
+    python3.11 -m pip install --upgrade pip
     if [ -f requirements.txt ]; then
         pip install --no-deps -r requirements.txt
     else
