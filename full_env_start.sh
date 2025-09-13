@@ -12,10 +12,10 @@ else
     if [ -f /etc/redhat-release ]; then
         OS_VERSION=$(cat /etc/redhat-release)
         case "$OS_VERSION" in 
-            *"Rocky Linux release 8"*)
+            *"Rocky Linux release 8"*|*"Red Hat Enterprise Linux release 8"*)
                 bash openroad_install_rhel8.sh
             ;;
-            *"Rocky Linux release 9"*)
+            *"Rocky Linux release 9"*|*"Red Hat Enterprise Linux release 9"*)
                 bash openroad_install.sh
             ;;
             *)
