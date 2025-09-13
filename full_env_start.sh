@@ -8,8 +8,25 @@ if [ -f "openroad_interface/OpenROAD/build/src/openroad" ]; then
     echo "OpenROAD executable already exists."
 else
     echo "OpenROAD executable not found. Running openroad_install.sh..."
-    # Run the OpenROAD installation script
-    bash openroad_install.sh
+    # Check OS, run openroad install script
+    if [ -f /etc/redhat-release ]; then
+        OS_VERSION=$(cat /etc/redhat-release)
+        case "$OS_VERSION" in 
+            *"Rocky Linux release 8"*)
+                bash openroad_install_rhel8.sh
+            ;;
+            *"Rocky Linux release 9"*)
+                bash openroad_install.sh
+            ;;
+            *)
+                echo "Unsupported Rocky Linux version: $OS_VERSION"
+                exit 1
+            ;;
+        esac    
+    else
+        echo "Unsupported OS"
+        exit 1
+    fi
 fi
 
 # Ensure that the OpenROAD executable was created
