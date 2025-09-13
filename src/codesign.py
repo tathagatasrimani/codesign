@@ -256,8 +256,6 @@ class Codesign:
 
     def parse_vitis_data(self):
 
-        # TODO: Parse the Vitis netlist and write it to netlist-from-vitis.gml and cdfg-from-vitis.gml
-
         ## print the cwd
         print(f"Current working directory in vitis parse data: {os.getcwd()}")
 
@@ -284,9 +282,9 @@ class Codesign:
         #merge_cdfgs_vitis(parse_results_dir, self.vitis_top_function)
 
         ## Merge the netlists recursivley through the module hierarchy to produce overall netlist
-        merge_netlists_vitis(parse_results_dir, self.vitis_top_function)
+        merge_netlists_vitis(parse_results_dir, self.vitis_top_function, allowed_functions)
 
-        schedule_parser = schedule_vitis.vitis_schedule_parser(self.benchmark_dir, self.benchmark_name, self.vitis_top_function, self.clk_period)
+        schedule_parser = schedule_vitis.vitis_schedule_parser(self.benchmark_dir, self.benchmark_name, self.vitis_top_function, self.clk_period, allowed_functions)
         schedule_parser.create_dfgs()
 
         print(f"Current working directory at end of vitis parse data: {os.getcwd()}")
