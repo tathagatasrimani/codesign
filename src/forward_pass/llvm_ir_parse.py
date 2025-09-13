@@ -39,67 +39,76 @@ def undef_num_src_op(instruction):
     src = instruction.split()[6::2]
     return {"op": op, "src": src, "dst": dst}
 
+def call_op(instruction):
+    dst, _, op, _, src0 = instruction.split()[0:5]
+    src = [src0]
+    src += instruction.split()[6::2]
+    return {"op": op, "src": src, "dst": dst}
+
 def parse_op(instruction, op_name):
     if op_name == "store":
-        return store_op(instruction)
+        parsed_op = store_op(instruction)
     elif op_name == "read":
-        return read_op(instruction)
+        parsed_op = read_op(instruction)
     elif op_name == "load":
-        return load_op(instruction)
+        parsed_op = load_op(instruction)
     elif op_name == "icmp":
-        return arith_op(instruction)
+        parsed_op = arith_op(instruction)
     elif op_name == "add":
-        return arith_op(instruction)
+        parsed_op = arith_op(instruction)
     elif op_name == "sub":
-        return arith_op(instruction)
+        parsed_op = arith_op(instruction)
     elif op_name == "mul":
-        return arith_op(instruction)
+        parsed_op = arith_op(instruction)
     elif op_name == "div":
-        return arith_op(instruction)
+        parsed_op = arith_op(instruction)
     elif op_name == "select":
-        return src_3_op(instruction)
+        parsed_op = src_3_op(instruction)
     elif op_name == "zext":
-        return unary_op(instruction)
+        parsed_op = unary_op(instruction)
     elif op_name == "getelementptr":
-        return src_3_op(instruction)
+        parsed_op = src_3_op(instruction)
     elif op_name == "shl":
-        return arith_op(instruction)
+        parsed_op = arith_op(instruction)
     elif op_name == "bitcast":
-        return unary_op(instruction)
+        parsed_op = unary_op(instruction)
     elif op_name == "fmul":
-        return arith_op(instruction)
+        parsed_op = arith_op(instruction)
     elif op_name == "fadd":
-        return arith_op(instruction)
+        parsed_op = arith_op(instruction)
     elif op_name == "call":
-        return undef_num_src_op(instruction)
+        parsed_op = call_op(instruction)
     elif op_name == "partselect":
-        return src_4_op(instruction)
+        parsed_op = src_4_op(instruction)
     elif op_name == "urem":
-        return arith_op(instruction)
+        parsed_op = arith_op(instruction)
     elif op_name == "or":
-        return arith_op(instruction)
+        parsed_op = arith_op(instruction)
     elif op_name == "bitconcatenate":
-        return undef_num_src_op(instruction)
+        parsed_op = undef_num_src_op(instruction)
     elif op_name == "mux":
-        return undef_num_src_op(instruction)
+        parsed_op = undef_num_src_op(instruction)
     elif op_name == "trunc":
-        return unary_op(instruction)
+        parsed_op = unary_op(instruction)
     elif op_name == "insertvalue":
-        return arith_op(instruction)
+        parsed_op = arith_op(instruction)
     elif op_name == "bitselect":
-        return undef_num_src_op(instruction)
+        parsed_op = undef_num_src_op(instruction)
     elif op_name == "xor":
-        return arith_op(instruction)
+        parsed_op = arith_op(instruction)
     elif op_name == "sext":
-        return unary_op(instruction)
+        parsed_op = unary_op(instruction)
     elif op_name == "and":
-        return arith_op(instruction)
+        parsed_op = arith_op(instruction)
     elif op_name == "phi":
-        return src_4_op(instruction) # check this
+        parsed_op = src_4_op(instruction) # check this
     elif op_name == "fcmp":
-        return arith_op(instruction)
+        parsed_op = arith_op(instruction)
     elif op_name == "extractvalue":
-        return unary_op(instruction)
+        parsed_op = unary_op(instruction)
     else:
         raise ValueError(f"Unexpected op name: {op_name} for instruction: {instruction}")
+    parsed_op["type"] = "op" if op_name != "call" else "serial"
+    parsed_op["call_function"] = "N/A" if op_name != "call" else parsed_op["src"][0].strip(",").strip("@")
+    return parsed_op
     

@@ -414,7 +414,7 @@ class vitis_schedule_parser:
             if not self.basic_blocks[basic_block_name]['resource_db_map'][graph_type].check_resource_added(rsc_name_unique):
                 self.basic_blocks[basic_block_name]['resource_db_map'][graph_type].add_resource(rsc_name_unique, instruction["core_inst"] != "N/A", instruction["core_info"])
             fn_out = module_map[instruction["op"]] if instruction["op"] in module_map else instruction["op"]
-            G.add_node(op_name, node_type="op", function=instruction["op"], function_out=fn_out, rsc=rsc_name, core_inst=instruction["core_inst"], core_id=core_id, rsc_name_unique=rsc_name_unique)
+            G.add_node(op_name, node_type=instruction["type"], function=instruction["op"], function_out=fn_out, rsc=rsc_name, core_inst=instruction["core_inst"], core_id=core_id, rsc_name_unique=rsc_name_unique, call_function=instruction["call_function"])
             self.track_resource_usage(G, op_name, basic_block_name, graph_type)
             debug_print(f"Instruction: {instruction}")
             for src in instruction["src"]:
@@ -422,7 +422,7 @@ class vitis_schedule_parser:
                 if src_name in G:
                     G.add_edge(src_name, op_name, weight=0.0, resource_edge=0)
                 else:
-                    G.add_node(src_name, node_type="var", function="serial")
+                    G.add_node(src_name, node_type="var", function="N/A")
                     if use_start_node:
                         assert start_node is not None, "Start node is not provided"
                         G.add_edge(start_node, src_name, weight=0.0, resource_edge=0)
@@ -463,7 +463,7 @@ class vitis_schedule_parser:
         debug_print(f"II_delay: {II_delay}")
         self.basic_blocks[basic_block_name]["G"].add_edge(f"II_delay_{basic_block_name}", f"loop_end_{basic_block_name}", weight=II_delay, resource_edge=1)
 
-    
+    # used only in convert function. Takes one sched report from vitis (for one basic block) and converts it to graph form
     def dfg_basic_block(self, basic_block_name, graph_type="full"):
         self.basic_blocks[basic_block_name]['resource_db_map'][graph_type].reset_resources()
 

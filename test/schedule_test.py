@@ -12,7 +12,7 @@ def main(benchmark_dir, benchmark_name, just_schedule=False, pytorch=False):
     else:
         top_level_module_name = benchmark_name
 
-    allowed_functions = {"fmul", "mul", "add", "call"}
+    allowed_functions = {"fmul", "mul", "add", "call", "serial"}
 
     if not just_schedule:
         ## Do preprocessing to the vitis data for the next scripts
@@ -34,7 +34,7 @@ def main(benchmark_dir, benchmark_name, just_schedule=False, pytorch=False):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--bdir", type=str, required=True) # src/tmp_for_test/benchmark
-    parser.add_argument("--bname", type=str, required=True) # test_gemm
+    parser.add_argument("--bname", type=str, required=True) # gemm
     parser.add_argument("--sched_only", type=bool, required=False, default=False) # True
     parser.add_argument("--pytorch", type=bool, required=False, default=False) # True
     args = parser.parse_args()

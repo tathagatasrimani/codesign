@@ -596,6 +596,47 @@ class HardwareModel:
             }
             self.circuit_model.symbolic_rsc_exprs.update(cacti_subs_new)
 
+    def calculate_execution_time_vitis(self, top_block_name):
+        self.node_arrivals = {}
+        self.node_arrivals_cvx = {}
+        self.graph_delays = {}
+        self.graph_delays_cvx = {}
+        self.constr_cvx = []
+
+        self.graph_delays[top_block_name], self.graph_delays_cvx[top_block_name] = self.calculate_execution_time_vitis_recursive(top_block_name)
+        prob = cp.Problem(cp.Minimize(self.graph_delays_cvx[top_block_name]), self.constr_cvx)
+        prob.solve()
+        for block_name in self.graph_delays:
+            for node in self.node_arrivals[block_name]:
+                self.node_arrivals[block_name][node] = self.node_arrivals_cvx[block_name][node].value
+            for node in self.graph_delays:
+                self.graph_delays[node] = self.graph_delays_cvx[node].value
+        return self.graph_delays[top_block_name]
+
+
+    def calculate_execution_time_vitis_recursive(self, basic_block_name):
+        self.node_arrivals[basic_block_name] = {}
+        self.node_arrivals_cvx[basic_block_name] = {}
+        for node in self.scheduled_dfg.nodes:
+            self.node_arrivals[basic_block_name][node] = sp.symbols(f"node_arrivals_{basic_block_name}_{node}")
+            self.node_arrivals_cvx[basic_block_name][node] = cp.Variable(pos=True)    
+            for pred in self.scheduled_dfg.predecessors(node):
+                if self.scheduled_dfg.edges[pred, node]["resource_edge"]:
+                    pred_delay = self.circuit_model.clk_period # convert to ns
+                else:
+                    # if function call, recursively calculate its delay 
+                    if self.scheduled_dfg.nodes[pred]["function"] == "call":
+                        if self.scheduled_dfg.nodes[pred]["call_function"] not in self.graph_delays:
+                            self.graph_delays[self.scheduled_dfg.nodes[pred]["call_function"]], self.graph_delays_cvx[self.scheduled_dfg.nodes[pred]["call_function"]] = self.calculate_execution_time_vitis(self.scheduled_dfg.nodes[pred]["call_function"])
+                        pred_delay = self.graph_delays[self.scheduled_dfg.nodes[pred]["call_function"]]
+                    else:
+                        pred_delay = self.circuit_model.symbolic_latency_wc[self.scheduled_dfg.nodes[pred]["function"]]()
+                    if (pred, node) in self.dfg_to_netlist_edge_map:
+                        pred_delay += self.circuit_model.wire_delay(self.dfg_to_netlist_edge_map[(pred, node)])
+                self.circuit_model.tech_model.constraints.append(self.node_arrivals[basic_block_name][node] >= self.node_arrivals[basic_block_name][pred] + pred_delay)
+                self.constr_cvx.append(self.node_arrivals_cvx[basic_block_name][node] >= self.node_arrivals_cvx[basic_block_name][pred] + pred_delay.xreplace(self.circuit_model.tech_model.base_params.tech_values).evalf())
+        return self.node_arrivals[basic_block_name]["graph_end"], self.node_arrivals_cvx[basic_block_name]["graph_end"]
+
     def calculate_execution_time(self, symbolic):
         if symbolic:
             # reset the constraints

@@ -9,7 +9,6 @@ default:
     area: 1000000
     no_memory: False
     debug_no_cacti: False
-    checkpoint: False
     logic_node: 7
     mem_node: 32
     inverse_pass_improvement: 10
@@ -18,12 +17,22 @@ default:
     model_cfg: default
     hls_tool: catapult
     pytorch: False
+    checkpoint_load_dir: src/tmp_checkpoint
+    checkpoint_save_dir: src/tmp_checkpoint
+    checkpoint_step: none
+    save_checkpoint: False
 
 vitis_test:
   base_cfg: default
   args:
     benchmark: gemm
     hls_tool: vitis
+
+vitis_test_checkpoint:
+  base_cfg: vitis_test
+  args:
+    checkpoint_step: vitis
+    checkpoint_load_dir: src/tmp_for_test_gemm
 
 vitis_resnet:
   base_cfg: vitis_test
