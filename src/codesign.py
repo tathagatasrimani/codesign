@@ -475,6 +475,10 @@ class Codesign:
         self.hw.get_wire_parasitics(self.openroad_testfile, self.parasitics, self.benchmark_name)
 
         # set end node's start time to longest path length
+
+        ## Throw a not implemented exception with message that says successful until symbolic delay expression construction in forward pass
+        raise NotImplementedError("Successful until symbolic delay expression construction in forward pass.")
+
         self.hw.scheduled_dfg.nodes["end"]["start_time"] = nx.dag_longest_path_length(self.hw.scheduled_dfg)
     
     def parse_output(self, f):
