@@ -1,5 +1,12 @@
 #!/bin/bash
 
+################## PARSE UNIVERSITY ARGUMENT ##################
+university="stanford"
+if [ $# -ge 1 ]; then
+    university="$1"
+fi
+echo "Using university: $university"
+
 ################## INSTALL OPENROAD ##################
 git submodule update --init --recursive openroad_interface/OpenROAD
 
@@ -80,9 +87,14 @@ cd ../..
 ## make verilator
 source verilator_install.sh
 
-
-############### LOAD VITIS HLS #################
-module load vitis/2022.1
-
-## Change for the catapult environment name you want to use
-source stanford_catapult_env.sh
+## Load cad tools
+if [ "$university" = "stanford" ]; then
+    echo "Setting up Stanford CAD tools..."
+    source stanford_cad_tool_setup.sh
+elif [ "$university" = "cmu" ]; then
+    echo "Setting up CMU CAD tools..."
+    source cmu_cad_tool_setup.sh
+else
+    echo "Unsupported university for licensed cad tool setup: $university"
+    exit 1
+fi
