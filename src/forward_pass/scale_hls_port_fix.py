@@ -7,7 +7,7 @@ def scale_hls_port_fix(file_path, benchmark_name, pytorch):
     ports_to_create = []
     idx = 0
     # TODO have more general condition for pytorch stuff, this is just for resnet
-    top_function_name = benchmark_name if not pytorch else "forward"
+    top_function_name = "test_" + benchmark_name if not pytorch else "forward"
     while idx < len(lines):
         line = lines[idx]
         if line.find(f" {top_function_name}(") != -1:
