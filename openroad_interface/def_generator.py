@@ -71,7 +71,7 @@ def find_macro(name: str) -> str:
         return  reg
     if "ADD" in name.upper():
         return  add
-    if "MULT" in name.upper():
+    if "MUL" in name.upper():
         return  mult
     if "FLOORDIV" in name.upper():
         return  floordiv
@@ -225,9 +225,14 @@ def def_generator(test_file: str, graph: nx.DiGraph):
     nodes = list(graph)
     control_nodes = list(graph)
 
+    logger.info(f"Full Graph: {graph}")
+
+    logger.info(f"Control nodes: {control_nodes}")
+
     ### 1. pruning ###
     for node1 in control_nodes:
-        if "MainMem" in graph.nodes[node1]["function"] or "Buf" in graph.nodes[node1]["function"]:
+        if "MainMem" in graph.nodes[node1]["function"] or "Buf" in graph.nodes[node1]["function"] or \
+            "store" in graph.nodes[node1]["function"] or "load" in graph.nodes[node1]["function"]:
             graph.remove_node(node1)
             nodes.remove(node1)
         elif graph.nodes[node1]["function"] == "Regs": ##or graph.nodes[node1]["function"] == "And" or graph.nodes[node1]["function"] == "BitXor":

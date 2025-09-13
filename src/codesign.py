@@ -289,7 +289,7 @@ class Codesign:
 
         print(f"Current working directory at end of vitis parse data: {os.getcwd()}")
 
-        self.hw.netlist = nx.read_gml(f"{parse_results_dir}/{self.vitis_top_function}/{self.vitis_top_function}_full_netlist.gml")
+        self.hw.netlist = nx.read_gml(f"{parse_results_dir}/{self.vitis_top_function}_full_netlist.gml")
 
         ## print the cwd
         print(f"Current working directory in vitis parse data: {os.getcwd()}")
