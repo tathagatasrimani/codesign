@@ -1,6 +1,7 @@
 import logging
 
 from src import coefficients
+from src import sim_util
 import cvxpy as cp
 import sympy as sp
 
@@ -44,6 +45,7 @@ class CircuitModel:
             "MainMem": lambda: self.make_mem_lat_dict(),
             "OffChipIO": lambda: self.make_io_lat_dict(),
             "N/A": lambda: 0,
+            "Call": lambda: 0,
         }
 
         # UNITS: nJ
@@ -76,6 +78,7 @@ class CircuitModel:
             "MainMem": lambda: self.make_mainmem_energy_active_dict(),
             "OffChipIO": lambda: self.make_io_energy_active_dict(),
             "N/A": lambda: 0,
+            "Call": lambda: 0,
         }
 
         # UNITS: W
@@ -107,6 +110,7 @@ class CircuitModel:
             "MainMem": lambda: self.make_mainmem_power_passive_dict(),
             "Buf": lambda: self.make_buf_power_passive_dict(),
             "N/A": lambda: 0,
+            "Call": lambda: 0,
         }
 
         # UNITS: um^2
@@ -136,6 +140,7 @@ class CircuitModel:
             "Invert": lambda: self.make_sym_area(self.area_coeffs["Invert"]),
             "Regs": lambda: self.make_sym_area(self.area_coeffs["Regs"]),
             "N/A": lambda: 0,
+            "Call": lambda: 0,
         }
 
         # memories output from forward pass
@@ -247,16 +252,16 @@ class CircuitModel:
     def update_circuit_values(self):
         # derive curcuit level values from technology values
         self.circuit_values["latency"] = {
-            key: float(self.symbolic_latency_wc[key]().xreplace(self.tech_model.base_params.tech_values).evalf()) for key in self.symbolic_latency_wc if key not in ["Buf", "MainMem", "OffChipIO", "N/A"]
+            key: float(sim_util.xreplace_safe(self.symbolic_latency_wc[key](), self.tech_model.base_params.tech_values)) for key in self.symbolic_latency_wc if key not in ["Buf", "MainMem", "OffChipIO"]
         }
         self.circuit_values["dynamic_energy"] = {
-            key: float(self.symbolic_energy_active[key]().xreplace(self.tech_model.base_params.tech_values).evalf()) for key in self.symbolic_energy_active if key not in ["Buf", "MainMem", "OffChipIO", "N/A"]
+            key: float(sim_util.xreplace_safe(self.symbolic_energy_active[key](), self.tech_model.base_params.tech_values)) for key in self.symbolic_energy_active if key not in ["Buf", "MainMem", "OffChipIO"]
         }
         self.circuit_values["passive_power"] = {
-            key: float(self.symbolic_power_passive[key]().xreplace(self.tech_model.base_params.tech_values).evalf()) for key in self.symbolic_power_passive if key not in ["Buf", "MainMem", "N/A"]
+            key: float(sim_util.xreplace_safe(self.symbolic_power_passive[key](), self.tech_model.base_params.tech_values)) for key in self.symbolic_power_passive if key not in ["Buf", "MainMem"]
         }
         self.circuit_values["area"] = {
-            key: float(self.symbolic_area[key]().xreplace(self.tech_model.base_params.tech_values).evalf()) for key in self.symbolic_area if key not in ["N/A"]
+            key: float(sim_util.xreplace_safe(self.symbolic_area[key](), self.tech_model.base_params.tech_values)) for key in self.symbolic_area
         }
 
         # memory values

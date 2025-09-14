@@ -63,7 +63,13 @@ class HardwareModel:
         self.reset_tech_model()
 
         self.netlist = nx.DiGraph()
+        # for catapult
         self.scheduled_dfg = nx.DiGraph()
+        # for vitis
+        self.scheduled_dfgs = {}
+        self.loop_1x_graphs = {}
+        self.loop_2x_graphs = {}
+
         self.parasitic_graph = nx.DiGraph()
         self.symbolic_mem = {}
         self.symbolic_buf = {}
@@ -87,6 +93,9 @@ class HardwareModel:
         self.obj = 0
         self.symbolic_obj = 0
         self.scheduled_dfg = nx.DiGraph()
+        self.scheduled_dfgs = {}
+        self.loop_1x_graphs = {}
+        self.loop_2x_graphs = {}
         self.parasitic_graph = nx.DiGraph()
         self.obj_sub_exprs = {}
         self.symbolic_obj_sub_exprs = {}
@@ -603,39 +612,78 @@ class HardwareModel:
         self.graph_delays_cvx = {}
         self.constr_cvx = []
 
-        self.graph_delays[top_block_name], self.graph_delays_cvx[top_block_name] = self.calculate_execution_time_vitis_recursive(top_block_name)
+        self.scale_cvx = 1e-6
+
+        for basic_block_name in self.scheduled_dfgs:
+            self.node_arrivals[basic_block_name] = {"full": {}, "loop_1x": {}, "loop_2x": {}}
+            self.node_arrivals_cvx[basic_block_name] = {"full": {}, "loop_1x": {}, "loop_2x": {}}
+
+        self.graph_delays[top_block_name], self.graph_delays_cvx[top_block_name] = self.calculate_execution_time_vitis_recursive(top_block_name, self.scheduled_dfgs[top_block_name])
+        for constr in self.constr_cvx:
+            logger.info(f"constraint final: {constr}")
         prob = cp.Problem(cp.Minimize(self.graph_delays_cvx[top_block_name]), self.constr_cvx)
-        prob.solve()
+        prob.solve(verbose=True)
         for block_name in self.graph_delays:
-            for node in self.node_arrivals[block_name]:
-                self.node_arrivals[block_name][node] = self.node_arrivals_cvx[block_name][node].value
+            for node in self.node_arrivals[block_name]["full"]:
+                logger.info(f"node arrivals for {block_name} full {node}: {self.node_arrivals_cvx[block_name]['full'][node].value}")
+                if self.node_arrivals_cvx[block_name]["full"][node].value is not None:
+                    self.node_arrivals[block_name]["full"][node] = self.node_arrivals_cvx[block_name]["full"][node].value / self.scale_cvx
+                if node in self.node_arrivals[block_name]["loop_1x"] and self.node_arrivals_cvx[block_name]["loop_1x"][node].value is not None:
+                    self.node_arrivals[block_name]["loop_1x"][node] = self.node_arrivals_cvx[block_name]["loop_1x"][node].value / self.scale_cvx
+                if node in self.node_arrivals[block_name]["loop_2x"] and self.node_arrivals_cvx[block_name]["loop_2x"][node].value is not None:
+                    self.node_arrivals[block_name]["loop_2x"][node] = self.node_arrivals_cvx[block_name]["loop_2x"][node].value / self.scale_cvx
             for node in self.graph_delays:
-                self.graph_delays[node] = self.graph_delays_cvx[node].value
+                self.graph_delays[node] = self.graph_delays_cvx[node].value / self.scale_cvx
+        for block_name in self.graph_delays:
+            logger.info(f"graph delays for {block_name}: {self.graph_delays[block_name]}")
+        for block_name in self.node_arrivals:
+            for graph_type in self.node_arrivals[block_name]:
+                for node in self.node_arrivals[block_name][graph_type]:
+                    logger.info(f"node arrivals for {block_name} {graph_type} {node}: {self.node_arrivals[block_name][graph_type][node]}")
+
         return self.graph_delays[top_block_name]
 
 
-    def calculate_execution_time_vitis_recursive(self, basic_block_name):
-        self.node_arrivals[basic_block_name] = {}
-        self.node_arrivals_cvx[basic_block_name] = {}
-        for node in self.scheduled_dfg.nodes:
-            self.node_arrivals[basic_block_name][node] = sp.symbols(f"node_arrivals_{basic_block_name}_{node}")
-            self.node_arrivals_cvx[basic_block_name][node] = cp.Variable(pos=True)    
-            for pred in self.scheduled_dfg.predecessors(node):
-                if self.scheduled_dfg.edges[pred, node]["resource_edge"]:
-                    pred_delay = self.circuit_model.clk_period # convert to ns
+    def calculate_execution_time_vitis_recursive(self, basic_block_name, dfg, graph_end_node="graph_end", graph_type="full"):
+        logger.info(f"calculating execution time for {basic_block_name} with graph end node {graph_end_node}")
+        for node in dfg.nodes:
+            self.node_arrivals[basic_block_name][graph_type][node] = sp.symbols(f"node_arrivals_{basic_block_name}_{graph_type}_{node}")
+            self.node_arrivals_cvx[basic_block_name][graph_type][node] = cp.Variable(pos=True) 
+        for node in dfg.nodes:   
+            for pred in dfg.predecessors(node):
+                if dfg.edges[pred, node]["resource_edge"]:
+                    if dfg.nodes[pred]["function"] == "II":
+                        delay_1x, delay_1x_cvx = self.calculate_execution_time_vitis_recursive(basic_block_name, self.loop_1x_graphs[basic_block_name], graph_end_node="loop_end_1x", graph_type="loop_1x")
+                        delay_2x, delay_2x_cvx = self.calculate_execution_time_vitis_recursive(basic_block_name, self.loop_2x_graphs[basic_block_name], graph_end_node="loop_end_2x", graph_type="loop_2x")
+                        # TODO fix pipelining
+                        #pred_delay = (delay_2x-delay_1x) * (dfg.nodes[pred]["count"]-1)
+                        #pred_delay_cvx = (delay_2x_cvx - delay_1x_cvx) * (dfg.nodes[pred]["count"]-1)
+                        #logger.info(f"pred_delay_cvx_II_delay: {pred_delay_cvx}")
+                        pred_delay = delay_1x * dfg.nodes[pred]["count"]-1
+                        pred_delay_cvx = delay_1x_cvx * dfg.nodes[pred]["count"]-1
+                    else:
+                        pred_delay = self.circuit_model.clk_period # convert to ns
+                        pred_delay_cvx = sim_util.xreplace_safe(self.circuit_model.clk_period, self.circuit_model.tech_model.base_params.tech_values) * self.scale_cvx
                 else:
                     # if function call, recursively calculate its delay 
-                    if self.scheduled_dfg.nodes[pred]["function"] == "call":
-                        if self.scheduled_dfg.nodes[pred]["call_function"] not in self.graph_delays:
-                            self.graph_delays[self.scheduled_dfg.nodes[pred]["call_function"]], self.graph_delays_cvx[self.scheduled_dfg.nodes[pred]["call_function"]] = self.calculate_execution_time_vitis(self.scheduled_dfg.nodes[pred]["call_function"])
-                        pred_delay = self.graph_delays[self.scheduled_dfg.nodes[pred]["call_function"]]
+                    if dfg.nodes[pred]["function"] == "Call":
+                        if dfg.nodes[pred]["call_function"] not in self.graph_delays:
+                            self.graph_delays[dfg.nodes[pred]["call_function"]], self.graph_delays_cvx[dfg.nodes[pred]["call_function"]] = self.calculate_execution_time_vitis_recursive(dfg.nodes[pred]["call_function"], self.scheduled_dfgs[dfg.nodes[pred]["call_function"]])
+                        pred_delay = self.graph_delays[dfg.nodes[pred]["call_function"]]
+                        pred_delay_cvx = self.graph_delays_cvx[dfg.nodes[pred]["call_function"]]
                     else:
-                        pred_delay = self.circuit_model.symbolic_latency_wc[self.scheduled_dfg.nodes[pred]["function"]]()
-                    if (pred, node) in self.dfg_to_netlist_edge_map:
-                        pred_delay += self.circuit_model.wire_delay(self.dfg_to_netlist_edge_map[(pred, node)])
-                self.circuit_model.tech_model.constraints.append(self.node_arrivals[basic_block_name][node] >= self.node_arrivals[basic_block_name][pred] + pred_delay)
-                self.constr_cvx.append(self.node_arrivals_cvx[basic_block_name][node] >= self.node_arrivals_cvx[basic_block_name][pred] + pred_delay.xreplace(self.circuit_model.tech_model.base_params.tech_values).evalf())
-        return self.node_arrivals[basic_block_name]["graph_end"], self.node_arrivals_cvx[basic_block_name]["graph_end"]
+                        pred_delay = self.circuit_model.symbolic_latency_wc[dfg.nodes[pred]["function"]]()
+                        if (pred, node) in self.dfg_to_netlist_edge_map:
+                            pred_delay += self.circuit_model.wire_delay(self.dfg_to_netlist_edge_map[(pred, node)])
+                        pred_delay_cvx = sim_util.xreplace_safe(pred_delay, self.circuit_model.tech_model.base_params.tech_values) * self.scale_cvx
+                logger.info(f"pred_delay_cvx: {pred_delay_cvx}")
+                logger.info(f"pred_delay: {pred_delay}")
+                assert pred_delay_cvx is not None and not isinstance(pred_delay_cvx, sp.Expr), f"pred_delay_cvx is {pred_delay_cvx}, type: {type(pred_delay_cvx)}"
+                self.circuit_model.tech_model.constraints.append(self.node_arrivals[basic_block_name][graph_type][node] >= self.node_arrivals[basic_block_name][graph_type][pred] + pred_delay)
+
+                logger.info(f"constraint: {self.node_arrivals[basic_block_name][graph_type][node] >= self.node_arrivals[basic_block_name][graph_type][pred] + pred_delay}")
+                self.constr_cvx.append(self.node_arrivals_cvx[basic_block_name][graph_type][node] >= self.node_arrivals_cvx[basic_block_name][graph_type][pred] + pred_delay_cvx)
+        return self.node_arrivals[basic_block_name][graph_type][graph_end_node], self.node_arrivals_cvx[basic_block_name][graph_type][graph_end_node]
 
     def calculate_execution_time(self, symbolic):
         if symbolic:
@@ -672,7 +720,7 @@ class HardwareModel:
                     if (pred, node) in self.dfg_to_netlist_edge_map:
                         pred_delay += self.circuit_model.wire_delay(self.dfg_to_netlist_edge_map[(pred, node)], symbolic)
                     self.circuit_model.tech_model.constraints.append(node_arrivals[node] >= node_arrivals[pred] + pred_delay)
-                    constr_cvx.append(node_arrivals_cvx[node] >= node_arrivals_cvx[pred] + pred_delay.xreplace(self.circuit_model.tech_model.base_params.tech_values).evalf())
+                    constr_cvx.append(node_arrivals_cvx[node] >= node_arrivals_cvx[pred] + sim_util.xreplace_safe(pred_delay, self.circuit_model.tech_model.base_params.tech_values))
             obj = node_arrivals_cvx["end"]
             prob = cp.Problem(cp.Minimize(obj), constr_cvx)
             prob.solve()

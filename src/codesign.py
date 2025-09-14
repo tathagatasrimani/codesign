@@ -103,9 +103,18 @@ class Codesign:
 
         self.hw.write_technology_parameters(self.save_dir+"/initial_tech_params.yaml")
 
+        self.iteration_count = 0
+
         self.checkpoint_controller = checkpoint_controller.CheckpointController(self.cfg)
-        if checkpoint_controller.checkpoint_map[self.cfg["args"]["checkpoint_step"]] > checkpoint_controller.checkpoint_map["none"]:
+        if not self.check_checkpoint("none"):
             self.checkpoint_controller.load_checkpoint(self.cfg["args"]["checkpoint_step"])
+
+    # only skipping steps in first iteration
+    def check_checkpoint(self, checkpoint_step):
+        if checkpoint_controller.checkpoint_map[checkpoint_step] > checkpoint_controller.checkpoint_map[self.cfg["args"]["checkpoint_step"]] and self.iteration_count == 0:
+            return True
+        else:
+            return False
 
     # any arguments specified on CLI will override the default config
     def set_config(self, args):
@@ -282,13 +291,13 @@ class Codesign:
         print(f"Current working directory in vitis parse data: {os.getcwd()}")
 
         if self.no_memory:
-            allowed_functions = {"fmul", "mul", "add", "call", "serial"}
+            allowed_functions = {"Add", "Mult", "Call", "II"}
         else:
-            allowed_functions = {"fmul", "mul", "add", "load", "store", "call", "serial"}
+            allowed_functions = {"Add", "Mult", "Call", "II", "Buf", "MainMem"}
 
         parse_results_dir = f"{self.benchmark_dir}/parse_results"
 
-        if checkpoint_controller.checkpoint_map["netlist"] > checkpoint_controller.checkpoint_map[self.cfg["args"]["checkpoint_step"]]:
+        if self.check_checkpoint("netlist"):
             ## Do preprocessing to the vitis data for the next scripts
             parse_verbose_rpt(f"{self.benchmark_dir}/{self.benchmark_name}/solution1/.autopilot/db", parse_results_dir)
 
@@ -309,15 +318,29 @@ class Codesign:
         else:
             logger.info("Skipping Vitis netlist parsing")
 
-        if checkpoint_controller.checkpoint_map["schedule"] > checkpoint_controller.checkpoint_map[self.cfg["args"]["checkpoint_step"]]:
+        if self.check_checkpoint("schedule"):
             schedule_parser = schedule_vitis.vitis_schedule_parser(self.benchmark_dir, self.benchmark_name, self.vitis_top_function, self.clk_period, allowed_functions)
             schedule_parser.create_dfgs()
+            self.hw.scheduled_dfgs = {basic_block_name: schedule_parser.basic_blocks[basic_block_name]["G_standard"] for basic_block_name in schedule_parser.basic_blocks}
+            self.hw.loop_1x_graphs = {basic_block_name: schedule_parser.basic_blocks[basic_block_name]["G_loop_1x_standard"] for basic_block_name in schedule_parser.basic_blocks if "G_loop_1x" in schedule_parser.basic_blocks[basic_block_name]}
+            self.hw.loop_2x_graphs = {basic_block_name: schedule_parser.basic_blocks[basic_block_name]["G_loop_2x_standard"] for basic_block_name in schedule_parser.basic_blocks if "G_loop_2x" in schedule_parser.basic_blocks[basic_block_name]}
+            logger.info(f"scheduled dfgs: {self.hw.scheduled_dfgs}")
+            logger.info(f"loop 1x graphs: {self.hw.loop_1x_graphs}")
         else:
+            for file in os.listdir(parse_results_dir):
+                if os.path.isdir(os.path.join(parse_results_dir, file)):
+                    self.hw.scheduled_dfgs[file] = nx.read_gml(f"{parse_results_dir}/{file}/{file}_graph_standard.gml")
+                    if os.path.exists(f"{parse_results_dir}/{file}/{file}_graph_loop_1x_standard.gml"):
+                        self.hw.loop_1x_graphs[file] = nx.read_gml(f"{parse_results_dir}/{file}/{file}_graph_loop_1x_standard.gml")
+                        assert os.path.exists(f"{parse_results_dir}/{file}/{file}_graph_loop_2x_standard.gml")
+                        self.hw.loop_2x_graphs[file] = nx.read_gml(f"{parse_results_dir}/{file}/{file}_graph_loop_2x_standard.gml")
             logger.info("Skipping Vitis schedule parsing")
 
         print(f"Current working directory at end of vitis parse data: {os.getcwd()}")
 
         self.hw.netlist = nx.read_gml(f"{parse_results_dir}/{self.vitis_top_function}/{self.vitis_top_function}_full_netlist.gml")
+
+        self.hw.calculate_execution_time_vitis(self.vitis_top_function)
 
         ## print the cwd
         print(f"Current working directory in vitis parse data: {os.getcwd()}")
@@ -334,7 +357,7 @@ class Codesign:
         """
         Runs Vitis version of forward pass, updates the memory configuration, and logs the output.
         """
-        if checkpoint_controller.checkpoint_map["scalehls"] > checkpoint_controller.checkpoint_map[self.cfg["args"]["checkpoint_step"]]:
+        if self.check_checkpoint("scalehls"):
             self.run_scalehls()
         else:
             logger.info("Skipping ScaleHLS")
@@ -345,7 +368,7 @@ class Codesign:
             self.vitis_top_function = "forward"
         logger.info(f"Vitis top function: {self.vitis_top_function}")
         command = ["vitis_hls -f tcl_script.tcl"]
-        if checkpoint_controller.checkpoint_map["vitis"] > checkpoint_controller.checkpoint_map[self.cfg["args"]["checkpoint_step"]]:
+        if self.check_checkpoint("vitis"):
             p = subprocess.run(command, shell=True, capture_output=True, text=True)
             logger.info(f"Vitis HLS command output: {p.stdout}")
             if p.returncode != 0:
