@@ -246,7 +246,12 @@ class Codesign:
         ]
 
         with open(f"src/tmp/scalehls_out.log", "w") as outfile:
-            p = subprocess.Popen(cmd, stdout=outfile, stderr=subprocess.STDOUT, env=os.environ)
+            p = subprocess.Popen(
+                cmd,
+                stdout=outfile,
+                stderr=subprocess.STDOUT,
+                env={}  # clean environment
+            )
             p.wait()
         with open(f"src/tmp/scalehls_out.log", "r") as f:
             logger.info(f"scaleHLS output:\n{f.read()}")

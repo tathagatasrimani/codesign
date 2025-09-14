@@ -44,6 +44,10 @@ else
     exit 1
 fi
 
+################ SET UP SCALEHLS ##################
+## we want this to operate outside of conda, so do this first
+source scale_hls_setup.sh # setup scalehls
+
 ################### SET UP CONDA ENVIRONMENT ##################
 # Check if the directory miniconda3 exists
 if [ -d "miniconda3" ]; then
@@ -68,10 +72,6 @@ fi
 ## update conda packages
 conda update -n base -c defaults conda # update conda itself
 conda env update -f environment_simplified.yml --prune # update the environment
-
-
-################ SET UP SCALEHLS ##################
-source scale_hls_setup.sh # setup scalehls
 
 conda activate codesign # activate the codesign environment
 
