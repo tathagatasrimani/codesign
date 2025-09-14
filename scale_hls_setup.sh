@@ -1,14 +1,20 @@
 #!/bin/bash
 
-git submodule update --init ScaleHLS-HIDA
-git clone https://github.com/UIUC-ChenLab/ScaleHLS-HIDA.git
-cd ScaleHLS-HIDA
+set -euo pipefail
 
-sed -i "s|git@github\.com:|https://github.com/|g" .gitmodules
-git submodule update --init polygeist
-cd polygeist
-git submodule update --init llvm-project
-cd ..
+# Ensure all submodules are registered locally
+git submodule init
+
+# Rewrite .gitmodules to use HTTPS instead of SSH
+sed -i "s|git@github.com:|https://github.com/|g" .gitmodules
+
+# Sync updated URLs into .git/config
+git submodule sync
+
+# Now update only the ScaleHLS-HIDA submodule (recursively for its own submodules)
+git submodule update --init --recursive ScaleHLS-HIDA
+
+cd ScaleHLS-HIDA
 
 ./build-scalehls.sh
 

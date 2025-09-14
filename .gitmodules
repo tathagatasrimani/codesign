@@ -6,4 +6,4 @@
 	url = https://github.com/The-OpenROAD-Project/OpenROAD.git
 [submodule "ScaleHLS-HIDA"]
 	path = ScaleHLS-HIDA
-	url = https://github.com/patrickmcewen/ScaleHLS-HIDA.git
+	url = https://github.com/UIUC-ChenLab/ScaleHLS-HIDA.git
