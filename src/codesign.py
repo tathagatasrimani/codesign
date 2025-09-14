@@ -233,7 +233,7 @@ class Codesign:
             'bash', '-c',
             f'''
             cd {cwd}
-            cd scalehls-hida/
+            cd ScaleHLS-HIDA/
             export PATH=$PATH:$PWD/build/bin:$PWD/polygeist/build/bin
             export PYTHONPATH=$PYTHONPATH:$PWD/build/tools/scalehls/python_packages/scalehls_core
             source mlir_venv/bin/activate

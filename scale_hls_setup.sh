@@ -1,8 +1,8 @@
 #!/bin/bash
 
-git submodule update --init scalehls-hida
+git submodule update --init ScaleHLS-HIDA
 git clone https://github.com/UIUC-ChenLab/ScaleHLS-HIDA.git
-cd scalehls-hida
+cd ScaleHLS-HIDA
 
 sed -i "s|git@github\.com:|https://github.com/|g" .gitmodules
 git submodule update --init polygeist

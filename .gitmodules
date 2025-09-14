@@ -4,9 +4,6 @@
 [submodule "openroad_interface/OpenROAD"]
 	path = openroad_interface/OpenROAD
 	url = https://github.com/The-OpenROAD-Project/OpenROAD.git
-[submodule "scalehls"]
-	path = scalehls
-	url = https://github.com/UIUC-ChenLab/scalehls.git
-[submodule "scalehls-hida"]
-	path = scalehls-hida
+[submodule "ScaleHLS-HIDA"]
+	path = ScaleHLS-HIDA
 	url = https://github.com/patrickmcewen/ScaleHLS-HIDA.git
