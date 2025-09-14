@@ -1,5 +1,4 @@
 #!/bin/bash
-set -euo pipefail
 
 # --- Top-level ---
 git submodule init
@@ -14,10 +13,26 @@ sed -i "s|git@github.com:|https://github.com/|g" .gitmodules
 git submodule sync
 git submodule update --init --recursive
 
+
+# --- Ensure lld is available on RHEL8/9 ---
+if ! command -v lld >/dev/null 2>&1; then
+    echo "[setup] lld not found, installing with yum..."
+    sudo yum install -y lld
+else
+    echo "[setup] lld already installed."
+fi
+
 ./build-scalehls.sh
 
 export PATH=$PATH:$PWD/build/bin:$PWD/polygeist/build/bin
-export PYTHONPATH=$PYTHONPATH:$PWD/build/tools/scalehls/python_packages/scalehls_core
+
+## python path might not be set, so check first
+if [ -z "${PYTHONPATH+x}" ]; then
+    export PYTHONPATH="$PWD/build/tools/scalehls/python_packages/scalehls_core"
+else
+    export PYTHONPATH="$PYTHONPATH:$PWD/build/tools/scalehls/python_packages/scalehls_core"
+fi
+
 
 echo "current directory: $(pwd)"
 

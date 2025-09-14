@@ -200,7 +200,7 @@ class Codesign:
         """
         Sets the resource constraint and op latencies for ScaleHLS.
         """
-        with open(f"scalehls-hida/test/Transforms/Directive/config.json", "r") as f:
+        with open(f"ScaleHLS-HIDA/test/Transforms/Directive/config.json", "r") as f:
             config = json.load(f)
         dsp_multiplier = 1e15 # TODO replace with more comprehensive model
         config["dsp"] = int(self.cfg["args"]["area"] / (self.hw.circuit_model.tech_model.param_db["A_gate"].xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf() * dsp_multiplier))
@@ -209,7 +209,7 @@ class Codesign:
         config["100MHz"]["fmul"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["Mult"] / self.clk_period)
         config["100MHz"]["fdiv"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["FloorDiv"] / self.clk_period)
         config["100MHz"]["fcmp"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["GtE"] / self.clk_period)
-        with open(f"scalehls-hida/test/Transforms/Directive/config.json", "w") as f:
+        with open(f"ScaleHLS-HIDA/test/Transforms/Directive/config.json", "w") as f:
             json.dump(config, f)
 
     def run_scalehls(self):

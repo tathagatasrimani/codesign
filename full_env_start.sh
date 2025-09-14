@@ -1,11 +1,31 @@
 #!/bin/bash
 
 ################## PARSE UNIVERSITY ARGUMENT ##################
-university="stanford"
-if [ $# -ge 1 ]; then
-    university="$1"
+
+host=$(hostname)
+
+if [[ "$host" == *stanford* ]]; then
+    export UNIVERSITY="stanford"
+elif [[ "$host" == *cmu* ]]; then
+    export UNIVERSITY="cmu"
+else
+    echo "Hostname is '$host' — does not contain 'stanford' or 'cmu'."
+    read -p "Please pick your university (stanford/cmu): " choice
+    case "$choice" in
+        stanford|Stanford|STANFORD)
+            export UNIVERSITY="stanford"
+            ;;
+        cmu|CMU|Cmu)
+            export UNIVERSITY="cmu"
+            ;;
+        *)
+            echo "Invalid choice. Exiting."
+            exit 1
+            ;;
+    esac
 fi
-echo "Using university: $university"
+
+echo "UNIVERSITY set to: $UNIVERSITY"
 
 ################## INSTALL OPENROAD ##################
 git submodule update --init --recursive openroad_interface/OpenROAD
@@ -88,13 +108,13 @@ cd ../..
 source verilator_install.sh
 
 ## Load cad tools
-if [ "$university" = "stanford" ]; then
+if [ "$UNIVERSITY" = "stanford" ]; then
     echo "Setting up Stanford CAD tools..."
     source stanford_cad_tool_setup.sh
-elif [ "$university" = "cmu" ]; then
+elif [ "$UNIVERSITY" = "cmu" ]; then
     echo "Setting up CMU CAD tools..."
     source cmu_cad_tool_setup.sh
 else
-    echo "Unsupported university for licensed cad tool setup: $university"
+    echo "Unsupported university for licensed cad tool setup: $UNIVERSITY"
     exit 1
 fi

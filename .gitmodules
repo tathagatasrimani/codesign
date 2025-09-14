@@ -4,6 +4,8 @@
 [submodule "openroad_interface/OpenROAD"]
 	path = openroad_interface/OpenROAD
 	url = https://github.com/The-OpenROAD-Project/OpenROAD.git
+
+## We are using a fork of ScaleHLS-HIDA that has additional benchmarks added and unnecessary files removed.
 [submodule "ScaleHLS-HIDA"]
 	path = ScaleHLS-HIDA
-	url = https://github.com/UIUC-ChenLab/ScaleHLS-HIDA.git
+	url = https://github.com/patrickmcewen/ScaleHLS-HIDA.git
