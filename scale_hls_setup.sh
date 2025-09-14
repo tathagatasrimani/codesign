@@ -1,20 +1,18 @@
 #!/bin/bash
-
 set -euo pipefail
 
-# Ensure all submodules are registered locally
+# --- Top-level ---
 git submodule init
-
-# Rewrite .gitmodules to use HTTPS instead of SSH
 sed -i "s|git@github.com:|https://github.com/|g" .gitmodules
-
-# Sync updated URLs into .git/config
 git submodule sync
 
-# Now update only the ScaleHLS-HIDA submodule (recursively for its own submodules)
-git submodule update --init --recursive ScaleHLS-HIDA
+git submodule update --init ScaleHLS-HIDA
 
+# --- Inside ScaleHLS-HIDA ---
 cd ScaleHLS-HIDA
+sed -i "s|git@github.com:|https://github.com/|g" .gitmodules
+git submodule sync
+git submodule update --init --recursive
 
 ./build-scalehls.sh
 
