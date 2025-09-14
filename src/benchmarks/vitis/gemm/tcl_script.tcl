@@ -1,6 +1,6 @@
-open_project test_gemm
+open_project gemm
 set_top test_gemm
-add_files test_gemm_dse.cpp
+add_files gemm.cpp
 open_solution "solution1" -flow_target vitis
 set_part {xcvu11p-flga2577-1-e}
 create_clock -period 10 -name default
