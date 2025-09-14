@@ -18,4 +18,11 @@ read_libraries
 read_def ../results/first_generated.def
 read_sdc $sdc_file
 
-source -echo "codesign_flow.tcl"
+# Place I/O pins on legal edges/tracks (no deprecated -random)
+# Pick layers that exist in your tech; metal2/metal3 are examples.
+place_pins -hor_layers {metal3} -ver_layers {metal2} -min_distance 1
+
+# Optional: confirm pins exist / are named
+puts "Ports: [get_ports *]"
+
+source "codesign_flow.tcl"

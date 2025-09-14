@@ -148,8 +148,13 @@ write_verilog $verilog_file
 ################################################################
 # Global routing
 
-pin_access -bottom_routing_layer $min_routing_layer \
-           -top_routing_layer $max_routing_layer
+# Define the routing window once
+set_routing_layers \
+  -signal ${min_routing_layer}-${max_routing_layer} \
+  -clock  $global_routing_clock_layers
+
+# Now pin access uses the above
+pin_access
 
 set route_guide [make_result_file ${design}_${platform}.route_guide]
 global_route -guide_file $route_guide \
