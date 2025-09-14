@@ -437,6 +437,8 @@ def def_generator(test_file: str, graph: nx.DiGraph):
             net = net + " + USE SIGNAL ;"
             net_text.append(net)
 
+    logger.info(f"Generated {len(net_text)} nets.")
+
     node_output = edge_gen("out", nodes, graph)
 
     net_text.insert(0, "NETS {} ;".format(len(net_text)))
@@ -481,6 +483,9 @@ def def_generator(test_file: str, graph: nx.DiGraph):
 
         counter += 1
         row_text.append(text)
+        logger.info(f"Generated row: {text}")
+
+    logger.info(f"Generated {len(row_text)} rows.")
 
     #$# 8.generate track ###
     # using calculations sourced from OpenROAD
@@ -535,6 +540,8 @@ def def_generator(test_file: str, graph: nx.DiGraph):
             track_text.append(text)
             text = "TRACKS Y {} DO {} STEP {} LAYER {} ;".format(int(origin_y), int(y_track_count), int(layer_pitch_y), layer_name)
             track_text.append(text)
+    
+    logger.info(f"Generated {len(track_text)} track lines.")
                 
     if not os.path.exists( directory + "/results/"):
         os.makedirs(directory + "/results/")
