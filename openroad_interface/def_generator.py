@@ -71,7 +71,7 @@ def find_macro(name: str) -> str:
         return  reg
     if "ADD" in name.upper():
         return  add
-    if "MULT" in name.upper():
+    if "MUL" in name.upper():
         return  mult
     if "FLOORDIV" in name.upper():
         return  floordiv
@@ -225,9 +225,14 @@ def def_generator(test_file: str, graph: nx.DiGraph):
     nodes = list(graph)
     control_nodes = list(graph)
 
+    logger.info(f"Full Graph: {graph}")
+
+    logger.info(f"Control nodes: {control_nodes}")
+
     ### 1. pruning ###
     for node1 in control_nodes:
-        if "MainMem" in graph.nodes[node1]["function"] or "Buf" in graph.nodes[node1]["function"]:
+        if "MainMem" in graph.nodes[node1]["function"] or "Buf" in graph.nodes[node1]["function"] or \
+            "store" in graph.nodes[node1]["function"] or "load" in graph.nodes[node1]["function"]:
             graph.remove_node(node1)
             nodes.remove(node1)
         elif graph.nodes[node1]["function"] == "Regs": ##or graph.nodes[node1]["function"] == "And" or graph.nodes[node1]["function"] == "BitXor":
@@ -432,6 +437,8 @@ def def_generator(test_file: str, graph: nx.DiGraph):
             net = net + " + USE SIGNAL ;"
             net_text.append(net)
 
+    logger.info(f"Generated {len(net_text)} nets.")
+
     node_output = edge_gen("out", nodes, graph)
 
     net_text.insert(0, "NETS {} ;".format(len(net_text)))
@@ -476,6 +483,9 @@ def def_generator(test_file: str, graph: nx.DiGraph):
 
         counter += 1
         row_text.append(text)
+        logger.info(f"Generated row: {text}")
+
+    logger.info(f"Generated {len(row_text)} rows.")
 
     #$# 8.generate track ###
     # using calculations sourced from OpenROAD
@@ -530,6 +540,8 @@ def def_generator(test_file: str, graph: nx.DiGraph):
             track_text.append(text)
             text = "TRACKS Y {} DO {} STEP {} LAYER {} ;".format(int(origin_y), int(y_track_count), int(layer_pitch_y), layer_name)
             track_text.append(text)
+    
+    logger.info(f"Generated {len(track_text)} track lines.")
                 
     if not os.path.exists( directory + "/results/"):
         os.makedirs(directory + "/results/")
@@ -552,5 +564,7 @@ def def_generator(test_file: str, graph: nx.DiGraph):
 
     lef_data_dict = {"width" : lef_width, "res" : layer_res, "cap" : layer_cap, "units" : units}
     os.system("cp openroad_interface/results/first_generated.def " + directory + "/results/first_generated.def") 
+
+    logger.info(f"DEF file generation complete.")
 
     return graph, net_out_dict, node_output, lef_data_dict, node_to_num

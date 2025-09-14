@@ -16,20 +16,28 @@ from . import detailed as det
 from .working_directory import directory
 
 def openroad_run():
+    logger.info("Starting OpenROAD run.")
     old_dir = os.getcwd()
     os.chdir(directory + "/tcl")
+    logger.debug(f"Changed directory to {directory}/tcl")
     print("running openroad")
+    logger.info("Running OpenROAD command.")
     os.system(os.path.dirname(os.path.abspath(__file__)) + "/OpenROAD/build/src/openroad codesign_top.tcl > " + directory + "/codesign_pd.log")#> /dev/null 2>&1     
     print("done")
+    logger.info("OpenROAD run completed.")
     os.chdir(old_dir)
+    logger.debug(f"Returned to original directory {old_dir}")
 
 
 def export_graph(graph, est_or_det: str):
+    logger.info(f"Exporting graph to GML for {est_or_det}.")
     if not os.path.exists("openroad_interface/results/"):
         os.makedirs("openroad_interface/results/")
+        logger.debug("Created results directory.")
     nx.write_gml(
         graph, "openroad_interface/results/" + est_or_det + ".gml"
     )
+    logger.info(f"Graph exported to openroad_interface/results/{est_or_det}.gml")
 
 
 def mux_listing(graph, node_output, wire_length_by_edge):
@@ -43,6 +51,7 @@ def mux_listing(graph, node_output, wire_length_by_edge):
         node_output: dict of nodes and their respective outputs
     """
     #print(f"wire_length_by_edge before modification: {wire_length_by_edge}")
+    logger.info("Starting mux listing.")
     edges_to_remove = set()
     for node in graph.nodes():
         #print(f"considering node {node}")
@@ -84,10 +93,12 @@ def mux_removal(graph: nx.DiGraph):
     param:
         graph: graph with the new edge connections, after mux listing
     """
+    logger.info("Removing mux nodes from graph.")
     reference = copy.deepcopy(graph.nodes())
     for node in reference:
         if "Mux" in node:
             graph.remove_node(node)
+            logger.debug(f"Removed mux node: {node}")
 
 
 def coord_scraping(
@@ -105,6 +116,7 @@ def coord_scraping(
         graph: digraph with the new coordinate attributes
         component_nets: dict that list components for the respective net id
     """
+    logger.info("Scraping coordinates and nets from DEF file.")
     pattern = r"_\w+_\s+\w+\s+\+\s+PLACED\s+\(\s*\d+\s+\d+\s*\)\s+\w+\s*;"
     net_pattern = r"-\s(_\d+_)\s((?:\(\s_\d+_\s\w+\s\)\s*)+).*"
     component_pattern = r"(_\w+_)"
@@ -117,15 +129,19 @@ def coord_scraping(
             coord = re.findall(r"\((.*?)\)", line)[0].split()
             match = re.search(component_pattern, line)
             macro_coords[match.group(0)] = {"x": float(coord[0]), "y": float(coord[1])}
+            logger.debug(f"Found macro {match.group(0)} at ({coord[0]}, {coord[1]})")
         if re.search(net_pattern, line) is not None:
             pins = re.findall(r"\(\s(.*?)\s\w+\s\)", line)
             match = re.search(component_pattern, line)
             component_nets[match.group(0)] = pins
+            logger.debug(f"Found net {match.group(0)} with pins {pins}")
 
     for node in node_to_num:
         coord = macro_coords[node_to_num[node]]
         graph.nodes[node]["x"] = coord["x"]
         graph.nodes[node]["y"] = coord["y"]
+        logger.debug(f"Assigned coordinates to node {node}: {coord}")
+    logger.info("Coordinate scraping complete.")
     return graph, component_nets
 
 def place_n_route(
@@ -133,12 +149,18 @@ def place_n_route(
     test_file: str, 
     arg_parasitics: str
 ):
+    logger.info(f"Starting place and route with parasitics: {arg_parasitics}")
     dict = {edge: {} for edge in graph.edges()}
     if "none" not in arg_parasitics:
+        logger.debug("Running setup for place and route.")
         graph, net_out_dict, node_output, lef_data, node_to_num = setup(graph, test_file)
+        logger.debug("Setup complete. Running extraction.")
         dict, graph = extraction(graph, arg_parasitics, net_out_dict, node_output, lef_data, node_to_num)
+        logger.info("Extraction complete.")
     else: 
+        logger.info("No parasitics selected. Running none_place_n_route.")
         graph = none_place_n_route(graph)
+    logger.info("Place and route finished.")
     return dict, graph
     
 def setup(
@@ -156,30 +178,40 @@ def setup(
         pandas dataframe: contains all parasitic information
     """
 
+    logger.info("Setting up environment for place and route.")
     if os.path.exists(directory):
+        logger.debug(f"Removing existing directory: {directory}")
         shutil.rmtree(directory)
     os.makedirs(directory)
+    logger.debug(f"Created directory: {directory}")
     shutil.copytree(os.path.dirname(os.path.abspath(__file__)) + "/tcl", directory + "/tcl")
+    logger.debug(f"Copied tcl files to {directory}/tcl")
     os.makedirs(directory + "/results")
+    logger.debug(f"Created results directory: {directory}/results")
 
     graph, net_out_dict, node_output, lef_data, node_to_num = df.def_generator(
         test_file, graph
     )
+    logger.info("DEF generation complete.")
 
     return graph, net_out_dict, node_output, lef_data, node_to_num
 
 def extraction(graph, arg_parasitics, net_out_dict, node_output, lef_data, node_to_num): 
     # 3. extract parasitics
-    print("running extractions")
+    logger.info(f"Starting extraction with parasitics option: {arg_parasitics}")
     dict = {}
     if arg_parasitics == "detailed":
+        logger.debug("Running detailed place and route.")
         dict, graph = detailed_place_n_route(
             graph, net_out_dict, node_output, lef_data, node_to_num
         )
+        logger.info("Detailed extraction complete.")
     elif arg_parasitics == "estimation":
+        logger.debug("Running estimated place and route.")
         dict, graph = estimated_place_n_route(
             graph, net_out_dict, node_output, lef_data, node_to_num
         )
+        logger.info("Estimated extraction complete.")
 
     return dict, graph
 
@@ -205,6 +237,7 @@ def estimated_place_n_route(
     """
 
     # run openroad
+    logger.info("Starting estimated place and route.")
     openroad_run()
 
     wire_length_df = est.parse_route_guide_with_layer_breakdown(directory + "/results/codesign_codesign-tcl.route_guide")
@@ -248,6 +281,7 @@ def detailed_place_n_route(
     """
 
     # run openroad
+    logger.info("Starting detailed place and route.")
     openroad_run()
 
     # run parasitic_calc and length_calculations
@@ -303,11 +337,13 @@ def none_place_n_route(
     """
 
     # edge attribution
+    logger.info("Running none_place_n_route: setting default edge attributes.")
     for u, v in graph.edges():
         graph[u][v]["net"] = 0
         graph[u][v]["net_length"] = 0
         graph[u][v]["net_res"] = 0
         graph[u][v]["net_cap"] = 0
+        logger.debug(f"Set default attributes for edge ({u}, {v})")
 
-
+    logger.info("none_place_n_route finished.")
     return graph

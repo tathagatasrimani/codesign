@@ -215,7 +215,7 @@ class Codesign:
         """
         Sets the resource constraint and op latencies for ScaleHLS.
         """
-        with open(f"scalehls-hida/test/Transforms/Directive/config.json", "r") as f:
+        with open(f"ScaleHLS-HIDA/test/Transforms/Directive/config.json", "r") as f:
             config = json.load(f)
         dsp_multiplier = 1e15 # TODO replace with more comprehensive model
         config["dsp"] = int(self.cfg["args"]["area"] / (self.hw.circuit_model.tech_model.param_db["A_gate"].xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf() * dsp_multiplier))
@@ -224,7 +224,7 @@ class Codesign:
         config["100MHz"]["fmul"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["Mult"] / self.clk_period)
         config["100MHz"]["fdiv"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["FloorDiv"] / self.clk_period)
         config["100MHz"]["fcmp"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["GtE"] / self.clk_period)
-        with open(f"scalehls-hida/test/Transforms/Directive/config.json", "w") as f:
+        with open(f"ScaleHLS-HIDA/test/Transforms/Directive/config.json", "w") as f:
             json.dump(config, f)
 
     def run_scalehls(self):
@@ -239,49 +239,105 @@ class Codesign:
             None
         """
         self.set_resource_constraint_scalehls()
-
-        # Store original environment variables
-        original_path = os.environ.get('PATH', '')
-        original_pythonpath = os.environ.get('PYTHONPATH', '')
-        
-        # Set up ScaleHLS environment
-        scalehls_path = f"{os.path.dirname(__file__)}/../scalehls-hida/build/bin:{os.path.dirname(__file__)}/../scalehls-hida/polygeist/build/bin"  
-        scalehls_pythonpath = f"{os.path.dirname(__file__)}/../scalehls-hida/python"  # Update this path
-        
-        # Modify environment variables
-        new_path = f"{scalehls_path}:{original_path}" if scalehls_path not in original_path else original_path
-        new_pythonpath = f"{scalehls_pythonpath}:{original_pythonpath}" if original_pythonpath else scalehls_pythonpath
-        
-        # Create modified environment
-        modified_env = os.environ.copy()
-        modified_env['PATH'] = new_path
-        modified_env['PYTHONPATH'] = new_pythonpath
-        
-        try:
-            os.chdir(f"scalehls-hida/samples/polybench/{self.benchmark_name}")
-
-            # ScaleHLS commands with shell redirection and pipes
-            scalehls_commands = [
-                f"cgeist {self.benchmark_name}.c -function={self.benchmark_name} -S -memref-fullrank -raise-scf-to-affine > {self.benchmark_name}.mlir",
-                f"scalehls-opt {self.benchmark_name}.mlir -scalehls-dse-pipeline=\"top-func={self.benchmark_name} target-spec=../../../test/Transforms/Directive/config.json\" | scalehls-translate -scalehls-emit-hlscpp > {os.path.join(os.path.dirname(__file__), 'tmp/benchmark')}/{self.benchmark_name}.cpp",
-            ]
             
-            for cmd in scalehls_commands:
-                logger.info(f"Running ScaleHLS command: {cmd}")
-                p = subprocess.run(cmd, shell=True, capture_output=True, text=True, env=modified_env)
-                logger.info(f"ScaleHLS command output: {p.stdout}")
-                if p.returncode != 0:
-                    logger.error(f"ScaleHLS command failed: {p.stderr}")
-                    raise Exception(f"ScaleHLS command failed: {p.stderr}")
-        
-                
-        finally:
-            # Restore original environment variables
-            os.environ['PATH'] = original_path
-            if original_pythonpath:
-                os.environ['PYTHONPATH'] = original_pythonpath
-            elif 'PYTHONPATH' in os.environ:
-                del os.environ['PYTHONPATH']
+        ## get CWD
+        cwd = os.getcwd()
+        print(f"Running scaleHLS in {cwd}")
+
+        if self.cfg["args"]["pytorch"]:
+            cmd = [
+                'bash', '-c',
+                f'''
+                cd {cwd}
+                cd ScaleHLS-HIDA/
+                export PATH=$PATH:$PWD/build/bin:$PWD/polygeist/build/bin
+                export PYTHONPATH=$PYTHONPATH:$PWD/build/tools/scalehls/python_packages/scalehls_core
+                source mlir_venv/bin/activate
+                cd samples/pytorch/{self.benchmark_name}
+                python3 {self.benchmark_name}.py > {self.benchmark_name}.mlir 
+                scalehls-opt {self.benchmark_name}.mlir -hida-pytorch-pipeline=\"top-func={self.benchmark_name} loop-tile-size=8 loop-unroll-factor=4\" | scalehls-translate -scalehls-emit-hlscpp -emit-vitis-directives > {os.path.join(os.path.dirname(__file__), 'tmp/benchmark')}/{self.benchmark_name}.cpp
+                deactivate
+                pwd
+                '''
+            ]
+        else:
+            cmd = [
+                'bash', '-c',
+                f'''
+                cd {cwd}
+                cd ScaleHLS-HIDA/
+                export PATH=$PATH:$PWD/build/bin:$PWD/polygeist/build/bin
+                export PYTHONPATH=$PYTHONPATH:$PWD/build/tools/scalehls/python_packages/scalehls_core
+                source mlir_venv/bin/activate
+                cd samples/polybench/{self.benchmark_name}
+                cgeist {self.benchmark_name}.c -function={self.benchmark_name} -S -memref-fullrank -raise-scf-to-affine > {self.benchmark_name}.mlir
+                scalehls-opt {self.benchmark_name}.mlir -scalehls-dse-pipeline=\"top-func={self.benchmark_name} target-spec=../../../test/Transforms/Directive/config.json\" | scalehls-translate -scalehls-emit-hlscpp > {os.path.join(os.path.dirname(__file__), 'tmp/benchmark')}/{self.benchmark_name}.cpp
+                deactivate
+                pwd
+                '''
+            ]
+
+        with open(f"src/tmp/scalehls_out.log", "w") as outfile:
+            p = subprocess.Popen(
+                cmd,
+                stdout=outfile,
+                stderr=subprocess.STDOUT,
+                env={}  # clean environment
+            )
+            p.wait()
+        with open(f"src/tmp/scalehls_out.log", "r") as f:
+            logger.info(f"scaleHLS output:\n{f.read()}")
+
+        if p.returncode != 0:
+            raise Exception(f"scaleHLS failed with error: {p.stderr}")
+
+    def parse_vitis_data(self):
+
+        ## print the cwd
+        print(f"Current working directory in vitis parse data: {os.getcwd()}")
+
+        if self.no_memory:
+            allowed_functions = {"fmul", "mul", "add", "call", "serial"}
+        else:
+            allowed_functions = {"fmul", "mul", "add", "load", "store", "call", "serial"}
+
+        parse_results_dir = f"{self.benchmark_dir}/parse_results"
+
+        ## Do preprocessing to the vitis data for the next scripts
+        parse_verbose_rpt(f"{self.benchmark_dir}/{self.benchmark_name}/solution1/.autopilot/db", parse_results_dir)
+
+        ## Create the netlist
+        create_vitis_netlist(parse_results_dir)
+
+        ## Create the CDFGs for each FSM
+        create_cdfg_vitis(parse_results_dir)
+
+        ## Create the mapping from CDFG nodes to netlist nodes
+        #create_cdfg_to_netlist_mapping_vitis(parse_results_dir)
+
+        ## Merge the CDFGs recursivley through the FSM module hierarchy to produce overall CDFG
+        #merge_cdfgs_vitis(parse_results_dir, self.vitis_top_function)
+
+        ## Merge the netlists recursivley through the module hierarchy to produce overall netlist
+        merge_netlists_vitis(parse_results_dir, self.vitis_top_function, allowed_functions)
+
+        schedule_parser = schedule_vitis.vitis_schedule_parser(self.benchmark_dir, self.benchmark_name, self.vitis_top_function, self.clk_period, allowed_functions)
+        schedule_parser.create_dfgs()
+
+        print(f"Current working directory at end of vitis parse data: {os.getcwd()}")
+
+        self.hw.netlist = nx.read_gml(f"{parse_results_dir}/{self.vitis_top_function}_full_netlist.gml")
+
+        ## print the cwd
+        print(f"Current working directory in vitis parse data: {os.getcwd()}")
+
+        """## write the netlist to a file
+        with open(f"{parse_results_dir}/netlist-from-vitis.gml", "wb") as f:
+            nx.write_gml(self.hw.netlist, f)
+
+        ## write the scheduled dfg to a file
+        with open(f"{parse_results_dir}/cdfg-from-vitis.gml", "wb") as f:
+            nx.write_gml(self.hw.scheduled_dfg, f)"""
 
     def parse_vitis_data(self):
 
@@ -340,7 +396,8 @@ class Codesign:
 
         self.hw.netlist = nx.read_gml(f"{parse_results_dir}/{self.vitis_top_function}/{self.vitis_top_function}_full_netlist.gml")
 
-        self.hw.calculate_execution_time_vitis(self.vitis_top_function)
+        execution_time = self.hw.calculate_execution_time_vitis(self.vitis_top_function)
+        print(f"Execution time: {execution_time}")
 
         ## print the cwd
         print(f"Current working directory in vitis parse data: {os.getcwd()}")
@@ -363,9 +420,8 @@ class Codesign:
             logger.info("Skipping ScaleHLS")
 
         os.chdir(os.path.join(os.path.dirname(__file__), "tmp/benchmark"))
-        self.vitis_top_function = scale_hls_port_fix(f"{self.benchmark_name}.cpp", self.benchmark_name, self.cfg["args"]["pytorch"])
-        if self.cfg["args"]["pytorch"]:
-            self.vitis_top_function = "forward"
+        scale_hls_port_fix(f"{self.benchmark_name}.cpp", self.benchmark_name, self.cfg["args"]["pytorch"])
+        self.vitis_top_function = self.benchmark_name # with new change can do this, eventually stop using vitis_top_function variable
         logger.info(f"Vitis top function: {self.vitis_top_function}")
         command = ["vitis_hls -f tcl_script.tcl"]
         if self.check_checkpoint("vitis"):
@@ -534,6 +590,10 @@ class Codesign:
         self.hw.get_wire_parasitics(self.openroad_testfile, self.parasitics, self.benchmark_name)
 
         # set end node's start time to longest path length
+
+        ## Throw a not implemented exception with message that says successful until symbolic delay expression construction in forward pass
+        raise NotImplementedError("Successful until symbolic delay expression construction in forward pass.")
+
         self.hw.scheduled_dfg.nodes["end"]["start_time"] = nx.dag_longest_path_length(self.hw.scheduled_dfg)
     
     def parse_output(self, f):

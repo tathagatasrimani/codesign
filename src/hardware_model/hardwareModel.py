@@ -621,11 +621,12 @@ class HardwareModel:
         self.graph_delays[top_block_name], self.graph_delays_cvx[top_block_name] = self.calculate_execution_time_vitis_recursive(top_block_name, self.scheduled_dfgs[top_block_name])
         for constr in self.constr_cvx:
             logger.info(f"constraint final: {constr}")
+        for node in self.node_arrivals_cvx[top_block_name]["full"]:
+            logger.info(f"node arrivals cvx var for {top_block_name} full {node}: {self.node_arrivals_cvx[top_block_name]['full'][node]}")
         prob = cp.Problem(cp.Minimize(self.graph_delays_cvx[top_block_name]), self.constr_cvx)
-        prob.solve(verbose=True)
+        prob.solve()
         for block_name in self.graph_delays:
             for node in self.node_arrivals[block_name]["full"]:
-                logger.info(f"node arrivals for {block_name} full {node}: {self.node_arrivals_cvx[block_name]['full'][node].value}")
                 if self.node_arrivals_cvx[block_name]["full"][node].value is not None:
                     self.node_arrivals[block_name]["full"][node] = self.node_arrivals_cvx[block_name]["full"][node].value / self.scale_cvx
                 if node in self.node_arrivals[block_name]["loop_1x"] and self.node_arrivals_cvx[block_name]["loop_1x"][node].value is not None:
@@ -659,8 +660,8 @@ class HardwareModel:
                         #pred_delay = (delay_2x-delay_1x) * (dfg.nodes[pred]["count"]-1)
                         #pred_delay_cvx = (delay_2x_cvx - delay_1x_cvx) * (dfg.nodes[pred]["count"]-1)
                         #logger.info(f"pred_delay_cvx_II_delay: {pred_delay_cvx}")
-                        pred_delay = delay_1x * dfg.nodes[pred]["count"]-1
-                        pred_delay_cvx = delay_1x_cvx * dfg.nodes[pred]["count"]-1
+                        pred_delay = delay_1x * (dfg.nodes[pred]["count"]-1)
+                        pred_delay_cvx = delay_1x_cvx * (dfg.nodes[pred]["count"]-1)
                     else:
                         pred_delay = self.circuit_model.clk_period # convert to ns
                         pred_delay_cvx = sim_util.xreplace_safe(self.circuit_model.clk_period, self.circuit_model.tech_model.base_params.tech_values) * self.scale_cvx

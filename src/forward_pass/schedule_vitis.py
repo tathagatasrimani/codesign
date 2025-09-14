@@ -24,7 +24,7 @@ module_map = {
     "add": "Add",
     "mul": "Mult",
     "fmul": "Mult",
-    "call": "Call",
+    "call": "Call"
 }
 
 class VariableTracker:
