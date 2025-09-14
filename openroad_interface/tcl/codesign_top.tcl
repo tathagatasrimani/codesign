@@ -11,8 +11,9 @@ set top_module "codesign"
 set sdc_file "codesign_files/codesign.sdc"
 #set image_name "results/codesign.jpeg"
 
-set die_area {0 0 10000 10000}
-set core_area {10 10 9990 9990}
+## TODO: these need to scale appropriatley based on the area constraints
+set die_area {0 0 400 400}
+set core_area {50 50 350 350}
 
 read_libraries
 read_def ../results/first_generated.def
