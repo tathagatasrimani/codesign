@@ -3,6 +3,10 @@ import sys
 import json
 import networkx as nx
 from src import sim_util
+import logging
+logger = logging.getLogger(__name__)
+
+module_map = sim_util.get_module_map()
 
 DEBUG = True
 
@@ -14,10 +18,12 @@ def debug_print(message):
 all_modules_visited = set()
 
 def merge_netlists_vitis(root_dir, top_level_module_name, allowed_functions):
+    global all_modules_visited # TODO: make this a class variable
     """
     Main function to create a unified netlist for all files in the given directory.
     """
     full_netlist = nx.DiGraph()
+    all_modules_visited.clear()
 
     ## get the names of all the submodules (the subdirectories)
     submodules = [d for d in os.listdir(root_dir) if os.path.isdir(os.path.join(root_dir, d)) and not d.startswith('.')]
@@ -38,13 +44,16 @@ def merge_netlists_vitis(root_dir, top_level_module_name, allowed_functions):
     ## print out the number of visited modules
     #debug_print(f"Number of visited modules: {len(all_modules_visited)}")
 
+    for node in full_netlist:
+        raw_fn = full_netlist.nodes[node].get('bind', {}).get('fcode')
+        if raw_fn is None:
+            raw_fn = "N/A"
+        full_netlist.nodes[node]['function'] = module_map[raw_fn] if raw_fn in module_map else raw_fn
+
     ## save the full netlist to a file
     output_file_path = os.path.join(root_dir, f"{top_level_module_name}_full_netlist_unfiltered.gml")
     nx.write_gml(full_netlist, output_file_path)
     #debug_print(f"Full netlist saved to {output_file_path}")
-
-    for node in full_netlist:
-        full_netlist.nodes[node]['function'] = full_netlist.nodes[node].get('bind', {}).get('fcode')
 
     ## filter the netlist to only include desired node types
     filtered_netlist = sim_util.filter_graph_by_function(full_netlist, allowed_functions)

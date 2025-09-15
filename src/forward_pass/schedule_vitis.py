@@ -20,12 +20,7 @@ def debug_print(msg):
     if DEBUG:
         print(msg)
 
-module_map = {
-    "add": "Add",
-    "mul": "Mult",
-    "fmul": "Mult",
-    "call": "Call"
-}
+module_map = sim_util.get_module_map()
 
 class VariableTracker:
     def __init__(self):

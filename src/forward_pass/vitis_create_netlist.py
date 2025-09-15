@@ -2,6 +2,9 @@ import os
 import sys
 import json
 import networkx as nx
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 DEBUG = False
@@ -148,7 +151,7 @@ def create_vitis_netlist(root_dir):
         if not os.path.isdir(subdir_path):
             continue
 
-        debug_print(f"Processing directory: {subdir_path}")
+        logger.info(f"Processing directory: {subdir_path}")
 
         # Find _netlist.rpt and _complist.rpt files and open them
         netlist_file = None
@@ -160,7 +163,7 @@ def create_vitis_netlist(root_dir):
                 complist_file = os.path.join(subdir_path, fname)
 
         if not netlist_file or not complist_file:
-            debug_print("ERROR: Complist or netlist not found!!")
+            logger.error("ERROR: Complist or netlist not found!!")
             continue
 
         ## parse through the complist file and convert it to a dictionary
@@ -185,6 +188,8 @@ def create_vitis_netlist(root_dir):
 
         ## create the networkX graph:
         final_netlist = create_networkX_netlist(netlist, complist, subdir)
+
+        logger.info(f"Writing final netlist to {subdir_path}/{netlist_prefix}_netlist.gml")
 
         # Write out the networkX graph to a gml file
         nx.write_gml(final_netlist, f"{subdir_path}/{netlist_prefix}_netlist.gml")

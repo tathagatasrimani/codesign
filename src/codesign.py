@@ -109,9 +109,9 @@ class Codesign:
         if not self.check_checkpoint("none"):
             self.checkpoint_controller.load_checkpoint(self.cfg["args"]["checkpoint_step"])
 
-    # only skipping steps in first iteration
+    # only skipping steps in first iteration. This function returns True if we should not skip this step.
     def check_checkpoint(self, checkpoint_step):
-        if checkpoint_controller.checkpoint_map[checkpoint_step] > checkpoint_controller.checkpoint_map[self.cfg["args"]["checkpoint_step"]] and self.iteration_count == 0:
+        if checkpoint_controller.checkpoint_map[checkpoint_step] > checkpoint_controller.checkpoint_map[self.cfg["args"]["checkpoint_step"]] or self.iteration_count != 0:
             return True
         else:
             return False
@@ -271,7 +271,7 @@ class Codesign:
                 source mlir_venv/bin/activate
                 cd samples/polybench/{self.benchmark_name}
                 cgeist {self.benchmark_name}.c -function={self.benchmark_name} -S -memref-fullrank -raise-scf-to-affine > {self.benchmark_name}.mlir
-                scalehls-opt {self.benchmark_name}.mlir -scalehls-dse-pipeline=\"top-func={self.benchmark_name} target-spec=../../../test/Transforms/Directive/config.json\" | scalehls-translate -scalehls-emit-hlscpp > {os.path.join(os.path.dirname(__file__), 'tmp/benchmark')}/{self.benchmark_name}.cpp
+                scalehls-opt {self.benchmark_name}.mlir -scalehls-dse-pipeline=\"top-func={self.vitis_top_function} target-spec=../../../test/Transforms/Directive/config.json\" | scalehls-translate -scalehls-emit-hlscpp > {os.path.join(os.path.dirname(__file__), 'tmp/benchmark')}/{self.benchmark_name}.cpp
                 deactivate
                 pwd
                 '''
@@ -394,7 +394,7 @@ class Codesign:
 
         print(f"Current working directory at end of vitis parse data: {os.getcwd()}")
 
-        self.hw.netlist = nx.read_gml(f"{parse_results_dir}/{self.vitis_top_function}/{self.vitis_top_function}_full_netlist.gml")
+        self.hw.netlist = nx.read_gml(f"{parse_results_dir}/{self.vitis_top_function}_full_netlist.gml")
 
         execution_time = self.hw.calculate_execution_time_vitis(self.vitis_top_function)
         print(f"Execution time: {execution_time}")
@@ -420,8 +420,7 @@ class Codesign:
             logger.info("Skipping ScaleHLS")
 
         os.chdir(os.path.join(os.path.dirname(__file__), "tmp/benchmark"))
-        scale_hls_port_fix(f"{self.benchmark_name}.cpp", self.benchmark_name, self.cfg["args"]["pytorch"])
-        self.vitis_top_function = self.benchmark_name # with new change can do this, eventually stop using vitis_top_function variable
+        self.vitis_top_function = scale_hls_port_fix(f"{self.benchmark_name}.cpp", self.benchmark_name, self.cfg["args"]["pytorch"])
         logger.info(f"Vitis top function: {self.vitis_top_function}")
         command = ["vitis_hls -f tcl_script.tcl"]
         if self.check_checkpoint("vitis"):
@@ -589,12 +588,9 @@ class Codesign:
         # update netlist and scheduled dfg with wire parasitics
         self.hw.get_wire_parasitics(self.openroad_testfile, self.parasitics, self.benchmark_name)
 
-        # set end node's start time to longest path length
-
-        ## Throw a not implemented exception with message that says successful until symbolic delay expression construction in forward pass
-        raise NotImplementedError("Successful until symbolic delay expression construction in forward pass.")
-
-        self.hw.scheduled_dfg.nodes["end"]["start_time"] = nx.dag_longest_path_length(self.hw.scheduled_dfg)
+        if self.cfg["args"]["hls_tool"] == "catapult":
+            # set end node's start time to longest path length
+            self.hw.scheduled_dfg.nodes["end"]["start_time"] = nx.dag_longest_path_length(self.hw.scheduled_dfg)
     
     def parse_output(self, f):
         """

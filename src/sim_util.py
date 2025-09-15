@@ -62,6 +62,15 @@ def recursive_cfg_merge(model_cfgs, model_cfg_name):
         base_cfg = model_cfgs[base_cfg]["base_cfg"]
     return model_cfg
 
+def get_module_map():
+    module_map = {
+        "add": "Add",
+        "mul": "Mult",
+        "fmul": "Mult",
+        "call": "Call"
+    }
+    return module_map
+
 def get_latest_log_dir():
     log_dirs = glob.glob(os.path.normpath(os.path.join(os.path.dirname(__file__), "../logs/*-*-*_*-*-*")))
     log_dirs = sorted(

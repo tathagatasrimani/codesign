@@ -69,6 +69,7 @@ class HardwareModel:
         self.scheduled_dfgs = {}
         self.loop_1x_graphs = {}
         self.loop_2x_graphs = {}
+        self.top_block_name = args["benchmark"] if not args["pytorch"] else "forward"
 
         self.parasitic_graph = nx.DiGraph()
         self.symbolic_mem = {}
@@ -605,6 +606,46 @@ class HardwareModel:
             }
             self.circuit_model.symbolic_rsc_exprs.update(cacti_subs_new)
 
+    def calculate_active_energy_vitis(self):
+        total_active_energy = 0
+        for basic_block_name in self.scheduled_dfgs:
+            total_active_energy += self.calculate_active_energy_basic_block(basic_block_name, self.scheduled_dfgs[basic_block_name])
+        return total_active_energy
+
+    def calculate_active_energy_basic_block(self, basic_block_name, dfg, is_loop=False):
+        total_active_energy_basic_block = 0
+        loop_count = 1
+        loop_energy = 0
+        for node, data in dfg.nodes(data=True):
+            if data["function"] == "II": 
+                loop_count = data["count"]
+                if is_loop:
+                    loop_energy = self.calculate_active_energy_basic_block(basic_block_name, self.loop_1x_graphs[basic_block_name], is_loop=True)
+            else:
+                total_active_energy_basic_block += self.circuit_model.symbolic_energy_active[data["function"]]()
+        for edge in dfg.edges:
+            if edge in self.dfg_to_netlist_edge_map:
+                total_active_energy_basic_block += self.circuit_model.wire_energy(self.dfg_to_netlist_edge_map[edge])
+                logger.info(f"edge {edge} is in dfg_to_netlist_edge_map")
+            else:
+                logger.info(f"edge {edge} is not in dfg_to_netlist_edge_map")
+        logger.info(f"total active energy for {basic_block_name}: {total_active_energy_basic_block}")
+        logger.info(f"loop count for {basic_block_name}: {loop_count}")
+        if is_loop:
+            logger.info(f"loop energy for {basic_block_name}: {loop_energy}")
+            return total_active_energy_basic_block * (loop_count-1)
+        else:
+            return total_active_energy_basic_block + (loop_count-1) * loop_energy
+
+    
+    def calculate_passive_power_vitis(self, total_execution_time):
+        total_passive_power = 0
+        for node, data in self.netlist.nodes(data=True):
+            total_passive_power += self.circuit_model.symbolic_power_passive[data["function"]]()
+            logger.info(f"passive power for {node}: {self.circuit_model.symbolic_power_passive[data['function']]()}")
+        return total_passive_power * total_execution_time
+
+
     def calculate_execution_time_vitis(self, top_block_name):
         self.node_arrivals = {}
         self.node_arrivals_cvx = {}
@@ -628,20 +669,20 @@ class HardwareModel:
         for block_name in self.graph_delays:
             for node in self.node_arrivals[block_name]["full"]:
                 if self.node_arrivals_cvx[block_name]["full"][node].value is not None:
-                    self.node_arrivals[block_name]["full"][node] = self.node_arrivals_cvx[block_name]["full"][node].value / self.scale_cvx
+                    self.circuit_model.tech_model.base_params.tech_values[self.node_arrivals[block_name]["full"][node]] = self.node_arrivals_cvx[block_name]["full"][node].value / self.scale_cvx
                 if node in self.node_arrivals[block_name]["loop_1x"] and self.node_arrivals_cvx[block_name]["loop_1x"][node].value is not None:
-                    self.node_arrivals[block_name]["loop_1x"][node] = self.node_arrivals_cvx[block_name]["loop_1x"][node].value / self.scale_cvx
+                    self.circuit_model.tech_model.base_params.tech_values[self.node_arrivals[block_name]["loop_1x"][node]] = self.node_arrivals_cvx[block_name]["loop_1x"][node].value / self.scale_cvx
                 if node in self.node_arrivals[block_name]["loop_2x"] and self.node_arrivals_cvx[block_name]["loop_2x"][node].value is not None:
-                    self.node_arrivals[block_name]["loop_2x"][node] = self.node_arrivals_cvx[block_name]["loop_2x"][node].value / self.scale_cvx
+                    self.circuit_model.tech_model.base_params.tech_values[self.node_arrivals[block_name]["loop_2x"][node]] = self.node_arrivals_cvx[block_name]["loop_2x"][node].value / self.scale_cvx
             for node in self.graph_delays:
-                self.graph_delays[node] = self.graph_delays_cvx[node].value / self.scale_cvx
+                self.circuit_model.tech_model.base_params.tech_values[self.graph_delays[node]] = self.graph_delays_cvx[node].value / self.scale_cvx
         for block_name in self.graph_delays:
             logger.info(f"graph delays for {block_name}: {self.graph_delays[block_name]}")
         for block_name in self.node_arrivals:
             for graph_type in self.node_arrivals[block_name]:
                 for node in self.node_arrivals[block_name][graph_type]:
-                    logger.info(f"node arrivals for {block_name} {graph_type} {node}: {self.node_arrivals[block_name][graph_type][node]}")
-
+                    logger.info(f"node arrivals for {block_name} {graph_type} {node}: {self.node_arrivals_cvx[block_name][graph_type][node] / self.scale_cvx}")
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.node_arrivals_end] = self.graph_delays_cvx[top_block_name].value
         return self.graph_delays[top_block_name]
 
 
@@ -785,9 +826,19 @@ class HardwareModel:
         return total_active_energy
     
     def calculate_objective(self, symbolic=False):
-        self.execution_time = self.calculate_execution_time(symbolic)
-        self.total_passive_energy = self.calculate_passive_energy(self.execution_time, symbolic)
-        self.total_active_energy = self.calculate_active_energy(symbolic)
+        if self.hls_tool == "vitis":
+            if symbolic:
+                self.execution_time = self.calculate_execution_time_vitis(self.top_block_name)
+                self.total_passive_energy = self.calculate_passive_power_vitis(self.execution_time)
+                self.total_active_energy = self.calculate_active_energy_vitis()
+            else:
+                self.execution_time = sim_util.xreplace_safe(self.calculate_execution_time_vitis(self.top_block_name), self.circuit_model.tech_model.base_params.tech_values)
+                self.total_passive_energy = sim_util.xreplace_safe(self.calculate_passive_power_vitis(self.execution_time), self.circuit_model.tech_model.base_params.tech_values)
+                self.total_active_energy = sim_util.xreplace_safe(self.calculate_active_energy_vitis(), self.circuit_model.tech_model.base_params.tech_values)
+        else: # catapult
+            self.execution_time = self.calculate_execution_time(symbolic)
+            self.total_passive_energy = self.calculate_passive_energy(self.execution_time, symbolic)
+            self.total_active_energy = self.calculate_active_energy(symbolic)
         if self.model_cfg["model_type"] == "bulk_bsim4":
             self.symbolic_obj_sub_exprs = {
                 "execution_time": self.execution_time,
