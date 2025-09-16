@@ -677,16 +677,16 @@ class HardwareModel:
             for node in self.graph_delays:
                 self.circuit_model.tech_model.base_params.tech_values[self.graph_delays[node]] = self.graph_delays_cvx[node].value / self.scale_cvx
         for block_name in self.graph_delays:
-            logger.info(f"graph delays for {block_name}: {self.graph_delays[block_name]}")
+            logger.info(f"graph delays for {block_name}: {sim_util.xreplace_safe(self.graph_delays[block_name], self.circuit_model.tech_model.base_params.tech_values)}")
         for block_name in self.node_arrivals:
             for graph_type in self.node_arrivals[block_name]:
                 for node in self.node_arrivals[block_name][graph_type]:
-                    logger.info(f"node arrivals for {block_name} {graph_type} {node}: {self.node_arrivals_cvx[block_name][graph_type][node] / self.scale_cvx}")
+                    logger.info(f"node arrivals for {block_name} {graph_type} {node}: {self.node_arrivals_cvx[block_name][graph_type][node].value / self.scale_cvx}")
         self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.node_arrivals_end] = self.graph_delays_cvx[top_block_name].value
         return self.graph_delays[top_block_name]
 
 
-    def calculate_execution_time_vitis_recursive(self, basic_block_name, dfg, graph_end_node="graph_end", graph_type="full"):
+    def calculate_execution_time_vitis_recursive(self, basic_block_name, dfg, graph_end_node="graph_end", graph_type="full", resource_delays_only=False):
         logger.info(f"calculating execution time for {basic_block_name} with graph end node {graph_end_node}")
         for node in dfg.nodes:
             self.node_arrivals[basic_block_name][graph_type][node] = sp.symbols(f"node_arrivals_{basic_block_name}_{graph_type}_{node}")
@@ -695,12 +695,9 @@ class HardwareModel:
             for pred in dfg.predecessors(node):
                 if dfg.edges[pred, node]["resource_edge"]:
                     if dfg.nodes[pred]["function"] == "II":
-                        delay_1x, delay_1x_cvx = self.calculate_execution_time_vitis_recursive(basic_block_name, self.loop_1x_graphs[basic_block_name], graph_end_node="loop_end_1x", graph_type="loop_1x")
-                        delay_2x, delay_2x_cvx = self.calculate_execution_time_vitis_recursive(basic_block_name, self.loop_2x_graphs[basic_block_name], graph_end_node="loop_end_2x", graph_type="loop_2x")
-                        # TODO fix pipelining
-                        #pred_delay = (delay_2x-delay_1x) * (dfg.nodes[pred]["count"]-1)
-                        #pred_delay_cvx = (delay_2x_cvx - delay_1x_cvx) * (dfg.nodes[pred]["count"]-1)
-                        #logger.info(f"pred_delay_cvx_II_delay: {pred_delay_cvx}")
+                        delay_1x, delay_1x_cvx = self.calculate_execution_time_vitis_recursive(basic_block_name, self.loop_1x_graphs[basic_block_name], graph_end_node="loop_end_1x", graph_type="loop_1x", resource_delays_only=True)
+                        #delay_2x, delay_2x_cvx = self.calculate_execution_time_vitis_recursive(basic_block_name, self.loop_2x_graphs[basic_block_name], graph_end_node="loop_end_2x", graph_type="loop_2x")
+                        # TODO add dependence of II on loop-carried dependency
                         pred_delay = delay_1x * (dfg.nodes[pred]["count"]-1)
                         pred_delay_cvx = delay_1x_cvx * (dfg.nodes[pred]["count"]-1)
                     else:
@@ -714,10 +711,14 @@ class HardwareModel:
                         pred_delay = self.graph_delays[dfg.nodes[pred]["call_function"]]
                         pred_delay_cvx = self.graph_delays_cvx[dfg.nodes[pred]["call_function"]]
                     else:
-                        pred_delay = self.circuit_model.symbolic_latency_wc[dfg.nodes[pred]["function"]]()
-                        if (pred, node) in self.dfg_to_netlist_edge_map:
-                            pred_delay += self.circuit_model.wire_delay(self.dfg_to_netlist_edge_map[(pred, node)])
-                        pred_delay_cvx = sim_util.xreplace_safe(pred_delay, self.circuit_model.tech_model.base_params.tech_values) * self.scale_cvx
+                        if not resource_delays_only:
+                            pred_delay = self.circuit_model.symbolic_latency_wc[dfg.nodes[pred]["function"]]()
+                            if (pred, node) in self.dfg_to_netlist_edge_map:
+                                pred_delay += self.circuit_model.wire_delay(self.dfg_to_netlist_edge_map[(pred, node)])
+                            pred_delay_cvx = sim_util.xreplace_safe(pred_delay, self.circuit_model.tech_model.base_params.tech_values) * self.scale_cvx
+                        else:
+                            pred_delay = 0
+                            pred_delay_cvx = 0
                 logger.info(f"pred_delay_cvx: {pred_delay_cvx}")
                 logger.info(f"pred_delay: {pred_delay}")
                 assert pred_delay_cvx is not None and not isinstance(pred_delay_cvx, sp.Expr), f"pred_delay_cvx is {pred_delay_cvx}, type: {type(pred_delay_cvx)}"
