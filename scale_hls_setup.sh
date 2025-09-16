@@ -26,9 +26,12 @@ fi
 
 export PATH=$PATH:$PWD/build/bin:$PWD/polygeist/build/bin
 
+remove_pythonpath=0
+
 ## python path might not be set, so check first
 if [ -z "${PYTHONPATH+x}" ]; then
     export PYTHONPATH="$PWD/build/tools/scalehls/python_packages/scalehls_core"
+    remove_pythonpath=1
 else
     export PYTHONPATH="$PYTHONPATH:$PWD/build/tools/scalehls/python_packages/scalehls_core"
 fi
@@ -68,3 +71,11 @@ PY
 deactivate
 
 cd ..
+
+if [ $remove_pythonpath == 1 ]; then
+    unset PYTHONPATH
+    echo "PYTHONPATH unset."
+else
+    export PYTHONPATH=$PREV_PTYHONPATH
+    echo "PYTHONPATH set to $PREV_PTYHONPATH."
+fi
