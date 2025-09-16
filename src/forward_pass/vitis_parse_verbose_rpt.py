@@ -82,6 +82,8 @@ def extract_sections(filename, output_folder="."):
                             transitions[int(from_state)] = -1
                         elif to_state.isdigit():
                             transitions[int(from_state)] = int(to_state)
+                        elif len(to_state.split()) == 2:
+                            transitions[int(from_state)] = int(to_state.split()[0])
                 else:
                     # End of transitions section if line doesn't match
                     inside_transitions = False

@@ -66,6 +66,15 @@ def create_cdfg_one_file(fsm_data, state_transitions, stg_data, dir_name):
 
     instantiated_modules = []  ## This will keep track of the submodules that have been used
 
+    # determine submodules independently of FSM
+    for state in fsm_data:
+        for fsm_node in fsm_data[state]:
+            if fsm_node['operator'] == 'call':
+                ## if the operator is a call, we will treat it as a submodule and add it to the graph
+                module_name = fsm_node['function']
+                if module_name not in instantiated_modules:
+                    instantiated_modules.append(module_name)
+
     ## This loop will continue until we have followed the state transition flow through all states in the FSM.
     while curr_state in fsm_data:
         ## Iterate through all FSM nodes in the current state.
@@ -110,12 +119,6 @@ def create_cdfg_one_file(fsm_data, state_transitions, stg_data, dir_name):
             curr_node_name = f"{fsm_node['operator']}_op_{curr_step_count_local}_{fsm_node['destination']}"
             G.add_node(curr_node_name, fsm_node=fsm_node, start_state=int(curr_state), start_step_count=curr_step_count_local)
             nodes_added_in_this_state.append(curr_node_name)
-
-            if fsm_node['operator'] == 'call':
-                ## if the operator is a call, we will treat it as a submodule and add it to the graph
-                module_name = fsm_node['function']
-                if module_name not in instantiated_modules:
-                    instantiated_modules.append(module_name)
 
         ## add edges based on the data dependencies
         ## go through the sources of all nodes added in this state and add a dependency edge to that node

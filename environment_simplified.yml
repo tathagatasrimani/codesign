@@ -1,48 +1,44 @@
 name: codesign
 channels:
   - conda-forge
-  - defaults
 dependencies:
+  # --- Core ---
+  - python=3.11
+  - pip
+  - libblas=*=*openblas          # switch to =*mkl if you prefer MKL
+  - numpy>=1.26,<2
+  - scipy>=1.11,<2
+  - pandas>=2.2
+  - matplotlib>=3.8
+  - seaborn>=0.13
+  - ipython>=8.20
+  - ipykernel>=6.25
+  - jupyter_client>=8.6
+  - jupyter_core>=5.5
+  - python-dateutil
+  - pytz
+  - tzdata
+  - pyparsing
+  - pyyaml
+  - setuptools
+  - wheel
+
+  # --- Optimization / Modeling ---
+  - cvxpy=1.5.*
+  - clarabel>=0.7
+  - ipopt=3.14.*
+  - pyomo=6.7.*
   - ampl-mp=3.1.0
-  - astor=0.8.1
-  - asttokens=2.0.5
-  - blas=1.0
-  - clarabel=0.7.1
-  - cvxpy=1.5.1
-  - cvxpy-base=1.5.1
-  - graphviz=2.50.0
-  - heapdict=1.0.1
-  - ipopt=3.14.14
-  - ipykernel=6.25.0
-  - ipython=8.20.0
-  - jupyter_client=8.6.0
-  - jupyter_core=5.5.0
-  - matplotlib=3.8.0
-  - matplotlib-base=3.8.0
-  - matplotlib-inline=0.1.6
-  - numpy=1.26.3
-  - numpy-base=1.26.3
-  - pandas=2.2.1
-  - pip=23.3.1
-  - pygraphviz=1.9
-  - pyomo=6.7.0
-  - pyparsing=3.0.9
-  - python=3.11.7
-  - python-dateutil=2.8.2
-  - python-tzdata=2023.3
-  - python_abi=3.11
-  - pytorch=2.1.0
-  - pytz=2024.1
-  - pyyaml=6.0.1
-  - scipy=1.11.4
-  - seaborn=0.13.2
-  - seaborn-base=0.13.2
-  - setuptools=68.2.2
-  - wheel=0.41.2
-  - yaml=0.2.5
+
+  # --- Graph / Viz toolchain ---
+  - graphviz
+  - python-graphviz
+  - pygraphviz>=1.9
+
+  # --- EDA / Build toolchain ---
   - yosys
-  - gcc_linux-64=13.*
-  - gxx_linux-64=13.*
+  - gcc_linux-64=13
+  - gxx_linux-64=13
   - autoconf
   - automake
   - libtool
@@ -53,13 +49,20 @@ dependencies:
   - make
   - git
   - help2man
+
+  # --- ML stacks ---
+  - pytorch=2.1.*                # CPU build; add CUDA toolkit if needed
+  - jax=0.4.28
+  - jaxlib=0.4.28
+  - equinox=0.11.4
+  - jaxtyping=0.2.29
+  - opt-einsum=3.3.0
+  - typeguard=2.13.3
+  - pytest                       # loosened (was 8.3.0)
+
+  # --- pip-only bits ---
   - pip:
-      - astpretty==3.0.0
-      - equinox==0.11.4
-      - jax==0.4.28
-      - jaxtyping==0.2.29
-      - ml-dtypes==0.4.0
-      - opt-einsum==3.3.0
+      - ml-dtypes==0.4.0         # pip-only
       - sympy2jax==0.0.5
-      - typeguard==2.13.3
-      - pytest==8.3.0
+      - astpretty==3.0.0
+

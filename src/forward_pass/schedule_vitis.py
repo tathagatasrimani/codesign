@@ -124,12 +124,18 @@ def get_rsc_mapping(netlist_file):
         bind = d.get('bind', {})
         opset = bind.get('opset')
         ## remove the slash and everything after it from the opset
-        if opset and '/' in opset:
+        if not opset:
+            logger.info(f"opset is None for {n},{d}")
+            continue
+        if '/' in opset:
             opsets = opset.split()
             for opset in opsets:
                 netlist_op_dest_to_node[opset.split('/')[0]] = name
         else:
-            netlist_op_dest_to_node[opset] = name
+            netlist_op_dest_to_node[opset.strip()] = name
+    logger.info(f"logging netlist_op_dest_to_node")
+    for op, node in netlist_op_dest_to_node.items():
+        logger.info(f"op: {op}, node: {node}")
     return netlist_op_dest_to_node
 
 class vitis_schedule_parser:
@@ -153,7 +159,11 @@ class vitis_schedule_parser:
             "specpipeline",
             "specloopname",
             "specdataflowpipeline",
-            "speclooptripcount"
+            "speclooptripcount",
+            "specchannel"
+        ])
+        self.no_rsc_allowed_ops = set([
+            "switch"
         ])
         self.benchmark_name = benchmark_name
         self.allowed_functions = allowed_functions
@@ -322,7 +332,7 @@ class vitis_schedule_parser:
             self.basic_blocks[basic_block_name]["FSM state transitions"] = {}
             while lines[idx].strip():
                 assert lines[idx].split()[0] not in self.basic_blocks[basic_block_name]["FSM state transitions"]
-                if len(lines[idx].split()) == 3:
+                if len(lines[idx].split()) == 3 or len(lines[idx].split()) == 4:
                     self.basic_blocks[basic_block_name]["FSM state transitions"][int(lines[idx].split()[0])] = int(lines[idx].split()[2])
                 elif len(lines[idx].split()) == 2:
                     # back to start
@@ -399,11 +409,18 @@ class vitis_schedule_parser:
         #nx.write_gml(self.basic_blocks[basic_block_name]["G_loop_1x"], f"{self.build_dir}/{basic_block_name}_graph_loop_1x.gml")
 
     def add_one_state_to_graph(self, G, basic_block_name, state, start_node=None, use_start_node=False, variable_db="variable_db", graph_type="full"):
-        debug_print(f"Adding one state to graph: {state}")
+        logger.info(f"Adding one state to graph")
         for idx in range(len(state)):
             instruction = state[idx]
             op_name = self.basic_blocks[basic_block_name][variable_db].update_write_node(instruction["op"])
-            rsc_name = self.resource_mapping[instruction['dst'].split("%")[1]]
+            logger.info(f"instruction: {instruction}")
+            assert instruction['dst'].find("%") != -1, f"instruction {instruction} has no %"
+            if instruction['dst'].split("%")[1] not in self.resource_mapping:
+                assert instruction['op'] in self.no_rsc_allowed_ops, f"instruction {instruction} from {basic_block_name} has no resource mapping."
+                logger.warning(f"instruction {instruction} from {basic_block_name} has no resource mapping.")
+                rsc_name = "N/A"
+            else:
+                rsc_name = self.resource_mapping[instruction['dst'].split("%")[1]]
             core_id = instruction["core_id"]
             rsc_name_unique = f"{rsc_name}_{core_id}"
             if not self.basic_blocks[basic_block_name]['resource_db_map'][graph_type].check_resource_added(rsc_name_unique):
@@ -411,7 +428,6 @@ class vitis_schedule_parser:
             fn_out = module_map[instruction["op"]] if instruction["op"] in module_map else instruction["op"]
             G.add_node(op_name, node_type=instruction["type"], function=fn_out, function_out=fn_out, rsc=rsc_name, core_inst=instruction["core_inst"], core_id=core_id, rsc_name_unique=rsc_name_unique, call_function=instruction["call_function"])
             self.track_resource_usage(G, op_name, basic_block_name, graph_type)
-            debug_print(f"Instruction: {instruction}")
             for src in instruction["src"]:
                 src_name = self.basic_blocks[basic_block_name][variable_db].get_read_node_name(src)
                 if src_name in G:
@@ -426,7 +442,7 @@ class vitis_schedule_parser:
             G.add_node(dst, node_type="var", function="N/A")
             G.add_edge(op_name, dst, weight=instruction['delay'], resource_edge=0)
         assert nx.is_directed_acyclic_graph(G), f"Graph is not a DAG, cycle found: {nx.find_cycle(G)}"
-        debug_print(f"longest path after adding one state: {nx.dag_longest_path_length(G)} ({nx.dag_longest_path(G)})")
+        logger.info(f"longest path after adding one state: {nx.dag_longest_path_length(G)} ({nx.dag_longest_path(G)})")
         return G, state
     
     def get_graph_leaves(self, G):
@@ -460,6 +476,7 @@ class vitis_schedule_parser:
 
     # used only in convert function. Takes one sched report from vitis (for one basic block) and converts it to graph form
     def dfg_basic_block(self, basic_block_name, graph_type="full"):
+        logger.info(f"creating dfg for {basic_block_name}")
         self.basic_blocks[basic_block_name]['resource_db_map'][graph_type].reset_resources()
 
         state_machine_graph = nx.DiGraph()
@@ -467,6 +484,7 @@ class vitis_schedule_parser:
             state_machine_graph.add_node(state)
         for state in self.basic_blocks[basic_block_name]["FSM state transitions"]:
             state_machine_graph.add_edge(state, self.basic_blocks[basic_block_name]["FSM state transitions"][state])
+        logger.info(f"state_machine_graph: {state_machine_graph.nodes()} with edges {state_machine_graph.edges()}")
         cycle = nx.find_cycle(state_machine_graph)
         # often times the final state transition is "<n> ---> ", with no destination, so I'm not exactly sure how to interpret. Is it going back to the beginning in the case of a pipelined loop?
         # for now, I check if there is any loop info found for this file before making this assumption. Otherwise, I assume it just exits.
@@ -515,6 +533,8 @@ class vitis_schedule_parser:
 
     def track_resource_usage(self, G, node, basic_block_name, graph_type="full"):
         if G.nodes[node]["node_type"] == "op" and G.nodes[node]["core_inst"] != "N/A":
+            if G.nodes[node]["rsc_name_unique"].startswith("N/A"):
+                return
             #debug_print(f"Tracking resource usage for {node}: {G.nodes[node]['rsc']}")
             # check for previous resource usage, add resource edge
             if self.basic_blocks[basic_block_name]['resource_db_map'][graph_type].check_resource_added(G.nodes[node]["rsc_name_unique"]) and self.basic_blocks[basic_block_name]['resource_db_map'][graph_type].get_latest_resource_usage(G.nodes[node]["rsc_name_unique"]) is not None:

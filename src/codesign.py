@@ -106,7 +106,7 @@ class Codesign:
         self.iteration_count = 0
 
         self.checkpoint_controller = checkpoint_controller.CheckpointController(self.cfg)
-        if not self.check_checkpoint("none"):
+        if not self.check_checkpoint("scalehls"):
             self.checkpoint_controller.load_checkpoint(self.cfg["args"]["checkpoint_step"])
 
     # only skipping steps in first iteration. This function returns True if we should not skip this step.
@@ -255,7 +255,7 @@ class Codesign:
                 source mlir_venv/bin/activate
                 cd samples/pytorch/{self.benchmark_name}
                 python3 {self.benchmark_name}.py > {self.benchmark_name}.mlir 
-                scalehls-opt {self.benchmark_name}.mlir -hida-pytorch-pipeline=\"top-func={self.benchmark_name} loop-tile-size=8 loop-unroll-factor=4\" | scalehls-translate -scalehls-emit-hlscpp -emit-vitis-directives > {os.path.join(os.path.dirname(__file__), 'tmp/benchmark')}/{self.benchmark_name}.cpp
+                scalehls-opt {self.benchmark_name}.mlir -hida-pytorch-pipeline=\"top-func={self.vitis_top_function} loop-tile-size=8 loop-unroll-factor=4\" | scalehls-translate -scalehls-emit-hlscpp -emit-vitis-directives > {os.path.join(os.path.dirname(__file__), 'tmp/benchmark')}/{self.benchmark_name}.cpp
                 deactivate
                 pwd
                 '''
@@ -290,54 +290,6 @@ class Codesign:
 
         if p.returncode != 0:
             raise Exception(f"scaleHLS failed with error: {p.stderr}")
-
-    def parse_vitis_data(self):
-
-        ## print the cwd
-        print(f"Current working directory in vitis parse data: {os.getcwd()}")
-
-        if self.no_memory:
-            allowed_functions = {"fmul", "mul", "add", "call", "serial"}
-        else:
-            allowed_functions = {"fmul", "mul", "add", "load", "store", "call", "serial"}
-
-        parse_results_dir = f"{self.benchmark_dir}/parse_results"
-
-        ## Do preprocessing to the vitis data for the next scripts
-        parse_verbose_rpt(f"{self.benchmark_dir}/{self.benchmark_name}/solution1/.autopilot/db", parse_results_dir)
-
-        ## Create the netlist
-        create_vitis_netlist(parse_results_dir)
-
-        ## Create the CDFGs for each FSM
-        create_cdfg_vitis(parse_results_dir)
-
-        ## Create the mapping from CDFG nodes to netlist nodes
-        #create_cdfg_to_netlist_mapping_vitis(parse_results_dir)
-
-        ## Merge the CDFGs recursivley through the FSM module hierarchy to produce overall CDFG
-        #merge_cdfgs_vitis(parse_results_dir, self.vitis_top_function)
-
-        ## Merge the netlists recursivley through the module hierarchy to produce overall netlist
-        merge_netlists_vitis(parse_results_dir, self.vitis_top_function, allowed_functions)
-
-        schedule_parser = schedule_vitis.vitis_schedule_parser(self.benchmark_dir, self.benchmark_name, self.vitis_top_function, self.clk_period, allowed_functions)
-        schedule_parser.create_dfgs()
-
-        print(f"Current working directory at end of vitis parse data: {os.getcwd()}")
-
-        self.hw.netlist = nx.read_gml(f"{parse_results_dir}/{self.vitis_top_function}_full_netlist.gml")
-
-        ## print the cwd
-        print(f"Current working directory in vitis parse data: {os.getcwd()}")
-
-        """## write the netlist to a file
-        with open(f"{parse_results_dir}/netlist-from-vitis.gml", "wb") as f:
-            nx.write_gml(self.hw.netlist, f)
-
-        ## write the scheduled dfg to a file
-        with open(f"{parse_results_dir}/cdfg-from-vitis.gml", "wb") as f:
-            nx.write_gml(self.hw.scheduled_dfg, f)"""
 
     def parse_vitis_data(self):
 
@@ -414,13 +366,14 @@ class Codesign:
         """
         Runs Vitis version of forward pass, updates the memory configuration, and logs the output.
         """
+        self.vitis_top_function = self.benchmark_name if not self.cfg["args"]["pytorch"] else "forward"
         if self.check_checkpoint("scalehls"):
             self.run_scalehls()
         else:
             logger.info("Skipping ScaleHLS")
 
         os.chdir(os.path.join(os.path.dirname(__file__), "tmp/benchmark"))
-        self.vitis_top_function = scale_hls_port_fix(f"{self.benchmark_name}.cpp", self.benchmark_name, self.cfg["args"]["pytorch"])
+        scale_hls_port_fix(f"{self.benchmark_name}.cpp", self.benchmark_name, self.cfg["args"]["pytorch"])
         logger.info(f"Vitis top function: {self.vitis_top_function}")
         command = ["vitis_hls -f tcl_script.tcl"]
         if self.check_checkpoint("vitis"):
@@ -836,6 +789,7 @@ def main(args):
     try:
         codesign_module.execute(codesign_module.cfg["args"]["num_iters"])
     finally:
+        os.chdir(os.path.join(os.path.dirname(__file__), ".."))
         if codesign_module.cfg["args"]["save_checkpoint"]:
             codesign_module.checkpoint_controller.create_checkpoint()
         codesign_module.end_of_run_plots(codesign_module.obj_over_iterations, codesign_module.lag_factor_over_iterations, codesign_module.params_over_iterations)
