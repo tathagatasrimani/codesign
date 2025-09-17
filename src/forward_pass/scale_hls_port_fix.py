@@ -6,8 +6,8 @@ def scale_hls_port_fix(file_path, benchmark_name, pytorch):
         lines = f.readlines()
     ports_to_create = []
     idx = 0
-    # TODO have more general condition for pytorch stuff, this is just for resnet
-    top_function_name = "test_" + benchmark_name if not pytorch else "forward"
+    # TODO remove pytorch flag
+    top_function_name = benchmark_name if not pytorch else "forward"
     while idx < len(lines):
         line = lines[idx]
         if line.find(f" {top_function_name}(") != -1:
@@ -32,7 +32,7 @@ def scale_hls_port_fix(file_path, benchmark_name, pytorch):
             print(f"Found return port")
             for port in ports_to_create:
                 new_lines.append(f"  #pragma HLS interface s_axilite port={port} bundle=ctrl\n")
-        else: #elif not line.strip() == "#pragma HLS inline":
+        elif not line.strip() == "#pragma HLS inline":
             new_lines.append(line)
     with open(file_path, "w") as f:
         print(f"Writing to {file_path}")

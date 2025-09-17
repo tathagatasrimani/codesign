@@ -27,6 +27,8 @@ fi
 
 echo "UNIVERSITY set to: $UNIVERSITY"
 
+export HOME="$(pwd)"
+
 ################## INSTALL OPENROAD ##################
 git submodule update --init --recursive openroad_interface/OpenROAD
 
@@ -91,6 +93,7 @@ fi
 
 ## update conda packages
 conda update -n base -c defaults conda # update conda itself
+conda config --set channel_priority strict
 conda env update -f environment_simplified.yml --prune # update the environment
 
 conda activate codesign # activate the codesign environment

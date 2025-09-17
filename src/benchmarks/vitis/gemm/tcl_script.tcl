@@ -1,5 +1,5 @@
 open_project gemm
-set_top test_gemm
+set_top gemm
 add_files gemm.cpp
 open_solution "solution1" -flow_target vitis
 set_part {xcvu11p-flga2577-1-e}

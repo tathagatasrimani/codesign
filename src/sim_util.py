@@ -5,7 +5,9 @@ import datetime
 from collections import defaultdict
 import math
 from sympy import Abs, exp, cosh
+import sympy as sp
 import copy
+import cvxpy as cp
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +62,15 @@ def recursive_cfg_merge(model_cfgs, model_cfg_name):
         base_cfg = model_cfgs[base_cfg]["base_cfg"]
     return model_cfg
 
+def get_module_map():
+    module_map = {
+        "add": "Add",
+        "mul": "Mult",
+        "fmul": "Mult",
+        "call": "Call"
+    }
+    return module_map
+
 def get_latest_log_dir():
     log_dirs = glob.glob(os.path.normpath(os.path.join(os.path.dirname(__file__), "../logs/*-*-*_*-*-*")))
     log_dirs = sorted(
@@ -88,6 +99,17 @@ def change_clk_period_in_script(filename, new_period, hls_tool):
     with open(filename, "w") as f:
         f.writelines(new_lines)
 
+# if expr is int or float, running xreplace will cause error. So add this safeguard
+def xreplace_safe(expr, replacements):
+    if not isinstance(expr, float) and not isinstance(expr, int):
+        ret = expr.xreplace(replacements)
+        if not isinstance(ret, float) and not isinstance(ret, int):
+            return float(ret.evalf())
+        else:
+            return ret
+    else:
+        return expr
+
 def add_area_constraint_to_script(filename, area_constraint):
     new_lines = []
     with open(filename, "r") as f:
@@ -110,10 +132,10 @@ def remove_node(G, node):
             G.add_edge(src, dst, weight=G.edges[src, node]["weight"], resource_edge=0)
     G.remove_node(node)
 
-def filter_graph_by_function(graph, allowed_functions):
+def filter_graph_by_function(graph, allowed_functions, exception_node_types=None):
     filtered_graph = copy.deepcopy(graph)
     for node in graph.nodes():
-        if graph.nodes[node]['function'] not in allowed_functions:
+        if graph.nodes[node]['function'] not in allowed_functions and (exception_node_types is None or graph.nodes[node]['node_type'] not in exception_node_types):
             remove_node(filtered_graph, node)
     return filtered_graph
 
