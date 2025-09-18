@@ -299,9 +299,11 @@ class Codesign:
         print(f"Current working directory in vitis parse data: {os.getcwd()}")
 
         if self.no_memory:
-            allowed_functions = {"Add", "Mult", "Call", "II"}
+            allowed_functions_netlist = {"Add", "Mult"}
+            allowed_functions_schedule = {"Add", "Mult", "Call", "II"}
         else:
-            allowed_functions = {"Add", "Mult", "Call", "II", "Buf", "MainMem"}
+            allowed_functions_netlist = {"Add", "Mult", "Buf", "MainMem"}
+            allowed_functions_schedule = {"Add", "Mult", "Call", "II", "Buf", "MainMem"}
 
         parse_results_dir = f"{self.benchmark_dir}/parse_results"
 
@@ -322,12 +324,12 @@ class Codesign:
             #merge_cdfgs_vitis(parse_results_dir, self.vitis_top_function)
 
             ## Merge the netlists recursivley through the module hierarchy to produce overall netlist
-            merge_netlists_vitis(parse_results_dir, self.vitis_top_function, allowed_functions)
+            merge_netlists_vitis(parse_results_dir, self.vitis_top_function, allowed_functions_netlist)
         else:
             logger.info("Skipping Vitis netlist parsing")
 
         if self.check_checkpoint("schedule"):
-            schedule_parser = schedule_vitis.vitis_schedule_parser(self.benchmark_dir, self.benchmark_name, self.vitis_top_function, self.clk_period, allowed_functions)
+            schedule_parser = schedule_vitis.vitis_schedule_parser(self.benchmark_dir, self.benchmark_name, self.vitis_top_function, self.clk_period, allowed_functions_schedule)
             schedule_parser.create_dfgs()
             self.hw.scheduled_dfgs = {basic_block_name: schedule_parser.basic_blocks[basic_block_name]["G_standard"] for basic_block_name in schedule_parser.basic_blocks}
             self.hw.loop_1x_graphs = {basic_block_name: schedule_parser.basic_blocks[basic_block_name]["G_loop_1x_standard"] for basic_block_name in schedule_parser.basic_blocks if "G_loop_1x" in schedule_parser.basic_blocks[basic_block_name]}

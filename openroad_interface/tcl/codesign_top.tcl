@@ -12,8 +12,8 @@ set sdc_file "codesign_files/codesign.sdc"
 #set image_name "results/codesign.jpeg"
 
 ## TODO: these need to scale appropriatley based on the area constraints
-set die_area {0 0 400 400}
-set core_area {50 50 350 350}
+set die_area {0 0 2800 2800}
+set core_area {50 50 2750 2750}
 
 read_libraries
 read_def ../results/first_generated.def

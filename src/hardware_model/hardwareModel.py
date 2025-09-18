@@ -681,7 +681,10 @@ class HardwareModel:
         for block_name in self.node_arrivals:
             for graph_type in self.node_arrivals[block_name]:
                 for node in self.node_arrivals[block_name][graph_type]:
-                    logger.info(f"node arrivals for {block_name} {graph_type} {node}: {self.node_arrivals_cvx[block_name][graph_type][node].value / self.scale_cvx}")
+                    if self.node_arrivals_cvx[block_name][graph_type][node].value is not None:
+                        logger.info(f"node arrivals for {block_name} {graph_type} {node}: {self.node_arrivals_cvx[block_name][graph_type][node].value / self.scale_cvx}")
+                    else:
+                        logger.info(f"node arrivals for {block_name} {graph_type} {node}: None")
         self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.node_arrivals_end] = self.graph_delays_cvx[top_block_name].value
         return self.graph_delays[top_block_name]
 
@@ -715,6 +718,9 @@ class HardwareModel:
                             pred_delay = self.circuit_model.symbolic_latency_wc[dfg.nodes[pred]["function"]]()
                             if (pred, node) in self.dfg_to_netlist_edge_map:
                                 pred_delay += self.circuit_model.wire_delay(self.dfg_to_netlist_edge_map[(pred, node)])
+                                logger.info(f"added wire delay {self.circuit_model.wire_delay(self.dfg_to_netlist_edge_map[(pred, node)])} for edge {pred, node}")
+                            else:
+                                logger.info(f"no wire delay for edge {pred, node}")
                             pred_delay_cvx = sim_util.xreplace_safe(pred_delay, self.circuit_model.tech_model.base_params.tech_values) * self.scale_cvx
                         else:
                             pred_delay = 0
