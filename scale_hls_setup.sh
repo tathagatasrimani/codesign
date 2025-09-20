@@ -1,28 +1,41 @@
 #!/bin/bash
 
-# --- Top-level ---
-git submodule init
-sed -i "s|git@github.com:|https://github.com/|g" .gitmodules
-git submodule sync
+# Parse command line options
+for arg in "$@"; do
+    if [[ "$arg" == "--full" ]]; then
+        FORCE_FULL=1
+        break
+    fi
+done
 
-git submodule update --init ScaleHLS-HIDA
+if [[ $FORCE_FULL -eq 1 ]]; then
+    # --- Top-level ---
+    git submodule init
+    sed -i "s|git@github.com:|https://github.com/|g" .gitmodules
+    git submodule sync
 
-# --- Inside ScaleHLS-HIDA ---
-cd ScaleHLS-HIDA
-sed -i "s|git@github.com:|https://github.com/|g" .gitmodules
-git submodule sync
-git submodule update --init --recursive
+    git submodule update --init ScaleHLS-HIDA
+
+    # --- Inside ScaleHLS-HIDA ---
+    cd ScaleHLS-HIDA
+    sed -i "s|git@github.com:|https://github.com/|g" .gitmodules
+    git submodule sync
+    git submodule update --init --recursive
 
 
-# --- Ensure lld is available on RHEL8/9 ---
-if ! command -v lld >/dev/null 2>&1; then
-    echo "[setup] lld not found, installing with yum..."
-    sudo yum install -y lld
+    # --- Ensure lld is available on RHEL8/9 ---
+    if ! command -v lld >/dev/null 2>&1; then
+        echo "[setup] lld not found, installing with yum..."
+        sudo yum install -y lld
+    else
+        echo "[setup] lld already installed."
+    fi
+
+    ./build-scalehls.sh
 else
-    echo "[setup] lld already installed."
+    echo "[setup] Skipping ScaleHLS build is not set."
+    cd ScaleHLS-HIDA
 fi
-
-./build-scalehls.sh
 
 export PATH=$PATH:$PWD/build/bin:$PWD/polygeist/build/bin
 
@@ -35,7 +48,6 @@ if [ -z "${PYTHONPATH+x}" ]; then
 else
     export PYTHONPATH="$PYTHONPATH:$PWD/build/tools/scalehls/python_packages/scalehls_core"
 fi
-
 
 echo "current directory: $(pwd)"
 
@@ -60,6 +72,8 @@ else
     echo "Torch-MLIR venv already exists. Skipping creation."
 fi
 
+
+if [[ $FORCE_FULL -eq 1 ]]; then
 # Optional: test that torch + torchvision import cleanly
 source mlir_venv/bin/activate
 python - <<'PY'
@@ -69,6 +83,7 @@ print("torchvision:", torchvision.__version__)
 print("cuda available:", torch.cuda.is_available())
 PY
 deactivate
+fi
 
 cd ..
 
