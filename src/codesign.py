@@ -293,8 +293,6 @@ class Codesign:
 
     def parse_vitis_data(self):
 
-        # TODO: Parse the Vitis netlist and write it to netlist-from-vitis.gml and cdfg-from-vitis.gml
-
         ## print the cwd
         print(f"Current working directory in vitis parse data: {os.getcwd()}")
 
@@ -306,6 +304,8 @@ class Codesign:
             allowed_functions_schedule = {"Add", "Mult", "Call", "II", "Buf", "MainMem"}
 
         parse_results_dir = f"{self.benchmark_dir}/parse_results"
+
+        logger.info(f"parse results dir: {parse_results_dir}")
 
         if self.check_checkpoint("netlist"):
             ## Do preprocessing to the vitis data for the next scripts
@@ -361,6 +361,7 @@ class Codesign:
 
         self.hw.netlist = nx.read_gml(f"{parse_results_dir}/{self.vitis_top_function}_full_netlist.gml")
 
+        logger.info("Now calculating execution time of Vitis design with top function "+self.vitis_top_function)
         execution_time = self.hw.calculate_execution_time_vitis(self.vitis_top_function)
         print(f"Execution time: {execution_time}")
 

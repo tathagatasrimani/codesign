@@ -14,7 +14,7 @@ from src.forward_pass import llvm_ir_parse
 from src.forward_pass import vitis_create_netlist
 from src import sim_util
 
-DEBUG = False
+DEBUG = True
 
 def debug_print(msg):
     if DEBUG:
@@ -172,8 +172,10 @@ class vitis_schedule_parser:
         self.parse()
         self.convert()
         self.convert_to_standard_dfg()
+        debug_print(f"basic_blocks loop info after convert: {list([block_name, block['loop_info']] for block_name, block in self.basic_blocks.items())}")
 
     def parse(self):
+        debug_print(f"Resource mapping from: {self.build_dir}/parse_results/{self.top_level_module_name}_full_netlist_unfiltered.gml")
         self.resource_mapping = get_rsc_mapping(f"{self.build_dir}/parse_results/{self.top_level_module_name}_full_netlist_unfiltered.gml")
         debug_print(self.resource_mapping)
         for file in os.listdir(self.solution_dir):
@@ -181,7 +183,7 @@ class vitis_schedule_parser:
                 intf_file = file.replace(".verbose.sched.rpt", ".tbgen.tcl")
                 assert os.path.exists(os.path.join(self.solution_dir, intf_file))
                 self.parse_one_file(os.path.join(self.solution_dir, file), os.path.join(self.solution_dir, intf_file))
-        #print(f"basic_blocks loop info before convert: {list([block_name, block['loop_info']] for block_name, block in self.basic_blocks.items())}")
+        debug_print(f"basic_blocks loop info before convert: {list([block_name, block['loop_info']] for block_name, block in self.basic_blocks.items())}")
 
     def convert(self):
         for basic_block_name in self.basic_blocks:
@@ -193,7 +195,7 @@ class vitis_schedule_parser:
 
     def convert_to_standard_dfg(self):
         for basic_block_name in self.basic_blocks:
-            #print(f"Converting to standard DFG for {basic_block_name}")
+            debug_print(f"Converting to standard DFG for {basic_block_name}")
             self.standard_dfg_basic_block(basic_block_name, "G", "G_standard")
             nx.write_gml(self.basic_blocks[basic_block_name]["G_standard"], f"{self.build_dir}/parse_results/{basic_block_name}/{basic_block_name}_graph_standard.gml")
 
@@ -303,6 +305,7 @@ class vitis_schedule_parser:
             return loops[0] # only one loop per basic block for now
 
     def parse_one_file(self, file_path, intf_file_path):
+        debug_print("Parsing one basic block file")
         basic_block_name = file_path.split("/")[-1].split(".")[0]
         self.basic_blocks[basic_block_name] = {}
         self.basic_blocks[basic_block_name]["variable_db"] = VariableDB()
@@ -385,7 +388,7 @@ class vitis_schedule_parser:
                         self.basic_blocks[basic_block_name][int(next_state)].append(parsed_op)
                     idx += 1
                 idx, next_state = self.find_next_state(lines, idx, basic_block_name)
-        debug_print(self.basic_blocks[basic_block_name])
+        debug_print("Basic Blocks at end of schedule_vitis:", self.basic_blocks[basic_block_name])
 
     def loop_2x_graph(self, basic_block_name):
         self.basic_blocks[basic_block_name]["G_loop_2x"] = nx.DiGraph()

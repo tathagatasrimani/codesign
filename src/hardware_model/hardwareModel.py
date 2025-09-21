@@ -655,6 +655,8 @@ class HardwareModel:
 
         self.scale_cvx = 1e-6
 
+        logger.info(f"scheduled dfgs: {self.scheduled_dfgs.keys()}")
+
         for basic_block_name in self.scheduled_dfgs:
             self.node_arrivals[basic_block_name] = {"full": {}, "loop_1x": {}, "loop_2x": {}}
             self.node_arrivals_cvx[basic_block_name] = {"full": {}, "loop_1x": {}, "loop_2x": {}}
