@@ -51,6 +51,12 @@ fi
 
 echo "current directory: $(pwd)"
 
+## add mlir_venv/ to the .gitignore if not already present
+if ! grep -q "mlir_venv/" .gitignore; then
+    echo "Adding mlir_venv/ to .gitignore"
+    echo "mlir_venv/" >> .gitignore
+fi
+
 # Create venv only if it does not exist
 if [ ! -d "mlir_venv" ]; then
     echo "Creating new Torch-MLIR venv..."
