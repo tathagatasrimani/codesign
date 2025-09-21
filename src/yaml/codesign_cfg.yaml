@@ -27,6 +27,7 @@ vitis_test:
   args:
     benchmark: gemm
     hls_tool: vitis
+    model_cfg: vs_cfg_latest
 
 vitis_test_checkpoint:
   base_cfg: vitis_test
