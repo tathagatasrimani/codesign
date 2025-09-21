@@ -62,6 +62,8 @@ echo "UNIVERSITY set to: $UNIVERSITY"
 
 ## set home directory to codesign home directory
 export HOME="$(pwd)"
+export PATH="$HOME/.local/bin:$(echo "$PATH")"
+export CMAKE_PREFIX_PATH="$HOME/.local"
 
 ################## INSTALL OPENROAD ##################
 git submodule update --init --recursive openroad_interface/OpenROAD
