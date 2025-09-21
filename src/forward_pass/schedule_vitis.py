@@ -18,7 +18,7 @@ DEBUG = False
 
 def debug_print(msg):
     if DEBUG:
-        print(msg)
+        logger.info(msg)
 
 module_map = sim_util.get_module_map()
 
@@ -125,7 +125,7 @@ def get_rsc_mapping(netlist_file):
         opset = bind.get('opset')
         ## remove the slash and everything after it from the opset
         if not opset:
-            logger.info(f"opset is None for {n},{d}")
+            debug_print(f"opset is None for {n},{d}")
             continue
         if '/' in opset:
             opsets = opset.split()
@@ -133,9 +133,9 @@ def get_rsc_mapping(netlist_file):
                 netlist_op_dest_to_node[opset.split('/')[0]] = name
         else:
             netlist_op_dest_to_node[opset.strip()] = name
-    logger.info(f"logging netlist_op_dest_to_node")
+    debug_print(f"logging netlist_op_dest_to_node")
     for op, node in netlist_op_dest_to_node.items():
-        logger.info(f"op: {op}, node: {node}")
+        debug_print(f"op: {op}, node: {node}")
     return netlist_op_dest_to_node
 
 class vitis_schedule_parser:
@@ -409,11 +409,11 @@ class vitis_schedule_parser:
         #nx.write_gml(self.basic_blocks[basic_block_name]["G_loop_1x"], f"{self.build_dir}/{basic_block_name}_graph_loop_1x.gml")
 
     def add_one_state_to_graph(self, G, basic_block_name, state, start_node=None, use_start_node=False, variable_db="variable_db", graph_type="full", resource_delays_only=False):
-        logger.info(f"Adding one state to graph")
+        debug_print(f"Adding one state to graph")
         for idx in range(len(state)):
             instruction = state[idx]
             op_name = self.basic_blocks[basic_block_name][variable_db].update_write_node(instruction["op"])
-            logger.info(f"instruction: {instruction}")
+            debug_print(f"instruction: {instruction}")
             assert instruction['dst'].find("%") != -1, f"instruction {instruction} has no %"
             if instruction['dst'].split("%")[1] not in self.resource_mapping:
                 assert instruction['op'] in self.no_rsc_allowed_ops, f"instruction {instruction} from {basic_block_name} has no resource mapping."
@@ -445,7 +445,7 @@ class vitis_schedule_parser:
             else:
                 G.add_edge(op_name, dst, weight=0.0, resource_edge=0)
         assert nx.is_directed_acyclic_graph(G), f"Graph is not a DAG, cycle found: {nx.find_cycle(G)}"
-        logger.info(f"longest path after adding one state: {nx.dag_longest_path_length(G)} ({nx.dag_longest_path(G)})")
+        debug_print(f"longest path after adding one state: {nx.dag_longest_path_length(G)} ({nx.dag_longest_path(G)})")
         return G, state
     
     def get_graph_leaves(self, G):
@@ -469,17 +469,17 @@ class vitis_schedule_parser:
         self.track_resource_usage(self.basic_blocks[basic_block_name]["G"], f"II_delay_{basic_block_name}", basic_block_name, graph_type)
         self.basic_blocks[basic_block_name]["G"].add_node(f"loop_end_{basic_block_name}", node_type="serial", function="N/A")
         self.track_resource_usage(self.basic_blocks[basic_block_name]["G"], f"loop_end_{basic_block_name}", basic_block_name, graph_type)
-        logger.info(f"loop info: {self.basic_blocks[basic_block_name]['loop_info']}, basic block name: {basic_block_name}")
+        debug_print(f"loop info: {self.basic_blocks[basic_block_name]['loop_info']}, basic block name: {basic_block_name}")
         if self.basic_blocks[basic_block_name]["loop_info"]["Pipelined"] == "yes":
             II_delay = self.basic_blocks[basic_block_name]["loop_info"]["achieved"] * self.clk_period * (self.basic_blocks[basic_block_name]["loop_info"]["Count"]-1)
         else:
             II_delay = int(self.basic_blocks[basic_block_name]["loop_info"]["Latency"]) * self.clk_period * (self.basic_blocks[basic_block_name]["loop_info"]["Count"]-1)
-        logger.info(f"II_delay: {II_delay}")
+        debug_print(f"II_delay: {II_delay}")
         self.basic_blocks[basic_block_name]["G"].add_edge(f"II_delay_{basic_block_name}", f"loop_end_{basic_block_name}", weight=II_delay, resource_edge=1)
 
     # used only in convert function. Takes one sched report from vitis (for one basic block) and converts it to graph form
     def dfg_basic_block(self, basic_block_name, graph_type="full"):
-        logger.info(f"creating dfg for {basic_block_name}")
+        debug_print(f"creating dfg for {basic_block_name}")
         self.basic_blocks[basic_block_name]['resource_db_map'][graph_type].reset_resources()
 
         state_machine_graph = nx.DiGraph()
@@ -487,7 +487,7 @@ class vitis_schedule_parser:
             state_machine_graph.add_node(state)
         for state in self.basic_blocks[basic_block_name]["FSM state transitions"]:
             state_machine_graph.add_edge(state, self.basic_blocks[basic_block_name]["FSM state transitions"][state])
-        logger.info(f"state_machine_graph: {state_machine_graph.nodes()} with edges {state_machine_graph.edges()}")
+        debug_print(f"state_machine_graph: {state_machine_graph.nodes()} with edges {state_machine_graph.edges()}")
         cycle = nx.find_cycle(state_machine_graph)
         # often times the final state transition is "<n> ---> ", with no destination, so I'm not exactly sure how to interpret. Is it going back to the beginning in the case of a pipelined loop?
         # for now, I check if there is any loop info found for this file before making this assumption. Otherwise, I assume it just exits.
@@ -570,7 +570,7 @@ class vitis_schedule_parser:
         #debug_print("nodes left: ", self.basic_blocks[basic_block_name][G_standard_name].nodes())
         self.basic_blocks[basic_block_name][G_standard_name] = sim_util.filter_graph_by_function(self.basic_blocks[basic_block_name][G_standard_name], self.allowed_functions, exception_node_types=["serial"])
         assert nx.is_directed_acyclic_graph(self.basic_blocks[basic_block_name][G_standard_name]), f"Graph is not a DAG, cycle found: {nx.find_cycle(self.basic_blocks[basic_block_name][G_standard_name])}"
-        logger.info(f"longest path after removing var nodes: {nx.dag_longest_path_length(self.basic_blocks[basic_block_name][G_standard_name])} ({nx.dag_longest_path(self.basic_blocks[basic_block_name][G_standard_name])})")
+        debug_print(f"longest path after removing var nodes: {nx.dag_longest_path_length(self.basic_blocks[basic_block_name][G_standard_name])} ({nx.dag_longest_path(self.basic_blocks[basic_block_name][G_standard_name])})")
         #nx.write_gml(self.basic_blocks[basic_block_name][G_standard_name], f"{self.build_dir}/{basic_block_name}_graph_{G_standard_name}.gml")
 
 

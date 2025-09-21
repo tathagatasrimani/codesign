@@ -309,12 +309,15 @@ class Codesign:
 
         if self.check_checkpoint("netlist"):
             ## Do preprocessing to the vitis data for the next scripts
+            logger.info("Parsing Vitis netlist")
             parse_verbose_rpt(f"{self.benchmark_dir}/{self.benchmark_name}/solution1/.autopilot/db", parse_results_dir)
 
             ## Create the netlist
+            logger.info("Creating Vitis netlist")
             create_vitis_netlist(parse_results_dir)
 
             ## Create the CDFGs for each FSM
+            logger.info("Creating Vitis CDFGs")
             create_cdfg_vitis(parse_results_dir)
 
             ## Create the mapping from CDFG nodes to netlist nodes
@@ -324,18 +327,26 @@ class Codesign:
             #merge_cdfgs_vitis(parse_results_dir, self.vitis_top_function)
 
             ## Merge the netlists recursivley through the module hierarchy to produce overall netlist
+            logger.info("Recursivley merging vitis netlists")
             merge_netlists_vitis(parse_results_dir, self.vitis_top_function, allowed_functions_netlist)
+
+            logger.info("Vitis netlist parsing complete")
         else:
             logger.info("Skipping Vitis netlist parsing")
 
         if self.check_checkpoint("schedule"):
+            logger.info("Parsing Vitis schedule")
             schedule_parser = schedule_vitis.vitis_schedule_parser(self.benchmark_dir, self.benchmark_name, self.vitis_top_function, self.clk_period, allowed_functions_schedule)
+            
+            logger.info("Creating DFGs from Vitis CDFGs")
             schedule_parser.create_dfgs()
             self.hw.scheduled_dfgs = {basic_block_name: schedule_parser.basic_blocks[basic_block_name]["G_standard"] for basic_block_name in schedule_parser.basic_blocks}
             self.hw.loop_1x_graphs = {basic_block_name: schedule_parser.basic_blocks[basic_block_name]["G_loop_1x_standard"] for basic_block_name in schedule_parser.basic_blocks if "G_loop_1x" in schedule_parser.basic_blocks[basic_block_name]}
             self.hw.loop_2x_graphs = {basic_block_name: schedule_parser.basic_blocks[basic_block_name]["G_loop_2x_standard"] for basic_block_name in schedule_parser.basic_blocks if "G_loop_2x" in schedule_parser.basic_blocks[basic_block_name]}
             logger.info(f"scheduled dfgs: {self.hw.scheduled_dfgs}")
             logger.info(f"loop 1x graphs: {self.hw.loop_1x_graphs}")
+
+            logger.info("Vitis schedule parsing complete")
         else:
             for file in os.listdir(parse_results_dir):
                 if os.path.isdir(os.path.join(parse_results_dir, file)):
@@ -344,7 +355,7 @@ class Codesign:
                         self.hw.loop_1x_graphs[file] = nx.read_gml(f"{parse_results_dir}/{file}/{file}_graph_loop_1x_standard.gml")
                         assert os.path.exists(f"{parse_results_dir}/{file}/{file}_graph_loop_2x_standard.gml")
                         self.hw.loop_2x_graphs[file] = nx.read_gml(f"{parse_results_dir}/{file}/{file}_graph_loop_2x_standard.gml")
-            logger.info("Skipping Vitis schedule parsing")
+            logger.info("Skipping Vitis schedule parsing. Data loaded successfully.")
 
         print(f"Current working directory at end of vitis parse data: {os.getcwd()}")
 
