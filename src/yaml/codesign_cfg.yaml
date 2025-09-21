@@ -20,6 +20,7 @@ default:
     checkpoint_load_dir: src/tmp_checkpoint
     checkpoint_save_dir: src/tmp_checkpoint
     checkpoint_step: none
+    checkpoint_save_step: none
     save_checkpoint: False
 
 vitis_test:
@@ -34,6 +35,13 @@ vitis_test_checkpoint:
   args:
     checkpoint_step: vitis
     checkpoint_load_dir: src/tmp_for_test_gemm
+
+gemm_save_checkpoint:
+  base_cfg: vitis_test
+  args:
+    save_checkpoint: True
+    checkpoint_save_step: vitis
+    checkpoint_save_dir: src/tmp_for_test_gemm
 
 vitis_resnet:
   base_cfg: vitis_test

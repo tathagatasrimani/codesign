@@ -116,6 +116,13 @@ class Codesign:
         else:
             return False
 
+    # return True if we should stop the program and save the checkpoint
+    def check_save_checkpoint(self, checkpoint_step):
+        if checkpoint_controller.checkpoint_map[checkpoint_step] == checkpoint_controller.checkpoint_map[self.cfg["args"]["checkpoint_save_step"]]:
+            return True
+        else:
+            return False
+
     # any arguments specified on CLI will override the default config
     def set_config(self, args):
         with open(f"src/yaml/codesign_cfg.yaml", "r") as f:
@@ -327,6 +334,8 @@ class Codesign:
             merge_netlists_vitis(parse_results_dir, self.vitis_top_function, allowed_functions_netlist)
         else:
             logger.info("Skipping Vitis netlist parsing")
+        if self.check_save_checkpoint("netlist"):
+            raise Exception("Finished Vitis netlist parsing, saving checkpoint")
 
         if self.check_checkpoint("schedule"):
             schedule_parser = schedule_vitis.vitis_schedule_parser(self.benchmark_dir, self.benchmark_name, self.vitis_top_function, self.clk_period, allowed_functions_schedule)
@@ -345,6 +354,8 @@ class Codesign:
                         assert os.path.exists(f"{parse_results_dir}/{file}/{file}_graph_loop_2x_standard.gml")
                         self.hw.loop_2x_graphs[file] = nx.read_gml(f"{parse_results_dir}/{file}/{file}_graph_loop_2x_standard.gml")
             logger.info("Skipping Vitis schedule parsing")
+        if self.check_save_checkpoint("schedule"):
+            raise Exception("Finished Vitis schedule parsing, saving checkpoint")
 
         print(f"Current working directory at end of vitis parse data: {os.getcwd()}")
 
@@ -373,6 +384,8 @@ class Codesign:
             self.run_scalehls()
         else:
             logger.info("Skipping ScaleHLS")
+        if self.check_save_checkpoint("scalehls"):
+            raise Exception("Finished ScaleHLS, saving checkpoint")
 
         os.chdir(os.path.join(os.path.dirname(__file__), "tmp/benchmark"))
         scale_hls_port_fix(f"{self.benchmark_name}.cpp", self.benchmark_name, self.cfg["args"]["pytorch"])
@@ -386,6 +399,8 @@ class Codesign:
                 raise Exception(f"Vitis HLS command failed: {p.stderr}")
         else:
             logger.info("Skipping Vitis")
+        if self.check_save_checkpoint("vitis"):
+            raise Exception("Finished Vitis, saving checkpoint")
         os.chdir(os.path.join(os.path.dirname(__file__), ".."))
         # PARSE OUTPUT, set schedule and read netlist
         self.parse_vitis_data()
@@ -858,6 +873,7 @@ if __name__ == "__main__":
     parser.add_argument("--checkpoint_save_dir", type=str, help="directory to save checkpoint")
     parser.add_argument("--checkpoint_step", type=str, help="checkpoint step to resume from")
     parser.add_argument("--save_checkpoint", type=bool, help="save a checkpoint upon exit")
+    parser.add_argument("--checkpoint_save_step", type=str, help="checkpoint step to save")
     args = parser.parse_args()
 
     main(args)
