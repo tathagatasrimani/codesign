@@ -56,6 +56,11 @@ class BaseParameters:
         # semiconductor capacitance for virtual source model
         self.Cs = symbols("Cs", positive=True)
 
+        # CNT parameters
+        self.d = symbols("d", positive=True)
+        self.k_cnt = symbols("k_cnt", positive=True)
+        self.L_c = symbols("L_c", positive=True)
+
         # technology level parameter values
         self.tech_values = {}
         self.init_symbol_table()
@@ -270,7 +275,10 @@ class BaseParameters:
             "L": self.L,
             "k_gate": self.k_gate,
             "Cs": self.Cs,
+            "d": self.d,
+            "k_cnt": self.k_cnt,
             "area": self.area,
+            "L_c": self.L_c,
             "MemReadL": self.MemReadL,
             "MemWriteL": self.MemWriteL,
             "MemReadEact": self.MemReadEact,
@@ -290,7 +298,7 @@ class BaseParameters:
             "m1_k": self.m1_k,
             "m2_k": self.m2_k,
             "m3_k": self.m3_k,
-            
+
             # Cacti .dat technology parameters
             'C_g_ideal': self.C_g_ideal,
             'C_fringe': self.C_fringe,

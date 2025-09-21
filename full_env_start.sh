@@ -28,6 +28,8 @@ fi
 echo "UNIVERSITY set to: $UNIVERSITY"
 
 export HOME="$(pwd)"
+export PATH="$HOME/.local/bin:$(echo "$PATH")"
+export CMAKE_PREFIX_PATH="$HOME/.local"
 
 ################## INSTALL OPENROAD ##################
 git submodule update --init --recursive openroad_interface/OpenROAD

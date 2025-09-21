@@ -1,6 +1,14 @@
 ### NOTE: This script is set up to work on the RSG linux machines.
+export HOME="$(pwd)"
+export PATH="$HOME/.local/bin:$(echo "$PATH")"
+export CMAKE_PREFIX_PATH="$HOME/.local"
 
 cd openroad_interface/OpenROAD
+
+sudo dnf install gcc-toolset-13
+source /opt/rh/gcc-toolset-13/enable
+which gcc
+gcc --version
 
 set +e
 sudo ./etc/DependencyInstaller.sh -base 
@@ -22,8 +30,6 @@ fi
 
 echo "\n\n\nOpenROAD dependencies installed successfully.\n\n\n"
 echo "Installing OpenROAD..."
-
-export CMAKE_PREFIX_PATH="/usr/local:$HOME/.local"
 
 ./etc/Build.sh
 

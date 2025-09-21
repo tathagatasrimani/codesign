@@ -27,7 +27,6 @@ vitis_test:
   args:
     benchmark: gemm
     hls_tool: vitis
-    parasitics: none
 
 vitis_test_checkpoint:
   base_cfg: vitis_test
