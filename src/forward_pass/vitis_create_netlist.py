@@ -6,12 +6,12 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-
+## Enables additional logging
 DEBUG = False
 
 def debug_print(message):
     if DEBUG:
-        print(message)
+        logger.info(message)
 
 
 all_modules_visited = set()
@@ -151,7 +151,7 @@ def create_vitis_netlist(root_dir):
         if not os.path.isdir(subdir_path):
             continue
 
-        logger.info(f"Processing directory: {subdir_path}")
+        debug_print(f"Processing directory: {subdir_path}")
 
         # Find _netlist.rpt and _complist.rpt files and open them
         netlist_file = None
@@ -189,7 +189,7 @@ def create_vitis_netlist(root_dir):
         ## create the networkX graph:
         final_netlist = create_networkX_netlist(netlist, complist, subdir)
 
-        logger.info(f"Writing final netlist to {subdir_path}/{netlist_prefix}_netlist.gml")
+        debug_print(f"Writing final netlist to {subdir_path}/{netlist_prefix}_netlist.gml")
 
         # Write out the networkX graph to a gml file
         nx.write_gml(final_netlist, f"{subdir_path}/{netlist_prefix}_netlist.gml")
