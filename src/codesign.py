@@ -377,13 +377,44 @@ class Codesign:
         os.chdir(os.path.join(os.path.dirname(__file__), "tmp/benchmark"))
         scale_hls_port_fix(f"{self.benchmark_name}.cpp", self.benchmark_name, self.cfg["args"]["pytorch"])
         logger.info(f"Vitis top function: {self.vitis_top_function}")
-        command = ["vitis_hls -f tcl_script.tcl"]
+
+
+        import time
+        command = ["vitis_hls", "-f", "tcl_script.tcl"]
         if self.check_checkpoint("vitis"):
-            p = subprocess.run(command, shell=True, capture_output=True, text=True)
-            logger.info(f"Vitis HLS command output: {p.stdout}")
-            if p.returncode != 0:
-                logger.error(f"Vitis HLS command failed: {p.stderr}")
-                raise Exception(f"Vitis HLS command failed: {p.stderr}")
+            start_time = time.time()
+            # Start the process and write output to vitis_hls.log
+            with open("vitis_hls.log", "w") as logfile:
+                p = subprocess.Popen(command, stdout=logfile, stderr=subprocess.STDOUT, text=True)
+
+            completed_required_sections = False
+            while True:
+                time.sleep(1)
+                if os.path.exists("vitis_hls.log"):
+                    with open("vitis_hls.log", "r") as f:
+                        for line in f:
+                            if "Finished Generating all RTL models" in line:
+                                completed_required_sections = True
+                                break
+                if completed_required_sections:
+                    p.terminate()
+                    try:
+                        p.wait(timeout=10)
+                    except Exception:
+                        p.kill()
+                    logger.info("Vitis HLS process terminated early after RTL models generated.")
+                    break
+                # Check if process already exited
+                if p.poll() is not None:
+                    break
+
+            elapsed = time.time() - start_time
+            logger.info(f"Vitis HLS command elapsed time: {elapsed:.2f} seconds ({elapsed/60:.2f} minutes)")
+
+            # Read the log for output
+            if p.returncode not in (0, None) and not completed_required_sections:
+                logger.error(f"Vitis HLS command failed: see vitis_hls.log")
+                raise Exception(f"Vitis HLS command failed: see vitis_hls.log")
         else:
             logger.info("Skipping Vitis")
         os.chdir(os.path.join(os.path.dirname(__file__), ".."))

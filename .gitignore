@@ -11,6 +11,7 @@ src/params/rcs_current.yaml
 src/params/coefficients.yaml
 
 src/tmp/**
+src/tmp*/**
 
 **/results/**
 **/figs/**
@@ -39,3 +40,8 @@ verilator/
 tools/
 
 .local/
+.cache/
+.conda/
+.Xilinx/
+.condarc
+.wget-hsts
