@@ -258,14 +258,7 @@ class VSPlanarModel(TechModel):
         pass
 
     def apply_additional_effects(self):
-        if self.model_cfg["effects"]["area_and_latency_scaling"]:
-            if self.model_cfg["effects"]["max_parallel_en"]:
-                MAX_PARALLEL = self.model_cfg["effects"]["max_parallel_val"]
-                self.delay = self.delay * symbolic_convex_max(self.base_params.latency_scale, 1/MAX_PARALLEL)
-                self.P_pass_inv = self.P_pass_inv * symbolic_convex_min(self.base_params.area_scale, MAX_PARALLEL)
-            else:
-                self.delay = self.delay * self.base_params.latency_scale
-                self.P_pass_inv = self.P_pass_inv * self.base_params.area_scale
+        super().apply_additional_effects()
 
     def create_constraints(self, dennard_scaling_type="constant_field"):
         super().create_constraints(dennard_scaling_type)

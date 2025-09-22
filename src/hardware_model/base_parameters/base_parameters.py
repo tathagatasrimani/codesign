@@ -19,6 +19,7 @@ class BaseParameters:
     def __init__(self, tech_node, dat_file):
         self.tech_node = tech_node
         self.dat_file = dat_file
+        self.constraints = []
 
         self.node_arrivals_end = symbols("node_arrivals_end", positive=True)
 
@@ -260,6 +261,9 @@ class BaseParameters:
         self.BufPpass = {}
         self.OffChipIOL = {}
         self.OffChipIOPact = {} 
+
+    def create_constraints(self):
+        pass
 
     def init_symbol_table(self):
         # initialize string to symbol mapping

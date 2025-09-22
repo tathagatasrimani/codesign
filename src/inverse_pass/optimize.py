@@ -52,7 +52,9 @@ class Optimizer:
 
         #self.hw.circuit_model.tech_model.create_constraints(self.dennard_scaling_type)
         assert len(self.hw.circuit_model.tech_model.constraints) > 0, "tech model constraints are empty"
+        constraints.extend(self.hw.circuit_model.tech_model.base_params.constraints)
         constraints.extend(self.hw.circuit_model.tech_model.constraints)
+        constraints.extend(self.hw.circuit_model.constraints)
 
         #print(f"constraints: {constraints}")
         return constraints

@@ -8,6 +8,7 @@ class TechModel(ABC):
     def __init__(self, model_cfg, base_params):
         self.model_cfg = model_cfg
         self.base_params = base_params
+        self.max_parallel_factor = None # to be overridden by codesign.py
         self.constraints = []
         self.param_db = {}
         self.init_physical_constants()
@@ -80,7 +81,15 @@ class TechModel(ABC):
 
     @abstractmethod
     def apply_additional_effects(self):
-        pass
+        if self.model_cfg["effects"]["area_and_latency_scaling"]:
+            if self.model_cfg["effects"]["max_parallel_en"]:
+                MAX_PARALLEL = self.model_cfg["effects"]["max_parallel_val"]
+                self.delay = self.delay * symbolic_convex_max(self.base_params.latency_scale, 1/MAX_PARALLEL)
+                self.P_pass_inv = self.P_pass_inv * symbolic_convex_min(self.base_params.area_scale, MAX_PARALLEL)
+            else:
+                assert self.max_parallel_factor is not None, "max_parallel_factor must be set when max_parallel_en is True"
+                self.delay = self.delay * symbolic_convex_max(self.base_params.latency_scale, 1/self.max_parallel_factor)
+                self.P_pass_inv = self.P_pass_inv * symbolic_convex_min(self.base_params.area_scale, self.max_parallel_factor)
 
     @abstractmethod
     def create_constraints(self, dennard_scaling_type="constant_field"):

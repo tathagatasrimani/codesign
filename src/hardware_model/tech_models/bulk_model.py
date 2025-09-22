@@ -142,16 +142,13 @@ class BulkModel(TechModel):
             self.V_th_eff -= self.base_params.V_dd * exp(-self.base_params.L/((self.e_si/self.e_ox) * self.base_params.tox)) # approximate DIBL effect
 
     def apply_additional_effects(self):
+        super().apply_additional_effects()
         if self.model_cfg["effects"]["gate_tunneling"]:
             self.I_off += self.I_tunnel*2 # 2 for both NMOS and PMOS
             self.P_pass_inv = self.I_off * self.base_params.V_dd
         if self.model_cfg["effects"]["GIDL"]:
             self.I_off += self.I_GIDL*2 # 2 for both NMOS and PMOS
             self.P_pass_inv = self.I_off * self.base_params.V_dd
-        if self.model_cfg["effects"]["area_and_latency_scaling"]:
-            self.delay = self.delay * self.base_params.latency_scale
-            self.P_pass_inv = self.P_pass_inv * self.base_params.area_scale
-            #self.wire_len = self.wire_len * self.base_params.latency_scale
 
     def create_constraints(self, dennard_scaling_type="constant_field"):
         super().create_constraints(dennard_scaling_type)

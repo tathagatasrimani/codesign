@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 class CircuitModel:
     def __init__(self, tech_model):
         self.tech_model = tech_model
+        self.constraints = []
 
         # hardcoded tech node to reference for logical effort coefficients
         self.coeffs = coefficients.create_and_save_coefficients([7])
@@ -373,3 +374,8 @@ class CircuitModel:
 
     def make_sym_area(self, area_coeff):
         return area_coeff * self.tech_model.base_params.area
+
+    def create_constraints(self):
+        for key in self.symbolic_latency_wc:
+            # cycle limit to constrain the amount of pipelining
+            self.constraints.append(self.symbolic_latency_wc[key]() / self.tech_model.base_params.f <= 100)

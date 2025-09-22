@@ -7,11 +7,13 @@ from src import sim_util
 # Determine after which step we resume from
 checkpoint_map = {
     "none": 0,
-    "scalehls": 1,
-    "vitis": 2,
-    "netlist": 3,
-    "schedule": 4,
-    "pd": 5
+    "scalehls_unlimited": 1,
+    "vitis_unlimited": 2,
+    "scalehls": 3,
+    "vitis": 4,
+    "netlist": 5,
+    "schedule": 6,
+    "pd": 7
 }
 
 # Class should be used at the beginning of a codesign run.

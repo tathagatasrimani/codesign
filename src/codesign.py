@@ -218,14 +218,21 @@ class Codesign:
         with open(f"{self.benchmark_dir}/full_netlist_debug.gml", "wb") as f:
             nx.write_gml(full_netlist, f)
 
-    def set_resource_constraint_scalehls(self):
+    def set_resource_constraint_scalehls(self, unlimited=False):
         """
         Sets the resource constraint and op latencies for ScaleHLS.
         """
         with open(f"ScaleHLS-HIDA/test/Transforms/Directive/config.json", "r") as f:
             config = json.load(f)
         dsp_multiplier = 1e15 # TODO replace with more comprehensive model
-        config["dsp"] = int(self.cfg["args"]["area"] / (self.hw.circuit_model.tech_model.param_db["A_gate"].xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf() * dsp_multiplier))
+        bram_multiplier = 1e15 # TODO replace with more comprehensive model
+        if unlimited:
+            config["dsp"] = 1000000
+            config["bram"] = 1000000
+        else:
+            config["dsp"] = int(self.cfg["args"]["area"] / (self.hw.circuit_model.tech_model.param_db["A_gate"].xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf() * dsp_multiplier))
+            config["bram"] = int(self.cfg["args"]["area"] / (self.hw.circuit_model.tech_model.param_db["A_gate"].xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf() * bram_multiplier))
+
         # I don't think "100MHz" has any meaning because scaleHLS should be agnostic to frequency
         config["100MHz"]["fadd"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["Add"] / self.clk_period)
         config["100MHz"]["fmul"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["Mult"] / self.clk_period)
@@ -234,7 +241,7 @@ class Codesign:
         with open(f"ScaleHLS-HIDA/test/Transforms/Directive/config.json", "w") as f:
             json.dump(config, f)
 
-    def run_scalehls(self):
+    def run_scalehls(self, save_dir="tmp/benchmark"):
         """
         Runs ScaleHLS synthesis tool in a different environment with modified PATH and PYTHONPATH.
         Updates the memory configuration and logs the output.
@@ -262,7 +269,7 @@ class Codesign:
                 source mlir_venv/bin/activate
                 cd samples/pytorch/{self.benchmark_name}
                 python3 {self.benchmark_name}.py > {self.benchmark_name}.mlir 
-                scalehls-opt {self.benchmark_name}.mlir -hida-pytorch-pipeline=\"top-func={self.vitis_top_function} loop-tile-size=8 loop-unroll-factor=4\" | scalehls-translate -scalehls-emit-hlscpp -emit-vitis-directives > {os.path.join(os.path.dirname(__file__), 'tmp/benchmark')}/{self.benchmark_name}.cpp
+                scalehls-opt {self.benchmark_name}.mlir -hida-pytorch-pipeline=\"top-func={self.vitis_top_function} loop-tile-size=8 loop-unroll-factor=4\" | scalehls-translate -scalehls-emit-hlscpp -emit-vitis-directives > {os.path.join(os.path.dirname(__file__), save_dir)}/{self.benchmark_name}.cpp
                 deactivate
                 pwd
                 '''
@@ -278,7 +285,7 @@ class Codesign:
                 source mlir_venv/bin/activate
                 cd samples/polybench/{self.benchmark_name}
                 cgeist {self.benchmark_name}.c -function={self.benchmark_name} -S -memref-fullrank -raise-scf-to-affine > {self.benchmark_name}.mlir
-                scalehls-opt {self.benchmark_name}.mlir -scalehls-dse-pipeline=\"top-func={self.vitis_top_function} target-spec=../../../test/Transforms/Directive/config.json\" | scalehls-translate -scalehls-emit-hlscpp > {os.path.join(os.path.dirname(__file__), 'tmp/benchmark')}/{self.benchmark_name}.cpp
+                scalehls-opt {self.benchmark_name}.mlir -scalehls-dse-pipeline=\"top-func={self.vitis_top_function} target-spec=../../../test/Transforms/Directive/config.json\" | scalehls-translate -scalehls-emit-hlscpp > {os.path.join(os.path.dirname(__file__), save_dir)}/{self.benchmark_name}.cpp
                 deactivate
                 pwd
                 '''
@@ -375,23 +382,24 @@ class Codesign:
         with open(f"{parse_results_dir}/cdfg-from-vitis.gml", "wb") as f:
             nx.write_gml(self.hw.scheduled_dfg, f)"""
 
-    def vitis_forward_pass(self):
+    def vitis_forward_pass(self, setup=False):
         """
         Runs Vitis version of forward pass, updates the memory configuration, and logs the output.
         """
         self.vitis_top_function = self.benchmark_name if not self.cfg["args"]["pytorch"] else "forward"
-        if self.check_checkpoint("scalehls"):
-            self.run_scalehls()
+        save_dir = "tmp/benchmark" if not setup else "tmp/benchmark_setup"
+        if (self.check_checkpoint("scalehls") and not setup) or (self.check_checkpoint("scalehls_unlimited") and setup):
+            self.run_scalehls(save_dir)
         else:
             logger.info("Skipping ScaleHLS")
-        if self.check_save_checkpoint("scalehls"):
+        if (self.check_save_checkpoint("scalehls") and not setup) or (self.check_save_checkpoint("scalehls_unlimited") and setup):
             raise Exception("Finished ScaleHLS, saving checkpoint")
 
-        os.chdir(os.path.join(os.path.dirname(__file__), "tmp/benchmark"))
+        os.chdir(os.path.join(os.path.dirname(__file__), save_dir))
         scale_hls_port_fix(f"{self.benchmark_name}.cpp", self.benchmark_name, self.cfg["args"]["pytorch"])
         logger.info(f"Vitis top function: {self.vitis_top_function}")
         command = ["vitis_hls -f tcl_script.tcl"]
-        if self.check_checkpoint("vitis"):
+        if (self.check_checkpoint("vitis") and not setup) or (self.check_checkpoint("vitis_unlimited") and setup):
             p = subprocess.run(command, shell=True, capture_output=True, text=True)
             logger.info(f"Vitis HLS command output: {p.stdout}")
             if p.returncode != 0:
@@ -399,7 +407,7 @@ class Codesign:
                 raise Exception(f"Vitis HLS command failed: {p.stderr}")
         else:
             logger.info("Skipping Vitis")
-        if self.check_save_checkpoint("vitis"):
+        if (self.check_save_checkpoint("vitis") and not setup) or (self.check_save_checkpoint("vitis_unlimited") and setup):
             raise Exception("Finished Vitis, saving checkpoint")
         os.chdir(os.path.join(os.path.dirname(__file__), ".."))
         # PARSE OUTPUT, set schedule and read netlist
@@ -473,13 +481,14 @@ class Codesign:
         # parse catapult timing report and create schedule
         self.parse_catapult_timing()
 
-    def forward_pass(self, iteration_count):
+    def forward_pass(self, iteration_count, setup=False):
         """
         Executes the forward pass of the codesign process: prepares benchmark, updates ccore
         delays/areas, runs hls, calculates wire parasitics, and parses timing reports.
 
         Args:
-            None
+            iteration_count: The iteration count of the forward pass
+            setup: forward pass as a setup step, where we run with maximum resources and see how much benefit we can get from parallelism (only supports vitis)
         Returns:
             None
         """
@@ -500,13 +509,18 @@ class Codesign:
             self.catapult_forward_pass()
         else:
             sim_util.change_clk_period_in_script(f"{self.benchmark_dir}/tcl_script.tcl", self.clk_period, self.cfg["args"]["hls_tool"])
-            self.vitis_forward_pass()
+            self.vitis_forward_pass(setup=setup)
 
         # prepare schedule & calculate wire parasitics
         self.prepare_schedule()
 
         ## create the obj equation 
         self.hw.calculate_objective()
+
+        if setup:
+            self.max_parallel_initial_objective_value = self.hw.obj
+        elif iteration_count == 0:
+            self.hw.circuit_model.tech_model.max_parallel_factor = self.hw.obj / self.max_parallel_initial_objective_value
 
         self.display_objective("after forward pass")
 
@@ -782,8 +796,12 @@ class Codesign:
         trend_plotter.plot_obj_over_iterations()
         trend_plotter.plot_lag_factor_over_iterations()
 
+    def setup(self):
+        self.forward_pass(0, setup=True)
+
     def execute(self, num_iters):
         self.iteration_count = 0
+        self.setup()
         while self.iteration_count < num_iters:
             self.forward_pass(self.iteration_count)
             self.log_forward_tech_params()
