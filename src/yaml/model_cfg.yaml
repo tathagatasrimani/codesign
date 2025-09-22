@@ -168,6 +168,7 @@ vs_cfg_latest:
   effects:
     F_s: True
     I_sub_unified: True
+    area_and_latency_scaling: False
 
 vs_cfg_latest_t_1:
   base_cfg: vs_cfg_latest

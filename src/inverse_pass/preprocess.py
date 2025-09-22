@@ -307,7 +307,7 @@ class Preprocessor:
         """start_time = time.time()
         #self.find_exp_exprs_to_constrain(obj)
         for exp_expr in self.exp_exprs_s:
-            self.exp_subs[exp_expr] = hardwareModel.symbolic_convex_min(exp_expr, 100, evaluate=False)
+            self.exp_subs[exp_expr] = hardwareModel.symbolic_min(exp_expr, 100, evaluate=False)
             obj = obj.xreplace(self.exp_subs)
         for i in range(len(self.constraints)):
             self.constraints[i] = self.constraints[i].xreplace(self.exp_subs)

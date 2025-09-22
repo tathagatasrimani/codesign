@@ -58,6 +58,7 @@ class Codesign:
         self.benchmark = f"src/benchmarks/{self.hls_tool}/{self.cfg['args']['benchmark']}"
         self.benchmark_name = self.cfg["args"]["benchmark"]
         self.benchmark_dir = "src/tmp/benchmark"
+        self.benchmark_setup_dir = "src/tmp/benchmark_setup"
         self.save_dir = os.path.join(
             self.cfg["args"]["savedir"], datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         )
@@ -241,7 +242,7 @@ class Codesign:
         with open(f"ScaleHLS-HIDA/test/Transforms/Directive/config.json", "w") as f:
             json.dump(config, f)
 
-    def run_scalehls(self, save_dir="tmp/benchmark"):
+    def run_scalehls(self, save_dir):
         """
         Runs ScaleHLS synthesis tool in a different environment with modified PATH and PYTHONPATH.
         Updates the memory configuration and logs the output.
@@ -269,7 +270,7 @@ class Codesign:
                 source mlir_venv/bin/activate
                 cd samples/pytorch/{self.benchmark_name}
                 python3 {self.benchmark_name}.py > {self.benchmark_name}.mlir 
-                scalehls-opt {self.benchmark_name}.mlir -hida-pytorch-pipeline=\"top-func={self.vitis_top_function} loop-tile-size=8 loop-unroll-factor=4\" | scalehls-translate -scalehls-emit-hlscpp -emit-vitis-directives > {os.path.join(os.path.dirname(__file__), save_dir)}/{self.benchmark_name}.cpp
+                scalehls-opt {self.benchmark_name}.mlir -hida-pytorch-pipeline=\"top-func={self.vitis_top_function} loop-tile-size=8 loop-unroll-factor=4\" | scalehls-translate -scalehls-emit-hlscpp -emit-vitis-directives > {os.path.join(os.path.dirname(__file__), "..", save_dir)}/{self.benchmark_name}.cpp
                 deactivate
                 pwd
                 '''
@@ -285,7 +286,7 @@ class Codesign:
                 source mlir_venv/bin/activate
                 cd samples/polybench/{self.benchmark_name}
                 cgeist {self.benchmark_name}.c -function={self.benchmark_name} -S -memref-fullrank -raise-scf-to-affine > {self.benchmark_name}.mlir
-                scalehls-opt {self.benchmark_name}.mlir -scalehls-dse-pipeline=\"top-func={self.vitis_top_function} target-spec=../../../test/Transforms/Directive/config.json\" | scalehls-translate -scalehls-emit-hlscpp > {os.path.join(os.path.dirname(__file__), save_dir)}/{self.benchmark_name}.cpp
+                scalehls-opt {self.benchmark_name}.mlir -scalehls-dse-pipeline=\"top-func={self.vitis_top_function} target-spec=../../../test/Transforms/Directive/config.json\" | scalehls-translate -scalehls-emit-hlscpp > {os.path.join(os.path.dirname(__file__), "..", save_dir)}/{self.benchmark_name}.cpp
                 deactivate
                 pwd
                 '''
@@ -305,7 +306,7 @@ class Codesign:
         if p.returncode != 0:
             raise Exception(f"scaleHLS failed with error: {p.stderr}")
 
-    def parse_vitis_data(self):
+    def parse_vitis_data(self, save_dir):
 
         # TODO: Parse the Vitis netlist and write it to netlist-from-vitis.gml and cdfg-from-vitis.gml
 
@@ -319,11 +320,11 @@ class Codesign:
             allowed_functions_netlist = {"Add", "Mult", "Buf", "MainMem"}
             allowed_functions_schedule = {"Add", "Mult", "Call", "II", "Buf", "MainMem"}
 
-        parse_results_dir = f"{self.benchmark_dir}/parse_results"
+        parse_results_dir = f"{save_dir}/parse_results"
 
         if self.check_checkpoint("netlist"):
             ## Do preprocessing to the vitis data for the next scripts
-            parse_verbose_rpt(f"{self.benchmark_dir}/{self.benchmark_name}/solution1/.autopilot/db", parse_results_dir)
+            parse_verbose_rpt(f"{save_dir}/{self.benchmark_name}/solution1/.autopilot/db", parse_results_dir)
 
             ## Create the netlist
             create_vitis_netlist(parse_results_dir)
@@ -345,7 +346,7 @@ class Codesign:
             raise Exception("Finished Vitis netlist parsing, saving checkpoint")
 
         if self.check_checkpoint("schedule"):
-            schedule_parser = schedule_vitis.vitis_schedule_parser(self.benchmark_dir, self.benchmark_name, self.vitis_top_function, self.clk_period, allowed_functions_schedule)
+            schedule_parser = schedule_vitis.vitis_schedule_parser(save_dir, self.benchmark_name, self.vitis_top_function, self.clk_period, allowed_functions_schedule)
             schedule_parser.create_dfgs()
             self.hw.scheduled_dfgs = {basic_block_name: schedule_parser.basic_blocks[basic_block_name]["G_standard"] for basic_block_name in schedule_parser.basic_blocks}
             self.hw.loop_1x_graphs = {basic_block_name: schedule_parser.basic_blocks[basic_block_name]["G_loop_1x_standard"] for basic_block_name in schedule_parser.basic_blocks if "G_loop_1x" in schedule_parser.basic_blocks[basic_block_name]}
@@ -382,12 +383,11 @@ class Codesign:
         with open(f"{parse_results_dir}/cdfg-from-vitis.gml", "wb") as f:
             nx.write_gml(self.hw.scheduled_dfg, f)"""
 
-    def vitis_forward_pass(self, setup=False):
+    def vitis_forward_pass(self, save_dir, setup=False):
         """
         Runs Vitis version of forward pass, updates the memory configuration, and logs the output.
         """
         self.vitis_top_function = self.benchmark_name if not self.cfg["args"]["pytorch"] else "forward"
-        save_dir = "tmp/benchmark" if not setup else "tmp/benchmark_setup"
         if (self.check_checkpoint("scalehls") and not setup) or (self.check_checkpoint("scalehls_unlimited") and setup):
             self.run_scalehls(save_dir)
         else:
@@ -395,7 +395,7 @@ class Codesign:
         if (self.check_save_checkpoint("scalehls") and not setup) or (self.check_save_checkpoint("scalehls_unlimited") and setup):
             raise Exception("Finished ScaleHLS, saving checkpoint")
 
-        os.chdir(os.path.join(os.path.dirname(__file__), save_dir))
+        os.chdir(os.path.join(os.path.dirname(__file__), "..", save_dir))
         scale_hls_port_fix(f"{self.benchmark_name}.cpp", self.benchmark_name, self.cfg["args"]["pytorch"])
         logger.info(f"Vitis top function: {self.vitis_top_function}")
         command = ["vitis_hls -f tcl_script.tcl"]
@@ -411,7 +411,7 @@ class Codesign:
             raise Exception("Finished Vitis, saving checkpoint")
         os.chdir(os.path.join(os.path.dirname(__file__), ".."))
         # PARSE OUTPUT, set schedule and read netlist
-        self.parse_vitis_data()
+        self.parse_vitis_data(save_dir=save_dir)
         
 
 
@@ -481,7 +481,7 @@ class Codesign:
         # parse catapult timing report and create schedule
         self.parse_catapult_timing()
 
-    def forward_pass(self, iteration_count, setup=False):
+    def forward_pass(self, iteration_count, save_dir, setup=False):
         """
         Executes the forward pass of the codesign process: prepares benchmark, updates ccore
         delays/areas, runs hls, calculates wire parasitics, and parses timing reports.
@@ -509,7 +509,7 @@ class Codesign:
             self.catapult_forward_pass()
         else:
             sim_util.change_clk_period_in_script(f"{self.benchmark_dir}/tcl_script.tcl", self.clk_period, self.cfg["args"]["hls_tool"])
-            self.vitis_forward_pass(setup=setup)
+            self.vitis_forward_pass(save_dir=save_dir, setup=setup)
 
         # prepare schedule & calculate wire parasitics
         self.prepare_schedule()
@@ -519,8 +519,11 @@ class Codesign:
 
         if setup:
             self.max_parallel_initial_objective_value = self.hw.obj
+            print(f"objective value with max parallelism: {self.max_parallel_initial_objective_value}")
         elif iteration_count == 0:
             self.hw.circuit_model.tech_model.max_parallel_factor = self.hw.obj / self.max_parallel_initial_objective_value
+            print(f"max parallelism factor: {self.hw.circuit_model.tech_model.max_parallel_factor}")
+            self.hw.circuit_model.tech_model.init_scale_factors(self.hw.circuit_model.tech_model.max_parallel_factor)
 
         self.display_objective("after forward pass")
 
@@ -797,13 +800,15 @@ class Codesign:
         trend_plotter.plot_lag_factor_over_iterations()
 
     def setup(self):
-        self.forward_pass(0, setup=True)
+        if not os.path.exists(self.benchmark_setup_dir):
+            shutil.copytree(self.benchmark, self.benchmark_setup_dir)
+        self.forward_pass(0, save_dir=self.benchmark_setup_dir, setup=True)
 
     def execute(self, num_iters):
         self.iteration_count = 0
         self.setup()
         while self.iteration_count < num_iters:
-            self.forward_pass(self.iteration_count)
+            self.forward_pass(self.iteration_count, self.benchmark_dir)
             self.log_forward_tech_params()
             self.inverse_pass()
             self.hw.circuit_model.update_circuit_values()

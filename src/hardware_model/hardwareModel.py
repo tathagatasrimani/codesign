@@ -27,7 +27,7 @@ def symbolic_convex_max(a, b, evaluate=True):
     """
     return 0.5 * (a + b + sp.Abs(a - b, evaluate=evaluate))
 
-def symbolic_convex_min(a, b, evaluate=True):
+def symbolic_min(a, b, evaluate=True):
     """
     Min(a, b) in a format which ipopt accepts.
     """
@@ -502,21 +502,6 @@ class HardwareModel:
         logger.info(f"wire lengths: {self.circuit_model.wire_length_by_edge}")
         
         logger.info(f"time to generate wire parasitics: {time.time()-start_time}")
-        self.add_wire_delays_to_schedule()
-
-        with open("src/tmp/benchmark/scheduled-dfg-after-openroad.gml", "wb") as f:
-            nx.write_gml(self.scheduled_dfg, f)
-
-    def add_wire_delays_to_schedule(self):
-        # update scheduled dfg with wire delays
-        for edge in self.scheduled_dfg.edges:
-            if edge in self.dfg_to_netlist_edge_map:
-                # wire delay = R * C * length^2
-                self.scheduled_dfg.edges[edge]["cost"] = self.circuit_model.wire_delay(self.dfg_to_netlist_edge_map[edge])
-                logger.info(f"(wire delay) {edge}: {self.scheduled_dfg.edges[edge]['cost']} ns")
-                self.scheduled_dfg.edges[edge]["weight"] += self.scheduled_dfg.edges[edge]["cost"]
-            else:
-                self.scheduled_dfg.edges[edge]["cost"] = 0
 
     def update_schedule_with_latency(self):
         """
@@ -917,22 +902,26 @@ class HardwareModel:
         if self.obj_fn == "edp":
             if symbolic:
                 self.symbolic_obj = (self.total_passive_energy + self.total_active_energy) * self.execution_time
+                self.symbolic_obj_scaled = (self.total_passive_energy * self.circuit_model.tech_model.capped_power_scale + self.total_active_energy) * self.execution_time * self.circuit_model.tech_model.capped_delay_scale
             else:
                 self.obj = (self.total_passive_energy + self.total_active_energy) * self.execution_time
         elif self.obj_fn == "ed2":
             if symbolic:
                 self.symbolic_obj = (self.total_passive_energy + self.total_active_energy) * (self.execution_time)**2
+                self.symbolic_obj_scaled = (self.total_passive_energy * self.circuit_model.tech_model.capped_power_scale + self.total_active_energy) * (self.execution_time * self.circuit_model.tech_model.capped_delay_scale)**2
             else:   
                 self.obj = (self.total_passive_energy + self.total_active_energy) * (self.execution_time)**2
         elif self.obj_fn == "delay":
             if symbolic:
                 self.symbolic_obj = self.execution_time
+                self.symbolic_obj_scaled = self.execution_time * self.circuit_model.tech_model.capped_delay_scale
             else:
                 self.obj = self.execution_time
         elif self.obj_fn == "energy":
             print(f"setting energy objective to {self.total_active_energy + self.total_passive_energy}")
             if symbolic:
                 self.symbolic_obj = self.total_active_energy + self.total_passive_energy
+                self.symbolic_obj_scaled = (self.total_active_energy + self.total_passive_energy * self.circuit_model.tech_model.capped_power_scale)
             else:
                 self.obj = self.total_active_energy + self.total_passive_energy
         else:

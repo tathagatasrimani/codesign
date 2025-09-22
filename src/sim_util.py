@@ -21,7 +21,7 @@ def symbolic_convex_max(a, b, evaluate=True):
     """
     return 0.5 * (a + b + Abs(a - b, evaluate=evaluate))
 
-def symbolic_convex_min(a, b, evaluate=True):
+def symbolic_min(a, b, evaluate=True):
     """
     Min(a, b) in a format which ipopt accepts.
     """
@@ -31,19 +31,19 @@ def custom_exp(x, evaluate=True):
     """
     Custom exp function to guard against overflow.
     """
-    return exp(symbolic_convex_min(500, x))
+    return exp(symbolic_min(500, x))
 
 def custom_cosh(x, evaluate=True):
     """
     Custom cosh function to guard against overflow.
     """
-    return cosh(symbolic_convex_min(500, x))
+    return cosh(symbolic_min(500, x))
 
 def custom_coth(x, evaluate=True):
     """
     Custom coth function to guard against overflow.
     """
-    return coth(symbolic_convex_min(500, x))
+    return coth(symbolic_min(500, x))
 
 # overwrite values of dict1 with values of dict2
 # if a key is not present in dict1, still takes values from dict2

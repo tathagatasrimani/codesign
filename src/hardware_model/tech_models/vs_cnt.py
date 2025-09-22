@@ -1,6 +1,6 @@
 import logging
 from src.hardware_model.tech_models.tech_model_base import TechModel
-from src.sim_util import symbolic_convex_max, symbolic_convex_min, custom_cosh, custom_exp, custom_coth
+from src.sim_util import symbolic_convex_max, symbolic_min, custom_cosh, custom_exp, custom_coth
 import math
 from sympy import symbols, ceiling, expand, exp, Abs, cosh, log
 import sympy as sp

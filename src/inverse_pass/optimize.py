@@ -64,7 +64,7 @@ class Optimizer:
         model = pyo.ConcreteModel()
         preprocessor = Preprocessor(self.hw.circuit_model.tech_model.base_params)
         opt, scaled_model, model = (
-            preprocessor.begin(model, self.hw.symbolic_obj, improvement, multistart=multistart, constraints=constraints)
+            preprocessor.begin(model, self.hw.symbolic_obj_scaled, improvement, multistart=multistart, constraints=constraints)
         )
         return opt, scaled_model, model
 
