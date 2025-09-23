@@ -119,9 +119,13 @@ class VSPlanarModel(TechModel):
         self.g_c = self.g_c0*exp(-self.phi_b/self.E00)
         self.L_T = (self.g_c*self.R_q/self.lam_c + (self.g_c*self.R_q/2)**2)**-0.5
         self.R_c = self.R_q/2 * (1+4/(self.lam_c*self.g_c*self.R_q))**0.5 * custom_coth(self.base_params.L_c/self.L_T)
-        # PICK UP HERE WITH R_EXT
+        self.L_ext = self.base_params.L/2 # TODO: check if this is correct
+        self.nsd = 0.6e+9 # m^-1, come back to this but didn't want to get into doping concentration for the model
+        self.R_ext = self.R_ext0 * self.L_ext / (self.d**self.alpha_d * self.nsd**self.alpha_n)
         self.R_s = self.R_c + self.R_ext # ohm*um
         self.R_d = self.R_s
+
+        # PICK UP HERE WITH CAPS
         self.C_g = self.C_inv # TODO: check if this is correct. GPT says Cg <= Cinv <= Cox
 
         # note: we only care about ON state and saturation region for digital applications
@@ -180,10 +184,7 @@ class VSPlanarModel(TechModel):
         else:
             self.delay = self.R_avg_inv * (self.C_load + self.C_diff) * 1e9
         #self.I_d_off = (self.base_params.W * self.Q_ix0_0 * self.vx0 * self.F_s).xreplace(self.off_state)
-        if self.model_cfg["effects"]["I_sub_unified"]:
-            self.I_sub = self.I_d.xreplace(self.off_state) # max subthreshold leakage
-        else:
-            self.I_sub = (self.u_n_eff * self.Cox * self.base_params.W / self.base_params.L * self.V_T**2 * custom_exp(-self.V_th_eff / (self.n * self.V_T))).xreplace(self.off_state)
+        self.I_sub = self.I_d.xreplace(self.off_state) # max subthreshold leakage
 
         # gate tunneling current (Fowler-Nordheim and WKB)
         # minimums are to avoid exponential explosion in solver. Normal values in exponent are negative.
