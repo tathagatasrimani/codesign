@@ -72,7 +72,7 @@ class Codesign:
             f.write("Codesign Log\n")
             f.write(f"Benchmark: {self.benchmark}\n")
         if os.path.exists("src/tmp"):
-            shutil.rmtree("src/tmp")
+            shutil.rmtree("src/tmp", ignore_errors=True)
         os.mkdir("src/tmp")
 
         logging.basicConfig(filename=f"{self.save_dir}/codesign.log", level=logging.INFO)
@@ -107,18 +107,18 @@ class Codesign:
 
         self.checkpoint_controller = checkpoint_controller.CheckpointController(self.cfg)
         if not self.check_checkpoint("scalehls"):
-            self.checkpoint_controller.load_checkpoint(self.cfg["args"]["checkpoint_step"])
+            self.checkpoint_controller.load_checkpoint(self.cfg["args"]["checkpoint_start_step"])
 
     # only skipping steps in first iteration. This function returns True if we should not skip this step.
-    def check_checkpoint(self, checkpoint_step):
-        if checkpoint_controller.checkpoint_map[checkpoint_step] > checkpoint_controller.checkpoint_map[self.cfg["args"]["checkpoint_step"]] or self.iteration_count != 0:
+    def check_checkpoint(self, checkpoint_start_step):
+        if checkpoint_controller.checkpoint_map[checkpoint_start_step] > checkpoint_controller.checkpoint_map[self.cfg["args"]["checkpoint_start_step"]] or self.iteration_count != 0:
             return True
         else:
             return False
 
     # return True if we should stop the program and save the checkpoint
-    def check_save_checkpoint(self, checkpoint_step):
-        if checkpoint_controller.checkpoint_map[checkpoint_step] == checkpoint_controller.checkpoint_map[self.cfg["args"]["checkpoint_save_step"]]:
+    def check_save_checkpoint(self, checkpoint_start_step):
+        if checkpoint_controller.checkpoint_map[checkpoint_start_step] == checkpoint_controller.checkpoint_map[self.cfg["args"]["stop_at_checkpoint"]]:
             return True
         else:
             return False
@@ -531,9 +531,9 @@ class Codesign:
 
 
         ## clear out the existing tmp benchmark directory and copy the benchmark files from the desired benchmark
-        if iteration_count != 0 or self.cfg["args"]["checkpoint_step"] == "none":
+        if iteration_count != 0 or self.cfg["args"]["checkpoint_start_step"] == "none":
             if os.path.exists(self.benchmark_dir):
-                shutil.rmtree(self.benchmark_dir)
+                shutil.rmtree(self.benchmark_dir, ignore_errors=True)
             shutil.copytree(self.benchmark, self.benchmark_dir)
 
         self.clk_period = 1/self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.f] * 1e9 # ns
@@ -914,9 +914,9 @@ if __name__ == "__main__":
     parser.add_argument("--config", type=str, default="default", help="config to use")
     parser.add_argument("--checkpoint_load_dir", type=str, help="directory to load checkpoint")
     parser.add_argument("--checkpoint_save_dir", type=str, help="directory to save checkpoint")
-    parser.add_argument("--checkpoint_step", type=str, help="checkpoint step to resume from")
+    parser.add_argument("--checkpoint_start_step", type=str, help="checkpoint step to resume from")
     parser.add_argument("--save_checkpoint", type=bool, help="save a checkpoint upon exit")
-    parser.add_argument("--checkpoint_save_step", type=str, help="checkpoint step to save")
+    parser.add_argument("--stop_at_checkpoint", type=str, help="checkpoint step to stop at")
     args = parser.parse_args()
 
     main(args)

@@ -14,7 +14,7 @@ from src.forward_pass import llvm_ir_parse
 from src.forward_pass import vitis_create_netlist
 from src import sim_util
 
-DEBUG = True
+DEBUG = False
 
 def debug_print(msg):
     if DEBUG:
@@ -388,7 +388,7 @@ class vitis_schedule_parser:
                         self.basic_blocks[basic_block_name][int(next_state)].append(parsed_op)
                     idx += 1
                 idx, next_state = self.find_next_state(lines, idx, basic_block_name)
-        debug_print("Basic Blocks at end of schedule_vitis:", self.basic_blocks[basic_block_name])
+        debug_print(f"Basic Blocks at end of schedule_vitis: {self.basic_blocks[basic_block_name]}")
 
     def loop_2x_graph(self, basic_block_name):
         self.basic_blocks[basic_block_name]["G_loop_2x"] = nx.DiGraph()
@@ -565,12 +565,12 @@ class vitis_schedule_parser:
 
     def standard_dfg_basic_block(self, basic_block_name, G_name, G_standard_name):
         self.basic_blocks[basic_block_name][G_standard_name] = copy.deepcopy(self.basic_blocks[basic_block_name][G_name])
-        #debug_print("nodes before removing var nodes: ", self.basic_blocks[basic_block_name][G_name].nodes())
+        #debug_print(f"nodes before removing var nodes: {self.basic_blocks[basic_block_name][G_name].nodes()}")
         for node in self.basic_blocks[basic_block_name][G_name].nodes():
             assert "node_type" in self.basic_blocks[basic_block_name][G_name].nodes[node], f"Node {node} has no node_type. {self.basic_blocks[basic_block_name][G_name].nodes[node]}"
             if self.basic_blocks[basic_block_name][G_name].nodes[node]["node_type"] == "var":
                 self.remove_node(self.basic_blocks[basic_block_name][G_standard_name], node)
-        #debug_print("nodes left: ", self.basic_blocks[basic_block_name][G_standard_name].nodes())
+        #debug_print(f"nodes left: {self.basic_blocks[basic_block_name][G_standard_name].nodes()}")
         self.basic_blocks[basic_block_name][G_standard_name] = sim_util.filter_graph_by_function(self.basic_blocks[basic_block_name][G_standard_name], self.allowed_functions, exception_node_types=["serial"])
         assert nx.is_directed_acyclic_graph(self.basic_blocks[basic_block_name][G_standard_name]), f"Graph is not a DAG, cycle found: {nx.find_cycle(self.basic_blocks[basic_block_name][G_standard_name])}"
         debug_print(f"longest path after removing var nodes: {nx.dag_longest_path_length(self.basic_blocks[basic_block_name][G_standard_name])} ({nx.dag_longest_path(self.basic_blocks[basic_block_name][G_standard_name])})")

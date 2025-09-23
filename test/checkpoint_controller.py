@@ -28,7 +28,7 @@ class CheckpointController:
             shutil.rmtree(self.cfg["args"]["checkpoint_save_dir"])
         shutil.copytree("src/tmp", self.cfg["args"]["checkpoint_save_dir"])
 
-    def load_checkpoint(self, checkpoint_step):
+    def load_checkpoint(self, checkpoint_start_step):
         assert os.path.exists(self.cfg["args"]["checkpoint_load_dir"]), "Checkpoint directory does not exist"
         if os.path.exists("src/tmp"):
             shutil.rmtree("src/tmp")
