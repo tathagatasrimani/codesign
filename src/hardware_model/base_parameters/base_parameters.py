@@ -61,7 +61,9 @@ class BaseParameters:
         self.d = symbols("d", positive=True)
         self.k_cnt = symbols("k_cnt", positive=True)
         self.L_c = symbols("L_c", positive=True)
-
+        self.H_c = symbols("H_c", positive=True)
+        self.H_g = symbols("H_g", positive=True)
+        
         # technology level parameter values
         self.tech_values = {}
         self.init_symbol_table()
@@ -283,6 +285,8 @@ class BaseParameters:
             "k_cnt": self.k_cnt,
             "area": self.area,
             "L_c": self.L_c,
+            "H_c": self.H_c,
+            "H_g": self.H_g,
             "MemReadL": self.MemReadL,
             "MemWriteL": self.MemWriteL,
             "MemReadEact": self.MemReadEact,

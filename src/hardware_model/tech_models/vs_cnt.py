@@ -2,7 +2,7 @@ import logging
 from src.hardware_model.tech_models.tech_model_base import TechModel
 from src.sim_util import symbolic_convex_max, symbolic_min, custom_cosh, custom_exp, custom_coth
 import math
-from sympy import symbols, ceiling, expand, exp, Abs, cosh, log
+from sympy import symbols, ceiling, expand, exp, Abs, cosh, log, acosh
 import sympy as sp
 
 
@@ -28,11 +28,9 @@ class VSPlanarModel(TechModel):
         self.Ep = 3*self.q
         self.acc = 0.142e-9
         self.d00 = 1.0e-9
-        self.t_lam = 0.05e-9
-        self.u_00 = 0.2388 # m^2/V.s
-        self.lam_00 = 77.0e-9
+        self.u_00 = 0.135 # m^2/V.s
+        self.lam_00 = 66.2e-9
         self.c_u = 1.37
-        self.t_u = 0.000338 # m^2/(V.s.K)
         self.z0 = 2.405
         self.Efsd = 0.3 # see figure 4 in paper
         self.vb0 = 4.1e9 # (m/s)
@@ -45,6 +43,7 @@ class VSPlanarModel(TechModel):
         self.R_ext0 = 35
         self.alpha_d = 2.0
         self.alpha_n = 2.1
+        self.kspa = 3.9 # spacer k
 
 
         # GIDL parameters
@@ -74,6 +73,15 @@ class VSPlanarModel(TechModel):
             self.V_dsp: self.base_params.V_dd,
         }
 
+        self.init_intrinsics()
+
+        self.init_extrinsics()
+
+        self.apply_additional_effects()
+
+        self.config_param_db()
+
+    def set_intrinsic_caps(self):
         self.Eg = 2*self.Ep*self.acc/self.base_params.d
         self.Cqeff = self.cqa*(self.q * self.Eg/(self.K*self.T)) + self.cqb # seems to be different models in paper versus technical manual, using paper here
         self.Cox = 2*math.pi*self.base_params.k_gate*self.e_0/(sp.log((2*self.base_params.tox + self.base_params.d) / self.base_params.d)) # assuming GAA structure
@@ -83,25 +91,73 @@ class VSPlanarModel(TechModel):
         logger.info(f"Cqeff: {self.Cqeff.xreplace(self.base_params.tech_values).evalf()}")
         logger.info(f"Eg: {self.Eg.xreplace(self.base_params.tech_values).evalf()}")
 
-        self.u_0 = self.u_00 - self.t_u*self.T
-        self.lam_u = self.lam_00 - self.t_lam*self.T
+    def set_mobility(self):
+        self.u_0 = self.u_00
+        self.lam_u = self.lam_00
         self.u_n_eff = (self.u_0 * self.base_params.L * (self.base_params.d/self.d00)**self.c_u) / (self.lam_u + self.base_params.L)
 
-        self.eot = self.base_params.tox * 3.9/self.base_params.k_gate
-
+    def set_scale_length(self):
         self.eta_0 = self.z0*self.base_params.d/(self.base_params.d + 2*self.base_params.tox)
         self.b = 0.41*(self.eta_0/2 - (self.eta_0**3)/16)*(math.pi*self.eta_0/2)
         # assumes tox > d/2
         self.scale_length = (self.base_params.d + 2*self.base_params.tox) / (2*self.z0) * (1 + self.b * (self.gamma - 1))
         # if tox << d: self.scale_length = (self.base_params.d + 2*self.base_params.gamma + self.base_params.tox)/self.z0
 
-        self.L_of = self.base_params.tox / 3
-        self.zeta = (self.base_params.L + 2*self.L_of) / (2*self.scale_length)
-
-        # SCE parameters
+    def set_sce_parameters(self):
         self.n = 1/(1-exp(-self.zeta))
         self.delta = exp(-self.zeta)
         self.Vth_rolloff = (2*self.Efsd + self.Eg)*exp(-self.zeta)
+
+    def set_gate_tunneling_current(self):
+        # gate tunneling current (Fowler-Nordheim and WKB)
+        # minimums are to avoid exponential explosion in solver. Normal values in exponent are negative.
+        # gate tunneling
+        #self.V_ox = symbolic_convex_max(self.base_params.V_dd - self.V_th_eff, self.V_th_eff).xreplace(self.off_state)
+        self.V_ox = self.base_params.V_dd - self.V_th_eff
+        self.E_ox = Abs(self.V_ox/self.base_params.tox)
+        logger.info(f"B: {self.B}, A: {self.A}, t_ox: {self.base_params.tox.xreplace(self.base_params.tech_values)}, E_ox: {self.E_ox.xreplace(self.base_params.tech_values)}, intermediate: {(1-(1-self.V_ox/self.phi_b)**3/2).xreplace(self.base_params.tech_values)}")
+        self.FN_term = self.A_gate * self.A * self.E_ox**2 * (custom_exp(-self.B/self.E_ox))
+        self.WKB_term = self.A_gate * self.A * self.E_ox**2 * (custom_exp(-self.B*(1-(1-self.V_ox/self.phi_b)**3/2)/self.E_ox))
+        self.I_tunnel = self.FN_term + self.WKB_term
+        logger.info(f"I_tunnel: {self.I_tunnel.xreplace(self.base_params.tech_values)}")
+
+    def set_smoothing_functions(self):
+        if self.model_cfg["effects"]["F_f"]:
+            self.F_f = 1/(1+custom_exp((self.V_gsp - (self.V_th_eff - self.alpha * self.phi_t / 2))/(self.alpha * self.phi_t)))
+            self.F_f_eval = self.F_f.xreplace(self.on_state)
+        else:
+            self.F_f = 0.0 # for saturation region where Vgs sufficiently larger than Vth. Can look into near threshold region later
+            self.F_f_eval = 0.0
+
+        if self.model_cfg["effects"]["F_s"]:
+            self.Vdsats = self.v * self.base_params.L / self.u_n_eff
+            self.Vdsat = self.Vdsats * (1 - self.F_f) + self.phi_t * self.F_f
+            self.F_s = (self.V_dsp / self.Vdsat) / (1 + (self.V_dsp / self.Vdsat)**self.beta)**(1/self.beta)
+            self.F_s_eval = self.F_s.xreplace(self.on_state)
+        else:
+            self.F_s = 1.0 # in saturation region
+            self.F_s_eval = 1.0
+
+    def set_terminal_charge(self):
+        self.Q_ix0 = self.C_inv * self.n * self.phi_t * log(1 + custom_exp((self.V_gsp - (self.V_th_eff - self.alpha * self.phi_t * self.F_f))/(self.n*self.phi_t)))
+        # clamp result of softplus so it doesn't go to 0, causing issues in solver
+        #self.Q_ix0 = self.C_inv * self.n * self.phi_t * symbolic_convex_max(1e-10,log(1 + exp((self.V_gsp - (self.V_th_eff - self.alpha * self.phi_t * self.F_f))/(self.n*self.phi_t))))
+        self.Q_ix0_0 = self.Q_ix0.xreplace({self.V_th_eff: self.V_th_eff_general})
+        self.Q_ix0_0 = self.Q_ix0_0.xreplace({self.V_dsp: 0})
+    
+    def init_intrinsics(self):
+        self.set_intrinsic_caps()
+
+        self.set_mobility()
+
+        self.eot = self.base_params.tox * 3.9/self.base_params.k_gate
+
+        self.set_scale_length()
+
+        self.L_of = self.base_params.tox / 3
+        self.zeta = (self.base_params.L + 2*self.L_of) / (2*self.scale_length)
+
+        self.set_sce_parameters()
 
         self.vb = self.vb0 * (self.base_params.d/self.d0)**0.5
         self.vx0 = self.lam_v / (self.lam_v + self.base_params.L) * self.vb
@@ -114,6 +170,14 @@ class VSPlanarModel(TechModel):
         self.phi_t = self.V_T
         self.beta = 1.8
 
+        # PICK UP HERE WITH CAPS
+        self.C_g = self.C_inv
+
+        self.set_smoothing_functions()
+
+        self.set_terminal_charge()
+
+    def set_parasitic_resistances(self):
         # phi_b has range of +/- phi_m, which is defined as 5.1eV
         self.phi_b = self.Eg/2
         self.g_c = self.g_c0*exp(-self.phi_b/self.E00)
@@ -125,33 +189,34 @@ class VSPlanarModel(TechModel):
         self.R_s = self.R_c + self.R_ext # ohm*um
         self.R_d = self.R_s
 
-        # PICK UP HERE WITH CAPS
-        self.C_g = self.C_inv # TODO: check if this is correct. GPT says Cg <= Cinv <= Cox
+    def set_Cof(self):
+        tao1 = 2.5
+        tao2 = 2.0
+        h = self.base_params.tox + self.d/2
+        sr = 0.4
+        A = sr*2*math.pi*self.kspa*self.e_0*self.L_ext
+        B = acosh(2*(h**2 + (0.28*self.L_ext)**2)**0.5 / self.d)
+        self.C_of = A/B # for 1 CNT
 
-        # note: we only care about ON state and saturation region for digital applications
-        if self.model_cfg["effects"]["F_f"]:
-            self.F_f = 1/(1+custom_exp((self.V_gsp - (self.V_th_eff - self.alpha * self.phi_t / 2))/(self.alpha * self.phi_t)))
-            self.F_f_eval = self.F_f.xreplace(self.on_state)
-        else:
-            self.F_f = 0.0 # for saturation region where Vgs sufficiently larger than Vth. Can look into near threshold region later
-            self.F_f_eval = 0.0
+    def set_Cgtc(self):
+        # assuming backgate
+        alphac = 2.76
+        betac = 0.384
+        tao = custom_exp(2-2*(1+ (2*(self.base_params.H_c + self.base_params.L_c)/self.L_ext)**0.5))
+        tao2 = custom_exp(2-2*(1+ (2*(self.base_params.H_g + self.base_params.L)/self.base_params.tox)**0.5))
+        con = self.e_0*self.base_params.W*self.kspa
+        self.C_gtc = con*((alphac/log(2*math.pi * ((self.base_params.L_c + tao + self.base_params.H_c))) + betac/log(2*math.pi * ((self.base_params.L + self.base_params.tox) / (2*self.base_params.L + tao2*self.base_params.H_g)))))
 
-        self.Q_ix0 = self.C_inv * self.n * self.phi_t * log(1 + custom_exp((self.V_gsp - (self.V_th_eff - self.alpha * self.phi_t * self.F_f))/(self.n*self.phi_t)))
-        # clamp result of softplus so it doesn't go to 0, causing issues in solver
-        #self.Q_ix0 = self.C_inv * self.n * self.phi_t * symbolic_convex_max(1e-10,log(1 + exp((self.V_gsp - (self.V_th_eff - self.alpha * self.phi_t * self.F_f))/(self.n*self.phi_t))))
-        self.Q_ix0_0 = self.Q_ix0.xreplace({self.V_th_eff: self.V_th_eff_general})
-        self.Q_ix0_0 = self.Q_ix0_0.xreplace({self.V_dsp: 0})
+    def set_parasitic_capacitances(self):
+        self.set_Cof()
+        self.set_Cgtc()
 
-        
+    def init_extrinsics(self):
+        self.set_parasitic_resistances()
+
+        self.set_parasitic_capacitances()
+
         self.v = self.vx0 * (self.F_f + (1 - self.F_f) / (1 + self.base_params.W * self.R_s * self.C_g * (1 + 2*self.delta)*self.vx0))
-        if self.model_cfg["effects"]["F_s"]:
-            self.Vdsats = self.v * self.base_params.L / self.u_n_eff
-            self.Vdsat = self.Vdsats * (1 - self.F_f) + self.phi_t * self.F_f
-            self.F_s = (self.V_dsp / self.Vdsat) / (1 + (self.V_dsp / self.Vdsat)**self.beta)**(1/self.beta)
-            self.F_s_eval = self.F_s.xreplace(self.on_state)
-        else:
-            self.F_s = 1.0 # in saturation region
-            self.F_s_eval = 1.0
 
         #self.R_cmin = self.L_c / (self.Q_ix0_0 * self.u_n_eff)
         self.I_d = self.base_params.W * self.Q_ix0 * self.v * self.F_s
@@ -167,7 +232,15 @@ class VSPlanarModel(TechModel):
         logger.info(f"A_gate: {self.A_gate.xreplace(self.base_params.tech_values).evalf()}")
         logger.info(f"area_scale: {self.base_params.area_scale.xreplace(self.base_params.tech_values).evalf()}")
 
-        self.C_diff = self.C_gate
+        self.I_sub = self.I_d.xreplace(self.off_state) # max subthreshold leakage
+        self.I_off = self.I_sub
+
+        self.set_gate_tunneling_current()
+        
+        if self.model_cfg["effects"]["gate_tunneling"]:
+            self.I_off = self.I_off + self.I_tunnel
+
+        self.C_diff = self.C_of + self.C_gtc
         self.C_load = 4*self.C_gate # FO4 model
         self.R_avg_inv = self.base_params.V_dd / self.I_d_on
 
@@ -183,32 +256,6 @@ class VSPlanarModel(TechModel):
             self.delay = self.R_avg_inv * (self.C_diff + self.C_load + 0.3e-15 * 100) * 1e9  # ns
         else:
             self.delay = self.R_avg_inv * (self.C_load + self.C_diff) * 1e9
-        #self.I_d_off = (self.base_params.W * self.Q_ix0_0 * self.vx0 * self.F_s).xreplace(self.off_state)
-        self.I_sub = self.I_d.xreplace(self.off_state) # max subthreshold leakage
-
-        # gate tunneling current (Fowler-Nordheim and WKB)
-        # minimums are to avoid exponential explosion in solver. Normal values in exponent are negative.
-        # gate tunneling
-        #self.V_ox = symbolic_convex_max(self.base_params.V_dd - self.V_th_eff, self.V_th_eff).xreplace(self.off_state)
-        self.V_ox = self.base_params.V_dd - self.V_th_eff
-        self.E_ox = Abs(self.V_ox/self.base_params.tox)
-        logger.info(f"B: {self.B}, A: {self.A}, t_ox: {self.base_params.tox.xreplace(self.base_params.tech_values)}, E_ox: {self.E_ox.xreplace(self.base_params.tech_values)}, intermediate: {(1-(1-self.V_ox/self.phi_b)**3/2).xreplace(self.base_params.tech_values)}")
-        self.FN_term = self.A_gate * self.A * self.E_ox**2 * (custom_exp(-self.B/self.E_ox))
-        self.WKB_term = self.A_gate * self.A * self.E_ox**2 * (custom_exp(-self.B*(1-(1-self.V_ox/self.phi_b)**3/2)/self.E_ox))
-        self.I_tunnel = self.FN_term + self.WKB_term
-        logger.info(f"I_tunnel: {self.I_tunnel.xreplace(self.base_params.tech_values)}")
-
-        # GIDL current
-        self.I_GIDL = self.A_GIDL * ((self.base_params.V_dd - self.E_GIDL)/(3*self.base_params.tox)) * custom_exp(-3*self.base_params.tox*self.B_GIDL / (self.base_params.V_dd - self.E_GIDL)) # simplified from BSIM
-        logger.info(f"I_GIDL: {self.I_GIDL.xreplace(self.base_params.tech_values)}")
-
-        self.I_off = self.I_sub
-
-        if self.model_cfg["effects"]["GIDL"]:
-            self.I_off = self.I_off + self.I_GIDL
-        
-        if self.model_cfg["effects"]["gate_tunneling"]:
-            self.I_off = self.I_off + self.I_tunnel
 
         self.I_d_on_per_um = self.I_d_on / (self.base_params.W* 1e6)
         self.I_sub_per_um = self.I_sub / (self.base_params.W* 1e6)
@@ -227,11 +274,7 @@ class VSPlanarModel(TechModel):
 
         self.P_pass_inv = self.I_off * self.base_params.V_dd
 
-
-        self.apply_additional_effects()
         logger.info(f"E_act_inv: {self.E_act_inv.xreplace(self.base_params.tech_values).evalf()}")
-
-        self.config_param_db()
 
     def config_param_db(self):
         super().config_param_db()
