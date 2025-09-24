@@ -15,94 +15,78 @@ default:
     tech_node: default
     obj: edp
     model_cfg: default
-    hls_tool: catapult
+    hls_tool: vitis
     pytorch: False
-    checkpoint_load_dir: src/tmp_checkpoint
-    checkpoint_save_dir: src/tmp_checkpoint
-    checkpoint_step: none
-    checkpoint_save_step: none
-    save_checkpoint: False
+    checkpoint_load_dir: none
+    checkpoint_save_dir: none
+    stop_at_checkpoint: none
+    checkpoint_start_step: none
 
+
+#### EXAMPLE TESTS ####
+
+## The base test when using Vitis HLS
 vitis_test:
   base_cfg: default
   args:
-    benchmark: gemm
     hls_tool: vitis
     model_cfg: vs_cfg_latest
 
-vitis_test_checkpoint:
+## These tests will run without stoping to the specified number of iterations
+vitis_gemm_test:
   base_cfg: vitis_test
   args:
-    checkpoint_step: vitis
-    checkpoint_load_dir: src/tmp_for_test_gemm
+    benchmark: gemm
 
-gemm_save_checkpoint:
-  base_cfg: vitis_test
-  args:
-    save_checkpoint: True
-    checkpoint_save_step: vitis
-    checkpoint_save_dir: src/tmp_for_test_gemm
-
-vitis_resnet:
+vitis_resnet_test:
   base_cfg: vitis_test
   args:
     pytorch: True
     benchmark: resnet
 
-jacobi_test:
+vitis_jacobi_test:
   base_cfg: vitis_test
   args:
     benchmark: jacobi_2d
 
-jacobi_save_checkpoint:
-  base_cfg: jacobi_test
+## These tests will save/restore a checkpoint at the specified step
+vitis_gemm_checkpoint_after_vitis:
+  base_cfg: vitis_gemm_test
   args:
-    save_checkpoint: True
-    checkpoint_load_dir: src/tmp_for_test_jacobi
+    stop_at_checkpoint: vitis
+    checkpoint_save_dir: vitis_gemm_checkpoint_after_vitis
 
-jacobi_load_checkpoint:
-  base_cfg: jacobi_test
+vitis_gemm_load_checkpoint_after_vitis:
+  base_cfg: vitis_gemm_test
   args:
-    checkpoint_step: schedule
-    checkpoint_load_dir: src/tmp_for_test_jacobi
+    checkpoint_start_step: vitis
+    checkpoint_load_dir: vitis_gemm_checkpoint_after_vitis
 
-jacobi_load_and_save_checkpoint:
-  base_cfg: jacobi_test
+vitis_gemm_load_checkpoint_after_vitis_stop_after_pd:
+  base_cfg: vitis_gemm_load_checkpoint_after_vitis
   args:
-    checkpoint_step: netlist
-    checkpoint_load_dir: src/tmp_for_test_jacobi
-    save_checkpoint: True
-    checkpoint_save_dir: src/tmp_for_test_jacobi
+    stop_at_checkpoint: pd
 
 
-resnet_test:
-  base_cfg: vitis_test
-  args:
-    benchmark: resnet18
-    pytorch: True
 
-resnet_load_checkpoint:
-  base_cfg: resnet_test
+vitis_resnet_checkpoint_after_vitis:
+  base_cfg: vitis_resnet_test
   args:
-    checkpoint_step: vitis
-    checkpoint_load_dir: src/tmp_for_test_resnet
+    stop_at_checkpoint: vitis
+    checkpoint_save_dir: vitis_resnet_checkpoint_after_vitis
 
-resnet_load_and_save_checkpoint:
-  base_cfg: resnet_test
+vitis_resnet_load_checkpoint_after_vitis:
+  base_cfg: vitis_resnet_test
   args:
-    checkpoint_step: vitis
-    checkpoint_load_dir: src/tmp_for_test_resnet
-    save_checkpoint: True
-    checkpoint_save_dir: src/tmp_for_test_resnet
+    checkpoint_start_step: vitis
+    checkpoint_load_dir: vitis_resnet_checkpoint_after_vitis
 
-resnet_save_checkpoint:
-  base_cfg: resnet_test
+vitis_resnet_load_checkpoint_after_vitis_stop_after_pd:
+  base_cfg: vitis_resnet_load_checkpoint_after_vitis
   args:
-    save_checkpoint: True
-    checkpoint_save_dir: src/tmp_for_test_resnet
+    stop_at_checkpoint: pd
 
-resnet_load_checkpoint:
-  base_cfg: resnet_test
-  args:
-    checkpoint_step: vitis
-    checkpoint_load_dir: src/tmp_for_test_resnet
+
+#### END EXAMPLE TESTS ####
+
+## add more tests below as needed

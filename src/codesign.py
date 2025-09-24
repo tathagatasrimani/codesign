@@ -105,23 +105,15 @@ class Codesign:
 
         self.iteration_count = 0
 
-        self.checkpoint_controller = checkpoint_controller.CheckpointController(self.cfg)
-        if not self.check_checkpoint("scalehls"):
-            self.checkpoint_controller.load_checkpoint(self.cfg["args"]["checkpoint_start_step"])
+        ## save the root directory that the program started in
+        self.codesign_root_dir = os.getcwd()
 
-    # only skipping steps in first iteration. This function returns True if we should not skip this step.
-    def check_checkpoint(self, checkpoint_start_step):
-        if checkpoint_controller.checkpoint_map[checkpoint_start_step] > checkpoint_controller.checkpoint_map[self.cfg["args"]["checkpoint_start_step"]] or self.iteration_count != 0:
-            return True
-        else:
-            return False
+        self.checkpoint_controller = checkpoint_controller.CheckpointController(self.cfg, self.codesign_root_dir)
 
-    # return True if we should stop the program and save the checkpoint
-    def check_save_checkpoint(self, checkpoint_start_step):
-        if checkpoint_controller.checkpoint_map[checkpoint_start_step] == checkpoint_controller.checkpoint_map[self.cfg["args"]["stop_at_checkpoint"]]:
-            return True
-        else:
-            return False
+        # load the temp directory from the checkpoint save directory (if resuming from checkpoint)
+        # we load from the temp directory iff the load dir and start step are specified
+        if self.cfg["args"]["checkpoint_start_step"]!= "none" and self.cfg["args"]["checkpoint_load_dir"] != "none":
+            self.checkpoint_controller.load_checkpoint()
 
     # any arguments specified on CLI will override the default config
     def set_config(self, args):
@@ -314,7 +306,7 @@ class Codesign:
 
         logger.info(f"parse results dir: {parse_results_dir}")
 
-        if self.check_checkpoint("netlist"):
+        if self.checkpoint_controller.check_checkpoint("netlist", self.iteration_count):
             ## Do preprocessing to the vitis data for the next scripts
             logger.info("Parsing Vitis netlist")
             parse_verbose_rpt(f"{self.benchmark_dir}/{self.benchmark_name}/solution1/.autopilot/db", parse_results_dir)
@@ -340,10 +332,10 @@ class Codesign:
             logger.info("Vitis netlist parsing complete")
         else:
             logger.info("Skipping Vitis netlist parsing")
-        if self.check_save_checkpoint("netlist"):
-            raise Exception("Finished Vitis netlist parsing, saving checkpoint")
 
-        if self.check_checkpoint("schedule"):
+        self.checkpoint_controller.check_end_checkpoint("netlist")
+
+        if self.checkpoint_controller.check_checkpoint("schedule", self.iteration_count):
             logger.info("Parsing Vitis schedule")
             schedule_parser = schedule_vitis.vitis_schedule_parser(self.benchmark_dir, self.benchmark_name, self.vitis_top_function, self.clk_period, allowed_functions_schedule)
             
@@ -365,8 +357,8 @@ class Codesign:
                         assert os.path.exists(f"{parse_results_dir}/{file}/{file}_graph_loop_2x_standard.gml")
                         self.hw.loop_2x_graphs[file] = nx.read_gml(f"{parse_results_dir}/{file}/{file}_graph_loop_2x_standard.gml")
             logger.info("Skipping Vitis schedule parsing")
-        if self.check_save_checkpoint("schedule"):
-            raise Exception("Finished Vitis schedule parsing, saving checkpoint")
+
+        self.checkpoint_controller.check_end_checkpoint("schedule")
 
         print(f"Current working directory at end of vitis parse data: {os.getcwd()}")
 
@@ -392,12 +384,11 @@ class Codesign:
         Runs Vitis version of forward pass, updates the memory configuration, and logs the output.
         """
         self.vitis_top_function = self.benchmark_name if not self.cfg["args"]["pytorch"] else "forward"
-        if self.check_checkpoint("scalehls"):
+        if self.checkpoint_controller.check_checkpoint("scalehls", self.iteration_count):
             self.run_scalehls()
         else:
             logger.info("Skipping ScaleHLS")
-        if self.check_save_checkpoint("scalehls"):
-            raise Exception("Finished ScaleHLS, saving checkpoint")
+        self.checkpoint_controller.check_end_checkpoint("scalehls")
 
         os.chdir(os.path.join(os.path.dirname(__file__), "tmp/benchmark"))
         scale_hls_port_fix(f"{self.benchmark_name}.cpp", self.benchmark_name, self.cfg["args"]["pytorch"])
@@ -406,7 +397,7 @@ class Codesign:
 
         import time
         command = ["vitis_hls", "-f", "tcl_script.tcl"]
-        if self.check_checkpoint("vitis"):
+        if self.checkpoint_controller.check_checkpoint("vitis", self.iteration_count):
             start_time = time.time()
             # Start the process and write output to vitis_hls.log
             with open("vitis_hls.log", "w") as logfile:
@@ -442,8 +433,7 @@ class Codesign:
                 raise Exception(f"Vitis HLS command failed: see vitis_hls.log")
         else:
             logger.info("Skipping Vitis")
-        if self.check_save_checkpoint("vitis"):
-            raise Exception("Finished Vitis, saving checkpoint")
+        self.checkpoint_controller.check_end_checkpoint("vitis")
         os.chdir(os.path.join(os.path.dirname(__file__), ".."))
         # PARSE OUTPUT, set schedule and read netlist
         self.parse_vitis_data()
@@ -552,6 +542,8 @@ class Codesign:
         self.hw.calculate_objective()
 
         self.display_objective("after forward pass")
+
+        self.checkpoint_controller.check_end_checkpoint("pd")
 
         self.obj_over_iterations.append(self.hw.obj)
 
@@ -850,8 +842,7 @@ def main(args):
         codesign_module.execute(codesign_module.cfg["args"]["num_iters"])
     finally:
         os.chdir(os.path.join(os.path.dirname(__file__), ".."))
-        if codesign_module.cfg["args"]["save_checkpoint"]:
-            codesign_module.checkpoint_controller.create_checkpoint()
+        
         codesign_module.end_of_run_plots(codesign_module.obj_over_iterations, codesign_module.lag_factor_over_iterations, codesign_module.params_over_iterations)
         codesign_module.cleanup()
 
@@ -914,9 +905,8 @@ if __name__ == "__main__":
     parser.add_argument("--config", type=str, default="default", help="config to use")
     parser.add_argument("--checkpoint_load_dir", type=str, help="directory to load checkpoint")
     parser.add_argument("--checkpoint_save_dir", type=str, help="directory to save checkpoint")
-    parser.add_argument("--checkpoint_start_step", type=str, help="checkpoint step to resume from")
-    parser.add_argument("--save_checkpoint", type=bool, help="save a checkpoint upon exit")
-    parser.add_argument("--stop_at_checkpoint", type=str, help="checkpoint step to stop at")
+    parser.add_argument("--checkpoint_start_step", type=str, help="checkpoint step to resume from (the flow will start normal execution AFTER this step)")
+    parser.add_argument("--stop_at_checkpoint", type=str, help="checkpoint step to stop at (will complete this step and then stop)")
     args = parser.parse_args()
 
     main(args)

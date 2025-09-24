@@ -21,17 +21,17 @@ netlist
 schedule
 pd
 
+NOTE: All checkpoints are stored in the test/saved_checkpoints directory
+
 To resume execution of the flow from a saved checkpoint:
 --checkpoint_start_step: Step AFTER which the real execution of the framework will begin. For example, if you specify vitis as the checkpoint step, then in codesign.py, all steps before and including vitis (also scalehls) will be skipped. Instead, we just read out the results from src/tmp for the next step and make sure to still do any other misellaneous initialization before that.
 
---checkpoint_load_dir: directory to load snapshot of src/tmp from after previously saving to that directory
+--checkpoint_load_dir: directory to load snapshot of src/tmp from after previously saving to that directory ("none" means no directory is loaded). 
 
 --stop_at_checkpoint: OPTIONAL WHEN RESUMING. The step AFTER which the program will STOP. This is only used when resuming execution if you want it to stop after a subsequent step. If not specified, the   flow will continue to run as normal. 
 
 To create a new saved checkpoint:
---save_checkpoint: Must set to True in order to have your src/tmp directory copied to a separate save directory when the program exits. 
-
---checkpoint_save_dir: The directory that src/tmp gets saved to if save_checkpoint is True
+--checkpoint_save_dir: The directory that src/tmp gets saved to. If "none" is specified, no checkpoint is saved upon program exit.
 
 --stop_at_checkpoint: The step after which the program will STOP. The src/tmp directory will be saved upon exit if the save_checkpoint flag is set.
 

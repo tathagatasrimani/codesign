@@ -11,7 +11,7 @@ src/params/rcs_current.yaml
 src/params/coefficients.yaml
 
 src/tmp/**
-src/tmp*/**
+test/saved_checkpoints/**
 
 **/results/**
 **/figs/**
