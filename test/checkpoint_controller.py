@@ -1,3 +1,4 @@
+import argparse
 import os
 import shutil
 
@@ -23,6 +24,42 @@ class CheckpointController:
     def __init__(self, cfg, codesign_root_dir):
         self.cfg = cfg
         self.codesign_root_dir = codesign_root_dir
+
+
+    if __name__ == "__main__":
+        parser = argparse.ArgumentParser(
+            prog="Create Checkpoint",
+            description="Creates a checkpoint from the current tmp directory. This could be useful to save the state of a run that you killed with ctrl-c or if it errored out but you want to keep it around for debugging.",
+            epilog="the end",
+        )
+        parser.add_argument(
+            "-d",
+            "--directory",
+            type=str,
+            help="the name of the directory to save the checkpoint in (will be created under test/saved_checkpoints)"
+        )
+
+        args = parser.parse_args()
+
+        if args.directory is None:
+            print("Error: must specify a directory name with -d/--directory")
+            exit(1)
+
+
+        ## check if we are in the codesign directory
+        cwd = os.getcwd()
+        if not os.path.exists(os.path.join(cwd, "src")) or not os.path.exists(os.path.join(cwd, "test")):
+            print("Error: must be run from the codesign root directory")
+            exit(1)
+        
+        ## copy the tmp directory to the checkpoint directory
+        checkpoint_save_dir = os.path.join(cwd, "test/saved_checkpoints", args.directory)
+        tmp_dir = os.path.join(cwd, "src/tmp")
+        if os.path.exists(checkpoint_save_dir):
+            print(f"ERROR: checkpoint directory {checkpoint_save_dir} already exists.")
+            exit(1)
+        shutil.copytree(tmp_dir, checkpoint_save_dir)
+        print(f"Checkpoint saved to {checkpoint_save_dir}")
 
     def create_checkpoint(self):
         ''' copy the tmp directory to the checkpoint directory. This is run on program end '''

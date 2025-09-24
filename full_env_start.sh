@@ -162,6 +162,9 @@ else
     exit 1
 fi
 
+############### Add useful alisas ###############
+alias create_checkpoint="python3 -m test.checkpoint_controller"
+
 ################## SUCCESSFUL BUILD LOG ##################
 if [[ $FORCE_FULL -eq 1 ]]; then
     date "+%Y-%m-%d %H:%M:%S" > "$BUILD_LOG"

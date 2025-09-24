@@ -37,12 +37,18 @@ To create a new saved checkpoint:
 
 These are added as arguments in the codesign_cfg.yaml file.
 
+If you want to create a checkpoint after the program has already exited (this can be useful if you want to save multiple states for debugging):
+From the codesign root directory, run:
+create_checkpoint -d <name of checkpoint>
+
+The checkpoint will be created in test/saved_checkpoints. It is not reccommended that you try to resume execution of the flow from one of these checkpoints. 
+
 Example usage: 
 ## Runs the flow up until vitis completed, then saves a checkpoint
-python3 -m src.codesign --config resnet_create_checkpoint_after_vitis
+python3 -m src.codesign --config vitis_resnet_checkpoint_after_vitis
 
 ## Loads a checkpoint from a successful vitis run, then continues the flow from there and stops after pd
-python3 -m src.codesign --config resnet_run_schedule_and_pd_after_vitis
+python3 -m src.codesign --config vitis_resnet_load_checkpoint_after_vitis_stop_after_pd
 
 
 # Acknowledgements
