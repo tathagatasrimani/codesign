@@ -8,7 +8,7 @@ import sympy as sp
 
 logger = logging.getLogger(__name__)
 
-class VSPlanarModel(TechModel):
+class VSCNFetModel(TechModel):
     def __init__(self, model_cfg, base_params):
         super().__init__(model_cfg, base_params)
 
@@ -44,12 +44,6 @@ class VSPlanarModel(TechModel):
         self.alpha_d = 2.0
         self.alpha_n = 2.1
         self.kspa = 3.9 # spacer k
-
-
-        # GIDL parameters
-        self.A_GIDL = 1e-12
-        self.B_GIDL = 2.3e9
-        self.E_GIDL = 0.8
 
     def init_transistor_equations(self):
         super().init_transistor_equations()
@@ -109,6 +103,7 @@ class VSPlanarModel(TechModel):
         self.Vth_rolloff = (2*self.Efsd + self.Eg)*exp(-self.zeta)
 
     def set_gate_tunneling_current(self):
+        # note: this is not the same as the gate tunneling current in the VSCNFET model. Can come back to it later
         # gate tunneling current (Fowler-Nordheim and WKB)
         # minimums are to avoid exponential explosion in solver. Normal values in exponent are negative.
         # gate tunneling
@@ -138,12 +133,16 @@ class VSPlanarModel(TechModel):
             self.F_s = 1.0 # in saturation region
             self.F_s_eval = 1.0
 
-    def set_terminal_charge(self):
+    def set_vs_charge(self):
         self.Q_ix0 = self.C_inv * self.n * self.phi_t * log(1 + custom_exp((self.V_gsp - (self.V_th_eff - self.alpha * self.phi_t * self.F_f))/(self.n*self.phi_t)))
         # clamp result of softplus so it doesn't go to 0, causing issues in solver
         #self.Q_ix0 = self.C_inv * self.n * self.phi_t * symbolic_convex_max(1e-10,log(1 + exp((self.V_gsp - (self.V_th_eff - self.alpha * self.phi_t * self.F_f))/(self.n*self.phi_t))))
         self.Q_ix0_0 = self.Q_ix0.xreplace({self.V_th_eff: self.V_th_eff_general})
         self.Q_ix0_0 = self.Q_ix0_0.xreplace({self.V_dsp: 0})
+
+    def set_injection_velocity(self):
+        self.vb = self.vb0 * (self.base_params.d/self.d0)**0.5
+        self.vx0 = self.lam_v / (self.lam_v + self.base_params.L) * self.vb
     
     def init_intrinsics(self):
         self.set_intrinsic_caps()
@@ -159,8 +158,7 @@ class VSPlanarModel(TechModel):
 
         self.set_sce_parameters()
 
-        self.vb = self.vb0 * (self.base_params.d/self.d0)**0.5
-        self.vx0 = self.lam_v / (self.lam_v + self.base_params.L) * self.vb
+        self.set_injection_velocity()
 
 
         logger.info(f"delta: {self.delta.xreplace(self.base_params.tech_values).evalf()}")
@@ -170,12 +168,9 @@ class VSPlanarModel(TechModel):
         self.phi_t = self.V_T
         self.beta = 1.8
 
-        # PICK UP HERE WITH CAPS
-        self.C_g = self.C_inv
-
         self.set_smoothing_functions()
 
-        self.set_terminal_charge()
+        self.set_vs_charge()
 
     def set_parasitic_resistances(self):
         # phi_b has range of +/- phi_m, which is defined as 5.1eV
@@ -216,7 +211,7 @@ class VSPlanarModel(TechModel):
 
         self.set_parasitic_capacitances()
 
-        self.v = self.vx0 * (self.F_f + (1 - self.F_f) / (1 + self.base_params.W * self.R_s * self.C_g * (1 + 2*self.delta)*self.vx0))
+        self.v = self.vx0 * (self.F_f + (1 - self.F_f) / (1 + self.base_params.W * self.R_s * self.C_inv * (1 + 2*self.delta)*self.vx0))
 
         #self.R_cmin = self.L_c / (self.Q_ix0_0 * self.u_n_eff)
         self.I_d = self.base_params.W * self.Q_ix0 * self.v * self.F_s
@@ -261,7 +256,6 @@ class VSPlanarModel(TechModel):
         self.I_sub_per_um = self.I_sub / (self.base_params.W* 1e6)
         self.I_tunnel_per_um = self.I_tunnel / (self.base_params.W* 1e6)
         self.I_d_off_per_um = self.I_off / (self.base_params.W* 1e6)
-        self.I_GIDL_per_um = self.I_GIDL / (self.base_params.W* 1e6)
 
         logger.info(f"I_d_on per um: {self.I_d_on_per_um.xreplace(self.base_params.tech_values).evalf()}")
         logger.info(f"I_sub per um: {self.I_sub_per_um.xreplace(self.base_params.tech_values).evalf()}")
@@ -292,7 +286,6 @@ class VSPlanarModel(TechModel):
         self.param_db["I_sub_per_um"] = self.I_sub_per_um
         self.param_db["I_tunnel_per_um"] = self.I_tunnel_per_um
         self.param_db["I_d_off_per_um"] = self.I_d_off_per_um
-        self.param_db["I_GIDL_per_um"] = self.I_GIDL_per_um
         self.param_db["Eox"] = self.E_ox
         self.param_db["Vox"] = self.V_ox
         self.param_db["scale_length"] = self.scale_length

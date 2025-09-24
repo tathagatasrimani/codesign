@@ -29,6 +29,7 @@ class TechModel(ABC):
         self.m_0 = 9.109e-31  # electron mass (kg)
         self.m_e = self.m_0
         self.h = 6.626e-34  # planck's constant (J*s)
+        self.h_bar = self.h / (2*math.pi)
         self.V_T = self.K*self.T/self.q # thermal voltage (V)
         
     def init_scale_factors(self, max_parallel_factor):
