@@ -164,6 +164,7 @@ fi
 
 ############### Add useful alisas ###############
 alias create_checkpoint="python3 -m test.checkpoint_controller"
+alias run_codesign="python3 -m src.codesign"
 
 ################## SUCCESSFUL BUILD LOG ##################
 if [[ $FORCE_FULL -eq 1 ]]; then

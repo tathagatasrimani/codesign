@@ -53,6 +53,7 @@ echo "UNIVERSITY set to: $UNIVERSITY"
 
 ############### Add useful alisas ###############
 alias create_checkpoint python3 -m test.checkpoint_controller
+alias run_codesign python3 -m src.codesign
 
 # set home directory to codesign home directory
 setenv HOME `pwd`
