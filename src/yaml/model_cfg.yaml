@@ -163,6 +163,13 @@ vs_cfg_t_1_capped_parallel:
   base_cfg: vs_cfg_t_1
 
 # latest means F_s and unified I_sub
+vs_cfg_latest_test:
+  base_cfg: vs_cfg
+  effects:
+    F_s: True
+    I_sub_unified: True
+    area_and_latency_scaling: True
+
 vs_cfg_latest:
   base_cfg: vs_cfg
   effects:
@@ -171,12 +178,12 @@ vs_cfg_latest:
     area_and_latency_scaling: False
 
 vs_cfg_latest_t_1:
-  base_cfg: vs_cfg_latest
+  base_cfg: vs_cfg_latest_test
   effects:
     t_1: True
 
 vs_cfg_latest_capped_parallel:
-  base_cfg: vs_cfg_latest
+  base_cfg: vs_cfg_latest_test
   effects:
     max_parallel_en: True
     max_parallel_val: 1000

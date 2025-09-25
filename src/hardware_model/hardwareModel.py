@@ -78,8 +78,6 @@ class HardwareModel:
         self.obj_fn = args["obj"]
         self.obj = 0
         self.obj_sub_exprs = {}
-        self.symbolic_obj = 0
-        self.symbolic_obj_sub_exprs = {}
         self.area_constraint = args["area"]
         self.hls_tool = args["hls_tool"]
         self.inst_name_map = {}
@@ -92,14 +90,12 @@ class HardwareModel:
         self.netlist = nx.DiGraph()
         self.memories = []
         self.obj = 0
-        self.symbolic_obj = 0
         self.scheduled_dfg = nx.DiGraph()
         self.scheduled_dfgs = {}
         self.loop_1x_graphs = {}
         self.loop_2x_graphs = {}
         self.parasitic_graph = nx.DiGraph()
         self.obj_sub_exprs = {}
-        self.symbolic_obj_sub_exprs = {}
         self.execution_time = 0
         self.total_passive_energy = 0
         self.total_active_energy = 0
@@ -130,11 +126,6 @@ class HardwareModel:
 
         # by convention, we should always access bulk model and base params through circuit model
         self.circuit_model = circuit_model.CircuitModel(self.tech_model)
-
-
-    def vitis_map_netlist_to_scheduled_dfg(self, benchmark_name):
-        pass # TODO: implement vitis map netlist to scheduled dfg
-
 
     def catapult_map_netlist_to_scheduled_dfg(self, benchmark_name):
 
@@ -490,10 +481,6 @@ class HardwareModel:
     def get_wire_parasitics(self, arg_testfile, arg_parasitics, benchmark_name):
         if self.hls_tool == "catapult":
             self.catapult_map_netlist_to_scheduled_dfg(benchmark_name)
-        elif self.hls_tool == "vitis":
-            self.vitis_map_netlist_to_scheduled_dfg(benchmark_name)
-        else:
-            raise ValueError(f"Invalid hls tool: {self.hls_tool}")
         
         start_time = time.time()
         self.circuit_model.wire_length_by_edge, _ = place_n_route.place_n_route(
@@ -502,26 +489,6 @@ class HardwareModel:
         logger.info(f"wire lengths: {self.circuit_model.wire_length_by_edge}")
         
         logger.info(f"time to generate wire parasitics: {time.time()-start_time}")
-
-    def update_schedule_with_latency(self):
-        """
-        Updates the schedule with the latency of each operation.
-
-        Parameters:
-            schedule (nx.Digraph): A list of operations in the schedule.
-            latency (dict): A dictionary of operation names to their latencies.
-
-        Returns:
-            None;
-            The schedule is updated in place.
-        """
-        for node in self.scheduled_dfg.nodes:
-            if node in self.circuit_model.circuit_values["latency"]:
-                self.scheduled_dfg.nodes[node]["cost"] = self.circuit_model.circuit_values["latency"][self.scheduled_dfg.nodes.data()[node]["function"]]
-        for edge in self.scheduled_dfg.edges:
-            func = self.scheduled_dfg.nodes.data()[edge[0]]["function"]
-            self.scheduled_dfg.edges[edge]["weight"] = self.circuit_model.circuit_values["latency"][func]
-        self.add_wire_delays_to_schedule()
 
     def save_symbolic_memories(self):
         MemL_expr = 0
@@ -816,23 +783,10 @@ class HardwareModel:
                 logger.info(f"(wire energy) {edge}: {wire_energy} nJ")
                 total_active_energy += wire_energy
         return total_active_energy
-    
-    def calculate_objective(self, symbolic=False):
-        if self.hls_tool == "vitis":
-            if symbolic:
-                self.execution_time = self.calculate_execution_time_vitis(self.top_block_name)
-                self.total_passive_energy = self.calculate_passive_power_vitis(self.execution_time)
-                self.total_active_energy = self.calculate_active_energy_vitis()
-            else:
-                self.execution_time = sim_util.xreplace_safe(self.calculate_execution_time_vitis(self.top_block_name), self.circuit_model.tech_model.base_params.tech_values)
-                self.total_passive_energy = sim_util.xreplace_safe(self.calculate_passive_power_vitis(self.execution_time), self.circuit_model.tech_model.base_params.tech_values)
-                self.total_active_energy = sim_util.xreplace_safe(self.calculate_active_energy_vitis(), self.circuit_model.tech_model.base_params.tech_values)
-        else: # catapult
-            self.execution_time = self.calculate_execution_time(symbolic)
-            self.total_passive_energy = self.calculate_passive_energy(self.execution_time, symbolic)
-            self.total_active_energy = self.calculate_active_energy(symbolic)
+
+    def save_obj_vals(self):
         if self.model_cfg["model_type"] == "bulk_bsim4":
-            self.symbolic_obj_sub_exprs = {
+            self.obj_sub_exprs = {
                 "execution_time": self.execution_time,
                 "passive power": self.total_passive_energy/self.execution_time,
                 "active power": self.total_active_energy/self.execution_time,
@@ -846,7 +800,7 @@ class HardwareModel:
                 "f": self.circuit_model.tech_model.base_params.f,
             }
         elif self.circuit_model.tech_model.model_cfg["model_type"] == "bulk":
-            self.symbolic_obj_sub_exprs = {
+            self.obj_sub_exprs = {
                 "execution_time": self.execution_time,
                 "passive power": self.total_passive_energy/self.execution_time,
                 "active power": self.total_active_energy/self.execution_time,
@@ -861,10 +815,12 @@ class HardwareModel:
                 "f": self.circuit_model.tech_model.base_params.f,
             }
         elif self.circuit_model.tech_model.model_cfg["model_type"] == "vs":
-            self.symbolic_obj_sub_exprs = {
+            self.obj_sub_exprs = {
                 "execution_time": self.execution_time,
                 "passive power": self.total_passive_energy/self.execution_time,
                 "active power": self.total_active_energy/self.execution_time,
+                "gate length": self.circuit_model.tech_model.base_params.L,
+                "gate width": self.circuit_model.tech_model.base_params.W,
                 "subthreshold leakage current": self.circuit_model.tech_model.I_off,
                 "long channel threshold voltage": self.circuit_model.tech_model.base_params.V_th,
                 "effective threshold voltage": self.circuit_model.tech_model.V_th_eff.xreplace(self.circuit_model.tech_model.on_state).evalf(),
@@ -893,36 +849,30 @@ class HardwareModel:
             }
         else: 
             raise ValueError(f"Objective function {self.obj_fn} not supported")
-        self.obj_sub_exprs = {
-            "execution_time": self.execution_time,
-            "total_passive_energy": self.total_passive_energy,
-            "total_active_energy": self.total_active_energy,
-            "passive power": self.total_passive_energy/self.execution_time,
-        }
         if self.obj_fn == "edp":
-            if symbolic:
-                self.symbolic_obj = (self.total_passive_energy + self.total_active_energy) * self.execution_time
-                self.symbolic_obj_scaled = (self.total_passive_energy * self.circuit_model.tech_model.capped_power_scale + self.total_active_energy) * self.execution_time * self.circuit_model.tech_model.capped_delay_scale
-            else:
-                self.obj = (self.total_passive_energy + self.total_active_energy) * self.execution_time
+            self.obj = (self.total_passive_energy + self.total_active_energy) * self.execution_time
+            self.obj_scaled = (self.total_passive_energy * self.circuit_model.tech_model.capped_power_scale + self.total_active_energy) * self.execution_time * self.circuit_model.tech_model.capped_delay_scale
         elif self.obj_fn == "ed2":
-            if symbolic:
-                self.symbolic_obj = (self.total_passive_energy + self.total_active_energy) * (self.execution_time)**2
-                self.symbolic_obj_scaled = (self.total_passive_energy * self.circuit_model.tech_model.capped_power_scale + self.total_active_energy) * (self.execution_time * self.circuit_model.tech_model.capped_delay_scale)**2
-            else:   
-                self.obj = (self.total_passive_energy + self.total_active_energy) * (self.execution_time)**2
+            self.obj = (self.total_passive_energy + self.total_active_energy) * (self.execution_time)**2
+            self.obj_scaled = (self.total_passive_energy * self.circuit_model.tech_model.capped_power_scale + self.total_active_energy) * (self.execution_time * self.circuit_model.tech_model.capped_delay_scale)**2
         elif self.obj_fn == "delay":
-            if symbolic:
-                self.symbolic_obj = self.execution_time
-                self.symbolic_obj_scaled = self.execution_time * self.circuit_model.tech_model.capped_delay_scale
-            else:
-                self.obj = self.execution_time
+            self.obj = self.execution_time
+            self.obj_scaled = self.execution_time * self.circuit_model.tech_model.capped_delay_scale
         elif self.obj_fn == "energy":
             print(f"setting energy objective to {self.total_active_energy + self.total_passive_energy}")
-            if symbolic:
-                self.symbolic_obj = self.total_active_energy + self.total_passive_energy
-                self.symbolic_obj_scaled = (self.total_active_energy + self.total_passive_energy * self.circuit_model.tech_model.capped_power_scale)
-            else:
-                self.obj = self.total_active_energy + self.total_passive_energy
+            self.obj = self.total_active_energy + self.total_passive_energy
+            self.obj_scaled = (self.total_active_energy + self.total_passive_energy * self.circuit_model.tech_model.capped_power_scale)
         else:
             raise ValueError(f"Objective function {self.obj_fn} not supported")
+    
+    def calculate_objective(self):
+        if self.hls_tool == "vitis":
+            self.execution_time = self.calculate_execution_time_vitis(self.top_block_name)
+            self.total_passive_energy = self.calculate_passive_power_vitis(self.execution_time)
+            self.total_active_energy = self.calculate_active_energy_vitis()
+        else: # catapult
+            # always use symbolic calculation. If you want concrete value later then sub tech values in.
+            self.execution_time = self.calculate_execution_time(symbolic=True)
+            self.total_passive_energy = self.calculate_passive_energy(self.execution_time, symbolic=True)
+            self.total_active_energy = self.calculate_active_energy(symbolic=True)
+        self.save_obj_vals()

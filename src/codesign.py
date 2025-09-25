@@ -518,16 +518,16 @@ class Codesign:
         self.hw.calculate_objective()
 
         if setup:
-            self.max_parallel_initial_objective_value = self.hw.obj
+            self.max_parallel_initial_objective_value = self.hw.obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf()
             print(f"objective value with max parallelism: {self.max_parallel_initial_objective_value}")
         elif iteration_count == 0:
-            self.hw.circuit_model.tech_model.max_parallel_factor = self.hw.obj / self.max_parallel_initial_objective_value
+            self.hw.circuit_model.tech_model.max_parallel_factor = self.hw.obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf() / self.max_parallel_initial_objective_value
             print(f"max parallelism factor: {self.hw.circuit_model.tech_model.max_parallel_factor}")
             self.hw.circuit_model.tech_model.init_scale_factors(self.hw.circuit_model.tech_model.max_parallel_factor)
 
         self.display_objective("after forward pass")
 
-        self.obj_over_iterations.append(self.hw.obj)
+        self.obj_over_iterations.append(self.hw.obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf())
 
     def parse_catapult_timing(self):
         """
@@ -612,7 +612,7 @@ class Codesign:
             if key in mapping:
                 #print(f"key: {key}; mapping: {mapping[key]}; value: {value}")
                 self.hw.circuit_model.tech_model.base_params.tech_values[mapping[key]] = (
-                    value  # just know that self.hw.circuit_model.tech_model.base_params.tech_values contains all dat
+                    value
                 )
             i += 1
 
@@ -675,21 +675,17 @@ class Codesign:
                     self.hw.circuit_model.symbolic_buf[memory] = cacti_util.gen_symbolic("Buf", base_cache_cfg, opt_vals, use_piecewise=False)
                 existing_memories[data_tuple] = memory
         self.hw.save_symbolic_memories()
-        self.hw.calculate_objective(symbolic=True)
+        self.hw.calculate_objective()
 
     
-    def display_objective(self, message,symbolic=False):
-        if symbolic:
-            obj = float(self.hw.symbolic_obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values))
-            sub_exprs = {}
-            for key in self.hw.symbolic_obj_sub_exprs:
-                if not isinstance(self.hw.symbolic_obj_sub_exprs[key], float):
-                    sub_exprs[key] = float(self.hw.symbolic_obj_sub_exprs[key].xreplace(self.hw.circuit_model.tech_model.base_params.tech_values))
-                else:   
-                    sub_exprs[key] = self.hw.symbolic_obj_sub_exprs[key]
-        else:
-            obj = self.hw.obj
-            sub_exprs = self.hw.obj_sub_exprs
+    def display_objective(self, message):
+        obj = float(self.hw.obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values))
+        sub_exprs = {}
+        for key in self.hw.obj_sub_exprs:
+            if not isinstance(self.hw.obj_sub_exprs[key], float):
+                sub_exprs[key] = float(self.hw.obj_sub_exprs[key].xreplace(self.hw.circuit_model.tech_model.base_params.tech_values))
+            else:   
+                sub_exprs[key] = self.hw.obj_sub_exprs[key]
         print(f"{message}\n {self.obj_fn}: {obj}, sub expressions: {sub_exprs}")
 
 
@@ -707,7 +703,7 @@ class Codesign:
         print("\nRunning Inverse Pass")
         logger.info("Running Inverse Pass")
         self.symbolic_conversion()
-        self.display_objective("after symbolic conversion", symbolic=True)
+        self.display_objective("after symbolic conversion")
 
         stdout = sys.stdout
         with open("src/tmp/ipopt_out.txt", "w") as sys.stdout:
@@ -717,19 +713,19 @@ class Codesign:
         f = open("src/tmp/ipopt_out.txt", "r")
         if not error:
             self.parse_output(f)
+        
+        if self.hls_tool == "vitis":
+            # need to update the tech_value for final node arrival time after optimization
+            self.hw.calculate_execution_time_vitis(self.hw.top_block_name)
 
         self.write_back_params()
 
-        self.display_objective("after inverse pass", symbolic=True)
+        self.display_objective("after inverse pass")
 
-        self.obj_over_iterations.append(self.hw.symbolic_obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values))
+        self.obj_over_iterations.append(self.hw.obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values))
         self.lag_factor_over_iterations.append(self.inverse_pass_lag_factor)
 
     def log_all_to_file(self, iter_number):
-        with open(f"{self.save_dir}/results.txt", "a") as f:
-            f.write(f"{iter_number}\n")
-            f.write(f"Forward {self.obj_fn}: {self.hw.obj}\n")
-            f.write(f"Inverse {self.obj_fn}: {self.hw.symbolic_obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values)}\n")
         nx.write_gml(
             self.hw.netlist,
             f"{self.save_dir}/netlist_{iter_number}.gml",
