@@ -45,6 +45,12 @@ def custom_coth(x, evaluate=True):
     """
     return coth(symbolic_min(500, x))
 
+def custom_pow(x, y, evaluate=True):
+    """
+    Custom pow function to guard against illegal negative base.
+    """
+    return pow(Abs(x, evaluate=evaluate), y)
+
 # overwrite values of dict1 with values of dict2
 # if a key is not present in dict1, still takes values from dict2
 # if key is not present in dict2, keeps value from dict1

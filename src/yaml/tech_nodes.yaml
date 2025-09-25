@@ -20,6 +20,7 @@ default:
   t_1: 1.0e-6
   d: 1.0e-6
   k_cnt: 1.0
+  L_ov: 375.0e-9
   node_arrivals_end: 0
 
 tech-1982:

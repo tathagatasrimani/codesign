@@ -52,7 +52,7 @@ class DennardMultiCore:
         self.calculate_objective()
         self.codesign_module.hw.save_obj_vals()
 
-        self.codesign_module.display_objective("before inverse pass", symbolic=True)
+        self.codesign_module.display_objective("before inverse pass")
 
         self.disabled_knobs = [self.codesign_module.hw.circuit_model.tech_model.base_params.f, self.codesign_module.hw.circuit_model.tech_model.base_params.u_n]
         if k_gate_disabled:
@@ -70,7 +70,7 @@ class DennardMultiCore:
         self.codesign_module.write_back_params()
         print(f"inverse pass lag factor: {self.codesign_module.inverse_pass_lag_factor}")
 
-        self.codesign_module.display_objective("after inverse pass", symbolic=True)
+        self.codesign_module.display_objective("after inverse pass")
 
     def update_params_over_iterations(self):
         self.params_over_iterations.append(self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values.copy())

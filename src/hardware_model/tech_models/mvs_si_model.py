@@ -1,6 +1,6 @@
 import logging
 from src.hardware_model.tech_models.tech_model_base import TechModel
-from src.sim_util import symbolic_convex_max, symbolic_min, custom_cosh, custom_exp
+from src.sim_util import symbolic_convex_max, symbolic_min, custom_cosh, custom_exp, custom_pow
 import math
 from sympy import symbols, ceiling, expand, exp, Abs, cosh, log
 import sympy as sp
@@ -19,8 +19,8 @@ class MVSSiModel(TechModel):
         self.m_ox = 0.5*self.m_0  # effective mass of electron in oxide (g)
 
         self.etov = 1.3e-5 # equivalent thickness of dielectric at S/D-G overlap (m)
-        self.Rs0 = 100 # source resistance (ohm*m)
-        self.Rd0 = 100 # drain resistance (ohm*m)
+        self.Rs0 = 100.0e-6 # source resistance (ohm*m)
+        self.Rd0 = 100.0e-6 # drain resistance (ohm*m)
         
         self.Cif = 1.0e-10 # inner fringing S or D capacitance (F/m)
         self.Cof = 2.0e-11 # outer fringing S or D capacitance (F/m)
@@ -60,6 +60,10 @@ class MVSSiModel(TechModel):
             self.V_dsp: self.base_params.V_dd,
         }
 
+        self.init_intrinsics()
+
+        self.init_extrinsics()
+
         self.apply_additional_effects()
 
         self.config_param_db()
@@ -84,13 +88,13 @@ class MVSSiModel(TechModel):
         self.eVgpre = custom_exp((self.V_gsp - self.Vtpcorr)/(self.alpha*self.phi_t * 1.5))
         self.FFpre = 1/(1+self.eVgpre)
         self.ab = 2*(1-0.99 * self.FFpre) * self.phi_t
-        self.Vcorr = (1.0 + 2.0 * self.delta) * (self.ab/2) * (custom_exp(-self.Vdsp/self.ab))
+        self.Vcorr = (1.0 + 2.0 * self.delta) * (self.ab/2) * (custom_exp(-self.V_dsp/self.ab))
         self.Vgscorr = self.V_gsp + self.Vcorr
         self.Vbscorr = self.Vbs + self.Vcorr
         self.Vt0bs = self.base_params.V_th + self.gamma * ((Abs(self.phib-self.Vbscorr)-self.phib**(1/2))**(1/2))
         self.Vt0bs0 = self.base_params.V_th + self.gamma * ((Abs(self.phib-self.Vbs)-self.phib**(1/2))**(1/2))
-        self.Vtp = self.Vt0bs - self.Vdsp * self.delta - 0.5 * self.alpha * self.phi_t
-        self.Vtp0 = self.Vt0bs0 - self.Vdsp * self.delta - 0.5 * self.alpha * self.phi_t
+        self.Vtp = self.Vt0bs - self.V_dsp * self.delta - 0.5 * self.alpha * self.phi_t
+        self.Vtp0 = self.Vt0bs0 - self.V_dsp * self.delta - 0.5 * self.alpha * self.phi_t
         self.eVg = custom_exp((self.Vgscorr - self.Vtp)/(self.alpha*self.phi_t))
         if self.model_cfg["effects"]["F_f"]:
             self.F_f = 1/(1+self.eVg)
@@ -101,14 +105,14 @@ class MVSSiModel(TechModel):
         self.eVg0 = custom_exp((self.V_gsp - self.Vtp0)/(self.alpha*self.phi_t))
         self.FF0 = 1/(1+self.eVg0)
         self.Qref = self.C_inv * self.n * self.phi_t
-        self.eta = (self.Vgscorr - (self.Vt0bs - self.Vdsp * self.delta - self.F_f * self.alpha * self.phi_t)) / (self.n * self.phi_t)
-        self.eta0 = (self.V_gsp - (self.Vt0bs0 - self.Vdsp * self.delta - self.FF0 * self.alpha * self.phi_t)) / (self.n * self.phi_t)
+        self.eta = (self.Vgscorr - (self.Vt0bs - self.V_dsp * self.delta - self.F_f * self.alpha * self.phi_t)) / (self.n * self.phi_t)
+        self.eta0 = (self.V_gsp - (self.Vt0bs0 - self.V_dsp * self.delta - self.FF0 * self.alpha * self.phi_t)) / (self.n * self.phi_t)
 
         # F_s
         self.Vdsats = self.vx0 * self.Leff / self.u_n_eff
         self.Vdsat = self.Vdsats * (1 - self.F_f) + self.phi_t * self.F_f
-        self.Vdratio = self.Vdsp/self.Vdsat
-        self.Vdbeta = self.Vdratio**(self.beta)
+        self.Vdratio = self.V_dsp/self.Vdsat
+        self.Vdbeta = custom_pow(self.Vdratio, self.beta, evaluate=False)
         self.Vdbetabeta = (1 + self.Vdbeta)**(1/self.beta)
         if self.model_cfg["effects"]["F_s"]:
             self.F_s = self.Vdratio / self.Vdbetabeta
@@ -116,6 +120,11 @@ class MVSSiModel(TechModel):
         else:
             self.F_s = 1.0 # in saturation region
             self.F_s_eval = 1.0
+        self.Vdsat_eval = (self.Vdsat.xreplace(self.NL_state) + self.Vdsat.xreplace(self.H_state)) / 2
+        self.Vdratio_eval = (self.Vdratio.xreplace(self.NL_state) + self.Vdratio.xreplace(self.H_state)) / 2
+        logger.info(f"Vdsat: {self.Vdsat_eval.xreplace(self.base_params.tech_values).evalf()}")
+        logger.info(f"Vdratio: {self.Vdratio_eval.xreplace(self.base_params.tech_values).evalf()}")
+
 
     def set_vs_charge(self):
         self.Q_ix0 = self.Qref * log(1+custom_exp(self.eta))
@@ -128,7 +137,8 @@ class MVSSiModel(TechModel):
         self.u_n_eff = self.u_n # TODO: add mobility model
 
     def init_intrinsics(self):
-        self.Leff = self.base_params.L - self.base_params.L_ov
+        self.L_ov = self.base_params.L / 8 # TODO replace with proper value
+        self.Leff = self.base_params.L - self.L_ov
         self.Cox = self.e_0 * self.base_params.k_gate / self.base_params.tox
         logger.info(f"Cox: {self.Cox.xreplace(self.base_params.tech_values).evalf()}")
 
@@ -142,7 +152,7 @@ class MVSSiModel(TechModel):
 
         self.set_mobility()
 
-        self.Vtpcorr = self.base_params.V_th + self.gamma * ((Abs(self.phib-self.Vbs)-self.phib**(1/2))**(1/2)) - self.Vdsp * self.delta
+        self.Vtpcorr = self.base_params.V_th + self.gamma * ((Abs(self.phib-self.Vbs)-self.phib**(1/2))**(1/2)) - self.V_dsp * self.delta
 
         self.V_th_eff_general = self.Vtpcorr
         self.V_th_eff = (self.V_th_eff_general.xreplace(self.NL_state) + self.V_th_eff_general.xreplace(self.H_state)) / 2
@@ -156,8 +166,8 @@ class MVSSiModel(TechModel):
         self.R_d = self.R_s
 
     def set_parasitic_capacitances(self):
-        self.Cofs = (0.345e-12/self.etov) * self.base_params.L_ov / 2.0 + self.Cof
-        self.Cofd = (0.345e-12/self.etov) * self.base_params.L_ov / 2.0 + self.Cof
+        self.Cofs = (0.345e-14/self.etov) * self.L_ov / 2.0 + self.Cof
+        self.Cofd = (0.345e-14/self.etov) * self.L_ov / 2.0 + self.Cof
 
 
     def set_gate_tunneling(self):
@@ -190,7 +200,8 @@ class MVSSiModel(TechModel):
         logger.info(f"A_gate: {self.A_gate.xreplace(self.base_params.tech_values).evalf()}")
         logger.info(f"area_scale: {self.base_params.area_scale.xreplace(self.base_params.tech_values).evalf()}")
 
-        self.C_diff = self.Cofs + self.Cofd
+        #self.C_diff = self.Cofs + self.Cofd
+        self.C_diff = self.C_gate
         self.C_load = 4 * self.C_gate # FO4 load capacitance
         self.R_avg_inv = self.base_params.V_dd / self.I_d_on
 

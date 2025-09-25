@@ -166,7 +166,7 @@ class CircuitModel:
 
         self.update_circuit_values()
 
-        self.set_uarch_parameters()
+        #self.set_uarch_parameters()
 
         self.create_constraints()
     
@@ -377,8 +377,11 @@ class CircuitModel:
         return area_coeff * self.tech_model.base_params.area
 
     def create_constraints(self):
+        self.clk_period = sp.symbols("clk_period")
+        self.tech_model.base_params.tech_values[self.clk_period] = float((1e9/self.tech_model.base_params.f).subs(self.tech_model.base_params.tech_values).evalf())
         self.constraints.append(self.clk_period >= 1/self.tech_model.base_params.f * 1.0e9)
-        for key in self.symbolic_latency_wc:
-            if key not in ["Buf", "MainMem", "OffChipIO", "Call", "N/A"]:
-                # cycle limit to constrain the amount of pipelining
-                self.constraints.append(self.symbolic_latency_wc[key]() / self.tech_model.base_params.f <= 100)
+        if self.tech_model.model_cfg["effects"]["frequency"]:
+            for key in self.symbolic_latency_wc:
+                if key not in ["Buf", "MainMem", "OffChipIO", "Call", "N/A"]:
+                    # cycle limit to constrain the amount of pipelining
+                    self.constraints.append(self.symbolic_latency_wc[key]() / self.tech_model.base_params.f <= 100)

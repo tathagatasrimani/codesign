@@ -21,9 +21,11 @@ default:
     F_s: False
     t_1: False
     I_sub_unified: False
+    frequency: True
   delay_parasitics: all
   scaling_mode: None
   model_type: bulk
+  vs_model_type: base
   base_cfg: default
 
 dennard_scaling_cfg:
@@ -169,6 +171,16 @@ vs_cfg_latest_test:
     F_s: True
     I_sub_unified: True
     area_and_latency_scaling: True
+
+mvs_si_cfg_test:
+  base_cfg: vs_cfg_latest_test
+  vs_model_type: mvs_si
+  effects:
+    frequency: False
+
+mvs_2_cfg_test:
+  base_cfg: vs_cfg_latest_test
+  vs_model_type: mvs2
 
 vs_cfg_latest:
   base_cfg: vs_cfg

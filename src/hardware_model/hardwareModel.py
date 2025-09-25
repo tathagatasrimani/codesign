@@ -17,6 +17,9 @@ from src import sim_util
 from src.hardware_model.tech_models import bulk_model
 from src.hardware_model.tech_models import bulk_bsim4_model
 from src.hardware_model.tech_models import vs_model
+from src.hardware_model.tech_models import mvs_si_model
+from src.hardware_model.tech_models import mvs_2_model
+from src.hardware_model.tech_models import vscnfet_model
 from openroad_interface import place_n_route
 
 import cvxpy as cp
@@ -119,7 +122,14 @@ class HardwareModel:
         elif self.model_cfg["model_type"] == "bulk_bsim4":
             self.tech_model = bulk_bsim4_model.BulkBSIM4Model(self.model_cfg, self.base_params)
         elif self.model_cfg["model_type"] == "vs":
-            self.tech_model = vs_model.VSModel(self.model_cfg, self.base_params)
+            if self.model_cfg["vs_model_type"] == "base":
+                self.tech_model = vs_model.VSModel(self.model_cfg, self.base_params)
+            elif self.model_cfg["vs_model_type"] == "mvs_si":
+                self.tech_model = mvs_si_model.MVSSiModel(self.model_cfg, self.base_params)
+            elif self.model_cfg["vs_model_type"] == "mvs2":
+                self.tech_model = mvs_2_model.MVS2Model(self.model_cfg, self.base_params)
+            else:
+                raise ValueError(f"Invalid vs model type: {self.model_cfg['vs_model_type']}")
         else:
             raise ValueError(f"Invalid model type: {self.model_cfg['model_type']}")
         self.tech_model.create_constraints(self.model_cfg["scaling_mode"])
@@ -830,7 +840,6 @@ class HardwareModel:
                 "off current per um": self.circuit_model.tech_model.I_d_off_per_um,
                 "gate tunneling current per um": self.circuit_model.tech_model.I_tunnel_per_um,
                 "subthreshold leakage current per um": self.circuit_model.tech_model.I_sub_per_um,
-                "GIDL current per um": self.circuit_model.tech_model.I_GIDL_per_um,
                 "DIBL factor": self.circuit_model.tech_model.delta,
                 "t_ox": self.circuit_model.tech_model.base_params.tox,
                 "eot": self.circuit_model.tech_model.eot,
@@ -846,7 +855,12 @@ class HardwareModel:
                 "v": self.circuit_model.tech_model.v,
                 "t_1": self.circuit_model.tech_model.t_1,
                 "f": self.circuit_model.tech_model.base_params.f,
+                "R_s": self.circuit_model.tech_model.R_s,
+                "R_d": self.circuit_model.tech_model.R_d,
+                "parasitic capacitance": self.circuit_model.tech_model.C_diff,
             }
+            if self.circuit_model.tech_model.model_cfg["vs_model_type"] == "mvs_si":
+                self.obj_sub_exprs["L_ov"] = self.circuit_model.tech_model.L_ov
         else: 
             raise ValueError(f"Objective function {self.obj_fn} not supported")
         if self.obj_fn == "edp":

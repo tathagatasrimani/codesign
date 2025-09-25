@@ -212,6 +212,7 @@ class Preprocessor:
         for i in range(len(constraints)):
             print(f"constraint {i}: {constraints[i]}")
             self.free_symbols.extend(constraints[i].free_symbols)
+        print(f"obj: {obj}")
         self.free_symbols = list(set(self.free_symbols))
 
         self.improvement = improvement
