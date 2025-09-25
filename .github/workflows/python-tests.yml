@@ -5,18 +5,12 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: codesign-runner-test
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
 
-      - name: Set up bash and run environment setup
+      - name: Run custom script
         run: |
-          bash full_env_start.sh
-
-      - name: Run pytest
-        shell: bash -l {0}
-        run: |
-          source miniconda3/etc/profile.d/conda.sh
-          conda activate codesign
-          pytest test/
+          chmod +x scripts/scripts-ci.sh || true
+          ./scripts/scripts-ci.sh
