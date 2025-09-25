@@ -83,7 +83,7 @@ class MVSSiModel(TechModel):
         assert (1 - 2*self.alpha_g*exp(-math.pi*self.base_params.L/(2*self.scale_length))).xreplace(self.base_params.tech_values).evalf() > 1e-5, f"SS denominator is too small, clamping for solver will cause inaccuracies"
         self.n = self.S / (self.phi_t * log(10))
 
-    def set_smoothing_functions(self):
+    def set_F_f(self):
         # F_f and some charge related stuff
         self.eVgpre = custom_exp((self.V_gsp - self.Vtpcorr)/(self.alpha*self.phi_t * 1.5))
         self.FFpre = 1/(1+self.eVgpre)
@@ -108,8 +108,9 @@ class MVSSiModel(TechModel):
         self.eta = (self.Vgscorr - (self.Vt0bs - self.V_dsp * self.delta - self.F_f * self.alpha * self.phi_t)) / (self.n * self.phi_t)
         self.eta0 = (self.V_gsp - (self.Vt0bs0 - self.V_dsp * self.delta - self.FF0 * self.alpha * self.phi_t)) / (self.n * self.phi_t)
 
+    def set_F_s(self):
         # F_s
-        self.Vdsats = self.vx0 * self.Leff / self.u_n_eff
+        self.Vdsats = self.v * self.Leff / self.u_n_eff
         self.Vdsat = self.Vdsats * (1 - self.F_f) + self.phi_t * self.F_f
         self.Vdratio = self.V_dsp/self.Vdsat
         #self.Vdbeta = custom_pow(self.Vdratio, self.beta, evaluate=False)
@@ -158,7 +159,7 @@ class MVSSiModel(TechModel):
         self.V_th_eff_general = self.Vtpcorr
         self.V_th_eff = (self.V_th_eff_general.xreplace(self.NL_state) + self.V_th_eff_general.xreplace(self.H_state)) / 2
 
-        self.set_smoothing_functions()
+        self.set_F_f()
 
         self.set_vs_charge()
 
@@ -188,6 +189,7 @@ class MVSSiModel(TechModel):
         self.set_parasitic_resistances()
         self.set_parasitic_capacitances()
         self.v = self.vx0 * (self.F_f + (1 - self.F_f) / (1 + self.base_params.W * self.R_s * self.C_inv * (1 + 2*self.delta)*self.vx0))
+        self.set_F_s()
         #self.R_cmin = self.L_c / (self.Q_ix0_0 * self.u_n_eff)
         self.I_d = self.base_params.W * self.Q_ix0 * self.v * self.F_s
 

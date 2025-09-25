@@ -1,58 +1,14 @@
 import matplotlib.pyplot as plt
 import os
+from src.sim_util import xreplace_safe
 
 class TrendPlot:
     def __init__(self, codesign_module, params_over_iterations, obj_over_iterations, lag_factor_over_iterations, save_dir, obj="Energy Delay Product", units="nJ*ns", obj_fn="edp"):
         self.codesign_module = codesign_module
         self.params_over_iterations = params_over_iterations
-        self.plot_list = set([
-            self.codesign_module.hw.circuit_model.tech_model.base_params.V_dd,
-            self.codesign_module.hw.circuit_model.tech_model.V_th_eff,
-            self.codesign_module.hw.circuit_model.tech_model.base_params.u_n,
-            self.codesign_module.hw.circuit_model.tech_model.base_params.L,
-            self.codesign_module.hw.circuit_model.tech_model.base_params.W,
-            self.codesign_module.hw.circuit_model.tech_model.base_params.tox,
-            self.codesign_module.hw.circuit_model.tech_model.base_params.k_gate,
-            self.codesign_module.hw.circuit_model.tech_model.m1_Rsq,
-            self.codesign_module.hw.circuit_model.tech_model.m1_Csq,
-            self.codesign_module.hw.circuit_model.tech_model.base_params.m1_rho,
-            self.codesign_module.hw.circuit_model.tech_model.base_params.m1_k,
-            self.codesign_module.hw.circuit_model.tech_model.base_params.t_1,
-            self.codesign_module.hw.circuit_model.tech_model.eot,
-            self.codesign_module.hw.circuit_model.tech_model.base_params.f,
-        ])
-        self.plot_list_labels = {
-            self.codesign_module.hw.circuit_model.tech_model.base_params.V_dd: "Vdd",
-            self.codesign_module.hw.circuit_model.tech_model.V_th_eff: "Vth",
-            self.codesign_module.hw.circuit_model.tech_model.base_params.u_n: "u_n",
-            self.codesign_module.hw.circuit_model.tech_model.base_params.L: "L",
-            self.codesign_module.hw.circuit_model.tech_model.base_params.W: "W",
-            self.codesign_module.hw.circuit_model.tech_model.base_params.tox: "tox",
-            self.codesign_module.hw.circuit_model.tech_model.base_params.k_gate: "k_gate",
-            self.codesign_module.hw.circuit_model.tech_model.m1_Rsq: "m1_Rsq",
-            self.codesign_module.hw.circuit_model.tech_model.m1_Csq: "m1_Csq",
-            self.codesign_module.hw.circuit_model.tech_model.base_params.m1_rho: "m1_rho",
-            self.codesign_module.hw.circuit_model.tech_model.base_params.m1_k: "m1_k",
-            self.codesign_module.hw.circuit_model.tech_model.base_params.t_1: "t_1",
-            self.codesign_module.hw.circuit_model.tech_model.eot: "eot",
-            self.codesign_module.hw.circuit_model.tech_model.base_params.f: "f",
-        }
-        self.plot_list_names = {
-            self.codesign_module.hw.circuit_model.tech_model.base_params.V_dd: "Logic Supply Voltage per iteration (V)",
-            self.codesign_module.hw.circuit_model.tech_model.V_th_eff: "Transistor Vth per iteration (V)",
-            self.codesign_module.hw.circuit_model.tech_model.base_params.u_n: "Transistor u_n per iteration (m²/V·s)",
-            self.codesign_module.hw.circuit_model.tech_model.base_params.L: "Gate Length per iteration (m)",
-            self.codesign_module.hw.circuit_model.tech_model.base_params.W: "Gate Width per iteration (m)",
-            self.codesign_module.hw.circuit_model.tech_model.base_params.tox: "Gate Oxide Thickness per iteration (m)",
-            self.codesign_module.hw.circuit_model.tech_model.base_params.k_gate: "Gate Permittivity per iteration (F/m)",
-            self.codesign_module.hw.circuit_model.tech_model.m1_Rsq: "metal 1 Rsq per iteration (Ohm*um)",
-            self.codesign_module.hw.circuit_model.tech_model.m1_Csq: "metal 1 Csq per iteration (F/um)",
-            self.codesign_module.hw.circuit_model.tech_model.base_params.m1_rho: "metal 1 rho per iteration (Ohm*m)",
-            self.codesign_module.hw.circuit_model.tech_model.base_params.m1_k: "metal 1 k per iteration (F/m)",
-            self.codesign_module.hw.circuit_model.tech_model.base_params.t_1: "physical body thickness per iteration (m)",
-            self.codesign_module.hw.circuit_model.tech_model.eot: "electrical oxide thickness per iteration (m)",
-            self.codesign_module.hw.circuit_model.tech_model.base_params.f: "f per iteration (Hz)",
-        }
+        self.plot_list = set(self.codesign_module.hw.obj_sub_exprs.values())
+        self.plot_list_labels = {param: label for label, param in self.codesign_module.hw.obj_sub_exprs.items()}
+        self.plot_list_names = self.codesign_module.hw.obj_sub_plot_names
         self.obj_over_iterations = obj_over_iterations
         self.lag_factor_over_iterations = lag_factor_over_iterations
         self.save_dir = save_dir
@@ -78,15 +34,15 @@ class TrendPlot:
         for param in self.plot_list:
             values = []
             for i in range(len(self.params_over_iterations)):
-                values.append(param.xreplace(self.params_over_iterations[i]))
+                values.append(xreplace_safe(param, self.params_over_iterations[i]))
             
             # Create figure with better sizing
             fig, ax = plt.subplots(figsize=(10, 6))
             
             # Plot with improved styling
             ax.plot(values, linewidth=3, markersize=15, marker="o", color="black")
-            ax.set_xlabel("Iteration", fontweight="bold")
-            ax.set_title(f"{self.plot_list_names[param]}", fontweight="bold", pad=20)
+            ax.set_xlabel("Generation", fontweight="bold")
+            ax.set_title(f"{self.plot_list_names[self.plot_list_labels[param]]}", fontweight="bold", pad=20)
             ax.set_yscale("log")
             
             # Improve grid and styling

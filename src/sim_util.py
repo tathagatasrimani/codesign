@@ -42,8 +42,9 @@ def custom_cosh(x, evaluate=True):
 def custom_coth(x, evaluate=True):
     """
     Custom coth function to guard against overflow.
+    Also pyomo cannot handle coth, so use this function.
     """
-    return coth(symbolic_min(500, x))
+    return (custom_exp(x) + custom_exp(-x)) / 2
 
 def custom_pow(x, y, evaluate=True):
     """

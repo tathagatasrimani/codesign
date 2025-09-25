@@ -171,16 +171,19 @@ vs_cfg_latest_test:
     F_s: True
     I_sub_unified: True
     area_and_latency_scaling: True
+    frequency: False
 
 mvs_si_cfg_test:
   base_cfg: vs_cfg_latest_test
   vs_model_type: mvs_si
-  effects:
-    frequency: False
 
 mvs_2_cfg_test:
   base_cfg: vs_cfg_latest_test
   vs_model_type: mvs2
+
+vscnfet_cfg_test:
+  base_cfg: vs_cfg_latest_test
+  vs_model_type: vscnfet
 
 vs_cfg_latest:
   base_cfg: vs_cfg

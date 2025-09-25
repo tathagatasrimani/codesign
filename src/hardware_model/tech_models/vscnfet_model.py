@@ -99,6 +99,7 @@ class VSCNFetModel(TechModel):
 
     def set_sce_parameters(self):
         self.n = 1/(1-exp(-self.zeta))
+        self.S = self.n * self.V_T * log(10)
         self.delta = exp(-self.zeta)
         self.Vth_rolloff = (2*self.Efsd + self.Eg)*exp(-self.zeta)
 
@@ -116,7 +117,7 @@ class VSCNFetModel(TechModel):
         self.I_tunnel = self.FN_term + self.WKB_term
         logger.info(f"I_tunnel: {self.I_tunnel.xreplace(self.base_params.tech_values)}")
 
-    def set_smoothing_functions(self):
+    def set_F_f(self):
         if self.model_cfg["effects"]["F_f"]:
             self.F_f = 1/(1+custom_exp((self.V_gsp - (self.V_th_eff - self.alpha * self.phi_t / 2))/(self.alpha * self.phi_t)))
             self.F_f_eval = self.F_f.xreplace(self.on_state)
@@ -124,6 +125,7 @@ class VSCNFetModel(TechModel):
             self.F_f = 0.0 # for saturation region where Vgs sufficiently larger than Vth. Can look into near threshold region later
             self.F_f_eval = 0.0
 
+    def set_F_s(self):
         if self.model_cfg["effects"]["F_s"]:
             self.Vdsats = self.v * self.base_params.L / self.u_n_eff
             self.Vdsat = self.Vdsats * (1 - self.F_f) + self.phi_t * self.F_f
@@ -151,6 +153,8 @@ class VSCNFetModel(TechModel):
 
         self.eot = self.base_params.tox * 3.9/self.base_params.k_gate
 
+        self.gamma = self.base_params.k_cnt/self.base_params.k_gate
+
         self.set_scale_length()
 
         self.L_of = self.base_params.tox / 3
@@ -168,7 +172,7 @@ class VSCNFetModel(TechModel):
         self.phi_t = self.V_T
         self.beta = 1.8
 
-        self.set_smoothing_functions()
+        self.set_F_f()
 
         self.set_vs_charge()
 
@@ -180,17 +184,17 @@ class VSCNFetModel(TechModel):
         self.R_c = self.R_q/2 * (1+4/(self.lam_c*self.g_c*self.R_q))**0.5 * custom_coth(self.base_params.L_c/self.L_T)
         self.L_ext = self.base_params.L/2 # TODO: check if this is correct
         self.nsd = 0.6e+9 # m^-1, come back to this but didn't want to get into doping concentration for the model
-        self.R_ext = self.R_ext0 * self.L_ext / (self.d**self.alpha_d * self.nsd**self.alpha_n)
+        self.R_ext = self.R_ext0 * self.L_ext / (self.base_params.d**self.alpha_d * self.nsd**self.alpha_n)
         self.R_s = self.R_c + self.R_ext # ohm*um
         self.R_d = self.R_s
 
     def set_Cof(self):
         tao1 = 2.5
         tao2 = 2.0
-        h = self.base_params.tox + self.d/2
+        h = self.base_params.tox + self.base_params.d/2
         sr = 0.4
         A = sr*2*math.pi*self.kspa*self.e_0*self.L_ext
-        B = acosh(2*(h**2 + (0.28*self.L_ext)**2)**0.5 / self.d)
+        B = acosh(2*(h**2 + (0.28*self.L_ext)**2)**0.5 / self.base_params.d)
         self.C_of = A/B # for 1 CNT
 
     def set_Cgtc(self):
@@ -213,6 +217,7 @@ class VSCNFetModel(TechModel):
 
         self.v = self.vx0 * (self.F_f + (1 - self.F_f) / (1 + self.base_params.W * self.R_s * self.C_inv * (1 + 2*self.delta)*self.vx0))
 
+        self.set_F_s()
         #self.R_cmin = self.L_c / (self.Q_ix0_0 * self.u_n_eff)
         self.I_d = self.base_params.W * self.Q_ix0 * self.v * self.F_s
 
@@ -235,7 +240,8 @@ class VSCNFetModel(TechModel):
         if self.model_cfg["effects"]["gate_tunneling"]:
             self.I_off = self.I_off + self.I_tunnel
 
-        self.C_diff = self.C_of + self.C_gtc
+        #self.C_diff = self.C_of + self.C_gtc
+        self.C_diff = self.C_gate
         self.C_load = 4*self.C_gate # FO4 model
         self.R_avg_inv = self.base_params.V_dd / self.I_d_on
 
@@ -272,23 +278,41 @@ class VSCNFetModel(TechModel):
 
     def config_param_db(self):
         super().config_param_db()
-        self.param_db["I_d"] = self.I_d_on
-        self.param_db["C_load"] = self.C_load
-        self.param_db["delay"] = self.delay
-        self.param_db["u_n_eff"] = self.u_n_eff
-        self.param_db["V_th_eff"] = self.V_th_eff
-        self.param_db["delta_vt_dibl"] = (-self.delta * self.V_dsp).xreplace(self.on_state).evalf()
-        self.param_db["R_wire"] = self.R_wire
-        self.param_db["C_wire"] = self.C_wire
+        self.param_db["L"] = self.base_params.L
+        self.param_db["W"] = self.base_params.W
         self.param_db["I_sub"] = self.I_sub
-        self.param_db["I_tunnel"] = self.I_tunnel
-        self.param_db["I_d_on_per_um"] = self.I_d_on_per_um
-        self.param_db["I_sub_per_um"] = self.I_sub_per_um
+        self.param_db["V_th"] = self.base_params.V_th
+        self.param_db["V_th_eff"] = self.V_th_eff.xreplace(self.on_state).evalf()
+        self.param_db["V_dd"] = self.base_params.V_dd
+        self.param_db["wire RC"] = self.m1_Rsq * self.m1_Csq
+        self.param_db["I_on"] = self.I_d_on
+        self.param_db["I_on_per_um"] = self.I_d_on_per_um
+        self.param_db["I_off_per_um"] = self.I_d_off_per_um
         self.param_db["I_tunnel_per_um"] = self.I_tunnel_per_um
-        self.param_db["I_d_off_per_um"] = self.I_d_off_per_um
-        self.param_db["Eox"] = self.E_ox
-        self.param_db["Vox"] = self.V_ox
+        self.param_db["I_sub_per_um"] = self.I_sub_per_um
+        self.param_db["DIBL factor"] = self.delta
+        self.param_db["Vth_rolloff"] = self.Vth_rolloff
+        self.param_db["t_ox"] = self.base_params.tox
+        self.param_db["eot"] = self.eot
         self.param_db["scale_length"] = self.scale_length
+        self.param_db["C_load"] = self.C_load
+        self.param_db["C_wire"] = self.C_wire
+        self.param_db["R_wire"] = self.R_wire
+        self.param_db["R_device"] = self.base_params.V_dd/self.I_d_on
+        self.param_db["SS"] = self.S
+        self.param_db["F_f"] = self.F_f_eval
+        self.param_db["F_s"] = self.F_s_eval
+        self.param_db["vx0"] = self.vx0
+        self.param_db["v"] = self.v.xreplace(self.on_state).evalf()
+        self.param_db["f"] = self.base_params.f
+        self.param_db["R_s"] = self.R_s
+        self.param_db["R_d"] = self.R_d
+        self.param_db["parasitic capacitance"] = self.C_diff
+        self.param_db["d"] = self.base_params.d
+        self.param_db["L_c"] = self.base_params.L_c
+        self.param_db["H_c"] = self.base_params.H_c
+        self.param_db["H_g"] = self.base_params.H_g
+        self.param_db["k_cnt"] = self.base_params.k_cnt
         self.param_db["A_gate"] = self.A_gate
 
     def apply_base_parameter_effects(self):
@@ -301,6 +325,6 @@ class VSCNFetModel(TechModel):
         super().create_constraints(dennard_scaling_type)
         self.constraints.append(self.delta <= 0.15)
         self.constraints.append(self.base_params.tox >= 2*self.base_params.d) # ensure scale length equation holds
-        self.constraints.append(self.base_params.k_cnt <= 20)
-        self.constraints.append(self.base_params.k_cnt >= 1)
-        self.constraints.append(self.base_params.L_c == self.base_params.L/5) # from minimum values in technical manual
+        self.constraints.append(self.base_params.k_cnt <= 4.0)
+        self.constraints.append(self.base_params.k_cnt >= 3.8)
+        self.constraints.append(self.base_params.L_c >= self.base_params.L/5) # from minimum values in technical manual

@@ -128,6 +128,8 @@ class HardwareModel:
                 self.tech_model = mvs_si_model.MVSSiModel(self.model_cfg, self.base_params)
             elif self.model_cfg["vs_model_type"] == "mvs2":
                 self.tech_model = mvs_2_model.MVS2Model(self.model_cfg, self.base_params)
+            elif self.model_cfg["vs_model_type"] == "vscnfet":
+                self.tech_model = vscnfet_model.VSCNFetModel(self.model_cfg, self.base_params)
             else:
                 raise ValueError(f"Invalid vs model type: {self.model_cfg['vs_model_type']}")
         else:
@@ -841,6 +843,7 @@ class HardwareModel:
                 "gate tunneling current per um": self.circuit_model.tech_model.param_db["I_tunnel_per_um"],
                 "subthreshold leakage current per um": self.circuit_model.tech_model.param_db["I_sub_per_um"],
                 "DIBL factor": self.circuit_model.tech_model.param_db["DIBL factor"],
+                "SS": self.circuit_model.tech_model.param_db["SS"],
                 "t_ox": self.circuit_model.tech_model.param_db["t_ox"],
                 "eot": self.circuit_model.tech_model.param_db["eot"],
                 "scale length": self.circuit_model.tech_model.param_db["scale_length"],
@@ -848,21 +851,71 @@ class HardwareModel:
                 "C_wire": self.circuit_model.tech_model.param_db["C_wire"],
                 "R_wire": self.circuit_model.tech_model.param_db["R_wire"],
                 "R_device": self.circuit_model.tech_model.param_db["V_dd"]/self.circuit_model.tech_model.param_db["I_on"],
-                "SS": self.circuit_model.tech_model.param_db["SS"],
                 "F_f": self.circuit_model.tech_model.param_db["F_f"],
                 "F_s": self.circuit_model.tech_model.param_db["F_s"],
                 "vx0": self.circuit_model.tech_model.param_db["vx0"],
                 "v": self.circuit_model.tech_model.param_db["v"],
-                "t_1": self.circuit_model.tech_model.param_db["t_1"],
                 "f": self.circuit_model.tech_model.param_db["f"],
                 "parasitic capacitance": self.circuit_model.tech_model.param_db["parasitic capacitance"],
             }
-            if self.circuit_model.tech_model.model_cfg["vs_model_type"] == "mvs_si":
+            if self.circuit_model.tech_model.model_cfg["vs_model_type"] == "base":
+                self.obj_sub_exprs["t_1"] = self.circuit_model.tech_model.param_db["t_1"]
+            elif self.circuit_model.tech_model.model_cfg["vs_model_type"] == "mvs_si":
                 self.obj_sub_exprs["R_s"] = self.circuit_model.tech_model.param_db["R_s"]
                 self.obj_sub_exprs["R_d"] = self.circuit_model.tech_model.param_db["R_d"]
                 self.obj_sub_exprs["L_ov"] = self.circuit_model.tech_model.param_db["L_ov"]
+            elif self.circuit_model.tech_model.model_cfg["vs_model_type"] == "vscnfet":
+                self.obj_sub_exprs["Vth_rolloff"] = self.circuit_model.tech_model.param_db["Vth_rolloff"]
+                self.obj_sub_exprs["d"] = self.circuit_model.tech_model.param_db["d"]
+                self.obj_sub_exprs["L_c"] = self.circuit_model.tech_model.param_db["L_c"]
+                self.obj_sub_exprs["H_c"] = self.circuit_model.tech_model.param_db["H_c"]
+                self.obj_sub_exprs["H_g"] = self.circuit_model.tech_model.param_db["H_g"]
+                self.obj_sub_exprs["k_cnt"] = self.circuit_model.tech_model.param_db["k_cnt"]
+
         else: 
             raise ValueError(f"Objective function {self.obj_fn} not supported")
+        self.obj_sub_plot_names = {
+            "execution_time": "Execution Time over generations (ns)",
+            "passive power": "Passive Power over generations (W)",
+            "active power": "Active Power over generations (W)",
+            "gate length": "Gate Length over generations (m)",
+            "gate width": "Gate Width over generations (m)",
+            "subthreshold leakage current": "Subthreshold Leakage Current over generations (nA)",
+            "long channel threshold voltage": "Long Channel Threshold Voltage (V)",
+            "effective threshold voltage": "Effective Threshold Voltage over generations (V)",
+            "supply voltage": "Supply Voltage over generations (V)",
+            "wire RC": "Wire RC over generations (s)",
+            "on current per um": "On Current per um over generations (A/um)",
+            "off current per um": "Off Current per um over generations (A/um)",
+            "gate tunneling current per um": "Gate Tunneling Current per um over generations (A/um)",
+            "subthreshold leakage current per um": "Subthreshold Leakage Current per um over generations (A/um)",
+            "DIBL factor": "DIBL Factor over generations (V/V)",
+            "SS": "Subthreshold Slope over generations (V/V)",
+            "Vth_rolloff": "Vth Rolloff over generations (V)",
+            "t_ox": "Gate Oxide Thickness over generations (m)",
+            "eot": "Electrical Oxide Thickness over generations (m)",
+            "scale length": "Scale Length over generations (m)",
+            "C_load": "Load Capacitance over generations (F)",
+            "C_wire": "Wire Capacitance over generations (F)",
+            "R_wire": "Wire Resistance over generations (Ohm)",
+            "R_device": "Device Resistance over generations (Ohm)",
+            "F_f": "F_f over generations",
+            "F_s": "F_s over generations",
+            "vx0": "virtual source injection velocity over generations (m/s)",
+            "v": "effective injection velocity over generations (m/s)",
+            "t_1": "T1 over generations (s)",
+            "f": "Frequency over generations (Hz)",
+            "parasitic capacitance": "Parasitic Capacitance over generations (F)",
+            "L_ov": "L_ov over generations (m)",
+            "R_s": "R_s over generations (Ohm)",
+            "R_d": "R_d over generations (Ohm)",
+            "Vth_rolloff": "Vth Rolloff over generations (V)",
+            "d": "CNT diameter over generations (m)",
+            "L_c": "CNT contact length over generations (m)",
+            "H_c": "CNT contact height over generations (m)",
+            "H_g": "CNT gate height over generations (m)",
+            "k_cnt": "CNT dielectric constant over generations (F/m)",
+        }
         if self.obj_fn == "edp":
             self.obj = (self.total_passive_energy + self.total_active_energy) * self.execution_time
             self.obj_scaled = (self.total_passive_energy * self.circuit_model.tech_model.capped_power_scale + self.total_active_energy) * self.execution_time * self.circuit_model.tech_model.capped_delay_scale
