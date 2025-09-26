@@ -857,6 +857,7 @@ class HardwareModel:
                 "v": self.circuit_model.tech_model.param_db["v"],
                 "f": self.circuit_model.tech_model.param_db["f"],
                 "parasitic capacitance": self.circuit_model.tech_model.param_db["parasitic capacitance"],
+                "k_gate": self.circuit_model.tech_model.param_db["k_gate"],
             }
             if self.circuit_model.tech_model.model_cfg["vs_model_type"] == "base":
                 self.obj_sub_exprs["t_1"] = self.circuit_model.tech_model.param_db["t_1"]
@@ -914,7 +915,8 @@ class HardwareModel:
             "L_c": "CNT contact length over generations (m)",
             "H_c": "CNT contact height over generations (m)",
             "H_g": "CNT gate height over generations (m)",
-            "k_cnt": "CNT dielectric constant over generations (F/m)",
+            "k_cnt": "CNT Dielectric Constant over generations (F/m)",
+            "k_gate": "Gate Dielectric Constant over generations (F/m)",
         }
         if self.obj_fn == "edp":
             self.obj = (self.total_passive_energy + self.total_active_energy) * self.execution_time

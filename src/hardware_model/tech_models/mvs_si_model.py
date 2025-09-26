@@ -282,6 +282,7 @@ class MVSSiModel(TechModel):
         self.param_db["parasitic capacitance"] = self.C_diff
         self.param_db["L_ov"] = self.L_ov
         self.param_db["A_gate"] = self.A_gate
+        self.param_db["k_gate"] = self.base_params.k_gate
 
     def apply_base_parameter_effects(self):
         pass

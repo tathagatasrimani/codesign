@@ -218,6 +218,7 @@ class VSModel(TechModel):
         self.param_db["R_s"] = self.R_s
         self.param_db["R_d"] = self.R_d
         self.param_db["parasitic capacitance"] = self.C_diff
+        self.param_db["k_gate"] = self.base_params.k_gate
 
         self.param_db["A_gate"] = self.A_gate
 

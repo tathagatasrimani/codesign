@@ -314,6 +314,7 @@ class VSCNFetModel(TechModel):
         self.param_db["H_g"] = self.base_params.H_g
         self.param_db["k_cnt"] = self.base_params.k_cnt
         self.param_db["A_gate"] = self.A_gate
+        self.param_db["k_gate"] = self.base_params.k_gate
 
     def apply_base_parameter_effects(self):
         pass
