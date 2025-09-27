@@ -11,6 +11,7 @@ import subprocess
 import copy
 import networkx as nx
 import matplotlib.pyplot as plt
+import pandas as pd
 from src.forward_pass.netlist_parse import parse_yosys_json
 
 logger = logging.getLogger("codesign")
@@ -225,14 +226,17 @@ class Codesign:
         """
         with open(f"ScaleHLS-HIDA/test/Transforms/Directive/config.json", "r") as f:
             config = json.load(f)
-        dsp_multiplier = 1e15 # TODO replace with more comprehensive model
-        bram_multiplier = 1e15 # TODO replace with more comprehensive model
+        dsp_multiplier = 1e16 # TODO replace with more comprehensive model
+        bram_multiplier = 1e16 # TODO replace with more comprehensive model
         if unlimited:
             config["dsp"] = 1000000
             config["bram"] = 1000000
         else:
             config["dsp"] = int(self.cfg["args"]["area"] / (self.hw.circuit_model.tech_model.param_db["A_gate"].xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf() * dsp_multiplier))
             config["bram"] = int(self.cfg["args"]["area"] / (self.hw.circuit_model.tech_model.param_db["A_gate"].xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf() * bram_multiplier))
+            # setting cur_dsp_usage here instead of with parse_dsp_usage after running scaleHLS
+            # because I observed that for a small amount of resources, scaleHLS won't generate the csv file that we need to parse
+            self.cur_dsp_usage = config["dsp"] 
 
         # I don't think "100MHz" has any meaning because scaleHLS should be agnostic to frequency
         config["100MHz"]["fadd"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["Add"] / self.clk_period)
@@ -242,7 +246,7 @@ class Codesign:
         with open(f"ScaleHLS-HIDA/test/Transforms/Directive/config.json", "w") as f:
             json.dump(config, f)
 
-    def run_scalehls(self, save_dir):
+    def run_scalehls(self, save_dir, setup=False):
         """
         Runs ScaleHLS synthesis tool in a different environment with modified PATH and PYTHONPATH.
         Updates the memory configuration and logs the output.
@@ -253,7 +257,8 @@ class Codesign:
         Returns:
             None
         """
-        self.set_resource_constraint_scalehls()
+        self.set_resource_constraint_scalehls(unlimited=setup)
+        print(f"save_dir: {save_dir}")
             
         ## get CWD
         cwd = os.getcwd()
@@ -268,7 +273,7 @@ class Codesign:
                 export PATH=$PATH:$PWD/build/bin:$PWD/polygeist/build/bin
                 export PYTHONPATH=$PYTHONPATH:$PWD/build/tools/scalehls/python_packages/scalehls_core
                 source mlir_venv/bin/activate
-                cd samples/pytorch/{self.benchmark_name}
+                cd {os.path.join(os.path.dirname(__file__), "..", save_dir)}
                 python3 {self.benchmark_name}.py > {self.benchmark_name}.mlir 
                 scalehls-opt {self.benchmark_name}.mlir -hida-pytorch-pipeline=\"top-func={self.vitis_top_function} loop-tile-size=8 loop-unroll-factor=4\" | scalehls-translate -scalehls-emit-hlscpp -emit-vitis-directives > {os.path.join(os.path.dirname(__file__), "..", save_dir)}/{self.benchmark_name}.cpp
                 deactivate
@@ -284,9 +289,9 @@ class Codesign:
                 export PATH=$PATH:$PWD/build/bin:$PWD/polygeist/build/bin
                 export PYTHONPATH=$PYTHONPATH:$PWD/build/tools/scalehls/python_packages/scalehls_core
                 source mlir_venv/bin/activate
-                cd samples/polybench/{self.benchmark_name}
+                cd {os.path.join(os.path.dirname(__file__), "..", save_dir)}
                 cgeist {self.benchmark_name}.c -function={self.benchmark_name} -S -memref-fullrank -raise-scf-to-affine > {self.benchmark_name}.mlir
-                scalehls-opt {self.benchmark_name}.mlir -scalehls-dse-pipeline=\"top-func={self.vitis_top_function} target-spec=../../../test/Transforms/Directive/config.json\" | scalehls-translate -scalehls-emit-hlscpp > {os.path.join(os.path.dirname(__file__), "..", save_dir)}/{self.benchmark_name}.cpp
+                scalehls-opt {self.benchmark_name}.mlir -scalehls-dse-pipeline=\"top-func={self.vitis_top_function} target-spec={os.path.join(os.path.dirname(__file__), "..", "ScaleHLS-HIDA/test/Transforms/Directive/config.json")}\" | scalehls-translate -scalehls-emit-hlscpp > {os.path.join(os.path.dirname(__file__), "..", save_dir)}/{self.benchmark_name}.cpp
                 deactivate
                 pwd
                 '''
@@ -305,6 +310,15 @@ class Codesign:
 
         if p.returncode != 0:
             raise Exception(f"scaleHLS failed with error: {p.stderr}")
+
+        if setup:
+            dsp_usage = self.parse_dsp_usage(save_dir)
+            self.max_dsp = dsp_usage
+
+    def parse_dsp_usage(self, read_dir):
+        df = pd.read_csv(f"{read_dir}/{self.benchmark_name}_space.csv")
+        logger.info(f"dsp usage: {df['dsp'].values[0]}")
+        return df['dsp'].values[0]
 
     def parse_vitis_data(self, save_dir):
 
@@ -389,7 +403,7 @@ class Codesign:
         """
         self.vitis_top_function = self.benchmark_name if not self.cfg["args"]["pytorch"] else "forward"
         if (self.check_checkpoint("scalehls") and not setup) or (self.check_checkpoint("scalehls_unlimited") and setup):
-            self.run_scalehls(save_dir)
+            self.run_scalehls(save_dir, setup)
         else:
             logger.info("Skipping ScaleHLS")
         if (self.check_save_checkpoint("scalehls") and not setup) or (self.check_save_checkpoint("scalehls_unlimited") and setup):
@@ -508,7 +522,7 @@ class Codesign:
             sim_util.change_clk_period_in_script(f"{self.benchmark_dir}/scripts/common.tcl", self.clk_period, self.cfg["args"]["hls_tool"])
             self.catapult_forward_pass()
         else:
-            sim_util.change_clk_period_in_script(f"{self.benchmark_dir}/tcl_script.tcl", self.clk_period, self.cfg["args"]["hls_tool"])
+            sim_util.change_clk_period_in_script(f"{save_dir}/tcl_script.tcl", self.clk_period, self.cfg["args"]["hls_tool"])
             self.vitis_forward_pass(save_dir=save_dir, setup=setup)
 
         # prepare schedule & calculate wire parasitics
@@ -521,9 +535,10 @@ class Codesign:
             self.max_parallel_initial_objective_value = self.hw.obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf()
             print(f"objective value with max parallelism: {self.max_parallel_initial_objective_value}")
         elif iteration_count == 0:
-            self.hw.circuit_model.tech_model.max_parallel_factor = self.hw.obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf() / self.max_parallel_initial_objective_value
-            print(f"max parallelism factor: {self.hw.circuit_model.tech_model.max_parallel_factor}")
-            self.hw.circuit_model.tech_model.init_scale_factors(self.hw.circuit_model.tech_model.max_parallel_factor)
+            self.hw.circuit_model.tech_model.max_speedup_factor = self.hw.obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf() / self.max_parallel_initial_objective_value
+            self.hw.circuit_model.tech_model.max_area_increase_factor = self.max_dsp / self.cur_dsp_usage
+            print(f"max parallelism factor: {self.hw.circuit_model.tech_model.max_speedup_factor}")
+            self.hw.circuit_model.tech_model.init_scale_factors(self.hw.circuit_model.tech_model.max_speedup_factor, self.hw.circuit_model.tech_model.max_area_increase_factor)
 
         self.display_objective("after forward pass")
 

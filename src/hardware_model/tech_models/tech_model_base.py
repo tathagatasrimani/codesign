@@ -33,11 +33,14 @@ class TechModel(ABC):
         self.h_bar = self.h / (2*math.pi)
         self.V_T = self.K*self.T/self.q # thermal voltage (V)
         
-    def init_scale_factors(self, max_parallel_factor):
-        self.max_delay_scale = 1/max_parallel_factor
-        self.max_power_scale = max_parallel_factor
-        self.capped_delay_scale = symbolic_convex_max(self.max_delay_scale, self.base_params.latency_scale)
-        self.capped_power_scale = symbolic_min(self.max_power_scale, self.base_params.area_scale)
+    def init_scale_factors(self, max_speedup_factor, max_area_increase_factor):
+        self.max_delay_scale = 1/max_speedup_factor
+        self.max_power_scale = max_area_increase_factor
+        self.latency_scale_slope = (1 - self.max_delay_scale) / (max_area_increase_factor)
+        # base_params.latency_scale and base_params.area_scale are set by the ratio of the starting cell area to current cell area
+        self.capped_delay_scale = symbolic_convex_max(self.max_delay_scale, 1 - self.latency_scale_slope * self.base_params.area_scale) # <= 1 (delay = delay_0 * capped_delay_scale)
+        self.capped_power_scale = symbolic_min(max_area_increase_factor, self.base_params.area_scale) # >= 1 (power = power_0 * capped_power_scale)
+        logger.info(f"max_speedup_factor: {max_speedup_factor}, max_area_increase_factor: {max_area_increase_factor}")
 
     @abstractmethod
     def init_tech_specific_constants(self):
