@@ -68,6 +68,11 @@ vitis_gemm_load_checkpoint_after_vitis_stop_after_pd:
   args:
     stop_at_checkpoint: pd
 
+vitis_gemm_checkpoint_after_pd:
+  base_cfg: vitis_gemm_test
+  args:
+    stop_at_checkpoint: pd
+    checkpoint_save_dir: vitis_gemm_checkpoint_after_pd
 
 
 vitis_resnet_checkpoint_after_vitis:
