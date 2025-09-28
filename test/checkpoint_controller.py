@@ -7,7 +7,7 @@ from src import sim_util
 # Determine after which step we resume from
 checkpoint_map = {
     "none": 0,
-    "scalehls_unlimited": 1,
+    "setup": 1,
     "vitis_unlimited": 2,
     "scalehls": 3,
     "vitis": 4,

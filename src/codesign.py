@@ -415,7 +415,7 @@ class Codesign:
             opt_cmd = f"cat {mlir_file}"
 
         # run scalehls
-        if (self.check_checkpoint("scalehls") and not setup) or (self.check_checkpoint("scalehls_unlimited") and setup):
+        if (self.check_checkpoint("scalehls") and not setup) or (self.check_checkpoint("setup") and setup):
             self.run_scalehls(save_dir, opt_cmd, setup)
         else:
             logger.info("Skipping ScaleHLS")
@@ -432,7 +432,7 @@ class Codesign:
             self.hw.circuit_model.tech_model.max_speedup_factor = latency / self.max_latency
             self.hw.circuit_model.tech_model.max_area_increase_factor = self.max_dsp / dsp_usage
             self.hw.circuit_model.tech_model.init_scale_factors(self.hw.circuit_model.tech_model.max_speedup_factor, self.hw.circuit_model.tech_model.max_area_increase_factor)
-        if (self.check_save_checkpoint("scalehls") and not setup) or (self.check_save_checkpoint("scalehls_unlimited") and setup):
+        if (self.check_save_checkpoint("scalehls") and not setup) or (self.check_save_checkpoint("setup") and setup):
             raise Exception("Finished ScaleHLS, saving checkpoint")
         if setup: # setup step ends here, don't need to run rest of forward pass
             return
