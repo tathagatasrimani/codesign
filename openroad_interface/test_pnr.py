@@ -1,8 +1,8 @@
-
+### TODO: This file needs to be updated to work with the refactored OpenRoad interface code. 
 
 import networkx as nx
 import copy
-from openroad_interface import place_n_route
+from openroad_interface import openroad_run
 from openroad_interface import estimation as est
 import pandas as pd
 from openroad_interface import def_generator as df
@@ -35,8 +35,8 @@ def main():
     pd.set_option('display.max_columns', None)
     print(wire_length_df)
     print(wire_length_by_edge)
-    wire_length_by_edge = place_n_route.mux_listing(graph, node_output, wire_length_by_edge)
-    place_n_route.mux_removal(graph)
+    wire_length_by_edge = openroad_run.mux_listing(graph, node_output, wire_length_by_edge)
+    openroad_run.mux_removal(graph)
     print("after modification, wire_length_by_edge:")
     print(wire_length_by_edge)
     #dict, graph = place_n_route.place_n_route(arch, "openroad_interface/tcl/codesign_top.tcl", pnr)

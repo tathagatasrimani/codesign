@@ -1,8 +1,7 @@
 import copy
 import re
 
-from .functions import clean
-from .working_directory import directory
+from .openroad_functions import clean
 
 ID_index = 0
 pin_index_1 = 1
@@ -112,7 +111,7 @@ def res_series(net_list: list, pin_count: dict):
 
 
 def length_calculations(
-    units: float, def_file: str = "/results/final_generated-tcl.def"
+    units: float, def_file: str
 ) -> dict:
     '''
     calculates lengths of each net using the def file
@@ -126,7 +125,7 @@ def length_calculations(
     '''
 
     # parsing through def file for macro coords and net names
-    def_data = open(directory + def_file)
+    def_data = open(def_file)
     def_lines = def_data.readlines()
     length_dict = {}
     after_nets = False
@@ -173,7 +172,7 @@ def length_calculations(
     return length_dict
 
 
-def parasitic_calc(spef_file: str = "/results/generated-tcl.spef"):
+def parasitic_calc(spef_file: str):
     '''
     reads spef file and finds capacitance and does resistance calculations for each net.
 
@@ -187,7 +186,7 @@ def parasitic_calc(spef_file: str = "/results/generated-tcl.spef"):
     net_res = {}
     net_cap = {}
     mapping = {}  # this is dict between componnent id in the spef file vs the def file
-    spef_data = open(directory + spef_file)
+    spef_data = open(spef_file)
     spef_lines = spef_data.readlines()
     for line in range(len(spef_lines)):
         segment_res = []

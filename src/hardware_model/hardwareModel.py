@@ -17,7 +17,7 @@ from src import sim_util
 from src.hardware_model.tech_models import bulk_model
 from src.hardware_model.tech_models import bulk_bsim4_model
 from src.hardware_model.tech_models import vs_model
-from openroad_interface import place_n_route
+from openroad_interface import openroad_run
 
 import cvxpy as cp
 
@@ -47,7 +47,13 @@ class HardwareModel:
     to set up the hardware, manage netlists, and extract technology-specific timing and power data for
     optimization and simulation purposes.
     """
-    def __init__(self, args):
+    def __init__(self, cfg, codesign_root_dir):
+
+        args = cfg["args"]
+
+        self.cfg = cfg
+        self.codesign_root_dir = codesign_root_dir
+
         # HARDCODED UNTIL WE COME BACK TO MEMORY MODELING
         self.cacti_tech_node = min(
             cacti_util.valid_tech_nodes,
@@ -504,9 +510,13 @@ class HardwareModel:
             raise ValueError(f"Invalid hls tool: {self.hls_tool}")
         
         start_time = time.time()
-        self.circuit_model.wire_length_by_edge, _ = place_n_route.place_n_route(
+
+        open_road_run = openroad_run.OpenRoadRun(cfg=self.cfg, codesign_root_dir=self.codesign_root_dir)
+
+        self.circuit_model.wire_length_by_edge, _ = open_road_run.run(
             self.netlist, arg_testfile, arg_parasitics, area_constraint
         )
+
         log_info(f"wire lengths: {self.circuit_model.wire_length_by_edge}")
         
         log_info(f"time to generate wire parasitics: {time.time()-start_time}")

@@ -1,0 +1,419 @@
+import logging
+import re
+import os
+import copy
+import shutil
+from math import sqrt
+
+import logging
+
+logger = logging.getLogger(__name__)
+
+import networkx as nx
+
+from openroad_interface import def_generator
+from . import estimation as est
+from . import detailed as det
+
+class OpenRoadRun:
+    def __init__(self, cfg, codesign_root_dir):
+        """
+        Initialize the OpenRoadRun with configuration and root directory.
+
+        :param cfg: top level codesign config file
+        :param codesign_root_dir: root directory of codesign (where src and test are)
+        """
+        self.cfg = cfg
+        self.codesign_root_dir = codesign_root_dir
+        self.directory = os.path.join(self.codesign_root_dir, "src/tmp/pd")
+
+    def run(
+        self,
+        graph: nx.DiGraph,
+        test_file: str, 
+        arg_parasitics: str,
+        area_constraint: int
+    ):
+        """
+        Runs the OpenROAD flow.
+        params:
+            arg_parasitics: detailed, estimation, or none. determines which parasitic calculation is executed.
+
+        """
+        logger.info(f"Starting place and route with parasitics: {arg_parasitics}")
+        dict = {edge: {} for edge in graph.edges()}
+        if "none" not in arg_parasitics:
+            logger.info("Running setup for place and route.")
+            graph, net_out_dict, node_output, lef_data, node_to_num = self.setup(graph, test_file, area_constraint)
+            logger.info("Setup complete. Running extraction.")
+            dict, graph = self.extraction(graph, arg_parasitics, net_out_dict, node_output, lef_data, node_to_num)
+            logger.info("Extraction complete.")
+        else: 
+            logger.info("No parasitics selected. Running none_place_n_route.")
+            graph = self.none_place_n_route(graph)
+        logger.info("Place and route finished.")
+        return dict, graph
+
+    def setup(
+        self,
+        graph: nx.DiGraph,
+        test_file: str,
+        area_constraint: int
+    ):
+        """
+        Sets up the OpenROAD environment. This method creates the working directory, copies tcl files, and generates the def file
+        param:
+            graph: hardware netlist graph
+            test_file: tcl file
+            
+            area_constraint: area constraint for the placement
+
+        """
+
+        logger.info("Setting up environment for place and route.")
+        if os.path.exists(self.directory):
+            logger.info(f"Removing existing directory: {self.directory}")
+            shutil.rmtree(self.directory)
+        os.makedirs(self.directory)
+        logger.info(f"Created directory: {self.directory}")
+        shutil.copytree(os.path.dirname(os.path.abspath(__file__)) + "/tcl", self.directory + "/tcl")
+        logger.info(f"Copied tcl files to {self.directory}/tcl")
+        os.makedirs(self.directory + "/results")
+        logger.info(f"Created results directory: {self.directory}/results")
+
+        self.update_area_constraint(area_constraint)
+
+        df = def_generator.DefGenerator(self.cfg, self.codesign_root_dir)
+        
+        graph, net_out_dict, node_output, lef_data, node_to_num = df.run_def_generator(
+            test_file, graph
+        )
+        logger.info("DEF generation complete.")
+
+        return graph, net_out_dict, node_output, lef_data, node_to_num
+
+    def update_area_constraint(self, area_constraint: int):
+        """
+        Updates the area constraint in the tcl file based on the input area constraint.
+        param:
+            area_constraint: area constraint for the placement
+        """
+        ## edit the tcl file to have the correct area constraint
+        with open(self.directory + "/tcl/codesign_top.tcl", "r") as file:
+            tcl_data = file.readlines()
+
+        ## compute the new area constraint
+        new_sidelength = int(sqrt(area_constraint))  
+
+        ## round to the nearest multiple of 100
+        new_sidelength = round(new_sidelength / 100) * 100
+
+        ## find a line that contains "set die_area" and replace it with the new area constraint
+        for i, line in enumerate(tcl_data):
+            if "set die_area" in line:
+                tcl_data[i] = f"set die_area {{0 0 {new_sidelength} {new_sidelength}}}\n"
+                logger.info(f"Updated die_area to {new_sidelength}x{new_sidelength}")
+            if "set core_area" in line:
+                tcl_data[i] = f"set core_area {{50 50 {new_sidelength - 50} {new_sidelength - 50}}}\n"
+                logger.info(f"Updated core_area to {new_sidelength - 50}x{new_sidelength - 50}")
+
+        ## write the new tcl file
+        with open(self.directory + "/tcl/codesign_top.tcl", "w") as file:
+            file.writelines(tcl_data)
+        
+        logger.info(f"Wrote updated tcl file with the area constraints: {new_sidelength}x{new_sidelength}")
+
+    def run_openroad_executable(self):
+        """
+        Runs the OpenROAD executable. Run this after setup.
+        """
+        logger.info("Starting OpenROAD run.")
+        old_dir = os.getcwd()
+        os.chdir(self.directory + "/tcl")
+        logger.info(f"Changed directory to {self.directory + '/tcl'}")
+        print("running openroad")
+        logger.info("Running OpenROAD command.")
+        os.system(os.path.dirname(os.path.abspath(__file__)) + "/OpenROAD/build/src/openroad codesign_top.tcl > " + self.directory + "/codesign_pd.log")#> /dev/null 2>&1
+        print("done")
+        logger.info("OpenROAD run completed.")
+        os.chdir(old_dir)
+        logger.info(f"Returned to original directory {old_dir}")
+
+
+    def mux_listing(self, graph, node_output, wire_length_by_edge):
+        """
+        goes through the graph and finds nodes that are not Muxs. If it encounters one, it will go through
+        the graph to find the path of Muxs until the another non-Mux node is found. All rcl are put into a
+        list and added as an edge attribute for the non-mux node to non-mux node connection
+
+        param:
+            graph: graph with the net attributes already attached
+            node_output: dict of nodes and their respective outputs
+        """
+        #print(f"wire_length_by_edge before modification: {wire_length_by_edge}")
+        logger.info("Starting mux listing.")
+        edges_to_remove = set()
+        for node in graph.nodes():
+            #print(f"considering node {node}")
+            if "Mux" not in node:
+                #print(f"outputs of {node}: {node_output[node]}")
+                for output in node_output[node]:
+                    path = []
+                    if "Mux" in output:
+                        while "Mux" in output:
+                            path.append(output)
+                            output = node_output[output][0]
+                        graph.add_edge(node, output)
+                        #print(f"path from {node} to {output}: {path}")
+                        if len(path) != 0 and (node, output) not in wire_length_by_edge:
+                            #print(f"adding wire length by edge")
+                            wire_length_by_edge[(node, output)] = wire_length_by_edge[(node, path[0])]
+                            edges_to_remove.add((node, path[0]))
+                            for i in range(1, len(path)):
+                                wire_length_by_edge[(node, output)]["total_wl"] += wire_length_by_edge[(path[i-1], path[i])]["total_wl"]
+                                wire_length_by_edge[(node, output)]["metal1"] += wire_length_by_edge[(path[i-1], path[i])]["metal1"]
+                                wire_length_by_edge[(node, output)]["metal2"] += wire_length_by_edge[(path[i-1], path[i])]["metal2"]
+                                wire_length_by_edge[(node, output)]["metal3"] += wire_length_by_edge[(path[i-1], path[i])]["metal3"]
+                                edges_to_remove.add((path[i-1], path[i]))
+                            wire_length_by_edge[(node, output)]["total_wl"] += wire_length_by_edge[(path[-1], output)]["total_wl"]
+                            wire_length_by_edge[(node, output)]["metal1"] += wire_length_by_edge[(path[-1], output)]["metal1"]
+                            wire_length_by_edge[(node, output)]["metal2"] += wire_length_by_edge[(path[-1], output)]["metal2"]
+                            wire_length_by_edge[(node, output)]["metal3"] += wire_length_by_edge[(path[-1], output)]["metal3"]
+                            edges_to_remove.add((path[-1], output))
+                            #print(f"wire length by edge after modification: {wire_length_by_edge[(node, output)]}")
+        for edge in edges_to_remove:
+            #print(f"removing edge {edge}")
+            wire_length_by_edge.pop(edge)
+        return wire_length_by_edge
+
+
+    def mux_removal(self, graph: nx.DiGraph):
+        """
+        Removes the mux nodes from the graph. Does not do the connecting
+        param:
+            graph: graph with the new edge connections, after mux listing
+        """
+        logger.info("Removing mux nodes from graph.")
+        reference = copy.deepcopy(graph.nodes())
+        for node in reference:
+            if "Mux" in node:
+                graph.remove_node(node)
+                logger.info(f"Removed mux node: {node}")
+
+
+    def coord_scraping(
+        self,
+        graph: nx.DiGraph,
+        node_to_num: dict,
+        final_def_directory: str = None,
+    ):
+        """
+        going through the .def file and getting macro placements and nets
+        param:
+            graph: digraph to add coordinate attribute to nodes
+            node_to_num: dict that gives component id equivalent for node
+            final_def_directory: final def directory, defaults to def directory in openroad
+        return:
+            graph: digraph with the new coordinate attributes
+            component_nets: dict that list components for the respective net id
+        """
+        logger.info("Scraping coordinates and nets from DEF file.")
+        pattern = r"_\w+_\s+\w+\s+\+\s+PLACED\s+\(\s*\d+\s+\d+\s*\)\s+\w+\s*;"
+        net_pattern = r"-\s(_\d+_)\s((?:\(\s_\d+_\s\w+\s\)\s*)+).*"
+        component_pattern = r"(_\w+_)"
+        if final_def_directory is None:
+            final_def_directory = self.directory + "/results/final_generated-tcl.def"
+        final_def_data = open(final_def_directory)
+        final_def_lines = final_def_data.readlines()
+        macro_coords = {}
+        component_nets = {}
+        for line in final_def_lines:
+            if re.search(pattern, line) is not None:
+                coord = re.findall(r"\((.*?)\)", line)[0].split()
+                match = re.search(component_pattern, line)
+                macro_coords[match.group(0)] = {"x": float(coord[0]), "y": float(coord[1])}
+                logger.info(f"Found macro {match.group(0)} at ({coord[0]}, {coord[1]})")
+            if re.search(net_pattern, line) is not None:
+                pins = re.findall(r"\(\s(.*?)\s\w+\s\)", line)
+                match = re.search(component_pattern, line)
+                component_nets[match.group(0)] = pins
+                logger.info(f"Found net {match.group(0)} with pins {pins}")
+
+        for node in node_to_num:
+            coord = macro_coords[node_to_num[node]]
+            graph.nodes[node]["x"] = coord["x"]
+            graph.nodes[node]["y"] = coord["y"]
+            logger.info(f"Assigned coordinates to node {node}: {coord}")
+        logger.info("Coordinate scraping complete.")
+        return graph, component_nets
+
+
+        
+    
+
+    def extraction(self, graph, arg_parasitics, net_out_dict, node_output, lef_data, node_to_num): 
+        # 3. extract parasitics
+        logger.info(f"Starting extraction with parasitics option: {arg_parasitics}")
+        dict = {}
+        if arg_parasitics == "detailed":
+            logger.info("Running detailed place and route.")
+            dict, graph = self.detailed_place_n_route(
+                graph, net_out_dict, node_output, lef_data, node_to_num
+            )
+            logger.info("Detailed extraction complete.")
+        elif arg_parasitics == "estimation":
+            logger.info("Running estimated place and route.")
+            dict, graph = self.estimated_place_n_route(
+                graph, net_out_dict, node_output, lef_data, node_to_num
+            )
+            logger.info("Estimated extraction complete.")
+
+        return dict, graph
+
+    def estimated_place_n_route(
+        self,
+        graph: nx.DiGraph,
+        net_out_dict: dict,
+        node_output: dict,
+        lef_data: dict,
+        node_to_num: dict,
+    ) -> dict:
+        """
+        runs openroad, calculates rcl, and then adds attributes to the graph
+
+        params:
+            graph: networkx graph
+            net_out_dict: dict that lists nodes and thier respective edges (all nodes have one output)
+            node_output: dict that lists nodes and their respective output nodes
+            lef_data: dict with layer information (units, res, cap, width)
+            node_to_num: dict that gives component id equivalent for node
+        returns:
+            dict: contains list of resistance, capacitance, length, and net data
+            graph: newly modified digraph with rcl attributes
+        """
+
+        # run openroad
+        logger.info("Starting estimated place and route.")
+        self.run_openroad_executable()
+
+        wire_length_df = est.parse_route_guide_with_layer_breakdown(self.directory + "/results/codesign_codesign-tcl.route_guide")
+        wire_length_by_edge = {}
+        for node in net_out_dict:
+            for output in node_output[node]:
+                for net in net_out_dict[node]:
+                    if (node, output) not in wire_length_by_edge:
+                        wire_length_by_edge[(node, output)] = wire_length_df.loc[net]
+                    else:
+                        wire_length_by_edge[(node, output)] += wire_length_df.loc[net]
+        self.export_graph(graph, "estimated_with_mux")
+
+        wire_length_by_edge = self.mux_listing(graph, node_output, wire_length_by_edge)
+        self.mux_removal(graph)
+
+        self.export_graph(graph, "estimated_nomux")
+
+        return wire_length_by_edge, graph
+
+
+    def detailed_place_n_route(
+        self,
+        graph: nx.DiGraph,
+        net_out_dict: dict,
+        node_output: dict,
+        lef_data: dict,
+        node_to_num: dict,
+    ) -> dict:
+        """
+        runs openroad, calculates rcl, and then adds attributes to the graph
+
+        params:
+            graph: networkx graph
+            net_out_dict:  dict that lists nodes and their respective net (all components utilize one output, therefore this is a same assumption to use)
+            node_output: dict that lists nodes and their respective output nodes
+            lef_data: dict with layer information (units, res, cap, width)
+            node_to_num: dict that gives component id equivalent for node
+        returns:
+            dict: contains list of resistance, capacitance, length, and net data
+            graph: newly modified digraph with rcl attributes
+        """
+
+        # run openroad
+        logger.info("Starting detailed place and route.")
+        self.run_openroad_executable()
+
+        # run parasitic_calc and length_calculations
+        graph, _ = self.coord_scraping(graph, node_to_num)
+        net_cap, net_res = self.det.parasitic_calc(self.directory + "/results/generated-tcl.spef")
+
+        length_dict = det.length_calculations(lef_data["units"], self.directory + "/results/final_generated-tcl.def")
+
+        # add edge attributions
+        net_graph_data = []
+        res_graph_data = []
+        cap_graph_data = []
+        len_graph_data = []
+        
+        for output_net in net_out_dict:
+            for net in net_out_dict[output_net]:
+                for node in node_output[output_net]:
+                    graph[output_net][node]["net"] = net
+                    graph[output_net][node]["net_length"] = length_dict[net]
+                    graph[output_net][node]["net_res"] = float(net_res[net])
+                    graph[output_net][node]["net_cap"] = float(net_cap[net])
+                net_graph_data.append(net)
+                len_graph_data.append(float(length_dict[net]))  # length
+                res_graph_data.append(float(net_res[net]) if net in net_res else 0)  # ohms
+                cap_graph_data.append(float(net_cap[net]) if net in net_cap else 0)  # picofarads
+            
+            
+
+        self.export_graph(graph, "detailed")
+
+        self.mux_listing(graph, node_output)
+        self.mux_removal(graph)
+
+        self.export_graph(graph, "detailed_nomux")
+
+        return {
+            "res": res_graph_data,
+            "cap": cap_graph_data,
+            "length": len_graph_data,
+            "net": net_graph_data,
+        }, graph
+
+
+    def none_place_n_route(
+        self,
+        graph: nx.DiGraph,
+    ) -> dict:
+        """
+        runs openroad, calculates rcl, and then adds attributes to the graph
+        params:
+            graph: networkx graph
+        returns:
+            graph: newly modified digraph with rcl attributes
+        """
+
+        # edge attribution
+        logger.info("Running none_place_n_route: setting default edge attributes.")
+        for u, v in graph.edges():
+            graph[u][v]["net"] = 0
+            graph[u][v]["net_length"] = 0
+            graph[u][v]["net_res"] = 0
+            graph[u][v]["net_cap"] = 0
+            logger.info(f"Set default attributes for edge ({u}, {v})")
+
+        logger.info("none_place_n_route finished.")
+        return graph
+    
+
+    @staticmethod
+    def export_graph(graph, est_or_det: str):
+        logger.info(f"Exporting graph to GML for {est_or_det}.")
+        if not os.path.exists("openroad_interface/results/"):
+            os.makedirs("openroad_interface/results/")
+            logger.info("Created results directory.")
+        nx.write_gml(
+            graph, "openroad_interface/results/" + est_or_det + ".gml"
+        )
+        logger.info(f"Graph exported to openroad_interface/results/{est_or_det}.gml")

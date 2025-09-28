@@ -82,11 +82,11 @@ class Codesign:
 
         self.forward_obj = 0
         self.inverse_obj = 0
-        self.openroad_testfile = f"{self.codesign_root_dir}/src/tmp/pd/tcl/tcl/{self.cfg['args']['openroad_testfile']}"
+        self.openroad_testfile = f"{self.codesign_root_dir}/src/tmp/pd/tcl/{self.cfg['args']['openroad_testfile']}"
         self.parasitics = self.cfg["args"]["parasitics"]
         self.run_cacti = not self.cfg["args"]["debug_no_cacti"]
         self.no_memory = self.cfg["args"]["no_memory"]
-        self.hw = hardwareModel.HardwareModel(self.cfg["args"])
+        self.hw = hardwareModel.HardwareModel(self.cfg, self.codesign_root_dir)
         self.opt = optimize.Optimizer(self.hw)
         self.module_map = {}
         self.inverse_pass_improvement = self.cfg["args"]["inverse_pass_improvement"]
@@ -534,8 +534,8 @@ class Codesign:
             sim_util.change_clk_period_in_script(f"{self.benchmark_dir}/tcl_script.tcl", self.clk_period, self.cfg["args"]["hls_tool"])
             self.vitis_forward_pass()
 
-        # prepare schedule & calculate wire parasitics
-        self.prepare_schedule()
+        # calculate wire parasitics
+        self.calculate_wire_parasitics()
 
         ## create the obj equation 
         self.hw.calculate_objective()
@@ -573,8 +573,8 @@ class Codesign:
         ## write the scheduled dfg to a file
         with open(f"{self.benchmark_dir}/scheduled-dfg-from-catapult.gml", "wb") as f:
             nx.write_gml(self.hw.scheduled_dfg, f)
-    
-    def prepare_schedule(self):
+
+    def calculate_wire_parasitics(self):
         """
         Prepares the schedule by setting the end node's start time and getting the longest paths.
         Also updates the hardware netlist with wire parasitics and determines the longest paths.
