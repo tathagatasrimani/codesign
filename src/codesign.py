@@ -246,7 +246,7 @@ class Codesign:
         with open(f"ScaleHLS-HIDA/test/Transforms/Directive/config.json", "w") as f:
             json.dump(config, f)
 
-    def run_scalehls(self, save_dir, setup=False):
+    def run_scalehls(self, save_dir, opt_cmd,setup=False):
         """
         Runs ScaleHLS synthesis tool in a different environment with modified PATH and PYTHONPATH.
         Updates the memory configuration and logs the output.
@@ -258,7 +258,6 @@ class Codesign:
             None
         """
         self.set_resource_constraint_scalehls(unlimited=setup)
-        print(f"save_dir: {save_dir}")
             
         ## get CWD
         cwd = os.getcwd()
@@ -291,7 +290,7 @@ class Codesign:
                 source mlir_venv/bin/activate
                 cd {os.path.join(os.path.dirname(__file__), "..", save_dir)}
                 cgeist {self.benchmark_name}.c -function={self.benchmark_name} -S -memref-fullrank -raise-scf-to-affine > {self.benchmark_name}.mlir
-                scalehls-opt {self.benchmark_name}.mlir -scalehls-dse-pipeline=\"top-func={self.vitis_top_function} target-spec={os.path.join(os.path.dirname(__file__), "..", "ScaleHLS-HIDA/test/Transforms/Directive/config.json")}\" | scalehls-translate -scalehls-emit-hlscpp > {os.path.join(os.path.dirname(__file__), "..", save_dir)}/{self.benchmark_name}.cpp
+                {opt_cmd} | scalehls-translate -scalehls-emit-hlscpp > {os.path.join(os.path.dirname(__file__), "..", save_dir)}/{self.benchmark_name}.cpp
                 deactivate
                 pwd
                 '''
@@ -311,14 +310,17 @@ class Codesign:
         if p.returncode != 0:
             raise Exception(f"scaleHLS failed with error: {p.stderr}")
 
-        if setup:
-            dsp_usage = self.parse_dsp_usage(save_dir)
-            self.max_dsp = dsp_usage
-
-    def parse_dsp_usage(self, read_dir):
+    def parse_design_space_for_mlir(self, read_dir):
         df = pd.read_csv(f"{read_dir}/{self.benchmark_name}_space.csv")
-        logger.info(f"dsp usage: {df['dsp'].values[0]}")
-        return df['dsp'].values[0]
+        for i in range(len(df['dsp'].values)):
+            if df['dsp'].values[i] <= self.cur_dsp_usage:
+                return f"{read_dir}/{self.benchmark_name}_pareto_{i}.mlir", i
+        raise Exception(f"No Pareto solution found for {self.benchmark_name} with dsp usage {self.cur_dsp_usage}")
+
+    def parse_dsp_usage_and_latency(self, mlir_idx):
+        df = pd.read_csv(f'''{os.path.join(os.path.dirname(__file__), "..", "src/tmp/benchmark_setup")}/{self.benchmark_name}_space.csv''')
+        logger.info(f"dsp usage: {df['dsp'].values[mlir_idx]}, latency: {df['cycle'].values[mlir_idx]}")
+        return df['dsp'].values[mlir_idx], df['cycle'].values[mlir_idx]
 
     def parse_vitis_data(self, save_dir):
 
@@ -397,17 +399,43 @@ class Codesign:
         with open(f"{parse_results_dir}/cdfg-from-vitis.gml", "wb") as f:
             nx.write_gml(self.hw.scheduled_dfg, f)"""
 
-    def vitis_forward_pass(self, save_dir, setup=False):
+    def vitis_forward_pass(self, save_dir, iteration_count, setup=False):
         """
         Runs Vitis version of forward pass, updates the memory configuration, and logs the output.
         """
         self.vitis_top_function = self.benchmark_name if not self.cfg["args"]["pytorch"] else "forward"
+
+        # prep before running scalehls
+        self.set_resource_constraint_scalehls(unlimited=setup)
+        if setup:
+            opt_cmd = f'''scalehls-opt {self.benchmark_name}.mlir -scalehls-dse-pipeline=\"top-func={self.vitis_top_function} target-spec={os.path.join(os.path.dirname(__file__), "..", "ScaleHLS-HIDA/test/Transforms/Directive/config.json")}\"'''
+            mlir_idx = 0
+        else:
+            mlir_file, mlir_idx = self.parse_design_space_for_mlir(os.path.join(os.path.dirname(__file__), "..", "src/tmp/benchmark_setup"))
+            opt_cmd = f"cat {mlir_file}"
+
+        # run scalehls
         if (self.check_checkpoint("scalehls") and not setup) or (self.check_checkpoint("scalehls_unlimited") and setup):
-            self.run_scalehls(save_dir, setup)
+            self.run_scalehls(save_dir, opt_cmd, setup)
         else:
             logger.info("Skipping ScaleHLS")
+
+        # set scale factors if in setup or first iteration
+        if self.cfg["args"]["pytorch"]:
+            dsp_usage, latency = 1, 1 # TODO replace once pytorch dse working
+        else:
+            dsp_usage, latency = self.parse_dsp_usage_and_latency(mlir_idx)
+        if setup:
+            self.max_dsp = dsp_usage
+            self.max_latency = latency
+        elif iteration_count == 0:
+            self.hw.circuit_model.tech_model.max_speedup_factor = latency / self.max_latency
+            self.hw.circuit_model.tech_model.max_area_increase_factor = self.max_dsp / dsp_usage
+            self.hw.circuit_model.tech_model.init_scale_factors(self.hw.circuit_model.tech_model.max_speedup_factor, self.hw.circuit_model.tech_model.max_area_increase_factor)
         if (self.check_save_checkpoint("scalehls") and not setup) or (self.check_save_checkpoint("scalehls_unlimited") and setup):
             raise Exception("Finished ScaleHLS, saving checkpoint")
+        if setup: # setup step ends here, don't need to run rest of forward pass
+            return
 
         os.chdir(os.path.join(os.path.dirname(__file__), "..", save_dir))
         scale_hls_port_fix(f"{self.benchmark_name}.cpp", self.benchmark_name, self.cfg["args"]["pytorch"])
@@ -506,8 +534,11 @@ class Codesign:
         Returns:
             None
         """
-        print("\nRunning Forward Pass")
-        logger.info("Running Forward Pass")
+        if setup:
+            print("Running setup forward pass")
+        else:
+            print("\nRunning Forward Pass")
+            logger.info("Running Forward Pass")
 
 
         ## clear out the existing tmp benchmark directory and copy the benchmark files from the desired benchmark
@@ -523,7 +554,8 @@ class Codesign:
             self.catapult_forward_pass()
         else:
             sim_util.change_clk_period_in_script(f"{save_dir}/tcl_script.tcl", self.clk_period, self.cfg["args"]["hls_tool"])
-            self.vitis_forward_pass(save_dir=save_dir, setup=setup)
+            self.vitis_forward_pass(save_dir=save_dir, iteration_count=iteration_count, setup=setup)
+        if setup: return
 
         # prepare schedule & calculate wire parasitics
         self.prepare_schedule()
@@ -531,14 +563,14 @@ class Codesign:
         ## create the obj equation 
         self.hw.calculate_objective()
 
-        if setup:
+        """if setup:
             self.max_parallel_initial_objective_value = self.hw.obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf()
             print(f"objective value with max parallelism: {self.max_parallel_initial_objective_value}")
         elif iteration_count == 0:
             self.hw.circuit_model.tech_model.max_speedup_factor = self.hw.obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf() / self.max_parallel_initial_objective_value
             self.hw.circuit_model.tech_model.max_area_increase_factor = self.max_dsp / self.cur_dsp_usage
             print(f"max parallelism factor: {self.hw.circuit_model.tech_model.max_speedup_factor}")
-            self.hw.circuit_model.tech_model.init_scale_factors(self.hw.circuit_model.tech_model.max_speedup_factor, self.hw.circuit_model.tech_model.max_area_increase_factor)
+            self.hw.circuit_model.tech_model.init_scale_factors(self.hw.circuit_model.tech_model.max_speedup_factor, self.hw.circuit_model.tech_model.max_area_increase_factor)"""
 
         self.display_objective("after forward pass")
 

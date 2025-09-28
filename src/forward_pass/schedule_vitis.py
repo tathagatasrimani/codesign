@@ -323,11 +323,19 @@ class vitis_schedule_parser:
             idx = 0
 
             self.basic_blocks[basic_block_name]["loop_info"] = self.extract_loop_info_xml(file_path + ".xml")
+            self.basic_blocks[basic_block_name]["loop_info"]["pipeline_states"] = {}
 
-            # parse FSM state transitions
-            while lines[idx].find("FSM state transitions:") == -1:
+            # parse FSM state transitions and pipeline info
+            while lines[idx].find("Number of FSM states") == -1:
                 idx += 1
-            assert lines[idx].find("FSM state transitions:") != -1
+
+            while lines[idx].find("FSM state transitions:") == -1:
+                if lines[idx].find("States = {") != -1:
+                    self.basic_blocks[basic_block_name]["loop_info"]["pipeline_states"] = lines[idx].strip()[lines[idx].find("States = {") + len("States = {")-1:-1].split()
+                    for i in range(len(self.basic_blocks[basic_block_name]["loop_info"]["pipeline_states"])):
+                        self.basic_blocks[basic_block_name]["loop_info"]["pipeline_states"][i] = int(self.basic_blocks[basic_block_name]["loop_info"]["pipeline_states"][i])
+                    print(f"pipeline states: {self.basic_blocks[basic_block_name]['loop_info']['pipeline_states']}")
+                idx += 1
             idx += 1
             self.basic_blocks[basic_block_name]["FSM state transitions"] = {}
             while lines[idx].strip():
@@ -492,9 +500,14 @@ class vitis_schedule_parser:
         # often times the final state transition is "<n> ---> ", with no destination, so I'm not exactly sure how to interpret. Is it going back to the beginning in the case of a pipelined loop?
         # for now, I check if there is any loop info found for this file before making this assumption. Otherwise, I assume it just exits.
         if self.basic_blocks[basic_block_name]["loop_info"] != "N/A":
-            self.basic_blocks[basic_block_name]["cycle_nodes"] = [node for (node, _) in cycle]
-            self.basic_blocks[basic_block_name]["non_cycle_nodes"] = [node for node in state_machine_graph.nodes() if node not in self.basic_blocks[basic_block_name]["cycle_nodes"]]
-            assert len(self.basic_blocks[basic_block_name]["cycle_nodes"]) == self.basic_blocks[basic_block_name]["cycle_nodes"][-1] - self.basic_blocks[basic_block_name]["cycle_nodes"][0] + 1, f"Cycle nodes are not consecutive: {self.basic_blocks[basic_block_name]['cycle_nodes']}"
+            if len(self.basic_blocks[basic_block_name]["loop_info"]["pipeline_states"]) > 0: # if pipeline states were listed in the report, those will be the cycle nodes. can bypass state machine graph
+                self.basic_blocks[basic_block_name]["cycle_nodes"] = self.basic_blocks[basic_block_name]["loop_info"]["pipeline_states"]
+                self.basic_blocks[basic_block_name]["non_cycle_nodes"] = [node for node in state_machine_graph.nodes() if node not in self.basic_blocks[basic_block_name]["cycle_nodes"]]
+                print(f"cycle nodes: {self.basic_blocks[basic_block_name]['cycle_nodes']}, non cycle nodes: {self.basic_blocks[basic_block_name]['non_cycle_nodes']}")
+            else:
+                self.basic_blocks[basic_block_name]["cycle_nodes"] = [node for (node, _) in cycle]
+                self.basic_blocks[basic_block_name]["non_cycle_nodes"] = [node for node in state_machine_graph.nodes() if node not in self.basic_blocks[basic_block_name]["cycle_nodes"]]
+                assert len(self.basic_blocks[basic_block_name]["cycle_nodes"]) == self.basic_blocks[basic_block_name]["cycle_nodes"][-1] - self.basic_blocks[basic_block_name]["cycle_nodes"][0] + 1, f"Cycle nodes are not consecutive: {self.basic_blocks[basic_block_name]['cycle_nodes']}"
         else:
             self.basic_blocks[basic_block_name]["cycle_nodes"] = []
             self.basic_blocks[basic_block_name]["non_cycle_nodes"] = [node for node in state_machine_graph.nodes()]
