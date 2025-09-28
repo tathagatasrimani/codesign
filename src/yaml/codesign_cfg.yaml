@@ -106,3 +106,15 @@ resnet_load_checkpoint:
   args:
     checkpoint_step: vitis
     checkpoint_load_dir: src/tmp_for_test_resnet
+
+vgg16_test:
+  base_cfg: vitis_test
+  args:
+    benchmark: vgg16
+    pytorch: True
+
+lenet_test:
+  base_cfg: vitis_test
+  args:
+    benchmark: lenet
+    pytorch: True
