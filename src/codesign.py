@@ -53,6 +53,8 @@ class Codesign:
         """
         self.set_config(args)
 
+        ## save the root directory that the program started in
+        self.codesign_root_dir = os.getcwd()
 
         self.hls_tool = self.cfg["args"]["hls_tool"]
         self.benchmark = f"src/benchmarks/{self.hls_tool}/{self.cfg['args']['benchmark']}"
@@ -80,7 +82,7 @@ class Codesign:
 
         self.forward_obj = 0
         self.inverse_obj = 0
-        self.openroad_testfile = self.cfg["args"]["openroad_testfile"]
+        self.openroad_testfile = f"{self.codesign_root_dir}/src/tmp/pd/tcl/tcl/{self.cfg['args']['openroad_testfile']}"
         self.parasitics = self.cfg["args"]["parasitics"]
         self.run_cacti = not self.cfg["args"]["debug_no_cacti"]
         self.no_memory = self.cfg["args"]["no_memory"]
@@ -104,10 +106,7 @@ class Codesign:
         self.hw.write_technology_parameters(self.save_dir+"/initial_tech_params.yaml")
 
         self.iteration_count = 0
-
-        ## save the root directory that the program started in
-        self.codesign_root_dir = os.getcwd()
-
+        
         self.checkpoint_controller = checkpoint_controller.CheckpointController(self.cfg, self.codesign_root_dir)
 
         # load the temp directory from the checkpoint save directory (if resuming from checkpoint)
@@ -591,7 +590,7 @@ class Codesign:
         # self.hw.netlist = netlist_dfg
 
         # update netlist and scheduled dfg with wire parasitics
-        self.hw.get_wire_parasitics(self.openroad_testfile, self.parasitics, self.benchmark_name)
+        self.hw.get_wire_parasitics(self.openroad_testfile, self.parasitics, self.benchmark_name, self.cfg["args"]["area"])
 
         if self.cfg["args"]["hls_tool"] == "catapult":
             # set end node's start time to longest path length

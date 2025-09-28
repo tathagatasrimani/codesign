@@ -12,6 +12,7 @@ set sdc_file "codesign_files/codesign.sdc"
 #set image_name "results/codesign.jpeg"
 
 ## TODO: these need to scale appropriatley based on the area constraints
+## will be updated in a script
 set die_area {0 0 2800 2800}
 set core_area {50 50 2750 2750}
 

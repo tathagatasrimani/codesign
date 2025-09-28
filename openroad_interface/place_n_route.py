@@ -3,6 +3,7 @@ import re
 import os
 import copy
 import shutil
+from math import sqrt
 
 import logging
 
@@ -147,13 +148,14 @@ def coord_scraping(
 def place_n_route(
     graph: nx.DiGraph,
     test_file: str, 
-    arg_parasitics: str
+    arg_parasitics: str,
+    area_constraint: int
 ):
     logger.info(f"Starting place and route with parasitics: {arg_parasitics}")
     dict = {edge: {} for edge in graph.edges()}
     if "none" not in arg_parasitics:
         logger.debug("Running setup for place and route.")
-        graph, net_out_dict, node_output, lef_data, node_to_num = setup(graph, test_file)
+        graph, net_out_dict, node_output, lef_data, node_to_num = setup(graph, test_file, area_constraint)
         logger.debug("Setup complete. Running extraction.")
         dict, graph = extraction(graph, arg_parasitics, net_out_dict, node_output, lef_data, node_to_num)
         logger.info("Extraction complete.")
@@ -165,7 +167,8 @@ def place_n_route(
     
 def setup(
     graph: nx.DiGraph,
-    test_file: str
+    test_file: str,
+    area_constraint: int
 ):
     """
     the main function. generates def file, runs openroad, does all openroad and estimated calculations.
@@ -173,6 +176,7 @@ def setup(
         graph: hardware netlist graph
         test_file: tcl file
         arg_parasitics: detailed, estimation, or none. determines which parasitic calculation is executed.
+        area_constraint: area constraint for the placement
 
     return:
         pandas dataframe: contains all parasitic information
@@ -188,6 +192,31 @@ def setup(
     logger.debug(f"Copied tcl files to {directory}/tcl")
     os.makedirs(directory + "/results")
     logger.debug(f"Created results directory: {directory}/results")
+
+    ## edit the tcl file to have the correct area constraint
+    with open(directory + "/tcl/codesign_top.tcl", "r") as file:
+        tcl_data = file.readlines()
+
+    ## compute the new area constraint
+    new_sidelength = int(sqrt(area_constraint))  
+
+    ## round to the nearest multiple of 100
+    new_sidelength = round(new_sidelength / 100) * 100
+
+    ## find a line that contains "set die_area" and replace it with the new area constraint
+    for i, line in enumerate(tcl_data):
+        if "set die_area" in line:
+            tcl_data[i] = f"set die_area {{0 0 {new_sidelength} {new_sidelength}}}\n"
+            logger.debug(f"Updated die_area to {new_sidelength}x{new_sidelength}")
+        if "set core_area" in line:
+            tcl_data[i] = f"set core_area {{50 50 {new_sidelength - 50} {new_sidelength - 50}}}\n"
+            logger.debug(f"Updated core_area to {new_sidelength - 50}x{new_sidelength - 50}")
+
+    ## write the new tcl file
+    with open(directory + "/tcl/codesign_top.tcl", "w") as file:
+        file.writelines(tcl_data)
+    
+    logger.debug(f"Wrote updated tcl file with the area constraints: {new_sidelength}x{new_sidelength}")
 
     graph, net_out_dict, node_output, lef_data, node_to_num = df.def_generator(
         test_file, graph

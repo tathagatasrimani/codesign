@@ -150,6 +150,8 @@ def def_generator(test_file: str, graph: nx.DiGraph):
     test_file_data = open(test_file)
     test_file_lines = test_file_data.readlines()
 
+    logger.info(f"Reading tcl file: {test_file}")
+
     # extracting vars file, die area, and core area from tcl
     for line in test_file_lines: 
         if ".vars" in line:

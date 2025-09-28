@@ -4,9 +4,9 @@ default:
     benchmark: matmult
     savedir: logs
     parasitics: estimation
-    openroad_testfile: openroad_interface/tcl/codesign_top.tcl
+    openroad_testfile: codesign_top.tcl ## the file must be in the openroad_interface/tcl/ folder.
     num_iters: 10
-    area: 1000000
+    area: 10000000
     no_memory: True
     debug_no_cacti: False
     logic_node: 7
@@ -42,7 +42,8 @@ vitis_resnet_test:
   base_cfg: vitis_test
   args:
     pytorch: True
-    benchmark: resnet
+    benchmark: resnet18
+    area: 1000000000
 
 vitis_jacobi_test:
   base_cfg: vitis_test
