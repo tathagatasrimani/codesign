@@ -98,7 +98,7 @@ class HardwareModel:
         self.loop_1x_graphs = {}
         self.loop_2x_graphs = {}
         self.parasitic_graph = nx.DiGraph()
-        self.obj_sub_exprs = {}
+        #self.obj_sub_exprs = {}
         self.execution_time = 0
         self.total_passive_energy = 0
         self.total_active_energy = 0

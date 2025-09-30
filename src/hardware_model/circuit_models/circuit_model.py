@@ -384,4 +384,4 @@ class CircuitModel:
             for key in self.symbolic_latency_wc:
                 if key not in ["Buf", "MainMem", "OffChipIO", "Call", "N/A"]:
                     # cycle limit to constrain the amount of pipelining
-                    self.constraints.append(self.symbolic_latency_wc[key]() / self.tech_model.base_params.f <= 100)
+                    self.constraints.append((self.symbolic_latency_wc[key]()* 1e-9) * self.tech_model.base_params.f <= 20) # num cycles <= 20 (cycles = time(s) * frequency(Hz))

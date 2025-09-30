@@ -108,7 +108,7 @@ class Codesign:
         self.iteration_count = 0
 
         self.checkpoint_controller = checkpoint_controller.CheckpointController(self.cfg)
-        if not self.check_checkpoint("scalehls"):
+        if not self.check_checkpoint("setup"):
             self.checkpoint_controller.load_checkpoint(self.cfg["args"]["checkpoint_step"])
 
     # only skipping steps in first iteration. This function returns True if we should not skip this step.
@@ -313,7 +313,7 @@ class Codesign:
     def parse_design_space_for_mlir(self, read_dir):
         df = pd.read_csv(f"{read_dir}/{self.benchmark_name}_space.csv")
         for i in range(len(df['dsp'].values)):
-            if df['dsp'].values[i] <= self.cur_dsp_usage:
+            if df['dsp'].values[i] <= self.cur_dsp_usage and os.path.exists(f"{read_dir}/{self.benchmark_name}_pareto_{i}.mlir"):
                 return f"{read_dir}/{self.benchmark_name}_pareto_{i}.mlir", i
         raise Exception(f"No Pareto solution found for {self.benchmark_name} with dsp usage {self.cur_dsp_usage}")
 
@@ -574,7 +574,7 @@ class Codesign:
 
         self.display_objective("after forward pass")
 
-        self.obj_over_iterations.append(self.hw.obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf())
+        self.obj_over_iterations.append(sim_util.xreplace_safe(self.hw.obj, self.hw.circuit_model.tech_model.base_params.tech_values))
 
     def parse_catapult_timing(self):
         """
@@ -760,6 +760,7 @@ class Codesign:
         f = open("src/tmp/ipopt_out.txt", "r")
         if not error:
             self.parse_output(f)
+            self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.clk_period] = float((1e9/self.hw.circuit_model.tech_model.base_params.f).subs(self.hw.circuit_model.tech_model.base_params.tech_values).evalf())
         
         if self.hls_tool == "vitis":
             # need to update the tech_value for final node arrival time after optimization
@@ -838,8 +839,11 @@ class Codesign:
             obj = "Delay"
             units = "ns"
         trend_plotter = trend_plot.TrendPlot(self, params_over_iterations, obj_over_iterations, lag_factor_over_iterations, self.save_dir + "/figs", obj, units, self.obj_fn)
+        logger.info(f"plotting params over iterations")
         trend_plotter.plot_params_over_iterations()
+        logger.info(f"plotting obj over iterations")
         trend_plotter.plot_obj_over_iterations()
+        logger.info(f"plotting lag factor over iterations")
         trend_plotter.plot_lag_factor_over_iterations()
 
     def setup(self):

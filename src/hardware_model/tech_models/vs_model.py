@@ -59,7 +59,7 @@ class VSModel(TechModel):
         self.delta = exp(-math.pi*self.base_params.L/(2*self.scale_length))
         logger.info(f"delta: {self.delta.xreplace(self.base_params.tech_values).evalf()}")
         self.V_th_eff_general = self.base_params.V_th - self.delta * self.V_dsp
-        self.V_th_eff = self.V_th_eff.xreplace(self.on_state)
+        self.V_th_eff = self.V_th_eff_general.xreplace(self.on_state)
         self.alpha = 3.5
         self.phi_t = self.V_T
         #self.S_32n = 0.098 # V/decade
