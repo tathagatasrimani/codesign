@@ -1,47 +1,56 @@
-# Codesign Framework
+###### Codesign Framework
 
 Application aware technology - architecture co-design framework.
 
-##### OpenROAD
-To install and build OpenROAD, follow the instructions on [this page](https://github.com/The-OpenROAD-Project/OpenROAD/blob/master/docs/user/Build.md). Not all OSes are supported. One known to work is Ubuntu 22.04. 
+##### Install instructions RSG Linux machines or BLUEY machine at CMU: 
+cd into codesign root directory (<otherpath>/codesign) if you're not there already. Then run:
+source full_env_start.sh
 
-#### Inverse Pass
-The inverse pass builds symbolic equations using [sympy](https://docs.sympy.org/latest/index.html) and does optimization using [pyomo](https://pyomo.readthedocs.io/en/stable/index.html) using [ipopt](https://github.com/coin-or/Ipopt) as the solver. To install the dependencies appropriately follow the instructions [here](https://pyomo.readthedocs.io/en/stable/installation.html).
+##### Running the flow: 
+To run the codesign flow, run the following command from the codesign root directory: 
+run_codesign --config <desired config>
 
-If you are running on Apple Silicon, there are issues with the pyomo - ipopt plugin via libblas and liblapack libraries. In order to fix this follow the instructions suggested by user `fasmb24` in [this issue](https://forums.developer.apple.com/forums/thread/693696).
-
-#### Running the flow: 
-To run the codesign flow, run the following command from this directory: 
-python3 -m src.codesign -b matmult
-
-To run the flow without considering memory as part of the system, run:
-python3 -m src.codesign -b matmult --no_memory true
+The configs are set in src/yaml/codesign_cfg.yaml
 
 ##### Running with checkpoints:
 For debug purposes, you may not want to run the entire flow each time. To help, you can save a checkpoint (transfer contents of src/tmp directory to separate save directory) and load it back to src/tmp on your next run. You can do this through a few flags in src/yaml/codesign_cfg.yaml, or on the command line
 
---checkpoint_load_dir: directory to load snapshot of src/tmp from after previously saving to that directory
+The possible checkpoint points in the code are: 
+scalehls
+vitis
+netlist
+schedule
+pd
 
---checkpoint_step: Step after which the real execution of the framework will begin. For example, if you specify vitis as the checkpoint step, then in codesign.py, all steps before and including vitis (also scalehls) will be skipped. Instead, we just read out the results from src/tmp for the next step and make sure to still do any other misellaneous initialization before that.
+NOTE: All checkpoints are stored in the test/saved_checkpoints directory
 
---save_checkpoint: Must set to True in order to have your src/tmp directory copied to a separate save directory when the program exits
+## To resume execution of the flow from a saved checkpoint:
+--checkpoint_start_step: Step AFTER which the real execution of the framework will begin. For example, if you specify vitis as the checkpoint step, then in codesign.py, all steps before and including vitis (also scalehls) will be skipped. Instead, we just read out the results from src/tmp for the next step and make sure to still do any other misellaneous initialization before that.
 
---checkpoint_save_dir: The directory that src/tmp gets saved to
+--checkpoint_load_dir: directory to load snapshot of src/tmp from after previously saving to that directory ("none" means no directory is loaded). 
 
---checkpoint_save_step: optionally, you can specify a step after which the program will stop and save src/tmp to a separate directory. So if you specify netlist, then src/tmp will be saved after all netlist related files have been generated.
+--stop_at_checkpoint: OPTIONAL WHEN RESUMING. The step AFTER which the program will STOP. This is only used when resuming execution if you want it to stop after a subsequent step. If not specified, the   flow will continue to run as normal. 
 
+## To create a new saved checkpoint:
+--checkpoint_save_dir: The directory that src/tmp gets saved to. If "none" is specified, no checkpoint is saved upon program exit.
 
-#### Install instructions RSG Linux machines: 
-1. Make sure you are running bash. You can check by running "echo $0".
-2. Then, cd into codesign folder and source full_env_start.sh
+--stop_at_checkpoint: The step after which the program will STOP. The src/tmp directory will be saved upon exit if the save_checkpoint flag is set.
 
+These are added as arguments in the codesign_cfg.yaml file.
 
-#### Install instructions on other machines:
-1. Make sure you are running bash. You can check by by running "echo $0". If you're not, you can start by running "bash"
-2. Then, cd into codesign folder. 
-3. Create a new bash script to source catapult based on your particular installation. 
-4. source this script instead of stanford_catapult_env.sh at the end of full_env_start.sh
-5. source full_env_start.sh
+## Create a checkpoint after program exit:
+If you want to create a checkpoint after the program has already exited (this can be useful if you want to save multiple states for debugging):
+From the codesign root directory, run:
+create_checkpoint -d <name of checkpoint>
+
+The checkpoint will be created in test/saved_checkpoints. It is not reccommended that you try to resume execution of the flow from one of these checkpoints. 
+
+### Example usage: 
+## Runs the flow up until vitis completed, then saves a checkpoint
+run_codesign --config vitis_resnet_checkpoint_after_vitis
+
+## Loads a checkpoint from a successful vitis run, then continues the flow from there and stops after pd
+run_codesign --config vitis_resnet_load_checkpoint_after_vitis_stop_after_pd
 
 
 # Acknowledgements

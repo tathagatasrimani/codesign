@@ -54,6 +54,8 @@ class Codesign:
         """
         self.set_config(args)
 
+        ## save the root directory that the program started in
+        self.codesign_root_dir = os.getcwd()
 
         self.hls_tool = self.cfg["args"]["hls_tool"]
         self.benchmark = f"src/benchmarks/{self.hls_tool}/{self.cfg['args']['benchmark']}"
@@ -74,7 +76,7 @@ class Codesign:
             f.write("Codesign Log\n")
             f.write(f"Benchmark: {self.benchmark}\n")
         if os.path.exists("src/tmp"):
-            shutil.rmtree("src/tmp")
+            shutil.rmtree("src/tmp", ignore_errors=True)
         os.mkdir("src/tmp")
 
         logging.basicConfig(filename=f"{self.save_dir}/codesign.log", level=logging.INFO)
@@ -82,11 +84,11 @@ class Codesign:
 
         self.forward_obj = 0
         self.inverse_obj = 0
-        self.openroad_testfile = self.cfg["args"]["openroad_testfile"]
+        self.openroad_testfile = f"{self.codesign_root_dir}/src/tmp/pd/tcl/{self.cfg['args']['openroad_testfile']}"
         self.parasitics = self.cfg["args"]["parasitics"]
         self.run_cacti = not self.cfg["args"]["debug_no_cacti"]
         self.no_memory = self.cfg["args"]["no_memory"]
-        self.hw = hardwareModel.HardwareModel(self.cfg["args"])
+        self.hw = hardwareModel.HardwareModel(self.cfg, self.codesign_root_dir)
         self.opt = optimize.Optimizer(self.hw)
         self.module_map = {}
         self.inverse_pass_improvement = self.cfg["args"]["inverse_pass_improvement"]
@@ -106,24 +108,11 @@ class Codesign:
         self.hw.write_technology_parameters(self.save_dir+"/initial_tech_params.yaml")
 
         self.iteration_count = 0
+        
+        self.checkpoint_controller = checkpoint_controller.CheckpointController(self.cfg, self.codesign_root_dir)
 
-        self.checkpoint_controller = checkpoint_controller.CheckpointController(self.cfg)
-        if not self.check_checkpoint("setup"):
-            self.checkpoint_controller.load_checkpoint(self.cfg["args"]["checkpoint_step"])
-
-    # only skipping steps in first iteration. This function returns True if we should not skip this step.
-    def check_checkpoint(self, checkpoint_step):
-        if checkpoint_controller.checkpoint_map[checkpoint_step] > checkpoint_controller.checkpoint_map[self.cfg["args"]["checkpoint_step"]] or self.iteration_count != 0:
-            return True
-        else:
-            return False
-
-    # return True if we should stop the program and save the checkpoint
-    def check_save_checkpoint(self, checkpoint_step):
-        if checkpoint_controller.checkpoint_map[checkpoint_step] == checkpoint_controller.checkpoint_map[self.cfg["args"]["checkpoint_save_step"]]:
-            return True
-        else:
-            return False
+        if self.cfg["args"]["checkpoint_start_step"]!= "none" and self.cfg["args"]["checkpoint_load_dir"] != "none":
+            self.checkpoint_controller.load_checkpoint()
 
     # any arguments specified on CLI will override the default config
     def set_config(self, args):
@@ -324,8 +313,6 @@ class Codesign:
 
     def parse_vitis_data(self, save_dir):
 
-        # TODO: Parse the Vitis netlist and write it to netlist-from-vitis.gml and cdfg-from-vitis.gml
-
         ## print the cwd
         print(f"Current working directory in vitis parse data: {os.getcwd()}")
 
@@ -338,14 +325,18 @@ class Codesign:
 
         parse_results_dir = f"{save_dir}/parse_results"
 
-        if self.check_checkpoint("netlist"):
+        logger.info(f"parse results dir: {parse_results_dir}")
+
+        if self.checkpoint_controller.check_checkpoint("netlist", self.iteration_count):
             ## Do preprocessing to the vitis data for the next scripts
             parse_verbose_rpt(f"{save_dir}/{self.benchmark_name}/solution1/.autopilot/db", parse_results_dir)
 
             ## Create the netlist
+            logger.info("Creating Vitis netlist")
             create_vitis_netlist(parse_results_dir)
 
             ## Create the CDFGs for each FSM
+            logger.info("Creating Vitis CDFGs")
             create_cdfg_vitis(parse_results_dir)
 
             ## Create the mapping from CDFG nodes to netlist nodes
@@ -355,20 +346,28 @@ class Codesign:
             #merge_cdfgs_vitis(parse_results_dir, self.vitis_top_function)
 
             ## Merge the netlists recursivley through the module hierarchy to produce overall netlist
+            logger.info("Recursivley merging vitis netlists")
             merge_netlists_vitis(parse_results_dir, self.vitis_top_function, allowed_functions_netlist)
+
+            logger.info("Vitis netlist parsing complete")
         else:
             logger.info("Skipping Vitis netlist parsing")
-        if self.check_save_checkpoint("netlist"):
-            raise Exception("Finished Vitis netlist parsing, saving checkpoint")
 
-        if self.check_checkpoint("schedule"):
+        self.checkpoint_controller.check_end_checkpoint("netlist")
+
+        if self.checkpoint_controller.check_checkpoint("schedule", self.iteration_count):
+            logger.info("Parsing Vitis schedule")
             schedule_parser = schedule_vitis.vitis_schedule_parser(save_dir, self.benchmark_name, self.vitis_top_function, self.clk_period, allowed_functions_schedule)
+            
+            logger.info("Creating DFGs from Vitis CDFGs")
             schedule_parser.create_dfgs()
             self.hw.scheduled_dfgs = {basic_block_name: schedule_parser.basic_blocks[basic_block_name]["G_standard"] for basic_block_name in schedule_parser.basic_blocks}
             self.hw.loop_1x_graphs = {basic_block_name: schedule_parser.basic_blocks[basic_block_name]["G_loop_1x_standard"] for basic_block_name in schedule_parser.basic_blocks if "G_loop_1x" in schedule_parser.basic_blocks[basic_block_name]}
             self.hw.loop_2x_graphs = {basic_block_name: schedule_parser.basic_blocks[basic_block_name]["G_loop_2x_standard"] for basic_block_name in schedule_parser.basic_blocks if "G_loop_2x" in schedule_parser.basic_blocks[basic_block_name]}
             logger.info(f"scheduled dfgs: {self.hw.scheduled_dfgs}")
             logger.info(f"loop 1x graphs: {self.hw.loop_1x_graphs}")
+
+            logger.info("Vitis schedule parsing complete")
         else:
             for file in os.listdir(parse_results_dir):
                 if os.path.isdir(os.path.join(parse_results_dir, file)):
@@ -378,13 +377,14 @@ class Codesign:
                         assert os.path.exists(f"{parse_results_dir}/{file}/{file}_graph_loop_2x_standard.gml")
                         self.hw.loop_2x_graphs[file] = nx.read_gml(f"{parse_results_dir}/{file}/{file}_graph_loop_2x_standard.gml")
             logger.info("Skipping Vitis schedule parsing")
-        if self.check_save_checkpoint("schedule"):
-            raise Exception("Finished Vitis schedule parsing, saving checkpoint")
+
+        self.checkpoint_controller.check_end_checkpoint("schedule")
 
         print(f"Current working directory at end of vitis parse data: {os.getcwd()}")
 
         self.hw.netlist = nx.read_gml(f"{parse_results_dir}/{self.vitis_top_function}_full_netlist.gml")
 
+        logger.info("Now calculating execution time of Vitis design with top function "+self.vitis_top_function)
         execution_time = self.hw.calculate_execution_time_vitis(self.vitis_top_function)
         print(f"Execution time: {execution_time}")
 
@@ -415,7 +415,7 @@ class Codesign:
             opt_cmd = f"cat {mlir_file}"
 
         # run scalehls
-        if (self.check_checkpoint("scalehls") and not setup) or (self.check_checkpoint("setup") and setup):
+        if (self.checkpoint_controller.check_checkpoint("scalehls", self.iteration_count) and not setup) or (self.checkpoint_controller.check_checkpoint("setup", self.iteration_count) and setup):
             self.run_scalehls(save_dir, opt_cmd, setup)
         else:
             logger.info("Skipping ScaleHLS")
@@ -432,25 +432,57 @@ class Codesign:
             self.hw.circuit_model.tech_model.max_speedup_factor = latency / self.max_latency
             self.hw.circuit_model.tech_model.max_area_increase_factor = self.max_dsp / dsp_usage
             self.hw.circuit_model.tech_model.init_scale_factors(self.hw.circuit_model.tech_model.max_speedup_factor, self.hw.circuit_model.tech_model.max_area_increase_factor)
-        if (self.check_save_checkpoint("scalehls") and not setup) or (self.check_save_checkpoint("setup") and setup):
-            raise Exception("Finished ScaleHLS, saving checkpoint")
+        self.checkpoint_controller.check_end_checkpoint("scalehls")
         if setup: # setup step ends here, don't need to run rest of forward pass
             return
 
         os.chdir(os.path.join(os.path.dirname(__file__), "..", save_dir))
         scale_hls_port_fix(f"{self.benchmark_name}.cpp", self.benchmark_name, self.cfg["args"]["pytorch"])
         logger.info(f"Vitis top function: {self.vitis_top_function}")
-        command = ["vitis_hls -f tcl_script.tcl"]
-        if (self.check_checkpoint("vitis") and not setup) or (self.check_checkpoint("vitis_unlimited") and setup):
-            p = subprocess.run(command, shell=True, capture_output=True, text=True)
-            logger.info(f"Vitis HLS command output: {p.stdout}")
-            if p.returncode != 0:
-                logger.error(f"Vitis HLS command failed: {p.stderr}")
-                raise Exception(f"Vitis HLS command failed: {p.stderr}")
+
+
+        import time
+        command = ["vitis_hls", "-f", "tcl_script.tcl"]
+        if (self.checkpoint_controller.check_checkpoint("vitis", self.iteration_count) and not setup) or (self.checkpoint_controller.check_checkpoint("vitis_unlimited", self.iteration_count) and setup):
+            start_time = time.time()
+            # Start the process and write output to vitis_hls.log
+            with open("vitis_hls.log", "w") as logfile:
+                p = subprocess.Popen(command, stdout=logfile, stderr=subprocess.STDOUT, text=True)
+
+            completed_required_sections = False
+            while True:
+                time.sleep(1)
+                if os.path.exists("vitis_hls.log"):
+                    with open("vitis_hls.log", "r") as f:
+                        for line in f:
+                            if "Finished Generating all RTL models" in line:
+                                completed_required_sections = True
+                                break
+                if completed_required_sections:
+                    p.terminate()
+                    try:
+                        p.wait(timeout=10)
+                    except Exception:
+                        p.kill()
+                    logger.info("Vitis HLS process terminated early after RTL models generated.")
+                    break
+                # Check if process already exited
+                if p.poll() is not None:
+                    break
+
+            elapsed = time.time() - start_time
+            logger.info(f"Vitis HLS command elapsed time: {elapsed:.2f} seconds ({elapsed/60:.2f} minutes)")
+
+            # Read the log for output
+            if p.returncode not in (0, None) and not completed_required_sections:
+                logger.error(f"Vitis HLS command failed: see vitis_hls.log")
+                raise Exception(f"Vitis HLS command failed: see vitis_hls.log")
         else:
             logger.info("Skipping Vitis")
-        if (self.check_save_checkpoint("vitis") and not setup) or (self.check_save_checkpoint("vitis_unlimited") and setup):
-            raise Exception("Finished Vitis, saving checkpoint")
+        if not setup:
+            self.checkpoint_controller.check_end_checkpoint("vitis")
+        else:
+            self.checkpoint_controller.check_end_checkpoint("vitis_unlimited")
         os.chdir(os.path.join(os.path.dirname(__file__), ".."))
         # PARSE OUTPUT, set schedule and read netlist
         self.parse_vitis_data(save_dir=save_dir)
@@ -542,9 +574,9 @@ class Codesign:
 
 
         ## clear out the existing tmp benchmark directory and copy the benchmark files from the desired benchmark
-        if iteration_count != 0 or self.cfg["args"]["checkpoint_step"] == "none":
+        if iteration_count != 0 or self.cfg["args"]["checkpoint_start_step"] == "none":
             if os.path.exists(self.benchmark_dir):
-                shutil.rmtree(self.benchmark_dir)
+                shutil.rmtree(self.benchmark_dir, ignore_errors=True)
             shutil.copytree(self.benchmark, self.benchmark_dir)
 
         self.clk_period = 1/self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.f] * 1e9 # ns
@@ -557,8 +589,8 @@ class Codesign:
             self.vitis_forward_pass(save_dir=save_dir, iteration_count=iteration_count, setup=setup)
         if setup: return
 
-        # prepare schedule & calculate wire parasitics
-        self.prepare_schedule()
+        # calculate wire parasitics
+        self.calculate_wire_parasitics()
 
         ## create the obj equation 
         self.hw.calculate_objective()
@@ -574,6 +606,7 @@ class Codesign:
 
         self.display_objective("after forward pass")
 
+        self.checkpoint_controller.check_end_checkpoint("pd")
         self.obj_over_iterations.append(sim_util.xreplace_safe(self.hw.obj, self.hw.circuit_model.tech_model.base_params.tech_values))
 
     def parse_catapult_timing(self):
@@ -603,8 +636,8 @@ class Codesign:
         ## write the scheduled dfg to a file
         with open(f"{self.benchmark_dir}/scheduled-dfg-from-catapult.gml", "wb") as f:
             nx.write_gml(self.hw.scheduled_dfg, f)
-    
-    def prepare_schedule(self):
+
+    def calculate_wire_parasitics(self):
         """
         Prepares the schedule by setting the end node's start time and getting the longest paths.
         Also updates the hardware netlist with wire parasitics and determines the longest paths.
@@ -620,7 +653,7 @@ class Codesign:
         # self.hw.netlist = netlist_dfg
 
         # update netlist and scheduled dfg with wire parasitics
-        self.hw.get_wire_parasitics(self.openroad_testfile, self.parasitics, self.benchmark_name)
+        self.hw.get_wire_parasitics(self.openroad_testfile, self.parasitics, self.benchmark_name, self.cfg["args"]["area"])
 
         if self.cfg["args"]["hls_tool"] == "catapult":
             # set end node's start time to longest path length
@@ -877,8 +910,7 @@ def main(args):
         codesign_module.execute(codesign_module.cfg["args"]["num_iters"])
     finally:
         os.chdir(os.path.join(os.path.dirname(__file__), ".."))
-        if codesign_module.cfg["args"]["save_checkpoint"]:
-            codesign_module.checkpoint_controller.create_checkpoint()
+        
         codesign_module.end_of_run_plots(codesign_module.obj_over_iterations, codesign_module.lag_factor_over_iterations, codesign_module.params_over_iterations)
         codesign_module.cleanup()
 
@@ -941,9 +973,8 @@ if __name__ == "__main__":
     parser.add_argument("--config", type=str, default="default", help="config to use")
     parser.add_argument("--checkpoint_load_dir", type=str, help="directory to load checkpoint")
     parser.add_argument("--checkpoint_save_dir", type=str, help="directory to save checkpoint")
-    parser.add_argument("--checkpoint_step", type=str, help="checkpoint step to resume from")
-    parser.add_argument("--save_checkpoint", type=bool, help="save a checkpoint upon exit")
-    parser.add_argument("--checkpoint_save_step", type=str, help="checkpoint step to save")
+    parser.add_argument("--checkpoint_start_step", type=str, help="checkpoint step to resume from (the flow will start normal execution AFTER this step)")
+    parser.add_argument("--stop_at_checkpoint", type=str, help="checkpoint step to stop at (will complete this step and then stop)")
     args = parser.parse_args()
 
     main(args)
