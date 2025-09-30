@@ -21,9 +21,11 @@ default:
     F_s: False
     t_1: False
     I_sub_unified: False
+    frequency: True
   delay_parasitics: all
   scaling_mode: None
   model_type: bulk
+  vs_model_type: base
   base_cfg: default
 
 dennard_scaling_cfg:
@@ -163,19 +165,40 @@ vs_cfg_t_1_capped_parallel:
   base_cfg: vs_cfg_t_1
 
 # latest means F_s and unified I_sub
+vs_cfg_latest_test:
+  base_cfg: vs_cfg
+  effects:
+    F_s: True
+    I_sub_unified: True
+    area_and_latency_scaling: True
+    frequency: False
+
+mvs_si_cfg_test:
+  base_cfg: vs_cfg_latest_test
+  vs_model_type: mvs_si
+
+mvs_2_cfg_test:
+  base_cfg: vs_cfg_latest_test
+  vs_model_type: mvs2
+
+vscnfet_cfg_test:
+  base_cfg: vs_cfg_latest_test
+  vs_model_type: vscnfet
+
 vs_cfg_latest:
   base_cfg: vs_cfg
   effects:
     F_s: True
     I_sub_unified: True
+    area_and_latency_scaling: False
 
 vs_cfg_latest_t_1:
-  base_cfg: vs_cfg_latest
+  base_cfg: vs_cfg_latest_test
   effects:
     t_1: True
 
 vs_cfg_latest_capped_parallel:
-  base_cfg: vs_cfg_latest
+  base_cfg: vs_cfg_latest_test
   effects:
     max_parallel_en: True
     max_parallel_val: 1000

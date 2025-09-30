@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 class CircuitModel:
     def __init__(self, tech_model):
         self.tech_model = tech_model
+        self.constraints = []
 
         # hardcoded tech node to reference for logical effort coefficients
         self.coeffs = coefficients.create_and_save_coefficients([7])
@@ -165,7 +166,9 @@ class CircuitModel:
 
         self.update_circuit_values()
 
-        self.set_uarch_parameters()
+        #self.set_uarch_parameters()
+
+        self.create_constraints()
     
     def set_coefficients(self):
         self.alpha = self.coeffs["alpha"]
@@ -174,7 +177,6 @@ class CircuitModel:
         self.area_coeffs = self.coeffs["area"]
 
     def set_uarch_constraints(self):
-        self.tech_model.constraints.append(self.clk_period >= 1/self.tech_model.base_params.f * 1.0e9)
         self.tech_model.constraints.append(self.logic_delay >= self.tech_model.delay)
         self.tech_model.constraints.append(self.logic_energy_active >= self.tech_model.E_act_inv)
         self.tech_model.constraints.append(self.logic_power_passive >= self.tech_model.P_pass_inv)
@@ -373,3 +375,13 @@ class CircuitModel:
 
     def make_sym_area(self, area_coeff):
         return area_coeff * self.tech_model.base_params.area
+
+    def create_constraints(self):
+        self.clk_period = sp.symbols("clk_period")
+        self.tech_model.base_params.tech_values[self.clk_period] = float((1e9/self.tech_model.base_params.f).subs(self.tech_model.base_params.tech_values).evalf())
+        self.constraints.append(self.clk_period >= 1/self.tech_model.base_params.f * 1.0e9)
+        if self.tech_model.model_cfg["effects"]["frequency"]:
+            for key in self.symbolic_latency_wc:
+                if key not in ["Buf", "MainMem", "OffChipIO", "Call", "N/A"]:
+                    # cycle limit to constrain the amount of pipelining
+                    self.constraints.append((self.symbolic_latency_wc[key]()* 1e-9) * self.tech_model.base_params.f <= 20) # num cycles <= 20 (cycles = time(s) * frequency(Hz))

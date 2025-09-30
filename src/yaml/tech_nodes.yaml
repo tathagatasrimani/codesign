@@ -16,8 +16,14 @@ default:
   m3_k: 3.9 # F / m
   k_gate: 3.9 # dielectric constant
   Cs: 100 # F/m^2
-  f: 4.0e+6
+  f: 4.0e+7
   t_1: 1.0e-6
+  d: 1.0e-6
+  k_cnt: 3.9
+  L_ov: 375.0e-9
+  L_c: 3.0e-6
+  H_c: 3.0e-6
+  H_g: 3.0e-6
   node_arrivals_end: 0
 
 tech-1982:

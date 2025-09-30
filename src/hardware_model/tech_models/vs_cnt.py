@@ -1,6 +1,6 @@
 import logging
 from src.hardware_model.tech_models.tech_model_base import TechModel
-from src.sim_util import symbolic_convex_max, symbolic_min, custom_cosh, custom_exp
+from src.sim_util import symbolic_convex_max, symbolic_convex_min, custom_cosh, custom_exp, custom_coth
 import math
 from sympy import symbols, ceiling, expand, exp, Abs, cosh, log
 import sympy as sp
@@ -8,7 +8,7 @@ import sympy as sp
 
 logger = logging.getLogger(__name__)
 
-class VSModel(TechModel):
+class VSPlanarModel(TechModel):
     def __init__(self, model_cfg, base_params):
         super().__init__(model_cfg, base_params)
 
@@ -22,6 +22,30 @@ class VSModel(TechModel):
         self.B = (8*math.pi*(2*self.m_ox)**(1/2) * (self.phi_b*self.q)**(3/2)) / (3*self.q*self.h)
         #self.A = 4.97232 # for NMOS
         #self.B = 7.45669e11 # for NMOS
+
+        self.cqa = 0.087e-15 / 1e-6
+        self.cqb = 0.16e-15 / 1e-6
+        self.Ep = 3*self.q
+        self.acc = 0.142e-9
+        self.d00 = 1.0e-9
+        self.t_lam = 0.05e-9
+        self.u_00 = 0.2388 # m^2/V.s
+        self.lam_00 = 77.0e-9
+        self.c_u = 1.37
+        self.t_u = 0.000338 # m^2/(V.s.K)
+        self.z0 = 2.405
+        self.Efsd = 0.3 # see figure 4 in paper
+        self.vb0 = 4.1e9 # (m/s)
+        self.d0 = 1.2e-9
+        self.lam_v = 440.0e-9
+        self.R_q = self.h/(4*self.q**2)
+        self.g_c0 = 0.49e+3 # S/m
+        self.E00 = 32e-3 * self.q # eV
+        self.lam_c = 380.0e-9
+        self.R_ext0 = 35
+        self.alpha_d = 2.0
+        self.alpha_n = 2.1
+
 
         # GIDL parameters
         self.A_GIDL = 1e-12
@@ -37,46 +61,68 @@ class VSModel(TechModel):
             self.V_gsp: self.base_params.V_dd,
             self.V_dsp: self.base_params.V_dd,
         }
+        self.NL_state = {
+            self.V_gsp: self.base_params.V_dd/2,
+            self.V_dsp: self.base_params.V_dd,
+        }
+        self.H_state = {
+            self.V_gsp: self.base_params.V_dd,
+            self.V_dsp: self.base_params.V_dd/2,
+        }
         self.off_state = {
             self.V_gsp: 0,
             self.V_dsp: self.base_params.V_dd,
         }
-        self.Cox = self.e_0 * self.base_params.k_gate / self.base_params.tox
-        logger.info(f"Cox: {self.Cox.xreplace(self.base_params.tech_values).evalf()}")
 
-        #self.C_inv = (self.Cox * self.base_params.Cs) / (self.Cox + self.base_params.Cs)
-        self.C_inv = self.Cox
+        self.Eg = 2*self.Ep*self.acc/self.base_params.d
+        self.Cqeff = self.cqa*(self.q * self.Eg/(self.K*self.T)) + self.cqb # seems to be different models in paper versus technical manual, using paper here
+        self.Cox = 2*math.pi*self.base_params.k_gate*self.e_0/(sp.log((2*self.base_params.tox + self.base_params.d) / self.base_params.d)) # assuming GAA structure
+        self.C_inv = self.Cox * self.Cqeff / (self.Cox + self.Cqeff)
+        logger.info(f"C_inv: {self.C_inv.xreplace(self.base_params.tech_values).evalf()}")
+        logger.info(f"Cox: {self.Cox.xreplace(self.base_params.tech_values).evalf()}")
+        logger.info(f"Cqeff: {self.Cqeff.xreplace(self.base_params.tech_values).evalf()}")
+        logger.info(f"Eg: {self.Eg.xreplace(self.base_params.tech_values).evalf()}")
+
+        self.u_0 = self.u_00 - self.t_u*self.T
+        self.lam_u = self.lam_00 - self.t_lam*self.T
+        self.u_n_eff = (self.u_0 * self.base_params.L * (self.base_params.d/self.d00)**self.c_u) / (self.lam_u + self.base_params.L)
 
         self.eot = self.base_params.tox * 3.9/self.base_params.k_gate
-        if self.model_cfg["effects"]["t_1"]:
-            self.t_1 = self.base_params.t_1
-        else:
-            self.t_1 = 10e-9 # TODO: come back to this
-        self.scale_length = self.eot + self.t_1
 
-        #self.delta_32n = 0.12 
+        self.eta_0 = self.z0*self.base_params.d/(self.base_params.d + 2*self.base_params.tox)
+        self.b = 0.41*(self.eta_0/2 - (self.eta_0**3)/16)*(math.pi*self.eta_0/2)
+        # assumes tox > d/2
+        self.scale_length = (self.base_params.d + 2*self.base_params.tox) / (2*self.z0) * (1 + self.b * (self.gamma - 1))
+        # if tox << d: self.scale_length = (self.base_params.d + 2*self.base_params.gamma + self.base_params.tox)/self.z0
 
-        self.delta = exp(-math.pi*self.base_params.L/(2*self.scale_length))
+        self.L_of = self.base_params.tox / 3
+        self.zeta = (self.base_params.L + 2*self.L_of) / (2*self.scale_length)
+
+        # SCE parameters
+        self.n = 1/(1-exp(-self.zeta))
+        self.delta = exp(-self.zeta)
+        self.Vth_rolloff = (2*self.Efsd + self.Eg)*exp(-self.zeta)
+
+        self.vb = self.vb0 * (self.base_params.d/self.d0)**0.5
+        self.vx0 = self.lam_v / (self.lam_v + self.base_params.L) * self.vb
+
+
         logger.info(f"delta: {self.delta.xreplace(self.base_params.tech_values).evalf()}")
-        self.V_th_eff_general = self.base_params.V_th - self.delta * self.V_dsp
-        self.V_th_eff = self.V_th_eff_general.xreplace(self.on_state)
+        self.V_th_eff_general = self.base_params.V_th - self.delta * self.V_dsp - self.Vth_rolloff
+        self.V_th_eff = (self.V_th_eff_general.xreplace(self.NL_state) + self.V_th_eff_general.xreplace(self.H_state)) / 2
         self.alpha = 3.5
         self.phi_t = self.V_T
-        #self.S_32n = 0.098 # V/decade
-        self.beta = 2.5 # for nmos
-        self.L_ov = 0.15 * self.base_params.L # given as good typical value in paper
-        self.vx0_32n = 1.35e5 # m/s (vs paper uses 35nm as reference but only data for 32nm)
-        #self.u = 250e-4 # m^2/V.s
-        self.R_s = 75 # ohm*um, need to get rid of constant 75
+        self.beta = 1.8
+
+        # phi_b has range of +/- phi_m, which is defined as 5.1eV
+        self.phi_b = self.Eg/2
+        self.g_c = self.g_c0*exp(-self.phi_b/self.E00)
+        self.L_T = (self.g_c*self.R_q/self.lam_c + (self.g_c*self.R_q/2)**2)**-0.5
+        self.R_c = self.R_q/2 * (1+4/(self.lam_c*self.g_c*self.R_q))**0.5 * custom_coth(self.base_params.L_c/self.L_T)
+        # PICK UP HERE WITH R_EXT
+        self.R_s = self.R_c + self.R_ext # ohm*um
         self.R_d = self.R_s
         self.C_g = self.C_inv # TODO: check if this is correct. GPT says Cg <= Cinv <= Cox
-
-        self.vx0 = self.vx0_32n + 1e5 * (self.delta - self.delta.xreplace({self.base_params.L: 32e-9}))
-        self.alpha_g = 1
-        # value of denominator clamped to avoid solver issues
-        self.S = self.phi_t * log(10) / symbolic_convex_max(1 - 2*self.alpha_g*exp(-math.pi*self.base_params.L/(2*self.scale_length)), 1e-5)
-        assert (1 - 2*self.alpha_g*exp(-math.pi*self.base_params.L/(2*self.scale_length))).xreplace(self.base_params.tech_values).evalf() > 1e-5, f"SS denominator is too small, clamping for solver will cause inaccuracies"
-        self.n = self.S / (self.phi_t * log(10))
 
         # note: we only care about ON state and saturation region for digital applications
         if self.model_cfg["effects"]["F_f"]:
@@ -95,8 +141,7 @@ class VSModel(TechModel):
         
         self.v = self.vx0 * (self.F_f + (1 - self.F_f) / (1 + self.base_params.W * self.R_s * self.C_g * (1 + 2*self.delta)*self.vx0))
         if self.model_cfg["effects"]["F_s"]:
-            self.L_c = self.base_params.L - 2 * self.L_ov
-            self.Vdsats = self.v * self.L_c / self.u_n_eff + (self.R_s + self.R_d) * self.base_params.W * self.Q_ix0_0 * self.v
+            self.Vdsats = self.v * self.base_params.L / self.u_n_eff
             self.Vdsat = self.Vdsats * (1 - self.F_f) + self.phi_t * self.F_f
             self.F_s = (self.V_dsp / self.Vdsat) / (1 + (self.V_dsp / self.Vdsat)**self.beta)**(1/self.beta)
             self.F_s_eval = self.F_s.xreplace(self.on_state)
@@ -107,7 +152,8 @@ class VSModel(TechModel):
         #self.R_cmin = self.L_c / (self.Q_ix0_0 * self.u_n_eff)
         self.I_d = self.base_params.W * self.Q_ix0 * self.v * self.F_s
 
-        self.I_d_on = (self.I_d).xreplace(self.on_state)
+        #self.I_d_on = (self.I_d).xreplace(self.on_state)
+        self.I_d_on = ((self.I_d).xreplace(self.NL_state) + (self.I_d).xreplace(self.H_state)) / 2
         #logger.info(f"I_d_on equation: {self.I_d_on.simplify()}")
 
         self.A_gate = self.base_params.W * self.base_params.L
@@ -118,7 +164,7 @@ class VSModel(TechModel):
         logger.info(f"area_scale: {self.base_params.area_scale.xreplace(self.base_params.tech_values).evalf()}")
 
         self.C_diff = self.C_gate
-        self.C_load = self.C_gate
+        self.C_load = 4*self.C_gate # FO4 model
         self.R_avg_inv = self.base_params.V_dd / self.I_d_on
 
         logger.info(f"R_wire: {self.R_wire.xreplace(self.base_params.tech_values).evalf()}")
@@ -188,47 +234,43 @@ class VSModel(TechModel):
 
     def config_param_db(self):
         super().config_param_db()
-        self.param_db["L"] = self.base_params.L
-        self.param_db["W"] = self.base_params.W
-        self.param_db["I_sub"] = self.I_sub
-        self.param_db["V_th"] = self.base_params.V_th
-        self.param_db["V_th_eff"] = self.V_th_eff.xreplace(self.on_state).evalf()
-        self.param_db["V_dd"] = self.base_params.V_dd
-        self.param_db["wire RC"] = self.m1_Rsq * self.m1_Csq
-        self.param_db["I_on"] = self.I_d_on
-        self.param_db["I_on_per_um"] = self.I_d_on_per_um
-        self.param_db["I_off_per_um"] = self.I_d_off_per_um
-        self.param_db["I_tunnel_per_um"] = self.I_tunnel_per_um
-        self.param_db["I_sub_per_um"] = self.I_sub_per_um
-        self.param_db["DIBL factor"] = self.delta
-        self.param_db["t_ox"] = self.base_params.tox
-        self.param_db["eot"] = self.eot
-        self.param_db["scale_length"] = self.scale_length
+        self.param_db["I_d"] = self.I_d_on
         self.param_db["C_load"] = self.C_load
-        self.param_db["C_wire"] = self.C_wire
+        self.param_db["delay"] = self.delay
+        self.param_db["u_n_eff"] = self.u_n_eff
+        self.param_db["V_th_eff"] = self.V_th_eff
+        self.param_db["delta_vt_dibl"] = (-self.delta * self.V_dsp).xreplace(self.on_state).evalf()
         self.param_db["R_wire"] = self.R_wire
-        self.param_db["R_device"] = self.base_params.V_dd/self.I_d_on
-        self.param_db["SS"] = self.S
-        self.param_db["F_f"] = self.F_f_eval
-        self.param_db["F_s"] = self.F_s_eval
-        self.param_db["vx0"] = self.vx0
-        self.param_db["v"] = self.v.xreplace(self.on_state).evalf()
-        self.param_db["t_1"] = self.t_1
-        self.param_db["f"] = self.base_params.f
-        self.param_db["R_s"] = self.R_s
-        self.param_db["R_d"] = self.R_d
-        self.param_db["parasitic capacitance"] = self.C_diff
-        self.param_db["k_gate"] = self.base_params.k_gate
-
+        self.param_db["C_wire"] = self.C_wire
+        self.param_db["I_sub"] = self.I_sub
+        self.param_db["I_tunnel"] = self.I_tunnel
+        self.param_db["I_d_on_per_um"] = self.I_d_on_per_um
+        self.param_db["I_sub_per_um"] = self.I_sub_per_um
+        self.param_db["I_tunnel_per_um"] = self.I_tunnel_per_um
+        self.param_db["I_d_off_per_um"] = self.I_d_off_per_um
+        self.param_db["I_GIDL_per_um"] = self.I_GIDL_per_um
+        self.param_db["Eox"] = self.E_ox
+        self.param_db["Vox"] = self.V_ox
+        self.param_db["scale_length"] = self.scale_length
         self.param_db["A_gate"] = self.A_gate
 
     def apply_base_parameter_effects(self):
         pass
 
     def apply_additional_effects(self):
-        super().apply_additional_effects()
+        if self.model_cfg["effects"]["area_and_latency_scaling"]:
+            if self.model_cfg["effects"]["max_parallel_en"]:
+                MAX_PARALLEL = self.model_cfg["effects"]["max_parallel_val"]
+                self.delay = self.delay * symbolic_convex_max(self.base_params.latency_scale, 1/MAX_PARALLEL)
+                self.P_pass_inv = self.P_pass_inv * symbolic_convex_min(self.base_params.area_scale, MAX_PARALLEL)
+            else:
+                self.delay = self.delay * self.base_params.latency_scale
+                self.P_pass_inv = self.P_pass_inv * self.base_params.area_scale
 
     def create_constraints(self, dennard_scaling_type="constant_field"):
         super().create_constraints(dennard_scaling_type)
         self.constraints.append(self.delta <= 0.15)
-        
+        self.constraints.append(self.base_params.tox >= 2*self.base_params.d) # ensure scale length equation holds
+        self.constraints.append(self.base_params.k_cnt <= 20)
+        self.constraints.append(self.base_params.k_cnt >= 1)
+        self.constraints.append(self.base_params.L_c == self.base_params.L/5) # from minimum values in technical manual

@@ -19,6 +19,7 @@ class BaseParameters:
     def __init__(self, tech_node, dat_file):
         self.tech_node = tech_node
         self.dat_file = dat_file
+        self.constraints = []
 
         self.node_arrivals_end = symbols("node_arrivals_end", positive=True)
 
@@ -32,6 +33,8 @@ class BaseParameters:
         self.L = symbols("L", positive=True)
         self.k_gate = symbols("k_gate", positive=True)
         self.t_1 = symbols("t_1", positive=True) # physical body thickness, used for scale length in vs model
+
+        self.L_ov = symbols("L_ov", positive=True)
 
         # dennard scaling factors, used for dennard scaling test
         self.alpha_dennard = symbols("alpha_dennard", positive=True)
@@ -56,6 +59,13 @@ class BaseParameters:
         # semiconductor capacitance for virtual source model
         self.Cs = symbols("Cs", positive=True)
 
+        # CNT parameters
+        self.d = symbols("d", positive=True)
+        self.k_cnt = symbols("k_cnt", positive=True)
+        self.L_c = symbols("L_c", positive=True)
+        self.H_c = symbols("H_c", positive=True)
+        self.H_g = symbols("H_g", positive=True)
+        
         # technology level parameter values
         self.tech_values = {}
         self.init_symbol_table()
@@ -256,6 +266,9 @@ class BaseParameters:
         self.OffChipIOL = {}
         self.OffChipIOPact = {} 
 
+    def create_constraints(self):
+        pass
+
     def init_symbol_table(self):
         # initialize string to symbol mapping
         self.symbol_table = {
@@ -266,11 +279,17 @@ class BaseParameters:
             "u_n": self.u_n,
             "tox": self.tox,
             "t_1": self.t_1,
+            "L_ov": self.L_ov,
             "W": self.W,
             "L": self.L,
             "k_gate": self.k_gate,
             "Cs": self.Cs,
+            "d": self.d,
+            "k_cnt": self.k_cnt,
             "area": self.area,
+            "L_c": self.L_c,
+            "H_c": self.H_c,
+            "H_g": self.H_g,
             "MemReadL": self.MemReadL,
             "MemWriteL": self.MemWriteL,
             "MemReadEact": self.MemReadEact,
@@ -290,7 +309,7 @@ class BaseParameters:
             "m1_k": self.m1_k,
             "m2_k": self.m2_k,
             "m3_k": self.m3_k,
-            
+
             # Cacti .dat technology parameters
             'C_g_ideal': self.C_g_ideal,
             'C_fringe': self.C_fringe,

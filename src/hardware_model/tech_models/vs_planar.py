@@ -1,6 +1,6 @@
 import logging
 from src.hardware_model.tech_models.tech_model_base import TechModel
-from src.sim_util import symbolic_convex_max, symbolic_min, custom_cosh, custom_exp
+from src.sim_util import symbolic_convex_max, symbolic_convex_min, custom_cosh, custom_exp
 import math
 from sympy import symbols, ceiling, expand, exp, Abs, cosh, log
 import sympy as sp
@@ -8,7 +8,7 @@ import sympy as sp
 
 logger = logging.getLogger(__name__)
 
-class VSModel(TechModel):
+class VSPlanarModel(TechModel):
     def __init__(self, model_cfg, base_params):
         super().__init__(model_cfg, base_params)
 
@@ -37,6 +37,14 @@ class VSModel(TechModel):
             self.V_gsp: self.base_params.V_dd,
             self.V_dsp: self.base_params.V_dd,
         }
+        self.NL_state = {
+            self.V_gsp: self.base_params.V_dd/2,
+            self.V_dsp: self.base_params.V_dd,
+        }
+        self.H_state = {
+            self.V_gsp: self.base_params.V_dd,
+            self.V_dsp: self.base_params.V_dd/2,
+        }
         self.off_state = {
             self.V_gsp: 0,
             self.V_dsp: self.base_params.V_dd,
@@ -57,9 +65,10 @@ class VSModel(TechModel):
         #self.delta_32n = 0.12 
 
         self.delta = exp(-math.pi*self.base_params.L/(2*self.scale_length))
+        self.Vth_rolloff = -exp(-self.base_params.L/self.scale_length)
         logger.info(f"delta: {self.delta.xreplace(self.base_params.tech_values).evalf()}")
-        self.V_th_eff_general = self.base_params.V_th - self.delta * self.V_dsp
-        self.V_th_eff = self.V_th_eff_general.xreplace(self.on_state)
+        self.V_th_eff_general = self.base_params.V_th - self.delta * self.V_dsp + self.Vth_rolloff
+        self.V_th_eff = (self.V_th_eff_general.xreplace(self.NL_state) + self.V_th_eff_general.xreplace(self.H_state)) / 2
         self.alpha = 3.5
         self.phi_t = self.V_T
         #self.S_32n = 0.098 # V/decade
@@ -107,7 +116,8 @@ class VSModel(TechModel):
         #self.R_cmin = self.L_c / (self.Q_ix0_0 * self.u_n_eff)
         self.I_d = self.base_params.W * self.Q_ix0 * self.v * self.F_s
 
-        self.I_d_on = (self.I_d).xreplace(self.on_state)
+        #self.I_d_on = (self.I_d).xreplace(self.on_state)
+        self.I_d_on = ((self.I_d).xreplace(self.NL_state) + (self.I_d).xreplace(self.H_state)) / 2
         #logger.info(f"I_d_on equation: {self.I_d_on.simplify()}")
 
         self.A_gate = self.base_params.W * self.base_params.L
@@ -118,7 +128,7 @@ class VSModel(TechModel):
         logger.info(f"area_scale: {self.base_params.area_scale.xreplace(self.base_params.tech_values).evalf()}")
 
         self.C_diff = self.C_gate
-        self.C_load = self.C_gate
+        self.C_load = 4*self.C_gate # FO4 model
         self.R_avg_inv = self.base_params.V_dd / self.I_d_on
 
         logger.info(f"R_wire: {self.R_wire.xreplace(self.base_params.tech_values).evalf()}")
@@ -188,47 +198,42 @@ class VSModel(TechModel):
 
     def config_param_db(self):
         super().config_param_db()
-        self.param_db["L"] = self.base_params.L
-        self.param_db["W"] = self.base_params.W
-        self.param_db["I_sub"] = self.I_sub
-        self.param_db["V_th"] = self.base_params.V_th
-        self.param_db["V_th_eff"] = self.V_th_eff.xreplace(self.on_state).evalf()
-        self.param_db["V_dd"] = self.base_params.V_dd
-        self.param_db["wire RC"] = self.m1_Rsq * self.m1_Csq
-        self.param_db["I_on"] = self.I_d_on
-        self.param_db["I_on_per_um"] = self.I_d_on_per_um
-        self.param_db["I_off_per_um"] = self.I_d_off_per_um
-        self.param_db["I_tunnel_per_um"] = self.I_tunnel_per_um
-        self.param_db["I_sub_per_um"] = self.I_sub_per_um
-        self.param_db["DIBL factor"] = self.delta
-        self.param_db["t_ox"] = self.base_params.tox
-        self.param_db["eot"] = self.eot
-        self.param_db["scale_length"] = self.scale_length
+        self.param_db["I_d"] = self.I_d_on
         self.param_db["C_load"] = self.C_load
-        self.param_db["C_wire"] = self.C_wire
+        self.param_db["delay"] = self.delay
+        self.param_db["u_n_eff"] = self.u_n_eff
+        self.param_db["V_th_eff"] = self.V_th_eff
+        self.param_db["delta_vt_dibl"] = (-self.delta * self.V_dsp).xreplace(self.on_state).evalf()
         self.param_db["R_wire"] = self.R_wire
-        self.param_db["R_device"] = self.base_params.V_dd/self.I_d_on
-        self.param_db["SS"] = self.S
-        self.param_db["F_f"] = self.F_f_eval
-        self.param_db["F_s"] = self.F_s_eval
-        self.param_db["vx0"] = self.vx0
-        self.param_db["v"] = self.v.xreplace(self.on_state).evalf()
-        self.param_db["t_1"] = self.t_1
-        self.param_db["f"] = self.base_params.f
-        self.param_db["R_s"] = self.R_s
-        self.param_db["R_d"] = self.R_d
-        self.param_db["parasitic capacitance"] = self.C_diff
-        self.param_db["k_gate"] = self.base_params.k_gate
-
+        self.param_db["C_wire"] = self.C_wire
+        self.param_db["I_sub"] = self.I_sub
+        self.param_db["I_tunnel"] = self.I_tunnel
+        self.param_db["I_d_on_per_um"] = self.I_d_on_per_um
+        self.param_db["I_sub_per_um"] = self.I_sub_per_um
+        self.param_db["I_tunnel_per_um"] = self.I_tunnel_per_um
+        self.param_db["I_d_off_per_um"] = self.I_d_off_per_um
+        self.param_db["I_GIDL_per_um"] = self.I_GIDL_per_um
+        self.param_db["Eox"] = self.E_ox
+        self.param_db["Vox"] = self.V_ox
+        self.param_db["scale_length"] = self.scale_length
         self.param_db["A_gate"] = self.A_gate
 
     def apply_base_parameter_effects(self):
         pass
 
     def apply_additional_effects(self):
-        super().apply_additional_effects()
+        if self.model_cfg["effects"]["area_and_latency_scaling"]:
+            if self.model_cfg["effects"]["max_parallel_en"]:
+                MAX_PARALLEL = self.model_cfg["effects"]["max_parallel_val"]
+                self.delay = self.delay * symbolic_convex_max(self.base_params.latency_scale, 1/MAX_PARALLEL)
+                self.P_pass_inv = self.P_pass_inv * symbolic_convex_min(self.base_params.area_scale, MAX_PARALLEL)
+            else:
+                self.delay = self.delay * self.base_params.latency_scale
+                self.P_pass_inv = self.P_pass_inv * self.base_params.area_scale
 
     def create_constraints(self, dennard_scaling_type="constant_field"):
         super().create_constraints(dennard_scaling_type)
         self.constraints.append(self.delta <= 0.15)
+        self.constraints.append(self.t_1 >= 10e-9)
+        self.constraints.append(self.t_1 >= 3*self.base_params.tox) # ensure scale length equation holds
         

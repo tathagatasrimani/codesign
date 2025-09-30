@@ -1,6 +1,6 @@
 import logging
 from src.hardware_model.tech_models.tech_model_base import TechModel
-from src.sim_util import symbolic_convex_max, symbolic_convex_min, custom_cosh, custom_exp
+from src.sim_util import symbolic_convex_max, symbolic_min, custom_cosh, custom_exp
 import math
 from sympy import symbols, ceiling, expand, exp, Abs, cosh, log
 import sympy as sp
@@ -190,10 +190,7 @@ class BsimCMGModel(TechModel):
         return
 
     def apply_additional_effects(self):
-        if self.model_cfg["effects"]["area_and_latency_scaling"]:
-            self.delay = self.delay * self.base_params.latency_scale
-            self.P_pass_inv = self.P_pass_inv * self.base_params.area_scale
-            #self.wire_len = self.wire_len * self.latency_scale
+        super().apply_additional_effects()
 
     def create_constraints(self, dennard_scaling_type="constant_field"):
         super().create_constraints(dennard_scaling_type)

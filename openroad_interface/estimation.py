@@ -5,8 +5,6 @@ import numpy as np
 import networkx as nx
 import pandas as pd
 
-from .working_directory import directory
-
 def parse_route_guide_with_layer_breakdown(
     filepath: str, units_per_micron: float = 2000.0
 ) -> pd.DataFrame:
@@ -67,7 +65,7 @@ def total_euclidean_distance(net_list: list, graph: nx.DiGraph, unit: float, nod
         result += edge
     return result, edge_list
 
-def global_estimation(wire_global_file : str = directory + "/results/wire_length_global.txt"):
+def global_estimation(wire_global_file : str = "/results/wire_length_global.txt"):
     global_pattern = r"grt:\s_[0-9]+_\s[0-9]*\.[0-9]+\s[0-9]+"
     global_length_data = []
     wire_global_data = open(wire_global_file)

@@ -9,16 +9,6 @@ import matplotlib.pyplot as plt
 
 logger = logging.getLogger("dennard multi core")
 
-"""project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir))
-os.chdir(project_root)
-
-# Now `current_directory` should reflect the new working directory
-current_directory = os.getcwd()
-print(current_directory)
-
-# Add the parent directory to sys.path
-sys.path.insert(0, current_directory)"""
-
 # Now you can safely import modules that rely on the correct working directory
 from src import codesign
 from src import trend_plot
@@ -29,10 +19,18 @@ class DennardMultiCore:
         self.codesign_module = codesign.Codesign(
             self.args
         )
+        # for this experiment, we don't use the scaled obj feature, instead just bake the parallelism scaling into the obj
+        max_parallel_val = 1
+        self.codesign_module.hw.circuit_model.tech_model.init_scale_factors(max_parallel_val)
         self.dummy_app = args.dummy
         self.params_over_iterations = []
         self.edp_over_iterations = []
         self.lag_factor_over_iterations = [1.0]
+
+    def calculate_objective(self):
+        self.codesign_module.hw.execution_time = self.codesign_module.hw.circuit_model.tech_model.delay*(self.num_switches_per_inverter/self.utilization)
+        self.codesign_module.hw.total_passive_energy = self.num_inverters * self.codesign_module.hw.circuit_model.tech_model.P_pass_inv * self.codesign_module.hw.execution_time
+        self.codesign_module.hw.total_active_energy = self.num_inverters * self.codesign_module.hw.circuit_model.tech_model.E_act_inv * self.num_switches_per_inverter
 
     def run_dummy_forward_pass(self):
 
@@ -41,22 +39,8 @@ class DennardMultiCore:
         self.num_switches_per_inverter = 1e4
         self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values[self.codesign_module.hw.circuit_model.tech_model.base_params.f] = 100e6
         self.cycle_time = 1e9/self.codesign_module.hw.circuit_model.tech_model.base_params.f # ns
-        self.codesign_module.hw.execution_time = (self.codesign_module.hw.circuit_model.tech_model.delay*(self.num_switches_per_inverter/self.utilization)).xreplace(self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values).evalf() #ns
-
-        self.codesign_module.hw.total_passive_energy = (self.num_inverters * self.codesign_module.hw.circuit_model.tech_model.P_pass_inv * self.codesign_module.hw.execution_time).xreplace(self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values).evalf()
-        self.codesign_module.hw.total_active_energy = (self.num_inverters * self.codesign_module.hw.circuit_model.tech_model.E_act_inv * self.num_switches_per_inverter).xreplace(self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values).evalf()
-        if self.args.obj == "edp":
-            self.codesign_module.hw.obj = (self.codesign_module.hw.total_passive_energy + self.codesign_module.hw.total_active_energy) * self.codesign_module.hw.execution_time
-        elif self.args.obj == "delay":
-            self.codesign_module.hw.obj = self.codesign_module.hw.execution_time
-        elif self.args.obj == "energy":
-            self.codesign_module.hw.obj = self.codesign_module.hw.total_active_energy + self.codesign_module.hw.total_passive_energy
-        self.codesign_module.hw.obj_sub_exprs = {
-            "execution_time": self.codesign_module.hw.execution_time,
-            "total_passive_energy": self.codesign_module.hw.total_passive_energy,
-            "total_active_energy": self.codesign_module.hw.total_active_energy,
-            "passive power": self.codesign_module.hw.total_passive_energy/self.codesign_module.hw.execution_time,
-        }
+        self.calculate_objective()
+        self.codesign_module.hw.save_obj_vals()
         self.codesign_module.display_objective("after forward pass")
 
         print(f"initial area: {(self.num_inverters * self.codesign_module.hw.circuit_model.tech_model.A_gate * 2).xreplace(self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values).evalf()}")
@@ -65,76 +49,10 @@ class DennardMultiCore:
 
     def run_dummy_inverse_pass(self, k_gate_disabled=True):
 
-        self.codesign_module.hw.execution_time = self.codesign_module.hw.circuit_model.tech_model.delay*(self.num_switches_per_inverter/self.utilization)
-        self.codesign_module.hw.total_passive_energy = self.num_inverters * self.codesign_module.hw.circuit_model.tech_model.P_pass_inv * self.codesign_module.hw.execution_time
-        self.codesign_module.hw.total_active_energy = self.num_inverters * self.codesign_module.hw.circuit_model.tech_model.E_act_inv * self.num_switches_per_inverter
-        if self.args.obj == "edp":
-            self.codesign_module.hw.symbolic_obj = (self.codesign_module.hw.total_passive_energy + self.codesign_module.hw.total_active_energy) * self.codesign_module.hw.execution_time
-        elif self.args.obj == "delay":
-            self.codesign_module.hw.symbolic_obj = self.codesign_module.hw.execution_time
-        elif self.args.obj == "energy":
-            self.codesign_module.hw.symbolic_obj = self.codesign_module.hw.total_active_energy + self.codesign_module.hw.total_passive_energy
-        if self.codesign_module.hw.model_cfg["model_type"] == "bulk_bsim4":
-            self.codesign_module.hw.symbolic_obj_sub_exprs = {
-                "execution_time": self.codesign_module.hw.execution_time,
-                "passive power": self.codesign_module.hw.total_passive_energy/self.codesign_module.hw.execution_time,
-                "active power": self.codesign_module.hw.total_active_energy/self.codesign_module.hw.execution_time,
-                "subthreshold leakage current": self.codesign_module.hw.circuit_model.tech_model.I_sub,
-                "gate tunneling current": self.codesign_module.hw.circuit_model.tech_model.I_tunnel,
-                "GIDL current": self.codesign_module.hw.circuit_model.tech_model.I_GIDL,
-                "long channel threshold voltage": self.codesign_module.hw.circuit_model.tech_model.base_params.V_th,
-                "effective threshold voltage": self.codesign_module.hw.circuit_model.tech_model.V_th_eff,
-                "supply voltage": self.codesign_module.hw.circuit_model.tech_model.base_params.V_dd,
-                "wire RC": self.codesign_module.hw.circuit_model.tech_model.m1_Rsq * self.codesign_module.hw.circuit_model.tech_model.m1_Csq,
-            }
-        elif self.codesign_module.hw.circuit_model.tech_model.model_cfg["model_type"] == "bulk":
-            self.codesign_module.hw.symbolic_obj_sub_exprs = {
-                "execution_time": self.codesign_module.hw.execution_time,
-                "passive power": self.codesign_module.hw.total_passive_energy/self.codesign_module.hw.execution_time,
-                "active power": self.codesign_module.hw.total_active_energy/self.codesign_module.hw.execution_time,
-                "subthreshold leakage current": self.codesign_module.hw.circuit_model.tech_model.I_off,
-                "gate tunneling current": self.codesign_module.hw.circuit_model.tech_model.I_tunnel,
-                "FN term": self.codesign_module.hw.circuit_model.tech_model.FN_term,
-                "WKB term": self.codesign_module.hw.circuit_model.tech_model.WKB_term,
-                "GIDL current": self.codesign_module.hw.circuit_model.tech_model.I_GIDL,
-                "effective threshold voltage": self.codesign_module.hw.circuit_model.tech_model.V_th_eff,
-                "supply voltage": self.codesign_module.hw.circuit_model.tech_model.base_params.V_dd,
-                "wire RC": self.codesign_module.hw.circuit_model.tech_model.m1_Rsq * self.codesign_module.hw.circuit_model.tech_model.m1_Csq,
-            }
-        elif self.codesign_module.hw.circuit_model.tech_model.model_cfg["model_type"] == "vs":
-            self.codesign_module.hw.symbolic_obj_sub_exprs = {
-                "execution_time": self.codesign_module.hw.execution_time,
-                "passive power": self.codesign_module.hw.total_passive_energy/self.codesign_module.hw.execution_time,
-                "active power": self.codesign_module.hw.total_active_energy/self.codesign_module.hw.execution_time,
-                "subthreshold leakage current": self.codesign_module.hw.circuit_model.tech_model.I_off,
-                "long channel threshold voltage": self.codesign_module.hw.circuit_model.tech_model.base_params.V_th,
-                "effective threshold voltage": self.codesign_module.hw.circuit_model.tech_model.V_th_eff.xreplace(self.codesign_module.hw.circuit_model.tech_model.on_state).evalf(),
-                "supply voltage": self.codesign_module.hw.circuit_model.tech_model.base_params.V_dd,
-                "wire RC": self.codesign_module.hw.circuit_model.tech_model.m1_Rsq * self.codesign_module.hw.circuit_model.tech_model.m1_Csq,
-                "on current per um": self.codesign_module.hw.circuit_model.tech_model.I_d_on_per_um,
-                "off current per um": self.codesign_module.hw.circuit_model.tech_model.I_d_off_per_um,
-                "gate tunneling current per um": self.codesign_module.hw.circuit_model.tech_model.I_tunnel_per_um,
-                "subthreshold leakage current per um": self.codesign_module.hw.circuit_model.tech_model.I_sub_per_um,
-                "GIDL current per um": self.codesign_module.hw.circuit_model.tech_model.I_GIDL_per_um,
-                "DIBL factor": self.codesign_module.hw.circuit_model.tech_model.delta,
-                "t_ox": self.codesign_module.hw.circuit_model.tech_model.base_params.tox,
-                "eot": self.codesign_module.hw.circuit_model.tech_model.eot,
-                "scale length": self.codesign_module.hw.circuit_model.tech_model.scale_length,
-                "C_load": self.codesign_module.hw.circuit_model.tech_model.C_load,
-                "C_wire": self.codesign_module.hw.circuit_model.tech_model.C_wire,
-                "R_wire": self.codesign_module.hw.circuit_model.tech_model.R_wire,
-                "R_device": self.codesign_module.hw.circuit_model.tech_model.base_params.V_dd/self.codesign_module.hw.circuit_model.tech_model.I_d_on,
-                "SS": self.codesign_module.hw.circuit_model.tech_model.S,
-                "F_f": self.codesign_module.hw.circuit_model.tech_model.F_f_eval,
-                "F_s": self.codesign_module.hw.circuit_model.tech_model.F_s_eval,
-                "vx0": self.codesign_module.hw.circuit_model.tech_model.vx0,
-                "v": self.codesign_module.hw.circuit_model.tech_model.v,
-                "t_1": self.codesign_module.hw.circuit_model.tech_model.t_1,
-            }
-        else:
-            raise ValueError(f"Model type {self.codesign_module.hw.circuit_model.tech_model.model_cfg['model_type']} not supported")
+        self.calculate_objective()
+        self.codesign_module.hw.save_obj_vals()
 
-        self.codesign_module.display_objective("before inverse pass", symbolic=True)
+        self.codesign_module.display_objective("before inverse pass")
 
         self.disabled_knobs = [self.codesign_module.hw.circuit_model.tech_model.base_params.f, self.codesign_module.hw.circuit_model.tech_model.base_params.u_n]
         if k_gate_disabled:
@@ -152,7 +70,7 @@ class DennardMultiCore:
         self.codesign_module.write_back_params()
         print(f"inverse pass lag factor: {self.codesign_module.inverse_pass_lag_factor}")
 
-        self.codesign_module.display_objective("after inverse pass", symbolic=True)
+        self.codesign_module.display_objective("after inverse pass")
 
     def update_params_over_iterations(self):
         self.params_over_iterations.append(self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values.copy())
@@ -165,7 +83,7 @@ class DennardMultiCore:
         self.codesign_module.log_forward_tech_params()
 
         self.update_params_over_iterations()
-        self.edp_over_iterations.append(self.codesign_module.hw.obj)
+        self.edp_over_iterations.append(self.codesign_module.hw.obj.xreplace(self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values).evalf())
 
         # run technology optimization to simulate dennard scaling.
         # show that over time, as Vdd comes up to limit, benefits are more difficult to find
@@ -176,7 +94,7 @@ class DennardMultiCore:
             else:
                 self.codesign_module.inverse_pass()
                 self.codesign_module.hw.circuit_model.update_circuit_values()
-            self.edp_over_iterations.append(self.codesign_module.hw.symbolic_obj.xreplace(self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values).evalf())
+            self.edp_over_iterations.append(self.codesign_module.hw.obj.xreplace(self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values).evalf())
             self.lag_factor_over_iterations.append(self.codesign_module.inverse_pass_lag_factor)
 
             self.codesign_module.log_all_to_file(i)
@@ -192,7 +110,7 @@ class DennardMultiCore:
                 self.codesign_module.log_forward_tech_params()
                 self.edp_over_iterations.append(self.codesign_module.hw.obj)
             else:
-                self.edp_over_iterations.append(self.codesign_module.hw.symbolic_obj.xreplace(self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values).evalf())
+                self.edp_over_iterations.append(self.codesign_module.hw.obj.xreplace(self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values).evalf())
             self.codesign_module.hw.reset_tech_model()
         
         # now run forward pass to demonstrate how parallelism can be added
@@ -295,8 +213,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model_cfg",
         type=str,
-        default="default",
         help="symbolic model configuration"
+    )
+    parser.add_argument(
+        "--config",
+        type=str,
+        help="codesign configuration file"
     )
     args = parser.parse_args()
     if not os.path.exists(args.savedir):

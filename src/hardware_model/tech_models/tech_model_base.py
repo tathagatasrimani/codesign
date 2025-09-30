@@ -1,6 +1,9 @@
 import logging
 from abc import ABC, abstractmethod
 import sympy as sp
+import math
+
+from src.sim_util import symbolic_convex_max, symbolic_min
 
 logger = logging.getLogger(__name__)
 
@@ -10,6 +13,8 @@ class TechModel(ABC):
         self.base_params = base_params
         self.constraints = []
         self.param_db = {}
+        self.capped_delay_scale = 1
+        self.capped_power_scale = 1
         self.init_physical_constants()
         self.init_tech_specific_constants()
         self.init_transistor_equations()
@@ -25,7 +30,17 @@ class TechModel(ABC):
         self.m_0 = 9.109e-31  # electron mass (kg)
         self.m_e = self.m_0
         self.h = 6.626e-34  # planck's constant (J*s)
+        self.h_bar = self.h / (2*math.pi)
         self.V_T = self.K*self.T/self.q # thermal voltage (V)
+        
+    def init_scale_factors(self, max_speedup_factor, max_area_increase_factor):
+        self.max_delay_scale = 1/max_speedup_factor
+        self.max_power_scale = max_area_increase_factor
+        self.latency_scale_slope = (1 - self.max_delay_scale) / (max_area_increase_factor)
+        # base_params.latency_scale and base_params.area_scale are set by the ratio of the starting cell area to current cell area
+        self.capped_delay_scale = symbolic_convex_max(self.max_delay_scale, 1 - self.latency_scale_slope * self.base_params.area_scale) # <= 1 (delay = delay_0 * capped_delay_scale)
+        self.capped_power_scale = symbolic_min(max_area_increase_factor, self.base_params.area_scale) # >= 1 (power = power_0 * capped_power_scale)
+        logger.info(f"max_speedup_factor: {max_speedup_factor}, max_area_increase_factor: {max_area_increase_factor}")
 
     @abstractmethod
     def init_tech_specific_constants(self):
@@ -80,7 +95,14 @@ class TechModel(ABC):
 
     @abstractmethod
     def apply_additional_effects(self):
-        pass
+        if self.model_cfg["effects"]["area_and_latency_scaling"]:
+            if self.model_cfg["effects"]["max_parallel_en"]:
+                MAX_PARALLEL = self.model_cfg["effects"]["max_parallel_val"]
+                self.delay = self.delay * symbolic_convex_max(self.base_params.latency_scale, 1/MAX_PARALLEL)
+                self.P_pass_inv = self.P_pass_inv * symbolic_min(self.base_params.area_scale, MAX_PARALLEL)
+            else:
+                self.delay = self.delay * self.base_params.latency_scale
+                self.P_pass_inv = self.P_pass_inv * self.base_params.area_scale
 
     @abstractmethod
     def create_constraints(self, dennard_scaling_type="constant_field"):
@@ -122,36 +144,3 @@ class TechModel(ABC):
             self.constraints.append(self.base_params.k_gate <= 20)
         
         self.constraints.append(self.base_params.u_n <= 0.1)
-
-
-        if self.model_cfg["scaling_mode"] == "dennard":
-            if dennard_scaling_type == "constant_field":
-                self.constraints.append(sp.Eq(self.base_params.W/self.base_params.tech_values[self.base_params.W], 1/self.base_params.alpha_dennard))
-                self.constraints.append(sp.Eq(self.base_params.L/self.base_params.tech_values[self.base_params.L], 1/self.base_params.alpha_dennard))
-                self.constraints.append(sp.Eq(self.base_params.V_dd/self.base_params.tech_values[self.base_params.V_dd], 1/self.base_params.alpha_dennard))
-                self.constraints.append(sp.Eq(self.V_th_eff/self.base_params.tech_values[self.V_th_eff], 1/self.base_params.alpha_dennard))
-                self.constraints.append(sp.Eq(self.Cox/self.base_params.tech_values[self.Cox], self.base_params.alpha_dennard))
-                if self.initial_alpha is None and self.base_params.tech_values[self.base_params.alpha_dennard] != 1:
-                    self.initial_alpha = self.base_params.tech_values[self.base_params.alpha_dennard]
-            else:
-                self.constraints.append(sp.Eq(self.base_params.alpha_dennard, self.initial_alpha))
-                self.constraints.append(sp.Eq(self.base_params.W/self.base_params.tech_values[self.base_params.W], 1/self.base_params.alpha_dennard))
-                self.constraints.append(sp.Eq(self.base_params.L/self.base_params.tech_values[self.base_params.L], 1/self.base_params.alpha_dennard))
-                self.constraints.append(sp.Eq(self.base_params.V_dd, self.base_params.tech_values[self.base_params.V_dd]))
-                self.constraints.append(sp.Eq(self.V_th_eff, self.base_params.tech_values[self.V_th_eff]))
-                #self.constraints.append(sp.Eq(self.base_params.V_dd/self.base_params.tech_values[self.base_params.V_dd], self.base_params.epsilon_dennard/self.base_params.alpha_dennard))
-                #self.constraints.append(sp.Eq(self.V_th_eff/self.base_params.tech_values[self.V_th_eff], self.base_params.epsilon_dennard/self.base_params.alpha_dennard))
-                self.constraints.append(sp.Eq(self.Cox/self.base_params.tech_values[self.Cox], self.base_params.alpha_dennard))
-
-            #elif dennard_scaling_type == "generalized":
-            #    self.constraints.append(sp.Eq(self.base_params.alpha_dennard, 1))
-        elif self.model_cfg["scaling_mode"] == "dennard_implicit":
-            self.constraints.append(self.base_params.tox <= self.base_params.tox.xreplace(self.base_params.tech_values))
-            self.constraints.append(self.base_params.L <= self.base_params.L.xreplace(self.base_params.tech_values))
-            self.constraints.append(self.base_params.W <= self.base_params.W.xreplace(self.base_params.tech_values))
-            self.constraints.append(self.base_params.V_dd <= self.base_params.V_dd.xreplace(self.base_params.tech_values))
-            self.constraints.append(self.V_th_eff <= self.V_th_eff.xreplace(self.base_params.tech_values))
-            self.constraints.append(sp.Eq(self.base_params.W/self.base_params.W.xreplace(self.base_params.tech_values), self.base_params.L/self.base_params.L.xreplace(self.base_params.tech_values)))
-            self.constraints.append(sp.Eq(self.base_params.V_dd/self.base_params.V_dd.xreplace(self.base_params.tech_values) , self.base_params.L/self.base_params.L.xreplace(self.base_params.tech_values))) # lateral electric field scaling
-            self.constraints.append(sp.Eq(self.base_params.V_dd/self.base_params.V_dd.xreplace(self.base_params.tech_values) , self.base_params.tox/self.base_params.tox.xreplace(self.base_params.tech_values))) # lateral electric field scaling
-        

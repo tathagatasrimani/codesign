@@ -3,7 +3,7 @@ import copy
 import yaml
 import os
 
-from .functions import find_val, clean, value
+from .openroad_functions import find_val, clean, value
 
 lef_tech_file = "openroad_interface/OpenROAD/test/Nangate45/Nangate45_tech.lef" 
 spacing = None

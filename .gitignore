@@ -11,6 +11,7 @@ src/params/rcs_current.yaml
 src/params/coefficients.yaml
 
 src/tmp/**
+test/saved_checkpoints/**
 
 **/results/**
 **/figs/**
@@ -38,4 +39,8 @@ Miniconda3-latest-Linux-x86_64.sh
 verilator/
 tools/
 
-.local/
+## ignores all hidden files except those needed for git.
+.*
+!.gitignore
+!.git/
+######

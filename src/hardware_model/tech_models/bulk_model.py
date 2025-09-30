@@ -1,6 +1,6 @@
 import logging
 from src.hardware_model.tech_models.tech_model_base import TechModel
-from src.sim_util import symbolic_convex_max, symbolic_convex_min
+from src.sim_util import symbolic_convex_max, symbolic_min
 import math
 from sympy import symbols, ceiling, expand, exp, Abs, cosh, log
 
@@ -50,7 +50,7 @@ class BulkModel(TechModel):
         self.NDEP = 1.7e23 #m^-3, original value is 1.7e17 cm^-3
         self.X_dep = (2*self.e_si*self.phi_s/(self.q*self.NDEP))**(1/2)
         self.lt = ((self.e_si*self.base_params.tox * self.X_dep)/(self.base_params.k_gate))**(1/2)
-        self.Cdsc_term = self.CDSC*(0.5/(cosh(symbolic_convex_min(10, self.DVT1*self.base_params.L/self.lt))-1))
+        self.Cdsc_term = self.CDSC*(0.5/(cosh(symbolic_min(10, self.DVT1*self.base_params.L/self.lt))-1))
 
     def config_param_db(self):
         super().config_param_db()
@@ -105,13 +105,13 @@ class BulkModel(TechModel):
         self.V_ox = self.base_params.V_dd - self.V_th_eff
         self.E_ox = Abs(self.V_ox/self.base_params.tox)
         logger.info(f"B: {self.B}, A: {self.A}, t_ox: {self.base_params.tox.xreplace(self.base_params.tech_values)}, E_ox: {self.E_ox.xreplace(self.base_params.tech_values)}, intermediate: {(1-(1-self.V_ox/self.phi_b)**3/2).xreplace(self.base_params.tech_values)}")
-        self.FN_term = self.A_gate * self.A * self.E_ox**2 * (exp(symbolic_convex_min(10, -self.B/self.E_ox)))
-        self.WKB_term = self.A_gate * self.A * self.E_ox**2 * (exp(symbolic_convex_min(10, -self.B*(1-(1-self.V_ox/self.phi_b)**3/2)/self.E_ox)))
+        self.FN_term = self.A_gate * self.A * self.E_ox**2 * (exp(symbolic_min(10, -self.B/self.E_ox)))
+        self.WKB_term = self.A_gate * self.A * self.E_ox**2 * (exp(symbolic_min(10, -self.B*(1-(1-self.V_ox/self.phi_b)**3/2)/self.E_ox)))
         self.I_tunnel = self.FN_term + self.WKB_term
         logger.info(f"I_tunnel: {self.I_tunnel.xreplace(self.base_params.tech_values)}")
 
         # GIDL current
-        self.I_GIDL = self.A_GIDL * ((self.base_params.V_dd - self.E_GIDL)/(3*self.base_params.tox)) * exp(symbolic_convex_min(10, -3*self.base_params.tox*self.B_GIDL / (self.base_params.V_dd - self.E_GIDL))) # simplified from BSIM
+        self.I_GIDL = self.A_GIDL * ((self.base_params.V_dd - self.E_GIDL)/(3*self.base_params.tox)) * exp(symbolic_min(10, -3*self.base_params.tox*self.B_GIDL / (self.base_params.V_dd - self.E_GIDL))) # simplified from BSIM
         logger.info(f"I_GIDL: {self.I_GIDL.xreplace(self.base_params.tech_values)}")
 
         # subthreshold current
@@ -142,16 +142,13 @@ class BulkModel(TechModel):
             self.V_th_eff -= self.base_params.V_dd * exp(-self.base_params.L/((self.e_si/self.e_ox) * self.base_params.tox)) # approximate DIBL effect
 
     def apply_additional_effects(self):
+        super().apply_additional_effects()
         if self.model_cfg["effects"]["gate_tunneling"]:
             self.I_off += self.I_tunnel*2 # 2 for both NMOS and PMOS
             self.P_pass_inv = self.I_off * self.base_params.V_dd
         if self.model_cfg["effects"]["GIDL"]:
             self.I_off += self.I_GIDL*2 # 2 for both NMOS and PMOS
             self.P_pass_inv = self.I_off * self.base_params.V_dd
-        if self.model_cfg["effects"]["area_and_latency_scaling"]:
-            self.delay = self.delay * self.base_params.latency_scale
-            self.P_pass_inv = self.P_pass_inv * self.base_params.area_scale
-            #self.wire_len = self.wire_len * self.base_params.latency_scale
 
     def create_constraints(self, dennard_scaling_type="constant_field"):
         super().create_constraints(dennard_scaling_type)

@@ -17,9 +17,20 @@ from src import sim_util
 from src.hardware_model.tech_models import bulk_model
 from src.hardware_model.tech_models import bulk_bsim4_model
 from src.hardware_model.tech_models import vs_model
-from openroad_interface import place_n_route
+from src.hardware_model.tech_models import mvs_si_model
+from src.hardware_model.tech_models import mvs_2_model
+from src.hardware_model.tech_models import vscnfet_model
+from openroad_interface import openroad_run
 
 import cvxpy as cp
+
+DEBUG = False
+def log_info(msg):
+    if DEBUG:
+        logger.info(msg)
+def log_warning(msg):
+    if DEBUG:
+        logger.warning(msg)
 
 def symbolic_convex_max(a, b, evaluate=True):
     """
@@ -27,7 +38,7 @@ def symbolic_convex_max(a, b, evaluate=True):
     """
     return 0.5 * (a + b + sp.Abs(a - b, evaluate=evaluate))
 
-def symbolic_convex_min(a, b, evaluate=True):
+def symbolic_min(a, b, evaluate=True):
     """
     Min(a, b) in a format which ipopt accepts.
     """
@@ -39,7 +50,13 @@ class HardwareModel:
     to set up the hardware, manage netlists, and extract technology-specific timing and power data for
     optimization and simulation purposes.
     """
-    def __init__(self, args):
+    def __init__(self, cfg, codesign_root_dir):
+
+        args = cfg["args"]
+
+        self.cfg = cfg
+        self.codesign_root_dir = codesign_root_dir
+
         # HARDCODED UNTIL WE COME BACK TO MEMORY MODELING
         self.cacti_tech_node = min(
             cacti_util.valid_tech_nodes,
@@ -78,8 +95,6 @@ class HardwareModel:
         self.obj_fn = args["obj"]
         self.obj = 0
         self.obj_sub_exprs = {}
-        self.symbolic_obj = 0
-        self.symbolic_obj_sub_exprs = {}
         self.area_constraint = args["area"]
         self.hls_tool = args["hls_tool"]
         self.inst_name_map = {}
@@ -92,14 +107,12 @@ class HardwareModel:
         self.netlist = nx.DiGraph()
         self.memories = []
         self.obj = 0
-        self.symbolic_obj = 0
         self.scheduled_dfg = nx.DiGraph()
         self.scheduled_dfgs = {}
         self.loop_1x_graphs = {}
         self.loop_2x_graphs = {}
         self.parasitic_graph = nx.DiGraph()
-        self.obj_sub_exprs = {}
-        self.symbolic_obj_sub_exprs = {}
+        #self.obj_sub_exprs = {}
         self.execution_time = 0
         self.total_passive_energy = 0
         self.total_active_energy = 0
@@ -123,18 +136,22 @@ class HardwareModel:
         elif self.model_cfg["model_type"] == "bulk_bsim4":
             self.tech_model = bulk_bsim4_model.BulkBSIM4Model(self.model_cfg, self.base_params)
         elif self.model_cfg["model_type"] == "vs":
-            self.tech_model = vs_model.VSModel(self.model_cfg, self.base_params)
+            if self.model_cfg["vs_model_type"] == "base":
+                self.tech_model = vs_model.VSModel(self.model_cfg, self.base_params)
+            elif self.model_cfg["vs_model_type"] == "mvs_si":
+                self.tech_model = mvs_si_model.MVSSiModel(self.model_cfg, self.base_params)
+            elif self.model_cfg["vs_model_type"] == "mvs2":
+                self.tech_model = mvs_2_model.MVS2Model(self.model_cfg, self.base_params)
+            elif self.model_cfg["vs_model_type"] == "vscnfet":
+                self.tech_model = vscnfet_model.VSCNFetModel(self.model_cfg, self.base_params)
+            else:
+                raise ValueError(f"Invalid vs model type: {self.model_cfg['vs_model_type']}")
         else:
             raise ValueError(f"Invalid model type: {self.model_cfg['model_type']}")
         self.tech_model.create_constraints(self.model_cfg["scaling_mode"])
 
         # by convention, we should always access bulk model and base params through circuit model
         self.circuit_model = circuit_model.CircuitModel(self.tech_model)
-
-
-    def vitis_map_netlist_to_scheduled_dfg(self, benchmark_name):
-        pass # TODO: implement vitis map netlist to scheduled dfg
-
 
     def catapult_map_netlist_to_scheduled_dfg(self, benchmark_name):
 
@@ -211,7 +228,7 @@ class HardwareModel:
             ## for example catapult_name "mul_inst.run()#1" in the DFG should map to label "basic_aes**basic_aes_run_inst**mul_inst_run_1_rg" in the netlist. 
             for node in self.scheduled_dfg:
                 if self.scheduled_dfg.nodes[node]["function"] not in self.circuit_model.circuit_values["latency"]:
-                    logger.warning(f"skipping node {node} with function {self.scheduled_dfg.nodes[node]['function']} as it is not in the circuit values")
+                    log_warning(f"skipping node {node} with function {self.scheduled_dfg.nodes[node]['function']} as it is not in the circuit values")
                     continue
 
                 ## get the catapult name from the scheduled DFG node
@@ -224,7 +241,7 @@ class HardwareModel:
 
                 ##E.g. netlist_name: mul_inst_run_1
 
-                logger.info(f"netlist_name: {netlist_name}")
+                log_info(f"netlist_name: {netlist_name}")
 
                 ## get the function type from the scheduled DFG node
                 function_type = self.scheduled_dfg.nodes[node]["function"]
@@ -242,12 +259,12 @@ class HardwareModel:
                         break
 
                 if not found_match:
-                    logger.warning(f"no direct name match found for node {node} with catapult name {catapult_name} and function type {function_type}")
+                    log_warning(f"no direct name match found for node {node} with catapult name {catapult_name} and function type {function_type}")
 
 
         direct_name_match_count = len(self.scheduled_dfg.nodes) - len(unmapped_dfg_nodes)
-        logger.info(f"number of mapped dfg nodes using direct name match: {direct_name_match_count}")
-        logger.info(f"number of unmapped dfg nodes after direct name match: {len(unmapped_dfg_nodes)}")
+        log_info(f"number of mapped dfg nodes using direct name match: {direct_name_match_count}")
+        log_info(f"number of unmapped dfg nodes after direct name match: {len(unmapped_dfg_nodes)}")
         
         ### Next, attempt to map the remaining unmapped DFG nodes using resource sharing information.
         ## read in the res_sharing.tcl file
@@ -260,26 +277,26 @@ class HardwareModel:
         ## E.g. of one line: directive set /MatMult/MatMult.struct/MatMult:run/MatMult:run:conc/for#1-5:for-6:for-3:mul_inst.run() RESOURCE_NAME for#1-1:for-2:for-8:mul_inst.run():rg
         res_sharing_map = {}
         for line in res_sharing_lines:
-            logger.info(f"res_sharing.tcl line: {line.strip()}")
+            log_info(f"res_sharing.tcl line: {line.strip()}")
             parts = line.strip().split("RESOURCE_NAME")
             key_dirty_text = parts[0]
             value_dirty_text = parts[1]
 
-            logger.info(f"res_sharing.tcl key: {key_dirty_text.strip()}")
-            logger.info(f"res_sharing.tcl value: {value_dirty_text.strip()}")
+            log_info(f"res_sharing.tcl key: {key_dirty_text.strip()}")
+            log_info(f"res_sharing.tcl value: {value_dirty_text.strip()}")
 
             key_2 = "_".join(key_dirty_text.split("/")[-1].strip().split(":")[0:3])
-            logger.info(f"res_sharing.tcl key_2: {key_2}")
+            log_info(f"res_sharing.tcl key_2: {key_2}")
             key = key_2.replace("#", "_").replace("-", "_").strip()  # replace all the # and - with _ to match the netlist node names
 
             value_2 = "_".join(value_dirty_text.split(":")[0:3])
-            logger.info(f"res_sharing.tcl value_2: {value_2}")
+            log_info(f"res_sharing.tcl value_2: {value_2}")
             value = value_2.replace("#", "_").replace("-", "_").strip()  # replace all the # and - with _ to match the netlist node names
             if key not in res_sharing_map:
                 res_sharing_map[key] = value
-                logger.info(f"res_sharing_map: {key} -> {value}")
+                log_info(f"res_sharing_map: {key} -> {value}")
             else:
-                logger.warning(f"duplicate key {key} in res_sharing.tcl file.")
+                log_warning(f"duplicate key {key} in res_sharing.tcl file.")
 
         
         num_res_sharing_mapped = 0
@@ -324,19 +341,19 @@ class HardwareModel:
         # ## remove the resource sharing mapped nodes from the unmapped dfg nodes
         unmapped_dfg_nodes = unmapped_dfg_nodes - resource_sharing_mapped_nodes
         
-        logger.info(f"number of mapped dfg nodes using resource sharing:{num_res_sharing_mapped}")
-        logger.info(f"number of unmapped dfg nodes after resource sharing: {len(unmapped_dfg_nodes)}")
+        log_info(f"number of mapped dfg nodes using resource sharing:{num_res_sharing_mapped}")
+        log_info(f"number of unmapped dfg nodes after resource sharing: {len(unmapped_dfg_nodes)}")
 
         ## for remaining nodes, attempt to do matching based on the the inputs and outputs of the dfg nodes.
         
         mapped_nodes_input_output_match = self.dfg_to_netlist_i_o_match(unmapped_dfg_nodes)
-        logger.info(f"succesfully mapped {len(mapped_nodes_input_output_match)} nodes based on input/output matching")
+        log_info(f"succesfully mapped {len(mapped_nodes_input_output_match)} nodes based on input/output matching")
         unmapped_dfg_nodes = unmapped_dfg_nodes - mapped_nodes_input_output_match
-        logger.info(f"number of unmapped dfg nodes after input/output matching: {len(unmapped_dfg_nodes)}")
+        log_info(f"number of unmapped dfg nodes after input/output matching: {len(unmapped_dfg_nodes)}")
 
         ### log the unmapped dfg nodes
         if len(unmapped_dfg_nodes) > 0:
-            logger.warning(f"unmapped dfg nodes after all mapping attempts: {unmapped_dfg_nodes}")
+            log_warning(f"unmapped dfg nodes after all mapping attempts: {unmapped_dfg_nodes}")
 
 
         ## print all netlist nodes that don't have a mapping in the scheduled DFG
@@ -348,19 +365,19 @@ class HardwareModel:
                 netlist_nodes_mapped.add(self.scheduled_dfg.nodes[node]["netlist_node"])
 
         unmapped_netlist_nodes = set(self.netlist.nodes) - netlist_nodes_mapped
-        logger.info(f"unmapped netlist nodes: {unmapped_netlist_nodes}")
+        log_info(f"unmapped netlist nodes: {unmapped_netlist_nodes}")
 
 
         ### Finally, if there are still unmapped DFG nodes, try to match them to the netlist nodes based on the inputs and outputs of the DFG nodes and netlist nodes. 
         ### This round, if more than one resource matches, just take a random one. 
         mapped_nodes_input_output_match_approx = self.dfg_to_netlist_i_o_match(unmapped_dfg_nodes, approx_match=True)
-        logger.info(f"succesfully mapped {len(mapped_nodes_input_output_match_approx)} nodes based on input/output matching")
+        log_info(f"succesfully mapped {len(mapped_nodes_input_output_match_approx)} nodes based on input/output matching")
         unmapped_dfg_nodes = unmapped_dfg_nodes - mapped_nodes_input_output_match_approx
-        logger.info(f"number of unmapped dfg nodes after input/output matching: {len(unmapped_dfg_nodes)}")
+        log_info(f"number of unmapped dfg nodes after input/output matching: {len(unmapped_dfg_nodes)}")
 
         ### log the unmapped dfg nodes
         if len(unmapped_dfg_nodes) > 0:
-            logger.warning(f"unmapped dfg nodes after all mapping attempts, including approximate mapping: {unmapped_dfg_nodes}")
+            log_warning(f"unmapped dfg nodes after all mapping attempts, including approximate mapping: {unmapped_dfg_nodes}")
 
         ### Finally, just map the rest of the nodes randomly to the netlist nodes (of the same function type).
         mapped_randomly = set()
@@ -370,14 +387,14 @@ class HardwareModel:
             if netlist_nodes_of_same_type:
                 random_netlist_node = random.choice(netlist_nodes_of_same_type)
                 self.scheduled_dfg.nodes[node]["netlist_node"] = random_netlist_node
-                logger.info(f"mapping dfg node {node} to netlist node {random_netlist_node} (randomly)")
+                log_info(f"mapping dfg node {node} to netlist node {random_netlist_node} (randomly)")
                 mapped_randomly.add(node)
 
         unmapped_dfg_nodes = unmapped_dfg_nodes - mapped_randomly
         
-        logger.info(f"number of unmapped dfg nodes after random mapping: {len(unmapped_dfg_nodes)}")
+        log_info(f"number of unmapped dfg nodes after random mapping: {len(unmapped_dfg_nodes)}")
         if len(unmapped_dfg_nodes) > 0:
-            logger.warning(f"unmapped dfg nodes after all mapping attempts, including random mapping: {unmapped_dfg_nodes}")
+            log_warning(f"unmapped dfg nodes after all mapping attempts, including random mapping: {unmapped_dfg_nodes}")
 
         with open("src/tmp/benchmark/scheduled-dfg-after-mapping.gml", "wb") as f:
             nx.write_gml(self.scheduled_dfg, f)
@@ -411,13 +428,13 @@ class HardwareModel:
                 if self.scheduled_dfg.get_edge_data(node, dfg_output).get("resource_edge", False) == 0:
                     dfg_outputs.add(dfg_output)
 
-            logger.info(f"dfg node {node} inputs: {dfg_inputs}, outputs: {dfg_outputs}")
+            log_info(f"dfg node {node} inputs: {dfg_inputs}, outputs: {dfg_outputs}")
 
             ## see if any of the input or output nodes in the dfg from the main node have mappings to the netlist
             dfg_inputs_mapped = []
             for dfg_input in dfg_inputs:
                 if "netlist_node" in self.scheduled_dfg.nodes[dfg_input]:
-                    # logger.info(f"dfg input {dfg_input} is mapped to netlist node {self.scheduled_dfg.nodes[dfg_input]['netlist_node']}")
+                    # log_info(f"dfg input {dfg_input} is mapped to netlist node {self.scheduled_dfg.nodes[dfg_input]['netlist_node']}")
                     
                     ## store an ordered pair of the node in the dfg and the netlist node it is mapped to
                     dfg_inputs_mapped.append((dfg_input, self.scheduled_dfg.nodes[dfg_input]["netlist_node"])) 
@@ -425,16 +442,16 @@ class HardwareModel:
             dfg_outputs_mapped = []
             for dfg_output in dfg_outputs:
                 if "netlist_node" in self.scheduled_dfg.nodes[dfg_output]:
-                    # logger.info(f"dfg output {dfg_output} is mapped to netlist node {self.scheduled_dfg.nodes[dfg_output]['netlist_node']}")
+                    # log_info(f"dfg output {dfg_output} is mapped to netlist node {self.scheduled_dfg.nodes[dfg_output]['netlist_node']}")
                     
                     ## store an ordered pair of the node in the dfg and the netlist node it is mapped to
                     dfg_outputs_mapped.append((dfg_output, self.scheduled_dfg.nodes[dfg_output]["netlist_node"]))
 
-            logger.info(f"dfg inputs mapped: {dfg_inputs_mapped}")
-            logger.info(f"dfg outputs mapped: {dfg_outputs_mapped}")
+            log_info(f"dfg inputs mapped: {dfg_inputs_mapped}")
+            log_info(f"dfg outputs mapped: {dfg_outputs_mapped}")
 
             if len(dfg_inputs_mapped) == 0 and len(dfg_outputs_mapped) == 0:
-                logger.warning(f"no inputs or outputs mapped for dfg node {node}, skipping")
+                log_warning(f"no inputs or outputs mapped for dfg node {node}, skipping")
                 continue
 
 
@@ -450,7 +467,7 @@ class HardwareModel:
                 input_node_match = True
                 for dfg_node, netlist_node in dfg_inputs_mapped:
                     if netlist_node not in netlist_inputs:
-                        # logger.info(f"dfg input {dfg_node} not found in netlist inputs for node {netlist_node}")
+                        # log_info(f"dfg input {dfg_node} not found in netlist inputs for node {netlist_node}")
                         input_node_match = False
                         break
 
@@ -460,83 +477,48 @@ class HardwareModel:
                 output_node_match = True
                 for dfg_node, netlist_node in dfg_outputs_mapped:
                     if netlist_node not in netlist_outputs:
-                        # logger.info(f"dfg output {dfg_node} not found in netlist outputs for node {netlist_node}")
+                        # log_info(f"dfg output {dfg_node} not found in netlist outputs for node {netlist_node}")
                         output_node_match = False
                         break
 
                 if input_node_match and output_node_match:
-                    logger.info(f"found potential netlist node {netlist_node} for dfg node {node}")
+                    log_info(f"found potential netlist node {netlist_node} for dfg node {node}")
                     potential_netlist_nodes.append(netlist_node)
 
             if len(potential_netlist_nodes) == 0:
-                logger.warning(f"no potential netlist nodes found for dfg node {node}, skipping")
+                log_warning(f"no potential netlist nodes found for dfg node {node}, skipping")
             elif len(potential_netlist_nodes) > 1 and not approx_match:
-                logger.warning(f"multiple potential netlist nodes found for dfg node {node}: {potential_netlist_nodes}, skipping")
+                log_warning(f"multiple potential netlist nodes found for dfg node {node}: {potential_netlist_nodes}, skipping")
             elif len(potential_netlist_nodes) > 1 and approx_match:
-                logger.warning(f"multiple potential netlist nodes found for dfg node {node}: {potential_netlist_nodes}, using random one")
+                log_warning(f"multiple potential netlist nodes found for dfg node {node}: {potential_netlist_nodes}, using random one")
                 random_netlist_node = random.choice(potential_netlist_nodes)
-                logger.info(f"mapping dfg node {node} to netlist node {random_netlist_node}")
+                log_info(f"mapping dfg node {node} to netlist node {random_netlist_node}")
                 self.scheduled_dfg.nodes[node]["netlist_node"] = random_netlist_node
                 mapped_nodes_input_output_match.add(node)
             else:
                 netlist_node = potential_netlist_nodes[0]
-                logger.info(f"mapping dfg node {node} to netlist node {netlist_node}")
+                log_info(f"mapping dfg node {node} to netlist node {netlist_node}")
                 self.scheduled_dfg.nodes[node]["netlist_node"] = netlist_node
                 mapped_nodes_input_output_match.add(node)
             
         return mapped_nodes_input_output_match
 
     
-    def get_wire_parasitics(self, arg_testfile, arg_parasitics, benchmark_name):
+    def get_wire_parasitics(self, arg_testfile, arg_parasitics, benchmark_name, area_constraint=None):
         if self.hls_tool == "catapult":
             self.catapult_map_netlist_to_scheduled_dfg(benchmark_name)
-        elif self.hls_tool == "vitis":
-            self.vitis_map_netlist_to_scheduled_dfg(benchmark_name)
-        else:
-            raise ValueError(f"Invalid hls tool: {self.hls_tool}")
         
         start_time = time.time()
-        self.circuit_model.wire_length_by_edge, _ = place_n_route.place_n_route(
-            self.netlist, arg_testfile, arg_parasitics
+
+        open_road_run = openroad_run.OpenRoadRun(cfg=self.cfg, codesign_root_dir=self.codesign_root_dir)
+
+        self.circuit_model.wire_length_by_edge, _ = open_road_run.run(
+            self.netlist, arg_testfile, arg_parasitics, area_constraint
         )
-        logger.info(f"wire lengths: {self.circuit_model.wire_length_by_edge}")
+
+        log_info(f"wire lengths: {self.circuit_model.wire_length_by_edge}")
         
         logger.info(f"time to generate wire parasitics: {time.time()-start_time}")
-        self.add_wire_delays_to_schedule()
-
-        with open("src/tmp/benchmark/scheduled-dfg-after-openroad.gml", "wb") as f:
-            nx.write_gml(self.scheduled_dfg, f)
-
-    def add_wire_delays_to_schedule(self):
-        # update scheduled dfg with wire delays
-        for edge in self.scheduled_dfg.edges:
-            if edge in self.dfg_to_netlist_edge_map:
-                # wire delay = R * C * length^2
-                self.scheduled_dfg.edges[edge]["cost"] = self.circuit_model.wire_delay(self.dfg_to_netlist_edge_map[edge])
-                logger.info(f"(wire delay) {edge}: {self.scheduled_dfg.edges[edge]['cost']} ns")
-                self.scheduled_dfg.edges[edge]["weight"] += self.scheduled_dfg.edges[edge]["cost"]
-            else:
-                self.scheduled_dfg.edges[edge]["cost"] = 0
-
-    def update_schedule_with_latency(self):
-        """
-        Updates the schedule with the latency of each operation.
-
-        Parameters:
-            schedule (nx.Digraph): A list of operations in the schedule.
-            latency (dict): A dictionary of operation names to their latencies.
-
-        Returns:
-            None;
-            The schedule is updated in place.
-        """
-        for node in self.scheduled_dfg.nodes:
-            if node in self.circuit_model.circuit_values["latency"]:
-                self.scheduled_dfg.nodes[node]["cost"] = self.circuit_model.circuit_values["latency"][self.scheduled_dfg.nodes.data()[node]["function"]]
-        for edge in self.scheduled_dfg.edges:
-            func = self.scheduled_dfg.nodes.data()[edge[0]]["function"]
-            self.scheduled_dfg.edges[edge]["weight"] = self.circuit_model.circuit_values["latency"][func]
-        self.add_wire_delays_to_schedule()
 
     def save_symbolic_memories(self):
         MemL_expr = 0
@@ -626,13 +608,13 @@ class HardwareModel:
         for edge in dfg.edges:
             if edge in self.dfg_to_netlist_edge_map:
                 total_active_energy_basic_block += self.circuit_model.wire_energy(self.dfg_to_netlist_edge_map[edge])
-                logger.info(f"edge {edge} is in dfg_to_netlist_edge_map")
+                log_info(f"edge {edge} is in dfg_to_netlist_edge_map")
             else:
-                logger.info(f"edge {edge} is not in dfg_to_netlist_edge_map")
-        logger.info(f"total active energy for {basic_block_name}: {total_active_energy_basic_block}")
-        logger.info(f"loop count for {basic_block_name}: {loop_count}")
+                log_info(f"edge {edge} is not in dfg_to_netlist_edge_map")
+        log_info(f"total active energy for {basic_block_name}: {total_active_energy_basic_block}")
+        log_info(f"loop count for {basic_block_name}: {loop_count}")
         if is_loop:
-            logger.info(f"loop energy for {basic_block_name}: {loop_energy}")
+            log_info(f"loop energy for {basic_block_name}: {loop_energy}")
             return total_active_energy_basic_block * (loop_count-1)
         else:
             return total_active_energy_basic_block + (loop_count-1) * loop_energy
@@ -642,7 +624,7 @@ class HardwareModel:
         total_passive_power = 0
         for node, data in self.netlist.nodes(data=True):
             total_passive_power += self.circuit_model.symbolic_power_passive[data["function"]]()
-            logger.info(f"passive power for {node}: {self.circuit_model.symbolic_power_passive[data['function']]()}")
+            log_info(f"passive power for {node}: {self.circuit_model.symbolic_power_passive[data['function']]()}")
         return total_passive_power * total_execution_time
 
 
@@ -655,15 +637,17 @@ class HardwareModel:
 
         self.scale_cvx = 1e-6
 
+        log_info(f"scheduled dfgs: {self.scheduled_dfgs.keys()}")
+
         for basic_block_name in self.scheduled_dfgs:
             self.node_arrivals[basic_block_name] = {"full": {}, "loop_1x": {}, "loop_2x": {}}
             self.node_arrivals_cvx[basic_block_name] = {"full": {}, "loop_1x": {}, "loop_2x": {}}
 
         self.graph_delays[top_block_name], self.graph_delays_cvx[top_block_name] = self.calculate_execution_time_vitis_recursive(top_block_name, self.scheduled_dfgs[top_block_name])
         for constr in self.constr_cvx:
-            logger.info(f"constraint final: {constr}")
+            log_info(f"constraint final: {constr}")
         for node in self.node_arrivals_cvx[top_block_name]["full"]:
-            logger.info(f"node arrivals cvx var for {top_block_name} full {node}: {self.node_arrivals_cvx[top_block_name]['full'][node]}")
+            log_info(f"node arrivals cvx var for {top_block_name} full {node}: {self.node_arrivals_cvx[top_block_name]['full'][node]}")
         prob = cp.Problem(cp.Minimize(self.graph_delays_cvx[top_block_name]), self.constr_cvx)
         prob.solve()
         for block_name in self.graph_delays:
@@ -677,17 +661,20 @@ class HardwareModel:
             for node in self.graph_delays:
                 self.circuit_model.tech_model.base_params.tech_values[self.graph_delays[node]] = self.graph_delays_cvx[node].value / self.scale_cvx
         for block_name in self.graph_delays:
-            logger.info(f"graph delays for {block_name}: {sim_util.xreplace_safe(self.graph_delays[block_name], self.circuit_model.tech_model.base_params.tech_values)}")
+            log_info(f"graph delays for {block_name}: {sim_util.xreplace_safe(self.graph_delays[block_name], self.circuit_model.tech_model.base_params.tech_values)}")
         for block_name in self.node_arrivals:
             for graph_type in self.node_arrivals[block_name]:
                 for node in self.node_arrivals[block_name][graph_type]:
-                    logger.info(f"node arrivals for {block_name} {graph_type} {node}: {self.node_arrivals_cvx[block_name][graph_type][node].value / self.scale_cvx}")
+                    if self.node_arrivals_cvx[block_name][graph_type][node].value is not None:
+                        log_info(f"node arrivals for {block_name} {graph_type} {node}: {self.node_arrivals_cvx[block_name][graph_type][node].value / self.scale_cvx}")
+                    else:
+                        log_info(f"node arrivals for {block_name} {graph_type} {node}: None")
         self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.node_arrivals_end] = self.graph_delays_cvx[top_block_name].value
         return self.graph_delays[top_block_name]
 
 
     def calculate_execution_time_vitis_recursive(self, basic_block_name, dfg, graph_end_node="graph_end", graph_type="full", resource_delays_only=False):
-        logger.info(f"calculating execution time for {basic_block_name} with graph end node {graph_end_node}")
+        log_info(f"calculating execution time for {basic_block_name} with graph end node {graph_end_node}")
         for node in dfg.nodes:
             self.node_arrivals[basic_block_name][graph_type][node] = sp.symbols(f"node_arrivals_{basic_block_name}_{graph_type}_{node}")
             self.node_arrivals_cvx[basic_block_name][graph_type][node] = cp.Variable(pos=True) 
@@ -715,16 +702,19 @@ class HardwareModel:
                             pred_delay = self.circuit_model.symbolic_latency_wc[dfg.nodes[pred]["function"]]()
                             if (pred, node) in self.dfg_to_netlist_edge_map:
                                 pred_delay += self.circuit_model.wire_delay(self.dfg_to_netlist_edge_map[(pred, node)])
+                                log_info(f"added wire delay {self.circuit_model.wire_delay(self.dfg_to_netlist_edge_map[(pred, node)])} for edge {pred, node}")
+                            else:
+                                log_info(f"no wire delay for edge {pred, node}")
                             pred_delay_cvx = sim_util.xreplace_safe(pred_delay, self.circuit_model.tech_model.base_params.tech_values) * self.scale_cvx
                         else:
                             pred_delay = 0
                             pred_delay_cvx = 0
-                logger.info(f"pred_delay_cvx: {pred_delay_cvx}")
-                logger.info(f"pred_delay: {pred_delay}")
+                log_info(f"pred_delay_cvx: {pred_delay_cvx}")
+                log_info(f"pred_delay: {pred_delay}")
                 assert pred_delay_cvx is not None and not isinstance(pred_delay_cvx, sp.Expr), f"pred_delay_cvx is {pred_delay_cvx}, type: {type(pred_delay_cvx)}"
                 self.circuit_model.tech_model.constraints.append(self.node_arrivals[basic_block_name][graph_type][node] >= self.node_arrivals[basic_block_name][graph_type][pred] + pred_delay)
 
-                logger.info(f"constraint: {self.node_arrivals[basic_block_name][graph_type][node] >= self.node_arrivals[basic_block_name][graph_type][pred] + pred_delay}")
+                log_info(f"constraint: {self.node_arrivals[basic_block_name][graph_type][node] >= self.node_arrivals[basic_block_name][graph_type][pred] + pred_delay}")
                 self.constr_cvx.append(self.node_arrivals_cvx[basic_block_name][graph_type][node] >= self.node_arrivals_cvx[basic_block_name][graph_type][pred] + pred_delay_cvx)
         return self.node_arrivals[basic_block_name][graph_type][graph_end_node], self.node_arrivals_cvx[basic_block_name][graph_type][graph_end_node]
 
@@ -782,7 +772,7 @@ class HardwareModel:
         passive_power = 0
         for node in self.netlist:
             data = self.netlist.nodes[node]
-            logger.info(f"calculating passive power for node {node}, data: {data}")
+            log_info(f"calculating passive power for node {node}, data: {data}")
             if node == "end" or data["function"] == "nop": continue
             if data["function"] == "Buf" or data["function"] == "MainMem":
                 rsc_name = data["library"][data["library"].find("__")+1:]
@@ -795,7 +785,7 @@ class HardwareModel:
                     passive_power += self.circuit_model.symbolic_power_passive[data["function"]]()
                 else:
                     passive_power += self.circuit_model.circuit_values["passive_power"][data["function"]]
-                logger.info(f"(passive power) {data['function']}: {self.circuit_model.circuit_values['passive_power'][data['function']]}")
+                log_info(f"(passive power) {data['function']}: {self.circuit_model.circuit_values['passive_power'][data['function']]}")
         total_passive_energy = passive_power * total_execution_time*1e-9
         return total_passive_energy
         
@@ -818,30 +808,17 @@ class HardwareModel:
                     total_active_energy += self.circuit_model.symbolic_energy_active[data["function"]]()
                 else:
                     total_active_energy += self.circuit_model.circuit_values["dynamic_energy"][data["function"]]
-                logger.info(f"(active energy) {data['function']}: {total_active_energy}")
+                log_info(f"(active energy) {data['function']}: {total_active_energy}")
         for edge in self.scheduled_dfg.edges:
             if edge in self.dfg_to_netlist_edge_map:
                 wire_energy = self.circuit_model.wire_energy(self.dfg_to_netlist_edge_map[edge], symbolic)
-                logger.info(f"(wire energy) {edge}: {wire_energy} nJ")
+                log_info(f"(wire energy) {edge}: {wire_energy} nJ")
                 total_active_energy += wire_energy
         return total_active_energy
-    
-    def calculate_objective(self, symbolic=False):
-        if self.hls_tool == "vitis":
-            if symbolic:
-                self.execution_time = self.calculate_execution_time_vitis(self.top_block_name)
-                self.total_passive_energy = self.calculate_passive_power_vitis(self.execution_time)
-                self.total_active_energy = self.calculate_active_energy_vitis()
-            else:
-                self.execution_time = sim_util.xreplace_safe(self.calculate_execution_time_vitis(self.top_block_name), self.circuit_model.tech_model.base_params.tech_values)
-                self.total_passive_energy = sim_util.xreplace_safe(self.calculate_passive_power_vitis(self.execution_time), self.circuit_model.tech_model.base_params.tech_values)
-                self.total_active_energy = sim_util.xreplace_safe(self.calculate_active_energy_vitis(), self.circuit_model.tech_model.base_params.tech_values)
-        else: # catapult
-            self.execution_time = self.calculate_execution_time(symbolic)
-            self.total_passive_energy = self.calculate_passive_energy(self.execution_time, symbolic)
-            self.total_active_energy = self.calculate_active_energy(symbolic)
+
+    def save_obj_vals(self):
         if self.model_cfg["model_type"] == "bulk_bsim4":
-            self.symbolic_obj_sub_exprs = {
+            self.obj_sub_exprs = {
                 "execution_time": self.execution_time,
                 "passive power": self.total_passive_energy/self.execution_time,
                 "active power": self.total_active_energy/self.execution_time,
@@ -855,7 +832,7 @@ class HardwareModel:
                 "f": self.circuit_model.tech_model.base_params.f,
             }
         elif self.circuit_model.tech_model.model_cfg["model_type"] == "bulk":
-            self.symbolic_obj_sub_exprs = {
+            self.obj_sub_exprs = {
                 "execution_time": self.execution_time,
                 "passive power": self.total_passive_energy/self.execution_time,
                 "active power": self.total_active_energy/self.execution_time,
@@ -870,64 +847,121 @@ class HardwareModel:
                 "f": self.circuit_model.tech_model.base_params.f,
             }
         elif self.circuit_model.tech_model.model_cfg["model_type"] == "vs":
-            self.symbolic_obj_sub_exprs = {
+            self.obj_sub_exprs = {
                 "execution_time": self.execution_time,
                 "passive power": self.total_passive_energy/self.execution_time,
                 "active power": self.total_active_energy/self.execution_time,
-                "subthreshold leakage current": self.circuit_model.tech_model.I_off,
-                "long channel threshold voltage": self.circuit_model.tech_model.base_params.V_th,
-                "effective threshold voltage": self.circuit_model.tech_model.V_th_eff.xreplace(self.circuit_model.tech_model.on_state).evalf(),
-                "supply voltage": self.circuit_model.tech_model.base_params.V_dd,
-                "wire RC": self.circuit_model.tech_model.m1_Rsq * self.circuit_model.tech_model.m1_Csq,
-                "on current per um": self.circuit_model.tech_model.I_d_on_per_um,
-                "off current per um": self.circuit_model.tech_model.I_d_off_per_um,
-                "gate tunneling current per um": self.circuit_model.tech_model.I_tunnel_per_um,
-                "subthreshold leakage current per um": self.circuit_model.tech_model.I_sub_per_um,
-                "GIDL current per um": self.circuit_model.tech_model.I_GIDL_per_um,
-                "DIBL factor": self.circuit_model.tech_model.delta,
-                "t_ox": self.circuit_model.tech_model.base_params.tox,
-                "eot": self.circuit_model.tech_model.eot,
-                "scale length": self.circuit_model.tech_model.scale_length,
-                "C_load": self.circuit_model.tech_model.C_load,
-                "C_wire": self.circuit_model.tech_model.C_wire,
-                "R_wire": self.circuit_model.tech_model.R_wire,
-                "R_device": self.circuit_model.tech_model.base_params.V_dd/self.circuit_model.tech_model.I_d_on,
-                "SS": self.circuit_model.tech_model.S,
-                "F_f": self.circuit_model.tech_model.F_f_eval,
-                "F_s": self.circuit_model.tech_model.F_s_eval,
-                "vx0": self.circuit_model.tech_model.vx0,
-                "v": self.circuit_model.tech_model.v,
-                "t_1": self.circuit_model.tech_model.t_1,
-                "f": self.circuit_model.tech_model.base_params.f,
+                "gate length": self.circuit_model.tech_model.param_db["L"],
+                "gate width": self.circuit_model.tech_model.param_db["W"],
+                "subthreshold leakage current": self.circuit_model.tech_model.param_db["I_sub"],
+                "long channel threshold voltage": self.circuit_model.tech_model.param_db["V_th"],
+                "effective threshold voltage": self.circuit_model.tech_model.param_db["V_th_eff"],
+                "supply voltage": self.circuit_model.tech_model.param_db["V_dd"],
+                "wire RC": self.circuit_model.tech_model.param_db["wire RC"],
+                "on current per um": self.circuit_model.tech_model.param_db["I_on_per_um"],
+                "off current per um": self.circuit_model.tech_model.param_db["I_off_per_um"],
+                "gate tunneling current per um": self.circuit_model.tech_model.param_db["I_tunnel_per_um"],
+                "subthreshold leakage current per um": self.circuit_model.tech_model.param_db["I_sub_per_um"],
+                "DIBL factor": self.circuit_model.tech_model.param_db["DIBL factor"],
+                "SS": self.circuit_model.tech_model.param_db["SS"],
+                "t_ox": self.circuit_model.tech_model.param_db["t_ox"],
+                "eot": self.circuit_model.tech_model.param_db["eot"],
+                "scale length": self.circuit_model.tech_model.param_db["scale_length"],
+                "C_load": self.circuit_model.tech_model.param_db["C_load"],
+                "C_wire": self.circuit_model.tech_model.param_db["C_wire"],
+                "R_wire": self.circuit_model.tech_model.param_db["R_wire"],
+                "R_device": self.circuit_model.tech_model.param_db["V_dd"]/self.circuit_model.tech_model.param_db["I_on"],
+                "F_f": self.circuit_model.tech_model.param_db["F_f"],
+                "F_s": self.circuit_model.tech_model.param_db["F_s"],
+                "vx0": self.circuit_model.tech_model.param_db["vx0"],
+                "v": self.circuit_model.tech_model.param_db["v"],
+                "f": self.circuit_model.tech_model.param_db["f"],
+                "parasitic capacitance": self.circuit_model.tech_model.param_db["parasitic capacitance"],
+                "k_gate": self.circuit_model.tech_model.param_db["k_gate"],
             }
+            if self.circuit_model.tech_model.model_cfg["vs_model_type"] == "base":
+                self.obj_sub_exprs["t_1"] = self.circuit_model.tech_model.param_db["t_1"]
+            elif self.circuit_model.tech_model.model_cfg["vs_model_type"] == "mvs_si":
+                self.obj_sub_exprs["R_s"] = self.circuit_model.tech_model.param_db["R_s"]
+                self.obj_sub_exprs["R_d"] = self.circuit_model.tech_model.param_db["R_d"]
+                self.obj_sub_exprs["L_ov"] = self.circuit_model.tech_model.param_db["L_ov"]
+            elif self.circuit_model.tech_model.model_cfg["vs_model_type"] == "vscnfet":
+                self.obj_sub_exprs["Vth_rolloff"] = self.circuit_model.tech_model.param_db["Vth_rolloff"]
+                self.obj_sub_exprs["d"] = self.circuit_model.tech_model.param_db["d"]
+                self.obj_sub_exprs["L_c"] = self.circuit_model.tech_model.param_db["L_c"]
+                self.obj_sub_exprs["H_c"] = self.circuit_model.tech_model.param_db["H_c"]
+                self.obj_sub_exprs["H_g"] = self.circuit_model.tech_model.param_db["H_g"]
+                self.obj_sub_exprs["k_cnt"] = self.circuit_model.tech_model.param_db["k_cnt"]
+
         else: 
             raise ValueError(f"Objective function {self.obj_fn} not supported")
-        self.obj_sub_exprs = {
-            "execution_time": self.execution_time,
-            "total_passive_energy": self.total_passive_energy,
-            "total_active_energy": self.total_active_energy,
-            "passive power": self.total_passive_energy/self.execution_time,
+        self.obj_sub_plot_names = {
+            "execution_time": "Execution Time over generations (ns)",
+            "passive power": "Passive Power over generations (W)",
+            "active power": "Active Power over generations (W)",
+            "gate length": "Gate Length over generations (m)",
+            "gate width": "Gate Width over generations (m)",
+            "subthreshold leakage current": "Subthreshold Leakage Current over generations (nA)",
+            "long channel threshold voltage": "Long Channel Threshold Voltage (V)",
+            "effective threshold voltage": "Effective Threshold Voltage over generations (V)",
+            "supply voltage": "Supply Voltage over generations (V)",
+            "wire RC": "Wire RC over generations (s)",
+            "on current per um": "On Current per um over generations (A/um)",
+            "off current per um": "Off Current per um over generations (A/um)",
+            "gate tunneling current per um": "Gate Tunneling Current per um over generations (A/um)",
+            "subthreshold leakage current per um": "Subthreshold Leakage Current per um over generations (A/um)",
+            "DIBL factor": "DIBL Factor over generations (V/V)",
+            "SS": "Subthreshold Slope over generations (V/V)",
+            "Vth_rolloff": "Vth Rolloff over generations (V)",
+            "t_ox": "Gate Oxide Thickness over generations (m)",
+            "eot": "Electrical Oxide Thickness over generations (m)",
+            "scale length": "Scale Length over generations (m)",
+            "C_load": "Load Capacitance over generations (F)",
+            "C_wire": "Wire Capacitance over generations (F)",
+            "R_wire": "Wire Resistance over generations (Ohm)",
+            "R_device": "Device Resistance over generations (Ohm)",
+            "F_f": "F_f over generations",
+            "F_s": "F_s over generations",
+            "vx0": "virtual source injection velocity over generations (m/s)",
+            "v": "effective injection velocity over generations (m/s)",
+            "t_1": "T1 over generations (s)",
+            "f": "Frequency over generations (Hz)",
+            "parasitic capacitance": "Parasitic Capacitance over generations (F)",
+            "L_ov": "L_ov over generations (m)",
+            "R_s": "R_s over generations (Ohm)",
+            "R_d": "R_d over generations (Ohm)",
+            "Vth_rolloff": "Vth Rolloff over generations (V)",
+            "d": "CNT diameter over generations (m)",
+            "L_c": "CNT contact length over generations (m)",
+            "H_c": "CNT contact height over generations (m)",
+            "H_g": "CNT gate height over generations (m)",
+            "k_cnt": "CNT Dielectric Constant over generations (F/m)",
+            "k_gate": "Gate Dielectric Constant over generations (F/m)",
         }
         if self.obj_fn == "edp":
-            if symbolic:
-                self.symbolic_obj = (self.total_passive_energy + self.total_active_energy) * self.execution_time
-            else:
-                self.obj = (self.total_passive_energy + self.total_active_energy) * self.execution_time
+            self.obj = (self.total_passive_energy + self.total_active_energy) * self.execution_time
+            self.obj_scaled = (self.total_passive_energy * self.circuit_model.tech_model.capped_power_scale + self.total_active_energy) * self.execution_time * self.circuit_model.tech_model.capped_delay_scale
         elif self.obj_fn == "ed2":
-            if symbolic:
-                self.symbolic_obj = (self.total_passive_energy + self.total_active_energy) * (self.execution_time)**2
-            else:   
-                self.obj = (self.total_passive_energy + self.total_active_energy) * (self.execution_time)**2
+            self.obj = (self.total_passive_energy + self.total_active_energy) * (self.execution_time)**2
+            self.obj_scaled = (self.total_passive_energy * self.circuit_model.tech_model.capped_power_scale + self.total_active_energy) * (self.execution_time * self.circuit_model.tech_model.capped_delay_scale)**2
         elif self.obj_fn == "delay":
-            if symbolic:
-                self.symbolic_obj = self.execution_time
-            else:
-                self.obj = self.execution_time
+            self.obj = self.execution_time
+            self.obj_scaled = self.execution_time * self.circuit_model.tech_model.capped_delay_scale
         elif self.obj_fn == "energy":
             print(f"setting energy objective to {self.total_active_energy + self.total_passive_energy}")
-            if symbolic:
-                self.symbolic_obj = self.total_active_energy + self.total_passive_energy
-            else:
-                self.obj = self.total_active_energy + self.total_passive_energy
+            self.obj = self.total_active_energy + self.total_passive_energy
+            self.obj_scaled = (self.total_active_energy + self.total_passive_energy * self.circuit_model.tech_model.capped_power_scale)
         else:
             raise ValueError(f"Objective function {self.obj_fn} not supported")
+    
+    def calculate_objective(self):
+        if self.hls_tool == "vitis":
+            self.execution_time = self.calculate_execution_time_vitis(self.top_block_name)
+            self.total_passive_energy = self.calculate_passive_power_vitis(self.execution_time)
+            self.total_active_energy = self.calculate_active_energy_vitis()
+        else: # catapult
+            # always use symbolic calculation. If you want concrete value later then sub tech values in.
+            self.execution_time = self.calculate_execution_time(symbolic=True)
+            self.total_passive_energy = self.calculate_passive_energy(self.execution_time, symbolic=True)
+            self.total_active_energy = self.calculate_active_energy(symbolic=True)
+        self.save_obj_vals()

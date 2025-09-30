@@ -2,13 +2,16 @@ import os
 import sys
 import json
 import networkx as nx
+import logging
 
+logger = logging.getLogger(__name__)
 
+## Enables additional logging when set to True
 DEBUG = False
 
 def debug_print(message):
     if DEBUG:
-        print(message)
+        logger.info(message)
 
 
 ## NOTE: The data dependencies in this function are represeted as edges in the graph where the source node 
@@ -272,7 +275,7 @@ def create_cdfg_vitis(root_dir):
         if not os.path.isdir(subdir_path):
             continue
 
-        #print(f"Processing directory: {subdir_path}")
+        debug_print(f"Processing directory: {subdir_path}")
 
         # Find _fsm.json and _state_transitions.json files
         fsm_file = None
