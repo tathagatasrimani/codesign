@@ -17,14 +17,10 @@ from src import sim_util
 from src.hardware_model.tech_models import bulk_model
 from src.hardware_model.tech_models import bulk_bsim4_model
 from src.hardware_model.tech_models import vs_model
-<<<<<<< HEAD
 from src.hardware_model.tech_models import mvs_si_model
 from src.hardware_model.tech_models import mvs_2_model
 from src.hardware_model.tech_models import vscnfet_model
-from openroad_interface import place_n_route
-=======
 from openroad_interface import openroad_run
->>>>>>> 57decb1895f2d261ffae64d22550406376a7baab
 
 import cvxpy as cp
 
