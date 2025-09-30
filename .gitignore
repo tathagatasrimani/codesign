@@ -39,9 +39,8 @@ Miniconda3-latest-Linux-x86_64.sh
 verilator/
 tools/
 
-.local/
-.cache/
-.conda/
-.Xilinx/
-.condarc
-.wget-hsts
+## ignores all hidden files except those needed for git.
+.*
+!.gitignore
+!.git/
+######
