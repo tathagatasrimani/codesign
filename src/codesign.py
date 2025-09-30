@@ -432,7 +432,8 @@ class Codesign:
             self.hw.circuit_model.tech_model.max_speedup_factor = latency / self.max_latency
             self.hw.circuit_model.tech_model.max_area_increase_factor = self.max_dsp / dsp_usage
             self.hw.circuit_model.tech_model.init_scale_factors(self.hw.circuit_model.tech_model.max_speedup_factor, self.hw.circuit_model.tech_model.max_area_increase_factor)
-        self.checkpoint_controller.check_end_checkpoint("scalehls")
+        if not setup:
+            self.checkpoint_controller.check_end_checkpoint("scalehls")
         if setup: # setup step ends here, don't need to run rest of forward pass
             return
 
@@ -443,7 +444,7 @@ class Codesign:
 
         import time
         command = ["vitis_hls", "-f", "tcl_script.tcl"]
-        if (self.checkpoint_controller.check_checkpoint("vitis", self.iteration_count) and not setup) or (self.checkpoint_controller.check_checkpoint("vitis_unlimited", self.iteration_count) and setup):
+        if self.checkpoint_controller.check_checkpoint("vitis", self.iteration_count):
             start_time = time.time()
             # Start the process and write output to vitis_hls.log
             with open("vitis_hls.log", "w") as logfile:
@@ -479,10 +480,7 @@ class Codesign:
                 raise Exception(f"Vitis HLS command failed: see vitis_hls.log")
         else:
             logger.info("Skipping Vitis")
-        if not setup:
-            self.checkpoint_controller.check_end_checkpoint("vitis")
-        else:
-            self.checkpoint_controller.check_end_checkpoint("vitis_unlimited")
+        self.checkpoint_controller.check_end_checkpoint("vitis")
         os.chdir(os.path.join(os.path.dirname(__file__), ".."))
         # PARSE OUTPUT, set schedule and read netlist
         self.parse_vitis_data(save_dir=save_dir)
@@ -887,6 +885,7 @@ class Codesign:
     def execute(self, num_iters):
         self.iteration_count = 0
         self.setup()
+        self.checkpoint_controller.check_end_checkpoint("setup")
         while self.iteration_count < num_iters:
             self.forward_pass(self.iteration_count, self.benchmark_dir)
             self.log_forward_tech_params()
