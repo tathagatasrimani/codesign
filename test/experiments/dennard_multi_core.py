@@ -21,7 +21,7 @@ class DennardMultiCore:
         )
         # for this experiment, we don't use the scaled obj feature, instead just bake the parallelism scaling into the obj
         max_parallel_val = 1
-        self.codesign_module.hw.circuit_model.tech_model.init_scale_factors(max_parallel_val)
+        self.codesign_module.hw.circuit_model.tech_model.init_scale_factors(max_parallel_val, max_parallel_val)
         self.dummy_app = args.dummy
         self.params_over_iterations = []
         self.edp_over_iterations = []

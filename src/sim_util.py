@@ -52,12 +52,6 @@ def custom_pow(x, y, evaluate=True):
     """
     return pow(Abs(x, evaluate=evaluate), y)
 
-def custom_coth(x, evaluate=True):
-    """
-    Custom coth function to guard against overflow.
-    """
-    return coth(symbolic_convex_min(500, x))
-
 # overwrite values of dict1 with values of dict2
 # if a key is not present in dict1, still takes values from dict2
 # if key is not present in dict2, keeps value from dict1
