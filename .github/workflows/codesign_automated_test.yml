@@ -1,0 +1,30 @@
+name: Codesing Automated Test Workflow.
+
+on:
+  workflow_dispatch:  
+  push:               
+    branches:
+      - main
+
+jobs:
+  test:
+    name: Codesign-Automated-Test
+    runs-on: codesign-test-2
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Debug-echo
+        run: |
+          echo ">>> CI is running inside Python Tests workflow on $(date)"
+          echo "Current directory: $(pwd)"
+          ls -la
+        
+      - name: Set up bash and run environment setup
+        run: |
+          source ./full_env_start.sh
+
+      - name: Run custom script
+        run: |
+          chmod +x scripts/scripts-ci.sh || true
+          ./scripts/scripts-ci.sh
