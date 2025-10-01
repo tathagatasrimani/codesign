@@ -28,11 +28,12 @@ class OpenRoadRun:
         self.directory = os.path.join(self.codesign_root_dir, "src/tmp/pd")
 
     def run(
-        self,
-        graph: nx.DiGraph,
-        test_file: str, 
-        arg_parasitics: str,
-        area_constraint: int
+    self,
+    graph: nx.DiGraph,
+    test_file: str, 
+    arg_parasitics: str,
+    area_constraint: int,
+    alpha: float = 1.0  # Add alpha here
     ):
         """
         Runs the OpenROAD flow.
@@ -40,11 +41,12 @@ class OpenRoadRun:
             arg_parasitics: detailed, estimation, or none. determines which parasitic calculation is executed.
 
         """
+        alpha = 100.0
         logger.info(f"Starting place and route with parasitics: {arg_parasitics}")
         dict = {edge: {} for edge in graph.edges()}
         if "none" not in arg_parasitics:
             logger.info("Running setup for place and route.")
-            graph, net_out_dict, node_output, lef_data, node_to_num = self.setup(graph, test_file, area_constraint)
+            graph, net_out_dict, node_output, lef_data, node_to_num = self.setup(graph, test_file, area_constraint, alpha)
             logger.info("Setup complete. Running extraction.")
             dict, graph = self.extraction(graph, arg_parasitics, net_out_dict, node_output, lef_data, node_to_num)
             logger.info("Extraction complete.")
@@ -58,7 +60,8 @@ class OpenRoadRun:
         self,
         graph: nx.DiGraph,
         test_file: str,
-        area_constraint: int
+        area_constraint: int,
+        alpha: float 
     ):
         """
         Sets up the OpenROAD environment. This method creates the working directory, copies tcl files, and generates the def file
@@ -82,7 +85,8 @@ class OpenRoadRun:
         logger.info(f"Created results directory: {self.directory}/results")
 
         self.update_area_constraint(area_constraint)
-
+        self._scale_track_pitches(alpha)
+        #write script here for editing files
         df = def_generator.DefGenerator(self.cfg, self.codesign_root_dir)
         
         graph, net_out_dict, node_output, lef_data, node_to_num = df.run_def_generator(
@@ -122,6 +126,64 @@ class OpenRoadRun:
             file.writelines(tcl_data)
         
         logger.info(f"Wrote updated tcl file with the area constraints: {new_sidelength}x{new_sidelength}")
+
+    def _scale_track_pitches(self, alpha: float):
+        """
+        Updates the track pitches in the temporary codesign.tracks file.
+        This method reads the file, scales the x and y pitch values by dividing
+        them by the alpha factor, and writes the file back.
+
+        :param alpha: The scaling factor to divide the pitches by.
+        """
+        print("\n AM HERE \n")
+        # If alpha is 1, no changes are needed.
+        if alpha == 1.0:
+            logger.info("Alpha is 1.0, no scaling of track pitches required.")
+            return
+
+        if alpha <= 0:
+            logger.error("Alpha must be positive. Skipping track pitch scaling.")
+            return
+
+        logger.info(f"Scaling track pitches by a division factor of {alpha}.")
+        
+        # Construct the full path to the file inside the temporary directory
+        tracks_file_path = os.path.join(self.directory, "tcl", "codesign_files", "codesign.tracks")
+
+        try:
+            # Read all lines from the file
+            with open(tracks_file_path, "r") as file:
+                lines = file.readlines()
+
+            modified_lines = []
+
+            # Define a helper function to perform the replacement using regex
+            def replace_pitch(match_obj):
+                # match_obj.group(1) will be "-x_pitch " or "-y_pitch "
+                # match_obj.group(2) will be the numeric value like "0.19"
+                keyword_and_space = match_obj.group(1)
+                value_str = match_obj.group(2)
+                new_value = float(value_str) / alpha
+                return f"{keyword_and_space}{new_value:.4f}"
+
+            # Process each line
+            for line in lines:
+                if line.strip().startswith("make_tracks"):
+                    # Find and replace x_pitch and y_pitch values
+                    line = re.sub(r"(-x_pitch\s+)([\d\.]+)", replace_pitch, line)
+                    line = re.sub(r"(-y_pitch\s+)([\d\.]+)", replace_pitch, line)
+                modified_lines.append(line)
+
+            # Write the modified lines back to the file
+            with open(tracks_file_path, "w") as file:
+                file.writelines(modified_lines)
+            
+            logger.info(f"Successfully updated pitches in {tracks_file_path}.")
+
+        except FileNotFoundError:
+            logger.error(f"Could not find tracks file to scale at {tracks_file_path}. Please check the path.")
+        except Exception as e:
+            logger.error(f"An error occurred while scaling track pitches: {e}")
 
     def run_openroad_executable(self):
         """
