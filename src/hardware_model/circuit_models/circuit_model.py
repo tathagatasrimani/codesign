@@ -186,7 +186,7 @@ class CircuitModel:
 
     def set_uarch_parameters(self):
         self.clk_period_cvx = cp.Variable(pos=True)
-        self.clk_period_cvx.value = float((1e9/self.tech_model.base_params.f).subs(self.tech_model.base_params.tech_values).evalf())
+        self.clk_period_cvx.value = float(self.tech_model.base_params.clk_period.subs(self.tech_model.base_params.tech_values).evalf())
         self.logic_delay_cvx = cp.Variable(pos=True)
         self.logic_delay_cvx.value = float(self.tech_model.delay.subs(self.tech_model.base_params.tech_values).evalf())
         self.logic_energy_active_cvx = cp.Variable(pos=True)
@@ -214,8 +214,6 @@ class CircuitModel:
             self.wire_unit_delay_cvx[layer].value = float((self.tech_model.wire_parasitics["R"][layer]*self.tech_model.wire_parasitics["C"][layer]).subs(self.tech_model.base_params.tech_values).evalf())
             self.wire_unit_energy_cvx[layer].value = float((0.5*self.tech_model.wire_parasitics["C"][layer]*self.tech_model.base_params.V_dd**2).subs(self.tech_model.base_params.tech_values).evalf())
 
-        self.clk_period = sp.symbols("clk_period")
-        self.tech_model.base_params.tech_values[self.clk_period] = float((1e9/self.tech_model.base_params.f).subs(self.tech_model.base_params.tech_values).evalf())
         self.logic_delay = sp.symbols("logic_delay")
         self.tech_model.base_params.tech_values[self.logic_delay] = float(self.tech_model.delay.subs(self.tech_model.base_params.tech_values).evalf())
         self.logic_energy_active = sp.symbols("logic_energy_active")
@@ -332,7 +330,7 @@ class CircuitModel:
                         for layer in self.metal_layers]) * 1e9
         
     def make_sym_lat_wc(self, gamma):
-        return gamma * self.tech_model.delay
+        return gamma * self.tech_model.delay_var
     
     def make_buf_lat_dict(self):
         return self.tech_model.base_params.BufL
@@ -377,11 +375,9 @@ class CircuitModel:
         return area_coeff * self.tech_model.base_params.area
 
     def create_constraints(self):
-        self.clk_period = sp.symbols("clk_period")
-        self.tech_model.base_params.tech_values[self.clk_period] = float((1e9/self.tech_model.base_params.f).subs(self.tech_model.base_params.tech_values).evalf())
-        self.constraints.append(self.clk_period >= 1/self.tech_model.base_params.f * 1.0e9)
         if self.tech_model.model_cfg["effects"]["frequency"]:
             for key in self.symbolic_latency_wc:
                 if key not in ["Buf", "MainMem", "OffChipIO", "Call", "N/A"]:
                     # cycle limit to constrain the amount of pipelining
-                    self.constraints.append((self.symbolic_latency_wc[key]()* 1e-9) * self.tech_model.base_params.f <= 20) # num cycles <= 20 (cycles = time(s) * frequency(Hz))
+                    #self.constraints.append((self.symbolic_latency_wc[key]()* 1e-9) * self.tech_model.base_params.f <= 20) # num cycles <= 20 (cycles = time(s) * frequency(Hz))
+                    self.constraints.append((self.symbolic_latency_wc[key]())<= 20*self.tech_model.base_params.clk_period) # num cycles <= 20 (cycles = time(s) * frequency(Hz))

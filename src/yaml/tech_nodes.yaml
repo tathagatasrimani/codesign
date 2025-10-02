@@ -16,6 +16,7 @@ default:
   m3_k: 3.9 # F / m
   k_gate: 3.9 # dielectric constant
   Cs: 100 # F/m^2
+  clk_period: 250.0 # ns
   f: 4.0e+7
   t_1: 1.0e-6
   d: 1.0e-6

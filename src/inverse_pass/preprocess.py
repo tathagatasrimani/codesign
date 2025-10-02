@@ -177,17 +177,17 @@ class Preprocessor:
         else:
             opt = SolverFactory("ipopt")
             opt.options["warm_start_init_point"] = "yes"
-            opt.options['warm_start_bound_push'] = 1e-9
-            opt.options['warm_start_mult_bound_push'] = 1e-9
-            opt.options['warm_start_bound_frac'] = 1e-9
-            opt.options['warm_start_slack_bound_push'] = 1e-9
-            opt.options['warm_start_slack_bound_frac'] = 1e-9
-            opt.options['mu_init'] = 0.1
+            #opt.options['warm_start_bound_push'] = 1e-9
+            #opt.options['warm_start_mult_bound_push'] = 1e-9
+           # opt.options['warm_start_bound_frac'] = 1e-9
+            #opt.options['warm_start_slack_bound_push'] = 1e-9
+            #opt.options['warm_start_slack_bound_frac'] = 1e-9
+            #opt.options['mu_init'] = 0.1
             # opt.options['acceptable_obj_change_tol'] = self.initial_val / 100
-            opt.options['tol'] = 1
+            #opt.options['tol'] = 1
             # opt.options['print_level'] = 12
             # opt.options['nlp_scaling_method'] = 'none'
-            opt.options["bound_relax_factor"] = 0
+            #opt.options["bound_relax_factor"] = 0
             opt.options["max_iter"] = 500
             opt.options["print_info_string"] = "yes"
             opt.options["output_file"] = "src/tmp/solver_out.txt"

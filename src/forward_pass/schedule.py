@@ -372,7 +372,7 @@ class gnt_schedule_parser:
         build_dir (str): Directory containing schedule and report files.
         module_map (dict): Mapping from ccore module names to standard operator names.
     """
-    def __init__(self, build_dir, module_map, circuit_delays, f):
+    def __init__(self, build_dir, module_map, circuit_delays, clk_period):
         # use for accurate circuit delays (not rounded to nearest hundredth)
         self.circuit_delays = circuit_delays
         self.filename = build_dir + "/schedule.gnt"
@@ -390,7 +390,7 @@ class gnt_schedule_parser:
         self.extra_edges = [] # resource edges
         self.element_counts = {}
         self.inst_name_map = {}
-        self.f = f
+        self.clk_period = clk_period
 
     def parse(self):
         self.parse_bom()
@@ -546,7 +546,7 @@ class gnt_schedule_parser:
                         self.modified_G.add_edge(
                             topo_order_by_mem_port[port][i],
                             topo_order_by_mem_port[port][i+1],
-                            weight=(1/self.f)*1e9, # convert to ns
+                            weight=self.clk_period, # convert to ns
                             resource_edge=True
                         )
                         logger.info(f"adding memory port resource dependency between {topo_order_by_mem_port[port][i]} and {topo_order_by_mem_port[port][i+1]} for port {port}")
@@ -559,7 +559,7 @@ class gnt_schedule_parser:
                         self.modified_G.add_edge(
                             topo_order_by_elem[func][elem][i],
                             topo_order_by_elem[func][elem][i+1],
-                            weight=(1/self.f)*1e9, # convert to ns
+                            weight=self.clk_period, # convert to ns
                             resource_edge=True
                         )
                         logger.info(f"adding resource dependency between {topo_order_by_elem[func][elem][i]} and {topo_order_by_elem[func][elem][i+1]}")
@@ -731,7 +731,7 @@ class gnt_schedule_parser:
                     node_delay_str = tokens[i+1][1:]
                     if node_delay_str.find("cy+") != -1:
                         parts = node_delay_str.split("cy+")
-                        node_delay = float(parts[0]) * 1/self.f * 1e9 + float(parts[1])
+                        node_delay = float(parts[0]) * self.clk_period + float(parts[1])
                     else:
                         node_delay = float(tokens[i+1][1:]) # take out brackets with [1:-1]
             #print(node_delay)

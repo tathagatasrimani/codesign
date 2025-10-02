@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 import sympy as sp
 import math
 
-from src.sim_util import symbolic_convex_max, symbolic_min
+from src.sim_util import symbolic_convex_max, symbolic_min, xreplace_safe
 
 logger = logging.getLogger(__name__)
 
@@ -34,13 +34,20 @@ class TechModel(ABC):
         self.V_T = self.K*self.T/self.q # thermal voltage (V)
         
     def init_scale_factors(self, max_speedup_factor, max_area_increase_factor):
+        self.max_speedup_factor = max_speedup_factor
+        self.max_area_increase_factor = max_area_increase_factor
+        
         self.max_delay_scale = 1/max_speedup_factor
-        self.max_power_scale = max_area_increase_factor
-        self.latency_scale_slope = (1 - self.max_delay_scale) / (max_area_increase_factor)
+        self.max_power_scale = self.max_area_increase_factor
+        self.latency_scale_slope = (1 - self.max_delay_scale) / (self.max_area_increase_factor)
         # base_params.latency_scale and base_params.area_scale are set by the ratio of the starting cell area to current cell area
         self.capped_delay_scale = symbolic_convex_max(self.max_delay_scale, 1 - self.latency_scale_slope * self.base_params.area_scale) # <= 1 (delay = delay_0 * capped_delay_scale)
-        self.capped_power_scale = symbolic_min(max_area_increase_factor, self.base_params.area_scale) # >= 1 (power = power_0 * capped_power_scale)
-        logger.info(f"max_speedup_factor: {max_speedup_factor}, max_area_increase_factor: {max_area_increase_factor}")
+        self.capped_power_scale = symbolic_min(self.max_area_increase_factor, self.base_params.area_scale) # >= 1 (power = power_0 * capped_power_scale)
+
+        area_scale_remaining = self.max_area_increase_factor / xreplace_safe(self.base_params.area_scale, self.base_params.tech_values)
+        cur_area_scale = xreplace_safe((self.base_params.W * self.base_params.L), self.base_params.tech_values)/(self.base_params.W * self.base_params.L)
+        self.power_scale_current_iter = symbolic_min(area_scale_remaining, cur_area_scale)
+        logger.info(f"max_speedup_factor: {self.max_speedup_factor}, max_area_increase_factor: {self.max_area_increase_factor}, area_scale_remaining: {area_scale_remaining}")
 
     @abstractmethod
     def init_tech_specific_constants(self):
@@ -95,6 +102,8 @@ class TechModel(ABC):
 
     @abstractmethod
     def apply_additional_effects(self):
+        self.delay_var = sp.symbols("delay_var")
+        self.base_params.tech_values[self.delay_var] = xreplace_safe(self.delay, self.base_params.tech_values)
         if self.model_cfg["effects"]["area_and_latency_scaling"]:
             if self.model_cfg["effects"]["max_parallel_en"]:
                 MAX_PARALLEL = self.model_cfg["effects"]["max_parallel_val"]
@@ -108,15 +117,13 @@ class TechModel(ABC):
     def create_constraints(self, dennard_scaling_type="constant_field"):
         self.constraints = []
         # generic constraints
+        self.constraints.append(self.delay_var >= self.delay)
         self.constraints.append(self.base_params.V_dd >= self.V_th_eff)
         self.constraints.append(self.base_params.V_dd >= self.base_params.V_th)
         if self.V_th_eff != self.base_params.V_th:
             self.constraints.append(self.V_th_eff >= 0)
         self.constraints.append(self.base_params.V_dd <= 5)
 
-        #if self.base_params.f in self.base_params.tech_values:
-        #    self.constraints.append(self.delay <= 1e9/self.base_params.f)
-        #self.constraints.append(self.base_params.f <= 5e9)
         self.constraints.append(self.I_off/(self.base_params.W) <= 100e-9 / (1e-6))
 
 

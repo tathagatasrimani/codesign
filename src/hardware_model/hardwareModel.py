@@ -658,6 +658,9 @@ class HardwareModel:
                     self.circuit_model.tech_model.base_params.tech_values[self.node_arrivals[block_name]["loop_1x"][node]] = self.node_arrivals_cvx[block_name]["loop_1x"][node].value / self.scale_cvx
                 if node in self.node_arrivals[block_name]["loop_2x"] and self.node_arrivals_cvx[block_name]["loop_2x"][node].value is not None:
                     self.circuit_model.tech_model.base_params.tech_values[self.node_arrivals[block_name]["loop_2x"][node]] = self.node_arrivals_cvx[block_name]["loop_2x"][node].value / self.scale_cvx
+            for node in self.node_arrivals_cvx[block_name]["loop_1x"]:
+                if self.node_arrivals_cvx[block_name]["loop_1x"][node].value is not None:
+                    self.circuit_model.tech_model.base_params.tech_values[self.node_arrivals[block_name]["loop_1x"][node]] = self.node_arrivals_cvx[block_name]["loop_1x"][node].value / self.scale_cvx
             for node in self.graph_delays:
                 self.circuit_model.tech_model.base_params.tech_values[self.graph_delays[node]] = self.graph_delays_cvx[node].value / self.scale_cvx
         for block_name in self.graph_delays:
@@ -688,8 +691,8 @@ class HardwareModel:
                         pred_delay = delay_1x * (dfg.nodes[pred]["count"]-1)
                         pred_delay_cvx = delay_1x_cvx * (dfg.nodes[pred]["count"]-1)
                     else:
-                        pred_delay = self.circuit_model.clk_period # convert to ns
-                        pred_delay_cvx = sim_util.xreplace_safe(self.circuit_model.clk_period, self.circuit_model.tech_model.base_params.tech_values) * self.scale_cvx
+                        pred_delay = self.circuit_model.tech_model.base_params.clk_period # convert to ns
+                        pred_delay_cvx = self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.clk_period] * self.scale_cvx
                 else:
                     # if function call, recursively calculate its delay 
                     if dfg.nodes[pred]["function"] == "Call":
@@ -743,8 +746,7 @@ class HardwareModel:
                 for pred in self.scheduled_dfg.predecessors(node):
                     assert self.scheduled_dfg.nodes[pred]["function"] != "nop"
                     if self.scheduled_dfg.edges[pred, node]["resource_edge"]:
-                        #pred_delay = self.circuit_model.clk_period # convert to ns
-                        pred_delay = 1/self.circuit_model.tech_model.base_params.f * 1e9 # convert to ns
+                        pred_delay = self.circuit_model.tech_model.base_params.clk_period # convert to ns
                     elif self.scheduled_dfg.nodes[pred]["function"] in ["Buf", "MainMem"]:
                         rsc_name = self.scheduled_dfg.nodes[pred]["library"][self.scheduled_dfg.nodes[pred]["library"].find("__")+1:]
                         pred_delay = self.circuit_model.symbolic_latency_wc[self.scheduled_dfg.nodes[pred]["function"]]()[rsc_name]
@@ -829,6 +831,7 @@ class HardwareModel:
                 "effective threshold voltage": self.circuit_model.tech_model.V_th_eff,
                 "supply voltage": self.circuit_model.tech_model.base_params.V_dd,
                 "wire RC": self.circuit_model.tech_model.m1_Rsq * self.circuit_model.tech_model.m1_Csq,
+                "clk_period": self.circuit_model.tech_model.base_params.clk_period,
                 "f": self.circuit_model.tech_model.base_params.f,
             }
         elif self.circuit_model.tech_model.model_cfg["model_type"] == "bulk":
@@ -844,6 +847,7 @@ class HardwareModel:
                 "effective threshold voltage": self.circuit_model.tech_model.V_th_eff,
                 "supply voltage": self.circuit_model.tech_model.base_params.V_dd,
                 "wire RC": self.circuit_model.tech_model.m1_Rsq * self.circuit_model.tech_model.m1_Csq,
+                "clk_period": self.circuit_model.tech_model.base_params.clk_period,
                 "f": self.circuit_model.tech_model.base_params.f,
             }
         elif self.circuit_model.tech_model.model_cfg["model_type"] == "vs":
@@ -875,7 +879,8 @@ class HardwareModel:
                 "F_s": self.circuit_model.tech_model.param_db["F_s"],
                 "vx0": self.circuit_model.tech_model.param_db["vx0"],
                 "v": self.circuit_model.tech_model.param_db["v"],
-                "f": self.circuit_model.tech_model.param_db["f"],
+                "clk_period": self.circuit_model.tech_model.base_params.clk_period,
+                #"f": self.circuit_model.tech_model.base_params.f,
                 "parasitic capacitance": self.circuit_model.tech_model.param_db["parasitic capacitance"],
                 "k_gate": self.circuit_model.tech_model.param_db["k_gate"],
             }
@@ -925,6 +930,7 @@ class HardwareModel:
             "vx0": "virtual source injection velocity over generations (m/s)",
             "v": "effective injection velocity over generations (m/s)",
             "t_1": "T1 over generations (s)",
+            "clk_period": "Clock Period over generations (ns)",
             "f": "Frequency over generations (Hz)",
             "parasitic capacitance": "Parasitic Capacitance over generations (F)",
             "L_ov": "L_ov over generations (m)",

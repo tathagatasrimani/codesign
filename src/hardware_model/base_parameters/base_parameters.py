@@ -23,6 +23,8 @@ class BaseParameters:
 
         self.node_arrivals_end = symbols("node_arrivals_end", positive=True)
 
+        # leaving both clk_period and f in here for flexibility, but only one of them will be used.
+        self.clk_period = symbols("clk_period", positive=True)
         self.f = symbols("f", positive=True)
 
         # Logic parameters
@@ -275,6 +277,7 @@ class BaseParameters:
             "node_arrivals_end": self.node_arrivals_end,
             "V_dd": self.V_dd,
             "V_th": self.V_th,
+            "clk_period": self.clk_period,
             "f": self.f,
             "u_n": self.u_n,
             "tox": self.tox,

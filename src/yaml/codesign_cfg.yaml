@@ -6,7 +6,7 @@ default:
     parasitics: estimation
     openroad_testfile: codesign_top.tcl ## the file must be in the openroad_interface/tcl/ folder.
     num_iters: 10
-    area: 10000000
+    area: 1000000
     no_memory: True
     debug_no_cacti: False
     logic_node: 7

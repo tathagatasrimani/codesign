@@ -37,8 +37,6 @@ class DennardMultiCore:
         self.num_inverters = 1e5
         self.utilization = 0.02
         self.num_switches_per_inverter = 1e4
-        self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values[self.codesign_module.hw.circuit_model.tech_model.base_params.f] = 100e6
-        self.cycle_time = 1e9/self.codesign_module.hw.circuit_model.tech_model.base_params.f # ns
         self.calculate_objective()
         self.codesign_module.hw.save_obj_vals()
         self.codesign_module.display_objective("after forward pass")
@@ -54,7 +52,7 @@ class DennardMultiCore:
 
         self.codesign_module.display_objective("before inverse pass")
 
-        self.disabled_knobs = [self.codesign_module.hw.circuit_model.tech_model.base_params.f, self.codesign_module.hw.circuit_model.tech_model.base_params.u_n]
+        self.disabled_knobs = [self.codesign_module.hw.circuit_model.tech_model.base_params.clk_period, self.codesign_module.hw.circuit_model.tech_model.base_params.u_n]
         if k_gate_disabled:
             self.disabled_knobs.append(self.codesign_module.hw.circuit_model.tech_model.base_params.k_gate)
 

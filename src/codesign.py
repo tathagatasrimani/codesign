@@ -30,7 +30,7 @@ from src.forward_pass.vitis_parse_verbose_rpt import parse_verbose_rpt
 from src.forward_pass.vitis_merge_netlists import merge_netlists_vitis
 from src.forward_pass.vitis_create_cdfg import create_cdfg_vitis
 from src import trend_plot
-
+import time
 from test import checkpoint_controller
 
 DEBUG_YOSYS = False  # set to True to debug yosys output.
@@ -429,13 +429,14 @@ class Codesign:
             self.max_dsp = dsp_usage
             self.max_latency = latency
         elif iteration_count == 0:
-            self.hw.circuit_model.tech_model.max_speedup_factor = latency / self.max_latency
-            self.hw.circuit_model.tech_model.max_area_increase_factor = self.max_dsp / dsp_usage
-            self.hw.circuit_model.tech_model.init_scale_factors(self.hw.circuit_model.tech_model.max_speedup_factor, self.hw.circuit_model.tech_model.max_area_increase_factor)
+            self.max_speedup_factor = float(latency / self.max_latency)
+            self.max_area_increase_factor = float(self.max_dsp / dsp_usage)
         if not setup:
             self.checkpoint_controller.check_end_checkpoint("scalehls")
         if setup: # setup step ends here, don't need to run rest of forward pass
             return
+
+        self.hw.circuit_model.tech_model.init_scale_factors(self.max_speedup_factor, self.max_area_increase_factor)
 
         os.chdir(os.path.join(os.path.dirname(__file__), "..", save_dir))
         scale_hls_port_fix(f"{self.benchmark_name}.cpp", self.benchmark_name, self.cfg["args"]["pytorch"])
@@ -574,10 +575,12 @@ class Codesign:
         ## clear out the existing tmp benchmark directory and copy the benchmark files from the desired benchmark
         if iteration_count != 0 or self.cfg["args"]["checkpoint_start_step"] == "none":
             if os.path.exists(self.benchmark_dir):
-                shutil.rmtree(self.benchmark_dir, ignore_errors=True)
+                while os.path.exists(self.benchmark_dir):
+                    shutil.rmtree(self.benchmark_dir, ignore_errors=True)
+                    time.sleep(10)
             shutil.copytree(self.benchmark, self.benchmark_dir)
 
-        self.clk_period = 1/self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.f] * 1e9 # ns
+        self.clk_period = self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.clk_period] # ns
 
         if self.hls_tool == "catapult":
             sim_util.change_clk_period_in_script(f"{self.benchmark_dir}/scripts/common.tcl", self.clk_period, self.cfg["args"]["hls_tool"])
@@ -625,7 +628,7 @@ class Codesign:
                 break
         assert schedule_dir
         schedule_path = f"{self.benchmark_dir}/build/{schedule_dir}"
-        schedule_parser = schedule.gnt_schedule_parser(schedule_path, self.module_map, self.hw.circuit_model.circuit_values["latency"], self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.f])
+        schedule_parser = schedule.gnt_schedule_parser(schedule_path, self.module_map, self.hw.circuit_model.circuit_values["latency"], self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.clk_period])
         schedule_parser.parse()
         schedule_parser.convert(memories=self.hw.circuit_model.memories)
         self.hw.inst_name_map = schedule_parser.inst_name_map
@@ -791,7 +794,8 @@ class Codesign:
         f = open("src/tmp/ipopt_out.txt", "r")
         if not error:
             self.parse_output(f)
-            self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.clk_period] = float((1e9/self.hw.circuit_model.tech_model.base_params.f).subs(self.hw.circuit_model.tech_model.base_params.tech_values).evalf())
+
+        self.opt.evaluate_constraints(self.hw.circuit_model.tech_model.constraints, "after optimization")
         
         if self.hls_tool == "vitis":
             # need to update the tech_value for final node arrival time after optimization

@@ -10,8 +10,17 @@ import sympy as sp
 # custom
 from src.inverse_pass.preprocess import Preprocessor
 
+from src import sim_util
+
 
 multistart = False
+
+def log_info(msg, stage):
+    if stage == "before optimization":
+        print(msg)
+    elif stage == "after optimization":
+        logger.info(msg)
+
 
 class Optimizer:
     def __init__(self, hw):
@@ -19,6 +28,19 @@ class Optimizer:
         self.disabled_knobs = []
         self.objective_constraint_inds = []
         self.initial_alpha = None
+
+    def evaluate_constraints(self, constraints, stage):
+        for constraint in constraints:
+            value = "N/A"
+            log_info(f"constraint: {constraint}", stage)
+            if isinstance(constraint, sp.Ge):
+                value = sim_util.xreplace_safe(constraint.rhs - constraint.lhs, self.hw.circuit_model.tech_model.base_params.tech_values)
+            elif isinstance(constraint, sp.Le):
+                value = sim_util.xreplace_safe(constraint.lhs - constraint.rhs, self.hw.circuit_model.tech_model.base_params.tech_values)
+            log_info(f"constraint value: {value}", stage)
+            tol = 1e-3
+            if value > tol:
+                log_info(f"CONSTRAINT VIOLATED {stage}", stage)
 
     def create_constraints(self, improvement):
         # system level and objective constraints, and pull in tech model constraints
@@ -33,12 +55,15 @@ class Optimizer:
         for knob in self.disabled_knobs:
             constraints.append(sp.Eq(knob, knob.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values)))
         total_power = (self.hw.total_passive_energy + self.hw.total_active_energy) / self.hw.execution_time
-        constraints.append(total_power <= 150) # hard limit on power
+        constraints.append(total_power <= 1e-5) # hard limit on power
+        constraints.append(self.hw.circuit_model.tech_model.power_scale_current_iter <= 2)
 
         assert len(self.hw.circuit_model.tech_model.constraints) > 0, "tech model constraints are empty"
         constraints.extend(self.hw.circuit_model.tech_model.base_params.constraints)
         constraints.extend(self.hw.circuit_model.tech_model.constraints)
         constraints.extend(self.hw.circuit_model.constraints)
+
+        self.evaluate_constraints(constraints, "before optimization")
 
         #print(f"constraints: {constraints}")
         return constraints
