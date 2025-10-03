@@ -43,7 +43,6 @@ vitis_resnet_test:
   args:
     pytorch: True
     benchmark: resnet18
-    area: 1000000000
 
 vitis_jacobi_test:
   base_cfg: vitis_test

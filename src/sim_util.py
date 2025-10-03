@@ -282,7 +282,7 @@ def parse_output(f, hw):
     while i < len(lines) and lines[i].find("x") != 4:
         i += 1
     i += 2
-    print(f"mapping: {mapping}, max_ind: {max_ind}")
+    #print(f"mapping: {mapping}, max_ind: {max_ind}")
     for _ in range(max_ind):
         key = lines[i].split(":")[0].lstrip().rstrip()
         value = float(lines[i].split(":")[2][1:-1])
