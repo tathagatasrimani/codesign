@@ -56,7 +56,7 @@ class Optimizer:
             constraints.append(sp.Eq(knob, knob.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values)))
         total_power = (self.hw.total_passive_energy + self.hw.total_active_energy) / self.hw.execution_time
         constraints.append(total_power <= 1e-5) # hard limit on power
-        constraints.append(self.hw.circuit_model.tech_model.power_scale_current_iter <= 2)
+        constraints.append(self.hw.circuit_model.tech_model.power_scale_current_iter <= 10)
 
         assert len(self.hw.circuit_model.tech_model.constraints) > 0, "tech model constraints are empty"
         constraints.extend(self.hw.circuit_model.tech_model.base_params.constraints)
