@@ -100,6 +100,7 @@ class HardwareModel:
         self.inst_name_map = {}
         self.dfg_to_netlist_map = {}
         self.dfg_to_netlist_edge_map = {}
+        self.constraints = []
 
     def reset_state(self):
         self.symbolic_buf = {}
@@ -119,6 +120,7 @@ class HardwareModel:
         self.inst_name_map = {}
         self.dfg_to_netlist_map = {}
         self.dfg_to_netlist_edge_map = {}
+        self.constraints = []
 
     def write_technology_parameters(self, filename):
         params = {
@@ -715,7 +717,7 @@ class HardwareModel:
                 log_info(f"pred_delay_cvx: {pred_delay_cvx}")
                 log_info(f"pred_delay: {pred_delay}")
                 assert pred_delay_cvx is not None and not isinstance(pred_delay_cvx, sp.Expr), f"pred_delay_cvx is {pred_delay_cvx}, type: {type(pred_delay_cvx)}"
-                self.circuit_model.tech_model.constraints.append(self.node_arrivals[basic_block_name][graph_type][node] >= self.node_arrivals[basic_block_name][graph_type][pred] + pred_delay)
+                self.constraints.append(self.node_arrivals[basic_block_name][graph_type][node] >= self.node_arrivals[basic_block_name][graph_type][pred] + pred_delay)
 
                 log_info(f"constraint: {self.node_arrivals[basic_block_name][graph_type][node] >= self.node_arrivals[basic_block_name][graph_type][pred] + pred_delay}")
                 self.constr_cvx.append(self.node_arrivals_cvx[basic_block_name][graph_type][node] >= self.node_arrivals_cvx[basic_block_name][graph_type][pred] + pred_delay_cvx)
@@ -754,7 +756,7 @@ class HardwareModel:
                         pred_delay = self.circuit_model.symbolic_latency_wc[self.scheduled_dfg.nodes[pred]["function"]]()
                     if (pred, node) in self.dfg_to_netlist_edge_map:
                         pred_delay += self.circuit_model.wire_delay(self.dfg_to_netlist_edge_map[(pred, node)], symbolic)
-                    self.circuit_model.tech_model.constraints.append(node_arrivals[node] >= node_arrivals[pred] + pred_delay)
+                    self.constraints.append(node_arrivals[node] >= node_arrivals[pred] + pred_delay)
                     constr_cvx.append(node_arrivals_cvx[node] >= node_arrivals_cvx[pred] + sim_util.xreplace_safe(pred_delay, self.circuit_model.tech_model.base_params.tech_values))
             obj = node_arrivals_cvx["end"]
             prob = cp.Problem(cp.Minimize(obj), constr_cvx)
@@ -961,6 +963,7 @@ class HardwareModel:
             raise ValueError(f"Objective function {self.obj_fn} not supported")
     
     def calculate_objective(self):
+        self.constraints = []
         if self.hls_tool == "vitis":
             self.execution_time = self.calculate_execution_time_vitis(self.top_block_name)
             self.total_passive_energy = self.calculate_passive_power_vitis(self.execution_time)

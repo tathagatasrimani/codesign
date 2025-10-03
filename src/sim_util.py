@@ -255,3 +255,40 @@ def svg_plot(G, filename, extra_edges=None):
     # Save the figure as SVG
     plt.savefig(filename, format='svg')
     plt.close()
+
+def parse_output(f, hw):
+    """
+    Parses the output file from the optimizer in the inverse pass, mapping variable names to
+    technology parameters and updating them accordingly.
+
+    Args:
+        f (file-like): Opened file object containing the output to parse.
+
+    Returns:
+        None
+    """
+    lines = f.readlines()
+    mapping = {}
+    max_ind = 0
+    i = 0
+    while lines[i][0] != "x":
+        i += 1
+    while lines[i][0] == "x":
+        mapping[lines[i][lines[i].find("[") + 1 : lines[i].find("]")]] = (
+            hw.circuit_model.tech_model.base_params.symbol_table[lines[i].split(" ")[-1][:-1]]
+        )
+        max_ind = int(lines[i][lines[i].find("[") + 1 : lines[i].find("]")])
+        i += 1
+    while i < len(lines) and lines[i].find("x") != 4:
+        i += 1
+    i += 2
+    print(f"mapping: {mapping}, max_ind: {max_ind}")
+    for _ in range(max_ind):
+        key = lines[i].split(":")[0].lstrip().rstrip()
+        value = float(lines[i].split(":")[2][1:-1])
+        if key in mapping:
+            #print(f"key: {key}; mapping: {mapping[key]}; value: {value}")
+            hw.circuit_model.tech_model.base_params.tech_values[mapping[key]] = (
+                value
+            )
+        i += 1

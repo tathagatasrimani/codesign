@@ -18,7 +18,7 @@ class Preprocessor:
     mapping between symbolic and Pyomo variables, applies constraints, and manages substitutions for
     technology parameters.
     """
-    def __init__(self, params):
+    def __init__(self, params, out_file="src/tmp/solver_out.txt"):
         """
         Initialize the Preprocessor instance, setting up mappings, initial values, and constraint sets.
         """
@@ -39,6 +39,7 @@ class Preprocessor:
         self.pow_subs = {}
         self.exp_subs = {}
         self.regularization = 0
+        self.out_file = out_file
 
     def make_pow_constraint(self, model, i):
         """
@@ -174,6 +175,27 @@ class Preprocessor:
     def get_solver(self):
         if self.multistart:
             opt = SolverFactory("multistart")
+            # Configure multistart solver options using the solve() method parameters
+            # These will be passed when solve() is called
+            self.multistart_options = {
+                "solver": "ipopt",
+                "iterations": 10,  # Number of multistart iterations
+                "strategy": "rand_guess_and_bound",  # Restart strategy: rand, midpoint_guess_and_bound, etc.
+                "stopping_mass": 0.5,  # For high confidence stopping rule
+                "stopping_delta": 0.5,  # For high confidence stopping rule
+                "suppress_unbounded_warning": False,
+                "HCS_max_iterations": 1000,  # Max iterations for high confidence stopping
+                "HCS_tolerance": 0,  # Tolerance for HCS objective value equality
+                "solver_args": {
+                    "options": {
+                        "print_level": 5, 
+                        "print_info_string": "yes",
+                        "output_file": self.out_file,
+                        "wantsol": 2,
+                        "max_iter": 100
+                    }
+                }
+            }
         else:
             opt = SolverFactory("ipopt")
             opt.options["warm_start_init_point"] = "yes"
@@ -190,9 +212,10 @@ class Preprocessor:
             #opt.options["bound_relax_factor"] = 0
             opt.options["max_iter"] = 500
             opt.options["print_info_string"] = "yes"
-            opt.options["output_file"] = "src/tmp/solver_out.txt"
+            opt.options["output_file"] = self.out_file
             opt.options["wantsol"] = 2
             opt.options["halt_on_ampl_error"] = "yes"
+        print(f"output file: {self.out_file}")
         return opt
 
     def create_scaling(self, model):
@@ -277,4 +300,8 @@ class Preprocessor:
             "contrib.constraints_to_var_bounds"
         ).create_using(model)
         opt = self.get_solver()
-        return opt, scaled_preproc_model, preproc_model    
+        # Return both the solver and the options for multistart
+        if self.multistart:
+            return opt, scaled_preproc_model, preproc_model, getattr(self, 'multistart_options', {})
+        else:
+            return opt, scaled_preproc_model, preproc_model, {}    

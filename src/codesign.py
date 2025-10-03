@@ -659,43 +659,6 @@ class Codesign:
         if self.cfg["args"]["hls_tool"] == "catapult":
             # set end node's start time to longest path length
             self.hw.scheduled_dfg.nodes["end"]["start_time"] = nx.dag_longest_path_length(self.hw.scheduled_dfg)
-    
-    def parse_output(self, f):
-        """
-        Parses the output file from the optimizer in the inverse pass, mapping variable names to
-        technology parameters and updating them accordingly.
-
-        Args:
-            f (file-like): Opened file object containing the output to parse.
-
-        Returns:
-            None
-        """
-        lines = f.readlines()
-        mapping = {}
-        max_ind = 0
-        i = 0
-        while lines[i][0] != "x":
-            i += 1
-        while lines[i][0] == "x":
-            mapping[lines[i][lines[i].find("[") + 1 : lines[i].find("]")]] = (
-                self.hw.circuit_model.tech_model.base_params.symbol_table[lines[i].split(" ")[-1][:-1]]
-            )
-            max_ind = int(lines[i][lines[i].find("[") + 1 : lines[i].find("]")])
-            i += 1
-        while i < len(lines) and lines[i].find("x") != 4:
-            i += 1
-        i += 2
-        #print(f"mapping: {mapping}, max_ind: {max_ind}")
-        for _ in range(max_ind):
-            key = lines[i].split(":")[0].lstrip().rstrip()
-            value = float(lines[i].split(":")[2][1:-1])
-            if key in mapping:
-                #print(f"key: {key}; mapping: {mapping[key]}; value: {value}")
-                self.hw.circuit_model.tech_model.base_params.tech_values[mapping[key]] = (
-                    value
-                )
-            i += 1
 
     def write_back_params(self, params_path="src/yaml/params_current.yaml"):
         """
@@ -793,7 +756,7 @@ class Codesign:
         sys.stdout = stdout
         f = open("src/tmp/ipopt_out.txt", "r")
         if not error:
-            self.parse_output(f)
+            sim_util.parse_output(f, self.hw)
 
         self.opt.evaluate_constraints(self.hw.circuit_model.tech_model.constraints, "after optimization")
         

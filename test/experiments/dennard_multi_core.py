@@ -63,7 +63,7 @@ class DennardMultiCore:
         sys.stdout = stdout
         f = open("src/tmp/ipopt_out.txt", "r")
         if not error:
-            self.codesign_module.parse_output(f)
+            sim_util.parse_output(f, self.codesign_module.hw)
 
         self.codesign_module.write_back_params()
         print(f"inverse pass lag factor: {self.codesign_module.inverse_pass_lag_factor}")
