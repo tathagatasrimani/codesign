@@ -956,9 +956,11 @@ class HardwareModel:
             self.obj = self.execution_time
             self.obj_scaled = self.execution_time * self.circuit_model.tech_model.capped_delay_scale
         elif self.obj_fn == "energy":
-            print(f"setting energy objective to {self.total_active_energy + self.total_passive_energy}")
             self.obj = self.total_active_energy + self.total_passive_energy
             self.obj_scaled = (self.total_active_energy + self.total_passive_energy * self.circuit_model.tech_model.capped_power_scale)
+        elif self.obj_fn == "eplusd":
+            self.obj = (self.total_active_energy + self.total_passive_energy) * sim_util.xreplace_safe(self.execution_time, self.circuit_model.tech_model.base_params.tech_values) + self.execution_time * sim_util.xreplace_safe(self.total_active_energy + self.total_passive_energy, self.circuit_model.tech_model.base_params.tech_values)
+            self.obj_scaled = self.obj * self.circuit_model.tech_model.capped_delay_scale * self.circuit_model.tech_model.capped_power_scale
         else:
             raise ValueError(f"Objective function {self.obj_fn} not supported")
     
@@ -974,3 +976,13 @@ class HardwareModel:
             self.total_passive_energy = self.calculate_passive_energy(self.execution_time, symbolic=True)
             self.total_active_energy = self.calculate_active_energy(symbolic=True)
         self.save_obj_vals()
+    
+    def display_objective(self, message):
+        obj = float(self.obj.xreplace(self.circuit_model.tech_model.base_params.tech_values))
+        sub_exprs = {}
+        for key in self.obj_sub_exprs:
+            if not isinstance(self.obj_sub_exprs[key], float):
+                sub_exprs[key] = float(self.obj_sub_exprs[key].xreplace(self.circuit_model.tech_model.base_params.tech_values))
+            else:   
+                sub_exprs[key] = self.obj_sub_exprs[key]
+        print(f"{message}\n {self.obj_fn}: {obj}, sub expressions: {sub_exprs}")

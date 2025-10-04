@@ -51,14 +51,14 @@ class Optimizer:
         self.objective_constraint_inds = [len(constraints)-1]
 
         # don't want a leakage-dominated design
-        constraints.append(self.hw.total_active_energy >= 2*self.hw.total_passive_energy)
+        constraints.append(self.hw.total_active_energy >= 2*self.hw.total_passive_energy*self.hw.circuit_model.tech_model.capped_power_scale)
         for knob in self.disabled_knobs:
             constraints.append(sp.Eq(knob, knob.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values)))
-        total_power = (self.hw.total_passive_energy + self.hw.total_active_energy) / self.hw.execution_time
-        constraints.append(total_power <= 1e-5) # hard limit on power
+        total_power = (self.hw.total_passive_energy*self.hw.circuit_model.tech_model.capped_power_scale + self.hw.total_active_energy) / self.hw.execution_time
+        constraints.append(total_power <= 150) # hard limit on power
         # ensure that forward pass can't add more than 10x parallelism in the next iteration. power scale is based on the amount we scale area down by,
         # because in the next forward pass we assume that much parallelism will be added, and therefore increase power
-        constraints.append(self.hw.circuit_model.tech_model.power_scale_current_iter <= 10)
+        constraints.append(self.hw.circuit_model.tech_model.capped_power_scale <= 10)
 
         assert len(self.hw.circuit_model.tech_model.constraints) > 0, "tech model constraints are empty"
         constraints.extend(self.hw.circuit_model.tech_model.base_params.constraints)
@@ -82,10 +82,10 @@ class Optimizer:
         return opt, scaled_model, model, multistart_options
     
     # can be used as a starting point for the optimizer
-    def generate_approximate_solution(self, improvement):
-        lower_bound = float(self.hw.circuit_model.tech_model.delay.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values) / improvement)
-        self.constraints = self.create_constraints(improvement, lower_bound, approx_problem=True)
+    def generate_approximate_solution(self, improvement, multistart=False):
         execution_time = self.hw.circuit_model.tech_model.delay_var
+        # passive energy consumption is dependent on execution time, so we need to recalculate it
+        self.hw.calculate_passive_power_vitis(execution_time)
         if self.hw.obj_fn == "edp":
             self.hw.obj = (self.hw.total_passive_energy + self.hw.total_active_energy) * execution_time
             self.hw.obj_scaled = (self.hw.total_passive_energy * self.hw.circuit_model.tech_model.capped_power_scale + self.hw.total_active_energy) * execution_time * self.hw.circuit_model.tech_model.capped_delay_scale
@@ -98,12 +98,17 @@ class Optimizer:
         elif self.hw.obj_fn == "energy":
             self.hw.obj = self.hw.total_active_energy + self.hw.total_passive_energy
             self.hw.obj_scaled = (self.hw.total_active_energy + self.hw.total_passive_energy * self.hw.circuit_model.tech_model.capped_power_scale)
+        elif self.hw.obj_fn == "eplusd":
+            self.hw.obj = (self.hw.total_active_energy + self.hw.total_passive_energy) * sim_util.xreplace_safe(execution_time, self.hw.circuit_model.tech_model.base_params.tech_values) + execution_time * sim_util.xreplace_safe(self.hw.total_active_energy + self.hw.total_passive_energy, self.hw.circuit_model.tech_model.base_params.tech_values)
+            self.hw.obj_scaled = self.hw.obj * self.hw.circuit_model.tech_model.capped_delay_scale * self.hw.circuit_model.tech_model.capped_power_scale
         else:
             raise ValueError(f"Objective function {self.hw.obj_fn} not supported")
+        lower_bound = sim_util.xreplace_safe(self.hw.obj_scaled, self.hw.circuit_model.tech_model.base_params.tech_values) / improvement
+        self.constraints = self.create_constraints(improvement, lower_bound, approx_problem=True)
         model = pyo.ConcreteModel()
         self.approx_preprocessor = Preprocessor(self.hw.circuit_model.tech_model.base_params, out_file="src/tmp/solver_out_approx.txt")
         opt, scaled_model, model, multistart_options = (
-            self.approx_preprocessor.begin(model, self.hw.obj_scaled, improvement, multistart=False, constraints=self.constraints)
+            self.approx_preprocessor.begin(model, self.hw.obj_scaled, improvement, multistart=multistart, constraints=self.constraints)
         )
         return opt, scaled_model, model, multistart_options
 
@@ -134,56 +139,63 @@ class Optimizer:
         start_time = time.time()
         num_solver_iterations = 0
         while num_solver_iterations < 10:
-            print("running approximate solver")
+            print("running approximate solver in iteration ", num_solver_iterations)
             stdout = sys.stdout
+            Error = False
             try:
                 with open("src/tmp/ipopt_out_approx.txt", "w") as f:
                     sys.stdout = f
-                    opt_approx, scaled_model_approx, model_approx, multistart_options_approx = self.generate_approximate_solution(improvement)
-                    results = opt_approx.solve(scaled_model_approx, symbolic_solver_labels=True)
+                    opt_approx, scaled_model_approx, model_approx, multistart_options_approx = self.generate_approximate_solution(improvement, multistart=(num_solver_iterations != 0))
+                    if multistart_options_approx:
+                        results = opt_approx.solve(scaled_model_approx, **multistart_options_approx)
+                    else:
+                        results = opt_approx.solve(scaled_model_approx, symbolic_solver_labels=True)
                     if results.solver.termination_condition == "optimal":
                         print("approximate solver found optimal solution, will update starting point")
                     pyo.TransformationFactory("core.scale_model").propagate_solution(
                         scaled_model_approx, model_approx
                     )
                     model_approx.display()
-            finally:
-                sys.stdout = stdout
-            f = open("src/tmp/ipopt_out_approx.txt", "r")
-            sim_util.parse_output(f, self.hw)
-            self.hw.calculate_objective()
-            print(f"tech params after approximate solver: {self.hw.circuit_model.tech_model.base_params.tech_values}")
-
-            print("running regular solver")
-            opt, scaled_model, model, multistart_options = self.create_opt_model(improvement, lower_bound)
-            Error = False
-            try:
-                # Pass multistart options if available
-                if multistart_options:
-                    print(f"Running multistart solver in iteration {num_solver_iterations}")
-                    # For multistart solver, only pass multistart-specific options
-                    results = opt.solve(scaled_model, **multistart_options)
-                else:
-                    print(f"Running regular solver in iteration {num_solver_iterations}")
-                    # For regular solver, pass Pyomo-specific options
-                    results = opt.solve(
-                        scaled_model, symbolic_solver_labels=True
-                    )
-                            
-                    #print("original ipopt failed, running multistart solver")
-                    #self.preprocessor.multistart = True
-                    #opt = self.preprocessor.get_solver()
-                    #multistart_options = self.preprocessor.multistart_options
-                    #opt, scaled_model, model, multistart_options = self.generate_approximate_solution()
-                    #print(f"Running multistart solver in iteration {num_solver_iterations}")
-                    #results = opt.solve(scaled_model, **multistart_options)
-
-                pyo.TransformationFactory("core.scale_model").propagate_solution(
-                    scaled_model, model
-                )
             except Exception as e:
                 print(f"Error: {e}")
                 Error = True
+            finally:
+                sys.stdout = stdout
+            if not Error:
+                f = open("src/tmp/ipopt_out_approx.txt", "r")
+                sim_util.parse_output(f, self.hw)
+                self.hw.calculate_objective()
+                self.hw.display_objective("after approximate solver")
+                print("running regular solver")
+                opt, scaled_model, model, multistart_options = self.create_opt_model(improvement, lower_bound)
+                Error = False
+                try:
+                    # Pass multistart options if available
+                    if multistart_options:
+                        print(f"Running multistart solver in iteration {num_solver_iterations}")
+                        # For multistart solver, only pass multistart-specific options
+                        results = opt.solve(scaled_model, **multistart_options)
+                    else:
+                        print(f"Running regular solver in iteration {num_solver_iterations}")
+                        # For regular solver, pass Pyomo-specific options
+                        results = opt.solve(
+                            scaled_model, symbolic_solver_labels=True
+                        )
+                                
+                        #print("original ipopt failed, running multistart solver")
+                        #self.preprocessor.multistart = True
+                        #opt = self.preprocessor.get_solver()
+                        #multistart_options = self.preprocessor.multistart_options
+                        #opt, scaled_model, model, multistart_options = self.generate_approximate_solution()
+                        #print(f"Running multistart solver in iteration {num_solver_iterations}")
+                        #results = opt.solve(scaled_model, **multistart_options)
+
+                    pyo.TransformationFactory("core.scale_model").propagate_solution(
+                        scaled_model, model
+                    )
+                except Exception as e:
+                    print(f"Error: {e}")
+                    Error = True
             if results.solver.termination_condition == "optimal":
                 print("solver found optimal solution")
                 break

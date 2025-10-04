@@ -192,7 +192,7 @@ class Preprocessor:
                         "print_info_string": "yes",
                         "output_file": self.out_file,
                         "wantsol": 2,
-                        "max_iter": 100
+                        "max_iter": 500
                     }
                 }
             }
@@ -210,7 +210,7 @@ class Preprocessor:
             # opt.options['print_level'] = 12
             # opt.options['nlp_scaling_method'] = 'none'
             #opt.options["bound_relax_factor"] = 0
-            opt.options["max_iter"] = 500
+            opt.options["max_iter"] = 1500
             opt.options["print_info_string"] = "yes"
             opt.options["output_file"] = self.out_file
             opt.options["wantsol"] = 2

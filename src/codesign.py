@@ -304,7 +304,8 @@ class Codesign:
         for i in range(len(df['dsp'].values)):
             if df['dsp'].values[i] <= self.cur_dsp_usage and os.path.exists(f"{read_dir}/{self.benchmark_name}_pareto_{i}.mlir"):
                 return f"{read_dir}/{self.benchmark_name}_pareto_{i}.mlir", i
-        raise Exception(f"No Pareto solution found for {self.benchmark_name} with dsp usage {self.cur_dsp_usage}")
+        #raise Exception(f"No Pareto solution found for {self.benchmark_name} with dsp usage {self.cur_dsp_usage}")
+        return f"{read_dir}/{self.benchmark_name}_pareto_{len(df['dsp'].values) - 1}.mlir", len(df['dsp'].values) - 1
 
     def parse_dsp_usage_and_latency(self, mlir_idx):
         df = pd.read_csv(f'''{os.path.join(os.path.dirname(__file__), "..", "src/tmp/benchmark_setup")}/{self.benchmark_name}_space.csv''')
@@ -605,7 +606,7 @@ class Codesign:
             print(f"max parallelism factor: {self.hw.circuit_model.tech_model.max_speedup_factor}")
             self.hw.circuit_model.tech_model.init_scale_factors(self.hw.circuit_model.tech_model.max_speedup_factor, self.hw.circuit_model.tech_model.max_area_increase_factor)"""
 
-        self.display_objective("after forward pass")
+        self.hw.display_objective("after forward pass")
 
         self.checkpoint_controller.check_end_checkpoint("pd")
         self.obj_over_iterations.append(sim_util.xreplace_safe(self.hw.obj, self.hw.circuit_model.tech_model.base_params.tech_values))
@@ -721,17 +722,6 @@ class Codesign:
         self.hw.save_symbolic_memories()
         self.hw.calculate_objective()
 
-    
-    def display_objective(self, message):
-        obj = float(self.hw.obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values))
-        sub_exprs = {}
-        for key in self.hw.obj_sub_exprs:
-            if not isinstance(self.hw.obj_sub_exprs[key], float):
-                sub_exprs[key] = float(self.hw.obj_sub_exprs[key].xreplace(self.hw.circuit_model.tech_model.base_params.tech_values))
-            else:   
-                sub_exprs[key] = self.hw.obj_sub_exprs[key]
-        print(f"{message}\n {self.obj_fn}: {obj}, sub expressions: {sub_exprs}")
-
 
     def inverse_pass(self):
         """
@@ -747,7 +737,7 @@ class Codesign:
         print("\nRunning Inverse Pass")
         logger.info("Running Inverse Pass")
         self.symbolic_conversion()
-        self.display_objective("after symbolic conversion")
+        self.hw.display_objective("after symbolic conversion")
 
         stdout = sys.stdout
         with open("src/tmp/ipopt_out.txt", "w") as sys.stdout:
@@ -766,7 +756,7 @@ class Codesign:
 
         self.write_back_params()
 
-        self.display_objective("after inverse pass")
+        self.hw.display_objective("after inverse pass")
 
         self.obj_over_iterations.append(self.hw.obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values))
         self.lag_factor_over_iterations.append(self.inverse_pass_lag_factor)

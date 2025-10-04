@@ -44,10 +44,15 @@ class TechModel(ABC):
         self.capped_delay_scale = symbolic_convex_max(self.max_delay_scale, 1 - self.latency_scale_slope * self.base_params.area_scale) # <= 1 (delay = delay_0 * capped_delay_scale)
         self.capped_power_scale = symbolic_min(self.max_area_increase_factor, self.base_params.area_scale) # >= 1 (power = power_0 * capped_power_scale)
 
-        area_scale_remaining = self.max_area_increase_factor / xreplace_safe(self.base_params.area_scale, self.base_params.tech_values)
+        area_scale_remaining = self.max_area_increase_factor / xreplace_safe(self.capped_power_scale, self.base_params.tech_values)
         cur_area_scale = xreplace_safe((self.base_params.W * self.base_params.L), self.base_params.tech_values)/(self.base_params.W * self.base_params.L)
-        self.power_scale_current_iter = symbolic_min(area_scale_remaining, cur_area_scale)
-        logger.info(f"max_speedup_factor: {self.max_speedup_factor}, max_area_increase_factor: {self.max_area_increase_factor}, area_scale_remaining: {area_scale_remaining}")
+        self.capped_power_scale = symbolic_min(area_scale_remaining, cur_area_scale)
+
+        delay_scale_remaining = self.max_delay_scale / xreplace_safe(self.capped_delay_scale, self.base_params.tech_values)
+        cur_latency_scale_slope = (1 - delay_scale_remaining) / (area_scale_remaining)
+        self.capped_delay_scale = symbolic_convex_max(self.max_delay_scale, 1 - cur_latency_scale_slope * cur_area_scale)
+        logger.info(f"max_speedup_factor: {self.max_speedup_factor}, max_area_increase_factor: {self.max_area_increase_factor}, area_scale_remaining: {area_scale_remaining}, delay_scale_remaining: {delay_scale_remaining}, cur_latency_scale_slope: {cur_latency_scale_slope}")
+
 
     @abstractmethod
     def init_tech_specific_constants(self):
