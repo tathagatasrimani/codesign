@@ -630,7 +630,7 @@ class HardwareModel:
         return total_passive_power * total_execution_time
 
 
-    def calculate_execution_time_vitis(self, top_block_name):
+    def calculate_execution_time_vitis(self, top_block_name, clk_period_opt=False):
         self.node_arrivals = {}
         self.node_arrivals_cvx = {}
         self.graph_delays = {}
@@ -646,6 +646,12 @@ class HardwareModel:
             self.node_arrivals_cvx[basic_block_name] = {"full": {}, "loop_1x": {}, "loop_2x": {}}
 
         self.graph_delays[top_block_name], self.graph_delays_cvx[top_block_name] = self.calculate_execution_time_vitis_recursive(top_block_name, self.scheduled_dfgs[top_block_name])
+
+        if not clk_period_opt:
+            self.constr_cvx.append(self.circuit_model.clk_period_cvx== self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.clk_period])
+        else:
+            self.circuit_model.create_constraints_cvx(self.scale_cvx)
+            self.constr_cvx.extend(self.circuit_model.constraints_cvx)
         for constr in self.constr_cvx:
             log_info(f"constraint final: {constr}")
         for node in self.node_arrivals_cvx[top_block_name]["full"]:
@@ -674,8 +680,9 @@ class HardwareModel:
                         log_info(f"node arrivals for {block_name} {graph_type} {node}: {self.node_arrivals_cvx[block_name][graph_type][node].value / self.scale_cvx}")
                     else:
                         log_info(f"node arrivals for {block_name} {graph_type} {node}: None")
-        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.node_arrivals_end] = self.graph_delays_cvx[top_block_name].value
-        return self.graph_delays[top_block_name]
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.node_arrivals_end] = self.graph_delays_cvx[top_block_name].value / self.scale_cvx
+        log_info(f"graph delay cvx for top block: {self.graph_delays_cvx[top_block_name].value / self.scale_cvx}")
+        return self.circuit_model.tech_model.base_params.node_arrivals_end
 
 
     def calculate_execution_time_vitis_recursive(self, basic_block_name, dfg, graph_end_node="graph_end", graph_type="full", resource_delays_only=False):
@@ -694,7 +701,7 @@ class HardwareModel:
                         pred_delay_cvx = delay_1x_cvx * (dfg.nodes[pred]["count"]-1)
                     else:
                         pred_delay = self.circuit_model.tech_model.base_params.clk_period # convert to ns
-                        pred_delay_cvx = self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.clk_period] * self.scale_cvx
+                        pred_delay_cvx = self.circuit_model.clk_period_cvx * self.scale_cvx
                 else:
                     # if function call, recursively calculate its delay 
                     if dfg.nodes[pred]["function"] == "Call":
@@ -885,6 +892,8 @@ class HardwareModel:
                 #"f": self.circuit_model.tech_model.base_params.f,
                 "parasitic capacitance": self.circuit_model.tech_model.param_db["parasitic capacitance"],
                 "k_gate": self.circuit_model.tech_model.param_db["k_gate"],
+                "delay": self.circuit_model.tech_model.delay,
+                "multiplier delay": self.circuit_model.symbolic_latency_wc["Mult"]()
             }
             if self.circuit_model.tech_model.model_cfg["vs_model_type"] == "base":
                 self.obj_sub_exprs["t_1"] = self.circuit_model.tech_model.param_db["t_1"]
@@ -945,29 +954,33 @@ class HardwareModel:
             "H_g": "CNT gate height over generations (m)",
             "k_cnt": "CNT Dielectric Constant over generations (F/m)",
             "k_gate": "Gate Dielectric Constant over generations (F/m)",
+            "delay": "Transistor Delay over generations (s)",
+            "multiplier delay": "Multiplier Delay over generations (s)",
         }
         if self.obj_fn == "edp":
             self.obj = (self.total_passive_energy + self.total_active_energy) * self.execution_time
-            self.obj_scaled = (self.total_passive_energy * self.circuit_model.tech_model.capped_power_scale + self.total_active_energy) * self.execution_time * self.circuit_model.tech_model.capped_delay_scale
+            self.obj_scaled = (self.total_passive_energy * self.circuit_model.tech_model.capped_energy_scale + self.total_active_energy) * self.execution_time * self.circuit_model.tech_model.capped_delay_scale
         elif self.obj_fn == "ed2":
             self.obj = (self.total_passive_energy + self.total_active_energy) * (self.execution_time)**2
-            self.obj_scaled = (self.total_passive_energy * self.circuit_model.tech_model.capped_power_scale + self.total_active_energy) * (self.execution_time * self.circuit_model.tech_model.capped_delay_scale)**2
+            self.obj_scaled = (self.total_passive_energy * self.circuit_model.tech_model.capped_energy_scale + self.total_active_energy) * (self.execution_time * self.circuit_model.tech_model.capped_delay_scale)**2
         elif self.obj_fn == "delay":
             self.obj = self.execution_time
             self.obj_scaled = self.execution_time * self.circuit_model.tech_model.capped_delay_scale
         elif self.obj_fn == "energy":
             self.obj = self.total_active_energy + self.total_passive_energy
-            self.obj_scaled = (self.total_active_energy + self.total_passive_energy * self.circuit_model.tech_model.capped_power_scale)
+            self.obj_scaled = (self.total_active_energy + self.total_passive_energy * self.circuit_model.tech_model.capped_energy_scale)
         elif self.obj_fn == "eplusd":
-            self.obj = (self.total_active_energy + self.total_passive_energy) * sim_util.xreplace_safe(self.execution_time, self.circuit_model.tech_model.base_params.tech_values) + self.execution_time * sim_util.xreplace_safe(self.total_active_energy + self.total_passive_energy, self.circuit_model.tech_model.base_params.tech_values)
-            self.obj_scaled = self.obj * self.circuit_model.tech_model.capped_delay_scale * self.circuit_model.tech_model.capped_power_scale
+            self.obj = ((self.total_active_energy + self.total_passive_energy) * sim_util.xreplace_safe(self.execution_time, self.circuit_model.tech_model.base_params.tech_values) 
+                        + self.execution_time * sim_util.xreplace_safe(self.total_active_energy + self.total_passive_energy, self.circuit_model.tech_model.base_params.tech_values))
+            self.obj_scaled = ((self.total_active_energy + self.total_passive_energy * self.circuit_model.tech_model.capped_energy_scale) * sim_util.xreplace_safe(self.execution_time, self.circuit_model.tech_model.base_params.tech_values) 
+                        + self.execution_time * self.circuit_model.tech_model.capped_delay_scale * sim_util.xreplace_safe(self.total_active_energy + self.total_passive_energy, self.circuit_model.tech_model.base_params.tech_values))
         else:
             raise ValueError(f"Objective function {self.obj_fn} not supported")
     
-    def calculate_objective(self):
+    def calculate_objective(self, clk_period_opt=False):
         self.constraints = []
         if self.hls_tool == "vitis":
-            self.execution_time = self.calculate_execution_time_vitis(self.top_block_name)
+            self.execution_time = self.calculate_execution_time_vitis(self.top_block_name, clk_period_opt)
             self.total_passive_energy = self.calculate_passive_power_vitis(self.execution_time)
             self.total_active_energy = self.calculate_active_energy_vitis()
         else: # catapult

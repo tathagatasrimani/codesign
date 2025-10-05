@@ -235,13 +235,14 @@ class Preprocessor:
         for i in range(len(constraints)):
             print(f"constraint {i}: {constraints[i]}")
             self.free_symbols.extend(constraints[i].free_symbols)
-        print(f"obj: {obj}")
         self.free_symbols = list(set(self.free_symbols))
 
         self.improvement = improvement
         self.constraints = constraints
 
         self.initial_val = float(obj.xreplace(self.params.tech_values))
+        print(f"obj: {obj}")
+        print(f"initial val: {self.initial_val}")
 
         print(f"length of free symbols: {len(self.free_symbols)}")
 

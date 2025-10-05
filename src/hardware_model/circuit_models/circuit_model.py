@@ -11,6 +11,7 @@ class CircuitModel:
     def __init__(self, tech_model):
         self.tech_model = tech_model
         self.constraints = []
+        self.constraints_cvx = []
 
         # hardcoded tech node to reference for logical effort coefficients
         self.coeffs = coefficients.create_and_save_coefficients([7])
@@ -166,7 +167,7 @@ class CircuitModel:
 
         self.update_circuit_values()
 
-        #self.set_uarch_parameters()
+        self.set_uarch_parameters()
 
         self.create_constraints()
     
@@ -330,7 +331,7 @@ class CircuitModel:
                         for layer in self.metal_layers]) * 1e9
         
     def make_sym_lat_wc(self, gamma):
-        return gamma * self.tech_model.delay_var
+        return gamma * self.tech_model.delay
     
     def make_buf_lat_dict(self):
         return self.tech_model.base_params.BufL
@@ -381,3 +382,9 @@ class CircuitModel:
                     # cycle limit to constrain the amount of pipelining
                     #self.constraints.append((self.symbolic_latency_wc[key]()* 1e-9) * self.tech_model.base_params.f <= 20) # num cycles <= 20 (cycles = time(s) * frequency(Hz))
                     self.constraints.append((self.symbolic_latency_wc[key]())<= 20*self.tech_model.base_params.clk_period) # num cycles <= 20 (cycles = time(s) * frequency(Hz))
+    
+    def create_constraints_cvx(self, scale_cvx):
+        self.constraints_cvx = []
+        for key in self.symbolic_latency_wc:
+            if key not in ["Buf", "MainMem", "OffChipIO", "Call", "N/A"]:
+                self.constraints_cvx.append((sim_util.xreplace_safe(self.symbolic_latency_wc[key](), self.tech_model.base_params.tech_values))<= 20*self.clk_period_cvx) # num cycles <= 20 (cycles = time(s) * frequency(Hz))

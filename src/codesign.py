@@ -744,9 +744,6 @@ class Codesign:
             lag_factor, error = self.opt.optimize("ipopt", improvement=self.inverse_pass_improvement)
             self.inverse_pass_lag_factor *= lag_factor
         sys.stdout = stdout
-        f = open("src/tmp/ipopt_out.txt", "r")
-        if not error:
-            sim_util.parse_output(f, self.hw)
 
         self.opt.evaluate_constraints(self.hw.circuit_model.tech_model.constraints, "after optimization")
         
@@ -774,9 +771,6 @@ class Codesign:
         )
         self.write_back_params(f"{self.save_dir}/tech_params_{iter_number}.yaml")
         shutil.copy("src/tmp/ipopt_out.txt", f"{self.save_dir}/ipopt_{iter_number}.txt")
-        shutil.copy(
-            "src/tmp/solver_out.txt", f"{self.save_dir}/solver_{iter_number}.txt"
-        )
         """for mem in self.hw.circuit_model.memories:
             shutil.copy(
                 f"src/tmp/cacti_exprs_{mem}.txt", f"{self.save_dir}/cacti_exprs_{mem}_{iter_number}.txt"

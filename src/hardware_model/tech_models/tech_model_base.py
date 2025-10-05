@@ -52,6 +52,7 @@ class TechModel(ABC):
         cur_latency_scale_slope = (1 - delay_scale_remaining) / (area_scale_remaining)
         self.capped_delay_scale = symbolic_convex_max(self.max_delay_scale, 1 - cur_latency_scale_slope * cur_area_scale)
         logger.info(f"max_speedup_factor: {self.max_speedup_factor}, max_area_increase_factor: {self.max_area_increase_factor}, area_scale_remaining: {area_scale_remaining}, delay_scale_remaining: {delay_scale_remaining}, cur_latency_scale_slope: {cur_latency_scale_slope}")
+        self.capped_energy_scale = self.capped_delay_scale * self.capped_power_scale
 
 
     @abstractmethod
