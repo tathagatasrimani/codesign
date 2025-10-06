@@ -131,8 +131,8 @@ class Optimizer:
         return c, a
 
     def generate_design_points(self, count, improvement):
-        #delay_factors = np.logspace(-1, 2, count)
-        delay_factors = [1]
+        #delay_factors = np.linspace(0.9, 1.1, count)
+        delay_factors = [1.0]
         tech_param_sets = []
         obj_vals = []
         original_tech_values = copy.deepcopy(self.hw.circuit_model.tech_model.base_params.tech_values)
@@ -143,21 +143,23 @@ class Optimizer:
                 sys.stdout = f
                 opt_approx, scaled_model_approx, model_approx, multistart_options_approx = self.generate_approximate_solution(improvement, delay_factors[i], i)
                 try:
-                    if multistart_options_approx:
-                        results = opt_approx.solve(scaled_model_approx, **multistart_options_approx)
-                    else:
-                        results = opt_approx.solve(scaled_model_approx, symbolic_solver_labels=True)
+                    results = opt_approx.solve(scaled_model_approx, symbolic_solver_labels=True)
                 except Exception as e:
                     print(f"Error: {e}")
                     Error = True
-                """# If first attempt failed, try with relaxed tolerances
-                if results.solver.termination_condition not in ["optimal", "acceptable"]:
-                    print(f"First solve attempt failed with {results.solver.termination_condition}, trying with relaxed tolerances...")
+                if results.solver.termination_condition not in ["optimal", "acceptable"] and delay_factors[i] == 1.0:
+                    print(f"First solve attempt failed with {results.solver.termination_condition}, trying again...")
+                    Error = False
+                    opt_approx, scaled_model_approx, model_approx, multistart_options_approx = self.generate_approximate_solution(improvement, delay_factors[i], i, multistart=True)
                     # Try with more relaxed tolerances
                     opt_approx.options["constr_viol_tol"] = 1e-4
                     opt_approx.options["acceptable_constr_viol_tol"] = 1e-2
                     opt_approx.options["acceptable_tol"] = 1e-4
-                    results = opt_approx.solve(scaled_model_approx, symbolic_solver_labels=True)"""
+                    try:
+                        results = opt_approx.solve(scaled_model_approx, **multistart_options_approx)
+                    except Exception as e:
+                        print(f"Error: {e}")
+                        Error = True
                 if results.solver.termination_condition in ["optimal", "acceptable"]:
                     print(f"approximate solver found {results.solver.termination_condition} solution in iteration {i}")
                     pyo.TransformationFactory("core.scale_model").propagate_solution(
