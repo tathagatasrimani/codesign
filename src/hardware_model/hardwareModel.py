@@ -627,6 +627,7 @@ class HardwareModel:
         for node, data in self.netlist.nodes(data=True):
             total_passive_power += self.circuit_model.symbolic_power_passive[data["function"]]()
             log_info(f"passive power for {node}: {self.circuit_model.symbolic_power_passive[data['function']]()}")
+        self.total_passive_power = total_passive_power
         return total_passive_power * total_execution_time
 
     def update_execution_time_vitis(self):
@@ -827,7 +828,6 @@ class HardwareModel:
                     passive_power += self.circuit_model.circuit_values["passive_power"][data["function"]]
                 log_info(f"(passive power) {data['function']}: {self.circuit_model.circuit_values['passive_power'][data['function']]}")
         total_passive_energy = passive_power * total_execution_time*1e-9
-        self.total_passive_power = passive_power
         return total_passive_energy
         
     def calculate_active_energy(self, symbolic):
