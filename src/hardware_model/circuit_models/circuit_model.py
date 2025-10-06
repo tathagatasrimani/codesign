@@ -188,23 +188,29 @@ class CircuitModel:
     def set_uarch_parameters(self):
         self.clk_period_cvx = cp.Variable(pos=True)
         self.clk_period_cvx.value = float(self.tech_model.base_params.clk_period.subs(self.tech_model.base_params.tech_values).evalf())
-        self.logic_delay_cvx = cp.Variable(pos=True)
+        self.logic_delay_cvx = cp.Parameter(pos=True)
         self.logic_delay_cvx.value = float(self.tech_model.delay.subs(self.tech_model.base_params.tech_values).evalf())
-        self.logic_energy_active_cvx = cp.Variable(pos=True)
+        self.logic_energy_active_cvx = cp.Parameter(pos=True)
         self.logic_energy_active_cvx.value = float(self.tech_model.E_act_inv.subs(self.tech_model.base_params.tech_values).evalf())
-        self.logic_power_passive_cvx = cp.Variable(pos=True)
+        self.logic_power_passive_cvx = cp.Parameter(pos=True)
         self.logic_power_passive_cvx.value = float(self.tech_model.P_pass_inv.subs(self.tech_model.base_params.tech_values).evalf())
 
         
         self.uarch_lat_cvx = {
             key: self.gamma[key]*self.logic_delay_cvx for key in self.gamma
         }
+        self.uarch_lat_cvx["N/A"] = 0
+        self.uarch_lat_cvx["Call"] = 0
         self.uarch_energy_active_cvx = {
             key: self.alpha[key]*self.logic_energy_active_cvx for key in self.alpha
         }
+        self.uarch_energy_active_cvx["N/A"] = 0
+        self.uarch_energy_active_cvx["Call"] = 0
         self.uarch_power_passive_cvx = {
             key: self.beta[key]*self.logic_power_passive_cvx for key in self.beta
         }
+        self.uarch_power_passive_cvx["N/A"] = 0
+        self.uarch_power_passive_cvx["Call"] = 0
         self.wire_unit_delay_cvx = {
             layer: cp.Variable(pos=True) for layer in self.metal_layers
         }
@@ -215,32 +221,10 @@ class CircuitModel:
             self.wire_unit_delay_cvx[layer].value = float((self.tech_model.wire_parasitics["R"][layer]*self.tech_model.wire_parasitics["C"][layer]).subs(self.tech_model.base_params.tech_values).evalf())
             self.wire_unit_energy_cvx[layer].value = float((0.5*self.tech_model.wire_parasitics["C"][layer]*self.tech_model.base_params.V_dd**2).subs(self.tech_model.base_params.tech_values).evalf())
 
-        self.logic_delay = sp.symbols("logic_delay")
-        self.tech_model.base_params.tech_values[self.logic_delay] = float(self.tech_model.delay.subs(self.tech_model.base_params.tech_values).evalf())
-        self.logic_energy_active = sp.symbols("logic_energy_active")
-        self.tech_model.base_params.tech_values[self.logic_energy_active] = float(self.tech_model.E_act_inv.subs(self.tech_model.base_params.tech_values).evalf())
-        self.logic_power_passive = sp.symbols("logic_power_passive")
-        self.tech_model.base_params.tech_values[self.logic_power_passive] = float(self.tech_model.P_pass_inv.subs(self.tech_model.base_params.tech_values).evalf())
-
-        self.uarch_lat = {
-            key: self.gamma[key]*self.logic_delay for key in self.gamma
-        }
-        self.uarch_energy_active = {
-            key: self.alpha[key]*self.logic_energy_active for key in self.alpha
-        }
-        self.uarch_power_passive = {
-            key: self.beta[key]*self.logic_power_passive for key in self.beta
-        }
-
-        self.wire_unit_delay = {
-            layer: sp.symbols(f"wire_unit_delay_{layer}") for layer in self.metal_layers
-        }
-        self.wire_unit_energy = {
-            layer: sp.symbols(f"wire_unit_energy_{layer}") for layer in self.metal_layers
-        }
-        for layer in self.metal_layers:
-            self.tech_model.base_params.tech_values[self.wire_unit_delay[layer]] = float((self.tech_model.wire_parasitics["R"][layer]*self.tech_model.wire_parasitics["C"][layer]).subs(self.tech_model.base_params.tech_values).evalf())
-            self.tech_model.base_params.tech_values[self.wire_unit_energy[layer]] = float((0.5*self.tech_model.wire_parasitics["C"][layer]*self.tech_model.base_params.V_dd**2).subs(self.tech_model.base_params.tech_values).evalf())
+    def update_uarch_parameters(self):
+        self.logic_delay_cvx.value = float(self.tech_model.delay.subs(self.tech_model.base_params.tech_values).evalf())
+        self.logic_energy_active_cvx.value = float(self.tech_model.E_act_inv.subs(self.tech_model.base_params.tech_values).evalf())
+        self.logic_power_passive_cvx.value = float(self.tech_model.P_pass_inv.subs(self.tech_model.base_params.tech_values).evalf())
 
     def set_memories(self, memories):
         self.memories = memories
@@ -304,6 +288,13 @@ class CircuitModel:
     def wire_delay_uarch(self, edge):
         return sum([self.wire_length_by_edge[edge][layer]**2 * 
                         self.wire_unit_delay[layer]
+                        if layer in self.wire_length_by_edge[edge]
+                        else 0
+                        for layer in self.metal_layers]) * 1e9
+    
+    def wire_delay_uarch_cvx(self, edge):
+        return sum([self.wire_length_by_edge[edge][layer]**2 * 
+                        self.wire_unit_delay_cvx[layer]
                         if layer in self.wire_length_by_edge[edge]
                         else 0
                         for layer in self.metal_layers]) * 1e9
@@ -387,4 +378,4 @@ class CircuitModel:
         self.constraints_cvx = []
         for key in self.symbolic_latency_wc:
             if key not in ["Buf", "MainMem", "OffChipIO", "Call", "N/A"]:
-                self.constraints_cvx.append((sim_util.xreplace_safe(self.symbolic_latency_wc[key](), self.tech_model.base_params.tech_values))<= 20*self.clk_period_cvx) # num cycles <= 20 (cycles = time(s) * frequency(Hz))
+                self.constraints_cvx.append(self.uarch_lat_cvx[key]<= 20*self.clk_period_cvx) # num cycles <= 20 (cycles = time(s) * frequency(Hz))

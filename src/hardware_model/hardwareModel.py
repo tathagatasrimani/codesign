@@ -629,36 +629,22 @@ class HardwareModel:
             log_info(f"passive power for {node}: {self.circuit_model.symbolic_power_passive[data['function']]()}")
         return total_passive_power * total_execution_time
 
-
-    def calculate_execution_time_vitis(self, top_block_name, clk_period_opt=False):
-        self.node_arrivals = {}
-        self.node_arrivals_cvx = {}
-        self.graph_delays = {}
-        self.graph_delays_cvx = {}
-        self.constr_cvx = []
-
-        self.scale_cvx = 1e-6
-
-        log_info(f"scheduled dfgs: {self.scheduled_dfgs.keys()}")
-
-        for basic_block_name in self.scheduled_dfgs:
-            self.node_arrivals[basic_block_name] = {"full": {}, "loop_1x": {}, "loop_2x": {}}
-            self.node_arrivals_cvx[basic_block_name] = {"full": {}, "loop_1x": {}, "loop_2x": {}}
-
-        self.graph_delays[top_block_name], self.graph_delays_cvx[top_block_name] = self.calculate_execution_time_vitis_recursive(top_block_name, self.scheduled_dfgs[top_block_name])
-
-        if not clk_period_opt:
-            self.constr_cvx.append(self.circuit_model.clk_period_cvx== self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.clk_period])
-        else:
-            self.circuit_model.create_constraints_cvx(self.scale_cvx)
-            self.constr_cvx.extend(self.circuit_model.constraints_cvx)
-        for constr in self.constr_cvx:
-            log_info(f"constraint final: {constr}")
-        for node in self.node_arrivals_cvx[top_block_name]["full"]:
-            log_info(f"node arrivals cvx var for {top_block_name} full {node}: {self.node_arrivals_cvx[top_block_name]['full'][node]}")
-        prob = cp.Problem(cp.Minimize(self.graph_delays_cvx[top_block_name]), self.constr_cvx)
+    def update_execution_time_vitis(self):
+        start_time = time.time()
+        self.circuit_model.update_uarch_parameters()
+        self.circuit_model.create_constraints_cvx(self.scale_cvx)
+        for constr in self.circuit_model.constraints_cvx:
+            log_info(f"clock period constraint final: {constr}")
+        logger.info(f"time to create constraints cvx: {time.time()-start_time}")
+        start_time = time.time()
+        prob = cp.Problem(cp.Minimize(self.graph_delays_cvx[self.top_block_name]), self.constr_cvx+self.circuit_model.constraints_cvx)
         prob.solve()
-        for block_name in self.graph_delays:
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.node_arrivals_end] = self.graph_delays_cvx[self.top_block_name].value / self.scale_cvx
+        logger.info(f"time to update execution time with cvxpy: {time.time()-start_time}")
+        return self.circuit_model.tech_model.base_params.node_arrivals_end
+
+    def update_state_after_cvxpy_solve(self):
+        """for block_name in self.graph_delays:
             for node in self.node_arrivals[block_name]["full"]:
                 if self.node_arrivals_cvx[block_name]["full"][node].value is not None:
                     self.circuit_model.tech_model.base_params.tech_values[self.node_arrivals[block_name]["full"][node]] = self.node_arrivals_cvx[block_name]["full"][node].value / self.scale_cvx
@@ -679,56 +665,99 @@ class HardwareModel:
                     if self.node_arrivals_cvx[block_name][graph_type][node].value is not None:
                         log_info(f"node arrivals for {block_name} {graph_type} {node}: {self.node_arrivals_cvx[block_name][graph_type][node].value / self.scale_cvx}")
                     else:
-                        log_info(f"node arrivals for {block_name} {graph_type} {node}: None")
-        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.node_arrivals_end] = self.graph_delays_cvx[top_block_name].value / self.scale_cvx
-        log_info(f"graph delay cvx for top block: {self.graph_delays_cvx[top_block_name].value / self.scale_cvx}")
+                        log_info(f"node arrivals for {block_name} {graph_type} {node}: None")"""
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.node_arrivals_end] = self.graph_delays_cvx[self.top_block_name].value / self.scale_cvx
+        log_info(f"graph delay cvx for top block: {self.graph_delays_cvx[self.top_block_name].value / self.scale_cvx}")
+
+
+    def calculate_execution_time_vitis(self, top_block_name, clk_period_opt=False, form_dfg=True):
+        if not form_dfg:
+            return self.update_execution_time_vitis()
+        self.circuit_model.update_uarch_parameters()
+        #self.node_arrivals = {}
+        self.node_arrivals_cvx = {}
+        self.graph_delays = {}
+        self.graph_delays_cvx = {}
+        self.constr_cvx = []
+
+        self.scale_cvx = 1e-6
+
+        log_info(f"scheduled dfgs: {self.scheduled_dfgs.keys()}")
+        start_time = time.time()
+
+        for basic_block_name in self.scheduled_dfgs:
+            #self.node_arrivals[basic_block_name] = {"full": {}, "loop_1x": {}, "loop_2x": {}}
+            self.node_arrivals_cvx[basic_block_name] = {"full": {}, "loop_1x": {}, "loop_2x": {}}
+
+        self.graph_delays_cvx[top_block_name] = self.calculate_execution_time_vitis_recursive(top_block_name, self.scheduled_dfgs[top_block_name])
+
+        if not clk_period_opt:
+            clk_period_constr = [self.circuit_model.clk_period_cvx== self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.clk_period]]
+        else:
+            self.circuit_model.create_constraints_cvx(self.scale_cvx)
+            clk_period_constr = self.circuit_model.constraints_cvx
+        for constr in self.constr_cvx:
+            log_info(f"constraint final: {constr}")
+        for constr in clk_period_constr:
+            log_info(f"clock period constraint final: {constr}")
+        for node in self.node_arrivals_cvx[top_block_name]["full"]:
+            log_info(f"node arrivals cvx var for {top_block_name} full {node}: {self.node_arrivals_cvx[top_block_name]['full'][node]}")
+        logger.info(f"time to create cvxpy problem: {time.time()-start_time}")
+        start_time = time.time()
+        prob = cp.Problem(cp.Minimize(self.graph_delays_cvx[top_block_name]), self.constr_cvx+clk_period_constr)
+        prob.solve()
+        logger.info(f"time to solve cvxpy problem: {time.time()-start_time}")
+        self.update_state_after_cvxpy_solve()
         return self.circuit_model.tech_model.base_params.node_arrivals_end
 
 
     def calculate_execution_time_vitis_recursive(self, basic_block_name, dfg, graph_end_node="graph_end", graph_type="full", resource_delays_only=False):
         log_info(f"calculating execution time for {basic_block_name} with graph end node {graph_end_node}")
         for node in dfg.nodes:
-            self.node_arrivals[basic_block_name][graph_type][node] = sp.symbols(f"node_arrivals_{basic_block_name}_{graph_type}_{node}")
+            #self.node_arrivals[basic_block_name][graph_type][node] = sp.symbols(f"node_arrivals_{basic_block_name}_{graph_type}_{node}")
             self.node_arrivals_cvx[basic_block_name][graph_type][node] = cp.Variable(pos=True) 
         for node in dfg.nodes:   
             for pred in dfg.predecessors(node):
                 if dfg.edges[pred, node]["resource_edge"]:
                     if dfg.nodes[pred]["function"] == "II":
-                        delay_1x, delay_1x_cvx = self.calculate_execution_time_vitis_recursive(basic_block_name, self.loop_1x_graphs[basic_block_name], graph_end_node="loop_end_1x", graph_type="loop_1x", resource_delays_only=True)
+                        delay_1x_cvx = self.calculate_execution_time_vitis_recursive(basic_block_name, self.loop_1x_graphs[basic_block_name], graph_end_node="loop_end_1x", graph_type="loop_1x", resource_delays_only=True)
                         #delay_2x, delay_2x_cvx = self.calculate_execution_time_vitis_recursive(basic_block_name, self.loop_2x_graphs[basic_block_name], graph_end_node="loop_end_2x", graph_type="loop_2x")
                         # TODO add dependence of II on loop-carried dependency
-                        pred_delay = delay_1x * (dfg.nodes[pred]["count"]-1)
+                        #pred_delay = delay_1x * (dfg.nodes[pred]["count"]-1)
                         pred_delay_cvx = delay_1x_cvx * (dfg.nodes[pred]["count"]-1)
                     else:
-                        pred_delay = self.circuit_model.tech_model.base_params.clk_period # convert to ns
+                        #pred_delay = self.circuit_model.tech_model.base_params.clk_period # convert to ns
                         pred_delay_cvx = self.circuit_model.clk_period_cvx * self.scale_cvx
                 else:
                     # if function call, recursively calculate its delay 
                     if dfg.nodes[pred]["function"] == "Call":
                         if dfg.nodes[pred]["call_function"] not in self.graph_delays:
-                            self.graph_delays[dfg.nodes[pred]["call_function"]], self.graph_delays_cvx[dfg.nodes[pred]["call_function"]] = self.calculate_execution_time_vitis_recursive(dfg.nodes[pred]["call_function"], self.scheduled_dfgs[dfg.nodes[pred]["call_function"]])
-                        pred_delay = self.graph_delays[dfg.nodes[pred]["call_function"]]
+                            self.graph_delays_cvx[dfg.nodes[pred]["call_function"]] = self.calculate_execution_time_vitis_recursive(dfg.nodes[pred]["call_function"], self.scheduled_dfgs[dfg.nodes[pred]["call_function"]])
+                        #pred_delay = self.graph_delays[dfg.nodes[pred]["call_function"]]
                         pred_delay_cvx = self.graph_delays_cvx[dfg.nodes[pred]["call_function"]]
                     else:
                         if not resource_delays_only:
-                            pred_delay = self.circuit_model.symbolic_latency_wc[dfg.nodes[pred]["function"]]()
+                            #pred_delay = self.circuit_model.symbolic_latency_wc[dfg.nodes[pred]["function"]]()
+                            pred_delay_cvx = self.circuit_model.uarch_lat_cvx[dfg.nodes[pred]["function"]] * self.scale_cvx
                             if (pred, node) in self.dfg_to_netlist_edge_map:
-                                pred_delay += self.circuit_model.wire_delay(self.dfg_to_netlist_edge_map[(pred, node)])
+                                #pred_delay += self.circuit_model.wire_delay(self.dfg_to_netlist_edge_map[(pred, node)])
+                                pred_delay_cvx += self.circuit_model.wire_delay_uarch_cvx(self.dfg_to_netlist_edge_map[(pred, node)]) * self.scale_cvx
                                 log_info(f"added wire delay {self.circuit_model.wire_delay(self.dfg_to_netlist_edge_map[(pred, node)])} for edge {pred, node}")
                             else:
                                 log_info(f"no wire delay for edge {pred, node}")
-                            pred_delay_cvx = sim_util.xreplace_safe(pred_delay, self.circuit_model.tech_model.base_params.tech_values) * self.scale_cvx
+                            #pred_delay_cvx = sim_util.xreplace_safe(pred_delay, self.circuit_model.tech_model.base_params.tech_values) * self.scale_cvx
                         else:
-                            pred_delay = 0
+                            #pred_delay = 0
                             pred_delay_cvx = 0
                 log_info(f"pred_delay_cvx: {pred_delay_cvx}")
-                log_info(f"pred_delay: {pred_delay}")
+                #log_info(f"pred_delay: {pred_delay}")
                 assert pred_delay_cvx is not None and not isinstance(pred_delay_cvx, sp.Expr), f"pred_delay_cvx is {pred_delay_cvx}, type: {type(pred_delay_cvx)}"
-                self.constraints.append(self.node_arrivals[basic_block_name][graph_type][node] >= self.node_arrivals[basic_block_name][graph_type][pred] + pred_delay)
+                #self.constraints.append(self.node_arrivals[basic_block_name][graph_type][node] >= self.node_arrivals[basic_block_name][graph_type][pred] + pred_delay)
 
-                log_info(f"constraint: {self.node_arrivals[basic_block_name][graph_type][node] >= self.node_arrivals[basic_block_name][graph_type][pred] + pred_delay}")
+                #log_info(f"constraint: {self.node_arrivals[basic_block_name][graph_type][node] >= self.node_arrivals[basic_block_name][graph_type][pred] + pred_delay}")
                 self.constr_cvx.append(self.node_arrivals_cvx[basic_block_name][graph_type][node] >= self.node_arrivals_cvx[basic_block_name][graph_type][pred] + pred_delay_cvx)
-        return self.node_arrivals[basic_block_name][graph_type][graph_end_node], self.node_arrivals_cvx[basic_block_name][graph_type][graph_end_node]
+                log_info(f"constraint cvx: {self.node_arrivals_cvx[basic_block_name][graph_type][node] >= self.node_arrivals_cvx[basic_block_name][graph_type][pred] + pred_delay_cvx}")
+        return self.node_arrivals_cvx[basic_block_name][graph_type][graph_end_node]
 
     def calculate_execution_time(self, symbolic):
         if symbolic:
@@ -977,10 +1006,11 @@ class HardwareModel:
         else:
             raise ValueError(f"Objective function {self.obj_fn} not supported")
     
-    def calculate_objective(self, clk_period_opt=False):
+    def calculate_objective(self, clk_period_opt=False, form_dfg=True):
+        start_time = time.time()
         self.constraints = []
         if self.hls_tool == "vitis":
-            self.execution_time = self.calculate_execution_time_vitis(self.top_block_name, clk_period_opt)
+            self.execution_time = self.calculate_execution_time_vitis(self.top_block_name, clk_period_opt, form_dfg)
             self.total_passive_energy = self.calculate_passive_power_vitis(self.execution_time)
             self.total_active_energy = self.calculate_active_energy_vitis()
         else: # catapult
@@ -989,7 +1019,8 @@ class HardwareModel:
             self.total_passive_energy = self.calculate_passive_energy(self.execution_time, symbolic=True)
             self.total_active_energy = self.calculate_active_energy(symbolic=True)
         self.save_obj_vals()
-    
+        logger.info(f"time to calculate objective: {time.time()-start_time}")
+
     def display_objective(self, message):
         obj = float(self.obj.xreplace(self.circuit_model.tech_model.base_params.tech_values))
         sub_exprs = {}

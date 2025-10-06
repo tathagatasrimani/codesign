@@ -246,6 +246,7 @@ class Codesign:
         Returns:
             None
         """
+        start_time = time.time()
         self.set_resource_constraint_scalehls(unlimited=setup)
             
         ## get CWD
@@ -298,6 +299,7 @@ class Codesign:
 
         if p.returncode != 0:
             raise Exception(f"scaleHLS failed with error: {p.stderr}")
+        logger.info(f"time to run scaleHLS: {time.time()-start_time}")
 
     def parse_design_space_for_mlir(self, read_dir):
         df = pd.read_csv(f"{read_dir}/{self.benchmark_name}_space.csv")
@@ -329,6 +331,7 @@ class Codesign:
         logger.info(f"parse results dir: {parse_results_dir}")
 
         if self.checkpoint_controller.check_checkpoint("netlist", self.iteration_count):
+            start_time = time.time()
             ## Do preprocessing to the vitis data for the next scripts
             parse_verbose_rpt(f"{save_dir}/{self.benchmark_name}/solution1/.autopilot/db", parse_results_dir)
 
@@ -349,14 +352,15 @@ class Codesign:
             ## Merge the netlists recursivley through the module hierarchy to produce overall netlist
             logger.info("Recursivley merging vitis netlists")
             merge_netlists_vitis(parse_results_dir, self.vitis_top_function, allowed_functions_netlist)
-
             logger.info("Vitis netlist parsing complete")
+            logger.info(f"time to parse vitis netlist: {time.time()-start_time}")
         else:
             logger.info("Skipping Vitis netlist parsing")
 
         self.checkpoint_controller.check_end_checkpoint("netlist")
 
         if self.checkpoint_controller.check_checkpoint("schedule", self.iteration_count):
+            start_time = time.time()
             logger.info("Parsing Vitis schedule")
             schedule_parser = schedule_vitis.vitis_schedule_parser(save_dir, self.benchmark_name, self.vitis_top_function, self.clk_period, allowed_functions_schedule)
             
@@ -369,6 +373,7 @@ class Codesign:
             logger.info(f"loop 1x graphs: {self.hw.loop_1x_graphs}")
 
             logger.info("Vitis schedule parsing complete")
+            logger.info(f"time to parse vitis schedule: {time.time()-start_time}")
         else:
             for file in os.listdir(parse_results_dir):
                 if os.path.isdir(os.path.join(parse_results_dir, file)):
@@ -386,7 +391,9 @@ class Codesign:
         self.hw.netlist = nx.read_gml(f"{parse_results_dir}/{self.vitis_top_function}_full_netlist.gml")
 
         logger.info("Now calculating execution time of Vitis design with top function "+self.vitis_top_function)
+        start_time = time.time()
         execution_time = self.hw.calculate_execution_time_vitis(self.vitis_top_function)
+        logger.info(f"time to calculate execution time: {time.time()-start_time}")
         print(f"Execution time: {execution_time}")
 
         ## print the cwd
@@ -838,13 +845,17 @@ class Codesign:
         self.setup()
         self.checkpoint_controller.check_end_checkpoint("setup")
         while self.iteration_count < num_iters:
+            start_time = time.time()
             self.forward_pass(self.iteration_count, self.benchmark_dir)
             self.log_forward_tech_params()
             self.inverse_pass()
+            start_time_after_inverse_pass = time.time()
             self.hw.circuit_model.update_circuit_values()
             self.log_all_to_file(self.iteration_count)
             self.hw.reset_state()
             self.hw.reset_tech_model()
+            logger.info(f"time to update state after inverse pass iteration {self.iteration_count}: {time.time()-start_time_after_inverse_pass}")
+            logger.info(f"time to execute iteration {self.iteration_count}: {time.time()-start_time}")
             self.iteration_count += 1
         self.end_of_run_plots(self.obj_over_iterations, self.lag_factor_over_iterations, self.params_over_iterations)
 

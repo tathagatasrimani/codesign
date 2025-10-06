@@ -95,27 +95,25 @@ class Optimizer:
         self.hw.calculate_passive_power_vitis(execution_time)
         print(f"passive energy: {self.hw.total_passive_energy.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values)}")
         print(f"active energy: {self.hw.total_active_energy.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values)}")
-        """if self.hw.obj_fn == "edp":
-            self.hw.obj = (self.hw.total_passive_energy + self.hw.total_active_energy) * execution_time
-            self.hw.obj_scaled = (self.hw.total_passive_energy * self.hw.circuit_model.tech_model.capped_power_scale + self.hw.total_active_energy) * execution_time * self.hw.circuit_model.tech_model.capped_delay_scale
+        if self.hw.obj_fn == "edp":
+            self.hw.obj = (self.hw.total_passive_energy + self.hw.total_active_energy) * execution_time**delay_factor
+            self.hw.obj_scaled = (self.hw.total_passive_energy * self.hw.circuit_model.tech_model.capped_energy_scale + self.hw.total_active_energy) * execution_time**delay_factor * self.hw.circuit_model.tech_model.capped_delay_scale
         elif self.hw.obj_fn == "ed2":
-            self.hw.obj = (self.hw.total_passive_energy + self.hw.total_active_energy) * (execution_time)**2
-            self.hw.obj_scaled = (self.hw.total_passive_energy * self.hw.circuit_model.tech_model.capped_power_scale + self.hw.total_active_energy) * (execution_time * self.hw.circuit_model.tech_model.capped_delay_scale)**2
+            self.hw.obj = (self.hw.total_passive_energy + self.hw.total_active_energy) * (execution_time**delay_factor)**2
+            self.hw.obj_scaled = (self.hw.total_passive_energy * self.hw.circuit_model.tech_model.capped_energy_scale + self.hw.total_active_energy) * (execution_time ** delay_factor * self.hw.circuit_model.tech_model.capped_delay_scale)**2
         elif self.hw.obj_fn == "delay":
             self.hw.obj = execution_time
-            self.hw.obj_scaled = execution_time * self.hw.circuit_model.tech_model.capped_delay_scale
+            self.hw.obj_scaled = execution_time ** delay_factor * self.hw.circuit_model.tech_model.capped_delay_scale
         elif self.hw.obj_fn == "energy":
             self.hw.obj = self.hw.total_active_energy + self.hw.total_passive_energy
-            self.hw.obj_scaled = (self.hw.total_active_energy + self.hw.total_passive_energy * self.hw.circuit_model.tech_model.capped_power_scale)
+            self.hw.obj_scaled = (self.hw.total_active_energy + self.hw.total_passive_energy * self.hw.circuit_model.tech_model.capped_energy_scale)
         elif self.hw.obj_fn == "eplusd":
-            self.hw.obj = (self.hw.total_active_energy + self.hw.total_passive_energy) * sim_util.xreplace_safe(execution_time, self.hw.circuit_model.tech_model.base_params.tech_values) + execution_time * sim_util.xreplace_safe(self.hw.total_active_energy + self.hw.total_passive_energy, self.hw.circuit_model.tech_model.base_params.tech_values)
-            self.hw.obj_scaled = self.hw.obj * self.hw.circuit_model.tech_model.capped_delay_scale * self.hw.circuit_model.tech_model.capped_power_scale
-        else:
-            raise ValueError(f"Objective function {self.hw.obj_fn} not supported")"""
-        self.hw.obj = ((self.hw.total_active_energy + self.hw.total_passive_energy) * sim_util.xreplace_safe(execution_time, self.hw.circuit_model.tech_model.base_params.tech_values) + 
+            self.hw.obj = ((self.hw.total_active_energy + self.hw.total_passive_energy) * sim_util.xreplace_safe(execution_time, self.hw.circuit_model.tech_model.base_params.tech_values) + 
                         execution_time * sim_util.xreplace_safe(self.hw.total_active_energy + self.hw.total_passive_energy, self.hw.circuit_model.tech_model.base_params.tech_values) * delay_factor)
-        self.hw.obj_scaled = ((self.hw.total_active_energy + self.hw.total_passive_energy * self.hw.circuit_model.tech_model.capped_energy_scale) * sim_util.xreplace_safe(execution_time, self.hw.circuit_model.tech_model.base_params.tech_values) + 
-                        execution_time * self.hw.circuit_model.tech_model.capped_delay_scale * sim_util.xreplace_safe(self.hw.total_active_energy + self.hw.total_passive_energy, self.hw.circuit_model.tech_model.base_params.tech_values) * delay_factor)
+            self.hw.obj_scaled = ((self.hw.total_active_energy + self.hw.total_passive_energy * self.hw.circuit_model.tech_model.capped_energy_scale) * sim_util.xreplace_safe(execution_time, self.hw.circuit_model.tech_model.base_params.tech_values) + 
+                        execution_time * self.hw.circuit_model.tech_model.capped_delay_scale * sim_util.xreplace_safe(self.hw.total_active_energy + self.hw.total_passive_energy, self.hw.circuit_model.tech_model.base_params.tech_values) ** delay_factor)
+        else:
+            raise ValueError(f"Objective function {self.hw.obj_fn} not supported")
         print(f"obj: {self.hw.obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values)}, obj scaled: {self.hw.obj_scaled.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values)}")
         lower_bound = sim_util.xreplace_safe(self.hw.obj_scaled, self.hw.circuit_model.tech_model.base_params.tech_values) / improvement
         self.constraints = self.create_constraints(improvement, lower_bound, approx_problem=True)
@@ -176,7 +174,7 @@ class Optimizer:
                 print(f"scaled objective used in approximation is now: {self.hw.obj_scaled.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values)}")
                 print(f"objective used in approximation is now: {self.hw.obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values)}")
                 self.hw.circuit_model.update_circuit_values()
-                self.hw.calculate_objective(clk_period_opt=True)
+                self.hw.calculate_objective(clk_period_opt=True, form_dfg=False)
                 print(f"setting clk period to {self.hw.circuit_model.clk_period_cvx.value}")
                 self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.clk_period] = self.hw.circuit_model.clk_period_cvx.value
                 obj_vals.append(self.hw.obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values))
@@ -220,9 +218,9 @@ class Optimizer:
         print(f"obj vals: {obj_vals}")
         assert obj_vals[optimal_design_idx] < lower_bound * improvement, "no better design point found"
         self.hw.circuit_model.tech_model.base_params.tech_values = tech_param_sets[optimal_design_idx].copy()
-        self.hw.calculate_objective()
+        self.hw.calculate_objective(form_dfg=False)
 
-        logger.info(f"time to run IPOPT: {time.time()-start_time}")
+        logger.info(f"time to run optimization: {time.time()-start_time}")
 
         lag_factor = obj_vals[optimal_design_idx] / lower_bound
         print(f"lag factor: {lag_factor}")
