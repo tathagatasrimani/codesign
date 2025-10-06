@@ -97,13 +97,13 @@ class Optimizer:
         print(f"active energy: {self.hw.total_active_energy.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values)}")
         if self.hw.obj_fn == "edp":
             self.hw.obj = (self.hw.total_passive_energy + self.hw.total_active_energy) * execution_time**delay_factor
-            self.hw.obj_scaled = (self.hw.total_passive_energy * self.hw.circuit_model.tech_model.capped_energy_scale + self.hw.total_active_energy) * execution_time**delay_factor * self.hw.circuit_model.tech_model.capped_delay_scale
+            self.hw.obj_scaled = (self.hw.total_passive_energy * self.hw.circuit_model.tech_model.capped_energy_scale + self.hw.total_active_energy) * (execution_time**delay_factor) * self.hw.circuit_model.tech_model.capped_delay_scale
         elif self.hw.obj_fn == "ed2":
             self.hw.obj = (self.hw.total_passive_energy + self.hw.total_active_energy) * (execution_time**delay_factor)**2
-            self.hw.obj_scaled = (self.hw.total_passive_energy * self.hw.circuit_model.tech_model.capped_energy_scale + self.hw.total_active_energy) * (execution_time ** delay_factor * self.hw.circuit_model.tech_model.capped_delay_scale)**2
+            self.hw.obj_scaled = (self.hw.total_passive_energy * self.hw.circuit_model.tech_model.capped_energy_scale + self.hw.total_active_energy) * ((execution_time ** delay_factor) * self.hw.circuit_model.tech_model.capped_delay_scale)**2
         elif self.hw.obj_fn == "delay":
             self.hw.obj = execution_time
-            self.hw.obj_scaled = execution_time ** delay_factor * self.hw.circuit_model.tech_model.capped_delay_scale
+            self.hw.obj_scaled = (execution_time ** delay_factor) * self.hw.circuit_model.tech_model.capped_delay_scale
         elif self.hw.obj_fn == "energy":
             self.hw.obj = self.hw.total_active_energy + self.hw.total_passive_energy
             self.hw.obj_scaled = (self.hw.total_active_energy + self.hw.total_passive_energy * self.hw.circuit_model.tech_model.capped_energy_scale)
@@ -147,7 +147,7 @@ class Optimizer:
                 except Exception as e:
                     print(f"Error: {e}")
                     Error = True
-                if results.solver.termination_condition not in ["optimal", "acceptable"] and delay_factors[i] == 1.0:
+                if (Error or results.solver.termination_condition not in ["optimal", "acceptable"]) and delay_factors[i] == 1.0:
                     print(f"First solve attempt failed with {results.solver.termination_condition}, trying again...")
                     Error = False
                     opt_approx, scaled_model_approx, model_approx, multistart_options_approx = self.generate_approximate_solution(improvement, delay_factors[i], i, multistart=True)
