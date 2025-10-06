@@ -827,6 +827,7 @@ class HardwareModel:
                     passive_power += self.circuit_model.circuit_values["passive_power"][data["function"]]
                 log_info(f"(passive power) {data['function']}: {self.circuit_model.circuit_values['passive_power'][data['function']]}")
         total_passive_energy = passive_power * total_execution_time*1e-9
+        self.total_passive_power = passive_power
         return total_passive_energy
         
     def calculate_active_energy(self, symbolic):
@@ -856,12 +857,12 @@ class HardwareModel:
                 total_active_energy += wire_energy
         return total_active_energy
 
-    def save_obj_vals(self):
+    def save_obj_vals(self, execution_time):
         if self.model_cfg["model_type"] == "bulk_bsim4":
             self.obj_sub_exprs = {
-                "execution_time": self.execution_time,
-                "passive power": self.total_passive_energy/self.execution_time,
-                "active power": self.total_active_energy/self.execution_time,
+                "execution_time": execution_time,
+                "passive power": self.total_passive_energy/execution_time,
+                "active power": self.total_active_energy/execution_time,
                 "subthreshold leakage current": self.circuit_model.tech_model.I_sub,
                 "gate tunneling current": self.circuit_model.tech_model.I_tunnel,
                 "GIDL current": self.circuit_model.tech_model.I_GIDL,
@@ -874,9 +875,9 @@ class HardwareModel:
             }
         elif self.circuit_model.tech_model.model_cfg["model_type"] == "bulk":
             self.obj_sub_exprs = {
-                "execution_time": self.execution_time,
-                "passive power": self.total_passive_energy/self.execution_time,
-                "active power": self.total_active_energy/self.execution_time,
+                "execution_time": execution_time,
+                "passive power": self.total_passive_energy/execution_time,
+                "active power": self.total_active_energy/execution_time,
                 "subthreshold leakage current": self.circuit_model.tech_model.I_off,
                 "gate tunneling current": self.circuit_model.tech_model.I_tunnel,
                 "FN term": self.circuit_model.tech_model.FN_term,
@@ -890,9 +891,9 @@ class HardwareModel:
             }
         elif self.circuit_model.tech_model.model_cfg["model_type"] == "vs":
             self.obj_sub_exprs = {
-                "execution_time": self.execution_time,
-                "passive power": self.total_passive_energy/self.execution_time,
-                "active power": self.total_active_energy/self.execution_time,
+                "execution_time": execution_time,
+                "passive power": self.total_passive_energy/execution_time,
+                "active power": self.total_active_energy/execution_time,
                 "gate length": self.circuit_model.tech_model.param_db["L"],
                 "gate width": self.circuit_model.tech_model.param_db["W"],
                 "subthreshold leakage current": self.circuit_model.tech_model.param_db["I_sub"],
@@ -922,7 +923,8 @@ class HardwareModel:
                 "parasitic capacitance": self.circuit_model.tech_model.param_db["parasitic capacitance"],
                 "k_gate": self.circuit_model.tech_model.param_db["k_gate"],
                 "delay": self.circuit_model.tech_model.delay,
-                "multiplier delay": self.circuit_model.symbolic_latency_wc["Mult"]()
+                "multiplier delay": self.circuit_model.symbolic_latency_wc["Mult"](),
+                "scaled power": self.total_passive_power * self.circuit_model.tech_model.capped_power_scale_total + self.total_active_energy/(execution_time * self.circuit_model.tech_model.capped_delay_scale_total),
             }
             if self.circuit_model.tech_model.model_cfg["vs_model_type"] == "base":
                 self.obj_sub_exprs["t_1"] = self.circuit_model.tech_model.param_db["t_1"]
@@ -985,24 +987,25 @@ class HardwareModel:
             "k_gate": "Gate Dielectric Constant over generations (F/m)",
             "delay": "Transistor Delay over generations (s)",
             "multiplier delay": "Multiplier Delay over generations (s)",
+            "scaled power": "Scaled Power over generations (W)",
         }
         if self.obj_fn == "edp":
-            self.obj = (self.total_passive_energy + self.total_active_energy) * self.execution_time
-            self.obj_scaled = (self.total_passive_energy * self.circuit_model.tech_model.capped_energy_scale + self.total_active_energy) * self.execution_time * self.circuit_model.tech_model.capped_delay_scale
+            self.obj = (self.total_passive_energy + self.total_active_energy) * execution_time
+            self.obj_scaled = (self.total_passive_energy * self.circuit_model.tech_model.capped_energy_scale + self.total_active_energy) * execution_time * self.circuit_model.tech_model.capped_delay_scale
         elif self.obj_fn == "ed2":
-            self.obj = (self.total_passive_energy + self.total_active_energy) * (self.execution_time)**2
-            self.obj_scaled = (self.total_passive_energy * self.circuit_model.tech_model.capped_energy_scale + self.total_active_energy) * (self.execution_time * self.circuit_model.tech_model.capped_delay_scale)**2
+            self.obj = (self.total_passive_energy + self.total_active_energy) * (execution_time)**2
+            self.obj_scaled = (self.total_passive_energy * self.circuit_model.tech_model.capped_energy_scale + self.total_active_energy) * (execution_time * self.circuit_model.tech_model.capped_delay_scale)**2
         elif self.obj_fn == "delay":
-            self.obj = self.execution_time
-            self.obj_scaled = self.execution_time * self.circuit_model.tech_model.capped_delay_scale
+            self.obj = execution_time
+            self.obj_scaled = execution_time * self.circuit_model.tech_model.capped_delay_scale
         elif self.obj_fn == "energy":
             self.obj = self.total_active_energy + self.total_passive_energy
             self.obj_scaled = (self.total_active_energy + self.total_passive_energy * self.circuit_model.tech_model.capped_energy_scale)
         elif self.obj_fn == "eplusd":
-            self.obj = ((self.total_active_energy + self.total_passive_energy) * sim_util.xreplace_safe(self.execution_time, self.circuit_model.tech_model.base_params.tech_values) 
-                        + self.execution_time * sim_util.xreplace_safe(self.total_active_energy + self.total_passive_energy, self.circuit_model.tech_model.base_params.tech_values))
-            self.obj_scaled = ((self.total_active_energy + self.total_passive_energy * self.circuit_model.tech_model.capped_energy_scale) * sim_util.xreplace_safe(self.execution_time, self.circuit_model.tech_model.base_params.tech_values) 
-                        + self.execution_time * self.circuit_model.tech_model.capped_delay_scale * sim_util.xreplace_safe(self.total_active_energy + self.total_passive_energy, self.circuit_model.tech_model.base_params.tech_values))
+            self.obj = ((self.total_active_energy + self.total_passive_energy) * sim_util.xreplace_safe(execution_time, self.circuit_model.tech_model.base_params.tech_values) 
+                        + execution_time * sim_util.xreplace_safe(self.total_active_energy + self.total_passive_energy, self.circuit_model.tech_model.base_params.tech_values))
+            self.obj_scaled = ((self.total_active_energy + self.total_passive_energy * self.circuit_model.tech_model.capped_energy_scale) * sim_util.xreplace_safe(execution_time, self.circuit_model.tech_model.base_params.tech_values) 
+                        + execution_time * self.circuit_model.tech_model.capped_delay_scale * sim_util.xreplace_safe(self.total_active_energy + self.total_passive_energy, self.circuit_model.tech_model.base_params.tech_values))
         else:
             raise ValueError(f"Objective function {self.obj_fn} not supported")
     
@@ -1018,7 +1021,7 @@ class HardwareModel:
             self.execution_time = self.calculate_execution_time(symbolic=True)
             self.total_passive_energy = self.calculate_passive_energy(self.execution_time, symbolic=True)
             self.total_active_energy = self.calculate_active_energy(symbolic=True)
-        self.save_obj_vals()
+        self.save_obj_vals(self.execution_time)
         logger.info(f"time to calculate objective: {time.time()-start_time}")
 
     def display_objective(self, message):

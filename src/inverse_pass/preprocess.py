@@ -18,7 +18,7 @@ class Preprocessor:
     mapping between symbolic and Pyomo variables, applies constraints, and manages substitutions for
     technology parameters.
     """
-    def __init__(self, params, out_file="src/tmp/solver_out.txt"):
+    def __init__(self, params, out_file="src/tmp/solver_out.txt", solver_name="ipopt"):
         """
         Initialize the Preprocessor instance, setting up mappings, initial values, and constraint sets.
         """
@@ -40,6 +40,7 @@ class Preprocessor:
         self.exp_subs = {}
         self.regularization = 0
         self.out_file = out_file
+        self.solver_name = solver_name
 
     def make_pow_constraint(self, model, i):
         """
@@ -172,13 +173,13 @@ class Preprocessor:
         obj += l * self.regularization
         return obj
         
-    def get_solver(self):
+    def get_solver(self, solver_name):
         if self.multistart:
             opt = SolverFactory("multistart")
             # Configure multistart solver options using the solve() method parameters
             # These will be passed when solve() is called
             self.multistart_options = {
-                "solver": "ipopt",
+                "solver": solver_name,
                 "iterations": 10,  # Number of multistart iterations
                 "strategy": "rand_guess_and_bound",  # Restart strategy: rand, midpoint_guess_and_bound, etc.
                 "stopping_mass": 0.5,  # For high confidence stopping rule
@@ -196,7 +197,7 @@ class Preprocessor:
                     }
                 }
             }
-        else:
+        elif solver_name == "ipopt":
             opt = SolverFactory("ipopt")
             opt.options["warm_start_init_point"] = "yes"
             #opt.options['warm_start_bound_push'] = 1e-9
@@ -215,6 +216,10 @@ class Preprocessor:
             opt.options["output_file"] = self.out_file
             opt.options["wantsol"] = 2
             opt.options["halt_on_ampl_error"] = "yes"
+        elif solver_name == "trustregion":
+            opt = SolverFactory("trustregion")
+        else:
+            raise ValueError(f"Solver {solver_name} not supported")
         print(f"output file: {self.out_file}")
         return opt
 
@@ -300,7 +305,7 @@ class Preprocessor:
         preproc_model = pyo.TransformationFactory(
             "contrib.constraints_to_var_bounds"
         ).create_using(model)
-        opt = self.get_solver()
+        opt = self.get_solver(self.solver_name)
         # Return both the solver and the options for multistart
         if self.multistart:
             return opt, scaled_preproc_model, preproc_model, getattr(self, 'multistart_options', {})

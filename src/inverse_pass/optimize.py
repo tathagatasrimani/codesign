@@ -28,15 +28,16 @@ def log_info(msg, stage):
 
 
 class Optimizer:
-    def __init__(self, hw):
+    def __init__(self, hw, test_config=False):
         self.hw = hw
         self.disabled_knobs = []
         self.objective_constraint_inds = []
         self.initial_alpha = None
+        self.test_config = test_config
 
     def evaluate_constraints(self, constraints, stage):
         for constraint in constraints:
-            value = "N/A"
+            value = 0
             log_info(f"constraint: {constraint}", stage)
             if isinstance(constraint, sp.Ge):
                 value = sim_util.xreplace_safe(constraint.rhs - constraint.lhs, self.hw.circuit_model.tech_model.base_params.tech_values)
@@ -58,10 +59,14 @@ class Optimizer:
         constraints.append(self.hw.total_active_energy >= 2*self.hw.total_passive_energy*self.hw.circuit_model.tech_model.capped_power_scale)
         for knob in self.disabled_knobs:
             constraints.append(sp.Eq(knob, knob.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values)))
-        total_power = (self.hw.total_passive_energy*self.hw.circuit_model.tech_model.capped_power_scale + self.hw.total_active_energy) / self.hw.execution_time
+        if not self.test_config:
+            total_power = self.hw.total_passive_power*self.hw.circuit_model.tech_model.capped_power_scale + self.hw.total_active_energy / (self.hw.execution_time* self.hw.circuit_model.tech_model.capped_delay_scale)
+        else:
+            total_power = self.hw.total_passive_power*self.hw.circuit_model.tech_model.capped_power_scale_total + self.hw.total_active_energy / (self.hw.execution_time* self.hw.circuit_model.tech_model.capped_delay_scale_total)
         constraints.append(total_power <= 150) # hard limit on power
         # ensure that forward pass can't add more than 10x parallelism in the next iteration. power scale is based on the amount we scale area down by,
         # because in the next forward pass we assume that much parallelism will be added, and therefore increase power
+        #if not self.test_config:
         constraints.append(self.hw.circuit_model.tech_model.capped_power_scale <= 10)
 
         assert len(self.hw.circuit_model.tech_model.constraints) > 0, "tech model constraints are empty"
@@ -71,7 +76,7 @@ class Optimizer:
             constraints.extend(self.hw.circuit_model.constraints)
             constraints.extend(self.hw.constraints)
 
-        self.evaluate_constraints(constraints, "before optimization")
+        #self.evaluate_constraints(constraints, "before optimization")
 
         #print(f"constraints: {constraints}")
         return constraints
@@ -93,35 +98,19 @@ class Optimizer:
 
         # passive energy consumption is dependent on execution time, so we need to recalculate it
         self.hw.calculate_passive_power_vitis(execution_time)
-        print(f"passive energy: {self.hw.total_passive_energy.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values)}")
-        print(f"active energy: {self.hw.total_active_energy.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values)}")
-        if self.hw.obj_fn == "edp":
-            self.hw.obj = (self.hw.total_passive_energy + self.hw.total_active_energy) * execution_time**delay_factor
-            self.hw.obj_scaled = (self.hw.total_passive_energy * self.hw.circuit_model.tech_model.capped_energy_scale + self.hw.total_active_energy) * (execution_time**delay_factor) * self.hw.circuit_model.tech_model.capped_delay_scale
-        elif self.hw.obj_fn == "ed2":
-            self.hw.obj = (self.hw.total_passive_energy + self.hw.total_active_energy) * (execution_time**delay_factor)**2
-            self.hw.obj_scaled = (self.hw.total_passive_energy * self.hw.circuit_model.tech_model.capped_energy_scale + self.hw.total_active_energy) * ((execution_time ** delay_factor) * self.hw.circuit_model.tech_model.capped_delay_scale)**2
-        elif self.hw.obj_fn == "delay":
-            self.hw.obj = execution_time
-            self.hw.obj_scaled = (execution_time ** delay_factor) * self.hw.circuit_model.tech_model.capped_delay_scale
-        elif self.hw.obj_fn == "energy":
-            self.hw.obj = self.hw.total_active_energy + self.hw.total_passive_energy
-            self.hw.obj_scaled = (self.hw.total_active_energy + self.hw.total_passive_energy * self.hw.circuit_model.tech_model.capped_energy_scale)
-        elif self.hw.obj_fn == "eplusd":
-            self.hw.obj = ((self.hw.total_active_energy + self.hw.total_passive_energy) * sim_util.xreplace_safe(execution_time, self.hw.circuit_model.tech_model.base_params.tech_values) + 
-                        execution_time * sim_util.xreplace_safe(self.hw.total_active_energy + self.hw.total_passive_energy, self.hw.circuit_model.tech_model.base_params.tech_values) * delay_factor)
-            self.hw.obj_scaled = ((self.hw.total_active_energy + self.hw.total_passive_energy * self.hw.circuit_model.tech_model.capped_energy_scale) * sim_util.xreplace_safe(execution_time, self.hw.circuit_model.tech_model.base_params.tech_values) + 
-                        execution_time * self.hw.circuit_model.tech_model.capped_delay_scale * sim_util.xreplace_safe(self.hw.total_active_energy + self.hw.total_passive_energy, self.hw.circuit_model.tech_model.base_params.tech_values) ** delay_factor)
-        else:
-            raise ValueError(f"Objective function {self.hw.obj_fn} not supported")
+        self.hw.save_obj_vals(execution_time)
         print(f"obj: {self.hw.obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values)}, obj scaled: {self.hw.obj_scaled.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values)}")
         lower_bound = sim_util.xreplace_safe(self.hw.obj_scaled, self.hw.circuit_model.tech_model.base_params.tech_values) / improvement
         self.constraints = self.create_constraints(improvement, lower_bound, approx_problem=True)
         model = pyo.ConcreteModel()
-        self.approx_preprocessor = Preprocessor(self.hw.circuit_model.tech_model.base_params, out_file=f"src/tmp/solver_out_approx_{iteration}.txt")
+        self.approx_preprocessor = Preprocessor(self.hw.circuit_model.tech_model.base_params, out_file=f"src/tmp/solver_out_approx_{iteration}.txt", solver_name="ipopt")
         opt, scaled_model, model, multistart_options = (
             self.approx_preprocessor.begin(model, self.hw.obj_scaled, improvement, multistart=multistart, constraints=self.constraints)
         )
+
+        if self.test_config:
+            self.hw.execution_time = execution_time
+
         return opt, scaled_model, model, multistart_options
 
     # sets of delay, energy, and leakage power values are provided, fit a pareto front to them
@@ -135,6 +124,7 @@ class Optimizer:
         delay_factors = [1.0]
         tech_param_sets = []
         obj_vals = []
+        scaled_obj_vals = []
         original_tech_values = copy.deepcopy(self.hw.circuit_model.tech_model.base_params.tech_values)
         for i in range(count):
             stdout = sys.stdout
@@ -148,13 +138,14 @@ class Optimizer:
                     print(f"Error: {e}")
                     Error = True
                 if (Error or results.solver.termination_condition not in ["optimal", "acceptable"]) and delay_factors[i] == 1.0:
-                    print(f"First solve attempt failed with {results.solver.termination_condition}, trying again...")
+                    print(f"First solve attempt failed, trying again...")
+                    raise Exception("First solve attempt failed")
                     Error = False
                     opt_approx, scaled_model_approx, model_approx, multistart_options_approx = self.generate_approximate_solution(improvement, delay_factors[i], i, multistart=True)
                     # Try with more relaxed tolerances
-                    opt_approx.options["constr_viol_tol"] = 1e-4
-                    opt_approx.options["acceptable_constr_viol_tol"] = 1e-2
-                    opt_approx.options["acceptable_tol"] = 1e-4
+                    #opt_approx.options["constr_viol_tol"] = 1e-4
+                    #opt_approx.options["acceptable_constr_viol_tol"] = 1e-2
+                    #opt_approx.options["acceptable_tol"] = 1e-4
                     try:
                         results = opt_approx.solve(scaled_model_approx, **multistart_options_approx)
                     except Exception as e:
@@ -175,15 +166,17 @@ class Optimizer:
                 sim_util.parse_output(f, self.hw)
                 print(f"scaled objective used in approximation is now: {self.hw.obj_scaled.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values)}")
                 print(f"objective used in approximation is now: {self.hw.obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values)}")
-                self.hw.circuit_model.update_circuit_values()
-                self.hw.calculate_objective(clk_period_opt=True, form_dfg=False)
-                print(f"setting clk period to {self.hw.circuit_model.clk_period_cvx.value}")
-                self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.clk_period] = self.hw.circuit_model.clk_period_cvx.value
+                if not self.test_config:
+                    self.hw.circuit_model.update_circuit_values()
+                    self.hw.calculate_objective(clk_period_opt=True, form_dfg=False)
+                    print(f"setting clk period to {self.hw.circuit_model.clk_period_cvx.value}")
+                    self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.clk_period] = self.hw.circuit_model.clk_period_cvx.value
+                scaled_obj_vals.append(self.hw.obj_scaled.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values))
                 obj_vals.append(self.hw.obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values))
                 self.hw.display_objective("after approximate solver")
                 tech_param_sets.append(self.hw.circuit_model.tech_model.base_params.tech_values)
                 self.hw.circuit_model.tech_model.base_params.tech_values = copy.deepcopy(original_tech_values)
-        return tech_param_sets, obj_vals
+        return tech_param_sets, obj_vals, scaled_obj_vals
 
 
     def ipopt(self, improvement):
@@ -212,15 +205,17 @@ class Optimizer:
 
         start_time = time.time()
         num_solver_iterations = 0
-        tech_param_sets, obj_vals = self.generate_design_points(1, improvement)
+        tech_param_sets, obj_vals, scaled_obj_vals = self.generate_design_points(1, improvement)
         if not tech_param_sets or not obj_vals:
             raise RuntimeError("No successful design points found. All IPOPT solver runs failed. Check solver parameters and constraints.")
-        optimal_design_idx = obj_vals.index(min(obj_vals))
+        optimal_design_idx = scaled_obj_vals.index(min(scaled_obj_vals))
         print(f"optimal design idx: {optimal_design_idx}")
         print(f"obj vals: {obj_vals}")
-        assert obj_vals[optimal_design_idx] < lower_bound * improvement, "no better design point found"
+        print(f"scaled obj vals: {scaled_obj_vals}")
+        assert scaled_obj_vals[optimal_design_idx] < lower_bound * improvement, "no better design point found"
         self.hw.circuit_model.tech_model.base_params.tech_values = tech_param_sets[optimal_design_idx].copy()
-        self.hw.calculate_objective(form_dfg=False)
+        if not self.test_config:
+            self.hw.calculate_objective(form_dfg=False)
 
         logger.info(f"time to run optimization: {time.time()-start_time}")
 
