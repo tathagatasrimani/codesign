@@ -26,6 +26,6 @@ jobs:
 
       - name: Run Codesign Script
         run: |
-          chmod +x scripts-ci.sh || true
+          chmod +x scripts/scripts-ci.sh || true
           ./scripts/scripts-ci.sh
 
