@@ -58,6 +58,30 @@ else
     esac
 fi
 
+OPENROAD_PRE_INSTALLED_BIN_PATH="../../../../deps/OpenROAD/build/bin/openroad"
+OPENROAD_PREINSTALLED_SRC_PATH="openroad_interface/OpenROAD/build/src/openroad"
+
+
+printf '>>> SCRIPT START %s\n' "$(date)"
+printf 'PWD: %s\n' "$(pwd)"
+printf 'Contents:\n'
+ls -la
+
+echo " -> Looking for BIN_PATH: $OPENROAD_PRE_INSTALLED_BIN_PATH"
+if [ -f "$OPENROAD_PRE_INSTALLED_BIN_PATH" ]; then
+    echo "!!!!! Found: $OPENROAD_PRE_INSTALLED_BIN_PATH"
+else
+    echo "XXXXX Not found: $OPENROAD_PRE_INSTALLED_BIN_PATH"
+    echo " -> Looking for Open road pre installed SRC_PATH: $OPENROAD_PREINSTALLED_SRC_PATH"
+    if [ -f "$OPENROAD_PREINSTALLED_SRC_PATH" ]; then
+        echo "!!!!! Found: $OPENROAD_PREINSTALLED_SRC_PATH"
+    else
+        echo "XXXXX Not found: $OPENROAD_PREINSTALLED_SRC_PATH"
+        echo "OpenROAD executable not found. Running openroad_install.sh..."
+        # bash openroad_install.sh
+    fi
+fi
+
 echo "UNIVERSITY set to: $UNIVERSITY"
 
 ## set home directory to codesign home directory
@@ -68,38 +92,46 @@ export CMAKE_PREFIX_PATH="$HOME/.local"
 ################## INSTALL OPENROAD ##################
 git submodule update --init --recursive openroad_interface/OpenROAD
 
-# check if the openroad executable exists
-if [ -f "openroad_interface/OpenROAD/build/src/openroad" ]; then
+if  [[ "${GITHUB_ACTIONS:-}" == "true" && -f $OPENROAD_PRE_INSTALLED_BIN_PATH ]]; then
     echo "OpenROAD executable already exists."
 else
-    echo "OpenROAD executable not found. Running openroad_install.sh..."
-    # Check OS, run openroad install script
-    if [ -f /etc/redhat-release ]; then
-        OS_VERSION=$(cat /etc/redhat-release)
-        case "$OS_VERSION" in 
-            *"Rocky Linux release 8"*|*"Red Hat Enterprise Linux release 8"*)
-                bash openroad_install_rhel8.sh
-            ;;
-            *"Rocky Linux release 9"*|*"Red Hat Enterprise Linux release 9"*)
-                bash openroad_install.sh
-            ;;
-            *)
-                echo "Unsupported Rocky Linux version: $OS_VERSION"
-                exit 1
-            ;;
-        esac    
+# check if the openroad executable exists
+    if [ -f "openroad_interface/OpenROAD/build/src/openroad" ]; then
+        echo "OpenROAD executable already exists."
     else
-        echo "Unsupported OS"
-        exit 1
+        echo "OpenROAD executable not found. Running openroad_install.sh..."
+        # Check OS, run openroad install script
+        if [ -f /etc/redhat-release ]; then
+            OS_VERSION=$(cat /etc/redhat-release)
+            case "$OS_VERSION" in 
+                *"Rocky Linux release 8"*|*"Red Hat Enterprise Linux release 8"*)
+                    bash openroad_install_rhel8.sh
+                ;;
+                *"Rocky Linux release 9"*|*"Red Hat Enterprise Linux release 9"*)
+                    bash openroad_install.sh
+                ;;
+                *)
+                    echo "Unsupported Rocky Linux version: $OS_VERSION"
+                    exit 1
+                ;;
+            esac    
+        else
+            echo "Unsupported OS"
+            exit 1
+        fi
     fi
 fi
 
-# Ensure that the OpenROAD executable was created
-if [ -f "openroad_interface/OpenROAD/build/src/openroad" ]; then
+if [[ "${GITHUB_ACTIONS:-}" == "true" && -f $OPENROAD_PRE_INSTALLED_BIN_PATH ]]; then
     echo "OpenROAD installation completed successfully."
 else
-    echo "OpenROAD installation failed."
-    exit 1
+    # Ensure that the OpenROAD executable was created
+    if [ -f "openroad_interface/OpenROAD/build/src/openroad" ]; then
+        echo "OpenROAD installation completed successfully."
+    else
+        echo "OpenROAD installation failed."
+        exit 1
+    fi
 fi
 
 ################ SET UP SCALEHLS ##################
