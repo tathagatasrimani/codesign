@@ -10,6 +10,10 @@ jobs:
     name: Codesign-Automated-Test
     runs-on: bluey-CMU
     steps:
+      - name: Remove old workspace
+        run: |
+          rm -rf *
+          rm -rf .[^.] .??*
           
       - name: Check out repository code
         uses: actions/checkout@v4
