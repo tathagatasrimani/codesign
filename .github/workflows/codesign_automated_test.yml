@@ -23,3 +23,8 @@ jobs:
         run: |
           source ./full_env_start.sh
 
+      - name: Run Codesign Script
+        run: |
+          chmod +x scripts-ci.sh || true
+          ./scripts-ci.sh
+
