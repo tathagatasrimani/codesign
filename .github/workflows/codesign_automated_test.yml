@@ -2,14 +2,19 @@ name: Codesing Automated Test Workflow.
 
 on:
   pull_request:
-    branches: [ main ]
+    branches: master
   workflow_dispatch:
 
 jobs:
   test:
     name: Codesign-Automated-Test
-    runs-on: codesign-test-2
+    runs-on: bluey-CMU
     steps:
+      - name: Remove old workspace
+        run: |
+          rm -rf *
+          rm -rf .[^.] .??*
+          
       - name: Check out repository code
         uses: actions/checkout@v4
 
@@ -23,7 +28,8 @@ jobs:
         run: |
           source ./full_env_start.sh
 
-      - name: Run custom script
+      - name: Run Codesign Script
         run: |
           chmod +x scripts/scripts-ci.sh || true
           ./scripts/scripts-ci.sh
+
