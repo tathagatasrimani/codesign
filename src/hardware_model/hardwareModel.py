@@ -3,6 +3,7 @@ import random
 import yaml
 import time
 import numpy as np
+import math
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +26,7 @@ from openroad_interface import openroad_run
 
 import cvxpy as cp
 
-DEBUG = False
+DEBUG = True
 def log_info(msg):
     if DEBUG:
         logger.info(msg)
@@ -59,17 +60,11 @@ class BlockVector:
         ])
         self.bound_factor = {op_type: 0 for op_type in self.op_types}
         self.normalized_bound_factor = {op_type: 0 for op_type in self.op_types}
+        self.ahmdal_limit = {op_type: 0 for op_type in self.op_types}
         self.sensitivity = {op_type: 0 for op_type in self.op_types}
+        self.path_mixing_factor = 0
 
         self.delay = 0
-    
-    def __add__(self, other):
-        result = BlockVector()
-        result.delay = self.delay + other.delay
-        result.bound_factor = {op_type: self.bound_factor[op_type]*self.delay + other.bound_factor[op_type]*other.delay for op_type in self.op_types}
-        result.sensitivity = {op_type: self.sensitivity[op_type]*self.delay + other.sensitivity[op_type]*other.delay for op_type in self.op_types}
-        result.sensitivity_softmax()
-        return result
     
     def sensitivity_softmax(self):
         max_sensitivity = max(self.sensitivity.values())
@@ -84,9 +79,15 @@ class BlockVector:
             return
         for op_type in self.op_types:
             self.normalized_bound_factor[op_type] = self.bound_factor[op_type]/self.delay
+        self.path_mixing_factor = sum(self.normalized_bound_factor.values())
+        for op_type in self.op_types:
+            if self.normalized_bound_factor[op_type] == 0:
+                self.ahmdal_limit[op_type] = math.inf
+            else:
+                self.ahmdal_limit[op_type] = 1/self.normalized_bound_factor[op_type]
     
     def __str__(self):
-        return f"=============BlockVector=============\nDelay: {self.delay}\nBound Factor: {self.bound_factor}\nNormalized Bound Factor: {self.normalized_bound_factor}\nSensitivity: {self.sensitivity}\n=============End BlockVector============="
+        return f"\n=============BlockVector=============\nDelay: {self.delay}\nSensitivity: {self.sensitivity}\nAhmdal Limit: {self.ahmdal_limit}\nBound Factor: {self.bound_factor}\nNormalized Bound Factor: {self.normalized_bound_factor}\nPath Mixing Factor: {self.path_mixing_factor}\n=============End BlockVector============="
 
 def get_op_type_from_function(function, resource_edge=False):
     if function in ["Buf", "MainMem"]:
@@ -739,12 +740,11 @@ class HardwareModel:
     def make_graph_one_op_type(self, basic_block_name, graph_type, op_type, eps, dfg):
         G_new = dfg.copy()
         for edge in G_new.edges:
-            op_type_pred = get_op_type_from_function(G_new.nodes[edge[0]]["function"])
-            if op_type_pred == op_type or op_type == "all":
-                base_delay = self.block_vectors[basic_block_name][graph_type][edge].delay if op_type == "all" else self.block_vectors[basic_block_name][graph_type][edge].bound_factor[op_type]
-                # eps is zero unless we are calculating sensitivity
-                percent_add = eps * self.block_vectors[basic_block_name][graph_type][edge].sensitivity[op_type] if op_type != "all" else eps
-                G_new.edges[edge]["weight"] = (1+percent_add) * base_delay
+            fn = G_new.nodes[edge[0]]["function"]
+            base_delay = self.block_vectors[basic_block_name][graph_type][edge].delay if op_type == "all" else self.block_vectors[basic_block_name][graph_type][edge].bound_factor[op_type]
+            # eps is zero unless we are calculating sensitivity
+            percent_add = eps * self.block_vectors[basic_block_name][graph_type][edge].sensitivity[op_type] if op_type != "all" else eps
+            G_new.edges[edge]["weight"] = (1+percent_add) * base_delay
         return G_new
 
 
@@ -783,6 +783,8 @@ class HardwareModel:
             assert vector_top.sensitivity[op_type] >= 0-eps and vector_top.sensitivity[op_type] <= 1+eps, f"sensitivity for {op_type} is {vector_top.sensitivity[op_type]}"
         vector_top.normalize_bound_factor()
         log_info(f"top vector for {basic_block_name} {graph_type}: {str(vector_top)}")
+        if vector_top.delay != 0:
+            assert 1-eps <= sum(vector_top.normalized_bound_factor.values()) <= 6+eps, f"sum of normalized bound factors for {basic_block_name} {graph_type} is {sum(vector_top.normalized_bound_factor.values())}"
 
         return vector_top
 
@@ -796,18 +798,20 @@ class HardwareModel:
                 if dfg.nodes[pred]["function"] == "II":
                     loop_1x_vector = self.calculate_block_vector_basic_block(basic_block_name, "loop_1x", self.loop_1x_graphs[basic_block_name])
                     loop_1x_vector.delay *= dfg.nodes[pred]["count"]-1
+                    for op_type in loop_1x_vector.op_types:
+                        loop_1x_vector.bound_factor[op_type] *= dfg.nodes[pred]["count"]-1
                     loop_1x_vector.normalize_bound_factor()
                     self.block_vectors[basic_block_name][graph_type][(pred, node)] = loop_1x_vector
                 # calculate vector for sub-function call
                 elif dfg.nodes[pred]["function"] == "Call":
-                    if dfg.nodes[pred]["call_function"] not in self.block_vectors:
-                        sub_block_name = dfg.nodes[pred]["call_function"]
-                        self.block_vectors[sub_block_name] = self.calculate_block_vector_basic_block(sub_block_name, graph_type, self.scheduled_dfgs[sub_block_name])
-                    self.block_vectors[basic_block_name][graph_type][(pred, node)] = self.block_vectors[sub_block_name][graph_type]
+                    sub_block_name = dfg.nodes[pred]["call_function"]
+                    if sub_block_name not in self.block_vectors or "top" not in self.block_vectors[sub_block_name]:
+                        self.block_vectors[sub_block_name]["top"] = self.calculate_block_vector_basic_block(sub_block_name, graph_type, self.scheduled_dfgs[sub_block_name])
+                    self.block_vectors[basic_block_name][graph_type][(pred, node)] = self.block_vectors[sub_block_name]["top"]
                 # calculate vector for a basic operation
                 else:
                     self.block_vectors[basic_block_name][graph_type][(pred, node)] = self.calculate_block_vector_edge(pred, node, basic_block_name, graph_type, dfg)
-        
+
         return self.calculate_top_vector(basic_block_name, graph_type, dfg)
 
     def calculate_block_vector_edge(self, src, dst, basic_block_name, graph_type, dfg):

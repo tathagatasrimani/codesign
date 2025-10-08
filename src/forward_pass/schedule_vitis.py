@@ -14,7 +14,7 @@ from src.forward_pass import llvm_ir_parse
 from src.forward_pass import vitis_create_netlist
 from src import sim_util
 
-DEBUG = False
+DEBUG = True
 
 def log_info(msg):
     if DEBUG:
@@ -190,7 +190,7 @@ class vitis_schedule_parser:
         for basic_block_name in self.basic_blocks:
             self.dfg_basic_block(basic_block_name)
             nx.write_gml(self.basic_blocks[basic_block_name]["G"], f"{self.build_dir}/parse_results/{basic_block_name}/{basic_block_name}_graph.gml")
-            if self.basic_blocks[basic_block_name]["loop_info"] != "N/A":
+            if self.basic_blocks[basic_block_name]["loop_info"]["has_loop"]:
                 nx.write_gml(self.basic_blocks[basic_block_name]["G_loop_2x"], f"{self.build_dir}/parse_results/{basic_block_name}/{basic_block_name}_graph_loop_2x.gml")
                 nx.write_gml(self.basic_blocks[basic_block_name]["G_loop_1x"], f"{self.build_dir}/parse_results/{basic_block_name}/{basic_block_name}_graph_loop_1x.gml")
 
@@ -200,7 +200,7 @@ class vitis_schedule_parser:
             self.standard_dfg_basic_block(basic_block_name, "G", "G_standard")
             nx.write_gml(self.basic_blocks[basic_block_name]["G_standard"], f"{self.build_dir}/parse_results/{basic_block_name}/{basic_block_name}_graph_standard.gml")
 
-            if self.basic_blocks[basic_block_name]["loop_info"] != "N/A":
+            if self.basic_blocks[basic_block_name]["loop_info"]["has_loop"]:
                 self.standard_dfg_basic_block(basic_block_name, "G_loop_1x", "G_loop_1x_standard")
                 nx.write_gml(self.basic_blocks[basic_block_name]["G_loop_1x_standard"], f"{self.build_dir}/parse_results/{basic_block_name}/{basic_block_name}_graph_loop_1x_standard.gml")
                 #extra_edges = [edge for edge in self.basic_blocks[basic_block_name]["G_loop_1x"].edges() if self.basic_blocks[basic_block_name]["G_loop_1x"].edges[edge]["resource_edge"] == 1]
@@ -216,7 +216,7 @@ class vitis_schedule_parser:
             log_info(f"Converting to standard DFG with wire ops for {basic_block_name}")
             self.basic_blocks[basic_block_name]["G_standard_with_wire_ops"] = self.add_wire_ops(self.basic_blocks[basic_block_name]["G_standard"])
             nx.write_gml(self.basic_blocks[basic_block_name]["G_standard_with_wire_ops"], f"{self.build_dir}/parse_results/{basic_block_name}/{basic_block_name}_graph_standard_with_wire_ops.gml")
-            if self.basic_blocks[basic_block_name]["loop_info"] != "N/A":
+            if self.basic_blocks[basic_block_name]["loop_info"]["has_loop"]:
                 self.basic_blocks[basic_block_name]["G_loop_1x_standard_with_wire_ops"] = self.add_wire_ops(self.basic_blocks[basic_block_name]["G_loop_1x_standard"])
                 nx.write_gml(self.basic_blocks[basic_block_name]["G_loop_1x_standard_with_wire_ops"], f"{self.build_dir}/parse_results/{basic_block_name}/{basic_block_name}_graph_loop_1x_standard_with_wire_ops.gml")
             
@@ -311,7 +311,7 @@ class vitis_schedule_parser:
         for column in loop_table.findall(".//column"):
             loop_name = column.get('name', '').split('-')[1].strip()
             values = column.text.split(', ')
-            loop_data = {"Loop Name": loop_name}
+            loop_data = {"Loop Name": loop_name, "has_loop": True}
             for i, value in enumerate(values):
                 if i < len(keys):
                     key = keys[i]
@@ -326,9 +326,9 @@ class vitis_schedule_parser:
                         loop_data[key] = value
             
             loops.append(loop_data)
-        #print(f"loops for {xml_file_path}: {loops}")
+        log_info(f"loops for {xml_file_path}: {loops}")
         if len(loops) == 0:
-            return "N/A"
+            return {"has_loop": False}
         else:
             assert len(loops) == 1, f"Multiple loops found for {xml_file_path}"
             return loops[0] # only one loop per basic block for now
@@ -366,7 +366,7 @@ class vitis_schedule_parser:
                     self.basic_blocks[basic_block_name]["loop_info"]["pipeline_states"] = lines[idx].strip()[lines[idx].find("States = {") + len("States = {")-1:-1].split()
                     for i in range(len(self.basic_blocks[basic_block_name]["loop_info"]["pipeline_states"])):
                         self.basic_blocks[basic_block_name]["loop_info"]["pipeline_states"][i] = int(self.basic_blocks[basic_block_name]["loop_info"]["pipeline_states"][i])
-                    print(f"pipeline states: {self.basic_blocks[basic_block_name]['loop_info']['pipeline_states']}")
+                    log_info(f"pipeline states: {self.basic_blocks[basic_block_name]['loop_info']['pipeline_states']}")
                 idx += 1
             idx += 1
             self.basic_blocks[basic_block_name]["FSM state transitions"] = {}
@@ -531,11 +531,11 @@ class vitis_schedule_parser:
         cycle = nx.find_cycle(state_machine_graph)
         # often times the final state transition is "<n> ---> ", with no destination, so I'm not exactly sure how to interpret. Is it going back to the beginning in the case of a pipelined loop?
         # for now, I check if there is any loop info found for this file before making this assumption. Otherwise, I assume it just exits.
-        if self.basic_blocks[basic_block_name]["loop_info"] != "N/A":
+        if self.basic_blocks[basic_block_name]["loop_info"]["has_loop"]:
             if len(self.basic_blocks[basic_block_name]["loop_info"]["pipeline_states"]) > 0: # if pipeline states were listed in the report, those will be the cycle nodes. can bypass state machine graph
                 self.basic_blocks[basic_block_name]["cycle_nodes"] = self.basic_blocks[basic_block_name]["loop_info"]["pipeline_states"]
                 self.basic_blocks[basic_block_name]["non_cycle_nodes"] = [node for node in state_machine_graph.nodes() if node not in self.basic_blocks[basic_block_name]["cycle_nodes"]]
-                print(f"cycle nodes: {self.basic_blocks[basic_block_name]['cycle_nodes']}, non cycle nodes: {self.basic_blocks[basic_block_name]['non_cycle_nodes']}")
+                log_info(f"cycle nodes: {self.basic_blocks[basic_block_name]['cycle_nodes']}, non cycle nodes: {self.basic_blocks[basic_block_name]['non_cycle_nodes']}")
             else:
                 self.basic_blocks[basic_block_name]["cycle_nodes"] = [node for (node, _) in cycle]
                 self.basic_blocks[basic_block_name]["non_cycle_nodes"] = [node for node in state_machine_graph.nodes() if node not in self.basic_blocks[basic_block_name]["cycle_nodes"]]

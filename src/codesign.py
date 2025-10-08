@@ -418,7 +418,7 @@ class Codesign:
         if setup:
             opt_cmd = f'''scalehls-opt {self.benchmark_name}.mlir -scalehls-dse-pipeline=\"top-func={self.vitis_top_function} target-spec={os.path.join(os.path.dirname(__file__), "..", "ScaleHLS-HIDA/test/Transforms/Directive/config.json")}\"'''
             mlir_idx = 0
-        else:
+        elif not self.cfg["args"]["pytorch"]: # pytorch scalehls dse not yet working
             mlir_file, mlir_idx = self.parse_design_space_for_mlir(os.path.join(os.path.dirname(__file__), "..", "src/tmp/benchmark_setup"))
             opt_cmd = f"cat {mlir_file}"
 
@@ -430,7 +430,11 @@ class Codesign:
 
         # set scale factors if in setup or first iteration
         if self.cfg["args"]["pytorch"]:
-            dsp_usage, latency = 1, 1 # TODO replace once pytorch dse working
+            # TODO replace once pytorch dse working
+            if setup:
+                dsp_usage, latency = 10, 10
+            else:
+                dsp_usage, latency = 1, 1
         else:
             dsp_usage, latency = self.parse_dsp_usage_and_latency(mlir_idx)
         if setup:
