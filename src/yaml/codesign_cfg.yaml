@@ -31,6 +31,7 @@ vitis_test:
   args:
     hls_tool: vitis
     model_cfg: vs_cfg_latest
+    area: 1000000000
 
 ## These tests will run without stoping to the specified number of iterations
 vitis_gemm_test:

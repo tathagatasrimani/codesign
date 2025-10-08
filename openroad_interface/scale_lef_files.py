@@ -4,8 +4,11 @@ import re
 
 logger = logging.getLogger(__name__)
 
-DATABASE_UNITS_SCALE = 5 ## scale the number of database units per micron by this factor
-MIN_MANUFACTURING_GRID = 0.0001  # manufacturing grid must be a multiple of this
+
+
+
+L_EFF_FREEPDK45 = 0.025E-6  # effective channel length for FreePDK45 (microns)
+## NOTE: this is an approximation.
 
 class ScaleLefFiles:
     def __init__(self, cfg, codesign_root_dir):
@@ -22,13 +25,30 @@ class ScaleLefFiles:
         self.original_manufacturing_grid = 0.005  # default 
         self.new_manufacturing_grid = 0.005  # default
         self.database_units_per_micron = 2000  # default
+        self.database_units_scale = 1  ## scale the number of database units per micron by this factor
+        self.min_manufacturing_grid = 0.0005  # manufacturing grid must be a multiple of this
 
-    def scale_lef_files(self, alpha: float):
+    def scale_lef_files(self, L_eff_current: float):
         """
         Scales the technology and standard cell LEF files by the given factor.
 
-        :param alpha: scaling factor
+        :param L_eff_current: The current effective channel length (L_eff) in microns.
         """
+
+        ## NOTE: Alpha is the factor that we are scaling the technology down by vs FreePDK45.
+        ## if alpha > 1, we are scaling DOWN (making features smaller)
+
+        alpha = L_EFF_FREEPDK45 / L_eff_current
+
+        logger.info(f"Scaling LEF files with alpha = {alpha:.4f} (L_eff_current = {L_eff_current:.4f} microns)")
+
+        if alpha > 5.0:
+            ## scale the database units scale by 5x if needed. Otherwise, leave it at 1x to avoid integer overflows.
+            self.database_units_scale = 5
+            self.database_units_per_micron = 10000  # database units per micron
+            self.min_manufacturing_grid = 0.0001  # manufacturing grid must be a multiple of this
+            self.write_DBU(self.database_units_per_micron)
+
 
         self.get_original_manufacturing_grid()
         self.new_manufacturing_grid = self.find_new_manufacturing_grid(alpha)
@@ -41,7 +61,6 @@ class ScaleLefFiles:
         self.scale_track_pitches(quantized_alpha)
         self.scale_tech_lef(quantized_alpha)
         self.scale_stdcell_lef(quantized_alpha)
-        self.scale_die_area(quantized_alpha)
         self.scale_pdn_config(quantized_alpha)
         self.scale_vars_file(quantized_alpha)
 
@@ -68,13 +87,13 @@ class ScaleLefFiles:
         """
         new_grid = self.original_manufacturing_grid / alpha
 
-        # Round new_grid to the nearest multiple of MIN_MANUFACTURING_GRID
-        new_grid_rounded = round(new_grid / MIN_MANUFACTURING_GRID) * MIN_MANUFACTURING_GRID
+        # Round new_grid to the nearest multiple of self.min_manufacturing_grid
+        new_grid_rounded = round(new_grid / self.min_manufacturing_grid) * self.min_manufacturing_grid
 
         logger.info(
             f"Original manufacturing grid: {self.original_manufacturing_grid:.6f}, "
             f"New manufacturing grid (raw): {new_grid:.6f}, "
-            f"Rounded to {MIN_MANUFACTURING_GRID:.4f} multiple: {new_grid_rounded:.6f}"
+            f"Rounded to {self.min_manufacturing_grid:.4f} multiple: {new_grid_rounded:.6f}"
         )
         return new_grid_rounded
     
@@ -105,14 +124,14 @@ class ScaleLefFiles:
     def scale_length(self, alpha: float, val: str) -> str:
         decimals = self.get_decimal_places(val, 4)
         scaled_val = float(val) / alpha
-        scaled_val *= DATABASE_UNITS_SCALE
+        ##scaled_val *= self.database_units_scale
         scaled_val = self.round_to_manufacturing_grid(scaled_val)
         return f"{scaled_val:.{decimals}f}"
     
     def scale_area(self, alpha: float, val: str) -> str:
         decimals = self.get_decimal_places(val, 6)
         scaled_val = float(val) / (alpha * alpha)
-        scaled_val *= DATABASE_UNITS_SCALE**2
+        ##scaled_val *= self.database_units_scale**2
         scaled_val = self.round_to_manufacturing_grid_area(scaled_val)
         return f"{scaled_val:.{decimals}f}"
 
@@ -130,8 +149,22 @@ class ScaleLefFiles:
     
     ###################################################################################################################################################################
 
+    def write_DBU(self, new_dbu):
+        """ Sets the database units in the tech LEF file.
+        """
+        ## open the tech lef file
+        lef_path = os.path.join(self.directory, "tcl", "codesign_files", "codesign_tech.lef")
+        with open(lef_path, "r") as f:
+            lines = f.readlines()
+        
+        modified_lines = []
+        for line in lines:
+            if "DATABASE MICRONS" in line:
+                line = re.sub(r"(DATABASE MICRONS\s+)(\d+)(\s*;)", lambda m: f"{m.group(1)}{new_dbu}{m.group(3)}", line)
+            modified_lines.append(line)
 
-
+        with open(lef_path, "w") as f:
+            f.writelines(modified_lines)
 
     def scale_track_pitches(self, alpha: float):
         """
@@ -141,14 +174,6 @@ class ScaleLefFiles:
 
         :param alpha: The scaling factor to divide the pitches by.
         """
-        # If alpha is 1, no changes are needed.
-        if alpha == 1.0:
-            logger.info("Alpha is 1.0, no scaling of track pitches required.")
-            return
-
-        if alpha <= 0:
-            logger.error("Alpha must be positive. Skipping track pitch scaling.")
-            return
 
         logger.info(f"Scaling track pitches by a division factor of {alpha}.")
         
@@ -198,13 +223,6 @@ class ScaleLefFiles:
         VIA/CUT parameters (SIZE, SPACING, ENCLOSURE/OVERHANG), MANUFACTURINGGRID,
         and any RECT coordinates.
         """
-
-        if alpha == 1.0:
-            logger.info("Alpha is 1.0, no scaling of tech LEF required.")
-            return
-        if alpha <= 0:
-            logger.error("Alpha must be positive. Skipping tech LEF scaling.")
-            return
 
         lef_path = os.path.join(self.directory, "tcl", "codesign_files", "codesign_tech.lef")
 
@@ -344,12 +362,6 @@ class ScaleLefFiles:
         Scale standard-cell LEF dimensions by dividing linear values by alpha.
         Applies to: MACRO SIZE, ORIGIN, FOREIGN, PIN/OBS RECTs, and any RECT coordinates.
         """
-        if alpha == 1.0:
-            logger.info("Alpha is 1.0, running stdcell LEF pass (no-op scaling) to produce debug output.")
-
-        if alpha <= 0:
-            logger.error("Alpha must be positive. Skipping stdcell LEF scaling.")
-            return
 
         lef_path = os.path.join(self.directory, "tcl", "codesign_files", "codesign_stdcell.lef")
         logger.info(
@@ -439,12 +451,6 @@ class ScaleLefFiles:
         Scale PDN configuration to match the scaled manufacturing grid.
         Ensures PDN widths are multiples of the manufacturing grid.
         """
-        if alpha == 1.0:
-            logger.info("Alpha is 1.0, no scaling of PDN config required.")
-            return
-        if alpha <= 0:
-            logger.error("Alpha must be positive. Skipping PDN config scaling.")
-            return
 
         pdn_path = os.path.join(self.directory, "tcl", "codesign_files", "codesign.pdn.tcl")
         lef_path = os.path.join(self.directory, "tcl", "codesign_files", "codesign_tech.lef")
@@ -507,45 +513,6 @@ class ScaleLefFiles:
         with open(pdn_path, "w") as f:
             f.writelines(modified_lines)
         logger.info(f"Scaled PDN config at {pdn_path} with alpha={alpha}, grid={manufacturing_grid:.6f}.")
-
-    def scale_die_area(self, alpha: float):
-        """
-        Scale die area and core area in codesign_top.tcl to match the scaled technology.
-        """
-        if alpha == 1.0:
-            logger.info("Alpha is 1.0, no scaling of die area required.")
-            return
-        if alpha <= 0:
-            logger.error("Alpha must be positive. Skipping die area scaling.")
-            return
-
-        tcl_path = os.path.join(self.directory, "tcl", "codesign_top.tcl")
-        
-        with open(tcl_path, "r") as f:
-            lines = f.readlines()
-
-        def scale_val(val_str: str) -> str:
-            return self.scale_length(alpha, val_str)
-
-        modified_lines = []
-        for line in lines:
-            # Scale die_area values
-            if "set die_area" in line:
-                line = re.sub(r"(\{)([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)(\})",
-                            lambda m: f"{m.group(1)}{scale_val(m.group(2))} {scale_val(m.group(3))} {scale_val(m.group(4))} {scale_val(m.group(5))}{m.group(6)}",
-                            line)
-            
-            # Scale core_area values
-            if "set core_area" in line:
-                line = re.sub(r"(\{)([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)(\})",
-                            lambda m: f"{m.group(1)}{scale_val(m.group(2))} {scale_val(m.group(3))} {scale_val(m.group(4))} {scale_val(m.group(5))}{m.group(6)}",
-                            line)
-            
-            modified_lines.append(line)
-
-        with open(tcl_path, "w") as f:
-            f.writelines(modified_lines)
-        logger.info(f"Scaled die area in {tcl_path} with alpha={alpha}.")
 
     def scale_vars_file(self, alpha: float):
         """
