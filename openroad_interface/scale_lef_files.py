@@ -4,6 +4,9 @@ import re
 
 logger = logging.getLogger(__name__)
 
+DATABASE_UNITS_SCALE = 5 ## scale the number of database units per micron by this factor
+MIN_MANUFACTURING_GRID = 0.0001  # manufacturing grid must be a multiple of this
+
 class ScaleLefFiles:
     def __init__(self, cfg, codesign_root_dir):
         """
@@ -18,6 +21,7 @@ class ScaleLefFiles:
         
         self.original_manufacturing_grid = 0.005  # default 
         self.new_manufacturing_grid = 0.005  # default
+        self.database_units_per_micron = 2000  # default
 
     def scale_lef_files(self, alpha: float):
         """
@@ -31,15 +35,15 @@ class ScaleLefFiles:
 
         logger.info(f"New manufacturing grid after scaling: {self.new_manufacturing_grid:.6f}")
 
-        ## ensure that we are scaling by the proper factor
+        ## ensure that we are scaling by the proper factor.
         quantized_alpha = self.original_manufacturing_grid / self.new_manufacturing_grid
         
         self.scale_track_pitches(quantized_alpha)
         self.scale_tech_lef(quantized_alpha)
-        self._scale_stdcell_lef(quantized_alpha)
-        self._scale_die_area(quantized_alpha)
-        self._scale_pdn_config(quantized_alpha)
-        self._scale_vars_file(quantized_alpha)
+        self.scale_stdcell_lef(quantized_alpha)
+        self.scale_die_area(quantized_alpha)
+        self.scale_pdn_config(quantized_alpha)
+        self.scale_vars_file(quantized_alpha)
 
         verify = self.verify_on_grid
         
@@ -51,6 +55,9 @@ class ScaleLefFiles:
         verify(os.path.join(self.directory, "tcl", "codesign_files", "codesign.pdn.tcl"), tag="codesign.pdn.tcl")
 
 
+    ###################################################################################################################################################################
+    ## Helper methods
+
     def find_new_manufacturing_grid(self, alpha: float) -> float:
         """
         Computes the new manufacturing grid after scaling by alpha.
@@ -61,14 +68,13 @@ class ScaleLefFiles:
         """
         new_grid = self.original_manufacturing_grid / alpha
 
-        # Round new_grid to the nearest multiple of 0.0001
-        unit = 0.0001
-        new_grid_rounded = round(new_grid / unit) * unit
+        # Round new_grid to the nearest multiple of MIN_MANUFACTURING_GRID
+        new_grid_rounded = round(new_grid / MIN_MANUFACTURING_GRID) * MIN_MANUFACTURING_GRID
 
         logger.info(
             f"Original manufacturing grid: {self.original_manufacturing_grid:.6f}, "
             f"New manufacturing grid (raw): {new_grid:.6f}, "
-            f"Rounded to {unit:.4f} multiple: {new_grid_rounded:.6f}"
+            f"Rounded to {MIN_MANUFACTURING_GRID:.4f} multiple: {new_grid_rounded:.6f}"
         )
         return new_grid_rounded
     
@@ -90,7 +96,43 @@ class ScaleLefFiles:
                             break
         return grid
 
+    @staticmethod
+    def get_decimal_places(val_str: str, min_dec=4) -> int:
+            if '.' in val_str:
+                return max(min_dec, len(val_str.split('.')[1]))
+            return min_dec
+
+    def scale_length(self, alpha: float, val: str) -> str:
+        decimals = self.get_decimal_places(val, 4)
+        scaled_val = float(val) / alpha
+        scaled_val *= DATABASE_UNITS_SCALE
+        scaled_val = self.round_to_manufacturing_grid(scaled_val)
+        return f"{scaled_val:.{decimals}f}"
     
+    def scale_area(self, alpha: float, val: str) -> str:
+        decimals = self.get_decimal_places(val, 6)
+        scaled_val = float(val) / (alpha * alpha)
+        scaled_val *= DATABASE_UNITS_SCALE**2
+        scaled_val = self.round_to_manufacturing_grid_area(scaled_val)
+        return f"{scaled_val:.{decimals}f}"
+
+    def round_to_manufacturing_grid(self, val: float) -> float:
+        """
+        Round a linear value to the nearest multiple of the new manufacturing grid.
+        """
+        return round(val / self.new_manufacturing_grid) * self.new_manufacturing_grid
+
+    def round_to_manufacturing_grid_area(self, val: float) -> float:
+        """
+        Round an area value to the nearest multiple of new manufacturing grid^2.
+        """
+        return round(val / (self.new_manufacturing_grid * self.new_manufacturing_grid)) * (self.new_manufacturing_grid * self.new_manufacturing_grid)
+    
+    ###################################################################################################################################################################
+
+
+
+
     def scale_track_pitches(self, alpha: float):
         """
         Updates the track pitches in the temporary codesign.tracks file.
@@ -124,15 +166,9 @@ class ScaleLefFiles:
             keyword_and_space = match_obj.group(1)
             value_str = match_obj.group(2)
 
-            if '.' in value_str:
-                decimal_places = len(value_str.split('.')[1])
-            else:
-                decimal_places = 0
-            decimal_places = max(4, decimal_places)  # keep at least 4 decimals
+            new_value = self.scale_length(alpha, value_str)
 
-            new_value = float(value_str) / alpha
-            new_value = self.round_to_manufacturing_grid(new_value)
-            return f"{keyword_and_space}{new_value:.{decimal_places}f}"
+            return f"{keyword_and_space}{new_value}"
 
         modified_lines = []
         for line in lines:
@@ -181,22 +217,11 @@ class ScaleLefFiles:
             lines = f.readlines()
 
         # ---- Helpers ----
-        def get_decimal_places(val_str: str, min_dec=4) -> int:
-            if '.' in val_str:
-                return max(min_dec, len(val_str.split('.')[1]))
-            return min_dec
-
         def scale_len(val: str) -> str:
-            decimals = get_decimal_places(val, 4)
-            scaled_val = float(val) / alpha
-            scaled_val = self.round_to_manufacturing_grid(scaled_val)
-            return f"{scaled_val:.{decimals}f}"
+            return self.scale_length(alpha, val)
 
         def scale_area(val: str) -> str:
-            decimals = get_decimal_places(val, 6)
-            scaled_val = float(val) / (alpha * alpha)
-            scaled_val = self.round_to_manufacturing_grid_area(scaled_val)
-            return f"{scaled_val:.{decimals}f}"
+            return self.scale_area(alpha, val)
 
         modified_lines = []
         in_spacing_table = False
@@ -314,7 +339,7 @@ class ScaleLefFiles:
             f"new manufacturing grid={self.new_manufacturing_grid:.6f}."
         )
 
-    def _scale_stdcell_lef(self, alpha: float):
+    def scale_stdcell_lef(self, alpha: float):
         """
         Scale standard-cell LEF dimensions by dividing linear values by alpha.
         Applies to: MACRO SIZE, ORIGIN, FOREIGN, PIN/OBS RECTs, and any RECT coordinates.
@@ -346,20 +371,8 @@ class ScaleLefFiles:
             return
 
         # ----------------- Helper functions -----------------
-        def get_decimal_places(val_str: str, min_dec=4) -> int:
-            """Get decimal places (ignore exponents) and enforce a minimum precision."""
-            if 'e' in val_str or 'E' in val_str:
-                val_str = re.split('[eE]', val_str)[0]
-            if '.' in val_str:
-                return max(min_dec, len(val_str.split('.')[1]))
-            return min_dec
-
         def scale_len(val: str) -> str:
-            """Scale and round a linear value to the manufacturing grid."""
-            decimals = get_decimal_places(val)
-            scaled_val = float(val) / alpha
-            scaled_val = self.round_to_manufacturing_grid(scaled_val)
-            return f"{scaled_val:.{decimals}f}"
+            return self.scale_length(alpha, val)
 
         modified_lines = []
 
@@ -421,7 +434,7 @@ class ScaleLefFiles:
                         return float(nums[0])
         return 0.0
 
-    def _scale_pdn_config(self, alpha: float):
+    def scale_pdn_config(self, alpha: float):
         """
         Scale PDN configuration to match the scaled manufacturing grid.
         Ensures PDN widths are multiples of the manufacturing grid.
@@ -436,97 +449,66 @@ class ScaleLefFiles:
         pdn_path = os.path.join(self.directory, "tcl", "codesign_files", "codesign.pdn.tcl")
         lef_path = os.path.join(self.directory, "tcl", "codesign_files", "codesign_tech.lef")
         
-        try:
-            # Read the actual manufacturing grid from the scaled tech LEF
-            manufacturing_grid = 0.0050  # default fallback
-            with open(lef_path, "r") as f:
-                for line in f:
-                    if "MANUFACTURINGGRID" in line:
-                        match = re.search(r"MANUFACTURINGGRID\s+([\d\.]+)", line)
-                        if match:
-                            manufacturing_grid = float(match.group(1))
-                            break
+        # Read the actual manufacturing grid from the scaled tech LEF
+        manufacturing_grid = 0.0050  # default fallback
+        with open(lef_path, "r") as f:
+            for line in f:
+                if "MANUFACTURINGGRID" in line:
+                    match = re.search(r"MANUFACTURINGGRID\s+([\d\.]+)", line)
+                    if match:
+                        manufacturing_grid = float(match.group(1))
+                        break
+        
+        with open(pdn_path, "r") as f:
+            lines = f.readlines()
+
+        core_xmin = self.get_core_xmin()
+        core_offset = 0.0
+        logger.info(f"Recomputing PDN offset from core_xmin={core_xmin:.4f} -> {core_offset:.4f}")
+
+        modified_lines = []
+        for line in lines:
+            # Scale PDN stripe widths and pitches
+            if "-width" in line:
+                # Extract and scale width values using width grid (0.0090)
+                line = re.sub(r"(-width\s+\{)([\d\.]+)(\})",
+                            lambda m: f"{m.group(1)}{self.scale_length(alpha, m.group(2))}{m.group(3)}",
+                            line)
             
-            with open(pdn_path, "r") as f:
-                lines = f.readlines()
-
-            core_xmin = self.get_core_xmin()
-            core_offset = 0.0
-            logger.info(f"Recomputing PDN offset from core_xmin={core_xmin:.4f} -> {core_offset:.4f}")
-
-            def get_decimal_places(val_str: str) -> int:
-                """Get the number of decimal places from the original value string"""
-                if '.' in val_str:
-                    return len(val_str.split('.')[1])
-                return 0
-
-            def scale_len(val: str) -> str:
-                decimal_places = get_decimal_places(val)
-                scaled_val = float(val) / alpha
-                # ensure multiple of manufacturing grid
-                scaled_val = self.round_to_manufacturing_grid(scaled_val)
-                return f"{scaled_val:.{decimal_places}f}"
-
+            if "-pitch" in line:
+                # Extract and scale pitch values using manufacturing grid
+                line = re.sub(r"(-pitch\s+\{)([\d\.]+)(\})",
+                            lambda m: f"{m.group(1)}{self.scale_length(alpha, m.group(2))}{m.group(3)}",
+                            line)
             
-            def round_to_grid_width(val: float, original_val_str: str) -> float:
-                """Round value to nearest multiple of PDN width grid"""
-                # OpenROAD enforces 0.0090 grid for PDN widths
-                grid = 0.0090
-                rounded_val = round(val / grid) * grid
-                return rounded_val
-            
-            def round_to_grid_offset(val: float, original_val_str: str) -> float:
-                """Round value to nearest multiple of PDN offset grid"""
-                # Use manufacturing grid for all PDN values
-                return self.round_to_manufacturing_grid(val)
-
-            modified_lines = []
-            for line in lines:
-                # Scale PDN stripe widths and pitches
-                if "-width" in line:
-                    # Extract and scale width values using width grid (0.0090)
-                    line = re.sub(r"(-width\s+\{)([\d\.]+)(\})",
-                                lambda m: f"{m.group(1)}{round_to_grid_width(float(m.group(2)) / alpha, m.group(2)):.4f}{m.group(3)}",
-                                line)
-                
-                if "-pitch" in line:
-                    # Extract and scale pitch values using manufacturing grid
-                    line = re.sub(r"(-pitch\s+\{)([\d\.]+)(\})",
-                                lambda m: f"{m.group(1)}{self.round_to_manufacturing_grid(float(m.group(2)) / alpha):.4f}{m.group(3)}",
-                                line)
-                
-                if "add_pdn_stripe" in line:
-                    # Replace existing offset (with or without braces)
-                    if "-offset" in line:
-                        line = re.sub(
-                            r"(-offset\s+)(?:\{?[\d\.]+\}?)",
-                            lambda m: f"{m.group(1)}{{{core_offset:.4f}}}",
-                            line
-                        )
+            if "add_pdn_stripe" in line:
+                # Replace existing offset (with or without braces)
+                if "-offset" in line:
+                    line = re.sub(
+                        r"(-offset\s+)(?:\{?[\d\.]+\}?)",
+                        lambda m: f"{m.group(1)}{{{core_offset:.4f}}}",
+                        line
+                    )
+                else:
+                    # Only insert offset for stripe commandss
+                    if "-followpins" in line:
+                        line = line.replace("-followpins", f"-offset {{{core_offset:.4f}}} -followpins")
                     else:
-                        # Only insert offset for stripe commandss
-                        if "-followpins" in line:
-                            line = line.replace("-followpins", f"-offset {{{core_offset:.4f}}} -followpins")
-                        else:
-                            line = line.strip() + f" -offset {{{core_offset:.4f}}}\n"
-                
-                if "-halo" in line:
-                    # Extract and scale halo values using manufacturing grid
-                    line = re.sub(r"(-halo\s+\{)([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)(\})",
-                                lambda m: f"{m.group(1)}{self.round_to_manufacturing_grid(float(m.group(2)) / alpha):.4f} {self.round_to_manufacturing_grid(float(m.group(3)) / alpha):.4f} {self.round_to_manufacturing_grid(float(m.group(4)) / alpha):.4f} {self.round_to_manufacturing_grid(float(m.group(5)) / alpha):.4f}{m.group(6)}",
-                                line)
-                
-                modified_lines.append(line)
+                        line = line.strip() + f" -offset {{{core_offset:.4f}}}\n"
+            
+            if "-halo" in line:
+                # Extract and scale halo values using manufacturing grid
+                line = re.sub(r"(-halo\s+\{)([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)(\})",
+                            lambda m: f"{m.group(1)}{self.scale_length(alpha, m.group(2))} {self.scale_length(alpha, m.group(3))} {self.scale_length(alpha, m.group(4))} {self.scale_length(alpha, m.group(5))}{m.group(6)}",
+                            line)
+            
+            modified_lines.append(line)
 
-            with open(pdn_path, "w") as f:
-                f.writelines(modified_lines)
-            logger.info(f"Scaled PDN config at {pdn_path} with alpha={alpha}, grid={manufacturing_grid:.6f}.")
-        except FileNotFoundError:
-            logger.error(f"PDN config not found at {pdn_path}.")
-        except Exception as e:
-            logger.error(f"Error scaling PDN config: {e}")
+        with open(pdn_path, "w") as f:
+            f.writelines(modified_lines)
+        logger.info(f"Scaled PDN config at {pdn_path} with alpha={alpha}, grid={manufacturing_grid:.6f}.")
 
-    def _scale_die_area(self, alpha: float):
+    def scale_die_area(self, alpha: float):
         """
         Scale die area and core area in codesign_top.tcl to match the scaled technology.
         """
@@ -539,54 +521,33 @@ class ScaleLefFiles:
 
         tcl_path = os.path.join(self.directory, "tcl", "codesign_top.tcl")
         
-        try:
-            with open(tcl_path, "r") as f:
-                lines = f.readlines()
+        with open(tcl_path, "r") as f:
+            lines = f.readlines()
 
-            def get_decimal_places(val_str: str) -> int:
-                """Get the number of decimal places from the original value string"""
-                if '.' in val_str:
-                    return len(val_str.split('.')[1])
-                return 0
+        def scale_val(val_str: str) -> str:
+            return self.scale_length(alpha, val_str)
 
-            def scale_val(val_str: str) -> str:
-                # at least 4 decimals to preserve 0.0045 grid
-                min_dec = 4
-                if '.' in val_str:
-                    orig_dec = len(val_str.split('.')[1])
-                else:
-                    orig_dec = 0
-                decimals = max(min_dec, orig_dec)
+        modified_lines = []
+        for line in lines:
+            # Scale die_area values
+            if "set die_area" in line:
+                line = re.sub(r"(\{)([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)(\})",
+                            lambda m: f"{m.group(1)}{scale_val(m.group(2))} {scale_val(m.group(3))} {scale_val(m.group(4))} {scale_val(m.group(5))}{m.group(6)}",
+                            line)
+            
+            # Scale core_area values
+            if "set core_area" in line:
+                line = re.sub(r"(\{)([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)(\})",
+                            lambda m: f"{m.group(1)}{scale_val(m.group(2))} {scale_val(m.group(3))} {scale_val(m.group(4))} {scale_val(m.group(5))}{m.group(6)}",
+                            line)
+            
+            modified_lines.append(line)
 
-                scaled_val = float(val_str) / alpha
-                grid_aligned = self.round_to_manufacturing_grid(scaled_val)
-                return f"{grid_aligned:.{decimals}f}"
+        with open(tcl_path, "w") as f:
+            f.writelines(modified_lines)
+        logger.info(f"Scaled die area in {tcl_path} with alpha={alpha}.")
 
-            modified_lines = []
-            for line in lines:
-                # Scale die_area values
-                if "set die_area" in line:
-                    line = re.sub(r"(\{)([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)(\})",
-                                lambda m: f"{m.group(1)}{scale_val(m.group(2))} {scale_val(m.group(3))} {scale_val(m.group(4))} {scale_val(m.group(5))}{m.group(6)}",
-                                line)
-                
-                # Scale core_area values
-                if "set core_area" in line:
-                    line = re.sub(r"(\{)([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)(\})",
-                                lambda m: f"{m.group(1)}{scale_val(m.group(2))} {scale_val(m.group(3))} {scale_val(m.group(4))} {scale_val(m.group(5))}{m.group(6)}",
-                                line)
-                
-                modified_lines.append(line)
-
-            with open(tcl_path, "w") as f:
-                f.writelines(modified_lines)
-            logger.info(f"Scaled die area in {tcl_path} with alpha={alpha}.")
-        except FileNotFoundError:
-            logger.error(f"TCL file not found at {tcl_path}.")
-        except Exception as e:
-            logger.error(f"Error scaling die area: {e}")
-
-    def _scale_vars_file(self, alpha: float):
+    def scale_vars_file(self, alpha: float):
         """
         Scale various parameters in codesign.vars to match the scaled technology.
         """
@@ -603,72 +564,52 @@ class ScaleLefFiles:
 
         vars_path = os.path.join(self.directory, "tcl", "codesign_files", "codesign.vars")
         
-        try:
-            with open(vars_path, "r") as f:
-                lines = f.readlines()
+        with open(vars_path, "r") as f:
+            lines = f.readlines()
 
-            def get_decimal_places(val_str: str) -> int:
-                """Get the number of decimal places from the original value string"""
-                if '.' in val_str:
-                    return len(val_str.split('.')[1])
-                return 0
+        def scale_val(val_str: str) -> str:
+            return self.scale_length(alpha, val_str)
+
+        modified_lines = []
+        for line in lines:
+            # Scale tapcell distance
+            if "-distance" in line:
+                if not grid_only_pass:
+                    line = re.sub(r"(-distance\s+)([\d\.]+)",
+                                lambda m: f"{m.group(1)}{scale_val(m.group(2))}",
+                                line)
             
-            def get_decimal_places_min(val_str: str, min_dec=4) -> int:
-                """Decimal places with a minimum to preserve grid precision."""
-                d = get_decimal_places(val_str)
-                return max(min_dec, d)
-
-            def scale_val(val_str: str) -> str:
-                decimal_places = get_decimal_places_min(val_str, 4)
-                scaled_val = float(val_str) / alpha
-                # ensure multiple of manufacturing grid
-                scaled_val = self.round_to_manufacturing_grid(scaled_val)
-                return f"{scaled_val:.{decimal_places}f}"
-
-            modified_lines = []
-            for line in lines:
-                # Scale tapcell distance
-                if "-distance" in line:
-                    if not grid_only_pass:
-                        line = re.sub(r"(-distance\s+)([\d\.]+)",
-                                    lambda m: f"{m.group(1)}{scale_val(m.group(2))}",
-                                    line)
+            # Scale macro place halo
+            if "macro_place_halo" in line:
+                # always grid-align these values regardless of grid_only_pass
+                # support optional whitespace and preserve formatting
+                line = re.sub(r"(\{)\s*([\d\.]+)\s+([\d\.]+)\s*(\})",
+                            lambda m: f"{m.group(1)}{scale_val(m.group(2))} {scale_val(m.group(3))}{m.group(4)}",
+                            line)
+            
+            # Scale macro place channel
+            if "macro_place_channel" in line and not grid_only_pass:
+                line = re.sub(r"(\{)\s*([\d\.]+)\s+([\d\.]+)\s*(\})",
+                            lambda m: f"{m.group(1)}{scale_val(m.group(2))} {scale_val(m.group(3))}{m.group(4)}",
+                            line)
                 
-                # Scale macro place halo
-                if "macro_place_halo" in line:
-                    # always grid-align these values regardless of grid_only_pass
-                    # support optional whitespace and preserve formatting
-                    line = re.sub(r"(\{)\s*([\d\.]+)\s+([\d\.]+)\s*(\})",
-                                lambda m: f"{m.group(1)}{scale_val(m.group(2))} {scale_val(m.group(3))}{m.group(4)}",
-                                line)
+            # Scale tie separation
+            if "tie_separation" in line and not grid_only_pass:
+                line = re.sub(r"(\s+)([\d\.]+)$",
+                            lambda m: f"{m.group(1)}{scale_val(m.group(2))}",
+                            line)
                 
-                # Scale macro place channel
-                if "macro_place_channel" in line and not grid_only_pass:
-                    line = re.sub(r"(\{)\s*([\d\.]+)\s+([\d\.]+)\s*(\})",
-                                lambda m: f"{m.group(1)}{scale_val(m.group(2))} {scale_val(m.group(3))}{m.group(4)}",
-                                line)
-                 
-                # Scale tie separation
-                if "tie_separation" in line and not grid_only_pass:
-                    line = re.sub(r"(\s+)([\d\.]+)$",
-                                lambda m: f"{m.group(1)}{scale_val(m.group(2))}",
-                                line)
-                 
-                # Scale cts cluster diameter
-                if "cts_cluster_diameter" in line and not grid_only_pass:
-                    line = re.sub(r"(\s+)([\d\.]+)$",
-                                lambda m: f"{m.group(1)}{scale_val(m.group(2))}",
-                                line)
-                 
-                modified_lines.append(line)
- 
-            with open(vars_path, "w") as f:
-                 f.writelines(modified_lines)
-            logger.info(f"Scaled vars file at {vars_path} with alpha={alpha}.")
-        except FileNotFoundError:
-            logger.error(f"Vars file not found at {vars_path}.")
-        except Exception as e:
-            logger.error(f"Error scaling vars file: {e}")
+            # Scale cts cluster diameter
+            if "cts_cluster_diameter" in line and not grid_only_pass:
+                line = re.sub(r"(\s+)([\d\.]+)$",
+                            lambda m: f"{m.group(1)}{scale_val(m.group(2))}",
+                            line)
+                
+            modified_lines.append(line)
+
+        with open(vars_path, "w") as f:
+                f.writelines(modified_lines)
+        logger.info(f"Scaled vars file at {vars_path} with alpha={alpha}.")
 
     def verify_on_grid(self, path: str, tag: str = ""):
         bad = []
@@ -687,14 +628,4 @@ class ScaleLefFiles:
             logger.info(f"[GRID] All values are aligned in {tag or path}.")
 
 
-    def round_to_manufacturing_grid(self, val: float) -> float:
-        """
-        Round a linear value to the nearest multiple of the new manufacturing grid.
-        """
-        return round(val / self.new_manufacturing_grid) * self.new_manufacturing_grid
-
-    def round_to_manufacturing_grid_area(self, val: float) -> float:
-        """
-        Round an area value to the nearest multiple of new manufacturing grid^2.
-        """
-        return round(val / (self.new_manufacturing_grid * self.new_manufacturing_grid)) * (self.new_manufacturing_grid * self.new_manufacturing_grid)
+    
