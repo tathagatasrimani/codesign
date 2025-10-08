@@ -35,6 +35,7 @@ class OpenRoadRun:
     test_file: str, 
     arg_parasitics: str,
     area_constraint: int,
+    L_eff: float
     ):
         """
         Runs the OpenROAD flow.
@@ -46,7 +47,7 @@ class OpenRoadRun:
         dict = {edge: {} for edge in graph.edges()}
         if "none" not in arg_parasitics:
             logger.info("Running setup for place and route.")
-            graph, net_out_dict, node_output, lef_data, node_to_num = self.setup(graph, test_file, area_constraint)
+            graph, net_out_dict, node_output, lef_data, node_to_num = self.setup(graph, test_file, area_constraint, L_eff)
             logger.info("Setup complete. Running extraction.")
             dict, graph = self.extraction(graph, arg_parasitics, net_out_dict, node_output, lef_data, node_to_num)
             logger.info("Extraction complete.")
@@ -60,7 +61,8 @@ class OpenRoadRun:
         self,
         graph: nx.DiGraph,
         test_file: str,
-        area_constraint: int
+        area_constraint: int,
+        L_eff: float
     ):
         """
         Sets up the OpenROAD environment. This method creates the working directory, copies tcl files, and generates the def file
@@ -71,7 +73,7 @@ class OpenRoadRun:
             area_constraint: area constraint for the placement
 
         """
-        alpha = 1.125
+        
         logger.info("Setting up environment for place and route.")
         if os.path.exists(self.directory):
             logger.info(f"Removing existing directory: {self.directory}")
@@ -84,10 +86,9 @@ class OpenRoadRun:
         logger.info(f"Created results directory: {self.directory}/results")
 
         self.update_area_constraint(area_constraint)
-        
-        ## TODO: scale lef files based on alpha
+
         do_scale_lef = scale_lef.ScaleLefFiles(self.cfg, self.codesign_root_dir)
-        do_scale_lef.scale_lef_files(alpha)
+        do_scale_lef.scale_lef_files(L_eff)
 
         df = def_generator.DefGenerator(self.cfg, self.codesign_root_dir)
         
@@ -138,7 +139,7 @@ class OpenRoadRun:
         old_dir = os.getcwd()
         os.chdir(self.directory + "/tcl")
         logger.info(f"Changed directory to {self.directory + '/tcl'}")
-        print("running openroad")
+        print("running openroad. If openroad fails (check log), type exit below and hit return.")
         logger.info("Running OpenROAD command.")
         os.system(os.path.dirname(os.path.abspath(__file__)) + "/OpenROAD/build/src/openroad codesign_top.tcl > " + self.directory + "/codesign_pd.log")#> /dev/null 2>&1
         print("done")
