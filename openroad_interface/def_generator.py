@@ -115,8 +115,8 @@ class DefGenerator:
     def run_def_generator(self, test_file: str, graph: nx.DiGraph): 
         '''
         -> nx.DiGraph, dict, dict, dict (it's not working when actaully written)
-        Generates required .def file for OpenROAD.
-
+        Generates required .def file for OpenROAD. It uses the lef files specified in the tcl file to
+        determine the components that will be used.
         params: 
             test_file: tcl file
             graph: nx.DiGraph, untouched
@@ -191,8 +191,6 @@ class DefGenerator:
             if "site" in line:
                 site = re.findall(r'"(.*?)"', line)
                 site_name = site[0]
-
-        os.system("cp openroad_interface/std_cell_lef/codesign_stdcell.lef" + " " + lef_std_file) 
 
         # extracting needed macros and their respective pins from lef and puts it into a dict
         lef_std_data = open(lef_std_file)
