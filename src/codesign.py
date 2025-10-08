@@ -366,9 +366,9 @@ class Codesign:
             
             logger.info("Creating DFGs from Vitis CDFGs")
             schedule_parser.create_dfgs()
-            self.hw.scheduled_dfgs = {basic_block_name: schedule_parser.basic_blocks[basic_block_name]["G_standard"] for basic_block_name in schedule_parser.basic_blocks}
-            self.hw.loop_1x_graphs = {basic_block_name: schedule_parser.basic_blocks[basic_block_name]["G_loop_1x_standard"] for basic_block_name in schedule_parser.basic_blocks if "G_loop_1x" in schedule_parser.basic_blocks[basic_block_name]}
-            self.hw.loop_2x_graphs = {basic_block_name: schedule_parser.basic_blocks[basic_block_name]["G_loop_2x_standard"] for basic_block_name in schedule_parser.basic_blocks if "G_loop_2x" in schedule_parser.basic_blocks[basic_block_name]}
+            self.hw.scheduled_dfgs = {basic_block_name: schedule_parser.basic_blocks[basic_block_name]["G_standard_with_wire_ops"] for basic_block_name in schedule_parser.basic_blocks}
+            self.hw.loop_1x_graphs = {basic_block_name: schedule_parser.basic_blocks[basic_block_name]["G_loop_1x_standard_with_wire_ops"] for basic_block_name in schedule_parser.basic_blocks if "G_loop_1x" in schedule_parser.basic_blocks[basic_block_name]}
+            #self.hw.loop_2x_graphs = {basic_block_name: schedule_parser.basic_blocks[basic_block_name]["G_loop_2x_standard"] for basic_block_name in schedule_parser.basic_blocks if "G_loop_2x" in schedule_parser.basic_blocks[basic_block_name]}
             logger.info(f"scheduled dfgs: {self.hw.scheduled_dfgs}")
             logger.info(f"loop 1x graphs: {self.hw.loop_1x_graphs}")
 
@@ -377,11 +377,11 @@ class Codesign:
         else:
             for file in os.listdir(parse_results_dir):
                 if os.path.isdir(os.path.join(parse_results_dir, file)):
-                    self.hw.scheduled_dfgs[file] = nx.read_gml(f"{parse_results_dir}/{file}/{file}_graph_standard.gml")
+                    self.hw.scheduled_dfgs[file] = nx.read_gml(f"{parse_results_dir}/{file}/{file}_graph_standard_with_wire_ops.gml")
                     if os.path.exists(f"{parse_results_dir}/{file}/{file}_graph_loop_1x_standard.gml"):
-                        self.hw.loop_1x_graphs[file] = nx.read_gml(f"{parse_results_dir}/{file}/{file}_graph_loop_1x_standard.gml")
-                        assert os.path.exists(f"{parse_results_dir}/{file}/{file}_graph_loop_2x_standard.gml")
-                        self.hw.loop_2x_graphs[file] = nx.read_gml(f"{parse_results_dir}/{file}/{file}_graph_loop_2x_standard.gml")
+                        self.hw.loop_1x_graphs[file] = nx.read_gml(f"{parse_results_dir}/{file}/{file}_graph_loop_1x_standard_with_wire_ops.gml")
+                        #assert os.path.exists(f"{parse_results_dir}/{file}/{file}_graph_loop_2x_standard.gml")
+                        #self.hw.loop_2x_graphs[file] = nx.read_gml(f"{parse_results_dir}/{file}/{file}_graph_loop_2x_standard_with_wire_ops.gml")
             logger.info("Skipping Vitis schedule parsing")
 
         self.checkpoint_controller.check_end_checkpoint("schedule")

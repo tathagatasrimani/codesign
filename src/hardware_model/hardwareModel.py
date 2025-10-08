@@ -2,6 +2,7 @@ import logging
 import random
 import yaml
 import time
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +44,60 @@ def symbolic_min(a, b, evaluate=True):
     Min(a, b) in a format which ipopt accepts.
     """
     return 0.5 * (a + b - sp.Abs(a - b, evaluate=evaluate))
+
+class BlockVector:
+    def __init__(self):
+
+        self.op_types = set([
+            "logic",
+            "memory",
+            "interconnect",
+
+            "logic_rsc",
+            "memory_rsc",
+            "interconnect_rsc",
+        ])
+        self.bound_factor = {op_type: 0 for op_type in self.op_types}
+        self.normalized_bound_factor = {op_type: 0 for op_type in self.op_types}
+        self.sensitivity = {op_type: 0 for op_type in self.op_types}
+
+        self.delay = 0
+    
+    def __add__(self, other):
+        result = BlockVector()
+        result.delay = self.delay + other.delay
+        result.bound_factor = {op_type: self.bound_factor[op_type]*self.delay + other.bound_factor[op_type]*other.delay for op_type in self.op_types}
+        result.sensitivity = {op_type: self.sensitivity[op_type]*self.delay + other.sensitivity[op_type]*other.delay for op_type in self.op_types}
+        result.sensitivity_softmax()
+        return result
+    
+    def sensitivity_softmax(self):
+        max_sensitivity = max(self.sensitivity.values())
+        for op_type in self.op_types:
+            self.sensitivity[op_type] = np.exp(self.sensitivity[op_type] - max_sensitivity)
+        sum_sensitivity = sum(self.sensitivity.values())
+        for op_type in self.op_types:
+            self.sensitivity[op_type] = self.sensitivity[op_type]/sum_sensitivity
+
+    def normalize_bound_factor(self):
+        if self.delay == 0:
+            return
+        for op_type in self.op_types:
+            self.normalized_bound_factor[op_type] = self.bound_factor[op_type]/self.delay
+    
+    def __str__(self):
+        return f"=============BlockVector=============\nDelay: {self.delay}\nBound Factor: {self.bound_factor}\nNormalized Bound Factor: {self.normalized_bound_factor}\nSensitivity: {self.sensitivity}\n=============End BlockVector============="
+
+def get_op_type_from_function(function, resource_edge=False):
+    if function in ["Buf", "MainMem"]:
+        return "memory" if not resource_edge else "memory_rsc"
+    elif function in ["Add", "Sub", "Mult", "FloorDiv", "Mod", "LShift", "RShift", "BitOr", "BitXor", "BitAnd", "Eq", "NotEq", "Lt", "LtE", "Gt", "GtE", "USub", "UAdd", "IsNot", "Not", "Invert", "Regs"]:
+        return "logic" if not resource_edge else "logic_rsc"
+    elif function == "Wire":
+        return "interconnect" if not resource_edge else "interconnect_rsc"
+    else:
+        return "N/A"
+
 
 class HardwareModel:
     """
@@ -605,14 +660,18 @@ class HardwareModel:
                 loop_count = data["count"]
                 if is_loop:
                     loop_energy = self.calculate_active_energy_basic_block(basic_block_name, self.loop_1x_graphs[basic_block_name], is_loop=True)
+            elif data["function"] == "Wire":
+                src = data["src_node"]
+                dst = data["dst_node"]
+                if (src, dst) in self.dfg_to_netlist_edge_map:
+                    total_active_energy_basic_block += self.circuit_model.wire_energy(self.dfg_to_netlist_edge_map[(src, dst)])
+                    log_info(f"edge {src, dst} is in dfg_to_netlist_edge_map")
+                    log_info(f"wire energy for {node}: {self.circuit_model.wire_energy(self.dfg_to_netlist_edge_map[(src, dst)])}")
+                else:
+                    log_info(f"edge {src, dst} is not in dfg_to_netlist_edge_map")
             else:
                 total_active_energy_basic_block += self.circuit_model.symbolic_energy_active[data["function"]]()
-        for edge in dfg.edges:
-            if edge in self.dfg_to_netlist_edge_map:
-                total_active_energy_basic_block += self.circuit_model.wire_energy(self.dfg_to_netlist_edge_map[edge])
-                log_info(f"edge {edge} is in dfg_to_netlist_edge_map")
-            else:
-                log_info(f"edge {edge} is not in dfg_to_netlist_edge_map")
+                log_info(f"active energy for {node}: {self.circuit_model.symbolic_energy_active[data['function']]()}")
         log_info(f"total active energy for {basic_block_name}: {total_active_energy_basic_block}")
         log_info(f"loop count for {basic_block_name}: {loop_count}")
         if is_loop:
@@ -670,6 +729,120 @@ class HardwareModel:
         self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.node_arrivals_end] = self.graph_delays_cvx[self.top_block_name].value / self.scale_cvx
         log_info(f"graph delay cvx for top block: {self.graph_delays_cvx[self.top_block_name].value / self.scale_cvx}")
 
+    def calculate_block_vectors(self, top_block_name):
+        logger.info("calculating block vectors")
+        self.block_vectors = {}
+        for basic_block_name in self.scheduled_dfgs:
+            self.block_vectors[basic_block_name] = {}
+        self.block_vectors[top_block_name]["top"] = self.calculate_block_vector_basic_block(top_block_name, "full", self.scheduled_dfgs[top_block_name])
+
+    def make_graph_one_op_type(self, basic_block_name, graph_type, op_type, eps, dfg):
+        G_new = dfg.copy()
+        for edge in G_new.edges:
+            op_type_pred = get_op_type_from_function(G_new.nodes[edge[0]]["function"])
+            if op_type_pred == op_type or op_type == "all":
+                base_delay = self.block_vectors[basic_block_name][graph_type][edge].delay if op_type == "all" else self.block_vectors[basic_block_name][graph_type][edge].bound_factor[op_type]
+                # eps is zero unless we are calculating sensitivity
+                percent_add = eps * self.block_vectors[basic_block_name][graph_type][edge].sensitivity[op_type] if op_type != "all" else eps
+                G_new.edges[edge]["weight"] = (1+percent_add) * base_delay
+        return G_new
+
+
+    def calculate_top_vector(self, basic_block_name, graph_type, dfg):
+        eps = 1e-2
+        vector_top = BlockVector()
+        iso_op_type_graphs = {}
+        # calculate bound factor and delay
+        for op_type in vector_top.op_types:
+            iso_op_type_graphs[op_type] = self.make_graph_one_op_type(basic_block_name, graph_type, op_type, 0, dfg)
+            crit_path = nx.dag_longest_path(iso_op_type_graphs[op_type])
+            log_info(f"crit path for {op_type}: {crit_path}")
+            for i in range(len(crit_path)-1):
+                vector_top.bound_factor[op_type] += self.block_vectors[basic_block_name][graph_type][(crit_path[i], crit_path[i+1])].bound_factor[op_type]
+            log_info(f"crit path delay for {op_type}: {vector_top.bound_factor[op_type]}")
+        all_op_graph = self.make_graph_one_op_type(basic_block_name, graph_type, "all", 0, dfg)
+        crit_path = nx.dag_longest_path(all_op_graph)
+        for i in range(len(crit_path)-1):
+            log_info(f"crit path delay for all: {self.block_vectors[basic_block_name][graph_type][(crit_path[i], crit_path[i+1])].delay}")
+            vector_top.delay += self.block_vectors[basic_block_name][graph_type][(crit_path[i], crit_path[i+1])].delay
+    
+        iso_op_type_graphs_with_eps = {}
+        # calculate sensitivity, should range between 0 and 1
+        for op_type in vector_top.op_types:
+            # using full graph for this part
+            iso_op_type_graphs_with_eps[op_type] = self.make_graph_one_op_type(basic_block_name, graph_type, "all", eps, dfg)
+            crit_path = nx.dag_longest_path(iso_op_type_graphs_with_eps[op_type])
+            crit_path_eps = 0
+            for i in range(len(crit_path)-1):
+                log_info(f"crit path bound factor for {op_type}: {self.block_vectors[basic_block_name][graph_type][(crit_path[i], crit_path[i+1])].bound_factor[op_type]}")
+                log_info(f"crit path sensitivity for {op_type}: {self.block_vectors[basic_block_name][graph_type][(crit_path[i], crit_path[i+1])].sensitivity[op_type]}")
+                crit_path_eps += self.block_vectors[basic_block_name][graph_type][(crit_path[i], crit_path[i+1])].delay * (1+eps*self.block_vectors[basic_block_name][graph_type][(crit_path[i], crit_path[i+1])].sensitivity[op_type])
+            log_info(f"crit path eps for {op_type}: {crit_path_eps}")
+            log_info(f"crit path delay for {op_type}: {vector_top.delay}")
+            vector_top.sensitivity[op_type] = 0 if vector_top.delay == 0 else (crit_path_eps - vector_top.delay) / (eps * vector_top.delay)
+            assert vector_top.sensitivity[op_type] >= 0-eps and vector_top.sensitivity[op_type] <= 1+eps, f"sensitivity for {op_type} is {vector_top.sensitivity[op_type]}"
+        vector_top.normalize_bound_factor()
+        log_info(f"top vector for {basic_block_name} {graph_type}: {str(vector_top)}")
+
+        return vector_top
+
+    def calculate_block_vector_basic_block(self, basic_block_name, graph_type, dfg):
+        self.block_vectors[basic_block_name][graph_type] = {}
+        for node in dfg.nodes:
+            for pred in dfg.predecessors(node):
+                if (pred, node) in self.block_vectors[basic_block_name][graph_type]:
+                    continue # nothing to be done
+                # calculate vector for II delay based on the resource constrained 1x loop iteration graph
+                if dfg.nodes[pred]["function"] == "II":
+                    loop_1x_vector = self.calculate_block_vector_basic_block(basic_block_name, "loop_1x", self.loop_1x_graphs[basic_block_name])
+                    loop_1x_vector.delay *= dfg.nodes[pred]["count"]-1
+                    loop_1x_vector.normalize_bound_factor()
+                    self.block_vectors[basic_block_name][graph_type][(pred, node)] = loop_1x_vector
+                # calculate vector for sub-function call
+                elif dfg.nodes[pred]["function"] == "Call":
+                    if dfg.nodes[pred]["call_function"] not in self.block_vectors:
+                        sub_block_name = dfg.nodes[pred]["call_function"]
+                        self.block_vectors[sub_block_name] = self.calculate_block_vector_basic_block(sub_block_name, graph_type, self.scheduled_dfgs[sub_block_name])
+                    self.block_vectors[basic_block_name][graph_type][(pred, node)] = self.block_vectors[sub_block_name][graph_type]
+                # calculate vector for a basic operation
+                else:
+                    self.block_vectors[basic_block_name][graph_type][(pred, node)] = self.calculate_block_vector_edge(pred, node, basic_block_name, graph_type, dfg)
+        
+        return self.calculate_top_vector(basic_block_name, graph_type, dfg)
+
+    def calculate_block_vector_edge(self, src, dst, basic_block_name, graph_type, dfg):
+        fn = dfg.nodes[src]["function"]
+        vector = BlockVector()
+        if dfg.edges[src, dst]["resource_edge"]:
+            # TODO add interconnect resource dependency case
+            vector.delay = self.circuit_model.clk_period_cvx.value
+            if fn in ["Buf", "MainMem"]:
+                vector.bound_factor["memory_rsc"] = vector.delay
+                vector.sensitivity["memory_rsc"] = 1
+            else: # logic
+                vector.bound_factor["logic_rsc"] = vector.delay
+                vector.sensitivity["logic_rsc"] = 1
+        else:
+            if fn == "Wire":
+                if (src, dst) in self.dfg_to_netlist_edge_map:
+                    vector.delay = self.circuit_model.wire_delay_uarch_cvx(self.dfg_to_netlist_edge_map[(src, dst)])
+                else:
+                    vector.delay = 0
+                vector.bound_factor["interconnect"] = vector.delay
+                vector.sensitivity["interconnect"] = 1
+            elif fn in ["Buf", "MainMem"]:
+                # TODO actually fetch memory latency once implemented, this is a placeholder
+                vector.delay = sim_util.xreplace_safe(self.circuit_model.symbolic_latency_wc[fn](), self.circuit_model.tech_model.base_params.tech_values)
+                vector.bound_factor["memory"] = vector.delay
+                vector.sensitivity["memory"] = 1
+            else: # logic
+                vector.delay = sim_util.xreplace_safe(self.circuit_model.symbolic_latency_wc[fn](), self.circuit_model.tech_model.base_params.tech_values)
+                vector.bound_factor["logic"] = vector.delay
+                vector.sensitivity["logic"] = 1
+        vector.normalize_bound_factor()
+        log_info(f"block vector for {src, dst}: {str(vector)}")
+        return vector
+
 
     def calculate_execution_time_vitis(self, top_block_name, clk_period_opt=False, form_dfg=True):
         if not form_dfg:
@@ -719,6 +892,7 @@ class HardwareModel:
             self.node_arrivals_cvx[basic_block_name][graph_type][node] = cp.Variable(pos=True) 
         for node in dfg.nodes:   
             for pred in dfg.predecessors(node):
+                pred_delay_cvx = 0.0
                 if dfg.edges[pred, node]["resource_edge"]:
                     if dfg.nodes[pred]["function"] == "II":
                         delay_1x_cvx = self.calculate_execution_time_vitis_recursive(basic_block_name, self.loop_1x_graphs[basic_block_name], graph_end_node="loop_end_1x", graph_type="loop_1x", resource_delays_only=True)
@@ -729,28 +903,26 @@ class HardwareModel:
                     else:
                         #pred_delay = self.circuit_model.tech_model.base_params.clk_period # convert to ns
                         pred_delay_cvx = self.circuit_model.clk_period_cvx * self.scale_cvx
-                else:
-                    # if function call, recursively calculate its delay 
-                    if dfg.nodes[pred]["function"] == "Call":
-                        if dfg.nodes[pred]["call_function"] not in self.graph_delays:
-                            self.graph_delays_cvx[dfg.nodes[pred]["call_function"]] = self.calculate_execution_time_vitis_recursive(dfg.nodes[pred]["call_function"], self.scheduled_dfgs[dfg.nodes[pred]["call_function"]])
-                        #pred_delay = self.graph_delays[dfg.nodes[pred]["call_function"]]
-                        pred_delay_cvx = self.graph_delays_cvx[dfg.nodes[pred]["call_function"]]
-                    else:
-                        if not resource_delays_only:
-                            #pred_delay = self.circuit_model.symbolic_latency_wc[dfg.nodes[pred]["function"]]()
-                            pred_delay_cvx = self.circuit_model.uarch_lat_cvx[dfg.nodes[pred]["function"]] * self.scale_cvx
-                            if (pred, node) in self.dfg_to_netlist_edge_map:
-                                #pred_delay += self.circuit_model.wire_delay(self.dfg_to_netlist_edge_map[(pred, node)])
-                                pred_delay_cvx += self.circuit_model.wire_delay_uarch_cvx(self.dfg_to_netlist_edge_map[(pred, node)]) * self.scale_cvx
-                                log_info(f"added wire delay {self.circuit_model.wire_delay(self.dfg_to_netlist_edge_map[(pred, node)])} for edge {pred, node}")
-                            else:
-                                log_info(f"no wire delay for edge {pred, node}")
-                            #pred_delay_cvx = sim_util.xreplace_safe(pred_delay, self.circuit_model.tech_model.base_params.tech_values) * self.scale_cvx
+                elif dfg.nodes[pred]["function"] == "Call": # if function call, recursively calculate its delay 
+                    if dfg.nodes[pred]["call_function"] not in self.graph_delays:
+                        self.graph_delays_cvx[dfg.nodes[pred]["call_function"]] = self.calculate_execution_time_vitis_recursive(dfg.nodes[pred]["call_function"], self.scheduled_dfgs[dfg.nodes[pred]["call_function"]])
+                    #pred_delay = self.graph_delays[dfg.nodes[pred]["call_function"]]
+                    pred_delay_cvx = self.graph_delays_cvx[dfg.nodes[pred]["call_function"]]
+                elif not resource_delays_only:
+                    if dfg.nodes[pred]["function"] == "Wire":
+                        src = dfg.nodes[pred]["src_node"]
+                        dst = dfg.nodes[pred]["dst_node"]
+                        if (src, dst) in self.dfg_to_netlist_edge_map:
+                            pred_delay_cvx = self.circuit_model.wire_delay_uarch_cvx(self.dfg_to_netlist_edge_map[(src, dst)]) * self.scale_cvx
+                            log_info(f"added wire delay {self.circuit_model.wire_delay_uarch_cvx(self.dfg_to_netlist_edge_map[(src, dst)])} for edge {src, dst}")
                         else:
-                            #pred_delay = 0
-                            pred_delay_cvx = 0
+                            log_info(f"no wire delay for edge {src, dst}")
+                    else:
+                        #pred_delay = self.circuit_model.symbolic_latency_wc[dfg.nodes[pred]["function"]]()
+                        pred_delay_cvx = self.circuit_model.uarch_lat_cvx[dfg.nodes[pred]["function"]] * self.scale_cvx
                 log_info(f"pred_delay_cvx: {pred_delay_cvx}")
+                if isinstance(pred_delay_cvx, cp.Expression):
+                    log_info(f"pred_delay_cvx value: {pred_delay_cvx.value}")
                 #log_info(f"pred_delay: {pred_delay}")
                 assert pred_delay_cvx is not None and not isinstance(pred_delay_cvx, sp.Expr), f"pred_delay_cvx is {pred_delay_cvx}, type: {type(pred_delay_cvx)}"
                 #self.constraints.append(self.node_arrivals[basic_block_name][graph_type][node] >= self.node_arrivals[basic_block_name][graph_type][pred] + pred_delay)
@@ -1022,6 +1194,7 @@ class HardwareModel:
             self.total_passive_energy = self.calculate_passive_energy(self.execution_time, symbolic=True)
             self.total_active_energy = self.calculate_active_energy(symbolic=True)
         self.save_obj_vals(self.execution_time)
+        self.calculate_block_vectors(self.top_block_name)
         logger.info(f"time to calculate objective: {time.time()-start_time}")
 
     def display_objective(self, message):
