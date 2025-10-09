@@ -28,6 +28,11 @@ class ScaleLefFiles:
         self.database_units_scale = 1  ## scale the number of database units per micron by this factor
         self.min_manufacturing_grid = 0.0005  # manufacturing grid must be a multiple of this
 
+        self.orig_site_size_x = 0.0
+        self.orig_site_size_y = 0.0
+        self.new_site_size_x = 0.0
+        self.new_site_size_y = 0.0
+
     def scale_lef_files(self, L_eff_current: float):
         """
         Scales the technology and standard cell LEF files by the given factor.
@@ -57,9 +62,12 @@ class ScaleLefFiles:
 
         ## ensure that we are scaling by the proper factor.
         quantized_alpha = self.original_manufacturing_grid / self.new_manufacturing_grid
+
+        self.scale_site_sizes(quantized_alpha)
+        self.snap_area_to_site_grid()
         
-        self.scale_track_pitches(quantized_alpha)
         self.scale_tech_lef(quantized_alpha)
+        self.scale_track_pitches(quantized_alpha)
         self.scale_stdcell_lef(quantized_alpha)
         self.scale_pdn_config(quantized_alpha)
         self.scale_vars_file(quantized_alpha)
@@ -114,6 +122,52 @@ class ScaleLefFiles:
                             grid = float(m.group(1))
                             break
         return grid
+    
+    def scale_site_sizes(self, alpha: float):
+        """
+        Scale the SITE SIZE in the technology LEF to match the new manufacturing grid.
+        This reads the original SITE SIZE from the original tech LEF, scales it by alpha,
+        and updates the SITE SIZE in the scaled tech LEF.
+
+        The instance variables self.orig_site_size_x/y and self.new_site_size_x/y are also updated.
+
+        :param alpha: The scaling factor.
+        """
+        tech_lef = os.path.join(self.directory, "tcl", "codesign_files", "codesign_tech.lef")
+
+        if not os.path.exists(tech_lef):
+            logger.warning(f"Tech LEF not found at {tech_lef}; cannot scale SITE SIZE.")
+            return
+
+
+        # Read the original SITE SIZE
+        with open(tech_lef, "r") as f:
+            for line in f:
+                if re.match(r"\s*SIZE\s+[-+]?\d*\.?\d+\s+BY\s+[-+]?\d*\.?\d+\s*;", line):
+                    m = re.search(r"SIZE\s+([-+]?\d*\.?\d+)\s+BY\s+([-+]?\d*\.?\d+)", line)
+                    if m:
+                        self.orig_site_size_x = float(m.group(1))
+                        self.orig_site_size_y = float(m.group(2))
+                        break
+
+        if self.orig_site_size_x == 0.0 or self.orig_site_size_y == 0.0:
+            logger.warning("Original SITE SIZE not found; cannot scale.")
+            return
+
+        self.new_site_size_x = self.round_to_manufacturing_grid(self.orig_site_size_x / alpha)
+        self.new_site_size_y = self.round_to_manufacturing_grid(self.orig_site_size_y / alpha)
+
+        # Update the SITE SIZE in the scaled tech LEF
+        with open(tech_lef, "r") as f:
+            lines = f.readlines()
+
+        with open(tech_lef, "w") as f:
+            for line in lines:
+                if re.match(r"\s*SIZE\s+[-+]?\d*\.?\d+\s+BY\s+[-+]?\d*\.?\d+\s*;", line):
+                    line = re.sub(r"SIZE\s+([-+]?\d*\.?\d+)\s+BY\s+([-+]?\d*\.?\d+)", f"SIZE {self.new_site_size_x} BY {self.new_site_size_y}", line)
+                f.write(line)
+
+        
 
     @staticmethod
     def get_decimal_places(val_str: str, min_dec=4) -> int:
@@ -166,52 +220,63 @@ class ScaleLefFiles:
         with open(lef_path, "w") as f:
             f.writelines(modified_lines)
 
-    def scale_track_pitches(self, alpha: float):
+    def snap_area_to_site_grid(self):
+        """ Snap the overall area constraint to the nearest multiple of the site grid.
         """
-        Updates the track pitches in the temporary codesign.tracks file.
-        This method reads the file, scales the x and y pitch values by dividing
-        them by the alpha factor, and writes the file back.
+        ## read in the top tcl file
+        tcl_path = os.path.join(self.directory, "tcl", "codesign_top.tcl")
+        with open(tcl_path, "r") as f:
+            lines = f.readlines()   
 
-        :param alpha: The scaling factor to divide the pitches by.
-        """
-
-        logger.info(f"Scaling track pitches by a division factor of {alpha}.")
-        
-        # Construct the full path to the file inside the temporary directory
-        tracks_file_path = os.path.join(self.directory, "tcl", "codesign_files", "codesign.tracks")
-
-        # Read all lines from the file
-        with open(tracks_file_path, "r") as file:
-            lines = file.readlines()
-
+        ## find the area. Snap it to the nearest multiple of the site grid.
         modified_lines = []
 
-        # Define a helper function to perform the replacement using regex
-        def replace_grid_param(match_obj):
-            keyword_and_space = match_obj.group(1)
-            value_str = match_obj.group(2)
+        # choose grid: prefer site size if available, otherwise fall back to manufacturing grid
+        grid_x = self.new_site_size_x if self.new_site_size_x and self.new_site_size_x > 0 else self.new_manufacturing_grid
+        grid_y = self.new_site_size_y if self.new_site_size_y and self.new_site_size_y > 0 else self.new_manufacturing_grid
 
-            new_value = self.scale_length(alpha, value_str)
+        def snap_value(val: float, grid: float) -> float:
+            if grid <= 0:
+                return float(val)
+            return round(val / grid) * grid
 
-            return f"{keyword_and_space}{new_value}"
+        def fmt_num(v: float) -> str:
+            # format without unnecessary decimals
+            if abs(v - round(v)) < 1e-9:
+                return str(int(round(v)))
+            # keep up to 4 decimals, strip trailing zeros
+            s = f"{v:.4f}".rstrip('0').rstrip('.')
+            return s
 
-        modified_lines = []
         for line in lines:
-            if line.strip().startswith("make_tracks"):
-                # Round both offsets and pitches
-                line = re.sub(r"(-x_offset\s+)([\d\.]+)", replace_grid_param, line)
-                line = re.sub(r"(-x_pitch\s+)([\d\.]+)", replace_grid_param, line)
-                line = re.sub(r"(-y_offset\s+)([\d\.]+)", replace_grid_param, line)
-                line = re.sub(r"(-y_pitch\s+)([\d\.]+)", replace_grid_param, line)
-                line = re.sub(r"(-x_pitch\s+)([\d\.]+)", replace_grid_param, line)
-                line = re.sub(r"(-y_pitch\s+)([\d\.]+)", replace_grid_param, line)
+            # match lines like: set die_area {0 0 2800 2800}
+            if line.strip().startswith("set die_area"):
+                nums = re.findall(r"-?\d+\.?\d*", line)
+                if len(nums) == 4:
+                    x0, y0, x1, y1 = map(float, nums)
+                    new_x0 = snap_value(x0, grid_x)
+                    new_y0 = snap_value(y0, grid_y)
+                    new_x1 = snap_value(x1, grid_x)
+                    new_y1 = snap_value(y1, grid_y)
+                    new_block = "{" + f"{fmt_num(new_x0)} {fmt_num(new_y0)} {fmt_num(new_x1)} {fmt_num(new_y1)}" + "}"
+                    line = re.sub(r"\{\s*-?\d+\.?\d*\s+-?\d+\.?\d*\s+-?\d+\.?\d*\s+-?\d+\.?\d*\s*\}", new_block, line)
+
+            # match lines like: set core_area {50 50 2750 2750}
+            if line.strip().startswith("set core_area"):
+                nums = re.findall(r"-?\d+\.?\d*", line)
+                if len(nums) == 4:
+                    lx, ly, x1, y1 = map(float, nums)
+                    # snap upper-right to grid, preserve lower-left if it was 50 50
+                    new_x1 = snap_value(x1, grid_x)
+                    new_y1 = snap_value(y1, grid_y)
+                    new_block = "{" + f"{fmt_num(lx)} {fmt_num(ly)} {fmt_num(new_x1)} {fmt_num(new_y1)}" + "}"
+                    line = re.sub(r"\{\s*-?\d+\.?\d*\s+-?\d+\.?\d*\s+-?\d+\.?\d*\s+-?\d+\.?\d*\s*\}", new_block, line)
+
             modified_lines.append(line)
 
-        # Write the modified lines back to the file
-        with open(tracks_file_path, "w") as file:
-            file.writelines(modified_lines)
-        
-        logger.info(f"Successfully updated pitches in {tracks_file_path}.")
+        # write back the modified top tcl
+        with open(tcl_path, "w") as f:
+            f.writelines(modified_lines)
 
     def scale_tech_lef(self, alpha: float):
         """
@@ -262,14 +327,6 @@ class ScaleLefFiles:
                 if line.strip().endswith(";"):
                     in_spacing_table = False
                 continue
-
-            # SITE SIZE
-            if re.match(r"\s*SIZE\s+[-+]?\d*\.?\d+\s+BY\s+[-+]?\d*\.?\d+\s*;", line):
-                line = re.sub(
-                    r"(\s*SIZE\s+)([-+]?\d*\.?\d+)\s+BY\s+([-+]?\d*\.?\d+)(\s*;)",
-                    lambda m: f"{m.group(1)}{scale_len(m.group(2))} BY {scale_len(m.group(3))}{m.group(4)}",
-                    line,
-                )
 
             # MANUFACTURINGGRID
             elif re.match(r"\s*MANUFACTURINGGRID\s+[-+]?\d*\.?\d+\s*;", line):
@@ -357,6 +414,53 @@ class ScaleLefFiles:
             f"new manufacturing grid={self.new_manufacturing_grid:.6f}."
         )
 
+    def scale_track_pitches(self, alpha: float):
+        """
+        Updates the track pitches in the temporary codesign.tracks file.
+        This method reads the file, scales the x and y pitch values by dividing
+        them by the alpha factor, and writes the file back.
+
+        :param alpha: The scaling factor to divide the pitches by.
+        """
+
+        logger.info(f"Scaling track pitches by a division factor of {alpha}.")
+        
+        # Construct the full path to the file inside the temporary directory
+        tracks_file_path = os.path.join(self.directory, "tcl", "codesign_files", "codesign.tracks")
+
+        # Read all lines from the file
+        with open(tracks_file_path, "r") as file:
+            lines = file.readlines()
+
+        modified_lines = []
+
+        # Define a helper function to perform the replacement using regex
+        def replace_grid_param(match_obj):
+            keyword_and_space = match_obj.group(1)
+            value_str = match_obj.group(2)
+
+            new_value = self.scale_length(alpha, value_str)
+
+            return f"{keyword_and_space}{new_value}"
+
+        modified_lines = []
+        for line in lines:
+            if line.strip().startswith("make_tracks"):
+                # Round both offsets and pitches
+                line = re.sub(r"(-x_offset\s+)([\d\.]+)", replace_grid_param, line)
+                line = re.sub(r"(-x_pitch\s+)([\d\.]+)", replace_grid_param, line)
+                line = re.sub(r"(-y_offset\s+)([\d\.]+)", replace_grid_param, line)
+                line = re.sub(r"(-y_pitch\s+)([\d\.]+)", replace_grid_param, line)
+                line = re.sub(r"(-x_pitch\s+)([\d\.]+)", replace_grid_param, line)
+                line = re.sub(r"(-y_pitch\s+)([\d\.]+)", replace_grid_param, line)
+            modified_lines.append(line)
+
+        # Write the modified lines back to the file
+        with open(tracks_file_path, "w") as file:
+            file.writelines(modified_lines)
+        
+        logger.info(f"Successfully updated pitches in {tracks_file_path}.")
+
     def scale_stdcell_lef(self, alpha: float):
         """
         Scale standard-cell LEF dimensions by dividing linear values by alpha.
@@ -386,6 +490,15 @@ class ScaleLefFiles:
         def scale_len(val: str) -> str:
             return self.scale_length(alpha, val)
 
+        def scale_len_site_snap(val: str, dir: str) -> str:
+            # Scale and snap to the new site size grid
+            scaled = float(val) / alpha
+            snapped = max(1, round(scaled / self.new_site_size_x)) * self.new_site_size_x
+            if dir == 'y':
+                snapped = max(1, round(scaled / self.new_site_size_y)) * self.new_site_size_y
+            decimals = self.get_decimal_places(val, 4)
+            return f"{snapped:.{decimals}f}"
+
         modified_lines = []
 
         for line in lines:
@@ -393,7 +506,7 @@ class ScaleLefFiles:
             if re.match(r"^\s*SIZE\s+[\d\.Ee\+\-]+\s+BY\s+[\d\.Ee\+\-]+\s*;", line):
                 line = re.sub(
                     r"(^\s*SIZE\s+)([\d\.Ee\+\-]+)\s+BY\s+([\d\.Ee\+\-]+)(\s*;)",
-                    lambda m: f"{m.group(1)}{scale_len(m.group(2))} BY {scale_len(m.group(3))}{m.group(4)}",
+                    lambda m: f"{m.group(1)}{scale_len_site_snap(m.group(2), 'x')} BY {scale_len_site_snap(m.group(3), 'y')}{m.group(4)}",
                     line,
                 )
 
@@ -595,4 +708,4 @@ class ScaleLefFiles:
             logger.info(f"[GRID] All values are aligned in {tag or path}.")
 
 
-    
+

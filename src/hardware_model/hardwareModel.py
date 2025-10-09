@@ -24,7 +24,7 @@ from openroad_interface import openroad_run
 
 import cvxpy as cp
 
-DEBUG = False
+DEBUG = True
 def log_info(msg):
     if DEBUG:
         logger.info(msg)
@@ -512,8 +512,17 @@ class HardwareModel:
 
         open_road_run = openroad_run.OpenRoadRun(cfg=self.cfg, codesign_root_dir=self.codesign_root_dir)
 
+        ## Get the current value of Leff. Read in from yaml/params_current.yaml
+        ## open the yaml file
+        with open(self.codesign_root_dir + "/src/yaml/params_current.yaml", "r") as f:
+            params_current = yaml.safe_load(f)
+
+        L_eff = params_current["L"]
+
+        logger.info(f"current L_eff for get_wire_parascitics: {L_eff}")
+
         self.circuit_model.wire_length_by_edge, _ = open_road_run.run(
-            self.netlist, arg_testfile, arg_parasitics, area_constraint
+            self.netlist, arg_testfile, arg_parasitics, area_constraint, L_eff
         )
 
         log_info(f"wire lengths: {self.circuit_model.wire_length_by_edge}")
