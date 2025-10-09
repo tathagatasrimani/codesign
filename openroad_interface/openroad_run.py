@@ -17,6 +17,9 @@ from . import estimation as est
 from . import detailed as det
 from . import scale_lef_files as scale_lef
 
+## This is the area between the die area and the core area.
+DIE_CORE_BUFFER_SIZE = 50
+
 class OpenRoadRun:
     def __init__(self, cfg, codesign_root_dir):
         """
@@ -145,25 +148,22 @@ class OpenRoadRun:
             tcl_data = file.readlines()
 
         ## compute the new area constraint
-        new_sidelength = int(sqrt(area_constraint))  
-
-        ## round to the nearest multiple of 100
-        new_sidelength = round(new_sidelength / 100) * 100
+        new_core_sidelength = int(sqrt(area_constraint))  
 
         ## find a line that contains "set die_area" and replace it with the new area constraint
         for i, line in enumerate(tcl_data):
             if "set die_area" in line:
-                tcl_data[i] = f"set die_area {{0 0 {new_sidelength} {new_sidelength}}}\n"
-                logger.info(f"Updated die_area to {new_sidelength}x{new_sidelength}")
+                tcl_data[i] = f"set die_area {{0 0 {new_core_sidelength + DIE_CORE_BUFFER_SIZE*2} {new_core_sidelength + DIE_CORE_BUFFER_SIZE*2}}}\n"
+                logger.info(f"Updated die_area to {new_core_sidelength + DIE_CORE_BUFFER_SIZE*2}x{new_core_sidelength + DIE_CORE_BUFFER_SIZE*2}")
             if "set core_area" in line:
-                tcl_data[i] = f"set core_area {{50 50 {new_sidelength - 50} {new_sidelength - 50}}}\n"
-                logger.info(f"Updated core_area to {new_sidelength - 50}x{new_sidelength - 50}")
+                tcl_data[i] = f"set core_area {{{DIE_CORE_BUFFER_SIZE} {DIE_CORE_BUFFER_SIZE} {new_core_sidelength + DIE_CORE_BUFFER_SIZE} {new_core_sidelength + DIE_CORE_BUFFER_SIZE}}}\n"
+                logger.info(f"Updated core_area to {new_core_sidelength}x{new_core_sidelength}")
 
         ## write the new tcl file
         with open(self.directory + "/tcl/codesign_top.tcl", "w") as file:
             file.writelines(tcl_data)
         
-        logger.info(f"Wrote updated tcl file with the area constraints: {new_sidelength}x{new_sidelength}")
+        logger.info(f"Wrote updated tcl file with the area constraints: {new_core_sidelength}x{new_core_sidelength}")
 
 
     def run_openroad_executable(self):

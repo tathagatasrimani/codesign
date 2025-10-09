@@ -65,6 +65,7 @@ class ScaleLefFiles:
 
         self.scale_site_sizes(quantized_alpha)
         self.snap_area_to_site_grid()
+        self.scale_halo(quantized_alpha)
         
         self.scale_tech_lef(quantized_alpha)
         self.scale_track_pitches(quantized_alpha)
@@ -690,6 +691,40 @@ class ScaleLefFiles:
         with open(vars_path, "w") as f:
                 f.writelines(modified_lines)
         logger.info(f"Scaled vars file at {vars_path} with alpha={alpha}.")
+
+    def scale_halo(self, alpha: float):
+        """
+        Scale the halo value in codesign_flow.tcl by dividing it by alpha and snapping to grid.
+        Targets lines containing:
+            -halo_width  <value> \
+            -halo_height <value> \
+        """
+        flow_path = os.path.join(self.directory, "tcl", "codesign_flow.tcl")
+        if not os.path.exists(flow_path):
+            logger.warning(f"codesign_flow.tcl not found at {flow_path}; skipping halo scaling.")
+            return
+
+        with open(flow_path, "r") as f:
+            lines = f.readlines()
+
+        def repl_width(m):
+            return f"{m.group(1)}{self.scale_length(alpha, m.group(2))}"
+
+        def repl_height(m):
+            return f"{m.group(1)}{self.scale_length(alpha, m.group(2))}"
+
+        modified_lines = []
+        for line in lines:
+            if "-halo_width" in line:
+                line = re.sub(r"(-halo_width\s+)([-+]?\d*\.?\d+)", repl_width, line)
+            if "-halo_height" in line:
+                line = re.sub(r"(-halo_height\s+)([-+]?\d*\.?\d+)", repl_height, line)
+            modified_lines.append(line)
+
+        with open(flow_path, "w") as f:
+            f.writelines(modified_lines)
+
+        logger.info(f"Scaled halo in {flow_path} with alpha={alpha}.")
 
     def verify_on_grid(self, path: str, tag: str = ""):
         bad = []

@@ -32,6 +32,37 @@ class DefGenerator:
         self.cfg = cfg
         self.codesign_root_dir = codesign_root_dir
         self.directory = os.path.join(self.codesign_root_dir, "src/tmp/pd")
+        self.macro_halo_x = 0.0
+        self.macro_halo_y = 0.0
+
+
+    def get_macro_halo_values(self):
+        flow_path = os.path.join(self.directory, "tcl", "codesign_flow.tcl")
+        if not os.path.exists(flow_path):
+            logger.warning(f"codesign_flow.tcl not found at {flow_path}; skipping halo extraction.")
+            return
+
+        with open(flow_path, "r") as f:
+            for line in f:
+                # strip trailing backslash and whitespace (lines like: "-halo_width 10 \")
+                line_clean = line.rstrip().rstrip("\\").strip()
+                # look for numeric after -halo_width or -halo_height
+                m_w = re.search(r"-?halo_width\s+([-+]?\d*\.?\d+)", line_clean, re.IGNORECASE)
+                if m_w:
+                    try:
+                        self.macro_halo_x = float(m_w.group(1))
+                    except Exception:
+                        logger.debug(f"Failed to parse halo_width from line: {line.strip()}")
+                    continue
+
+                m_h = re.search(r"-?halo_height\s+([-+]?\d*\.?\d+)", line_clean, re.IGNORECASE)
+                if m_h:
+                    try:
+                        self.macro_halo_y = float(m_h.group(1))
+                    except Exception:
+                        logger.debug(f"Failed to parse halo_height from line: {line.strip()}")
+
+        logger.info(f"Using macro halo values: x = {self.macro_halo_x}, y = {self.macro_halo_y}")
 
     def component_finder(self, name: str) -> str:
         '''
@@ -151,6 +182,8 @@ class DefGenerator:
         layer_x_offset = None
         layer_pitch_x = None
         layer_pitch_y = None
+
+        self.get_macro_halo_values()
 
         
         ### 0. reading tcl file and lef file ###
@@ -407,10 +440,13 @@ class DefGenerator:
             # add macro area if available
             msize = macro_size_dict.get(macro)
             if msize and units:
-                area_estimate_sq_microns += msize[0] * msize[1]
+                # include halo on both sides (assume macro_halo values are per-side in microns)
+                eff_x = msize[0] + 2.0 * self.macro_halo_x
+                eff_y = msize[1] + 2.0 * self.macro_halo_y
+                area_estimate_sq_microns += eff_x * eff_y
             else:
-                if macro not in macro_size_dict:
-                    logger.debug(f"No SIZE found for macro {macro}; skipping in area estimate.")
+                 if macro not in macro_size_dict:
+                     logger.debug(f"No SIZE found for macro {macro}; skipping in area estimate.")
             component_text.append("- {} {} ;".format(component_num, macro))
             node_to_num[node] = format(number)
             number += 1
