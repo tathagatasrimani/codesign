@@ -70,10 +70,45 @@ class OpenRoadRun:
             graph: hardware netlist graph
             test_file: tcl file
             
-            area_constraint: area constraint for the placement
+            area_constraint: area constraint for the placement. We will ensure that the final area constraint set to OpenROAD
+                achieves at least 60% utilization based on the estimated area from the def generator.
+            L_eff: effective channel length used to scale the LEF files.
 
         """
-        
+
+        graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate = self.setup_set_area_constraint(graph, test_file, area_constraint, L_eff)
+
+        ## ensure that the design area utilization is at least 60%
+        if area_estimate > 0.8 * area_constraint:
+            logger.warning(f"Warning: Estimated area {area_estimate} exceeds 80% of area constraint {area_constraint}. Consider increasing area constraint.")
+
+        elif area_estimate < 0.5 * area_constraint:
+            area_constraint_old = area_constraint
+            area_constraint = int(area_estimate / 0.6)
+            logger.info(f"Info: Estimated area {area_estimate} is less than 50% of area constraint {area_constraint_old}. Area constraint will be scaled from {area_constraint_old} to {area_constraint}.")
+            graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate = self.setup_set_area_constraint(graph, test_file, area_constraint, L_eff)
+
+        return graph, net_out_dict, node_output, lef_data, node_to_num
+
+
+    def setup_set_area_constraint(
+        self,
+        graph: nx.DiGraph,
+        test_file: str,
+        area_constraint: int,
+        L_eff: float
+    ):
+        """
+        This is a helper method that runs the setup for a single area constraint and provides an area estimate. 
+        param:
+            graph: hardware netlist graph
+            test_file: tcl file
+            
+            area_constraint: area constraint for the placement. We will ensure that the final area constraint set to OpenROAD
+                achieves at least 60% utilization based on the estimated area from the def generator.
+            L_eff: effective channel length used to scale the LEF files.
+        """
+
         logger.info("Setting up environment for place and route.")
         if os.path.exists(self.directory):
             logger.info(f"Removing existing directory: {self.directory}")
@@ -91,13 +126,13 @@ class OpenRoadRun:
         do_scale_lef.scale_lef_files(L_eff)
 
         df = def_generator.DefGenerator(self.cfg, self.codesign_root_dir)
-        
-        graph, net_out_dict, node_output, lef_data, node_to_num = df.run_def_generator(
+
+        graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate = df.run_def_generator(
             test_file, graph
         )
-        logger.info("DEF generation complete.")
+        logger.info(f"DEF generation complete. Area estimate: {area_estimate}")
 
-        return graph, net_out_dict, node_output, lef_data, node_to_num
+        return graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate
 
     def update_area_constraint(self, area_constraint: int):
         """
