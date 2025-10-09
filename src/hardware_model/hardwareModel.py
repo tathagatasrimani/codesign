@@ -736,6 +736,10 @@ class HardwareModel:
         for basic_block_name in self.scheduled_dfgs:
             self.block_vectors[basic_block_name] = {}
         self.block_vectors[top_block_name]["top"] = self.calculate_block_vector_basic_block(top_block_name, "full", self.scheduled_dfgs[top_block_name])
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.logic_sensitivity] = self.block_vectors[top_block_name]["top"].sensitivity["logic"]
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.logic_resource_sensitivity] = self.block_vectors[top_block_name]["top"].sensitivity["logic_rsc"]
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.logic_ahmdal_limit] = self.block_vectors[top_block_name]["top"].ahmdal_limit["logic"]
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.logic_resource_ahmdal_limit] = self.block_vectors[top_block_name]["top"].ahmdal_limit["logic_rsc"]
 
     def make_graph_one_op_type(self, basic_block_name, graph_type, op_type, eps, dfg):
         G_new = dfg.copy()
@@ -1101,6 +1105,10 @@ class HardwareModel:
                 "delay": self.circuit_model.tech_model.delay,
                 "multiplier delay": self.circuit_model.symbolic_latency_wc["Mult"](),
                 "scaled power": self.total_passive_power * self.circuit_model.tech_model.capped_power_scale_total + self.total_active_energy/(execution_time * self.circuit_model.tech_model.capped_delay_scale_total),
+                "logic_sensitivity": self.circuit_model.tech_model.base_params.logic_sensitivity,
+                "logic_resource_sensitivity": self.circuit_model.tech_model.base_params.logic_resource_sensitivity,
+                "logic_ahmdal_limit": self.circuit_model.tech_model.base_params.logic_ahmdal_limit,
+                "logic_resource_ahmdal_limit": self.circuit_model.tech_model.base_params.logic_resource_ahmdal_limit,
             }
             if self.circuit_model.tech_model.model_cfg["vs_model_type"] == "base":
                 self.obj_sub_exprs["t_1"] = self.circuit_model.tech_model.param_db["t_1"]
@@ -1164,6 +1172,10 @@ class HardwareModel:
             "delay": "Transistor Delay over generations (s)",
             "multiplier delay": "Multiplier Delay over generations (s)",
             "scaled power": "Scaled Power over generations (W)",
+            "logic_sensitivity": "Logic Sensitivity over generations",
+            "logic_resource_sensitivity": "Logic Resource Sensitivity over generations",
+            "logic_ahmdal_limit": "Logic Ahmdal Limit over generations",
+            "logic_resource_ahmdal_limit": "Logic Resource Ahmdal Limit over generations",
         }
         if self.obj_fn == "edp":
             self.obj = (self.total_passive_energy + self.total_active_energy) * execution_time

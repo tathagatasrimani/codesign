@@ -67,6 +67,11 @@ class BaseParameters:
         self.L_c = symbols("L_c", positive=True)
         self.H_c = symbols("H_c", positive=True)
         self.H_g = symbols("H_g", positive=True)
+
+        self.logic_sensitivity = symbols("logic_sensitivity", positive=True)
+        self.logic_resource_sensitivity = symbols("logic_resource_sensitivity", positive=True)
+        self.logic_ahmdal_limit = symbols("logic_ahmdal_limit", positive=True)
+        self.logic_resource_ahmdal_limit = symbols("logic_resource_ahmdal_limit", positive=True)
         
         # technology level parameter values
         self.tech_values = {}
@@ -293,6 +298,10 @@ class BaseParameters:
             "L_c": self.L_c,
             "H_c": self.H_c,
             "H_g": self.H_g,
+            "logic_sensitivity": self.logic_sensitivity,
+            "logic_resource_sensitivity": self.logic_resource_sensitivity,
+            "logic_ahmdal_limit": self.logic_ahmdal_limit,
+            "logic_resource_ahmdal_limit": self.logic_resource_ahmdal_limit,
             "MemReadL": self.MemReadL,
             "MemWriteL": self.MemWriteL,
             "MemReadEact": self.MemReadEact,

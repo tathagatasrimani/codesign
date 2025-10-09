@@ -421,6 +421,8 @@ class Codesign:
         elif not self.cfg["args"]["pytorch"]: # pytorch scalehls dse not yet working
             mlir_file, mlir_idx = self.parse_design_space_for_mlir(os.path.join(os.path.dirname(__file__), "..", "src/tmp/benchmark_setup"))
             opt_cmd = f"cat {mlir_file}"
+        else:
+            opt_cmd = ""
 
         # run scalehls
         if (self.checkpoint_controller.check_checkpoint("scalehls", self.iteration_count) and not setup) or (self.checkpoint_controller.check_checkpoint("setup", self.iteration_count) and setup):
