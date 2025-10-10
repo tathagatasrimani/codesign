@@ -16,7 +16,7 @@ from src import sim_util
 
 DEBUG = False
 
-def debug_print(msg):
+def log_info(msg):
     if DEBUG:
         logger.info(msg)
 
@@ -69,7 +69,7 @@ class ResourceTracker:
     
     def log_resource_usage(self, var_name):
         self.resource_usage[self.resource_idx].append(var_name)
-        #debug_print(f"Logging resource usage for {var_name} on port {self.resource_idx} of {self.resource_name}: {self.resource_usage[self.resource_idx]}")
+        #log_info(f"Logging resource usage for {var_name} on port {self.resource_idx} of {self.resource_name}: {self.resource_usage[self.resource_idx]}")
         self.resource_idx = (self.resource_idx + 1) % self.num_ports
 
     def get_latest_resource_usage(self):
@@ -125,7 +125,7 @@ def get_rsc_mapping(netlist_file):
         opset = bind.get('opset')
         ## remove the slash and everything after it from the opset
         if not opset:
-            debug_print(f"opset is None for {n},{d}")
+            log_info(f"opset is None for {n},{d}")
             continue
         if '/' in opset:
             opsets = opset.split()
@@ -133,9 +133,9 @@ def get_rsc_mapping(netlist_file):
                 netlist_op_dest_to_node[opset.split('/')[0]] = name
         else:
             netlist_op_dest_to_node[opset.strip()] = name
-    debug_print(f"logging netlist_op_dest_to_node")
+    log_info(f"logging netlist_op_dest_to_node")
     for op, node in netlist_op_dest_to_node.items():
-        debug_print(f"op: {op}, node: {node}")
+        log_info(f"op: {op}, node: {node}")
     return netlist_op_dest_to_node
 
 class vitis_schedule_parser:
@@ -172,34 +172,35 @@ class vitis_schedule_parser:
         self.parse()
         self.convert()
         self.convert_to_standard_dfg()
-        debug_print(f"basic_blocks loop info after convert: {list([block_name, block['loop_info']] for block_name, block in self.basic_blocks.items())}")
+        self.convert_to_standard_dfg_with_wire_ops()
+        log_info(f"basic_blocks loop info after convert: {list([block_name, block['loop_info']] for block_name, block in self.basic_blocks.items())}")
 
     def parse(self):
-        debug_print(f"Resource mapping from: {self.build_dir}/parse_results/{self.top_level_module_name}_full_netlist_unfiltered.gml")
+        log_info(f"Resource mapping from: {self.build_dir}/parse_results/{self.top_level_module_name}_full_netlist_unfiltered.gml")
         self.resource_mapping = get_rsc_mapping(f"{self.build_dir}/parse_results/{self.top_level_module_name}_full_netlist_unfiltered.gml")
-        debug_print(self.resource_mapping)
+        log_info(self.resource_mapping)
         for file in os.listdir(self.solution_dir):
             if file.endswith(".verbose.sched.rpt"):
                 intf_file = file.replace(".verbose.sched.rpt", ".tbgen.tcl")
                 assert os.path.exists(os.path.join(self.solution_dir, intf_file))
                 self.parse_one_file(os.path.join(self.solution_dir, file), os.path.join(self.solution_dir, intf_file))
-        debug_print(f"basic_blocks loop info before convert: {list([block_name, block['loop_info']] for block_name, block in self.basic_blocks.items())}")
+        log_info(f"basic_blocks loop info before convert: {list([block_name, block['loop_info']] for block_name, block in self.basic_blocks.items())}")
 
     def convert(self):
         for basic_block_name in self.basic_blocks:
             self.dfg_basic_block(basic_block_name)
             nx.write_gml(self.basic_blocks[basic_block_name]["G"], f"{self.build_dir}/parse_results/{basic_block_name}/{basic_block_name}_graph.gml")
-            if self.basic_blocks[basic_block_name]["loop_info"] != "N/A":
+            if self.basic_blocks[basic_block_name]["loop_info"]["has_loop"]:
                 nx.write_gml(self.basic_blocks[basic_block_name]["G_loop_2x"], f"{self.build_dir}/parse_results/{basic_block_name}/{basic_block_name}_graph_loop_2x.gml")
                 nx.write_gml(self.basic_blocks[basic_block_name]["G_loop_1x"], f"{self.build_dir}/parse_results/{basic_block_name}/{basic_block_name}_graph_loop_1x.gml")
 
     def convert_to_standard_dfg(self):
         for basic_block_name in self.basic_blocks:
-            debug_print(f"Converting to standard DFG for {basic_block_name}")
+            log_info(f"Converting to standard DFG for {basic_block_name}")
             self.standard_dfg_basic_block(basic_block_name, "G", "G_standard")
             nx.write_gml(self.basic_blocks[basic_block_name]["G_standard"], f"{self.build_dir}/parse_results/{basic_block_name}/{basic_block_name}_graph_standard.gml")
 
-            if self.basic_blocks[basic_block_name]["loop_info"] != "N/A":
+            if self.basic_blocks[basic_block_name]["loop_info"]["has_loop"]:
                 self.standard_dfg_basic_block(basic_block_name, "G_loop_1x", "G_loop_1x_standard")
                 nx.write_gml(self.basic_blocks[basic_block_name]["G_loop_1x_standard"], f"{self.build_dir}/parse_results/{basic_block_name}/{basic_block_name}_graph_loop_1x_standard.gml")
                 #extra_edges = [edge for edge in self.basic_blocks[basic_block_name]["G_loop_1x"].edges() if self.basic_blocks[basic_block_name]["G_loop_1x"].edges[edge]["resource_edge"] == 1]
@@ -210,6 +211,34 @@ class vitis_schedule_parser:
                 #extra_edges = [edge for edge in self.basic_blocks[basic_block_name]["G_loop_2x"].edges() if self.basic_blocks[basic_block_name]["G_loop_2x"].edges[edge]["resource_edge"] == 1]
                 #sim_util.svg_plot(self.basic_blocks[basic_block_name]["G_loop_2x"], f"{self.build_dir}/parse_results/{basic_block_name}/{basic_block_name}_graph_loop_2x.svg", extra_edges)
 
+    def convert_to_standard_dfg_with_wire_ops(self):
+        for basic_block_name in self.basic_blocks:
+            log_info(f"Converting to standard DFG with wire ops for {basic_block_name}")
+            self.basic_blocks[basic_block_name]["G_standard_with_wire_ops"] = self.add_wire_ops(self.basic_blocks[basic_block_name]["G_standard"])
+            nx.write_gml(self.basic_blocks[basic_block_name]["G_standard_with_wire_ops"], f"{self.build_dir}/parse_results/{basic_block_name}/{basic_block_name}_graph_standard_with_wire_ops.gml")
+            if self.basic_blocks[basic_block_name]["loop_info"]["has_loop"]:
+                self.basic_blocks[basic_block_name]["G_loop_1x_standard_with_wire_ops"] = self.add_wire_ops(self.basic_blocks[basic_block_name]["G_loop_1x_standard"])
+                nx.write_gml(self.basic_blocks[basic_block_name]["G_loop_1x_standard_with_wire_ops"], f"{self.build_dir}/parse_results/{basic_block_name}/{basic_block_name}_graph_loop_1x_standard_with_wire_ops.gml")
+            
+    def add_wire_ops(self, G):
+        G_new = G.copy()
+        for edge in G.edges():
+            src = edge[0]
+            dst = edge[1]
+            log_info(f"edge: {edge}, src: {src}, dst: {dst}")
+            log_info(f"src: {G.nodes[src]}, dst: {G.nodes[dst]}")
+            if (G.edges[edge]["resource_edge"] != 1 
+                and "core_inst" in G.nodes[src]
+                and "core_inst" in G.nodes[dst]
+                and G.nodes[src]["core_inst"] != "N/A" 
+                and G.nodes[dst]["core_inst"] != "N/A"
+            ):
+                G_new.add_node(f"wire_{src}_{dst}", node_type="wire", src_node=src, dst_node=dst, function="Wire")
+                G_new.add_edge(src, f"wire_{src}_{dst}", resource_edge=0)
+                G_new.add_edge(f"wire_{src}_{dst}", dst, resource_edge=0)
+                G_new.remove_edge(src, dst)
+                log_info(f"Added wire op between {src} and {dst}")
+        return G_new
 
     # label looks like "State _ <SV = _> <Delay = _>"
     def find_next_state(self, lines, idx, basic_block_name):
@@ -282,11 +311,11 @@ class vitis_schedule_parser:
         for column in loop_table.findall(".//column"):
             loop_name = column.get('name', '').split('-')[1].strip()
             values = column.text.split(', ')
-            loop_data = {"Loop Name": loop_name}
+            loop_data = {"Loop Name": loop_name, "has_loop": True}
             for i, value in enumerate(values):
                 if i < len(keys):
                     key = keys[i]
-                    debug_print(f"key: {key}, value: {value}")
+                    log_info(f"key: {key}, value: {value}")
                     # Convert numeric values
                     if key in keys:
                         try:
@@ -297,15 +326,15 @@ class vitis_schedule_parser:
                         loop_data[key] = value
             
             loops.append(loop_data)
-        #print(f"loops for {xml_file_path}: {loops}")
+        log_info(f"loops for {xml_file_path}: {loops}")
         if len(loops) == 0:
-            return "N/A"
+            return {"has_loop": False}
         else:
             assert len(loops) == 1, f"Multiple loops found for {xml_file_path}"
             return loops[0] # only one loop per basic block for now
 
     def parse_one_file(self, file_path, intf_file_path):
-        debug_print("Parsing one basic block file")
+        log_info("Parsing one basic block file")
         basic_block_name = file_path.split("/")[-1].split(".")[0]
         self.basic_blocks[basic_block_name] = {}
         self.basic_blocks[basic_block_name]["variable_db"] = VariableDB()
@@ -337,7 +366,7 @@ class vitis_schedule_parser:
                     self.basic_blocks[basic_block_name]["loop_info"]["pipeline_states"] = lines[idx].strip()[lines[idx].find("States = {") + len("States = {")-1:-1].split()
                     for i in range(len(self.basic_blocks[basic_block_name]["loop_info"]["pipeline_states"])):
                         self.basic_blocks[basic_block_name]["loop_info"]["pipeline_states"][i] = int(self.basic_blocks[basic_block_name]["loop_info"]["pipeline_states"][i])
-                    print(f"pipeline states: {self.basic_blocks[basic_block_name]['loop_info']['pipeline_states']}")
+                    log_info(f"pipeline states: {self.basic_blocks[basic_block_name]['loop_info']['pipeline_states']}")
                 idx += 1
             idx += 1
             self.basic_blocks[basic_block_name]["FSM state transitions"] = {}
@@ -392,11 +421,11 @@ class vitis_schedule_parser:
                             parsed_op["core_inst"] = "N/A"
                             parsed_op["core_id"] = "N/A"
                             parsed_op["core_info"] = None
-                        debug_print(parsed_op)
+                        log_info(parsed_op)
                         self.basic_blocks[basic_block_name][int(next_state)].append(parsed_op)
                     idx += 1
                 idx, next_state = self.find_next_state(lines, idx, basic_block_name)
-        debug_print(f"Basic Blocks at end of schedule_vitis: {self.basic_blocks[basic_block_name]}")
+        log_info(f"Basic Blocks at end of schedule_vitis: {self.basic_blocks[basic_block_name]}")
 
     def loop_2x_graph(self, basic_block_name):
         self.basic_blocks[basic_block_name]["G_loop_2x"] = nx.DiGraph()
@@ -420,11 +449,11 @@ class vitis_schedule_parser:
         #nx.write_gml(self.basic_blocks[basic_block_name]["G_loop_1x"], f"{self.build_dir}/{basic_block_name}_graph_loop_1x.gml")
 
     def add_one_state_to_graph(self, G, basic_block_name, state, start_node=None, use_start_node=False, variable_db="variable_db", graph_type="full", resource_delays_only=False):
-        debug_print(f"Adding one state to graph")
+        log_info(f"Adding one state to graph")
         for idx in range(len(state)):
             instruction = state[idx]
             op_name = self.basic_blocks[basic_block_name][variable_db].update_write_node(instruction["op"])
-            debug_print(f"instruction: {instruction}")
+            log_info(f"instruction: {instruction}")
             assert instruction['dst'].find("%") != -1, f"instruction {instruction} has no %"
             if instruction['dst'].split("%")[1] not in self.resource_mapping:
                 assert instruction['op'] in self.no_rsc_allowed_ops, f"instruction {instruction} from {basic_block_name} has no resource mapping."
@@ -456,7 +485,7 @@ class vitis_schedule_parser:
             else:
                 G.add_edge(op_name, dst, weight=0.0, resource_edge=0)
         assert nx.is_directed_acyclic_graph(G), f"Graph is not a DAG, cycle found: {nx.find_cycle(G)}"
-        debug_print(f"longest path after adding one state: {nx.dag_longest_path_length(G)} ({nx.dag_longest_path(G)})")
+        log_info(f"longest path after adding one state: {nx.dag_longest_path_length(G)} ({nx.dag_longest_path(G)})")
         return G, state
     
     def get_graph_leaves(self, G):
@@ -480,17 +509,17 @@ class vitis_schedule_parser:
         self.track_resource_usage(self.basic_blocks[basic_block_name]["G"], f"II_delay_{basic_block_name}", basic_block_name, graph_type)
         self.basic_blocks[basic_block_name]["G"].add_node(f"loop_end_{basic_block_name}", node_type="serial", function="N/A")
         self.track_resource_usage(self.basic_blocks[basic_block_name]["G"], f"loop_end_{basic_block_name}", basic_block_name, graph_type)
-        debug_print(f"loop info: {self.basic_blocks[basic_block_name]['loop_info']}, basic block name: {basic_block_name}")
+        log_info(f"loop info: {self.basic_blocks[basic_block_name]['loop_info']}, basic block name: {basic_block_name}")
         if self.basic_blocks[basic_block_name]["loop_info"]["Pipelined"] == "yes":
             II_delay = self.basic_blocks[basic_block_name]["loop_info"]["achieved"] * self.clk_period * (self.basic_blocks[basic_block_name]["loop_info"]["Count"]-1)
         else:
             II_delay = int(self.basic_blocks[basic_block_name]["loop_info"]["Latency"]) * self.clk_period * (self.basic_blocks[basic_block_name]["loop_info"]["Count"]-1)
-        debug_print(f"II_delay: {II_delay}")
+        log_info(f"II_delay: {II_delay}")
         self.basic_blocks[basic_block_name]["G"].add_edge(f"II_delay_{basic_block_name}", f"loop_end_{basic_block_name}", weight=II_delay, resource_edge=1)
 
     # used only in convert function. Takes one sched report from vitis (for one basic block) and converts it to graph form
     def dfg_basic_block(self, basic_block_name, graph_type="full"):
-        debug_print(f"creating dfg for {basic_block_name}")
+        log_info(f"creating dfg for {basic_block_name}")
         self.basic_blocks[basic_block_name]['resource_db_map'][graph_type].reset_resources()
 
         state_machine_graph = nx.DiGraph()
@@ -498,15 +527,15 @@ class vitis_schedule_parser:
             state_machine_graph.add_node(state)
         for state in self.basic_blocks[basic_block_name]["FSM state transitions"]:
             state_machine_graph.add_edge(state, self.basic_blocks[basic_block_name]["FSM state transitions"][state])
-        debug_print(f"state_machine_graph: {state_machine_graph.nodes()} with edges {state_machine_graph.edges()}")
+        log_info(f"state_machine_graph: {state_machine_graph.nodes()} with edges {state_machine_graph.edges()}")
         cycle = nx.find_cycle(state_machine_graph)
         # often times the final state transition is "<n> ---> ", with no destination, so I'm not exactly sure how to interpret. Is it going back to the beginning in the case of a pipelined loop?
         # for now, I check if there is any loop info found for this file before making this assumption. Otherwise, I assume it just exits.
-        if self.basic_blocks[basic_block_name]["loop_info"] != "N/A":
+        if self.basic_blocks[basic_block_name]["loop_info"]["has_loop"]:
             if len(self.basic_blocks[basic_block_name]["loop_info"]["pipeline_states"]) > 0: # if pipeline states were listed in the report, those will be the cycle nodes. can bypass state machine graph
                 self.basic_blocks[basic_block_name]["cycle_nodes"] = self.basic_blocks[basic_block_name]["loop_info"]["pipeline_states"]
                 self.basic_blocks[basic_block_name]["non_cycle_nodes"] = [node for node in state_machine_graph.nodes() if node not in self.basic_blocks[basic_block_name]["cycle_nodes"]]
-                print(f"cycle nodes: {self.basic_blocks[basic_block_name]['cycle_nodes']}, non cycle nodes: {self.basic_blocks[basic_block_name]['non_cycle_nodes']}")
+                log_info(f"cycle nodes: {self.basic_blocks[basic_block_name]['cycle_nodes']}, non cycle nodes: {self.basic_blocks[basic_block_name]['non_cycle_nodes']}")
             else:
                 self.basic_blocks[basic_block_name]["cycle_nodes"] = [node for (node, _) in cycle]
                 self.basic_blocks[basic_block_name]["non_cycle_nodes"] = [node for node in state_machine_graph.nodes() if node not in self.basic_blocks[basic_block_name]["cycle_nodes"]]
@@ -554,7 +583,7 @@ class vitis_schedule_parser:
         if G.nodes[node]["node_type"] == "op" and G.nodes[node]["core_inst"] != "N/A":
             if G.nodes[node]["rsc_name_unique"].startswith("N/A"):
                 return
-            #debug_print(f"Tracking resource usage for {node}: {G.nodes[node]['rsc']}")
+            #log_info(f"Tracking resource usage for {node}: {G.nodes[node]['rsc']}")
             # check for previous resource usage, add resource edge
             if self.basic_blocks[basic_block_name]['resource_db_map'][graph_type].check_resource_added(G.nodes[node]["rsc_name_unique"]) and self.basic_blocks[basic_block_name]['resource_db_map'][graph_type].get_latest_resource_usage(G.nodes[node]["rsc_name_unique"]) is not None:
                 G.add_edge(self.basic_blocks[basic_block_name]['resource_db_map'][graph_type].get_latest_resource_usage(G.nodes[node]["rsc_name_unique"]), node, weight=self.clk_period, resource_edge=1)
@@ -567,10 +596,10 @@ class vitis_schedule_parser:
                 latest_resource_usage = self.basic_blocks[basic_block_name]['resource_db_map'][graph_type].get_latest_resource_usage(rsc_name_unique)
                 if latest_resource_usage is not None and (latest_resource_usage, node) not in G.edges():
                     G.add_edge(latest_resource_usage, node, weight=self.clk_period, resource_edge=1)
-                    #debug_print(f"Adding resource edge from {latest_resource_usage} to {node}")
+                    #log_info(f"Adding resource edge from {latest_resource_usage} to {node}")
                 self.basic_blocks[basic_block_name]['resource_db_map'][graph_type].log_resource_usage(rsc_name_unique, node)
             leaves = self.get_graph_leaves(G)
-            debug_print(f"leaves: {leaves} for {node}")
+            log_info(f"leaves: {leaves} for {node}")
             for leaf in leaves:
                 if G.nodes[leaf]["node_type"] != "serial":
                     G.add_edge(leaf, node, weight=0.0, resource_edge=0)
@@ -578,15 +607,15 @@ class vitis_schedule_parser:
 
     def standard_dfg_basic_block(self, basic_block_name, G_name, G_standard_name):
         self.basic_blocks[basic_block_name][G_standard_name] = copy.deepcopy(self.basic_blocks[basic_block_name][G_name])
-        #debug_print(f"nodes before removing var nodes: {self.basic_blocks[basic_block_name][G_name].nodes()}")
+        #log_info(f"nodes before removing var nodes: {self.basic_blocks[basic_block_name][G_name].nodes()}")
         for node in self.basic_blocks[basic_block_name][G_name].nodes():
             assert "node_type" in self.basic_blocks[basic_block_name][G_name].nodes[node], f"Node {node} has no node_type. {self.basic_blocks[basic_block_name][G_name].nodes[node]}"
             if self.basic_blocks[basic_block_name][G_name].nodes[node]["node_type"] == "var":
                 self.remove_node(self.basic_blocks[basic_block_name][G_standard_name], node)
-        #debug_print(f"nodes left: {self.basic_blocks[basic_block_name][G_standard_name].nodes()}")
+        #log_info(f"nodes left: {self.basic_blocks[basic_block_name][G_standard_name].nodes()}")
         self.basic_blocks[basic_block_name][G_standard_name] = sim_util.filter_graph_by_function(self.basic_blocks[basic_block_name][G_standard_name], self.allowed_functions, exception_node_types=["serial"])
         assert nx.is_directed_acyclic_graph(self.basic_blocks[basic_block_name][G_standard_name]), f"Graph is not a DAG, cycle found: {nx.find_cycle(self.basic_blocks[basic_block_name][G_standard_name])}"
-        debug_print(f"longest path after removing var nodes: {nx.dag_longest_path_length(self.basic_blocks[basic_block_name][G_standard_name])} ({nx.dag_longest_path(self.basic_blocks[basic_block_name][G_standard_name])})")
+        log_info(f"longest path after removing var nodes: {nx.dag_longest_path_length(self.basic_blocks[basic_block_name][G_standard_name])} ({nx.dag_longest_path(self.basic_blocks[basic_block_name][G_standard_name])})")
         #nx.write_gml(self.basic_blocks[basic_block_name][G_standard_name], f"{self.build_dir}/{basic_block_name}_graph_{G_standard_name}.gml")
 
 

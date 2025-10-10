@@ -100,7 +100,7 @@ class TrendPlot:
         ax.set_yscale("log")
         #ax.grid(True, alpha=0.3, linestyle='--')
         fig.patch.set_facecolor("#f8f9fa")
-        ax.legend(["inverse pass", "forward pass"], fontsize=18)
+        ax.legend(["forward pass", "inverse pass"], fontsize=18)
         plt.tight_layout()
         plt.savefig(f"{self.save_dir}/{self.obj_fn}_over_iters.png", dpi=300, bbox_inches='tight')
         plt.close()

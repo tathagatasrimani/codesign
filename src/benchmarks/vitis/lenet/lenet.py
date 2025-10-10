@@ -1,13 +1,15 @@
+import torch
+import torch_mlir
 import torch.nn as nn
 import torch.nn.functional as func
 
-class LenNet(nn.Module):
+class lenet(nn.Module):
     '''
     input: 3x32x32 image
     output: 10 class probability
     '''
     def __init__(self):
-        super(LenNet, self).__init__()
+        super(lenet, self).__init__()
         self.conv1 = nn.Conv2d(3,6,5) #c1:featuremaps 6@28x28 #output = (input-filter)/stride + 1, #filter:5size
         self.conv2 = nn.Conv2d(6,16,5) #c3:feature_maps 16@10x10
         self.maxPool = nn.MaxPool2d(2,2) #subsampling 1/2size
@@ -24,8 +26,14 @@ class LenNet(nn.Module):
         x = self.fc3(x)
         return x
 
-def lenet():
-    return LenNet()
+def lenet_main():
+    return lenet()
 
-lenet = LenNet()
+lenet = lenet_main()
 lenet.train(False)
+
+
+# Compile the model with torch_mlir
+# Note: LeNet expects RGB input (3 channels), so using 3x32x32 for CIFAR-like input
+module = torch_mlir.compile(lenet, torch.ones(1, 3, 32, 32), output_type="linalg-on-tensors")
+print(module)

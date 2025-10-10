@@ -2,6 +2,8 @@ import logging
 import random
 import yaml
 import time
+import numpy as np
+import math
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +26,7 @@ from openroad_interface import openroad_run
 
 import cvxpy as cp
 
-DEBUG = True
+DEBUG = False
 def log_info(msg):
     if DEBUG:
         logger.info(msg)
@@ -43,6 +45,60 @@ def symbolic_min(a, b, evaluate=True):
     Min(a, b) in a format which ipopt accepts.
     """
     return 0.5 * (a + b - sp.Abs(a - b, evaluate=evaluate))
+
+class BlockVector:
+    def __init__(self):
+
+        self.op_types = set([
+            "logic",
+            "memory",
+            "interconnect",
+
+            "logic_rsc",
+            "memory_rsc",
+            "interconnect_rsc",
+        ])
+        self.bound_factor = {op_type: 0 for op_type in self.op_types}
+        self.normalized_bound_factor = {op_type: 0 for op_type in self.op_types}
+        self.ahmdal_limit = {op_type: 0 for op_type in self.op_types}
+        self.sensitivity = {op_type: 0 for op_type in self.op_types}
+        self.path_mixing_factor = 0
+
+        self.delay = 0
+    
+    def sensitivity_softmax(self):
+        max_sensitivity = max(self.sensitivity.values())
+        for op_type in self.op_types:
+            self.sensitivity[op_type] = np.exp(self.sensitivity[op_type] - max_sensitivity)
+        sum_sensitivity = sum(self.sensitivity.values())
+        for op_type in self.op_types:
+            self.sensitivity[op_type] = self.sensitivity[op_type]/sum_sensitivity
+
+    def normalize_bound_factor(self):
+        if self.delay == 0:
+            return
+        for op_type in self.op_types:
+            self.normalized_bound_factor[op_type] = self.bound_factor[op_type]/self.delay
+        self.path_mixing_factor = sum(self.normalized_bound_factor.values())
+        for op_type in self.op_types:
+            if self.normalized_bound_factor[op_type] == 0:
+                self.ahmdal_limit[op_type] = math.inf
+            else:
+                self.ahmdal_limit[op_type] = 1/self.normalized_bound_factor[op_type]
+    
+    def __str__(self):
+        return f"\n=============BlockVector=============\nDelay: {self.delay}\nSensitivity: {self.sensitivity}\nAhmdal Limit: {self.ahmdal_limit}\nBound Factor: {self.bound_factor}\nNormalized Bound Factor: {self.normalized_bound_factor}\nPath Mixing Factor: {self.path_mixing_factor}\n=============End BlockVector============="
+
+def get_op_type_from_function(function, resource_edge=False):
+    if function in ["Buf", "MainMem"]:
+        return "memory" if not resource_edge else "memory_rsc"
+    elif function in ["Add", "Sub", "Mult", "FloorDiv", "Mod", "LShift", "RShift", "BitOr", "BitXor", "BitAnd", "Eq", "NotEq", "Lt", "LtE", "Gt", "GtE", "USub", "UAdd", "IsNot", "Not", "Invert", "Regs"]:
+        return "logic" if not resource_edge else "logic_rsc"
+    elif function == "Wire":
+        return "interconnect" if not resource_edge else "interconnect_rsc"
+    else:
+        return "N/A"
+
 
 class HardwareModel:
     """
@@ -100,6 +156,7 @@ class HardwareModel:
         self.inst_name_map = {}
         self.dfg_to_netlist_map = {}
         self.dfg_to_netlist_edge_map = {}
+        self.constraints = []
 
     def reset_state(self):
         self.symbolic_buf = {}
@@ -119,6 +176,7 @@ class HardwareModel:
         self.inst_name_map = {}
         self.dfg_to_netlist_map = {}
         self.dfg_to_netlist_edge_map = {}
+        self.constraints = []
 
     def write_technology_parameters(self, filename):
         params = {
@@ -612,14 +670,18 @@ class HardwareModel:
                 loop_count = data["count"]
                 if is_loop:
                     loop_energy = self.calculate_active_energy_basic_block(basic_block_name, self.loop_1x_graphs[basic_block_name], is_loop=True)
+            elif data["function"] == "Wire":
+                src = data["src_node"]
+                dst = data["dst_node"]
+                if (src, dst) in self.dfg_to_netlist_edge_map:
+                    total_active_energy_basic_block += self.circuit_model.wire_energy(self.dfg_to_netlist_edge_map[(src, dst)])
+                    log_info(f"edge {src, dst} is in dfg_to_netlist_edge_map")
+                    log_info(f"wire energy for {node}: {self.circuit_model.wire_energy(self.dfg_to_netlist_edge_map[(src, dst)])}")
+                else:
+                    log_info(f"edge {src, dst} is not in dfg_to_netlist_edge_map")
             else:
                 total_active_energy_basic_block += self.circuit_model.symbolic_energy_active[data["function"]]()
-        for edge in dfg.edges:
-            if edge in self.dfg_to_netlist_edge_map:
-                total_active_energy_basic_block += self.circuit_model.wire_energy(self.dfg_to_netlist_edge_map[edge])
-                log_info(f"edge {edge} is in dfg_to_netlist_edge_map")
-            else:
-                log_info(f"edge {edge} is not in dfg_to_netlist_edge_map")
+                log_info(f"active energy for {node}: {self.circuit_model.symbolic_energy_active[data['function']]()}")
         log_info(f"total active energy for {basic_block_name}: {total_active_energy_basic_block}")
         log_info(f"loop count for {basic_block_name}: {loop_count}")
         if is_loop:
@@ -634,32 +696,25 @@ class HardwareModel:
         for node, data in self.netlist.nodes(data=True):
             total_passive_power += self.circuit_model.symbolic_power_passive[data["function"]]()
             log_info(f"passive power for {node}: {self.circuit_model.symbolic_power_passive[data['function']]()}")
+        self.total_passive_power = total_passive_power
         return total_passive_power * total_execution_time
 
-
-    def calculate_execution_time_vitis(self, top_block_name):
-        self.node_arrivals = {}
-        self.node_arrivals_cvx = {}
-        self.graph_delays = {}
-        self.graph_delays_cvx = {}
-        self.constr_cvx = []
-
-        self.scale_cvx = 1e-6
-
-        log_info(f"scheduled dfgs: {self.scheduled_dfgs.keys()}")
-
-        for basic_block_name in self.scheduled_dfgs:
-            self.node_arrivals[basic_block_name] = {"full": {}, "loop_1x": {}, "loop_2x": {}}
-            self.node_arrivals_cvx[basic_block_name] = {"full": {}, "loop_1x": {}, "loop_2x": {}}
-
-        self.graph_delays[top_block_name], self.graph_delays_cvx[top_block_name] = self.calculate_execution_time_vitis_recursive(top_block_name, self.scheduled_dfgs[top_block_name])
-        for constr in self.constr_cvx:
-            log_info(f"constraint final: {constr}")
-        for node in self.node_arrivals_cvx[top_block_name]["full"]:
-            log_info(f"node arrivals cvx var for {top_block_name} full {node}: {self.node_arrivals_cvx[top_block_name]['full'][node]}")
-        prob = cp.Problem(cp.Minimize(self.graph_delays_cvx[top_block_name]), self.constr_cvx)
+    def update_execution_time_vitis(self):
+        start_time = time.time()
+        self.circuit_model.update_uarch_parameters()
+        self.circuit_model.create_constraints_cvx(self.scale_cvx)
+        for constr in self.circuit_model.constraints_cvx:
+            log_info(f"clock period constraint final: {constr}")
+        logger.info(f"time to create constraints cvx: {time.time()-start_time}")
+        start_time = time.time()
+        prob = cp.Problem(cp.Minimize(self.graph_delays_cvx[self.top_block_name]), self.constr_cvx+self.circuit_model.constraints_cvx)
         prob.solve()
-        for block_name in self.graph_delays:
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.node_arrivals_end] = self.graph_delays_cvx[self.top_block_name].value / self.scale_cvx
+        logger.info(f"time to update execution time with cvxpy: {time.time()-start_time}")
+        return self.circuit_model.tech_model.base_params.node_arrivals_end
+
+    def update_state_after_cvxpy_solve(self):
+        """for block_name in self.graph_delays:
             for node in self.node_arrivals[block_name]["full"]:
                 if self.node_arrivals_cvx[block_name]["full"][node].value is not None:
                     self.circuit_model.tech_model.base_params.tech_values[self.node_arrivals[block_name]["full"][node]] = self.node_arrivals_cvx[block_name]["full"][node].value / self.scale_cvx
@@ -667,6 +722,9 @@ class HardwareModel:
                     self.circuit_model.tech_model.base_params.tech_values[self.node_arrivals[block_name]["loop_1x"][node]] = self.node_arrivals_cvx[block_name]["loop_1x"][node].value / self.scale_cvx
                 if node in self.node_arrivals[block_name]["loop_2x"] and self.node_arrivals_cvx[block_name]["loop_2x"][node].value is not None:
                     self.circuit_model.tech_model.base_params.tech_values[self.node_arrivals[block_name]["loop_2x"][node]] = self.node_arrivals_cvx[block_name]["loop_2x"][node].value / self.scale_cvx
+            for node in self.node_arrivals_cvx[block_name]["loop_1x"]:
+                if self.node_arrivals_cvx[block_name]["loop_1x"][node].value is not None:
+                    self.circuit_model.tech_model.base_params.tech_values[self.node_arrivals[block_name]["loop_1x"][node]] = self.node_arrivals_cvx[block_name]["loop_1x"][node].value / self.scale_cvx
             for node in self.graph_delays:
                 self.circuit_model.tech_model.base_params.tech_values[self.graph_delays[node]] = self.graph_delays_cvx[node].value / self.scale_cvx
         for block_name in self.graph_delays:
@@ -677,55 +735,219 @@ class HardwareModel:
                     if self.node_arrivals_cvx[block_name][graph_type][node].value is not None:
                         log_info(f"node arrivals for {block_name} {graph_type} {node}: {self.node_arrivals_cvx[block_name][graph_type][node].value / self.scale_cvx}")
                     else:
-                        log_info(f"node arrivals for {block_name} {graph_type} {node}: None")
-        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.node_arrivals_end] = self.graph_delays_cvx[top_block_name].value
-        return self.graph_delays[top_block_name]
+                        log_info(f"node arrivals for {block_name} {graph_type} {node}: None")"""
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.node_arrivals_end] = self.graph_delays_cvx[self.top_block_name].value / self.scale_cvx
+        log_info(f"graph delay cvx for top block: {self.graph_delays_cvx[self.top_block_name].value / self.scale_cvx}")
+
+    def calculate_block_vectors(self, top_block_name):
+        logger.info("calculating block vectors")
+        self.block_vectors = {}
+        for basic_block_name in self.scheduled_dfgs:
+            self.block_vectors[basic_block_name] = {}
+        self.block_vectors[top_block_name]["top"] = self.calculate_block_vector_basic_block(top_block_name, "full", self.scheduled_dfgs[top_block_name])
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.logic_sensitivity] = self.block_vectors[top_block_name]["top"].sensitivity["logic"]
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.logic_resource_sensitivity] = self.block_vectors[top_block_name]["top"].sensitivity["logic_rsc"]
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.logic_ahmdal_limit] = self.block_vectors[top_block_name]["top"].ahmdal_limit["logic"]
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.logic_resource_ahmdal_limit] = self.block_vectors[top_block_name]["top"].ahmdal_limit["logic_rsc"]
+
+    def make_graph_one_op_type(self, basic_block_name, graph_type, op_type, eps, dfg):
+        G_new = dfg.copy()
+        for edge in G_new.edges:
+            fn = G_new.nodes[edge[0]]["function"]
+            base_delay = self.block_vectors[basic_block_name][graph_type][edge].delay if op_type == "all" else self.block_vectors[basic_block_name][graph_type][edge].bound_factor[op_type]
+            # eps is zero unless we are calculating sensitivity
+            percent_add = eps * self.block_vectors[basic_block_name][graph_type][edge].sensitivity[op_type] if op_type != "all" else eps
+            G_new.edges[edge]["weight"] = (1+percent_add) * base_delay
+        return G_new
+
+
+    def calculate_top_vector(self, basic_block_name, graph_type, dfg):
+        eps = 1e-2
+        vector_top = BlockVector()
+        iso_op_type_graphs = {}
+        # calculate bound factor and delay
+        for op_type in vector_top.op_types:
+            iso_op_type_graphs[op_type] = self.make_graph_one_op_type(basic_block_name, graph_type, op_type, 0, dfg)
+            crit_path = nx.dag_longest_path(iso_op_type_graphs[op_type])
+            log_info(f"crit path for {op_type}: {crit_path}")
+            for i in range(len(crit_path)-1):
+                vector_top.bound_factor[op_type] += self.block_vectors[basic_block_name][graph_type][(crit_path[i], crit_path[i+1])].bound_factor[op_type]
+            log_info(f"crit path delay for {op_type}: {vector_top.bound_factor[op_type]}")
+        all_op_graph = self.make_graph_one_op_type(basic_block_name, graph_type, "all", 0, dfg)
+        crit_path = nx.dag_longest_path(all_op_graph)
+        for i in range(len(crit_path)-1):
+            log_info(f"crit path delay for all: {self.block_vectors[basic_block_name][graph_type][(crit_path[i], crit_path[i+1])].delay}")
+            vector_top.delay += self.block_vectors[basic_block_name][graph_type][(crit_path[i], crit_path[i+1])].delay
+    
+        iso_op_type_graphs_with_eps = {}
+        # calculate sensitivity, should range between 0 and 1
+        for op_type in vector_top.op_types:
+            # using full graph for this part
+            iso_op_type_graphs_with_eps[op_type] = self.make_graph_one_op_type(basic_block_name, graph_type, "all", eps, dfg)
+            crit_path = nx.dag_longest_path(iso_op_type_graphs_with_eps[op_type])
+            crit_path_eps = 0
+            for i in range(len(crit_path)-1):
+                log_info(f"crit path bound factor for {op_type}: {self.block_vectors[basic_block_name][graph_type][(crit_path[i], crit_path[i+1])].bound_factor[op_type]}")
+                log_info(f"crit path sensitivity for {op_type}: {self.block_vectors[basic_block_name][graph_type][(crit_path[i], crit_path[i+1])].sensitivity[op_type]}")
+                crit_path_eps += self.block_vectors[basic_block_name][graph_type][(crit_path[i], crit_path[i+1])].delay * (1+eps*self.block_vectors[basic_block_name][graph_type][(crit_path[i], crit_path[i+1])].sensitivity[op_type])
+            log_info(f"crit path eps for {op_type}: {crit_path_eps}")
+            log_info(f"crit path delay for {op_type}: {vector_top.delay}")
+            vector_top.sensitivity[op_type] = 0 if vector_top.delay == 0 else (crit_path_eps - vector_top.delay) / (eps * vector_top.delay)
+            assert vector_top.sensitivity[op_type] >= 0-eps and vector_top.sensitivity[op_type] <= 1+eps, f"sensitivity for {op_type} is {vector_top.sensitivity[op_type]}"
+        vector_top.normalize_bound_factor()
+        log_info(f"top vector for {basic_block_name} {graph_type}: {str(vector_top)}")
+        if vector_top.delay != 0:
+            assert 1-eps <= sum(vector_top.normalized_bound_factor.values()) <= 6+eps, f"sum of normalized bound factors for {basic_block_name} {graph_type} is {sum(vector_top.normalized_bound_factor.values())}"
+
+        return vector_top
+
+    def calculate_block_vector_basic_block(self, basic_block_name, graph_type, dfg):
+        self.block_vectors[basic_block_name][graph_type] = {}
+        for node in dfg.nodes:
+            for pred in dfg.predecessors(node):
+                if (pred, node) in self.block_vectors[basic_block_name][graph_type]:
+                    continue # nothing to be done
+                # calculate vector for II delay based on the resource constrained 1x loop iteration graph
+                if dfg.nodes[pred]["function"] == "II":
+                    loop_1x_vector = self.calculate_block_vector_basic_block(basic_block_name, "loop_1x", self.loop_1x_graphs[basic_block_name])
+                    loop_1x_vector.delay *= dfg.nodes[pred]["count"]-1
+                    for op_type in loop_1x_vector.op_types:
+                        loop_1x_vector.bound_factor[op_type] *= dfg.nodes[pred]["count"]-1
+                    loop_1x_vector.normalize_bound_factor()
+                    self.block_vectors[basic_block_name][graph_type][(pred, node)] = loop_1x_vector
+                # calculate vector for sub-function call
+                elif dfg.nodes[pred]["function"] == "Call":
+                    sub_block_name = dfg.nodes[pred]["call_function"]
+                    if sub_block_name not in self.block_vectors or "top" not in self.block_vectors[sub_block_name]:
+                        self.block_vectors[sub_block_name]["top"] = self.calculate_block_vector_basic_block(sub_block_name, graph_type, self.scheduled_dfgs[sub_block_name])
+                    self.block_vectors[basic_block_name][graph_type][(pred, node)] = self.block_vectors[sub_block_name]["top"]
+                # calculate vector for a basic operation
+                else:
+                    self.block_vectors[basic_block_name][graph_type][(pred, node)] = self.calculate_block_vector_edge(pred, node, basic_block_name, graph_type, dfg)
+
+        return self.calculate_top_vector(basic_block_name, graph_type, dfg)
+
+    def calculate_block_vector_edge(self, src, dst, basic_block_name, graph_type, dfg):
+        fn = dfg.nodes[src]["function"]
+        vector = BlockVector()
+        if dfg.edges[src, dst]["resource_edge"]:
+            # TODO add interconnect resource dependency case
+            vector.delay = self.circuit_model.clk_period_cvx.value
+            if fn in ["Buf", "MainMem"]:
+                vector.bound_factor["memory_rsc"] = vector.delay
+                vector.sensitivity["memory_rsc"] = 1
+            else: # logic
+                vector.bound_factor["logic_rsc"] = vector.delay
+                vector.sensitivity["logic_rsc"] = 1
+        else:
+            if fn == "Wire":
+                if (src, dst) in self.dfg_to_netlist_edge_map:
+                    vector.delay = self.circuit_model.wire_delay_uarch_cvx(self.dfg_to_netlist_edge_map[(src, dst)])
+                else:
+                    vector.delay = 0
+                vector.bound_factor["interconnect"] = vector.delay
+                vector.sensitivity["interconnect"] = 1
+            elif fn in ["Buf", "MainMem"]:
+                # TODO actually fetch memory latency once implemented, this is a placeholder
+                vector.delay = sim_util.xreplace_safe(self.circuit_model.symbolic_latency_wc[fn](), self.circuit_model.tech_model.base_params.tech_values)
+                vector.bound_factor["memory"] = vector.delay
+                vector.sensitivity["memory"] = 1
+            else: # logic
+                vector.delay = sim_util.xreplace_safe(self.circuit_model.symbolic_latency_wc[fn](), self.circuit_model.tech_model.base_params.tech_values)
+                vector.bound_factor["logic"] = vector.delay
+                vector.sensitivity["logic"] = 1
+        vector.normalize_bound_factor()
+        log_info(f"block vector for {src, dst}: {str(vector)}")
+        return vector
+
+
+    def calculate_execution_time_vitis(self, top_block_name, clk_period_opt=False, form_dfg=True):
+        if not form_dfg:
+            return self.update_execution_time_vitis()
+        self.circuit_model.update_uarch_parameters()
+        #self.node_arrivals = {}
+        self.node_arrivals_cvx = {}
+        self.graph_delays = {}
+        self.graph_delays_cvx = {}
+        self.constr_cvx = []
+
+        self.scale_cvx = 1e-6
+
+        log_info(f"scheduled dfgs: {self.scheduled_dfgs.keys()}")
+        start_time = time.time()
+
+        for basic_block_name in self.scheduled_dfgs:
+            #self.node_arrivals[basic_block_name] = {"full": {}, "loop_1x": {}, "loop_2x": {}}
+            self.node_arrivals_cvx[basic_block_name] = {"full": {}, "loop_1x": {}, "loop_2x": {}}
+
+        self.graph_delays_cvx[top_block_name] = self.calculate_execution_time_vitis_recursive(top_block_name, self.scheduled_dfgs[top_block_name])
+
+        if not clk_period_opt:
+            clk_period_constr = [self.circuit_model.clk_period_cvx== self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.clk_period]]
+        else:
+            self.circuit_model.create_constraints_cvx(self.scale_cvx)
+            clk_period_constr = self.circuit_model.constraints_cvx
+        for constr in self.constr_cvx:
+            log_info(f"constraint final: {constr}")
+        for constr in clk_period_constr:
+            log_info(f"clock period constraint final: {constr}")
+        for node in self.node_arrivals_cvx[top_block_name]["full"]:
+            log_info(f"node arrivals cvx var for {top_block_name} full {node}: {self.node_arrivals_cvx[top_block_name]['full'][node]}")
+        logger.info(f"time to create cvxpy problem: {time.time()-start_time}")
+        start_time = time.time()
+        prob = cp.Problem(cp.Minimize(self.graph_delays_cvx[top_block_name]), self.constr_cvx+clk_period_constr)
+        prob.solve()
+        logger.info(f"time to solve cvxpy problem: {time.time()-start_time}")
+        self.update_state_after_cvxpy_solve()
+        return self.circuit_model.tech_model.base_params.node_arrivals_end
 
 
     def calculate_execution_time_vitis_recursive(self, basic_block_name, dfg, graph_end_node="graph_end", graph_type="full", resource_delays_only=False):
         log_info(f"calculating execution time for {basic_block_name} with graph end node {graph_end_node}")
         for node in dfg.nodes:
-            self.node_arrivals[basic_block_name][graph_type][node] = sp.symbols(f"node_arrivals_{basic_block_name}_{graph_type}_{node}")
+            #self.node_arrivals[basic_block_name][graph_type][node] = sp.symbols(f"node_arrivals_{basic_block_name}_{graph_type}_{node}")
             self.node_arrivals_cvx[basic_block_name][graph_type][node] = cp.Variable(pos=True) 
         for node in dfg.nodes:   
             for pred in dfg.predecessors(node):
+                pred_delay_cvx = 0.0
                 if dfg.edges[pred, node]["resource_edge"]:
                     if dfg.nodes[pred]["function"] == "II":
-                        delay_1x, delay_1x_cvx = self.calculate_execution_time_vitis_recursive(basic_block_name, self.loop_1x_graphs[basic_block_name], graph_end_node="loop_end_1x", graph_type="loop_1x", resource_delays_only=True)
+                        delay_1x_cvx = self.calculate_execution_time_vitis_recursive(basic_block_name, self.loop_1x_graphs[basic_block_name], graph_end_node="loop_end_1x", graph_type="loop_1x", resource_delays_only=True)
                         #delay_2x, delay_2x_cvx = self.calculate_execution_time_vitis_recursive(basic_block_name, self.loop_2x_graphs[basic_block_name], graph_end_node="loop_end_2x", graph_type="loop_2x")
                         # TODO add dependence of II on loop-carried dependency
-                        pred_delay = delay_1x * (dfg.nodes[pred]["count"]-1)
+                        #pred_delay = delay_1x * (dfg.nodes[pred]["count"]-1)
                         pred_delay_cvx = delay_1x_cvx * (dfg.nodes[pred]["count"]-1)
                     else:
-                        pred_delay = self.circuit_model.clk_period # convert to ns
-                        pred_delay_cvx = sim_util.xreplace_safe(self.circuit_model.clk_period, self.circuit_model.tech_model.base_params.tech_values) * self.scale_cvx
-                else:
-                    # if function call, recursively calculate its delay 
-                    if dfg.nodes[pred]["function"] == "Call":
-                        if dfg.nodes[pred]["call_function"] not in self.graph_delays:
-                            self.graph_delays[dfg.nodes[pred]["call_function"]], self.graph_delays_cvx[dfg.nodes[pred]["call_function"]] = self.calculate_execution_time_vitis_recursive(dfg.nodes[pred]["call_function"], self.scheduled_dfgs[dfg.nodes[pred]["call_function"]])
-                        pred_delay = self.graph_delays[dfg.nodes[pred]["call_function"]]
-                        pred_delay_cvx = self.graph_delays_cvx[dfg.nodes[pred]["call_function"]]
-                    else:
-                        if not resource_delays_only:
-                            pred_delay = self.circuit_model.symbolic_latency_wc[dfg.nodes[pred]["function"]]()
-                            if (pred, node) in self.dfg_to_netlist_edge_map:
-                                pred_delay += self.circuit_model.wire_delay(self.dfg_to_netlist_edge_map[(pred, node)])
-                                log_info(f"added wire delay {self.circuit_model.wire_delay(self.dfg_to_netlist_edge_map[(pred, node)])} for edge {pred, node}")
-                            else:
-                                log_info(f"no wire delay for edge {pred, node}")
-                            pred_delay_cvx = sim_util.xreplace_safe(pred_delay, self.circuit_model.tech_model.base_params.tech_values) * self.scale_cvx
+                        #pred_delay = self.circuit_model.tech_model.base_params.clk_period # convert to ns
+                        pred_delay_cvx = self.circuit_model.clk_period_cvx * self.scale_cvx
+                elif dfg.nodes[pred]["function"] == "Call": # if function call, recursively calculate its delay 
+                    if dfg.nodes[pred]["call_function"] not in self.graph_delays:
+                        self.graph_delays_cvx[dfg.nodes[pred]["call_function"]] = self.calculate_execution_time_vitis_recursive(dfg.nodes[pred]["call_function"], self.scheduled_dfgs[dfg.nodes[pred]["call_function"]])
+                    #pred_delay = self.graph_delays[dfg.nodes[pred]["call_function"]]
+                    pred_delay_cvx = self.graph_delays_cvx[dfg.nodes[pred]["call_function"]]
+                elif not resource_delays_only:
+                    if dfg.nodes[pred]["function"] == "Wire":
+                        src = dfg.nodes[pred]["src_node"]
+                        dst = dfg.nodes[pred]["dst_node"]
+                        if (src, dst) in self.dfg_to_netlist_edge_map:
+                            pred_delay_cvx = self.circuit_model.wire_delay_uarch_cvx(self.dfg_to_netlist_edge_map[(src, dst)]) * self.scale_cvx
+                            log_info(f"added wire delay {self.circuit_model.wire_delay_uarch_cvx(self.dfg_to_netlist_edge_map[(src, dst)])} for edge {src, dst}")
                         else:
-                            pred_delay = 0
-                            pred_delay_cvx = 0
+                            log_info(f"no wire delay for edge {src, dst}")
+                    else:
+                        #pred_delay = self.circuit_model.symbolic_latency_wc[dfg.nodes[pred]["function"]]()
+                        pred_delay_cvx = self.circuit_model.uarch_lat_cvx[dfg.nodes[pred]["function"]] * self.scale_cvx
                 log_info(f"pred_delay_cvx: {pred_delay_cvx}")
-                log_info(f"pred_delay: {pred_delay}")
+                if isinstance(pred_delay_cvx, cp.Expression):
+                    log_info(f"pred_delay_cvx value: {pred_delay_cvx.value}")
+                #log_info(f"pred_delay: {pred_delay}")
                 assert pred_delay_cvx is not None and not isinstance(pred_delay_cvx, sp.Expr), f"pred_delay_cvx is {pred_delay_cvx}, type: {type(pred_delay_cvx)}"
-                self.circuit_model.tech_model.constraints.append(self.node_arrivals[basic_block_name][graph_type][node] >= self.node_arrivals[basic_block_name][graph_type][pred] + pred_delay)
+                #self.constraints.append(self.node_arrivals[basic_block_name][graph_type][node] >= self.node_arrivals[basic_block_name][graph_type][pred] + pred_delay)
 
-                log_info(f"constraint: {self.node_arrivals[basic_block_name][graph_type][node] >= self.node_arrivals[basic_block_name][graph_type][pred] + pred_delay}")
+                #log_info(f"constraint: {self.node_arrivals[basic_block_name][graph_type][node] >= self.node_arrivals[basic_block_name][graph_type][pred] + pred_delay}")
                 self.constr_cvx.append(self.node_arrivals_cvx[basic_block_name][graph_type][node] >= self.node_arrivals_cvx[basic_block_name][graph_type][pred] + pred_delay_cvx)
-        return self.node_arrivals[basic_block_name][graph_type][graph_end_node], self.node_arrivals_cvx[basic_block_name][graph_type][graph_end_node]
+                log_info(f"constraint cvx: {self.node_arrivals_cvx[basic_block_name][graph_type][node] >= self.node_arrivals_cvx[basic_block_name][graph_type][pred] + pred_delay_cvx}")
+        return self.node_arrivals_cvx[basic_block_name][graph_type][graph_end_node]
 
     def calculate_execution_time(self, symbolic):
         if symbolic:
@@ -752,8 +974,7 @@ class HardwareModel:
                 for pred in self.scheduled_dfg.predecessors(node):
                     assert self.scheduled_dfg.nodes[pred]["function"] != "nop"
                     if self.scheduled_dfg.edges[pred, node]["resource_edge"]:
-                        #pred_delay = self.circuit_model.clk_period # convert to ns
-                        pred_delay = 1/self.circuit_model.tech_model.base_params.f * 1e9 # convert to ns
+                        pred_delay = self.circuit_model.tech_model.base_params.clk_period # convert to ns
                     elif self.scheduled_dfg.nodes[pred]["function"] in ["Buf", "MainMem"]:
                         rsc_name = self.scheduled_dfg.nodes[pred]["library"][self.scheduled_dfg.nodes[pred]["library"].find("__")+1:]
                         pred_delay = self.circuit_model.symbolic_latency_wc[self.scheduled_dfg.nodes[pred]["function"]]()[rsc_name]
@@ -761,7 +982,7 @@ class HardwareModel:
                         pred_delay = self.circuit_model.symbolic_latency_wc[self.scheduled_dfg.nodes[pred]["function"]]()
                     if (pred, node) in self.dfg_to_netlist_edge_map:
                         pred_delay += self.circuit_model.wire_delay(self.dfg_to_netlist_edge_map[(pred, node)], symbolic)
-                    self.circuit_model.tech_model.constraints.append(node_arrivals[node] >= node_arrivals[pred] + pred_delay)
+                    self.constraints.append(node_arrivals[node] >= node_arrivals[pred] + pred_delay)
                     constr_cvx.append(node_arrivals_cvx[node] >= node_arrivals_cvx[pred] + sim_util.xreplace_safe(pred_delay, self.circuit_model.tech_model.base_params.tech_values))
             obj = node_arrivals_cvx["end"]
             prob = cp.Problem(cp.Minimize(obj), constr_cvx)
@@ -825,12 +1046,12 @@ class HardwareModel:
                 total_active_energy += wire_energy
         return total_active_energy
 
-    def save_obj_vals(self):
+    def save_obj_vals(self, execution_time):
         if self.model_cfg["model_type"] == "bulk_bsim4":
             self.obj_sub_exprs = {
-                "execution_time": self.execution_time,
-                "passive power": self.total_passive_energy/self.execution_time,
-                "active power": self.total_active_energy/self.execution_time,
+                "execution_time": execution_time,
+                "passive power": self.total_passive_energy/execution_time,
+                "active power": self.total_active_energy/execution_time,
                 "subthreshold leakage current": self.circuit_model.tech_model.I_sub,
                 "gate tunneling current": self.circuit_model.tech_model.I_tunnel,
                 "GIDL current": self.circuit_model.tech_model.I_GIDL,
@@ -838,13 +1059,14 @@ class HardwareModel:
                 "effective threshold voltage": self.circuit_model.tech_model.V_th_eff,
                 "supply voltage": self.circuit_model.tech_model.base_params.V_dd,
                 "wire RC": self.circuit_model.tech_model.m1_Rsq * self.circuit_model.tech_model.m1_Csq,
+                "clk_period": self.circuit_model.tech_model.base_params.clk_period,
                 "f": self.circuit_model.tech_model.base_params.f,
             }
         elif self.circuit_model.tech_model.model_cfg["model_type"] == "bulk":
             self.obj_sub_exprs = {
-                "execution_time": self.execution_time,
-                "passive power": self.total_passive_energy/self.execution_time,
-                "active power": self.total_active_energy/self.execution_time,
+                "execution_time": execution_time,
+                "passive power": self.total_passive_energy/execution_time,
+                "active power": self.total_active_energy/execution_time,
                 "subthreshold leakage current": self.circuit_model.tech_model.I_off,
                 "gate tunneling current": self.circuit_model.tech_model.I_tunnel,
                 "FN term": self.circuit_model.tech_model.FN_term,
@@ -853,13 +1075,14 @@ class HardwareModel:
                 "effective threshold voltage": self.circuit_model.tech_model.V_th_eff,
                 "supply voltage": self.circuit_model.tech_model.base_params.V_dd,
                 "wire RC": self.circuit_model.tech_model.m1_Rsq * self.circuit_model.tech_model.m1_Csq,
+                "clk_period": self.circuit_model.tech_model.base_params.clk_period,
                 "f": self.circuit_model.tech_model.base_params.f,
             }
         elif self.circuit_model.tech_model.model_cfg["model_type"] == "vs":
             self.obj_sub_exprs = {
-                "execution_time": self.execution_time,
-                "passive power": self.total_passive_energy/self.execution_time,
-                "active power": self.total_active_energy/self.execution_time,
+                "execution_time": execution_time,
+                "passive power": self.total_passive_energy/execution_time,
+                "active power": self.total_active_energy/execution_time,
                 "gate length": self.circuit_model.tech_model.param_db["L"],
                 "gate width": self.circuit_model.tech_model.param_db["W"],
                 "subthreshold leakage current": self.circuit_model.tech_model.param_db["I_sub"],
@@ -884,9 +1107,17 @@ class HardwareModel:
                 "F_s": self.circuit_model.tech_model.param_db["F_s"],
                 "vx0": self.circuit_model.tech_model.param_db["vx0"],
                 "v": self.circuit_model.tech_model.param_db["v"],
-                "f": self.circuit_model.tech_model.param_db["f"],
+                "clk_period": self.circuit_model.tech_model.base_params.clk_period,
+                #"f": self.circuit_model.tech_model.base_params.f,
                 "parasitic capacitance": self.circuit_model.tech_model.param_db["parasitic capacitance"],
                 "k_gate": self.circuit_model.tech_model.param_db["k_gate"],
+                "delay": self.circuit_model.tech_model.delay,
+                "multiplier delay": self.circuit_model.symbolic_latency_wc["Mult"](),
+                "scaled power": self.total_passive_power * self.circuit_model.tech_model.capped_power_scale_total + self.total_active_energy/(execution_time * self.circuit_model.tech_model.capped_delay_scale_total),
+                "logic_sensitivity": self.circuit_model.tech_model.base_params.logic_sensitivity,
+                "logic_resource_sensitivity": self.circuit_model.tech_model.base_params.logic_resource_sensitivity,
+                "logic_ahmdal_limit": self.circuit_model.tech_model.base_params.logic_ahmdal_limit,
+                "logic_resource_ahmdal_limit": self.circuit_model.tech_model.base_params.logic_resource_ahmdal_limit,
             }
             if self.circuit_model.tech_model.model_cfg["vs_model_type"] == "base":
                 self.obj_sub_exprs["t_1"] = self.circuit_model.tech_model.param_db["t_1"]
@@ -934,6 +1165,7 @@ class HardwareModel:
             "vx0": "virtual source injection velocity over generations (m/s)",
             "v": "effective injection velocity over generations (m/s)",
             "t_1": "T1 over generations (s)",
+            "clk_period": "Clock Period over generations (ns)",
             "f": "Frequency over generations (Hz)",
             "parasitic capacitance": "Parasitic Capacitance over generations (F)",
             "L_ov": "L_ov over generations (m)",
@@ -946,26 +1178,39 @@ class HardwareModel:
             "H_g": "CNT gate height over generations (m)",
             "k_cnt": "CNT Dielectric Constant over generations (F/m)",
             "k_gate": "Gate Dielectric Constant over generations (F/m)",
+            "delay": "Transistor Delay over generations (s)",
+            "multiplier delay": "Multiplier Delay over generations (s)",
+            "scaled power": "Scaled Power over generations (W)",
+            "logic_sensitivity": "Logic Sensitivity over generations",
+            "logic_resource_sensitivity": "Logic Resource Sensitivity over generations",
+            "logic_ahmdal_limit": "Logic Ahmdal Limit over generations",
+            "logic_resource_ahmdal_limit": "Logic Resource Ahmdal Limit over generations",
         }
         if self.obj_fn == "edp":
-            self.obj = (self.total_passive_energy + self.total_active_energy) * self.execution_time
-            self.obj_scaled = (self.total_passive_energy * self.circuit_model.tech_model.capped_power_scale + self.total_active_energy) * self.execution_time * self.circuit_model.tech_model.capped_delay_scale
+            self.obj = (self.total_passive_energy + self.total_active_energy) * execution_time
+            self.obj_scaled = (self.total_passive_energy * self.circuit_model.tech_model.capped_energy_scale + self.total_active_energy) * execution_time * self.circuit_model.tech_model.capped_delay_scale
         elif self.obj_fn == "ed2":
-            self.obj = (self.total_passive_energy + self.total_active_energy) * (self.execution_time)**2
-            self.obj_scaled = (self.total_passive_energy * self.circuit_model.tech_model.capped_power_scale + self.total_active_energy) * (self.execution_time * self.circuit_model.tech_model.capped_delay_scale)**2
+            self.obj = (self.total_passive_energy + self.total_active_energy) * (execution_time)**2
+            self.obj_scaled = (self.total_passive_energy * self.circuit_model.tech_model.capped_energy_scale + self.total_active_energy) * (execution_time * self.circuit_model.tech_model.capped_delay_scale)**2
         elif self.obj_fn == "delay":
-            self.obj = self.execution_time
-            self.obj_scaled = self.execution_time * self.circuit_model.tech_model.capped_delay_scale
+            self.obj = execution_time
+            self.obj_scaled = execution_time * self.circuit_model.tech_model.capped_delay_scale
         elif self.obj_fn == "energy":
-            print(f"setting energy objective to {self.total_active_energy + self.total_passive_energy}")
             self.obj = self.total_active_energy + self.total_passive_energy
-            self.obj_scaled = (self.total_active_energy + self.total_passive_energy * self.circuit_model.tech_model.capped_power_scale)
+            self.obj_scaled = (self.total_active_energy + self.total_passive_energy * self.circuit_model.tech_model.capped_energy_scale)
+        elif self.obj_fn == "eplusd":
+            self.obj = ((self.total_active_energy + self.total_passive_energy) * sim_util.xreplace_safe(execution_time, self.circuit_model.tech_model.base_params.tech_values) 
+                        + execution_time * sim_util.xreplace_safe(self.total_active_energy + self.total_passive_energy, self.circuit_model.tech_model.base_params.tech_values))
+            self.obj_scaled = ((self.total_active_energy + self.total_passive_energy * self.circuit_model.tech_model.capped_energy_scale) * sim_util.xreplace_safe(execution_time, self.circuit_model.tech_model.base_params.tech_values) 
+                        + execution_time * self.circuit_model.tech_model.capped_delay_scale * sim_util.xreplace_safe(self.total_active_energy + self.total_passive_energy, self.circuit_model.tech_model.base_params.tech_values))
         else:
             raise ValueError(f"Objective function {self.obj_fn} not supported")
     
-    def calculate_objective(self):
+    def calculate_objective(self, clk_period_opt=False, form_dfg=True):
+        start_time = time.time()
+        self.constraints = []
         if self.hls_tool == "vitis":
-            self.execution_time = self.calculate_execution_time_vitis(self.top_block_name)
+            self.execution_time = self.calculate_execution_time_vitis(self.top_block_name, clk_period_opt, form_dfg)
             self.total_passive_energy = self.calculate_passive_power_vitis(self.execution_time)
             self.total_active_energy = self.calculate_active_energy_vitis()
         else: # catapult
@@ -973,4 +1218,16 @@ class HardwareModel:
             self.execution_time = self.calculate_execution_time(symbolic=True)
             self.total_passive_energy = self.calculate_passive_energy(self.execution_time, symbolic=True)
             self.total_active_energy = self.calculate_active_energy(symbolic=True)
-        self.save_obj_vals()
+        self.save_obj_vals(self.execution_time)
+        self.calculate_block_vectors(self.top_block_name)
+        logger.info(f"time to calculate objective: {time.time()-start_time}")
+
+    def display_objective(self, message):
+        obj = float(self.obj.xreplace(self.circuit_model.tech_model.base_params.tech_values))
+        sub_exprs = {}
+        for key in self.obj_sub_exprs:
+            if not isinstance(self.obj_sub_exprs[key], float):
+                sub_exprs[key] = float(self.obj_sub_exprs[key].xreplace(self.circuit_model.tech_model.base_params.tech_values))
+            else:   
+                sub_exprs[key] = self.obj_sub_exprs[key]
+        print(f"{message}\n {self.obj_fn}: {obj}, sub expressions: {sub_exprs}")

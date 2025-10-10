@@ -27,6 +27,15 @@ floordiv = "FloorDiv50_40"
 sub = "Sub50_40"
 eq= "Eq50_40"
 
+DEBUG = False
+def log_info(msg):
+    if DEBUG:
+        logger.info(msg)
+def log_warning(msg):
+    if DEBUG:
+        logger.warning(msg)
+
+
 class DefGenerator:
     def __init__(self, cfg, codesign_root_dir):
         self.cfg = cfg
@@ -62,7 +71,7 @@ class DefGenerator:
                     except Exception:
                         logger.debug(f"Failed to parse halo_height from line: {line.strip()}")
 
-        logger.info(f"Using macro halo values: x = {self.macro_halo_x}, y = {self.macro_halo_y}")
+        log_info(f"Using macro halo values: x = {self.macro_halo_x}, y = {self.macro_halo_y}")
 
     def component_finder(self, name: str) -> str:
         '''
@@ -190,7 +199,7 @@ class DefGenerator:
         test_file_data = open(test_file)
         test_file_lines = test_file_data.readlines()
 
-        logger.info(f"Reading tcl file: {test_file}")
+        log_info(f"Reading tcl file: {test_file}")
 
         # extracting vars file, die area, and core area from tcl
         for line in test_file_lines: 
@@ -279,9 +288,9 @@ class DefGenerator:
         nodes = list(graph)
         control_nodes = list(graph)
 
-        logger.info(f"Full Graph: {graph}")
+        log_info(f"Full Graph: {graph}")
 
-        logger.info(f"Control nodes: {control_nodes}")
+        log_info(f"Control nodes: {control_nodes}")
 
         ### 1. pruning ###
         for node1 in control_nodes:
@@ -433,9 +442,9 @@ class DefGenerator:
         area_estimate_sq_microns = 0.0
         for node in nodes:
             component_num = format(number)
-            logger.info(f"Generating component for node: {node} with number: {component_num}")
+            log_info(f"Generating component for node: {node} with number: {component_num}")
             ## log the whole node to macro dict in a human readable way
-            logger.info(f"Node to macro mapping: {node_to_macro}")
+            log_info(f"Node to macro mapping: {node_to_macro}")
             macro = node_to_macro[node][0]
             # add macro area if available
             msize = macro_size_dict.get(macro)
@@ -505,7 +514,7 @@ class DefGenerator:
                 net = net + " + USE SIGNAL ;"
                 net_text.append(net)
 
-        logger.info(f"Generated {len(net_text)} nets.")
+        log_info(f"Generated {len(net_text)} nets.")
 
         node_output = self.edge_gen("out", nodes, graph)
 
@@ -551,9 +560,9 @@ class DefGenerator:
 
             counter += 1
             row_text.append(text)
-            logger.info(f"Generated row: {text}")
+            log_info(f"Generated row: {text}")
 
-        logger.info(f"Generated {len(row_text)} rows.")
+        log_info(f"Generated {len(row_text)} rows.")
 
         #$# 8.generate track ###
         # using calculations sourced from OpenROAD
@@ -609,7 +618,7 @@ class DefGenerator:
                 text = "TRACKS Y {} DO {} STEP {} LAYER {} ;".format(int(origin_y), int(y_track_count), int(layer_pitch_y), layer_name)
                 track_text.append(text)
         
-        logger.info(f"Generated {len(track_text)} track lines.")
+        log_info(f"Generated {len(track_text)} track lines.")
                     
         if not os.path.exists( self.directory + "/results/"):
             os.makedirs(self.directory + "/results/")
@@ -633,7 +642,7 @@ class DefGenerator:
         lef_data_dict = {"width" : lef_width, "res" : layer_res, "cap" : layer_cap, "units" : units}
         os.system("cp openroad_interface/results/first_generated.def " + self.directory + "/results/first_generated.def") 
 
-        logger.info(f"DEF file generation complete.")
-        logger.info(f"Estimated total macro area: {area_estimate_sq_microns:.2f} square microns")
+        log_info(f"DEF file generation complete.")
+        log_info(f"Estimated total macro area: {area_estimate_sq_microns:.2f} square microns")
 
         return graph, net_out_dict, node_output, lef_data_dict, node_to_num, area_estimate_sq_microns
