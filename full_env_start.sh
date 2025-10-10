@@ -89,6 +89,16 @@ export HOME="$(pwd)"
 export PATH="$HOME/.local/bin:$(echo "$PATH")"
 export CMAKE_PREFIX_PATH="$HOME/.local"
 
+## for cmu setup, set tmp directory to local directory to avoid filling system tmp
+if [ "$UNIVERSITY" = "cmu" ]; then
+    export TMPDIR="$HOME/tmp"
+    export TEMP="$TMPDIR"
+    export TEMPDIR="$TMPDIR"
+    export TMP="$TMPDIR"
+    mkdir -p "$TMPDIR"
+    echo "Set TMPDIR to $TMPDIR"
+fi
+
 ################## INSTALL OPENROAD ##################
 git submodule update --init --recursive openroad_interface/OpenROAD
 
