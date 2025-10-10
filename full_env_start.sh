@@ -95,6 +95,9 @@ if [ "$UNIVERSITY" = "cmu" ]; then
     export TEMP="$TMPDIR"
     export TEMPDIR="$TMPDIR"
     export TMP="$TMPDIR"
+    export PYTHONPYCACHEPREFIX="$TMPDIR/__pycache__"
+    export CONDA_PKGS_DIRS="$TMPDIR/conda_pkgs"
+    export PIP_CACHE_DIR="$TMPDIR/pip_cache"
     mkdir -p "$TMPDIR"
     echo "Set TMPDIR to $TMPDIR"
 fi
