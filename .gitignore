@@ -44,6 +44,3 @@ tools/
 !.gitignore
 !.git/
 ######
-
-
-tmp/**

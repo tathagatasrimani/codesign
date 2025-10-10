@@ -91,7 +91,7 @@ export CMAKE_PREFIX_PATH="$HOME/.local"
 
 ## for cmu setup, set tmp directory to local directory to avoid filling system tmp
 if [ "$UNIVERSITY" = "cmu" ]; then
-    export TMPDIR="$HOME/tmp"
+    export TMPDIR="$HOME/.tmp"
     export TEMP="$TMPDIR"
     export TEMPDIR="$TMPDIR"
     export TMP="$TMPDIR"
