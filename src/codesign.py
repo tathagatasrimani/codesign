@@ -114,6 +114,10 @@ class Codesign:
         if self.cfg["args"]["checkpoint_start_step"]!= "none" and self.cfg["args"]["checkpoint_load_dir"] != "none":
             self.checkpoint_controller.load_checkpoint()
 
+        # configure to start with 3 dsp and 3 bram
+        self.dsp_multiplier = 1/3 * self.cfg["args"]["area"] /self.hw.circuit_model.tech_model.param_db["A_gate"].xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf()
+        self.bram_multiplier = 1/3 * self.cfg["args"]["area"] /self.hw.circuit_model.tech_model.param_db["A_gate"].xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf()
+
     # any arguments specified on CLI will override the default config
     def set_config(self, args):
         with open(f"src/yaml/codesign_cfg.yaml", "r") as f:
@@ -215,14 +219,12 @@ class Codesign:
         """
         with open(f"ScaleHLS-HIDA/test/Transforms/Directive/config.json", "r") as f:
             config = json.load(f)
-        dsp_multiplier = 1e16 # TODO replace with more comprehensive model
-        bram_multiplier = 1e16 # TODO replace with more comprehensive model
         if unlimited:
             config["dsp"] = 1000000
             config["bram"] = 1000000
         else:
-            config["dsp"] = int(self.cfg["args"]["area"] / (self.hw.circuit_model.tech_model.param_db["A_gate"].xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf() * dsp_multiplier))
-            config["bram"] = int(self.cfg["args"]["area"] / (self.hw.circuit_model.tech_model.param_db["A_gate"].xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf() * bram_multiplier))
+            config["dsp"] = int(self.cfg["args"]["area"] / (self.hw.circuit_model.tech_model.param_db["A_gate"].xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf() * self.dsp_multiplier))
+            config["bram"] = int(self.cfg["args"]["area"] / (self.hw.circuit_model.tech_model.param_db["A_gate"].xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf() * self.bram_multiplier))
             # setting cur_dsp_usage here instead of with parse_dsp_usage after running scaleHLS
             # because I observed that for a small amount of resources, scaleHLS won't generate the csv file that we need to parse
             self.cur_dsp_usage = config["dsp"] 
@@ -568,6 +570,22 @@ class Codesign:
         # parse catapult timing report and create schedule
         self.parse_catapult_timing()
 
+    def set_workload_size(self, dir_name):
+        """
+        Sets the workload size for the benchmark.
+        """
+        if os.path.exists(f"{dir_name}/{self.benchmark_name}.c"):
+            with open(f"{dir_name}/{self.benchmark_name}.c", "r") as f:
+                lines = f.readlines()
+                new_lines = []
+                for line in lines:
+                    if "#define N" in line:
+                        new_lines.append(f"#define N {self.cfg['args']['workload_size']}\n")
+                    else:
+                        new_lines.append(line)
+            with open(f"{dir_name}/{self.benchmark_name}.c", "w") as f:
+                f.writelines(new_lines)
+
     def forward_pass(self, iteration_count, save_dir, setup=False):
         """
         Executes the forward pass of the codesign process: prepares benchmark, updates ccore
@@ -593,6 +611,8 @@ class Codesign:
                     shutil.rmtree(self.benchmark_dir, ignore_errors=True)
                     time.sleep(10)
             shutil.copytree(self.benchmark, self.benchmark_dir)
+
+        self.set_workload_size(self.benchmark_dir if not setup else self.benchmark_setup_dir)
 
         self.clk_period = self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.clk_period] # ns
 
@@ -942,6 +962,7 @@ if __name__ == "__main__":
     parser.add_argument("--checkpoint_save_dir", type=str, help="directory to save checkpoint")
     parser.add_argument("--checkpoint_start_step", type=str, help="checkpoint step to resume from (the flow will start normal execution AFTER this step)")
     parser.add_argument("--stop_at_checkpoint", type=str, help="checkpoint step to stop at (will complete this step and then stop)")
+    parser.add_argument("--workload_size", type=int, help="workload size to use, such as the dimension of the matrix for gemm. Only applies to certain benchmarks")
     args = parser.parse_args()
 
     main(args)

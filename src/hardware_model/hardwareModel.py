@@ -26,7 +26,7 @@ from openroad_interface import openroad_run
 
 import cvxpy as cp
 
-DEBUG = True
+DEBUG = False
 def log_info(msg):
     if DEBUG:
         logger.info(msg)

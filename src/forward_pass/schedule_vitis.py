@@ -14,7 +14,7 @@ from src.forward_pass import llvm_ir_parse
 from src.forward_pass import vitis_create_netlist
 from src import sim_util
 
-DEBUG = True
+DEBUG = False
 
 def log_info(msg):
     if DEBUG:

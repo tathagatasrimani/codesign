@@ -67,7 +67,7 @@ class Optimizer:
         # ensure that forward pass can't add more than 10x parallelism in the next iteration. power scale is based on the amount we scale area down by,
         # because in the next forward pass we assume that much parallelism will be added, and therefore increase power
         #if not self.test_config:
-        constraints.append(self.hw.circuit_model.tech_model.capped_power_scale <= 10)
+        constraints.append(self.hw.circuit_model.tech_model.capped_power_scale <= improvement)
 
         assert len(self.hw.circuit_model.tech_model.constraints) > 0, "tech model constraints are empty"
         constraints.extend(self.hw.circuit_model.tech_model.base_params.constraints)

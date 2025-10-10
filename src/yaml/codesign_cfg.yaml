@@ -21,6 +21,7 @@ default:
     checkpoint_save_dir: none
     stop_at_checkpoint: none
     checkpoint_start_step: none
+    workload_size: 2
 
 
 #### EXAMPLE TESTS ####
@@ -38,6 +39,11 @@ vitis_gemm_test:
   base_cfg: vitis_test
   args:
     benchmark: gemm
+
+vitis_gemm_32_test:
+  base_cfg: vitis_gemm_test
+  args:
+    workload_size: 32
 
 vitis_resnet_test:
   base_cfg: vitis_test
