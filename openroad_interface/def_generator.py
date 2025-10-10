@@ -32,6 +32,37 @@ class DefGenerator:
         self.cfg = cfg
         self.codesign_root_dir = codesign_root_dir
         self.directory = os.path.join(self.codesign_root_dir, "src/tmp/pd")
+        self.macro_halo_x = 0.0
+        self.macro_halo_y = 0.0
+
+
+    def get_macro_halo_values(self):
+        flow_path = os.path.join(self.directory, "tcl", "codesign_flow.tcl")
+        if not os.path.exists(flow_path):
+            logger.warning(f"codesign_flow.tcl not found at {flow_path}; skipping halo extraction.")
+            return
+
+        with open(flow_path, "r") as f:
+            for line in f:
+                # strip trailing backslash and whitespace (lines like: "-halo_width 10 \")
+                line_clean = line.rstrip().rstrip("\\").strip()
+                # look for numeric after -halo_width or -halo_height
+                m_w = re.search(r"-?halo_width\s+([-+]?\d*\.?\d+)", line_clean, re.IGNORECASE)
+                if m_w:
+                    try:
+                        self.macro_halo_x = float(m_w.group(1))
+                    except Exception:
+                        logger.debug(f"Failed to parse halo_width from line: {line.strip()}")
+                    continue
+
+                m_h = re.search(r"-?halo_height\s+([-+]?\d*\.?\d+)", line_clean, re.IGNORECASE)
+                if m_h:
+                    try:
+                        self.macro_halo_y = float(m_h.group(1))
+                    except Exception:
+                        logger.debug(f"Failed to parse halo_height from line: {line.strip()}")
+
+        logger.info(f"Using macro halo values: x = {self.macro_halo_x}, y = {self.macro_halo_y}")
 
     def component_finder(self, name: str) -> str:
         '''
@@ -115,8 +146,8 @@ class DefGenerator:
     def run_def_generator(self, test_file: str, graph: nx.DiGraph): 
         '''
         -> nx.DiGraph, dict, dict, dict (it's not working when actaully written)
-        Generates required .def file for OpenROAD.
-
+        Generates required .def file for OpenROAD. It uses the lef files specified in the tcl file to
+        determine the components that will be used.
         params: 
             test_file: tcl file
             graph: nx.DiGraph, untouched
@@ -151,6 +182,8 @@ class DefGenerator:
         layer_x_offset = None
         layer_pitch_x = None
         layer_pitch_y = None
+
+        self.get_macro_halo_values()
 
         
         ### 0. reading tcl file and lef file ###
@@ -192,13 +225,13 @@ class DefGenerator:
                 site = re.findall(r'"(.*?)"', line)
                 site_name = site[0]
 
-        os.system("cp openroad_interface/std_cell_lef/codesign_stdcell.lef" + " " + lef_std_file) 
-
         # extracting needed macros and their respective pins from lef and puts it into a dict
         lef_std_data = open(lef_std_file)
         macro_name = None
         macro_names = []
         macro_dict = {}
+        # store macro physical sizes (SIZE x BY y) from stdcell LEF
+        macro_size_dict = {}
         for line in lef_std_data.readlines():
             if "MACRO" in line:
                 macro_name = clean(value(line, "MACRO"))
@@ -217,6 +250,18 @@ class DefGenerator:
                     macro_dict[macro_name]["input"].append(pin_name)
                 elif pin_name.startswith("Z") or pin_name.startswith("Q") or pin_name.startswith("X"):
                     macro_dict[macro_name]["output"].append(pin_name)
+            # capture SIZE lines inside MACRO blocks, e.g. "SIZE 22.585 BY 16.8 ;"
+            elif "SIZE" in line and macro_name:
+                m_size = re.search(r"SIZE\s+([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)\s+BY\s+([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)", line)
+                if m_size:
+                    try:
+                        sx = float(m_size.group(1))
+                        sy = float(m_size.group(2))
+                        macro_size_dict[macro_name] = (sx, sy)
+                    except Exception:
+                        logger.debug(f"Couldn't parse SIZE for macro {macro_name}: {line.strip()}")
+                else:
+                    logger.debug(f"SIZE line did not match regex for macro {macro_name}: {line.strip()}")
 
         # extracting units and sit size from tech file
         lef_data = open(lef_tech_file)
@@ -384,12 +429,24 @@ class DefGenerator:
         number = 1
         node_to_num = {}
         nodes = list(graph)
+        # basic area estimate (square microns) by summing macro footprints for each instantiated node
+        area_estimate_sq_microns = 0.0
         for node in nodes:
             component_num = format(number)
             logger.info(f"Generating component for node: {node} with number: {component_num}")
             ## log the whole node to macro dict in a human readable way
             logger.info(f"Node to macro mapping: {node_to_macro}")
             macro = node_to_macro[node][0]
+            # add macro area if available
+            msize = macro_size_dict.get(macro)
+            if msize and units:
+                # include halo on both sides (assume macro_halo values are per-side in microns)
+                eff_x = msize[0] + 2.0 * self.macro_halo_x
+                eff_y = msize[1] + 2.0 * self.macro_halo_y
+                area_estimate_sq_microns += eff_x * eff_y
+            else:
+                 if macro not in macro_size_dict:
+                     logger.debug(f"No SIZE found for macro {macro}; skipping in area estimate.")
             component_text.append("- {} {} ;".format(component_num, macro))
             node_to_num[node] = format(number)
             number += 1
@@ -577,5 +634,6 @@ class DefGenerator:
         os.system("cp openroad_interface/results/first_generated.def " + self.directory + "/results/first_generated.def") 
 
         logger.info(f"DEF file generation complete.")
+        logger.info(f"Estimated total macro area: {area_estimate_sq_microns:.2f} square microns")
 
-        return graph, net_out_dict, node_output, lef_data_dict, node_to_num
+        return graph, net_out_dict, node_output, lef_data_dict, node_to_num, area_estimate_sq_microns

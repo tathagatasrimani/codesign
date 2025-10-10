@@ -31,6 +31,7 @@ vitis_test:
   args:
     hls_tool: vitis
     model_cfg: vs_cfg_latest
+    area: 1000000000
 
 ## These tests will run without stoping to the specified number of iterations
 vitis_gemm_test:
@@ -91,6 +92,12 @@ vitis_resnet_load_checkpoint_after_vitis_stop_after_pd:
   base_cfg: vitis_resnet_load_checkpoint_after_vitis
   args:
     stop_at_checkpoint: pd
+
+vitis_resnet_checkpoint_after_pd: 
+  base_cfg: vitis_resnet_test
+  args:
+    stop_at_checkpoint: pd
+    checkpoint_save_dir: vitis_resnet_checkpoint_after_pd
 
 
 #### END EXAMPLE TESTS ####

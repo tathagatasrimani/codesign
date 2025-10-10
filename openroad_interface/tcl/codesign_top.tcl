@@ -27,4 +27,7 @@ place_pins -hor_layers {metal3} -ver_layers {metal2} -min_distance 1
 # Optional: confirm pins exist / are named
 puts "Ports: [get_ports *]"
 
+set tech_obj [ord::get_db_tech]
+puts ">>> Manufacturing grid in OpenROAD: [$tech_obj getManufacturingGrid]"
+
 source "codesign_flow.tcl"
