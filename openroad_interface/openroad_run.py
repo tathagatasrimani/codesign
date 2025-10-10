@@ -1,3 +1,4 @@
+from enum import verify
 import logging
 import re
 import os
@@ -14,6 +15,10 @@ import networkx as nx
 from openroad_interface import def_generator
 from . import estimation as est
 from . import detailed as det
+from . import scale_lef_files as scale_lef
+
+## This is the area between the die area and the core area.
+DIE_CORE_BUFFER_SIZE = 50
 
 class OpenRoadRun:
     def __init__(self, cfg, codesign_root_dir):
@@ -28,11 +33,12 @@ class OpenRoadRun:
         self.directory = os.path.join(self.codesign_root_dir, "src/tmp/pd")
 
     def run(
-        self,
-        graph: nx.DiGraph,
-        test_file: str, 
-        arg_parasitics: str,
-        area_constraint: int
+    self,
+    graph: nx.DiGraph,
+    test_file: str, 
+    arg_parasitics: str,
+    area_constraint: int,
+    L_eff: float
     ):
         """
         Runs the OpenROAD flow.
@@ -44,7 +50,7 @@ class OpenRoadRun:
         dict = {edge: {} for edge in graph.edges()}
         if "none" not in arg_parasitics:
             logger.info("Running setup for place and route.")
-            graph, net_out_dict, node_output, lef_data, node_to_num = self.setup(graph, test_file, area_constraint)
+            graph, net_out_dict, node_output, lef_data, node_to_num = self.setup(graph, test_file, area_constraint, L_eff)
             logger.info("Setup complete. Running extraction.")
             dict, graph = self.extraction(graph, arg_parasitics, net_out_dict, node_output, lef_data, node_to_num)
             logger.info("Extraction complete.")
@@ -58,7 +64,8 @@ class OpenRoadRun:
         self,
         graph: nx.DiGraph,
         test_file: str,
-        area_constraint: int
+        area_constraint: int,
+        L_eff: float
     ):
         """
         Sets up the OpenROAD environment. This method creates the working directory, copies tcl files, and generates the def file
@@ -66,8 +73,43 @@ class OpenRoadRun:
             graph: hardware netlist graph
             test_file: tcl file
             
-            area_constraint: area constraint for the placement
+            area_constraint: area constraint for the placement. We will ensure that the final area constraint set to OpenROAD
+                achieves at least 60% utilization based on the estimated area from the def generator.
+            L_eff: effective channel length used to scale the LEF files.
 
+        """
+
+        graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate = self.setup_set_area_constraint(graph, test_file, area_constraint, L_eff)
+
+        ## ensure that the design area utilization is at least 60%
+        if area_estimate > 0.8 * area_constraint:
+            logger.warning(f"Warning: Estimated area {area_estimate} exceeds 80% of area constraint {area_constraint}. Consider increasing area constraint.")
+
+        elif area_estimate < 0.5 * area_constraint:
+            area_constraint_old = area_constraint
+            area_constraint = int(area_estimate / 0.6)
+            logger.info(f"Info: Estimated area {area_estimate} is less than 50% of area constraint {area_constraint_old}. Area constraint will be scaled from {area_constraint_old} to {area_constraint}.")
+            graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate = self.setup_set_area_constraint(graph, test_file, area_constraint, L_eff)
+
+        return graph, net_out_dict, node_output, lef_data, node_to_num
+
+
+    def setup_set_area_constraint(
+        self,
+        graph: nx.DiGraph,
+        test_file: str,
+        area_constraint: int,
+        L_eff: float
+    ):
+        """
+        This is a helper method that runs the setup for a single area constraint and provides an area estimate. 
+        param:
+            graph: hardware netlist graph
+            test_file: tcl file
+            
+            area_constraint: area constraint for the placement. We will ensure that the final area constraint set to OpenROAD
+                achieves at least 60% utilization based on the estimated area from the def generator.
+            L_eff: effective channel length used to scale the LEF files.
         """
 
         logger.info("Setting up environment for place and route.")
@@ -83,14 +125,17 @@ class OpenRoadRun:
 
         self.update_area_constraint(area_constraint)
 
+        do_scale_lef = scale_lef.ScaleLefFiles(self.cfg, self.codesign_root_dir)
+        do_scale_lef.scale_lef_files(L_eff)
+
         df = def_generator.DefGenerator(self.cfg, self.codesign_root_dir)
-        
-        graph, net_out_dict, node_output, lef_data, node_to_num = df.run_def_generator(
+
+        graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate = df.run_def_generator(
             test_file, graph
         )
-        logger.info("DEF generation complete.")
+        logger.info(f"DEF generation complete. Area estimate: {area_estimate}")
 
-        return graph, net_out_dict, node_output, lef_data, node_to_num
+        return graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate
 
     def update_area_constraint(self, area_constraint: int):
         """
@@ -103,25 +148,23 @@ class OpenRoadRun:
             tcl_data = file.readlines()
 
         ## compute the new area constraint
-        new_sidelength = int(sqrt(area_constraint))  
-
-        ## round to the nearest multiple of 100
-        new_sidelength = round(new_sidelength / 100) * 100
+        new_core_sidelength = int(sqrt(area_constraint))  
 
         ## find a line that contains "set die_area" and replace it with the new area constraint
         for i, line in enumerate(tcl_data):
             if "set die_area" in line:
-                tcl_data[i] = f"set die_area {{0 0 {new_sidelength} {new_sidelength}}}\n"
-                logger.info(f"Updated die_area to {new_sidelength}x{new_sidelength}")
+                tcl_data[i] = f"set die_area {{0 0 {new_core_sidelength + DIE_CORE_BUFFER_SIZE*2} {new_core_sidelength + DIE_CORE_BUFFER_SIZE*2}}}\n"
+                logger.info(f"Updated die_area to {new_core_sidelength + DIE_CORE_BUFFER_SIZE*2}x{new_core_sidelength + DIE_CORE_BUFFER_SIZE*2}")
             if "set core_area" in line:
-                tcl_data[i] = f"set core_area {{50 50 {new_sidelength - 50} {new_sidelength - 50}}}\n"
-                logger.info(f"Updated core_area to {new_sidelength - 50}x{new_sidelength - 50}")
+                tcl_data[i] = f"set core_area {{{DIE_CORE_BUFFER_SIZE} {DIE_CORE_BUFFER_SIZE} {new_core_sidelength + DIE_CORE_BUFFER_SIZE} {new_core_sidelength + DIE_CORE_BUFFER_SIZE}}}\n"
+                logger.info(f"Updated core_area to {new_core_sidelength}x{new_core_sidelength}")
 
         ## write the new tcl file
         with open(self.directory + "/tcl/codesign_top.tcl", "w") as file:
             file.writelines(tcl_data)
         
-        logger.info(f"Wrote updated tcl file with the area constraints: {new_sidelength}x{new_sidelength}")
+        logger.info(f"Wrote updated tcl file with the area constraints: {new_core_sidelength}x{new_core_sidelength}")
+
 
     def run_openroad_executable(self):
         """
@@ -131,7 +174,7 @@ class OpenRoadRun:
         old_dir = os.getcwd()
         os.chdir(self.directory + "/tcl")
         logger.info(f"Changed directory to {self.directory + '/tcl'}")
-        print("running openroad")
+        print("running openroad. If openroad fails (check log), type exit below and hit return.")
         logger.info("Running OpenROAD command.")
         os.system(os.path.dirname(os.path.abspath(__file__)) + "/OpenROAD/build/src/openroad codesign_top.tcl > " + self.directory + "/codesign_pd.log")#> /dev/null 2>&1
         print("done")
@@ -417,3 +460,5 @@ class OpenRoadRun:
             graph, "openroad_interface/results/" + est_or_det + ".gml"
         )
         logger.info(f"Graph exported to openroad_interface/results/{est_or_det}.gml")
+
+   
