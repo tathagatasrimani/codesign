@@ -304,7 +304,6 @@ class VSCNFetModel(TechModel):
         self.param_db["F_s"] = self.F_s_eval
         self.param_db["vx0"] = self.vx0
         self.param_db["v"] = self.v.xreplace(self.on_state).evalf()
-        self.param_db["f"] = self.base_params.f
         self.param_db["R_s"] = self.R_s
         self.param_db["R_d"] = self.R_d
         self.param_db["parasitic capacitance"] = self.C_diff

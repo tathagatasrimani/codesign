@@ -770,7 +770,7 @@ END SPACING
 SITE codesign_site
   SYMMETRY y ;
   CLASS core ;
-  SIZE 0.19 BY 1.4 ;
+  SIZE 1.216 BY 8.96 ;
 END codesign_site
 
 END LIBRARY

@@ -376,7 +376,7 @@ def match_bandwidths(memories, pre_assign_counts, hw):
 def customize_catapult_memories(mem_rpt_file, benchmark_name, hw, pre_assign_counts): #takes in a memory report from initial catapult run
     if not os.path.exists("src/tmp/benchmark/ram_sync"):
         os.makedirs("src/tmp/benchmark/ram_sync")
-    clk_period = (1 / hw.circuit_model.tech_model.base_params.f) * 1e9 # ns
+    clk_period = hw.circuit_model.tech_model.base_params.clk_period # ns
     memories = parse_memory_report(mem_rpt_file)
 
     bandwidths = match_bandwidths(memories, pre_assign_counts, hw) 

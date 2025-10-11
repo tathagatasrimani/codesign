@@ -12,6 +12,7 @@ logger = logging.getLogger("dennard multi core")
 # Now you can safely import modules that rely on the correct working directory
 from src import codesign
 from src import trend_plot
+from src import sim_util
 
 class DennardMultiCore:
     def __init__(self, args):
@@ -19,9 +20,13 @@ class DennardMultiCore:
         self.codesign_module = codesign.Codesign(
             self.args
         )
-        # for this experiment, we don't use the scaled obj feature, instead just bake the parallelism scaling into the obj
-        max_parallel_val = 1
-        self.codesign_module.hw.circuit_model.tech_model.init_scale_factors(max_parallel_val)
+        self.codesign_module.opt.test_config = True
+
+        if self.codesign_module.hw.circuit_model.tech_model.model_cfg["effects"]["max_parallel_en"] is not None:
+            self.max_parallel_val = self.codesign_module.hw.circuit_model.tech_model.model_cfg["effects"]["max_parallel_val"]
+        else:
+            self.max_parallel_val = 1e7
+        self.codesign_module.hw.circuit_model.tech_model.init_scale_factors(self.max_parallel_val, self.max_parallel_val)
         self.dummy_app = args.dummy
         self.params_over_iterations = []
         self.edp_over_iterations = []
@@ -30,6 +35,7 @@ class DennardMultiCore:
     def calculate_objective(self):
         self.codesign_module.hw.execution_time = self.codesign_module.hw.circuit_model.tech_model.delay*(self.num_switches_per_inverter/self.utilization)
         self.codesign_module.hw.total_passive_energy = self.num_inverters * self.codesign_module.hw.circuit_model.tech_model.P_pass_inv * self.codesign_module.hw.execution_time
+        self.codesign_module.hw.total_passive_power = self.num_inverters * self.codesign_module.hw.circuit_model.tech_model.P_pass_inv
         self.codesign_module.hw.total_active_energy = self.num_inverters * self.codesign_module.hw.circuit_model.tech_model.E_act_inv * self.num_switches_per_inverter
 
     def run_dummy_forward_pass(self):
@@ -37,11 +43,9 @@ class DennardMultiCore:
         self.num_inverters = 1e5
         self.utilization = 0.02
         self.num_switches_per_inverter = 1e4
-        self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values[self.codesign_module.hw.circuit_model.tech_model.base_params.f] = 100e6
-        self.cycle_time = 1e9/self.codesign_module.hw.circuit_model.tech_model.base_params.f # ns
         self.calculate_objective()
-        self.codesign_module.hw.save_obj_vals()
-        self.codesign_module.display_objective("after forward pass")
+        self.codesign_module.hw.save_obj_vals(self.codesign_module.hw.execution_time)
+        self.codesign_module.hw.display_objective("after forward pass")
 
         print(f"initial area: {(self.num_inverters * self.codesign_module.hw.circuit_model.tech_model.A_gate * 2).xreplace(self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values).evalf()}")
 
@@ -50,11 +54,11 @@ class DennardMultiCore:
     def run_dummy_inverse_pass(self, k_gate_disabled=True):
 
         self.calculate_objective()
-        self.codesign_module.hw.save_obj_vals()
+        self.codesign_module.hw.save_obj_vals(self.codesign_module.hw.execution_time)
 
-        self.codesign_module.display_objective("before inverse pass")
+        self.codesign_module.hw.display_objective("before inverse pass")
 
-        self.disabled_knobs = [self.codesign_module.hw.circuit_model.tech_model.base_params.f, self.codesign_module.hw.circuit_model.tech_model.base_params.u_n]
+        self.disabled_knobs = [self.codesign_module.hw.circuit_model.tech_model.base_params.clk_period, self.codesign_module.hw.circuit_model.tech_model.base_params.u_n]
         if k_gate_disabled:
             self.disabled_knobs.append(self.codesign_module.hw.circuit_model.tech_model.base_params.k_gate)
 
@@ -63,14 +67,11 @@ class DennardMultiCore:
             lag_factor, error = self.codesign_module.opt.optimize("ipopt", improvement=self.codesign_module.inverse_pass_improvement, disabled_knobs=self.disabled_knobs)
             self.codesign_module.inverse_pass_lag_factor *= lag_factor
         sys.stdout = stdout
-        f = open("src/tmp/ipopt_out.txt", "r")
-        if not error:
-            self.codesign_module.parse_output(f)
 
         self.codesign_module.write_back_params()
         print(f"inverse pass lag factor: {self.codesign_module.inverse_pass_lag_factor}")
 
-        self.codesign_module.display_objective("after inverse pass")
+        self.codesign_module.hw.display_objective("after inverse pass")
 
     def update_params_over_iterations(self):
         self.params_over_iterations.append(self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values.copy())
@@ -112,6 +113,8 @@ class DennardMultiCore:
             else:
                 self.edp_over_iterations.append(self.codesign_module.hw.obj.xreplace(self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values).evalf())
             self.codesign_module.hw.reset_tech_model()
+            #self.max_parallel_val /= sim_util.xreplace_safe(self.codesign_module.hw.circuit_model.tech_model.capped_power_scale, self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values)
+            self.codesign_module.hw.circuit_model.tech_model.init_scale_factors(self.max_parallel_val, self.max_parallel_val)
         
         # now run forward pass to demonstrate how parallelism can be added
         # to combat diminishing tech benefits at the end of Dennard scaling
