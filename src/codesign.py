@@ -278,7 +278,18 @@ class Codesign:
                 export PYTHONPATH=$PYTHONPATH:$PWD/build/tools/scalehls/python_packages/scalehls_core
                 source mlir_venv/bin/activate
                 cd {os.path.join(os.path.dirname(__file__), "..", save_dir)}
-                cgeist {self.benchmark_name}.c -function={self.benchmark_name} -S -memref-fullrank -raise-scf-to-affine > {self.benchmark_name}.mlir
+                cgeist {self.benchmark_name}.c \
+                                                -function=kernel_2mm \
+                                                -S \
+                                                -memref-fullrank \
+                                                -raise-scf-to-affine \
+                                                -std=c11 \
+                                                -I{os.path.join(cwd, "ScaleHLS-HIDA/polygeist/tools/cgeist/Test/polybench/utilities")} \
+                                                -I/usr/include \
+                                                -I/usr/lib/gcc/x86_64-linux-gnu/13/include \
+                                                -I/usr/local/include \
+                                                -resource-dir $(clang -print-resource-dir) \
+                                                > {self.benchmark_name}.mlir
                 {opt_cmd} | scalehls-translate -scalehls-emit-hlscpp > {os.path.join(os.path.dirname(__file__), "..", save_dir)}/{self.benchmark_name}.cpp
                 deactivate
                 pwd
