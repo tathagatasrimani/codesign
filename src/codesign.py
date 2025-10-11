@@ -282,7 +282,7 @@ class Codesign:
                 source mlir_venv/bin/activate
                 cd {os.path.join(os.path.dirname(__file__), "..", save_dir)}
                 cgeist {self.benchmark_name}.c \
-                                                -function=kernel_2mm \
+                                                -function={self.benchmark_name}\
                                                 -S \
                                                 -memref-fullrank \
                                                 -raise-scf-to-affine \
