@@ -40,6 +40,10 @@ vitis_gemm_test:
   args:
     benchmark: gemm
 
+benchmark_2mm_test:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_2mm
 vitis_gemm_32_test:
   base_cfg: vitis_gemm_test
   args:
