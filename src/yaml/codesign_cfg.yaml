@@ -105,6 +105,32 @@ vitis_resnet_checkpoint_after_pd:
     checkpoint_save_dir: vitis_resnet_checkpoint_after_pd
 
 
+
+vitis_gemm_32_test_checkpoint_after_vitis:
+  base_cfg: vitis_gemm_test
+  args:
+    stop_at_checkpoint: vitis
+    checkpoint_save_dir: vitis_gemm_32_test_checkpoint_after_vitis
+
+
+vitis_gemm_32_test_load_checkpoint_after_vitis:
+  base_cfg: vitis_gemm_32_test
+  args:
+    checkpoint_start_step: vitis
+    checkpoint_load_dir: vitis_gemm_32_test_checkpoint_after_vitis
+
+vitis_gemm_32_test_load_checkpoint_after_vitis_stop_after_pd:
+  base_cfg: vitis_gemm_32_test_load_checkpoint_after_vitis
+  args:
+    stop_at_checkpoint: pd
+    
+vitis_gemm_32_test_checkpoint_after_pd:
+  base_cfg: vitis_gemm_32_test
+  args:
+    stop_at_checkpoint: pd
+    checkpoint_save_dir: vitis_gemm_32_test_checkpoint_after_pd
+
+
 #### END EXAMPLE TESTS ####
 
 ## add more tests below as needed
