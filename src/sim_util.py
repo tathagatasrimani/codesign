@@ -77,8 +77,9 @@ def recursive_cfg_merge(model_cfgs, model_cfg_name):
 
 def get_module_map():
     module_map = {
-        "add": "Add",
-        "mul": "Mult",
+        #"add": "Add",
+        "fadd": "Add",
+        #"mul": "Mult",
         "fmul": "Mult",
         "call": "Call"
     }
@@ -292,3 +293,29 @@ def parse_output(f, hw):
                 value
             )
         i += 1
+
+def netlist_plot(G, filename):
+    # Create custom labels using the 'function' attribute if available
+    labels = {}
+    for node, data in G.nodes(data=True):
+        if 'function' in data:
+            labels[node] = f"{node}\n{data['function']}"
+        elif 'module' in data:
+            labels[node] = f"{node}\n{data['module']}"
+        else:
+            labels[node] = str(node)
+
+    # dynamically adjust figure size
+    max_width = max(len(nodes) for nodes in labels.values())
+    fig_width = max(10, max_width * 2)
+    fig_height = max(6, len(labels) * 2)
+    plt.figure(figsize=(fig_width, fig_height))
+    nx.draw(G, labels=labels, with_labels=True, node_color='lightblue')
+    plt.savefig(filename, format='svg')
+    plt.close()
+
+
+if __name__ == "__main__":
+    filename = "src/tmp/benchmark/parse_results/gemm_full_netlist_unfiltered.gml"
+    G = nx.read_gml(filename)
+    netlist_plot(G, "src/tmp/benchmark/parse_results/gemm_full_netlist_unfiltered.svg")
