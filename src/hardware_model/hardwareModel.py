@@ -570,12 +570,7 @@ class HardwareModel:
 
         open_road_run = openroad_run.OpenRoadRun(cfg=self.cfg, codesign_root_dir=self.codesign_root_dir)
 
-        ## Get the current value of Leff. Read in from yaml/params_current.yaml
-        ## open the yaml file
-        with open(self.codesign_root_dir + "/src/yaml/params_current.yaml", "r") as f:
-            params_current = yaml.safe_load(f)
-
-        L_eff = params_current["L"]
+        L_eff = self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.L]
 
         logger.info(f"current L_eff for get_wire_parascitics: {L_eff}")
 

@@ -244,18 +244,21 @@ class Codesign:
         Handles directory changes and cleans up temporary files.
 
         Args:
-            None
+            save_dir: Directory to save the ScaleHLS output files.
         Returns:
             None
         """
         start_time = time.time()
         self.set_resource_constraint_scalehls(unlimited=setup)
+
+        logger.info(f"Running scaleHLS with save_dir: {save_dir}, opt_cmd: {opt_cmd}")
             
         ## get CWD
         cwd = os.getcwd()
         print(f"Running scaleHLS in {cwd}")
 
         if self.cfg["args"]["pytorch"]:
+            logger.info("Running scaleHLS with pytorch for benchmark_name: "+self.benchmark_name)
             cmd = [
                 'bash', '-c',
                 f'''
@@ -272,6 +275,7 @@ class Codesign:
                 '''
             ]
         else:
+            logger.info("Running scaleHLS without pytorch for benchmark_name: "+self.benchmark_name)
             cmd = [
                 'bash', '-c',
                 f'''

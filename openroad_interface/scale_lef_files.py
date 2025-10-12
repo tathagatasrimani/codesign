@@ -24,6 +24,7 @@ class ScaleLefFiles:
         
         self.original_manufacturing_grid = 0.005  # default 
         self.new_manufacturing_grid = 0.005  # default
+        self.new_manufacturing_grid_dbu = 10  # default
         self.database_units_per_micron = 2000  # default
         self.database_units_scale = 1  ## scale the number of database units per micron by this factor
         self.min_manufacturing_grid = 0.0005  # manufacturing grid must be a multiple of this
@@ -56,9 +57,9 @@ class ScaleLefFiles:
 
 
         self.get_original_manufacturing_grid()
-        self.new_manufacturing_grid = self.find_new_manufacturing_grid(alpha)
+        self.new_manufacturing_grid, self.new_manufacturing_grid_dbu = self.find_new_manufacturing_grid(alpha)
 
-        logger.info(f"New manufacturing grid after scaling: {self.new_manufacturing_grid:.6f}")
+        logger.info(f"New manufacturing grid after scaling: {self.new_manufacturing_grid:.6f}. This is {self.new_manufacturing_grid_dbu} DBU.")
 
         ## ensure that we are scaling by the proper factor.
         quantized_alpha = self.original_manufacturing_grid / self.new_manufacturing_grid
@@ -98,13 +99,14 @@ class ScaleLefFiles:
 
         # Round new_grid to the nearest multiple of self.min_manufacturing_grid
         new_grid_rounded = round(new_grid / self.min_manufacturing_grid) * self.min_manufacturing_grid
+        new_grid_dbu = round(new_grid_rounded * self.database_units_per_micron)
 
         logger.info(
             f"Original manufacturing grid: {self.original_manufacturing_grid:.6f}, "
             f"New manufacturing grid (raw): {new_grid:.6f}, "
             f"Rounded to {self.min_manufacturing_grid:.4f} multiple: {new_grid_rounded:.6f}"
         )
-        return new_grid_rounded
+        return new_grid_rounded, new_grid_dbu
     
     
     def get_original_manufacturing_grid(self) -> float:
@@ -194,7 +196,9 @@ class ScaleLefFiles:
         """
         Round a linear value to the nearest multiple of the new manufacturing grid.
         """
-        return round(val / self.new_manufacturing_grid) * self.new_manufacturing_grid
+        val_in_dbu = round(val * self.database_units_per_micron)
+        val_in_dbu_rounded = round(val_in_dbu / self.new_manufacturing_grid_dbu) * self.new_manufacturing_grid_dbu
+        return val_in_dbu_rounded / self.database_units_per_micron
 
     def round_to_manufacturing_grid_area(self, val: float) -> float:
         """
