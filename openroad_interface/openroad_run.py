@@ -127,8 +127,8 @@ class OpenRoadRun:
 
         self.update_area_constraint(area_constraint)
 
-        do_scale_lef = scale_lef.ScaleLefFiles(self.cfg, self.codesign_root_dir)
-        do_scale_lef.scale_lef_files(L_eff)
+        self.do_scale_lef = scale_lef.ScaleLefFiles(self.cfg, self.codesign_root_dir)
+        self.do_scale_lef.scale_lef_files(L_eff)
 
         df = def_generator.DefGenerator(self.cfg, self.codesign_root_dir)
 
@@ -351,15 +351,25 @@ class OpenRoadRun:
                     dst = graph.nodes[output]["name"]
                     logger.info(f"Src: {src}, Dst: {dst}")
                     if (src, dst) not in wire_length_by_edge:
-                        wire_length_by_edge[(src, dst)] = wire_length_df.loc[net]
+                        wire_length_by_edge[(src, dst)] = copy.deepcopy(wire_length_df.loc[net])
                     else:
-                        wire_length_by_edge[(src, dst)] += wire_length_df.loc[net]
+                        wire_length_by_edge[(src, dst)] += copy.deepcopy(wire_length_df.loc[net])
         self.export_graph(graph, "estimated_with_mux")
 
         wire_length_by_edge = self.mux_listing(graph, node_output, wire_length_by_edge)
         self.mux_removal(graph)
 
         self.export_graph(graph, "estimated_nomux")
+
+        # scale wire lengths to meters
+        for edge in wire_length_by_edge:
+            logger.info(f"edge is {edge}")
+            logger.info(f"original wire length by edge: {wire_length_by_edge[edge]}")
+            wire_length_by_edge[edge]["total_wl"] /= self.do_scale_lef.database_units_per_micron * 1e6 # convert to meters
+            wire_length_by_edge[edge]["metal1"] /= self.do_scale_lef.database_units_per_micron * 1e6 # convert to meters
+            wire_length_by_edge[edge]["metal2"] /= self.do_scale_lef.database_units_per_micron * 1e6 # convert to meters
+            wire_length_by_edge[edge]["metal3"] /= self.do_scale_lef.database_units_per_micron * 1e6 # convert to meters
+            logger.info(f"scaled wire length by edge: {wire_length_by_edge}")
 
         return wire_length_by_edge, graph
 
