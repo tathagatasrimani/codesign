@@ -394,10 +394,11 @@ class ScaleLefFiles:
                 nums = re.findall(r"-?\d+\.?\d*", line)
                 if len(nums) == 4:
                     lx, ly, x1, y1 = map(Fraction, nums)
-                    # snap upper-right to grid, preserve lower-left if it was 50 50
+                    new_lx = snap_value(lx, grid_x)
+                    new_ly = snap_value(ly, grid_y)
                     new_x1 = snap_value(x1, grid_x)
                     new_y1 = snap_value(y1, grid_y)
-                    new_block = "{" + f"{fmt_num(lx)} {fmt_num(ly)} {fmt_num(new_x1)} {fmt_num(new_y1)}" + "}"
+                    new_block = "{" + f"{fmt_num(new_lx)} {fmt_num(new_ly)} {fmt_num(new_x1)} {fmt_num(new_y1)}" + "}"
                     line = re.sub(r"\{\s*-?\d+\.?\d*\s+-?\d+\.?\d*\s+-?\d+\.?\d*\s+-?\d+\.?\d*\s*\}", new_block, line)
 
             modified_lines.append(line)
