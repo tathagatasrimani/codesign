@@ -1,4 +1,4 @@
-from decimal import Decimal, getcontext
+from decimal import ROUND_HALF_UP, Decimal, getcontext
 import logging
 import os
 import re
@@ -39,6 +39,33 @@ class ScaleLefFiles:
         self.NEW_site_size_x_dbu = None
         self.NEW_site_size_y_dbu = None
 
+    def log_config_vars(self):
+        # Log initial state (convert Fraction to float when appropriate)
+        def _fmt(v):
+            if v is None:
+                return "None"
+            try:
+                return f"{float(v)}" if isinstance(v, Fraction) else str(v)
+            except Exception:
+                return str(v)
+
+        logger.info(
+            "Initial scale state: OLD_database_units_per_micron=%s, OLD_manufacturing_grid_dbu=%s, "
+            "OLD_site_size_x_dbu=%s, OLD_site_size_y_dbu=%s, alpha=%s, database_units_scale=%s, "
+            "NEW_database_units_per_micron=%s, NEW_manufacturing_grid_dbu=%s, "
+            "NEW_site_size_x_dbu=%s, NEW_site_size_y_dbu=%s",
+            _fmt(self.OLD_database_units_per_micron),
+            _fmt(self.OLD_manufacturing_grid_dbu),
+            _fmt(self.OLD_site_size_x_dbu),
+            _fmt(self.OLD_site_size_y_dbu),
+            _fmt(self.alpha),
+            _fmt(self.database_units_scale),
+            _fmt(self.NEW_database_units_per_micron),
+            _fmt(self.NEW_manufacturing_grid_dbu),
+            _fmt(self.NEW_site_size_x_dbu),
+            _fmt(self.NEW_site_size_y_dbu),
+        )
+
     def scale_lef_files(self, L_eff_current: float):
         """
         Scales the technology and standard cell LEF files by the given factor.
@@ -73,19 +100,20 @@ class ScaleLefFiles:
             self.NEW_database_units_per_micron = self.OLD_database_units_per_micron
 
         self.write_DBU(self.NEW_database_units_per_micron)
-
         self.find_new_manufacturing_grid_in_dbu()
-
-        
         self.scale_site_sizes()
+
+        ## log instance variables for debugging
+        self.log_config_vars()
+
         self.snap_area_to_site_grid()
         self.scale_halo()
 
-        self.scale_tech_lef(self.alpha)
-        self.scale_track_pitches(self.alpha)
-        self.scale_stdcell_lef(self.alpha)
-        self.scale_pdn_config(self.alpha)
-        self.scale_vars_file(self.alpha)
+        self.scale_tech_lef()
+        self.scale_track_pitches()
+        self.scale_stdcell_lef()
+        self.scale_pdn_config()
+        self.scale_vars_file()
 
         verify = self.verify_on_grid
         
@@ -141,24 +169,59 @@ class ScaleLefFiles:
 
     def get_original_site_sizes_dbu(self):
         """
-        Read the SITE SIZE values from the *original* (unscaled) technology LEF and returns them in DBU.
+        Reads the SITE SIZE values from the *original* (unscaled) technology LEF
+        and returns them in DBU (integer, no float math).
+        Example LEF block:
+            SITE codesign_site
+            SYMMETRY y ;
+            CLASS core ;
+            SIZE 1.216 BY 8.96 ;
+            END codesign_site
         """
-        tech_lef = os.path.join(self.codesign_root_dir, "openroad_interface/tcl/codesign_files", "codesign_tech.lef")
+        tech_lef = os.path.join(
+            self.codesign_root_dir,
+            "openroad_interface/tcl/codesign_files",
+            "codesign_tech.lef"
+        )
+
         site_x = ""
         site_y = ""
+
         if os.path.exists(tech_lef):
             with open(tech_lef) as f:
+                inside_site = False
                 for line in f:
-                    if "SITE" in line and "SIZE" in line:
-                        m = re.search(r"SITE\s+\S+\s+SIZE\s+([\d\.]+)\s+BY\s+([\d\.]+)", line)
+                    # Detect start of SITE block
+                    if re.match(r"^\s*SITE\s+\S+", line):
+                        inside_site = True
+                        continue
+
+                    # Look for SIZE line once inside SITE block
+                    if inside_site and "SIZE" in line:
+                        m = re.search(r"SIZE\s+([\d\.]+)\s+BY\s+([\d\.]+)", line)
                         if m:
                             site_x = m.group(1)
                             site_y = m.group(2)
-                            break
+                            break  # done, we found our site size
 
-        site_x_dbu = round(Fraction(site_x)*self.OLD_database_units_per_micron) if site_x else 0
-        site_y_dbu = round(Fraction(site_y)*self.OLD_database_units_per_micron) if site_y else 0
-        logger.info(f"Original site size from {tech_lef} read in as: {site_x} x {site_y} microns ({site_x_dbu} x {site_y_dbu} DBU)")
+                    # Detect end of SITE block
+                    if inside_site and line.strip().startswith("END"):
+                        inside_site = False
+
+        # Convert safely to integer DBU (no floats)
+        if site_x and site_y:
+            site_x_dbu = int(Fraction(site_x) * self.OLD_database_units_per_micron + Fraction(1, 2))
+            site_y_dbu = int(Fraction(site_y) * self.OLD_database_units_per_micron + Fraction(1, 2))
+        else:
+            site_x_dbu = site_y_dbu = 0
+
+        logger.info(
+            f"Original site size from {tech_lef} read as: "
+            f"{site_x} x {site_y} microns "
+            f"({site_x_dbu} x {site_y_dbu} DBU)"
+        )
+
+        # Store as Fractions for downstream integer-safe math
         self.OLD_site_size_x_dbu = Fraction(site_x_dbu)
         self.OLD_site_size_y_dbu = Fraction(site_y_dbu)
 
@@ -186,15 +249,29 @@ class ScaleLefFiles:
 
 
     def dbu_to_lef_text(self, dbu_val: int, precision: int = 6) -> str:
-        """Convert integer DBU back to decimal string with exact fixed-point precision."""
-        getcontext().prec = precision + 4  # extra internal precision
-        val = (Decimal(dbu_val) / Decimal(self.NEW_database_units_per_micron)).quantize(Decimal(10) ** -precision)
-        # Strip trailing zeros, but keep at least one decimal point
-        text = format(val.normalize(), 'f')
-        if '.' not in text:
-            text += '.0'
-        return text
+        """Convert integer DBU back to decimal string safely."""
+        # Defensive context
+        getcontext().prec = precision + 10  # extra precision margin
+        getcontext().rounding = ROUND_HALF_UP
 
+        # Convert inputs safely
+        dbu_val_decimal = Decimal(str(dbu_val))
+        dbu_per_micron_decimal = Decimal(str(self.NEW_database_units_per_micron))
+
+        # Avoid division-by-zero and invalid quantization
+        if dbu_per_micron_decimal == 0:
+            raise ZeroDivisionError("NEW_database_units_per_micron cannot be zero")
+
+        val = dbu_val_decimal / dbu_per_micron_decimal
+
+        # Clamp to requested precision, but avoid InvalidOperation by pre-rounding
+        quantizer = Decimal(10) ** (-precision)
+        val = val.quantize(quantizer, rounding=ROUND_HALF_UP)
+
+        # Convert to normalized string
+        text = format(val.normalize(), 'f')
+        return text
+    
     def scale_length(self, alpha: Fraction, val: str) -> str:
         """ Scale a length value by dividing by alpha and snapping to the new manufacturing grid. 
         :param alpha: The scaling factor. A Fraction.
@@ -290,20 +367,15 @@ class ScaleLefFiles:
         ## find the area. Snap it to the nearest multiple of the site grid.
         modified_lines = []
         
-        grid_x = self.new_site_size_x
-        grid_y = self.new_site_size_y
+        grid_x = self.NEW_site_size_x_dbu
+        grid_y = self.NEW_site_size_y_dbu
 
         def snap_value(val: Fraction, grid: Fraction) -> Fraction:
-            return round(val / grid) * grid
+            new_DBU_snapped_to_grid = round((val*self.NEW_database_units_per_micron) / grid) * grid
+            return new_DBU_snapped_to_grid
 
         def fmt_num(v: Fraction) -> str:
-            # format without unnecessary decimals
-            if abs(v - round(v)) < 1e-9:
-                return str(int(round(v)))
-            # keep up to 4 decimals, strip trailing zeros
-            s = f"{v:.4f}".rstrip('0').rstrip('.')
-            return s
-
+            return self.dbu_to_lef_text(int(v))
         for line in lines:
             # match lines like: set die_area {0 0 2800 2800}
             if line.strip().startswith("set die_area"):
@@ -349,7 +421,7 @@ class ScaleLefFiles:
 
         logger.info(
             f"Scaling tech LEF with alpha={float(self.alpha)}. "
-            f"old_grid={float(self.original_manufacturing_grid):.6f} -> new_grid={float(self.new_manufacturing_grid):.6f}"
+            f"old_grid={float(self.OLD_manufacturing_grid_dbu):.6f} -> new_grid={float(self.NEW_manufacturing_grid_dbu):.6f}"
         )
 
         with open(lef_path, "r") as f:
@@ -386,7 +458,7 @@ class ScaleLefFiles:
 
             # MANUFACTURINGGRID
             elif re.match(r"\s*MANUFACTURINGGRID\s+[-+]?\d*\.?\d+\s*;", line):
-                line = f"  MANUFACTURINGGRID {self.new_manufacturing_grid:.6f} ;\n"
+                line = f"  MANUFACTURINGGRID {self.dbu_to_lef_text(self.NEW_manufacturing_grid_dbu)} ;\n"
 
             # OFFSET (two values)
             elif re.match(r"\s*OFFSET\s+[-+]?\d*\.?\d+\s+[-+]?\d*\.?\d+\s*;", line):
@@ -467,7 +539,7 @@ class ScaleLefFiles:
 
         logger.info(
             f"Scaled technology LEF at {lef_path} with alpha={float(self.alpha)}, "
-            f"new manufacturing grid={float(self.new_manufacturing_grid):.6f}."
+            f"new manufacturing grid={float(self.NEW_manufacturing_grid_dbu):.6f}."
         )
 
     def scale_track_pitches(self):
@@ -492,7 +564,7 @@ class ScaleLefFiles:
             keyword_and_space = match_obj.group(1)
             value_str = match_obj.group(2)
 
-            new_value = self.scale_length(alpha, value_str)
+            new_value = self.scale_length(self.alpha, value_str)
 
             return f"{keyword_and_space}{new_value}"
 
@@ -602,7 +674,7 @@ class ScaleLefFiles:
                     nums = re.findall(r"[\d.]+", line)
                     if len(nums) == 4:
                         return float(nums[0])
-        return 0.0
+        raise ValueError("core_area not found or malformed in codesign_top.tcl")
 
     def scale_pdn_config(self):
         """
