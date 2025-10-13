@@ -315,7 +315,7 @@ class DefGenerator:
         for node in old_nodes:
             macro = self.find_macro(graph.nodes[node]["function"])
             node_to_macro[node] = [macro, copy.deepcopy(macro_dict[macro])]
-            logger.info(f"node to macro [{node}]: {node_to_macro[node]}")
+            log_info(f"node to macro [{node}]: {node_to_macro[node]}")
             out_edge = self.edge_gen("out", old_nodes, graph)
             assert graph.nodes[node]["count"] == 16, f"Node {node} has {graph.nodes[node]['count']} ports, expected 16"
             node_attribute = graph.nodes[node]
@@ -349,7 +349,7 @@ class DefGenerator:
         ### 3.mux stuff ###
         counter = 0 
 
-        logger.info(f"generating muxes")
+        log_info(f"generating muxes")
 
         # note: old graph has edges for functional units
         # new graph has edges for each of the 16 ports of the functional units, more fine grained
@@ -387,7 +387,7 @@ class DefGenerator:
 
                     macro_output = self.find_macro(new_node)
                     node_to_macro[new_node] = [macro_output, copy.deepcopy(macro_dict[macro_output])]
-                    logger.info(f"node to macro [{new_node}]: {node_to_macro[new_node]}")
+                    log_info(f"node to macro [{new_node}]: {node_to_macro[new_node]}")
 
                 # functional unit mux
                 old_graph.add_node("Mux" + str(counter), count = 16, function = "Mux")
@@ -432,10 +432,10 @@ class DefGenerator:
         area_estimate_sq_microns = 0.0
         for node in nodes:
             if "port_idx" in graph.nodes[node] and graph.nodes[node]["function"] != "Mux":
-                logger.info(f"Skipping component for node: {node} because it is a functional unit port")
+                log_info(f"Skipping component for node: {node} because it is a functional unit port")
                 continue # dont generate components for functional unit ports
             if "port_idx" not in graph.nodes[node] and graph.nodes[node]["function"] == "Mux":
-                logger.info(f"Skipping component for node: {node} because it is a functional unit mux")
+                log_info(f"Skipping component for node: {node} because it is a functional unit mux")
                 continue # dont generate components for functional unit muxes
             component_num = format(number)
             log_info(f"Generating component for node: {node} with number: {component_num}")
@@ -454,7 +454,7 @@ class DefGenerator:
                      logger.debug(f"No SIZE found for macro {macro}; skipping in area estimate.")
             component_text.append("- {} {} ;".format(component_num, macro))
             node_to_num[node] = format(number)
-            logger.info(f"node to num [{node}]: {node_to_num[node]}")
+            log_info(f"node to num [{node}]: {node_to_num[node]}")
             number += 1
 
         component_text.insert(0, "COMPONENTS {} ;".format(len(component_text)))
