@@ -91,13 +91,18 @@ class ScaleLefFiles:
             % (float(self.alpha), float(L_eff_current))
         )
 
-        if self.alpha > 5:
-            ## scale the database units scale by 5x if needed. Otherwise, leave it at 1x to avoid integer overflows.
-            self.database_units_scale = 5
-            self.NEW_database_units_per_micron = self.OLD_database_units_per_micron * self.database_units_scale
-        else:
-            self.database_units_scale = 1
-            self.NEW_database_units_per_micron = self.OLD_database_units_per_micron
+        ## Scale the DBU per micron appropriately to avoid integer overflows in OpenROAD.
+        possible_dbu_per_micron = set([100, 200, 400, 800, 1000, 2000, 4000, 8000, 10000, 20000])
+
+        ideal_dbu_per_micron = self.OLD_database_units_per_micron * self.alpha
+
+        logger.info(f"Ideal new database units per micron: {float(ideal_dbu_per_micron)} DBU/micron")
+
+        ## find the closest possible dbu_per_micron that is >= ideal_dbu_per_micron
+        candidates = [dbu for dbu in possible_dbu_per_micron if dbu >= ideal_dbu_per_micron]
+
+        self.NEW_database_units_per_micron = Fraction(min(candidates) if candidates else max(possible_dbu_per_micron))
+        self.database_units_scale = self.NEW_database_units_per_micron / self.OLD_database_units_per_micron
 
         self.write_DBU(self.NEW_database_units_per_micron)
         self.find_new_manufacturing_grid_in_dbu()
