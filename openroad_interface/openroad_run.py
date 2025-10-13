@@ -79,17 +79,19 @@ class OpenRoadRun:
 
         """
 
-        graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate = self.setup_set_area_constraint(graph, test_file, area_constraint, L_eff)
+        graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, max_dim_macro = self.setup_set_area_constraint(graph, test_file, area_constraint, L_eff)
 
         ## ensure that the design area utilization is at least 60%
         if area_estimate > 0.8 * area_constraint:
             logger.warning(f"Warning: Estimated area {area_estimate} exceeds 80% of area constraint {area_constraint}. Consider increasing area constraint.")
 
-        elif area_estimate < 0.5 * area_constraint:
+        else:
             area_constraint_old = area_constraint
-            area_constraint = int(area_estimate / 0.6)
-            logger.info(f"Info: Estimated area {area_estimate} is less than 50% of area constraint {area_constraint_old}. Area constraint will be scaled from {area_constraint_old} to {area_constraint}.")
-            graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate = self.setup_set_area_constraint(graph, test_file, area_constraint, L_eff)
+            logger.info(f"Max dimension macro: {max_dim_macro}, corresponding area constraint value: {max_dim_macro**2}")
+            logger.info(f"Estimated area: {area_estimate}")
+            area_constraint = int(max(area_estimate, max_dim_macro**2)/0.6)
+            logger.info(f"Info: Final estimated area {area_estimate} compared to area constraint {area_constraint_old}. Area constraint will be scaled from {area_constraint_old} to {area_constraint}.")
+            graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, max_dim_macro = self.setup_set_area_constraint(graph, test_file, area_constraint, L_eff)
 
         return graph, net_out_dict, node_output, lef_data, node_to_num
 
@@ -134,8 +136,9 @@ class OpenRoadRun:
             test_file, graph
         )
         logger.info(f"DEF generation complete. Area estimate: {area_estimate}")
+        logger.info(f"Max dimension macro: {df.max_dim_macro}")
 
-        return graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate
+        return graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, df.max_dim_macro
 
     def update_area_constraint(self, area_constraint: int):
         """
@@ -344,10 +347,13 @@ class OpenRoadRun:
         for node in net_out_dict:
             for output in node_output[node]:
                 for net in net_out_dict[node]:
-                    if (node, output) not in wire_length_by_edge:
-                        wire_length_by_edge[(node, output)] = wire_length_df.loc[net]
+                    src = graph.nodes[node]["name"]
+                    dst = graph.nodes[output]["name"]
+                    logger.info(f"Src: {src}, Dst: {dst}")
+                    if (src, dst) not in wire_length_by_edge:
+                        wire_length_by_edge[(src, dst)] = wire_length_df.loc[net]
                     else:
-                        wire_length_by_edge[(node, output)] += wire_length_df.loc[net]
+                        wire_length_by_edge[(src, dst)] += wire_length_df.loc[net]
         self.export_graph(graph, "estimated_with_mux")
 
         wire_length_by_edge = self.mux_listing(graph, node_output, wire_length_by_edge)

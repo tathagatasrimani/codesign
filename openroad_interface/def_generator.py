@@ -43,6 +43,7 @@ class DefGenerator:
         self.directory = os.path.join(self.codesign_root_dir, "src/tmp/pd")
         self.macro_halo_x = 0.0
         self.macro_halo_y = 0.0
+        self.max_dim_macro = 0.0
 
 
     def get_macro_halo_values(self):
@@ -220,7 +221,8 @@ class DefGenerator:
                 core_coord_y1 = float(core[1])
                 core_coord_x2 = float(core[2])
                 core_coord_y2 = float(core[3])
-
+                max_dim_macro = max(core_coord_x2 - core_coord_x1, core_coord_y2 - core_coord_y1)
+                self.max_dim_macro = max(self.max_dim_macro, max_dim_macro)
 
         var_file_data = open(self.directory  +"/tcl/"+ var_file) 
 
@@ -361,12 +363,12 @@ class DefGenerator:
         input_dict = self.edge_gen("in", old_nodes, old_graph)
         input_dict_new = self.edge_gen("in", nodes, graph)
         for node in old_nodes:
-            max = 0
+            max_inputs = 0
             if "Regs" in node:
-                max = 1
+                max_inputs = 1
             else:
-                max = 2
-            while len(input_dict[node]) > max:
+                max_inputs = 2
+            while len(input_dict[node]) > max_inputs:
                 target_node1 = input_dict[node][0]
                 target_node2 = input_dict[node][1]
                 for x in range(16):
