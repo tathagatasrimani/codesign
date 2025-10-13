@@ -27,7 +27,7 @@ floordiv = "FloorDiv50_40"
 sub = "Sub50_40"
 eq= "Eq50_40"
 
-DEBUG = False
+DEBUG = True
 def log_info(msg):
     if DEBUG:
         logger.info(msg)
@@ -296,14 +296,15 @@ class DefGenerator:
 
         ### 1. pruning ###
         for node1 in control_nodes:
-            if "MainMem" in graph.nodes[node1]["function"] or "Buf" in graph.nodes[node1]["function"] or \
+            graph.nodes[node1]["count"] = 16
+            """if "MainMem" in graph.nodes[node1]["function"] or "Buf" in graph.nodes[node1]["function"] or \
                 "store" in graph.nodes[node1]["function"] or "load" in graph.nodes[node1]["function"]:
                 graph.remove_node(node1)
                 nodes.remove(node1)
             elif graph.nodes[node1]["function"] == "Regs": ##or graph.nodes[node1]["function"] == "And" or graph.nodes[node1]["function"] == "BitXor":
                 graph.nodes[node1]["count"] = 16
             else:
-                graph.nodes[node1]["count"] = 32
+                graph.nodes[node1]["count"] = 32"""
 
         ### 2. mapping components to nodes ###
         nodes = list(graph)
@@ -313,45 +314,33 @@ class DefGenerator:
         out_edge = self.edge_gen("out", old_nodes, graph)
         for node in old_nodes:
             macro = self.find_macro(graph.nodes[node]["function"])
+            node_to_macro[node] = [macro, copy.deepcopy(macro_dict[macro])]
+            logger.info(f"node to macro [{node}]: {node_to_macro[node]}")
             out_edge = self.edge_gen("out", old_nodes, graph)
-            if graph.nodes[node]["count"] == 16:
-                node_attribute = graph.nodes[node]
-                for x in range(16):
-                    name = str(node) + "_" + str(x)
-                    if not graph.has_node(name):
-                        graph.add_node(name, function=node_attribute["function"], count=16)
-                    for output in out_edge[node]:
-                        if graph.nodes[output]["count"] == 16:
-                            node_attribute = graph.nodes[output]
-                            output_name = str(output) + "_" + str(x)
-                            if not graph.has_node(output_name):
-                                graph.add_node(output_name, function=node_attribute["function"], count=16)
-                            graph.add_edge(name, output_name)
-                        else:
-                            graph.add_edge(name, output)
-                    macro_output = self.find_macro(graph.nodes[output]["function"])
-                    node_to_macro[output] = [macro_output, copy.deepcopy(macro_dict[macro_output])]
-                node_to_macro[name] = [macro, copy.deepcopy(macro_dict[macro])]
-            else:
+            assert graph.nodes[node]["count"] == 16, f"Node {node} has {graph.nodes[node]['count']} ports, expected 16"
+            node_attribute = graph.nodes[node]
+            # node has 16 output ports
+            for x in range(16):
+                name = str(node) + "_" + str(x)
+                # this port node may have been added in a previous iteration
+                if not graph.has_node(name):
+                    graph.add_node(name, function=node_attribute["function"], port_idx=x, count=16)
+                # node may have multiple fanouts, take care of port x for each fanout
                 for output in out_edge[node]:
-                    if graph.nodes[output]["count"] == 16:
-                        for x in range(16):
-                            node_attribute = graph.nodes[output]
-                            output_name = str(output) + "_" + str(x)
-                            if not graph.has_node(output_name):
-                                graph.add_node(output_name, function=node_attribute["function"], count=16)
-                            graph.add_edge(node, output_name)
-                            macro_output = self.find_macro(graph.nodes[output]["function"])
-                            node_to_macro[output_name] = [macro_output, copy.deepcopy(macro_dict[macro_output])]
-                    else:
-                        graph.add_edge(node, output)    
-                        macro_output = self.find_macro(graph.nodes[output]["function"])
-                        node_to_macro[output] = [macro_output, copy.deepcopy(macro_dict[macro_output])]
-                node_to_macro[node] = [macro, copy.deepcopy(macro_dict[macro])]
+                    assert graph.nodes[output]["count"] == 16, f"Node {output} has {graph.nodes[output]['count']} ports, expected 16"
+                    # output node has 16 input ports
+                    node_attribute = graph.nodes[output]
+                    output_name = str(output) + "_" + str(x)
+                    # this port node may have been added in a previous iteration
+                    if not graph.has_node(output_name):
+                        graph.add_node(output_name, function=node_attribute["function"], port_idx=x, count=16)
+                        graph.add_edge(output_name, output)
+                    graph.add_edge(name, output_name)
                 
-        for node in old_nodes:
+        # not sure why this was here
+        """for node in old_nodes:
             if graph.nodes[node]["count"] == 16:
-                graph.remove_node(node)
+                graph.remove_node(node)"""
 
         openroad_run.OpenRoadRun.export_graph(graph, "result")
 
@@ -360,59 +349,58 @@ class DefGenerator:
         ### 3.mux stuff ###
         counter = 0 
 
+        logger.info(f"generating muxes")
+
+        # note: old graph has edges for functional units
+        # new graph has edges for each of the 16 ports of the functional units, more fine grained
+
         input_dict = self.edge_gen("in", old_nodes, old_graph)
         input_dict_new = self.edge_gen("in", nodes, graph)
         for node in old_nodes:
-            max_inputs = 0
             if "Regs" in node:
                 max_inputs = 1
             else:
                 max_inputs = 2
             while len(input_dict[node]) > max_inputs:
+                input_dict = self.edge_gen("in", old_nodes, old_graph)
                 target_node1 = input_dict[node][0]
                 target_node2 = input_dict[node][1]
                 for x in range(16):
-                    name1= None
-                    name2= None
-                    if old_graph.nodes[node]["count"] == 16:
-                        node_name = node + "_" + str(x)
-                    else:
-                        node_name = node
-                    if old_graph.nodes[target_node1]["count"] == 16 and old_graph.nodes[target_node2]["count"] == 16:
-                        name1= target_node1 + "_" + str(x)
-                        name2= target_node2 + "_" + str(x)
-                    elif old_graph.nodes[target_node1]["count"] == 16:
-                        name1= target_node1 + "_" + str(x)
-                        name2= target_node2
-                    elif old_graph.nodes[target_node2]["count"] == 16:
-                        name1= target_node1
-                        name2= target_node2 + "_" + str(x)
-                    else:
-                        name1= target_node1
-                        name2= target_node2
-                        
+                    assert old_graph.nodes[node]["count"] == 16, f"Node {node} has {old_graph.nodes[node]['count']} ports, expected 16"
+                    assert old_graph.nodes[target_node1]["count"] == 16, f"Node {target_node1} has {old_graph.nodes[target_node1]['count']} ports, expected 16"
+                    assert old_graph.nodes[target_node2]["count"] == 16, f"Node {target_node2} has {old_graph.nodes[target_node2]['count']} ports, expected 16"
+                    node_name = node + "_" + str(x)
+                    name1= target_node1 + "_" + str(x)
+                    name2= target_node2 + "_" + str(x)
+
+                    new_node = "Mux" + str(counter) + "_" + str(x)
+
+                    # port mux
+                    graph.add_node(new_node, count = 16, function = "Mux", port_idx = x)
                     if graph.has_edge(name1, node_name):
                         graph.remove_edge(name1, node_name)
                     if graph.has_edge(name2, node_name):
                         graph.remove_edge(name2, node_name)
-
-                    new_node = "Mux" + str(counter) + "_" + str(x)
-
-                    graph.add_node(new_node, count = 16)
                     graph.add_edge(name1, new_node)
                     graph.add_edge(name2, new_node)
-                    
                     graph.add_edge(new_node, node_name)
 
                     macro_output = self.find_macro(new_node)
                     node_to_macro[new_node] = [macro_output, copy.deepcopy(macro_dict[macro_output])]
-                
+                    logger.info(f"node to macro [{new_node}]: {node_to_macro[new_node]}")
+
+                # functional unit mux
+                old_graph.add_node("Mux" + str(counter), count = 16, function = "Mux")
                 old_graph.remove_edge(target_node1, node)
                 old_graph.remove_edge(target_node2, node)
-                old_graph.add_node("Mux" + str(counter), count = 16)
                 old_graph.add_edge(target_node1, "Mux" + str(counter))
                 old_graph.add_edge(target_node2, "Mux" + str(counter))
                 old_graph.add_edge("Mux" + str(counter), node)
+
+                #macro_output = self.find_macro("Mux" + str(counter))
+                #node_to_macro["Mux" + str(counter)] = [macro_output, copy.deepcopy(macro_dict[macro_output])]
+
+                # update list of input edges to reflect the new mux, which consumes two of the previous input edges
                 input_dict[node].append("Mux" + str(counter))
                 input_dict[node].remove(target_node2)
                 input_dict[node].remove(target_node1)
@@ -443,10 +431,16 @@ class DefGenerator:
         # basic area estimate (square microns) by summing macro footprints for each instantiated node
         area_estimate_sq_microns = 0.0
         for node in nodes:
+            if "port_idx" in graph.nodes[node] and graph.nodes[node]["function"] != "Mux":
+                logger.info(f"Skipping component for node: {node} because it is a functional unit port")
+                continue # dont generate components for functional unit ports
+            if "port_idx" not in graph.nodes[node] and graph.nodes[node]["function"] == "Mux":
+                logger.info(f"Skipping component for node: {node} because it is a functional unit mux")
+                continue # dont generate components for functional unit muxes
             component_num = format(number)
             log_info(f"Generating component for node: {node} with number: {component_num}")
             ## log the whole node to macro dict in a human readable way
-            log_info(f"Node to macro mapping: {node_to_macro}")
+            #log_info(f"Node to macro mapping: {node_to_macro}")
             macro = node_to_macro[node][0]
             # add macro area if available
             msize = macro_size_dict.get(macro)
@@ -460,6 +454,7 @@ class DefGenerator:
                      logger.debug(f"No SIZE found for macro {macro}; skipping in area estimate.")
             component_text.append("- {} {} ;".format(component_num, macro))
             node_to_num[node] = format(number)
+            logger.info(f"node to num [{node}]: {node_to_num[node]}")
             number += 1
 
         component_text.insert(0, "COMPONENTS {} ;".format(len(component_text)))
@@ -474,43 +469,42 @@ class DefGenerator:
         net_out_dict = {}
         for node in nodes_old:
             net_list = []
+            # src node
             for x in range(16):
                 net_name = format(str(number))
-                if old_graph.nodes[node]["count"] == 16:
+                assert old_graph.nodes[node]["count"] == 16, f"Node {node} has {old_graph.nodes[node]['count']} ports, expected 16"
+                # muxes have different instances for each port because they are 2->1 bit
+                # non-mux nodes have the same instance for all ports because each is 32->16 bits (2 input)
+                if old_graph.nodes[node]["function"] == "Mux":
                     name = node+"_" +str(x)
-                    component_num = node_to_num[name]
-                    pin_output = node_to_macro[name][1]["output"]
-                    net = "- {} ( {} {} )".format(net_name, component_num, pin_output[0])
+                    pin_idx = 0
                 else:
                     name = node
-                    component_num = node_to_num[node]
-                    pin_output = node_to_macro[node][1]["output"]
-                    net = "- {} ( {} {} )".format(net_name, component_num, pin_output[0])
-                pin_output.remove(pin_output[0])
+                    pin_idx = x
+
+                component_num = node_to_num[name]
+                pin_output = node_to_macro[name][1]["output"]
+                net = "- {} ( {} {} )".format(net_name, component_num, pin_output[pin_idx])
                 
+                # not sure where this ends up being used
                 if name not in net_out_dict:
                     net_out_dict[name] = []
                 net_out_dict[name].append(net_name)
+
+                # dst nodes
                 for output in node_output[node]:
-                    if old_graph.nodes[output]["count"] == 16:
+                    assert old_graph.nodes[output]["count"] == 16, f"Node {output} has {old_graph.nodes[output]['count']} ports, expected 16"
+                    if old_graph.nodes[output]["function"] == "Mux":
                         outgoing_name = output+"_" +str(x)
-                        pin_input = node_to_macro[outgoing_name][1]["input"]
-                        if len(pin_input) == 0:
-                            pin_input = copy.deepcopy(node_to_macro_copy[outgoing_name][1]["input"])
-                            node_to_macro[outgoing_name][1]["input"] = copy.deepcopy(node_to_macro_copy[outgoing_name][1]["input"])
-                        net = net + " ( {} {} )".format(node_to_num[outgoing_name], pin_input[0])
-
-                        node_to_macro[outgoing_name][1]["input"].remove(pin_input[0])
-                        
                     else:
-                        pin_input = node_to_macro[output][1]["input"]
-                        if len(pin_input) == 0:
-                            pin_input = copy.deepcopy(node_to_macro_copy[output][1]["input"])
-                            node_to_macro[output][1]["input"] = copy.deepcopy(node_to_macro_copy[output][1]["input"])
-        
-                        net = net + " ( {} {} )".format(node_to_num[output], pin_input[0])
+                        outgoing_name = output
 
-                        node_to_macro[output][1]["input"].remove(pin_input[0])
+                    if len(node_to_macro[outgoing_name][1]["input"]) == 0:
+                        node_to_macro[outgoing_name][1]["input"] = copy.deepcopy(node_to_macro_copy[outgoing_name][1]["input"])
+                    pin_input = node_to_macro[outgoing_name][1]["input"]
+                    net = net + " ( {} {} )".format(node_to_num[outgoing_name], pin_input[0])
+
+                    node_to_macro[outgoing_name][1]["input"].remove(pin_input[0])
                 
                 number += 1
                 net = net + " + USE SIGNAL ;"

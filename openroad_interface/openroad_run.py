@@ -79,6 +79,7 @@ class OpenRoadRun:
 
         """
 
+        old_graph = copy.deepcopy(graph)
         graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, max_dim_macro = self.setup_set_area_constraint(graph, test_file, area_constraint, L_eff)
 
         ## ensure that the design area utilization is at least 60%
@@ -91,7 +92,7 @@ class OpenRoadRun:
             logger.info(f"Estimated area: {area_estimate}")
             area_constraint = int(max(area_estimate, max_dim_macro**2)/0.6)
             logger.info(f"Info: Final estimated area {area_estimate} compared to area constraint {area_constraint_old}. Area constraint will be scaled from {area_constraint_old} to {area_constraint}.")
-            graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, max_dim_macro = self.setup_set_area_constraint(graph, test_file, area_constraint, L_eff)
+            graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, max_dim_macro = self.setup_set_area_constraint(old_graph, test_file, area_constraint, L_eff)
 
         return graph, net_out_dict, node_output, lef_data, node_to_num
 
