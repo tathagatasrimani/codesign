@@ -102,6 +102,7 @@ class ScaleLefFiles:
         self.write_DBU(self.NEW_database_units_per_micron)
         self.find_new_manufacturing_grid_in_dbu()
         self.scale_site_sizes()
+        self.write_out_site_sizes()
 
         ## log instance variables for debugging
         self.log_config_vars()
@@ -240,12 +241,30 @@ class ScaleLefFiles:
         Computes the new site sizes after scaling by alpha. The input sizes are in DBU, and the output sizes are in DBU.
         """
         new_site_x_dbus = round((self.OLD_site_size_x_dbu / self.alpha) * self.database_units_scale)
-        self.NEW_site_size_x_dbu = Fraction(new_site_x_dbus)
+        
+        self.NEW_site_size_x_dbu = self.round_to_manufacturing_grid(Fraction(new_site_x_dbus))
         logger.info(f"New site size X after scaling: {float(self.NEW_site_size_x_dbu)} DBU.")
 
         new_site_y_dbus = round((self.OLD_site_size_y_dbu / self.alpha) * self.database_units_scale)
-        self.NEW_site_size_y_dbu = Fraction(new_site_y_dbus)
+        self.NEW_site_size_y_dbu = self.round_to_manufacturing_grid(Fraction(new_site_y_dbus))
         logger.info(f"New site size Y after scaling: {float(self.NEW_site_size_y_dbu)} DBU.")
+
+    def write_out_site_sizes(self):
+        """ Writes out the new site sizes to the tech LEF file.
+        """
+        ## open the tech lef file
+        lef_path = os.path.join(self.directory, "tcl", "codesign_files", "codesign_tech.lef")
+        with open(lef_path, "r") as f:
+            lines = f.readlines()
+        
+        modified_lines = []
+        for line in lines:
+            if "SIZE" in line:
+                line = re.sub(r"(SIZE\s+)([\d\.]+)(\s+BY\s+)([\d\.]+)(\s*;)", lambda m: f"{m.group(1)}{self.dbu_to_lef_text(int(self.NEW_site_size_x_dbu))}{m.group(3)}{self.dbu_to_lef_text(int(self.NEW_site_size_y_dbu))}{m.group(5)}", line)
+            modified_lines.append(line)
+
+        with open(lef_path, "w") as f:
+            f.writelines(modified_lines)
 
 
     def dbu_to_lef_text(self, dbu_val: int, precision: int = 6) -> str:
@@ -394,8 +413,8 @@ class ScaleLefFiles:
                 nums = re.findall(r"-?\d+\.?\d*", line)
                 if len(nums) == 4:
                     lx, ly, x1, y1 = map(Fraction, nums)
-                    new_lx = snap_value(lx, grid_x)
-                    new_ly = snap_value(ly, grid_y)
+                    new_lx = max(Fraction(grid_x), snap_value(lx, grid_x))
+                    new_ly = max(Fraction(grid_y), snap_value(ly, grid_y))
                     new_x1 = snap_value(x1, grid_x)
                     new_y1 = snap_value(y1, grid_y)
                     new_block = "{" + f"{fmt_num(new_lx)} {fmt_num(new_ly)} {fmt_num(new_x1)} {fmt_num(new_y1)}" + "}"
