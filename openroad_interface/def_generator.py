@@ -22,6 +22,8 @@ mux = "MUX2_X1"
 reg = "DFF_X1"
 add = "Add50_40"
 mult = "Mult64_40"
+#add = "Add16_16"
+#mult = "Mult16_16"
 bitxor = "BitXor50_40"
 floordiv = "FloorDiv50_40" 
 sub = "Sub50_40"
@@ -37,13 +39,14 @@ def log_warning(msg):
 
 
 class DefGenerator:
-    def __init__(self, cfg, codesign_root_dir):
+    def __init__(self, cfg, codesign_root_dir, NEW_database_units_per_micron):
         self.cfg = cfg
         self.codesign_root_dir = codesign_root_dir
         self.directory = os.path.join(self.codesign_root_dir, "src/tmp/pd")
         self.macro_halo_x = 0.0
         self.macro_halo_y = 0.0
         self.max_dim_macro = 0.0
+        self.NEW_database_units_per_micron = NEW_database_units_per_micron
 
 
     def get_macro_halo_values(self):
@@ -221,8 +224,6 @@ class DefGenerator:
                 core_coord_y1 = float(core[1])
                 core_coord_x2 = float(core[2])
                 core_coord_y2 = float(core[3])
-                max_dim_macro = max(core_coord_x2 - core_coord_x1, core_coord_y2 - core_coord_y1)
-                self.max_dim_macro = max(self.max_dim_macro, max_dim_macro)
 
         var_file_data = open(self.directory  +"/tcl/"+ var_file) 
 
@@ -268,6 +269,7 @@ class DefGenerator:
                     try:
                         sx = float(m_size.group(1))
                         sy = float(m_size.group(2))
+                        self.max_dim_macro = max(self.max_dim_macro, sx, sy)
                         macro_size_dict[macro_name] = (sx, sy)
                     except Exception:
                         logger.debug(f"Couldn't parse SIZE for macro {macro_name}: {line.strip()}")

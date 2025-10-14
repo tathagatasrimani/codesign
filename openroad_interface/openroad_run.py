@@ -92,7 +92,7 @@ class OpenRoadRun:
             logger.info(f"Estimated area: {area_estimate}")
             area_constraint = int(max(area_estimate, max_dim_macro**2)/0.6)
             logger.info(f"Info: Final estimated area {area_estimate} compared to area constraint {area_constraint_old}. Area constraint will be scaled from {area_constraint_old} to {area_constraint}.")
-            graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, max_dim_macro = self.setup_set_area_constraint(old_graph, test_file, area_constraint, L_eff)
+            self.update_area_constraint(area_constraint)
 
         return graph, net_out_dict, node_output, lef_data, node_to_num
 
@@ -131,7 +131,7 @@ class OpenRoadRun:
         self.do_scale_lef = scale_lef.ScaleLefFiles(self.cfg, self.codesign_root_dir)
         self.do_scale_lef.scale_lef_files(L_eff)
 
-        df = def_generator.DefGenerator(self.cfg, self.codesign_root_dir)
+        df = def_generator.DefGenerator(self.cfg, self.codesign_root_dir, self.do_scale_lef.NEW_database_units_per_micron)
 
         graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate = df.run_def_generator(
             test_file, graph
@@ -366,10 +366,10 @@ class OpenRoadRun:
         for edge in wire_length_by_edge:
             logger.info(f"edge is {edge}")
             logger.info(f"original wire length by edge: {wire_length_by_edge[edge]}")
-            wire_length_by_edge[edge]["total_wl"] /= self.do_scale_lef.database_units_per_micron * 1e6 # convert to meters
-            wire_length_by_edge[edge]["metal1"] /= self.do_scale_lef.database_units_per_micron * 1e6 # convert to meters
-            wire_length_by_edge[edge]["metal2"] /= self.do_scale_lef.database_units_per_micron * 1e6 # convert to meters
-            wire_length_by_edge[edge]["metal3"] /= self.do_scale_lef.database_units_per_micron * 1e6 # convert to meters
+            wire_length_by_edge[edge]["total_wl"] /= 1e6 # convert to meters
+            wire_length_by_edge[edge]["metal1"] /=  1e6 # convert to meters
+            wire_length_by_edge[edge]["metal2"] /=  1e6 # convert to meters
+            wire_length_by_edge[edge]["metal3"] /=  1e6 # convert to meters
             logger.info(f"scaled wire length by edge: {wire_length_by_edge}")
 
         return wire_length_by_edge, graph
