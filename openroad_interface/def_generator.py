@@ -22,14 +22,14 @@ mux = "MUX2_X1"
 reg = "DFF_X1"
 add = "Add50_40"
 mult = "Mult64_40"
-#add = "Add16_16"
-#mult = "Mult16_16"
+#add = "ADD16_X1"
+#mult = "MUL16_X1"
 bitxor = "BitXor50_40"
 floordiv = "FloorDiv50_40" 
 sub = "Sub50_40"
 eq= "Eq50_40"
 
-DEBUG = True
+DEBUG = False
 def log_info(msg):
     if DEBUG:
         logger.info(msg)
@@ -326,7 +326,7 @@ class DefGenerator:
                 name = str(node) + "_" + str(x)
                 # this port node may have been added in a previous iteration
                 if not graph.has_node(name):
-                    graph.add_node(name, function=node_attribute["function"], port_idx=x, count=16)
+                    graph.add_node(name, function=node_attribute["function"], port_idx=x, name=node, count=16)
                 # node may have multiple fanouts, take care of port x for each fanout
                 for output in out_edge[node]:
                     assert graph.nodes[output]["count"] == 16, f"Node {output} has {graph.nodes[output]['count']} ports, expected 16"
@@ -335,7 +335,7 @@ class DefGenerator:
                     output_name = str(output) + "_" + str(x)
                     # this port node may have been added in a previous iteration
                     if not graph.has_node(output_name):
-                        graph.add_node(output_name, function=node_attribute["function"], port_idx=x, count=16)
+                        graph.add_node(output_name, function=node_attribute["function"], port_idx=x, name=output, count=16)
                         graph.add_edge(output_name, output)
                     graph.add_edge(name, output_name)
                 
@@ -378,7 +378,7 @@ class DefGenerator:
                     new_node = "Mux" + str(counter) + "_" + str(x)
 
                     # port mux
-                    graph.add_node(new_node, count = 16, function = "Mux", port_idx = x)
+                    graph.add_node(new_node, count = 16, function = "Mux", name=new_node, port_idx = x)
                     if graph.has_edge(name1, node_name):
                         graph.remove_edge(name1, node_name)
                     if graph.has_edge(name2, node_name):
@@ -392,7 +392,7 @@ class DefGenerator:
                     log_info(f"node to macro [{new_node}]: {node_to_macro[new_node]}")
 
                 # functional unit mux
-                old_graph.add_node("Mux" + str(counter), count = 16, function = "Mux")
+                old_graph.add_node("Mux" + str(counter), count = 16, function = "Mux", name="Mux" + str(counter))
                 old_graph.remove_edge(target_node1, node)
                 old_graph.remove_edge(target_node2, node)
                 old_graph.add_edge(target_node1, "Mux" + str(counter))
@@ -471,6 +471,7 @@ class DefGenerator:
         net_out_dict = {}
         for node in nodes_old:
             net_list = []
+            log_info(f"Generating nets for node: {node}")
             # src node
             for x in range(16):
                 net_name = format(str(number))
@@ -486,12 +487,13 @@ class DefGenerator:
 
                 component_num = node_to_num[name]
                 pin_output = node_to_macro[name][1]["output"]
+                log_info(f"Pin output for node {name}: {pin_output}")
                 net = "- {} ( {} {} )".format(net_name, component_num, pin_output[pin_idx])
                 
-                # not sure where this ends up being used
-                if name not in net_out_dict:
-                    net_out_dict[name] = []
-                net_out_dict[name].append(net_name)
+                # used later for wire length calculation
+                if node not in net_out_dict:
+                    net_out_dict[node] = []
+                net_out_dict[node].append(net_name)
 
                 # dst nodes
                 for output in node_output[node]:
@@ -504,6 +506,7 @@ class DefGenerator:
                     if len(node_to_macro[outgoing_name][1]["input"]) == 0:
                         node_to_macro[outgoing_name][1]["input"] = copy.deepcopy(node_to_macro_copy[outgoing_name][1]["input"])
                     pin_input = node_to_macro[outgoing_name][1]["input"]
+                    log_info(f"Pin input for node {outgoing_name}: {pin_input}")
                     net = net + " ( {} {} )".format(node_to_num[outgoing_name], pin_input[0])
 
                     node_to_macro[outgoing_name][1]["input"].remove(pin_input[0])
@@ -513,8 +516,6 @@ class DefGenerator:
                 net_text.append(net)
 
         log_info(f"Generated {len(net_text)} nets.")
-
-        node_output = self.edge_gen("out", nodes, graph)
 
         net_text.insert(0, "NETS {} ;".format(len(net_text)))
         net_text.insert(len(net_text), "END NETS")

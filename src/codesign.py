@@ -96,6 +96,22 @@ class Codesign:
         self.inverse_pass_lag_factor = 1
 
         self.params_over_iterations = [copy.copy(self.hw.circuit_model.tech_model.base_params.tech_values)]
+        self.params_over_iterations[0].update(
+            {
+                self.hw.circuit_model.tech_model.base_params.logic_sensitivity: 1.0,
+                self.hw.circuit_model.tech_model.base_params.logic_resource_sensitivity: 1.0,
+                self.hw.circuit_model.tech_model.base_params.logic_ahmdal_limit: 1.0,
+                self.hw.circuit_model.tech_model.base_params.logic_resource_ahmdal_limit: 1.0,
+                self.hw.circuit_model.tech_model.base_params.interconnect_sensitivity: 1.0,
+                self.hw.circuit_model.tech_model.base_params.interconnect_resource_sensitivity: 1.0,
+                self.hw.circuit_model.tech_model.base_params.interconnect_ahmdal_limit: 1.0,
+                self.hw.circuit_model.tech_model.base_params.interconnect_resource_ahmdal_limit: 1.0,
+                self.hw.circuit_model.tech_model.base_params.memory_sensitivity: 1.0,
+                self.hw.circuit_model.tech_model.base_params.memory_resource_sensitivity: 1.0,
+                self.hw.circuit_model.tech_model.base_params.memory_ahmdal_limit: 1.0,
+                self.hw.circuit_model.tech_model.base_params.memory_resource_ahmdal_limit: 1.0,
+            }
+        )
         self.obj_over_iterations = []
         self.lag_factor_over_iterations = [1.0]
         self.max_unroll = 64

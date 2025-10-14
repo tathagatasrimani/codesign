@@ -72,7 +72,17 @@ class BaseParameters:
         self.logic_resource_sensitivity = symbols("logic_resource_sensitivity", positive=True)
         self.logic_ahmdal_limit = symbols("logic_ahmdal_limit", positive=True)
         self.logic_resource_ahmdal_limit = symbols("logic_resource_ahmdal_limit", positive=True)
-        
+
+        self.interconnect_sensitivity = symbols("interconnect_sensitivity", positive=True)
+        self.interconnect_resource_sensitivity = symbols("interconnect_resource_sensitivity", positive=True)
+        self.interconnect_ahmdal_limit = symbols("interconnect_ahmdal_limit", positive=True)
+        self.interconnect_resource_ahmdal_limit = symbols("interconnect_resource_ahmdal_limit", positive=True)
+
+        self.memory_sensitivity = symbols("memory_sensitivity", positive=True)
+        self.memory_resource_sensitivity = symbols("memory_resource_sensitivity", positive=True)
+        self.memory_ahmdal_limit = symbols("memory_ahmdal_limit", positive=True)
+        self.memory_resource_ahmdal_limit = symbols("memory_resource_ahmdal_limit", positive=True)
+
         # technology level parameter values
         self.tech_values = {}
         self.init_symbol_table()
@@ -302,6 +312,14 @@ class BaseParameters:
             "logic_resource_sensitivity": self.logic_resource_sensitivity,
             "logic_ahmdal_limit": self.logic_ahmdal_limit,
             "logic_resource_ahmdal_limit": self.logic_resource_ahmdal_limit,
+            "interconnect_sensitivity": self.interconnect_sensitivity,
+            "interconnect_resource_sensitivity": self.interconnect_resource_sensitivity,
+            "interconnect_ahmdal_limit": self.interconnect_ahmdal_limit,
+            "interconnect_resource_ahmdal_limit": self.interconnect_resource_ahmdal_limit,
+            "memory_sensitivity": self.memory_sensitivity,
+            "memory_resource_sensitivity": self.memory_resource_sensitivity,
+            "memory_ahmdal_limit": self.memory_ahmdal_limit,
+            "memory_resource_ahmdal_limit": self.memory_resource_ahmdal_limit,
             "MemReadL": self.MemReadL,
             "MemWriteL": self.MemWriteL,
             "MemReadEact": self.MemReadEact,

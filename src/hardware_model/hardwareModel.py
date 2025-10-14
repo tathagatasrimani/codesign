@@ -4,6 +4,7 @@ import yaml
 import time
 import numpy as np
 import math
+import copy
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +27,7 @@ from openroad_interface import openroad_run
 
 import cvxpy as cp
 
-DEBUG = True
+DEBUG = False
 def log_info(msg):
     if DEBUG:
         logger.info(msg)
@@ -572,8 +573,10 @@ class HardwareModel:
 
         logger.info(f"current L_eff for get_wire_parascitics: {L_eff}")
 
+        netlist_copy = copy.deepcopy(self.netlist)
+
         self.circuit_model.wire_length_by_edge, _ = open_road_run.run(
-            self.netlist, arg_testfile, arg_parasitics, area_constraint, L_eff
+            netlist_copy, arg_testfile, arg_parasitics, area_constraint, L_eff
         )
 
         log_info(f"wire lengths: {self.circuit_model.wire_length_by_edge}")
@@ -749,6 +752,14 @@ class HardwareModel:
         self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.logic_resource_sensitivity] = self.block_vectors[top_block_name]["top"].sensitivity["logic_rsc"]
         self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.logic_ahmdal_limit] = self.block_vectors[top_block_name]["top"].ahmdal_limit["logic"]
         self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.logic_resource_ahmdal_limit] = self.block_vectors[top_block_name]["top"].ahmdal_limit["logic_rsc"]
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.interconnect_sensitivity] = self.block_vectors[top_block_name]["top"].sensitivity["interconnect"]
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.interconnect_resource_sensitivity] = self.block_vectors[top_block_name]["top"].sensitivity["interconnect_rsc"]
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.interconnect_ahmdal_limit] = self.block_vectors[top_block_name]["top"].ahmdal_limit["interconnect"]
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.interconnect_resource_ahmdal_limit] = self.block_vectors[top_block_name]["top"].ahmdal_limit["interconnect_rsc"]
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.memory_sensitivity] = self.block_vectors[top_block_name]["top"].sensitivity["memory"]
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.memory_resource_sensitivity] = self.block_vectors[top_block_name]["top"].sensitivity["memory_rsc"]
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.memory_ahmdal_limit] = self.block_vectors[top_block_name]["top"].ahmdal_limit["memory"]
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.memory_resource_ahmdal_limit] = self.block_vectors[top_block_name]["top"].ahmdal_limit["memory_rsc"]
 
     def make_graph_one_op_type(self, basic_block_name, graph_type, op_type, eps, dfg):
         G_new = dfg.copy()
@@ -1126,6 +1137,14 @@ class HardwareModel:
                 "logic_resource_sensitivity": self.circuit_model.tech_model.base_params.logic_resource_sensitivity,
                 "logic_ahmdal_limit": self.circuit_model.tech_model.base_params.logic_ahmdal_limit,
                 "logic_resource_ahmdal_limit": self.circuit_model.tech_model.base_params.logic_resource_ahmdal_limit,
+                "interconnect sensitivity": self.circuit_model.tech_model.base_params.interconnect_sensitivity,
+                "interconnect resource sensitivity": self.circuit_model.tech_model.base_params.interconnect_resource_sensitivity,
+                "interconnect ahmdal limit": self.circuit_model.tech_model.base_params.interconnect_ahmdal_limit,
+                "interconnect resource ahmdal limit": self.circuit_model.tech_model.base_params.interconnect_resource_ahmdal_limit,
+                "memory sensitivity": self.circuit_model.tech_model.base_params.memory_sensitivity,
+                "memory resource sensitivity": self.circuit_model.tech_model.base_params.memory_resource_sensitivity,
+                "memory ahmdal limit": self.circuit_model.tech_model.base_params.memory_ahmdal_limit,
+                "memory resource ahmdal limit": self.circuit_model.tech_model.base_params.memory_resource_ahmdal_limit,
             }
             if self.circuit_model.tech_model.model_cfg["vs_model_type"] == "base":
                 self.obj_sub_exprs["t_1"] = self.circuit_model.tech_model.param_db["t_1"]
@@ -1193,6 +1212,14 @@ class HardwareModel:
             "logic_resource_sensitivity": "Logic Resource Sensitivity over generations",
             "logic_ahmdal_limit": "Logic Ahmdal Limit over generations",
             "logic_resource_ahmdal_limit": "Logic Resource Ahmdal Limit over generations",
+            "interconnect sensitivity": "Interconnect Sensitivity over generations",
+            "interconnect resource sensitivity": "Interconnect Resource Sensitivity over generations",
+            "interconnect ahmdal limit": "Interconnect Ahmdal Limit over generations",
+            "interconnect resource ahmdal limit": "Interconnect Resource Ahmdal Limit over generations",
+            "memory sensitivity": "Memory Sensitivity over generations",
+            "memory resource sensitivity": "Memory Resource Sensitivity over generations",
+            "memory ahmdal limit": "Memory Ahmdal Limit over generations",
+            "memory resource ahmdal limit": "Memory Resource Ahmdal Limit over generations",
         }
         if self.obj_fn == "edp":
             self.obj = (self.total_passive_energy + self.total_active_energy) * execution_time

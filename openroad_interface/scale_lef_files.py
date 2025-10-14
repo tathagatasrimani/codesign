@@ -85,6 +85,7 @@ class ScaleLefFiles:
         L_eff_free_pdk45_frac = Fraction(L_EFF_FREEPDK45)
 
         self.alpha = L_eff_free_pdk45_frac / L_eff_current_frac
+        self.alpha = Fraction(1.0)
 
         logger.info(
             "Scaling LEF files with alpha = %.4f (L_eff_current = %.4f microns)"
