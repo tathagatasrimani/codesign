@@ -367,9 +367,9 @@ class OpenRoadRun:
             logger.info(f"edge is {edge}")
             logger.info(f"original wire length by edge: {wire_length_by_edge[edge]}")
             wire_length_by_edge[edge]["total_wl"] /= 1e6 # convert to meters
-            wire_length_by_edge[edge]["metal1"] /=  1e6 # convert to meters
-            wire_length_by_edge[edge]["metal2"] /=  1e6 # convert to meters
-            wire_length_by_edge[edge]["metal3"] /=  1e6 # convert to meters
+            wire_length_by_edge[edge]["metal1"] /= 1e6 # convert to meters
+            wire_length_by_edge[edge]["metal2"] /= 1e6 # convert to meters
+            wire_length_by_edge[edge]["metal3"] /= 1e6 # convert to meters
             logger.info(f"scaled wire length by edge: {wire_length_by_edge}")
 
         return wire_length_by_edge, graph
