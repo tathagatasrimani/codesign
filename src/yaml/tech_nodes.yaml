@@ -189,16 +189,16 @@ gemm_save:
   I_off_n: 5.32e-07
   I_on_n: 0.0022117
   I_on_p: 0.00110585
-  L: 6.963471230880649e-07
+  L: 1.5465333945018244e-06
   L_c: 3.0e-06
   L_ov: 3.75e-07
   Mobility_n: 36184000000.0
-  V_dd: 0.8478515369562
-  V_th: 0.5434776512012285
+  V_dd: 4.334105520733165
+  V_th: 0.8775959870356995
   Vdd: 0.9
   Vdsat: 0.0509
   Vth: 0.21835
-  W: 9.652124375670667e-06
+  W: 4.736980044446061e-06
   Wmemcella: 1.31
   Wmemcellnmos: 2.08
   Wmemcellpmos: 1.23
@@ -214,10 +214,10 @@ gemm_save:
   c_int: 1.5
   c_tx: 2.0
   chip_layout_overhead: 1.2
-  clk_period: 57.65381849960357
+  clk_period: 51.61201853191729
   core_tx_density: 1.78571
   d: 1.0e-06
-  delay_var: 0.017234475029739252
+  delay_var: 0.11125016823147814
   dishing_thickness: 1.0e-09
   dram_cell_C: 1.0e-09
   dram_cell_I_off_worst_case_len_temp: 1.0e-09
@@ -237,7 +237,7 @@ gemm_save:
   ioarea_k2: 4.5e-08
   ioarea_k3: 1.5e-11
   k_cnt: 3.9
-  k_gate: 2.0000001744091525
+  k_gate: 3.6896146112022596
   k_noise_addr: 0.2
   k_noise_addr_sen: 0.135
   k_noise_read: 0.2
@@ -247,16 +247,110 @@ gemm_save:
   l_elec: 0.01013
   l_phy: 0.013
   lch_lk_rdc: 0.269833
-  logic_delay: 0.01723447502973925
-  logic_energy_active: 1.18053188062063e-06
-  logic_power_passive: 5.857201522143326e-14
+  logic_ahmdal_limit: 1.8373948612568172
+  logic_resource_ahmdal_limit: 2.3935920112993303
+  logic_resource_sensitivity: 0.3655601719879124
   logic_scaling_co_eff: 0.343
-  m1_k: 2.669572348357862
-  m1_rho: 3.999676594132783e-08
-  m2_k: 3.9013419336354356
-  m2_rho: 4.001341098674907e-08
-  m3_k: 3.9013419336354356
-  m3_rho: 4.001341098674907e-08
+  logic_sensitivity: 0.5442488281021854
+  m1_k: 3.8702095881799052
+  m1_rho: 3.99996846584208e-08
+  m2_k: 3.9000021853248787
+  m2_rho: 4.0000021039982904e-08
+  m3_k: 3.9000021853248787
+  m3_rho: 4.0000021039982904e-08
   macro_layout_overhead: 1.1
   miller_value: 1.5
   n2p_drv_rt: 2.41
+  nmos_effective_resistance_multiplier: 1.49
+  node_arrivals_end: 3382982.9441043893
+  phy_bandgap_wtime: 10.0
+  phy_clock_tree_d: 0.5
+  phy_clock_tree_s: 1.0e-09
+  phy_datapath_d: 0.5
+  phy_datapath_s: 1.0e-09
+  phy_dcc_d: 0.05
+  phy_dcc_s: 1.0e-09
+  phy_deskew_d: 0.1
+  phy_deskew_s: 1.0e-09
+  phy_deskew_wtime: 0.003
+  phy_leveling_d: 0.05
+  phy_leveling_s: 1.0e-09
+  phy_phase_rotator_d: 0.01
+  phy_phase_rotator_s: 10.0
+  phy_phase_rotator_wtime: 5.0
+  phy_pll_d: 0.05
+  phy_pll_s: 10.0
+  phy_pll_wtime: 10.0
+  phy_rx_d: 0.5
+  phy_rx_s: 10.0
+  phy_rx_wtime: 2.0
+  phy_vrefgen_wtime: 0.5
+  r_diff_term: 100.0
+  r_on: 1.0e-09
+  r_on_ca: 50.0
+  r_stub_ca: 1.0e-09
+  resistivity: 0.018
+  rpar_read: 53.02325581395349
+  rpar_write: 67.5
+  rs1_dq: 15.0
+  rs2_dq: 15.0
+  rtt1_dq_read: 120.0
+  rtt1_dq_write: 120.0
+  rtt2_dq_read: 80.0
+  rtt2_dq_write: 120.0
+  rtt_ca: 50.0
+  sckt_co_eff: 1.1111
+  sense_delay: 3.0e-11
+  sense_dy_power: 2.16e-15
+  t_1: 1.0e-06
+  t_cor_margin: 30.0
+  t_dcd_dram: 50.0
+  t_dcd_soc: 50.0
+  t_dh: 150.0
+  t_dqsq: 100.0
+  t_ds: 150.0
+  t_error_soc: 25.0
+  t_flight: 1.0e-09
+  t_flight_ca: 2.0
+  t_ih: 150.0
+  t_is: 150.0
+  t_jitter_addr_hold: 100.0
+  t_jitter_addr_hold_sen: 65.0
+  t_jitter_addr_setup: 100.0
+  t_jitter_addr_setup_sen: 65.0
+  t_jitter_hold: 100.0
+  t_jitter_hold_sen: 154.99999999999997
+  t_jitter_setup: 100.0
+  t_jitter_setup_sen: 154.99999999999997
+  t_ox: 0.0005
+  t_skew_hold: 25.0
+  t_skew_setup: 25.0
+  t_soc_hold: 50.0
+  t_soc_setup: 50.0
+  tox: 1.0572604857439614e-07
+  tsv_contact_resistance: 0.1
+  tsv_depletion_width: 0.6
+  tsv_diameter: 0.7
+  tsv_dielec_thickness: 0.1
+  tsv_length: 5.0
+  tsv_liner_dielectric_cons: 1.664
+  tsv_pitch: 1.4
+  u_n: 0.07021821531954016
+  v_noise_independent_addr: 0.1
+  v_noise_independent_read: 0.1
+  v_noise_independent_write: 0.1
+  v_sw_addr: 0.75
+  v_sw_clk: 0.75
+  v_sw_data_read_line: 1.1692307692307695
+  v_sw_data_read_load1: 1.1692307692307693
+  v_sw_data_read_load2: 0.9846153846153848
+  v_sw_data_write_line: 1.5
+  v_sw_data_write_load1: 1.3333333333333333
+  v_sw_data_write_load2: 1.3333333333333333
+  vdd_io: 1.5
+  vert_dielectric_constant: 3.9
+  vpp: 1.0e-09
+  wire_c_per_micron: 1.0e-09
+  wire_pitch: 2.5
+  wire_r_per_micron: 1.0e-09
+  z0: 50.0

@@ -6,26 +6,75 @@ import logging
 logger = logging.getLogger(__name__)
 
 class TrendPlot:
-    def __init__(self, codesign_module, params_over_iterations, obj_over_iterations, lag_factor_over_iterations, save_dir, obj="Energy Delay Product", units="nJ*ns", obj_fn="edp"):
+    def __init__(self, codesign_module, params_over_generations, obj_over_generations, lag_factor_over_generations, wire_lengths_over_generations, save_dir, obj="Energy Delay Product", units="nJ*ns", obj_fn="edp"):
         self.codesign_module = codesign_module
-        self.params_over_iterations = params_over_iterations
+        self.params_over_generations = params_over_generations
         self.plot_list = set(self.codesign_module.hw.obj_sub_exprs.values())
         self.plot_list_exclude = set(["execution_time", "passive power", "active power"])
         logger.info(f"plot list: {self.plot_list}")
         self.plot_list_labels = {param: label for label, param in self.codesign_module.hw.obj_sub_exprs.items()}
         self.plot_list_names = self.codesign_module.hw.obj_sub_plot_names
-        self.obj_over_iterations = obj_over_iterations
-        self.lag_factor_over_iterations = lag_factor_over_iterations
+        self.obj_over_generations = obj_over_generations
+        self.lag_factor_over_generations = lag_factor_over_generations
+        self.wire_lengths_over_generations = wire_lengths_over_generations
         self.save_dir = save_dir
         self.obj = obj
         self.units = units
         self.obj_fn = obj_fn
 
-    def plot_params_over_iterations(self):
+    def plot_wire_lengths_over_generations(self):
+        if not os.path.exists(self.save_dir):
+            os.makedirs(self.save_dir)
+        
+        # Set larger font sizes and better styling
+        plt.rcParams.update({
+            "font.size": 24,
+            "axes.titlesize": 30,
+            "axes.labelsize": 24,
+            "xtick.labelsize": 24,
+            "ytick.labelsize": 24,
+            "legend.fontsize": 24,
+            "figure.titlesize": 30
+        })
+        
+        # Create figure with better sizing
+        fig, ax = plt.subplots(figsize=(10, 6))
+        
+        # Collect all data points for scatter plot
+        x_values = []  # iteration numbers
+        y_values = []  # wire lengths in micrometers
+        
+        for iteration, wire_length_by_edge in enumerate(self.wire_lengths_over_generations):
+            for edge_name, wire_length_m in wire_length_by_edge.items():
+                x_values.append(iteration)
+                y_values.append(wire_length_m * 1e6)  # Convert from m to μm
+        
+        # Create scatter plot
+        ax.scatter(x_values, y_values, alpha=0.6, s=50, color='blue')
+        ax.set_xlabel("Generation", fontweight="bold")
+        ax.set_ylabel("Wire Length (μm)", fontweight="bold")
+        ax.set_title("Wire Lengths Over Generations", fontweight="bold", pad=20)
+        ax.set_yscale("log")
+        
+        # Set x-axis to show only integer values
+        if x_values:  # Check if there are any data points
+            min_x = min(x_values)
+            max_x = max(x_values)
+            ax.set_xticks(range(min_x, max_x + 1))
+        
+        # Improve styling
+        fig.patch.set_facecolor("#f8f9fa")
+        
+        # Adjust layout and save
+        plt.tight_layout()
+        plt.savefig(f"{self.save_dir}/wire_lengths_over_iters.png", dpi=300, bbox_inches='tight')
+        plt.close()
+
+    def plot_params_over_generations(self):
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
         f = open(f"{self.save_dir}/param_data.txt", 'w')
-        f.write(str(self.params_over_iterations))
+        f.write(str(self.params_over_generations))
         # Set larger font sizes and better styling
         plt.rcParams.update({
             "font.size": 24,
@@ -42,8 +91,8 @@ class TrendPlot:
                 continue
             values = []
             logger.info(f"Plotting {self.plot_list_names[self.plot_list_labels[param]]}")
-            for i in range(len(self.params_over_iterations)):
-                values.append(xreplace_safe(param, self.params_over_iterations[i]))
+            for i in range(len(self.params_over_generations)):
+                values.append(xreplace_safe(param, self.params_over_generations[i]))
             
             # Create figure with better sizing
             fig, ax = plt.subplots(figsize=(10, 6))
@@ -53,6 +102,8 @@ class TrendPlot:
             ax.set_xlabel("Generation", fontweight="bold")
             ax.set_title(f"{self.plot_list_names[self.plot_list_labels[param]]}", fontweight="bold", pad=20)
             ax.set_yscale("log")
+
+            ax.set_xticks(range(len(values)))
             
             # Improve grid and styling
             #ax.grid(True, alpha=0.3, linestyle='--')
@@ -63,11 +114,11 @@ class TrendPlot:
             plt.savefig(f"{self.save_dir}/{self.plot_list_labels[param]}_over_iters.png", dpi=300, bbox_inches='tight')
             plt.close()
     
-    def plot_obj_over_iterations(self):
+    def plot_obj_over_generations(self):
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
 
-        x = [i/2.0 for i in range(len(self.obj_over_iterations))]
+        x = [i/2.0 for i in range(len(self.obj_over_generations))]
 
         # Set larger font sizes and better styling
         plt.rcParams.update({
@@ -82,17 +133,17 @@ class TrendPlot:
         fig, ax = plt.subplots(figsize=(10, 6))
 
         # Create alternating red and blue line segments
-        for i in range(len(self.obj_over_iterations) - 1)[::2]:
+        for i in range(len(self.obj_over_generations) - 1)[::2]:
             x_start = x[i]
             x_mid = (x_start + 0.5)
 
-            if (i + 2) < len(self.obj_over_iterations):
+            if (i + 2) < len(self.obj_over_generations):
                 x_end = x[i + 2]
                 # Blue line from x.5 to x+1
-                ax.plot([x_mid, x_end], [self.obj_over_iterations[i + 1], self.obj_over_iterations[i + 2]], 'b-', linewidth=3, markersize=10, marker="o", markerfacecolor="black", markeredgecolor="black")
+                ax.plot([x_mid, x_end], [self.obj_over_generations[i + 1], self.obj_over_generations[i + 2]], 'b-', linewidth=3, markersize=10, marker="o", markerfacecolor="black", markeredgecolor="black")
             
             # Red line from x to x.5
-            ax.plot([x_start, x_mid], [self.obj_over_iterations[i], self.obj_over_iterations[i + 1]], 'r-', linewidth=3, markersize=10, marker="o", markerfacecolor="black", markeredgecolor="black")
+            ax.plot([x_start, x_mid], [self.obj_over_generations[i], self.obj_over_generations[i + 1]], 'r-', linewidth=3, markersize=10, marker="o", markerfacecolor="black", markeredgecolor="black")
         
 
         ax.set_xlabel("Iteration", fontweight="bold")
@@ -105,15 +156,15 @@ class TrendPlot:
         plt.savefig(f"{self.save_dir}/{self.obj_fn}_over_iters.png", dpi=300, bbox_inches='tight')
         plt.close()
     
-    def plot_lag_factor_over_iterations(self):
+    def plot_lag_factor_over_generations(self):
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
-        x = [i for i in range(len(self.lag_factor_over_iterations))]
+        x = [i for i in range(len(self.lag_factor_over_generations))]
         # Create figure with better sizing
         fig, ax = plt.subplots(figsize=(10, 6))
         
         # Plot with improved styling
-        ax.plot(x, self.lag_factor_over_iterations, linewidth=3, markersize=15, marker="o", color="black")
+        ax.plot(x, self.lag_factor_over_generations, linewidth=3, markersize=15, marker="o", color="black")
         ax.set_xlabel("Iteration", fontweight="bold")
         ax.set_title("Inverse Pass Lag Factor per iteration", fontweight="bold", pad=20)
         ax.set_yscale("log")

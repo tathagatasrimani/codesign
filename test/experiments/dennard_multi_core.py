@@ -230,4 +230,4 @@ if __name__ == "__main__":
         experiment = DennardMultiCore(args)
         experiment.run_experiment()    
     finally:
-        experiment.codesign_module.end_of_run_plots(experiment.edp_over_iterations, experiment.lag_factor_over_iterations, experiment.params_over_iterations)
+        experiment.codesign_module.end_of_run_plots(experiment.edp_over_iterations, experiment.lag_factor_over_iterations, experiment.params_over_iterations, [])

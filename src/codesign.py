@@ -115,8 +115,10 @@ class Codesign:
             self.checkpoint_controller.load_checkpoint()
 
         # configure to start with 3 dsp and 3 bram
-        self.dsp_multiplier = 1/3 * self.cfg["args"]["area"] /self.hw.circuit_model.tech_model.param_db["A_gate"].xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf()
-        self.bram_multiplier = 1/3 * self.cfg["args"]["area"] /self.hw.circuit_model.tech_model.param_db["A_gate"].xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf()
+        self.dsp_multiplier = 1/3 * self.cfg["args"]["area"] / (3e-6 * 9e-6)
+        self.bram_multiplier = 1/3 * self.cfg["args"]["area"] / (3e-6 * 9e-6)
+
+        self.wire_lengths_over_iterations = []
 
     # any arguments specified on CLI will override the default config
     def set_config(self, args):
@@ -645,6 +647,24 @@ class Codesign:
         ## create the obj equation 
         self.hw.calculate_objective()
 
+        if iteration_count == 0:
+            self.params_over_iterations[0].update(
+                {
+                    self.hw.circuit_model.tech_model.base_params.logic_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.logic_sensitivity],
+                    self.hw.circuit_model.tech_model.base_params.logic_resource_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.logic_resource_sensitivity],
+                    self.hw.circuit_model.tech_model.base_params.logic_ahmdal_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.logic_ahmdal_limit],
+                    self.hw.circuit_model.tech_model.base_params.logic_resource_ahmdal_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.logic_resource_ahmdal_limit],
+                    self.hw.circuit_model.tech_model.base_params.interconnect_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.interconnect_sensitivity],
+                    self.hw.circuit_model.tech_model.base_params.interconnect_resource_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.interconnect_resource_sensitivity],
+                    self.hw.circuit_model.tech_model.base_params.interconnect_ahmdal_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.interconnect_ahmdal_limit],
+                    self.hw.circuit_model.tech_model.base_params.interconnect_resource_ahmdal_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.interconnect_resource_ahmdal_limit],
+                    self.hw.circuit_model.tech_model.base_params.memory_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.memory_sensitivity],
+                    self.hw.circuit_model.tech_model.base_params.memory_resource_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.memory_resource_sensitivity],
+                    self.hw.circuit_model.tech_model.base_params.memory_ahmdal_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.memory_ahmdal_limit],
+                    self.hw.circuit_model.tech_model.base_params.memory_resource_ahmdal_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.memory_resource_ahmdal_limit],
+                }
+            )
+
         """if setup:
             self.max_parallel_initial_objective_value = self.hw.obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf()
             print(f"objective value with max parallelism: {self.max_parallel_initial_objective_value}")
@@ -807,6 +827,11 @@ class Codesign:
         self.lag_factor_over_iterations.append(self.inverse_pass_lag_factor)
 
     def log_all_to_file(self, iter_number):
+        wire_lengths={}
+        for edge in self.hw.circuit_model.wire_length_by_edge:
+            if "Mux" not in edge[0] and "Mux" not in edge[1]:
+                wire_lengths[edge] = self.hw.circuit_model.wire_length(edge)
+        self.wire_lengths_over_iterations.append(wire_lengths)
         nx.write_gml(
             self.hw.netlist,
             f"{self.save_dir}/netlist_{iter_number}.gml",
@@ -819,6 +844,8 @@ class Codesign:
         )
         self.write_back_params(f"{self.save_dir}/tech_params_{iter_number}.yaml")
         shutil.copy("src/tmp/ipopt_out.txt", f"{self.save_dir}/ipopt_{iter_number}.txt")
+        if os.path.exists("src/tmp/pd/results/design_snapshot-tcl.png"):
+            shutil.copy("src/tmp/pd/results/design_snapshot-tcl.png", f"{self.save_dir}/design_snapshot_{iter_number}.png")
         """for mem in self.hw.circuit_model.memories:
             shutil.copy(
                 f"src/tmp/cacti_exprs_{mem}.txt", f"{self.save_dir}/cacti_exprs_{mem}_{iter_number}.txt"
@@ -858,7 +885,7 @@ class Codesign:
     def cleanup(self):
         self.restore_dat()
 
-    def end_of_run_plots(self, obj_over_iterations, lag_factor_over_iterations, params_over_iterations):
+    def end_of_run_plots(self, obj_over_iterations, lag_factor_over_iterations, params_over_iterations, wire_lengths_over_iterations):
         assert len(params_over_iterations) > 1 
         obj = "Energy Delay Product"
         units = "nJ*ns"
@@ -868,13 +895,15 @@ class Codesign:
         elif self.obj_fn == "delay":
             obj = "Delay"
             units = "ns"
-        trend_plotter = trend_plot.TrendPlot(self, params_over_iterations, obj_over_iterations, lag_factor_over_iterations, self.save_dir + "/figs", obj, units, self.obj_fn)
-        logger.info(f"plotting params over iterations")
-        trend_plotter.plot_params_over_iterations()
-        logger.info(f"plotting obj over iterations")
-        trend_plotter.plot_obj_over_iterations()
-        logger.info(f"plotting lag factor over iterations")
-        trend_plotter.plot_lag_factor_over_iterations()
+        trend_plotter = trend_plot.TrendPlot(self, params_over_iterations, obj_over_iterations, lag_factor_over_iterations, wire_lengths_over_iterations, self.save_dir + "/figs", obj, units, self.obj_fn)
+        logger.info(f"plotting wire lengths over generations")
+        trend_plotter.plot_wire_lengths_over_generations()
+        logger.info(f"plotting params over generations")
+        trend_plotter.plot_params_over_generations()
+        logger.info(f"plotting obj over generations")
+        trend_plotter.plot_obj_over_generations()
+        logger.info(f"plotting lag factor over generations")
+        trend_plotter.plot_lag_factor_over_generations()
 
     def setup(self):
         if not os.path.exists(self.benchmark_setup_dir):
@@ -898,7 +927,7 @@ class Codesign:
             logger.info(f"time to update state after inverse pass iteration {self.iteration_count}: {time.time()-start_time_after_inverse_pass}")
             logger.info(f"time to execute iteration {self.iteration_count}: {time.time()-start_time}")
             self.iteration_count += 1
-        self.end_of_run_plots(self.obj_over_iterations, self.lag_factor_over_iterations, self.params_over_iterations)
+            self.end_of_run_plots(self.obj_over_iterations, self.lag_factor_over_iterations, self.params_over_iterations, self.wire_lengths_over_iterations)
 
         # cleanup
         self.cleanup()
@@ -913,7 +942,7 @@ def main(args):
     finally:
         os.chdir(os.path.join(os.path.dirname(__file__), ".."))
         
-        codesign_module.end_of_run_plots(codesign_module.obj_over_iterations, codesign_module.lag_factor_over_iterations, codesign_module.params_over_iterations)
+        codesign_module.end_of_run_plots(codesign_module.obj_over_iterations, codesign_module.lag_factor_over_iterations, codesign_module.params_over_iterations, codesign_module.wire_lengths_over_iterations)
         codesign_module.cleanup()
 
 if __name__ == "__main__":

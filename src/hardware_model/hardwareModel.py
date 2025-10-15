@@ -4,6 +4,7 @@ import yaml
 import time
 import numpy as np
 import math
+import copy
 
 logger = logging.getLogger(__name__)
 
@@ -155,7 +156,6 @@ class HardwareModel:
         self.hls_tool = args["hls_tool"]
         self.inst_name_map = {}
         self.dfg_to_netlist_map = {}
-        self.dfg_to_netlist_edge_map = {}
         self.constraints = []
 
     def reset_state(self):
@@ -175,7 +175,6 @@ class HardwareModel:
         self.total_active_energy = 0
         self.inst_name_map = {}
         self.dfg_to_netlist_map = {}
-        self.dfg_to_netlist_edge_map = {}
         self.constraints = []
 
     def write_technology_parameters(self, filename):
@@ -574,8 +573,10 @@ class HardwareModel:
 
         logger.info(f"current L_eff for get_wire_parascitics: {L_eff}")
 
+        netlist_copy = copy.deepcopy(self.netlist)
+
         self.circuit_model.wire_length_by_edge, _ = open_road_run.run(
-            self.netlist, arg_testfile, arg_parasitics, area_constraint, L_eff
+            netlist_copy, arg_testfile, arg_parasitics, area_constraint, L_eff
         )
 
         log_info(f"wire lengths: {self.circuit_model.wire_length_by_edge}")
@@ -656,6 +657,12 @@ class HardwareModel:
             total_active_energy += self.calculate_active_energy_basic_block(basic_block_name, self.scheduled_dfgs[basic_block_name])
         return total_active_energy
 
+    def get_rsc_edge(self, edge, dfg):
+        if "rsc" in dfg.nodes[edge[0]] and "rsc" in dfg.nodes[edge[1]]:
+            return (dfg.nodes[edge[0]]["rsc"], dfg.nodes[edge[1]]["rsc"])
+        else:
+            return edge
+
     def calculate_active_energy_basic_block(self, basic_block_name, dfg, is_loop=False):
         total_active_energy_basic_block = 0
         loop_count = 1
@@ -668,12 +675,13 @@ class HardwareModel:
             elif data["function"] == "Wire":
                 src = data["src_node"]
                 dst = data["dst_node"]
-                if (src, dst) in self.dfg_to_netlist_edge_map:
-                    total_active_energy_basic_block += self.circuit_model.wire_energy(self.dfg_to_netlist_edge_map[(src, dst)])
-                    log_info(f"edge {src, dst} is in dfg_to_netlist_edge_map")
-                    log_info(f"wire energy for {node}: {self.circuit_model.wire_energy(self.dfg_to_netlist_edge_map[(src, dst)])}")
+                rsc_edge = self.get_rsc_edge((src, dst), dfg)
+                if rsc_edge in self.circuit_model.wire_length_by_edge:
+                    total_active_energy_basic_block += self.circuit_model.wire_energy(rsc_edge)
+                    log_info(f"edge {rsc_edge} is in circuit_model.wire_length_by_edge")
+                    log_info(f"wire energy for {node}: {self.circuit_model.wire_energy(rsc_edge)}")
                 else:
-                    log_info(f"edge {src, dst} is not in dfg_to_netlist_edge_map")
+                    log_info(f"edge {rsc_edge} is not in circuit_model.wire_length_by_edge")
             else:
                 total_active_energy_basic_block += self.circuit_model.symbolic_energy_active[data["function"]]()
                 log_info(f"active energy for {node}: {self.circuit_model.symbolic_energy_active[data['function']]()}")
@@ -735,6 +743,7 @@ class HardwareModel:
         log_info(f"graph delay cvx for top block: {self.graph_delays_cvx[self.top_block_name].value / self.scale_cvx}")
 
     def calculate_block_vectors(self, top_block_name):
+        self.circuit_model.update_uarch_parameters()
         logger.info("calculating block vectors")
         self.block_vectors = {}
         for basic_block_name in self.scheduled_dfgs:
@@ -744,6 +753,14 @@ class HardwareModel:
         self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.logic_resource_sensitivity] = self.block_vectors[top_block_name]["top"].sensitivity["logic_rsc"]
         self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.logic_ahmdal_limit] = self.block_vectors[top_block_name]["top"].ahmdal_limit["logic"]
         self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.logic_resource_ahmdal_limit] = self.block_vectors[top_block_name]["top"].ahmdal_limit["logic_rsc"]
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.interconnect_sensitivity] = self.block_vectors[top_block_name]["top"].sensitivity["interconnect"]
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.interconnect_resource_sensitivity] = self.block_vectors[top_block_name]["top"].sensitivity["interconnect_rsc"]
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.interconnect_ahmdal_limit] = self.block_vectors[top_block_name]["top"].ahmdal_limit["interconnect"]
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.interconnect_resource_ahmdal_limit] = self.block_vectors[top_block_name]["top"].ahmdal_limit["interconnect_rsc"]
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.memory_sensitivity] = self.block_vectors[top_block_name]["top"].sensitivity["memory"]
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.memory_resource_sensitivity] = self.block_vectors[top_block_name]["top"].sensitivity["memory_rsc"]
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.memory_ahmdal_limit] = self.block_vectors[top_block_name]["top"].ahmdal_limit["memory"]
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.memory_resource_ahmdal_limit] = self.block_vectors[top_block_name]["top"].ahmdal_limit["memory_rsc"]
 
     def make_graph_one_op_type(self, basic_block_name, graph_type, op_type, eps, dfg):
         G_new = dfg.copy()
@@ -836,10 +853,15 @@ class HardwareModel:
                 vector.sensitivity["logic_rsc"] = 1
         else:
             if fn == "Wire":
-                if (src, dst) in self.dfg_to_netlist_edge_map:
-                    vector.delay = self.circuit_model.wire_delay_uarch_cvx(self.dfg_to_netlist_edge_map[(src, dst)])
+                src_for_wire = dfg.nodes[src]["src_node"]
+                dst_for_wire = dfg.nodes[src]["dst_node"]
+                rsc_edge = self.get_rsc_edge((src_for_wire, dst_for_wire), dfg)
+                if rsc_edge in self.circuit_model.wire_length_by_edge:
+                    vector.delay = self.circuit_model.wire_delay_uarch_cvx(rsc_edge).value
+                    log_info(f"added wire delay {vector.delay} for {rsc_edge}, which has length {self.circuit_model.wire_length(rsc_edge)}")
                 else:
                     vector.delay = 0
+                    log_info(f"edge {rsc_edge} not in wire_length_by_edge")
                 vector.bound_factor["interconnect"] = vector.delay
                 vector.sensitivity["interconnect"] = 1
             elif fn in ["Buf", "MainMem"]:
@@ -924,11 +946,12 @@ class HardwareModel:
                     if dfg.nodes[pred]["function"] == "Wire":
                         src = dfg.nodes[pred]["src_node"]
                         dst = dfg.nodes[pred]["dst_node"]
-                        if (src, dst) in self.dfg_to_netlist_edge_map:
-                            pred_delay_cvx = self.circuit_model.wire_delay_uarch_cvx(self.dfg_to_netlist_edge_map[(src, dst)]) * self.scale_cvx
-                            log_info(f"added wire delay {self.circuit_model.wire_delay_uarch_cvx(self.dfg_to_netlist_edge_map[(src, dst)])} for edge {src, dst}")
+                        rsc_edge = self.get_rsc_edge((src, dst), dfg)
+                        if rsc_edge in self.circuit_model.wire_length_by_edge:
+                            pred_delay_cvx = self.circuit_model.wire_delay_uarch_cvx(rsc_edge) * self.scale_cvx
+                            log_info(f"added wire delay {self.circuit_model.wire_delay_uarch_cvx(rsc_edge)} for edge {rsc_edge}")
                         else:
-                            log_info(f"no wire delay for edge {src, dst}")
+                            log_info(f"no wire delay for edge {rsc_edge}")
                     else:
                         #pred_delay = self.circuit_model.symbolic_latency_wc[dfg.nodes[pred]["function"]]()
                         pred_delay_cvx = self.circuit_model.uarch_lat_cvx[dfg.nodes[pred]["function"]] * self.scale_cvx
@@ -975,8 +998,9 @@ class HardwareModel:
                         pred_delay = self.circuit_model.symbolic_latency_wc[self.scheduled_dfg.nodes[pred]["function"]]()[rsc_name]
                     else:
                         pred_delay = self.circuit_model.symbolic_latency_wc[self.scheduled_dfg.nodes[pred]["function"]]()
-                    if (pred, node) in self.dfg_to_netlist_edge_map:
-                        pred_delay += self.circuit_model.wire_delay(self.dfg_to_netlist_edge_map[(pred, node)], symbolic)
+                    rsc_edge = self.get_rsc_edge((pred, node), self.scheduled_dfg)
+                    if rsc_edge in self.circuit_model.wire_length_by_edge:
+                        pred_delay += self.circuit_model.wire_delay(rsc_edge, symbolic)
                     self.constraints.append(node_arrivals[node] >= node_arrivals[pred] + pred_delay)
                     constr_cvx.append(node_arrivals_cvx[node] >= node_arrivals_cvx[pred] + sim_util.xreplace_safe(pred_delay, self.circuit_model.tech_model.base_params.tech_values))
             obj = node_arrivals_cvx["end"]
@@ -1035,8 +1059,9 @@ class HardwareModel:
                     total_active_energy += self.circuit_model.circuit_values["dynamic_energy"][data["function"]]
                 log_info(f"(active energy) {data['function']}: {total_active_energy}")
         for edge in self.scheduled_dfg.edges:
-            if edge in self.dfg_to_netlist_edge_map:
-                wire_energy = self.circuit_model.wire_energy(self.dfg_to_netlist_edge_map[edge], symbolic)
+            rsc_edge = self.get_rsc_edge(edge, self.scheduled_dfg)
+            if rsc_edge in self.circuit_model.wire_length_by_edge:
+                wire_energy = self.circuit_model.wire_energy(rsc_edge, symbolic)
                 log_info(f"(wire energy) {edge}: {wire_energy} nJ")
                 total_active_energy += wire_energy
         return total_active_energy
@@ -1108,11 +1133,31 @@ class HardwareModel:
                 "k_gate": self.circuit_model.tech_model.param_db["k_gate"],
                 "delay": self.circuit_model.tech_model.delay,
                 "multiplier delay": self.circuit_model.symbolic_latency_wc["Mult"](),
-                "scaled power": self.total_passive_power * self.circuit_model.tech_model.capped_power_scale_total + self.total_active_energy/(execution_time * self.circuit_model.tech_model.capped_delay_scale_total),
+                #"scaled power": self.total_passive_power * self.circuit_model.tech_model.capped_power_scale_total + self.total_active_energy/(execution_time * self.circuit_model.tech_model.capped_delay_scale_total),
                 "logic_sensitivity": self.circuit_model.tech_model.base_params.logic_sensitivity,
                 "logic_resource_sensitivity": self.circuit_model.tech_model.base_params.logic_resource_sensitivity,
                 "logic_ahmdal_limit": self.circuit_model.tech_model.base_params.logic_ahmdal_limit,
                 "logic_resource_ahmdal_limit": self.circuit_model.tech_model.base_params.logic_resource_ahmdal_limit,
+                "interconnect sensitivity": self.circuit_model.tech_model.base_params.interconnect_sensitivity,
+                "interconnect resource sensitivity": self.circuit_model.tech_model.base_params.interconnect_resource_sensitivity,
+                "interconnect ahmdal limit": self.circuit_model.tech_model.base_params.interconnect_ahmdal_limit,
+                "interconnect resource ahmdal limit": self.circuit_model.tech_model.base_params.interconnect_resource_ahmdal_limit,
+                "memory sensitivity": self.circuit_model.tech_model.base_params.memory_sensitivity,
+                "memory resource sensitivity": self.circuit_model.tech_model.base_params.memory_resource_sensitivity,
+                "memory ahmdal limit": self.circuit_model.tech_model.base_params.memory_ahmdal_limit,
+                "memory resource ahmdal limit": self.circuit_model.tech_model.base_params.memory_resource_ahmdal_limit,
+                "m1_Rsq": self.circuit_model.tech_model.m1_Rsq,
+                "m2_Rsq": self.circuit_model.tech_model.m2_Rsq,
+                "m3_Rsq": self.circuit_model.tech_model.m3_Rsq,
+                "m1_Csq": self.circuit_model.tech_model.m1_Csq,
+                "m2_Csq": self.circuit_model.tech_model.m2_Csq,
+                "m3_Csq": self.circuit_model.tech_model.m3_Csq,
+                "m1_rho": self.circuit_model.tech_model.base_params.m1_rho,
+                "m2_rho": self.circuit_model.tech_model.base_params.m2_rho,
+                "m3_rho": self.circuit_model.tech_model.base_params.m3_rho,
+                "m1_k": self.circuit_model.tech_model.base_params.m1_k,
+                "m2_k": self.circuit_model.tech_model.base_params.m2_k,
+                "m3_k": self.circuit_model.tech_model.base_params.m3_k,
             }
             if self.circuit_model.tech_model.model_cfg["vs_model_type"] == "base":
                 self.obj_sub_exprs["t_1"] = self.circuit_model.tech_model.param_db["t_1"]
@@ -1180,6 +1225,26 @@ class HardwareModel:
             "logic_resource_sensitivity": "Logic Resource Sensitivity over generations",
             "logic_ahmdal_limit": "Logic Ahmdal Limit over generations",
             "logic_resource_ahmdal_limit": "Logic Resource Ahmdal Limit over generations",
+            "interconnect sensitivity": "Interconnect Sensitivity over generations",
+            "interconnect resource sensitivity": "Interconnect Resource Sensitivity over generations",
+            "interconnect ahmdal limit": "Interconnect Ahmdal Limit over generations",
+            "interconnect resource ahmdal limit": "Interconnect Resource Ahmdal Limit over generations",
+            "memory sensitivity": "Memory Sensitivity over generations",
+            "memory resource sensitivity": "Memory Resource Sensitivity over generations",
+            "memory ahmdal limit": "Memory Ahmdal Limit over generations",
+            "memory resource ahmdal limit": "Memory Resource Ahmdal Limit over generations",
+            "m1_Rsq": "Metal 1 Resistance per Square over generations (Ohm/m)",
+            "m2_Rsq": "Metal 2 Resistance per Square over generations (Ohm/m)",
+            "m3_Rsq": "Metal 3 Resistance per Square over generations (Ohm/m)",
+            "m1_Csq": "Metal 1 Capacitance per Square over generations (F/m)",
+            "m2_Csq": "Metal 2 Capacitance per Square over generations (F/m)",
+            "m3_Csq": "Metal 3 Capacitance per Square over generations (F/m)",
+            "m1_rho": "Metal 1 Resistivity over generations (Ohm-m)",
+            "m2_rho": "Metal 2 Resistivity over generations (Ohm-m)",
+            "m3_rho": "Metal 3 Resistivity over generations (Ohm-m)",
+            "m1_k": "Metal 1 Permittivity over generations (F/m)",
+            "m2_k": "Metal 2 Permittivity over generations (F/m)",
+            "m3_k": "Metal 3 Permittivity over generations (F/m)",
         }
         if self.obj_fn == "edp":
             self.obj = (self.total_passive_energy + self.total_active_energy) * execution_time

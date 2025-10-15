@@ -51,6 +51,8 @@ set_routing_layers -signal $global_routing_layers \
   -clock $global_routing_clock_layers
 set_macro_extension 2
 
+set ::env(REPLACE_SEED) 42
+
 global_placement -routability_driven -density $global_place_density \
   -pad_left $global_place_pad -pad_right $global_place_pad
 
@@ -167,5 +169,7 @@ report_wire_length -net * -file "../results/wire_length_global.txt" -global_rout
 
 set routed_def [make_result_file final_generated.def]
 write_def $routed_def
+
+save_image [make_result_file design_snapshot.png] -display_option {Tracks/Pref true} 
 
 exit

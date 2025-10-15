@@ -46,6 +46,7 @@ class OpenRoadRun:
             arg_parasitics: detailed, estimation, or none. determines which parasitic calculation is executed.
 
         """
+        self.L_eff = L_eff
         logger.info(f"Starting place and route with parasitics: {arg_parasitics}")
         dict = {edge: {} for edge in graph.edges()}
         if "none" not in arg_parasitics:
@@ -76,20 +77,26 @@ class OpenRoadRun:
             area_constraint: area constraint for the placement. We will ensure that the final area constraint set to OpenROAD
                 achieves at least 60% utilization based on the estimated area from the def generator.
             L_eff: effective channel length used to scale the LEF files.
+            
+            NOTE about outputs from setup_set_area_constraint:
+                This function is very much legacy and not pretty to look at. Apologies in advance.
+                There are some quantities which correspond to a "higher level" graph, where edges are from one functional unit to another.
+                On the other hand, things like graph have edges for each of the 16 ports on a functional unit, as quantities are 16 bit right now.
+
+                higher level graph: node_output
+                lower level graph: graph, net_out_dict, node_to_num
 
         """
 
-        graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate = self.setup_set_area_constraint(graph, test_file, area_constraint, L_eff)
+        old_graph = copy.deepcopy(graph)
+        graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, max_dim_macro = self.setup_set_area_constraint(graph, test_file, area_constraint, L_eff)
 
-        ## ensure that the design area utilization is at least 60%
-        if area_estimate > 0.8 * area_constraint:
-            logger.warning(f"Warning: Estimated area {area_estimate} exceeds 80% of area constraint {area_constraint}. Consider increasing area constraint.")
-
-        elif area_estimate < 0.5 * area_constraint:
-            area_constraint_old = area_constraint
-            area_constraint = int(area_estimate / 0.6)
-            logger.info(f"Info: Estimated area {area_estimate} is less than 50% of area constraint {area_constraint_old}. Area constraint will be scaled from {area_constraint_old} to {area_constraint}.")
-            graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate = self.setup_set_area_constraint(graph, test_file, area_constraint, L_eff)
+        area_constraint_old = area_constraint
+        logger.info(f"Max dimension macro: {max_dim_macro}, corresponding area constraint value: {max_dim_macro**2}")
+        logger.info(f"Estimated area: {area_estimate}")
+        area_constraint = int(max(area_estimate, max_dim_macro**2)/0.6)
+        logger.info(f"Info: Final estimated area {area_estimate} compared to area constraint {area_constraint_old}. Area constraint will be scaled from {area_constraint_old} to {area_constraint}.")
+        graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, max_dim_macro = self.setup_set_area_constraint(old_graph, test_file, area_constraint, L_eff)
 
         return graph, net_out_dict, node_output, lef_data, node_to_num
 
@@ -125,17 +132,18 @@ class OpenRoadRun:
 
         self.update_area_constraint(area_constraint)
 
-        do_scale_lef = scale_lef.ScaleLefFiles(self.cfg, self.codesign_root_dir)
-        do_scale_lef.scale_lef_files(L_eff)
+        self.do_scale_lef = scale_lef.ScaleLefFiles(self.cfg, self.codesign_root_dir)
+        self.do_scale_lef.scale_lef_files(L_eff)
 
-        df = def_generator.DefGenerator(self.cfg, self.codesign_root_dir)
+        df = def_generator.DefGenerator(self.cfg, self.codesign_root_dir, self.do_scale_lef.NEW_database_units_per_micron)
 
         graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate = df.run_def_generator(
             test_file, graph
         )
         logger.info(f"DEF generation complete. Area estimate: {area_estimate}")
+        logger.info(f"Max dimension macro: {df.max_dim_macro}")
 
-        return graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate
+        return graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, df.max_dim_macro
 
     def update_area_constraint(self, area_constraint: int):
         """
@@ -148,16 +156,23 @@ class OpenRoadRun:
             tcl_data = file.readlines()
 
         ## compute the new area constraint
-        new_core_sidelength = int(sqrt(area_constraint))  
+        new_core_sidelength = int(sqrt(area_constraint))
+
+        #new_core_sidelength_x = new_core_sidelength * 2
+        #new_core_sidelength_y = int(area_constraint / new_core_sidelength_x)
 
         ## find a line that contains "set die_area" and replace it with the new area constraint
         for i, line in enumerate(tcl_data):
             if "set die_area" in line:
                 tcl_data[i] = f"set die_area {{0 0 {new_core_sidelength + DIE_CORE_BUFFER_SIZE*2} {new_core_sidelength + DIE_CORE_BUFFER_SIZE*2}}}\n"
+                #tcl_data[i] = f"set die_area {{0 0 {new_core_sidelength_x + DIE_CORE_BUFFER_SIZE*2} {new_core_sidelength_y + DIE_CORE_BUFFER_SIZE*2}}}\n"
                 logger.info(f"Updated die_area to {new_core_sidelength + DIE_CORE_BUFFER_SIZE*2}x{new_core_sidelength + DIE_CORE_BUFFER_SIZE*2}")
+                #logger.info(f"Updated die_area to {new_core_sidelength_x + DIE_CORE_BUFFER_SIZE*2}x{new_core_sidelength_y + DIE_CORE_BUFFER_SIZE*2}")
             if "set core_area" in line:
                 tcl_data[i] = f"set core_area {{{DIE_CORE_BUFFER_SIZE} {DIE_CORE_BUFFER_SIZE} {new_core_sidelength + DIE_CORE_BUFFER_SIZE} {new_core_sidelength + DIE_CORE_BUFFER_SIZE}}}\n"
+                #tcl_data[i] = f"set core_area {{{DIE_CORE_BUFFER_SIZE} {DIE_CORE_BUFFER_SIZE} {new_core_sidelength_x + DIE_CORE_BUFFER_SIZE} {new_core_sidelength_y + DIE_CORE_BUFFER_SIZE}}}\n"
                 logger.info(f"Updated core_area to {new_core_sidelength}x{new_core_sidelength}")
+                #logger.info(f"Updated core_area to {new_core_sidelength_x + DIE_CORE_BUFFER_SIZE*2}x{new_core_sidelength_y + DIE_CORE_BUFFER_SIZE*2}")
 
         ## write the new tcl file
         with open(self.directory + "/tcl/codesign_top.tcl", "w") as file:
@@ -196,7 +211,7 @@ class OpenRoadRun:
         #print(f"wire_length_by_edge before modification: {wire_length_by_edge}")
         logger.info("Starting mux listing.")
         edges_to_remove = set()
-        for node in graph.nodes():
+        for node in node_output:
             #print(f"considering node {node}")
             if "Mux" not in node:
                 #print(f"outputs of {node}: {node_output[node]}")
@@ -204,25 +219,31 @@ class OpenRoadRun:
                     path = []
                     if "Mux" in output:
                         while "Mux" in output:
-                            path.append(output)
+                            # wire delay doesn't need to take all 16 paths into account, so just use 0. For energy, multiply by 16.
+                            path.append(output + "_0")
                             output = node_output[output][0]
                         graph.add_edge(node, output)
+                        node_name = graph.nodes[node]["name"]
+                        output_name = graph.nodes[output]["name"]
+                        logger.info(f"Src: {node_name}, Dst: {output_name}")
                         #print(f"path from {node} to {output}: {path}")
-                        if len(path) != 0 and (node, output) not in wire_length_by_edge:
+                        if len(path) != 0 and (node_name, output_name) not in wire_length_by_edge:
                             #print(f"adding wire length by edge")
-                            wire_length_by_edge[(node, output)] = wire_length_by_edge[(node, path[0])]
-                            edges_to_remove.add((node, path[0]))
+                            path_dsts = [graph.nodes[p]["name"] for p in path]
+                            path_dst = path_dsts[0]
+                            wire_length_by_edge[(node_name, output_name)] = wire_length_by_edge[(node_name, path_dst)]
+                            edges_to_remove.add((node_name, path_dsts[0]))
                             for i in range(1, len(path)):
-                                wire_length_by_edge[(node, output)]["total_wl"] += wire_length_by_edge[(path[i-1], path[i])]["total_wl"]
-                                wire_length_by_edge[(node, output)]["metal1"] += wire_length_by_edge[(path[i-1], path[i])]["metal1"]
-                                wire_length_by_edge[(node, output)]["metal2"] += wire_length_by_edge[(path[i-1], path[i])]["metal2"]
-                                wire_length_by_edge[(node, output)]["metal3"] += wire_length_by_edge[(path[i-1], path[i])]["metal3"]
-                                edges_to_remove.add((path[i-1], path[i]))
-                            wire_length_by_edge[(node, output)]["total_wl"] += wire_length_by_edge[(path[-1], output)]["total_wl"]
-                            wire_length_by_edge[(node, output)]["metal1"] += wire_length_by_edge[(path[-1], output)]["metal1"]
-                            wire_length_by_edge[(node, output)]["metal2"] += wire_length_by_edge[(path[-1], output)]["metal2"]
-                            wire_length_by_edge[(node, output)]["metal3"] += wire_length_by_edge[(path[-1], output)]["metal3"]
-                            edges_to_remove.add((path[-1], output))
+                                wire_length_by_edge[(node_name, output_name)]["total_wl"] += wire_length_by_edge[(path_dsts[i-1], path_dsts[i])]["total_wl"]
+                                wire_length_by_edge[(node_name, output_name)]["metal1"] += wire_length_by_edge[(path_dsts[i-1], path_dsts[i])]["metal1"]
+                                wire_length_by_edge[(node_name, output_name)]["metal2"] += wire_length_by_edge[(path_dsts[i-1], path_dsts[i])]["metal2"]
+                                wire_length_by_edge[(node_name, output_name)]["metal3"] += wire_length_by_edge[(path_dsts[i-1], path_dsts[i])]["metal3"]
+                                edges_to_remove.add((path_dsts[i-1], path_dsts[i]))
+                            wire_length_by_edge[(node_name, output_name)]["total_wl"] += wire_length_by_edge[(path_dsts[-1], output_name)]["total_wl"]
+                            wire_length_by_edge[(node_name, output_name)]["metal1"] += wire_length_by_edge[(path_dsts[-1], output_name)]["metal1"]
+                            wire_length_by_edge[(node_name, output_name)]["metal2"] += wire_length_by_edge[(path_dsts[-1], output_name)]["metal2"]
+                            wire_length_by_edge[(node_name, output_name)]["metal3"] += wire_length_by_edge[(path_dsts[-1], output_name)]["metal3"]
+                            edges_to_remove.add((path_dsts[-1], output_name))
                             #print(f"wire length by edge after modification: {wire_length_by_edge[(node, output)]}")
         for edge in edges_to_remove:
             #print(f"removing edge {edge}")
@@ -342,18 +363,51 @@ class OpenRoadRun:
         wire_length_df = est.parse_route_guide_with_layer_breakdown(self.directory + "/results/codesign_codesign-tcl.route_guide")
         wire_length_by_edge = {}
         for node in net_out_dict:
-            for output in node_output[node]:
-                for net in net_out_dict[node]:
-                    if (node, output) not in wire_length_by_edge:
-                        wire_length_by_edge[(node, output)] = wire_length_df.loc[net]
+            outputs = node_output[node]
+            net_outs = net_out_dict[node]
+            if node.find("Mux") != -1:
+                node_names = [node+"_"+str(x) for x in range(16)]
+            else:
+                node_names = [node] * 16
+            logger.info(f"Node: {node}, Outputs: {outputs}")
+            logger.info(f"Net outs: {net_outs}")
+            for output in outputs:
+                # if output is a mux, then there will be 16 instances of the mux, each with 1 output
+                # if output is not a mux, then it will have 16 ports
+                if output.find("Mux") != -1:
+                    output_names = [output+"_"+str(x) for x in range(16)]
+                else:
+                    output_names = [output] * 16
+                assert len(net_outs) == 16
+                for idx in range(16):
+                    output_name = output_names[idx]
+                    node_name = node_names[idx]
+                    net_name = net_outs[idx]
+                    logger.info(f"Node: {node}, Output: {output_name}, Net: {net_name}")
+                    src = graph.nodes[node_name]["name"]
+                    dst = graph.nodes[output_name]["name"]
+                    logger.info(f"Src: {src}, Dst: {dst}")
+                    if (src, dst) not in wire_length_by_edge:
+                        wire_length_by_edge[(src, dst)] = copy.deepcopy(wire_length_df.loc[net_name])
                     else:
-                        wire_length_by_edge[(node, output)] += wire_length_df.loc[net]
+                        wire_length_by_edge[(src, dst)] += copy.deepcopy(wire_length_df.loc[net_name])
         self.export_graph(graph, "estimated_with_mux")
 
         wire_length_by_edge = self.mux_listing(graph, node_output, wire_length_by_edge)
         self.mux_removal(graph)
 
         self.export_graph(graph, "estimated_nomux")
+
+        # scale wire lengths to meters
+        for edge in wire_length_by_edge:
+            #logger.info(f"edge is {edge}")
+            #logger.info(f"original wire length by edge: {wire_length_by_edge[edge]}")
+            alpha_scale_factor = scale_lef.L_EFF_FREEPDK45 / self.L_eff
+            wire_length_by_edge[edge]["total_wl"] /= alpha_scale_factor * 1e6 # convert to meters
+            wire_length_by_edge[edge]["metal1"] /= alpha_scale_factor * 1e6 # convert to meters
+            wire_length_by_edge[edge]["metal2"] /= alpha_scale_factor * 1e6 # convert to meters
+            wire_length_by_edge[edge]["metal3"] /= alpha_scale_factor * 1e6 # convert to meters
+            #logger.info(f"scaled wire length by edge: {wire_length_by_edge[edge]}")
 
         return wire_length_by_edge, graph
 
