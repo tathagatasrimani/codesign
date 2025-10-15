@@ -858,7 +858,7 @@ class HardwareModel:
                 rsc_edge = self.get_rsc_edge((src_for_wire, dst_for_wire), dfg)
                 if rsc_edge in self.circuit_model.wire_length_by_edge:
                     vector.delay = self.circuit_model.wire_delay_uarch_cvx(rsc_edge).value
-                    logger.info(f"added wire delay {vector.delay} for {rsc_edge}, which has length {self.circuit_model.wire_length(rsc_edge)}")
+                    log_info(f"added wire delay {vector.delay} for {rsc_edge}, which has length {self.circuit_model.wire_length(rsc_edge)}")
                 else:
                     vector.delay = 0
                     log_info(f"edge {rsc_edge} not in wire_length_by_edge")

@@ -400,14 +400,14 @@ class OpenRoadRun:
 
         # scale wire lengths to meters
         for edge in wire_length_by_edge:
-            logger.info(f"edge is {edge}")
-            logger.info(f"original wire length by edge: {wire_length_by_edge[edge]}")
+            #logger.info(f"edge is {edge}")
+            #logger.info(f"original wire length by edge: {wire_length_by_edge[edge]}")
             alpha_scale_factor = scale_lef.L_EFF_FREEPDK45 / self.L_eff
             wire_length_by_edge[edge]["total_wl"] /= alpha_scale_factor * 1e6 # convert to meters
             wire_length_by_edge[edge]["metal1"] /= alpha_scale_factor * 1e6 # convert to meters
             wire_length_by_edge[edge]["metal2"] /= alpha_scale_factor * 1e6 # convert to meters
             wire_length_by_edge[edge]["metal3"] /= alpha_scale_factor * 1e6 # convert to meters
-            logger.info(f"scaled wire length by edge: {wire_length_by_edge[edge]}")
+            #logger.info(f"scaled wire length by edge: {wire_length_by_edge[edge]}")
 
         return wire_length_by_edge, graph
 
