@@ -743,6 +743,7 @@ class HardwareModel:
         log_info(f"graph delay cvx for top block: {self.graph_delays_cvx[self.top_block_name].value / self.scale_cvx}")
 
     def calculate_block_vectors(self, top_block_name):
+        self.circuit_model.update_uarch_parameters()
         logger.info("calculating block vectors")
         self.block_vectors = {}
         for basic_block_name in self.scheduled_dfgs:
@@ -857,10 +858,10 @@ class HardwareModel:
                 rsc_edge = self.get_rsc_edge((src_for_wire, dst_for_wire), dfg)
                 if rsc_edge in self.circuit_model.wire_length_by_edge:
                     vector.delay = self.circuit_model.wire_delay_uarch_cvx(rsc_edge).value
-                    logger.info(f"added wire delay {vector.delay} for {rsc_edge}")
+                    logger.info(f"added wire delay {vector.delay} for {rsc_edge}, which has length {self.circuit_model.wire_length(rsc_edge)}")
                 else:
                     vector.delay = 0
-                    logger.info(f"edge {rsc_edge} not in wire_length_by_edge")
+                    log_info(f"edge {rsc_edge} not in wire_length_by_edge")
                 vector.bound_factor["interconnect"] = vector.delay
                 vector.sensitivity["interconnect"] = 1
             elif fn in ["Buf", "MainMem"]:
@@ -1132,7 +1133,7 @@ class HardwareModel:
                 "k_gate": self.circuit_model.tech_model.param_db["k_gate"],
                 "delay": self.circuit_model.tech_model.delay,
                 "multiplier delay": self.circuit_model.symbolic_latency_wc["Mult"](),
-                "scaled power": self.total_passive_power * self.circuit_model.tech_model.capped_power_scale_total + self.total_active_energy/(execution_time * self.circuit_model.tech_model.capped_delay_scale_total),
+                #"scaled power": self.total_passive_power * self.circuit_model.tech_model.capped_power_scale_total + self.total_active_energy/(execution_time * self.circuit_model.tech_model.capped_delay_scale_total),
                 "logic_sensitivity": self.circuit_model.tech_model.base_params.logic_sensitivity,
                 "logic_resource_sensitivity": self.circuit_model.tech_model.base_params.logic_resource_sensitivity,
                 "logic_ahmdal_limit": self.circuit_model.tech_model.base_params.logic_ahmdal_limit,
@@ -1145,6 +1146,18 @@ class HardwareModel:
                 "memory resource sensitivity": self.circuit_model.tech_model.base_params.memory_resource_sensitivity,
                 "memory ahmdal limit": self.circuit_model.tech_model.base_params.memory_ahmdal_limit,
                 "memory resource ahmdal limit": self.circuit_model.tech_model.base_params.memory_resource_ahmdal_limit,
+                "m1_Rsq": self.circuit_model.tech_model.m1_Rsq,
+                "m2_Rsq": self.circuit_model.tech_model.m2_Rsq,
+                "m3_Rsq": self.circuit_model.tech_model.m3_Rsq,
+                "m1_Csq": self.circuit_model.tech_model.m1_Csq,
+                "m2_Csq": self.circuit_model.tech_model.m2_Csq,
+                "m3_Csq": self.circuit_model.tech_model.m3_Csq,
+                "m1_rho": self.circuit_model.tech_model.base_params.m1_rho,
+                "m2_rho": self.circuit_model.tech_model.base_params.m2_rho,
+                "m3_rho": self.circuit_model.tech_model.base_params.m3_rho,
+                "m1_k": self.circuit_model.tech_model.base_params.m1_k,
+                "m2_k": self.circuit_model.tech_model.base_params.m2_k,
+                "m3_k": self.circuit_model.tech_model.base_params.m3_k,
             }
             if self.circuit_model.tech_model.model_cfg["vs_model_type"] == "base":
                 self.obj_sub_exprs["t_1"] = self.circuit_model.tech_model.param_db["t_1"]
@@ -1220,6 +1233,18 @@ class HardwareModel:
             "memory resource sensitivity": "Memory Resource Sensitivity over generations",
             "memory ahmdal limit": "Memory Ahmdal Limit over generations",
             "memory resource ahmdal limit": "Memory Resource Ahmdal Limit over generations",
+            "m1_Rsq": "Metal 1 Resistance per Square over generations (Ohm/m)",
+            "m2_Rsq": "Metal 2 Resistance per Square over generations (Ohm/m)",
+            "m3_Rsq": "Metal 3 Resistance per Square over generations (Ohm/m)",
+            "m1_Csq": "Metal 1 Capacitance per Square over generations (F/m)",
+            "m2_Csq": "Metal 2 Capacitance per Square over generations (F/m)",
+            "m3_Csq": "Metal 3 Capacitance per Square over generations (F/m)",
+            "m1_rho": "Metal 1 Resistivity over generations (Ohm-m)",
+            "m2_rho": "Metal 2 Resistivity over generations (Ohm-m)",
+            "m3_rho": "Metal 3 Resistivity over generations (Ohm-m)",
+            "m1_k": "Metal 1 Permittivity over generations (F/m)",
+            "m2_k": "Metal 2 Permittivity over generations (F/m)",
+            "m3_k": "Metal 3 Permittivity over generations (F/m)",
         }
         if self.obj_fn == "edp":
             self.obj = (self.total_passive_energy + self.total_active_energy) * execution_time

@@ -156,16 +156,23 @@ class OpenRoadRun:
             tcl_data = file.readlines()
 
         ## compute the new area constraint
-        new_core_sidelength = int(sqrt(area_constraint))  
+        new_core_sidelength = int(sqrt(area_constraint))
+
+        #new_core_sidelength_x = new_core_sidelength * 2
+        #new_core_sidelength_y = int(area_constraint / new_core_sidelength_x)
 
         ## find a line that contains "set die_area" and replace it with the new area constraint
         for i, line in enumerate(tcl_data):
             if "set die_area" in line:
                 tcl_data[i] = f"set die_area {{0 0 {new_core_sidelength + DIE_CORE_BUFFER_SIZE*2} {new_core_sidelength + DIE_CORE_BUFFER_SIZE*2}}}\n"
+                #tcl_data[i] = f"set die_area {{0 0 {new_core_sidelength_x + DIE_CORE_BUFFER_SIZE*2} {new_core_sidelength_y + DIE_CORE_BUFFER_SIZE*2}}}\n"
                 logger.info(f"Updated die_area to {new_core_sidelength + DIE_CORE_BUFFER_SIZE*2}x{new_core_sidelength + DIE_CORE_BUFFER_SIZE*2}")
+                #logger.info(f"Updated die_area to {new_core_sidelength_x + DIE_CORE_BUFFER_SIZE*2}x{new_core_sidelength_y + DIE_CORE_BUFFER_SIZE*2}")
             if "set core_area" in line:
                 tcl_data[i] = f"set core_area {{{DIE_CORE_BUFFER_SIZE} {DIE_CORE_BUFFER_SIZE} {new_core_sidelength + DIE_CORE_BUFFER_SIZE} {new_core_sidelength + DIE_CORE_BUFFER_SIZE}}}\n"
+                #tcl_data[i] = f"set core_area {{{DIE_CORE_BUFFER_SIZE} {DIE_CORE_BUFFER_SIZE} {new_core_sidelength_x + DIE_CORE_BUFFER_SIZE} {new_core_sidelength_y + DIE_CORE_BUFFER_SIZE}}}\n"
                 logger.info(f"Updated core_area to {new_core_sidelength}x{new_core_sidelength}")
+                #logger.info(f"Updated core_area to {new_core_sidelength_x + DIE_CORE_BUFFER_SIZE*2}x{new_core_sidelength_y + DIE_CORE_BUFFER_SIZE*2}")
 
         ## write the new tcl file
         with open(self.directory + "/tcl/codesign_top.tcl", "w") as file:

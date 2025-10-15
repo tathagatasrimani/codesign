@@ -21,7 +21,8 @@ xor_gate = "XOR2_X1"
 mux = "MUX2_X1"
 reg = "DFF_X1"
 add = "Add50_40"
-mult = "Mult64_40"
+mult = "Mult64_40_2"
+#mult = "Mult64_40"
 #add = "ADD16_X1"
 #mult = "MUL16_X1"
 bitxor = "BitXor50_40"
@@ -448,8 +449,13 @@ class DefGenerator:
             msize = macro_size_dict.get(macro)
             if msize and units:
                 # include halo on both sides (assume macro_halo values are per-side in microns)
-                eff_x = msize[0] + 2.0 * self.macro_halo_x
-                eff_y = msize[1] + 2.0 * self.macro_halo_y
+                if graph.nodes[node]["function"] == "Mux":
+                    eff_x = msize[0] 
+                    eff_y = msize[1]
+                else:
+                    eff_x = msize[0] + 2.0 * self.macro_halo_x
+                    eff_y = msize[1] + 2.0 * self.macro_halo_y
+                log_info(f"Adding area for macro {macro}: {eff_x} * {eff_y} = {eff_x * eff_y}")
                 area_estimate_sq_microns += eff_x * eff_y
             else:
                  if macro not in macro_size_dict:

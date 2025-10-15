@@ -170,4 +170,6 @@ report_wire_length -net * -file "../results/wire_length_global.txt" -global_rout
 set routed_def [make_result_file final_generated.def]
 write_def $routed_def
 
+save_image [make_result_file design_snapshot.png] -display_option {Tracks/Pref true} 
+
 exit
