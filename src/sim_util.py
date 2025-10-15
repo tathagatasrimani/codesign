@@ -79,6 +79,8 @@ def get_module_map():
     module_map = {
         #"add": "Add",
         "fadd": "Add",
+        "dadd": "Add",
+        "dmul": "Mult",
         #"mul": "Mult",
         "fmul": "Mult",
         "call": "Call"
