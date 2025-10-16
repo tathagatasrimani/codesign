@@ -85,6 +85,18 @@ def get_module_map():
     }
     return module_map
 
+def map_operator_types(full_netlist):
+    """
+    Map the operator types in the netlist to standardized function names using module_map.
+    """
+    module_map = get_module_map()
+    for node in full_netlist:
+        raw_fn = full_netlist.nodes[node].get('bind', {}).get('fcode')
+        if raw_fn is None:
+            raw_fn = "N/A"
+        full_netlist.nodes[node]['function'] = module_map[raw_fn] if raw_fn in module_map else raw_fn
+    return full_netlist
+
 def get_latest_log_dir():
     log_dirs = glob.glob(os.path.normpath(os.path.join(os.path.dirname(__file__), "../logs/*-*-*_*-*-*")))
     log_dirs = sorted(

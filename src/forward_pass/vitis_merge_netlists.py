@@ -6,8 +6,6 @@ from src import sim_util
 import logging
 logger = logging.getLogger(__name__)
 
-module_map = sim_util.get_module_map()
-
 DEBUG = False
 
 def debug_print(message):
@@ -56,13 +54,10 @@ class MergeNetlistsVitis:
         ## print out the number of visited modules
         #debug_print(f"Number of visited modules: {len(self.all_modules_visited)}")
 
-        for node in full_netlist:
-            raw_fn = full_netlist.nodes[node].get('bind', {}).get('fcode')
-            if raw_fn is None:
-                raw_fn = "N/A"
-            full_netlist.nodes[node]['function'] = module_map[raw_fn] if raw_fn in module_map else raw_fn
+        ## map the operator types in the netlist to standardized function names using module_map
+        full_netlist = sim_util.map_operator_types(full_netlist)
 
-        ## save the full netlist to a file
+        ## save the unfiltered full netlist to a file
         output_file_path = os.path.join(current_directory, f"{top_level_module_name}_full_netlist_unfiltered.gml")
         nx.write_gml(full_netlist, output_file_path)
         #debug_print(f"Full netlist saved to {output_file_path}")

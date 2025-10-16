@@ -356,7 +356,7 @@ class Codesign:
 
             ## Create the netlist
             logger.info("Creating Vitis netlist")
-            create_vitis_netlist(parse_results_dir)
+            create_vitis_netlist(parse_results_dir, allowed_functions_netlist)
 
             ## Create the CDFGs for each FSM
             logger.info("Creating Vitis CDFGs")

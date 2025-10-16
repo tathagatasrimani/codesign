@@ -3,6 +3,7 @@ import sys
 import json
 import networkx as nx
 import logging
+from src import sim_util
 
 logger = logging.getLogger(__name__)
 
@@ -132,7 +133,7 @@ def create_networkX_netlist(json_netlist, json_complist, module_name):
 
     # Add nodes for each component, with attributes from complist
     for comp_id, comp_data in json_complist.items():
-        G.add_node(str(comp_id) + "_" + module_name, **comp_data)
+        G.add_node(str(comp_id) + "_" + module_name, **comp_data, module=module_name)
 
     # Add edges for each net, connecting src comp to sink comp
     for net_id, net_data in json_netlist.items():
@@ -145,7 +146,7 @@ def create_networkX_netlist(json_netlist, json_complist, module_name):
     return G
     
 
-def create_vitis_netlist(root_dir):
+def create_vitis_netlist(root_dir, allowed_functions):
     for subdir in os.listdir(root_dir):
         subdir_path = os.path.join(root_dir, subdir)
         if not os.path.isdir(subdir_path):
@@ -189,10 +190,17 @@ def create_vitis_netlist(root_dir):
         ## create the networkX graph:
         final_netlist = create_networkX_netlist(netlist, complist, subdir)
 
-        debug_print(f"Writing final netlist to {subdir_path}/{netlist_prefix}_netlist.gml")
+        debug_print(f"Writing netlist to {subdir_path}/{netlist_prefix}_netlist.gml")
 
         # Write out the networkX graph to a gml file
         nx.write_gml(final_netlist, f"{subdir_path}/{netlist_prefix}_netlist.gml")
+
+        # write out a filtered and function mapped version of the netlist
+        final_netlist_new_ops = sim_util.map_operator_types(final_netlist)
+        filtered_netlist = sim_util.filter_graph_by_function(final_netlist_new_ops, allowed_functions)
+
+        debug_print(f"Writing filtered netlist to {subdir_path}/{netlist_prefix}_netlist_filtered.gml")
+        nx.write_gml(filtered_netlist, f"{subdir_path}/{netlist_prefix}_netlist_filtered.gml")
 
 
 def main():
