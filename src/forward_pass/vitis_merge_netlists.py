@@ -62,48 +62,6 @@ def merge_netlists_vitis(root_dir, top_level_module_name, allowed_functions):
     output_filtered_file_path = os.path.join(root_dir, f"{top_level_module_name}_full_netlist.gml")
     nx.write_gml(filtered_netlist, output_filtered_file_path)
 
-def filter_netlist(full_netlist, desired_node_types={"add", "mul", "fmul"}, op_attr="fcode"):
-    """
-    Return a new DiGraph H that contains only the 'functional unit' nodes
-    (bind[op_attr] in desired_node_types) from full_netlist, as well as any node with type 'CONTROL_NODE'.
-    H has an edge u->v iff in full_netlist there exists a directed path u -> ... -> v whose internal nodes are all NON-target.
-    Each node in H will have all attributes from the original netlist node.
-    """
-    # Identify target nodes and control nodes
-    is_target = {
-        n: (
-            (full_netlist.nodes[n].get('bind', {}).get(op_attr) in desired_node_types)
-            or (full_netlist.nodes[n].get('type') == 'CONTROL_NODE')
-        )
-        for n in full_netlist.nodes
-    }
-    targets = [n for n, t in is_target.items() if t]
-
-    # Initialize the pruned graph with the target nodes and all their attributes
-    H = nx.DiGraph()
-    for n in targets:
-        H.add_node(n, **full_netlist.nodes[n])
-
-    # For each target, walk outward through only non-target nodes.
-    for u in targets:
-        stack = list(full_netlist.successors(u))
-        visited = set()
-
-        while stack:
-            x = stack.pop()
-            if x in visited:
-                continue
-            visited.add(x)
-
-            if is_target.get(x, False) and x != u:
-                # Copy edge attributes if present
-                edge_attrs = full_netlist.get_edge_data(u, x, default={})
-                H.add_edge(u, x, **edge_attrs, weight=0)
-                continue
-            stack.extend(full_netlist.successors(x))
-
-    return H
-
 def parse_module(root_dir, current_module):
 
     debug_print(f"!!!!!!!!!!!!!!!!!!!!!!!Parsing module for netlist merge: {current_module}")
