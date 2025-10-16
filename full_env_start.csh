@@ -73,8 +73,12 @@ endif
 # Only copy Xauthority if we're in a different directory than the old home
 if ("${HOME}" != "${OLD_HOME}") then
     echo "Copying Xauthority from ${OLD_HOME} to ${HOME}"
-    rm .Xauthority
+    if (-f .Xauthority) then
+        rm .Xauthority
+        echo "Removed existing .Xauthority"
+    endif
     cp "${OLD_HOME}"/.Xauthority .Xauthority
+    echo "Copied Xauthority from ${OLD_HOME} to ${HOME}"
 endif
 
 
