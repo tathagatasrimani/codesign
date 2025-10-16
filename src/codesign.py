@@ -27,7 +27,7 @@ from src.forward_pass import schedule_vitis
 from src.forward_pass.scale_hls_port_fix import scale_hls_port_fix
 from src.forward_pass.vitis_create_netlist import create_vitis_netlist
 from src.forward_pass.vitis_parse_verbose_rpt import parse_verbose_rpt
-from src.forward_pass.vitis_merge_netlists import merge_netlists_vitis
+from src.forward_pass.vitis_merge_netlists import MergeNetlistsVitis
 from src.forward_pass.vitis_create_cdfg import create_cdfg_vitis
 from src import trend_plot
 import time
@@ -370,7 +370,8 @@ class Codesign:
 
             ## Merge the netlists recursivley through the module hierarchy to produce overall netlist
             logger.info("Recursivley merging vitis netlists")
-            merge_netlists_vitis(parse_results_dir, self.vitis_top_function, allowed_functions_netlist)
+            vitis_netlist_merger = MergeNetlistsVitis(self.cfg, self.codesign_root_dir)
+            vitis_netlist_merger.merge_netlists_vitis(parse_results_dir, self.vitis_top_function, allowed_functions_netlist)
             logger.info("Vitis netlist parsing complete")
             logger.info(f"time to parse vitis netlist: {time.time()-start_time}")
         else:
