@@ -138,7 +138,7 @@ class Optimizer:
                     print(f"Error: {e}")
                     Error = True
                 # just let "infeasible" solutions through for now, often they are not violating any constraints
-                if (Error or results.solver.termination_condition not in ["optimal", "acceptable", "infeasible"]) and delay_factors[i] == 1.0:
+                if (Error or results.solver.termination_condition not in ["optimal", "acceptable", "infeasible", "maxIterations"]) and delay_factors[i] == 1.0:
                     print(f"First solve attempt failed, trying again...")
                     #raise Exception("First solve attempt failed")
                     Error = False
@@ -152,7 +152,7 @@ class Optimizer:
                     except Exception as e:
                         print(f"Error: {e}")
                         Error = True
-                if results.solver.termination_condition in ["optimal", "acceptable", "infeasible"]: 
+                if results.solver.termination_condition in ["optimal", "acceptable", "infeasible", "maxIterations"]: 
                     print(f"approximate solver found {results.solver.termination_condition} solution in iteration {i}")
                     pyo.TransformationFactory("core.scale_model").propagate_solution(
                         scaled_model_approx, model_approx
