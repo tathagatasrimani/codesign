@@ -79,21 +79,49 @@ class TechModel(ABC):
         self.m1_Rsq = (self.base_params.m1_rho) / (self.wire_dim**2) # resistance per square (Ohm/m)
         self.m2_Rsq = (self.base_params.m2_rho) / (self.wire_dim**2) # resistance per square (Ohm/m)
         self.m3_Rsq = (self.base_params.m3_rho) / (self.wire_dim**2) # resistance per square (Ohm/m)
+        self.m4_Rsq = (self.base_params.m4_rho) / (self.wire_dim**2) # resistance per square (Ohm/m)
+        self.m5_Rsq = (self.base_params.m5_rho) / (self.wire_dim**2) # resistance per square (Ohm/m)
+        self.m6_Rsq = (self.base_params.m6_rho) / (self.wire_dim**2) # resistance per square (Ohm/m)
+        self.m7_Rsq = (self.base_params.m7_rho) / (self.wire_dim**2) # resistance per square (Ohm/m)
+        self.m8_Rsq = (self.base_params.m8_rho) / (self.wire_dim**2) # resistance per square (Ohm/m)
+        self.m9_Rsq = (self.base_params.m9_rho) / (self.wire_dim**2) # resistance per square (Ohm/m)
+        self.m10_Rsq = (self.base_params.m10_rho) / (self.wire_dim**2) # resistance per square (Ohm/m)
 
         self.m1_Csq = (self.wire_dim * self.base_params.m1_k * self.e_0) / (self.dist) # capacitance per square (F/m)
         self.m2_Csq = (self.wire_dim * self.base_params.m2_k * self.e_0) / (self.dist) # capacitance per square (F/m)
         self.m3_Csq = (self.wire_dim * self.base_params.m3_k * self.e_0) / (self.dist) # capacitance per square (F/m)
+        self.m4_Csq = (self.wire_dim * self.base_params.m4_k * self.e_0) / (self.dist) # capacitance per square (F/m)
+        self.m5_Csq = (self.wire_dim * self.base_params.m5_k * self.e_0) / (self.dist) # capacitance per square (F/m)
+        self.m6_Csq = (self.wire_dim * self.base_params.m6_k * self.e_0) / (self.dist) # capacitance per square (F/m)
+        self.m7_Csq = (self.wire_dim * self.base_params.m7_k * self.e_0) / (self.dist) # capacitance per square (F/m)
+        self.m8_Csq = (self.wire_dim * self.base_params.m8_k * self.e_0) / (self.dist) # capacitance per square (F/m)
+        self.m9_Csq = (self.wire_dim * self.base_params.m9_k * self.e_0) / (self.dist) # capacitance per square (F/m)
+        self.m10_Csq = (self.wire_dim * self.base_params.m10_k * self.e_0) / (self.dist) # capacitance per square (F/m)
 
         self.wire_parasitics = {
             "R": {
                 "metal1": self.m1_Rsq,
                 "metal2": self.m2_Rsq,
                 "metal3": self.m3_Rsq,
+                "metal4": self.m4_Rsq,
+                "metal5": self.m5_Rsq,
+                "metal6": self.m6_Rsq,
+                "metal7": self.m7_Rsq,
+                "metal8": self.m8_Rsq,
+                "metal9": self.m9_Rsq,
+                "metal10": self.m10_Rsq,
             },
             "C": {
                 "metal1": self.m1_Csq,
                 "metal2": self.m2_Csq,
                 "metal3": self.m3_Csq,
+                "metal4": self.m4_Csq,
+                "metal5": self.m5_Csq,
+                "metal6": self.m6_Csq,
+                "metal7": self.m7_Csq,
+                "metal8": self.m8_Csq,
+                "metal9": self.m9_Csq,
+                "metal10": self.m10_Csq,
             }
         }
 

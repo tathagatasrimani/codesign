@@ -829,6 +829,7 @@ class Codesign:
     def log_all_to_file(self, iter_number):
         wire_lengths={}
         for edge in self.hw.circuit_model.wire_length_by_edge:
+            logger.info(f"in log_all_to_file, edge is {edge} and wire length df is {self.hw.circuit_model.wire_length_by_edge[edge]}")
             if "Mux" not in edge[0] and "Mux" not in edge[1]:
                 wire_lengths[edge] = self.hw.circuit_model.wire_length(edge)
         self.wire_lengths_over_iterations.append(wire_lengths)
