@@ -85,6 +85,7 @@ fi
 echo "UNIVERSITY set to: $UNIVERSITY"
 
 ## set home directory to codesign home directory
+export OLD_HOME="$HOME"
 export HOME="$(pwd)"
 export PATH="$HOME/.local/bin:$(echo "$PATH")"
 export CMAKE_PREFIX_PATH="$HOME/.local"
@@ -205,6 +206,13 @@ elif [ "$UNIVERSITY" = "cmu" ]; then
 else
     echo "Unsupported university for licensed cad tool setup: $UNIVERSITY"
     exit 1
+fi
+
+# Only copy Xauthority if we're in a different directory than the old home
+if [ "$HOME" != "$OLD_HOME" ]; then
+    echo "Copying Xauthority from $OLD_HOME to $HOME"
+    rm .Xauthority
+    cp "$OLD_HOME"/.Xauthority .Xauthority
 fi
 
 ############### Add useful alisas ###############
