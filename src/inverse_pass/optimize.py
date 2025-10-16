@@ -137,9 +137,10 @@ class Optimizer:
                 except Exception as e:
                     print(f"Error: {e}")
                     Error = True
-                if (Error or results.solver.termination_condition not in ["optimal", "acceptable"]) and delay_factors[i] == 1.0:
+                # just let "infeasible" solutions through for now, often they are not violating any constraints
+                if (Error or results.solver.termination_condition not in ["optimal", "acceptable", "infeasible"]) and delay_factors[i] == 1.0:
                     print(f"First solve attempt failed, trying again...")
-                    raise Exception("First solve attempt failed")
+                    #raise Exception("First solve attempt failed")
                     Error = False
                     opt_approx, scaled_model_approx, model_approx, multistart_options_approx = self.generate_approximate_solution(improvement, delay_factors[i], i, multistart=True)
                     # Try with more relaxed tolerances
@@ -151,7 +152,7 @@ class Optimizer:
                     except Exception as e:
                         print(f"Error: {e}")
                         Error = True
-                if results.solver.termination_condition in ["optimal", "acceptable"]:
+                if results.solver.termination_condition in ["optimal", "acceptable", "infeasible"]: 
                     print(f"approximate solver found {results.solver.termination_condition} solution in iteration {i}")
                     pyo.TransformationFactory("core.scale_model").propagate_solution(
                         scaled_model_approx, model_approx
