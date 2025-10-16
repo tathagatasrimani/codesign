@@ -27,7 +27,7 @@ from openroad_interface import openroad_run
 
 import cvxpy as cp
 
-DEBUG = False
+DEBUG = True
 def log_info(msg):
     if DEBUG:
         logger.info(msg)
@@ -669,7 +669,7 @@ class HardwareModel:
         loop_energy = 0
         for node, data in dfg.nodes(data=True):
             if data["function"] == "II": 
-                loop_count = data["count"]
+                loop_count = int(data["count"])
                 if is_loop:
                     loop_energy = self.calculate_active_energy_basic_block(basic_block_name, self.loop_1x_graphs[basic_block_name], is_loop=True)
             elif data["function"] == "Wire":
@@ -710,10 +710,14 @@ class HardwareModel:
             log_info(f"clock period constraint final: {constr}")
         logger.info(f"time to create constraints cvx: {time.time()-start_time}")
         start_time = time.time()
-        prob = cp.Problem(cp.Minimize(self.graph_delays_cvx[self.top_block_name]), self.constr_cvx+self.circuit_model.constraints_cvx)
+        #prob = cp.Problem(cp.Minimize(self.graph_delays_cvx[self.top_block_name]), self.constr_cvx+self.circuit_model.constraints_cvx)
+        prob = cp.Problem(cp.Minimize(self.circuit_model.clk_period_cvx), self.circuit_model.constraints_cvx)
         prob.solve()
-        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.node_arrivals_end] = self.graph_delays_cvx[self.top_block_name].value / self.scale_cvx
+        #self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.node_arrivals_end] = self.graph_delays_cvx[self.top_block_name].value / self.scale_cvx
         logger.info(f"time to update execution time with cvxpy: {time.time()-start_time}")
+        self.calculate_block_vectors(self.top_block_name)
+        #return self.block_vectors[self.top_block_name]["top"].delay
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.node_arrivals_end] = self.block_vectors[self.top_block_name]["top"].delay
         return self.circuit_model.tech_model.base_params.node_arrivals_end
 
     def update_state_after_cvxpy_solve(self):
@@ -822,9 +826,9 @@ class HardwareModel:
                 # calculate vector for II delay based on the resource constrained 1x loop iteration graph
                 if dfg.nodes[pred]["function"] == "II":
                     loop_1x_vector = self.calculate_block_vector_basic_block(basic_block_name, "loop_1x", self.loop_1x_graphs[basic_block_name])
-                    loop_1x_vector.delay *= dfg.nodes[pred]["count"]-1
+                    loop_1x_vector.delay *= int(dfg.nodes[pred]["count"])-1
                     for op_type in loop_1x_vector.op_types:
-                        loop_1x_vector.bound_factor[op_type] *= dfg.nodes[pred]["count"]-1
+                        loop_1x_vector.bound_factor[op_type] *= int(dfg.nodes[pred]["count"])-1
                     loop_1x_vector.normalize_bound_factor()
                     self.block_vectors[basic_block_name][graph_type][(pred, node)] = loop_1x_vector
                 # calculate vector for sub-function call
@@ -912,10 +916,13 @@ class HardwareModel:
             log_info(f"node arrivals cvx var for {top_block_name} full {node}: {self.node_arrivals_cvx[top_block_name]['full'][node]}")
         logger.info(f"time to create cvxpy problem: {time.time()-start_time}")
         start_time = time.time()
-        prob = cp.Problem(cp.Minimize(self.graph_delays_cvx[top_block_name]), self.constr_cvx+clk_period_constr)
+        #prob = cp.Problem(cp.Minimize(self.graph_delays_cvx[top_block_name]), self.constr_cvx+clk_period_constr)
+        prob = cp.Problem(cp.Minimize(self.circuit_model.clk_period_cvx), clk_period_constr)
         prob.solve()
         logger.info(f"time to solve cvxpy problem: {time.time()-start_time}")
-        self.update_state_after_cvxpy_solve()
+        #self.update_state_after_cvxpy_solve()
+        self.calculate_block_vectors(top_block_name)
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.node_arrivals_end] = self.block_vectors[top_block_name]["top"].delay
         return self.circuit_model.tech_model.base_params.node_arrivals_end
 
 
@@ -933,7 +940,8 @@ class HardwareModel:
                         #delay_2x, delay_2x_cvx = self.calculate_execution_time_vitis_recursive(basic_block_name, self.loop_2x_graphs[basic_block_name], graph_end_node="loop_end_2x", graph_type="loop_2x")
                         # TODO add dependence of II on loop-carried dependency
                         #pred_delay = delay_1x * (dfg.nodes[pred]["count"]-1)
-                        pred_delay_cvx = delay_1x_cvx * (dfg.nodes[pred]["count"]-1)
+                        #print(dfg.nodes[pred]["count"])
+                        pred_delay_cvx = delay_1x_cvx * (int(dfg.nodes[pred]["count"])-1)
                     else:
                         #pred_delay = self.circuit_model.tech_model.base_params.clk_period # convert to ns
                         pred_delay_cvx = self.circuit_model.clk_period_cvx * self.scale_cvx
@@ -1279,7 +1287,6 @@ class HardwareModel:
             self.total_passive_energy = self.calculate_passive_energy(self.execution_time, symbolic=True)
             self.total_active_energy = self.calculate_active_energy(symbolic=True)
         self.save_obj_vals(self.execution_time)
-        self.calculate_block_vectors(self.top_block_name)
         logger.info(f"time to calculate objective: {time.time()-start_time}")
 
     def display_objective(self, message):

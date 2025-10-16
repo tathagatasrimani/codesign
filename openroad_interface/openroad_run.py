@@ -225,7 +225,7 @@ class OpenRoadRun:
                         graph.add_edge(node, output)
                         node_name = graph.nodes[node]["name"]
                         output_name = graph.nodes[output]["name"]
-                        logger.info(f"Src: {node_name}, Dst: {output_name}")
+                        #logger.info(f"Src: {node_name}, Dst: {output_name}")
                         #print(f"path from {node} to {output}: {path}")
                         if len(path) != 0 and (node_name, output_name) not in wire_length_by_edge:
                             #print(f"adding wire length by edge")
@@ -369,8 +369,8 @@ class OpenRoadRun:
                 node_names = [node+"_"+str(x) for x in range(16)]
             else:
                 node_names = [node] * 16
-            logger.info(f"Node: {node}, Outputs: {outputs}")
-            logger.info(f"Net outs: {net_outs}")
+            #logger.info(f"Node: {node}, Outputs: {outputs}")
+            #logger.info(f"Net outs: {net_outs}")
             for output in outputs:
                 # if output is a mux, then there will be 16 instances of the mux, each with 1 output
                 # if output is not a mux, then it will have 16 ports
@@ -383,10 +383,10 @@ class OpenRoadRun:
                     output_name = output_names[idx]
                     node_name = node_names[idx]
                     net_name = net_outs[idx]
-                    logger.info(f"Node: {node}, Output: {output_name}, Net: {net_name}")
+                    #logger.info(f"Node: {node}, Output: {output_name}, Net: {net_name}")
                     src = graph.nodes[node_name]["name"]
                     dst = graph.nodes[output_name]["name"]
-                    logger.info(f"Src: {src}, Dst: {dst}")
+                    #logger.info(f"Src: {src}, Dst: {dst}")
                     if (src, dst) not in wire_length_by_edge:
                         wire_length_by_edge[(src, dst)] = copy.deepcopy(wire_length_df.loc[net_name])
                     else:
@@ -407,6 +407,13 @@ class OpenRoadRun:
             wire_length_by_edge[edge]["metal1"] /= alpha_scale_factor * 1e6 # convert to meters
             wire_length_by_edge[edge]["metal2"] /= alpha_scale_factor * 1e6 # convert to meters
             wire_length_by_edge[edge]["metal3"] /= alpha_scale_factor * 1e6 # convert to meters
+            wire_length_by_edge[edge]["metal4"] /= alpha_scale_factor * 1e6 # convert to meters
+            wire_length_by_edge[edge]["metal5"] /= alpha_scale_factor * 1e6 # convert to meters
+            wire_length_by_edge[edge]["metal6"] /= alpha_scale_factor * 1e6 # convert to meters
+            wire_length_by_edge[edge]["metal7"] /= alpha_scale_factor * 1e6 # convert to meters
+            wire_length_by_edge[edge]["metal8"] /= alpha_scale_factor * 1e6 # convert to meters
+            wire_length_by_edge[edge]["metal9"] /= alpha_scale_factor * 1e6 # convert to meters
+            wire_length_by_edge[edge]["metal10"] /= alpha_scale_factor * 1e6 # convert to meters
             #logger.info(f"scaled wire length by edge: {wire_length_by_edge[edge]}")
 
         return wire_length_by_edge, graph

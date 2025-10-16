@@ -14,6 +14,20 @@ default:
   m2_k: 3.9 # F / m
   m3_rho: 4.0e-8 # ohm * m
   m3_k: 3.9 # F / m
+  m4_rho: 4.0e-8 # ohm * m
+  m4_k: 3.9 # F / m
+  m5_rho: 4.0e-8 # ohm * m
+  m5_k: 3.9 # F / m
+  m6_rho: 4.0e-8 # ohm * m
+  m6_k: 3.9 # F / m
+  m7_rho: 4.0e-8 # ohm * m
+  m7_k: 3.9 # F / m
+  m8_rho: 4.0e-8 # ohm * m
+  m8_k: 3.9 # F / m
+  m9_rho: 4.0e-8 # ohm * m
+  m9_k: 3.9 # F / m
+  m10_rho: 4.0e-8 # ohm * m
+  m10_k: 3.9 # F / m
   k_gate: 3.9 # dielectric constant
   Cs: 100 # F/m^2
   clk_period: 250.0 # ns
