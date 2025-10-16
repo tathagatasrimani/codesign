@@ -30,12 +30,22 @@ def parse_route_guide_with_layer_breakdown(
     for net_id, block in net_blocks:
         # Match each routing box and its metal layer
         boxes = re.findall(r'(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(metal\d+)', block)
-        layer_lengths = {"metal1": 0.0, "metal2": 0.0, "metal3": 0.0}
+        layer_lengths = {
+            "metal1": 0.0, 
+            "metal2": 0.0, 
+            "metal3": 0.0, 
+            "metal4": 0.0,
+            "metal5": 0.0,
+            "metal6": 0.0,
+            "metal7": 0.0,
+            "metal8": 0.0,
+            "metal9": 0.0,
+            "metal10": 0.0
+        }
 
         for x1, y1, x2, y2, layer in boxes:
             x1, y1, x2, y2 = map(float, (x1, y1, x2, y2))
-            # Metal2 is vertical, metal1 and metal3 are horizontal
-            length = y2 - y1 if layer == "metal2" else x2 - x1
+            length = max(x2 - x1, y2 - y1)
             if layer in layer_lengths:
                 layer_lengths[layer] += length
 
