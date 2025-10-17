@@ -27,7 +27,7 @@ from openroad_interface import openroad_run
 
 import cvxpy as cp
 
-DEBUG = True
+DEBUG = False
 def log_info(msg):
     if DEBUG:
         logger.info(msg)
@@ -706,12 +706,22 @@ class HardwareModel:
         start_time = time.time()
         self.circuit_model.update_uarch_parameters()
         self.circuit_model.create_constraints_cvx(self.scale_cvx)
-        for constr in self.circuit_model.constraints_cvx:
+        
+
+        # if our performance not that sensitive to frequency, just hold frequency constant
+        if self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.logic_ahmdal_limit] > 10:
+            logger.info(f"holding frequency constant because logic_ahmdal_limit > 10")
+            clk_period_constraints = [self.circuit_model.clk_period_cvx == self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.clk_period]]
+        else:
+            logger.info(f"allowing frequency to vary because logic_ahmdal_limit <= 10")
+            clk_period_constraints = self.circuit_model.constraints_cvx
+        
+        for constr in clk_period_constraints:
             log_info(f"clock period constraint final: {constr}")
         logger.info(f"time to create constraints cvx: {time.time()-start_time}")
         start_time = time.time()
-        #prob = cp.Problem(cp.Minimize(self.graph_delays_cvx[self.top_block_name]), self.constr_cvx+self.circuit_model.constraints_cvx)
-        prob = cp.Problem(cp.Minimize(self.circuit_model.clk_period_cvx), self.circuit_model.constraints_cvx)
+        #prob = cp.Problem(cp.Minimize(self.graph_delays_cvx[self.top_block_name]), self.constr_cvx+clk_period_constraints)
+        prob = cp.Problem(cp.Minimize(self.circuit_model.clk_period_cvx), clk_period_constraints)
         prob.solve()
         #self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.node_arrivals_end] = self.graph_delays_cvx[self.top_block_name].value / self.scale_cvx
         logger.info(f"time to update execution time with cvxpy: {time.time()-start_time}")
@@ -907,7 +917,12 @@ class HardwareModel:
             clk_period_constr = [self.circuit_model.clk_period_cvx== self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.clk_period]]
         else:
             self.circuit_model.create_constraints_cvx(self.scale_cvx)
-            clk_period_constr = self.circuit_model.constraints_cvx
+            if self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.logic_ahmdal_limit] > 10:
+                logger.info(f"holding frequency constant because logic_ahmdal_limit > 10")
+                clk_period_constr = [self.circuit_model.clk_period_cvx == self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.clk_period]]
+            else:
+                logger.info(f"allowing frequency to vary because logic_ahmdal_limit <= 10")
+                clk_period_constr = self.circuit_model.constraints_cvx
         for constr in self.constr_cvx:
             log_info(f"constraint final: {constr}")
         for constr in clk_period_constr:
