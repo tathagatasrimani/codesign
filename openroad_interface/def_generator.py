@@ -359,7 +359,7 @@ class DefGenerator:
 
         input_dict = self.edge_gen("in", old_nodes, old_graph)
         input_dict_new = self.edge_gen("in", nodes, graph)
-        for node in old_nodes:
+        """for node in old_nodes:
             if "Regs" in node:
                 max_inputs = 1
             else:
@@ -407,7 +407,7 @@ class DefGenerator:
                 input_dict[node].append("Mux" + str(counter))
                 input_dict[node].remove(target_node2)
                 input_dict[node].remove(target_node1)
-                counter += 1 
+                counter += 1 """
             
         
         ### 4.generate header ###

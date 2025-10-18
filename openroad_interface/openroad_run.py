@@ -387,10 +387,13 @@ class OpenRoadRun:
                     src = graph.nodes[node_name]["name"]
                     dst = graph.nodes[output_name]["name"]
                     #logger.info(f"Src: {src}, Dst: {dst}")
-                    if (src, dst) not in wire_length_by_edge:
-                        wire_length_by_edge[(src, dst)] = copy.deepcopy(wire_length_df.loc[net_name])
+                    if net_name in wire_length_df.index:
+                        if (src, dst) not in wire_length_by_edge:
+                            wire_length_by_edge[(src, dst)] = copy.deepcopy(wire_length_df.loc[net_name])
+                        else:
+                            wire_length_by_edge[(src, dst)] += copy.deepcopy(wire_length_df.loc[net_name])
                     else:
-                        wire_length_by_edge[(src, dst)] += copy.deepcopy(wire_length_df.loc[net_name])
+                        logger.warning(f"Net {net_name} not found in wire length dataframe. Skipping.")
         self.export_graph(graph, "estimated_with_mux")
 
         wire_length_by_edge = self.mux_listing(graph, node_output, wire_length_by_edge)
