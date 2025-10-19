@@ -561,13 +561,13 @@ class HardwareModel:
         return mapped_nodes_input_output_match
 
     
-    def get_wire_parasitics(self, arg_testfile, arg_parasitics, benchmark_name, area_constraint=None):
+    def get_wire_parasitics(self, arg_testfile, arg_parasitics, benchmark_name, run_openroad, area_constraint=None):
         if self.hls_tool == "catapult":
             self.catapult_map_netlist_to_scheduled_dfg(benchmark_name)
         
         start_time = time.time()
 
-        open_road_run = openroad_run.OpenRoadRun(cfg=self.cfg, codesign_root_dir=self.codesign_root_dir, tmp_dir=self.tmp_dir)
+        open_road_run = openroad_run.OpenRoadRun(cfg=self.cfg, codesign_root_dir=self.codesign_root_dir, tmp_dir=self.tmp_dir, run_openroad=run_openroad)
 
         L_eff = self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.L]
 

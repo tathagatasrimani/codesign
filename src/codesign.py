@@ -119,6 +119,9 @@ class Codesign:
 
         self.wire_lengths_over_iterations = []
 
+        self.cur_dsp_usage = 0
+        self.max_rsc_reached = False
+
     # any arguments specified on CLI will override the default config
     def set_config(self, args):
         with open(f"src/yaml/codesign_cfg.yaml", "r") as f:
@@ -231,8 +234,8 @@ class Codesign:
         with open(f"ScaleHLS-HIDA/test/Transforms/Directive/config.json", "r") as f:
             config = json.load(f)
         if unlimited:
-            config["dsp"] = 1000
-            config["bram"] = 1000
+            config["dsp"] = 50
+            config["bram"] = 50
         else:
             config["dsp"] = int(self.cfg["args"]["area"] / (self.hw.circuit_model.tech_model.param_db["A_gate"].xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf() * self.dsp_multiplier))
             config["bram"] = int(self.cfg["args"]["area"] / (self.hw.circuit_model.tech_model.param_db["A_gate"].xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf() * self.bram_multiplier))
@@ -358,7 +361,7 @@ class Codesign:
 
         logger.info(f"parse results dir: {parse_results_dir}")
 
-        if self.checkpoint_controller.check_checkpoint("netlist", self.iteration_count):
+        if self.checkpoint_controller.check_checkpoint("netlist", self.iteration_count) and not self.max_rsc_reached:
             start_time = time.time()
             ## Do preprocessing to the vitis data for the next scripts
             parse_verbose_rpt(f"{save_dir}/{self.benchmark_name}/solution1/.autopilot/db", parse_results_dir)
@@ -387,7 +390,7 @@ class Codesign:
 
         self.checkpoint_controller.check_end_checkpoint("netlist")
 
-        if self.checkpoint_controller.check_checkpoint("schedule", self.iteration_count):
+        if self.checkpoint_controller.check_checkpoint("schedule", self.iteration_count) and not self.max_rsc_reached:
             start_time = time.time()
             logger.info("Parsing Vitis schedule")
             schedule_parser = schedule_vitis.vitis_schedule_parser(save_dir, self.benchmark_name, self.vitis_top_function, self.clk_period, allowed_functions_schedule)
@@ -453,7 +456,7 @@ class Codesign:
             opt_cmd = ""
 
         # run scalehls
-        if (self.checkpoint_controller.check_checkpoint("scalehls", self.iteration_count) and not setup) or (self.checkpoint_controller.check_checkpoint("setup", self.iteration_count) and setup):
+        if (self.checkpoint_controller.check_checkpoint("scalehls", self.iteration_count) and not setup) or (self.checkpoint_controller.check_checkpoint("setup", self.iteration_count) and setup) and not self.max_rsc_reached:
             self.run_scalehls(save_dir, opt_cmd, setup)
         else:
             logger.info("Skipping ScaleHLS")
@@ -478,6 +481,8 @@ class Codesign:
         if setup: # setup step ends here, don't need to run rest of forward pass
             return
 
+        self.cur_dsp_usage = dsp_usage
+
         self.hw.circuit_model.tech_model.init_scale_factors(self.max_speedup_factor, self.max_area_increase_factor)
 
         os.chdir(os.path.join(os.path.dirname(__file__), "..", save_dir))
@@ -487,7 +492,7 @@ class Codesign:
 
         import time
         command = ["vitis_hls", "-f", "tcl_script.tcl"]
-        if self.checkpoint_controller.check_checkpoint("vitis", self.iteration_count):
+        if self.checkpoint_controller.check_checkpoint("vitis", self.iteration_count) and not self.max_rsc_reached:
             start_time = time.time()
             # Start the process and write output to vitis_hls.log
             with open("vitis_hls.log", "w") as logfile:
@@ -631,12 +636,15 @@ class Codesign:
 
 
         ## clear out the existing tmp benchmark directory and copy the benchmark files from the desired benchmark
-        if iteration_count != 0 or self.cfg["args"]["checkpoint_start_step"] == "none":
+        if (iteration_count != 0 or self.cfg["args"]["checkpoint_start_step"] == "none") and not self.max_rsc_reached:
+            logger.info("Resetting benchmark directory.")
             if os.path.exists(self.benchmark_dir):
                 while os.path.exists(self.benchmark_dir):
                     shutil.rmtree(self.benchmark_dir, ignore_errors=True)
                     time.sleep(10)
             shutil.copytree(self.benchmark, self.benchmark_dir)
+        else:
+            logger.info("Skipping benchmark directory reset.")
 
         self.set_workload_size(self.benchmark_dir if not setup else self.benchmark_setup_dir)
 
@@ -732,7 +740,8 @@ class Codesign:
         # self.hw.netlist = netlist_dfg
 
         # update netlist and scheduled dfg with wire parasitics
-        self.hw.get_wire_parasitics(self.openroad_testfile, self.parasitics, self.benchmark_name, self.cfg["args"]["area"])
+        run_openroad = True if not self.max_rsc_reached else False
+        self.hw.get_wire_parasitics(self.openroad_testfile, self.parasitics, self.benchmark_name, run_openroad, self.cfg["args"]["area"])
 
         if self.cfg["args"]["hls_tool"] == "catapult":
             # set end node's start time to longest path length
@@ -938,6 +947,10 @@ class Codesign:
             logger.info(f"time to execute iteration {self.iteration_count}: {time.time()-start_time}")
             self.iteration_count += 1
             self.end_of_run_plots(self.obj_over_iterations, self.lag_factor_over_iterations, self.params_over_iterations, self.wire_lengths_over_iterations)
+            logger.info(f"current dsp usage: {self.cur_dsp_usage}, max dsp: {self.max_dsp}")
+            if self.cur_dsp_usage == self.max_dsp:
+                logger.info("Resource constraints have been reached, will skip forward pass steps from now on.")
+                self.max_rsc_reached = True        
 
         # cleanup
         self.cleanup()
