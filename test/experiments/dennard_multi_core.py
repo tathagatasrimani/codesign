@@ -22,7 +22,7 @@ class DennardMultiCore:
         )
         self.codesign_module.opt.test_config = True
 
-        if self.codesign_module.hw.circuit_model.tech_model.model_cfg["effects"]["max_parallel_en"] is not None:
+        if self.codesign_module.hw.circuit_model.tech_model.model_cfg["effects"]["max_parallel_en"]:
             self.max_parallel_val = self.codesign_module.hw.circuit_model.tech_model.model_cfg["effects"]["max_parallel_val"]
         else:
             self.max_parallel_val = 1e7
@@ -45,6 +45,18 @@ class DennardMultiCore:
         self.num_switches_per_inverter = 1e4
         self.calculate_objective()
         self.codesign_module.hw.save_obj_vals(self.codesign_module.hw.execution_time)
+        self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values[self.codesign_module.hw.circuit_model.tech_model.base_params.logic_sensitivity] = 1.0
+        self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values[self.codesign_module.hw.circuit_model.tech_model.base_params.logic_resource_sensitivity] = 1.0
+        self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values[self.codesign_module.hw.circuit_model.tech_model.base_params.logic_ahmdal_limit] = 1.0
+        self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values[self.codesign_module.hw.circuit_model.tech_model.base_params.logic_resource_ahmdal_limit] = 1.0
+        self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values[self.codesign_module.hw.circuit_model.tech_model.base_params.interconnect_sensitivity] = 1.0
+        self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values[self.codesign_module.hw.circuit_model.tech_model.base_params.interconnect_resource_sensitivity] = 1.0
+        self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values[self.codesign_module.hw.circuit_model.tech_model.base_params.interconnect_ahmdal_limit] = 1.0
+        self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values[self.codesign_module.hw.circuit_model.tech_model.base_params.interconnect_resource_ahmdal_limit] = 1.0
+        self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values[self.codesign_module.hw.circuit_model.tech_model.base_params.memory_sensitivity] = 1.0
+        self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values[self.codesign_module.hw.circuit_model.tech_model.base_params.memory_resource_sensitivity] = 1.0
+        self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values[self.codesign_module.hw.circuit_model.tech_model.base_params.memory_ahmdal_limit] = 1.0
+        self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values[self.codesign_module.hw.circuit_model.tech_model.base_params.memory_resource_ahmdal_limit] = 1.0
         self.codesign_module.hw.display_objective("after forward pass")
 
         print(f"initial area: {(self.num_inverters * self.codesign_module.hw.circuit_model.tech_model.A_gate * 2).xreplace(self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values).evalf()}")

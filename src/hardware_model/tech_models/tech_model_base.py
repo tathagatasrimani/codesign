@@ -145,14 +145,14 @@ class TechModel(ABC):
     def apply_additional_effects(self):
         self.delay_var = sp.symbols("delay_var")
         self.base_params.tech_values[self.delay_var] = xreplace_safe(self.delay, self.base_params.tech_values)
-        if self.model_cfg["effects"]["area_and_latency_scaling"]:
+        """if self.model_cfg["effects"]["area_and_latency_scaling"]:
             if self.model_cfg["effects"]["max_parallel_en"]:
                 MAX_PARALLEL = self.model_cfg["effects"]["max_parallel_val"]
                 self.delay = self.delay * symbolic_convex_max(self.base_params.latency_scale, 1/MAX_PARALLEL)
                 self.P_pass_inv = self.P_pass_inv * symbolic_min(self.base_params.area_scale, MAX_PARALLEL)
             else:
                 self.delay = self.delay * self.base_params.latency_scale
-                self.P_pass_inv = self.P_pass_inv * self.base_params.area_scale
+                self.P_pass_inv = self.P_pass_inv * self.base_params.area_scale"""
 
     @abstractmethod
     def create_constraints(self, dennard_scaling_type="constant_field"):
