@@ -61,10 +61,12 @@ class Codesign:
         self.benchmark = f"src/benchmarks/{self.hls_tool}/{self.cfg['args']['benchmark']}"
         self.benchmark_name = self.cfg["args"]["benchmark"]
         self.tmp_dir = self.get_tmp_dir()
+        print(f"tmp_dir: {self.tmp_dir}")
         self.benchmark_dir = f"{self.tmp_dir}/benchmark"
         self.benchmark_setup_dir = f"{self.tmp_dir}/benchmark_setup"
+        tmp_dir_suffix = self.tmp_dir.split("/")[-1]
         self.save_dir = os.path.join(
-            self.cfg["args"]["savedir"], datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            self.cfg["args"]["savedir"], datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S") + "_" + tmp_dir_suffix
         )
 
         if not os.path.exists(self.save_dir):
@@ -139,8 +141,8 @@ class Codesign:
     def get_tmp_dir(self):
         idx = 0
         while True:
-            tmp_dir = f"src/tmp_{idx}"
-            tmp_dir_full = os.path.join(self.codesign_root_dir, "src", f"tmp_{idx}")
+            tmp_dir = f"src/tmp_{idx}_{self.benchmark_name}"
+            tmp_dir_full = os.path.join(self.codesign_root_dir, tmp_dir)
             if not os.path.exists(tmp_dir_full):
                 os.makedirs(tmp_dir_full)
                 return tmp_dir
