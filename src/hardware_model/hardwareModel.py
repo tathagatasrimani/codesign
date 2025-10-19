@@ -107,13 +107,13 @@ class HardwareModel:
     to set up the hardware, manage netlists, and extract technology-specific timing and power data for
     optimization and simulation purposes.
     """
-    def __init__(self, cfg, codesign_root_dir):
+    def __init__(self, cfg, codesign_root_dir, tmp_dir):
 
         args = cfg["args"]
 
         self.cfg = cfg
         self.codesign_root_dir = codesign_root_dir
-
+        self.tmp_dir = tmp_dir
         # HARDCODED UNTIL WE COME BACK TO MEMORY MODELING
         self.cacti_tech_node = min(
             cacti_util.valid_tech_nodes,
@@ -567,7 +567,7 @@ class HardwareModel:
         
         start_time = time.time()
 
-        open_road_run = openroad_run.OpenRoadRun(cfg=self.cfg, codesign_root_dir=self.codesign_root_dir)
+        open_road_run = openroad_run.OpenRoadRun(cfg=self.cfg, codesign_root_dir=self.codesign_root_dir, tmp_dir=self.tmp_dir)
 
         L_eff = self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.L]
 

@@ -23,9 +23,10 @@ checkpoint_map = {
 # We assume that the proper state is saved in some tmp directory or similar.
 # This only supports vitis/scalehls, not catapult
 class CheckpointController:
-    def __init__(self, cfg, codesign_root_dir):
+    def __init__(self, cfg, codesign_root_dir, tmp_dir):
         self.cfg = cfg
         self.codesign_root_dir = codesign_root_dir
+        self.tmp_dir = tmp_dir
 
 
     if __name__ == "__main__":
@@ -56,7 +57,7 @@ class CheckpointController:
         
         ## copy the tmp directory to the checkpoint directory
         checkpoint_save_dir = os.path.join(cwd, "test/saved_checkpoints", args.directory)
-        tmp_dir = os.path.join(cwd, "src/tmp")
+        tmp_dir = os.path.join(cwd, self.tmp_dir)
         if os.path.exists(checkpoint_save_dir):
             print(f"ERROR: checkpoint directory {checkpoint_save_dir} already exists.")
             exit(1)
@@ -66,7 +67,7 @@ class CheckpointController:
     def create_checkpoint(self):
         ''' copy the tmp directory to the checkpoint directory. This is run on program end '''
         checkpoint_save_dir = os.path.join(self.codesign_root_dir, "test/saved_checkpoints", self.cfg["args"]["checkpoint_save_dir"])
-        tmp_dir = os.path.join(self.codesign_root_dir, "src/tmp")
+        tmp_dir = os.path.join(self.codesign_root_dir, self.tmp_dir)
         if os.path.exists(checkpoint_save_dir):
             shutil.rmtree(checkpoint_save_dir, ignore_errors=True)
 
@@ -75,7 +76,7 @@ class CheckpointController:
     def load_checkpoint(self):
         ''' copy the checkpoint directory to tmp, using codesign_root_dir for all paths '''
         checkpoint_load_dir = os.path.join(self.codesign_root_dir, "test/saved_checkpoints", self.cfg["args"]["checkpoint_load_dir"])
-        tmp_dir = os.path.join(self.codesign_root_dir, "src/tmp")
+        tmp_dir = os.path.join(self.codesign_root_dir, self.tmp_dir)
         
         assert os.path.exists(checkpoint_load_dir), f"Checkpoint directory does not exist: {checkpoint_load_dir}"
         if os.path.exists(tmp_dir):
