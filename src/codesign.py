@@ -60,6 +60,7 @@ class Codesign:
         self.hls_tool = self.cfg["args"]["hls_tool"]
         self.benchmark = f"src/benchmarks/{self.hls_tool}/{self.cfg['args']['benchmark']}"
         self.benchmark_name = self.cfg["args"]["benchmark"]
+        self.obj_fn = self.cfg["args"]["obj"]
         self.tmp_dir = self.get_tmp_dir()
         print(f"tmp_dir: {self.tmp_dir}")
         self.benchmark_dir = f"{self.tmp_dir}/benchmark"
@@ -93,7 +94,6 @@ class Codesign:
         self.opt = optimize.Optimizer(self.hw, self.tmp_dir)
         self.module_map = {}
         self.inverse_pass_improvement = self.cfg["args"]["inverse_pass_improvement"]
-        self.obj_fn = self.cfg["args"]["obj"]
         self.inverse_pass_lag_factor = 1
 
         self.params_over_iterations = [copy.copy(self.hw.circuit_model.tech_model.base_params.tech_values)]
@@ -144,7 +144,7 @@ class Codesign:
     def get_tmp_dir(self):
         idx = 0
         while True:
-            tmp_dir = f"src/tmp_{self.benchmark_name}_{idx}"
+            tmp_dir = f"src/tmp_{self.benchmark_name}_{self.obj_fn}_{idx}"
             tmp_dir_full = os.path.join(self.codesign_root_dir, tmp_dir)
             if not os.path.exists(tmp_dir_full):
                 os.makedirs(tmp_dir_full)
@@ -875,6 +875,8 @@ class Codesign:
         )
         self.write_back_params(f"{self.save_dir}/tech_params_{iter_number}.yaml")
         shutil.copy(f"{self.tmp_dir}/ipopt_out.txt", f"{self.save_dir}/ipopt_{iter_number}.txt")
+        if not os.path.exists(f"{self.tmp_dir}/pd_{self.cur_dsp_usage}_dsp"):
+            shutil.copytree(f"{self.tmp_dir}/pd", f"{self.tmp_dir}/pd_{self.cur_dsp_usage}_dsp")
         if os.path.exists(f"{self.tmp_dir}/pd/results/design_snapshot-tcl.png"):
             shutil.copy(f"{self.tmp_dir}/pd/results/design_snapshot-tcl.png", f"{self.save_dir}/design_snapshot_{iter_number}.png")
         """for mem in self.hw.circuit_model.memories:
