@@ -336,11 +336,16 @@ class Codesign:
 
     def parse_design_space_for_mlir(self, read_dir):
         df = pd.read_csv(f"{read_dir}/{self.benchmark_name}_space.csv")
+        mlir_idx_that_exist = []
         for i in range(len(df['dsp'].values)):
-            if df['dsp'].values[i] <= self.cur_dsp_usage and os.path.exists(f"{read_dir}/{self.benchmark_name}_pareto_{i}.mlir"):
+            file_exists = os.path.exists(f"{read_dir}/{self.benchmark_name}_pareto_{i}.mlir")
+            if file_exists:
+                mlir_idx_that_exist.append(i)
+            if df['dsp'].values[i] <= self.cur_dsp_usage and file_exists:
                 return f"{read_dir}/{self.benchmark_name}_pareto_{i}.mlir", i
-        #raise Exception(f"No Pareto solution found for {self.benchmark_name} with dsp usage {self.cur_dsp_usage}")
-        return f"{read_dir}/{self.benchmark_name}_pareto_{len(df['dsp'].values) - 1}.mlir", len(df['dsp'].values) - 1
+        if len(mlir_idx_that_exist) == 0:
+            raise Exception(f"No Pareto solutions found for {self.benchmark_name} with dsp usage {self.cur_dsp_usage}")
+        return f"{read_dir}/{self.benchmark_name}_pareto_{mlir_idx_that_exist[-1]}.mlir", mlir_idx_that_exist[-1]
 
     def parse_dsp_usage_and_latency(self, mlir_idx):
         df = pd.read_csv(f'''{os.path.join(os.path.dirname(__file__), "..", self.benchmark_setup_dir)}/{self.benchmark_name}_space.csv''')
