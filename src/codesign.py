@@ -141,7 +141,7 @@ class Codesign:
     def get_tmp_dir(self):
         idx = 0
         while True:
-            tmp_dir = f"src/tmp_{idx}_{self.benchmark_name}"
+            tmp_dir = f"src/tmp_{self.benchmark_name}_{idx}"
             tmp_dir_full = os.path.join(self.codesign_root_dir, tmp_dir)
             if not os.path.exists(tmp_dir_full):
                 os.makedirs(tmp_dir_full)
