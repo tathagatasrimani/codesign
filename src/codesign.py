@@ -236,8 +236,8 @@ class Codesign:
         with open(f"ScaleHLS-HIDA/test/Transforms/Directive/config.json", "r") as f:
             config = json.load(f)
         if unlimited:
-            config["dsp"] = 50
-            config["bram"] = 50
+            config["dsp"] = 10000
+            config["bram"] = 10000
         else:
             config["dsp"] = int(self.cfg["args"]["area"] / (self.hw.circuit_model.tech_model.param_db["A_gate"].xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf() * self.dsp_multiplier))
             config["bram"] = int(self.cfg["args"]["area"] / (self.hw.circuit_model.tech_model.param_db["A_gate"].xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf() * self.bram_multiplier))
