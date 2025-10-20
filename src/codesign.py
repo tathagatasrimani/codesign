@@ -270,6 +270,7 @@ class Codesign:
             None
         """
         start_time = time.time()
+        self.set_resource_constraint_scalehls(unlimited=setup)
 
         logger.info(f"Running scaleHLS with save_dir: {save_dir}, opt_cmd: {opt_cmd}")
             
@@ -456,8 +457,8 @@ class Codesign:
         self.vitis_top_function = self.benchmark_name if not self.cfg["args"]["pytorch"] else "forward"
 
         # prep before running scalehls
+        self.set_resource_constraint_scalehls(unlimited=setup)
         if setup:
-            self.set_resource_constraint_scalehls(unlimited=setup)
             opt_cmd = f'''scalehls-opt {self.benchmark_name}.mlir -scalehls-dse-pipeline=\"top-func={self.vitis_top_function} target-spec={os.path.join(os.path.dirname(__file__), "..", self.config_json_path)}\"'''
             mlir_idx = 0
         elif not self.cfg["args"]["pytorch"]: # pytorch scalehls dse not yet working
