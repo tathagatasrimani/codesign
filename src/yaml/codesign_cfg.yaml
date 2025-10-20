@@ -71,6 +71,12 @@ benchmark_mvt_test:
     benchmark: kernel_mvt
 
 
+vitis_bitnet_test:
+  base_cfg: vitis_test
+  args:
+    pytorch: True
+    benchmark: bitnet
+
 vitis_gemm_32_test:
   base_cfg: vitis_gemm_test
   args:
