@@ -124,6 +124,9 @@ class Codesign:
         self.cur_dsp_usage = 0
         self.max_rsc_reached = False
 
+        self.config_json_path_scalehls = "ScaleHLS-HIDA/test/Transforms/Directive/config.json"
+        self.config_json_path = self.benchmark_setup_dir + "/config.json"
+
     # any arguments specified on CLI will override the default config
     def set_config(self, args):
         with open(f"src/yaml/codesign_cfg.yaml", "r") as f:
@@ -233,7 +236,7 @@ class Codesign:
         """
         Sets the resource constraint and op latencies for ScaleHLS.
         """
-        with open(f"ScaleHLS-HIDA/test/Transforms/Directive/config.json", "r") as f:
+        with open(self.config_json_path, "r") as f:
             config = json.load(f)
         if unlimited:
             config["dsp"] = 10000
@@ -250,7 +253,9 @@ class Codesign:
         config["100MHz"]["fmul"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["Mult"] / self.clk_period)
         config["100MHz"]["fdiv"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["FloorDiv"] / self.clk_period)
         config["100MHz"]["fcmp"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["GtE"] / self.clk_period)
-        with open(f"ScaleHLS-HIDA/test/Transforms/Directive/config.json", "w") as f:
+
+        config["max_iter_num"] = self.cfg["args"]["max_iter_num_scalehls"]
+        with open(self.config_json_path, "w") as f:
             json.dump(config, f)
 
     def run_scalehls(self, save_dir, opt_cmd,setup=False):
@@ -265,7 +270,6 @@ class Codesign:
             None
         """
         start_time = time.time()
-        self.set_resource_constraint_scalehls(unlimited=setup)
 
         logger.info(f"Running scaleHLS with save_dir: {save_dir}, opt_cmd: {opt_cmd}")
             
@@ -452,9 +456,9 @@ class Codesign:
         self.vitis_top_function = self.benchmark_name if not self.cfg["args"]["pytorch"] else "forward"
 
         # prep before running scalehls
-        self.set_resource_constraint_scalehls(unlimited=setup)
         if setup:
-            opt_cmd = f'''scalehls-opt {self.benchmark_name}.mlir -scalehls-dse-pipeline=\"top-func={self.vitis_top_function} target-spec={os.path.join(os.path.dirname(__file__), "..", "ScaleHLS-HIDA/test/Transforms/Directive/config.json")}\"'''
+            self.set_resource_constraint_scalehls(unlimited=setup)
+            opt_cmd = f'''scalehls-opt {self.benchmark_name}.mlir -scalehls-dse-pipeline=\"top-func={self.vitis_top_function} target-spec={os.path.join(os.path.dirname(__file__), "..", self.config_json_path)}\"'''
             mlir_idx = 0
         elif not self.cfg["args"]["pytorch"]: # pytorch scalehls dse not yet working
             mlir_file, mlir_idx = self.parse_design_space_for_mlir(os.path.join(os.path.dirname(__file__), "..", f"{self.tmp_dir}/benchmark_setup"))
@@ -934,6 +938,8 @@ class Codesign:
     def setup(self):
         if not os.path.exists(self.benchmark_setup_dir):
             shutil.copytree(self.benchmark, self.benchmark_setup_dir)
+        assert os.path.exists(self.config_json_path_scalehls)
+        shutil.copy(self.config_json_path_scalehls, self.config_json_path)
         self.forward_pass(0, save_dir=self.benchmark_setup_dir, setup=True)
 
     def execute(self, num_iters):
