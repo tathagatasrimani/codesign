@@ -1089,7 +1089,7 @@ class HardwareModel:
                 total_active_energy += wire_energy
         return total_active_energy
 
-    def save_obj_vals(self, execution_time):
+    def save_obj_vals(self, execution_time, execution_time_override=False, execution_time_override_val=0):
         if self.model_cfg["model_type"] == "bulk_bsim4":
             self.obj_sub_exprs = {
                 "execution_time": execution_time,
@@ -1269,6 +1269,8 @@ class HardwareModel:
             "m2_k": "Metal 2 Permittivity over generations (F/m)",
             "m3_k": "Metal 3 Permittivity over generations (F/m)",
         }
+        if execution_time_override:
+            execution_time = execution_time_override_val
         if self.obj_fn == "edp":
             self.obj = (self.total_passive_energy + self.total_active_energy) * execution_time
             self.obj_scaled = (self.total_passive_energy * self.circuit_model.tech_model.capped_energy_scale + self.total_active_energy) * execution_time * self.circuit_model.tech_model.capped_delay_scale
