@@ -366,7 +366,7 @@ class OpenRoadRun:
         if self.run_openroad:
             self.run_openroad_executable()
         else:
-            logger.info("Skipping openroad run, as resource constraints have been reached in a previous iteration.")
+            logger.info("Skipping openroad run.")
 
         wire_length_df = est.parse_route_guide_with_layer_breakdown(self.directory + "/results/codesign_codesign-tcl.route_guide")
         wire_length_by_edge = {}
@@ -400,8 +400,8 @@ class OpenRoadRun:
                             wire_length_by_edge[(src, dst)] = copy.deepcopy(wire_length_df.loc[net_name])
                         else:
                             wire_length_by_edge[(src, dst)] += copy.deepcopy(wire_length_df.loc[net_name])
-                    else:
-                        logger.warning(f"Net {net_name} not found in wire length dataframe. Skipping.")
+                    #else:
+                    #    logger.warning(f"Net {net_name} not found in wire length dataframe. Skipping.")
         self.export_graph(graph, "estimated_with_mux")
 
         wire_length_by_edge = self.mux_listing(graph, node_output, wire_length_by_edge)

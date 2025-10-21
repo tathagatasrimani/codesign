@@ -752,7 +752,13 @@ class Codesign:
         # self.hw.netlist = netlist_dfg
 
         # update netlist and scheduled dfg with wire parasitics
-        run_openroad = True if not self.max_rsc_reached else False
+        run_openroad = (self.checkpoint_controller.check_checkpoint("schedule", self.iteration_count) and not self.max_rsc_reached) and not os.path.exists(f"{self.tmp_dir}/pd_{self.cur_dsp_usage}_dsp")
+        if os.path.exists(f"{self.tmp_dir}/pd_{self.cur_dsp_usage}_dsp"):
+            shutil.rmtree(f"{self.tmp_dir}/pd", ignore_errors=True)
+            shutil.copytree(f"{self.tmp_dir}/pd_{self.cur_dsp_usage}_dsp", f"{self.tmp_dir}/pd")
+            logger.info(f"copied pd_{self.cur_dsp_usage}_dsp to pd, will use results from previous run")
+        if not self.checkpoint_controller.check_checkpoint("schedule", self.iteration_count):
+            logger.info(f"will not run openroad because of checkpoint, will use results from previous run")
         self.hw.get_wire_parasitics(self.openroad_testfile, self.parasitics, self.benchmark_name, run_openroad, self.cfg["args"]["area"])
 
         if self.cfg["args"]["hls_tool"] == "catapult":
@@ -859,7 +865,7 @@ class Codesign:
     def log_all_to_file(self, iter_number):
         wire_lengths={}
         for edge in self.hw.circuit_model.wire_length_by_edge:
-            logger.info(f"in log_all_to_file, edge is {edge} and wire length df is {self.hw.circuit_model.wire_length_by_edge[edge]}")
+            #logger.info(f"in log_all_to_file, edge is {edge} and wire length df is {self.hw.circuit_model.wire_length_by_edge[edge]}")
             if "Mux" not in edge[0] and "Mux" not in edge[1]:
                 wire_lengths[edge] = self.hw.circuit_model.wire_length(edge)
         self.wire_lengths_over_iterations.append(wire_lengths)
