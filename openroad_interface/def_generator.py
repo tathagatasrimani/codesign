@@ -40,10 +40,11 @@ def log_warning(msg):
 
 
 class DefGenerator:
-    def __init__(self, cfg, codesign_root_dir, NEW_database_units_per_micron):
+    def __init__(self, cfg, codesign_root_dir, tmp_dir, NEW_database_units_per_micron):
         self.cfg = cfg
         self.codesign_root_dir = codesign_root_dir
-        self.directory = os.path.join(self.codesign_root_dir, "src/tmp/pd")
+        self.tmp_dir = tmp_dir
+        self.directory = os.path.join(self.codesign_root_dir, f"{self.tmp_dir}/pd")
         self.macro_halo_x = 0.0
         self.macro_halo_y = 0.0
         self.max_dim_macro = 0.0
@@ -359,7 +360,7 @@ class DefGenerator:
 
         input_dict = self.edge_gen("in", old_nodes, old_graph)
         input_dict_new = self.edge_gen("in", nodes, graph)
-        for node in old_nodes:
+        """for node in old_nodes:
             if "Regs" in node:
                 max_inputs = 1
             else:
@@ -407,7 +408,7 @@ class DefGenerator:
                 input_dict[node].append("Mux" + str(counter))
                 input_dict[node].remove(target_node2)
                 input_dict[node].remove(target_node1)
-                counter += 1 
+                counter += 1 """
             
         
         ### 4.generate header ###

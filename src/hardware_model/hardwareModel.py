@@ -27,7 +27,7 @@ from openroad_interface import openroad_run
 
 import cvxpy as cp
 
-DEBUG = True
+DEBUG = False
 def log_info(msg):
     if DEBUG:
         logger.info(msg)
@@ -107,13 +107,13 @@ class HardwareModel:
     to set up the hardware, manage netlists, and extract technology-specific timing and power data for
     optimization and simulation purposes.
     """
-    def __init__(self, cfg, codesign_root_dir):
+    def __init__(self, cfg, codesign_root_dir, tmp_dir):
 
         args = cfg["args"]
 
         self.cfg = cfg
         self.codesign_root_dir = codesign_root_dir
-
+        self.tmp_dir = tmp_dir
         # HARDCODED UNTIL WE COME BACK TO MEMORY MODELING
         self.cacti_tech_node = min(
             cacti_util.valid_tech_nodes,
@@ -561,13 +561,13 @@ class HardwareModel:
         return mapped_nodes_input_output_match
 
     
-    def get_wire_parasitics(self, arg_testfile, arg_parasitics, benchmark_name, area_constraint=None):
+    def get_wire_parasitics(self, arg_testfile, arg_parasitics, benchmark_name, run_openroad, area_constraint=None):
         if self.hls_tool == "catapult":
             self.catapult_map_netlist_to_scheduled_dfg(benchmark_name)
         
         start_time = time.time()
 
-        open_road_run = openroad_run.OpenRoadRun(cfg=self.cfg, codesign_root_dir=self.codesign_root_dir)
+        open_road_run = openroad_run.OpenRoadRun(cfg=self.cfg, codesign_root_dir=self.codesign_root_dir, tmp_dir=self.tmp_dir, run_openroad=run_openroad)
 
         L_eff = self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.L]
 
@@ -706,12 +706,22 @@ class HardwareModel:
         start_time = time.time()
         self.circuit_model.update_uarch_parameters()
         self.circuit_model.create_constraints_cvx(self.scale_cvx)
-        for constr in self.circuit_model.constraints_cvx:
+        
+
+        # if our performance not that sensitive to frequency, just hold frequency constant
+        if self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.logic_ahmdal_limit] > 10:
+            logger.info(f"holding frequency constant because logic_ahmdal_limit > 10")
+            clk_period_constraints = [self.circuit_model.clk_period_cvx == self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.clk_period]]
+        else:
+            logger.info(f"allowing frequency to vary because logic_ahmdal_limit <= 10")
+            clk_period_constraints = self.circuit_model.constraints_cvx
+        
+        for constr in clk_period_constraints:
             log_info(f"clock period constraint final: {constr}")
         logger.info(f"time to create constraints cvx: {time.time()-start_time}")
         start_time = time.time()
-        #prob = cp.Problem(cp.Minimize(self.graph_delays_cvx[self.top_block_name]), self.constr_cvx+self.circuit_model.constraints_cvx)
-        prob = cp.Problem(cp.Minimize(self.circuit_model.clk_period_cvx), self.circuit_model.constraints_cvx)
+        #prob = cp.Problem(cp.Minimize(self.graph_delays_cvx[self.top_block_name]), self.constr_cvx+clk_period_constraints)
+        prob = cp.Problem(cp.Minimize(self.circuit_model.clk_period_cvx), clk_period_constraints)
         prob.solve()
         #self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.node_arrivals_end] = self.graph_delays_cvx[self.top_block_name].value / self.scale_cvx
         logger.info(f"time to update execution time with cvxpy: {time.time()-start_time}")
@@ -907,7 +917,12 @@ class HardwareModel:
             clk_period_constr = [self.circuit_model.clk_period_cvx== self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.clk_period]]
         else:
             self.circuit_model.create_constraints_cvx(self.scale_cvx)
-            clk_period_constr = self.circuit_model.constraints_cvx
+            if self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.logic_ahmdal_limit] > 10:
+                logger.info(f"holding frequency constant because logic_ahmdal_limit > 10")
+                clk_period_constr = [self.circuit_model.clk_period_cvx == self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.clk_period]]
+            else:
+                logger.info(f"allowing frequency to vary because logic_ahmdal_limit <= 10")
+                clk_period_constr = self.circuit_model.constraints_cvx
         for constr in self.constr_cvx:
             log_info(f"constraint final: {constr}")
         for constr in clk_period_constr:
@@ -1074,7 +1089,7 @@ class HardwareModel:
                 total_active_energy += wire_energy
         return total_active_energy
 
-    def save_obj_vals(self, execution_time):
+    def save_obj_vals(self, execution_time, execution_time_override=False, execution_time_override_val=0):
         if self.model_cfg["model_type"] == "bulk_bsim4":
             self.obj_sub_exprs = {
                 "execution_time": execution_time,
@@ -1254,6 +1269,8 @@ class HardwareModel:
             "m2_k": "Metal 2 Permittivity over generations (F/m)",
             "m3_k": "Metal 3 Permittivity over generations (F/m)",
         }
+        if execution_time_override:
+            execution_time = execution_time_override_val
         if self.obj_fn == "edp":
             self.obj = (self.total_passive_energy + self.total_active_energy) * execution_time
             self.obj_scaled = (self.total_passive_energy * self.circuit_model.tech_model.capped_energy_scale + self.total_active_energy) * execution_time * self.circuit_model.tech_model.capped_delay_scale

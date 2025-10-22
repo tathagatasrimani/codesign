@@ -18,7 +18,7 @@ class Preprocessor:
     mapping between symbolic and Pyomo variables, applies constraints, and manages substitutions for
     technology parameters.
     """
-    def __init__(self, params, out_file="src/tmp/solver_out.txt", solver_name="ipopt"):
+    def __init__(self, params, out_file, solver_name="ipopt"):
         """
         Initialize the Preprocessor instance, setting up mappings, initial values, and constraint sets.
         """

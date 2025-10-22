@@ -60,10 +60,14 @@ class Codesign:
         self.hls_tool = self.cfg["args"]["hls_tool"]
         self.benchmark = f"src/benchmarks/{self.hls_tool}/{self.cfg['args']['benchmark']}"
         self.benchmark_name = self.cfg["args"]["benchmark"]
-        self.benchmark_dir = "src/tmp/benchmark"
-        self.benchmark_setup_dir = "src/tmp/benchmark_setup"
+        self.obj_fn = self.cfg["args"]["obj"]
+        self.tmp_dir = self.get_tmp_dir()
+        print(f"tmp_dir: {self.tmp_dir}")
+        self.benchmark_dir = f"{self.tmp_dir}/benchmark"
+        self.benchmark_setup_dir = f"{self.tmp_dir}/benchmark_setup"
+        tmp_dir_suffix = self.tmp_dir.split("/")[-1]
         self.save_dir = os.path.join(
-            self.cfg["args"]["savedir"], datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            self.cfg["args"]["savedir"], datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S") + "_" + tmp_dir_suffix
         )
 
         if not os.path.exists(self.save_dir):
@@ -75,24 +79,21 @@ class Codesign:
         with open(f"{self.save_dir}/codesign.log", "a") as f:
             f.write("Codesign Log\n")
             f.write(f"Benchmark: {self.benchmark}\n")
-        if os.path.exists("src/tmp"):
-            shutil.rmtree("src/tmp", ignore_errors=True)
-        os.mkdir("src/tmp")
+            f.write(f"Tmp dir: {self.tmp_dir}\n")
 
         logging.basicConfig(filename=f"{self.save_dir}/codesign.log", level=logging.INFO)
         logger.info(f"args: {self.cfg['args']}")
 
         self.forward_obj = 0
         self.inverse_obj = 0
-        self.openroad_testfile = f"{self.codesign_root_dir}/src/tmp/pd/tcl/{self.cfg['args']['openroad_testfile']}"
+        self.openroad_testfile = f"{self.codesign_root_dir}/{self.tmp_dir}/pd/tcl/{self.cfg['args']['openroad_testfile']}"
         self.parasitics = self.cfg["args"]["parasitics"]
         self.run_cacti = not self.cfg["args"]["debug_no_cacti"]
         self.no_memory = self.cfg["args"]["no_memory"]
-        self.hw = hardwareModel.HardwareModel(self.cfg, self.codesign_root_dir)
-        self.opt = optimize.Optimizer(self.hw)
+        self.hw = hardwareModel.HardwareModel(self.cfg, self.codesign_root_dir, self.tmp_dir)
+        self.opt = optimize.Optimizer(self.hw, self.tmp_dir)
         self.module_map = {}
         self.inverse_pass_improvement = self.cfg["args"]["inverse_pass_improvement"]
-        self.obj_fn = self.cfg["args"]["obj"]
         self.inverse_pass_lag_factor = 1
 
         self.params_over_iterations = [copy.copy(self.hw.circuit_model.tech_model.base_params.tech_values)]
@@ -102,14 +103,14 @@ class Codesign:
 
         self.save_dat()
 
-        #with open("src/tmp/tech_params_0.yaml", "w") as f:
+        #with open(f"{self.tmp_dir}/tech_params_0.yaml", "w") as f:
         #    f.write(yaml.dump(self.hw.circuit_model.tech_model.base_params.tech_values))
 
         self.hw.write_technology_parameters(self.save_dir+"/initial_tech_params.yaml")
 
         self.iteration_count = 0
         
-        self.checkpoint_controller = checkpoint_controller.CheckpointController(self.cfg, self.codesign_root_dir)
+        self.checkpoint_controller = checkpoint_controller.CheckpointController(self.cfg, self.codesign_root_dir, self.tmp_dir)
 
         if self.cfg["args"]["checkpoint_start_step"]!= "none" and self.cfg["args"]["checkpoint_load_dir"] != "none":
             self.checkpoint_controller.load_checkpoint()
@@ -119,6 +120,12 @@ class Codesign:
         self.bram_multiplier = 1/3 * self.cfg["args"]["area"] / (3e-6 * 9e-6)
 
         self.wire_lengths_over_iterations = []
+
+        self.cur_dsp_usage = 0
+        self.max_rsc_reached = False
+
+        self.config_json_path_scalehls = "ScaleHLS-HIDA/test/Transforms/Directive/config.json"
+        self.config_json_path = self.benchmark_setup_dir + "/config.json"
 
     # any arguments specified on CLI will override the default config
     def set_config(self, args):
@@ -133,6 +140,16 @@ class Codesign:
         cfgs["overwrite_cfg"] = overwrite_cfg
         self.cfg = sim_util.recursive_cfg_merge(cfgs, "overwrite_cfg")
         print(f"args: {self.cfg['args']}")
+
+    def get_tmp_dir(self):
+        idx = 0
+        while True:
+            tmp_dir = f"src/tmp_{self.benchmark_name}_{self.obj_fn}_{idx}"
+            tmp_dir_full = os.path.join(self.codesign_root_dir, tmp_dir)
+            if not os.path.exists(tmp_dir_full):
+                os.makedirs(tmp_dir_full)
+                return tmp_dir
+            idx += 1
 
     def log_forward_tech_params(self):
         latency = self.hw.circuit_model.circuit_values["latency"]
@@ -219,11 +236,11 @@ class Codesign:
         """
         Sets the resource constraint and op latencies for ScaleHLS.
         """
-        with open(f"ScaleHLS-HIDA/test/Transforms/Directive/config.json", "r") as f:
+        with open(self.config_json_path, "r") as f:
             config = json.load(f)
         if unlimited:
-            config["dsp"] = 1000000
-            config["bram"] = 1000000
+            config["dsp"] = 10000
+            config["bram"] = 10000
         else:
             config["dsp"] = int(self.cfg["args"]["area"] / (self.hw.circuit_model.tech_model.param_db["A_gate"].xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf() * self.dsp_multiplier))
             config["bram"] = int(self.cfg["args"]["area"] / (self.hw.circuit_model.tech_model.param_db["A_gate"].xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf() * self.bram_multiplier))
@@ -236,7 +253,9 @@ class Codesign:
         config["100MHz"]["fmul"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["Mult"] / self.clk_period)
         config["100MHz"]["fdiv"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["FloorDiv"] / self.clk_period)
         config["100MHz"]["fcmp"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["GtE"] / self.clk_period)
-        with open(f"ScaleHLS-HIDA/test/Transforms/Directive/config.json", "w") as f:
+
+        config["max_iter_num"] = self.cfg["args"]["max_iter_num_scalehls"]
+        with open(self.config_json_path, "w") as f:
             json.dump(config, f)
 
     def run_scalehls(self, save_dir, opt_cmd,setup=False):
@@ -305,7 +324,7 @@ class Codesign:
                 '''
             ]
 
-        with open(f"src/tmp/scalehls_out.log", "w") as outfile:
+        with open(f"{self.tmp_dir}/scalehls_out.log", "w") as outfile:
             p = subprocess.Popen(
                 cmd,
                 stdout=outfile,
@@ -313,7 +332,7 @@ class Codesign:
                 env={}  # clean environment
             )
             p.wait()
-        with open(f"src/tmp/scalehls_out.log", "r") as f:
+        with open(f"{self.tmp_dir}/scalehls_out.log", "r") as f:
             logger.info(f"scaleHLS output:\n{f.read()}")
 
         if p.returncode != 0:
@@ -322,14 +341,19 @@ class Codesign:
 
     def parse_design_space_for_mlir(self, read_dir):
         df = pd.read_csv(f"{read_dir}/{self.benchmark_name}_space.csv")
+        mlir_idx_that_exist = []
         for i in range(len(df['dsp'].values)):
-            if df['dsp'].values[i] <= self.cur_dsp_usage and os.path.exists(f"{read_dir}/{self.benchmark_name}_pareto_{i}.mlir"):
+            file_exists = os.path.exists(f"{read_dir}/{self.benchmark_name}_pareto_{i}.mlir")
+            if file_exists:
+                mlir_idx_that_exist.append(i)
+            if df['dsp'].values[i] <= self.cur_dsp_usage and file_exists:
                 return f"{read_dir}/{self.benchmark_name}_pareto_{i}.mlir", i
-        #raise Exception(f"No Pareto solution found for {self.benchmark_name} with dsp usage {self.cur_dsp_usage}")
-        return f"{read_dir}/{self.benchmark_name}_pareto_{len(df['dsp'].values) - 1}.mlir", len(df['dsp'].values) - 1
+        if len(mlir_idx_that_exist) == 0:
+            raise Exception(f"No Pareto solutions found for {self.benchmark_name} with dsp usage {self.cur_dsp_usage}")
+        return f"{read_dir}/{self.benchmark_name}_pareto_{mlir_idx_that_exist[-1]}.mlir", mlir_idx_that_exist[-1]
 
     def parse_dsp_usage_and_latency(self, mlir_idx):
-        df = pd.read_csv(f'''{os.path.join(os.path.dirname(__file__), "..", "src/tmp/benchmark_setup")}/{self.benchmark_name}_space.csv''')
+        df = pd.read_csv(f'''{os.path.join(os.path.dirname(__file__), "..", self.benchmark_setup_dir)}/{self.benchmark_name}_space.csv''')
         logger.info(f"dsp usage: {df['dsp'].values[mlir_idx]}, latency: {df['cycle'].values[mlir_idx]}")
         return df['dsp'].values[mlir_idx], df['cycle'].values[mlir_idx]
 
@@ -349,7 +373,7 @@ class Codesign:
 
         logger.info(f"parse results dir: {parse_results_dir}")
 
-        if self.checkpoint_controller.check_checkpoint("netlist", self.iteration_count):
+        if self.checkpoint_controller.check_checkpoint("netlist", self.iteration_count) and not self.max_rsc_reached:
             start_time = time.time()
             ## Do preprocessing to the vitis data for the next scripts
             parse_verbose_rpt(f"{save_dir}/{self.benchmark_name}/solution1/.autopilot/db", parse_results_dir)
@@ -378,7 +402,7 @@ class Codesign:
 
         self.checkpoint_controller.check_end_checkpoint("netlist")
 
-        if self.checkpoint_controller.check_checkpoint("schedule", self.iteration_count):
+        if self.checkpoint_controller.check_checkpoint("schedule", self.iteration_count) and not self.max_rsc_reached:
             start_time = time.time()
             logger.info("Parsing Vitis schedule")
             schedule_parser = schedule_vitis.vitis_schedule_parser(save_dir, self.benchmark_name, self.vitis_top_function, self.clk_period, allowed_functions_schedule)
@@ -435,16 +459,16 @@ class Codesign:
         # prep before running scalehls
         self.set_resource_constraint_scalehls(unlimited=setup)
         if setup:
-            opt_cmd = f'''scalehls-opt {self.benchmark_name}.mlir -scalehls-dse-pipeline=\"top-func={self.vitis_top_function} target-spec={os.path.join(os.path.dirname(__file__), "..", "ScaleHLS-HIDA/test/Transforms/Directive/config.json")}\"'''
+            opt_cmd = f'''scalehls-opt {self.benchmark_name}.mlir -scalehls-dse-pipeline=\"top-func={self.vitis_top_function} target-spec={os.path.join(os.path.dirname(__file__), "..", self.config_json_path)}\"'''
             mlir_idx = 0
         elif not self.cfg["args"]["pytorch"]: # pytorch scalehls dse not yet working
-            mlir_file, mlir_idx = self.parse_design_space_for_mlir(os.path.join(os.path.dirname(__file__), "..", "src/tmp/benchmark_setup"))
+            mlir_file, mlir_idx = self.parse_design_space_for_mlir(os.path.join(os.path.dirname(__file__), "..", f"{self.tmp_dir}/benchmark_setup"))
             opt_cmd = f"cat {mlir_file}"
         else:
             opt_cmd = ""
 
         # run scalehls
-        if (self.checkpoint_controller.check_checkpoint("scalehls", self.iteration_count) and not setup) or (self.checkpoint_controller.check_checkpoint("setup", self.iteration_count) and setup):
+        if (self.checkpoint_controller.check_checkpoint("scalehls", self.iteration_count) and not setup) or (self.checkpoint_controller.check_checkpoint("setup", self.iteration_count) and setup) and not self.max_rsc_reached:
             self.run_scalehls(save_dir, opt_cmd, setup)
         else:
             logger.info("Skipping ScaleHLS")
@@ -469,6 +493,8 @@ class Codesign:
         if setup: # setup step ends here, don't need to run rest of forward pass
             return
 
+        self.cur_dsp_usage = dsp_usage
+
         self.hw.circuit_model.tech_model.init_scale_factors(self.max_speedup_factor, self.max_area_increase_factor)
 
         os.chdir(os.path.join(os.path.dirname(__file__), "..", save_dir))
@@ -478,7 +504,7 @@ class Codesign:
 
         import time
         command = ["vitis_hls", "-f", "tcl_script.tcl"]
-        if self.checkpoint_controller.check_checkpoint("vitis", self.iteration_count):
+        if self.checkpoint_controller.check_checkpoint("vitis", self.iteration_count) and not self.max_rsc_reached:
             start_time = time.time()
             # Start the process and write output to vitis_hls.log
             with open("vitis_hls.log", "w") as logfile:
@@ -622,12 +648,15 @@ class Codesign:
 
 
         ## clear out the existing tmp benchmark directory and copy the benchmark files from the desired benchmark
-        if iteration_count != 0 or self.cfg["args"]["checkpoint_start_step"] == "none":
+        if (iteration_count != 0 or self.cfg["args"]["checkpoint_start_step"] == "none") and not self.max_rsc_reached:
+            logger.info("Resetting benchmark directory.")
             if os.path.exists(self.benchmark_dir):
                 while os.path.exists(self.benchmark_dir):
                     shutil.rmtree(self.benchmark_dir, ignore_errors=True)
                     time.sleep(10)
             shutil.copytree(self.benchmark, self.benchmark_dir)
+        else:
+            logger.info("Skipping benchmark directory reset.")
 
         self.set_workload_size(self.benchmark_dir if not setup else self.benchmark_setup_dir)
 
@@ -723,7 +752,14 @@ class Codesign:
         # self.hw.netlist = netlist_dfg
 
         # update netlist and scheduled dfg with wire parasitics
-        self.hw.get_wire_parasitics(self.openroad_testfile, self.parasitics, self.benchmark_name, self.cfg["args"]["area"])
+        run_openroad = (self.checkpoint_controller.check_checkpoint("schedule", self.iteration_count) and not self.max_rsc_reached) and not os.path.exists(f"{self.tmp_dir}/pd_{self.cur_dsp_usage}_dsp")
+        if os.path.exists(f"{self.tmp_dir}/pd_{self.cur_dsp_usage}_dsp"):
+            shutil.rmtree(f"{self.tmp_dir}/pd", ignore_errors=True)
+            shutil.copytree(f"{self.tmp_dir}/pd_{self.cur_dsp_usage}_dsp", f"{self.tmp_dir}/pd")
+            logger.info(f"copied pd_{self.cur_dsp_usage}_dsp to pd, will use results from previous run")
+        if not self.checkpoint_controller.check_checkpoint("schedule", self.iteration_count):
+            logger.info(f"will not run openroad because of checkpoint, will use results from previous run")
+        self.hw.get_wire_parasitics(self.openroad_testfile, self.parasitics, self.benchmark_name, run_openroad, self.cfg["args"]["area"])
 
         if self.cfg["args"]["hls_tool"] == "catapult":
             # set end node's start time to longest path length
@@ -808,7 +844,7 @@ class Codesign:
         self.hw.display_objective("after symbolic conversion")
 
         stdout = sys.stdout
-        with open("src/tmp/ipopt_out.txt", "w") as sys.stdout:
+        with open(f"{self.tmp_dir}/ipopt_out.txt", "w") as sys.stdout:
             lag_factor, error = self.opt.optimize("ipopt", improvement=self.inverse_pass_improvement)
             self.inverse_pass_lag_factor *= lag_factor
         sys.stdout = stdout
@@ -829,7 +865,7 @@ class Codesign:
     def log_all_to_file(self, iter_number):
         wire_lengths={}
         for edge in self.hw.circuit_model.wire_length_by_edge:
-            logger.info(f"in log_all_to_file, edge is {edge} and wire length df is {self.hw.circuit_model.wire_length_by_edge[edge]}")
+            #logger.info(f"in log_all_to_file, edge is {edge} and wire length df is {self.hw.circuit_model.wire_length_by_edge[edge]}")
             if "Mux" not in edge[0] and "Mux" not in edge[1]:
                 wire_lengths[edge] = self.hw.circuit_model.wire_length(edge)
         self.wire_lengths_over_iterations.append(wire_lengths)
@@ -844,12 +880,14 @@ class Codesign:
             stringizer=lambda x: str(x),
         )
         self.write_back_params(f"{self.save_dir}/tech_params_{iter_number}.yaml")
-        shutil.copy("src/tmp/ipopt_out.txt", f"{self.save_dir}/ipopt_{iter_number}.txt")
-        if os.path.exists("src/tmp/pd/results/design_snapshot-tcl.png"):
-            shutil.copy("src/tmp/pd/results/design_snapshot-tcl.png", f"{self.save_dir}/design_snapshot_{iter_number}.png")
+        shutil.copy(f"{self.tmp_dir}/ipopt_out.txt", f"{self.save_dir}/ipopt_{iter_number}.txt")
+        if not os.path.exists(f"{self.tmp_dir}/pd_{self.cur_dsp_usage}_dsp"):
+            shutil.copytree(f"{self.tmp_dir}/pd", f"{self.tmp_dir}/pd_{self.cur_dsp_usage}_dsp")
+        if os.path.exists(f"{self.tmp_dir}/pd/results/design_snapshot-tcl.png"):
+            shutil.copy(f"{self.tmp_dir}/pd/results/design_snapshot-tcl.png", f"{self.save_dir}/design_snapshot_{iter_number}.png")
         """for mem in self.hw.circuit_model.memories:
             shutil.copy(
-                f"src/tmp/cacti_exprs_{mem}.txt", f"{self.save_dir}/cacti_exprs_{mem}_{iter_number}.txt"
+                f"{self.tmp_dir}/cacti_exprs_{mem}.txt", f"{self.save_dir}/cacti_exprs_{mem}_{iter_number}.txt"
             )"""
         #TODO: copy cacti expressions to file, read yaml file from notebook, call sim util fn to get xreplace structure
         #TODO: fw pass save cacti params of interest, with logger unique starting string, then write parsing script in notebook to look at them
@@ -909,6 +947,8 @@ class Codesign:
     def setup(self):
         if not os.path.exists(self.benchmark_setup_dir):
             shutil.copytree(self.benchmark, self.benchmark_setup_dir)
+        assert os.path.exists(self.config_json_path_scalehls)
+        shutil.copy(self.config_json_path_scalehls, self.config_json_path)
         self.forward_pass(0, save_dir=self.benchmark_setup_dir, setup=True)
 
     def execute(self, num_iters):
@@ -929,6 +969,10 @@ class Codesign:
             logger.info(f"time to execute iteration {self.iteration_count}: {time.time()-start_time}")
             self.iteration_count += 1
             self.end_of_run_plots(self.obj_over_iterations, self.lag_factor_over_iterations, self.params_over_iterations, self.wire_lengths_over_iterations)
+            logger.info(f"current dsp usage: {self.cur_dsp_usage}, max dsp: {self.max_dsp}")
+            if self.cur_dsp_usage == self.max_dsp:
+                logger.info("Resource constraints have been reached, will skip forward pass steps from now on.")
+                self.max_rsc_reached = True        
 
         # cleanup
         self.cleanup()

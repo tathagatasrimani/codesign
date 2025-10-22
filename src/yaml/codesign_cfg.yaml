@@ -22,6 +22,7 @@ default:
     stop_at_checkpoint: none
     checkpoint_start_step: none
     workload_size: 2
+    max_iter_num_scalehls: 10 # default in scalehls is 30
 
 
 #### EXAMPLE TESTS ####
