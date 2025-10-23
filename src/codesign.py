@@ -356,7 +356,7 @@ class Codesign:
 
             ## Create the netlist
             logger.info("Creating Vitis netlist")
-            create_vitis_netlist(parse_results_dir, allowed_functions_netlist)
+            create_vitis_netlist(parse_results_dir)
 
             ## Create the CDFGs for each FSM
             logger.info("Creating Vitis CDFGs")
@@ -370,8 +370,8 @@ class Codesign:
 
             ## Merge the netlists recursivley through the module hierarchy to produce overall netlist
             logger.info("Recursivley merging vitis netlists")
-            vitis_netlist_merger = MergeNetlistsVitis(self.cfg, self.codesign_root_dir)
-            vitis_netlist_merger.merge_netlists_vitis(parse_results_dir, self.vitis_top_function, allowed_functions_netlist)
+            vitis_netlist_merger = MergeNetlistsVitis(self.cfg, self.codesign_root_dir, allowed_functions_netlist)
+            vitis_netlist_merger.merge_netlists_vitis(parse_results_dir, self.vitis_top_function)
             logger.info("Vitis netlist parsing complete")
             logger.info(f"time to parse vitis netlist: {time.time()-start_time}")
         else:

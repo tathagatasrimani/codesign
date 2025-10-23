@@ -146,7 +146,7 @@ def create_networkX_netlist(json_netlist, json_complist, module_name):
     return G
     
 
-def create_vitis_netlist(root_dir, allowed_functions):
+def create_vitis_netlist(root_dir):
     for subdir in os.listdir(root_dir):
         subdir_path = os.path.join(root_dir, subdir)
         if not os.path.isdir(subdir_path):
@@ -194,13 +194,6 @@ def create_vitis_netlist(root_dir, allowed_functions):
 
         # Write out the networkX graph to a gml file
         nx.write_gml(final_netlist, f"{subdir_path}/{netlist_prefix}_netlist.gml")
-
-        # write out a filtered and function mapped version of the netlist
-        final_netlist_new_ops = sim_util.map_operator_types(final_netlist)
-        filtered_netlist = sim_util.filter_graph_by_function(final_netlist_new_ops, allowed_functions)
-
-        debug_print(f"Writing filtered netlist to {subdir_path}/{netlist_prefix}_netlist_filtered.gml")
-        nx.write_gml(filtered_netlist, f"{subdir_path}/{netlist_prefix}_netlist_filtered.gml")
 
 
 def main():

@@ -6,7 +6,7 @@ from src import sim_util
 import logging
 logger = logging.getLogger(__name__)
 
-DEBUG = False
+DEBUG = True
 
 def debug_print(message):
     if DEBUG:
@@ -16,7 +16,7 @@ def debug_print(message):
 class MergeNetlistsVitis:
     """ Class to handle merging of Vitis-generated netlists.
     """
-    def __init__(self, cfg, codesign_root_dir):
+    def __init__(self, cfg, codesign_root_dir, allowed_functions):
         """
         Initialize the MergeNetlistsVitis object with configuration and root directory.
 
@@ -28,7 +28,9 @@ class MergeNetlistsVitis:
 
         self.all_modules_visited = set()
 
-    def merge_netlists_vitis(self, current_directory, top_level_module_name, allowed_functions):
+        self.allowed_functions = allowed_functions
+
+    def merge_netlists_vitis(self, current_directory, top_level_module_name):
         """
         Main function to create a unified netlist for all files in the given directory.
         """
@@ -63,7 +65,7 @@ class MergeNetlistsVitis:
         #debug_print(f"Full netlist saved to {output_file_path}")
 
         ## filter the netlist to only include desired node types
-        filtered_netlist = sim_util.filter_graph_by_function(full_netlist, allowed_functions)
+        filtered_netlist = sim_util.filter_graph_by_function(full_netlist, self.allowed_functions)
 
         ## save the filtered netlist to a file
         output_filtered_file_path = os.path.join(current_directory, f"{top_level_module_name}_full_netlist.gml")
@@ -78,6 +80,7 @@ class MergeNetlistsVitis:
         if current_module in self.all_modules_visited:
             #debug_print(f"Module {current_module} already visited. Returning existing netlist.")
             netlist_file_path = os.path.join(current_directory, current_module, f"{current_module}_full_netlist.gml")
+            cross_module_edges_file_path = os.path.join(current_directory, current_module, f"{current_module}_cross_module_edges.json")
             if not os.path.exists(netlist_file_path):
                 # Try with 's' suffix for file path only
                 netlist_file_path = os.path.join(current_directory, current_module + "s", f"{current_module}s_full_netlist.gml")
@@ -85,7 +88,14 @@ class MergeNetlistsVitis:
                     print(f"Error: netlist file {netlist_file_path} does not exist.")
                     exit(1)
                     return None
-            return nx.read_gml(netlist_file_path)
+            if not os.path.exists(cross_module_edges_file_path):
+                # Try with 's' suffix for file path only
+                cross_module_edges_file_path = os.path.join(current_directory, current_module + "s", f"{current_module}s_cross_module_edges.json")
+                if not os.path.exists(cross_module_edges_file_path):
+                    print(f"Error: cross-module edges file {cross_module_edges_file_path} does not exist.")
+                    exit(1)
+                    return None
+            return nx.read_gml(netlist_file_path), nx.read_json(cross_module_edges_file_path)
 
         ## add module to the visited modules list
         self.all_modules_visited.add(current_module)
@@ -98,7 +108,6 @@ class MergeNetlistsVitis:
             if not os.path.exists(netlist_file_path):
                 print(f"Error: netlist file {netlist_file_path} does not exist.")
                 exit(1)
-                return
             else:
                 current_module += "s"
 
@@ -111,7 +120,6 @@ class MergeNetlistsVitis:
             if not os.path.exists(modules_file_path):
                 print(f"Error: Modules file {modules_file_path} does not exist.")
                 exit(1)
-                return
 
         with open(modules_file_path, 'r') as mf:
             module_dependences = json.load(mf)
@@ -128,20 +136,36 @@ class MergeNetlistsVitis:
         for module_name in module_dependences:
             self.parse_module(current_directory, module_name)
 
+        all_cross_module_edges = set()
+
         ## merge the netlists of the submodules into the full netlist
         for submodule_name in module_dependences:
             #full_netlist = nx.compose(full_netlist, submodule_netlist)
             # print the number of nodes in the full_netlist before and after the merge
             debug_print(f"Before merging {submodule_name}, full netlist has {full_netlist.number_of_nodes()} nodes.")
-            full_netlist_new = self.merge_netlists(current_directory, full_netlist, current_module, submodule_name)
+            full_netlist_new, cross_module_edges_new = self.merge_netlists(current_directory, full_netlist, current_module, submodule_name)
             debug_print(f"After merging {submodule_name}, full netlist has {full_netlist_new.number_of_nodes()} nodes.")
             full_netlist = full_netlist_new
+            all_cross_module_edges.update(cross_module_edges_new)
             #debug_print(f"Merged netlist for submodule {submodule_name} into full netlist.")
 
         ## write out the full netlist for the current module
         output_file_path = os.path.join(current_directory, current_module, f"{current_module}_full_netlist.gml")
         nx.write_gml(full_netlist, output_file_path)
         #debug_print(f"Full netlist for module {current_module} saved to {output_file_path}")
+
+        ## write out the cross-module edges to a file
+        cross_module_edges_file_path = os.path.join(current_directory, current_module, f"{current_module}_cross_module_edges.json")
+        with open(cross_module_edges_file_path, 'w') as cmef:
+            json.dump(list(all_cross_module_edges), cmef, indent=2)
+        #debug_print(f"Cross-module edges for module {current_module} saved to {cross_module_edges_file_path}")
+
+        # write out a filtered and function mapped version of the netlist
+        final_netlist_new_ops = sim_util.map_operator_types(full_netlist)
+        filtered_netlist = sim_util.filter_graph_by_function(final_netlist_new_ops, self.allowed_functions)
+
+        debug_print(f"Writing filtered netlist to {current_directory}/{current_module}/{current_module}_netlist_filtered.gml")
+        nx.write_gml(filtered_netlist, f"{current_directory}/{current_module}/{current_module}_netlist_filtered.gml")
 
         return full_netlist
 
@@ -159,6 +183,8 @@ class MergeNetlistsVitis:
         """
         debug_print(f"Merging netlist for submodule {submodule_name} into full netlist for module {current_module}.")
 
+        cross_module_edges = set()
+
         ## read in the submodule netlist
         submodule_netlist_file = os.path.join(current_directory, submodule_name, f"{submodule_name}_full_netlist.gml")
         if not os.path.exists(submodule_netlist_file):
@@ -166,7 +192,6 @@ class MergeNetlistsVitis:
             if not os.path.exists(submodule_netlist_file):
                 debug_print(f"Error: Submodule netlist file {submodule_netlist_file} does not exist.")
                 exit(1)
-                return
             else:
                 debug_print(f"Warning: Submodule {submodule_name} not found, adding s worked though:  {submodule_name}s")
                 submodule_name += "s"
@@ -180,7 +205,6 @@ class MergeNetlistsVitis:
             if not os.path.exists(module_instance_file):
                 debug_print(f"Error: Instance to module file {module_instance_file} does not exist.")
                 exit(1)
-                return
 
         with open(module_instance_file, 'r') as f:
             module_instance_mapping = json.load(f)
@@ -205,10 +229,10 @@ class MergeNetlistsVitis:
                 if bind_node.get('fcode') == 'call' and curr_node_submodule_name == submodule_name:
                     submodule_call_nodes.append(n)
 
-        ## first step is to find all of the predecessor and sucessor nodes of the first submodule call node (the rest are duplicates of the param info)
+        ## first step is to find all of the predecessor and successor nodes of the first submodule call node (the rest are duplicates of the param info)
         if len(submodule_call_nodes) == 0:
             debug_print(f"No call nodes found for submodule {submodule_name} in module {current_module}.")
-            return current_netlist
+            return current_netlist, cross_module_edges
 
         first_call_node = submodule_call_nodes[0]
 
@@ -254,18 +278,19 @@ class MergeNetlistsVitis:
             if pred_name is None:
                 debug_print(f"Predecessor node {pred} has no name field.")
                 exit(1)
-                continue
 
             # find the corresponding node in the submodule netlist
             target_node = None
             for n, d in current_netlist.nodes(data=True):
-                if d.get('name') == pred_name:
+                ## if the names match and they are not the same node, we have a candidate
+                if d.get('name') == pred_name and n != pred:
                     target_node = n
                     break
 
             if target_node is not None:
                 # add an edge from the predecessor to the target node in the new full netlist
                 new_full_netlist.add_edge(pred, target_node, weight=0)
+                cross_module_edges.add((pred, target_node))
                 debug_print(f"Added edge from predecessor {pred} to target node {target_node} in submodule {submodule_name}.")
             else:
                 debug_print(f"No matching node found in submodule {submodule_name} for predecessor {pred} with name {pred_name}.")
@@ -294,6 +319,7 @@ class MergeNetlistsVitis:
                         break
                 if target_node is not None:
                     new_full_netlist.add_edge(pred, target_node, weight=0)
+                    cross_module_edges.add((pred, target_node))
                     debug_print(f"Added edge from predecessor {pred} to target node {target_node} in submodule {submodule_name} using STG port name {port_name}.")
                 else:
                     debug_print(f"No matching node found in submodule {submodule_name} for predecessor {pred} with STG port name {port_name}.")
@@ -303,7 +329,9 @@ class MergeNetlistsVitis:
                     exit(1)
                     continue
 
-        return new_full_netlist
+        debug_print(f"cross module edges added: {cross_module_edges}")
+
+        return new_full_netlist, cross_module_edges
 
     def parse_stg_ports(self, stg_lines):
         """
