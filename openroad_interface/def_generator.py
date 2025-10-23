@@ -40,10 +40,15 @@ def log_warning(msg):
 
 
 class DefGenerator:
-    def __init__(self, cfg, codesign_root_dir, NEW_database_units_per_micron):
+    def __init__(self, cfg, codesign_root_dir, NEW_database_units_per_micron, subdirectory=None):
         self.cfg = cfg
         self.codesign_root_dir = codesign_root_dir
+        self.subdirectory = subdirectory
         self.directory = os.path.join(self.codesign_root_dir, "src/tmp/pd")
+
+        if subdirectory:
+            self.directory = os.path.join(self.directory, subdirectory)
+
         self.macro_halo_x = 0.0
         self.macro_halo_y = 0.0
         self.max_dim_macro = 0.0
@@ -201,7 +206,10 @@ class DefGenerator:
 
         
         ### 0. reading tcl file and lef file ###
-        test_file_data = open(test_file)
+        
+        test_file_path = os.path.join(self.directory, "tcl", test_file)
+
+        test_file_data = open(test_file_path)
         test_file_lines = test_file_data.readlines()
 
         log_info(f"Reading tcl file: {test_file}")

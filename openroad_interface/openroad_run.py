@@ -21,7 +21,7 @@ from . import scale_lef_files as scale_lef
 DIE_CORE_BUFFER_SIZE = 50
 
 class OpenRoadRun:
-    def __init__(self, cfg, codesign_root_dir):
+    def __init__(self, cfg, codesign_root_dir, subdirectory=None):
         """
         Initialize the OpenRoadRun with configuration and root directory.
 
@@ -31,14 +31,19 @@ class OpenRoadRun:
         self.cfg = cfg
         self.codesign_root_dir = codesign_root_dir
         self.directory = os.path.join(self.codesign_root_dir, "src/tmp/pd")
+        self.subdirectory = subdirectory
+
+        ## results will be placed here. This is necessary for running the flow hierarchically. 
+        if subdirectory is not None:
+            self.directory = os.path.join(self.directory, subdirectory)
 
     def run(
-    self,
-    graph: nx.DiGraph,
-    test_file: str, 
-    arg_parasitics: str,
-    area_constraint: int,
-    L_eff: float
+        self,
+        graph: nx.DiGraph,
+        test_file: str, 
+        arg_parasitics: str,
+        area_constraint: int,
+        L_eff: float
     ):
         """
         Runs the OpenROAD flow.
@@ -132,10 +137,10 @@ class OpenRoadRun:
 
         self.update_area_constraint(area_constraint)
 
-        self.do_scale_lef = scale_lef.ScaleLefFiles(self.cfg, self.codesign_root_dir)
+        self.do_scale_lef = scale_lef.ScaleLefFiles(self.cfg, self.codesign_root_dir, self.subdirectory)
         self.do_scale_lef.scale_lef_files(L_eff)
 
-        df = def_generator.DefGenerator(self.cfg, self.codesign_root_dir, self.do_scale_lef.NEW_database_units_per_micron)
+        df = def_generator.DefGenerator(self.cfg, self.codesign_root_dir, self.do_scale_lef.NEW_database_units_per_micron, self.subdirectory)
 
         graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate = df.run_def_generator(
             test_file, graph
@@ -359,6 +364,11 @@ class OpenRoadRun:
         # run openroad
         logger.info("Starting estimated place and route.")
         self.run_openroad_executable()
+
+        ## if the graph has no edges, then return empty dict
+        if len(graph.edges()) == 0:
+            logger.info("Graph has no edges. Skipping estimated place and route.")
+            return {}, graph
 
         wire_length_df = est.parse_route_guide_with_layer_breakdown(self.directory + "/results/codesign_codesign-tcl.route_guide")
         wire_length_by_edge = {}

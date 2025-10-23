@@ -24,6 +24,7 @@ from src.hardware_model.tech_models import mvs_si_model
 from src.hardware_model.tech_models import mvs_2_model
 from src.hardware_model.tech_models import vscnfet_model
 from openroad_interface import openroad_run
+from openroad_interface import openroad_run_hier
 
 import cvxpy as cp
 
@@ -566,18 +567,36 @@ class HardwareModel:
             self.catapult_map_netlist_to_scheduled_dfg(benchmark_name)
         
         start_time = time.time()
-
-        open_road_run = openroad_run.OpenRoadRun(cfg=self.cfg, codesign_root_dir=self.codesign_root_dir)
-
+        netlist_copy = copy.deepcopy(self.netlist)
         L_eff = self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.L]
-
         logger.info(f"current L_eff for get_wire_parascitics: {L_eff}")
 
-        netlist_copy = copy.deepcopy(self.netlist)
 
-        self.circuit_model.wire_length_by_edge, _ = open_road_run.run(
-            netlist_copy, arg_testfile, arg_parasitics, area_constraint, L_eff
+
+
+        ## hierarchical openroad run
+        hier_open_road_run = openroad_run_hier.OpenRoadRunHier(cfg=self.cfg, codesign_root_dir=self.codesign_root_dir)
+
+        hls_parse_results_dir = f"src/tmp/benchmark/parse_results"
+
+        hier_open_road_run.run_hierarchical_openroad(
+            netlist_copy,
+            arg_testfile,
+            arg_parasitics,
+            area_constraint,
+            L_eff,
+            hls_parse_results_dir,
+            "forward"
         )
+
+        exit(1)
+
+        ## flat openroad run
+        # open_road_run = openroad_run.OpenRoadRun(cfg=self.cfg, codesign_root_dir=self.codesign_root_dir)
+
+        # self.circuit_model.wire_length_by_edge, _ = open_road_run.run(
+        #     netlist_copy, arg_testfile, arg_parasitics, area_constraint, L_eff
+        # )
 
         log_info(f"wire lengths: {self.circuit_model.wire_length_by_edge}")
         

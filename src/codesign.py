@@ -84,7 +84,7 @@ class Codesign:
 
         self.forward_obj = 0
         self.inverse_obj = 0
-        self.openroad_testfile = f"{self.codesign_root_dir}/src/tmp/pd/tcl/{self.cfg['args']['openroad_testfile']}"
+        self.openroad_testfile = self.cfg['args']['openroad_testfile']
         self.parasitics = self.cfg["args"]["parasitics"]
         self.run_cacti = not self.cfg["args"]["debug_no_cacti"]
         self.no_memory = self.cfg["args"]["no_memory"]
