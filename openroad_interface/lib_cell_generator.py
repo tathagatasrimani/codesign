@@ -26,6 +26,10 @@ import argparse
 import sys
 from typing import List, Dict, Any, Optional
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 class LibCellGenerator:
     """Generator for LIB cell definitions."""
@@ -216,7 +220,7 @@ class LibCellGenerator:
         with open(output_file, 'w') as f:
             f.write('\n'.join(new_lines))
         
-        print(f"Successfully appended {len(cells.split('cell (')) - 1} cells to {output_file}")
+        logger.info(f"Successfully appended {len(cells.split('cell (')) - 1} cells to {output_file}")
     
     def generate_and_write_cells(self, macro_dict: Dict[str, Any], circuit_model, output_file: str):
         """

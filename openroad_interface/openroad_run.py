@@ -105,8 +105,24 @@ class OpenRoadRun:
         lib_cell_generator = LibCellGenerator()
         lib_cell_generator.generate_and_write_cells(macro_dict, self.circuit_model, self.directory + "/tcl/codesign_files/codesign_typ.lib")
 
+        self.update_clock_period(self.directory + "/tcl/codesign_files/codesign.sdc")
+
         return graph, net_out_dict, node_output, lef_data, node_to_num
 
+    def update_clock_period(self, sdc_file: str):
+        """
+        Updates the clock period in the SDC file.
+        param:
+            sdc_file: path to the SDC file
+        """
+        with open(sdc_file, "r") as file:
+            sdc_data = file.readlines()
+        assert sdc_data[0].startswith("create_clock")
+        new_clock_period = self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.clk_period]
+        sdc_data[0] = f"create_clock [get_ports clk] -name core_clock -period {new_clock_period}\n"
+        with open(sdc_file, "w") as file:
+            file.writelines(sdc_data)
+        logger.info(f"Updated clock period in SDC file to {new_clock_period}")
 
     def setup_set_area_constraint(
         self,
