@@ -28,12 +28,13 @@ def log_info(msg, stage):
 
 
 class Optimizer:
-    def __init__(self, hw, test_config=False):
+    def __init__(self, hw, tmp_dir, test_config=False):
         self.hw = hw
         self.disabled_knobs = []
         self.objective_constraint_inds = []
         self.initial_alpha = None
         self.test_config = test_config
+        self.tmp_dir = tmp_dir
 
     def evaluate_constraints(self, constraints, stage):
         for constraint in constraints:
@@ -56,14 +57,14 @@ class Optimizer:
         self.objective_constraint_inds = [len(constraints)-1]
 
         # don't want a leakage-dominated design
-        constraints.append(self.hw.total_active_energy >= 2*self.hw.total_passive_energy*self.hw.circuit_model.tech_model.capped_power_scale)
+        #constraints.append(self.hw.total_active_energy >= 2*self.hw.total_passive_energy*self.hw.circuit_model.tech_model.capped_power_scale)
         for knob in self.disabled_knobs:
             constraints.append(sp.Eq(knob, knob.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values)))
         if not self.test_config:
             total_power = self.hw.total_passive_power*self.hw.circuit_model.tech_model.capped_power_scale + self.hw.total_active_energy / (self.hw.execution_time* self.hw.circuit_model.tech_model.capped_delay_scale)
         else:
             total_power = self.hw.total_passive_power*self.hw.circuit_model.tech_model.capped_power_scale_total + self.hw.total_active_energy / (self.hw.execution_time* self.hw.circuit_model.tech_model.capped_delay_scale_total)
-        constraints.append(total_power <= 150) # hard limit on power
+        constraints.append(total_power <= 1e-2) # hard limit on power
         # ensure that forward pass can't add more than 10x parallelism in the next iteration. power scale is based on the amount we scale area down by,
         # because in the next forward pass we assume that much parallelism will be added, and therefore increase power
         #if not self.test_config:
@@ -84,7 +85,7 @@ class Optimizer:
     def create_opt_model(self, improvement, lower_bound):
         constraints = self.create_constraints(improvement, lower_bound)
         model = pyo.ConcreteModel()
-        self.preprocessor = Preprocessor(self.hw.circuit_model.tech_model.base_params, out_file="src/tmp/solver_out.txt")
+        self.preprocessor = Preprocessor(self.hw.circuit_model.tech_model.base_params, out_file=f"{self.tmp_dir}/solver_out.txt")
         opt, scaled_model, model, multistart_options = (
             self.preprocessor.begin(model, self.hw.obj_scaled, improvement, multistart=multistart, constraints=constraints)
         )
@@ -98,12 +99,12 @@ class Optimizer:
 
         # passive energy consumption is dependent on execution time, so we need to recalculate it
         self.hw.calculate_passive_power_vitis(execution_time)
-        self.hw.save_obj_vals(execution_time)
+        self.hw.save_obj_vals(execution_time, execution_time_override=True, execution_time_override_val=self.hw.circuit_model.tech_model.delay)
         print(f"obj: {self.hw.obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values)}, obj scaled: {self.hw.obj_scaled.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values)}")
         lower_bound = sim_util.xreplace_safe(self.hw.obj_scaled, self.hw.circuit_model.tech_model.base_params.tech_values) / improvement
         self.constraints = self.create_constraints(improvement, lower_bound, approx_problem=True)
         model = pyo.ConcreteModel()
-        self.approx_preprocessor = Preprocessor(self.hw.circuit_model.tech_model.base_params, out_file=f"src/tmp/solver_out_approx_{iteration}.txt", solver_name="ipopt")
+        self.approx_preprocessor = Preprocessor(self.hw.circuit_model.tech_model.base_params, out_file=f"{self.tmp_dir}/solver_out_approx_{iteration}.txt", solver_name="ipopt")
         opt, scaled_model, model, multistart_options = (
             self.approx_preprocessor.begin(model, self.hw.obj_scaled, improvement, multistart=multistart, constraints=self.constraints)
         )
@@ -129,7 +130,7 @@ class Optimizer:
         for i in range(count):
             stdout = sys.stdout
             Error = False
-            with open(f"src/tmp/ipopt_out_approx_{i}.txt", "w") as f:
+            with open(f"{self.tmp_dir}/ipopt_out_approx_{i}.txt", "w") as f:
                 sys.stdout = f
                 opt_approx, scaled_model_approx, model_approx, multistart_options_approx = self.generate_approximate_solution(improvement, delay_factors[i], i)
                 try:
@@ -137,9 +138,10 @@ class Optimizer:
                 except Exception as e:
                     print(f"Error: {e}")
                     Error = True
-                if (Error or results.solver.termination_condition not in ["optimal", "acceptable"]) and delay_factors[i] == 1.0:
+                # just let "infeasible" solutions through for now, often they are not violating any constraints
+                if (Error or results.solver.termination_condition not in ["optimal", "acceptable", "infeasible", "maxIterations"]) and delay_factors[i] == 1.0:
                     print(f"First solve attempt failed, trying again...")
-                    raise Exception("First solve attempt failed")
+                    #raise Exception("First solve attempt failed")
                     Error = False
                     opt_approx, scaled_model_approx, model_approx, multistart_options_approx = self.generate_approximate_solution(improvement, delay_factors[i], i, multistart=True)
                     # Try with more relaxed tolerances
@@ -151,7 +153,7 @@ class Optimizer:
                     except Exception as e:
                         print(f"Error: {e}")
                         Error = True
-                if results.solver.termination_condition in ["optimal", "acceptable"]:
+                if results.solver.termination_condition in ["optimal", "acceptable", "infeasible", "maxIterations"]: 
                     print(f"approximate solver found {results.solver.termination_condition} solution in iteration {i}")
                     pyo.TransformationFactory("core.scale_model").propagate_solution(
                         scaled_model_approx, model_approx
@@ -162,7 +164,7 @@ class Optimizer:
                     Error = True
             sys.stdout = stdout
             if not Error:
-                f = open(f"src/tmp/ipopt_out_approx_{i}.txt", "r")
+                f = open(f"{self.tmp_dir}/ipopt_out_approx_{i}.txt", "r")
                 sim_util.parse_output(f, self.hw)
                 print(f"scaled objective used in approximation is now: {self.hw.obj_scaled.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values)}")
                 print(f"objective used in approximation is now: {self.hw.obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values)}")

@@ -1,5 +1,9 @@
 #!/bin/tcsh
 
+# Save the old home directory before changing it
+setenv OLD_HOME "${HOME}"
+echo "OLD_HOME: ${OLD_HOME}"
+
 ## run set_env_start.sh in bash to make sure everything is installed if needed
 bash full_env_start.sh
 
@@ -66,6 +70,15 @@ else if ("$UNIVERSITY" == "cmu") then
     source cmu_cad_tool_setup.csh
 endif
 
-
+# Only copy Xauthority if we're in a different directory than the old home
+if ("${HOME}" != "${OLD_HOME}") then
+    echo "Copying Xauthority from ${OLD_HOME} to ${HOME}"
+    if (-f .Xauthority) then
+        rm .Xauthority
+        echo "Removed existing .Xauthority"
+    endif
+    cp "${OLD_HOME}"/.Xauthority .Xauthority
+    echo "Copied Xauthority from ${OLD_HOME} to ${HOME}"
+endif
 
 

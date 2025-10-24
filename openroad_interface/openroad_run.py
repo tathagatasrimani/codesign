@@ -21,7 +21,7 @@ from . import scale_lef_files as scale_lef
 DIE_CORE_BUFFER_SIZE = 50
 
 class OpenRoadRun:
-    def __init__(self, cfg, codesign_root_dir, subdirectory=None):
+    def __init__(self, cfg, codesign_root_dir, tmp_dir, run_openroad, subdirectory=None):
         """
         Initialize the OpenRoadRun with configuration and root directory.
 
@@ -30,12 +30,17 @@ class OpenRoadRun:
         """
         self.cfg = cfg
         self.codesign_root_dir = codesign_root_dir
-        self.directory = os.path.join(self.codesign_root_dir, "src/tmp/pd")
+        self.tmp_dir = tmp_dir
+        self.run_openroad = run_openroad
+        self.directory = os.path.join(self.codesign_root_dir, f"{self.tmp_dir}src/tmp/pd")
         self.subdirectory = subdirectory
 
         ## results will be placed here. This is necessary for running the flow hierarchically. 
         if subdirectory is not None:
             self.directory = os.path.join(self.directory, subdirectory)
+        
+        self.directory = os.path.join(self.codesign_root_dir, f"{self.tmp_dir}/pd")
+
 
     def run(
         self,
@@ -125,22 +130,26 @@ class OpenRoadRun:
         """
 
         logger.info("Setting up environment for place and route.")
-        if os.path.exists(self.directory):
-            logger.info(f"Removing existing directory: {self.directory}")
-            shutil.rmtree(self.directory)
-        os.makedirs(self.directory)
-        logger.info(f"Created directory: {self.directory}")
-        shutil.copytree(os.path.dirname(os.path.abspath(__file__)) + "/tcl", self.directory + "/tcl")
-        logger.info(f"Copied tcl files to {self.directory}/tcl")
-        os.makedirs(self.directory + "/results")
-        logger.info(f"Created results directory: {self.directory}/results")
+        if self.run_openroad:
+            if os.path.exists(self.directory):
+                logger.info(f"Removing existing directory: {self.directory}")
+                shutil.rmtree(self.directory)
+            os.makedirs(self.directory)
+            logger.info(f"Created directory: {self.directory}")
+            shutil.copytree(os.path.dirname(os.path.abspath(__file__)) + "/tcl", self.directory + "/tcl")
+            logger.info(f"Copied tcl files to {self.directory}/tcl")
+            os.makedirs(self.directory + "/results")
+            logger.info(f"Created results directory: {self.directory}/results")
+        else:
+            logger.info("Skipping setup, using previous openroad results.")
 
         self.update_area_constraint(area_constraint)
 
-        self.do_scale_lef = scale_lef.ScaleLefFiles(self.cfg, self.codesign_root_dir, self.subdirectory)
+        self.do_scale_lef = scale_lef.ScaleLefFiles(self.cfg, self.codesign_root_dir, self.tmp_dir, self.subdirectory)
         self.do_scale_lef.scale_lef_files(L_eff)
 
-        df = def_generator.DefGenerator(self.cfg, self.codesign_root_dir, self.do_scale_lef.NEW_database_units_per_micron, self.subdirectory)
+        df = def_generator.DefGenerator(self.cfg, self.codesign_root_dir, self.tmp_dir, self.do_scale_lef.NEW_database_units_per_micron, self.subdirectory)
+
 
         graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate = df.run_def_generator(
             test_file, graph
@@ -230,7 +239,7 @@ class OpenRoadRun:
                         graph.add_edge(node, output)
                         node_name = graph.nodes[node]["name"]
                         output_name = graph.nodes[output]["name"]
-                        logger.info(f"Src: {node_name}, Dst: {output_name}")
+                        #logger.info(f"Src: {node_name}, Dst: {output_name}")
                         #print(f"path from {node} to {output}: {path}")
                         if len(path) != 0 and (node_name, output_name) not in wire_length_by_edge:
                             #print(f"adding wire length by edge")
@@ -363,7 +372,10 @@ class OpenRoadRun:
 
         # run openroad
         logger.info("Starting estimated place and route.")
-        self.run_openroad_executable()
+        if self.run_openroad:
+            self.run_openroad_executable()
+        else:
+            logger.info("Skipping openroad run.")
 
         ## if the graph has no edges, then return empty dict
         if len(graph.edges()) == 0:
@@ -379,8 +391,8 @@ class OpenRoadRun:
                 node_names = [node+"_"+str(x) for x in range(16)]
             else:
                 node_names = [node] * 16
-            logger.info(f"Node: {node}, Outputs: {outputs}")
-            logger.info(f"Net outs: {net_outs}")
+            #logger.info(f"Node: {node}, Outputs: {outputs}")
+            #logger.info(f"Net outs: {net_outs}")
             for output in outputs:
                 # if output is a mux, then there will be 16 instances of the mux, each with 1 output
                 # if output is not a mux, then it will have 16 ports
@@ -393,14 +405,17 @@ class OpenRoadRun:
                     output_name = output_names[idx]
                     node_name = node_names[idx]
                     net_name = net_outs[idx]
-                    logger.info(f"Node: {node}, Output: {output_name}, Net: {net_name}")
+                    #logger.info(f"Node: {node}, Output: {output_name}, Net: {net_name}")
                     src = graph.nodes[node_name]["name"]
                     dst = graph.nodes[output_name]["name"]
-                    logger.info(f"Src: {src}, Dst: {dst}")
-                    if (src, dst) not in wire_length_by_edge:
-                        wire_length_by_edge[(src, dst)] = copy.deepcopy(wire_length_df.loc[net_name])
-                    else:
-                        wire_length_by_edge[(src, dst)] += copy.deepcopy(wire_length_df.loc[net_name])
+                    #logger.info(f"Src: {src}, Dst: {dst}")
+                    if net_name in wire_length_df.index:
+                        if (src, dst) not in wire_length_by_edge:
+                            wire_length_by_edge[(src, dst)] = copy.deepcopy(wire_length_df.loc[net_name])
+                        else:
+                            wire_length_by_edge[(src, dst)] += copy.deepcopy(wire_length_df.loc[net_name])
+                    #else:
+                    #    logger.warning(f"Net {net_name} not found in wire length dataframe. Skipping.")
         self.export_graph(graph, "estimated_with_mux")
 
         wire_length_by_edge = self.mux_listing(graph, node_output, wire_length_by_edge)
@@ -417,6 +432,13 @@ class OpenRoadRun:
             wire_length_by_edge[edge]["metal1"] /= alpha_scale_factor * 1e6 # convert to meters
             wire_length_by_edge[edge]["metal2"] /= alpha_scale_factor * 1e6 # convert to meters
             wire_length_by_edge[edge]["metal3"] /= alpha_scale_factor * 1e6 # convert to meters
+            wire_length_by_edge[edge]["metal4"] /= alpha_scale_factor * 1e6 # convert to meters
+            wire_length_by_edge[edge]["metal5"] /= alpha_scale_factor * 1e6 # convert to meters
+            wire_length_by_edge[edge]["metal6"] /= alpha_scale_factor * 1e6 # convert to meters
+            wire_length_by_edge[edge]["metal7"] /= alpha_scale_factor * 1e6 # convert to meters
+            wire_length_by_edge[edge]["metal8"] /= alpha_scale_factor * 1e6 # convert to meters
+            wire_length_by_edge[edge]["metal9"] /= alpha_scale_factor * 1e6 # convert to meters
+            wire_length_by_edge[edge]["metal10"] /= alpha_scale_factor * 1e6 # convert to meters
             #logger.info(f"scaled wire length by edge: {wire_length_by_edge[edge]}")
 
         return wire_length_by_edge, graph
@@ -446,7 +468,10 @@ class OpenRoadRun:
 
         # run openroad
         logger.info("Starting detailed place and route.")
-        self.run_openroad_executable()
+        if self.run_openroad:
+            self.run_openroad_executable()
+        else:
+            logger.info("Skipping openroad run, as resource constraints have been reached in a previous iteration.")
 
         # run parasitic_calc and length_calculations
         graph, _ = self.coord_scraping(graph, node_to_num)

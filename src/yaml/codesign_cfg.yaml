@@ -22,6 +22,7 @@ default:
     stop_at_checkpoint: none
     checkpoint_start_step: none
     workload_size: 2
+    max_iter_num_scalehls: 10 # default in scalehls is 30
 
 
 #### EXAMPLE TESTS ####
@@ -44,6 +45,33 @@ benchmark_2mm_test:
   base_cfg: vitis_test
   args:
     benchmark: kernel_2mm
+
+benchmark_3mm_test:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_3mm
+    
+benchmark_atax_test:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_atax
+
+benchmark_bicg_test:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_bicg
+
+benchmark_doitgen_test:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_doitgen
+
+benchmark_mvt_test:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_mvt
+
+
 vitis_gemm_32_test:
   base_cfg: vitis_gemm_test
   args:

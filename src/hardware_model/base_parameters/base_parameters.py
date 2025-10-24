@@ -48,10 +48,24 @@ class BaseParameters:
         self.m1_rho = symbols("m1_rho", positive=True)
         self.m2_rho = symbols("m2_rho", positive=True)
         self.m3_rho = symbols("m3_rho", positive=True)
+        self.m4_rho = symbols("m4_rho", positive=True)
+        self.m5_rho = symbols("m5_rho", positive=True)
+        self.m6_rho = symbols("m6_rho", positive=True)
+        self.m7_rho = symbols("m7_rho", positive=True)
+        self.m8_rho = symbols("m8_rho", positive=True)
+        self.m9_rho = symbols("m9_rho", positive=True)
+        self.m10_rho = symbols("m10_rho", positive=True)
 
         self.m1_k = symbols("m1_k", positive=True)
         self.m2_k = symbols("m2_k", positive=True)
         self.m3_k = symbols("m3_k", positive=True)
+        self.m4_k = symbols("m4_k", positive=True)
+        self.m5_k = symbols("m5_k", positive=True)
+        self.m6_k = symbols("m6_k", positive=True)
+        self.m7_k = symbols("m7_k", positive=True)
+        self.m8_k = symbols("m8_k", positive=True)
+        self.m9_k = symbols("m9_k", positive=True)
+        self.m10_k = symbols("m10_k", positive=True)
 
         # Electron mobility for NMOS
         self.u_n = symbols("u_n", positive=True)
@@ -336,10 +350,24 @@ class BaseParameters:
             "m1_rho": self.m1_rho,
             "m2_rho": self.m2_rho,
             "m3_rho": self.m3_rho,
+            "m4_rho": self.m4_rho,
+            "m5_rho": self.m5_rho,
+            "m6_rho": self.m6_rho,
+            "m7_rho": self.m7_rho,
+            "m8_rho": self.m8_rho,
+            "m9_rho": self.m9_rho,
+            "m10_rho": self.m10_rho,
             "m1_k": self.m1_k,
             "m2_k": self.m2_k,
             "m3_k": self.m3_k,
-
+            "m4_k": self.m4_k,
+            "m5_k": self.m5_k,
+            "m6_k": self.m6_k,
+            "m7_k": self.m7_k,
+            "m8_k": self.m8_k,
+            "m9_k": self.m9_k,
+            "m10_k": self.m10_k,
+            
             # Cacti .dat technology parameters
             'C_g_ideal': self.C_g_ideal,
             'C_fringe': self.C_fringe,

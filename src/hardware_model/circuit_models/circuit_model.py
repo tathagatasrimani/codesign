@@ -7,6 +7,16 @@ import sympy as sp
 
 logger = logging.getLogger(__name__)
 
+DATA_WIDTH = 16
+
+DEBUG = False
+def log_info(msg):
+    if DEBUG:
+        logger.info(msg)
+def log_warning(msg):
+    if DEBUG:
+        logger.warning(msg)
+
 class CircuitModel:
     def __init__(self, tech_model):
         self.tech_model = tech_model
@@ -163,7 +173,7 @@ class CircuitModel:
         # wire length by edge
         self.wire_length_by_edge = {}
 
-        self.metal_layers = ["metal1", "metal2", "metal3"]
+        self.metal_layers = ["metal1", "metal2", "metal3", "metal4", "metal5", "metal6", "metal7", "metal8", "metal9", "metal10"]
 
         self.update_circuit_values()
 
@@ -226,7 +236,7 @@ class CircuitModel:
         self.logic_energy_active_cvx.value = float(self.tech_model.E_act_inv.subs(self.tech_model.base_params.tech_values).evalf())
         self.logic_power_passive_cvx.value = float(self.tech_model.P_pass_inv.subs(self.tech_model.base_params.tech_values).evalf())
         for layer in self.metal_layers:
-            logger.info(f"wire_unit_delay_cvx[{layer}] = {self.wire_unit_delay_cvx[layer].value}, with R[{layer}] = {self.tech_model.wire_parasitics['R'][layer].subs(self.tech_model.base_params.tech_values).evalf()}, C[{layer}] = {self.tech_model.wire_parasitics['C'][layer].subs(self.tech_model.base_params.tech_values).evalf()}")
+            log_info(f"wire_unit_delay_cvx[{layer}] = {self.wire_unit_delay_cvx[layer].value}, with R[{layer}] = {self.tech_model.wire_parasitics['R'][layer].subs(self.tech_model.base_params.tech_values).evalf()}, C[{layer}] = {self.tech_model.wire_parasitics['C'][layer].subs(self.tech_model.base_params.tech_values).evalf()}")
             self.wire_unit_delay_cvx[layer].value = float((self.tech_model.wire_parasitics["R"][layer]*self.tech_model.wire_parasitics["C"][layer]).subs(self.tech_model.base_params.tech_values).evalf())
             self.wire_unit_energy_cvx[layer].value = float((0.5*self.tech_model.wire_parasitics["C"][layer]*self.tech_model.base_params.V_dd**2).subs(self.tech_model.base_params.tech_values).evalf())
 
@@ -272,43 +282,47 @@ class CircuitModel:
             key: self.memories[key]["Area (mm2)"] * 1e6 for key in self.memories
         } 
 
+    # dividing wire length by DATA_WIDTH because the wire length is summed over multiple bits.
     def wire_delay(self, edge, symbolic=False):
         # wire delay = R * C * length^2 (ns)
         if symbolic:
             wire_delay = 0
             for layer in self.metal_layers:
                 if layer in self.wire_length_by_edge[edge]:
-                    wire_delay += self.wire_length_by_edge[edge][layer]**2 * self.tech_model.wire_parasitics["R"][layer] * self.tech_model.wire_parasitics["C"][layer]
+                    wire_delay += (self.wire_length_by_edge[edge][layer]/DATA_WIDTH)**2 * self.tech_model.wire_parasitics["R"][layer] * self.tech_model.wire_parasitics["C"][layer]
             return wire_delay * 1e9 
         else:
             wire_delay = 0
             for layer in self.metal_layers:
                 if layer in self.wire_length_by_edge[edge]:
-                    wire_delay += self.wire_length_by_edge[edge][layer]**2 * self.tech_model.wire_parasitics["R"][layer].xreplace(self.tech_model.base_params.tech_values) * self.tech_model.wire_parasitics["C"][layer].xreplace(self.tech_model.base_params.tech_values)
+                    wire_delay += (self.wire_length_by_edge[edge][layer]/DATA_WIDTH)**2 * self.tech_model.wire_parasitics["R"][layer].xreplace(self.tech_model.base_params.tech_values) * self.tech_model.wire_parasitics["C"][layer].xreplace(self.tech_model.base_params.tech_values)
             return wire_delay * 1e9
 
+    # for 1 bit
     def wire_length(self, edge):
         wire_length = 0
         for layer in self.metal_layers:
             if layer in self.wire_length_by_edge[edge]:
-                wire_length += self.wire_length_by_edge[edge][layer]
+                wire_length += self.wire_length_by_edge[edge][layer]/DATA_WIDTH
+        log_info(f"wire_length for edge {edge} is {wire_length}")
         return wire_length
     
     def wire_delay_uarch(self, edge):
         wire_delay = 0
         for layer in self.metal_layers:
             if layer in self.wire_length_by_edge[edge]:
-                wire_delay += self.wire_length_by_edge[edge][layer]**2 * self.wire_unit_delay[layer]
+                wire_delay += (self.wire_length_by_edge[edge][layer]/DATA_WIDTH)**2 * self.wire_unit_delay[layer]
         return wire_delay * 1e9
     
     def wire_delay_uarch_cvx(self, edge):
         wire_delay = 0
         for layer in self.metal_layers:
             if layer in self.wire_length_by_edge[edge]:
-                logger.info(f"wire_length_by_edge[{edge}][{layer}] = {self.wire_length_by_edge[edge][layer]}, wire_unit_delay_cvx[{layer}] = {self.wire_unit_delay_cvx[layer].value}")
-                wire_delay += self.wire_length_by_edge[edge][layer]**2 * self.wire_unit_delay_cvx[layer]
+                log_info(f"wire_length_by_edge[{edge}][{layer}] = {self.wire_length_by_edge[edge][layer]}, wire_unit_delay_cvx[{layer}] = {self.wire_unit_delay_cvx[layer].value}")
+                wire_delay += (self.wire_length_by_edge[edge][layer]/DATA_WIDTH)**2 * self.wire_unit_delay_cvx[layer]
         return wire_delay * 1e9
         
+    # energy calculation uses the total wire length, not the wire length per bit.
     def wire_energy(self, edge, symbolic=False):
         # wire energy = 0.5 * C * V_dd^2 * length
         if symbolic:

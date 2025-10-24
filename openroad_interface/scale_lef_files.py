@@ -12,7 +12,7 @@ L_EFF_FREEPDK45 = 0.025E-6  # effective channel length for FreePDK45 (microns)
 ## NOTE: this is an approximation.
 
 class ScaleLefFiles:
-    def __init__(self, cfg, codesign_root_dir, subdirectory=None):
+    def __init__(self, cfg, codesign_root_dir, tmp_dir, subdirectory=None):
         """
         Scales LEF files by a given factor.
 
@@ -21,7 +21,8 @@ class ScaleLefFiles:
         """
         self.cfg = cfg
         self.codesign_root_dir = codesign_root_dir
-        self.directory = os.path.join(self.codesign_root_dir, "src/tmp/pd")
+        self.tmp_dir = tmp_dir
+        self.directory = os.path.join(self.codesign_root_dir, f"{self.tmp_dir}/pd")
 
         if subdirectory:
             self.directory = os.path.join(self.directory, subdirectory)
