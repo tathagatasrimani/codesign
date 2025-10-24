@@ -24,7 +24,7 @@ def debug_print(msg):
         logger.info(msg)
 
 class OpenRoadRunHier:
-    def __init__(self, cfg, codesign_root_dir):
+    def __init__(self, cfg, codesign_root_dir, tmp_dir, run_openroad):
         """
         Initialize the OpenRoadRunHier with configuration and root directory.
 
@@ -33,7 +33,10 @@ class OpenRoadRunHier:
         """
         self.cfg = cfg
         self.codesign_root_dir = codesign_root_dir
-        self.hier_pd_base_dir = os.path.join(self.codesign_root_dir, "src/tmp/pd/hier")
+        self.tmp_dir = tmp_dir
+        self.run_openroad = run_openroad
+        self.hier_pd_base_dir = os.path.join(self.codesign_root_dir, f"{self.tmp_dir}/pd/hier/")
+
 
     def run_hierarchical_openroad(
         self,
@@ -154,7 +157,7 @@ class OpenRoadRunHier:
             return
         
         ## then run place and route for this module, using the macros of the submodules.
-        flat_open_road_run = openroad_run.OpenRoadRun(cfg=self.cfg, codesign_root_dir=self.codesign_root_dir, subdirectory=f"hier/{module_name}/pd/")
+        flat_open_road_run = openroad_run.OpenRoadRun(cfg=self.cfg, codesign_root_dir=self.codesign_root_dir, tmp_dir=self.tmp_dir, run_openroad=self.run_openroad, subdirectory=f"hier/{module_name}/pd/")
         
         wire_length_by_edge, _ = flat_open_road_run.run(
             module_graph, self.test_file, self.arg_parasitics, self.top_level_area_constraint, self.L_eff

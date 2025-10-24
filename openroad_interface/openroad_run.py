@@ -32,14 +32,12 @@ class OpenRoadRun:
         self.codesign_root_dir = codesign_root_dir
         self.tmp_dir = tmp_dir
         self.run_openroad = run_openroad
-        self.directory = os.path.join(self.codesign_root_dir, f"{self.tmp_dir}src/tmp/pd")
+        self.directory = os.path.join(self.codesign_root_dir, f"{self.tmp_dir}/pd")
         self.subdirectory = subdirectory
 
         ## results will be placed here. This is necessary for running the flow hierarchically. 
         if subdirectory is not None:
             self.directory = os.path.join(self.directory, subdirectory)
-        
-        self.directory = os.path.join(self.codesign_root_dir, f"{self.tmp_dir}/pd")
 
 
     def run(
