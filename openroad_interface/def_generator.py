@@ -273,6 +273,7 @@ class DefGenerator:
                         sy = float(m_size.group(2))
                         self.max_dim_macro = max(self.max_dim_macro, sx, sy)
                         macro_size_dict[macro_name] = (sx, sy)
+                        macro_dict[macro_name]["area"] = sx * sy
                     except Exception:
                         logger.debug(f"Couldn't parse SIZE for macro {macro_name}: {line.strip()}")
                 else:
@@ -318,6 +319,7 @@ class DefGenerator:
         out_edge = self.edge_gen("out", old_nodes, graph)
         for node in old_nodes:
             macro = self.find_macro(graph.nodes[node]["function"])
+            macro_dict[macro]["function"] = graph.nodes[node]["function"]
             node_to_macro[node] = [macro, copy.deepcopy(macro_dict[macro])]
             log_info(f"node to macro [{node}]: {node_to_macro[node]}")
             out_edge = self.edge_gen("out", old_nodes, graph)
@@ -651,4 +653,4 @@ class DefGenerator:
         log_info(f"DEF file generation complete.")
         log_info(f"Estimated total macro area: {area_estimate_sq_microns:.2f} square microns")
 
-        return graph, net_out_dict, node_output, lef_data_dict, node_to_num, area_estimate_sq_microns
+        return graph, net_out_dict, node_output, lef_data_dict, node_to_num, area_estimate_sq_microns, macro_dict

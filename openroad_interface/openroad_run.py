@@ -16,12 +16,13 @@ from openroad_interface import def_generator
 from . import estimation as est
 from . import detailed as det
 from . import scale_lef_files as scale_lef
+from openroad_interface.lib_cell_generator import LibCellGenerator
 
 ## This is the area between the die area and the core area.
 DIE_CORE_BUFFER_SIZE = 50
 
 class OpenRoadRun:
-    def __init__(self, cfg, codesign_root_dir, tmp_dir, run_openroad):
+    def __init__(self, cfg, codesign_root_dir, tmp_dir, run_openroad, circuit_model):
         """
         Initialize the OpenRoadRun with configuration and root directory.
 
@@ -33,6 +34,7 @@ class OpenRoadRun:
         self.tmp_dir = tmp_dir
         self.directory = os.path.join(self.codesign_root_dir, f"{self.tmp_dir}/pd")
         self.run_openroad = run_openroad
+        self.circuit_model = circuit_model
 
     def run(
     self,
@@ -91,14 +93,17 @@ class OpenRoadRun:
         """
 
         old_graph = copy.deepcopy(graph)
-        graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, max_dim_macro = self.setup_set_area_constraint(graph, test_file, area_constraint, L_eff)
+        graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, max_dim_macro, macro_dict = self.setup_set_area_constraint(graph, test_file, area_constraint, L_eff)
 
         area_constraint_old = area_constraint
         logger.info(f"Max dimension macro: {max_dim_macro}, corresponding area constraint value: {max_dim_macro**2}")
         logger.info(f"Estimated area: {area_estimate}")
         area_constraint = int(max(area_estimate, max_dim_macro**2)/0.6)
         logger.info(f"Info: Final estimated area {area_estimate} compared to area constraint {area_constraint_old}. Area constraint will be scaled from {area_constraint_old} to {area_constraint}.")
-        graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, max_dim_macro = self.setup_set_area_constraint(old_graph, test_file, area_constraint, L_eff)
+        graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, max_dim_macro, macro_dict = self.setup_set_area_constraint(old_graph, test_file, area_constraint, L_eff)
+
+        lib_cell_generator = LibCellGenerator()
+        lib_cell_generator.generate_and_write_cells(macro_dict, self.circuit_model, self.directory + "/tcl/codesign_files/codesign_typ.lib")
 
         return graph, net_out_dict, node_output, lef_data, node_to_num
 
@@ -142,13 +147,13 @@ class OpenRoadRun:
 
         df = def_generator.DefGenerator(self.cfg, self.codesign_root_dir, self.tmp_dir, self.do_scale_lef.NEW_database_units_per_micron)
 
-        graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate = df.run_def_generator(
+        graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, macro_dict = df.run_def_generator(
             test_file, graph
         )
         logger.info(f"DEF generation complete. Area estimate: {area_estimate}")
         logger.info(f"Max dimension macro: {df.max_dim_macro}")
 
-        return graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, df.max_dim_macro
+        return graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, df.max_dim_macro, macro_dict
 
     def update_area_constraint(self, area_constraint: int):
         """
