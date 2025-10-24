@@ -5649,134 +5649,134 @@ MACRO Add50_40
         RECT 7.56 2.63 8.56 3.63 ;
     END
    END A15
-   PIN A16
+   PIN B0
     DIRECTION INPUT ;
     USE SIGNAL ;
     PORT
       LAYER metal1 ;
         RECT 7.56 5.26 8.56 6.26 ;
     END
-   END A16
-   PIN A17
+   END B0
+   PIN B1
     DIRECTION INPUT ;
     USE SIGNAL ;
     PORT
       LAYER metal1 ;
         RECT 7.56 7.89 8.56 8.89 ;
     END
-   END A17
-   PIN A18
+   END B1
+   PIN B2
     DIRECTION INPUT ;
     USE SIGNAL ;
     PORT
       LAYER metal1 ;
         RECT 7.56 10.52 8.56 11.52 ;
     END
-   END A18
-   PIN A19
+   END B2
+   PIN B3
     DIRECTION INPUT ;
     USE SIGNAL ;
     PORT
       LAYER metal1 ;
         RECT 7.56 13.15 8.56 14.15 ;
     END
-   END A19
-   PIN A20
+   END B3
+   PIN B4
     DIRECTION INPUT ;
     USE SIGNAL ;
     PORT
       LAYER metal1 ;
         RECT 9.7 2.63 10.7 3.63 ;
     END
-   END A20
-   PIN A21
+   END B4
+   PIN B5
     DIRECTION INPUT ;
     USE SIGNAL ;
     PORT
       LAYER metal1 ;
         RECT 9.7 5.26 10.7 6.26 ;
     END
-   END A21
-   PIN A22
+   END B5
+   PIN B6
     DIRECTION INPUT ;
     USE SIGNAL ;
     PORT
       LAYER metal1 ;
         RECT 9.7 7.89 10.7 8.89 ;
     END
-   END A22
-   PIN A23
+   END B6
+   PIN B7
     DIRECTION INPUT ;
     USE SIGNAL ;
     PORT
       LAYER metal1 ;
         RECT 9.7 10.52 10.7 11.52 ;
     END
-   END A23
-   PIN A24
+   END B7
+   PIN B8
     DIRECTION INPUT ;
     USE SIGNAL ;
     PORT
       LAYER metal1 ;
         RECT 9.7 13.15 10.7 14.15 ;
     END
-   END A24
-   PIN A25
+   END B8
+   PIN B9
     DIRECTION INPUT ;
     USE SIGNAL ;
     PORT
       LAYER metal1 ;
         RECT 11.84 2.63 12.84 3.63 ;
     END
-   END A25
-   PIN A26
+   END B9
+   PIN B10
     DIRECTION INPUT ;
     USE SIGNAL ;
     PORT
       LAYER metal1 ;
         RECT 11.84 5.26 12.84 6.26 ;
     END
-   END A26
-   PIN A27
+   END B10
+   PIN B11
     DIRECTION INPUT ;
     USE SIGNAL ;
     PORT
       LAYER metal1 ;
         RECT 11.84 7.89 12.84 8.89 ;
     END
-   END A27
-   PIN A28
+   END B11
+   PIN B12
     DIRECTION INPUT ;
     USE SIGNAL ;
     PORT
       LAYER metal1 ;
         RECT 11.84 10.52 12.84 11.52 ;
     END
-   END A28
-   PIN A29
+   END B12
+   PIN B13
     DIRECTION INPUT ;
     USE SIGNAL ;
     PORT
       LAYER metal1 ;
         RECT 11.84 13.15 12.84 14.15 ;
     END
-   END A29
-   PIN A30
+   END B13
+   PIN B14
     DIRECTION INPUT ;
     USE SIGNAL ;
     PORT
       LAYER metal1 ;
         RECT 13.98 2.63 14.98 3.63 ;
     END
-   END A30
-   PIN A31
+   END B14
+   PIN B15
     DIRECTION INPUT ;
     USE SIGNAL ;
     PORT
       LAYER metal1 ;
         RECT 13.98 5.26 14.98 6.26 ;
     END
-   END A31
+   END B15
    PIN Z0
     DIRECTION OUTPUT ;
     USE SIGNAL ;
@@ -5905,22 +5905,6 @@ MACRO Add50_40
         RECT 20.4 7.89 21.4 8.89 ;
     END
    END Z15
-   PIN Z16
-    DIRECTION OUTPUT ;
-    USE SIGNAL ;
-    PORT
-      LAYER metal1 ;
-        RECT 20.4 10.52 21.4 11.52 ;
-    END
-   END Z16
-   PIN Z17
-    DIRECTION OUTPUT ;
-    USE SIGNAL ;
-    PORT
-      LAYER metal1 ;
-        RECT 20.4 13.15 21.4 14.15 ;
-    END
-   END Z17
    PIN VDD
     DIRECTION INOUT ;
     USE POWER ;
@@ -6609,134 +6593,134 @@ MACRO Mult64_40_2
         RECT 21.78 63.95 22.78 64.95 ;
     END
    END A15
-   PIN A16
+   PIN B0
     DIRECTION INPUT ;
     USE SIGNAL ;
     PORT
       LAYER metal1 ;
         RECT 27.29 16.25 28.29 17.25 ;
     END
-   END A16
-   PIN A17
+   END B0
+   PIN B1
     DIRECTION INPUT ;
     USE SIGNAL ;
     PORT
       LAYER metal1 ;
         RECT 27.29 32.5 28.29 33.5 ;
     END
-   END A17
-   PIN A18
+   END B1
+   PIN B2
     DIRECTION INPUT ;
     USE SIGNAL ;
     PORT
       LAYER metal1 ;
         RECT 27.29 48.75 28.29 49.75 ;
     END
-   END A18
-   PIN A19
+   END B2
+   PIN B3
     DIRECTION INPUT ;
     USE SIGNAL ;
     PORT
       LAYER metal1 ;
         RECT 27.29 63.95 28.29 64.95 ;
     END
-   END A19
-   PIN A20
+   END B3
+   PIN B4
     DIRECTION INPUT ;
     USE SIGNAL ;
     PORT
       LAYER metal1 ;
         RECT 32.79 16.25 33.79 17.25 ;
     END
-   END A20
-   PIN A21
+   END B4
+   PIN B5
     DIRECTION INPUT ;
     USE SIGNAL ;
     PORT
       LAYER metal1 ;
         RECT 32.79 32.5 33.79 33.5 ;
     END
-   END A21
-   PIN A22
+   END B5
+   PIN B6
     DIRECTION INPUT ;
     USE SIGNAL ;
     PORT
       LAYER metal1 ;
         RECT 32.79 48.75 33.79 49.75 ;
     END
-   END A22
-   PIN A23
+   END B6
+   PIN B7
     DIRECTION INPUT ;
     USE SIGNAL ;
     PORT
       LAYER metal1 ;
         RECT 32.79 63.95 33.79 64.95 ;
     END
-   END A23
-   PIN A24
+   END B7
+   PIN B8
     DIRECTION INPUT ;
     USE SIGNAL ;
     PORT
       LAYER metal1 ;
         RECT 38.29 16.25 39.29 17.25 ;
     END
-   END A24
-   PIN A25
+   END B8
+   PIN B9
     DIRECTION INPUT ;
     USE SIGNAL ;
     PORT
       LAYER metal1 ;
         RECT 38.29 32.5 39.29 33.5 ;
     END
-   END A25
-   PIN A26
+   END B9
+   PIN B10
     DIRECTION INPUT ;
     USE SIGNAL ;
     PORT
       LAYER metal1 ;
         RECT 38.29 48.75 39.29 49.75 ;
     END
-   END A26
-   PIN A27
+   END B10
+   PIN B11
     DIRECTION INPUT ;
     USE SIGNAL ;
     PORT
       LAYER metal1 ;
         RECT 38.29 63.95 39.29 64.95 ;
     END
-   END A27
-   PIN A28
+   END B11
+   PIN B12
     DIRECTION INPUT ;
     USE SIGNAL ;
     PORT
       LAYER metal1 ;
         RECT 43.79 16.25 44.79 17.25 ;
     END
-   END A28
-   PIN A29
+   END B12
+   PIN B13
     DIRECTION INPUT ;
     USE SIGNAL ;
     PORT
       LAYER metal1 ;
         RECT 43.79 32.5 44.79 33.5 ;
     END
-   END A29
-   PIN A30
+   END B13
+   PIN B14
     DIRECTION INPUT ;
     USE SIGNAL ;
     PORT
       LAYER metal1 ;
         RECT 43.79 48.75 44.79 49.75 ;
     END
-   END A30
-   PIN A31
+   END B14
+   PIN B15
     DIRECTION INPUT ;
     USE SIGNAL ;
     PORT
       LAYER metal1 ;
         RECT 43.79 63.95 44.79 64.95 ;
     END
-   END A31
+   END B15
    PIN Z0
     DIRECTION OUTPUT ;
     USE SIGNAL ;
@@ -6865,134 +6849,6 @@ MACRO Mult64_40_2
         RECT 65.89 63.95 66.89 64.95 ;
     END
    END Z15
-   PIN Z16
-    DIRECTION OUTPUT ;
-    USE SIGNAL ;
-    PORT
-      LAYER metal1 ;
-        RECT 71.39 16.25 72.39 17.25 ;
-    END
-   END Z16
-   PIN Z17
-    DIRECTION OUTPUT ;
-    USE SIGNAL ;
-    PORT
-      LAYER metal1 ;
-        RECT 71.39 32.5 72.39 33.5 ;
-    END
-   END Z17
-   PIN Z18
-    DIRECTION OUTPUT ;
-    USE SIGNAL ;
-    PORT
-      LAYER metal1 ;
-        RECT 71.39 48.75 72.39 49.75 ;
-    END
-   END Z18
-   PIN Z19
-    DIRECTION OUTPUT ;
-    USE SIGNAL ;
-    PORT
-      LAYER metal1 ;
-        RECT 71.39 63.95 72.39 64.95 ;
-    END
-   END Z19
-   PIN Z20
-    DIRECTION OUTPUT ;
-    USE SIGNAL ;
-    PORT
-      LAYER metal1 ;
-        RECT 76.89 16.25 77.89 17.25 ;
-    END
-   END Z20
-   PIN Z21
-    DIRECTION OUTPUT ;
-    USE SIGNAL ;
-    PORT
-      LAYER metal1 ;
-        RECT 76.89 32.5 77.89 33.5 ;
-    END
-   END Z21
-   PIN Z22
-    DIRECTION OUTPUT ;
-    USE SIGNAL ;
-    PORT
-      LAYER metal1 ;
-        RECT 76.89 48.75 77.89 49.75 ;
-    END
-   END Z22
-   PIN Z23
-    DIRECTION OUTPUT ;
-    USE SIGNAL ;
-    PORT
-      LAYER metal1 ;
-        RECT 76.89 63.95 77.89 64.95 ;
-    END
-   END Z23
-   PIN Z24
-    DIRECTION OUTPUT ;
-    USE SIGNAL ;
-    PORT
-      LAYER metal1 ;
-        RECT 82.39 16.25 83.39 17.25 ;
-    END
-   END Z24
-   PIN Z25
-    DIRECTION OUTPUT ;
-    USE SIGNAL ;
-    PORT
-      LAYER metal1 ;
-        RECT 82.39 32.5 83.39 33.5 ;
-    END
-   END Z25
-   PIN Z26
-    DIRECTION OUTPUT ;
-    USE SIGNAL ;
-    PORT
-      LAYER metal1 ;
-        RECT 82.39 48.75 83.39 49.75 ;
-    END
-   END Z26
-   PIN Z27
-    DIRECTION OUTPUT ;
-    USE SIGNAL ;
-    PORT
-      LAYER metal1 ;
-        RECT 82.39 63.95 83.39 64.95 ;
-    END
-   END Z27
-   PIN Z28
-    DIRECTION OUTPUT ;
-    USE SIGNAL ;
-    PORT
-      LAYER metal1 ;
-        RECT 87.9 16.25 88.9 17.25 ;
-    END
-   END Z28
-   PIN Z29
-    DIRECTION OUTPUT ;
-    USE SIGNAL ;
-    PORT
-      LAYER metal1 ;
-        RECT 87.9 32.5 88.9 33.5 ;
-    END
-   END Z29
-   PIN Z30
-    DIRECTION OUTPUT ;
-    USE SIGNAL ;
-    PORT
-      LAYER metal1 ;
-        RECT 87.9 48.75 88.9 49.75 ;
-    END
-   END Z30
-   PIN Z31
-    DIRECTION OUTPUT ;
-    USE SIGNAL ;
-    PORT
-      LAYER metal1 ;
-        RECT 87.9 63.95 88.9 64.95 ;
-    END
-   END Z31
    PIN VDD
     DIRECTION INOUT ;
     USE POWER ;
