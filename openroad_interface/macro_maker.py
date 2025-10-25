@@ -15,7 +15,7 @@ REFERENCE_LEF_TECH_NODE = 45
 
 
 ## the factor by which the area must be scaled up to match the LEF data
-AREA_SCALE_FACTOR = REFERENCE_LEF_TECH_NODE / REFERENCE_AREA_TECH_NODE
+AREA_SCALE_FACTOR = (REFERENCE_LEF_TECH_NODE / REFERENCE_AREA_TECH_NODE) ** 2
 
 ## The target aspect ratio for the macros (Height / Width)
 TARGET_ASPECT_RATIO = 1.0
