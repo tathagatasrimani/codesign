@@ -752,12 +752,12 @@ class Codesign:
         # self.hw.netlist = netlist_dfg
 
         # update netlist and scheduled dfg with wire parasitics
-        run_openroad = (self.checkpoint_controller.check_checkpoint("schedule", self.iteration_count) and not self.max_rsc_reached) and not os.path.exists(f"{self.tmp_dir}/pd_{self.cur_dsp_usage}_dsp")
+        run_openroad = (self.checkpoint_controller.check_checkpoint("pd", self.iteration_count) and not self.max_rsc_reached) and not os.path.exists(f"{self.tmp_dir}/pd_{self.cur_dsp_usage}_dsp")
         if os.path.exists(f"{self.tmp_dir}/pd_{self.cur_dsp_usage}_dsp"):
             shutil.rmtree(f"{self.tmp_dir}/pd", ignore_errors=True)
             shutil.copytree(f"{self.tmp_dir}/pd_{self.cur_dsp_usage}_dsp", f"{self.tmp_dir}/pd")
             logger.info(f"copied pd_{self.cur_dsp_usage}_dsp to pd, will use results from previous run")
-        if not self.checkpoint_controller.check_checkpoint("schedule", self.iteration_count):
+        if not self.checkpoint_controller.check_checkpoint("pd", self.iteration_count):
             logger.info(f"will not run openroad because of checkpoint, will use results from previous run")
         self.hw.get_wire_parasitics(self.openroad_testfile, self.parasitics, self.benchmark_name, run_openroad, self.cfg["args"]["area"])
 
