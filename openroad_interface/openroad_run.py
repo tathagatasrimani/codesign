@@ -21,8 +21,12 @@ from openroad_interface.lib_cell_generator import LibCellGenerator
 ## This is the area between the die area and the core area.
 DIE_CORE_BUFFER_SIZE = 50
 
+
+L_EFF_FREEPDK45 = 0.025E-6  # effective channel length for FreePDK45 (microns)
+## NOTE: this is an approximation.
+
 class OpenRoadRun:
-    def __init__(self, cfg, codesign_root_dir, tmp_dir, run_openroad, circuit_model):
+    def __init__(self, cfg, codesign_root_dir, tmp_dir, run_openroad, circuit_model, L_eff_free_pdk45=0.025E-6):
         """
         Initialize the OpenRoadRun with configuration and root directory.
 
@@ -35,7 +39,8 @@ class OpenRoadRun:
         self.directory = os.path.join(self.codesign_root_dir, f"{self.tmp_dir}/pd")
         self.run_openroad = run_openroad
         self.circuit_model = circuit_model
-
+        self.L_eff_free_pdk45 = L_eff_free_pdk45
+    
     def run(
     self,
     graph: nx.DiGraph,
@@ -51,6 +56,7 @@ class OpenRoadRun:
 
         """
         self.L_eff = L_eff
+        self.alpha = self.L_eff_free_pdk45 / self.L_eff
         logger.info(f"Starting place and route with parasitics: {arg_parasitics}")
         dict = {edge: {} for edge in graph.edges()}
         if "none" not in arg_parasitics:
@@ -158,7 +164,7 @@ class OpenRoadRun:
 
         self.update_area_constraint(area_constraint)
 
-        self.do_scale_lef = scale_lef.ScaleLefFiles(self.cfg, self.codesign_root_dir, self.tmp_dir)
+        self.do_scale_lef = scale_lef.ScaleLefFiles(self.cfg, self.codesign_root_dir, self.tmp_dir, self.L_eff_free_pdk45)
         self.do_scale_lef.scale_lef_files(L_eff)
 
         df = def_generator.DefGenerator(self.cfg, self.codesign_root_dir, self.tmp_dir, self.do_scale_lef.NEW_database_units_per_micron)
@@ -169,7 +175,30 @@ class OpenRoadRun:
         logger.info(f"DEF generation complete. Area estimate: {area_estimate}")
         logger.info(f"Max dimension macro: {df.max_dim_macro}")
 
+        self.scale_rc_values()
+
         return graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, df.max_dim_macro, macro_dict
+
+    def scale_rc_values(self):
+        """
+        Scales the RC values in the tcl file based on the input L_eff.
+        param:
+            L_eff: effective channel length used to scale the LEF files.
+        """
+        with open(self.directory + "/tcl/codesign_files/codesign.rc", "r") as file:
+            rc_data = file.readlines()
+        for i, line in enumerate(rc_data):
+            if line.startswith("set_layer_rc"):
+                metal_layer = line.split()[2]
+                rsq = self.circuit_model.tech_model.wire_parasitics["R"][metal_layer].xreplace(self.circuit_model.tech_model.base_params.tech_values) * 1e-9 # convert to kohm/um
+                csq = self.circuit_model.tech_model.wire_parasitics["C"][metal_layer].xreplace(self.circuit_model.tech_model.base_params.tech_values) * 1e+15 * 1e-6 # convert to fF/um
+                # need to scale up RC for mature nodes, because unscaled OpenROAD wirelengths will be too short
+                # for advanced nodes the unscaled wirelengths will be too long
+                resistance = rsq / self.alpha
+                capacitance = csq / self.alpha
+                rc_data[i] = f"set_layer_rc -layer {metal_layer} -resistance {resistance} -capacitance {capacitance}\n"
+        with open(self.directory + "/tcl/codesign_files/codesign.rc", "w") as file:
+            file.writelines(rc_data)
 
     def update_area_constraint(self, area_constraint: int):
         """
@@ -434,18 +463,17 @@ class OpenRoadRun:
         for edge in wire_length_by_edge:
             #logger.info(f"edge is {edge}")
             #logger.info(f"original wire length by edge: {wire_length_by_edge[edge]}")
-            alpha_scale_factor = scale_lef.L_EFF_FREEPDK45 / self.L_eff
-            wire_length_by_edge[edge]["total_wl"] /= alpha_scale_factor * 1e6 # convert to meters
-            wire_length_by_edge[edge]["metal1"] /= alpha_scale_factor * 1e6 # convert to meters
-            wire_length_by_edge[edge]["metal2"] /= alpha_scale_factor * 1e6 # convert to meters
-            wire_length_by_edge[edge]["metal3"] /= alpha_scale_factor * 1e6 # convert to meters
-            wire_length_by_edge[edge]["metal4"] /= alpha_scale_factor * 1e6 # convert to meters
-            wire_length_by_edge[edge]["metal5"] /= alpha_scale_factor * 1e6 # convert to meters
-            wire_length_by_edge[edge]["metal6"] /= alpha_scale_factor * 1e6 # convert to meters
-            wire_length_by_edge[edge]["metal7"] /= alpha_scale_factor * 1e6 # convert to meters
-            wire_length_by_edge[edge]["metal8"] /= alpha_scale_factor * 1e6 # convert to meters
-            wire_length_by_edge[edge]["metal9"] /= alpha_scale_factor * 1e6 # convert to meters
-            wire_length_by_edge[edge]["metal10"] /= alpha_scale_factor * 1e6 # convert to meters
+            wire_length_by_edge[edge]["total_wl"] /= self.alpha * 1e6 # convert to meters
+            wire_length_by_edge[edge]["metal1"] /= self.alpha * 1e6 # convert to meters
+            wire_length_by_edge[edge]["metal2"] /= self.alpha * 1e6 # convert to meters
+            wire_length_by_edge[edge]["metal3"] /= self.alpha * 1e6 # convert to meters
+            wire_length_by_edge[edge]["metal4"] /= self.alpha * 1e6 # convert to meters
+            wire_length_by_edge[edge]["metal5"] /= self.alpha * 1e6 # convert to meters
+            wire_length_by_edge[edge]["metal6"] /= self.alpha * 1e6 # convert to meters
+            wire_length_by_edge[edge]["metal7"] /= self.alpha * 1e6 # convert to meters
+            wire_length_by_edge[edge]["metal8"] /= self.alpha * 1e6 # convert to meters
+            wire_length_by_edge[edge]["metal9"] /= self.alpha * 1e6 # convert to meters
+            wire_length_by_edge[edge]["metal10"] /= self.alpha * 1e6 # convert to meters
             #logger.info(f"scaled wire length by edge: {wire_length_by_edge[edge]}")
 
         return wire_length_by_edge, graph

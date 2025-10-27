@@ -9,25 +9,25 @@ default:
   V_dd: 5.0  # Supply voltage (V)
   area: 2.0  # Transistor area (μm²)
   m1_rho: 4.0e-8 # ohm * m
-  m1_k: 3.9 # F / m
+  m1_k: 2.5 # F / m
   m2_rho: 4.0e-8 # ohm * m
-  m2_k: 3.9 # F / m
+  m2_k: 2.5 # F / m
   m3_rho: 4.0e-8 # ohm * m
-  m3_k: 3.9 # F / m
+  m3_k: 2.5 # F / m
   m4_rho: 4.0e-8 # ohm * m
-  m4_k: 3.9 # F / m
+  m4_k: 2.5 # F / m
   m5_rho: 4.0e-8 # ohm * m
-  m5_k: 3.9 # F / m
+  m5_k: 2.5 # F / m
   m6_rho: 4.0e-8 # ohm * m
-  m6_k: 3.9 # F / m
+  m6_k: 2.5 # F / m
   m7_rho: 4.0e-8 # ohm * m
-  m7_k: 3.9 # F / m
+  m7_k: 2.5 # F / m
   m8_rho: 4.0e-8 # ohm * m
-  m8_k: 3.9 # F / m
+  m8_k: 2.5 # F / m
   m9_rho: 4.0e-8 # ohm * m
-  m9_k: 3.9 # F / m
+  m9_k: 2.5 # F / m
   m10_rho: 4.0e-8 # ohm * m
-  m10_k: 3.9 # F / m
+  m10_k: 2.5 # F / m
   k_gate: 3.9 # dielectric constant
   Cs: 100 # F/m^2
   clk_period: 250.0 # ns
@@ -203,16 +203,16 @@ gemm_save:
   I_off_n: 5.32e-07
   I_on_n: 0.0022117
   I_on_p: 0.00110585
-  L: 1.5465333945018244e-06
+  L: 5.182467883393003e-07
   L_c: 3.0e-06
   L_ov: 3.75e-07
   Mobility_n: 36184000000.0
-  V_dd: 4.334105520733165
-  V_th: 0.8775959870356995
+  V_dd: 4.506034930322346
+  V_th: 0.8726978719240095
   Vdd: 0.9
   Vdsat: 0.0509
   Vth: 0.21835
-  W: 4.736980044446061e-06
+  W: 1.6058196534280995e-06
   Wmemcella: 1.31
   Wmemcellnmos: 2.08
   Wmemcellpmos: 1.23
@@ -228,10 +228,10 @@ gemm_save:
   c_int: 1.5
   c_tx: 2.0
   chip_layout_overhead: 1.2
-  clk_period: 51.61201853191729
+  clk_period: 16.94611105812769
   core_tx_density: 1.78571
   d: 1.0e-06
-  delay_var: 0.11125016823147814
+  delay_var: 0.034646398744494204
   dishing_thickness: 1.0e-09
   dram_cell_C: 1.0e-09
   dram_cell_I_off_worst_case_len_temp: 1.0e-09
@@ -245,13 +245,17 @@ gemm_save:
   i_bias: 15.0
   i_leak: 1000.0
   ild_thickness: 0.21
+  interconnect_ahmdal_limit: 133.2861557347317
+  interconnect_resource_ahmdal_limit: .inf
+  interconnect_resource_sensitivity: 0.0
+  interconnect_sensitivity: 0.0036571789048947703
   ioarea_c: 0.01
   ioarea_k0: 0.5
   ioarea_k1: 0.00015
   ioarea_k2: 4.5e-08
   ioarea_k3: 1.5e-11
   k_cnt: 3.9
-  k_gate: 3.6896146112022596
+  k_gate: 3.9416931093630483
   k_noise_addr: 0.2
   k_noise_addr_sen: 0.135
   k_noise_read: 0.2
@@ -261,22 +265,40 @@ gemm_save:
   l_elec: 0.01013
   l_phy: 0.013
   lch_lk_rdc: 0.269833
-  logic_ahmdal_limit: 1.8373948612568172
-  logic_resource_ahmdal_limit: 2.3935920112993303
-  logic_resource_sensitivity: 0.3655601719879124
+  logic_ahmdal_limit: 1.9919194714411965
+  logic_resource_ahmdal_limit: 1.27890785323674
+  logic_resource_sensitivity: 0.7819171627331315
   logic_scaling_co_eff: 0.343
-  logic_sensitivity: 0.5442488281021854
-  m1_k: 3.8702095881799052
-  m1_rho: 3.99996846584208e-08
-  m2_k: 3.9000021853248787
-  m2_rho: 4.0000021039982904e-08
-  m3_k: 3.9000021853248787
-  m3_rho: 4.0000021039982904e-08
+  logic_sensitivity: 0.2144256583619448
+  m10_k: 3.9
+  m10_rho: 4.0e-08
+  m1_k: 3.8279449419892777
+  m1_rho: 3.9999481665279685e-08
+  m2_k: 3.90000272540688
+  m2_rho: 4.000002723614789e-08
+  m3_k: 3.90000272540688
+  m3_rho: 4.000002723614789e-08
+  m4_k: 3.9
+  m4_rho: 4.0e-08
+  m5_k: 3.9
+  m5_rho: 4.0e-08
+  m6_k: 3.9
+  m6_rho: 4.0e-08
+  m7_k: 3.9
+  m7_rho: 4.0e-08
+  m8_k: 3.9
+  m8_rho: 4.0e-08
+  m9_k: 3.9
+  m9_rho: 4.0e-08
   macro_layout_overhead: 1.1
+  memory_ahmdal_limit: .inf
+  memory_resource_ahmdal_limit: .inf
+  memory_resource_sensitivity: 0.0
+  memory_sensitivity: 0.0
   miller_value: 1.5
   n2p_drv_rt: 2.41
   nmos_effective_resistance_multiplier: 1.49
-  node_arrivals_end: 3382982.9441043893
+  node_arrivals_end: 210851.89370730397
   phy_bandgap_wtime: 10.0
   phy_clock_tree_d: 0.5
   phy_clock_tree_s: 1.0e-09
@@ -341,7 +363,7 @@ gemm_save:
   t_skew_setup: 25.0
   t_soc_hold: 50.0
   t_soc_setup: 50.0
-  tox: 1.0572604857439614e-07
+  tox: 9.896471653192948e-08
   tsv_contact_resistance: 0.1
   tsv_depletion_width: 0.6
   tsv_diameter: 0.7
@@ -349,7 +371,7 @@ gemm_save:
   tsv_length: 5.0
   tsv_liner_dielectric_cons: 1.664
   tsv_pitch: 1.4
-  u_n: 0.07021821531954016
+  u_n: 0.06994331111833313
   v_noise_independent_addr: 0.1
   v_noise_independent_read: 0.1
   v_noise_independent_write: 0.1

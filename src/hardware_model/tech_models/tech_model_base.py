@@ -73,30 +73,35 @@ class TechModel(ABC):
         # interconnect model
         # assume for now that wire width and thickness are both L (same as gate length)
         # and spacing between wire and dielectric is 2L
-        self.dist = 3*self.base_params.L
-        self.wire_dim = 0.5*self.base_params.L
+        self.dist = self.base_params.L
+        self.wire_width = self.base_params.L
+        self.wire_thick = self.base_params.L * 2
 
-        self.m1_Rsq = (self.base_params.m1_rho) / (self.wire_dim**2) # resistance per square (Ohm/m)
-        self.m2_Rsq = (self.base_params.m2_rho) / (self.wire_dim**2) # resistance per square (Ohm/m)
-        self.m3_Rsq = (self.base_params.m3_rho) / (self.wire_dim**2) # resistance per square (Ohm/m)
-        self.m4_Rsq = (self.base_params.m4_rho) / (self.wire_dim**2) # resistance per square (Ohm/m)
-        self.m5_Rsq = (self.base_params.m5_rho) / (self.wire_dim**2) # resistance per square (Ohm/m)
-        self.m6_Rsq = (self.base_params.m6_rho) / (self.wire_dim**2) # resistance per square (Ohm/m)
-        self.m7_Rsq = (self.base_params.m7_rho) / (self.wire_dim**2) # resistance per square (Ohm/m)
-        self.m8_Rsq = (self.base_params.m8_rho) / (self.wire_dim**2) # resistance per square (Ohm/m)
-        self.m9_Rsq = (self.base_params.m9_rho) / (self.wire_dim**2) # resistance per square (Ohm/m)
-        self.m10_Rsq = (self.base_params.m10_rho) / (self.wire_dim**2) # resistance per square (Ohm/m)
+        layer_scale_width = [1.0, 1.2, 1.4, 1.8, 2.5, 3.5, 5.0, 7.0, 10.0, 15.0]
+        layer_scale_thick = [1.0, 1.1, 1.2, 1.5, 1.9, 2.5, 3.5, 4.5, 5.5, 6.0]
+        spacing_factor = [1.0, 1.0, 1.2, 1.3, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0]
 
-        self.m1_Csq = (self.wire_dim * self.base_params.m1_k * self.e_0) / (self.dist) # capacitance per square (F/m)
-        self.m2_Csq = (self.wire_dim * self.base_params.m2_k * self.e_0) / (self.dist) # capacitance per square (F/m)
-        self.m3_Csq = (self.wire_dim * self.base_params.m3_k * self.e_0) / (self.dist) # capacitance per square (F/m)
-        self.m4_Csq = (self.wire_dim * self.base_params.m4_k * self.e_0) / (self.dist) # capacitance per square (F/m)
-        self.m5_Csq = (self.wire_dim * self.base_params.m5_k * self.e_0) / (self.dist) # capacitance per square (F/m)
-        self.m6_Csq = (self.wire_dim * self.base_params.m6_k * self.e_0) / (self.dist) # capacitance per square (F/m)
-        self.m7_Csq = (self.wire_dim * self.base_params.m7_k * self.e_0) / (self.dist) # capacitance per square (F/m)
-        self.m8_Csq = (self.wire_dim * self.base_params.m8_k * self.e_0) / (self.dist) # capacitance per square (F/m)
-        self.m9_Csq = (self.wire_dim * self.base_params.m9_k * self.e_0) / (self.dist) # capacitance per square (F/m)
-        self.m10_Csq = (self.wire_dim * self.base_params.m10_k * self.e_0) / (self.dist) # capacitance per square (F/m)
+        self.m1_Rsq = (self.base_params.m1_rho) / (self.wire_width*layer_scale_width[0]*self.wire_thick*layer_scale_thick[0]) # resistance per square (Ohm/m)
+        self.m2_Rsq = (self.base_params.m2_rho) / (self.wire_width*layer_scale_width[1]*self.wire_thick*layer_scale_thick[1]) # resistance per square (Ohm/m)
+        self.m3_Rsq = (self.base_params.m3_rho) / (self.wire_width*layer_scale_width[2]*self.wire_thick*layer_scale_thick[2]) # resistance per square (Ohm/m)
+        self.m4_Rsq = (self.base_params.m4_rho) / (self.wire_width*layer_scale_width[3]*self.wire_thick*layer_scale_thick[3]) # resistance per square (Ohm/m)
+        self.m5_Rsq = (self.base_params.m5_rho) / (self.wire_width*layer_scale_width[4]*self.wire_thick*layer_scale_thick[4]) # resistance per square (Ohm/m)
+        self.m6_Rsq = (self.base_params.m6_rho) / (self.wire_width*layer_scale_width[5]*self.wire_thick*layer_scale_thick[5]) # resistance per square (Ohm/m)
+        self.m7_Rsq = (self.base_params.m7_rho) / (self.wire_width*layer_scale_width[6]*self.wire_thick*layer_scale_thick[6]) # resistance per square (Ohm/m)
+        self.m8_Rsq = (self.base_params.m8_rho) / (self.wire_width*layer_scale_width[7]*self.wire_thick*layer_scale_thick[7]) # resistance per square (Ohm/m)
+        self.m9_Rsq = (self.base_params.m9_rho) / (self.wire_width*layer_scale_width[8]*self.wire_thick*layer_scale_thick[8]) # resistance per square (Ohm/m)
+        self.m10_Rsq = (self.base_params.m10_rho) / (self.wire_width*layer_scale_width[9]*self.wire_thick*layer_scale_thick[9]) # resistance per square (Ohm/m)
+
+        self.m1_Csq = (self.wire_thick*layer_scale_thick[0] * self.base_params.m1_k * self.e_0) / (self.dist*spacing_factor[0]) # capacitance per square (F/m)
+        self.m2_Csq = (self.wire_thick*layer_scale_thick[1] * self.base_params.m2_k * self.e_0) / (self.dist*spacing_factor[1]) # capacitance per square (F/m)
+        self.m3_Csq = (self.wire_thick*layer_scale_thick[2] * self.base_params.m3_k * self.e_0) / (self.dist*spacing_factor[2]) # capacitance per square (F/m)
+        self.m4_Csq = (self.wire_thick*layer_scale_thick[3] * self.base_params.m4_k * self.e_0) / (self.dist*spacing_factor[3]) # capacitance per square (F/m)
+        self.m5_Csq = (self.wire_thick*layer_scale_thick[4] * self.base_params.m5_k * self.e_0) / (self.dist*spacing_factor[4]) # capacitance per square (F/m)
+        self.m6_Csq = (self.wire_thick*layer_scale_thick[5] * self.base_params.m6_k * self.e_0) / (self.dist*spacing_factor[5]) # capacitance per square (F/m)
+        self.m7_Csq = (self.wire_thick*layer_scale_thick[6] * self.base_params.m7_k * self.e_0) / (self.dist*spacing_factor[6]) # capacitance per square (F/m)
+        self.m8_Csq = (self.wire_thick*layer_scale_thick[7] * self.base_params.m8_k * self.e_0) / (self.dist*spacing_factor[7]) # capacitance per square (F/m)
+        self.m9_Csq = (self.wire_thick*layer_scale_thick[8] * self.base_params.m9_k * self.e_0) / (self.dist*spacing_factor[8]) # capacitance per square (F/m)
+        self.m10_Csq = (self.wire_thick*layer_scale_thick[9] * self.base_params.m10_k * self.e_0) / (self.dist*spacing_factor[9]) # capacitance per square (F/m)
 
         self.wire_parasitics = {
             "R": {
