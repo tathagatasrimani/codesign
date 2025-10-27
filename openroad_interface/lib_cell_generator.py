@@ -87,8 +87,10 @@ class LibCellGenerator:
         ground_pin = ground_pin or self.ground_pin
         
         # Default timing relations: each output relates to all inputs
+        #if output_timing_relations is None:
+        #    output_timing_relations = {pin: input_pins for pin in output_pins}
         if output_timing_relations is None:
-            output_timing_relations = {pin: input_pins for pin in output_pins}
+            output_timing_relations = {pin: [input_pins[i]] for i, pin in enumerate(output_pins)}
         
         # Generate cell definition
         cell_def = []
