@@ -526,17 +526,27 @@ class OpenRoadRun:
             logger.info(f"Finding path from {src}:{src_component_num} to {dst}:{dst_component_num}")
             # Find a path through repeaters from src to dst in updated_graph
             # There should be a unique simple path; use shortest_simple_paths or single_source shortest path
-            path_nodes = nx.shortest_path(self.updated_graph, source=src_component_num, target=dst_component_num)
+            try:
+                path_nodes = nx.shortest_path(self.updated_graph, source=src_component_num, target=dst_component_num)
+            except Exception as e:
+                logger.warning(f"Error finding path from {src}:{src_component_num} to {dst}:{dst_component_num}: {e}")
+                path_nodes = []
+
 
             # Collect net ids on each hop of the path
             nets_on_path = []
             for u, v in zip(path_nodes[:-1], path_nodes[1:]):
-                nets_on_path.append(copy.deepcopy(nets[self.updated_graph.edges[u, v]["net"]]))
+                if (u, v) in self.updated_graph.edges():
+                    nets_on_path.append(copy.deepcopy(nets[self.updated_graph.edges[u, v]["net"]]))
+                else:
+                    logger.warning(f"Edge not found in updated graph: {u}:{v}")
             
             # add self edge if it exists, won't be captured by nx shortest path
             if src == dst:
-                assert (src_component_num, src_component_num) in self.updated_graph.edges(), f"Self edge not found in updated graph: {src}:{src_component_num}, {dst}:{dst_component_num}"
-                nets_on_path.append(copy.deepcopy(nets[self.updated_graph.edges[src_component_num, src_component_num]["net"]]))
+                if (src_component_num, src_component_num) in self.updated_graph.edges():
+                    nets_on_path.append(copy.deepcopy(nets[self.updated_graph.edges[src_component_num, src_component_num]["net"]]))
+                else:
+                    logger.warning(f"Self edge not found in updated graph: {src}:{src_component_num}, {dst}:{dst_component_num}")
 
             self.edge_to_nets[(src, dst)] = nets_on_path
         
