@@ -40,6 +40,16 @@ class OpenRoadRun:
         self.run_openroad = run_openroad
         self.circuit_model = circuit_model
         self.L_eff_free_pdk45 = L_eff_free_pdk45
+        self.component_to_function = {
+            "Mult16": "Mult",
+            "Add16": "Add",
+            "BUF_X4": "Invert",
+            "BUF_X2": "Invert",
+            "BUF_X1": "Invert",
+            "BUF_X8": "Invert",
+            "BUF_X16": "Invert",
+            "BUF_X32": "Invert",
+        }
     
     def run(
     self,
@@ -57,19 +67,20 @@ class OpenRoadRun:
         """
         self.L_eff = L_eff
         self.alpha = self.L_eff_free_pdk45 / self.L_eff
+        self.original_graph = copy.deepcopy(graph)
         logger.info(f"Starting place and route with parasitics: {arg_parasitics}")
-        dict = {edge: {} for edge in graph.edges()}
+        d = {edge: {} for edge in graph.edges()}
         if "none" not in arg_parasitics:
             logger.info("Running setup for place and route.")
             graph, net_out_dict, node_output, lef_data, node_to_num = self.setup(graph, test_file, area_constraint, L_eff)
             logger.info("Setup complete. Running extraction.")
-            dict, graph = self.extraction(graph, arg_parasitics, net_out_dict, node_output, lef_data, node_to_num)
+            d, graph = self.extraction(graph, arg_parasitics, net_out_dict, node_output, lef_data, node_to_num)
             logger.info("Extraction complete.")
         else: 
             logger.info("No parasitics selected. Running none_place_n_route.")
             graph = self.none_place_n_route(graph)
         logger.info("Place and route finished.")
-        return dict, graph
+        return d, graph
 
     def setup(
         self,
@@ -169,7 +180,7 @@ class OpenRoadRun:
 
         df = def_generator.DefGenerator(self.cfg, self.codesign_root_dir, self.tmp_dir, self.do_scale_lef.NEW_database_units_per_micron)
 
-        graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, macro_dict = df.run_def_generator(
+        graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, macro_dict, self.node_to_component_num = df.run_def_generator(
             test_file, graph
         )
         logger.info(f"DEF generation complete. Area estimate: {area_estimate}")
@@ -373,21 +384,95 @@ class OpenRoadRun:
     def extraction(self, graph, arg_parasitics, net_out_dict, node_output, lef_data, node_to_num): 
         # 3. extract parasitics
         logger.info(f"Starting extraction with parasitics option: {arg_parasitics}")
-        dict = {}
+        d = {}
         if arg_parasitics == "detailed":
             logger.info("Running detailed place and route.")
-            dict, graph = self.detailed_place_n_route(
+            d, graph = self.detailed_place_n_route(
                 graph, net_out_dict, node_output, lef_data, node_to_num
             )
             logger.info("Detailed extraction complete.")
         elif arg_parasitics == "estimation":
             logger.info("Running estimated place and route.")
-            dict, graph = self.estimated_place_n_route(
+            d, graph = self.estimated_place_n_route(
                 graph, net_out_dict, node_output, lef_data, node_to_num
             )
             logger.info("Estimated extraction complete.")
 
-        return dict, graph
+        return d, graph
+
+    # buffers may have been inserted onto edges of the netlist so add them to a new graph
+    def parse_new_netlist_graph(self):
+        """
+        Parses the new netlist graph and adds attributes to the graph
+        """
+        net_id_to_src_dsts = {}
+        new_graph = nx.DiGraph()
+        logger.info("Parsing new netlist graph.")
+        with open(self.directory + "/results/final_generated-tcl.def", "r") as file:
+            def_data = file.readlines()
+        for i in range(len(def_data)):
+            if def_data[i].startswith("COMPONENTS"):
+                break
+        for j in range(i+1, len(def_data)): # PARSE COMPONENTS
+            if def_data[j].startswith("END COMPONENTS"):
+                break
+            component_id = def_data[j].split()[1]
+            component_name = def_data[j].split()[2]
+            if component_name not in self.component_to_function:
+                logger.info(f"Component {component_name} not found in component_to_function. Skipping.")
+                continue
+            component_function = self.component_to_function[component_name]
+            new_graph.add_node(component_id, function=component_function)
+            logger.info(f"Added node {component_id} with function {component_function}")
+        for k in range(j+1, len(def_data)):
+            if def_data[k].startswith("NETS"):
+                break
+        
+        # PARSE NETS - handle multi-line nets
+        l = k + 1
+        while l < len(def_data):
+            if def_data[l].startswith("END NETS"):
+                break
+            
+            # Check if this line starts a new net
+            if def_data[l].strip().startswith("-"):
+                # Collect all lines until the net ends with ";"
+                net_lines = [def_data[l]]
+                while not net_lines[-1].rstrip().endswith(";"):
+                    l += 1
+                    assert not (l >= len(def_data) or def_data[l].startswith("END NETS")), f"End of netlist reached before net {net_name} was fully parsed, def_data: {def_data[l]}"
+                    net_lines.append(def_data[l])
+                
+                # Concatenate all lines for this net
+                full_net_line = " ".join(net_lines)
+
+                logger.info(f"Full net line: {full_net_line}")
+                # Parse the net: LINE FORMAT: - <net_name> ( <src_node> <src_pin> ) ( <dst_node_0> <dst_pin_0> ) ( <dst_node_1> <dst_pin_1> ) ...
+                line_items = full_net_line.split()
+                net_name = line_items[1]
+                src_node = line_items[3]
+                
+                if src_node not in new_graph.nodes():
+                    logger.info(f"Source node {src_node} not found in graph. Skipping net {net_name}.")
+                    l += 1
+                    continue
+                
+                # Extract destination nodes (every 4th item after the 3rd, skipping src_pin)
+                dst_nodes = []
+                for idx in range(7, len(line_items), 4):
+                    if idx >= len(line_items):
+                        break
+                    dst_node = line_items[idx]
+                    if dst_node not in new_graph.nodes():
+                        logger.info(f"Destination node {dst_node} not found in graph. Skipping.")
+                        continue
+                    dst_nodes.append(dst_node)
+                    new_graph.add_edge(src_node, dst_node, net=net_name)
+                    logger.info(f"Added edge from {src_node} to {dst_node} for net {net_name}")
+                net_id_to_src_dsts[net_name] = (src_node, dst_nodes)
+            l += 1
+        self.export_graph(new_graph, "new_netlist_graph", self.directory)
+        return new_graph, net_id_to_src_dsts
 
     def estimated_place_n_route(
         self,
@@ -418,65 +503,49 @@ class OpenRoadRun:
         else:
             logger.info("Skipping openroad run.")
 
-        wire_length_df = est.parse_route_guide_with_layer_breakdown(self.directory + "/results/codesign_codesign-tcl.route_guide")
-        wire_length_by_edge = {}
-        for node in net_out_dict:
-            outputs = node_output[node]
-            net_outs = net_out_dict[node]
-            if node.find("Mux") != -1:
-                node_names = [node+"_"+str(x) for x in range(16)]
-            else:
-                node_names = [node] * 16
-            #logger.info(f"Node: {node}, Outputs: {outputs}")
-            #logger.info(f"Net outs: {net_outs}")
-            for output in outputs:
-                # if output is a mux, then there will be 16 instances of the mux, each with 1 output
-                # if output is not a mux, then it will have 16 ports
-                if output.find("Mux") != -1:
-                    output_names = [output+"_"+str(x) for x in range(16)]
-                else:
-                    output_names = [output] * 16
-                assert len(net_outs) == 16
-                for idx in range(16):
-                    output_name = output_names[idx]
-                    node_name = node_names[idx]
-                    net_name = net_outs[idx]
-                    #logger.info(f"Node: {node}, Output: {output_name}, Net: {net_name}")
-                    src = graph.nodes[node_name]["name"]
-                    dst = graph.nodes[output_name]["name"]
-                    #logger.info(f"Src: {src}, Dst: {dst}")
-                    if net_name in wire_length_df.index:
-                        if (src, dst) not in wire_length_by_edge:
-                            wire_length_by_edge[(src, dst)] = copy.deepcopy(wire_length_df.loc[net_name])
-                        else:
-                            wire_length_by_edge[(src, dst)] += copy.deepcopy(wire_length_df.loc[net_name])
-                    #else:
-                    #    logger.warning(f"Net {net_name} not found in wire length dataframe. Skipping.")
-        self.export_graph(graph, "estimated_with_mux")
+        self.updated_graph, net_id_to_src_dsts = self.parse_new_netlist_graph()
 
-        wire_length_by_edge = self.mux_listing(graph, node_output, wire_length_by_edge)
-        self.mux_removal(graph)
+        nets = est.parse_route_guide_with_layer_breakdown(
+            self.directory + "/results/codesign_codesign-tcl.route_guide",
+            updated_graph=self.updated_graph,
+            net_id_to_src_dsts=net_id_to_src_dsts,
+        )
+        for net in nets.values():
+            for segment in net.segments:
+                segment.length /= self.alpha * 1e6 # convert to meters
 
-        self.export_graph(graph, "estimated_nomux")
+        # Build mapping from original-graph edge (src, dst) -> list of net ids along the path in updated_graph
+        self.edge_to_nets: dict[tuple[str, str], list[str]] = {}
 
-        # scale wire lengths to meters
-        for edge in wire_length_by_edge:
-            #logger.info(f"edge is {edge}")
-            #logger.info(f"original wire length by edge: {wire_length_by_edge[edge]}")
-            wire_length_by_edge[edge]["total_wl"] /= self.alpha * 1e6 # convert to meters
-            wire_length_by_edge[edge]["metal1"] /= self.alpha * 1e6 # convert to meters
-            wire_length_by_edge[edge]["metal2"] /= self.alpha * 1e6 # convert to meters
-            wire_length_by_edge[edge]["metal3"] /= self.alpha * 1e6 # convert to meters
-            wire_length_by_edge[edge]["metal4"] /= self.alpha * 1e6 # convert to meters
-            wire_length_by_edge[edge]["metal5"] /= self.alpha * 1e6 # convert to meters
-            wire_length_by_edge[edge]["metal6"] /= self.alpha * 1e6 # convert to meters
-            wire_length_by_edge[edge]["metal7"] /= self.alpha * 1e6 # convert to meters
-            wire_length_by_edge[edge]["metal8"] /= self.alpha * 1e6 # convert to meters
-            wire_length_by_edge[edge]["metal9"] /= self.alpha * 1e6 # convert to meters
-            wire_length_by_edge[edge]["metal10"] /= self.alpha * 1e6 # convert to meters
-            #logger.info(f"scaled wire length by edge: {wire_length_by_edge[edge]}")
+        for src, dst in self.original_graph.edges():
+            src_component_num = self.node_to_component_num[src]
+            dst_component_num = self.node_to_component_num[dst]
+            # Only process if both endpoints exist in the updated graph
+            assert src_component_num in self.updated_graph and dst_component_num  in self.updated_graph, f"Source or destination node not found in updated graph: {src}:{src_component_num}, {dst}:{dst_component_num}"
 
-        return wire_length_by_edge, graph
+            logger.info(f"Finding path from {src}:{src_component_num} to {dst}:{dst_component_num}")
+            # Find a path through repeaters from src to dst in updated_graph
+            # There should be a unique simple path; use shortest_simple_paths or single_source shortest path
+            path_nodes = nx.shortest_path(self.updated_graph, source=src_component_num, target=dst_component_num)
+
+            # Collect net ids on each hop of the path
+            nets_on_path = []
+            for u, v in zip(path_nodes[:-1], path_nodes[1:]):
+                nets_on_path.append(copy.deepcopy(nets[self.updated_graph.edges[u, v]["net"]]))
+            
+            # add self edge if it exists, won't be captured by nx shortest path
+            if src == dst:
+                assert (src_component_num, src_component_num) in self.updated_graph.edges(), f"Self edge not found in updated graph: {src}:{src_component_num}, {dst}:{dst_component_num}"
+                nets_on_path.append(copy.deepcopy(nets[self.updated_graph.edges[src_component_num, src_component_num]["net"]]))
+
+            self.edge_to_nets[(src, dst)] = nets_on_path
+        
+        logger.info(f"edge_to_nets: {self.edge_to_nets}")
+
+        # Expose for downstream consumers
+        self.export_graph(graph, "estimated", self.directory)
+
+        return self.edge_to_nets, graph
 
 
     def detailed_place_n_route(
@@ -534,12 +603,12 @@ class OpenRoadRun:
             
             
 
-        self.export_graph(graph, "detailed")
+        self.export_graph(graph, "detailed", self.directory)
 
         self.mux_listing(graph, node_output)
         self.mux_removal(graph)
 
-        self.export_graph(graph, "detailed_nomux")
+        self.export_graph(graph, "detailed_nomux", self.directory)
 
         return {
             "res": res_graph_data,
@@ -575,14 +644,14 @@ class OpenRoadRun:
     
 
     @staticmethod
-    def export_graph(graph, est_or_det: str):
+    def export_graph(graph, est_or_det: str, directory: str):
         logger.info(f"Exporting graph to GML for {est_or_det}.")
-        if not os.path.exists("openroad_interface/results/"):
-            os.makedirs("openroad_interface/results/")
+        if not os.path.exists(f"{directory}/results/"):
+            os.makedirs(f"{directory}/results/")
             logger.info("Created results directory.")
         nx.write_gml(
-            graph, "openroad_interface/results/" + est_or_det + ".gml"
+            graph, f"{directory}/results/{est_or_det}.gml"
         )
-        logger.info(f"Graph exported to openroad_interface/results/{est_or_det}.gml")
+        logger.info(f"Graph exported to {directory}/results/{est_or_det}.gml")
 
    

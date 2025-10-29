@@ -20,8 +20,8 @@ and_gate = "AND2_X1"
 xor_gate = "XOR2_X1"
 mux = "MUX2_X1"
 reg = "DFF_X1"
-add = "Add50_40"
-mult = "Mult64_40_2"
+add = "Add16"
+mult = "Mult16"
 #mult = "Mult64_40"
 #add = "ADD16_X1"
 #mult = "MUL16_X1"
@@ -30,7 +30,7 @@ floordiv = "FloorDiv50_40"
 sub = "Sub50_40"
 eq= "Eq50_40"
 
-DEBUG = False
+DEBUG = True
 def log_info(msg):
     if DEBUG:
         logger.info(msg)
@@ -348,72 +348,18 @@ class DefGenerator:
             if graph.nodes[node]["count"] == 16:
                 graph.remove_node(node)"""
 
-        openroad_run.OpenRoadRun.export_graph(graph, "result")
+        openroad_run.OpenRoadRun.export_graph(graph, "result", self.directory)
 
         nodes = list(graph)  
-        
-        ### 3.mux stuff ###
-        counter = 0 
-
-        log_info(f"generating muxes")
 
         # note: old graph has edges for functional units
         # new graph has edges for each of the 16 ports of the functional units, more fine grained
 
         input_dict = self.edge_gen("in", old_nodes, old_graph)
         input_dict_new = self.edge_gen("in", nodes, graph)
-        """for node in old_nodes:
-            if "Regs" in node:
-                max_inputs = 1
-            else:
-                max_inputs = 2
-            while len(input_dict[node]) > max_inputs:
-                input_dict = self.edge_gen("in", old_nodes, old_graph)
-                target_node1 = input_dict[node][0]
-                target_node2 = input_dict[node][1]
-                for x in range(16):
-                    assert old_graph.nodes[node]["count"] == 16, f"Node {node} has {old_graph.nodes[node]['count']} ports, expected 16"
-                    assert old_graph.nodes[target_node1]["count"] == 16, f"Node {target_node1} has {old_graph.nodes[target_node1]['count']} ports, expected 16"
-                    assert old_graph.nodes[target_node2]["count"] == 16, f"Node {target_node2} has {old_graph.nodes[target_node2]['count']} ports, expected 16"
-                    node_name = node + "_" + str(x)
-                    name1= target_node1 + "_" + str(x)
-                    name2= target_node2 + "_" + str(x)
-
-                    new_node = "Mux" + str(counter) + "_" + str(x)
-
-                    # port mux
-                    graph.add_node(new_node, count = 16, function = "Mux", name=new_node, port_idx = x)
-                    if graph.has_edge(name1, node_name):
-                        graph.remove_edge(name1, node_name)
-                    if graph.has_edge(name2, node_name):
-                        graph.remove_edge(name2, node_name)
-                    graph.add_edge(name1, new_node)
-                    graph.add_edge(name2, new_node)
-                    graph.add_edge(new_node, node_name)
-
-                    macro_output = self.find_macro(new_node)
-                    node_to_macro[new_node] = [macro_output, copy.deepcopy(macro_dict[macro_output])]
-                    log_info(f"node to macro [{new_node}]: {node_to_macro[new_node]}")
-
-                # functional unit mux
-                old_graph.add_node("Mux" + str(counter), count = 16, function = "Mux", name="Mux" + str(counter))
-                old_graph.remove_edge(target_node1, node)
-                old_graph.remove_edge(target_node2, node)
-                old_graph.add_edge(target_node1, "Mux" + str(counter))
-                old_graph.add_edge(target_node2, "Mux" + str(counter))
-                old_graph.add_edge("Mux" + str(counter), node)
-
-                #macro_output = self.find_macro("Mux" + str(counter))
-                #node_to_macro["Mux" + str(counter)] = [macro_output, copy.deepcopy(macro_dict[macro_output])]
-
-                # update list of input edges to reflect the new mux, which consumes two of the previous input edges
-                input_dict[node].append("Mux" + str(counter))
-                input_dict[node].remove(target_node2)
-                input_dict[node].remove(target_node1)
-                counter += 1 """
             
         
-        ### 4.generate header ###
+        ### 3.generate header ###
         header_text = []
         header_text.append("VERSION 5.8 ;")
         for line in lef_tech_lines:
@@ -428,23 +374,22 @@ class DefGenerator:
         header_text.append("DIEAREA ( {} {} ) ( {} {} ) ;".format(die_coord_x1 * units, die_coord_y1 * units , die_coord_x2 * units, die_coord_y2 * units))
 
 
-        ### 5.generate components ###
+        ### 4.generate components ###
         # generating components list and a dict that translates node names to component nums in def file
         component_text = []
         number = 1
         node_to_num = {}
         nodes = list(graph)
+        node_to_component_num = {}
         # basic area estimate (square microns) by summing macro footprints for each instantiated node
         area_estimate_sq_microns = 0.0
         for node in nodes:
-            if "port_idx" in graph.nodes[node] and graph.nodes[node]["function"] != "Mux":
+            if "port_idx" in graph.nodes[node]:
                 log_info(f"Skipping component for node: {node} because it is a functional unit port")
                 continue # dont generate components for functional unit ports
-            if "port_idx" not in graph.nodes[node] and graph.nodes[node]["function"] == "Mux":
-                log_info(f"Skipping component for node: {node} because it is a functional unit mux")
-                continue # dont generate components for functional unit muxes
             component_num = format(number)
             log_info(f"Generating component for node: {node} with number: {component_num}")
+            node_to_component_num[node] = component_num
             ## log the whole node to macro dict in a human readable way
             #log_info(f"Node to macro mapping: {node_to_macro}")
             macro = node_to_macro[node][0]
@@ -452,12 +397,8 @@ class DefGenerator:
             msize = macro_size_dict.get(macro)
             if msize and units:
                 # include halo on both sides (assume macro_halo values are per-side in microns)
-                if graph.nodes[node]["function"] == "Mux":
-                    eff_x = msize[0] 
-                    eff_y = msize[1]
-                else:
-                    eff_x = msize[0] + 2.0 * self.macro_halo_x
-                    eff_y = msize[1] + 2.0 * self.macro_halo_y
+                eff_x = msize[0] + 2.0 * self.macro_halo_x
+                eff_y = msize[1] + 2.0 * self.macro_halo_y
                 log_info(f"Adding area for macro {macro}: {eff_x} * {eff_y} = {eff_x * eff_y}")
                 area_estimate_sq_microns += eff_x * eff_y
             else:
@@ -471,7 +412,7 @@ class DefGenerator:
         component_text.insert(0, "COMPONENTS {} ;".format(len(component_text)))
         component_text.insert(len(component_text), "END COMPONENTS")
 
-        ## 6.generate nets ###
+        ## 5.generate nets ###
         # generates list of nets in def file and makes two dicts that are returned
         net_text = []
         nodes_old = list(old_graph)
@@ -485,32 +426,33 @@ class DefGenerator:
             for x in range(16):
                 net_name = format(str(number))
                 assert old_graph.nodes[node]["count"] == 16, f"Node {node} has {old_graph.nodes[node]['count']} ports, expected 16"
-                # muxes have different instances for each port because they are 2->1 bit
-                # non-mux nodes have the same instance for all ports because each is 32->16 bits (2 input)
-                if old_graph.nodes[node]["function"] == "Mux":
-                    name = node+"_" +str(x)
-                    pin_idx = 0
-                else:
-                    name = node
-                    pin_idx = x
+                name = node
+                pin_idx = x
 
                 component_num = node_to_num[name]
                 pin_output = node_to_macro[name][1]["output"]
                 log_info(f"Pin output for node {name}: {pin_output}")
                 net = "- {} ( {} {} )".format(net_name, component_num, pin_output[pin_idx])
+
+                original_net = net
                 
                 # used later for wire length calculation
                 if node not in net_out_dict:
                     net_out_dict[node] = []
                 net_out_dict[node].append(net_name)
 
+                if not node_output[node]:
+                    log_info(f"Skipping net for node {name} because it has no outputs")
+                    continue
+
                 # dst nodes
                 for output in node_output[node]:
                     assert old_graph.nodes[output]["count"] == 16, f"Node {output} has {old_graph.nodes[output]['count']} ports, expected 16"
-                    if old_graph.nodes[output]["function"] == "Mux":
-                        outgoing_name = output+"_" +str(x)
-                    else:
-                        outgoing_name = output
+                    outgoing_name = output
+
+                    #if name == outgoing_name:
+                    #    log_info(f"Skipping net for node {name} and output {outgoing_name} because it is a self loop")
+                    #    continue
 
                     if len(node_to_macro[outgoing_name][1]["input"]) == 0:
                         node_to_macro[outgoing_name][1]["input"] = copy.deepcopy(node_to_macro_copy[outgoing_name][1]["input"])
@@ -519,9 +461,11 @@ class DefGenerator:
                     net = net + " ( {} {} )".format(node_to_num[outgoing_name], pin_input[0])
 
                     node_to_macro[outgoing_name][1]["input"].remove(pin_input[0])
+
                 
                 number += 1
                 net = net + " + USE SIGNAL ;"
+                log_info(f"Net: {net}")
                 net_text.append(net)
 
         log_info(f"Generated {len(net_text)} nets.")
@@ -537,7 +481,7 @@ class DefGenerator:
         pin_text.append("END  PINS")
 
 
-        ### 7.generate rows ###
+        ### 6.generate rows ###
         # using calculations sourced from OpenROAD
         row_text = []
         core_y = core_coord_y2 - core_coord_y1
@@ -572,7 +516,7 @@ class DefGenerator:
 
         log_info(f"Generated {len(row_text)} rows.")
 
-        #$# 8.generate track ###
+        #$# 7.generate track ###
         # using calculations sourced from OpenROAD
         die_coord_x2 *= units
         die_coord_y2 *= units
@@ -653,4 +597,4 @@ class DefGenerator:
         log_info(f"DEF file generation complete.")
         log_info(f"Estimated total macro area: {area_estimate_sq_microns:.2f} square microns")
 
-        return graph, net_out_dict, node_output, lef_data_dict, node_to_num, area_estimate_sq_microns, macro_dict
+        return graph, net_out_dict, node_output, lef_data_dict, node_to_num, area_estimate_sq_microns, macro_dict, node_to_component_num

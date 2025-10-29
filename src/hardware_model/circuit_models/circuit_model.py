@@ -282,20 +282,19 @@ class CircuitModel:
             key: self.memories[key]["Area (mm2)"] * 1e6 for key in self.memories
         } 
 
-    # dividing wire length by DATA_WIDTH because the wire length is summed over multiple bits.
     def wire_delay(self, edge, symbolic=False):
         # wire delay = R * C * length^2 (ns)
         if symbolic:
             wire_delay = 0
             for layer in self.metal_layers:
                 if layer in self.wire_length_by_edge[edge]:
-                    wire_delay += (self.wire_length_by_edge[edge][layer]/DATA_WIDTH)**2 * self.tech_model.wire_parasitics["R"][layer] * self.tech_model.wire_parasitics["C"][layer]
+                    wire_delay += (self.wire_length_by_edge[edge][layer])**2 * self.tech_model.wire_parasitics["R"][layer] * self.tech_model.wire_parasitics["C"][layer]
             return wire_delay * 1e9 
         else:
             wire_delay = 0
             for layer in self.metal_layers:
                 if layer in self.wire_length_by_edge[edge]:
-                    wire_delay += (self.wire_length_by_edge[edge][layer]/DATA_WIDTH)**2 * self.tech_model.wire_parasitics["R"][layer].xreplace(self.tech_model.base_params.tech_values) * self.tech_model.wire_parasitics["C"][layer].xreplace(self.tech_model.base_params.tech_values)
+                    wire_delay += (self.wire_length_by_edge[edge][layer])**2 * self.tech_model.wire_parasitics["R"][layer].xreplace(self.tech_model.base_params.tech_values) * self.tech_model.wire_parasitics["C"][layer].xreplace(self.tech_model.base_params.tech_values)
             return wire_delay * 1e9
 
     # for 1 bit
@@ -303,7 +302,7 @@ class CircuitModel:
         wire_length = 0
         for layer in self.metal_layers:
             if layer in self.wire_length_by_edge[edge]:
-                wire_length += self.wire_length_by_edge[edge][layer]/DATA_WIDTH
+                wire_length += self.wire_length_by_edge[edge][layer]
         log_info(f"wire_length for edge {edge} is {wire_length}")
         return wire_length
     
@@ -311,7 +310,7 @@ class CircuitModel:
         wire_delay = 0
         for layer in self.metal_layers:
             if layer in self.wire_length_by_edge[edge]:
-                wire_delay += (self.wire_length_by_edge[edge][layer]/DATA_WIDTH)**2 * self.wire_unit_delay[layer]
+                wire_delay += (self.wire_length_by_edge[edge][layer])**2 * self.wire_unit_delay[layer]
         return wire_delay * 1e9
     
     def wire_delay_uarch_cvx(self, edge):
@@ -319,17 +318,17 @@ class CircuitModel:
         for layer in self.metal_layers:
             if layer in self.wire_length_by_edge[edge]:
                 log_info(f"wire_length_by_edge[{edge}][{layer}] = {self.wire_length_by_edge[edge][layer]}, wire_unit_delay_cvx[{layer}] = {self.wire_unit_delay_cvx[layer].value}")
-                wire_delay += (self.wire_length_by_edge[edge][layer]/DATA_WIDTH)**2 * self.wire_unit_delay_cvx[layer]
+                wire_delay += (self.wire_length_by_edge[edge][layer])**2 * self.wire_unit_delay_cvx[layer]
         return wire_delay * 1e9
         
-    # energy calculation uses the total wire length, not the wire length per bit.
+    # multiplying wire length by DATA_WIDTH because there are multiple bits on the wire.
     def wire_energy(self, edge, symbolic=False):
         # wire energy = 0.5 * C * V_dd^2 * length
         if symbolic:
             wire_energy = 0
             for layer in self.metal_layers:
                 if layer in self.wire_length_by_edge[edge]:
-                    wire_energy += self.wire_length_by_edge[edge][layer] * self.tech_model.wire_parasitics["C"][layer] * self.tech_model.base_params.V_dd**2
+                    wire_energy += (self.wire_length_by_edge[edge][layer]*DATA_WIDTH) * self.tech_model.wire_parasitics["C"][layer] * self.tech_model.base_params.V_dd**2
                 else:
                     wire_energy += 0
             return wire_energy * 1e9
@@ -337,7 +336,7 @@ class CircuitModel:
             wire_energy = 0
             for layer in self.metal_layers:
                 if layer in self.wire_length_by_edge[edge]:
-                    wire_energy += self.wire_length_by_edge[edge][layer] * self.tech_model.wire_parasitics["C"][layer].xreplace(self.tech_model.base_params.tech_values) * self.tech_model.base_params.tech_values[self.tech_model.base_params.V_dd]**2
+                    wire_energy += (self.wire_length_by_edge[edge][layer]*DATA_WIDTH) * self.tech_model.wire_parasitics["C"][layer].xreplace(self.tech_model.base_params.tech_values) * self.tech_model.base_params.tech_values[self.tech_model.base_params.V_dd]**2
                 else:
                     wire_energy += 0
             return wire_energy * 1e9
@@ -346,7 +345,7 @@ class CircuitModel:
         wire_energy = 0
         for layer in self.metal_layers:
             if layer in self.wire_length_by_edge[edge]:
-                wire_energy += self.wire_length_by_edge[edge][layer] * self.wire_unit_energy[layer]
+                wire_energy += (self.wire_length_by_edge[edge][layer]*DATA_WIDTH) * self.wire_unit_energy[layer]
             else:
                 wire_energy += 0
         return wire_energy * 1e9

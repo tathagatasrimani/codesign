@@ -5,8 +5,20 @@ import numpy as np
 import networkx as nx
 import pandas as pd
 
+class Net:
+    def __init__(self, net_id, segments, src : str, dsts : list[str]):
+        self.net_id = net_id
+        self.segments = segments
+        self.src = src
+        self.dsts = dsts
+
+class Segment:
+    def __init__(self, layer, length):
+        self.layer = layer
+        self.length = length
+
 def parse_route_guide_with_layer_breakdown(
-    filepath: str, units_per_micron: float = 2000.0
+    filepath: str, units_per_micron: float = 2000.0, updated_graph: nx.DiGraph = None, net_id_to_src_dsts: dict = None
 ) -> pd.DataFrame:
     """
     Parses a route guide file and computes estimated wire lengths for each net,
@@ -15,18 +27,21 @@ def parse_route_guide_with_layer_breakdown(
     Parameters:
         filepath (str): Path to the route guide file.
         units_per_micron (float): Conversion factor from internal units to microns.
-
+        updated_graph (nx.DiGraph): Updated graph with buffers added.
+        net_id_to_src_dsts (dict): Dictionary of net ids to source and destination nodes in the updated graph.
     Returns:
         pd.DataFrame: DataFrame with columns ["net", "total_wl", "metal1", "metal2", "metal3"]
     """
     with open(filepath, 'r') as f:
         content = f.read()
 
-    # Match net names and their route block
-    net_blocks = re.findall(r'_(\d+)_\s*\((.*?)\)', content, re.DOTALL)
+    # Match net names and their route block (names can be _123_, net1, or any [A-Za-z_][A-Za-z0-9_]*)
+    # The format is:
+    # <net_name>\n(\n<coords/layers...>\n) with the parens on separate lines
+    # Use DOTALL to span multiple lines and anchor name at line start
+    net_blocks = re.findall(r'(?m)^([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\)', content, re.DOTALL)
 
-    results = []
-
+    results = {}
     for net_id, block in net_blocks:
         # Match each routing box and its metal layer
         boxes = re.findall(r'(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(metal\d+)', block)
@@ -42,22 +57,21 @@ def parse_route_guide_with_layer_breakdown(
             "metal9": 0.0,
             "metal10": 0.0
         }
-
+        segments = []
         for x1, y1, x2, y2, layer in boxes:
             x1, y1, x2, y2 = map(float, (x1, y1, x2, y2))
             length = max(x2 - x1, y2 - y1)
             if layer in layer_lengths:
                 layer_lengths[layer] += length
-
+                segments.append(Segment(layer, length))
         total_length = sum(layer_lengths.values()) / units_per_micron
         layer_lengths_microns = {k: round(v / units_per_micron, 1) for k, v in layer_lengths.items()}
-        results.append({
-            "net": f"_{net_id}_",
-            "total_wl": round(total_length, 1),
-            **layer_lengths_microns
-        })
 
-    return pd.DataFrame(results).set_index("net")
+        src, dsts = net_id_to_src_dsts[net_id]
+        net = Net(net_id, segments, src, dsts)
+        results[net_id] = net
+
+    return results
 
 def total_euclidean_distance(net_list: list, graph: nx.DiGraph, unit: float, node_to_num: dict):
     '''
