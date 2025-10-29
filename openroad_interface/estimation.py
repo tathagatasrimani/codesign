@@ -63,7 +63,7 @@ def parse_route_guide_with_layer_breakdown(
             length = max(x2 - x1, y2 - y1)
             if layer in layer_lengths:
                 layer_lengths[layer] += length
-                segments.append(Segment(layer, length))
+                segments.append(Segment(layer, length / units_per_micron))
         total_length = sum(layer_lengths.values()) / units_per_micron
         layer_lengths_microns = {k: round(v / units_per_micron, 1) for k, v in layer_lengths.items()}
 

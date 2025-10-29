@@ -575,11 +575,11 @@ class HardwareModel:
 
         netlist_copy = copy.deepcopy(self.netlist)
 
-        self.circuit_model.wire_length_by_edge, _ = open_road_run.run(
+        self.circuit_model.edge_to_nets, _ = open_road_run.run(
             netlist_copy, arg_testfile, arg_parasitics, area_constraint, L_eff
         )
 
-        log_info(f"wire lengths: {self.circuit_model.wire_length_by_edge}")
+        log_info(f"edge to nets: {self.circuit_model.edge_to_nets}")
         
         logger.info(f"time to generate wire parasitics: {time.time()-start_time}")
 
@@ -676,12 +676,12 @@ class HardwareModel:
                 src = data["src_node"]
                 dst = data["dst_node"]
                 rsc_edge = self.get_rsc_edge((src, dst), dfg)
-                if rsc_edge in self.circuit_model.wire_length_by_edge:
+                if rsc_edge in self.circuit_model.edge_to_nets:
                     total_active_energy_basic_block += self.circuit_model.wire_energy(rsc_edge)
-                    log_info(f"edge {rsc_edge} is in circuit_model.wire_length_by_edge")
+                    log_info(f"edge {rsc_edge} is in circuit_model.edge_to_nets")
                     log_info(f"wire energy for {node}: {self.circuit_model.wire_energy(rsc_edge)}")
                 else:
-                    log_info(f"edge {rsc_edge} is not in circuit_model.wire_length_by_edge")
+                    log_info(f"edge {rsc_edge} is not in circuit_model.edge_to_nets")
             else:
                 total_active_energy_basic_block += self.circuit_model.symbolic_energy_active[data["function"]]()
                 log_info(f"active energy for {node}: {self.circuit_model.symbolic_energy_active[data['function']]()}")
@@ -870,12 +870,12 @@ class HardwareModel:
                 src_for_wire = dfg.nodes[src]["src_node"]
                 dst_for_wire = dfg.nodes[src]["dst_node"]
                 rsc_edge = self.get_rsc_edge((src_for_wire, dst_for_wire), dfg)
-                if rsc_edge in self.circuit_model.wire_length_by_edge:
-                    vector.delay = self.circuit_model.wire_delay_uarch_cvx(rsc_edge).value
+                if rsc_edge in self.circuit_model.edge_to_nets:
+                    vector.delay = self.circuit_model.wire_delay(rsc_edge)
                     log_info(f"added wire delay {vector.delay} for {rsc_edge}, which has length {self.circuit_model.wire_length(rsc_edge)}")
                 else:
                     vector.delay = 0
-                    log_info(f"edge {rsc_edge} not in wire_length_by_edge")
+                    log_info(f"edge {rsc_edge} not in edge_to_nets")
                 vector.bound_factor["interconnect"] = vector.delay
                 vector.sensitivity["interconnect"] = 1
             elif fn in ["Buf", "MainMem"]:
@@ -970,9 +970,9 @@ class HardwareModel:
                         src = dfg.nodes[pred]["src_node"]
                         dst = dfg.nodes[pred]["dst_node"]
                         rsc_edge = self.get_rsc_edge((src, dst), dfg)
-                        if rsc_edge in self.circuit_model.wire_length_by_edge:
-                            pred_delay_cvx = self.circuit_model.wire_delay_uarch_cvx(rsc_edge) * self.scale_cvx
-                            log_info(f"added wire delay {self.circuit_model.wire_delay_uarch_cvx(rsc_edge)} for edge {rsc_edge}")
+                        if rsc_edge in self.circuit_model.edge_to_nets:
+                            pred_delay_cvx = self.circuit_model.wire_delay(rsc_edge) * self.scale_cvx
+                            log_info(f"added wire delay {self.circuit_model.wire_delay(rsc_edge)} for edge {rsc_edge}")
                         else:
                             log_info(f"no wire delay for edge {rsc_edge}")
                     else:
@@ -1022,7 +1022,7 @@ class HardwareModel:
                     else:
                         pred_delay = self.circuit_model.symbolic_latency_wc[self.scheduled_dfg.nodes[pred]["function"]]()
                     rsc_edge = self.get_rsc_edge((pred, node), self.scheduled_dfg)
-                    if rsc_edge in self.circuit_model.wire_length_by_edge:
+                    if rsc_edge in self.circuit_model.edge_to_nets:
                         pred_delay += self.circuit_model.wire_delay(rsc_edge, symbolic)
                     self.constraints.append(node_arrivals[node] >= node_arrivals[pred] + pred_delay)
                     constr_cvx.append(node_arrivals_cvx[node] >= node_arrivals_cvx[pred] + sim_util.xreplace_safe(pred_delay, self.circuit_model.tech_model.base_params.tech_values))
@@ -1083,7 +1083,7 @@ class HardwareModel:
                 log_info(f"(active energy) {data['function']}: {total_active_energy}")
         for edge in self.scheduled_dfg.edges:
             rsc_edge = self.get_rsc_edge(edge, self.scheduled_dfg)
-            if rsc_edge in self.circuit_model.wire_length_by_edge:
+            if rsc_edge in self.circuit_model.edge_to_nets:
                 wire_energy = self.circuit_model.wire_energy(rsc_edge, symbolic)
                 log_info(f"(wire energy) {edge}: {wire_energy} nJ")
                 total_active_energy += wire_energy

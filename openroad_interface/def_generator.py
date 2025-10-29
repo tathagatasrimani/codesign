@@ -30,7 +30,7 @@ floordiv = "FloorDiv50_40"
 sub = "Sub50_40"
 eq= "Eq50_40"
 
-DEBUG = True
+DEBUG = False
 def log_info(msg):
     if DEBUG:
         logger.info(msg)

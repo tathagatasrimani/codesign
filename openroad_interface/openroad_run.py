@@ -25,6 +25,14 @@ DIE_CORE_BUFFER_SIZE = 50
 L_EFF_FREEPDK45 = 0.025E-6  # effective channel length for FreePDK45 (microns)
 ## NOTE: this is an approximation.
 
+DEBUG = False
+def log_info(msg):
+    if DEBUG:
+        logger.info(msg)
+def log_warning(msg):
+    if DEBUG:
+        logger.warning(msg)
+
 class OpenRoadRun:
     def __init__(self, cfg, codesign_root_dir, tmp_dir, run_openroad, circuit_model, L_eff_free_pdk45=0.025E-6):
         """
@@ -419,11 +427,11 @@ class OpenRoadRun:
             component_id = def_data[j].split()[1]
             component_name = def_data[j].split()[2]
             if component_name not in self.component_to_function:
-                logger.info(f"Component {component_name} not found in component_to_function. Skipping.")
+                log_info(f"Component {component_name} not found in component_to_function. Skipping.")
                 continue
             component_function = self.component_to_function[component_name]
             new_graph.add_node(component_id, function=component_function)
-            logger.info(f"Added node {component_id} with function {component_function}")
+            log_info(f"Added node {component_id} with function {component_function}")
         for k in range(j+1, len(def_data)):
             if def_data[k].startswith("NETS"):
                 break
@@ -446,14 +454,14 @@ class OpenRoadRun:
                 # Concatenate all lines for this net
                 full_net_line = " ".join(net_lines)
 
-                logger.info(f"Full net line: {full_net_line}")
+                log_info(f"Full net line: {full_net_line}")
                 # Parse the net: LINE FORMAT: - <net_name> ( <src_node> <src_pin> ) ( <dst_node_0> <dst_pin_0> ) ( <dst_node_1> <dst_pin_1> ) ...
                 line_items = full_net_line.split()
                 net_name = line_items[1]
                 src_node = line_items[3]
                 
                 if src_node not in new_graph.nodes():
-                    logger.info(f"Source node {src_node} not found in graph. Skipping net {net_name}.")
+                    log_info(f"Source node {src_node} not found in graph. Skipping net {net_name}.")
                     l += 1
                     continue
                 
@@ -464,11 +472,11 @@ class OpenRoadRun:
                         break
                     dst_node = line_items[idx]
                     if dst_node not in new_graph.nodes():
-                        logger.info(f"Destination node {dst_node} not found in graph. Skipping.")
+                        log_info(f"Destination node {dst_node} not found in graph. Skipping.")
                         continue
                     dst_nodes.append(dst_node)
                     new_graph.add_edge(src_node, dst_node, net=net_name)
-                    logger.info(f"Added edge from {src_node} to {dst_node} for net {net_name}")
+                    log_info(f"Added edge from {src_node} to {dst_node} for net {net_name}")
                 net_id_to_src_dsts[net_name] = (src_node, dst_nodes)
             l += 1
         self.export_graph(new_graph, "new_netlist_graph", self.directory)
@@ -512,24 +520,28 @@ class OpenRoadRun:
         )
         for net in nets.values():
             for segment in net.segments:
+                #logger.info(f"segment length for net {net.net_id} in layer {segment.layer} was {segment.length}")
                 segment.length /= self.alpha * 1e6 # convert to meters
+                #logger.info(f"segment length for net {net.net_id} in layer {segment.layer} is {segment.length}")
 
         # Build mapping from original-graph edge (src, dst) -> list of net ids along the path in updated_graph
         self.edge_to_nets: dict[tuple[str, str], list[str]] = {}
 
         for src, dst in self.original_graph.edges():
+            src_component_name = self.original_graph.nodes[src]["name"]
+            dst_component_name = self.original_graph.nodes[dst]["name"]
             src_component_num = self.node_to_component_num[src]
             dst_component_num = self.node_to_component_num[dst]
             # Only process if both endpoints exist in the updated graph
             assert src_component_num in self.updated_graph and dst_component_num  in self.updated_graph, f"Source or destination node not found in updated graph: {src}:{src_component_num}, {dst}:{dst_component_num}"
 
-            logger.info(f"Finding path from {src}:{src_component_num} to {dst}:{dst_component_num}")
+            log_info(f"Finding path from {src}:{src_component_num} to {dst}:{dst_component_num}")
             # Find a path through repeaters from src to dst in updated_graph
             # There should be a unique simple path; use shortest_simple_paths or single_source shortest path
             try:
                 path_nodes = nx.shortest_path(self.updated_graph, source=src_component_num, target=dst_component_num)
             except Exception as e:
-                logger.warning(f"Error finding path from {src}:{src_component_num} to {dst}:{dst_component_num}: {e}")
+                log_warning(f"Error finding path from {src}:{src_component_num} to {dst}:{dst_component_num}: {e}")
                 path_nodes = []
 
 
@@ -539,18 +551,18 @@ class OpenRoadRun:
                 if (u, v) in self.updated_graph.edges():
                     nets_on_path.append(copy.deepcopy(nets[self.updated_graph.edges[u, v]["net"]]))
                 else:
-                    logger.warning(f"Edge not found in updated graph: {u}:{v}")
+                    log_warning(f"Edge not found in updated graph: {u}:{v}")
             
             # add self edge if it exists, won't be captured by nx shortest path
             if src == dst:
                 if (src_component_num, src_component_num) in self.updated_graph.edges():
                     nets_on_path.append(copy.deepcopy(nets[self.updated_graph.edges[src_component_num, src_component_num]["net"]]))
                 else:
-                    logger.warning(f"Self edge not found in updated graph: {src}:{src_component_num}, {dst}:{dst_component_num}")
+                    log_warning(f"Self edge not found in updated graph: {src}:{src_component_num}, {dst}:{dst_component_num}")
 
-            self.edge_to_nets[(src, dst)] = nets_on_path
+            self.edge_to_nets[(src_component_name, dst_component_name)] = nets_on_path
         
-        logger.info(f"edge_to_nets: {self.edge_to_nets}")
+        log_info(f"edge_to_nets: {self.edge_to_nets}")
 
         # Expose for downstream consumers
         self.export_graph(graph, "estimated", self.directory)
