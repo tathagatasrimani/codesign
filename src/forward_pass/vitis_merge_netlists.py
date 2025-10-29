@@ -6,7 +6,7 @@ from src import sim_util
 import logging
 logger = logging.getLogger(__name__)
 
-DEBUG = True
+DEBUG = False
 
 def debug_print(message):
     if DEBUG:

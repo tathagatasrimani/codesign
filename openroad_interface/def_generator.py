@@ -20,17 +20,17 @@ and_gate = "AND2_X1"
 xor_gate = "XOR2_X1"
 mux = "MUX2_X1"
 reg = "DFF_X1"
-add = "Add50_40"
-mult = "Mult64_40_2"
+add = "Add16"
+mult = "Mult16"
 #mult = "Mult64_40"
 #add = "ADD16_X1"
 #mult = "MUL16_X1"
-bitxor = "BitXor50_40"
-floordiv = "FloorDiv50_40" 
-sub = "Sub50_40"
-eq= "Eq50_40"
+bitxor = "BitXor16"
+floordiv = "FloorDiv16" 
+sub = "Sub16"
+eq= "Eq16"
 
-DEBUG = False
+DEBUG = True
 def log_info(msg):
     if DEBUG:
         logger.info(msg)
@@ -286,7 +286,10 @@ class DefGenerator:
                 else:
                     logger.debug(f"SIZE line did not match regex for macro {macro_name}: {line.strip()}")
 
-        # extracting units and sit size from tech file
+
+        log_info(f"Macro dict: {pprint.pformat(macro_dict)}")
+
+        # extracting units and site size from tech file
         lef_data = open(lef_tech_file)
         lef_tech_lines = lef_data.readlines()
         for line in lef_tech_lines:

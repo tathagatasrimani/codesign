@@ -16,6 +16,7 @@ from openroad_interface import def_generator
 from . import estimation as est
 from . import detailed as det
 from . import scale_lef_files as scale_lef
+from . import macro_maker as make_macros
 
 ## This is the area between the die area and the core area.
 DIE_CORE_BUFFER_SIZE = 50
@@ -141,6 +142,9 @@ class OpenRoadRun:
         else:
             logger.info("Skipping setup, using previous openroad results.")
 
+        macro_maker = make_macros.MacroMaker(self.cfg, self.codesign_root_dir, self.tmp_dir, self.run_openroad, self.subdirectory, output_lef_file=self.directory + "/tcl/codesign_files/codesign_stdcell.lef")
+        macro_maker.create_all_macros()
+        
         self.update_area_constraint(area_constraint)
 
         self.do_scale_lef = scale_lef.ScaleLefFiles(self.cfg, self.codesign_root_dir, self.tmp_dir, self.subdirectory)

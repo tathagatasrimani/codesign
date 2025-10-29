@@ -3,9 +3,9 @@ import copy
 import yaml
 import os
 
-from openroad_functions import find_val, clean, value
+from .openroad_functions import find_val, clean, value
 
-lef_tech_file = "./OpenROAD/test/Nangate45/Nangate45_tech.lef" 
+BASE_TECH_LEF_FILE = "openroad_interface/tcl/codesign_files/codesign_tech.lef"
 
 ## Specifies which PDK was used to generate the reference area values.
 REFERENCE_AREA_TECH_NODE = 7
@@ -28,27 +28,53 @@ TARGET_ASPECT_RATIO = 1.0
 ######################################################################
 
 class MacroMaker:
-    def __init__(self):
-        tech_params = yaml.load(open("../src/yaml/tech_params.yaml", "r"), Loader=yaml.Loader)
-        self.area_list = tech_params["area"][REFERENCE_AREA_TECH_NODE]
-        self.pin_list = tech_params["pin_count"]
+    def __init__(self, cfg, codesign_root_dir, tmp_dir, run_openroad, subdirectory=None, output_lef_file="generated_macros.lef", area_list = None, pin_list = None):
+        """Initializes the MacroMaker with optional area and pin lists.
 
+        NOTE: MacroMaker assumes that the input LEF file is for 45nm technology node and that the area values are for 7nm technology node.
+        The resulting macros generated are for the 45nm technology node. Further scaling may be done downstream by the scale LEF function.
+
+        Parameters:
+            output_lef_file (str): The name of the output LEF file.
+            area_list (dict): A dictionary mapping macro names to their area values.
+            pin_list (dict): A dictionary mapping macro names to their pin counts.
+
+        
+        """
+        self.cfg = cfg
+        self.codesign_root_dir = codesign_root_dir
+        self.tmp_dir = tmp_dir
+        self.run_openroad = run_openroad
+        self.directory = os.path.join(self.codesign_root_dir, f"{self.tmp_dir}/pd")
+        self.subdirectory = subdirectory
+
+        ## results will be placed here. This is necessary for running the flow hierarchically. 
+        if subdirectory is not None:
+            self.directory = os.path.join(self.directory, subdirectory)
+
+        tech_params_file_path = os.path.join(self.codesign_root_dir, "src/yaml/tech_params.yaml")
+
+        tech_params = yaml.load(open(tech_params_file_path, "r"), Loader=yaml.Loader)
+
+        if area_list is None:
+            self.area_list = tech_params["area"][REFERENCE_AREA_TECH_NODE]
+        if pin_list is None:
+            self.pin_list = tech_params["pin_count"]
+
+        self.output_lef_file_path = os.path.join(self.directory, output_lef_file)
+
+        # This is the lef file before any modifications are made. 
+        self.base_lef_tech_file = os.path.join(self.codesign_root_dir, BASE_TECH_LEF_FILE)
         self.get_data_from_lef()
 
         self.pin_size = 1000
         self.VDD_height = 1000
         self.VSS_height = 1000
 
-        self.output_lef_file = "macro_lef.txt"
-
-        ## remove the output lef file if it already exists
-        if os.path.exists(self.output_lef_file):
-            os.remove(self.output_lef_file)
-
 
     def get_data_from_lef(self):
         # getting the spacing from the lef file
-        lef_data = open(lef_tech_file)
+        lef_data = open(self.base_lef_tech_file)
         lef_tech_lines = lef_data.readlines()
         for line in range(len(lef_tech_lines)):
             if "LAYER metal1" == lef_tech_lines[line].strip():
@@ -93,13 +119,24 @@ class MacroMaker:
                 seventyfive_lef = self.generate_macro_lef(best1)
                 # print("Generated LEF for " + macro + " with 25% aspect ratio")
                 # append generated LEF text to the configured output file
-                with open(self.output_lef_file, 'a') as f:
+                with open(self.output_lef_file_path, 'a') as f:
                     for pin in seventyfive_lef:
                         f.write(f"{pin}")
                     f.write("END " + best1["name"] + "\n\n")
+        
+        ## write this message to the end of the lef file. 
+            #END LIBRARY
+            #
+            # End of file
+            #
+        with open(self.output_lef_file_path, 'a') as f: 
+            f.write("END LIBRARY\n\n")
+            f.write("#\n# End of file\n#\n")
+
+
 
     def generate_macro_lef(self, design_list):
-        intro = "MACRO {}\n  CLASS CORE ;\n  ORIGIN 0 0 ;\n  FOREIGN {} 0 0 ;\n  SIZE {} BY {} ;\n  SITE FreePDK45_38x28_10R_NP_162NW_34O ;\n".format(design_list["name"], design_list["name"], design_list["x"]/1000, design_list["y"]/1000)
+        intro = "MACRO {}\n  CLASS CORE ;\n  ORIGIN 0 0 ;\n  FOREIGN {} 0 0 ;\n  SIZE {} BY {} ;\n  SITE codesign_site ;\n".format(design_list["name"], design_list["name"], design_list["x"]/1000, design_list["y"]/1000)
         pins = [intro]
         pin_number = 0
         input_pin_number = design_list["input_pin_count"]

@@ -25,7 +25,7 @@ area: #um^2
     NotEq16: 40.591
     Or16: 8.165
     RShift16: 114.774
-    Register: 1 # temporary (same as before)
+    Register16: 1 # temporary (same as before)
     Sub16: 93.079
   130: 
     BitAnd16: 100.096
