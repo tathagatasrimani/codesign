@@ -57,6 +57,7 @@ class OpenRoadRun:
             "BUF_X8": "Invert",
             "BUF_X16": "Invert",
             "BUF_X32": "Invert",
+            "MUX2_X1": "Invert",
         }
     
     def run(
