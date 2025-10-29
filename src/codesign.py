@@ -249,10 +249,10 @@ class Codesign:
             self.cur_dsp_usage = config["dsp"] 
 
         # I don't think "100MHz" has any meaning because scaleHLS should be agnostic to frequency
-        config["100MHz"]["fadd"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["Add"] / self.clk_period)
-        config["100MHz"]["fmul"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["Mult"] / self.clk_period)
-        config["100MHz"]["fdiv"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["FloorDiv"] / self.clk_period)
-        config["100MHz"]["fcmp"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["GtE"] / self.clk_period)
+        config["100MHz"]["fadd"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["Add16"] / self.clk_period)
+        config["100MHz"]["fmul"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["Mult16"] / self.clk_period)
+        config["100MHz"]["fdiv"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["FloorDiv16"] / self.clk_period)
+        config["100MHz"]["fcmp"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["GtE16"] / self.clk_period)
 
         config["max_iter_num"] = self.cfg["args"]["max_iter_num_scalehls"]
         with open(self.config_json_path, "w") as f:
@@ -363,11 +363,11 @@ class Codesign:
         print(f"Current working directory in vitis parse data: {os.getcwd()}")
 
         if self.no_memory:
-            allowed_functions_netlist = {"Add", "Mult"}
-            allowed_functions_schedule = {"Add", "Mult", "Call", "II"}
+            allowed_functions_netlist = {"Add16", "Mult16"}
+            allowed_functions_schedule = {"Add16", "Mult16", "Call", "II"}
         else:
-            allowed_functions_netlist = {"Add", "Mult", "Buf", "MainMem"}
-            allowed_functions_schedule = {"Add", "Mult", "Call", "II", "Buf", "MainMem"}
+            allowed_functions_netlist = {"Add16", "Mult16", "Buf", "MainMem"}
+            allowed_functions_schedule = {"Add16", "Mult16", "Call", "II", "Buf", "MainMem"}
 
         parse_results_dir = f"{save_dir}/parse_results"
 

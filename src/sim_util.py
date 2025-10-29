@@ -77,11 +77,11 @@ def recursive_cfg_merge(model_cfgs, model_cfg_name):
 
 def get_module_map():
     module_map = {
-        #"add": "Add",
+        "add": "Add16",
         "fadd": "Add16",
         "dadd": "Add16",
         "dmul": "Mult16",
-        #"mul": "Mult",
+        "mul": "Mult16",
         "fmul": "Mult16",
         "call": "Call"
     }

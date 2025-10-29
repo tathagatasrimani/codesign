@@ -1,9 +1,18 @@
+import logging
 import math
 import copy
 import yaml
 import os
 
 from .openroad_functions import find_val, clean, value
+
+logger = logging.getLogger(__name__)
+
+DEBUG = True
+
+def debug_print(message):
+    if DEBUG:
+        logger.info(message)
 
 BASE_TECH_LEF_FILE = "openroad_interface/tcl/codesign_files/codesign_tech.lef"
 
@@ -19,6 +28,18 @@ AREA_SCALE_FACTOR = (REFERENCE_LEF_TECH_NODE / REFERENCE_AREA_TECH_NODE) ** 2
 
 ## The target aspect ratio for the macros (Height / Width)
 TARGET_ASPECT_RATIO = 1.0
+
+## The maximum possible row count deviation allowed from the target aspect ratio (in number of rows in either direction)
+MAX_ROW_COUNT_DEVIATION = 20
+
+## The size of the pin in tracks
+PIN_SIZE_TRACKS = 2  # in tracks
+
+## The height of the power rails in tracks (Metal1)
+POWER_RAIL_HEIGHT = 2  # in tracks
+
+## The cutoff in rows for standard cell vs macro designation. If the height of the macro is less than this value, it is considered a standard cell.
+STD_CELL_VS_MACRO_CUTOFF = 10 ## in rows
 
 ######################################################################
 #######                                                        #######
@@ -67,57 +88,69 @@ class MacroMaker:
         self.base_lef_tech_file = os.path.join(self.codesign_root_dir, BASE_TECH_LEF_FILE)
         self.get_data_from_lef()
 
-        self.pin_size = 1000
-        self.VDD_height = 1000
-        self.VSS_height = 1000
-
-
     def get_data_from_lef(self):
         # getting the spacing from the lef file
         lef_data = open(self.base_lef_tech_file)
         lef_tech_lines = lef_data.readlines()
         for line in range(len(lef_tech_lines)):
             if "LAYER metal1" == lef_tech_lines[line].strip():
-                width = float(find_val("WIDTH", lef_tech_lines, line)) * 1000
+                self.metal1_width = float(find_val("WIDTH", lef_tech_lines, line)) * 1000
                 self.spacing = float(find_val("SPACING", lef_tech_lines, line)) * 1000
-                self.metal_pitch = width + self.spacing
-                self.pin_size = 2 * self.metal_pitch  # two routing tracks wide
+                self.metal_pitch = self.metal1_width + self.spacing
+                self.pin_size = PIN_SIZE_TRACKS * self.metal_pitch
+
+                self.VDD_height = POWER_RAIL_HEIGHT * self.metal1_width 
+                self.VSS_height = POWER_RAIL_HEIGHT * self.metal1_width 
             elif "SIZE" in lef_tech_lines[line]:
                 site_size = clean(value(lef_tech_lines[line], "SIZE"))
                 self.row_height = float(clean(site_size.split("BY", 1)[1])) * 1000
             elif "MANUFACTURINGGRID" in lef_tech_lines[line]:
                 self.manufacturing_grid = float(clean(value(lef_tech_lines[line], "MANUFACTURINGGRID"))) * 1000
 
-        print(f"spacing = {self.spacing}, metal_pitch = {self.metal_pitch}, row_height= {self.row_height}, manufacturing_grid= {self.manufacturing_grid}")
+        debug_print(f"spacing = {self.spacing}, metal_pitch = {self.metal_pitch}, row_height= {self.row_height}, manufacturing_grid= {self.manufacturing_grid}, pin_size= {self.pin_size}, VDD_height= {self.VDD_height}, VSS_height= {self.VSS_height}")
 
     def create_all_macros(self):
 
         # iterates through all needed macros
         ref_tech_param = copy.deepcopy(self.area_list)
 
-        print("ref_tech_param: ")
+        debug_print("ref_tech_param: ")
         for key, value in ref_tech_param.items():
-            print(f"  {key}: {value}")
+            debug_print(f"  {key}: {value}")
 
         for macro in list(ref_tech_param):
-            print("Generating designs for macro: " + macro)
+            debug_print("Generating designs for macro: " + macro)
             if macro == "Buf" or macro == "Register":
                 continue
             macro_design_list_1 = []
+
+            # get area of this macro
+            macro_area = self.area_list[macro] * AREA_SCALE_FACTOR
+            macro_area_nm2 = macro_area * 1000000  # convert from um^2 to nm^2
+            
+            debug_print(f"macro_area (nm^2) for {macro}: {macro_area_nm2}")
+            debug_print(f"self.row_height: {self.row_height}")
+            # we want our macros to be as close to square as possible
+            ideal_macro_height_rows = math.floor(math.sqrt(macro_area_nm2)/self.row_height)
+
+            debug_print(f"ideal_macro_height_rows for {macro}: {ideal_macro_height_rows}")
+
             # iterates through different row heights
-            for x in range(1,50):
-                self.macro_maker(macro_design_list_1, macro, x)
+            for x in range(ideal_macro_height_rows - MAX_ROW_COUNT_DEVIATION, ideal_macro_height_rows + MAX_ROW_COUNT_DEVIATION + 1):
+                new_design = self.macro_maker(macro, x)
+                if new_design is not None:
+                    macro_design_list_1.append(new_design)
 
             if len(macro_design_list_1) == 0:
-                print("no valid design for " + macro)
+                debug_print("no valid design for " + macro)
                 exit(1)
             else:
                 # successfully generated designs
-                # print("Successfully generated designs for " + macro)
+                # debug_print("Successfully generated designs for " + macro)
                 best1 = self.find_best_aspect_ratio(macro_design_list_1)
-                # print(best1)
+                # debug_print(best1)
                 seventyfive_lef = self.generate_macro_lef(best1)
-                # print("Generated LEF for " + macro + " with 25% aspect ratio")
+                # debug_print("Generated LEF for " + macro + " with 25% aspect ratio")
                 # append generated LEF text to the configured output file
                 with open(self.output_lef_file_path, 'a') as f:
                     for pin in seventyfive_lef:
@@ -136,7 +169,11 @@ class MacroMaker:
 
 
     def generate_macro_lef(self, design_list):
-        intro = "MACRO {}\n  CLASS CORE ;\n  ORIGIN 0 0 ;\n  FOREIGN {} 0 0 ;\n  SIZE {} BY {} ;\n  SITE codesign_site ;\n".format(design_list["name"], design_list["name"], design_list["x"]/1000, design_list["y"]/1000)
+        block_or_core = "BLOCK"
+        if design_list["y"] <= self.row_height * STD_CELL_VS_MACRO_CUTOFF:
+            block_or_core = "CORE"
+        
+        intro = f"MACRO {design_list['name']}\n  CLASS {block_or_core} ;\n  ORIGIN 0 0 ;\n  FOREIGN {design_list['name']} 0 0 ;\n  SIZE {design_list['x']/1000} BY {design_list['y']/1000} ;\n  SITE codesign_site ;\n"
         pins = [intro]
         pin_number = 0
         input_pin_number = design_list["input_pin_count"]
@@ -159,7 +196,7 @@ class MacroMaker:
                 pin_name = ""
                 if direction == 'OUTPUT':
                     pin_name = "Z" + str(pin_number - input_reference) 
-                    # print(str(pin_number - input_reference) )
+                    # debug_print(str(pin_number - input_reference) )
                 else:
                     pin_name = "A" + str(pin_number)
                     input_pin_number -= 1
@@ -177,23 +214,23 @@ class MacroMaker:
         return (pins)
 
     # specify how many rows and columns of pins you want and generates the design.
-    def macro_maker(self, macro_list, op, height_num):
+    def macro_maker(self, op, height_num):
         """Generates macro designs and appends them to macro_list.
 
         Parameters:
-        row_height (int): The height of the rows.
+        row_height (int): The height of a single row. 
         macro_list (list): The list to append the generated macros to.
         op (str): The operation to perform. Used for naming the macro.
         height_num (int): The number of height units. Total height = row_height * height_num.
         """
 
-        ## print out the parameters for debugging
-        print(f"Generating macro with row_height: {self.row_height}, op: {op}, height_num: {height_num}")
+        ## debug_print out the parameters for debugging
+        debug_print(f"Generating macro with row_height: {self.row_height}, op: {op}, height_num: {height_num}")
 
         cell_height = self.row_height * height_num
 
         if cell_height < (self.VDD_height + self.VSS_height + 2 * self.pin_size + 2 * self.spacing):
-            print("Cell height too small to fit pins and power rails.")
+            debug_print("Cell height too small to fit pins and power rails.")
             return
 
         ## find the total number of pins needed for this operation
@@ -214,27 +251,31 @@ class MacroMaker:
 
         if (self.spacing <= leftover_height_for_spacing/(pin_num_y + 1)):
             ## If this condition is true, that means that there is enough space to place the pins with the required spacing in the y-direction.
-            print("Pins fit in y-direction")
+            debug_print("Pins fit in y-direction")
             spacing_y = math.floor(leftover_height_for_spacing/(pin_num_y + 1)/self.manufacturing_grid) * self.manufacturing_grid
         else:
             raise ValueError("We should never end up in a situation where the pins do not fit in the y-direction.")
 
 
-        print(f"op= {op}")
+        debug_print(f"op= {op}")
         macro_area = self.area_list[op] * AREA_SCALE_FACTOR
         macro_area *= 1000000  # convert from um^2 to nm^2
-        constant_macro_x = math.ceil(macro_area / cell_height / self.manufacturing_grid) * self.manufacturing_grid
+        debug_print(f"MACRO_MAKER: macro_area (nm^2) = {macro_area}")
+        constant_macro_x = math.ceil((macro_area / cell_height) / self.manufacturing_grid) * self.manufacturing_grid
+        debug_print(f"MACRO_MAKER: constant_macro_x = {constant_macro_x}")
         macro_x  = constant_macro_x - self.pin_size * pin_num_x
+        debug_print(f"MACRO_MAKER: macro_x = {macro_x}")
         spacing_x = 0
+
+        debug_print(f"self.spacing = {self.spacing}, pin_num_x = {pin_num_x}, macro_x/(pin_num_x + 1) = {macro_x/(pin_num_x + 1)}")
         if (self.spacing <= macro_x/(pin_num_x + 1)):
             spacing_x = math.floor(macro_x/(pin_num_x + 1) / self.manufacturing_grid) * self.manufacturing_grid
             macro_design = {"name": op, "pin_x" : pin_num_x, "pin_y" : pin_num_y, "input_pin_count" : num_input_pins, "output_pin_count" : num_output_pins, "spacing_x" : spacing_x, "spacing_y" :spacing_y, "x" :constant_macro_x, "y" :cell_height}
-            macro_list.append(macro_design)
-            print("Valid design: " + str(macro_design))
+            debug_print("Valid design: " + str(macro_design))
+            return macro_design
 
         else:
-            print("Pins do not fit in x-direction")
-            pass
+            debug_print("Pins do not fit in x-direction")
 
     def find_best_aspect_ratio(self, design_list):
         best = design_list[0]["y"]/design_list[0]["x"]
