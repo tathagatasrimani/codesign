@@ -978,3 +978,68 @@ mem_leakage_power:
       1: 1728.534
       10: 1653.34
       100: 1688.8
+
+pin_count: 
+  Add16:
+    input: 32
+    output: 16
+  And16:
+    input: 16
+    output: 1
+  BitAnd16:
+    input: 32
+    output: 16
+  BitOr16:
+    input: 32
+    output: 16
+  BitXor16:
+    input: 32
+    output: 16
+  Buf16:
+    input: 16
+    output: 16
+  Eq16:
+    input: 32
+    output: 1
+  FloorDiv16:
+    input: 32
+    output: 16
+  Gt16:
+    input: 32
+    output: 1
+  GtE16:
+    input: 32
+    output: 1
+  LShift16:
+    input: 32
+    output: 16
+  Lt16:
+    input: 32
+    output: 1
+  LtE16:
+    input: 32
+    output: 1
+  Modulus16:
+    input: 32
+    output: 16
+  Mult16:
+    input: 32
+    output: 16
+  Not16:
+    input: 16
+    output: 16
+  NotEq16:
+    input: 32
+    output: 1
+  Or16:
+    input: 16
+    output: 1
+  RShift16:
+    input: 32
+    output: 16
+  Register16:
+    input: 16
+    output: 16
+  Sub16:
+    input: 32
+    output: 16
