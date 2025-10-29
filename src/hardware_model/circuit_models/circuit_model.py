@@ -231,6 +231,16 @@ class CircuitModel:
             self.wire_unit_delay_cvx[layer].value = float((self.tech_model.wire_parasitics["R"][layer]*self.tech_model.wire_parasitics["C"][layer]).subs(self.tech_model.base_params.tech_values).evalf())
             self.wire_unit_energy_cvx[layer].value = float((0.5*self.tech_model.wire_parasitics["C"][layer]*self.tech_model.base_params.V_dd**2).subs(self.tech_model.base_params.tech_values).evalf())
 
+        self.wire_C_values = {}
+        self.wire_R_values = {}
+        for layer in self.metal_layers:
+            self.wire_C_values[layer] = sim_util.xreplace_safe(self.tech_model.wire_parasitics["C"][layer], self.tech_model.base_params.tech_values)
+            self.wire_R_values[layer] = sim_util.xreplace_safe(self.tech_model.wire_parasitics["R"][layer], self.tech_model.base_params.tech_values)
+        
+        self.device_C_diff = sim_util.xreplace_safe(self.tech_model.C_diff, self.tech_model.base_params.tech_values)
+        self.device_C_load = sim_util.xreplace_safe(self.tech_model.C_load, self.tech_model.base_params.tech_values)
+        self.device_R_avg_inv = sim_util.xreplace_safe(self.tech_model.R_avg_inv, self.tech_model.base_params.tech_values)
+
     def update_uarch_parameters(self):
         self.logic_delay_cvx.value = float(self.tech_model.delay.subs(self.tech_model.base_params.tech_values).evalf())
         self.logic_energy_active_cvx.value = float(self.tech_model.E_act_inv.subs(self.tech_model.base_params.tech_values).evalf())
@@ -284,23 +294,36 @@ class CircuitModel:
 
     #TODO come back and replace C_diff and C_load with the capacitance correctly sized for src and dst of each net
     def wire_delay(self, edge, symbolic=False):
-        # wire delay = R * C * length^2 (ns)
-        wire_delay = 0
-        #logger.info(f"calculating wire delay for edge {edge}")
-        for net in self.edge_to_nets[edge]:
-            #logger.info(f"calculating wire delay for net {net.net_id}")
-            R_on_line = self.tech_model.R_avg_inv
-            C_current = self.tech_model.C_diff
-            wire_delay += R_on_line * C_current
-            for segment in net.segments:
-                #logger.info(f"calculating wire delay for segment in layer {segment.layer} with length {segment.length}")
-                C_current = segment.length * self.tech_model.wire_parasitics["C"][segment.layer]
-                R_on_line += segment.length * self.tech_model.wire_parasitics["R"][segment.layer]
+        if symbolic:
+            for net in self.edge_to_nets[edge]:
+                #logger.info(f"calculating wire delay for net {net.net_id}")
+                R_on_line = self.tech_model.R_avg_inv
+                C_current = self.tech_model.C_diff
                 wire_delay += R_on_line * C_current
-            C_current = self.tech_model.C_load
-            wire_delay += R_on_line * C_current
-        if not symbolic and wire_delay != 0:
-            wire_delay = sim_util.xreplace_safe(wire_delay, self.tech_model.base_params.tech_values)
+                for segment in net.segments:
+                    #logger.info(f"calculating wire delay for segment in layer {segment.layer} with length {segment.length}")
+                    C_current = segment.length * self.tech_model.wire_parasitics["C"][segment.layer]
+                    R_on_line += segment.length * self.tech_model.wire_parasitics["R"][segment.layer]
+                    wire_delay += R_on_line * C_current
+                C_current = self.tech_model.C_load
+                wire_delay += R_on_line * C_current
+
+        else:
+            # wire delay = R * C * length^2 (ns)
+            wire_delay = 0
+            #logger.info(f"calculating wire delay for edge {edge}")
+            for net in self.edge_to_nets[edge]:
+                #logger.info(f"calculating wire delay for net {net.net_id}")
+                R_on_line = self.device_R_avg_inv
+                C_current = self.device_C_diff
+                wire_delay += R_on_line * C_current
+                for segment in net.segments:
+                    #logger.info(f"calculating wire delay for segment in layer {segment.layer} with length {segment.length}")
+                    C_current = segment.length * self.wire_C_values[segment.layer]
+                    R_on_line += segment.length * self.wire_R_values[segment.layer]
+                    wire_delay += R_on_line * C_current
+                C_current = self.device_C_load
+                wire_delay += R_on_line * C_current
         return wire_delay * 1e9
 
     # for 1 bit
