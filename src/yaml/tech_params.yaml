@@ -6,27 +6,27 @@
 # TODO: The values for the bitwise NOT operations are estimated until a more thorough estimation can be done. 
 area: #um^2
   7:
-    Add16: 82.115
-    And16: 8.165
-    BitAnd16: 22.395
-    BitOr16: 22.395
-    BitXor16: 33.592
-    Buf: 0.0 # temporary (same as before)
-    Eq16: 40.591
-    FloorDiv16: 1276.741
-    Gt16: 47.589 # using same as Lt
-    GtE16: 51.322 # using same as LtE
-    LShift16: 113.841
-    Lt16: 47.589
-    LtE16: 51.322
-    Modulus16: 1469.431
-    Mult16: 1132.574
-    Not16: 11.197
-    NotEq16: 40.591
-    Or16: 8.165
-    RShift16: 114.774
-    Register16: 1 # temporary (same as before)
-    Sub16: 93.079
+    Add16: 5.13
+    And16: 0.51
+    BitAnd16: 1.39
+    BitOr16: 1.39
+    BitXor16: 2.10
+    Buf: 0.0 # temporary 
+    Eq16: 2.54
+    FloorDiv16: 79.79
+    Gt16: 2.97 # using same as Lt
+    GtE16: 3.21 # using same as LtE
+    LShift16: 7.12
+    Lt16: 2.97
+    LtE16: 3.21
+    Modulus16: 91.8
+    Mult16: 70.79
+    Not16: 0.70
+    NotEq16: 2.54
+    Or16: 0.51
+    RShift16: 7.17
+    Register16: 0.5 # temporary (same as before)
+    Sub16: 5.82
   130: 
     BitAnd16: 100.096
     And16: 31.28
@@ -35,7 +35,7 @@ area: #um^2
     Add16: 312.8
     Sub16: 362.848
     BitXor16: 140.134
-    Buf16: 0.0
+    Buf: 0.0
     Eq16: 171.414
     NotEq16: 171.414
     Lt16: 275.264
@@ -103,7 +103,7 @@ latency: # ns
     BitAnd16: 0.032
     BitOr16: 0.034
     BitXor16: 0.039
-    Buf16: 0.0 # temporary (same as before)
+    Buf: 0.0 # temporary (same as before)
     Eq16: 0.16
     FloorDiv16: 7.057
     Gt16: 0.239
@@ -150,7 +150,7 @@ leakage_power: #nW
     BitAnd16: 2.4
     BitOr16: 2.4
     BitXor16: 2.15
-    Buf16: 0.0
+    Buf: 0.0
     Eq16: 2.31
     FloorDiv16: 79.30
     Gt16: 2.15
@@ -205,7 +205,7 @@ pin_count:
   BitXor16:
     input: 32
     output: 16
-  Buf16:
+  Buf:
     input: 16
     output: 16
   Eq16:
