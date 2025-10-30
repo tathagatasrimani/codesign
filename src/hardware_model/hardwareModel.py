@@ -28,7 +28,7 @@ from openroad_interface import openroad_run_hier
 
 import cvxpy as cp
 
-DEBUG = False
+DEBUG = True
 def log_info(msg):
     if DEBUG:
         logger.info(msg)
@@ -94,7 +94,7 @@ class BlockVector:
 def get_op_type_from_function(function, resource_edge=False):
     if function in ["Buf", "MainMem"]:
         return "memory" if not resource_edge else "memory_rsc"
-    elif function in ["Add", "Sub", "Mult", "FloorDiv", "Mod", "LShift", "RShift", "BitOr", "BitXor", "BitAnd", "Eq", "NotEq", "Lt", "LtE", "Gt", "GtE", "USub", "UAdd", "IsNot", "Not", "Invert", "Regs"]:
+    elif function in ["Add16", "Sub16", "Mult16", "FloorDiv16", "Mod16", "LShift16", "RShift16", "BitOr16", "BitXor16", "BitAnd16", "Eq16", "NotEq16", "Lt16", "LtE16", "Gt16", "GtE16", "USub16", "UAdd16", "IsNot16", "Not16", "Invert16", "Regs16"]:
         return "logic" if not resource_edge else "logic_rsc"
     elif function == "Wire":
         return "interconnect" if not resource_edge else "interconnect_rsc"
@@ -1175,7 +1175,7 @@ class HardwareModel:
                 "parasitic capacitance": self.circuit_model.tech_model.param_db["parasitic capacitance"],
                 "k_gate": self.circuit_model.tech_model.param_db["k_gate"],
                 "delay": self.circuit_model.tech_model.delay,
-                "multiplier delay": self.circuit_model.symbolic_latency_wc["Mult"](),
+                "multiplier delay": self.circuit_model.symbolic_latency_wc["Mult16"](),
                 #"scaled power": self.total_passive_power * self.circuit_model.tech_model.capped_power_scale_total + self.total_active_energy/(execution_time * self.circuit_model.tech_model.capped_delay_scale_total),
                 "logic_sensitivity": self.circuit_model.tech_model.base_params.logic_sensitivity,
                 "logic_resource_sensitivity": self.circuit_model.tech_model.base_params.logic_resource_sensitivity,
