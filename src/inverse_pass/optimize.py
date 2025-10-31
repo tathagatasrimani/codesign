@@ -28,13 +28,14 @@ def log_info(msg, stage):
 
 
 class Optimizer:
-    def __init__(self, hw, tmp_dir, test_config=False):
+    def __init__(self, hw, tmp_dir, test_config=False, opt_pipeline="logic_device"):
         self.hw = hw
         self.disabled_knobs = []
         self.objective_constraint_inds = []
         self.initial_alpha = None
         self.test_config = test_config
         self.tmp_dir = tmp_dir
+        self.opt_pipeline = opt_pipeline
 
     def evaluate_constraints(self, constraints, stage):
         for constraint in constraints:
@@ -92,8 +93,7 @@ class Optimizer:
         return opt, scaled_model, model, multistart_options
     
     # can be used as a starting point for the optimizer
-    def generate_approximate_solution(self, improvement, delay_factor, iteration, multistart=False):
-        execution_time = self.hw.circuit_model.tech_model.delay * (sim_util.xreplace_safe(self.hw.execution_time, self.hw.circuit_model.tech_model.base_params.tech_values)/sim_util.xreplace_safe(self.hw.circuit_model.tech_model.delay, self.hw.circuit_model.tech_model.base_params.tech_values))
+    def generate_approximate_solution(self, improvement, delay_factor, iteration, execution_time,multistart=False):
         print(f"execution time: {execution_time.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values)}")
         print(f"delay factor: {delay_factor}")
 
@@ -120,7 +120,7 @@ class Optimizer:
         
         return c, a
 
-    def generate_design_points(self, count, improvement):
+    def generate_design_points(self, count, improvement, execution_time):
         #delay_factors = np.linspace(0.9, 1.1, count)
         delay_factors = [1.0]
         tech_param_sets = []
@@ -180,6 +180,86 @@ class Optimizer:
                 self.hw.circuit_model.tech_model.base_params.tech_values = copy.deepcopy(original_tech_values)
         return tech_param_sets, obj_vals, scaled_obj_vals
 
+    # in each step, we optimize the delay of the current critical path. So we use a representation of the execution time which only includes the critical path.
+    def calculate_current_execution_time(self):
+        cur_delay = sim_util.xreplace_safe(self.hw.execution_time, self.hw.circuit_model.tech_model.base_params.tech_values)
+        
+        # get base delays for each op type
+        logic_base_delay = self.hw.circuit_model.tech_model.delay
+        logic_rsc_base_delay = self.hw.circuit_model.tech_model.base_params.clk_period
+        interconnect_base_delay = self.hw.circuit_model.tech_model.m1_Rsq * self.hw.circuit_model.tech_model.m1_Csq
+        interconnect_rsc_base_delay = self.hw.circuit_model.tech_model.base_params.clk_period
+        # TODO: add memory
+
+        # set delay ratios for each op type, they should all start out as 1
+        logic_delay_ratio = logic_base_delay / sim_util.xreplace_safe(logic_base_delay, self.hw.circuit_model.tech_model.base_params.tech_values)
+        logic_rsc_delay_ratio = logic_rsc_base_delay / sim_util.xreplace_safe(logic_rsc_base_delay, self.hw.circuit_model.tech_model.base_params.tech_values)
+        interconnect_delay_ratio = interconnect_base_delay / sim_util.xreplace_safe(interconnect_base_delay, self.hw.circuit_model.tech_model.base_params.tech_values)
+        interconnect_rsc_delay_ratio = interconnect_rsc_base_delay / sim_util.xreplace_safe(interconnect_rsc_base_delay, self.hw.circuit_model.tech_model.base_params.tech_values)
+        # TODO: add memory
+
+        # multiply ratios by sensitivities and add them up. TODO: add memory
+        delay_ratio_from_original = (logic_delay_ratio * self.hw.circuit_model.tech_model.base_params.logic_sensitivity + 
+                                    logic_rsc_delay_ratio * self.hw.circuit_model.tech_model.base_params.logic_resource_sensitivity + 
+                                    interconnect_delay_ratio * self.hw.circuit_model.tech_model.base_params.interconnect_sensitivity + 
+                                    interconnect_rsc_delay_ratio * self.hw.circuit_model.tech_model.base_params.interconnect_resource_sensitivity)
+
+        epsilon = 1e-6
+        assert sim_util.xreplace_safe(delay_ratio_from_original, self.hw.circuit_model.tech_model.base_params.tech_values) - 1 <= epsilon, "delay ratio from original should start out as 1"
+
+        # scale it up to the actual value of delay
+        current_execution_time = cur_delay * delay_ratio_from_original
+        return current_execution_time
+
+    def run_ipopt_optimization(self, improvement, lower_bound, execution_time):
+        tech_param_sets, obj_vals, scaled_obj_vals = self.generate_design_points(1, improvement, execution_time)
+        if not tech_param_sets or not obj_vals:
+            raise RuntimeError("No successful design points found. All IPOPT solver runs failed. Check solver parameters and constraints.")
+        optimal_design_idx = scaled_obj_vals.index(min(scaled_obj_vals))
+        print(f"optimal design idx: {optimal_design_idx}")
+        print(f"obj vals: {obj_vals}")
+        print(f"scaled obj vals: {scaled_obj_vals}")
+        assert scaled_obj_vals[optimal_design_idx] < lower_bound * improvement, "no better design point found"
+        self.hw.circuit_model.tech_model.base_params.tech_values = tech_param_sets[optimal_design_idx].copy()
+        if not self.test_config:
+            self.hw.calculate_objective(form_dfg=False)
+        return obj_vals[optimal_design_idx]
+
+    def block_vector_based_optimization(self, improvement, lower_bound):
+        improvement_remaining = improvement
+        iteration = 0
+        best_tech_values = copy.deepcopy(self.hw.circuit_model.tech_model.base_params.tech_values)
+        best_obj_scaled = self.hw.obj_scaled.xreplace(best_tech_values)
+
+        while improvement_remaining > 1 or iteration < 10:
+            execution_time = self.calculate_current_execution_time()
+            tech_param_sets, obj_vals, scaled_obj_vals = self.generate_design_points(1, improvement_remaining, execution_time)
+            if not tech_param_sets or not obj_vals:
+                print(f"No successful design points found in iteration {iteration}.")
+                break
+            optimal_design_idx = scaled_obj_vals.index(min(scaled_obj_vals))
+            print(f"optimal design idx: {optimal_design_idx}")
+            print(f"obj vals: {obj_vals}")
+            print(f"scaled obj vals: {scaled_obj_vals}")
+            assert scaled_obj_vals[optimal_design_idx] < lower_bound * improvement, "no better design point found"
+            self.hw.circuit_model.tech_model.base_params.tech_values = tech_param_sets[optimal_design_idx].copy()
+            self.hw.calculate_objective(form_dfg=False)
+
+            improvement_remaining = scaled_obj_vals[optimal_design_idx] / lower_bound
+            iteration += 1
+            if scaled_obj_vals[optimal_design_idx] < best_obj_scaled:
+                best_tech_values = copy.deepcopy(tech_param_sets[optimal_design_idx])
+                best_obj_scaled = scaled_obj_vals[optimal_design_idx]
+        
+        assert optimal_scaled_obj_val < lower_bound * improvement, "no better design point found"
+        self.hw.circuit_model.tech_model.base_params.tech_values = best_tech_values
+        self.hw.calculate_objective(form_dfg=False)
+        return sim_util.xreplace_safe(self.hw.obj, self.hw.circuit_model.tech_model.base_params.tech_values)
+            
+    def logic_device_optimization(self, improvement, lower_bound):
+        execution_time = self.hw.circuit_model.tech_model.delay * (sim_util.xreplace_safe(self.hw.execution_time, self.hw.circuit_model.tech_model.base_params.tech_values)/sim_util.xreplace_safe(self.hw.circuit_model.tech_model.delay, self.hw.circuit_model.tech_model.base_params.tech_values))
+        obj_val = self.run_ipopt_optimization(improvement, lower_bound, execution_time)
+        return obj_val
 
     def ipopt(self, improvement):
         """
@@ -203,25 +283,18 @@ class Optimizer:
         #print("symbolic obj after abs: ", self.hw.obj)
 
         lower_bound = float(self.hw.obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values) / improvement)
-        original_tech_values = self.hw.circuit_model.tech_model.base_params.tech_values.copy()
 
         start_time = time.time()
-        num_solver_iterations = 0
-        tech_param_sets, obj_vals, scaled_obj_vals = self.generate_design_points(1, improvement)
-        if not tech_param_sets or not obj_vals:
-            raise RuntimeError("No successful design points found. All IPOPT solver runs failed. Check solver parameters and constraints.")
-        optimal_design_idx = scaled_obj_vals.index(min(scaled_obj_vals))
-        print(f"optimal design idx: {optimal_design_idx}")
-        print(f"obj vals: {obj_vals}")
-        print(f"scaled obj vals: {scaled_obj_vals}")
-        assert scaled_obj_vals[optimal_design_idx] < lower_bound * improvement, "no better design point found"
-        self.hw.circuit_model.tech_model.base_params.tech_values = tech_param_sets[optimal_design_idx].copy()
-        if not self.test_config:
-            self.hw.calculate_objective(form_dfg=False)
+        if self.opt_pipeline == "logic_device":
+            obj_val = self.logic_device_optimization(improvement, lower_bound)
+        elif self.opt_pipeline == "block_vector":
+            obj_val = self.block_vector_optimization(improvement, lower_bound)
+        else:
+            raise ValueError(f"Invalid optimization pipeline: {self.opt_pipeline}")
 
         logger.info(f"time to run optimization: {time.time()-start_time}")
 
-        lag_factor = obj_vals[optimal_design_idx] / lower_bound
+        lag_factor = obj_val / lower_bound
         print(f"lag factor: {lag_factor}")
         return lag_factor, False
 
