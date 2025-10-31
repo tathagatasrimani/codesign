@@ -49,16 +49,19 @@ STD_CELL_VS_MACRO_CUTOFF = 10 ## in rows
 ######################################################################
 
 class MacroMaker:
-    def __init__(self, cfg, codesign_root_dir, tmp_dir, run_openroad, subdirectory=None, output_lef_file="generated_macros.lef", area_list = None, pin_list = None):
+    def __init__(self, cfg, codesign_root_dir, tmp_dir, run_openroad, subdirectory=None, output_lef_file="generated_macros.lef", area_list = None, pin_list = None, add_ending_text = True):
         """Initializes the MacroMaker with optional area and pin lists.
 
         NOTE: MacroMaker assumes that the input LEF file is for 45nm technology node and that the area values are for 7nm technology node.
         The resulting macros generated are for the 45nm technology node. Further scaling may be done downstream by the scale LEF function.
 
+        The resulting LEF file will have all the macros specified in area_list with the corresponding areas and pin counts.
+
         Parameters:
             output_lef_file (str): The name of the output LEF file.
             area_list (dict): A dictionary mapping macro names to their area values.
             pin_list (dict): A dictionary mapping macro names to their pin counts.
+            add_ending_text (bool): Whether to add ending text to the output LEF file.
 
         
         """
@@ -79,14 +82,20 @@ class MacroMaker:
 
         if area_list is None:
             self.area_list = tech_params["area"][REFERENCE_AREA_TECH_NODE]
+        else:
+            self.area_list = area_list
         if pin_list is None:
             self.pin_list = tech_params["pin_count"]
+        else:
+            self.pin_list = pin_list
 
         self.output_lef_file_path = os.path.join(self.directory, output_lef_file)
 
         # This is the lef file before any modifications are made. 
         self.base_lef_tech_file = os.path.join(self.codesign_root_dir, BASE_TECH_LEF_FILE)
         self.get_data_from_lef()
+
+        self.add_ending_text = add_ending_text
 
     def get_data_from_lef(self):
         # getting the spacing from the lef file
@@ -157,14 +166,15 @@ class MacroMaker:
                         f.write(f"{pin}")
                     f.write("END " + best1["name"] + "\n\n")
         
-        ## write this message to the end of the lef file. 
+        ## write this message to the end of the lef file if needed.
             #END LIBRARY
             #
             # End of file
             #
-        with open(self.output_lef_file_path, 'a') as f: 
-            f.write("END LIBRARY\n\n")
-            f.write("#\n# End of file\n#\n")
+        if self.add_ending_text:
+            with open(self.output_lef_file_path, 'a') as f: 
+                f.write("END LIBRARY\n\n")
+                f.write("#\n# End of file\n#\n")
 
 
 
@@ -205,10 +215,10 @@ class MacroMaker:
                 pin_number += 1
                 pins.append(pin)
 
-        pin = "   PIN VDD\n    DIRECTION INOUT ;\n    USE POWER ;\n    PORT\n      LAYER metal1 ;\n        RECT {} {} {} {} ;\n    END\n   END VDD\n".format( 0, 0, design_list["x"]/1000, self.VDD_height/1000, pin_name)
+        pin = "   PIN VDD\n    DIRECTION INOUT ;\n    USE POWER ;\n    PORT\n      LAYER metal1 ;\n        RECT {} {} {} {} ;\n    END\n   END VDD\n".format( 0, 0, design_list["x"]/1000, self.VDD_height/1000)
         pins.append(pin)
 
-        pin = "   PIN VSS\n    DIRECTION INOUT ;\n    USE POWER ;\n    PORT\n      LAYER metal1 ;\n        RECT {} {} {} {} ;\n    END\n   END VSS\n".format( 0, (design_list["y"]-self.VDD_height)/1000, design_list["x"]/1000, design_list["y"]/1000, pin_name)
+        pin = "   PIN VSS\n    DIRECTION INOUT ;\n    USE POWER ;\n    PORT\n      LAYER metal1 ;\n        RECT {} {} {} {} ;\n    END\n   END VSS\n".format( 0, (design_list["y"]-self.VDD_height)/1000, design_list["x"]/1000, design_list["y"]/1000)
         pins.append(pin)
 
         return (pins)
@@ -244,7 +254,9 @@ class MacroMaker:
 
         pin_num_y = min(max_pins_per_column, total_pins)
         
-        pin_num_x = math.ceil(total_pins / pin_num_y)
+        pin_num_x = 0
+        if total_pins > 0:
+            pin_num_x = math.ceil(total_pins / pin_num_y)
 
         ## The leftover height after placing the pins and power rails, used to calculate spacing in the y-direction.
         leftover_height_for_spacing = cell_height - self.pin_size * pin_num_y - self.VDD_height - self.VSS_height

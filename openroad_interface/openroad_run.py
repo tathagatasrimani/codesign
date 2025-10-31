@@ -52,7 +52,7 @@ class OpenRoadRun:
         """
         Runs the OpenROAD flow.
         params:
-            arg_parasitics: detailed, estimation, or none. determines which parasitic calculation is executed.
+            arg_parasitics: detailed, estimation, or none. Determines which parasitic calculation is executed.
 
         """
         self.L_eff = L_eff
@@ -60,7 +60,7 @@ class OpenRoadRun:
         dict = {edge: {} for edge in graph.edges()}
         if "none" not in arg_parasitics:
             logger.info("Running setup for place and route.")
-            graph, net_out_dict, node_output, lef_data, node_to_num = self.setup(graph, test_file, area_constraint, L_eff)
+            graph, net_out_dict, node_output, lef_data, node_to_num, final_area = self.setup(graph, test_file, area_constraint, L_eff)
             logger.info("Setup complete. Running extraction.")
             dict, graph = self.extraction(graph, arg_parasitics, net_out_dict, node_output, lef_data, node_to_num)
             logger.info("Extraction complete.")
@@ -68,7 +68,7 @@ class OpenRoadRun:
             logger.info("No parasitics selected. Running none_place_n_route.")
             graph = self.none_place_n_route(graph)
         logger.info("Place and route finished.")
-        return dict, graph
+        return dict, graph, final_area
 
     def setup(
         self,
@@ -107,7 +107,9 @@ class OpenRoadRun:
         logger.info(f"Info: Final estimated area {area_estimate} compared to area constraint {area_constraint_old}. Area constraint will be scaled from {area_constraint_old} to {area_constraint}.")
         graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, max_dim_macro = self.setup_set_area_constraint(old_graph, test_file, area_constraint, L_eff)
 
-        return graph, net_out_dict, node_output, lef_data, node_to_num
+        final_area = area_estimate
+
+        return graph, net_out_dict, node_output, lef_data, node_to_num, final_area
 
 
     def setup_set_area_constraint(

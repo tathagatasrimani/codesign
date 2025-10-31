@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 import networkx as nx
 
 from . import openroad_run
+from . import macro_maker
 
 ## This is the area between the die area and the core area.
 DIE_CORE_BUFFER_SIZE = 50
@@ -62,7 +63,7 @@ class OpenRoadRunHier:
         dict = {edge: {} for edge in full_graph.edges()}
         if "none" not in arg_parasitics:
             logger.info("Running setup for place and route.")
-            self.initialize_directories(os.path.join(self.codesign_root_dir, parse_results_dir))
+            self.initialize_directories(os.path.join(self.codesign_root_dir, self.tmp_dir, parse_results_dir))
 
             self.test_file = test_file
             self.top_level_area_constraint = area_constraint
@@ -121,10 +122,10 @@ class OpenRoadRunHier:
             self.run_pd_single_module(submodule_name)
 
         # Read in the netlist for this module
-        netlist_filtered_file = os.path.join(self.hier_pd_base_dir, module_name, f"{module_name}_netlist_filtered.gml")
+        netlist_filtered_file = os.path.join(self.hier_pd_base_dir, module_name, f"{module_name}_netlist_hier_filtered.gml")
 
         if not os.path.exists(netlist_filtered_file):
-            netlist_filtered_file = os.path.join(self.hier_pd_base_dir, module_name + "s", f"{module_name}s_netlist_filtered.gml")
+            netlist_filtered_file = os.path.join(self.hier_pd_base_dir, module_name + "s", f"{module_name}s_netlist_hier_filtered.gml")
             if not os.path.exists(netlist_filtered_file):
                 debug_print(f"Error: Netlist file {netlist_filtered_file} does not exist.")
                 exit(1)
@@ -156,14 +157,22 @@ class OpenRoadRunHier:
 
             return
         
-        ## then run place and route for this module, using the macros of the submodules.
+        ###### then run place and route for this module, using the macros of the submodules. ######
         flat_open_road_run = openroad_run.OpenRoadRun(cfg=self.cfg, codesign_root_dir=self.codesign_root_dir, tmp_dir=self.tmp_dir, run_openroad=self.run_openroad, subdirectory=f"hier/{module_name}/pd/")
         
-        wire_length_by_edge, _ = flat_open_road_run.run(
+        wire_length_by_edge, _, final_area = flat_open_road_run.run(
             module_graph, self.test_file, self.arg_parasitics, self.top_level_area_constraint, self.L_eff
         )
 
         logger.info(f"Completed place and route for module {module_name}")
+
+        ## Create the macro for this module to be used by the parent module.
+        ## call macro_maker to create the macro lef file
+        
+        macro_maker_instance = macro_maker.MacroMaker(cfg=self.cfg, codesign_root_dir=self.codesign_root_dir, tmp_dir=self.tmp_dir, run_openroad=self.run_openroad, subdirectory=f"hier/{module_name}/pd/",
+                                                      output_lef_file=f"{module_name}_macro.lef", area_list={f"{module_name}": final_area}, pin_list={f"{module_name}": {"input": 0, "output": 0}}, add_ending_text=False)
+        
+        macro_maker_instance.create_all_macros()
 
         ## write a pd_complete.note file to indicate that this module has been placed and routed.
         pd_complete_file = os.path.join(self.hier_pd_base_dir, module_name, "pd_complete.note")
@@ -194,9 +203,9 @@ class OpenRoadRunHier:
                 dest_subdir_path = os.path.join(self.hier_pd_base_dir, subdir)
                 os.makedirs(dest_subdir_path)
 
-                ## copy the files that include the substring "_cross_module_edges.json" or "_netlist_filtered.gml" or "verbose_modules.json"
+                ## copy the files that include the substring "_cross_module_edges.json" or "_netlist_hier_filtered.gml" or "verbose_modules.json"
                 for filename in os.listdir(subdir_path):
-                    if "_cross_module_edges.json" in filename or "_netlist_filtered.gml" in filename or "verbose_modules.json" in filename:
+                    if "_cross_module_edges.json" in filename or "_netlist_hier_filtered.gml" in filename or "verbose_modules.json" in filename:
                         shutil.copy2(os.path.join(subdir_path, filename), dest_subdir_path)
                         logger.info(f"Copied {filename} to {dest_subdir_path}")
         logger.info("Finished initializing hierarchical PD directories.")

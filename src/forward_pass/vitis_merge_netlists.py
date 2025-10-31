@@ -64,7 +64,7 @@ class MergeNetlistsVitis:
         nx.write_gml(full_netlist, output_file_path)
         #debug_print(f"Full netlist saved to {output_file_path}")
 
-        ## filter the netlist to only include desired node types
+        
         filtered_netlist = sim_util.filter_graph_by_function(full_netlist, self.allowed_functions)
 
         ## save the filtered netlist to a file
@@ -112,6 +112,8 @@ class MergeNetlistsVitis:
                 current_module += "s"
 
         full_netlist = nx.read_gml(netlist_file_path)
+
+        initial_netlist = full_netlist.copy()
 
         ## read in the _modules.json file for the current module
         modules_file_path = os.path.join(current_directory, current_module, f"{current_module}.verbose_modules.json")
@@ -161,11 +163,18 @@ class MergeNetlistsVitis:
         #debug_print(f"Cross-module edges for module {current_module} saved to {cross_module_edges_file_path}")
 
         # write out a filtered and function mapped version of the netlist
-        final_netlist_new_ops = sim_util.map_operator_types(full_netlist)
-        filtered_netlist = sim_util.filter_graph_by_function(final_netlist_new_ops, self.allowed_functions)
+        final_netlist_new_ops = sim_util.map_operator_types(initial_netlist)
 
-        debug_print(f"Writing filtered netlist to {current_directory}/{current_module}/{current_module}_netlist_filtered.gml")
-        nx.write_gml(filtered_netlist, f"{current_directory}/{current_module}/{current_module}_netlist_filtered.gml")
+        # filter the netlist to only include desired node types and the call function nodes (we need these for hierarchy)
+        allowed_functions = self.allowed_functions.copy()
+        if "Call" not in allowed_functions:
+            allowed_functions.add("Call")
+        filtered_netlist = sim_util.filter_graph_by_function(final_netlist_new_ops, allowed_functions)
+
+        call_mapped_netlist = self.map_call_nodes(filtered_netlist, current_directory, current_module)
+
+        debug_print(f"Writing filtered netlist to {current_directory}/{current_module}/{current_module}_netlist_hier_filtered.gml")
+        nx.write_gml(call_mapped_netlist, f"{current_directory}/{current_module}/{current_module}_netlist_hier_filtered.gml")
 
         return full_netlist
 
@@ -352,4 +361,85 @@ class MergeNetlistsVitis:
                     pin_to_port[pin_num] = port_name
                     pin_num += 1
         return pin_to_port
+    
 
+    def map_call_nodes(self, netlist, current_directory, current_module):
+        """
+        Map Call nodes in the netlist to their corresponding submodule names.
+
+        This function uses the _verbose_instance_names.json file to map Call nodes to the correct submodule names.
+
+        It is added as a new attribute called "call_submodule_instance_name" to each Call node in the netlist.
+
+        This file is intended to be used downstream during hierarchical place and route to identify which submodule each Call node corresponds to.
+
+        args:
+            netlist: the NetworkX DiGraph representing the netlist
+            current_directory: the root directory containing all module subdirectories
+            current_module: the name of the current module being processed
+        """
+        # Read the instance to module mapping for this module
+        module_instance_file = os.path.join(self.codesign_root_dir, current_directory, current_module, f"{current_module}.verbose_instance_names.json")
+
+        with open(module_instance_file, 'r') as f:
+            instance_mapping = json.load(f)
+
+        ## read in _verbose_fsm.json file for this module
+        fsm_file_path = os.path.join(self.codesign_root_dir, current_directory, current_module, f"{current_module}.verbose_fsm.json")
+        with open(fsm_file_path, 'r') as ff:
+            fsm_data = json.load(ff)
+
+        
+
+        # Map Call nodes to their corresponding submodule names
+        for node, data in netlist.nodes(data=True):
+            if data.get('function') == 'Call':
+                instance_name = data.get('name')
+                submodule_name = instance_mapping.get(instance_name)
+                if submodule_name:
+                    netlist.nodes[node]['call_submodule_instance_name'] = submodule_name
+                else:
+
+                    ## for some cases, the instance mapping may be missing keys. 
+                    # to find these mappings, we need to look at the bind->opset attribute of the Call nodes.
+                    bind_data = data.get('bind')
+                    if bind_data is not None:
+                        opset = bind_data.get('opset')
+                        if opset is not None:
+                            # extract the submodule name from the opset
+
+                            # we will take the substring before the / character in the opset.
+                            if '/' in opset:
+                                opset_base = opset.split('/')[0]
+                            else:
+                                opset_base = opset
+                        else :
+                            error_string = f"No opset found for instance {instance_name} in {module_instance_file}."
+                            raise ValueError(error_string)
+                    else:
+                        error_string = f"No bind data found for instance {instance_name} in {module_instance_file}."
+                        raise ValueError(error_string)
+
+                            
+                    
+                    # we will then search through _verbose_fsm.json file to find a matching node that has a destination equal to the opset.
+                    # the function field in this node will then give us the submodule name.
+                    submodule_found = False
+                    for state, vals in fsm_data.items():
+                        for fsm_node in vals:
+                            destination = fsm_node.get('destination')
+                            ## remove leading % if present
+                            if destination is not None and destination.startswith('%'):
+                                destination = destination[1:]
+                            if destination == opset_base:
+                                submodule_name = fsm_node.get('function')
+                                if submodule_name is not None:
+                                    netlist.nodes[node]['call_submodule_instance_name'] = submodule_name
+                                    submodule_found = True
+                                    break
+
+                    if not submodule_found:
+                        error_string = f"No submodule found for instance {instance_name} in {module_instance_file}."
+                        raise ValueError(error_string)
+
+        return netlist
