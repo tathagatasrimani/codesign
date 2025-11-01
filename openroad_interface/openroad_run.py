@@ -22,7 +22,7 @@ from . import macro_maker as make_macros
 DIE_CORE_BUFFER_SIZE = 50
 
 class OpenRoadRun:
-    def __init__(self, cfg, codesign_root_dir, tmp_dir, run_openroad, subdirectory=None):
+    def __init__(self, cfg, codesign_root_dir, tmp_dir, run_openroad, subdirectory=None, custom_lef_files_to_include=None):
         """
         Initialize the OpenRoadRun with configuration and root directory.
 
@@ -35,6 +35,7 @@ class OpenRoadRun:
         self.run_openroad = run_openroad
         self.directory = os.path.join(self.codesign_root_dir, f"{self.tmp_dir}/pd")
         self.subdirectory = subdirectory
+        self.custom_lef_files_to_include = custom_lef_files_to_include
 
         ## results will be placed here. This is necessary for running the flow hierarchically. 
         if subdirectory is not None:
@@ -144,16 +145,17 @@ class OpenRoadRun:
         else:
             logger.info("Skipping setup, using previous openroad results.")
 
-        macro_maker = make_macros.MacroMaker(self.cfg, self.codesign_root_dir, self.tmp_dir, self.run_openroad, self.subdirectory, output_lef_file=self.directory + "/tcl/codesign_files/codesign_stdcell.lef")
+        macro_maker = make_macros.MacroMaker(self.cfg, self.codesign_root_dir, self.tmp_dir, self.run_openroad, self.subdirectory, output_lef_file=self.directory + "/tcl/codesign_files/codesign_stdcell.lef", custom_lef_files_to_include=self.custom_lef_files_to_include)
+
         macro_maker.create_all_macros()
-        
+
         self.update_area_constraint(area_constraint)
 
         self.do_scale_lef = scale_lef.ScaleLefFiles(self.cfg, self.codesign_root_dir, self.tmp_dir, self.subdirectory)
         self.do_scale_lef.scale_lef_files(L_eff)
 
+        logger.info(f"Generating DEF file for {self.codesign_root_dir}/{self.tmp_dir}/{self.subdirectory}")
         df = def_generator.DefGenerator(self.cfg, self.codesign_root_dir, self.tmp_dir, self.do_scale_lef.NEW_database_units_per_micron, self.subdirectory)
-
 
         graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate = df.run_def_generator(
             test_file, graph

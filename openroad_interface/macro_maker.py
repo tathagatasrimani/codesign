@@ -8,7 +8,7 @@ from .openroad_functions import find_val, clean, value
 
 logger = logging.getLogger(__name__)
 
-DEBUG = True
+DEBUG = False
 
 def debug_print(message):
     if DEBUG:
@@ -49,7 +49,7 @@ STD_CELL_VS_MACRO_CUTOFF = 10 ## in rows
 ######################################################################
 
 class MacroMaker:
-    def __init__(self, cfg, codesign_root_dir, tmp_dir, run_openroad, subdirectory=None, output_lef_file="generated_macros.lef", area_list = None, pin_list = None, add_ending_text = True):
+    def __init__(self, cfg, codesign_root_dir, tmp_dir, run_openroad, subdirectory=None, output_lef_file="generated_macros.lef", area_list = None, pin_list = None, add_ending_text = True, custom_lef_files_to_include=None):
         """Initializes the MacroMaker with optional area and pin lists.
 
         NOTE: MacroMaker assumes that the input LEF file is for 45nm technology node and that the area values are for 7nm technology node.
@@ -96,6 +96,7 @@ class MacroMaker:
         self.get_data_from_lef()
 
         self.add_ending_text = add_ending_text
+        self.custom_lef_files_to_include = custom_lef_files_to_include
 
     def get_data_from_lef(self):
         # getting the spacing from the lef file
@@ -118,6 +119,22 @@ class MacroMaker:
 
         debug_print(f"spacing = {self.spacing}, metal_pitch = {self.metal_pitch}, row_height= {self.row_height}, manufacturing_grid= {self.manufacturing_grid}, pin_size= {self.pin_size}, VDD_height= {self.VDD_height}, VSS_height= {self.VSS_height}")
 
+    def include_custom_lef_files(self):
+        """Includes custom LEF files into the output LEF file.
+
+        Parameters:
+            lef_file_list (list): A list of file paths to LEF files to include. These paths must have one or more macros defined without any LIBRARY or END LIBRARY statements.
+        """
+        if self.custom_lef_files_to_include is None:
+            return
+        with open(self.output_lef_file_path, 'a') as f:
+            for module, lef_file in self.custom_lef_files_to_include.items():
+                debug_print(f"Including custom LEF file: {lef_file} for module: {module}")
+                with open(lef_file, 'r') as custom_lef:
+                    for line in custom_lef:
+                        f.write(line)
+            f.write("\n")  # Add a newline after including all custom LEF files
+    
     def create_all_macros(self):
 
         # iterates through all needed macros
@@ -165,6 +182,8 @@ class MacroMaker:
                     for pin in seventyfive_lef:
                         f.write(f"{pin}")
                     f.write("END " + best1["name"] + "\n\n")
+        
+        self.include_custom_lef_files()
         
         ## write this message to the end of the lef file if needed.
             #END LIBRARY

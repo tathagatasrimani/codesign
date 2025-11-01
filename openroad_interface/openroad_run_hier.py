@@ -157,8 +157,68 @@ class OpenRoadRunHier:
 
             return
         
+        ## This is a list of file paths to lef files from submodules to include in this module's P&R.
+        lef_files_to_include = {}
+        lef_files_to_skip = {}
+        
+        for submodule_name in verbose_modules:
+            
+            ## first find the module folder for this submodule
+            submodule_folder = os.path.join(self.hier_pd_base_dir, submodule_name)
+
+            # it is possible that we need to append an "s" to the submodule name to find the folder.
+            if not os.path.exists(submodule_folder):
+                submodule_folder_s = os.path.join(self.hier_pd_base_dir, submodule_name + "s")
+                if not os.path.exists(submodule_folder_s):
+                    debug_print(f"Error: Submodule folder for {submodule_name} does not exist at {submodule_folder}.")
+                    exit(1)
+                else:
+                    debug_print(f"Warning: Submodule {submodule_name} not found, adding s worked though:  {submodule_name}s")
+                    submodule_folder = submodule_folder_s
+                    submodule_name += "s"
+            
+            macro_name = f"HIERMODULE_{submodule_name}"
+            macro_lef_file = os.path.join(self.hier_pd_base_dir, submodule_name, "pd", f"{macro_name}_macro.lef")
+            
+            ## ensure the file actually exists. 
+            if os.path.exists(macro_lef_file):
+                # the lef file exists, so add it to the list of lef files to include.
+                lef_files_to_include[submodule_name] = macro_lef_file
+            else:
+                ## it is possible that the submodule did not need place and route, so its macro lef file was never created.
+                # check to see if the pd_complete.note file exists. If it does not, then this is an error.
+                pd_complete_file = os.path.join(self.hier_pd_base_dir, submodule_name, "pd_complete.note")
+                if os.path.exists(pd_complete_file):
+                    debug_print(f"Macro LEF file for submodule {submodule_name} not found at {macro_lef_file}, but pd_complete.note file exists. Assuming no P&R was needed for this submodule.")
+                    # skip adding this lef file.
+                    lef_files_to_skip[submodule_name] = macro_lef_file
+                else:
+                    error_message = f"Macro LEF file for submodule {submodule_name} not found at {macro_lef_file}."
+                    error_message += f" Additionally, the pd_complete.note file was not found at {pd_complete_file}, indicating that place and route for this submodule was not completed."
+                    raise FileNotFoundError(error_message)
+                
+        debug_print(f"For module {module_name}, including the following macro LEF files from submodules: {lef_files_to_include}")
+        debug_print(f"For module {module_name}, skipping the following macro LEF files from submodules: {lef_files_to_skip}")
+
+        module_graph_pruned = copy.deepcopy(module_graph)
+
+        if len(lef_files_to_skip) > 0:
+            ## make sure to remove any pruned nodes from the graph before passing to OpenROAD.
+            for node in list(module_graph_pruned.nodes):
+                ## see if this is a call node and if the module name is in the lef_files_to_skip list. 
+                if module_graph_pruned.nodes[node].get("function") == "Call" and module_graph_pruned.nodes[node].get("call_submodule_instance_name") in lef_files_to_skip:
+                    debug_print(f"Removing pruned node {node} from module graph for module {module_name}.")
+                    module_graph_pruned.remove_node(node)
+
+            # netlist_filtered_pruned_file = os.path.join(self.hier_pd_base_dir, module_name, f"{module_name}_netlist_hier_filtered_pruned.gml")
+            debug_print(f"Writing pruned module graph to {netlist_filtered_file}.")
+            # write out the modified graph to a new netlist_filtered_pruned_file.
+            nx.write_gml(module_graph_pruned, netlist_filtered_file)
+
+            module_graph = module_graph_pruned
+
         ###### then run place and route for this module, using the macros of the submodules. ######
-        flat_open_road_run = openroad_run.OpenRoadRun(cfg=self.cfg, codesign_root_dir=self.codesign_root_dir, tmp_dir=self.tmp_dir, run_openroad=self.run_openroad, subdirectory=f"hier/{module_name}/pd/")
+        flat_open_road_run = openroad_run.OpenRoadRun(cfg=self.cfg, codesign_root_dir=self.codesign_root_dir, tmp_dir=self.tmp_dir, run_openroad=self.run_openroad, subdirectory=f"hier/{module_name}/pd/", custom_lef_files_to_include=lef_files_to_include)
         
         wire_length_by_edge, _, final_area = flat_open_road_run.run(
             module_graph, self.test_file, self.arg_parasitics, self.top_level_area_constraint, self.L_eff
@@ -168,9 +228,11 @@ class OpenRoadRunHier:
 
         ## Create the macro for this module to be used by the parent module.
         ## call macro_maker to create the macro lef file
+
+        macro_name = f"HIERMODULE_{module_name}"
         
         macro_maker_instance = macro_maker.MacroMaker(cfg=self.cfg, codesign_root_dir=self.codesign_root_dir, tmp_dir=self.tmp_dir, run_openroad=self.run_openroad, subdirectory=f"hier/{module_name}/pd/",
-                                                      output_lef_file=f"{module_name}_macro.lef", area_list={f"{module_name}": final_area}, pin_list={f"{module_name}": {"input": 0, "output": 0}}, add_ending_text=False)
+                                                      output_lef_file=f"{macro_name}_macro.lef", area_list={f"{macro_name}": final_area}, pin_list={f"{macro_name}": {"input": 16, "output": 16}}, add_ending_text=False)
         
         macro_maker_instance.create_all_macros()
 

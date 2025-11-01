@@ -30,7 +30,7 @@ floordiv = "FloorDiv16"
 sub = "Sub16"
 eq= "Eq16"
 
-DEBUG = False
+DEBUG = True
 def log_info(msg):
     if DEBUG:
         logger.info(msg)
@@ -90,7 +90,10 @@ class DefGenerator:
 
         redo this whole function 
         '''
-        if and_gate.upper() in name.upper():
+        ## This is for hierarchically P&R'ed modules. The macro name is the same as the module name except that it will have this prefix "HIERMODULE_"
+        if "HIERMODULE_" in name.upper():
+            return name
+        elif and_gate.upper() in name.upper():
             return  name
         elif bitxor.upper() in name.upper():
             return  name
@@ -113,12 +116,20 @@ class DefGenerator:
         else:
             return ""
 
-    def find_macro(self, name: str) -> str:
+    def find_macro(self, node: dict) -> str:
         '''
         find the corresponding macro for the given node
 
         redo this function 
         '''
+        name = node["function"]
+        if "CALL" in name.upper():
+            ## This is for hierarchically P&R'ed modules. The macro name is the same as the module name. It will have this prefix "HIERMODULE_"
+            macro_name = node.get("call_submodule_instance_name", None)
+            if macro_name is None:
+                raise ValueError(f"CALL node missing 'call_submodule_instance_name' attribute: {node}")
+
+            return f"HIERMODULE_{macro_name}"
         if "AND" in name.upper():
             return  and_gate
         if "BITXOR" in name.upper():
@@ -136,9 +147,7 @@ class DefGenerator:
         if "SUB" in name.upper():
             return  sub
         if "EQ" in name.upper():
-            return  sub
-        if "EQ" in name.upper():
-            return  sub
+            return  eq
         if "MUX" in name.upper():
             return  mux 
         else:
@@ -247,6 +256,10 @@ class DefGenerator:
                 site = re.findall(r'"(.*?)"', line)
                 site_name = site[0]
 
+        log_info(f"LEF tech file: {lef_tech_file}")
+        log_info(f"LEF std file: {lef_std_file}")
+        log_info(f"Site name: {site_name}")
+
         # extracting needed macros and their respective pins from lef and puts it into a dict
         lef_std_data = open(lef_std_file)
         macro_name = None
@@ -328,7 +341,7 @@ class DefGenerator:
         node_to_macro = {}
         out_edge = self.edge_gen("out", old_nodes, graph)
         for node in old_nodes:
-            macro = self.find_macro(graph.nodes[node]["function"])
+            macro = self.find_macro(graph.nodes[node])
             node_to_macro[node] = [macro, copy.deepcopy(macro_dict[macro])]
             log_info(f"node to macro [{node}]: {node_to_macro[node]}")
             out_edge = self.edge_gen("out", old_nodes, graph)
