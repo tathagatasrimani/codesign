@@ -235,6 +235,12 @@ if __name__ == "__main__":
         type=str,
         help="codesign configuration file"
     )
+    parser.add_argument(
+        "--opt_pipeline",
+        type=str,
+        default="logic_device",
+        help="optimization pipeline to use for inverse pass"
+    )
     args = parser.parse_args()
     if not os.path.exists(args.savedir):
         os.makedirs(args.savedir)

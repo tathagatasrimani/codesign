@@ -203,16 +203,16 @@ gemm_save:
   I_off_n: 5.32e-07
   I_on_n: 0.0022117
   I_on_p: 0.00110585
-  L: 5.182467883393003e-07
+  L: 2.079556823334698e-07
   L_c: 3.0e-06
   L_ov: 3.75e-07
   Mobility_n: 36184000000.0
-  V_dd: 4.506034930322346
-  V_th: 0.8726978719240095
+  V_dd: 3.1334044683675155
+  V_th: 0.6139276634509834
   Vdd: 0.9
   Vdsat: 0.0509
   Vth: 0.21835
-  W: 1.6058196534280995e-06
+  W: 1.027793865649193e-06
   Wmemcella: 1.31
   Wmemcellnmos: 2.08
   Wmemcellpmos: 1.23
@@ -228,10 +228,10 @@ gemm_save:
   c_int: 1.5
   c_tx: 2.0
   chip_layout_overhead: 1.2
-  clk_period: 16.94611105812769
+  clk_period: 6.078671963620202
   core_tx_density: 1.78571
   d: 1.0e-06
-  delay_var: 0.034646398744494204
+  delay_var: 0.015726702184089857
   dishing_thickness: 1.0e-09
   dram_cell_C: 1.0e-09
   dram_cell_I_off_worst_case_len_temp: 1.0e-09
@@ -245,17 +245,17 @@ gemm_save:
   i_bias: 15.0
   i_leak: 1000.0
   ild_thickness: 0.21
-  interconnect_ahmdal_limit: 133.2861557347317
+  interconnect_ahmdal_limit: 17.058669282601524
   interconnect_resource_ahmdal_limit: .inf
   interconnect_resource_sensitivity: 0.0
-  interconnect_sensitivity: 0.0036571789048947703
+  interconnect_sensitivity: 0.029310609855716284
   ioarea_c: 0.01
   ioarea_k0: 0.5
   ioarea_k1: 0.00015
   ioarea_k2: 4.5e-08
   ioarea_k3: 1.5e-11
   k_cnt: 3.9
-  k_gate: 3.9416931093630483
+  k_gate: 6.443580676248724
   k_noise_addr: 0.2
   k_noise_addr_sen: 0.135
   k_noise_read: 0.2
@@ -265,30 +265,30 @@ gemm_save:
   l_elec: 0.01013
   l_phy: 0.013
   lch_lk_rdc: 0.269833
-  logic_ahmdal_limit: 1.9919194714411965
-  logic_resource_ahmdal_limit: 1.27890785323674
-  logic_resource_sensitivity: 0.7819171627331315
+  logic_ahmdal_limit: 8.211237829161702
+  logic_resource_ahmdal_limit: 1.076825903846617
+  logic_resource_sensitivity: 0.9186730373174635
   logic_scaling_co_eff: 0.343
-  logic_sensitivity: 0.2144256583619448
-  m10_k: 3.9
+  logic_sensitivity: 0.0520163528269857
+  m10_k: 2.5
   m10_rho: 4.0e-08
-  m1_k: 3.8279449419892777
-  m1_rho: 3.9999481665279685e-08
-  m2_k: 3.90000272540688
-  m2_rho: 4.000002723614789e-08
-  m3_k: 3.90000272540688
-  m3_rho: 4.000002723614789e-08
-  m4_k: 3.9
+  m1_k: 2.0000004052160283
+  m1_rho: 3.999648240602756e-08
+  m2_k: 2.5000037647460505
+  m2_rho: 4.0000024093886166e-08
+  m3_k: 2.5000037647460505
+  m3_rho: 4.0000024093886166e-08
+  m4_k: 2.5
   m4_rho: 4.0e-08
-  m5_k: 3.9
+  m5_k: 2.5
   m5_rho: 4.0e-08
-  m6_k: 3.9
+  m6_k: 2.5
   m6_rho: 4.0e-08
-  m7_k: 3.9
+  m7_k: 2.5
   m7_rho: 4.0e-08
-  m8_k: 3.9
+  m8_k: 2.5
   m8_rho: 4.0e-08
-  m9_k: 3.9
+  m9_k: 2.5
   m9_rho: 4.0e-08
   macro_layout_overhead: 1.1
   memory_ahmdal_limit: .inf
@@ -298,7 +298,7 @@ gemm_save:
   miller_value: 1.5
   n2p_drv_rt: 2.41
   nmos_effective_resistance_multiplier: 1.49
-  node_arrivals_end: 210851.89370730397
+  node_arrivals_end: 19486.46385131474
   phy_bandgap_wtime: 10.0
   phy_clock_tree_d: 0.5
   phy_clock_tree_s: 1.0e-09
@@ -363,7 +363,7 @@ gemm_save:
   t_skew_setup: 25.0
   t_soc_hold: 50.0
   t_soc_setup: 50.0
-  tox: 9.896471653192948e-08
+  tox: 6.053906633332186e-08
   tsv_contact_resistance: 0.1
   tsv_depletion_width: 0.6
   tsv_diameter: 0.7
@@ -371,7 +371,208 @@ gemm_save:
   tsv_length: 5.0
   tsv_liner_dielectric_cons: 1.664
   tsv_pitch: 1.4
-  u_n: 0.06994331111833313
+  u_n: 0.07086478539327201
+  v_noise_independent_addr: 0.1
+  v_noise_independent_read: 0.1
+  v_noise_independent_write: 0.1
+  v_sw_addr: 0.75
+  v_sw_clk: 0.75
+  v_sw_data_read_line: 1.1692307692307695
+  v_sw_data_read_load1: 1.1692307692307693
+  v_sw_data_read_load2: 0.9846153846153848
+  v_sw_data_write_line: 1.5
+  v_sw_data_write_load1: 1.3333333333333333
+  v_sw_data_write_load2: 1.3333333333333333
+  vdd_io: 1.5
+  vert_dielectric_constant: 3.9
+  vpp: 1.0e-09
+  wire_c_per_micron: 1.0e-09
+  wire_pitch: 2.5
+  wire_r_per_micron: 1.0e-09
+  z0: 50.0
+
+gemm_save2:
+  C_fringe: 4.0e-17
+  C_g_ideal: 5.34e-16
+  C_junc: 1.0e-15
+  C_junc_sw: 2.5e-16
+  C_ox: 4.11e-14
+  Cs: 100.0
+  H_c: 3.0e-06
+  H_g: 3.0e-06
+  I_g_on_n: 6.55e-08
+  I_off_n: 5.32e-07
+  I_on_n: 0.0022117
+  I_on_p: 0.00110585
+  L: 1.6506841483617591e-06
+  L_c: 3.0e-06
+  L_ov: 3.75e-07
+  Mobility_n: 36184000000.0
+  V_dd: 4.701803529847859
+  V_th: 0.8817758754528852
+  Vdd: 0.9
+  Vdsat: 0.0509
+  Vth: 0.21835
+  W: 5.081886270920763e-06
+  Wmemcella: 1.31
+  Wmemcellnmos: 2.08
+  Wmemcellpmos: 1.23
+  alpha_dennard: 1.0
+  alpha_scatter: 1.0
+  area: 2.0
+  area_cell: 146.0
+  asp_ratio_cell: 1.46
+  aspect_ratio: 3.0
+  barrier_thickness: 1.0e-09
+  c_addr: 0.75
+  c_data: 1.5
+  c_int: 1.5
+  c_tx: 2.0
+  chip_layout_overhead: 1.2
+  clk_period: 61.66963948414142
+  core_tx_density: 1.78571
+  d: 1.0e-06
+  delay_var: 0.12477996750552697
+  dishing_thickness: 1.0e-09
+  dram_cell_C: 1.0e-09
+  dram_cell_I_off_worst_case_len_temp: 1.0e-09
+  dram_cell_I_on: 1.0e-09
+  dram_cell_Vdd: 1.0e-09
+  epsilon_dennard: 1.0
+  f: 40000000.0
+  fringe_cap: 1.15e-16
+  gmp_to_gmn_multiplier: 1.38
+  horiz_dielectric_constant: 1.664
+  i_bias: 15.0
+  i_leak: 1000.0
+  ild_thickness: 0.21
+  interconnect_ahmdal_limit: .inf
+  interconnect_resource_ahmdal_limit: .inf
+  interconnect_resource_sensitivity: 0.0
+  interconnect_sensitivity: 0.0
+  ioarea_c: 0.01
+  ioarea_k0: 0.5
+  ioarea_k1: 0.00015
+  ioarea_k2: 4.5e-08
+  ioarea_k3: 1.5e-11
+  k_cnt: 3.9
+  k_gate: 3.9459042828186592
+  k_noise_addr: 0.2
+  k_noise_addr_sen: 0.135
+  k_noise_read: 0.2
+  k_noise_read_sen: 0.21333333333333337
+  k_noise_write: 0.2
+  k_noise_write_sen: 0.24000000000000005
+  l_elec: 0.01013
+  l_phy: 0.013
+  lch_lk_rdc: 0.269833
+  logic_ahmdal_limit: 1.6716783794423127
+  logic_resource_ahmdal_limit: 2.1777115583969313
+  logic_resource_sensitivity: 0.4017988075351714
+  logic_scaling_co_eff: 0.343
+  logic_sensitivity: 0.5982011924647728
+  m10_k: 2.5
+  m10_rho: 4.0e-08
+  m1_k: 2.4367948303112783
+  m1_rho: 3.9999965823855075e-08
+  m2_k: 2.5000018019358876
+  m2_rho: 4.000001152722869e-08
+  m3_k: 2.5000018019358876
+  m3_rho: 4.000001152722869e-08
+  m4_k: 2.5
+  m4_rho: 4.0e-08
+  m5_k: 2.5
+  m5_rho: 4.0e-08
+  m6_k: 2.5
+  m6_rho: 4.0e-08
+  m7_k: 2.5
+  m7_rho: 4.0e-08
+  m8_k: 2.5
+  m8_rho: 4.0e-08
+  m9_k: 2.5
+  m9_rho: 4.0e-08
+  macro_layout_overhead: 1.1
+  memory_ahmdal_limit: .inf
+  memory_resource_ahmdal_limit: .inf
+  memory_resource_sensitivity: 0.0
+  memory_sensitivity: 0.0
+  miller_value: 1.5
+  n2p_drv_rt: 2.41
+  nmos_effective_resistance_multiplier: 1.49
+  node_arrivals_end: 8801533.030702665
+  phy_bandgap_wtime: 10.0
+  phy_clock_tree_d: 0.5
+  phy_clock_tree_s: 1.0e-09
+  phy_datapath_d: 0.5
+  phy_datapath_s: 1.0e-09
+  phy_dcc_d: 0.05
+  phy_dcc_s: 1.0e-09
+  phy_deskew_d: 0.1
+  phy_deskew_s: 1.0e-09
+  phy_deskew_wtime: 0.003
+  phy_leveling_d: 0.05
+  phy_leveling_s: 1.0e-09
+  phy_phase_rotator_d: 0.01
+  phy_phase_rotator_s: 10.0
+  phy_phase_rotator_wtime: 5.0
+  phy_pll_d: 0.05
+  phy_pll_s: 10.0
+  phy_pll_wtime: 10.0
+  phy_rx_d: 0.5
+  phy_rx_s: 10.0
+  phy_rx_wtime: 2.0
+  phy_vrefgen_wtime: 0.5
+  r_diff_term: 100.0
+  r_on: 1.0e-09
+  r_on_ca: 50.0
+  r_stub_ca: 1.0e-09
+  resistivity: 0.018
+  rpar_read: 53.02325581395349
+  rpar_write: 67.5
+  rs1_dq: 15.0
+  rs2_dq: 15.0
+  rtt1_dq_read: 120.0
+  rtt1_dq_write: 120.0
+  rtt2_dq_read: 80.0
+  rtt2_dq_write: 120.0
+  rtt_ca: 50.0
+  sckt_co_eff: 1.1111
+  sense_delay: 3.0e-11
+  sense_dy_power: 2.16e-15
+  t_1: 1.0e-06
+  t_cor_margin: 30.0
+  t_dcd_dram: 50.0
+  t_dcd_soc: 50.0
+  t_dh: 150.0
+  t_dqsq: 100.0
+  t_ds: 150.0
+  t_error_soc: 25.0
+  t_flight: 1.0e-09
+  t_flight_ca: 2.0
+  t_ih: 150.0
+  t_is: 150.0
+  t_jitter_addr_hold: 100.0
+  t_jitter_addr_hold_sen: 65.0
+  t_jitter_addr_setup: 100.0
+  t_jitter_addr_setup_sen: 65.0
+  t_jitter_hold: 100.0
+  t_jitter_hold_sen: 154.99999999999997
+  t_jitter_setup: 100.0
+  t_jitter_setup_sen: 154.99999999999997
+  t_ox: 0.0005
+  t_skew_hold: 25.0
+  t_skew_setup: 25.0
+  t_soc_hold: 50.0
+  t_soc_setup: 50.0
+  tox: 9.885904202141849e-08
+  tsv_contact_resistance: 0.1
+  tsv_depletion_width: 0.6
+  tsv_diameter: 0.7
+  tsv_dielec_thickness: 0.1
+  tsv_length: 5.0
+  tsv_liner_dielectric_cons: 1.664
+  tsv_pitch: 1.4
+  u_n: 0.07021225924724626
   v_noise_independent_addr: 0.1
   v_noise_independent_read: 0.1
   v_noise_independent_write: 0.1

@@ -166,7 +166,7 @@ class Preprocessor:
         self.regularization = 0
         # normal regularization for each variable
         for symbol in self.free_symbols:
-            if symbol.name in self.params.symbol_table:
+            if symbol.name in self.params.symbol_table and self.params.tech_values[symbol] != 0:
                 self.regularization += hardwareModel.symbolic_convex_max((self.params.tech_values[symbol]/ symbol- 1), 
                                                             (symbol/self.params.tech_values[symbol] - 1)) ** 2
 
