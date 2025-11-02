@@ -38,6 +38,8 @@ def log_warning(msg):
     if DEBUG:
         logger.warning(msg)
 
+MAX_STD_CELL_ROWS = 50000  # adjust as needed for memory/runtime
+
 
 class DefGenerator:
     def __init__(self, cfg, codesign_root_dir, tmp_dir, NEW_database_units_per_micron, subdirectory=None):
@@ -561,38 +563,93 @@ class DefGenerator:
 
         ### 7.generate rows ###
         # using calculations sourced from OpenROAD
+        
+        # if all nodes are Call functions, skip row generation.
+        all_call_functions = True
+        for node in graph.nodes():
+            if graph.nodes[node].get("function", "") != "Call":
+                all_call_functions = False
+                break
+        
         row_text = []
-        core_y = core_coord_y2 - core_coord_y1
-        counter = 0
 
-        core_dy = core_y * units
-        site_dy = site_y * units
-        site_dx = site_x * units
+        if not all_call_functions:
 
-        row_x = math.ceil(core_coord_x1 * units / site_dx) * site_dx
-        row_y = math.ceil(core_coord_y1 * units / site_dy) * site_dy
+            # core_y = core_coord_y2 - core_coord_y1
+            # counter = 0
 
-        while site_dy <= core_dy - counter * site_dy:
-            text = "ROW ROW_{} {} {} {}".format(str(counter), site_name, str(int(row_x)), str(int(row_y + counter * site_dy)))
-            
-            if (counter + 1)%2 == 0:
-                text += " FS "
-            elif (counter + 1)%2 == 1:
-                text += " N "
-            
-            num_row = 0
-            while (core_coord_x2 - core_coord_x1) * units - num_row * site_dx >= site_dx:
-                num_row = num_row + 1 
+            # core_dy = core_y * units
+            # site_dy = site_y * units
+            # site_dx = site_x * units
 
-            text += "DO {} BY 1 ".format(str(num_row))
+            # row_x = math.ceil(core_coord_x1 * units / site_dx) * site_dx
+            # row_y = math.ceil(core_coord_y1 * units / site_dy) * site_dy
 
-            text += "STEP {} 0 ;".format(str(int(site_dx)))
+            # while site_dy <= core_dy - counter * site_dy:
+            #     text = "ROW ROW_{} {} {} {}".format(str(counter), site_name, str(int(row_x)), str(int(row_y + counter * site_dy)))
+                
+            #     if (counter + 1)%2 == 0:
+            #         text += " FS "
+            #     elif (counter + 1)%2 == 1:
+            #         text += " N "
+                
+            #     num_row = 0
+            #     while (core_coord_x2 - core_coord_x1) * units - num_row * site_dx >= site_dx:
+            #         num_row = num_row + 1 
 
-            counter += 1
-            row_text.append(text)
-            log_info(f"Generated row: {text}")
+            #     text += "DO {} BY 1 ".format(str(num_row))
 
-        log_info(f"Generated {len(row_text)} rows.")
+            #     text += "STEP {} 0 ;".format(str(int(site_dx)))
+
+            #     counter += 1
+            #     row_text.append(text)
+            #     log_info(f"Generated row: {text}")
+
+            #     log_info(f"Generated {len(row_text)} rows.")
+
+
+            core_y = core_coord_y2 - core_coord_y1
+            core_dy = core_y * units
+            site_dy = site_y * units
+            site_dx = site_x * units
+
+            core_x1_dbu = int(core_coord_x1 * units)
+            core_x2_dbu = int(core_coord_x2 * units)
+            core_y1_dbu = int(core_coord_y1 * units)
+
+            # Total number of potential rows (without limit)
+            num_rows_y = int(math.ceil(core_dy / site_dy))
+            num_sites_x = int(math.ceil((core_x2_dbu - core_x1_dbu) / site_dx))
+
+            # --- Row cap and stride logic ---
+            if num_rows_y > MAX_STD_CELL_ROWS:
+                stride = math.ceil(num_rows_y / MAX_STD_CELL_ROWS)
+                log_info(
+                    f"Row count {num_rows_y} exceeds cap ({MAX_STD_CELL_ROWS}); "
+                    f"using stride {stride} to subsample evenly."
+                )
+            else:
+                stride = 1
+
+            # Generate every 'stride'-th row so they cover the full core height
+            for row_idx in range(0, num_rows_y, stride):
+                orient = "FS" if row_idx % 2 else "N"
+                y = core_y1_dbu + row_idx * site_dy
+                text = (
+                    f"ROW ROW_{row_idx} {site_name} {core_x1_dbu} {y} {orient} "
+                    f"DO {num_sites_x} BY 1 STEP {int(site_dx)} 0 ;"
+                )
+                row_text.append(text)
+                if row_idx % 1000 == 0:
+                    log_info(f"Generated {len(row_text)} rows so far...")
+
+            log_info(
+                f"Generated {len(row_text)} total rows "
+                f"(spanning full core height, stride={stride})."
+            )
+
+        else:
+            log_info("All nodes are 'Call' functions; skipping row generation.")
 
         #$# 8.generate track ###
         # using calculations sourced from OpenROAD

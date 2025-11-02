@@ -21,6 +21,8 @@ from . import macro_maker as make_macros
 ## This is the area between the die area and the core area.
 DIE_CORE_BUFFER_SIZE = 50
 
+MAX_TRACTABLE_AREA_DBU = 6e13
+
 class OpenRoadRun:
     def __init__(self, cfg, codesign_root_dir, tmp_dir, run_openroad, subdirectory=None, custom_lef_files_to_include=None):
         """
@@ -61,7 +63,28 @@ class OpenRoadRun:
         dict = {edge: {} for edge in graph.edges()}
         if "none" not in arg_parasitics:
             logger.info("Running setup for place and route.")
-            graph, net_out_dict, node_output, lef_data, node_to_num, final_area = self.setup(graph, test_file, area_constraint, L_eff)
+
+            all_call_functions = True
+            for node in graph.nodes():
+                if graph.nodes[node].get("function", "") != "Call":
+                    all_call_functions = False
+                    break
+
+            graph, net_out_dict, node_output, lef_data, node_to_num, final_area, dbu_area_estimate = self.setup(graph, test_file, area_constraint, L_eff)
+
+            
+            
+
+            # If all nodes in the graph have the function type "Call", skip place and route.        
+            if all_call_functions:
+                logger.info("All nodes in the graph have function type 'Call'. Skipping place and route.")
+                return dict, graph, final_area
+
+            # if the total DBU^2 area of all macros is greater than a limit, skip place and route.
+            if dbu_area_estimate > MAX_TRACTABLE_AREA_DBU:
+                logger.info(f"Total DBU area {dbu_area_estimate} exceeds area constraint {area_constraint}. Skipping place and route.")
+                return dict, graph, final_area
+
             logger.info("Setup complete. Running extraction.")
             dict, graph = self.extraction(graph, arg_parasitics, net_out_dict, node_output, lef_data, node_to_num)
             logger.info("Extraction complete.")
@@ -99,18 +122,18 @@ class OpenRoadRun:
         """
 
         old_graph = copy.deepcopy(graph)
-        graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, max_dim_macro = self.setup_set_area_constraint(graph, test_file, area_constraint, L_eff)
+        graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, max_dim_macro, dbu_area_estimate = self.setup_set_area_constraint(graph, test_file, area_constraint, L_eff)
 
         area_constraint_old = area_constraint
         logger.info(f"Max dimension macro: {max_dim_macro}, corresponding area constraint value: {max_dim_macro**2}")
         logger.info(f"Estimated area: {area_estimate}")
         area_constraint = int(max(area_estimate, max_dim_macro**2)/0.6)
         logger.info(f"Info: Final estimated area {area_estimate} compared to area constraint {area_constraint_old}. Area constraint will be scaled from {area_constraint_old} to {area_constraint}.")
-        graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, max_dim_macro = self.setup_set_area_constraint(old_graph, test_file, area_constraint, L_eff)
+        graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, max_dim_macro, dbu_area_estimate = self.setup_set_area_constraint(old_graph, test_file, area_constraint, L_eff)
 
         final_area = area_estimate
 
-        return graph, net_out_dict, node_output, lef_data, node_to_num, final_area
+        return graph, net_out_dict, node_output, lef_data, node_to_num, final_area, dbu_area_estimate
 
 
     def setup_set_area_constraint(
@@ -160,10 +183,14 @@ class OpenRoadRun:
         graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate = df.run_def_generator(
             test_file, graph
         )
+
+        dbu_area_estimate = area_estimate * (self.do_scale_lef.NEW_database_units_per_micron ** 2)
+
         logger.info(f"DEF generation complete. Area estimate: {area_estimate}")
         logger.info(f"Max dimension macro: {df.max_dim_macro}")
+        logger.info(f"DBU area (area estimate in um2 * (DBU per micron)^2): {dbu_area_estimate}")
 
-        return graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, df.max_dim_macro
+        return graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, df.max_dim_macro, dbu_area_estimate
 
     def update_area_constraint(self, area_constraint: int):
         """

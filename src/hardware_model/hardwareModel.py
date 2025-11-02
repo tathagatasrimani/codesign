@@ -580,7 +580,7 @@ class HardwareModel:
 
         hls_parse_results_dir = f"benchmark/parse_results"
 
-        hier_open_road_run.run_hierarchical_openroad(
+        self.circuit_model.wire_length_by_edge = hier_open_road_run.run_hierarchical_openroad(
             netlist_copy,
             arg_testfile,
             arg_parasitics,
@@ -589,8 +589,6 @@ class HardwareModel:
             hls_parse_results_dir,
             "forward"
         )
-
-        exit(1)
 
         ## flat openroad run
         # open_road_run = openroad_run.OpenRoadRun(cfg=self.cfg, codesign_root_dir=self.codesign_root_dir, tmp_dir=self.tmp_dir, run_openroad=run_openroad)
@@ -602,6 +600,8 @@ class HardwareModel:
         log_info(f"wire lengths: {self.circuit_model.wire_length_by_edge}")
         
         logger.info(f"time to generate wire parasitics: {time.time()-start_time}")
+
+        exit(1)
 
     def save_symbolic_memories(self):
         MemL_expr = 0

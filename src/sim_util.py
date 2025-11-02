@@ -15,6 +15,10 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
 
+import json
+import pandas as pd
+from pathlib import Path
+
 def symbolic_convex_max(a, b, evaluate=True):
     """
     Max(a, b) in a format which ipopt accepts.
@@ -307,6 +311,67 @@ def parse_output(f, hw):
                 value
             )
         i += 1
+
+
+def write_wirelengths(wirelength_dict, path):
+    """
+    Serialize a dict with tuple keys (src, dst) and pandas.Series values
+    to a JSON file.
+
+    Args:
+        wirelength_dict (dict[tuple[str, str], pd.Series]): wirelength data
+        path (str | Path): output JSON path
+    """
+    json_ready = [
+        {
+            "src": k[0],
+            "dst": k[1],
+            "wirelengths": v.to_dict() if isinstance(v, pd.Series) else dict(v),
+        }
+        for k, v in wirelength_dict.items()
+    ]
+
+    path = Path(path)
+    with path.open("w") as f:
+        json.dump(json_ready, f, indent=4)
+    print(f"[write_wirelengths] Wrote {len(json_ready)} wirelength entries → {path}")
+
+
+def read_wirelengths(path):
+    """
+    Load a JSON file produced by write_wirelengths() and reconstruct
+    the dict with tuple keys and pandas.Series values.
+
+    Args:
+        path (str | Path): input JSON path
+
+    Returns:
+        dict[tuple[str, str], pd.Series]
+    """
+    path = Path(path)
+    with path.open("r") as f:
+        data = json.load(f)
+
+    # Handle both list-of-dicts and dict forms gracefully
+    if isinstance(data, list):
+        wirelengths = {
+            (entry["src"], entry["dst"]): pd.Series(entry["wirelengths"])
+            for entry in data
+        }
+    elif isinstance(data, dict):
+        # If the JSON was written as {"src->dst": {...}}
+        wirelengths = {}
+        for k, v in data.items():
+            if "->" in k:
+                src, dst = k.split("->", 1)
+            else:
+                src, dst = k, ""
+            wirelengths[(src, dst)] = pd.Series(v)
+    else:
+        raise ValueError("Unrecognized JSON format for wirelengths")
+
+    print(f"[read_wirelengths] Loaded {len(wirelengths)} wirelength entries from {path}")
+    return wirelengths
 
 def netlist_plot(G, filename):
     # Create custom labels using the 'function' attribute if available
