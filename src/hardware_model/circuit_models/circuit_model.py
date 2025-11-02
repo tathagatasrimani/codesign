@@ -177,8 +177,6 @@ class CircuitModel:
 
         self.update_circuit_values()
 
-        self.set_uarch_parameters()
-
         self.create_constraints()
     
     def set_coefficients(self):
@@ -259,6 +257,7 @@ class CircuitModel:
             assert key in self.memories, f"symbolic memory {key} not found in memories"      
 
     def update_circuit_values(self):
+        self.set_uarch_parameters()
         # derive curcuit level values from technology values
         self.circuit_values["latency"] = {
             key: float(sim_util.xreplace_safe(self.symbolic_latency_wc[key](), self.tech_model.base_params.tech_values)) for key in self.symbolic_latency_wc if key not in ["Buf", "MainMem", "OffChipIO"]

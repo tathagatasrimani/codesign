@@ -170,11 +170,13 @@ class Optimizer:
                 sim_util.parse_output(f, self.hw)
                 print(f"scaled objective used in approximation is now: {self.hw.obj_scaled.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values)}")
                 print(f"objective used in approximation is now: {self.hw.obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values)}")
+                self.hw.display_objective("after approximate solver, before recalculating objective")
                 if not self.test_config:
                     self.hw.circuit_model.update_circuit_values()
                     
                     # if bbv optimization, clk period updated in solver, so need to update it here
                     if self.opt_pipeline == "block_vector":
+                        print(f"value of clk period: {self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.clk_period]}")
                         self.hw.calculate_objective(clk_period_opt=False, form_dfg=False)
                     else:
                         self.hw.calculate_objective(clk_period_opt=True, form_dfg=False)
@@ -221,7 +223,7 @@ class Optimizer:
 
         # scale it up to the actual value of delay
         current_execution_time = cur_delay * delay_ratio_from_original
-        print(f"current execution time calculated for scale factor: {current_execution_time}")
+        #print(f"current execution time calculated for scale factor: {current_execution_time}")
         return current_execution_time
 
     def run_ipopt_optimization(self, improvement, lower_bound, execution_time):
@@ -244,7 +246,7 @@ class Optimizer:
         best_tech_values = copy.deepcopy(self.hw.circuit_model.tech_model.base_params.tech_values)
         best_obj_scaled = self.hw.obj_scaled.xreplace(best_tech_values)
 
-        while improvement_remaining > 1.1 and iteration < 10:
+        while improvement_remaining > 1.5 and iteration < 10:
             # symbolic execution time of critical path only
             execution_time = self.calculate_current_execution_time()
             tech_param_sets, obj_vals, scaled_obj_vals = self.generate_design_points(1, improvement_remaining, execution_time)
@@ -257,7 +259,7 @@ class Optimizer:
             print(f"scaled obj vals: {scaled_obj_vals}")
             assert scaled_obj_vals[optimal_design_idx] < lower_bound * improvement, "no better design point found"
             self.hw.circuit_model.tech_model.base_params.tech_values = tech_param_sets[optimal_design_idx].copy()
-            self.hw.calculate_objective(form_dfg=False)
+            self.hw.calculate_objective(clk_period_opt=False, form_dfg=False)
             true_scaled_obj_val = sim_util.xreplace_safe(self.hw.obj_scaled, self.hw.circuit_model.tech_model.base_params.tech_values)
             print(f"actual scaled obj val after recalculating block vectors: {true_scaled_obj_val}")
             assert true_scaled_obj_val >= scaled_obj_vals[optimal_design_idx], "actual scaled obj val should be greater than or equal to the scaled obj val from the solver (due to near-critical paths)"
@@ -271,7 +273,7 @@ class Optimizer:
         
         assert best_obj_scaled < lower_bound * improvement, "no better design point found"
         self.hw.circuit_model.tech_model.base_params.tech_values = best_tech_values
-        self.hw.calculate_objective(form_dfg=False)
+        self.hw.calculate_objective(clk_period_opt=False, form_dfg=False)
         return sim_util.xreplace_safe(self.hw.obj, self.hw.circuit_model.tech_model.base_params.tech_values)
             
     def logic_device_optimization(self, improvement, lower_bound):
