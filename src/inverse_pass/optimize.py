@@ -4,6 +4,7 @@ import logging
 import time
 import sys
 import copy
+import math
 logger = logging.getLogger(__name__)
 
 # third party
@@ -16,7 +17,7 @@ from src.inverse_pass.preprocess import Preprocessor
 from src.inverse_pass import curve_fit
 
 from src import sim_util
-
+from src.hardware_model.hardwareModel import BlockVector
 
 multistart = False
 
@@ -36,6 +37,8 @@ class Optimizer:
         self.test_config = test_config
         self.tmp_dir = tmp_dir
         self.opt_pipeline = opt_pipeline
+        self.bbv_op_delay_constraints = []
+        self.bbv_path_constraints = []
 
     def evaluate_constraints(self, constraints, stage):
         for constraint in constraints:
@@ -74,6 +77,9 @@ class Optimizer:
         assert len(self.hw.circuit_model.tech_model.constraints) > 0, "tech model constraints are empty"
         constraints.extend(self.hw.circuit_model.tech_model.base_params.constraints)
         constraints.extend(self.hw.circuit_model.tech_model.constraints)
+        constraints.extend(self.bbv_op_delay_constraints)
+        constraints.extend(self.bbv_path_constraints)
+
         if not approx_problem:
             constraints.extend(self.hw.circuit_model.constraints)
             constraints.extend(self.hw.constraints)
@@ -213,10 +219,10 @@ class Optimizer:
         # TODO: add memory
 
         # multiply ratios by sensitivities and add them up. TODO: add memory
-        delay_ratio_from_original = (logic_delay_ratio * self.hw.circuit_model.tech_model.base_params.logic_sensitivity + 
-                                    logic_rsc_delay_ratio * self.hw.circuit_model.tech_model.base_params.logic_resource_sensitivity + 
-                                    interconnect_delay_ratio * self.hw.circuit_model.tech_model.base_params.interconnect_sensitivity + 
-                                    interconnect_rsc_delay_ratio * self.hw.circuit_model.tech_model.base_params.interconnect_resource_sensitivity)
+        delay_ratio_from_original = (logic_delay_ratio * self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.logic_sensitivity] + 
+                                    logic_rsc_delay_ratio * self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.logic_resource_sensitivity] + 
+                                    interconnect_delay_ratio * self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.interconnect_sensitivity] + 
+                                    interconnect_rsc_delay_ratio * self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.interconnect_resource_sensitivity])
 
         epsilon = 1e-6
         assert sim_util.xreplace_safe(delay_ratio_from_original, self.hw.circuit_model.tech_model.base_params.tech_values) - 1 <= epsilon, "delay ratio from original should start out as 1"
@@ -240,11 +246,46 @@ class Optimizer:
             self.hw.calculate_objective(form_dfg=False)
         return obj_vals[optimal_design_idx]
 
+    def get_one_bbv_op_delay_constraint(self, op_type, op_delay, improvement):
+        ahmdal_limit = sim_util.xreplace_safe(getattr(self.hw.circuit_model.tech_model.base_params, op_type + "_ahmdal_limit"), self.hw.circuit_model.tech_model.base_params.tech_values)
+        if ahmdal_limit == math.inf:
+            print(f"ahmdal limit is infinite for {op_type}, skipping constraint")
+            return []
+        op_delay_ratio = op_delay / sim_util.xreplace_safe(op_delay, self.hw.circuit_model.tech_model.base_params.tech_values)
+        delay_contrib = ((1/ahmdal_limit) * op_delay) * op_delay_ratio
+        self.hw.save_obj_vals(self.hw.execution_time, execution_time_override=True, execution_time_override_val=delay_contrib)
+        obj_scaled_op = self.hw.obj_scaled
+        obj_scaled_op_init = sim_util.xreplace_safe(obj_scaled_op, self.hw.circuit_model.tech_model.base_params.tech_values)
+        constr = obj_scaled_op <= obj_scaled_op_init * (ahmdal_limit/improvement)
+
+        # reset hw model state
+        self.hw.save_obj_vals(self.hw.execution_time)
+        assert self.hw.obj_scaled != obj_scaled_op, "obj scaled should not be the same as the original obj scaled"
+
+        return [constr]
+
+    def set_bbv_op_delay_constraints(self, improvement):
+        self.bbv_op_delay_constraints = []
+        op_delays = {
+            "logic": self.hw.circuit_model.tech_model.delay,
+            "memory": 1,
+            "interconnect": self.hw.circuit_model.tech_model.m1_Rsq * self.hw.circuit_model.tech_model.m1_Csq,
+            "logic_resource": self.hw.circuit_model.tech_model.base_params.clk_period,
+            "memory_resource": self.hw.circuit_model.tech_model.base_params.clk_period,
+            "interconnect_resource": self.hw.circuit_model.tech_model.m1_Rsq * self.hw.circuit_model.tech_model.m1_Csq,
+        }
+        for op_type in BlockVector.op_types:
+            print(f"setting bbv op delay constraint for {op_type}")
+            constr = self.get_one_bbv_op_delay_constraint(op_type, op_delays[op_type], improvement)
+            self.bbv_op_delay_constraints.extend(constr)
+
     def block_vector_based_optimization(self, improvement, lower_bound):
         improvement_remaining = improvement
         iteration = 0
         best_tech_values = copy.deepcopy(self.hw.circuit_model.tech_model.base_params.tech_values)
         best_obj_scaled = self.hw.obj_scaled.xreplace(best_tech_values)
+        self.bbv_path_constraints = []
+        self.set_bbv_op_delay_constraints(improvement)
 
         while improvement_remaining > 1.5 and iteration < 10:
             # symbolic execution time of critical path only
@@ -270,6 +311,8 @@ class Optimizer:
             if true_scaled_obj_val < best_obj_scaled:
                 best_tech_values = copy.deepcopy(tech_param_sets[optimal_design_idx])
                 best_obj_scaled = true_scaled_obj_val
+            # ensure that this path does not become critical again
+            self.bbv_path_constraints.append(execution_time < sim_util.xreplace_safe(execution_time, self.hw.circuit_model.tech_model.base_params.tech_values))
         
         assert best_obj_scaled < lower_bound * improvement, "no better design point found"
         self.hw.circuit_model.tech_model.base_params.tech_values = best_tech_values

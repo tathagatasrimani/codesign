@@ -48,17 +48,16 @@ def symbolic_min(a, b, evaluate=True):
     return 0.5 * (a + b - sp.Abs(a - b, evaluate=evaluate))
 
 class BlockVector:
+    op_types = set([
+        "logic",
+        "memory",
+        "interconnect",
+
+        "logic_resource",
+        "memory_resource",
+        "interconnect_resource",
+    ])
     def __init__(self):
-
-        self.op_types = set([
-            "logic",
-            "memory",
-            "interconnect",
-
-            "logic_rsc",
-            "memory_rsc",
-            "interconnect_rsc",
-        ])
         self.bound_factor = {op_type: 0 for op_type in self.op_types}
         self.normalized_bound_factor = {op_type: 0 for op_type in self.op_types}
         self.ahmdal_limit = {op_type: 0 for op_type in self.op_types}
@@ -92,11 +91,11 @@ class BlockVector:
 
 def get_op_type_from_function(function, resource_edge=False):
     if function in ["Buf", "MainMem"]:
-        return "memory" if not resource_edge else "memory_rsc"
+        return "memory" if not resource_edge else "memory_resource"
     elif function in ["Add", "Sub", "Mult", "FloorDiv", "Mod", "LShift", "RShift", "BitOr", "BitXor", "BitAnd", "Eq", "NotEq", "Lt", "LtE", "Gt", "GtE", "USub", "UAdd", "IsNot", "Not", "Invert", "Regs"]:
-        return "logic" if not resource_edge else "logic_rsc"
+        return "logic" if not resource_edge else "logic_resource"
     elif function == "Wire":
-        return "interconnect" if not resource_edge else "interconnect_rsc"
+        return "interconnect" if not resource_edge else "interconnect_resource"
     else:
         return "N/A"
 
@@ -772,17 +771,17 @@ class HardwareModel:
             self.block_vectors[basic_block_name] = {}
         self.block_vectors[top_block_name]["top"] = self.calculate_block_vector_basic_block(top_block_name, "full", self.scheduled_dfgs[top_block_name])
         self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.logic_sensitivity] = self.block_vectors[top_block_name]["top"].sensitivity["logic"]
-        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.logic_resource_sensitivity] = self.block_vectors[top_block_name]["top"].sensitivity["logic_rsc"]
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.logic_resource_sensitivity] = self.block_vectors[top_block_name]["top"].sensitivity["logic_resource"]
         self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.logic_ahmdal_limit] = self.block_vectors[top_block_name]["top"].ahmdal_limit["logic"]
-        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.logic_resource_ahmdal_limit] = self.block_vectors[top_block_name]["top"].ahmdal_limit["logic_rsc"]
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.logic_resource_ahmdal_limit] = self.block_vectors[top_block_name]["top"].ahmdal_limit["logic_resource"]
         self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.interconnect_sensitivity] = self.block_vectors[top_block_name]["top"].sensitivity["interconnect"]
-        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.interconnect_resource_sensitivity] = self.block_vectors[top_block_name]["top"].sensitivity["interconnect_rsc"]
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.interconnect_resource_sensitivity] = self.block_vectors[top_block_name]["top"].sensitivity["interconnect_resource"]
         self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.interconnect_ahmdal_limit] = self.block_vectors[top_block_name]["top"].ahmdal_limit["interconnect"]
-        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.interconnect_resource_ahmdal_limit] = self.block_vectors[top_block_name]["top"].ahmdal_limit["interconnect_rsc"]
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.interconnect_resource_ahmdal_limit] = self.block_vectors[top_block_name]["top"].ahmdal_limit["interconnect_resource"]
         self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.memory_sensitivity] = self.block_vectors[top_block_name]["top"].sensitivity["memory"]
-        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.memory_resource_sensitivity] = self.block_vectors[top_block_name]["top"].sensitivity["memory_rsc"]
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.memory_resource_sensitivity] = self.block_vectors[top_block_name]["top"].sensitivity["memory_resource"]
         self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.memory_ahmdal_limit] = self.block_vectors[top_block_name]["top"].ahmdal_limit["memory"]
-        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.memory_resource_ahmdal_limit] = self.block_vectors[top_block_name]["top"].ahmdal_limit["memory_rsc"]
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.memory_resource_ahmdal_limit] = self.block_vectors[top_block_name]["top"].ahmdal_limit["memory_resource"]
 
         if DEBUG:
             self.print_block_vectors()
@@ -872,11 +871,11 @@ class HardwareModel:
             # TODO add interconnect resource dependency case
             vector.delay = self.circuit_model.clk_period_cvx.value
             if fn in ["Buf", "MainMem"]:
-                vector.bound_factor["memory_rsc"] = vector.delay
-                vector.sensitivity["memory_rsc"] = 1
+                vector.bound_factor["memory_resource"] = vector.delay
+                vector.sensitivity["memory_resource"] = 1
             else: # logic
-                vector.bound_factor["logic_rsc"] = vector.delay
-                vector.sensitivity["logic_rsc"] = 1
+                vector.bound_factor["logic_resource"] = vector.delay
+                vector.sensitivity["logic_resource"] = 1
         else:
             if fn == "Wire":
                 src_for_wire = dfg.nodes[src]["src_node"]
@@ -951,7 +950,7 @@ class HardwareModel:
             self.print_node_arrivals()
 
         self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.node_arrivals_end] = self.calculate_block_vectors(top_block_name)
-        return self.circuit_model.tech_model.base_params.node_arrivals_end
+        return self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.node_arrivals_end]
 
     def calculate_execution_time_vitis_recursive(self, basic_block_name, dfg, graph_end_node="graph_end", graph_type="full", resource_delays_only=False):
         log_info(f"calculating execution time for {basic_block_name} with graph end node {graph_end_node}")
