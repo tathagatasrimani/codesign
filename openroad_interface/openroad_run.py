@@ -17,13 +17,11 @@ from . import estimation as est
 from . import detailed as det
 from . import scale_lef_files as scale_lef
 from openroad_interface.lib_cell_generator import LibCellGenerator
+from . import macro_maker as make_macros
 
 ## This is the area between the die area and the core area.
 DIE_CORE_BUFFER_SIZE = 50
 
-
-L_EFF_FREEPDK45 = 0.025E-6  # effective channel length for FreePDK45 (microns)
-## NOTE: this is an approximation.
 
 DEBUG = False
 def log_info(msg):
@@ -33,8 +31,10 @@ def log_warning(msg):
     if DEBUG:
         logger.warning(msg)
 
+MAX_TRACTABLE_AREA_DBU = 6e13
+
 class OpenRoadRun:
-    def __init__(self, cfg, codesign_root_dir, tmp_dir, run_openroad, circuit_model, L_eff_free_pdk45=0.025E-6):
+    def __init__(self, cfg, codesign_root_dir, tmp_dir, run_openroad, circuit_model, subdirectory=None, custom_lef_files_to_include=None):
         """
         Initialize the OpenRoadRun with configuration and root directory.
 
@@ -44,10 +44,17 @@ class OpenRoadRun:
         self.cfg = cfg
         self.codesign_root_dir = codesign_root_dir
         self.tmp_dir = tmp_dir
-        self.directory = os.path.join(self.codesign_root_dir, f"{self.tmp_dir}/pd")
         self.run_openroad = run_openroad
+        self.directory = os.path.join(self.codesign_root_dir, f"{self.tmp_dir}/pd")
+        self.subdirectory = subdirectory
+        self.custom_lef_files_to_include = custom_lef_files_to_include
+
+        ## results will be placed here. This is necessary for running the flow hierarchically. 
+        if subdirectory is not None:
+            self.directory = os.path.join(self.directory, subdirectory)
+
         self.circuit_model = circuit_model
-        self.L_eff_free_pdk45 = L_eff_free_pdk45
+
         self.component_to_function = {
             "Mult16": "Mult",
             "Add16": "Add",
@@ -59,19 +66,20 @@ class OpenRoadRun:
             "BUF_X32": "Invert",
             "MUX2_X1": "Invert",
         }
-    
+
+
     def run(
-    self,
-    graph: nx.DiGraph,
-    test_file: str, 
-    arg_parasitics: str,
-    area_constraint: int,
-    L_eff: float
+        self,
+        graph: nx.DiGraph,
+        test_file: str, 
+        arg_parasitics: str,
+        area_constraint: int,
+        L_eff: float
     ):
         """
         Runs the OpenROAD flow.
         params:
-            arg_parasitics: detailed, estimation, or none. determines which parasitic calculation is executed.
+            arg_parasitics: detailed, estimation, or none. Determines which parasitic calculation is executed.
 
         """
         self.L_eff = L_eff
@@ -81,7 +89,28 @@ class OpenRoadRun:
         d = {edge: {} for edge in graph.edges()}
         if "none" not in arg_parasitics:
             logger.info("Running setup for place and route.")
-            graph, net_out_dict, node_output, lef_data, node_to_num = self.setup(graph, test_file, area_constraint, L_eff)
+
+            all_call_functions = True
+            for node in graph.nodes():
+                if graph.nodes[node].get("function", "") != "Call":
+                    all_call_functions = False
+                    break
+
+            graph, net_out_dict, node_output, lef_data, node_to_num, final_area, dbu_area_estimate = self.setup(graph, test_file, area_constraint, L_eff)
+
+            
+            
+
+            # If all nodes in the graph have the function type "Call", skip place and route.        
+            if all_call_functions:
+                logger.info("All nodes in the graph have function type 'Call'. Skipping place and route.")
+                return d, graph, final_area
+
+            # if the total DBU^2 area of all macros is greater than a limit, skip place and route.
+            if dbu_area_estimate > MAX_TRACTABLE_AREA_DBU:
+                logger.info(f"Total DBU area {dbu_area_estimate} exceeds area constraint {area_constraint}. Skipping place and route.")
+                return d, graph, final_area
+
             logger.info("Setup complete. Running extraction.")
             d, graph = self.extraction(graph, arg_parasitics, net_out_dict, node_output, lef_data, node_to_num)
             logger.info("Extraction complete.")
@@ -89,7 +118,7 @@ class OpenRoadRun:
             logger.info("No parasitics selected. Running none_place_n_route.")
             graph = self.none_place_n_route(graph)
         logger.info("Place and route finished.")
-        return d, graph
+        return d, graph, final_area
 
     def setup(
         self,
@@ -119,21 +148,23 @@ class OpenRoadRun:
         """
 
         old_graph = copy.deepcopy(graph)
-        graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, max_dim_macro, macro_dict = self.setup_set_area_constraint(graph, test_file, area_constraint, L_eff)
+        graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, max_dim_macro, macro_dict, dbu_area_estimate = self.setup_set_area_constraint(graph, test_file, area_constraint, L_eff)
 
         area_constraint_old = area_constraint
         logger.info(f"Max dimension macro: {max_dim_macro}, corresponding area constraint value: {max_dim_macro**2}")
         logger.info(f"Estimated area: {area_estimate}")
         area_constraint = int(max(area_estimate, max_dim_macro**2)/0.6)
         logger.info(f"Info: Final estimated area {area_estimate} compared to area constraint {area_constraint_old}. Area constraint will be scaled from {area_constraint_old} to {area_constraint}.")
-        graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, max_dim_macro, macro_dict = self.setup_set_area_constraint(old_graph, test_file, area_constraint, L_eff)
+        graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, max_dim_macro, macro_dict, dbu_area_estimate = self.setup_set_area_constraint(old_graph, test_file, area_constraint, L_eff)
 
         lib_cell_generator = LibCellGenerator()
         lib_cell_generator.generate_and_write_cells(macro_dict, self.circuit_model, self.directory + "/tcl/codesign_files/codesign_typ.lib")
 
         self.update_clock_period(self.directory + "/tcl/codesign_files/codesign.sdc")
 
-        return graph, net_out_dict, node_output, lef_data, node_to_num
+        final_area = area_estimate
+
+        return graph, net_out_dict, node_output, lef_data, node_to_num, final_area, dbu_area_estimate
 
     def update_clock_period(self, sdc_file: str):
         """
@@ -182,22 +213,31 @@ class OpenRoadRun:
         else:
             logger.info("Skipping setup, using previous openroad results.")
 
+        macro_maker = make_macros.MacroMaker(self.cfg, self.codesign_root_dir, self.tmp_dir, self.run_openroad, self.subdirectory, output_lef_file=self.directory + "/tcl/codesign_files/codesign_stdcell.lef", custom_lef_files_to_include=self.custom_lef_files_to_include)
+
+        macro_maker.create_all_macros()
+
         self.update_area_constraint(area_constraint)
 
-        self.do_scale_lef = scale_lef.ScaleLefFiles(self.cfg, self.codesign_root_dir, self.tmp_dir, self.L_eff_free_pdk45)
+        self.do_scale_lef = scale_lef.ScaleLefFiles(self.cfg, self.codesign_root_dir, self.tmp_dir, self.subdirectory)
         self.do_scale_lef.scale_lef_files(L_eff)
 
-        df = def_generator.DefGenerator(self.cfg, self.codesign_root_dir, self.tmp_dir, self.do_scale_lef.NEW_database_units_per_micron)
+        logger.info(f"Generating DEF file for {self.codesign_root_dir}/{self.tmp_dir}/{self.subdirectory}")
+        df = def_generator.DefGenerator(self.cfg, self.codesign_root_dir, self.tmp_dir, self.do_scale_lef.NEW_database_units_per_micron, self.subdirectory)
 
         graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, macro_dict, self.node_to_component_num = df.run_def_generator(
             test_file, graph
         )
+
+        dbu_area_estimate = area_estimate * (self.do_scale_lef.NEW_database_units_per_micron ** 2)
+
         logger.info(f"DEF generation complete. Area estimate: {area_estimate}")
         logger.info(f"Max dimension macro: {df.max_dim_macro}")
+        logger.info(f"DBU area (area estimate in um2 * (DBU per micron)^2): {dbu_area_estimate}")
 
         self.scale_rc_values()
 
-        return graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, df.max_dim_macro, macro_dict
+        return graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, df.max_dim_macro, macro_dict, dbu_area_estimate
 
     def scale_rc_values(self):
         """
@@ -512,6 +552,11 @@ class OpenRoadRun:
         else:
             logger.info("Skipping openroad run.")
 
+        ## if the graph has no edges, then return empty dict
+        if len(graph.edges()) == 0:
+            logger.info("Graph has no edges. Skipping estimated place and route.")
+            return {}, graph
+        
         self.updated_graph, net_id_to_src_dsts = self.parse_new_netlist_graph()
 
         nets = est.parse_route_guide_with_layer_breakdown(

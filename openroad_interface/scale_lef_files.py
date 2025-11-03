@@ -7,8 +7,11 @@ logger = logging.getLogger(__name__)
 
 from fractions import Fraction
 
+L_EFF_FREEPDK45 = 0.025E-6  # effective channel length for FreePDK45 (microns)
+## NOTE: this is an approximation.
+
 class ScaleLefFiles:
-    def __init__(self, cfg, codesign_root_dir, tmp_dir, L_eff_free_pdk45=0.025E-6):
+    def __init__(self, cfg, codesign_root_dir, tmp_dir, subdirectory=None):
         """
         Scales LEF files by a given factor.
 
@@ -19,7 +22,10 @@ class ScaleLefFiles:
         self.codesign_root_dir = codesign_root_dir
         self.tmp_dir = tmp_dir
         self.directory = os.path.join(self.codesign_root_dir, f"{self.tmp_dir}/pd")
-        self.L_eff_free_pdk45 = L_eff_free_pdk45
+
+        if subdirectory:
+            self.directory = os.path.join(self.directory, subdirectory)
+
         ## original values from FreePDK45
         self.OLD_database_units_per_micron = None  # currently is 2000 in FreePDK45
         self.OLD_manufacturing_grid_dbu = None  # currently is 10 in FreePDK45 (0.005 microns)
@@ -79,7 +85,7 @@ class ScaleLefFiles:
         ## if alpha > 1, we are scaling DOWN (making features smaller)
 
         L_eff_current_frac = Fraction(L_eff_current)
-        L_eff_free_pdk45_frac = Fraction(self.L_eff_free_pdk45)
+        L_eff_free_pdk45_frac = Fraction(L_EFF_FREEPDK45)
 
         self.alpha = L_eff_free_pdk45_frac / L_eff_current_frac
         self.alpha = Fraction(1.0)

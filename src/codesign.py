@@ -27,7 +27,7 @@ from src.forward_pass import schedule_vitis
 from src.forward_pass.scale_hls_port_fix import scale_hls_port_fix
 from src.forward_pass.vitis_create_netlist import create_vitis_netlist
 from src.forward_pass.vitis_parse_verbose_rpt import parse_verbose_rpt
-from src.forward_pass.vitis_merge_netlists import merge_netlists_vitis
+from src.forward_pass.vitis_merge_netlists import MergeNetlistsVitis
 from src.forward_pass.vitis_create_cdfg import create_cdfg_vitis
 from src import trend_plot
 import time
@@ -86,7 +86,7 @@ class Codesign:
 
         self.forward_obj = 0
         self.inverse_obj = 0
-        self.openroad_testfile = f"{self.codesign_root_dir}/{self.tmp_dir}/pd/tcl/{self.cfg['args']['openroad_testfile']}"
+        self.openroad_testfile = self.cfg['args']['openroad_testfile']
         self.parasitics = self.cfg["args"]["parasitics"]
         self.run_cacti = not self.cfg["args"]["debug_no_cacti"]
         self.no_memory = self.cfg["args"]["no_memory"]
@@ -249,10 +249,10 @@ class Codesign:
             self.cur_dsp_usage = config["dsp"] 
 
         # I don't think "100MHz" has any meaning because scaleHLS should be agnostic to frequency
-        config["100MHz"]["fadd"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["Add"] / self.clk_period)
-        config["100MHz"]["fmul"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["Mult"] / self.clk_period)
-        config["100MHz"]["fdiv"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["FloorDiv"] / self.clk_period)
-        config["100MHz"]["fcmp"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["GtE"] / self.clk_period)
+        config["100MHz"]["fadd"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["Add16"] / self.clk_period)
+        config["100MHz"]["fmul"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["Mult16"] / self.clk_period)
+        config["100MHz"]["fdiv"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["FloorDiv16"] / self.clk_period)
+        config["100MHz"]["fcmp"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["GtE16"] / self.clk_period)
 
         config["max_iter_num"] = self.cfg["args"]["max_iter_num_scalehls"]
         with open(self.config_json_path, "w") as f:
@@ -363,11 +363,11 @@ class Codesign:
         print(f"Current working directory in vitis parse data: {os.getcwd()}")
 
         if self.no_memory:
-            allowed_functions_netlist = {"Add", "Mult"}
-            allowed_functions_schedule = {"Add", "Mult", "Call", "II"}
+            allowed_functions_netlist = {"Add16", "Mult16"}
+            allowed_functions_schedule = {"Add16", "Mult16", "Call", "II"}
         else:
-            allowed_functions_netlist = {"Add", "Mult", "Buf", "MainMem"}
-            allowed_functions_schedule = {"Add", "Mult", "Call", "II", "Buf", "MainMem"}
+            allowed_functions_netlist = {"Add16", "Mult16", "Buf", "MainMem"}
+            allowed_functions_schedule = {"Add16", "Mult16", "Call", "II", "Buf", "MainMem"}
 
         parse_results_dir = f"{save_dir}/parse_results"
 
@@ -394,7 +394,8 @@ class Codesign:
 
             ## Merge the netlists recursivley through the module hierarchy to produce overall netlist
             logger.info("Recursivley merging vitis netlists")
-            merge_netlists_vitis(parse_results_dir, self.vitis_top_function, allowed_functions_netlist)
+            vitis_netlist_merger = MergeNetlistsVitis(self.cfg, self.codesign_root_dir, allowed_functions_netlist)
+            vitis_netlist_merger.merge_netlists_vitis(parse_results_dir, self.vitis_top_function)
             logger.info("Vitis netlist parsing complete")
             logger.info(f"time to parse vitis netlist: {time.time()-start_time}")
         else:
@@ -670,40 +671,41 @@ class Codesign:
             self.vitis_forward_pass(save_dir=save_dir, iteration_count=iteration_count, setup=setup)
         if setup: return
 
-        # calculate wire parasitics
-        self.calculate_wire_parasitics()
+        if self.checkpoint_controller.check_checkpoint("pd", iteration_count) and not self.max_rsc_reached:
+            # calculate wire parasitics
+            self.calculate_wire_parasitics()
 
-        ## create the obj equation 
-        self.hw.calculate_objective()
+            ## create the obj equation 
+            self.hw.calculate_objective()
 
-        if iteration_count == 0:
-            self.params_over_iterations[0].update(
-                {
-                    self.hw.circuit_model.tech_model.base_params.logic_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.logic_sensitivity],
-                    self.hw.circuit_model.tech_model.base_params.logic_resource_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.logic_resource_sensitivity],
-                    self.hw.circuit_model.tech_model.base_params.logic_ahmdal_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.logic_ahmdal_limit],
-                    self.hw.circuit_model.tech_model.base_params.logic_resource_ahmdal_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.logic_resource_ahmdal_limit],
-                    self.hw.circuit_model.tech_model.base_params.interconnect_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.interconnect_sensitivity],
-                    self.hw.circuit_model.tech_model.base_params.interconnect_resource_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.interconnect_resource_sensitivity],
-                    self.hw.circuit_model.tech_model.base_params.interconnect_ahmdal_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.interconnect_ahmdal_limit],
-                    self.hw.circuit_model.tech_model.base_params.interconnect_resource_ahmdal_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.interconnect_resource_ahmdal_limit],
-                    self.hw.circuit_model.tech_model.base_params.memory_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.memory_sensitivity],
-                    self.hw.circuit_model.tech_model.base_params.memory_resource_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.memory_resource_sensitivity],
-                    self.hw.circuit_model.tech_model.base_params.memory_ahmdal_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.memory_ahmdal_limit],
-                    self.hw.circuit_model.tech_model.base_params.memory_resource_ahmdal_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.memory_resource_ahmdal_limit],
-                }
-            )
+            if iteration_count == 0:
+                self.params_over_iterations[0].update(
+                    {
+                        self.hw.circuit_model.tech_model.base_params.logic_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.logic_sensitivity],
+                        self.hw.circuit_model.tech_model.base_params.logic_resource_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.logic_resource_sensitivity],
+                        self.hw.circuit_model.tech_model.base_params.logic_ahmdal_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.logic_ahmdal_limit],
+                        self.hw.circuit_model.tech_model.base_params.logic_resource_ahmdal_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.logic_resource_ahmdal_limit],
+                        self.hw.circuit_model.tech_model.base_params.interconnect_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.interconnect_sensitivity],
+                        self.hw.circuit_model.tech_model.base_params.interconnect_resource_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.interconnect_resource_sensitivity],
+                        self.hw.circuit_model.tech_model.base_params.interconnect_ahmdal_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.interconnect_ahmdal_limit],
+                        self.hw.circuit_model.tech_model.base_params.interconnect_resource_ahmdal_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.interconnect_resource_ahmdal_limit],
+                        self.hw.circuit_model.tech_model.base_params.memory_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.memory_sensitivity],
+                        self.hw.circuit_model.tech_model.base_params.memory_resource_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.memory_resource_sensitivity],
+                        self.hw.circuit_model.tech_model.base_params.memory_ahmdal_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.memory_ahmdal_limit],
+                        self.hw.circuit_model.tech_model.base_params.memory_resource_ahmdal_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.memory_resource_ahmdal_limit],
+                    }
+                )
 
-        """if setup:
-            self.max_parallel_initial_objective_value = self.hw.obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf()
-            print(f"objective value with max parallelism: {self.max_parallel_initial_objective_value}")
-        elif iteration_count == 0:
-            self.hw.circuit_model.tech_model.max_speedup_factor = self.hw.obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf() / self.max_parallel_initial_objective_value
-            self.hw.circuit_model.tech_model.max_area_increase_factor = self.max_dsp / self.cur_dsp_usage
-            print(f"max parallelism factor: {self.hw.circuit_model.tech_model.max_speedup_factor}")
-            self.hw.circuit_model.tech_model.init_scale_factors(self.hw.circuit_model.tech_model.max_speedup_factor, self.hw.circuit_model.tech_model.max_area_increase_factor)"""
+            """if setup:
+                self.max_parallel_initial_objective_value = self.hw.obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf()
+                print(f"objective value with max parallelism: {self.max_parallel_initial_objective_value}")
+            elif iteration_count == 0:
+                self.hw.circuit_model.tech_model.max_speedup_factor = self.hw.obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf() / self.max_parallel_initial_objective_value
+                self.hw.circuit_model.tech_model.max_area_increase_factor = self.max_dsp / self.cur_dsp_usage
+                print(f"max parallelism factor: {self.hw.circuit_model.tech_model.max_speedup_factor}")
+                self.hw.circuit_model.tech_model.init_scale_factors(self.hw.circuit_model.tech_model.max_speedup_factor, self.hw.circuit_model.tech_model.max_area_increase_factor)"""
 
-        self.hw.display_objective("after forward pass")
+            self.hw.display_objective("after forward pass")
 
         self.checkpoint_controller.check_end_checkpoint("pd")
         self.obj_over_iterations.append(sim_util.xreplace_safe(self.hw.obj, self.hw.circuit_model.tech_model.base_params.tech_values))

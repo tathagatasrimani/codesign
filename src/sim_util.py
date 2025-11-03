@@ -15,6 +15,10 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
 
+import json
+import pandas as pd
+from pathlib import Path
+
 def symbolic_convex_max(a, b, evaluate=True):
     """
     Max(a, b) in a format which ipopt accepts.
@@ -77,15 +81,27 @@ def recursive_cfg_merge(model_cfgs, model_cfg_name):
 
 def get_module_map():
     module_map = {
-        #"add": "Add",
-        "fadd": "Add",
-        "dadd": "Add",
-        "dmul": "Mult",
-        #"mul": "Mult",
-        "fmul": "Mult",
+        "add": "Add16",
+        "fadd": "Add16",
+        "dadd": "Add16",
+        "dmul": "Mult16",
+        "mul": "Mult16",
+        "fmul": "Mult16",
         "call": "Call"
     }
     return module_map
+
+def map_operator_types(full_netlist):
+    """
+    Map the operator types in the netlist to standardized function names using module_map.
+    """
+    module_map = get_module_map()
+    for node in full_netlist:
+        raw_fn = full_netlist.nodes[node].get('bind', {}).get('fcode')
+        if raw_fn is None:
+            raw_fn = "N/A"
+        full_netlist.nodes[node]['function'] = module_map[raw_fn] if raw_fn in module_map else raw_fn
+    return full_netlist
 
 def get_latest_log_dir():
     log_dirs = glob.glob(os.path.normpath(os.path.join(os.path.dirname(__file__), "../logs/*-*-*_*-*-*")))
@@ -295,6 +311,67 @@ def parse_output(f, hw):
                 value
             )
         i += 1
+
+
+def write_wirelengths(wirelength_dict, path):
+    """
+    Serialize a dict with tuple keys (src, dst) and pandas.Series values
+    to a JSON file.
+
+    Args:
+        wirelength_dict (dict[tuple[str, str], pd.Series]): wirelength data
+        path (str | Path): output JSON path
+    """
+    json_ready = [
+        {
+            "src": k[0],
+            "dst": k[1],
+            "wirelengths": v.to_dict() if isinstance(v, pd.Series) else dict(v),
+        }
+        for k, v in wirelength_dict.items()
+    ]
+
+    path = Path(path)
+    with path.open("w") as f:
+        json.dump(json_ready, f, indent=4)
+    print(f"[write_wirelengths] Wrote {len(json_ready)} wirelength entries → {path}")
+
+
+def read_wirelengths(path):
+    """
+    Load a JSON file produced by write_wirelengths() and reconstruct
+    the dict with tuple keys and pandas.Series values.
+
+    Args:
+        path (str | Path): input JSON path
+
+    Returns:
+        dict[tuple[str, str], pd.Series]
+    """
+    path = Path(path)
+    with path.open("r") as f:
+        data = json.load(f)
+
+    # Handle both list-of-dicts and dict forms gracefully
+    if isinstance(data, list):
+        wirelengths = {
+            (entry["src"], entry["dst"]): pd.Series(entry["wirelengths"])
+            for entry in data
+        }
+    elif isinstance(data, dict):
+        # If the JSON was written as {"src->dst": {...}}
+        wirelengths = {}
+        for k, v in data.items():
+            if "->" in k:
+                src, dst = k.split("->", 1)
+            else:
+                src, dst = k, ""
+            wirelengths[(src, dst)] = pd.Series(v)
+    else:
+        raise ValueError("Unrecognized JSON format for wirelengths")
+
+    print(f"[read_wirelengths] Loaded {len(wirelengths)} wirelength entries from {path}")
+    return wirelengths
 
 def netlist_plot(G, filename):
     # Create custom labels using the 'function' attribute if available

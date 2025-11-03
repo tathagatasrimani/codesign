@@ -24,6 +24,7 @@ from src.hardware_model.tech_models import mvs_si_model
 from src.hardware_model.tech_models import mvs_2_model
 from src.hardware_model.tech_models import vscnfet_model
 from openroad_interface import openroad_run
+from openroad_interface import openroad_run_hier
 
 import cvxpy as cp
 
@@ -91,9 +92,9 @@ class BlockVector:
 
 def get_op_type_from_function(function, resource_edge=False):
     if function in ["Buf", "MainMem"]:
-        return "memory" if not resource_edge else "memory_resource"
-    elif function in ["Add", "Sub", "Mult", "FloorDiv", "Mod", "LShift", "RShift", "BitOr", "BitXor", "BitAnd", "Eq", "NotEq", "Lt", "LtE", "Gt", "GtE", "USub", "UAdd", "IsNot", "Not", "Invert", "Regs"]:
-        return "logic" if not resource_edge else "logic_resource"
+        return "memory" if not resource_edge else "memory_rsc"
+    elif function in ["Add16", "Sub16", "Mult16", "FloorDiv16", "Mod16", "LShift16", "RShift16", "BitOr16", "BitXor16", "BitAnd16", "Eq16", "NotEq16", "Lt16", "LtE16", "Gt16", "GtE16", "USub16", "UAdd16", "IsNot16", "Not16", "Invert16", "Regs16"]:
+        return "logic" if not resource_edge else "logic_rsc"
     elif function == "Wire":
         return "interconnect" if not resource_edge else "interconnect_resource"
     else:
@@ -566,21 +567,40 @@ class HardwareModel:
         
         start_time = time.time()
 
-        open_road_run = openroad_run.OpenRoadRun(cfg=self.cfg, codesign_root_dir=self.codesign_root_dir, tmp_dir=self.tmp_dir, run_openroad=run_openroad, circuit_model=self.circuit_model)
-
-        L_eff = self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.L]
-
-        logger.info(f"current L_eff for get_wire_parascitics: {L_eff}")
-
         netlist_copy = copy.deepcopy(self.netlist)
 
-        self.circuit_model.edge_to_nets, _ = open_road_run.run(
-            netlist_copy, arg_testfile, arg_parasitics, area_constraint, L_eff
-        )
+        logger.info(f"num nodes in netlist before openroad: {len(netlist_copy.nodes)}")
+
+        L_eff = self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.L]
+        logger.info(f"current L_eff for get_wire_parascitics: {L_eff}")
+
+        ## hierarchical openroad run
+        if (benchmark_name == "resnet18"):
+            hier_open_road_run = openroad_run_hier.OpenRoadRunHier(cfg=self.cfg, codesign_root_dir=self.codesign_root_dir, tmp_dir=self.tmp_dir, run_openroad=run_openroad, circuit_model=self.circuit_model)
+
+            hls_parse_results_dir = f"benchmark/parse_results"
+
+            self.circuit_model.wire_length_by_edge = hier_open_road_run.run_hierarchical_openroad(
+                netlist_copy,
+                arg_testfile,
+                arg_parasitics,
+                area_constraint,
+                L_eff,
+                hls_parse_results_dir,
+                "forward"
+            )
+
+        ## flat openroad run
+        else:
+            open_road_run = openroad_run.OpenRoadRun(cfg=self.cfg, codesign_root_dir=self.codesign_root_dir, tmp_dir=self.tmp_dir, run_openroad=run_openroad, circuit_model=self.circuit_model)
+
+            self.circuit_model.wire_length_by_edge, _, _ = open_road_run.run(
+                netlist_copy, arg_testfile, arg_parasitics, area_constraint, L_eff
+            )
 
         log_info(f"edge to nets: {self.circuit_model.edge_to_nets}")
         
-        logger.info(f"time to generate wire parasitics: {time.time()-start_time}")
+        logger.info(f"time to generate wire parasitics: {time.time()-start_time} seconds, {(time.time()-start_time)/60} minutes.")
 
     def save_symbolic_memories(self):
         MemL_expr = 0
@@ -1166,7 +1186,7 @@ class HardwareModel:
                 "parasitic capacitance": self.circuit_model.tech_model.param_db["parasitic capacitance"],
                 "k_gate": self.circuit_model.tech_model.param_db["k_gate"],
                 "delay": self.circuit_model.tech_model.delay,
-                "multiplier delay": self.circuit_model.symbolic_latency_wc["Mult"](),
+                "multiplier delay": self.circuit_model.symbolic_latency_wc["Mult16"](),
                 #"scaled power": self.total_passive_power * self.circuit_model.tech_model.capped_power_scale_total + self.total_active_energy/(execution_time * self.circuit_model.tech_model.capped_delay_scale_total),
                 "logic_sensitivity": self.circuit_model.tech_model.base_params.logic_sensitivity,
                 "logic_resource_sensitivity": self.circuit_model.tech_model.base_params.logic_resource_sensitivity,
