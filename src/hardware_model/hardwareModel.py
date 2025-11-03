@@ -576,26 +576,28 @@ class HardwareModel:
         logger.info(f"current L_eff for get_wire_parascitics: {L_eff}")
 
         ## hierarchical openroad run
-        hier_open_road_run = openroad_run_hier.OpenRoadRunHier(cfg=self.cfg, codesign_root_dir=self.codesign_root_dir, tmp_dir=self.tmp_dir, run_openroad=run_openroad)
+        if (benchmark_name == "resnet18"):
+            hier_open_road_run = openroad_run_hier.OpenRoadRunHier(cfg=self.cfg, codesign_root_dir=self.codesign_root_dir, tmp_dir=self.tmp_dir, run_openroad=run_openroad)
 
-        hls_parse_results_dir = f"benchmark/parse_results"
+            hls_parse_results_dir = f"benchmark/parse_results"
 
-        self.circuit_model.wire_length_by_edge = hier_open_road_run.run_hierarchical_openroad(
-            netlist_copy,
-            arg_testfile,
-            arg_parasitics,
-            area_constraint,
-            L_eff,
-            hls_parse_results_dir,
-            "forward"
-        )
+            self.circuit_model.wire_length_by_edge = hier_open_road_run.run_hierarchical_openroad(
+                netlist_copy,
+                arg_testfile,
+                arg_parasitics,
+                area_constraint,
+                L_eff,
+                hls_parse_results_dir,
+                "forward"
+            )
 
         ## flat openroad run
-        # open_road_run = openroad_run.OpenRoadRun(cfg=self.cfg, codesign_root_dir=self.codesign_root_dir, tmp_dir=self.tmp_dir, run_openroad=run_openroad)
+        else:
+            open_road_run = openroad_run.OpenRoadRun(cfg=self.cfg, codesign_root_dir=self.codesign_root_dir, tmp_dir=self.tmp_dir, run_openroad=run_openroad)
 
-        # self.circuit_model.wire_length_by_edge, _, _ = open_road_run.run(
-        #     netlist_copy, arg_testfile, arg_parasitics, area_constraint, L_eff
-        # )
+            self.circuit_model.wire_length_by_edge, _, _ = open_road_run.run(
+                netlist_copy, arg_testfile, arg_parasitics, area_constraint, L_eff
+            )
 
         log_info(f"wire lengths: {self.circuit_model.wire_length_by_edge}")
         
