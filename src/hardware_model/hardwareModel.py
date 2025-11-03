@@ -599,9 +599,7 @@ class HardwareModel:
 
         log_info(f"wire lengths: {self.circuit_model.wire_length_by_edge}")
         
-        logger.info(f"time to generate wire parasitics: {time.time()-start_time}")
-
-        exit(1)
+        logger.info(f"time to generate wire parasitics: {time.time()-start_time} seconds, {(time.time()-start_time)/60} minutes.")
 
     def save_symbolic_memories(self):
         MemL_expr = 0
