@@ -345,7 +345,7 @@ class DefGenerator:
         out_edge = self.edge_gen("out", old_nodes, graph)
         for node in old_nodes:
             macro = self.find_macro(graph.nodes[node])
-            macro_dict[macro]["function"] = graph.nodes[node]
+            macro_dict[macro]["function"] = graph.nodes[node]["function"]
             node_to_macro[node] = [macro, copy.deepcopy(macro_dict[macro])]
             log_info(f"node to macro [{node}]: {node_to_macro[node]}")
             out_edge = self.edge_gen("out", old_nodes, graph)
@@ -412,7 +412,7 @@ class DefGenerator:
                     graph.add_edge(name1, new_node)
                     graph.add_edge(name2, new_node)
                     graph.add_edge(new_node, node_name)
-                    macro_output = self.find_macro(new_node)
+                    macro_output = self.find_macro(graph.nodes[new_node])
                     node_to_macro[new_node] = [macro_output, copy.deepcopy(macro_dict[macro_output])]
                     log_info(f"node to macro [{new_node}]: {node_to_macro[new_node]}")
                 # functional unit mux
@@ -743,6 +743,6 @@ class DefGenerator:
         # TODO add mux function in circuit model
         # adding this so that the lib cell generator can generate the correct cell for the mux
         if "MUX2_X1" in macro_dict:
-            macro_dict["MUX2_X1"]["function"] = "Invert"
+            macro_dict["MUX2_X1"]["function"] = "Not16"
 
         return graph, net_out_dict, node_output, lef_data_dict, node_to_num, area_estimate_sq_microns, macro_dict, node_to_component_num

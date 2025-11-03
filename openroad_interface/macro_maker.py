@@ -4,7 +4,7 @@ import copy
 import yaml
 import os
 
-from openroad_functions import find_val, clean, value
+from .openroad_functions import find_val, clean, value
 
 lef_tech_file = "./OpenROAD/test/Nangate45/Nangate45_tech.lef" 
 

@@ -56,15 +56,15 @@ class OpenRoadRun:
         self.circuit_model = circuit_model
 
         self.component_to_function = {
-            "Mult16": "Mult",
-            "Add16": "Add",
-            "BUF_X4": "Invert",
-            "BUF_X2": "Invert",
-            "BUF_X1": "Invert",
-            "BUF_X8": "Invert",
-            "BUF_X16": "Invert",
-            "BUF_X32": "Invert",
-            "MUX2_X1": "Invert",
+            "Mult16": "Mult16",
+            "Add16": "Add16",
+            "BUF_X4": "Not16",
+            "BUF_X2": "Not16",
+            "BUF_X1": "Not16",
+            "BUF_X8": "Not16",
+            "BUF_X16": "Not16",
+            "BUF_X32": "Not16",
+            "MUX2_X1": "Not16",
         }
 
 
@@ -83,7 +83,7 @@ class OpenRoadRun:
 
         """
         self.L_eff = L_eff
-        self.alpha = self.L_eff_free_pdk45 / self.L_eff
+        self.alpha = scale_lef.L_EFF_FREEPDK45 / self.L_eff
         self.original_graph = copy.deepcopy(graph)
         logger.info(f"Starting place and route with parasitics: {arg_parasitics}")
         d = {edge: {} for edge in graph.edges()}
