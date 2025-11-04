@@ -131,6 +131,20 @@ class Codesign:
     def set_config(self, args):
         with open(f"src/yaml/codesign_cfg.yaml", "r") as f:
             cfgs = yaml.load(f, Loader=yaml.FullLoader)
+
+        # open each additonal config in test/additional_configs. Add them to the cfgs
+        for additional_config_file in os.listdir("test/additional_configs"):
+            if additional_config_file.endswith(".yaml"):
+                with open(f"test/additional_configs/{additional_config_file}", "r") as f:
+                    additional_cfg = yaml.load(f, Loader=yaml.FullLoader)
+
+                    # check that there aren't any duplicate keys
+                    for key in additional_cfg:
+                        if key in cfgs:
+                            raise Exception(f"Duplicate key {key} found in additional config {additional_config_file}")
+
+                    cfgs = {**cfgs, **additional_cfg}
+        
         overwrite_args_all = vars(args)
         overwrite_args = {}
         for key, value in overwrite_args_all.items():
