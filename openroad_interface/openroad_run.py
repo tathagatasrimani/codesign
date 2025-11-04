@@ -467,10 +467,13 @@ class OpenRoadRun:
                 break
             component_id = def_data[j].split()[1]
             component_name = def_data[j].split()[2]
-            if component_name not in self.component_to_function:
+            if component_name not in self.component_to_function and "HIERMODULE" not in component_name:
                 log_info(f"Component {component_name} not found in component_to_function. Skipping.")
                 continue
-            component_function = self.component_to_function[component_name]
+            if "HIERMODULE" in component_name:
+                component_function = "Call"
+            else:
+                component_function = self.component_to_function[component_name]
             new_graph.add_node(component_id, function=component_function)
             log_info(f"Added node {component_id} with function {component_function}")
         for k in range(j+1, len(def_data)):

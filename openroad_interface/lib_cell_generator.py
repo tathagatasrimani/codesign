@@ -30,6 +30,11 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+DEBUG = True
+def log_info(msg):
+    if DEBUG:
+        logger.info(msg)
+
 
 class LibCellGenerator:
     """Generator for LIB cell definitions."""
@@ -166,14 +171,18 @@ class LibCellGenerator:
         for macro_name, macro_data in macro_dict.items():
             if "function" not in macro_data:
                 continue
-            cell_specs.append({
-                "cell_name": macro_name,
-                "input_pins": macro_data["input"],
-                "output_pins": macro_data["output"],
-                "delay": circuit_model.symbolic_latency_wc[macro_data["function"]]().xreplace(circuit_model.tech_model.base_params.tech_values).evalf(),
-                "leakage": circuit_model.symbolic_power_passive[macro_data["function"]]().xreplace(circuit_model.tech_model.base_params.tech_values).evalf() * 1e-9, # convert from W to nW
-                "area": macro_data["area"]
-            })
+            log_info(f"macro_data: {macro_data}")
+            if macro_data["function"] in circuit_model.symbolic_latency_wc and circuit_model.symbolic_latency_wc[macro_data["function"]]() != 0:
+                cell_specs.append({
+                    "cell_name": macro_name,
+                    "input_pins": macro_data["input"],
+                    "output_pins": macro_data["output"],
+                    "delay": circuit_model.symbolic_latency_wc[macro_data["function"]]().xreplace(circuit_model.tech_model.base_params.tech_values).evalf(),
+                    "leakage": circuit_model.symbolic_power_passive[macro_data["function"]]().xreplace(circuit_model.tech_model.base_params.tech_values).evalf() * 1e-9, # convert from W to nW
+                    "area": macro_data["area"]
+                })
+            else:
+                log_info(f"Function {macro_data['function']} not found in circuit model. Skipping.")
         cells = []
         for spec in cell_specs:
             cell_def = self.generate_cell(**spec)

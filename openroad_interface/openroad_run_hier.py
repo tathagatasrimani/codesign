@@ -91,16 +91,16 @@ class OpenRoadRunHier:
         """
 
         all_wire_lengths = {}
-        wire_lengths_file = os.path.join(self.hier_pd_base_dir, module_name, f"{module_name}_wire_lengths.json")
+        #wire_lengths_file = os.path.join(self.hier_pd_base_dir, module_name, f"{module_name}_wire_lengths.json")
 
         ## Base case: This module has already been placed and routed.
         # see if the pd_complete.note file exists in the module's directory
-        pd_complete_file = os.path.join(self.hier_pd_base_dir, module_name, "pd_complete.note")
+        """pd_complete_file = os.path.join(self.hier_pd_base_dir, module_name, "pd_complete.note")
         if os.path.exists(pd_complete_file):
             logger.info(f"Module {module_name} has already been placed and routed. Skipping.")
 
             all_wire_lengths = sim_util.read_wirelengths(wire_lengths_file)
-            return all_wire_lengths
+            return all_wire_lengths"""
 
         ## first do recursive step. Make sure we have placed and routed all submodules & generated their macros. 
         # open up the file that ends in _verbose_modules.json file to get the list of submodules
@@ -158,7 +158,7 @@ class OpenRoadRunHier:
             with open(pd_complete_file, 'w') as f:
                 f.write("Place and route not needed as there are no nodes in the graph.\n")
 
-            sim_util.write_wirelengths(all_wire_lengths, wire_lengths_file)
+            #sim_util.write_wirelengths(all_wire_lengths, wire_lengths_file)
 
             return all_wire_lengths
         
@@ -223,7 +223,7 @@ class OpenRoadRunHier:
             module_graph = module_graph_pruned
 
         ###### then run place and route for this module, using the macros of the submodules. ######
-        flat_open_road_run = openroad_run.OpenRoadRun(cfg=self.cfg, codesign_root_dir=self.codesign_root_dir, tmp_dir=self.tmp_dir, run_openroad=self.run_openroad, circuit_model=self.circuit_model, subdirectory=f"hier/{module_name}/pd/", custom_lef_files_to_include=lef_files_to_include)
+        flat_open_road_run = openroad_run.OpenRoadRun(cfg=self.cfg, codesign_root_dir=self.codesign_root_dir, tmp_dir=self.tmp_dir, run_openroad=self.run_openroad, circuit_model=self.circuit_model, subdirectory=f"hier/{module_name}/pd", custom_lef_files_to_include=lef_files_to_include)
         
         wire_length_by_edge, _, final_area = flat_open_road_run.run(
             module_graph, self.test_file, self.arg_parasitics, self.top_level_area_constraint, self.L_eff
@@ -238,7 +238,7 @@ class OpenRoadRunHier:
 
         macro_name = f"HIERMODULE_{module_name}"
         
-        macro_maker_instance = macro_maker.MacroMaker(cfg=self.cfg, codesign_root_dir=self.codesign_root_dir, tmp_dir=self.tmp_dir, run_openroad=self.run_openroad, subdirectory=f"hier/{module_name}/pd/",
+        macro_maker_instance = macro_maker.MacroMaker(cfg=self.cfg, codesign_root_dir=self.codesign_root_dir, tmp_dir=self.tmp_dir, run_openroad=self.run_openroad, subdirectory=f"hier/{module_name}/pd",
                                                       output_lef_file=f"{macro_name}_macro.lef", area_list={f"{macro_name}": final_area}, pin_list={f"{macro_name}": {"input": 16, "output": 16}}, add_ending_text=False)
         
         macro_maker_instance.create_all_macros()
@@ -251,7 +251,7 @@ class OpenRoadRunHier:
 
         debug_print(f"All wirelengths = {all_wire_lengths}")
         ## write out the final wire lengths for this module to a json file.
-        sim_util.write_wirelengths(all_wire_lengths, wire_lengths_file)
+        #sim_util.write_wirelengths(all_wire_lengths, wire_lengths_file)
 
         return all_wire_lengths
 
@@ -265,6 +265,8 @@ class OpenRoadRunHier:
         params:
             parse_results_dir: the directory created during parsing of hls results. This path is relative to codesign_root_dir specified in the constructor of this class.
         """
+        if not self.run_openroad: # directories already exist from previous run
+            return
         if os.path.exists(self.hier_pd_base_dir):
             shutil.rmtree(self.hier_pd_base_dir)
         os.makedirs(self.hier_pd_base_dir)
