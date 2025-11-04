@@ -53,5 +53,14 @@ Loads a checkpoint from a successful vitis run, then continues the flow from the
 run_codesign --config vitis_resnet_load_checkpoint_after_vitis_stop_after_pd
 
 
+## Cleaning up results from prior runs:
+To converse disk space, you may need to clear up results from prior runs. Use these commands: 
+
+clean_checkpoints: removes all saved checkpoints
+clean_logs: removes all saved logs
+clean_tmp: removes all tmp directories from prior runs
+clean_codesign: runs all of the above commands. 
+
+
 # Acknowledgements
 NSF FuSe2 Award 2425218, NSF GRFP, Stanford System X, TSMC

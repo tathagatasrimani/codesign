@@ -59,6 +59,11 @@ echo "UNIVERSITY set to: $UNIVERSITY"
 alias create_checkpoint python3 -m test.checkpoint_controller
 alias run_codesign python3 -m src.codesign
 
+alias clean_checkpoints 'rm -rf ~/test/saved_checkpoints/*'
+alias clean_logs 'rm -rf ~/logs/*'
+alias clean_tmp 'rm -rf ~/src/tmp/*'
+alias clean_codesign 'rm -rf ~/test/saved_checkpoints/*; rm -rf ~/logs/*; rm -rf ~/src/tmp/*'
+
 # set home directory to codesign home directory
 setenv HOME `pwd`
 
