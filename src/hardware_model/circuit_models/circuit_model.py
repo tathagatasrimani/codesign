@@ -29,30 +29,26 @@ class CircuitModel:
 
         # UNITS: ns
         self.symbolic_latency_wc = {
-            "And": lambda: self.make_sym_lat_wc(self.gamma["And"]),
-            "Or": lambda: self.make_sym_lat_wc(self.gamma["Or"]),
-            "Add": lambda: self.make_sym_lat_wc(self.gamma["Add"]),
-            "Sub": lambda: self.make_sym_lat_wc(self.gamma["Sub"]),
-            "Mult": lambda: self.make_sym_lat_wc(self.gamma["Mult"]),
-            "FloorDiv": lambda: self.make_sym_lat_wc(self.gamma["FloorDiv"]),
-            "Mod": lambda: self.make_sym_lat_wc(self.gamma["Mod"]),
-            "LShift": lambda: self.make_sym_lat_wc(self.gamma["LShift"]),
-            "RShift": lambda: self.make_sym_lat_wc(self.gamma["RShift"]),
-            "BitOr": lambda: self.make_sym_lat_wc(self.gamma["BitOr"]),
-            "BitXor": lambda: self.make_sym_lat_wc(self.gamma["BitXor"]),
-            "BitAnd": lambda: self.make_sym_lat_wc(self.gamma["BitAnd"]),
-            "Eq": lambda: self.make_sym_lat_wc(self.gamma["Eq"]),
-            "NotEq": lambda: self.make_sym_lat_wc(self.gamma["NotEq"]),
-            "Lt": lambda: self.make_sym_lat_wc(self.gamma["Lt"]),
-            "LtE": lambda: self.make_sym_lat_wc(self.gamma["LtE"]),
-            "Gt": lambda: self.make_sym_lat_wc(self.gamma["Gt"]),
-            "GtE": lambda: self.make_sym_lat_wc(self.gamma["GtE"]), 
-            "USub": lambda: self.make_sym_lat_wc(self.gamma["USub"]),   
-            "UAdd": lambda: self.make_sym_lat_wc(self.gamma["UAdd"]),
-            "IsNot": lambda: self.make_sym_lat_wc(self.gamma["IsNot"]),
-            "Not": lambda: self.make_sym_lat_wc(self.gamma["Not"]),
-            "Invert": lambda: self.make_sym_lat_wc(self.gamma["Invert"]),
-            "Regs": lambda: self.make_sym_lat_wc(self.gamma["Regs"]),   
+            "And16": lambda: self.make_sym_lat_wc(self.gamma["And16"]),
+            "Or16": lambda: self.make_sym_lat_wc(self.gamma["Or16"]),
+            "Add16": lambda: self.make_sym_lat_wc(self.gamma["Add16"]),
+            "Sub16": lambda: self.make_sym_lat_wc(self.gamma["Sub16"]),
+            "Mult16": lambda: self.make_sym_lat_wc(self.gamma["Mult16"]),
+            "FloorDiv16": lambda: self.make_sym_lat_wc(self.gamma["FloorDiv16"]),
+            "Modulus16": lambda: self.make_sym_lat_wc(self.gamma["Modulus16"]),
+            "LShift16": lambda: self.make_sym_lat_wc(self.gamma["LShift16"]),
+            "RShift16": lambda: self.make_sym_lat_wc(self.gamma["RShift16"]),
+            "BitOr16": lambda: self.make_sym_lat_wc(self.gamma["BitOr16"]),
+            "BitXor16": lambda: self.make_sym_lat_wc(self.gamma["BitXor16"]),
+            "BitAnd16": lambda: self.make_sym_lat_wc(self.gamma["BitAnd16"]),
+            "Eq16": lambda: self.make_sym_lat_wc(self.gamma["Eq16"]),
+            "NotEq16": lambda: self.make_sym_lat_wc(self.gamma["NotEq16"]),
+            "Lt16": lambda: self.make_sym_lat_wc(self.gamma["Lt16"]),
+            "LtE16": lambda: self.make_sym_lat_wc(self.gamma["LtE16"]),
+            "Gt16": lambda: self.make_sym_lat_wc(self.gamma["Gt16"]),
+            "GtE16": lambda: self.make_sym_lat_wc(self.gamma["GtE16"]),
+            "Not16": lambda: self.make_sym_lat_wc(self.gamma["Not16"]),
+            "Register16": lambda: self.make_sym_lat_wc(self.gamma["Register16"]),   
             "Buf": lambda: self.make_buf_lat_dict(),    
             "MainMem": lambda: self.make_mem_lat_dict(),
             "OffChipIO": lambda: self.make_io_lat_dict(),
@@ -62,30 +58,26 @@ class CircuitModel:
 
         # UNITS: nJ
         self.symbolic_energy_active = {
-            "And": lambda: self.make_sym_energy_act(self.alpha["And"]),
-            "Or": lambda: self.make_sym_energy_act(self.alpha["Or"]),
-            "Add": lambda: self.make_sym_energy_act(self.alpha["Add"]),
-            "Sub": lambda: self.make_sym_energy_act(self.alpha["Sub"]),
-            "Mult": lambda: self.make_sym_energy_act(self.alpha["Mult"]),
-            "FloorDiv": lambda: self.make_sym_energy_act(self.alpha["FloorDiv"]),
-            "Mod": lambda: self.make_sym_energy_act(self.alpha["Mod"]),
-            "LShift": lambda: self.make_sym_energy_act(self.alpha["LShift"]),
-            "RShift": lambda: self.make_sym_energy_act(self.alpha["RShift"]),
-            "BitOr": lambda: self.make_sym_energy_act(self.alpha["BitOr"]),
-            "BitXor": lambda: self.make_sym_energy_act(self.alpha["BitXor"]),
-            "BitAnd": lambda: self.make_sym_energy_act(self.alpha["BitAnd"]),
-            "Eq": lambda: self.make_sym_energy_act(self.alpha["Eq"]),
-            "NotEq": lambda: self.make_sym_energy_act(self.alpha["NotEq"]),
-            "Lt": lambda: self.make_sym_energy_act(self.alpha["Lt"]),
-            "LtE": lambda: self.make_sym_energy_act(self.alpha["LtE"]),
-            "Gt": lambda: self.make_sym_energy_act(self.alpha["Gt"]),
-            "GtE": lambda: self.make_sym_energy_act(self.alpha["GtE"]),
-            "USub": lambda: self.make_sym_energy_act(self.alpha["USub"]),
-            "UAdd": lambda: self.make_sym_energy_act(self.alpha["UAdd"]),
-            "IsNot": lambda: self.make_sym_energy_act(self.alpha["IsNot"]),
-            "Not": lambda: self.make_sym_energy_act(self.alpha["Not"]),
-            "Invert": lambda: self.make_sym_energy_act(self.alpha["Invert"]),   
-            "Regs": lambda: self.make_sym_energy_act(self.alpha["Regs"]),
+            "And16": lambda: self.make_sym_energy_act(self.alpha["And16"]),
+            "Or16": lambda: self.make_sym_energy_act(self.alpha["Or16"]),
+            "Add16": lambda: self.make_sym_energy_act(self.alpha["Add16"]),
+            "Sub16": lambda: self.make_sym_energy_act(self.alpha["Sub16"]),
+            "Mult16": lambda: self.make_sym_energy_act(self.alpha["Mult16"]),
+            "FloorDiv16": lambda: self.make_sym_energy_act(self.alpha["FloorDiv16"]),
+            "Modulus16": lambda: self.make_sym_energy_act(self.alpha["Modulus16"]),
+            "LShift16": lambda: self.make_sym_energy_act(self.alpha["LShift16"]),
+            "RShift16": lambda: self.make_sym_energy_act(self.alpha["RShift16"]),
+            "BitOr16": lambda: self.make_sym_energy_act(self.alpha["BitOr16"]),
+            "BitXor16": lambda: self.make_sym_energy_act(self.alpha["BitXor16"]),
+            "BitAnd16": lambda: self.make_sym_energy_act(self.alpha["BitAnd16"]),
+            "Eq16": lambda: self.make_sym_energy_act(self.alpha["Eq16"]),
+            "NotEq16": lambda: self.make_sym_energy_act(self.alpha["NotEq16"]),
+            "Lt16": lambda: self.make_sym_energy_act(self.alpha["Lt16"]),
+            "LtE16": lambda: self.make_sym_energy_act(self.alpha["LtE16"]),
+            "Gt16": lambda: self.make_sym_energy_act(self.alpha["Gt16"]),
+            "GtE16": lambda: self.make_sym_energy_act(self.alpha["GtE16"]),
+            "Not16": lambda: self.make_sym_energy_act(self.alpha["Not16"]),
+            "Register16": lambda: self.make_sym_energy_act(self.alpha["Register16"]),
             "Buf": lambda: self.make_buf_energy_active_dict(),
             "MainMem": lambda: self.make_mainmem_energy_active_dict(),
             "OffChipIO": lambda: self.make_io_energy_active_dict(),
@@ -95,30 +87,26 @@ class CircuitModel:
 
         # UNITS: W
         self.symbolic_power_passive = {
-            "And": lambda: self.make_sym_power_pass(self.beta["And"]),
-            "Or": lambda: self.make_sym_power_pass(self.beta["Or"]),
-            "Add": lambda: self.make_sym_power_pass(self.beta["Add"]),
-            "Sub": lambda: self.make_sym_power_pass(self.beta["Sub"]),
-            "Mult": lambda: self.make_sym_power_pass(self.beta["Mult"]),
-            "FloorDiv": lambda: self.make_sym_power_pass(self.beta["FloorDiv"]),
-            "Mod": lambda: self.make_sym_power_pass(self.beta["Mod"]),
-            "LShift": lambda: self.make_sym_power_pass(self.beta["LShift"]),
-            "RShift": lambda: self.make_sym_power_pass(self.beta["RShift"]),
-            "BitOr": lambda: self.make_sym_power_pass(self.beta["BitOr"]),
-            "BitXor": lambda: self.make_sym_power_pass(self.beta["BitXor"]),
-            "BitAnd": lambda: self.make_sym_power_pass(self.beta["BitAnd"]),
-            "Eq": lambda: self.make_sym_power_pass(self.beta["Eq"]),
-            "NotEq": lambda: self.make_sym_power_pass(self.beta["NotEq"]),
-            "Lt": lambda: self.make_sym_power_pass(self.beta["Lt"]),
-            "LtE": lambda: self.make_sym_power_pass(self.beta["LtE"]),
-            "Gt": lambda: self.make_sym_power_pass(self.beta["Gt"]),
-            "GtE": lambda: self.make_sym_power_pass(self.beta["GtE"]),
-            "USub": lambda: self.make_sym_power_pass(self.beta["USub"]),
-            "UAdd": lambda: self.make_sym_power_pass(self.beta["UAdd"]),
-            "IsNot": lambda: self.make_sym_power_pass(self.beta["IsNot"]),
-            "Not": lambda: self.make_sym_power_pass(self.beta["Not"]),
-            "Invert": lambda: self.make_sym_power_pass(self.beta["Invert"]),
-            "Regs": lambda: self.make_sym_power_pass(self.beta["Regs"]),
+            "And16": lambda: self.make_sym_power_pass(self.beta["And16"]),
+            "Or16": lambda: self.make_sym_power_pass(self.beta["Or16"]),
+            "Add16": lambda: self.make_sym_power_pass(self.beta["Add16"]),
+            "Sub16": lambda: self.make_sym_power_pass(self.beta["Sub16"]),
+            "Mult16": lambda: self.make_sym_power_pass(self.beta["Mult16"]),
+            "FloorDiv16": lambda: self.make_sym_power_pass(self.beta["FloorDiv16"]),
+            "Modulus16": lambda: self.make_sym_power_pass(self.beta["Modulus16"]),
+            "LShift16": lambda: self.make_sym_power_pass(self.beta["LShift16"]),
+            "RShift16": lambda: self.make_sym_power_pass(self.beta["RShift16"]),
+            "BitOr16": lambda: self.make_sym_power_pass(self.beta["BitOr16"]),
+            "BitXor16": lambda: self.make_sym_power_pass(self.beta["BitXor16"]),
+            "BitAnd16": lambda: self.make_sym_power_pass(self.beta["BitAnd16"]),
+            "Eq16": lambda: self.make_sym_power_pass(self.beta["Eq16"]),
+            "NotEq16": lambda: self.make_sym_power_pass(self.beta["NotEq16"]),
+            "Lt16": lambda: self.make_sym_power_pass(self.beta["Lt16"]),
+            "LtE16": lambda: self.make_sym_power_pass(self.beta["LtE16"]),
+            "Gt16": lambda: self.make_sym_power_pass(self.beta["Gt16"]),
+            "GtE16": lambda: self.make_sym_power_pass(self.beta["GtE16"]),
+            "Not16": lambda: self.make_sym_power_pass(self.beta["Not16"]),
+            "Register16": lambda: self.make_sym_power_pass(self.beta["Register16"]),
             "MainMem": lambda: self.make_mainmem_power_passive_dict(),
             "Buf": lambda: self.make_buf_power_passive_dict(),
             "N/A": lambda: 0,
@@ -127,30 +115,26 @@ class CircuitModel:
 
         # UNITS: um^2
         self.symbolic_area = {
-            "And": lambda: self.make_sym_area(self.area_coeffs["And"]),
-            "Or": lambda: self.make_sym_area(self.area_coeffs["Or"]),
-            "Add": lambda: self.make_sym_area(self.area_coeffs["Add"]),
-            "Sub": lambda: self.make_sym_area(self.area_coeffs["Sub"]),
-            "Mult": lambda: self.make_sym_area(self.area_coeffs["Mult"]),
-            "FloorDiv": lambda: self.make_sym_area(self.area_coeffs["FloorDiv"]),
-            "Mod": lambda: self.make_sym_area(self.area_coeffs["Mod"]), 
-            "LShift": lambda: self.make_sym_area(self.area_coeffs["LShift"]),
-            "RShift": lambda: self.make_sym_area(self.area_coeffs["RShift"]),
-            "BitOr": lambda: self.make_sym_area(self.area_coeffs["BitOr"]),
-            "BitXor": lambda: self.make_sym_area(self.area_coeffs["BitXor"]),
-            "BitAnd": lambda: self.make_sym_area(self.area_coeffs["BitAnd"]),
-            "Eq": lambda: self.make_sym_area(self.area_coeffs["Eq"]),
-            "NotEq": lambda: self.make_sym_area(self.area_coeffs["NotEq"]),
-            "Lt": lambda: self.make_sym_area(self.area_coeffs["Lt"]),
-            "LtE": lambda: self.make_sym_area(self.area_coeffs["LtE"]),
-            "Gt": lambda: self.make_sym_area(self.area_coeffs["Gt"]),
-            "GtE": lambda: self.make_sym_area(self.area_coeffs["GtE"]),
-            "USub": lambda: self.make_sym_area(self.area_coeffs["USub"]),
-            "UAdd": lambda: self.make_sym_area(self.area_coeffs["UAdd"]),
-            "IsNot": lambda: self.make_sym_area(self.area_coeffs["IsNot"]),
-            "Not": lambda: self.make_sym_area(self.area_coeffs["Not"]),
-            "Invert": lambda: self.make_sym_area(self.area_coeffs["Invert"]),
-            "Regs": lambda: self.make_sym_area(self.area_coeffs["Regs"]),
+            "And16": lambda: self.make_sym_area(self.area_coeffs["And16"]),
+            "Or16": lambda: self.make_sym_area(self.area_coeffs["Or16"]),
+            "Add16": lambda: self.make_sym_area(self.area_coeffs["Add16"]),
+            "Sub16": lambda: self.make_sym_area(self.area_coeffs["Sub16"]),
+            "Mult16": lambda: self.make_sym_area(self.area_coeffs["Mult16"]),
+            "FloorDiv16": lambda: self.make_sym_area(self.area_coeffs["FloorDiv16"]),
+            "Modulus16": lambda: self.make_sym_area(self.area_coeffs["Modulus16"]),
+            "LShift16": lambda: self.make_sym_area(self.area_coeffs["LShift16"]),
+            "RShift16": lambda: self.make_sym_area(self.area_coeffs["RShift16"]),
+            "BitOr16": lambda: self.make_sym_area(self.area_coeffs["BitOr16"]),
+            "BitXor16": lambda: self.make_sym_area(self.area_coeffs["BitXor16"]),
+            "BitAnd16": lambda: self.make_sym_area(self.area_coeffs["BitAnd16"]),
+            "Eq16": lambda: self.make_sym_area(self.area_coeffs["Eq16"]),
+            "NotEq16": lambda: self.make_sym_area(self.area_coeffs["NotEq16"]),
+            "Lt16": lambda: self.make_sym_area(self.area_coeffs["Lt16"]),
+            "LtE16": lambda: self.make_sym_area(self.area_coeffs["LtE16"]),
+            "Gt16": lambda: self.make_sym_area(self.area_coeffs["Gt16"]),
+            "GtE16": lambda: self.make_sym_area(self.area_coeffs["GtE16"]),
+            "Not16": lambda: self.make_sym_area(self.area_coeffs["Not16"]),
+            "Register16": lambda: self.make_sym_area(self.area_coeffs["Register16"]),
             "N/A": lambda: 0,
             "Call": lambda: 0,
         }
@@ -171,13 +155,11 @@ class CircuitModel:
         self.circuit_values = {}
 
         # wire length by edge
-        self.wire_length_by_edge = {}
+        self.edge_to_nets = {}
 
         self.metal_layers = ["metal1", "metal2", "metal3", "metal4", "metal5", "metal6", "metal7", "metal8", "metal9", "metal10"]
 
         self.update_circuit_values()
-
-        self.set_uarch_parameters()
 
         self.create_constraints()
     
@@ -231,6 +213,16 @@ class CircuitModel:
             self.wire_unit_delay_cvx[layer].value = float((self.tech_model.wire_parasitics["R"][layer]*self.tech_model.wire_parasitics["C"][layer]).subs(self.tech_model.base_params.tech_values).evalf())
             self.wire_unit_energy_cvx[layer].value = float((0.5*self.tech_model.wire_parasitics["C"][layer]*self.tech_model.base_params.V_dd**2).subs(self.tech_model.base_params.tech_values).evalf())
 
+        self.wire_C_values = {}
+        self.wire_R_values = {}
+        for layer in self.metal_layers:
+            self.wire_C_values[layer] = sim_util.xreplace_safe(self.tech_model.wire_parasitics["C"][layer], self.tech_model.base_params.tech_values)
+            self.wire_R_values[layer] = sim_util.xreplace_safe(self.tech_model.wire_parasitics["R"][layer], self.tech_model.base_params.tech_values)
+        
+        self.device_C_diff = sim_util.xreplace_safe(self.tech_model.C_diff, self.tech_model.base_params.tech_values)
+        self.device_C_load = sim_util.xreplace_safe(self.tech_model.C_load, self.tech_model.base_params.tech_values)
+        self.device_R_avg_inv = sim_util.xreplace_safe(self.tech_model.R_avg_inv, self.tech_model.base_params.tech_values)
+
     def update_uarch_parameters(self):
         self.logic_delay_cvx.value = float(self.tech_model.delay.subs(self.tech_model.base_params.tech_values).evalf())
         self.logic_energy_active_cvx.value = float(self.tech_model.E_act_inv.subs(self.tech_model.base_params.tech_values).evalf())
@@ -249,6 +241,7 @@ class CircuitModel:
             assert key in self.memories, f"symbolic memory {key} not found in memories"      
 
     def update_circuit_values(self):
+        self.set_uarch_parameters()
         # derive curcuit level values from technology values
         self.circuit_values["latency"] = {
             key: float(sim_util.xreplace_safe(self.symbolic_latency_wc[key](), self.tech_model.base_params.tech_values)) for key in self.symbolic_latency_wc if key not in ["Buf", "MainMem", "OffChipIO"]
@@ -282,73 +275,58 @@ class CircuitModel:
             key: self.memories[key]["Area (mm2)"] * 1e6 for key in self.memories
         } 
 
-    # dividing wire length by DATA_WIDTH because the wire length is summed over multiple bits.
+    #TODO come back and replace C_diff and C_load with the capacitance correctly sized for src and dst of each net
     def wire_delay(self, edge, symbolic=False):
-        # wire delay = R * C * length^2 (ns)
         if symbolic:
-            wire_delay = 0
-            for layer in self.metal_layers:
-                if layer in self.wire_length_by_edge[edge]:
-                    wire_delay += (self.wire_length_by_edge[edge][layer]/DATA_WIDTH)**2 * self.tech_model.wire_parasitics["R"][layer] * self.tech_model.wire_parasitics["C"][layer]
-            return wire_delay * 1e9 
+            for net in self.edge_to_nets[edge]:
+                #logger.info(f"calculating wire delay for net {net.net_id}")
+                R_on_line = self.tech_model.R_avg_inv
+                C_current = self.tech_model.C_diff
+                wire_delay += R_on_line * C_current
+                for segment in net.segments:
+                    #logger.info(f"calculating wire delay for segment in layer {segment.layer} with length {segment.length}")
+                    C_current = segment.length * self.tech_model.wire_parasitics["C"][segment.layer]
+                    R_on_line += segment.length * self.tech_model.wire_parasitics["R"][segment.layer]
+                    wire_delay += R_on_line * C_current
+                C_current = self.tech_model.C_load
+                wire_delay += R_on_line * C_current
+
         else:
+            # wire delay = R * C * length^2 (ns)
             wire_delay = 0
-            for layer in self.metal_layers:
-                if layer in self.wire_length_by_edge[edge]:
-                    wire_delay += (self.wire_length_by_edge[edge][layer]/DATA_WIDTH)**2 * self.tech_model.wire_parasitics["R"][layer].xreplace(self.tech_model.base_params.tech_values) * self.tech_model.wire_parasitics["C"][layer].xreplace(self.tech_model.base_params.tech_values)
-            return wire_delay * 1e9
+            #logger.info(f"calculating wire delay for edge {edge}")
+            for net in self.edge_to_nets[edge]:
+                #logger.info(f"calculating wire delay for net {net.net_id}")
+                R_on_line = self.device_R_avg_inv
+                C_current = self.device_C_diff
+                wire_delay += R_on_line * C_current
+                for segment in net.segments:
+                    #logger.info(f"calculating wire delay for segment in layer {segment.layer} with length {segment.length}")
+                    C_current = segment.length * self.wire_C_values[segment.layer]
+                    R_on_line += segment.length * self.wire_R_values[segment.layer]
+                    wire_delay += R_on_line * C_current
+                C_current = self.device_C_load
+                wire_delay += R_on_line * C_current
+        return wire_delay * 1e9
 
     # for 1 bit
     def wire_length(self, edge):
         wire_length = 0
-        for layer in self.metal_layers:
-            if layer in self.wire_length_by_edge[edge]:
-                wire_length += self.wire_length_by_edge[edge][layer]/DATA_WIDTH
+        for net in self.edge_to_nets[edge]:
+            for segment in net.segments:
+                wire_length += segment.length
         log_info(f"wire_length for edge {edge} is {wire_length}")
         return wire_length
-    
-    def wire_delay_uarch(self, edge):
-        wire_delay = 0
-        for layer in self.metal_layers:
-            if layer in self.wire_length_by_edge[edge]:
-                wire_delay += (self.wire_length_by_edge[edge][layer]/DATA_WIDTH)**2 * self.wire_unit_delay[layer]
-        return wire_delay * 1e9
-    
-    def wire_delay_uarch_cvx(self, edge):
-        wire_delay = 0
-        for layer in self.metal_layers:
-            if layer in self.wire_length_by_edge[edge]:
-                log_info(f"wire_length_by_edge[{edge}][{layer}] = {self.wire_length_by_edge[edge][layer]}, wire_unit_delay_cvx[{layer}] = {self.wire_unit_delay_cvx[layer].value}")
-                wire_delay += (self.wire_length_by_edge[edge][layer]/DATA_WIDTH)**2 * self.wire_unit_delay_cvx[layer]
-        return wire_delay * 1e9
         
-    # energy calculation uses the total wire length, not the wire length per bit.
+    # multiplying wire length by DATA_WIDTH because there are multiple bits on the wire.
     def wire_energy(self, edge, symbolic=False):
         # wire energy = 0.5 * C * V_dd^2 * length
-        if symbolic:
-            wire_energy = 0
-            for layer in self.metal_layers:
-                if layer in self.wire_length_by_edge[edge]:
-                    wire_energy += self.wire_length_by_edge[edge][layer] * self.tech_model.wire_parasitics["C"][layer] * self.tech_model.base_params.V_dd**2
-                else:
-                    wire_energy += 0
-            return wire_energy * 1e9
-        else:
-            wire_energy = 0
-            for layer in self.metal_layers:
-                if layer in self.wire_length_by_edge[edge]:
-                    wire_energy += self.wire_length_by_edge[edge][layer] * self.tech_model.wire_parasitics["C"][layer].xreplace(self.tech_model.base_params.tech_values) * self.tech_model.base_params.tech_values[self.tech_model.base_params.V_dd]**2
-                else:
-                    wire_energy += 0
-            return wire_energy * 1e9
-
-    def wire_energy_uarch(self, edge):
         wire_energy = 0
-        for layer in self.metal_layers:
-            if layer in self.wire_length_by_edge[edge]:
-                wire_energy += self.wire_length_by_edge[edge][layer] * self.wire_unit_energy[layer]
-            else:
-                wire_energy += 0
+        for net in self.edge_to_nets[edge]:
+            for segment in net.segments:
+                wire_energy += 0.5 * segment.length*DATA_WIDTH * self.tech_model.wire_parasitics["C"][segment.layer] * self.tech_model.base_params.V_dd**2
+        if not symbolic and wire_energy != 0:
+            wire_energy = sim_util.xreplace_safe(wire_energy, self.tech_model.base_params.tech_values)
         return wire_energy * 1e9
         
     def make_sym_lat_wc(self, gamma):

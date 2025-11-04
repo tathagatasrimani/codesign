@@ -77,6 +77,17 @@ set_dont_use $dont_use
 
 estimate_parasitics -placement
 
+puts "INFO: starting repair design"
+
+# Set debug level for repair_design to see detailed buffer insertion logic
+# Level 1-3: higher number = more detailed output
+#set_debug_level RSZ repair_design 3
+#set_debug_level RSZ repair_net 3
+#set_debug_level RSZ early_sizing 3
+#set_debug_level RSZ memory 3
+#set_debug_level RSZ buffer_under_slew 3
+#set_debug_level RSZ resizer 3
+
 repair_design -slew_margin $slew_margin -cap_margin $cap_margin
 
 repair_tie_fanout -separation $tie_separation $tielo_port
@@ -90,51 +101,51 @@ detailed_placement -max_displacement 500
 
 # Clone clock tree inverters next to register loads
 # so cts does not try to buffer the inverted clocks.
-repair_clock_inverters
+#repair_clock_inverters
 
-clock_tree_synthesis -root_buf $cts_buffer -buf_list $cts_buffer \
-  -sink_clustering_enable \
-  -sink_clustering_max_diameter $cts_cluster_diameter
+#clock_tree_synthesis -root_buf $cts_buffer -buf_list $cts_buffer \
+#  -sink_clustering_enable \
+#  -sink_clustering_max_diameter $cts_cluster_diameter
 
 # CTS leaves a long wire from the pad to the clock tree root.
-repair_clock_nets
+#repair_clock_nets
 
 # place clock buffers
-detailed_placement
+#detailed_placement
 
 ################################################################
 # Setup/hold timing repair
 
-set_propagated_clock [all_clocks]
+#set_propagated_clock [all_clocks]
 
 # Global routing is fast enough for the flow regressions.
 # It is NOT FAST ENOUGH FOR PRODUCTION USE.
-set repair_timing_use_grt_parasitics 0
-if { $repair_timing_use_grt_parasitics } {
-  # Global route for parasitics - no guide file requied
-  global_route -congestion_iterations 100
-  estimate_parasitics -global_routing
-} else {
-  estimate_parasitics -placement
-}
+#set repair_timing_use_grt_parasitics 0
+#if { $repair_timing_use_grt_parasitics } {
+#  # Global route for parasitics - no guide file requied
+#  global_route -congestion_iterations 100
+#  estimate_parasitics -global_routing
+#} else {
+#  estimate_parasitics -placement
+#}
 
-repair_timing -skip_gate_cloning
+#repair_timing -skip_gate_cloning
 
 # Post timing repair.
-report_worst_slack -min -digits 3
-report_worst_slack -max -digits 3
-report_tns -digits 3
-report_check_types -max_slew -max_capacitance -max_fanout -violators -digits 3
+#report_worst_slack -min -digits 3
+#report_worst_slack -max -digits 3
+#report_tns -digits 3
+#report_check_types -max_slew -max_capacitance -max_fanout -violators -digits 3
 
-utl::metric "RSZ::worst_slack_min" [sta::worst_slack -min]
-utl::metric "RSZ::worst_slack_max" [sta::worst_slack -max]
-utl::metric "RSZ::tns_max" [sta::total_negative_slack -max]
-utl::metric "RSZ::hold_buffer_count" [rsz::hold_buffer_count]
+#utl::metric "RSZ::worst_slack_min" [sta::worst_slack -min]
+#utl::metric "RSZ::worst_slack_max" [sta::worst_slack -max]
+#utl::metric "RSZ::tns_max" [sta::total_negative_slack -max]
+#utl::metric "RSZ::hold_buffer_count" [rsz::hold_buffer_count]
 
 ################################################################
 # Detailed Placement
 
-detailed_placement
+#detailed_placement
 
 # Capture utilization before fillers make it 100%
 utl::metric "DPL::utilization" [format %.1f [expr [rsz::utilization] * 100]]

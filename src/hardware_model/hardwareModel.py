@@ -24,6 +24,7 @@ from src.hardware_model.tech_models import mvs_si_model
 from src.hardware_model.tech_models import mvs_2_model
 from src.hardware_model.tech_models import vscnfet_model
 from openroad_interface import openroad_run
+from openroad_interface import openroad_run_hier
 
 import cvxpy as cp
 
@@ -48,17 +49,16 @@ def symbolic_min(a, b, evaluate=True):
     return 0.5 * (a + b - sp.Abs(a - b, evaluate=evaluate))
 
 class BlockVector:
+    op_types = set([
+        "logic",
+        "memory",
+        "interconnect",
+
+        "logic_resource",
+        "memory_resource",
+        "interconnect_resource",
+    ])
     def __init__(self):
-
-        self.op_types = set([
-            "logic",
-            "memory",
-            "interconnect",
-
-            "logic_rsc",
-            "memory_rsc",
-            "interconnect_rsc",
-        ])
         self.bound_factor = {op_type: 0 for op_type in self.op_types}
         self.normalized_bound_factor = {op_type: 0 for op_type in self.op_types}
         self.ahmdal_limit = {op_type: 0 for op_type in self.op_types}
@@ -93,10 +93,10 @@ class BlockVector:
 def get_op_type_from_function(function, resource_edge=False):
     if function in ["Buf", "MainMem"]:
         return "memory" if not resource_edge else "memory_rsc"
-    elif function in ["Add", "Sub", "Mult", "FloorDiv", "Mod", "LShift", "RShift", "BitOr", "BitXor", "BitAnd", "Eq", "NotEq", "Lt", "LtE", "Gt", "GtE", "USub", "UAdd", "IsNot", "Not", "Invert", "Regs"]:
+    elif function in ["Add16", "Sub16", "Mult16", "FloorDiv16", "Mod16", "LShift16", "RShift16", "BitOr16", "BitXor16", "BitAnd16", "Eq16", "NotEq16", "Lt16", "LtE16", "Gt16", "GtE16", "USub16", "UAdd16", "IsNot16", "Not16", "Invert16", "Regs16"]:
         return "logic" if not resource_edge else "logic_rsc"
     elif function == "Wire":
-        return "interconnect" if not resource_edge else "interconnect_rsc"
+        return "interconnect" if not resource_edge else "interconnect_resource"
     else:
         return "N/A"
 
@@ -567,21 +567,40 @@ class HardwareModel:
         
         start_time = time.time()
 
-        open_road_run = openroad_run.OpenRoadRun(cfg=self.cfg, codesign_root_dir=self.codesign_root_dir, tmp_dir=self.tmp_dir, run_openroad=run_openroad)
-
-        L_eff = self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.L]
-
-        logger.info(f"current L_eff for get_wire_parascitics: {L_eff}")
-
         netlist_copy = copy.deepcopy(self.netlist)
 
-        self.circuit_model.wire_length_by_edge, _ = open_road_run.run(
-            netlist_copy, arg_testfile, arg_parasitics, area_constraint, L_eff
-        )
+        logger.info(f"num nodes in netlist before openroad: {len(netlist_copy.nodes)}")
 
-        log_info(f"wire lengths: {self.circuit_model.wire_length_by_edge}")
+        L_eff = self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.L]
+        logger.info(f"current L_eff for get_wire_parascitics: {L_eff}")
+
+        ## hierarchical openroad run
+        if (benchmark_name == "resnet18"):
+            hier_open_road_run = openroad_run_hier.OpenRoadRunHier(cfg=self.cfg, codesign_root_dir=self.codesign_root_dir, tmp_dir=self.tmp_dir, run_openroad=run_openroad, circuit_model=self.circuit_model)
+
+            hls_parse_results_dir = f"benchmark/parse_results"
+
+            self.circuit_model.wire_length_by_edge = hier_open_road_run.run_hierarchical_openroad(
+                netlist_copy,
+                arg_testfile,
+                arg_parasitics,
+                area_constraint,
+                L_eff,
+                hls_parse_results_dir,
+                "forward"
+            )
+
+        ## flat openroad run
+        else:
+            open_road_run = openroad_run.OpenRoadRun(cfg=self.cfg, codesign_root_dir=self.codesign_root_dir, tmp_dir=self.tmp_dir, run_openroad=run_openroad, circuit_model=self.circuit_model)
+
+            self.circuit_model.wire_length_by_edge, _, _ = open_road_run.run(
+                netlist_copy, arg_testfile, arg_parasitics, area_constraint, L_eff
+            )
+
+        log_info(f"edge to nets: {self.circuit_model.edge_to_nets}")
         
-        logger.info(f"time to generate wire parasitics: {time.time()-start_time}")
+        logger.info(f"time to generate wire parasitics: {time.time()-start_time} seconds, {(time.time()-start_time)/60} minutes.")
 
     def save_symbolic_memories(self):
         MemL_expr = 0
@@ -676,12 +695,12 @@ class HardwareModel:
                 src = data["src_node"]
                 dst = data["dst_node"]
                 rsc_edge = self.get_rsc_edge((src, dst), dfg)
-                if rsc_edge in self.circuit_model.wire_length_by_edge:
+                if rsc_edge in self.circuit_model.edge_to_nets:
                     total_active_energy_basic_block += self.circuit_model.wire_energy(rsc_edge)
-                    log_info(f"edge {rsc_edge} is in circuit_model.wire_length_by_edge")
+                    log_info(f"edge {rsc_edge} is in circuit_model.edge_to_nets")
                     log_info(f"wire energy for {node}: {self.circuit_model.wire_energy(rsc_edge)}")
                 else:
-                    log_info(f"edge {rsc_edge} is not in circuit_model.wire_length_by_edge")
+                    log_info(f"edge {rsc_edge} is not in circuit_model.edge_to_nets")
             else:
                 total_active_energy_basic_block += self.circuit_model.symbolic_energy_active[data["function"]]()
                 log_info(f"active energy for {node}: {self.circuit_model.symbolic_energy_active[data['function']]()}")
@@ -702,14 +721,47 @@ class HardwareModel:
         self.total_passive_power = total_passive_power
         return total_passive_power * total_execution_time
 
-    def update_execution_time_vitis(self):
+    def print_node_arrivals(self):
+        for block_name in self.graph_delays_cvx:
+            for node in self.node_arrivals_cvx[block_name]["full"]:
+                if self.node_arrivals_cvx[block_name]["full"][node].value is not None:
+                    self.circuit_model.tech_model.base_params.tech_values[self.node_arrivals_cvx[block_name]["full"][node]] = self.node_arrivals_cvx[block_name]["full"][node].value / self.scale_cvx
+                if node in self.node_arrivals_cvx[block_name]["loop_1x"] and self.node_arrivals_cvx[block_name]["loop_1x"][node].value is not None:
+                    self.circuit_model.tech_model.base_params.tech_values[self.node_arrivals_cvx[block_name]["loop_1x"][node]] = self.node_arrivals_cvx[block_name]["loop_1x"][node].value / self.scale_cvx
+                if node in self.node_arrivals_cvx[block_name]["loop_2x"] and self.node_arrivals_cvx[block_name]["loop_2x"][node].value is not None:
+                    self.circuit_model.tech_model.base_params.tech_values[self.node_arrivals_cvx[block_name]["loop_2x"][node]] = self.node_arrivals_cvx[block_name]["loop_2x"][node].value / self.scale_cvx
+            for node in self.node_arrivals_cvx[block_name]["loop_1x"]:
+                if self.node_arrivals_cvx[block_name]["loop_1x"][node].value is not None:
+                    self.circuit_model.tech_model.base_params.tech_values[self.node_arrivals_cvx[block_name]["loop_1x"][node]] = self.node_arrivals_cvx[block_name]["loop_1x"][node].value / self.scale_cvx
+            #for node in self.graph_delays_cvx:
+            #    self.circuit_model.tech_model.base_params.tech_values[self.graph_delays_cvx[node]] = self.graph_delays_cvx[node].value / self.scale_cvx
+        #for block_name in self.graph_delays_cvx:
+        #    log_info(f"graph delays for {block_name}: {sim_util.xreplace_safe(self.graph_delays_cvx[block_name], self.circuit_model.tech_model.base_params.tech_values)}")
+        for block_name in self.node_arrivals_cvx:
+            for graph_type in self.node_arrivals_cvx[block_name]:
+                for node in self.node_arrivals_cvx[block_name][graph_type]:
+                    if self.node_arrivals_cvx[block_name][graph_type][node].value is not None:
+                        log_info(f"node arrivals for {block_name} {graph_type} {node}: {self.node_arrivals_cvx[block_name][graph_type][node].value / self.scale_cvx}")
+                    else:
+                        log_info(f"node arrivals for {block_name} {graph_type} {node}: None")
+    
+    def print_block_vectors(self):
+        for basic_block_name in self.block_vectors:
+            for graph_type in self.block_vectors[basic_block_name]:
+                if graph_type == "top":
+                    log_info(f"block vector for {basic_block_name} {graph_type}: {self.block_vectors[basic_block_name][graph_type]}")
+                else:
+                    for edge in self.block_vectors[basic_block_name][graph_type]:
+                        log_info(f"block vector for {basic_block_name} {graph_type} {edge}: {self.block_vectors[basic_block_name][graph_type][edge]}")
+
+    def update_execution_time_vitis(self, clk_period_opt=True):
         start_time = time.time()
         self.circuit_model.update_uarch_parameters()
         self.circuit_model.create_constraints_cvx(self.scale_cvx)
         
 
         # if our performance not that sensitive to frequency, just hold frequency constant
-        if self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.logic_ahmdal_limit] > 10:
+        if not clk_period_opt or self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.logic_ahmdal_limit] > 10:
             logger.info(f"holding frequency constant because logic_ahmdal_limit > 10")
             clk_period_constraints = [self.circuit_model.clk_period_cvx == self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.clk_period]]
         else:
@@ -723,38 +775,13 @@ class HardwareModel:
         #prob = cp.Problem(cp.Minimize(self.graph_delays_cvx[self.top_block_name]), self.constr_cvx+clk_period_constraints)
         prob = cp.Problem(cp.Minimize(self.circuit_model.clk_period_cvx), clk_period_constraints)
         prob.solve()
+        if DEBUG:
+            self.print_node_arrivals()
         #self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.node_arrivals_end] = self.graph_delays_cvx[self.top_block_name].value / self.scale_cvx
         logger.info(f"time to update execution time with cvxpy: {time.time()-start_time}")
-        self.calculate_block_vectors(self.top_block_name)
-        #return self.block_vectors[self.top_block_name]["top"].delay
-        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.node_arrivals_end] = self.block_vectors[self.top_block_name]["top"].delay
-        return self.circuit_model.tech_model.base_params.node_arrivals_end
 
-    def update_state_after_cvxpy_solve(self):
-        """for block_name in self.graph_delays:
-            for node in self.node_arrivals[block_name]["full"]:
-                if self.node_arrivals_cvx[block_name]["full"][node].value is not None:
-                    self.circuit_model.tech_model.base_params.tech_values[self.node_arrivals[block_name]["full"][node]] = self.node_arrivals_cvx[block_name]["full"][node].value / self.scale_cvx
-                if node in self.node_arrivals[block_name]["loop_1x"] and self.node_arrivals_cvx[block_name]["loop_1x"][node].value is not None:
-                    self.circuit_model.tech_model.base_params.tech_values[self.node_arrivals[block_name]["loop_1x"][node]] = self.node_arrivals_cvx[block_name]["loop_1x"][node].value / self.scale_cvx
-                if node in self.node_arrivals[block_name]["loop_2x"] and self.node_arrivals_cvx[block_name]["loop_2x"][node].value is not None:
-                    self.circuit_model.tech_model.base_params.tech_values[self.node_arrivals[block_name]["loop_2x"][node]] = self.node_arrivals_cvx[block_name]["loop_2x"][node].value / self.scale_cvx
-            for node in self.node_arrivals_cvx[block_name]["loop_1x"]:
-                if self.node_arrivals_cvx[block_name]["loop_1x"][node].value is not None:
-                    self.circuit_model.tech_model.base_params.tech_values[self.node_arrivals[block_name]["loop_1x"][node]] = self.node_arrivals_cvx[block_name]["loop_1x"][node].value / self.scale_cvx
-            for node in self.graph_delays:
-                self.circuit_model.tech_model.base_params.tech_values[self.graph_delays[node]] = self.graph_delays_cvx[node].value / self.scale_cvx
-        for block_name in self.graph_delays:
-            log_info(f"graph delays for {block_name}: {sim_util.xreplace_safe(self.graph_delays[block_name], self.circuit_model.tech_model.base_params.tech_values)}")
-        for block_name in self.node_arrivals:
-            for graph_type in self.node_arrivals[block_name]:
-                for node in self.node_arrivals[block_name][graph_type]:
-                    if self.node_arrivals_cvx[block_name][graph_type][node].value is not None:
-                        log_info(f"node arrivals for {block_name} {graph_type} {node}: {self.node_arrivals_cvx[block_name][graph_type][node].value / self.scale_cvx}")
-                    else:
-                        log_info(f"node arrivals for {block_name} {graph_type} {node}: None")"""
-        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.node_arrivals_end] = self.graph_delays_cvx[self.top_block_name].value / self.scale_cvx
-        log_info(f"graph delay cvx for top block: {self.graph_delays_cvx[self.top_block_name].value / self.scale_cvx}")
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.node_arrivals_end] = self.calculate_block_vectors(self.top_block_name)
+        return self.circuit_model.tech_model.base_params.node_arrivals_end
 
     def calculate_block_vectors(self, top_block_name):
         self.circuit_model.update_uarch_parameters()
@@ -764,17 +791,21 @@ class HardwareModel:
             self.block_vectors[basic_block_name] = {}
         self.block_vectors[top_block_name]["top"] = self.calculate_block_vector_basic_block(top_block_name, "full", self.scheduled_dfgs[top_block_name])
         self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.logic_sensitivity] = self.block_vectors[top_block_name]["top"].sensitivity["logic"]
-        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.logic_resource_sensitivity] = self.block_vectors[top_block_name]["top"].sensitivity["logic_rsc"]
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.logic_resource_sensitivity] = self.block_vectors[top_block_name]["top"].sensitivity["logic_resource"]
         self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.logic_ahmdal_limit] = self.block_vectors[top_block_name]["top"].ahmdal_limit["logic"]
-        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.logic_resource_ahmdal_limit] = self.block_vectors[top_block_name]["top"].ahmdal_limit["logic_rsc"]
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.logic_resource_ahmdal_limit] = self.block_vectors[top_block_name]["top"].ahmdal_limit["logic_resource"]
         self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.interconnect_sensitivity] = self.block_vectors[top_block_name]["top"].sensitivity["interconnect"]
-        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.interconnect_resource_sensitivity] = self.block_vectors[top_block_name]["top"].sensitivity["interconnect_rsc"]
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.interconnect_resource_sensitivity] = self.block_vectors[top_block_name]["top"].sensitivity["interconnect_resource"]
         self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.interconnect_ahmdal_limit] = self.block_vectors[top_block_name]["top"].ahmdal_limit["interconnect"]
-        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.interconnect_resource_ahmdal_limit] = self.block_vectors[top_block_name]["top"].ahmdal_limit["interconnect_rsc"]
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.interconnect_resource_ahmdal_limit] = self.block_vectors[top_block_name]["top"].ahmdal_limit["interconnect_resource"]
         self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.memory_sensitivity] = self.block_vectors[top_block_name]["top"].sensitivity["memory"]
-        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.memory_resource_sensitivity] = self.block_vectors[top_block_name]["top"].sensitivity["memory_rsc"]
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.memory_resource_sensitivity] = self.block_vectors[top_block_name]["top"].sensitivity["memory_resource"]
         self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.memory_ahmdal_limit] = self.block_vectors[top_block_name]["top"].ahmdal_limit["memory"]
-        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.memory_resource_ahmdal_limit] = self.block_vectors[top_block_name]["top"].ahmdal_limit["memory_rsc"]
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.memory_resource_ahmdal_limit] = self.block_vectors[top_block_name]["top"].ahmdal_limit["memory_resource"]
+
+        if DEBUG:
+            self.print_block_vectors()
+        return self.block_vectors[top_block_name]["top"].delay
 
     def make_graph_one_op_type(self, basic_block_name, graph_type, op_type, eps, dfg):
         G_new = dfg.copy()
@@ -860,22 +891,22 @@ class HardwareModel:
             # TODO add interconnect resource dependency case
             vector.delay = self.circuit_model.clk_period_cvx.value
             if fn in ["Buf", "MainMem"]:
-                vector.bound_factor["memory_rsc"] = vector.delay
-                vector.sensitivity["memory_rsc"] = 1
+                vector.bound_factor["memory_resource"] = vector.delay
+                vector.sensitivity["memory_resource"] = 1
             else: # logic
-                vector.bound_factor["logic_rsc"] = vector.delay
-                vector.sensitivity["logic_rsc"] = 1
+                vector.bound_factor["logic_resource"] = vector.delay
+                vector.sensitivity["logic_resource"] = 1
         else:
             if fn == "Wire":
                 src_for_wire = dfg.nodes[src]["src_node"]
                 dst_for_wire = dfg.nodes[src]["dst_node"]
                 rsc_edge = self.get_rsc_edge((src_for_wire, dst_for_wire), dfg)
-                if rsc_edge in self.circuit_model.wire_length_by_edge:
-                    vector.delay = self.circuit_model.wire_delay_uarch_cvx(rsc_edge).value
+                if rsc_edge in self.circuit_model.edge_to_nets:
+                    vector.delay = self.circuit_model.wire_delay(rsc_edge)
                     log_info(f"added wire delay {vector.delay} for {rsc_edge}, which has length {self.circuit_model.wire_length(rsc_edge)}")
                 else:
                     vector.delay = 0
-                    log_info(f"edge {rsc_edge} not in wire_length_by_edge")
+                    log_info(f"edge {rsc_edge} not in edge_to_nets")
                 vector.bound_factor["interconnect"] = vector.delay
                 vector.sensitivity["interconnect"] = 1
             elif fn in ["Buf", "MainMem"]:
@@ -894,7 +925,7 @@ class HardwareModel:
 
     def calculate_execution_time_vitis(self, top_block_name, clk_period_opt=False, form_dfg=True):
         if not form_dfg:
-            return self.update_execution_time_vitis()
+            return self.update_execution_time_vitis(clk_period_opt=clk_period_opt)
         self.circuit_model.update_uarch_parameters()
         #self.node_arrivals = {}
         self.node_arrivals_cvx = {}
@@ -935,11 +966,11 @@ class HardwareModel:
         prob = cp.Problem(cp.Minimize(self.circuit_model.clk_period_cvx), clk_period_constr)
         prob.solve()
         logger.info(f"time to solve cvxpy problem: {time.time()-start_time}")
-        #self.update_state_after_cvxpy_solve()
-        self.calculate_block_vectors(top_block_name)
-        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.node_arrivals_end] = self.block_vectors[top_block_name]["top"].delay
-        return self.circuit_model.tech_model.base_params.node_arrivals_end
+        if DEBUG:
+            self.print_node_arrivals()
 
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.node_arrivals_end] = self.calculate_block_vectors(top_block_name)
+        return self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.node_arrivals_end]
 
     def calculate_execution_time_vitis_recursive(self, basic_block_name, dfg, graph_end_node="graph_end", graph_type="full", resource_delays_only=False):
         log_info(f"calculating execution time for {basic_block_name} with graph end node {graph_end_node}")
@@ -970,9 +1001,9 @@ class HardwareModel:
                         src = dfg.nodes[pred]["src_node"]
                         dst = dfg.nodes[pred]["dst_node"]
                         rsc_edge = self.get_rsc_edge((src, dst), dfg)
-                        if rsc_edge in self.circuit_model.wire_length_by_edge:
-                            pred_delay_cvx = self.circuit_model.wire_delay_uarch_cvx(rsc_edge) * self.scale_cvx
-                            log_info(f"added wire delay {self.circuit_model.wire_delay_uarch_cvx(rsc_edge)} for edge {rsc_edge}")
+                        if rsc_edge in self.circuit_model.edge_to_nets:
+                            pred_delay_cvx = self.circuit_model.wire_delay(rsc_edge) * self.scale_cvx
+                            log_info(f"added wire delay {self.circuit_model.wire_delay(rsc_edge)} for edge {rsc_edge}")
                         else:
                             log_info(f"no wire delay for edge {rsc_edge}")
                     else:
@@ -1022,7 +1053,7 @@ class HardwareModel:
                     else:
                         pred_delay = self.circuit_model.symbolic_latency_wc[self.scheduled_dfg.nodes[pred]["function"]]()
                     rsc_edge = self.get_rsc_edge((pred, node), self.scheduled_dfg)
-                    if rsc_edge in self.circuit_model.wire_length_by_edge:
+                    if rsc_edge in self.circuit_model.edge_to_nets:
                         pred_delay += self.circuit_model.wire_delay(rsc_edge, symbolic)
                     self.constraints.append(node_arrivals[node] >= node_arrivals[pred] + pred_delay)
                     constr_cvx.append(node_arrivals_cvx[node] >= node_arrivals_cvx[pred] + sim_util.xreplace_safe(pred_delay, self.circuit_model.tech_model.base_params.tech_values))
@@ -1083,7 +1114,7 @@ class HardwareModel:
                 log_info(f"(active energy) {data['function']}: {total_active_energy}")
         for edge in self.scheduled_dfg.edges:
             rsc_edge = self.get_rsc_edge(edge, self.scheduled_dfg)
-            if rsc_edge in self.circuit_model.wire_length_by_edge:
+            if rsc_edge in self.circuit_model.edge_to_nets:
                 wire_energy = self.circuit_model.wire_energy(rsc_edge, symbolic)
                 log_info(f"(wire energy) {edge}: {wire_energy} nJ")
                 total_active_energy += wire_energy
@@ -1155,7 +1186,7 @@ class HardwareModel:
                 "parasitic capacitance": self.circuit_model.tech_model.param_db["parasitic capacitance"],
                 "k_gate": self.circuit_model.tech_model.param_db["k_gate"],
                 "delay": self.circuit_model.tech_model.delay,
-                "multiplier delay": self.circuit_model.symbolic_latency_wc["Mult"](),
+                "multiplier delay": self.circuit_model.symbolic_latency_wc["Mult16"](),
                 #"scaled power": self.total_passive_power * self.circuit_model.tech_model.capped_power_scale_total + self.total_active_energy/(execution_time * self.circuit_model.tech_model.capped_delay_scale_total),
                 "logic_sensitivity": self.circuit_model.tech_model.base_params.logic_sensitivity,
                 "logic_resource_sensitivity": self.circuit_model.tech_model.base_params.logic_resource_sensitivity,

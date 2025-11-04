@@ -3,6 +3,7 @@ import sys
 import json
 import networkx as nx
 import logging
+from src import sim_util
 
 logger = logging.getLogger(__name__)
 
@@ -132,7 +133,7 @@ def create_networkX_netlist(json_netlist, json_complist, module_name):
 
     # Add nodes for each component, with attributes from complist
     for comp_id, comp_data in json_complist.items():
-        G.add_node(str(comp_id) + "_" + module_name, **comp_data)
+        G.add_node(str(comp_id) + "_" + module_name, **comp_data, module=module_name)
 
     # Add edges for each net, connecting src comp to sink comp
     for net_id, net_data in json_netlist.items():
@@ -189,7 +190,7 @@ def create_vitis_netlist(root_dir):
         ## create the networkX graph:
         final_netlist = create_networkX_netlist(netlist, complist, subdir)
 
-        debug_print(f"Writing final netlist to {subdir_path}/{netlist_prefix}_netlist.gml")
+        debug_print(f"Writing netlist to {subdir_path}/{netlist_prefix}_netlist.gml")
 
         # Write out the networkX graph to a gml file
         nx.write_gml(final_netlist, f"{subdir_path}/{netlist_prefix}_netlist.gml")

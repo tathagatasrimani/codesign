@@ -16,12 +16,25 @@ from openroad_interface import def_generator
 from . import estimation as est
 from . import detailed as det
 from . import scale_lef_files as scale_lef
+from openroad_interface.lib_cell_generator import LibCellGenerator
+from . import macro_maker as make_macros
 
 ## This is the area between the die area and the core area.
 DIE_CORE_BUFFER_SIZE = 50
 
+
+DEBUG = False
+def log_info(msg):
+    if DEBUG:
+        logger.info(msg)
+def log_warning(msg):
+    if DEBUG:
+        logger.warning(msg)
+
+MAX_TRACTABLE_AREA_DBU = 6e13
+
 class OpenRoadRun:
-    def __init__(self, cfg, codesign_root_dir, tmp_dir, run_openroad):
+    def __init__(self, cfg, codesign_root_dir, tmp_dir, run_openroad, circuit_model, subdirectory=None, custom_lef_files_to_include=None):
         """
         Initialize the OpenRoadRun with configuration and root directory.
 
@@ -31,37 +44,81 @@ class OpenRoadRun:
         self.cfg = cfg
         self.codesign_root_dir = codesign_root_dir
         self.tmp_dir = tmp_dir
-        self.directory = os.path.join(self.codesign_root_dir, f"{self.tmp_dir}/pd")
         self.run_openroad = run_openroad
+        self.directory = os.path.join(self.codesign_root_dir, f"{self.tmp_dir}/pd")
+        self.subdirectory = subdirectory
+        self.custom_lef_files_to_include = custom_lef_files_to_include
+
+        ## results will be placed here. This is necessary for running the flow hierarchically. 
+        if subdirectory is not None:
+            self.directory = os.path.join(self.directory, subdirectory)
+
+        self.circuit_model = circuit_model
+
+        self.component_to_function = {
+            "Mult16": "Mult16",
+            "Add16": "Add16",
+            "BUF_X4": "Not16",
+            "BUF_X2": "Not16",
+            "BUF_X1": "Not16",
+            "BUF_X8": "Not16",
+            "BUF_X16": "Not16",
+            "BUF_X32": "Not16",
+            "MUX2_X1": "Not16",
+        }
+
 
     def run(
-    self,
-    graph: nx.DiGraph,
-    test_file: str, 
-    arg_parasitics: str,
-    area_constraint: int,
-    L_eff: float
+        self,
+        graph: nx.DiGraph,
+        test_file: str, 
+        arg_parasitics: str,
+        area_constraint: int,
+        L_eff: float
     ):
         """
         Runs the OpenROAD flow.
         params:
-            arg_parasitics: detailed, estimation, or none. determines which parasitic calculation is executed.
+            arg_parasitics: detailed, estimation, or none. Determines which parasitic calculation is executed.
 
         """
         self.L_eff = L_eff
+        self.alpha = scale_lef.L_EFF_FREEPDK45 / self.L_eff
+        self.original_graph = copy.deepcopy(graph)
         logger.info(f"Starting place and route with parasitics: {arg_parasitics}")
-        dict = {edge: {} for edge in graph.edges()}
+        d = {edge: {} for edge in graph.edges()}
         if "none" not in arg_parasitics:
             logger.info("Running setup for place and route.")
-            graph, net_out_dict, node_output, lef_data, node_to_num = self.setup(graph, test_file, area_constraint, L_eff)
+
+            all_call_functions = True
+            for node in graph.nodes():
+                if graph.nodes[node].get("function", "") != "Call":
+                    all_call_functions = False
+                    break
+
+            graph, net_out_dict, node_output, lef_data, node_to_num, final_area, dbu_area_estimate = self.setup(graph, test_file, area_constraint, L_eff)
+
+            
+            
+
+            # If all nodes in the graph have the function type "Call", skip place and route.        
+            if all_call_functions:
+                logger.info("All nodes in the graph have function type 'Call'. Skipping place and route.")
+                return d, graph, final_area
+
+            # if the total DBU^2 area of all macros is greater than a limit, skip place and route.
+            if dbu_area_estimate > MAX_TRACTABLE_AREA_DBU:
+                logger.info(f"Total DBU area {dbu_area_estimate} exceeds area constraint {area_constraint}. Skipping place and route.")
+                return d, graph, final_area
+
             logger.info("Setup complete. Running extraction.")
-            dict, graph = self.extraction(graph, arg_parasitics, net_out_dict, node_output, lef_data, node_to_num)
+            d, graph = self.extraction(graph, arg_parasitics, net_out_dict, node_output, lef_data, node_to_num)
             logger.info("Extraction complete.")
         else: 
             logger.info("No parasitics selected. Running none_place_n_route.")
             graph = self.none_place_n_route(graph)
         logger.info("Place and route finished.")
-        return dict, graph
+        return d, graph, final_area
 
     def setup(
         self,
@@ -91,17 +148,38 @@ class OpenRoadRun:
         """
 
         old_graph = copy.deepcopy(graph)
-        graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, max_dim_macro = self.setup_set_area_constraint(graph, test_file, area_constraint, L_eff)
+        graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, max_dim_macro, macro_dict, dbu_area_estimate = self.setup_set_area_constraint(graph, test_file, area_constraint, L_eff)
 
         area_constraint_old = area_constraint
         logger.info(f"Max dimension macro: {max_dim_macro}, corresponding area constraint value: {max_dim_macro**2}")
         logger.info(f"Estimated area: {area_estimate}")
         area_constraint = int(max(area_estimate, max_dim_macro**2)/0.6)
         logger.info(f"Info: Final estimated area {area_estimate} compared to area constraint {area_constraint_old}. Area constraint will be scaled from {area_constraint_old} to {area_constraint}.")
-        graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, max_dim_macro = self.setup_set_area_constraint(old_graph, test_file, area_constraint, L_eff)
+        graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, max_dim_macro, macro_dict, dbu_area_estimate = self.setup_set_area_constraint(old_graph, test_file, area_constraint, L_eff)
 
-        return graph, net_out_dict, node_output, lef_data, node_to_num
+        lib_cell_generator = LibCellGenerator()
+        lib_cell_generator.generate_and_write_cells(macro_dict, self.circuit_model, self.directory + "/tcl/codesign_files/codesign_typ.lib")
 
+        self.update_clock_period(self.directory + "/tcl/codesign_files/codesign.sdc")
+
+        final_area = area_estimate
+
+        return graph, net_out_dict, node_output, lef_data, node_to_num, final_area, dbu_area_estimate
+
+    def update_clock_period(self, sdc_file: str):
+        """
+        Updates the clock period in the SDC file.
+        param:
+            sdc_file: path to the SDC file
+        """
+        with open(sdc_file, "r") as file:
+            sdc_data = file.readlines()
+        assert sdc_data[0].startswith("create_clock")
+        new_clock_period = self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.clk_period]
+        sdc_data[0] = f"create_clock [get_ports clk] -name core_clock -period {new_clock_period}\n"
+        with open(sdc_file, "w") as file:
+            file.writelines(sdc_data)
+        logger.info(f"Updated clock period in SDC file to {new_clock_period}")
 
     def setup_set_area_constraint(
         self,
@@ -135,20 +213,52 @@ class OpenRoadRun:
         else:
             logger.info("Skipping setup, using previous openroad results.")
 
+        macro_maker = make_macros.MacroMaker(self.cfg, self.codesign_root_dir, self.tmp_dir, self.run_openroad, self.subdirectory, output_lef_file=self.directory + "/tcl/codesign_files/codesign_stdcell.lef", custom_lef_files_to_include=self.custom_lef_files_to_include)
+
+        macro_maker.create_all_macros()
+
         self.update_area_constraint(area_constraint)
 
-        self.do_scale_lef = scale_lef.ScaleLefFiles(self.cfg, self.codesign_root_dir, self.tmp_dir)
+        self.do_scale_lef = scale_lef.ScaleLefFiles(self.cfg, self.codesign_root_dir, self.tmp_dir, self.subdirectory)
         self.do_scale_lef.scale_lef_files(L_eff)
 
-        df = def_generator.DefGenerator(self.cfg, self.codesign_root_dir, self.tmp_dir, self.do_scale_lef.NEW_database_units_per_micron)
+        logger.info(f"Generating DEF file for {self.codesign_root_dir}/{self.tmp_dir}/{self.subdirectory}")
+        df = def_generator.DefGenerator(self.cfg, self.codesign_root_dir, self.tmp_dir, self.do_scale_lef.NEW_database_units_per_micron, self.subdirectory)
 
-        graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate = df.run_def_generator(
+        graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, macro_dict, self.node_to_component_num = df.run_def_generator(
             test_file, graph
         )
+
+        dbu_area_estimate = area_estimate * (self.do_scale_lef.NEW_database_units_per_micron ** 2)
+
         logger.info(f"DEF generation complete. Area estimate: {area_estimate}")
         logger.info(f"Max dimension macro: {df.max_dim_macro}")
+        logger.info(f"DBU area (area estimate in um2 * (DBU per micron)^2): {dbu_area_estimate}")
 
-        return graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, df.max_dim_macro
+        self.scale_rc_values()
+
+        return graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, df.max_dim_macro, macro_dict, dbu_area_estimate
+
+    def scale_rc_values(self):
+        """
+        Scales the RC values in the tcl file based on the input L_eff.
+        param:
+            L_eff: effective channel length used to scale the LEF files.
+        """
+        with open(self.directory + "/tcl/codesign_files/codesign.rc", "r") as file:
+            rc_data = file.readlines()
+        for i, line in enumerate(rc_data):
+            if line.startswith("set_layer_rc"):
+                metal_layer = line.split()[2]
+                rsq = self.circuit_model.tech_model.wire_parasitics["R"][metal_layer].xreplace(self.circuit_model.tech_model.base_params.tech_values) * 1e-9 # convert to kohm/um
+                csq = self.circuit_model.tech_model.wire_parasitics["C"][metal_layer].xreplace(self.circuit_model.tech_model.base_params.tech_values) * 1e+15 * 1e-6 # convert to fF/um
+                # need to scale up RC for mature nodes, because unscaled OpenROAD wirelengths will be too short
+                # for advanced nodes the unscaled wirelengths will be too long
+                resistance = rsq / self.alpha
+                capacitance = csq / self.alpha
+                rc_data[i] = f"set_layer_rc -layer {metal_layer} -resistance {resistance} -capacitance {capacitance}\n"
+        with open(self.directory + "/tcl/codesign_files/codesign.rc", "w") as file:
+            file.writelines(rc_data)
 
     def update_area_constraint(self, area_constraint: int):
         """
@@ -323,21 +433,98 @@ class OpenRoadRun:
     def extraction(self, graph, arg_parasitics, net_out_dict, node_output, lef_data, node_to_num): 
         # 3. extract parasitics
         logger.info(f"Starting extraction with parasitics option: {arg_parasitics}")
-        dict = {}
+        d = {}
         if arg_parasitics == "detailed":
             logger.info("Running detailed place and route.")
-            dict, graph = self.detailed_place_n_route(
+            d, graph = self.detailed_place_n_route(
                 graph, net_out_dict, node_output, lef_data, node_to_num
             )
             logger.info("Detailed extraction complete.")
         elif arg_parasitics == "estimation":
             logger.info("Running estimated place and route.")
-            dict, graph = self.estimated_place_n_route(
+            d, graph = self.estimated_place_n_route(
                 graph, net_out_dict, node_output, lef_data, node_to_num
             )
             logger.info("Estimated extraction complete.")
 
-        return dict, graph
+        return d, graph
+
+    # buffers may have been inserted onto edges of the netlist so add them to a new graph
+    def parse_new_netlist_graph(self):
+        """
+        Parses the new netlist graph and adds attributes to the graph
+        """
+        net_id_to_src_dsts = {}
+        new_graph = nx.DiGraph()
+        logger.info("Parsing new netlist graph.")
+        with open(self.directory + "/results/final_generated-tcl.def", "r") as file:
+            def_data = file.readlines()
+        for i in range(len(def_data)):
+            if def_data[i].startswith("COMPONENTS"):
+                break
+        for j in range(i+1, len(def_data)): # PARSE COMPONENTS
+            if def_data[j].startswith("END COMPONENTS"):
+                break
+            component_id = def_data[j].split()[1]
+            component_name = def_data[j].split()[2]
+            if component_name not in self.component_to_function and "HIERMODULE" not in component_name:
+                log_info(f"Component {component_name} not found in component_to_function. Skipping.")
+                continue
+            if "HIERMODULE" in component_name:
+                component_function = "Call"
+            else:
+                component_function = self.component_to_function[component_name]
+            new_graph.add_node(component_id, function=component_function)
+            log_info(f"Added node {component_id} with function {component_function}")
+        for k in range(j+1, len(def_data)):
+            if def_data[k].startswith("NETS"):
+                break
+        
+        # PARSE NETS - handle multi-line nets
+        l = k + 1
+        while l < len(def_data):
+            if def_data[l].startswith("END NETS"):
+                break
+            
+            # Check if this line starts a new net
+            if def_data[l].strip().startswith("-"):
+                # Collect all lines until the net ends with ";"
+                net_lines = [def_data[l]]
+                while not net_lines[-1].rstrip().endswith(";"):
+                    l += 1
+                    assert not (l >= len(def_data) or def_data[l].startswith("END NETS")), f"End of netlist reached before net {net_name} was fully parsed, def_data: {def_data[l]}"
+                    net_lines.append(def_data[l])
+                
+                # Concatenate all lines for this net
+                full_net_line = " ".join(net_lines)
+
+                log_info(f"Full net line: {full_net_line}")
+                # Parse the net: LINE FORMAT: - <net_name> ( <src_node> <src_pin> ) ( <dst_node_0> <dst_pin_0> ) ( <dst_node_1> <dst_pin_1> ) ...
+                line_items = full_net_line.split()
+                net_name = line_items[1]
+                src_node = line_items[3]
+                
+                if src_node not in new_graph.nodes():
+                    log_info(f"Source node {src_node} not found in graph. Skipping net {net_name}.")
+                    l += 1
+                    continue
+                
+                # Extract destination nodes (every 4th item after the 3rd, skipping src_pin)
+                dst_nodes = []
+                for idx in range(7, len(line_items), 4):
+                    if idx >= len(line_items):
+                        break
+                    dst_node = line_items[idx]
+                    if dst_node not in new_graph.nodes():
+                        log_info(f"Destination node {dst_node} not found in graph. Skipping.")
+                        continue
+                    dst_nodes.append(dst_node)
+                    new_graph.add_edge(src_node, dst_node, net=net_name)
+                    log_info(f"Added edge from {src_node} to {dst_node} for net {net_name}")
+                net_id_to_src_dsts[net_name] = (src_node, dst_nodes)
+            l += 1
+        self.export_graph(new_graph, "new_netlist_graph", self.directory)
+        return new_graph, net_id_to_src_dsts
 
     def estimated_place_n_route(
         self,
@@ -368,66 +555,68 @@ class OpenRoadRun:
         else:
             logger.info("Skipping openroad run.")
 
-        wire_length_df = est.parse_route_guide_with_layer_breakdown(self.directory + "/results/codesign_codesign-tcl.route_guide")
-        wire_length_by_edge = {}
-        for node in net_out_dict:
-            outputs = node_output[node]
-            net_outs = net_out_dict[node]
-            if node.find("Mux") != -1:
-                node_names = [node+"_"+str(x) for x in range(16)]
-            else:
-                node_names = [node] * 16
-            #logger.info(f"Node: {node}, Outputs: {outputs}")
-            #logger.info(f"Net outs: {net_outs}")
-            for output in outputs:
-                # if output is a mux, then there will be 16 instances of the mux, each with 1 output
-                # if output is not a mux, then it will have 16 ports
-                if output.find("Mux") != -1:
-                    output_names = [output+"_"+str(x) for x in range(16)]
+        ## if the graph has no edges, then return empty dict
+        if len(graph.edges()) == 0:
+            logger.info("Graph has no edges. Skipping estimated place and route.")
+            return {}, graph
+        
+        self.updated_graph, net_id_to_src_dsts = self.parse_new_netlist_graph()
+
+        nets = est.parse_route_guide_with_layer_breakdown(
+            self.directory + "/results/codesign_codesign-tcl.route_guide",
+            updated_graph=self.updated_graph,
+            net_id_to_src_dsts=net_id_to_src_dsts,
+        )
+        for net in nets.values():
+            for segment in net.segments:
+                #logger.info(f"segment length for net {net.net_id} in layer {segment.layer} was {segment.length}")
+                segment.length /= self.alpha * 1e6 # convert to meters
+                #logger.info(f"segment length for net {net.net_id} in layer {segment.layer} is {segment.length}")
+
+        # Build mapping from original-graph edge (src, dst) -> list of net ids along the path in updated_graph
+        self.edge_to_nets: dict[tuple[str, str], list[str]] = {}
+
+        for src, dst in self.original_graph.edges():
+            src_component_name = self.original_graph.nodes[src]["name"]
+            dst_component_name = self.original_graph.nodes[dst]["name"]
+            src_component_num = self.node_to_component_num[src]
+            dst_component_num = self.node_to_component_num[dst]
+            # Only process if both endpoints exist in the updated graph
+            assert src_component_num in self.updated_graph and dst_component_num  in self.updated_graph, f"Source or destination node not found in updated graph: {src}:{src_component_num}, {dst}:{dst_component_num}"
+
+            log_info(f"Finding path from {src}:{src_component_num} to {dst}:{dst_component_num}")
+            # Find a path through repeaters from src to dst in updated_graph
+            # There should be a unique simple path; use shortest_simple_paths or single_source shortest path
+            try:
+                path_nodes = nx.shortest_path(self.updated_graph, source=src_component_num, target=dst_component_num)
+            except Exception as e:
+                log_warning(f"Error finding path from {src}:{src_component_num} to {dst}:{dst_component_num}: {e}")
+                path_nodes = []
+
+
+            # Collect net ids on each hop of the path
+            nets_on_path = []
+            for u, v in zip(path_nodes[:-1], path_nodes[1:]):
+                if (u, v) in self.updated_graph.edges():
+                    nets_on_path.append(copy.deepcopy(nets[self.updated_graph.edges[u, v]["net"]]))
                 else:
-                    output_names = [output] * 16
-                assert len(net_outs) == 16
-                for idx in range(16):
-                    output_name = output_names[idx]
-                    node_name = node_names[idx]
-                    net_name = net_outs[idx]
-                    #logger.info(f"Node: {node}, Output: {output_name}, Net: {net_name}")
-                    src = graph.nodes[node_name]["name"]
-                    dst = graph.nodes[output_name]["name"]
-                    #logger.info(f"Src: {src}, Dst: {dst}")
-                    if net_name in wire_length_df.index:
-                        if (src, dst) not in wire_length_by_edge:
-                            wire_length_by_edge[(src, dst)] = copy.deepcopy(wire_length_df.loc[net_name])
-                        else:
-                            wire_length_by_edge[(src, dst)] += copy.deepcopy(wire_length_df.loc[net_name])
-                    #else:
-                    #    logger.warning(f"Net {net_name} not found in wire length dataframe. Skipping.")
-        self.export_graph(graph, "estimated_with_mux")
+                    log_warning(f"Edge not found in updated graph: {u}:{v}")
+            
+            # add self edge if it exists, won't be captured by nx shortest path
+            if src == dst:
+                if (src_component_num, src_component_num) in self.updated_graph.edges():
+                    nets_on_path.append(copy.deepcopy(nets[self.updated_graph.edges[src_component_num, src_component_num]["net"]]))
+                else:
+                    log_warning(f"Self edge not found in updated graph: {src}:{src_component_num}, {dst}:{dst_component_num}")
 
-        wire_length_by_edge = self.mux_listing(graph, node_output, wire_length_by_edge)
-        self.mux_removal(graph)
+            self.edge_to_nets[(src_component_name, dst_component_name)] = nets_on_path
+        
+        log_info(f"edge_to_nets: {self.edge_to_nets}")
 
-        self.export_graph(graph, "estimated_nomux")
+        # Expose for downstream consumers
+        self.export_graph(graph, "estimated", self.directory)
 
-        # scale wire lengths to meters
-        for edge in wire_length_by_edge:
-            #logger.info(f"edge is {edge}")
-            #logger.info(f"original wire length by edge: {wire_length_by_edge[edge]}")
-            alpha_scale_factor = scale_lef.L_EFF_FREEPDK45 / self.L_eff
-            wire_length_by_edge[edge]["total_wl"] /= alpha_scale_factor * 1e6 # convert to meters
-            wire_length_by_edge[edge]["metal1"] /= alpha_scale_factor * 1e6 # convert to meters
-            wire_length_by_edge[edge]["metal2"] /= alpha_scale_factor * 1e6 # convert to meters
-            wire_length_by_edge[edge]["metal3"] /= alpha_scale_factor * 1e6 # convert to meters
-            wire_length_by_edge[edge]["metal4"] /= alpha_scale_factor * 1e6 # convert to meters
-            wire_length_by_edge[edge]["metal5"] /= alpha_scale_factor * 1e6 # convert to meters
-            wire_length_by_edge[edge]["metal6"] /= alpha_scale_factor * 1e6 # convert to meters
-            wire_length_by_edge[edge]["metal7"] /= alpha_scale_factor * 1e6 # convert to meters
-            wire_length_by_edge[edge]["metal8"] /= alpha_scale_factor * 1e6 # convert to meters
-            wire_length_by_edge[edge]["metal9"] /= alpha_scale_factor * 1e6 # convert to meters
-            wire_length_by_edge[edge]["metal10"] /= alpha_scale_factor * 1e6 # convert to meters
-            #logger.info(f"scaled wire length by edge: {wire_length_by_edge[edge]}")
-
-        return wire_length_by_edge, graph
+        return self.edge_to_nets, graph
 
 
     def detailed_place_n_route(
@@ -485,12 +674,12 @@ class OpenRoadRun:
             
             
 
-        self.export_graph(graph, "detailed")
+        self.export_graph(graph, "detailed", self.directory)
 
         self.mux_listing(graph, node_output)
         self.mux_removal(graph)
 
-        self.export_graph(graph, "detailed_nomux")
+        self.export_graph(graph, "detailed_nomux", self.directory)
 
         return {
             "res": res_graph_data,
@@ -526,14 +715,14 @@ class OpenRoadRun:
     
 
     @staticmethod
-    def export_graph(graph, est_or_det: str):
+    def export_graph(graph, est_or_det: str, directory: str):
         logger.info(f"Exporting graph to GML for {est_or_det}.")
-        if not os.path.exists("openroad_interface/results/"):
-            os.makedirs("openroad_interface/results/")
+        if not os.path.exists(f"{directory}/results/"):
+            os.makedirs(f"{directory}/results/")
             logger.info("Created results directory.")
         nx.write_gml(
-            graph, "openroad_interface/results/" + est_or_det + ".gml"
+            graph, f"{directory}/results/{est_or_det}.gml"
         )
-        logger.info(f"Graph exported to openroad_interface/results/{est_or_det}.gml")
+        logger.info(f"Graph exported to {directory}/results/{est_or_det}.gml")
 
    
