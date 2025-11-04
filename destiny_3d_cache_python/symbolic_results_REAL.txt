@@ -1,0 +1,29 @@
+Traceback (most recent call last):
+  File "/Users/aaravwattal/Documents/Stanford/Junior Fall/Memory Modeling RSG/cacti_destiny_old/destiny_3d_cache_python/symbolic_access_time_FIXED.py", line 242, in main
+    subarray = run_python_destiny_calculation(opt_config, config_file)
+  File "/Users/aaravwattal/Documents/Stanford/Junior Fall/Memory Modeling RSG/cacti_destiny_old/destiny_3d_cache_python/symbolic_access_time_FIXED.py", line 77, in run_python_destiny_calculation
+    subarray.Initialize(
+  File "/Users/aaravwattal/Documents/Stanford/Junior Fall/Memory Modeling RSG/cacti_destiny_old/destiny_3d_cache_python/SubArray.py", line 217, in Initialize
+    self.capWordline = self.lenWordline * g.localWire.capWirePerUnit * self.num3DLevels
+AttributeError: 'NoneType' object has no attribute 'capWirePerUnit'
+================================================================================
+SYMBOLIC ACCESS TIME ANALYSIS - FIXED VERSION
+Real Python DESTINY Calculations + Real Symbolic Formulas
+================================================================================
+
+📁 Parsing C++ DESTINY output: ../destiny_3d_cache-master/cpp_output_sram2layer.txt
+
+================================================================================
+RUNNING PYTHON DESTINY WITH OPTIMAL CONFIGURATION
+================================================================================
+
+Configuration:
+  Process Node: 65 nm
+  Device Roadmap: 2
+  Subarray: 1024 rows × 2048 cols
+  Memory Cell: 0
+
+✗ Error running Python DESTINY: 'NoneType' object has no attribute 'capWirePerUnit'
+
+Note: Python DESTINY is still being debugged.
+C++ DESTINY results are 100% accurate.

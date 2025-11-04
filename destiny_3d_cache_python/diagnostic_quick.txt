@@ -1,0 +1,68 @@
+
+================================================================================
+TECHNOLOGY PARAMETERS COMPARISON
+================================================================================
+
+Process Node:
+  Python: 65 nm
+  C++:    65 nm (from config)
+
+Voltage (V_dd):
+  Python g.tech.vdd:    0.8000 V
+  Python g.devtech.vdd: 0.8000 V
+
+Feature Size:
+  Python g.tech.featureSize:    65.00 nm
+  Python g.devtech.featureSize: 65.00 nm
+
+Current (I_on):
+  Python g.tech.currentOnNmos[0]:    5.629000e+02 A
+  Python g.devtech.currentOnNmos[0]: 5.629000e+02 A
+
+Wire Parameters:
+  Python g.localWire.capWirePerUnit: 2.939392e-10 F/m
+  Python g.localWire.resWirePerUnit: 1.508655e+06 Ω/m
+
+================================================================================
+SUBARRAY PARAMETERS COMPARISON (Before CalculateLatency)
+================================================================================
+
+Configuration:
+  Rows: Python=1024, C++=1024
+  Cols: Python=2048, C++=2048
+  Mux:  Python=senseamp:1 L1:1 L2:8
+        C++=senseamp:1 L1:1 L2:8
+
+Physical Dimensions:
+  Python lenBitline: 971.776 μm
+  Python lenWordline: 1393.600 μm
+
+Bitline RC (CRITICAL!):
+  Python resBitline: 2.932150e+03 Ω
+  Python capBitline: 6.207682e-13 F
+  Python R×C:        1.820185e-09 s
+
+Cell Parameters:
+  Python widthInFeatureSize:  10.00 F
+  Python heightInFeatureSize: 14.60 F
+  Python memCellType: 0
+
+================================================================================
+DELAY RESULTS COMPARISON (After CalculateLatency)
+================================================================================
+
+Component Delays:
+  Component            Python (ns)     C++ (ns)        Ratio     
+  ------------------------------------------------------------
+  Row Decoder          2.532469        1.200000        2.110     ×
+  Bitline              4.038061        1.990000        2.029     ×
+  Senseamp (ps)        6.754961        6.755000        1.000     ×
+  Mux (ps)             24.212829       24.213000       1.000     ×
+  ------------------------------------------------------------
+  TOTAL                6.601498        3.220000        2.050     ×
+
+Analysis:
+  ✓ Senseamp matches exactly - good!
+  ✓ Mux matches exactly - good!
+  ✗ Bitline differs by 102.9% - INVESTIGATE!
+  ✗ Row decoder differs by 111.0% - INVESTIGATE!
