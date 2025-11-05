@@ -100,5 +100,5 @@ class CheckpointController:
             if self.cfg["args"]["checkpoint_save_dir"] != "none":
                 self.create_checkpoint()
 
-            raise Exception("Finished "+checkpoint_step+", which was specified in the config " + self.cfg["args"]["config"] + " as the stopping point for this run.")
+            raise Exception("^^CHECKPOINT REACHED: "+checkpoint_step+" . RUN SUCCEEDED^^, which was specified in the config " + self.cfg["args"]["config"] + " as the stopping point for this run.")
         

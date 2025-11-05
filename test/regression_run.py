@@ -4,7 +4,9 @@ import pprint
 import queue
 import shutil
 import subprocess
+import sys
 import threading
+import time as _time
 import yaml
 
 from src import codesign
@@ -18,6 +20,10 @@ class RegressionRun:
         self.single_config_path = single_config_path
         self.test_list_path = test_list_path
         self.max_parallelism = max_parallelism
+
+        self.completed_jobs = 0
+        self.completed_lock = threading.Lock()
+        self.stop_event = threading.Event()
 
         self.config_files_to_run = []
 
@@ -65,21 +71,27 @@ class RegressionRun:
             threads.append(t)
 
         # populate the queue with work
+        total_jobs = 0
         for config_info in self.config_files_to_run:
             config_path = config_info["config_path"]
             results_dir = config_info["results_dir"]
             print(f"Running config file: {config_path} with results dir: {results_dir}")
-            self.run_single_config_file(config_path, results_dir)
+            total_jobs += self.run_single_config_file(config_path, results_dir)
 
+        # Start progress tracker
+        tracker_thread = threading.Thread(target=self.progress_tracker, args=(total_jobs,), daemon=True)
+        tracker_thread.start()
+        
         # Wait for all jobs to finish
         self.job_queue.join()
 
         # Stop workers
+        self.stop_event.set()
         for _ in range(self.max_parallelism):
             self.job_queue.put(None)
         for t in threads:
             t.join()
-        print("All jobs complete.")
+        tracker_thread.join()
         
     
     def run_single_config_file(self, config_file_path, results_dir):
@@ -87,10 +99,14 @@ class RegressionRun:
         with open(config_file_path, "r") as f:
             config_yaml = yaml.load(f, Loader=yaml.FullLoader)
         
+        count = 0
         for config_name in config_yaml:
             print(f"Running config: {config_name}")
             job_results_dir = os.path.join(results_dir, config_name)
             self.job_queue.put((config_file_path, config_name, job_results_dir))
+            count+=1
+
+        return count
     
     
     def run_single_job(self, config_path, config_name, job_results_dir):
@@ -131,13 +147,13 @@ class RegressionRun:
             )
             # wait for the process to complete
             process.wait()
-
-        print(f"codesign output captured to: {log_path}")
  
-        if process.returncode != 0:
-            raise RuntimeError(f"codesign failed with exit code {process.returncode}")
+        success = self.check_correct_completion(log_path)
+        if not success:
+            print(f"Job did not complete successfully. See log: {log_path}")
 
-        print("Codesign run complete!")
+        with self.completed_lock:
+            self.completed_jobs += 1
 
     def worker(self):
         while True:
@@ -151,6 +167,44 @@ class RegressionRun:
                 print(f"❌ Job {config_name} failed: {e}")
             finally:
                 self.job_queue.task_done()
+
+
+    def check_correct_completion(self, log_path):
+
+        # look for "^^CHECKPOINT REACHED: <checkpoint_step> . RUN SUCCEEDED^^ 
+        success = False
+        with open(log_path, "r") as f:
+            for line in f:
+                if "^^CHECKPOINT REACHED:" in line and ". RUN SUCCEEDED^^" in line:
+                    success = True
+                    break
+
+        return success
+
+
+
+
+    # ----------------------------
+    # Progress animation thread
+    # ----------------------------
+    def progress_tracker(self, total_jobs):
+        spinner = ['|', '/', '-', '\\']
+        i = 0
+        while not self.stop_event.is_set():
+            with self.completed_lock:
+                done = self.completed_jobs
+            percent = (done / total_jobs) * 100 if total_jobs > 0 else 0
+            bar_len = 40
+            filled = int(bar_len * done / total_jobs)
+            bar = "█" * filled + "-" * (bar_len - filled)
+            sys.stdout.write(
+                f"\r{spinner[i % len(spinner)]}  [{bar}] {done}/{total_jobs} jobs complete ({percent:.1f}%)"
+            )
+            sys.stdout.flush()
+            i += 1
+            _time.sleep(0.2)
+        # Final clean line
+        sys.stdout.write("\r✅  [████████████████████████████████████████] All jobs complete!\n")
 
         
 
