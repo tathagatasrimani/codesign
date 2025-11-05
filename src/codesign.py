@@ -265,8 +265,27 @@ class Codesign:
                 export PYTHONPATH=$PYTHONPATH:$PWD/build/tools/scalehls/python_packages/scalehls_core
                 source mlir_venv/bin/activate
                 cd {os.path.join(os.path.dirname(__file__), "..", save_dir)}
-                python3 {self.benchmark_name}.py > {self.benchmark_name}.mlir 
-                scalehls-opt {self.benchmark_name}.mlir -hida-pytorch-pipeline=\"top-func={self.vitis_top_function} loop-tile-size=8 loop-unroll-factor=4\" | scalehls-translate -scalehls-emit-hlscpp -emit-vitis-directives > {os.path.join(os.path.dirname(__file__), "..", save_dir)}/{self.benchmark_name}.cpp
+                python3 {self.benchmark_name}.py > {self.benchmark_name}_temp.mlir 
+                mlir-opt resnet18.mlir \
+                    -canonicalize -cse \
+                    -empty-tensor-to-alloc-tensor \
+                    -one-shot-bufferize="bufferize-function-boundaries allow-return-allocs function-boundary-type-conversion=identity-layout-map" \
+                    -buffer-deallocation \
+                    -canonicalize -cse \
+                    -convert-linalg-to-affine-loops \
+                    -lower-affine -scf-for-loop-canonicalization \
+                    -cse -canonicalize \
+                    -o resnet18_core.mlir
+                mlir-opt resnet18_core.mlir \
+                    -inline \
+                    -canonicalize -cse \
+                    -convert-linalg-to-loops \
+                    -lower-affine \
+                    -canonicalize -cse \
+                    -o resnet18_ready.mlir
+                scalehls-opt resnet18_ready.mlir \
+                    -scalehls-dse-pipeline="top-func=forward target-spec={os.path.join(os.path.dirname(__file__), "..", "ScaleHLS-HIDA/test/Transforms/Directive/config.json")}" \
+                    -o output.mlir
                 deactivate
                 pwd
                 '''
@@ -298,6 +317,10 @@ class Codesign:
                 pwd
                 '''
             ]
+        
+        print("##########################")
+        print("\n".join(cmd))
+        print("##########################")
 
         with open(f"src/tmp/scalehls_out.log", "w") as outfile:
             p = subprocess.Popen(
@@ -434,6 +457,9 @@ class Codesign:
         elif not self.cfg["args"]["pytorch"]: # pytorch scalehls dse not yet working
             mlir_file, mlir_idx = self.parse_design_space_for_mlir(os.path.join(os.path.dirname(__file__), "..", "src/tmp/benchmark_setup"))
             opt_cmd = f"cat {mlir_file}"
+            print("################")
+            print(opt_cmd)
+            print("################")
         else:
             opt_cmd = ""
 
