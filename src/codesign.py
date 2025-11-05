@@ -265,7 +265,7 @@ class Codesign:
                 export PYTHONPATH=$PYTHONPATH:$PWD/build/tools/scalehls/python_packages/scalehls_core
                 source mlir_venv/bin/activate
                 cd {os.path.join(os.path.dirname(__file__), "..", save_dir)}
-                python3 {self.benchmark_name}.py > {self.benchmark_name}_temp.mlir 
+                python3 {self.benchmark_name}.py > {self.benchmark_name}.mlir 
                 mlir-opt resnet18.mlir \
                     -canonicalize -cse \
                     -empty-tensor-to-alloc-tensor \
