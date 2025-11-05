@@ -1,8 +1,10 @@
 import argparse
 import os
 import pprint
+import queue
 import shutil
 import subprocess
+import threading
 import yaml
 
 from src import codesign
@@ -47,16 +49,37 @@ class RegressionRun:
                 results_dir = os.path.join(self.base_results_dir, os.path.splitext(os.path.basename(test_cfg))[0])
                 self.config_files_to_run.append({"results_dir": results_dir, "config_path": config_path})
 
+        self.job_queue = queue.Queue()
+
 
     def run_regression(self):
 
         pprint.pprint(self.config_files_to_run)
 
+
+        # Start worker threads
+        threads = []
+        for _ in range(self.max_parallelism):
+            t = threading.Thread(target=self.worker)
+            t.start()
+            threads.append(t)
+
+        # populate the queue with work
         for config_info in self.config_files_to_run:
             config_path = config_info["config_path"]
             results_dir = config_info["results_dir"]
             print(f"Running config file: {config_path} with results dir: {results_dir}")
             self.run_single_config_file(config_path, results_dir)
+
+        # Wait for all jobs to finish
+        self.job_queue.join()
+
+        # Stop workers
+        for _ in range(self.max_parallelism):
+            self.job_queue.put(None)
+        for t in threads:
+            t.join()
+        print("All jobs complete.")
         
     
     def run_single_config_file(self, config_file_path, results_dir):
@@ -67,7 +90,7 @@ class RegressionRun:
         for config_name in config_yaml:
             print(f"Running config: {config_name}")
             job_results_dir = os.path.join(results_dir, config_name)
-            self.run_single_job(config_file_path, config_name, job_results_dir)
+            self.job_queue.put((config_file_path, config_name, job_results_dir))
     
     
     def run_single_job(self, config_path, config_name, job_results_dir):
@@ -77,8 +100,6 @@ class RegressionRun:
         
         os.makedirs(job_results_dir)
 
-
-
         # copy the config file to the results dir
         shutil.copy(config_path, os.path.join(job_results_dir, "config.yaml"))
         
@@ -86,13 +107,14 @@ class RegressionRun:
         
         # start a subprocess that runs codesign with the config file
         cmd = (
-                f'bash -i -c "source full_env_start.sh && '
-                f'$(which python) -u -m src.codesign '
-                f'--config {config_name} '
-                f'--additional_cfg_file {os.path.join(job_results_dir, "config.yaml")} '
-                f'--tmp_dir {os.path.join(job_results_dir, "tmp")} '
-                f'-f {os.path.join(job_results_dir, "log")} "'
-            )
+            f'bash -c "shopt -s expand_aliases && '
+            f'source full_env_start.sh && '
+            f'$(which python) -u -m src.codesign '
+            f'--config {config_name} '
+            f'--additional_cfg_file {os.path.join(job_results_dir, "config.yaml")} '
+            f'--tmp_dir {os.path.join(job_results_dir, "tmp")} '
+            f'-f {os.path.join(job_results_dir, "log")} "'
+        )
         # Run in shell mode so it inherits environment vars (PATH, conda env, etc.)
 
         # capture stdout/stderr to a logfile in the results dir
@@ -116,6 +138,19 @@ class RegressionRun:
             raise RuntimeError(f"codesign failed with exit code {process.returncode}")
 
         print("Codesign run complete!")
+
+    def worker(self):
+        while True:
+            job = self.job_queue.get()
+            if job is None:
+                break
+            config_path, config_name, results_dir = job
+            try:
+                self.run_single_job(config_path, config_name, results_dir)
+            except Exception as e:
+                print(f"❌ Job {config_name} failed: {e}")
+            finally:
+                self.job_queue.task_done()
 
         
 
@@ -159,4 +194,6 @@ if __name__ == "__main__":
         reg_run = RegressionRun(cfg=None, codesign_root_dir=cwd, single_config_path=args.single_config, test_list_path=args.test_list, max_parallelism=args.max_parallelism)
 
         reg_run.run_regression()
+
+    
 

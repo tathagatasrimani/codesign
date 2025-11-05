@@ -1092,7 +1092,7 @@ if __name__ == "__main__":
     parser.add_argument("--hls_tool", type=str, help="hls tool to use")
     parser.add_argument("--config", type=str, default="default", help="config to use")
     parser.add_argument("--checkpoint_load_dir", type=str, help="directory to load checkpoint")
-    parser.add_argument("--checkpoint_save_dir", type=str, help="directory to save checkpoint")
+    parser.add_argument("--checkpoint_save_dir", type=str, help="directory to save checkpoint", default="none")
     parser.add_argument("--checkpoint_start_step", type=str, help="checkpoint step to resume from (the flow will start normal execution AFTER this step)")
     parser.add_argument("--stop_at_checkpoint", type=str, help="checkpoint step to stop at (will complete this step and then stop)")
     parser.add_argument("--workload_size", type=int, help="workload size to use, such as the dimension of the matrix for gemm. Only applies to certain benchmarks")

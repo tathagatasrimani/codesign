@@ -1,4 +1,0 @@
-vitis_gemm_test_auto:
-  base_cfg: vitis_test
-  args:
-    benchmark: gemm

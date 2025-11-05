@@ -1,4 +1,2 @@
 ## This file specifies a list of autotests that will be run. These files must be in the same directory.
-#- vitis_base_tests.yaml
-#- vitis_checkpoint_tests.yaml
-- single_test.yaml
+- vitis_base_tests.yaml
