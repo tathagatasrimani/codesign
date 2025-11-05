@@ -144,6 +144,17 @@ class Codesign:
                             raise Exception(f"Duplicate key {key} found in additional config {additional_config_file}")
 
                     cfgs = {**cfgs, **additional_cfg}
+
+        if args.additional_cfg_file is not None:
+            with open(args.additional_cfg_file, "r") as f:
+                additional_cfg = yaml.load(f, Loader=yaml.FullLoader)
+
+                # check that there aren't any duplicate keys
+                for key in additional_cfg:
+                    if key in cfgs:
+                        raise Exception(f"Duplicate key {key} found in additional config {args.additional_cfg_file}")
+
+                cfgs = {**cfgs, **additional_cfg}
         
         overwrite_args_all = vars(args)
         overwrite_args = {}
@@ -162,8 +173,12 @@ class Codesign:
         if not os.path.exists("src/tmp"):
                 os.makedirs("src/tmp")
 
+        tmp_base_dir = "src/tmp"
+        if self.cfg["args"]["tmp_dir"] is not None:
+            tmp_base_dir = self.cfg["args"]["tmp_dir"]
+
         while True:
-            tmp_dir = f"src/tmp/tmp_{self.benchmark_name}_{self.obj_fn}_{idx}"
+            tmp_dir = f"{tmp_base_dir}/tmp_{self.benchmark_name}_{self.obj_fn}_{idx}"
             tmp_dir_full = os.path.join(self.codesign_root_dir, tmp_dir)
             if not os.path.exists(tmp_dir_full):
                 os.makedirs(tmp_dir_full)
@@ -1055,6 +1070,16 @@ if __name__ == "__main__":
         "--no_memory",
         type=bool,
         help="disable memory modeling",
+    )
+    parser.add_argument(
+        "--additional_cfg_file",
+        type=str,
+        help="path to an additional configuration file",
+    )
+    parser.add_argument(
+        "--tmp_dir",
+        type=str,
+        help="path to store the tmp dir for this run",
     )
     parser.add_argument('--debug_no_cacti', type=bool,
                         help='disable cacti in the first iteration to decrease runtime when debugging')

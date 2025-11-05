@@ -24,6 +24,8 @@ data/**
 
 logs/**
 
+test/regression_results/**
+
 test/inverse_validation/logs/**
 test/inverse_validation/figs/**
 test/inverse_validation/inverse_walkthrough_log_dir/**
