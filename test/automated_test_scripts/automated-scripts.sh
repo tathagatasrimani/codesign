@@ -30,28 +30,17 @@ shopt -s expand_aliases
 
 alias create_checkpoint="python3 -m test.checkpoint_controller"
 alias run_codesign="python3 -m src.codesign"
+alias run_regression="python3 -m test.regression_run"
 
 echo "Activated the alias succesfully!"
 
-# run_codesign --config vitis_gemm_checkpoint_after_pd
+# Run regression and propagate its exit code directly.
+# Use 'set +e' so the script can capture the exit code instead of exiting immediately.
 set +e
-run_codesign --config vitis_gemm_checkpoint_after_pd > run.log 2>&1
+run_regression -l auto_tests/auto-testlist.yaml -m 10
 status=$?
 set -e
-
-if grep -q "AssertionError" run.log; then
-  echo "✅ Expected AssertionError found. Treating as success."
-  cat run.log
-  exit 0
-elif [ $status -ne 0 ]; then
-  echo "❌ Unexpected error occurred"
-  cat run.log
-  exit $status
-else
-  echo "✅ Script completed successfully"
-  cat run.log
-  exit 0
-fi
+exit $status
 
 # Examples:
 # pytest -q --maxfail=1 --disable-warnings --junitxml=reports/test-results.xml
