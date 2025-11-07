@@ -8,9 +8,12 @@ import sys
 import threading
 import time as _time
 import yaml
+import signal
 
 from src import codesign
 from src import sim_util
+
+MAX_JOB_RUNTIME_MINS = 70  # in minutes
 
 
 class RegressionRun:
@@ -132,26 +135,49 @@ class RegressionRun:
             f'-f {os.path.join(job_results_dir, "log")} "'
         )
         # Run in shell mode so it inherits environment vars (PATH, conda env, etc.)
-
-        # capture stdout/stderr to a logfile in the results dir
-        
+        # capture stdout/stderr to a logfile in the results dir and enforce a timeout
+        timeout_secs = MAX_JOB_RUNTIME_MINS * 60
         with open(log_path, "wb") as logf:
+            # start process in its own process group so we can kill children reliably
             process = subprocess.Popen(
                 cmd,
                 shell=True,
-                cwd=self.codesign_root_dir,   # optional: run inside the results dir
-                env=os.environ,    # copy parent environment
+                cwd=self.codesign_root_dir,
+                env=os.environ,
                 stdout=logf,
                 stderr=subprocess.STDOUT,
                 executable="/bin/bash",
+                preexec_fn=os.setsid,
             )
-            # wait for the process to complete
-            process.wait()
+            try:
+                process.wait(timeout=timeout_secs)
+            except subprocess.TimeoutExpired:
+                # log and terminate the whole process group
+                msg = f"\n*** Job {config_name} exceeded max runtime ({MAX_JOB_RUNTIME_MINS} mins) and was terminated ***\n"
+                try:
+                    logf.write(msg.encode())
+                    logf.flush()
+                except Exception:
+                    pass
+                try:
+                    os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+                except Exception:
+                    try:
+                        process.kill()
+                    except Exception:
+                        pass
+                # give it a short grace period to exit
+                try:
+                    process.wait(timeout=10)
+                except Exception:
+                    pass
+                success = False
+            else:
+                success = self.check_correct_completion(log_path)
  
-        success = self.check_correct_completion(log_path)
         if not success:
             print(f"Job did not complete successfully. See log: {log_path}")
-
+ 
         with self.completed_lock:
             self.completed_jobs += 1
 
@@ -249,5 +275,5 @@ if __name__ == "__main__":
 
         reg_run.run_regression()
 
-    
+
 
