@@ -435,7 +435,7 @@ class Codesign:
         else:
             logger.info("Skipping Vitis netlist parsing")
 
-        self.checkpoint_controller.check_end_checkpoint("netlist")
+        self.checkpoint_controller.check_end_checkpoint("netlist", self.iteration_count)
 
         if self.checkpoint_controller.check_checkpoint("schedule", self.iteration_count) and not self.max_rsc_reached:
             start_time = time.time()
@@ -462,7 +462,7 @@ class Codesign:
                         #self.hw.loop_2x_graphs[file] = nx.read_gml(f"{parse_results_dir}/{file}/{file}_graph_loop_2x_standard_with_wire_ops.gml")
             logger.info("Skipping Vitis schedule parsing")
 
-        self.checkpoint_controller.check_end_checkpoint("schedule")
+        self.checkpoint_controller.check_end_checkpoint("schedule", self.iteration_count)
 
         print(f"Current working directory at end of vitis parse data: {os.getcwd()}")
 
@@ -524,7 +524,7 @@ class Codesign:
             self.max_speedup_factor = float(latency / self.max_latency)
             self.max_area_increase_factor = float(self.max_dsp / dsp_usage)
         if not setup:
-            self.checkpoint_controller.check_end_checkpoint("scalehls")
+            self.checkpoint_controller.check_end_checkpoint("scalehls", self.iteration_count)
         if setup: # setup step ends here, don't need to run rest of forward pass
             return
 
@@ -575,7 +575,7 @@ class Codesign:
                 raise Exception(f"Vitis HLS command failed: see vitis_hls.log")
         else:
             logger.info("Skipping Vitis")
-        self.checkpoint_controller.check_end_checkpoint("vitis")
+        self.checkpoint_controller.check_end_checkpoint("vitis", self.iteration_count)
         os.chdir(os.path.join(os.path.dirname(__file__), ".."))
         # PARSE OUTPUT, set schedule and read netlist
         self.parse_vitis_data(save_dir=save_dir)
@@ -741,7 +741,7 @@ class Codesign:
 
             self.hw.display_objective("after forward pass")
 
-        self.checkpoint_controller.check_end_checkpoint("pd")
+        self.checkpoint_controller.check_end_checkpoint("pd", self.iteration_count)
         self.obj_over_iterations.append(sim_util.xreplace_safe(self.hw.obj, self.hw.circuit_model.tech_model.base_params.tech_values))
 
     def parse_catapult_timing(self):
@@ -988,7 +988,7 @@ class Codesign:
     def execute(self, num_iters):
         self.iteration_count = 0
         self.setup()
-        self.checkpoint_controller.check_end_checkpoint("setup")
+        self.checkpoint_controller.check_end_checkpoint("setup", self.iteration_count)
         while self.iteration_count < num_iters:
             start_time = time.time()
             self.forward_pass(self.iteration_count, self.benchmark_dir)

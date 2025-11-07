@@ -63,6 +63,7 @@ alias clean_checkpoints 'rm -rf ~/test/saved_checkpoints/*'
 alias clean_logs 'rm -rf ~/logs/*'
 alias clean_tmp 'rm -rf ~/src/tmp/*'
 alias clean_codesign 'rm -rf ~/test/saved_checkpoints/*; rm -rf ~/logs/*; rm -rf ~/src/tmp/*'
+alias run_regression 'python3 -m test.regression_run'
 
 # set home directory to codesign home directory
 setenv HOME `pwd`

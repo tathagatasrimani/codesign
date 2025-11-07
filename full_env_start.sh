@@ -227,6 +227,7 @@ alias clean_checkpoints="rm -rf ~/test/saved_checkpoints/*"
 alias clean_logs="rm -rf ~/logs/*"
 alias clean_tmp="rm -rf ~/src/tmp/*"
 alias clean_codesign="clean_checkpoints; clean_logs; clean_tmp"
+alias run_regression="python3 -m test.regression_run"
 
 ################## SUCCESSFUL BUILD LOG ##################
 if [[ $FORCE_FULL -eq 1 ]]; then
