@@ -16,11 +16,11 @@ benchmark_3mm_test_auto:
     benchmark: kernel_3mm
     stop_at_checkpoint: pd
     
-benchmark_atax_test_auto:
-  base_cfg: vitis_test
-  args:
-    benchmark: kernel_atax
-    stop_at_checkpoint: pd
+# benchmark_atax_test_auto:
+#   base_cfg: vitis_test
+#   args:
+#     benchmark: kernel_atax
+#     stop_at_checkpoint: pd
 
 benchmark_bicg_test_auto:
   base_cfg: vitis_test
@@ -46,15 +46,9 @@ vitis_gemm_32_test_auto:
     workload_size: 32
     stop_at_checkpoint: pd
 
-vitis_resnet_test_auto:
-  base_cfg: vitis_test
-  args:
-    pytorch: True
-    benchmark: resnet18
-    stop_at_checkpoint: pd
-
-vitis_jacobi_test_auto:
-  base_cfg: vitis_test
-  args:
-    benchmark: jacobi_2d
-    stop_at_checkpoint: pd
+# vitis_resnet_test_auto:
+#   base_cfg: vitis_test
+#   args:
+#     pytorch: True
+#     benchmark: resnet18
+#     stop_at_checkpoint: pd

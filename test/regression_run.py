@@ -28,13 +28,14 @@ INITIAL_PHASE_ITERATIONS = {0}
 
 
 class RegressionRun:
-    def __init__(self, cfg, codesign_root_dir, single_config_path=None, test_list_path=None, max_parallelism=4, absolute_paths=False):
+    def __init__(self, cfg, codesign_root_dir, single_config_path=None, test_list_path=None, max_parallelism=4, absolute_paths=False, silent_mode=False):
         self.cfg = cfg
         self.codesign_root_dir = codesign_root_dir
         self.single_config_path = single_config_path
         self.test_list_path = test_list_path
         self.max_parallelism = max_parallelism
         self.absolute_paths = absolute_paths
+        self.silent_mode = silent_mode
 
         self.completed_jobs = 0
         self.passed_jobs = 0
@@ -54,7 +55,7 @@ class RegressionRun:
 
         self.base_results_dir = os.path.join(self.codesign_root_dir, "test", "regression_results")
 
-        self.results_file = os.path.join(self.base_results_dir, "regression_results.yaml")
+        
         self.results_data = {}
         self.results_lock = threading.Lock()
 
@@ -70,6 +71,9 @@ class RegressionRun:
             single_config_filename = os.path.splitext(os.path.basename(self.single_config_path))[0]
 
             results_dir = os.path.join(self.base_results_dir, single_config_filename)
+
+            self.results_file = os.path.join(results_dir, "regression_results_full.yaml")
+            self.results_file_summary = os.path.join(results_dir, "regression_results_summary.yaml")
             
             self.config_files_to_run.append({"results_dir": results_dir, "config_path": self.single_config_path})
         elif self.test_list_path is not None:
@@ -81,6 +85,9 @@ class RegressionRun:
 
             # results dir is base_results_dir/test_list_filename (remove the .yaml)
             self.base_results_dir = os.path.join(self.base_results_dir, os.path.splitext(os.path.basename(self.test_list_path))[0])
+
+            self.results_file = os.path.join(self.base_results_dir, "regression_results_full.yaml")
+            self.results_file_summary = os.path.join(self.base_results_dir, "regression_results_summary.yaml")
             
             with open(self.test_list_path, "r") as f:
                 test_list_yaml = yaml.load(f, Loader=yaml.FullLoader)
@@ -127,6 +134,14 @@ class RegressionRun:
         for t in threads:
             t.join()
         tracker_thread.join()
+
+        self.write_summary_results()
+
+        ## return 0 if all tests passed, 1 if any test failed
+        if self.failed_jobs > 0:
+            return 1
+        else:
+            return 0
         
     
     def run_single_config_file(self, config_file_path, results_dir):
@@ -279,8 +294,10 @@ class RegressionRun:
     def progress_tracker(self, total_jobs):
         spinner = ['|', '/', '-', '\\']
         i = 0
-        sys.stdout.write("\n" * (self.max_parallelism + 2))
-        sys.stdout.flush()
+        
+        if not self.silent_mode:
+            sys.stdout.write("\n" * (self.max_parallelism + 2))
+            sys.stdout.flush()
 
         while not self.stop_event.is_set():
             with self.completed_lock:
@@ -296,7 +313,8 @@ class RegressionRun:
             filled = int(bar_len * done / total_jobs)
             bar = "█" * filled + "-" * (bar_len - filled)
 
-            sys.stdout.write(f"\033[{self.max_parallelism + 2}F")
+            if not self.silent_mode:
+                sys.stdout.write(f"\033[{self.max_parallelism + 2}F")
             now = _time.time()
 
             with self.job_worker_lock:
@@ -325,33 +343,42 @@ class RegressionRun:
                         if not initialized:
                             ckpt_txt = " | Initializing..."
                         else:
-                            ckpt_txt = f" | Checkpoint {step}@{it}"
+                            ckpt_txt = f" | {step} for iteration {it} completed."
                     else:
                         ckpt_txt = " | Initializing..."
-                    sys.stdout.write(f"\033[KWorker {wid+1}: Running {job_name} | Time {mins:02d}:{secs:02d}{ckpt_txt}\n")
+                    if not self.silent_mode:
+                        sys.stdout.write(f"\033[KWorker {wid+1}: Running {job_name} | Time {mins:02d}:{secs:02d}{ckpt_txt}\n")
                 else:
-                    sys.stdout.write(f"\033[KWorker {wid+1}: Idle\n")
+                    if not self.silent_mode:
+                        sys.stdout.write(f"\033[KWorker {wid+1}: Idle\n")
 
-            sys.stdout.write(
-                f"\033[K{spinner[i % len(spinner)]}  [{bar}] {done}/{total_jobs} jobs complete "
-                f"({percent_done:.1f}%) | Passed ✅: {passed} ({passed_pct:.1f}%) | "
-                f"Failed ❌: {failed} ({failed_pct:.1f}%)\n\n"
+            if not self.silent_mode:
+                sys.stdout.write(
+                    f"\033[K{spinner[i % len(spinner)]}  [{bar}] {done}/{total_jobs} jobs complete "
+                    f"({percent_done:.1f}%) | Passed ✅: {passed} ({passed_pct:.1f}%) | "
+                    f"Failed ❌: {failed} ({failed_pct:.1f}%)\n\n"
             )
-            sys.stdout.flush()
+            if not self.silent_mode:
+                sys.stdout.flush()
             i += 1
             _time.sleep(0.2)
 
-        sys.stdout.write(f"\033[{self.max_parallelism + 2}F")
+        if not self.silent_mode:
+            sys.stdout.write(f"\033[{self.max_parallelism + 2}F")
         for wid in range(self.max_parallelism):
-            sys.stdout.write(f"\033[KWorker {wid+1}: Idle\n")
-        sys.stdout.write(
-            f"\033[K✅  [████████████████████████████████████████] All jobs complete!  "
-            f"Passed ✅: {self.passed_jobs} ({(self.passed_jobs/total_jobs)*100:.1f}%) | "
-            f"Failed ❌: {self.failed_jobs} ({(self.failed_jobs/total_jobs)*100:.1f}%)\n\n"
-        )
+            if not self.silent_mode:
+                sys.stdout.write(f"\033[KWorker {wid+1}: Idle\n")
+
+        if not self.silent_mode:
+            sys.stdout.write(
+                f"\033[K✅  [████████████████████████████████████████] All jobs complete!  "
+                f"Passed ✅: {self.passed_jobs} ({(self.passed_jobs/total_jobs)*100:.1f}%) | "
+                f"Failed ❌: {self.failed_jobs} ({(self.failed_jobs/total_jobs)*100:.1f}%)\n\n"
+            )
+            sys.stdout.flush()
 
     def record_result(self, job_name, success, elapsed_time):
-        """Record job result and write to regression_results.yaml safely."""
+        """Record job result and write to results file safely."""
         with self.results_lock:
             self.results_data[job_name] = {
                 "status": "passed" if success else "failed",
@@ -422,12 +449,39 @@ class RegressionRun:
 
             _time.sleep(0.5)
 
+    def write_summary_results(self):
+        """Write a summary results YAML file with just pass/fail counts."""
+        with self.results_lock:
+            failed_names = [name for name, r in self.results_data.items() if r.get("status") == "failed"]
+            summary = {
+                "total_jobs": len(self.results_data),
+                "passed_jobs": sum(1 for r in self.results_data.values() if r.get("status") == "passed"),
+                "failed_jobs": sum(1 for r in self.results_data.values() if r.get("status") == "failed"),
+                "failed_list": failed_names,
+            }
+            # ensure base dir exists
+            os.makedirs(os.path.dirname(self.results_file_summary), exist_ok=True)
+            # atomic write to avoid corruption
+            tmp_path = self.results_file_summary + ".tmp"
+            with open(tmp_path, "w") as f:
+                yaml.dump(summary, f, default_flow_style=False)
+            os.replace(tmp_path, self.results_file_summary)
+        # Also print failed jobs to stdout (unless silent)
+        if failed_names:
+            if not self.silent_mode:
+                print("Failed jobs:")
+                for n in failed_names:
+                    print(f" - {n}")
+        else:
+            if not self.silent_mode:
+                print("All jobs passed.")
+
 
 
 if __name__ == "__main__":
         parser = argparse.ArgumentParser(
             prog="Codesign Regression Run",
-            description="Runs the codesign framework in regression mode.",
+            description="Runs the codesign framework in regression mode. Return code will be 0 if all tests pass, 1 if any test fails.",
             epilog="the end",
         )
         parser.add_argument(
@@ -459,6 +513,13 @@ if __name__ == "__main__":
             default=4,
         )
 
+        parser.add_argument(
+            "-q",
+            "--quiet_mode",
+            action="store_true",
+            help="Run the regression in silent mode, suppressing output.",
+        )
+
         args = parser.parse_args()
 
         ## check if we are in the codesign directory
@@ -467,9 +528,8 @@ if __name__ == "__main__":
             print("Error: must be run from the codesign root directory")
             exit(1)
 
-        reg_run = RegressionRun(cfg=None, codesign_root_dir=cwd, single_config_path=args.single_config, test_list_path=args.test_list, max_parallelism=args.max_parallelism, absolute_paths=args.absolute_paths)
+        reg_run = RegressionRun(cfg=None, codesign_root_dir=cwd, single_config_path=args.single_config, test_list_path=args.test_list, max_parallelism=args.max_parallelism, absolute_paths=args.absolute_paths, silent_mode=args.quiet_mode)
 
-        reg_run.run_regression()
+        exit_code = reg_run.run_regression()
 
-
-
+        exit(exit_code)

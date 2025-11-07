@@ -1,8 +1,10 @@
 #!/bin/bash
 
 ################## CHECK BUILD LOG / FORCE FULL ##################
-BUILD_LOG="build.log"
+BUILD_LOG=".build.log"
 FORCE_FULL=0
+
+SETUP_SCRIPTS_FOLDER="$(pwd)/setup_scripts"
 
 # Parse command line options
 for arg in "$@"; do
@@ -119,10 +121,10 @@ else
             OS_VERSION=$(cat /etc/redhat-release)
             case "$OS_VERSION" in 
                 *"Rocky Linux release 8"*|*"Red Hat Enterprise Linux release 8"*)
-                    bash openroad_install_rhel8.sh
+                    bash "$SETUP_SCRIPTS_FOLDER"/openroad_install_rhel8.sh
                 ;;
                 *"Rocky Linux release 9"*|*"Red Hat Enterprise Linux release 9"*)
-                    bash openroad_install.sh
+                    bash "$SETUP_SCRIPTS_FOLDER"/openroad_install.sh
                 ;;
                 *)
                     echo "Unsupported Rocky Linux version: $OS_VERSION"
@@ -150,7 +152,7 @@ fi
 
 ################ SET UP SCALEHLS ##################
 ## we want this to operate outside of conda, so do this first
-source scale_hls_setup.sh $FORCE_FULL # setup scalehls
+source "$SETUP_SCRIPTS_FOLDER"/scale_hls_setup.sh $FORCE_FULL # setup scalehls
 
 ################### SET UP CONDA ENVIRONMENT ##################
 # Check if the directory miniconda3 exists
@@ -163,7 +165,7 @@ else
     bash Miniconda3-latest-Linux-x86_64.sh -b -p "$(pwd)/miniconda3"
     export PATH="$(pwd)/miniconda3/bin:$PATH"
     source miniconda3/etc/profile.d/conda.sh
-    conda env create -f environment_simplified.yml
+    conda env create -f "$SETUP_SCRIPTS_FOLDER"/environment_simplified.yml
 
     # create symlinks for g++-13 needed by cacti
     cd miniconda3/envs/codesign/bin
@@ -194,15 +196,15 @@ make
 cd ../..
 
 ## make verilator
-source verilator_install.sh
+source "$SETUP_SCRIPTS_FOLDER"/verilator_install.sh
 
 ## Load cad tools
 if [ "$UNIVERSITY" = "stanford" ]; then
     echo "Setting up Stanford CAD tools..."
-    source stanford_cad_tool_setup.sh
+    source "$SETUP_SCRIPTS_FOLDER"/stanford_cad_tool_setup.sh
 elif [ "$UNIVERSITY" = "cmu" ]; then
     echo "Setting up CMU CAD tools..."
-    source cmu_cad_tool_setup.sh
+    source "$SETUP_SCRIPTS_FOLDER"/cmu_cad_tool_setup.sh
 else
     echo "Unsupported university for licensed cad tool setup: $UNIVERSITY"
     exit 1

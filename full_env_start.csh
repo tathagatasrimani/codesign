@@ -1,5 +1,7 @@
 #!/bin/tcsh
 
+set SETUP_SCRIPTS_FOLDER=`pwd`/setup_scripts
+
 # Save the old home directory before changing it
 setenv OLD_HOME "${HOME}"
 echo "OLD_HOME: ${OLD_HOME}"
@@ -68,12 +70,11 @@ alias run_regression 'python3 -m test.regression_run'
 # set home directory to codesign home directory
 setenv HOME `pwd`
 
-
 ## source the appropriate cad setup scripts based on university
 if ("$UNIVERSITY" == "stanford") then
-    source stanford_cad_tool_setup.csh
+    source "${SETUP_SCRIPTS_FOLDER}"/stanford_cad_tool_setup.csh
 else if ("$UNIVERSITY" == "cmu") then
-    source cmu_cad_tool_setup.csh
+    source "${SETUP_SCRIPTS_FOLDER}"/cmu_cad_tool_setup.csh
 endif
 
 # Only copy Xauthority if we're in a different directory than the old home
