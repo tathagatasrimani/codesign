@@ -26,8 +26,8 @@ jobs:
         
       - name: Set up bash and run environment setup
         run: |
-          OPENROAD_PRE_INSTALLED=1
-          source ./full_env_start.sh
+          chmod +x full_env_start.sh || true
+          OPENROAD_PRE_INSTALLED=1 ./full_env_start.sh
 
       - name: Run Codesign Script
         run: |
