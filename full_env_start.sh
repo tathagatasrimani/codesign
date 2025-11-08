@@ -93,7 +93,7 @@ fi
 ################## INSTALL OPENROAD ##################
 git submodule update --init --recursive openroad_interface/OpenROAD
 
-if  [[ "${GITHUB_ACTIONS:-}" == "true" && -f $OPENROAD_PRE_INSTALLED ]]; then
+if  [[ "${GITHUB_ACTIONS:-}" == "true" && "${OPENROAD_PRE_INSTALLED:-0}" == "1" ]]; then
     echo "OpenROAD executable already exists."
 else
 # check if the openroad executable exists
@@ -123,7 +123,7 @@ else
     fi
 fi
 
-if [[ "${GITHUB_ACTIONS:-}" == "true" && -f $OPENROAD_PRE_INSTALLED ]]; then
+if [[ "${GITHUB_ACTIONS:-}" == "true" && "${OPENROAD_PRE_INSTALLED:-0}" == "1"  ]]; then
     echo "OpenROAD installation completed successfully."
 else
     # Ensure that the OpenROAD executable was created
