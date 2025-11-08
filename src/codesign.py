@@ -174,8 +174,12 @@ class Codesign:
                 os.makedirs("src/tmp")
 
         tmp_base_dir = "src/tmp"
-        if self.cfg["args"]["tmp_dir"] is not None:
-            tmp_base_dir = self.cfg["args"]["tmp_dir"]
+        # use .get() so missing key won't raise; fall back to default
+        tmp_dir_arg = None
+        if isinstance(self.cfg.get("args"), dict):
+            tmp_dir_arg = self.cfg["args"].get("tmp_dir")
+        if tmp_dir_arg:
+            tmp_base_dir = tmp_dir_arg
 
         while True:
             tmp_dir = f"{tmp_base_dir}/tmp_{self.benchmark_name}_{self.obj_fn}_{idx}"
@@ -1080,6 +1084,11 @@ if __name__ == "__main__":
         "--tmp_dir",
         type=str,
         help="path to store the tmp dir for this run",
+    )
+    parser.add_argument(
+        "--preinstalled_openroad_path",
+        type=str,
+        help="Path to a pre-installed OpenROAD installation. This is primarily useful for CI testing where OpenRoad is pre-installed on the system.",
     )
     parser.add_argument('--debug_no_cacti', type=bool,
                         help='disable cacti in the first iteration to decrease runtime when debugging')

@@ -1,10 +1,11 @@
 #!/bin/bash
 
 ################## CHECK BUILD LOG / FORCE FULL ##################
-BUILD_LOG=".build.log"
-FORCE_FULL=0
 
 SETUP_SCRIPTS_FOLDER="$(pwd)/setup_scripts"
+
+BUILD_LOG="$SETUP_SCRIPTS_FOLDER/build.log"
+FORCE_FULL=0
 
 # Parse command line options
 for arg in "$@"; do
@@ -60,29 +61,13 @@ else
     esac
 fi
 
-OPENROAD_PRE_INSTALLED_BIN_PATH="../../../../deps/OpenROAD/build/bin/openroad"
-OPENROAD_PREINSTALLED_SRC_PATH="openroad_interface/OpenROAD/build/src/openroad"
+
 
 
 printf '>>> SCRIPT START %s\n' "$(date)"
 printf 'PWD: %s\n' "$(pwd)"
 printf 'Contents:\n'
 ls -la
-
-echo " -> Looking for BIN_PATH: $OPENROAD_PRE_INSTALLED_BIN_PATH"
-if [ -f "$OPENROAD_PRE_INSTALLED_BIN_PATH" ]; then
-    echo "!!!!! Found: $OPENROAD_PRE_INSTALLED_BIN_PATH"
-else
-    echo "XXXXX Not found: $OPENROAD_PRE_INSTALLED_BIN_PATH"
-    echo " -> Looking for Open road pre installed SRC_PATH: $OPENROAD_PREINSTALLED_SRC_PATH"
-    if [ -f "$OPENROAD_PREINSTALLED_SRC_PATH" ]; then
-        echo "!!!!! Found: $OPENROAD_PREINSTALLED_SRC_PATH"
-    else
-        echo "XXXXX Not found: $OPENROAD_PREINSTALLED_SRC_PATH"
-        echo "OpenROAD executable not found. Running openroad_install.sh..."
-        # bash openroad_install.sh
-    fi
-fi
 
 echo "UNIVERSITY set to: $UNIVERSITY"
 
@@ -108,7 +93,7 @@ fi
 ################## INSTALL OPENROAD ##################
 git submodule update --init --recursive openroad_interface/OpenROAD
 
-if  [[ "${GITHUB_ACTIONS:-}" == "true" && -f $OPENROAD_PRE_INSTALLED_BIN_PATH ]]; then
+if  [[ "${GITHUB_ACTIONS:-}" == "true" && -f $OPENROAD_PRE_INSTALLED ]]; then
     echo "OpenROAD executable already exists."
 else
 # check if the openroad executable exists
@@ -138,7 +123,7 @@ else
     fi
 fi
 
-if [[ "${GITHUB_ACTIONS:-}" == "true" && -f $OPENROAD_PRE_INSTALLED_BIN_PATH ]]; then
+if [[ "${GITHUB_ACTIONS:-}" == "true" && -f $OPENROAD_PRE_INSTALLED ]]; then
     echo "OpenROAD installation completed successfully."
 else
     # Ensure that the OpenROAD executable was created
