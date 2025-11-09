@@ -66,8 +66,6 @@ class RegressionRun:
             raise ValueError("Must specify either single_config_path or test_list_path")
         elif self.single_config_path is not None:
 
-            print(f"Using single config: {self.single_config_path}")
-
             if not self.absolute_paths:
                 # make path relative to codesign_root_dir/test/regressions/
                 self.single_config_path = os.path.join(self.codesign_root_dir, "test", "regressions", self.single_config_path)
@@ -84,8 +82,6 @@ class RegressionRun:
         elif self.test_list_path is not None:
             # load the test list yaml file
 
-            print(f"Using test list: {self.test_list_path}")
-
             if not self.absolute_paths:
                 # make path relative to codesign_root_dir/test/regressions/
                 self.test_list_path = os.path.join(self.codesign_root_dir, "test", "regressions", self.test_list_path)
@@ -95,28 +91,14 @@ class RegressionRun:
 
             self.results_file = os.path.join(self.base_results_dir, "regression_results_full.yaml")
             self.results_file_summary = os.path.join(self.base_results_dir, "regression_results_summary.yaml")
-
-            print(f"Using test list: {self.test_list_path}")
             
             with open(self.test_list_path, "r") as f:
                 test_list_yaml = yaml.load(f, Loader=yaml.FullLoader)
-                print("Test list contents:")
-                pprint.pprint(test_list_yaml)
             base_dir = os.path.dirname(self.test_list_path)
-            print(f"Base dir for test list: {base_dir}")
             for test_cfg in test_list_yaml:
                 config_path = os.path.join(base_dir, test_cfg)
-                print(f"test_cfg: {test_cfg}, config_path: {config_path}")
-                print(f"Base_results_dir: {self.base_results_dir}")
                 results_dir = os.path.join(self.base_results_dir, os.path.splitext(os.path.basename(test_cfg))[0])
                 self.config_files_to_run.append({"results_dir": results_dir, "config_path": config_path})
-
-
-        print("Configs to run:")
-        for config_info in self.config_files_to_run:
-            print(f"  Config: {config_info['config_path']} -> Results: {config_info['results_dir']}")
-
-        print(f"Max parallelism: {self.max_parallelism}")
 
         self.job_queue = queue.Queue()
 
@@ -137,10 +119,9 @@ class RegressionRun:
         for config_info in self.config_files_to_run:
             config_path = config_info["config_path"]
             results_dir = config_info["results_dir"]
-            print(f"Config: {config_path} -> Results: {results_dir}")
             total_jobs += self.run_single_config_file(config_path, results_dir)
 
-        print(f"Queued {self.job_queue.qsize()} jobs across {self.max_parallelism} workers.")
+        # print(f"Queued {self.job_queue.qsize()} jobs across {self.max_parallelism} workers.")
 
         # Start progress tracker
         tracker_thread = threading.Thread(target=self.progress_tracker, args=(total_jobs,), daemon=True)
@@ -556,7 +537,7 @@ if __name__ == "__main__":
         parser.add_argument(
             "--preinstalled_openroad_path",
             type=str,
-            help="Path to a pre-installed OpenROAD installation. This is primarily useful for CI testing where OpenRoad is pre-installed on the system.",
+            help="Path to a pre-installed OpenROAD installation. This is primarily useful for CI testing where OpenROAD is pre-installed on the system.",
         )
 
         args = parser.parse_args()
@@ -565,6 +546,11 @@ if __name__ == "__main__":
         cwd = os.getcwd()
         if not os.path.exists(os.path.join(cwd, "src")) or not os.path.exists(os.path.join(cwd, "test")):
             print("Error: must be run from the codesign root directory")
+            exit(1)
+
+        ## make sure that if a file is specified in the -l command, it ends in .list.yaml
+        if args.test_list is not None and not args.test_list.endswith(".list.yaml"):
+            print("Error: Regression list file must end in .list.yaml")
             exit(1)
 
         reg_run = RegressionRun(cfg=None, codesign_root_dir=cwd, single_config_path=args.single_config, test_list_path=args.test_list, max_parallelism=args.max_parallelism, absolute_paths=args.absolute_paths, silent_mode=args.quiet_mode, preinstalled_openroad_path=args.preinstalled_openroad_path)

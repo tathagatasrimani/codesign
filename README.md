@@ -52,6 +52,22 @@ run_codesign --config vitis_resnet_checkpoint_after_vitis
 Loads a checkpoint from a successful vitis run, then continues the flow from there and stops after pd
 run_codesign --config vitis_resnet_load_checkpoint_after_vitis_stop_after_pd
 
+## Running Regressions:
+For running many experiments simultaneously, use the run_regression feature. This must be run from the codesign root directory (i.e. the directory this README is in)
+
+run_regression -h # displays full usage guide.
+
+Regression tests are stored in the test/regressions folder. A regression list is a list of testlists and its filename ends in .list.yaml. A testlist ends in .yaml and has a list of individual tests that are run. i.e.
+
+    some_regression.list.yaml
+        one_testlist.yaml
+            - application test 1
+            - application test 2
+            - ...
+
+As an example, the below command runs the all_gemm regression which then runs the lots_of_gemms.yaml testlist which has lots of gemm tests. -m specifies the max number of parallel threads you wish to run the framework at the same time.
+
+run_regression -l auto_tests/all_gemm.list.yaml -m 10
 
 ## Cleaning up results from prior runs:
 To converse disk space, you may need to clear up results from prior runs. Use these commands: 
