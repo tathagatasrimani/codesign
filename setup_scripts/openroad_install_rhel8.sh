@@ -4,6 +4,9 @@ export HOME="$(pwd)"
 export PATH="$HOME/.local/bin:$(echo "$PATH")"
 export CMAKE_PREFIX_PATH="$HOME/.local"
 
+## make sure interfering packages are not installed
+sudo rm -f /usr/local/lib64/libsoplex.a /usr/local/lib/libsoplex.a
+
 cd openroad_interface/OpenROAD
 
 sudo dnf install gcc-toolset-13
@@ -26,33 +29,6 @@ if [ $status -ne 0 ]; then
     rm -rf pandoc-${pandocVersion}-linux-${arch}.tar.gz
 
 fi
-
-########################################################################
-
-# 🧱 PREINSTALL LEMON MANUALLY (avoids SoPlex build error)
-echo "Pre-installing LEMON (SoPlex disabled)..."
-
-BEFORE_LEMON_DIR=$(pwd)
-git clone --depth=1 -b 1.3.1 https://github.com/The-OpenROAD-Project/lemon-graph.git || true
-cd lemon-graph
-
-cmake -B build -S . \
-  -DCMAKE_INSTALL_PREFIX=/usr/local \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DLEMON_ENABLE_GLPK=NO \
-  -DLEMON_ENABLE_COIN=YES \
-  -DLEMON_ENABLE_ILOG=NO \
-  -DLEMON_ENABLE_SOPLEX=NO \
-  -DLEMON_DEFAULT_LP=CLP \
-  -DLEMON_DEFAULT_MIP=CBC
-
-cmake --build build -j"$(nproc)"
-sudo cmake --install build
-
-cd "$BEFORE_LEMON_DIR"
-
-########################################################################
-
 
 ./etc/DependencyInstaller.sh -common -local
 

@@ -65,9 +65,7 @@ fi
 
 
 printf '>>> SCRIPT START %s\n' "$(date)"
-printf 'PWD: %s\n' "$(pwd)"
-printf 'Contents:\n'
-ls -la
+printf 'Current directory: %s\n' "$(pwd)"
 
 echo "UNIVERSITY set to: $UNIVERSITY"
 
