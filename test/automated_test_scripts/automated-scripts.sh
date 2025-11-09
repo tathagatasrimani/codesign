@@ -43,7 +43,7 @@ source full_env_start.sh
 # Run regression and propagate its exit code directly.
 # Use 'set +e' so the script can capture the exit code instead of exiting immediately.
 set +e
-run_regression -l auto_tests/auto-testlist.yaml -m 10 --preinstalled_openroad_path "/scratch_disks/scratch3/git_runner/deps/OpenROAD/build/bin/openroad"
+run_regression -l auto_tests/auto-testlist.yaml -m 10 --preinstalled_openroad_path "/scratch_disks/scratch3/codesign_dir_with_openroad_for_autotest/codesign/openroad_interface/OpenROAD/build/src/openroad"
 status=$?
 set -e
 exit $status
