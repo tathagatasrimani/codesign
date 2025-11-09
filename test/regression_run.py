@@ -28,7 +28,7 @@ INITIAL_PHASE_ITERATIONS = {0}
 
 
 class RegressionRun:
-    def __init__(self, cfg, codesign_root_dir, single_config_path=None, test_list_path=None, max_parallelism=4, absolute_paths=False, silent_mode=False, preinstalled_openroad_path=None):
+    def __init__(self, cfg, codesign_root_dir, single_config_path=None, test_list_path=None, max_parallelism=4, absolute_paths=False, silent_mode=False, github_autotest_mode=False, preinstalled_openroad_path=None):
         self.cfg = cfg
         self.codesign_root_dir = codesign_root_dir
         self.single_config_path = single_config_path
@@ -37,6 +37,7 @@ class RegressionRun:
         self.absolute_paths = absolute_paths
         self.silent_mode = silent_mode
         self.preinstalled_openroad_path = preinstalled_openroad_path
+        self.github_autotest_mode = github_autotest_mode
 
         self.completed_jobs = 0
         self.passed_jobs = 0
@@ -308,8 +309,34 @@ class RegressionRun:
     def progress_tracker(self, total_jobs):
         spinner = ['|', '/', '-', '\\']
         i = 0
-        
-        if not self.silent_mode:
+        last_update_time = 0
+
+        github_mode = self.github_autotest_mode
+        update_interval = 30.0 if github_mode else 0.2  # 30s snapshot interval for GitHub
+
+        # Build a clean header message
+        if self.test_list_path:
+            header_target = self.test_list_path
+        elif self.single_config_path:
+            header_target = self.single_config_path
+        else:
+            header_target = "(unknown test source)"
+
+        startup_msg = f"Running regression test: {header_target}\nUsing {self.max_parallelism} worker threads.\n"
+
+        if github_mode:
+            print("Running in GitHub autotest mode — progress updates every 30 seconds.\n")
+            print(startup_msg)
+            sys.stdout.flush()
+            _time.sleep(5.0)  # delay before first GitHub progress print
+
+        elif not self.silent_mode:
+            # Clear terminal for clean live progress display
+            os.system('clear' if os.name != 'nt' else 'cls')
+
+            # Print the header *before* reserving lines for the tracker
+            sys.stdout.write(startup_msg + "\n")
+            # Reserve lines for tracker display region below the header
             sys.stdout.write("\n" * (self.max_parallelism + 2))
             sys.stdout.flush()
 
@@ -327,69 +354,125 @@ class RegressionRun:
             filled = int(bar_len * done / total_jobs)
             bar = "█" * filled + "-" * (bar_len - filled)
 
-            if not self.silent_mode:
-                sys.stdout.write(f"\033[{self.max_parallelism + 2}F")
             now = _time.time()
+            if not github_mode and not self.silent_mode:
+                sys.stdout.write(f"\033[{self.max_parallelism + 2}F")
 
+            # Gather running jobs per worker
             with self.job_worker_lock:
-                # build a reverse map: worker_id -> running job (exclude finished jobs)
                 running_by_worker = {wid: None for wid in range(self.max_parallelism)}
                 for job_name, wid in self.job_worker_map.items():
                     if job_name not in self.job_finish_times:
                         running_by_worker[wid] = job_name
 
-            now = _time.time()
-            for wid in range(self.max_parallelism):
-                job_name = running_by_worker[wid]
-                if job_name:
-                    start_time = self.job_start_times.get(job_name)
-                    if start_time:
-                        elapsed = int(now - start_time)
+            # -----------------------------
+            # Local interactive terminal mode
+            # -----------------------------
+            if not github_mode and not self.silent_mode:
+                for wid in range(self.max_parallelism):
+                    job_name = running_by_worker[wid]
+                    if job_name:
+                        start_time = self.job_start_times.get(job_name)
+                        elapsed = int(now - start_time) if start_time else 0
                         mins, secs = divmod(elapsed, 60)
-                    else:
-                        mins, secs = 0, 0
-                    ckpt_txt = ""
-                    with self.job_worker_lock:
+                        ckpt_txt = ""
                         latest = self.job_checkpoints.get(job_name, {}).get("latest")
-                    if latest:
-                        step, it = latest
-                        initialized = self.job_initialized.get(job_name, False)
-                        if not initialized:
-                            ckpt_txt = " | Initializing..."
+                        if latest:
+                            step, it = latest
+                            if not self.job_initialized.get(job_name, False):
+                                ckpt_txt = " | Initializing..."
+                            else:
+                                ckpt_txt = f" | {step} completed for iteration {it}"
                         else:
-                            ckpt_txt = f" | {step} for iteration {it} completed."
-                    else:
-                        ckpt_txt = " | Initializing..."
-                    if not self.silent_mode:
+                            ckpt_txt = " | Initializing..."
                         sys.stdout.write(f"\033[KWorker {wid+1}: Running {job_name} | Time {mins:02d}:{secs:02d}{ckpt_txt}\n")
-                else:
-                    if not self.silent_mode:
+                    else:
                         sys.stdout.write(f"\033[KWorker {wid+1}: Idle\n")
 
-            if not self.silent_mode:
                 sys.stdout.write(
-                    f"\033[K{spinner[i % len(spinner)]}  [{bar}] {done}/{total_jobs} jobs complete "
-                    f"({percent_done:.1f}%) | Passed ✅: {passed} ({passed_pct:.1f}%) | "
-                    f"Failed ❌: {failed} ({failed_pct:.1f}%)\n\n"
-            )
-            if not self.silent_mode:
+                    f"\033[K{spinner[i % len(spinner)]}  [{bar}] {done}/{total_jobs} complete "
+                    f"({percent_done:.1f}%) | ✅ {passed} ({passed_pct:.1f}%) | ❌ {failed} ({failed_pct:.1f}%)\n\n"
+                )
                 sys.stdout.flush()
+
+            # -----------------------------
+            # GitHub mode — periodic snapshot
+            # -----------------------------
+            elif github_mode and (now - last_update_time >= update_interval):
+                print("------------------------------------------------------------")
+                print(f"[Progress] {done}/{total_jobs} complete ({percent_done:.1f}%)")
+                print(f"✅ Passed: {passed} ({passed_pct:.1f}%) | ❌ Failed: {failed} ({failed_pct:.1f}%)")
+                print(f"[{bar}]")
+                print("Worker Status:")
+                for wid in range(self.max_parallelism):
+                    job_name = running_by_worker[wid]
+                    if job_name:
+                        start_time = self.job_start_times.get(job_name)
+                        elapsed = int(now - start_time) if start_time else 0
+                        mins, secs = divmod(elapsed, 60)
+                        latest = self.job_checkpoints.get(job_name, {}).get("latest")
+                        if latest:
+                            step, it = latest
+                            ckpt_txt = f" | {step} completed for iteration {it}"
+                        else:
+                            ckpt_txt = " | Initializing..."
+                        print(f"  Worker {wid+1}: Running {job_name} | Time {mins:02d}:{secs:02d}{ckpt_txt}")
+                    else:
+                        print(f"  Worker {wid+1}: Idle")
+                print("------------------------------------------------------------\n")
+                sys.stdout.flush()
+                last_update_time = now
+
             i += 1
-            _time.sleep(0.2)
+            _time.sleep(update_interval if github_mode else 0.2)
 
-        if not self.silent_mode:
+        # Final summary (only printed once)
+        if github_mode:
+            print("------------------------------------------------------------")
+            print(
+                f"✅ All jobs complete! Passed: {self.passed_jobs} ({(self.passed_jobs/total_jobs)*100:.1f}%) | "
+                f"Failed: {self.failed_jobs} ({(self.failed_jobs/total_jobs)*100:.1f}%)"
+            )
+            print("------------------------------------------------------------")
+            sys.stdout.flush()
+        elif not self.silent_mode:
             sys.stdout.write(f"\033[{self.max_parallelism + 2}F")
-        for wid in range(self.max_parallelism):
-            if not self.silent_mode:
+            for wid in range(self.max_parallelism):
                 sys.stdout.write(f"\033[KWorker {wid+1}: Idle\n")
-
-        if not self.silent_mode:
             sys.stdout.write(
                 f"\033[K✅  [████████████████████████████████████████] All jobs complete!  "
                 f"Passed ✅: {self.passed_jobs} ({(self.passed_jobs/total_jobs)*100:.1f}%) | "
                 f"Failed ❌: {self.failed_jobs} ({(self.failed_jobs/total_jobs)*100:.1f}%)\n\n"
             )
             sys.stdout.flush()
+
+
+    def write_summary_results(self):
+        """Write a summary results YAML file with just pass/fail counts."""
+        with self.results_lock:
+            failed_names = [name for name, r in self.results_data.items() if r.get("status") == "failed"]
+            summary = {
+                "total_jobs": len(self.results_data),
+                "passed_jobs": sum(1 for r in self.results_data.values() if r.get("status") == "passed"),
+                "failed_jobs": sum(1 for r in self.results_data.values() if r.get("status") == "failed"),
+                "failed_list": failed_names,
+            }
+            os.makedirs(os.path.dirname(self.results_file_summary), exist_ok=True)
+            tmp_path = self.results_file_summary + ".tmp"
+            with open(tmp_path, "w") as f:
+                yaml.dump(summary, f, default_flow_style=False)
+            os.replace(tmp_path, self.results_file_summary)
+
+        # Only print results summary in interactive mode (not GitHub)
+        if not self.github_autotest_mode and not self.silent_mode:
+            if failed_names:
+                print("Failed jobs:")
+                for n in failed_names:
+                    print(f" - {n}")
+            else:
+                print("All jobs passed.")
+
+
 
     def record_result(self, job_name, success, elapsed_time):
         """Record job result and write to results file safely."""
@@ -407,6 +490,7 @@ class RegressionRun:
             os.replace(tmp_path, self.results_file)
 
     def _watch_log_for_checkpoints(self, job_name, log_path, stop_evt):
+        """Watches the log file for CHECKPOINT REACHED messages and updates job state."""
         last_size = 0
         last_mtime = 0
 
@@ -430,15 +514,12 @@ class RegressionRun:
 
                         step = m.group(1)
                         it = int(m.group(2))
-                        # Parse optional timestamp on the line
                         ts_str = m.group(3)
                         parsed_ts = None
                         if ts_str:
                             try:
-                                # ts_str like "2025-11-07 14:38:08" (local time)
                                 from datetime import datetime
                                 parsed_dt = datetime.strptime(ts_str, "%Y-%m-%d %H:%M:%S")
-                                # convert to epoch seconds in local time
                                 import time as __t
                                 parsed_ts = __t.mktime(parsed_dt.timetuple())
                             except Exception:
@@ -446,15 +527,28 @@ class RegressionRun:
 
                         now = _time.time()
                         with self.job_worker_lock:
+                            initialized = self.job_initialized.get(job_name, False)
+
+                            # Detect valid setup@0 and mark initialization
+                            if (
+                                step.lower() == "setup"
+                                and it == 0
+                                and parsed_ts is not None
+                                and parsed_ts >= getattr(self, "regression_start_ts", 0)
+                            ):
+                                self.job_initialized[job_name] = True
+                                initialized = True
+
+                            # Ignore any checkpoint updates before initialization
+                            if not initialized and not (
+                                step.lower() == "setup" and it == 0
+                            ):
+                                continue
+
+                            # Record checkpoint if initialized
                             data = self.job_checkpoints.setdefault(job_name, {"latest": None, "history": []})
                             data["latest"] = (step, it)
                             data["history"].append((step, it, parsed_ts if parsed_ts is not None else now))
-
-                            # Only mark initialized if we saw 'setup @ 0' WITH a timestamp
-                            # that is on/after the regression start.
-                            if step.lower() == "setup" and it == 0 and parsed_ts is not None:
-                                if parsed_ts >= getattr(self, "regression_start_ts", 0):
-                                    self.job_initialized[job_name] = True
 
                     last_size = f.tell()
                     last_mtime = mtime
@@ -463,32 +557,6 @@ class RegressionRun:
 
             _time.sleep(0.5)
 
-    def write_summary_results(self):
-        """Write a summary results YAML file with just pass/fail counts."""
-        with self.results_lock:
-            failed_names = [name for name, r in self.results_data.items() if r.get("status") == "failed"]
-            summary = {
-                "total_jobs": len(self.results_data),
-                "passed_jobs": sum(1 for r in self.results_data.values() if r.get("status") == "passed"),
-                "failed_jobs": sum(1 for r in self.results_data.values() if r.get("status") == "failed"),
-                "failed_list": failed_names,
-            }
-            # ensure base dir exists
-            os.makedirs(os.path.dirname(self.results_file_summary), exist_ok=True)
-            # atomic write to avoid corruption
-            tmp_path = self.results_file_summary + ".tmp"
-            with open(tmp_path, "w") as f:
-                yaml.dump(summary, f, default_flow_style=False)
-            os.replace(tmp_path, self.results_file_summary)
-        # Also print failed jobs to stdout (unless silent)
-        if failed_names:
-            if not self.silent_mode:
-                print("Failed jobs:")
-                for n in failed_names:
-                    print(f" - {n}")
-        else:
-            if not self.silent_mode:
-                print("All jobs passed.")
 
 
 
@@ -535,6 +603,13 @@ if __name__ == "__main__":
         )
 
         parser.add_argument(
+            "-g",
+            "--github_autotest_mode",
+            action="store_true",
+            help="Displays the output in a format suitable for GitHub Actions annotations.",
+        )
+
+        parser.add_argument(
             "--preinstalled_openroad_path",
             type=str,
             help="Path to a pre-installed OpenROAD installation. This is primarily useful for CI testing where OpenROAD is pre-installed on the system.",
@@ -553,7 +628,7 @@ if __name__ == "__main__":
             print("Error: Regression list file must end in .list.yaml")
             exit(1)
 
-        reg_run = RegressionRun(cfg=None, codesign_root_dir=cwd, single_config_path=args.single_config, test_list_path=args.test_list, max_parallelism=args.max_parallelism, absolute_paths=args.absolute_paths, silent_mode=args.quiet_mode, preinstalled_openroad_path=args.preinstalled_openroad_path)
+        reg_run = RegressionRun(cfg=None, codesign_root_dir=cwd, single_config_path=args.single_config, test_list_path=args.test_list, max_parallelism=args.max_parallelism, absolute_paths=args.absolute_paths, silent_mode=args.quiet_mode, github_autotest_mode=args.github_autotest_mode, preinstalled_openroad_path=args.preinstalled_openroad_path)
 
         exit_code = reg_run.run_regression()
 
