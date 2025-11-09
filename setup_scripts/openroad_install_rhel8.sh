@@ -4,6 +4,9 @@ export HOME="$(pwd)"
 export PATH="$HOME/.local/bin:$(echo "$PATH")"
 export CMAKE_PREFIX_PATH="$HOME/.local"
 
+## make sure interfering packages are not installed
+sudo rm -f /usr/local/lib64/libsoplex.a /usr/local/lib/libsoplex.a
+
 cd openroad_interface/OpenROAD
 
 sudo dnf install gcc-toolset-13
@@ -26,7 +29,6 @@ if [ $status -ne 0 ]; then
     rm -rf pandoc-${pandocVersion}-linux-${arch}.tar.gz
 
 fi
-
 
 ./etc/DependencyInstaller.sh -common -local
 

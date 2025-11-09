@@ -1,4 +1,5 @@
 import argparse
+from datetime import datetime
 import os
 import shutil
 
@@ -90,15 +91,15 @@ class CheckpointController:
         else:
             return False
 
-    def check_end_checkpoint(self, checkpoint_step):
+    def check_end_checkpoint(self, checkpoint_step, iteration_count):
         ''' raise an exception to stop the program if we reached the stopping point '''
         ## check if we reached the stopping point
-        print("Checking END CHECKPOINT step: "+checkpoint_step)
+        print("CHECKPOINT REACHED: "+checkpoint_step + " FOR ITERATION: " + str(iteration_count) + " at TIME: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         if checkpoint_map[checkpoint_step] == checkpoint_map[self.cfg["args"]["stop_at_checkpoint"]]:
             
             ## if we did, check if we should save a checkpoint
             if self.cfg["args"]["checkpoint_save_dir"] != "none":
                 self.create_checkpoint()
 
-            raise Exception("Finished "+checkpoint_step+", which was specified in the config " + self.cfg["args"]["config"] + " as the stopping point for this run.")
+            raise Exception("^^CHECKPOINT REACHED: "+checkpoint_step+" . RUN SUCCEEDED^^, which was specified in the config " + self.cfg["args"]["config"] + " as the stopping point for this run.")
         

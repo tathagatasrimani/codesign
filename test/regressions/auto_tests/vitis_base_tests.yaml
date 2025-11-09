@@ -1,0 +1,57 @@
+vitis_gemm_test_auto:
+  base_cfg: vitis_test
+  args:
+    benchmark: gemm
+    stop_at_checkpoint: pd
+
+benchmark_2mm_test_auto:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_2mm
+    stop_at_checkpoint: pd
+
+benchmark_3mm_test_auto:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_3mm
+    stop_at_checkpoint: pd
+
+# TODO: currently failing. Needs investigation.    
+# benchmark_atax_test_auto:
+#   base_cfg: vitis_test
+#   args:
+#     benchmark: kernel_atax
+#     stop_at_checkpoint: pd
+
+benchmark_bicg_test_auto:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_bicg
+    stop_at_checkpoint: pd
+
+# TODO: currently failing. Needs investigation.
+# benchmark_doitgen_test_auto:
+#   base_cfg: vitis_test
+#   args:
+#     benchmark: kernel_doitgen
+#     stop_at_checkpoint: pd
+
+benchmark_mvt_test_auto:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_mvt
+    stop_at_checkpoint: pd
+
+vitis_gemm_32_test_auto:
+  base_cfg: vitis_gemm_test_auto
+  args:
+    workload_size: 32
+    stop_at_checkpoint: pd
+
+# TODO: currently failing. Needs investigation.
+# vitis_resnet_test_auto:
+#   base_cfg: vitis_test
+#   args:
+#     pytorch: True
+#     benchmark: resnet18
+#     stop_at_checkpoint: pd

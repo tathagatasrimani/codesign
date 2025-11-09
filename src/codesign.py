@@ -131,6 +131,31 @@ class Codesign:
     def set_config(self, args):
         with open(f"src/yaml/codesign_cfg.yaml", "r") as f:
             cfgs = yaml.load(f, Loader=yaml.FullLoader)
+
+        # open each additonal config in test/additional_configs. Add them to the cfgs
+        for additional_config_file in os.listdir("test/additional_configs"):
+            if additional_config_file.endswith(".yaml"):
+                with open(f"test/additional_configs/{additional_config_file}", "r") as f:
+                    additional_cfg = yaml.load(f, Loader=yaml.FullLoader)
+
+                    # check that there aren't any duplicate keys
+                    for key in additional_cfg:
+                        if key in cfgs:
+                            raise Exception(f"Duplicate key {key} found in additional config {additional_config_file}")
+
+                    cfgs = {**cfgs, **additional_cfg}
+
+        if args.additional_cfg_file is not None:
+            with open(args.additional_cfg_file, "r") as f:
+                additional_cfg = yaml.load(f, Loader=yaml.FullLoader)
+
+                # check that there aren't any duplicate keys
+                for key in additional_cfg:
+                    if key in cfgs:
+                        raise Exception(f"Duplicate key {key} found in additional config {args.additional_cfg_file}")
+
+                cfgs = {**cfgs, **additional_cfg}
+        
         overwrite_args_all = vars(args)
         overwrite_args = {}
         for key, value in overwrite_args_all.items():
@@ -143,8 +168,21 @@ class Codesign:
 
     def get_tmp_dir(self):
         idx = 0
+
+        ## make base tmp directory
+        if not os.path.exists("src/tmp"):
+                os.makedirs("src/tmp")
+
+        tmp_base_dir = "src/tmp"
+        # use .get() so missing key won't raise; fall back to default
+        tmp_dir_arg = None
+        if isinstance(self.cfg.get("args"), dict):
+            tmp_dir_arg = self.cfg["args"].get("tmp_dir")
+        if tmp_dir_arg:
+            tmp_base_dir = tmp_dir_arg
+
         while True:
-            tmp_dir = f"src/tmp_{self.benchmark_name}_{self.obj_fn}_{idx}"
+            tmp_dir = f"{tmp_base_dir}/tmp_{self.benchmark_name}_{self.obj_fn}_{idx}"
             tmp_dir_full = os.path.join(self.codesign_root_dir, tmp_dir)
             if not os.path.exists(tmp_dir_full):
                 os.makedirs(tmp_dir_full)
@@ -401,7 +439,7 @@ class Codesign:
         else:
             logger.info("Skipping Vitis netlist parsing")
 
-        self.checkpoint_controller.check_end_checkpoint("netlist")
+        self.checkpoint_controller.check_end_checkpoint("netlist", self.iteration_count)
 
         if self.checkpoint_controller.check_checkpoint("schedule", self.iteration_count) and not self.max_rsc_reached:
             start_time = time.time()
@@ -428,7 +466,7 @@ class Codesign:
                         #self.hw.loop_2x_graphs[file] = nx.read_gml(f"{parse_results_dir}/{file}/{file}_graph_loop_2x_standard_with_wire_ops.gml")
             logger.info("Skipping Vitis schedule parsing")
 
-        self.checkpoint_controller.check_end_checkpoint("schedule")
+        self.checkpoint_controller.check_end_checkpoint("schedule", self.iteration_count)
 
         print(f"Current working directory at end of vitis parse data: {os.getcwd()}")
 
@@ -490,7 +528,7 @@ class Codesign:
             self.max_speedup_factor = float(latency / self.max_latency)
             self.max_area_increase_factor = float(self.max_dsp / dsp_usage)
         if not setup:
-            self.checkpoint_controller.check_end_checkpoint("scalehls")
+            self.checkpoint_controller.check_end_checkpoint("scalehls", self.iteration_count)
         if setup: # setup step ends here, don't need to run rest of forward pass
             return
 
@@ -541,7 +579,7 @@ class Codesign:
                 raise Exception(f"Vitis HLS command failed: see vitis_hls.log")
         else:
             logger.info("Skipping Vitis")
-        self.checkpoint_controller.check_end_checkpoint("vitis")
+        self.checkpoint_controller.check_end_checkpoint("vitis", self.iteration_count)
         os.chdir(os.path.join(os.path.dirname(__file__), ".."))
         # PARSE OUTPUT, set schedule and read netlist
         self.parse_vitis_data(save_dir=save_dir)
@@ -707,7 +745,7 @@ class Codesign:
 
             self.hw.display_objective("after forward pass")
 
-        self.checkpoint_controller.check_end_checkpoint("pd")
+        self.checkpoint_controller.check_end_checkpoint("pd", self.iteration_count)
         self.obj_over_iterations.append(sim_util.xreplace_safe(self.hw.obj, self.hw.circuit_model.tech_model.base_params.tech_values))
 
     def parse_catapult_timing(self):
@@ -954,7 +992,7 @@ class Codesign:
     def execute(self, num_iters):
         self.iteration_count = 0
         self.setup()
-        self.checkpoint_controller.check_end_checkpoint("setup")
+        self.checkpoint_controller.check_end_checkpoint("setup", self.iteration_count)
         while self.iteration_count < num_iters:
             start_time = time.time()
             self.forward_pass(self.iteration_count, self.benchmark_dir)
@@ -1037,6 +1075,21 @@ if __name__ == "__main__":
         type=bool,
         help="disable memory modeling",
     )
+    parser.add_argument(
+        "--additional_cfg_file",
+        type=str,
+        help="path to an additional configuration file",
+    )
+    parser.add_argument(
+        "--tmp_dir",
+        type=str,
+        help="path to store the tmp dir for this run",
+    )
+    parser.add_argument(
+        "--preinstalled_openroad_path",
+        type=str,
+        help="Path to a pre-installed OpenROAD installation. This is primarily useful for CI testing where OpenRoad is pre-installed on the system.",
+    )
     parser.add_argument('--debug_no_cacti', type=bool,
                         help='disable cacti in the first iteration to decrease runtime when debugging')
     parser.add_argument("--logic_node", type=int, help="logic node size")
@@ -1048,7 +1101,7 @@ if __name__ == "__main__":
     parser.add_argument("--hls_tool", type=str, help="hls tool to use")
     parser.add_argument("--config", type=str, default="default", help="config to use")
     parser.add_argument("--checkpoint_load_dir", type=str, help="directory to load checkpoint")
-    parser.add_argument("--checkpoint_save_dir", type=str, help="directory to save checkpoint")
+    parser.add_argument("--checkpoint_save_dir", type=str, help="directory to save checkpoint", default="none")
     parser.add_argument("--checkpoint_start_step", type=str, help="checkpoint step to resume from (the flow will start normal execution AFTER this step)")
     parser.add_argument("--stop_at_checkpoint", type=str, help="checkpoint step to stop at (will complete this step and then stop)")
     parser.add_argument("--workload_size", type=int, help="workload size to use, such as the dimension of the matrix for gemm. Only applies to certain benchmarks")

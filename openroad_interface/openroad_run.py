@@ -40,6 +40,11 @@ class OpenRoadRun:
 
         :param cfg: top level codesign config file
         :param codesign_root_dir: root directory of codesign (where src and test are)
+        :param tmp_dir: temporary directory for OpenROAD run
+        :param run_openroad: flag to run OpenROAD or use previous results
+        :param circuit_model: circuit model configuration
+        :param subdirectory: subdirectory for hierarchical runs
+        :param custom_lef_files_to_include: custom LEF files to include
         """
         self.cfg = cfg
         self.codesign_root_dir = codesign_root_dir
@@ -306,7 +311,21 @@ class OpenRoadRun:
         logger.info(f"Changed directory to {self.directory + '/tcl'}")
         print("running openroad. If openroad fails (check log), type exit below and hit return.")
         logger.info("Running OpenROAD command.")
-        os.system(os.path.dirname(os.path.abspath(__file__)) + "/OpenROAD/build/src/openroad codesign_top.tcl > " + self.directory + "/codesign_pd.log")#> /dev/null 2>&1
+        
+        # Safely handle missing/malformed cfg entries for preinstalled_openroad_path.
+        args_dict = self.cfg.get("args") if isinstance(self.cfg, dict) else None
+        preinstalled = None
+        if isinstance(args_dict, dict):
+            preinstalled = args_dict.get("preinstalled_openroad_path")
+
+        if preinstalled:
+            cmd = f"{preinstalled} codesign_top.tcl > {self.directory}/codesign_pd.log 2>&1"
+        else:
+            openroad_bin = os.path.join(os.path.dirname(os.path.abspath(__file__)), "OpenROAD", "build", "src", "openroad")
+            cmd = f"{openroad_bin} codesign_top.tcl > {self.directory}/codesign_pd.log 2>&1"
+
+        logger.info("Executing OpenROAD command: %s", cmd)
+        os.system(cmd)
         print("done")
         logger.info("OpenROAD run completed.")
         os.chdir(old_dir)
@@ -725,4 +744,3 @@ class OpenRoadRun:
         )
         logger.info(f"Graph exported to {directory}/results/{est_or_det}.gml")
 
-   
