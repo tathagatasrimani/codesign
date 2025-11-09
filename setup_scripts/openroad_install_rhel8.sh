@@ -27,6 +27,24 @@ if [ $status -ne 0 ]; then
 
 fi
 
+########################################################################
+
+# 🧱 PREINSTALL LEMON MANUALLY (avoids SoPlex build error)
+echo "Pre-installing LEMON (SoPlex disabled)..."
+cd openroad_interface/OpenROAD
+git clone --depth=1 -b 1.3.1 https://github.com/The-OpenROAD-Project/lemon-graph.git || true
+cd lemon-graph
+cmake -DCMAKE_INSTALL_PREFIX=/usr/local \
+  -DLEMON_ENABLE_SOPLEX=OFF \
+  -DLEMON_ENABLE_CPLEX=OFF \
+  -DLEMON_ENABLE_GLPK=OFF \
+  -DLEMON_ENABLE_CLP=ON -B build .
+cmake --build build -j$(nproc)
+sudo cmake --install build
+cd ../..
+
+########################################################################
+
 
 ./etc/DependencyInstaller.sh -common -local
 
