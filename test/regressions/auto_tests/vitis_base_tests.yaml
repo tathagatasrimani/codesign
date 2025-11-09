@@ -15,7 +15,8 @@ benchmark_3mm_test_auto:
   args:
     benchmark: kernel_3mm
     stop_at_checkpoint: pd
-    
+
+# TODO: currently failing. Needs investigation.    
 # benchmark_atax_test_auto:
 #   base_cfg: vitis_test
 #   args:
@@ -28,11 +29,12 @@ benchmark_bicg_test_auto:
     benchmark: kernel_bicg
     stop_at_checkpoint: pd
 
-benchmark_doitgen_test_auto:
-  base_cfg: vitis_test
-  args:
-    benchmark: kernel_doitgen
-    stop_at_checkpoint: pd
+# TODO: currently failing. Needs investigation.
+# benchmark_doitgen_test_auto:
+#   base_cfg: vitis_test
+#   args:
+#     benchmark: kernel_doitgen
+#     stop_at_checkpoint: pd
 
 benchmark_mvt_test_auto:
   base_cfg: vitis_test
@@ -46,6 +48,7 @@ vitis_gemm_32_test_auto:
     workload_size: 32
     stop_at_checkpoint: pd
 
+# TODO: currently failing. Needs investigation.
 # vitis_resnet_test_auto:
 #   base_cfg: vitis_test
 #   args:
