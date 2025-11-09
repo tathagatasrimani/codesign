@@ -31,17 +31,25 @@ fi
 
 # 🧱 PREINSTALL LEMON MANUALLY (avoids SoPlex build error)
 echo "Pre-installing LEMON (SoPlex disabled)..."
-cd openroad_interface/OpenROAD
+
+BEFORE_LEMON_DIR=$(pwd)
 git clone --depth=1 -b 1.3.1 https://github.com/The-OpenROAD-Project/lemon-graph.git || true
 cd lemon-graph
-cmake -DCMAKE_INSTALL_PREFIX=/usr/local \
-  -DLEMON_ENABLE_SOPLEX=OFF \
-  -DLEMON_ENABLE_CPLEX=OFF \
-  -DLEMON_ENABLE_GLPK=OFF \
-  -DLEMON_ENABLE_CLP=ON -B build .
-cmake --build build -j$(nproc)
+
+cmake -B build -S . \
+  -DCMAKE_INSTALL_PREFIX=/usr/local \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DLEMON_ENABLE_GLPK=NO \
+  -DLEMON_ENABLE_COIN=YES \
+  -DLEMON_ENABLE_ILOG=NO \
+  -DLEMON_ENABLE_SOPLEX=NO \
+  -DLEMON_DEFAULT_LP=CLP \
+  -DLEMON_DEFAULT_MIP=CBC
+
+cmake --build build -j"$(nproc)"
 sudo cmake --install build
-cd ../..
+
+cd "$BEFORE_LEMON_DIR"
 
 ########################################################################
 
