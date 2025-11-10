@@ -91,6 +91,21 @@ class Codesign:
         self.run_cacti = not self.cfg["args"]["debug_no_cacti"]
         self.no_memory = self.cfg["args"]["no_memory"]
         self.hw = hardwareModel.HardwareModel(self.cfg, self.codesign_root_dir, self.tmp_dir)
+        # === Thermal defaults (defensive) ===
+        self.thermal_enable = self.cfg["args"].get("thermal_enable", True)
+        self.thermal_def_path = self.cfg["args"].get(
+            "thermal_def_path",
+            os.path.join(self.codesign_root_dir, "src", "thermal", "inputs", "final_generated-tcl.def")
+        )
+        self.thermal_lef_path = self.cfg["args"].get(
+            "thermal_lef_path",
+            os.path.join(self.codesign_root_dir, "src", "thermal", "inputs", "codesign_stdcell.lef")
+        )
+        self.thermal_out_dir = self.cfg["args"].get(
+            "thermal_out_dir",
+            os.path.join(self.codesign_root_dir, "src", "thermal", "outputs")
+        )
+
         self.opt = optimize.Optimizer(self.hw, self.tmp_dir, opt_pipeline=self.cfg["args"]["opt_pipeline"])
         self.module_map = {}
         self.inverse_pass_improvement = self.cfg["args"]["inverse_pass_improvement"]
@@ -747,6 +762,13 @@ class Codesign:
 
         self.checkpoint_controller.check_end_checkpoint("pd", self.iteration_count)
         self.obj_over_iterations.append(sim_util.xreplace_safe(self.hw.obj, self.hw.circuit_model.tech_model.base_params.tech_values))
+
+        self.hw.run_pact_thermal(
+            grid_res=tuple(self.cfg["args"].get("pact_grid_res", (256, 256))),
+            pact_bin=self.cfg["args"].get("pact_bin", "pact"),
+            run_solver=self.cfg["args"].get("pact_run_solver", True),
+            T_hot=float(self.cfg["args"].get("pact_T_hot_C", 100.0)),
+        )
 
     
 
