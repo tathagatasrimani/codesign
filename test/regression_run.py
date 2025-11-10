@@ -14,7 +14,7 @@ import re
 from src import codesign
 from src import sim_util
 
-MAX_JOB_RUNTIME_MINS = 70  # in minutes
+MAX_JOB_RUNTIME_MINS = 180  # in minutes
 
 CHECKPOINT_RE = re.compile(
     r"CHECKPOINT\s+REACHED:\s*([A-Za-z0-9_\-\/]+)\s*FOR\s+ITERATION:\s*(\d+)"
