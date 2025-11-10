@@ -748,6 +748,9 @@ class Codesign:
         self.checkpoint_controller.check_end_checkpoint("pd", self.iteration_count)
         self.obj_over_iterations.append(sim_util.xreplace_safe(self.hw.obj, self.hw.circuit_model.tech_model.base_params.tech_values))
 
+    
+
+
     def parse_catapult_timing(self):
         """
         Parses the Catapult timing report, extracts and schedules the data flow graph (DFG).

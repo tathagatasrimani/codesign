@@ -26,6 +26,8 @@ from src.hardware_model.tech_models import vscnfet_model
 from openroad_interface import openroad_run
 from openroad_interface import openroad_run_hier
 
+from pact_interface import PACTRun
+
 import cvxpy as cp
 
 DEBUG = False
@@ -602,6 +604,87 @@ class HardwareModel:
         
         logger.info(f"time to generate wire parasitics: {time.time()-start_time} seconds, {(time.time()-start_time)/60} minutes.")
 
+    def run_pact_thermal(
+        self,
+        grid_res=(256, 256),
+        pact_bin: str = "pact",
+        run_solver: bool = True,
+        T_hot: float = 100.0,
+    ):
+        """
+        Run PACT thermal analysis after PD (similar to how get_wire_parasitics() is used for PD).
+
+        This wrapper:
+          1) Collects required paths/handles (DEF, LEF list, graph)
+          2) Calls pact_interface/PACTRun().run(...)
+          3) Pulls key metrics from graph.graph for downstream optimization/constraints
+
+        Requirements:
+          - self.openroad_def: path to the PD DEF produced by OpenROAD
+          - self.graph: hardware netlist graph (nodes carry optional power metadata)
+          - LEF files: at least the stdcell LEF used during PD (same one you pass to OpenROAD)
+
+        Outputs:
+          - Writes PACT inputs/outputs under <root>/src/tmp/thm/results
+          - Populates self.thermal_metrics with Tmax/Tavg and optional hot-area/gradient metrics
+        """
+        # Sanity checks
+        if not hasattr(self, "openroad_def") or self.openroad_def is None:
+            raise RuntimeError("[thermal] DEF not found. Make sure PD has completed before running PACT.")
+        if not hasattr(self, "graph") or self.graph is None:
+            raise RuntimeError("[thermal] Graph not found. Make sure the netlist graph is available.")
+
+        # Prepare LEF list: reuse the same LEF(s) used by PD; keep at least the stdcell LEF
+        # If you already store them elsewhere (e.g., self.lef_paths), reuse that.
+        lef_paths = []
+        if hasattr(self, "lef_paths") and self.lef_paths:
+            lef_paths = list(self.lef_paths)
+        else:
+            # Fallback: a commonly used location for the stdcell LEF inside the repo
+            lef_paths = [os.path.join(self.root_dir, "pact_interface", "codesign_stdcell.lef")]
+
+        # Import PACT runner locally to avoid circular imports
+        from pact_interface.pact_run import PACTRun
+
+        # Instantiate and run PACT; inst_power.csv is auto-generated from self.graph inside PACTRun
+        runner = PACTRun(cfg=self.cfg, codesign_root_dir=self.root_dir, pact_bin=pact_bin)
+        runner.run(
+            graph=self.graph,
+            test_file=getattr(self, "openroad_testfile", "design"),
+            lef_paths=lef_paths,
+            def_path=self.openroad_def,
+            inst_power_csv=None,          # None -> generate from graph inside PACTRun
+            grid_res=grid_res,
+            run_solver=run_solver,
+            pact_extra_args=None,         # e.g., ["--steady", "--klu"]
+            compute_phi=True,
+            T_hot=T_hot,
+            compute_grad=True,
+        )
+
+        # Collect metrics back from graph.graph (PACTRun wrote them there)
+        Tmax = self.graph.graph.get("PACT_Tmax_C", None)
+        Tavg = self.graph.graph.get("PACT_Tavg_C", None)
+        phi  = self.graph.graph.get("PACT_phi_hot_area_frac", None)
+        gmax = self.graph.graph.get("PACT_grad_max_C_per_cell", None)
+
+        # Expose to the rest of the flow for objectives/constraints/logging
+        self.thermal_metrics = {
+            "Tmax_C": Tmax,
+            "Tavg_C": Tavg,
+            "phi_hot_area": phi,
+            "grad_max_C_per_cell": gmax,
+            "grid_cells": self.graph.graph.get("PACT_grid_cells", None),
+            "results_dir": os.path.join(self.root_dir, "src", "tmp", "thm", "results"),
+        }
+
+        # Optional: print concise summary for debugging
+        print("[thermal] PACT results:",
+              f"Tmax={Tmax:.2f}C" if Tmax is not None else "Tmax=NA",
+              f"Tavg={Tavg:.2f}C" if Tavg is not None else "Tavg=NA",
+              f"phi={phi:.4f}"    if phi  is not None else "phi=NA",
+              f"grad_max={gmax:.2f} C/cell" if gmax is not None else "grad_max=NA")
+
     def save_symbolic_memories(self):
         MemL_expr = 0
         MemReadEact_expr = 0
@@ -942,7 +1025,12 @@ class HardwareModel:
             #self.node_arrivals[basic_block_name] = {"full": {}, "loop_1x": {}, "loop_2x": {}}
             self.node_arrivals_cvx[basic_block_name] = {"full": {}, "loop_1x": {}, "loop_2x": {}}
 
+         # debug 251020
+        print("DEBUG: top_block_name =", top_block_name)
+        print("DEBUG: available keys in scheduled_dfgs =", list(self.scheduled_dfgs.keys()))
+
         self.graph_delays_cvx[top_block_name] = self.calculate_execution_time_vitis_recursive(top_block_name, self.scheduled_dfgs[top_block_name])
+
 
         if not clk_period_opt:
             clk_period_constr = [self.circuit_model.clk_period_cvx== self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.clk_period]]
