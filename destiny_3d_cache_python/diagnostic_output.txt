@@ -1,8 +1,0 @@
-================================================================================
-PYTHON vs C++ DESTINY DIAGNOSTIC
-================================================================================
-
-Config: config/sample_SRAM_2layer.cfg
-Running C++ DESTINY...
-C++ DESTINY failed: 
-Failed to run C++ DESTINY
