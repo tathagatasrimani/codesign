@@ -1,0 +1,19 @@
+================================================================================
+SYMBOLIC ACCESS TIME ANALYSIS V2
+Using REAL Python DESTINY Calculations + Symbolic Formulas
+================================================================================
+
+Parsing C++ DESTINY output: ../destiny_3d_cache-master/cpp_output_sram2layer.txt
+Reading configuration: config/sample_SRAM_2layer.cfg
+
+Initializing Python DESTINY with optimal configuration...
+Traceback (most recent call last):
+  File "/Users/aaravwattal/Documents/Stanford/Junior Fall/Memory Modeling RSG/cacti_destiny_old/destiny_3d_cache_python/symbolic_access_time_v2.py", line 294, in <module>
+    sys.exit(main())
+  File "/Users/aaravwattal/Documents/Stanford/Junior Fall/Memory Modeling RSG/cacti_destiny_old/destiny_3d_cache_python/symbolic_access_time_v2.py", line 275, in main
+    analyzer = SymbolicAccessTimeAnalyzerV2(opt_config, input_param)
+  File "/Users/aaravwattal/Documents/Stanford/Junior Fall/Memory Modeling RSG/cacti_destiny_old/destiny_3d_cache_python/symbolic_access_time_v2.py", line 60, in __init__
+    self.subarray.Initialize(
+  File "/Users/aaravwattal/Documents/Stanford/Junior Fall/Memory Modeling RSG/cacti_destiny_old/destiny_3d_cache_python/SubArray.py", line 98, in Initialize
+    if g.inputParameter.designTarget == DesignTarget.cache and g.inputParameter.cacheAccessMode != CacheAccessMode.sequential_access_mode:
+AttributeError: 'NoneType' object has no attribute 'designTarget'
