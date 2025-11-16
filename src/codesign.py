@@ -328,7 +328,7 @@ class Codesign:
                 source mlir_venv/bin/activate
                 cd {os.path.join(os.path.dirname(__file__), "..", save_dir)}
                 python3 {self.benchmark_name}.py > {self.benchmark_name}.mlir 
-                scalehls-opt {self.benchmark_name}.mlir -hida-pytorch-pipeline=\"top-func={self.vitis_top_function} loop-tile-size=8 loop-unroll-factor=4\" | scalehls-translate -scalehls-emit-hlscpp -emit-vitis-directives > {os.path.join(os.path.dirname(__file__), "..", save_dir)}/{self.benchmark_name}.cpp
+                {opt_cmd} | scalehls-translate -scalehls-emit-hlscpp -emit-vitis-directives > {os.path.join(os.path.dirname(__file__), "..", save_dir)}/{self.benchmark_name}.cpp
                 deactivate
                 pwd
                 '''
@@ -391,7 +391,7 @@ class Codesign:
         return f"{read_dir}/{self.benchmark_name}_pareto_{mlir_idx_that_exist[-1]}.mlir", mlir_idx_that_exist[-1]
 
     def parse_dsp_usage_and_latency(self, mlir_idx):
-        df = pd.read_csv(f'''{os.path.join(os.path.dirname(__file__), "..", self.benchmark_setup_dir)}/{self.benchmark_name}_space.csv''')
+        df = pd.read_csv(f'''{os.path.join(os.path.dirname(__file__), "..", self.benchmark_setup_dir)}/function_hier_output/{self.benchmark_name}_space.csv''')
         logger.info(f"dsp usage: {df['dsp'].values[mlir_idx]}, latency: {df['cycle'].values[mlir_idx]}")
         return df['dsp'].values[mlir_idx], df['cycle'].values[mlir_idx]
 
@@ -494,17 +494,16 @@ class Codesign:
         Runs Vitis version of forward pass, updates the memory configuration, and logs the output.
         """
         self.vitis_top_function = self.benchmark_name if not self.cfg["args"]["pytorch"] else "forward"
+        self.scalehls_pipeline = "hida-pytorch-dse-pipeline" if self.cfg["args"]["pytorch"] else "scalehls-dse-pipeline"
 
         # prep before running scalehls
         self.set_resource_constraint_scalehls(unlimited=setup)
         if setup:
-            opt_cmd = f'''scalehls-opt {self.benchmark_name}.mlir -scalehls-dse-pipeline=\"top-func={self.vitis_top_function} target-spec={os.path.join(os.path.dirname(__file__), "..", self.config_json_path)}\"'''
+            opt_cmd = f'''scalehls-opt {self.benchmark_name}.mlir -{self.scalehls_pipeline}=\"top-func={self.vitis_top_function} target-spec={os.path.join(os.path.dirname(__file__), "..", self.config_json_path)}\"'''
             mlir_idx = 0
-        elif not self.cfg["args"]["pytorch"]: # pytorch scalehls dse not yet working
-            mlir_file, mlir_idx = self.parse_design_space_for_mlir(os.path.join(os.path.dirname(__file__), "..", f"{self.tmp_dir}/benchmark_setup"))
-            opt_cmd = f"cat {mlir_file}"
         else:
-            opt_cmd = ""
+            mlir_file, mlir_idx = self.parse_design_space_for_mlir(os.path.join(os.path.dirname(__file__), "..", f"{self.tmp_dir}/benchmark_setup/function_hier_output"))
+            opt_cmd = f"cat {mlir_file}"
 
         # run scalehls
         if (self.checkpoint_controller.check_checkpoint("scalehls", self.iteration_count) and not setup) or (self.checkpoint_controller.check_checkpoint("setup", self.iteration_count) and setup) and not self.max_rsc_reached:
