@@ -312,7 +312,7 @@ class Optimizer:
                 best_tech_values = copy.deepcopy(tech_param_sets[optimal_design_idx])
                 best_obj_scaled = true_scaled_obj_val
             # ensure that this path does not become critical again
-            self.bbv_path_constraints.append(execution_time < sim_util.xreplace_safe(execution_time, self.hw.circuit_model.tech_model.base_params.tech_values))
+            self.bbv_path_constraints.append(execution_time <= sim_util.xreplace_safe(execution_time, self.hw.circuit_model.tech_model.base_params.tech_values))
         
         assert best_obj_scaled < lower_bound * improvement, "no better design point found"
         self.hw.circuit_model.tech_model.base_params.tech_values = best_tech_values
