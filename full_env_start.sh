@@ -192,6 +192,11 @@ cd src/cacti
 make
 cd ../..
 
+###############  BUILD DESTINY #################3
+cd destiny_3d_cache
+make
+cd ..
+
 ## make verilator
 source verilator_install.sh
 
