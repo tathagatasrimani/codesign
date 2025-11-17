@@ -9,3 +9,6 @@
 [submodule "ScaleHLS-HIDA"]
 	path = ScaleHLS-HIDA
 	url = https://github.com/patrickmcewen/ScaleHLS-HIDA.git
+[submodule "destiny_3d_cache"]
+	path = destiny_3d_cache
+	url = https://github.com/sparsh0mittal/destiny_3d_cache.git
