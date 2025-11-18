@@ -14,4 +14,4 @@
 	url = https://github.com/sparsh0mittal/destiny_3d_cache.git
 [submodule "destiny_3d_cache_python"]
 	path = destiny_3d_cache_python
-	url = ./destiny_3d_cache_python
+	url = https://github.com/patrickmcewen/destiny_3d_cache_python.git
