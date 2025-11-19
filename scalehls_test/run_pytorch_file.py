@@ -2,6 +2,8 @@ import os
 import argparse
 import subprocess
 
+CODESIGN_ROOT_DIR = os.path.dirname(os.path.dirname(__file__))
+
 SCALEHLS_DIR = os.path.join(os.path.dirname(__file__), "../ScaleHLS-HIDA")
 CODESIGN_OPT_DIR = os.path.join(os.path.dirname(__file__), "../codesign-opt")
 
@@ -20,16 +22,19 @@ def run_pytorch_file(input_file_name):
     codesign_opt_cmd = [
         "bash", "-c",
         f'''
+        cd {CODESIGN_ROOT_DIR}
+        source full_env_start.sh
         cd {CODESIGN_OPT_DIR}
         source codesign-opt-env.sh
+        echo "Running codesign-opt"
+        echo $PATH
         python {INPUT_FOLDER}/{input_file_name}.py > {INITIAL_MLIR_FOLDER}/{input_file_name}.mlir
         python {CODESIGN_OPT_DIR}/test/replace_maximumf.py {INITIAL_MLIR_FOLDER}/{input_file_name}.mlir {AFTER_CODESIGN_OPT_FOLDER}/{input_file_name}.mlir
-        python {CODESIGN_OPT_DIR}/test/truncate_mlir.py {AFTER_CODESIGN_OPT_FOLDER}/{input_file_name}.mlir {CODESIGN_OPT_TRUNC_FOLDER}/{input_file_name}.mlir
+        python {CODESIGN_OPT_DIR}/test/truncate_mlir.py {AFTER_CODESIGN_OPT_FOLDER}/{input_file_name}.mlir -o {CODESIGN_OPT_TRUNC_FOLDER}/{input_file_name}.mlir
         deactivate
+        conda deactivate
         '''
     ]
-
-    print(codesign_opt_cmd)
 
     with open(f"{TEST_LOG_FOLDER_CODESIGN_OPT}/{input_file_name}.log", "w") as f:
         p = subprocess.Popen(
@@ -46,10 +51,26 @@ def run_pytorch_file(input_file_name):
     scalehls_cmd = [
         "bash", "-c",
         f'''
+        cd {CODESIGN_ROOT_DIR}
+        source full_env_start.sh
         cd {SCALEHLS_DIR}
         source scalehls_env.sh
         scalehls-opt {AFTER_CODESIGN_OPT_FOLDER}/{input_file_name}.mlir -hida-pytorch-pipeline="top-func=forward loop-tile-size=1 loop-unroll-factor=1" -debug-only=scalehls 2>&1 | tee {SCALEHLS_OUTPUT_LOG_FOLDER}/{input_file_name}.log
         deactivate
+        conda deactivate
+        '''
+    ]
+    
+    truncate_log_cmd = [
+        "bash", "-c",
+        f'''
+        cd {CODESIGN_ROOT_DIR}
+        source full_env_start.sh
+        cd {CODESIGN_OPT_DIR}
+        source codesign-opt-env.sh
+        python {CODESIGN_OPT_DIR}/test/truncate_mlir.py {SCALEHLS_OUTPUT_LOG_FOLDER}/{input_file_name}.log -o {SCALEHLS_OUTPUT_LOG_FOLDER}/{input_file_name}.log
+        deactivate
+        conda deactivate
         '''
     ]
 
@@ -63,6 +84,18 @@ def run_pytorch_file(input_file_name):
         p.wait()
     if p.returncode != 0:
         print(f"Error: scalehls failed for {input_file_name}")
+        return
+
+    with open(f"{TEST_LOG_FOLDER_SCALEHLS}/{input_file_name}.log", "w") as f:
+        p = subprocess.Popen(
+            truncate_log_cmd,
+            stdout=f,
+            stderr=subprocess.STDOUT,
+            env={}  # clean environment
+        )
+        p.wait()
+    if p.returncode != 0:
+        print(f"Error: truncate log failed for {input_file_name}")
         return
 
     print(f"Success: codesign-opt and scalehls passed for {input_file_name}")
