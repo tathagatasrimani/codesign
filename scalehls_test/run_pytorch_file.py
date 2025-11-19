@@ -15,9 +15,28 @@ SCALEHLS_OUTPUT_FOLDER = os.path.join(os.path.dirname(__file__), "scalehls_out_f
 SCALEHLS_OUTPUT_LOG_FOLDER = os.path.join(os.path.dirname(__file__), "scalehls_out_log")
 TEST_LOG_FOLDER_CODESIGN_OPT = os.path.join(os.path.dirname(__file__), "test_log_codesign_opt")
 TEST_LOG_FOLDER_SCALEHLS = os.path.join(os.path.dirname(__file__), "test_log_scalehls")
+TEST_LOG_FOLDER_DEBUG_SCALEHLS = os.path.join(os.path.dirname(__file__), "test_log_debug_scalehls")
+
+if not os.path.exists(INITIAL_MLIR_FOLDER):
+    os.makedirs(INITIAL_MLIR_FOLDER)
+if not os.path.exists(AFTER_CODESIGN_OPT_FOLDER):
+    os.makedirs(AFTER_CODESIGN_OPT_FOLDER)
+if not os.path.exists(CODESIGN_OPT_TRUNC_FOLDER):
+    os.makedirs(CODESIGN_OPT_TRUNC_FOLDER)
+if not os.path.exists(SCALEHLS_OUTPUT_FOLDER):
+    os.makedirs(SCALEHLS_OUTPUT_FOLDER)
+if not os.path.exists(SCALEHLS_OUTPUT_LOG_FOLDER):
+    os.makedirs(SCALEHLS_OUTPUT_LOG_FOLDER)
+
+if not os.path.exists(TEST_LOG_FOLDER_CODESIGN_OPT):
+    os.makedirs(TEST_LOG_FOLDER_CODESIGN_OPT)
+if not os.path.exists(TEST_LOG_FOLDER_SCALEHLS):
+    os.makedirs(TEST_LOG_FOLDER_SCALEHLS)
+if not os.path.exists(TEST_LOG_FOLDER_DEBUG_SCALEHLS):
+    os.makedirs(TEST_LOG_FOLDER_DEBUG_SCALEHLS)
 
 
-def run_pytorch_file(input_file_name):
+def run_pytorch_file(input_file_name, debug_point):
     
     codesign_opt_cmd = [
         "bash", "-c",
@@ -48,6 +67,11 @@ def run_pytorch_file(input_file_name):
         print(f"Error: codesign-opt failed for {input_file_name}")
         return
 
+    log_path = f"{TEST_LOG_FOLDER_SCALEHLS}/{input_file_name}.log" if debug_point == 0 else f"{TEST_LOG_FOLDER_DEBUG_SCALEHLS}/{input_file_name}/{input_file_name}_debug_{debug_point}.log"
+    os.makedirs(os.path.dirname(log_path), exist_ok=True)
+
+    debug_point_txt = f" debug-point={debug_point}" if debug_point != 0 else ""
+
     scalehls_cmd = [
         "bash", "-c",
         f'''
@@ -55,7 +79,7 @@ def run_pytorch_file(input_file_name):
         source full_env_start.sh
         cd {SCALEHLS_DIR}
         source scalehls_env.sh
-        scalehls-opt {AFTER_CODESIGN_OPT_FOLDER}/{input_file_name}.mlir -hida-pytorch-pipeline="top-func=forward loop-tile-size=1 loop-unroll-factor=1" -debug-only=scalehls 2>&1 | tee {SCALEHLS_OUTPUT_LOG_FOLDER}/{input_file_name}.log
+        scalehls-opt {AFTER_CODESIGN_OPT_FOLDER}/{input_file_name}.mlir -hida-pytorch-pipeline="top-func=forward loop-tile-size=1 loop-unroll-factor=1{debug_point_txt}" -debug-only=scalehls 2>&1 | tee {log_path}
         deactivate
         conda deactivate
         '''
@@ -68,7 +92,7 @@ def run_pytorch_file(input_file_name):
         source full_env_start.sh
         cd {CODESIGN_OPT_DIR}
         source codesign-opt-env.sh
-        python {CODESIGN_OPT_DIR}/test/truncate_mlir.py {SCALEHLS_OUTPUT_LOG_FOLDER}/{input_file_name}.log -o {SCALEHLS_OUTPUT_LOG_FOLDER}/{input_file_name}.log
+        python {CODESIGN_OPT_DIR}/test/truncate_mlir.py {log_path} -o {log_path}
         deactivate
         conda deactivate
         '''
@@ -86,14 +110,13 @@ def run_pytorch_file(input_file_name):
         print(f"Error: scalehls failed for {input_file_name}")
         return
 
-    with open(f"{TEST_LOG_FOLDER_SCALEHLS}/{input_file_name}.log", "w") as f:
-        p = subprocess.Popen(
-            truncate_log_cmd,
-            stdout=f,
-            stderr=subprocess.STDOUT,
-            env={}  # clean environment
-        )
-        p.wait()
+    p = subprocess.Popen(
+        truncate_log_cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        env={}  # clean environment
+    )
+    p.wait()
     if p.returncode != 0:
         print(f"Error: truncate log failed for {input_file_name}")
         return
@@ -110,11 +133,13 @@ if __name__ == "__main__":
     But they are not truncated in the actual run of scalehls.
 
     Example Usage:
-    python run_pytorch_file.py bitnet_small
+    python run_pytorch_file.py bitnet_small --debug_point 2
     """
     parser = argparse.ArgumentParser()
     parser.add_argument("input_file", type=str)
+    parser.add_argument("--debug_point", type=str, default=0)
     args = parser.parse_args()
 
     input_file = args.input_file
-    run_pytorch_file(input_file)
+    debug_point = args.debug_point
+    run_pytorch_file(input_file, debug_point)
