@@ -101,6 +101,14 @@ def run_pytorch_file(input_file_name):
     print(f"Success: codesign-opt and scalehls passed for {input_file_name}")
 
 if __name__ == "__main__":
+    """
+    This script is used to run the pytorch file through the codesign-opt and scalehls pipeline.
+    It will run the pytorch file through the codesign-opt pipeline and then the scalehls pipeline.
+    It will then truncate the log file and save it to the test_log_folder.
+    It will then print the success message.
+    Example:
+    python run_pytorch_file.py bitnet_small
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("input_file", type=str)
     args = parser.parse_args()
