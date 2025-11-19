@@ -98,7 +98,7 @@ def run_pytorch_file(input_file_name):
         print(f"Error: truncate log failed for {input_file_name}")
         return
 
-    print(f"Success: codesign-opt and scalehls passed for {input_file_name}")
+    print(f"codesign-opt and scalehls completed for {input_file_name}. Check logs for possible issues")
 
 if __name__ == "__main__":
     """
@@ -106,7 +106,10 @@ if __name__ == "__main__":
     It will run the pytorch file through the codesign-opt pipeline and then the scalehls pipeline.
     It will then truncate the log file and save it to the test_log_folder.
     It will then print the success message.
-    Example:
+    MLIR files are truncated at various points so that they can be viewed, because often the tensors take up too much space.
+    But they are not truncated in the actual run of scalehls.
+
+    Example Usage:
     python run_pytorch_file.py bitnet_small
     """
     parser = argparse.ArgumentParser()

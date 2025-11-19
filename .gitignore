@@ -18,6 +18,7 @@ test/saved_checkpoints/**
 **/figs/**
 **/build/**
 **.log
+**.mlir
 
 data/**
 .vscode/**
