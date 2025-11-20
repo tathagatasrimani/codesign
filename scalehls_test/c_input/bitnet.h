@@ -102,9 +102,9 @@
 #  define EXP_FUN(x) expf(x)
 #  define POW_FUN(x,y) powf(x,y)
 #  define FABS_FUN(x) fabsf(x)
-#  define FMAX_FUN(x,y) fmaxf(x,y)
-#  define FMIN_FUN(x,y) fminf(x,y)
-#  define ROUND_FUN(x) roundf(x)
+#  define FMAX_FUN(x,y) ((x) > (y) ? (x) : (y))
+#  define FMIN_FUN(x,y) ((x) < (y) ? (x) : (y))
+#  define ROUND_FUN(x) ((x) >= SCALAR_VAL(0.0) ? (float)((int)((x) + SCALAR_VAL(0.5))) : (float)((int)((x) - SCALAR_VAL(0.5))))
 # endif
 
 # ifdef DATA_TYPE_IS_DOUBLE
@@ -115,9 +115,9 @@
 #  define EXP_FUN(x) exp(x)
 #  define POW_FUN(x,y) pow(x,y)
 #  define FABS_FUN(x) fabs(x)
-#  define FMAX_FUN(x,y) fmax(x,y)
-#  define FMIN_FUN(x,y) fmin(x,y)
-#  define ROUND_FUN(x) round(x)
+#  define FMAX_FUN(x,y) ((x) > (y) ? (x) : (y))
+#  define FMIN_FUN(x,y) ((x) < (y) ? (x) : (y))
+#  define ROUND_FUN(x) ((x) >= SCALAR_VAL(0.0) ? (double)((long)((x) + SCALAR_VAL(0.5))) : (double)((long)((x) - SCALAR_VAL(0.5))))
 # endif
 
 #endif /* !_BITNET_H */

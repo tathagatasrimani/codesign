@@ -43,13 +43,13 @@ void simple_rms_norm(
   DATA_TYPE scale = SCALAR_VAL(1.0) / SQRT_FUN((DATA_TYPE)embed_dim);
 
 #pragma scop
-  for (i = 0; i < seq_len; i++) {
+  for (i = 0; i < SEQ_LEN; i++) {
     DATA_TYPE rms = SCALAR_VAL(0.0);
-    for (j = 0; j < embed_dim; j++) {
+    for (j = 0; j < EMBED_DIM; j++) {
       rms += x_in[i][j] * x_in[i][j];
     }
     rms = SQRT_FUN(rms / (DATA_TYPE)embed_dim + EPSILON);
-    for (j = 0; j < embed_dim; j++) {
+    for (j = 0; j < EMBED_DIM; j++) {
       x_out[i][j] = x_in[i][j] / rms * scale;
     }
   }
@@ -68,18 +68,18 @@ void layer_norm(
   int i, j;
   
 #pragma scop
-  for (i = 0; i < seq_len; i++) {
+  for (i = 0; i < SEQ_LEN; i++) {
     DATA_TYPE mean = SCALAR_VAL(0.0);
     DATA_TYPE var = SCALAR_VAL(0.0);
     
     /* Compute mean */
-    for (j = 0; j < embed_dim; j++) {
+    for (j = 0; j < EMBED_DIM; j++) {
       mean += x_in[i][j];
     }
     mean = mean / (DATA_TYPE)embed_dim;
     
     /* Compute variance */
-    for (j = 0; j < embed_dim; j++) {
+    for (j = 0; j < EMBED_DIM; j++) {
       DATA_TYPE diff = x_in[i][j] - mean;
       var += diff * diff;
     }
@@ -87,7 +87,7 @@ void layer_norm(
     DATA_TYPE std = SQRT_FUN(var + eps);
     
     /* Normalize */
-    for (j = 0; j < embed_dim; j++) {
+    for (j = 0; j < EMBED_DIM; j++) {
       x_out[i][j] = (x_in[i][j] - mean) / std;
     }
   }
@@ -104,9 +104,9 @@ void activation_quant(
   int i, j;
   
 #pragma scop
-  for (i = 0; i < seq_len; i++) {
+  for (i = 0; i < SEQ_LEN; i++) {
     DATA_TYPE max_val = SCALAR_VAL(0.0);
-    for (j = 0; j < embed_dim; j++) {
+    for (j = 0; j < EMBED_DIM; j++) {
       DATA_TYPE abs_val = FABS_FUN(x_in[i][j]);
       if (abs_val > max_val) {
         max_val = abs_val;
@@ -115,7 +115,7 @@ void activation_quant(
     max_val = FMAX_FUN(max_val, SCALAR_VAL(1e-5));
     DATA_TYPE scale = QUANT_SCALE / max_val;
     
-    for (j = 0; j < embed_dim; j++) {
+    for (j = 0; j < EMBED_DIM; j++) {
       DATA_TYPE quantized = ROUND_FUN(x_in[i][j] * scale);
       quantized = FMAX_FUN(FMIN_FUN(quantized, QUANT_MAX), QUANT_MIN);
       x_quant[i][j] = quantized / scale;
@@ -137,16 +137,16 @@ void weight_quant(
   
 #pragma scop
   /* Compute mean absolute value over entire weight matrix */
-  for (i = 0; i < embed_dim_out; i++) {
-    for (j = 0; j < embed_dim_in; j++) {
+  for (i = 0; i < EMBED_DIM; i++) {
+    for (j = 0; j < EMBED_DIM; j++) {
       mean_abs += FABS_FUN(w_in[i][j]);
     }
   }
   mean_abs = mean_abs / ((DATA_TYPE)embed_dim_out * (DATA_TYPE)embed_dim_in);
   
   /* Apply quantization: sign(w) * mean(|w|) */
-  for (i = 0; i < embed_dim_out; i++) {
-    for (j = 0; j < embed_dim_in; j++) {
+  for (i = 0; i < EMBED_DIM; i++) {
+    for (j = 0; j < EMBED_DIM; j++) {
       DATA_TYPE sign = (w_in[i][j] >= SCALAR_VAL(0.0)) ? SCALAR_VAL(1.0) : SCALAR_VAL(-1.0);
       w_quant[i][j] = sign * mean_abs;
     }
@@ -180,10 +180,10 @@ void bit_linear(
   
   /* Linear transformation */
 #pragma scop
-  for (i = 0; i < seq_len; i++) {
-    for (j = 0; j < embed_dim_out; j++) {
+  for (i = 0; i < SEQ_LEN; i++) {
+    for (j = 0; j < EMBED_DIM; j++) {
       out[i][j] = bias[j];
-      for (k = 0; k < embed_dim_in; k++) {
+      for (k = 0; k < EMBED_DIM; k++) {
         out[i][j] += x_quant[i][k] * w_quant[j][k];
       }
     }
@@ -203,9 +203,9 @@ void reshape_to_heads(
   int h, i, d;
   
 #pragma scop
-  for (h = 0; h < heads; h++) {
-    for (i = 0; i < seq_len; i++) {
-      for (d = 0; d < head_dim; d++) {
+  for (h = 0; h < HEADS; h++) {
+    for (i = 0; i < SEQ_LEN; i++) {
+      for (d = 0; d < HEAD_DIM; d++) {
         /* Reshape: qkv_3d[h][i][d] = qkv_2d[i][h * head_dim + d] */
         qkv_3d[h][i][d] = qkv_2d[i][h * head_dim + d];
       }
@@ -226,9 +226,9 @@ void reshape_from_heads(
   int h, i, d;
   
 #pragma scop
-  for (i = 0; i < seq_len; i++) {
-    for (h = 0; h < heads; h++) {
-      for (d = 0; d < head_dim; d++) {
+  for (i = 0; i < SEQ_LEN; i++) {
+    for (h = 0; h < HEADS; h++) {
+      for (d = 0; d < HEAD_DIM; d++) {
         /* Reshape: out_2d[i][h * head_dim + d] = out_3d[h][i][d] */
         out_2d[i][h * head_dim + d] = out_3d[h][i][d];
       }
@@ -251,11 +251,11 @@ void expand_kv_heads(
   
   /* Restructure loop to avoid division in index: iterate over kv_heads, repeat each group_size times */
 #pragma scop
-  for (kv_idx = 0; kv_idx < kv_heads; kv_idx++) {
-    for (g = 0; g < group_size; g++) {
+  for (kv_idx = 0; kv_idx < KV_HEADS; kv_idx++) {
+    for (g = 0; g < (HEADS / KV_HEADS); g++) {
       h = kv_idx * group_size + g;  /* Compute query head index */
-      for (i = 0; i < seq_len; i++) {
-        for (d = 0; d < head_dim; d++) {
+      for (i = 0; i < SEQ_LEN; i++) {
+        for (d = 0; d < HEAD_DIM; d++) {
           kv_expanded[h][i][d] = kv_original[kv_idx][i][d];
         }
       }
@@ -280,40 +280,40 @@ void scaled_dot_product_attention_head(
   
 #pragma scop
   /* Compute similarity: Q @ K^T */
-  for (i = 0; i < seq_len; i++) {
-    for (j = 0; j < seq_len; j++) {
+  for (i = 0; i < SEQ_LEN; i++) {
+    for (j = 0; j < SEQ_LEN; j++) {
       similarity[i][j] = SCALAR_VAL(0.0);
-      for (k = 0; k < head_dim; k++) {
+      for (k = 0; k < HEAD_DIM; k++) {
         similarity[i][j] += query[i][k] * key[j][k] * scale;
       }
     }
   }
   
   /* Softmax over sequence dimension */
-  for (i = 0; i < seq_len; i++) {
+  for (i = 0; i < SEQ_LEN; i++) {
     DATA_TYPE max_val = similarity[i][0];
-    for (j = 1; j < seq_len; j++) {
+    for (j = 1; j < SEQ_LEN; j++) {
       if (similarity[i][j] > max_val) {
         max_val = similarity[i][j];
       }
     }
     
     DATA_TYPE sum_exp = SCALAR_VAL(0.0);
-    for (j = 0; j < seq_len; j++) {
+    for (j = 0; j < SEQ_LEN; j++) {
       attention[i][j] = EXP_FUN(similarity[i][j] - max_val);
       sum_exp += attention[i][j];
     }
     
-    for (j = 0; j < seq_len; j++) {
+    for (j = 0; j < SEQ_LEN; j++) {
       attention[i][j] = attention[i][j] / sum_exp;
     }
   }
   
   /* Apply attention to values: attention @ V */
-  for (i = 0; i < seq_len; i++) {
-    for (j = 0; j < head_dim; j++) {
+  for (i = 0; i < SEQ_LEN; i++) {
+    for (j = 0; j < HEAD_DIM; j++) {
       attn_out[i][j] = SCALAR_VAL(0.0);
-      for (k = 0; k < seq_len; k++) {
+      for (k = 0; k < SEQ_LEN; k++) {
         attn_out[i][j] += attention[i][k] * value[k][j];
       }
     }
@@ -362,9 +362,9 @@ void gqa_attention(
     expand_kv_heads(v_expanded, v_3d, seq_len, head_dim, query_heads, kv_heads);
   } else {
     /* If equal, just copy */
-    for (h = 0; h < query_heads; h++) {
-      for (i = 0; i < seq_len; i++) {
-        for (j = 0; j < head_dim; j++) {
+    for (h = 0; h < HEADS; h++) {
+      for (i = 0; i < SEQ_LEN; i++) {
+        for (j = 0; j < HEAD_DIM; j++) {
           k_expanded[h][i][j] = k_3d[h][i][j];
           v_expanded[h][i][j] = v_3d[h][i][j];
         }
@@ -379,11 +379,11 @@ void gqa_attention(
   DATA_TYPE POLYBENCH_2D(v_head, SEQ_LEN, HEAD_DIM, seq_len, head_dim);
   DATA_TYPE POLYBENCH_2D(attn_head, SEQ_LEN, HEAD_DIM, seq_len, head_dim);
   
-  for (h = 0; h < query_heads; h++) {
+  for (h = 0; h < HEADS; h++) {
     /* Extract head h data into temporary 2D arrays */
 #pragma scop
-    for (i = 0; i < seq_len; i++) {
-      for (j = 0; j < head_dim; j++) {
+    for (i = 0; i < SEQ_LEN; i++) {
+      for (j = 0; j < HEAD_DIM; j++) {
         q_head[i][j] = q_3d[h][i][j];
         k_head[i][j] = k_expanded[h][i][j];
         v_head[i][j] = v_expanded[h][i][j];
@@ -403,8 +403,8 @@ void gqa_attention(
     
     /* Copy result back to 3D array */
 #pragma scop
-    for (i = 0; i < seq_len; i++) {
-      for (j = 0; j < head_dim; j++) {
+    for (i = 0; i < SEQ_LEN; i++) {
+      for (j = 0; j < HEAD_DIM; j++) {
         attn_out_3d[h][i][j] = attn_head[i][j];
       }
     }
@@ -469,18 +469,18 @@ static void layer_norm_ff(
   int i, j;
   
 #pragma scop
-  for (i = 0; i < seq_len; i++) {
+  for (i = 0; i < SEQ_LEN; i++) {
     DATA_TYPE mean = SCALAR_VAL(0.0);
     DATA_TYPE var = SCALAR_VAL(0.0);
     
     /* Compute mean */
-    for (j = 0; j < dim; j++) {
+    for (j = 0; j < FF_DIM; j++) {
       mean += x_in[i][j];
     }
     mean = mean / (DATA_TYPE)dim;
     
     /* Compute variance */
-    for (j = 0; j < dim; j++) {
+    for (j = 0; j < FF_DIM; j++) {
       DATA_TYPE diff = x_in[i][j] - mean;
       var += diff * diff;
     }
@@ -488,7 +488,7 @@ static void layer_norm_ff(
     DATA_TYPE std = SQRT_FUN(var + eps);
     
     /* Normalize */
-    for (j = 0; j < dim; j++) {
+    for (j = 0; j < FF_DIM; j++) {
       x_out[i][j] = (x_in[i][j] - mean) / std;
     }
   }
@@ -507,16 +507,16 @@ static void weight_quant_ff(
   
 #pragma scop
   /* Compute mean absolute value over entire weight matrix */
-  for (i = 0; i < embed_dim_out; i++) {
-    for (j = 0; j < embed_dim_in; j++) {
+  for (i = 0; i < EMBED_DIM; i++) {
+    for (j = 0; j < EMBED_DIM; j++) {
       mean_abs += FABS_FUN(w_in[i][j]);
     }
   }
   mean_abs = mean_abs / ((DATA_TYPE)embed_dim_out * (DATA_TYPE)embed_dim_in);
   
   /* Apply quantization: sign(w) * mean(|w|) */
-  for (i = 0; i < embed_dim_out; i++) {
-    for (j = 0; j < embed_dim_in; j++) {
+  for (i = 0; i < EMBED_DIM; i++) {
+    for (j = 0; j < EMBED_DIM; j++) {
       DATA_TYPE sign = (w_in[i][j] >= SCALAR_VAL(0.0)) ? SCALAR_VAL(1.0) : SCALAR_VAL(-1.0);
       w_quant[i][j] = sign * mean_abs;
     }
@@ -536,16 +536,16 @@ static void weight_quant_ff_in(
   
 #pragma scop
   /* Compute mean absolute value over entire weight matrix */
-  for (i = 0; i < embed_dim_out; i++) {
-    for (j = 0; j < embed_dim_in; j++) {
+  for (i = 0; i < EMBED_DIM; i++) {
+    for (j = 0; j < EMBED_DIM; j++) {
       mean_abs += FABS_FUN(w_in[i][j]);
     }
   }
   mean_abs = mean_abs / ((DATA_TYPE)embed_dim_out * (DATA_TYPE)embed_dim_in);
   
   /* Apply quantization: sign(w) * mean(|w|) */
-  for (i = 0; i < embed_dim_out; i++) {
-    for (j = 0; j < embed_dim_in; j++) {
+  for (i = 0; i < EMBED_DIM; i++) {
+    for (j = 0; j < EMBED_DIM; j++) {
       DATA_TYPE sign = (w_in[i][j] >= SCALAR_VAL(0.0)) ? SCALAR_VAL(1.0) : SCALAR_VAL(-1.0);
       w_quant[i][j] = sign * mean_abs;
     }
@@ -579,10 +579,10 @@ static void bit_linear_ff_out(
   
   /* Linear transformation */
 #pragma scop
-  for (i = 0; i < seq_len; i++) {
-    for (j = 0; j < embed_dim_out; j++) {
+  for (i = 0; i < SEQ_LEN; i++) {
+    for (j = 0; j < EMBED_DIM; j++) {
       out[i][j] = bias[j];
-      for (k = 0; k < embed_dim_in; k++) {
+      for (k = 0; k < EMBED_DIM; k++) {
         out[i][j] += x_quant[i][k] * w_quant[j][k];
       }
     }
@@ -609,13 +609,13 @@ static void bit_linear_ff_in(
   /* For now, inline the RMS norm computation */
   DATA_TYPE scale = SCALAR_VAL(1.0) / SQRT_FUN((DATA_TYPE)embed_dim_in);
 #pragma scop
-  for (i = 0; i < seq_len; i++) {
+  for (i = 0; i < SEQ_LEN; i++) {
     DATA_TYPE rms = SCALAR_VAL(0.0);
-    for (j = 0; j < embed_dim_in; j++) {
+    for (j = 0; j < EMBED_DIM; j++) {
       rms += x_in[i][j] * x_in[i][j];
     }
     rms = SQRT_FUN(rms / (DATA_TYPE)embed_dim_in + EPSILON);
-    for (j = 0; j < embed_dim_in; j++) {
+    for (j = 0; j < EMBED_DIM; j++) {
       x_norm[i][j] = x_in[i][j] / rms * scale;
     }
   }
@@ -624,9 +624,9 @@ static void bit_linear_ff_in(
   /* Activation quantization - need a version that works with FF_DIM */
   /* Inline activation quant for FF_DIM */
 #pragma scop
-  for (i = 0; i < seq_len; i++) {
+  for (i = 0; i < SEQ_LEN; i++) {
     DATA_TYPE max_val = SCALAR_VAL(0.0);
-    for (j = 0; j < embed_dim_in; j++) {
+    for (j = 0; j < EMBED_DIM; j++) {
       DATA_TYPE abs_val = FABS_FUN(x_norm[i][j]);
       if (abs_val > max_val) {
         max_val = abs_val;
@@ -635,7 +635,7 @@ static void bit_linear_ff_in(
     max_val = FMAX_FUN(max_val, SCALAR_VAL(1e-5));
     DATA_TYPE quant_scale = QUANT_SCALE / max_val;
     
-    for (j = 0; j < embed_dim_in; j++) {
+    for (j = 0; j < EMBED_DIM; j++) {
       DATA_TYPE quantized = ROUND_FUN(x_norm[i][j] * quant_scale);
       quantized = FMAX_FUN(FMIN_FUN(quantized, QUANT_MAX), QUANT_MIN);
       x_quant[i][j] = quantized / quant_scale;
@@ -648,10 +648,10 @@ static void bit_linear_ff_in(
   
   /* Linear transformation */
 #pragma scop
-  for (i = 0; i < seq_len; i++) {
-    for (j = 0; j < embed_dim_out; j++) {
+  for (i = 0; i < SEQ_LEN; i++) {
+    for (j = 0; j < EMBED_DIM; j++) {
       out[i][j] = bias[j];
-      for (k = 0; k < embed_dim_in; k++) {
+      for (k = 0; k < EMBED_DIM; k++) {
         out[i][j] += x_quant[i][k] * w_quant[j][k];
       }
     }
@@ -681,8 +681,8 @@ void bit_feedforward(
   /* SiLU (Swish) activation: x * sigmoid(x) */
   /* sigmoid(x) = 1 / (1 + exp(-x)) */
 #pragma scop
-  for (i = 0; i < seq_len; i++) {
-    for (j = 0; j < ff_dim; j++) {
+  for (i = 0; i < SEQ_LEN; i++) {
+    for (j = 0; j < FF_DIM; j++) {
       DATA_TYPE x = ff1_out[i][j];
       /* SiLU: x * sigmoid(x) = x / (1 + exp(-x)) */
       DATA_TYPE silu = x / (SCALAR_VAL(1.0) + EXP_FUN(-x));
@@ -739,8 +739,8 @@ void transformer_block(
   /* Residual connection */
   DATA_TYPE POLYBENCH_2D(attn_residual, SEQ_LEN, EMBED_DIM, seq_len, embed_dim);
 #pragma scop
-  for (i = 0; i < seq_len; i++) {
-    for (j = 0; j < embed_dim; j++) {
+  for (i = 0; i < SEQ_LEN; i++) {
+    for (j = 0; j < EMBED_DIM; j++) {
       attn_residual[i][j] = x_in[i][j] + attn_out[i][j];
     }
   }
@@ -755,8 +755,8 @@ void transformer_block(
   
   /* Residual connection for feed-forward */
 #pragma scop
-  for (i = 0; i < seq_len; i++) {
-    for (j = 0; j < embed_dim; j++) {
+  for (i = 0; i < SEQ_LEN; i++) {
+    for (j = 0; j < EMBED_DIM; j++) {
       out[i][j] = norm_out[i][j] + ff_out[i][j];
     }
   }
@@ -810,15 +810,15 @@ void bitnet(
   
   /* Copy to working buffer */
 #pragma scop
-  for (i = 0; i < seq_len; i++) {
-    for (j = 0; j < embed_dim; j++) {
+  for (i = 0; i < SEQ_LEN; i++) {
+    for (j = 0; j < EMBED_DIM; j++) {
       x_transformed[i][j] = x_norm[i][j];
     }
   }
 #pragma endscop
   
   /* Apply transformer blocks depth times (as in Python Transformer.forward) */
-  for (l = 0; l < depth; l++) {
+  for (l = 0; l < DEPTH; l++) {
     /* Extract weights for this layer into temporary 2D arrays to avoid polygeist.subindex */
     DATA_TYPE POLYBENCH_2D(q_w, EMBED_DIM, EMBED_DIM, embed_dim, embed_dim);
     DATA_TYPE POLYBENCH_2D(k_w, EMBED_DIM, EMBED_DIM, kv_embed_dim, embed_dim);
@@ -835,44 +835,44 @@ void bitnet(
     
     /* Copy weights and biases for layer l */
 #pragma scop
-    for (i = 0; i < embed_dim; i++) {
-      for (j = 0; j < embed_dim; j++) {
+    for (i = 0; i < EMBED_DIM; i++) {
+      for (j = 0; j < EMBED_DIM; j++) {
         q_w[i][j] = q_weights[l][i][j];
       }
     }
-    for (i = 0; i < kv_embed_dim; i++) {
-      for (j = 0; j < embed_dim; j++) {
+    for (i = 0; i < (EMBED_DIM / HEADS * KV_HEADS); i++) {
+      for (j = 0; j < EMBED_DIM; j++) {
         k_w[i][j] = k_weights[l][i][j];
         v_w[i][j] = v_weights[l][i][j];
       }
     }
-    for (i = 0; i < embed_dim; i++) {
-      for (j = 0; j < embed_dim; j++) {
+    for (i = 0; i < EMBED_DIM; i++) {
+      for (j = 0; j < EMBED_DIM; j++) {
         o_w[i][j] = o_weights[l][i][j];
       }
     }
-    for (i = 0; i < ff_dim; i++) {
-      for (j = 0; j < embed_dim; j++) {
+    for (i = 0; i < FF_DIM; i++) {
+      for (j = 0; j < EMBED_DIM; j++) {
         ff1_w[i][j] = ff1_weights[l][i][j];
       }
     }
-    for (i = 0; i < embed_dim; i++) {
-      for (j = 0; j < ff_dim; j++) {
+    for (i = 0; i < EMBED_DIM; i++) {
+      for (j = 0; j < FF_DIM; j++) {
         ff2_w[i][j] = ff2_weights[l][i][j];
       }
     }
-    for (i = 0; i < embed_dim; i++) {
+    for (i = 0; i < EMBED_DIM; i++) {
       q_b[i] = q_biases[l][i];
       o_b[i] = o_biases[l][i];
     }
-    for (i = 0; i < kv_embed_dim; i++) {
+    for (i = 0; i < (EMBED_DIM / HEADS * KV_HEADS); i++) {
       k_b[i] = k_biases[l][i];
       v_b[i] = v_biases[l][i];
     }
-    for (i = 0; i < ff_dim; i++) {
+    for (i = 0; i < FF_DIM; i++) {
       ff1_b[i] = ff1_biases[l][i];
     }
-    for (i = 0; i < embed_dim; i++) {
+    for (i = 0; i < EMBED_DIM; i++) {
       ff2_b[i] = ff2_biases[l][i];
     }
 #pragma endscop
@@ -889,8 +889,8 @@ void bitnet(
       seq_len, embed_dim, kv_embed_dim, query_heads, kv_heads, ff_dim);
     
     /* Swap buffers for next iteration */
-    for (i = 0; i < seq_len; i++) {
-      for (j = 0; j < embed_dim; j++) {
+    for (i = 0; i < SEQ_LEN; i++) {
+      for (j = 0; j < EMBED_DIM; j++) {
         swap[i][j] = x_transformed[i][j];
         x_transformed[i][j] = x_temp[i][j];
         x_temp[i][j] = swap[i][j];
@@ -903,10 +903,10 @@ void bitnet(
   
   /* Linear projection to vocab_size */
 #pragma scop
-  for (i = 0; i < seq_len; i++) {
-    for (j = 0; j < vocab_size; j++) {
+  for (i = 0; i < SEQ_LEN; i++) {
+    for (j = 0; j < VOCAB_SIZE; j++) {
       out[i][j] = output_bias[j];
-      for (k = 0; k < embed_dim; k++) {
+      for (k = 0; k < EMBED_DIM; k++) {
         out[i][j] += output_norm[i][k] * output_weight[j][k];
       }
     }

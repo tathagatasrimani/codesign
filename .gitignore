@@ -48,4 +48,5 @@ tools/
 !.gitignore
 !.git/
 !.github/
+!scalehls_test/**.log
 ######
