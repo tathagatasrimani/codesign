@@ -48,10 +48,9 @@ vitis_gemm_32_test_auto:
     workload_size: 32
     stop_at_checkpoint: pd
 
-# TODO: currently failing. Needs investigation.
-# vitis_resnet_test_auto:
-#   base_cfg: vitis_test
-#   args:
-#     pytorch: True
-#     benchmark: resnet18
-#     stop_at_checkpoint: pd
+vitis_resnet_test_auto:
+  base_cfg: vitis_test
+  args:
+    pytorch: True
+    benchmark: resnet18
+    stop_at_checkpoint: pd
