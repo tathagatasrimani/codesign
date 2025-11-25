@@ -678,11 +678,12 @@ void llama(
   }
 #pragma endscop
   
-  /* Embedding lookup */
+  /* Embedding lookup - simplified: use token index for affine access ASSUMING VOCAB_SIZE >= SEQ_LEN*/
+  /* This avoids memref.load and uses affine.load instead */
 #pragma scop
   for (i = 0; i < SEQ_LEN; i++) {
     for (j = 0; j < EMBED_DIM; j++) {
-      x_emb[i][j] = emb_weight[(int)tokens[i]][j];
+      x_emb[i][j] = emb_weight[i][j];
     }
   }
 #pragma endscop
