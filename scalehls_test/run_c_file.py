@@ -42,7 +42,7 @@ def run_c_file(input_file, debug_point):
         source scalehls_env.sh
         cd {design_space_path}
         cgeist {C_INPUT_FOLDER}/{input_file}.c -function={input_file} -S -memref-fullrank -raise-scf-to-affine -std=c11 -I/scratch_disks/scratch0/patrick_codesign/codesign/ScaleHLS-HIDA/polygeist/tools/cgeist/Test/polybench/utilities -I/usr/include -I/usr/lib/gcc/x86_64-linux-gnu/13/include -I/usr/local/include -resource-dir $(clang -print-resource-dir) > {C_MLIR_FOLDER}/{input_file}.mlir
-        scalehls-opt {C_MLIR_FOLDER}/{input_file}.mlir -scalehls-dse-pipeline="top-func=bitnet target-spec={SCALEHLS_DIR}/test/Transforms/Directive/config.json{debug_point_txt}" -debug-only=scalehls 2>&1 | tee {log_path}
+        scalehls-opt {C_MLIR_FOLDER}/{input_file}.mlir -scalehls-dse-pipeline="top-func={input_file} target-spec={SCALEHLS_DIR}/test/Transforms/Directive/config.json{debug_point_txt}" -debug-only=scalehls 2>&1 | tee {log_path}
         cd {CODESIGN_ROOT_DIR}
         deactivate
         conda deactivate
