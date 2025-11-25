@@ -26,10 +26,15 @@ SCALEHLS_DESIGN_SPACE_FOLDER = os.path.join(os.path.dirname(__file__), "c_design
 if not os.path.exists(SCALEHLS_DESIGN_SPACE_FOLDER):
     os.makedirs(SCALEHLS_DESIGN_SPACE_FOLDER)
 
-def run_c_file(input_file, debug_point):
+CPP_OUTPUT_FOLDER = os.path.join(os.path.dirname(__file__), "cpp_output")
+if not os.path.exists(CPP_OUTPUT_FOLDER):
+    os.makedirs(CPP_OUTPUT_FOLDER)
+
+def run_c_file(input_file, debug_point, no_dse):
     debug_point_txt = f" debug-point={debug_point}" if debug_point != 0 else ""
     log_path = f"{C_TEST_LOG_FOLDER}/{input_file}.log" if debug_point == 0 else f"{C_DEBUG_LOG_FOLDER}/{input_file}/{input_file}_debug_{debug_point}.log"
     os.makedirs(os.path.dirname(log_path), exist_ok=True)
+    pipeline = "scalehls-no-dse-pipeline" if no_dse else "scalehls-dse-pipeline"
     design_space_path = f"{SCALEHLS_DESIGN_SPACE_FOLDER}/{input_file}"
     if not os.path.exists(design_space_path):
         os.makedirs(design_space_path)
@@ -42,7 +47,7 @@ def run_c_file(input_file, debug_point):
         source scalehls_env.sh
         cd {design_space_path}
         cgeist {C_INPUT_FOLDER}/{input_file}.c -function={input_file} -S -memref-fullrank -raise-scf-to-affine -std=c11 -I/scratch_disks/scratch0/patrick_codesign/codesign/ScaleHLS-HIDA/polygeist/tools/cgeist/Test/polybench/utilities -I/usr/include -I/usr/lib/gcc/x86_64-linux-gnu/13/include -I/usr/local/include -resource-dir $(clang -print-resource-dir) > {C_MLIR_FOLDER}/{input_file}.mlir
-        scalehls-opt {C_MLIR_FOLDER}/{input_file}.mlir -scalehls-dse-pipeline="top-func={input_file} target-spec={SCALEHLS_DIR}/test/Transforms/Directive/config.json{debug_point_txt}" -debug-only=scalehls 2>&1 | tee {log_path}
+        scalehls-opt {C_MLIR_FOLDER}/{input_file}.mlir -{pipeline}="top-func={input_file} target-spec={SCALEHLS_DIR}/test/Transforms/Directive/config.json{debug_point_txt}" -debug-only=scalehls | scalehls-translate -scalehls-emit-hlscpp -emit-vitis-directives > {CPP_OUTPUT_FOLDER}/{input_file}.cpp
         cd {CODESIGN_ROOT_DIR}
         deactivate
         conda deactivate
@@ -67,9 +72,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("input_file", type=str)
     parser.add_argument("--debug_point", type=int, default=0)
+    parser.add_argument("--no_dse", action="store_true", default=False)
     args = parser.parse_args()
 
     input_file = args.input_file
     debug_point = args.debug_point
+    no_dse = args.no_dse
 
-    run_c_file(input_file, debug_point)
+    run_c_file(input_file, debug_point, no_dse)
