@@ -31,13 +31,21 @@ if not os.path.exists(CPP_OUTPUT_FOLDER):
     os.makedirs(CPP_OUTPUT_FOLDER)
 
 def run_c_file(input_file, debug_point, no_dse):
+    log_index = 0
     debug_point_txt = f" debug-point={debug_point}" if debug_point != 0 else ""
-    log_path = f"{C_TEST_LOG_FOLDER}/{input_file}.log" if debug_point == 0 else f"{C_DEBUG_LOG_FOLDER}/{input_file}/{input_file}_debug_{debug_point}.log"
+    log_path = f"{C_TEST_LOG_FOLDER}/{input_file}_{log_index}.log" if debug_point == 0 else f"{C_DEBUG_LOG_FOLDER}/{input_file}/{input_file}_debug_{debug_point}_{log_index}.log"
+    while os.path.exists(log_path):
+        log_index += 1
+        log_path = f"{C_TEST_LOG_FOLDER}/{input_file}_{log_index}.log" if debug_point == 0 else f"{C_DEBUG_LOG_FOLDER}/{input_file}/{input_file}_debug_{debug_point}_{log_index}.log"
     os.makedirs(os.path.dirname(log_path), exist_ok=True)
     pipeline = "scalehls-no-dse-pipeline" if no_dse else "scalehls-dse-pipeline"
-    design_space_path = f"{SCALEHLS_DESIGN_SPACE_FOLDER}/{input_file}"
-    if not os.path.exists(design_space_path):
-        os.makedirs(design_space_path)
+    design_space_index = 0
+    design_space_path = f"{SCALEHLS_DESIGN_SPACE_FOLDER}/{input_file}_{design_space_index}"
+    while os.path.exists(design_space_path):
+        design_space_index += 1
+        design_space_path = f"{SCALEHLS_DESIGN_SPACE_FOLDER}/{input_file}_{design_space_index}"
+    os.makedirs(design_space_path)
+
     scalehls_cmd = [
         "bash", "-c",
         f'''
@@ -54,7 +62,7 @@ def run_c_file(input_file, debug_point, no_dse):
         '''
     ]
 
-    with open(f"{C_TEST_LOG_FOLDER}/{input_file}.log", "w") as f:
+    with open(f"{C_TEST_LOG_FOLDER}/{input_file}_{log_index}.log", "w") as f:
         p = subprocess.Popen(
             scalehls_cmd,
             stdout=f,
@@ -63,10 +71,10 @@ def run_c_file(input_file, debug_point, no_dse):
         )
         p.wait()
     if p.returncode != 0:
-        print(f"Error: scalehls failed for {input_file}")
+        print(f"Error: scalehls failed for {input_file}, log index: {log_index}")
         return
     
-    print(f"ScaleHLS completed for {input_file}")
+    print(f"ScaleHLS completed for {input_file}, log index: {log_index}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
