@@ -75,7 +75,7 @@ class DennardMultiCore:
             self.disabled_knobs.append(self.codesign_module.hw.circuit_model.tech_model.base_params.k_gate)
 
         stdout = sys.stdout
-        with open("src/tmp/ipopt_out.txt", "w") as sys.stdout:
+        with open(f"{self.codesign_module.tmp_dir}/ipopt_out.txt", "w") as sys.stdout:
             lag_factor, error = self.codesign_module.opt.optimize("ipopt", improvement=self.codesign_module.inverse_pass_improvement, disabled_knobs=self.disabled_knobs)
             self.codesign_module.inverse_pass_lag_factor *= lag_factor
         sys.stdout = stdout
@@ -210,7 +210,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "--tech_node",
         type=str,
-        default="default",
         help="tech node in nm"
     )
     parser.add_argument(
@@ -222,7 +221,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dummy",
         type=bool,
-        default=False,
+        default=True,
         help="dummy application"
     )
     parser.add_argument(
@@ -240,6 +239,11 @@ if __name__ == "__main__":
         type=str,
         default="logic_device",
         help="optimization pipeline to use for inverse pass"
+    )
+    parser.add_argument(
+        "--additional_cfg_file",
+        type=str,
+        help="path to an additional configuration file",
     )
     args = parser.parse_args()
     if not os.path.exists(args.savedir):

@@ -918,7 +918,7 @@ class Codesign:
         )
         self.write_back_params(f"{self.save_dir}/tech_params_{iter_number}.yaml")
         shutil.copy(f"{self.tmp_dir}/ipopt_out.txt", f"{self.save_dir}/ipopt_{iter_number}.txt")
-        if not os.path.exists(f"{self.tmp_dir}/pd_{self.cur_dsp_usage}_dsp"):
+        if not os.path.exists(f"{self.tmp_dir}/pd_{self.cur_dsp_usage}_dsp") and os.path.exists(f"{self.tmp_dir}/pd"):
             shutil.copytree(f"{self.tmp_dir}/pd", f"{self.tmp_dir}/pd_{self.cur_dsp_usage}_dsp")
         if os.path.exists(f"{self.tmp_dir}/pd/results/design_snapshot-tcl.png"):
             shutil.copy(f"{self.tmp_dir}/pd/results/design_snapshot-tcl.png", f"{self.save_dir}/design_snapshot_{iter_number}.png")

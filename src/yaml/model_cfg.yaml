@@ -35,8 +35,7 @@ dennard_scaling_cfg:
 test_cfg:
   effects:
     area_and_latency_scaling: True
-  delay_parasitics: Csq only
-  scaling_mode: dennard_implicit
+  delay_parasitics: all
   base_cfg: default
 
 full_effects_cfg:
@@ -207,3 +206,7 @@ vs_cfg_latest_capped_parallel_t_1:
   base_cfg: vs_cfg_latest_capped_parallel
   effects:
     t_1: True
+
+mvs_general_cfg_test:
+  base_cfg: test_cfg
+  model_type: mvs_general

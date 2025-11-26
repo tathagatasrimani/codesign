@@ -207,6 +207,7 @@ fi
 ############### Add useful alisas ###############
 alias create_checkpoint="python3 -m test.checkpoint_controller"
 alias run_codesign="python3 -m src.codesign"
+alias run_tech_test="python3 -m test.experiments.dennard_multi_core"
 
 alias clean_checkpoints="rm -rf ~/test/saved_checkpoints/*"
 alias clean_logs="rm -rf ~/logs/*"

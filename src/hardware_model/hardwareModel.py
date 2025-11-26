@@ -23,6 +23,7 @@ from src.hardware_model.tech_models import vs_model
 from src.hardware_model.tech_models import mvs_si_model
 from src.hardware_model.tech_models import mvs_2_model
 from src.hardware_model.tech_models import vscnfet_model
+from src.hardware_model.tech_models import mvs_general_model
 from openroad_interface import openroad_run
 from openroad_interface import openroad_run_hier
 
@@ -203,6 +204,8 @@ class HardwareModel:
                 self.tech_model = vscnfet_model.VSCNFetModel(self.model_cfg, self.base_params)
             else:
                 raise ValueError(f"Invalid vs model type: {self.model_cfg['vs_model_type']}")
+        elif self.model_cfg["model_type"] == "mvs_general":
+            self.tech_model = mvs_general_model.MVSGeneralModel(self.model_cfg, self.base_params)
         else:
             raise ValueError(f"Invalid model type: {self.model_cfg['model_type']}")
         self.tech_model.create_constraints(self.model_cfg["scaling_mode"])
@@ -1226,7 +1229,50 @@ class HardwareModel:
                 self.obj_sub_exprs["H_c"] = self.circuit_model.tech_model.param_db["H_c"]
                 self.obj_sub_exprs["H_g"] = self.circuit_model.tech_model.param_db["H_g"]
                 self.obj_sub_exprs["k_cnt"] = self.circuit_model.tech_model.param_db["k_cnt"]
-
+        elif self.circuit_model.tech_model.model_cfg["model_type"] == "mvs_general":
+            self.obj_sub_exprs = {
+                "execution_time": execution_time,
+                "passive power": self.total_passive_energy/execution_time,
+                "active power": self.total_active_energy/execution_time,
+                "area": self.circuit_model.tech_model.area,
+                "delay": self.circuit_model.tech_model.delay,
+                "Ieff_n": self.circuit_model.tech_model.Ieff_n,
+                "Ieff_p": self.circuit_model.tech_model.Ieff_p,
+                "Ioff_n": self.circuit_model.tech_model.Ioff_n,
+                "Ioff_p": self.circuit_model.tech_model.Ioff_p,
+                "supply voltage": self.circuit_model.tech_model.base_params.V_dd,
+                "long channel threshold voltage": self.circuit_model.tech_model.base_params.V_th,
+                "effective threshold voltage": self.circuit_model.tech_model.V_th_eff,
+                "Cload": self.circuit_model.tech_model.C_load,
+                "t_ox": self.circuit_model.tech_model.base_params.tox,
+                "k_gate": self.circuit_model.tech_model.base_params.k_gate,
+                "gate length": self.circuit_model.tech_model.base_params.L,
+                "gate width": self.circuit_model.tech_model.base_params.W,
+                "mu_eff_n": self.circuit_model.tech_model.base_params.mu_eff_n,
+                "mu_eff_p": self.circuit_model.tech_model.base_params.mu_eff_p,
+                "eps_semi": self.circuit_model.tech_model.base_params.eps_semi,
+                "tsemi": self.circuit_model.tech_model.base_params.tsemi,
+                "Lext": self.circuit_model.tech_model.base_params.Lext,
+                "L_c": self.circuit_model.tech_model.base_params.Lc,
+                "eps_cap": self.circuit_model.tech_model.base_params.eps_cap,
+                "rho_c_n": self.circuit_model.tech_model.base_params.rho_c_n,
+                "rho_c_p": self.circuit_model.tech_model.base_params.rho_c_p,
+                "Rsh_c_n": self.circuit_model.tech_model.base_params.Rsh_c_n,
+                "Rsh_c_p": self.circuit_model.tech_model.base_params.Rsh_c_p,
+                "Rsh_ext_n": self.circuit_model.tech_model.base_params.Rsh_ext_n,
+                "Rsh_ext_p": self.circuit_model.tech_model.base_params.Rsh_ext_p,
+                "f": self.circuit_model.tech_model.base_params.f,
+                "n0": self.circuit_model.tech_model.n0,
+                "DIBL factor": self.circuit_model.tech_model.delta,
+                "dVt": self.circuit_model.tech_model.dVt,
+                "scale length": self.circuit_model.tech_model.Lscale,
+                "clk_period": self.circuit_model.tech_model.base_params.clk_period,
+                "logic_sensitivity": self.circuit_model.tech_model.base_params.logic_sensitivity,
+                "logic_resource_sensitivity": self.circuit_model.tech_model.base_params.logic_resource_sensitivity,
+                "logic_ahmdal_limit": self.circuit_model.tech_model.base_params.logic_ahmdal_limit,
+                "logic_resource_ahmdal_limit": self.circuit_model.tech_model.base_params.logic_resource_ahmdal_limit,
+                "interconnect sensitivity": self.circuit_model.tech_model.base_params.interconnect_sensitivity,
+            }
         else: 
             raise ValueError(f"Objective function {self.obj_fn} not supported")
         self.obj_sub_plot_names = {
@@ -1246,7 +1292,9 @@ class HardwareModel:
             "subthreshold leakage current per um": "Subthreshold Leakage Current per um over generations (A/um)",
             "DIBL factor": "DIBL Factor over generations (V/V)",
             "SS": "Subthreshold Slope over generations (V/V)",
+            "n0": "n0 over generations",
             "Vth_rolloff": "Vth Rolloff over generations (V)",
+            "dVt": "total threshold voltage shift over generations (V)",
             "t_ox": "Gate Oxide Thickness over generations (m)",
             "eot": "Electrical Oxide Thickness over generations (m)",
             "scale length": "Scale Length over generations (m)",
@@ -1267,11 +1315,29 @@ class HardwareModel:
             "R_d": "R_d over generations (Ohm)",
             "Vth_rolloff": "Vth Rolloff over generations (V)",
             "d": "CNT diameter over generations (m)",
-            "L_c": "CNT contact length over generations (m)",
-            "H_c": "CNT contact height over generations (m)",
+            "L_c": "Contact length over generations (m)",
+            "Lext": "Extension length over generations (m)",
+            "H_c": "Contact height over generations (m)",
             "H_g": "CNT gate height over generations (m)",
             "k_cnt": "CNT Dielectric Constant over generations (F/m)",
             "k_gate": "Gate Dielectric Constant over generations (F/m)",
+            "eps_cap": "Capacitor Dielectric Constant over generations (F/m)",
+            "eps_semi": "Semiconductor Dielectric Constant over generations (F/m)",
+            "tsemi": "Semiconductor Thickness over generations (m)",
+            "rho_c_n": "n-type Contact Resistance over generations (Ohm-m)",
+            "rho_c_p": "p-type Contact Resistance over generations (Ohm-m)",
+            "Rsh_c_n": "n-type Shunt Resistance over generations (Ohm)",
+            "Rsh_c_p": "p-type Shunt Resistance over generations (Ohm)",
+            "Rsh_ext_n": "n-type External Shunt Resistance over generations (Ohm)",
+            "Rsh_ext_p": "p-type External Shunt Resistance over generations (Ohm)",
+            "Ieff_n": "nMOS Effective Current over generations (A)",
+            "Ieff_p": "pMOS Effective Current over generations (A)",
+            "Ioff_n": "nMOS Off Current over generations (A)",
+            "Ioff_p": "pMOS Off Current over generations (A)",
+            "Cload": "Load Capacitance over generations (F)",
+            "mu_eff_n": "nMOS Effective Mobility over generations (m^2/V-s)",
+            "mu_eff_p": "pMOS Effective Mobility over generations (m^2/V-s)",
+            "area": "device area over generations (m^2)",
             "delay": "Transistor Delay over generations (s)",
             "multiplier delay": "Multiplier Delay over generations (s)",
             "scaled power": "Scaled Power over generations (W)",

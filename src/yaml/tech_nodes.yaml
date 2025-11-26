@@ -40,6 +40,25 @@ default:
   H_c: 3.0e-6
   H_g: 3.0e-6
   node_arrivals_end: 0
+  # MVS general model parameters
+  beta_p_n: 2.0
+  mD_fac: 0.5
+  mu_eff_n: 250.0e-4
+  mu_eff_p: 125.0e-4
+  eps_semi: 11.7
+  tsemi: 10.0e-9
+  Lext: 10.0e-9
+  Lc: 20.0e-9
+  eps_cap: 3.9
+  rho_c_n: 7.0e-11
+  rho_c_p: 7.0e-11
+  Rsh_c_n: 9000
+  Rsh_c_p: 9000
+  Rsh_ext_n: 9000
+  Rsh_ext_p: 9000
+  FO: 4
+  M: 2
+  a: 0.5
 
 tech-1982:
   L: 2.1e-06
@@ -188,6 +207,33 @@ tech-vs-65:
   V_th: 0.2
   u_n: 0.07
   k_gate: 3.9
+
+mvs-general-example:
+  V_dd: 1.0
+  V_th: 0.3
+  L: 100.0e-9
+  W: 100.0e-9
+  beta_p_n: 2
+  mD_fac: 0.5
+  mu_eff_n: 250.0e-4
+  mu_eff_p: 125.0e-4
+  k_gate: 17
+  tox: 5.0e-9
+  eps_semi: 11.7
+  tsemi: 10.0e-9
+  Lext: 10.0e-9
+  Lc: 20.0e-9
+  eps_cap: 3.9
+  rho_c_n: 7.0e-11
+  rho_c_p: 7.0e-11
+  Rsh_c_n: 9000
+  Rsh_c_p: 9000
+  Rsh_ext_n: 9000
+  Rsh_ext_p: 9000
+  FO: 4
+  M: 2
+  a: 0.5
+  f: 1.0e+9
 
 
 gemm_save:
