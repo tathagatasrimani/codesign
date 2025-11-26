@@ -68,7 +68,7 @@ class Optimizer:
             total_power = self.hw.total_passive_power*self.hw.circuit_model.tech_model.capped_power_scale + self.hw.total_active_energy / (self.hw.execution_time* self.hw.circuit_model.tech_model.capped_delay_scale)
         else:
             total_power = self.hw.total_passive_power*self.hw.circuit_model.tech_model.capped_power_scale_total + self.hw.total_active_energy / (self.hw.execution_time* self.hw.circuit_model.tech_model.capped_delay_scale_total)
-        constraints.append(total_power <= 1e-2) # hard limit on power
+        constraints.append(total_power <= 150) # hard limit on power
         # ensure that forward pass can't add more than 10x parallelism in the next iteration. power scale is based on the amount we scale area down by,
         # because in the next forward pass we assume that much parallelism will be added, and therefore increase power
         #if not self.test_config:

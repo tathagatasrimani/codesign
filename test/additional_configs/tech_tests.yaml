@@ -2,4 +2,4 @@ tech_test:
   base_cfg: default
   args:
     model_cfg: mvs_general_cfg_test
-    tech_node: mvs-general-example
+    tech_node: mvs-starting-point
