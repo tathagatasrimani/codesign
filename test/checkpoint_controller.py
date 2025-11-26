@@ -67,10 +67,17 @@ class CheckpointController:
 
     def create_checkpoint(self):
         ''' copy the tmp directory to the checkpoint directory. This is run on program end '''
+        
+        checkpoint_folder_dir = os.path.join(self.codesign_root_dir, "test/saved_checkpoints")
+        if not os.path.exists(checkpoint_folder_dir):
+            os.makedirs(checkpoint_folder_dir)
+        
         checkpoint_save_dir = os.path.join(self.codesign_root_dir, "test/saved_checkpoints", self.cfg["args"]["checkpoint_save_dir"])
         tmp_dir = os.path.join(self.codesign_root_dir, self.tmp_dir)
         if os.path.exists(checkpoint_save_dir):
             shutil.rmtree(checkpoint_save_dir, ignore_errors=True)
+
+        print(f"Saving checkpoint to {checkpoint_save_dir} from tmp directory {tmp_dir}")
 
         shutil.copytree(tmp_dir, checkpoint_save_dir)
 
@@ -97,9 +104,11 @@ class CheckpointController:
         print("CHECKPOINT REACHED: "+checkpoint_step + " FOR ITERATION: " + str(iteration_count) + " at TIME: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         if checkpoint_map[checkpoint_step] == checkpoint_map[self.cfg["args"]["stop_at_checkpoint"]]:
             
+            ## print self.cfg["args"]["checkpoint_save_dir"]
+            print(f"Checkpoint save directory: {self.cfg['args']['checkpoint_save_dir']}")
+
             ## if we did, check if we should save a checkpoint
             if self.cfg["args"]["checkpoint_save_dir"] != "none":
                 self.create_checkpoint()
 
             raise Exception("^^CHECKPOINT REACHED: "+checkpoint_step+" . RUN SUCCEEDED^^, which was specified in the config " + self.cfg["args"]["config"] + " as the stopping point for this run.")
-        

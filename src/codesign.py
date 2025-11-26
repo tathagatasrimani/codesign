@@ -159,7 +159,7 @@ class Codesign:
         overwrite_args_all = vars(args)
         overwrite_args = {}
         for key, value in overwrite_args_all.items():
-            if value is not None:
+            if value is not None and value != 'none':
                 overwrite_args[key] = value
         overwrite_cfg = {"base_cfg": args.config, "args": overwrite_args}
         cfgs["overwrite_cfg"] = overwrite_cfg
