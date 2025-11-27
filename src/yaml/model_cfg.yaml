@@ -210,3 +210,5 @@ vs_cfg_latest_capped_parallel_t_1:
 mvs_general_cfg_test:
   base_cfg: test_cfg
   model_type: mvs_general
+  max_parallel_en: True
+  max_parallel_val: 1000

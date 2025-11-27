@@ -3,3 +3,5 @@ tech_test:
   args:
     model_cfg: mvs_general_cfg_test
     tech_node: mvs-starting-point
+    inverse_pass_improvement: 4
+    opt_pipeline: logic_device

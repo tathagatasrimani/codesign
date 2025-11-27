@@ -173,15 +173,15 @@ class TechModel(ABC):
         self.constraints.append(self.I_off/(self.base_params.W) <= 100e-9 / (1e-6))
 
 
-        delta_V_th_process = 20e-3 # account for 20mV variation in Vth
-        V_th_min = self.V_th_eff - delta_V_th_process
-        V_th_max = self.V_th_eff + delta_V_th_process
-        max_I_off = self.I_off.subs({self.V_th_eff: V_th_min})
-        self.constraints.append(max_I_off/(self.base_params.W) <= 100e-9 / (1e-6))
-        self.constraints.append(V_th_min >= 0)
-        self.constraints.append(V_th_max <= self.base_params.V_dd)
+        #delta_V_th_process = 20e-3 # account for 20mV variation in Vth
+        #V_th_min = self.V_th_eff - delta_V_th_process
+        #V_th_max = self.V_th_eff + delta_V_th_process
+        #max_I_off = self.I_off.subs({self.V_th_eff: V_th_min})
+        #self.constraints.append(max_I_off/(self.base_params.W) <= 100e-9 / (1e-6))
+        #self.constraints.append(V_th_min >= 0)
+        #self.constraints.append(V_th_max <= self.base_params.V_dd)
 
-        self.constraints.append(self.base_params.W / self.base_params.L <= 50)
+        #self.constraints.append(self.base_params.W / self.base_params.L <= 50)
         self.constraints.append(self.base_params.W / self.base_params.L >= 1)
 
         # wire material constraints
