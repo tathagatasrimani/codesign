@@ -48,3 +48,18 @@ vitis_jacobi_test:
   base_cfg: vitis_test
   args:
     benchmark: jacobi_2d
+
+vitis_bitnet_test:
+  base_cfg: vitis_test
+  args:
+    benchmark: bitnet
+
+vitis_llama_test:
+  base_cfg: vitis_test
+  args:
+    benchmark: llama
+
+vitis_attention_head_test:
+  base_cfg: vitis_test
+  args:
+    benchmark: attention_head
