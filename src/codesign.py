@@ -171,7 +171,7 @@ class Codesign:
 
         ## make base tmp directory
         if not os.path.exists("src/tmp"):
-                os.makedirs("src/tmp")
+            os.makedirs("src/tmp", exist_ok=True)
 
         tmp_base_dir = "src/tmp"
         # use .get() so missing key won't raise; fall back to default
