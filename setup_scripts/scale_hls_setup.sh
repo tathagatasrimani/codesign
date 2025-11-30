@@ -1,8 +1,8 @@
 #!/bin/bash
 
-##############################
+###############################################
 # Parse command line options
-##############################
+###############################################
 FORCE_FULL=0
 for arg in "$@"; do
     if [[ "$arg" == "1" || "$arg" == "--full" ]]; then
@@ -11,18 +11,20 @@ for arg in "$@"; do
     fi
 done
 
-##############################
+###############################################
 # Save previous PYTHONPATH
-##############################
+###############################################
 PREV_PYTHONPATH="$PYTHONPATH"
 
-##############################
-# If doing full build
-##############################
-if [[ $FORCE_FULL -eq 1 ]]; then
-    echo "[setup] Performing FULL build of LLVM + Polygeist + ScaleHLS"
+echo "[setup] FORCE_FULL = $FORCE_FULL"
 
-    # --- Top-level ---
+###############################################
+# FULL BUILD (local LLVM + Polygeist + ScaleHLS)
+###############################################
+if [[ $FORCE_FULL -eq 1 ]]; then
+    echo "[setup] Performing FULL clean build of ScaleHLS + local LLVM"
+
+    # --- Top-level repo ---
     git submodule init
     sed -i "s|git@github.com:|https://github.com/|g" .gitmodules
     git submodule sync
@@ -30,40 +32,45 @@ if [[ $FORCE_FULL -eq 1 ]]; then
 
     # --- Inside ScaleHLS-HIDA ---
     cd ScaleHLS-HIDA
+
     sed -i "s|git@github.com:|https://github.com/|g" .gitmodules
     git submodule sync
     git submodule update --init --recursive
 
-    # --- Ensure lld is available ---
-    if ! command -v lld >/dev/null 2>&1; then
-        echo "[setup] Installing lld..."
-        sudo yum install -y lld
-    else
-        echo "[setup] lld already installed."
-    fi
+    ###############################################
+    # Force NO system LLVM leakage
+    ###############################################
+    echo "[setup] Blocking system LLVM/MLIR from CMake"
+
+    # Remove LLVM detection environment
+    unset LLVM_DIR LLVM_ROOT LLVM_INSTALL_PREFIX
+    unset MLIR_DIR MLIR_ROOT
+
+    # Remove system LLVM binaries from PATH
+    PATH=$(printf "%s" "$PATH" | tr ':' '\n' | grep -vE '^/usr/bin$' | grep -vE '/usr/bin' | paste -sd: -)
+    export PATH
+
+    # Force CMake to use GCC for bootstrapping (not system clang)
+    export CC=/usr/bin/gcc
+    export CXX=/usr/bin/g++
+
+    echo "[setup] PATH cleaned. CC=$CC CXX=$CXX"
 
     ###############################################
-    # Reset environment: ensure no system LLVM leaks in
+    # Remove all old builds (important!)
     ###############################################
-    echo "[setup] Resetting LLVM/MLIR environment for local build."
-    unset LLVM_HOME
-    unset MLIR_HOME
-    unset CC
-    unset CXX
-
-    # Remove old builds
+    echo "[setup] Removing previous builds..."
     rm -rf build llvm-project
-    echo "[setup] Removed old build directories."
 
     ###############################################
-    # Build LLVM + Polygeist + ScaleHLS
+    # Run build-scalehls.sh
     ###############################################
     echo "[setup] Running build-scalehls.sh..."
     ./build-scalehls.sh
     BUILD_EXIT_CODE=$?
 
     ###############################################
-    # Detect whether this was a real failure or only test failures
+    # Validate build
     ###############################################
     LLVM_BIN_DIR="$PWD/llvm-project/build/bin"
     SCALEHLS_BIN_DIR="$PWD/build/bin"
@@ -74,74 +81,68 @@ if [[ $FORCE_FULL -eq 1 ]]; then
         exit 1
     fi
 
-    # Local LLVM MUST exist
+    # Local LLVM must exist
     if [[ ! -x "$LLVM_BIN_DIR/llc" ]]; then
-        echo "[setup] ERROR: Local LLVM (llvm-project/build/bin) NOT found."
-        echo "[setup] This system is NOT allowed to use system LLVM."
-        echo "[setup] CMake likely picked up system LLVM instead of building local."
-        echo "[setup] Fix: remove CMake cache and rebuild from CLEAN state."
+        echo "[setup] ERROR: Local LLVM was NOT built!"
+        echo "[setup] CMake improperly detected system LLVM."
+        echo "[setup] FIX: Ensure PATH is cleaned, and remove entire build/"
         exit 1
     fi
 
-    # At this point: ScaleHLS exists, local LLVM exists
+    # Tests may fail — this is OK
     if [[ $BUILD_EXIT_CODE -ne 0 ]]; then
-        echo "[setup] WARNING: ScaleHLS tests failed (expected with modified DSE). Continuing..."
+        echo "[setup] WARNING: ScaleHLS tests failed (expected with DSE modifications). Continuing..."
     else
-        echo "[setup] Build succeeded with no errors."
+        echo "[setup] Build passed with no errors."
     fi
 
     ###############################################
-    # Use ONLY the locally built LLVM
+    # Export local LLVM paths
     ###############################################
     export LLVM_HOME="$PWD/llvm-project/build"
     export MLIR_HOME="$LLVM_HOME"
     export PATH="$LLVM_HOME/bin:$PATH"
     export LD_LIBRARY_PATH="$LLVM_HOME/lib:$LD_LIBRARY_PATH"
-    echo "[setup] Using local LLVM: $LLVM_HOME"
 
+    echo "[setup] Using LOCAL LLVM: $LLVM_HOME"
 
 else
-    ###############################################
-    # NOT doing full build — just reinitialize environment
-    ###############################################
-    echo "[setup] Full build NOT requested. Setting up environment..."
+###############################################
+# NON-FULL BUILD (reuse existing local LLVM)
+###############################################
+    echo "[setup] Full build NOT requested. Initializing environment..."
 
     cd ScaleHLS-HIDA
 
-    # Use previously built LLVM if available
-    if [[ -d "llvm-project/build/bin" ]]; then
-        export LLVM_HOME="$PWD/llvm-project/build"
-        export MLIR_HOME="$LLVM_HOME"
-        echo "[setup] Found existing local LLVM: $LLVM_HOME"
-    else
-        echo "[setup] ERROR: Local LLVM not found. Run with --full."
+    if [[ ! -d "llvm-project/build/bin" ]]; then
+        echo "[setup] ERROR: No local LLVM found. Must run with --full first."
         exit 1
     fi
+
+    export LLVM_HOME="$PWD/llvm-project/build"
+    export MLIR_HOME="$LLVM_HOME"
+    export PATH="$LLVM_HOME/bin:$PATH"
+    export LD_LIBRARY_PATH="$LLVM_HOME/lib:$LD_LIBRARY_PATH"
+
+    echo "[setup] Using existing LOCAL LLVM: $LLVM_HOME"
 fi
 
 ###############################################
-# Add tool binaries to PATH
+# Add ScaleHLS + Polygeist tools to PATH
 ###############################################
-echo "[setup] Updating PATH..."
+echo "[setup] Updating PATH with ScaleHLS and Polygeist tools..."
 
-# LLVM first so its clang/opt/mlir-opt override system tools
-export PATH="$LLVM_HOME/bin:$PATH"
-
-# ScaleHLS tools
 if [[ -d "$PWD/build/bin" ]]; then
     export PATH="$PWD/build/bin:$PATH"
 fi
-
-# Polygeist tools (if present)
 if [[ -d "$PWD/polygeist/build/bin" ]]; then
     export PATH="$PWD/polygeist/build/bin:$PATH"
 fi
 
 ###############################################
-# Setup Python path for ScaleHLS Python tools
+# Setup Python path for ScaleHLS Python backend
 ###############################################
 remove_pythonpath=0
-
 if [[ -z "${PYTHONPATH+x}" ]]; then
     export PYTHONPATH="$PWD/build/tools/scalehls/python_packages/scalehls_core"
     remove_pythonpath=1
@@ -149,34 +150,31 @@ else
     export PYTHONPATH="$PYTHONPATH:$PWD/build/tools/scalehls/python_packages/scalehls_core"
 fi
 
-echo "[setup] PYTHONPATH: $PYTHONPATH"
-echo "[setup] Current directory: $(pwd)"
+echo "[setup] PYTHONPATH = $PYTHONPATH"
 
 ###############################################
-# Add mlir_venv to .gitignore if missing
+# Add mlir_venv to .gitignore
 ###############################################
 if ! grep -q "mlir_venv/" .gitignore 2>/dev/null; then
     echo "mlir_venv/" >> .gitignore
 fi
 
 ###############################################
-# Create venv if needed
+# Torch-MLIR Virtualenv Setup
 ###############################################
 if [[ ! -d "mlir_venv" ]]; then
-    echo "[setup] Creating Torch-MLIR virtualenv..."
+    echo "[setup] Creating virtualenv..."
     python3.11 -m venv mlir_venv
     source mlir_venv/bin/activate
-
     python3.11 -m pip install --upgrade pip
     pip install --no-deps -r requirements.txt
-
     deactivate
 else
-    echo "[setup] Torch-MLIR venv already exists."
+    echo "[setup] Virtualenv already exists."
 fi
 
 ###############################################
-# Optional: test imports
+# Optional: Validate PyTorch env
 ###############################################
 if [[ $FORCE_FULL -eq 1 ]]; then
     source mlir_venv/bin/activate
@@ -190,13 +188,12 @@ PY
 fi
 
 ###############################################
-# Restore PYTHONPATH if needed
+# Restore PYTHONPATH
 ###############################################
 cd ..
-
 if [[ $remove_pythonpath -eq 1 ]]; then
     unset PYTHONPATH
-    echo "[setup] PYTHONPATH unset (was empty before)."
+    echo "[setup] PYTHONPATH unset."
 else
     export PYTHONPATH="$PREV_PYTHONPATH"
     echo "[setup] PYTHONPATH restored."
