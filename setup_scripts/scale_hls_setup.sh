@@ -63,29 +63,42 @@ if [[ $FORCE_FULL -eq 1 ]]; then
     BUILD_EXIT_CODE=$?
 
     ###############################################
-    # Detect real failure vs test-only failure
+    # Detect whether this was a real failure or only test failures
     ###############################################
     LLVM_BIN_DIR="$PWD/llvm-project/build/bin"
     SCALEHLS_BIN_DIR="$PWD/build/bin"
 
-    if [[ -x "$LLVM_BIN_DIR/llc" && -x "$SCALEHLS_BIN_DIR/scalehls-opt" ]]; then
-        if [[ $BUILD_EXIT_CODE -ne 0 ]]; then
-            echo "[setup] WARNING: ScaleHLS tests failed (expected when DSE is modified). Continuing..."
-        else
-            echo "[setup] SUCCESS: local LLVM + ScaleHLS built with no errors."
-        fi
-    else
-        echo "[setup] ERROR: Critical build artifacts missing."
-        echo "[setup] LLVM or ScaleHLS did NOT actually build."
+    # ScaleHLS must exist
+    if [[ ! -x "$SCALEHLS_BIN_DIR/scalehls-opt" ]]; then
+        echo "[setup] ERROR: scalehls-opt missing. ScaleHLS did NOT build."
         exit 1
     fi
 
+    # Local LLVM MUST exist
+    if [[ ! -x "$LLVM_BIN_DIR/llc" ]]; then
+        echo "[setup] ERROR: Local LLVM (llvm-project/build/bin) NOT found."
+        echo "[setup] This system is NOT allowed to use system LLVM."
+        echo "[setup] CMake likely picked up system LLVM instead of building local."
+        echo "[setup] Fix: remove CMake cache and rebuild from CLEAN state."
+        exit 1
+    fi
+
+    # At this point: ScaleHLS exists, local LLVM exists
+    if [[ $BUILD_EXIT_CODE -ne 0 ]]; then
+        echo "[setup] WARNING: ScaleHLS tests failed (expected with modified DSE). Continuing..."
+    else
+        echo "[setup] Build succeeded with no errors."
+    fi
+
     ###############################################
-    # Export paths to locally built LLVM/MLIR
+    # Use ONLY the locally built LLVM
     ###############################################
     export LLVM_HOME="$PWD/llvm-project/build"
     export MLIR_HOME="$LLVM_HOME"
+    export PATH="$LLVM_HOME/bin:$PATH"
+    export LD_LIBRARY_PATH="$LLVM_HOME/lib:$LD_LIBRARY_PATH"
     echo "[setup] Using local LLVM: $LLVM_HOME"
+
 
 else
     ###############################################
