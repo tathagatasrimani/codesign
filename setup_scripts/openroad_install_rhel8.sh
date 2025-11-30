@@ -14,6 +14,9 @@ source /opt/rh/gcc-toolset-13/enable
 which gcc
 gcc --version
 
+sudo dnf install qt5-qtcharts qt5-qtcharts-devel
+ls /usr/lib64/libQt5Charts.so*
+
 set +e
 sudo ./etc/DependencyInstaller.sh -base 
 status=$?

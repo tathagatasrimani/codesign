@@ -31,13 +31,51 @@ if [[ $FORCE_FULL -eq 1 ]]; then
         echo "[setup] lld already installed."
     fi
 
+    ###############################################
+    # Ensure no system LLVM interferes
+    # And force a clean rebuild
+    ###############################################
+    echo "[setup] Resetting LLVM/MLIR environment to force local build..."
+
+    unset LLVM_HOME
+    unset MLIR_HOME
+    unset CC
+    unset CXX
+
+    # Remove old builds that may have been corrupted
+    rm -rf build llvm-project
+
+    echo "[setup] Cleaned old build directories."
+    echo "[setup] System-level LLVM ignored."
+
     ./build-scalehls.sh
+
+    ###############################################
+    # Export paths to locally built LLVM/MLIR
+    ###############################################
+
+    if [ -d "$PWD/llvm-project/build/bin" ]; then
+        export LLVM_HOME="$PWD/llvm-project/build"
+        export MLIR_HOME="$LLVM_HOME"
+        export PATH="$LLVM_HOME/bin:$PATH"
+        export LD_LIBRARY_PATH="$LLVM_HOME/lib:$LD_LIBRARY_PATH"
+        echo "[setup] Using local LLVM: $LLVM_HOME"
+    else
+        echo "ERROR: LLVM did not build correctly."
+        exit 1
+    fi
+
+
 else
     echo "[setup] Skipping ScaleHLS build is not set."
     cd ScaleHLS-HIDA
 fi
 
-export PATH=$PATH:$PWD/build/bin:$PWD/polygeist/build/bin
+###############################################
+# Add tool binaries to PATH
+###############################################
+export PATH="$PWD/build/bin:$PATH"
+export PATH="$LLVM_HOME/bin:$PATH"
 
 remove_pythonpath=0
 
