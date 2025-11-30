@@ -95,7 +95,13 @@ def parse_op(instruction, op_name):
         parsed_op = arith_op(instruction)
     elif op_name == "fadd":
         parsed_op = arith_op(instruction)
+    elif op_name == "fsub":
+        parsed_op = arith_op(instruction)
     elif op_name == "fdiv":
+        parsed_op = arith_op(instruction)
+    elif op_name == "fsqrt":
+        parsed_op = arith_op(instruction)
+    elif op_name == "fexp":
         parsed_op = arith_op(instruction)
     elif op_name == "call":
         parsed_op = undef_num_src_op_all_srcs(instruction)
@@ -145,6 +151,8 @@ def parse_op(instruction, op_name):
         parsed_op = arith_op(instruction)
     elif op_name == "dadd":
         parsed_op = arith_op(instruction)
+    elif op_name == "sitofp":
+        parsed_op = unary_op(instruction)
     else:
         raise ValueError(f"Unexpected op name: {op_name} for instruction: {instruction}")
     parsed_op["type"] = "op" if op_name != "call" else "serial"

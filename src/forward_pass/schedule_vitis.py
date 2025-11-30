@@ -398,7 +398,13 @@ class StatesStructure:
         # remove the backward transition for this loop
         state_transitions[loop.loop_states[-1]].remove(loop.loop_states[0])
         log_info(f"removed backward transition between {loop.loop_states[-1]} and {loop.loop_states[0]} for loop {loop.loop_name}")
-        remaining_loops = {other_loop.loop_name: other_loop for other_loop in self.loop_list if other_loop.loop_name != loop.loop_name}
+        loop_names_to_include = set()
+        for state in state_ops:
+            loops = self.state_to_loop[state]
+            for mapped_loop in loops:
+                loop_names_to_include.add(mapped_loop)
+
+        remaining_loops = {other_loop: self.loops[other_loop] for other_loop in loop_names_to_include if other_loop != loop.loop_name}
         log_info(f"remaining loops: {remaining_loops}")
         return StatesStructure(state_ops, state_transitions, remaining_loops)
 
