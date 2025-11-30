@@ -29,7 +29,7 @@ from openroad_interface import openroad_run_hier
 
 import cvxpy as cp
 
-DEBUG = False
+DEBUG = True
 def log_info(msg):
     if DEBUG:
         logger.info(msg)
@@ -692,8 +692,9 @@ class HardwareModel:
         for node, data in dfg.nodes(data=True):
             if data["function"] == "II": 
                 loop_count = int(data["count"])
+                loop_name = data["loop_name"]
                 if is_loop:
-                    loop_energy = self.calculate_active_energy_basic_block(basic_block_name, self.loop_1x_graphs[basic_block_name], is_loop=True)
+                    loop_energy = self.calculate_active_energy_basic_block(basic_block_name, self.loop_1x_graphs[loop_name], is_loop=True)
             elif data["function"] == "Wire":
                 src = data["src_node"]
                 dst = data["dst_node"]
@@ -869,7 +870,8 @@ class HardwareModel:
                     continue # nothing to be done
                 # calculate vector for II delay based on the resource constrained 1x loop iteration graph
                 if dfg.nodes[pred]["function"] == "II":
-                    loop_1x_vector = self.calculate_block_vector_basic_block(basic_block_name, "loop_1x", self.loop_1x_graphs[basic_block_name])
+                    loop_name = dfg.nodes[pred]["loop_name"]
+                    loop_1x_vector = self.calculate_block_vector_basic_block(basic_block_name, f"loop_1x_{loop_name}", self.loop_1x_graphs[loop_name])
                     loop_1x_vector.delay *= int(dfg.nodes[pred]["count"])-1
                     for op_type in loop_1x_vector.op_types:
                         loop_1x_vector.bound_factor[op_type] *= int(dfg.nodes[pred]["count"])-1
@@ -945,7 +947,7 @@ class HardwareModel:
             #self.node_arrivals[basic_block_name] = {"full": {}, "loop_1x": {}, "loop_2x": {}}
             self.node_arrivals_cvx[basic_block_name] = {"full": {}, "loop_1x": {}, "loop_2x": {}}
 
-        self.graph_delays_cvx[top_block_name] = self.calculate_execution_time_vitis_recursive(top_block_name, self.scheduled_dfgs[top_block_name])
+        self.graph_delays_cvx[top_block_name] = self.calculate_execution_time_vitis_recursive(top_block_name, self.scheduled_dfgs[top_block_name], graph_end_node=f"graph_end_{top_block_name}")
 
         if not clk_period_opt:
             clk_period_constr = [self.circuit_model.clk_period_cvx== self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.clk_period]]
@@ -985,7 +987,8 @@ class HardwareModel:
                 pred_delay_cvx = 0.0
                 if dfg.edges[pred, node]["resource_edge"]:
                     if dfg.nodes[pred]["function"] == "II":
-                        delay_1x_cvx = self.calculate_execution_time_vitis_recursive(basic_block_name, self.loop_1x_graphs[basic_block_name], graph_end_node="loop_end_1x", graph_type="loop_1x", resource_delays_only=True)
+                        loop_name = dfg.nodes[pred]["loop_name"]
+                        delay_1x_cvx = self.calculate_execution_time_vitis_recursive(basic_block_name, self.loop_1x_graphs[loop_name], graph_end_node="loop_end_1x", graph_type="loop_1x", resource_delays_only=True)
                         #delay_2x, delay_2x_cvx = self.calculate_execution_time_vitis_recursive(basic_block_name, self.loop_2x_graphs[basic_block_name], graph_end_node="loop_end_2x", graph_type="loop_2x")
                         # TODO add dependence of II on loop-carried dependency
                         #pred_delay = delay_1x * (dfg.nodes[pred]["count"]-1)
@@ -996,7 +999,7 @@ class HardwareModel:
                         pred_delay_cvx = self.circuit_model.clk_period_cvx * self.scale_cvx
                 elif dfg.nodes[pred]["function"] == "Call": # if function call, recursively calculate its delay 
                     if dfg.nodes[pred]["call_function"] not in self.graph_delays:
-                        self.graph_delays_cvx[dfg.nodes[pred]["call_function"]] = self.calculate_execution_time_vitis_recursive(dfg.nodes[pred]["call_function"], self.scheduled_dfgs[dfg.nodes[pred]["call_function"]])
+                        self.graph_delays_cvx[dfg.nodes[pred]["call_function"]] = self.calculate_execution_time_vitis_recursive(dfg.nodes[pred]["call_function"], self.scheduled_dfgs[dfg.nodes[pred]["call_function"]], graph_end_node=f"graph_end_{dfg.nodes[pred]['call_function']}")
                     #pred_delay = self.graph_delays[dfg.nodes[pred]["call_function"]]
                     pred_delay_cvx = self.graph_delays_cvx[dfg.nodes[pred]["call_function"]]
                 elif not resource_delays_only:

@@ -277,8 +277,8 @@ class Codesign:
         with open(self.config_json_path, "r") as f:
             config = json.load(f)
         if unlimited:
-            config["dsp"] = 10000
-            config["bram"] = 10000
+            config["dsp"] = 150
+            config["bram"] = 150
         else:
             config["dsp"] = int(self.cfg["args"]["area"] / (self.hw.circuit_model.tech_model.param_db["A_gate"].xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf() * self.dsp_multiplier))
             config["bram"] = int(self.cfg["args"]["area"] / (self.hw.circuit_model.tech_model.param_db["A_gate"].xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf() * self.bram_multiplier))
@@ -448,8 +448,12 @@ class Codesign:
             
             logger.info("Creating DFGs from Vitis CDFGs")
             schedule_parser.create_dfgs()
-            self.hw.scheduled_dfgs = {basic_block_name: schedule_parser.basic_blocks[basic_block_name]["G_standard_with_wire_ops"] for basic_block_name in schedule_parser.basic_blocks}
-            self.hw.loop_1x_graphs = {basic_block_name: schedule_parser.basic_blocks[basic_block_name]["G_loop_1x_standard_with_wire_ops"] for basic_block_name in schedule_parser.basic_blocks if "G_loop_1x" in schedule_parser.basic_blocks[basic_block_name]}
+            self.hw.scheduled_dfgs = {basic_block_name: schedule_parser.basic_blocks[basic_block_name].dfg.G_standard_with_wire_ops for basic_block_name in schedule_parser.basic_blocks}
+            for basic_block_name in schedule_parser.basic_blocks:
+                for loop_name in schedule_parser.basic_blocks[basic_block_name].dfg.loop_dfgs:
+                    for iter_num in schedule_parser.basic_blocks[basic_block_name].dfg.loop_dfgs[loop_name]:
+                        self.hw.loop_1x_graphs[loop_name] = schedule_parser.basic_blocks[basic_block_name].dfg.loop_dfgs[loop_name][iter_num].G_standard_with_wire_ops
+                        
             #self.hw.loop_2x_graphs = {basic_block_name: schedule_parser.basic_blocks[basic_block_name]["G_loop_2x_standard"] for basic_block_name in schedule_parser.basic_blocks if "G_loop_2x" in schedule_parser.basic_blocks[basic_block_name]}
             logger.info(f"scheduled dfgs: {self.hw.scheduled_dfgs}")
             logger.info(f"loop 1x graphs: {self.hw.loop_1x_graphs}")
