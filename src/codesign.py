@@ -453,10 +453,8 @@ class Codesign:
                 for loop_name in schedule_parser.basic_blocks[basic_block_name].dfg.loop_dfgs:
                     for iter_num in schedule_parser.basic_blocks[basic_block_name].dfg.loop_dfgs[loop_name]:
                         self.hw.loop_1x_graphs[loop_name] = schedule_parser.basic_blocks[basic_block_name].dfg.loop_dfgs[loop_name][iter_num].G_standard_with_wire_ops
-                        
+
             #self.hw.loop_2x_graphs = {basic_block_name: schedule_parser.basic_blocks[basic_block_name]["G_loop_2x_standard"] for basic_block_name in schedule_parser.basic_blocks if "G_loop_2x" in schedule_parser.basic_blocks[basic_block_name]}
-            logger.info(f"scheduled dfgs: {self.hw.scheduled_dfgs}")
-            logger.info(f"loop 1x graphs: {self.hw.loop_1x_graphs}")
 
             logger.info("Vitis schedule parsing complete")
             logger.info(f"time to parse vitis schedule: {time.time()-start_time}")
@@ -464,11 +462,14 @@ class Codesign:
             for file in os.listdir(parse_results_dir):
                 if os.path.isdir(os.path.join(parse_results_dir, file)):
                     self.hw.scheduled_dfgs[file] = nx.read_gml(f"{parse_results_dir}/{file}/{file}_graph_standard_with_wire_ops.gml")
-                    if os.path.exists(f"{parse_results_dir}/{file}/{file}_graph_loop_1x_standard.gml"):
-                        self.hw.loop_1x_graphs[file] = nx.read_gml(f"{parse_results_dir}/{file}/{file}_graph_loop_1x_standard_with_wire_ops.gml")
-                        #assert os.path.exists(f"{parse_results_dir}/{file}/{file}_graph_loop_2x_standard.gml")
-                        #self.hw.loop_2x_graphs[file] = nx.read_gml(f"{parse_results_dir}/{file}/{file}_graph_loop_2x_standard_with_wire_ops.gml")
+                    for subfile in os.listdir(f"{parse_results_dir}/{file}"):
+                        if subfile.endswith("_graph_standard_with_wire_ops_1.gml"):
+                            loop_name = subfile.replace("_graph_standard_with_wire_ops_1.gml", "")
+                            self.hw.loop_1x_graphs[loop_name] = nx.read_gml(f"{parse_results_dir}/{file}/{subfile}")
             logger.info("Skipping Vitis schedule parsing")
+        
+        logger.info(f"scheduled dfgs: {self.hw.scheduled_dfgs}")
+        logger.info(f"loop 1x graphs: {self.hw.loop_1x_graphs}")
 
         self.checkpoint_controller.check_end_checkpoint("schedule", self.iteration_count)
 
