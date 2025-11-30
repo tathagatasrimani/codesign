@@ -5,7 +5,7 @@
 ##############################
 FORCE_FULL=0
 for arg in "$@"; do
-    if [[ "$arg" == "--full" ]]; then
+    if [[ "$arg" == "1" || "$arg" == "--full" ]]; then
         FORCE_FULL=1
         break
     fi
