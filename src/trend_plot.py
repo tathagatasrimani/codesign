@@ -93,6 +93,7 @@ class TrendPlot:
                 continue
             values = []
             logger.info(f"Plotting {self.plot_list_names[self.plot_list_labels[param]]}")
+            logger.info(f"params over generations: {self.params_over_generations}")
             for i in range(len(self.params_over_generations)):
                 values.append(xreplace_safe(param, self.params_over_generations[i]))
             
@@ -197,7 +198,7 @@ class TrendPlot:
         })
         for param in self.sensitivities_over_generations[0]:
             values = []
-            logger.info(f"Plotting {param}")
+            logger.info(f"Plotting sensitivities for {param}")
             for i in range(len(self.sensitivities_over_generations)):
                 values.append(xreplace_safe(param, self.sensitivities_over_generations[i]))
             
@@ -239,7 +240,7 @@ class TrendPlot:
         })
         for constraint in self.constraint_slack_over_generations[0]:
             values = []
-            logger.info(f"Plotting {constraint}")
+            logger.info(f"Plotting slack for {constraint}")
             for i in range(len(self.constraint_slack_over_generations)):
                 values.append(-1*self.constraint_slack_over_generations[i][constraint])
             

@@ -715,41 +715,41 @@ class Codesign:
             self.vitis_forward_pass(save_dir=save_dir, iteration_count=iteration_count, setup=setup)
         if setup: return
 
-        if self.checkpoint_controller.check_checkpoint("pd", iteration_count) and not self.max_rsc_reached:
-            # calculate wire parasitics
-            self.calculate_wire_parasitics()
+        # calculate wire parasitics 
+        # NOTE: we don't check the checkpoint status here because it is handled in the function call (see run_openroad variable)
+        self.calculate_wire_parasitics()
 
-            ## create the obj equation 
-            self.hw.calculate_objective()
+        ## create the obj equation 
+        self.hw.calculate_objective()
 
-            if iteration_count == 0:
-                self.params_over_iterations[0].update(
-                    {
-                        self.hw.circuit_model.tech_model.base_params.logic_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.logic_sensitivity],
-                        self.hw.circuit_model.tech_model.base_params.logic_resource_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.logic_resource_sensitivity],
-                        self.hw.circuit_model.tech_model.base_params.logic_ahmdal_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.logic_ahmdal_limit],
-                        self.hw.circuit_model.tech_model.base_params.logic_resource_ahmdal_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.logic_resource_ahmdal_limit],
-                        self.hw.circuit_model.tech_model.base_params.interconnect_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.interconnect_sensitivity],
-                        self.hw.circuit_model.tech_model.base_params.interconnect_resource_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.interconnect_resource_sensitivity],
-                        self.hw.circuit_model.tech_model.base_params.interconnect_ahmdal_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.interconnect_ahmdal_limit],
-                        self.hw.circuit_model.tech_model.base_params.interconnect_resource_ahmdal_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.interconnect_resource_ahmdal_limit],
-                        self.hw.circuit_model.tech_model.base_params.memory_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.memory_sensitivity],
-                        self.hw.circuit_model.tech_model.base_params.memory_resource_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.memory_resource_sensitivity],
-                        self.hw.circuit_model.tech_model.base_params.memory_ahmdal_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.memory_ahmdal_limit],
-                        self.hw.circuit_model.tech_model.base_params.memory_resource_ahmdal_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.memory_resource_ahmdal_limit],
-                    }
-                )
+        if iteration_count == 0:
+            self.params_over_iterations[0].update(
+                {
+                    self.hw.circuit_model.tech_model.base_params.logic_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.logic_sensitivity],
+                    self.hw.circuit_model.tech_model.base_params.logic_resource_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.logic_resource_sensitivity],
+                    self.hw.circuit_model.tech_model.base_params.logic_ahmdal_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.logic_ahmdal_limit],
+                    self.hw.circuit_model.tech_model.base_params.logic_resource_ahmdal_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.logic_resource_ahmdal_limit],
+                    self.hw.circuit_model.tech_model.base_params.interconnect_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.interconnect_sensitivity],
+                    self.hw.circuit_model.tech_model.base_params.interconnect_resource_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.interconnect_resource_sensitivity],
+                    self.hw.circuit_model.tech_model.base_params.interconnect_ahmdal_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.interconnect_ahmdal_limit],
+                    self.hw.circuit_model.tech_model.base_params.interconnect_resource_ahmdal_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.interconnect_resource_ahmdal_limit],
+                    self.hw.circuit_model.tech_model.base_params.memory_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.memory_sensitivity],
+                    self.hw.circuit_model.tech_model.base_params.memory_resource_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.memory_resource_sensitivity],
+                    self.hw.circuit_model.tech_model.base_params.memory_ahmdal_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.memory_ahmdal_limit],
+                    self.hw.circuit_model.tech_model.base_params.memory_resource_ahmdal_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.memory_resource_ahmdal_limit],
+                }
+            )
 
-            """if setup:
-                self.max_parallel_initial_objective_value = self.hw.obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf()
-                print(f"objective value with max parallelism: {self.max_parallel_initial_objective_value}")
-            elif iteration_count == 0:
-                self.hw.circuit_model.tech_model.max_speedup_factor = self.hw.obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf() / self.max_parallel_initial_objective_value
-                self.hw.circuit_model.tech_model.max_area_increase_factor = self.max_dsp / self.cur_dsp_usage
-                print(f"max parallelism factor: {self.hw.circuit_model.tech_model.max_speedup_factor}")
-                self.hw.circuit_model.tech_model.init_scale_factors(self.hw.circuit_model.tech_model.max_speedup_factor, self.hw.circuit_model.tech_model.max_area_increase_factor)"""
+        """if setup:
+            self.max_parallel_initial_objective_value = self.hw.obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf()
+            print(f"objective value with max parallelism: {self.max_parallel_initial_objective_value}")
+        elif iteration_count == 0:
+            self.hw.circuit_model.tech_model.max_speedup_factor = self.hw.obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf() / self.max_parallel_initial_objective_value
+            self.hw.circuit_model.tech_model.max_area_increase_factor = self.max_dsp / self.cur_dsp_usage
+            print(f"max parallelism factor: {self.hw.circuit_model.tech_model.max_speedup_factor}")
+            self.hw.circuit_model.tech_model.init_scale_factors(self.hw.circuit_model.tech_model.max_speedup_factor, self.hw.circuit_model.tech_model.max_area_increase_factor)"""
 
-            self.hw.display_objective("after forward pass")
+        self.hw.display_objective("after forward pass")
 
         self.checkpoint_controller.check_end_checkpoint("pd", self.iteration_count)
         self.obj_over_iterations.append(sim_util.xreplace_safe(self.hw.obj, self.hw.circuit_model.tech_model.base_params.tech_values))
