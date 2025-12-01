@@ -15,6 +15,7 @@ import numpy as np
 # custom
 from src.inverse_pass.preprocess import Preprocessor
 from src.inverse_pass import curve_fit
+from src.inverse_pass.constraint import Constraint
 
 from src import sim_util
 from src.hardware_model.hardwareModel import BlockVector
@@ -41,7 +42,8 @@ class Optimizer:
         self.bbv_path_constraints = []
 
     def evaluate_constraints(self, constraints, stage):
-        for constraint in constraints:
+        for constraint_obj in constraints:
+            constraint = constraint_obj.constraint
             value = 0
             log_info(f"constraint: {constraint}", stage)
             if isinstance(constraint, sp.Ge):
@@ -57,22 +59,22 @@ class Optimizer:
         # system level and objective constraints, and pull in tech model constraints
 
         constraints = []
-        constraints.append(self.hw.obj_scaled >= lower_bound)
+        constraints.append(Constraint(self.hw.obj_scaled >= lower_bound, "obj_scaled >= lower_bound"))
         self.objective_constraint_inds = [len(constraints)-1]
 
         # don't want a leakage-dominated design
         #constraints.append(self.hw.total_active_energy >= 2*self.hw.total_passive_energy*self.hw.circuit_model.tech_model.capped_power_scale)
         for knob in self.disabled_knobs:
-            constraints.append(sp.Eq(knob, knob.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values)))
+            constraints.append(Constraint(sp.Eq(knob, knob.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values)), "knob = tech_values[knob]"))
         if not self.test_config:
             total_power = self.hw.total_passive_power*self.hw.circuit_model.tech_model.capped_power_scale + self.hw.total_active_energy / (self.hw.execution_time* self.hw.circuit_model.tech_model.capped_delay_scale)
         else:
             total_power = self.hw.total_passive_power*self.hw.circuit_model.tech_model.capped_power_scale_total + self.hw.total_active_energy / (self.hw.execution_time* self.hw.circuit_model.tech_model.capped_delay_scale_total)
-        constraints.append(total_power <= 150) # hard limit on power
+        constraints.append(Constraint(total_power <= 150, "total_power <= 150")) # hard limit on power
         # ensure that forward pass can't add more than 10x parallelism in the next iteration. power scale is based on the amount we scale area down by,
         # because in the next forward pass we assume that much parallelism will be added, and therefore increase power
         #if not self.test_config:
-        constraints.append(self.hw.circuit_model.tech_model.capped_power_scale <= improvement)
+        constraints.append(Constraint(self.hw.circuit_model.tech_model.capped_power_scale <= improvement, "capped_power_scale <= improvement"))
 
         assert len(self.hw.circuit_model.tech_model.constraints) > 0, "tech model constraints are empty"
         constraints.extend(self.hw.circuit_model.tech_model.base_params.constraints)
@@ -94,7 +96,7 @@ class Optimizer:
         model = pyo.ConcreteModel()
         self.preprocessor = Preprocessor(self.hw.circuit_model.tech_model.base_params, out_file=f"{self.tmp_dir}/solver_out.txt")
         opt, scaled_model, model, multistart_options = (
-            self.preprocessor.begin(model, self.hw.obj_scaled, improvement, multistart=multistart, constraints=constraints)
+            self.preprocessor.begin(model, self.hw.obj_scaled, improvement, multistart=multistart, constraints=[constraint.constraint for constraint in constraints])
         )
         return opt, scaled_model, model, multistart_options
     
@@ -112,7 +114,7 @@ class Optimizer:
         model = pyo.ConcreteModel()
         self.approx_preprocessor = Preprocessor(self.hw.circuit_model.tech_model.base_params, out_file=f"{self.tmp_dir}/solver_out_approx_{iteration}.txt", solver_name="ipopt")
         opt, scaled_model, model, multistart_options = (
-            self.approx_preprocessor.begin(model, self.hw.obj_scaled, improvement, multistart=multistart, constraints=self.constraints)
+            self.approx_preprocessor.begin(model, self.hw.obj_scaled, improvement, multistart=multistart, constraints=[constraint.constraint for constraint in self.constraints])
         )
 
         if self.test_config:
@@ -263,7 +265,7 @@ class Optimizer:
         self.hw.save_obj_vals(self.hw.execution_time)
         assert self.hw.obj_scaled != obj_scaled_op, "obj scaled should not be the same as the original obj scaled"
 
-        return [constr]
+        return [Constraint(constr, f"bbv_op_delay_{op_type}")]
 
     def set_bbv_op_delay_constraints(self, improvement):
         self.bbv_op_delay_constraints = []
@@ -313,7 +315,7 @@ class Optimizer:
                 best_tech_values = copy.deepcopy(tech_param_sets[optimal_design_idx])
                 best_obj_scaled = true_scaled_obj_val
             # ensure that this path does not become critical again
-            self.bbv_path_constraints.append(execution_time <= sim_util.xreplace_safe(execution_time, self.hw.circuit_model.tech_model.base_params.tech_values))
+            self.bbv_path_constraints.append(Constraint(execution_time <= sim_util.xreplace_safe(execution_time, self.hw.circuit_model.tech_model.base_params.tech_values), "bbv_path_constraint"))
         
         assert best_obj_scaled < lower_bound * improvement, "no better design point found"
         self.hw.circuit_model.tech_model.base_params.tech_values = best_tech_values

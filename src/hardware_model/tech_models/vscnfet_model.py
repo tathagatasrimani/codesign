@@ -4,7 +4,7 @@ from src.sim_util import symbolic_convex_max, symbolic_min, custom_cosh, custom_
 import math
 from sympy import symbols, ceiling, expand, exp, Abs, cosh, log, acosh
 import sympy as sp
-
+from src.inverse_pass.constraint import Constraint
 
 logger = logging.getLogger(__name__)
 
@@ -323,8 +323,8 @@ class VSCNFetModel(TechModel):
 
     def create_constraints(self, dennard_scaling_type="constant_field"):
         super().create_constraints(dennard_scaling_type)
-        self.constraints.append(self.delta <= 0.15)
-        self.constraints.append(self.base_params.tox >= 2*self.base_params.d) # ensure scale length equation holds
-        self.constraints.append(self.base_params.k_cnt <= 4.0)
-        self.constraints.append(self.base_params.k_cnt >= 3.8)
-        self.constraints.append(self.base_params.L_c >= self.base_params.L/5) # from minimum values in technical manual
+        self.constraints.append(Constraint(self.delta <= 0.15, "delta <= 0.15"))
+        self.constraints.append(Constraint(self.base_params.tox >= 2*self.base_params.d, "tox >= 2*d")) # ensure scale length equation holds
+        self.constraints.append(Constraint(self.base_params.k_cnt <= 4.0, "k_cnt <= 4.0"))
+        self.constraints.append(Constraint(self.base_params.k_cnt >= 3.8, "k_cnt >= 3.8"))
+        self.constraints.append(Constraint(self.base_params.L_c >= self.base_params.L/5, "L_c >= L/5")) # from minimum values in technical manual

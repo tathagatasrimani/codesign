@@ -4,7 +4,7 @@ from src.sim_util import symbolic_convex_max, symbolic_convex_min, custom_cosh, 
 import math
 from sympy import symbols, ceiling, expand, exp, Abs, cosh, log
 import sympy as sp
-
+from src.inverse_pass.constraint import Constraint
 
 logger = logging.getLogger(__name__)
 
@@ -226,7 +226,7 @@ class VSPlanarModel(TechModel):
 
     def create_constraints(self, dennard_scaling_type="constant_field"):
         super().create_constraints(dennard_scaling_type)
-        self.constraints.append(self.delta <= 0.15)
-        self.constraints.append(self.t_1 >= 10e-9)
-        self.constraints.append(self.t_1 >= 3*self.base_params.tox) # ensure scale length equation holds
+        self.constraints.append(Constraint(self.delta <= 0.15, "delta <= 0.15"))
+        self.constraints.append(Constraint(self.t_1 >= 10e-9, "t_1 >= 10e-9"))
+        self.constraints.append(Constraint(self.t_1 >= 3*self.base_params.tox, "t_1 >= 3*tox")) # ensure scale length equation holds
         

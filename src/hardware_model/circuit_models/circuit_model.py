@@ -4,7 +4,7 @@ from src import coefficients
 from src import sim_util
 import cvxpy as cp
 import sympy as sp
-
+from src.inverse_pass.constraint import Constraint
 logger = logging.getLogger(__name__)
 
 DATA_WIDTH = 16
@@ -380,7 +380,7 @@ class CircuitModel:
                 if key not in ["Buf", "MainMem", "OffChipIO", "Call", "N/A"]:
                     # cycle limit to constrain the amount of pipelining
                     #self.constraints.append((self.symbolic_latency_wc[key]()* 1e-9) * self.tech_model.base_params.f <= 20) # num cycles <= 20 (cycles = time(s) * frequency(Hz))
-                    self.constraints.append((self.symbolic_latency_wc[key]())<= 20*self.tech_model.base_params.clk_period) # num cycles <= 20 (cycles = time(s) * frequency(Hz))
+                    self.constraints.append(Constraint((self.symbolic_latency_wc[key]())<= 20*self.tech_model.base_params.clk_period, f"latency_{key} <= 20*clk_period")) # num cycles <= 20 (cycles = time(s) * frequency(Hz))
     
     def create_constraints_cvx(self, scale_cvx):
         self.constraints_cvx = []

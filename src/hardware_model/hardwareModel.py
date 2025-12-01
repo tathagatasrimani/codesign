@@ -1062,7 +1062,7 @@ class HardwareModel:
                     rsc_edge = self.get_rsc_edge((pred, node), self.scheduled_dfg)
                     if rsc_edge in self.circuit_model.edge_to_nets:
                         pred_delay += self.circuit_model.wire_delay(rsc_edge, symbolic)
-                    self.constraints.append(node_arrivals[node] >= node_arrivals[pred] + pred_delay)
+                    self.constraints.append(Constraint(node_arrivals[node] >= node_arrivals[pred] + pred_delay, "node_arrivals[node] >= node_arrivals[pred] + pred_delay"))
                     constr_cvx.append(node_arrivals_cvx[node] >= node_arrivals_cvx[pred] + sim_util.xreplace_safe(pred_delay, self.circuit_model.tech_model.base_params.tech_values))
             obj = node_arrivals_cvx["end"]
             prob = cp.Problem(cp.Minimize(obj), constr_cvx)
@@ -1380,6 +1380,17 @@ class HardwareModel:
             "m2_k": "Metal 2 Permittivity over generations (F/m)",
             "m3_k": "Metal 3 Permittivity over generations (F/m)",
         }
+        self.constraints_to_plot = set(
+            [
+                "total_power <= 150",
+                "I_off per (W) <= 100e-9 per (1e-6)",
+                "W over L >= 1",
+                "V_th_eff >= 0",
+                "V_dd >= V_th",
+                "delta <= 0.15",
+                "latency_FloorDiv16 <= 20*clk_period",
+            ]
+        )
         if execution_time_override:
             execution_time = execution_time_override_val
         if self.obj_fn == "edp":

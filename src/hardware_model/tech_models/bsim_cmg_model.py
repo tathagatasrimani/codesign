@@ -4,6 +4,7 @@ from src.sim_util import symbolic_convex_max, symbolic_min, custom_cosh, custom_
 import math
 from sympy import symbols, ceiling, expand, exp, Abs, cosh, log
 import sympy as sp
+from src.inverse_pass.constraint import Constraint
 
 class BsimCMGModel(TechModel):    
     def __init__(self, model_cfg, base_params):
@@ -195,7 +196,7 @@ class BsimCMGModel(TechModel):
     def create_constraints(self, dennard_scaling_type="constant_field"):
         super().create_constraints(dennard_scaling_type)
 
-        self.constraints.append(self.V_ox >= 0)
-        self.constraints.append(self.dVth_SCE + self.dVth_DIBL >= -0.2)
-        self.constraints.append(self.dVth_nw_1 + self.dVth_nw_2 <= 0.2)
-        self.constraints.append(self.base_params.L <= self.base_params.W)
+        self.constraints.append(Constraint(self.V_ox >= 0, "V_ox >= 0"))
+        self.constraints.append(Constraint(self.dVth_SCE + self.dVth_DIBL >= -0.2, "dVth_SCE + dVth_DIBL >= -0.2"))
+        self.constraints.append(Constraint(self.dVth_nw_1 + self.dVth_nw_2 <= 0.2, "dVth_nw_1 + dVth_nw_2 <= 0.2"))
+        self.constraints.append(Constraint(self.base_params.L <= self.base_params.W, "L <= W"))

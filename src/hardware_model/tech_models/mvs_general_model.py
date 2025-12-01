@@ -5,7 +5,7 @@ import math
 from sympy import symbols, ceiling, expand, exp, Abs, cosh, log
 import sympy as sp
 from scipy.constants import k, e, epsilon_0, hbar, m_e
-
+from src.inverse_pass.constraint import Constraint
 from src.hardware_model.tech_models.tech_codesign_v0 import tech_codesign_v0
 
 logger = logging.getLogger(__name__)
@@ -154,25 +154,25 @@ class MVSGeneralModel(TechModel):
 
     def create_constraints(self, dennard_scaling_type="constant_field"):
         super().create_constraints(dennard_scaling_type)
-        self.constraints.append(sp.Eq(self.base_params.FO, self.base_params.tech_values[self.base_params.FO], evaluate=False))
-        self.constraints.append(sp.Eq(self.base_params.M, self.base_params.tech_values[self.base_params.M], evaluate=False))
-        self.constraints.append(sp.Eq(self.base_params.beta_p_n, self.base_params.tech_values[self.base_params.beta_p_n], evaluate=False))
-        self.constraints.append(sp.Eq(self.base_params.a, self.base_params.tech_values[self.base_params.a], evaluate=False))
-        self.constraints.append(sp.Eq(self.base_params.mD_fac, self.base_params.tech_values[self.base_params.mD_fac], evaluate=False))
-        self.constraints.append(sp.Eq(self.base_params.mu_eff_n, self.base_params.tech_values[self.base_params.mu_eff_n], evaluate=False))
-        self.constraints.append(sp.Eq(self.base_params.mu_eff_p, self.base_params.tech_values[self.base_params.mu_eff_p], evaluate=False))
-        self.constraints.append(sp.Eq(self.base_params.eps_semi, self.base_params.tech_values[self.base_params.eps_semi], evaluate=False))
-        self.constraints.append(sp.Eq(self.base_params.tsemi, self.base_params.tech_values[self.base_params.tsemi], evaluate=False))
+        self.constraints.append(Constraint(sp.Eq(self.base_params.FO, self.base_params.tech_values[self.base_params.FO], evaluate=False), "FO = tech_values[FO]"))
+        self.constraints.append(Constraint(sp.Eq(self.base_params.M, self.base_params.tech_values[self.base_params.M], evaluate=False), "M = tech_values[M]"))
+        self.constraints.append(Constraint(sp.Eq(self.base_params.beta_p_n, self.base_params.tech_values[self.base_params.beta_p_n], evaluate=False), "beta_p_n = tech_values[beta_p_n]"))
+        self.constraints.append(Constraint(sp.Eq(self.base_params.a, self.base_params.tech_values[self.base_params.a], evaluate=False), "a = tech_values[a]"))
+        self.constraints.append(Constraint(sp.Eq(self.base_params.mD_fac, self.base_params.tech_values[self.base_params.mD_fac], evaluate=False), "mD_fac = tech_values[mD_fac]"))
+        self.constraints.append(Constraint(sp.Eq(self.base_params.mu_eff_n, self.base_params.tech_values[self.base_params.mu_eff_n], evaluate=False), "mu_eff_n = tech_values[mu_eff_n]"))
+        self.constraints.append(Constraint(sp.Eq(self.base_params.mu_eff_p, self.base_params.tech_values[self.base_params.mu_eff_p], evaluate=False), "mu_eff_p = tech_values[mu_eff_p]"))
+        self.constraints.append(Constraint(sp.Eq(self.base_params.eps_semi, self.base_params.tech_values[self.base_params.eps_semi], evaluate=False), "eps_semi = tech_values[eps_semi]"))
+        self.constraints.append(Constraint(sp.Eq(self.base_params.tsemi, self.base_params.tech_values[self.base_params.tsemi], evaluate=False), "tsemi = tech_values[tsemi]"))
         #self.constraints.append(sp.Eq(self.base_params.Lext, self.base_params.tech_values[self.base_params.Lext], evaluate=False))
         #self.constraints.append(sp.Eq(self.base_params.Lc, self.base_params.tech_values[self.base_params.Lc], evaluate=False))
-        self.constraints.append(sp.Eq(self.base_params.eps_cap, self.base_params.tech_values[self.base_params.eps_cap], evaluate=False))
-        self.constraints.append(sp.Eq(self.base_params.rho_c_n, self.base_params.tech_values[self.base_params.rho_c_n], evaluate=False))
-        self.constraints.append(sp.Eq(self.base_params.rho_c_p, self.base_params.tech_values[self.base_params.rho_c_p], evaluate=False))
-        self.constraints.append(sp.Eq(self.base_params.Rsh_c_n, self.base_params.tech_values[self.base_params.Rsh_c_n], evaluate=False))
-        self.constraints.append(sp.Eq(self.base_params.Rsh_c_p, self.base_params.tech_values[self.base_params.Rsh_c_p], evaluate=False))
-        self.constraints.append(sp.Eq(self.base_params.Rsh_ext_n, self.base_params.tech_values[self.base_params.Rsh_ext_n], evaluate=False))
-        self.constraints.append(sp.Eq(self.base_params.Rsh_ext_p, self.base_params.tech_values[self.base_params.Rsh_ext_p], evaluate=False))
+        self.constraints.append(Constraint(sp.Eq(self.base_params.eps_cap, self.base_params.tech_values[self.base_params.eps_cap], evaluate=False), "eps_cap = tech_values[eps_cap]"))
+        self.constraints.append(Constraint(sp.Eq(self.base_params.rho_c_n, self.base_params.tech_values[self.base_params.rho_c_n], evaluate=False), "rho_c_n = tech_values[rho_c_n]"))
+        self.constraints.append(Constraint(sp.Eq(self.base_params.rho_c_p, self.base_params.tech_values[self.base_params.rho_c_p], evaluate=False), "rho_c_p = tech_values[rho_c_p]"))
+        self.constraints.append(Constraint(sp.Eq(self.base_params.Rsh_c_n, self.base_params.tech_values[self.base_params.Rsh_c_n], evaluate=False), "Rsh_c_n = tech_values[Rsh_c_n]"))
+        self.constraints.append(Constraint(sp.Eq(self.base_params.Rsh_c_p, self.base_params.tech_values[self.base_params.Rsh_c_p], evaluate=False), "Rsh_c_p = tech_values[Rsh_c_p]"))
+        self.constraints.append(Constraint(sp.Eq(self.base_params.Rsh_ext_n, self.base_params.tech_values[self.base_params.Rsh_ext_n], evaluate=False), "Rsh_ext_n = tech_values[Rsh_ext_n]"))
+        self.constraints.append(Constraint(sp.Eq(self.base_params.Rsh_ext_p, self.base_params.tech_values[self.base_params.Rsh_ext_p], evaluate=False), "Rsh_ext_p = tech_values[Rsh_ext_p]"))
 
         #self.constraints.append(self.delta <= 0.15)
-        self.constraints.append(self.I_off_worst_case_per_um <= 100e-9)
-        self.constraints.append(self.V_th_eff_worst_case >= 0.05)
+        self.constraints.append(Constraint(self.I_off_worst_case_per_um <= 100e-9, "I_off_worst_case_per_um <= 100e-9"))
+        self.constraints.append(Constraint(self.V_th_eff_worst_case >= 0.05, "V_th_eff_worst_case >= 0.05"))
