@@ -25,6 +25,54 @@ CHECKPOINT_RE = re.compile(
 INITIAL_PHASE_CHECKPOINTS = {"setup"}
 INITIAL_PHASE_ITERATIONS = {0}
 
+# =====================================================================
+#               CTRL-C CLEAN SHUTDOWN SUPPORT
+# =====================================================================
+
+ACTIVE_PROCESSES = set()
+ACTIVE_PROCESSES_LOCK = threading.Lock()
+regression_instance = None
+
+def register_process(p):
+    with ACTIVE_PROCESSES_LOCK:
+        ACTIVE_PROCESSES.add(p)
+
+def unregister_process(p):
+    with ACTIVE_PROCESSES_LOCK:
+        ACTIVE_PROCESSES.discard(p)
+
+def kill_all_processes():
+    with ACTIVE_PROCESSES_LOCK:
+        for p in list(ACTIVE_PROCESSES):
+            try:
+                os.killpg(os.getpgid(p.pid), signal.SIGTERM)
+            except Exception:
+                pass
+
+def sigint_handler(signum, frame):
+    print("\n[CTRL-C] Stopping all jobs...")
+    sys.stdout.flush()
+    kill_all_processes()
+
+    global regression_instance
+    if regression_instance:
+        regression_instance.stop_event.set()
+
+        # unstick blocked workers
+        for _ in range(regression_instance.max_parallelism):
+            regression_instance.job_queue.put(None)
+
+        while not regression_instance.job_queue.empty():
+            try:
+                regression_instance.job_queue.get_nowait()
+                regression_instance.job_queue.task_done()
+            except queue.Empty:
+                break
+
+signal.signal(signal.SIGINT, sigint_handler)
+
+# =====================================================================
+
 
 
 class RegressionRun:
@@ -118,6 +166,8 @@ class RegressionRun:
         # populate the queue with work
         total_jobs = 0
         for config_info in self.config_files_to_run:
+            if self.stop_event.is_set():
+                break 
             config_path = config_info["config_path"]
             results_dir = config_info["results_dir"]
             total_jobs += self.run_single_config_file(config_path, results_dir)
@@ -142,10 +192,7 @@ class RegressionRun:
         self.write_summary_results()
 
         ## return 0 if all tests passed, 1 if any test failed
-        if self.failed_jobs > 0:
-            return 1
-        else:
-            return 0
+        return 1 if self.failed_jobs > 0 else 0
         
     
     def run_single_config_file(self, config_file_path, results_dir):
@@ -155,6 +202,8 @@ class RegressionRun:
         
         count = 0
         for config_name in config_yaml:
+            if self.stop_event.is_set():
+                break
             job_results_dir = os.path.join(results_dir, config_name)
             self.job_queue.put((config_file_path, config_name, job_results_dir))
             count+=1
@@ -210,6 +259,9 @@ class RegressionRun:
                 executable="/bin/bash",
                 preexec_fn=os.setsid,
             )
+            
+            register_process(process)
+            
             try:
                 process.wait(timeout=timeout_secs)
             except subprocess.TimeoutExpired:
@@ -235,6 +287,8 @@ class RegressionRun:
                 success = False
             else:
                 success = self.check_correct_completion(log_path)
+            finally:
+                unregister_process(process)
  
         with self.completed_lock:
             self.completed_jobs += 1
@@ -242,9 +296,18 @@ class RegressionRun:
         return success
 
     def worker(self, worker_id):
-        while True:
-            job = self.job_queue.get()
+        while not self.stop_event.is_set():
+            try:
+                job = self.job_queue.get(timeout=0.5)
+            except queue.Empty:
+                continue
+
+            if self.stop_event.is_set():
+                self.job_queue.task_done()
+                break
+
             if job is None:
+                self.job_queue.task_done()
                 break
 
             config_path, config_name, results_dir = job
@@ -253,7 +316,6 @@ class RegressionRun:
                 self.job_start_times[config_name] = start_time
                 self.job_worker_map[config_name] = worker_id
 
-            # launch the job and a log watcher
             log_path = os.path.join(results_dir, "run_codesign.log")
             stop_evt = threading.Event()
             watcher = threading.Thread(
@@ -273,19 +335,20 @@ class RegressionRun:
                     self.job_finish_times[config_name] = finish_time
                 elapsed = finish_time - start_time
 
-                # update pass/fail counters here (since run_single_job returns success)
                 with self.completed_lock:
                     if success:
                         self.passed_jobs += 1
                     else:
                         self.failed_jobs += 1
 
-                # stop watcher & write YAML result
                 stop_evt.set()
                 watcher.join(timeout=2.0)
 
                 self.record_result(config_name, success, elapsed)
                 self.job_queue.task_done()
+
+            if self.stop_event.is_set():
+                break
 
 
 
@@ -629,6 +692,8 @@ if __name__ == "__main__":
             exit(1)
 
         reg_run = RegressionRun(cfg=None, codesign_root_dir=cwd, single_config_path=args.single_config, test_list_path=args.test_list, max_parallelism=args.max_parallelism, absolute_paths=args.absolute_paths, silent_mode=args.quiet_mode, github_autotest_mode=args.github_autotest_mode, preinstalled_openroad_path=args.preinstalled_openroad_path)
+
+        regression_instance = reg_run
 
         exit_code = reg_run.run_regression()
 
