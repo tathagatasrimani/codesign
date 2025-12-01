@@ -152,6 +152,13 @@ class LoopInfo:
         self.pipelined = loop_info["Pipelined"]
         self.pipeline_states = loop_info["pipeline_states"] if "pipeline_states" in loop_info else []
         self.loop_states = [] # to be assigned in StateObject
+        self.is_top_loop = loop_info["is_top_loop"]
+        self.sub_loops = []
+
+    def __str__(self):
+        return f"LoopInfo(loop_name={self.loop_name}, min={self.min}, max={self.max}, latency={self.latency}, achieved={self.achieved}, target={self.target}, count={self.count}, pipelined={self.pipelined}, pipeline_states={self.pipeline_states}, loop_states={self.loop_states}, is_top_loop={self.is_top_loop}, sub_loops={self.sub_loops})"
+    def __repr__(self):
+        return self.__str__()
 
 class DataFlowGraph:
     def __init__(self, clk_period, no_rsc_allowed_ops, allowed_functions, build_dir, basic_block_name, name, resource_mapping, states_structure, G, G_standard, G_standard_with_wire_ops, resource_db, variable_db, num_iters=1):
@@ -254,7 +261,12 @@ class DataFlowGraph:
             if not self.resource_db.check_resource_added(rsc_name_unique):
                 self.resource_db.add_resource(rsc_name_unique, instruction["core_inst"] != "N/A", instruction["core_info"])
             fn_out = module_map[instruction["op"]] if instruction["op"] in module_map else instruction["op"]
-            self.G.add_node(op_name, node_type=instruction["type"], function=fn_out, function_out=fn_out, rsc=rsc_name, core_inst=instruction["core_inst"], core_id=core_id, rsc_name_unique=rsc_name_unique, call_function=instruction["call_function"])
+            call_fn = instruction["call_function"] 
+            assert call_fn is not None, f"call_function is None for instruction {instruction}"
+            if call_fn[-1] == "_":
+                call_fn += "s"
+                log_info(f"added s to call_function for {instruction}")
+            self.G.add_node(op_name, node_type=instruction["type"], function=fn_out, function_out=fn_out, rsc=rsc_name, core_inst=instruction["core_inst"], core_id=core_id, rsc_name_unique=rsc_name_unique, call_function=call_fn)
             self.track_resource_usage(op_name)
             for src in instruction["src"]:
                 src_name = self.variable_db.get_read_node_name(src)
@@ -318,7 +330,6 @@ class DataFlowGraph:
 
     # used only in convert function. Takes one sched report from vitis (for one basic block) and converts it to graph form
     def create_graph_one_iter(self):
-        # START HERE
         processed_states = set()
         for state in self.states_structure.state_ops:
             if state in processed_states:
@@ -328,7 +339,7 @@ class DataFlowGraph:
                 log_info(f"adding loop graph for {loop_to_create}")
                 self.add_loop_nodes(loop_to_create)
                 self.add_loop_nodes(loop_to_create, num_iters=1, append_to_graph=False)
-                for state in self.states_structure.loops[loop_to_create].loop_states:
+                for state in self.states_structure.processed_loop_states:
                     processed_states.add(state)
             else:
                 self.add_one_state_to_graph(self.states_structure.state_ops[state])
@@ -354,11 +365,12 @@ class DataFlowGraph:
                 nx.write_gml(self.loop_dfgs[loop][iter_num].G_standard, f"{self.build_dir}/parse_results/{self.basic_block_name}/{loop}_graph_standard_{iter_num}.gml")
 
 class StatesStructure:
-    def __init__(self, state_ops, state_transitions, loops):
+    def __init__(self, state_ops, state_transitions, loops, loop_list, basic_block_name):
+        self.basic_block_name = basic_block_name
         self.state_ops = state_ops
         self.state_transitions = state_transitions
         self.loops = loops
-        self.loop_list = list(loops.values())
+        self.loop_list = loop_list
         log_info(f"loop list: {self.loop_list}")
         self.state_to_loop = {}
         # track incoming transitions for each state that come from downstream states
@@ -370,7 +382,7 @@ class StatesStructure:
                     self.backward_state_transitions[transition] = state
         log_info(f"backward state transitions: {self.backward_state_transitions}")
         # assign loop states
-        assert len(self.backward_state_transitions) == len(loops), f"Number of backward state transitions: {len(self.backward_state_transitions)} does not match number of loops: {len(loops)}"
+        assert len(self.backward_state_transitions) == len(loops), f"Number of backward state transitions: {len(self.backward_state_transitions)} does not match number of loops: {len(loops)} for basic block: {self.basic_block_name}"
         
         idx=0
         for key in sorted(list(self.backward_state_transitions.keys())):
@@ -383,10 +395,18 @@ class StatesStructure:
             log_info(f"loop states for {self.loop_list[idx].loop_name}: {self.loop_list[idx].loop_states}")  
             idx += 1
         log_info(f"state to loop: {self.state_to_loop}")
+        self.processed_loop_states = set() # updated as we process loops in get_pruned_states_structure
     
     def get_pruned_states_structure(self, loop):
-        state_ops = {state: self.state_ops[state] for state in loop.loop_states}
-        state_transitions = {state: self.state_transitions[state] for state in loop.loop_states}
+        loop_states = loop.loop_states.copy()
+        state_ops = {state: self.state_ops[state] for state in loop_states}
+        for sub_loop in loop.sub_loops:
+            for state in self.loops[sub_loop].loop_states:
+                if state not in state_ops:
+                    state_ops[state] = self.state_ops[state]
+                    log_info(f"added state {state} to state_ops for sub loop {sub_loop}")
+                    loop_states.append(state)
+        state_transitions = {state: self.state_transitions[state] for state in loop_states}
         for state in state_transitions:
             new_state_transitions = []
             for transition in state_transitions[state]:
@@ -395,18 +415,15 @@ class StatesStructure:
                 else:
                     new_state_transitions.append(transition)
             state_transitions[state] = new_state_transitions
-        # remove the backward transition for this loop
+        # remove the backward transition for this loop (use loop.loop_states here)
         state_transitions[loop.loop_states[-1]].remove(loop.loop_states[0])
         log_info(f"removed backward transition between {loop.loop_states[-1]} and {loop.loop_states[0]} for loop {loop.loop_name}")
-        loop_names_to_include = set()
-        for state in state_ops:
-            loops = self.state_to_loop[state]
-            for mapped_loop in loops:
-                loop_names_to_include.add(mapped_loop)
 
-        remaining_loops = {other_loop: self.loops[other_loop] for other_loop in loop_names_to_include if other_loop != loop.loop_name}
+        remaining_loops = {other_loop: self.loops[other_loop] for other_loop in loop.sub_loops}
+        remaining_loop_list = [self.loops[other_loop] for other_loop in loop.sub_loops]
         log_info(f"remaining loops: {remaining_loops}")
-        return StatesStructure(state_ops, state_transitions, remaining_loops)
+        self.processed_loop_states.update(loop_states)
+        return StatesStructure(state_ops, state_transitions, remaining_loops, remaining_loop_list, self.basic_block_name)
 
 class BasicBlockInfo:
     # call parse, then convert
@@ -451,7 +468,7 @@ class BasicBlockInfo:
         return idx+1, lines[idx].split()[1]
 
     def create_states_structure(self):
-        self.states_structure = StatesStructure(self.state_ops, self.state_transitions, self.loops)
+        self.states_structure = StatesStructure(self.state_ops, self.state_transitions, self.loops, list(self.loops.values()), self.basic_block_name)
 
     def parse_file(self, file_path):
         with open(file_path, "r") as file:
@@ -475,19 +492,33 @@ class BasicBlockInfo:
                 idx += 1
             idx += 1
             self.state_transitions = {}
+            num_backward_transitions = 0
             while lines[idx].strip():
                 assert lines[idx].split()[0] not in self.state_transitions
+                start_state = int(lines[idx].split()[0])
                 if len(lines[idx].split()) == 3:
+                    dst_state = int(lines[idx].split()[2])
+                    if dst_state < start_state:
+                        num_backward_transitions += 1
                     self.state_transitions[int(lines[idx].split()[0])] = [int(lines[idx].split()[2])]
                 elif len(lines[idx].split()) == 4:
-                    self.state_transitions[int(lines[idx].split()[0])] = [int(lines[idx].split()[2]), int(lines[idx].split()[3])]
+                    dst_state = int(lines[idx].split()[2])
+                    dst_state_2 = int(lines[idx].split()[3])
+                    if dst_state_2 < start_state:
+                        num_backward_transitions += 1
+                    if dst_state < start_state:
+                        num_backward_transitions += 1
+                    self.state_transitions[int(lines[idx].split()[0])] = [dst_state, dst_state_2]
                 elif len(lines[idx].split()) == 2:
-                    if len(self.loops) > 0:
+                    if len(self.loops) != num_backward_transitions:
+                        assert len(self.loops) == num_backward_transitions + 1, f"Number of backward transitions: {num_backward_transitions} not within one of number of loops: {len(self.loops)} for file: {file_path}"
                         # back to start state
                         self.state_transitions[int(lines[idx].split()[0])] = [1]
+                        num_backward_transitions += 1
                     else:
                         self.state_transitions[int(lines[idx].split()[0])] = []
                 idx += 1
+            assert num_backward_transitions == len(self.loops), f"Number of backward state transitions: {num_backward_transitions} does not match number of loops: {len(self.loops)} for file: {file_path}"
 
             # parse operations in each state
             idx, next_state = self.find_next_state(lines, idx)
@@ -560,11 +591,23 @@ class BasicBlockInfo:
         
         # Extract loop data
         loops = []
+        loop_objects = {}
+        latest_top_loop_name = None
         for column in loop_table.findall(".//column"):
-            parts = re.split(r'[-\+]', column.get('name', ''))
-            loop_name = parts[1].strip()
+            parts = re.split(r'([-\+])', column.get('name', ''))
+            log_info(f"parts: {parts}")
+            # With capturing group, delimiter appears at odd indices
+            # parts will be like: ['', '-', 'loop_name'] or ['', '+', 'loop_name']
+            delimiter = parts[1] if len(parts) > 1 else None
+            is_top_loop = delimiter == "-"
+            loop_name = parts[2].strip() if len(parts) > 2 else parts[0].strip()
             values = column.text.split(', ')
-            loop_data = {"Loop Name": loop_name, "has_loop": True}
+            loop_data = {"Loop Name": loop_name, "has_loop": True, "is_top_loop": is_top_loop}
+            if not is_top_loop:
+                assert latest_top_loop_name is not None, f"Latest top loop name is not set for non-top loop: {loop_name}"
+                loop_objects[latest_top_loop_name].sub_loops.append(loop_name)
+            else:
+                latest_top_loop_name = loop_name
             for i, value in enumerate(values):
                 if i < len(keys):
                     key = keys[i]
@@ -578,11 +621,8 @@ class BasicBlockInfo:
                     else:
                         loop_data[key] = value
             
-            loops.append(loop_data)
-        log_info(f"loops for {xml_file_path}: {loops}")
-        loop_objects = {}
-        for loop in loops:
-            loop_objects[loop["Loop Name"]] = LoopInfo(loop)
+            loop_objects[loop_name] = LoopInfo(loop_data)
+        log_info(f"loop objects for {xml_file_path}: {loop_objects}")
         return loop_objects
 
 class vitis_schedule_parser:
