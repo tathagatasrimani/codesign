@@ -29,7 +29,7 @@ from openroad_interface import openroad_run_hier
 
 import cvxpy as cp
 
-DEBUG = True
+DEBUG = False
 def log_info(msg):
     if DEBUG:
         logger.info(msg)
@@ -158,6 +158,7 @@ class HardwareModel:
         self.inst_name_map = {}
         self.dfg_to_netlist_map = {}
         self.constraints = []
+        self.sensitivities = {}
 
     def reset_state(self):
         self.symbolic_buf = {}
@@ -1400,8 +1401,19 @@ class HardwareModel:
                         + execution_time * self.circuit_model.tech_model.capped_delay_scale * sim_util.xreplace_safe(self.total_active_energy + self.total_passive_energy, self.circuit_model.tech_model.base_params.tech_values))
         else:
             raise ValueError(f"Objective function {self.obj_fn} not supported")
-    
-    def calculate_objective(self, clk_period_opt=False, form_dfg=True):
+
+    def calculate_sensitivity_analysis(self):
+        for param in self.circuit_model.tech_model.base_params.tech_values:
+            #log_info(f"calculating sensitivity for {param}, initial value: {self.circuit_model.tech_model.base_params.tech_values[param]}")
+            tech_values_without_param = copy.deepcopy(self.circuit_model.tech_model.base_params.tech_values)
+            tech_values_without_param.pop(param)
+            #log_info(f"obj: {self.obj}")
+            d_obj_d_param = self.obj.diff(param, evaluate=True).xreplace(tech_values_without_param)
+            #log_info(f"d_obj_d_param: {d_obj_d_param}")
+            self.sensitivities[param] = sim_util.xreplace_safe(d_obj_d_param * (self.circuit_model.tech_model.base_params.tech_values[param] / sim_util.xreplace_safe(self.obj, self.circuit_model.tech_model.base_params.tech_values)), self.circuit_model.tech_model.base_params.tech_values)
+        logger.info(f"sensitivities: {self.sensitivities}")
+
+    def calculate_objective(self, clk_period_opt=False, form_dfg=True, do_sensitivity_analysis=False):
         start_time = time.time()
         self.constraints = []
         if self.hls_tool == "vitis":
@@ -1414,10 +1426,12 @@ class HardwareModel:
             self.total_passive_energy = self.calculate_passive_energy(self.execution_time, symbolic=True)
             self.total_active_energy = self.calculate_active_energy(symbolic=True)
         self.save_obj_vals(self.execution_time)
+        if do_sensitivity_analysis:
+            self.calculate_sensitivity_analysis()
         logger.info(f"time to calculate objective: {time.time()-start_time}")
 
     def display_objective(self, message):
-        obj = float(self.obj.xreplace(self.circuit_model.tech_model.base_params.tech_values))
+        obj = sim_util.xreplace_safe(self.obj, self.circuit_model.tech_model.base_params.tech_values)
         sub_exprs = {}
         for key in self.obj_sub_exprs:
             if not isinstance(self.obj_sub_exprs[key], float):

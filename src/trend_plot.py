@@ -6,7 +6,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 class TrendPlot:
-    def __init__(self, codesign_module, params_over_generations, obj_over_generations, lag_factor_over_generations, wire_lengths_over_generations, save_dir, obj="Energy Delay Product", units="nJ*ns", obj_fn="edp"):
+    def __init__(self, codesign_module, params_over_generations, obj_over_generations, lag_factor_over_generations, wire_lengths_over_generations, sensitivities_over_generations, save_dir, obj="Energy Delay Product", units="nJ*ns", obj_fn="edp"):
         self.codesign_module = codesign_module
         self.params_over_generations = params_over_generations
         self.plot_list = set(self.codesign_module.hw.obj_sub_exprs.values())
@@ -17,6 +17,7 @@ class TrendPlot:
         self.obj_over_generations = obj_over_generations
         self.lag_factor_over_generations = lag_factor_over_generations
         self.wire_lengths_over_generations = wire_lengths_over_generations
+        self.sensitivities_over_generations = sensitivities_over_generations
         self.save_dir = save_dir
         self.obj = obj
         self.units = units
@@ -177,3 +178,45 @@ class TrendPlot:
         plt.tight_layout()
         plt.savefig(f"{self.save_dir}/lag_factor_over_iters.png", dpi=300, bbox_inches='tight')
         plt.close()
+
+    def plot_sensitivities_over_generations(self):
+        if not os.path.exists(self.save_dir + "/sensitivities"):
+            os.makedirs(self.save_dir + "/sensitivities")
+        f = open(f"{self.save_dir}/sensitivities_data.txt", 'w')
+        f.write(str(self.sensitivities_over_generations))
+        # Set larger font sizes and better styling
+        plt.rcParams.update({
+            "font.size": 24,
+            "axes.titlesize": 30,
+            "axes.labelsize": 24,
+            "xtick.labelsize": 24,
+            "ytick.labelsize": 24,
+            "legend.fontsize": 24,
+            "figure.titlesize": 30
+        })
+        for param in self.sensitivities_over_generations[0]:
+            values = []
+            logger.info(f"Plotting {param}")
+            for i in range(len(self.sensitivities_over_generations)):
+                values.append(xreplace_safe(param, self.sensitivities_over_generations[i]))
+            
+            if len(values) > 0 and values[0] == 0: 
+                continue
+            # Create figure with better sizing
+            fig, ax = plt.subplots(figsize=(10, 6))
+            
+            # Plot with improved styling
+            ax.plot(values, linewidth=3, markersize=15, marker="o", color="black")
+            ax.set_xlabel("Generation", fontweight="bold")
+            ax.set_title(f"{param}", fontweight="bold", pad=20)
+
+            ax.set_xticks(range(len(values)))
+            
+            # Improve grid and styling
+            #ax.grid(True, alpha=0.3, linestyle='--')
+            fig.patch.set_facecolor("#f8f9fa")
+            
+            # Adjust layout and save
+            plt.tight_layout()
+            plt.savefig(f"{self.save_dir}/sensitivities/{param}_sensitivities_over_iters.png", dpi=300, bbox_inches='tight')
+            plt.close()

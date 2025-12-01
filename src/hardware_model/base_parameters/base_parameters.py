@@ -24,98 +24,98 @@ class BaseParameters:
         self.node_arrivals_end = symbols("node_arrivals_end")
 
         # leaving both clk_period and f in here for flexibility, but only one of them will be used.
-        self.clk_period = symbols("clk_period")
-        self.f = symbols("f")
+        self.clk_period = symbols("clk_period", real=True)
+        self.f = symbols("f", real=True)
 
         # Logic parameters
-        self.V_dd = symbols("V_dd")
-        self.V_th = symbols("V_th")
-        self.tox = symbols("tox")
-        self.W = symbols("W")
-        self.L = symbols("L")
-        self.k_gate = symbols("k_gate")
-        self.t_1 = symbols("t_1") # physical body thickness, used for scale length in vs model
+        self.V_dd = symbols("V_dd", real=True)
+        self.V_th = symbols("V_th", real=True)
+        self.tox = symbols("tox", real=True)
+        self.W = symbols("W", real=True)
+        self.L = symbols("L", real=True)
+        self.k_gate = symbols("k_gate", real=True)
+        self.t_1 = symbols("t_1", real=True) # physical body thickness, used for scale length in vs model
 
-        self.L_ov = symbols("L_ov")
+        self.L_ov = symbols("L_ov", real=True)
 
         # dennard scaling factors, used for dennard scaling test
-        self.alpha_dennard = symbols("alpha_dennard")
-        self.epsilon_dennard = symbols("epsilon_dennard")
+        self.alpha_dennard = symbols("alpha_dennard", real=True)
+        self.epsilon_dennard = symbols("epsilon_dennard", real=True)
         
-        self.area = symbols("area")
+        self.area = symbols("area", real=True)
 
         # wire parameters
-        self.m1_rho = symbols("m1_rho")
-        self.m2_rho = symbols("m2_rho")
-        self.m3_rho = symbols("m3_rho")
-        self.m4_rho = symbols("m4_rho")
-        self.m5_rho = symbols("m5_rho")
-        self.m6_rho = symbols("m6_rho")
-        self.m7_rho = symbols("m7_rho")
-        self.m8_rho = symbols("m8_rho")
-        self.m9_rho = symbols("m9_rho")
-        self.m10_rho = symbols("m10_rho")
+        self.m1_rho = symbols("m1_rho", real=True)
+        self.m2_rho = symbols("m2_rho", real=True)
+        self.m3_rho = symbols("m3_rho", real=True)
+        self.m4_rho = symbols("m4_rho", real=True)
+        self.m5_rho = symbols("m5_rho", real=True)
+        self.m6_rho = symbols("m6_rho", real=True)
+        self.m7_rho = symbols("m7_rho", real=True)
+        self.m8_rho = symbols("m8_rho", real=True)
+        self.m9_rho = symbols("m9_rho", real=True)
+        self.m10_rho = symbols("m10_rho", real=True)
 
-        self.m1_k = symbols("m1_k")
-        self.m2_k = symbols("m2_k")
-        self.m3_k = symbols("m3_k")
-        self.m4_k = symbols("m4_k")
-        self.m5_k = symbols("m5_k")
-        self.m6_k = symbols("m6_k")
-        self.m7_k = symbols("m7_k")
-        self.m8_k = symbols("m8_k")
-        self.m9_k = symbols("m9_k")
-        self.m10_k = symbols("m10_k")
+        self.m1_k = symbols("m1_k", real=True)
+        self.m2_k = symbols("m2_k", real=True)
+        self.m3_k = symbols("m3_k", real=True)
+        self.m4_k = symbols("m4_k", real=True)
+        self.m5_k = symbols("m5_k", real=True)
+        self.m6_k = symbols("m6_k", real=True)
+        self.m7_k = symbols("m7_k", real=True)
+        self.m8_k = symbols("m8_k", real=True)
+        self.m9_k = symbols("m9_k", real=True)
+        self.m10_k = symbols("m10_k", real=True)
 
         # Electron mobility for NMOS
-        self.u_n = symbols("u_n")
+        self.u_n = symbols("u_n", real=True)
 
         self.init_memory_params()
 
         # semiconductor capacitance for virtual source model
-        self.Cs = symbols("Cs")
+        self.Cs = symbols("Cs", real=True)
 
         # CNT parameters
-        self.d = symbols("d")
-        self.k_cnt = symbols("k_cnt")
-        self.L_c = symbols("L_c")
-        self.H_c = symbols("H_c")
-        self.H_g = symbols("H_g")
+        self.d = symbols("d", real=True)
+        self.k_cnt = symbols("k_cnt", real=True)
+        self.L_c = symbols("L_c", real=True)
+        self.H_c = symbols("H_c", real=True)
+        self.H_g = symbols("H_g", real=True)
 
         # MVS general model parameters
-        self.beta_p_n = symbols("beta_p_n")
-        self.mD_fac = symbols("mD_fac")
-        self.mu_eff_n = symbols("mu_eff_n")
-        self.mu_eff_p = symbols("mu_eff_p")
-        self.eps_semi = symbols("eps_semi")
-        self.tsemi = symbols("tsemi")
-        self.Lext = symbols("Lext")
-        self.Lc = symbols("Lc")
-        self.eps_cap = symbols("eps_cap")
-        self.rho_c_n = symbols("rho_c_n")
-        self.rho_c_p = symbols("rho_c_p")
-        self.Rsh_c_n = symbols("Rsh_c_n")
-        self.Rsh_c_p = symbols("Rsh_c_p")
-        self.Rsh_ext_n = symbols("Rsh_ext_n")
-        self.Rsh_ext_p = symbols("Rsh_ext_p")
-        self.FO = symbols("FO")
-        self.M = symbols("M")
-        self.a = symbols("a")
+        self.beta_p_n = symbols("beta_p_n", real=True)
+        self.mD_fac = symbols("mD_fac", real=True)
+        self.mu_eff_n = symbols("mu_eff_n", real=True)
+        self.mu_eff_p = symbols("mu_eff_p", real=True)
+        self.eps_semi = symbols("eps_semi", real=True)
+        self.tsemi = symbols("tsemi", real=True)
+        self.Lext = symbols("Lext", real=True)
+        self.Lc = symbols("Lc", real=True)
+        self.eps_cap = symbols("eps_cap", real=True)
+        self.rho_c_n = symbols("rho_c_n", real=True)
+        self.rho_c_p = symbols("rho_c_p", real=True)
+        self.Rsh_c_n = symbols("Rsh_c_n", real=True)
+        self.Rsh_c_p = symbols("Rsh_c_p", real=True)
+        self.Rsh_ext_n = symbols("Rsh_ext_n", real=True)
+        self.Rsh_ext_p = symbols("Rsh_ext_p", real=True)
+        self.FO = symbols("FO", real=True)
+        self.M = symbols("M", real=True)
+        self.a = symbols("a", real=True)
 
-        self.logic_sensitivity = symbols("logic_sensitivity")
-        self.logic_resource_sensitivity = symbols("logic_resource_sensitivity")
-        self.logic_ahmdal_limit = symbols("logic_ahmdal_limit")
-        self.logic_resource_ahmdal_limit = symbols("logic_resource_ahmdal_limit")
+        self.logic_sensitivity = symbols("logic_sensitivity", real=True)
+        self.logic_resource_sensitivity = symbols("logic_resource_sensitivity", real=True)
+        self.logic_ahmdal_limit = symbols("logic_ahmdal_limit", real=True)
+        self.logic_resource_ahmdal_limit = symbols("logic_resource_ahmdal_limit", real=True)
 
-        self.interconnect_sensitivity = symbols("interconnect_sensitivity")
-        self.interconnect_resource_sensitivity = symbols("interconnect_resource_sensitivity")
-        self.interconnect_ahmdal_limit = symbols("interconnect_ahmdal_limit")
-        self.interconnect_resource_ahmdal_limit = symbols("interconnect_resource_ahmdal_limit")
+        self.interconnect_sensitivity = symbols("interconnect_sensitivity", real=True)
+        self.interconnect_resource_sensitivity = symbols("interconnect_resource_sensitivity", real=True)
+        self.interconnect_ahmdal_limit = symbols("interconnect_ahmdal_limit", real=True)
+        self.interconnect_resource_ahmdal_limit = symbols("interconnect_resource_ahmdal_limit", real=True)
 
-        self.memory_sensitivity = symbols("memory_sensitivity")
-        self.memory_resource_sensitivity = symbols("memory_resource_sensitivity")
-        self.memory_ahmdal_limit = symbols("memory_ahmdal_limit")
-        self.memory_resource_ahmdal_limit = symbols("memory_resource_ahmdal_limit")
+        self.memory_sensitivity = symbols("memory_sensitivity", real=True)
+        self.memory_resource_sensitivity = symbols("memory_resource_sensitivity", real=True)
+        self.memory_ahmdal_limit = symbols("memory_ahmdal_limit", real=True)
+        self.memory_resource_ahmdal_limit = symbols("memory_resource_ahmdal_limit", real=True)
 
         # technology level parameter values
         self.tech_values = {}
@@ -131,35 +131,9 @@ class BaseParameters:
             except:
                 logger.info(f"using default value for {key}")
                 self.tech_values[self.symbol_table[key]] = config["default"][key]
-    
-        # set initial values for memory parameters
-        # CACTI
-        cacti_params = {}
-        # TODO, cell type, temp
-        dat.scan_dat(cacti_params, dat_file, 0, 0, 360)
-        cacti_params = {k: (1 if v is None or math.isnan(v) else (10**(-9) if v == 0 else v)) for k, v in cacti_params.items()}
-        for key, value in cacti_params.items():
-            self.tech_values[key] = value
         # set initial values for dennard scaling factors (no actual meaning, they will be set by the optimizer)
         self.tech_values[self.alpha_dennard] = 1
         self.tech_values[self.epsilon_dennard] = 1
-
-        # CACTI IO
-        cacti_IO_params = {}
-        # TODO figure initial
-        g_ip = InputParameter()
-        g_ip.num_clk = 2
-        g_ip.io_type = "DDR3"
-        g_ip.num_mem_dq = 3
-        g_ip.mem_data_width = 2
-        g_ip.num_dq = 2
-        g_ip.dram_dimm = "UDIMM"
-        g_ip.bus_freq = 500
-        
-        IO.scan_IO(cacti_IO_params, g_ip, g_ip.io_type, g_ip.num_mem_dq, g_ip.mem_data_width, g_ip.num_dq, g_ip.dram_dimm, 1, g_ip.bus_freq)
-        cacti_IO_params = {k: (1 if v is None or math.isnan(v) else (10**(-9) if v == 0 else v)) for k, v in cacti_IO_params.items()}
-        for key, value in cacti_IO_params.items():
-            self.tech_values[key] = value
 
         # mock area and latency scaling for experimental purposes
         self.area_scale = (self.W * self.L).xreplace(self.tech_values) / (self.W * self.L)
