@@ -1416,11 +1416,8 @@ class HardwareModel:
     def calculate_sensitivity_analysis(self):
         for param in self.circuit_model.tech_model.base_params.tech_values:
             #log_info(f"calculating sensitivity for {param}, initial value: {self.circuit_model.tech_model.base_params.tech_values[param]}")
-            tech_values_without_param = copy.deepcopy(self.circuit_model.tech_model.base_params.tech_values)
-            tech_values_without_param.pop(param)
-            #log_info(f"obj: {self.obj}")
+            tech_values_without_param = {k: v for k, v in self.circuit_model.tech_model.base_params.tech_values.items() if k != param}
             d_obj_d_param = self.obj.diff(param, evaluate=True).xreplace(tech_values_without_param)
-            #log_info(f"d_obj_d_param: {d_obj_d_param}")
             self.sensitivities[param] = sim_util.xreplace_safe(d_obj_d_param * (self.circuit_model.tech_model.base_params.tech_values[param] / sim_util.xreplace_safe(self.obj, self.circuit_model.tech_model.base_params.tech_values)), self.circuit_model.tech_model.base_params.tech_values)
         logger.info(f"sensitivities: {self.sensitivities}")
 

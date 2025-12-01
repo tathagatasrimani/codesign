@@ -142,6 +142,7 @@ def xreplace_safe(expr, replacements):
     if not isinstance(expr, float) and not isinstance(expr, int):
         ret = expr.xreplace(replacements)
         if not isinstance(ret, float) and not isinstance(ret, int):
+            assert not isinstance(ret, sp.Symbol), f"xreplace did not work, returned {ret}"
             return float(ret.evalf())
         else:
             return ret

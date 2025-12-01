@@ -11,7 +11,7 @@ from pyomo.opt import SolverFactory
 
 from src.inverse_pass.MyPyomoSympyBimap import MyPyomoSympyBimap
 from src.hardware_model import hardwareModel
-
+from src import sim_util
 class Preprocessor:
     """
     Prepares and processes symbolic and Pyomo-based optimization models. Handles
@@ -161,14 +161,13 @@ class Preprocessor:
         obj: sympy objective function
         """
         #l = self.initial_val / 100
-        l = self.initial_val / (100 + len(self.free_symbols))
+        l = self.initial_val / (100 + len(self.free_symbols)) if self.initial_val != 0 else 1
         logger.info("Adding regularization.")
         self.regularization = 0
         # normal regularization for each variable
         for symbol in self.free_symbols:
             if symbol.name in self.params.symbol_table and self.params.tech_values[symbol] != 0:
-                self.regularization += hardwareModel.symbolic_convex_max((self.params.tech_values[symbol]/ symbol- 1), 
-                                                            (symbol/self.params.tech_values[symbol] - 1)) ** 2
+                self.regularization += (self.params.tech_values[symbol]/ symbol- 1) ** 2 + (symbol/self.params.tech_values[symbol] - 1) ** 2 #hardwareModel.symbolic_convex_max((self.params.tech_values[symbol]/ symbol- 1), #(symbol/self.params.tech_values[symbol] - 1)) ** 2
 
         obj += l * self.regularization
         return obj
@@ -193,7 +192,8 @@ class Preprocessor:
                         "print_info_string": "yes",
                         "output_file": self.out_file,
                         "wantsol": 2,
-                        "max_iter": 500
+                        "max_iter": 500,
+                        "halt_on_ampl_error": "yes"
                     }
                 }
             }
@@ -215,7 +215,7 @@ class Preprocessor:
             opt.options["print_info_string"] = "yes"
             opt.options["output_file"] = self.out_file
             opt.options["wantsol"] = 2
-            opt.options["halt_on_ampl_error"] = "yes"
+            #opt.options["halt_on_ampl_error"] = "yes"
         elif solver_name == "trustregion":
             opt = SolverFactory("trustregion")
         else:
@@ -225,7 +225,11 @@ class Preprocessor:
 
     def create_scaling(self, model):
         logger.info("Creating scaling")
-        model.scaling_factor[model.obj] = 1/self.initial_val
+        model.scaling_factor[model.obj] = 1/self.initial_val_with_regularization
+        # NOTE: need to scale any constraint involving the objective function because of the 
+        for i in range(len(model.Constraints)):
+            print(f"constraint {self.constraint_objs[i].label}: scaling factor: {1/self.constraint_initial_vals[i]}")
+            model.scaling_factor[model.Constraints[i]] = 1/self.constraint_initial_vals[i]
         print(f"mapping: {self.mapping}")
         for s in self.free_symbols:
             if s in self.params.tech_values and self.params.tech_values[s] != 0:
@@ -234,18 +238,21 @@ class Preprocessor:
                     1 / self.params.tech_values[s]
                 )
 
-    def begin(self, model, obj, improvement, multistart, constraints):
+    def begin(self, model, obj, improvement, multistart, constraint_objs):
+        self.constraint_objs = constraint_objs
+        self.constraints = [constraint_obj.constraint for constraint_obj in constraint_objs]
         self.multistart = multistart
-        self.free_symbols = list(obj.free_symbols)
-        for i in range(len(constraints)):
-            print(f"constraint {i}: {constraints[i]}")
-            self.free_symbols.extend(constraints[i].free_symbols)
+        self.free_symbols = list(obj.free_symbols) if obj else []
+        for i in range(len(self.constraints)):
+            #print(f"constraint {i}: {constraints[i]}")
+            self.free_symbols.extend(self.constraints[i].free_symbols)
         self.free_symbols = list(set(self.free_symbols))
+        assert len(self.free_symbols) > 0, "no free symbols"
 
         self.improvement = improvement
-        self.constraints = constraints
 
-        self.initial_val = float(obj.xreplace(self.params.tech_values))
+        self.initial_val = sim_util.xreplace_safe(obj, self.params.tech_values)
+        self.constraint_initial_vals = [max(abs(sim_util.xreplace_safe(constraint_obj.constraint.lhs, self.params.tech_values)), abs(sim_util.xreplace_safe(constraint_obj.constraint.rhs, self.params.tech_values))) for constraint_obj in self.constraint_objs]
         print(f"obj: {obj}")
         print(f"initial val: {self.initial_val}")
 
@@ -276,12 +283,14 @@ class Preprocessor:
 
         print(f"converting to pyomo exp")
         start_time = time.time()
-        self.pyomo_obj_exp = sympy_tools.sympy2pyomo_expression(obj, m)
+        self.pyomo_obj_exp = sympy_tools.sympy2pyomo_expression(obj, m) if obj else 0.0
 
         sympy_obj = self.add_regularization_to_objective(obj)
         self.regularization = sympy_tools.sympy2pyomo_expression(self.regularization, m)
         print(f"added regularization")
         print(f"value of objective after regularization: {sympy_obj.xreplace(self.params.tech_values)}")
+
+        self.initial_val_with_regularization = sim_util.xreplace_safe(sympy_obj, self.params.tech_values)
 
         self.obj = sympy_tools.sympy2pyomo_expression(sympy_obj, m)
 

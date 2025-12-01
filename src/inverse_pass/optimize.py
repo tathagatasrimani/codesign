@@ -45,12 +45,11 @@ class Optimizer:
         for constraint_obj in constraints:
             constraint = constraint_obj.constraint
             value = 0
-            log_info(f"constraint: {constraint}", stage)
             if isinstance(constraint, sp.Ge):
                 value = sim_util.xreplace_safe(constraint.rhs - constraint.lhs, self.hw.circuit_model.tech_model.base_params.tech_values)
             elif isinstance(constraint, sp.Le):
                 value = sim_util.xreplace_safe(constraint.lhs - constraint.rhs, self.hw.circuit_model.tech_model.base_params.tech_values)
-            log_info(f"constraint value: {value}", stage)
+            log_info(f"constraint {constraint_obj.label} value: {value}", stage)
             tol = 1e-3
             if value > tol:
                 log_info(f"CONSTRAINT VIOLATED {stage}", stage)
@@ -86,7 +85,7 @@ class Optimizer:
             constraints.extend(self.hw.circuit_model.constraints)
             constraints.extend(self.hw.constraints)
 
-        #self.evaluate_constraints(constraints, "before optimization")
+        self.evaluate_constraints(constraints, "before optimization")
 
         #print(f"constraints: {constraints}")
         return constraints
@@ -96,7 +95,7 @@ class Optimizer:
         model = pyo.ConcreteModel()
         self.preprocessor = Preprocessor(self.hw.circuit_model.tech_model.base_params, out_file=f"{self.tmp_dir}/solver_out.txt")
         opt, scaled_model, model, multistart_options = (
-            self.preprocessor.begin(model, self.hw.obj_scaled, improvement, multistart=multistart, constraints=[constraint.constraint for constraint in constraints])
+            self.preprocessor.begin(model, self.hw.obj_scaled, improvement, multistart=multistart, constraint_objs=constraints)
         )
         return opt, scaled_model, model, multistart_options
     
@@ -114,7 +113,7 @@ class Optimizer:
         model = pyo.ConcreteModel()
         self.approx_preprocessor = Preprocessor(self.hw.circuit_model.tech_model.base_params, out_file=f"{self.tmp_dir}/solver_out_approx_{iteration}.txt", solver_name="ipopt")
         opt, scaled_model, model, multistart_options = (
-            self.approx_preprocessor.begin(model, self.hw.obj_scaled, improvement, multistart=multistart, constraints=[constraint.constraint for constraint in self.constraints])
+            self.approx_preprocessor.begin(model, self.hw.obj_scaled, improvement, multistart=multistart, constraint_objs=self.constraints)
         )
 
         if self.test_config:
@@ -254,11 +253,15 @@ class Optimizer:
         if ahmdal_limit == math.inf:
             print(f"ahmdal limit is infinite for {op_type}, skipping constraint")
             return []
+        if ahmdal_limit < improvement: # skip because we will eventually need to optimize a path with this op type anyways
+            print(f"ahmdal limit is less than improvement for {op_type}, skipping constraint")
+            return []
         op_delay_ratio = op_delay / sim_util.xreplace_safe(op_delay, self.hw.circuit_model.tech_model.base_params.tech_values)
         delay_contrib = ((1/ahmdal_limit) * op_delay) * op_delay_ratio
         self.hw.save_obj_vals(self.hw.execution_time, execution_time_override=True, execution_time_override_val=delay_contrib)
         obj_scaled_op = self.hw.obj_scaled
         obj_scaled_op_init = sim_util.xreplace_safe(obj_scaled_op, self.hw.circuit_model.tech_model.base_params.tech_values)
+        # this constraint should always start out as feasible because ahmdal limit >= improvement
         constr = obj_scaled_op <= obj_scaled_op_init * (ahmdal_limit/improvement)
 
         # reset hw model state
@@ -295,8 +298,7 @@ class Optimizer:
             execution_time = self.calculate_current_execution_time()
             tech_param_sets, obj_vals, scaled_obj_vals = self.generate_design_points(1, improvement_remaining, execution_time)
             if not tech_param_sets or not obj_vals:
-                print(f"No successful design points found in iteration {iteration}.")
-                break
+                raise RuntimeError(f"No successful design points found in iteration {iteration}.")
             optimal_design_idx = scaled_obj_vals.index(min(scaled_obj_vals))
             print(f"optimal design idx: {optimal_design_idx}")
             print(f"obj vals: {obj_vals}")
