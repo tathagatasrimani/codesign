@@ -35,6 +35,14 @@ if [[ $FORCE_FULL -eq 1 ]]; then
         echo "[setup] lld already installed."
     fi
 
+    ###########################################################
+    # CRITICAL: ENSURE POLYGEIST LLVM SUBMODULE EXISTS
+    ###########################################################
+    if [[ ! -d "polygeist/llvm-project" ]]; then
+        echo "[setup] ERROR: polygeist/llvm-project submodule missing!"
+        exit 1
+    fi
+
     ###############################################
     # Ensure no stale LLVM/MLIR env interferes
     # And force a clean rebuild
@@ -46,8 +54,13 @@ if [[ $FORCE_FULL -eq 1 ]]; then
     unset CC
     unset CXX
 
-    # Remove old builds that may have been corrupted
-    rm -rf build llvm-project
+    ###########################################################
+    # Clean ONLY the polygeist llvm-project + scalehls build
+    ###########################################################
+    echo "[setup] Cleaning old Polygeist + LLVM builds..."
+    rm -rf polygeist/build
+    rm -rf llvm-project
+    rm -rf build
 
     echo "[setup] Cleaned old build directories."
     echo "[setup] System-level LLVM ignored (build-scalehls will use its own llvm-project)."
@@ -60,34 +73,37 @@ else
     cd ScaleHLS-HIDA
 fi
 
-###############################################
-# REQUIRE LOCAL LLVM (Polygeist-style layout)
-###############################################
-if [[ -d "$PWD/llvm-project/build/bin" ]]; then
-    export LLVM_HOME="$PWD/llvm-project/build"
-    export MLIR_HOME="$LLVM_HOME"
-    export PATH="$LLVM_HOME/bin:$PATH"
-    export LD_LIBRARY_PATH="$LLVM_HOME/lib:$LD_LIBRARY_PATH"
-    echo "[setup] Using LOCAL LLVM: $LLVM_HOME"
+#######################################################################
+# REQUIRE LOCAL LLVM IN POLYGEIST DIRECTORY (fast mode)
+#######################################################################
+if [[ -x "$PWD/llvm-project/build/bin/llc" ]]; then
+    LLVM_HOME="$PWD/llvm-project/build"
+    echo "[setup] Local LLVM FOUND at $LLVM_HOME"
 else
     echo "**************************************************************"
-    echo "[ERROR] Local LLVM NOT FOUND!"
+    echo "[ERROR] Local LLVM NOT FOUND in Polygeist directory!"
     echo "[ERROR] Expected: ScaleHLS-HIDA/llvm-project/build/bin/llc"
-    echo "[ERROR] System LLVM must NEVER be used."
+    echo "[ERROR] You are in the SLOW MODE (unified build)."
     echo "[ERROR] Run again with: ./scale_hls_setup.sh --full"
     echo "**************************************************************"
     exit 1
 fi
 
-###############################################
-# Add ScaleHLS tool binaries to PATH
-###############################################
+export LLVM_HOME
+export MLIR_HOME="$LLVM_HOME"
+export PATH="$LLVM_HOME/bin:$PATH"
+export LD_LIBRARY_PATH="$LLVM_HOME/lib:$LD_LIBRARY_PATH"
+
+#######################################################################
+# Add ScaleHLS + Polygeist tools
+#######################################################################
 export PATH="$PWD/build/bin:$PATH"
-export PATH="$LLVM_HOME/bin:$PATH"  # ensure local clang/opt/mlir-opt override system
+export PATH="$PWD/polygeist/build/bin:$PATH"
 
+#######################################################################
+# Setup PYTHONPATH
+#######################################################################
 remove_pythonpath=0
-
-## python path might not be set, so check first
 if [[ -z "${PYTHONPATH+x}" ]]; then
     export PYTHONPATH="$PWD/build/tools/scalehls/python_packages/scalehls_core"
     remove_pythonpath=1
@@ -95,20 +111,38 @@ else
     export PYTHONPATH="$PYTHONPATH:$PWD/build/tools/scalehls/python_packages/scalehls_core"
 fi
 
-echo "current directory: $(pwd)"
-
-## add mlir_venv/ to the .gitignore if not already present
-if ! grep -q "mlir_venv/" .gitignore 2>/dev/null; then
-    echo "Adding mlir_venv/ to .gitignore"
-    echo "mlir_venv/" >> .gitignore
-fi
-
-# Create venv only if it does not exist
+#######################################################################
+# Setup venv
+#######################################################################
 if [[ ! -d "mlir_venv" ]]; then
-    echo "Creating new Torch-MLIR venv..."
     python3.11 -m venv mlir_venv
     source mlir_venv/bin/activate
-
     python3.11 -m pip install --upgrade pip
-    if [[ -f requirements.txt ]]; then
-        pip
+    pip install --no-deps -r requirements.txt
+    deactivate
+fi
+
+#######################################################################
+# Optional Torch test
+#######################################################################
+if [[ $FORCE_FULL -eq 1 ]]; then
+    source mlir_venv/bin/activate
+    python - <<'PY'
+import torch
+print("torch:", torch.__version__)
+print("cuda available:", torch.cuda.is_available())
+PY
+    deactivate
+fi
+
+#######################################################################
+# Restore PYTHONPATH
+#######################################################################
+cd ..
+if [[ $remove_pythonpath -eq 1 ]]; then
+    unset PYTHONPATH
+else
+    export PYTHONPATH="$PREV_PYTHONPATH"
+fi
+
+echo "[setup] DONE — using FAST Polygeist LLVM mode"
