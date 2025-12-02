@@ -62,7 +62,9 @@ class MVSGeneralModel(TechModel):
             self.base_params.Rsh_ext_p,
             self.base_params.FO, 
             self.base_params.M, 
-            self.base_params.a
+            self.base_params.a,
+            self.R_wire,
+            self.C_wire
         )
         logger.info(f"Area: {xreplace_safe(self.area, self.base_params.tech_values):.3e}")
         logger.info(f"Delay: {xreplace_safe(self.delay, self.base_params.tech_values):.3e}")
@@ -119,7 +121,9 @@ class MVSGeneralModel(TechModel):
             self.base_params.Rsh_ext_p,
             self.base_params.FO, 
             self.base_params.M, 
-            self.base_params.a
+            self.base_params.a,
+            self.R_wire,
+            self.C_wire
         )
         self.I_tunnel_worst_case = self.get_gate_leakage_current(self.base_params.V_dd, self.base_params.V_th, self.base_params.tox, self.A_gate, self.base_params.tech_values)
         Lscale_worst_case = tech_codesign_v0.get_Lscale(self.base_params.k_gate, self.base_params.eps_semi, self.base_params.tox, self.base_params.tsemi)
@@ -147,6 +151,9 @@ class MVSGeneralModel(TechModel):
         self.param_db["I_sub_worst_case_per_um"] = self.I_sub_worst_case_per_um
         self.param_db["V_th_eff_worst_case"] = self.V_th_eff_worst_case
         self.param_db["A_gate"] = self.area
+        self.param_db["C_wire"] = self.C_wire
+        self.param_db["R_wire"] = self.R_wire
+        self.param_db["C_load"] = self.C_load
         super().config_param_db()
 
     def apply_base_parameter_effects(self):

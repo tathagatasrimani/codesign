@@ -26,14 +26,6 @@ default:
     opt_pipeline: block_vector
 
 
-## The base test when using Vitis HLS
-vitis_test:
-  base_cfg: default
-  args:
-    hls_tool: vitis
-    model_cfg: vs_cfg_latest
-    area: 1000000
-
 vitis_test_mvs:
   base_cfg: default
   args:
@@ -41,5 +33,16 @@ vitis_test_mvs:
     model_cfg: mvs_general_cfg
     area: 1000000
     tech_node: mvs-starting-point
+
+vitis_test_vs:
+  base_cfg: default
+  args:
+    hls_tool: vitis
+    model_cfg: vs_cfg_latest
+    area: 1000000
+
+## The base test when using Vitis HLS
+vitis_test:
+  base_cfg: vitis_test_vs
 
 ### Add additional configurations in yaml files in test/additional_configs ###

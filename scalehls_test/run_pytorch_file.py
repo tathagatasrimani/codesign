@@ -16,7 +16,10 @@ SCALEHLS_OUTPUT_LOG_FOLDER = os.path.join(os.path.dirname(__file__), "scalehls_o
 TEST_LOG_FOLDER_CODESIGN_OPT = os.path.join(os.path.dirname(__file__), "test_log_codesign_opt")
 TEST_LOG_FOLDER_SCALEHLS = os.path.join(os.path.dirname(__file__), "test_log_scalehls")
 TEST_LOG_FOLDER_DEBUG_SCALEHLS = os.path.join(os.path.dirname(__file__), "test_log_debug_scalehls")
-
+CPP_OUTPUT_FOLDER = os.path.join(os.path.dirname(__file__), "cpp_output")
+SCALEHLS_DESIGN_SPACE_FOLDER = os.path.join(os.path.dirname(__file__), "pytorch_design_space")
+if not os.path.exists(SCALEHLS_DESIGN_SPACE_FOLDER):
+    os.makedirs(SCALEHLS_DESIGN_SPACE_FOLDER)
 if not os.path.exists(INITIAL_MLIR_FOLDER):
     os.makedirs(INITIAL_MLIR_FOLDER)
 if not os.path.exists(AFTER_CODESIGN_OPT_FOLDER):
@@ -27,7 +30,8 @@ if not os.path.exists(SCALEHLS_OUTPUT_FOLDER):
     os.makedirs(SCALEHLS_OUTPUT_FOLDER)
 if not os.path.exists(SCALEHLS_OUTPUT_LOG_FOLDER):
     os.makedirs(SCALEHLS_OUTPUT_LOG_FOLDER)
-
+if not os.path.exists(CPP_OUTPUT_FOLDER):
+    os.makedirs(CPP_OUTPUT_FOLDER)
 if not os.path.exists(TEST_LOG_FOLDER_CODESIGN_OPT):
     os.makedirs(TEST_LOG_FOLDER_CODESIGN_OPT)
 if not os.path.exists(TEST_LOG_FOLDER_SCALEHLS):
@@ -71,7 +75,12 @@ def run_pytorch_file(input_file_name, debug_point):
     os.makedirs(os.path.dirname(log_path), exist_ok=True)
 
     debug_point_txt = f" debug-point={debug_point}" if debug_point != 0 else ""
-
+    log_index = 0
+    design_space_path = f"{SCALEHLS_DESIGN_SPACE_FOLDER}/{input_file_name}_{log_index}"
+    while os.path.exists(design_space_path):
+        log_index += 1
+        design_space_path = f"{SCALEHLS_DESIGN_SPACE_FOLDER}/{input_file_name}_{log_index}"
+    os.makedirs(design_space_path)
     scalehls_cmd = [
         "bash", "-c",
         f'''
@@ -79,7 +88,8 @@ def run_pytorch_file(input_file_name, debug_point):
         source full_env_start.sh
         cd {SCALEHLS_DIR}
         source scalehls_env.sh
-        scalehls-opt {AFTER_CODESIGN_OPT_FOLDER}/{input_file_name}.mlir -hida-pytorch-pipeline="top-func=forward loop-tile-size=1 loop-unroll-factor=1{debug_point_txt}" -debug-only=scalehls 2>&1 | tee {log_path}
+        cd {design_space_path}
+        scalehls-opt {AFTER_CODESIGN_OPT_FOLDER}/{input_file_name}.mlir -hida-pytorch-dse-pipeline="top-func=forward target-spec={SCALEHLS_DIR}/test/Transforms/Directive/config.json{debug_point_txt}" -debug-only=scalehls | scalehls-translate -scalehls-emit-hlscpp -emit-vitis-directives > {CPP_OUTPUT_FOLDER}/{input_file_name}.cpp
         deactivate
         conda deactivate
         '''
@@ -98,7 +108,7 @@ def run_pytorch_file(input_file_name, debug_point):
         '''
     ]
 
-    with open(f"{TEST_LOG_FOLDER_SCALEHLS}/{input_file_name}.log", "w") as f:
+    with open(f"{TEST_LOG_FOLDER_SCALEHLS}/{input_file_name}_{log_index}.log", "w") as f:
         p = subprocess.Popen(
             scalehls_cmd,
             stdout=f,
