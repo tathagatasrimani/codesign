@@ -1413,12 +1413,22 @@ class HardwareModel:
         else:
             raise ValueError(f"Objective function {self.obj_fn} not supported")
 
-    def calculate_sensitivity_analysis(self):
+    def calculate_sensitivity_analysis(self, blackbox=False):
         for param in self.circuit_model.tech_model.base_params.tech_values:
             #log_info(f"calculating sensitivity for {param}, initial value: {self.circuit_model.tech_model.base_params.tech_values[param]}")
-            tech_values_without_param = {k: v for k, v in self.circuit_model.tech_model.base_params.tech_values.items() if k != param}
-            d_obj_d_param = self.obj.diff(param, evaluate=True).xreplace(tech_values_without_param)
-            self.sensitivities[param] = sim_util.xreplace_safe(d_obj_d_param * (self.circuit_model.tech_model.base_params.tech_values[param] / sim_util.xreplace_safe(self.obj, self.circuit_model.tech_model.base_params.tech_values)), self.circuit_model.tech_model.base_params.tech_values)
+            if blackbox:
+                obj_initial_val = sim_util.xreplace_safe(self.obj, self.circuit_model.tech_model.base_params.tech_values)
+                tech_values_param_changed = {k: v for k, v in self.circuit_model.tech_model.base_params.tech_values.items() if k != param}
+                tech_values_param_changed[param] = self.circuit_model.tech_model.base_params.tech_values[param]*1.01
+                obj_param_changed = sim_util.xreplace_safe(self.obj, tech_values_param_changed)
+                if self.circuit_model.tech_model.base_params.tech_values[param] == 0:
+                    self.sensitivities[param] = 0
+                else:
+                    self.sensitivities[param] = (obj_param_changed - obj_initial_val) / (self.circuit_model.tech_model.base_params.tech_values[param]*1.01 - self.circuit_model.tech_model.base_params.tech_values[param])
+            else:
+                tech_values_without_param = {k: v for k, v in self.circuit_model.tech_model.base_params.tech_values.items() if k != param}
+                d_obj_d_param = self.obj.diff(param, evaluate=True).xreplace(tech_values_without_param)
+                self.sensitivities[param] = sim_util.xreplace_safe(d_obj_d_param * (self.circuit_model.tech_model.base_params.tech_values[param] / sim_util.xreplace_safe(self.obj, self.circuit_model.tech_model.base_params.tech_values)), self.circuit_model.tech_model.base_params.tech_values)
         logger.info(f"sensitivities: {self.sensitivities}")
 
     def calculate_objective(self, clk_period_opt=False, form_dfg=True, do_sensitivity_analysis=False):

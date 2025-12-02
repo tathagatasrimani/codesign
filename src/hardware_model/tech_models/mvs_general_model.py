@@ -175,4 +175,4 @@ class MVSGeneralModel(TechModel):
 
         #self.constraints.append(self.delta <= 0.15)
         self.constraints.append(Constraint(self.I_off_worst_case_per_um <= 100e-9, "I_off_worst_case_per_um <= 100e-9"))
-        self.constraints.append(Constraint(self.V_th_eff_worst_case >= 0.05, "V_th_eff_worst_case >= 0.05"))
+        #self.constraints.append(Constraint(self.V_th_eff_worst_case >= 0.05, "V_th_eff_worst_case >= 0.05"))

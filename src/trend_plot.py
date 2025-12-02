@@ -224,6 +224,8 @@ class TrendPlot:
             plt.close()
 
     def plot_constraint_slack_over_generations(self):
+        if len(self.constraint_slack_over_generations) == 0:
+            return
         if not os.path.exists(self.save_dir + "/constraint_slack"):
             os.makedirs(self.save_dir + "/constraint_slack")
         f = open(f"{self.save_dir}/constraint_slack_data.txt", 'w')

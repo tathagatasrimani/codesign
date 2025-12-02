@@ -106,7 +106,8 @@ class Optimizer:
         # passive energy consumption is dependent on execution time, so we need to recalculate it
         self.hw.calculate_passive_power_vitis(execution_time)
         self.hw.save_obj_vals(execution_time)
-        self.hw.calculate_sensitivity_analysis()
+        if self.opt_pipeline == "block_vector":
+            self.hw.calculate_sensitivity_analysis(blackbox=False)
         print(f"obj: {self.hw.obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values)}, obj scaled: {self.hw.obj_scaled.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values)}")
         lower_bound = sim_util.xreplace_safe(self.hw.obj_scaled, self.hw.circuit_model.tech_model.base_params.tech_values) / improvement
         self.constraints = self.create_constraints(improvement, lower_bound, approx_problem=True)
