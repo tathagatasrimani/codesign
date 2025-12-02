@@ -377,7 +377,8 @@ class CircuitModel:
     def create_constraints(self):
         if self.tech_model.model_cfg["effects"]["frequency"]:
             for key in self.symbolic_latency_wc:
-                if key not in ["Buf", "MainMem", "OffChipIO", "Call", "N/A"]:
+                #if key not in ["Buf", "MainMem", "OffChipIO", "Call", "N/A"]:
+                if key == "FloorDiv16": # most stringent constraint
                     # cycle limit to constrain the amount of pipelining
                     #self.constraints.append((self.symbolic_latency_wc[key]()* 1e-9) * self.tech_model.base_params.f <= 20) # num cycles <= 20 (cycles = time(s) * frequency(Hz))
                     self.constraints.append(Constraint((self.symbolic_latency_wc[key]())<= 20*self.tech_model.base_params.clk_period, f"latency_{key} <= 20*clk_period")) # num cycles <= 20 (cycles = time(s) * frequency(Hz))

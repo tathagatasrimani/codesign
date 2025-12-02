@@ -1348,6 +1348,7 @@ class HardwareModel:
                 "logic_ahmdal_limit": self.circuit_model.tech_model.base_params.logic_ahmdal_limit,
                 "logic_resource_ahmdal_limit": self.circuit_model.tech_model.base_params.logic_resource_ahmdal_limit,
                 "interconnect sensitivity": self.circuit_model.tech_model.base_params.interconnect_sensitivity,
+                "multiplier delay": self.circuit_model.symbolic_latency_wc["Mult16"](),
             }
         else: 
             raise ValueError(f"Objective function {self.obj_fn} not supported")
@@ -1486,10 +1487,11 @@ class HardwareModel:
                 tech_values_param_changed = {k: v for k, v in self.circuit_model.tech_model.base_params.tech_values.items() if k != param}
                 tech_values_param_changed[param] = self.circuit_model.tech_model.base_params.tech_values[param]*1.01
                 obj_param_changed = sim_util.xreplace_safe(self.obj, tech_values_param_changed)
+                obj_percent_change = (obj_param_changed - obj_initial_val) / obj_initial_val
                 if self.circuit_model.tech_model.base_params.tech_values[param] == 0:
                     self.sensitivities[param] = 0
                 else:
-                    self.sensitivities[param] = (obj_param_changed - obj_initial_val) / (self.circuit_model.tech_model.base_params.tech_values[param]*1.01 - self.circuit_model.tech_model.base_params.tech_values[param])
+                    self.sensitivities[param] = (obj_percent_change) / (0.01) # 1% change in param
             else:
                 tech_values_without_param = {k: v for k, v in self.circuit_model.tech_model.base_params.tech_values.items() if k != param}
                 d_obj_d_param = self.obj.diff(param, evaluate=True).xreplace(tech_values_without_param)

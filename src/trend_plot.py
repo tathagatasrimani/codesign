@@ -5,13 +5,23 @@ from src.sim_util import xreplace_safe
 import logging
 logger = logging.getLogger(__name__)
 
+DEBUG = False
+
+def log_info(msg):
+    if DEBUG:
+        logger.info(msg)
+
+def log_warning(msg):
+    if DEBUG:
+        logger.warning(msg)
+
 class TrendPlot:
     def __init__(self, codesign_module, params_over_generations, obj_over_generations, lag_factor_over_generations, wire_lengths_over_generations, sensitivities_over_generations, constraint_slack_over_generations, save_dir, obj="Energy Delay Product", units="nJ*ns", obj_fn="edp"):
         self.codesign_module = codesign_module
         self.params_over_generations = params_over_generations
         self.plot_list = set(self.codesign_module.hw.obj_sub_exprs.values())
         self.plot_list_exclude = set(["execution_time", "passive power", "active power"])
-        logger.info(f"plot list: {self.plot_list}")
+        log_info(f"plot list: {self.plot_list}")
         self.plot_list_labels = {param: label for label, param in self.codesign_module.hw.obj_sub_exprs.items()}
         self.plot_list_names = self.codesign_module.hw.obj_sub_plot_names
         self.obj_over_generations = obj_over_generations
@@ -93,7 +103,7 @@ class TrendPlot:
                 continue
             values = []
             logger.info(f"Plotting {self.plot_list_names[self.plot_list_labels[param]]}")
-            logger.info(f"params over generations: {self.params_over_generations}")
+            log_info(f"params over generations: {self.params_over_generations}")
             for i in range(len(self.params_over_generations)):
                 values.append(xreplace_safe(param, self.params_over_generations[i]))
             

@@ -131,6 +131,8 @@ class MVSGeneralModel(TechModel):
         self.I_off_worst_case = self.I_sub_worst_case + self.I_tunnel_worst_case
         self.I_off_worst_case_per_um = self.I_off_worst_case / (self.base_params.W* 1e6)
 
+        self.delay *= 1e+9 # convert to ns
+
         self.apply_additional_effects()
 
         self.config_param_db()

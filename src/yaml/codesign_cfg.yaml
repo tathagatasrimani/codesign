@@ -31,6 +31,13 @@ vitis_test:
   base_cfg: default
   args:
     hls_tool: vitis
+    model_cfg: vs_cfg_latest
+    area: 1000000
+
+vitis_test_mvs:
+  base_cfg: default
+  args:
+    hls_tool: vitis
     model_cfg: mvs_general_cfg
     area: 1000000
     tech_node: mvs-starting-point
