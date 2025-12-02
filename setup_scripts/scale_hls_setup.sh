@@ -12,6 +12,8 @@ done
 # Save original PYTHONPATH
 PREV_PYTHONPATH="$PYTHONPATH"
 
+SCRIPT_RUN_DIR="$(pwd)"
+
 if [[ $FORCE_FULL -eq 1 ]]; then
     echo "[setup] FULL BUILD of ScaleHLS + Polygeist LLVM"
 
@@ -58,9 +60,19 @@ if [[ $FORCE_FULL -eq 1 ]]; then
     # Clean ONLY the polygeist llvm-project + scalehls build
     ###########################################################
     echo "[setup] Cleaning old Polygeist + LLVM builds..."
+
+    # clean polygeist build
     rm -rf polygeist/build
-    rm -rf llvm-project
+
+    # clean FAST LLVM build only, not the submodule!
+    rm -rf polygeist/llvm-project/build
+
+    # clean ScaleHLS build
     rm -rf build
+
+    echo "[setup] Building FAST Polygeist LLVM..."
+    bash "$SCRIPT_RUN_DIR/setup_scripts/build_polygeist_llvm.sh"
+    echo "[setup] FAST Polygeist LLVM build complete."
 
     echo "[setup] Cleaned old build directories."
     echo "[setup] System-level LLVM ignored (build-scalehls will use its own llvm-project)."
@@ -76,13 +88,13 @@ fi
 #######################################################################
 # REQUIRE LOCAL LLVM IN POLYGEIST DIRECTORY (fast mode)
 #######################################################################
-if [[ -x "$PWD/llvm-project/build/bin/llc" ]]; then
-    LLVM_HOME="$PWD/llvm-project/build"
+if [[ -x "$PWD/polygeist/llvm-project/build/bin/llc" ]]; then
+    LLVM_HOME="$PWD/polygeist/llvm-project/build"
     echo "[setup] Local LLVM FOUND at $LLVM_HOME"
 else
     echo "**************************************************************"
     echo "[ERROR] Local LLVM NOT FOUND in Polygeist directory!"
-    echo "[ERROR] Expected: ScaleHLS-HIDA/llvm-project/build/bin/llc"
+    echo "[ERROR] Expected: ScaleHLS-HIDA/polygeist/llvm-project/build/bin/llc"
     echo "[ERROR] You are in the SLOW MODE (unified build)."
     echo "[ERROR] Run again with: ./scale_hls_setup.sh --full"
     echo "**************************************************************"
@@ -97,8 +109,9 @@ export LD_LIBRARY_PATH="$LLVM_HOME/lib:$LD_LIBRARY_PATH"
 #######################################################################
 # Add ScaleHLS + Polygeist tools
 #######################################################################
-export PATH="$PWD/build/bin:$PATH"
 export PATH="$PWD/polygeist/build/bin:$PATH"
+export PATH="$PWD/build/bin:$PATH"
+
 
 #######################################################################
 # Setup PYTHONPATH
