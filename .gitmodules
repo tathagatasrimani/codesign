@@ -9,9 +9,6 @@
 [submodule "ScaleHLS-HIDA"]
 	path = ScaleHLS-HIDA
 	url = https://github.com/patrickmcewen/ScaleHLS-HIDA.git
-[submodule "codesign-opt"]
-	path = codesign-opt
-	url = https://github.com/Sankalp22863/codesign-opt.git
 [submodule "src/hardware_model/tech_models/tech_codesign_v0"]
 	path = src/hardware_model/tech_models/tech_codesign_v0
 	url = https://github.com/kjstanford/tech_codesign_v0.git
