@@ -900,12 +900,25 @@ class HardwareModel:
                     loop_1x_vector.iteration_delay = loop_1x_vector.delay
                     loop_1x_vector.initiation_interval = initiation_interval
                     loop_1x_vector.trip_count = int(dfg.nodes[pred]["count"])
-                    loop_1x_vector.delay += initiation_interval * (int(dfg.nodes[pred]["count"])-1)
-                    # total delay is just the total delay of 1 iter * num_iters
-                    loop_1x_vector.total_delay *= int(dfg.nodes[pred]["count"])
-                    loop_1x_vector.bound_factor["logic_resource"] += (int(dfg.nodes[pred]["count"])-1)*(loop_1x_vector.iteration_delay * loop_1x_vector.sensitivity["logic_resource"])
-                    loop_1x_vector.bound_factor["interconnect_resource"] += (int(dfg.nodes[pred]["count"])-1)*(loop_1x_vector.iteration_delay * loop_1x_vector.sensitivity["interconnect_resource"])
-                    loop_1x_vector.bound_factor["memory_resource"] += (int(dfg.nodes[pred]["count"])-1)*(loop_1x_vector.iteration_delay * loop_1x_vector.sensitivity["memory_resource"])
+                    loop_1x_vector.delay = initiation_interval * (int(dfg.nodes[pred]["count"])-1)
+                    # total delay is just the total delay of 1 iter (logic and memory ops only) * num_iters-1 (initiation interval delay includes all but one of the iterations)
+                    loop_1x_vector.total_delay *= int(dfg.nodes[pred]["count"])-1
+
+                    # UPDATE BOUND FACTORS AND SENSITIVITY. SO FAR, LOOP 1x VECTOR HAS BEEN REPRESENTING THE ENTIRE LOOP. NOW WE CHANGE IT TO ONLY REPRESENT THE INITIATION INTERVAL
+                    # BECUASE THE DELAY OF 1 ITERATION IS CAPTURED IN PREVIOUS NODES IN THE GRAPH.
+                    loop_1x_vector.bound_factor["logic_resource"] *= (int(dfg.nodes[pred]["count"])-1)
+                    loop_1x_vector.bound_factor["interconnect_resource"] *= (int(dfg.nodes[pred]["count"])-1)
+                    loop_1x_vector.bound_factor["memory_resource"] *= (int(dfg.nodes[pred]["count"])-1)
+                    loop_1x_vector.bound_factor["logic"] = 0;
+                    loop_1x_vector.bound_factor["interconnect"] = 0
+                    loop_1x_vector.bound_factor["memory"] = 0
+                    full_iteration_sensitivity_logic, full_iteration_sensitivity_interconnect, full_iteration_sensitivity_memory = loop_1x_vector.sensitivity["logic_resource"], loop_1x_vector.sensitivity["interconnect_resource"], loop_1x_vector.sensitivity["memory_resource"]
+                    loop_1x_vector.sensitivity["logic_resource"] = full_iteration_sensitivity_logic/(full_iteration_sensitivity_logic + full_iteration_sensitivity_interconnect + full_iteration_sensitivity_memory)
+                    loop_1x_vector.sensitivity["interconnect_resource"] = full_iteration_sensitivity_interconnect/(full_iteration_sensitivity_logic + full_iteration_sensitivity_interconnect + full_iteration_sensitivity_memory)
+                    loop_1x_vector.sensitivity["memory_resource"] = full_iteration_sensitivity_memory/(full_iteration_sensitivity_logic + full_iteration_sensitivity_interconnect + full_iteration_sensitivity_memory)
+                    loop_1x_vector.sensitivity["logic"] = 0
+                    loop_1x_vector.sensitivity["interconnect"] = 0
+                    loop_1x_vector.sensitivity["memory"] = 0
                     loop_1x_vector.normalize_bound_factor()
                     self.block_vectors[basic_block_name][graph_type][(pred, node)] = loop_1x_vector
                 # calculate vector for sub-function call
