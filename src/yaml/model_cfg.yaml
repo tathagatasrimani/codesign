@@ -212,3 +212,7 @@ mvs_general_cfg_test:
   model_type: mvs_general
   max_parallel_en: True
   max_parallel_val: 1000
+
+mvs_general_cfg:
+  base_cfg: default
+  model_type: mvs_general

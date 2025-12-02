@@ -29,7 +29,7 @@ from openroad_interface import openroad_run_hier
 
 import cvxpy as cp
 
-DEBUG = True
+DEBUG = False
 def log_info(msg):
     if DEBUG:
         logger.info(msg)
@@ -107,6 +107,9 @@ class BlockVector:
             body_description += f"Loop Iteration Delay: {self.iteration_delay}\nInitiation Interval: {self.initiation_interval}\nTrip Count: {self.trip_count}\n"
         bottom_description = f"=============End BlockVector============="
         return top_description + body_description + bottom_description
+
+    def __repr__(self):
+        return self.__str__()
 
 def get_op_type_from_function(function, resource_edge=False):
     if function in ["Buf", "MainMem"]:
@@ -839,6 +842,17 @@ class HardwareModel:
             G_new.edges[edge]["weight"] = (1+percent_add) * base_delay
         return G_new
 
+    def log_all_top_vectors(self):
+        for basic_block_name in self.block_vectors:
+            for graph_type in self.block_vectors[basic_block_name]:
+                if isinstance(self.block_vectors[basic_block_name][graph_type], dict):
+                    if "top" in self.block_vectors[basic_block_name][graph_type]:
+                        logger.info(f"top vector for {basic_block_name} {graph_type}: {self.block_vectors[basic_block_name][graph_type]['top']}")
+                    elif "loop_II" in self.block_vectors[basic_block_name][graph_type]:
+                        logger.info(f"loop II vector for {basic_block_name} {graph_type}: {self.block_vectors[basic_block_name][graph_type]['loop_II']}")
+                else:
+                    assert isinstance(self.block_vectors[basic_block_name][graph_type], BlockVector), f"block vector for {basic_block_name} {graph_type} is not a BlockVector, it is {type(self.block_vectors[basic_block_name][graph_type])}"
+                    logger.info(f"top vector for {basic_block_name} {graph_type}: {self.block_vectors[basic_block_name][graph_type]}")
 
     def calculate_top_vector(self, basic_block_name, graph_type, dfg):
         eps = 1e-2
@@ -921,6 +935,7 @@ class HardwareModel:
                     loop_1x_vector.sensitivity["memory"] = 0
                     loop_1x_vector.normalize_bound_factor()
                     self.block_vectors[basic_block_name][graph_type][(pred, node)] = loop_1x_vector
+                    self.block_vectors[basic_block_name][f"loop_1x_{loop_name}"]["loop_II"] = loop_1x_vector
                 # calculate vector for sub-function call
                 elif dfg.nodes[pred]["function"] == "Call":
                     sub_block_name = dfg.nodes[pred]["call_function"]
@@ -977,7 +992,7 @@ class HardwareModel:
         return vector
 
 
-    def calculate_execution_time_vitis(self, top_block_name, clk_period_opt=False, form_dfg=True):
+    def calculate_execution_time_vitis(self, top_block_name, clk_period_opt=False, form_dfg=True, log_top_vectors=False):
         if not form_dfg:
             return self.update_execution_time_vitis(clk_period_opt=clk_period_opt)
         self.circuit_model.update_uarch_parameters()
@@ -1024,6 +1039,8 @@ class HardwareModel:
             self.print_node_arrivals()
 
         self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.node_arrivals_end] = self.calculate_block_vectors(top_block_name)
+        if log_top_vectors:
+            self.log_all_top_vectors()
         return self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.node_arrivals_end]
 
     def calculate_execution_time_vitis_recursive(self, basic_block_name, dfg, graph_end_node="graph_end", graph_type="full", resource_delays_only=False):
@@ -1479,11 +1496,11 @@ class HardwareModel:
                 self.sensitivities[param] = sim_util.xreplace_safe(d_obj_d_param * (self.circuit_model.tech_model.base_params.tech_values[param] / sim_util.xreplace_safe(self.obj, self.circuit_model.tech_model.base_params.tech_values)), self.circuit_model.tech_model.base_params.tech_values)
         logger.info(f"sensitivities: {self.sensitivities}")
 
-    def calculate_objective(self, clk_period_opt=False, form_dfg=True, do_sensitivity_analysis=False):
+    def calculate_objective(self, clk_period_opt=False, form_dfg=True, do_sensitivity_analysis=False, log_top_vectors=False):
         start_time = time.time()
         self.constraints = []
         if self.hls_tool == "vitis":
-            self.execution_time = self.calculate_execution_time_vitis(self.top_block_name, clk_period_opt, form_dfg)
+            self.execution_time = self.calculate_execution_time_vitis(self.top_block_name, clk_period_opt, form_dfg, log_top_vectors=log_top_vectors)
             self.total_passive_energy = self.calculate_passive_power_vitis(self.execution_time)
             self.total_active_energy = self.calculate_active_energy_vitis()
         else: # catapult

@@ -107,10 +107,10 @@ class Optimizer:
         self.hw.calculate_passive_power_vitis(execution_time)
         self.hw.save_obj_vals(execution_time)
         if self.opt_pipeline == "block_vector":
-            self.hw.calculate_sensitivity_analysis(blackbox=False)
+            self.hw.calculate_sensitivity_analysis(blackbox=True)
         print(f"obj: {self.hw.obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values)}, obj scaled: {self.hw.obj_scaled.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values)}")
         lower_bound = sim_util.xreplace_safe(self.hw.obj_scaled, self.hw.circuit_model.tech_model.base_params.tech_values) / improvement
-        self.constraints = self.create_constraints(improvement, lower_bound, approx_problem=True)
+        self.constraints = self.create_constraints(improvement, lower_bound, approx_problem=(self.opt_pipeline != "block_vector"))
         model = pyo.ConcreteModel()
         self.approx_preprocessor = Preprocessor(self.hw.circuit_model.tech_model.base_params, out_file=f"{self.tmp_dir}/solver_out_approx_{iteration}.txt", solver_name="ipopt")
         opt, scaled_model, model, multistart_options = (

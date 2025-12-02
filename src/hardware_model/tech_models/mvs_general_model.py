@@ -144,6 +144,7 @@ class MVSGeneralModel(TechModel):
         self.param_db["I_off_worst_case_per_um"] = self.I_off_worst_case_per_um
         self.param_db["I_sub_worst_case_per_um"] = self.I_sub_worst_case_per_um
         self.param_db["V_th_eff_worst_case"] = self.V_th_eff_worst_case
+        self.param_db["A_gate"] = self.area
         super().config_param_db()
 
     def apply_base_parameter_effects(self):

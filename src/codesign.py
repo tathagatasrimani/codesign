@@ -720,7 +720,7 @@ class Codesign:
         self.calculate_wire_parasitics()
 
         ## create the obj equation 
-        self.hw.calculate_objective()
+        self.hw.calculate_objective(log_top_vectors=True)
 
         if iteration_count == 0:
             self.params_over_iterations[0].update(

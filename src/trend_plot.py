@@ -182,6 +182,8 @@ class TrendPlot:
         plt.close()
 
     def plot_sensitivities_over_generations(self):
+        if len(self.sensitivities_over_generations) == 0:
+            return
         if not os.path.exists(self.save_dir + "/sensitivities"):
             os.makedirs(self.save_dir + "/sensitivities")
         f = open(f"{self.save_dir}/sensitivities_data.txt", 'w')
