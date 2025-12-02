@@ -29,7 +29,7 @@ from openroad_interface import openroad_run_hier
 
 import cvxpy as cp
 
-DEBUG = False
+DEBUG = True
 def log_info(msg):
     if DEBUG:
         logger.info(msg)
@@ -66,7 +66,15 @@ class BlockVector:
         self.sensitivity = {op_type: 0 for op_type in self.op_types}
         self.path_mixing_factor = 0
 
+        self.total_delay = 0 # delay of all logic and memory operations at this level, not just critical path (interconnect delays are not included)
         self.delay = 0
+        self.computation_activity_factor = 0 # = total_delay / delay
+
+        # used for loops
+        self.initiation_interval = 0
+        self.iteration_delay = 0
+        self.trip_count = 0
+
     
     def sensitivity_softmax(self):
         max_sensitivity = max(self.sensitivity.values())
@@ -88,8 +96,17 @@ class BlockVector:
             else:
                 self.ahmdal_limit[op_type] = 1/self.normalized_bound_factor[op_type]
     
+    def update_total_delay(self, delay):
+        self.total_delay = delay
+        self.computation_activity_factor = self.total_delay / self.delay if self.delay != 0 else 0
+    
     def __str__(self):
-        return f"\n=============BlockVector=============\nDelay: {self.delay}\nSensitivity: {self.sensitivity}\nAhmdal Limit: {self.ahmdal_limit}\nBound Factor: {self.bound_factor}\nNormalized Bound Factor: {self.normalized_bound_factor}\nPath Mixing Factor: {self.path_mixing_factor}\n=============End BlockVector============="
+        top_description = f"\n=============BlockVector=============\n"
+        body_description = f"Delay: {self.delay}\nTotal Delay: {self.total_delay}\nComputation Activity Factor: {self.computation_activity_factor}\nSensitivity: {self.sensitivity}\nAhmdal Limit: {self.ahmdal_limit}\nBound Factor: {self.bound_factor}\nNormalized Bound Factor: {self.normalized_bound_factor}\nPath Mixing Factor: {self.path_mixing_factor}\n"
+        if self.iteration_delay != 0:
+            body_description += f"Loop Iteration Delay: {self.iteration_delay}\nInitiation Interval: {self.initiation_interval}\nTrip Count: {self.trip_count}\n"
+        bottom_description = f"=============End BlockVector============="
+        return top_description + body_description + bottom_description
 
 def get_op_type_from_function(function, resource_edge=False):
     if function in ["Buf", "MainMem"]:
@@ -840,6 +857,11 @@ class HardwareModel:
         for i in range(len(crit_path)-1):
             log_info(f"crit path delay for all: {self.block_vectors[basic_block_name][graph_type][(crit_path[i], crit_path[i+1])].delay}")
             vector_top.delay += self.block_vectors[basic_block_name][graph_type][(crit_path[i], crit_path[i+1])].delay
+        total_delay = 0
+        for edge in dfg.edges:
+            total_delay += self.block_vectors[basic_block_name][graph_type][edge].total_delay
+        vector_top.update_total_delay(total_delay)
+        log_info(f"effective activity factor for {basic_block_name} {graph_type}: {vector_top.computation_activity_factor}")
     
         iso_op_type_graphs_with_eps = {}
         # calculate sensitivity, should range between 0 and 1
@@ -873,9 +895,17 @@ class HardwareModel:
                 if dfg.nodes[pred]["function"] == "II":
                     loop_name = dfg.nodes[pred]["loop_name"]
                     loop_1x_vector = self.calculate_block_vector_basic_block(basic_block_name, f"loop_1x_{loop_name}", self.loop_1x_graphs[loop_name])
-                    loop_1x_vector.delay *= int(dfg.nodes[pred]["count"])-1
-                    for op_type in loop_1x_vector.op_types:
-                        loop_1x_vector.bound_factor[op_type] *= int(dfg.nodes[pred]["count"])-1
+                    # total loop delay = (delay of 1 iter) + (II * num_iters-1), where II is the delay of 1 iteration due to only resource dependencies.
+                    initiation_interval = (loop_1x_vector.delay * (loop_1x_vector.sensitivity["logic_resource"] + loop_1x_vector.sensitivity["interconnect_resource"] + loop_1x_vector.sensitivity["memory_resource"]))
+                    loop_1x_vector.iteration_delay = loop_1x_vector.delay
+                    loop_1x_vector.initiation_interval = initiation_interval
+                    loop_1x_vector.trip_count = int(dfg.nodes[pred]["count"])
+                    loop_1x_vector.delay += initiation_interval * (int(dfg.nodes[pred]["count"])-1)
+                    # total delay is just the total delay of 1 iter * num_iters
+                    loop_1x_vector.total_delay *= int(dfg.nodes[pred]["count"])
+                    loop_1x_vector.bound_factor["logic_resource"] += (int(dfg.nodes[pred]["count"])-1)*(loop_1x_vector.iteration_delay * loop_1x_vector.sensitivity["logic_resource"])
+                    loop_1x_vector.bound_factor["interconnect_resource"] += (int(dfg.nodes[pred]["count"])-1)*(loop_1x_vector.iteration_delay * loop_1x_vector.sensitivity["interconnect_resource"])
+                    loop_1x_vector.bound_factor["memory_resource"] += (int(dfg.nodes[pred]["count"])-1)*(loop_1x_vector.iteration_delay * loop_1x_vector.sensitivity["memory_resource"])
                     loop_1x_vector.normalize_bound_factor()
                     self.block_vectors[basic_block_name][graph_type][(pred, node)] = loop_1x_vector
                 # calculate vector for sub-function call
@@ -887,6 +917,7 @@ class HardwareModel:
                 # calculate vector for a basic operation
                 else:
                     self.block_vectors[basic_block_name][graph_type][(pred, node)] = self.calculate_block_vector_edge(pred, node, basic_block_name, graph_type, dfg)
+                self.block_vectors[basic_block_name][graph_type][(pred, node)].update_total_delay(self.block_vectors[basic_block_name][graph_type][(pred, node)].total_delay)
 
         return self.calculate_top_vector(basic_block_name, graph_type, dfg)
 
@@ -902,6 +933,7 @@ class HardwareModel:
             else: # logic
                 vector.bound_factor["logic_resource"] = vector.delay
                 vector.sensitivity["logic_resource"] = 1
+            vector.update_total_delay(0)
         else:
             if fn == "Wire":
                 src_for_wire = dfg.nodes[src]["src_node"]
@@ -915,15 +947,18 @@ class HardwareModel:
                     log_info(f"edge {rsc_edge} not in edge_to_nets")
                 vector.bound_factor["interconnect"] = vector.delay
                 vector.sensitivity["interconnect"] = 1
+                vector.update_total_delay(0)
             elif fn in ["Buf", "MainMem"]:
                 # TODO actually fetch memory latency once implemented, this is a placeholder
                 vector.delay = sim_util.xreplace_safe(self.circuit_model.symbolic_latency_wc[fn](), self.circuit_model.tech_model.base_params.tech_values)
                 vector.bound_factor["memory"] = vector.delay
                 vector.sensitivity["memory"] = 1
+                vector.update_total_delay(vector.delay)
             else: # logic
                 vector.delay = sim_util.xreplace_safe(self.circuit_model.symbolic_latency_wc[fn](), self.circuit_model.tech_model.base_params.tech_values)
                 vector.bound_factor["logic"] = vector.delay
                 vector.sensitivity["logic"] = 1
+                vector.update_total_delay(vector.delay)
         vector.normalize_bound_factor()
         log_info(f"block vector for {src, dst}: {str(vector)}")
         return vector
