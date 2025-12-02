@@ -1,35 +1,28 @@
 #!/usr/bin/env bash
 set -e
 
-# If ninja is available, use it.
-CMAKE_GENERATOR="Unix Makefiles"
-if which ninja &>/dev/null; then
-  CMAKE_GENERATOR="Ninja"
-fi
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+HIDA_ROOT="$PROJECT_ROOT/ScaleHLS-HIDA"
 
-# Ensure compilers are set (RHEL needs this)
-export CC=clang
-export CXX=clang++
+LLVM_SRC="$HIDA_ROOT/polygeist/llvm-project"
+LLVM_BUILD="$LLVM_SRC/build"
 
-cd polygeist/llvm-project
-mkdir -p build
-cd build
+echo "[polygeist-llvm] Building FAST LLVM in: $LLVM_BUILD"
 
-# Remove stale CMake configuration
+mkdir -p "$LLVM_BUILD"
+cd "$LLVM_BUILD"
+
 rm -f CMakeCache.txt
 rm -rf CMakeFiles
 
-cmake -G "$CMAKE_GENERATOR" \
-  ../llvm \
+cmake -G Ninja ../llvm \
   -DLLVM_ENABLE_PROJECTS="mlir;clang" \
   -DLLVM_TARGETS_TO_BUILD="host" \
-  -DLLVM_ENABLE_ASSERTIONS=ON \
   -DLLVM_USE_LINKER=lld \
+  -DLLVM_ENABLE_ASSERTIONS=ON \
   -DCMAKE_BUILD_TYPE=RelWithDebInfo
 
-# Run building.
-if [ "${CMAKE_GENERATOR}" == "Ninja" ]; then
-  ninja
-else 
-  make -j "$(nproc)"
-fi
+ninja
+
+echo "[polygeist-llvm] DONE"
