@@ -641,7 +641,9 @@ class BasicBlockInfo:
             if type(loop_data["Latency"]) == str:
                 assert loop_data["Latency"].find("~") != -1, f"Latency: {loop_data['Latency']} is not a range of latencies for loop: {loop_name}"
                 loop_data["Latency"] = int(loop_data["Latency"].split("~")[1]) # conservative estimate
-            
+            if type(loop_data["Count"]) == str:
+                assert loop_data["Count"].find("~") != -1, f"Count: {loop_data['Count']} is not a range of counts for loop: {loop_name}"
+                loop_data["Count"] = int(loop_data["Count"].split("~")[1]) # conservative estimate
             loop_objects[loop_name] = LoopInfo(loop_data)
         log_info(f"loop objects for {xml_file_path}: {loop_objects}")
         return loop_objects
@@ -675,9 +677,9 @@ class vitis_schedule_parser:
         self.allowed_functions = allowed_functions
 
     def create_dfgs(self):
-        log_info(f"Resource mapping from: {self.build_dir}/parse_results/{self.top_level_module_name}_full_netlist_unfiltered.gml")
+        log_info(f"getting resource mapping from: {self.build_dir}/parse_results/{self.top_level_module_name}_full_netlist_unfiltered.gml")
         self.resource_mapping = get_rsc_mapping(f"{self.build_dir}/parse_results/{self.top_level_module_name}_full_netlist_unfiltered.gml")
-        log_info(self.resource_mapping)
+        #log_info(self.resource_mapping)
         for file in os.listdir(self.solution_dir):
             if file.endswith(".verbose.sched.rpt"):
                 file_path = os.path.join(self.solution_dir, file)
