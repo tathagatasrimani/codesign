@@ -14,7 +14,7 @@ from src.forward_pass import llvm_ir_parse
 from src.forward_pass import vitis_create_netlist
 from src import sim_util
 
-DEBUG = False
+DEBUG = True
 
 def log_info(msg):
     if DEBUG:
@@ -252,13 +252,17 @@ class DataFlowGraph:
             instruction = state[idx]
             op_name = self.variable_db.update_write_node(instruction["op"])
             #log_info(f"instruction: {instruction}")
-            assert instruction['dst'].find("%") != -1, f"instruction {instruction} has no %"
-            if instruction['dst'].split("%")[1] not in self.resource_mapping:
+            if instruction['dst'].find("%") != -1:
+                dst_name = instruction['dst'].split("%")[1]
+            else:
+                log_info(f"instruction {instruction} has no % in dst, please examine the schedule report. Skipping for now.")
+                continue
+            if dst_name not in self.resource_mapping:
                 assert instruction['op'] in self.no_rsc_allowed_ops, f"instruction {instruction} has no resource mapping."
                 logger.warning(f"instruction {instruction} has no resource mapping.")
                 rsc_name = "N/A"
             else:
-                rsc_name = self.resource_mapping[instruction['dst'].split("%")[1]]
+                rsc_name = self.resource_mapping[dst_name]
             core_id = instruction["core_id"]
             rsc_name_unique = f"{rsc_name}_{core_id}"
             if not self.resource_db.check_resource_added(rsc_name_unique):
@@ -496,12 +500,15 @@ class BasicBlockInfo:
             while lines[idx].find("Number of FSM states") == -1:
                 idx += 1
 
+            loop_names = [loop for loop in self.loops if self.loops[loop].pipelined == "yes"]
+            loop_idx = 0
             while lines[idx].find("FSM state transitions:") == -1:
-                if lines[idx].find("States = {") != -1:
-                    self.loops[loop_name].pipeline_states = lines[idx].strip()[lines[idx].find("States = {") + len("States = {")-1:-1].split()
-                    for i in range(len(self.loops[loop_name].pipeline_states)):
-                        self.loops[loop_name].pipeline_states[i] = int(self.loops[loop_name].pipeline_states[i])
-                    log_info(f"pipeline states: {self.loops[loop_name].pipeline_states}")
+                if lines[idx].find("States = {") != -1 and lines[idx].find("DF-Pipeline") == -1: # not supporting dataflow pipeline yet
+                    self.loops[loop_names[loop_idx]].pipeline_states = lines[idx].strip()[lines[idx].find("States = {") + len("States = {")-1:-1].split()
+                    for i in range(len(self.loops[loop_names[loop_idx]].pipeline_states)):
+                        self.loops[loop_names[loop_idx]].pipeline_states[i] = int(self.loops[loop_names[loop_idx]].pipeline_states[i])
+                    log_info(f"pipeline states for pipeline loop {loop_names[loop_idx]} (idx {loop_idx}): {self.loops[loop_names[loop_idx]].pipeline_states}")
+                    loop_idx += 1
                 idx += 1
             idx += 1
             self.state_transitions = {}

@@ -38,7 +38,7 @@ vitis_resnet_18_delay:
     obj: delay
     N: 15
     pytorch: True
-    checkpoint_load_dir: tmp_resnet_edp_0
+    checkpoint_load_dir: tmp_resnet18
     checkpoint_start_step: setup
 
 vitis_resnet_18_energy:
@@ -47,7 +47,7 @@ vitis_resnet_18_energy:
     obj: energy
     N: 15
     pytorch: True
-    checkpoint_load_dir: tmp_resnet_edp_0
+    checkpoint_load_dir: tmp_resnet18
     checkpoint_start_step: setup
 
 vitis_resnet_18_edp:
@@ -56,7 +56,7 @@ vitis_resnet_18_edp:
     obj: edp
     N: 15
     pytorch: True
-    checkpoint_load_dir: tmp_resnet_edp_0
+    checkpoint_load_dir: tmp_resnet18
     checkpoint_start_step: setup
 
 #vitis_resnet_18_ed2:
