@@ -895,7 +895,9 @@ class HardwareModel:
         vector_top.normalize_bound_factor()
         log_info(f"top vector for {basic_block_name} {graph_type}: {str(vector_top)}")
         if vector_top.delay != 0:
-            assert 1-eps <= sum(vector_top.normalized_bound_factor.values()) <= 6+eps, f"sum of normalized bound factors for {basic_block_name} {graph_type} is {sum(vector_top.normalized_bound_factor.values())}"
+            if not(1-eps <= sum(vector_top.normalized_bound_factor.values()) <= 6+eps):
+                self.log_all_top_vectors()
+                assert False, f"sum of normalized bound factors for {basic_block_name} {graph_type} is {sum(vector_top.normalized_bound_factor.values())}"
 
         return vector_top
 
@@ -908,34 +910,21 @@ class HardwareModel:
                 # calculate vector for II delay based on the resource constrained 1x loop iteration graph
                 if dfg.nodes[pred]["function"] == "II":
                     loop_name = dfg.nodes[pred]["loop_name"]
-                    loop_1x_vector = self.calculate_block_vector_basic_block(basic_block_name, f"loop_1x_{loop_name}", self.loop_1x_graphs[loop_name])
+                    loop_1x_vector_full = self.calculate_block_vector_basic_block(basic_block_name, f"loop_1x_{loop_name}", self.loop_1x_graphs[loop_name][False])
+                    loop_1x_vector_rsc_delay_only = self.calculate_block_vector_basic_block(basic_block_name, f"loop_1x_rsc_delay_only_{loop_name}", self.loop_1x_graphs[loop_name][True])
+                    total_II_delay_vector = copy.deepcopy(loop_1x_vector_rsc_delay_only)
                     # total loop delay = (delay of 1 iter) + (II * num_iters-1), where II is the delay of 1 iteration due to only resource dependencies.
-                    initiation_interval = (loop_1x_vector.delay * (loop_1x_vector.sensitivity["logic_resource"] + loop_1x_vector.sensitivity["interconnect_resource"] + loop_1x_vector.sensitivity["memory_resource"]))
-                    loop_1x_vector.iteration_delay = loop_1x_vector.delay
-                    loop_1x_vector.initiation_interval = initiation_interval
-                    loop_1x_vector.trip_count = int(dfg.nodes[pred]["count"])
-                    loop_1x_vector.delay = initiation_interval * (int(dfg.nodes[pred]["count"])-1)
+                    total_II_delay_vector.iteration_delay = loop_1x_vector_full.delay
+                    total_II_delay_vector.initiation_interval = loop_1x_vector_rsc_delay_only.delay
+                    total_II_delay_vector.trip_count = int(dfg.nodes[pred]["count"])
+                    total_II_delay_vector.delay *= (int(dfg.nodes[pred]["count"])-1)
                     # total delay is just the total delay of 1 iter (logic and memory ops only) * num_iters-1 (initiation interval delay includes all but one of the iterations)
-                    loop_1x_vector.total_delay *= int(dfg.nodes[pred]["count"])-1
-
-                    # UPDATE BOUND FACTORS AND SENSITIVITY. SO FAR, LOOP 1x VECTOR HAS BEEN REPRESENTING THE ENTIRE LOOP. NOW WE CHANGE IT TO ONLY REPRESENT THE INITIATION INTERVAL
-                    # BECUASE THE DELAY OF 1 ITERATION IS CAPTURED IN PREVIOUS NODES IN THE GRAPH.
-                    loop_1x_vector.bound_factor["logic_resource"] *= (int(dfg.nodes[pred]["count"])-1)
-                    loop_1x_vector.bound_factor["interconnect_resource"] *= (int(dfg.nodes[pred]["count"])-1)
-                    loop_1x_vector.bound_factor["memory_resource"] *= (int(dfg.nodes[pred]["count"])-1)
-                    loop_1x_vector.bound_factor["logic"] = 0;
-                    loop_1x_vector.bound_factor["interconnect"] = 0
-                    loop_1x_vector.bound_factor["memory"] = 0
-                    full_iteration_sensitivity_logic, full_iteration_sensitivity_interconnect, full_iteration_sensitivity_memory = loop_1x_vector.sensitivity["logic_resource"], loop_1x_vector.sensitivity["interconnect_resource"], loop_1x_vector.sensitivity["memory_resource"]
-                    loop_1x_vector.sensitivity["logic_resource"] = full_iteration_sensitivity_logic/(full_iteration_sensitivity_logic + full_iteration_sensitivity_interconnect + full_iteration_sensitivity_memory)
-                    loop_1x_vector.sensitivity["interconnect_resource"] = full_iteration_sensitivity_interconnect/(full_iteration_sensitivity_logic + full_iteration_sensitivity_interconnect + full_iteration_sensitivity_memory)
-                    loop_1x_vector.sensitivity["memory_resource"] = full_iteration_sensitivity_memory/(full_iteration_sensitivity_logic + full_iteration_sensitivity_interconnect + full_iteration_sensitivity_memory)
-                    loop_1x_vector.sensitivity["logic"] = 0
-                    loop_1x_vector.sensitivity["interconnect"] = 0
-                    loop_1x_vector.sensitivity["memory"] = 0
-                    loop_1x_vector.normalize_bound_factor()
-                    self.block_vectors[basic_block_name][graph_type][(pred, node)] = loop_1x_vector
-                    self.block_vectors[basic_block_name][f"loop_1x_{loop_name}"]["loop_II"] = loop_1x_vector
+                    total_II_delay_vector.total_delay = loop_1x_vector_full.delay * total_II_delay_vector.trip_count
+                    for op_type in total_II_delay_vector.bound_factor:
+                        total_II_delay_vector.bound_factor[op_type] *= (int(dfg.nodes[pred]["count"])-1)
+                    total_II_delay_vector.normalize_bound_factor()
+                    self.block_vectors[basic_block_name][graph_type][(pred, node)] = total_II_delay_vector
+                    self.block_vectors[basic_block_name][f"loop_1x_{loop_name}"]["loop_II"] = total_II_delay_vector
                 # calculate vector for sub-function call
                 elif dfg.nodes[pred]["function"] == "Call":
                     sub_block_name = dfg.nodes[pred]["call_function"]
@@ -1054,7 +1043,7 @@ class HardwareModel:
                 if dfg.edges[pred, node]["resource_edge"]:
                     if dfg.nodes[pred]["function"] == "II":
                         loop_name = dfg.nodes[pred]["loop_name"]
-                        delay_1x_cvx = self.calculate_execution_time_vitis_recursive(basic_block_name, self.loop_1x_graphs[loop_name], graph_end_node="loop_end_1x", graph_type="loop_1x", resource_delays_only=True)
+                        delay_1x_cvx = self.calculate_execution_time_vitis_recursive(basic_block_name, self.loop_1x_graphs[loop_name][True], graph_end_node="loop_end_1x", graph_type="loop_1x", resource_delays_only=True)
                         #delay_2x, delay_2x_cvx = self.calculate_execution_time_vitis_recursive(basic_block_name, self.loop_2x_graphs[basic_block_name], graph_end_node="loop_end_2x", graph_type="loop_2x")
                         # TODO add dependence of II on loop-carried dependency
                         #pred_delay = delay_1x * (dfg.nodes[pred]["count"]-1)

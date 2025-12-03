@@ -454,7 +454,10 @@ class Codesign:
             for basic_block_name in schedule_parser.basic_blocks:
                 for loop_name in schedule_parser.basic_blocks[basic_block_name].dfg.loop_dfgs:
                     for iter_num in schedule_parser.basic_blocks[basic_block_name].dfg.loop_dfgs[loop_name]:
-                        self.hw.loop_1x_graphs[loop_name] = schedule_parser.basic_blocks[basic_block_name].dfg.loop_dfgs[loop_name][iter_num].G_standard_with_wire_ops
+                        self.hw.loop_1x_graphs[loop_name] = {
+                            True: schedule_parser.basic_blocks[basic_block_name].dfg.loop_dfgs[loop_name][iter_num][True].G_standard_with_wire_ops,
+                            False: schedule_parser.basic_blocks[basic_block_name].dfg.loop_dfgs[loop_name][iter_num][False].G_standard_with_wire_ops
+                        }
 
             #self.hw.loop_2x_graphs = {basic_block_name: schedule_parser.basic_blocks[basic_block_name]["G_loop_2x_standard"] for basic_block_name in schedule_parser.basic_blocks if "G_loop_2x" in schedule_parser.basic_blocks[basic_block_name]}
 
@@ -465,9 +468,12 @@ class Codesign:
                 if os.path.isdir(os.path.join(parse_results_dir, file)):
                     self.hw.scheduled_dfgs[file] = nx.read_gml(f"{parse_results_dir}/{file}/{file}_graph_standard_with_wire_ops.gml")
                     for subfile in os.listdir(f"{parse_results_dir}/{file}"):
-                        if subfile.endswith("_graph_standard_with_wire_ops_1.gml"):
-                            loop_name = subfile.replace("_graph_standard_with_wire_ops_1.gml", "")
-                            self.hw.loop_1x_graphs[loop_name] = nx.read_gml(f"{parse_results_dir}/{file}/{subfile}")
+                        if subfile.endswith("rsc_delay_only_graph_standard_with_wire_ops_1.gml"):
+                            loop_name = subfile.replace("rsc_delay_only_graph_standard_with_wire_ops_1.gml", "")
+                            self.hw.loop_1x_graphs[loop_name] = {
+                                True: nx.read_gml(f"{parse_results_dir}/{file}/{subfile}"),
+                                False: nx.read_gml(f"{parse_results_dir}/{file}/{subfile.replace('rsc_delay_only_', '')}")
+                            }
             logger.info("Skipping Vitis schedule parsing")
         
         logger.info(f"scheduled dfgs: {self.hw.scheduled_dfgs}")
@@ -519,14 +525,7 @@ class Codesign:
             logger.info("Skipping ScaleHLS")
 
         # set scale factors if in setup or first iteration
-        if self.cfg["args"]["pytorch"]:
-            # TODO replace once pytorch dse working
-            if setup:
-                dsp_usage, latency = 10, 10
-            else:
-                dsp_usage, latency = 1, 1
-        else:
-            dsp_usage, latency = self.parse_dsp_usage_and_latency(mlir_idx)
+        dsp_usage, latency = self.parse_dsp_usage_and_latency(mlir_idx)
         if setup:
             self.max_dsp = dsp_usage
             self.max_latency = latency

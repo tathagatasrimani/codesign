@@ -127,7 +127,7 @@ def get_rsc_mapping(netlist_file):
         opset = bind.get('opset')
         ## remove the slash and everything after it from the opset
         if not opset:
-            log_info(f"opset is None for {n},{d}")
+            #log_info(f"opset is None for {n},{d}")
             continue
         if '/' in opset:
             opsets = opset.split()
@@ -135,9 +135,9 @@ def get_rsc_mapping(netlist_file):
                 netlist_op_dest_to_node[opset.split('/')[0]] = name
         else:
             netlist_op_dest_to_node[opset.strip()] = name
-    log_info(f"logging netlist_op_dest_to_node")
-    for op, node in netlist_op_dest_to_node.items():
-        log_info(f"op: {op}, node: {node}")
+    #log_info(f"logging netlist_op_dest_to_node")
+    #for op, node in netlist_op_dest_to_node.items():
+        #log_info(f"op: {op}, node: {node}")
     return netlist_op_dest_to_node
 
 class LoopInfo:
@@ -161,7 +161,7 @@ class LoopInfo:
         return self.__str__()
 
 class DataFlowGraph:
-    def __init__(self, clk_period, no_rsc_allowed_ops, allowed_functions, build_dir, basic_block_name, name, resource_mapping, states_structure, G, G_standard, G_standard_with_wire_ops, resource_db, variable_db, num_iters=1):
+    def __init__(self, clk_period, no_rsc_allowed_ops, allowed_functions, build_dir, basic_block_name, name, resource_mapping, states_structure, G, G_standard, G_standard_with_wire_ops, resource_db, variable_db, resource_delays_only=False, num_iters=1):
         self.clk_period = clk_period
         self.allowed_functions = allowed_functions
         self.build_dir = build_dir
@@ -181,6 +181,7 @@ class DataFlowGraph:
         self.state_ops = {}
         self.state_transitions = {}
         self.num_iters = num_iters
+        self.resource_delays_only = resource_delays_only
 
     def track_resource_usage(self, node):
         if self.G.nodes[node]["node_type"] == "op" and self.G.nodes[node]["core_inst"] != "N/A":
@@ -214,8 +215,10 @@ class DataFlowGraph:
         self.G_standard_with_wire_ops = self.add_wire_ops(self.G_standard)
         for loop in self.loop_dfgs:
             for iter_num in self.loop_dfgs[loop]:
-                self.loop_dfgs[loop][iter_num].convert_to_standard_dfg_with_wire_ops()
-                nx.write_gml(self.loop_dfgs[loop][iter_num].G_standard_with_wire_ops, f"{self.build_dir}/parse_results/{self.basic_block_name}/{loop}_graph_standard_with_wire_ops_{iter_num}.gml")
+                for rsc_delay_only_status in self.loop_dfgs[loop][iter_num]:
+                    self.loop_dfgs[loop][iter_num][rsc_delay_only_status].convert_to_standard_dfg_with_wire_ops()
+                    extra_text = "_rsc_delay_only" if rsc_delay_only_status else ""
+                    nx.write_gml(self.loop_dfgs[loop][iter_num][rsc_delay_only_status].G_standard_with_wire_ops, f"{self.build_dir}/parse_results/{self.basic_block_name}/{loop}{extra_text}_graph_standard_with_wire_ops_{iter_num}.gml")
 
     def add_wire_ops(self, G):
         G_new = G.copy()
@@ -244,11 +247,11 @@ class DataFlowGraph:
         G.remove_node(node)
 
     def add_one_state_to_graph(self, state, start_node=None, use_start_node=False, resource_delays_only=False):
-        log_info(f"Adding one state to graph")
+        #log_info(f"Adding one state to graph")
         for idx in range(len(state)):
             instruction = state[idx]
             op_name = self.variable_db.update_write_node(instruction["op"])
-            log_info(f"instruction: {instruction}")
+            #log_info(f"instruction: {instruction}")
             assert instruction['dst'].find("%") != -1, f"instruction {instruction} has no %"
             if instruction['dst'].split("%")[1] not in self.resource_mapping:
                 assert instruction['op'] in self.no_rsc_allowed_ops, f"instruction {instruction} has no resource mapping."
@@ -280,14 +283,14 @@ class DataFlowGraph:
                     self.G.add_edge(src_name, op_name, weight=0.0, resource_edge=0)
             dst = self.variable_db.update_write_node(instruction["dst"])
             self.G.add_node(dst, node_type="var", function="N/A")
-            if not resource_delays_only:
+            if not self.resource_delays_only:
                 self.G.add_edge(op_name, dst, weight=instruction['delay'], resource_edge=0)
             else:
                 self.G.add_edge(op_name, dst, weight=0.0, resource_edge=0)
         assert nx.is_directed_acyclic_graph(self.G), f"Graph is not a DAG, cycle found: {nx.find_cycle(self.G)}"
-        log_info(f"longest path after adding one state: {nx.dag_longest_path_length(self.G)} ({nx.dag_longest_path(self.G)})")
+        #log_info(f"longest path after adding one state: {nx.dag_longest_path_length(self.G)} ({nx.dag_longest_path(self.G)})")
 
-    def add_loop_nodes(self, loop_name, num_iters=1, append_to_graph=True):
+    def add_loop_nodes(self, loop_name, num_iters=1, resource_delays_only=False, append_to_graph=True):
         if append_to_graph:
             G, G_standard, G_standard_with_wire_ops, resource_db, variable_db = self.G, self.G_standard, self.G_standard_with_wire_ops, self.resource_db, self.variable_db
             in_nodes_loop_start = self.get_graph_leaves()
@@ -298,11 +301,12 @@ class DataFlowGraph:
         for node in in_nodes_loop_start:
             G.add_edge(node, f"loop_start_{loop_name}", weight=0.0, resource_edge=0)
         # create the graph
-        loop_dfg = DataFlowGraph(self.clk_period, self.no_rsc_allowed_ops, self.allowed_functions, self.build_dir, self.basic_block_name, loop_name, self.resource_mapping, self.states_structure.get_pruned_states_structure(self.states_structure.loops[loop_name]), G, G_standard, G_standard_with_wire_ops, resource_db, variable_db, num_iters)
+        loop_dfg = DataFlowGraph(self.clk_period, self.no_rsc_allowed_ops, self.allowed_functions, self.build_dir, self.basic_block_name, loop_name, self.resource_mapping, self.states_structure.get_pruned_states_structure(self.states_structure.loops[loop_name]), G, G_standard, G_standard_with_wire_ops, resource_db, variable_db, resource_delays_only, num_iters)
         
         loop_dfg.create_graph()
 
         if append_to_graph:
+            assert not resource_delays_only, f"dont do that"
             G.add_node(f"II_delay_{loop_name}", node_type="serial", function="II", loop_name=loop_name, pipelined=self.states_structure.loops[loop_name].pipelined, count=self.states_structure.loops[loop_name].count)
             loop_dfg.track_resource_usage(f"II_delay_{loop_name}")
             G.add_node(f"loop_end_{loop_name}", node_type="serial", function="N/A", loop_name=loop_name)
@@ -316,12 +320,18 @@ class DataFlowGraph:
             G.add_edge(f"II_delay_{loop_name}", f"loop_end_{loop_name}", weight=II_delay, resource_edge=1)
             for sub_loop_dfg in loop_dfg.loop_dfgs:
                 for iter_num in loop_dfg.loop_dfgs[sub_loop_dfg]:
-                    self.loop_dfgs[sub_loop_dfg][iter_num] = loop_dfg.loop_dfgs[sub_loop_dfg][iter_num]
-                    log_info(f"tracking sub loop graph for sub loop {sub_loop_dfg}")
+                    if iter_num not in self.loop_dfgs[sub_loop_dfg]:
+                        self.loop_dfgs[sub_loop_dfg][iter_num] = {}
+                    for rsc_delay_only_status in loop_dfg.loop_dfgs[sub_loop_dfg][iter_num]:
+                        self.loop_dfgs[sub_loop_dfg][iter_num][rsc_delay_only_status] = loop_dfg.loop_dfgs[sub_loop_dfg][iter_num][rsc_delay_only_status]
+                        log_info(f"tracking sub loop graph for sub loop {sub_loop_dfg}, iter {iter_num}, rsc delay only status {rsc_delay_only_status}")
         else:
             G.add_node(f"loop_end_1x", node_type="serial", function="N/A", loop_name=loop_name)
             loop_dfg.track_resource_usage(f"loop_end_1x")
-            self.loop_dfgs[loop_name][num_iters] = loop_dfg
+            if num_iters not in self.loop_dfgs[loop_name]:
+                self.loop_dfgs[loop_name][num_iters] = {}
+            self.loop_dfgs[loop_name][num_iters][resource_delays_only] = loop_dfg
+            log_info(f"tracking loop graph for loop {loop_name}, iter {num_iters}, rsc delay only status {True}")
 
     def create_graph(self, reset_resources=False):
         if reset_resources:
@@ -338,7 +348,8 @@ class DataFlowGraph:
                 loop_to_create = self.states_structure.state_to_loop[state][0]
                 log_info(f"adding loop graph for {loop_to_create}")
                 self.add_loop_nodes(loop_to_create)
-                self.add_loop_nodes(loop_to_create, num_iters=1, append_to_graph=False)
+                self.add_loop_nodes(loop_to_create, num_iters=1, resource_delays_only=True, append_to_graph=False)
+                self.add_loop_nodes(loop_to_create, num_iters=1, resource_delays_only=False, append_to_graph=False)
                 for state in self.states_structure.processed_loop_states:
                     processed_states.add(state)
             else:
@@ -357,12 +368,14 @@ class DataFlowGraph:
                 self.remove_node_and_rewire(self.G_standard, node)
         self.G_standard = sim_util.filter_graph_by_function(self.G_standard, self.allowed_functions, exception_node_types=["serial"])
         assert nx.is_directed_acyclic_graph(self.G_standard), f"Graph is not a DAG, cycle found: {nx.find_cycle(self.G_standard)}"
-        log_info(f"longest path after removing var nodes: {nx.dag_longest_path_length(self.G_standard)} ({nx.dag_longest_path(self.G_standard)})")
+        #log_info(f"longest path after removing var nodes: {nx.dag_longest_path_length(self.G_standard)} ({nx.dag_longest_path(self.G_standard)})")
         #nx.write_gml(self.G_standard, f"{self.build_dir}/{basic_block_name}_graph_{G_standard_name}.gml")
         for loop in self.loop_dfgs:
             for iter_num in self.loop_dfgs[loop]:
-                self.loop_dfgs[loop][iter_num].standard_dfg_basic_block()
-                nx.write_gml(self.loop_dfgs[loop][iter_num].G_standard, f"{self.build_dir}/parse_results/{self.basic_block_name}/{loop}_graph_standard_{iter_num}.gml")
+                for rsc_delay_only_status in self.loop_dfgs[loop][iter_num]:
+                    self.loop_dfgs[loop][iter_num][rsc_delay_only_status].standard_dfg_basic_block()
+                    extra_text = "_rsc_delay_only" if rsc_delay_only_status else ""
+                    nx.write_gml(self.loop_dfgs[loop][iter_num][rsc_delay_only_status].G_standard, f"{self.build_dir}/parse_results/{self.basic_block_name}/{loop}{extra_text}_graph_standard_{iter_num}.gml")
 
 class StatesStructure:
     def __init__(self, state_ops, state_transitions, loops, loop_list, basic_block_name):
@@ -496,27 +509,22 @@ class BasicBlockInfo:
             while lines[idx].strip():
                 assert lines[idx].split()[0] not in self.state_transitions
                 start_state = int(lines[idx].split()[0])
-                if len(lines[idx].split()) == 3:
-                    dst_state = int(lines[idx].split()[2])
-                    if dst_state < start_state:
-                        num_backward_transitions += 1
-                    self.state_transitions[int(lines[idx].split()[0])] = [int(lines[idx].split()[2])]
-                elif len(lines[idx].split()) == 4:
-                    dst_state = int(lines[idx].split()[2])
-                    dst_state_2 = int(lines[idx].split()[3])
-                    if dst_state_2 < start_state:
-                        num_backward_transitions += 1
-                    if dst_state < start_state:
-                        num_backward_transitions += 1
-                    self.state_transitions[int(lines[idx].split()[0])] = [dst_state, dst_state_2]
-                elif len(lines[idx].split()) == 2:
+                if len(lines[idx].split()) > 2:
+                    dst_states = [int(dst_state) for dst_state in lines[idx].split()[2:]]
+                    self.state_transitions[start_state] = []
+                    for dst_state in dst_states:
+                        if dst_state < start_state:
+                            num_backward_transitions += 1
+                        self.state_transitions[start_state].append(dst_state)
+                else:
+                    assert len(lines[idx].split()) == 2, f"Number of states: {len(lines[idx].split())} is not 2 for file: {file_path}"
                     if len(self.loops) != num_backward_transitions:
                         assert len(self.loops) == num_backward_transitions + 1, f"Number of backward transitions: {num_backward_transitions} not within one of number of loops: {len(self.loops)} for file: {file_path}"
                         # back to start state
-                        self.state_transitions[int(lines[idx].split()[0])] = [1]
+                        self.state_transitions[start_state] = [1]
                         num_backward_transitions += 1
                     else:
-                        self.state_transitions[int(lines[idx].split()[0])] = []
+                        self.state_transitions[start_state] = []
                 idx += 1
             assert num_backward_transitions == len(self.loops), f"Number of backward state transitions: {num_backward_transitions} does not match number of loops: {len(self.loops)} for file: {file_path}"
 
@@ -562,7 +570,7 @@ class BasicBlockInfo:
                             parsed_op["core_inst"] = "N/A"
                             parsed_op["core_id"] = "N/A"
                             parsed_op["core_info"] = None
-                        log_info(parsed_op)
+                        #log_info(parsed_op)
                         self.state_ops[int(next_state)].append(parsed_op)
                     idx += 1
                 idx, next_state = self.find_next_state(lines, idx)
@@ -592,22 +600,25 @@ class BasicBlockInfo:
         # Extract loop data
         loops = []
         loop_objects = {}
-        latest_top_loop_name = None
+        latest_top_loop_name_at_level = {0: None}
         for column in loop_table.findall(".//column"):
-            parts = re.split(r'([-\+])', column.get('name', ''))
+            parts = re.split(r'([+-]+)', column.get('name', ''))
             log_info(f"parts: {parts}")
-            # With capturing group, delimiter appears at odd indices
-            # parts will be like: ['', '-', 'loop_name'] or ['', '+', 'loop_name']
             delimiter = parts[1] if len(parts) > 1 else None
-            is_top_loop = delimiter == "-"
-            loop_name = parts[2].strip() if len(parts) > 2 else parts[0].strip()
+            is_top_loop = delimiter.strip().startswith("-")
+            loop_name = parts[2].strip()
             values = column.text.split(', ')
             loop_data = {"Loop Name": loop_name, "has_loop": True, "is_top_loop": is_top_loop}
             if not is_top_loop:
-                assert latest_top_loop_name is not None, f"Latest top loop name is not set for non-top loop: {loop_name}"
-                loop_objects[latest_top_loop_name].sub_loops.append(loop_name)
+                num_pluses = delimiter.strip().count("+")
+                log_info(f"num_pluses: {num_pluses}")
+                assert num_pluses > 0, f"Number of pluses: {num_pluses} is not greater than 0 for loop: {loop_name}"
+                for level_idx in range(num_pluses):
+                    assert latest_top_loop_name_at_level[level_idx] is not None, f"Latest top loop name is not set for level: {level_idx} for loop: {loop_name}"
+                    loop_objects[latest_top_loop_name_at_level[level_idx]].sub_loops.append(loop_name)
+                latest_top_loop_name_at_level[num_pluses] = loop_name
             else:
-                latest_top_loop_name = loop_name
+                latest_top_loop_name_at_level[0] = loop_name
             for i, value in enumerate(values):
                 if i < len(keys):
                     key = keys[i]
@@ -620,6 +631,9 @@ class BasicBlockInfo:
                             loop_data[key] = value
                     else:
                         loop_data[key] = value
+            if type(loop_data["Latency"]) == str:
+                assert loop_data["Latency"].find("~") != -1, f"Latency: {loop_data['Latency']} is not a range of latencies for loop: {loop_name}"
+                loop_data["Latency"] = int(loop_data["Latency"].split("~")[1]) # conservative estimate
             
             loop_objects[loop_name] = LoopInfo(loop_data)
         log_info(f"loop objects for {xml_file_path}: {loop_objects}")
