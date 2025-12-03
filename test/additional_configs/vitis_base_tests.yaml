@@ -63,3 +63,35 @@ vitis_attention_head_test:
   base_cfg: vitis_test
   args:
     benchmark: attention_head
+
+vitis_lenet_test:
+  base_cfg: vitis_test
+  args:
+    benchmark: lenet
+    pytorch: True
+
+vitis_mobilenet_test:
+  base_cfg: vitis_test
+  args:
+    benchmark: mobilenet
+    pytorch: True
+
+vitis_backprop_test:
+  base_cfg: vitis_test
+  args:
+    benchmark: backprop
+
+vitis_sgd_sw_test:
+  base_cfg: vitis_test
+  args:
+    benchmark: sgd_sw
+
+vitis_syr2k_test:
+  base_cfg: vitis_test
+  args:
+    benchmark: syr2k
+
+vitis_digitrec_sw_test:
+  base_cfg: vitis_test
+  args:
+    benchmark: digitrec_sw
