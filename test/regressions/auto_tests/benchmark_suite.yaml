@@ -1,3 +1,4 @@
+# GEMM
 vitis_gemm_256_delay:
   base_cfg: vitis_gemm_test
   args:
@@ -25,3 +26,57 @@ vitis_gemm_256_ed2:
     workload_size: 256
     obj: ed2
     N: 15
+
+# Attention Head
+vitis_attention_head_delay:
+  base_cfg: vitis_attention_head_test
+  args:
+    obj: delay
+    N: 15
+
+vitis_attention_head_energy:
+  base_cfg: vitis_attention_head_test
+  args:
+    obj: energy
+    N: 15
+
+vitis_attention_head_edp:
+  base_cfg: vitis_attention_head_test
+  args:
+    obj: edp
+    N: 15
+
+vitis_attention_head_ed2:
+  base_cfg: vitis_attention_head_test
+  args:
+    obj: ed2
+    N: 15
+
+# ResNet
+vitis_resnet_18_delay:
+  base_cfg: vitis_resnet_test
+  args:
+    obj: delay
+    N: 15
+    pytorch: True
+
+vitis_resnet_18_energy:
+  base_cfg: vitis_resnet_test
+  args:
+    obj: energy
+    N: 15
+    pytorch: True
+
+vitis_resnet_18_edp:
+  base_cfg: vitis_resnet_test
+  args:
+    obj: edp
+    N: 15
+    pytorch: True
+
+vitis_resnet_18_ed2:
+  base_cfg: vitis_resnet_test
+  args:
+    obj: ed2
+    N: 15
+
