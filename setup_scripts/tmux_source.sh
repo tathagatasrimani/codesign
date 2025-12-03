@@ -1,7 +1,7 @@
-## To use: source this script and call tmux_source with the path to the script to be sourced.
-## e.g. From codesign root directory:
-##      source setup_scripts/tmux_source.sh
-##      tmux_source full_env_start.sh
+# To use: source this script and call tmux_source with the path to the script to be sourced.
+# e.g. From codesign root directory:
+#      source setup_scripts/tmux_source.sh
+#      tmux_source full_env_start.sh
 
 tmux_source() {
     (
@@ -10,5 +10,7 @@ tmux_source() {
         rc=$?
         echo -e "\n[ tmux_source: subshell exited with code $rc ]"
         exit $rc
-    )
+    ) 2>&1 | tee -a build_codesign.log
+    tmux_rc=${PIPESTATUS[0]}
+    return "$tmux_rc"
 }
