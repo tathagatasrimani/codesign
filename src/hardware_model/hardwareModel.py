@@ -5,6 +5,8 @@ import time
 import numpy as np
 import math
 import copy
+import json
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -95,6 +97,32 @@ class BlockVector:
                 self.ahmdal_limit[op_type] = math.inf
             else:
                 self.ahmdal_limit[op_type] = 1/self.normalized_bound_factor[op_type]
+    
+    def to_dict(self):
+        def _replace_infinity(obj):
+            if isinstance(obj, float) and math.isinf(obj):
+                return "inf" if obj > 0 else "-inf"
+            if isinstance(obj, dict):
+                return {k: _replace_infinity(v) for k, v in obj.items()}
+            if isinstance(obj, (list, tuple)):
+                t = type(obj)
+                return t(_replace_infinity(v) for v in obj)
+            return obj
+
+        raw = {
+            "delay": self.delay,
+            "total_delay": self.total_delay,
+            "computation_activity_factor": self.computation_activity_factor,
+            "sensitivity": self.sensitivity,
+            "ahmdal_limit": self.ahmdal_limit,
+            "bound_factor": self.bound_factor,
+            "normalized_bound_factor": self.normalized_bound_factor,
+            "path_mixing_factor": self.path_mixing_factor,
+            "iteration_delay": self.iteration_delay,
+            "initiation_interval": self.initiation_interval,
+            "trip_count": self.trip_count,
+        }
+        return _replace_infinity(raw)
     
     def update_total_delay(self, delay):
         self.total_delay = delay
@@ -853,6 +881,39 @@ class HardwareModel:
                 else:
                     assert isinstance(self.block_vectors[basic_block_name][graph_type], BlockVector), f"block vector for {basic_block_name} {graph_type} is not a BlockVector, it is {type(self.block_vectors[basic_block_name][graph_type])}"
                     logger.info(f"top vector for {basic_block_name} {graph_type}: {self.block_vectors[basic_block_name][graph_type]}")
+    
+    def dump_top_vectors_to_file(self, filepath):
+        file_label = os.path.basename(filepath)
+        def _serialize_block_vector(basic_block_name, graph_type, kind, bv):
+            assert isinstance(bv, BlockVector), f"{kind} vector for {basic_block_name} {graph_type} is not a BlockVector, it is {type(bv)}"
+            data = bv.to_dict()
+            data["label"] = f"{basic_block_name} {graph_type}@{file_label}"
+            data["vector_kind"] = kind
+            data["file"] = file_label
+            return data
+
+        serialized = {}
+        for basic_block_name in self.block_vectors:
+            serialized[basic_block_name] = {}
+            for graph_type in self.block_vectors[basic_block_name]:
+                value = self.block_vectors[basic_block_name][graph_type]
+                if isinstance(value, dict):
+                    serialized[basic_block_name][graph_type] = {}
+                    if "top" in value:
+                        serialized[basic_block_name][graph_type]["top"] = _serialize_block_vector(
+                            basic_block_name, graph_type, "top", value["top"]
+                        )
+                    if "loop_II" in value:
+                        serialized[basic_block_name][graph_type]["loop_II"] = _serialize_block_vector(
+                            basic_block_name, graph_type, "loop_II", value["loop_II"]
+                        )
+                else:
+                    serialized[basic_block_name][graph_type] = _serialize_block_vector(
+                        basic_block_name, graph_type, "top", value
+                    )
+
+        with open(filepath, "w") as f:
+            json.dump(serialized, f, indent=2)
 
     def calculate_top_vector(self, basic_block_name, graph_type, dfg):
         eps = 1e-2

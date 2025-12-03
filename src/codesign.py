@@ -84,6 +84,9 @@ class Codesign:
         logging.basicConfig(filename=f"{self.save_dir}/codesign.log", level=logging.INFO)
         logger.info(f"args: {self.cfg['args']}")
 
+        self.block_vectors_save_dir = f"{self.save_dir}/block_vectors"
+        os.makedirs(self.block_vectors_save_dir, exist_ok=True)
+
         self.forward_obj = 0
         self.inverse_obj = 0
         self.openroad_testfile = self.cfg['args']['openroad_testfile']
@@ -468,8 +471,10 @@ class Codesign:
                 if os.path.isdir(os.path.join(parse_results_dir, file)):
                     self.hw.scheduled_dfgs[file] = nx.read_gml(f"{parse_results_dir}/{file}/{file}_graph_standard_with_wire_ops.gml")
                     for subfile in os.listdir(f"{parse_results_dir}/{file}"):
+                        logger.info(f"subfile: {subfile}")
                         if subfile.endswith("rsc_delay_only_graph_standard_with_wire_ops_1.gml"):
-                            loop_name = subfile.replace("rsc_delay_only_graph_standard_with_wire_ops_1.gml", "")
+                            loop_name = subfile.replace("_rsc_delay_only_graph_standard_with_wire_ops_1.gml", "")
+                            logger.info(f"matched resource constrained delay only graph for loop {loop_name}")
                             self.hw.loop_1x_graphs[loop_name] = {
                                 True: nx.read_gml(f"{parse_results_dir}/{file}/{subfile}"),
                                 False: nx.read_gml(f"{parse_results_dir}/{file}/{subfile.replace('rsc_delay_only_', '')}")
@@ -720,6 +725,7 @@ class Codesign:
 
         ## create the obj equation 
         self.hw.calculate_objective(log_top_vectors=True)
+        self.hw.dump_top_vectors_to_file(f"{self.block_vectors_save_dir}/block_vectors_forward_pass_{iteration_count}.json")
 
         if iteration_count == 0:
             self.params_over_iterations[0].update(
@@ -942,6 +948,7 @@ class Codesign:
         self.params_over_iterations.append(copy.copy(self.hw.circuit_model.tech_model.base_params.tech_values))
         self.sensitivities_over_iterations.append(copy.copy(self.hw.sensitivities))
         self.constraint_slack_over_iterations.append({})
+        self.hw.dump_top_vectors_to_file(f"{self.block_vectors_save_dir}/block_vectors_inverse_pass_{iter_number}.json")
         for constraint in self.opt.constraints:
             if constraint.label in self.hw.constraints_to_plot:
                 assert len(self.params_over_iterations) > 1, "params over iterations has less than 2 elements"
