@@ -76,7 +76,7 @@ class BlockVector:
         self.initiation_interval = 0
         self.iteration_delay = 0
         self.trip_count = 0
-
+        self.calls = [] # list of calls to other functions
     
     def sensitivity_softmax(self):
         max_sensitivity = max(self.sensitivity.values())
@@ -121,6 +121,7 @@ class BlockVector:
             "iteration_delay": self.iteration_delay,
             "initiation_interval": self.initiation_interval,
             "trip_count": self.trip_count,
+            "calls": self.calls,
         }
         return _replace_infinity(raw)
     
@@ -915,9 +916,10 @@ class HardwareModel:
         with open(filepath, "w") as f:
             json.dump(serialized, f, indent=2)
 
-    def calculate_top_vector(self, basic_block_name, graph_type, dfg):
+    def calculate_top_vector(self, basic_block_name, graph_type, dfg, calls):
         eps = 1e-2
         vector_top = BlockVector()
+        vector_top.calls = calls
         iso_op_type_graphs = {}
         # calculate bound factor and delay
         for op_type in vector_top.op_types:
@@ -964,6 +966,7 @@ class HardwareModel:
 
     def calculate_block_vector_basic_block(self, basic_block_name, graph_type, dfg):
         self.block_vectors[basic_block_name][graph_type] = {}
+        calls = []
         for node in dfg.nodes:
             for pred in dfg.predecessors(node):
                 if (pred, node) in self.block_vectors[basic_block_name][graph_type]:
@@ -992,12 +995,13 @@ class HardwareModel:
                     if sub_block_name not in self.block_vectors or "top" not in self.block_vectors[sub_block_name]:
                         self.block_vectors[sub_block_name]["top"] = self.calculate_block_vector_basic_block(sub_block_name, graph_type, self.scheduled_dfgs[sub_block_name])
                     self.block_vectors[basic_block_name][graph_type][(pred, node)] = self.block_vectors[sub_block_name]["top"]
+                    calls.append(sub_block_name)
                 # calculate vector for a basic operation
                 else:
                     self.block_vectors[basic_block_name][graph_type][(pred, node)] = self.calculate_block_vector_edge(pred, node, basic_block_name, graph_type, dfg)
                 self.block_vectors[basic_block_name][graph_type][(pred, node)].update_total_delay(self.block_vectors[basic_block_name][graph_type][(pred, node)].total_delay)
 
-        return self.calculate_top_vector(basic_block_name, graph_type, dfg)
+        return self.calculate_top_vector(basic_block_name, graph_type, dfg, calls)
 
     def calculate_block_vector_edge(self, src, dst, basic_block_name, graph_type, dfg):
         fn = dfg.nodes[src]["function"]
