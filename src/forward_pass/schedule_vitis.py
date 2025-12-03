@@ -14,7 +14,7 @@ from src.forward_pass import llvm_ir_parse
 from src.forward_pass import vitis_create_netlist
 from src import sim_util
 
-DEBUG = True
+DEBUG = False
 
 def log_info(msg):
     if DEBUG:
@@ -641,9 +641,11 @@ class BasicBlockInfo:
             if type(loop_data["Latency"]) == str:
                 assert loop_data["Latency"].find("~") != -1, f"Latency: {loop_data['Latency']} is not a range of latencies for loop: {loop_name}"
                 loop_data["Latency"] = int(loop_data["Latency"].split("~")[1]) # conservative estimate
+                logger.info(f"latency: {loop_data['Latency']} is a range of latencies for loop: {loop_name}")
             if type(loop_data["Count"]) == str:
                 assert loop_data["Count"].find("~") != -1, f"Count: {loop_data['Count']} is not a range of counts for loop: {loop_name}"
                 loop_data["Count"] = int(loop_data["Count"].split("~")[1]) # conservative estimate
+                logger.info(f"count: {loop_data['Count']} is a range of counts for loop: {loop_name}")
             loop_objects[loop_name] = LoopInfo(loop_data)
         log_info(f"loop objects for {xml_file_path}: {loop_objects}")
         return loop_objects

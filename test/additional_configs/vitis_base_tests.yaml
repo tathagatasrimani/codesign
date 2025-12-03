@@ -3,6 +3,11 @@ vitis_gemm_test:
   args:
     benchmark: gemm
 
+vitis_gesummv_test:
+  base_cfg: vitis_test
+  args:
+    benchmark: gesummv
+
 benchmark_2mm_test:
   base_cfg: vitis_test
   args:

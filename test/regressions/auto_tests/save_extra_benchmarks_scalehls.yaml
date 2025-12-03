@@ -1,0 +1,42 @@
+vitis_atax_save:
+  base_cfg: benchmark_atax_test
+  args:
+    stop_at_checkpoint: setup
+    checkpoint_save_dir: tmp_atax
+
+vitis_gesummv_save:
+  base_cfg: vitis_gesummv_test
+  args:
+    workload_size: 256
+    stop_at_checkpoint: setup
+    checkpoint_save_dir: tmp_gesummv
+
+vitis_2mm_save:
+  base_cfg: benchmark_2mm_test
+  args:
+    stop_at_checkpoint: setup
+    checkpoint_save_dir: tmp_2mm
+
+vitis_3mm_save:
+  base_cfg: benchmark_3mm_test
+  args:
+    stop_at_checkpoint: setup
+    checkpoint_save_dir: tmp_3mm
+
+vitis_doitgen_save:
+  base_cfg: benchmark_doitgen_test
+  args:
+    stop_at_checkpoint: setup
+    checkpoint_save_dir: tmp_doitgen
+
+vitis_mvt_save:
+  base_cfg: benchmark_mvt_test
+  args:
+    stop_at_checkpoint: setup
+    checkpoint_save_dir: tmp_mvt
+
+vitis_bicg_save:
+  base_cfg: benchmark_bicg_test
+  args:
+    stop_at_checkpoint: setup
+    checkpoint_save_dir: tmp_bicg

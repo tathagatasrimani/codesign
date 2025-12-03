@@ -1,0 +1,234 @@
+# atax
+vitis_atax_delay:
+  base_cfg: benchmark_atax_test
+  args:
+    obj: delay
+    N: 15
+    checkpoint_load_dir: tmp_atax
+    checkpoint_start_step: setup
+
+vitis_atax_energy:
+  base_cfg: benchmark_atax_test
+  args:
+    obj: energy
+    N: 15
+    checkpoint_load_dir: tmp_atax
+    checkpoint_start_step: setup
+
+vitis_atax_edp:
+  base_cfg: benchmark_atax_test
+  args:
+    obj: edp
+    N: 15
+    checkpoint_load_dir: tmp_atax
+    checkpoint_start_step: setup
+
+vitis_atax_ed2:
+  base_cfg: benchmark_atax_test
+  args:
+    obj: ed2
+    N: 15
+    checkpoint_load_dir: tmp_atax
+    checkpoint_start_step: setup
+
+# gesummv 
+vitis_gesummv_delay:
+  base_cfg: vitis_gesummv_test
+  args:
+    obj: delay
+    N: 15
+    workload_size: 256
+    checkpoint_load_dir: tmp_gesummv
+    checkpoint_start_step: setup
+
+vitis_gesummv_energy:
+  base_cfg: vitis_gesummv_test
+  args:
+    obj: energy
+    N: 15
+    workload_size: 256
+    checkpoint_load_dir: tmp_gesummv
+    checkpoint_start_step: setup
+
+vitis_gesummv_edp:
+  base_cfg: vitis_gesummv_test
+  args:
+    obj: edp
+    N: 15
+    workload_size: 256
+    checkpoint_load_dir: tmp_gesummv
+    checkpoint_start_step: setup
+
+vitis_gesummv_ed2:
+  base_cfg: vitis_gesummv_test
+  args:
+    obj: ed2
+    N: 15
+    workload_size: 256
+    checkpoint_load_dir: tmp_gesummv
+    checkpoint_start_step: setup
+
+# 2mm
+vitis_2mm_delay:
+  base_cfg: benchmark_2mm_test
+  args:
+    obj: delay
+    N: 15
+    checkpoint_load_dir: tmp_2mm
+    checkpoint_start_step: setup
+
+vitis_2mm_energy:
+  base_cfg: benchmark_2mm_test
+  args:
+    obj: energy
+    N: 15
+    checkpoint_load_dir: tmp_2mm
+    checkpoint_start_step: setup
+
+vitis_2mm_edp:
+  base_cfg: benchmark_2mm_test
+  args:
+    obj: edp
+    N: 15
+    checkpoint_load_dir: tmp_2mm
+    checkpoint_start_step: setup
+
+vitis_2mm_ed2:
+  base_cfg: benchmark_2mm_test
+  args:
+    obj: ed2
+    N: 15
+    checkpoint_load_dir: tmp_2mm
+    checkpoint_start_step: setup
+
+# 3mm
+vitis_3mm_delay:
+  base_cfg: benchmark_3mm_test
+  args:
+    obj: delay
+    N: 15
+    checkpoint_load_dir: tmp_3mm
+    checkpoint_start_step: setup
+
+vitis_3mm_energy:
+  base_cfg: benchmark_3mm_test
+  args:
+    obj: energy
+    N: 15
+    checkpoint_load_dir: tmp_3mm
+    checkpoint_start_step: setup
+
+vitis_3mm_edp:
+  base_cfg: benchmark_3mm_test
+  args:
+    obj: edp
+    N: 15
+    checkpoint_load_dir: tmp_3mm
+    checkpoint_start_step: setup
+
+vitis_3mm_ed2:
+  base_cfg: benchmark_3mm_test
+  args:
+    obj: ed2
+    N: 15
+    checkpoint_load_dir: tmp_3mm
+    checkpoint_start_step: setup
+
+# doitgen
+vitis_doitgen_delay:
+  base_cfg: benchmark_doitgen_test
+  args:
+    obj: delay
+    N: 15
+    checkpoint_load_dir: tmp_doitgen
+    checkpoint_start_step: setup
+
+vitis_doitgen_energy:
+  base_cfg: benchmark_doitgen_test
+  args:
+    obj: energy
+    N: 15
+    checkpoint_load_dir: tmp_doitgen
+    checkpoint_start_step: setup
+
+vitis_doitgen_edp:
+  base_cfg: benchmark_doitgen_test
+  args:
+    obj: edp
+    N: 15
+    checkpoint_load_dir: tmp_doitgen
+
+vitis_doitgen_ed2:
+  base_cfg: benchmark_doitgen_test
+  args:
+    obj: ed2
+    N: 15
+    checkpoint_load_dir: tmp_doitgen
+    checkpoint_start_step: setup
+
+# mvt
+vitis_mvt_delay:
+  base_cfg: benchmark_mvt_test
+  args:
+    obj: delay
+    N: 15
+    checkpoint_load_dir: tmp_mvt
+    checkpoint_start_step: setup
+
+vitis_mvt_energy:
+  base_cfg: benchmark_mvt_test
+  args:
+    obj: energy
+    N: 15
+    checkpoint_load_dir: tmp_mvt
+    checkpoint_start_step: setup
+
+vitis_mvt_edp:
+  base_cfg: benchmark_mvt_test
+  args:
+    obj: edp
+    N: 15
+    checkpoint_load_dir: tmp_mvt
+    checkpoint_start_step: setup
+
+vitis_mvt_ed2:
+  base_cfg: benchmark_mvt_test
+  args:
+    obj: ed2
+    N: 15
+    checkpoint_load_dir: tmp_mvt
+    checkpoint_start_step: setup
+
+# bicg
+vitis_bicg_delay:
+  base_cfg: benchmark_bicg_test
+  args:
+    obj: delay
+    N: 15
+    checkpoint_load_dir: tmp_bicg
+    checkpoint_start_step: setup
+
+vitis_bicg_energy:
+  base_cfg: benchmark_bicg_test
+  args:
+    obj: energy
+    N: 15
+    checkpoint_load_dir: tmp_bicg
+    checkpoint_start_step: setup
+
+vitis_bicg_edp:
+  base_cfg: benchmark_bicg_test
+  args:
+    obj: edp
+    N: 15
+    checkpoint_load_dir: tmp_bicg
+    checkpoint_start_step: setup
+
+vitis_bicg_ed2:
+  base_cfg: benchmark_bicg_test
+  args:
+    obj: ed2
+    N: 15
+    checkpoint_load_dir: tmp_bicg
+    checkpoint_start_step: setup
+

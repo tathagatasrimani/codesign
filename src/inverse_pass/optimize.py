@@ -44,8 +44,7 @@ class Optimizer:
 
     def initialize_max_system_power(self, power):
         logger.info(f"initializing max system power to {power*150}")
-        #self.max_system_power = power * 150
-        self.max_system_power = 3.0e-4 
+        self.max_system_power = power * 150
 
     def evaluate_constraints(self, constraints, stage):
         for constraint_obj in constraints:
@@ -274,7 +273,7 @@ class Optimizer:
 
         # reset hw model state
         self.hw.save_obj_vals(self.hw.execution_time)
-        assert self.hw.obj_scaled != obj_scaled_op, "obj scaled should not be the same as the original obj scaled"
+        assert self.hw.obj_scaled >= obj_scaled_op, "op specific obj scaled should be less than or equal to the original obj scaled"
 
         return [Constraint(constr, f"bbv_op_delay_{op_type}")]
 

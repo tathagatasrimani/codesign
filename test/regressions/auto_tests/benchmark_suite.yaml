@@ -23,13 +23,13 @@ vitis_llama_edp:
     checkpoint_load_dir: tmp_llama
     checkpoint_start_step: setup
 
-#vitis_llama_ed2:
-#  base_cfg: vitis_llama_test
-#  args:
-#    obj: ed2
-#    N: 15
-#    checkpoint_load_dir: tmp_llama
-#    checkpoint_start_step: setup
+vitis_llama_ed2:
+  base_cfg: vitis_llama_test
+  args:
+    obj: ed2
+    N: 15
+    checkpoint_load_dir: tmp_llama
+    checkpoint_start_step: setup
 
 # ResNet
 vitis_resnet_18_delay:
@@ -59,14 +59,14 @@ vitis_resnet_18_edp:
     checkpoint_load_dir: tmp_resnet18
     checkpoint_start_step: setup
 
-#vitis_resnet_18_ed2:
-#  base_cfg: vitis_resnet_test
-#  args:
-#    obj: ed2
-#    N: 15
-#    pytorch: True
-#    checkpoint_load_dir: tmp_resnet_edp_0
-#    checkpoint_start_step: setup
+vitis_resnet_18_ed2:
+  base_cfg: vitis_resnet_test
+  args:
+    obj: ed2
+    N: 15
+    pytorch: True
+    checkpoint_load_dir: tmp_resnet18
+    checkpoint_start_step: setup
 
 # Lenet
 vitis_lenet_delay:
@@ -96,14 +96,14 @@ vitis_lenet_edp:
     checkpoint_load_dir: tmp_lenet
     checkpoint_start_step: setup
 
-#vitis_lenet_ed2:
-#  base_cfg: vitis_lenet_test
-#  args:
-#    obj: ed2
-#    N: 15
-#    pytorch: True
-#    checkpoint_load_dir: tmp_lenet
-#    checkpoint_start_step: setup
+vitis_lenet_ed2:
+  base_cfg: vitis_lenet_test
+  args:
+    obj: ed2
+    N: 15
+    pytorch: True
+    checkpoint_load_dir: tmp_lenet
+    checkpoint_start_step: setup
 
 # mobilenet
 vitis_mobilenet_delay:
@@ -133,14 +133,14 @@ vitis_mobilenet_edp:
     checkpoint_load_dir: tmp_mobilenet
     checkpoint_start_step: setup
 
-#vitis_mobilenet_ed2:
-#  base_cfg: vitis_mobilenet_test
-#  args:
-#    obj: ed2
-#    N: 15
-#    pytorch: True
-#    checkpoint_load_dir: tmp_mobilenet
-#    checkpoint_start_step: setup
+vitis_mobilenet_ed2:
+  base_cfg: vitis_mobilenet_test
+  args:
+    obj: ed2
+    N: 15
+    pytorch: True
+    checkpoint_load_dir: tmp_mobilenet
+    checkpoint_start_step: setup
 
 # syr2k
 vitis_syr2k_delay:
@@ -170,14 +170,14 @@ vitis_syr2k_edp:
     checkpoint_load_dir: tmp_syr2k_256
     checkpoint_start_step: setup
 
-#vitis_syr2k_ed2:
-#  base_cfg: vitis_syr2k_test
-#  args:
-#    obj: ed2
-#    N: 15
-#    workload_size: 256
-#    checkpoint_load_dir: tmp_syr2k_256
-#    checkpoint_start_step: setup
+vitis_syr2k_ed2:
+  base_cfg: vitis_syr2k_test
+  args:
+    obj: ed2
+    N: 15
+    workload_size: 256
+    checkpoint_load_dir: tmp_syr2k_256
+    checkpoint_start_step: setup
 
 # GEMM
 vitis_gemm_256_delay:
@@ -207,14 +207,14 @@ vitis_gemm_256_edp:
     checkpoint_load_dir: tmp_gemm_256
     checkpoint_start_step: setup
 
-#vitis_gemm_256_ed2:
-#  base_cfg: vitis_gemm_test
-#  args:
-#    workload_size: 256
-#    obj: ed2
-#    N: 15
-#    checkpoint_load_dir: tmp_gemm_256
-#    checkpoint_start_step: setup
+vitis_gemm_256_ed2:
+  base_cfg: vitis_gemm_test
+  args:
+    workload_size: 256
+    obj: ed2
+    N: 15
+    checkpoint_load_dir: tmp_gemm_256
+    checkpoint_start_step: setup
 
 # Attention Head
 vitis_attention_head_delay:
@@ -241,13 +241,13 @@ vitis_attention_head_edp:
     checkpoint_load_dir: tmp_attention_head
     checkpoint_start_step: setup
 
-#vitis_attention_head_ed2:
-#  base_cfg: vitis_attention_head_test
-#  args:
-#    obj: ed2
-#    N: 15
-#    checkpoint_load_dir: tmp_attention_head
-#    checkpoint_start_step: setup
+vitis_attention_head_ed2:
+  base_cfg: vitis_attention_head_test
+  args:
+    obj: ed2
+    N: 15
+    checkpoint_load_dir: tmp_attention_head
+    checkpoint_start_step: setup
 
 # sgd_sw
 vitis_sgd_sw_delay:
@@ -274,10 +274,10 @@ vitis_sgd_sw_edp:
     checkpoint_load_dir: tmp_sgd_sw
     checkpoint_start_step: setup
 
-#vitis_sgd_sw_ed2:
-#  base_cfg: vitis_sgd_sw_test
-#  args:
-#    obj: ed2
-#    N: 15
-#    checkpoint_load_dir: tmp_sgd_sw
-#    checkpoint_start_step: setup
+vitis_sgd_sw_ed2:
+  base_cfg: vitis_sgd_sw_test
+  args:
+    obj: ed2
+    N: 15
+    checkpoint_load_dir: tmp_sgd_sw
+    checkpoint_start_step: setup
