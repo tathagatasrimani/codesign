@@ -1,6 +1,7 @@
 import os
 import argparse
 import subprocess
+import json
 
 CODESIGN_ROOT_DIR = os.path.dirname(os.path.dirname(__file__))
 
@@ -30,7 +31,16 @@ CPP_OUTPUT_FOLDER = os.path.join(os.path.dirname(__file__), "cpp_output")
 if not os.path.exists(CPP_OUTPUT_FOLDER):
     os.makedirs(CPP_OUTPUT_FOLDER)
 
-def run_c_file(input_file, debug_point, no_dse):
+def set_num_dsp(num_dsp):
+    with open(f"{SCALEHLS_DIR}/test/Transforms/Directive/config.json", "r") as f:
+        config = json.load(f)
+    config["dsp"] = num_dsp
+    config["bram"] = num_dsp
+    with open(f"{SCALEHLS_DIR}/test/Transforms/Directive/config.json", "w") as f:
+        json.dump(config, f)
+
+def run_c_file(input_file, debug_point, no_dse, num_dsp):
+    set_num_dsp(num_dsp)
     log_index = 0
     debug_point_txt = f" debug-point={debug_point}" if debug_point != 0 else ""
     log_path = f"{C_TEST_LOG_FOLDER}/{input_file}_{log_index}.log" if debug_point == 0 else f"{C_DEBUG_LOG_FOLDER}/{input_file}/{input_file}_debug_{debug_point}_{log_index}.log"
@@ -54,7 +64,7 @@ def run_c_file(input_file, debug_point, no_dse):
         cd {SCALEHLS_DIR}
         source scalehls_env.sh
         cd {design_space_path}
-        cgeist {C_INPUT_FOLDER}/{input_file}.c -function={input_file} -S -memref-fullrank -raise-scf-to-affine -std=c11 -I/scratch_disks/scratch0/patrick_codesign/codesign/ScaleHLS-HIDA/polygeist/tools/cgeist/Test/polybench/utilities -I/usr/include -I/usr/lib/gcc/x86_64-linux-gnu/13/include -I/usr/local/include -resource-dir $(clang -print-resource-dir) > {C_MLIR_FOLDER}/{input_file}.mlir
+        cgeist {C_INPUT_FOLDER}/{input_file}.c -function={input_file} -S -memref-fullrank -raise-scf-to-affine -std=c11 -I{SCALEHLS_DIR}/polygeist/tools/cgeist/Test/polybench/utilities -I/usr/include -I/usr/lib/gcc/x86_64-linux-gnu/13/include -I/usr/local/include -resource-dir $(clang -print-resource-dir) > {C_MLIR_FOLDER}/{input_file}.mlir
         scalehls-opt {C_MLIR_FOLDER}/{input_file}.mlir -{pipeline}="top-func={input_file} target-spec={SCALEHLS_DIR}/test/Transforms/Directive/config.json{debug_point_txt}" -debug-only=scalehls | scalehls-translate -scalehls-emit-hlscpp -emit-vitis-directives > {CPP_OUTPUT_FOLDER}/{input_file}.cpp
         cd {CODESIGN_ROOT_DIR}
         deactivate
@@ -81,10 +91,12 @@ if __name__ == "__main__":
     parser.add_argument("input_file", type=str)
     parser.add_argument("--debug_point", type=int, default=0)
     parser.add_argument("--no_dse", action="store_true", default=False)
+    parser.add_argument("--num_dsp", type=int, default=150)
     args = parser.parse_args()
 
     input_file = args.input_file
     debug_point = args.debug_point
     no_dse = args.no_dse
+    num_dsp = args.num_dsp
 
-    run_c_file(input_file, debug_point, no_dse)
+    run_c_file(input_file, debug_point, no_dse, num_dsp)
