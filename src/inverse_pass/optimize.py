@@ -40,6 +40,12 @@ class Optimizer:
         self.opt_pipeline = opt_pipeline
         self.bbv_op_delay_constraints = []
         self.bbv_path_constraints = []
+        self.max_system_power = None
+
+    def initialize_max_system_power(self, power):
+        logger.info(f"initializing max system power to {power*150}")
+        #self.max_system_power = power * 150
+        self.max_system_power = 3.0e-4 
 
     def evaluate_constraints(self, constraints, stage):
         for constraint_obj in constraints:
@@ -69,7 +75,8 @@ class Optimizer:
             total_power = self.hw.total_passive_power*self.hw.circuit_model.tech_model.capped_power_scale + self.hw.total_active_energy / (self.hw.execution_time* self.hw.circuit_model.tech_model.capped_delay_scale)
         else:
             total_power = self.hw.total_passive_power*self.hw.circuit_model.tech_model.capped_power_scale_total + self.hw.total_active_energy / (self.hw.execution_time* self.hw.circuit_model.tech_model.capped_delay_scale_total)
-        constraints.append(Constraint(total_power <= 150, "total_power <= 150")) # hard limit on power
+        assert self.max_system_power is not None, "max system power is not initialized"
+        constraints.append(Constraint(total_power <= self.max_system_power, "total_power <= max_system_power")) # hard limit on power
         # ensure that forward pass can't add more than 10x parallelism in the next iteration. power scale is based on the amount we scale area down by,
         # because in the next forward pass we assume that much parallelism will be added, and therefore increase power
         #if not self.test_config:

@@ -739,6 +739,7 @@ class Codesign:
                     self.hw.circuit_model.tech_model.base_params.memory_resource_ahmdal_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.memory_resource_ahmdal_limit],
                 }
             )
+            self.opt.initialize_max_system_power(sim_util.xreplace_safe((self.hw.total_passive_energy + self.hw.total_active_energy)/self.hw.execution_time, self.hw.circuit_model.tech_model.base_params.tech_values))
 
         """if setup:
             self.max_parallel_initial_objective_value = self.hw.obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf()

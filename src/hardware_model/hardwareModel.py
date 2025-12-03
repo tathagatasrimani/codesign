@@ -1469,7 +1469,7 @@ class HardwareModel:
         }
         self.constraints_to_plot = set(
             [
-                "total_power <= 150",
+                "total_power <= max_system_power",
                 "I_off per (W) <= 100e-9 per (1e-6)",
                 "W over L >= 1",
                 "V_th_eff >= 0",
