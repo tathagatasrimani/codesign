@@ -380,20 +380,20 @@ class Codesign:
         logger.info(f"time to run scaleHLS: {time.time()-start_time}")
 
     def parse_design_space_for_mlir(self, read_dir):
-        df = pd.read_csv(f"{read_dir}/{self.benchmark_name}_space.csv")
+        df = pd.read_csv(f"{read_dir}/{self.vitis_top_function}_space.csv")
         mlir_idx_that_exist = []
         for i in range(len(df['dsp'].values)):
-            file_exists = os.path.exists(f"{read_dir}/{self.benchmark_name}_pareto_{i}.mlir")
+            file_exists = os.path.exists(f"{read_dir}/{self.vitis_top_function}_pareto_{i}.mlir")
             if file_exists:
                 mlir_idx_that_exist.append(i)
             if df['dsp'].values[i] <= self.cur_dsp_usage and file_exists:
-                return f"{read_dir}/{self.benchmark_name}_pareto_{i}.mlir", i
+                return f"{read_dir}/{self.vitis_top_function}_pareto_{i}.mlir", i
         if len(mlir_idx_that_exist) == 0:
             raise Exception(f"No Pareto solutions found for {self.benchmark_name} with dsp usage {self.cur_dsp_usage}")
-        return f"{read_dir}/{self.benchmark_name}_pareto_{mlir_idx_that_exist[-1]}.mlir", mlir_idx_that_exist[-1]
+        return f"{read_dir}/{self.vitis_top_function}_pareto_{mlir_idx_that_exist[-1]}.mlir", mlir_idx_that_exist[-1]
 
     def parse_dsp_usage_and_latency(self, mlir_idx):
-        df = pd.read_csv(f'''{os.path.join(os.path.dirname(__file__), "..", self.benchmark_setup_dir)}/function_hier_output/{self.benchmark_name}_space.csv''')
+        df = pd.read_csv(f'''{os.path.join(os.path.dirname(__file__), "..", self.benchmark_setup_dir)}/function_hier_output/{self.vitis_top_function}_space.csv''')
         logger.info(f"dsp usage: {df['dsp'].values[mlir_idx]}, latency: {df['cycle'].values[mlir_idx]}")
         return df['dsp'].values[mlir_idx], df['cycle'].values[mlir_idx]
 
