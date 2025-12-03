@@ -1,0 +1,27 @@
+vitis_gemm_256_delay:
+  base_cfg: vitis_gemm_test
+  args:
+    workload_size: 256
+    obj: delay
+    N: 15
+
+vitis_gemm_256_energy:
+  base_cfg: vitis_gemm_test
+  args:
+    workload_size: 256
+    obj: energy
+    N: 15
+
+vitis_gemm_256_edp:
+  base_cfg: vitis_gemm_test
+  args:
+    workload_size: 256
+    obj: edp
+    N: 15
+
+vitis_gemm_256_ed2:
+  base_cfg: vitis_gemm_test
+  args:
+    workload_size: 256
+    obj: ed2
+    N: 15
