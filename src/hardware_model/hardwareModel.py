@@ -31,7 +31,7 @@ from openroad_interface import openroad_run_hier
 
 import cvxpy as cp
 
-DEBUG = False
+DEBUG = True
 def log_info(msg):
     if DEBUG:
         logger.info(msg)
@@ -633,7 +633,7 @@ class HardwareModel:
 
             hls_parse_results_dir = f"benchmark/parse_results"
 
-            self.circuit_model.wire_length_by_edge = hier_open_road_run.run_hierarchical_openroad(
+            self.circuit_model.edge_to_nets = hier_open_road_run.run_hierarchical_openroad(
                 netlist_copy,
                 arg_testfile,
                 arg_parasitics,
@@ -647,7 +647,7 @@ class HardwareModel:
         else:
             open_road_run = openroad_run.OpenRoadRun(cfg=self.cfg, codesign_root_dir=self.codesign_root_dir, tmp_dir=self.tmp_dir, run_openroad=run_openroad, circuit_model=self.circuit_model)
 
-            self.circuit_model.wire_length_by_edge, _, _ = open_road_run.run(
+            self.circuit_model.edge_to_nets, _, _ = open_road_run.run(
                 netlist_copy, arg_testfile, arg_parasitics, area_constraint, L_eff
             )
 
@@ -1559,14 +1559,23 @@ class HardwareModel:
         else:
             raise ValueError(f"Objective function {self.obj_fn} not supported")
 
-    def calculate_sensitivity_analysis(self, blackbox=False):
+    def calculate_sensitivity_analysis(self, blackbox=False, constraints=[]):
+        obj = self.obj
+        for constraint in constraints:
+            eps = 1e-15
+            slack_value = -1*sim_util.xreplace_safe(constraint.slack, self.circuit_model.tech_model.base_params.tech_values) + eps
+            if (slack_value > 0):
+                log_info(f"adding log barrier for constraint {constraint.label}, slack value: {slack_value}, log barrier term: {-math.log(slack_value)}")
+                obj += -math.log(slack_value) # adding log barriers to objective to help show effect of constraints on sensitivities
+            else:
+                logger.warning(f"Constraint {constraint.label} is violated, slack value: {slack_value}")
         for param in self.circuit_model.tech_model.base_params.tech_values:
             #log_info(f"calculating sensitivity for {param}, initial value: {self.circuit_model.tech_model.base_params.tech_values[param]}")
             if blackbox:
-                obj_initial_val = sim_util.xreplace_safe(self.obj, self.circuit_model.tech_model.base_params.tech_values)
+                obj_initial_val = sim_util.xreplace_safe(obj, self.circuit_model.tech_model.base_params.tech_values)
                 tech_values_param_changed = {k: v for k, v in self.circuit_model.tech_model.base_params.tech_values.items() if k != param}
                 tech_values_param_changed[param] = self.circuit_model.tech_model.base_params.tech_values[param]*1.01
-                obj_param_changed = sim_util.xreplace_safe(self.obj, tech_values_param_changed)
+                obj_param_changed = sim_util.xreplace_safe(obj, tech_values_param_changed)
                 obj_percent_change = (obj_param_changed - obj_initial_val) / obj_initial_val
                 if self.circuit_model.tech_model.base_params.tech_values[param] == 0:
                     self.sensitivities[param] = 0
@@ -1574,8 +1583,8 @@ class HardwareModel:
                     self.sensitivities[param] = (obj_percent_change) / (0.01) # 1% change in param
             else:
                 tech_values_without_param = {k: v for k, v in self.circuit_model.tech_model.base_params.tech_values.items() if k != param}
-                d_obj_d_param = self.obj.diff(param, evaluate=True).xreplace(tech_values_without_param)
-                self.sensitivities[param] = sim_util.xreplace_safe(d_obj_d_param * (self.circuit_model.tech_model.base_params.tech_values[param] / sim_util.xreplace_safe(self.obj, self.circuit_model.tech_model.base_params.tech_values)), self.circuit_model.tech_model.base_params.tech_values)
+                d_obj_d_param = obj.diff(param, evaluate=True).xreplace(tech_values_without_param)
+                self.sensitivities[param] = sim_util.xreplace_safe(d_obj_d_param * (self.circuit_model.tech_model.base_params.tech_values[param] / sim_util.xreplace_safe(obj, self.circuit_model.tech_model.base_params.tech_values)), self.circuit_model.tech_model.base_params.tech_values)
         logger.info(f"sensitivities: {self.sensitivities}")
 
     def calculate_objective(self, clk_period_opt=False, form_dfg=True, do_sensitivity_analysis=False, log_top_vectors=False):
