@@ -273,7 +273,8 @@ class Optimizer:
 
         # reset hw model state
         self.hw.save_obj_vals(self.hw.execution_time)
-        assert self.hw.obj_scaled >= obj_scaled_op, "op specific obj scaled should be less than or equal to the original obj scaled"
+        intial_obj_scaled = sim_util.xreplace_safe(self.hw.obj_scaled, self.hw.circuit_model.tech_model.base_params.tech_values)
+        assert intial_obj_scaled >= obj_scaled_op_init, "op specific obj scaled should be less than or equal to the original obj scaled"
 
         return [Constraint(constr, f"bbv_op_delay_{op_type}")]
 

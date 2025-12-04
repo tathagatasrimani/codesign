@@ -964,7 +964,7 @@ class HardwareModel:
 
         return vector_top
 
-    def calculate_block_vector_basic_block(self, basic_block_name, graph_type, dfg):
+    def calculate_block_vector_basic_block(self, basic_block_name, graph_type, dfg, resource_delays_only=False):
         self.block_vectors[basic_block_name][graph_type] = {}
         calls = []
         for node in dfg.nodes:
@@ -974,8 +974,8 @@ class HardwareModel:
                 # calculate vector for II delay based on the resource constrained 1x loop iteration graph
                 if dfg.nodes[pred]["function"] == "II":
                     loop_name = dfg.nodes[pred]["loop_name"]
-                    loop_1x_vector_full = self.calculate_block_vector_basic_block(basic_block_name, f"loop_1x_{loop_name}", self.loop_1x_graphs[loop_name][False])
-                    loop_1x_vector_rsc_delay_only = self.calculate_block_vector_basic_block(basic_block_name, f"loop_1x_rsc_delay_only_{loop_name}", self.loop_1x_graphs[loop_name][True])
+                    loop_1x_vector_rsc_delay_only = self.calculate_block_vector_basic_block(basic_block_name, f"loop_1x_rsc_delay_only_{loop_name}", self.loop_1x_graphs[loop_name][True], resource_delays_only=True)
+                    loop_1x_vector_full = self.calculate_block_vector_basic_block(basic_block_name, f"loop_1x_{loop_name}", self.loop_1x_graphs[loop_name][False], resource_delays_only=False)
                     total_II_delay_vector = copy.deepcopy(loop_1x_vector_rsc_delay_only)
                     # total loop delay = (delay of 1 iter) + (II * num_iters-1), where II is the delay of 1 iteration due to only resource dependencies.
                     total_II_delay_vector.iteration_delay = loop_1x_vector_full.delay
@@ -983,7 +983,7 @@ class HardwareModel:
                     total_II_delay_vector.trip_count = int(dfg.nodes[pred]["count"])
                     total_II_delay_vector.delay *= (int(dfg.nodes[pred]["count"])-1)
                     # total delay is just the total delay of 1 iter (logic and memory ops only) * num_iters-1 (initiation interval delay includes all but one of the iterations)
-                    total_II_delay_vector.total_delay = loop_1x_vector_full.delay * total_II_delay_vector.trip_count
+                    total_II_delay_vector.total_delay = loop_1x_vector_full.total_delay * total_II_delay_vector.trip_count
                     for op_type in total_II_delay_vector.bound_factor:
                         total_II_delay_vector.bound_factor[op_type] *= (int(dfg.nodes[pred]["count"])-1)
                     total_II_delay_vector.normalize_bound_factor()
@@ -993,17 +993,22 @@ class HardwareModel:
                 elif dfg.nodes[pred]["function"] == "Call":
                     sub_block_name = dfg.nodes[pred]["call_function"]
                     if sub_block_name not in self.block_vectors or "top" not in self.block_vectors[sub_block_name]:
-                        self.block_vectors[sub_block_name]["top"] = self.calculate_block_vector_basic_block(sub_block_name, graph_type, self.scheduled_dfgs[sub_block_name])
-                    self.block_vectors[basic_block_name][graph_type][(pred, node)] = self.block_vectors[sub_block_name]["top"]
+                        top_vector_sub_block = self.calculate_block_vector_basic_block(sub_block_name, graph_type, self.scheduled_dfgs[sub_block_name], resource_delays_only=resource_delays_only)
+                        if not resource_delays_only:
+                            # only set top vector for sub block if we are not calculating resource delays only
+                            self.block_vectors[sub_block_name]["top"] = top_vector_sub_block
+                    else:
+                        top_vector_sub_block = self.block_vectors[sub_block_name]["top"]
+                    self.block_vectors[basic_block_name][graph_type][(pred, node)] = top_vector_sub_block
                     calls.append(sub_block_name)
                 # calculate vector for a basic operation
                 else:
-                    self.block_vectors[basic_block_name][graph_type][(pred, node)] = self.calculate_block_vector_edge(pred, node, basic_block_name, graph_type, dfg)
+                    self.block_vectors[basic_block_name][graph_type][(pred, node)] = self.calculate_block_vector_edge(pred, node, basic_block_name, graph_type, dfg, resource_delays_only=resource_delays_only)
                 self.block_vectors[basic_block_name][graph_type][(pred, node)].update_total_delay(self.block_vectors[basic_block_name][graph_type][(pred, node)].total_delay)
 
         return self.calculate_top_vector(basic_block_name, graph_type, dfg, calls)
 
-    def calculate_block_vector_edge(self, src, dst, basic_block_name, graph_type, dfg):
+    def calculate_block_vector_edge(self, src, dst, basic_block_name, graph_type, dfg, resource_delays_only=False):
         fn = dfg.nodes[src]["function"]
         vector = BlockVector()
         if dfg.edges[src, dst]["resource_edge"]:
@@ -1016,7 +1021,7 @@ class HardwareModel:
                 vector.bound_factor["logic_resource"] = vector.delay
                 vector.sensitivity["logic_resource"] = 1
             vector.update_total_delay(0)
-        else:
+        elif not resource_delays_only:
             if fn == "Wire":
                 src_for_wire = dfg.nodes[src]["src_node"]
                 dst_for_wire = dfg.nodes[src]["dst_node"]
