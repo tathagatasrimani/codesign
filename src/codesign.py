@@ -125,7 +125,8 @@ class Codesign:
         self.bram_multiplier = 1/3 * self.cfg["args"]["area"] / (3e-6 * 9e-6)
 
         self.wire_lengths_over_iterations = []
-
+        self.wire_delays_over_iterations = []
+        self.device_delays_over_iterations = []
         self.cur_dsp_usage = 0
         self.max_rsc_reached = False
 
@@ -916,9 +917,14 @@ class Codesign:
 
     def log_all_to_file(self, iter_number):
         wire_lengths={}
+        wire_delays={}
         for edge in self.hw.circuit_model.edge_to_nets:
             wire_lengths[edge] = self.hw.circuit_model.wire_length(edge)
+            wire_delays[edge] = self.hw.circuit_model.wire_delay(edge)
         self.wire_lengths_over_iterations.append(wire_lengths)
+        self.wire_delays_over_iterations.append(wire_delays)
+        device_delay = sim_util.xreplace_safe(self.hw.circuit_model.tech_model.delay, self.hw.circuit_model.tech_model.base_params.tech_values)
+        self.device_delays_over_iterations.append(device_delay)
         nx.write_gml(
             self.hw.netlist,
             f"{self.save_dir}/netlist_{iter_number}.gml",
@@ -981,7 +987,7 @@ class Codesign:
     def cleanup(self):
         self.restore_dat()
 
-    def end_of_run_plots(self, obj_over_iterations, lag_factor_over_iterations, params_over_iterations, wire_lengths_over_iterations, sensitivities_over_iterations, constraint_slack_over_iterations, visualize_block_vectors=False):
+    def end_of_run_plots(self, obj_over_iterations, lag_factor_over_iterations, params_over_iterations, wire_lengths_over_iterations, wire_delays_over_iterations, device_delays_over_iterations, sensitivities_over_iterations, constraint_slack_over_iterations, visualize_block_vectors=False):
         assert len(params_over_iterations) > 1 
         obj = "Energy Delay Product"
         units = "nJ*ns"
@@ -991,9 +997,11 @@ class Codesign:
         elif self.obj_fn == "delay":
             obj = "Delay"
             units = "ns"
-        trend_plotter = trend_plot.TrendPlot(self, params_over_iterations, obj_over_iterations, lag_factor_over_iterations, wire_lengths_over_iterations, sensitivities_over_iterations, constraint_slack_over_iterations, self.save_dir + "/figs", obj, units, self.obj_fn)
+        trend_plotter = trend_plot.TrendPlot(self, params_over_iterations, obj_over_iterations, lag_factor_over_iterations, wire_lengths_over_iterations, wire_delays_over_iterations, device_delays_over_iterations, sensitivities_over_iterations, constraint_slack_over_iterations, self.save_dir + "/figs", obj, units, self.obj_fn)
         logger.info(f"plotting wire lengths over generations")
         trend_plotter.plot_wire_lengths_over_generations()
+        logger.info(f"plotting wire delays over generations")
+        trend_plotter.plot_wire_delays_over_generations()
         logger.info(f"plotting params over generations")
         trend_plotter.plot_params_over_generations()
         logger.info(f"plotting obj over generations")
@@ -1032,7 +1040,7 @@ class Codesign:
             logger.info(f"time to update state after inverse pass iteration {self.iteration_count}: {time.time()-start_time_after_inverse_pass}")
             logger.info(f"time to execute iteration {self.iteration_count}: {time.time()-start_time}")
             self.iteration_count += 1
-            self.end_of_run_plots(self.obj_over_iterations, self.lag_factor_over_iterations, self.params_over_iterations, self.wire_lengths_over_iterations, self.sensitivities_over_iterations, self.constraint_slack_over_iterations, visualize_block_vectors=False)
+            self.end_of_run_plots(self.obj_over_iterations, self.lag_factor_over_iterations, self.params_over_iterations, self.wire_lengths_over_iterations, self.wire_delays_over_iterations, self.device_delays_over_iterations, self.sensitivities_over_iterations, self.constraint_slack_over_iterations, visualize_block_vectors=False)
             logger.info(f"current dsp usage: {self.cur_dsp_usage}, max dsp: {self.max_dsp}")
             if self.cur_dsp_usage == self.max_dsp:
                 logger.info("Resource constraints have been reached, will skip forward pass steps from now on.")
@@ -1051,7 +1059,7 @@ def main(args):
     finally:
         os.chdir(os.path.join(os.path.dirname(__file__), ".."))
         
-        codesign_module.end_of_run_plots(codesign_module.obj_over_iterations, codesign_module.lag_factor_over_iterations, codesign_module.params_over_iterations, codesign_module.wire_lengths_over_iterations, codesign_module.sensitivities_over_iterations, codesign_module.constraint_slack_over_iterations, visualize_block_vectors=True)
+        codesign_module.end_of_run_plots(codesign_module.obj_over_iterations, codesign_module.lag_factor_over_iterations, codesign_module.params_over_iterations, codesign_module.wire_lengths_over_iterations, codesign_module.wire_delays_over_iterations, codesign_module.device_delays_over_iterations, codesign_module.sensitivities_over_iterations, codesign_module.constraint_slack_over_iterations, visualize_block_vectors=True)
         codesign_module.cleanup()
 
 if __name__ == "__main__":

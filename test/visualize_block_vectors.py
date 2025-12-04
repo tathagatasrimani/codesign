@@ -71,7 +71,7 @@ def display_block_graph(block_graph, data, top_block_name, save_dir):
     
     # Normalize activity factors for colormap using log scale
     min_af = 1e-1
-    max_af = 1e3
+    max_af = max(1e3, max(activity_factors))
     
     # Apply log transformation (add small epsilon to avoid log(0))
     epsilon = 1e-10

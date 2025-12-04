@@ -110,10 +110,10 @@ def map_operator_types(full_netlist):
     return full_netlist
 
 def get_latest_log_dir():
-    log_dirs = glob.glob(os.path.normpath(os.path.join(os.path.dirname(__file__), "../logs/*-*-*_*-*-*")))
+    log_dirs = glob.glob(os.path.normpath(os.path.join(os.path.dirname(__file__), "../logs/*-*-*_*-*-*_*")))
     log_dirs = sorted(
         log_dirs,
-        key=lambda x: datetime.datetime.strptime(x.split("/")[-1], "%Y-%m-%d_%H-%M-%S"),
+        key=lambda x: datetime.datetime.strptime(x.split("/")[-1][:19], "%Y-%m-%d_%H-%M-%S"),
     )
     return log_dirs[-1]
 

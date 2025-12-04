@@ -1,7 +1,9 @@
+import copy
 import matplotlib.pyplot as plt
 import os
 from src.sim_util import xreplace_safe
-
+from src.sim_util import get_latest_log_dir
+import json
 import logging
 logger = logging.getLogger(__name__)
 
@@ -18,7 +20,7 @@ def log_warning(msg):
         logger.warning(msg)
 
 class TrendPlot:
-    def __init__(self, codesign_module, params_over_generations, obj_over_generations, lag_factor_over_generations, wire_lengths_over_generations, sensitivities_over_generations, constraint_slack_over_generations, save_dir, obj="Energy Delay Product", units="nJ*ns", obj_fn="edp"):
+    def __init__(self, codesign_module, params_over_generations, obj_over_generations, lag_factor_over_generations, wire_lengths_over_generations, wire_delays_over_generations, device_delays_over_generations, sensitivities_over_generations, constraint_slack_over_generations, save_dir, obj="Energy Delay Product", units="nJ*ns", obj_fn="edp"):
         self.codesign_module = codesign_module
         self.params_over_generations = params_over_generations
         self.plot_list = set(self.codesign_module.hw.obj_sub_exprs.values())
@@ -29,6 +31,8 @@ class TrendPlot:
         self.obj_over_generations = obj_over_generations
         self.lag_factor_over_generations = lag_factor_over_generations
         self.wire_lengths_over_generations = wire_lengths_over_generations
+        self.wire_delays_over_generations = wire_delays_over_generations
+        self.device_delays_over_generations = device_delays_over_generations
         self.sensitivities_over_generations = sensitivities_over_generations
         self.constraint_slack_over_generations = constraint_slack_over_generations
         self.save_dir = save_dir
@@ -87,8 +91,11 @@ class TrendPlot:
     def plot_params_over_generations(self):
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
-        f = open(f"{self.save_dir}/param_data.txt", 'w')
-        f.write(str(self.params_over_generations))
+        f = open(f"{self.save_dir}/param_data.json", 'w')
+        copied_params = copy.deepcopy(self.params_over_generations)
+        for i in range(len(copied_params)):
+            copied_params[i] = {k.name: v for k, v in copied_params[i].items()}
+        json.dump(copied_params, f)
         # Set larger font sizes and better styling
         plt.rcParams.update({
             "font.size": 24,
@@ -128,6 +135,72 @@ class TrendPlot:
             plt.tight_layout()
             plt.savefig(f"{self.save_dir}/{self.plot_list_labels[param]}_over_iters.png", dpi=300, bbox_inches='tight')
             plt.close()
+    
+    def plot_wire_delays_over_generations(self):
+
+        # Set larger font sizes and better styling
+        plt.rcParams.update({
+            "font.size": 24,
+            "axes.titlesize": 30,
+            "axes.labelsize": 24,
+            "xtick.labelsize": 24,
+            "ytick.labelsize": 24,
+            "legend.fontsize": 20,
+            "figure.titlesize": 30
+        })
+        
+        # Create figure with better sizing
+        fig, ax = plt.subplots(figsize=(14, 8))
+        
+        # Get all parameters from the first generation
+        params = ["max wire delay", "device delay"]
+        
+        # Use a color cycle for different parameters
+        colors = plt.cm.tab10(range(len(params)))
+
+
+        max_wire_delay_over_generations = []
+        for iteration in self.wire_delays_over_generations:
+            max_wire_delay = 0
+            for edge_name, wire_delay_ns in iteration.items():
+                max_wire_delay = max(max_wire_delay, wire_delay_ns)
+            max_wire_delay_over_generations.append(max_wire_delay)
+
+        container = {
+            "max wire delay": max_wire_delay_over_generations,
+            "device delay": self.device_delays_over_generations
+        }
+        
+        # Plot each parameter
+        for idx, param in enumerate(params):
+            x_values = []
+            values = []
+            for i in range(len(container[param])):
+                values.append(container[param][i])
+                x_values.append(self.params_over_generations[i][self.codesign_module.hw.circuit_model.tech_model.base_params.L]*1e9)
+            
+            # Skip parameters that are all zero
+            if len(values) > 0 and all(v == 0 for v in values):
+                continue
+            
+            # Plot with different colors and markers
+            ax.plot(x_values, values, linewidth=2.5, markersize=10, marker="o", 
+                    color=colors[idx], label=param, alpha=0.8)
+        
+        ax.set_xlabel("Gate Length (nm)", fontweight="bold")
+        ax.set_ylabel("Delay (ns)", fontweight="bold")
+        ax.set_title("Max Wire Delay vs Device Delay Over Generations", fontweight="bold", pad=20)
+        ax.set_yscale("log")
+        
+        ax.legend(loc='best', fontsize=20)
+        
+        # Improve styling
+        fig.patch.set_facecolor("#f8f9fa")
+        
+        # Adjust layout and save
+        plt.tight_layout()
+        plt.savefig(f"{self.save_dir}/wire_delays_over_iters.png", dpi=300, bbox_inches='tight')
+        plt.close()
     
     def plot_obj_over_generations(self):
         if not os.path.exists(self.save_dir):
@@ -193,13 +266,76 @@ class TrendPlot:
         plt.savefig(f"{self.save_dir}/lag_factor_over_iters.png", dpi=300, bbox_inches='tight')
         plt.close()
 
+    def create_sensitivities_single_plot(self):
+        exclude_list = ["clk_period"]
+        # Set larger font sizes and better styling
+        plt.rcParams.update({
+            "font.size": 24,
+            "axes.titlesize": 30,
+            "axes.labelsize": 24,
+            "xtick.labelsize": 24,
+            "ytick.labelsize": 24,
+            "legend.fontsize": 20,
+            "figure.titlesize": 30
+        })
+        
+        # Create figure with better sizing
+        fig, ax = plt.subplots(figsize=(14, 8))
+        
+        # Get all parameters from the first generation
+        params = list(self.sensitivities_over_generations[0].keys())
+        params = [param for param in params if param.name not in exclude_list]
+        
+        # Use a color cycle for different parameters
+        colors = plt.cm.tab10(range(len(params)))
+        
+        # Track how many parameters are actually plotted
+        plotted_count = 0
+        
+        # Plot each parameter
+        for idx, param in enumerate(params):
+            values = []
+            for i in range(len(self.sensitivities_over_generations)):
+                values.append(xreplace_safe(param, self.sensitivities_over_generations[i]))
+            
+            # Skip parameters that are all zero
+            if len(values) > 0 and all(v == 0 for v in values):
+                continue
+            
+            # Plot with different colors and markers
+            ax.plot(values, linewidth=2.5, markersize=10, marker="o", 
+                    color=colors[idx], label=param, alpha=0.8)
+            plotted_count += 1
+        
+        ax.set_xlabel("Generation", fontweight="bold")
+        ax.set_ylabel("Sensitivity", fontweight="bold")
+        ax.set_title("Sensitivities Over Generations", fontweight="bold", pad=20)
+        ax.set_xticks(range(len(self.sensitivities_over_generations)))
+        
+        # Add legend outside the plot area if there are many parameters
+        if plotted_count > 5:
+            ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=18)
+        else:
+            ax.legend(loc='best', fontsize=20)
+        
+        # Improve styling
+        fig.patch.set_facecolor("#f8f9fa")
+        
+        # Adjust layout and save
+        plt.tight_layout()
+        plt.savefig(f"{self.save_dir}/sensitivities/all_sensitivities_over_iters.png", dpi=300, bbox_inches='tight')
+        plt.close()
+
     def plot_sensitivities_over_generations(self):
         if len(self.sensitivities_over_generations) == 0:
             return
         if not os.path.exists(self.save_dir + "/sensitivities"):
             os.makedirs(self.save_dir + "/sensitivities")
-        f = open(f"{self.save_dir}/sensitivities_data.txt", 'w')
-        f.write(str(self.sensitivities_over_generations))
+        f = open(f"{self.save_dir}/sensitivities_data.json", 'w')
+        copied_sensitivities = copy.deepcopy(self.sensitivities_over_generations)
+        for i in range(len(copied_sensitivities)):
+            copied_sensitivities[i] = {k.name: v for k, v in copied_sensitivities[i].items()}
+        json.dump(copied_sensitivities, f)
         # Set larger font sizes and better styling
         plt.rcParams.update({
             "font.size": 24,
@@ -236,14 +372,15 @@ class TrendPlot:
             plt.tight_layout()
             plt.savefig(f"{self.save_dir}/sensitivities/{param}_sensitivities_over_iters.png", dpi=300, bbox_inches='tight')
             plt.close()
+        self.create_sensitivities_single_plot()
 
     def plot_constraint_slack_over_generations(self):
         if len(self.constraint_slack_over_generations) == 0:
             return
         if not os.path.exists(self.save_dir + "/constraint_slack"):
             os.makedirs(self.save_dir + "/constraint_slack")
-        f = open(f"{self.save_dir}/constraint_slack_data.txt", 'w')
-        f.write(str(self.constraint_slack_over_generations))
+        f = open(f"{self.save_dir}/constraint_slack_data.json", 'w')
+        json.dump(self.constraint_slack_over_generations, f)
         # Set larger font sizes and better styling
         plt.rcParams.update({
             "font.size": 24,
@@ -282,3 +419,73 @@ class TrendPlot:
             logger.info(f"block vectors directory does not exist, returning")
             return
         visualize_all_block_vectors(os.path.join(self.save_dir, "../block_vectors"), self.codesign_module.vitis_top_function, os.path.join(self.save_dir, "block_vectors_visualization"))
+
+
+def create_sensitivities_single_plot(sensitivities_over_generations, save_dir):
+    if len(sensitivities_over_generations) == 0:
+        return
+    if not os.path.exists(save_dir + "/sensitivities"):
+        os.makedirs(save_dir + "/sensitivities")
+    
+    # Set larger font sizes and better styling
+    plt.rcParams.update({
+        "font.size": 24,
+        "axes.titlesize": 30,
+        "axes.labelsize": 24,
+        "xtick.labelsize": 24,
+        "ytick.labelsize": 24,
+        "legend.fontsize": 20,
+        "figure.titlesize": 30
+    })
+    
+    # Create figure with better sizing
+    fig, ax = plt.subplots(figsize=(14, 8))
+    
+    # Get all parameters from the first generation
+    params = list(sensitivities_over_generations[0].keys())
+    
+    # Use a color cycle for different parameters
+    colors = plt.cm.tab10(range(len(params)))
+    
+    # Track how many parameters are actually plotted
+    plotted_count = 0
+    
+    # Plot each parameter
+    for idx, param in enumerate(params):
+        values = []
+        for i in range(len(sensitivities_over_generations)):
+            #values.append(xreplace_safe(param, sensitivities_over_generations[i]))
+            values.append(sensitivities_over_generations[i][param])
+        
+        # Skip parameters that are all zero
+        if len(values) > 0 and all(v == 0 for v in values):
+            continue
+        
+        # Plot with different colors and markers
+        ax.plot(values, linewidth=2.5, markersize=10, marker="o", 
+                color=colors[idx], label=param, alpha=0.8)
+        plotted_count += 1
+    
+    ax.set_xlabel("Generation", fontweight="bold")
+    ax.set_ylabel("Sensitivity", fontweight="bold")
+    ax.set_title("Sensitivities Over Generations", fontweight="bold", pad=20)
+    ax.set_xticks(range(len(sensitivities_over_generations)))
+    
+    # Add legend outside the plot area if there are many parameters
+    if plotted_count > 5:
+        ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=18)
+    else:
+        ax.legend(loc='best', fontsize=20)
+    
+    # Improve styling
+    fig.patch.set_facecolor("#f8f9fa")
+    
+    # Adjust layout and save
+    plt.tight_layout()
+    plt.savefig(f"{save_dir}/sensitivities/all_sensitivities_over_iters.png", dpi=300, bbox_inches='tight')
+    plt.close()
+
+if __name__ == "__main__":
+    log_dir = get_latest_log_dir()
+    sensitivities_over_generations = json.load(open(os.path.join(log_dir, "figs", "sensitivities_data.json")))
+    create_sensitivities_single_plot(sensitivities_over_generations, os.path.join(log_dir, "figs"))
