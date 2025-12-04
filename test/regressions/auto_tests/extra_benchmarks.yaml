@@ -6,6 +6,7 @@ vitis_atax_delay:
     N: 15
     checkpoint_load_dir: tmp_atax
     checkpoint_start_step: setup
+    inverse_pass_improvement: 2
 
 vitis_atax_energy:
   base_cfg: benchmark_atax_test
@@ -14,6 +15,7 @@ vitis_atax_energy:
     N: 15
     checkpoint_load_dir: tmp_atax
     checkpoint_start_step: setup
+    inverse_pass_improvement: 2
 
 vitis_atax_edp:
   base_cfg: benchmark_atax_test
@@ -22,14 +24,16 @@ vitis_atax_edp:
     N: 15
     checkpoint_load_dir: tmp_atax
     checkpoint_start_step: setup
-
+    inverse_pass_improvement: 4
+    
 vitis_atax_ed2:
   base_cfg: benchmark_atax_test
   args:
     obj: ed2
     N: 15
     checkpoint_load_dir: tmp_atax
-    checkpoint_start_step: setup
+    checkpoint_start_step: setup  
+    inverse_pass_improvement: 8
 
 # gesummv 
 vitis_gesummv_delay:
@@ -40,7 +44,8 @@ vitis_gesummv_delay:
     workload_size: 256
     checkpoint_load_dir: tmp_gesummv
     checkpoint_start_step: setup
-
+    inverse_pass_improvement: 2
+    
 vitis_gesummv_energy:
   base_cfg: vitis_gesummv_test
   args:
@@ -49,7 +54,8 @@ vitis_gesummv_energy:
     workload_size: 256
     checkpoint_load_dir: tmp_gesummv
     checkpoint_start_step: setup
-
+    inverse_pass_improvement: 2
+    
 vitis_gesummv_edp:
   base_cfg: vitis_gesummv_test
   args:
@@ -58,7 +64,8 @@ vitis_gesummv_edp:
     workload_size: 256
     checkpoint_load_dir: tmp_gesummv
     checkpoint_start_step: setup
-
+    inverse_pass_improvement: 4
+    
 vitis_gesummv_ed2:
   base_cfg: vitis_gesummv_test
   args:
@@ -67,7 +74,8 @@ vitis_gesummv_ed2:
     workload_size: 256
     checkpoint_load_dir: tmp_gesummv
     checkpoint_start_step: setup
-
+    inverse_pass_improvement: 8
+    
 # 2mm
 vitis_2mm_delay:
   base_cfg: benchmark_2mm_test
@@ -76,7 +84,8 @@ vitis_2mm_delay:
     N: 15
     checkpoint_load_dir: tmp_2mm
     checkpoint_start_step: setup
-
+    inverse_pass_improvement: 2
+    
 vitis_2mm_energy:
   base_cfg: benchmark_2mm_test
   args:
@@ -84,7 +93,8 @@ vitis_2mm_energy:
     N: 15
     checkpoint_load_dir: tmp_2mm
     checkpoint_start_step: setup
-
+    inverse_pass_improvement: 2
+    
 vitis_2mm_edp:
   base_cfg: benchmark_2mm_test
   args:
@@ -92,7 +102,8 @@ vitis_2mm_edp:
     N: 15
     checkpoint_load_dir: tmp_2mm
     checkpoint_start_step: setup
-
+    inverse_pass_improvement: 4
+    
 vitis_2mm_ed2:
   base_cfg: benchmark_2mm_test
   args:
@@ -100,7 +111,8 @@ vitis_2mm_ed2:
     N: 15
     checkpoint_load_dir: tmp_2mm
     checkpoint_start_step: setup
-
+    inverse_pass_improvement: 8
+    
 # 3mm
 vitis_3mm_delay:
   base_cfg: benchmark_3mm_test
@@ -109,7 +121,8 @@ vitis_3mm_delay:
     N: 15
     checkpoint_load_dir: tmp_3mm
     checkpoint_start_step: setup
-
+    inverse_pass_improvement: 2
+    
 vitis_3mm_energy:
   base_cfg: benchmark_3mm_test
   args:
@@ -117,6 +130,7 @@ vitis_3mm_energy:
     N: 15
     checkpoint_load_dir: tmp_3mm
     checkpoint_start_step: setup
+    inverse_pass_improvement: 2
 
 vitis_3mm_edp:
   base_cfg: benchmark_3mm_test
@@ -125,7 +139,8 @@ vitis_3mm_edp:
     N: 15
     checkpoint_load_dir: tmp_3mm
     checkpoint_start_step: setup
-
+    inverse_pass_improvement: 4
+    
 vitis_3mm_ed2:
   base_cfg: benchmark_3mm_test
   args:
@@ -133,6 +148,7 @@ vitis_3mm_ed2:
     N: 15
     checkpoint_load_dir: tmp_3mm
     checkpoint_start_step: setup
+    inverse_pass_improvement: 8
 
 # doitgen
 vitis_doitgen_delay:
@@ -142,7 +158,8 @@ vitis_doitgen_delay:
     N: 15
     checkpoint_load_dir: tmp_doitgen
     checkpoint_start_step: setup
-
+    inverse_pass_improvement: 2
+    
 vitis_doitgen_energy:
   base_cfg: benchmark_doitgen_test
   args:
@@ -150,13 +167,16 @@ vitis_doitgen_energy:
     N: 15
     checkpoint_load_dir: tmp_doitgen
     checkpoint_start_step: setup
-
+    inverse_pass_improvement: 2
+    
 vitis_doitgen_edp:
   base_cfg: benchmark_doitgen_test
   args:
     obj: edp
     N: 15
     checkpoint_load_dir: tmp_doitgen
+    checkpoint_start_step: setup
+    inverse_pass_improvement: 4
 
 vitis_doitgen_ed2:
   base_cfg: benchmark_doitgen_test
@@ -165,7 +185,8 @@ vitis_doitgen_ed2:
     N: 15
     checkpoint_load_dir: tmp_doitgen
     checkpoint_start_step: setup
-
+    inverse_pass_improvement: 8
+    
 # mvt
 vitis_mvt_delay:
   base_cfg: benchmark_mvt_test
@@ -174,7 +195,8 @@ vitis_mvt_delay:
     N: 15
     checkpoint_load_dir: tmp_mvt
     checkpoint_start_step: setup
-
+    inverse_pass_improvement: 2
+    
 vitis_mvt_energy:
   base_cfg: benchmark_mvt_test
   args:
@@ -182,7 +204,8 @@ vitis_mvt_energy:
     N: 15
     checkpoint_load_dir: tmp_mvt
     checkpoint_start_step: setup
-
+    inverse_pass_improvement: 2
+    
 vitis_mvt_edp:
   base_cfg: benchmark_mvt_test
   args:
@@ -190,7 +213,8 @@ vitis_mvt_edp:
     N: 15
     checkpoint_load_dir: tmp_mvt
     checkpoint_start_step: setup
-
+    inverse_pass_improvement: 4
+    
 vitis_mvt_ed2:
   base_cfg: benchmark_mvt_test
   args:
@@ -198,7 +222,8 @@ vitis_mvt_ed2:
     N: 15
     checkpoint_load_dir: tmp_mvt
     checkpoint_start_step: setup
-
+    inverse_pass_improvement: 8
+    
 # bicg
 vitis_bicg_delay:
   base_cfg: benchmark_bicg_test
@@ -207,7 +232,8 @@ vitis_bicg_delay:
     N: 15
     checkpoint_load_dir: tmp_bicg
     checkpoint_start_step: setup
-
+    inverse_pass_improvement: 2
+    
 vitis_bicg_energy:
   base_cfg: benchmark_bicg_test
   args:
@@ -215,7 +241,8 @@ vitis_bicg_energy:
     N: 15
     checkpoint_load_dir: tmp_bicg
     checkpoint_start_step: setup
-
+    inverse_pass_improvement: 2
+    
 vitis_bicg_edp:
   base_cfg: benchmark_bicg_test
   args:
@@ -223,6 +250,7 @@ vitis_bicg_edp:
     N: 15
     checkpoint_load_dir: tmp_bicg
     checkpoint_start_step: setup
+    inverse_pass_improvement: 4
 
 vitis_bicg_ed2:
   base_cfg: benchmark_bicg_test
@@ -231,4 +259,5 @@ vitis_bicg_ed2:
     N: 15
     checkpoint_load_dir: tmp_bicg
     checkpoint_start_step: setup
-
+    inverse_pass_improvement: 8
+    
