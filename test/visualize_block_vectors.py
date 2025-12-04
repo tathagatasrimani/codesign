@@ -1,8 +1,10 @@
 import os
 import json
+import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+from matplotlib.colors import LogNorm
 
 def parse_block_graph(data, top_block_name):
     block_graph = nx.DiGraph()
@@ -10,7 +12,7 @@ def parse_block_graph(data, top_block_name):
     loop_data = {}
     while block_queue:
         block_name = block_queue.pop(0)
-        print(f"Processing block: {block_name}")
+        #print(f"Processing block: {block_name}")
         block_data = data[block_name] if block_name in data else loop_data[block_name]
         top_object = block_data["top"] if "top" in block_data else loop_data[block_name]["loop_II"]
         for child_block_name in block_data:
@@ -28,7 +30,7 @@ def parse_block_graph(data, top_block_name):
 
     while block_queue:
         block_name = block_queue.pop(0)
-        print(f"Processing block: {block_name}")
+        #print(f"Processing block: {block_name}")
         block_data = data[block_name] if block_name in data else loop_data[block_name]
         top_object = block_data["top"] if "top" in block_data else loop_data[block_name]["loop_II"]
         for child_block_name in block_data:
@@ -67,25 +69,33 @@ def display_block_graph(block_graph, data, top_block_name, save_dir):
     activity_factors = [block_graph.nodes[node].get('activity_factor', 1.0) 
                        for node in block_graph.nodes()]
     
-    # Normalize activity factors for colormap (0-1 range)
-    min_af = min(min(activity_factors), 0.5)
-    max_af = max(max(activity_factors), 4)
-    normalized_af = [(af - min_af) / (max_af - min_af) if max_af != min_af else 0.5 
-                     for af in activity_factors]
+    # Normalize activity factors for colormap using log scale
+    min_af = 1e-1
+    max_af = 1e3
     
-    # Create colormap (blue to red, or use a diverging colormap)
-    cmap = plt.cm.RdYlBu_r  # Red-Yellow-Blue reversed (red = high, blue = low)
+    # Apply log transformation (add small epsilon to avoid log(0))
+    epsilon = 1e-10
+    log_activity_factors = [np.log2(af + epsilon) for af in activity_factors]
+    log_min = np.log2(min_af + epsilon)
+    log_max = np.log2(max_af + epsilon)
+    
+    # Normalize log values to 0-1 range
+    normalized_af = [(log_af - log_min) / (log_max - log_min) if log_max != log_min else 0.5 
+                     for log_af in log_activity_factors]
+    
+    # Create colormap (light red to dark red)
+    cmap = plt.cm.Reds  # Light red to dark red gradient
     
     # Calculate dynamic circle/ellipse dimensions based on layout extent
     # We'll draw ellipses that appear as circles by accounting for coordinate aspect ratio
     if pos:
         x_coords = [pos[node][0] for node in pos]
         y_coords = [pos[node][1] for node in pos]
-        x_range = max(x_coords) - min(x_coords) if x_coords else 1
-        y_range = max(y_coords) - min(y_coords) if y_coords else 1
+        x_range = max(max(x_coords) - min(x_coords), 5e-3) if x_coords else 1
+        y_range = max(max(y_coords) - min(y_coords), 5e-3) if y_coords else 1
         
         # Calculate aspect ratio of data coordinates
-        data_aspect_ratio = x_range / y_range if y_range > 0 else 1
+        data_aspect_ratio = x_range / y_range
         
         # Base radius as a fraction of the smaller dimension
         min_range = min(x_range, y_range)
@@ -139,7 +149,7 @@ def display_block_graph(block_graph, data, top_block_name, save_dir):
     # Draw all nodes as ellipses that appear as circles (accounting for coordinate aspect ratio)
     for i, node in enumerate(node_list):
         x, y = pos[node]
-        print(f"Node: {node}, x: {x}, y: {y}")
+        #print(f"Node: {node}, x: {x}, y: {y}")
         # Use ellipse with different x and y radii to compensate for coordinate aspect ratio
         ellipse = mpatches.Ellipse((x, y), 
                                    width=2*ellipse_x_radius, 
@@ -207,19 +217,17 @@ def display_block_graph(block_graph, data, top_block_name, save_dir):
     nx.draw_networkx_edge_labels(block_graph, pos, edge_labels, ax=ax, 
                                 font_size=7, alpha=0.7)
     
-    # Create colorbar
+    # Create colorbar with log scale
+    # Use small epsilon for min to avoid log(0) issues
+    epsilon = 1e-10
     sm = plt.cm.ScalarMappable(cmap=cmap, 
-                              norm=plt.Normalize(vmin=min_af, vmax=max_af))
+                              norm=LogNorm(vmin=max(min_af, epsilon), vmax=max_af))
     sm.set_array([])
     cbar = plt.colorbar(sm, ax=ax, pad=0.02)
-    cbar.set_label('Activity Factor', rotation=270, labelpad=20, fontsize=12)
+    cbar.set_label('Activity Factor (log scale)', rotation=270, labelpad=20, fontsize=12)
     
     # Add legend
     legend_elements = [
-        mpatches.Circle((0, 0), 0.5, facecolor='white', edgecolor='red', linewidth=3,
-                       label=f'Top Block ({top_block_name})'),
-        mpatches.Circle((0, 0), 0.5, facecolor='white', edgecolor='black', linewidth=2,
-                       label='Other Blocks'),
         plt.Line2D([0], [0], color='blue', linestyle='solid', linewidth=1.5, 
                   label='Loop Edge'),
         plt.Line2D([0], [0], color='green', linestyle='dashed', linewidth=1.5, 
@@ -232,7 +240,7 @@ def display_block_graph(block_graph, data, top_block_name, save_dir):
     
     plt.tight_layout()
     plt.savefig(save_dir, dpi=300, bbox_inches='tight')
-    print(f"Visualization saved to {save_dir}")
+    #print(f"Visualization saved to {save_dir}")
     #plt.show()
 
 def visualize_block_vectors(filepath, top_block_name, save_dir):
@@ -249,6 +257,11 @@ def visualize_all_block_vectors(block_vectors_dir_path, top_block_name, save_dir
             filename = file.split("/")[-1].split(".")[0] + ".png"
             visualize_block_vectors(os.path.join(block_vectors_dir_path, file), top_block_name, os.path.join(save_dir, filename))
 
+def get_latest_log_dir(log_dir):
+    #print(max(os.listdir(log_dir)))
+    return log_dir + "/" + max(os.listdir(log_dir))
+
 if __name__ == "__main__":
-    filepath = os.path.join(os.path.dirname(__file__), "regression_results/benchmark_results_test.list/benchmark_suite/vitis_llama_delay/log/2025-12-03_18-28-58_tmp_llama_delay_0/block_vectors")
-    visualize_all_block_vectors(filepath, "llama", os.path.join(os.path.dirname(__file__), "regression_results/benchmark_results_test.list/benchmark_suite/vitis_llama_delay/log/2025-12-03_18-28-58_tmp_llama_delay_0/block_vectors_visualization"))
+    log_dir = get_latest_log_dir("/scratch/patrick/codesign/logs")
+    filepath = os.path.join(os.path.dirname(__file__), log_dir, "block_vectors")
+    visualize_all_block_vectors(filepath, "gemm", os.path.join(os.path.dirname(__file__), log_dir, "block_vectors_visualization"))

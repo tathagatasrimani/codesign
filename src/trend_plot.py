@@ -5,6 +5,8 @@ from src.sim_util import xreplace_safe
 import logging
 logger = logging.getLogger(__name__)
 
+from test.visualize_block_vectors import visualize_all_block_vectors
+
 DEBUG = False
 
 def log_info(msg):
@@ -274,3 +276,9 @@ class TrendPlot:
             plt.tight_layout()
             plt.savefig(f"{self.save_dir}/constraint_slack/{constraint}_constraint_slack_over_iters.png", dpi=300, bbox_inches='tight')
             plt.close()
+
+    def plot_block_vectors_over_generations(self):
+        if not os.path.exists(os.path.join(self.save_dir, "../block_vectors")):
+            logger.info(f"block vectors directory does not exist, returning")
+            return
+        visualize_all_block_vectors(os.path.join(self.save_dir, "../block_vectors"), self.codesign_module.vitis_top_function, os.path.join(self.save_dir, "block_vectors_visualization"))
