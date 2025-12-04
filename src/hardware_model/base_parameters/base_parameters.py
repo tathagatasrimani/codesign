@@ -105,18 +105,18 @@ class BaseParameters:
 
         self.logic_sensitivity = symbols("logic_sensitivity", real=True)
         self.logic_resource_sensitivity = symbols("logic_resource_sensitivity", real=True)
-        self.logic_ahmdal_limit = symbols("logic_ahmdal_limit", real=True)
-        self.logic_resource_ahmdal_limit = symbols("logic_resource_ahmdal_limit", real=True)
+        self.logic_amdahl_limit = symbols("logic_amdahl_limit", real=True)
+        self.logic_resource_amdahl_limit = symbols("logic_resource_amdahl_limit", real=True)
 
         self.interconnect_sensitivity = symbols("interconnect_sensitivity", real=True)
         self.interconnect_resource_sensitivity = symbols("interconnect_resource_sensitivity", real=True)
-        self.interconnect_ahmdal_limit = symbols("interconnect_ahmdal_limit", real=True)
-        self.interconnect_resource_ahmdal_limit = symbols("interconnect_resource_ahmdal_limit", real=True)
+        self.interconnect_amdahl_limit = symbols("interconnect_amdahl_limit", real=True)
+        self.interconnect_resource_amdahl_limit = symbols("interconnect_resource_amdahl_limit", real=True)
 
         self.memory_sensitivity = symbols("memory_sensitivity", real=True)
         self.memory_resource_sensitivity = symbols("memory_resource_sensitivity", real=True)
-        self.memory_ahmdal_limit = symbols("memory_ahmdal_limit", real=True)
-        self.memory_resource_ahmdal_limit = symbols("memory_resource_ahmdal_limit", real=True)
+        self.memory_amdahl_limit = symbols("memory_amdahl_limit", real=True)
+        self.memory_resource_amdahl_limit = symbols("memory_resource_amdahl_limit", real=True)
 
         # technology level parameter values
         self.tech_values = {}
@@ -374,16 +374,16 @@ class BaseParameters:
             "a": self.a,
             "logic_sensitivity": self.logic_sensitivity,
             "logic_resource_sensitivity": self.logic_resource_sensitivity,
-            "logic_ahmdal_limit": self.logic_ahmdal_limit,
-            "logic_resource_ahmdal_limit": self.logic_resource_ahmdal_limit,
+            "logic_amdahl_limit": self.logic_amdahl_limit,
+            "logic_resource_amdahl_limit": self.logic_resource_amdahl_limit,
             "interconnect_sensitivity": self.interconnect_sensitivity,
             "interconnect_resource_sensitivity": self.interconnect_resource_sensitivity,
-            "interconnect_ahmdal_limit": self.interconnect_ahmdal_limit,
-            "interconnect_resource_ahmdal_limit": self.interconnect_resource_ahmdal_limit,
+            "interconnect_amdahl_limit": self.interconnect_amdahl_limit,
+            "interconnect_resource_amdahl_limit": self.interconnect_resource_amdahl_limit,
             "memory_sensitivity": self.memory_sensitivity,
             "memory_resource_sensitivity": self.memory_resource_sensitivity,
-            "memory_ahmdal_limit": self.memory_ahmdal_limit,
-            "memory_resource_ahmdal_limit": self.memory_resource_ahmdal_limit,
+            "memory_amdahl_limit": self.memory_amdahl_limit,
+            "memory_resource_amdahl_limit": self.memory_resource_amdahl_limit,
             "MemReadL": self.MemReadL,
             "MemWriteL": self.MemWriteL,
             "MemReadEact": self.MemReadEact,

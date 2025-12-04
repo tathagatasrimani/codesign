@@ -256,20 +256,20 @@ class Optimizer:
         return obj_vals[optimal_design_idx]
 
     def get_one_bbv_op_delay_constraint(self, op_type, op_delay, improvement):
-        ahmdal_limit = sim_util.xreplace_safe(getattr(self.hw.circuit_model.tech_model.base_params, op_type + "_ahmdal_limit"), self.hw.circuit_model.tech_model.base_params.tech_values)
-        if ahmdal_limit == math.inf:
-            print(f"ahmdal limit is infinite for {op_type}, skipping constraint")
+        amdahl_limit = sim_util.xreplace_safe(getattr(self.hw.circuit_model.tech_model.base_params, op_type + "_amdahl_limit"), self.hw.circuit_model.tech_model.base_params.tech_values)
+        if amdahl_limit == math.inf:
+            print(f"amdahl limit is infinite for {op_type}, skipping constraint")
             return []
-        if ahmdal_limit < improvement: # skip because we will eventually need to optimize a path with this op type anyways
-            print(f"ahmdal limit is less than improvement for {op_type}, skipping constraint")
+        if amdahl_limit < improvement: # skip because we will eventually need to optimize a path with this op type anyways
+            print(f"amdahl limit is less than improvement for {op_type}, skipping constraint")
             return []
         op_delay_ratio = op_delay / sim_util.xreplace_safe(op_delay, self.hw.circuit_model.tech_model.base_params.tech_values)
-        delay_contrib = ((1/ahmdal_limit) * op_delay) * op_delay_ratio
+        delay_contrib = ((1/amdahl_limit) * op_delay) * op_delay_ratio
         self.hw.save_obj_vals(self.hw.execution_time, execution_time_override=True, execution_time_override_val=delay_contrib)
         obj_scaled_op = self.hw.obj_scaled
         obj_scaled_op_init = sim_util.xreplace_safe(obj_scaled_op, self.hw.circuit_model.tech_model.base_params.tech_values)
-        # this constraint should always start out as feasible because ahmdal limit >= improvement
-        constr = obj_scaled_op <= obj_scaled_op_init * (ahmdal_limit/improvement)
+        # this constraint should always start out as feasible because amdahl limit >= improvement
+        constr = obj_scaled_op <= obj_scaled_op_init * (amdahl_limit/improvement)
 
         # reset hw model state
         self.hw.save_obj_vals(self.hw.execution_time)

@@ -64,7 +64,7 @@ class BlockVector:
     def __init__(self):
         self.bound_factor = {op_type: 0 for op_type in self.op_types}
         self.normalized_bound_factor = {op_type: 0 for op_type in self.op_types}
-        self.ahmdal_limit = {op_type: 0 for op_type in self.op_types}
+        self.amdahl_limit = {op_type: 0 for op_type in self.op_types}
         self.sensitivity = {op_type: 0 for op_type in self.op_types}
         self.path_mixing_factor = 0
 
@@ -94,9 +94,9 @@ class BlockVector:
         self.path_mixing_factor = sum(self.normalized_bound_factor.values())
         for op_type in self.op_types:
             if self.normalized_bound_factor[op_type] == 0:
-                self.ahmdal_limit[op_type] = math.inf
+                self.amdahl_limit[op_type] = math.inf
             else:
-                self.ahmdal_limit[op_type] = 1/self.normalized_bound_factor[op_type]
+                self.amdahl_limit[op_type] = 1/self.normalized_bound_factor[op_type]
     
     def to_dict(self):
         def _replace_infinity(obj):
@@ -114,7 +114,7 @@ class BlockVector:
             "total_delay": self.total_delay,
             "computation_activity_factor": self.computation_activity_factor,
             "sensitivity": self.sensitivity,
-            "ahmdal_limit": self.ahmdal_limit,
+            "amdahl_limit": self.amdahl_limit,
             "bound_factor": self.bound_factor,
             "normalized_bound_factor": self.normalized_bound_factor,
             "path_mixing_factor": self.path_mixing_factor,
@@ -131,7 +131,7 @@ class BlockVector:
     
     def __str__(self):
         top_description = f"\n=============BlockVector=============\n"
-        body_description = f"Delay: {self.delay}\nTotal Delay: {self.total_delay}\nComputation Activity Factor: {self.computation_activity_factor}\nSensitivity: {self.sensitivity}\nAhmdal Limit: {self.ahmdal_limit}\nBound Factor: {self.bound_factor}\nNormalized Bound Factor: {self.normalized_bound_factor}\nPath Mixing Factor: {self.path_mixing_factor}\n"
+        body_description = f"Delay: {self.delay}\nTotal Delay: {self.total_delay}\nComputation Activity Factor: {self.computation_activity_factor}\nSensitivity: {self.sensitivity}\namdahl Limit: {self.amdahl_limit}\nBound Factor: {self.bound_factor}\nNormalized Bound Factor: {self.normalized_bound_factor}\nPath Mixing Factor: {self.path_mixing_factor}\n"
         if self.iteration_delay != 0:
             body_description += f"Loop Iteration Delay: {self.iteration_delay}\nInitiation Interval: {self.initiation_interval}\nTrip Count: {self.trip_count}\n"
         bottom_description = f"=============End BlockVector============="
@@ -815,11 +815,11 @@ class HardwareModel:
         
 
         # if our performance not that sensitive to frequency, just hold frequency constant
-        if not clk_period_opt or self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.logic_ahmdal_limit] > 10:
-            logger.info(f"holding frequency constant because logic_ahmdal_limit > 10")
+        if not clk_period_opt or self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.logic_amdahl_limit] > 10:
+            logger.info(f"holding frequency constant because logic_amdahl_limit > 10")
             clk_period_constraints = [self.circuit_model.clk_period_cvx == self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.clk_period]]
         else:
-            logger.info(f"allowing frequency to vary because logic_ahmdal_limit <= 10")
+            logger.info(f"allowing frequency to vary because logic_amdahl_limit <= 10")
             clk_period_constraints = self.circuit_model.constraints_cvx
         
         for constr in clk_period_constraints:
@@ -846,16 +846,16 @@ class HardwareModel:
         self.block_vectors[top_block_name]["top"] = self.calculate_block_vector_basic_block(top_block_name, "full", self.scheduled_dfgs[top_block_name])
         self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.logic_sensitivity] = self.block_vectors[top_block_name]["top"].sensitivity["logic"]
         self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.logic_resource_sensitivity] = self.block_vectors[top_block_name]["top"].sensitivity["logic_resource"]
-        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.logic_ahmdal_limit] = self.block_vectors[top_block_name]["top"].ahmdal_limit["logic"]
-        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.logic_resource_ahmdal_limit] = self.block_vectors[top_block_name]["top"].ahmdal_limit["logic_resource"]
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.logic_amdahl_limit] = self.block_vectors[top_block_name]["top"].amdahl_limit["logic"]
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.logic_resource_amdahl_limit] = self.block_vectors[top_block_name]["top"].amdahl_limit["logic_resource"]
         self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.interconnect_sensitivity] = self.block_vectors[top_block_name]["top"].sensitivity["interconnect"]
         self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.interconnect_resource_sensitivity] = self.block_vectors[top_block_name]["top"].sensitivity["interconnect_resource"]
-        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.interconnect_ahmdal_limit] = self.block_vectors[top_block_name]["top"].ahmdal_limit["interconnect"]
-        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.interconnect_resource_ahmdal_limit] = self.block_vectors[top_block_name]["top"].ahmdal_limit["interconnect_resource"]
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.interconnect_amdahl_limit] = self.block_vectors[top_block_name]["top"].amdahl_limit["interconnect"]
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.interconnect_resource_amdahl_limit] = self.block_vectors[top_block_name]["top"].amdahl_limit["interconnect_resource"]
         self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.memory_sensitivity] = self.block_vectors[top_block_name]["top"].sensitivity["memory"]
         self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.memory_resource_sensitivity] = self.block_vectors[top_block_name]["top"].sensitivity["memory_resource"]
-        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.memory_ahmdal_limit] = self.block_vectors[top_block_name]["top"].ahmdal_limit["memory"]
-        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.memory_resource_ahmdal_limit] = self.block_vectors[top_block_name]["top"].ahmdal_limit["memory_resource"]
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.memory_amdahl_limit] = self.block_vectors[top_block_name]["top"].amdahl_limit["memory"]
+        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.memory_resource_amdahl_limit] = self.block_vectors[top_block_name]["top"].amdahl_limit["memory_resource"]
 
         if DEBUG:
             self.print_block_vectors()
@@ -1076,11 +1076,11 @@ class HardwareModel:
             clk_period_constr = [self.circuit_model.clk_period_cvx== self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.clk_period]]
         else:
             self.circuit_model.create_constraints_cvx(self.scale_cvx)
-            if self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.logic_ahmdal_limit] > 10:
-                logger.info(f"holding frequency constant because logic_ahmdal_limit > 10")
+            if self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.logic_amdahl_limit] > 10:
+                logger.info(f"holding frequency constant because logic_amdahl_limit > 10")
                 clk_period_constr = [self.circuit_model.clk_period_cvx == self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.clk_period]]
             else:
-                logger.info(f"allowing frequency to vary because logic_ahmdal_limit <= 10")
+                logger.info(f"allowing frequency to vary because logic_amdahl_limit <= 10")
                 clk_period_constr = self.circuit_model.constraints_cvx
         for constr in self.constr_cvx:
             log_info(f"constraint final: {constr}")
@@ -1321,16 +1321,16 @@ class HardwareModel:
                 #"scaled power": self.total_passive_power * self.circuit_model.tech_model.capped_power_scale_total + self.total_active_energy/(execution_time * self.circuit_model.tech_model.capped_delay_scale_total),
                 "logic_sensitivity": self.circuit_model.tech_model.base_params.logic_sensitivity,
                 "logic_resource_sensitivity": self.circuit_model.tech_model.base_params.logic_resource_sensitivity,
-                "logic_ahmdal_limit": self.circuit_model.tech_model.base_params.logic_ahmdal_limit,
-                "logic_resource_ahmdal_limit": self.circuit_model.tech_model.base_params.logic_resource_ahmdal_limit,
+                "logic_amdahl_limit": self.circuit_model.tech_model.base_params.logic_amdahl_limit,
+                "logic_resource_amdahl_limit": self.circuit_model.tech_model.base_params.logic_resource_amdahl_limit,
                 "interconnect sensitivity": self.circuit_model.tech_model.base_params.interconnect_sensitivity,
                 "interconnect resource sensitivity": self.circuit_model.tech_model.base_params.interconnect_resource_sensitivity,
-                "interconnect ahmdal limit": self.circuit_model.tech_model.base_params.interconnect_ahmdal_limit,
-                "interconnect resource ahmdal limit": self.circuit_model.tech_model.base_params.interconnect_resource_ahmdal_limit,
+                "interconnect amdahl limit": self.circuit_model.tech_model.base_params.interconnect_amdahl_limit,
+                "interconnect resource amdahl limit": self.circuit_model.tech_model.base_params.interconnect_resource_amdahl_limit,
                 "memory sensitivity": self.circuit_model.tech_model.base_params.memory_sensitivity,
                 "memory resource sensitivity": self.circuit_model.tech_model.base_params.memory_resource_sensitivity,
-                "memory ahmdal limit": self.circuit_model.tech_model.base_params.memory_ahmdal_limit,
-                "memory resource ahmdal limit": self.circuit_model.tech_model.base_params.memory_resource_ahmdal_limit,
+                "memory amdahl limit": self.circuit_model.tech_model.base_params.memory_amdahl_limit,
+                "memory resource amdahl limit": self.circuit_model.tech_model.base_params.memory_resource_amdahl_limit,
                 "m1_Rsq": self.circuit_model.tech_model.m1_Rsq,
                 "m2_Rsq": self.circuit_model.tech_model.m2_Rsq,
                 "m3_Rsq": self.circuit_model.tech_model.m3_Rsq,
@@ -1406,16 +1406,16 @@ class HardwareModel:
                 "clk_period": self.circuit_model.tech_model.base_params.clk_period,
                 "logic_sensitivity": self.circuit_model.tech_model.base_params.logic_sensitivity,
                 "logic_resource_sensitivity": self.circuit_model.tech_model.base_params.logic_resource_sensitivity,
-                "logic_ahmdal_limit": self.circuit_model.tech_model.base_params.logic_ahmdal_limit,
-                "logic_resource_ahmdal_limit": self.circuit_model.tech_model.base_params.logic_resource_ahmdal_limit,
+                "logic_amdahl_limit": self.circuit_model.tech_model.base_params.logic_amdahl_limit,
+                "logic_resource_amdahl_limit": self.circuit_model.tech_model.base_params.logic_resource_amdahl_limit,
                 "interconnect sensitivity": self.circuit_model.tech_model.base_params.interconnect_sensitivity,
                 "interconnect resource sensitivity": self.circuit_model.tech_model.base_params.interconnect_resource_sensitivity,
-                "interconnect ahmdal limit": self.circuit_model.tech_model.base_params.interconnect_ahmdal_limit,
-                "interconnect resource ahmdal limit": self.circuit_model.tech_model.base_params.interconnect_resource_ahmdal_limit,
+                "interconnect amdahl limit": self.circuit_model.tech_model.base_params.interconnect_amdahl_limit,
+                "interconnect resource amdahl limit": self.circuit_model.tech_model.base_params.interconnect_resource_amdahl_limit,
                 "memory sensitivity": self.circuit_model.tech_model.base_params.memory_sensitivity,
                 "memory resource sensitivity": self.circuit_model.tech_model.base_params.memory_resource_sensitivity,
-                "memory ahmdal limit": self.circuit_model.tech_model.base_params.memory_ahmdal_limit,
-                "memory resource ahmdal limit": self.circuit_model.tech_model.base_params.memory_resource_ahmdal_limit,
+                "memory amdahl limit": self.circuit_model.tech_model.base_params.memory_amdahl_limit,
+                "memory resource amdahl limit": self.circuit_model.tech_model.base_params.memory_resource_amdahl_limit,
                 "m1_Rsq": self.circuit_model.tech_model.m1_Rsq,
                 "m2_Rsq": self.circuit_model.tech_model.m2_Rsq,
                 "m3_Rsq": self.circuit_model.tech_model.m3_Rsq,
@@ -1503,16 +1503,16 @@ class HardwareModel:
             "scaled power": "Scaled Power over generations (W)",
             "logic_sensitivity": "Logic Sensitivity over generations",
             "logic_resource_sensitivity": "Logic Resource Sensitivity over generations",
-            "logic_ahmdal_limit": "Logic Ahmdal Limit over generations",
-            "logic_resource_ahmdal_limit": "Logic Resource Ahmdal Limit over generations",
+            "logic_amdahl_limit": "Logic amdahl Limit over generations",
+            "logic_resource_amdahl_limit": "Logic Resource amdahl Limit over generations",
             "interconnect sensitivity": "Interconnect Sensitivity over generations",
             "interconnect resource sensitivity": "Interconnect Resource Sensitivity over generations",
-            "interconnect ahmdal limit": "Interconnect Ahmdal Limit over generations",
-            "interconnect resource ahmdal limit": "Interconnect Resource Ahmdal Limit over generations",
+            "interconnect amdahl limit": "Interconnect amdahl Limit over generations",
+            "interconnect resource amdahl limit": "Interconnect Resource amdahl Limit over generations",
             "memory sensitivity": "Memory Sensitivity over generations",
             "memory resource sensitivity": "Memory Resource Sensitivity over generations",
-            "memory ahmdal limit": "Memory Ahmdal Limit over generations",
-            "memory resource ahmdal limit": "Memory Resource Ahmdal Limit over generations",
+            "memory amdahl limit": "Memory amdahl Limit over generations",
+            "memory resource amdahl limit": "Memory Resource amdahl Limit over generations",
             "m1_Rsq": "Metal 1 Resistance per Square over generations (Ohm/m)",
             "m2_Rsq": "Metal 2 Resistance per Square over generations (Ohm/m)",
             "m3_Rsq": "Metal 3 Resistance per Square over generations (Ohm/m)",

@@ -733,16 +733,16 @@ class Codesign:
                 {
                     self.hw.circuit_model.tech_model.base_params.logic_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.logic_sensitivity],
                     self.hw.circuit_model.tech_model.base_params.logic_resource_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.logic_resource_sensitivity],
-                    self.hw.circuit_model.tech_model.base_params.logic_ahmdal_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.logic_ahmdal_limit],
-                    self.hw.circuit_model.tech_model.base_params.logic_resource_ahmdal_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.logic_resource_ahmdal_limit],
+                    self.hw.circuit_model.tech_model.base_params.logic_amdahl_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.logic_amdahl_limit],
+                    self.hw.circuit_model.tech_model.base_params.logic_resource_amdahl_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.logic_resource_amdahl_limit],
                     self.hw.circuit_model.tech_model.base_params.interconnect_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.interconnect_sensitivity],
                     self.hw.circuit_model.tech_model.base_params.interconnect_resource_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.interconnect_resource_sensitivity],
-                    self.hw.circuit_model.tech_model.base_params.interconnect_ahmdal_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.interconnect_ahmdal_limit],
-                    self.hw.circuit_model.tech_model.base_params.interconnect_resource_ahmdal_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.interconnect_resource_ahmdal_limit],
+                    self.hw.circuit_model.tech_model.base_params.interconnect_amdahl_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.interconnect_amdahl_limit],
+                    self.hw.circuit_model.tech_model.base_params.interconnect_resource_amdahl_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.interconnect_resource_amdahl_limit],
                     self.hw.circuit_model.tech_model.base_params.memory_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.memory_sensitivity],
                     self.hw.circuit_model.tech_model.base_params.memory_resource_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.memory_resource_sensitivity],
-                    self.hw.circuit_model.tech_model.base_params.memory_ahmdal_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.memory_ahmdal_limit],
-                    self.hw.circuit_model.tech_model.base_params.memory_resource_ahmdal_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.memory_resource_ahmdal_limit],
+                    self.hw.circuit_model.tech_model.base_params.memory_amdahl_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.memory_amdahl_limit],
+                    self.hw.circuit_model.tech_model.base_params.memory_resource_amdahl_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.memory_resource_amdahl_limit],
                 }
             )
             self.opt.initialize_max_system_power(sim_util.xreplace_safe((self.hw.total_passive_energy + self.hw.total_active_energy)/self.hw.execution_time, self.hw.circuit_model.tech_model.base_params.tech_values))
