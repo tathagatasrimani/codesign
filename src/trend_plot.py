@@ -5,6 +5,7 @@ from src.sim_util import xreplace_safe
 from src.sim_util import get_latest_log_dir
 import json
 import logging
+import math
 logger = logging.getLogger(__name__)
 
 from test.visualize_block_vectors import visualize_all_block_vectors
@@ -106,6 +107,7 @@ class TrendPlot:
             "legend.fontsize": 24,
             "figure.titlesize": 30
         })
+        plot_param_vals = [{} for _ in range(len(self.params_over_generations))]
         for param in self.plot_list:
             plot_label = self.plot_list_labels[param]
             if plot_label in self.plot_list_exclude:
@@ -115,7 +117,7 @@ class TrendPlot:
             log_info(f"params over generations: {self.params_over_generations}")
             for i in range(len(self.params_over_generations)):
                 values.append(xreplace_safe(param, self.params_over_generations[i]))
-            
+                plot_param_vals[i][self.plot_list_labels[param]] = values[i]
             # Create figure with better sizing
             fig, ax = plt.subplots(figsize=(10, 6))
             
@@ -135,7 +137,9 @@ class TrendPlot:
             plt.tight_layout()
             plt.savefig(f"{self.save_dir}/{self.plot_list_labels[param]}_over_iters.png", dpi=300, bbox_inches='tight')
             plt.close()
-    
+        f = open(f"{self.save_dir}/plot_param_data.json", 'w')
+        json.dump(plot_param_vals, f)
+
     def plot_wire_delays_over_generations(self):
 
         # Set larger font sizes and better styling
@@ -413,6 +417,7 @@ class TrendPlot:
             plt.tight_layout()
             plt.savefig(f"{self.save_dir}/constraint_slack/{constraint}_constraint_slack_over_iters.png", dpi=300, bbox_inches='tight')
             plt.close()
+        create_constraint_slack_single_plot(self.constraint_slack_over_generations, self.save_dir)
 
     def plot_block_vectors_over_generations(self):
         if not os.path.exists(os.path.join(self.save_dir, "../block_vectors")):
@@ -485,7 +490,107 @@ def create_sensitivities_single_plot(sensitivities_over_generations, save_dir):
     plt.savefig(f"{save_dir}/sensitivities/all_sensitivities_over_iters.png", dpi=300, bbox_inches='tight')
     plt.close()
 
+def create_constraint_slack_single_plot(constraint_slack_over_generations, save_dir):
+    if len(constraint_slack_over_generations) == 0:
+        return
+    if not os.path.exists(save_dir + "/constraint_slack"):
+        os.makedirs(save_dir + "/constraint_slack")
+    
+    # Set larger font sizes and better styling
+    plt.rcParams.update({
+        "font.size": 24,
+        "axes.titlesize": 30,
+        "axes.labelsize": 24,
+        "xtick.labelsize": 24,
+        "ytick.labelsize": 24,
+        "legend.fontsize": 20,
+        "figure.titlesize": 30
+    })
+    
+    # Create figure with better sizing
+    fig, ax = plt.subplots(figsize=(14, 8))
+    
+    # Get all parameters from the first generation
+    params = list(constraint_slack_over_generations[0].keys())
+
+    initial_slacks = {param: abs(constraint_slack_over_generations[0][param]) for param in params}
+    
+    # Use a color cycle for different parameters
+    colors = plt.cm.tab10(range(len(params)))
+    
+    # Track how many parameters are actually plotted
+    plotted_count = 0
+    
+    series_data = {}
+    finite_values = []
+    
+    # Plot each parameter
+    for idx, param in enumerate(params):
+        values = []
+        for i in range(len(constraint_slack_over_generations)):
+            eps = 1e-18
+            if constraint_slack_over_generations[i][param] < 0:
+                slack_normalized = (
+                    constraint_slack_over_generations[i][param] / initial_slacks[param]
+                    if initial_slacks[param] != 0
+                    else constraint_slack_over_generations[i][param]
+                )
+                log_barrier = -math.log(-slack_normalized + eps)
+                values.append(log_barrier)
+                finite_values.append(log_barrier)
+            else:
+                values.append(math.inf)
+        series_data[param] = values
+    
+    y_min = min(finite_values) if finite_values else -1
+    y_max = max(finite_values) if finite_values else 1
+    span = y_max - y_min if y_max != y_min else 1
+    overflow_value = y_max + 0.15 * span
+    
+    for idx, param in enumerate(params):
+        values = series_data[param]
+        plot_values = [v if math.isfinite(v) else overflow_value for v in values]
+        # Skip parameters that are all zero
+        if len(values) > 0 and all(v == 0 for v in values):
+            continue
+        
+        # Plot with different colors and markers
+        ax.plot(plot_values, linewidth=2.5, markersize=10, marker="o", clip_on=False,
+                color=colors[idx], label=param, alpha=0.8)
+        plotted_count += 1
+    
+    ax.set_xlabel("Generation", fontweight="bold")
+    ax.set_ylabel("Log Barrier Slack", fontweight="bold")
+    ax.set_title("Constraint Slack Over Generations", fontweight="bold", pad=20)
+    ax.set_xticks(range(len(constraint_slack_over_generations)))
+    
+    ax.set_ylim(y_min, y_max+0.1*span)
+    fig.text(
+        0.5,
+        0.02,
+        "Note: Slack uses -log(-(lhs - rhs)) for constraints of the form lhs <= rhs.",
+        ha="center",
+        fontsize=18,
+    )
+    
+    # Add legend outside the plot area if there are many parameters
+    if plotted_count > 5:
+        ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=18)
+    else:
+        ax.legend(loc='best', fontsize=20)
+    
+    # Improve styling
+    fig.patch.set_facecolor("#f8f9fa")
+    
+    # Adjust layout and save
+    plt.tight_layout()
+    plt.savefig(f"{save_dir}/constraint_slack/all_constraint_slack_over_iters.png", dpi=300, bbox_inches='tight')
+    plt.close()
+    
+
 if __name__ == "__main__":
     log_dir = get_latest_log_dir()
-    sensitivities_over_generations = json.load(open(os.path.join(log_dir, "figs", "sensitivities_data.json")))
-    create_sensitivities_single_plot(sensitivities_over_generations, os.path.join(log_dir, "figs"))
+    #sensitivities_over_generations = json.load(open(os.path.join(log_dir, "figs", "sensitivities_data.json")))
+    constraint_slack_over_generations = json.load(open(os.path.join(log_dir, "figs", "constraint_slack_data.json")))
+    #create_sensitivities_single_plot(sensitivities_over_generations, os.path.join(log_dir, "figs"))
+    create_constraint_slack_single_plot(constraint_slack_over_generations, os.path.join(log_dir, "figs"))

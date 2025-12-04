@@ -35,45 +35,45 @@ vitis_llama_ed2:
     checkpoint_start_step: setup
     inverse_pass_improvement: 8
 # ResNet
-vitis_resnet_18_delay:
-  base_cfg: vitis_resnet_test
-  args:
-    obj: delay
-    N: 15
-    pytorch: True
-    checkpoint_load_dir: tmp_resnet18
-    checkpoint_start_step: setup
-    inverse_pass_improvement: 2
+#vitis_resnet_18_delay:
+#  base_cfg: vitis_resnet_test
+#  args:
+#    obj: delay
+#    N: 15
+#    pytorch: True
+#    checkpoint_load_dir: tmp_resnet18
+#    checkpoint_start_step: setup
+#    inverse_pass_improvement: 2
 
-vitis_resnet_18_energy:
-  base_cfg: vitis_resnet_test
-  args:
-    obj: energy
-    N: 15
-    pytorch: True
-    checkpoint_load_dir: tmp_resnet18
-    checkpoint_start_step: setup
-    inverse_pass_improvement: 2
+#vitis_resnet_18_energy:
+#  base_cfg: vitis_resnet_test
+#  args:
+#    obj: energy
+#    N: 15
+#    pytorch: True
+#    checkpoint_load_dir: tmp_resnet18
+#    checkpoint_start_step: setup
+#    inverse_pass_improvement: 2
 
-vitis_resnet_18_edp:
-  base_cfg: vitis_resnet_test
-  args:
-    obj: edp
-    N: 15
-    pytorch: True
-    checkpoint_load_dir: tmp_resnet18
-    checkpoint_start_step: setup
-    inverse_pass_improvement: 4
+#vitis_resnet_18_edp:
+#  base_cfg: vitis_resnet_test
+#  args:
+#    obj: edp
+#    N: 15
+#    pytorch: True
+#    checkpoint_load_dir: tmp_resnet18
+#    checkpoint_start_step: setup
+#    inverse_pass_improvement: 4
 
-vitis_resnet_18_ed2:
-  base_cfg: vitis_resnet_test
-  args:
-    obj: ed2
-    N: 15
-    pytorch: True
-    checkpoint_load_dir: tmp_resnet18
-    checkpoint_start_step: setup
-    inverse_pass_improvement: 8
+#vitis_resnet_18_ed2:
+#  base_cfg: vitis_resnet_test
+#  args:
+#    obj: ed2
+#    N: 15
+#    pytorch: True
+#    checkpoint_load_dir: tmp_resnet18
+#    checkpoint_start_step: setup
+#    inverse_pass_improvement: 8
 
 # Lenet
 vitis_lenet_delay:
