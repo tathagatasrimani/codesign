@@ -21,7 +21,7 @@ from src import sim_util
 ## This is the area between the die area and the core area.
 DIE_CORE_BUFFER_SIZE = 50
 
-DEBUG_PRINT = True
+DEBUG_PRINT = False
 def debug_print(msg):
     if DEBUG_PRINT:
         logger.info(msg)

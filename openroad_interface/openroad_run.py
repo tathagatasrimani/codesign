@@ -23,7 +23,7 @@ from . import macro_maker as make_macros
 DIE_CORE_BUFFER_SIZE = 50
 
 
-DEBUG = True
+DEBUG = False
 def log_info(msg):
     if DEBUG:
         logger.info(msg)
