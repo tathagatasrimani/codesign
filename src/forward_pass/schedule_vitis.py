@@ -14,7 +14,7 @@ from src.forward_pass import llvm_ir_parse
 from src.forward_pass import vitis_create_netlist
 from src import sim_util
 
-DEBUG = False
+DEBUG = True
 
 def log_info(msg):
     if DEBUG:
@@ -140,8 +140,10 @@ def get_rsc_mapping(netlist_file):
         #log_info(f"op: {op}, node: {node}")
     return netlist_op_dest_to_node
 
-def construct_directed_graph_nx(state_transitions):
+def construct_directed_graph_nx(state_ops,state_transitions):
     G = nx.DiGraph()
+    for state in state_ops:
+        G.add_node(state)
     for state in state_transitions:
         for successor in state_transitions[state]:
             G.add_edge(state, successor)
@@ -399,17 +401,18 @@ class StatesStructure:
         self.state_to_loop = {}
 
         # compute state dominators to later determine which backward transitions represent loops
-        self.state_G = construct_directed_graph_nx(self.state_transitions)
+        self.state_G = construct_directed_graph_nx(self.state_ops, self.state_transitions)
         first_state = min(self.state_transitions.keys())
         self.state_dominators = {key: [value] for key, value in nx.immediate_dominators(self.state_G, first_state).items()}
         log_info(f"state dominators: {self.state_dominators}")
-        self.state_dominator_G = construct_directed_graph_nx(self.state_dominators)
+        self.state_dominator_G = construct_directed_graph_nx(self.state_ops, self.state_dominators)
         # track incoming transitions for each state that come from downstream states
         self.backward_state_transitions = {}
         for state, transitions in state_transitions.items():
             for transition in transitions:
                 if transition <= state:
-                    if not nx.has_path(self.state_dominator_G, state, transition):
+                    # transition represents a loop if it is not a dominator of the state or the state itself (self-loop)
+                    if state != transition and not nx.has_path(self.state_dominator_G, state, transition):
                         log_info(f"transition {transition} is not a dominator of state {state}, skipping")
                         continue
                     else:
