@@ -140,6 +140,13 @@ def get_rsc_mapping(netlist_file):
         #log_info(f"op: {op}, node: {node}")
     return netlist_op_dest_to_node
 
+def construct_directed_graph_nx(state_transitions):
+    G = nx.DiGraph()
+    for state in state_transitions:
+        for successor in state_transitions[state]:
+            G.add_edge(state, successor)
+    return G
+
 class LoopInfo:
     def __init__(self, loop_info):
         self.loop_name = loop_info["Loop Name"]
@@ -390,16 +397,31 @@ class StatesStructure:
         self.loop_list = loop_list
         log_info(f"loop list: {self.loop_list}")
         self.state_to_loop = {}
+
+        # compute state dominators to later determine which backward transitions represent loops
+        self.state_G = construct_directed_graph_nx(self.state_transitions)
+        first_state = min(self.state_transitions.keys())
+        self.state_dominators = {key: [value] for key, value in nx.immediate_dominators(self.state_G, first_state).items()}
+        log_info(f"state dominators: {self.state_dominators}")
+        self.state_dominator_G = construct_directed_graph_nx(self.state_dominators)
         # track incoming transitions for each state that come from downstream states
         self.backward_state_transitions = {}
         for state, transitions in state_transitions.items():
             for transition in transitions:
                 if transition <= state:
+                    if not nx.has_path(self.state_dominator_G, state, transition):
+                        log_info(f"transition {transition} is not a dominator of state {state}, skipping")
+                        continue
+                    else:
+                        log_info(f"transition {transition} is a dominator of state {state}, adding to backward state transitions")
                     assert transition not in self.backward_state_transitions, f"dst node {transition} already in backward state transitions"
                     self.backward_state_transitions[transition] = state
         log_info(f"backward state transitions: {self.backward_state_transitions}")
         # assign loop states
-        assert len(self.backward_state_transitions) == len(loops), f"Number of backward state transitions: {len(self.backward_state_transitions)} does not match number of loops: {len(loops)} for basic block: {self.basic_block_name}"
+        if len(self.backward_state_transitions) != len(loops):
+            # this is only allowed if there are no loops and 1 backward state transition from the last state to the first state
+            assert list(self.backward_state_transitions.keys()) == [1], f"Number of backward state transitions: {len(self.backward_state_transitions)} ({self.backward_state_transitions}) does not match number of loops: {len(loops)} for basic block: {self.basic_block_name}"
+            self.backward_state_transitions = {}
         
         idx=0
         for key in sorted(list(self.backward_state_transitions.keys())):
@@ -512,32 +534,19 @@ class BasicBlockInfo:
                 idx += 1
             idx += 1
             self.state_transitions = {}
-            num_backward_transitions = 0
             while lines[idx].strip():
                 assert lines[idx].split()[0] not in self.state_transitions
                 start_state = int(lines[idx].split()[0])
                 #log_info(f"lines[idx]: {lines[idx]}, current num backward transitions: {num_backward_transitions}")
                 if len(lines[idx].split()) > 2:
                     dst_states = [int(dst_state) for dst_state in lines[idx].split()[2:]]
-                    self.state_transitions[start_state] = []
-                    for dst_state in dst_states:
-                        if dst_state <= start_state:
-                            num_backward_transitions += 1
-                        self.state_transitions[start_state].append(dst_state)
+                    self.state_transitions[start_state] = dst_states
                 else:
                     #log_info(f"length was 2, checking whether to add backward transition")
                     assert len(lines[idx].split()) == 2, f"Number of states: {len(lines[idx].split())} is not 2 for file: {file_path}"
-                    if len(self.loops) != num_backward_transitions:
-                        assert len(self.loops) == num_backward_transitions + 1, f"Number of backward transitions: {num_backward_transitions} not within one of number of loops: {len(self.loops)} for file: {file_path}"
-                        # back to start state
-                        self.state_transitions[start_state] = [1]
-                        num_backward_transitions += 1
-                        #log_info(f"added backward transition")
-                    else:
-                        self.state_transitions[start_state] = []
-                        #log_info(f"no backward transition")
+                    # back to start state
+                    self.state_transitions[start_state] = [1]
                 idx += 1
-            assert num_backward_transitions == len(self.loops), f"Number of backward state transitions: {num_backward_transitions} does not match number of loops: {len(self.loops)} for file: {file_path}"
 
             # parse operations in each state
             idx, next_state = self.find_next_state(lines, idx)
