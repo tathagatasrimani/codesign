@@ -394,7 +394,7 @@ class StatesStructure:
         self.backward_state_transitions = {}
         for state, transitions in state_transitions.items():
             for transition in transitions:
-                if transition < state:
+                if transition <= state:
                     assert transition not in self.backward_state_transitions, f"dst node {transition} already in backward state transitions"
                     self.backward_state_transitions[transition] = state
         log_info(f"backward state transitions: {self.backward_state_transitions}")
@@ -516,22 +516,26 @@ class BasicBlockInfo:
             while lines[idx].strip():
                 assert lines[idx].split()[0] not in self.state_transitions
                 start_state = int(lines[idx].split()[0])
+                #log_info(f"lines[idx]: {lines[idx]}, current num backward transitions: {num_backward_transitions}")
                 if len(lines[idx].split()) > 2:
                     dst_states = [int(dst_state) for dst_state in lines[idx].split()[2:]]
                     self.state_transitions[start_state] = []
                     for dst_state in dst_states:
-                        if dst_state < start_state:
+                        if dst_state <= start_state:
                             num_backward_transitions += 1
                         self.state_transitions[start_state].append(dst_state)
                 else:
+                    #log_info(f"length was 2, checking whether to add backward transition")
                     assert len(lines[idx].split()) == 2, f"Number of states: {len(lines[idx].split())} is not 2 for file: {file_path}"
                     if len(self.loops) != num_backward_transitions:
                         assert len(self.loops) == num_backward_transitions + 1, f"Number of backward transitions: {num_backward_transitions} not within one of number of loops: {len(self.loops)} for file: {file_path}"
                         # back to start state
                         self.state_transitions[start_state] = [1]
                         num_backward_transitions += 1
+                        #log_info(f"added backward transition")
                     else:
                         self.state_transitions[start_state] = []
+                        #log_info(f"no backward transition")
                 idx += 1
             assert num_backward_transitions == len(self.loops), f"Number of backward state transitions: {num_backward_transitions} does not match number of loops: {len(self.loops)} for file: {file_path}"
 
