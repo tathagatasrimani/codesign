@@ -63,6 +63,7 @@ vitis_llama_test:
   base_cfg: vitis_test
   args:
     benchmark: llama
+    always_run_openroad: True # have seen a bug with reusing previous openroad result here, so just rerun
 
 vitis_attention_head_test:
   base_cfg: vitis_test
