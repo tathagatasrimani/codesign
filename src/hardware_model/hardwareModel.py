@@ -182,7 +182,13 @@ class HardwareModel:
         self.model_cfg = sim_util.recursive_cfg_merge(model_cfgs, args["model_cfg"])
         print(f"self.model_cfg: {self.model_cfg}")
 
-        self.base_params = base_parameters.BaseParameters(args["tech_node"], self.cacti_dat_file)
+        if args["checkpoint_load_dir"] != "none" and os.path.exists(f"{self.tmp_dir}/tech_params_latest.yaml"):
+            # when loading from checkpoint, use the latest set of tech param values as a starting point. Override "tech_node" argument.
+            with open(f"{self.tmp_dir}/tech_params_latest.yaml", "r") as f:
+                tech_params = yaml.safe_load(f)
+            self.base_params = base_parameters.BaseParameters(args["tech_node"], self.cacti_dat_file, tech_params)
+        else:
+            self.base_params = base_parameters.BaseParameters(args["tech_node"], self.cacti_dat_file)
 
         self.reset_tech_model()
 

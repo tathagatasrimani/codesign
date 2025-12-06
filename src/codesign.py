@@ -87,6 +87,11 @@ class Codesign:
         self.block_vectors_save_dir = f"{self.save_dir}/block_vectors"
         os.makedirs(self.block_vectors_save_dir, exist_ok=True)
 
+        self.checkpoint_controller = checkpoint_controller.CheckpointController(self.cfg, self.codesign_root_dir, self.tmp_dir)
+
+        if self.cfg["args"]["checkpoint_start_step"]!= "none" and self.cfg["args"]["checkpoint_load_dir"] != "none":
+            self.checkpoint_controller.load_checkpoint()
+
         self.forward_obj = 0
         self.inverse_obj = 0
         self.openroad_testfile = self.cfg['args']['openroad_testfile']
@@ -114,11 +119,6 @@ class Codesign:
         self.hw.write_technology_parameters(self.save_dir+"/initial_tech_params.yaml")
 
         self.iteration_count = 0
-        
-        self.checkpoint_controller = checkpoint_controller.CheckpointController(self.cfg, self.codesign_root_dir, self.tmp_dir)
-
-        if self.cfg["args"]["checkpoint_start_step"]!= "none" and self.cfg["args"]["checkpoint_load_dir"] != "none":
-            self.checkpoint_controller.load_checkpoint()
 
         # configure to start with 3 dsp and 3 bram
         self.dsp_multiplier = 1/3 * self.cfg["args"]["area"] / (3e-6 * 9e-6)
@@ -1058,6 +1058,8 @@ def main(args):
         codesign_module.execute(codesign_module.cfg["args"]["num_iters"])
     finally:
         os.chdir(os.path.join(os.path.dirname(__file__), ".."))
+        # dump latest tech params to tmp dir for replayability
+        codesign_module.write_back_params(f"{codesign_module.tmp_dir}/tech_params_latest.yaml")
         
         codesign_module.end_of_run_plots(codesign_module.obj_over_iterations, codesign_module.lag_factor_over_iterations, codesign_module.params_over_iterations, codesign_module.wire_lengths_over_iterations, codesign_module.wire_delays_over_iterations, codesign_module.device_delays_over_iterations, codesign_module.sensitivities_over_iterations, codesign_module.constraint_slack_over_iterations, visualize_block_vectors=True)
         codesign_module.cleanup()

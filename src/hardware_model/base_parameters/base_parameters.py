@@ -17,7 +17,7 @@ WIRE_RC_FILE = "src/yaml/wire_rc.yaml"
 
 # create sympy variables and initial tech values
 class BaseParameters:
-    def __init__(self, tech_node, dat_file):
+    def __init__(self, tech_node, dat_file, tech_param_override=None):
         self.tech_node = tech_node
         self.dat_file = dat_file
         self.constraints = []
@@ -125,10 +125,11 @@ class BaseParameters:
 
         # set initial values for technology parameters based on tech node
         config = yaml.load(open(TECH_NODE_FILE), Loader=yaml.Loader)
-        print(config[self.tech_node])
+        config_tech_node = config[self.tech_node] if tech_param_override is None else tech_param_override
+        print(f"initial tech params: {config_tech_node}")
         for key in config["default"]:
             try:
-                self.tech_values[self.symbol_table[key]] = config[self.tech_node][key]
+                self.tech_values[self.symbol_table[key]] = config_tech_node[key]
             except:
                 logger.info(f"using default value for {key}")
                 self.tech_values[self.symbol_table[key]] = config["default"][key]
