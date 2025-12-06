@@ -419,9 +419,9 @@ class StatesStructure:
         log_info(f"backward state transitions: {self.backward_state_transitions}")
         # assign loop states
         if len(self.backward_state_transitions) != len(loops):
-            # this is only allowed if there are no loops and 1 backward state transition from the last state to the first state
-            assert list(self.backward_state_transitions.keys()) == [1], f"Number of backward state transitions: {len(self.backward_state_transitions)} ({self.backward_state_transitions}) does not match number of loops: {len(loops)} for basic block: {self.basic_block_name}"
-            self.backward_state_transitions = {}
+            # this is only allowed if there is a transition from the last state to the first state, which can be ambiguous whether it represents a loop or not
+            assert 1 in self.backward_state_transitions.keys() and abs(len(self.backward_state_transitions) - len(loops)) <= 1, f"Number of backward state transitions: {len(self.backward_state_transitions)} ({self.backward_state_transitions}) does not match number of loops: {len(loops)} for basic block: {self.basic_block_name}"
+            self.backward_state_transitions.pop(1)
         
         idx=0
         for key in sorted(list(self.backward_state_transitions.keys())):

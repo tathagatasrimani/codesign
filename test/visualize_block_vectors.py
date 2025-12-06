@@ -240,6 +240,7 @@ def display_block_graph(block_graph, data, top_block_name, save_dir):
     
     plt.tight_layout()
     plt.savefig(save_dir, dpi=300, bbox_inches='tight')
+    plt.close()
     #print(f"Visualization saved to {save_dir}")
     #plt.show()
 
