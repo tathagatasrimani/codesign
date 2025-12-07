@@ -1,0 +1,45 @@
+{
+  "__output_num": "Number of Pareto designs to export",
+  "output_num": 1,
+
+  "__max_init_parallel": "Max loop parallelism in initial sampling",
+  "max_init_parallel": 32,
+
+  "__max_expl_parallel": "Max loop parallelism during exploration",
+  "max_expl_parallel": 128,
+
+  "__max_loop_parallel": "Max unroll factor per loop",
+  "max_loop_parallel": 16,
+
+  "__max_iter_num": "Max DSE iterations",
+  "max_iter_num": 30,
+
+  "__max_distance": "Max neighbor distance in design space",
+  "max_distance": 3.0,
+
+  "__directive_only": "If true, only pragma-level changes (no loop transforms)",
+  "directive_only": false,
+
+  "__resource_constr": "Enable resource constraints or not",
+  "resource_constr": true,
+
+  "frequency": "100MHz",
+  "dsp": 220,
+  "bram": 280,
+
+  "dsp_usage": {
+    "fadd": 2,
+    "fmul": 3,
+    "fdiv": 0,
+    "fcmp": 0,
+    "fexp": 7
+  },
+
+  "100MHz": {
+    "fadd": 4,
+    "fmul": 3,
+    "fdiv": 15,
+    "fcmp": 1,
+    "fexp": 8
+  }
+}

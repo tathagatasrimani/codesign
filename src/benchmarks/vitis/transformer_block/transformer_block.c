@@ -1,227 +1,192 @@
-// tiny_llm.c
-// Minimal single-file "LLM block" in C: one Transformer encoder block.
-// Fixed sizes, no dynamic memory, HLS-friendly patterns.
+// transformer.c
+// Minimal single-file Transformer encoder-like block (single head, single block)
 
 #include <math.h>
-#include <stdio.h>
 
 #define SEQ_LEN 4
 #define D_MODEL 8
-#define D_FF 16
+#define D_FF    16
 
-// Simple ReLU
-static float relu(float x) {
+typedef float data_t;
+
+static data_t relu(data_t x) {
     return x > 0.0f ? x : 0.0f;
 }
 
-// Single-head self-attention + FFN transformer block
-// x:      [SEQ_LEN][D_MODEL]   - input tokens
-// Wq,Wk,Wv,Wo: [D_MODEL][D_MODEL] - attention weights
-// W1:     [D_MODEL][D_FF], b1[D_FF]  - FFN first layer
-// W2:     [D_FF][D_MODEL], b2[D_MODEL] - FFN second layer
-// out:    [SEQ_LEN][D_MODEL]   - output tokens
 void transformer_block(
-    float x[SEQ_LEN][D_MODEL],
-    const float Wq[D_MODEL][D_MODEL],
-    const float Wk[D_MODEL][D_MODEL],
-    const float Wv[D_MODEL][D_MODEL],
-    const float Wo[D_MODEL][D_MODEL],
-    const float W1[D_MODEL][D_FF],
-    const float b1[D_FF],
-    const float W2[D_FF][D_MODEL],
-    const float b2[D_MODEL],
-    float out[SEQ_LEN][D_MODEL]
+    data_t x[SEQ_LEN][D_MODEL],
+    const data_t Wq[D_MODEL][D_MODEL],
+    const data_t Wk[D_MODEL][D_MODEL],
+    const data_t Wv[D_MODEL][D_MODEL],
+    const data_t Wo[D_MODEL][D_MODEL],
+    const data_t W1[D_MODEL][D_FF],
+    const data_t b1[D_FF],
+    const data_t W2[D_FF][D_MODEL],
+    const data_t b2[D_MODEL],
+    data_t out[SEQ_LEN][D_MODEL]
 ) {
-    float Q[SEQ_LEN][D_MODEL];
-    float K[SEQ_LEN][D_MODEL];
-    float V[SEQ_LEN][D_MODEL];
-    float scores[SEQ_LEN][SEQ_LEN];
-    float attn[SEQ_LEN][SEQ_LEN];
-    float context[SEQ_LEN][D_MODEL];
-    float y1[SEQ_LEN][D_MODEL];
-    float ff1[SEQ_LEN][D_FF];
-    float ff2[SEQ_LEN][D_MODEL];
+    int i, j, k;
 
-    // 1. Linear projections: Q = X * Wq, K = X * Wk, V = X * Wv
-    for (int t = 0; t < SEQ_LEN; ++t) {
-        for (int i = 0; i < D_MODEL; ++i) {
-            float q_sum = 0.0f;
-            float k_sum = 0.0f;
-            float v_sum = 0.0f;
-            for (int j = 0; j < D_MODEL; ++j) {
-                float x_val = x[t][j];
-                q_sum += x_val * Wq[j][i];
-                k_sum += x_val * Wk[j][i];
-                v_sum += x_val * Wv[j][i];
+    data_t Q[SEQ_LEN][D_MODEL];
+    data_t K[SEQ_LEN][D_MODEL];
+    data_t V[SEQ_LEN][D_MODEL];
+    data_t scores[SEQ_LEN][SEQ_LEN];
+    data_t attn[SEQ_LEN][SEQ_LEN];
+    data_t context[SEQ_LEN][D_MODEL];
+    data_t y1[SEQ_LEN][D_MODEL];
+    data_t ff1[SEQ_LEN][D_FF];
+    data_t ff2[SEQ_LEN][D_MODEL];
+
+    // Projections: Q,K,V
+    for (i = 0; i < SEQ_LEN; ++i) {
+        for (j = 0; j < D_MODEL; ++j) {
+            data_t qs = 0.0f, ks = 0.0f, vs = 0.0f;
+            for (k = 0; k < D_MODEL; ++k) {
+                data_t xv = x[i][k];
+                qs += xv * Wq[k][j];
+                ks += xv * Wk[k][j];
+                vs += xv * Wv[k][j];
             }
-            Q[t][i] = q_sum;
-            K[t][i] = k_sum;
-            V[t][i] = v_sum;
+            Q[i][j] = qs;
+            K[i][j] = ks;
+            V[i][j] = vs;
         }
     }
 
-    // 2. Scaled dot-product attention: scores = Q * K^T / sqrt(D_MODEL)
-    const float scale = 1.0f / 2.82842712475f; // ~1/sqrt(8)
-    for (int t = 0; t < SEQ_LEN; ++t) {
-        for (int u = 0; u < SEQ_LEN; ++u) {
-            float dot = 0.0f;
-            for (int i = 0; i < D_MODEL; ++i) {
-                dot += Q[t][i] * K[u][i];
+    // Scaled dot-product scores
+    const data_t scale = 1.0f / 2.82842712475f; // ~1/sqrt(8)
+    for (i = 0; i < SEQ_LEN; ++i) {
+        for (j = 0; j < SEQ_LEN; ++j) {
+            data_t dot = 0.0f;
+            for (k = 0; k < D_MODEL; ++k) {
+                dot += Q[i][k] * K[j][k];
             }
-            scores[t][u] = dot * scale;
+            scores[i][j] = dot * scale;
         }
     }
 
-    // 3. Softmax over scores along the sequence dimension
-    for (int t = 0; t < SEQ_LEN; ++t) {
-        // find max for numerical stability
-        float max_val = scores[t][0];
-        for (int u = 1; u < SEQ_LEN; ++u) {
-            if (scores[t][u] > max_val) {
-                max_val = scores[t][u];
+    // Softmax over sequence dimension (loops aligned i,j)
+    for (i = 0; i < SEQ_LEN; ++i) {
+        data_t max_val = scores[i][0];
+        for (j = 1; j < SEQ_LEN; ++j) {
+            if (scores[i][j] > max_val) {
+                max_val = scores[i][j];
             }
         }
-        float sum_exp = 0.0f;
-        for (int u = 0; u < SEQ_LEN; ++u) {
-            float e = expf(scores[t][u] - max_val);
-            attn[t][u] = e;
+
+        data_t sum_exp = 0.0f;
+        for (j = 0; j < SEQ_LEN; ++j) {
+            data_t e = expf(scores[i][j] - max_val);
+            attn[i][j] = e;
             sum_exp += e;
         }
-        float inv_sum = 1.0f / sum_exp;
-        for (int u = 0; u < SEQ_LEN; ++u) {
-            attn[t][u] *= inv_sum;
+
+        data_t inv_sum = 1.0f / sum_exp;
+        for (j = 0; j < SEQ_LEN; ++j) {
+            attn[i][j] = attn[i][j] * inv_sum;
         }
     }
 
-    // 4. Context = Attn * V
-    for (int t = 0; t < SEQ_LEN; ++t) {
-        for (int i = 0; i < D_MODEL; ++i) {
-            float c = 0.0f;
-            for (int u = 0; u < SEQ_LEN; ++u) {
-                c += attn[t][u] * V[u][i];
+    // Context = Attn @ V
+    for (i = 0; i < SEQ_LEN; ++i) {
+        for (j = 0; j < D_MODEL; ++j) {
+            data_t c = 0.0f;
+            for (k = 0; k < SEQ_LEN; ++k) {
+                c += attn[i][k] * V[k][j];
             }
-            context[t][i] = c;
+            context[i][j] = c;
         }
     }
 
-    // 5. Output projection Wo and residual: y1 = x + context*Wo
-    for (int t = 0; t < SEQ_LEN; ++t) {
-        for (int i = 0; i < D_MODEL; ++i) {
-            float proj = 0.0f;
-            for (int j = 0; j < D_MODEL; ++j) {
-                proj += context[t][j] * Wo[j][i];
+    // Output projection + residual: y1 = x + context @ Wo
+    for (i = 0; i < SEQ_LEN; ++i) {
+        for (j = 0; j < D_MODEL; ++j) {
+            data_t proj = 0.0f;
+            for (k = 0; k < D_MODEL; ++k) {
+                proj += context[i][k] * Wo[k][j];
             }
-            y1[t][i] = x[t][i] + proj;  // residual connection
+            y1[i][j] = x[i][j] + proj;
         }
     }
 
-    // 6. Feed-forward: ff1 = ReLU(y1 * W1 + b1)
-    for (int t = 0; t < SEQ_LEN; ++t) {
-        for (int k = 0; k < D_FF; ++k) {
-            float sum = b1[k];
-            for (int j = 0; j < D_MODEL; ++j) {
-                sum += y1[t][j] * W1[j][k];
+    // FFN layer 1: ReLU(y1 @ W1 + b1)
+    for (i = 0; i < SEQ_LEN; ++i) {
+        for (j = 0; j < D_FF; ++j) {
+            data_t s = b1[j];
+            for (k = 0; k < D_MODEL; ++k) {
+                s += y1[i][k] * W1[k][j];
             }
-            ff1[t][k] = relu(sum);
+            ff1[i][j] = relu(s);
         }
     }
 
-    // 7. Feed-forward second layer: ff2 = ff1 * W2 + b2
-    for (int t = 0; t < SEQ_LEN; ++t) {
-        for (int i = 0; i < D_MODEL; ++i) {
-            float sum = b2[i];
-            for (int k = 0; k < D_FF; ++k) {
-                sum += ff1[t][k] * W2[k][i];
+    // FFN layer 2: ff2 = ff1 @ W2 + b2
+    for (i = 0; i < SEQ_LEN; ++i) {
+        for (j = 0; j < D_MODEL; ++j) {
+            data_t s = b2[j];
+            for (k = 0; k < D_FF; ++k) {
+                s += ff1[i][k] * W2[k][j];
             }
-            ff2[t][i] = sum;
+            ff2[i][j] = s;
         }
     }
 
-    // 8. Final residual: out = y1 + ff2
-    for (int t = 0; t < SEQ_LEN; ++t) {
-        for (int i = 0; i < D_MODEL; ++i) {
-            out[t][i] = y1[t][i] + ff2[t][i];
-        }
-    }
-}
-
-// Simple deterministic initialization so you can get stable IR/DSE
-static void init_input(float x[SEQ_LEN][D_MODEL]) {
-    for (int t = 0; t < SEQ_LEN; ++t) {
-        for (int i = 0; i < D_MODEL; ++i) {
-            x[t][i] = (float)(t * D_MODEL + i) * 0.01f;
+    // Final residual: out = y1 + ff2
+    for (i = 0; i < SEQ_LEN; ++i) {
+        for (j = 0; j < D_MODEL; ++j) {
+            out[i][j] = y1[i][j] + ff2[i][j];
         }
     }
 }
 
-static void init_matrix_square(float W[D_MODEL][D_MODEL]) {
-    for (int i = 0; i < D_MODEL; ++i) {
-        for (int j = 0; j < D_MODEL; ++j) {
-            W[i][j] = 0.01f * (float)(i + j + 1);
+// Deterministic init for stable IR / DSE
+static void init_input(data_t x[SEQ_LEN][D_MODEL]) {
+    int i, j;
+    for (i = 0; i < SEQ_LEN; ++i) {
+        for (j = 0; j < D_MODEL; ++j) {
+            x[i][j] = (data_t)(i * D_MODEL + j) * 0.01f;
         }
     }
 }
 
-static void init_matrix_mixed(float W[D_MODEL][D_FF]) {
-    for (int i = 0; i < D_MODEL; ++i) {
-        for (int j = 0; j < D_FF; ++j) {
-            W[i][j] = 0.01f * (float)((i + 1) * (j + 1));
+static void init_matrix_square(data_t W[D_MODEL][D_MODEL]) {
+    int i, j;
+    for (i = 0; i < D_MODEL; ++i) {
+        for (j = 0; j < D_MODEL; ++j) {
+            W[i][j] = 0.01f * (data_t)(i + j + 1);
         }
     }
 }
 
-static void init_matrix_mixed_rev(float W[D_FF][D_MODEL]) {
-    for (int i = 0; i < D_FF; ++i) {
-        for (int j = 0; j < D_MODEL; ++j) {
-            W[i][j] = 0.01f * (float)((i + j + 1));
+static void init_matrix_mixed(data_t W[D_MODEL][D_FF]) {
+    int i, j;
+    for (i = 0; i < D_MODEL; ++i) {
+        for (j = 0; j < D_FF; ++j) {
+            W[i][j] = 0.01f * (data_t)((i + 1) * (j + 1));
         }
     }
 }
 
-static void init_bias_ff1(float b[D_FF]) {
-    for (int i = 0; i < D_FF; ++i) {
+static void init_matrix_mixed_rev(data_t W[D_FF][D_MODEL]) {
+    int i, j;
+    for (i = 0; i < D_FF; ++i) {
+        for (j = 0; j < D_MODEL; ++j) {
+            W[i][j] = 0.01f * (data_t)(i + j + 1);
+        }
+    }
+}
+
+static void init_bias_ff1(data_t b[D_FF]) {
+    int i;
+    for (i = 0; i < D_FF; ++i) {
         b[i] = 0.0f;
     }
 }
 
-static void init_bias_ff2(float b[D_MODEL]) {
-    for (int i = 0; i < D_MODEL; ++i) {
+static void init_bias_ff2(data_t b[D_MODEL]) {
+    int i;
+    for (i = 0; i < D_MODEL; ++i) {
         b[i] = 0.0f;
     }
 }
 
-int main() {
-    float x[SEQ_LEN][D_MODEL];
-    float out[SEQ_LEN][D_MODEL];
-
-    float Wq[D_MODEL][D_MODEL];
-    float Wk[D_MODEL][D_MODEL];
-    float Wv[D_MODEL][D_MODEL];
-    float Wo[D_MODEL][D_MODEL];
-    float W1[D_MODEL][D_FF];
-    float W2[D_FF][D_MODEL];
-    float b1[D_FF];
-    float b2[D_MODEL];
-
-    init_input(x);
-    init_matrix_square(Wq);
-    init_matrix_square(Wk);
-    init_matrix_square(Wv);
-    init_matrix_square(Wo);
-    init_matrix_mixed(W1);
-    init_matrix_mixed_rev(W2);
-    init_bias_ff1(b1);
-    init_bias_ff2(b2);
-
-    transformer_block(x, Wq, Wk, Wv, Wo, W1, b1, W2, b2, out);
-
-    // Print a few outputs so it's not optimized away
-    for (int t = 0; t < SEQ_LEN; ++t) {
-        for (int i = 0; i < D_MODEL; ++i) {
-            printf("%f ", out[t][i]);
-        }
-        printf("\n");
-    }
-
-    return 0;
-}
