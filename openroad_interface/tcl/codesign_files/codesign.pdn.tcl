@@ -21,39 +21,22 @@ add_pdn_stripe -grid {grid} -layer {metal4} -width {0.48} -pitch {56.0} -offset 
 add_pdn_stripe -grid {grid} -layer {metal7} -width {1.40} -pitch {40.0} -offset {2}
 add_pdn_connect -grid {grid} -layers {metal1 metal4}
 add_pdn_connect -grid {grid} -layers {metal4 metal7}
-
-
 ####################################
-# Minimal (dummy) macro PDN grids
+# macro grids
 ####################################
-
-# For macros with no rotation (R0 / R180 / MX / MY)
-define_pdn_grid -name CORE_macro_grid_1 \
-    -macro \
-    -default \
-    -voltage_domains {CORE} \
-    -orient {R0 R180 MX MY} \
-    -halo {0.1 0.1 0.1 0.1} \
-    -grid_over_boundary
-
-add_pdn_stripe -grid CORE_macro_grid_1 -layer metal1 \
-    -width {0.05} \
-    -pitch {1000.0} \
-    -offset {0.0} \
-    -followpins
-
-# For macros rotated by 90° (R90/R270)
-define_pdn_grid -name CORE_macro_grid_2 \
-    -macro \
-    -default \
-    -voltage_domains {CORE} \
-    -orient {R90 R270 MXR90 MYR90} \
-    -halo {0.1 0.1 0.1 0.1} \
-    -grid_over_boundary
-
-add_pdn_stripe -grid CORE_macro_grid_2 -layer metal1 \
-    -width {0.05} \
-    -pitch {1000.0} \
-    -offset {0.0} \
-    -followpins
 ####################################
+# grid for: CORE_macro_grid_1
+####################################
+define_pdn_grid -name {CORE_macro_grid_1} -voltage_domains {CORE} -macro -orient {R0 R180 MX MY} -halo {4.0 4.0 4.0 4.0} -default -grid_over_boundary
+add_pdn_stripe -grid {CORE_macro_grid_1} -layer {metal5} -width {0.93} -pitch {10.0} -offset {2}
+add_pdn_stripe -grid {CORE_macro_grid_1} -layer {metal6} -width {0.93} -pitch {10.0} -offset {2}
+add_pdn_connect -grid {CORE_macro_grid_1} -layers {metal4 metal5}
+add_pdn_connect -grid {CORE_macro_grid_1} -layers {metal5 metal6}
+add_pdn_connect -grid {CORE_macro_grid_1} -layers {metal6 metal7}
+####################################
+# grid for: CORE_macro_grid_2
+####################################
+define_pdn_grid -name {CORE_macro_grid_2} -voltage_domains {CORE} -macro -orient {R90 R270 MXR90 MYR90} -halo {4.0 4.0 4.0 4.0} -default -grid_over_boundary
+add_pdn_stripe -grid {CORE_macro_grid_2} -layer {metal6} -width {0.93} -pitch {40.0} -offset {2}
+add_pdn_connect -grid {CORE_macro_grid_2} -layers {metal4 metal6}
+add_pdn_connect -grid {CORE_macro_grid_2} -layers {metal6 metal7}
