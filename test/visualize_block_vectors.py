@@ -263,6 +263,6 @@ def get_latest_log_dir(log_dir):
     return log_dir + "/" + max(os.listdir(log_dir))
 
 if __name__ == "__main__":
-    log_dir = get_latest_log_dir("/scratch/patrick/codesign/logs")
+    log_dir = get_latest_log_dir("/scratch/patrick/codesign/test/regression_results/benchmark_results_test.list/benchmark_suite/vitis_gemm_256_delay/log")
     filepath = os.path.join(os.path.dirname(__file__), log_dir, "block_vectors")
-    visualize_all_block_vectors(filepath, "gemm", os.path.join(os.path.dirname(__file__), log_dir, "block_vectors_visualization"))
+    visualize_all_block_vectors(filepath, "gemm", os.path.join(os.path.dirname(__file__), log_dir, "figs/block_vectors_visualization"))
