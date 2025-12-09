@@ -1,12 +1,9 @@
-#include "aes.h"
 #include <stdint.h>
 
-#define F(x)   ( (uint8_t)( ((uint8_t)(x) << 1) ^ ((((uint8_t)(x) >> 7) & 1u) * 0x1bu) ) )
-#define FD(x)  ( (uint8_t)( ((uint8_t)(x) >> 1) ^ (((uint8_t)(x) & 1u) ? 0x8du : 0u) ) )
+/* ------------------------ Macros and S-box ------------------------ */
 
-/* -------------------------------------------------------------------------- */
-/* S-box                                                                      */
-/* -------------------------------------------------------------------------- */
+#define F(x)  ( (uint8_t)(((uint8_t)(x) << 1) ^ ((((uint8_t)(x) >> 7) & 1u) * 0x1bu)) )
+#define FD(x) ( (uint8_t)(((uint8_t)(x) >> 1) ^ (((uint8_t)(x) & 1u) ? 0x8du : 0u)) )
 
 static const uint8_t sbox[256] = {
     0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5,
@@ -45,7 +42,8 @@ static const uint8_t sbox[256] = {
 
 #define rj_sbox(x) (sbox[(uint8_t)(x)])
 
-/* -------------------------------------------------------------------------- */
+/* ------------------------ Small helpers ----------------------------------- */
+
 static inline uint8_t rj_xtime(uint8_t x) {
     return (uint8_t)(((x & 0x80u) != 0u) ? ((x << 1) ^ 0x1bu) : (x << 1));
 }
@@ -54,51 +52,46 @@ static inline uint8_t xt(uint8_t x) {
     return rj_xtime(x);
 }
 
-/* -------------------------------------------------------------------------- */
-/* All helpers now use fixed-size arrays for the 16-byte state.              */
-/* -------------------------------------------------------------------------- */
+/* ------------------------ Round operations (16-byte state) ---------------- */
 
-void aes_subBytes(uint8_t buf[16])
-{
+void aes_subBytes(uint8_t buf[16]) {
     int i;
     for (i = 0; i < 16; ++i) {
         buf[i] = rj_sbox(buf[i]);
     }
 }
 
-void aes_addRoundKey(uint8_t buf[16], uint8_t key[16])
-{
+void aes_addRoundKey(uint8_t buf[16], uint8_t key[16]) {
     int i;
     for (i = 0; i < 16; ++i) {
         buf[i] = (uint8_t)(buf[i] ^ key[i]);
     }
 }
 
-/* cpk is 32 bytes: first 16 for round key copy, last 16 for next half */
-void aes_addRoundKey_cpy(uint8_t buf[16], uint8_t key[16], uint8_t cpk[32])
-{
+/* key32 and round32 are 32-byte working key buffers */
+void aes_addRoundKey_cpy(uint8_t buf[16], uint8_t key32[32], uint8_t round32[32]) {
     int i;
+    /* copy full 32-byte key into round32, and XOR first 16 bytes into buf */
     for (i = 0; i < 16; ++i) {
-        uint8_t v  = key[i];
-        uint8_t v2 = key[16 + i];
-        buf[i]      = (uint8_t)(buf[i] ^ v);
-        cpk[i]      = v;
-        cpk[16 + i] = v2;
+        uint8_t v0 = key32[i];
+        uint8_t v1 = key32[16 + i];
+        buf[i]       = (uint8_t)(buf[i] ^ v0);
+        round32[i]   = v0;
+        round32[16 + i] = v1;
     }
 }
 
-void aes_shiftRows(uint8_t buf[16])
-{
+void aes_shiftRows(uint8_t buf[16]) {
     uint8_t t;
 
-    /* row 1 */
+    /* row 1: [1,5,9,13] */
     t        = buf[1];
     buf[1]   = buf[5];
     buf[5]   = buf[9];
     buf[9]   = buf[13];
     buf[13]  = t;
 
-    /* row 2 */
+    /* row 2: [2,6,10,14] (two-byte rotation) */
     t        = buf[2];
     buf[2]   = buf[10];
     buf[10]  = t;
@@ -107,7 +100,7 @@ void aes_shiftRows(uint8_t buf[16])
     buf[6]   = buf[14];
     buf[14]  = t;
 
-    /* row 3 */
+    /* row 3: [3,7,11,15] */
     t        = buf[3];
     buf[3]   = buf[15];
     buf[15]  = buf[11];
@@ -115,8 +108,7 @@ void aes_shiftRows(uint8_t buf[16])
     buf[7]   = t;
 }
 
-void aes_mixColumns(uint8_t buf[16])
-{
+void aes_mixColumns(uint8_t buf[16]) {
     int i;
     uint8_t a, b, c, d, e;
 
@@ -135,12 +127,10 @@ void aes_mixColumns(uint8_t buf[16])
     }
 }
 
-/* 256-bit key expansion: k is 32 bytes */
-void aes_expandEncKey(uint8_t k[32], uint8_t *rc)
-{
+/* 32-byte key schedule update */
+void aes_expandEncKey(uint8_t k[32], uint8_t *rc) {
     int i;
 
-    /* first 4 bytes */
     k[0] = (uint8_t)(k[0] ^ rj_sbox(k[29]) ^ *rc);
     k[1] = (uint8_t)(k[1] ^ rj_sbox(k[30]));
     k[2] = (uint8_t)(k[2] ^ rj_sbox(k[31]));
@@ -148,64 +138,72 @@ void aes_expandEncKey(uint8_t k[32], uint8_t *rc)
 
     *rc = F(*rc);
 
-    /* bytes 4..15: k[i] ^= k[i-4] */
     for (i = 4; i < 16; ++i) {
         k[i] = (uint8_t)(k[i] ^ k[i - 4]);
     }
 
-    /* middle 4 bytes */
     k[16] = (uint8_t)(k[16] ^ rj_sbox(k[12]));
     k[17] = (uint8_t)(k[17] ^ rj_sbox(k[13]));
     k[18] = (uint8_t)(k[18] ^ rj_sbox(k[14]));
     k[19] = (uint8_t)(k[19] ^ rj_sbox(k[15]));
 
-    /* bytes 20..31: k[i] ^= k[i-4] */
     for (i = 20; i < 32; ++i) {
         k[i] = (uint8_t)(k[i] ^ k[i - 4]);
     }
 }
 
-/* -------------------------------------------------------------------------- */
-/* AES-256 encrypt (single block)                                            */
-/* -------------------------------------------------------------------------- */
+void aes_addRoundKey32(uint8_t buf[16], uint8_t key32[32], int base) {
+    int i;
+    for (i = 0; i < 16; ++i) {
+        buf[i] = (uint8_t)(buf[i] ^ key32[base + i]);
+    }
+}
 
-void aes(aes256_context *ctx, uint8_t k[32], uint8_t buf[16])
-{
+/* ------------------------ Top kernel: AES-256 encrypt --------------------- */
+/* This should be the ScaleHLS top function (no struct argument).            */
+
+void aes(uint8_t key_in[32], uint8_t buf[16]) {
+    uint8_t enckey[32];
+    uint8_t deckey[32];
+    uint8_t roundkey[32];
     uint8_t rcon = 1;
     int i, j;
 
-    /* copy original key into enckey/deckey (32 bytes) */
+    /* initialize key buffers */
     for (i = 0; i < 32; ++i) {
-        uint8_t vi = k[i];
-        ctx->enckey[i] = vi;
-        ctx->deckey[i] = vi;
+        uint8_t v = key_in[i];
+        enckey[i] = v;
+        deckey[i] = v;
     }
 
-    /* expand deckey 7 times (equivalent to original loop from 8 down to 1) */
+    /* pre-expand decryption key 7 times (original code loop from 8 down) */
     for (i = 0; i < 7; ++i) {
-        aes_expandEncKey(ctx->deckey, &rcon);
+        aes_expandEncKey(deckey, &rcon);
     }
 
-    /* main rounds */
-    aes_addRoundKey_cpy(buf, ctx->enckey, ctx->key);
+    /* first round key addition + copy to roundkey */
+    aes_addRoundKey_cpy(buf, enckey, roundkey);
 
     rcon = 1;
+
+    /* 13 main rounds */
     for (j = 1; j < 14; ++j) {
         aes_subBytes(buf);
         aes_shiftRows(buf);
         aes_mixColumns(buf);
 
         if (j & 1) {
-            /* use upper half of ctx->key as round key */
-            aes_addRoundKey(buf, &ctx->key[16]);
+            /* use upper half of roundkey */
+            aes_addRoundKey32(buf, roundkey, 16);
         } else {
-            aes_expandEncKey(ctx->key, &rcon);
-            aes_addRoundKey(buf, ctx->key);
+            aes_expandEncKey(roundkey, &rcon);
+            aes_addRoundKey32(buf, roundkey, 0);
         }
     }
 
+    /* final round (no mixColumns) */
     aes_subBytes(buf);
     aes_shiftRows(buf);
-    aes_expandEncKey(ctx->key, &rcon);
-    aes_addRoundKey(buf, ctx->key);
+    aes_expandEncKey(roundkey, &rcon);
+    aes_addRoundKey32(buf, roundkey, 0);
 }
