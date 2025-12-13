@@ -31,16 +31,19 @@ CPP_OUTPUT_FOLDER = os.path.join(os.path.dirname(__file__), "cpp_output")
 if not os.path.exists(CPP_OUTPUT_FOLDER):
     os.makedirs(CPP_OUTPUT_FOLDER)
 
-def set_num_dsp(num_dsp):
+def set_config(num_dsp, sample_sub_funcs, sample_iter_num, no_unroll_top_func):
     with open(f"{SCALEHLS_DIR}/test/Transforms/Directive/config.json", "r") as f:
         config = json.load(f)
     config["dsp"] = num_dsp
     config["bram"] = num_dsp
+    config["sample-sub-funcs"] = sample_sub_funcs
+    config["sample-iter-num"] = sample_iter_num
+    config["no-unroll-top-func"] = no_unroll_top_func
     with open(f"{SCALEHLS_DIR}/test/Transforms/Directive/config.json", "w") as f:
         json.dump(config, f)
 
-def run_c_file(input_file, debug_point, no_dse, num_dsp):
-    set_num_dsp(num_dsp)
+def run_c_file(input_file, debug_point, no_dse, num_dsp, sample_sub_funcs, sample_iter_num, no_unroll_top_func):
+    set_config(num_dsp, sample_sub_funcs, sample_iter_num, no_unroll_top_func)
     log_index = 0
     debug_point_txt = f" debug-point={debug_point}" if debug_point != 0 else ""
     log_path = f"{C_TEST_LOG_FOLDER}/{input_file}_{log_index}.log" if debug_point == 0 else f"{C_DEBUG_LOG_FOLDER}/{input_file}/{input_file}_debug_{debug_point}_{log_index}.log"
@@ -92,11 +95,16 @@ if __name__ == "__main__":
     parser.add_argument("--debug_point", type=int, default=0)
     parser.add_argument("--no_dse", action="store_true", default=False)
     parser.add_argument("--num_dsp", type=int, default=150)
+    parser.add_argument("--sample_sub_funcs", action="store_true", default=False)
+    parser.add_argument("--sample_iter_num", type=int, default=100)
+    parser.add_argument("--no_unroll_top_func", action="store_true", default=False)
     args = parser.parse_args()
 
     input_file = args.input_file
     debug_point = args.debug_point
     no_dse = args.no_dse
     num_dsp = args.num_dsp
-
-    run_c_file(input_file, debug_point, no_dse, num_dsp)
+    sample_sub_funcs = args.sample_sub_funcs    
+    sample_iter_num = args.sample_iter_num
+    no_unroll_top_func = args.no_unroll_top_func
+    run_c_file(input_file, debug_point, no_dse, num_dsp, sample_sub_funcs, sample_iter_num, no_unroll_top_func)
