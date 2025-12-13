@@ -3,6 +3,7 @@
  * Scaled dot-product attention head wrapped in a top function with dummy computation
  */
 
+#include "arith_ops.c"
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>

@@ -627,7 +627,7 @@ void transformer_block(
 }
 
 /* Top-level Llama transformer function */
-void llama(
+void llama_prefill(
     DATA_TYPE POLYBENCH_2D(out, SEQ_LEN, VOCAB_SIZE, seq_len, vocab_size),
     DATA_TYPE POLYBENCH_1D(tokens, SEQ_LEN, seq_len),
     DATA_TYPE POLYBENCH_2D(emb_weight, VOCAB_SIZE, EMBED_DIM, vocab_size, embed_dim),
@@ -768,7 +768,7 @@ void llama(
 #pragma endscop
     
     /* Determine if mask should be used (seq_len > 1 for first pass) */
-    int use_mask = (seq_len > 1) ? 1 : 0;
+    int use_mask = 1;
     
     transformer_block(
       x_temp,  /* output */
@@ -821,5 +821,281 @@ void llama(
     }
   }
 #pragma endscop
+}
+
+void llama_decode (
+  DATA_TYPE POLYBENCH_2D(out, 1, VOCAB_SIZE, 1, vocab_size),
+  DATA_TYPE POLYBENCH_1D(tokens, 1, 1),
+  DATA_TYPE POLYBENCH_2D(emb_weight, VOCAB_SIZE, EMBED_DIM, vocab_size, embed_dim),
+  /* Transformer block weights - for depth layers */
+  DATA_TYPE POLYBENCH_3D(q_weights, DEPTH, EMBED_DIM, EMBED_DIM, depth, embed_dim, embed_dim),
+  DATA_TYPE POLYBENCH_3D(k_weights, DEPTH, EMBED_DIM, EMBED_DIM, depth, kv_embed_dim, embed_dim),
+  DATA_TYPE POLYBENCH_3D(v_weights, DEPTH, EMBED_DIM, EMBED_DIM, depth, kv_embed_dim, embed_dim),
+  DATA_TYPE POLYBENCH_3D(o_weights, DEPTH, EMBED_DIM, EMBED_DIM, depth, embed_dim, embed_dim),
+  DATA_TYPE POLYBENCH_3D(w1_weights, DEPTH, FF_DIM, EMBED_DIM, depth, ff_dim, embed_dim),
+  DATA_TYPE POLYBENCH_3D(w3_weights, DEPTH, FF_DIM, EMBED_DIM, depth, ff_dim, embed_dim),
+  DATA_TYPE POLYBENCH_3D(w2_weights, DEPTH, EMBED_DIM, FF_DIM, depth, embed_dim, ff_dim),
+  DATA_TYPE POLYBENCH_2D(attn_norm_weights, DEPTH, EMBED_DIM, depth, embed_dim),
+  DATA_TYPE POLYBENCH_2D(ffn_norm_weights, DEPTH, EMBED_DIM, depth, embed_dim),
+  DATA_TYPE POLYBENCH_2D(output_weight, VOCAB_SIZE, EMBED_DIM, vocab_size, embed_dim),
+  /* KV cache - flattened 1D array: size = depth * batch_size * max_seq_len * kv_heads * head_dim */
+  /* Layout: cache_k[layer * layer_size + batch * batch_size + seq * seq_size + head * head_size + dim] */
+  /* Use maximum possible size for compile-time dimension */
+  DATA_TYPE POLYBENCH_1D(cache_k, DEPTH * BATCH_SIZE * 1 * KV_HEADS * HEAD_DIM, depth * batch_size * max_seq_len * kv_heads * head_dim),
+  DATA_TYPE POLYBENCH_1D(cache_v, DEPTH * BATCH_SIZE * 1 * KV_HEADS * HEAD_DIM, depth * batch_size * max_seq_len * kv_heads * head_dim),
+  /* RoPE frequencies */
+  DATA_TYPE POLYBENCH_2D(freqs_cis, 1, HEAD_DIM, max_seq_len, head_dim),
+  /* Attention mask */
+  DATA_TYPE POLYBENCH_2D(attn_mask, 1, 1, 1, 1),
+  int batch_size,
+  int seq_len,
+  int start_pos,
+  int embed_dim,
+  int kv_embed_dim,
+  int query_heads,
+  int kv_heads,
+  int ff_dim,
+  int vocab_size,
+  int head_dim,
+  int depth,
+  int max_seq_len)
+{
+int l, i, j;
+DATA_TYPE POLYBENCH_2D(x_emb, 1, EMBED_DIM, 1, embed_dim);
+DATA_TYPE POLYBENCH_2D(x_transformed, 1, EMBED_DIM, 1, embed_dim);
+DATA_TYPE POLYBENCH_2D(x_temp, 1, EMBED_DIM, 1, embed_dim);
+DATA_TYPE POLYBENCH_2D(output_norm, 1, EMBED_DIM, 1, embed_dim);
+DATA_TYPE POLYBENCH_1D(output_norm_weight, EMBED_DIM, embed_dim);
+DATA_TYPE POLYBENCH_2D(swap, 1, EMBED_DIM, 1, embed_dim);
+
+/* Initialize output norm weight */
+#pragma scop
+for (i = 0; i < EMBED_DIM; i++) {
+  output_norm_weight[i] = SCALAR_VAL(1.0);
+}
+#pragma endscop
+
+/* Embedding lookup - simplified: use token index for affine access ASSUMING VOCAB_SIZE >= SEQ_LEN*/
+/* This avoids memref.load and uses affine.load instead */
+#pragma scop
+for (i = 0; i < 1; i++) {
+  for (j = 0; j < EMBED_DIM; j++) {
+    x_emb[i][j] = emb_weight[i][j];
+  }
+}
+#pragma endscop
+
+/* Copy to working buffer */
+#pragma scop
+for (i = 0; i < 1; i++) {
+  for (j = 0; j < EMBED_DIM; j++) {
+    x_transformed[i][j] = x_emb[i][j];
+  }
+}
+#pragma endscop
+
+/* Apply transformer blocks depth times */
+for (l = 0; l < DEPTH; l++) {
+  /* Extract weights for this layer */
+  DATA_TYPE POLYBENCH_2D(q_w, EMBED_DIM, EMBED_DIM, embed_dim, embed_dim);
+  DATA_TYPE POLYBENCH_2D(k_w, EMBED_DIM, EMBED_DIM, kv_embed_dim, embed_dim);
+  DATA_TYPE POLYBENCH_2D(v_w, EMBED_DIM, EMBED_DIM, kv_embed_dim, embed_dim);
+  DATA_TYPE POLYBENCH_2D(o_w, EMBED_DIM, EMBED_DIM, embed_dim, embed_dim);
+  DATA_TYPE POLYBENCH_2D(w1_w, FF_DIM, EMBED_DIM, ff_dim, embed_dim);
+  DATA_TYPE POLYBENCH_2D(w3_w, FF_DIM, EMBED_DIM, ff_dim, embed_dim);
+  DATA_TYPE POLYBENCH_2D(w2_w, EMBED_DIM, FF_DIM, embed_dim, ff_dim);
+  DATA_TYPE POLYBENCH_1D(attn_norm_w, EMBED_DIM, embed_dim);
+  DATA_TYPE POLYBENCH_1D(ffn_norm_w, EMBED_DIM, embed_dim);
+  
+  /* Copy weights for layer l */
+#pragma scop
+  for (i = 0; i < EMBED_DIM; i++) {
+    for (j = 0; j < EMBED_DIM; j++) {
+      q_w[i][j] = q_weights[l][i][j];
+      o_w[i][j] = o_weights[l][i][j];
+    }
+  }
+  for (i = 0; i < EMBED_DIM; i++) {
+    for (j = 0; j < EMBED_DIM; j++) {
+      k_w[i][j] = k_weights[l][i][j];
+      v_w[i][j] = v_weights[l][i][j];
+    }
+  }
+  for (i = 0; i < EMBED_DIM; i++) {
+    attn_norm_w[i] = attn_norm_weights[l][i];
+    ffn_norm_w[i] = ffn_norm_weights[l][i];
+  }
+  for (i = 0; i < FF_DIM; i++) {
+    for (j = 0; j < EMBED_DIM; j++) {
+      w1_w[i][j] = w1_weights[l][i][j];
+      w3_w[i][j] = w3_weights[l][i][j];
+    }
+  }
+  for (i = 0; i < EMBED_DIM; i++) {
+    for (j = 0; j < FF_DIM; j++) {
+      w2_w[i][j] = w2_weights[l][i][j];
+    }
+  }
+#pragma endscop
+  
+  /* Get cache for this layer - copy from flattened 1D to 4D using nested loops */
+  DATA_TYPE POLYBENCH_4D(layer_cache_k, BATCH_SIZE, 1, KV_HEADS, HEAD_DIM, batch_size, max_seq_len, kv_heads, head_dim);
+  DATA_TYPE POLYBENCH_4D(layer_cache_v, BATCH_SIZE, 1, KV_HEADS, HEAD_DIM, batch_size, max_seq_len, kv_heads, head_dim);
+  /* Calculate offsets for flattened array access */
+  int layer_size = batch_size * max_seq_len * kv_heads * head_dim;
+  int batch_size_flat = max_seq_len * kv_heads * head_dim;
+  int seq_size = kv_heads * head_dim;
+  int head_size = head_dim;
+  int layer_offset = l * layer_size;
+  /* Copy cache for layer l using flattened array indexing */
+#pragma scop
+  for (i = 0; i < BATCH_SIZE; i++) {
+    for (j = 0; j < 1; j++) {
+      for (int h = 0; h < KV_HEADS; h++) {
+        for (int d = 0; d < HEAD_DIM; d++) {
+          /* Access flattened array: cache_k[layer_offset + i*batch_size_flat + j*seq_size + h*head_size + d] */
+          int flat_idx = layer_offset + i * batch_size_flat + j * seq_size + h * head_size + d;
+          layer_cache_k[i][j][h][d] = cache_k[flat_idx];
+          layer_cache_v[i][j][h][d] = cache_v[flat_idx];
+        }
+      }
+    }
+  }
+#pragma endscop
+  
+  int use_mask = 0;
+  
+  transformer_block(
+    x_temp,  /* output */
+    x_transformed,  /* input */
+    q_w, k_w, v_w, o_w,
+    w1_w, w3_w, w2_w,
+    attn_norm_w, ffn_norm_w,
+    layer_cache_k, layer_cache_v,
+    freqs_cis, attn_mask, use_mask,
+    batch_size, 1, start_pos,
+    embed_dim, kv_embed_dim, query_heads, kv_heads, ff_dim, head_dim);
+  
+  /* Update cache - copy back from 4D to flattened 1D array */
+#pragma scop
+  for (i = 0; i < BATCH_SIZE; i++) {
+    for (j = 0; j < 1; j++) {
+      for (int h = 0; h < KV_HEADS; h++) {
+        for (int d = 0; d < HEAD_DIM; d++) {
+          /* Access flattened array: cache_k[layer_offset + i*batch_size_flat + j*seq_size + h*head_size + d] */
+          int flat_idx = layer_offset + i * batch_size_flat + j * seq_size + h * head_size + d;
+          cache_k[flat_idx] = layer_cache_k[i][j][h][d];
+          cache_v[flat_idx] = layer_cache_v[i][j][h][d];
+        }
+      }
+    }
+  }
+#pragma endscop
+  
+  /* Swap buffers for next iteration */
+  for (i = 0; i < 1; i++) {
+    for (j = 0; j < EMBED_DIM; j++) {
+      swap[i][j] = x_transformed[i][j];
+      x_transformed[i][j] = x_temp[i][j];
+      x_temp[i][j] = swap[i][j];
+    }
+  }
+}
+
+/* Final RMSNorm */
+rms_norm(output_norm, x_transformed, output_norm_weight, 1, embed_dim, NORM_EPS);
+
+/* Output projection to vocab_size */
+#pragma scop
+for (i = 0; i < 1; i++) {
+  for (j = 0; j < VOCAB_SIZE; j++) {
+    out[i][j] = SCALAR_VAL(0.0);
+    for (int k = 0; k < EMBED_DIM; k++) {
+      out[i][j] += output_norm[i][k] * output_weight[j][k];
+    }
+  }
+}
+#pragma endscop
+}
+
+void llama(
+  /* Inputs */
+  DATA_TYPE POLYBENCH_1D(tokens, SEQ_LEN, seq_len),
+  DATA_TYPE POLYBENCH_2D(emb_weight, VOCAB_SIZE, EMBED_DIM, vocab_size, embed_dim),
+
+  /* Weights */
+  DATA_TYPE POLYBENCH_3D(q_weights, DEPTH, EMBED_DIM, EMBED_DIM, depth, embed_dim, embed_dim),
+  DATA_TYPE POLYBENCH_3D(k_weights, DEPTH, EMBED_DIM, EMBED_DIM, depth, kv_embed_dim, embed_dim),
+  DATA_TYPE POLYBENCH_3D(v_weights, DEPTH, EMBED_DIM, EMBED_DIM, depth, kv_embed_dim, embed_dim),
+  DATA_TYPE POLYBENCH_3D(o_weights, DEPTH, EMBED_DIM, EMBED_DIM, depth, embed_dim, embed_dim),
+  DATA_TYPE POLYBENCH_3D(w1_weights, DEPTH, FF_DIM, EMBED_DIM, depth, ff_dim, embed_dim),
+  DATA_TYPE POLYBENCH_3D(w3_weights, DEPTH, FF_DIM, EMBED_DIM, depth, ff_dim, embed_dim),
+  DATA_TYPE POLYBENCH_3D(w2_weights, DEPTH, EMBED_DIM, FF_DIM, depth, embed_dim, ff_dim),
+  DATA_TYPE POLYBENCH_2D(attn_norm_weights, DEPTH, EMBED_DIM, depth, embed_dim),
+  DATA_TYPE POLYBENCH_2D(ffn_norm_weights, DEPTH, EMBED_DIM, depth, embed_dim),
+  DATA_TYPE POLYBENCH_2D(output_weight, VOCAB_SIZE, EMBED_DIM, vocab_size, embed_dim),
+
+  /* Cache and positional data */
+  DATA_TYPE POLYBENCH_1D(cache_k, DEPTH * BATCH_SIZE * SEQ_LEN * KV_HEADS * HEAD_DIM,
+                         depth * batch_size * max_seq_len * kv_heads * head_dim),
+  DATA_TYPE POLYBENCH_1D(cache_v, DEPTH * BATCH_SIZE * SEQ_LEN * KV_HEADS * HEAD_DIM,
+                         depth * batch_size * max_seq_len * kv_heads * head_dim),
+  DATA_TYPE POLYBENCH_2D(freqs_cis, SEQ_LEN, HEAD_DIM, max_seq_len, head_dim),
+  DATA_TYPE POLYBENCH_2D(attn_mask, SEQ_LEN, SEQ_LEN, seq_len, seq_len),
+
+  /* Output buffer */
+  DATA_TYPE POLYBENCH_2D(out, SEQ_LEN, VOCAB_SIZE, seq_len, vocab_size)
+) {
+  /* Simple harness to exercise prefill once and then run a fixed
+   * number of decode iterations, mirroring the Python outer loop in
+   * llama.py::run_inference. All tensor sizes are kept at the
+   * compile-time SEQ_LEN/EMBED_DIM/etc. because the kernels above
+   * iterate to the static limits (SEQ_LEN), so seq_len must match the
+   * compile-time constants to avoid out-of-bounds accesses. */
+
+  int batch_size = BATCH_SIZE;
+  int seq_len = SEQ_LEN;
+  int embed_dim = EMBED_DIM;
+  int kv_embed_dim = EMBED_DIM; /* K/V projections same width as embed */
+  int query_heads = HEADS;
+  int kv_heads = KV_HEADS;
+  int ff_dim = FF_DIM;
+  int vocab_size = VOCAB_SIZE;
+  int head_dim = HEAD_DIM;
+  int depth = DEPTH;
+  int max_seq_len = SEQ_LEN;
+  int start_pos = 0;
+
+
+  /* Precompute RoPE frequencies */
+  precompute_freqs_cis(freqs_cis, max_seq_len, head_dim, SCALAR_VAL(ROPE_THETA));
+
+  /* Prefill phase */
+  llama_prefill(out, tokens, emb_weight,
+                q_weights, k_weights, v_weights, o_weights,
+                w1_weights, w3_weights, w2_weights,
+                attn_norm_weights, ffn_norm_weights, output_weight,
+                cache_k, cache_v, freqs_cis, attn_mask,
+                batch_size, seq_len, start_pos,
+                embed_dim, kv_embed_dim, query_heads, kv_heads,
+                ff_dim, vocab_size, head_dim, depth, max_seq_len);
+
+  auto next_layer_input = out[SEQ_LEN - 1];
+
+  /* Decode phase: reuse the same shapes; start_pos kept at 0 because
+   * kernels iterate to SEQ_LEN and cache arrays are sized for a
+   * single SEQ_LEN window. */
+  unsigned NUM_DECODE_ITERS = 30;
+  for (unsigned i = 0; i < NUM_DECODE_ITERS; i++) {
+    llama_decode(next_layer_input, tokens, emb_weight,
+                 q_weights, k_weights, v_weights, o_weights,
+                 w1_weights, w3_weights, w2_weights,
+                 attn_norm_weights, ffn_norm_weights, output_weight,
+                 cache_k, cache_v, freqs_cis, attn_mask,
+                 batch_size, 1, start_pos,
+                 embed_dim, kv_embed_dim, query_heads, kv_heads,
+                 ff_dim, vocab_size, head_dim, depth, max_seq_len);
+    next_layer_input = out;
+  }
 }
 

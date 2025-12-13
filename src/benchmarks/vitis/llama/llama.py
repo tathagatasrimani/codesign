@@ -167,7 +167,54 @@ class Transformer(nn.Module):
         out = self.output(h).float() # (2, 8, 128256) = (bsz, seqlen, VOCAB_SIZE)
         return out # (2, 8, 128256) = (bsz, seqlen, VOCAB_SIZE)
     
-dummy_tokens = torch.rand(2, 8).long() # Use `rand` instead of `randn`. `randn` generates negative number which is invalid for `nn.Embedding`
-dummy_start_pos = 0
+# Example inference loop
+def run_inference(transformer, prompt_tokens, max_new_tokens=128):
+    """
+    Run complete inference with prefill and decode phases.
+    
+    Args:
+        transformer: The Transformer model
+        prompt_tokens: Input prompt tokens (batch_size, prompt_length)
+        max_new_tokens: Maximum number of tokens to generate
+    """
+    bsz, prompt_len = prompt_tokens.shape
+    
+    # PREFILL PHASE: Process entire prompt at once
+    # seqlen > 1, start_pos = 0, uses causal mask
+    logits = transformer(prompt_tokens, start_pos=0)
+    # Get the last token's logits for the first generated token
+    next_token_logits = logits[:, -1, :]  # (batch_size, vocab_size)
+    next_token = torch.argmax(next_token_logits, dim=-1, keepdim=True)
+    
+    # DECODE PHASE: Generate tokens one at a time
+    # seqlen = 1, start_pos increments, no mask needed
+    generated_tokens = [next_token]
+    start_pos = prompt_len
+    
+    for _ in range(max_new_tokens - 1):
+        # Process single token: seqlen = 1, start_pos = current position
+        logits = transformer(next_token, start_pos=start_pos)
+        next_token_logits = logits[:, -1, :]  # (batch_size, vocab_size)
+        next_token = torch.argmax(next_token_logits, dim=-1, keepdim=True)  # (batch_size, 1)
+        generated_tokens.append(next_token)
+        start_pos += 1
+        
+        # Optional: stop if EOS token is generated
+        # if next_token.item() == EOS_TOKEN_ID:
+        #     break
+    
+    # Concatenate all generated tokens
+    all_tokens = torch.cat([prompt_tokens] + generated_tokens, dim=1)
+    return all_tokens
 
-transformer = Transformer()
+# Example usage
+if __name__ == "__main__":
+    transformer = Transformer()
+    transformer.eval()
+    
+    # Example prompt (batch_size=1, prompt_length=8)
+    prompt_tokens = torch.randint(0, VOCAB_SIZE, (1, 8)).long()
+    
+    # Run complete inference
+    output_tokens = run_inference(transformer, prompt_tokens, max_new_tokens=128)
+    print(f"Generated {output_tokens.shape[1]} tokens total")

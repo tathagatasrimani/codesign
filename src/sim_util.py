@@ -89,10 +89,12 @@ def get_module_map():
     module_map = {
         "add": "Add16",
         "fadd": "Add16",
+        "addf": "Add16",
         "dadd": "Add16",
         "dmul": "Mult16",
         "mul": "Mult16",
         "fmul": "Mult16",
+        "mulf": "Mult16",
         "call": "Call"
     }
     return module_map

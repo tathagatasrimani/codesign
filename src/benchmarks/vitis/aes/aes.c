@@ -2,6 +2,7 @@
 *   Byte-oriented AES-256 implementation.
 *   All lookup tables replaced with 'on the fly' calculations.
 */
+#include "arith_ops.c"
 #include "aes.h"
 
 #define F(x)   (((x)<<1) ^ ((((x)>>7) & 1) * 0x1b))

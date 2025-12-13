@@ -1,3 +1,4 @@
+#include "arith_ops.c"
 #include "aes.h"
 #include <string.h>
 

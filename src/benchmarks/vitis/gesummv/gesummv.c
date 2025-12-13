@@ -1,3 +1,4 @@
+#include "arith_ops.c"
 #define N 32
 void gesummv(float alpha, float beta, float A[N][N], float B[N][N],
                   float tmp[N], float x[N], float y[N]) {

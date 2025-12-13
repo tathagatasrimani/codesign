@@ -6,6 +6,7 @@
 /*                                                               */
 /*===============================================================*/
 
+#include "arith_ops.c"
 #include "digitrec_sw.h"
 
 // sw top function

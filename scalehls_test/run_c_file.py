@@ -59,6 +59,8 @@ def run_c_file(input_file, debug_point, no_dse, num_dsp, sample_sub_funcs, sampl
         design_space_path = f"{SCALEHLS_DESIGN_SPACE_FOLDER}/{input_file}_{design_space_index}"
     os.makedirs(design_space_path)
 
+    translate_txt = f"scalehls-translate -scalehls-emit-hlscpp -emit-vitis-directives > {CPP_OUTPUT_FOLDER}/{input_file}.cpp" if debug_point == 0 else f"2>&1 tee {C_TEST_LOG_FOLDER}/{input_file}_{log_index}_debug_{debug_point}.log"
+
     scalehls_cmd = [
         "bash", "-c",
         f'''
@@ -67,8 +69,8 @@ def run_c_file(input_file, debug_point, no_dse, num_dsp, sample_sub_funcs, sampl
         cd {SCALEHLS_DIR}
         source scalehls_env.sh
         cd {design_space_path}
-        cgeist {C_INPUT_FOLDER}/{input_file}.c -function={input_file} -S -memref-fullrank -raise-scf-to-affine -std=c11 -I{SCALEHLS_DIR}/polygeist/tools/cgeist/Test/polybench/utilities -I/usr/include -I/usr/lib/gcc/x86_64-linux-gnu/13/include -I/usr/local/include -resource-dir $(clang -print-resource-dir) > {C_MLIR_FOLDER}/{input_file}.mlir
-        scalehls-opt {C_MLIR_FOLDER}/{input_file}.mlir -{pipeline}="top-func={input_file} target-spec={SCALEHLS_DIR}/test/Transforms/Directive/config.json{debug_point_txt}" -debug-only=scalehls | scalehls-translate -scalehls-emit-hlscpp -emit-vitis-directives > {CPP_OUTPUT_FOLDER}/{input_file}.cpp
+        cgeist {C_INPUT_FOLDER}/{input_file}.c -function='*' --O0 -S -memref-fullrank -raise-scf-to-affine -std=c11 -I{SCALEHLS_DIR}/polygeist/tools/cgeist/Test/polybench/utilities -I/usr/include -I/usr/lib/gcc/x86_64-linux-gnu/13/include -I/usr/local/include -resource-dir $(clang -print-resource-dir) > {C_MLIR_FOLDER}/{input_file}.mlir
+        scalehls-opt {C_MLIR_FOLDER}/{input_file}.mlir -{pipeline}="top-func={input_file} target-spec={SCALEHLS_DIR}/test/Transforms/Directive/config.json{debug_point_txt}" -debug-only=scalehls | {translate_txt}
         cd {CODESIGN_ROOT_DIR}
         deactivate
         conda deactivate
