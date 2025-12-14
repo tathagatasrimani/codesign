@@ -62,12 +62,12 @@ class TrendPlot:
             max_x = max(x_values)
             ax.set_xticks(range(min_x, max_x + 1))
         
-        # Improve styling
-        fig.patch.set_facecolor("#f8f9fa")
+
+
         
         # Adjust layout and save
         plt.tight_layout()
-        plt.savefig(f"{self.save_dir}/wire_lengths_over_iters.png", dpi=300, bbox_inches='tight')
+        plt.savefig(f"{self.save_dir}/wire_lengths_over_iters.svg", transparent=True, bbox_inches='tight')
         plt.close()
 
     def plot_params_over_generations(self):
@@ -107,11 +107,10 @@ class TrendPlot:
             
             # Improve grid and styling
             #ax.grid(True, alpha=0.3, linestyle='--')
-            fig.patch.set_facecolor("#f8f9fa")
             
             # Adjust layout and save
             plt.tight_layout()
-            plt.savefig(f"{self.save_dir}/{self.plot_list_labels[param]}_over_iters.png", dpi=300, bbox_inches='tight')
+            plt.savefig(f"{self.save_dir}/{self.plot_list_labels[param]}_over_iters.svg", transparent=True, bbox_inches='tight')
             plt.close()
     
     def plot_obj_over_generations(self):
@@ -150,10 +149,9 @@ class TrendPlot:
         ax.set_title(f"{self.obj} per iteration ({self.units})", fontweight="bold", pad=20)
         ax.set_yscale("log")
         #ax.grid(True, alpha=0.3, linestyle='--')
-        fig.patch.set_facecolor("#f8f9fa")
         ax.legend(["forward pass", "inverse pass"], fontsize=18)
         plt.tight_layout()
-        plt.savefig(f"{self.save_dir}/{self.obj_fn}_over_iters.png", dpi=300, bbox_inches='tight')
+        plt.savefig(f"{self.save_dir}/{self.obj_fn}_over_iters.svg", transparent=True, bbox_inches='tight')
         plt.close()
     
     def plot_lag_factor_over_generations(self):
@@ -171,9 +169,8 @@ class TrendPlot:
         
         # Improve grid and styling
         #ax.grid(True, alpha=0.3, linestyle='--')
-        fig.patch.set_facecolor("#f8f9fa")
         
         # Adjust layout and save
         plt.tight_layout()
-        plt.savefig(f"{self.save_dir}/lag_factor_over_iters.png", dpi=300, bbox_inches='tight')
+        plt.savefig(f"{self.save_dir}/lag_factor_over_iters.svg", transparent=True, bbox_inches='tight')
         plt.close()
