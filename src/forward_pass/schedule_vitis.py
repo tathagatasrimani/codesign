@@ -702,6 +702,9 @@ class vitis_schedule_parser:
             if file.endswith(".verbose.sched.rpt"):
                 file_path = os.path.join(self.solution_dir, file)
                 basic_block_name = file_path.split("/")[-1].split(".")[0]
+                if basic_block_name in sim_util.get_module_map().keys():
+                    log_info(f"Skipping basic block {basic_block_name} because it is a blackbox.")
+                    continue
                 self.basic_blocks[basic_block_name] = BasicBlockInfo(self.build_dir, self.allowed_functions, basic_block_name, file_path, self.clk_period, self.ignore_ops, self.no_rsc_allowed_ops, self.resource_mapping)
                 self.basic_blocks[basic_block_name].parse()
                 self.basic_blocks[basic_block_name].convert()

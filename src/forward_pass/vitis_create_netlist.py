@@ -8,7 +8,7 @@ from src import sim_util
 logger = logging.getLogger(__name__)
 
 ## Enables additional logging
-DEBUG = False
+DEBUG = True
 
 def debug_print(message):
     if DEBUG:
@@ -150,6 +150,10 @@ def create_vitis_netlist(root_dir):
     for subdir in os.listdir(root_dir):
         subdir_path = os.path.join(root_dir, subdir)
         if not os.path.isdir(subdir_path):
+            continue
+
+        if subdir in sim_util.get_module_map().keys():
+            debug_print(f"Skipping subdirectory {subdir} because it is a blackbox.")
             continue
 
         debug_print(f"Processing directory: {subdir_path}")

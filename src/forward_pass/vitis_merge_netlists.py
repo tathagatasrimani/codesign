@@ -6,7 +6,7 @@ from src import sim_util
 import logging
 logger = logging.getLogger(__name__)
 
-DEBUG = False
+DEBUG = True
 
 def debug_print(message):
     if DEBUG:
@@ -136,12 +136,16 @@ class MergeNetlistsVitis:
 
         ## generate the netlists for each of the instantiated modules recursively
         for module_name in module_dependences:
-            self.parse_module(current_directory, module_name)
+            if module_name not in sim_util.get_module_map().keys():
+                self.parse_module(current_directory, module_name)
 
         all_cross_module_edges = set()
 
         ## merge the netlists of the submodules into the full netlist
         for submodule_name in module_dependences:
+            if submodule_name in sim_util.get_module_map().keys():
+                debug_print(f"Skipping submodule {submodule_name} because it is a blackbox.")
+                continue
             #full_netlist = nx.compose(full_netlist, submodule_netlist)
             # print the number of nodes in the full_netlist before and after the merge
             debug_print(f"Before merging {submodule_name}, full netlist has {full_netlist.number_of_nodes()} nodes.")
