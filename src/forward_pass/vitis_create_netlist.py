@@ -8,7 +8,7 @@ from src import sim_util
 logger = logging.getLogger(__name__)
 
 ## Enables additional logging
-DEBUG = True
+DEBUG = False
 
 def debug_print(message):
     if DEBUG:
@@ -133,6 +133,13 @@ def create_networkX_netlist(json_netlist, json_complist, module_name):
 
     # Add nodes for each component, with attributes from complist
     for comp_id, comp_data in json_complist.items():
+        debug_print(f"Component {comp_id} compdata: {comp_data}")
+        if "bind" in comp_data and "fcode" in comp_data["bind"] and comp_data["bind"]["fcode"] == "call":
+            debug_print(f"Component {comp_id} is a call, fcode: {comp_data['bind']['fcode']}")
+            for func_name in sim_util.get_module_map().keys():
+                if comp_data["name"].find(func_name) != -1:
+                    comp_data["bind"]["fcode"] = func_name
+                    break
         G.add_node(str(comp_id) + "_" + module_name, **comp_data, module=module_name)
 
     # Add edges for each net, connecting src comp to sink comp
@@ -152,9 +159,9 @@ def create_vitis_netlist(root_dir):
         if not os.path.isdir(subdir_path):
             continue
 
-        if subdir in sim_util.get_module_map().keys():
-            debug_print(f"Skipping subdirectory {subdir} because it is a blackbox.")
-            continue
+        #if subdir in sim_util.get_module_map().keys():
+        #    debug_print(f"Skipping subdirectory {subdir} because it is a blackbox.")
+        #    continue
 
         debug_print(f"Processing directory: {subdir_path}")
 

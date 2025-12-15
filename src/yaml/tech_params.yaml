@@ -27,6 +27,7 @@ area: #um^2
     RShift16: 7.17
     Register16: 0.5 # temporary (same as before)
     Sub16: 5.82
+    Exp16: 75.24 # PLACEHOLDER
   130: 
     BitAnd16: 100.096
     And16: 31.28
@@ -50,7 +51,7 @@ area: #um^2
     Modulus16: 11100.646
     Mult16: 2571.216
     Register16: 26.275
-
+    Exp16: 2900.8 # PLACEHOLDER
 dynamic_power: # nw
   7:
     Add16: 1247.10
@@ -251,5 +252,8 @@ pin_count:
     input: 16
     output: 16
   Sub16:
+    input: 32
+    output: 16
+  Exp16:
     input: 32
     output: 16

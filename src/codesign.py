@@ -408,11 +408,11 @@ class Codesign:
         print(f"Current working directory in vitis parse data: {os.getcwd()}")
 
         if self.no_memory:
-            allowed_functions_netlist = set(self.hw.circuit_model.circuit_values["area"].keys()) - {"N/A", "Buf", "MainMem"}
-            allowed_functions_schedule = allowed_functions_netlist + {"Call", "II"}
+            allowed_functions_netlist = set(self.hw.circuit_model.circuit_values["area"].keys()).difference({"N/A", "Buf", "MainMem", "Call"})
+            allowed_functions_schedule = allowed_functions_netlist.union({"Call", "II"})
         else:
-            allowed_functions_netlist = set(self.hw.circuit_model.circuit_values["area"].keys()) - {"N/A"}
-            allowed_functions_schedule = allowed_functions_netlist + {"Call", "II"}
+            allowed_functions_netlist = set(self.hw.circuit_model.circuit_values["area"].keys()).difference({"N/A", "Call"})
+            allowed_functions_schedule = allowed_functions_netlist.union({"Call", "II"})
 
         parse_results_dir = f"{save_dir}/parse_results"
 
@@ -471,6 +471,8 @@ class Codesign:
         else:
             for file in os.listdir(parse_results_dir):
                 if os.path.isdir(os.path.join(parse_results_dir, file)):
+                    if file in sim_util.get_module_map().keys(): # dont parse blackboxed functions
+                        continue
                     self.hw.scheduled_dfgs[file] = nx.read_gml(f"{parse_results_dir}/{file}/{file}_graph_standard_with_wire_ops.gml")
                     for subfile in os.listdir(f"{parse_results_dir}/{file}"):
                         logger.info(f"subfile: {subfile}")

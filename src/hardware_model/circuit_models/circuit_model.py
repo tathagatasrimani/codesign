@@ -27,8 +27,6 @@ class CircuitModel:
         self.coeffs = coefficients.create_and_save_coefficients([7])
         self.set_coefficients()
 
-        # TODO: add actual data for Exp16
-
         # UNITS: ns
         self.symbolic_latency_wc = {
             "And16": lambda: self.make_sym_lat_wc(self.gamma["And16"]),
@@ -50,7 +48,7 @@ class CircuitModel:
             "Gt16": lambda: self.make_sym_lat_wc(self.gamma["Gt16"]),
             "GtE16": lambda: self.make_sym_lat_wc(self.gamma["GtE16"]),
             "Not16": lambda: self.make_sym_lat_wc(self.gamma["Not16"]),
-            "Exp16": lambda: 3*(self.make_sym_lat_wc(self.gamma["Mult16"]) + self.make_sym_lat_wc(self.gamma["Add16"])),
+            "Exp16": lambda: self.make_sym_lat_wc(self.gamma["Exp16"]),
             "Register16": lambda: self.make_sym_lat_wc(self.gamma["Register16"]),   
             "Buf": lambda: self.make_buf_lat_dict(),    
             "MainMem": lambda: self.make_mem_lat_dict(),
@@ -80,7 +78,7 @@ class CircuitModel:
             "Gt16": lambda: self.make_sym_energy_act(self.alpha["Gt16"]),
             "GtE16": lambda: self.make_sym_energy_act(self.alpha["GtE16"]),
             "Not16": lambda: self.make_sym_energy_act(self.alpha["Not16"]),
-            "Exp16": lambda: 3*(self.make_sym_energy_act(self.alpha["Mult16"]) + self.make_sym_energy_act(self.alpha["Add16"])),
+            "Exp16": lambda: self.make_sym_energy_act(self.alpha["Exp16"]),
             "Register16": lambda: self.make_sym_energy_act(self.alpha["Register16"]),
             "Buf": lambda: self.make_buf_energy_active_dict(),
             "MainMem": lambda: self.make_mainmem_energy_active_dict(),
@@ -110,7 +108,7 @@ class CircuitModel:
             "Gt16": lambda: self.make_sym_power_pass(self.beta["Gt16"]),
             "GtE16": lambda: self.make_sym_power_pass(self.beta["GtE16"]),
             "Not16": lambda: self.make_sym_power_pass(self.beta["Not16"]),
-            "Exp16": lambda: self.make_sym_power_pass(self.beta["Mult16"]) + self.make_sym_power_pass(self.beta["Add16"]),
+            "Exp16": lambda: self.make_sym_power_pass(self.beta["Exp16"]),
             "Register16": lambda: self.make_sym_power_pass(self.beta["Register16"]),
             "MainMem": lambda: self.make_mainmem_power_passive_dict(),
             "Buf": lambda: self.make_buf_power_passive_dict(),
@@ -139,7 +137,7 @@ class CircuitModel:
             "Gt16": lambda: self.make_sym_area(self.area_coeffs["Gt16"]),
             "GtE16": lambda: self.make_sym_area(self.area_coeffs["GtE16"]),
             "Not16": lambda: self.make_sym_area(self.area_coeffs["Not16"]),
-            "Exp16": lambda: self.make_sym_area(self.area_coeffs["Mult16"]) + self.make_sym_area(self.area_coeffs["Add16"]),
+            "Exp16": lambda: self.make_sym_area(self.area_coeffs["Exp16"]),
             "Register16": lambda: self.make_sym_area(self.area_coeffs["Register16"]),
             "N/A": lambda: 0,
             "Call": lambda: 0,
@@ -174,6 +172,12 @@ class CircuitModel:
         self.beta = self.coeffs["beta"]
         self.gamma = self.coeffs["gamma"]
         self.area_coeffs = self.coeffs["area"]
+
+        # TODO: add actual data for Exp16
+        self.alpha["Exp16"] = 3*(self.alpha["Mult16"] + self.alpha["Add16"])
+        self.beta["Exp16"] = self.beta["Mult16"] + self.beta["Add16"]
+        self.gamma["Exp16"] = 3*(self.gamma["Mult16"] + self.gamma["Add16"])
+        self.area_coeffs["Exp16"] = self.area_coeffs["Mult16"] + self.area_coeffs["Add16"]
 
     def set_uarch_constraints(self):
         self.tech_model.constraints.append(self.logic_delay >= self.tech_model.delay)

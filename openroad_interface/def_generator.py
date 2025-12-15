@@ -16,8 +16,8 @@ logger = logging.getLogger(__name__)
 
 
 # make it a dict
-and_gate = "AND2_X1"
-xor_gate = "XOR2_X1"
+and_gate = "BitAnd16"
+xor_gate = "BitXor16"
 mux = "MUX2_X1"
 reg = "DFF_X1"
 add = "Add16"
@@ -25,10 +25,15 @@ mult = "Mult16"
 #mult = "Mult64_40"
 #add = "ADD16_X1"
 #mult = "MUL16_X1"
-bitxor = "BitXor16"
 floordiv = "FloorDiv16" 
 sub = "Sub16"
 eq= "Eq16"
+or_gate = "BitOr16"
+exp = "Exp16"
+shl = "LShift16"
+lshr = "RShift16"
+
+
 
 DEBUG = False
 def log_info(msg):
@@ -97,9 +102,15 @@ class DefGenerator:
             return name
         elif and_gate.upper() in name.upper():
             return  name
-        elif bitxor.upper() in name.upper():
-            return  name
         elif xor_gate.upper() in name.upper():
+            return  name
+        elif or_gate.upper() in name.upper():
+            return  name
+        elif exp.upper() in name.upper():
+            return  name
+        elif shl.upper() in name.upper():
+            return  name
+        elif lshr.upper() in name.upper():
             return  name
         elif reg.upper() in name.upper():
             return  name
@@ -134,8 +145,6 @@ class DefGenerator:
             return f"HIERMODULE_{macro_name}"
         if "AND" in name.upper():
             return  and_gate
-        if "BITXOR" in name.upper():
-            return  bitxor
         if "XOR" in name.upper():
             return  xor_gate
         if name.startswith("Reg"):
@@ -152,6 +161,14 @@ class DefGenerator:
             return  eq
         if "MUX" in name.upper():
             return  mux 
+        if "OR" in name.upper():
+            return  or_gate
+        if "EXP" in name.upper():
+            return  exp
+        if "SHL" in name.upper():
+            return  shl
+        if "LSHR" in name.upper():
+            return  lshr
         else:
             raise ValueError(f"Macro not found for {name}")
 
@@ -463,7 +480,7 @@ class DefGenerator:
                 log_info(f"Skipping component for node: {node} because it is a functional unit mux")
                 continue # dont generate components for functional unit muxes
             component_num = format(number)
-            log_info(f"Generating component for node: {node} with number: {component_num}")
+            log_info(f"Generating component for node: {node} with number: {component_num}, function: {graph.nodes[node]['function']}")
             node_to_component_num[node] = component_num
             ## log the whole node to macro dict in a human readable way
             #log_info(f"Node to macro mapping: {node_to_macro}")
@@ -516,7 +533,8 @@ class DefGenerator:
 
                 component_num = node_to_num[name]
                 pin_output = node_to_macro[name][1]["output"]
-                log_info(f"Pin output for node {name}: {pin_output}")
+                log_info(f"Pin output for node {name}: {pin_output}, function: {graph.nodes[name]['function']}")
+                assert pin_idx < len(pin_output), f"Pin index {pin_idx} out of range for node {name}, has {len(pin_output)} pins"
                 net = "- {} ( {} {} )".format(net_name, component_num, pin_output[pin_idx])
 
                 original_net = net
@@ -545,7 +563,7 @@ class DefGenerator:
                     if len(node_to_macro[outgoing_name][1]["input"]) == 0:
                         node_to_macro[outgoing_name][1]["input"] = copy.deepcopy(node_to_macro_copy[outgoing_name][1]["input"])
                     pin_input = node_to_macro[outgoing_name][1]["input"]
-                    log_info(f"Pin input for node {outgoing_name}: {pin_input}")
+                    log_info(f"Pin input for node {outgoing_name}: {pin_input}, function: {graph.nodes[outgoing_name]['function']}")
                     net = net + " ( {} {} )".format(node_to_num[outgoing_name], pin_input[0])
 
                     node_to_macro[outgoing_name][1]["input"].remove(pin_input[0])
