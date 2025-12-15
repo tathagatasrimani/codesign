@@ -80,13 +80,6 @@ if [[ $FORCE_FULL -eq 1 ]]; then
         exit 1
     fi
 
-    ###############################################
-    # Export paths to locally built LLVM/MLIR
-    ###############################################
-    export LLVM_HOME="$PWD/llvm-project/build"
-    export MLIR_HOME="$LLVM_HOME"
-    echo "[setup] Using local LLVM: $LLVM_HOME"
-
 else
     ###############################################
     # NOT doing full build — just reinitialize environment
@@ -94,25 +87,12 @@ else
     echo "[setup] Full build NOT requested. Setting up environment..."
 
     cd ScaleHLS-HIDA
-
-    # Use previously built LLVM if available
-    if [[ -d "llvm-project/build/bin" ]]; then
-        export LLVM_HOME="$PWD/llvm-project/build"
-        export MLIR_HOME="$LLVM_HOME"
-        echo "[setup] Found existing local LLVM: $LLVM_HOME"
-    else
-        echo "[setup] ERROR: Local LLVM not found. Run with --full."
-        exit 1
-    fi
 fi
 
 ###############################################
 # Add tool binaries to PATH
 ###############################################
 echo "[setup] Updating PATH..."
-
-# LLVM first so its clang/opt/mlir-opt override system tools
-export PATH="$LLVM_HOME/bin:$PATH"
 
 # ScaleHLS tools
 if [[ -d "$PWD/build/bin" ]]; then
