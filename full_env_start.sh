@@ -36,7 +36,7 @@ else
     echo ">>> Performing incremental build"
 fi
 
-if  [[ "${GITHUB_ACTIONS:-}" == "true" && "${OPENROAD_PRE_INSTALLED:-0}" == "1" ] || -f "openroad_interface/OpenROAD/build/src/openroad"]; then
+if [[ "${GITHUB_ACTIONS:-}" == "true" && "${OPENROAD_PRE_INSTALLED:-0}" == "1" ]] || [[ -f "openroad_interface/OpenROAD/build/src/openroad" ]]; then
     echo "We likely will not need SUDO permissions for this build."
 else
     echo "SUDO permissions may be required for this build. Enter SUDO password if prompted."
