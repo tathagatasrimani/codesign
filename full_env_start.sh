@@ -36,6 +36,12 @@ else
     echo ">>> Performing incremental build"
 fi
 
+if  [[ "${GITHUB_ACTIONS:-}" == "true" && "${OPENROAD_PRE_INSTALLED:-0}" == "1" ] || -f "openroad_interface/OpenROAD/build/src/openroad"]; then
+    echo "We likely will not need SUDO permissions for this build."
+else
+    echo "SUDO permissions may be required for this build. Enter SUDO password if prompted."
+    sudo -v
+fi
 ################## PARSE UNIVERSITY ARGUMENT ##################
 
 host=$(hostname)
@@ -148,7 +154,7 @@ else
     bash Miniconda3-latest-Linux-x86_64.sh -b -p "$(pwd)/miniconda3"
     export PATH="$(pwd)/miniconda3/bin:$PATH"
     source miniconda3/etc/profile.d/conda.sh
-    conda env create -f "$SETUP_SCRIPTS_FOLDER"/environment_simplified.yml
+    conda env create -f "$SETUP_SCRIPTS_FOLDER"/environment_simplified.yml --force
 
     # create symlinks for g++-13 needed by cacti
     cd miniconda3/envs/codesign/bin
@@ -160,7 +166,7 @@ fi
 
 if [[ $FORCE_FULL -eq 1 ]]; then
     ## update conda packages
-    conda update -n base -c defaults conda # update conda itself
+    conda update -n base -c defaults conda -y # update conda itself
     conda config --set channel_priority strict
     conda env update -f "$SETUP_SCRIPTS_FOLDER"/environment_simplified.yml --prune # update the environment
 fi
