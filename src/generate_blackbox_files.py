@@ -88,21 +88,8 @@ def parse_blackbox_functions(cpp_file):
             if assign_match:
                 assignment = assign_match.group(1).strip()
                 func_info['assignment'] = assignment
-                
-                # Determine operation type for description
-                if '+' in assignment and '*' not in assignment and '/' not in assignment:
-                    func_info['op_desc'] = 'addition'
-                elif '*' in assignment:
-                    func_info['op_desc'] = 'multiplication'
-                elif '-' in assignment and '*' not in assignment and '/' not in assignment:
-                    func_info['op_desc'] = 'subtraction'
-                elif '/' in assignment:
-                    func_info['op_desc'] = 'division'
-                else:
-                    func_info['op_desc'] = 'operation'
             else:
                 func_info['assignment'] = return_var
-                func_info['op_desc'] = 'operation'
             
             functions.append(func_info)
     
@@ -210,11 +197,11 @@ def generate_json(func_info, cpp_filename, output_dir, latency, clk_period):
             "module_clock": "ap_clk",
             "module_reset": "ap_rst",
             "module_clock_enable": "ap_ce",
-            "ap_ctrl_chain_protocol_idle": "",
-            "ap_ctrl_chain_protocol_start": "",
-            "ap_ctrl_chain_protocol_ready": "",
-            "ap_ctrl_chain_protocol_done": "",
-            "ap_ctrl_chain_protocol_continue": ""
+            "ap_ctrl_chain_protocol_idle": f"{'ap_idle' if func_info['name'].endswith('_ctrl_chain') else ''}",
+            "ap_ctrl_chain_protocol_start": f"{'ap_start' if func_info['name'].endswith('_ctrl_chain') else ''}",
+            "ap_ctrl_chain_protocol_ready": f"{'ap_ready' if func_info['name'].endswith('_ctrl_chain') else ''}",
+            "ap_ctrl_chain_protocol_done": f"{'ap_done' if func_info['name'].endswith('_ctrl_chain') else ''}",
+            "ap_ctrl_chain_protocol_continue": f"{'ap_continue' if func_info['name'].endswith('_ctrl_chain') else ''}",
         },
         "rtl_performance": {
             "latency": f"{num_cycles}",
@@ -270,9 +257,25 @@ def generate_verilog(func_info, output_dir):
         "    input wire ap_clk,",
         "    input wire ap_rst,",
         "    input wire ap_ce,",
+    ])
+    if func_info['name'].endswith('_ctrl_chain'):
+        verilog_lines.extend([
+            f"    input wire ap_idle,",
+            f"    input wire ap_start,",
+            f"    input wire ap_ready,",
+            f"    input wire ap_done,",
+            f"    output wire ap_continue,",
+        ])
+    verilog_lines.extend([
         ");",
         "",
         f"    assign {func_info['return_var']} = {func_info['assignment']};",
+    ])
+    if func_info['name'].endswith('_ctrl_chain'):
+        verilog_lines.extend([
+            f"    assign ap_continue = 1;",
+        ])
+    verilog_lines.extend([
         "",
         "endmodule",
         ""
@@ -299,8 +302,7 @@ def generate_blackbox_files(cpp_file, output_dir, tcl_file, latency, clk_period)
     for func in functions:
         logger.info(f"  - {func['name']}")
     
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+    os.makedirs(output_dir, exist_ok=True)
     
     # Generate files for each function
     for func in functions:
@@ -319,7 +321,8 @@ def generate_blackbox_files(cpp_file, output_dir, tcl_file, latency, clk_period)
                 filepath = os.path.join(output_dir, f"{func['name']}.json")
                 newlines.append(f"add_files -blackbox {filepath}\n")
             already_added = True
-    with open(tcl_file, 'w') as f:
+    tcl_file_new = tcl_file.split(".")[0] + "_new.tcl"
+    with open(tcl_file_new, 'w') as f:
         f.writelines(newlines)
 
 

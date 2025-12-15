@@ -408,11 +408,11 @@ class Codesign:
         print(f"Current working directory in vitis parse data: {os.getcwd()}")
 
         if self.no_memory:
-            allowed_functions_netlist = {"Add16", "Mult16"}
-            allowed_functions_schedule = {"Add16", "Mult16", "Call", "II"}
+            allowed_functions_netlist = set(self.hw.circuit_model.circuit_values["area"].keys()) - {"N/A", "Buf", "MainMem"}
+            allowed_functions_schedule = allowed_functions_netlist + {"Call", "II"}
         else:
-            allowed_functions_netlist = {"Add16", "Mult16", "Buf", "MainMem"}
-            allowed_functions_schedule = {"Add16", "Mult16", "Call", "II", "Buf", "MainMem"}
+            allowed_functions_netlist = set(self.hw.circuit_model.circuit_values["area"].keys()) - {"N/A"}
+            allowed_functions_schedule = allowed_functions_netlist + {"Call", "II"}
 
         parse_results_dir = f"{save_dir}/parse_results"
 
@@ -555,7 +555,7 @@ class Codesign:
 
 
         import time
-        command = ["vitis_hls", "-f", "tcl_script.tcl"]
+        command = ["vitis_hls", "-f", "tcl_script_new.tcl"]
         if self.checkpoint_controller.check_checkpoint("vitis", self.iteration_count) and not self.max_rsc_reached:
             start_time = time.time()
             # Start the process and write output to vitis_hls.log

@@ -87,15 +87,39 @@ def recursive_cfg_merge(model_cfgs, model_cfg_name):
 
 def get_module_map():
     module_map = {
+        # from HLS IR
         "add": "Add16",
         "fadd": "Add16",
-        "addf": "Add16",
         "dadd": "Add16",
+        "sub": "Sub16",
+        "fsub": "Sub16",
+        "dsub": "Sub16",
         "dmul": "Mult16",
         "mul": "Mult16",
         "fmul": "Mult16",
+        "div": "FloorDiv16",
+        "fdiv": "FloorDiv16",
+        "ddiv": "FloorDiv16",
+        "and": "And16",
+        "fcmp": "Eq16",
+        "icmp": "Eq16",
+        "or": "Or16",
+        "xor": "BitXor16",
+        "lshr": "RShift16",
+        "shl": "LShift16",
+        "call": "Call",
+
+        # from MLIR (blackboxed arith ops)
+        "addf": "Add16",
+        "subf": "Sub16",
         "mulf": "Mult16",
-        "call": "Call"
+        "divf": "FloorDiv16",
+        "exp_bb": "Exp16",
+        "addf_ctrl_chain": "Add16",
+        "subf_ctrl_chain": "Sub16",
+        "mulf_ctrl_chain": "Mult16",
+        "divf_ctrl_chain": "FloorDiv16",
+        "exp_bb_ctrl_chain": "Exp16",
     }
     return module_map
 
