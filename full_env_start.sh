@@ -171,7 +171,7 @@ fi
 
 if [[ $FORCE_FULL -eq 1 ]]; then
     ## update conda packages
-    conda update -n base -c defaults conda # update conda itself
+    conda update -n base -c defaults conda -y # update conda itself
     conda config --set channel_priority strict
     conda env update -f "$SETUP_SCRIPTS_FOLDER"/environment_simplified.yml --prune # update the environment
 fi
