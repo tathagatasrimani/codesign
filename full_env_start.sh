@@ -159,7 +159,7 @@ else
     conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main
     conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r
 
-    conda env create -f "$SETUP_SCRIPTS_FOLDER"/environment_simplified.yml
+    conda env create -f "$SETUP_SCRIPTS_FOLDER"/environment_simplified.yml -y
 
     # create symlinks for g++-13 needed by cacti
     cd miniconda3/envs/codesign/bin
