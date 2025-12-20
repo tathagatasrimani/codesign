@@ -68,6 +68,48 @@ benchmark_mvt_test:
   args:
     benchmark: kernel_mvt
 
+vitis_transformer_test:
+  base_cfg: vitis_test
+  args:
+    pytorch: False
+    benchmark: transformer_block
+
+
+vitis_miniGPT_test:
+  base_cfg: vitis_test
+  args:
+    pytorch: False
+    benchmark: miniGPT
+
+vitis_aes_test:
+  base_cfg: vitis_test
+  args:
+    pytorch: False
+    benchmark: aes
+
+vitis_vjepa2_test:
+  base_cfg: vitis_test
+  args:
+    pytorch: False
+    benchmark: VJEPA2
+
+vitis_transformer_small_test:
+  base_cfg: vitis_test
+  args:
+    pytorch: False
+    benchmark: transformer_block_small
+
+vitis_backprop_test:
+  base_cfg: vitis_test
+  args:
+    pytorch: False
+    benchmark: backprop
+
+vitis_linear_layer:
+  base_cfg: vitis_test
+  args:
+    pytorch: False
+    benchmark: linear_layer
 
 vitis_bitnet_test:
   base_cfg: vitis_test
