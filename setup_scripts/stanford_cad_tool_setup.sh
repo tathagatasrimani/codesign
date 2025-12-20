@@ -7,5 +7,10 @@ if [ -f /etc/profile.d/modules.sh ]; then
     source /etc/profile.d/modules.sh
 fi
 
+if [[ ! -e /usr/lib64/libtinfo.so.5 && ! -e /lib64/libtinfo.so.5 ]]; then
+  echo "[INFO] libtinfo.so.5 missing — installing ncurses-compat-libs"
+  sudo dnf install -y ncurses-compat-libs
+fi
+
 ## vitis:
 module load vitis/2022.1
