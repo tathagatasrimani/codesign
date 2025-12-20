@@ -1,4 +1,4 @@
-/*  
+/*
 *   Byte-oriented AES-256 implementation.
 *   All lookup tables replaced with 'on the fly' calculations. 
 *
@@ -16,6 +16,7 @@
 *   ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 *   OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 */
+#include "arith_ops.c"
 #include <stdlib.h>
 #include <stdio.h>
 #include "aes.h"

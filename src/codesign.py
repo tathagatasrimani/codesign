@@ -25,6 +25,7 @@ from src import memory
 from src.forward_pass import ccore_update
 from src.forward_pass import schedule_vitis
 from src.forward_pass.scale_hls_port_fix import scale_hls_port_fix
+from src.generate_blackbox_files import generate_blackbox_files
 from src.forward_pass.vitis_create_netlist import create_vitis_netlist
 from src.forward_pass.vitis_parse_verbose_rpt import parse_verbose_rpt
 from src.forward_pass.vitis_merge_netlists import MergeNetlistsVitis
@@ -351,7 +352,7 @@ class Codesign:
                 source mlir_venv/bin/activate
                 cd {os.path.join(os.path.dirname(__file__), "..", save_dir)}
                 cgeist {self.benchmark_name}.c \
-                                                -function={self.benchmark_name}\
+                                                -function='*'\
                                                 -S \
                                                 -memref-fullrank \
                                                 -raise-scf-to-affine \
@@ -407,11 +408,11 @@ class Codesign:
         print(f"Current working directory in vitis parse data: {os.getcwd()}")
 
         if self.no_memory:
-            allowed_functions_netlist = {"Add16", "Mult16"}
-            allowed_functions_schedule = {"Add16", "Mult16", "Call", "II"}
+            allowed_functions_netlist = set(self.hw.circuit_model.circuit_values["area"].keys()).difference({"N/A", "Buf", "MainMem", "Call"})
+            allowed_functions_schedule = allowed_functions_netlist.union({"Call", "II"})
         else:
-            allowed_functions_netlist = {"Add16", "Mult16", "Buf", "MainMem"}
-            allowed_functions_schedule = {"Add16", "Mult16", "Call", "II", "Buf", "MainMem"}
+            allowed_functions_netlist = set(self.hw.circuit_model.circuit_values["area"].keys()).difference({"N/A", "Call"})
+            allowed_functions_schedule = allowed_functions_netlist.union({"Call", "II"})
 
         parse_results_dir = f"{save_dir}/parse_results"
 
@@ -470,6 +471,8 @@ class Codesign:
         else:
             for file in os.listdir(parse_results_dir):
                 if os.path.isdir(os.path.join(parse_results_dir, file)):
+                    if file in sim_util.get_module_map().keys(): # dont parse blackboxed functions
+                        continue
                     self.hw.scheduled_dfgs[file] = nx.read_gml(f"{parse_results_dir}/{file}/{file}_graph_standard_with_wire_ops.gml")
                     for subfile in os.listdir(f"{parse_results_dir}/{file}"):
                         logger.info(f"subfile: {subfile}")
@@ -549,11 +552,12 @@ class Codesign:
 
         os.chdir(os.path.join(os.path.dirname(__file__), "..", save_dir))
         scale_hls_port_fix(f"{self.benchmark_name}.cpp", self.benchmark_name, self.cfg["args"]["pytorch"])
+        generate_blackbox_files(f"{self.benchmark_name}.cpp", os.path.join(os.getcwd(), "blackbox_files"), os.path.join(os.getcwd(), "tcl_script.tcl"), self.hw.circuit_model.circuit_values["latency"], self.clk_period)
         logger.info(f"Vitis top function: {self.vitis_top_function}")
 
 
         import time
-        command = ["vitis_hls", "-f", "tcl_script.tcl"]
+        command = ["vitis_hls", "-f", "tcl_script_new.tcl"]
         if self.checkpoint_controller.check_checkpoint("vitis", self.iteration_count) and not self.max_rsc_reached:
             start_time = time.time()
             # Start the process and write output to vitis_hls.log
@@ -705,6 +709,7 @@ class Codesign:
                     shutil.rmtree(self.benchmark_dir, ignore_errors=True)
                     time.sleep(10)
             shutil.copytree(self.benchmark, self.benchmark_dir)
+            shutil.copy(os.path.join(self.benchmark, "../..", "arith_ops.c"), os.path.join(self.benchmark_dir, "arith_ops.c"))
         else:
             logger.info("Skipping benchmark directory reset.")
 
@@ -1025,6 +1030,7 @@ class Codesign:
     def setup(self):
         if not os.path.exists(self.benchmark_setup_dir):
             shutil.copytree(self.benchmark, self.benchmark_setup_dir)
+            shutil.copy(os.path.join(self.benchmark, "../..", "arith_ops.c"), os.path.join(self.benchmark_setup_dir, "arith_ops.c"))
         assert os.path.exists(self.config_json_path_scalehls)
         shutil.copy(self.config_json_path_scalehls, self.config_json_path)
         self.forward_pass(0, save_dir=self.benchmark_setup_dir, setup=True)

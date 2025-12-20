@@ -1,3 +1,4 @@
+#include "arith_ops.c"
 #define N 32
 void gemmv(float alpha, float beta, float y[N], float A[N][N],
                float x[N]) {

@@ -63,6 +63,7 @@ class OpenRoadRun:
         self.component_to_function = {
             "Mult16": "Mult16",
             "Add16": "Add16",
+            "Sub16": "Sub16",
             "BUF_X4": "Not16",
             "BUF_X2": "Not16",
             "BUF_X1": "Not16",
@@ -70,6 +71,16 @@ class OpenRoadRun:
             "BUF_X16": "Not16",
             "BUF_X32": "Not16",
             "MUX2_X1": "Not16",
+            "Exp16": "Exp16",
+            "LShift16": "LShift16",
+            "RShift16": "RShift16",
+            "FloorDiv16": "FloorDiv16",
+            "BitAnd16": "BitAnd16",
+            "BitOr16": "BitOr16",
+            "BitXor16": "BitXor16",
+            "Eq16": "Eq16",
+            "Not16": "Not16",
+            "NotEq16": "NotEq16",
         }
 
 

@@ -3,6 +3,7 @@ import sys
 import json
 import networkx as nx
 import logging
+import sim_util
 
 logger = logging.getLogger(__name__)
 
@@ -288,10 +289,19 @@ def create_cdfg_vitis(root_dir):
             elif fname.endswith('_STG_IN_OUT.json'):
                 stg_file = os.path.join(subdir_path, fname)
 
+        subdir_name = subdir.split('/')[-1]
+        debug_print(f"Subdirectory name: {subdir_name}")
+        if subdir_name in sim_util.get_module_map().keys():
+            module_dependencies = []
+            module_path = os.path.join(subdir_path, f"{subdir}.verbose_modules.json")
+            with open(module_path, 'w') as mf:
+                json.dump(module_dependencies, mf, indent=4)
+            debug_print(f"Created module dependencies file: {module_path} with {len(module_dependencies)} modules.")
+            debug_print(f"Skipping {subdir} because it is a blackbox.")
+            continue
+    
         if not fsm_file or not transitions_file:
             continue
-
-        
 
         # Load FSM and transitions, converting top-level keys to integers
         with open(fsm_file, 'r') as f:

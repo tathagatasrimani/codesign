@@ -1,3 +1,4 @@
+#include "arith_ops.c"
 #include "backprop.h"
 
 void soft_max(TYPE net_outputs[possible_outputs],

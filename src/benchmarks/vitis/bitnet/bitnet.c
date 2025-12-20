@@ -3,6 +3,7 @@
  * C implementation of BitNet transformer operations in PolyBench style
  */
 
+#include "arith_ops.c"
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>

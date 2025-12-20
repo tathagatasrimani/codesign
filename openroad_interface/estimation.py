@@ -67,6 +67,8 @@ def parse_route_guide_with_layer_breakdown(
         total_length = sum(layer_lengths.values()) / units_per_micron
         layer_lengths_microns = {k: round(v / units_per_micron, 1) for k, v in layer_lengths.items()}
 
+        assert net_id in net_id_to_src_dsts, f"Net {net_id} not found in net_id_to_src_dsts, block: {block}"
+
         src, dsts = net_id_to_src_dsts[net_id]
         net = Net(net_id, segments, src, dsts)
         results[net_id] = net
