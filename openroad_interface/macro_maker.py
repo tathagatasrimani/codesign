@@ -54,7 +54,7 @@ PIN_SIZE_TRACKS = 2  # in tracks
 POWER_RAIL_HEIGHT = 2  # in tracks
 
 ## The cutoff in rows for standard cell vs macro designation. If the height of the macro is less than this value, it is considered a standard cell.
-STD_CELL_VS_MACRO_CUTOFF = 10 ## in rows
+STD_CELL_VS_MACRO_CUTOFF = 6 ## in rows
 
 ######################################################################
 #######                                                        #######
@@ -112,6 +112,17 @@ class MacroMaker:
 
         self.add_ending_text = add_ending_text
         self.custom_lef_files_to_include = custom_lef_files_to_include
+
+        # Track grid definitions (nm) extracted from your make_tracks commands.
+        # You may later read this from tech.lef automatically if desired.
+        self.track_x_offset = 95      # 0.095 um  = 95 nm
+        self.track_x_pitch  = 190     # 0.19  um  = 190 nm
+        self.track_y_offset = 70      # 0.07  um  = 70 nm
+        self.track_y_pitch  = 140     # 0.14  um  = 140 nm
+
+    def snap_to_track(self, value, offset, pitch):
+        """Snap a coordinate (in nm) to the nearest track center."""
+        return offset + round((value - offset) / pitch) * pitch
 
     def get_data_from_lef(self):
         # getting the spacing from the lef file
@@ -223,15 +234,17 @@ class MacroMaker:
         input_pin_number = design_list["input_pin_count"]
         input_reference = input_pin_number
         total_pins = design_list["input_pin_count"] + design_list["output_pin_count"]
+
+        def snap_x(v_nm): return self.snap_to_track(v_nm, self.track_x_offset, self.track_x_pitch)
+        def snap_y(v_nm): return self.snap_to_track(v_nm, self.track_y_offset, self.track_y_pitch)
+
+
         for pin_x in range(design_list["pin_x"]):
             for pin_y in range(design_list["pin_y"]):
                 if pin_number >= total_pins:
                     break
                 
-                x1 = 0 + self.pin_size * pin_x + design_list["spacing_x"] * (pin_x+1)
-                x2 = 0 + self.pin_size * (pin_x+1) + design_list["spacing_x"] * (pin_x+1)
-                y1 = 0 + self.pin_size * pin_y + design_list["spacing_y"] * (pin_y+1) + self.VDD_height
-                y2 = 0 + self.pin_size * (pin_y+1) + design_list["spacing_y"] * (pin_y+1) + self.VDD_height
+                
                 direction = "INPUT"
 
                 if input_pin_number == 0:
@@ -245,7 +258,36 @@ class MacroMaker:
                     pin_name = "A" + str(pin_number)
                     input_pin_number -= 1
 
-                pin = "   PIN {}\n    DIRECTION {} ;\n    USE SIGNAL ;\n    PORT\n      LAYER metal1 ;\n        RECT {} {} {} {} ;\n    END\n   END {}\n".format(pin_name, direction, x1/1000, y1/1000, x2/1000, y2/1000, pin_name, design_list["name"])
+
+                # --- Raw lower-left coordinates (in nm) ---
+                x1_raw = self.pin_size * pin_x + design_list["spacing_x"] * (pin_x + 1)
+                y1_raw = self.pin_size * pin_y + design_list["spacing_y"] * (pin_y + 1) + self.VDD_height
+
+                # --- Snap lower-left corner to track grid ---
+                x1 = snap_x(x1_raw)
+                y1 = snap_y(y1_raw)
+
+                # --- Upper-right coordinates preserve pin size ---
+                x2 = x1 + self.pin_size
+                y2 = y1 + self.pin_size
+
+                # --- Create LEF pin entry ---
+                pin = (
+                    "   PIN {}\n"
+                    "    DIRECTION {} ;\n"
+                    "    USE SIGNAL ;\n"
+                    "    PORT\n"
+                    "      LAYER metal1 ;\n"
+                    "        RECT {} {} {} {} ;\n"
+                    "    END\n"
+                    "   END {}\n"
+                ).format(
+                    pin_name,
+                    direction,
+                    x1/1000, y1/1000, x2/1000, y2/1000,
+                    pin_name
+                )
+
                 pin_number += 1
                 pins.append(pin)
 
