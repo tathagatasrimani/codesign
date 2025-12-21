@@ -1,7 +1,9 @@
 # set_debug_level DPL place 1
 ################################################################
 # IO Placement (random)
+puts "INFO: starting IO placement"
 place_pins -random -hor_layers $io_placer_hor_layer -ver_layers $io_placer_ver_layer
+puts "INFO: completed IO placement"
 
 ################################################################
 # Macro Placement
@@ -11,22 +13,23 @@ place_pins -random -hor_layers $io_placer_hor_layer -ver_layers $io_placer_ver_l
 
 ################################################################
 # Macro Placement (using rtl_macro_placer)
+puts "INFO: starting RTL macro placement"
+
 rtl_macro_placer \
-    -target_util 0.25 \
-    -target_dead_space 0.05 \
-    -min_ar 0.33 \
+    -target_util 0.80 \
+    -target_dead_space 0.10 \
+    -min_ar 0.10 \
     -area_weight 0.1 \
-    -outline_weight 100.0 \
-    -wirelength_weight 100.0 \
-    -guidance_weight 10.0 \
-    -fence_weight 10.0 \
+    -outline_weight 10.0 \
+    -wirelength_weight 1.0 \
     -boundary_weight 50.0 \
     -notch_weight 10.0 \
-    -macro_blockage_weight 10.0 \
-    -halo_width 0.5 \
-    -halo_height 0.5 \
+    -halo_width 2.0 \
+    -halo_height 2.0 \
     -report_directory reports \
     -write_macro_placement macro_place.tcl
+
+puts "INFO: completed RTL macro placement"
 
 # Lock macro positions by sourcing the generated macro placement file
 #source macro_place.tcl
@@ -37,12 +40,23 @@ eval tapcell $tapcell_args
 
 ################################################################
 # Power distribution network insertion
-source $pdn_cfg
-pdngen
+# puts "INFO: starting PDN generation"
+# source $pdn_cfg
+# pdngen
+# puts "INFO: completed PDN generation"
+
+if {$at_top_level_of_hierarchy == 1} {
+    puts "INFO: Running PDN generation (top-level)."
+    source $pdn_cfg
+    pdngen
+    puts "INFO: completed PDN generation"
+} else {
+    puts "INFO: Skipping PDN (not top-level)."
+}
 
 ################################################################
 # Global placement
-
+puts "INFO: starting global placement"
 foreach layer_adjustment $global_routing_layer_adjustments {
   lassign $layer_adjustment layer adjustment
   set_global_routing_layer_adjustment $layer $adjustment
@@ -56,13 +70,12 @@ set ::env(REPLACE_SEED) 42
 global_placement -routability_driven -density $global_place_density \
   -pad_left $global_place_pad -pad_right $global_place_pad
 
+puts "INFO: completed global placement"
+
 # set thread count for all tools with support for multithreading.
 # set after global placement because it uses omp but generates
 # different results when using multiple threads.
 set_thread_count [exec getconf _NPROCESSORS_ONLN]
-
-# IO Placement
-place_pins -hor_layers $io_placer_hor_layer -ver_layers $io_placer_ver_layer
 
 # checkpoint
 set global_place_db [make_result_file ${design}_${platform}_global_place.db]
