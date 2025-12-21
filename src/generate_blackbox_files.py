@@ -296,6 +296,7 @@ def generate_blackbox_files(cpp_file, output_dir, tcl_file, latency, clk_period)
     
     # Parse blackbox functions
     logger.info(f"Parsing blackbox functions from: {cpp_file}")
+    logger.info(f"Using latency: {latency}, clk_period: {clk_period}, tcl_file: {tcl_file}, output_dir: {output_dir}")
     functions = parse_blackbox_functions(cpp_file)
 
     logger.info(f"Found {len(functions)} blackbox function(s):")
@@ -321,7 +322,7 @@ def generate_blackbox_files(cpp_file, output_dir, tcl_file, latency, clk_period)
                 filepath = os.path.join(output_dir, f"{func['name']}.json")
                 newlines.append(f"add_files -blackbox {filepath}\n")
             already_added = True
-    tcl_file_new = tcl_file.split(".")[0] + "_new.tcl"
+    tcl_file_new = os.path.splitext(tcl_file)[0] + "_new.tcl"
     with open(tcl_file_new, 'w') as f:
         f.writelines(newlines)
 
