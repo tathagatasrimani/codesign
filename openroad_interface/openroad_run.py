@@ -5,6 +5,9 @@ import os
 import copy
 import shutil
 from math import sqrt
+import subprocess
+import threading
+import time
 
 import logging
 
@@ -34,6 +37,11 @@ def log_warning(msg):
 MAX_TRACTABLE_AREA_DBU = 6e13
 
 TARGET_UTILIZATION = 0.5
+
+# When True, monitor the OpenROAD log and terminate immediately on any
+# line containing "ERROR" (case-insensitive). Set to False to disable.
+OPENROAD_ABORT_ON_LOG_ERROR = True
+OPENROAD_ERROR_TEXT = "error"
 
 class OpenRoadRun:
     def __init__(self, cfg, codesign_root_dir, tmp_dir, run_openroad, circuit_model, subdirectory=None, custom_lef_files_to_include=None, top_level=True):
@@ -338,7 +346,7 @@ class OpenRoadRun:
         old_dir = os.getcwd()
         os.chdir(self.directory + "/tcl")
         logger.info(f"Changed directory to {self.directory + '/tcl'}")
-        print("running openroad. If openroad fails (check log), type exit below and hit return.")
+        print("Running OpenROAD and monitoring log for 'ERROR' (if enabled)...")
         logger.info("Running OpenROAD command.")
         
         # Safely handle missing/malformed cfg entries for preinstalled_openroad_path.
@@ -347,18 +355,88 @@ class OpenRoadRun:
         if isinstance(args_dict, dict):
             preinstalled = args_dict.get("preinstalled_openroad_path")
 
+        # Build command and log path
         if preinstalled:
-            cmd = f"{preinstalled} codesign_top.tcl > {self.directory}/codesign_pd.log 2>&1"
+            bin_path = preinstalled
         else:
-            openroad_bin = os.path.join(os.path.dirname(os.path.abspath(__file__)), "OpenROAD", "build", "src", "openroad")
-            cmd = f"{openroad_bin} codesign_top.tcl > {self.directory}/codesign_pd.log 2>&1"
+            bin_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "OpenROAD", "build", "src", "openroad")
 
-        logger.info("Executing OpenROAD command: %s", cmd)
-        os.system(cmd)
-        print("done")
-        logger.info("OpenROAD run completed.")
-        os.chdir(old_dir)
-        logger.info(f"Returned to original directory {old_dir}")
+        cmd_list = [bin_path, "codesign_top.tcl"]
+        log_path = f"{self.directory}/codesign_pd.log"
+
+        logger.info("Executing OpenROAD command: %s", " ".join(cmd_list))
+
+        proc = None
+        stop_event = threading.Event()
+        killed_due_to_error = False
+        monitor_thread = None
+
+        try:
+            # Open the log for writing and launch the process with stdout/stderr redirected
+            with open(log_path, "w") as logf:
+                proc = subprocess.Popen(
+                    cmd_list,
+                    stdout=logf,
+                    stderr=subprocess.STDOUT,
+                )
+                logger.info("Spawned OpenROAD PID: %s", proc.pid)
+
+            # Start a monitor thread that tails the log and kills the process if 'ERROR' appears.
+            if OPENROAD_ABORT_ON_LOG_ERROR:
+                def _monitor():
+                    nonlocal killed_due_to_error
+                    try:
+                        with open(log_path, "r", errors="ignore") as rf:
+                            # Read from the beginning; sleep when no new data
+                            while not stop_event.is_set():
+                                line = rf.readline()
+                                if not line:
+                                    # If process ended and no more lines, stop
+                                    if proc and proc.poll() is not None:
+                                        break
+                                    time.sleep(0.2)
+                                    continue
+                                if OPENROAD_ERROR_TEXT in line.lower():
+                                    killed_due_to_error = True
+                                    logger.error(f"Detected '{OPENROAD_ERROR_TEXT}' in OpenROAD log; terminating process.")
+                                    try:
+                                        if proc and proc.poll() is None:
+                                            proc.terminate()
+                                            # Give it a moment to exit gracefully
+                                            try:
+                                                proc.wait(timeout=3)
+                                            except Exception:
+                                                pass
+                                            if proc.poll() is None:
+                                                proc.kill()
+                                    except Exception as e:
+                                        logger.warning("Failed to terminate OpenROAD process: %s", e)
+                                    break
+                    except Exception as e:
+                        logger.warning("Log monitor encountered an exception: %s", e)
+
+                monitor_thread = threading.Thread(target=_monitor, name="openroad_log_monitor", daemon=True)
+                monitor_thread.start()
+            else:
+                logger.info("OPENROAD_ABORT_ON_LOG_ERROR disabled; not monitoring log for errors.")
+
+            # Wait for process to finish
+            if proc is not None:
+                proc.wait()
+
+            if killed_due_to_error:
+                print("OpenROAD terminated early due to 'ERROR' in log.")
+                logger.error("OpenROAD terminated due to 'ERROR' in log: %s", log_path)
+            else:
+                print("done")
+                logger.info("OpenROAD run completed.")
+
+        finally:
+            stop_event.set()
+            if monitor_thread and monitor_thread.is_alive():
+                monitor_thread.join(timeout=1.0)
+            os.chdir(old_dir)
+            logger.info(f"Returned to original directory {old_dir}")
 
 
     def mux_listing(self, graph, node_output, wire_length_by_edge):
