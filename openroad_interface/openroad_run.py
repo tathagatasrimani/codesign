@@ -33,6 +33,8 @@ def log_warning(msg):
 
 MAX_TRACTABLE_AREA_DBU = 6e13
 
+TARGET_UTILIZATION = 0.5
+
 class OpenRoadRun:
     def __init__(self, cfg, codesign_root_dir, tmp_dir, run_openroad, circuit_model, subdirectory=None, custom_lef_files_to_include=None, top_level=True):
         """
@@ -157,7 +159,7 @@ class OpenRoadRun:
         area_constraint_old = area_constraint
         logger.info(f"Max dimension macro: {max_dim_macro}, corresponding area constraint value: {max_dim_macro**2}")
         logger.info(f"Estimated area: {area_estimate}")
-        area_constraint = int(max(area_estimate, max_dim_macro**2)/0.6)
+        area_constraint = int(max(area_estimate, max_dim_macro**2)/TARGET_UTILIZATION)
         logger.info(f"Info: Final estimated area {area_estimate} compared to area constraint {area_constraint_old}. Area constraint will be scaled from {area_constraint_old} to {area_constraint}.")
         graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, max_dim_macro, macro_dict, dbu_area_estimate = self.setup_set_area_constraint(old_graph, test_file, area_constraint, L_eff)
 

@@ -27,8 +27,8 @@ rtl_macro_placer \
     -wirelength_weight 1.0 \
     -boundary_weight 50.0 \
     -notch_weight 10.0 \
-    -halo_width 2.0 \
-    -halo_height 2.0 \
+    -halo_width 0.0 \
+    -halo_height 0.0 \
     -report_directory reports \
     -write_macro_placement macro_place.tcl
 
