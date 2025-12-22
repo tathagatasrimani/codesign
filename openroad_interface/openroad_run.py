@@ -33,8 +33,10 @@ def log_warning(msg):
 
 MAX_TRACTABLE_AREA_DBU = 6e13
 
+TARGET_UTILIZATION = 0.5
+
 class OpenRoadRun:
-    def __init__(self, cfg, codesign_root_dir, tmp_dir, run_openroad, circuit_model, subdirectory=None, custom_lef_files_to_include=None):
+    def __init__(self, cfg, codesign_root_dir, tmp_dir, run_openroad, circuit_model, subdirectory=None, custom_lef_files_to_include=None, top_level=True):
         """
         Initialize the OpenRoadRun with configuration and root directory.
 
@@ -45,6 +47,7 @@ class OpenRoadRun:
         :param circuit_model: circuit model configuration
         :param subdirectory: subdirectory for hierarchical runs
         :param custom_lef_files_to_include: custom LEF files to include
+        :param top_level: flag indicating if this is the top level of hierarchy
         """
         self.cfg = cfg
         self.codesign_root_dir = codesign_root_dir
@@ -53,6 +56,7 @@ class OpenRoadRun:
         self.directory = os.path.join(self.codesign_root_dir, f"{self.tmp_dir}/pd")
         self.subdirectory = subdirectory
         self.custom_lef_files_to_include = custom_lef_files_to_include
+        self.top_level = top_level
 
         ## results will be placed here. This is necessary for running the flow hierarchically. 
         if subdirectory is not None:
@@ -114,9 +118,6 @@ class OpenRoadRun:
 
             graph, net_out_dict, node_output, lef_data, node_to_num, final_area, dbu_area_estimate = self.setup(graph, test_file, area_constraint, L_eff)
 
-            
-            
-
             # If all nodes in the graph have the function type "Call", skip place and route.        
             if all_call_functions:
                 logger.info("All nodes in the graph have function type 'Call'. Skipping place and route.")
@@ -169,7 +170,7 @@ class OpenRoadRun:
         area_constraint_old = area_constraint
         logger.info(f"Max dimension macro: {max_dim_macro}, corresponding area constraint value: {max_dim_macro**2}")
         logger.info(f"Estimated area: {area_estimate}")
-        area_constraint = int(max(area_estimate, max_dim_macro**2)/0.6)
+        area_constraint = int(max(area_estimate, max_dim_macro**2)/TARGET_UTILIZATION)
         logger.info(f"Info: Final estimated area {area_estimate} compared to area constraint {area_constraint_old}. Area constraint will be scaled from {area_constraint_old} to {area_constraint}.")
         graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, max_dim_macro, macro_dict, dbu_area_estimate = self.setup_set_area_constraint(old_graph, test_file, area_constraint, L_eff)
 
@@ -178,10 +179,27 @@ class OpenRoadRun:
 
         self.update_clock_period(self.directory + "/tcl/codesign_files/codesign.sdc")
 
+        self.update_top_level_flag()
+
         final_area = area_estimate
 
         return graph, net_out_dict, node_output, lef_data, node_to_num, final_area, dbu_area_estimate
 
+    def update_top_level_flag(self):
+        """
+        Updates the top level flag in the codesign.vars file.
+        """
+
+        ## set at_top_level_of_hierarchy flag in codesign.vars
+        with open(self.directory + "/tcl/codesign_files/codesign.vars", "r") as file:
+            vars_data = file.readlines()
+        for i, line in enumerate(vars_data):
+            if line.startswith("set at_top_level_of_hierarchy"):
+                vars_data[i] = f"set at_top_level_of_hierarchy {'1' if self.top_level else '0'}\n"
+                logger.info(f"Updated at_top_level_of_hierarchy to {'1' if self.top_level else '0'}")
+        with open(self.directory + "/tcl/codesign_files/codesign.vars", "w") as file:
+            file.writelines(vars_data)
+    
     def update_clock_period(self, sdc_file: str):
         """
         Updates the clock period in the SDC file.
