@@ -84,30 +84,6 @@ class DefGenerator:
         self.layer_pitch_x = None
         self.layer_pitch_y = None
 
-        self.var_file = None
-
-        self.lef_std_file = None
-        self.lef_tech_file =  None
-
-        self.core_coord_x2 =  None 
-        self.core_coord_x1 =  None 
-        self.core_coord_y2 =  None 
-        self.core_coord_y1 =  None
-
-        self.die_coord_x2 = None
-        self.die_coord_x1 = None
-        self.die_coord_y2 = None
-        self.die_coord_y1 = None
-
-        self.site_name = None
-        self.units = None
-        self.site_x = None
-        self.site_y = None
-        self.layer_min_width = None
-        self.layer_x_offset = None
-        self.layer_pitch_x = None
-        self.layer_pitch_y = None
-
 
     def get_macro_halo_values(self):
         flow_path = os.path.join(self.directory, "tcl", "codesign_flow.tcl")
@@ -140,6 +116,8 @@ class DefGenerator:
     def component_finder(self, name: str) -> str:
         '''
         returns a blank string if the component name is not a component we need
+
+        redo this whole function 
         '''
         ## This is for hierarchically P&R'ed modules. The macro name is the same as the module name except that it will have this prefix "HIERMODULE_"
         if "HIERMODULE_" in name.upper():
@@ -153,6 +131,8 @@ class DefGenerator:
     def find_macro(self, node: dict) -> str:
         '''
         find the corresponding macro for the given node
+
+        redo this function 
         '''
         name = node["function"]
         if "CALL" in name.upper():
@@ -162,13 +142,6 @@ class DefGenerator:
                 raise ValueError(f"CALL node missing 'call_submodule_instance_name' attribute: {node}")
 
             return f"HIERMODULE_{macro_name}"
-
-        for macro in SUPPORTED_MACROS:
-            for term in macro["search_terms"]:
-                if term in name.upper():
-                    return macro["macro_name_in_def"]
-                
-        raise ValueError(f"Macro not found for {name}")
 
         for macro in SUPPORTED_MACROS:
             for term in macro["search_terms"]:
@@ -195,9 +168,7 @@ class DefGenerator:
 
         return result
     
-    
 
-    def read_tcl_file(self, test_file: str):
     def read_tcl_file(self, test_file: str):
         test_file_path = os.path.join(self.directory, "tcl", test_file)
 
@@ -211,14 +182,9 @@ class DefGenerator:
             if ".vars" in line:
                 var = re.findall(r'"(.*?)"', line)
                 self.var_file = var[0]
-                self.var_file = var[0]
             if "die_area" in line:
                 die = re.findall(r'{(.*?)}', line)
                 die = die[0].split()
-                self.die_coord_x1 = float(die[0])
-                self.die_coord_y1 = float(die[1])
-                self.die_coord_x2 = float(die[2])
-                self.die_coord_y2 = float(die[3])
                 self.die_coord_x1 = float(die[0])
                 self.die_coord_y1 = float(die[1])
                 self.die_coord_x2 = float(die[2])
@@ -230,47 +196,30 @@ class DefGenerator:
                 self.core_coord_y1 = float(core[1])
                 self.core_coord_x2 = float(core[2])
                 self.core_coord_y2 = float(core[3])
-                self.core_coord_x1 = float(core[0])
-                self.core_coord_y1 = float(core[1])
-                self.core_coord_x2 = float(core[2])
-                self.core_coord_y2 = float(core[3])
 
-    def read_lef_file(self):
-        self.var_file_data = open(self.directory  +"/tcl/"+ self.var_file) 
     def read_lef_file(self):
         self.var_file_data = open(self.directory  +"/tcl/"+ self.var_file) 
 
         # extracting lef file directories and site name
         for line in self.var_file_data.readlines():
-        for line in self.var_file_data.readlines():
             if "tech_lef" in line:
                 self.lef_tech_file = self.directory + "/tcl/" + re.findall(r'"(.*?)"', line)[0]
-                self.lef_tech_file = self.directory + "/tcl/" + re.findall(r'"(.*?)"', line)[0]
             if "std_cell_lef" in line:
-                self.lef_std_file = self.directory + "/tcl/" + re.findall(r'"(.*?)"', line)[0]
                 self.lef_std_file = self.directory + "/tcl/" + re.findall(r'"(.*?)"', line)[0]
             if "site" in line:
                 site = re.findall(r'"(.*?)"', line)
                 self.site_name = site[0]
-                self.site_name = site[0]
 
         log_info(f"LEF tech file: {self.lef_tech_file}")
         log_info(f"LEF std file: {self.lef_std_file}")
         log_info(f"Site name: {self.site_name}")
-        log_info(f"LEF tech file: {self.lef_tech_file}")
-        log_info(f"LEF std file: {self.lef_std_file}")
-        log_info(f"Site name: {self.site_name}")
 
-    def create_macro_dict(self):
     def create_macro_dict(self):
         # extracting needed macros and their respective pins from lef and puts it into a dict
         lef_std_data = open(self.lef_std_file)
-        lef_std_data = open(self.lef_std_file)
         macro_name = None
         self.macro_dict = {}
-        self.macro_dict = {}
         # store macro physical sizes (SIZE x BY y) from stdcell LEF
-        self.macro_size_dict = {}
         self.macro_size_dict = {}
         for line in lef_std_data.readlines():
             if "MACRO" in line:
@@ -278,7 +227,6 @@ class DefGenerator:
                 log_info(f"Found MACRO: {macro_name}")
                 if self.component_finder(macro_name) != "":
                     io = {}
-                    self.macro_dict[macro_name] = io
                     self.macro_dict[macro_name] = io
                     io["input"] = []
                     io["output"] = []
@@ -289,9 +237,7 @@ class DefGenerator:
                 pin_name = clean(value(line, "PIN"))
                 if pin_name.startswith("A") or pin_name.startswith("B") or pin_name.startswith("D"):
                     self.macro_dict[macro_name]["input"].append(pin_name)
-                    self.macro_dict[macro_name]["input"].append(pin_name)
                 elif pin_name.startswith("Z") or pin_name.startswith("Q") or pin_name.startswith("X"):
-                    self.macro_dict[macro_name]["output"].append(pin_name)
                     self.macro_dict[macro_name]["output"].append(pin_name)
             # capture SIZE lines inside MACRO blocks, e.g. "SIZE 22.585 BY 16.8 ;"
             elif "SIZE" in line and macro_name:
@@ -301,8 +247,6 @@ class DefGenerator:
                         sx = float(m_size.group(1))
                         sy = float(m_size.group(2))
                         self.max_dim_macro = max(self.max_dim_macro, sx, sy)
-                        self.macro_size_dict[macro_name] = (sx, sy)
-                        self.macro_dict[macro_name]["area"] = sx * sy
                         self.macro_size_dict[macro_name] = (sx, sy)
                         self.macro_dict[macro_name]["area"] = sx * sy
                     except Exception:
@@ -316,52 +260,13 @@ class DefGenerator:
         self.lef_data = open(self.lef_tech_file)
         self.lef_tech_lines = self.lef_data.readlines()
         for line in self.lef_tech_lines:
-    def read_tech_file(self):
-        # extracting self.units and site size from tech file
-        self.lef_data = open(self.lef_tech_file)
-        self.lef_tech_lines = self.lef_data.readlines()
-        for line in self.lef_tech_lines:
             if "DATABASE MICRONS" in line:
                 self.units = float(clean(value(line, "DATABASE MICRONS")))
             if "SITE " + self.site_name in line:
                 site_size = find_val_two("SIZE", self.lef_tech_lines, self.lef_tech_lines.index(line))
                 self.site_x = float(site_size[0])
                 self.site_y = float(site_size[1])
-                self.units = float(clean(value(line, "DATABASE MICRONS")))
-            if "SITE " + self.site_name in line:
-                site_size = find_val_two("SIZE", self.lef_tech_lines, self.lef_tech_lines.index(line))
-                self.site_x = float(site_size[0])
-                self.site_y = float(site_size[1])
                 break
-
-    def run_def_generator(self, test_file: str, graph: nx.DiGraph): 
-        '''
-        -> nx.DiGraph, dict, dict, dict (it's not working when actaully written)
-        Generates required .def file for OpenROAD. It uses the lef files specified in the tcl file to
-        determine the components that will be used.
-        params: 
-            test_file: tcl file
-            graph: nx.DiGraph, untouched
-        
-        returns: 
-            graph: networkx graph that has been modified (pruned and new components)
-            net_out_dict: dict that lists nodes and their respective output nets
-            node_output: dict that lists nodes and their respective output nodes
-            lef_data_dict: dict containing data from lef file that will be used for estimating parasitics
-        '''
-
-        self.get_macro_halo_values()
-
-        
-        ### 0. reading top level tcl file, lef file, and tech file ###
-        self.read_tcl_file(test_file)
-        self.read_lef_file()
-        
-        self.create_macro_dict()
-
-        log_info(f"Macro dict: {pprint.pformat(self.macro_dict)}")
-
-        self.read_tech_file()
 
     def run_def_generator(self, test_file: str, graph: nx.DiGraph): 
         '''
@@ -414,8 +319,6 @@ class DefGenerator:
             macro = self.find_macro(graph.nodes[node])
             self.macro_dict[macro]["function"] = graph.nodes[node]["function"]
             node_to_macro[node] = [macro, copy.deepcopy(self.macro_dict[macro])]
-            self.macro_dict[macro]["function"] = graph.nodes[node]["function"]
-            node_to_macro[node] = [macro, copy.deepcopy(self.macro_dict[macro])]
             log_info(f"node to macro [{node}]: {node_to_macro[node]}")
             out_edge = self.edge_gen("out", old_nodes, graph)
             assert graph.nodes[node]["count"] == 16, f"Node {node} has {graph.nodes[node]['count']} ports, expected 16"
@@ -445,8 +348,6 @@ class DefGenerator:
         counter = 0
         log_info("generating muxes")
 
-        # note: old graph has edges for functional self.units
-        # new graph has edges for each of the 16 ports of the functional self.units, more fine grained
         # note: old graph has edges for functional self.units
         # new graph has edges for each of the 16 ports of the functional self.units, more fine grained
 
@@ -480,7 +381,6 @@ class DefGenerator:
                     graph.add_edge(new_node, node_name)
                     macro_output = self.find_macro(graph.nodes[new_node])
                     node_to_macro[new_node] = [macro_output, copy.deepcopy(self.macro_dict[macro_output])]
-                    node_to_macro[new_node] = [macro_output, copy.deepcopy(self.macro_dict[macro_output])]
                     log_info(f"node to macro [{new_node}]: {node_to_macro[new_node]}")
                 # functional unit mux
                 old_graph.add_node("Mux" + str(counter), count = 16, function = "Mux", name="Mux" + str(counter))
@@ -490,7 +390,6 @@ class DefGenerator:
                 old_graph.add_edge(target_node2, "Mux" + str(counter))
                 old_graph.add_edge("Mux" + str(counter), node)
                 #macro_output = self.find_macro("Mux" + str(counter))
-                #node_to_macro["Mux" + str(counter)] = [macro_output, copy.deepcopy(self.macro_dict[macro_output])]
                 #node_to_macro["Mux" + str(counter)] = [macro_output, copy.deepcopy(self.macro_dict[macro_output])]
                 # update list of input edges to reflect the new mux, which consumes two of the previous input edges
                 input_dict[node].append("Mux" + str(counter))
@@ -503,7 +402,6 @@ class DefGenerator:
         header_text = []
         header_text.append("VERSION 5.8 ;")
         for line in self.lef_tech_lines:
-        for line in self.lef_tech_lines:
             if "DIVIDERCHAR" in line:
                 header_text.append(line.replace("\n", ""))
                 break
@@ -511,8 +409,6 @@ class DefGenerator:
                 header_text.append(line.replace("\n", ""))
 
         header_text.append("DESIGN {} ;".format(design))
-        header_text.append("UNITS DISTANCE MICRONS {} ;".format(int(self.units)))
-        header_text.append("DIEAREA ( {} {} ) ( {} {} ) ;".format(self.die_coord_x1 * self.units, self.die_coord_y1 * self.units , self.die_coord_x2 * self.units, self.die_coord_y2 * self.units))
         header_text.append("UNITS DISTANCE MICRONS {} ;".format(int(self.units)))
         header_text.append("DIEAREA ( {} {} ) ( {} {} ) ;".format(self.die_coord_x1 * self.units, self.die_coord_y1 * self.units , self.die_coord_x2 * self.units, self.die_coord_y2 * self.units))
 
@@ -542,8 +438,6 @@ class DefGenerator:
             # add macro area if available
             msize = self.macro_size_dict.get(macro)
             if msize and self.units:
-            msize = self.macro_size_dict.get(macro)
-            if msize and self.units:
                 # include halo on both sides (assume macro_halo values are per-side in microns)
                 if graph.nodes[node]["function"] == "Mux":
                     eff_x = msize[0] 
@@ -554,7 +448,6 @@ class DefGenerator:
                 log_info(f"Adding area for macro {macro}: {eff_x} * {eff_y} = {eff_x * eff_y}")
                 area_estimate_sq_microns += eff_x * eff_y
             else:
-                 if macro not in self.macro_size_dict:
                  if macro not in self.macro_size_dict:
                      logger.debug(f"No SIZE found for macro {macro}; skipping in area estimate.")
             component_text.append("- {} {} ;".format(component_num, macro))
@@ -658,23 +551,16 @@ class DefGenerator:
         if not all_call_functions:
 
             # core_y = self.core_coord_y2 - self.core_coord_y1
-            # core_y = self.core_coord_y2 - self.core_coord_y1
             # counter = 0
 
             # core_dy = core_y * self.units
             # site_dy = self.site_y * self.units
             # site_dx = self.site_x * self.units
-            # core_dy = core_y * self.units
-            # site_dy = self.site_y * self.units
-            # site_dx = self.site_x * self.units
 
-            # row_x = math.ceil(self.core_coord_x1 * self.units / site_dx) * site_dx
-            # row_y = math.ceil(self.core_coord_y1 * self.units / site_dy) * site_dy
             # row_x = math.ceil(self.core_coord_x1 * self.units / site_dx) * site_dx
             # row_y = math.ceil(self.core_coord_y1 * self.units / site_dy) * site_dy
 
             # while site_dy <= core_dy - counter * site_dy:
-            #     text = "ROW ROW_{} {} {} {}".format(str(counter), self.site_name, str(int(row_x)), str(int(row_y + counter * site_dy)))
             #     text = "ROW ROW_{} {} {} {}".format(str(counter), self.site_name, str(int(row_x)), str(int(row_y + counter * site_dy)))
                 
             #     if (counter + 1)%2 == 0:
@@ -683,7 +569,6 @@ class DefGenerator:
             #         text += " N "
                 
             #     num_row = 0
-            #     while (self.core_coord_x2 - self.core_coord_x1) * self.units - num_row * site_dx >= site_dx:
             #     while (self.core_coord_x2 - self.core_coord_x1) * self.units - num_row * site_dx >= site_dx:
             #         num_row = num_row + 1 
 
@@ -702,14 +587,7 @@ class DefGenerator:
             core_dy = core_y * self.units
             site_dy = self.site_y * self.units
             site_dx = self.site_x * self.units
-            core_y = self.core_coord_y2 - self.core_coord_y1
-            core_dy = core_y * self.units
-            site_dy = self.site_y * self.units
-            site_dx = self.site_x * self.units
 
-            core_x1_dbu = int(self.core_coord_x1 * self.units)
-            core_x2_dbu = int(self.core_coord_x2 * self.units)
-            core_y1_dbu = int(self.core_coord_y1 * self.units)
             core_x1_dbu = int(self.core_coord_x1 * self.units)
             core_x2_dbu = int(self.core_coord_x2 * self.units)
             core_y1_dbu = int(self.core_coord_y1 * self.units)
@@ -734,7 +612,6 @@ class DefGenerator:
                 y = core_y1_dbu + row_idx * site_dy
                 text = (
                     f"ROW ROW_{row_idx} {self.site_name} {core_x1_dbu} {y} {orient} "
-                    f"ROW ROW_{row_idx} {self.site_name} {core_x1_dbu} {y} {orient} "
                     f"DO {num_sites_x} BY 1 STEP {int(site_dx)} 0 ;"
                 )
                 row_text.append(text)
@@ -753,8 +630,6 @@ class DefGenerator:
         # using calculations sourced from OpenROAD
         die_coord_x2 = self.die_coord_x2 * self.units
         die_coord_y2 = self.die_coord_y2 * self.units
-        die_coord_x2 = self.die_coord_x2 * self.units
-        die_coord_y2 = self.die_coord_y2 * self.units
         lef_width = 0;
         layer_res = 0;
         layer_cap = 0;
@@ -764,69 +639,44 @@ class DefGenerator:
         for line in range(len(self.lef_tech_lines)):
             if "LAYER " in self.lef_tech_lines[line] and "ROUTING" in self.lef_tech_lines[line + 1]:
                 layer_name = clean(value(self.lef_tech_lines[line], "LAYER"))
-        for line in range(len(self.lef_tech_lines)):
-            if "LAYER " in self.lef_tech_lines[line] and "ROUTING" in self.lef_tech_lines[line + 1]:
-                layer_name = clean(value(self.lef_tech_lines[line], "LAYER"))
 
                 if lef_width == 0 :
                     lef_width = float(find_val("WIDTH", self.lef_tech_lines, line))
                     layer_res = float(find_val("RESISTANCE RPERSQ", self.lef_tech_lines, line))
                     layer_cap = float(find_val("CAPACITANCE CPERSQDIST", self.lef_tech_lines, line))
-                    lef_width = float(find_val("WIDTH", self.lef_tech_lines, line))
-                    layer_res = float(find_val("RESISTANCE RPERSQ", self.lef_tech_lines, line))
-                    layer_cap = float(find_val("CAPACITANCE CPERSQDIST", self.lef_tech_lines, line))
                 
                 self.layer_min_width = lef_width * self.units
-                self.layer_min_width = lef_width * self.units
 
-                self.layer_pitch_x = float(find_val_xy("PITCH", self.lef_tech_lines, line, "x")) * self.units
-                self.layer_pitch_y = float(find_val_xy("PITCH", self.lef_tech_lines, line, "y")) * self.units
                 self.layer_pitch_x = float(find_val_xy("PITCH", self.lef_tech_lines, line, "x")) * self.units
                 self.layer_pitch_y = float(find_val_xy("PITCH", self.lef_tech_lines, line, "y")) * self.units
 
                 self.layer_x_offset = float(find_val_xy("OFFSET", self.lef_tech_lines, line, "x")) * self.units
                 layer_y_offset = float(find_val_xy("OFFSET", self.lef_tech_lines, line, "y")) * self.units
-                self.layer_x_offset = float(find_val_xy("OFFSET", self.lef_tech_lines, line, "x")) * self.units
-                layer_y_offset = float(find_val_xy("OFFSET", self.lef_tech_lines, line, "y")) * self.units
 
                 x_track_count = int((die_coord_x2 - self.layer_x_offset)/ self.layer_pitch_x) + 1
                 origin_x = self.layer_x_offset + self.die_coord_x1
-                x_track_count = int((die_coord_x2 - self.layer_x_offset)/ self.layer_pitch_x) + 1
-                origin_x = self.layer_x_offset + self.die_coord_x1
 
-                if origin_x - self.layer_min_width / 2 < self.die_coord_x1:
-                    origin_x += self.layer_pitch_x
                 if origin_x - self.layer_min_width / 2 < self.die_coord_x1:
                     origin_x += self.layer_pitch_x
                     x_track_count -= 1
 
                 last_x = origin_x + (x_track_count - 1) * self.layer_pitch_x
                 if last_x + self.layer_min_width / 2 > die_coord_x2:
-                last_x = origin_x + (x_track_count - 1) * self.layer_pitch_x
-                if last_x + self.layer_min_width / 2 > die_coord_x2:
                     x_track_count -= 1
 
                 y_track_count = int((die_coord_y2 - layer_y_offset)/ self.layer_pitch_y) + 1
                 origin_y = layer_y_offset + self.die_coord_y1
-                y_track_count = int((die_coord_y2 - layer_y_offset)/ self.layer_pitch_y) + 1
-                origin_y = layer_y_offset + self.die_coord_y1
 
-                if origin_y - self.layer_min_width / 2 < self.die_coord_y1:
-                    origin_y += self.layer_pitch_y
                 if origin_y - self.layer_min_width / 2 < self.die_coord_y1:
                     origin_y += self.layer_pitch_y
                     y_track_count -= 1
 
-                last_y = origin_y + (y_track_count - 1) * self.layer_pitch_y
-                if last_y + self.layer_min_width / 2 > die_coord_y2:
                 last_y = origin_y + (y_track_count - 1) * self.layer_pitch_y
                 if last_y + self.layer_min_width / 2 > die_coord_y2:
                     y_track_count -= 1
                 
-                text = "TRACKS X {} DO {} STEP {} LAYER {} ;".format(int(origin_x), int(x_track_count), int(self.layer_pitch_x), layer_name)
                 text = "TRACKS X {} DO {} STEP {} LAYER {} ;".format(int(origin_x), int(x_track_count), int(self.layer_pitch_x), layer_name)
                 track_text.append(text)
-                text = "TRACKS Y {} DO {} STEP {} LAYER {} ;".format(int(origin_y), int(y_track_count), int(self.layer_pitch_y), layer_name)
                 text = "TRACKS Y {} DO {} STEP {} LAYER {} ;".format(int(origin_y), int(y_track_count), int(self.layer_pitch_y), layer_name)
                 track_text.append(text)
         
@@ -852,7 +702,6 @@ class DefGenerator:
                 f.write(f"{line}\n")
 
         lef_data_dict = {"width" : lef_width, "res" : layer_res, "cap" : layer_cap, "units" : self.units}
-        lef_data_dict = {"width" : lef_width, "res" : layer_res, "cap" : layer_cap, "units" : self.units}
         os.system("cp openroad_interface/results/first_generated.def " + self.directory + "/results/first_generated.def") 
 
         log_info(f"DEF file generation complete.")
@@ -862,8 +711,5 @@ class DefGenerator:
         # adding this so that the lib cell generator can generate the correct cell for the mux
         if "MUX2_X1" in self.macro_dict:
             self.macro_dict["MUX2_X1"]["function"] = "Not16"
-        if "MUX2_X1" in self.macro_dict:
-            self.macro_dict["MUX2_X1"]["function"] = "Not16"
 
-        return graph, net_out_dict, node_output, lef_data_dict, node_to_num, area_estimate_sq_microns, self.macro_dict, node_to_component_num
         return graph, net_out_dict, node_output, lef_data_dict, node_to_num, area_estimate_sq_microns, self.macro_dict, node_to_component_num
