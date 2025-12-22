@@ -115,25 +115,20 @@ class DefGenerator:
     def component_finder(self, name: str) -> str:
         '''
         returns a blank string if the component name is not a component we need
-
-        redo this whole function 
         '''
         ## This is for hierarchically P&R'ed modules. The macro name is the same as the module name except that it will have this prefix "HIERMODULE_"
         if "HIERMODULE_" in name.upper():
             return name
 
         for macro in SUPPORTED_MACROS:
-            for term in macro["search_terms"]:
-                if term in name.upper():
-                    return macro["macro_name_in_def"]
+            if macro["macro_name_in_def"].upper() in name.upper():
+                return macro["macro_name_in_def"]
         
         return ""
 
     def find_macro(self, node: dict) -> str:
         '''
         find the corresponding macro for the given node
-
-        redo this function 
         '''
         name = node["function"]
         if "CALL" in name.upper():

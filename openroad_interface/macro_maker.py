@@ -23,7 +23,7 @@ TARGET_ASPECT_RATIO = 1.0
 
 logger = logging.getLogger(__name__)
 
-DEBUG = False
+DEBUG = True
 
 def debug_print(message):
     if DEBUG:
@@ -133,15 +133,22 @@ class MacroMaker:
                 self.metal1_width = float(find_val("WIDTH", lef_tech_lines, line)) * 1000
                 self.spacing = float(find_val("SPACING", lef_tech_lines, line)) * 1000
                 self.metal_pitch = self.metal1_width + self.spacing
-                self.pin_size = PIN_SIZE_TRACKS * self.metal_pitch
-
-                self.VDD_height = POWER_RAIL_HEIGHT * self.metal1_width 
-                self.VSS_height = POWER_RAIL_HEIGHT * self.metal1_width 
+                
             elif "SIZE" in lef_tech_lines[line]:
                 site_size = clean(value(lef_tech_lines[line], "SIZE"))
                 self.row_height = float(clean(site_size.split("BY", 1)[1])) * 1000
             elif "MANUFACTURINGGRID" in lef_tech_lines[line]:
                 self.manufacturing_grid = float(clean(value(lef_tech_lines[line], "MANUFACTURINGGRID"))) * 1000
+
+        self.pin_size = math.ceil(
+                PIN_SIZE_TRACKS * self.metal_pitch / self.manufacturing_grid
+            ) * self.manufacturing_grid
+        self.VDD_height = math.ceil(
+                POWER_RAIL_HEIGHT * self.metal1_width / self.manufacturing_grid
+            ) * self.manufacturing_grid
+        self.VSS_height = math.ceil(
+                POWER_RAIL_HEIGHT * self.metal1_width / self.manufacturing_grid
+            ) * self.manufacturing_grid
 
         debug_print(f"spacing = {self.spacing}, metal_pitch = {self.metal_pitch}, row_height= {self.row_height}, manufacturing_grid= {self.manufacturing_grid}, pin_size= {self.pin_size}, VDD_height= {self.VDD_height}, VSS_height= {self.VSS_height}")
 

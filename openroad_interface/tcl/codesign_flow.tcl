@@ -1,8 +1,11 @@
 # set_debug_level DPL place 1
 ################################################################
-# IO Placement (random)
+# IO Placement
 puts "INFO: starting IO placement"
-place_pins -random -hor_layers $io_placer_hor_layer -ver_layers $io_placer_ver_layer
+place_pins -hor_layers $io_placer_hor_layer -ver_layers $io_placer_ver_layer
+# List all ports for debugging (especially important for clock ports)
+set all_ports [get_ports *]
+puts "INFO: Placed [llength $all_ports] ports: $all_ports"
 puts "INFO: completed IO placement"
 
 ################################################################
