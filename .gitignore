@@ -50,3 +50,4 @@ tools/
 !.github/
 !scalehls_test/**.log
 ######
+block_graph.gml

@@ -370,16 +370,17 @@ class OpenRoadRun:
         stop_event = threading.Event()
         killed_due_to_error = False
         monitor_thread = None
+        logf = None
 
         try:
-            # Open the log for writing and launch the process with stdout/stderr redirected
-            with open(log_path, "w") as logf:
-                proc = subprocess.Popen(
-                    cmd_list,
-                    stdout=logf,
-                    stderr=subprocess.STDOUT,
-                )
-                logger.info("Spawned OpenROAD PID: %s", proc.pid)
+            # Open the log file for writing
+            logf = open(log_path, "w")
+            proc = subprocess.Popen(
+                cmd_list,
+                stdout=logf,
+                stderr=subprocess.STDOUT,
+            )
+            logger.info("Spawned OpenROAD PID: %s", proc.pid)
 
             # Start a monitor thread that tails the log and kills the process if 'ERROR' appears.
             if OPENROAD_ABORT_ON_LOG_ERROR:
@@ -400,6 +401,10 @@ class OpenRoadRun:
                                     killed_due_to_error = True
                                     logger.error(f"Detected '{OPENROAD_ERROR_TEXT}' in OpenROAD log; terminating process.")
                                     try:
+                                        # Flush and close the log file before killing the process
+                                        if logf:
+                                            logf.flush()
+                                            logf.close()
                                         if proc and proc.poll() is None:
                                             proc.terminate()
                                             # Give it a moment to exit gracefully
@@ -435,6 +440,13 @@ class OpenRoadRun:
             stop_event.set()
             if monitor_thread and monitor_thread.is_alive():
                 monitor_thread.join(timeout=1.0)
+            # Ensure log file is properly closed
+            if logf and not logf.closed:
+                try:
+                    logf.flush()
+                    logf.close()
+                except Exception as e:
+                    logger.warning("Failed to close log file: %s", e)
             os.chdir(old_dir)
             logger.info(f"Returned to original directory {old_dir}")
 

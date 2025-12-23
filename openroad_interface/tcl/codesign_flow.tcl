@@ -48,14 +48,17 @@ eval tapcell $tapcell_args
 # pdngen
 # puts "INFO: completed PDN generation"
 
-if {$at_top_level_of_hierarchy == 1} {
-    puts "INFO: Running PDN generation (top-level)."
-    source $pdn_cfg
-    pdngen
-    puts "INFO: completed PDN generation"
-} else {
-    puts "INFO: Skipping PDN (not top-level)."
-}
+## We are going to skip PDN network generation, as it isn't 
+## strictly necessary for determining approximate wirelengths.
+
+# if {$at_top_level_of_hierarchy == 1} {
+#     puts "INFO: Running PDN generation (top-level)."
+#     source $pdn_cfg
+#     pdngen
+#     puts "INFO: completed PDN generation"
+# } else {
+#     puts "INFO: Skipping PDN (not top-level)."
+# }
 
 ################################################################
 # Global placement
@@ -70,7 +73,7 @@ set_macro_extension 2
 
 set ::env(REPLACE_SEED) 42
 
-global_placement -routability_driven -density $global_place_density \
+global_placement -density $global_place_density \
   -pad_left $global_place_pad -pad_right $global_place_pad
 
 puts "INFO: completed global placement"
