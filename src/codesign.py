@@ -70,6 +70,7 @@ class Codesign:
         self.save_dir = os.path.join(
             self.cfg["args"]["savedir"], datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S") + "_" + tmp_dir_suffix
         )
+        self.hls_tcl_script = "tcl_script.tcl" if self.cfg["args"]["arch_opt_pipeline"] == "scalehls" else "hls.tcl"
 
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
@@ -128,7 +129,7 @@ class Codesign:
         self.wire_lengths_over_iterations = []
         self.wire_delays_over_iterations = []
         self.device_delays_over_iterations = []
-        self.cur_dsp_usage = 0
+        self.cur_dsp_usage = 100
         self.max_rsc_reached = False
 
         self.config_json_path_scalehls = "ScaleHLS-HIDA/test/Transforms/Directive/config.json"
@@ -171,6 +172,7 @@ class Codesign:
         overwrite_cfg = {"base_cfg": args.config, "args": overwrite_args}
         cfgs["overwrite_cfg"] = overwrite_cfg
         self.cfg = sim_util.recursive_cfg_merge(cfgs, "overwrite_cfg")
+        assert self.cfg["args"]["arch_opt_pipeline"] in ["scalehls", "streamhls"]
         print(f"args: {self.cfg['args']}")
 
     def get_tmp_dir(self):
@@ -303,6 +305,49 @@ class Codesign:
         with open(self.config_json_path, "w") as f:
             json.dump(config, f)
 
+    def run_streamhls(self, save_dir, setup=False):
+        """
+        Runs StreamHLS synthesis tool in a different environment with modified PATH and PYTHONPATH.
+        Updates the memory configuration and logs the output.
+        Handles directory changes and cleans up temporary files.
+        """
+        start_time = time.time()
+        logger.info(f"Running StreamHLS with save_dir: {save_dir}")
+        ## get CWD
+        cwd = os.getcwd()
+        print(f"Running StreamHLS in {cwd}")
+
+        save_path = os.path.join(os.path.dirname(__file__), "..", save_dir)
+        cmd = [
+            'bash', '-c',
+            f'''
+            cd {cwd}
+            source miniconda3/etc/profile.d/conda.sh
+            cd Stream-HLS
+            pwd
+            source setup-env.sh
+            cd examples
+            python run_streamhls.py -b {save_path} -d {save_path} -k {self.benchmark_name} -O 5 --dsps {10000 if setup else self.cur_dsp_usage} --timelimit {1}
+            '''
+        ]
+
+        with open(f"{save_path}/streamhls_out.log", "w") as outfile:
+            p = subprocess.Popen(
+                cmd,
+                stdout=outfile,
+                stderr=subprocess.STDOUT,
+                env={}  # clean environment
+            )
+            p.wait()
+        with open(f"{save_path}/streamhls_out.log", "r") as f:
+            logger.info(f"StreamHLS output:\n{f.read()}")
+
+        if p.returncode != 0:
+            raise Exception(f"StreamHLS failed with error: {p.stderr}")
+        logger.info(f"time to run StreamHLS: {time.time()-start_time}")
+        shutil.copy(f"{save_path}/streamhls_{self.benchmark_name}/hls/src/{self.benchmark_name}.cpp", f"{save_path}/{self.benchmark_name}.cpp")
+        shutil.copy(f"{save_path}/streamhls_{self.benchmark_name}/hls/hls.tcl", f"{save_path}/hls.tcl")
+
     def run_scalehls(self, save_dir, opt_cmd,setup=False):
         """
         Runs ScaleHLS synthesis tool in a different environment with modified PATH and PYTHONPATH.
@@ -397,10 +442,24 @@ class Codesign:
             raise Exception(f"No Pareto solutions found for {self.benchmark_name} with dsp usage {self.cur_dsp_usage}")
         return f"{read_dir}/{self.vitis_top_function}_pareto_{mlir_idx_that_exist[-1]}.mlir", mlir_idx_that_exist[-1]
 
-    def parse_dsp_usage_and_latency(self, mlir_idx):
-        df = pd.read_csv(f'''{os.path.join(os.path.dirname(__file__), "..", self.benchmark_setup_dir)}/function_hier_output/{self.vitis_top_function}_space.csv''')
-        logger.info(f"dsp usage: {df['dsp'].values[mlir_idx]}, latency: {df['cycle'].values[mlir_idx]}")
-        return df['dsp'].values[mlir_idx], df['cycle'].values[mlir_idx]
+    def parse_dsp_usage_and_latency(self, mlir_idx, save_dir):
+        if self.cfg["args"]["arch_opt_pipeline"] == "scalehls":
+            df = pd.read_csv(f'''{os.path.join(os.path.dirname(__file__), "..", self.benchmark_setup_dir)}/function_hier_output/{self.vitis_top_function}_space.csv''')
+            logger.info(f"dsp usage: {df['dsp'].values[mlir_idx]}, latency: {df['cycle'].values[mlir_idx]}")
+            return df['dsp'].values[mlir_idx], df['cycle'].values[mlir_idx]
+        elif self.cfg["args"]["arch_opt_pipeline"] == "streamhls":
+            log_file = sim_util.get_latest_log_dir_streamhls(os.path.join(save_dir, self.benchmark_name))
+            assert log_file is not None, f"No log file found for {self.benchmark_name} in {save_dir}"
+            latency, dsp = None, None
+            with open(log_file, "r") as f:
+                lines = f.readlines()
+                for line in lines:
+                    if "Combined Latency:" in line:
+                        latency = float(line.split("Combined Latency:")[1].strip())
+                    if "Total DSPs:" in line:
+                        dsp = int(line.split("Total DSPs:")[1].strip())
+            assert latency is not None and dsp is not None, f"No latency or dsp found for {self.benchmark_name} in {log_file}"
+            return dsp, latency
 
     def parse_vitis_data(self, save_dir):
 
@@ -519,22 +578,27 @@ class Codesign:
         self.scalehls_pipeline = "hida-pytorch-dse-pipeline" if self.cfg["args"]["pytorch"] else "scalehls-dse-pipeline"
 
         # prep before running scalehls
-        self.set_resource_constraint_scalehls(unlimited=setup)
-        if setup:
-            opt_cmd = f'''scalehls-opt {self.benchmark_name}.mlir -{self.scalehls_pipeline}=\"top-func={self.vitis_top_function} target-spec={os.path.join(os.path.dirname(__file__), "..", self.config_json_path)}\"'''
+        if self.cfg["args"]["arch_opt_pipeline"] == "scalehls":
+            self.set_resource_constraint_scalehls(unlimited=setup)
+            if setup:
+                opt_cmd = f'''scalehls-opt {self.benchmark_name}.mlir -{self.scalehls_pipeline}=\"top-func={self.vitis_top_function} target-spec={os.path.join(os.path.dirname(__file__), "..", self.config_json_path)}\"'''
+                mlir_idx = 0
+            else:
+                mlir_file, mlir_idx = self.parse_design_space_for_mlir(os.path.join(os.path.dirname(__file__), "..", f"{self.tmp_dir}/benchmark_setup/function_hier_output"))
+                opt_cmd = f"cat {mlir_file}"
+            if (self.checkpoint_controller.check_checkpoint("arch_opt", self.iteration_count) and not setup) or (self.checkpoint_controller.check_checkpoint("setup", self.iteration_count) and setup) and not self.max_rsc_reached:
+                self.run_scalehls(save_dir, opt_cmd, setup)
+            else:
+                logger.info("Skipping ScaleHLS")
+            # set scale factors if in setup or first iteration
+        elif self.cfg["args"]["arch_opt_pipeline"] == "streamhls":
+            if (self.checkpoint_controller.check_checkpoint("arch_opt", self.iteration_count) and not setup) or (self.checkpoint_controller.check_checkpoint("setup", self.iteration_count) and setup):
+                self.run_streamhls(save_dir, setup)
             mlir_idx = 0
-        else:
-            mlir_file, mlir_idx = self.parse_design_space_for_mlir(os.path.join(os.path.dirname(__file__), "..", f"{self.tmp_dir}/benchmark_setup/function_hier_output"))
-            opt_cmd = f"cat {mlir_file}"
+        dsp_usage, latency = self.parse_dsp_usage_and_latency(mlir_idx, save_dir)
 
-        # run scalehls
-        if (self.checkpoint_controller.check_checkpoint("scalehls", self.iteration_count) and not setup) or (self.checkpoint_controller.check_checkpoint("setup", self.iteration_count) and setup) and not self.max_rsc_reached:
-            self.run_scalehls(save_dir, opt_cmd, setup)
-        else:
-            logger.info("Skipping ScaleHLS")
+        sim_util.change_clk_period_in_script(f"{save_dir}/{self.hls_tcl_script}", self.clk_period, self.cfg["args"]["hls_tool"])
 
-        # set scale factors if in setup or first iteration
-        dsp_usage, latency = self.parse_dsp_usage_and_latency(mlir_idx)
         if setup:
             self.max_dsp = dsp_usage
             self.max_latency = latency
@@ -542,7 +606,7 @@ class Codesign:
             self.max_speedup_factor = float(latency / self.max_latency)
             self.max_area_increase_factor = float(self.max_dsp / dsp_usage)
         if not setup:
-            self.checkpoint_controller.check_end_checkpoint("scalehls", self.iteration_count)
+            self.checkpoint_controller.check_end_checkpoint("arch_opt", self.iteration_count)
         if setup: # setup step ends here, don't need to run rest of forward pass
             return
 
@@ -551,13 +615,14 @@ class Codesign:
         self.hw.circuit_model.tech_model.init_scale_factors(self.max_speedup_factor, self.max_area_increase_factor)
 
         os.chdir(os.path.join(os.path.dirname(__file__), "..", save_dir))
-        scale_hls_port_fix(f"{self.benchmark_name}.cpp", self.benchmark_name, self.cfg["args"]["pytorch"])
-        generate_blackbox_files(f"{self.benchmark_name}.cpp", os.path.join(os.getcwd(), "blackbox_files"), os.path.join(os.getcwd(), "tcl_script.tcl"), self.hw.circuit_model.circuit_values["latency"], self.clk_period)
+        if self.cfg["args"]["arch_opt_pipeline"] == "scalehls":
+            scale_hls_port_fix(f"{self.benchmark_name}.cpp", self.benchmark_name, self.cfg["args"]["pytorch"])
+        generate_blackbox_files(f"{self.benchmark_name}.cpp", os.path.join(os.getcwd(), "blackbox_files"), os.path.join(os.getcwd(), self.hls_tcl_script), self.hw.circuit_model.circuit_values["latency"], self.clk_period)
         logger.info(f"Vitis top function: {self.vitis_top_function}")
 
 
         import time
-        command = ["vitis_hls", "-f", "tcl_script_new.tcl"]
+        command = ["vitis_hls", "-f", "tcl_script_new.tcl"] if self.cfg["args"]["arch_opt_pipeline"] == "scalehls" else ["vitis_hls", "hls_new.tcl", self.benchmark_name, "syn", "-l", "syn.log"]
         if self.checkpoint_controller.check_checkpoint("vitis", self.iteration_count) and not self.max_rsc_reached:
             start_time = time.time()
             # Start the process and write output to vitis_hls.log
@@ -592,10 +657,14 @@ class Codesign:
             if p.returncode not in (0, None) and not completed_required_sections:
                 logger.error(f"Vitis HLS command failed: see vitis_hls.log")
                 raise Exception(f"Vitis HLS command failed: see vitis_hls.log")
+            if self.cfg["args"]["arch_opt_pipeline"] == "streamhls":
+                shutil.copytree(f"{save_dir}/streamhls_{self.benchmark_name}/hls/solution1", f"{save_dir}/{self.benchmark_name}/solution1")
         else:
             logger.info("Skipping Vitis")
         self.checkpoint_controller.check_end_checkpoint("vitis", self.iteration_count)
         os.chdir(os.path.join(os.path.dirname(__file__), ".."))
+        if self.cfg["args"]["arch_opt_pipeline"] == "streamhls":
+            shutil.copytree(f"{save_dir}/hls_{self.benchmark_name}/solution1", f"{save_dir}/{self.benchmark_name}/solution1")
         # PARSE OUTPUT, set schedule and read netlist
         self.parse_vitis_data(save_dir=save_dir)
         
@@ -721,7 +790,6 @@ class Codesign:
             sim_util.change_clk_period_in_script(f"{self.benchmark_dir}/scripts/common.tcl", self.clk_period, self.cfg["args"]["hls_tool"])
             self.catapult_forward_pass()
         else:
-            sim_util.change_clk_period_in_script(f"{save_dir}/tcl_script.tcl", self.clk_period, self.cfg["args"]["hls_tool"])
             self.vitis_forward_pass(save_dir=save_dir, iteration_count=iteration_count, setup=setup)
         if setup: return
 
@@ -1031,8 +1099,9 @@ class Codesign:
         if not os.path.exists(self.benchmark_setup_dir):
             shutil.copytree(self.benchmark, self.benchmark_setup_dir)
             shutil.copy(os.path.join(self.benchmark, "../..", "arith_ops.c"), os.path.join(self.benchmark_setup_dir, "arith_ops.c"))
-        assert os.path.exists(self.config_json_path_scalehls)
-        shutil.copy(self.config_json_path_scalehls, self.config_json_path)
+        if self.cfg["args"]["arch_opt_pipeline"] == "scalehls":
+            assert os.path.exists(self.config_json_path_scalehls)
+            shutil.copy(self.config_json_path_scalehls, self.config_json_path)
         self.forward_pass(0, save_dir=self.benchmark_setup_dir, setup=True)
 
     def execute(self, num_iters):
@@ -1138,6 +1207,7 @@ if __name__ == "__main__":
         type=str,
         help="Path to a pre-installed OpenROAD installation. This is primarily useful for CI testing where OpenRoad is pre-installed on the system.",
     )
+    parser.add_argument("--arch_opt_pipeline", type=str, help="architecture optimization pipeline to use")
     parser.add_argument('--debug_no_cacti', type=bool,
                         help='disable cacti in the first iteration to decrease runtime when debugging')
     parser.add_argument("--logic_node", type=int, help="logic node size")

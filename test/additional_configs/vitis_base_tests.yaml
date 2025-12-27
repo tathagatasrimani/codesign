@@ -101,3 +101,10 @@ vitis_digitrec_sw_test:
   base_cfg: vitis_test
   args:
     benchmark: digitrec_sw
+
+vitis_multihead_self_attention_test:
+  base_cfg: vitis_test
+  args:
+    benchmark: MultiHeadSelfAttention
+    arch_opt_pipeline: streamhls
+    pytorch: True

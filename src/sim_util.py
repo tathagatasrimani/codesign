@@ -138,6 +138,14 @@ def get_latest_log_dir():
     )
     return log_dirs[-1]
 
+def get_latest_log_dir_streamhls(path):
+    log_dirs = glob.glob(os.path.normpath(os.path.join(path, "streamhls_*-*-*_*-*-*.log")))
+    log_dirs = sorted(
+        log_dirs,
+        key=lambda x: datetime.datetime.strptime(x.split("/")[-1][10:29], "%Y-%m-%d_%H-%M-%S"),
+    )
+    return log_dirs[-1]
+
 def change_clk_period_in_script(filename, new_period, hls_tool):
     CATAPULT_PERIOD_POSITION = -1
     VITIS_PERIOD_POSITION = 2
