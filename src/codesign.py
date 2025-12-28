@@ -129,7 +129,7 @@ class Codesign:
         self.wire_lengths_over_iterations = []
         self.wire_delays_over_iterations = []
         self.device_delays_over_iterations = []
-        self.cur_dsp_usage = 100
+        self.cur_dsp_usage = None # to be set later
         self.max_rsc_reached = False
 
         self.config_json_path_scalehls = "ScaleHLS-HIDA/test/Transforms/Directive/config.json"
@@ -305,7 +305,7 @@ class Codesign:
         with open(self.config_json_path, "w") as f:
             json.dump(config, f)
 
-    def run_streamhls(self, save_dir, setup=False):
+    def run_streamhls(self, save_dir, setup=False, iteration_count=0):
         """
         Runs StreamHLS synthesis tool in a different environment with modified PATH and PYTHONPATH.
         Updates the memory configuration and logs the output.
@@ -317,10 +317,12 @@ class Codesign:
         cwd = os.getcwd()
         print(f"Running StreamHLS in {cwd}")
 
-        if not setup:
+        if not setup and iteration_count != 0:
             self.cur_dsp_usage = int(self.cfg["args"]["area"] / (self.hw.circuit_model.tech_model.param_db["A_gate"].xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf() * self.dsp_multiplier))
+            tilelimit = 1
         else:
-            self.cur_dsp_usage = 10000
+            self.cur_dsp_usage = 357
+            tilelimit = 1 if setup else 1 # high tile limit for the first iteration
 
         save_path = os.path.join(os.path.dirname(__file__), "..", save_dir)
         cmd = [
@@ -332,7 +334,7 @@ class Codesign:
             pwd
             source setup-env.sh
             cd examples
-            python run_streamhls.py -b {save_path} -d {save_path} -k {self.benchmark_name} -O 5 --dsps {self.cur_dsp_usage} --timelimit {1}
+            python run_streamhls.py -b {save_path} -d {save_path} -k {self.benchmark_name} -O 5 --dsps {self.cur_dsp_usage} --timelimit {1} --tilelimit {tilelimit}
             '''
         ]
 
@@ -463,6 +465,8 @@ class Codesign:
                         latency = float(line.split("Combined Latency:")[1].strip())
                     if "Total DSPs:" in line:
                         dsp = int(line.split("Total DSPs:")[1].strip())
+                        if self.cur_dsp_usage is None:
+                            self.cur_dsp_usage = dsp
             assert latency is not None and dsp is not None, f"No latency or dsp found for {self.benchmark_name} in {log_file}"
             return dsp, latency
 
@@ -598,7 +602,7 @@ class Codesign:
             # set scale factors if in setup or first iteration
         elif self.cfg["args"]["arch_opt_pipeline"] == "streamhls":
             if (self.checkpoint_controller.check_checkpoint("arch_opt", self.iteration_count) and not setup) or (self.checkpoint_controller.check_checkpoint("setup", self.iteration_count) and setup):
-                self.run_streamhls(save_dir, setup)
+                self.run_streamhls(save_dir, setup, iteration_count)
             mlir_idx = 0
         dsp_usage, latency = self.parse_dsp_usage_and_latency(mlir_idx, save_dir)
 
@@ -630,6 +634,11 @@ class Codesign:
         command = ["vitis_hls", "-f", "tcl_script_new.tcl"] if self.cfg["args"]["arch_opt_pipeline"] == "scalehls" else ["vitis_hls", "hls_new.tcl", self.benchmark_name, "syn", "-l", "syn.log"]
         if self.checkpoint_controller.check_checkpoint("vitis", self.iteration_count) and not self.max_rsc_reached:
             start_time = time.time()
+            # Clean up any existing Vitis HLS project directory to avoid stale blackbox file references
+            project_dir = f"hls_{self.benchmark_name}"
+            if os.path.exists(project_dir):
+                logger.info(f"Cleaning up existing Vitis HLS project directory: {project_dir}")
+                shutil.rmtree(project_dir)
             # Start the process and write output to vitis_hls.log
             with open("vitis_hls.log", "w") as logfile:
                 p = subprocess.Popen(command, stdout=logfile, stderr=subprocess.STDOUT, text=True)

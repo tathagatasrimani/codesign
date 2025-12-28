@@ -184,6 +184,7 @@ def parse_op(instruction, op_name):
         parsed_op = blackbox_arith_op(instruction, parsed_op["call_function"])
         parsed_op["call_function"] = "N/A"
         parsed_op["type"] = "op"
-
+    if parsed_op["call_function"].find('<') != -1: # handled the same way as in vitis_create_cdfg.py except the @ was already removed
+        parsed_op["call_function"] = parsed_op["call_function"].split('<')[0] + "_" + parsed_op["call_function"].split('<')[1].split('>')[0] + "_s"
     return parsed_op
     

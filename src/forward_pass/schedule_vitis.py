@@ -14,7 +14,7 @@ from src.forward_pass import llvm_ir_parse
 from src.forward_pass import vitis_create_netlist
 from src import sim_util
 
-DEBUG = False
+DEBUG = True
 
 def log_info(msg):
     if DEBUG:
@@ -528,7 +528,7 @@ class BasicBlockInfo:
             loop_names = [loop for loop in self.loops if self.loops[loop].pipelined == "yes"]
             loop_idx = 0
             while lines[idx].find("FSM state transitions:") == -1:
-                if lines[idx].find("States = {") != -1 and lines[idx].find("DF-Pipeline") == -1: # not supporting dataflow pipeline yet
+                if lines[idx].find("States = {") != -1 and len(loop_names) > 0 and lines[idx].find("DF-Pipeline") == -1: # not supporting dataflow pipeline yet
                     self.loops[loop_names[loop_idx]].pipeline_states = lines[idx].strip()[lines[idx].find("States = {") + len("States = {")-1:-1].split()
                     for i in range(len(self.loops[loop_names[loop_idx]].pipeline_states)):
                         self.loops[loop_names[loop_idx]].pipeline_states[i] = int(self.loops[loop_names[loop_idx]].pipeline_states[i])
