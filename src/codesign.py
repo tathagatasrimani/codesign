@@ -122,9 +122,9 @@ class Codesign:
 
         self.iteration_count = 0
 
-        # configure to start with 3 dsp and 3 bram
-        self.dsp_multiplier = 1/3 * self.cfg["args"]["area"] / (3e-6 * 9e-6)
-        self.bram_multiplier = 1/3 * self.cfg["args"]["area"] / (3e-6 * 9e-6)
+        # configure to start with 100 dsp and 100 bram
+        self.dsp_multiplier = 1/100 * self.cfg["args"]["area"] / (3e-6 * 9e-6)
+        self.bram_multiplier = 1/100 * self.cfg["args"]["area"] / (3e-6 * 9e-6)
 
         self.wire_lengths_over_iterations = []
         self.wire_delays_over_iterations = []
@@ -317,6 +317,11 @@ class Codesign:
         cwd = os.getcwd()
         print(f"Running StreamHLS in {cwd}")
 
+        if not setup:
+            self.cur_dsp_usage = int(self.cfg["args"]["area"] / (self.hw.circuit_model.tech_model.param_db["A_gate"].xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf() * self.dsp_multiplier))
+        else:
+            self.cur_dsp_usage = 10000
+
         save_path = os.path.join(os.path.dirname(__file__), "..", save_dir)
         cmd = [
             'bash', '-c',
@@ -327,7 +332,7 @@ class Codesign:
             pwd
             source setup-env.sh
             cd examples
-            python run_streamhls.py -b {save_path} -d {save_path} -k {self.benchmark_name} -O 5 --dsps {10000 if setup else self.cur_dsp_usage} --timelimit {1}
+            python run_streamhls.py -b {save_path} -d {save_path} -k {self.benchmark_name} -O 5 --dsps {self.cur_dsp_usage} --timelimit {1}
             '''
         ]
 
@@ -345,8 +350,8 @@ class Codesign:
         if p.returncode != 0:
             raise Exception(f"StreamHLS failed with error: {p.stderr}")
         logger.info(f"time to run StreamHLS: {time.time()-start_time}")
-        shutil.copy(f"{save_path}/streamhls_{self.benchmark_name}/hls/src/{self.benchmark_name}.cpp", f"{save_path}/{self.benchmark_name}.cpp")
-        shutil.copy(f"{save_path}/streamhls_{self.benchmark_name}/hls/hls.tcl", f"{save_path}/hls.tcl")
+        shutil.copy(f"{save_path}/{self.benchmark_name}/hls/src/{self.benchmark_name}.cpp", f"{save_path}/{self.benchmark_name}.cpp")
+        shutil.copy(f"{save_path}/{self.benchmark_name}/hls/hls.tcl", f"{save_path}/hls.tcl")
 
     def run_scalehls(self, save_dir, opt_cmd,setup=False):
         """
@@ -658,13 +663,12 @@ class Codesign:
                 logger.error(f"Vitis HLS command failed: see vitis_hls.log")
                 raise Exception(f"Vitis HLS command failed: see vitis_hls.log")
             if self.cfg["args"]["arch_opt_pipeline"] == "streamhls":
-                shutil.copytree(f"{save_dir}/streamhls_{self.benchmark_name}/hls/solution1", f"{save_dir}/{self.benchmark_name}/solution1")
+                save_path = os.path.join(os.path.dirname(__file__), "..", save_dir)
+                shutil.copytree(f"{save_path}/hls_{self.benchmark_name}/solution1", f"{save_path}/{self.benchmark_name}/solution1")
         else:
             logger.info("Skipping Vitis")
         self.checkpoint_controller.check_end_checkpoint("vitis", self.iteration_count)
         os.chdir(os.path.join(os.path.dirname(__file__), ".."))
-        if self.cfg["args"]["arch_opt_pipeline"] == "streamhls":
-            shutil.copytree(f"{save_dir}/hls_{self.benchmark_name}/solution1", f"{save_dir}/{self.benchmark_name}/solution1")
         # PARSE OUTPUT, set schedule and read netlist
         self.parse_vitis_data(save_dir=save_dir)
         

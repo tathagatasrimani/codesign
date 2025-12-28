@@ -173,6 +173,8 @@ def parse_op(instruction, op_name):
         parsed_op = arith_op(instruction)
     elif op_name == "sitofp":
         parsed_op = unary_op(instruction)
+    elif op_name == "bitset":
+        parsed_op = undef_num_src_op(instruction)
     else:
         raise ValueError(f"Unexpected op name: {op_name} for instruction: {instruction}")
     parsed_op["type"] = "op" if op_name != "call" else "serial"

@@ -167,6 +167,10 @@ class DefGenerator:
             return  exp
         if "SHL" in name.upper():
             return  shl
+        if "LSHIFT" in name.upper():
+            return  shl
+        if "RSHIFT" in name.upper():
+            return  lshr
         if "LSHR" in name.upper():
             return  lshr
         else:
