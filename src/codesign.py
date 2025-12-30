@@ -477,7 +477,7 @@ class Codesign:
 
         if self.no_memory:
             allowed_functions_netlist = set(self.hw.circuit_model.circuit_values["area"].keys()).difference({"N/A", "Buf", "MainMem", "Call"})
-            allowed_functions_schedule = allowed_functions_netlist.union({"Call", "II"})
+            allowed_functions_schedule = allowed_functions_netlist.union({"Call", "II", "read", "write"})
         else:
             allowed_functions_netlist = set(self.hw.circuit_model.circuit_values["area"].keys()).difference({"N/A", "Call"})
             allowed_functions_schedule = allowed_functions_netlist.union({"Call", "II"})
@@ -523,14 +523,15 @@ class Codesign:
             
             logger.info("Creating DFGs from Vitis CDFGs")
             schedule_parser.create_dfgs()
-            self.hw.scheduled_dfgs = {basic_block_name: schedule_parser.basic_blocks[basic_block_name].dfg.G_standard_with_wire_ops for basic_block_name in schedule_parser.basic_blocks}
+            for basic_block_name in schedule_parser.basic_blocks:
+                if schedule_parser.basic_blocks[basic_block_name].is_dataflow_pipeline:
+                    self.hw.scheduled_dfgs[basic_block_name] = schedule_parser.basic_blocks[basic_block_name].dfg.G_flattened_standard_with_wire_ops
+                else:
+                    self.hw.scheduled_dfgs[basic_block_name] = schedule_parser.basic_blocks[basic_block_name].dfg.G_standard_with_wire_ops
             for basic_block_name in schedule_parser.basic_blocks:
                 for loop_name in schedule_parser.basic_blocks[basic_block_name].dfg.loop_dfgs:
                     for iter_num in schedule_parser.basic_blocks[basic_block_name].dfg.loop_dfgs[loop_name]:
-                        self.hw.loop_1x_graphs[loop_name] = {
-                            True: schedule_parser.basic_blocks[basic_block_name].dfg.loop_dfgs[loop_name][iter_num][True].G_standard_with_wire_ops,
-                            False: schedule_parser.basic_blocks[basic_block_name].dfg.loop_dfgs[loop_name][iter_num][False].G_standard_with_wire_ops
-                        }
+                        self.hw.loop_1x_graphs[loop_name] = {True: schedule_parser.basic_blocks[basic_block_name].dfg.loop_dfgs[loop_name][iter_num][True].G_standard_with_wire_ops, False: schedule_parser.basic_blocks[basic_block_name].dfg.loop_dfgs[loop_name][iter_num][False].G_standard_with_wire_ops}
 
             #self.hw.loop_2x_graphs = {basic_block_name: schedule_parser.basic_blocks[basic_block_name]["G_loop_2x_standard"] for basic_block_name in schedule_parser.basic_blocks if "G_loop_2x" in schedule_parser.basic_blocks[basic_block_name]}
 
@@ -541,7 +542,10 @@ class Codesign:
                 if os.path.isdir(os.path.join(parse_results_dir, file)):
                     if file in sim_util.get_module_map().keys(): # dont parse blackboxed functions
                         continue
-                    self.hw.scheduled_dfgs[file] = nx.read_gml(f"{parse_results_dir}/{file}/{file}_graph_standard_with_wire_ops.gml")
+                    if os.path.exists(f"{parse_results_dir}/{file}/{file}_flattened_graph_standard_with_wire_ops.gml"):
+                        self.hw.scheduled_dfgs[file] = nx.read_gml(f"{parse_results_dir}/{file}/{file}_flattened_graph_standard_with_wire_ops.gml")
+                    else:
+                        self.hw.scheduled_dfgs[file] = nx.read_gml(f"{parse_results_dir}/{file}/{file}_graph_standard_with_wire_ops.gml")
                     for subfile in os.listdir(f"{parse_results_dir}/{file}"):
                         logger.info(f"subfile: {subfile}")
                         if subfile.endswith("rsc_delay_only_graph_standard_with_wire_ops_1.gml"):

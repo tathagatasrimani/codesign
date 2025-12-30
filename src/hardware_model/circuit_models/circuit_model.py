@@ -55,6 +55,8 @@ class CircuitModel:
             "OffChipIO": lambda: self.make_io_lat_dict(),
             "N/A": lambda: 0,
             "Call": lambda: 0,
+            "read": lambda: 0,
+            "write": lambda: 0,
         }
 
         # UNITS: nJ
@@ -85,6 +87,8 @@ class CircuitModel:
             "OffChipIO": lambda: self.make_io_energy_active_dict(),
             "N/A": lambda: 0,
             "Call": lambda: 0,
+            "read": lambda: 0,
+            "write": lambda: 0,
         }
 
         # UNITS: W
@@ -114,6 +118,8 @@ class CircuitModel:
             "Buf": lambda: self.make_buf_power_passive_dict(),
             "N/A": lambda: 0,
             "Call": lambda: 0,
+            "read": lambda: 0,
+            "write": lambda: 0,
         }
 
         # UNITS: um^2
@@ -141,6 +147,8 @@ class CircuitModel:
             "Register16": lambda: self.make_sym_area(self.area_coeffs["Register16"]),
             "N/A": lambda: 0,
             "Call": lambda: 0,
+            "read": lambda: 0,
+            "write": lambda: 0,
         }
 
         # memories output from forward pass
@@ -203,16 +211,22 @@ class CircuitModel:
         }
         self.uarch_lat_cvx["N/A"] = 0
         self.uarch_lat_cvx["Call"] = 0
+        self.uarch_lat_cvx["read"] = 0
+        self.uarch_lat_cvx["write"] = 0
         self.uarch_energy_active_cvx = {
             key: self.alpha[key]*self.logic_energy_active_cvx for key in self.alpha
         }
         self.uarch_energy_active_cvx["N/A"] = 0
         self.uarch_energy_active_cvx["Call"] = 0
+        self.uarch_energy_active_cvx["read"] = 0
+        self.uarch_energy_active_cvx["write"] = 0
         self.uarch_power_passive_cvx = {
             key: self.beta[key]*self.logic_power_passive_cvx for key in self.beta
         }
         self.uarch_power_passive_cvx["N/A"] = 0
         self.uarch_power_passive_cvx["Call"] = 0
+        self.uarch_power_passive_cvx["read"] = 0
+        self.uarch_power_passive_cvx["write"] = 0
         self.wire_unit_delay_cvx = {
             layer: cp.Variable(pos=True) for layer in self.metal_layers
         }

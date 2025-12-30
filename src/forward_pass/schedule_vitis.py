@@ -15,7 +15,7 @@ from src.forward_pass import llvm_ir_parse
 from src.forward_pass import vitis_create_netlist
 from src import sim_util
 
-DEBUG = True
+DEBUG = False
 
 def log_info(msg):
     if DEBUG:
@@ -164,6 +164,7 @@ class LoopInfo:
         self.loop_states = [] # to be assigned in StateObject
         self.is_top_loop = loop_info["is_top_loop"]
         self.sub_loops = []
+        self.is_dataflow_pipeline = loop_info["is_dataflow_pipeline"] if "is_dataflow_pipeline" in loop_info else False
 
     def __str__(self):
         return f"LoopInfo(loop_name={self.loop_name}, min={self.min}, max={self.max}, latency={self.latency}, achieved={self.achieved}, target={self.target}, count={self.count}, pipelined={self.pipelined}, pipeline_states={self.pipeline_states}, loop_states={self.loop_states}, is_top_loop={self.is_top_loop}, sub_loops={self.sub_loops})"
@@ -211,7 +212,7 @@ class InterfaceDB:
             }
 
 class DataFlowGraph:
-    def __init__(self, clk_period, no_rsc_allowed_ops, allowed_functions, build_dir, basic_block_name, name, resource_mapping, states_structure, G, G_standard, G_standard_with_wire_ops, resource_db, variable_db, resource_delays_only=False, num_iters=1, interface_db=None):
+    def __init__(self, clk_period, no_rsc_allowed_ops, allowed_functions, build_dir, basic_block_name, name, resource_mapping, states_structure, G, G_standard, G_standard_with_wire_ops, resource_db, variable_db, is_dataflow_pipeline, resource_delays_only=False, num_iters=1, interface_db=None):
         self.clk_period = clk_period
         self.allowed_functions = allowed_functions
         self.build_dir = build_dir
@@ -220,10 +221,16 @@ class DataFlowGraph:
         self.G = G
         self.G_standard = G_standard
         self.G_standard_with_wire_ops = G_standard_with_wire_ops
+        self.G_flattened = nx.DiGraph()
+        self.G_flattened_standard = nx.DiGraph()
+        self.G_flattened_standard_with_wire_ops = nx.DiGraph()
+        self.flattened_resource_db = ResourceDB()
+        self.flattened_variable_db = VariableDB()
         self.resource_db = resource_db
         self.variable_db = variable_db
         self.interface_db = interface_db
         assert self.interface_db is not None, "InterfaceDB is not provided"
+        self.is_dataflow_pipeline = is_dataflow_pipeline
         self.no_rsc_allowed_ops = no_rsc_allowed_ops
         self.resource_mapping = resource_mapping
         self.cycle_nodes = []
@@ -247,6 +254,8 @@ class DataFlowGraph:
                 self.resource_db.add_resource(self.G.nodes[node]["rsc_name_unique"], False, None)
             self.resource_db.log_resource_usage(self.G.nodes[node]["rsc_name_unique"], node)
         elif self.G.nodes[node]["node_type"] == "serial":
+            if self.is_dataflow_pipeline and self.G.nodes[node]["function"] == "Call":
+                return # dataflow calls are not serialized
             # add resource edges for all latest used resources to the serial node
             for rsc_name_unique in self.resource_db.resources:
                 latest_resource_usage = self.resource_db.get_latest_resource_usage(rsc_name_unique)
@@ -328,20 +337,20 @@ class DataFlowGraph:
             if call_fn[-1] == "_":
                 call_fn += "s"
                 log_info(f"added s to call_function for {instruction}")
-            self.G.add_node(op_name, node_type=instruction["type"], function=fn_out, function_out=fn_out, rsc=rsc_name, core_inst=instruction["core_inst"], core_id=core_id, rsc_name_unique=rsc_name_unique, call_function=call_fn)
+            self.G.add_node(op_name, node_type=instruction["type"], function=fn_out, function_out=fn_out, rsc=rsc_name, core_inst=instruction["core_inst"], core_id=core_id, rsc_name_unique=rsc_name_unique, call_function=call_fn, original_name=instruction["op"])
             self.track_resource_usage(op_name)
             for src in instruction["src"]:
                 src_name = self.variable_db.get_read_node_name(src)
                 if src_name in self.G:
                     self.G.add_edge(src_name, op_name, weight=0.0, resource_edge=0)
                 else:
-                    self.G.add_node(src_name, node_type="var", function="N/A")
+                    self.G.add_node(src_name, node_type="var_src", function="N/A", original_name=src)
                     if use_start_node:
                         assert start_node is not None, "Start node is not provided"
                         self.G.add_edge(start_node, src_name, weight=0.0, resource_edge=0)
                     self.G.add_edge(src_name, op_name, weight=0.0, resource_edge=0)
             dst = self.variable_db.update_write_node(instruction["dst"])
-            self.G.add_node(dst, node_type="var", function="N/A")
+            self.G.add_node(dst, node_type="var_dst", function="N/A", original_name=instruction["dst"])
             # check for interface op
             if instruction["op"] == "write" and instruction["dst"] in self.interface_db.interfaces:
                 different_first_write = (
@@ -375,7 +384,7 @@ class DataFlowGraph:
         for node in in_nodes_loop_start:
             G.add_edge(node, f"loop_start_{loop_name}", weight=0.0, resource_edge=0)
         # create the graph
-        loop_dfg = DataFlowGraph(self.clk_period, self.no_rsc_allowed_ops, self.allowed_functions, self.build_dir, self.basic_block_name, loop_name, self.resource_mapping, self.states_structure.get_pruned_states_structure(self.states_structure.loops[loop_name]), G, G_standard, G_standard_with_wire_ops, resource_db, variable_db, resource_delays_only, num_iters, interface_db=self.interface_db)
+        loop_dfg = DataFlowGraph(self.clk_period, self.no_rsc_allowed_ops, self.allowed_functions, self.build_dir, self.basic_block_name, loop_name, self.resource_mapping, self.states_structure.get_pruned_states_structure(self.states_structure.loops[loop_name]), G, G_standard, G_standard_with_wire_ops, resource_db, variable_db, is_dataflow_pipeline=self.states_structure.loops[loop_name].is_dataflow_pipeline, resource_delays_only=resource_delays_only, num_iters=num_iters, interface_db=self.interface_db)
         
         loop_dfg.create_graph()
 
@@ -450,6 +459,30 @@ class DataFlowGraph:
                     self.loop_dfgs[loop][iter_num][rsc_delay_only_status].standard_dfg_basic_block()
                     extra_text = "_rsc_delay_only" if rsc_delay_only_status else ""
                     nx.write_gml(self.loop_dfgs[loop][iter_num][rsc_delay_only_status].G_standard, f"{self.build_dir}/parse_results/{self.basic_block_name}/{loop}{extra_text}_graph_standard_{iter_num}.gml")
+
+    def standard_dfg_basic_block_loops(self):
+        for loop in self.loop_dfgs:
+            for iter_num in self.loop_dfgs[loop]:
+                for rsc_delay_only_status in self.loop_dfgs[loop][iter_num]:
+                    self.loop_dfgs[loop][iter_num][rsc_delay_only_status].standard_dfg_basic_block()
+                    extra_text = "_rsc_delay_only" if rsc_delay_only_status else ""
+                    nx.write_gml(self.loop_dfgs[loop][iter_num][rsc_delay_only_status].G_standard, f"{self.build_dir}/parse_results/{self.basic_block_name}/{loop}{extra_text}_graph_standard_{iter_num}.gml")
+
+    def standard_dfg_basic_block_new(self, G=None, create_loop_standard_dfgs=True):
+        if G is None:
+            G = self.G
+        G_standard = copy.deepcopy(G)
+        for node in G.nodes():
+            assert "node_type" in G.nodes[node], f"Node {node} has no node_type. {G.nodes[node]}"
+            if G.nodes[node]["node_type"] == "var_src" or G.nodes[node]["node_type"] == "var_dst":
+                self.remove_node_and_rewire(G_standard, node)
+        G_standard = sim_util.filter_graph_by_function(G_standard, self.allowed_functions, exception_node_types=["serial"])
+        assert nx.is_directed_acyclic_graph(G_standard), f"Graph is not a DAG, cycle found: {nx.find_cycle(G_standard)}"
+        #log_info(f"longest path after removing var nodes: {nx.dag_longest_path_length(self.G_standard)} ({nx.dag_longest_path(self.G_standard)})")
+        #nx.write_gml(self.G_standard, f"{self.build_dir}/{basic_block_name}_graph_{G_standard_name}.gml")
+        if create_loop_standard_dfgs:
+            self.standard_dfg_basic_block_loops()
+        return G_standard
 
 class StatesStructure:
     def __init__(self, state_ops, state_transitions, loops, loop_list, basic_block_name):
@@ -545,13 +578,14 @@ class BasicBlockInfo:
         self.file_path = file_path
         self.allowed_functions = allowed_functions
         self.interface_db = interface_db
+        self.is_dataflow_pipeline = False
         #assert self.interface_db is not None, "InterfaceDB is not provided"
     
     def parse(self):
         self.parse_file(self.file_path)
 
     def convert(self):
-        self.dfg = DataFlowGraph(self.clk_period, self.no_rsc_allowed_ops, self.allowed_functions, self.build_dir, self.basic_block_name, self.basic_block_name, self.resource_mapping, self.states_structure, nx.DiGraph(), nx.DiGraph(), nx.DiGraph(), ResourceDB(), VariableDB(), 1, interface_db=self.interface_db)
+        self.dfg = DataFlowGraph(self.clk_period, self.no_rsc_allowed_ops, self.allowed_functions, self.build_dir, self.basic_block_name, self.basic_block_name, self.resource_mapping, self.states_structure, nx.DiGraph(), nx.DiGraph(), nx.DiGraph(), ResourceDB(), VariableDB(), self.is_dataflow_pipeline, 1, interface_db=self.interface_db)
         log_info(f"creating dfg for {self.basic_block_name}")
         self.dfg.create_graph()
         nx.write_gml(self.dfg.G, f"{self.build_dir}/parse_results/{self.basic_block_name}/{self.basic_block_name}_graph.gml")
@@ -594,10 +628,13 @@ class BasicBlockInfo:
                 if lines[idx].find("States = {") != -1 and len(loop_names) > 0:
                     self.loops[loop_names[loop_idx]].pipeline_states = lines[idx].strip()[lines[idx].find("States = {") + len("States = {")-1:-1].split()
                     self.loops[loop_names[loop_idx]].is_dataflow_pipeline = lines[idx].find("DF-Pipeline") != -1
+                    self.is_dataflow_pipeline = self.is_dataflow_pipeline or self.loops[loop_names[loop_idx]].is_dataflow_pipeline
                     for i in range(len(self.loops[loop_names[loop_idx]].pipeline_states)):
                         self.loops[loop_names[loop_idx]].pipeline_states[i] = int(self.loops[loop_names[loop_idx]].pipeline_states[i])
                     log_info(f"pipeline states for pipeline loop {loop_names[loop_idx]} (idx {loop_idx}): {self.loops[loop_names[loop_idx]].pipeline_states}")
                     loop_idx += 1
+                elif lines[idx].find("DF-Pipeline") != -1: # can have no loops and a dataflow pipeline
+                    self.is_dataflow_pipeline = True
                 idx += 1
             idx += 1
             self.state_transitions = {}
@@ -761,6 +798,7 @@ class vitis_schedule_parser:
         ])
         self.benchmark_name = benchmark_name
         self.allowed_functions = allowed_functions
+        self.flattened_node_name_in_new_graph = {}
 
     def create_dfgs(self):
         log_info(f"getting resource mapping from: {self.build_dir}/parse_results/{self.top_level_module_name}_full_netlist_unfiltered.gml")
@@ -781,3 +819,41 @@ class vitis_schedule_parser:
         self.interface_db.create_json_obj()
         with open(f"{self.build_dir}/parse_results/interface_db.json", "w") as f:
             json.dump(self.interface_db.json_obj, f, indent=2)
+        for basic_block_name in self.basic_blocks.keys():
+            if self.basic_blocks[basic_block_name].is_dataflow_pipeline:
+                self.create_flattened_graph(basic_block_name, self.basic_blocks[basic_block_name].dfg)
+                self.basic_blocks[basic_block_name].dfg.G_flattened_standard = self.basic_blocks[basic_block_name].dfg.standard_dfg_basic_block_new(self.basic_blocks[basic_block_name].dfg.G_flattened, create_loop_standard_dfgs=False)
+                self.basic_blocks[basic_block_name].dfg.G_flattened_standard_with_wire_ops = self.basic_blocks[basic_block_name].dfg.add_wire_ops(self.basic_blocks[basic_block_name].dfg.G_flattened_standard)
+                nx.write_gml(self.basic_blocks[basic_block_name].dfg.G_flattened, f"{self.build_dir}/parse_results/{basic_block_name}/{basic_block_name}_flattened_graph.gml")
+                nx.write_gml(self.basic_blocks[basic_block_name].dfg.G_flattened_standard, f"{self.build_dir}/parse_results/{basic_block_name}/{basic_block_name}_flattened_graph_standard.gml")
+                nx.write_gml(self.basic_blocks[basic_block_name].dfg.G_flattened_standard_with_wire_ops, f"{self.build_dir}/parse_results/{basic_block_name}/{basic_block_name}_flattened_graph_standard_with_wire_ops.gml")
+
+
+    def create_flattened_graph(self, basic_block_name, dfg):
+        self.flattened_node_name_in_new_graph[basic_block_name] = {}
+        cur_G = self.basic_blocks[basic_block_name].dfg.G
+        for node in nx.topological_sort(cur_G):
+            if cur_G.nodes[node]["function"] == "Call":
+                self.create_flattened_graph(self.basic_blocks[cur_G.nodes[node]["call_function"]].basic_block_name, dfg)
+            preds = list(cur_G.predecessors(node))
+            pred_current_names = []
+            for pred in preds:
+                assert pred in self.flattened_node_name_in_new_graph[basic_block_name].keys(), f"Predecessor {pred} of node {node} is not in flattened node name in new graph"
+                pred_current_names.append(self.flattened_node_name_in_new_graph[basic_block_name][pred])
+            original_name = cur_G.nodes[node]["original_name"] if "original_name" in cur_G.nodes[node] else node
+            if cur_G.nodes[node]["node_type"] == "var_src":
+                new_name = dfg.flattened_variable_db.get_read_node_name(original_name)
+            elif cur_G.nodes[node]["node_type"] == "var_dst":
+                new_name = dfg.flattened_variable_db.update_write_node(original_name)
+            elif cur_G.nodes[node]["node_type"] == "op":
+                new_name = dfg.flattened_variable_db.update_write_node(original_name)
+            elif node.find("graph_end_") != -1:
+                new_name = node
+            else:
+                new_name = dfg.flattened_variable_db.update_write_node(original_name)
+            if new_name not in dfg.G_flattened:
+                dfg.G_flattened.add_node(new_name, name_in_original_graph=node, **dict(cur_G.nodes[node]))
+            for pred, pred_current_name in zip(preds, pred_current_names):
+                dfg.G_flattened.add_edge(pred_current_name, new_name, **dict(cur_G.edges[pred, node]))
+            self.flattened_node_name_in_new_graph[basic_block_name][node] = new_name
+                
