@@ -16,6 +16,8 @@ from src import sim_util
 
 MAX_JOB_RUNTIME_MINS = 180  # in minutes
 
+NO_BETTER_DESIGN_POINT_FOUND_MSG = "FLOW END: No better design point found."
+
 CHECKPOINT_RE = re.compile(
     r"CHECKPOINT\s+REACHED:\s*([A-Za-z0-9_\-\/]+)\s*FOR\s+ITERATION:\s*(\d+)"
     r"(?:\s*at\s*TIME:\s*([0-9]{4}-[0-9]{2}-[0-9]{2}\s+[0-9]{2}:[0-9]{2}:[0-9]{2}))?"
@@ -354,12 +356,12 @@ class RegressionRun:
 
 
     def check_correct_completion(self, log_path):
-
+        ''' check the log file to see if the program completed successfully '''
         # look for "^^CHECKPOINT REACHED: <checkpoint_step> . RUN SUCCEEDED^^ 
         success = False
         with open(log_path, "r") as f:
             for line in f:
-                if "^^CHECKPOINT REACHED:" in line and ". RUN SUCCEEDED^^" in line:
+                if "^^CHECKPOINT REACHED:" in line and ". RUN SUCCEEDED^^" in line or NO_BETTER_DESIGN_POINT_FOUND_MSG in line:
                     success = True
                     break
 

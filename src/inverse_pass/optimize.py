@@ -20,6 +20,8 @@ from src.inverse_pass.constraint import Constraint
 from src import sim_util
 from src.hardware_model.hardwareModel import BlockVector
 
+NO_BETTER_DESIGN_POINT_FOUND_MSG = "FLOW END: No better design point found."
+
 multistart = False
 
 def log_info(msg, stage):
@@ -249,7 +251,7 @@ class Optimizer:
         print(f"optimal design idx: {optimal_design_idx}")
         print(f"obj vals: {obj_vals}")
         print(f"scaled obj vals: {scaled_obj_vals}")
-        assert scaled_obj_vals[optimal_design_idx] < lower_bound * improvement, "no better design point found"
+        assert scaled_obj_vals[optimal_design_idx] < lower_bound * improvement, NO_BETTER_DESIGN_POINT_FOUND_MSG
         self.hw.circuit_model.tech_model.base_params.tech_values = tech_param_sets[optimal_design_idx].copy()
         if not self.test_config:
             self.hw.calculate_objective(form_dfg=False)
@@ -311,7 +313,7 @@ class Optimizer:
             print(f"optimal design idx: {optimal_design_idx}")
             print(f"obj vals: {obj_vals}")
             print(f"scaled obj vals: {scaled_obj_vals}")
-            assert scaled_obj_vals[optimal_design_idx] < lower_bound * improvement, "no better design point found"
+            assert scaled_obj_vals[optimal_design_idx] < lower_bound * improvement, NO_BETTER_DESIGN_POINT_FOUND_MSG
             self.hw.circuit_model.tech_model.base_params.tech_values = tech_param_sets[optimal_design_idx].copy()
             self.hw.calculate_objective(clk_period_opt=False, form_dfg=False)
             true_scaled_obj_val = sim_util.xreplace_safe(self.hw.obj_scaled, self.hw.circuit_model.tech_model.base_params.tech_values)
@@ -327,7 +329,7 @@ class Optimizer:
             # ensure that this path does not become critical again
             self.bbv_path_constraints.append(Constraint(execution_time <= sim_util.xreplace_safe(execution_time, self.hw.circuit_model.tech_model.base_params.tech_values), "bbv_path_constraint"))
         
-        assert best_obj_scaled < lower_bound * improvement, "no better design point found"
+        assert best_obj_scaled < lower_bound * improvement, NO_BETTER_DESIGN_POINT_FOUND_MSG
         self.hw.circuit_model.tech_model.base_params.tech_values = best_tech_values
         self.hw.calculate_objective(clk_period_opt=False, form_dfg=False)
         return sim_util.xreplace_safe(self.hw.obj, self.hw.circuit_model.tech_model.base_params.tech_values)
