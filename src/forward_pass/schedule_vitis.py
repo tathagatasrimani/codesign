@@ -2,6 +2,7 @@ import logging
 import os
 from collections import defaultdict
 import copy
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -169,8 +170,48 @@ class LoopInfo:
     def __repr__(self):
         return self.__str__()
 
+class InterfaceInfo:
+    def __init__(self, intf_name):
+        self.intf_name = intf_name
+        self.first_read = None
+        self.first_write = None
+        self.read_basic_block_name = None
+        self.write_basic_block_name = None
+
+    def set_first_read(self, node, basic_block_name):
+        self.first_read = node
+        self.read_basic_block_name = basic_block_name
+        log_info(f"set_first_read: {self.intf_name} {node} {basic_block_name}")
+        log_info(f"after setting read, write info is {self.first_write} {self.write_basic_block_name}")
+    
+    def set_first_write(self, node, basic_block_name):
+        self.first_write = node
+        self.write_basic_block_name = basic_block_name
+        log_info(f"set_first_write: {self.intf_name} {node} {basic_block_name}")
+        log_info(f"after setting write, read info is {self.first_read} {self.read_basic_block_name}")
+
+class InterfaceDB:
+    def __init__(self):
+        self.interfaces = {}
+        self.json_obj = {}
+    def add_interface(self, intf_name):
+        if intf_name not in self.interfaces:
+            self.interfaces[intf_name] = InterfaceInfo(intf_name)
+            log_info(f"add_interface: Created new interface {intf_name}")
+        else:
+            log_info(f"add_interface: Interface {intf_name} already exists, skipping creation")
+    
+    def create_json_obj(self):
+        for intf_name in self.interfaces:
+            self.json_obj[intf_name] = {
+                "first_read": self.interfaces[intf_name].first_read,
+                "read_basic_block_name": self.interfaces[intf_name].read_basic_block_name,
+                "first_write": self.interfaces[intf_name].first_write,
+                "write_basic_block_name": self.interfaces[intf_name].write_basic_block_name,
+            }
+
 class DataFlowGraph:
-    def __init__(self, clk_period, no_rsc_allowed_ops, allowed_functions, build_dir, basic_block_name, name, resource_mapping, states_structure, G, G_standard, G_standard_with_wire_ops, resource_db, variable_db, resource_delays_only=False, num_iters=1):
+    def __init__(self, clk_period, no_rsc_allowed_ops, allowed_functions, build_dir, basic_block_name, name, resource_mapping, states_structure, G, G_standard, G_standard_with_wire_ops, resource_db, variable_db, resource_delays_only=False, num_iters=1, interface_db=None):
         self.clk_period = clk_period
         self.allowed_functions = allowed_functions
         self.build_dir = build_dir
@@ -181,6 +222,8 @@ class DataFlowGraph:
         self.G_standard_with_wire_ops = G_standard_with_wire_ops
         self.resource_db = resource_db
         self.variable_db = variable_db
+        self.interface_db = interface_db
+        assert self.interface_db is not None, "InterfaceDB is not provided"
         self.no_rsc_allowed_ops = no_rsc_allowed_ops
         self.resource_mapping = resource_mapping
         self.cycle_nodes = []
@@ -262,12 +305,15 @@ class DataFlowGraph:
             op_name = self.variable_db.update_write_node(instruction["op"])
             #log_info(f"instruction: {instruction}")
             if instruction['dst'].find("%") != -1:
-                dst_name = instruction['dst'].split("%")[1]
+                if instruction['op'] == "write":
+                    dst_name = instruction['dst_name'].split("%")[1]
+                else:
+                    dst_name = instruction['dst'].split("%")[1]
             else:
                 log_info(f"instruction {instruction} has no % in dst, please examine the schedule report. Skipping for now.")
                 continue
             if dst_name not in self.resource_mapping:
-                assert instruction['op'] in self.no_rsc_allowed_ops, f"instruction {instruction} has no resource mapping."
+                assert instruction['op'] in self.no_rsc_allowed_ops, f"instruction {instruction} has no resource mapping. Dst name: {dst_name}"
                 logger.warning(f"instruction {instruction} has no resource mapping.")
                 rsc_name = "N/A"
             else:
@@ -296,6 +342,21 @@ class DataFlowGraph:
                     self.G.add_edge(src_name, op_name, weight=0.0, resource_edge=0)
             dst = self.variable_db.update_write_node(instruction["dst"])
             self.G.add_node(dst, node_type="var", function="N/A")
+            # check for interface op
+            if instruction["op"] == "write" and instruction["dst"] in self.interface_db.interfaces:
+                different_first_write = (
+                    self.interface_db.interfaces[instruction["dst"]].first_write is None or 
+                    (self.interface_db.interfaces[instruction["dst"]].first_write == op_name and self.interface_db.interfaces[instruction["dst"]].write_basic_block_name == self.basic_block_name)
+                )
+                assert different_first_write, f"Interface {instruction['dst']} already has a first write"
+                self.interface_db.interfaces[instruction["dst"]].set_first_write(op_name, self.basic_block_name)
+            if instruction["op"] == "read" and instruction["src"][0] in self.interface_db.interfaces:
+                different_first_read = (
+                    self.interface_db.interfaces[instruction["src"][0]].first_read is None or 
+                    (self.interface_db.interfaces[instruction["src"][0]].first_read == op_name and self.interface_db.interfaces[instruction["src"][0]].read_basic_block_name == self.basic_block_name)
+                )
+                assert different_first_read, f"Interface {instruction['src'][0]} already has a first read"
+                self.interface_db.interfaces[instruction["src"][0]].set_first_read(op_name, self.basic_block_name)
             if not self.resource_delays_only:
                 self.G.add_edge(op_name, dst, weight=instruction['delay'], resource_edge=0)
             else:
@@ -314,7 +375,7 @@ class DataFlowGraph:
         for node in in_nodes_loop_start:
             G.add_edge(node, f"loop_start_{loop_name}", weight=0.0, resource_edge=0)
         # create the graph
-        loop_dfg = DataFlowGraph(self.clk_period, self.no_rsc_allowed_ops, self.allowed_functions, self.build_dir, self.basic_block_name, loop_name, self.resource_mapping, self.states_structure.get_pruned_states_structure(self.states_structure.loops[loop_name]), G, G_standard, G_standard_with_wire_ops, resource_db, variable_db, resource_delays_only, num_iters)
+        loop_dfg = DataFlowGraph(self.clk_period, self.no_rsc_allowed_ops, self.allowed_functions, self.build_dir, self.basic_block_name, loop_name, self.resource_mapping, self.states_structure.get_pruned_states_structure(self.states_structure.loops[loop_name]), G, G_standard, G_standard_with_wire_ops, resource_db, variable_db, resource_delays_only, num_iters, interface_db=self.interface_db)
         
         loop_dfg.create_graph()
 
@@ -469,7 +530,7 @@ class StatesStructure:
 
 class BasicBlockInfo:
     # call parse, then convert
-    def __init__(self, build_dir, allowed_functions, basic_block_name, file_path, clk_period, ignore_ops, no_rsc_allowed_ops, resource_mapping):
+    def __init__(self, build_dir, allowed_functions, basic_block_name, file_path, clk_period, ignore_ops, no_rsc_allowed_ops, resource_mapping, interface_db):
         self.basic_block_name = basic_block_name
         self.build_dir = build_dir
         self.clk_period = clk_period
@@ -483,12 +544,14 @@ class BasicBlockInfo:
         self.resource_mapping = resource_mapping
         self.file_path = file_path
         self.allowed_functions = allowed_functions
+        self.interface_db = interface_db
+        #assert self.interface_db is not None, "InterfaceDB is not provided"
     
     def parse(self):
         self.parse_file(self.file_path)
 
     def convert(self):
-        self.dfg = DataFlowGraph(self.clk_period, self.no_rsc_allowed_ops, self.allowed_functions, self.build_dir, self.basic_block_name, self.basic_block_name, self.resource_mapping, self.states_structure, nx.DiGraph(), nx.DiGraph(), nx.DiGraph(), ResourceDB(), VariableDB(), 1)
+        self.dfg = DataFlowGraph(self.clk_period, self.no_rsc_allowed_ops, self.allowed_functions, self.build_dir, self.basic_block_name, self.basic_block_name, self.resource_mapping, self.states_structure, nx.DiGraph(), nx.DiGraph(), nx.DiGraph(), ResourceDB(), VariableDB(), 1, interface_db=self.interface_db)
         log_info(f"creating dfg for {self.basic_block_name}")
         self.dfg.create_graph()
         nx.write_gml(self.dfg.G, f"{self.build_dir}/parse_results/{self.basic_block_name}/{self.basic_block_name}_graph.gml")
@@ -528,8 +591,9 @@ class BasicBlockInfo:
             loop_names = [loop for loop in self.loops if self.loops[loop].pipelined == "yes"]
             loop_idx = 0
             while lines[idx].find("FSM state transitions:") == -1:
-                if lines[idx].find("States = {") != -1 and len(loop_names) > 0 and lines[idx].find("DF-Pipeline") == -1: # not supporting dataflow pipeline yet
+                if lines[idx].find("States = {") != -1 and len(loop_names) > 0:
                     self.loops[loop_names[loop_idx]].pipeline_states = lines[idx].strip()[lines[idx].find("States = {") + len("States = {")-1:-1].split()
+                    self.loops[loop_names[loop_idx]].is_dataflow_pipeline = lines[idx].find("DF-Pipeline") != -1
                     for i in range(len(self.loops[loop_names[loop_idx]].pipeline_states)):
                         self.loops[loop_names[loop_idx]].pipeline_states[i] = int(self.loops[loop_names[loop_idx]].pipeline_states[i])
                     log_info(f"pipeline states for pipeline loop {loop_names[loop_idx]} (idx {loop_idx}): {self.loops[loop_names[loop_idx]].pipeline_states}")
@@ -584,17 +648,20 @@ class BasicBlockInfo:
 
                     if operation_name not in self.ignore_ops and first_op:
                         parsed_op = llvm_ir_parse.parse_op(instruction, operation_name)
-                        parsed_op["delay"] = operation_delay
-                        if core_inst:
-                            parsed_op["core_inst"] = core_inst.group(2)
-                            parsed_op["core_id"] = core_inst.group(1)
-                            parsed_op["core_info"] = get_core_info(lines[idx])
+                        if parsed_op["type"] == "intf":
+                            self.interface_db.add_interface(parsed_op["variable"])
                         else:
-                            parsed_op["core_inst"] = "N/A"
-                            parsed_op["core_id"] = "N/A"
-                            parsed_op["core_info"] = None
-                        #log_info(parsed_op)
-                        self.state_ops[int(next_state)].append(parsed_op)
+                            parsed_op["delay"] = operation_delay
+                            if core_inst:
+                                parsed_op["core_inst"] = core_inst.group(2)
+                                parsed_op["core_id"] = core_inst.group(1)
+                                parsed_op["core_info"] = get_core_info(lines[idx])
+                            else:
+                                parsed_op["core_inst"] = "N/A"
+                                parsed_op["core_id"] = "N/A"
+                                parsed_op["core_info"] = None
+                            #log_info(parsed_op)
+                            self.state_ops[int(next_state)].append(parsed_op)
                     idx += 1
                 idx, next_state = self.find_next_state(lines, idx)
         self.create_states_structure()
@@ -673,9 +740,10 @@ class vitis_schedule_parser:
         self.clk_period = clk_period
         self.top_level_module_name = top_level_module_name
         self.basic_blocks = {}
+        # Create a shared InterfaceDB instance for all basic blocks
+        self.interface_db = InterfaceDB()
         self.ignore_ops = set([
             "spectopmodule",
-            "specinterface",
             "specbitsmap",
             "specstablecontent",
             "specmemcore",
@@ -705,8 +773,11 @@ class vitis_schedule_parser:
                 if basic_block_name in sim_util.get_module_map().keys():
                     log_info(f"Skipping basic block {basic_block_name} because it is a blackbox.")
                     continue
-                self.basic_blocks[basic_block_name] = BasicBlockInfo(self.build_dir, self.allowed_functions, basic_block_name, file_path, self.clk_period, self.ignore_ops, self.no_rsc_allowed_ops, self.resource_mapping)
+                self.basic_blocks[basic_block_name] = BasicBlockInfo(self.build_dir, self.allowed_functions, basic_block_name, file_path, self.clk_period, self.ignore_ops, self.no_rsc_allowed_ops, self.resource_mapping, self.interface_db)
                 self.basic_blocks[basic_block_name].parse()
                 self.basic_blocks[basic_block_name].convert()
                 self.basic_blocks[basic_block_name].convert_to_standard_dfg()
                 self.basic_blocks[basic_block_name].convert_to_standard_dfg_with_wire_ops()
+        self.interface_db.create_json_obj()
+        with open(f"{self.build_dir}/parse_results/interface_db.json", "w") as f:
+            json.dump(self.interface_db.json_obj, f, indent=2)

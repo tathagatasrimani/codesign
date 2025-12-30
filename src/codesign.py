@@ -321,8 +321,8 @@ class Codesign:
             self.cur_dsp_usage = int(self.cfg["args"]["area"] / (self.hw.circuit_model.tech_model.param_db["A_gate"].xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf() * self.dsp_multiplier))
             tilelimit = 1
         else:
-            self.cur_dsp_usage = 357
-            tilelimit = 1 if setup else 1 # high tile limit for the first iteration
+            self.cur_dsp_usage = 10000
+            tilelimit = 1 if setup else 10000 # high tile limit for the first iteration
 
         save_path = os.path.join(os.path.dirname(__file__), "..", save_dir)
         cmd = [
