@@ -18,8 +18,12 @@ def log_warning(msg):
         logger.warning(msg)
 
 class CircuitModel:
-    def __init__(self, tech_model):
+    def __init__(self, tech_model, cfg=None):
         self.tech_model = tech_model
+        # Check if wirelength costs should be set to zero
+        self.zero_wirelength_costs = False
+        if cfg is not None and "args" in cfg and "zero_wirelength_costs" in cfg["args"]:
+            self.zero_wirelength_costs = cfg["args"]["zero_wirelength_costs"]
         self.constraints = []
         self.constraints_cvx = []
 
@@ -321,6 +325,8 @@ class CircuitModel:
 
     # for 1 bit
     def wire_length(self, edge):
+        if self.zero_wirelength_costs:
+            return 0
         wire_length = 0
         for net in self.edge_to_nets[edge]:
             for segment in net.segments:
@@ -330,6 +336,8 @@ class CircuitModel:
         
     # multiplying wire length by DATA_WIDTH because there are multiple bits on the wire.
     def wire_energy(self, edge, symbolic=False):
+        if self.zero_wirelength_costs:
+            return 0
         # wire energy = 0.5 * C * V_dd^2 * length
         wire_energy = 0
         for net in self.edge_to_nets[edge]:

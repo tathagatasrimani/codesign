@@ -267,7 +267,7 @@ class HardwareModel:
         self.tech_model.create_constraints(self.model_cfg["scaling_mode"])
 
         # by convention, we should always access bulk model and base params through circuit model
-        self.circuit_model = circuit_model.CircuitModel(self.tech_model)
+        self.circuit_model = circuit_model.CircuitModel(self.tech_model, cfg=self.cfg)
 
     def catapult_map_netlist_to_scheduled_dfg(self, benchmark_name):
 

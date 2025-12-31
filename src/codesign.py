@@ -293,6 +293,11 @@ class Codesign:
             # because I observed that for a small amount of resources, scaleHLS won't generate the csv file that we need to parse
             self.cur_dsp_usage = config["dsp"] 
 
+        ## Manual override for max_dsp from command line. This is primarily used for the YARCH experiments where we only want to run the forward pass with a specific DSP constraint.
+        if "max_dsp" in self.cfg["args"]:
+            self.max_dsp = self.cfg["args"]["max_dsp"]
+            print(f"Using user specified max_dsp: {self.max_dsp}")
+
         # I don't think "100MHz" has any meaning because scaleHLS should be agnostic to frequency
         config["100MHz"]["fadd"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["Add16"] / self.clk_period)
         config["100MHz"]["fmul"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["Mult16"] / self.clk_period)
@@ -387,14 +392,21 @@ class Codesign:
     def parse_design_space_for_mlir(self, read_dir):
         df = pd.read_csv(f"{read_dir}/{self.vitis_top_function}_space.csv")
         mlir_idx_that_exist = []
+        best_idx = None
+        best_dsp = -1
         for i in range(len(df['dsp'].values)):
             file_exists = os.path.exists(f"{read_dir}/{self.vitis_top_function}_pareto_{i}.mlir")
             if file_exists:
                 mlir_idx_that_exist.append(i)
-            if df['dsp'].values[i] <= self.cur_dsp_usage and file_exists:
-                return f"{read_dir}/{self.vitis_top_function}_pareto_{i}.mlir", i
+                # Select the design point that uses the MOST DSPs (up to constraint) to maximize loop unrolling
+                if df['dsp'].values[i] <= self.max_dsp and df['dsp'].values[i] > best_dsp:
+                    best_dsp = df['dsp'].values[i]
+                    best_idx = i
+        if best_idx is not None:
+            logger.info(f"Selected design point {best_idx} with {best_dsp} DSPs (constraint: {self.max_dsp})")
+            return f"{read_dir}/{self.vitis_top_function}_pareto_{best_idx}.mlir", best_idx
         if len(mlir_idx_that_exist) == 0:
-            raise Exception(f"No Pareto solutions found for {self.benchmark_name} with dsp usage {self.cur_dsp_usage}")
+            raise Exception(f"No Pareto solutions found for {self.benchmark_name} with dsp usage {self.max_dsp}")
         return f"{read_dir}/{self.vitis_top_function}_pareto_{mlir_idx_that_exist[-1]}.mlir", mlir_idx_that_exist[-1]
 
     def parse_dsp_usage_and_latency(self, mlir_idx):
@@ -1155,6 +1167,8 @@ if __name__ == "__main__":
     parser.add_argument("--stop_at_checkpoint", type=str, help="checkpoint step to stop at (will complete this step and then stop)")
     parser.add_argument("--workload_size", type=int, help="workload size to use, such as the dimension of the matrix for gemm. Only applies to certain benchmarks")
     parser.add_argument("--opt_pipeline", type=str, help="optimization pipeline to use for inverse pass")
+    parser.add_argument("--num_dsps", type=str, help="the number of DSPs to use as a constraint for ScaleHLS. Only use this if attempting to only run the FORWARD PASS.")
+    parser.add_argument("--zero_wirelength_costs", action="store_true", help="set all wirelength costs to zero (wire_length and wire_energy will return 0)")
     args = parser.parse_args()
 
     main(args)
