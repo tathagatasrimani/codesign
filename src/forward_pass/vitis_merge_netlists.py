@@ -95,7 +95,7 @@ class MergeNetlistsVitis:
                     print(f"Error: cross-module edges file {cross_module_edges_file_path} does not exist.")
                     exit(1)
                     return None
-            return nx.read_gml(netlist_file_path), nx.read_json(cross_module_edges_file_path)
+            return nx.read_gml(netlist_file_path)
 
         ## add module to the visited modules list
         self.all_modules_visited.add(current_module)

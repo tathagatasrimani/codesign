@@ -3,7 +3,7 @@ from src.hardware_model.tech_models.tech_model_base import TechModel
 from src.sim_util import symbolic_convex_max, symbolic_min
 import math
 from sympy import symbols, ceiling, expand, exp, Abs, cosh, log
-
+from src.inverse_pass.constraint import Constraint
 
 logger = logging.getLogger(__name__)
 
@@ -153,4 +153,4 @@ class BulkModel(TechModel):
     def create_constraints(self, dennard_scaling_type="constant_field"):
         super().create_constraints(dennard_scaling_type)
 
-        self.constraints.append(self.V_ox >= 0)
+        self.constraints.append(Constraint(self.V_ox >= 0, "V_ox >= 0"))

@@ -5,6 +5,9 @@ import os
 import copy
 import shutil
 from math import sqrt
+import subprocess
+import threading
+import time
 
 import logging
 
@@ -33,8 +36,15 @@ def log_warning(msg):
 
 MAX_TRACTABLE_AREA_DBU = 6e13
 
+TARGET_UTILIZATION = 0.5
+
+# When True, monitor the OpenROAD log and terminate immediately on any
+# line containing "ERROR" (case-insensitive). Set to False to disable.
+OPENROAD_ABORT_ON_LOG_ERROR = True
+OPENROAD_ERROR_TEXT = "error"
+
 class OpenRoadRun:
-    def __init__(self, cfg, codesign_root_dir, tmp_dir, run_openroad, circuit_model, subdirectory=None, custom_lef_files_to_include=None):
+    def __init__(self, cfg, codesign_root_dir, tmp_dir, run_openroad, circuit_model, subdirectory=None, custom_lef_files_to_include=None, top_level=True):
         """
         Initialize the OpenRoadRun with configuration and root directory.
 
@@ -45,6 +55,7 @@ class OpenRoadRun:
         :param circuit_model: circuit model configuration
         :param subdirectory: subdirectory for hierarchical runs
         :param custom_lef_files_to_include: custom LEF files to include
+        :param top_level: flag indicating if this is the top level of hierarchy
         """
         self.cfg = cfg
         self.codesign_root_dir = codesign_root_dir
@@ -53,6 +64,7 @@ class OpenRoadRun:
         self.directory = os.path.join(self.codesign_root_dir, f"{self.tmp_dir}/pd")
         self.subdirectory = subdirectory
         self.custom_lef_files_to_include = custom_lef_files_to_include
+        self.top_level = top_level
 
         ## results will be placed here. This is necessary for running the flow hierarchically. 
         if subdirectory is not None:
@@ -63,6 +75,7 @@ class OpenRoadRun:
         self.component_to_function = {
             "Mult16": "Mult16",
             "Add16": "Add16",
+            "Sub16": "Sub16",
             "BUF_X4": "Not16",
             "BUF_X2": "Not16",
             "BUF_X1": "Not16",
@@ -70,6 +83,16 @@ class OpenRoadRun:
             "BUF_X16": "Not16",
             "BUF_X32": "Not16",
             "MUX2_X1": "Not16",
+            "Exp16": "Exp16",
+            "LShift16": "LShift16",
+            "RShift16": "RShift16",
+            "FloorDiv16": "FloorDiv16",
+            "BitAnd16": "BitAnd16",
+            "BitOr16": "BitOr16",
+            "BitXor16": "BitXor16",
+            "Eq16": "Eq16",
+            "Not16": "Not16",
+            "NotEq16": "NotEq16",
         }
 
 
@@ -102,9 +125,6 @@ class OpenRoadRun:
                     break
 
             graph, net_out_dict, node_output, lef_data, node_to_num, final_area, dbu_area_estimate = self.setup(graph, test_file, area_constraint, L_eff)
-
-            
-            
 
             # If all nodes in the graph have the function type "Call", skip place and route.        
             if all_call_functions:
@@ -158,7 +178,7 @@ class OpenRoadRun:
         area_constraint_old = area_constraint
         logger.info(f"Max dimension macro: {max_dim_macro}, corresponding area constraint value: {max_dim_macro**2}")
         logger.info(f"Estimated area: {area_estimate}")
-        area_constraint = int(max(area_estimate, max_dim_macro**2)/0.6)
+        area_constraint = int(max(area_estimate, max_dim_macro**2)/TARGET_UTILIZATION)
         logger.info(f"Info: Final estimated area {area_estimate} compared to area constraint {area_constraint_old}. Area constraint will be scaled from {area_constraint_old} to {area_constraint}.")
         graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, max_dim_macro, macro_dict, dbu_area_estimate = self.setup_set_area_constraint(old_graph, test_file, area_constraint, L_eff)
 
@@ -167,10 +187,27 @@ class OpenRoadRun:
 
         self.update_clock_period(self.directory + "/tcl/codesign_files/codesign.sdc")
 
+        self.update_top_level_flag()
+
         final_area = area_estimate
 
         return graph, net_out_dict, node_output, lef_data, node_to_num, final_area, dbu_area_estimate
 
+    def update_top_level_flag(self):
+        """
+        Updates the top level flag in the codesign.vars file.
+        """
+
+        ## set at_top_level_of_hierarchy flag in codesign.vars
+        with open(self.directory + "/tcl/codesign_files/codesign.vars", "r") as file:
+            vars_data = file.readlines()
+        for i, line in enumerate(vars_data):
+            if line.startswith("set at_top_level_of_hierarchy"):
+                vars_data[i] = f"set at_top_level_of_hierarchy {'1' if self.top_level else '0'}\n"
+                logger.info(f"Updated at_top_level_of_hierarchy to {'1' if self.top_level else '0'}")
+        with open(self.directory + "/tcl/codesign_files/codesign.vars", "w") as file:
+            file.writelines(vars_data)
+    
     def update_clock_period(self, sdc_file: str):
         """
         Updates the clock period in the SDC file.
@@ -309,7 +346,7 @@ class OpenRoadRun:
         old_dir = os.getcwd()
         os.chdir(self.directory + "/tcl")
         logger.info(f"Changed directory to {self.directory + '/tcl'}")
-        print("running openroad. If openroad fails (check log), type exit below and hit return.")
+        print("Running OpenROAD and monitoring log for 'ERROR' (if enabled)...")
         logger.info("Running OpenROAD command.")
         
         # Safely handle missing/malformed cfg entries for preinstalled_openroad_path.
@@ -318,18 +355,100 @@ class OpenRoadRun:
         if isinstance(args_dict, dict):
             preinstalled = args_dict.get("preinstalled_openroad_path")
 
+        # Build command and log path
         if preinstalled:
-            cmd = f"{preinstalled} codesign_top.tcl > {self.directory}/codesign_pd.log 2>&1"
+            bin_path = preinstalled
         else:
-            openroad_bin = os.path.join(os.path.dirname(os.path.abspath(__file__)), "OpenROAD", "build", "src", "openroad")
-            cmd = f"{openroad_bin} codesign_top.tcl > {self.directory}/codesign_pd.log 2>&1"
+            bin_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "OpenROAD", "build", "src", "openroad")
 
-        logger.info("Executing OpenROAD command: %s", cmd)
-        os.system(cmd)
-        print("done")
-        logger.info("OpenROAD run completed.")
-        os.chdir(old_dir)
-        logger.info(f"Returned to original directory {old_dir}")
+        cmd_list = [bin_path, "codesign_top.tcl"]
+        log_path = f"{self.directory}/codesign_pd.log"
+
+        logger.info("Executing OpenROAD command: %s", " ".join(cmd_list))
+
+        proc = None
+        stop_event = threading.Event()
+        killed_due_to_error = False
+        monitor_thread = None
+        logf = None
+
+        try:
+            # Open the log file for writing
+            logf = open(log_path, "w")
+            proc = subprocess.Popen(
+                cmd_list,
+                stdout=logf,
+                stderr=subprocess.STDOUT,
+            )
+            logger.info("Spawned OpenROAD PID: %s", proc.pid)
+
+            # Start a monitor thread that tails the log and kills the process if 'ERROR' appears.
+            if OPENROAD_ABORT_ON_LOG_ERROR:
+                def _monitor():
+                    nonlocal killed_due_to_error
+                    try:
+                        with open(log_path, "r", errors="ignore") as rf:
+                            # Read from the beginning; sleep when no new data
+                            while not stop_event.is_set():
+                                line = rf.readline()
+                                if not line:
+                                    # If process ended and no more lines, stop
+                                    if proc and proc.poll() is not None:
+                                        break
+                                    time.sleep(0.2)
+                                    continue
+                                if OPENROAD_ERROR_TEXT in line.lower():
+                                    killed_due_to_error = True
+                                    logger.error(f"Detected '{OPENROAD_ERROR_TEXT}' in OpenROAD log; terminating process.")
+                                    try:
+                                        # Flush and close the log file before killing the process
+                                        if logf:
+                                            logf.flush()
+                                            logf.close()
+                                        if proc and proc.poll() is None:
+                                            proc.terminate()
+                                            # Give it a moment to exit gracefully
+                                            try:
+                                                proc.wait(timeout=3)
+                                            except Exception:
+                                                pass
+                                            if proc.poll() is None:
+                                                proc.kill()
+                                    except Exception as e:
+                                        logger.warning("Failed to terminate OpenROAD process: %s", e)
+                                    break
+                    except Exception as e:
+                        logger.warning("Log monitor encountered an exception: %s", e)
+
+                monitor_thread = threading.Thread(target=_monitor, name="openroad_log_monitor", daemon=True)
+                monitor_thread.start()
+            else:
+                logger.info("OPENROAD_ABORT_ON_LOG_ERROR disabled; not monitoring log for errors.")
+
+            # Wait for process to finish
+            if proc is not None:
+                proc.wait()
+
+            if killed_due_to_error:
+                print("OpenROAD terminated early due to 'ERROR' in log.")
+                logger.error("OpenROAD terminated due to 'ERROR' in log: %s", log_path)
+            else:
+                print("done")
+                logger.info("OpenROAD run completed.")
+
+        finally:
+            stop_event.set()
+            if monitor_thread and monitor_thread.is_alive():
+                monitor_thread.join(timeout=1.0)
+            # Ensure log file is properly closed
+            if logf and not logf.closed:
+                try:
+                    logf.flush()
+                    logf.close()
+                except Exception as e:
+                    logger.warning("Failed to close log file: %s", e)
+            os.chdir(old_dir)
+            logger.info(f"Returned to original directory {old_dir}")
 
 
     def mux_listing(self, graph, node_output, wire_length_by_edge):

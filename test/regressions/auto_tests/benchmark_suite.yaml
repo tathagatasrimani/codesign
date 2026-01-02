@@ -1,0 +1,314 @@
+# Llama
+vitis_llama_delay:
+  base_cfg: vitis_llama_test
+  args:
+    obj: delay
+    num_iters: 15
+    checkpoint_load_dir: tmp_llama
+    checkpoint_start_step: setup
+    inverse_pass_improvement: 4
+
+vitis_llama_energy:
+  base_cfg: vitis_llama_test
+  args:
+    obj: energy
+    num_iters: 15
+    checkpoint_load_dir: tmp_llama
+    checkpoint_start_step: setup
+    inverse_pass_improvement: 4
+
+vitis_llama_edp:
+  base_cfg: vitis_llama_test
+  args:
+    obj: edp
+    num_iters: 15
+    checkpoint_load_dir: tmp_llama
+    checkpoint_start_step: setup
+    inverse_pass_improvement: 6
+
+vitis_llama_ed2:
+  base_cfg: vitis_llama_test
+  args:
+    obj: ed2
+    num_iters: 15
+    checkpoint_load_dir: tmp_llama
+    checkpoint_start_step: setup
+    inverse_pass_improvement: 12
+# ResNet
+#vitis_resnet_18_delay:
+#  base_cfg: vitis_resnet_test
+#  args:
+#    obj: delay
+#    num_iters: 15
+#    pytorch: True
+#    checkpoint_load_dir: tmp_resnet18
+#    checkpoint_start_step: setup
+#    inverse_pass_improvement: 4
+
+#vitis_resnet_18_energy:
+#  base_cfg: vitis_resnet_test
+#  args:
+#    obj: energy
+#    num_iters: 15
+#    pytorch: True
+#    checkpoint_load_dir: tmp_resnet18
+#    checkpoint_start_step: setup
+#    inverse_pass_improvement: 4
+
+#vitis_resnet_18_edp:
+#  base_cfg: vitis_resnet_test
+#  args:
+#    obj: edp
+#    num_iters: 15
+#    pytorch: True
+#    checkpoint_load_dir: tmp_resnet18
+#    checkpoint_start_step: setup
+#    inverse_pass_improvement: 6
+
+#vitis_resnet_18_ed2:
+#  base_cfg: vitis_resnet_test
+#  args:
+#    obj: ed2
+#    num_iters: 15
+#    pytorch: True
+#    checkpoint_load_dir: tmp_resnet18
+#    checkpoint_start_step: setup
+#    inverse_pass_improvement: 12
+
+# Lenet
+vitis_lenet_delay:
+  base_cfg: vitis_lenet_test
+  args:
+    obj: delay
+    num_iters: 15
+    pytorch: True
+    checkpoint_load_dir: tmp_lenet
+    checkpoint_start_step: setup
+    inverse_pass_improvement: 4
+
+vitis_lenet_energy:
+  base_cfg: vitis_lenet_test
+  args:
+    obj: energy
+    num_iters: 15
+    pytorch: True
+    checkpoint_load_dir: tmp_lenet
+    checkpoint_start_step: setup
+    inverse_pass_improvement: 4
+
+vitis_lenet_edp:
+  base_cfg: vitis_lenet_test
+  args:
+    obj: edp
+    num_iters: 15
+    pytorch: True
+    checkpoint_load_dir: tmp_lenet
+    checkpoint_start_step: setup
+    inverse_pass_improvement: 6
+
+vitis_lenet_ed2:
+  base_cfg: vitis_lenet_test
+  args:
+    obj: ed2
+    num_iters: 15
+    pytorch: True
+    checkpoint_load_dir: tmp_lenet
+    checkpoint_start_step: setup
+    inverse_pass_improvement: 12
+
+# mobilenet
+vitis_mobilenet_delay:
+  base_cfg: vitis_mobilenet_test
+  args:
+    obj: delay
+    num_iters: 15
+    pytorch: True
+    checkpoint_load_dir: tmp_mobilenet
+    checkpoint_start_step: setup
+    inverse_pass_improvement: 4
+
+vitis_mobilenet_energy:
+  base_cfg: vitis_mobilenet_test
+  args:
+    obj: energy
+    num_iters: 15
+    pytorch: True
+    checkpoint_load_dir: tmp_mobilenet
+    checkpoint_start_step: setup
+    inverse_pass_improvement: 4
+  
+vitis_mobilenet_edp:
+  base_cfg: vitis_mobilenet_test
+  args:
+    obj: edp
+    num_iters: 15
+    pytorch: True
+    checkpoint_load_dir: tmp_mobilenet
+    checkpoint_start_step: setup
+    inverse_pass_improvement: 6
+
+vitis_mobilenet_ed2:
+  base_cfg: vitis_mobilenet_test
+  args:
+    obj: ed2
+    num_iters: 15
+    pytorch: True
+    checkpoint_load_dir: tmp_mobilenet
+    checkpoint_start_step: setup
+    inverse_pass_improvement: 12
+
+# syr2k
+vitis_syr2k_delay:
+  base_cfg: vitis_syr2k_test
+  args:
+    obj: delay
+    num_iters: 15
+    workload_size: 256
+    checkpoint_load_dir: tmp_syr2k_256
+    checkpoint_start_step: setup
+    inverse_pass_improvement: 4
+
+vitis_syr2k_energy:
+  base_cfg: vitis_syr2k_test
+  args:
+    obj: energy
+    num_iters: 15
+    workload_size: 256
+    checkpoint_load_dir: tmp_syr2k_256
+    checkpoint_start_step: setup
+    inverse_pass_improvement: 4
+    
+vitis_syr2k_edp:
+  base_cfg: vitis_syr2k_test
+  args:
+    obj: edp
+    num_iters: 15
+    workload_size: 256
+    checkpoint_load_dir: tmp_syr2k_256
+    checkpoint_start_step: setup
+    inverse_pass_improvement: 6
+
+vitis_syr2k_ed2:
+  base_cfg: vitis_syr2k_test
+  args:
+    obj: ed2
+    num_iters: 15
+    workload_size: 256
+    checkpoint_load_dir: tmp_syr2k_256
+    checkpoint_start_step: setup
+    inverse_pass_improvement: 12
+  
+# GEMM
+vitis_gemm_256_delay:
+  base_cfg: vitis_gemm_test
+  args:
+    workload_size: 256
+    obj: delay
+    num_iters: 15
+    checkpoint_load_dir: tmp_gemm_256
+    checkpoint_start_step: setup
+    inverse_pass_improvement: 4
+
+vitis_gemm_256_energy:
+  base_cfg: vitis_gemm_test
+  args:
+    workload_size: 256
+    obj: energy
+    num_iters: 15
+    checkpoint_load_dir: tmp_gemm_256
+    checkpoint_start_step: setup
+    inverse_pass_improvement: 4
+    
+vitis_gemm_256_edp:
+  base_cfg: vitis_gemm_test
+  args:
+    workload_size: 256
+    obj: edp
+    num_iters: 15
+    checkpoint_load_dir: tmp_gemm_256
+    checkpoint_start_step: setup
+    inverse_pass_improvement: 6
+    
+vitis_gemm_256_ed2:
+  base_cfg: vitis_gemm_test
+  args:
+    workload_size: 256
+    obj: ed2
+    num_iters: 15
+    checkpoint_load_dir: tmp_gemm_256
+    checkpoint_start_step: setup
+    inverse_pass_improvement: 12
+
+# Attention Head
+vitis_attention_head_delay:
+  base_cfg: vitis_attention_head_test
+  args:
+    obj: delay
+    num_iters: 15
+    checkpoint_load_dir: tmp_attention_head
+    checkpoint_start_step: setup
+    inverse_pass_improvement: 4
+
+vitis_attention_head_energy:
+  base_cfg: vitis_attention_head_test
+  args:
+    obj: energy
+    num_iters: 15
+    checkpoint_load_dir: tmp_attention_head
+    checkpoint_start_step: setup
+    inverse_pass_improvement: 4
+
+vitis_attention_head_edp:
+  base_cfg: vitis_attention_head_test
+  args:
+    obj: edp
+    num_iters: 15
+    checkpoint_load_dir: tmp_attention_head
+    checkpoint_start_step: setup
+    inverse_pass_improvement: 6
+
+vitis_attention_head_ed2:
+  base_cfg: vitis_attention_head_test
+  args:
+    obj: ed2
+    num_iters: 15
+    checkpoint_load_dir: tmp_attention_head
+    checkpoint_start_step: setup
+    inverse_pass_improvement: 12
+
+# sgd_sw
+vitis_sgd_sw_delay:
+  base_cfg: vitis_sgd_sw_test
+  args:
+    obj: delay
+    num_iters: 15
+    checkpoint_load_dir: tmp_sgd_sw
+    checkpoint_start_step: setup
+    inverse_pass_improvement: 4
+    
+vitis_sgd_sw_energy:
+  base_cfg: vitis_sgd_sw_test
+  args:
+    obj: energy
+    num_iters: 15
+    checkpoint_load_dir: tmp_sgd_sw
+    checkpoint_start_step: setup
+    inverse_pass_improvement: 4
+    
+vitis_sgd_sw_edp:
+  base_cfg: vitis_sgd_sw_test
+  args:
+    obj: edp
+    num_iters: 15
+    checkpoint_load_dir: tmp_sgd_sw
+    checkpoint_start_step: setup
+    inverse_pass_improvement: 6
+    
+vitis_sgd_sw_ed2:
+  base_cfg: vitis_sgd_sw_test
+  args:
+    obj: ed2
+    num_iters: 15
+    checkpoint_load_dir: tmp_sgd_sw
+    checkpoint_start_step: setup
+    inverse_pass_improvement: 12

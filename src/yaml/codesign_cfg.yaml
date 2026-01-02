@@ -22,16 +22,28 @@ default:
     stop_at_checkpoint: none
     checkpoint_start_step: none
     workload_size: 2
-    max_iter_num_scalehls: 10 # default in scalehls is 30
+    max_iter_num_scalehls: 1 # default in scalehls is 30
     opt_pipeline: block_vector
+    always_run_openroad: False
 
 
-## The base test when using Vitis HLS
-vitis_test:
+vitis_test_mvs:
+  base_cfg: default
+  args:
+    hls_tool: vitis
+    model_cfg: mvs_general_cfg
+    area: 1000000
+    tech_node: mvs-starting-point
+
+vitis_test_vs:
   base_cfg: default
   args:
     hls_tool: vitis
     model_cfg: vs_cfg_latest
     area: 1000000
+
+## The base test when using Vitis HLS
+vitis_test:
+  base_cfg: vitis_test_vs
 
 ### Add additional configurations in yaml files in test/additional_configs ###

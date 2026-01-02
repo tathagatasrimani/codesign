@@ -4,7 +4,7 @@ from src.sim_util import symbolic_convex_max, symbolic_min, custom_cosh, custom_
 import math
 from sympy import symbols, ceiling, expand, exp, Abs, cosh, log
 import sympy as sp
-
+from src.inverse_pass.constraint import Constraint
 logger = logging.getLogger(__name__)
 
 """
@@ -289,5 +289,5 @@ class MVS2Model(TechModel):
 
     def create_constraints(self, dennard_scaling_type="constant_field"):
         super().create_constraints(dennard_scaling_type)
-        self.constraints.append(self.delta <= 0.15)
+        self.constraints.append(Constraint(self.delta <= 0.15, "delta <= 0.15"))
         

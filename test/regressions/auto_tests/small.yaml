@@ -1,0 +1,4 @@
+vitis_sgd_sw_one_iter:
+  base_cfg: vitis_sgd_sw_test
+  args:
+    num_iters: 1

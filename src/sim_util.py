@@ -48,7 +48,13 @@ def custom_coth(x, evaluate=True):
     Custom coth function to guard against overflow.
     Also pyomo cannot handle coth, so use this function.
     """
-    return (custom_exp(x) + custom_exp(-x)) / 2
+    return (custom_exp(x) + custom_exp(-x)) / (custom_exp(x) - custom_exp(-x))
+
+def custom_sech(x, evaluate=True):
+    """
+    Custom sech function to guard against overflow.
+    """
+    return 1 / custom_cosh(x)
 
 def custom_pow(x, y, evaluate=True):
     """
@@ -81,13 +87,34 @@ def recursive_cfg_merge(model_cfgs, model_cfg_name):
 
 def get_module_map():
     module_map = {
-        "add": "Add16",
+        # from HLS IR
+        #"add": "Add16",
         "fadd": "Add16",
         "dadd": "Add16",
+        #"sub": "Sub16",
+        "fsub": "Sub16",
+        "dsub": "Sub16",
         "dmul": "Mult16",
-        "mul": "Mult16",
+        #"mul": "Mult16",
         "fmul": "Mult16",
-        "call": "Call"
+        #"div": "FloorDiv16",
+        "fdiv": "FloorDiv16",
+        "ddiv": "FloorDiv16",
+        "lshr": "RShift16",
+        "shl": "LShift16",
+        "call": "Call",
+
+        # from MLIR (blackboxed arith ops)
+        "addf": "Add16",
+        "subf": "Sub16",
+        "mulf": "Mult16",
+        "divf": "FloorDiv16",
+        "exp_bb": "Exp16",
+        "addf_ctrl_chain": "Add16",
+        "subf_ctrl_chain": "Sub16",
+        "mulf_ctrl_chain": "Mult16",
+        "divf_ctrl_chain": "FloorDiv16",
+        "exp_bb_ctrl_chain": "Exp16",
     }
     return module_map
 
@@ -104,10 +131,10 @@ def map_operator_types(full_netlist):
     return full_netlist
 
 def get_latest_log_dir():
-    log_dirs = glob.glob(os.path.normpath(os.path.join(os.path.dirname(__file__), "../logs/*-*-*_*-*-*")))
+    log_dirs = glob.glob(os.path.normpath(os.path.join(os.path.dirname(__file__), "../logs/*-*-*_*-*-*_*")))
     log_dirs = sorted(
         log_dirs,
-        key=lambda x: datetime.datetime.strptime(x.split("/")[-1], "%Y-%m-%d_%H-%M-%S"),
+        key=lambda x: datetime.datetime.strptime(x.split("/")[-1][:19], "%Y-%m-%d_%H-%M-%S"),
     )
     return log_dirs[-1]
 
@@ -136,6 +163,7 @@ def xreplace_safe(expr, replacements):
     if not isinstance(expr, float) and not isinstance(expr, int):
         ret = expr.xreplace(replacements)
         if not isinstance(ret, float) and not isinstance(ret, int):
+            assert not isinstance(ret, sp.Symbol), f"xreplace did not work, returned {ret}"
             return float(ret.evalf())
         else:
             return ret

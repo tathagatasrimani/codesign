@@ -6,6 +6,7 @@ import numpy as np
 
 from src.sim_util import symbolic_convex_max, symbolic_min, xreplace_safe
 
+from src.inverse_pass.constraint import Constraint
 logger = logging.getLogger(__name__)
 
 class TechModel(ABC):
@@ -163,37 +164,37 @@ class TechModel(ABC):
     def create_constraints(self, dennard_scaling_type="constant_field"):
         self.constraints = []
         # generic constraints
-        self.constraints.append(self.delay_var >= self.delay)
-        self.constraints.append(self.base_params.V_dd >= self.V_th_eff)
-        self.constraints.append(self.base_params.V_dd >= self.base_params.V_th)
+        self.constraints.append(Constraint(self.delay_var >= self.delay, "delay_var >= delay"))
+        self.constraints.append(Constraint(self.base_params.V_dd >= self.V_th_eff, "V_dd >= V_th_eff"))
+        self.constraints.append(Constraint(self.base_params.V_dd >= self.base_params.V_th, "V_dd >= V_th"))
         if self.V_th_eff != self.base_params.V_th:
-            self.constraints.append(self.V_th_eff >= 0)
-        self.constraints.append(self.base_params.V_dd <= 5)
+            self.constraints.append(Constraint(self.V_th_eff >= 0, "V_th_eff >= 0"))
+        self.constraints.append(Constraint(self.base_params.V_dd <= 5, "V_dd <= 5"))
 
-        self.constraints.append(self.I_off/(self.base_params.W) <= 100e-9 / (1e-6))
+        self.constraints.append(Constraint(self.I_off/(self.base_params.W) <= 100e-9 / (1e-6), "I_off per (W) <= 100e-9 per (1e-6)"))
 
 
-        delta_V_th_process = 20e-3 # account for 20mV variation in Vth
-        V_th_min = self.V_th_eff - delta_V_th_process
-        V_th_max = self.V_th_eff + delta_V_th_process
-        max_I_off = self.I_off.subs({self.V_th_eff: V_th_min})
-        self.constraints.append(max_I_off/(self.base_params.W) <= 100e-9 / (1e-6))
-        self.constraints.append(V_th_min >= 0)
-        self.constraints.append(V_th_max <= self.base_params.V_dd)
+        #delta_V_th_process = 20e-3 # account for 20mV variation in Vth
+        #V_th_min = self.V_th_eff - delta_V_th_process
+        #V_th_max = self.V_th_eff + delta_V_th_process
+        #max_I_off = self.I_off.subs({self.V_th_eff: V_th_min})
+        #self.constraints.append(max_I_off/(self.base_params.W) <= 100e-9 / (1e-6))
+        #self.constraints.append(V_th_min >= 0)
+        #self.constraints.append(V_th_max <= self.base_params.V_dd)
 
-        self.constraints.append(self.base_params.W / self.base_params.L <= 50)
-        self.constraints.append(self.base_params.W / self.base_params.L >= 1)
+        #self.constraints.append(self.base_params.W / self.base_params.L <= 50)
+        self.constraints.append(Constraint(self.base_params.W / self.base_params.L >= 1, "W over L >= 1"))
 
         # wire material constraints
-        self.constraints.append(self.base_params.m1_rho >= 2e-8)
-        self.constraints.append(self.base_params.m1_k >= 2)
-        self.constraints.append(self.base_params.m2_rho >= 2e-8)
-        self.constraints.append(self.base_params.m2_k >= 2)
-        self.constraints.append(self.base_params.m3_rho >= 2e-8)
-        self.constraints.append(self.base_params.m3_k >= 2)
+        self.constraints.append(Constraint(self.base_params.m1_rho >= 2e-8, "m1_rho >= 2e-8"))
+        self.constraints.append(Constraint(self.base_params.m1_k >= 2, "m1_k >= 2"))
+        self.constraints.append(Constraint(self.base_params.m2_rho >= 2e-8, "m2_rho >= 2e-8"))
+        self.constraints.append(Constraint(self.base_params.m2_k >= 2, "m2_k >= 2"))
+        self.constraints.append(Constraint(self.base_params.m3_rho >= 2e-8, "m3_rho >= 2e-8"))
+        self.constraints.append(Constraint(self.base_params.m3_k >= 2, "m3_k >= 2"))
 
         if self.model_cfg["effects"]["high_k_gate"]:
-            self.constraints.append(self.base_params.k_gate >= 2)
-            self.constraints.append(self.base_params.k_gate <= 20)
+            self.constraints.append(Constraint(self.base_params.k_gate >= 2, "k_gate >= 2"))
+            self.constraints.append(Constraint(self.base_params.k_gate <= 20, "k_gate <= 20"))
         
-        self.constraints.append(self.base_params.u_n <= 0.1)
+        self.constraints.append(Constraint(self.base_params.u_n <= 0.1, "u_n <= 0.1"))

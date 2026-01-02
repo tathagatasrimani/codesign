@@ -21,7 +21,7 @@ from src import sim_util
 ## This is the area between the die area and the core area.
 DIE_CORE_BUFFER_SIZE = 50
 
-DEBUG_PRINT = True
+DEBUG_PRINT = False
 def debug_print(msg):
     if DEBUG_PRINT:
         logger.info(msg)
@@ -63,7 +63,8 @@ class OpenRoadRunHier:
         """
         self.L_eff = L_eff
         logger.info(f"Starting hierarchical place and route with parasitics: {arg_parasitics}")
-        wirelengths_dict = {edge: {} for edge in full_graph.edges()}
+        # Build mapping from original-graph edge (src, dst) -> list of net ids along the path in updated_graph
+        self.edge_to_nets: dict[tuple[str, str], list[str]] = {}
         if "none" not in arg_parasitics:
             logger.info("Running setup for hierarchical place and route.")
             self.initialize_directories(os.path.join(self.codesign_root_dir, self.tmp_dir, parse_results_dir))
@@ -73,24 +74,24 @@ class OpenRoadRunHier:
             self.L_eff = L_eff
             self.arg_parasitics = arg_parasitics
 
-            wirelengths_dict = self.run_pd_single_module(top_module_name)
+            self.edge_to_nets = self.run_pd_single_module(top_module_name)
 
         else: 
             raise NotImplementedError("Hierarchical 'none place and route' is not implemented.")
             
         logger.info("Hierarchical Place and route finished.")
-        return wirelengths_dict
+        return self.edge_to_nets
 
     
 
 
-    def run_pd_single_module(self, module_name):
+    def run_pd_single_module(self, module_name, top_level=False):
         """
         Run place and route for a single module in the hierarchical design.
 
         """
 
-        all_wire_lengths = {}
+        all_edge_to_nets = {}
         #wire_lengths_file = os.path.join(self.hier_pd_base_dir, module_name, f"{module_name}_wire_lengths.json")
 
         ## Base case: This module has already been placed and routed.
@@ -99,8 +100,8 @@ class OpenRoadRunHier:
         if os.path.exists(pd_complete_file):
             logger.info(f"Module {module_name} has already been placed and routed. Skipping.")
 
-            all_wire_lengths = sim_util.read_wirelengths(wire_lengths_file)
-            return all_wire_lengths"""
+            all_edge_to_nets = sim_util.read_wirelengths(wire_lengths_file)
+            return all_edge_to_nets"""
 
         ## first do recursive step. Make sure we have placed and routed all submodules & generated their macros. 
         # open up the file that ends in _verbose_modules.json file to get the list of submodules
@@ -121,8 +122,8 @@ class OpenRoadRunHier:
             verbose_modules = json.load(f)
 
         for submodule_name in verbose_modules:
-            curr_wire_lengths = self.run_pd_single_module(submodule_name)
-            all_wire_lengths.update(curr_wire_lengths)
+            curr_edge_to_nets = self.run_pd_single_module(submodule_name)
+            all_edge_to_nets.update(curr_edge_to_nets)
 
         # Read in the netlist for this module
         netlist_filtered_file = os.path.join(self.hier_pd_base_dir, module_name, f"{module_name}_netlist_hier_filtered.gml")
@@ -158,9 +159,9 @@ class OpenRoadRunHier:
             with open(pd_complete_file, 'w') as f:
                 f.write("Place and route not needed as there are no nodes in the graph.\n")
 
-            #sim_util.write_wirelengths(all_wire_lengths, wire_lengths_file)
+            #sim_util.write_wirelengths(all_edge_to_nets, wire_lengths_file)
 
-            return all_wire_lengths
+            return all_edge_to_nets
         
         ## This is a list of file paths to lef files from submodules to include in this module's P&R.
         lef_files_to_include = {}
@@ -223,13 +224,13 @@ class OpenRoadRunHier:
             module_graph = module_graph_pruned
 
         ###### then run place and route for this module, using the macros of the submodules. ######
-        flat_open_road_run = openroad_run.OpenRoadRun(cfg=self.cfg, codesign_root_dir=self.codesign_root_dir, tmp_dir=self.tmp_dir, run_openroad=self.run_openroad, circuit_model=self.circuit_model, subdirectory=f"hier/{module_name}/pd", custom_lef_files_to_include=lef_files_to_include)
+        flat_open_road_run = openroad_run.OpenRoadRun(cfg=self.cfg, codesign_root_dir=self.codesign_root_dir, tmp_dir=self.tmp_dir, run_openroad=self.run_openroad, circuit_model=self.circuit_model, subdirectory=f"hier/{module_name}/pd", custom_lef_files_to_include=lef_files_to_include, top_level=top_level)
         
-        wire_length_by_edge, _, final_area = flat_open_road_run.run(
+        edge_to_nets, _, final_area = flat_open_road_run.run(
             module_graph, self.test_file, self.arg_parasitics, self.top_level_area_constraint, self.L_eff
         )
 
-        all_wire_lengths.update(wire_length_by_edge)
+        all_edge_to_nets.update(edge_to_nets)
 
         logger.info(f"Completed place and route for module {module_name}")
 
@@ -249,11 +250,11 @@ class OpenRoadRunHier:
             f.write("Place and route completed successfully.\n")
 
 
-        debug_print(f"All wirelengths = {all_wire_lengths}")
+        debug_print(f"All wirelengths = {all_edge_to_nets}")
         ## write out the final wire lengths for this module to a json file.
-        #sim_util.write_wirelengths(all_wire_lengths, wire_lengths_file)
+        #sim_util.write_wirelengths(all_edge_to_nets, wire_lengths_file)
 
-        return all_wire_lengths
+        return all_edge_to_nets
 
 
 

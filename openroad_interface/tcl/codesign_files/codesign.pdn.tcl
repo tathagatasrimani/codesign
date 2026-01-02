@@ -28,8 +28,8 @@ add_pdn_connect -grid {grid} -layers {metal4 metal7}
 # grid for: CORE_macro_grid_1
 ####################################
 define_pdn_grid -name {CORE_macro_grid_1} -voltage_domains {CORE} -macro -orient {R0 R180 MX MY} -halo {4.0 4.0 4.0 4.0} -default -grid_over_boundary
-add_pdn_stripe -grid {CORE_macro_grid_1} -layer {metal5} -width {0.93} -pitch {10.0} -offset {2}
-add_pdn_stripe -grid {CORE_macro_grid_1} -layer {metal6} -width {0.93} -pitch {10.0} -offset {2}
+add_pdn_stripe -grid {CORE_macro_grid_1} -layer {metal5} -width {0.93} -pitch {12.0} -offset {2}
+add_pdn_stripe -grid {CORE_macro_grid_1} -layer {metal6} -width {0.93} -pitch {12.0} -offset {2}
 add_pdn_connect -grid {CORE_macro_grid_1} -layers {metal4 metal5}
 add_pdn_connect -grid {CORE_macro_grid_1} -layers {metal5 metal6}
 add_pdn_connect -grid {CORE_macro_grid_1} -layers {metal6 metal7}

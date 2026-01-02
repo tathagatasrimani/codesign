@@ -18,6 +18,7 @@ test/saved_checkpoints/**
 **/figs/**
 **/build/**
 **.log
+**.mlir
 
 data/**
 .vscode/**
@@ -47,4 +48,6 @@ tools/
 !.gitignore
 !.git/
 !.github/
+!scalehls_test/**.log
 ######
+block_graph.gml

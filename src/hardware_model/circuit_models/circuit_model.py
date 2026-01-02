@@ -4,7 +4,7 @@ from src import coefficients
 from src import sim_util
 import cvxpy as cp
 import sympy as sp
-
+from src.inverse_pass.constraint import Constraint
 logger = logging.getLogger(__name__)
 
 DATA_WIDTH = 16
@@ -48,6 +48,7 @@ class CircuitModel:
             "Gt16": lambda: self.make_sym_lat_wc(self.gamma["Gt16"]),
             "GtE16": lambda: self.make_sym_lat_wc(self.gamma["GtE16"]),
             "Not16": lambda: self.make_sym_lat_wc(self.gamma["Not16"]),
+            "Exp16": lambda: self.make_sym_lat_wc(self.gamma["Exp16"]),
             "Register16": lambda: self.make_sym_lat_wc(self.gamma["Register16"]),   
             "Buf": lambda: self.make_buf_lat_dict(),    
             "MainMem": lambda: self.make_mem_lat_dict(),
@@ -77,6 +78,7 @@ class CircuitModel:
             "Gt16": lambda: self.make_sym_energy_act(self.alpha["Gt16"]),
             "GtE16": lambda: self.make_sym_energy_act(self.alpha["GtE16"]),
             "Not16": lambda: self.make_sym_energy_act(self.alpha["Not16"]),
+            "Exp16": lambda: self.make_sym_energy_act(self.alpha["Exp16"]),
             "Register16": lambda: self.make_sym_energy_act(self.alpha["Register16"]),
             "Buf": lambda: self.make_buf_energy_active_dict(),
             "MainMem": lambda: self.make_mainmem_energy_active_dict(),
@@ -106,6 +108,7 @@ class CircuitModel:
             "Gt16": lambda: self.make_sym_power_pass(self.beta["Gt16"]),
             "GtE16": lambda: self.make_sym_power_pass(self.beta["GtE16"]),
             "Not16": lambda: self.make_sym_power_pass(self.beta["Not16"]),
+            "Exp16": lambda: self.make_sym_power_pass(self.beta["Exp16"]),
             "Register16": lambda: self.make_sym_power_pass(self.beta["Register16"]),
             "MainMem": lambda: self.make_mainmem_power_passive_dict(),
             "Buf": lambda: self.make_buf_power_passive_dict(),
@@ -134,6 +137,7 @@ class CircuitModel:
             "Gt16": lambda: self.make_sym_area(self.area_coeffs["Gt16"]),
             "GtE16": lambda: self.make_sym_area(self.area_coeffs["GtE16"]),
             "Not16": lambda: self.make_sym_area(self.area_coeffs["Not16"]),
+            "Exp16": lambda: self.make_sym_area(self.area_coeffs["Exp16"]),
             "Register16": lambda: self.make_sym_area(self.area_coeffs["Register16"]),
             "N/A": lambda: 0,
             "Call": lambda: 0,
@@ -169,6 +173,12 @@ class CircuitModel:
         self.gamma = self.coeffs["gamma"]
         self.area_coeffs = self.coeffs["area"]
 
+        # TODO: add actual data for Exp16
+        self.alpha["Exp16"] = 3*(self.alpha["Mult16"] + self.alpha["Add16"])
+        self.beta["Exp16"] = self.beta["Mult16"] + self.beta["Add16"]
+        self.gamma["Exp16"] = 3*(self.gamma["Mult16"] + self.gamma["Add16"])
+        self.area_coeffs["Exp16"] = self.area_coeffs["Mult16"] + self.area_coeffs["Add16"]
+
     def set_uarch_constraints(self):
         self.tech_model.constraints.append(self.logic_delay >= self.tech_model.delay)
         self.tech_model.constraints.append(self.logic_energy_active >= self.tech_model.E_act_inv)
@@ -179,13 +189,13 @@ class CircuitModel:
 
     def set_uarch_parameters(self):
         self.clk_period_cvx = cp.Variable(pos=True)
-        self.clk_period_cvx.value = float(self.tech_model.base_params.clk_period.subs(self.tech_model.base_params.tech_values).evalf())
+        self.clk_period_cvx.value = float(sim_util.xreplace_safe(self.tech_model.base_params.clk_period, self.tech_model.base_params.tech_values))
         self.logic_delay_cvx = cp.Parameter(pos=True)
-        self.logic_delay_cvx.value = float(self.tech_model.delay.subs(self.tech_model.base_params.tech_values).evalf())
+        self.logic_delay_cvx.value = float(sim_util.xreplace_safe(self.tech_model.delay, self.tech_model.base_params.tech_values))
         self.logic_energy_active_cvx = cp.Parameter(pos=True)
-        self.logic_energy_active_cvx.value = float(self.tech_model.E_act_inv.subs(self.tech_model.base_params.tech_values).evalf())
+        self.logic_energy_active_cvx.value = float(sim_util.xreplace_safe(self.tech_model.E_act_inv, self.tech_model.base_params.tech_values))
         self.logic_power_passive_cvx = cp.Parameter(pos=True)
-        self.logic_power_passive_cvx.value = float(self.tech_model.P_pass_inv.subs(self.tech_model.base_params.tech_values).evalf())
+        self.logic_power_passive_cvx.value = float(sim_util.xreplace_safe(self.tech_model.P_pass_inv, self.tech_model.base_params.tech_values))
 
         
         self.uarch_lat_cvx = {
@@ -210,8 +220,8 @@ class CircuitModel:
             layer: cp.Variable(pos=True) for layer in self.metal_layers
         }
         for layer in self.metal_layers:
-            self.wire_unit_delay_cvx[layer].value = float((self.tech_model.wire_parasitics["R"][layer]*self.tech_model.wire_parasitics["C"][layer]).subs(self.tech_model.base_params.tech_values).evalf())
-            self.wire_unit_energy_cvx[layer].value = float((0.5*self.tech_model.wire_parasitics["C"][layer]*self.tech_model.base_params.V_dd**2).subs(self.tech_model.base_params.tech_values).evalf())
+            self.wire_unit_delay_cvx[layer].value = float(sim_util.xreplace_safe(self.tech_model.wire_parasitics["R"][layer]*self.tech_model.wire_parasitics["C"][layer], self.tech_model.base_params.tech_values))
+            self.wire_unit_energy_cvx[layer].value = float(sim_util.xreplace_safe(0.5*self.tech_model.wire_parasitics["C"][layer]*self.tech_model.base_params.V_dd**2, self.tech_model.base_params.tech_values))
 
         self.wire_C_values = {}
         self.wire_R_values = {}
@@ -224,13 +234,13 @@ class CircuitModel:
         self.device_R_avg_inv = sim_util.xreplace_safe(self.tech_model.R_avg_inv, self.tech_model.base_params.tech_values)
 
     def update_uarch_parameters(self):
-        self.logic_delay_cvx.value = float(self.tech_model.delay.subs(self.tech_model.base_params.tech_values).evalf())
-        self.logic_energy_active_cvx.value = float(self.tech_model.E_act_inv.subs(self.tech_model.base_params.tech_values).evalf())
-        self.logic_power_passive_cvx.value = float(self.tech_model.P_pass_inv.subs(self.tech_model.base_params.tech_values).evalf())
+        self.logic_delay_cvx.value = float(sim_util.xreplace_safe(self.tech_model.delay, self.tech_model.base_params.tech_values))
+        self.logic_energy_active_cvx.value = float(sim_util.xreplace_safe(self.tech_model.E_act_inv, self.tech_model.base_params.tech_values))
+        self.logic_power_passive_cvx.value = float(sim_util.xreplace_safe(self.tech_model.P_pass_inv, self.tech_model.base_params.tech_values))
         for layer in self.metal_layers:
-            log_info(f"wire_unit_delay_cvx[{layer}] = {self.wire_unit_delay_cvx[layer].value}, with R[{layer}] = {self.tech_model.wire_parasitics['R'][layer].subs(self.tech_model.base_params.tech_values).evalf()}, C[{layer}] = {self.tech_model.wire_parasitics['C'][layer].subs(self.tech_model.base_params.tech_values).evalf()}")
-            self.wire_unit_delay_cvx[layer].value = float((self.tech_model.wire_parasitics["R"][layer]*self.tech_model.wire_parasitics["C"][layer]).subs(self.tech_model.base_params.tech_values).evalf())
-            self.wire_unit_energy_cvx[layer].value = float((0.5*self.tech_model.wire_parasitics["C"][layer]*self.tech_model.base_params.V_dd**2).subs(self.tech_model.base_params.tech_values).evalf())
+            log_info(f"wire_unit_delay_cvx[{layer}] = {self.wire_unit_delay_cvx[layer].value}, with R[{layer}] = {sim_util.xreplace_safe(self.tech_model.wire_parasitics['R'][layer], self.tech_model.base_params.tech_values)}, C[{layer}] = {sim_util.xreplace_safe(self.tech_model.wire_parasitics['C'][layer], self.tech_model.base_params.tech_values)}")
+            self.wire_unit_delay_cvx[layer].value = float(sim_util.xreplace_safe(self.tech_model.wire_parasitics["R"][layer]*self.tech_model.wire_parasitics["C"][layer], self.tech_model.base_params.tech_values))
+            self.wire_unit_energy_cvx[layer].value = float(sim_util.xreplace_safe(0.5*self.tech_model.wire_parasitics["C"][layer]*self.tech_model.base_params.V_dd**2, self.tech_model.base_params.tech_values))
 
     def set_memories(self, memories):
         self.memories = memories
@@ -377,10 +387,11 @@ class CircuitModel:
     def create_constraints(self):
         if self.tech_model.model_cfg["effects"]["frequency"]:
             for key in self.symbolic_latency_wc:
-                if key not in ["Buf", "MainMem", "OffChipIO", "Call", "N/A"]:
+                #if key not in ["Buf", "MainMem", "OffChipIO", "Call", "N/A"]:
+                if key == "FloorDiv16": # most stringent constraint
                     # cycle limit to constrain the amount of pipelining
                     #self.constraints.append((self.symbolic_latency_wc[key]()* 1e-9) * self.tech_model.base_params.f <= 20) # num cycles <= 20 (cycles = time(s) * frequency(Hz))
-                    self.constraints.append((self.symbolic_latency_wc[key]())<= 20*self.tech_model.base_params.clk_period) # num cycles <= 20 (cycles = time(s) * frequency(Hz))
+                    self.constraints.append(Constraint((self.symbolic_latency_wc[key]())<= 20*self.tech_model.base_params.clk_period, f"latency_{key} <= 20*clk_period")) # num cycles <= 20 (cycles = time(s) * frequency(Hz))
     
     def create_constraints_cvx(self, scale_cvx):
         self.constraints_cvx = []

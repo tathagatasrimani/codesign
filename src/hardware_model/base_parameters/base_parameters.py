@@ -7,6 +7,7 @@ from src.cacti.cacti_python.parameter import InputParameter
 from src import global_symbol_table
 
 import math
+from src.inverse_pass.constraint import Constraint
 from sympy import symbols, ceiling, expand, exp, Abs
 
 logger = logging.getLogger(__name__)
@@ -16,86 +17,106 @@ WIRE_RC_FILE = "src/yaml/wire_rc.yaml"
 
 # create sympy variables and initial tech values
 class BaseParameters:
-    def __init__(self, tech_node, dat_file):
+    def __init__(self, tech_node, dat_file, tech_param_override=None):
         self.tech_node = tech_node
         self.dat_file = dat_file
         self.constraints = []
 
-        self.node_arrivals_end = symbols("node_arrivals_end", positive=True)
+        self.node_arrivals_end = symbols("node_arrivals_end")
 
         # leaving both clk_period and f in here for flexibility, but only one of them will be used.
-        self.clk_period = symbols("clk_period", positive=True)
-        self.f = symbols("f", positive=True)
+        self.clk_period = symbols("clk_period", real=True)
+        self.f = symbols("f", real=True)
 
         # Logic parameters
-        self.V_dd = symbols("V_dd", positive=True)
-        self.V_th = symbols("V_th", positive=True)
-        self.tox = symbols("tox", positive=True)
-        self.W = symbols("W", positive=True)
-        self.L = symbols("L", positive=True)
-        self.k_gate = symbols("k_gate", positive=True)
-        self.t_1 = symbols("t_1", positive=True) # physical body thickness, used for scale length in vs model
+        self.V_dd = symbols("V_dd", real=True)
+        self.V_th = symbols("V_th", real=True)
+        self.tox = symbols("tox", real=True)
+        self.W = symbols("W", real=True)
+        self.L = symbols("L", real=True)
+        self.k_gate = symbols("k_gate", real=True)
+        self.t_1 = symbols("t_1", real=True) # physical body thickness, used for scale length in vs model
 
-        self.L_ov = symbols("L_ov", positive=True)
+        self.L_ov = symbols("L_ov", real=True)
 
         # dennard scaling factors, used for dennard scaling test
-        self.alpha_dennard = symbols("alpha_dennard", positive=True)
-        self.epsilon_dennard = symbols("epsilon_dennard", positive=True)
+        self.alpha_dennard = symbols("alpha_dennard", real=True)
+        self.epsilon_dennard = symbols("epsilon_dennard", real=True)
         
-        self.area = symbols("area", positive=True)
+        self.area = symbols("area", real=True)
 
         # wire parameters
-        self.m1_rho = symbols("m1_rho", positive=True)
-        self.m2_rho = symbols("m2_rho", positive=True)
-        self.m3_rho = symbols("m3_rho", positive=True)
-        self.m4_rho = symbols("m4_rho", positive=True)
-        self.m5_rho = symbols("m5_rho", positive=True)
-        self.m6_rho = symbols("m6_rho", positive=True)
-        self.m7_rho = symbols("m7_rho", positive=True)
-        self.m8_rho = symbols("m8_rho", positive=True)
-        self.m9_rho = symbols("m9_rho", positive=True)
-        self.m10_rho = symbols("m10_rho", positive=True)
+        self.m1_rho = symbols("m1_rho", real=True)
+        self.m2_rho = symbols("m2_rho", real=True)
+        self.m3_rho = symbols("m3_rho", real=True)
+        self.m4_rho = symbols("m4_rho", real=True)
+        self.m5_rho = symbols("m5_rho", real=True)
+        self.m6_rho = symbols("m6_rho", real=True)
+        self.m7_rho = symbols("m7_rho", real=True)
+        self.m8_rho = symbols("m8_rho", real=True)
+        self.m9_rho = symbols("m9_rho", real=True)
+        self.m10_rho = symbols("m10_rho", real=True)
 
-        self.m1_k = symbols("m1_k", positive=True)
-        self.m2_k = symbols("m2_k", positive=True)
-        self.m3_k = symbols("m3_k", positive=True)
-        self.m4_k = symbols("m4_k", positive=True)
-        self.m5_k = symbols("m5_k", positive=True)
-        self.m6_k = symbols("m6_k", positive=True)
-        self.m7_k = symbols("m7_k", positive=True)
-        self.m8_k = symbols("m8_k", positive=True)
-        self.m9_k = symbols("m9_k", positive=True)
-        self.m10_k = symbols("m10_k", positive=True)
+        self.m1_k = symbols("m1_k", real=True)
+        self.m2_k = symbols("m2_k", real=True)
+        self.m3_k = symbols("m3_k", real=True)
+        self.m4_k = symbols("m4_k", real=True)
+        self.m5_k = symbols("m5_k", real=True)
+        self.m6_k = symbols("m6_k", real=True)
+        self.m7_k = symbols("m7_k", real=True)
+        self.m8_k = symbols("m8_k", real=True)
+        self.m9_k = symbols("m9_k", real=True)
+        self.m10_k = symbols("m10_k", real=True)
 
         # Electron mobility for NMOS
-        self.u_n = symbols("u_n", positive=True)
+        self.u_n = symbols("u_n", real=True)
 
         self.init_memory_params()
 
         # semiconductor capacitance for virtual source model
-        self.Cs = symbols("Cs", positive=True)
+        self.Cs = symbols("Cs", real=True)
 
         # CNT parameters
-        self.d = symbols("d", positive=True)
-        self.k_cnt = symbols("k_cnt", positive=True)
-        self.L_c = symbols("L_c", positive=True)
-        self.H_c = symbols("H_c", positive=True)
-        self.H_g = symbols("H_g", positive=True)
+        self.d = symbols("d", real=True)
+        self.k_cnt = symbols("k_cnt", real=True)
+        self.L_c = symbols("L_c", real=True)
+        self.H_c = symbols("H_c", real=True)
+        self.H_g = symbols("H_g", real=True)
 
-        self.logic_sensitivity = symbols("logic_sensitivity", positive=True)
-        self.logic_resource_sensitivity = symbols("logic_resource_sensitivity", positive=True)
-        self.logic_ahmdal_limit = symbols("logic_ahmdal_limit", positive=True)
-        self.logic_resource_ahmdal_limit = symbols("logic_resource_ahmdal_limit", positive=True)
+        # MVS general model parameters
+        self.beta_p_n = symbols("beta_p_n", real=True)
+        self.mD_fac = symbols("mD_fac", real=True)
+        self.mu_eff_n = symbols("mu_eff_n", real=True)
+        self.mu_eff_p = symbols("mu_eff_p", real=True)
+        self.eps_semi = symbols("eps_semi", real=True)
+        self.tsemi = symbols("tsemi", real=True)
+        self.Lext = symbols("Lext", real=True)
+        self.Lc = symbols("Lc", real=True)
+        self.eps_cap = symbols("eps_cap", real=True)
+        self.rho_c_n = symbols("rho_c_n", real=True)
+        self.rho_c_p = symbols("rho_c_p", real=True)
+        self.Rsh_c_n = symbols("Rsh_c_n", real=True)
+        self.Rsh_c_p = symbols("Rsh_c_p", real=True)
+        self.Rsh_ext_n = symbols("Rsh_ext_n", real=True)
+        self.Rsh_ext_p = symbols("Rsh_ext_p", real=True)
+        self.FO = symbols("FO", real=True)
+        self.M = symbols("M", real=True)
+        self.a = symbols("a", real=True)
 
-        self.interconnect_sensitivity = symbols("interconnect_sensitivity", positive=True)
-        self.interconnect_resource_sensitivity = symbols("interconnect_resource_sensitivity", positive=True)
-        self.interconnect_ahmdal_limit = symbols("interconnect_ahmdal_limit", positive=True)
-        self.interconnect_resource_ahmdal_limit = symbols("interconnect_resource_ahmdal_limit", positive=True)
+        self.logic_sensitivity = symbols("logic_sensitivity", real=True)
+        self.logic_resource_sensitivity = symbols("logic_resource_sensitivity", real=True)
+        self.logic_amdahl_limit = symbols("logic_amdahl_limit", real=True)
+        self.logic_resource_amdahl_limit = symbols("logic_resource_amdahl_limit", real=True)
 
-        self.memory_sensitivity = symbols("memory_sensitivity", positive=True)
-        self.memory_resource_sensitivity = symbols("memory_resource_sensitivity", positive=True)
-        self.memory_ahmdal_limit = symbols("memory_ahmdal_limit", positive=True)
-        self.memory_resource_ahmdal_limit = symbols("memory_resource_ahmdal_limit", positive=True)
+        self.interconnect_sensitivity = symbols("interconnect_sensitivity", real=True)
+        self.interconnect_resource_sensitivity = symbols("interconnect_resource_sensitivity", real=True)
+        self.interconnect_amdahl_limit = symbols("interconnect_amdahl_limit", real=True)
+        self.interconnect_resource_amdahl_limit = symbols("interconnect_resource_amdahl_limit", real=True)
+
+        self.memory_sensitivity = symbols("memory_sensitivity", real=True)
+        self.memory_resource_sensitivity = symbols("memory_resource_sensitivity", real=True)
+        self.memory_amdahl_limit = symbols("memory_amdahl_limit", real=True)
+        self.memory_resource_amdahl_limit = symbols("memory_resource_amdahl_limit", real=True)
 
         # technology level parameter values
         self.tech_values = {}
@@ -104,42 +125,17 @@ class BaseParameters:
 
         # set initial values for technology parameters based on tech node
         config = yaml.load(open(TECH_NODE_FILE), Loader=yaml.Loader)
-        print(config[self.tech_node])
+        config_tech_node = config[self.tech_node] if tech_param_override is None else tech_param_override
+        print(f"initial tech params: {config_tech_node}")
         for key in config["default"]:
             try:
-                self.tech_values[self.symbol_table[key]] = config[self.tech_node][key]
+                self.tech_values[self.symbol_table[key]] = config_tech_node[key]
             except:
                 logger.info(f"using default value for {key}")
                 self.tech_values[self.symbol_table[key]] = config["default"][key]
-    
-        # set initial values for memory parameters
-        # CACTI
-        cacti_params = {}
-        # TODO, cell type, temp
-        dat.scan_dat(cacti_params, dat_file, 0, 0, 360)
-        cacti_params = {k: (1 if v is None or math.isnan(v) else (10**(-9) if v == 0 else v)) for k, v in cacti_params.items()}
-        for key, value in cacti_params.items():
-            self.tech_values[key] = value
         # set initial values for dennard scaling factors (no actual meaning, they will be set by the optimizer)
         self.tech_values[self.alpha_dennard] = 1
         self.tech_values[self.epsilon_dennard] = 1
-
-        # CACTI IO
-        cacti_IO_params = {}
-        # TODO figure initial
-        g_ip = InputParameter()
-        g_ip.num_clk = 2
-        g_ip.io_type = "DDR3"
-        g_ip.num_mem_dq = 3
-        g_ip.mem_data_width = 2
-        g_ip.num_dq = 2
-        g_ip.dram_dimm = "UDIMM"
-        g_ip.bus_freq = 500
-        
-        IO.scan_IO(cacti_IO_params, g_ip, g_ip.io_type, g_ip.num_mem_dq, g_ip.mem_data_width, g_ip.num_dq, g_ip.dram_dimm, 1, g_ip.bus_freq)
-        cacti_IO_params = {k: (1 if v is None or math.isnan(v) else (10**(-9) if v == 0 else v)) for k, v in cacti_IO_params.items()}
-        for key, value in cacti_IO_params.items():
-            self.tech_values[key] = value
 
         # mock area and latency scaling for experimental purposes
         self.area_scale = (self.W * self.L).xreplace(self.tech_values) / (self.W * self.L)
@@ -147,142 +143,142 @@ class BaseParameters:
 
     def init_memory_params(self):
         # Memory parameters
-        self.C_g_ideal = symbols("C_g_ideal", positive=True)
-        self.C_fringe = symbols("C_fringe", positive=True)
-        self.C_junc = symbols("C_junc", positive=True)
-        self.C_junc_sw = symbols("C_junc_sw", positive=True)
-        self.l_phy = symbols("l_phy", positive=True)    
-        self.l_elec = symbols("l_elec", positive=True)
-        self.nmos_effective_resistance_multiplier = symbols("nmos_effective_resistance_multiplier", positive=True)
-        self.Vdd = symbols("Vdd", positive=True)
-        self.Vth = symbols("Vth", positive=True)
-        self.Vdsat = symbols("Vdsat", positive=True)
-        self.I_on_n = symbols("I_on_n", positive=True)  
-        self.I_on_p = symbols("I_on_p", positive=True)
-        self.I_off_n = symbols("I_off_n", positive=True)
-        self.I_g_on_n = symbols("I_g_on_n", positive=True)
-        self.C_ox = symbols("C_ox", positive=True)
-        self.t_ox = symbols("t_ox", positive=True)  
-        self.n2p_drv_rt = symbols("n2p_drv_rt", positive=True)
-        self.lch_lk_rdc = symbols("lch_lk_rdc", positive=True)
-        self.Mobility_n = symbols("Mobility_n", positive=True)
-        self.gmp_to_gmn_multiplier = symbols("gmp_to_gmn_multiplier", positive=True)
-        self.vpp = symbols("vpp", positive=True)    
-        self.Wmemcella = symbols("Wmemcella", positive=True)    
-        self.Wmemcellpmos = symbols("Wmemcellpmos", positive=True)    
-        self.Wmemcellnmos = symbols("Wmemcellnmos", positive=True)    
-        self.area_cell = symbols("area_cell", positive=True)    
-        self.asp_ratio_cell = symbols("asp_ratio_cell", positive=True)    
-        self.vdd_cell = symbols("vdd_cell", positive=True)      
-        self.dram_cell_I_on = symbols("dram_cell_I_on", positive=True)  
-        self.dram_cell_Vdd = symbols("dram_cell_Vdd", positive=True)  
-        self.dram_cell_C = symbols("dram_cell_C", positive=True)  
-        self.dram_cell_I_off_worst_case_len_temp = symbols("dram_cell_I_off_worst_case_len_temp", positive=True)  
-        self.logic_scaling_co_eff = symbols("logic_scaling_co_eff", positive=True)  
-        self.core_tx_density = symbols("core_tx_density", positive=True)      
-        self.sckt_co_eff = symbols("sckt_co_eff", positive=True)  
-        self.chip_layout_overhead = symbols("chip_layout_overhead", positive=True)  
-        self.macro_layout_overhead = symbols("macro_layout_overhead", positive=True)  
-        self.sense_delay = symbols("sense_delay", positive=True)  
-        self.sense_dy_power = symbols("sense_dy_power", positive=True)  
-        self.wire_pitch = symbols("wire_pitch", positive=True)    
-        self.barrier_thickness = symbols("barrier_thickness", positive=True)  
-        self.dishing_thickness = symbols("dishing_thickness", positive=True)  
-        self.alpha_scatter = symbols("alpha_scatter", positive=True)  
-        self.aspect_ratio = symbols("aspect_ratio", positive=True)  
-        self.miller_value = symbols("miller_value", positive=True)  
-        self.horiz_dielectric_constant = symbols("horiz_dielectric_constant", positive=True)      
-        self.vert_dielectric_constant = symbols("vert_dielectric_constant", positive=True)  
-        self.ild_thickness = symbols("ild_thickness", positive=True)  
-        self.fringe_cap = symbols("fringe_cap", positive=True)  
-        self.resistivity = symbols("resistivity", positive=True)  
-        self.wire_r_per_micron = symbols("wire_r_per_micron", positive=True)  
-        self.wire_c_per_micron = symbols("wire_c_per_micron", positive=True)      
-        self.tsv_pitch = symbols("tsv_pitch", positive=True)  
-        self.tsv_diameter = symbols("tsv_diameter", positive=True)  
-        self.tsv_length = symbols("tsv_length", positive=True)  
-        self.tsv_dielec_thickness = symbols("tsv_dielec_thickness", positive=True)  
-        self.tsv_contact_resistance = symbols("tsv_contact_resistance", positive=True)    
-        self.tsv_depletion_width = symbols("tsv_depletion_width", positive=True)  
-        self.tsv_liner_dielectric_cons = symbols("tsv_liner_dielectric_cons", positive=True)  
+        self.C_g_ideal = symbols("C_g_ideal")
+        self.C_fringe = symbols("C_fringe")
+        self.C_junc = symbols("C_junc")
+        self.C_junc_sw = symbols("C_junc_sw")
+        self.l_phy = symbols("l_phy")    
+        self.l_elec = symbols("l_elec")
+        self.nmos_effective_resistance_multiplier = symbols("nmos_effective_resistance_multiplier")
+        self.Vdd = symbols("Vdd")
+        self.Vth = symbols("Vth")
+        self.Vdsat = symbols("Vdsat")
+        self.I_on_n = symbols("I_on_n")  
+        self.I_on_p = symbols("I_on_p")
+        self.I_off_n = symbols("I_off_n")
+        self.I_g_on_n = symbols("I_g_on_n")
+        self.C_ox = symbols("C_ox")
+        self.t_ox = symbols("t_ox")  
+        self.n2p_drv_rt = symbols("n2p_drv_rt")
+        self.lch_lk_rdc = symbols("lch_lk_rdc")
+        self.Mobility_n = symbols("Mobility_n")
+        self.gmp_to_gmn_multiplier = symbols("gmp_to_gmn_multiplier")
+        self.vpp = symbols("vpp")    
+        self.Wmemcella = symbols("Wmemcella")    
+        self.Wmemcellpmos = symbols("Wmemcellpmos")    
+        self.Wmemcellnmos = symbols("Wmemcellnmos")    
+        self.area_cell = symbols("area_cell")    
+        self.asp_ratio_cell = symbols("asp_ratio_cell")    
+        self.vdd_cell = symbols("vdd_cell")      
+        self.dram_cell_I_on = symbols("dram_cell_I_on")  
+        self.dram_cell_Vdd = symbols("dram_cell_Vdd")  
+        self.dram_cell_C = symbols("dram_cell_C")  
+        self.dram_cell_I_off_worst_case_len_temp = symbols("dram_cell_I_off_worst_case_len_temp")  
+        self.logic_scaling_co_eff = symbols("logic_scaling_co_eff")  
+        self.core_tx_density = symbols("core_tx_density")      
+        self.sckt_co_eff = symbols("sckt_co_eff")  
+        self.chip_layout_overhead = symbols("chip_layout_overhead")  
+        self.macro_layout_overhead = symbols("macro_layout_overhead")  
+        self.sense_delay = symbols("sense_delay")  
+        self.sense_dy_power = symbols("sense_dy_power")  
+        self.wire_pitch = symbols("wire_pitch")    
+        self.barrier_thickness = symbols("barrier_thickness")  
+        self.dishing_thickness = symbols("dishing_thickness")  
+        self.alpha_scatter = symbols("alpha_scatter")  
+        self.aspect_ratio = symbols("aspect_ratio")  
+        self.miller_value = symbols("miller_value")  
+        self.horiz_dielectric_constant = symbols("horiz_dielectric_constant")      
+        self.vert_dielectric_constant = symbols("vert_dielectric_constant")  
+        self.ild_thickness = symbols("ild_thickness")  
+        self.fringe_cap = symbols("fringe_cap")  
+        self.resistivity = symbols("resistivity")  
+        self.wire_r_per_micron = symbols("wire_r_per_micron")  
+        self.wire_c_per_micron = symbols("wire_c_per_micron")      
+        self.tsv_pitch = symbols("tsv_pitch")  
+        self.tsv_diameter = symbols("tsv_diameter")  
+        self.tsv_length = symbols("tsv_length")  
+        self.tsv_dielec_thickness = symbols("tsv_dielec_thickness")  
+        self.tsv_contact_resistance = symbols("tsv_contact_resistance")    
+        self.tsv_depletion_width = symbols("tsv_depletion_width")  
+        self.tsv_liner_dielectric_cons = symbols("tsv_liner_dielectric_cons")  
 
         # Memory I/O parameters
-        self.vdd_io = symbols("vdd_io", positive=True)  
-        self.v_sw_clk = symbols("v_sw_clk", positive=True)  
-        self.c_int = symbols("c_int", positive=True)  
-        self.c_tx = symbols("c_tx", positive=True)  
-        self.c_data = symbols("c_data", positive=True)  
-        self.c_addr = symbols("c_addr", positive=True)  
-        self.i_bias = symbols("i_bias", positive=True)  
-        self.i_leak = symbols("i_leak", positive=True)    
-        self.ioarea_c = symbols("ioarea_c", positive=True)  
-        self.ioarea_k0 = symbols("ioarea_k0", positive=True)  
-        self.ioarea_k1 = symbols("ioarea_k1", positive=True)  
-        self.ioarea_k2 = symbols("ioarea_k2", positive=True)  
-        self.ioarea_k3 = symbols("ioarea_k3", positive=True)      
-        self.t_ds = symbols("t_ds", positive=True)  
-        self.t_is = symbols("t_is", positive=True)  
-        self.t_dh = symbols("t_dh", positive=True)  
-        self.t_ih = symbols("t_ih", positive=True)  
-        self.t_dcd_soc = symbols("t_dcd_soc", positive=True)  
-        self.t_dcd_dram = symbols("t_dcd_dram", positive=True)    
-        self.t_error_soc = symbols("t_error_soc", positive=True)  
-        self.t_skew_setup = symbols("t_skew_setup", positive=True)  
-        self.t_skew_hold = symbols("t_skew_hold", positive=True)  
-        self.t_dqsq = symbols("t_dqsq", positive=True)  
-        self.t_soc_setup = symbols("t_soc_setup", positive=True)  
-        self.t_soc_hold = symbols("t_soc_hold", positive=True)    
-        self.t_jitter_setup = symbols("t_jitter_setup", positive=True)  
-        self.t_jitter_hold = symbols("t_jitter_hold", positive=True)  
-        self.t_jitter_addr_setup = symbols("t_jitter_addr_setup", positive=True)  
-        self.t_jitter_addr_hold = symbols("t_jitter_addr_hold", positive=True)  
-        self.t_cor_margin = symbols("t_cor_margin", positive=True)  
-        self.r_diff_term = symbols("r_diff_term", positive=True)      
-        self.rtt1_dq_read = symbols("rtt1_dq_read", positive=True)  
-        self.rtt2_dq_read = symbols("rtt2_dq_read", positive=True)  
-        self.rtt1_dq_write = symbols("rtt1_dq_write", positive=True)  
-        self.rtt2_dq_write = symbols("rtt2_dq_write", positive=True)  
-        self.rtt_ca = symbols("rtt_ca", positive=True)        
-        self.rs1_dq = symbols("rs1_dq", positive=True)  
-        self.rs2_dq = symbols("rs2_dq", positive=True)  
-        self.r_stub_ca = symbols("r_stub_ca", positive=True)  
-        self.r_on = symbols("r_on", positive=True)  
-        self.r_on_ca = symbols("r_on_ca", positive=True)  
-        self.z0 = symbols("z0", positive=True)    
-        self.t_flight = symbols("t_flight", positive=True)  
-        self.t_flight_ca = symbols("t_flight_ca", positive=True)  
-        self.k_noise_write = symbols("k_noise_write", positive=True)  
-        self.k_noise_read = symbols("k_noise_read", positive=True)  
-        self.k_noise_addr = symbols("k_noise_addr", positive=True)  
-        self.v_noise_independent_write = symbols("v_noise_independent_write", positive=True)      
-        self.v_noise_independent_read = symbols("v_noise_independent_read", positive=True)  
-        self.v_noise_independent_addr = symbols("v_noise_independent_addr", positive=True)  
-        self.phy_datapath_s = symbols("phy_datapath_s", positive=True)  
-        self.phy_phase_rotator_s = symbols("phy_phase_rotator_s", positive=True)  
-        self.phy_clock_tree_s = symbols("phy_clock_tree_s", positive=True)  
-        self.phy_rx_s = symbols("phy_rx_s", positive=True)        
-        self.phy_dcc_s = symbols("phy_dcc_s", positive=True)  
-        self.phy_deskew_s = symbols("phy_deskew_s", positive=True)  
-        self.phy_leveling_s = symbols("phy_leveling_s", positive=True)  
-        self.phy_pll_s = symbols("phy_pll_s", positive=True)  
-        self.phy_datapath_d = symbols("phy_datapath_d", positive=True)    
-        self.phy_phase_rotator_d = symbols("phy_phase_rotator_d", positive=True)  
-        self.phy_clock_tree_d = symbols("phy_clock_tree_d", positive=True)  
-        self.phy_rx_d = symbols("phy_rx_d", positive=True)  
-        self.phy_dcc_d = symbols("phy_dcc_d", positive=True)  
-        self.phy_deskew_d = symbols("phy_deskew_d", positive=True)    
-        self.phy_leveling_d = symbols("phy_leveling_d", positive=True)  
-        self.phy_pll_d = symbols("phy_pll_d", positive=True)  
-        self.phy_pll_wtime = symbols("phy_pll_wtime", positive=True)  
-        self.phy_phase_rotator_wtime = symbols("phy_phase_rotator_wtime", positive=True)  
-        self.phy_rx_wtime = symbols("phy_rx_wtime", positive=True)  
-        self.phy_bandgap_wtime = symbols("phy_bandgap_wtime", positive=True)  
-        self.phy_deskew_wtime = symbols("phy_deskew_wtime", positive=True)  
-        self.phy_vrefgen_wtime = symbols("phy_vrefgen_wtime", positive=True)  
+        self.vdd_io = symbols("vdd_io")  
+        self.v_sw_clk = symbols("v_sw_clk")  
+        self.c_int = symbols("c_int")  
+        self.c_tx = symbols("c_tx")  
+        self.c_data = symbols("c_data")  
+        self.c_addr = symbols("c_addr")  
+        self.i_bias = symbols("i_bias")  
+        self.i_leak = symbols("i_leak")    
+        self.ioarea_c = symbols("ioarea_c")  
+        self.ioarea_k0 = symbols("ioarea_k0")  
+        self.ioarea_k1 = symbols("ioarea_k1")  
+        self.ioarea_k2 = symbols("ioarea_k2")  
+        self.ioarea_k3 = symbols("ioarea_k3")      
+        self.t_ds = symbols("t_ds")  
+        self.t_is = symbols("t_is")  
+        self.t_dh = symbols("t_dh")  
+        self.t_ih = symbols("t_ih")  
+        self.t_dcd_soc = symbols("t_dcd_soc")  
+        self.t_dcd_dram = symbols("t_dcd_dram")    
+        self.t_error_soc = symbols("t_error_soc")  
+        self.t_skew_setup = symbols("t_skew_setup")  
+        self.t_skew_hold = symbols("t_skew_hold")  
+        self.t_dqsq = symbols("t_dqsq")  
+        self.t_soc_setup = symbols("t_soc_setup")  
+        self.t_soc_hold = symbols("t_soc_hold")    
+        self.t_jitter_setup = symbols("t_jitter_setup")  
+        self.t_jitter_hold = symbols("t_jitter_hold")  
+        self.t_jitter_addr_setup = symbols("t_jitter_addr_setup")  
+        self.t_jitter_addr_hold = symbols("t_jitter_addr_hold")  
+        self.t_cor_margin = symbols("t_cor_margin")  
+        self.r_diff_term = symbols("r_diff_term")      
+        self.rtt1_dq_read = symbols("rtt1_dq_read")  
+        self.rtt2_dq_read = symbols("rtt2_dq_read")  
+        self.rtt1_dq_write = symbols("rtt1_dq_write")  
+        self.rtt2_dq_write = symbols("rtt2_dq_write")  
+        self.rtt_ca = symbols("rtt_ca")        
+        self.rs1_dq = symbols("rs1_dq")  
+        self.rs2_dq = symbols("rs2_dq")  
+        self.r_stub_ca = symbols("r_stub_ca")  
+        self.r_on = symbols("r_on")  
+        self.r_on_ca = symbols("r_on_ca")  
+        self.z0 = symbols("z0")    
+        self.t_flight = symbols("t_flight")  
+        self.t_flight_ca = symbols("t_flight_ca")  
+        self.k_noise_write = symbols("k_noise_write")  
+        self.k_noise_read = symbols("k_noise_read")  
+        self.k_noise_addr = symbols("k_noise_addr")  
+        self.v_noise_independent_write = symbols("v_noise_independent_write")      
+        self.v_noise_independent_read = symbols("v_noise_independent_read")  
+        self.v_noise_independent_addr = symbols("v_noise_independent_addr")  
+        self.phy_datapath_s = symbols("phy_datapath_s")  
+        self.phy_phase_rotator_s = symbols("phy_phase_rotator_s")  
+        self.phy_clock_tree_s = symbols("phy_clock_tree_s")  
+        self.phy_rx_s = symbols("phy_rx_s")        
+        self.phy_dcc_s = symbols("phy_dcc_s")  
+        self.phy_deskew_s = symbols("phy_deskew_s")  
+        self.phy_leveling_s = symbols("phy_leveling_s")  
+        self.phy_pll_s = symbols("phy_pll_s")  
+        self.phy_datapath_d = symbols("phy_datapath_d")    
+        self.phy_phase_rotator_d = symbols("phy_phase_rotator_d")  
+        self.phy_clock_tree_d = symbols("phy_clock_tree_d")  
+        self.phy_rx_d = symbols("phy_rx_d")  
+        self.phy_dcc_d = symbols("phy_dcc_d")  
+        self.phy_deskew_d = symbols("phy_deskew_d")    
+        self.phy_leveling_d = symbols("phy_leveling_d")  
+        self.phy_pll_d = symbols("phy_pll_d")  
+        self.phy_pll_wtime = symbols("phy_pll_wtime")  
+        self.phy_phase_rotator_wtime = symbols("phy_phase_rotator_wtime")  
+        self.phy_rx_wtime = symbols("phy_rx_wtime")  
+        self.phy_bandgap_wtime = symbols("phy_bandgap_wtime")  
+        self.phy_deskew_wtime = symbols("phy_deskew_wtime")  
+        self.phy_vrefgen_wtime = symbols("phy_vrefgen_wtime")  
         
         # not currently used
-        self.BufPeriphAreaEff = symbols("buf_peripheral_area_proportion", positive=True)  
-        self.MemPeriphAreaEff = symbols("mem_peripheral_area_propportion", positive=True)  
+        self.BufPeriphAreaEff = symbols("buf_peripheral_area_proportion")  
+        self.MemPeriphAreaEff = symbols("mem_peripheral_area_propportion")  
 
         # TODO: look into moving these to circuit model
         self.MemReadL = {}
@@ -298,7 +294,44 @@ class BaseParameters:
         self.OffChipIOPact = {} 
 
     def create_constraints(self):
-        pass
+        # ensure that relevant parameters are positive
+        self.constraints.append(Constraint(self.V_dd >= 0, "V_dd >= 0"))
+        self.constraints.append(Constraint(self.V_th >= 0, "V_th >= 0"))
+        self.constraints.append(Constraint(self.clk_period >= 0, "clk_period >= 0"))
+        self.constraints.append(Constraint(self.f >= 0, "f >= 0"))
+        self.constraints.append(Constraint(self.u_n >= 0, "u_n >= 0"))
+        self.constraints.append(Constraint(self.tox >= 0, "tox >= 0"))
+        self.constraints.append(Constraint(self.t_1 >= 0, "t_1 >= 0"))
+        self.constraints.append(Constraint(self.L_ov >= 0, "L_ov >= 0"))
+        self.constraints.append(Constraint(self.W >= 0, "W >= 0"))
+        self.constraints.append(Constraint(self.L >= 0, "L >= 0"))
+        self.constraints.append(Constraint(self.k_gate >= 0, "k_gate >= 0"))
+        self.constraints.append(Constraint(self.Cs >= 0, "Cs >= 0"))
+        self.constraints.append(Constraint(self.d >= 0, "d >= 0"))
+        self.constraints.append(Constraint(self.k_cnt >= 0, "k_cnt >= 0"))
+        self.constraints.append(Constraint(self.area >= 0, "area >= 0"))
+        self.constraints.append(Constraint(self.L_c >= 0, "L_c >= 0"))
+        self.constraints.append(Constraint(self.H_c >= 0, "H_c >= 0"))
+        self.constraints.append(Constraint(self.H_g >= 0, "H_g >= 0"))
+        self.constraints.append(Constraint(self.beta_p_n >= 0, "beta_p_n >= 0"))
+        self.constraints.append(Constraint(self.mD_fac >= 0, "mD_fac >= 0"))
+        self.constraints.append(Constraint(self.mu_eff_n >= 0, "mu_eff_n >= 0"))
+        self.constraints.append(Constraint(self.mu_eff_p >= 0, "mu_eff_p >= 0"))
+        self.constraints.append(Constraint(self.eps_semi >= 0, "eps_semi >= 0"))
+        self.constraints.append(Constraint(self.tsemi >= 0, "tsemi >= 0"))
+        self.constraints.append(Constraint(self.Lext >= 0, "Lext >= 0"))
+        self.constraints.append(Constraint(self.Lc >= 0, "Lc >= 0"))
+        self.constraints.append(Constraint(self.eps_cap >= 0, "eps_cap >= 0"))
+        self.constraints.append(Constraint(self.rho_c_n >= 0, "rho_c_n >= 0"))
+        self.constraints.append(Constraint(self.rho_c_p >= 0, "rho_c_p >= 0"))
+        self.constraints.append(Constraint(self.Rsh_c_n >= 0, "Rsh_c_n >= 0"))
+        self.constraints.append(Constraint(self.Rsh_c_p >= 0, "Rsh_c_p >= 0"))
+        self.constraints.append(Constraint(self.Rsh_ext_n >= 0, "Rsh_ext_n >= 0"))
+        self.constraints.append(Constraint(self.Rsh_ext_p >= 0, "Rsh_ext_p >= 0"))
+        self.constraints.append(Constraint(self.FO >= 0, "FO >= 0"))
+        self.constraints.append(Constraint(self.M >= 0, "M >= 0"))
+        self.constraints.append(Constraint(self.f >= 0, "f >= 0"))
+        self.constraints.append(Constraint(self.a >= 0, "a >= 0"))
 
     def init_symbol_table(self):
         # initialize string to symbol mapping
@@ -322,18 +355,36 @@ class BaseParameters:
             "L_c": self.L_c,
             "H_c": self.H_c,
             "H_g": self.H_g,
+            "beta_p_n": self.beta_p_n,
+            "mD_fac": self.mD_fac,
+            "mu_eff_n": self.mu_eff_n,
+            "mu_eff_p": self.mu_eff_p,
+            "eps_semi": self.eps_semi,
+            "tsemi": self.tsemi,
+            "Lext": self.Lext,
+            "Lc": self.Lc,
+            "eps_cap": self.eps_cap,
+            "rho_c_n": self.rho_c_n,
+            "rho_c_p": self.rho_c_p,
+            "Rsh_c_n": self.Rsh_c_n,
+            "Rsh_c_p": self.Rsh_c_p,
+            "Rsh_ext_n": self.Rsh_ext_n,
+            "Rsh_ext_p": self.Rsh_ext_p,
+            "FO": self.FO,
+            "M": self.M,
+            "a": self.a,
             "logic_sensitivity": self.logic_sensitivity,
             "logic_resource_sensitivity": self.logic_resource_sensitivity,
-            "logic_ahmdal_limit": self.logic_ahmdal_limit,
-            "logic_resource_ahmdal_limit": self.logic_resource_ahmdal_limit,
+            "logic_amdahl_limit": self.logic_amdahl_limit,
+            "logic_resource_amdahl_limit": self.logic_resource_amdahl_limit,
             "interconnect_sensitivity": self.interconnect_sensitivity,
             "interconnect_resource_sensitivity": self.interconnect_resource_sensitivity,
-            "interconnect_ahmdal_limit": self.interconnect_ahmdal_limit,
-            "interconnect_resource_ahmdal_limit": self.interconnect_resource_ahmdal_limit,
+            "interconnect_amdahl_limit": self.interconnect_amdahl_limit,
+            "interconnect_resource_amdahl_limit": self.interconnect_resource_amdahl_limit,
             "memory_sensitivity": self.memory_sensitivity,
             "memory_resource_sensitivity": self.memory_resource_sensitivity,
-            "memory_ahmdal_limit": self.memory_ahmdal_limit,
-            "memory_resource_ahmdal_limit": self.memory_resource_ahmdal_limit,
+            "memory_amdahl_limit": self.memory_amdahl_limit,
+            "memory_resource_amdahl_limit": self.memory_resource_amdahl_limit,
             "MemReadL": self.MemReadL,
             "MemWriteL": self.MemWriteL,
             "MemReadEact": self.MemReadEact,

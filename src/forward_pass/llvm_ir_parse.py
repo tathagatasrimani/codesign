@@ -1,3 +1,13 @@
+from src import sim_util
+import logging
+logger = logging.getLogger(__name__)
+
+DEBUG = True
+
+def log_info(msg):
+    if DEBUG:
+        logger.info(msg)
+
 def store_op(instruction):
     _, _, op, _, src, _, dst = instruction.split()
     src = [src.strip(",")]
@@ -64,6 +74,14 @@ def undef_num_src_op_all_srcs(instruction):
         src[i] = src[i].strip(",")
     return {"op": op, "src": src, "dst": dst}
 
+def blackbox_arith_op(instruction, op_name):
+    dst = instruction.split()[0]
+    op = op_name
+    src = instruction.split()[6::2]
+    for i in range(len(src)):
+        src[i] = src[i].strip(",")
+    return {"op": op, "src": src, "dst": dst}
+
 def parse_op(instruction, op_name):
     if op_name == "store":
         parsed_op = store_op(instruction)
@@ -95,7 +113,13 @@ def parse_op(instruction, op_name):
         parsed_op = arith_op(instruction)
     elif op_name == "fadd":
         parsed_op = arith_op(instruction)
+    elif op_name == "fsub":
+        parsed_op = arith_op(instruction)
     elif op_name == "fdiv":
+        parsed_op = arith_op(instruction)
+    elif op_name == "fsqrt":
+        parsed_op = arith_op(instruction)
+    elif op_name == "fexp":
         parsed_op = arith_op(instruction)
     elif op_name == "call":
         parsed_op = undef_num_src_op_all_srcs(instruction)
@@ -145,9 +169,19 @@ def parse_op(instruction, op_name):
         parsed_op = arith_op(instruction)
     elif op_name == "dadd":
         parsed_op = arith_op(instruction)
+    elif op_name == "sdiv":
+        parsed_op = arith_op(instruction)
+    elif op_name == "sitofp":
+        parsed_op = unary_op(instruction)
     else:
         raise ValueError(f"Unexpected op name: {op_name} for instruction: {instruction}")
     parsed_op["type"] = "op" if op_name != "call" else "serial"
     parsed_op["call_function"] = "N/A" if op_name != "call" else parsed_op["src"][0].strip(",").strip("@")
+    if parsed_op["call_function"] in sim_util.get_module_map().keys():
+        log_info(f"Parsed {parsed_op['call_function']} as a blackbox arithmetic operation.")
+        parsed_op = blackbox_arith_op(instruction, parsed_op["call_function"])
+        parsed_op["call_function"] = "N/A"
+        parsed_op["type"] = "op"
+
     return parsed_op
     

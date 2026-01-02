@@ -25,6 +25,7 @@ from src import memory
 from src.forward_pass import ccore_update
 from src.forward_pass import schedule_vitis
 from src.forward_pass.scale_hls_port_fix import scale_hls_port_fix
+from src.generate_blackbox_files import generate_blackbox_files
 from src.forward_pass.vitis_create_netlist import create_vitis_netlist
 from src.forward_pass.vitis_parse_verbose_rpt import parse_verbose_rpt
 from src.forward_pass.vitis_merge_netlists import MergeNetlistsVitis
@@ -34,6 +35,8 @@ import time
 from test import checkpoint_controller
 
 DEBUG_YOSYS = False  # set to True to debug yosys output.
+
+FLOW_SUCCESS_MSG = "FLOW END: Design flow completed successfully for iterations = "
 
 class Codesign:
     def __init__(self, args):
@@ -84,6 +87,14 @@ class Codesign:
         logging.basicConfig(filename=f"{self.save_dir}/codesign.log", level=logging.INFO)
         logger.info(f"args: {self.cfg['args']}")
 
+        self.block_vectors_save_dir = f"{self.save_dir}/block_vectors"
+        os.makedirs(self.block_vectors_save_dir, exist_ok=True)
+
+        self.checkpoint_controller = checkpoint_controller.CheckpointController(self.cfg, self.codesign_root_dir, self.tmp_dir)
+
+        if self.cfg["args"]["checkpoint_start_step"]!= "none" and self.cfg["args"]["checkpoint_load_dir"] != "none":
+            self.checkpoint_controller.load_checkpoint()
+
         self.forward_obj = 0
         self.inverse_obj = 0
         self.openroad_testfile = self.cfg['args']['openroad_testfile']
@@ -97,6 +108,8 @@ class Codesign:
         self.inverse_pass_lag_factor = 1
 
         self.params_over_iterations = [copy.copy(self.hw.circuit_model.tech_model.base_params.tech_values)]
+        self.sensitivities_over_iterations = []
+        self.constraint_slack_over_iterations = []
         self.obj_over_iterations = []
         self.lag_factor_over_iterations = [1.0]
         self.max_unroll = 64
@@ -109,18 +122,14 @@ class Codesign:
         self.hw.write_technology_parameters(self.save_dir+"/initial_tech_params.yaml")
 
         self.iteration_count = 0
-        
-        self.checkpoint_controller = checkpoint_controller.CheckpointController(self.cfg, self.codesign_root_dir, self.tmp_dir)
-
-        if self.cfg["args"]["checkpoint_start_step"]!= "none" and self.cfg["args"]["checkpoint_load_dir"] != "none":
-            self.checkpoint_controller.load_checkpoint()
 
         # configure to start with 3 dsp and 3 bram
         self.dsp_multiplier = 1/3 * self.cfg["args"]["area"] / (3e-6 * 9e-6)
         self.bram_multiplier = 1/3 * self.cfg["args"]["area"] / (3e-6 * 9e-6)
 
         self.wire_lengths_over_iterations = []
-
+        self.wire_delays_over_iterations = []
+        self.device_delays_over_iterations = []
         self.cur_dsp_usage = 0
         self.max_rsc_reached = False
 
@@ -159,7 +168,7 @@ class Codesign:
         overwrite_args_all = vars(args)
         overwrite_args = {}
         for key, value in overwrite_args_all.items():
-            if value is not None:
+            if value is not None and value != 'none':
                 overwrite_args[key] = value
         overwrite_cfg = {"base_cfg": args.config, "args": overwrite_args}
         cfgs["overwrite_cfg"] = overwrite_cfg
@@ -277,8 +286,8 @@ class Codesign:
         with open(self.config_json_path, "r") as f:
             config = json.load(f)
         if unlimited:
-            config["dsp"] = 10000
-            config["bram"] = 10000
+            config["dsp"] = 150
+            config["bram"] = 150
         else:
             config["dsp"] = int(self.cfg["args"]["area"] / (self.hw.circuit_model.tech_model.param_db["A_gate"].xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf() * self.dsp_multiplier))
             config["bram"] = int(self.cfg["args"]["area"] / (self.hw.circuit_model.tech_model.param_db["A_gate"].xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf() * self.bram_multiplier))
@@ -328,7 +337,7 @@ class Codesign:
                 source mlir_venv/bin/activate
                 cd {os.path.join(os.path.dirname(__file__), "..", save_dir)}
                 python3 {self.benchmark_name}.py > {self.benchmark_name}.mlir 
-                scalehls-opt {self.benchmark_name}.mlir -hida-pytorch-pipeline=\"top-func={self.vitis_top_function} loop-tile-size=8 loop-unroll-factor=4\" | scalehls-translate -scalehls-emit-hlscpp -emit-vitis-directives > {os.path.join(os.path.dirname(__file__), "..", save_dir)}/{self.benchmark_name}.cpp
+                {opt_cmd} | scalehls-translate -scalehls-emit-hlscpp -emit-vitis-directives > {os.path.join(os.path.dirname(__file__), "..", save_dir)}/{self.benchmark_name}.cpp
                 deactivate
                 pwd
                 '''
@@ -345,7 +354,7 @@ class Codesign:
                 source mlir_venv/bin/activate
                 cd {os.path.join(os.path.dirname(__file__), "..", save_dir)}
                 cgeist {self.benchmark_name}.c \
-                                                -function={self.benchmark_name}\
+                                                -function='*'\
                                                 -S \
                                                 -memref-fullrank \
                                                 -raise-scf-to-affine \
@@ -378,20 +387,20 @@ class Codesign:
         logger.info(f"time to run scaleHLS: {time.time()-start_time}")
 
     def parse_design_space_for_mlir(self, read_dir):
-        df = pd.read_csv(f"{read_dir}/{self.benchmark_name}_space.csv")
+        df = pd.read_csv(f"{read_dir}/{self.vitis_top_function}_space.csv")
         mlir_idx_that_exist = []
         for i in range(len(df['dsp'].values)):
-            file_exists = os.path.exists(f"{read_dir}/{self.benchmark_name}_pareto_{i}.mlir")
+            file_exists = os.path.exists(f"{read_dir}/{self.vitis_top_function}_pareto_{i}.mlir")
             if file_exists:
                 mlir_idx_that_exist.append(i)
             if df['dsp'].values[i] <= self.cur_dsp_usage and file_exists:
-                return f"{read_dir}/{self.benchmark_name}_pareto_{i}.mlir", i
+                return f"{read_dir}/{self.vitis_top_function}_pareto_{i}.mlir", i
         if len(mlir_idx_that_exist) == 0:
             raise Exception(f"No Pareto solutions found for {self.benchmark_name} with dsp usage {self.cur_dsp_usage}")
-        return f"{read_dir}/{self.benchmark_name}_pareto_{mlir_idx_that_exist[-1]}.mlir", mlir_idx_that_exist[-1]
+        return f"{read_dir}/{self.vitis_top_function}_pareto_{mlir_idx_that_exist[-1]}.mlir", mlir_idx_that_exist[-1]
 
     def parse_dsp_usage_and_latency(self, mlir_idx):
-        df = pd.read_csv(f'''{os.path.join(os.path.dirname(__file__), "..", self.benchmark_setup_dir)}/{self.benchmark_name}_space.csv''')
+        df = pd.read_csv(f'''{os.path.join(os.path.dirname(__file__), "..", self.benchmark_setup_dir)}/function_hier_output/{self.vitis_top_function}_space.csv''')
         logger.info(f"dsp usage: {df['dsp'].values[mlir_idx]}, latency: {df['cycle'].values[mlir_idx]}")
         return df['dsp'].values[mlir_idx], df['cycle'].values[mlir_idx]
 
@@ -401,11 +410,11 @@ class Codesign:
         print(f"Current working directory in vitis parse data: {os.getcwd()}")
 
         if self.no_memory:
-            allowed_functions_netlist = {"Add16", "Mult16"}
-            allowed_functions_schedule = {"Add16", "Mult16", "Call", "II"}
+            allowed_functions_netlist = set(self.hw.circuit_model.circuit_values["area"].keys()).difference({"N/A", "Buf", "MainMem", "Call"})
+            allowed_functions_schedule = allowed_functions_netlist.union({"Call", "II"})
         else:
-            allowed_functions_netlist = {"Add16", "Mult16", "Buf", "MainMem"}
-            allowed_functions_schedule = {"Add16", "Mult16", "Call", "II", "Buf", "MainMem"}
+            allowed_functions_netlist = set(self.hw.circuit_model.circuit_values["area"].keys()).difference({"N/A", "Call"})
+            allowed_functions_schedule = allowed_functions_netlist.union({"Call", "II"})
 
         parse_results_dir = f"{save_dir}/parse_results"
 
@@ -448,23 +457,38 @@ class Codesign:
             
             logger.info("Creating DFGs from Vitis CDFGs")
             schedule_parser.create_dfgs()
-            self.hw.scheduled_dfgs = {basic_block_name: schedule_parser.basic_blocks[basic_block_name]["G_standard_with_wire_ops"] for basic_block_name in schedule_parser.basic_blocks}
-            self.hw.loop_1x_graphs = {basic_block_name: schedule_parser.basic_blocks[basic_block_name]["G_loop_1x_standard_with_wire_ops"] for basic_block_name in schedule_parser.basic_blocks if "G_loop_1x" in schedule_parser.basic_blocks[basic_block_name]}
+            self.hw.scheduled_dfgs = {basic_block_name: schedule_parser.basic_blocks[basic_block_name].dfg.G_standard_with_wire_ops for basic_block_name in schedule_parser.basic_blocks}
+            for basic_block_name in schedule_parser.basic_blocks:
+                for loop_name in schedule_parser.basic_blocks[basic_block_name].dfg.loop_dfgs:
+                    for iter_num in schedule_parser.basic_blocks[basic_block_name].dfg.loop_dfgs[loop_name]:
+                        self.hw.loop_1x_graphs[loop_name] = {
+                            True: schedule_parser.basic_blocks[basic_block_name].dfg.loop_dfgs[loop_name][iter_num][True].G_standard_with_wire_ops,
+                            False: schedule_parser.basic_blocks[basic_block_name].dfg.loop_dfgs[loop_name][iter_num][False].G_standard_with_wire_ops
+                        }
+
             #self.hw.loop_2x_graphs = {basic_block_name: schedule_parser.basic_blocks[basic_block_name]["G_loop_2x_standard"] for basic_block_name in schedule_parser.basic_blocks if "G_loop_2x" in schedule_parser.basic_blocks[basic_block_name]}
-            logger.info(f"scheduled dfgs: {self.hw.scheduled_dfgs}")
-            logger.info(f"loop 1x graphs: {self.hw.loop_1x_graphs}")
 
             logger.info("Vitis schedule parsing complete")
             logger.info(f"time to parse vitis schedule: {time.time()-start_time}")
         else:
             for file in os.listdir(parse_results_dir):
                 if os.path.isdir(os.path.join(parse_results_dir, file)):
+                    if file in sim_util.get_module_map().keys(): # dont parse blackboxed functions
+                        continue
                     self.hw.scheduled_dfgs[file] = nx.read_gml(f"{parse_results_dir}/{file}/{file}_graph_standard_with_wire_ops.gml")
-                    if os.path.exists(f"{parse_results_dir}/{file}/{file}_graph_loop_1x_standard.gml"):
-                        self.hw.loop_1x_graphs[file] = nx.read_gml(f"{parse_results_dir}/{file}/{file}_graph_loop_1x_standard_with_wire_ops.gml")
-                        #assert os.path.exists(f"{parse_results_dir}/{file}/{file}_graph_loop_2x_standard.gml")
-                        #self.hw.loop_2x_graphs[file] = nx.read_gml(f"{parse_results_dir}/{file}/{file}_graph_loop_2x_standard_with_wire_ops.gml")
+                    for subfile in os.listdir(f"{parse_results_dir}/{file}"):
+                        logger.info(f"subfile: {subfile}")
+                        if subfile.endswith("rsc_delay_only_graph_standard_with_wire_ops_1.gml"):
+                            loop_name = subfile.replace("_rsc_delay_only_graph_standard_with_wire_ops_1.gml", "")
+                            logger.info(f"matched resource constrained delay only graph for loop {loop_name}")
+                            self.hw.loop_1x_graphs[loop_name] = {
+                                True: nx.read_gml(f"{parse_results_dir}/{file}/{subfile}"),
+                                False: nx.read_gml(f"{parse_results_dir}/{file}/{subfile.replace('rsc_delay_only_', '')}")
+                            }
             logger.info("Skipping Vitis schedule parsing")
+        
+        logger.info(f"scheduled dfgs: {self.hw.scheduled_dfgs}")
+        logger.info(f"loop 1x graphs: {self.hw.loop_1x_graphs}")
 
         self.checkpoint_controller.check_end_checkpoint("schedule", self.iteration_count)
 
@@ -494,17 +518,16 @@ class Codesign:
         Runs Vitis version of forward pass, updates the memory configuration, and logs the output.
         """
         self.vitis_top_function = self.benchmark_name if not self.cfg["args"]["pytorch"] else "forward"
+        self.scalehls_pipeline = "hida-pytorch-dse-pipeline" if self.cfg["args"]["pytorch"] else "scalehls-dse-pipeline"
 
         # prep before running scalehls
         self.set_resource_constraint_scalehls(unlimited=setup)
         if setup:
-            opt_cmd = f'''scalehls-opt {self.benchmark_name}.mlir -scalehls-dse-pipeline=\"top-func={self.vitis_top_function} target-spec={os.path.join(os.path.dirname(__file__), "..", self.config_json_path)}\"'''
+            opt_cmd = f'''scalehls-opt {self.benchmark_name}.mlir -{self.scalehls_pipeline}=\"top-func={self.vitis_top_function} target-spec={os.path.join(os.path.dirname(__file__), "..", self.config_json_path)}\"'''
             mlir_idx = 0
-        elif not self.cfg["args"]["pytorch"]: # pytorch scalehls dse not yet working
-            mlir_file, mlir_idx = self.parse_design_space_for_mlir(os.path.join(os.path.dirname(__file__), "..", f"{self.tmp_dir}/benchmark_setup"))
-            opt_cmd = f"cat {mlir_file}"
         else:
-            opt_cmd = ""
+            mlir_file, mlir_idx = self.parse_design_space_for_mlir(os.path.join(os.path.dirname(__file__), "..", f"{self.tmp_dir}/benchmark_setup/function_hier_output"))
+            opt_cmd = f"cat {mlir_file}"
 
         # run scalehls
         if (self.checkpoint_controller.check_checkpoint("scalehls", self.iteration_count) and not setup) or (self.checkpoint_controller.check_checkpoint("setup", self.iteration_count) and setup) and not self.max_rsc_reached:
@@ -513,14 +536,7 @@ class Codesign:
             logger.info("Skipping ScaleHLS")
 
         # set scale factors if in setup or first iteration
-        if self.cfg["args"]["pytorch"]:
-            # TODO replace once pytorch dse working
-            if setup:
-                dsp_usage, latency = 10, 10
-            else:
-                dsp_usage, latency = 1, 1
-        else:
-            dsp_usage, latency = self.parse_dsp_usage_and_latency(mlir_idx)
+        dsp_usage, latency = self.parse_dsp_usage_and_latency(mlir_idx)
         if setup:
             self.max_dsp = dsp_usage
             self.max_latency = latency
@@ -538,11 +554,12 @@ class Codesign:
 
         os.chdir(os.path.join(os.path.dirname(__file__), "..", save_dir))
         scale_hls_port_fix(f"{self.benchmark_name}.cpp", self.benchmark_name, self.cfg["args"]["pytorch"])
+        generate_blackbox_files(f"{self.benchmark_name}.cpp", os.path.join(os.getcwd(), "blackbox_files"), os.path.join(os.getcwd(), "tcl_script.tcl"), self.hw.circuit_model.circuit_values["latency"], self.clk_period)
         logger.info(f"Vitis top function: {self.vitis_top_function}")
 
 
         import time
-        command = ["vitis_hls", "-f", "tcl_script.tcl"]
+        command = ["vitis_hls", "-f", "tcl_script_new.tcl"]
         if self.checkpoint_controller.check_checkpoint("vitis", self.iteration_count) and not self.max_rsc_reached:
             start_time = time.time()
             # Start the process and write output to vitis_hls.log
@@ -694,6 +711,7 @@ class Codesign:
                     shutil.rmtree(self.benchmark_dir, ignore_errors=True)
                     time.sleep(10)
             shutil.copytree(self.benchmark, self.benchmark_dir)
+            shutil.copy(os.path.join(self.benchmark, "../..", "arith_ops.c"), os.path.join(self.benchmark_dir, "arith_ops.c"))
         else:
             logger.info("Skipping benchmark directory reset.")
 
@@ -709,41 +727,43 @@ class Codesign:
             self.vitis_forward_pass(save_dir=save_dir, iteration_count=iteration_count, setup=setup)
         if setup: return
 
-        if self.checkpoint_controller.check_checkpoint("pd", iteration_count) and not self.max_rsc_reached:
-            # calculate wire parasitics
-            self.calculate_wire_parasitics()
+        # calculate wire parasitics 
+        # NOTE: we don't check the checkpoint status here because it is handled in the function call (see run_openroad variable)
+        self.calculate_wire_parasitics()
 
-            ## create the obj equation 
-            self.hw.calculate_objective()
+        ## create the obj equation 
+        self.hw.calculate_objective(log_top_vectors=True)
+        self.hw.dump_top_vectors_to_file(f"{self.block_vectors_save_dir}/block_vectors_forward_pass_{iteration_count}.json")
 
-            if iteration_count == 0:
-                self.params_over_iterations[0].update(
-                    {
-                        self.hw.circuit_model.tech_model.base_params.logic_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.logic_sensitivity],
-                        self.hw.circuit_model.tech_model.base_params.logic_resource_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.logic_resource_sensitivity],
-                        self.hw.circuit_model.tech_model.base_params.logic_ahmdal_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.logic_ahmdal_limit],
-                        self.hw.circuit_model.tech_model.base_params.logic_resource_ahmdal_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.logic_resource_ahmdal_limit],
-                        self.hw.circuit_model.tech_model.base_params.interconnect_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.interconnect_sensitivity],
-                        self.hw.circuit_model.tech_model.base_params.interconnect_resource_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.interconnect_resource_sensitivity],
-                        self.hw.circuit_model.tech_model.base_params.interconnect_ahmdal_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.interconnect_ahmdal_limit],
-                        self.hw.circuit_model.tech_model.base_params.interconnect_resource_ahmdal_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.interconnect_resource_ahmdal_limit],
-                        self.hw.circuit_model.tech_model.base_params.memory_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.memory_sensitivity],
-                        self.hw.circuit_model.tech_model.base_params.memory_resource_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.memory_resource_sensitivity],
-                        self.hw.circuit_model.tech_model.base_params.memory_ahmdal_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.memory_ahmdal_limit],
-                        self.hw.circuit_model.tech_model.base_params.memory_resource_ahmdal_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.memory_resource_ahmdal_limit],
-                    }
-                )
+        if iteration_count == 0:
+            self.params_over_iterations[0].update(
+                {
+                    self.hw.circuit_model.tech_model.base_params.logic_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.logic_sensitivity],
+                    self.hw.circuit_model.tech_model.base_params.logic_resource_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.logic_resource_sensitivity],
+                    self.hw.circuit_model.tech_model.base_params.logic_amdahl_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.logic_amdahl_limit],
+                    self.hw.circuit_model.tech_model.base_params.logic_resource_amdahl_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.logic_resource_amdahl_limit],
+                    self.hw.circuit_model.tech_model.base_params.interconnect_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.interconnect_sensitivity],
+                    self.hw.circuit_model.tech_model.base_params.interconnect_resource_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.interconnect_resource_sensitivity],
+                    self.hw.circuit_model.tech_model.base_params.interconnect_amdahl_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.interconnect_amdahl_limit],
+                    self.hw.circuit_model.tech_model.base_params.interconnect_resource_amdahl_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.interconnect_resource_amdahl_limit],
+                    self.hw.circuit_model.tech_model.base_params.memory_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.memory_sensitivity],
+                    self.hw.circuit_model.tech_model.base_params.memory_resource_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.memory_resource_sensitivity],
+                    self.hw.circuit_model.tech_model.base_params.memory_amdahl_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.memory_amdahl_limit],
+                    self.hw.circuit_model.tech_model.base_params.memory_resource_amdahl_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.memory_resource_amdahl_limit],
+                }
+            )
+            self.opt.initialize_max_system_power(sim_util.xreplace_safe((self.hw.total_passive_energy + self.hw.total_active_energy)/self.hw.execution_time, self.hw.circuit_model.tech_model.base_params.tech_values))
 
-            """if setup:
-                self.max_parallel_initial_objective_value = self.hw.obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf()
-                print(f"objective value with max parallelism: {self.max_parallel_initial_objective_value}")
-            elif iteration_count == 0:
-                self.hw.circuit_model.tech_model.max_speedup_factor = self.hw.obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf() / self.max_parallel_initial_objective_value
-                self.hw.circuit_model.tech_model.max_area_increase_factor = self.max_dsp / self.cur_dsp_usage
-                print(f"max parallelism factor: {self.hw.circuit_model.tech_model.max_speedup_factor}")
-                self.hw.circuit_model.tech_model.init_scale_factors(self.hw.circuit_model.tech_model.max_speedup_factor, self.hw.circuit_model.tech_model.max_area_increase_factor)"""
+        """if setup:
+            self.max_parallel_initial_objective_value = self.hw.obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf()
+            print(f"objective value with max parallelism: {self.max_parallel_initial_objective_value}")
+        elif iteration_count == 0:
+            self.hw.circuit_model.tech_model.max_speedup_factor = self.hw.obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf() / self.max_parallel_initial_objective_value
+            self.hw.circuit_model.tech_model.max_area_increase_factor = self.max_dsp / self.cur_dsp_usage
+            print(f"max parallelism factor: {self.hw.circuit_model.tech_model.max_speedup_factor}")
+            self.hw.circuit_model.tech_model.init_scale_factors(self.hw.circuit_model.tech_model.max_speedup_factor, self.hw.circuit_model.tech_model.max_area_increase_factor)"""
 
-            self.hw.display_objective("after forward pass")
+        self.hw.display_objective("after forward pass")
 
         self.checkpoint_controller.check_end_checkpoint("pd", self.iteration_count)
         self.obj_over_iterations.append(sim_util.xreplace_safe(self.hw.obj, self.hw.circuit_model.tech_model.base_params.tech_values))
@@ -792,7 +812,13 @@ class Codesign:
         # self.hw.netlist = netlist_dfg
 
         # update netlist and scheduled dfg with wire parasitics
-        run_openroad = (self.checkpoint_controller.check_checkpoint("pd", self.iteration_count) and not self.max_rsc_reached) and not os.path.exists(f"{self.tmp_dir}/pd_{self.cur_dsp_usage}_dsp")
+        run_openroad = (
+            self.cfg["args"]["always_run_openroad"] or (
+            self.checkpoint_controller.check_checkpoint("pd", self.iteration_count) 
+            and not self.max_rsc_reached
+            and not os.path.exists(f"{self.tmp_dir}/pd_{self.cur_dsp_usage}_dsp")
+            )
+        )
         if os.path.exists(f"{self.tmp_dir}/pd_{self.cur_dsp_usage}_dsp"):
             shutil.rmtree(f"{self.tmp_dir}/pd", ignore_errors=True)
             shutil.copytree(f"{self.tmp_dir}/pd_{self.cur_dsp_usage}_dsp", f"{self.tmp_dir}/pd")
@@ -904,9 +930,14 @@ class Codesign:
 
     def log_all_to_file(self, iter_number):
         wire_lengths={}
+        wire_delays={}
         for edge in self.hw.circuit_model.edge_to_nets:
             wire_lengths[edge] = self.hw.circuit_model.wire_length(edge)
+            wire_delays[edge] = self.hw.circuit_model.wire_delay(edge)
         self.wire_lengths_over_iterations.append(wire_lengths)
+        self.wire_delays_over_iterations.append(wire_delays)
+        device_delay = sim_util.xreplace_safe(self.hw.circuit_model.tech_model.delay, self.hw.circuit_model.tech_model.base_params.tech_values)
+        self.device_delays_over_iterations.append(device_delay)
         nx.write_gml(
             self.hw.netlist,
             f"{self.save_dir}/netlist_{iter_number}.gml",
@@ -919,7 +950,7 @@ class Codesign:
         )
         self.write_back_params(f"{self.save_dir}/tech_params_{iter_number}.yaml")
         shutil.copy(f"{self.tmp_dir}/ipopt_out.txt", f"{self.save_dir}/ipopt_{iter_number}.txt")
-        if not os.path.exists(f"{self.tmp_dir}/pd_{self.cur_dsp_usage}_dsp"):
+        if not os.path.exists(f"{self.tmp_dir}/pd_{self.cur_dsp_usage}_dsp") and os.path.exists(f"{self.tmp_dir}/pd"):
             shutil.copytree(f"{self.tmp_dir}/pd", f"{self.tmp_dir}/pd_{self.cur_dsp_usage}_dsp")
         if os.path.exists(f"{self.tmp_dir}/pd/results/design_snapshot-tcl.png"):
             shutil.copy(f"{self.tmp_dir}/pd/results/design_snapshot-tcl.png", f"{self.save_dir}/design_snapshot_{iter_number}.png")
@@ -934,6 +965,13 @@ class Codesign:
             f"{self.save_dir}/circuit_values_{iter_number}.yaml"
         )
         self.params_over_iterations.append(copy.copy(self.hw.circuit_model.tech_model.base_params.tech_values))
+        self.sensitivities_over_iterations.append(copy.copy(self.hw.sensitivities))
+        self.constraint_slack_over_iterations.append({})
+        self.hw.dump_top_vectors_to_file(f"{self.block_vectors_save_dir}/block_vectors_inverse_pass_{iter_number}.json")
+        for constraint in self.opt.constraints:
+            if constraint.label in self.hw.constraints_to_plot:
+                assert len(self.params_over_iterations) > 1, "params over iterations has less than 2 elements"
+                self.constraint_slack_over_iterations[-1][constraint.label] = sim_util.xreplace_safe(constraint.slack, self.params_over_iterations[-2])
 
     def save_dat(self):
         # Save tech node info to another file prefixed by prev_ so we can restore
@@ -962,7 +1000,7 @@ class Codesign:
     def cleanup(self):
         self.restore_dat()
 
-    def end_of_run_plots(self, obj_over_iterations, lag_factor_over_iterations, params_over_iterations, wire_lengths_over_iterations):
+    def end_of_run_plots(self, obj_over_iterations, lag_factor_over_iterations, params_over_iterations, wire_lengths_over_iterations, wire_delays_over_iterations, device_delays_over_iterations, sensitivities_over_iterations, constraint_slack_over_iterations, visualize_block_vectors=False):
         assert len(params_over_iterations) > 1 
         obj = "Energy Delay Product"
         units = "nJ*ns"
@@ -972,19 +1010,29 @@ class Codesign:
         elif self.obj_fn == "delay":
             obj = "Delay"
             units = "ns"
-        trend_plotter = trend_plot.TrendPlot(self, params_over_iterations, obj_over_iterations, lag_factor_over_iterations, wire_lengths_over_iterations, self.save_dir + "/figs", obj, units, self.obj_fn)
+        trend_plotter = trend_plot.TrendPlot(self, params_over_iterations, obj_over_iterations, lag_factor_over_iterations, wire_lengths_over_iterations, wire_delays_over_iterations, device_delays_over_iterations, sensitivities_over_iterations, constraint_slack_over_iterations, self.save_dir + "/figs", obj, units, self.obj_fn)
         logger.info(f"plotting wire lengths over generations")
         trend_plotter.plot_wire_lengths_over_generations()
+        logger.info(f"plotting wire delays over generations")
+        trend_plotter.plot_wire_delays_over_generations()
         logger.info(f"plotting params over generations")
         trend_plotter.plot_params_over_generations()
         logger.info(f"plotting obj over generations")
         trend_plotter.plot_obj_over_generations()
         logger.info(f"plotting lag factor over generations")
         trend_plotter.plot_lag_factor_over_generations()
+        logger.info(f"plotting sensitivities over generations")
+        trend_plotter.plot_sensitivities_over_generations()
+        logger.info(f"plotting constraint slack over generations")
+        trend_plotter.plot_constraint_slack_over_generations()
+        if visualize_block_vectors:
+            logger.info(f"plotting block vectors over generations")
+            trend_plotter.plot_block_vectors_over_generations()
 
     def setup(self):
         if not os.path.exists(self.benchmark_setup_dir):
             shutil.copytree(self.benchmark, self.benchmark_setup_dir)
+            shutil.copy(os.path.join(self.benchmark, "../..", "arith_ops.c"), os.path.join(self.benchmark_setup_dir, "arith_ops.c"))
         assert os.path.exists(self.config_json_path_scalehls)
         shutil.copy(self.config_json_path_scalehls, self.config_json_path)
         self.forward_pass(0, save_dir=self.benchmark_setup_dir, setup=True)
@@ -1006,7 +1054,7 @@ class Codesign:
             logger.info(f"time to update state after inverse pass iteration {self.iteration_count}: {time.time()-start_time_after_inverse_pass}")
             logger.info(f"time to execute iteration {self.iteration_count}: {time.time()-start_time}")
             self.iteration_count += 1
-            self.end_of_run_plots(self.obj_over_iterations, self.lag_factor_over_iterations, self.params_over_iterations, self.wire_lengths_over_iterations)
+            self.end_of_run_plots(self.obj_over_iterations, self.lag_factor_over_iterations, self.params_over_iterations, self.wire_lengths_over_iterations, self.wire_delays_over_iterations, self.device_delays_over_iterations, self.sensitivities_over_iterations, self.constraint_slack_over_iterations, visualize_block_vectors=False)
             logger.info(f"current dsp usage: {self.cur_dsp_usage}, max dsp: {self.max_dsp}")
             if self.cur_dsp_usage == self.max_dsp:
                 logger.info("Resource constraints have been reached, will skip forward pass steps from now on.")
@@ -1014,6 +1062,8 @@ class Codesign:
 
         # cleanup
         self.cleanup()
+
+        print(f"{FLOW_SUCCESS_MSG}{self.iteration_count}")
 
         
 def main(args):
@@ -1024,8 +1074,10 @@ def main(args):
         codesign_module.execute(codesign_module.cfg["args"]["num_iters"])
     finally:
         os.chdir(os.path.join(os.path.dirname(__file__), ".."))
+        # dump latest tech params to tmp dir for replayability
+        codesign_module.write_back_params(f"{codesign_module.tmp_dir}/tech_params_latest.yaml")
         
-        codesign_module.end_of_run_plots(codesign_module.obj_over_iterations, codesign_module.lag_factor_over_iterations, codesign_module.params_over_iterations, codesign_module.wire_lengths_over_iterations)
+        codesign_module.end_of_run_plots(codesign_module.obj_over_iterations, codesign_module.lag_factor_over_iterations, codesign_module.params_over_iterations, codesign_module.wire_lengths_over_iterations, codesign_module.wire_delays_over_iterations, codesign_module.device_delays_over_iterations, codesign_module.sensitivities_over_iterations, codesign_module.constraint_slack_over_iterations, visualize_block_vectors=True)
         codesign_module.cleanup()
 
 if __name__ == "__main__":
@@ -1101,8 +1153,9 @@ if __name__ == "__main__":
     parser.add_argument("--hls_tool", type=str, help="hls tool to use")
     parser.add_argument("--config", type=str, default="default", help="config to use")
     parser.add_argument("--checkpoint_load_dir", type=str, help="directory to load checkpoint")
-    parser.add_argument("--checkpoint_save_dir", type=str, help="directory to save checkpoint", default="none")
+    parser.add_argument("--checkpoint_save_dir", type=str, help="directory to save checkpoint")
     parser.add_argument("--checkpoint_start_step", type=str, help="checkpoint step to resume from (the flow will start normal execution AFTER this step)")
+    parser.add_argument("--always_run_openroad", type=bool, help="always run openroad, even if max rsc reached")
     parser.add_argument("--stop_at_checkpoint", type=str, help="checkpoint step to stop at (will complete this step and then stop)")
     parser.add_argument("--workload_size", type=int, help="workload size to use, such as the dimension of the matrix for gemm. Only applies to certain benchmarks")
     parser.add_argument("--opt_pipeline", type=str, help="optimization pipeline to use for inverse pass")

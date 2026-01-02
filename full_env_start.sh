@@ -36,6 +36,12 @@ else
     echo ">>> Performing incremental build"
 fi
 
+if [[ "${GITHUB_ACTIONS:-}" == "true" && "${OPENROAD_PRE_INSTALLED:-0}" == "1" ]] || [[ -f "openroad_interface/OpenROAD/build/src/openroad" ]]; then
+    echo "We likely will not need SUDO permissions for this build."
+else
+    echo "SUDO permissions may be required for this build. Enter SUDO password if prompted."
+    sudo -v
+fi
 ################## PARSE UNIVERSITY ARGUMENT ##################
 
 host=$(hostname)
@@ -140,27 +146,32 @@ source "$SETUP_SCRIPTS_FOLDER"/scale_hls_setup.sh $FORCE_FULL # setup scalehls
 ################### SET UP CONDA ENVIRONMENT ##################
 # Check if the directory miniconda3 exists
 if [ -d "miniconda3" ]; then
-    export PATH="$(pwd)/miniconda3/bin:$PATH"
+    export PATH="$(pwd):$PATH"
     source miniconda3/etc/profile.d/conda.sh
-else
+else   
     # Install and set up environment
     wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
     bash Miniconda3-latest-Linux-x86_64.sh -b -p "$(pwd)/miniconda3"
-    export PATH="$(pwd)/miniconda3/bin:$PATH"
+    export PATH="$(pwd):$PATH"
     source miniconda3/etc/profile.d/conda.sh
-    conda env create -f "$SETUP_SCRIPTS_FOLDER"/environment_simplified.yml
+
+    ## Accept conda TOS
+    conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main
+    conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r
+
+    conda env create -f "$SETUP_SCRIPTS_FOLDER"/environment_simplified.yml -y
 
     # create symlinks for g++-13 needed by cacti
     cd miniconda3/envs/codesign/bin
-    ln -s x86_64-conda-linux-gnu-gcc gcc-13
-    ln -s x86_64-conda-linux-gnu-g++ g++-13
+    ln -sf x86_64-conda-linux-gnu-gcc gcc-13
+    ln -sf x86_64-conda-linux-gnu-g++ g++-13
     cd ../../../..
 fi
 
 
 if [[ $FORCE_FULL -eq 1 ]]; then
     ## update conda packages
-    conda update -n base -c defaults conda # update conda itself
+    conda update -n base -c defaults conda -y # update conda itself
     conda config --set channel_priority strict
     conda env update -f "$SETUP_SCRIPTS_FOLDER"/environment_simplified.yml --prune # update the environment
 fi
@@ -207,6 +218,7 @@ fi
 ############### Add useful alisas ###############
 alias create_checkpoint="python3 -m test.checkpoint_controller"
 alias run_codesign="python3 -m src.codesign"
+alias run_tech_test="python3 -m test.experiments.dennard_multi_core"
 
 alias clean_checkpoints="rm -rf ~/test/saved_checkpoints/*"
 alias clean_logs="rm -rf ~/logs/*"
