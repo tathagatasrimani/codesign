@@ -4,6 +4,7 @@ import re
 from collections import defaultdict
 import matplotlib.pyplot as plt
 import csv
+import yaml
 
 def extract_execution_time_and_edp(log_path):
     """Extract execution_time and EDP from run_codesign.log"""
@@ -41,12 +42,10 @@ def extract_actual_dsp_from_csv(entry_path, benchmark_name, max_dsp):
     Finds the max DSP value that is <= max_dsp.
     """
     # Extract the kernel name (e.g., "kernel_3mm" from "benchmark_3mm_test_auto_no_wires")
-    # Pattern: benchmark_<kernel_name>_test_auto_no_wires
     match = re.search(r"benchmark_(.+?)_test", benchmark_name)
     if match:
         kernel_name = match.group(1)
     else:
-        # Fallback: just remove "benchmark_" prefix
         kernel_name = benchmark_name.replace('benchmark_', '')
     
     # Construct path to CSV file
@@ -60,7 +59,6 @@ def extract_actual_dsp_from_csv(entry_path, benchmark_name, max_dsp):
     )
     
     if not os.path.exists(csv_path):
-        print(f"Warning: CSV not found at {csv_path}")
         return None
     
     try:
@@ -83,14 +81,27 @@ def extract_actual_dsp_from_csv(entry_path, benchmark_name, max_dsp):
             return max(valid_dsps)
         
     except Exception as e:
-        print(f"Error reading CSV {csv_path}: {e}")
+        pass
     
     return None
 
-def scan_directory(root_dir):
+def get_sweep_label(directory_name):
+    """Convert directory name to sweep label"""
+    if "with_wires" in directory_name.lower():
+        return "Wires cost estimated"
+    elif "fixed_wires" in directory_name.lower():
+        return "Fixed wire cost"
+    else:
+        return "No wires"
+
+def normalize_benchmark_name(benchmark):
+    """Strip wire-cost suffixes so sweeps group together."""
+    return re.sub(r'_(no|with|fixed)_wires', '', benchmark)
+
+def scan_directory(root_dir, sweep_label):
     """
     Scan root_dir for subdirectories, extract DSP values, execution times, and EDP.
-    Returns: list of (actual_dsp_used, execution_time, edp, benchmark_name) tuples
+    Returns: list of (actual_dsp_used, execution_time, edp, benchmark_name, sweep_label, norm_benchmark)
     """
     results = []
     
@@ -111,70 +122,105 @@ def scan_directory(root_dir):
         
         # Extract benchmark name (everything before _dsp)
         benchmark = entry.rsplit("_dsp", 1)[0]
+        norm_benchmark = normalize_benchmark_name(benchmark)
         
         # Look for run_codesign.log
         log_path = os.path.join(entry_path, "run_codesign.log")
         exec_time, edp = extract_execution_time_and_edp(log_path)
         
         if exec_time is None or edp is None:
-            print(f"Warning: Could not extract execution_time or EDP from {entry}")
             continue
         
         # Extract actual DSP used from CSV
         actual_dsp_used = extract_actual_dsp_from_csv(entry_path, benchmark, max_dsp)
         
         if actual_dsp_used is None:
-            print(f"Warning: Could not extract actual DSP from CSV for {entry}")
             continue
         
-        results.append((actual_dsp_used, exec_time, edp, benchmark))
-        print(f"Found: {entry} -> Max DSP: {max_dsp}, Actual DSP Used: {actual_dsp_used}, Exec Time: {exec_time:.2f}, EDP: {edp:.2e}")
+        results.append((actual_dsp_used, exec_time, edp, benchmark, sweep_label, norm_benchmark))
+        print(f"[{sweep_label}] Found: {entry} -> DSP: {actual_dsp_used}, Exec Time: {exec_time:.2f}, EDP: {edp:.2e}")
     
     return results
 
-def group_by_benchmark(results):
-    """Group results by benchmark name"""
-    grouped = defaultdict(list)
-    for dsp, exec_time, edp, benchmark in results:
-        grouped[benchmark].append((dsp, exec_time, edp))
+def group_by_benchmark_and_sweep(results):
+    """Group results by normalized benchmark name and sweep label"""
+    grouped = defaultdict(lambda: defaultdict(list))
+    for dsp, exec_time, edp, benchmark, sweep_label, norm_bench in results:
+        grouped[norm_bench][sweep_label].append((dsp, exec_time, edp))
     
-    # Sort by DSP value
-    for b in grouped:
-        grouped[b].sort(key=lambda x: x[0])
+    # Sort by DSP value within each group
+    for norm_bench in grouped:
+        for sweep_label in grouped[norm_bench]:
+            grouped[norm_bench][sweep_label].sort(key=lambda x: x[0])
     
     return grouped
 
-def plot_results(grouped_data, output_dir):
-    """Plot execution time vs actual DSP used for each benchmark"""
-    for benchmark, data in grouped_data.items():
-        dsps = [d[0] for d in data]
-        times = [d[1] for d in data]
-        
+def plot_execution_time_results(grouped_data, output_dir):
+    """Single plot per normalized benchmark: Execution time vs DSP with both sweep curves"""
+    for norm_bench, sweep_data in grouped_data.items():
         plt.figure(figsize=(10, 6))
-        plt.plot(dsps, times, marker="o", linewidth=2, markersize=6)
-        plt.title(f"{benchmark} — Actual DSP Used vs Execution Time")
-        plt.xlabel("Actual DSP Used (from CSV)")
-        plt.ylabel("Execution Time (seconds)")
+
+        colors = {
+            'No wires': '#1f77b4',
+            'Wires cost estimated': '#ff7f0e',
+            'Fixed wire cost': '#2ca02c'
+        }
+        markers = {
+            'No wires': 'o',
+            'Wires cost estimated': 's',
+            'Fixed wire cost': '^'
+        }
+
+        # one figure; add all sweeps as separate curves
+        for sweep_label, data in sorted(sweep_data.items()):
+            dsps = [d[0] for d in data]
+            times = [d[1] for d in data]
+
+            plt.plot(
+                dsps,
+                times,
+                marker=markers.get(sweep_label, 'o'),
+                linewidth=2,
+                markersize=7,
+                label=sweep_label,
+                color=colors.get(sweep_label)
+            )
+
+        plt.title(f"{norm_bench} — DSP vs Execution Time", fontsize=13, fontweight='bold')
+        plt.xlabel("Actual DSP Used", fontsize=11)
+        plt.ylabel("Execution Time (seconds)", fontsize=11)
         plt.grid(True, alpha=0.3)
-        
-        out_path = os.path.join(output_dir, f"{benchmark}_actual_dsp_vs_time.png")
+        plt.legend(fontsize=10, loc='best')
+
+        out_path = os.path.join(output_dir, f"{norm_bench}_dsp_vs_time.png")
         plt.tight_layout()
         plt.savefig(out_path, dpi=200)
         plt.close()
         print(f"Saved plot: {out_path}")
 
 def plot_edp_results(grouped_data, output_dir):
-    """Plot EDP vs actual DSP used for each benchmark"""
-    for benchmark, data in grouped_data.items():
-        dsps = [d[0] for d in data]
-        edps = [d[2] for d in data]
+    """Plot EDP vs actual DSP used for each benchmark with multiple sweeps"""
+    for benchmark, sweep_data in grouped_data.items():
+        plt.figure(figsize=(12, 7))
         
-        plt.figure(figsize=(10, 6))
-        plt.plot(dsps, edps, marker="s", linewidth=2, markersize=6, color='red')
-        plt.title(f"{benchmark} — Actual DSP Used vs EDP")
-        plt.xlabel("Actual DSP Used (from CSV)")
-        plt.ylabel("EDP (Energy-Delay Product)")
+        colors = {'No wires': '#1f77b4', 'Wires cost estimated': '#ff7f0e', 'Fixed wire cost': '#2ca02c'}
+        markers = {'No wires': 'o', 'Wires cost estimated': 's', 'Fixed wire cost': '^'}
+        
+        for sweep_label, data in sorted(sweep_data.items()):
+            dsps = [d[0] for d in data]
+            edps = [d[2] for d in data]
+            
+            color = colors.get(sweep_label, None)
+            marker = markers.get(sweep_label, 'o')
+            
+            plt.plot(dsps, edps, marker=marker, linewidth=2, markersize=7, 
+                    label=sweep_label, color=color)
+        
+        plt.title(f"{benchmark} — DSP vs EDP", fontsize=14, fontweight='bold')
+        plt.xlabel("Actual DSP Used", fontsize=12)
+        plt.ylabel("EDP (Energy-Delay Product)", fontsize=12)
         plt.grid(True, alpha=0.3)
+        plt.legend(fontsize=11, loc='best')
         plt.ticklabel_format(style='scientific', axis='y', scilimits=(0,0))
         
         out_path = os.path.join(output_dir, f"{benchmark}_EDP_plot.png")
@@ -185,12 +231,12 @@ def plot_edp_results(grouped_data, output_dir):
 
 def main():
     ap = argparse.ArgumentParser(
-        description="Parse DSP sweep results and extract execution times and EDP"
+        description="Parse multiple DSP sweep results and generate comparison plots"
     )
     ap.add_argument(
-        "--path",
+        "--results_dir",
         required=True,
-        help="Path to directory containing sweep results (e.g., test/regression_results/yarch_sweep_1.list/yarch_sweep)"
+        help="Path to regression_results directory containing sweep subdirs (e.g., test/regression_results/yarch_sweep_exp1.list)"
     )
     ap.add_argument(
         "--plot",
@@ -199,29 +245,50 @@ def main():
     )
     args = ap.parse_args()
     
-    print(f"Scanning directory: {args.path}\n")
-    results = scan_directory(args.path)
+    results_dir = args.results_dir
     
-    if not results:
+    if not os.path.isdir(results_dir):
+        print(f"Error: {results_dir} is not a valid directory")
+        return
+    
+    # Scan all subdirectories in results_dir
+    all_results = []
+    
+    for entry in sorted(os.listdir(results_dir)):
+        sweep_path = os.path.join(results_dir, entry)
+        
+        if not os.path.isdir(sweep_path):
+            continue
+        
+        sweep_label = get_sweep_label(entry)
+        
+        print(f"\nScanning {sweep_label} ({entry})...")
+        results = scan_directory(sweep_path, sweep_label)
+        all_results.extend(results)
+    
+    if not all_results:
         print("No results found!")
         return
     
-    grouped = group_by_benchmark(results)
+    grouped = group_by_benchmark_and_sweep(all_results)
     
     print("\n" + "="*80)
-    print("SUMMARY: DSP → (Execution Time, EDP) Tuples")
+    print("SUMMARY: Results grouped by Benchmark and Sweep Type")
     print("="*80)
     
-    for benchmark, data in grouped.items():
+    for benchmark, sweep_data in grouped.items():
         print(f"\n{benchmark}:")
-        for dsp_val, exec_time, edp in data:
-            print(f"  DSP {dsp_val:5d}: Exec Time = {exec_time:15.2f}, EDP = {edp:.4e}")
+        for sweep_label, data in sorted(sweep_data.items()):
+            print(f"  {sweep_label}:")
+            for dsp_val, exec_time, edp in data:
+                print(f"    DSP {dsp_val:5d}: Exec Time = {exec_time:15.2f}, EDP = {edp:.4e}")
     
     if args.plot:
-        output_dir = os.path.dirname(args.path)
-        print(f"\nGenerating plots in {output_dir}...")
-        plot_results(grouped, output_dir)
-        plot_edp_results(grouped, output_dir)
+        output_dir = results_dir
+        print(f"\nGenerating comparison plots in {output_dir}...")
+        plot_execution_time_results(grouped, output_dir)
+        # If you no longer want EDP plots, comment the next line:
+        # plot_edp_results(grouped, output_dir)
 
 if __name__ == "__main__":
     main()
