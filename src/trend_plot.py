@@ -86,7 +86,7 @@ class TrendPlot:
         
         # Adjust layout and save
         plt.tight_layout()
-        plt.savefig(f"{self.save_dir}/wire_lengths_over_iters.png", dpi=300, bbox_inches='tight')
+        plt.savefig(f"{self.save_dir}/wire_lengths_over_iters.svg", transparent=True, dpi=300, bbox_inches='tight')
         plt.close()
 
     def plot_params_over_generations(self):
@@ -135,7 +135,7 @@ class TrendPlot:
             
             # Adjust layout and save
             plt.tight_layout()
-            plt.savefig(f"{self.save_dir}/{self.plot_list_labels[param]}_over_iters.png", dpi=300, bbox_inches='tight')
+            plt.savefig(f"{self.save_dir}/{self.plot_list_labels[param]}_over_iters.svg", transparent=True, dpi=300, bbox_inches='tight')
             plt.close()
         f = open(f"{self.save_dir}/plot_param_data.json", 'w')
         json.dump(plot_param_vals, f)
@@ -203,7 +203,7 @@ class TrendPlot:
         
         # Adjust layout and save
         plt.tight_layout()
-        plt.savefig(f"{self.save_dir}/wire_delays_over_iters.png", dpi=300, bbox_inches='tight')
+        plt.savefig(f"{self.save_dir}/wire_delays_over_iters.svg", transparent=True, dpi=300, bbox_inches='tight')
         plt.close()
     
     def plot_obj_over_generations(self):
@@ -245,7 +245,7 @@ class TrendPlot:
         fig.patch.set_facecolor("#f8f9fa")
         ax.legend(["forward pass", "inverse pass"], fontsize=18)
         plt.tight_layout()
-        plt.savefig(f"{self.save_dir}/{self.obj_fn}_over_iters.png", dpi=300, bbox_inches='tight')
+        plt.savefig(f"{self.save_dir}/{self.obj_fn}_over_iters.svg", transparent=True, dpi=300, bbox_inches='tight')
         plt.close()
     
     def plot_lag_factor_over_generations(self):
@@ -267,7 +267,7 @@ class TrendPlot:
         
         # Adjust layout and save
         plt.tight_layout()
-        plt.savefig(f"{self.save_dir}/lag_factor_over_iters.png", dpi=300, bbox_inches='tight')
+        plt.savefig(f"{self.save_dir}/lag_factor_over_iters.svg", transparent=True, dpi=300, bbox_inches='tight')
         plt.close()
 
     def create_sensitivities_single_plot(self):
@@ -327,7 +327,7 @@ class TrendPlot:
         
         # Adjust layout and save
         plt.tight_layout()
-        plt.savefig(f"{self.save_dir}/sensitivities/all_sensitivities_over_iters.png", dpi=300, bbox_inches='tight')
+        plt.savefig(f"{self.save_dir}/sensitivities/all_sensitivities_over_iters.svg", transparent=True, dpi=300, bbox_inches='tight')
         plt.close()
 
     def plot_sensitivities_over_generations(self):
@@ -374,7 +374,7 @@ class TrendPlot:
             
             # Adjust layout and save
             plt.tight_layout()
-            plt.savefig(f"{self.save_dir}/sensitivities/{param}_sensitivities_over_iters.png", dpi=300, bbox_inches='tight')
+            plt.savefig(f"{self.save_dir}/sensitivities/{param}_sensitivities_over_iters.svg", transparent=True, dpi=300, bbox_inches='tight')
             plt.close()
         self.create_sensitivities_single_plot()
 
@@ -415,7 +415,7 @@ class TrendPlot:
             ax.set_xticks(range(len(values)))
             fig.patch.set_facecolor("#f8f9fa")
             plt.tight_layout()
-            plt.savefig(f"{self.save_dir}/constraint_slack/{constraint}_constraint_slack_over_iters.png", dpi=300, bbox_inches='tight')
+            plt.savefig(f"{self.save_dir}/constraint_slack/{constraint}_constraint_slack_over_iters.svg", transparent=True, dpi=300, bbox_inches='tight')
             plt.close()
         create_constraint_slack_single_plot(self.constraint_slack_over_generations, self.save_dir)
 
@@ -487,7 +487,7 @@ def create_sensitivities_single_plot(sensitivities_over_generations, save_dir):
     
     # Adjust layout and save
     plt.tight_layout()
-    plt.savefig(f"{save_dir}/sensitivities/all_sensitivities_over_iters.png", dpi=300, bbox_inches='tight')
+    plt.savefig(f"{save_dir}/sensitivities/all_sensitivities_over_iters.svg", transparent=True, dpi=300, bbox_inches='tight')
     plt.close()
 
 def create_constraint_slack_single_plot(constraint_slack_over_generations, save_dir):
@@ -584,7 +584,7 @@ def create_constraint_slack_single_plot(constraint_slack_over_generations, save_
     
     # Adjust layout and save
     plt.tight_layout()
-    plt.savefig(f"{save_dir}/constraint_slack/all_constraint_slack_over_iters.png", dpi=300, bbox_inches='tight')
+    plt.savefig(f"{save_dir}/constraint_slack/all_constraint_slack_over_iters.svg", transparent=True, dpi=300, bbox_inches='tight')
     plt.close()
     
 
