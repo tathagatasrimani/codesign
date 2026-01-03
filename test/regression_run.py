@@ -251,6 +251,16 @@ class RegressionRun:
             # Override max_dsp in the specific config
             if config_name in config_data and 'args' in config_data[config_name]:
                 config_data[config_name]['args']['max_dsp'] = dsp_override
+                
+                # Append _{dsp_override} to checkpoint_save_dir if it exists
+                if 'checkpoint_save_dir' in config_data[config_name]['args']:
+                    original_dir = config_data[config_name]['args']['checkpoint_save_dir']
+                    config_data[config_name]['args']['checkpoint_save_dir'] = f"{original_dir}_{dsp_override}"
+                
+                # Append _{dsp_override} to checkpoint_load_dir if it exists
+                if 'checkpoint_load_dir' in config_data[config_name]['args']:
+                    original_dir = config_data[config_name]['args']['checkpoint_load_dir']
+                    config_data[config_name]['args']['checkpoint_load_dir'] = f"{original_dir}_{dsp_override}"
             
             with open(config_copy_path, "w") as f:
                 yaml.dump(config_data, f, default_flow_style=False)

@@ -11,6 +11,9 @@ def extract_execution_time_and_edp(log_path):
     exec_time = None
     edp = None
     
+    # Clock period in seconds
+    CLOCK_PERIOD = 2.5e-10
+    
     try:
         with open(log_path, "r") as f:
             content = f.read()
@@ -18,7 +21,8 @@ def extract_execution_time_and_edp(log_path):
             # Look for "Execution time: <number>"
             match = re.search(r"Execution time:\s*([0-9]*\.?[0-9]+)", content)
             if match:
-                exec_time = float(match.group(1))
+                exec_time_cycles = float(match.group(1))
+                exec_time = exec_time_cycles * CLOCK_PERIOD  # Convert to seconds
             
             # Look for "edp: <number>" in the log
             match = re.search(r"edp:\s*([0-9]*\.?[0-9]+(?:[eE][+-]?\d+)?)", content)
