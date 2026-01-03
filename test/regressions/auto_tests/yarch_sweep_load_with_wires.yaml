@@ -3,5 +3,6 @@ benchmark_3mm_test_auto_with_wires:
   args:
     benchmark: kernel_3mm
     checkpoint_load_dir: tmp_kernel_3mm
+    checkpoint_start_step: setup
     stop_at_checkpoint: pd
     max_dsp: 100
