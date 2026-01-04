@@ -91,16 +91,16 @@ def extract_actual_dsp_from_csv(entry_path, benchmark_name, max_dsp):
 
 def get_sweep_label(directory_name):
     """Convert directory name to sweep label"""
-    if "with_wires" in directory_name.lower():
-        return "Wires cost estimated"
-    elif "fixed_wires" in directory_name.lower():
+    if "constant_wires" in directory_name.lower():
         return "Fixed wire cost"
+    elif "with_wires" in directory_name.lower():
+        return "Wires cost estimated"
     else:
         return "No wires"
 
 def normalize_benchmark_name(benchmark):
     """Strip wire-cost suffixes so sweeps group together."""
-    return re.sub(r'_(no|with|fixed)_wires', '', benchmark)
+    return re.sub(r'_(no|with|fixed|constant)_wires', '', benchmark)
 
 def scan_directory(root_dir, sweep_label):
     """
@@ -163,7 +163,7 @@ def group_by_benchmark_and_sweep(results):
     return grouped
 
 def plot_execution_time_results(grouped_data, output_dir):
-    """Single plot per normalized benchmark: Execution time vs DSP with both sweep curves"""
+    """Single plot per normalized benchmark: Execution time vs DSP with all sweep curves"""
     for norm_bench, sweep_data in grouped_data.items():
         plt.figure(figsize=(10, 6))
 
@@ -178,7 +178,7 @@ def plot_execution_time_results(grouped_data, output_dir):
             'Fixed wire cost': '^'
         }
 
-        # one figure; add all sweeps as separate curves
+        # Add all sweeps as separate curves on the same figure
         for sweep_label, data in sorted(sweep_data.items()):
             dsps = [d[0] for d in data]
             times = [d[1] for d in data]
@@ -187,17 +187,17 @@ def plot_execution_time_results(grouped_data, output_dir):
                 dsps,
                 times,
                 marker=markers.get(sweep_label, 'o'),
-                linewidth=2,
-                markersize=7,
+                linewidth=2.5,
+                markersize=8,
                 label=sweep_label,
                 color=colors.get(sweep_label)
             )
 
-        plt.title(f"{norm_bench} — DSP vs Execution Time", fontsize=13, fontweight='bold')
-        plt.xlabel("Actual DSP Used", fontsize=11)
-        plt.ylabel("Execution Time (seconds)", fontsize=11)
+        plt.title(f"{norm_bench} — DSP vs Execution Time", fontsize=14, fontweight='bold')
+        plt.xlabel("Actual DSP Used", fontsize=12)
+        plt.ylabel("Execution Time (seconds)", fontsize=12)
         plt.grid(True, alpha=0.3)
-        plt.legend(fontsize=10, loc='best')
+        plt.legend(fontsize=11, loc='best')
 
         out_path = os.path.join(output_dir, f"{norm_bench}_dsp_vs_time.png")
         plt.tight_layout()
@@ -295,7 +295,7 @@ def main():
         print(f"\nGenerating comparison plots in {output_dir}...")
         plot_execution_time_results(grouped, output_dir)
         # If you no longer want EDP plots, comment the next line:
-        # plot_edp_results(grouped, output_dir)
+        plot_edp_results(grouped, output_dir)
 
 if __name__ == "__main__":
     main()

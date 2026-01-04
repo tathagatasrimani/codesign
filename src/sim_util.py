@@ -78,11 +78,14 @@ def deep_merge(dict1, dict2):
 def recursive_cfg_merge(model_cfgs, model_cfg_name):
     base_cfg = model_cfgs[model_cfg_name]["base_cfg"]
     model_cfg = model_cfgs[model_cfg_name]
+    # print(f"Recursively merging config for {model_cfg_name} with base {base_cfg}")
     while True:
+        # print(f"Merging two configs: {model_cfgs[base_cfg], model_cfg}")
         model_cfg = deep_merge(model_cfgs[base_cfg], model_cfg)
         if base_cfg == "default":
             break
         base_cfg = model_cfgs[base_cfg]["base_cfg"]
+    # print(f"Final merged config for {model_cfg_name}: {model_cfg}")
     return model_cfg
 
 def get_module_map():

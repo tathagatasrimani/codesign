@@ -7,3 +7,4 @@ benchmark_3mm_test_auto_no_wires:
     stop_at_checkpoint: pd
     max_dsp: 100
     zero_wirelength_costs: true
+    ignore_wirelength_costs: true
