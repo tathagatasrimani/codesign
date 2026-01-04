@@ -147,16 +147,19 @@ def scan_directory(root_dir, sweep_label):
     return results
 
 def group_by_benchmark_and_sweep(results):
-    """Group results by normalized benchmark name and sweep label"""
-    grouped = defaultdict(lambda: defaultdict(list))
+    """Group results by normalized benchmark and sweep label, keeping the lowest exec time per DSP."""
+    dedup = defaultdict(lambda: defaultdict(dict))
     for dsp, exec_time, edp, benchmark, sweep_label, norm_bench in results:
-        grouped[norm_bench][sweep_label].append((dsp, exec_time, edp))
-    
-    # Sort by DSP value within each group
-    for norm_bench in grouped:
-        for sweep_label in grouped[norm_bench]:
-            grouped[norm_bench][sweep_label].sort(key=lambda x: x[0])
-    
+        current = dedup[norm_bench][sweep_label].get(dsp)
+        if current is None or exec_time < current[0]:
+            dedup[norm_bench][sweep_label][dsp] = (exec_time, edp)
+
+    grouped = defaultdict(lambda: defaultdict(list))
+    for norm_bench, sweeps in dedup.items():
+        for sweep_label, dsp_map in sweeps.items():
+            for dsp, (exec_time, edp) in sorted(dsp_map.items()):
+                grouped[norm_bench][sweep_label].append((dsp, exec_time, edp))
+
     return grouped
 
 def plot_execution_time_results(grouped_data, output_dir):

@@ -155,6 +155,7 @@ class Codesign:
         if args.additional_cfg_file is not None:
             with open(args.additional_cfg_file, "r") as f:
                 additional_cfg = yaml.load(f, Loader=yaml.FullLoader)
+                # print(f"Loaded additional config from {args.additional_cfg_file}: {additional_cfg}")
 
                 # check that there aren't any duplicate keys
                 for key in additional_cfg:
@@ -162,6 +163,8 @@ class Codesign:
                         raise Exception(f"Duplicate key {key} found in additional config {args.additional_cfg_file}")
 
                 cfgs = {**cfgs, **additional_cfg}
+        
+        # print(f"Final cfgs before applying CLI args: {cfgs}")
         
         overwrite_args_all = vars(args)
         overwrite_args = {}
@@ -1169,7 +1172,8 @@ if __name__ == "__main__":
     parser.add_argument("--workload_size", type=int, help="workload size to use, such as the dimension of the matrix for gemm. Only applies to certain benchmarks")
     parser.add_argument("--opt_pipeline", type=str, help="optimization pipeline to use for inverse pass")
     parser.add_argument("--num_dsps", type=str, help="the number of DSPs to use as a constraint for ScaleHLS. Only use this if attempting to only run the FORWARD PASS.")
-    parser.add_argument("--zero_wirelength_costs", action="store_true", help="set all wirelength costs to zero (wire_length and wire_energy will return 0)")
+    parser.add_argument("--zero_wirelength_costs", type=bool, help="set all wirelength costs to zero (wire_length and wire_energy will return 0)")
+    parser.add_argument("--constant_wire_length_cost", type=int, help="Instead of estimating the wirelength based on physical layout, use a constant cost for every wire in the design.")  
     args = parser.parse_args()
 
     main(args)

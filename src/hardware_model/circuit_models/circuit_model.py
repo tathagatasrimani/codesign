@@ -22,7 +22,12 @@ class CircuitModel:
         self.tech_model = tech_model
         # Check if wirelength costs should be set to zero
         self.zero_wirelength_costs = False
+        self.constant_wire_length_cost = None
+        if cfg is not None and "args" in cfg and "constant_wire_length_cost" in cfg["args"]:
+            print(f"Setting constant_wire_length_cost to {cfg['args']['constant_wire_length_cost']} from config!!!")
+            self.constant_wire_length_cost = cfg["args"]["constant_wire_length_cost"]
         if cfg is not None and "args" in cfg and "zero_wirelength_costs" in cfg["args"]:
+            print(f"Setting zero_wirelength_costs to {cfg['args']['zero_wirelength_costs']} from config!!!")
             self.zero_wirelength_costs = cfg["args"]["zero_wirelength_costs"]
         self.constraints = []
         self.constraints_cvx = []
@@ -325,8 +330,13 @@ class CircuitModel:
 
     # for 1 bit
     def wire_length(self, edge):
+        print(f"calculating wire length for edge {edge} and zero_wirelength_costs = {self.zero_wirelength_costs}!!")
         if self.zero_wirelength_costs:
             return 0
+        if self.constant_wire_length_cost is not None:
+            print(f"Using constant wire length cost of {self.constant_wire_length_cost} for edge {edge}!!")
+            return self.constant_wire_length_cost
+        # wire length = sum of lengths of all segments in all nets on this edge
         wire_length = 0
         for net in self.edge_to_nets[edge]:
             for segment in net.segments:
@@ -336,8 +346,12 @@ class CircuitModel:
         
     # multiplying wire length by DATA_WIDTH because there are multiple bits on the wire.
     def wire_energy(self, edge, symbolic=False):
+        print(f"calculating wire energy for edge {edge} and zero_wirelength_costs = {self.zero_wirelength_costs}!!")
         if self.zero_wirelength_costs:
             return 0
+        if self.constant_wire_length_cost is not None:
+            print(f"Using constant wire length cost of {self.constant_wire_length_cost} for edge {edge}!!")
+            return 0.5 * self.constant_wire_length_cost * DATA_WIDTH * self.tech_model.base_params.V_dd**2 * 1e9
         # wire energy = 0.5 * C * V_dd^2 * length
         wire_energy = 0
         for net in self.edge_to_nets[edge]:
