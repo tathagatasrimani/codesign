@@ -1,4 +1,4 @@
-benchmark_3mm_test_auto_with_wires:
+benchmark_kernel_3mm_test_auto_with_wires:
   base_cfg: vitis_test
   args:
     benchmark: kernel_3mm

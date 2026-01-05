@@ -49,17 +49,21 @@ def extract_actual_dsp_from_csv(entry_path, benchmark_name, max_dsp):
     match = re.search(r"benchmark_(.+?)_test", benchmark_name)
     if match:
         kernel_name = match.group(1)
+        if not kernel_name.startswith("kernel_"):
+            kernel_name = f"kernel_{kernel_name}"
     else:
         kernel_name = benchmark_name.replace('benchmark_', '')
+        if not kernel_name.startswith("kernel_"):
+            kernel_name = f"kernel_{kernel_name}"
     
     # Construct path to CSV file
     csv_path = os.path.join(
         entry_path, 
         "tmp", 
-        f"tmp_kernel_{kernel_name}_edp_0",
+        f"tmp_{kernel_name}_edp_0",
         "benchmark_setup",
         "function_hier_output",
-        f"kernel_{kernel_name}_space.csv"
+        f"{kernel_name}_space.csv"
     )
     
     if not os.path.exists(csv_path):
