@@ -6,4 +6,4 @@ benchmark_3mm_test_auto_constant_wires:
     checkpoint_start_step: setup
     stop_at_checkpoint: pd
     max_dsp: 100
-    constant_wire_length_cost: 1
+    constant_wire_length_cost: 0.04

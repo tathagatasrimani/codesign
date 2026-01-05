@@ -341,7 +341,7 @@ class CircuitModel:
         for net in self.edge_to_nets[edge]:
             for segment in net.segments:
                 wire_length += segment.length
-        log_info(f"wire_length for edge {edge} is {wire_length}")
+        print(f"wire_length for edge {edge} is {wire_length}")
         return wire_length
         
     # multiplying wire length by DATA_WIDTH because there are multiple bits on the wire.
@@ -350,8 +350,9 @@ class CircuitModel:
         if self.zero_wirelength_costs:
             return 0
         if self.constant_wire_length_cost is not None:
-            print(f"Using constant wire length cost of {self.constant_wire_length_cost} for edge {edge}!!")
-            return 0.5 * self.constant_wire_length_cost * DATA_WIDTH * self.tech_model.base_params.V_dd**2 * 1e9
+            wire_energy = 5 * 1e-11
+            print(f"Using constant wire length cost of {self.constant_wire_length_cost} for edge {edge} : Wire Energy {wire_energy}!!")
+            return wire_energy * 1e9
         # wire energy = 0.5 * C * V_dd^2 * length
         wire_energy = 0
         for net in self.edge_to_nets[edge]:
@@ -359,6 +360,7 @@ class CircuitModel:
                 wire_energy += 0.5 * segment.length*DATA_WIDTH * self.tech_model.wire_parasitics["C"][segment.layer] * self.tech_model.base_params.V_dd**2
         if not symbolic and wire_energy != 0:
             wire_energy = sim_util.xreplace_safe(wire_energy, self.tech_model.base_params.tech_values)
+        print(f"wire_energy for edge {edge} is {wire_energy} nJ")
         return wire_energy * 1e9
         
     def make_sym_lat_wc(self, gamma):
