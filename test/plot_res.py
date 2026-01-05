@@ -236,6 +236,85 @@ def plot_edp_results(grouped_data, output_dir):
         plt.close()
         print(f"Saved EDP plot: {out_path}")
 
+def plot_edp_deviation_results(grouped_data, output_dir):
+    """
+    For each benchmark, generate deviation plots using each sweep as baseline.
+    Plots % EDP deviation vs actual DSP used. The baseline sweep is shown as a
+    zero line; other sweeps are plotted when DSP points match the baseline.
+    """
+    colors = {'No wires': '#1f77b4', 'Wires cost estimated': '#ff7f0e', 'Fixed wire cost': '#2ca02c'}
+    markers = {'No wires': 'o', 'Wires cost estimated': 's', 'Fixed wire cost': '^'}
+    baselines = ["Wires cost estimated", "Fixed wire cost", "No wires"]
+
+    for benchmark, sweep_data in grouped_data.items():
+        for baseline_label in baselines:
+            baseline = sweep_data.get(baseline_label)
+            if not baseline:
+                print(f"Skipping deviation plot for {benchmark}: no {baseline_label} baseline.")
+                continue
+
+            baseline_map = {dsp: edp for dsp, _, edp in baseline}
+            baseline_dsps = sorted(baseline_map.keys())
+            if not baseline_dsps:
+                print(f"Skipping deviation plot for {benchmark}: empty {baseline_label} baseline.")
+                continue
+
+            plt.figure(figsize=(12, 7))
+
+            # Zero line for baseline
+            plt.plot(
+                baseline_dsps,
+                [0.0] * len(baseline_dsps),
+                linestyle='--',
+                color=colors.get(baseline_label, '#888888'),
+                label=f"{baseline_label} (baseline)",
+                linewidth=1.8,
+            )
+
+            for sweep_label, data in sweep_data.items():
+                if sweep_label == baseline_label:
+                    continue
+                if not data:
+                    continue
+                sweep_map = {dsp: edp for dsp, _, edp in data}
+
+                dsps = []
+                deviations = []
+                for dsp, edp_base in baseline_map.items():
+                    if dsp not in sweep_map:
+                        continue
+                    edp_other = sweep_map[dsp]
+                    dev_pct = (edp_other - edp_base) / edp_base * 100.0
+                    dsps.append(dsp)
+                    deviations.append(dev_pct)
+
+                if not dsps:
+                    continue
+
+                plt.plot(
+                    dsps,
+                    deviations,
+                    marker=markers.get(sweep_label, 'o'),
+                    linewidth=2,
+                    markersize=7,
+                    label=sweep_label,
+                    color=colors.get(sweep_label),
+                )
+
+            plt.title(f"{benchmark} — % EDP deviation vs {baseline_label}", fontsize=14, fontweight='bold')
+            plt.xlabel("Actual DSP Used", fontsize=12)
+            plt.ylabel(f"% EDP Deviation (relative to {baseline_label})", fontsize=12)
+            plt.grid(True, alpha=0.3)
+            plt.legend(fontsize=11, loc='best')
+
+            # Save with baseline in filename
+            slug = baseline_label.lower().replace(" ", "_")
+            out_path = os.path.join(output_dir, f"{benchmark}_EDP_deviation_vs_{slug}.png")
+            plt.tight_layout()
+            plt.savefig(out_path, dpi=200)
+            plt.close()
+            print(f"Saved EDP deviation plot: {out_path}")
+
 def main():
     ap = argparse.ArgumentParser(
         description="Parse multiple DSP sweep results and generate comparison plots"
@@ -296,6 +375,7 @@ def main():
         plot_execution_time_results(grouped, output_dir)
         # If you no longer want EDP plots, comment the next line:
         plot_edp_results(grouped, output_dir)
+        plot_edp_deviation_results(grouped, output_dir)
 
 if __name__ == "__main__":
     main()
