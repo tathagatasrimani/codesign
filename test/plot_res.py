@@ -46,7 +46,7 @@ def parse_dsp_from_dirname(dirname):
         return int(match.group(1))
     return None
 
-def extract_actual_dsp_from_csv(entry_path, benchmark_name, max_dsp):
+def extract_actual_dsp_from_csv(entry_path, benchmark_name, max_dsp, kernel=None):
     """
     Extract actual DSP used from kernel_3mm_space.csv.
     Finds the max DSP value that is <= max_dsp.
@@ -63,13 +63,15 @@ def extract_actual_dsp_from_csv(entry_path, benchmark_name, max_dsp):
     # print(f"Derived kernel name: {kernel_name}")
     
     # Construct path to CSV file
+    append_kernel = f"kernel_{kernel_name}" if kernel else f"{kernel_name}"
+    print(f"Using append_kernel: {append_kernel}")
     csv_path = os.path.join(
         entry_path, 
         "tmp", 
-        f"tmp_kernel_{kernel_name}_edp_0",
+        f"tmp_{append_kernel}_edp_0",
         "benchmark_setup",
         "function_hier_output",
-        f"kernel_{kernel_name}_space.csv"
+        f"{append_kernel}_space.csv"
     )
 
     # print(f"Looking for DSP CSV at: {csv_path}")
@@ -117,7 +119,7 @@ def normalize_benchmark_name(benchmark):
         return m.group(1)
     return benchmark
 
-def scan_directory(root_dir, sweep_label):
+def scan_directory(root_dir, sweep_label, kernel=None):
     """
     Scan root_dir for subdirectories, extract DSP values, execution times, and EDP.
     Returns: list of (actual_dsp_used, execution_time, edp, benchmark_name, sweep_label, norm_benchmark)
@@ -159,7 +161,7 @@ def scan_directory(root_dir, sweep_label):
             continue
         
         # Extract actual DSP used from CSV using the benchmark name
-        actual_dsp_used = extract_actual_dsp_from_csv(entry_path, benchmark, max_dsp)
+        actual_dsp_used = extract_actual_dsp_from_csv(entry_path, benchmark, max_dsp, kernel=kernel)
         
         if actual_dsp_used is None:
             # print(f"[{sweep_label}] Skipping {entry}: could not extract actual DSP from CSV")
@@ -353,6 +355,11 @@ def main():
         action="store_true",
         help="Generate plots for each benchmark"
     )
+    ap.add_argument(
+        "--kernel",
+        type=str,
+        help="Tells if the the benchmark is kernel or not."
+    )
     args = ap.parse_args()
     
     results_dir = args.results_dir
@@ -373,7 +380,7 @@ def main():
         sweep_label = get_sweep_label(entry)
         
         print(f"\nScanning {sweep_label} ({entry})...")
-        results = scan_directory(sweep_path, sweep_label)
+        results = scan_directory(sweep_path, sweep_label, kernel=args.kernel)
         all_results.extend(results)
     
     if not all_results:

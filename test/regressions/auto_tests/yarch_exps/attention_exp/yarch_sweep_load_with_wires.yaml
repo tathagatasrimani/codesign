@@ -1,4 +1,4 @@
-benchmark_attention_test_with_wires_delay_estimated:
+benchmark_attention_head_test_with_wires_delay_estimated:
   base_cfg: vitis_attention_head_test
   args:
     N: 15
