@@ -111,8 +111,11 @@ def get_sweep_label(directory_name):
         return "No wires"
 
 def normalize_benchmark_name(benchmark):
-    """Strip wire-cost suffixes so sweeps group together."""
-    return re.sub(r'_(no|with|fixed|constant)_wires', '', benchmark)
+    """Extract kernel_name from benchmark_{kernel_name}_test_something."""
+    m = re.search(r'^benchmark_(.+?)_test', benchmark)
+    if m:
+        return m.group(1)
+    return benchmark
 
 def scan_directory(root_dir, sweep_label):
     """
