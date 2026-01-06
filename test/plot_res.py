@@ -8,6 +8,9 @@ import yaml
 
 def extract_execution_time_and_edp(log_path):
     """Extract execution_time and EDP from run_codesign.log"""
+
+    # print(f"Extracting execution time and EDP from log: {log_path}")
+
     exec_time = None
     edp = None
     
@@ -23,6 +26,9 @@ def extract_execution_time_and_edp(log_path):
             if match:
                 exec_time_cycles = float(match.group(1))
                 exec_time = exec_time_cycles * CLOCK_PERIOD  # Convert to seconds
+                # print("!!!!!")
+                # print(f"  Found execution time: {exec_time_cycles} cycles -> {exec_time:.6f} seconds")
+                # print("!!!!!")
             
             # Look for "edp: <number>" in the log
             match = re.search(r"edp:\s*([0-9]*\.?[0-9]+(?:[eE][+-]?\d+)?)", content)
@@ -45,26 +51,28 @@ def extract_actual_dsp_from_csv(entry_path, benchmark_name, max_dsp):
     Extract actual DSP used from kernel_3mm_space.csv.
     Finds the max DSP value that is <= max_dsp.
     """
-    # Extract the kernel name (e.g., "kernel_3mm" from "benchmark_3mm_test_auto_no_wires")
-    match = re.search(r"benchmark_(.+?)_test", benchmark_name)
+    # print(f"Extracting actual DSP from CSV for benchmark: {benchmark_name} with max_dsp: {max_dsp}")
+    # Extract the kernel name from pattern: benchmark_{kernel_name}_test_something
+    match = re.search(r"benchmark_(.+?)_test_*", benchmark_name)
     if match:
         kernel_name = match.group(1)
-        if not kernel_name.startswith("kernel_"):
-            kernel_name = f"kernel_{kernel_name}"
     else:
-        kernel_name = benchmark_name.replace('benchmark_', '')
-        if not kernel_name.startswith("kernel_"):
-            kernel_name = f"kernel_{kernel_name}"
+        # print(f"Warning: Could not parse kernel name from {benchmark_name}")
+        return None
+
+    # print(f"Derived kernel name: {kernel_name}")
     
     # Construct path to CSV file
     csv_path = os.path.join(
         entry_path, 
         "tmp", 
-        f"tmp_{kernel_name}_edp_0",
+        f"tmp_kernel_{kernel_name}_edp_0",
         "benchmark_setup",
         "function_hier_output",
-        f"{kernel_name}_space.csv"
+        f"kernel_{kernel_name}_space.csv"
     )
+
+    # print(f"Looking for DSP CSV at: {csv_path}")
     
     if not os.path.exists(csv_path):
         return None
@@ -114,7 +122,7 @@ def scan_directory(root_dir, sweep_label):
     results = []
     
     if not os.path.isdir(root_dir):
-        print(f"Error: {root_dir} is not a valid directory")
+        # print(f"Error: {root_dir} is not a valid directory")
         return results
     
     for entry in os.listdir(root_dir):
@@ -130,19 +138,28 @@ def scan_directory(root_dir, sweep_label):
         
         # Extract benchmark name (everything before _dsp)
         benchmark = entry.rsplit("_dsp", 1)[0]
+
+        # print(f"!!!!!Benchmark extracted: {benchmark} !!!!!")
+
         norm_benchmark = normalize_benchmark_name(benchmark)
+
+        # print(f"####Normalized benchmark: {norm_benchmark} ####")
+
+        # print(f"[{sweep_label}] Scanning {entry} (max_dsp={max_dsp})...")
         
         # Look for run_codesign.log
         log_path = os.path.join(entry_path, "run_codesign.log")
         exec_time, edp = extract_execution_time_and_edp(log_path)
         
         if exec_time is None or edp is None:
+            # print(f"[{sweep_label}] Skipping {entry}: missing exec_time or edp")
             continue
         
-        # Extract actual DSP used from CSV
+        # Extract actual DSP used from CSV using the benchmark name
         actual_dsp_used = extract_actual_dsp_from_csv(entry_path, benchmark, max_dsp)
         
         if actual_dsp_used is None:
+            # print(f"[{sweep_label}] Skipping {entry}: could not extract actual DSP from CSV")
             continue
         
         results.append((actual_dsp_used, exec_time, edp, benchmark, sweep_label, norm_benchmark))
@@ -346,7 +363,7 @@ def main():
     
     for entry in sorted(os.listdir(results_dir)):
         sweep_path = os.path.join(results_dir, entry)
-        
+        print(f"Checking {sweep_path}...")
         if not os.path.isdir(sweep_path):
             continue
         
