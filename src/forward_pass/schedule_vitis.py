@@ -119,6 +119,10 @@ def match_pattern_in_line(line, pattern):
     return match
 
 def get_rsc_mapping(netlist_file):
+    # NOTE: I have seen blackboxing results in two resource mappings for the same netlist op. So far,
+    # I observed that the first one is the one that corresponds to the functional unit, and the second one is
+    # for a register, so I just use the first one. But keep an eye for in hardwareModel if edges are not being
+    # properly mapped to wire delays, since I don't know if this assumption is always true.
     netlist = nx.read_gml(netlist_file)
     netlist_op_dest_to_node = {}
     for n, d in netlist.nodes(data=True):
@@ -133,12 +137,22 @@ def get_rsc_mapping(netlist_file):
         if '/' in opset:
             opsets = opset.split()
             for opset in opsets:
-                netlist_op_dest_to_node[opset.split('/')[0]] = name
+                op = opset.split('/')[0]
+                if op in netlist_op_dest_to_node:
+                    log_info(f"op {op} already exists in netlist_op_dest_to_node, skipping")
+                    continue
+                netlist_op_dest_to_node[op] = name
+                log_info(f"mapping opset {op} to name {name}")
         else:
-            netlist_op_dest_to_node[opset.strip()] = name
-    #log_info(f"logging netlist_op_dest_to_node")
-    #for op, node in netlist_op_dest_to_node.items():
-        #log_info(f"op: {op}, node: {node}")
+            op = opset.strip()
+            if op in netlist_op_dest_to_node:
+                log_info(f"op {op} already exists in netlist_op_dest_to_node, skipping")
+                continue
+            log_info(f"mapping opset {op} to name {name}")
+            netlist_op_dest_to_node[op] = name
+    log_info(f"logging netlist_op_dest_to_node")
+    for op, node in netlist_op_dest_to_node.items():
+        log_info(f"op: {op}, node: {node}")
     return netlist_op_dest_to_node
 
 def construct_directed_graph_nx(state_ops,state_transitions):
