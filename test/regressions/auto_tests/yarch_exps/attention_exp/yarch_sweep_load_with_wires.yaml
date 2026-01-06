@@ -1,0 +1,10 @@
+benchmark_attention_test_with_wires_delay_estimated:
+  base_cfg: vitis_attention_head_test
+  args:
+    N: 15
+    checkpoint_load_dir: tmp_attention_head
+    checkpoint_start_step: setup
+    stop_at_checkpoint: pd
+    max_dsp: 100
+
+    

@@ -1,0 +1,6 @@
+benchmark_attention_save:
+  base_cfg: vitis_attention_head_test
+  args:
+    N: 15
+    checkpoint_save_dir: tmp_attention_head
+    stop_at_checkpoint: setup

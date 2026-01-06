@@ -1,4 +1,4 @@
-benchmark_doitgen_test_with_wire_cost_delay_estimated:
+benchmark_doitgen_test_with_wires_delay_estimated:
   base_cfg: benchmark_doitgen_test
   args:
     N: 15
