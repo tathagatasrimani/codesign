@@ -26,6 +26,7 @@ default:
     opt_pipeline: block_vector
     always_run_openroad: False
     arch_opt_pipeline: streamhls
+    benchmark_group: polybench # only used for streamhls
 
 
 vitis_test_mvs:

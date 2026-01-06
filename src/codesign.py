@@ -123,8 +123,8 @@ class Codesign:
         self.iteration_count = 0
 
         # configure to start with 100 dsp and 100 bram
-        self.dsp_multiplier = 1/100 * self.cfg["args"]["area"] / (3e-6 * 9e-6)
-        self.bram_multiplier = 1/100 * self.cfg["args"]["area"] / (3e-6 * 9e-6)
+        self.dsp_multiplier = 1/10 * self.cfg["args"]["area"] / (3e-6 * 9e-6)
+        self.bram_multiplier = 1/10 * self.cfg["args"]["area"] / (3e-6 * 9e-6)
 
         self.wire_lengths_over_iterations = []
         self.wire_delays_over_iterations = []
@@ -476,8 +476,8 @@ class Codesign:
         print(f"Current working directory in vitis parse data: {os.getcwd()}")
 
         if self.no_memory:
-            allowed_functions_netlist = set(self.hw.circuit_model.circuit_values["area"].keys()).difference({"N/A", "Buf", "MainMem", "Call"})
-            allowed_functions_schedule = allowed_functions_netlist.union({"Call", "II", "read", "write"})
+            allowed_functions_netlist = set(self.hw.circuit_model.circuit_values["area"].keys()).difference({"N/A", "Buf", "MainMem", "Call", "read", "write"})
+            allowed_functions_schedule = allowed_functions_netlist.union({"Call", "II"})
         else:
             allowed_functions_netlist = set(self.hw.circuit_model.circuit_values["area"].keys()).difference({"N/A", "Call"})
             allowed_functions_schedule = allowed_functions_netlist.union({"Call", "II"})
