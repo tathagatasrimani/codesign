@@ -400,7 +400,7 @@ class DataFlowGraph:
         # create the graph
         loop_dfg = DataFlowGraph(self.clk_period, self.no_rsc_allowed_ops, self.allowed_functions, self.build_dir, self.basic_block_name, loop_name, self.resource_mapping, self.states_structure.get_pruned_states_structure(self.states_structure.loops[loop_name]), G, G_standard, G_standard_with_wire_ops, resource_db, variable_db, is_dataflow_pipeline=self.states_structure.loops[loop_name].is_dataflow_pipeline, resource_delays_only=resource_delays_only, num_iters=num_iters, interface_db=self.interface_db)
         
-        loop_dfg.create_graph()
+        loop_dfg.create_graph(resource_delays_only=resource_delays_only)
 
         if append_to_graph:
             assert not resource_delays_only, f"dont do that"
@@ -430,13 +430,13 @@ class DataFlowGraph:
             self.loop_dfgs[loop_name][num_iters][resource_delays_only] = loop_dfg
             log_info(f"tracking loop graph for loop {loop_name}, iter {num_iters}, rsc delay only status {True}")
 
-    def create_graph(self, reset_resources=False):
+    def create_graph(self, reset_resources=False, resource_delays_only=False):
         if reset_resources:
             self.resource_db.reset_resources()
-        self.create_graph_one_iter()
+        self.create_graph_one_iter(resource_delays_only=resource_delays_only)
 
     # used only in convert function. Takes one sched report from vitis (for one basic block) and converts it to graph form
-    def create_graph_one_iter(self):
+    def create_graph_one_iter(self, resource_delays_only=False):
         processed_states = set()
         for state in self.states_structure.state_ops:
             if state in processed_states:
@@ -452,8 +452,9 @@ class DataFlowGraph:
             else:
                 self.add_one_state_to_graph(self.states_structure.state_ops[state])
                 processed_states.add(state)
-        self.G.add_node(f"graph_end_{self.name}", node_type="serial", function="N/A")
-        self.track_resource_usage(f"graph_end_{self.name}")
+        if not resource_delays_only: # for resource delays only, we only need the loop_end_1x node
+            self.G.add_node(f"graph_end_{self.name}", node_type="serial", function="N/A")
+            self.track_resource_usage(f"graph_end_{self.name}")
 
         assert nx.is_directed_acyclic_graph(self.G), f"Graph is not a DAG, cycle found: {nx.find_cycle(self.G)}"
 

@@ -122,9 +122,9 @@ class Codesign:
 
         self.iteration_count = 0
 
-        # configure to start with 100 dsp and 100 bram
-        self.dsp_multiplier = 1/10 * self.cfg["args"]["area"] / (3e-6 * 9e-6)
-        self.bram_multiplier = 1/10 * self.cfg["args"]["area"] / (3e-6 * 9e-6)
+        # configure starting resource usage based on the minimum DSP and BRAM usage
+        self.dsp_multiplier = 1/self.cfg["args"]["min_dsp"] * self.cfg["args"]["area"] / (3e-6 * 9e-6)
+        self.bram_multiplier = 1/self.cfg["args"]["min_dsp"] * self.cfg["args"]["area"] / (3e-6 * 9e-6)
 
         self.wire_lengths_over_iterations = []
         self.wire_delays_over_iterations = []
@@ -317,12 +317,12 @@ class Codesign:
         cwd = os.getcwd()
         print(f"Running StreamHLS in {cwd}")
 
-        if not setup and iteration_count != 0:
+        if not setup:
             self.cur_dsp_usage = int(self.cfg["args"]["area"] / (self.hw.circuit_model.tech_model.param_db["A_gate"].xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf() * self.dsp_multiplier))
             tilelimit = 1
         else:
             self.cur_dsp_usage = 10000
-            tilelimit = 1 if setup else 10000 # high tile limit for the first iteration
+            tilelimit = 1
 
         save_path = os.path.join(os.path.dirname(__file__), "..", save_dir)
         cmd = [
@@ -1242,6 +1242,7 @@ if __name__ == "__main__":
     parser.add_argument("--stop_at_checkpoint", type=str, help="checkpoint step to stop at (will complete this step and then stop)")
     parser.add_argument("--workload_size", type=int, help="workload size to use, such as the dimension of the matrix for gemm. Only applies to certain benchmarks")
     parser.add_argument("--opt_pipeline", type=str, help="optimization pipeline to use for inverse pass")
+    parser.add_argument("--min_dsp", type=int, help="minimum DSP usage to start with")
     args = parser.parse_args()
 
     main(args)
