@@ -9,31 +9,23 @@ import yaml
 def extract_execution_time_and_edp(log_path):
     """Extract execution_time and EDP from run_codesign.log"""
 
-    # print(f"Extracting execution time and EDP from log: {log_path}")
-
     exec_time = None
     edp = None
-    
-    # Clock period in seconds
-    CLOCK_PERIOD = 2.5e-10
     
     try:
         with open(log_path, "r") as f:
             content = f.read()
             
-            # Look for "Execution time: <number>"
-            match = re.search(r"Execution time:\s*([0-9]*\.?[0-9]+)", content)
-            if match:
-                exec_time_cycles = float(match.group(1))
-                exec_time = exec_time_cycles * CLOCK_PERIOD  # Convert to seconds
-                # print("!!!!!")
-                # print(f"  Found execution time: {exec_time_cycles} cycles -> {exec_time:.6f} seconds")
-                # print("!!!!!")
-            
-            # Look for "edp: <number>" in the log
-            match = re.search(r"edp:\s*([0-9]*\.?[0-9]+(?:[eE][+-]?\d+)?)", content)
+            # Look for "edp: <number>, sub expressions: {...}" pattern
+            match = re.search(r"edp:\s*([0-9]*\.?[0-9]+(?:[eE][+-]?\d+)?),\s*sub expressions:\s*(\{.+?\})", content, re.DOTALL)
             if match:
                 edp = float(match.group(1))
+                sub_expr_str = match.group(2)
+                
+                # Parse the dictionary string to extract execution_time
+                exec_time_match = re.search(r"'execution_time':\s*([0-9]*\.?[0-9]+(?:[eE][+-]?\d+)?)", sub_expr_str)
+                if exec_time_match:
+                    exec_time = float(exec_time_match.group(1))
     except FileNotFoundError:
         pass
     
@@ -64,7 +56,7 @@ def extract_actual_dsp_from_csv(entry_path, benchmark_name, max_dsp, kernel=None
     
     # Construct path to CSV file
     append_kernel = f"kernel_{kernel_name}" if kernel else f"{kernel_name}"
-    print(f"Using append_kernel: {append_kernel}")
+    # print(f"Using append_kernel: {append_kernel}")
     csv_path = os.path.join(
         entry_path, 
         "tmp", 
