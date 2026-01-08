@@ -96,19 +96,23 @@ def extract_actual_dsp_from_csv(entry_path, benchmark_name, max_dsp, kernel=None
     
     return None
 
-def get_sweep_label(directory_name):
+def get_sweep_label(directory_name, debug=False):
     """Convert directory name to sweep label."""
     lower = directory_name.lower()
-    print(f"Generating sweep label for directory: {directory_name}")
+    if debug:
+        print(f"Generating sweep label for directory: {directory_name}")
     # Match no-wires first to avoid the "with_wires" substring trap (e.g., "without_wires")
     if "no_wires" in lower or "without_wires" in lower:
-        print("Detected no wires in directory name.")
+        if debug:
+            print("Detected no wires in directory name.")
         return "No wires"
     elif "constant_wires" in lower or "fixed_wires" in lower:
-        print("Detected fixed wire cost in directory name.")
+        if debug:
+            print("Detected fixed wire cost in directory name.")
         return "Fixed wire cost"
     elif "with_wires" in lower:
-        print("Detected wires cost estimated in directory name.")
+        if debug:
+            print("Detected wires cost estimated in directory name.")
         return "Wires cost estimated"
     else:
         return "No wires"
@@ -120,7 +124,7 @@ def normalize_benchmark_name(benchmark):
         return m.group(1)
     return benchmark
 
-def scan_directory(root_dir, sweep_label, kernel=None):
+def scan_directory(root_dir, sweep_label, kernel=None, debug=False):
     """
     Scan root_dir for subdirectories, extract DSP values, execution times, and EDP.
     Returns: list of (actual_dsp_used, execution_time, edp, benchmark_name, sweep_label, norm_benchmark)
@@ -128,7 +132,8 @@ def scan_directory(root_dir, sweep_label, kernel=None):
     results = []
     
     if not os.path.isdir(root_dir):
-        # print(f"Error: {root_dir} is not a valid directory")
+        if debug:
+            print(f"Error: {root_dir} is not a valid directory")
         return results
     
     for entry in os.listdir(root_dir):
@@ -145,27 +150,26 @@ def scan_directory(root_dir, sweep_label, kernel=None):
         # Extract benchmark name (everything before _dsp)
         benchmark = entry.rsplit("_dsp", 1)[0]
 
-        # print(f"!!!!!Benchmark extracted: {benchmark} !!!!!")
-
         norm_benchmark = normalize_benchmark_name(benchmark)
 
-        # print(f"####Normalized benchmark: {norm_benchmark} ####")
-
-        # print(f"[{sweep_label}] Scanning {entry} (max_dsp={max_dsp})...")
+        if debug:
+            print(f"[{sweep_label}] Scanning {entry} (max_dsp={max_dsp})...")
         
         # Look for run_codesign.log
         log_path = os.path.join(entry_path, "run_codesign.log")
         exec_time, edp = extract_execution_time_and_edp(log_path)
         
         if exec_time is None or edp is None:
-            # print(f"[{sweep_label}] Skipping {entry}: missing exec_time or edp")
+            if debug:
+                print(f"[{sweep_label}] Skipping {entry}: missing exec_time or edp")
             continue
         
         # Extract actual DSP used from CSV using the benchmark name
         actual_dsp_used = extract_actual_dsp_from_csv(entry_path, benchmark, max_dsp, kernel=kernel)
         
         if actual_dsp_used is None:
-            # print(f"[{sweep_label}] Skipping {entry}: could not extract actual DSP from CSV")
+            if debug:
+                print(f"[{sweep_label}] Skipping {entry}: could not extract actual DSP from CSV")
             continue
         
         results.append((actual_dsp_used, exec_time, edp, benchmark, sweep_label, norm_benchmark))
@@ -189,7 +193,7 @@ def group_by_benchmark_and_sweep(results):
 
     return grouped
 
-def plot_execution_time_results(grouped_data, output_dir):
+def plot_execution_time_results(grouped_data, output_dir, debug=False):
     """Single plot per normalized benchmark: Execution time vs DSP with all sweep curves"""
     for norm_bench, sweep_data in grouped_data.items():
         plt.figure(figsize=(10, 6))
@@ -213,8 +217,9 @@ def plot_execution_time_results(grouped_data, output_dir):
         
         min_time = min(all_times) if all_times else 0
         
-        print(f"\n[PLOT] Benchmark: {norm_bench}")
-        print(f"[PLOT] Minimum execution time: {min_time}")
+        if debug:
+            print(f"\n[PLOT] Benchmark: {norm_bench}")
+            print(f"[PLOT] Minimum execution time: {min_time}")
         
         # Plot with normalized times (difference from minimum)
         for sweep_label, data in sorted(sweep_data.items()):
@@ -224,9 +229,10 @@ def plot_execution_time_results(grouped_data, output_dir):
             dsps = [d[0] for d in data]
             times = [d[1] - min_time for d in data]  # Subtract minimum from all times
 
-            print(f"[PLOT] {sweep_label}:")
-            for dsp, time_diff, orig_time in zip(dsps, times, [d[1] for d in data]):
-                print(f"[PLOT]   DSP={dsp}, Original Time={orig_time}, Normalized Time={time_diff}")
+            if debug:
+                print(f"[PLOT] {sweep_label}:")
+                for dsp, time_diff, orig_time in zip(dsps, times, [d[1] for d in data]):
+                    print(f"[PLOT]   DSP={dsp}, Original Time={orig_time}, Normalized Time={time_diff}")
 
             plt.plot(
                 dsps,
@@ -248,9 +254,10 @@ def plot_execution_time_results(grouped_data, output_dir):
         plt.tight_layout()
         plt.savefig(out_path, dpi=200)
         plt.close()
-        print(f"[PLOT] Saved plot: {out_path}\n")
+        if debug:
+            print(f"[PLOT] Saved plot: {out_path}\n")
 
-def plot_execution_time_results_log_scale(grouped_data, output_dir):
+def plot_execution_time_results_log_scale(grouped_data, output_dir, debug=False):
     """Single plot per normalized benchmark: Execution time vs DSP with all sweep curves (log scale)"""
     for norm_bench, sweep_data in grouped_data.items():
         plt.figure(figsize=(10, 6))
@@ -266,7 +273,8 @@ def plot_execution_time_results_log_scale(grouped_data, output_dir):
             'Fixed wire cost': '^'
         }
 
-        print(f"\n[PLOT LOG] Benchmark: {norm_bench}")
+        if debug:
+            print(f"\n[PLOT LOG] Benchmark: {norm_bench}")
         
         # Plot with log scale on y-axis
         for sweep_label, data in sorted(sweep_data.items()):
@@ -278,15 +286,17 @@ def plot_execution_time_results_log_scale(grouped_data, output_dir):
 
             times_min = min(times)
             times_max = max(times)
-            print(f"[PLOT LOG] {sweep_label} - Min log time: {times_min}, Max log time: {times_max}")
+            if debug:
+                print(f"[PLOT LOG] {sweep_label} - Min log time: {times_min}, Max log time: {times_max}")
 
             times = [t - times_min for t in times]  # Normalize by subtracting min log time
 
             times = [t/times_max for t in times]  # Scale to [0, 1]
 
-            print(f"[PLOT LOG] {sweep_label}:")
-            for dsp, orig_time in zip(dsps, times):
-                print(f"[PLOT LOG]   DSP={dsp}, Execution Time={orig_time}")
+            if debug:
+                print(f"[PLOT LOG] {sweep_label}:")
+                for dsp, orig_time in zip(dsps, times):
+                    print(f"[PLOT LOG]   DSP={dsp}, Execution Time={orig_time}")
 
             plt.plot(
                 dsps,
@@ -309,7 +319,8 @@ def plot_execution_time_results_log_scale(grouped_data, output_dir):
         plt.tight_layout()
         plt.savefig(out_path, dpi=200)
         plt.close()
-        print(f"[PLOT LOG] Saved plot: {out_path}\n")
+        if debug:
+            print(f"[PLOT LOG] Saved plot: {out_path}\n")
 
 def plot_edp_results(grouped_data, output_dir):
     """Plot EDP vs actual DSP used for each benchmark with multiple sweeps"""
@@ -421,7 +432,7 @@ def plot_edp_deviation_results(grouped_data, output_dir):
             plt.close()
             print(f"Saved EDP deviation plot: {out_path}")
 
-def plot_relative_time_delay_results(grouped_data, output_dir):
+def plot_relative_time_delay_results(grouped_data, output_dir, debug=False):
     """
     For each benchmark, generate relative time delay plots using "Wires cost estimated" as baseline.
     Plots % execution time deviation vs actual DSP used. The baseline sweep is shown as a
@@ -476,10 +487,6 @@ def plot_relative_time_delay_results(grouped_data, output_dir):
             if not dsps:
                 continue
 
-            print(f"[RELATIVE TIME DELAY] {benchmark} - {sweep_label}:")
-            for dsp, dev in zip(dsps, deviations):
-                print(f"[RELATIVE TIME DELAY]   DSP={dsp}, Deviation={dev:.2f}%")
-
             plt.plot(
                 dsps,
                 deviations,
@@ -502,7 +509,7 @@ def plot_relative_time_delay_results(grouped_data, output_dir):
         plt.close()
         print(f"[RELATIVE TIME DELAY] Saved plot: {out_path}\n")
 
-def plot_final_deviation_plot(grouped_data, output_dir):
+def plot_final_deviation_plot(grouped_data, output_dir, debug=False):
     """
     For each benchmark:
     - "Wires cost estimated" at DSP n uses baseline from DSP (n-1) within same sweep
@@ -515,7 +522,8 @@ def plot_final_deviation_plot(grouped_data, output_dir):
     for benchmark, sweep_data in grouped_data.items():
         baseline = sweep_data.get(baseline_label)
         if not baseline:
-            print(f"Skipping final_deviation_plot for {benchmark}: no {baseline_label} baseline.")
+            if debug:
+                print(f"Skipping final_deviation_plot for {benchmark}: no {baseline_label} baseline.")
             continue
 
         # Create a map: DSP -> baseline execution time
@@ -523,12 +531,14 @@ def plot_final_deviation_plot(grouped_data, output_dir):
         baseline_map = {dsp: exec_time for dsp, exec_time, _ in baseline_data}
         baseline_dsps = sorted(baseline_map.keys())
         if not baseline_dsps:
-            print(f"Skipping final_deviation_plot for {benchmark}: empty {baseline_label} baseline.")
+            if debug:
+                print(f"Skipping final_deviation_plot for {benchmark}: empty {baseline_label} baseline.")
             continue
 
         plt.figure(figsize=(12, 7))
 
-        print(f"\n[FINAL DEVIATION] Benchmark: {benchmark}")
+        if debug:
+            print(f"\n[FINAL DEVIATION] Benchmark: {benchmark}")
 
         for sweep_label, data in sorted(sweep_data.items()):
             if not data:
@@ -553,8 +563,9 @@ def plot_final_deviation_plot(grouped_data, output_dir):
                     
                     dsps.append(dsp)
                     deviations.append(dev_pct)
-                    print(f"[FINAL DEVIATION] {sweep_label} DSP={dsp}: Deviation={dev_pct:.2f}% "
-                          f"(from prev point)")
+                    if debug:
+                        print(f"[FINAL DEVIATION] {sweep_label} DSP={dsp}: Deviation={dev_pct:.2f}% "
+                              f"(from prev point)")
             else:
                 # For other sweeps: baseline is "Wires cost estimated" at same DSP
                 for dsp, exec_time_sweep, _ in sweep_data_sorted:
@@ -563,8 +574,9 @@ def plot_final_deviation_plot(grouped_data, output_dir):
                         dev_pct = (exec_time_sweep - exec_time_baseline) / exec_time_baseline * 100.0
                         dsps.append(dsp)
                         deviations.append(dev_pct)
-                        print(f"[FINAL DEVIATION] {sweep_label} DSP={dsp}: Deviation={dev_pct:.2f}% "
-                              f"(from {baseline_label} at same DSP)")
+                        if debug:
+                            print(f"[FINAL DEVIATION] {sweep_label} DSP={dsp}: Deviation={dev_pct:.2f}% "
+                                  f"(from {baseline_label} at same DSP)")
 
             if not dsps:
                 continue
@@ -597,7 +609,8 @@ def plot_final_deviation_plot(grouped_data, output_dir):
         plt.tight_layout()
         plt.savefig(out_path, dpi=200)
         plt.close()
-        print(f"[FINAL DEVIATION] Saved plot: {out_path}\n")
+        if debug:
+            print(f"[FINAL DEVIATION] Saved plot: {out_path}\n")
 
 def main():
     ap = argparse.ArgumentParser(
@@ -618,6 +631,11 @@ def main():
         type=str,
         help="Tells if the the benchmark is kernel or not."
     )
+    ap.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable debug output"
+    )
     args = ap.parse_args()
     
     results_dir = args.results_dir
@@ -631,14 +649,14 @@ def main():
     
     for entry in sorted(os.listdir(results_dir)):
         sweep_path = os.path.join(results_dir, entry)
-        print(f"Checking {sweep_path}...")
         if not os.path.isdir(sweep_path):
             continue
         
-        sweep_label = get_sweep_label(entry)
+        sweep_label = get_sweep_label(entry, debug=args.debug)
         
-        print(f"\nScanning {sweep_label} ({entry})...")
-        results = scan_directory(sweep_path, sweep_label, kernel=args.kernel)
+        if args.debug:
+            print(f"\nScanning {sweep_label} ({entry})...")
+        results = scan_directory(sweep_path, sweep_label, kernel=args.kernel, debug=args.debug)
         all_results.extend(results)
     
     if not all_results:
@@ -661,10 +679,10 @@ def main():
     if args.plot:
         output_dir = results_dir
         print(f"\nGenerating comparison plots in {output_dir}...")
-        plot_execution_time_results(grouped, output_dir)
-        plot_execution_time_results_log_scale(grouped, output_dir)
-        plot_relative_time_delay_results(grouped, output_dir)
-        plot_final_deviation_plot(grouped, output_dir)  # <-- replaced
+        plot_execution_time_results(grouped, output_dir, debug=args.debug)
+        plot_execution_time_results_log_scale(grouped, output_dir, debug=args.debug)
+        plot_relative_time_delay_results(grouped, output_dir, debug=args.debug)
+        plot_final_deviation_plot(grouped, output_dir, debug=args.debug)
         plot_edp_results(grouped, output_dir)
         plot_edp_deviation_results(grouped, output_dir)
 
