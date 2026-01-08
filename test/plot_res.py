@@ -5,6 +5,7 @@ from collections import defaultdict
 import matplotlib.pyplot as plt
 import csv
 import yaml
+import math
 
 def extract_execution_time_and_edp(log_path):
     """Extract execution_time and EDP from run_codesign.log"""
@@ -194,9 +195,9 @@ def plot_execution_time_results(grouped_data, output_dir):
         plt.figure(figsize=(10, 6))
 
         colors = {
-            'No wires': '#1f77b4',           # Blue
-            'Wires cost estimated': '#ff7f0e', # Orange
-            'Fixed wire cost': '#2ca02c'      # Green
+            'No wires': '#1f77b4',
+            'Wires cost estimated': '#ff7f0e',
+            'Fixed wire cost': '#2ca02c'
         }
         markers = {
             'No wires': 'o',
@@ -204,21 +205,28 @@ def plot_execution_time_results(grouped_data, output_dir):
             'Fixed wire cost': '^'
         }
 
-        print(f"\n[PLOT DEBUG] Benchmark: {norm_bench}")
-        print(f"[PLOT DEBUG] Available sweeps: {list(sweep_data.keys())}")
+        # Find the minimum execution time across all sweeps
+        all_times = []
+        for data in sweep_data.values():
+            for d in data:
+                all_times.append(d[1])
         
-        # Add all sweeps as separate curves on the same figure
+        min_time = min(all_times) if all_times else 0
+        
+        print(f"\n[PLOT] Benchmark: {norm_bench}")
+        print(f"[PLOT] Minimum execution time: {min_time}")
+        
+        # Plot with normalized times (difference from minimum)
         for sweep_label, data in sorted(sweep_data.items()):
-            print(f"[PLOT DEBUG]   {sweep_label}: {len(data)} data points")
             if len(data) == 0:
-                print(f"[PLOT DEBUG]     WARNING: No data for {sweep_label}")
                 continue
                 
             dsps = [d[0] for d in data]
-            times = [d[1] for d in data]
+            times = [d[1] - min_time for d in data]  # Subtract minimum from all times
 
-            print(f"[PLOT DEBUG]     DSPs: {dsps}, Times: {times}")
-            print(f"[PLOT DEBUG]     Color: {colors.get(sweep_label)}, Marker: {markers.get(sweep_label)}")
+            print(f"[PLOT] {sweep_label}:")
+            for dsp, time_diff, orig_time in zip(dsps, times, [d[1] for d in data]):
+                print(f"[PLOT]   DSP={dsp}, Original Time={orig_time}, Normalized Time={time_diff}")
 
             plt.plot(
                 dsps,
@@ -230,9 +238,9 @@ def plot_execution_time_results(grouped_data, output_dir):
                 color=colors.get(sweep_label)
             )
 
-        plt.title(f"{norm_bench} — DSP vs Execution Time", fontsize=14, fontweight='bold')
+        plt.title(f"{norm_bench} — DSP vs Execution Time (normalized)", fontsize=14, fontweight='bold')
         plt.xlabel("Actual DSP Used", fontsize=12)
-        plt.ylabel("Execution Time (seconds)", fontsize=12)
+        plt.ylabel("Execution Time Difference (seconds)", fontsize=12)
         plt.grid(True, alpha=0.3)
         plt.legend(fontsize=11, loc='best')
 
@@ -240,7 +248,68 @@ def plot_execution_time_results(grouped_data, output_dir):
         plt.tight_layout()
         plt.savefig(out_path, dpi=200)
         plt.close()
-        print(f"Saved plot: {out_path}")
+        print(f"[PLOT] Saved plot: {out_path}\n")
+
+def plot_execution_time_results_log_scale(grouped_data, output_dir):
+    """Single plot per normalized benchmark: Execution time vs DSP with all sweep curves (log scale)"""
+    for norm_bench, sweep_data in grouped_data.items():
+        plt.figure(figsize=(10, 6))
+
+        colors = {
+            'No wires': '#1f77b4',
+            'Wires cost estimated': '#ff7f0e',
+            'Fixed wire cost': '#2ca02c'
+        }
+        markers = {
+            'No wires': 'o',
+            'Wires cost estimated': 's',
+            'Fixed wire cost': '^'
+        }
+
+        print(f"\n[PLOT LOG] Benchmark: {norm_bench}")
+        
+        # Plot with log scale on y-axis
+        for sweep_label, data in sorted(sweep_data.items()):
+            if len(data) == 0:
+                continue
+                
+            dsps = [d[0] for d in data]
+            times = [math.log(d[1]) for d in data]
+
+            times_min = min(times)
+            times_max = max(times)
+            print(f"[PLOT LOG] {sweep_label} - Min log time: {times_min}, Max log time: {times_max}")
+
+            times = [t - times_min for t in times]  # Normalize by subtracting min log time
+
+            times = [t/times_max for t in times]  # Scale to [0, 1]
+
+            print(f"[PLOT LOG] {sweep_label}:")
+            for dsp, orig_time in zip(dsps, times):
+                print(f"[PLOT LOG]   DSP={dsp}, Execution Time={orig_time}")
+
+            plt.plot(
+                dsps,
+                times,
+                marker=markers.get(sweep_label, 'o'),
+                linewidth=2.5,
+                markersize=8,
+                label=sweep_label,
+                color=colors.get(sweep_label)
+            )
+
+        plt.title(f"{norm_bench} — DSP vs Execution Time (log scale)", fontsize=14, fontweight='bold')
+        plt.xlabel("Actual DSP Used", fontsize=12)
+        plt.ylabel("Execution Time (seconds, log scale)", fontsize=12)
+        plt.yscale('log')
+        plt.grid(True, alpha=0.3, which='both')
+        plt.legend(fontsize=11, loc='best')
+
+        out_path = os.path.join(output_dir, f"{norm_bench}_dsp_vs_delay_log.png")
+        plt.tight_layout()
+        plt.savefig(out_path, dpi=200)
+        plt.close()
+        print(f"[PLOT LOG] Saved plot: {out_path}\n")
 
 def plot_edp_results(grouped_data, output_dir):
     """Plot EDP vs actual DSP used for each benchmark with multiple sweeps"""
@@ -352,6 +421,87 @@ def plot_edp_deviation_results(grouped_data, output_dir):
             plt.close()
             print(f"Saved EDP deviation plot: {out_path}")
 
+def plot_relative_time_delay_results(grouped_data, output_dir):
+    """
+    For each benchmark, generate relative time delay plots using "Wires cost estimated" as baseline.
+    Plots % execution time deviation vs actual DSP used. The baseline sweep is shown as a
+    zero line; other sweeps are plotted when DSP points match the baseline.
+    """
+    colors = {'No wires': '#1f77b4', 'Wires cost estimated': '#ff7f0e', 'Fixed wire cost': '#2ca02c'}
+    markers = {'No wires': 'o', 'Wires cost estimated': 's', 'Fixed wire cost': '^'}
+    baseline_label = "Wires cost estimated"
+
+    for benchmark, sweep_data in grouped_data.items():
+        baseline = sweep_data.get(baseline_label)
+        if not baseline:
+            print(f"Skipping relative time delay plot for {benchmark}: no {baseline_label} baseline.")
+            continue
+
+        baseline_map = {dsp: exec_time for dsp, exec_time, _ in baseline}
+        baseline_dsps = sorted(baseline_map.keys())
+        if not baseline_dsps:
+            print(f"Skipping relative time delay plot for {benchmark}: empty {baseline_label} baseline.")
+            continue
+
+        plt.figure(figsize=(12, 7))
+
+        # Zero line for baseline
+        plt.plot(
+            baseline_dsps,
+            [0.0] * len(baseline_dsps),
+            linestyle='--',
+            color=colors.get(baseline_label, '#888888'),
+            label=f"{baseline_label} (baseline)",
+            linewidth=1.8,
+        )
+
+        for sweep_label, data in sweep_data.items():
+            if sweep_label == baseline_label:
+                continue
+            if not data:
+                continue
+            
+            sweep_map = {dsp: exec_time for dsp, exec_time, _ in data}
+
+            dsps = []
+            deviations = []
+            for dsp, exec_time_base in baseline_map.items():
+                if dsp not in sweep_map:
+                    continue
+                exec_time_other = sweep_map[dsp]
+                dev_pct = (exec_time_other - exec_time_base) / exec_time_base * 100.0
+                dsps.append(dsp)
+                deviations.append(dev_pct)
+
+            if not dsps:
+                continue
+
+            print(f"[RELATIVE TIME DELAY] {benchmark} - {sweep_label}:")
+            for dsp, dev in zip(dsps, deviations):
+                print(f"[RELATIVE TIME DELAY]   DSP={dsp}, Deviation={dev:.2f}%")
+
+            plt.plot(
+                dsps,
+                deviations,
+                marker=markers.get(sweep_label, 'o'),
+                linewidth=2.5,
+                markersize=8,
+                label=sweep_label,
+                color=colors.get(sweep_label),
+            )
+
+        plt.title(f"{benchmark} — Relative Time Delay vs {baseline_label}", fontsize=14, fontweight='bold')
+        plt.xlabel("Actual DSP Used", fontsize=12)
+        plt.ylabel(f"% Execution Time Deviation (relative to {baseline_label})", fontsize=12)
+        plt.grid(True, alpha=0.3)
+        plt.legend(fontsize=11, loc='best')
+
+        out_path = os.path.join(output_dir, f"{benchmark}_relative_time_delay_graph.png")
+        plt.tight_layout()
+        plt.savefig(out_path, dpi=200)
+        plt.close()
+        print(f"[RELATIVE TIME DELAY] Saved plot: {out_path}\n")
+
 def main():
     ap = argparse.ArgumentParser(
         description="Parse multiple DSP sweep results and generate comparison plots"
@@ -415,7 +565,8 @@ def main():
         output_dir = results_dir
         print(f"\nGenerating comparison plots in {output_dir}...")
         plot_execution_time_results(grouped, output_dir)
-        # If you no longer want EDP plots, comment the next line:
+        plot_execution_time_results_log_scale(grouped, output_dir)
+        plot_relative_time_delay_results(grouped, output_dir)
         plot_edp_results(grouped, output_dir)
         plot_edp_deviation_results(grouped, output_dir)
 
