@@ -96,10 +96,18 @@ def extract_actual_dsp_from_csv(entry_path, benchmark_name, max_dsp, kernel=None
     return None
 
 def get_sweep_label(directory_name):
-    """Convert directory name to sweep label"""
-    if "constant_wires" in directory_name.lower():
+    """Convert directory name to sweep label."""
+    lower = directory_name.lower()
+    print(f"Generating sweep label for directory: {directory_name}")
+    # Match no-wires first to avoid the "with_wires" substring trap (e.g., "without_wires")
+    if "no_wires" in lower or "without_wires" in lower:
+        print("Detected no wires in directory name.")
+        return "No wires"
+    elif "constant_wires" in lower or "fixed_wires" in lower:
+        print("Detected fixed wire cost in directory name.")
         return "Fixed wire cost"
-    elif "with_wires" in directory_name.lower():
+    elif "with_wires" in lower:
+        print("Detected wires cost estimated in directory name.")
         return "Wires cost estimated"
     else:
         return "No wires"
@@ -186,9 +194,9 @@ def plot_execution_time_results(grouped_data, output_dir):
         plt.figure(figsize=(10, 6))
 
         colors = {
-            'No wires': '#1f77b4',
-            'Wires cost estimated': '#ff7f0e',
-            'Fixed wire cost': '#2ca02c'
+            'No wires': '#1f77b4',           # Blue
+            'Wires cost estimated': '#ff7f0e', # Orange
+            'Fixed wire cost': '#2ca02c'      # Green
         }
         markers = {
             'No wires': 'o',
@@ -196,10 +204,21 @@ def plot_execution_time_results(grouped_data, output_dir):
             'Fixed wire cost': '^'
         }
 
+        print(f"\n[PLOT DEBUG] Benchmark: {norm_bench}")
+        print(f"[PLOT DEBUG] Available sweeps: {list(sweep_data.keys())}")
+        
         # Add all sweeps as separate curves on the same figure
         for sweep_label, data in sorted(sweep_data.items()):
+            print(f"[PLOT DEBUG]   {sweep_label}: {len(data)} data points")
+            if len(data) == 0:
+                print(f"[PLOT DEBUG]     WARNING: No data for {sweep_label}")
+                continue
+                
             dsps = [d[0] for d in data]
             times = [d[1] for d in data]
+
+            print(f"[PLOT DEBUG]     DSPs: {dsps}, Times: {times}")
+            print(f"[PLOT DEBUG]     Color: {colors.get(sweep_label)}, Marker: {markers.get(sweep_label)}")
 
             plt.plot(
                 dsps,
