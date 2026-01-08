@@ -502,6 +502,103 @@ def plot_relative_time_delay_results(grouped_data, output_dir):
         plt.close()
         print(f"[RELATIVE TIME DELAY] Saved plot: {out_path}\n")
 
+def plot_final_deviation_plot(grouped_data, output_dir):
+    """
+    For each benchmark:
+    - "Wires cost estimated" at DSP n uses baseline from DSP (n-1) within same sweep
+    - Other sweeps ("No wires", "Fixed wire cost") at DSP n use baseline from "Wires cost estimated" at DSP n
+    """
+    colors = {'No wires': '#1f77b4', 'Wires cost estimated': '#ff7f0e', 'Fixed wire cost': '#2ca02c'}
+    markers = {'No wires': 'o', 'Wires cost estimated': 's', 'Fixed wire cost': '^'}
+    baseline_label = "Wires cost estimated"
+
+    for benchmark, sweep_data in grouped_data.items():
+        baseline = sweep_data.get(baseline_label)
+        if not baseline:
+            print(f"Skipping final_deviation_plot for {benchmark}: no {baseline_label} baseline.")
+            continue
+
+        # Create a map: DSP -> baseline execution time
+        baseline_data = sorted(baseline, key=lambda x: x[0])  # Sort by DSP
+        baseline_map = {dsp: exec_time for dsp, exec_time, _ in baseline_data}
+        baseline_dsps = sorted(baseline_map.keys())
+        if not baseline_dsps:
+            print(f"Skipping final_deviation_plot for {benchmark}: empty {baseline_label} baseline.")
+            continue
+
+        plt.figure(figsize=(12, 7))
+
+        print(f"\n[FINAL DEVIATION] Benchmark: {benchmark}")
+
+        for sweep_label, data in sorted(sweep_data.items()):
+            if not data:
+                continue
+
+            sweep_data_sorted = sorted(data, key=lambda x: x[0])  # Sort by DSP
+            sweep_map = {dsp: exec_time for dsp, exec_time, _ in sweep_data_sorted}
+
+            dsps = []
+            deviations = []
+
+            if sweep_label == baseline_label:
+                # For "Wires cost estimated": baseline is the previous DSP point in same sweep
+                for i, (dsp, exec_time_current, _) in enumerate(sweep_data_sorted):
+                    if i == 0:
+                        # First point has no previous baseline, use 0% deviation
+                        dev_pct = 0.0
+                    else:
+                        # Use previous DSP point in same sweep as baseline
+                        prev_dsp, exec_time_prev, _ = sweep_data_sorted[i - 1]
+                        dev_pct = (exec_time_current - exec_time_prev) / exec_time_prev * 100.0
+                    
+                    dsps.append(dsp)
+                    deviations.append(dev_pct)
+                    print(f"[FINAL DEVIATION] {sweep_label} DSP={dsp}: Deviation={dev_pct:.2f}% "
+                          f"(from prev point)")
+            else:
+                # For other sweeps: baseline is "Wires cost estimated" at same DSP
+                for dsp, exec_time_sweep, _ in sweep_data_sorted:
+                    if dsp in baseline_map:
+                        exec_time_baseline = baseline_map[dsp]
+                        dev_pct = (exec_time_sweep - exec_time_baseline) / exec_time_baseline * 100.0
+                        dsps.append(dsp)
+                        deviations.append(dev_pct)
+                        print(f"[FINAL DEVIATION] {sweep_label} DSP={dsp}: Deviation={dev_pct:.2f}% "
+                              f"(from {baseline_label} at same DSP)")
+
+            if not dsps:
+                continue
+
+            # Sort by DSP for plotting
+            sorted_pairs = sorted(zip(dsps, deviations), key=lambda x: x[0])
+            dsps_sorted = [p[0] for p in sorted_pairs]
+            deviations_sorted = [p[1] for p in sorted_pairs]
+
+            plt.plot(
+                dsps_sorted,
+                deviations_sorted,
+                marker=markers.get(sweep_label, 'o'),
+                linewidth=2.5,
+                markersize=8,
+                label=sweep_label,
+                color=colors.get(sweep_label),
+            )
+
+        # Zero line
+        plt.axhline(0.0, linestyle='--', color='#888888', linewidth=1.5, label="0% baseline")
+
+        plt.title(f"{benchmark} — Execution Time Deviation", fontsize=14, fontweight='bold')
+        plt.xlabel("Actual DSP Used", fontsize=12)
+        plt.ylabel("% Execution Time Deviation", fontsize=12)
+        plt.grid(True, alpha=0.3)
+        plt.legend(fontsize=11, loc='best')
+
+        out_path = os.path.join(output_dir, f"{benchmark}_final_deviation_plot.png")
+        plt.tight_layout()
+        plt.savefig(out_path, dpi=200)
+        plt.close()
+        print(f"[FINAL DEVIATION] Saved plot: {out_path}\n")
+
 def main():
     ap = argparse.ArgumentParser(
         description="Parse multiple DSP sweep results and generate comparison plots"
@@ -567,6 +664,7 @@ def main():
         plot_execution_time_results(grouped, output_dir)
         plot_execution_time_results_log_scale(grouped, output_dir)
         plot_relative_time_delay_results(grouped, output_dir)
+        plot_final_deviation_plot(grouped, output_dir)  # <-- replaced
         plot_edp_results(grouped, output_dir)
         plot_edp_deviation_results(grouped, output_dir)
 
