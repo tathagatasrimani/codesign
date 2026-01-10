@@ -21,6 +21,7 @@ area: #um^2
     LtE16: 3.21
     Modulus16: 91.8
     Mult16: 70.79
+    Mux16: 0.82 #TODO: These values are estimated. Must run proper characterization.
     Not16: 0.70
     NotEq16: 2.54
     Or16: 0.51
@@ -50,6 +51,7 @@ area: #um^2
     RShift16: 611.837
     Modulus16: 11100.646
     Mult16: 2571.216
+    Mux16: 62.4 #TODO: These values are estimated. Must run proper characterization.
     Register16: 26.275
     Exp16: 2900.8 # PLACEHOLDER
 dynamic_power: # nw
@@ -69,6 +71,7 @@ dynamic_power: # nw
     LtE16: 409.35
     Modulus16: 26330.92
     Mult16: 34667.56
+    Mux16: 892.45 #TODO: These values are estimated. Must run proper characterization.
     Not16: 202.53
     NotEq16: 175.49
     Or16: 19.22
@@ -96,6 +99,7 @@ dynamic_power: # nw
     RightShift16: 46210
     Modulus16: 1540900
     Mult16: 282600
+    Mux16: 15280 #TODO: These values are estimated. Must run proper characterization.
     Register16: 4772.4
 latency: # ns
   7:
@@ -115,6 +119,7 @@ latency: # ns
     LtE16: 0.295
     Modulus16: 7.254
     Mult16: 1.89
+    Mux16: 0.156 #TODO: These values are estimated. Must run proper characterization.
     Not16: 0.042
     NotEq16: 0.141
     Or16: 0.12
@@ -142,6 +147,7 @@ latency: # ns
     RightShift16: 1.474
     Modulus16: 9.395
     Mult16: 6.803
+    Mux16: 1.285 #TODO: These values are estimated. Must run proper characterization.
     Register16: 0.294
 
 leakage_power: #nW
@@ -162,6 +168,7 @@ leakage_power: #nW
     LtE16: 2.55
     Modulus16: 90.38
     Mult16: 63.34
+    Mux16: 0.84 #TODO: These values are estimated. Must run proper characterization.
     Not16: 0.27
     NotEq16: 2.3
     Or16: 0.41
@@ -188,6 +195,7 @@ leakage_power: #nW
     RightShift16: 0.166
     Modulus16: 5.15
     Mult16: 0.869
+    Mux16: 0.0298 #TODO: These values are estimated. Must run proper characterization.
     Register16: 0.0105
 
 pin_count: 
@@ -236,6 +244,9 @@ pin_count:
   Mult16:
     input: 32
     output: 32
+  Mux16:
+    input: 36
+    output: 16
   Not16:
     input: 16
     output: 16

@@ -1,11 +1,11 @@
 import copy
 import os
 import math
-
 import pprint
 import re 
 import networkx as nx
 import logging
+import yaml
 
 from .openroad_functions import find_val_two, find_val_xy, find_val, value, format, clean
 from openroad_interface import openroad_run
@@ -22,8 +22,8 @@ logger = logging.getLogger(__name__)
 SUPPORTED_MACROS = [
     {"humnan_readable_name": "and", "macro_name_in_def": "BitAnd16", "search_terms": ["AND"]},
     {"humnan_readable_name": "xor", "macro_name_in_def": "BitXor16", "search_terms": ["XOR"]},
-    {"humnan_readable_name": "mux", "macro_name_in_def": "MUX2_X1", "search_terms": ["MUX"]},
-    {"humnan_readable_name": "reg", "macro_name_in_def": "DFF_X1", "search_terms": ["REG"]},
+    {"humnan_readable_name": "mux", "macro_name_in_def": "Mux16", "search_terms": ["MUX"]},
+    #{"humnan_readable_name": "reg", "macro_name_in_def": "DFF_X1", "search_terms": ["REG"]},
     {"humnan_readable_name": "add", "macro_name_in_def": "Add16", "search_terms": ["ADD"]},
     {"humnan_readable_name": "mult", "macro_name_in_def": "Mult16", "search_terms": ["MUL"]},
     {"humnan_readable_name": "floordiv", "macro_name_in_def": "FloorDiv16", "search_terms": ["FLOORDIV"]},
@@ -42,6 +42,8 @@ def log_warning(msg):
         logger.warning(msg)
 
 MAX_STD_CELL_ROWS = 50000  # adjust as needed for memory/runtime
+
+DISABLE_ROW_GENERATION = False  # Set to True to skip std cell row generation entirely
 
 
 class DefGenerator:
@@ -83,6 +85,69 @@ class DefGenerator:
         self.layer_x_offset = None
         self.layer_pitch_x = None
         self.layer_pitch_y = None
+
+        # Load pin_count data from tech_params.yaml like macro_maker does
+        tech_params_file_path = os.path.join(self.codesign_root_dir, "src/yaml/tech_params.yaml")
+        if os.path.exists(tech_params_file_path):
+            tech_params = yaml.load(open(tech_params_file_path, "r"), Loader=yaml.Loader)
+            self.pin_list = tech_params.get("pin_count", {})
+            log_info(f"Loaded pin_count data from tech_params.yaml: {len(self.pin_list)} macros")
+        else:
+            logger.warning(f"tech_params.yaml not found at {tech_params_file_path}; using default pin counts")
+            self.pin_list = {}
+
+    def get_macro_bitwidths(self, macro_name: str) -> tuple:
+        """
+        Get input and output bitwidths for a macro based on pin_count data.
+        Returns (input_bitwidth, output_bitwidth, num_inputs).
+        
+        Logic:
+        - Output bitwidth = output pin count
+        - Input bitwidth per input = input pin count / number of inputs
+        - Number of inputs is derived from the ratio of input to output pins
+        """
+        if macro_name not in self.pin_list:
+            # Default to 16-bit if not found
+            log_warning(f"Macro {macro_name} not found in pin_list, defaulting to 16-bit")
+            return (16, 16, 2)  # default: 2 inputs of 16 bits, 1 output of 16 bits
+        
+        pin_data = self.pin_list[macro_name]
+        input_pin_count = pin_data.get("input", 16)
+        output_pin_count = pin_data.get("output", 16)
+        
+        # Output bitwidth is straightforward
+        output_bitwidth = output_pin_count
+        
+        # Determine number of inputs and input bitwidth
+        # Common patterns:
+        # - input == output: 1 input (e.g., Not16: 16 in, 16 out)
+        # - input == 2 * output: 2 inputs (e.g., Add16: 32 in, 16 out)
+        # - input == 3 * output or special: handle muxes and special cases
+        if input_pin_count == output_pin_count:
+            num_inputs = 1
+            input_bitwidth = input_pin_count
+        elif input_pin_count == 2 * output_pin_count:
+            num_inputs = 2
+            input_bitwidth = output_pin_count  # each input is output_bitwidth
+        elif "Mux" in macro_name:
+            # Mux16 has 36 input pins: 2 data inputs (16 each) + 1 select (4 bits) = 32 + 4 = 36
+            # For muxes, we'll use output_bitwidth for data inputs
+            num_inputs = 2  # data inputs
+            input_bitwidth = output_pin_count  # data inputs are same width as output
+            # Note: select bit is handled separately in port mapping
+        else:
+            # Try to infer: assume 2 inputs if ratio is close to 2
+            ratio = input_pin_count / output_pin_count if output_pin_count > 0 else 2
+            if abs(ratio - 2.0) < 0.5:
+                num_inputs = 2
+                input_bitwidth = output_pin_count
+            else:
+                # Fallback: assume 1 input
+                num_inputs = 1
+                input_bitwidth = input_pin_count
+        
+        log_info(f"Macro {macro_name}: input_bitwidth={input_bitwidth}, output_bitwidth={output_bitwidth}, num_inputs={num_inputs}")
+        return (input_bitwidth, output_bitwidth, num_inputs)
 
 
     def get_macro_halo_values(self):
@@ -305,39 +370,55 @@ class DefGenerator:
 
         log_info(f"Control nodes: {control_nodes}")
 
-        ### 1. pruning ###
+        ### 1. pruning - set bitwidths based on pin_count data ###
+        # First, map all nodes to their macros to get bitwidths
+        node_to_macro = {}
         for node1 in control_nodes:
-            graph.nodes[node1]["count"] = 16
+            macro = self.find_macro(graph.nodes[node1])
+            _, output_bitwidth, _ = self.get_macro_bitwidths(macro)
+            graph.nodes[node1]["count"] = output_bitwidth
+            node_to_macro[node1] = [macro, copy.deepcopy(self.macro_dict.get(macro, {"input": [], "output": []}))]
 
         ### 2. mapping components to nodes ###
         nodes = list(graph)
         old_nodes = list(graph)
         old_graph = copy.deepcopy(graph)
-        node_to_macro = {}
         out_edge = self.edge_gen("out", old_nodes, graph)
         for node in old_nodes:
-            macro = self.find_macro(graph.nodes[node])
-            self.macro_dict[macro]["function"] = graph.nodes[node]["function"]
-            node_to_macro[node] = [macro, copy.deepcopy(self.macro_dict[macro])]
-            log_info(f"node to macro [{node}]: {node_to_macro[node]}")
+            if node not in node_to_macro:
+                macro = self.find_macro(graph.nodes[node])
+                self.macro_dict[macro]["function"] = graph.nodes[node]["function"]
+                node_to_macro[node] = [macro, copy.deepcopy(self.macro_dict[macro])]
+            macro = node_to_macro[node][0]
+            _, output_bitwidth, _ = self.get_macro_bitwidths(macro)
+            log_info(f"node to macro [{node}]: {node_to_macro[node]}, output_bitwidth={output_bitwidth}")
             out_edge = self.edge_gen("out", old_nodes, graph)
-            assert graph.nodes[node]["count"] == 16, f"Node {node} has {graph.nodes[node]['count']} ports, expected 16"
+            # Update count if it was set incorrectly
+            if graph.nodes[node].get("count") != output_bitwidth:
+                graph.nodes[node]["count"] = output_bitwidth
             node_attribute = graph.nodes[node]
-            # node has 16 output ports
-            for x in range(16):
+            # node has output_bitwidth output ports
+            for x in range(output_bitwidth):
                 name = str(node) + "_" + str(x)
                 # this port node may have been added in a previous iteration
                 if not graph.has_node(name):
-                    graph.add_node(name, function=node_attribute["function"], port_idx=x, name=node, count=16)
+                    graph.add_node(name, function=node_attribute["function"], port_idx=x, name=node, count=output_bitwidth)
                 # node may have multiple fanouts, take care of port x for each fanout
                 for output in out_edge[node]:
-                    assert graph.nodes[output]["count"] == 16, f"Node {output} has {graph.nodes[output]['count']} ports, expected 16"
-                    # output node has 16 input ports
+                    if output not in node_to_macro:
+                        output_macro = self.find_macro(graph.nodes[output])
+                        self.macro_dict[output_macro]["function"] = graph.nodes[output]["function"]
+                        node_to_macro[output] = [output_macro, copy.deepcopy(self.macro_dict[output_macro])]
+                    output_macro = node_to_macro[output][0]
+                    _, output_output_bitwidth, _ = self.get_macro_bitwidths(output_macro)
+                    if graph.nodes[output].get("count") != output_output_bitwidth:
+                        graph.nodes[output]["count"] = output_output_bitwidth
+                    # output node has output_output_bitwidth input ports
                     node_attribute = graph.nodes[output]
                     output_name = str(output) + "_" + str(x)
                     # this port node may have been added in a previous iteration
                     if not graph.has_node(output_name):
-                        graph.add_node(output_name, function=node_attribute["function"], port_idx=x, name=output, count=16)
+                        graph.add_node(output_name, function=node_attribute["function"], port_idx=x, name=output, count=output_output_bitwidth)
                         graph.add_edge(output_name, output)
                     graph.add_edge(name, output_name)
 
@@ -349,29 +430,55 @@ class DefGenerator:
         log_info("generating muxes")
 
         # note: old graph has edges for functional self.units
-        # new graph has edges for each of the 16 ports of the functional self.units, more fine grained
+        # new graph has edges for each port of the functional self.units (based on actual bitwidths), more fine grained
+
+        # Track which nodes connect to which mux input ports (A0 or A1)
+        # Key: mux_node_name (e.g., "Mux0_0"), Value: dict mapping source node to input port index (0 for A0, 1 for A1)
+        mux_input_port_map = {}
 
         input_dict = self.edge_gen("in", old_nodes, old_graph)
         input_dict_new = self.edge_gen("in", nodes, graph)
         for node in old_nodes:
+            # Get bitwidth for this node
+            if node not in node_to_macro:
+                macro = self.find_macro(graph.nodes[node])
+                node_to_macro[node] = [macro, copy.deepcopy(self.macro_dict[macro])]
+            macro = node_to_macro[node][0]
+            _, output_bitwidth, num_inputs = self.get_macro_bitwidths(macro)
+            
             if "Regs" in node:
                 max_inputs = 1
             else:
-                max_inputs = 2
+                max_inputs = num_inputs
             while len(input_dict[node]) > max_inputs:
                 input_dict = self.edge_gen("in", old_nodes, old_graph)
                 target_node1 = input_dict[node][0]
                 target_node2 = input_dict[node][1]
-                for x in range(16):
-                    assert old_graph.nodes[node]["count"] == 16, f"Node {node} has {old_graph.nodes[node]['count']} ports, expected 16"
-                    assert old_graph.nodes[target_node1]["count"] == 16, f"Node {target_node1} has {old_graph.nodes[target_node1]['count']} ports, expected 16"
-                    assert old_graph.nodes[target_node2]["count"] == 16, f"Node {target_node2} has {old_graph.nodes[target_node2]['count']} ports, expected 16"
-                    node_name = node + "_" + str(x)
+
+                # Get bitwidths for target nodes
+                if target_node1 not in node_to_macro:
+                    t1_macro = self.find_macro(old_graph.nodes[target_node1])
+                    node_to_macro[target_node1] = [t1_macro, copy.deepcopy(self.macro_dict[t1_macro])]
+                if target_node2 not in node_to_macro:
+                    t2_macro = self.find_macro(old_graph.nodes[target_node2])
+                    node_to_macro[target_node2] = [t2_macro, copy.deepcopy(self.macro_dict[t2_macro])]
+                
+                t1_macro = node_to_macro[target_node1][0]
+                t2_macro = node_to_macro[target_node2][0]
+                _, t1_output_bitwidth, _ = self.get_macro_bitwidths(t1_macro)
+                _, t2_output_bitwidth, _ = self.get_macro_bitwidths(t2_macro)
+                
+                # Use the output bitwidth of the target node (which should match the mux input bitwidth)
+                mux_bitwidth = max(t1_output_bitwidth, t2_output_bitwidth)  # Use max to handle mismatches
+                
+                for x in range(output_bitwidth):
                     name1= target_node1 + "_" + str(x)
                     name2= target_node2 + "_" + str(x)
+                    node_name = node + "_" + str(x)
+                    
                     new_node = "Mux" + str(counter) + "_" + str(x)
                     # port mux
-                    graph.add_node(new_node, count = 16, function = "Mux", name=new_node, port_idx = x)
+                    graph.add_node(new_node, count = mux_bitwidth, function = "Mux", name=new_node, port_idx = x)
                     if graph.has_edge(name1, node_name):
                         graph.remove_edge(name1, node_name)
                     if graph.has_edge(name2, node_name):
@@ -379,11 +486,13 @@ class DefGenerator:
                     graph.add_edge(name1, new_node)
                     graph.add_edge(name2, new_node)
                     graph.add_edge(new_node, node_name)
+                    # Track which input port each source node should use
+                    mux_input_port_map[new_node] = {target_node1: 0, target_node2: 1}  # 0 = A0, 1 = A1
                     macro_output = self.find_macro(graph.nodes[new_node])
                     node_to_macro[new_node] = [macro_output, copy.deepcopy(self.macro_dict[macro_output])]
                     log_info(f"node to macro [{new_node}]: {node_to_macro[new_node]}")
                 # functional unit mux
-                old_graph.add_node("Mux" + str(counter), count = 16, function = "Mux", name="Mux" + str(counter))
+                old_graph.add_node("Mux" + str(counter), count = mux_bitwidth, function = "Mux", name="Mux" + str(counter))
                 old_graph.remove_edge(target_node1, node)
                 old_graph.remove_edge(target_node2, node)
                 old_graph.add_edge(target_node1, "Mux" + str(counter))
@@ -397,6 +506,9 @@ class DefGenerator:
                 input_dict[node].remove(target_node1)
                 counter += 1 
             
+        ## export the final graph with muxes before DEF generation
+        openroad_run.OpenRoadRun.export_graph(graph, "per_bit_result_with_muxes", self.directory)
+        openroad_run.OpenRoadRun.export_graph(old_graph, "functional_unit_result_with_muxes", self.directory)
         
         ### 3.generate header ###
         header_text = []
@@ -422,13 +534,45 @@ class DefGenerator:
         node_to_component_num = {}
         # basic area estimate (square microns) by summing macro footprints for each instantiated node
         area_estimate_sq_microns = 0.0
+        # Track which base mux names we've already processed to avoid duplicates
+        processed_mux_bases = set()
         for node in nodes:
             if "port_idx" in graph.nodes[node] and graph.nodes[node]["function"] != "Mux":
                 log_info(f"Skipping component for node: {node} because it is a functional unit port")
                 continue # dont generate components for functional unit ports
-            if "port_idx" not in graph.nodes[node] and graph.nodes[node]["function"] == "Mux":
-                log_info(f"Skipping component for node: {node} because it is a functional unit mux")
-                continue # dont generate components for functional unit muxes
+            # if "port_idx" not in graph.nodes[node] and graph.nodes[node]["function"] == "Mux":
+            #     log_info(f"Skipping component for node: {node} because it is a functional unit mux")
+            #     continue # dont generate components for functional unit muxes
+            if "port_idx" in graph.nodes[node] and graph.nodes[node]["function"] == "Mux":
+                # Extract base mux name (e.g., "Mux0" from "Mux0_0")
+                base_mux_name = node.rsplit("_", 1)[0]
+                if base_mux_name not in processed_mux_bases:
+                    # Process this mux once and add it to node_to_num for all its ports
+                    processed_mux_bases.add(base_mux_name)
+                    component_num = format(number)
+                    log_info(f"Generating component for base mux: {base_mux_name} with number: {component_num}")
+                    node_to_component_num[base_mux_name] = component_num
+                    macro = node_to_macro[node][0]
+                    # add macro area if available
+                    msize = self.macro_size_dict.get(macro)
+                    if msize and self.units:
+                        eff_x = msize[0] 
+                        eff_y = msize[1]
+                        log_info(f"Adding area for macro {macro}: {eff_x} * {eff_y} = {eff_x * eff_y}")
+                        area_estimate_sq_microns += eff_x * eff_y
+                    else:
+                        if macro not in self.macro_size_dict:
+                            logger.debug(f"No SIZE found for macro {macro}; skipping in area estimate.")
+                    component_text.append("- {} {} ;".format(component_num, macro))
+                    node_to_num[base_mux_name] = format(number)
+                    # Also add all port nodes to node_to_num mapping to the same component
+                    for port_node in nodes:
+                        if port_node.startswith(base_mux_name + "_") and graph.nodes[port_node].get("function") == "Mux":
+                            node_to_num[port_node] = format(number)
+                            log_info(f"Mapping mux port node {port_node} to component number: {node_to_num[port_node]}")
+                    log_info(f"node to num for base mux [{base_mux_name}]: {node_to_num[base_mux_name]}")
+                    number += 1
+                continue 
             component_num = format(number)
             log_info(f"Generating component for node: {node} with number: {component_num}")
             node_to_component_num[node] = component_num
@@ -468,22 +612,30 @@ class DefGenerator:
         for node in nodes_old:
             net_list = []
             log_info(f"Generating nets for node: {node}")
+            # Get output bitwidth for this node
+            if node not in node_to_macro:
+                macro = self.find_macro(old_graph.nodes[node])
+                node_to_macro[node] = [macro, copy.deepcopy(self.macro_dict[macro])]
+            macro = node_to_macro[node][0]
+            _, output_bitwidth, _ = self.get_macro_bitwidths(macro)
+            
             # src node
-            for x in range(16):
+            for x in range(output_bitwidth):
                 net_name = format(str(number))
-                assert old_graph.nodes[node]["count"] == 16, f"Node {node} has {old_graph.nodes[node]['count']} ports, expected 16"
                 # muxes have different instances for each port because they are 2->1 bit
-                # non-mux nodes have the same instance for all ports because each is 32->16 bits (2 input)
+                # non-mux nodes have the same instance for all ports
                 if old_graph.nodes[node]["function"] == "Mux":
                     name = node+"_" +str(x)
-                    pin_idx = 0
+                    pin_idx = x  # Use port index x to select Z0, Z1, Z2, etc.
                 else:
                     name = node
                     pin_idx = x
 
                 component_num = node_to_num[name]
                 pin_output = node_to_macro[name][1]["output"]
-                log_info(f"Pin output for node {name}: {pin_output}")
+                if pin_idx >= len(pin_output):
+                    raise ValueError(f"Pin index {pin_idx} out of range for node {name} with output pins {pin_output} (bitwidth={output_bitwidth})")
+                log_info(f"Pin output for node {name}: {pin_output}, using pin_idx={pin_idx}")
                 net = "- {} ( {} {} )".format(net_name, component_num, pin_output[pin_idx])
 
                 original_net = net
@@ -499,11 +651,22 @@ class DefGenerator:
 
                 # dst nodes
                 for output in node_output[node]:
-                    assert old_graph.nodes[output]["count"] == 16, f"Node {output} has {old_graph.nodes[output]['count']} ports, expected 16"
+                    # Get bitwidth for output node
+                    if output not in node_to_macro:
+                        output_macro = self.find_macro(old_graph.nodes[output])
+                        node_to_macro[output] = [output_macro, copy.deepcopy(self.macro_dict[output_macro])]
+                    output_macro = node_to_macro[output][0]
+                    _, output_output_bitwidth, _ = self.get_macro_bitwidths(output_macro)
+                    
                     if old_graph.nodes[output]["function"] == "Mux":
                         outgoing_name = output+"_" +str(x)
                     else:
                         outgoing_name = output
+                    
+                    # Only connect if the port index is valid for the output node
+                    if x >= output_output_bitwidth:
+                        log_warning(f"Skipping connection from {node}[{x}] to {output} (bitwidth={output_output_bitwidth}) - port index out of range")
+                        continue
 
                     #if name == outgoing_name:
                     #    log_info(f"Skipping net for node {name} and output {outgoing_name} because it is a self loop")
@@ -513,9 +676,146 @@ class DefGenerator:
                         node_to_macro[outgoing_name][1]["input"] = copy.deepcopy(node_to_macro_copy[outgoing_name][1]["input"])
                     pin_input = node_to_macro[outgoing_name][1]["input"]
                     log_info(f"Pin input for node {outgoing_name}: {pin_input}")
-                    net = net + " ( {} {} )".format(node_to_num[outgoing_name], pin_input[0])
+                    # For mux port nodes, use the base mux name if the port node is not in node_to_num
+                    lookup_name = outgoing_name
+                    if outgoing_name not in node_to_num and old_graph.nodes[output]["function"] == "Mux":
+                        # Extract base mux name (e.g., "Mux0" from "Mux0_0")
+                        base_mux_name = outgoing_name.rsplit("_", 1)[0]
+                        if base_mux_name in node_to_num:
+                            lookup_name = base_mux_name
+                            log_info(f"Using base mux name {base_mux_name} for lookup instead of {outgoing_name}")
+                        else:
+                            raise KeyError(f"Neither {outgoing_name} nor base mux {base_mux_name} found in node_to_num")
+                    elif outgoing_name not in node_to_num:
+                        raise KeyError(f"Node {outgoing_name} not found in node_to_num")
+                    
+                    # Determine which input port to use intelligently based on bitwidths and graph structure
+                    selected_pin = None
+                    if old_graph.nodes[output]["function"] == "Mux":
+                        # For muxes, determine which input port group (A or B) based on the source node
+                        port_group_idx = 0  # 0 = A, 1 = B
+                        if outgoing_name in mux_input_port_map and node in mux_input_port_map[outgoing_name]:
+                            port_group_idx = mux_input_port_map[outgoing_name][node]
+                            log_info(f"Mux {outgoing_name} input from {node} uses port group {port_group_idx}")
+                        else:
+                            # Fallback: check the graph to find which input this connection corresponds to
+                            # Get all incoming edges to this mux port node and find the position
+                            incoming_edges = list(graph.in_edges(outgoing_name))
+                            source_nodes = [edge[0] for edge in incoming_edges]
+                            # Check if the source node (or its port node) is in the list
+                            source_port_node = node + "_" + str(x)
+                            if source_port_node in source_nodes:
+                                port_group_idx = source_nodes.index(source_port_node)
+                                log_info(f"Using graph-based lookup: mux {outgoing_name} input from {source_port_node} uses port group {port_group_idx}")
+                            elif node in mux_input_port_map.get(outgoing_name, {}):
+                                # Try direct lookup with node name
+                                port_group_idx = mux_input_port_map[outgoing_name][node]
+                                log_info(f"Using direct lookup: mux {outgoing_name} input from {node} uses port group {port_group_idx}")
+                            else:
+                                log_warning(f"Could not determine input port group for mux {outgoing_name} from source {node}, defaulting to group 0")
+                                port_group_idx = 0
+                        
+                        # Now find the pin by name: A{x} or B{x} based on port_group_idx
+                        port_letters = ['A', 'B', 'C', 'D']
+                        if port_group_idx < len(port_letters):
+                            expected_pin_name = f"{port_letters[port_group_idx]}{x}"
+                            try:
+                                input_port_idx = pin_input.index(expected_pin_name)
+                                selected_pin = pin_input[input_port_idx]
+                                log_info(f"Mux {outgoing_name} input from {node} (port group {port_group_idx}, bit {x}) found pin {expected_pin_name}")
+                            except ValueError:
+                                # Pin not found by name, try to find any pin with matching bit index from same port group
+                                matching_pins = [pin for pin in pin_input if pin.endswith(str(x)) and pin.startswith(port_letters[port_group_idx])]
+                                if matching_pins:
+                                    selected_pin = matching_pins[0]
+                                    input_port_idx = pin_input.index(selected_pin)
+                                    log_warning(f"Pin {expected_pin_name} not found, using {selected_pin}")
+                                else:
+                                    # Last resort: use first available pin
+                                    selected_pin = pin_input[0]
+                                    input_port_idx = 0
+                                    log_warning(f"Could not find pin {expected_pin_name} for mux {outgoing_name}, using first available pin {selected_pin}")
+                        else:
+                            # Port group index exceeds available letters, use bit index
+                            if x < len(pin_input):
+                                selected_pin = pin_input[x]
+                                input_port_idx = x
+                                log_warning(f"Port group {port_group_idx} exceeds port letters, using pin at bit index {x}: {selected_pin}")
+                            else:
+                                selected_pin = pin_input[0]
+                                input_port_idx = 0
+                                log_warning(f"Bit index {x} out of range for mux {outgoing_name}, using first available pin {selected_pin}")
+                    else:
+                        # For non-mux nodes, intelligently select input port based on available pins and bitwidths
+                        # Get all input connections to this node to determine port assignment
+                        input_connections = list(old_graph.in_edges(output))
+                        # Find the position of this source node in the input list
+                        source_positions = [i for i, (src, _) in enumerate(input_connections) if src == node]
+                        
+                        # Get input bitwidth for the destination node
+                        output_macro = node_to_macro[output][0]
+                        input_bitwidth, _, num_inputs = self.get_macro_bitwidths(output_macro)
+                        
+                        selected_pin = None
+                        if source_positions:
+                            source_position = source_positions[0]  # Which input port group (0=A, 1=B, etc.)
+                            # Construct expected pin name based on port group and bit index
+                            # Pin names are typically A0, A1, ..., B0, B1, etc.
+                            port_letters = ['A', 'B', 'C', 'D']
+                            if source_position < len(port_letters):
+                                expected_pin_name = f"{port_letters[source_position]}{x}"
+                                # Find the pin by name (since pins are removed as used, we can't use index)
+                                try:
+                                    input_port_idx = pin_input.index(expected_pin_name)
+                                    selected_pin = pin_input[input_port_idx]
+                                    log_info(f"Non-mux node {outgoing_name} input from {node} (position {source_position}, bit {x}) found pin {expected_pin_name} at index {input_port_idx}")
+                                except ValueError:
+                                    # Pin not found by name, try to find any pin with matching bit index
+                                    # Look for pins ending with the bit number
+                                    matching_pins = [pin for pin in pin_input if pin.endswith(str(x))]
+                                    if matching_pins:
+                                        # Prefer pins from the expected port group
+                                        port_group_pins = [pin for pin in matching_pins if pin.startswith(port_letters[source_position])]
+                                        if port_group_pins:
+                                            selected_pin = port_group_pins[0]
+                                            input_port_idx = pin_input.index(selected_pin)
+                                            log_warning(f"Pin {expected_pin_name} not found, using {selected_pin} from same port group")
+                                        else:
+                                            selected_pin = matching_pins[0]
+                                            input_port_idx = pin_input.index(selected_pin)
+                                            log_warning(f"Pin {expected_pin_name} not found, using {selected_pin} with matching bit index")
+                                    else:
+                                        # Last resort: use first available pin
+                                        selected_pin = pin_input[0]
+                                        input_port_idx = 0
+                                        log_warning(f"Could not find pin {expected_pin_name} or matching bit {x}, using first available pin {selected_pin}")
+                            else:
+                                # Source position exceeds available port letters, use bit index
+                                if x < len(pin_input):
+                                    selected_pin = pin_input[x]
+                                    input_port_idx = x
+                                    log_warning(f"Source position {source_position} exceeds port letters, using pin at bit index {x}: {selected_pin}")
+                                else:
+                                    selected_pin = pin_input[0]
+                                    input_port_idx = 0
+                                    log_warning(f"Bit index {x} out of range, using first available pin {selected_pin}")
+                        else:
+                            # Fallback: use bit index directly (assumes single input or first input)
+                            if x < len(pin_input):
+                                selected_pin = pin_input[x]
+                                input_port_idx = x
+                                log_info(f"Non-mux node {outgoing_name} input from {node} uses pin at bit index {x}: {selected_pin}")
+                            else:
+                                selected_pin = pin_input[0]
+                                input_port_idx = 0
+                                log_warning(f"Bit index {x} out of range for {outgoing_name}, using first available pin {selected_pin}")
+                        
+                    if selected_pin is None:
+                        raise ValueError(f"Could not determine pin for {outgoing_name} input from {node} (bit {x})")
+                    
+                    net = net + " ( {} {} )".format(node_to_num[lookup_name], selected_pin)
 
-                    node_to_macro[outgoing_name][1]["input"].remove(pin_input[0])
+                    node_to_macro[outgoing_name][1]["input"].remove(selected_pin)
 
                 
                 number += 1
@@ -595,6 +895,13 @@ class DefGenerator:
             # Total number of potential rows (without limit)
             num_rows_y = int(math.ceil(core_dy / site_dy))
             num_sites_x = int(math.ceil((core_x2_dbu - core_x1_dbu) / site_dx))
+
+            if DISABLE_ROW_GENERATION:
+                log_info("Row generation disabled via DISABLE_ROW_GENERATION flag.")
+                # Generate at least one minimal row for OpenROAD compatibility
+                # (global_placement requires rows to be defined even if no std cells exist)
+                num_rows_y = 1
+                log_info("Generating minimal row (1 row) for OpenROAD compatibility.")
 
             # --- Row cap and stride logic ---
             if num_rows_y > MAX_STD_CELL_ROWS:
