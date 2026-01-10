@@ -1,0 +1,11 @@
+benchmark_gemm_save:
+  base_cfg: vitis_test
+  args:
+    benchmark: gemm
+    obj: delay
+    workload_size : 1024
+    N: 1024
+    checkpoint_save_dir: tmp_gemm
+    stop_at_checkpoint: setup
+
+
