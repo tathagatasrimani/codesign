@@ -148,7 +148,6 @@ def get_latest_log_dir_streamhls(path):
 
 def change_clk_period_in_script(filename, new_period, hls_tool):
     CATAPULT_PERIOD_POSITION = -1
-    VITIS_PERIOD_POSITION = 2
     new_lines = []
     with open(filename, "r") as f:
         lines = f.readlines()
@@ -159,7 +158,8 @@ def change_clk_period_in_script(filename, new_period, hls_tool):
                     new_line = line.replace(line.split()[CATAPULT_PERIOD_POSITION], str(new_period))
             elif hls_tool == "vitis":
                 if line.find("create_clock") != -1:
-                    new_line = line.replace(line.split()[VITIS_PERIOD_POSITION], str(new_period))
+                    period_pos = line.split().index("-period")
+                    new_line = line.replace(line.split()[period_pos+1], str(new_period))
             else:
                 raise ValueError(f"Invalid hls tool: {hls_tool}")
             new_lines.append(new_line)

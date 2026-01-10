@@ -116,8 +116,7 @@ vitis_streamhls_gemm_test:
   args:
     benchmark: gemm
     arch_opt_pipeline: streamhls
-    pytorch: True
-    benchmark_group: polybench
+    pytorch: True  
 
 vitis_streamhls_gesummv_test:
   base_cfg: vitis_test
@@ -125,7 +124,6 @@ vitis_streamhls_gesummv_test:
     benchmark: gesummv
     arch_opt_pipeline: streamhls
     pytorch: True
-    benchmark_group: polybench
 
 vitis_streamhls_2mm_test:
   base_cfg: vitis_test
@@ -133,7 +131,7 @@ vitis_streamhls_2mm_test:
     benchmark: k2mm
     arch_opt_pipeline: streamhls
     pytorch: True
-    benchmark_group: polybench
+    min_dsp: 18
 
 vitis_streamhls_3mm_test:
   base_cfg: vitis_test
@@ -141,7 +139,7 @@ vitis_streamhls_3mm_test:
     benchmark: k3mm
     arch_opt_pipeline: streamhls
     pytorch: True
-    benchmark_group: polybench
+    min_dsp: 30
 
 vitis_streamhls_atax_test:
   base_cfg: vitis_test
@@ -149,7 +147,7 @@ vitis_streamhls_atax_test:
     benchmark: atax
     arch_opt_pipeline: streamhls
     pytorch: True
-    benchmark_group: polybench
+    arch_opt_pipeline: streamhls
 
 vitis_streamhls_bicg_test:
   base_cfg: vitis_test
@@ -157,7 +155,6 @@ vitis_streamhls_bicg_test:
     benchmark: bicg
     arch_opt_pipeline: streamhls
     pytorch: True
-    benchmark_group: polybench
 
 vitis_streamhls_mvt_test:
   base_cfg: vitis_test
@@ -165,4 +162,11 @@ vitis_streamhls_mvt_test:
     benchmark: mvt
     arch_opt_pipeline: streamhls
     pytorch: True
-    benchmark_group: polybench
+
+vitis_streamhls_attention_test:
+  base_cfg: vitis_test
+  args:
+    benchmark: MultiHeadSelfAttention
+    arch_opt_pipeline: streamhls
+    pytorch: True
+    min_dsp: 40

@@ -25,8 +25,9 @@ default:
     max_iter_num_scalehls: 1 # default in scalehls is 30
     opt_pipeline: block_vector
     always_run_openroad: False
-    arch_opt_pipeline: streamhls
+    arch_opt_pipeline: scalehls
     benchmark_group: polybench # only used for streamhls
+    min_dsp: 13
 
 
 vitis_test_mvs:
