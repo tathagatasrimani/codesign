@@ -14,9 +14,11 @@ import re
 from src import codesign
 from src import sim_util
 
-MAX_JOB_RUNTIME_MINS = 180  # in minutes
+DEFAULT_MAX_JOB_RUNTIME_MINS = 60  # in minutes
 
 NO_BETTER_DESIGN_POINT_FOUND_MSG = "FLOW END: No better design point found."
+
+FLOW_SUCCESS_MSG = "FLOW END: Design flow completed successfully for iterations = "
 
 CHECKPOINT_RE = re.compile(
     r"CHECKPOINT\s+REACHED:\s*([A-Za-z0-9_\-\/]+)\s*FOR\s+ITERATION:\s*(\d+)"
@@ -78,7 +80,8 @@ signal.signal(signal.SIGINT, sigint_handler)
 
 
 class RegressionRun:
-    def __init__(self, cfg, codesign_root_dir, single_config_path=None, test_list_path=None, max_parallelism=4, absolute_paths=False, silent_mode=False, github_autotest_mode=False, preinstalled_openroad_path=None, dsp_sweep=None):
+    def __init__(self, cfg, codesign_root_dir, single_config_path=None, test_list_path=None, max_parallelism=4, absolute_paths=False, 
+                 silent_mode=False, github_autotest_mode=False, preinstalled_openroad_path=None, max_job_runtime_mins=DEFAULT_MAX_JOB_RUNTIME_MINS, dsp_sweep=None):
         self.cfg = cfg
         self.codesign_root_dir = codesign_root_dir
         self.single_config_path = single_config_path
@@ -88,6 +91,7 @@ class RegressionRun:
         self.silent_mode = silent_mode
         self.preinstalled_openroad_path = preinstalled_openroad_path
         self.github_autotest_mode = github_autotest_mode
+        self.max_job_runtime_mins = max_job_runtime_mins
         # Format: "start:end:step" e.g., "10:2000:10"
         self.dsp_sweep = dsp_sweep  
 
@@ -290,7 +294,7 @@ class RegressionRun:
         )
         # Run in shell mode so it inherits environment vars (PATH, conda env, etc.)
         # capture stdout/stderr to a logfile in the results dir and enforce a timeout
-        timeout_secs = MAX_JOB_RUNTIME_MINS * 60
+        timeout_secs = self.max_job_runtime_mins * 60
         with open(log_path, "wb") as logf:
             # start process in its own process group so we can kill children reliably
             process = subprocess.Popen(
@@ -310,7 +314,7 @@ class RegressionRun:
                 process.wait(timeout=timeout_secs)
             except subprocess.TimeoutExpired:
                 # log and terminate the whole process group
-                msg = f"\n*** Job {config_name} exceeded max runtime ({MAX_JOB_RUNTIME_MINS} mins) and was terminated ***\n"
+                msg = f"\n*** Job {config_name} exceeded max runtime ({self.max_job_runtime_mins} mins) and was terminated ***\n"
                 try:
                     logf.write(msg.encode())
                     logf.flush()
@@ -407,7 +411,7 @@ class RegressionRun:
         success = False
         with open(log_path, "r") as f:
             for line in f:
-                if "^^CHECKPOINT REACHED:" in line and ". RUN SUCCEEDED^^" in line or NO_BETTER_DESIGN_POINT_FOUND_MSG in line:
+                if "^^CHECKPOINT REACHED:" in line and ". RUN SUCCEEDED^^" in line or NO_BETTER_DESIGN_POINT_FOUND_MSG in line or FLOW_SUCCESS_MSG in line:
                     success = True
                     break
 
@@ -727,6 +731,13 @@ if __name__ == "__main__":
         )
 
         parser.add_argument(
+            "--max_job_runtime_mins",
+            type=int,
+            help=f"Maximum allowed runtime for each job in minutes. Default is {DEFAULT_MAX_JOB_RUNTIME_MINS} minutes.",
+            default=DEFAULT_MAX_JOB_RUNTIME_MINS,
+        )
+
+        parser.add_argument(
             "--dsp_sweep",
             type=str,
             help="Sweep max_dsp parameter across a range. Format: 'start:end:step' (e.g., '10:2000:10'). Creates separate jobs for each DSP value.",
@@ -745,7 +756,10 @@ if __name__ == "__main__":
             print("Error: Regression list file must end in .list.yaml")
             exit(1)
 
-        reg_run = RegressionRun(cfg=None, codesign_root_dir=cwd, single_config_path=args.single_config, test_list_path=args.test_list, max_parallelism=args.max_parallelism, absolute_paths=args.absolute_paths, silent_mode=args.quiet_mode, github_autotest_mode=args.github_autotest_mode, preinstalled_openroad_path=args.preinstalled_openroad_path, dsp_sweep=args.dsp_sweep)
+        reg_run = RegressionRun(cfg=None, codesign_root_dir=cwd, single_config_path=args.single_config, test_list_path=args.test_list, 
+                                max_parallelism=args.max_parallelism, absolute_paths=args.absolute_paths, silent_mode=args.quiet_mode, 
+                                github_autotest_mode=args.github_autotest_mode, preinstalled_openroad_path=args.preinstalled_openroad_path, 
+                                max_job_runtime_mins=args.max_job_runtime_mins, dsp_sweep=args.dsp_sweep)
 
         regression_instance = reg_run
 

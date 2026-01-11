@@ -3,7 +3,7 @@ vitis_atax_delay:
   base_cfg: benchmark_atax_test
   args:
     obj: delay
-    N: 15
+    num_iters: 15
     checkpoint_load_dir: tmp_atax
     checkpoint_start_step: setup
     inverse_pass_improvement: 4
@@ -12,7 +12,7 @@ vitis_atax_energy:
   base_cfg: benchmark_atax_test
   args:
     obj: energy
-    N: 15
+    num_iters: 15
     checkpoint_load_dir: tmp_atax
     checkpoint_start_step: setup
     inverse_pass_improvement: 4
@@ -21,7 +21,7 @@ vitis_atax_edp:
   base_cfg: benchmark_atax_test
   args:
     obj: edp
-    N: 15
+    num_iters: 15
     checkpoint_load_dir: tmp_atax
     checkpoint_start_step: setup
     inverse_pass_improvement: 6
@@ -30,7 +30,7 @@ vitis_atax_ed2:
   base_cfg: benchmark_atax_test
   args:
     obj: ed2
-    N: 15
+    num_iters: 15
     checkpoint_load_dir: tmp_atax
     checkpoint_start_step: setup  
     inverse_pass_improvement: 12
@@ -40,7 +40,7 @@ vitis_gesummv_delay:
   base_cfg: vitis_gesummv_test
   args:
     obj: delay
-    N: 15
+    num_iters: 15
     workload_size: 256
     checkpoint_load_dir: tmp_gesummv
     checkpoint_start_step: setup
@@ -50,7 +50,7 @@ vitis_gesummv_energy:
   base_cfg: vitis_gesummv_test
   args:
     obj: energy
-    N: 15
+    num_iters: 15
     workload_size: 256
     checkpoint_load_dir: tmp_gesummv
     checkpoint_start_step: setup
@@ -60,7 +60,7 @@ vitis_gesummv_edp:
   base_cfg: vitis_gesummv_test
   args:
     obj: edp
-    N: 15
+    num_iters: 15
     workload_size: 256
     checkpoint_load_dir: tmp_gesummv
     checkpoint_start_step: setup
@@ -70,7 +70,7 @@ vitis_gesummv_ed2:
   base_cfg: vitis_gesummv_test
   args:
     obj: ed2
-    N: 15
+    num_iters: 15
     workload_size: 256
     checkpoint_load_dir: tmp_gesummv
     checkpoint_start_step: setup
@@ -81,7 +81,7 @@ vitis_2mm_delay:
   base_cfg: benchmark_2mm_test
   args:
     obj: delay
-    N: 15
+    num_iters: 15
     checkpoint_load_dir: tmp_2mm
     checkpoint_start_step: setup
     inverse_pass_improvement: 4
@@ -90,7 +90,7 @@ vitis_2mm_energy:
   base_cfg: benchmark_2mm_test
   args:
     obj: energy
-    N: 15
+    num_iters: 15
     checkpoint_load_dir: tmp_2mm
     checkpoint_start_step: setup
     inverse_pass_improvement: 4
@@ -99,7 +99,7 @@ vitis_2mm_edp:
   base_cfg: benchmark_2mm_test
   args:
     obj: edp
-    N: 15
+    num_iters: 15
     checkpoint_load_dir: tmp_2mm
     checkpoint_start_step: setup
     inverse_pass_improvement: 6
@@ -108,7 +108,7 @@ vitis_2mm_ed2:
   base_cfg: benchmark_2mm_test
   args:
     obj: ed2
-    N: 15
+    num_iters: 15
     checkpoint_load_dir: tmp_2mm
     checkpoint_start_step: setup
     inverse_pass_improvement: 12
@@ -118,7 +118,7 @@ vitis_3mm_delay:
   base_cfg: benchmark_3mm_test
   args:
     obj: delay
-    N: 15
+    num_iters: 15
     checkpoint_load_dir: tmp_3mm
     checkpoint_start_step: setup
     inverse_pass_improvement: 4
@@ -127,7 +127,7 @@ vitis_3mm_energy:
   base_cfg: benchmark_3mm_test
   args:
     obj: energy
-    N: 15
+    num_iters: 15
     checkpoint_load_dir: tmp_3mm
     checkpoint_start_step: setup
     inverse_pass_improvement: 4
@@ -136,7 +136,7 @@ vitis_3mm_edp:
   base_cfg: benchmark_3mm_test
   args:
     obj: edp
-    N: 15
+    num_iters: 15
     checkpoint_load_dir: tmp_3mm
     checkpoint_start_step: setup
     inverse_pass_improvement: 6
@@ -145,7 +145,7 @@ vitis_3mm_ed2:
   base_cfg: benchmark_3mm_test
   args:
     obj: ed2
-    N: 15
+    num_iters: 15
     checkpoint_load_dir: tmp_3mm
     checkpoint_start_step: setup
     inverse_pass_improvement: 12
@@ -155,7 +155,7 @@ vitis_doitgen_delay:
   base_cfg: benchmark_doitgen_test
   args:
     obj: delay
-    N: 15
+    num_iters: 15
     checkpoint_load_dir: tmp_doitgen
     checkpoint_start_step: setup
     inverse_pass_improvement: 4
@@ -164,7 +164,7 @@ vitis_doitgen_energy:
   base_cfg: benchmark_doitgen_test
   args:
     obj: energy
-    N: 15
+    num_iters: 15
     checkpoint_load_dir: tmp_doitgen
     checkpoint_start_step: setup
     inverse_pass_improvement: 4
@@ -173,7 +173,7 @@ vitis_doitgen_edp:
   base_cfg: benchmark_doitgen_test
   args:
     obj: edp
-    N: 15
+    num_iters: 15
     checkpoint_load_dir: tmp_doitgen
     checkpoint_start_step: setup
     inverse_pass_improvement: 6
@@ -182,7 +182,7 @@ vitis_doitgen_ed2:
   base_cfg: benchmark_doitgen_test
   args:
     obj: ed2
-    N: 15
+    num_iters: 15
     checkpoint_load_dir: tmp_doitgen
     checkpoint_start_step: setup
     inverse_pass_improvement: 12
@@ -192,7 +192,7 @@ vitis_mvt_delay:
   base_cfg: benchmark_mvt_test
   args:
     obj: delay
-    N: 15
+    num_iters: 15
     checkpoint_load_dir: tmp_mvt
     checkpoint_start_step: setup
     inverse_pass_improvement: 4
@@ -201,7 +201,7 @@ vitis_mvt_energy:
   base_cfg: benchmark_mvt_test
   args:
     obj: energy
-    N: 15
+    num_iters: 15
     checkpoint_load_dir: tmp_mvt
     checkpoint_start_step: setup
     inverse_pass_improvement: 4
@@ -210,7 +210,7 @@ vitis_mvt_edp:
   base_cfg: benchmark_mvt_test
   args:
     obj: edp
-    N: 15
+    num_iters: 15
     checkpoint_load_dir: tmp_mvt
     checkpoint_start_step: setup
     inverse_pass_improvement: 6
@@ -219,7 +219,7 @@ vitis_mvt_ed2:
   base_cfg: benchmark_mvt_test
   args:
     obj: ed2
-    N: 15
+    num_iters: 15
     checkpoint_load_dir: tmp_mvt
     checkpoint_start_step: setup
     inverse_pass_improvement: 12
@@ -229,7 +229,7 @@ vitis_bicg_delay:
   base_cfg: benchmark_bicg_test
   args:
     obj: delay
-    N: 15
+    num_iters: 15
     checkpoint_load_dir: tmp_bicg
     checkpoint_start_step: setup
     inverse_pass_improvement: 4
@@ -238,7 +238,7 @@ vitis_bicg_energy:
   base_cfg: benchmark_bicg_test
   args:
     obj: energy
-    N: 15
+    num_iters: 15
     checkpoint_load_dir: tmp_bicg
     checkpoint_start_step: setup
     inverse_pass_improvement: 4
@@ -247,7 +247,7 @@ vitis_bicg_edp:
   base_cfg: benchmark_bicg_test
   args:
     obj: edp
-    N: 15
+    num_iters: 15
     checkpoint_load_dir: tmp_bicg
     checkpoint_start_step: setup
     inverse_pass_improvement: 6
@@ -256,7 +256,7 @@ vitis_bicg_ed2:
   base_cfg: benchmark_bicg_test
   args:
     obj: ed2
-    N: 15
+    num_iters: 15
     checkpoint_load_dir: tmp_bicg
     checkpoint_start_step: setup
     inverse_pass_improvement: 12

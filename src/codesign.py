@@ -36,6 +36,8 @@ from test import checkpoint_controller
 
 DEBUG_YOSYS = False  # set to True to debug yosys output.
 
+FLOW_SUCCESS_MSG = "FLOW END: Design flow completed successfully for iterations = "
+
 class Codesign:
     def __init__(self, args):
         """
@@ -1076,6 +1078,8 @@ class Codesign:
 
         # cleanup
         self.cleanup()
+
+        print(f"{FLOW_SUCCESS_MSG}{self.iteration_count}")
 
         
 def main(args):
