@@ -1242,6 +1242,8 @@ if __name__ == "__main__":
     parser.add_argument("--workload_size", type=int, help="workload size to use, such as the dimension of the matrix for gemm. Only applies to certain benchmarks")
     parser.add_argument("--opt_pipeline", type=str, help="optimization pipeline to use for inverse pass")
     parser.add_argument("--min_dsp", type=int, help="minimum DSP usage to start with")
+    parser.add_argument("--max_power_density", type=float, help="maximum power density to allow")
+    parser.add_argument("--max_power", type=float, help="maximum total power to allow")
     args = parser.parse_args()
 
     main(args)

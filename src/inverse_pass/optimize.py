@@ -73,6 +73,8 @@ class Optimizer:
             total_power = self.hw.total_passive_power*self.hw.circuit_model.tech_model.capped_power_scale_total + self.hw.total_active_energy / (self.hw.execution_time* self.hw.circuit_model.tech_model.capped_delay_scale_total)
         assert self.max_system_power is not None, "max system power is not initialized"
         constraints.append(Constraint(total_power <= self.max_system_power, "total_power <= max_system_power")) # hard limit on power
+        P_tot_device_per_cm2 = (self.hw.circuit_model.tech_model.E_act_inv / self.hw.circuit_model.tech_model.delay + self.hw.circuit_model.tech_model.P_pass_inv) / (self.hw.circuit_model.tech_model.param_db["A_gate"] * 1e4) # convert from W/m^2 to W/cm^2
+        constraints.append(Constraint(P_tot_device_per_cm2 <= self.max_system_power_density, "P_tot_device_per_cm2 <= max_system_power_density"))
         # ensure that forward pass can't add more than 10x parallelism in the next iteration. power scale is based on the amount we scale area down by,
         # because in the next forward pass we assume that much parallelism will be added, and therefore increase power
         #if not self.test_config:
