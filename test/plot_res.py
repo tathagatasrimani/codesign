@@ -7,11 +7,14 @@ import csv
 import yaml
 import math
 
-def extract_execution_time_and_edp(log_path):
+def extract_execution_time_and_edp(log_path, debug=False):
     """Extract execution_time and EDP from run_codesign.log"""
 
     exec_time = None
     edp = None
+
+    if debug:
+        print(f"Extracting execution_time and EDP from {log_path}")
     
     try:
         with open(log_path, "r") as f:
@@ -32,11 +35,18 @@ def extract_execution_time_and_edp(log_path):
     
     return exec_time, edp
 
-def parse_dsp_from_dirname(dirname):
+def parse_dsp_from_dirname(dirname, debug=False):
     """Extract DSP value from directory name like 'benchmark_3mm_test_auto_no_wires_dsp100'"""
+    if debug:
+        print(f"Parsing DSP from directory name: {dirname}")
     match = re.search(r"_dsp(\d+)$", dirname)
     if match:
+        if debug:
+            print(f"Extracted DSP value: {match.group(1)}")
         return int(match.group(1))
+    
+    if debug:
+        print(f"Could not extract DSP value from directory name: {dirname}")
     return None
 
 def extract_actual_dsp_from_csv(entry_path, benchmark_name, max_dsp, kernel=None):
@@ -143,21 +153,23 @@ def scan_directory(root_dir, sweep_label, kernel=None, debug=False):
             continue
         
         # Extract max_dsp value from directory name
-        max_dsp = parse_dsp_from_dirname(entry)
+        max_dsp = parse_dsp_from_dirname(entry, debug=debug)
         if max_dsp is None:
+            if debug:
+                print(f"[{sweep_label}] Skipping {entry}: could not parse max_dsp from directory name")
             continue
         
         # Extract benchmark name (everything before _dsp)
         benchmark = entry.rsplit("_dsp", 1)[0]
 
         norm_benchmark = normalize_benchmark_name(benchmark)
-
+        
         if debug:
             print(f"[{sweep_label}] Scanning {entry} (max_dsp={max_dsp})...")
         
         # Look for run_codesign.log
         log_path = os.path.join(entry_path, "run_codesign.log")
-        exec_time, edp = extract_execution_time_and_edp(log_path)
+        exec_time, edp = extract_execution_time_and_edp(log_path, debug=debug)
         
         if exec_time is None or edp is None:
             if debug:
@@ -657,6 +669,8 @@ def main():
         if args.debug:
             print(f"\nScanning {sweep_label} ({entry})...")
         results = scan_directory(sweep_path, sweep_label, kernel=args.kernel, debug=args.debug)
+        if args.debug:
+            print(f"Found {len(results)} valid results in {entry}.")
         all_results.extend(results)
     
     if not all_results:
