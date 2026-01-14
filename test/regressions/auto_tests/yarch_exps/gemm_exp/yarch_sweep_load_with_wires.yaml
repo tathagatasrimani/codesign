@@ -1,11 +1,13 @@
-benchmark_gemm_test_with_wires_delay_estimated:
+benchmark_gemm_test_with_constant_wires_delay:
   base_cfg: vitis_test
   args:
+    objective: delay
+    workload_size: 32
     benchmark: gemm
-    obj: delay
-    checkpoint_load_dir: tmp_gemm
-    checkpoint_start_step: setup
-    workload_size : 32
+    checkpoint_save_dir: tmp_gemm
+    stop_at_checkpoint: setup
     stop_at_checkpoint: pd
     max_dsp: 100
-    max_iter_num_scalehls: 10 # Running with 10 iterations to have larger number of Dsps.
+    max_iter_num_scalehls: 10
+
+    

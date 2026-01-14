@@ -301,6 +301,8 @@ class Codesign:
         ## Manual override for max_dsp from command line. This is primarily used for the YARCH experiments where we only want to run the forward pass with a specific DSP constraint.
         if "max_dsp" in self.cfg["args"]:
             self.max_dsp = self.cfg["args"]["max_dsp"]
+            config["dsp"] = self.max_dsp
+            config["bram"] = self.max_dsp # set bram to same as dsp for yarch experiments
             print(f"Using user specified max_dsp: {self.max_dsp}")
             print(f"The current dsp used in the iteration is: {self.cur_dsp_usage}")
 
