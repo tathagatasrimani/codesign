@@ -289,8 +289,8 @@ class Codesign:
         with open(self.config_json_path, "r") as f:
             config = json.load(f)
         if unlimited:
-            config["dsp"] = 150
-            config["bram"] = 150
+            config["dsp"] = 1024
+            config["bram"] = 1024
         else:
             config["dsp"] = int(self.cfg["args"]["area"] / (self.hw.circuit_model.tech_model.param_db["A_gate"].xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf() * self.dsp_multiplier))
             config["bram"] = int(self.cfg["args"]["area"] / (self.hw.circuit_model.tech_model.param_db["A_gate"].xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf() * self.bram_multiplier))
