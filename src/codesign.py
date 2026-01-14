@@ -101,7 +101,7 @@ class Codesign:
         self.run_cacti = not self.cfg["args"]["debug_no_cacti"]
         self.no_memory = self.cfg["args"]["no_memory"]
         self.hw = hardwareModel.HardwareModel(self.cfg, self.codesign_root_dir, self.tmp_dir)
-        self.opt = optimize.Optimizer(self.hw, self.tmp_dir, opt_pipeline=self.cfg["args"]["opt_pipeline"])
+        self.opt = optimize.Optimizer(self.hw, self.tmp_dir, max_power=self.cfg["args"]["max_power"], max_power_density=self.cfg["args"]["max_power_density"], opt_pipeline=self.cfg["args"]["opt_pipeline"])
         self.module_map = {}
         self.inverse_pass_improvement = self.cfg["args"]["inverse_pass_improvement"]
         self.inverse_pass_lag_factor = 1
@@ -835,7 +835,6 @@ class Codesign:
                     self.hw.circuit_model.tech_model.base_params.memory_resource_amdahl_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.memory_resource_amdahl_limit],
                 }
             )
-            self.opt.initialize_max_system_power(sim_util.xreplace_safe((self.hw.total_passive_energy + self.hw.total_active_energy)/self.hw.execution_time, self.hw.circuit_model.tech_model.base_params.tech_values))
 
         """if setup:
             self.max_parallel_initial_objective_value = self.hw.obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf()
@@ -1243,6 +1242,8 @@ if __name__ == "__main__":
     parser.add_argument("--workload_size", type=int, help="workload size to use, such as the dimension of the matrix for gemm. Only applies to certain benchmarks")
     parser.add_argument("--opt_pipeline", type=str, help="optimization pipeline to use for inverse pass")
     parser.add_argument("--min_dsp", type=int, help="minimum DSP usage to start with")
+    parser.add_argument("--max_power_density", type=float, help="maximum power density to allow")
+    parser.add_argument("--max_power", type=float, help="maximum total power to allow")
     args = parser.parse_args()
 
     main(args)
