@@ -54,7 +54,7 @@ PIN_SIZE_TRACKS = 2  # in tracks
 POWER_RAIL_HEIGHT = 2  # in tracks
 
 ## The cutoff in rows for standard cell vs macro designation. If the height of the macro is less than this value, it is considered a standard cell.
-STD_CELL_VS_MACRO_CUTOFF = 10 ## in rows
+STD_CELL_VS_MACRO_CUTOFF = 0 ## in rows
 
 ######################################################################
 #######                                                        #######

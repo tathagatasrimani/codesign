@@ -316,6 +316,10 @@ class OpenRoadRun:
         """
         Runs the OpenROAD executable. Run this after setup.
         """
+        import subprocess
+        import shutil
+        import os
+        
         logger.info("Starting OpenROAD run.")
         old_dir = os.getcwd()
         os.chdir(self.directory + "/tcl")
@@ -329,14 +333,83 @@ class OpenRoadRun:
         if isinstance(args_dict, dict):
             preinstalled = args_dict.get("preinstalled_openroad_path")
 
+        # Check if xvfb-run is available
+        xvfb_available = shutil.which("xvfb-run") is not None
+        
         if preinstalled:
-            cmd = f"{preinstalled} codesign_top.tcl > {self.directory}/codesign_pd.log 2>&1"
+            openroad_cmd = preinstalled
         else:
             openroad_bin = os.path.join(os.path.dirname(os.path.abspath(__file__)), "OpenROAD", "build", "src", "openroad")
-            cmd = f"{openroad_bin} codesign_top.tcl > {self.directory}/codesign_pd.log 2>&1"
+            openroad_cmd = openroad_bin
+        
+        # Set up environment for Qt/OpenGL software rendering
+        env = os.environ.copy()
+        
+        # Qt platform configuration - use offscreen platform for headless rendering
+        # This avoids X11/XCB issues entirely and works natively without Xvfb
+        env['QT_QPA_PLATFORM'] = 'offscreen'
+        
+        # Ensure OpenGL software rendering is available for offscreen platform
+        env['LIBGL_ALWAYS_SOFTWARE'] = '1'
+        env['GALLIUM_DRIVER'] = 'llvmpipe'
+        env['MESA_LOADER_DRIVER_OVERRIDE'] = 'llvmpipe'
+        env['MESA_GL_VERSION_OVERRIDE'] = '3.3'
+        
+        # Ensure Qt can find image format plugins (PNG support)
+        # Try common system locations for Qt5 plugins
+        possible_plugin_paths = [
+            "/usr/lib64/qt5/plugins",
+            "/usr/lib/qt5/plugins", 
+            "/usr/lib/x86_64-linux-gnu/qt5/plugins",
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), 
+                        "OpenROAD", "build", "src", "plugins")
+        ]
+        for qt_plugin_path in possible_plugin_paths:
+            if os.path.exists(qt_plugin_path):
+                env['QT_PLUGIN_PATH'] = qt_plugin_path
+                logger.info(f"Set QT_PLUGIN_PATH to {qt_plugin_path}")
+                break
+        
+        # Ensure imageformats directory is accessible for PNG support
+        # Qt5 should have built-in PNG support, but plugins help
+        imageformat_path = "/usr/lib64/qt5/plugins/imageformats"
+        if os.path.exists(imageformat_path):
+            # Set QT_PLUGIN_PATH to include the parent plugins directory
+            # Qt will automatically look in plugins/imageformats subdirectory
+            if 'QT_PLUGIN_PATH' not in env:
+                env['QT_PLUGIN_PATH'] = "/usr/lib64/qt5/plugins"
+                logger.info("Set QT_PLUGIN_PATH to include imageformats")
+        
+        # Also try setting QT_QPA_PLATFORM_PLUGIN_PATH if needed
+        # This helps Qt find platform-specific plugins
+        if 'QT_QPA_PLATFORM_PLUGIN_PATH' not in env:
+            platform_plugin_path = "/usr/lib64/qt5/plugins/platforms"
+            if os.path.exists(platform_plugin_path):
+                env['QT_QPA_PLATFORM_PLUGIN_PATH'] = platform_plugin_path
+        
+        # Build the command - with offscreen platform, we don't need Xvfb
+        # Offscreen platform works natively without X server
+        cmd = f"{openroad_cmd} codesign_top.tcl"
+        logger.info("Using Qt offscreen platform for headless image rendering (no Xvfb needed)")
 
+        # Redirect output to log file
+        log_file = f"{self.directory}/codesign_pd.log"
+        
         logger.info("Executing OpenROAD command: %s", cmd)
-        os.system(cmd)
+        logger.info("Environment: LIBGL_ALWAYS_SOFTWARE=%s, QT_QPA_PLATFORM=%s", 
+                    env.get('LIBGL_ALWAYS_SOFTWARE'), env.get('QT_QPA_PLATFORM'))
+        
+        # Use subprocess to properly handle environment and output redirection
+        with open(log_file, 'w') as log:
+            result = subprocess.run(
+                cmd,
+                shell=True,
+                env=env,
+                cwd=os.getcwd(),
+                stdout=log,
+                stderr=subprocess.STDOUT
+            )
+        
         print("done")
         logger.info("OpenROAD run completed.")
         os.chdir(old_dir)
