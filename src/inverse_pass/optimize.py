@@ -30,7 +30,7 @@ def log_info(msg, stage):
 
 
 class Optimizer:
-    def __init__(self, hw, tmp_dir, test_config=False, opt_pipeline="block_vector"):
+    def __init__(self, hw, tmp_dir, max_power, max_power_density, test_config=False, opt_pipeline="block_vector"):
         self.hw = hw
         self.disabled_knobs = []
         self.objective_constraint_inds = []
@@ -40,11 +40,8 @@ class Optimizer:
         self.opt_pipeline = opt_pipeline
         self.bbv_op_delay_constraints = []
         self.bbv_path_constraints = []
-        self.max_system_power = None
-
-    def initialize_max_system_power(self, power):
-        logger.info(f"initializing max system power to {150}")
-        self.max_system_power = 150
+        self.max_system_power = max_power
+        self.max_system_power_density = max_power_density
 
     def evaluate_constraints(self, constraints, stage):
         for constraint_obj in constraints:

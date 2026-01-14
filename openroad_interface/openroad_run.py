@@ -71,6 +71,7 @@ class OpenRoadRun:
             "BUF_X16": "Not16",
             "BUF_X32": "Not16",
             "MUX2_X1": "Not16",
+            "Mux16": "Mux16",
             "Exp16": "Exp16",
             "LShift16": "LShift16",
             "RShift16": "RShift16",

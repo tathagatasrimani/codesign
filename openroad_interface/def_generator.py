@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 # make it a dict
 and_gate = "BitAnd16"
 xor_gate = "BitXor16"
-mux = "MUX2_X1"
+mux = "Mux16"
 reg = "DFF_X1"
 add = "Add16"
 mult = "Mult16"
@@ -416,6 +416,8 @@ class DefGenerator:
                 input_dict = self.edge_gen("in", old_nodes, old_graph)
                 target_node1 = input_dict[node][0]
                 target_node2 = input_dict[node][1]
+                new_node = "Mux" + str(counter)
+                graph.add_node(new_node, count = 16, function = "Mux", name=new_node)
                 for x in range(16):
                     assert old_graph.nodes[node]["count"] == 16, f"Node {node} has {old_graph.nodes[node]['count']} ports, expected 16"
                     assert old_graph.nodes[target_node1]["count"] == 16, f"Node {target_node1} has {old_graph.nodes[target_node1]['count']} ports, expected 16"
@@ -423,30 +425,31 @@ class DefGenerator:
                     node_name = node + "_" + str(x)
                     name1= target_node1 + "_" + str(x)
                     name2= target_node2 + "_" + str(x)
-                    new_node = "Mux" + str(counter) + "_" + str(x)
+                    new_node_port = "Mux" + str(counter) + "_" + str(x)
                     # port mux
-                    graph.add_node(new_node, count = 16, function = "Mux", name=new_node, port_idx = x)
+                    graph.add_node(new_node_port, count = 16, function = "Mux", name=new_node_port, port_idx = x)
                     if graph.has_edge(name1, node_name):
                         graph.remove_edge(name1, node_name)
                     if graph.has_edge(name2, node_name):
                         graph.remove_edge(name2, node_name)
-                    graph.add_edge(name1, new_node)
-                    graph.add_edge(name2, new_node)
+                    graph.add_edge(name1, new_node_port)
+                    graph.add_edge(name2, new_node_port)
+                    graph.add_edge(new_node_port, new_node)
                     graph.add_edge(new_node, node_name)
-                    macro_output = self.find_macro(graph.nodes[new_node])
-                    node_to_macro[new_node] = [macro_output, copy.deepcopy(macro_dict[macro_output])]
-                    log_info(f"node to macro [{new_node}]: {node_to_macro[new_node]}")
+                    #macro_output = self.find_macro(graph.nodes[new_node_port])
+                    #node_to_macro[new_node_port] = [macro_output, copy.deepcopy(macro_dict[macro_output])]
+                    #log_info(f"node to macro [{new_node_port}]: {node_to_macro[new_node_port]}")
                 # functional unit mux
-                old_graph.add_node("Mux" + str(counter), count = 16, function = "Mux", name="Mux" + str(counter))
+                old_graph.add_node(new_node, count = 16, function = "Mux", name=new_node)
                 old_graph.remove_edge(target_node1, node)
                 old_graph.remove_edge(target_node2, node)
-                old_graph.add_edge(target_node1, "Mux" + str(counter))
-                old_graph.add_edge(target_node2, "Mux" + str(counter))
-                old_graph.add_edge("Mux" + str(counter), node)
-                #macro_output = self.find_macro("Mux" + str(counter))
-                #node_to_macro["Mux" + str(counter)] = [macro_output, copy.deepcopy(macro_dict[macro_output])]
+                old_graph.add_edge(target_node1, new_node)
+                old_graph.add_edge(target_node2, new_node)
+                old_graph.add_edge(new_node, node)
+                macro_output = self.find_macro(old_graph.nodes[new_node])
+                node_to_macro[new_node] = [macro_output, copy.deepcopy(macro_dict[macro_output])]
                 # update list of input edges to reflect the new mux, which consumes two of the previous input edges
-                input_dict[node].append("Mux" + str(counter))
+                input_dict[node].append(new_node)
                 input_dict[node].remove(target_node2)
                 input_dict[node].remove(target_node1)
                 counter += 1 
@@ -477,12 +480,9 @@ class DefGenerator:
         # basic area estimate (square microns) by summing macro footprints for each instantiated node
         area_estimate_sq_microns = 0.0
         for node in nodes:
-            if "port_idx" in graph.nodes[node] and graph.nodes[node]["function"] != "Mux":
+            if "port_idx" in graph.nodes[node]:
                 log_info(f"Skipping component for node: {node} because it is a functional unit port")
                 continue # dont generate components for functional unit ports
-            if "port_idx" not in graph.nodes[node] and graph.nodes[node]["function"] == "Mux":
-                log_info(f"Skipping component for node: {node} because it is a functional unit mux")
-                continue # dont generate components for functional unit muxes
             component_num = format(number)
             log_info(f"Generating component for node: {node} with number: {component_num}, function: {graph.nodes[node]['function']}")
             node_to_component_num[node] = component_num
@@ -526,14 +526,8 @@ class DefGenerator:
             for x in range(16):
                 net_name = format(str(number))
                 assert old_graph.nodes[node]["count"] == 16, f"Node {node} has {old_graph.nodes[node]['count']} ports, expected 16"
-                # muxes have different instances for each port because they are 2->1 bit
-                # non-mux nodes have the same instance for all ports because each is 32->16 bits (2 input)
-                if old_graph.nodes[node]["function"] == "Mux":
-                    name = node+"_" +str(x)
-                    pin_idx = 0
-                else:
-                    name = node
-                    pin_idx = x
+                name = node
+                pin_idx = x
 
                 component_num = node_to_num[name]
                 pin_output = node_to_macro[name][1]["output"]
@@ -555,10 +549,7 @@ class DefGenerator:
                 # dst nodes
                 for output in node_output[node]:
                     assert old_graph.nodes[output]["count"] == 16, f"Node {output} has {old_graph.nodes[output]['count']} ports, expected 16"
-                    if old_graph.nodes[output]["function"] == "Mux":
-                        outgoing_name = output+"_" +str(x)
-                    else:
-                        outgoing_name = output
+                    outgoing_name = output
 
                     #if name == outgoing_name:
                     #    log_info(f"Skipping net for node {name} and output {outgoing_name} because it is a self loop")
@@ -761,10 +752,5 @@ class DefGenerator:
 
         log_info(f"DEF file generation complete.")
         log_info(f"Estimated total macro area: {area_estimate_sq_microns:.2f} square microns")
-
-        # TODO add mux function in circuit model
-        # adding this so that the lib cell generator can generate the correct cell for the mux
-        if "MUX2_X1" in macro_dict:
-            macro_dict["MUX2_X1"]["function"] = "Not16"
 
         return graph, net_out_dict, node_output, lef_data_dict, node_to_num, area_estimate_sq_microns, macro_dict, node_to_component_num
