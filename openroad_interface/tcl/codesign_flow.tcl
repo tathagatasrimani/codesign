@@ -1,4 +1,11 @@
 # set_debug_level DPL place 1
+#set_debug_level MPL multilevel_autoclustering 2
+#set_debug_level MPL coarse_shaping 2
+#set_debug_level MPL fine_shaping 2
+#set_debug_level MPL hierarchical_macro_placement 3
+#set_debug_level MPL flipping 1
+#set_debug_level MPL boundary_push 1
+set_thread_count [expr [cpu_count] - 1]
 ################################################################
 # IO Placement (random)
 place_pins -random -hor_layers $io_placer_hor_layer -ver_layers $io_placer_ver_layer

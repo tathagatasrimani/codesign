@@ -22,12 +22,14 @@ default:
     stop_at_checkpoint: none
     checkpoint_start_step: none
     workload_size: 2
-    max_iter_num_scalehls: 1 # default in scalehls is 30
+    max_iter_num_scalehls: 10 # default in scalehls is 30
     opt_pipeline: block_vector
     always_run_openroad: False
     arch_opt_pipeline: scalehls
     benchmark_group: polybench # only used for streamhls
     min_dsp: 13
+    max_power_density: 100 # W/mm^2
+    max_power: 150 # W
 
 
 vitis_test_mvs:

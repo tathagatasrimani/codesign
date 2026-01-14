@@ -184,6 +184,8 @@ def parse_op(instruction, op_name):
         parsed_op = undef_num_src_op(instruction)
     elif op_name == "specinterface":
         parsed_op = specinterface_op(instruction)
+    elif op_name == "sparsemux":
+        parsed_op = undef_num_src_op(instruction)
     else:
         raise ValueError(f"Unexpected op name: {op_name} for instruction: {instruction}")
     if op_name == "specinterface":

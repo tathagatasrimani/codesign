@@ -43,8 +43,8 @@ class Optimizer:
         self.max_system_power = None
 
     def initialize_max_system_power(self, power):
-        logger.info(f"initializing max system power to {power*150}")
-        self.max_system_power = power * 150
+        logger.info(f"initializing max system power to {150}")
+        self.max_system_power = 150
 
     def evaluate_constraints(self, constraints, stage):
         for constraint_obj in constraints:
