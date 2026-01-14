@@ -35,7 +35,7 @@ lshr = "RShift16"
 
 
 
-DEBUG = False
+DEBUG = True
 def log_info(msg):
     if DEBUG:
         logger.info(msg)
@@ -493,12 +493,8 @@ class DefGenerator:
             msize = macro_size_dict.get(macro)
             if msize and units:
                 # include halo on both sides (assume macro_halo values are per-side in microns)
-                if graph.nodes[node]["function"] == "Mux":
-                    eff_x = msize[0] 
-                    eff_y = msize[1]
-                else:
-                    eff_x = msize[0] + 2.0 * self.macro_halo_x
-                    eff_y = msize[1] + 2.0 * self.macro_halo_y
+                eff_x = msize[0] + 2.0 * self.macro_halo_x
+                eff_y = msize[1] + 2.0 * self.macro_halo_y
                 log_info(f"Adding area for macro {macro}: {eff_x} * {eff_y} = {eff_x * eff_y}")
                 area_estimate_sq_microns += eff_x * eff_y
             else:
