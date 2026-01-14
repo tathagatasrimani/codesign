@@ -197,15 +197,34 @@ class ScaleHLSSweepAutomation:
         
         print("Files and directories created for the following kernels:\n")
         for result in self.results:
-            status_symbol = "✓" if result["status"] == "SUCCESS" else "✗"
+            status_symbol = "✓"
             print(f"{status_symbol} {result['kernel']:20} | {result['status']}")
         
-        print(f"\nTotal: {total} | Passed: {sum(1 for r in self.results if r['status'] == 'SUCCESS')} | Failed: {sum(1 for r in self.results if r['status'] == 'FAILED')}")
+        print(f"\nTotal kernels processed: {total}")
+        print("\nGenerated files for each kernel:")
+        print("  - {kernel_name}_exp/")
+        print("    - yarch_{kernel_name}_save.yaml")
+        print("    - yarch_sweep_{kernel_name}_exp.list.yaml")
+        print("    - yarch_load_sweep_no_wires.yaml")
+        print("    - yarch_sweep_load_with_wires.yaml")
+        print("    - yarch_load_sweep_constant_wires.yaml")
+        print("    - yarch_sweep_exp{i}_load_list.yaml")
         print("="*70 + "\n")
+        
+        # Print commands to run manually
+        print("\nTo run the regressions manually, execute these commands:\n")
+        for idx, result in enumerate(self.results, 1):
+            kernel_name = result['kernel']
+            print(f"# For {kernel_name}:")
+            print(f"# 1. Save checkpoints:")
+            print(f"python3 regression_run.py -l auto_tests/yarch_exps/{kernel_name}_exp/yarch_sweep_{kernel_name}_exp.list.yaml -m 32 --dsp_sweep 128:1024:8\n")
+            print(f"# 2. Load checkpoints and run tests:")
+            print(f"python3 regression_run.py -l auto_tests/yarch_exps/{kernel_name}_exp/yarch_sweep_exp{idx}_load_list.yaml -m 32 --dsp_sweep 128:1024:8\n")
 
-    def run_all(self, dsp_sweep: str = "128:1024:8"):
+    def run_all(self):
         """Run the entire automation pipeline"""
         self.print_header("ScaleHLS Sweep Automation Started")
+        print("Creating all necessary files and directories...\n")
         
         for idx, kernel in enumerate(self.kernels, 1):
             kernel_name = kernel.get("name")
@@ -217,14 +236,13 @@ class ScaleHLSSweepAutomation:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="ScaleHLS Sweep Automation Script")
+    parser = argparse.ArgumentParser(description="ScaleHLS Sweep Automation Script - File Generator")
     parser.add_argument("-c", "--config", default=None, help="YAML config file (default: regressions/auto_tests/yarch_exps/configs/kernel_sweeps.yaml)")
-    parser.add_argument("-d", "--dsp_sweep", default="128:1024:8", help="DSP sweep parameters (default: 128:1024:8)")
     
     args = parser.parse_args()
 
     automation = ScaleHLSSweepAutomation(args.config)
-    automation.run_all(args.dsp_sweep)
+    automation.run_all()
 
 
 if __name__ == "__main__":
