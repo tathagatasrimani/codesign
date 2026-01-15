@@ -7,7 +7,7 @@ import csv
 import yaml
 import math
 
-def extract_execution_time_and_edp(log_path, debug=False):
+def extract_execution_time_and_edp(log_path, debug=False, obj="delay"):
     """Extract execution_time and EDP from run_codesign.log"""
 
     exec_time = None
@@ -21,7 +21,7 @@ def extract_execution_time_and_edp(log_path, debug=False):
             content = f.read()
             
             # Look for "edp: <number>, sub expressions: {...}" pattern
-            match = re.search(r"edp:\s*([0-9]*\.?[0-9]+(?:[eE][+-]?\d+)?),\s*sub expressions:\s*(\{.+?\})", content, re.DOTALL)
+            match = re.search(r"delay:\s*([0-9]*\.?[0-9]+(?:[eE][+-]?\d+)?),\s*sub expressions:\s*(\{.+?\})", content, re.DOTALL)
             if match:
                 edp = float(match.group(1))
                 sub_expr_str = match.group(2)
@@ -49,7 +49,7 @@ def parse_dsp_from_dirname(dirname, debug=False):
         print(f"Could not extract DSP value from directory name: {dirname}")
     return None
 
-def extract_actual_dsp_from_csv(entry_path, benchmark_name, max_dsp, kernel=None):
+def extract_actual_dsp_from_csv(entry_path, benchmark_name, max_dsp, kernel=None, obj="delay"):
     """
     Extract actual DSP used from kernel_3mm_space.csv.
     Finds the max DSP value that is <= max_dsp.
@@ -71,13 +71,15 @@ def extract_actual_dsp_from_csv(entry_path, benchmark_name, max_dsp, kernel=None
     csv_path = os.path.join(
         entry_path, 
         "tmp", 
-        f"tmp_{append_kernel}_edp_0",
+        f"tmp_{append_kernel}_{obj}_0",
         "benchmark_setup",
         "function_hier_output",
         f"{append_kernel}_space.csv"
     )
 
-    # print(f"Looking for DSP CSV at: {csv_path}")
+    print("################################")
+    print(f"Looking for DSP CSV at: {csv_path}")
+    print("################################")
     
     if not os.path.exists(csv_path):
         return None
@@ -134,7 +136,8 @@ def normalize_benchmark_name(benchmark):
         return m.group(1)
     return benchmark
 
-def scan_directory(root_dir, sweep_label, kernel=None, debug=False):
+def scan_directory(root_dir, sweep_label, kernel=None, debug=False, obj="delay"):
+    print(f"Scanning directory: {root_dir} for sweep: {sweep_label}")
     """
     Scan root_dir for subdirectories, extract DSP values, execution times, and EDP.
     Returns: list of (actual_dsp_used, execution_time, edp, benchmark_name, sweep_label, norm_benchmark)
@@ -164,12 +167,14 @@ def scan_directory(root_dir, sweep_label, kernel=None, debug=False):
 
         norm_benchmark = normalize_benchmark_name(benchmark)
         
-        if debug:
+        if True:
             print(f"[{sweep_label}] Scanning {entry} (max_dsp={max_dsp})...")
         
         # Look for run_codesign.log
         log_path = os.path.join(entry_path, "run_codesign.log")
         exec_time, edp = extract_execution_time_and_edp(log_path, debug=debug)
+
+        print(f"Extracted exec_time: {exec_time}, edp: {edp} from {log_path}")
         
         if exec_time is None or edp is None:
             if debug:
@@ -177,7 +182,7 @@ def scan_directory(root_dir, sweep_label, kernel=None, debug=False):
             continue
         
         # Extract actual DSP used from CSV using the benchmark name
-        actual_dsp_used = extract_actual_dsp_from_csv(entry_path, benchmark, max_dsp, kernel=kernel)
+        actual_dsp_used = extract_actual_dsp_from_csv(entry_path, benchmark, max_dsp, kernel=kernel, obj=obj)
         
         if actual_dsp_used is None:
             if debug:
@@ -648,6 +653,12 @@ def main():
         action="store_true",
         help="Enable debug output"
     )
+    ap.add_argument(
+        "--obj",
+        type=str,
+        default="delay",
+        help="This is the objective function."
+    )
     args = ap.parse_args()
     
     results_dir = args.results_dir
@@ -668,7 +679,7 @@ def main():
         
         if args.debug:
             print(f"\nScanning {sweep_label} ({entry})...")
-        results = scan_directory(sweep_path, sweep_label, kernel=args.kernel, debug=args.debug)
+        results = scan_directory(sweep_path, sweep_label, kernel=args.kernel, debug=args.debug, obj=args.obj)
         if args.debug:
             print(f"Found {len(results)} valid results in {entry}.")
         all_results.extend(results)
