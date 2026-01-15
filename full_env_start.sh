@@ -133,10 +133,10 @@ else
     fi
 fi
 
-################ SET UP SCALEHLS ##################
+################ SET UP STREAM-HLS AND SCALE-HLS ##################
 ## we want this to operate outside of conda, so do this first
+source "$SETUP_SCRIPTS_FOLDER"/stream_hls_setup.sh $FORCE_FULL # setup stream hls
 source "$SETUP_SCRIPTS_FOLDER"/scale_hls_setup.sh $FORCE_FULL # setup scalehls
-
 ################### SET UP CONDA ENVIRONMENT ##################
 # Check if the directory miniconda3 exists
 if [ -d "miniconda3" ]; then
@@ -219,6 +219,8 @@ alias run_regression="python3 -m test.regression_run"
 if [[ $FORCE_FULL -eq 1 ]]; then
     date "+%Y-%m-%d %H:%M:%S" > "$BUILD_LOG"
 fi
+
+echo "IMPORTANT: If this is your first time building, you need to follow the instructions in Stream-HLS/EXTRA_INSTRUCTIONS.md to activate the AMPL license key."
 
 echo "Last full build completed successfully on $(cat $BUILD_LOG)"which
 
