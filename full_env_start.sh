@@ -6,12 +6,14 @@ SETUP_SCRIPTS_FOLDER="$(pwd)/setup_scripts"
 
 BUILD_LOG="$SETUP_SCRIPTS_FOLDER/build.log"
 FORCE_FULL=0
+SKIP_OPENROAD=0
 
 # Parse command line options
 for arg in "$@"; do
     if [[ "$arg" == "--full" ]]; then
         FORCE_FULL=1
-        break
+    elif [[ "$arg" == "--skip-openroad" ]]; then
+        SKIP_OPENROAD=1
     fi
 done
 
@@ -36,6 +38,12 @@ else
     echo ">>> Performing incremental build"
 fi
 
+if [[ $SKIP_OPENROAD -eq 1 ]] || [[ "${GITHUB_ACTIONS:-}" == "true" && "${OPENROAD_PRE_INSTALLED:-0}" == "1" ]] || [[ -f "openroad_interface/OpenROAD/build/src/openroad" ]]; then
+    echo "We likely will not need SUDO permissions for this build."
+else
+    echo "SUDO permissions may be required for this build. Enter SUDO password if prompted."
+    sudo -v
+fi
 ################## PARSE UNIVERSITY ARGUMENT ##################
 
 host=$(hostname)
@@ -89,78 +97,88 @@ if [ "$UNIVERSITY" = "cmu" ]; then
 fi
 
 ################## INSTALL OPENROAD ##################
-git submodule update --init --recursive openroad_interface/OpenROAD
-
-if  [[ "${GITHUB_ACTIONS:-}" == "true" && "${OPENROAD_PRE_INSTALLED:-0}" == "1" ]]; then
-    echo "OpenROAD executable already exists."
+if [[ $SKIP_OPENROAD -eq 1 ]]; then
+    echo "Skipping OpenROAD installation (--skip-openroad flag set)."
 else
-# check if the openroad executable exists
-    if [ -f "openroad_interface/OpenROAD/build/src/openroad" ]; then
+    git submodule update --init --recursive openroad_interface/OpenROAD
+
+    if  [[ "${GITHUB_ACTIONS:-}" == "true" && "${OPENROAD_PRE_INSTALLED:-0}" == "1" ]]; then
         echo "OpenROAD executable already exists."
     else
-        echo "OpenROAD executable not found. Running openroad_install.sh..."
-        # Check OS, run openroad install script
-        if [ -f /etc/redhat-release ]; then
-            OS_VERSION=$(cat /etc/redhat-release)
-            case "$OS_VERSION" in 
-                *"Rocky Linux release 8"*|*"Red Hat Enterprise Linux release 8"*)
-                    bash "$SETUP_SCRIPTS_FOLDER"/openroad_install_rhel8.sh
-                ;;
-                *"Rocky Linux release 9"*|*"Red Hat Enterprise Linux release 9"*)
-                    bash "$SETUP_SCRIPTS_FOLDER"/openroad_install.sh
-                ;;
-                *)
-                    echo "Unsupported Rocky Linux version: $OS_VERSION"
-                    exit 1
-                ;;
-            esac    
+    # check if the openroad executable exists
+        if [ -f "openroad_interface/OpenROAD/build/src/openroad" ]; then
+            echo "OpenROAD executable already exists."
         else
-            echo "Unsupported OS"
+            echo "OpenROAD executable not found. Running openroad_install.sh..."
+            # Check OS, run openroad install script
+            if [ -f /etc/redhat-release ]; then
+                OS_VERSION=$(cat /etc/redhat-release)
+                case "$OS_VERSION" in 
+                    *"Rocky Linux release 8"*|*"Red Hat Enterprise Linux release 8"*)
+                        bash "$SETUP_SCRIPTS_FOLDER"/openroad_install_rhel8.sh
+                    ;;
+                    *"Rocky Linux release 9"*|*"Red Hat Enterprise Linux release 9"*)
+                        bash "$SETUP_SCRIPTS_FOLDER"/openroad_install.sh
+                    ;;
+                    *)
+                        echo "Unsupported Rocky Linux version: $OS_VERSION"
+                        exit 1
+                    ;;
+                esac    
+            else
+                echo "Unsupported OS"
+                exit 1
+            fi
+        fi
+    fi
+
+    if [[ "${GITHUB_ACTIONS:-}" == "true" && "${OPENROAD_PRE_INSTALLED:-0}" == "1"  ]]; then
+        echo "OpenROAD installation completed successfully."
+    else
+        # Ensure that the OpenROAD executable was created
+        if [ -f "openroad_interface/OpenROAD/build/src/openroad" ]; then
+            echo "OpenROAD installation completed successfully."
+        else
+            echo "OpenROAD installation failed."
             exit 1
         fi
     fi
 fi
 
-if [[ "${GITHUB_ACTIONS:-}" == "true" && "${OPENROAD_PRE_INSTALLED:-0}" == "1"  ]]; then
-    echo "OpenROAD installation completed successfully."
-else
-    # Ensure that the OpenROAD executable was created
-    if [ -f "openroad_interface/OpenROAD/build/src/openroad" ]; then
-        echo "OpenROAD installation completed successfully."
-    else
-        echo "OpenROAD installation failed."
-        exit 1
-    fi
-fi
-
-################ SET UP STREAM-HLS AND SCALE-HLS ##################
+################ SET UP SCALEHLS ##################
 ## we want this to operate outside of conda, so do this first
-source "$SETUP_SCRIPTS_FOLDER"/stream_hls_setup.sh $FORCE_FULL # setup stream hls
+source "$SETUP_SCRIPTS_FOLDER"/streamhls_setup.sh $FORCE_FULL # setup stream hls
 source "$SETUP_SCRIPTS_FOLDER"/scale_hls_setup.sh $FORCE_FULL # setup scalehls
+
 ################### SET UP CONDA ENVIRONMENT ##################
 # Check if the directory miniconda3 exists
 if [ -d "miniconda3" ]; then
     export PATH="$(pwd):$PATH"
     source miniconda3/etc/profile.d/conda.sh
-else
+else   
     # Install and set up environment
     wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
     bash Miniconda3-latest-Linux-x86_64.sh -b -p "$(pwd)/miniconda3"
     export PATH="$(pwd):$PATH"
     source miniconda3/etc/profile.d/conda.sh
-    conda env create -f "$SETUP_SCRIPTS_FOLDER"/environment_simplified.yml
+
+    ## Accept conda TOS
+    conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main
+    conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r
+
+    conda env create -f "$SETUP_SCRIPTS_FOLDER"/environment_simplified.yml -y
 
     # create symlinks for g++-13 needed by cacti
     cd miniconda3/envs/codesign/bin
-    ln -s x86_64-conda-linux-gnu-gcc gcc-13
-    ln -s x86_64-conda-linux-gnu-g++ g++-13
+    ln -sf x86_64-conda-linux-gnu-gcc gcc-13
+    ln -sf x86_64-conda-linux-gnu-g++ g++-13
     cd ../../../..
 fi
 
 
 if [[ $FORCE_FULL -eq 1 ]]; then
     ## update conda packages
-    conda update -n base -c defaults conda # update conda itself
+    conda update -n base -c defaults conda -y # update conda itself
     conda config --set channel_priority strict
     conda env update -f "$SETUP_SCRIPTS_FOLDER"/environment_simplified.yml --prune # update the environment
 fi
@@ -219,8 +237,6 @@ alias run_regression="python3 -m test.regression_run"
 if [[ $FORCE_FULL -eq 1 ]]; then
     date "+%Y-%m-%d %H:%M:%S" > "$BUILD_LOG"
 fi
-
-echo "IMPORTANT: If this is your first time building, you need to follow the instructions in Stream-HLS/EXTRA_INSTRUCTIONS.md to activate the AMPL license key."
 
 echo "Last full build completed successfully on $(cat $BUILD_LOG)"which
 

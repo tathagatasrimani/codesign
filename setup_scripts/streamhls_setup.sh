@@ -22,19 +22,29 @@ if [[ $FORCE_FULL -eq 1 ]]; then
     git submodule sync
     git submodule update --init --recursive
 
-    if [ -f "ampl.linux-intel64" ]; then
+    if [ -d "ampl.linux-intel64" ]; then
         echo "[setup] AMPL package found."
     else
-        echo "[setup] AMPL package not found, please get a license from https://ampl.com/ampl-in-academia/"
-        echo "and place it in the Stream-HLS directory."
-        exit 1
+        echo "[setup] AMPL package not found."
+        echo "Please obtain it from https://ampl.com/ampl-in-academia/ (or your local copy),"
+        echo "then paste or move the directory 'ampl.linux-intel64' into this directory:"
+        pwd
+        echo
+        read -p "Press ENTER after you have placed 'ampl.linux-intel64' here to continue..." _
+
+        if [ -d "ampl.linux-intel64" ]; then
+            echo "[setup] AMPL package found after user copy."
+        else
+            echo "[setup] AMPL package still not found in $(pwd). Exiting."
+            exit 1
+        fi
     fi
 
-    ./setup-env.sh
+    source setup-env.sh
 
-    ./build-llvm.sh
+    source build-llvm.sh
 
-    ./build-streamhls.sh
+    source build-streamhls.sh
 
     conda deactivate
     cd ..
