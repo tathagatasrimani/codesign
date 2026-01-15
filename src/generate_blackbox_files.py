@@ -321,7 +321,7 @@ def generate_blackbox_files(cpp_file, output_dir, tcl_file, latency, clk_period)
                 filepath = os.path.join(output_dir, f"{func['name']}.json")
                 newlines.append(f"add_files -blackbox {filepath}\n")
             already_added = True
-    tcl_file_new = tcl_file.split(".")[0] + "_new.tcl"
+    tcl_file_new = os.path.splitext(tcl_file)[0] + "_new.tcl"
     with open(tcl_file_new, 'w') as f:
         f.writelines(newlines)
 
