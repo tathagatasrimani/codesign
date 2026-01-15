@@ -2,7 +2,7 @@ import logging
 from src.hardware_model.tech_models.tech_model_base import TechModel
 from src.sim_util import symbolic_convex_max, symbolic_min, custom_cosh, custom_exp, xreplace_safe
 import math
-from sympy import symbols, ceiling, expand, exp, Abs, cosh, log
+from sympy import symbols, ceiling, expand, exp, Abs, cosh, log, tan
 import sympy as sp
 from scipy.constants import k, e, epsilon_0, hbar, m_e
 from src.inverse_pass.constraint import Constraint
@@ -83,6 +83,7 @@ class MVSGeneralModel(TechModel):
         self.A_gate = self.base_params.W * self.base_params.L
 
         self.Lscale = tech_codesign_v0.get_Lscale(self.base_params.k_gate, self.base_params.eps_semi, self.base_params.tox, self.base_params.tsemi)
+        #self.Lscale = self.base_params.Lscale
         logger.info(f"Lscale: {xreplace_safe(self.Lscale, self.base_params.tech_values):.3e}")
         self.n0, self.delta, self.dVt = tech_codesign_v0.symbolic_sce_model_cmg(self.base_params.L, self.base_params.V_th, self.Lscale)
         self.V_th_eff = self.base_params.V_th - self.dVt - self.delta * self.base_params.V_dd
@@ -183,6 +184,7 @@ class MVSGeneralModel(TechModel):
         self.constraints.append(Constraint(sp.Eq(self.base_params.Rsh_ext_n, self.base_params.tech_values[self.base_params.Rsh_ext_n], evaluate=False), "Rsh_ext_n = tech_values[Rsh_ext_n]"))
         self.constraints.append(Constraint(sp.Eq(self.base_params.Rsh_ext_p, self.base_params.tech_values[self.base_params.Rsh_ext_p], evaluate=False), "Rsh_ext_p = tech_values[Rsh_ext_p]"))
 
-        #self.constraints.append(self.delta <= 0.15)
-        self.constraints.append(Constraint(self.I_off_worst_case_per_um <= 100e-9, "I_off_worst_case_per_um <= 100e-9"))
+        self.constraints.append(Constraint(self.delta <= 0.15, "delta <= 0.15"))
+        #self.constraints.append(Constraint(sp.Eq(self.e_si*tan(math.pi*self.base_params.tox/self.Lscale) + self.base_params.k_gate*self.e_0*tan(math.pi*self.base_params.tsemi/self.Lscale), 0, evaluate=False), "e_si*tan(pi*t_ox/scale_length) + k_gate*e_0*tan(pi*tsemi/scale_length) <= 1e-6"))
+        #self.constraints.append(Constraint(self.I_off_worst_case_per_um <= 100e-9, "I_off_worst_case_per_um <= 100e-9"))
         #self.constraints.append(Constraint(self.V_th_eff_worst_case >= 0.05, "V_th_eff_worst_case >= 0.05"))

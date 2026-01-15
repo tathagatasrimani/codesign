@@ -215,6 +215,8 @@ class HardwareModel:
         self.constraints = []
         self.sensitivities = {}
 
+        self.block_vectors = {}        
+
     def reset_state(self):
         self.symbolic_buf = {}
         self.symbolic_mem = {}

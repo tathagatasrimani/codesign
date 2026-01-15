@@ -59,6 +59,7 @@ default:
   FO: 4
   M: 2
   a: 0.5
+  Lscale: 1.0e-7
 
 tech-1982:
   L: 2.1e-06
@@ -261,4 +262,31 @@ mvs-starting-point:
   M: 2
   a: 0.5
   f: 4.0e+7
+  Lscale: 5.5e-8
 
+mvs-test-point:
+  V_dd: 1.0
+  V_th: 0.7
+  L: 13.0e-9
+  W: 13.0e-8
+  beta_p_n: 2.0
+  mD_fac: 0.5
+  mu_eff_n: 250.0e-4
+  mu_eff_p: 125.0e-4
+  k_gate: 25
+  tox: 1.0e-9
+  eps_semi: 11.7
+  tsemi: 8.0e-9
+  Lext: 10.0e-9
+  Lc: 20.0e-9
+  eps_cap: 3.9
+  rho_c_n: 7.0e-11
+  rho_c_p: 7.0e-11
+  Rsh_c_n: 9000
+  Rsh_c_p: 9000
+  Rsh_ext_n: 9000
+  Rsh_ext_p: 9000
+  FO: 4
+  M: 2
+  a: 0.5
+  f: 4.0e+7

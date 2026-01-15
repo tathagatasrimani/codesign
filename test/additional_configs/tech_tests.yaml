@@ -5,3 +5,27 @@ tech_test:
     tech_node: mvs-starting-point
     inverse_pass_improvement: 4
     opt_pipeline: logic_device
+
+tech_test_vs:
+  base_cfg: default
+  args:
+    model_cfg: vs_cfg_latest_test
+    tech_node: default
+    inverse_pass_improvement: 4
+    opt_pipeline: logic_device
+
+tech_test_vs_capped_parallel:
+  base_cfg: default
+  args:
+    model_cfg: vs_cfg_latest_capped_parallel
+    tech_node: default
+    inverse_pass_improvement: 4
+    opt_pipeline: logic_device
+
+tech_test_mvs_test_point:
+  base_cfg: default
+  args:
+    model_cfg: mvs_general_cfg_test
+    tech_node: mvs-test-point
+    inverse_pass_improvement: 4
+    opt_pipeline: logic_device

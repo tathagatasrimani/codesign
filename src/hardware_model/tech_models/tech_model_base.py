@@ -165,8 +165,8 @@ class TechModel(ABC):
         self.constraints = []
         # generic constraints
         self.constraints.append(Constraint(self.delay_var >= self.delay, "delay_var >= delay"))
-        self.constraints.append(Constraint(self.base_params.V_dd >= self.V_th_eff, "V_dd >= V_th_eff"))
-        self.constraints.append(Constraint(self.base_params.V_dd >= self.base_params.V_th, "V_dd >= V_th"))
+        #self.constraints.append(Constraint(self.base_params.V_dd >= self.V_th_eff, "V_dd >= V_th_eff"))
+        #self.constraints.append(Constraint(self.base_params.V_dd >= self.base_params.V_th, "V_dd >= V_th"))
         if self.V_th_eff != self.base_params.V_th:
             self.constraints.append(Constraint(self.V_th_eff >= 0, "V_th_eff >= 0"))
         self.constraints.append(Constraint(self.base_params.V_dd <= 5, "V_dd <= 5"))

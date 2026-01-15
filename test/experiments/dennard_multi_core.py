@@ -41,22 +41,22 @@ class DennardMultiCore:
     def run_dummy_forward_pass(self):
 
         self.num_inverters = 1e5
-        self.utilization = 0.02
+        self.utilization = 1
         self.num_switches_per_inverter = 1e4
         self.calculate_objective()
         self.codesign_module.hw.save_obj_vals(self.codesign_module.hw.execution_time)
         self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values[self.codesign_module.hw.circuit_model.tech_model.base_params.logic_sensitivity] = 1.0
         self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values[self.codesign_module.hw.circuit_model.tech_model.base_params.logic_resource_sensitivity] = 1.0
-        self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values[self.codesign_module.hw.circuit_model.tech_model.base_params.logic_ahmdal_limit] = 1.0
-        self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values[self.codesign_module.hw.circuit_model.tech_model.base_params.logic_resource_ahmdal_limit] = 1.0
+        self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values[self.codesign_module.hw.circuit_model.tech_model.base_params.logic_amdahl_limit] = 1.0
+        self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values[self.codesign_module.hw.circuit_model.tech_model.base_params.logic_resource_amdahl_limit] = 1.0
         self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values[self.codesign_module.hw.circuit_model.tech_model.base_params.interconnect_sensitivity] = 1.0
         self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values[self.codesign_module.hw.circuit_model.tech_model.base_params.interconnect_resource_sensitivity] = 1.0
-        self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values[self.codesign_module.hw.circuit_model.tech_model.base_params.interconnect_ahmdal_limit] = 1.0
-        self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values[self.codesign_module.hw.circuit_model.tech_model.base_params.interconnect_resource_ahmdal_limit] = 1.0
+        self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values[self.codesign_module.hw.circuit_model.tech_model.base_params.interconnect_amdahl_limit] = 1.0
+        self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values[self.codesign_module.hw.circuit_model.tech_model.base_params.interconnect_resource_amdahl_limit] = 1.0
         self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values[self.codesign_module.hw.circuit_model.tech_model.base_params.memory_sensitivity] = 1.0
         self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values[self.codesign_module.hw.circuit_model.tech_model.base_params.memory_resource_sensitivity] = 1.0
-        self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values[self.codesign_module.hw.circuit_model.tech_model.base_params.memory_ahmdal_limit] = 1.0
-        self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values[self.codesign_module.hw.circuit_model.tech_model.base_params.memory_resource_ahmdal_limit] = 1.0
+        self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values[self.codesign_module.hw.circuit_model.tech_model.base_params.memory_amdahl_limit] = 1.0
+        self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values[self.codesign_module.hw.circuit_model.tech_model.base_params.memory_resource_amdahl_limit] = 1.0
         self.codesign_module.hw.display_objective("after forward pass")
 
         print(f"initial area: {(self.num_inverters * self.codesign_module.hw.circuit_model.tech_model.A_gate * 2).xreplace(self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values).evalf()}")
@@ -103,7 +103,7 @@ class DennardMultiCore:
         for i in range(self.args.num_opt_iters):
             initial_tech_params = copy.copy(self.codesign_module.hw.circuit_model.tech_model.base_params.tech_values)
             if self.dummy_app:
-                self.run_dummy_inverse_pass(k_gate_disabled=(i<11)) # k_gate_disabled=(i<11) as alternative
+                self.run_dummy_inverse_pass(k_gate_disabled=False) # k_gate_disabled=(i<11) as alternative
             else:
                 self.codesign_module.inverse_pass()
                 self.codesign_module.hw.circuit_model.update_circuit_values()
@@ -252,4 +252,4 @@ if __name__ == "__main__":
         experiment = DennardMultiCore(args)
         experiment.run_experiment()    
     finally:
-        experiment.codesign_module.end_of_run_plots(experiment.edp_over_iterations, experiment.lag_factor_over_iterations, experiment.params_over_iterations, [], [], [])
+        experiment.codesign_module.end_of_run_plots(experiment.edp_over_iterations, experiment.lag_factor_over_iterations, experiment.params_over_iterations, [], [], [], [], [])

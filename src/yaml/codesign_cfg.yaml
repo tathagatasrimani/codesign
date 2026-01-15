@@ -28,7 +28,7 @@ default:
     arch_opt_pipeline: scalehls
     benchmark_group: polybench # only used for streamhls
     min_dsp: 13
-    max_power_density: 100 # W/mm^2
+    max_power_density: 1e15 # W/mm^2, not active right now
     max_power: 150 # W
 
 

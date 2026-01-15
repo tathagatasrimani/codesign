@@ -200,7 +200,7 @@ vs_cfg_latest_capped_parallel:
   base_cfg: vs_cfg_latest_test
   effects:
     max_parallel_en: True
-    max_parallel_val: 1000
+    max_parallel_val: 1.1
 
 vs_cfg_latest_capped_parallel_t_1:
   base_cfg: vs_cfg_latest_capped_parallel
