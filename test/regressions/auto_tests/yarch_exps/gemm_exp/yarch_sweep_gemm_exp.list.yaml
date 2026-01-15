@@ -1,1 +1,3 @@
-- yarch_gemm_save.yaml
+- yarch_load_sweep_no_wires.yaml
+- yarch_sweep_load_with_wires.yaml
+- yarch_load_sweep_constant_wires.yaml
