@@ -117,6 +117,7 @@ vitis_streamhls_gemm_test:
     benchmark: gemm
     arch_opt_pipeline: streamhls
     pytorch: True  
+    min_dsp: 13
 
 vitis_streamhls_gesummv_test:
   base_cfg: vitis_test
@@ -124,6 +125,7 @@ vitis_streamhls_gesummv_test:
     benchmark: gesummv
     arch_opt_pipeline: streamhls
     pytorch: True
+    min_dsp: 18
 
 vitis_streamhls_2mm_test:
   base_cfg: vitis_test
@@ -139,7 +141,7 @@ vitis_streamhls_3mm_test:
     benchmark: k3mm
     arch_opt_pipeline: streamhls
     pytorch: True
-    min_dsp: 30
+    min_dsp: 15
 
 vitis_streamhls_atax_test:
   base_cfg: vitis_test
@@ -148,6 +150,7 @@ vitis_streamhls_atax_test:
     arch_opt_pipeline: streamhls
     pytorch: True
     arch_opt_pipeline: streamhls
+    min_dsp: 10
 
 vitis_streamhls_bicg_test:
   base_cfg: vitis_test
@@ -155,6 +158,7 @@ vitis_streamhls_bicg_test:
     benchmark: bicg
     arch_opt_pipeline: streamhls
     pytorch: True
+    min_dsp: 10
 
 vitis_streamhls_mvt_test:
   base_cfg: vitis_test
@@ -162,6 +166,7 @@ vitis_streamhls_mvt_test:
     benchmark: mvt
     arch_opt_pipeline: streamhls
     pytorch: True
+    min_dsp: 10
 
 vitis_streamhls_attention_test:
   base_cfg: vitis_test
@@ -170,3 +175,33 @@ vitis_streamhls_attention_test:
     arch_opt_pipeline: streamhls
     pytorch: True
     min_dsp: 40
+
+vitis_streamhls_aes_test: # not working yet
+  base_cfg: vitis_test
+  args:
+    benchmark: aes
+    arch_opt_pipeline: streamhls
+    pytorch: True
+    min_dsp: 18
+
+vitis_streamhls_inference_test: # not working yet
+  base_cfg: vitis_test
+  args:
+    benchmark: Inference
+    arch_opt_pipeline: streamhls
+    pytorch: True
+    min_dsp: 100
+
+vitis_streamhls_transformer_test: # not working yet
+  base_cfg: vitis_test
+  args:
+    benchmark: Transformer
+    arch_opt_pipeline: streamhls
+    pytorch: True
+    min_dsp: 100
+
+vitis_streamhls_transformerkv_test: # not working yet
+  base_cfg: vitis_test
+  args:
+    benchmark: TransformerKV
+    arch_opt_pipeline: streamhls
