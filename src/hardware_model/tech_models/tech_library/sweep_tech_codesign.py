@@ -408,19 +408,45 @@ class SweepTechCodesign:
         # Fit parametric surface model for use in optimization
         try:
             logger.info("Fitting parametric Pareto surface model...")
-            n_params = min(2, len(objectives) - 1)  # Use 2 params, or n_objectives-1 if fewer objectives
-            fit_results = self.fit_pareto_surface_parametric(pareto_df, output_metrics=objectives, n_params=n_params)
 
-            # Export model for CVXPY
-            model_filename = os.path.join(output_dir, f"{base_name}_pareto_model.json")
-            self.export_pareto_model_for_cvxpy(fit_results, filename=model_filename)
+            fit_results = self.just_fit_pareto_surface(pareto_df, objectives)
 
-            logger.info(f"Successfully fitted and exported Pareto surface model")
         except Exception as e:
             logger.error(f"Error fitting Pareto surface: {e}")
             logger.info("Continuing without surface fit...")
 
         return pareto_filename
+
+    def _generate_cvxpy_constraint_example(self, metric, model, param_names):
+        """Generate CVXPY constraint code example for a given metric model."""
+        # Check if this is a posynomial model (new format) or monomial model (old format)
+        if 'type' in model and model['type'] == 'posynomial' and 'terms' in model:
+            # Posynomial format: sum of terms
+            # Build sum of monomial terms
+            term_strs = []
+            for term in model['terms']:
+                c = term['coefficient']
+                if len(term['exponents']) == 0:
+                    # Constant term
+                    term_strs.append(f"{c:.3e}")
+                else:
+                    monomial_parts = [f"{c:.3e}"]
+                    for param, exp in term['exponents'].items():
+                        if exp == 1.0:
+                            monomial_parts.append(param)
+                        else:
+                            monomial_parts.append(f"cp.power({param}, {exp:.3f})")
+                    term_strs.append(" * ".join(monomial_parts))
+            return f"    {metric} >= " + " + ".join(term_strs)
+        elif 'c' in model and 'exponents' in model:
+            # Old monomial format: single term
+            c = model['c']
+            exp_parts = [f"cp.power({p}, {model['exponents'][p]:.3f})" 
+                        for p in param_names if p in model['exponents']]
+            return f"    {metric} >= {c:.3e} * " + " * ".join(exp_parts)
+        else:
+            # Fallback: just show the formula
+            return f"    # {metric}: {model.get('formula', 'N/A')}"
 
     def export_pareto_model_for_cvxpy(self, fit_results, filename=None):
         """
@@ -457,15 +483,41 @@ class SweepTechCodesign:
             'constraints': []
         }
 
+        # Add parameter bounds for parametric models
+        if is_parametric and 'param_values' in fit_results:
+            param_values = fit_results['param_values']
+            cvxpy_model['param_bounds'] = {
+                param_names[i]: {
+                    'min': float(param_values[:, i].min()),
+                    'max': float(param_values[:, i].max())
+                }
+                for i in range(len(param_names))
+            }
+
         # Create constraint specifications for each output metric
         for metric, model in fit_results['models'].items():
-            constraint = {
-                'output': metric,
-                'coefficient': model['c'],
-                'exponents': model['exponents'],
-                'formula': model['formula'],
-                'r_squared': model['r_squared']
-            }
+            # Check if this is a posynomial model (new format) or monomial model (old format)
+            if 'type' in model and model['type'] == 'posynomial' and 'terms' in model:
+                # Posynomial format: sum of terms
+                constraint = {
+                    'output': metric,
+                    'type': 'posynomial',
+                    'terms': model['terms'],
+                    'formula': model['formula'],
+                    'r_squared': model['r_squared']
+                }
+            elif 'c' in model and 'exponents' in model:
+                # Old monomial format: single term
+                constraint = {
+                    'output': metric,
+                    'type': 'monomial',
+                    'coefficient': model['c'],
+                    'exponents': model['exponents'],
+                    'formula': model.get('formula', ''),
+                    'r_squared': model.get('r_squared', 0.0)
+                }
+            else:
+                raise ValueError(f"Unrecognized model format for metric {metric}: {list(model.keys())}")
             cvxpy_model['constraints'].append(constraint)
 
         # Add usage instructions
@@ -499,9 +551,7 @@ problem.solve(gp=True)
                 var_defs='\n'.join([f"{p} = cp.Variable(pos=True, name='{p}')" for p in param_names]),
                 output_defs='\n'.join([f"{m} = cp.Variable(pos=True, name='{m}')" for m in fit_results['output_metrics']]),
                 constraint_examples='\n'.join([
-                    f"    {m} >= {fit_results['models'][m]['c']:.3e} * " +
-                    " * ".join([f"cp.power({p}, {fit_results['models'][m]['exponents'][p]:.3f})"
-                               for p in param_names])
+                    self._generate_cvxpy_constraint_example(m, fit_results['models'][m], param_names)
                     for m in fit_results['output_metrics']
                 ]),
                 knob_values=', '.join([f"{p}={p}.value" for p in param_names])
@@ -533,9 +583,7 @@ problem.solve(gp=True)
                 output_defs='\n'.join([f"{m} = cp.Variable(pos=True, name='{m}')"
                                       for m in fit_results['output_metrics'] if m not in param_names]),
                 constraint_examples='\n'.join([
-                    f"    {m} >= {fit_results['models'][m]['c']:.3e} * " +
-                    " * ".join([f"cp.power({p}, {fit_results['models'][m]['exponents'][p]:.3f})"
-                               for p in param_names])
+                    self._generate_cvxpy_constraint_example(m, fit_results['models'][m], param_names)
                     for m in fit_results['models'].keys()
                 ])
             )
@@ -553,7 +601,7 @@ problem.solve(gp=True)
 
         return cvxpy_model
 
-    def fit_pareto_surface_parametric(self, pareto_df, output_metrics, n_params=2):
+    def fit_pareto_surface_parametric(self, pareto_df, output_metrics, n_params=4):
         """
         Fit a parametric representation of the Pareto surface using abstract knobs.
 
@@ -597,11 +645,13 @@ problem.solve(gp=True)
         # This gives us meaningful parameters that capture variance in the Pareto front
         log_Y = np.log(Y)
 
-        if n_params >= len(output_metrics):
-            raise ValueError(f"n_params ({n_params}) must be less than number of output metrics ({len(output_metrics)})")
-
         pca = PCA(n_components=n_params)
         param_values = pca.fit_transform(log_Y)
+
+        # CRITICAL: Shift parameters to be positive (required for posynomial and log)
+        # PCA can produce negative values, but we need positive for log(param_values)
+        for i in range(n_params):
+            param_values[:, i] = param_values[:, i] - param_values[:, i].min() + 1.0
 
         param_names = [f'a{i}' for i in range(n_params)]
 
@@ -622,43 +672,124 @@ problem.solve(gp=True)
         }
 
         # Fit each output metric as function of abstract parameters
-        # y_i = c_i * a0^p_i0 * a1^p_i1 * ...
+        # Use posynomial: y = sum(c_k * prod(a_i^p_k_i)) for first and second degree terms
         for i, metric in enumerate(output_metrics):
             y = Y[:, i]
-            log_y = np.log(y)
-            log_params = np.log(param_values)
 
-            reg = LinearRegression()
-            reg.fit(log_params, log_y)
+            # Build feature matrix with all first, second, and third degree monomial terms
+            # For n_params=2: [1, a0, a1, a0*a1, a0^2, a1^2, a0^3, a0^2*a1, a0*a1^2, a1^3]
+            # For n_params=3: [1, a0, a1, a2, a0*a1, a0*a2, a1*a2, a0^2, a1^2, a2^2,
+            #                  a0^3, a1^3, a2^3, a0^2*a1, a0^2*a2, a1^2*a0, a1^2*a2, a2^2*a0, a2^2*a1, a0*a1*a2]
+
+            features = []
+            term_descriptions = []
+
+            # Constant term: 1 (no parameters)
+            features.append(np.ones(len(param_values)))
+            term_descriptions.append({})  # Empty dict means constant term
+
+            # First degree terms: a0, a1, a2, ...
+            for j in range(n_params):
+                features.append(param_values[:, j])
+                term_descriptions.append({param_names[j]: 1.0})
+
+            # Second degree cross terms: a0*a1, a0*a2, a1*a2, ...
+            for j in range(n_params):
+                for k in range(j+1, n_params):
+                    features.append(param_values[:, j] * param_values[:, k])
+                    term_descriptions.append({param_names[j]: 1.0, param_names[k]: 1.0})
+
+            # Second degree pure terms: a0^2, a1^2, a2^2, ...
+            for j in range(n_params):
+                features.append(param_values[:, j] ** 2)
+                term_descriptions.append({param_names[j]: 2.0})
+
+            # Third degree pure terms: a0^3, a1^3, a2^3, ...
+            for j in range(n_params):
+                features.append(param_values[:, j] ** 3)
+                term_descriptions.append({param_names[j]: 3.0})
+
+            # Third degree two-parameter terms: a0^2*a1, a0^2*a2, a1^2*a0, a1^2*a2, a2^2*a0, a2^2*a1
+            for j in range(n_params):
+                for k in range(n_params):
+                    if j != k:
+                        features.append(param_values[:, j] ** 2 * param_values[:, k])
+                        exp_dict = {param_names[j]: 2.0, param_names[k]: 1.0}
+                        term_descriptions.append(exp_dict)
+
+            # Third degree triple cross term: a0*a1*a2 (only for n_params >= 3)
+            if n_params >= 3:
+                for j in range(n_params):
+                    for k in range(j+1, n_params):
+                        for l in range(k+1, n_params):
+                            features.append(param_values[:, j] * param_values[:, k] * param_values[:, l])
+                            term_descriptions.append({param_names[j]: 1.0, param_names[k]: 1.0, param_names[l]: 1.0})
+
+            X_features = np.column_stack(features)
+
+            # Fit posynomial using non-negative least squares
+            # y = sum(c_k * feature_k) where c_k >= 0
+            # This is a linear problem in the original space, not log space
+            from scipy.optimize import nnls
+            
+            # Use non-negative least squares to fit coefficients
+            # This ensures all coefficients are positive (required for posynomials)
+            coefs, residual = nnls(X_features, y)
+            
+            # Filter out very small coefficients to avoid overfitting
+            min_coef_threshold = 1e-10 * np.max(coefs)
+            coefs[coefs < min_coef_threshold] = 0.0
 
             model = {
-                'c': float(np.exp(reg.intercept_)),
-                'exponents': {param_names[j]: float(reg.coef_[j]) for j in range(n_params)},
-                'r_squared': float(reg.score(log_params, log_y))
+                'type': 'posynomial',
+                'terms': []
             }
 
-            terms = [f"{param_names[j]}^{model['exponents'][param_names[j]]:.3f}"
-                    for j in range(n_params)]
-            model['formula'] = f"{metric} = {model['c']:.3e} * " + " * ".join(terms)
+            for idx, (coef, term_desc) in enumerate(zip(coefs, term_descriptions)):
+                if coef > 0:  # Only include non-zero terms
+                    model['terms'].append({
+                        'coefficient': float(coef),
+                        'exponents': term_desc
+                    })
 
-            # Evaluation function
-            def make_eval(c, exps, params):
+            # Build formula string
+            formula_parts = []
+            for term in model['terms']:
+                c = term['coefficient']
+                if len(term['exponents']) == 0:
+                    # Constant term
+                    formula_parts.append(f"{c:.3e}")
+                else:
+                    exp_str = " * ".join([f"{p}^{e:.1f}" if e != 1.0 else p
+                                         for p, e in term['exponents'].items()])
+                    formula_parts.append(f"{c:.3e}*{exp_str}")
+            model['formula'] = f"{metric} = " + " + ".join(formula_parts)
+
+            # Evaluation function for posynomial
+            def make_posynomial_eval(terms, params):
                 def eval_func(*args, **kwargs):
-                    """Evaluate metric given parameter values (positional or keyword args)."""
+                    """Evaluate posynomial sum(c_k * prod(a_i^p_k_i))"""
                     if args:
-                        if len(args) != len(params):
-                            raise ValueError(f"Expected {len(params)} arguments, got {len(args)}")
-                        param_vals = args
+                        param_dict = {params[i]: args[i] for i in range(len(params))}
                     else:
-                        param_vals = [kwargs[p] for p in params]
+                        param_dict = kwargs
 
-                    result = c
-                    for j, p in enumerate(params):
-                        result *= np.power(param_vals[j], exps[p])
+                    result = 0.0
+                    for term in terms:
+                        monomial = term['coefficient']
+                        for param, exp in term['exponents'].items():
+                            monomial *= np.power(param_dict[param], exp)
+                        result += monomial
                     return result
                 return eval_func
 
-            model['eval'] = make_eval(model['c'], model['exponents'], param_names)
+            model['eval'] = make_posynomial_eval(model['terms'], param_names)
+
+            # Compute R²
+            y_pred = model['eval'](*[param_values[:, j] for j in range(n_params)])
+            ss_res = np.sum((y - y_pred) ** 2)
+            ss_tot = np.sum((y - np.mean(y)) ** 2)
+            model['r_squared'] = float(1 - (ss_res / ss_tot))
 
             results['models'][metric] = model
             logger.info(f"  {metric}: R²={model['r_squared']:.4f}")
@@ -692,6 +823,77 @@ problem.solve(gp=True)
 
         return results
 
+    def optimize_and_lookup_design(self, model_json_file, fit_results, output_file=None,
+                                   objective='edp', additional_constraints=None):
+        """
+        Optimize a Pareto surface model and look up the actual design parameters.
+
+        Args:
+            model_json_file: Path to JSON file with Pareto surface model
+            fit_results: Results from fit_pareto_surface_parametric() containing find_nearest_design()
+            output_file: Optional path to save the optimal design JSON
+            objective: Optimization objective ('edp', 'delay', 'energy', 'area')
+            additional_constraints: Optional dict with constraints like {'delay': 1e-3, 'area': 3e-16}
+
+        Returns:
+            Dictionary with optimization results and design parameters
+        """
+        import json
+        from src.hardware_model.tech_models.tech_library.optimize_pareto import optimize_pareto_surface
+
+        # Optimize
+        opt_results = optimize_pareto_surface(
+            model_json_file,
+            objective=objective,
+            additional_constraints=additional_constraints
+        )
+
+        if not opt_results:
+            logger.error("Optimization failed")
+            return None
+
+        # Look up the actual design parameters
+        param_values = opt_results['parameters']
+        design, distance = fit_results['find_nearest_design'](**param_values)
+
+        # Log results
+        logger.info("\n" + "="*60)
+        logger.info("OPTIMAL DESIGN POINT")
+        logger.info("="*60)
+        logger.info(f"\nOptimal abstract parameters:")
+        for name, value in param_values.items():
+            logger.info(f"  {name} = {value:.6f}")
+
+        logger.info(f"\nOptimal output metrics:")
+        for name, value in opt_results['output_metrics'].items():
+            logger.info(f"  {name} = {value:.6e}")
+
+        logger.info(f"\nOptimal EDP: {opt_results['derived_metrics']['EDP']:.6e}")
+
+        logger.info(f"\nNearest design point (distance={distance:.6e}):")
+        # Print params of design
+        all_params = [k for k in design.keys()]
+        for param in sorted(all_params):
+            logger.info(f"  {param} = {design[param]:.6e}")
+
+        # Create result dictionary
+        result = {
+            'abstract_parameters': param_values,
+            'output_metrics': opt_results['output_metrics'],
+            'derived_metrics': opt_results['derived_metrics'],
+            'design_parameters': design,
+            'distance_to_pareto': distance,
+            'objective': objective
+        }
+
+        # Save to file if requested
+        if output_file:
+            with open(output_file, 'w') as f:
+                json.dump(result, f, indent=2)
+            logger.info(f"\nSaved optimal design to: {output_file}")
+
+        return result
+
 
 def test_sweep_tech_codesign(args):
     sweep_tech_codesign = SweepTechCodesign(args)
@@ -722,15 +924,14 @@ def test_sweep_tech_codesign(args):
                         "a": list(np.linspace(0.0001, 0.001, 1)),
                     }
     elif sweep_tech_codesign.codesign_module.cfg['args']['model_cfg'] == 'vs_cfg_latest':
-        value_ranges = {"L": list(np.logspace(np.log10(15e-9), np.log10(200e-9), 5)),
-                        "W": list(np.logspace(np.log10(15e-9), np.log10(1e-8), 5)),
-                        "V_dd": list(np.linspace(0.2, 1.8, 5)),
-                        "V_th": list(np.linspace(0.2, 1.1, 5)),
-                        "tox": list(np.logspace(np.log10(1e-9), np.log10(50e-9), 5)),
+        value_ranges = {"L": list(np.logspace(np.log10(15e-9), np.log10(200e-9), 10)),
+                        "W": list(np.logspace(np.log10(15e-9), np.log10(1e-8), 10)),
+                        "V_dd": list(np.linspace(0.2, 1.8, 10)),
+                        "V_th": list(np.linspace(0.2, 1.1, 10)),
+                        "tox": list(np.logspace(np.log10(1e-9), np.log10(50e-9), 10)),
                         "k_gate": list(np.linspace(3.9, 25, 3)),
                     }
 
-        print("tox values: ", value_ranges["tox"])
 
     params_to_sweep = list(value_ranges.keys())
     output_dir = os.path.join(os.path.dirname(__file__), "design_spaces")
@@ -749,13 +950,14 @@ def just_prune_design_space(args, filename):
     sweep_tech_codesign = SweepTechCodesign(args)
     sweep_tech_codesign.prune_design_space(filename)
 
-def just_fit_pareto_surface(args, pareto_csv_filename, n_params=2):
+def just_fit_pareto_surface(args, pareto_csv_filename, optimize=False, n_params=4):
     """
     Fit a parametric Pareto surface model to an existing Pareto front CSV file.
 
     Args:
         args: Command line arguments (for initialization)
         pareto_csv_filename: Path to Pareto front CSV file
+        optimize: Whether to optimize the Pareto surface (default: False)
         n_params: Number of abstract parameters to use (default: 2)
     """
     import pandas as pd
@@ -788,13 +990,15 @@ def just_fit_pareto_surface(args, pareto_csv_filename, n_params=2):
 
     logger.info(f"Fitted Pareto surface model saved to: {model_filename}")
 
+    if optimize:
+        sweep_tech_codesign.optimize_and_lookup_design(model_filename, fit_results)
+
     return fit_results
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        prog="Dennard Scaling, Multi-Core Architecture Experiment",
-        description="Script demonstrating recreation of historical technology/architecture trends.",
-        epilog="Text at the bottom of help",
+        prog="Design space sweep and fit",
+        description="Script to sweep and fit the design space",
     )
     parser.add_argument(
         "-b",
@@ -923,10 +1127,16 @@ if __name__ == "__main__":
         default=False,
         help="just fit the pareto surface, don't run the sweep"
     )
+    parser.add_argument(
+        "--optimize",
+        type=bool,
+        default=False,
+        help="optimize the pareto surface, don't run the sweep"
+    )
     args = parser.parse_args()
     if args.just_prune:
         just_prune_design_space(args, args.filename)
     elif args.just_fit:
-        just_fit_pareto_surface(args, args.filename)
+        just_fit_pareto_surface(args, args.filename, args.optimize)
     else:
         test_sweep_tech_codesign(args)
