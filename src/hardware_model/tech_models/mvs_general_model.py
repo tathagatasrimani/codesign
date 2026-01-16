@@ -13,6 +13,16 @@ logger = logging.getLogger(__name__)
 class MVSGeneralModel(TechModel):
     def __init__(self, model_cfg, base_params):
         super().__init__(model_cfg, base_params)
+        self.init_eval_fns()
+
+    def call_Lscale(self):
+        L_ratio =  xreplace_safe(self.base_params.L / tech_codesign_v0.get_Lscale(self.base_params.k_gate, self.base_params.eps_semi, self.base_params.tox, self.base_params.tsemi), self.base_params.tech_values) 
+        return L_ratio < 2
+
+    def init_eval_fns(self):
+        self.eval_fns = [
+            self.call_Lscale
+        ]
 
     def init_tech_specific_constants(self):
         super().init_tech_specific_constants()
@@ -167,6 +177,11 @@ class MVSGeneralModel(TechModel):
         self.sweep_output_db["Ioff_n"] = self.Ioff_n
         self.sweep_output_db["Ioff_p"] = self.Ioff_p
         self.sweep_output_db["V_th_eff"] = self.V_th_eff
+
+        self.sweep_output_db["delta"] = self.delta
+        self.sweep_output_db["dVt"] = self.dVt
+        self.sweep_output_db["n0"] = self.n0
+        self.sweep_output_db["Lscale"] = self.Lscale
 
     def apply_base_parameter_effects(self):
         super().apply_base_parameter_effects()

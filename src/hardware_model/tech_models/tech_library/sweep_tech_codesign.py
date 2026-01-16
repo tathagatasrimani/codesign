@@ -21,6 +21,13 @@ def log_info(msg):
     if debug:
         logger.info(msg)
 
+# Helper function to format numeric values in scientific notation with 4 decimal places
+def format_scientific(value):
+    """Format numeric values in scientific notation with 4 decimal places."""
+    if isinstance(value, (int, float)):
+        return f"{float(value):.2e}"
+    return value
+
 # Global worker function for ProcessPoolExecutor (must be picklable)
 def _worker_evaluate_configuration(args_tuple):
     """
@@ -32,13 +39,6 @@ def _worker_evaluate_configuration(args_tuple):
     try:
         # Create a dictionary of current parameter values
         current_config = dict(zip(params_to_sweep, param_values))
-
-        # Helper function to format numeric values in scientific notation with 4 decimal places
-        def format_scientific(value):
-            """Format numeric values in scientific notation with 4 decimal places."""
-            if isinstance(value, (int, float)):
-                return f"{float(value):.4e}"
-            return value
 
         # Set parameter values in tech_model.base_params.tech_values
         for param_name, param_value in current_config.items():
@@ -120,13 +120,6 @@ class SweepTechCodesign:
         try:
             # Create a dictionary of current parameter values
             current_config = dict(zip(params_to_sweep, param_values))
-
-            # Helper function to format numeric values in scientific notation with 4 decimal places
-            def format_scientific(value):
-                """Format numeric values in scientific notation with 4 decimal places."""
-                if isinstance(value, (int, float)):
-                    return f"{float(value):.4e}"
-                return value
 
             # Set parameter values in tech_model.base_params.tech_values
             # Each thread has its own copy, so no locking needed
@@ -219,6 +212,8 @@ class SweepTechCodesign:
         # Generate all combinations of parameter values
         param_value_lists = [value_ranges[param] for param in params_to_sweep]
         all_combinations = list(itertools.product(*param_value_lists))
+
+        all_combinations = self.prune_combinations(all_combinations)
 
         total_runs = len(all_combinations)
         logger.info(f"Starting tech sweep with {total_runs} configurations")
@@ -354,10 +349,10 @@ class SweepTechCodesign:
 
 def test_sweep_tech_codesign(args):
     sweep_tech_codesign = SweepTechCodesign(args)
-    value_ranges = {"L": list(np.linspace(10e-9, 200e-9, 4)),
-                    "W": list(np.linspace(10e-9, 1e-8, 4)),
-                    "V_dd": list(np.linspace(0.1, 1.4, 4)),
-                    "V_th": list(np.linspace(0.1, 1.4, 4)),
+    value_ranges = {"L": list(np.linspace(15e-9, 200e-9, 4)),
+                    "W": list(np.linspace(15e-9, 1e-8, 4)),
+                    "V_dd": list(np.linspace(0.7, 1.2, 4)),
+                    "V_th": list(np.linspace(0.5, 1.4, 4)),
                     "tox": list(np.linspace(1e-9, 100e-9, 4)),
                     "beta_p_n": list(np.linspace(2.0, 2.0, 1)),
                     "mD_fac": list(np.linspace(0.5, 0.5, 1)),
