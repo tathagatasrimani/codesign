@@ -3,7 +3,7 @@ vitis_streamhls_atax_delay:
   base_cfg: vitis_streamhls_atax_test
   args:
     obj: delay
-    N: 15
+    num_iters: 15
     arch_opt_pipeline: streamhls
     pytorch: True
     inverse_pass_improvement: 4
@@ -13,7 +13,7 @@ vitis_streamhls_atax_energy:
   base_cfg: vitis_streamhls_atax_test
   args:
     obj: energy
-    N: 15
+    num_iters: 15
     arch_opt_pipeline: streamhls
     pytorch: True
     inverse_pass_improvement: 4
@@ -23,7 +23,7 @@ vitis_streamhls_atax_edp:
   base_cfg: vitis_streamhls_atax_test
   args:
     obj: edp
-    N: 15
+    num_iters: 15
     arch_opt_pipeline: streamhls
     pytorch: True
     inverse_pass_improvement: 6
@@ -33,7 +33,7 @@ vitis_streamhls_atax_ed2:
   base_cfg: vitis_streamhls_atax_test
   args:
     obj: ed2
-    N: 15
+    num_iters: 15
     arch_opt_pipeline: streamhls  
     pytorch: True
     inverse_pass_improvement: 12
@@ -44,7 +44,7 @@ vitis_streamhls_gesummv_delay:
   base_cfg: vitis_streamhls_gesummv_test
   args:
     obj: delay
-    N: 15
+    num_iters: 15
     arch_opt_pipeline: streamhls
     pytorch: True
     inverse_pass_improvement: 4
@@ -54,7 +54,7 @@ vitis_streamhls_gesummv_energy:
   base_cfg: vitis_streamhls_gesummv_test
   args:
     obj: energy
-    N: 15
+    num_iters: 15
     arch_opt_pipeline: streamhls
     pytorch: True
     inverse_pass_improvement: 4
@@ -64,7 +64,7 @@ vitis_streamhls_gesummv_edp:
   base_cfg: vitis_streamhls_gesummv_test
   args:
     obj: edp
-    N: 15
+    num_iters: 15
     arch_opt_pipeline: streamhls
     pytorch: True
     inverse_pass_improvement: 6
@@ -74,7 +74,7 @@ vitis_streamhls_gesummv_ed2:
   base_cfg: vitis_streamhls_gesummv_test
   args:
     obj: ed2
-    N: 15
+    num_iters: 15
     arch_opt_pipeline: streamhls
     pytorch: True
     inverse_pass_improvement: 12
@@ -85,7 +85,7 @@ vitis_streamhls_2mm_delay:
   base_cfg: vitis_streamhls_2mm_test
   args:
     obj: delay
-    N: 15
+    num_iters: 15
     arch_opt_pipeline: streamhls
     pytorch: True
     inverse_pass_improvement: 4
@@ -95,7 +95,7 @@ vitis_streamhls_2mm_energy:
   base_cfg: vitis_streamhls_2mm_test
   args:
     obj: energy
-    N: 15
+    num_iters: 15
     arch_opt_pipeline: streamhls
     pytorch: True
     inverse_pass_improvement: 4
@@ -105,7 +105,7 @@ vitis_streamhls_2mm_edp:
   base_cfg: vitis_streamhls_2mm_test
   args:
     obj: edp
-    N: 15    
+    num_iters: 15    
     arch_opt_pipeline: streamhls
     pytorch: True
     inverse_pass_improvement: 6
@@ -115,7 +115,7 @@ vitis_streamhls_2mm_ed2:
   base_cfg: vitis_streamhls_2mm_test
   args:
     obj: ed2
-    N: 15
+    num_iters: 15
     arch_opt_pipeline: streamhls
     pytorch: True
     inverse_pass_improvement: 12
@@ -126,7 +126,7 @@ vitis_streamhls_3mm_delay:
   base_cfg: vitis_streamhls_3mm_test
   args:
     obj: delay
-    N: 15
+    num_iters: 15
     arch_opt_pipeline: streamhls
     pytorch: True
     inverse_pass_improvement: 4
@@ -136,7 +136,7 @@ vitis_streamhls_3mm_energy:
   base_cfg: vitis_streamhls_3mm_test
   args:
     obj: energy
-    N: 15
+    num_iters: 15
     arch_opt_pipeline: streamhls
     pytorch: True
     inverse_pass_improvement: 4
@@ -146,7 +146,7 @@ vitis_streamhls_3mm_edp:
   base_cfg: vitis_streamhls_3mm_test
   args:
     obj: edp
-    N: 15
+    num_iters: 15
     arch_opt_pipeline: streamhls
     pytorch: True
     inverse_pass_improvement: 6
@@ -156,7 +156,7 @@ vitis_streamhls_3mm_ed2:
   base_cfg: vitis_streamhls_3mm_test
   args:
     obj: ed2
-    N: 15
+    num_iters: 15
     arch_opt_pipeline: streamhls
     pytorch: True
     inverse_pass_improvement: 12
@@ -166,7 +166,7 @@ vitis_streamhls_mvt_delay:
   base_cfg: vitis_streamhls_mvt_test
   args:
     obj: delay
-    N: 15
+    num_iters: 15
     arch_opt_pipeline: streamhls
     pytorch: True
     inverse_pass_improvement: 4
@@ -176,7 +176,7 @@ vitis_streamhls_mvt_energy:
   base_cfg: vitis_streamhls_mvt_test
   args:
     obj: energy
-    N: 15
+    num_iters: 15
     arch_opt_pipeline: streamhls
     pytorch: True
     inverse_pass_improvement: 4
@@ -186,7 +186,7 @@ vitis_streamhls_mvt_edp:
   base_cfg: vitis_streamhls_mvt_test
   args:
     obj: edp
-    N: 15
+    num_iters: 15
     arch_opt_pipeline: streamhls
     pytorch: True
     inverse_pass_improvement: 6
@@ -196,7 +196,7 @@ vitis_streamhls_mvt_ed2:
   base_cfg: vitis_streamhls_mvt_test
   args:
     obj: ed2
-    N: 15
+    num_iters: 15
     arch_opt_pipeline: streamhls
     pytorch: True
     inverse_pass_improvement: 12
@@ -207,7 +207,7 @@ vitis_streamhls_bicg_delay:
   base_cfg: vitis_streamhls_bicg_test
   args:
     obj: delay
-    N: 15
+    num_iters: 15
     arch_opt_pipeline: streamhls
     pytorch: True
     inverse_pass_improvement: 4
@@ -217,7 +217,7 @@ vitis_streamhls_bicg_energy:
   base_cfg: vitis_streamhls_bicg_test
   args:
     obj: energy
-    N: 15
+    num_iters: 15
     arch_opt_pipeline: streamhls
     pytorch: True
     inverse_pass_improvement: 4
@@ -227,7 +227,7 @@ vitis_streamhls_bicg_edp:
   base_cfg: vitis_streamhls_bicg_test
   args:
     obj: edp
-    N: 15
+    num_iters: 15
     arch_opt_pipeline: streamhls
     pytorch: True
     inverse_pass_improvement: 6
@@ -237,7 +237,7 @@ vitis_streamhls_bicg_ed2:
   base_cfg: vitis_streamhls_bicg_test
   args:
     obj: ed2
-    N: 15
+    num_iters: 15
     arch_opt_pipeline: streamhls
     pytorch: True
     inverse_pass_improvement: 12
@@ -257,7 +257,7 @@ vitis_streamhls_gemm_energy:
   base_cfg: vitis_streamhls_gemm_test
   args:
     obj: energy
-    N: 15
+    num_iters: 15
     arch_opt_pipeline: streamhls
     pytorch: True
     inverse_pass_improvement: 4
@@ -267,7 +267,7 @@ vitis_streamhls_gemm_edp:
   base_cfg: vitis_streamhls_gemm_test
   args:
     obj: edp
-    N: 15
+    num_iters: 15
     arch_opt_pipeline: streamhls
     pytorch: True
     inverse_pass_improvement: 6
@@ -277,7 +277,7 @@ vitis_streamhls_gemm_ed2:
   base_cfg: vitis_streamhls_gemm_test
   args:
     obj: ed2
-    N: 15
+    num_iters: 15
     arch_opt_pipeline: streamhls
     pytorch: True
     inverse_pass_improvement: 12
