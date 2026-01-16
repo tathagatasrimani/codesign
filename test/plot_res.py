@@ -628,6 +628,50 @@ def plot_final_deviation_plot(grouped_data, output_dir, debug=False):
         if debug:
             print(f"[FINAL DEVIATION] Saved plot: {out_path}\n")
 
+def plot_wires_estimated_delay_only(grouped_data, output_dir, debug=False):
+    """Per-benchmark plot: Number of PEs vs Delay, only 'Wires cost estimated' sweep."""
+    for norm_bench, sweep_data in grouped_data.items():
+        data = sweep_data.get("Wires cost estimated", [])
+        if not data:
+            if debug:
+                print(f"[FINAL PROPORSAL] Skipping {norm_bench}: no 'Wires cost estimated' data.")
+            continue
+
+        dsps = [d[0] for d in data]
+        times = [math.log(d[1]) for d in data]
+
+        times_min = min(times)
+        times_max = max(times)
+
+        # Normalize by subtracting min log time, then scale to [0, 1]
+        times = [t - times_min for t in times]
+        if times_max != 0:
+            times = [t / times_max for t in times]
+
+        plt.figure(figsize=(10, 6))
+        plt.plot(
+            dsps,
+            times,
+            marker='s',
+            linewidth=2.5,
+            markersize=8,
+            label="Wires cost estimated",
+            color='#ff7f0e'
+        )
+
+        plt.title(f"{norm_bench} — PEs vs Delay (Wires cost estimated only)", fontsize=14, fontweight='bold')
+        plt.xlabel("Number of PEs", fontsize=12)
+        plt.ylabel("Delay", fontsize=12)
+        plt.grid(True, alpha=0.3)
+        # Single sweep; legend optional, keeping it off for a cleaner look
+
+        out_path = os.path.join(output_dir, f"final_plot_for_proporsal_{norm_bench}.png")
+        plt.tight_layout()
+        plt.savefig(out_path, dpi=200)
+        plt.close()
+        if debug:
+            print(f"[FINAL PROPORSAL] Saved plot: {out_path}")
+
 def main():
     ap = argparse.ArgumentParser(
         description="Parse multiple DSP sweep results and generate comparison plots"
@@ -709,6 +753,8 @@ def main():
         plot_final_deviation_plot(grouped, output_dir, debug=args.debug)
         plot_edp_results(grouped, output_dir)
         plot_edp_deviation_results(grouped, output_dir)
+        # New plot: only 'Wires cost estimated'
+        plot_wires_estimated_delay_only(grouped, output_dir, debug=args.debug)
 
 if __name__ == "__main__":
     main()
