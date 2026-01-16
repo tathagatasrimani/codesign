@@ -1,6 +1,7 @@
 benchmark_attention_head_test_with_constant_wires_delay:
   base_cfg: vitis_attention_head_test
   args:
+    obj: delay
     N: 15
     checkpoint_load_dir: tmp_attention_head
     checkpoint_start_step: setup
