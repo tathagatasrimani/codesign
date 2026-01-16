@@ -1,4 +1,3 @@
-from doctest import debug
 from src import codesign
 import argparse
 import csv
@@ -7,13 +6,11 @@ import logging
 import os
 from datetime import datetime
 import numpy as np
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
-from threading import Lock, current_thread
+from concurrent.futures import ProcessPoolExecutor, as_completed
 import copy
 import math
-import sympy as sp
-import sklearn
 from src import sim_util
+
 logger = logging.getLogger(__name__)
 
 debug = True
@@ -104,75 +101,9 @@ class SweepTechCodesign:
         # Disable propagation to avoid duplicate messages from parent loggers
         logger.propagate = False
 
-    def _evaluate_configuration(self, idx, param_values, params_to_sweep, tech_model):
+    def sweep_tech(self, params_to_sweep, value_ranges, output_dir="sweep_results", flush_interval=10, n_processes=1):
         """
-        Evaluate a single configuration in the sweep.
-        Each thread has its own tech_model copy for true parallel execution.
-
-        Args:
-            idx: Configuration index
-            param_values: Tuple of parameter values for this configuration
-            params_to_sweep: List of parameter names
-            tech_model: Thread-local copy of the tech model
-
-        Returns:
-            Tuple of (idx, result_row) or (idx, None) on error
-        """
-        try:
-            # Create a dictionary of current parameter values
-            current_config = dict(zip(params_to_sweep, param_values))
-
-            # Set parameter values in tech_model.base_params.tech_values
-            # Each thread has its own copy, so no locking needed
-            for param_name, param_value in current_config.items():
-                if hasattr(tech_model.base_params, param_name):
-                    param_symbol = getattr(tech_model.base_params, param_name)
-                    tech_model.base_params.tech_values[param_symbol] = param_value
-                else:
-                    logger.warning(f"Config {idx}: Parameter '{param_name}' not found in base_params")
-
-            # Re-initialize transistor equations with new parameter values
-            tech_model.init_transistor_equations()
-
-            # Collect results: input parameters + output metrics from param_db
-            result_row = {}
-
-            # Add input parameters
-            for param_name, param_value in current_config.items():
-                result_row[param_name] = format_scientific(param_value)
-
-            # Add output metrics from param_db
-            for metric_name, metric_value in tech_model.sweep_output_db.items():
-                # Handle both numeric and symbolic values
-                if hasattr(metric_value, 'evalf'):
-                    # Symbolic expression - evaluate it
-                    evaluated_value = sim_util.xreplace_safe(metric_value, tech_model.base_params.tech_values)
-                    result_row[metric_name] = format_scientific(evaluated_value)
-                else:
-                    # Already a numeric value
-                    result_row[metric_name] = format_scientific(metric_value)
-
-            # Validate all constraints
-            for constraint in tech_model.constraints:
-                tol = 1e-3
-                slack = sim_util.xreplace_safe(constraint.slack, tech_model.base_params.tech_values)
-                if (slack > tol):
-                    log_info(f"CONSTRAINT VIOLATED {constraint.label} for config {idx}, slack is {slack}")
-                    return (idx, None)
-                else:
-                    log_info(f"CONSTRAINT SATISFIED {constraint.label} for config {idx}, slack is {slack}")
-
-            return (idx, result_row)
-
-        except Exception as e:
-            logger.error(f"Error in configuration {idx}: {e}")
-            import traceback
-            logger.error(f"Traceback: {traceback.format_exc()}")
-            return (idx, None)
-
-    def sweep_tech(self, params_to_sweep, value_ranges, output_dir="sweep_results", flush_interval=10, n_threads=1, use_processes=True):
-        """
-        Sweep through different tech model configurations in parallel.
+        Sweep through different tech model configurations in parallel using ProcessPoolExecutor.
 
         Args:
             params_to_sweep: List of parameter names to sweep (e.g., ['L', 'V_dd', 'tox'])
@@ -180,9 +111,7 @@ class SweepTechCodesign:
                          e.g., {'L': [7e-9, 5e-9, 3e-9], 'V_dd': [0.7, 0.8, 0.9]}
             output_dir: Directory to save the CSV output file
             flush_interval: Number of iterations between CSV flushes (default: 10)
-            n_threads: Number of threads/processes to use for parallel evaluation (default: 1)
-            use_processes: If True, use ProcessPoolExecutor (better for CPU-bound work).
-                          If False, use ThreadPoolExecutor (default: True)
+            n_processes: Number of processes to use for parallel evaluation (default: 1)
 
         Returns:
             Path to the generated CSV file
@@ -217,26 +146,24 @@ class SweepTechCodesign:
         total_runs = len(all_combinations)
         logger.info(f"Starting tech sweep with {total_runs} configurations")
         logger.info(f"Sweeping parameters: {params_to_sweep}")
-        executor_type = "process(es)" if use_processes else "thread(s)"
-        logger.info(f"Using {n_threads} {executor_type} for parallel execution")
+        logger.info(f"Using {n_processes} process(es) for parallel execution")
         logger.info(f"Flushing results to CSV every {flush_interval} iterations")
 
         # Create a pool of tech_model copies (one per worker)
-        logger.info(f"Creating {n_threads} copies of tech_model for parallel execution...")
-        tech_model_pool = [copy.deepcopy(tech_model) for _ in range(n_threads)]
+        logger.info(f"Creating {n_processes} copies of tech_model for parallel execution...")
+        tech_model_pool = [copy.deepcopy(tech_model) for _ in range(n_processes)]
         logger.info(f"Tech model copies created successfully")
 
-        # Prepare CSV file - open in append mode, but we'll track if header is written
+        # Prepare CSV file
         csv_initialized = False
         fieldnames = None
         csvfile = None
         writer = None
         results_buffer = []
         successful_count = 0
-        csv_lock = Lock()
         max_num_jobs_at_once = 10000
         num_iterations = math.ceil(len(all_combinations) / max_num_jobs_at_once)
-        total_completed_count = 0  # Track overall progress across all batches
+        total_completed_count = 0
 
         try:
             for batch_num in range(num_iterations):
@@ -246,36 +173,16 @@ class SweepTechCodesign:
 
                 logger.info(f"Starting batch {batch_num + 1}/{num_iterations} ({len(current_combinations)} configurations)")
 
-                # Choose executor based on use_processes flag
-                ExecutorClass = ProcessPoolExecutor if use_processes else ThreadPoolExecutor
-
-                # Run sweep in parallel
-                with ExecutorClass(max_workers=n_threads) as executor:
-                    if use_processes:
-                        # For ProcessPoolExecutor, use the global worker function
-                        # Prepare args tuples: (idx, param_values, params_to_sweep, tech_model)
-                        tasks = [
-                            (global_idx, param_values, params_to_sweep, tech_model_pool[(global_idx - 1) % n_threads])
-                            for local_idx, param_values in enumerate(current_combinations, 1)
-                            for global_idx in [batch_start_idx + local_idx]
-                        ]
-                        future_to_idx = {
-                            executor.submit(_worker_evaluate_configuration, task): task[0]
-                            for task in tasks
-                        }
-                    else:
-                        # For ThreadPoolExecutor, use the instance method
-                        future_to_idx = {
-                            executor.submit(
-                                self._evaluate_configuration,
-                                global_idx,
-                                param_values,
-                                params_to_sweep,
-                                tech_model_pool[(global_idx - 1) % n_threads]
-                            ): global_idx
-                            for local_idx, param_values in enumerate(current_combinations, 1)
-                            for global_idx in [batch_start_idx + local_idx]
-                        }
+                with ProcessPoolExecutor(max_workers=n_processes) as executor:
+                    tasks = [
+                        (global_idx, param_values, params_to_sweep, tech_model_pool[(global_idx - 1) % n_processes])
+                        for local_idx, param_values in enumerate(current_combinations, 1)
+                        for global_idx in [batch_start_idx + local_idx]
+                    ]
+                    future_to_idx = {
+                        executor.submit(_worker_evaluate_configuration, task): task[0]
+                        for task in tasks
+                    }
 
                     # Process results as they complete
                     for future in as_completed(future_to_idx):
@@ -285,48 +192,42 @@ class SweepTechCodesign:
                             logger.info(f"Progress: {total_completed_count}/{total_runs} configurations completed")
 
                         if result_row is not None:
-                            with csv_lock:
-                                results_buffer.append(result_row)
-                                successful_count += 1
+                            results_buffer.append(result_row)
+                            successful_count += 1
 
-                                # Initialize CSV file and write header on first successful result
-                                if not csv_initialized and results_buffer:
-                                    # Get all unique column names from first result(s)
-                                    all_columns = set()
-                                    for result in results_buffer:
-                                        all_columns.update(result.keys())
+                            # Initialize CSV file and write header on first successful result
+                            if not csv_initialized and results_buffer:
+                                all_columns = set()
+                                for result in results_buffer:
+                                    all_columns.update(result.keys())
 
-                                    # Sort columns: output metrics first, then input parameters, then others
-                                    output_metrics = sorted([col for col in all_columns if col in tech_model.sweep_output_db.keys()])
-                                    input_params = sorted([col for col in all_columns if col in params_to_sweep])
-                                    other_cols = sorted([col for col in all_columns if col not in output_metrics and col not in input_params])
-                                    fieldnames = output_metrics + input_params + other_cols
+                                output_metrics = sorted([col for col in all_columns if col in tech_model.sweep_output_db.keys()])
+                                input_params = sorted([col for col in all_columns if col in params_to_sweep])
+                                other_cols = sorted([col for col in all_columns if col not in output_metrics and col not in input_params])
+                                fieldnames = output_metrics + input_params + other_cols
 
-                                    csvfile = open(csv_filename, 'w', newline='')
-                                    writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-                                    writer.writeheader()
-                                    csv_initialized = True
-                                    logger.info(f"Initialized CSV file: {csv_filename}")
+                                csvfile = open(csv_filename, 'w', newline='')
+                                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                                writer.writeheader()
+                                csv_initialized = True
+                                logger.info(f"Initialized CSV file: {csv_filename}")
                         else:
                             logger.warning(f"Configuration {idx} failed")
 
                         # Flush to CSV every flush_interval successful results or on last iteration
-                        # Do this outside the result check so it happens regardless of success/failure
-                        with csv_lock:
-                            if csv_initialized and len(results_buffer) > 0:
-                                if len(results_buffer) >= flush_interval or total_completed_count == total_runs:
-                                    writer.writerows(results_buffer)
-                                    csvfile.flush()
-                                    logger.info(f"Flushed {len(results_buffer)} results to CSV (total written: {successful_count}/{total_runs})")
-                                    results_buffer = []
+                        if csv_initialized and len(results_buffer) > 0:
+                            if len(results_buffer) >= flush_interval or total_completed_count == total_runs:
+                                writer.writerows(results_buffer)
+                                csvfile.flush()
+                                logger.info(f"Flushed {len(results_buffer)} results to CSV (total written: {successful_count}/{total_runs})")
+                                results_buffer = []
 
                 # Flush any remaining results from this batch
-                with csv_lock:
-                    if csv_initialized and results_buffer:
-                        writer.writerows(results_buffer)
-                        csvfile.flush()
-                        logger.info(f"End of batch {batch_num + 1}: Flushed {len(results_buffer)} remaining results")
-                        results_buffer = []
+                if csv_initialized and results_buffer:
+                    writer.writerows(results_buffer)
+                    csvfile.flush()
+                    logger.info(f"End of batch {batch_num + 1}: Flushed {len(results_buffer)} remaining results")
+                    results_buffer = []
 
                 logger.info(f"Batch {batch_num + 1}/{num_iterations} complete")
 
@@ -521,76 +422,9 @@ class SweepTechCodesign:
             cvxpy_model['constraints'].append(constraint)
 
         # Add usage instructions
-        if is_parametric:
-            usage_desc = 'Parametric Pareto surface model with abstract knobs. Use in CVXPY with DGP.'
-            example_code = '''
-import cvxpy as cp
-
-# Define abstract parameter knobs (must be positive)
-{var_defs}
-
-# Define output metric variables
-{output_defs}
-
-# Add Pareto surface constraints
-constraints = [
-{constraint_examples}
-]
-
-# Your objective (e.g., minimize energy-delay product)
-objective = cp.Minimize(Edynamic * delay)
-
-# Solve with DGP
-problem = cp.Problem(objective, constraints)
-problem.solve(gp=True)
-
-# After solving, look up actual design parameters
-# outputs = fit_results['evaluate_surface']({knob_values})
-# design, dist = fit_results['find_nearest_design']({knob_values})
-'''.format(
-                var_defs='\n'.join([f"{p} = cp.Variable(pos=True, name='{p}')" for p in param_names]),
-                output_defs='\n'.join([f"{m} = cp.Variable(pos=True, name='{m}')" for m in fit_results['output_metrics']]),
-                constraint_examples='\n'.join([
-                    self._generate_cvxpy_constraint_example(m, fit_results['models'][m], param_names)
-                    for m in fit_results['output_metrics']
-                ]),
-                knob_values=', '.join([f"{p}={p}.value" for p in param_names])
-            )
-        else:
-            usage_desc = 'Pareto surface model with explicit independent variables. Use in CVXPY with DGP.'
-            example_code = '''
-import cvxpy as cp
-
-# Define independent variables (must be positive)
-{var_defs}
-
-# Define dependent output metric variables
-{output_defs}
-
-# Add Pareto surface constraints
-constraints = [
-{constraint_examples}
-]
-
-# Your objective
-objective = cp.Minimize(...)  # Define based on your goals
-
-# Solve with DGP
-problem = cp.Problem(objective, constraints)
-problem.solve(gp=True)
-'''.format(
-                var_defs='\n'.join([f"{p} = cp.Variable(pos=True, name='{p}')" for p in param_names]),
-                output_defs='\n'.join([f"{m} = cp.Variable(pos=True, name='{m}')"
-                                      for m in fit_results['output_metrics'] if m not in param_names]),
-                constraint_examples='\n'.join([
-                    self._generate_cvxpy_constraint_example(m, fit_results['models'][m], param_names)
-                    for m in fit_results['models'].keys()
-                ])
-            )
-
+        usage_desc = 'Parametric Pareto surface model with abstract knobs. Use in CVXPY with DGP.'
         cvxpy_model['usage'] = {
             'description': usage_desc,
-            'example': example_code
         }
 
         if filename:
@@ -601,7 +435,7 @@ problem.solve(gp=True)
 
         return cvxpy_model
 
-    def fit_pareto_surface_parametric(self, pareto_df, output_metrics, n_params=4):
+    def fit_pareto_surface_parametric(self, pareto_df, output_metrics, n_params):
         """
         Fit a parametric representation of the Pareto surface using abstract knobs.
 
@@ -698,24 +532,6 @@ problem.solve(gp=True)
                 for k in range(j+1, n_params):
                     features.append(param_values[:, j] * param_values[:, k])
                     term_descriptions.append({param_names[j]: 1.0, param_names[k]: 1.0})
-
-            # Second degree pure terms: a0^2, a1^2, a2^2, ...
-            for j in range(n_params):
-                features.append(param_values[:, j] ** 2)
-                term_descriptions.append({param_names[j]: 2.0})
-
-            # Third degree pure terms: a0^3, a1^3, a2^3, ...
-            for j in range(n_params):
-                features.append(param_values[:, j] ** 3)
-                term_descriptions.append({param_names[j]: 3.0})
-
-            # Third degree two-parameter terms: a0^2*a1, a0^2*a2, a1^2*a0, a1^2*a2, a2^2*a0, a2^2*a1
-            for j in range(n_params):
-                for k in range(n_params):
-                    if j != k:
-                        features.append(param_values[:, j] ** 2 * param_values[:, k])
-                        exp_dict = {param_names[j]: 2.0, param_names[k]: 1.0}
-                        term_descriptions.append(exp_dict)
 
             # Third degree triple cross term: a0*a1*a2 (only for n_params >= 3)
             if n_params >= 3:
@@ -924,22 +740,22 @@ def test_sweep_tech_codesign(args):
                         "a": list(np.linspace(0.0001, 0.001, 1)),
                     }
     elif sweep_tech_codesign.codesign_module.cfg['args']['model_cfg'] == 'vs_cfg_latest':
-        value_ranges = {"L": list(np.logspace(np.log10(15e-9), np.log10(200e-9), 10)),
-                        "W": list(np.logspace(np.log10(15e-9), np.log10(1e-8), 10)),
-                        "V_dd": list(np.linspace(0.2, 1.8, 10)),
-                        "V_th": list(np.linspace(0.2, 1.1, 10)),
-                        "tox": list(np.logspace(np.log10(1e-9), np.log10(50e-9), 10)),
+        value_ranges = {"L": list(np.logspace(np.log10(15e-9), np.log10(200e-9), 5)),
+                        "W": list(np.logspace(np.log10(15e-9), np.log10(1e-8), 5)),
+                        "V_dd": list(np.linspace(0.2, 1.8, 5)),
+                        "V_th": list(np.linspace(0.2, 1.1, 5)),
+                        "tox": list(np.logspace(np.log10(1e-9), np.log10(50e-9), 5)),
                         "k_gate": list(np.linspace(3.9, 25, 3)),
                     }
 
 
     params_to_sweep = list(value_ranges.keys())
     output_dir = os.path.join(os.path.dirname(__file__), "design_spaces")
-    n_threads = getattr(args, 'n_threads', 1)
-    csv_filename = sweep_tech_codesign.sweep_tech(params_to_sweep, value_ranges, output_dir, n_threads=n_threads)
+    n_processes = getattr(args, 'n_processes', 1)
+    csv_filename = sweep_tech_codesign.sweep_tech(params_to_sweep, value_ranges, output_dir, n_processes=n_processes)
     if csv_filename is not None:
         pareto_csv_filename = sweep_tech_codesign.prune_design_space(csv_filename)
-        just_fit_pareto_surface(args, pareto_csv_filename)
+        just_fit_pareto_surface(args, pareto_csv_filename, sweep_tech_codesign.codesign_module.cfg['args']['optimize'])
     else:
         logger.error("No results to prune")
 
@@ -950,7 +766,7 @@ def just_prune_design_space(args, filename):
     sweep_tech_codesign = SweepTechCodesign(args)
     sweep_tech_codesign.prune_design_space(filename)
 
-def just_fit_pareto_surface(args, pareto_csv_filename, optimize=False, n_params=4):
+def just_fit_pareto_surface(args, pareto_csv_filename, optimize=False, n_params=3):
     """
     Fit a parametric Pareto surface model to an existing Pareto front CSV file.
 
@@ -1078,12 +894,6 @@ if __name__ == "__main__":
         help="objective function to optimize"
     )
     parser.add_argument(
-        "--dummy",
-        type=bool,
-        default=True,
-        help="dummy application"
-    )
-    parser.add_argument(
         "--model_cfg",
         type=str,
         help="symbolic model configuration"
@@ -1105,10 +915,10 @@ if __name__ == "__main__":
         help="path to an additional configuration file",
     )
     parser.add_argument(
-        "--n_threads",
+        "--n_processes",
         type=int,
         default=1,
-        help="Number of threads to use for parallel sweep execution (default: 1)"
+        help="Number of processes to use for parallel sweep execution (default: 1)"
     )
     parser.add_argument(
         "--just_prune",
