@@ -672,6 +672,48 @@ def plot_wires_estimated_delay_only(grouped_data, output_dir, debug=False):
         if debug:
             print(f"[FINAL PROPORSAL] Saved plot: {out_path}")
 
+def plot_wires_estimated_delay_only_normalized(grouped_data, output_dir, debug=False):
+    """Per-benchmark plot: Number of PEs vs Delay (normalized), only 'Wires cost estimated' sweep."""
+    for norm_bench, sweep_data in grouped_data.items():
+        data = sweep_data.get("Wires cost estimated", [])
+        if not data:
+            if debug:
+                print(f"[FINAL PROPORSAL] Skipping {norm_bench}: no 'Wires cost estimated' data.")
+            continue
+
+        dsps = [d[0] for d in data]
+        delays = [d[1] for d in data]
+
+        dmin = min(delays)
+        dmax = max(delays)
+        if dmax > dmin:
+            delays_norm = [(d - dmin) / (dmax - dmin) for d in delays]
+        else:
+            delays_norm = [0.0 for _ in delays]
+
+        plt.figure(figsize=(10, 6))
+        plt.plot(
+            dsps,
+            delays_norm,
+            marker='s',
+            linewidth=2.5,
+            markersize=8,
+            label="(normalized)",
+            color='#ff7f0e'
+        )
+
+        plt.title(f"{norm_bench} — PEs vs Delay (normalized)", fontsize=14, fontweight='bold')
+        plt.xlabel("Number of PEs", fontsize=12)
+        plt.ylabel("Normalized Delay", fontsize=12)
+        plt.grid(True, alpha=0.3)
+
+        out_path = os.path.join(output_dir, f"final_plot_for_proporsal_{norm_bench}_normalized.png")
+        plt.tight_layout()
+        plt.savefig(out_path, dpi=200)
+        plt.close()
+        if debug:
+            print(f"[FINAL PROPORSAL] Saved normalized plot: {out_path}")
+
 def main():
     ap = argparse.ArgumentParser(
         description="Parse multiple DSP sweep results and generate comparison plots"
@@ -753,8 +795,9 @@ def main():
         plot_final_deviation_plot(grouped, output_dir, debug=args.debug)
         plot_edp_results(grouped, output_dir)
         plot_edp_deviation_results(grouped, output_dir)
-        # New plot: only 'Wires cost estimated'
+        # New plots: only 'Wires cost estimated'
         plot_wires_estimated_delay_only(grouped, output_dir, debug=args.debug)
+        plot_wires_estimated_delay_only_normalized(grouped, output_dir, debug=args.debug)
 
 if __name__ == "__main__":
     main()
