@@ -213,8 +213,6 @@ class SweepTechCodesign:
         param_value_lists = [value_ranges[param] for param in params_to_sweep]
         all_combinations = list(itertools.product(*param_value_lists))
 
-        all_combinations = self.prune_combinations(all_combinations)
-
         total_runs = len(all_combinations)
         logger.info(f"Starting tech sweep with {total_runs} configurations")
         logger.info(f"Sweeping parameters: {params_to_sweep}")
