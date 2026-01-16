@@ -4,6 +4,8 @@ src/benchmarks/pictures/**
 src/benchmarks/power_plots/**
 src/benchmarks/json_data/**
 
+src/hardware_model/tech_models/tech_library/design_spaces/**.csv
+
 src/output.txt
 
 src/params/rcs.yaml

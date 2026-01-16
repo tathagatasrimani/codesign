@@ -15,6 +15,7 @@ class TechModel(ABC):
         self.base_params = base_params
         self.constraints = []
         self.param_db = {}
+        self.sweep_output_db = {}
         self.capped_delay_scale = 1
         self.capped_power_scale = 1
         self.init_physical_constants()
@@ -164,7 +165,7 @@ class TechModel(ABC):
     def create_constraints(self, dennard_scaling_type="constant_field"):
         self.constraints = []
         # generic constraints
-        self.constraints.append(Constraint(self.delay_var >= self.delay, "delay_var >= delay"))
+        #self.constraints.append(Constraint(self.delay_var >= self.delay, "delay_var >= delay"))
         #self.constraints.append(Constraint(self.base_params.V_dd >= self.V_th_eff, "V_dd >= V_th_eff"))
         #self.constraints.append(Constraint(self.base_params.V_dd >= self.base_params.V_th, "V_dd >= V_th"))
         if self.V_th_eff != self.base_params.V_th:
