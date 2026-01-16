@@ -16,6 +16,7 @@ class TechModel(ABC):
         self.constraints = []
         self.param_db = {}
         self.sweep_output_db = {}
+        self.pareto_metric_db = {}
         self.capped_delay_scale = 1
         self.capped_power_scale = 1
         self.init_physical_constants()
@@ -184,7 +185,7 @@ class TechModel(ABC):
         #self.constraints.append(V_th_max <= self.base_params.V_dd)
 
         #self.constraints.append(self.base_params.W / self.base_params.L <= 50)
-        self.constraints.append(Constraint(self.base_params.W / self.base_params.L >= 1, "W over L >= 1"))
+        #self.constraints.append(Constraint(self.base_params.W / self.base_params.L >= 1, "W over L >= 1"))
 
         # wire material constraints
         self.constraints.append(Constraint(self.base_params.m1_rho >= 2e-8, "m1_rho >= 2e-8"))
@@ -196,6 +197,6 @@ class TechModel(ABC):
 
         if self.model_cfg["effects"]["high_k_gate"]:
             self.constraints.append(Constraint(self.base_params.k_gate >= 2, "k_gate >= 2"))
-            self.constraints.append(Constraint(self.base_params.k_gate <= 20, "k_gate <= 20"))
+            self.constraints.append(Constraint(self.base_params.k_gate <= 25, "k_gate <= 20"))
         
         self.constraints.append(Constraint(self.base_params.u_n <= 0.1, "u_n <= 0.1"))

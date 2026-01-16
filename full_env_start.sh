@@ -232,6 +232,7 @@ alias clean_logs="rm -rf ~/logs/*"
 alias clean_tmp="rm -rf ~/src/tmp/*"
 alias clean_codesign="clean_checkpoints; clean_logs; clean_tmp"
 alias run_regression="python3 -m test.regression_run"
+alias run_sweep="python3 -m src.hardware_model.tech_models.tech_library.sweep_tech_codesign"
 
 ################## SUCCESSFUL BUILD LOG ##################
 if [[ $FORCE_FULL -eq 1 ]]; then
