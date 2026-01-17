@@ -1,6 +1,7 @@
 import os
 import re
 import argparse
+import json
 
 def count_ops(mlir_text: str) -> int:
     """
@@ -25,6 +26,48 @@ def count_ops(mlir_text: str) -> int:
             count += 1
     
     return count
+
+
+def extract_delay_from_log(log_file_path: str):
+    """
+    Extract delay and clk_period from run_codesign.log file.
+    Returns a tuple (execution_time, clk_period, delay_cycles)
+    """
+    if not os.path.exists(log_file_path):
+        return None, None, None
+    
+    with open(log_file_path, 'r') as f:
+        content = f.read()
+    
+    # Search for the "after forward pass" section with the dictionary
+    pattern = r"after forward pass\s+delay: ([\d.e+-]+), sub expressions: (\{.+\})"
+    matches = re.findall(pattern, content, re.DOTALL)
+    
+    if not matches:
+        return None, None, None
+    
+    # Get the last match (most recent forward pass)
+    delay_value, sub_expr_str = matches[-1]
+    
+    try:
+        # Replace 'inf' with '"inf"' to make it JSON parseable
+        sub_expr_str = sub_expr_str.replace('inf', '"inf"')
+        # Replace single quotes with double quotes for JSON
+        sub_expr_str = sub_expr_str.replace("'", '"')
+        
+        # Parse the dictionary string
+        sub_expr_dict = json.loads(sub_expr_str)
+        execution_time = sub_expr_dict.get('execution_time', None)
+        clk_period = sub_expr_dict.get('clk_period', None)
+        
+        if execution_time and clk_period:
+            delay_cycles = execution_time / clk_period
+            return execution_time, clk_period, delay_cycles
+    except Exception as e:
+        print(f"Error parsing sub expressions dictionary: {e}")
+        pass
+    
+    return None, None, None
 
 
 def extract_benchmark_results(result_dir_path: str) -> dict:
@@ -65,35 +108,47 @@ def extract_benchmark_results(result_dir_path: str) -> dict:
             f'{benchmark_name}.mlir'
         )
         
-        # Check if MLIR file exists
+        # Construct path to run_codesign.log
+        log_file = os.path.join(benchmark_path, 'run_codesign.log')
+        
+        num_ops = 0
+        execution_time = 0
+        delay_cycles = 0
+        
+        # Check if MLIR file exists and count ops
         if os.path.exists(mlir_file):
             with open(mlir_file, 'r') as f:
                 mlir_text = f.read()
-            
             num_ops = count_ops(mlir_text)
-            
-            results[benchmark_name] = {
-                "NumberOfMLIROps": num_ops,
-                "Energy": 0,
-                "delayCycles": 0
-            }
-            print(f"Processed {benchmark_name}: {num_ops} ops")
         else:
             print(f"Warning: MLIR file not found for {benchmark_name} at {mlir_file}")
+        
+        # Extract delay from log file
+        exec_time, clk_period, del_cycles = extract_delay_from_log(log_file)
+        if exec_time is not None:
+            execution_time = exec_time
+            delay_cycles = del_cycles
+        else:
+            print(f"Warning: Could not extract delay from log for {benchmark_name}")
+        
+        results[benchmark_name] = {
+            "NumberOfMLIROps": num_ops,
+            "Energy": 0,
+            "delayCycles": delay_cycles,
+            "executionTime": execution_time
+        }
+        print(f"Processed {benchmark_name}: {num_ops} ops, {delay_cycles:.2f} cycles")
     
     return results
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Extract benchmark results from experiment result file")
-    parser.add_argument("result_file", type=str, help="Path to the experiment result file (e.g., test/regression_results/table_exp.list)")
+    parser = argparse.ArgumentParser(description="Extract benchmark results from experiment result directory")
+    parser.add_argument("result_path", type=str, help="Path to the experiment result directory (e.g., test/regression_results/table_exp.list)")
     
     args = parser.parse_args()
     
-    if os.path.exists(args.result_file):
-        benchmark_data = extract_benchmark_results(args.result_file)
-        print("\nBenchmark Results:")
-        for benchmark_name, metrics in benchmark_data.items():
-            print(f"{benchmark_name}: {metrics}")
-    else:
-        print(f"Result file not found: {args.result_file}")
+    benchmark_data = extract_benchmark_results(args.result_path)
+    print("\nBenchmark Results:")
+    for benchmark_name, metrics in benchmark_data.items():
+        print(f"{benchmark_name}: {metrics}")
