@@ -26,6 +26,7 @@ from src.hardware_model.tech_models import mvs_si_model
 from src.hardware_model.tech_models import mvs_2_model
 from src.hardware_model.tech_models import vscnfet_model
 from src.hardware_model.tech_models import mvs_general_model
+from src.hardware_model.tech_models import sweep_model
 from openroad_interface import openroad_run
 from openroad_interface import openroad_run_hier
 
@@ -262,6 +263,8 @@ class HardwareModel:
                 self.tech_model = vscnfet_model.VSCNFetModel(self.model_cfg, self.base_params)
             else:
                 raise ValueError(f"Invalid vs model type: {self.model_cfg['vs_model_type']}")
+        elif self.model_cfg["model_type"] == "sweep":
+            self.tech_model = sweep_model.SweepModel(self.model_cfg, self.base_params)
         elif self.model_cfg["model_type"] == "mvs_general":
             self.tech_model = mvs_general_model.MVSGeneralModel(self.model_cfg, self.base_params)
         else:

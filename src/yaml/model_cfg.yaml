@@ -216,3 +216,12 @@ mvs_general_cfg_test:
 mvs_general_cfg:
   base_cfg: default
   model_type: mvs_general
+
+sweep_cfg:
+  base_cfg: default
+  effects:
+    area_and_latency_scaling: True
+    frequency: True
+  delay_parasitics: all
+  model_type: sweep
+  sweep_file_prefix: tech_sweep_vs_cfg_latest_20260116_211036_pareto

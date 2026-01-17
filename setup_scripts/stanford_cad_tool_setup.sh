@@ -8,4 +8,4 @@ if [ -f /etc/profile.d/modules.sh ]; then
 fi
 
 ## vitis:
-module load vitis/latest
+module load vitis/default

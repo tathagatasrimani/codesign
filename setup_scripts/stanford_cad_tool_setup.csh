@@ -4,7 +4,7 @@ setenv HOME "${PWD}"
 
 module load incisive
 #module load base
-module load vitis/latest
+module load vitis/default
 
 
 # for scalehls

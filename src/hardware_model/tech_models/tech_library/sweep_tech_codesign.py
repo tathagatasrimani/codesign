@@ -1,4 +1,3 @@
-from src import codesign
 import argparse
 import csv
 import itertools
@@ -25,6 +24,86 @@ def format_scientific(value):
     if isinstance(value, (int, float)):
         return f"{float(value):.2e}"
     return value
+
+
+class ParamNormalizer:
+    """
+    Utility class for normalizing output metrics to abstract parameters.
+
+    Maps log(output_metrics) to a fixed range [param_min, param_max] for numerical stability.
+    Provides forward (metrics -> params) and inverse (params -> metrics) transformations.
+    """
+
+    def __init__(self, output_metrics_data, n_params, param_min=10.0, param_max=12.0, const_value=5.0):
+        """
+        Initialize the normalizer with output metrics data.
+
+        Args:
+            output_metrics_data: numpy array of shape (n_points, n_metrics) with output metric values
+            n_params: number of abstract parameters to create
+            param_min: minimum value for normalized parameters (default: 1.0)
+            param_max: maximum value for normalized parameters (default: 10.0)
+            const_value: value to use for constant/extra parameters (default: 5.0)
+        """
+        self.n_metrics = output_metrics_data.shape[1]
+        self.n_params = n_params
+        self.param_min = param_min
+        self.param_max = param_max
+        self.const_value = const_value
+
+        # Compute log-space statistics for each metric
+        log_data = np.log(output_metrics_data)
+        self.log_mins = log_data.min(axis=0)
+        self.log_maxs = log_data.max(axis=0)
+        self.log_ranges = self.log_maxs - self.log_mins
+
+        # Handle constant metrics (range = 0)
+        self.is_constant = self.log_ranges < 1e-10
+
+    def metrics_to_params(self, metric_values):
+        """
+        Convert output metric values to abstract parameter values.
+
+        Args:
+            metric_values: array of shape (n_points, n_metrics) or (n_metrics,)
+
+        Returns:
+            array of shape (n_points, n_params) or (n_params,)
+        """
+        single_point = metric_values.ndim == 1
+        if single_point:
+            metric_values = metric_values.reshape(1, -1)
+
+        n_points = metric_values.shape[0]
+        log_metrics = np.log(metric_values)
+        param_values = np.full((n_points, self.n_params), self.const_value)
+
+        for i in range(min(self.n_params, self.n_metrics)):
+            if not self.is_constant[i]:
+                normalized = (log_metrics[:, i] - self.log_mins[i]) / self.log_ranges[i]
+                param_values[:, i] = self.param_min + (self.param_max - self.param_min) * normalized
+
+        return param_values[0] if single_point else param_values
+
+    @classmethod
+    def from_dict(cls, d, output_metrics_data=None):
+        """Reconstruct normalizer from serialized dict."""
+        # Create a dummy instance and populate fields
+        if output_metrics_data is not None:
+            instance = cls(output_metrics_data, d['n_params'], d['param_min'], d['param_max'], d['const_value'])
+        else:
+            # Create without data, manually set fields
+            instance = object.__new__(cls)
+            instance.n_metrics = d['n_metrics']
+            instance.n_params = d['n_params']
+            instance.param_min = d['param_min']
+            instance.param_max = d['param_max']
+            instance.const_value = d['const_value']
+            instance.log_mins = np.array(d['log_mins'])
+            instance.log_maxs = np.array(d['log_maxs'])
+            instance.log_ranges = instance.log_maxs - instance.log_mins
+            instance.is_constant = np.array(d['is_constant'])
+        return instance
 
 # Global worker function for ProcessPoolExecutor (must be picklable)
 def _worker_evaluate_configuration(args_tuple):
@@ -81,6 +160,7 @@ def _worker_evaluate_configuration(args_tuple):
 
 class SweepTechCodesign:
     def __init__(self, args):
+        from src import codesign
         self.args = args
         self.codesign_module = codesign.Codesign(
             self.args
@@ -381,7 +461,7 @@ class SweepTechCodesign:
             'param_names': param_names,
             'output_metrics': fit_results['output_metrics'],
             'n_params': len(param_names),
-            'constraints': []
+            'constraints': {metric: {} for metric in fit_results['output_metrics']}
         }
 
         # Add parameter bounds for parametric models
@@ -394,6 +474,8 @@ class SweepTechCodesign:
                 }
                 for i in range(len(param_names))
             }
+            cvxpy_model['param_min'] = float(param_values.min())
+            cvxpy_model['param_max'] = float(param_values.max())
 
         # Create constraint specifications for each output metric
         for metric, model in fit_results['models'].items():
@@ -429,7 +511,7 @@ class SweepTechCodesign:
                 }
             else:
                 raise ValueError(f"Unrecognized model format for metric {metric}: {list(model.keys())}")
-            cvxpy_model['constraints'].append(constraint)
+            cvxpy_model['constraints'][metric] = constraint
 
         # Add usage instructions
         usage_desc = 'Parametric Pareto surface model with design parameters. Use in CVXPY with DGP.'
@@ -483,27 +565,9 @@ class SweepTechCodesign:
         n_points = len(Y)
         logger.info(f"Using {n_points} valid Pareto points")
 
-        # Create abstract parameters from output metrics
-        # Use first n_params output metrics (in log space) as the abstract parameters
-        # This gives us parameters that naturally span the Pareto surface
-        log_Y = np.log(Y)
-
-        # Normalize each parameter to range [1, 10] for numerical stability
-        # This gives good dynamic range in log space: log(1)=0, log(10)=2.3
-        param_values = np.zeros((n_points, n_params))
-        for i in range(n_params):
-            if i < len(output_metrics):
-                vals = log_Y[:, i]
-                # Normalize to [0, 1] then scale to [1, 10]
-                val_min, val_max = vals.min(), vals.max()
-                if val_max > val_min:
-                    normalized = (vals - val_min) / (val_max - val_min)  # [0, 1]
-                    param_values[:, i] = 10.0 + 2.0 * normalized  # [1, 10]
-                else:
-                    param_values[:, i] = 5.0 * np.ones(n_points)  # Constant metric
-            else:
-                # If we need more params than metrics, use constant
-                param_values[:, i] = 5.0 * np.ones(n_points)
+        # Create normalizer and compute abstract parameters
+        normalizer = ParamNormalizer(Y, n_params, param_min=10.0, param_max=12.0)
+        param_values = normalizer.metrics_to_params(Y)
 
         logger.info(f"Abstract parameters (normalized to [1, 10]):")
         for i in range(n_params):
@@ -517,7 +581,8 @@ class SweepTechCodesign:
             'n_points': n_points,
             'models': {},
             'param_values': param_values,
-            'pareto_data': pareto_df
+            'pareto_data': pareto_df,
+            'normalizer': normalizer
         }
 
         # Log-transform abstract parameters for linear regression
@@ -877,7 +942,7 @@ def just_prune_design_space(args, filename):
     sweep_tech_codesign = SweepTechCodesign(args)
     sweep_tech_codesign.prune_design_space(filename)
 
-def just_fit_pareto_surface(args, pareto_csv_filename, optimize=False, n_params=7):
+def just_fit_pareto_surface(args, pareto_csv_filename, optimize=False, n_params=4):
     """
     Fit a parametric Pareto surface model to an existing Pareto front CSV file.
 

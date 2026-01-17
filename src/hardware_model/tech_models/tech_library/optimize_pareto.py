@@ -68,7 +68,8 @@ def optimize_pareto_surface(model_json_file, objective='edp', additional_constra
         logger.warning("No parameter bounds found in model! Problem may be unbounded.")
         logger.warning("Regenerate the model with the latest version of sweep_tech_codesign.py")
 
-    for constraint_spec in model['constraints']:
+    for constraint in model['constraints']:
+        constraint_spec = model['constraints'][constraint]
         output = constraint_spec['output']
         
         # Check if this is a posynomial model (new format) or monomial model (old format)
