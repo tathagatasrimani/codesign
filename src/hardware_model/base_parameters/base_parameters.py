@@ -24,6 +24,12 @@ class BaseParameters:
 
         self.node_arrivals_end = symbols("node_arrivals_end")
 
+        # placeholder symbols if using cvxpy pipeline
+        self.delay = symbols("delay", real=True)
+        self.E_act_inv = symbols("E_act_inv", real=True)
+        self.P_pass_inv = symbols("P_pass_inv", real=True)
+        self.C_gate = symbols("C_gate", real=True)
+
         # leaving both clk_period and f in here for flexibility, but only one of them will be used.
         self.clk_period = symbols("clk_period", real=True)
         self.f = symbols("f", real=True)
@@ -338,6 +344,10 @@ class BaseParameters:
         # initialize string to symbol mapping
         self.symbol_table = {
             "node_arrivals_end": self.node_arrivals_end,
+            "delay": self.delay,
+            "E_act_inv": self.E_act_inv,
+            "P_pass_inv": self.P_pass_inv,
+            "C_gate": self.C_gate,
             "V_dd": self.V_dd,
             "V_th": self.V_th,
             "clk_period": self.clk_period,

@@ -166,8 +166,10 @@ def change_clk_period_in_script(filename, new_period, hls_tool):
     with open(filename, "w") as f:
         f.writelines(new_lines)
 
-# if expr is int or float, running xreplace will cause error. So add this safeguard
+# if expr is int or float, running xreplace will cause error. So add this safeguard. also supports cvxpy expressions.
 def xreplace_safe(expr, replacements):
+    if isinstance(expr, cp.Expression):
+        return expr.value
     if not isinstance(expr, float) and not isinstance(expr, int):
         ret = expr.xreplace(replacements)
         if not isinstance(ret, float) and not isinstance(ret, int):

@@ -356,6 +356,13 @@ class CircuitModel:
         if not symbolic and wire_energy != 0:
             wire_energy = sim_util.xreplace_safe(wire_energy, self.tech_model.base_params.tech_values)
         return wire_energy * 1e9
+
+    def wire_energy_cvx(self, edge):
+        wire_energy = 0
+        for net in self.edge_to_nets[edge]:
+            for segment in net.segments:
+                wire_energy += 0.5 * segment.length*DATA_WIDTH * self.wire_C_values[segment.layer] * self.tech_model.base_params.tech_values[self.tech_model.base_params.V_dd]**2
+        return wire_energy * 1e9
         
     def make_sym_lat_wc(self, gamma):
         return gamma * self.tech_model.delay
@@ -409,7 +416,11 @@ class CircuitModel:
                 if key == "FloorDiv16": # most stringent constraint
                     # cycle limit to constrain the amount of pipelining
                     #self.constraints.append((self.symbolic_latency_wc[key]()* 1e-9) * self.tech_model.base_params.f <= 20) # num cycles <= 20 (cycles = time(s) * frequency(Hz))
-                    self.constraints.append(Constraint((self.symbolic_latency_wc[key]())<= 20*self.tech_model.base_params.clk_period, f"latency_{key} <= 20*clk_period")) # num cycles <= 20 (cycles = time(s) * frequency(Hz))
+                    latency_expr = self.symbolic_latency_wc[key]()
+                    clk_period_expr = 20 * self.tech_model.base_params.clk_period
+                    # Use sp.Le to explicitly create a LessThanOrEqual relational
+                    constraint_expr = sp.Le(latency_expr, clk_period_expr, evaluate=False)
+                    self.constraints.append(Constraint(constraint_expr, f"latency_{key} <= 20*clk_period")) # num cycles <= 20 (cycles = time(s) * frequency(Hz))
     
     def create_constraints_cvx(self, scale_cvx):
         self.constraints_cvx = []

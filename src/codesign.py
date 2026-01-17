@@ -123,8 +123,8 @@ class Codesign:
         self.iteration_count = 0
 
         # configure starting resource usage based on the minimum DSP and BRAM usage
-        self.dsp_multiplier = 1/self.cfg["args"]["min_dsp"] * self.cfg["args"]["area"] / (3e-6 * 9e-6)
-        self.bram_multiplier = 1/self.cfg["args"]["min_dsp"] * self.cfg["args"]["area"] / (3e-6 * 9e-6)
+        self.dsp_multiplier = 1/self.cfg["args"]["min_dsp"] * self.cfg["args"]["area"] / sim_util.xreplace_safe(self.hw.circuit_model.tech_model.param_db["A_gate"], self.hw.circuit_model.tech_model.base_params.tech_values)
+        self.bram_multiplier = 1/self.cfg["args"]["min_dsp"] * self.cfg["args"]["area"] / sim_util.xreplace_safe(self.hw.circuit_model.tech_model.param_db["A_gate"], self.hw.circuit_model.tech_model.base_params.tech_values)
 
         self.wire_lengths_over_iterations = []
         self.wire_delays_over_iterations = []
@@ -289,8 +289,8 @@ class Codesign:
             config["dsp"] = 10000
             config["bram"] = 10000
         else:
-            config["dsp"] = int(self.cfg["args"]["area"] / sim_util.xreplace_safe(self.hw.circuit_model.tech_model.param_db["A_gate"], self.hw.circuit_model.tech_model.base_params.tech_values) * self.dsp_multiplier)
-            config["bram"] = int(self.cfg["args"]["area"] / sim_util.xreplace_safe(self.hw.circuit_model.tech_model.param_db["A_gate"], self.hw.circuit_model.tech_model.base_params.tech_values) * self.bram_multiplier)
+            config["dsp"] = int(self.cfg["args"]["area"] / (sim_util.xreplace_safe(self.hw.circuit_model.tech_model.param_db["A_gate"], self.hw.circuit_model.tech_model.base_params.tech_values) * self.dsp_multiplier))
+            config["bram"] = int(self.cfg["args"]["area"] / (sim_util.xreplace_safe(self.hw.circuit_model.tech_model.param_db["A_gate"], self.hw.circuit_model.tech_model.base_params.tech_values) * self.bram_multiplier))
             # setting cur_dsp_usage here instead of with parse_dsp_usage after running scaleHLS
             # because I observed that for a small amount of resources, scaleHLS won't generate the csv file that we need to parse
             self.cur_dsp_usage = config["dsp"] 
@@ -318,7 +318,7 @@ class Codesign:
         print(f"Running StreamHLS in {cwd}")
 
         if not setup:
-            self.cur_dsp_usage = int(self.cfg["args"]["area"] / sim_util.xreplace_safe(self.hw.circuit_model.tech_model.param_db["A_gate"], self.hw.circuit_model.tech_model.base_params.tech_values) * self.dsp_multiplier)
+            self.cur_dsp_usage = int(self.cfg["args"]["area"] / (sim_util.xreplace_safe(self.hw.circuit_model.tech_model.param_db["A_gate"], self.hw.circuit_model.tech_model.base_params.tech_values) * self.dsp_multiplier))
             tilelimit = 1
         else:
             self.cur_dsp_usage = 10000
@@ -993,7 +993,7 @@ class Codesign:
 
         stdout = sys.stdout
         with open(f"{self.tmp_dir}/ipopt_out.txt", "w") as sys.stdout:
-            lag_factor, error = self.opt.optimize("ipopt", improvement=self.inverse_pass_improvement)
+            lag_factor, error = self.opt.optimize(self.cfg["args"]["solver"], improvement=self.inverse_pass_improvement)
             self.inverse_pass_lag_factor *= lag_factor
         sys.stdout = stdout
 
@@ -1244,6 +1244,7 @@ if __name__ == "__main__":
     parser.add_argument("--min_dsp", type=int, help="minimum DSP usage to start with")
     parser.add_argument("--max_power_density", type=float, help="maximum power density to allow")
     parser.add_argument("--max_power", type=float, help="maximum total power to allow")
+    parser.add_argument("--solver", type=str, help="solver to use for inverse pass")
     args = parser.parse_args()
 
     main(args)

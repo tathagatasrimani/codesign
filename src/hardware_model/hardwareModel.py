@@ -761,14 +761,20 @@ class HardwareModel:
                 dst = data["dst_node"]
                 rsc_edge = self.get_rsc_edge((src, dst), dfg)
                 if rsc_edge in self.circuit_model.edge_to_nets:
-                    total_active_energy_basic_block += self.circuit_model.wire_energy(rsc_edge)
+                    if self.cfg["args"]["solver"] == "cvxpy":
+                        total_active_energy_basic_block += self.circuit_model.wire_energy_cvx(rsc_edge)
+                    else:
+                        total_active_energy_basic_block += self.circuit_model.wire_energy(rsc_edge)
                     log_info(f"edge {rsc_edge} is in circuit_model.edge_to_nets")
-                    log_info(f"wire energy for {node}: {self.circuit_model.wire_energy(rsc_edge)}")
+                    log_info(f"wire energy for {node}: {self.circuit_model.wire_energy_cvx(rsc_edge) if self.cfg['args']['solver'] == 'cvxpy' else self.circuit_model.wire_energy(rsc_edge)}")
                 else:
                     log_info(f"edge {rsc_edge} is not in circuit_model.edge_to_nets")
             else:
-                total_active_energy_basic_block += self.circuit_model.symbolic_energy_active[data["function"]]()
-                log_info(f"active energy for {node}: {self.circuit_model.symbolic_energy_active[data['function']]()}")
+                if self.cfg["args"]["solver"] == "cvxpy":
+                    total_active_energy_basic_block += self.circuit_model.uarch_energy_active_cvx[data["function"]]
+                else:
+                    total_active_energy_basic_block += self.circuit_model.symbolic_energy_active[data["function"]]()
+                log_info(f"active energy for {node}: {self.circuit_model.uarch_energy_active_cvx[data['function']] if self.cfg['args']['solver'] == 'cvxpy' else self.circuit_model.symbolic_energy_active[data['function']]()}")
         log_info(f"total active energy for {basic_block_name}: {total_active_energy_basic_block}")
         log_info(f"loop count for {basic_block_name}: {loop_count}")
         if is_loop:
@@ -778,13 +784,18 @@ class HardwareModel:
             return total_active_energy_basic_block + (loop_count-1) * loop_energy
 
     
-    def calculate_passive_power_vitis(self, total_execution_time):
+    def calculate_passive_energy_vitis(self, total_execution_time):
         total_passive_power = 0
+        total_passive_power_cvx = 0
         for node, data in self.netlist.nodes(data=True):
             total_passive_power += self.circuit_model.symbolic_power_passive[data["function"]]()
-            log_info(f"passive power for {node}: {self.circuit_model.symbolic_power_passive[data['function']]()}")
+            total_passive_power_cvx += self.circuit_model.uarch_power_passive_cvx[data["function"]]
+            log_info(f"passive power for {node}: {self.circuit_model.uarch_power_passive_cvx[data['function']] if self.cfg['args']['solver'] == 'cvxpy' else self.circuit_model.symbolic_power_passive[data['function']]()}")
         self.total_passive_power = total_passive_power
-        return total_passive_power * total_execution_time
+        if self.cfg["args"]["solver"] == "cvxpy":
+            return total_passive_power_cvx * total_execution_time
+        else:
+            return total_passive_power * total_execution_time
 
     def print_node_arrivals(self):
         for block_name in self.graph_delays_cvx:
@@ -1111,7 +1122,11 @@ class HardwareModel:
         self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.node_arrivals_end] = self.calculate_block_vectors(top_block_name)
         if log_top_vectors:
             self.log_all_top_vectors()
-        return self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.node_arrivals_end]
+        if self.cfg["args"]["solver"] == "cvxpy":
+            self.graph_delays_cvx[top_block_name].value = self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.node_arrivals_end]
+            return self.graph_delays_cvx[top_block_name].value
+        else:
+            return self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.node_arrivals_end]
 
     def calculate_execution_time_vitis_recursive(self, basic_block_name, dfg, graph_end_node="graph_end", graph_type="full", resource_delays_only=False):
         log_info(f"calculating execution time for {basic_block_name} with graph end node {graph_end_node}")
@@ -1441,14 +1456,67 @@ class HardwareModel:
                 "m3_k": self.circuit_model.tech_model.base_params.m3_k,
                 "multiplier delay": self.circuit_model.symbolic_latency_wc["Mult16"](),
             }
+        elif self.circuit_model.tech_model.model_cfg["model_type"] == "sweep":
+            self.obj_sub_exprs = {
+                "execution_time": execution_time,
+                "passive power": self.total_passive_energy/execution_time,
+                "active power": self.total_active_energy/execution_time,
+                "area": self.circuit_model.tech_model.param_db["A_gate"],
+                "delay": self.circuit_model.tech_model.param_db["delay"],
+                "gate length": self.circuit_model.tech_model.param_db["L"],
+                "gate width": self.circuit_model.tech_model.param_db["W"],
+                "C_load": self.circuit_model.tech_model.param_db["C_gate"],
+                "R_avg_inv": self.circuit_model.tech_model.param_db["R_avg_inv"],
+                "E_act_inv": self.circuit_model.tech_model.param_db["Edynamic"],
+                "P_pass_inv": self.circuit_model.tech_model.param_db["Pstatic"],
+                "Ieff": self.circuit_model.tech_model.param_db["Ieff"],
+                "Ioff": self.circuit_model.tech_model.param_db["Ioff"],
+                "supply voltage": self.circuit_model.tech_model.param_db["V_dd"],
+                "effective threshold voltage": self.circuit_model.tech_model.param_db["V_th_eff"],
+                "DIBL factor": self.circuit_model.tech_model.param_db["delta"],
+                "n0": self.circuit_model.tech_model.param_db["n0"],
+                "scale length": self.circuit_model.tech_model.param_db["Lscale"],
+                "t_ox": self.circuit_model.tech_model.param_db["tox"],
+                "k_gate": self.circuit_model.tech_model.param_db["k_gate"],
+
+                "multiplier delay": self.circuit_model.symbolic_latency_wc["Mult16"](),
+                "clk_period": self.circuit_model.tech_model.base_params.clk_period,
+                #"scaled power": self.total_passive_power * self.circuit_model.tech_model.capped_power_scale_total + self.total_active_energy/(execution_time * self.circuit_model.tech_model.capped_delay_scale_total),
+                "logic_sensitivity": self.circuit_model.tech_model.base_params.logic_sensitivity,
+                "logic_resource_sensitivity": self.circuit_model.tech_model.base_params.logic_resource_sensitivity,
+                "logic_amdahl_limit": self.circuit_model.tech_model.base_params.logic_amdahl_limit,
+                "logic_resource_amdahl_limit": self.circuit_model.tech_model.base_params.logic_resource_amdahl_limit,
+                "interconnect sensitivity": self.circuit_model.tech_model.base_params.interconnect_sensitivity,
+                "interconnect resource sensitivity": self.circuit_model.tech_model.base_params.interconnect_resource_sensitivity,
+                "interconnect amdahl limit": self.circuit_model.tech_model.base_params.interconnect_amdahl_limit,
+                "interconnect resource amdahl limit": self.circuit_model.tech_model.base_params.interconnect_resource_amdahl_limit,
+                "memory sensitivity": self.circuit_model.tech_model.base_params.memory_sensitivity,
+                "memory resource sensitivity": self.circuit_model.tech_model.base_params.memory_resource_sensitivity,
+                "memory amdahl limit": self.circuit_model.tech_model.base_params.memory_amdahl_limit,
+                "memory resource amdahl limit": self.circuit_model.tech_model.base_params.memory_resource_amdahl_limit,
+                "m1_Rsq": self.circuit_model.tech_model.m1_Rsq,
+                "m2_Rsq": self.circuit_model.tech_model.m2_Rsq,
+                "m3_Rsq": self.circuit_model.tech_model.m3_Rsq,
+                "m1_Csq": self.circuit_model.tech_model.m1_Csq,
+                "m2_Csq": self.circuit_model.tech_model.m2_Csq,
+                "m3_Csq": self.circuit_model.tech_model.m3_Csq,
+                "m1_rho": self.circuit_model.tech_model.base_params.m1_rho,
+                "m2_rho": self.circuit_model.tech_model.base_params.m2_rho,
+                "m3_rho": self.circuit_model.tech_model.base_params.m3_rho,
+                "m1_k": self.circuit_model.tech_model.base_params.m1_k,
+                "m2_k": self.circuit_model.tech_model.base_params.m2_k,
+                "m3_k": self.circuit_model.tech_model.base_params.m3_k,
+            }
         else: 
-            raise ValueError(f"Objective function {self.obj_fn} not supported")
+            raise ValueError(f"Model type {self.circuit_model.tech_model.model_cfg['model_type']} not supported")
         self.obj_sub_plot_names = {
             "execution_time": "Execution Time over generations (ns)",
             "passive power": "Passive Power over generations (W)",
             "active power": "Active Power over generations (W)",
             "gate length": "Gate Length over generations (m)",
             "gate width": "Gate Width over generations (m)",
+            "E_act_inv": "Dynamic Energy per Inverter over generations (J)",
+            "P_pass_inv": "Passive Power per Inverter over generations (W)",
             "subthreshold leakage current": "Subthreshold Leakage Current over generations (nA)",
             "long channel threshold voltage": "Long Channel Threshold Voltage (V)",
             "effective threshold voltage": "Effective Threshold Voltage over generations (V)",
@@ -1505,6 +1573,8 @@ class HardwareModel:
             "Ieff_p": "pMOS Effective Current over generations (A)",
             "Ioff_n": "nMOS Off Current over generations (A)",
             "Ioff_p": "pMOS Off Current over generations (A)",
+            "Ioff": "Off Current over generations (A)",
+            "Ieff": "Effective Current over generations (A)",
             "Cload": "Load Capacitance over generations (F)",
             "mu_eff_n": "nMOS Effective Mobility over generations (m^2/V-s)",
             "mu_eff_p": "pMOS Effective Mobility over generations (m^2/V-s)",
@@ -1603,7 +1673,7 @@ class HardwareModel:
         self.constraints = []
         if self.hls_tool == "vitis":
             self.execution_time = self.calculate_execution_time_vitis(self.top_block_name, clk_period_opt, form_dfg, log_top_vectors=log_top_vectors)
-            self.total_passive_energy = self.calculate_passive_power_vitis(self.execution_time)
+            self.total_passive_energy = self.calculate_passive_energy_vitis(self.execution_time)
             self.total_active_energy = self.calculate_active_energy_vitis()
         else: # catapult
             # always use symbolic calculation. If you want concrete value later then sub tech values in.

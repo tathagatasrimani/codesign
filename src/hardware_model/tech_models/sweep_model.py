@@ -110,6 +110,22 @@ class SweepModel(TechModel):
 
         logger.info(f"Current design point: {self.cur_design_point}")
 
+        self.config_pareto_metric_db()
+
+        self.cur_output_metrics = {metric: self.cur_design_point[metric] for metric in self.sweep_model["output_metrics"]}
+
+        self.cur_param_values = self.normalizer.metrics_to_params(self.cur_output_metrics)
+
+        self.P_pass_inv = self.eval_metric("Pstatic", self.cur_param_values)
+        self.A_gate = self.eval_metric("area", self.cur_param_values)
+        self.delay = self.eval_metric("delay", self.cur_param_values)
+        self.E_act_inv = self.eval_metric("Edynamic", self.cur_param_values)
+
+        self.base_params.tech_values[self.base_params.P_pass_inv] = self.P_pass_inv
+        self.base_params.tech_values[self.base_params.area] = self.A_gate
+        self.base_params.tech_values[self.base_params.delay] = self.delay
+        self.base_params.tech_values[self.base_params.E_act_inv] = self.E_act_inv
+
         self.config_param_db()
 
     def config_param_db(self):
@@ -117,15 +133,15 @@ class SweepModel(TechModel):
         for param in self.cur_design_point.keys():
             self.param_db[param] = self.cur_design_point[param]
         self.I_off = self.param_db["Ioff"]
-        self.P_pass_inv = self.param_db["Pstatic"]
-        self.A_gate = self.param_db["area"]
-        self.delay = self.param_db["delay"]
-        self.E_act_inv = self.param_db["Edynamic"]
+        logger.info(f"evaluated A_gate: {self.A_gate}, delay: {self.delay}, E_act_inv: {self.E_act_inv}, P_pass_inv: {self.P_pass_inv}")
         self.C_gate = self.param_db["C_gate"]
         self.C_diff = self.C_gate
         self.C_load = self.C_gate
         self.R_avg_inv = self.param_db["R_avg_inv"]
         self.param_db["A_gate"] = self.A_gate
+
+    def config_pareto_metric_db(self):
+        self.pareto_metric_db = self.sweep_model["output_metrics"]
 
     def apply_base_parameter_effects(self):
         pass

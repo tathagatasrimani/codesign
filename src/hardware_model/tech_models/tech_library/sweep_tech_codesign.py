@@ -60,16 +60,26 @@ class ParamNormalizer:
         # Handle constant metrics (range = 0)
         self.is_constant = self.log_ranges < 1e-10
 
-    def metrics_to_params(self, metric_values):
+    def metrics_to_params(self, metric_values, as_array=False):
         """
         Convert output metric values to abstract parameter values.
 
         Args:
-            metric_values: array of shape (n_points, n_metrics) or (n_metrics,)
+            metric_values: array of shape (n_points, n_metrics) or (n_metrics,),
+                          or a dict with metric names as keys
+            as_array: if True, return numpy array instead of dict (for internal use)
 
         Returns:
-            array of shape (n_points, n_params) or (n_params,)
+            For single point: dict like {'a0': 5.2, 'a1': 7.8, ...}
+            For multiple points: list of dicts
+            If as_array=True: numpy array of shape (n_points, n_params) or (n_params,)
         """
+        # Handle dict input
+        if isinstance(metric_values, dict):
+            metric_values = np.array([metric_values[f'metric_{i}'] if f'metric_{i}' in metric_values
+                                      else list(metric_values.values())[i]
+                                      for i in range(self.n_metrics)])
+
         single_point = metric_values.ndim == 1
         if single_point:
             metric_values = metric_values.reshape(1, -1)
@@ -83,7 +93,16 @@ class ParamNormalizer:
                 normalized = (log_metrics[:, i] - self.log_mins[i]) / self.log_ranges[i]
                 param_values[:, i] = self.param_min + (self.param_max - self.param_min) * normalized
 
-        return param_values[0] if single_point else param_values
+        if as_array:
+            return param_values[0] if single_point else param_values
+
+        # Convert to dict format
+        param_names = [f'a{i}' for i in range(self.n_params)]
+        if single_point:
+            return {param_names[i]: float(param_values[0, i]) for i in range(self.n_params)}
+        else:
+            return [{param_names[i]: float(param_values[j, i]) for i in range(self.n_params)}
+                    for j in range(n_points)]
 
     @classmethod
     def from_dict(cls, d, output_metrics_data=None):
@@ -567,7 +586,7 @@ class SweepTechCodesign:
 
         # Create normalizer and compute abstract parameters
         normalizer = ParamNormalizer(Y, n_params, param_min=10.0, param_max=12.0)
-        param_values = normalizer.metrics_to_params(Y)
+        param_values = normalizer.metrics_to_params(Y, as_array=True)
 
         logger.info(f"Abstract parameters (normalized to [1, 10]):")
         for i in range(n_params):

@@ -26,6 +26,8 @@ import argparse
 import sys
 from typing import List, Dict, Any, Optional
 
+from src import sim_util
+
 import logging
 
 logger = logging.getLogger(__name__)
@@ -177,8 +179,8 @@ class LibCellGenerator:
                     "cell_name": macro_name,
                     "input_pins": macro_data["input"],
                     "output_pins": macro_data["output"],
-                    "delay": circuit_model.symbolic_latency_wc[macro_data["function"]]().xreplace(circuit_model.tech_model.base_params.tech_values).evalf(),
-                    "leakage": circuit_model.symbolic_power_passive[macro_data["function"]]().xreplace(circuit_model.tech_model.base_params.tech_values).evalf() * 1e-9, # convert from W to nW
+                    "delay": sim_util.xreplace_safe(circuit_model.symbolic_latency_wc[macro_data["function"]](), circuit_model.tech_model.base_params.tech_values),
+                    "leakage": sim_util.xreplace_safe(circuit_model.symbolic_power_passive[macro_data["function"]](), circuit_model.tech_model.base_params.tech_values) * 1e-9, # convert from W to nW
                     "area": macro_data["area"]
                 })
             else:

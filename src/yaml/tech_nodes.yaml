@@ -60,6 +60,10 @@ default:
   M: 2
   a: 0.5
   Lscale: 1.0e-7
+  delay: 0.0
+  E_act_inv: 0.0
+  P_pass_inv: 0.0
+  C_gate: 0.0
 
 tech-1982:
   L: 2.1e-06

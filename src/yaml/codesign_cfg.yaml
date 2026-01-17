@@ -30,6 +30,7 @@ default:
     min_dsp: 13
     max_power_density: 100000000 # W/mm^2, not active right now
     max_power: 150 # W
+    solver: ipopt
 
 
 vitis_test_mvs:

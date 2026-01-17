@@ -373,6 +373,16 @@ class Optimizer:
         print(f"lag factor: {lag_factor}")
         return lag_factor, False
 
+    def cvxpy_optimization(self, improvement):
+        start_time = time.time()
+        prob = cp.Problem(cp.Minimize(self.hw.obj_scaled), self.hw.constr_cvx + self.hw.circuit_model.constraints_cvx)
+        prob.solve()
+        print(f"cvxpy optimization status: {prob.status}")
+        print(f"cvxpy optimization value: {prob.value}")
+        print(f"cvxpy optimization variables: {prob.variables()}")
+        print(f"cvxpy optimization constraints: {prob.constraints}")
+        logger.info(f"time to run cvxpy optimization: {time.time()-start_time}")
+
     # note: improvement/regularization parameter currently only for inverse pass validation, so only using it for ipopt
     # example: improvement of 1.1 = 10% improvement
     def optimize(self, opt, improvement=10, disabled_knobs=[]):
@@ -385,8 +395,12 @@ class Optimizer:
         Returns:
             None
         """
-        assert opt == "ipopt"
-        return self.ipopt(improvement)
+        if opt == "ipopt":
+            return self.ipopt(improvement)
+        elif opt == "cvxpy":
+            return self.cvxpy_optimization(improvement)
+        else:
+            raise ValueError(f"Invalid solver: {opt}")
 
 
 def main():
