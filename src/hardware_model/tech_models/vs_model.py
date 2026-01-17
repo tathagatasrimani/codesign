@@ -249,5 +249,6 @@ class VSModel(TechModel):
     def create_constraints(self, dennard_scaling_type="constant_field"):
         super().create_constraints(dennard_scaling_type)
         self.constraints.append(Constraint(self.delta <= 0.15, "delta <= 0.15"))
-
-        
+        self.constraints.append(Constraint(self.base_params.V_dd <= 5, "V_dd <= 5"))
+        self.constraints.append(Constraint(self.base_params.W / self.base_params.L >= 0.5, "W over L >= 1"))
+        self.constraints.append(Constraint(self.base_params.W / self.base_params.L <= 20, "W over L <= 20"))

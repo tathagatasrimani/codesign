@@ -173,7 +173,7 @@ class TechModel(ABC):
             self.constraints.append(Constraint(self.V_th_eff >= 0, "V_th_eff >= 0"))
         self.constraints.append(Constraint(self.base_params.V_dd <= 5, "V_dd <= 5"))
 
-        #self.constraints.append(Constraint(self.I_off/(self.base_params.W) <= 1000e-9 / (1e-6), "I_off per (W) <= 1000e-9 per (1e-6)"))
+        self.constraints.append(Constraint(self.I_off/(self.base_params.W) <= 10000e-9 / (1e-6), "I_off per (W) <= 1000e-9 per (1e-6)"))
 
 
         #delta_V_th_process = 20e-3 # account for 20mV variation in Vth
