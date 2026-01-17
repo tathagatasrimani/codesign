@@ -702,17 +702,16 @@ def plot_wires_estimated_delay_only_normalized(grouped_data, output_dir, debug=F
             color='#ff7f0e'
         )
 
-        plt.title(f"{norm_bench} — PEs vs Delay (normalized)", fontsize=14, fontweight='bold')
-        plt.xlabel("Number of PEs", fontsize=12)
-        plt.ylabel("Normalized Delay", fontsize=12)
+        plt.title(f"{norm_bench} — PEs vs Delay (normalized)", fontsize=20, fontweight='bold')
+        plt.xlabel("Number of PEs", fontsize=18)
+        plt.ylabel("Normalized Delay", fontsize=18)
         plt.grid(True, alpha=0.3)
 
         out_path = os.path.join(output_dir, f"final_plot_for_proporsal_{norm_bench}_normalized.png")
         plt.tight_layout()
         plt.savefig(out_path, dpi=200)
         plt.close()
-        if debug:
-            print(f"[FINAL PROPORSAL] Saved normalized plot: {out_path}")
+        print(f"[FINAL PROPORSAL] Saved normalized plot: {out_path}")
 
 def main():
     ap = argparse.ArgumentParser(
