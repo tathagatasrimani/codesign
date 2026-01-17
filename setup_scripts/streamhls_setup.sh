@@ -25,17 +25,24 @@ if [[ $FORCE_FULL -eq 1 ]]; then
     if [ -d "ampl.linux-intel64" ]; then
         echo "[setup] AMPL package found."
     else
-        echo "[setup] AMPL package not found."
-        echo "Please obtain it from https://ampl.com/ampl-in-academia/ (or your local copy),"
-        echo "then paste or move the directory 'ampl.linux-intel64' into this directory:"
-        pwd
-        echo
-        read -p "Press ENTER after you have placed 'ampl.linux-intel64' here to continue..." _
-
+        echo "[setup] AMPL package not found. Downloading..."
+        wget -O ampl_package.tar.gz "https://cmu.box.com/shared/static/n6c6f147vefdrrsedammfqhfhteg7vyt" || {
+            echo "[setup] Failed to download AMPL package. Exiting."
+            exit 1
+        }
+        
+        echo "[setup] Extracting AMPL package..."
+        tar -xzf ampl_package.tar.gz || {
+            echo "[setup] Failed to extract AMPL package. Exiting."
+            exit 1
+        }
+        
+        rm -f ampl_package.tar.gz
+        
         if [ -d "ampl.linux-intel64" ]; then
-            echo "[setup] AMPL package found after user copy."
+            echo "[setup] AMPL package downloaded and extracted successfully."
         else
-            echo "[setup] AMPL package still not found in $(pwd). Exiting."
+            echo "[setup] AMPL package directory not found after extraction. Exiting."
             exit 1
         fi
     fi
@@ -46,7 +53,6 @@ if [[ $FORCE_FULL -eq 1 ]]; then
 
     source build-streamhls.sh
 
-    conda deactivate
     cd ..
 else
     echo "[setup] Skipping Stream-HLS build is not set."
