@@ -49,6 +49,8 @@ if [[ $FORCE_FULL -eq 1 ]]; then
 
     source setup-env.sh
 
+    ## ensure that the build uses all available CPU cores
+    sed -i 's|cmake --build \. --target check-mlir|cmake --build . --target check-mlir -- -j$(nproc)|' build-llvm.sh
     source build-llvm.sh
 
     source build-streamhls.sh
