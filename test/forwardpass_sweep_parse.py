@@ -494,7 +494,7 @@ def save_results_to_latex(benchmark_data: dict, output_dir: str, debug: bool = F
         ("NumberOfMLIROps", "MLIR Operations", "ops"),
         ("Energy", "Energy", "nJ"),
         ("delayCycles", "Delay Cycles", "cycles"),
-        ("executionTime", "Execution Time", "ms"),  # Changed to ms
+        ("executionTime", "Execution Time", r"$\mu$s"),  # Changed to LaTeX macro
     ]
     
     for metric_key, metric_label, metric_unit in metrics:
@@ -529,7 +529,7 @@ def save_results_to_latex(benchmark_data: dict, output_dir: str, debug: bool = F
                     if wl in benchmark_data[bench]:
                         value = benchmark_data[bench][wl][metric_key]['value']
                         
-                        # Convert execution time to ms if needed
+                        # Convert execution time to microseconds if needed
                         if metric_key == "executionTime":
                             value = value / 1000.0 if value != 0.0 else 0.0
                         
@@ -553,13 +553,13 @@ def save_results_to_latex(benchmark_data: dict, output_dir: str, debug: bool = F
         tex_lines.append("")
     
     # ===== COMBINED TABLE: All metrics in one table =====
-    tex_lines.append(r"\clearpage")  # Use clearpage instead of newpage for better spacing
+    tex_lines.append(r"\clearpage")
     tex_lines.append(r"% Combined Table: All Metrics")
     tex_lines.append(r"\begin{table}[h!]")
     tex_lines.append(r"\centering")
-    tex_lines.append(r"\caption{Combined Results: MLIR Ops, Energy (nJ), and Execution Time (ms)}")
+    tex_lines.append(r"\caption{Combined Results: MLIR Ops, Energy (nJ), and Execution Time ($\mu$s)}")
     
-    # For combined table: benchmark | ops | 4(nJ, ms) | 16(nJ, ms) | etc.
+    # For combined table: benchmark | ops | 4(nJ, μs) | 16(nJ, μs) | etc.
     col_spec = "l|c" + "|c" * len(workloads)
     tex_lines.append(f"\\begin{{tabular}}{{{col_spec}}}")
     tex_lines.append(r"\toprule")
@@ -571,10 +571,10 @@ def save_results_to_latex(benchmark_data: dict, output_dir: str, debug: bool = F
     header += r" \\"
     tex_lines.append(header)
     
-    # Sub-header row: nJ and ms for each workload
+    # Sub-header row: nJ and μs for each workload
     subheader = r" & "
     for _ in workload_nums:
-        subheader += r" & \small{nJ / ms}"
+        subheader += r" & \small{nJ / $\mu$s}"  # Changed to LaTeX macro
     subheader += r" \\"
     tex_lines.append(subheader)
     tex_lines.append(r"\midrule")
@@ -599,13 +599,13 @@ def save_results_to_latex(benchmark_data: dict, output_dir: str, debug: bool = F
                 energy = m['Energy']['value']
                 exec_time = m['executionTime']['value']
                 
-                # Format: energy / exec_time (in ms, i.e., ns / 1000)
+                # Format: energy / exec_time (in microseconds, i.e., ns / 1000)
                 if energy == 0.0 and exec_time == 0.0:
                     row += " & —"
                 else:
                     energy_str = f"{energy:,.2f}" if energy != 0.0 else "—"
-                    exec_time_ms = exec_time / 1000.0 if exec_time != 0.0 else 0.0
-                    exec_time_str = f"{exec_time_ms:,.2f}" if exec_time != 0.0 else "—"
+                    exec_time_us = exec_time / 1000.0 if exec_time != 0.0 else 0.0
+                    exec_time_str = f"{exec_time_us:,.2f}" if exec_time != 0.0 else "—"
                     row += f" & {energy_str} / {exec_time_str}"
             else:
                 row += " & —"
