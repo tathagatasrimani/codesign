@@ -148,7 +148,6 @@ fi
 
 ################ SET UP SCALEHLS ##################
 ## we want this to operate outside of conda, so do this first
-source "$SETUP_SCRIPTS_FOLDER"/streamhls_setup.sh $FORCE_FULL # setup stream hls
 source "$SETUP_SCRIPTS_FOLDER"/scale_hls_setup.sh $FORCE_FULL # setup scalehls
 
 ################### SET UP CONDA ENVIRONMENT ##################
@@ -186,6 +185,9 @@ fi
 
 conda activate codesign # activate the codesign environment
 
+################ SET UP STREAMHLS ##################
+## StreamHLS setup needs conda to be available (setup-env.sh uses conda)
+source "$SETUP_SCRIPTS_FOLDER"/streamhls_setup.sh $FORCE_FULL # setup stream hls
 
 ## update the rest of the submodules
 if [[ $FORCE_FULL -eq 1 ]]; then
