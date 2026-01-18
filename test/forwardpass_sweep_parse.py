@@ -476,6 +476,9 @@ def save_results_to_latex(benchmark_data: dict, output_dir: str, debug: bool = F
     if debug:
         print(f"[DEBUG] Workloads: {workloads}, Benchmarks: {benchmarks}")
     
+    # Extract numeric workload sizes for cleaner header (N4 -> 4, N16 -> 16)
+    workload_nums = [re.search(r'\d+', wl).group() for wl in workloads]
+    
     # Build LaTeX document
     tex_lines = []
     tex_lines.append(r"\documentclass{article}")
@@ -504,17 +507,17 @@ def save_results_to_latex(benchmark_data: dict, output_dir: str, debug: bool = F
         tex_lines.append(f"\\begin{{tabular}}{{{col_spec}}}")
         tex_lines.append(r"\toprule")
         
-        # Header row with bold workload sizes
-        header = r"\textbf{Benchmark}"
-        for wl in workloads:
-            header += f" & \\textbf{{{wl}}}"
+        # Header row with simplified workload sizes
+        header = r"\textbf{Kernel Size}"
+        for wl_num in workload_nums:
+            header += f" & \\textbf{{{wl_num}}}"
         header += r" \\"
         tex_lines.append(header)
         tex_lines.append(r"\midrule")
         
         # Data rows
         for bench in benchmarks:
-            row = f"\\textbf{{{bench}}}"
+            row = f"{bench}"
             for wl in workloads:
                 if bench in benchmark_data and isinstance(benchmark_data[bench], dict):
                     if wl in benchmark_data[bench]:
@@ -545,22 +548,21 @@ def save_results_to_latex(benchmark_data: dict, output_dir: str, debug: bool = F
     tex_lines.append(r"\centering")
     tex_lines.append(r"\caption{Combined Results: MLIR Ops, Energy, Delay Cycles, and Execution Time}")
     
-    # For combined table: benchmark | N4(ops, nJ, cycles, ns) | N16(...) | etc.
-    # Column spec: l (benchmark) + 4 columns per workload
+    # For combined table: benchmark | 4(...) | 16(...) | etc.
     col_spec = "l" + "|c" * len(workloads)
     tex_lines.append(f"\\begin{{tabular}}{{{col_spec}}}")
     tex_lines.append(r"\toprule")
     
-    # Main header row
-    header = r"\textbf{Benchmark}"
-    for wl in workloads:
-        header += f" & \\textbf{{{wl}}}"
+    # Main header row with simplified kernel sizes
+    header = r"\textbf{Kernel Size}"
+    for wl_num in workload_nums:
+        header += f" & \\textbf{{{wl_num}}}"
     header += r" \\"
     tex_lines.append(header)
     
     # Sub-header row: ops, nJ, cycles, ns for each workload
     subheader = ""
-    for wl in workloads:
+    for _ in workload_nums:
         subheader += r" & \small{ops / nJ / cycles / ns}"
     subheader += r" \\"
     tex_lines.append(subheader)
@@ -568,7 +570,7 @@ def save_results_to_latex(benchmark_data: dict, output_dir: str, debug: bool = F
     
     # Data rows
     for bench in benchmarks:
-        row = f"\\textbf{{{bench}}}"
+        row = bench
         for wl in workloads:
             if bench in benchmark_data and isinstance(benchmark_data[bench], dict) and wl in benchmark_data[bench]:
                 m = benchmark_data[bench][wl]
