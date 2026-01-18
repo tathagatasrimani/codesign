@@ -69,7 +69,8 @@ else
     esac
 fi
 
-
+## print the university name to a file in the setup scripts folder
+echo "$UNIVERSITY" > "$SETUP_SCRIPTS_FOLDER"/university_name.txt
 
 
 printf '>>> SCRIPT START %s\n' "$(date)"
