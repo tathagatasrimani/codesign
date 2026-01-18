@@ -202,18 +202,6 @@ cd ../..
 ## make verilator
 source "$SETUP_SCRIPTS_FOLDER"/verilator_install.sh
 
-## Load cad tools
-if [ "$UNIVERSITY" = "stanford" ]; then
-    echo "Setting up Stanford CAD tools..."
-    source "$SETUP_SCRIPTS_FOLDER"/stanford_cad_tool_setup.sh
-elif [ "$UNIVERSITY" = "cmu" ]; then
-    echo "Setting up CMU CAD tools..."
-    source "$SETUP_SCRIPTS_FOLDER"/cmu_cad_tool_setup.sh
-else
-    echo "Unsupported university for licensed cad tool setup: $UNIVERSITY"
-    exit 1
-fi
-
 # Only copy Xauthority if we're in a different directory than the old home
 if [ "$HOME" != "$OLD_HOME" ]; then
     echo "Copying Xauthority from $OLD_HOME to $HOME"
