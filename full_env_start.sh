@@ -186,8 +186,9 @@ fi
 conda activate codesign # activate the codesign environment
 
 ################ SET UP STREAMHLS ##################
-## StreamHLS setup needs conda to be available (setup-env.sh uses conda)
-source "$SETUP_SCRIPTS_FOLDER"/streamhls_setup.sh $FORCE_FULL # setup stream hls
+## StreamHLS setup needs conda to be available (setup-env.sh uses conda). 
+## Note that we run this script with 'bash' since we will source the streamhls environment separately when we need it.
+bash "$SETUP_SCRIPTS_FOLDER"/streamhls_setup.sh $FORCE_FULL # setup stream hls
 
 ## update the rest of the submodules
 if [[ $FORCE_FULL -eq 1 ]]; then
