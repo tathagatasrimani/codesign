@@ -43,6 +43,8 @@ Miniconda3-latest-Linux-x86_64.sh
 verilator/
 tools/
 
+setup_scripts/university_name.txt
+
 ## ignores all hidden files except those needed for git.
 .*
 !.gitignore
