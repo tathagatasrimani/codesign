@@ -453,6 +453,159 @@ def save_results_to_csv(benchmark_data: dict, output_dir: str, debug: bool = Fal
 
     print(f"Results saved to CSV: {csv_path}")
 
+def save_results_to_latex(benchmark_data: dict, output_dir: str, debug: bool = False):
+    """
+    Save results as LaTeX table grouped by kernel size (workload).
+    Layout: rows=benchmarks, columns=workload sizes
+    Matches the provided image format with bold headers and proper spacing.
+    """
+    if not benchmark_data:
+        if debug:
+            print(f"[DEBUG] No benchmark data to save to LaTeX")
+        return
+
+    # Collect all unique workloads and sort them numerically
+    all_workloads = set()
+    for base, variants in benchmark_data.items():
+        if isinstance(variants, dict):
+            all_workloads.update(variants.keys())
+    
+    workloads = sorted(all_workloads, key=lambda x: int(re.search(r'\d+', x).group()) if re.search(r'\d+', x) else 0)
+    benchmarks = sorted(benchmark_data.keys())
+    
+    if debug:
+        print(f"[DEBUG] Workloads: {workloads}, Benchmarks: {benchmarks}")
+    
+    # Build LaTeX document
+    tex_lines = []
+    tex_lines.append(r"\documentclass{article}")
+    tex_lines.append(r"\usepackage{booktabs}")
+    tex_lines.append(r"\usepackage{amsmath}")
+    tex_lines.append(r"\usepackage{array}")
+    tex_lines.append(r"\begin{document}")
+    tex_lines.append("")
+    
+    # ===== INDIVIDUAL METRIC TABLES =====
+    metrics = [
+        ("NumberOfMLIROps", "MLIR Operations", "ops"),
+        ("Energy", "Energy", "nJ"),
+        ("delayCycles", "Delay Cycles", "cycles"),
+        ("executionTime", "Execution Time", "ns"),
+    ]
+    
+    for metric_key, metric_label, metric_unit in metrics:
+        tex_lines.append(f"% {metric_label} ({metric_unit})")
+        tex_lines.append(r"\begin{table}[h!]")
+        tex_lines.append(r"\centering")
+        tex_lines.append(f"\\caption{{{metric_label} by Benchmark and Kernel Size}}")
+        
+        # Column spec: l for benchmark name, r for each workload
+        col_spec = "l" + "r" * len(workloads)
+        tex_lines.append(f"\\begin{{tabular}}{{{col_spec}}}")
+        tex_lines.append(r"\toprule")
+        
+        # Header row with bold workload sizes
+        header = r"\textbf{Benchmark}"
+        for wl in workloads:
+            header += f" & \\textbf{{{wl}}}"
+        header += r" \\"
+        tex_lines.append(header)
+        tex_lines.append(r"\midrule")
+        
+        # Data rows
+        for bench in benchmarks:
+            row = f"\\textbf{{{bench}}}"
+            for wl in workloads:
+                if bench in benchmark_data and isinstance(benchmark_data[bench], dict):
+                    if wl in benchmark_data[bench]:
+                        value = benchmark_data[bench][wl][metric_key]['value']
+                        if isinstance(value, float):
+                            if value == 0.0:
+                                row += " & —"
+                            else:
+                                row += f" & {value:,.2f}"
+                        else:
+                            row += f" & {value:,}"
+                    else:
+                        row += " & —"
+                else:
+                    row += " & —"
+            row += r" \\"
+            tex_lines.append(row)
+        
+        tex_lines.append(r"\bottomrule")
+        tex_lines.append(r"\end{tabular}")
+        tex_lines.append(r"\end{table}")
+        tex_lines.append("")
+    
+    # ===== COMBINED TABLE: All metrics in one table =====
+    tex_lines.append(r"\newpage")
+    tex_lines.append(r"% Combined Table: All Metrics")
+    tex_lines.append(r"\begin{table}[h!]")
+    tex_lines.append(r"\centering")
+    tex_lines.append(r"\caption{Combined Results: MLIR Ops, Energy, Delay Cycles, and Execution Time}")
+    
+    # For combined table: benchmark | N4(ops, nJ, cycles, ns) | N16(...) | etc.
+    # Column spec: l (benchmark) + 4 columns per workload
+    col_spec = "l" + "|c" * len(workloads)
+    tex_lines.append(f"\\begin{{tabular}}{{{col_spec}}}")
+    tex_lines.append(r"\toprule")
+    
+    # Main header row
+    header = r"\textbf{Benchmark}"
+    for wl in workloads:
+        header += f" & \\textbf{{{wl}}}"
+    header += r" \\"
+    tex_lines.append(header)
+    
+    # Sub-header row: ops, nJ, cycles, ns for each workload
+    subheader = ""
+    for wl in workloads:
+        subheader += r" & \small{ops / nJ / cycles / ns}"
+    subheader += r" \\"
+    tex_lines.append(subheader)
+    tex_lines.append(r"\midrule")
+    
+    # Data rows
+    for bench in benchmarks:
+        row = f"\\textbf{{{bench}}}"
+        for wl in workloads:
+            if bench in benchmark_data and isinstance(benchmark_data[bench], dict) and wl in benchmark_data[bench]:
+                m = benchmark_data[bench][wl]
+                ops = m['NumberOfMLIROps']['value']
+                energy = m['Energy']['value']
+                delay = m['delayCycles']['value']
+                exec_time = m['executionTime']['value']
+                
+                # Format: ops / energy / delay / time
+                if energy == 0.0 and delay == 0.0 and exec_time == 0.0:
+                    row += " & —"
+                else:
+                    ops_str = f"{ops:,}" if isinstance(ops, int) else f"{ops:.0f}"
+                    energy_str = f"{energy:,.2f}" if energy != 0.0 else "—"
+                    delay_str = f"{delay:,.2f}" if delay != 0.0 else "—"
+                    time_str = f"{exec_time:,.2f}" if exec_time != 0.0 else "—"
+                    row += f" & {ops_str} / {energy_str} / {delay_str} / {time_str}"
+            else:
+                row += " & —"
+        row += r" \\"
+        tex_lines.append(row)
+    
+    tex_lines.append(r"\bottomrule")
+    tex_lines.append(r"\end{tabular}")
+    tex_lines.append(r"\end{table}")
+    tex_lines.append("")
+    
+    tex_lines.append(r"\end{document}")
+    
+    # Write to file
+    tex_filename = "benchmark_results.tex"
+    tex_path = os.path.join(output_dir, tex_filename)
+    with open(tex_path, 'w') as f:
+        f.write('\n'.join(tex_lines))
+    
+    print(f"Results saved to LaTeX: {tex_path}")
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Extract benchmark results from experiment result directory")
     parser.add_argument("result_path", type=str, help="Path to the experiment result directory (e.g., test/regression_results/forwardpass_sweep.list)")
@@ -486,6 +639,9 @@ if __name__ == "__main__":
     
     # Save to CSV in the input directory
     save_results_to_csv(benchmark_data, csv_output_dir, debug=args.debug)
+    
+    # Save to LaTeX in the input directory
+    save_results_to_latex(benchmark_data, csv_output_dir, debug=args.debug)
     
     # Save to JSON file if requested
     if args.output:
