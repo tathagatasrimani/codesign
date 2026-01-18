@@ -14,6 +14,7 @@ class TechModel(ABC):
         self.model_cfg = model_cfg
         self.base_params = base_params
         self.constraints = []
+        self.sweep_constraints = []
         self.param_db = {}
         self.sweep_output_db = {}
         self.pareto_metric_db = {}
@@ -151,8 +152,6 @@ class TechModel(ABC):
 
     @abstractmethod
     def apply_additional_effects(self):
-        self.delay_var = sp.symbols("delay_var")
-        self.base_params.tech_values[self.delay_var] = xreplace_safe(self.delay, self.base_params.tech_values)
         """if self.model_cfg["effects"]["area_and_latency_scaling"]:
             if self.model_cfg["effects"]["max_parallel_en"]:
                 MAX_PARALLEL = self.model_cfg["effects"]["max_parallel_val"]
@@ -161,6 +160,7 @@ class TechModel(ABC):
             else:
                 self.delay = self.delay * self.base_params.latency_scale
                 self.P_pass_inv = self.P_pass_inv * self.base_params.area_scale"""
+        pass
 
     @abstractmethod
     def create_constraints(self, dennard_scaling_type="constant_field"):
@@ -169,8 +169,7 @@ class TechModel(ABC):
         #self.constraints.append(Constraint(self.delay_var >= self.delay, "delay_var >= delay"))
         #self.constraints.append(Constraint(self.base_params.V_dd >= self.V_th_eff, "V_dd >= V_th_eff"))
         #self.constraints.append(Constraint(self.base_params.V_dd >= self.base_params.V_th, "V_dd >= V_th"))
-        if self.V_th_eff != self.base_params.V_th:
-            self.constraints.append(Constraint(self.V_th_eff >= 0, "V_th_eff >= 0"))
+        self.constraints.append(Constraint(self.V_th_eff >= 0, "V_th_eff >= 0"))
         self.constraints.append(Constraint(self.base_params.V_dd <= 5, "V_dd <= 5"))
 
         self.constraints.append(Constraint(self.I_off/(self.base_params.W) <= 10000e-9 / (1e-6), "I_off per (W) <= 1000e-9 per (1e-6)"))

@@ -88,7 +88,6 @@ class Optimizer:
 
         if not approx_problem:
             constraints.extend(self.hw.circuit_model.constraints)
-            constraints.extend(self.hw.constraints)
 
         self.evaluate_constraints(constraints, "before optimization")
 
@@ -109,7 +108,7 @@ class Optimizer:
         print(f"execution time: {execution_time.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values)}")
 
         # passive energy consumption is dependent on execution time, so we need to recalculate it
-        self.hw.calculate_passive_power_vitis(execution_time)
+        self.hw.calculate_passive_energy_vitis(execution_time)
         self.hw.save_obj_vals(execution_time)
         print(f"obj: {self.hw.obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values)}, obj scaled: {self.hw.obj_scaled.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values)}")
         lower_bound = sim_util.xreplace_safe(self.hw.obj_scaled, self.hw.circuit_model.tech_model.base_params.tech_values) / improvement
@@ -187,15 +186,8 @@ class Optimizer:
                 self.hw.display_objective("after approximate solver, before recalculating objective")
                 if not self.test_config:
                     self.hw.circuit_model.update_circuit_values()
-                    
-                    # if bbv optimization, clk period updated in solver, so need to update it here
-                    if self.opt_pipeline == "block_vector":
-                        print(f"value of clk period: {self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.clk_period]}")
-                        self.hw.calculate_objective(clk_period_opt=False, form_dfg=False)
-                    else:
-                        self.hw.calculate_objective(clk_period_opt=True, form_dfg=False)
-                        print(f"setting clk period to {self.hw.circuit_model.clk_period_cvx.value}")
-                        self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.clk_period] = self.hw.circuit_model.clk_period_cvx.value
+                    print(f"value of clk period: {self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.clk_period]}")
+                    self.hw.calculate_objective(form_dfg=False)
 
                 # store result of this design point
                 scaled_obj_vals.append(self.hw.obj_scaled.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values))
@@ -312,7 +304,7 @@ class Optimizer:
             print(f"scaled obj vals: {scaled_obj_vals}")
             assert scaled_obj_vals[optimal_design_idx] < lower_bound * improvement, "no better design point found"
             self.hw.circuit_model.tech_model.base_params.tech_values = tech_param_sets[optimal_design_idx].copy()
-            self.hw.calculate_objective(clk_period_opt=False, form_dfg=False)
+            self.hw.calculate_objective(form_dfg=False)
             true_scaled_obj_val = sim_util.xreplace_safe(self.hw.obj_scaled, self.hw.circuit_model.tech_model.base_params.tech_values)
             print(f"actual scaled obj val after recalculating block vectors: {true_scaled_obj_val}")
             assert true_scaled_obj_val >= scaled_obj_vals[optimal_design_idx], "actual scaled obj val should be greater than or equal to the scaled obj val from the solver (due to near-critical paths)"
@@ -328,7 +320,7 @@ class Optimizer:
         
         assert best_obj_scaled < lower_bound * improvement, "no better design point found"
         self.hw.circuit_model.tech_model.base_params.tech_values = best_tech_values
-        self.hw.calculate_objective(clk_period_opt=False, form_dfg=False)
+        self.hw.calculate_objective(form_dfg=False)
         return sim_util.xreplace_safe(self.hw.obj, self.hw.circuit_model.tech_model.base_params.tech_values)
             
     def logic_device_optimization(self, improvement, lower_bound):
@@ -375,14 +367,29 @@ class Optimizer:
 
     def cvxpy_optimization(self, improvement):
         start_time = time.time()
-        prob = cp.Problem(cp.Minimize(self.hw.obj_scaled), self.hw.constr_cvx + self.hw.circuit_model.constraints_cvx)
-        prob.solve()
+        lower_bound = sim_util.xreplace_safe(self.hw.obj, self.hw.circuit_model.tech_model.base_params.tech_values) / improvement
+        self.constraints = self.hw.constraints + self.hw.circuit_model.constraints + self.hw.circuit_model.tech_model.constraints_cvxpy
+        #clk_period_constr = [self.hw.circuit_model.tech_model.base_params.clk_period == self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.clk_period]]
+        constraints = [constraint.constraint for constraint in self.constraints] 
+        for constraint in constraints:
+            assert constraint.is_dgp(), f"constraint is not DGP: {constraint}"
+            print(f"constraint: {constraint}")
+        print(f"objective: {self.hw.obj}")
+
+        prob = cp.Problem(cp.Minimize(self.hw.obj), constraints)
+        prob.solve(gp=True)
+        for var in prob.variables():
+            print(f"variable: {var.name}, value: {var.value}")
+            self.hw.circuit_model.tech_model.base_params.set_symbol_value(var, var.value)
         print(f"cvxpy optimization status: {prob.status}")
         print(f"cvxpy optimization value: {prob.value}")
-        print(f"cvxpy optimization variables: {prob.variables()}")
         print(f"cvxpy optimization constraints: {prob.constraints}")
         logger.info(f"time to run cvxpy optimization: {time.time()-start_time}")
+        self.hw.circuit_model.tech_model.process_optimization_results(prob.variables())
+        for constraint in self.constraints:
+            constraint.set_slack_cvxpy()
 
+        return prob.value / lower_bound, False
     # note: improvement/regularization parameter currently only for inverse pass validation, so only using it for ipopt
     # example: improvement of 1.1 = 10% improvement
     def optimize(self, opt, improvement=10, disabled_knobs=[]):

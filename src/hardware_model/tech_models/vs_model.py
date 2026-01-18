@@ -234,13 +234,15 @@ class VSModel(TechModel):
         self.sweep_output_db["V_th_eff"] = self.V_th_eff
         self.sweep_output_db["C_gate"] = self.C_gate
         self.sweep_output_db["R_avg_inv"] = self.R_avg_inv
+        self.sweep_output_db["V_dd"] = self.base_params.V_dd
+        self.sweep_output_db["L"] = self.base_params.L
 
         self.sweep_output_db["Lscale"] = self.scale_length
         self.sweep_output_db["delta"] = self.delta
         self.sweep_output_db["n0"] = self.n
 
     def config_pareto_metric_db(self):
-        self.pareto_metric_db = {"area", "delay", "Edynamic", "Pstatic"}
+        self.pareto_metric_db = {"area", "R_avg_inv", "C_gate", "Ioff", "L", "V_dd"}
 
     def apply_base_parameter_effects(self):
         pass
@@ -255,6 +257,6 @@ class VSModel(TechModel):
         self.constraints.append(Constraint(self.base_params.W / self.base_params.L >= 0.5, "W over L >= 1"))
         self.constraints.append(Constraint(self.base_params.W / self.base_params.L <= 20, "W over L <= 20"))
         # prune out some bad design points to help sweep solver
-        self.constraints.append(Constraint(self.P_pass_inv <= 1e-4, "P_pass_inv <= 1e-4"))
-        self.constraints.append(Constraint(self.P_pass_inv >= 1e-15, "P_pass_inv >= 1e-15"))
-        self.constraints.append(Constraint(self.delay <= 1e+3, "delay <= 1e+5"))
+        self.sweep_constraints.append(Constraint(self.P_pass_inv <= 1e-4, "P_pass_inv <= 1e-4"))
+        self.sweep_constraints.append(Constraint(self.P_pass_inv >= 1e-15, "P_pass_inv >= 1e-15"))
+        self.sweep_constraints.append(Constraint(self.delay <= 1e+3, "delay <= 1e+5"))

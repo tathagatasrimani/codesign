@@ -566,12 +566,6 @@ class Codesign:
 
         self.hw.netlist = nx.read_gml(f"{parse_results_dir}/{self.vitis_top_function}_full_netlist.gml")
 
-        logger.info("Now calculating execution time of Vitis design with top function "+self.vitis_top_function)
-        start_time = time.time()
-        execution_time = self.hw.calculate_execution_time_vitis(self.vitis_top_function)
-        logger.info(f"time to calculate execution time: {time.time()-start_time}")
-        print(f"Execution time: {execution_time}")
-
         ## print the cwd
         print(f"Current working directory in vitis parse data: {os.getcwd()}")
 
@@ -1001,7 +995,7 @@ class Codesign:
         
         if self.hls_tool == "vitis":
             # need to update the tech_value for final node arrival time after optimization
-            self.hw.calculate_execution_time_vitis(self.hw.top_block_name)
+            self.hw.calculate_execution_time_vitis(self.hw.top_block_name, clk_period_opt=True)
 
         self.write_back_params()
 
@@ -1015,7 +1009,7 @@ class Codesign:
         wire_delays={}
         for edge in self.hw.circuit_model.edge_to_nets:
             wire_lengths[edge] = self.hw.circuit_model.wire_length(edge)
-            wire_delays[edge] = self.hw.circuit_model.wire_delay(edge)
+            wire_delays[edge] = sim_util.xreplace_safe(self.hw.circuit_model.wire_delay(edge), self.hw.circuit_model.tech_model.base_params.tech_values)
         self.wire_lengths_over_iterations.append(wire_lengths)
         self.wire_delays_over_iterations.append(wire_delays)
         device_delay = sim_util.xreplace_safe(self.hw.circuit_model.tech_model.delay, self.hw.circuit_model.tech_model.base_params.tech_values)
@@ -1092,7 +1086,7 @@ class Codesign:
         elif self.obj_fn == "delay":
             obj = "Delay"
             units = "ns"
-        trend_plotter = trend_plot.TrendPlot(self, params_over_iterations, obj_over_iterations, lag_factor_over_iterations, wire_lengths_over_iterations, wire_delays_over_iterations, device_delays_over_iterations, sensitivities_over_iterations, constraint_slack_over_iterations, self.save_dir + "/figs", obj, units, self.obj_fn)
+        trend_plotter = trend_plot.TrendPlot(self, params_over_iterations, self.hw.circuit_model.tech_model.base_params.names, obj_over_iterations, lag_factor_over_iterations, wire_lengths_over_iterations, wire_delays_over_iterations, device_delays_over_iterations, sensitivities_over_iterations, constraint_slack_over_iterations, self.save_dir + "/figs", obj, units, self.obj_fn)
         logger.info(f"plotting wire lengths over generations")
         trend_plotter.plot_wire_lengths_over_generations()
         logger.info(f"plotting wire delays over generations")

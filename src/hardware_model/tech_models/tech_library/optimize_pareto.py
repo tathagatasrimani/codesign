@@ -123,15 +123,21 @@ def optimize_pareto_surface(model_json_file, objective='edp', additional_constra
             if metric in outputs:
                 constraints.append(outputs[metric] <= max_value)
                 logger.info(f"Added constraint: {metric} <= {max_value}")
-
+    objective = 'edp'
+    delay = outputs['R_avg_inv'] * outputs['C_gate']* 1e9 
+    Edynamic = outputs['V_dd']**2 * outputs['C_gate']
+    Pstatic = outputs['V_dd'] * outputs['Ioff']
     # Define objective function
     if objective == 'edp':
         # Energy-Delay Product: delay * (Edynamic + Pstatic * delay)
         # This is equivalent to: delay * Edynamic + delay^2 * Pstatic
-        obj_expr = outputs['delay'] * outputs['Edynamic'] + cp.power(outputs['delay'], 2) * outputs['Pstatic']
+        delay = outputs['R_avg_inv'] * outputs['C_gate']* 1e9 
+        Edynamic = outputs['V_dd']**2 * outputs['C_gate']
+        Pstatic = outputs['V_dd'] * outputs['Ioff']
+        obj_expr = delay * Edynamic + cp.power(delay, 2) * Pstatic
         logger.info("Objective: Minimize Energy-Delay Product (EDP)")
     elif objective == 'delay':
-        obj_expr = outputs['delay']
+        obj_expr = outputs['R_avg_inv'] * outputs['C_gate'] * 1e9 # ns
         logger.info("Objective: Minimize delay")
     elif objective == 'energy':
         obj_expr = outputs['Edynamic'] + outputs['Pstatic'] * outputs['delay']
@@ -166,14 +172,7 @@ def optimize_pareto_surface(model_json_file, objective='edp', additional_constra
         'output_metrics': {name: float(outputs[name].value) for name in output_metrics}
     }
 
-    # Compute derived metrics
-    results['derived_metrics'] = {
-        'EDP': float(results['output_metrics']['delay'] *
-                    (results['output_metrics']['Edynamic'] +
-                     results['output_metrics']['Pstatic'] * results['output_metrics']['delay'])),
-        'total_energy': float(results['output_metrics']['Edynamic'] +
-                             results['output_metrics']['Pstatic'] * results['output_metrics']['delay'])
-    }
+
 
     # Print results
     logger.info("\n" + "="*60)
@@ -186,10 +185,6 @@ def optimize_pareto_surface(model_json_file, objective='edp', additional_constra
     logger.info(f"\nOutput Metrics:")
     for name, value in results['output_metrics'].items():
         logger.info(f"  {name} = {value:.6e}")
-
-    logger.info(f"\nDerived Metrics:")
-    logger.info(f"  EDP = {results['derived_metrics']['EDP']:.6e}")
-    logger.info(f"  Total Energy = {results['derived_metrics']['total_energy']:.6e}")
 
     return results
 

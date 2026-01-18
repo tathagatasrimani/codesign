@@ -164,7 +164,8 @@ def _worker_evaluate_configuration(args_tuple):
                 result_row[metric_name] = format_scientific(metric_value)
 
         # Validate all constraints
-        for constraint in tech_model.constraints:
+        constraints_to_eval = tech_model.constraints + tech_model.sweep_constraints
+        for constraint in constraints_to_eval:
             tol = 1e-25
             slack = sim_util.xreplace_safe(constraint.slack, tech_model.base_params.tech_values)
             if (slack > tol):
@@ -604,35 +605,67 @@ class SweepTechCodesign:
             'normalizer': normalizer
         }
 
-        # Log-transform abstract parameters for linear regression
+        # Log-transform abstract parameters and output metrics for linear regression
         log_params = np.log(param_values)
+        log_Y = np.log(Y)
 
-        # Fit each output metric as a monomial: y = c * prod(a_i^p_i)
-        # In log-space: log(y) = log(c) + sum(p_i * log(a_i))
+        # Fit all output metrics simultaneously using multivariate linear regression
+        # This captures correlations between metrics through the residual covariance
+        # In log-space: log(y_i) = log(c_i) + sum(p_ij * log(a_j)) for each metric i
+        # We fit all metrics at once to capture their joint distribution
+        
+        # Prepare design matrix: [1, log(a0), log(a1), ..., log(an)]
+        n_points = log_params.shape[0]
+        X_design = np.column_stack([np.ones(n_points), log_params])
+        
+        # Multivariate linear regression: Y = X @ B, where B is (n_params+1) x n_metrics
+        # Using least squares: B = (X^T @ X)^(-1) @ X^T @ Y
+        # Use lstsq for numerical stability (handles near-singular matrices)
+        XTX = X_design.T @ X_design
+        XTY = X_design.T @ log_Y
+        B, residuals_sum_sq, rank, s = np.linalg.lstsq(XTX, XTY, rcond=None)
+        # B shape: (n_params+1) x n_metrics
+        
+        if rank < XTX.shape[0]:
+            logger.warning(f"Design matrix is rank-deficient (rank={rank} < {XTX.shape[0]}). "
+                          "Consider reducing n_params or checking for collinearity.")
+        
+        # Extract intercepts (coefficients) and slopes (exponents) for each metric
+        log_coefficients = B[0, :]  # Intercepts for each metric
+        exponents_matrix = B[1:, :].T  # Shape: n_metrics x n_params
+        
+        # Compute residual covariance matrix to capture metric correlations in model errors
+        log_Y_pred = X_design @ B  # Predicted log values
+        residuals = log_Y - log_Y_pred  # Shape: n_points x n_metrics
+        residual_cov = np.cov(residuals.T)  # Shape: n_metrics x n_metrics
+        
+        # Also compute covariance of actual metric values to capture full correlations
+        # This captures the true trade-offs: how metrics co-vary in the Pareto data
+        metric_cov = np.cov(Y.T)  # Shape: n_metrics x n_metrics
+        metric_corr = np.corrcoef(Y.T)  # Shape: n_metrics x n_metrics
+        
+        # Store the joint model information
+        results['residual_covariance'] = residual_cov  # Correlations in model errors
+        results['metric_covariance'] = metric_cov  # Full covariance of actual metrics
+        results['metric_correlation'] = metric_corr  # Correlation matrix of actual metrics
+        results['joint_fit'] = True
+        
+        # Build individual model dictionaries for each metric
         for i, metric in enumerate(output_metrics):
-            y = Y[:, i]
-            log_y = np.log(y)
-
-            # Linear regression in log-space
-            reg = LinearRegression()
-            reg.fit(log_params, log_y)
-
-            # Extract coefficient and exponents
-            log_c = reg.intercept_
-            c = np.exp(log_c)
-            exponents = reg.coef_
-
+            c = np.exp(log_coefficients[i])
+            exponents = exponents_matrix[i, :]
+            
             # Build model dictionary
             model = {
                 'type': 'monomial',
                 'coefficient': float(c),
                 'exponents': {param_names[j]: float(exponents[j]) for j in range(n_params)}
             }
-
+            
             # Build formula string
             exp_str = " * ".join([f"{p}^{e:.3f}" for p, e in model['exponents'].items()])
             model['formula'] = f"{metric} = {c:.3e} * {exp_str}"
-
+            
             # Evaluation function
             def make_monomial_eval(coef, exps, params):
                 def eval_func(*args, **kwargs):
@@ -645,18 +678,48 @@ class SweepTechCodesign:
                         result *= np.power(param_dict[param], exp)
                     return result
                 return eval_func
-
+            
             model['eval'] = make_monomial_eval(c, model['exponents'], param_names)
-
+            
             # Compute R²
+            y = Y[:, i]
             y_pred = model['eval'](*[param_values[:, j] for j in range(n_params)])
             ss_res = np.sum((y - y_pred) ** 2)
             ss_tot = np.sum((y - np.mean(y)) ** 2)
             model['r_squared'] = float(1 - (ss_res / ss_tot))
-
+            
             results['models'][metric] = model
             logger.info(f"  {metric}: R²={model['r_squared']:.4f}")
             logger.info(f"    Formula: {model['formula']}")
+        
+        # Log correlation information
+        logger.info(f"Metric correlation matrix (captures trade-offs in Pareto data):")
+        for i, metric_i in enumerate(output_metrics):
+            for j, metric_j in enumerate(output_metrics):
+                if i < j:  # Only upper triangle
+                    corr = metric_corr[i, j]
+                    if abs(corr) > 0.1:  # Only log significant correlations
+                        logger.info(f"    {metric_i} <-> {metric_j}: {corr:.4f}")
+        
+        # Also log residual correlations if significant
+        residual_corr = np.corrcoef(residuals.T)
+        significant_residual_corr = False
+        for i in range(len(output_metrics)):
+            for j in range(i+1, len(output_metrics)):
+                if abs(residual_corr[i, j]) > 0.1:
+                    significant_residual_corr = True
+                    break
+            if significant_residual_corr:
+                break
+        
+        if significant_residual_corr:
+            logger.info(f"Residual correlation matrix (unexplained correlations):")
+            for i, metric_i in enumerate(output_metrics):
+                for j, metric_j in enumerate(output_metrics):
+                    if i < j:
+                        corr = residual_corr[i, j]
+                        if abs(corr) > 0.1:
+                            logger.info(f"    {metric_i} <-> {metric_j}: {corr:.4f}")
 
         # Create nearest neighbor index in abstract parameter space
         param_normalized = (param_values - param_values.min(axis=0)) / (param_values.max(axis=0) - param_values.min(axis=0) + 1e-10)
@@ -683,6 +746,31 @@ class SweepTechCodesign:
                     for metric in output_metrics}
 
         results['evaluate_surface'] = evaluate_surface
+
+        # Helper: evaluate metrics with correlation awareness
+        # This accounts for the fact that metrics are correlated and can't be
+        # optimized independently - improving one may worsen others
+        def evaluate_surface_with_correlation(*args, **kwargs):
+            """
+            Evaluate all metrics accounting for their correlations.
+            Returns both the mean predictions and the correlation structure.
+            
+            Returns:
+                dict with keys:
+                    'mean': dict of mean predictions for each metric
+                    'metric_covariance': full covariance matrix of actual metrics (n_metrics x n_metrics)
+                    'metric_correlation': correlation matrix between metrics (n_metrics x n_metrics)
+                    'residual_covariance': covariance of model residuals (n_metrics x n_metrics)
+            """
+            mean_pred = evaluate_surface(*args, **kwargs)
+            return {
+                'mean': mean_pred,
+                'metric_covariance': metric_cov,
+                'metric_correlation': metric_corr,
+                'residual_covariance': residual_cov
+            }
+
+        results['evaluate_surface_with_correlation'] = evaluate_surface_with_correlation
 
         return results
 
@@ -880,8 +968,6 @@ class SweepTechCodesign:
         for name, value in opt_results['output_metrics'].items():
             logger.info(f"  {name} = {value:.6e}")
 
-        logger.info(f"\nOptimal EDP: {opt_results['derived_metrics']['EDP']:.6e}")
-
         logger.info(f"\nNearest design point (distance={distance:.6e}):")
         # Print params of design
         all_params = [k for k in design.keys()]
@@ -892,7 +978,6 @@ class SweepTechCodesign:
         result = {
             'abstract_parameters': param_values,
             'output_metrics': opt_results['output_metrics'],
-            'derived_metrics': opt_results['derived_metrics'],
             'design_parameters': design,
             'distance_to_pareto': distance,
             'objective': objective
@@ -961,7 +1046,7 @@ def just_prune_design_space(args, filename):
     sweep_tech_codesign = SweepTechCodesign(args)
     sweep_tech_codesign.prune_design_space(filename)
 
-def just_fit_pareto_surface(args, pareto_csv_filename, optimize=False, n_params=4):
+def just_fit_pareto_surface(args, pareto_csv_filename, optimize=False, n_params=6):
     """
     Fit a parametric Pareto surface model to an existing Pareto front CSV file.
 
@@ -1007,7 +1092,14 @@ def just_fit_pareto_surface(args, pareto_csv_filename, optimize=False, n_params=
     sweep_tech_codesign.plot_all_metrics_fit(fit_results, output_file=plot_filename)
 
     # Also generate cross-section plot for delay vs Edynamic if both exist
-    things_to_plot = [['delay', 'Edynamic'], ['Edynamic', 'Pstatic'], ['Pstatic', 'area']]
+    things_to_plot = [
+        ['R_avg_inv', 'C_gate'], 
+        ['V_dd', 'C_gate'], 
+        ['L', 'area'],
+        ['Ioff', 'V_dd'],
+        ['Ioff', 'L'],
+        ['Ioff', 'R_avg_inv']
+    ]
     for thing in things_to_plot:
         if thing[0] in output_metrics and thing[1] in output_metrics:
             cross_section_filename = os.path.join(output_dir, "figs", f"{base_name}_{thing[0]}_vs_{thing[1]}_cross_section.png")

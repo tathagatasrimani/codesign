@@ -20,12 +20,16 @@ import pandas as pd
 from pathlib import Path
 
 def symbolic_convex_max(a, b, evaluate=True):
+    if not isinstance(a, sp.Expr) and not isinstance(b, sp.Expr):
+        return cp.maximum(a, b)
     """
     Max(a, b) in a format which ipopt accepts.
     """
     return 0.5 * (a + b + Abs(a - b, evaluate=evaluate))
 
 def symbolic_min(a, b, evaluate=True):
+    if not isinstance(a, sp.Expr) and not isinstance(b, sp.Expr):
+        return cp.minimum(a, b)
     """
     Min(a, b) in a format which ipopt accepts.
     """
@@ -168,8 +172,17 @@ def change_clk_period_in_script(filename, new_period, hls_tool):
 
 # if expr is int or float, running xreplace will cause error. So add this safeguard. also supports cvxpy expressions.
 def xreplace_safe(expr, replacements):
-    if isinstance(expr, cp.Expression):
-        return expr.value
+    if hasattr(expr, "value"):
+        val = expr.value
+        # Check if value is a numpy array - if so, extract scalar with .item()
+        if isinstance(val, np.ndarray):
+            return float(val.item())
+        # Check if value is a numpy scalar type
+        elif isinstance(val, (np.floating, np.integer)):
+            return float(val)
+        # Otherwise, return as-is (should be Python float/int)
+        else:
+            return val
     if not isinstance(expr, float) and not isinstance(expr, int):
         ret = expr.xreplace(replacements)
         if not isinstance(ret, float) and not isinstance(ret, int):

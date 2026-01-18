@@ -19,6 +19,8 @@ from src.hardware_model.circuit_models import circuit_model
 from src.forward_pass import schedule
 from src import sim_util
 
+from src.inverse_pass.constraint import Constraint
+
 from src.hardware_model.tech_models import bulk_model
 from src.hardware_model.tech_models import bulk_bsim4_model
 from src.hardware_model.tech_models import vs_model
@@ -32,7 +34,7 @@ from openroad_interface import openroad_run_hier
 
 import cvxpy as cp
 
-DEBUG = False
+DEBUG = True
 def log_info(msg):
     if DEBUG:
         logger.info(msg)
@@ -62,7 +64,7 @@ class BlockVector:
         "memory_resource",
         "interconnect_resource",
     ])
-    def __init__(self):
+    def __init__(self, tech_values):
         self.bound_factor = {op_type: 0 for op_type in self.op_types}
         self.normalized_bound_factor = {op_type: 0 for op_type in self.op_types}
         self.amdahl_limit = {op_type: 0 for op_type in self.op_types}
@@ -78,6 +80,7 @@ class BlockVector:
         self.iteration_delay = 0
         self.trip_count = 0
         self.calls = [] # list of calls to other functions
+        self.tech_values = tech_values
     
     def sensitivity_softmax(self):
         max_sensitivity = max(self.sensitivity.values())
@@ -88,13 +91,13 @@ class BlockVector:
             self.sensitivity[op_type] = self.sensitivity[op_type]/sum_sensitivity
 
     def normalize_bound_factor(self):
-        if self.delay == 0:
+        if sim_util.xreplace_safe(self.delay, self.tech_values) == 0:
             return
         for op_type in self.op_types:
             self.normalized_bound_factor[op_type] = self.bound_factor[op_type]/self.delay
         self.path_mixing_factor = sum(self.normalized_bound_factor.values())
         for op_type in self.op_types:
-            if self.normalized_bound_factor[op_type] == 0:
+            if sim_util.xreplace_safe(self.normalized_bound_factor[op_type], self.tech_values) == 0:
                 self.amdahl_limit[op_type] = math.inf
             else:
                 self.amdahl_limit[op_type] = 1/self.normalized_bound_factor[op_type]
@@ -111,24 +114,24 @@ class BlockVector:
             return obj
 
         raw = {
-            "delay": self.delay,
-            "total_delay": self.total_delay,
-            "computation_activity_factor": self.computation_activity_factor,
-            "sensitivity": self.sensitivity,
-            "amdahl_limit": self.amdahl_limit,
-            "bound_factor": self.bound_factor,
-            "normalized_bound_factor": self.normalized_bound_factor,
-            "path_mixing_factor": self.path_mixing_factor,
-            "iteration_delay": self.iteration_delay,
-            "initiation_interval": self.initiation_interval,
-            "trip_count": self.trip_count,
+            "delay": sim_util.xreplace_safe(self.delay, self.tech_values),
+            "total_delay": sim_util.xreplace_safe(self.total_delay, self.tech_values),
+            "computation_activity_factor": sim_util.xreplace_safe(self.computation_activity_factor, self.tech_values),
+            "sensitivity": {op_type: sim_util.xreplace_safe(self.sensitivity[op_type], self.tech_values) for op_type in self.op_types},
+            "amdahl_limit": {op_type: sim_util.xreplace_safe(self.amdahl_limit[op_type], self.tech_values) for op_type in self.op_types},
+            "bound_factor": {op_type: sim_util.xreplace_safe(self.bound_factor[op_type], self.tech_values) for op_type in self.op_types},
+            "normalized_bound_factor": {op_type: sim_util.xreplace_safe(self.normalized_bound_factor[op_type], self.tech_values) for op_type in self.op_types},
+            "path_mixing_factor": sim_util.xreplace_safe(self.path_mixing_factor, self.tech_values),
+            "iteration_delay": sim_util.xreplace_safe(self.iteration_delay, self.tech_values),
+            "initiation_interval": sim_util.xreplace_safe(self.initiation_interval, self.tech_values),
+            "trip_count": sim_util.xreplace_safe(self.trip_count, self.tech_values),
             "calls": self.calls,
         }
         return _replace_infinity(raw)
     
     def update_total_delay(self, delay):
-        self.total_delay = delay
-        self.computation_activity_factor = self.total_delay / self.delay if self.delay != 0 else 0
+        self.total_delay += delay
+        self.computation_activity_factor = self.total_delay / self.delay if sim_util.xreplace_safe(self.delay, self.tech_values) != 0 else 0
     
     def __str__(self):
         top_description = f"\n=============BlockVector=============\n"
@@ -183,13 +186,15 @@ class HardwareModel:
         self.model_cfg = sim_util.recursive_cfg_merge(model_cfgs, args["model_cfg"])
         print(f"self.model_cfg: {self.model_cfg}")
 
+        symbol_type = "sympy" if args["solver"] != "cvxpy" else "cvxpy"
+
         if args["checkpoint_load_dir"] != "none" and os.path.exists(f"{self.tmp_dir}/tech_params_latest.yaml"):
             # when loading from checkpoint, use the latest set of tech param values as a starting point. Override "tech_node" argument.
             with open(f"{self.tmp_dir}/tech_params_latest.yaml", "r") as f:
                 tech_params = yaml.safe_load(f)
-            self.base_params = base_parameters.BaseParameters(args["tech_node"], self.cacti_dat_file, tech_params)
+            self.base_params = base_parameters.BaseParameters(args["tech_node"], self.cacti_dat_file, symbol_type, tech_params)
         else:
-            self.base_params = base_parameters.BaseParameters(args["tech_node"], self.cacti_dat_file)
+            self.base_params = base_parameters.BaseParameters(args["tech_node"], self.cacti_dat_file, symbol_type)
 
         self.reset_tech_model()
 
@@ -761,20 +766,14 @@ class HardwareModel:
                 dst = data["dst_node"]
                 rsc_edge = self.get_rsc_edge((src, dst), dfg)
                 if rsc_edge in self.circuit_model.edge_to_nets:
-                    if self.cfg["args"]["solver"] == "cvxpy":
-                        total_active_energy_basic_block += self.circuit_model.wire_energy_cvx(rsc_edge)
-                    else:
-                        total_active_energy_basic_block += self.circuit_model.wire_energy(rsc_edge)
+                    total_active_energy_basic_block += self.circuit_model.wire_energy(rsc_edge)
                     log_info(f"edge {rsc_edge} is in circuit_model.edge_to_nets")
-                    log_info(f"wire energy for {node}: {self.circuit_model.wire_energy_cvx(rsc_edge) if self.cfg['args']['solver'] == 'cvxpy' else self.circuit_model.wire_energy(rsc_edge)}")
+                    log_info(f"wire energy for {node}: {self.circuit_model.wire_energy(rsc_edge)}")
                 else:
                     log_info(f"edge {rsc_edge} is not in circuit_model.edge_to_nets")
             else:
-                if self.cfg["args"]["solver"] == "cvxpy":
-                    total_active_energy_basic_block += self.circuit_model.uarch_energy_active_cvx[data["function"]]
-                else:
-                    total_active_energy_basic_block += self.circuit_model.symbolic_energy_active[data["function"]]()
-                log_info(f"active energy for {node}: {self.circuit_model.uarch_energy_active_cvx[data['function']] if self.cfg['args']['solver'] == 'cvxpy' else self.circuit_model.symbolic_energy_active[data['function']]()}")
+                total_active_energy_basic_block += self.circuit_model.symbolic_energy_active[data["function"]]()
+                log_info(f"active energy for {node}: {self.circuit_model.symbolic_energy_active[data['function']]()}")
         log_info(f"total active energy for {basic_block_name}: {total_active_energy_basic_block}")
         log_info(f"loop count for {basic_block_name}: {loop_count}")
         if is_loop:
@@ -786,38 +785,33 @@ class HardwareModel:
     
     def calculate_passive_energy_vitis(self, total_execution_time):
         total_passive_power = 0
-        total_passive_power_cvx = 0
         for node, data in self.netlist.nodes(data=True):
             total_passive_power += self.circuit_model.symbolic_power_passive[data["function"]]()
-            total_passive_power_cvx += self.circuit_model.uarch_power_passive_cvx[data["function"]]
-            log_info(f"passive power for {node}: {self.circuit_model.uarch_power_passive_cvx[data['function']] if self.cfg['args']['solver'] == 'cvxpy' else self.circuit_model.symbolic_power_passive[data['function']]()}")
+            log_info(f"passive power for {node}: {self.circuit_model.symbolic_power_passive[data['function']]()}")
         self.total_passive_power = total_passive_power
-        if self.cfg["args"]["solver"] == "cvxpy":
-            return total_passive_power_cvx * total_execution_time
-        else:
-            return total_passive_power * total_execution_time
+        return total_passive_power * total_execution_time
 
     def print_node_arrivals(self):
-        for block_name in self.graph_delays_cvx:
-            for node in self.node_arrivals_cvx[block_name]["full"]:
-                if self.node_arrivals_cvx[block_name]["full"][node].value is not None:
-                    self.circuit_model.tech_model.base_params.tech_values[self.node_arrivals_cvx[block_name]["full"][node]] = self.node_arrivals_cvx[block_name]["full"][node].value / self.scale_cvx
-                if node in self.node_arrivals_cvx[block_name]["loop_1x"] and self.node_arrivals_cvx[block_name]["loop_1x"][node].value is not None:
-                    self.circuit_model.tech_model.base_params.tech_values[self.node_arrivals_cvx[block_name]["loop_1x"][node]] = self.node_arrivals_cvx[block_name]["loop_1x"][node].value / self.scale_cvx
-                if node in self.node_arrivals_cvx[block_name]["loop_2x"] and self.node_arrivals_cvx[block_name]["loop_2x"][node].value is not None:
-                    self.circuit_model.tech_model.base_params.tech_values[self.node_arrivals_cvx[block_name]["loop_2x"][node]] = self.node_arrivals_cvx[block_name]["loop_2x"][node].value / self.scale_cvx
-            for node in self.node_arrivals_cvx[block_name]["loop_1x"]:
-                if self.node_arrivals_cvx[block_name]["loop_1x"][node].value is not None:
-                    self.circuit_model.tech_model.base_params.tech_values[self.node_arrivals_cvx[block_name]["loop_1x"][node]] = self.node_arrivals_cvx[block_name]["loop_1x"][node].value / self.scale_cvx
-            #for node in self.graph_delays_cvx:
-            #    self.circuit_model.tech_model.base_params.tech_values[self.graph_delays_cvx[node]] = self.graph_delays_cvx[node].value / self.scale_cvx
-        #for block_name in self.graph_delays_cvx:
-        #    log_info(f"graph delays for {block_name}: {sim_util.xreplace_safe(self.graph_delays_cvx[block_name], self.circuit_model.tech_model.base_params.tech_values)}")
-        for block_name in self.node_arrivals_cvx:
-            for graph_type in self.node_arrivals_cvx[block_name]:
-                for node in self.node_arrivals_cvx[block_name][graph_type]:
-                    if self.node_arrivals_cvx[block_name][graph_type][node].value is not None:
-                        log_info(f"node arrivals for {block_name} {graph_type} {node}: {self.node_arrivals_cvx[block_name][graph_type][node].value / self.scale_cvx}")
+        for block_name in self.graph_delays:
+            for node in self.node_arrivals[block_name]["full"]:
+                if self.node_arrivals[block_name]["full"][node].value is not None:
+                    self.circuit_model.tech_model.base_params.set_symbol_value(self.node_arrivals[block_name]["full"][node], self.node_arrivals[block_name]["full"][node].value, dont_save_to_tech_values=True)
+                if node in self.node_arrivals[block_name]["loop_1x"] and self.node_arrivals[block_name]["loop_1x"][node].value is not None:
+                    self.circuit_model.tech_model.base_params.set_symbol_value(self.node_arrivals[block_name]["loop_1x"][node], self.node_arrivals[block_name]["loop_1x"][node].value, dont_save_to_tech_values=True)
+                if node in self.node_arrivals[block_name]["loop_2x"] and self.node_arrivals[block_name]["loop_2x"][node].value is not None:
+                    self.circuit_model.tech_model.base_params.set_symbol_value(self.node_arrivals[block_name]["loop_2x"][node], self.node_arrivals[block_name]["loop_2x"][node].value, dont_save_to_tech_values=True)
+            for node in self.node_arrivals[block_name]["loop_1x"]:
+                if self.node_arrivals[block_name]["loop_1x"][node].value is not None:
+                    self.circuit_model.tech_model.base_params.set_symbol_value(self.node_arrivals[block_name]["loop_1x"][node], self.node_arrivals[block_name]["loop_1x"][node].value, dont_save_to_tech_values=True)
+            #for node in self.graph_delays:
+            #    self.circuit_model.tech_model.base_params.set_symbol_value(self.graph_delays[node], self.graph_delays[node].value)
+        #for block_name in self.graph_delays:
+        #    log_info(f"graph delays for {block_name}: {sim_util.xreplace_safe(self.graph_delays[block_name], self.circuit_model.tech_model.base_params.tech_values)}")
+        for block_name in self.node_arrivals:
+            for graph_type in self.node_arrivals[block_name]:
+                for node in self.node_arrivals[block_name][graph_type]:
+                    if self.node_arrivals[block_name][graph_type][node].value is not None:
+                        log_info(f"node arrivals for {block_name} {graph_type} {node}: {self.node_arrivals[block_name][graph_type][node].value}")
                     else:
                         log_info(f"node arrivals for {block_name} {graph_type} {node}: None")
     
@@ -832,52 +826,50 @@ class HardwareModel:
 
     def update_execution_time_vitis(self, clk_period_opt=True):
         start_time = time.time()
-        self.circuit_model.update_uarch_parameters()
-        self.circuit_model.create_constraints_cvx(self.scale_cvx)
+
+        clk_period_var = self.circuit_model.tech_model.base_params.clk_period if self.cfg["args"]["solver"] == "cvxpy" else cp.Variable(pos=True)
         
 
         # if our performance not that sensitive to frequency, just hold frequency constant
         if not clk_period_opt or self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.logic_amdahl_limit] > 10:
             logger.info(f"holding frequency constant because logic_amdahl_limit > 10")
-            clk_period_constraints = [self.circuit_model.clk_period_cvx == self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.clk_period]]
+            clk_period_constraints = [clk_period_var == self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.clk_period]]
         else:
             logger.info(f"allowing frequency to vary because logic_amdahl_limit <= 10")
-            clk_period_constraints = self.circuit_model.constraints_cvx
+            clk_period_constraints = self.circuit_model.constraints
         
-        for constr in clk_period_constraints:
-            log_info(f"clock period constraint final: {constr}")
-        logger.info(f"time to create constraints cvx: {time.time()-start_time}")
+        logger.info(f"time to create constraints: {time.time()-start_time}")
         start_time = time.time()
-        #prob = cp.Problem(cp.Minimize(self.graph_delays_cvx[self.top_block_name]), self.constr_cvx+clk_period_constraints)
-        prob = cp.Problem(cp.Minimize(self.circuit_model.clk_period_cvx), clk_period_constraints)
+        prob = cp.Problem(cp.Minimize(clk_period_var), clk_period_constraints)
         prob.solve()
-        if DEBUG:
-            self.print_node_arrivals()
-        #self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.node_arrivals_end] = self.graph_delays_cvx[self.top_block_name].value / self.scale_cvx
+        self.print_node_arrivals()
+        #self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.node_arrivals_end] = self.graph_delays[self.top_block_name].value
         logger.info(f"time to update execution time with cvxpy: {time.time()-start_time}")
 
+        self.circuit_model.tech_model.base_params.set_symbol_value(self.circuit_model.tech_model.base_params.clk_period, clk_period_var.value)
+
         self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.node_arrivals_end] = self.calculate_block_vectors(self.top_block_name)
-        return self.circuit_model.tech_model.base_params.node_arrivals_end
+        retval = self.circuit_model.tech_model.base_params.node_arrivals_end if self.cfg["args"]["solver"] == "cvxpy" else self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.node_arrivals_end]
+        return retval
 
     def calculate_block_vectors(self, top_block_name):
-        self.circuit_model.update_uarch_parameters()
         logger.info("calculating block vectors")
         self.block_vectors = {}
         for basic_block_name in self.scheduled_dfgs:
             self.block_vectors[basic_block_name] = {}
         self.block_vectors[top_block_name]["top"] = self.calculate_block_vector_basic_block(top_block_name, "full", self.scheduled_dfgs[top_block_name])
-        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.logic_sensitivity] = self.block_vectors[top_block_name]["top"].sensitivity["logic"]
-        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.logic_resource_sensitivity] = self.block_vectors[top_block_name]["top"].sensitivity["logic_resource"]
-        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.logic_amdahl_limit] = self.block_vectors[top_block_name]["top"].amdahl_limit["logic"]
-        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.logic_resource_amdahl_limit] = self.block_vectors[top_block_name]["top"].amdahl_limit["logic_resource"]
-        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.interconnect_sensitivity] = self.block_vectors[top_block_name]["top"].sensitivity["interconnect"]
-        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.interconnect_resource_sensitivity] = self.block_vectors[top_block_name]["top"].sensitivity["interconnect_resource"]
-        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.interconnect_amdahl_limit] = self.block_vectors[top_block_name]["top"].amdahl_limit["interconnect"]
-        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.interconnect_resource_amdahl_limit] = self.block_vectors[top_block_name]["top"].amdahl_limit["interconnect_resource"]
-        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.memory_sensitivity] = self.block_vectors[top_block_name]["top"].sensitivity["memory"]
-        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.memory_resource_sensitivity] = self.block_vectors[top_block_name]["top"].sensitivity["memory_resource"]
-        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.memory_amdahl_limit] = self.block_vectors[top_block_name]["top"].amdahl_limit["memory"]
-        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.memory_resource_amdahl_limit] = self.block_vectors[top_block_name]["top"].amdahl_limit["memory_resource"]
+        self.circuit_model.tech_model.base_params.set_symbol_value(self.circuit_model.tech_model.base_params.logic_sensitivity, sim_util.xreplace_safe(self.block_vectors[top_block_name]["top"].sensitivity["logic"], self.circuit_model.tech_model.base_params.tech_values))
+        self.circuit_model.tech_model.base_params.set_symbol_value(self.circuit_model.tech_model.base_params.logic_resource_sensitivity, sim_util.xreplace_safe(self.block_vectors[top_block_name]["top"].sensitivity["logic_resource"], self.circuit_model.tech_model.base_params.tech_values))
+        self.circuit_model.tech_model.base_params.set_symbol_value(self.circuit_model.tech_model.base_params.logic_amdahl_limit, sim_util.xreplace_safe(self.block_vectors[top_block_name]["top"].amdahl_limit["logic"], self.circuit_model.tech_model.base_params.tech_values))
+        self.circuit_model.tech_model.base_params.set_symbol_value(self.circuit_model.tech_model.base_params.logic_resource_amdahl_limit, sim_util.xreplace_safe(self.block_vectors[top_block_name]["top"].amdahl_limit["logic_resource"], self.circuit_model.tech_model.base_params.tech_values))
+        self.circuit_model.tech_model.base_params.set_symbol_value(self.circuit_model.tech_model.base_params.interconnect_sensitivity, sim_util.xreplace_safe(self.block_vectors[top_block_name]["top"].sensitivity["interconnect"], self.circuit_model.tech_model.base_params.tech_values))
+        self.circuit_model.tech_model.base_params.set_symbol_value(self.circuit_model.tech_model.base_params.interconnect_resource_sensitivity, sim_util.xreplace_safe(self.block_vectors[top_block_name]["top"].sensitivity["interconnect_resource"], self.circuit_model.tech_model.base_params.tech_values))
+        self.circuit_model.tech_model.base_params.set_symbol_value(self.circuit_model.tech_model.base_params.interconnect_amdahl_limit, sim_util.xreplace_safe(self.block_vectors[top_block_name]["top"].amdahl_limit["interconnect"], self.circuit_model.tech_model.base_params.tech_values))
+        self.circuit_model.tech_model.base_params.set_symbol_value(self.circuit_model.tech_model.base_params.interconnect_resource_amdahl_limit, sim_util.xreplace_safe(self.block_vectors[top_block_name]["top"].amdahl_limit["interconnect_resource"], self.circuit_model.tech_model.base_params.tech_values))
+        self.circuit_model.tech_model.base_params.set_symbol_value(self.circuit_model.tech_model.base_params.memory_sensitivity, sim_util.xreplace_safe(self.block_vectors[top_block_name]["top"].sensitivity["memory"], self.circuit_model.tech_model.base_params.tech_values))
+        self.circuit_model.tech_model.base_params.set_symbol_value(self.circuit_model.tech_model.base_params.memory_resource_sensitivity, sim_util.xreplace_safe(self.block_vectors[top_block_name]["top"].sensitivity["memory_resource"], self.circuit_model.tech_model.base_params.tech_values))
+        self.circuit_model.tech_model.base_params.set_symbol_value(self.circuit_model.tech_model.base_params.memory_amdahl_limit, sim_util.xreplace_safe(self.block_vectors[top_block_name]["top"].amdahl_limit["memory"], self.circuit_model.tech_model.base_params.tech_values))
+        self.circuit_model.tech_model.base_params.set_symbol_value(self.circuit_model.tech_model.base_params.memory_resource_amdahl_limit, sim_util.xreplace_safe(self.block_vectors[top_block_name]["top"].amdahl_limit["memory_resource"], self.circuit_model.tech_model.base_params.tech_values))
 
         if DEBUG:
             self.print_block_vectors()
@@ -890,7 +882,7 @@ class HardwareModel:
             base_delay = self.block_vectors[basic_block_name][graph_type][edge].delay if op_type == "all" else self.block_vectors[basic_block_name][graph_type][edge].bound_factor[op_type]
             # eps is zero unless we are calculating sensitivity
             percent_add = eps * self.block_vectors[basic_block_name][graph_type][edge].sensitivity[op_type] if op_type != "all" else eps
-            G_new.edges[edge]["weight"] = (1+percent_add) * base_delay
+            G_new.edges[edge]["weight"] = sim_util.xreplace_safe((1+percent_add) * base_delay, self.circuit_model.tech_model.base_params.tech_values)
         return G_new
 
     def log_all_top_vectors(self):
@@ -940,7 +932,7 @@ class HardwareModel:
 
     def calculate_top_vector(self, basic_block_name, graph_type, dfg, calls):
         eps = 1e-2
-        vector_top = BlockVector()
+        vector_top = BlockVector(self.circuit_model.tech_model.base_params.tech_values)
         vector_top.calls = calls
         iso_op_type_graphs = {}
         # calculate bound factor and delay
@@ -975,14 +967,16 @@ class HardwareModel:
                 crit_path_eps += self.block_vectors[basic_block_name][graph_type][(crit_path[i], crit_path[i+1])].delay * (1+eps*self.block_vectors[basic_block_name][graph_type][(crit_path[i], crit_path[i+1])].sensitivity[op_type])
             log_info(f"crit path eps for {op_type}: {crit_path_eps}")
             log_info(f"crit path delay for {op_type}: {vector_top.delay}")
-            vector_top.sensitivity[op_type] = 0 if vector_top.delay == 0 else (crit_path_eps - vector_top.delay) / (eps * vector_top.delay)
-            assert vector_top.sensitivity[op_type] >= 0-eps and vector_top.sensitivity[op_type] <= 1+eps, f"sensitivity for {op_type} is {vector_top.sensitivity[op_type]}"
+            vector_top.sensitivity[op_type] = 0 if sim_util.xreplace_safe(vector_top.delay, self.circuit_model.tech_model.base_params.tech_values) == 0 else (crit_path_eps - vector_top.delay) / (eps * vector_top.delay)
+            sensitivity_value = sim_util.xreplace_safe(vector_top.sensitivity[op_type], self.circuit_model.tech_model.base_params.tech_values)
+            assert sensitivity_value >= 0-eps and sensitivity_value <= 1+eps, f"sensitivity for {op_type} is {sensitivity_value}"
         vector_top.normalize_bound_factor()
         log_info(f"top vector for {basic_block_name} {graph_type}: {str(vector_top)}")
-        if vector_top.delay != 0:
-            if not(1-eps <= sum(vector_top.normalized_bound_factor.values()) <= 6+eps):
+        if sim_util.xreplace_safe(vector_top.delay, self.circuit_model.tech_model.base_params.tech_values) != 0:
+            sum_normalized_bound_factor = sim_util.xreplace_safe(sum(vector_top.normalized_bound_factor.values()), self.circuit_model.tech_model.base_params.tech_values)
+            if not(1-eps <= sum_normalized_bound_factor <= 6+eps):
                 self.log_all_top_vectors()
-                assert False, f"sum of normalized bound factors for {basic_block_name} {graph_type} is {sum(vector_top.normalized_bound_factor.values())}"
+                assert False, f"sum of normalized bound factors for {basic_block_name} {graph_type} is {sum_normalized_bound_factor}"
 
         return vector_top
 
@@ -1032,10 +1026,11 @@ class HardwareModel:
 
     def calculate_block_vector_edge(self, src, dst, basic_block_name, graph_type, dfg, resource_delays_only=False):
         fn = dfg.nodes[src]["function"]
-        vector = BlockVector()
+        vector = BlockVector(self.circuit_model.tech_model.base_params.tech_values)
         if dfg.edges[src, dst]["resource_edge"]:
             # TODO add interconnect resource dependency case
-            vector.delay = self.circuit_model.clk_period_cvx.value
+            vector.delay = sim_util.xreplace_safe(self.circuit_model.tech_model.base_params.clk_period, self.circuit_model.tech_model.base_params.tech_values)
+            log_info(f"clk period: {vector.delay}")
             if fn in ["Buf", "MainMem"]:
                 vector.bound_factor["memory_resource"] = vector.delay
                 vector.sensitivity["memory_resource"] = 1
@@ -1049,7 +1044,7 @@ class HardwareModel:
                 dst_for_wire = dfg.nodes[src]["dst_node"]
                 rsc_edge = self.get_rsc_edge((src_for_wire, dst_for_wire), dfg)
                 if rsc_edge in self.circuit_model.edge_to_nets:
-                    vector.delay = self.circuit_model.wire_delay(rsc_edge)
+                    vector.delay = sim_util.xreplace_safe(self.circuit_model.wire_delay(rsc_edge), self.circuit_model.tech_model.base_params.tech_values)
                     log_info(f"added wire delay {vector.delay} for {rsc_edge}, which has length {self.circuit_model.wire_length(rsc_edge)}")
                 else:
                     vector.delay = 0
@@ -1073,209 +1068,109 @@ class HardwareModel:
         return vector
 
 
-    def calculate_execution_time_vitis(self, top_block_name, clk_period_opt=False, form_dfg=True, log_top_vectors=False):
+    def calculate_execution_time_vitis(self, top_block_name, form_dfg=True, log_top_vectors=False, clk_period_opt=False):
         if not form_dfg:
             return self.update_execution_time_vitis(clk_period_opt=clk_period_opt)
-        self.circuit_model.update_uarch_parameters()
         #self.node_arrivals = {}
-        self.node_arrivals_cvx = {}
+        self.node_arrivals = {}
         self.graph_delays = {}
-        self.graph_delays_cvx = {}
-        self.constr_cvx = []
-
-        self.scale_cvx = 1e-6
+        self.constraints = []
 
         log_info(f"scheduled dfgs: {self.scheduled_dfgs.keys()}")
         start_time = time.time()
 
         for basic_block_name in self.scheduled_dfgs:
             #self.node_arrivals[basic_block_name] = {"full": {}, "loop_1x": {}, "loop_2x": {}}
-            self.node_arrivals_cvx[basic_block_name] = {"full": {}, "loop_1x": {}, "loop_2x": {}}
+            self.node_arrivals[basic_block_name] = {"full": {}, "loop_1x": {}, "loop_2x": {}}
 
-        self.graph_delays_cvx[top_block_name] = self.calculate_execution_time_vitis_recursive(top_block_name, self.scheduled_dfgs[top_block_name], graph_end_node=f"graph_end_{top_block_name}")
+        self.graph_delays[top_block_name] = self.calculate_execution_time_vitis_recursive(top_block_name, self.scheduled_dfgs[top_block_name], graph_end_node=f"graph_end_{top_block_name}")
 
-        if not clk_period_opt:
-            clk_period_constr = [self.circuit_model.clk_period_cvx== self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.clk_period]]
-        else:
-            self.circuit_model.create_constraints_cvx(self.scale_cvx)
-            if self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.logic_amdahl_limit] > 10:
-                logger.info(f"holding frequency constant because logic_amdahl_limit > 10")
-                clk_period_constr = [self.circuit_model.clk_period_cvx == self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.clk_period]]
+        self.circuit_model.create_constraints()
+        constr_to_add = []
+        if self.cfg['args']['solver'] == "cvxpy":
+            if not clk_period_opt:
+                constr_to_add.append(Constraint(self.circuit_model.tech_model.base_params.clk_period == self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.clk_period], "clk_period == clk_period_tech_value"))
             else:
-                logger.info(f"allowing frequency to vary because logic_amdahl_limit <= 10")
-                clk_period_constr = self.circuit_model.constraints_cvx
-        for constr in self.constr_cvx:
-            log_info(f"constraint final: {constr}")
-        for constr in clk_period_constr:
-            log_info(f"clock period constraint final: {constr}")
-        for node in self.node_arrivals_cvx[top_block_name]["full"]:
-            log_info(f"node arrivals cvx var for {top_block_name} full {node}: {self.node_arrivals_cvx[top_block_name]['full'][node]}")
+                constr_to_add += self.circuit_model.constraints
+        if hasattr(self.circuit_model.tech_model, "param_constant_constraints"):
+            constr_to_add += self.circuit_model.tech_model.param_constant_constraints
+        opt_constraints = self.constraints + constr_to_add
+        for constr in opt_constraints:
+            log_info(f"constraint final: {constr.constraint}")
+        log_info(f"objective: {self.graph_delays[top_block_name]}")
+        for node in self.node_arrivals[top_block_name]["full"]:
+            log_info(f"node arrivals cvx var for {top_block_name} full {node}: {self.node_arrivals[top_block_name]['full'][node]}")
         logger.info(f"time to create cvxpy problem: {time.time()-start_time}")
         start_time = time.time()
-        #prob = cp.Problem(cp.Minimize(self.graph_delays_cvx[top_block_name]), self.constr_cvx+clk_period_constr)
-        prob = cp.Problem(cp.Minimize(self.circuit_model.clk_period_cvx), clk_period_constr)
-        prob.solve()
+        prob = cp.Problem(cp.Minimize(self.graph_delays[top_block_name]), [constr.constraint for constr in opt_constraints])
+        prob.solve(gp=True) # this hasn't been working for non cvxpy for whatever reason
         logger.info(f"time to solve cvxpy problem: {time.time()-start_time}")
-        if DEBUG:
-            self.print_node_arrivals()
+        logger.info(f"cvxpy problem status: {prob.status}")
+        self.print_node_arrivals()
 
-        self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.node_arrivals_end] = self.calculate_block_vectors(top_block_name)
+        end_arrival = float(self.calculate_block_vectors(top_block_name))
+        
+        delay_to_use = self.graph_delays[top_block_name] if self.cfg["args"]["solver"] == "cvxpy" else end_arrival
+        if self.cfg["args"]["solver"] == "cvxpy":
+            setattr(self.circuit_model.tech_model.base_params, "node_arrivals_end", self.graph_delays[top_block_name]) # have to actually overwrite the variable itself otherwise it will mess up the optimization later on
+        self.circuit_model.tech_model.base_params.set_symbol_value(self.circuit_model.tech_model.base_params.node_arrivals_end, sim_util.xreplace_safe(delay_to_use, self.circuit_model.tech_model.base_params.tech_values))
         if log_top_vectors:
             self.log_all_top_vectors()
-        if self.cfg["args"]["solver"] == "cvxpy":
-            self.graph_delays_cvx[top_block_name].value = self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.node_arrivals_end]
-            return self.graph_delays_cvx[top_block_name].value
+        retval = self.circuit_model.tech_model.base_params.node_arrivals_end if self.cfg["args"]["solver"] == "cvxpy" else self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.node_arrivals_end]
+        return retval
+
+    def handle_pred_delay(self, pred_delay):
+        if isinstance(pred_delay, sp.Expr):
+            return sim_util.xreplace_safe(pred_delay, self.circuit_model.tech_model.base_params.tech_values)
         else:
-            return self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.node_arrivals_end]
+            return pred_delay
 
     def calculate_execution_time_vitis_recursive(self, basic_block_name, dfg, graph_end_node="graph_end", graph_type="full", resource_delays_only=False):
         log_info(f"calculating execution time for {basic_block_name} with graph end node {graph_end_node}")
         for node in dfg.nodes:
             #self.node_arrivals[basic_block_name][graph_type][node] = sp.symbols(f"node_arrivals_{basic_block_name}_{graph_type}_{node}")
-            self.node_arrivals_cvx[basic_block_name][graph_type][node] = cp.Variable(pos=True) 
+            self.node_arrivals[basic_block_name][graph_type][node] = cp.Variable(pos=True) 
         for node in dfg.nodes:   
-            for pred in dfg.predecessors(node):
-                pred_delay_cvx = 0.0
+            preds = list(dfg.predecessors(node))
+            for pred in preds:
+                pred_delay = 0.0
                 if dfg.edges[pred, node]["resource_edge"]:
                     if dfg.nodes[pred]["function"] == "II":
                         loop_name = dfg.nodes[pred]["loop_name"]
-                        delay_1x_cvx = self.calculate_execution_time_vitis_recursive(basic_block_name, self.loop_1x_graphs[loop_name][True], graph_end_node="loop_end_1x", graph_type="loop_1x", resource_delays_only=True)
-                        #delay_2x, delay_2x_cvx = self.calculate_execution_time_vitis_recursive(basic_block_name, self.loop_2x_graphs[basic_block_name], graph_end_node="loop_end_2x", graph_type="loop_2x")
+                        delay_1x = self.calculate_execution_time_vitis_recursive(basic_block_name, self.loop_1x_graphs[loop_name][True], graph_end_node="loop_end_1x", graph_type="loop_1x", resource_delays_only=True)
                         # TODO add dependence of II on loop-carried dependency
-                        #pred_delay = delay_1x * (dfg.nodes[pred]["count"]-1)
-                        #print(dfg.nodes[pred]["count"])
-                        pred_delay_cvx = delay_1x_cvx * (int(dfg.nodes[pred]["count"])-1)
+                        pred_delay = delay_1x * (int(dfg.nodes[pred]["count"])-1)
                     else:
-                        #pred_delay = self.circuit_model.tech_model.base_params.clk_period # convert to ns
-                        pred_delay_cvx = self.circuit_model.clk_period_cvx * self.scale_cvx
+                        pred_delay = self.circuit_model.tech_model.base_params.clk_period
                 elif dfg.nodes[pred]["function"] == "Call": # if function call, recursively calculate its delay 
                     if dfg.nodes[pred]["call_function"] not in self.graph_delays:
-                        self.graph_delays_cvx[dfg.nodes[pred]["call_function"]] = self.calculate_execution_time_vitis_recursive(dfg.nodes[pred]["call_function"], self.scheduled_dfgs[dfg.nodes[pred]["call_function"]], graph_end_node=f"graph_end_{dfg.nodes[pred]['call_function']}")
-                    #pred_delay = self.graph_delays[dfg.nodes[pred]["call_function"]]
-                    pred_delay_cvx = self.graph_delays_cvx[dfg.nodes[pred]["call_function"]]
+                        self.graph_delays[dfg.nodes[pred]["call_function"]] = self.calculate_execution_time_vitis_recursive(dfg.nodes[pred]["call_function"], self.scheduled_dfgs[dfg.nodes[pred]["call_function"]], graph_end_node=f"graph_end_{dfg.nodes[pred]['call_function']}")
+                    pred_delay = self.graph_delays[dfg.nodes[pred]["call_function"]]
                 elif not resource_delays_only:
                     if dfg.nodes[pred]["function"] == "Wire":
                         src = dfg.nodes[pred]["src_node"]
                         dst = dfg.nodes[pred]["dst_node"]
                         rsc_edge = self.get_rsc_edge((src, dst), dfg)
                         if rsc_edge in self.circuit_model.edge_to_nets:
-                            pred_delay_cvx = self.circuit_model.wire_delay(rsc_edge) * self.scale_cvx
+                            pred_delay = self.circuit_model.wire_delay(rsc_edge)
                             log_info(f"added wire delay {self.circuit_model.wire_delay(rsc_edge)} for edge {rsc_edge}")
                         else:
                             log_info(f"no wire delay for edge {rsc_edge}")
                     else:
-                        #pred_delay = self.circuit_model.symbolic_latency_wc[dfg.nodes[pred]["function"]]()
-                        pred_delay_cvx = self.circuit_model.uarch_lat_cvx[dfg.nodes[pred]["function"]] * self.scale_cvx
-                log_info(f"pred_delay_cvx: {pred_delay_cvx}")
-                if isinstance(pred_delay_cvx, cp.Expression):
-                    log_info(f"pred_delay_cvx value: {pred_delay_cvx.value}")
+                        pred_delay = self.circuit_model.symbolic_latency_wc[dfg.nodes[pred]["function"]]() 
+                log_info(f"pred_delay: {pred_delay}")
+                if isinstance(pred_delay, cp.Expression):
+                    log_info(f"pred_delay value: {pred_delay.value}")
                 #log_info(f"pred_delay: {pred_delay}")
-                assert pred_delay_cvx is not None and not isinstance(pred_delay_cvx, sp.Expr), f"pred_delay_cvx is {pred_delay_cvx}, type: {type(pred_delay_cvx)}"
-                #self.constraints.append(self.node_arrivals[basic_block_name][graph_type][node] >= self.node_arrivals[basic_block_name][graph_type][pred] + pred_delay)
+                assert pred_delay is not None, "pred delay is none"
 
                 #log_info(f"constraint: {self.node_arrivals[basic_block_name][graph_type][node] >= self.node_arrivals[basic_block_name][graph_type][pred] + pred_delay}")
-                self.constr_cvx.append(self.node_arrivals_cvx[basic_block_name][graph_type][node] >= self.node_arrivals_cvx[basic_block_name][graph_type][pred] + pred_delay_cvx)
-                log_info(f"constraint cvx: {self.node_arrivals_cvx[basic_block_name][graph_type][node] >= self.node_arrivals_cvx[basic_block_name][graph_type][pred] + pred_delay_cvx}")
-        return self.node_arrivals_cvx[basic_block_name][graph_type][graph_end_node]
-
-    def calculate_execution_time(self, symbolic):
-        if symbolic:
-            # reset the constraints
-            self.circuit_model.tech_model.create_constraints(self.model_cfg["scaling_mode"])
-            #self.circuit_model.set_uarch_parameters()
-            #self.circuit_model.set_uarch_constraints()
-            # take symbolic max over the critical paths
-            execution_time = 0
-            node_arrivals = {}
-            node_arrivals_cvx = {}
-            constr_cvx = []
-            for node in self.scheduled_dfg.nodes:
-                if node == "end":
-                    node_arrivals[node] = self.circuit_model.tech_model.base_params.node_arrivals_end
-                    node_arrivals_cvx[node] = cp.Variable()
-                elif len(list(self.scheduled_dfg.predecessors(node))) == 0:
-                    node_arrivals[node] = 0
-                    node_arrivals_cvx[node] = 0
-                    continue
-                else:
-                    node_arrivals[node] = sp.symbols(f"node_arrivals_{node}")
-                    node_arrivals_cvx[node] = cp.Variable()
-                for pred in self.scheduled_dfg.predecessors(node):
-                    assert self.scheduled_dfg.nodes[pred]["function"] != "nop"
-                    if self.scheduled_dfg.edges[pred, node]["resource_edge"]:
-                        pred_delay = self.circuit_model.tech_model.base_params.clk_period # convert to ns
-                    elif self.scheduled_dfg.nodes[pred]["function"] in ["Buf", "MainMem"]:
-                        rsc_name = self.scheduled_dfg.nodes[pred]["library"][self.scheduled_dfg.nodes[pred]["library"].find("__")+1:]
-                        pred_delay = self.circuit_model.symbolic_latency_wc[self.scheduled_dfg.nodes[pred]["function"]]()[rsc_name]
-                    else:
-                        pred_delay = self.circuit_model.symbolic_latency_wc[self.scheduled_dfg.nodes[pred]["function"]]()
-                    rsc_edge = self.get_rsc_edge((pred, node), self.scheduled_dfg)
-                    if rsc_edge in self.circuit_model.edge_to_nets:
-                        pred_delay += self.circuit_model.wire_delay(rsc_edge, symbolic)
-                    self.constraints.append(Constraint(node_arrivals[node] >= node_arrivals[pred] + pred_delay, "node_arrivals[node] >= node_arrivals[pred] + pred_delay"))
-                    constr_cvx.append(node_arrivals_cvx[node] >= node_arrivals_cvx[pred] + sim_util.xreplace_safe(pred_delay, self.circuit_model.tech_model.base_params.tech_values))
-            obj = node_arrivals_cvx["end"]
-            prob = cp.Problem(cp.Minimize(obj), constr_cvx)
-            prob.solve()
-            for node in node_arrivals:
-                if type(node_arrivals_cvx[node]) != int:
-                    self.circuit_model.tech_model.base_params.tech_values[node_arrivals[node]] = node_arrivals_cvx[node].value
-            print(f"cvxpy symbolic execution time: {prob.value}")
-            self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.node_arrivals_end] = self.scheduled_dfg.nodes["end"]["start_time"]
-            execution_time = self.circuit_model.tech_model.base_params.node_arrivals_end
-            print(f"at the end of symbolic execution time calc, there are {len(self.circuit_model.tech_model.constraints)} constraints")
-        else:
-            execution_time = self.scheduled_dfg.nodes["end"]["start_time"]
-        return execution_time
-    
-    def calculate_passive_energy(self, total_execution_time, symbolic):
-        passive_power = 0
-        for node in self.netlist:
-            data = self.netlist.nodes[node]
-            log_info(f"calculating passive power for node {node}, data: {data}")
-            if node == "end" or data["function"] == "nop": continue
-            if data["function"] == "Buf" or data["function"] == "MainMem":
-                rsc_name = data["library"][data["library"].find("__")+1:]
-                if symbolic:
-                    passive_power += self.circuit_model.symbolic_power_passive[data["function"]]()[rsc_name]
-                else:
-                    passive_power += self.circuit_model.memories[rsc_name]["Standby leakage per bank(mW)"] * 1e6 # convert from mW to nW
-            else:
-                if symbolic:
-                    passive_power += self.circuit_model.symbolic_power_passive[data["function"]]()
-                else:
-                    passive_power += self.circuit_model.circuit_values["passive_power"][data["function"]]
-                log_info(f"(passive power) {data['function']}: {self.circuit_model.circuit_values['passive_power'][data['function']]}")
-        total_passive_energy = passive_power * total_execution_time*1e-9
-        return total_passive_energy
-        
-    def calculate_active_energy(self, symbolic):
-        total_active_energy = 0
-        for node in self.scheduled_dfg:
-            data = self.scheduled_dfg.nodes[node]
-            if node == "end" or data["function"] == "nop": continue
-            if data["function"] == "Buf" or data["function"] == "MainMem":
-                rsc_name = data["library"][data["library"].find("__")+1:]
-                if symbolic:
-                    total_active_energy += self.circuit_model.symbolic_energy_active[data["function"]]()[rsc_name]
-                else:
-                    if data["module"].find("wport") != -1:
-                        total_active_energy += self.circuit_model.memories[rsc_name]["Dynamic write energy (nJ)"]
-                    else:
-                        total_active_energy += self.circuit_model.memories[rsc_name]["Dynamic read energy (nJ)"]
-            else:
-                if symbolic:
-                    total_active_energy += self.circuit_model.symbolic_energy_active[data["function"]]()
-                else:
-                    total_active_energy += self.circuit_model.circuit_values["dynamic_energy"][data["function"]]
-                log_info(f"(active energy) {data['function']}: {total_active_energy}")
-        for edge in self.scheduled_dfg.edges:
-            rsc_edge = self.get_rsc_edge(edge, self.scheduled_dfg)
-            if rsc_edge in self.circuit_model.edge_to_nets:
-                wire_energy = self.circuit_model.wire_energy(rsc_edge, symbolic)
-                log_info(f"(wire energy) {edge}: {wire_energy} nJ")
-                total_active_energy += wire_energy
-        return total_active_energy
+                pred_delay = self.handle_pred_delay(pred_delay)
+                constr_to_add = self.node_arrivals[basic_block_name][graph_type][node] >= self.node_arrivals[basic_block_name][graph_type][pred] + pred_delay
+                self.constraints.append(Constraint(constr_to_add, "node_arrivals[node] >= node_arrivals[pred] + pred_delay"))
+            if len(preds) == 0:
+                self.circuit_model.tech_model.base_params.set_symbol_value(self.node_arrivals[basic_block_name][graph_type][node], 0, dont_save_to_tech_values=True)
+        return self.node_arrivals[basic_block_name][graph_type][graph_end_node]
 
     def save_obj_vals(self, execution_time, execution_time_override=False, execution_time_override_val=0):
         if self.model_cfg["model_type"] == "bulk_bsim4":
@@ -1516,6 +1411,7 @@ class HardwareModel:
             "gate length": "Gate Length over generations (m)",
             "gate width": "Gate Width over generations (m)",
             "E_act_inv": "Dynamic Energy per Inverter over generations (J)",
+            "R_avg_inv": "Inverter average resistance over generations (Ohm)",
             "P_pass_inv": "Passive Power per Inverter over generations (W)",
             "subthreshold leakage current": "Subthreshold Leakage Current over generations (nA)",
             "long channel threshold voltage": "Long Channel Threshold Voltage (V)",
@@ -1668,18 +1564,14 @@ class HardwareModel:
                 self.sensitivities[param] = sim_util.xreplace_safe(d_obj_d_param * (self.circuit_model.tech_model.base_params.tech_values[param] / sim_util.xreplace_safe(obj, self.circuit_model.tech_model.base_params.tech_values)), self.circuit_model.tech_model.base_params.tech_values)
         logger.info(f"sensitivities: {self.sensitivities}")
 
-    def calculate_objective(self, clk_period_opt=False, form_dfg=True, do_sensitivity_analysis=False, log_top_vectors=False):
+    def calculate_objective(self, form_dfg=True, do_sensitivity_analysis=False, log_top_vectors=False, clk_period_opt=False):
         start_time = time.time()
-        self.constraints = []
         if self.hls_tool == "vitis":
-            self.execution_time = self.calculate_execution_time_vitis(self.top_block_name, clk_period_opt, form_dfg, log_top_vectors=log_top_vectors)
+            self.execution_time = self.calculate_execution_time_vitis(self.top_block_name, form_dfg, log_top_vectors=log_top_vectors, clk_period_opt=clk_period_opt)
             self.total_passive_energy = self.calculate_passive_energy_vitis(self.execution_time)
             self.total_active_energy = self.calculate_active_energy_vitis()
-        else: # catapult
-            # always use symbolic calculation. If you want concrete value later then sub tech values in.
-            self.execution_time = self.calculate_execution_time(symbolic=True)
-            self.total_passive_energy = self.calculate_passive_energy(self.execution_time, symbolic=True)
-            self.total_active_energy = self.calculate_active_energy(symbolic=True)
+        else:
+            raise ValueError(f"HLS tool {self.hls_tool} not supported")
         self.save_obj_vals(self.execution_time)
         if do_sensitivity_analysis:
             self.calculate_sensitivity_analysis()
@@ -1690,7 +1582,7 @@ class HardwareModel:
         sub_exprs = {}
         for key in self.obj_sub_exprs:
             if not isinstance(self.obj_sub_exprs[key], float):
-                sub_exprs[key] = float(self.obj_sub_exprs[key].xreplace(self.circuit_model.tech_model.base_params.tech_values))
+                sub_exprs[key] = float(sim_util.xreplace_safe(self.obj_sub_exprs[key], self.circuit_model.tech_model.base_params.tech_values))
             else:   
                 sub_exprs[key] = self.obj_sub_exprs[key]
         print(f"{message}\n {self.obj_fn}: {obj}, sub expressions: {sub_exprs}")
