@@ -9,6 +9,7 @@ import logging
 import shutil
 import subprocess
 import copy
+import shlex
 import networkx as nx
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -57,6 +58,10 @@ class Codesign:
 
         ## save the root directory that the program started in
         self.codesign_root_dir = os.getcwd()
+
+        ## parse the university name from the setup scripts folder
+        with open(f"{self.codesign_root_dir}/setup_scripts/university_name.txt", "r") as f:
+            self.university_name = f.read().strip()
 
         self.hls_tool = self.cfg["args"]["hls_tool"]
         self.benchmark = f"src/benchmarks/{self.hls_tool}/{self.cfg['args']['benchmark']}"
@@ -613,7 +618,7 @@ class Codesign:
         sim_util.change_clk_period_in_script(f"{save_dir}/{self.hls_tcl_script}", self.clk_period, self.cfg["args"]["hls_tool"])
 
         if setup:
-            self.max_dsp = dsp_usage
+            self.max_dsp = dsp_usage + 2
             self.max_latency = latency
         elif iteration_count == 0:
             self.max_speedup_factor = float(latency / self.max_latency)
@@ -635,7 +640,34 @@ class Codesign:
 
 
         import time
-        command = ["vitis_hls", "-f", "tcl_script_new.tcl"] if self.cfg["args"]["arch_opt_pipeline"] == "scalehls" else ["vitis_hls", "hls_new.tcl", self.benchmark_name, "syn", "-l", "syn.log"]
+        # Build the path to the university-specific setup script
+        arch_opt_pipeline = self.cfg["args"]["arch_opt_pipeline"]
+        arch_opt_pipeline_capitalized = arch_opt_pipeline.capitalize()  # "scalehls" -> "Scalehls", "streamhls" -> "Streamhls"
+        # Handle capitalization: "scalehls" -> "ScaleHLS", "streamhls" -> "StreamHLS"
+        if arch_opt_pipeline == "scalehls":
+            arch_opt_pipeline_capitalized = "ScaleHLS"
+        elif arch_opt_pipeline == "streamhls":
+            arch_opt_pipeline_capitalized = "StreamHLS"
+        
+        setup_script_path = os.path.join(
+            self.codesign_root_dir,
+            "setup_scripts",
+            f"{self.university_name}_environment",
+            f"{self.university_name}_vitis_{arch_opt_pipeline_capitalized}_setup.sh"
+        )
+        
+        # Build the base command
+        base_command = ["vitis_hls", "-f", "tcl_script_new.tcl"] if arch_opt_pipeline == "scalehls" else ["vitis_hls", "hls_new.tcl", self.benchmark_name, "syn", "-l", "syn.log"]
+        
+        # Convert command list to string for bash -c with proper shell escaping
+        command_str = " ".join(shlex.quote(arg) for arg in base_command)
+        
+        # Build the full command with source
+        full_command = [
+            'bash', '-c',
+            f'source {shlex.quote(setup_script_path)} && {command_str}'
+        ]
+        
         if self.checkpoint_controller.check_checkpoint("vitis", self.iteration_count) and not self.max_rsc_reached:
             start_time = time.time()
             # Clean up any existing Vitis HLS project directory to avoid stale blackbox file references
@@ -643,9 +675,10 @@ class Codesign:
             if os.path.exists(project_dir):
                 logger.info(f"Cleaning up existing Vitis HLS project directory: {project_dir}")
                 shutil.rmtree(project_dir)
+            logger.info(f"Sourcing setup script: {setup_script_path}")
             # Start the process and write output to vitis_hls.log
             with open("vitis_hls.log", "w") as logfile:
-                p = subprocess.Popen(command, stdout=logfile, stderr=subprocess.STDOUT, text=True)
+                p = subprocess.Popen(full_command, stdout=logfile, stderr=subprocess.STDOUT, text=True)
 
             completed_required_sections = False
             while True:
