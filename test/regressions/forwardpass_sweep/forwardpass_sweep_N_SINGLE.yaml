@@ -1,0 +1,13 @@
+benchmark_gemm_sweep_test_N_SINGLE:
+  base_cfg: vitis_test
+  args:
+    benchmark: gemmv
+    stop_at_checkpoint: pd
+    workload_size: 4
+
+benchmark_gemm_sweep_test_N_SINGLE:
+  base_cfg: vitis_test
+  args:
+    benchmark: gesummv
+    stop_at_checkpoint: pd
+    workload_size: 4

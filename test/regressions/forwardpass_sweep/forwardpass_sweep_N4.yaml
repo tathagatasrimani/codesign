@@ -40,9 +40,19 @@ benchmark_mvt_sweep_test_N4:
     stop_at_checkpoint: pd
     workload_size: 4
 
-## TODO: Add gemver
+benchmark_gemm_sweep_test_N4:
+  base_cfg: vitis_test
+  args:
+    benchmark: gemmv
+    stop_at_checkpoint: pd
+    workload_size: 4
 
-## TODO: Add gesummv
+benchmark_gemm_sweep_test_N4:
+  base_cfg: vitis_test
+  args:
+    benchmark: gesummv
+    stop_at_checkpoint: pd
+    workload_size: 4
 
 benchmark_atax_sweep_test_N4:
   base_cfg: vitis_test
