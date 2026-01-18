@@ -1,0 +1,54 @@
+benchmark_3mm_sweep_test_N64:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_3mm
+    stop_at_checkpoint: pd
+    workload_size: 64
+
+benchmark_2mm_sweep_test_N64:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_2mm
+    stop_at_checkpoint: pd
+    workload_size: 64
+
+benchmark_gemm_sweep_test_N64:
+  base_cfg: vitis_test
+  args:
+    benchmark: gemm
+    stop_at_checkpoint: pd
+    workload_size: 64
+
+benchmark_doitgen_sweep_test_N64:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_doitgen
+    stop_at_checkpoint: pd
+    workload_size: 64
+
+benchmark_bicg_sweep_test_N64:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_bicg
+    stop_at_checkpoint: pd
+    workload_size: 64
+
+benchmark_mvt_sweep_test_N64:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_mvt
+    stop_at_checkpoint: pd
+    workload_size: 64
+
+## TODO: Add gemver
+
+## TODO: Add gesummv
+
+benchmark_atax_sweep_test_N64:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_atax
+    stop_at_checkpoint: pd
+    workload_size: 64
+
+# TODO: Add trmm
