@@ -47,6 +47,9 @@ if [[ $FORCE_FULL -eq 1 ]]; then
         fi
     fi
 
+    ## automatically accept conda confirmations
+    sed -i 's|conda create -n streamhls python=3.11|conda create -n streamhls python=3.11 -y|' setup-env.sh
+
     source setup-env.sh
 
     ## ensure that the build uses all available CPU cores
