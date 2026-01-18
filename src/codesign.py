@@ -592,7 +592,7 @@ class Codesign:
         """
         Runs Vitis version of forward pass, updates the memory configuration, and logs the output.
         """
-        self.vitis_top_function = self.benchmark_name if not self.cfg["args"]["pytorch"] else "forward"
+        self.vitis_top_function = self.benchmark_name if not self.cfg["args"]["pytorch"] and self.cfg["args"]["arch_opt_pipeline"] != "streamhls" else "forward"
         self.scalehls_pipeline = "hida-pytorch-dse-pipeline" if self.cfg["args"]["pytorch"] else "scalehls-dse-pipeline"
 
         # prep before running scalehls
@@ -846,6 +846,10 @@ class Codesign:
         # calculate wire parasitics 
         # NOTE: we don't check the checkpoint status here because it is handled in the function call (see run_openroad variable)
         self.calculate_wire_parasitics()
+
+        ## log the scheduled_dfgs from hardware model
+        for basic_block_name in self.hw.scheduled_dfgs:
+            logger.info(f"Scheduled DFG for basic block {basic_block_name}:")
 
         ## create the obj equation 
         self.hw.calculate_objective(log_top_vectors=True)

@@ -1,2 +1,0 @@
-## This script sets up the environment for Vitis HLS to be used with StreamHLS preprocessing tools on CMU systems.
-source /afs/ece.cmu.edu/support/xilinx/xilinx.release/Vivado-2024.2/Vitis_HLS/2024.2/settings64.sh

@@ -1,2 +1,0 @@
-## This script sets up the environment for Vitis HLS to be used with ScaleHLS preprocessing tools on CMU systems.
-source /afs/ece.cmu.edu/support/xilinx/xilinx.release/Vivado-2022.1/Vitis_HLS/2022.1/settings64.sh

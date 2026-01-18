@@ -199,7 +199,7 @@ class HardwareModel:
         self.scheduled_dfgs = {}
         self.loop_1x_graphs = {}
         self.loop_2x_graphs = {}
-        self.top_block_name = args["benchmark"] if not args["pytorch"] else "forward"
+        self.top_block_name = args["benchmark"] if not args["pytorch"] and self.cfg["args"]["arch_opt_pipeline"] != "streamhls" else "forward"
 
         self.parasitic_graph = nx.DiGraph()
         self.symbolic_mem = {}

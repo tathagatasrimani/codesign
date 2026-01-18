@@ -43,13 +43,11 @@ class MergeNetlistsVitis:
 
         ## start with the top-level module
         if top_level_module_name not in submodules:
-            print(f"Error: Top-level module {top_level_module_name} does not exist in {current_directory}.")
-            return
+            raise ValueError(f"Error: Top-level module {top_level_module_name} does not exist in {current_directory}.")
 
         full_netlist = self.parse_module(current_directory, top_level_module_name)
         if full_netlist is None:
-            print(f"Error: Failed to parse the top-level module {top_level_module_name}.")
-            return
+            raise ValueError(f"Error: Failed to parse the top-level module {top_level_module_name}.")
         
         ## print out the visited modules
         #debug_print(f"Visited modules: {self.all_modules_visited}")
@@ -85,16 +83,12 @@ class MergeNetlistsVitis:
                 # Try with 's' suffix for file path only
                 netlist_file_path = os.path.join(current_directory, current_module + "s", f"{current_module}s_full_netlist.gml")
                 if not os.path.exists(netlist_file_path):
-                    print(f"Error: netlist file {netlist_file_path} does not exist.")
-                    exit(1)
-                    return None
+                    raise ValueError(f"Error: netlist file {netlist_file_path} does not exist.")
             if not os.path.exists(cross_module_edges_file_path):
                 # Try with 's' suffix for file path only
                 cross_module_edges_file_path = os.path.join(current_directory, current_module + "s", f"{current_module}s_cross_module_edges.json")
                 if not os.path.exists(cross_module_edges_file_path):
-                    print(f"Error: cross-module edges file {cross_module_edges_file_path} does not exist.")
-                    exit(1)
-                    return None
+                    raise ValueError(f"Error: cross-module edges file {cross_module_edges_file_path} does not exist.")
             return nx.read_gml(netlist_file_path)
 
         ## add module to the visited modules list
@@ -106,8 +100,7 @@ class MergeNetlistsVitis:
         if not os.path.exists(netlist_file_path):
             netlist_file_path = os.path.join(current_directory, current_module + "s", f"{current_module}s.verbose_netlist.gml")
             if not os.path.exists(netlist_file_path):
-                print(f"Error: netlist file {netlist_file_path} does not exist.")
-                exit(1)
+                raise ValueError(f"Error: netlist file {netlist_file_path} does not exist.")
             else:
                 current_module += "s"
 
@@ -120,8 +113,7 @@ class MergeNetlistsVitis:
         if not os.path.exists(modules_file_path):
             modules_file_path = os.path.join(current_directory, current_module + "s", f"{current_module}s.verbose_modules.json")
             if not os.path.exists(modules_file_path):
-                print(f"Error: Modules file {modules_file_path} does not exist.")
-                exit(1)
+                raise ValueError(f"Error: Modules file {modules_file_path} does not exist.")
 
         with open(modules_file_path, 'r') as mf:
             module_dependences = json.load(mf)
@@ -199,8 +191,7 @@ class MergeNetlistsVitis:
         if not os.path.exists(submodule_netlist_file):
             submodule_netlist_file = os.path.join(current_directory, submodule_name + "s", f"{submodule_name}s_full_netlist.gml")
             if not os.path.exists(submodule_netlist_file):
-                debug_print(f"Error: Submodule netlist file {submodule_netlist_file} does not exist.")
-                exit(1)
+                raise ValueError(f"Error: Submodule netlist file {submodule_netlist_file} does not exist.")
             else:
                 debug_print(f"Warning: Submodule {submodule_name} not found, adding s worked though:  {submodule_name}s")
                 submodule_name += "s"
@@ -212,8 +203,7 @@ class MergeNetlistsVitis:
         if not os.path.exists(module_instance_file):
             module_instance_file = os.path.join(current_directory, current_module + "s", f"{current_module}s.verbose_instance_names.json")
             if not os.path.exists(module_instance_file):
-                debug_print(f"Error: Instance to module file {module_instance_file} does not exist.")
-                exit(1)
+                raise ValueError(f"Error: Instance to module file {module_instance_file} does not exist.")
 
         with open(module_instance_file, 'r') as f:
             module_instance_mapping = json.load(f)
@@ -229,9 +219,7 @@ class MergeNetlistsVitis:
                 ## for example, grp_VITIS_LOOP_5859_1_proc31_fu_82 -> VITIS_LOOP_5859_1_proc31
                 curr_node_full_name = d.get('name')
                 if curr_node_full_name is None:
-                    debug_print(f"current node name full is None")
-                    exit(1)
-                    continue
+                    raise ValueError("Current node full name is None")
                 curr_node_submodule_name = '_'.join(curr_node_full_name.split('_')[1:-2])
                 debug_print(f"current node submodule name: {curr_node_submodule_name}")
 
@@ -255,9 +243,7 @@ class MergeNetlistsVitis:
             if edge_data is not None:
                 predecessor_edges[pred] = edge_data
             else:
-                debug_print(f"ERROR: No edge data found from predecessor {pred} to call node {first_call_node}.")
-                exit(1)
-                continue
+                raise ValueError(f"ERROR: No edge data found from predecessor {pred} to call node {first_call_node}.")
 
         debug_print(f"Number of nodes in full netlist before merge: {current_netlist.number_of_nodes()}")
         debug_print(f"Number of nodes in submodule netlist: {submodule_netlist.number_of_nodes()}")
@@ -272,9 +258,7 @@ class MergeNetlistsVitis:
         if not os.path.exists(stg_file_path):
             stg_file_path = os.path.join(current_directory, submodule_name + "s", f"{submodule_name}s.verbose_stg.rpt")
             if not os.path.exists(stg_file_path):
-                print(f"Error: STG file {stg_file_path} does not exist.")
-                exit(1)
-                return
+                raise ValueError(f"Error: STG file {stg_file_path} does not exist.")
         with open(stg_file_path, 'r') as sf:
             stg_lines = sf.readlines()
 
@@ -285,8 +269,7 @@ class MergeNetlistsVitis:
             pred_data = current_netlist.nodes[pred]
             pred_name = pred_data.get('name')
             if pred_name is None:
-                debug_print(f"Predecessor node {pred} has no name field.")
-                exit(1)
+                raise ValueError(f"Predecessor node {pred} has no name field.")
 
             # find the corresponding node in the submodule netlist
             target_node = None
@@ -307,19 +290,13 @@ class MergeNetlistsVitis:
                 # find the pin number for this predecessor node. This will be encoded in the edge data
                 edge_data = predecessor_edges[pred]
                 if edge_data is None:
-                    debug_print(f"No edge data found from predecessor {pred} to call node {first_call_node}.")
-                    exit(1)
-                    continue
+                    raise ValueError(f"No edge data found from predecessor {pred} to call node {first_call_node}.")
                 pin_num = edge_data.get('sink_pin')
                 if pin_num is None:
-                    debug_print(f"No sink_pin number found in edge data from predecessor {pred} to call node {first_call_node}.")
-                    exit(1)
-                    continue
+                    raise ValueError(f"No sink_pin number found in edge data from predecessor {pred} to call node {first_call_node}.")
                 port_name = pin_to_port.get(pin_num)
                 if port_name is None:
-                    debug_print(f"No port name found for pin number {pin_num} in submodule {submodule_name}.")
-                    exit(1)
-                    continue
+                    raise ValueError(f"No port name found for pin number {pin_num} in submodule {submodule_name}.")
                 # find the node in the submodule netlist with this port name
                 target_node = None
                 for n, d in submodule_netlist.nodes(data=True):
