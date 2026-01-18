@@ -209,8 +209,13 @@ if [ "$HOME" != "$OLD_HOME" ]; then
         rm .Xauthority
         echo "Removed existing .Xauthority"
     fi
-    cp "$OLD_HOME"/.Xauthority .Xauthority
-    echo "Copied Xauthority from $OLD_HOME to $HOME"
+    if [ -f "$OLD_HOME"/.Xauthority ]; then
+        cp "$OLD_HOME"/.Xauthority .Xauthority
+        echo "Copied Xauthority from $OLD_HOME to $HOME"
+    else
+        echo "No .Xauthority file found in $OLD_HOME"
+    fi
+    
 fi
 
 ############### Add useful alisas ###############
