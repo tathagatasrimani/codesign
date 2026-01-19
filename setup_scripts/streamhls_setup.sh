@@ -47,7 +47,10 @@ if [[ $FORCE_FULL -eq 1 ]]; then
         fi
     fi
 
-    ## automatically accept conda confirmations
+    ## automatically accept conda confirmations and Terms of Service
+    conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main || true
+    conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r || true
+    
     sed -i 's|conda create -n streamhls python=3.11|conda create -n streamhls python=3.11 -y|' setup-env.sh
 
     source setup-env.sh
