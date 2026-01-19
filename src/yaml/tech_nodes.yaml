@@ -60,6 +60,80 @@ default:
   M: 2
   a: 0.5
 
+yarch-default:
+  Cs: 100.0
+  FO: 4.0
+  H_c: 3.0e-06
+  H_g: 3.0e-06
+  L: 1.3536180541981771e-08
+  L_c: 3.0e-06
+  L_ov: 3.75e-07
+  Lc: 2.0e-08
+  Lext: 1.0e-08
+  M: 2.0
+  Rsh_c_n: 9000.0
+  Rsh_c_p: 9000.0
+  Rsh_ext_n: 9000.0
+  Rsh_ext_p: 9000.0
+  V_dd: 0.5227732192273864
+  V_th: 0.4163180177804713
+  W: 1.3536180576678631e-08
+  a: 0.5
+  alpha_dennard: 1.0
+  area: 2.0
+  beta_p_n: 2.0
+  clk_period: 0.8312490233901263
+  d: 1.0e-06
+  delay_var: 0.0023048046280121255
+  eps_cap: 3.9
+  eps_semi: 11.7
+  epsilon_dennard: 1.0
+  f: 40000000.0
+  interconnect_amdahl_limit: .inf
+  interconnect_resource_amdahl_limit: .inf
+  interconnect_resource_sensitivity: 0.0
+  interconnect_sensitivity: 0.0
+  k_cnt: 3.9
+  k_gate: 19.999999695591228
+  logic_amdahl_limit: 2.1201587207187385
+  logic_resource_amdahl_limit: 1.7471359657852996
+  logic_resource_sensitivity: 0.5283371993673263
+  logic_sensitivity: 0.47166280063268257
+  m10_k: 2.5
+  m10_rho: 4.0e-08
+  m1_k: 1.999999983349782
+  m1_rho: 3.96187375072172e-08
+  m2_k: 2.500006429201248
+  m2_rho: 4.0000040314190534e-08
+  m3_k: 2.500006429201248
+  m3_rho: 4.0000040314190534e-08
+  m4_k: 2.5
+  m4_rho: 4.0e-08
+  m5_k: 2.5
+  m5_rho: 4.0e-08
+  m6_k: 2.5
+  m6_rho: 4.0e-08
+  m7_k: 2.5
+  m7_rho: 4.0e-08
+  m8_k: 2.5
+  m8_rho: 4.0e-08
+  m9_k: 2.5
+  m9_rho: 4.0e-08
+  mD_fac: 0.5
+  memory_amdahl_limit: .inf
+  memory_resource_amdahl_limit: .inf
+  memory_resource_sensitivity: 0.0
+  memory_sensitivity: 0.0
+  mu_eff_n: 0.025
+  mu_eff_p: 0.0125
+  node_arrivals_end: 18.879965848754143
+  rho_c_n: 7.0e-11
+  rho_c_p: 7.0e-11
+  t_1: 1.0e-06
+  tox: 6.193957815102147e-09
+  tsemi: 1.0e-08
+  u_n: 0.07849627817739252
+
 tech-1982:
   L: 2.1e-06
   W: 6.3e-06
