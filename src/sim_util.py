@@ -209,9 +209,6 @@ def add_area_constraint_to_script(filename, area_constraint):
 def remove_node(G, node):
     for src in G.predecessors(node):
         for dst in G.successors(node):
-            # only keep data dependencies if dealing with dfg
-            if "resource_edge" in G[src][node] and not G[src][node]["resource_edge"]:
-                continue
             G.add_edge(src, dst, weight=G.edges[src, node]["weight"], resource_edge=0)
     G.remove_node(node)
 
