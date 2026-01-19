@@ -10,6 +10,8 @@ import matplotlib
 
 matplotlib.rcParams['font.family'] = 'sans-serif'
 matplotlib.rcParams['font.sans-serif'] = ['Liberation Sans']
+matplotlib.rcParams['xtick.labelsize'] = 25
+matplotlib.rcParams['ytick.labelsize'] = 25
 
 def extract_execution_time_and_edp(log_path, debug=False, obj="delay"):
     """Extract execution_time and EDP from run_codesign.log"""
@@ -705,9 +707,9 @@ def plot_wires_estimated_delay_only_normalized(grouped_data, output_dir, debug=F
             color='#ff7f0e'
         )
 
-        plt.title(f"{norm_bench} — PEs vs Delay (normalized)", fontsize=25, fontweight='bold')
-        plt.xlabel("Number of PEs", fontsize=22)
-        plt.ylabel("Normalized Delay", fontsize=22)
+        # plt.title(f"{norm_bench} — PEs vs Delay (normalized)", fontsize=25, fontweight='bold')
+        plt.xlabel("Number of PEs", fontsize=30)
+        plt.ylabel("Normalized Delay", fontsize=30)
         plt.grid(True, alpha=0.3)
 
         out_path = os.path.join(output_dir, f"final_plot_for_proporsal_{norm_bench}_normalized.png")
