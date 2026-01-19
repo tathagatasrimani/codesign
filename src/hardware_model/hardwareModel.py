@@ -130,7 +130,7 @@ class BlockVector:
         return _replace_infinity(raw)
     
     def update_total_delay(self, delay):
-        self.total_delay += delay
+        self.total_delay = delay
         self.computation_activity_factor = self.total_delay / self.delay if sim_util.xreplace_safe(self.delay, self.tech_values) != 0 else 0
     
     def __str__(self):

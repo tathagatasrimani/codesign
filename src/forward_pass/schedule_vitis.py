@@ -462,7 +462,7 @@ class DataFlowGraph:
         self.G_standard = copy.deepcopy(self.G)
         for node in self.G.nodes():
             assert "node_type" in self.G.nodes[node], f"Node {node} has no node_type. {self.G.nodes[node]}"
-            if self.G.nodes[node]["node_type"] == "var":
+            if self.G_standard.nodes[node]["node_type"] == "var_src" or self.G_standard.nodes[node]["node_type"] == "var_dst":
                 self.remove_node_and_rewire(self.G_standard, node)
         self.G_standard = sim_util.filter_graph_by_function(self.G_standard, self.allowed_functions, exception_node_types=["serial"])
         assert nx.is_directed_acyclic_graph(self.G_standard), f"Graph is not a DAG, cycle found: {nx.find_cycle(self.G_standard)}"
