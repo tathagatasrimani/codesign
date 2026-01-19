@@ -98,6 +98,7 @@ if [ "$UNIVERSITY" = "cmu" ]; then
 fi
 
 ################## INSTALL OPENROAD ##################
+echo "STARTING STEP 1: OPENROAD INSTALLATION"
 if [[ $SKIP_OPENROAD -eq 1 ]]; then
     echo "Skipping OpenROAD installation (--skip-openroad flag set)."
 else
@@ -145,12 +146,17 @@ else
         fi
     fi
 fi
+echo "COMPLETED STEP 1: OPENROAD INSTALLATION"
 
 ################ SET UP SCALEHLS ##################
+echo "STARTING STEP 2: SCALEHLS SETUP"
 ## we want this to operate outside of conda, so do this first
 source "$SETUP_SCRIPTS_FOLDER"/scale_hls_setup.sh $FORCE_FULL # setup scalehls
 
+echo "COMPLETED STEP 2: SCALEHLS SETUP"
+
 ################### SET UP CONDA ENVIRONMENT ##################
+echo "STARTING STEP 3: CONDA ENVIRONMENT SETUP"
 # Check if the directory miniconda3 exists
 if [ -d "miniconda3" ]; then
     export PATH="$(pwd):$PATH"
@@ -185,24 +191,37 @@ fi
 
 conda activate codesign # activate the codesign environment
 
+echo "COMPLETED STEP 3: CONDA ENVIRONMENT SETUP"
+
 ################ SET UP STREAMHLS ##################
+echo "STARTING STEP 4: STREAMHLS SETUP"
 ## StreamHLS setup needs conda to be available (setup-env.sh uses conda). 
 ## Note that we run this script with 'bash' since we will source the streamhls environment separately when we need it.
 bash "$SETUP_SCRIPTS_FOLDER"/streamhls_setup.sh $FORCE_FULL # setup stream hls
 
+echo "COMPLETED STEP 4: STREAMHLS SETUP"
+
+echo "STARTING STEP 5: SUBMODULE UPDATE"
 ## update the rest of the submodules
 if [[ $FORCE_FULL -eq 1 ]]; then
     git submodule update --init --recursive
 fi
+echo "COMPLETED STEP 5: SUBMODULE UPDATE"
 
-###############  BUILD CACTI #################3
+###############  BUILD CACTI #################
+echo "STARTING STEP 6: CACTI BUILD"
 cd src/cacti
 make
 cd ../..
+echo "COMPLETED STEP 6: CACTI BUILD"
 
-## make verilator
+###############  BUILD VERILATOR #################
+echo "STARTING STEP 7: VERILATOR BUILD"
 source "$SETUP_SCRIPTS_FOLDER"/verilator_install.sh
+echo "COMPLETED STEP 7: VERILATOR BUILD"
 
+############### HANDLE XAUTHORITY #################
+echo "STARTING STEP 8: XAUTHORITY HANDLING"
 # Only copy Xauthority if we're in a different directory than the old home
 if [ "$HOME" != "$OLD_HOME" ]; then
     echo "Copying Xauthority from $OLD_HOME to $HOME"
@@ -218,8 +237,10 @@ if [ "$HOME" != "$OLD_HOME" ]; then
     fi
     
 fi
+echo "COMPLETED STEP 8: XAUTHORITY HANDLING"
 
-############### Add useful alisas ###############
+############### Add useful aliases ###############
+echo "STARTING STEP 9: ADDING USEFUL ALIASES"
 alias create_checkpoint="python3 -m test.checkpoint_controller"
 alias run_codesign="python3 -m src.codesign"
 alias run_tech_test="python3 -m test.experiments.dennard_multi_core"
@@ -229,12 +250,13 @@ alias clean_logs="rm -rf ~/logs/*"
 alias clean_tmp="rm -rf ~/src/tmp/*"
 alias clean_codesign="clean_checkpoints; clean_logs; clean_tmp"
 alias run_regression="python3 -m test.regression_run"
+echo "COMPLETED STEP 9: ADDING USEFUL ALIASES"
 
 ################## SUCCESSFUL BUILD LOG ##################
 if [[ $FORCE_FULL -eq 1 ]]; then
     date "+%Y-%m-%d %H:%M:%S" > "$BUILD_LOG"
 fi
 
-echo "Last full build completed successfully on $(cat $BUILD_LOG)"which
+echo "Last full build completed successfully on $(cat $BUILD_LOG)"
 
-echo "Environment setup complete."
+echo "ENVIRONMENT SETUP COMPLETE"
