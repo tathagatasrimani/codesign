@@ -556,7 +556,7 @@ class Codesign:
         # set scale factors if in setup or first iteration
         dsp_usage, latency = self.parse_dsp_usage_and_latency(mlir_idx)
         if setup:
-            self.max_dsp = dsp_usage
+            self.max_dsp = dsp_usage + 2 # allow some margin above initial dsp usage
             self.max_latency = latency
         elif iteration_count == 0:
             self.max_speedup_factor = float(latency / self.max_latency)
