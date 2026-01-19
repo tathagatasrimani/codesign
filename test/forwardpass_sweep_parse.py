@@ -319,14 +319,14 @@ def extract_benchmark_results(result_dir_path: str, debug: bool = False) -> dict
                     delay_cycles = del_cycles
                 else:
                     print(f"Warning: Could not extract delay from log for {benchmark_name}")
-                energy_value = energy if energy is not None else 0.0
+                energy_value = energy * 1000 if energy is not None else 0.0
             else:
                 if debug:
                     print(f"[DEBUG] No log file found under {benchmark_path}; energy/delay left at 0")
 
             metrics = {
                 "NumberOfMLIROps": {"value": num_ops, "unit": "ops"},
-                "Energy": {"value": energy_value, "unit": "nJ"},
+                "Energy": {"value": energy_value, "unit": "pJ"},
                 "delayCycles": {"value": delay_cycles, "unit": "cycles"},
                 "executionTime": {"value": execution_time, "unit": "ns"},
             }
@@ -335,7 +335,7 @@ def extract_benchmark_results(result_dir_path: str, debug: bool = False) -> dict
                 results[base_name] = {}
             results[base_name][workload_tag] = metrics
 
-            print(f"Processed {base_name} [{workload_tag}]: {num_ops} ops, {delay_cycles:.2f} cycles, {energy_value:.2f} nJ, {execution_time:.2f} ns")
+            print(f"Processed {base_name} [{workload_tag}]: {num_ops} ops, {delay_cycles:.2f} cycles, {energy_value:.2f} pJ, {execution_time:.2f} ns")
 
     return results
 
@@ -347,7 +347,7 @@ def print_results_table(benchmark_data: dict):
         print("No benchmark data to display")
         return
 
-    headers = ["Benchmark", "Workload", "MLIR Ops", "Energy (nJ)", "Delay Cycles", "Exec Time (ns)"]
+    headers = ["Benchmark", "Workload", "MLIR Ops", "Energy (pJ)", "Delay Cycles", "Exec Time (ns)"]
     col_widths = [len(h) for h in headers]
 
     rows = []
@@ -397,7 +397,7 @@ def print_results_table(benchmark_data: dict):
         avg_exec_time = sum(m['executionTime']['value'] for _, _, m in rows) / len(rows)
         print(f"\nSummary Statistics:")
         print(f"  Total MLIR Operations: {total_ops:,}")
-        print(f"  Total Energy: {total_energy:.2f} nJ")
+        print(f"  Total Energy: {total_energy:.2f} pJ")
         print(f"  Average Delay Cycles: {avg_delay:.2f}")
         print(f"  Average Execution Time: {avg_exec_time:.2f} ns")
     print("=" * len(header_row) + "\n")
@@ -422,7 +422,7 @@ def save_results_to_csv(benchmark_data: dict, output_dir: str, debug: bool = Fal
             'Benchmark',
             'Workload',
             'NumberOfMLIROps (ops)',
-            'Energy (nJ)',
+            'Energy (pJ)',
             'delayCycles (cycles)',
             'executionTime (ns)'
         ]
@@ -436,7 +436,7 @@ def save_results_to_csv(benchmark_data: dict, output_dir: str, debug: bool = Fal
                         'Benchmark': base,
                         'Workload': wl,
                         'NumberOfMLIROps (ops)': m['NumberOfMLIROps']['value'],
-                        'Energy (nJ)': m['Energy']['value'],
+                        'Energy (pJ)': m['Energy']['value'],
                         'delayCycles (cycles)': m['delayCycles']['value'],
                         'executionTime (ns)': m['executionTime']['value']
                     })
@@ -446,7 +446,7 @@ def save_results_to_csv(benchmark_data: dict, output_dir: str, debug: bool = Fal
                     'Benchmark': base,
                     'Workload': '',
                     'NumberOfMLIROps (ops)': m['NumberOfMLIROps']['value'],
-                    'Energy (nJ)': m['Energy']['value'],
+                    'Energy (pJ)': m['Energy']['value'],
                     'delayCycles (cycles)': m['delayCycles']['value'],
                     'executionTime (ns)': m['executionTime']['value']
                 })
@@ -492,7 +492,7 @@ def save_results_to_latex(benchmark_data: dict, output_dir: str, debug: bool = F
     # ===== INDIVIDUAL METRIC TABLES =====
     metrics = [
         ("NumberOfMLIROps", "MLIR Operations", "ops"),
-        ("Energy", "Energy", "nJ"),
+        ("Energy", "Energy", "pJ"),
         ("delayCycles", "Delay Cycles", "cycles"),
         ("executionTime", "Execution Time", r"$\mu$s"),  # Changed to LaTeX macro
     ]
@@ -557,9 +557,9 @@ def save_results_to_latex(benchmark_data: dict, output_dir: str, debug: bool = F
     tex_lines.append(r"% Combined Table: All Metrics")
     tex_lines.append(r"\begin{table}[h!]")
     tex_lines.append(r"\centering")
-    tex_lines.append(r"\caption{Combined Results: MLIR Ops, Energy (nJ), and Execution Time ($\mu$s)}")
+    tex_lines.append(r"\caption{Combined Results: MLIR Ops, Energy (pJ), and Execution Time ($\mu$s)}")
     
-    # For combined table: benchmark | ops | 4(nJ, μs) | 16(nJ, μs) | etc.
+    # For combined table: benchmark | ops | 4(pJ, μs) | 16(pJ, μs) | etc.
     col_spec = "l|c" + "|c" * len(workloads)
     tex_lines.append(f"\\begin{{tabular}}{{{col_spec}}}")
     tex_lines.append(r"\toprule")
@@ -571,10 +571,10 @@ def save_results_to_latex(benchmark_data: dict, output_dir: str, debug: bool = F
     header += r" \\"
     tex_lines.append(header)
     
-    # Sub-header row: nJ and μs for each workload
+    # Sub-header row: pJ and μs for each workload
     subheader = r" & "
     for _ in workload_nums:
-        subheader += r" & \small{nJ / $\mu$s}"  # Changed to LaTeX macro
+        subheader += r" & \small{pJ / $\mu$s}"  # Changed to LaTeX macro
     subheader += r" \\"
     tex_lines.append(subheader)
     tex_lines.append(r"\midrule")
