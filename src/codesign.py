@@ -526,6 +526,7 @@ class Codesign:
             for basic_block_name in schedule_parser.basic_blocks:
                 if schedule_parser.basic_blocks[basic_block_name].is_dataflow_pipeline:
                     self.hw.scheduled_dfgs[basic_block_name] = schedule_parser.basic_blocks[basic_block_name].dfg.G_flattened_standard_with_wire_ops
+                    self.hw.dataflow_blocks.add(basic_block_name)
                 else:
                     self.hw.scheduled_dfgs[basic_block_name] = schedule_parser.basic_blocks[basic_block_name].dfg.G_standard_with_wire_ops
             for basic_block_name in schedule_parser.basic_blocks:

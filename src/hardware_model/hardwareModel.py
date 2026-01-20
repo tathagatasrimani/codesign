@@ -34,7 +34,7 @@ from openroad_interface import openroad_run_hier
 
 import cvxpy as cp
 
-DEBUG = True
+DEBUG = False
 def log_info(msg):
     if DEBUG:
         logger.info(msg)
@@ -206,6 +206,7 @@ class HardwareModel:
         self.loop_1x_graphs = {}
         self.loop_2x_graphs = {}
         self.top_block_name = args["benchmark"] if not args["pytorch"] else "forward"
+        self.dataflow_blocks = set()
 
         self.parasitic_graph = nx.DiGraph()
         self.symbolic_mem = {}
@@ -1083,7 +1084,8 @@ class HardwareModel:
             #self.node_arrivals[basic_block_name] = {"full": {}, "loop_1x": {}, "loop_2x": {}}
             self.node_arrivals[basic_block_name] = {"full": {}, "loop_1x": {}, "loop_2x": {}}
 
-        self.graph_delays[top_block_name] = self.calculate_execution_time_vitis_recursive(top_block_name, self.scheduled_dfgs[top_block_name], graph_end_node=f"graph_end_{top_block_name}")
+        graph_end_node = f"graph_end_{top_block_name}" if top_block_name not in self.dataflow_blocks else f"{top_block_name}_graph_end_{top_block_name}"
+        self.graph_delays[top_block_name] = self.calculate_execution_time_vitis_recursive(top_block_name, self.scheduled_dfgs[top_block_name], graph_end_node=graph_end_node)
 
         self.circuit_model.create_constraints()
         constr_to_add = []
