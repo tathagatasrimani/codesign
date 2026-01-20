@@ -8,6 +8,9 @@ BUILD_LOG="$SETUP_SCRIPTS_FOLDER/build.log"
 FORCE_FULL=0
 SKIP_OPENROAD=0
 
+# Start timer
+start_time=$(date +%s)
+
 # Parse command line options
 for arg in "$@"; do
     if [[ "$arg" == "--full" ]]; then
@@ -96,6 +99,10 @@ if [ "$UNIVERSITY" = "cmu" ]; then
     mkdir -p "$TMPDIR"
     echo "Set TMPDIR to $TMPDIR"
 fi
+
+## ensure that git is set to fetch submodules in parallel (faster)
+git config --global fetch.parallel 8
+git config --global submodule.fetchJobs 8
 
 ################## INSTALL OPENROAD ##################
 echo "STARTING STEP 1: OPENROAD INSTALLATION"
@@ -260,3 +267,16 @@ fi
 echo "Last full build completed successfully on $(cat $BUILD_LOG)"
 
 echo "ENVIRONMENT SETUP COMPLETE"
+
+# End timer
+end_time=$(date +%s)
+
+# Calculate duration
+duration=$((end_time - start_time))
+
+# Convert to minutes and seconds
+minutes=$((duration / 60))
+seconds=$((duration % 60))
+
+# Print duration
+printf "\nElapsed time: %d minutes and %d seconds\n" $minutes $seconds
