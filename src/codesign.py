@@ -825,6 +825,14 @@ class Codesign:
             None
         """
 
+        # If the user requested zero wirelength costs, we must not run (or try to reuse) OpenROAD.
+        # In this mode, all wirelength-related quantities are assumed to be 0.
+        if self.cfg["args"].get("zero_wirelength_costs", False):
+            logger.info("zero_wirelength_costs enabled: skipping OpenROAD; assuming all wirelengths/delays/energies are 0.")
+            # Make this explicit so other parts of the flow don't accidentally use stale OpenROAD results.
+            self.hw.circuit_model.edge_to_nets = {}
+            return
+
         # netlist_dfg = self.hw.scheduled_dfg.copy() 
         # netlist_dfg.remove_node("end")
         # self.hw.netlist = netlist_dfg
