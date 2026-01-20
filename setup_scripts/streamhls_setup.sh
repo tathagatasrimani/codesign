@@ -2,7 +2,7 @@
 
 # Parse command line options
 for arg in "$@"; do
-    if [[ "$arg" == "--full" ]]; then
+    if [[ "$arg" == "--full" || "$arg" == "1" ]]; then
         FORCE_FULL=1
         break
     fi
