@@ -1,0 +1,30 @@
+benchmark_2mm_sweep_test_N64:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_2mm
+    stop_at_checkpoint: pd
+    tech_node: yarch-default
+    workload_size: 64
+    checkpoint_load_dir: tmp_kernel_2mm_edp_0
+    checkpoint_start_step: schedule
+
+benchmark_2mm_sweep_test_N32:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_2mm
+    stop_at_checkpoint: pd
+    tech_node: yarch-default
+    workload_size: 32
+    checkpoint_load_dir: benchmark_2mm_sweep_test_N32/tmp_kernel_2mm_edp_0
+    checkpoint_start_step: schedule
+
+
+benchmark_atax_sweep_test_N64:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_atax
+    stop_at_checkpoint: pd
+    tech_node: yarch-default
+    workload_size: 64
+    checkpoint_load_dir: tmp_kernel_atax_edp_0
+    checkpoint_start_step: schedule
