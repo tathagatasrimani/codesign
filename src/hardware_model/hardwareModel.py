@@ -1173,7 +1173,7 @@ class HardwareModel:
                 self.circuit_model.tech_model.base_params.set_symbol_value(self.node_arrivals[basic_block_name][graph_type][node], 0, dont_save_to_tech_values=True)
         return self.node_arrivals[basic_block_name][graph_type][graph_end_node]
 
-    def save_obj_vals(self, execution_time, execution_time_override=False, execution_time_override_val=0):
+    def save_display_quantities(self, execution_time):
         if self.model_cfg["model_type"] == "bulk_bsim4":
             self.obj_sub_exprs = {
                 "execution_time": execution_time,
@@ -1515,6 +1515,9 @@ class HardwareModel:
                 "latency_FloorDiv16 <= 20*clk_period",
             ]
         )
+
+    def save_obj_vals(self, execution_time, execution_time_override=False, execution_time_override_val=0):
+        self.save_display_quantities(execution_time)
         if execution_time_override:
             execution_time = execution_time_override_val
         if self.obj_fn == "edp":
@@ -1579,6 +1582,7 @@ class HardwareModel:
         logger.info(f"time to calculate objective: {time.time()-start_time}")
 
     def display_objective(self, message):
+        self.save_display_quantities(self.execution_time)
         obj = sim_util.xreplace_safe(self.obj, self.circuit_model.tech_model.base_params.tech_values)
         sub_exprs = {}
         for key in self.obj_sub_exprs:

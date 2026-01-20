@@ -221,4 +221,4 @@ sweep_cfg:
   base_cfg: default
   delay_parasitics: all
   model_type: sweep
-  sweep_file_prefix: tech_sweep_vs_cfg_latest_20260118_182443
+  sweep_file_prefix: tech_sweep_vs_cfg_latest_20260116_211036_pareto

@@ -390,7 +390,7 @@ class Optimizer:
             constraint.set_slack_cvxpy()
 
         return prob.value / lower_bound, False
-    """
+    
     def brute_force_optimization(self, improvement):
         start_time = time.time()
         lower_bound = sim_util.xreplace_safe(self.hw.obj, self.hw.circuit_model.tech_model.base_params.tech_values) / improvement
@@ -405,20 +405,22 @@ class Optimizer:
         best_design_point = self.hw.circuit_model.tech_model.pareto_df.iloc[0].to_dict()
         best_obj_val = math.inf
         best_design_variables = None
-        best_constraints = None
+        #best_constraints = None
 
         total_design_points = len(self.hw.circuit_model.tech_model.pareto_df)
         for i, row in enumerate(self.hw.circuit_model.tech_model.pareto_df.itertuples(index=False)): # index=False makes the tuple purely data
             cur_design_point = row._asdict()
             logger.info(f"evaluating design point {i} of {total_design_points}: {cur_design_point}")
-            self.cur_output_metrics = {metric: cur_design_point[metric] for metric in self.hw.circuit_model.tech_model.sweep_model["output_metrics"]}
-            self.cur_param_values = self.hw.circuit_model.tech_model.metrics_to_params(self.cur_output_metrics)
-            self.hw.circuit_model.tech_model.cur_param_values = self.cur_param_values
-            self.hw.circuit_model.tech_model.create_constraints()
+            self.hw.circuit_model.tech_model.set_params_from_design_point(cur_design_point)
+            self.hw.circuit_model.tech_model.set_param_constant_constraints()
             for constraint in self.hw.circuit_model.tech_model.param_constant_constraints:
                 logger.info(f"constraint: {constraint}")
             prob = cp.Problem(cp.Minimize(self.hw.obj), constraints + [constr.constraint for constr in self.hw.circuit_model.tech_model.param_constant_constraints])
-            prob.solve(gp=True)
+            try:
+                prob.solve(gp=True)
+            except Exception as e:
+                logger.error(f"error solving cvxpy problem: {e}")
+                continue
             logger.info(f"problem value is: {prob.value}")
             logger.info(f"variables are: {prob.variables()}")
             logger.info(f"constraints are: {prob.constraints}")
@@ -427,18 +429,18 @@ class Optimizer:
                 best_design_point = cur_design_point
                 best_obj_val = prob.value
                 best_design_variables = prob.variables()
-                best_constraints = constraints + [constr.constraint for constr in self.hw.circuit_model.tech_model.constraints_cvxpy]
+                #best_constraints = constraints + [constr.constraint for constr in self.hw.circuit_model.tech_model.constraints_cvxpy]
 
         for var in best_design_variables:
             print(f"variable: {var.name}, value: {var.value}")
             self.hw.circuit_model.tech_model.base_params.set_symbol_value(var, var.value)
         logger.info(f"time to run cvxpy optimization: {time.time()-start_time}")
-        self.hw.circuit_model.tech_model.process_optimization_results(best_design_variables)
-        for constraint in best_constraints:
-            constraint.set_slack_cvxpy()
+        self.hw.circuit_model.tech_model.process_optimization_results()
+        #for constraint in best_constraints:
+        #    constraint.set_slack_cvxpy()
 
         return best_obj_val / lower_bound, False
-    """
+    
 
     def cvxpy_optimization(self, improvement):
         if self.opt_pipeline == "fit":

@@ -22,6 +22,11 @@ class SweepModel(TechModel):
         self.cur_design_point_index = None
         super().__init__(model_cfg, base_params)
 
+    def set_param_constant_constraints(self):
+        self.param_constant_constraints = []
+        for i in range(self.base_params.w.size):
+            self.param_constant_constraints.append(Constraint(self.base_params.w[i] == self.base_params.w.value[i], f"w[{i}] == {self.base_params.w.value[i]}"))
+
     def process_design_point(self):
 
         if "delay" not in self.sweep_model["output_metrics"]:
@@ -35,9 +40,8 @@ class SweepModel(TechModel):
             self.P_pass_inv = self.Ioff * self.base_params.V_dd + eps
             logger.info(f"set P_pass_inv to {self.P_pass_inv.value}")
 
-        self.param_constant_constraints = []
-        for i in range(self.base_params.w.size):
-            self.param_constant_constraints.append(Constraint(self.base_params.w[i] == self.base_params.w.value[i], f"w[{i}] == {self.base_params.w.value[i]}"))
+        self.set_param_constant_constraints()
+        self.config_param_db()
 
     def eval_metric(self, metric):
         input_vec = self.pareto_df[metric].values
@@ -49,6 +53,9 @@ class SweepModel(TechModel):
             metric_vals[metric] = getattr(self, metric).value
             logger.info(f"after optimization, {metric} is {metric_vals[metric]}")
         self.cur_design_point, dist, self.cur_design_point_index = self.find_nearest_design_by_values(metric_vals)
+        for key in self.cur_design_point.keys():
+            if hasattr(self.base_params, key):
+                self.base_params.set_symbol_value(self.base_params.symbol_table[key], self.cur_design_point[key])
         logger.info(f"nearest design: {self.cur_design_point}, index: {self.cur_design_point_index}, distance: {dist}")
 
         self.process_design_point()
@@ -120,10 +127,7 @@ class SweepModel(TechModel):
             if k in self.base_params.names:
                 tech_values_str_ind[self.base_params.names[k]] = v
         self.cur_design_point, dist, self.cur_design_point_index = self.find_nearest_design_by_values(tech_values_str_ind)
-        weight_values = np.zeros(len(self.sweep_model["input_metrics"]))
-        for i, input_metric in enumerate(self.sweep_model["input_metrics"]):
-            weight_values[i] = self.cur_design_point[input_metric]
-        self.base_params.set_symbol_value(self.base_params.w, weight_values)
+        self.set_params_from_design_point(self.cur_design_point)
 
         logger.info(f"Current design point: {self.cur_design_point}")
         logger.info(f"distance to nearest design: {dist}")
@@ -138,9 +142,14 @@ class SweepModel(TechModel):
         if hasattr(self, "C_gate"):
             self.C_load = self.C_gate
             self.C_diff = self.C_gate
-        self.config_param_db()
         
         self.process_design_point()
+
+    def set_params_from_design_point(self, design_point):
+        weight_values = np.zeros(len(self.sweep_model["input_metrics"]))
+        for i, input_metric in enumerate(self.sweep_model["input_metrics"]):
+            weight_values[i] = design_point[input_metric]
+        self.base_params.set_symbol_value(self.base_params.w, weight_values)        
 
     def config_param_db(self):
         super().config_param_db()
@@ -155,7 +164,8 @@ class SweepModel(TechModel):
             self.I_off = getattr(self, "Ioff")
             self.param_db["I_off"] = self.I_off
         
-        if "A_gate" not in self.param_db:
+        if "A_gate" not in self.sweep_model["output_metrics"]:
+            logger.info(f"setting A_gate to {self.area.value}")
             self.param_db["A_gate"] = self.area
 
     def config_pareto_metric_db(self):

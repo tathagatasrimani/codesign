@@ -319,6 +319,7 @@ class Codesign:
 
         if not setup:
             self.cur_dsp_usage = int(self.cfg["args"]["area"] / (sim_util.xreplace_safe(self.hw.circuit_model.tech_model.param_db["A_gate"], self.hw.circuit_model.tech_model.base_params.tech_values) * self.dsp_multiplier))
+            self.cur_dsp_usage = max(self.cur_dsp_usage, self.cfg["args"]["min_dsp"])
             tilelimit = 1
         else:
             self.cur_dsp_usage = 10000
@@ -545,6 +546,7 @@ class Codesign:
                         continue
                     if os.path.exists(f"{parse_results_dir}/{file}/{file}_flattened_graph_standard_with_wire_ops.gml"):
                         self.hw.scheduled_dfgs[file] = nx.read_gml(f"{parse_results_dir}/{file}/{file}_flattened_graph_standard_with_wire_ops.gml")
+                        self.hw.dataflow_blocks.add(file)
                     else:
                         self.hw.scheduled_dfgs[file] = nx.read_gml(f"{parse_results_dir}/{file}/{file}_graph_standard_with_wire_ops.gml")
                     for subfile in os.listdir(f"{parse_results_dir}/{file}"):

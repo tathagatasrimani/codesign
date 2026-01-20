@@ -64,3 +64,8 @@ vitis_test_sweep:
     model_cfg: sweep_cfg
     solver: cvxpy
     opt_pipeline: fit
+
+vitis_test_sweep_brute_force:
+  base_cfg: vitis_test_sweep
+  args:
+    opt_pipeline: brute_force
