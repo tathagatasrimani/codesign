@@ -101,8 +101,8 @@ if [ "$UNIVERSITY" = "cmu" ]; then
 fi
 
 ## ensure that git is set to fetch submodules in parallel (faster)
-git config --global fetch.parallel 8
-git config --global submodule.fetchJobs 8
+git config --global fetch.parallel $(nproc)
+git config --global submodule.fetchJobs $(nproc)
 
 ################## INSTALL OPENROAD ##################
 echo "STARTING STEP 1: OPENROAD INSTALLATION"
@@ -218,7 +218,7 @@ echo "COMPLETED STEP 5: SUBMODULE UPDATE"
 ###############  BUILD CACTI #################
 echo "STARTING STEP 6: CACTI BUILD"
 cd src/cacti
-make
+make -j$(nproc)
 cd ../..
 echo "COMPLETED STEP 6: CACTI BUILD"
 

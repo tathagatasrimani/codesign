@@ -39,7 +39,7 @@ fi
 echo "\n\n\nOpenROAD dependencies installed successfully.\n\n\n"
 echo "Installing OpenROAD..."
 
-./etc/Build.sh
+./etc/Build.sh -threads=$(nproc)
 
 mkdir results
 

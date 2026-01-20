@@ -31,7 +31,7 @@ if [[ $FORCE_FULL -eq 1 ]]; then
         echo "[setup] lld already installed."
     fi
 
-    ./build-scalehls.sh
+    ./build-scalehls.sh -j$(nproc)
 else
     echo "[setup] Skipping ScaleHLS build is not set."
     cd ScaleHLS-HIDA
