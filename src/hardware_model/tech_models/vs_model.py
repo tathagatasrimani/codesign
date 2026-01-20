@@ -179,7 +179,7 @@ class VSModel(TechModel):
         #logger.info(f"C_diff: {self.C_diff.xreplace(self.base_params.tech_values).evalf()}")
         #logger.info(f"C_wire: {self.C_wire.xreplace(self.base_params.tech_values).evalf()}")
 
-        eps = 1e-20
+        eps = 1e-15
         self.P_pass_inv = self.I_off * self.base_params.V_dd + eps
 
 
@@ -243,6 +243,7 @@ class VSModel(TechModel):
 
     def config_pareto_metric_db(self):
         self.pareto_metric_db = {"area", "R_avg_inv", "C_gate", "Ioff", "L", "V_dd"}
+        self.input_metric_db = {"L", "W", "V_dd", "k_gate", "tox", "V_th_eff", "V_ov"}
 
     def apply_base_parameter_effects(self):
         pass
@@ -259,4 +260,4 @@ class VSModel(TechModel):
         # prune out some bad design points to help sweep solver
         self.sweep_constraints.append(Constraint(self.P_pass_inv <= 1e-4, "P_pass_inv <= 1e-4"))
         self.sweep_constraints.append(Constraint(self.P_pass_inv >= 1e-15, "P_pass_inv >= 1e-15"))
-        self.sweep_constraints.append(Constraint(self.delay <= 1e+3, "delay <= 1e+5"))
+        self.sweep_constraints.append(Constraint(self.delay <= 1e+2, "delay <= 1e+2"))

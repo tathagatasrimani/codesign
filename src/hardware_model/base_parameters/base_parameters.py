@@ -157,7 +157,7 @@ class BaseParameters:
         if not dont_save_to_tech_values:
             self.tech_values[symbol] = value
         if self.symbol_type == "cvxpy":
-            if value == math.inf:
+            if type(value) == float and value == math.inf:
                 symbol.value = LARGE_VALUE
             else:
                 symbol.value = value
@@ -594,6 +594,10 @@ class BaseParameters:
             if not isinstance(self.symbol_table[name], dict):
                 self.names[self.symbol_table[name]] = name
         global_symbol_table.global_symbol_table = self.symbol_table
+    
+    def init_weights(self, cnt):
+        self.w = cp.Variable(cnt, pos=True)
+        self.symbol_table["w"] = self.w
     
     def init_memory_param_list(self):
         self.cacti_tech_params = [

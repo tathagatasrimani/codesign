@@ -53,3 +53,14 @@ vitis_test:
   base_cfg: vitis_test_vs
 
 ### Add additional configurations in yaml files in test/additional_configs ###
+
+vitis_test_sweep:
+  base_cfg: vitis_test
+  args:
+    benchmark: gemm
+    arch_opt_pipeline: streamhls
+    pytorch: True  
+    min_dsp: 13
+    model_cfg: sweep_cfg
+    solver: cvxpy
+    opt_pipeline: fit

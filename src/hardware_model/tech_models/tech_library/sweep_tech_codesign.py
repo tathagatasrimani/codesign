@@ -9,6 +9,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 import copy
 import math
 from src import sim_util
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -24,105 +25,6 @@ def format_scientific(value):
     if isinstance(value, (int, float)):
         return f"{float(value):.2e}"
     return value
-
-
-class ParamNormalizer:
-    """
-    Utility class for normalizing output metrics to abstract parameters.
-
-    Maps log(output_metrics) to a fixed range [param_min, param_max] for numerical stability.
-    Provides forward (metrics -> params) and inverse (params -> metrics) transformations.
-    """
-
-    def __init__(self, output_metrics_data, n_params, param_min=10.0, param_max=12.0, const_value=5.0):
-        """
-        Initialize the normalizer with output metrics data.
-
-        Args:
-            output_metrics_data: numpy array of shape (n_points, n_metrics) with output metric values
-            n_params: number of abstract parameters to create
-            param_min: minimum value for normalized parameters (default: 1.0)
-            param_max: maximum value for normalized parameters (default: 10.0)
-            const_value: value to use for constant/extra parameters (default: 5.0)
-        """
-        self.n_metrics = output_metrics_data.shape[1]
-        self.n_params = n_params
-        self.param_min = param_min
-        self.param_max = param_max
-        self.const_value = const_value
-
-        # Compute log-space statistics for each metric
-        log_data = np.log(output_metrics_data)
-        self.log_mins = log_data.min(axis=0)
-        self.log_maxs = log_data.max(axis=0)
-        self.log_ranges = self.log_maxs - self.log_mins
-
-        # Handle constant metrics (range = 0)
-        self.is_constant = self.log_ranges < 1e-10
-
-    def metrics_to_params(self, metric_values, as_array=False):
-        """
-        Convert output metric values to abstract parameter values.
-
-        Args:
-            metric_values: array of shape (n_points, n_metrics) or (n_metrics,),
-                          or a dict with metric names as keys
-            as_array: if True, return numpy array instead of dict (for internal use)
-
-        Returns:
-            For single point: dict like {'a0': 5.2, 'a1': 7.8, ...}
-            For multiple points: list of dicts
-            If as_array=True: numpy array of shape (n_points, n_params) or (n_params,)
-        """
-        # Handle dict input
-        if isinstance(metric_values, dict):
-            metric_values = np.array([metric_values[f'metric_{i}'] if f'metric_{i}' in metric_values
-                                      else list(metric_values.values())[i]
-                                      for i in range(self.n_metrics)])
-
-        single_point = metric_values.ndim == 1
-        if single_point:
-            metric_values = metric_values.reshape(1, -1)
-
-        n_points = metric_values.shape[0]
-        log_metrics = np.log(metric_values)
-        param_values = np.full((n_points, self.n_params), self.const_value)
-
-        for i in range(min(self.n_params, self.n_metrics)):
-            if not self.is_constant[i]:
-                normalized = (log_metrics[:, i] - self.log_mins[i]) / self.log_ranges[i]
-                param_values[:, i] = self.param_min + (self.param_max - self.param_min) * normalized
-
-        if as_array:
-            return param_values[0] if single_point else param_values
-
-        # Convert to dict format
-        param_names = [f'a{i}' for i in range(self.n_params)]
-        if single_point:
-            return {param_names[i]: float(param_values[0, i]) for i in range(self.n_params)}
-        else:
-            return [{param_names[i]: float(param_values[j, i]) for i in range(self.n_params)}
-                    for j in range(n_points)]
-
-    @classmethod
-    def from_dict(cls, d, output_metrics_data=None):
-        """Reconstruct normalizer from serialized dict."""
-        # Create a dummy instance and populate fields
-        if output_metrics_data is not None:
-            instance = cls(output_metrics_data, d['n_params'], d['param_min'], d['param_max'], d['const_value'])
-        else:
-            # Create without data, manually set fields
-            instance = object.__new__(cls)
-            instance.n_metrics = d['n_metrics']
-            instance.n_params = d['n_params']
-            instance.param_min = d['param_min']
-            instance.param_max = d['param_max']
-            instance.const_value = d['const_value']
-            instance.log_mins = np.array(d['log_mins'])
-            instance.log_maxs = np.array(d['log_maxs'])
-            instance.log_ranges = instance.log_maxs - instance.log_mins
-            instance.is_constant = np.array(d['is_constant'])
-        return instance
 
 # Global worker function for ProcessPoolExecutor (must be picklable)
 def _worker_evaluate_configuration(args_tuple):
@@ -418,371 +320,16 @@ class SweepTechCodesign:
 
         return pareto_filename
 
-    def _generate_cvxpy_constraint_example(self, metric, model, param_names):
-        """Generate CVXPY constraint code example for a given metric model."""
-        # Check if this is a posynomial model (new format) or monomial model (old format)
-        if 'type' in model and model['type'] == 'posynomial' and 'terms' in model:
-            # Posynomial format: sum of terms
-            # Build sum of monomial terms
-            term_strs = []
-            for term in model['terms']:
-                c = term['coefficient']
-                if len(term['exponents']) == 0:
-                    # Constant term
-                    term_strs.append(f"{c:.3e}")
-                else:
-                    monomial_parts = [f"{c:.3e}"]
-                    for param, exp in term['exponents'].items():
-                        if exp == 1.0:
-                            monomial_parts.append(param)
-                        else:
-                            monomial_parts.append(f"cp.power({param}, {exp:.3f})")
-                    term_strs.append(" * ".join(monomial_parts))
-            return f"    {metric} >= " + " + ".join(term_strs)
-        elif 'c' in model and 'exponents' in model:
-            # Old monomial format: single term
-            c = model['c']
-            exp_parts = [f"cp.power({p}, {model['exponents'][p]:.3f})" 
-                        for p in param_names if p in model['exponents']]
-            return f"    {metric} >= {c:.3e} * " + " * ".join(exp_parts)
-        else:
-            # Fallback: just show the formula
-            return f"    # {metric}: {model.get('formula', 'N/A')}"
-
-    def export_pareto_model_for_cvxpy(self, fit_results, filename=None):
-        """
-        Export the fitted Pareto model in a format suitable for CVXPY geometric programming.
-
-        Works with results from fit_pareto_surface_parametric() or fit_pareto_output_space().
-
-        Args:
-            fit_results: Results from fit_pareto_surface_parametric() or fit_pareto_output_space()
-            filename: Optional filename to save the model (JSON format)
-
-        Returns:
-            Dictionary with CVXPY-compatible format
-        """
-        import json
-
-        # Determine which type of fit results we have
-        if 'param_names' in fit_results:
-            # Parametric fit with abstract knobs (a0, a1, ...)
-            param_names = fit_results['param_names']
-            is_parametric = True
-        elif 'independent_vars' in fit_results:
-            # Fit with explicit independent variables
-            param_names = fit_results['independent_vars']
-            is_parametric = False
-        else:
-            raise ValueError("Unrecognized fit_results format")
-
-        cvxpy_model = {
-            'type': 'parametric' if is_parametric else 'explicit',
-            'param_names': param_names,
-            'output_metrics': fit_results['output_metrics'],
-            'n_params': len(param_names),
-            'constraints': {metric: {} for metric in fit_results['output_metrics']}
-        }
-
-        # Add parameter bounds for parametric models
-        if is_parametric and 'param_values' in fit_results:
-            param_values = fit_results['param_values']
-            cvxpy_model['param_bounds'] = {
-                param_names[i]: {
-                    'min': float(param_values[:, i].min()),
-                    'max': float(param_values[:, i].max())
-                }
-                for i in range(len(param_names))
-            }
-            cvxpy_model['param_min'] = float(param_values.min())
-            cvxpy_model['param_max'] = float(param_values.max())
-
-        # Create constraint specifications for each output metric
-        for metric, model in fit_results['models'].items():
-            # Check model type
-            if 'type' in model and model['type'] == 'posynomial' and 'terms' in model:
-                # Posynomial format: sum of terms
-                constraint = {
-                    'output': metric,
-                    'type': 'posynomial',
-                    'terms': model['terms'],
-                    'formula': model['formula'],
-                    'r_squared': model['r_squared']
-                }
-            elif 'type' in model and model['type'] == 'monomial' and 'coefficient' in model:
-                # Monomial format: single term (c * prod(x_i^p_i))
-                constraint = {
-                    'output': metric,
-                    'type': 'monomial',
-                    'coefficient': model['coefficient'],
-                    'exponents': model['exponents'],
-                    'formula': model.get('formula', ''),
-                    'r_squared': model.get('r_squared', 0.0)
-                }
-            elif 'c' in model and 'exponents' in model:
-                # Legacy monomial format
-                constraint = {
-                    'output': metric,
-                    'type': 'monomial',
-                    'coefficient': model['c'],
-                    'exponents': model['exponents'],
-                    'formula': model.get('formula', ''),
-                    'r_squared': model.get('r_squared', 0.0)
-                }
-            else:
-                raise ValueError(f"Unrecognized model format for metric {metric}: {list(model.keys())}")
-            cvxpy_model['constraints'][metric] = constraint
-
-        # Add usage instructions
-        usage_desc = 'Parametric Pareto surface model with design parameters. Use in CVXPY with DGP.'
-        cvxpy_model['usage'] = {
-            'description': usage_desc,
-        }
-
-        if filename:
-            with open(filename, 'w') as f:
-                # Custom JSON encoder for better readability
-                json.dump(cvxpy_model, f, indent=2)
-            logger.info(f"Exported CVXPY model to: {filename}")
-
-        return cvxpy_model
-
-    def fit_pareto_surface_parametric(self, pareto_df, output_metrics, n_params=3,
-                                        input_params=None):
-        """
-        Fit a parametric representation of the Pareto surface using abstract knobs.
-
-        Creates abstract parameters (a0, a1, ...) that parameterize the Pareto surface.
-        Each output metric is fit as a monomial function of these abstract knobs:
-            metric = c * a0^p0 * a1^p1 * ... * an^pn
-
-        The abstract parameters are derived from the output metrics themselves,
-        then each metric is fit as a monomial of these parameters using linear
-        regression in log-space.
-
-        Args:
-            pareto_df: DataFrame containing Pareto-optimal designs
-            output_metrics: List of output metrics to fit
-            n_params: Number of abstract parameters (knobs) to create
-            input_params: Ignored, kept for API compatibility
-
-        Returns:
-            Dictionary with fitted models and helper functions
-        """
-        from sklearn.linear_model import LinearRegression
-        from sklearn.neighbors import NearestNeighbors
-
-        # Create abstract parameter names
-        param_names = [f'a{i}' for i in range(n_params)]
-
-        logger.info(f"Fitting parametric Pareto surface with {n_params} abstract knobs for {len(output_metrics)} metrics")
-
-        # Extract output data
-        Y = pareto_df[output_metrics].values
-
-        assert np.all(Y > 0), "Some output metrics have non-positive values"
-
-        n_points = len(Y)
-        logger.info(f"Using {n_points} valid Pareto points")
-
-        # Create normalizer and compute abstract parameters
-        normalizer = ParamNormalizer(Y, n_params, param_min=10.0, param_max=12.0)
-        param_values = normalizer.metrics_to_params(Y, as_array=True)
-
-        logger.info(f"Abstract parameters (normalized to [1, 10]):")
-        for i in range(n_params):
-            logger.info(f"  {param_names[i]}: range [{param_values[:, i].min():.3f}, {param_values[:, i].max():.3f}]")
-
-        # Results dictionary
-        results = {
-            'output_metrics': output_metrics,
-            'n_params': n_params,
-            'param_names': param_names,
-            'n_points': n_points,
-            'models': {},
-            'param_values': param_values,
-            'pareto_data': pareto_df,
-            'normalizer': normalizer
-        }
-
-        # Log-transform abstract parameters and output metrics for linear regression
-        log_params = np.log(param_values)
-        log_Y = np.log(Y)
-
-        # Fit all output metrics simultaneously using multivariate linear regression
-        # This captures correlations between metrics through the residual covariance
-        # In log-space: log(y_i) = log(c_i) + sum(p_ij * log(a_j)) for each metric i
-        # We fit all metrics at once to capture their joint distribution
-        
-        # Prepare design matrix: [1, log(a0), log(a1), ..., log(an)]
-        n_points = log_params.shape[0]
-        X_design = np.column_stack([np.ones(n_points), log_params])
-        
-        # Multivariate linear regression: Y = X @ B, where B is (n_params+1) x n_metrics
-        # Using least squares: B = (X^T @ X)^(-1) @ X^T @ Y
-        # Use lstsq for numerical stability (handles near-singular matrices)
-        XTX = X_design.T @ X_design
-        XTY = X_design.T @ log_Y
-        B, residuals_sum_sq, rank, s = np.linalg.lstsq(XTX, XTY, rcond=None)
-        # B shape: (n_params+1) x n_metrics
-        
-        if rank < XTX.shape[0]:
-            logger.warning(f"Design matrix is rank-deficient (rank={rank} < {XTX.shape[0]}). "
-                          "Consider reducing n_params or checking for collinearity.")
-        
-        # Extract intercepts (coefficients) and slopes (exponents) for each metric
-        log_coefficients = B[0, :]  # Intercepts for each metric
-        exponents_matrix = B[1:, :].T  # Shape: n_metrics x n_params
-        
-        # Compute residual covariance matrix to capture metric correlations in model errors
-        log_Y_pred = X_design @ B  # Predicted log values
-        residuals = log_Y - log_Y_pred  # Shape: n_points x n_metrics
-        residual_cov = np.cov(residuals.T)  # Shape: n_metrics x n_metrics
-        
-        # Also compute covariance of actual metric values to capture full correlations
-        # This captures the true trade-offs: how metrics co-vary in the Pareto data
-        metric_cov = np.cov(Y.T)  # Shape: n_metrics x n_metrics
-        metric_corr = np.corrcoef(Y.T)  # Shape: n_metrics x n_metrics
-        
-        # Store the joint model information
-        results['residual_covariance'] = residual_cov  # Correlations in model errors
-        results['metric_covariance'] = metric_cov  # Full covariance of actual metrics
-        results['metric_correlation'] = metric_corr  # Correlation matrix of actual metrics
-        results['joint_fit'] = True
-        
-        # Build individual model dictionaries for each metric
-        for i, metric in enumerate(output_metrics):
-            c = np.exp(log_coefficients[i])
-            exponents = exponents_matrix[i, :]
-            
-            # Build model dictionary
-            model = {
-                'type': 'monomial',
-                'coefficient': float(c),
-                'exponents': {param_names[j]: float(exponents[j]) for j in range(n_params)}
-            }
-            
-            # Build formula string
-            exp_str = " * ".join([f"{p}^{e:.3f}" for p, e in model['exponents'].items()])
-            model['formula'] = f"{metric} = {c:.3e} * {exp_str}"
-            
-            # Evaluation function
-            def make_monomial_eval(coef, exps, params):
-                def eval_func(*args, **kwargs):
-                    if args:
-                        param_dict = {params[i]: args[i] for i in range(len(params))}
-                    else:
-                        param_dict = kwargs
-                    result = coef
-                    for param, exp in exps.items():
-                        result *= np.power(param_dict[param], exp)
-                    return result
-                return eval_func
-            
-            model['eval'] = make_monomial_eval(c, model['exponents'], param_names)
-            
-            # Compute R²
-            y = Y[:, i]
-            y_pred = model['eval'](*[param_values[:, j] for j in range(n_params)])
-            ss_res = np.sum((y - y_pred) ** 2)
-            ss_tot = np.sum((y - np.mean(y)) ** 2)
-            model['r_squared'] = float(1 - (ss_res / ss_tot))
-            
-            results['models'][metric] = model
-            logger.info(f"  {metric}: R²={model['r_squared']:.4f}")
-            logger.info(f"    Formula: {model['formula']}")
-        
-        # Log correlation information
-        logger.info(f"Metric correlation matrix (captures trade-offs in Pareto data):")
-        for i, metric_i in enumerate(output_metrics):
-            for j, metric_j in enumerate(output_metrics):
-                if i < j:  # Only upper triangle
-                    corr = metric_corr[i, j]
-                    if abs(corr) > 0.1:  # Only log significant correlations
-                        logger.info(f"    {metric_i} <-> {metric_j}: {corr:.4f}")
-        
-        # Also log residual correlations if significant
-        residual_corr = np.corrcoef(residuals.T)
-        significant_residual_corr = False
-        for i in range(len(output_metrics)):
-            for j in range(i+1, len(output_metrics)):
-                if abs(residual_corr[i, j]) > 0.1:
-                    significant_residual_corr = True
-                    break
-            if significant_residual_corr:
-                break
-        
-        if significant_residual_corr:
-            logger.info(f"Residual correlation matrix (unexplained correlations):")
-            for i, metric_i in enumerate(output_metrics):
-                for j, metric_j in enumerate(output_metrics):
-                    if i < j:
-                        corr = residual_corr[i, j]
-                        if abs(corr) > 0.1:
-                            logger.info(f"    {metric_i} <-> {metric_j}: {corr:.4f}")
-
-        # Create nearest neighbor index in abstract parameter space
-        param_normalized = (param_values - param_values.min(axis=0)) / (param_values.max(axis=0) - param_values.min(axis=0) + 1e-10)
-        results['param_nn_index'] = NearestNeighbors(n_neighbors=1, algorithm='ball_tree')
-        results['param_nn_index'].fit(param_normalized)
-        results['param_min'] = param_values.min(axis=0)
-        results['param_range'] = param_values.max(axis=0) - param_values.min(axis=0) + 1e-10
-
-        # Helper: find nearest design given abstract parameter values
-        def find_nearest_design(*args, **kwargs):
-            if args:
-                query_params = np.array([args])
-            else:
-                query_params = np.array([[kwargs[p] for p in param_names]])
-            query_normalized = (query_params - results['param_min']) / results['param_range']
-            distance, index = results['param_nn_index'].kneighbors(query_normalized)
-            return pareto_df.iloc[index[0][0]].to_dict(), float(distance[0][0])
-
-        results['find_nearest_design'] = find_nearest_design
-
-        # Helper: evaluate all metrics at given parameter values
-        def evaluate_surface(*args, **kwargs):
-            return {metric: results['models'][metric]['eval'](*args, **kwargs)
-                    for metric in output_metrics}
-
-        results['evaluate_surface'] = evaluate_surface
-
-        # Helper: evaluate metrics with correlation awareness
-        # This accounts for the fact that metrics are correlated and can't be
-        # optimized independently - improving one may worsen others
-        def evaluate_surface_with_correlation(*args, **kwargs):
-            """
-            Evaluate all metrics accounting for their correlations.
-            Returns both the mean predictions and the correlation structure.
-            
-            Returns:
-                dict with keys:
-                    'mean': dict of mean predictions for each metric
-                    'metric_covariance': full covariance matrix of actual metrics (n_metrics x n_metrics)
-                    'metric_correlation': correlation matrix between metrics (n_metrics x n_metrics)
-                    'residual_covariance': covariance of model residuals (n_metrics x n_metrics)
-            """
-            mean_pred = evaluate_surface(*args, **kwargs)
-            return {
-                'mean': mean_pred,
-                'metric_covariance': metric_cov,
-                'metric_correlation': metric_corr,
-                'residual_covariance': residual_cov
-            }
-
-        results['evaluate_surface_with_correlation'] = evaluate_surface_with_correlation
-
-        return results
-
-    def plot_pareto_fit_cross_section(self, fit_results, metric_x, metric_y, output_file=None):
+    def plot_pareto_fit_cross_section(self, pareto_df, metric_x, metric_y, model_dict, output_file=None):
         """
         Plot a cross-section of the Pareto surface showing actual data points
         and the fitted model approximation.
 
         Args:
-            fit_results: Results from fit_pareto_surface_parametric()
+            pareto_df: pandas DataFrame of Pareto-optimal designs
             metric_x: Output metric for x-axis (e.g., 'delay')
             metric_y: Output metric for y-axis (e.g., 'Edynamic')
+            model_dict: Dictionary containing fitted model with 'constraints' and 'input_metrics'
             output_file: Optional path to save the plot
 
         Returns:
@@ -790,67 +337,27 @@ class SweepTechCodesign:
         """
         import matplotlib.pyplot as plt
 
-        pareto_df = fit_results['pareto_data']
-        param_values = fit_results['param_values']
-        param_names = fit_results['param_names']
-        n_params = fit_results['n_params']
-        output_metrics = fit_results['output_metrics']
-
         # Get actual data points
         actual_x = pareto_df[metric_x].values
         actual_y = pareto_df[metric_y].values
 
-        # Get predicted values from the fitted model
-        model_x = fit_results['models'][metric_x]
-        model_y = fit_results['models'][metric_y]
-
-        pred_x = model_x['eval'](*[param_values[:, j] for j in range(n_params)])
-        pred_y = model_y['eval'](*[param_values[:, j] for j in range(n_params)])
+        # Calculate predicted values using the monomial model
+        predicted_x = self._predict_from_model(pareto_df, model_dict, metric_x)
+        predicted_y = self._predict_from_model(pareto_df, model_dict, metric_y)
 
         # Create figure
-        fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+        fig = plt.figure(figsize=(10, 8))
 
-        # Plot 1: Actual vs Predicted scatter (both metrics)
-        ax1 = axes[0]
-        ax1.scatter(actual_x, actual_y, alpha=0.5, label='Actual', c='blue', s=20)
-        ax1.scatter(pred_x, pred_y, alpha=0.5, label='Predicted', c='red', s=20, marker='x')
-        ax1.set_xlabel(metric_x)
-        ax1.set_ylabel(metric_y)
-        ax1.set_title(f'Pareto Front: {metric_x} vs {metric_y}')
-        ax1.legend()
-        ax1.set_xscale('log')
-        ax1.set_yscale('log')
-        ax1.grid(True, alpha=0.3)
-
-        # Plot 2: Actual vs Predicted for metric_x
-        ax2 = axes[1]
-        ax2.scatter(actual_x, pred_x, alpha=0.5, c='blue', s=20)
-        # Plot y=x line
-        min_val = min(actual_x.min(), pred_x.min())
-        max_val = max(actual_x.max(), pred_x.max())
-        ax2.plot([min_val, max_val], [min_val, max_val], 'r--', label='y=x')
-        ax2.set_xlabel(f'Actual {metric_x}')
-        ax2.set_ylabel(f'Predicted {metric_x}')
-        ax2.set_title(f'{metric_x}: R²={model_x["r_squared"]:.4f}')
-        ax2.set_xscale('log')
-        ax2.set_yscale('log')
-        ax2.grid(True, alpha=0.3)
-        ax2.legend()
-
-        # Plot 3: Actual vs Predicted for metric_y
-        ax3 = axes[2]
-        ax3.scatter(actual_y, pred_y, alpha=0.5, c='blue', s=20)
-        # Plot y=x line
-        min_val = min(actual_y.min(), pred_y.min())
-        max_val = max(actual_y.max(), pred_y.max())
-        ax3.plot([min_val, max_val], [min_val, max_val], 'r--', label='y=x')
-        ax3.set_xlabel(f'Actual {metric_y}')
-        ax3.set_ylabel(f'Predicted {metric_y}')
-        ax3.set_title(f'{metric_y}: R²={model_y["r_squared"]:.4f}')
-        ax3.set_xscale('log')
-        ax3.set_yscale('log')
-        ax3.grid(True, alpha=0.3)
-        ax3.legend()
+        ax = fig.add_subplot(1, 1, 1)
+        ax.scatter(actual_x, actual_y, alpha=0.5, label='Actual', c='blue', s=20)
+        ax.scatter(predicted_x, predicted_y, alpha=0.5, label='Predicted', c='red', s=20, marker='x')
+        ax.set_xlabel(metric_x)
+        ax.set_ylabel(metric_y)
+        ax.set_title(f'Pareto Front: {metric_x} vs {metric_y}')
+        ax.legend()
+        ax.set_xscale('log')
+        ax.set_yscale('log')
+        ax.grid(True, alpha=0.3)
 
         plt.tight_layout()
 
@@ -860,12 +367,50 @@ class SweepTechCodesign:
 
         return fig
 
-    def plot_all_metrics_fit(self, fit_results, output_file=None):
+    def _predict_from_model(self, pareto_df, model_dict, output_metric):
         """
-        Plot actual vs predicted for all output metrics in a grid.
+        Predict output values using the fitted monomial model.
 
         Args:
-            fit_results: Results from fit_pareto_surface_parametric()
+            pareto_df: pandas DataFrame with input data
+            model_dict: Dictionary containing 'constraints' with monomial fits
+            output_metric: Name of the output metric to predict
+
+        Returns:
+            numpy array of predicted values
+        """
+        # Find the constraint for this output metric
+        constraint = None
+        for c in model_dict['constraints']:
+            if model_dict['constraints'][c]['output'] == output_metric:
+                constraint = c
+                break
+
+        if constraint is None:
+            raise ValueError(f"No constraint found for output metric: {output_metric}")
+
+        # Calculate predicted values: coeff * prod(input_i ^ exp_i)
+        coefficient = model_dict['constraints'][constraint]['coefficient']
+        exponents = model_dict['constraints'][constraint]['exponents']
+        input_metrics = model_dict['input_metrics']
+
+        predicted = np.ones(len(pareto_df)) * coefficient
+        for input_name in input_metrics:
+            if input_name in exponents:
+                exp = exponents[input_name]
+                input_values = pareto_df[input_name].values
+                predicted = predicted * np.power(input_values, exp)
+
+        return predicted
+
+    def plot_predicted_vs_actual(self, pareto_df, model_dict, output_metric, output_file=None):
+        """
+        Plot predicted vs actual values for a single output metric with y=x reference line.
+
+        Args:
+            pareto_df: pandas DataFrame of Pareto-optimal designs
+            model_dict: Dictionary containing fitted model with 'constraints' and 'input_metrics'
+            output_metric: Name of the output metric to plot
             output_file: Optional path to save the plot
 
         Returns:
@@ -873,43 +418,107 @@ class SweepTechCodesign:
         """
         import matplotlib.pyplot as plt
 
-        pareto_df = fit_results['pareto_data']
-        param_values = fit_results['param_values']
-        param_names = fit_results['param_names']
-        n_params = fit_results['n_params']
-        output_metrics = fit_results['output_metrics']
+        # Get actual and predicted values
+        actual = pareto_df[output_metric].values
+        predicted = self._predict_from_model(pareto_df, model_dict, output_metric)
 
+        # Get R-squared from model
+        r_squared = None
+        for c in model_dict['constraints']:
+            if c['output'] == output_metric:
+                r_squared = c.get('r_squared', None)
+                break
+
+        # Create figure
+        fig = plt.figure(figsize=(8, 8))
+        ax = fig.add_subplot(1, 1, 1)
+
+        # Plot data points
+        ax.scatter(predicted, actual, alpha=0.5, c='blue', s=20, label='Data points')
+
+        # Plot y=x reference line
+        min_val = min(actual.min(), predicted.min())
+        max_val = max(actual.max(), predicted.max())
+        ax.plot([min_val, max_val], [min_val, max_val], 'k--', linewidth=2, label='y = x')
+
+        ax.set_xlabel(f'Predicted {output_metric}')
+        ax.set_ylabel(f'Actual {output_metric}')
+        title = f'Predicted vs Actual: {output_metric}'
+        if r_squared is not None:
+            title += f' (R² = {r_squared:.4f})'
+        ax.set_title(title)
+        ax.legend()
+        ax.set_xscale('log')
+        ax.set_yscale('log')
+        ax.grid(True, alpha=0.3)
+        ax.set_aspect('equal', adjustable='box')
+
+        plt.tight_layout()
+
+        if output_file:
+            plt.savefig(output_file, dpi=150, bbox_inches='tight')
+            logger.info(f"Saved plot to: {output_file}")
+
+        return fig
+
+    def plot_all_predicted_vs_actual(self, pareto_df, model_dict, base_name, output_dir=None):
+        """
+        Plot predicted vs actual for all output metrics in a grid.
+
+        Args:
+            pareto_df: pandas DataFrame of Pareto-optimal designs
+            model_dict: Dictionary containing fitted model
+            output_dir: Optional directory to save individual plots
+
+        Returns:
+            matplotlib figure with subplots
+        """
+        import matplotlib.pyplot as plt
+
+        output_metrics = model_dict['output_metrics']
         n_metrics = len(output_metrics)
-        cols = min(2, n_metrics)
-        rows = (n_metrics + cols - 1) // cols
 
-        fig, axes = plt.subplots(rows, cols, figsize=(6 * cols, 5 * rows))
+        # Calculate grid dimensions
+        n_cols = min(3, n_metrics)
+        n_rows = (n_metrics + n_cols - 1) // n_cols
+
+        fig, axes = plt.subplots(n_rows, n_cols, figsize=(6 * n_cols, 6 * n_rows))
         if n_metrics == 1:
-            axes = [axes]
-        else:
-            axes = axes.flatten()
+            axes = np.array([axes])
+        axes = axes.flatten()
 
-        for i, metric in enumerate(output_metrics):
+        for i, output_metric in enumerate(output_metrics):
             ax = axes[i]
-            model = fit_results['models'][metric]
 
-            actual = pareto_df[metric].values
-            pred = model['eval'](*[param_values[:, j] for j in range(n_params)])
+            # Get actual and predicted values
+            actual = pareto_df[output_metric].values
+            predicted = self._predict_from_model(pareto_df, model_dict, output_metric)
 
-            ax.scatter(actual, pred, alpha=0.5, c='blue', s=20)
+            # Get R-squared from model
+            r_squared = None
+            for c in model_dict['constraints']:
+                if model_dict['constraints'][c]['output'] == output_metric:
+                    r_squared = model_dict['constraints'][c].get('r_squared', None)
+                    break
 
-            # Plot y=x line
-            min_val = min(actual.min(), pred.min())
-            max_val = max(actual.max(), pred.max())
-            ax.plot([min_val, max_val], [min_val, max_val], 'r--', label='y=x')
+            # Plot data points
+            ax.scatter(predicted, actual, alpha=0.5, c='blue', s=20)
 
-            ax.set_xlabel(f'Actual {metric}')
-            ax.set_ylabel(f'Predicted {metric}')
-            ax.set_title(f'{metric}: R²={model["r_squared"]:.4f}')
+            # Plot y=x reference line
+            min_val = min(actual.min(), predicted.min())
+            max_val = max(actual.max(), predicted.max())
+            ax.plot([min_val, max_val], [min_val, max_val], 'k--', linewidth=2)
+
+            ax.set_xlabel(f'Predicted')
+            ax.set_ylabel(f'Actual')
+            title = f'{output_metric}'
+            if r_squared is not None:
+                title += f' (R² = {r_squared:.4f})'
+            ax.set_title(title)
             ax.set_xscale('log')
             ax.set_yscale('log')
             ax.grid(True, alpha=0.3)
-            ax.legend()
+            ax.set_aspect('equal', adjustable='box')
 
         # Hide unused subplots
         for i in range(n_metrics, len(axes)):
@@ -917,80 +526,12 @@ class SweepTechCodesign:
 
         plt.tight_layout()
 
-        if output_file:
+        if output_dir:
+            output_file = os.path.join(output_dir, f'{base_name}_predicted_vs_actual_all.png')
             plt.savefig(output_file, dpi=150, bbox_inches='tight')
             logger.info(f"Saved plot to: {output_file}")
 
         return fig
-
-    def optimize_and_lookup_design(self, model_json_file, fit_results, output_file=None,
-                                   objective='edp', additional_constraints=None):
-        """
-        Optimize a Pareto surface model and look up the actual design parameters.
-
-        Args:
-            model_json_file: Path to JSON file with Pareto surface model
-            fit_results: Results from fit_pareto_surface_parametric() containing find_nearest_design()
-            output_file: Optional path to save the optimal design JSON
-            objective: Optimization objective ('edp', 'delay', 'energy', 'area')
-            additional_constraints: Optional dict with constraints like {'delay': 1e-3, 'area': 3e-16}
-
-        Returns:
-            Dictionary with optimization results and design parameters
-        """
-        import json
-        from src.hardware_model.tech_models.tech_library.optimize_pareto import optimize_pareto_surface
-
-        # Optimize
-        opt_results = optimize_pareto_surface(
-            model_json_file,
-            objective=objective,
-            additional_constraints=additional_constraints
-        )
-
-        if not opt_results:
-            logger.error("Optimization failed")
-            return None
-
-        # Look up the actual design parameters
-        param_values = opt_results['parameters']
-        design, distance = fit_results['find_nearest_design'](**param_values)
-
-        # Log results
-        logger.info("\n" + "="*60)
-        logger.info("OPTIMAL DESIGN POINT")
-        logger.info("="*60)
-        logger.info(f"\nOptimal abstract parameters:")
-        for name, value in param_values.items():
-            logger.info(f"  {name} = {value:.6f}")
-
-        logger.info(f"\nOptimal output metrics:")
-        for name, value in opt_results['output_metrics'].items():
-            logger.info(f"  {name} = {value:.6e}")
-
-        logger.info(f"\nNearest design point (distance={distance:.6e}):")
-        # Print params of design
-        all_params = [k for k in design.keys()]
-        for param in sorted(all_params):
-            logger.info(f"  {param} = {design[param]:.6e}")
-
-        # Create result dictionary
-        result = {
-            'abstract_parameters': param_values,
-            'output_metrics': opt_results['output_metrics'],
-            'design_parameters': design,
-            'distance_to_pareto': distance,
-            'objective': objective
-        }
-
-        # Save to file if requested
-        if output_file:
-            with open(output_file, 'w') as f:
-                json.dump(result, f, indent=2)
-            logger.info(f"\nSaved optimal design to: {output_file}")
-
-        return result
-
 
 def test_sweep_tech_codesign(args):
     sweep_tech_codesign = SweepTechCodesign(args)
@@ -1021,11 +562,11 @@ def test_sweep_tech_codesign(args):
                         "a": list(np.linspace(0.0001, 0.001, 1)),
                     }
     elif sweep_tech_codesign.codesign_module.cfg['args']['model_cfg'] == 'vs_cfg_latest':
-        value_ranges = {"L": list(np.logspace(np.log10(15e-9), np.log10(200e-9), 5)),
-                        "W": list(np.logspace(np.log10(15e-9), np.log10(1e-8), 5)),
-                        "V_dd": list(np.linspace(0.2, 1.8, 5)),
-                        "V_th": list(np.linspace(0.2, 1.1, 5)),
-                        "tox": list(np.logspace(np.log10(1e-9), np.log10(50e-9), 5)),
+        value_ranges = {"L": list(np.logspace(np.log10(15e-9), np.log10(3e-6), 20)),
+                        "W": list(np.logspace(np.log10(15e-9), np.log10(9e-6), 20)),
+                        "V_dd": list(np.logspace(np.log10(0.1), np.log10(5), 20)),
+                        "V_th": list(np.logspace(np.log10(0.2), np.log10(1.1), 20)),
+                        "tox": list(np.logspace(np.log10(1e-9), np.log10(100e-9), 10)),
                         "k_gate": list(np.linspace(3.9, 25, 3)),
                     }
 
@@ -1036,25 +577,102 @@ def test_sweep_tech_codesign(args):
     csv_filename = sweep_tech_codesign.sweep_tech(params_to_sweep, value_ranges, output_dir, n_processes=n_processes)
     if csv_filename is not None:
         pareto_csv_filename = sweep_tech_codesign.prune_design_space(csv_filename)
-        just_fit_pareto_surface(args, pareto_csv_filename, sweep_tech_codesign.codesign_module.cfg['args']['optimize'])
+        just_fit_pareto_surface(args, pareto_csv_filename)
     else:
         logger.error("No results to prune")
-
-    
 
 def just_prune_design_space(args, filename):
     sweep_tech_codesign = SweepTechCodesign(args)
     sweep_tech_codesign.prune_design_space(filename)
 
-def just_fit_pareto_surface(args, pareto_csv_filename, optimize=False, n_params=6):
+def fit_outputs_to_inputs(d, pareto_df):
+    """
+    Fit monomial models: output_i = coeff * (input_1^exp_1) * (input_2^exp_2) * ...
+
+    In log-space: log(output_i) = log(coeff) + exp_1*log(input_1) + exp_2*log(input_2) + ...
+
+    Returns a list of monomial constraint dictionaries.
+    """
+    from sklearn.linear_model import LinearRegression
+    from sklearn.metrics import r2_score
+
+    outputs = pareto_df[d["output_metrics"]].values
+    inputs = pareto_df[d["input_metrics"]].values
+
+    # Filter out rows with non-positive values
+    valid_mask = (outputs > 0).all(axis=1) & (inputs > 0).all(axis=1)
+    logger.info(f"Valid rows for fitting: {valid_mask.sum()} / {len(valid_mask)}")
+
+    outputs = outputs[valid_mask]
+    inputs = inputs[valid_mask]
+
+    log_outputs = np.log(outputs)
+    log_inputs = np.log(inputs)
+
+    model = LinearRegression()
+    model.fit(log_inputs, log_outputs)
+
+    # model.coef_ shape: (n_outputs, n_inputs) - exponents for each output
+    # model.intercept_ shape: (n_outputs,) - log(coefficient) for each output
+
+    logger.info(f"Model coefficients (exponents): {model.coef_}")
+    logger.info(f"Model intercepts (log of coefficients): {model.intercept_}")
+
+    # Build monomial constraints list
+    constraints = {}
+    input_names = d["input_metrics"]
+    output_names = d["output_metrics"]
+
+    for i, output_name in enumerate(output_names):
+        # Get exponents for this output
+        if model.coef_.ndim == 1:
+            # Single output case
+            exponents = model.coef_
+            intercept = model.intercept_
+        else:
+            # Multiple outputs case
+            exponents = model.coef_[i]
+            intercept = model.intercept_[i]
+
+        coefficient = np.exp(intercept)
+
+        # Build exponents dict
+        exponents_dict = {input_names[j]: float(exponents[j]) for j in range(len(input_names))}
+
+        # Build formula string
+        formula_parts = [f"{coefficient:.3e}"]
+        for input_name, exp in exponents_dict.items():
+            formula_parts.append(f"{input_name}^{exp:.3f}")
+        formula = f"{output_name} = " + " * ".join(formula_parts)
+
+        # Calculate R-squared for this output
+        if model.coef_.ndim == 1:
+            predicted_log = log_inputs @ model.coef_ + model.intercept_
+        else:
+            predicted_log = log_inputs @ model.coef_[i] + model.intercept_[i]
+        r_squared = r2_score(log_outputs[:, i] if log_outputs.ndim > 1 else log_outputs, predicted_log)
+
+        constraint = {
+            "output": output_name,
+            "type": "monomial",
+            "coefficient": float(coefficient),
+            "exponents": exponents_dict,
+            "formula": formula,
+            "r_squared": float(r_squared)
+        }
+        constraints[output_name] = constraint
+
+        logger.info(f"Fitted {output_name}: {formula} (R²={r_squared:.4f})")
+
+    return model, constraints
+
+def just_fit_pareto_surface(args, pareto_csv_filename):
     """
     Fit a parametric Pareto surface model to an existing Pareto front CSV file.
 
     Args:
         args: Command line arguments (for initialization)
         pareto_csv_filename: Path to Pareto front CSV file
-        optimize: Whether to optimize the Pareto surface (default: False)
-        n_params: Number of abstract parameters to use (default: 2)
     """
     import pandas as pd
 
@@ -1063,35 +681,62 @@ def just_fit_pareto_surface(args, pareto_csv_filename, optimize=False, n_params=
     # Read Pareto CSV
     logger.info(f"Reading Pareto front from: {pareto_csv_filename}")
     pareto_df = pd.read_csv(pareto_csv_filename)
+    #pareto_df["V_ov"] = pareto_df["V_dd"] - pareto_df["V_th_eff"]
+    #pareto_df.to_csv(pareto_csv_filename, index=False)
 
     # Get output metrics from tech model
     output_metrics = sorted([col for col in pareto_df.columns
                             if col in sweep_tech_codesign.codesign_module.hw.circuit_model.tech_model.pareto_metric_db])
+    input_metrics = sorted([col for col in pareto_df.columns
+                            if col in sweep_tech_codesign.codesign_module.hw.circuit_model.tech_model.input_metric_db])
 
     logger.info(f"Found output metrics: {output_metrics}")
+    logger.info(f"Found input metrics: {input_metrics}")
 
-    # Fit parametric surface
-    fit_results = sweep_tech_codesign.fit_pareto_surface_parametric(
-        pareto_df,
-        output_metrics=output_metrics,
-        n_params=n_params
-    )
+    d = {"output_metrics": output_metrics, "input_metrics": input_metrics}
+
+    model, constraints = fit_outputs_to_inputs(d, pareto_df)
+
+    # Build param_bounds from input data
+    param_bounds = {}
+    for input_name in input_metrics:
+        col_data = pareto_df[input_name].values
+        col_data = col_data[col_data > 0]  # Filter non-positive values
+        param_bounds[input_name] = {
+            "min": float(col_data.min()),
+            "max": float(col_data.max())
+        }
+
+    # Build full model JSON structure
+    model_dict = {
+        "type": "parametric",
+        "param_names": input_metrics,
+        "output_metrics": output_metrics,
+        "input_metrics": input_metrics,
+        "n_params": len(input_metrics),
+        "constraints": constraints,
+        "param_bounds": param_bounds,
+        "usage": {
+            "description": "Parametric Pareto surface model with monomial fits. Use in CVXPY with DGP."
+        }
+    }
 
     # Export model
     output_dir = os.path.dirname(pareto_csv_filename)
     base_name = os.path.basename(pareto_csv_filename).rsplit('.', 1)[0]
     model_filename = os.path.join(output_dir, f"{base_name}_model.json")
 
-    sweep_tech_codesign.export_pareto_model_for_cvxpy(fit_results, filename=model_filename)
+    with open(model_filename, 'w') as f:
+        json.dump(model_dict, f, indent=2)
 
-    logger.info(f"Fitted Pareto surface model saved to: {model_filename}")
+    logger.info(f"Saved model to: {model_filename}")
 
-    # Generate diagnostic plots
-    plot_filename = os.path.join(output_dir, "figs", f"{base_name}_fit.png")
-    os.makedirs(os.path.dirname(plot_filename), exist_ok=True)
-    sweep_tech_codesign.plot_all_metrics_fit(fit_results, output_file=plot_filename)
+    fig_dir = os.path.join(output_dir, "figs")
+    os.makedirs(fig_dir, exist_ok=True)
 
-    # Also generate cross-section plot for delay vs Edynamic if both exist
+    sweep_tech_codesign.plot_all_predicted_vs_actual(pareto_df, model_dict, base_name, fig_dir)
+
+    # generate cross-section plots for all output metrics
     things_to_plot = [
         ['R_avg_inv', 'C_gate'], 
         ['V_dd', 'C_gate'], 
@@ -1102,15 +747,10 @@ def just_fit_pareto_surface(args, pareto_csv_filename, optimize=False, n_params=
     ]
     for thing in things_to_plot:
         if thing[0] in output_metrics and thing[1] in output_metrics:
-            cross_section_filename = os.path.join(output_dir, "figs", f"{base_name}_{thing[0]}_vs_{thing[1]}_cross_section.png")
+            cross_section_filename = os.path.join(fig_dir, f"{base_name}_{thing[0]}_vs_{thing[1]}_cross_section.png")
             sweep_tech_codesign.plot_pareto_fit_cross_section(
-                fit_results, thing[0], thing[1], output_file=cross_section_filename
+                pareto_df, thing[0], thing[1], model_dict, output_file=cross_section_filename
             )
-
-    if optimize:
-        sweep_tech_codesign.optimize_and_lookup_design(model_filename, fit_results)
-
-    return fit_results
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -1238,16 +878,10 @@ if __name__ == "__main__":
         default=False,
         help="just fit the pareto surface, don't run the sweep"
     )
-    parser.add_argument(
-        "--optimize",
-        type=bool,
-        default=False,
-        help="optimize the pareto surface, don't run the sweep"
-    )
     args = parser.parse_args()
     if args.just_prune:
         just_prune_design_space(args, args.filename)
     elif args.just_fit:
-        just_fit_pareto_surface(args, args.filename, args.optimize)
+        just_fit_pareto_surface(args, args.filename)
     else:
         test_sweep_tech_codesign(args)

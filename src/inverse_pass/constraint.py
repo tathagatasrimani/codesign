@@ -31,3 +31,6 @@ class Constraint:
         val = self.constraint.violation()
         print(f"slack for {self.label}: {float(val)}")
         self.slack = float(val)
+
+    def __repr__(self):
+        return f"Constraint(label={self.label}, value={self.constraint})"

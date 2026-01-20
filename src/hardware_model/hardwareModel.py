@@ -1092,8 +1092,7 @@ class HardwareModel:
                 constr_to_add.append(Constraint(self.circuit_model.tech_model.base_params.clk_period == self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.clk_period], "clk_period == clk_period_tech_value"))
             else:
                 constr_to_add += self.circuit_model.constraints
-        if hasattr(self.circuit_model.tech_model, "param_constant_constraints"):
-            constr_to_add += self.circuit_model.tech_model.param_constant_constraints
+        constr_to_add += self.circuit_model.tech_model.param_constant_constraints
         opt_constraints = self.constraints + constr_to_add
         for constr in opt_constraints:
             log_info(f"constraint final: {constr.constraint}")

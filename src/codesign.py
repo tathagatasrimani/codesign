@@ -922,8 +922,8 @@ class Codesign:
             for key in self.hw.circuit_model.tech_model.base_params.tech_values:
                 if isinstance(key, str):
                     d[key] = float(self.hw.circuit_model.tech_model.base_params.tech_values[key])
-                else:
-                    d[key.name] = float(self.hw.circuit_model.tech_model.base_params.tech_values[key])
+                elif key in self.hw.circuit_model.tech_model.base_params.names:
+                    d[self.hw.circuit_model.tech_model.base_params.names[key]] = float(self.hw.circuit_model.tech_model.base_params.tech_values[key])
             f.write(yaml.dump(d))
 
     def symbolic_conversion(self):
