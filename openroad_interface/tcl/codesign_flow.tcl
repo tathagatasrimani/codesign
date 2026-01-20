@@ -1,4 +1,5 @@
 # set_debug_level DPL place 1
+set_thread_count [expr [cpu_count] - 1]
 ################################################################
 # IO Placement
 puts "INFO: starting IO placement"
