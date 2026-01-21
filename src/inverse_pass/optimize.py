@@ -50,10 +50,10 @@ def _worker_evaluate_design_point(args_tuple):
         tech_model.set_params_from_design_point(design_point)
         tech_model.set_param_constant_constraints()
 
-        logger.info(f"evaluating design point {idx}: {design_point}")
+        #logger.info(f"evaluating design point {idx}: {design_point}")
 
         # Build and solve the cvxpy problem
-        logger.info(f"param constant constraints: {tech_model.param_constant_constraints}")
+        #logger.info(f"param constant constraints: {tech_model.param_constant_constraints}")
         param_constraints = [constr.constraint for constr in tech_model.param_constant_constraints]
         prob = cp.Problem(cp.Minimize(hw_obj), constraints + param_constraints)
         prob.solve(gp=True)
