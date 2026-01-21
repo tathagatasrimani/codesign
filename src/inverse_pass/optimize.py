@@ -5,15 +5,16 @@ import time
 import sys
 import copy
 import math
+from concurrent.futures import ProcessPoolExecutor, as_completed
 logger = logging.getLogger(__name__)
 
 # third party
-#import pyomo.environ as pyo
+import pyomo.environ as pyo
 import sympy as sp
 import cvxpy as cp
 import numpy as np
 # custom
-#from src.inverse_pass.preprocess import Preprocessor
+from src.inverse_pass.preprocess import Preprocessor
 from src.inverse_pass import curve_fit
 from src.inverse_pass.constraint import Constraint
 
@@ -21,12 +22,52 @@ from src import sim_util
 from src.hardware_model.hardwareModel import BlockVector
 
 multistart = False
+import warnings
+warnings.filterwarnings("ignore")
 
 def log_info(msg, stage):
     if stage == "before optimization":
         print(msg)
     elif stage == "after optimization":
         logger.info(msg)
+
+
+def _worker_evaluate_design_point(args_tuple):
+    """
+    Worker function for parallel brute force optimization.
+    Must be defined at module level to be picklable.
+
+    Args:
+        args_tuple: (design_point_index, design_point_dict, tech_model, hw_obj, constraints)
+
+    Returns:
+        (design_point_index, design_point_dict, obj_value, variables_dict) or (design_point_index, None, None, None) on failure
+    """
+    idx, design_point, tech_model, hw_obj, constraints = args_tuple
+
+    try:
+        # Set parameters from design point
+        tech_model.set_params_from_design_point(design_point)
+        tech_model.set_param_constant_constraints()
+
+        logger.info(f"evaluating design point {idx}: {design_point}")
+
+        # Build and solve the cvxpy problem
+        logger.info(f"param constant constraints: {tech_model.param_constant_constraints}")
+        param_constraints = [constr.constraint for constr in tech_model.param_constant_constraints]
+        prob = cp.Problem(cp.Minimize(hw_obj), constraints + param_constraints)
+        prob.solve(gp=True)
+
+        
+
+        # Extract variable values as a dict for returning
+        variables_dict = {var.name(): var.value for var in prob.variables()}
+
+        return (idx, design_point, prob.value, variables_dict)
+
+    except Exception as e:
+        logger.error(f"Worker error solving cvxpy problem for design point {idx}: {e}")
+        return (idx, None, None, None)
 
 
 class Optimizer:
@@ -391,24 +432,76 @@ class Optimizer:
 
         return prob.value / lower_bound, False
     
-    def brute_force_optimization(self, improvement):
+    def brute_force_optimization(self, improvement, n_processes=1):
+        """
+        Brute force optimization over design points in pareto_df.
+
+        Args:
+            improvement: Improvement factor for optimization.
+            n_processes: Number of parallel processes to use (default: 1 for sequential).
+
+        Returns:
+            (ratio of best_obj_val to lower_bound, False)
+        """
         start_time = time.time()
         lower_bound = sim_util.xreplace_safe(self.hw.obj, self.hw.circuit_model.tech_model.base_params.tech_values) / improvement
         self.constraints = self.hw.constraints + self.hw.circuit_model.constraints + self.hw.circuit_model.tech_model.constraints_cvxpy
-        #clk_period_constr = [self.hw.circuit_model.tech_model.base_params.clk_period == self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.clk_period]]
-        constraints = [constraint.constraint for constraint in self.constraints] 
+        constraints = [constraint.constraint for constraint in self.constraints]
         for constraint in constraints:
             assert constraint.is_dgp(), f"constraint is not DGP: {constraint}"
             print(f"constraint: {constraint}")
         print(f"objective: {self.hw.obj}")
 
+        total_design_points = len(self.hw.circuit_model.tech_model.pareto_df)
+        logger.info(f"Starting brute force optimization with {total_design_points} design points using {n_processes} process(es)")
+
+        if n_processes <= 1:
+            # Sequential execution (original behavior)
+            best_design_point, best_obj_val, best_design_variables = self._brute_force_sequential(constraints)
+        else:
+            # Parallel execution
+            best_design_point, best_obj_val, best_design_variables = self._brute_force_parallel(
+                constraints, n_processes
+            )
+
+        if best_design_point is None or best_obj_val == math.inf:
+            logger.error("No valid solution found across all design points")
+            return math.inf, False
+
+        # Re-solve with the best design point to get the actual cvxpy variable objects
+        # This ensures we have proper variable references for set_symbol_value
+        logger.info(f"Re-solving with best design point: {best_design_point}")
+        self.hw.circuit_model.tech_model.set_params_from_design_point(best_design_point)
+        self.hw.circuit_model.tech_model.set_param_constant_constraints()
+        prob = cp.Problem(
+            cp.Minimize(self.hw.obj),
+            constraints + [constr.constraint for constr in self.hw.circuit_model.tech_model.param_constant_constraints]
+        )
+        prob.solve(gp=True)
+
+        # Apply the solution to the tech model using the actual variable objects
+        for var in prob.variables():
+            print(f"variable: {var.name()}, value: {var.value}")
+            self.hw.circuit_model.tech_model.base_params.set_symbol_value(var, var.value)
+
+        logger.info(f"time to run cvxpy optimization: {time.time()-start_time}")
+        self.hw.circuit_model.tech_model.process_optimization_results()
+
+        return best_obj_val / lower_bound, False
+
+    def _brute_force_sequential(self, constraints):
+        """
+        Sequential brute force optimization (original implementation).
+
+        Returns:
+            (best_design_point, best_obj_val, best_design_variables_dict)
+        """
         best_design_point = self.hw.circuit_model.tech_model.pareto_df.iloc[0].to_dict()
         best_obj_val = math.inf
         best_design_variables = None
-        #best_constraints = None
 
         total_design_points = len(self.hw.circuit_model.tech_model.pareto_df)
-        for i, row in enumerate(self.hw.circuit_model.tech_model.pareto_df.itertuples(index=False)): # index=False makes the tuple purely data
+        for i, row in enumerate(self.hw.circuit_model.tech_model.pareto_df.itertuples(index=False)):
             cur_design_point = row._asdict()
             logger.info(f"evaluating design point {i} of {total_design_points}: {cur_design_point}")
             self.hw.circuit_model.tech_model.set_params_from_design_point(cur_design_point)
@@ -424,29 +517,94 @@ class Optimizer:
             logger.info(f"problem value is: {prob.value}")
             logger.info(f"variables are: {prob.variables()}")
             logger.info(f"constraints are: {prob.constraints}")
-            if prob.value < best_obj_val:
+            if prob.value is not None and prob.value < best_obj_val:
                 logger.info(f"new best design point found: {cur_design_point} with value {prob.value}")
                 best_design_point = cur_design_point
                 best_obj_val = prob.value
-                best_design_variables = prob.variables()
-                #best_constraints = constraints + [constr.constraint for constr in self.hw.circuit_model.tech_model.constraints_cvxpy]
+                best_design_variables = {var.name(): var.value for var in prob.variables()}
 
-        for var in best_design_variables:
-            print(f"variable: {var.name}, value: {var.value}")
-            self.hw.circuit_model.tech_model.base_params.set_symbol_value(var, var.value)
-        logger.info(f"time to run cvxpy optimization: {time.time()-start_time}")
-        self.hw.circuit_model.tech_model.process_optimization_results()
-        #for constraint in best_constraints:
-        #    constraint.set_slack_cvxpy()
+        return best_design_point, best_obj_val, best_design_variables
 
-        return best_obj_val / lower_bound, False
+    def _brute_force_parallel(self, constraints, n_processes):
+        """
+        Parallel brute force optimization using ProcessPoolExecutor.
+
+        Args:
+            constraints: List of cvxpy constraints.
+            n_processes: Number of parallel processes.
+
+        Returns:
+            (best_design_point, best_obj_val, best_design_variables_dict)
+        """
+        total_design_points = len(self.hw.circuit_model.tech_model.pareto_df)
+
+        # Create a pool of tech_model copies (one per worker)
+        logger.info(f"Creating {n_processes} copies of tech_model for parallel execution...")
+        logger.info(f"Tech model copies created successfully")
+
+        # Prepare design points
+        design_points = [
+            row._asdict() for row in self.hw.circuit_model.tech_model.pareto_df.itertuples(index=False)
+        ]
+
+        # Track best result across all workers
+        best_design_point = design_points[0] if design_points else None
+        best_obj_val = math.inf
+        best_design_variables = None
+        completed_count = 0
+
+        # Process in batches to avoid memory issues with large design spaces
+        max_batch_size = 10000
+        num_batches = math.ceil(total_design_points / max_batch_size)
+
+        for batch_num in range(num_batches):
+            batch_start = batch_num * max_batch_size
+            batch_end = min((batch_num + 1) * max_batch_size, total_design_points)
+            batch_design_points = design_points[batch_start:batch_end]
+
+            logger.info(f"Starting batch {batch_num + 1}/{num_batches} ({len(batch_design_points)} design points)")
+
+            with ProcessPoolExecutor(max_workers=n_processes) as executor:
+                # Create tasks: each task gets a design point and a tech_model from the pool
+                tasks = [
+                    (batch_start + local_idx, dp, self.hw.circuit_model.tech_model, self.hw.obj, constraints)
+                    for local_idx, dp in enumerate(batch_design_points)
+                ]
+
+                future_to_idx = {
+                    executor.submit(_worker_evaluate_design_point, task): task[0]
+                    for task in tasks
+                }
+
+                # Process results as they complete
+                for future in as_completed(future_to_idx):
+                    idx, design_point, obj_val, variables_dict = future.result()
+                    completed_count += 1
+
+                    if completed_count % 100 == 0:
+                        logger.info(f"Progress: {completed_count}/{total_design_points} design points completed")
+
+                    if design_point is not None and obj_val is not None:
+                        logger.info(f"Design point {idx}: objective value = {obj_val}")
+                        if obj_val < best_obj_val:
+                            logger.info(f"New best design point found: {design_point} with value {obj_val}")
+                            best_design_point = design_point
+                            best_obj_val = obj_val
+                            best_design_variables = variables_dict
+                    else:
+                        logger.warning(f"Design point {idx} failed or returned invalid result")
+
+            logger.info(f"Batch {batch_num + 1}/{num_batches} complete")
+
+        logger.info(f"Parallel optimization complete. Best objective value: {best_obj_val}")
+        return best_design_point, best_obj_val, best_design_variables
     
 
-    def cvxpy_optimization(self, improvement):
+    def cvxpy_optimization(self, improvement, n_processes=100):
         if self.opt_pipeline == "fit":
             return self.fit_optimization(improvement)
         elif self.opt_pipeline == "brute_force":
-            return self.brute_force_optimization(improvement)
+            return self.brute_force_optimization(improvement, n_processes=n_processes)
         else:
             raise ValueError(f"Invalid optimization pipeline: {self.opt_pipeline}")
     # note: improvement/regularization parameter currently only for inverse pass validation, so only using it for ipopt
