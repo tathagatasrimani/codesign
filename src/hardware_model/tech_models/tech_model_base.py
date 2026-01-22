@@ -15,6 +15,7 @@ class TechModel(ABC):
         self.base_params = base_params
         self.constraints = []
         self.sweep_constraints = []
+        self.param_constant_constraints = []
         self.param_db = {}
         self.sweep_output_db = {}
         self.pareto_metric_db = {}

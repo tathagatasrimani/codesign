@@ -130,6 +130,10 @@ class Codesign:
         self.wire_delays_over_iterations = []
         self.device_delays_over_iterations = []
         self.cur_dsp_usage = None # to be set later
+        if os.path.exists(f"{self.tmp_dir}/last_dsp_count.yaml"):
+            with open(f"{self.tmp_dir}/last_dsp_count.yaml", "r") as f:
+                self.cur_dsp_usage = yaml.load(f, Loader=yaml.FullLoader)["last_dsp_count"]
+                logger.info(f"loaded last_dsp_count from {self.tmp_dir}/last_dsp_count.yaml: {self.cur_dsp_usage}")
         self.max_rsc_reached = False
 
         self.config_json_path_scalehls = "ScaleHLS-HIDA/test/Transforms/Directive/config.json"
@@ -318,8 +322,11 @@ class Codesign:
         print(f"Running StreamHLS in {cwd}")
 
         if not setup:
-            self.cur_dsp_usage = int(self.cfg["args"]["area"] / (sim_util.xreplace_safe(self.hw.circuit_model.tech_model.param_db["A_gate"], self.hw.circuit_model.tech_model.base_params.tech_values) * self.dsp_multiplier))
-            self.cur_dsp_usage = max(self.cur_dsp_usage, self.cfg["args"]["min_dsp"])
+            if self.cfg["args"]["fixed_area_increase_pattern"] and iteration_count > 0:
+                self.cur_dsp_usage = self.cur_dsp_usage * 10
+            else: 
+                self.cur_dsp_usage = int(self.cfg["args"]["area"] / (sim_util.xreplace_safe(self.hw.circuit_model.tech_model.param_db["A_gate"], self.hw.circuit_model.tech_model.base_params.tech_values) * self.dsp_multiplier))
+                self.cur_dsp_usage = max(self.cur_dsp_usage, self.cfg["args"]["min_dsp"])
             tilelimit = 1
         else:
             self.cur_dsp_usage = 10000
@@ -1076,6 +1083,10 @@ class Codesign:
                     dest_file.write(line)
             os.remove(prev_dat_file)
 
+    def save_last_dsp_count(self, last_dsp_count_path="src/yaml/last_dsp_count.yaml"):
+        with open(last_dsp_count_path, "w") as f:
+            yaml.dump({"last_dsp_count": self.cur_dsp_usage}, f)
+
     def cleanup(self):
         self.restore_dat()
 
@@ -1154,6 +1165,7 @@ def main(args):
         os.chdir(os.path.join(os.path.dirname(__file__), ".."))
         # dump latest tech params to tmp dir for replayability
         codesign_module.write_back_params(f"{codesign_module.tmp_dir}/tech_params_latest.yaml")
+        codesign_module.save_last_dsp_count(f"{codesign_module.tmp_dir}/last_dsp_count.yaml")
         
         codesign_module.end_of_run_plots(codesign_module.obj_over_iterations, codesign_module.lag_factor_over_iterations, codesign_module.params_over_iterations, codesign_module.wire_lengths_over_iterations, codesign_module.wire_delays_over_iterations, codesign_module.device_delays_over_iterations, codesign_module.sensitivities_over_iterations, codesign_module.constraint_slack_over_iterations, visualize_block_vectors=True)
         codesign_module.cleanup()
@@ -1242,6 +1254,7 @@ if __name__ == "__main__":
     parser.add_argument("--max_power_density", type=float, help="maximum power density to allow")
     parser.add_argument("--max_power", type=float, help="maximum total power to allow")
     parser.add_argument("--solver", type=str, help="solver to use for inverse pass")
+    parser.add_argument("--fixed_area_increase_pattern", type=bool, help="number of resources increases by some factor for each iteration")
     args = parser.parse_args()
 
     main(args)

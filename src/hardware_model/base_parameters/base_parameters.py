@@ -26,7 +26,7 @@ class BaseParameters:
         self.dat_file = dat_file
         self.constraints = []
         self.symbol_type = symbol_type
-
+        self.output_parameters_initialized = False
         self.node_arrivals_end = self.symbol_init("node_arrivals_end")
 
         # placeholder symbols if using cvxpy pipeline
@@ -167,6 +167,11 @@ class BaseParameters:
             return symbols(name, real=True)
         elif self.symbol_type == "cvxpy":
             return cp.Variable(pos=True)
+
+    def init_output_parameters(self, output_metrics):
+        self.output_parameters_initialized = True
+        for metric in output_metrics:
+            setattr(self, metric, cp.Parameter(pos=True))
 
     def init_memory_params(self):
         # Memory parameters

@@ -20,6 +20,7 @@ from src.forward_pass import schedule
 from src import sim_util
 
 from src.inverse_pass.constraint import Constraint
+from src.sim_util import solve_gp_with_fallback
 
 from src.hardware_model.tech_models import bulk_model
 from src.hardware_model.tech_models import bulk_bsim4_model
@@ -29,6 +30,7 @@ from src.hardware_model.tech_models import mvs_2_model
 from src.hardware_model.tech_models import vscnfet_model
 from src.hardware_model.tech_models import mvs_general_model
 from src.hardware_model.tech_models import sweep_model
+from src.hardware_model.tech_models import sweep_brute_force_model
 from openroad_interface import openroad_run
 from openroad_interface import openroad_run_hier
 
@@ -271,6 +273,8 @@ class HardwareModel:
                 raise ValueError(f"Invalid vs model type: {self.model_cfg['vs_model_type']}")
         elif self.model_cfg["model_type"] == "sweep":
             self.tech_model = sweep_model.SweepModel(self.model_cfg, self.base_params)
+        elif self.model_cfg["model_type"] == "sweep_brute_force":
+            self.tech_model = sweep_brute_force_model.SweepBruteForceModel(self.model_cfg, self.base_params)
         elif self.model_cfg["model_type"] == "mvs_general":
             self.tech_model = mvs_general_model.MVSGeneralModel(self.model_cfg, self.base_params)
         else:
@@ -1104,7 +1108,9 @@ class HardwareModel:
         logger.info(f"time to create cvxpy problem: {time.time()-start_time}")
         start_time = time.time()
         prob = cp.Problem(cp.Minimize(self.graph_delays[top_block_name]), [constr.constraint for constr in opt_constraints])
-        prob.solve(gp=True) # this hasn't been working for non cvxpy for whatever reason
+
+        prob.solve(gp=True, verbose=True, **sim_util.GP_SOLVER_OPTS_RELAXED) # this hasn't been working for non cvxpy for whatever reason
+        #obj_val = solve_gp_with_fallback(prob)
         logger.info(f"time to solve cvxpy problem: {time.time()-start_time}")
         logger.info(f"cvxpy problem status: {prob.status}")
         self.print_node_arrivals()
@@ -1352,7 +1358,7 @@ class HardwareModel:
                 "m3_k": self.circuit_model.tech_model.base_params.m3_k,
                 "multiplier delay": self.circuit_model.symbolic_latency_wc["Mult16"](),
             }
-        elif self.circuit_model.tech_model.model_cfg["model_type"] == "sweep":
+        elif self.circuit_model.tech_model.model_cfg["model_type"] == "sweep" or self.circuit_model.tech_model.model_cfg["model_type"] == "sweep_brute_force":
             self.obj_sub_exprs = {
                 "execution_time": execution_time,
                 "passive power": self.total_passive_energy/execution_time,
