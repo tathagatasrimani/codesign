@@ -167,11 +167,18 @@ class BaseParameters:
             return symbols(name, real=True)
         elif self.symbol_type == "cvxpy":
             return cp.Variable(pos=True)
+        else:
+            raise ValueError(f"unsupported symbol type for symbol_init: {self.symbol_type}")
 
     def init_output_parameters(self, output_metrics):
         self.output_parameters_initialized = True
         for metric in output_metrics:
             setattr(self, metric, cp.Parameter(pos=True))
+
+    def init_output_parameters_basic(self, output_metrics):
+        self.output_parameters_initialized = True
+        for metric in output_metrics:
+            setattr(self, metric, symbols(metric, real=True))
 
     def init_memory_params(self):
         # Memory parameters

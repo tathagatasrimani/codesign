@@ -31,6 +31,7 @@ from src.hardware_model.tech_models import vscnfet_model
 from src.hardware_model.tech_models import mvs_general_model
 from src.hardware_model.tech_models import sweep_model
 from src.hardware_model.tech_models import sweep_brute_force_model
+from src.hardware_model.tech_models import sweep_basic_model
 from openroad_interface import openroad_run
 from openroad_interface import openroad_run_hier
 
@@ -275,6 +276,8 @@ class HardwareModel:
             self.tech_model = sweep_model.SweepModel(self.model_cfg, self.base_params)
         elif self.model_cfg["model_type"] == "sweep_brute_force":
             self.tech_model = sweep_brute_force_model.SweepBruteForceModel(self.model_cfg, self.base_params)
+        elif self.model_cfg["model_type"] == "sweep_basic":
+            self.tech_model = sweep_basic_model.SweepBasicModel(self.model_cfg, self.base_params)
         elif self.model_cfg["model_type"] == "mvs_general":
             self.tech_model = mvs_general_model.MVSGeneralModel(self.model_cfg, self.base_params)
         else:
@@ -830,6 +833,7 @@ class HardwareModel:
                         log_info(f"block vector for {basic_block_name} {graph_type} {edge}: {self.block_vectors[basic_block_name][graph_type][edge]}")
 
     def update_execution_time_vitis(self, clk_period_opt=True):
+        assert self.cfg["args"]["solver"] != "basic", "basic not supported here"
         start_time = time.time()
 
         clk_period_var = self.circuit_model.tech_model.base_params.clk_period if self.cfg["args"]["solver"] == "cvxpy" else cp.Variable(pos=True)
@@ -1084,36 +1088,37 @@ class HardwareModel:
         log_info(f"scheduled dfgs: {self.scheduled_dfgs.keys()}")
         start_time = time.time()
 
-        for basic_block_name in self.scheduled_dfgs:
-            #self.node_arrivals[basic_block_name] = {"full": {}, "loop_1x": {}, "loop_2x": {}}
-            self.node_arrivals[basic_block_name] = {"full": {}, "loop_1x": {}, "loop_2x": {}}
+        if self.cfg["args"]["solver"] != "basic":
+            for basic_block_name in self.scheduled_dfgs:
+                #self.node_arrivals[basic_block_name] = {"full": {}, "loop_1x": {}, "loop_2x": {}}
+                self.node_arrivals[basic_block_name] = {"full": {}, "loop_1x": {}, "loop_2x": {}}
 
-        graph_end_node = f"graph_end_{top_block_name}" if top_block_name not in self.dataflow_blocks else f"{top_block_name}_graph_end_{top_block_name}"
-        self.graph_delays[top_block_name] = self.calculate_execution_time_vitis_recursive(top_block_name, self.scheduled_dfgs[top_block_name], graph_end_node=graph_end_node)
+            graph_end_node = f"graph_end_{top_block_name}" if top_block_name not in self.dataflow_blocks else f"{top_block_name}_graph_end_{top_block_name}"
+            self.graph_delays[top_block_name] = self.calculate_execution_time_vitis_recursive(top_block_name, self.scheduled_dfgs[top_block_name], graph_end_node=graph_end_node)
 
-        self.circuit_model.create_constraints()
-        constr_to_add = []
-        if self.cfg['args']['solver'] == "cvxpy":
-            if not clk_period_opt:
-                constr_to_add.append(Constraint(self.circuit_model.tech_model.base_params.clk_period == self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.clk_period], "clk_period == clk_period_tech_value"))
-            else:
-                constr_to_add += self.circuit_model.constraints
-        constr_to_add += self.circuit_model.tech_model.param_constant_constraints
-        opt_constraints = self.constraints + constr_to_add
-        for constr in opt_constraints:
-            log_info(f"constraint final: {constr.constraint}")
-        log_info(f"objective: {self.graph_delays[top_block_name]}")
-        for node in self.node_arrivals[top_block_name]["full"]:
-            log_info(f"node arrivals cvx var for {top_block_name} full {node}: {self.node_arrivals[top_block_name]['full'][node]}")
-        logger.info(f"time to create cvxpy problem: {time.time()-start_time}")
-        start_time = time.time()
-        prob = cp.Problem(cp.Minimize(self.graph_delays[top_block_name]), [constr.constraint for constr in opt_constraints])
+            self.circuit_model.create_constraints()
+            constr_to_add = []
+            if self.cfg['args']['solver'] == "cvxpy":
+                if not clk_period_opt:
+                    constr_to_add.append(Constraint(self.circuit_model.tech_model.base_params.clk_period == self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.clk_period], "clk_period == clk_period_tech_value"))
+                else:
+                    constr_to_add += self.circuit_model.constraints
+            constr_to_add += self.circuit_model.tech_model.param_constant_constraints
+            opt_constraints = self.constraints + constr_to_add
+            for constr in opt_constraints:
+                log_info(f"constraint final: {constr.constraint}")
+            log_info(f"objective: {self.graph_delays[top_block_name]}")
+            for node in self.node_arrivals[top_block_name]["full"]:
+                log_info(f"node arrivals cvx var for {top_block_name} full {node}: {self.node_arrivals[top_block_name]['full'][node]}")
+            logger.info(f"time to create cvxpy problem: {time.time()-start_time}")
+            start_time = time.time()
+            prob = cp.Problem(cp.Minimize(self.graph_delays[top_block_name]), [constr.constraint for constr in opt_constraints])
 
-        prob.solve(gp=True, verbose=True, **sim_util.GP_SOLVER_OPTS_RELAXED) # this hasn't been working for non cvxpy for whatever reason
-        #obj_val = solve_gp_with_fallback(prob)
-        logger.info(f"time to solve cvxpy problem: {time.time()-start_time}")
-        logger.info(f"cvxpy problem status: {prob.status}")
-        self.print_node_arrivals()
+            prob.solve(gp=True, verbose=True, **sim_util.GP_SOLVER_OPTS_RELAXED) # this hasn't been working for non cvxpy for whatever reason
+            #obj_val = solve_gp_with_fallback(prob)
+            logger.info(f"time to solve cvxpy problem: {time.time()-start_time}")
+            logger.info(f"cvxpy problem status: {prob.status}")
+            self.print_node_arrivals()
 
         end_arrival = float(self.calculate_block_vectors(top_block_name))
         
@@ -1358,7 +1363,7 @@ class HardwareModel:
                 "m3_k": self.circuit_model.tech_model.base_params.m3_k,
                 "multiplier delay": self.circuit_model.symbolic_latency_wc["Mult16"](),
             }
-        elif self.circuit_model.tech_model.model_cfg["model_type"] == "sweep" or self.circuit_model.tech_model.model_cfg["model_type"] == "sweep_brute_force":
+        elif self.circuit_model.tech_model.model_cfg["model_type"] == "sweep" or self.circuit_model.tech_model.model_cfg["model_type"] == "sweep_brute_force" or self.circuit_model.tech_model.model_cfg["model_type"] == "sweep_basic":
             self.obj_sub_exprs = {
                 "execution_time": execution_time,
                 "passive power": self.total_passive_energy/execution_time,

@@ -72,3 +72,10 @@ vitis_test_sweep_brute_force:
     opt_pipeline: brute_force
     fixed_area_increase_pattern: True
     model_cfg: sweep_brute_force_cfg
+
+vitis_test_sweep_basic:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
