@@ -32,42 +32,57 @@ def log_info(msg, stage):
         logger.info(msg)
 
 
-def _worker_evaluate_design_point(args_tuple):
+def _worker_evaluate_design_points_chunk(args_tuple):
     """
     Worker function for parallel brute force optimization.
+    Each worker evaluates multiple design points and returns its local best.
     Must be defined at module level to be picklable.
 
     Args:
-        args_tuple: (design_point_index, design_point_dict, tech_model, hw_obj, constraints)
+        args_tuple: (worker_id, design_points_chunk, tech_model, hw_obj, constraints)
+            - worker_id: identifier for this worker
+            - design_points_chunk: list of (index, design_point_dict) tuples to evaluate
+            - tech_model: deep copy of the tech model for this worker
+            - hw_obj: the objective function
+            - constraints: list of cvxpy constraints
 
     Returns:
-        (design_point_index, design_point_dict, obj_value, variables_dict) or (design_point_index, None, None, None) on failure
+        (worker_id, best_design_point, best_obj_val, best_variables_dict, num_evaluated, num_failed)
     """
-    idx, design_point, tech_model, hw_obj, constraints = args_tuple
+    worker_id, design_points_chunk, tech_model, hw_obj, constraints = args_tuple
 
-    try:
-        # Set parameters from design point
-        tech_model.set_params_from_design_point(design_point)
-        tech_model.set_param_constant_constraints()
+    best_design_point = None
+    best_obj_val = math.inf
+    best_variables_dict = None
+    num_evaluated = 0
+    num_failed = 0
 
-        #logger.info(f"evaluating design point {idx}: {design_point}")
+    for idx, design_point in design_points_chunk:
+        try:
+            # Set parameters from design point
+            tech_model.set_params_from_design_point(design_point)
+            tech_model.set_param_constant_constraints()
 
-        # Build and solve the cvxpy problem
-        #logger.info(f"param constant constraints: {tech_model.param_constant_constraints}")
-        param_constraints = [constr.constraint for constr in tech_model.param_constant_constraints]
-        prob = cp.Problem(cp.Minimize(hw_obj), constraints + param_constraints)
-        prob.solve(gp=True)
+            # Build and solve the cvxpy problem
+            param_constraints = [constr.constraint for constr in tech_model.param_constant_constraints]
+            prob = cp.Problem(cp.Minimize(hw_obj), constraints + param_constraints)
+            prob.solve(gp=True)
 
-        
+            num_evaluated += 1
 
-        # Extract variable values as a dict for returning
-        variables_dict = {var.name(): var.value for var in prob.variables()}
+            # Update local best if this solution is better
+            if prob.value is not None and prob.value < best_obj_val:
+                logger.info(f"new best obj val for worker {worker_id} after evaluation {num_evaluated}, {num_failed} failed: {prob.value}")
+                logger.info(f"worker {worker_id} new best design point: {design_point}")
 
-        return (idx, design_point, prob.value, variables_dict)
+                best_design_point = design_point
+                best_obj_val = prob.value
+                best_variables_dict = {var.name(): var.value for var in prob.variables()}
 
-    except Exception as e:
-        logger.error(f"Worker error solving cvxpy problem for design point {idx}: {e}")
-        return (idx, None, None, None)
+        except Exception as e:
+            num_failed += 1
+
+    return (worker_id, best_design_point, best_obj_val, best_variables_dict, num_evaluated, num_failed)
 
 
 class Optimizer:
@@ -528,6 +543,8 @@ class Optimizer:
     def _brute_force_parallel(self, constraints, n_processes):
         """
         Parallel brute force optimization using ProcessPoolExecutor.
+        Each worker evaluates a chunk of design points and maintains its own local best.
+        After all workers complete, we compare their local bests to find the global best.
 
         Args:
             constraints: List of cvxpy constraints.
@@ -536,67 +553,64 @@ class Optimizer:
         Returns:
             (best_design_point, best_obj_val, best_design_variables_dict)
         """
-        total_design_points = len(self.hw.circuit_model.tech_model.pareto_df)
+        tech_model = self.hw.circuit_model.tech_model
+        total_design_points = len(tech_model.pareto_df)
 
-        # Create a pool of tech_model copies (one per worker)
-        logger.info(f"Creating {n_processes} copies of tech_model for parallel execution...")
-        logger.info(f"Tech model copies created successfully")
-
-        # Prepare design points
+        # Prepare design points with indices and randomize order
         design_points = [
-            row._asdict() for row in self.hw.circuit_model.tech_model.pareto_df.itertuples(index=False)
+            (i, row._asdict()) for i, row in enumerate(tech_model.pareto_df.itertuples(index=False))
+        ]
+        np.random.shuffle(design_points)
+
+        # Partition design points into chunks for each worker
+        chunk_size = math.ceil(total_design_points / n_processes)
+        chunks = [
+            design_points[i * chunk_size : (i + 1) * chunk_size]
+            for i in range(n_processes)
+        ]
+        # Filter out empty chunks (in case n_processes > total_design_points)
+        chunks = [chunk for chunk in chunks if chunk]
+        actual_n_workers = len(chunks)
+
+        logger.info(f"Partitioning {total_design_points} design points into {actual_n_workers} chunks of ~{chunk_size} each")
+
+        # Create tasks: each worker gets a chunk of design points
+        # No need to copy tech_model since ProcessPoolExecutor uses separate processes
+        tasks = [
+            (worker_id, chunk, tech_model, self.hw.obj, constraints)
+            for worker_id, chunk in enumerate(chunks)
         ]
 
-        # Track best result across all workers
-        best_design_point = design_points[0] if design_points else None
+        # Submit all tasks and wait for results
+        logger.info(f"Submitting {actual_n_workers} worker tasks...")
+        with ProcessPoolExecutor(max_workers=actual_n_workers) as executor:
+            futures = [executor.submit(_worker_evaluate_design_points_chunk, task) for task in tasks]
+
+            # Collect results from all workers
+            worker_results = []
+            for future in as_completed(futures):
+                result = future.result()
+                worker_results.append(result)
+                worker_id, best_dp, best_val, best_vars, num_eval, num_fail = result
+                logger.info(f"Worker {worker_id} completed: evaluated {num_eval}, failed {num_fail}, best value = {best_val}")
+
+        # Find global best by comparing all workers' local bests
+        best_design_point = None
         best_obj_val = math.inf
         best_design_variables = None
-        completed_count = 0
 
-        # Process in batches to avoid memory issues with large design spaces
-        max_batch_size = 10000
-        num_batches = math.ceil(total_design_points / max_batch_size)
+        for worker_id, local_best_dp, local_best_val, local_best_vars, num_eval, num_fail in worker_results:
+            if local_best_dp is not None and local_best_val is not None and local_best_val < best_obj_val:
+                best_design_point = local_best_dp
+                best_obj_val = local_best_val
+                best_design_variables = local_best_vars
+                logger.info(f"New global best from worker {worker_id}: {best_obj_val}")
 
-        for batch_num in range(num_batches):
-            batch_start = batch_num * max_batch_size
-            batch_end = min((batch_num + 1) * max_batch_size, total_design_points)
-            batch_design_points = design_points[batch_start:batch_end]
+        total_evaluated = sum(r[4] for r in worker_results)
+        total_failed = sum(r[5] for r in worker_results)
+        logger.info(f"Parallel optimization complete. Total evaluated: {total_evaluated}, failed: {total_failed}")
+        logger.info(f"Global best objective value: {best_obj_val}")
 
-            logger.info(f"Starting batch {batch_num + 1}/{num_batches} ({len(batch_design_points)} design points)")
-
-            with ProcessPoolExecutor(max_workers=n_processes) as executor:
-                # Create tasks: each task gets a design point and a tech_model from the pool
-                tasks = [
-                    (batch_start + local_idx, dp, self.hw.circuit_model.tech_model, self.hw.obj, constraints)
-                    for local_idx, dp in enumerate(batch_design_points)
-                ]
-
-                future_to_idx = {
-                    executor.submit(_worker_evaluate_design_point, task): task[0]
-                    for task in tasks
-                }
-
-                # Process results as they complete
-                for future in as_completed(future_to_idx):
-                    idx, design_point, obj_val, variables_dict = future.result()
-                    completed_count += 1
-
-                    if completed_count % 100 == 0:
-                        logger.info(f"Progress: {completed_count}/{total_design_points} design points completed")
-
-                    if design_point is not None and obj_val is not None:
-                        logger.info(f"Design point {idx}: objective value = {obj_val}")
-                        if obj_val < best_obj_val:
-                            logger.info(f"New best design point found: {design_point} with value {obj_val}")
-                            best_design_point = design_point
-                            best_obj_val = obj_val
-                            best_design_variables = variables_dict
-                    else:
-                        logger.warning(f"Design point {idx} failed or returned invalid result")
-
-            logger.info(f"Batch {batch_num + 1}/{num_batches} complete")
-
-        logger.info(f"Parallel optimization complete. Best objective value: {best_obj_val}")
         return best_design_point, best_obj_val, best_design_variables
     
 
