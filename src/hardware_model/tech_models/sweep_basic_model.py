@@ -133,6 +133,8 @@ class objective_evaluator:
         return sim_util.xreplace_safe(wire_delay * 1e9, self.tech_model.base_params.tech_values)
 
     def latency(self, op_type):
+        if op_type not in self.gamma:
+            return 0
         return math.ceil(self.gamma[op_type] * sim_util.xreplace_safe(self.tech_model.delay, self.tech_model.base_params.tech_values))
 
 

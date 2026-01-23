@@ -130,9 +130,11 @@ class Codesign:
         self.wire_delays_over_iterations = []
         self.device_delays_over_iterations = []
         self.cur_dsp_usage = None # to be set later
+        self.last_dsp_count_set = False
         if os.path.exists(f"{self.tmp_dir}/last_dsp_count.yaml"):
             with open(f"{self.tmp_dir}/last_dsp_count.yaml", "r") as f:
                 self.cur_dsp_usage = yaml.load(f, Loader=yaml.FullLoader)["last_dsp_count"]
+                self.last_dsp_count_set = True
                 logger.info(f"loaded last_dsp_count from {self.tmp_dir}/last_dsp_count.yaml: {self.cur_dsp_usage}")
         self.max_rsc_reached = False
 
@@ -322,7 +324,10 @@ class Codesign:
         print(f"Running StreamHLS in {cwd}")
 
         if not setup:
-            if self.cfg["args"]["fixed_area_increase_pattern"] and iteration_count > 0:
+            if self.last_dsp_count_set:
+                self.cur_dsp_usage = self.cur_dsp_usage
+                self.last_dsp_count_set = False
+            elif self.cfg["args"]["fixed_area_increase_pattern"] and iteration_count > 0:
                 self.cur_dsp_usage = self.cur_dsp_usage * 10
             else: 
                 self.cur_dsp_usage = int(self.cfg["args"]["area"] / (sim_util.xreplace_safe(self.hw.circuit_model.tech_model.param_db["A_gate"], self.hw.circuit_model.tech_model.base_params.tech_values) * self.dsp_multiplier))

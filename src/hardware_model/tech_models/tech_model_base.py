@@ -45,7 +45,6 @@ class TechModel(ABC):
         
         self.max_delay_scale = 1/max_speedup_factor
         self.max_power_scale = self.max_area_increase_factor
-        assert max_area_increase_factor > 1, "max_area_increase_factor must be greater than 1"
         self.latency_scale_exp = np.log(max_speedup_factor) / np.log(self.max_area_increase_factor)
         # base_params.latency_scale and base_params.area_scale are set by the ratio of the starting cell area to current cell area
         #self.capped_delay_scale = symbolic_convex_max(self.max_delay_scale, 1 - self.latency_scale_slope * self.base_params.area_scale) # <= 1 (delay = delay_0 * capped_delay_scale)
