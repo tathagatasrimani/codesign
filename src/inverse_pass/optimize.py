@@ -677,6 +677,7 @@ class Optimizer:
 
         self.hw.circuit_model.tech_model.set_params_from_design_point(best_design_point)
         self.hw.circuit_model.tech_model.base_params.set_symbol_value(self.hw.circuit_model.tech_model.base_params.clk_period, best_value_clk_period)
+        self.hw.calculate_objective()
         return 1, False
         
 

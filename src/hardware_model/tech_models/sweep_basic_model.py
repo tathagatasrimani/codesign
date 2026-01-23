@@ -149,9 +149,8 @@ class SweepBasicModel(TechModel):
         for metric in self.sweep_model["output_metrics"]:
             metric_vals[metric] = getattr(self, metric).value
             logger.info(f"after optimization, {metric} is {metric_vals[metric]}")
-        self.cur_design_point, dist, self.cur_design_point_index = self.find_nearest_design_by_values(metric_vals)
-        assert dist < 1e-6, f"distance to nearest design should be 0: {dist}"
         self.set_params_from_design_point(self.cur_design_point)
+        self.config_param_db()
 
     def find_nearest_design_by_values(self, values):
         """
@@ -209,16 +208,17 @@ class SweepBasicModel(TechModel):
         self.config_pareto_metric_db()
         if not self.base_params.output_parameters_initialized:
             self.base_params.init_output_parameters_basic(self.sweep_model["output_metrics"])
-        tech_values_str_ind = {}
-        for k, v in self.base_params.tech_values.items():
-            if k in self.base_params.names:
-                tech_values_str_ind[self.base_params.names[k]] = v
-        self.cur_design_point, dist, self.cur_design_point_index = self.find_nearest_design_by_values(tech_values_str_ind)
+            tech_values_str_ind = {}
+            for k, v in self.base_params.tech_values.items():
+                if k in self.base_params.names:
+                    tech_values_str_ind[self.base_params.names[k]] = v
+            self.cur_design_point, dist, self.cur_design_point_index = self.find_nearest_design_by_values(tech_values_str_ind)
+            logger.info(f"distance to nearest design: {dist}")
+            logger.info(f"index of nearest design: {self.cur_design_point_index}")
+        else:
+            self.cur_design_point = self.base_params.cur_design_point
         self.set_params_from_design_point(self.cur_design_point)
-
         logger.info(f"Current design point: {self.cur_design_point}")
-        logger.info(f"distance to nearest design: {dist}")
-        logger.info(f"index of nearest design: {self.cur_design_point_index}")
 
         if "delay" not in self.sweep_model["output_metrics"]:
             self.delay = (self.R_avg_inv * (self.C_diff + self.C_wire/2) + (self.R_avg_inv + self.R_wire) * (self.C_wire/2 + self.C_load)) * 1e9  # ns
@@ -233,25 +233,26 @@ class SweepBasicModel(TechModel):
         self.config_param_db()
 
     def set_params_from_design_point(self, design_point):
-        for metric in self.sweep_model["output_metrics"]:
-            self.base_params.set_symbol_value(getattr(self.base_params, metric), design_point[metric])
-            setattr(self, metric, getattr(self.base_params, metric))
+        for param in design_point.keys():
+            if not hasattr(self.base_params, param):
+                setattr(self.base_params, param, self.base_params.symbol_init(param))
+            self.base_params.set_symbol_value(getattr(self.base_params, param), design_point[param])
+            setattr(self, param, getattr(self.base_params, param))
+            logger.info(f"set {param} to {sim_util.xreplace_safe(getattr(self, param), self.base_params.tech_values)}")
         if hasattr(self, "C_gate"):
             self.C_load = self.C_gate
             self.C_diff = self.C_gate
+        self.base_params.cur_design_point = design_point
         
 
     def config_param_db(self):
         super().config_param_db()
         for param in self.cur_design_point.keys():
-            if param not in self.sweep_model["output_metrics"]:
-                self.param_db[param] = self.cur_design_point[param]
-        
-        for metric in self.sweep_model["output_metrics"]:
-            self.param_db[metric] = getattr(self, metric)
+            logger.info(f"setting {param} in param_db to {sim_util.xreplace_safe(getattr(self.base_params, param), self.base_params.tech_values)}")
+            self.param_db[param] = getattr(self.base_params, param)
         
         if "Ioff" in self.sweep_model["output_metrics"]:
-            self.I_off = getattr(self, "Ioff")
+            self.I_off = getattr(self.base_params, "Ioff")
             self.param_db["I_off"] = self.I_off
         
         if "A_gate" not in self.sweep_model["output_metrics"]:

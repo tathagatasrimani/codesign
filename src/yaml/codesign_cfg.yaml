@@ -79,3 +79,12 @@ vitis_test_sweep_basic:
     model_cfg: sweep_basic_cfg
     fixed_area_increase_pattern: True
     solver: basic
+
+vitis_test_sweep_basic_attention:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 40
+    benchmark: MultiHeadSelfAttention

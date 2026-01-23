@@ -1091,7 +1091,6 @@ class Codesign:
         self.restore_dat()
 
     def end_of_run_plots(self, obj_over_iterations, lag_factor_over_iterations, params_over_iterations, wire_lengths_over_iterations, wire_delays_over_iterations, device_delays_over_iterations, sensitivities_over_iterations, constraint_slack_over_iterations, visualize_block_vectors=False):
-        assert len(params_over_iterations) > 1 
         obj = "Energy Delay Product"
         units = "nJ*ns"
         if self.obj_fn == "energy":
@@ -1145,7 +1144,8 @@ class Codesign:
             logger.info(f"time to update state after inverse pass iteration {self.iteration_count}: {time.time()-start_time_after_inverse_pass}")
             logger.info(f"time to execute iteration {self.iteration_count}: {time.time()-start_time}")
             self.iteration_count += 1
-            self.end_of_run_plots(self.obj_over_iterations, self.lag_factor_over_iterations, self.params_over_iterations, self.wire_lengths_over_iterations, self.wire_delays_over_iterations, self.device_delays_over_iterations, self.sensitivities_over_iterations, self.constraint_slack_over_iterations, visualize_block_vectors=False)
+            params_over_iterations_start_ind = 0 if not self.cfg["args"]["fixed_area_increase_pattern"] else 1
+            self.end_of_run_plots(self.obj_over_iterations, self.lag_factor_over_iterations, self.params_over_iterations[params_over_iterations_start_ind:], self.wire_lengths_over_iterations, self.wire_delays_over_iterations, self.device_delays_over_iterations, self.sensitivities_over_iterations, self.constraint_slack_over_iterations, visualize_block_vectors=False)
             logger.info(f"current dsp usage: {self.cur_dsp_usage}, max dsp: {self.max_dsp}")
             if self.cur_dsp_usage == self.max_dsp:
                 logger.info("Resource constraints have been reached, will skip forward pass steps from now on.")
@@ -1167,7 +1167,8 @@ def main(args):
         codesign_module.write_back_params(f"{codesign_module.tmp_dir}/tech_params_latest.yaml")
         codesign_module.save_last_dsp_count(f"{codesign_module.tmp_dir}/last_dsp_count.yaml")
         
-        codesign_module.end_of_run_plots(codesign_module.obj_over_iterations, codesign_module.lag_factor_over_iterations, codesign_module.params_over_iterations, codesign_module.wire_lengths_over_iterations, codesign_module.wire_delays_over_iterations, codesign_module.device_delays_over_iterations, codesign_module.sensitivities_over_iterations, codesign_module.constraint_slack_over_iterations, visualize_block_vectors=True)
+        params_over_iterations_start_ind = 0 if not codesign_module.cfg["args"]["fixed_area_increase_pattern"] else 1
+        codesign_module.end_of_run_plots(codesign_module.obj_over_iterations, codesign_module.lag_factor_over_iterations, codesign_module.params_over_iterations[params_over_iterations_start_ind:], codesign_module.wire_lengths_over_iterations, codesign_module.wire_delays_over_iterations, codesign_module.device_delays_over_iterations, codesign_module.sensitivities_over_iterations, codesign_module.constraint_slack_over_iterations, visualize_block_vectors=True)
         codesign_module.cleanup()
 
 if __name__ == "__main__":
