@@ -20,6 +20,7 @@ from src.inverse_pass.constraint import Constraint
 
 from src import sim_util
 from src.hardware_model.hardwareModel import BlockVector
+from src.hardware_model.tech_models.sweep_basic_model import objective_evaluator
 
 multistart = False
 
@@ -31,6 +32,28 @@ def log_info(msg, stage):
         print(msg)
     elif stage == "after optimization":
         logger.info(msg)
+
+def satisfies_constraints(objective_evaluator_obj, design_point, max_system_power):
+    if objective_evaluator_obj.total_power > max_system_power:
+        logger.info(f"total power {objective_evaluator_obj.total_power} is greater than max system power {max_system_power} for design point {design_point}")
+        return False
+    return True
+
+def _worker_basic_optimization_chunk(args_tuple):
+    worker_id, chunk, tech_model, total_active_energy, total_passive_energy, scheduled_dfgs, dataflow_blocks, obj_fn, top_block_name, loop_1x_graphs, edge_to_nets, max_system_power = args_tuple
+    best_design_point = None
+    best_obj_val = math.inf
+    for idx, design_point in chunk:
+        tech_model.set_params_from_design_point(design_point)
+        tech_model.base_params.set_symbol_value(tech_model.base_params.clk_period, sim_util.xreplace_safe(tech_model.delay * 1550, tech_model.base_params.tech_values))
+        objective_evaluator_obj = objective_evaluator(tech_model, total_active_energy, total_passive_energy, scheduled_dfgs, dataflow_blocks, obj_fn, top_block_name, loop_1x_graphs, edge_to_nets)
+        objective_evaluator_obj.calculate_objective()
+        if objective_evaluator_obj.obj < best_obj_val and satisfies_constraints(objective_evaluator_obj, design_point, max_system_power):
+            best_design_point = design_point
+            best_obj_val = objective_evaluator_obj.obj
+            best_value_clk_period = sim_util.xreplace_safe(tech_model.base_params.clk_period, tech_model.base_params.tech_values)
+            logger.info(f"worker {worker_id} new best objective value: {objective_evaluator_obj.obj}, design point: {design_point}")
+    return (worker_id, best_design_point, best_obj_val, best_value_clk_period)
 
 
 def _worker_evaluate_design_points_chunk(args_tuple):
@@ -585,6 +608,78 @@ class Optimizer:
         else:
             raise ValueError(f"Invalid optimization pipeline: {self.opt_pipeline}")
 
+    def basic_optimization(self, improvement, n_processes=100):
+        self.constraints = []
+        start_time = time.time()
+        cur_obj_val = sim_util.xreplace_safe(self.hw.obj, self.hw.circuit_model.tech_model.base_params.tech_values)
+
+        total_design_points = len(self.hw.circuit_model.tech_model.pareto_df)
+        logger.info(f"Starting brute force optimization with {total_design_points} design points using {n_processes} process(es)")
+        logger.info(f"objective: {self.hw.obj}")
+        # Parallel execution
+
+        # Prepare design points with indices and randomize order
+        design_points = [
+            (i, row._asdict()) for i, row in enumerate(self.hw.circuit_model.tech_model.pareto_df.itertuples(index=False))
+        ]
+        np.random.shuffle(design_points)
+        design_points = design_points[:1000]
+        total_design_points = len(design_points)
+
+        # Partition design points into chunks for each worker
+        chunk_size = math.ceil(total_design_points / n_processes)
+        chunks = [
+            design_points[i * chunk_size : (i + 1) * chunk_size]
+            for i in range(n_processes)
+        ]
+        # Filter out empty chunks (in case n_processes > total_design_points)
+        chunks = [chunk for chunk in chunks if chunk]
+        actual_n_workers = len(chunks)
+
+        logger.info(f"Partitioning {total_design_points} design points into {actual_n_workers} chunks of ~{chunk_size} each")
+
+        # Create tasks: each worker gets a chunk of design points
+        # No need to copy tech_model since ProcessPoolExecutor uses separate processes
+        tasks = [
+            (worker_id, chunk, self.hw.circuit_model.tech_model, self.hw.total_active_energy, self.hw.total_passive_energy, self.hw.scheduled_dfgs, self.hw.dataflow_blocks, self.hw.obj_fn, self.hw.top_block_name, self.hw.loop_1x_graphs, self.hw.circuit_model.edge_to_nets, self.max_system_power)
+            for worker_id, chunk in enumerate(chunks)
+        ]
+
+        # Submit all tasks and wait for results
+        logger.info(f"Submitting {actual_n_workers} worker tasks...")
+        with ProcessPoolExecutor(max_workers=actual_n_workers) as executor:
+            futures = [executor.submit(_worker_basic_optimization_chunk, task) for task in tasks]
+
+            # Collect results from all workers
+            worker_results = []
+            for future in as_completed(futures):
+                result = future.result()
+                worker_results.append(result)
+                worker_id, best_dp, best_val, best_value_clk_period = result
+                logger.info(f"Worker {worker_id} completed: best value = {best_val}")
+
+        # Find global best by comparing all workers' local bests
+        best_design_point = None
+        best_obj_val = math.inf
+
+        for worker_id, local_best_dp, local_best_val, local_best_value_clk_period in worker_results:
+            if local_best_dp is not None and local_best_val is not None and local_best_val < best_obj_val:
+                best_design_point = local_best_dp
+                best_obj_val = local_best_val
+                best_value_clk_period = local_best_value_clk_period
+                logger.info(f"New global best from worker {worker_id}: {best_obj_val}")
+
+        logger.info(f"Global best objective value: {best_obj_val}, design point: {best_design_point}")
+
+        if best_design_point is None or best_obj_val >= cur_obj_val:
+            logger.warning("No better solution found in this iteration")
+            return cur_obj_val, False
+
+        self.hw.circuit_model.tech_model.set_params_from_design_point(best_design_point)
+        self.hw.circuit_model.tech_model.base_params.set_symbol_value(self.hw.circuit_model.tech_model.base_params.clk_period, best_value_clk_period)
+        return 1, False
+        
+
     # note: improvement/regularization parameter currently only for inverse pass validation, so only using it for ipopt
     # example: improvement of 1.1 = 10% improvement
     def optimize(self, opt, improvement=10, disabled_knobs=[]):
@@ -601,6 +696,8 @@ class Optimizer:
             return self.ipopt(improvement)
         elif opt == "cvxpy":
             return self.cvxpy_optimization(improvement)
+        elif opt == "basic":
+            return self.basic_optimization(improvement)
         else:
             raise ValueError(f"Invalid solver: {opt}")
 
