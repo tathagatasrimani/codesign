@@ -276,18 +276,11 @@ class SweepTechCodesign:
             objectives = sorted([col for col in df.columns
                                if col in self.codesign_module.hw.circuit_model.tech_model.pareto_metric_db])
 
-        logger.info(f"Computing Pareto front for objectives: {objectives}")
-
-        # Handle minimize/maximize for each objective
-        if isinstance(minimize_all, bool):
-            # If boolean, apply to all objectives
-            minimize_dict = {obj: minimize_all for obj in objectives}
-        else:
-            # If dict provided, use it
-            minimize_dict = minimize_all
-
         # Build sense list for paretoset ("min" or "max" for each objective)
-        sense = ["min" if minimize_dict.get(obj, True) else "max" for obj in objectives]
+        sense = [self.codesign_module.hw.circuit_model.tech_model.pareto_metric_db[obj] for obj in objectives]
+
+        logger.info(f"Computing Pareto front for objectives: {objectives} with sense: {sense}")
+        print(f"Computing Pareto front for objectives: {objectives} with sense: {sense}")
 
         # Compute Pareto front using paretoset
         pareto_mask = paretoset(df[objectives], sense=sense)
@@ -312,7 +305,7 @@ class SweepTechCodesign:
         try:
             logger.info("Fitting parametric Pareto surface model...")
 
-            fit_results = self.just_fit_pareto_surface(pareto_df, objectives)
+            fit_results = just_fit_pareto_surface(self.args, pareto_filename)
 
         except Exception as e:
             logger.error(f"Error fitting Pareto surface: {e}")
@@ -558,8 +551,8 @@ def test_sweep_tech_codesign(args):
                         "Rsh_ext_n": list(np.linspace(9000, 9000, 1)),
                         "Rsh_ext_p": list(np.linspace(9000, 9000, 1)),
                         "FO": list(np.linspace(4, 4, 1)),
-                        "M": list(np.linspace(0.0001, 0.001, 1)),
-                        "a": list(np.linspace(0.0001, 0.001, 1)),
+                        "M": list(np.linspace(2, 2, 1)),
+                        "a": list(np.linspace(0.5, 0.5, 1)),
                     }
     elif sweep_tech_codesign.codesign_module.cfg['args']['model_cfg'] == 'vs_cfg_latest':
         value_ranges = {"L": list(np.logspace(np.log10(15e-9), np.log10(3e-6), 20)),
@@ -568,6 +561,32 @@ def test_sweep_tech_codesign(args):
                         "V_th": list(np.logspace(np.log10(0.2), np.log10(1.1), 20)),
                         "tox": list(np.logspace(np.log10(1e-9), np.log10(100e-9), 10)),
                         "k_gate": list(np.linspace(3.9, 25, 3)),
+                    }
+    elif sweep_tech_codesign.codesign_module.cfg['args']['model_cfg'] == 'mvs_self_consistent_cfg':
+        value_ranges = {"L": list(np.logspace(np.log10(15e-9), np.log10(500e-9), 5)),
+                        "W": list(np.logspace(np.log10(15e-9), np.log10(500e-9), 5)),
+                        "V_dd": list(np.logspace(np.log10(0.1), np.log10(3), 5)),
+                        "V_th": list(np.logspace(np.log10(0.2), np.log10(1.5), 5)),
+                        "tox": list(np.logspace(np.log10(1e-9), np.log10(50e-9), 5)),
+                        "beta_p_n": list(np.logspace(np.log10(2.0), np.log10(2.0), 1)),
+                        "mD_fac": list(np.logspace(np.log10(0.5), np.log10(0.5), 1)),
+                        "mu_eff_n": list(np.logspace(np.log10(250.0e-4), np.log10(250.0e-4), 1)),
+                        "mu_eff_p": list(np.logspace(np.log10(125.0e-4), np.log10(125.0e-4), 1)),
+                        "k_gate": list(np.logspace(np.log10(3.9), np.log10(25), 3)),
+                        "eps_semi": list(np.logspace(np.log10(11.7), np.log10(11.7), 1)),
+                        "tsemi": list(np.logspace(np.log10(5.0e-9), np.log10(50e-9), 5)),
+                        "Lext": list(np.logspace(np.log10(5.0e-9), np.log10(20e-9), 3)),
+                        "Lc": list(np.logspace(np.log10(10.0e-9), np.log10(40e-9), 3)),
+                        "eps_cap": list(np.logspace(np.log10(3.9), np.log10(3.9), 1)),
+                        "rho_c_n": list(np.logspace(np.log10(7.0e-11), np.log10(7.0e-11), 1)),
+                        "rho_c_p": list(np.logspace(np.log10(7.0e-11), np.log10(7.0e-11), 1)),
+                        "Rsh_c_n": list(np.logspace(np.log10(7.0e-11), np.log10(7.0e-11), 1)),
+                        "Rsh_c_p": list(np.logspace(np.log10(7.0e-11), np.log10(7.0e-11), 1)),
+                        "Rsh_ext_n": list(np.logspace(np.log10(90), np.log10(400), 1)),
+                        "Rsh_ext_p": list(np.logspace(np.log10(90), np.log10(400), 1)),
+                        "FO": list(np.logspace(np.log10(4), np.log10(4), 1)),
+                        "M": list(np.logspace(np.log10(2), np.log10(2), 1)),
+                        "a": list(np.logspace(np.log10(0.5), np.log10(0.5), 1)),
                     }
 
 

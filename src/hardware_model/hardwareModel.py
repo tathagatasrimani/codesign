@@ -32,6 +32,7 @@ from src.hardware_model.tech_models import mvs_general_model
 from src.hardware_model.tech_models import sweep_model
 from src.hardware_model.tech_models import sweep_brute_force_model
 from src.hardware_model.tech_models import sweep_basic_model
+from src.hardware_model.tech_models import mvs_self_consistent_model
 from openroad_interface import openroad_run
 from openroad_interface import openroad_run_hier
 
@@ -280,6 +281,8 @@ class HardwareModel:
             self.tech_model = sweep_basic_model.SweepBasicModel(self.model_cfg, self.base_params)
         elif self.model_cfg["model_type"] == "mvs_general":
             self.tech_model = mvs_general_model.MVSGeneralModel(self.model_cfg, self.base_params)
+        elif self.model_cfg["model_type"] == "mvs_self_consistent":
+            self.tech_model = mvs_self_consistent_model.MVSSelfConsistentModel(self.model_cfg, self.base_params)
         else:
             raise ValueError(f"Invalid model type: {self.model_cfg['model_type']}")
         self.tech_model.create_constraints(self.model_cfg["scaling_mode"])

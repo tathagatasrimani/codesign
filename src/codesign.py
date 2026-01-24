@@ -324,7 +324,7 @@ class Codesign:
         print(f"Running StreamHLS in {cwd}")
 
         if not setup:
-            if self.last_dsp_count_set:
+            if self.last_dsp_count_set and iteration_count == 0:
                 self.cur_dsp_usage = self.cur_dsp_usage
                 self.last_dsp_count_set = False
             elif self.cfg["args"]["fixed_area_increase_pattern"] and iteration_count > 0:
@@ -347,7 +347,7 @@ class Codesign:
             pwd
             source setup-env.sh
             cd examples
-            python run_streamhls.py -b {save_path} -d {save_path} -k {self.benchmark_name} -O 5 --dsps {self.cur_dsp_usage} --timelimit {1} --tilelimit {tilelimit}
+            python run_streamhls.py -b {save_path} -d {save_path} -k {self.benchmark_name} -O 5 --dsps {self.cur_dsp_usage} --timelimit {2} --tilelimit {tilelimit}
             '''
         ]
 

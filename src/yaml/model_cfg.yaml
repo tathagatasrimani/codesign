@@ -234,3 +234,7 @@ sweep_basic_cfg:
   delay_parasitics: all
   model_type: sweep_basic
   sweep_file_prefix: tech_sweep_vs_cfg_latest_20260118_182443_pareto
+
+mvs_self_consistent_cfg:
+  base_cfg: default
+  model_type: mvs_self_consistent
