@@ -20,13 +20,13 @@ def log_warning(msg):
         logger.warning(msg)
 
 class objective_evaluator:
-    def __init__(self, tech_model, total_active_energy, total_passive_energy, scheduled_dfgs, dataflow_blocks, obj_fn, top_block_name, loop_1x_graphs, edge_to_nets):
+    def __init__(self, tech_model, total_active_energy, total_passive_power, scheduled_dfgs, dataflow_blocks, obj_fn, top_block_name, loop_1x_graphs, edge_to_nets):
         # hardcoded tech node to reference for logical effort coefficients
         self.coeffs = coefficients.create_and_save_coefficients([7])
         self.set_coefficients()
         self.tech_model = tech_model
         self.total_active_energy = total_active_energy
-        self.total_passive_energy = total_passive_energy
+        self.total_passive_power = total_passive_power
         self.scheduled_dfgs = scheduled_dfgs
         self.loop_1x_graphs = loop_1x_graphs
         self.dataflow_blocks = dataflow_blocks
@@ -50,17 +50,17 @@ class objective_evaluator:
     def calculate_objective(self):
         self.execution_time = self.calculate_execution_time()
         if self.obj_fn == "edp":
-            self.obj = (self.total_passive_energy + self.total_active_energy) * self.execution_time
+            self.obj = (self.total_passive_power * self.execution_time + self.total_active_energy) * self.execution_time
         elif self.obj_fn == "ed2":
-            self.obj = (self.total_passive_energy + self.total_active_energy) * (self.execution_time)**2
+            self.obj = (self.total_passive_power * self.execution_time + self.total_active_energy) * (self.execution_time)**2
         elif self.obj_fn == "delay":
             self.obj = self.execution_time
         elif self.obj_fn == "energy":
-            self.obj = self.total_active_energy + self.total_passive_energy
+            self.obj = self.total_active_energy + self.total_passive_power * self.execution_time
         else:
             raise ValueError(f"Objective function {self.obj_fn} not supported")
         self.obj = sim_util.xreplace_safe(self.obj, self.tech_model.base_params.tech_values)
-        self.total_power = sim_util.xreplace_safe((self.total_passive_energy + self.total_active_energy) / self.execution_time, self.tech_model.base_params.tech_values)
+        self.total_power = sim_util.xreplace_safe(self.total_passive_power + (self.total_active_energy / self.execution_time), self.tech_model.base_params.tech_values)
 
     def calculate_execution_time(self):
         self.node_arrivals = {}
@@ -119,12 +119,12 @@ class objective_evaluator:
     def wire_delay(self, edge):
         wire_delay = 0
         for net in self.edge_to_nets[edge]:
-            #logger.info(f"calculating wire delay for net {net.net_id}")
+            #log_info(f"calculating wire delay for net {net.net_id}")
             R_on_line = self.tech_model.R_avg_inv
             C_current = self.tech_model.C_diff
             wire_delay += R_on_line * C_current
             for segment in net.segments:
-                #logger.info(f"calculating wire delay for segment in layer {segment.layer} with length {segment.length}")
+                #log_info(f"calculating wire delay for segment in layer {segment.layer} with length {segment.length}")
                 C_current = segment.length * self.tech_model.wire_parasitics["C"][segment.layer]
                 R_on_line += segment.length * self.tech_model.wire_parasitics["R"][segment.layer]
                 wire_delay += R_on_line * C_current
@@ -150,7 +150,7 @@ class SweepBasicModel(TechModel):
         metric_vals = {}
         for metric in self.sweep_model["output_metrics"]:
             metric_vals[metric] = getattr(self, metric).value
-            logger.info(f"after optimization, {metric} is {metric_vals[metric]}")
+            log_info(f"after optimization, {metric} is {metric_vals[metric]}")
         self.set_params_from_design_point(self.cur_design_point)
         self.config_param_db()
 
@@ -199,11 +199,11 @@ class SweepBasicModel(TechModel):
         super().init_transistor_equations()
 
         # Read Pareto CSV
-        logger.info(f"Reading Pareto front from: {self.sweep_file_path}")
+        log_info(f"Reading Pareto front from: {self.sweep_file_path}")
         self.pareto_df = pd.read_csv(self.sweep_file_path)
         #self.pareto_df_log = np.log(self.pareto_df)
         
-        logger.info(f"Loading Pareto surface model from: {self.sweep_model_path}")
+        log_info(f"Loading Pareto surface model from: {self.sweep_model_path}")
         with open(self.sweep_model_path, 'r') as f:
             self.sweep_model = json.load(f)
         
@@ -215,22 +215,22 @@ class SweepBasicModel(TechModel):
                 if k in self.base_params.names:
                     tech_values_str_ind[self.base_params.names[k]] = v
             self.cur_design_point, dist, self.cur_design_point_index = self.find_nearest_design_by_values(tech_values_str_ind)
-            logger.info(f"distance to nearest design: {dist}")
-            logger.info(f"index of nearest design: {self.cur_design_point_index}")
+            log_info(f"distance to nearest design: {dist}")
+            log_info(f"index of nearest design: {self.cur_design_point_index}")
         else:
             self.cur_design_point = self.base_params.cur_design_point
         self.set_params_from_design_point(self.cur_design_point)
-        logger.info(f"Current design point: {self.cur_design_point}")
+        log_info(f"Current design point: {self.cur_design_point}")
 
         if "delay" not in self.sweep_model["output_metrics"]:
             self.delay = (self.R_avg_inv * (self.C_diff + self.C_wire/2) + (self.R_avg_inv + self.R_wire) * (self.C_wire/2 + self.C_load)) * 1e9  # ns
-            logger.info(f"set delay to {sim_util.xreplace_safe(self.delay, self.base_params.tech_values)}")
+            log_info(f"set delay to {sim_util.xreplace_safe(self.delay, self.base_params.tech_values)}")
         if "E_act_inv" not in self.sweep_model["output_metrics"]:
             self.E_act_inv = (0.5*(self.C_load + self.C_diff + self.C_wire)*self.base_params.V_dd*self.base_params.V_dd) * 1e9  # nJ
-            logger.info(f"set E_act_inv to {sim_util.xreplace_safe(self.E_act_inv, self.base_params.tech_values)}")
+            log_info(f"set E_act_inv to {sim_util.xreplace_safe(self.E_act_inv, self.base_params.tech_values)}")
         if "P_pass_inv" not in self.sweep_model["output_metrics"]:
             self.P_pass_inv = self.Ioff * self.base_params.V_dd
-            logger.info(f"set P_pass_inv to {sim_util.xreplace_safe(self.P_pass_inv, self.base_params.tech_values)}")
+            log_info(f"set P_pass_inv to {sim_util.xreplace_safe(self.P_pass_inv, self.base_params.tech_values)}")
 
         self.config_param_db()
 
@@ -240,17 +240,19 @@ class SweepBasicModel(TechModel):
                 setattr(self.base_params, param, self.base_params.symbol_init(param))
             self.base_params.set_symbol_value(getattr(self.base_params, param), design_point[param])
             setattr(self, param, getattr(self.base_params, param))
-            logger.info(f"set {param} to {sim_util.xreplace_safe(getattr(self, param), self.base_params.tech_values)}")
+            log_info(f"set {param} to {sim_util.xreplace_safe(getattr(self, param), self.base_params.tech_values)}")
         if hasattr(self, "C_gate"):
             self.C_load = self.C_gate
             self.C_diff = self.C_gate
+        if hasattr(self, "C_par"):
+            self.C_diff = self.C_par
         self.base_params.cur_design_point = design_point
         
 
     def config_param_db(self):
         super().config_param_db()
         for param in self.cur_design_point.keys():
-            logger.info(f"setting {param} in param_db to {sim_util.xreplace_safe(getattr(self.base_params, param), self.base_params.tech_values)}")
+            log_info(f"setting {param} in param_db to {sim_util.xreplace_safe(getattr(self.base_params, param), self.base_params.tech_values)}")
             self.param_db[param] = getattr(self.base_params, param)
         
         if "Ioff" in self.sweep_model["output_metrics"]:
@@ -258,7 +260,7 @@ class SweepBasicModel(TechModel):
             self.param_db["I_off"] = self.I_off
         
         if "A_gate" not in self.sweep_model["output_metrics"]:
-            logger.info(f"setting A_gate to {sim_util.xreplace_safe(self.area, self.base_params.tech_values)}")
+            log_info(f"setting A_gate to {sim_util.xreplace_safe(self.area, self.base_params.tech_values)}")
             self.param_db["A_gate"] = self.area
 
     def config_pareto_metric_db(self):
