@@ -38,7 +38,7 @@ from openroad_interface import openroad_run_hier
 
 import cvxpy as cp
 
-DEBUG = False
+DEBUG = True
 def log_info(msg):
     if DEBUG:
         logger.info(msg)
@@ -762,7 +762,7 @@ class HardwareModel:
         else:
             return edge
 
-    def calculate_active_energy_basic_block(self, basic_block_name, dfg, is_loop=False):
+    def calculate_active_energy_basic_block(self, basic_block_name, dfg):
         total_active_energy_basic_block = 0
         loop_count = 1
         loop_energy = 0
@@ -770,8 +770,10 @@ class HardwareModel:
             if data["function"] == "II": 
                 loop_count = int(data["count"])
                 loop_name = data["loop_name"]
-                if is_loop:
-                    loop_energy = self.calculate_active_energy_basic_block(basic_block_name, self.loop_1x_graphs[loop_name], is_loop=True)
+                loop_energy = self.calculate_active_energy_basic_block(basic_block_name, self.loop_1x_graphs[loop_name][False])
+                total_active_energy_basic_block += loop_energy * (loop_count-1)
+                log_info(f"loop count for {basic_block_name}: {loop_count}")
+                log_info(f"loop energy for {basic_block_name}: {sim_util.xreplace_safe(loop_energy, self.circuit_model.tech_model.base_params.tech_values)}")
             elif data["function"] == "Wire":
                 src = data["src_node"]
                 dst = data["dst_node"]
@@ -784,14 +786,9 @@ class HardwareModel:
                     log_info(f"edge {rsc_edge} is not in circuit_model.edge_to_nets")
             else:
                 total_active_energy_basic_block += self.circuit_model.symbolic_energy_active[data["function"]]()
-                log_info(f"active energy for {node}: {self.circuit_model.symbolic_energy_active[data['function']]()}")
-        log_info(f"total active energy for {basic_block_name}: {total_active_energy_basic_block}")
-        log_info(f"loop count for {basic_block_name}: {loop_count}")
-        if is_loop:
-            log_info(f"loop energy for {basic_block_name}: {loop_energy}")
-            return total_active_energy_basic_block * (loop_count-1)
-        else:
-            return total_active_energy_basic_block + (loop_count-1) * loop_energy
+                log_info(f"active energy for {node}: {sim_util.xreplace_safe(self.circuit_model.symbolic_energy_active[data['function']](), self.circuit_model.tech_model.base_params.tech_values)}")
+        log_info(f"total active energy for {basic_block_name}: {sim_util.xreplace_safe(total_active_energy_basic_block, self.circuit_model.tech_model.base_params.tech_values)}")
+        return total_active_energy_basic_block
 
     
     def calculate_passive_energy_vitis(self, total_execution_time):
@@ -1371,11 +1368,13 @@ class HardwareModel:
                 "execution_time": execution_time,
                 "passive power": self.total_passive_energy/execution_time,
                 "active power": self.total_active_energy/execution_time,
+                "total power": (self.total_active_energy + self.total_passive_energy)/execution_time,
                 "area": self.circuit_model.tech_model.param_db["A_gate"],
                 "delay": self.circuit_model.tech_model.delay,
                 "gate length": self.circuit_model.tech_model.param_db["L"],
                 "gate width": self.circuit_model.tech_model.param_db["W"],
-                "C_load": self.circuit_model.tech_model.param_db["C_gate"],
+                "C_load": self.circuit_model.tech_model.param_db["C_load"],
+                "Inverter VTC gain": self.circuit_model.tech_model.param_db["slope_at_crossing"],
                 "R_avg_inv": self.circuit_model.tech_model.param_db["R_avg_inv"],
                 "E_act_inv": self.circuit_model.tech_model.E_act_inv,
                 "P_pass_inv": self.circuit_model.tech_model.P_pass_inv,
@@ -1423,6 +1422,7 @@ class HardwareModel:
             "execution_time": "Execution Time over generations (ns)",
             "passive power": "Passive Power over generations (W)",
             "active power": "Active Power over generations (W)",
+            "total power": "Total Power over generations (W)",
             "gate length": "Gate Length over generations (m)",
             "gate width": "Gate Width over generations (m)",
             "E_act_inv": "Dynamic Energy per Inverter over generations (J)",
@@ -1432,6 +1432,7 @@ class HardwareModel:
             "long channel threshold voltage": "Long Channel Threshold Voltage (V)",
             "effective threshold voltage": "Effective Threshold Voltage over generations (V)",
             "effective threshold voltage worst case": "Effective Threshold Voltage Worst Case over generations (V)",
+            "Inverter VTC gain": "Slope of Inverter VTC at Vout=Vin over generations (V/V)",
             "supply voltage": "Supply Voltage over generations (V)",
             "wire RC": "Wire RC over generations (s)",
             "on current per um": "On Current per um over generations (A/um)",
