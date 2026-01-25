@@ -169,7 +169,6 @@ if [ -d "miniconda3" ]; then
     export PATH="$(pwd):$PATH"
     source miniconda3/etc/profile.d/conda.sh
 else   
-else   
     # Install and set up environment
     wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
     bash Miniconda3-latest-Linux-x86_64.sh -b -p "$(pwd)/miniconda3"
