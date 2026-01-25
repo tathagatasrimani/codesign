@@ -14,7 +14,11 @@ import re
 from src import codesign
 from src import sim_util
 
-MAX_JOB_RUNTIME_MINS = 1440  # in minutes
+DEFAULT_MAX_JOB_RUNTIME_MINS = 60  # in minutes
+
+NO_BETTER_DESIGN_POINT_FOUND_MSG = "FLOW END: No better design point found."
+
+FLOW_SUCCESS_MSG = "FLOW END: Design flow completed successfully for iterations = "
 
 CHECKPOINT_RE = re.compile(
     r"CHECKPOINT\s+REACHED:\s*([A-Za-z0-9_\-\/]+)\s*FOR\s+ITERATION:\s*(\d+)"
@@ -25,10 +29,59 @@ CHECKPOINT_RE = re.compile(
 INITIAL_PHASE_CHECKPOINTS = {"setup"}
 INITIAL_PHASE_ITERATIONS = {0}
 
+# =====================================================================
+#               CTRL-C CLEAN SHUTDOWN SUPPORT
+# =====================================================================
+
+ACTIVE_PROCESSES = set()
+ACTIVE_PROCESSES_LOCK = threading.Lock()
+regression_instance = None
+
+def register_process(p):
+    with ACTIVE_PROCESSES_LOCK:
+        ACTIVE_PROCESSES.add(p)
+
+def unregister_process(p):
+    with ACTIVE_PROCESSES_LOCK:
+        ACTIVE_PROCESSES.discard(p)
+
+def kill_all_processes():
+    with ACTIVE_PROCESSES_LOCK:
+        for p in list(ACTIVE_PROCESSES):
+            try:
+                os.killpg(os.getpgid(p.pid), signal.SIGTERM)
+            except Exception:
+                pass
+
+def sigint_handler(signum, frame):
+    print("\n[CTRL-C] Stopping all jobs...")
+    sys.stdout.flush()
+    kill_all_processes()
+
+    global regression_instance
+    if regression_instance:
+        regression_instance.stop_event.set()
+
+        # unstick blocked workers
+        for _ in range(regression_instance.max_parallelism):
+            regression_instance.job_queue.put(None)
+
+        while not regression_instance.job_queue.empty():
+            try:
+                regression_instance.job_queue.get_nowait()
+                regression_instance.job_queue.task_done()
+            except queue.Empty:
+                break
+
+signal.signal(signal.SIGINT, sigint_handler)
+
+# =====================================================================
+
 
 
 class RegressionRun:
-    def __init__(self, cfg, codesign_root_dir, single_config_path=None, test_list_path=None, max_parallelism=4, absolute_paths=False, silent_mode=False, github_autotest_mode=False, preinstalled_openroad_path=None):
+    def __init__(self, cfg, codesign_root_dir, single_config_path=None, test_list_path=None, max_parallelism=4, absolute_paths=False, 
+                 silent_mode=False, github_autotest_mode=False, preinstalled_openroad_path=None, max_job_runtime_mins=DEFAULT_MAX_JOB_RUNTIME_MINS, dsp_sweep=None):
         self.cfg = cfg
         self.codesign_root_dir = codesign_root_dir
         self.single_config_path = single_config_path
@@ -38,6 +91,9 @@ class RegressionRun:
         self.silent_mode = silent_mode
         self.preinstalled_openroad_path = preinstalled_openroad_path
         self.github_autotest_mode = github_autotest_mode
+        self.max_job_runtime_mins = max_job_runtime_mins
+        # Format: "start:end:step" e.g., "10:2000:10"
+        self.dsp_sweep = dsp_sweep  
 
         self.completed_jobs = 0
         self.passed_jobs = 0
@@ -118,6 +174,8 @@ class RegressionRun:
         # populate the queue with work
         total_jobs = 0
         for config_info in self.config_files_to_run:
+            if self.stop_event.is_set():
+                break 
             config_path = config_info["config_path"]
             results_dir = config_info["results_dir"]
             total_jobs += self.run_single_config_file(config_path, results_dir)
@@ -142,10 +200,7 @@ class RegressionRun:
         self.write_summary_results()
 
         ## return 0 if all tests passed, 1 if any test failed
-        if self.failed_jobs > 0:
-            return 1
-        else:
-            return 0
+        return 1 if self.failed_jobs > 0 else 0
         
     
     def run_single_config_file(self, config_file_path, results_dir):
@@ -155,14 +210,33 @@ class RegressionRun:
         
         count = 0
         for config_name in config_yaml:
-            job_results_dir = os.path.join(results_dir, config_name)
-            self.job_queue.put((config_file_path, config_name, job_results_dir))
-            count+=1
+            if self.stop_event.is_set():
+                break
+            
+            # Check if DSP sweep is enabled
+            if self.dsp_sweep:
+                # Parse sweep parameters
+                try:
+                    start, end, step = map(int, self.dsp_sweep.split(':'))
+                except ValueError:
+                    raise ValueError("DSP sweep must be in format 'start:end:step', e.g., '10:2000:10'")
+                
+                # Generate jobs for each DSP value in the sweep
+                for dsp_val in range(start, end + 1, step):
+                    sweep_config_name = f"{config_name}_dsp{dsp_val}"
+                    job_results_dir = os.path.join(results_dir, sweep_config_name)
+                    self.job_queue.put((config_file_path, config_name, job_results_dir, dsp_val))
+                    count += 1
+            else:
+                # Original behavior - no sweep
+                job_results_dir = os.path.join(results_dir, config_name)
+                self.job_queue.put((config_file_path, config_name, job_results_dir, None))
+                count += 1
 
         return count
     
     
-    def run_single_job(self, config_path, config_name, job_results_dir):
+    def run_single_job(self, config_path, config_name, job_results_dir, dsp_override=None):
         # create results dir if it doesn't exist or clear it if it does
         if os.path.exists(job_results_dir):
             shutil.rmtree(job_results_dir)
@@ -171,6 +245,29 @@ class RegressionRun:
 
         # copy the config file to the results dir
         shutil.copy(config_path, os.path.join(job_results_dir, "config.yaml"))
+        
+        # If DSP override is provided, modify the config
+        if dsp_override is not None:
+            config_copy_path = os.path.join(job_results_dir, "config.yaml")
+            with open(config_copy_path, "r") as f:
+                config_data = yaml.load(f, Loader=yaml.FullLoader)
+            
+            # Override max_dsp in the specific config
+            if config_name in config_data and 'args' in config_data[config_name]:
+                config_data[config_name]['args']['max_dsp'] = dsp_override
+                
+                # Append _{dsp_override} to checkpoint_save_dir if it exists
+                if 'checkpoint_save_dir' in config_data[config_name]['args']:
+                    original_dir = config_data[config_name]['args']['checkpoint_save_dir']
+                    config_data[config_name]['args']['checkpoint_save_dir'] = f"{original_dir}_{dsp_override}"
+                
+                # Append _{dsp_override} to checkpoint_load_dir if it exists
+                if 'checkpoint_load_dir' in config_data[config_name]['args']:
+                    original_dir = config_data[config_name]['args']['checkpoint_load_dir']
+                    config_data[config_name]['args']['checkpoint_load_dir'] = f"{original_dir}_{dsp_override}"
+            
+            with open(config_copy_path, "w") as f:
+                yaml.dump(config_data, f, default_flow_style=False)
         
         log_path = os.path.join(job_results_dir, "run_codesign.log")
 
@@ -197,7 +294,7 @@ class RegressionRun:
         )
         # Run in shell mode so it inherits environment vars (PATH, conda env, etc.)
         # capture stdout/stderr to a logfile in the results dir and enforce a timeout
-        timeout_secs = MAX_JOB_RUNTIME_MINS * 60
+        timeout_secs = self.max_job_runtime_mins * 60
         with open(log_path, "wb") as logf:
             # start process in its own process group so we can kill children reliably
             process = subprocess.Popen(
@@ -210,11 +307,14 @@ class RegressionRun:
                 executable="/bin/bash",
                 preexec_fn=os.setsid,
             )
+            
+            register_process(process)
+            
             try:
                 process.wait(timeout=timeout_secs)
             except subprocess.TimeoutExpired:
                 # log and terminate the whole process group
-                msg = f"\n*** Job {config_name} exceeded max runtime ({MAX_JOB_RUNTIME_MINS} mins) and was terminated ***\n"
+                msg = f"\n*** Job {config_name} exceeded max runtime ({self.max_job_runtime_mins} mins) and was terminated ***\n"
                 try:
                     logf.write(msg.encode())
                     logf.flush()
@@ -235,6 +335,8 @@ class RegressionRun:
                 success = False
             else:
                 success = self.check_correct_completion(log_path)
+            finally:
+                unregister_process(process)
  
         with self.completed_lock:
             self.completed_jobs += 1
@@ -242,61 +344,74 @@ class RegressionRun:
         return success
 
     def worker(self, worker_id):
-        while True:
-            job = self.job_queue.get()
-            if job is None:
+        while not self.stop_event.is_set():
+            try:
+                job = self.job_queue.get(timeout=0.5)
+            except queue.Empty:
+                continue
+
+            if self.stop_event.is_set():
+                self.job_queue.task_done()
                 break
 
-            config_path, config_name, results_dir = job
+            if job is None:
+                self.job_queue.task_done()
+                break
+
+            config_path, config_name, results_dir, dsp_override = job
+            
+            # Use modified config name if DSP sweep is active
+            display_name = config_name if dsp_override is None else f"{config_name}_dsp{dsp_override}"
+            
             start_time = _time.time()
             with self.job_worker_lock:
-                self.job_start_times[config_name] = start_time
-                self.job_worker_map[config_name] = worker_id
+                self.job_start_times[display_name] = start_time
+                self.job_worker_map[display_name] = worker_id
 
-            # launch the job and a log watcher
             log_path = os.path.join(results_dir, "run_codesign.log")
             stop_evt = threading.Event()
             watcher = threading.Thread(
                 target=self._watch_log_for_checkpoints,
-                args=(config_name, log_path, stop_evt),
+                args=(display_name, log_path, stop_evt),
                 daemon=True,
             )
             watcher.start()
 
             try:
-                success = self.run_single_job(config_path, config_name, results_dir)
+                success = self.run_single_job(config_path, config_name, results_dir, dsp_override)
             except Exception:
                 success = False
             finally:
                 finish_time = _time.time()
                 with self.job_worker_lock:
-                    self.job_finish_times[config_name] = finish_time
+                    self.job_finish_times[display_name] = finish_time
                 elapsed = finish_time - start_time
 
-                # update pass/fail counters here (since run_single_job returns success)
                 with self.completed_lock:
                     if success:
                         self.passed_jobs += 1
                     else:
                         self.failed_jobs += 1
 
-                # stop watcher & write YAML result
                 stop_evt.set()
                 watcher.join(timeout=2.0)
 
-                self.record_result(config_name, success, elapsed)
+                self.record_result(display_name, success, elapsed)
                 self.job_queue.task_done()
+
+            if self.stop_event.is_set():
+                break
 
 
 
 
     def check_correct_completion(self, log_path):
-
+        ''' check the log file to see if the program completed successfully '''
         # look for "^^CHECKPOINT REACHED: <checkpoint_step> . RUN SUCCEEDED^^ 
         success = False
         with open(log_path, "r") as f:
             for line in f:
-                if "^^CHECKPOINT REACHED:" in line and ". RUN SUCCEEDED^^" in line:
+                if "^^CHECKPOINT REACHED:" in line and ". RUN SUCCEEDED^^" in line or NO_BETTER_DESIGN_POINT_FOUND_MSG in line or FLOW_SUCCESS_MSG in line:
                     success = True
                     break
 
@@ -615,6 +730,19 @@ if __name__ == "__main__":
             help="Path to a pre-installed OpenROAD installation. This is primarily useful for CI testing where OpenROAD is pre-installed on the system.",
         )
 
+        parser.add_argument(
+            "--max_job_runtime_mins",
+            type=int,
+            help=f"Maximum allowed runtime for each job in minutes. Default is {DEFAULT_MAX_JOB_RUNTIME_MINS} minutes.",
+            default=DEFAULT_MAX_JOB_RUNTIME_MINS,
+        )
+
+        parser.add_argument(
+            "--dsp_sweep",
+            type=str,
+            help="Sweep max_dsp parameter across a range. Format: 'start:end:step' (e.g., '10:2000:10'). Creates separate jobs for each DSP value.",
+        )
+
         args = parser.parse_args()
 
         ## check if we are in the codesign directory
@@ -628,7 +756,12 @@ if __name__ == "__main__":
             print("Error: Regression list file must end in .list.yaml")
             exit(1)
 
-        reg_run = RegressionRun(cfg=None, codesign_root_dir=cwd, single_config_path=args.single_config, test_list_path=args.test_list, max_parallelism=args.max_parallelism, absolute_paths=args.absolute_paths, silent_mode=args.quiet_mode, github_autotest_mode=args.github_autotest_mode, preinstalled_openroad_path=args.preinstalled_openroad_path)
+        reg_run = RegressionRun(cfg=None, codesign_root_dir=cwd, single_config_path=args.single_config, test_list_path=args.test_list, 
+                                max_parallelism=args.max_parallelism, absolute_paths=args.absolute_paths, silent_mode=args.quiet_mode, 
+                                github_autotest_mode=args.github_autotest_mode, preinstalled_openroad_path=args.preinstalled_openroad_path, 
+                                max_job_runtime_mins=args.max_job_runtime_mins, dsp_sweep=args.dsp_sweep)
+
+        regression_instance = reg_run
 
         exit_code = reg_run.run_regression()
 

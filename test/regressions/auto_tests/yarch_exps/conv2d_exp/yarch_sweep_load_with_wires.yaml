@@ -1,0 +1,9 @@
+benchmark_conv2d_test_auto_with_wires:
+  args:
+    benchmark: conv2d
+    checkpoint_load_dir: tmp_conv2d
+    checkpoint_start_step: setup
+    max_dsp: 100
+    max_iter_num_scalehls: 10
+    stop_at_checkpoint: pd
+  base_cfg: vitis_test

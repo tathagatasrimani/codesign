@@ -1,0 +1,9 @@
+benchmark_gemm_save:
+  base_cfg: vitis_test
+  args:
+    benchmark: gemm
+    obj: delay
+    workload_size : 32
+    checkpoint_save_dir: tmp_gemm
+    stop_at_checkpoint: setup
+    max_iter_num_scalehls: 10 # Running with 10 iterations to have larger number of Dsps.

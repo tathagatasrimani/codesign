@@ -85,7 +85,7 @@ class OpenRoadRunHier:
     
 
 
-    def run_pd_single_module(self, module_name):
+    def run_pd_single_module(self, module_name, top_level=False):
         """
         Run place and route for a single module in the hierarchical design.
 
@@ -224,7 +224,7 @@ class OpenRoadRunHier:
             module_graph = module_graph_pruned
 
         ###### then run place and route for this module, using the macros of the submodules. ######
-        flat_open_road_run = openroad_run.OpenRoadRun(cfg=self.cfg, codesign_root_dir=self.codesign_root_dir, tmp_dir=self.tmp_dir, run_openroad=self.run_openroad, circuit_model=self.circuit_model, subdirectory=f"hier/{module_name}/pd", custom_lef_files_to_include=lef_files_to_include)
+        flat_open_road_run = openroad_run.OpenRoadRun(cfg=self.cfg, codesign_root_dir=self.codesign_root_dir, tmp_dir=self.tmp_dir, run_openroad=self.run_openroad, circuit_model=self.circuit_model, subdirectory=f"hier/{module_name}/pd", custom_lef_files_to_include=lef_files_to_include, top_level=top_level)
         
         edge_to_nets, _, final_area = flat_open_road_run.run(
             module_graph, self.test_file, self.arg_parasitics, self.top_level_area_constraint, self.L_eff

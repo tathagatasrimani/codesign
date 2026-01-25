@@ -296,6 +296,7 @@ def generate_blackbox_files(cpp_file, output_dir, tcl_file, latency, clk_period)
     
     # Parse blackbox functions
     logger.info(f"Parsing blackbox functions from: {cpp_file}")
+    logger.info(f"Using latency: {latency}, clk_period: {clk_period}, tcl_file: {tcl_file}, output_dir: {output_dir}")
     functions = parse_blackbox_functions(cpp_file)
 
     logger.info(f"Found {len(functions)} blackbox function(s):")

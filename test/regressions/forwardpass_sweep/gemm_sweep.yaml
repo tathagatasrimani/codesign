@@ -1,0 +1,27 @@
+benchmark_gemm_sweep_test_N4:
+  base_cfg: vitis_test
+  args:
+    benchmark: gemm
+    stop_at_checkpoint: pd
+    workload_size: 4
+
+benchmark_gemm_sweep_test_N8:
+  base_cfg: vitis_test
+  args:
+    benchmark: gemm
+    stop_at_checkpoint: pd
+    workload_size: 8
+
+benchmark_gemm_sweep_test_N16:
+  base_cfg: vitis_test
+  args:
+    benchmark: gemm
+    stop_at_checkpoint: pd
+    workload_size: 16
+
+benchmark_gemm_sweep_test_N32:
+  base_cfg: vitis_test
+  args:
+    benchmark: gemm
+    stop_at_checkpoint: pd
+    workload_size: 32

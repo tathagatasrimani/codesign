@@ -51,4 +51,9 @@ vitis_test_vs:
 vitis_test:
   base_cfg: vitis_test_vs
 
+## Base Test with no wirelength costs.
+vitis_test_no_wire_length:
+  base_cfg : vitis_test_vs
+  zero_wirelength_costs: true
+
 ### Add additional configurations in yaml files in test/additional_configs ###

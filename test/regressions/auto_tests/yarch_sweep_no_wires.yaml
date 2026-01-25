@@ -1,0 +1,143 @@
+benchmark_3mm_test_auto_no_wires_100:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_3mm
+    stop_at_checkpoint: pd
+    max_dsp: 100
+    zero_wirelength_costs: true
+  
+
+benchmark_3mm_test_auto_no_wires_200:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_3mm
+    stop_at_checkpoint: pd
+    max_dsp: 200
+    zero_wirelength_costs: true
+
+benchmark_3mm_test_auto_no_wires_300:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_3mm
+    stop_at_checkpoint: pd
+    max_dsp: 300
+    zero_wirelength_costs: true
+  
+
+benchmark_3mm_test_auto_no_wires_400:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_3mm
+    stop_at_checkpoint: pd
+    max_dsp: 400
+    zero_wirelength_costs: true
+  
+benchmark_3mm_test_auto_no_wires_500:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_3mm
+    stop_at_checkpoint: pd
+    max_dsp: 500
+    zero_wirelength_costs: true
+  
+
+benchmark_3mm_test_auto_no_wires_600:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_3mm
+    stop_at_checkpoint: pd
+    max_dsp: 600
+    zero_wirelength_costs: true
+
+benchmark_3mm_test_auto_no_wires_700:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_3mm
+    stop_at_checkpoint: pd
+    max_dsp: 700
+    zero_wirelength_costs: true
+  
+
+benchmark_3mm_test_auto_no_wires_800:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_3mm
+    stop_at_checkpoint: pd
+    max_dsp: 800
+    zero_wirelength_costs: true
+
+benchmark_3mm_test_auto_no_wires_900:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_3mm
+    stop_at_checkpoint: pd
+    max_dsp: 900
+    zero_wirelength_costs: true
+  
+
+benchmark_3mm_test_auto_no_wires_1000:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_3mm
+    stop_at_checkpoint: pd
+    max_dsp: 1000
+    zero_wirelength_costs: true
+
+benchmark_3mm_test_auto_no_wires_1200:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_3mm
+    stop_at_checkpoint: pd
+    max_dsp: 1200
+    zero_wirelength_costs: true
+  
+
+benchmark_3mm_test_auto_no_wires:_2500:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_3mm
+    stop_at_checkpoint: pd
+    max_dsp: 2500
+    zero_wirelength_costs: true
+  
+benchmark_3mm_test_auto_no_wires_50:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_3mm
+    stop_at_checkpoint: pd
+    max_dsp: 50
+    zero_wirelength_costs: true
+  
+
+benchmark_3mm_test_auto_no_wires_1400:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_3mm
+    stop_at_checkpoint: pd
+    max_dsp: 1400
+    zero_wirelength_costs: true
+
+benchmark_3mm_test_auto_no_wires_1600:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_3mm
+    stop_at_checkpoint: pd
+    max_dsp: 1600
+    zero_wirelength_costs: true
+  
+
+benchmark_3mm_test_auto_no_wires_1800:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_3mm
+    stop_at_checkpoint: pd
+    max_dsp: 1800
+    zero_wirelength_costs: true
+
+benchmark_3mm_test_auto_no_wires_2000:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_3mm
+    stop_at_checkpoint: pd
+    max_dsp: 2000
+    zero_wirelength_costs: true

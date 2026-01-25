@@ -1,0 +1,5 @@
+vitis_doitgen_save:
+  base_cfg: benchmark_doitgen_test
+  args:
+    stop_at_checkpoint: setup
+    checkpoint_save_dir: tmp_doitgen

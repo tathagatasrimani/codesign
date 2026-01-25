@@ -1,0 +1,11 @@
+benchmark_conv2d_test_auto_no_wires:
+  args:
+    benchmark: conv2d
+    checkpoint_load_dir: tmp_conv2d
+    checkpoint_start_step: setup
+    ignore_wirelength_costs: true
+    max_dsp: 100
+    max_iter_num_scalehls: 10
+    stop_at_checkpoint: pd
+    zero_wirelength_costs: true
+  base_cfg: vitis_test

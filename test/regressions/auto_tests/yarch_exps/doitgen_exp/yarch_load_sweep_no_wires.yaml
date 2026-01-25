@@ -1,0 +1,12 @@
+benchmark_doitgen_test_with_no_wires_delay:
+  base_cfg: benchmark_doitgen_test
+  args:
+    N: 15
+    checkpoint_load_dir: tmp_doitgen
+    checkpoint_start_step: setup
+    stop_at_checkpoint: pd
+    max_dsp: 100
+    zero_wirelength_costs: true
+    ignore_wirelength_costs: true
+
+

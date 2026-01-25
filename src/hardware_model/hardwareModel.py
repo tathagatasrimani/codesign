@@ -269,7 +269,7 @@ class HardwareModel:
         self.tech_model.create_constraints(self.model_cfg["scaling_mode"])
 
         # by convention, we should always access bulk model and base params through circuit model
-        self.circuit_model = circuit_model.CircuitModel(self.tech_model)
+        self.circuit_model = circuit_model.CircuitModel(self.tech_model, cfg=self.cfg)
 
     def catapult_map_netlist_to_scheduled_dfg(self, benchmark_name):
 
@@ -1620,4 +1620,11 @@ class HardwareModel:
                 sub_exprs[key] = float(self.obj_sub_exprs[key].xreplace(self.circuit_model.tech_model.base_params.tech_values))
             else:   
                 sub_exprs[key] = self.obj_sub_exprs[key]
+        # Also report energies (Joules) alongside the existing power values
+        total_energy_val = sim_util.xreplace_safe(self.total_active_energy + self.total_passive_energy, self.circuit_model.tech_model.base_params.tech_values)
+        passive_energy_val = sim_util.xreplace_safe(self.total_passive_energy, self.circuit_model.tech_model.base_params.tech_values)
+        active_energy_val = sim_util.xreplace_safe(self.total_active_energy, self.circuit_model.tech_model.base_params.tech_values)
+        sub_exprs["total energy"] = float(total_energy_val)
+        sub_exprs["passive energy"] = float(passive_energy_val)
+        sub_exprs["active energy"] = float(active_energy_val)
         print(f"{message}\n {self.obj_fn}: {obj}, sub expressions: {sub_exprs}")

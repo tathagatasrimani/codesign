@@ -37,6 +37,8 @@ from test import checkpoint_controller
 
 DEBUG_YOSYS = False  # set to True to debug yosys output.
 
+FLOW_SUCCESS_MSG = "FLOW END: Design flow completed successfully for iterations = "
+
 class Codesign:
     def __init__(self, args):
         """
@@ -161,6 +163,7 @@ class Codesign:
         if args.additional_cfg_file is not None:
             with open(args.additional_cfg_file, "r") as f:
                 additional_cfg = yaml.load(f, Loader=yaml.FullLoader)
+                # print(f"Loaded additional config from {args.additional_cfg_file}: {additional_cfg}")
 
                 # check that there aren't any duplicate keys
                 for key in additional_cfg:
@@ -169,10 +172,12 @@ class Codesign:
 
                 cfgs = {**cfgs, **additional_cfg}
         
+        # print(f"Final cfgs before applying CLI args: {cfgs}")
+        
         overwrite_args_all = vars(args)
         overwrite_args = {}
         for key, value in overwrite_args_all.items():
-            if value is not None:
+            if value is not None and value != 'none':
                 overwrite_args[key] = value
         overwrite_cfg = {"base_cfg": args.config, "args": overwrite_args}
         cfgs["overwrite_cfg"] = overwrite_cfg
@@ -291,14 +296,22 @@ class Codesign:
         with open(self.config_json_path, "r") as f:
             config = json.load(f)
         if unlimited:
-            config["dsp"] = 10000
-            config["bram"] = 10000
+            config["dsp"] = 1024
+            config["bram"] = 1024
         else:
             config["dsp"] = int(self.cfg["args"]["area"] / (self.hw.circuit_model.tech_model.param_db["A_gate"].xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf() * self.dsp_multiplier))
             config["bram"] = int(self.cfg["args"]["area"] / (self.hw.circuit_model.tech_model.param_db["A_gate"].xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf() * self.bram_multiplier))
             # setting cur_dsp_usage here instead of with parse_dsp_usage after running scaleHLS
             # because I observed that for a small amount of resources, scaleHLS won't generate the csv file that we need to parse
             self.cur_dsp_usage = config["dsp"] 
+
+        ## Manual override for max_dsp from command line. This is primarily used for the YARCH experiments where we only want to run the forward pass with a specific DSP constraint.
+        if "max_dsp" in self.cfg["args"]:
+            self.max_dsp = self.cfg["args"]["max_dsp"]
+            config["dsp"] = self.max_dsp
+            config["bram"] = self.max_dsp # set bram to same as dsp for yarch experiments
+            print(f"Using user specified max_dsp: {self.max_dsp}")
+            print(f"The current dsp used in the iteration is: {self.cur_dsp_usage}")
 
         # I don't think "100MHz" has any meaning because scaleHLS should be agnostic to frequency
         config["100MHz"]["fadd"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["Add16"] / self.clk_period)
@@ -444,14 +457,21 @@ class Codesign:
     def parse_design_space_for_mlir(self, read_dir):
         df = pd.read_csv(f"{read_dir}/{self.vitis_top_function}_space.csv")
         mlir_idx_that_exist = []
+        best_idx = None
+        best_dsp = -1
         for i in range(len(df['dsp'].values)):
             file_exists = os.path.exists(f"{read_dir}/{self.vitis_top_function}_pareto_{i}.mlir")
             if file_exists:
                 mlir_idx_that_exist.append(i)
-            if df['dsp'].values[i] <= self.cur_dsp_usage and file_exists:
-                return f"{read_dir}/{self.vitis_top_function}_pareto_{i}.mlir", i
+                # Select the design point that uses the MOST DSPs (up to constraint) to maximize loop unrolling
+                if df['dsp'].values[i] <= self.max_dsp and df['dsp'].values[i] > best_dsp:
+                    best_dsp = df['dsp'].values[i]
+                    best_idx = i
+        if best_idx is not None:
+            logger.info(f"Selected design point {best_idx} with {best_dsp} DSPs (constraint: {self.max_dsp})")
+            return f"{read_dir}/{self.vitis_top_function}_pareto_{best_idx}.mlir", best_idx
         if len(mlir_idx_that_exist) == 0:
-            raise Exception(f"No Pareto solutions found for {self.benchmark_name} with dsp usage {self.cur_dsp_usage}")
+            raise Exception(f"No Pareto solutions found for {self.benchmark_name} with dsp usage {self.max_dsp}")
         return f"{read_dir}/{self.vitis_top_function}_pareto_{mlir_idx_that_exist[-1]}.mlir", mlir_idx_that_exist[-1]
 
     def parse_dsp_usage_and_latency(self, mlir_idx, save_dir):
@@ -618,7 +638,7 @@ class Codesign:
         sim_util.change_clk_period_in_script(f"{save_dir}/{self.hls_tcl_script}", self.clk_period, self.cfg["args"]["hls_tool"])
 
         if setup:
-            self.max_dsp = dsp_usage + 2
+            self.max_dsp = dsp_usage + 2 # allow some margin above initial dsp usage
             self.max_latency = latency
         elif iteration_count == 0:
             self.max_speedup_factor = float(latency / self.max_latency)
@@ -926,6 +946,14 @@ class Codesign:
             None
         """
 
+        # If the user requested zero wirelength costs, we must not run (or try to reuse) OpenROAD.
+        # In this mode, all wirelength-related quantities are assumed to be 0.
+        if self.cfg["args"].get("zero_wirelength_costs", False):
+            logger.info("zero_wirelength_costs enabled: skipping OpenROAD; assuming all wirelengths/delays/energies are 0.")
+            # Make this explicit so other parts of the flow don't accidentally use stale OpenROAD results.
+            self.hw.circuit_model.edge_to_nets = {}
+            return
+
         # netlist_dfg = self.hw.scheduled_dfg.copy() 
         # netlist_dfg.remove_node("end")
         # self.hw.netlist = netlist_dfg
@@ -1183,6 +1211,8 @@ class Codesign:
         # cleanup
         self.cleanup()
 
+        print(f"{FLOW_SUCCESS_MSG}{self.iteration_count}")
+
         
 def main(args):
     codesign_module = Codesign(
@@ -1278,6 +1308,9 @@ if __name__ == "__main__":
     parser.add_argument("--stop_at_checkpoint", type=str, help="checkpoint step to stop at (will complete this step and then stop)")
     parser.add_argument("--workload_size", type=int, help="workload size to use, such as the dimension of the matrix for gemm. Only applies to certain benchmarks")
     parser.add_argument("--opt_pipeline", type=str, help="optimization pipeline to use for inverse pass")
+    parser.add_argument("--num_dsps", type=str, help="the number of DSPs to use as a constraint for ScaleHLS. Only use this if attempting to only run the FORWARD PASS.")
+    parser.add_argument("--zero_wirelength_costs", type=bool, help="set all wirelength costs to zero (wire_length and wire_energy will return 0)")
+    parser.add_argument("--constant_wire_length_cost", type=int, help="Instead of estimating the wirelength based on physical layout, use a constant cost for every wire in the design.")  
     parser.add_argument("--min_dsp", type=int, help="minimum DSP usage to start with")
     parser.add_argument("--max_power_density", type=float, help="maximum power density to allow")
     parser.add_argument("--max_power", type=float, help="maximum total power to allow")

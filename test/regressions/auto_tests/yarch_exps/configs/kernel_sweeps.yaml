@@ -1,0 +1,9 @@
+kernels:
+
+  - name: conv2d
+    obj: delay
+    workload_size: 32
+    max_iter_num_scalehls: 10
+    max_dsp: 100
+    constant_wire_length_cost: 0.04
+    mode: 32

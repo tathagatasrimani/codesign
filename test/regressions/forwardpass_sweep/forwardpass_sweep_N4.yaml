@@ -1,0 +1,73 @@
+benchmark_3mm_sweep_test_N4:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_3mm
+    stop_at_checkpoint: pd
+    tech_node: yarch-default
+    workload_size: 4
+
+benchmark_2mm_sweep_test_N4:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_2mm
+    stop_at_checkpoint: pd
+    tech_node: yarch-default
+    workload_size: 4
+
+benchmark_gemm_sweep_test_N4:
+  base_cfg: vitis_test
+  args:
+    benchmark: gemm
+    stop_at_checkpoint: pd
+    tech_node: yarch-default
+    workload_size: 4
+
+benchmark_doitgen_sweep_test_N4:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_doitgen
+    stop_at_checkpoint: pd
+    tech_node: yarch-default
+    workload_size: 4
+
+benchmark_bicg_sweep_test_N4:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_bicg
+    stop_at_checkpoint: pd
+    tech_node: yarch-default
+    workload_size: 4
+
+benchmark_mvt_sweep_test_N4:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_mvt
+    stop_at_checkpoint: pd
+    tech_node: yarch-default
+    workload_size: 4
+
+benchmark_gemm_sweep_test_N4:
+  base_cfg: vitis_test
+  args:
+    benchmark: gemmv
+    stop_at_checkpoint: pd
+    tech_node: yarch-default
+    workload_size: 4
+
+benchmark_gemm_sweep_test_N4:
+  base_cfg: vitis_test
+  args:
+    benchmark: gesummv
+    stop_at_checkpoint: pd
+    tech_node: yarch-default
+    workload_size: 4
+
+benchmark_atax_sweep_test_N4:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_atax
+    stop_at_checkpoint: pd
+    tech_node: yarch-default
+    workload_size: 4
+
+# TODO: Add trmm
