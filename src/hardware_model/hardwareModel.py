@@ -1114,7 +1114,7 @@ class HardwareModel:
             start_time = time.time()
             prob = cp.Problem(cp.Minimize(self.graph_delays[top_block_name]), [constr.constraint for constr in opt_constraints])
 
-            prob.solve(gp=True, verbose=True, **sim_util.GP_SOLVER_OPTS_RELAXED) # this hasn't been working for non cvxpy for whatever reason
+            prob.solve(gp=True, **sim_util.GP_SOLVER_OPTS_RELAXED) # this hasn't been working for non cvxpy for whatever reason
             #obj_val = solve_gp_with_fallback(prob)
             logger.info(f"time to solve cvxpy problem: {time.time()-start_time}")
             logger.info(f"cvxpy problem status: {prob.status}")
