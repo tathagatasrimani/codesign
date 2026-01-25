@@ -902,6 +902,27 @@ class Codesign:
             print(f"max parallelism factor: {self.hw.circuit_model.tech_model.max_speedup_factor}")
             self.hw.circuit_model.tech_model.init_scale_factors(self.hw.circuit_model.tech_model.max_speedup_factor, self.hw.circuit_model.tech_model.max_area_increase_factor)"""
 
+        # Ensure clock period is no less than the longest wire delay
+        max_wire_delay = 0.0
+        for edge in self.hw.circuit_model.edge_to_nets:
+            wire_delay = sim_util.xreplace_safe(
+                self.hw.circuit_model.wire_delay(edge),
+                self.hw.circuit_model.tech_model.base_params.tech_values
+            )
+            max_wire_delay = max(max_wire_delay, wire_delay)
+        
+        if self.clk_period < max_wire_delay:
+            old_clk_period = self.clk_period
+            # Update clock period to be at least as large as the longest wire delay
+            self.hw.circuit_model.tech_model.base_params.tech_values[
+                self.hw.circuit_model.tech_model.base_params.clk_period
+            ] = max_wire_delay
+            self.clk_period = max_wire_delay
+            logger.warning(
+                f"Clock period ({old_clk_period} ns) was less than the longest wire delay "
+                f"({max_wire_delay} ns). Updated clock period to {max_wire_delay} ns."
+            )
+
         self.hw.display_objective("after forward pass")
 
         self.checkpoint_controller.check_end_checkpoint("pd", self.iteration_count)
