@@ -176,6 +176,29 @@ class MVSSelfConsistentModel(TechModel):
         super().config_param_db()
 
     def config_sweep_output_db(self):
+        self.sweep_output_db["L"] = self.L
+        self.sweep_output_db["W"] = self.W
+        self.sweep_output_db["V_dd"] = self.V_dd
+        self.sweep_output_db["V_th"] = self.V_th
+        self.sweep_output_db["tox"] = self.tox
+        self.sweep_output_db["beta_p_n"] = self.beta_p_n
+        self.sweep_output_db["mD_fac"] = self.mD_fac
+        self.sweep_output_db["mu_eff_n"] = self.mu_eff_n
+        self.sweep_output_db["mu_eff_p"] = self.mu_eff_p
+        self.sweep_output_db["k_gate"] = self.k_gate
+        self.sweep_output_db["eps_semi"] = self.eps_semi
+        self.sweep_output_db["tsemi"] = self.tsemi
+        self.sweep_output_db["Lext"] = self.Lext
+        self.sweep_output_db["Lc"] = self.Lc
+        self.sweep_output_db["eps_cap"] = self.eps_cap
+        self.sweep_output_db["rho_c_n"] = self.rho_c_n
+        self.sweep_output_db["rho_c_p"] = self.rho_c_p
+        self.sweep_output_db["Rsh_c_n"] = self.Rsh_c_n
+        self.sweep_output_db["Rsh_c_p"] = self.Rsh_c_p
+        self.sweep_output_db["Rsh_ext_n"] = self.Rsh_ext_n
+        self.sweep_output_db["Rsh_ext_p"] = self.Rsh_ext_p
+        self.sweep_output_db["FO"] = self.FO
+        self.sweep_output_db["M"] = self.M
         self.sweep_output_db["area"] = self.area
         self.sweep_output_db["delay"] = self.delay
         self.sweep_output_db["Edynamic"] = self.E_act_inv
@@ -183,6 +206,11 @@ class MVSSelfConsistentModel(TechModel):
         self.sweep_output_db["Ieff"] = self.Ieff
         self.sweep_output_db["Ioff"] = self.I_off
         self.sweep_output_db["V_th_eff"] = self.V_th_eff
+        self.sweep_output_db["C_load"] = self.C_load
+        self.sweep_output_db["C_par"] = self.C_par
+        self.sweep_output_db["C_wire"] = self.C_wire
+        self.sweep_output_db["R_wire"] = self.R_wire
+        self.sweep_output_db["R_avg_inv"] = self.R_avg_inv
 
         self.sweep_output_db["delta"] = self.delta
         self.sweep_output_db["dVt"] = self.dVt
@@ -195,7 +223,7 @@ class MVSSelfConsistentModel(TechModel):
     def config_pareto_metric_db(self):
         self.pareto_metric_db = {"area": "min", "delay": "min", "Edynamic": "min", "Pstatic": "min"}
         #self.pareto_metric_db = {"delay": "min"}
-        self.input_metric_db = {"L", "W", "V_dd", "V_th", "tox", "slope_at_crossing", "beta_p_n", "mD_fac", "mu_eff_n", "mu_eff_p", "k_gate", "eps_semi", "tsemi", "Lext", "Lc", "eps_cap", "rho_c_n", "rho_c_p", "Rsh_c_n", "Rsh_c_p", "Rsh_ext_n", "Rsh_ext_p", "FO", "M", "a", "Lscale", "n0", "delta", "dVt", "Ieff", "Ioff"}
+        self.input_metric_db = {"L", "W", "V_dd", "V_th", "tox"}
 
     def apply_base_parameter_effects(self):
         super().apply_base_parameter_effects()
