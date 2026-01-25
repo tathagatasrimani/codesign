@@ -16,6 +16,7 @@ from src.hardware_model.tech_models.tech_codesign_v0.Patrick_codesign_v0.delay_a
 from src.hardware_model.tech_models.tech_codesign_v0.Patrick_codesign_v0.mvs_model_kj import get_mvs_model
 from src.hardware_model.tech_models.tech_codesign_v0.Patrick_codesign_v0.Cpar_model_kj import symbolic_Cpar_model_cmg
 logger = logging.getLogger(__name__)
+debug = False
 
 class MVSSelfConsistentModel(TechModel):
     def __init__(self, model_cfg, base_params):
@@ -81,6 +82,20 @@ class MVSSelfConsistentModel(TechModel):
 
         return Cload, Cpar
 
+    def plot_vtc(self, Vin_vals, Vout_vals):
+        import matplotlib.pyplot as plt
+        plt.figure(figsize=(6,5))
+        plt.plot(Vin_vals, Vout_vals, label='Vout', lw=3.5)
+        plt.plot(Vin_vals, Vin_vals, '--', color='gray', alpha=0.5, label='y=x')
+        plt.xlabel('Vin (V)')
+        plt.ylabel('Vout (V)')
+        plt.title('CMOS Inverter VTC')
+        plt.grid(True)
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig(f"cmos_inverter_vtc_L{self.L}_W{self.W}_Vdd{self.V_dd}_Vth{self.V_th}_tox{self.tox}.png", dpi=300)
+        plt.close()
+
     def init_transistor_equations(self):
         super().init_transistor_equations()
         for value in self.base_params.tech_values:
@@ -134,7 +149,9 @@ class MVSSelfConsistentModel(TechModel):
 
         # Compute slope using central difference (or np.gradient)
         self.slope_at_crossing = np.gradient(Vout_vals, Vin_vals)[self.crossing_idx]
-        #print(f"slope_at_crossing: {self.slope_at_crossing}")
+
+        if debug:
+            self.plot_vtc(Vin_vals, Vout_vals)
 
         self.Lscale = get_Lscale(self.eps_semi, self.k_gate, self.tox, self.tsemi)
         self.n0, self.delta, self.dVt = symbolic_sce_model_cmg(self.L, self.V_th, self.Lscale)
