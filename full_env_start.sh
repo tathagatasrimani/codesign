@@ -47,6 +47,7 @@ else
     echo "SUDO permissions may be required for this build. Enter SUDO password if prompted."
     sudo -v
 fi
+echo "Thank you for entering your sudo password if prompted."
 ################## PARSE UNIVERSITY ARGUMENT ##################
 
 host=$(hostname)
