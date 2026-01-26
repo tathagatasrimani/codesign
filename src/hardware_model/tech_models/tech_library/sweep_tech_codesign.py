@@ -751,18 +751,18 @@ def test_sweep_tech_codesign(args):
                         "M": list(np.logspace(np.log10(2), np.log10(2), 1)),
                         "a": list(np.logspace(np.log10(0.5), np.log10(0.5), 1)),
                     }"""
-        """value_ranges = {"L": list(np.logspace(np.log10(15e-9), np.log10(500e-9), 3)),
-                        "W": list(np.logspace(np.log10(15e-9), np.log10(500e-9), 3)),
-                        "V_dd": list(np.logspace(np.log10(0.1), np.log10(3), 3)),
-                        "V_th": list(np.logspace(np.log10(0.2), np.log10(1.5), 3)),
-                        "tox": list(np.logspace(np.log10(1e-9), np.log10(50e-9), 3)),
+        value_ranges = {"L": list(np.logspace(np.log10(15e-9), np.log10(500e-9), 5)),
+                        "W": list(np.logspace(np.log10(15e-9), np.log10(500e-9), 5)),
+                        "V_dd": list(np.logspace(np.log10(0.1), np.log10(3), 5)),
+                        "V_th": list(np.logspace(np.log10(0.2), np.log10(1.5), 5)),
+                        "tox": list(np.logspace(np.log10(1e-9), np.log10(50e-9), 5)),
                         "beta_p_n": list(np.logspace(np.log10(2.0), np.log10(2.0), 1)),
                         "mD_fac": list(np.logspace(np.log10(0.5), np.log10(0.5), 1)),
                         "mu_eff_n": list(np.logspace(np.log10(250.0e-4), np.log10(250.0e-4), 1)),
                         "mu_eff_p": list(np.logspace(np.log10(125.0e-4), np.log10(125.0e-4), 1)),
                         "k_gate": list(np.logspace(np.log10(3.9), np.log10(25), 3)),
                         "eps_semi": list(np.logspace(np.log10(11.7), np.log10(11.7), 1)),
-                        "tsemi": list(np.logspace(np.log10(5.0e-9), np.log10(50e-9), 3)),
+                        "tsemi": list(np.logspace(np.log10(5.0e-9), np.log10(50e-9), 5)),
                         "Lext": list(np.logspace(np.log10(5.0e-9), np.log10(20e-9), 3)),
                         "Lc": list(np.logspace(np.log10(10.0e-9), np.log10(40e-9), 3)),
                         "eps_cap": list(np.logspace(np.log10(3.9), np.log10(3.9), 1)),
@@ -775,8 +775,8 @@ def test_sweep_tech_codesign(args):
                         "FO": list(np.logspace(np.log10(4), np.log10(4), 1)),
                         "M": list(np.logspace(np.log10(2), np.log10(2), 1)),
                         "a": list(np.logspace(np.log10(0.5), np.log10(0.5), 1)),
-                    }"""
-        value_ranges = {"L": list(np.logspace(np.log10(15e-9), np.log10(15e-9), 1)),
+                    }
+        """value_ranges = {"L": list(np.logspace(np.log10(15e-9), np.log10(15e-9), 1)),
                         "W": list(np.logspace(np.log10(500e-9), np.log10(500e-9), 1)),
                         "V_dd": list(np.logspace(np.log10(0.1), np.log10(0.1), 1)),
                         "V_th": list(np.logspace(np.log10(1.5), np.log10(1.5), 1)),
@@ -800,7 +800,7 @@ def test_sweep_tech_codesign(args):
                         "FO": list(np.logspace(np.log10(4), np.log10(4), 1)),
                         "M": list(np.logspace(np.log10(2), np.log10(2), 1)),
                         "a": list(np.logspace(np.log10(0.5), np.log10(0.5), 1)),
-                    }
+                    }"""
 
 
     params_to_sweep = list(value_ranges.keys())

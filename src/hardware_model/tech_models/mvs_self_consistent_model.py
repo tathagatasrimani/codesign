@@ -17,6 +17,9 @@ from src.hardware_model.tech_models.tech_codesign_v0.Patrick_codesign_v0.mvs_mod
 from src.hardware_model.tech_models.tech_codesign_v0.Patrick_codesign_v0.Cpar_model_kj import symbolic_Cpar_model_cmg
 logger = logging.getLogger(__name__)
 debug = False
+def log_info(msg):
+    if debug:
+        logger.info(msg)
 
 class MVSSelfConsistentModel(TechModel):
     def __init__(self, model_cfg, base_params):
