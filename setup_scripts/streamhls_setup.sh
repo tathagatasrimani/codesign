@@ -58,12 +58,11 @@ if [[ $FORCE_FULL -eq 1 ]]; then
 
     source setup-env.sh
 
-    ## ensure that the build uses all available CPU cores
-    sed -i 's|cmake --build \. --target check-mlir|cmake --build . --target check-mlir -- -j$(nproc)|' build-llvm.sh
-    sed -i 's|make$|make -j $(nproc)|' build-streamhls.sh
-
-    ## permanently skip MLIR test target to speed up builds
+    ## permanently skip MLIR test target to speed up builds (skip before parallelization to avoid pattern matching issues)
     sed -i 's|cmake --build \. --target check-mlir.*|# [setup] skipped check-mlir for faster setup|g' build-llvm.sh
+
+    ## ensure that the build uses all available CPU cores (for other build targets)
+    sed -i 's|make$|make -j $(nproc)|' build-streamhls.sh
     source build-llvm.sh
 
     source build-streamhls.sh
