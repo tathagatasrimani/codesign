@@ -53,6 +53,7 @@ setup_scripts/university_name.txt
 !.gitignore
 !.git/
 !.github/
+!.cursorignore
 !scalehls_test/**.log
 ######
 block_graph.gml

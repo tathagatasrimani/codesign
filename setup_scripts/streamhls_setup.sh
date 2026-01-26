@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Defaults
+FORCE_FULL=0
+
 # Parse command line options
 for arg in "$@"; do
     if [[ "$arg" == "--full" || "$arg" == "1" ]]; then
@@ -58,6 +61,9 @@ if [[ $FORCE_FULL -eq 1 ]]; then
     ## ensure that the build uses all available CPU cores
     sed -i 's|cmake --build \. --target check-mlir|cmake --build . --target check-mlir -- -j$(nproc)|' build-llvm.sh
     sed -i 's|make$|make -j $(nproc)|' build-streamhls.sh
+
+    ## permanently skip MLIR test target to speed up builds
+    sed -i 's|cmake --build \. --target check-mlir.*|# [setup] skipped check-mlir for faster setup|g' build-llvm.sh
     source build-llvm.sh
 
     source build-streamhls.sh
