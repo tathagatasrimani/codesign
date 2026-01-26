@@ -11,6 +11,27 @@ SKIP_OPENROAD=0
 # Start timer
 start_time=$(date +%s)
 
+record_full_build_metadata() {
+    local build_time root_commit
+    build_time=$(date "+%Y-%m-%d %H:%M:%S")
+    root_commit=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
+
+    {
+        echo "build_time: $build_time"
+        echo "root_commit: $root_commit"
+        echo "submodules:"
+
+        if git config --file .gitmodules --get-regexp 'submodule\..*\.path' >/dev/null 2>&1; then
+            git submodule foreach --recursive --quiet '
+                sub_commit=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
+                printf "  - %s: %s\n" "$path" "$sub_commit"
+            '
+        else
+            echo "  - none"
+        fi
+    } > "$BUILD_LOG"
+}
+
 # Parse command line options
 for arg in "$@"; do
     if [[ "$arg" == "--full" ]]; then
@@ -262,10 +283,13 @@ alias run_sweep="python3 -m src.hardware_model.tech_models.tech_library.sweep_te
 echo "COMPLETED STEP 9: ADDING USEFUL ALIASES"
 ################## SUCCESSFUL BUILD LOG ##################
 if [[ $FORCE_FULL -eq 1 ]]; then
-    date "+%Y-%m-%d %H:%M:%S" > "$BUILD_LOG"
+    record_full_build_metadata
 fi
 
-echo "Last full build completed successfully on $(cat $BUILD_LOG)"
+if [[ -f "$BUILD_LOG" ]]; then
+    echo "Last full build metadata:"
+    cat "$BUILD_LOG"
+fi
 
 echo "ENVIRONMENT SETUP COMPLETE"
 
