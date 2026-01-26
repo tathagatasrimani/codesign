@@ -181,16 +181,8 @@ else
 
     conda env create -f "$SETUP_SCRIPTS_FOLDER"/environment_simplified.yml -y
 
-    ## Accept conda TOS
-    conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main
-    conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r
-
-    conda env create -f "$SETUP_SCRIPTS_FOLDER"/environment_simplified.yml -y
-
     # create symlinks for g++-13 needed by cacti
     cd miniconda3/envs/codesign/bin
-    ln -sf x86_64-conda-linux-gnu-gcc gcc-13
-    ln -sf x86_64-conda-linux-gnu-g++ g++-13
     ln -sf x86_64-conda-linux-gnu-gcc gcc-13
     ln -sf x86_64-conda-linux-gnu-g++ g++-13
     cd ../../../..
@@ -199,7 +191,6 @@ fi
 
 if [[ $FORCE_FULL -eq 1 ]]; then
     ## update conda packages
-    conda update -n base -c defaults conda -y # update conda itself
     conda update -n base -c defaults conda -y # update conda itself
     conda config --set channel_priority strict
     conda env update -f "$SETUP_SCRIPTS_FOLDER"/environment_simplified.yml --prune # update the environment
