@@ -148,7 +148,82 @@ class MVSSelfConsistentModel(TechModel):
         self.crossing_idx = np.argmin(np.abs(Vin_vals - Vout_vals))
 
         # Compute slope using central difference (or np.gradient)
-        self.slope_at_crossing = np.gradient(Vout_vals, Vin_vals)[self.crossing_idx]
+        slopes = np.gradient(Vout_vals, Vin_vals)
+        self.slope_at_crossing = slopes[self.crossing_idx]
+        print(f"slope_at_crossing: {self.slope_at_crossing}")
+        print(f"slopes: {slopes}")
+        print(f"Vin_vals: {Vin_vals}")
+        print(f"Vout_vals: {Vout_vals}")
+
+        # Calculate noise margin from VTC
+        # V_IL: where slope crosses from above -1 to below -1 (magnitude crosses from < 1 to > 1)
+        # V_IH: where slope crosses from below -1 to above -1 (magnitude crosses from > 1 to < 1)
+        slope_above_neg1 = slopes > -1  # True where |slope| < 1
+
+        # Find V_IL: first transition from slope > -1 to slope < -1
+        V_IL = None
+        V_IH = None
+        for i in range(len(slopes) - 1):
+            if slope_above_neg1[i] and not slope_above_neg1[i + 1]:
+                # Interpolate to find exact crossing point
+                t = (-1 - slopes[i]) / (slopes[i + 1] - slopes[i])
+                V_IL = Vin_vals[i] + t * (Vin_vals[i + 1] - Vin_vals[i])
+                print(f"V_IL: {V_IL}")
+                break
+
+        # Find V_IH: first transition from slope < -1 to slope > -1 (after V_IL)
+        for i in range(len(slopes) - 1):
+            if not slope_above_neg1[i] and slope_above_neg1[i + 1]:
+                # Interpolate to find exact crossing point
+                t = (-1 - slopes[i]) / (slopes[i + 1] - slopes[i])
+                V_IH = Vin_vals[i] + t * (Vin_vals[i + 1] - Vin_vals[i])
+                print(f"V_IH: {V_IH}")
+                break
+
+        # V_OH and V_OL: intersection points of VTC with the line Vout = Vdd - Vin
+        # Find where (Vout - (Vdd - Vin)) crosses zero
+        unity_gain_diff = Vout_vals - (self.V_dd - Vin_vals)
+        print(f"unity_gain_diff: {unity_gain_diff}")
+
+        V_OH = None
+        V_OL = None
+        crossings = []
+        if unity_gain_diff[0] > 0: # special case if first value already above the line, otherwise we miss the first crossing
+            crossings.append((Vin_vals[0], Vout_vals[0]))
+        for i in range(len(unity_gain_diff) - 1):
+            if unity_gain_diff[i] * unity_gain_diff[i + 1] <= 0:  # Sign change indicates crossing
+                # Interpolate to find exact crossing point
+                t = -unity_gain_diff[i] / (unity_gain_diff[i + 1] - unity_gain_diff[i])
+                Vin_cross = Vin_vals[i] + t * (Vin_vals[i + 1] - Vin_vals[i])
+                Vout_cross = Vout_vals[i] + t * (Vout_vals[i + 1] - Vout_vals[i])
+                crossings.append((Vin_cross, Vout_cross))
+                # First crossing (low Vin) gives V_OL, second crossing (high Vin) gives V_OH
+                if V_OL is None:
+                    V_OL = Vout_cross
+                    print(f"V_OL: {V_OL}")
+                else:
+                    V_OH = Vout_cross
+                    print(f"V_OH: {V_OH}")
+        print(f"crossings: {crossings}")
+
+        # Calculate noise margins
+        if V_IL is not None and V_IH is not None and V_OH is not None and V_OL is not None:
+            self.V_IL = V_IL
+            self.V_IH = V_IH
+            self.V_OH = V_OH
+            self.V_OL = V_OL
+            self.NM_H = V_OH - V_IH  # High noise margin
+            self.NM_L = V_IL - V_OL  # Low noise margin
+            self.noise_margin = min(self.NM_H, self.NM_L)
+        else:
+            # If we couldn't find all points, set noise margin to a negative value to indicate invalid
+            self.V_IL = V_IL if V_IL is not None else np.nan
+            self.V_IH = V_IH if V_IH is not None else np.nan
+            self.V_OH = V_OH if V_OH is not None else np.nan
+            self.V_OL = V_OL if V_OL is not None else np.nan
+            self.NM_H = np.nan
+            self.NM_L = np.nan
+            self.noise_margin = -1.0  # Invalid design
 
         if debug:
             self.plot_vtc(Vin_vals, Vout_vals)
@@ -234,6 +309,13 @@ class MVSSelfConsistentModel(TechModel):
         self.sweep_output_db["n0"] = self.n0
         self.sweep_output_db["Lscale"] = self.Lscale
         self.sweep_output_db["slope_at_crossing"] = self.slope_at_crossing
+        self.sweep_output_db["V_IL"] = self.V_IL
+        self.sweep_output_db["V_IH"] = self.V_IH
+        self.sweep_output_db["V_OH"] = self.V_OH
+        self.sweep_output_db["V_OL"] = self.V_OL
+        self.sweep_output_db["NM_H"] = self.NM_H
+        self.sweep_output_db["NM_L"] = self.NM_L
+        self.sweep_output_db["noise_margin"] = self.noise_margin
         self.sweep_output_db["I_tunnel"] = self.I_tunnel
         self.sweep_output_db["I_sub"] = self.I_sub
 
@@ -249,19 +331,23 @@ class MVSSelfConsistentModel(TechModel):
         super().apply_additional_effects()
 
     def create_constraints(self, dennard_scaling_type="constant_field"):
-        self.constraints = [Constraint(sp.Le(self.slope_at_crossing, -1.0, evaluate=False), label="slope_at_crossing")]
+        eps = 1e-6
+        self.constraints = [
+            Constraint(sp.Le(self.slope_at_crossing, -1.0, evaluate=False), label="slope_at_crossing"),
+            Constraint(sp.Ge(self.noise_margin, eps, evaluate=False), label="noise_margin_positive"),
+        ]
         #super().create_constraints(dennard_scaling_type)
         self.sweep_constraints_leq = {} # in sweep, we check for if these are <= 0. If not, then discard the design point.
         self.sweep_constraints_eq = {} # in sweep, we check for if these are == 0. If not, then discard the design point.
-        self.sweep_constraints_leq["W/L"] = self.base_params.W/self.base_params.L - 20
-        self.sweep_constraints_leq["0.1 - (W/L)"] = 0.1 - (self.base_params.W/self.base_params.L)
-        self.sweep_constraints_leq["Lc/L"] = self.base_params.Lc/self.base_params.L - 2
-        self.sweep_constraints_leq["Lext/L"] = self.base_params.Lext/self.base_params.L - 2
-        self.sweep_constraints_leq["0.1 - (Lext/L)"] = 0.1 - (self.base_params.Lext/self.base_params.L)
-        self.sweep_constraints_leq["0.1 - (Lc/L)"] = 0.1 - (self.base_params.Lc/self.base_params.L)
-        self.sweep_constraints_leq["tox/tsemi"] = self.base_params.tox/self.base_params.tsemi - 1/3 # the scale length equation kind of assumes this condition is met.
-        self.sweep_constraints_eq["rho_c_n - rho_c_p"] = self.base_params.rho_c_n - self.base_params.rho_c_p
-        self.sweep_constraints_eq["Rsh_c_n - Rsh_c_p"] = self.base_params.Rsh_c_n - self.base_params.Rsh_c_p
-        self.sweep_constraints_eq["Rsh_ext_n - Rsh_ext_p"] = self.base_params.Rsh_ext_n - self.base_params.Rsh_ext_p
+        #self.sweep_constraints_leq["W/L"] = self.base_params.W/self.base_params.L - 20
+        #self.sweep_constraints_leq["0.1 - (W/L)"] = 0.1 - (self.base_params.W/self.base_params.L)
+        #self.sweep_constraints_leq["Lc/L"] = self.base_params.Lc/self.base_params.L - 2
+        #self.sweep_constraints_leq["Lext/L"] = self.base_params.Lext/self.base_params.L - 2
+        #self.sweep_constraints_leq["0.1 - (Lext/L)"] = 0.1 - (self.base_params.Lext/self.base_params.L)
+        #self.sweep_constraints_leq["0.1 - (Lc/L)"] = 0.1 - (self.base_params.Lc/self.base_params.L)
+        #self.sweep_constraints_leq["tox/tsemi"] = self.base_params.tox/self.base_params.tsemi - 1/3 # the scale length equation kind of assumes this condition is met.
+        #self.sweep_constraints_eq["rho_c_n - rho_c_p"] = self.base_params.rho_c_n - self.base_params.rho_c_p
+        #self.sweep_constraints_eq["Rsh_c_n - Rsh_c_p"] = self.base_params.Rsh_c_n - self.base_params.Rsh_c_p
+        #self.sweep_constraints_eq["Rsh_ext_n - Rsh_ext_p"] = self.base_params.Rsh_ext_n - self.base_params.Rsh_ext_p
         
 
