@@ -63,7 +63,7 @@ class InstallGUI:
         
         # Print the header
         sys.stdout.write(f"{CYAN}{'═' * 63}{NC}\n")
-        sys.stdout.write(f"{GREEN}CodeSign Installation Progress{NC}\n")
+        sys.stdout.write(f"{GREEN}Codesign Installation Progress{NC}\n")
         sys.stdout.write(f"{CYAN}{'═' * 63}{NC}\n")
         sys.stdout.write("\n")
         sys.stdout.write(f"{YELLOW}⠋{NC} Initializing...\n")
@@ -83,40 +83,35 @@ class InstallGUI:
         """Update the display with current status using cursor movement."""
         with self.lock:
             step = self.current_step
-            lines = self.last_lines.copy()
+            lines = self.last_lines[-5:] if self.last_lines else []
             throbber = THROBBER_CHARS[self.throbber_index]
         
         if not self.display_initialized:
             # Clear screen first to remove any password prompt text
             os.system('clear' if os.name != 'nt' else 'cls')
-            self.init_display()
+            self.display_initialized = True
         
-        # After init_display, cursor is at bottom (after "Full log:")
-        # Move up 12 lines to reach step line (line 5 from top)
-        # Structure: header(3) + blank(1) + step(1) + blank(1) + "Recent Output:"(1) + 
-        # separator(1) + output(5) + separator(1) + blank(1) + log(1) = 16 total
-        sys.stdout.write(f"\033[12F")
-        
-        # Update step line (line 5)
-        sys.stdout.write(f"\033[K{YELLOW}{throbber}{NC} {step}\n")
-        
-        # We're now at line 6 (blank). Need to get to line 9 (first output line)
-        # Line 7 = "Recent Output:", line 8 = separator, line 9 = first output
-        # Move down 3 lines by writing newlines (but don't write content, just move)
-        sys.stdout.write("\033[K\n")  # Line 6: clear and move down
-        sys.stdout.write("\033[K\n")  # Line 7: clear "Recent Output:" line and move down  
-        sys.stdout.write("\033[K\n")  # Line 8: clear separator and move down
-        
-        # Now at line 9 (first output line) - update all 5 output lines
-        output_lines = lines[-5:] if lines else ["Waiting for output..."]
+        # Redraw the full UI every refresh to avoid stale lines
+        sys.stdout.write("\033[H")  # Move to top-left
+        sys.stdout.write(f"{CYAN}{'═' * 63}{NC}\n")
+        sys.stdout.write(f"{GREEN}CodeSign Installation Progress{NC}\n")
+        sys.stdout.write(f"{CYAN}{'═' * 63}{NC}\n")
+        sys.stdout.write("\n")
+        sys.stdout.write(f"{YELLOW}{throbber}{NC} {step}\n")
+        sys.stdout.write("\n")
+        sys.stdout.write(f"{CYAN}Recent Output:{NC}\n")
+        sys.stdout.write(f"{CYAN}{'─' * 63}{NC}\n")
+        output_lines = lines if lines else ["Waiting for output..."]
         for i in range(5):
-            sys.stdout.write("\033[K")  # Clear line
+            sys.stdout.write("\033[K")
             if i < len(output_lines):
-                # Truncate very long lines to avoid wrapping issues
                 display_line = output_lines[i].rstrip()[:100]
                 sys.stdout.write(display_line)
             sys.stdout.write("\n")
-        
+        sys.stdout.write(f"{CYAN}{'─' * 63}{NC}\n")
+        sys.stdout.write("\n")
+        sys.stdout.write(f"{CYAN}Full log: {self.log_file}{NC}\n")
+        sys.stdout.write("\033[J")  # Clear anything below the UI
         sys.stdout.flush()
     
     def monitor_output(self):
