@@ -150,10 +150,10 @@ class MVSSelfConsistentModel(TechModel):
         # Compute slope using central difference (or np.gradient)
         slopes = np.gradient(Vout_vals, Vin_vals)
         self.slope_at_crossing = slopes[self.crossing_idx]
-        print(f"slope_at_crossing: {self.slope_at_crossing}")
-        print(f"slopes: {slopes}")
-        print(f"Vin_vals: {Vin_vals}")
-        print(f"Vout_vals: {Vout_vals}")
+        log_info(f"slope_at_crossing: {self.slope_at_crossing}")
+        log_info(f"slopes: {slopes}")
+        log_info(f"Vin_vals: {Vin_vals}")
+        log_info(f"Vout_vals: {Vout_vals}")
 
         # Calculate noise margin from VTC
         # V_IL: where slope crosses from above -1 to below -1 (magnitude crosses from < 1 to > 1)
@@ -168,7 +168,7 @@ class MVSSelfConsistentModel(TechModel):
                 # Interpolate to find exact crossing point
                 t = (-1 - slopes[i]) / (slopes[i + 1] - slopes[i])
                 V_IL = Vin_vals[i] + t * (Vin_vals[i + 1] - Vin_vals[i])
-                print(f"V_IL: {V_IL}")
+                log_info(f"V_IL: {V_IL}")
                 break
 
         # Find V_IH: first transition from slope < -1 to slope > -1 (after V_IL)
@@ -177,13 +177,13 @@ class MVSSelfConsistentModel(TechModel):
                 # Interpolate to find exact crossing point
                 t = (-1 - slopes[i]) / (slopes[i + 1] - slopes[i])
                 V_IH = Vin_vals[i] + t * (Vin_vals[i + 1] - Vin_vals[i])
-                print(f"V_IH: {V_IH}")
+                log_info(f"V_IH: {V_IH}")
                 break
 
         # V_OH and V_OL: intersection points of VTC with the line Vout = Vdd - Vin
         # Find where (Vout - (Vdd - Vin)) crosses zero
         unity_gain_diff = Vout_vals - (self.V_dd - Vin_vals)
-        print(f"unity_gain_diff: {unity_gain_diff}")
+        log_info(f"unity_gain_diff: {unity_gain_diff}")
 
         V_OH = None
         V_OL = None
@@ -197,14 +197,13 @@ class MVSSelfConsistentModel(TechModel):
                 Vin_cross = Vin_vals[i] + t * (Vin_vals[i + 1] - Vin_vals[i])
                 Vout_cross = Vout_vals[i] + t * (Vout_vals[i + 1] - Vout_vals[i])
                 crossings.append((Vin_cross, Vout_cross))
-                # First crossing (low Vin) gives V_OL, second crossing (high Vin) gives V_OH
-                if V_OL is None:
-                    V_OL = Vout_cross
-                    print(f"V_OL: {V_OL}")
-                else:
-                    V_OH = Vout_cross
-                    print(f"V_OH: {V_OH}")
-        print(f"crossings: {crossings}")
+        log_info(f"crossings: {crossings}")
+        # First crossing (low Vin) gives V_OL, third crossing (high Vin) gives V_OH
+        if len(crossings) == 3:
+            V_OL = crossings[0][0]
+            V_OH = crossings[2][0]
+        else:
+            logger.warning(f"Expected 3 crossings, found {len(crossings)}: {crossings}")
 
         # Calculate noise margins
         if V_IL is not None and V_IH is not None and V_OH is not None and V_OL is not None:
