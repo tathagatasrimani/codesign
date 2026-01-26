@@ -251,3 +251,17 @@ class MVSSelfConsistentModel(TechModel):
     def create_constraints(self, dennard_scaling_type="constant_field"):
         self.constraints = [Constraint(sp.Le(self.slope_at_crossing, -1.0, evaluate=False), label="slope_at_crossing")]
         #super().create_constraints(dennard_scaling_type)
+        self.sweep_constraints_leq = {} # in sweep, we check for if these are <= 0. If not, then discard the design point.
+        self.sweep_constraints_eq = {} # in sweep, we check for if these are == 0. If not, then discard the design point.
+        self.sweep_constraints_leq["W/L"] = self.base_params.W/self.base_params.L - 20
+        self.sweep_constraints_leq["0.1 - (W/L)"] = 0.1 - (self.base_params.W/self.base_params.L)
+        self.sweep_constraints_leq["Lc/L"] = self.base_params.Lc/self.base_params.L - 2
+        self.sweep_constraints_leq["Lext/L"] = self.base_params.Lext/self.base_params.L - 2
+        self.sweep_constraints_leq["0.1 - (Lext/L)"] = 0.1 - (self.base_params.Lext/self.base_params.L)
+        self.sweep_constraints_leq["0.1 - (Lc/L)"] = 0.1 - (self.base_params.Lc/self.base_params.L)
+        self.sweep_constraints_leq["tox/tsemi"] = self.base_params.tox/self.base_params.tsemi - 1/3 # the scale length equation kind of assumes this condition is met.
+        self.sweep_constraints_eq["rho_c_n - rho_c_p"] = self.base_params.rho_c_n - self.base_params.rho_c_p
+        self.sweep_constraints_eq["Rsh_c_n - Rsh_c_p"] = self.base_params.Rsh_c_n - self.base_params.Rsh_c_p
+        self.sweep_constraints_eq["Rsh_ext_n - Rsh_ext_p"] = self.base_params.Rsh_ext_n - self.base_params.Rsh_ext_p
+        
+

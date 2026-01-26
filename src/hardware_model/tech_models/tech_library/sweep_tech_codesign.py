@@ -19,6 +19,94 @@ def log_info(msg):
     if debug:
         logger.info(msg)
 
+def _check_sweep_constraints_batch(args_tuple):
+    """
+    Worker function for parallel constraint checking (processes a batch of combinations).
+    Must be at module level to be picklable.
+    """
+    batch_combos, params_to_sweep, symbol_map, constraints_leq, constraints_eq = args_tuple
+
+    valid_combos = []
+    for param_values in batch_combos:
+        # Build substitution dict
+        subs_dict = {}
+        for param_name, param_value in zip(params_to_sweep, param_values):
+            if param_name in symbol_map:
+                subs_dict[symbol_map[param_name]] = param_value
+
+        is_valid = True
+
+        # Check leq constraints (constraint_expr <= 0 required)
+        for constraint_name, constraint_expr in constraints_leq.items():
+            try:
+                val = float(constraint_expr.subs(subs_dict))
+                if val > 0:
+                    is_valid = False
+                    break
+            except (TypeError, ValueError):
+                pass
+
+        if not is_valid:
+            continue
+
+        # Check eq constraints (constraint_expr == 0 required)
+        for constraint_name, constraint_expr in constraints_eq.items():
+            try:
+                val = float(constraint_expr.subs(subs_dict))
+                if abs(val) > 1e-10:
+                    is_valid = False
+                    break
+            except (TypeError, ValueError):
+                pass
+
+        if is_valid:
+            valid_combos.append(param_values)
+
+    return valid_combos
+
+
+def _check_sweep_constraints(param_values, params_to_sweep, tech_model):
+    """
+    Check if a parameter combination satisfies the sweep constraints.
+    Pre-filters combinations before submitting to worker pool for efficiency.
+
+    Returns True if all constraints are satisfied, False otherwise.
+    """
+    # Create parameter mapping
+    param_dict = dict(zip(params_to_sweep, param_values))
+
+    # Build substitution dict using tech_model's symbols
+    subs_dict = {}
+    for param_name, param_value in param_dict.items():
+        if hasattr(tech_model.base_params, param_name):
+            param_symbol = getattr(tech_model.base_params, param_name)
+            subs_dict[param_symbol] = param_value
+
+    # Check leq constraints (constraint_expr <= 0 required)
+    if hasattr(tech_model, 'sweep_constraints_leq'):
+        for constraint_name, constraint_expr in tech_model.sweep_constraints_leq.items():
+            try:
+                val = float(constraint_expr.subs(subs_dict))
+                if val > 0:
+                    log_info(f"LESS THAN OR EQUAL TO CONSTRAINT VIOLATED {constraint_name} {constraint_expr} for config {param_dict}")
+                    return False
+            except (TypeError, ValueError):
+                # If substitution fails (missing params), skip this constraint
+                pass
+
+    # Check eq constraints (constraint_expr == 0 required)
+    if hasattr(tech_model, 'sweep_constraints_eq'):
+        for constraint_name, constraint_expr in tech_model.sweep_constraints_eq.items():
+            try:
+                val = float(constraint_expr.subs(subs_dict))
+                if abs(val) > 1e-10:  # small tolerance for floating point
+                    log_info(f"EQUALITY CONSTRAINT VIOLATED {constraint_name} {constraint_expr} for config {param_dict}")
+                    return False
+            except (TypeError, ValueError):
+                pass
+
+    return True
+
 # Helper function to format numeric values in scientific notation with 4 decimal places
 def format_scientific(value):
     """Format numeric values in scientific notation with 4 decimal places."""
@@ -141,9 +229,84 @@ class SweepTechCodesign:
         # Get the tech model reference
         tech_model = self.codesign_module.hw.circuit_model.tech_model
 
-        # Generate all combinations of parameter values
+        # Calculate total combinations without materializing (memory efficient)
         param_value_lists = [value_ranges[param] for param in params_to_sweep]
-        all_combinations = list(itertools.product(*param_value_lists))
+        total_combinations = 1
+        for lst in param_value_lists:
+            total_combinations *= len(lst)
+        logger.info(f"Total combinations to evaluate: {total_combinations}")
+
+        # Don't materialize all_combinations yet - will use generator for filtering
+        all_combinations = None  # Will be set after filtering or if no filtering needed
+
+        # Pre-filter combinations using sweep constraints (more efficient than checking in workers)
+        has_sweep_constraints = (hasattr(tech_model, 'sweep_constraints_leq') and tech_model.sweep_constraints_leq) or \
+                                (hasattr(tech_model, 'sweep_constraints_eq') and tech_model.sweep_constraints_eq)
+        if has_sweep_constraints:
+            initial_count = total_combinations
+            logger.info(f"Filtering {initial_count} combinations using sweep constraints (parallel with {n_processes} processes)...")
+
+            # Extract symbol map and constraints for pickling
+            symbol_map = {}
+            for param_name in params_to_sweep:
+                if hasattr(tech_model.base_params, param_name):
+                    symbol_map[param_name] = getattr(tech_model.base_params, param_name)
+
+            constraints_leq = getattr(tech_model, 'sweep_constraints_leq', {})
+            constraints_eq = getattr(tech_model, 'sweep_constraints_eq', {})
+
+            # Memory-efficient streaming: process in chunks without materializing all combinations
+            batch_size = 10000  # Small batches to limit memory per worker
+            max_pending_batches = n_processes * 2  # Limit concurrent batches in memory
+
+            valid_combinations = []
+            combo_generator = itertools.product(*param_value_lists)
+            processed_count = 0
+            num_batches = math.ceil(initial_count / batch_size)
+            logger.info(f"Processing {num_batches} batches of {batch_size} combinations each (streaming)")
+
+            with ProcessPoolExecutor(max_workers=n_processes) as executor:
+                futures = []
+                batch_num = 0
+
+                while True:
+                    # Submit batches up to the limit
+                    while len(futures) < max_pending_batches:
+                        batch = list(itertools.islice(combo_generator, batch_size))
+                        if not batch:
+                            break
+                        future = executor.submit(
+                            _check_sweep_constraints_batch,
+                            (batch, params_to_sweep, symbol_map, constraints_leq, constraints_eq)
+                        )
+                        futures.append(future)
+                        batch_num += 1
+
+                    if not futures:
+                        break
+
+                    # Wait for at least one to complete
+                    done_futures = [f for f in futures if f.done()]
+                    if not done_futures:
+                        # Wait for the first one
+                        done_futures = [futures[0]]
+                        done_futures[0].result()  # Block until complete
+
+                    for future in done_futures:
+                        futures.remove(future)
+                        valid_batch = future.result()
+                        valid_combinations.extend(valid_batch)
+                        processed_count += batch_size
+                        if processed_count % (batch_size * 100) == 0:
+                            logger.info(f"Processed {processed_count}/{initial_count} ({100*processed_count/initial_count:.1f}%), valid so far: {len(valid_combinations)}")
+
+            all_combinations = valid_combinations
+            filtered_count = initial_count - len(all_combinations)
+            logger.info(f"Filtered out {filtered_count} invalid combinations ({filtered_count/initial_count*100:.1f}%)")
+        else:
+            # No constraints - materialize all combinations
+            logger.info(f"No sweep constraints, materializing {total_combinations} combinations...")
+            all_combinations = list(itertools.product(*param_value_lists))
 
         total_runs = len(all_combinations)
         logger.info(f"Starting tech sweep with {total_runs} configurations")
@@ -563,27 +726,27 @@ def test_sweep_tech_codesign(args):
                         "k_gate": list(np.linspace(3.9, 25, 3)),
                     }
     elif sweep_tech_codesign.codesign_module.cfg['args']['model_cfg'] == 'mvs_self_consistent_cfg':
-        value_ranges = {"L": list(np.logspace(np.log10(15e-9), np.log10(500e-9), 5)),
-                        "W": list(np.logspace(np.log10(15e-9), np.log10(500e-9), 5)),
+        value_ranges = {"L": list(np.logspace(np.log10(15e-9), np.log10(200e-9), 7)),
+                        "W": list(np.logspace(np.log10(15e-9), np.log10(500e-9), 7)),
                         "V_dd": list(np.logspace(np.log10(0.1), np.log10(3), 5)),
                         "V_th": list(np.logspace(np.log10(0.2), np.log10(1.5), 5)),
-                        "tox": list(np.logspace(np.log10(1e-9), np.log10(50e-9), 5)),
+                        "tox": list(np.logspace(np.log10(1e-9), np.log10(30e-9), 5)),
                         "beta_p_n": list(np.logspace(np.log10(2.0), np.log10(2.0), 1)),
                         "mD_fac": list(np.logspace(np.log10(0.5), np.log10(0.5), 1)),
                         "mu_eff_n": list(np.logspace(np.log10(250.0e-4), np.log10(250.0e-4), 1)),
                         "mu_eff_p": list(np.logspace(np.log10(125.0e-4), np.log10(125.0e-4), 1)),
-                        "k_gate": list(np.logspace(np.log10(3.9), np.log10(25), 3)),
+                        "k_gate": list(np.logspace(np.log10(3.9), np.log10(25), 2)),
                         "eps_semi": list(np.logspace(np.log10(11.7), np.log10(11.7), 1)),
-                        "tsemi": list(np.logspace(np.log10(5.0e-9), np.log10(50e-9), 5)),
+                        "tsemi": list(np.logspace(np.log10(5.0e-9), np.log10(100e-9), 5)),
                         "Lext": list(np.logspace(np.log10(5.0e-9), np.log10(20e-9), 3)),
                         "Lc": list(np.logspace(np.log10(10.0e-9), np.log10(40e-9), 3)),
                         "eps_cap": list(np.logspace(np.log10(3.9), np.log10(3.9), 1)),
                         "rho_c_n": list(np.logspace(np.log10(5.0e-11), np.log10(5.0e-11), 1)),
                         "rho_c_p": list(np.logspace(np.log10(5.0e-11), np.log10(5.0e-11), 1)),
-                        "Rsh_c_n": list(np.logspace(np.log10(50), np.log10(50), 1)),
-                        "Rsh_c_p": list(np.logspace(np.log10(50), np.log10(50), 1)), 
-                        "Rsh_ext_n": list(np.logspace(np.log10(500), np.log10(500), 1)),
-                        "Rsh_ext_p": list(np.logspace(np.log10(500), np.log10(500), 1)),
+                        "Rsh_c_n": [10, 50, 100],
+                        "Rsh_c_p": [10, 50, 100], 
+                        "Rsh_ext_n": [100, 500, 1000],
+                        "Rsh_ext_p": [100, 500, 1000],
                         "FO": list(np.logspace(np.log10(4), np.log10(4), 1)),
                         "M": list(np.logspace(np.log10(2), np.log10(2), 1)),
                         "a": list(np.logspace(np.log10(0.5), np.log10(0.5), 1)),
