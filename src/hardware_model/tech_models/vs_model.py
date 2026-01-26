@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 class VSModel(TechModel):
     def __init__(self, model_cfg, base_params):
         super().__init__(model_cfg, base_params)
+        self.config_pareto_metric_db()
 
     def init_tech_specific_constants(self):
         super().init_tech_specific_constants()
@@ -42,7 +43,7 @@ class VSModel(TechModel):
             self.V_dsp: self.base_params.V_dd,
         }
         self.Cox = self.e_0 * self.base_params.k_gate / self.base_params.tox
-        logger.info(f"Cox: {self.Cox.xreplace(self.base_params.tech_values).evalf()}")
+        #logger.info(f"Cox: {self.Cox.xreplace(self.base_params.tech_values).evalf()}")
 
         #self.C_inv = (self.Cox * self.base_params.Cs) / (self.Cox + self.base_params.Cs)
         self.C_inv = self.Cox
@@ -57,7 +58,7 @@ class VSModel(TechModel):
         #self.delta_32n = 0.12 
 
         self.delta = exp(-math.pi*self.base_params.L/(2*self.scale_length))
-        logger.info(f"delta: {self.delta.xreplace(self.base_params.tech_values).evalf()}")
+        #logger.info(f"delta: {self.delta.xreplace(self.base_params.tech_values).evalf()}")
         self.V_th_eff_general = self.base_params.V_th - self.delta * self.V_dsp
         self.V_th_eff = self.V_th_eff_general.xreplace(self.on_state)
         self.alpha = 3.5
@@ -114,16 +115,16 @@ class VSModel(TechModel):
 
         self.C_gate = self.Cox * self.A_gate
 
-        logger.info(f"A_gate: {self.A_gate.xreplace(self.base_params.tech_values).evalf()}")
-        logger.info(f"area_scale: {self.base_params.area_scale.xreplace(self.base_params.tech_values).evalf()}")
+        #logger.info(f"A_gate: {self.A_gate.xreplace(self.base_params.tech_values).evalf()}")
+        #logger.info(f"area_scale: {self.base_params.area_scale.xreplace(self.base_params.tech_values).evalf()}")
 
         self.C_diff = self.C_gate
         self.C_load = self.C_gate
         self.R_avg_inv = self.base_params.V_dd / self.I_d_on
 
-        logger.info(f"R_wire: {self.R_wire.xreplace(self.base_params.tech_values).evalf()}")
-        logger.info(f"C_wire: {self.C_wire.xreplace(self.base_params.tech_values).evalf()}")
-        logger.info(f"wire rc: {(self.R_wire * self.C_wire).xreplace(self.base_params.tech_values).evalf()}")
+        #logger.info(f"R_wire: {self.R_wire.xreplace(self.base_params.tech_values).evalf()}")
+        #logger.info(f"C_wire: {self.C_wire.xreplace(self.base_params.tech_values).evalf()}")
+        #logger.info(f"wire rc: {(self.R_wire * self.C_wire).xreplace(self.base_params.tech_values).evalf()}")
 
         if self.model_cfg["delay_parasitics"] == "all":
             self.delay = (self.R_avg_inv * (self.C_diff + self.C_wire/2) + (self.R_avg_inv + self.R_wire) * (self.C_wire/2 + self.C_load)) * 1e9  # ns
@@ -145,15 +146,15 @@ class VSModel(TechModel):
         #self.V_ox = symbolic_convex_max(self.base_params.V_dd - self.V_th_eff, self.V_th_eff).xreplace(self.off_state)
         self.V_ox = self.base_params.V_dd - self.V_th_eff
         self.E_ox = Abs(self.V_ox/self.base_params.tox)
-        logger.info(f"B: {self.B}, A: {self.A}, t_ox: {self.base_params.tox.xreplace(self.base_params.tech_values)}, E_ox: {self.E_ox.xreplace(self.base_params.tech_values)}, intermediate: {(1-(1-self.V_ox/self.phi_b)**3/2).xreplace(self.base_params.tech_values)}")
+        #logger.info(f"B: {self.B}, A: {self.A}, t_ox: {self.base_params.tox.xreplace(self.base_params.tech_values)}, E_ox: {self.E_ox.xreplace(self.base_params.tech_values)}, intermediate: {(1-(1-self.V_ox/self.phi_b)**3/2).xreplace(self.base_params.tech_values)}")
         self.FN_term = self.A_gate * self.A * self.E_ox**2 * (custom_exp(-self.B/self.E_ox))
         self.WKB_term = self.A_gate * self.A * self.E_ox**2 * (custom_exp(-self.B*(1-(1-self.V_ox/self.phi_b)**3/2)/self.E_ox))
         self.I_tunnel = self.FN_term + self.WKB_term
-        logger.info(f"I_tunnel: {self.I_tunnel.xreplace(self.base_params.tech_values)}")
+        #logger.info(f"I_tunnel: {self.I_tunnel.xreplace(self.base_params.tech_values)}")
 
         # GIDL current
         self.I_GIDL = self.A_GIDL * ((self.base_params.V_dd - self.E_GIDL)/(3*self.base_params.tox)) * custom_exp(-3*self.base_params.tox*self.B_GIDL / (self.base_params.V_dd - self.E_GIDL)) # simplified from BSIM
-        logger.info(f"I_GIDL: {self.I_GIDL.xreplace(self.base_params.tech_values)}")
+        #logger.info(f"I_GIDL: {self.I_GIDL.xreplace(self.base_params.tech_values)}")
 
         self.I_off = self.I_sub
 
@@ -169,22 +170,24 @@ class VSModel(TechModel):
         self.I_d_off_per_um = self.I_off / (self.base_params.W* 1e6)
         self.I_GIDL_per_um = self.I_GIDL / (self.base_params.W* 1e6)
 
-        logger.info(f"I_d_on per um: {self.I_d_on_per_um.xreplace(self.base_params.tech_values).evalf()}")
-        logger.info(f"I_sub per um: {self.I_sub_per_um.xreplace(self.base_params.tech_values).evalf()}")
-        logger.info(f"I_tunnel per um: {self.I_tunnel_per_um.xreplace(self.base_params.tech_values).evalf()}")
-        logger.info(f"I_off per um: {self.I_d_off_per_um.xreplace(self.base_params.tech_values).evalf()}")
+        #logger.info(f"I_d_on per um: {self.I_d_on_per_um.xreplace(self.base_params.tech_values).evalf()}")
+        #logger.info(f"I_sub per um: {self.I_sub_per_um.xreplace(self.base_params.tech_values).evalf()}")
+        #logger.info(f"I_tunnel per um: {self.I_tunnel_per_um.xreplace(self.base_params.tech_values).evalf()}")
+        #logger.info(f"I_off per um: {self.I_d_off_per_um.xreplace(self.base_params.tech_values).evalf()}")
         self.E_act_inv = (0.5*(self.C_load + self.C_diff + self.C_wire)*self.base_params.V_dd*self.base_params.V_dd) * 1e9  # nJ
-        logger.info(f"C_load: {self.C_load.xreplace(self.base_params.tech_values).evalf()}")
-        logger.info(f"C_diff: {self.C_diff.xreplace(self.base_params.tech_values).evalf()}")
-        logger.info(f"C_wire: {self.C_wire.xreplace(self.base_params.tech_values).evalf()}")
+        #logger.info(f"C_load: {self.C_load.xreplace(self.base_params.tech_values).evalf()}")
+        #logger.info(f"C_diff: {self.C_diff.xreplace(self.base_params.tech_values).evalf()}")
+        #logger.info(f"C_wire: {self.C_wire.xreplace(self.base_params.tech_values).evalf()}")
 
-        self.P_pass_inv = self.I_off * self.base_params.V_dd
+        eps = 1e-15
+        self.P_pass_inv = self.I_off * self.base_params.V_dd + eps
 
 
         self.apply_additional_effects()
-        logger.info(f"E_act_inv: {self.E_act_inv.xreplace(self.base_params.tech_values).evalf()}")
+        #logger.info(f"E_act_inv: {self.E_act_inv.xreplace(self.base_params.tech_values).evalf()}")
 
         self.config_param_db()
+        self.config_sweep_output_db()
 
     def config_param_db(self):
         super().config_param_db()
@@ -221,6 +224,27 @@ class VSModel(TechModel):
 
         self.param_db["A_gate"] = self.A_gate
 
+    def config_sweep_output_db(self):
+        self.sweep_output_db["area"] = self.A_gate
+        self.sweep_output_db["delay"] = self.delay
+        self.sweep_output_db["Edynamic"] = self.E_act_inv
+        self.sweep_output_db["Pstatic"] = self.P_pass_inv
+        self.sweep_output_db["Ieff"] = self.I_d_on
+        self.sweep_output_db["Ioff"] = self.I_off
+        self.sweep_output_db["V_th_eff"] = self.V_th_eff
+        self.sweep_output_db["C_gate"] = self.C_gate
+        self.sweep_output_db["R_avg_inv"] = self.R_avg_inv
+        self.sweep_output_db["V_dd"] = self.base_params.V_dd
+        self.sweep_output_db["L"] = self.base_params.L
+
+        self.sweep_output_db["Lscale"] = self.scale_length
+        self.sweep_output_db["delta"] = self.delta
+        self.sweep_output_db["n0"] = self.n
+
+    def config_pareto_metric_db(self):
+        self.pareto_metric_db = {"area", "R_avg_inv", "C_gate", "Ioff", "L", "V_dd"}
+        self.input_metric_db = {"L", "W", "V_dd", "k_gate", "tox", "V_th_eff", "V_ov"}
+
     def apply_base_parameter_effects(self):
         pass
 
@@ -230,4 +254,10 @@ class VSModel(TechModel):
     def create_constraints(self, dennard_scaling_type="constant_field"):
         super().create_constraints(dennard_scaling_type)
         self.constraints.append(Constraint(self.delta <= 0.15, "delta <= 0.15"))
-        
+        self.constraints.append(Constraint(self.base_params.V_dd <= 5, "V_dd <= 5"))
+        self.constraints.append(Constraint(self.base_params.W / self.base_params.L >= 0.5, "W over L >= 1"))
+        self.constraints.append(Constraint(self.base_params.W / self.base_params.L <= 20, "W over L <= 20"))
+        # prune out some bad design points to help sweep solver
+        self.sweep_constraints.append(Constraint(self.P_pass_inv <= 1e-4, "P_pass_inv <= 1e-4"))
+        self.sweep_constraints.append(Constraint(self.P_pass_inv >= 1e-15, "P_pass_inv >= 1e-15"))
+        self.sweep_constraints.append(Constraint(self.delay <= 1e+2, "delay <= 1e+2"))

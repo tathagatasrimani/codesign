@@ -65,4 +65,6 @@ dependencies:
       - ml-dtypes==0.4.0         # pip-only
       - sympy2jax==0.0.5
       - astpretty==3.0.0
+      - paretoset
+      - scikit-learn
 

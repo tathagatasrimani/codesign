@@ -8,7 +8,7 @@ import sim_util
 logger = logging.getLogger(__name__)
 
 ## Enables additional logging when set to True
-DEBUG = True
+DEBUG = False
 
 def debug_print(message):
     if DEBUG:

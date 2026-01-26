@@ -244,7 +244,7 @@ class Preprocessor:
         self.multistart = multistart
         self.free_symbols = list(obj.free_symbols) if obj else []
         for i in range(len(self.constraints)):
-            #print(f"constraint {i}: {constraints[i]}")
+            print(f"constraint {i}: {self.constraints[i]}")
             self.free_symbols.extend(self.constraints[i].free_symbols)
         self.free_symbols = list(set(self.free_symbols))
         assert len(self.free_symbols) > 0, "no free symbols"

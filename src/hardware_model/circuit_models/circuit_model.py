@@ -30,7 +30,6 @@ class CircuitModel:
             # print(f"Setting zero_wirelength_costs to {cfg['args']['zero_wirelength_costs']} from config!!!")
             self.zero_wirelength_costs = cfg["args"]["zero_wirelength_costs"]
         self.constraints = []
-        self.constraints_cvx = []
 
         # hardcoded tech node to reference for logical effort coefficients
         self.coeffs = coefficients.create_and_save_coefficients([7])
@@ -200,75 +199,6 @@ class CircuitModel:
         self.gamma["Exp16"] = 3*(self.gamma["Mult16"] + self.gamma["Add16"])
         self.area_coeffs["Exp16"] = self.area_coeffs["Mult16"] + self.area_coeffs["Add16"]
 
-    def set_uarch_constraints(self):
-        self.tech_model.constraints.append(self.logic_delay >= self.tech_model.delay)
-        self.tech_model.constraints.append(self.logic_energy_active >= self.tech_model.E_act_inv)
-        self.tech_model.constraints.append(self.logic_power_passive >= self.tech_model.P_pass_inv)
-        for layer in self.metal_layers:
-            self.tech_model.constraints.append(self.wire_unit_delay[layer] >= self.tech_model.wire_parasitics["R"][layer]*self.tech_model.wire_parasitics["C"][layer])
-            self.tech_model.constraints.append(self.wire_unit_energy[layer] >= 0.5*self.tech_model.wire_parasitics["C"][layer]*self.tech_model.base_params.V_dd**2)
-
-    def set_uarch_parameters(self):
-        self.clk_period_cvx = cp.Variable(pos=True)
-        self.clk_period_cvx.value = float(sim_util.xreplace_safe(self.tech_model.base_params.clk_period, self.tech_model.base_params.tech_values))
-        self.logic_delay_cvx = cp.Parameter(pos=True)
-        self.logic_delay_cvx.value = float(sim_util.xreplace_safe(self.tech_model.delay, self.tech_model.base_params.tech_values))
-        self.logic_energy_active_cvx = cp.Parameter(pos=True)
-        self.logic_energy_active_cvx.value = float(sim_util.xreplace_safe(self.tech_model.E_act_inv, self.tech_model.base_params.tech_values))
-        self.logic_power_passive_cvx = cp.Parameter(pos=True)
-        self.logic_power_passive_cvx.value = float(sim_util.xreplace_safe(self.tech_model.P_pass_inv, self.tech_model.base_params.tech_values))
-
-        
-        self.uarch_lat_cvx = {
-            key: self.gamma[key]*self.logic_delay_cvx for key in self.gamma
-        }
-        self.uarch_lat_cvx["N/A"] = 0
-        self.uarch_lat_cvx["Call"] = 0
-        self.uarch_lat_cvx["read"] = 0
-        self.uarch_lat_cvx["write"] = 0
-        self.uarch_energy_active_cvx = {
-            key: self.alpha[key]*self.logic_energy_active_cvx for key in self.alpha
-        }
-        self.uarch_energy_active_cvx["N/A"] = 0
-        self.uarch_energy_active_cvx["Call"] = 0
-        self.uarch_energy_active_cvx["read"] = 0
-        self.uarch_energy_active_cvx["write"] = 0
-        self.uarch_power_passive_cvx = {
-            key: self.beta[key]*self.logic_power_passive_cvx for key in self.beta
-        }
-        self.uarch_power_passive_cvx["N/A"] = 0
-        self.uarch_power_passive_cvx["Call"] = 0
-        self.uarch_power_passive_cvx["read"] = 0
-        self.uarch_power_passive_cvx["write"] = 0
-        self.wire_unit_delay_cvx = {
-            layer: cp.Variable(pos=True) for layer in self.metal_layers
-        }
-        self.wire_unit_energy_cvx = {
-            layer: cp.Variable(pos=True) for layer in self.metal_layers
-        }
-        for layer in self.metal_layers:
-            self.wire_unit_delay_cvx[layer].value = float(sim_util.xreplace_safe(self.tech_model.wire_parasitics["R"][layer]*self.tech_model.wire_parasitics["C"][layer], self.tech_model.base_params.tech_values))
-            self.wire_unit_energy_cvx[layer].value = float(sim_util.xreplace_safe(0.5*self.tech_model.wire_parasitics["C"][layer]*self.tech_model.base_params.V_dd**2, self.tech_model.base_params.tech_values))
-
-        self.wire_C_values = {}
-        self.wire_R_values = {}
-        for layer in self.metal_layers:
-            self.wire_C_values[layer] = sim_util.xreplace_safe(self.tech_model.wire_parasitics["C"][layer], self.tech_model.base_params.tech_values)
-            self.wire_R_values[layer] = sim_util.xreplace_safe(self.tech_model.wire_parasitics["R"][layer], self.tech_model.base_params.tech_values)
-        
-        self.device_C_diff = sim_util.xreplace_safe(self.tech_model.C_diff, self.tech_model.base_params.tech_values)
-        self.device_C_load = sim_util.xreplace_safe(self.tech_model.C_load, self.tech_model.base_params.tech_values)
-        self.device_R_avg_inv = sim_util.xreplace_safe(self.tech_model.R_avg_inv, self.tech_model.base_params.tech_values)
-
-    def update_uarch_parameters(self):
-        self.logic_delay_cvx.value = float(sim_util.xreplace_safe(self.tech_model.delay, self.tech_model.base_params.tech_values))
-        self.logic_energy_active_cvx.value = float(sim_util.xreplace_safe(self.tech_model.E_act_inv, self.tech_model.base_params.tech_values))
-        self.logic_power_passive_cvx.value = float(sim_util.xreplace_safe(self.tech_model.P_pass_inv, self.tech_model.base_params.tech_values))
-        for layer in self.metal_layers:
-            log_info(f"wire_unit_delay_cvx[{layer}] = {self.wire_unit_delay_cvx[layer].value}, with R[{layer}] = {sim_util.xreplace_safe(self.tech_model.wire_parasitics['R'][layer], self.tech_model.base_params.tech_values)}, C[{layer}] = {sim_util.xreplace_safe(self.tech_model.wire_parasitics['C'][layer], self.tech_model.base_params.tech_values)}")
-            self.wire_unit_delay_cvx[layer].value = float(sim_util.xreplace_safe(self.tech_model.wire_parasitics["R"][layer]*self.tech_model.wire_parasitics["C"][layer], self.tech_model.base_params.tech_values))
-            self.wire_unit_energy_cvx[layer].value = float(sim_util.xreplace_safe(0.5*self.tech_model.wire_parasitics["C"][layer]*self.tech_model.base_params.V_dd**2, self.tech_model.base_params.tech_values))
-
     def set_memories(self, memories):
         self.memories = memories
         self.update_circuit_values()
@@ -279,7 +209,6 @@ class CircuitModel:
 
 
     def update_circuit_values(self):
-        self.set_uarch_parameters()
         # derive curcuit level values from technology values
         self.circuit_values["latency"] = {
             key: float(sim_util.xreplace_safe(self.symbolic_latency_wc[key](), self.tech_model.base_params.tech_values)) for key in self.symbolic_latency_wc if key not in ["Buf", "MainMem", "OffChipIO"]
@@ -437,16 +366,13 @@ class CircuitModel:
         return area_coeff * self.tech_model.base_params.area
 
     def create_constraints(self):
+        self.constraints = []
         if self.tech_model.model_cfg["effects"]["frequency"]:
             for key in self.symbolic_latency_wc:
-                #if key not in ["Buf", "MainMem", "OffChipIO", "Call", "N/A"]:
-                if key == "FloorDiv16": # most stringent constraint
+                if key not in ["Buf", "MainMem", "OffChipIO", "Call", "N/A"]:
                     # cycle limit to constrain the amount of pipelining
                     #self.constraints.append((self.symbolic_latency_wc[key]()* 1e-9) * self.tech_model.base_params.f <= 20) # num cycles <= 20 (cycles = time(s) * frequency(Hz))
-                    self.constraints.append(Constraint((self.symbolic_latency_wc[key]())<= 20*self.tech_model.base_params.clk_period, f"latency_{key} <= 20*clk_period")) # num cycles <= 20 (cycles = time(s) * frequency(Hz))
-    
-    def create_constraints_cvx(self, scale_cvx):
-        self.constraints_cvx = []
-        for key in self.symbolic_latency_wc:
-            if key not in ["Buf", "MainMem", "OffChipIO", "Call", "N/A"]:
-                self.constraints_cvx.append(self.uarch_lat_cvx[key]<= 20*self.clk_period_cvx) # num cycles <= 20 (cycles = time(s) * frequency(Hz))
+                    latency_expr = self.symbolic_latency_wc[key]()
+                    if not latency_expr: continue
+                    clk_period_expr = 20 * self.tech_model.base_params.clk_period
+                    self.constraints.append(Constraint(self.symbolic_latency_wc[key]() <= 20 * self.tech_model.base_params.clk_period, f"latency_{key} <= 20*clk_period")) # num cycles <= 20 (cycles = time(s) * frequency(Hz))

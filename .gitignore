@@ -4,6 +4,8 @@ src/benchmarks/pictures/**
 src/benchmarks/power_plots/**
 src/benchmarks/json_data/**
 
+src/hardware_model/tech_models/tech_library/design_spaces/**
+src/hardware_model/tech_models/tech_library/old/**
 src/output.txt
 
 src/params/rcs.yaml
@@ -19,6 +21,7 @@ test/saved_checkpoints/**
 **/build/**
 **.log
 **.mlir
+**.csv
 
 data/**
 .vscode/**

@@ -8,7 +8,6 @@ logger = logging.getLogger(__name__)
 
 import networkx as nx
 import re
-import networkx as nx
 import xml.etree.ElementTree as ET
 
 from src.forward_pass import llvm_ir_parse
@@ -216,14 +215,34 @@ class InterfaceDB:
         else:
             log_info(f"add_interface: Interface {intf_name} already exists, skipping creation")
     
-    def create_json_obj(self):
+    def create_dot_file(self, build_dir):
+        graph = nx.DiGraph()
         for intf_name in self.interfaces:
+            graph.add_edge(self.interfaces[intf_name].write_basic_block_name, self.interfaces[intf_name].read_basic_block_name)
+        edges_to_add = []
+        for node in graph.nodes():
+            if graph.in_degree(node) == 0:
+                edges_to_add.append(("Node 10000", node))
+        for edge in edges_to_add:
+            graph.add_edge(edge[0], edge[1])
+        nx.drawing.nx_agraph.write_dot(graph, f"{build_dir}/parse_results/interface_db.dot")
+        log_info(f"created dot file for interface db")
+
+    def create_json_obj(self):
+        to_remove = []
+        for intf_name in self.interfaces:
+            if not self.interfaces[intf_name].first_read or not self.interfaces[intf_name].first_write:
+                log_info(f"interface {intf_name} has no first read or first write, skipping and removing")
+                to_remove.append(intf_name)
+                continue
             self.json_obj[intf_name] = {
                 "first_read": self.interfaces[intf_name].first_read,
                 "read_basic_block_name": self.interfaces[intf_name].read_basic_block_name,
                 "first_write": self.interfaces[intf_name].first_write,
                 "write_basic_block_name": self.interfaces[intf_name].write_basic_block_name,
             }
+        for intf_name in to_remove:
+            self.interfaces.pop(intf_name)
 
 class DataFlowGraph:
     def __init__(self, clk_period, no_rsc_allowed_ops, allowed_functions, build_dir, basic_block_name, name, resource_mapping, states_structure, G, G_standard, G_standard_with_wire_ops, resource_db, variable_db, is_dataflow_pipeline, resource_delays_only=False, num_iters=1, interface_db=None):
@@ -255,6 +274,7 @@ class DataFlowGraph:
         self.state_transitions = {}
         self.num_iters = num_iters
         self.resource_delays_only = resource_delays_only
+        self.arguments_to_call_functions = {}
 
     def track_resource_usage(self, node):
         if self.G.nodes[node]["node_type"] == "op" and self.G.nodes[node]["core_inst"] != "N/A":
@@ -351,6 +371,13 @@ class DataFlowGraph:
             if call_fn[-1] == "_":
                 call_fn += "s"
                 log_info(f"added s to call_function for {instruction}")
+            # assuming that the function is only called once in the basic block
+            # also should work out that the order of call functions per arg matches the order of function calls in the basic block
+            # because we will need to add edges between those functions (graph end to graph start) in the case of dataflow pipelines
+            for src in instruction["src"]:
+                if src not in self.arguments_to_call_functions:
+                    self.arguments_to_call_functions[src] = []
+                self.arguments_to_call_functions[src].append(call_fn)
             self.G.add_node(op_name, node_type=instruction["type"], function=fn_out, function_out=fn_out, rsc=rsc_name, core_inst=instruction["core_inst"], core_id=core_id, rsc_name_unique=rsc_name_unique, call_function=call_fn, original_name=instruction["op"])
             self.track_resource_usage(op_name)
             for src in instruction["src"]:
@@ -462,7 +489,7 @@ class DataFlowGraph:
         self.G_standard = copy.deepcopy(self.G)
         for node in self.G.nodes():
             assert "node_type" in self.G.nodes[node], f"Node {node} has no node_type. {self.G.nodes[node]}"
-            if self.G.nodes[node]["node_type"] == "var":
+            if self.G_standard.nodes[node]["node_type"] == "var_src" or self.G_standard.nodes[node]["node_type"] == "var_dst":
                 self.remove_node_and_rewire(self.G_standard, node)
         self.G_standard = sim_util.filter_graph_by_function(self.G_standard, self.allowed_functions, exception_node_types=["serial"])
         assert nx.is_directed_acyclic_graph(self.G_standard), f"Graph is not a DAG, cycle found: {nx.find_cycle(self.G_standard)}"
@@ -832,11 +859,13 @@ class vitis_schedule_parser:
                 self.basic_blocks[basic_block_name].convert_to_standard_dfg()
                 self.basic_blocks[basic_block_name].convert_to_standard_dfg_with_wire_ops()
         self.interface_db.create_json_obj()
+        self.interface_db.create_dot_file(self.build_dir)
         with open(f"{self.build_dir}/parse_results/interface_db.json", "w") as f:
             json.dump(self.interface_db.json_obj, f, indent=2)
         for basic_block_name in self.basic_blocks.keys():
             if self.basic_blocks[basic_block_name].is_dataflow_pipeline:
-                self.create_flattened_graph(basic_block_name, self.basic_blocks[basic_block_name].dfg)
+                self.init_flattened_graph(basic_block_name, self.basic_blocks[basic_block_name].dfg)
+                self.connect_flattened_graph(self.basic_blocks[basic_block_name].dfg)
                 self.basic_blocks[basic_block_name].dfg.G_flattened_standard = self.basic_blocks[basic_block_name].dfg.standard_dfg_basic_block_new(self.basic_blocks[basic_block_name].dfg.G_flattened, create_loop_standard_dfgs=False)
                 self.basic_blocks[basic_block_name].dfg.G_flattened_standard_with_wire_ops = self.basic_blocks[basic_block_name].dfg.add_wire_ops(self.basic_blocks[basic_block_name].dfg.G_flattened_standard)
                 nx.write_gml(self.basic_blocks[basic_block_name].dfg.G_flattened, f"{self.build_dir}/parse_results/{basic_block_name}/{basic_block_name}_flattened_graph.gml")
@@ -844,31 +873,62 @@ class vitis_schedule_parser:
                 nx.write_gml(self.basic_blocks[basic_block_name].dfg.G_flattened_standard_with_wire_ops, f"{self.build_dir}/parse_results/{basic_block_name}/{basic_block_name}_flattened_graph_standard_with_wire_ops.gml")
 
 
-    def create_flattened_graph(self, basic_block_name, dfg):
-        self.flattened_node_name_in_new_graph[basic_block_name] = {}
+    def init_flattened_graph(self, basic_block_name, dfg):
         cur_G = self.basic_blocks[basic_block_name].dfg.G
         for node in nx.topological_sort(cur_G):
+            new_name = f"{basic_block_name}_{node}"
             if cur_G.nodes[node]["function"] == "Call":
-                self.create_flattened_graph(self.basic_blocks[cur_G.nodes[node]["call_function"]].basic_block_name, dfg)
+                self.init_flattened_graph(self.basic_blocks[cur_G.nodes[node]["call_function"]].basic_block_name, dfg)
             preds = list(cur_G.predecessors(node))
-            pred_current_names = []
+            dfg.G_flattened.add_node(new_name, name_in_original_graph=node, **dict(cur_G.nodes[node]))
             for pred in preds:
-                assert pred in self.flattened_node_name_in_new_graph[basic_block_name].keys(), f"Predecessor {pred} of node {node} is not in flattened node name in new graph"
-                pred_current_names.append(self.flattened_node_name_in_new_graph[basic_block_name][pred])
-            original_name = cur_G.nodes[node]["original_name"] if "original_name" in cur_G.nodes[node] else node
-            if cur_G.nodes[node]["node_type"] == "var_src":
-                new_name = dfg.flattened_variable_db.get_read_node_name(original_name)
-            elif cur_G.nodes[node]["node_type"] == "var_dst":
-                new_name = dfg.flattened_variable_db.update_write_node(original_name)
-            elif cur_G.nodes[node]["node_type"] == "op":
-                new_name = dfg.flattened_variable_db.update_write_node(original_name)
-            elif node.find("graph_end_") != -1:
-                new_name = node
-            else:
-                new_name = dfg.flattened_variable_db.update_write_node(original_name)
-            if new_name not in dfg.G_flattened:
-                dfg.G_flattened.add_node(new_name, name_in_original_graph=node, **dict(cur_G.nodes[node]))
-            for pred, pred_current_name in zip(preds, pred_current_names):
-                dfg.G_flattened.add_edge(pred_current_name, new_name, **dict(cur_G.edges[pred, node]))
-            self.flattened_node_name_in_new_graph[basic_block_name][node] = new_name
-                
+                pred_name = f"{basic_block_name}_{pred}"
+                assert pred_name in dfg.G_flattened.nodes(), f"Predecessor {pred_name} of node {new_name} is not in flattened graph"
+                dfg.G_flattened.add_edge(pred_name, new_name, **dict(cur_G.edges[pred, node]))
+
+    def connect_flattened_graph(self, dfg):
+        for arg in dfg.arguments_to_call_functions:
+            call_functions = dfg.arguments_to_call_functions[arg]
+            # current assumption is 1 producer and 1 consumer for each argument, and the producer and consumer are consecutive in the call functions list
+            for i in range(len(call_functions) - 1):
+                producer_call_fn = call_functions[i]
+                consumer_call_fn = call_functions[i + 1]
+                is_intf = False
+                intf_name = None
+                for intf_name in self.interface_db.interfaces:
+                    if intf_name.startswith(arg):
+                        is_intf = True
+                        intf_name = intf_name
+                        log_info(f"argument {arg} is an interface variable, matched with interface {intf_name}")
+                        break
+                if is_intf:
+                    # KEY POINTS:
+                    #  Interface between two basic blocks means edge between first write (BB1) and first read (BB2)
+                    #  But BB2 cannot finish before BB1 finishes (has to wait each time for BB1 to write) so model this by adding
+                    #  an edge between the graph end of BB1 and the graph end of BB2
+                    first_write_node = f"{self.interface_db.interfaces[intf_name].write_basic_block_name}_{self.interface_db.interfaces[intf_name].first_write}"
+                    assert first_write_node in dfg.G_flattened.nodes(), f"First write node {first_write_node} of interface {intf_name} ({arg}) is not in flattened graph"
+                    first_read_node = f"{self.interface_db.interfaces[intf_name].read_basic_block_name}_{self.interface_db.interfaces[intf_name].first_read}"
+                    assert first_read_node in dfg.G_flattened.nodes(), f"First read node {first_read_node} of interface {intf_name} ({arg}) is not in flattened graph"
+                    dfg.G_flattened.add_edge(first_write_node, first_read_node, weight=self.clk_period, resource_edge=1, stream_edge=1)
+                    log_info(f"added streaming edge between {first_write_node} and {first_read_node} for interface {intf_name} ({arg})")
+                    producer_node = f"{producer_call_fn}_graph_end_{producer_call_fn}"
+                    consumer_node = f"{consumer_call_fn}_graph_end_{consumer_call_fn}"
+                    assert producer_node in dfg.G_flattened.nodes(), f"Producer {producer_node} of interface {intf_name} ({arg}) is not in flattened graph"
+                    assert consumer_node in dfg.G_flattened.nodes(), f"Consumer {consumer_node} of interface {intf_name} ({arg}) is not in flattened graph"
+                    dfg.G_flattened.add_edge(producer_node, consumer_node, weight=self.clk_period, resource_edge=1, stream_edge=1)
+                    log_info(f"added streaming edge between {producer_node} and {consumer_node} for interface {intf_name} ({arg})")
+                else:
+                    # if using a buffer interface instead of fifo streaming interface, must wait for BB1 to finish before BB2 can start
+                    producer_node = f"{producer_call_fn}_graph_end_{producer_call_fn}"
+                    consumer_node = f"{consumer_call_fn}_graph_start_{consumer_call_fn}"
+                    if not consumer_node in dfg.G_flattened.nodes():
+                        dfg.G_flattened.add_node(consumer_node, name_in_original_graph=consumer_call_fn, node_type="serial", function="N/A")
+                    dfg.G_flattened.add_edge(producer_node, consumer_node, weight=self.clk_period, resource_edge=1, stream_edge=0)
+                    log_info(f"added buffer edge between {producer_node} and {consumer_node} for argument {arg}")
+                    consumer_root_nodes = [f"{consumer_call_fn}_{node}" for node, in_degree in self.basic_blocks[consumer_call_fn].dfg.G.in_degree() if in_degree == 0]
+                    assert producer_node in dfg.G_flattened.nodes(), f"Producer {producer_node} of argument {arg} is not in flattened graph"
+                    for consumer_root_node in consumer_root_nodes:
+                        assert consumer_root_node in dfg.G_flattened.nodes(), f"Consumer root node {consumer_root_node} of argument {arg} is not in flattened graph"
+                        dfg.G_flattened.add_edge(consumer_node, consumer_root_node, weight=self.clk_period, resource_edge=1)
+                        log_info(f"added graph input edge between {consumer_node} and {consumer_root_node} for argument {arg}")

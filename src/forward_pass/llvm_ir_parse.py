@@ -2,7 +2,7 @@ from src import sim_util
 import logging
 logger = logging.getLogger(__name__)
 
-DEBUG = True
+DEBUG = False
 
 def log_info(msg):
     if DEBUG:
@@ -131,7 +131,7 @@ def parse_op(instruction, op_name):
     elif op_name == "call":
         parsed_op = undef_num_src_op_all_srcs(instruction)
     elif op_name == "partselect":
-        parsed_op = src_4_op(instruction)
+        parsed_op = undef_num_src_op_all_srcs(instruction)
     elif op_name == "urem":
         parsed_op = arith_op(instruction)
     elif op_name == "or":

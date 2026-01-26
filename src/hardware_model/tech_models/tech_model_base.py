@@ -14,7 +14,11 @@ class TechModel(ABC):
         self.model_cfg = model_cfg
         self.base_params = base_params
         self.constraints = []
+        self.sweep_constraints = []
+        self.param_constant_constraints = []
         self.param_db = {}
+        self.sweep_output_db = {}
+        self.pareto_metric_db = {}
         self.capped_delay_scale = 1
         self.capped_power_scale = 1
         self.init_physical_constants()
@@ -41,7 +45,6 @@ class TechModel(ABC):
         
         self.max_delay_scale = 1/max_speedup_factor
         self.max_power_scale = self.max_area_increase_factor
-        assert max_area_increase_factor > 1, "max_area_increase_factor must be greater than 1"
         self.latency_scale_exp = np.log(max_speedup_factor) / np.log(self.max_area_increase_factor)
         # base_params.latency_scale and base_params.area_scale are set by the ratio of the starting cell area to current cell area
         #self.capped_delay_scale = symbolic_convex_max(self.max_delay_scale, 1 - self.latency_scale_slope * self.base_params.area_scale) # <= 1 (delay = delay_0 * capped_delay_scale)
@@ -149,8 +152,6 @@ class TechModel(ABC):
 
     @abstractmethod
     def apply_additional_effects(self):
-        self.delay_var = sp.symbols("delay_var")
-        self.base_params.tech_values[self.delay_var] = xreplace_safe(self.delay, self.base_params.tech_values)
         """if self.model_cfg["effects"]["area_and_latency_scaling"]:
             if self.model_cfg["effects"]["max_parallel_en"]:
                 MAX_PARALLEL = self.model_cfg["effects"]["max_parallel_val"]
@@ -159,19 +160,19 @@ class TechModel(ABC):
             else:
                 self.delay = self.delay * self.base_params.latency_scale
                 self.P_pass_inv = self.P_pass_inv * self.base_params.area_scale"""
+        pass
 
     @abstractmethod
     def create_constraints(self, dennard_scaling_type="constant_field"):
         self.constraints = []
         # generic constraints
-        self.constraints.append(Constraint(self.delay_var >= self.delay, "delay_var >= delay"))
+        #self.constraints.append(Constraint(self.delay_var >= self.delay, "delay_var >= delay"))
         #self.constraints.append(Constraint(self.base_params.V_dd >= self.V_th_eff, "V_dd >= V_th_eff"))
         #self.constraints.append(Constraint(self.base_params.V_dd >= self.base_params.V_th, "V_dd >= V_th"))
-        if self.V_th_eff != self.base_params.V_th:
-            self.constraints.append(Constraint(self.V_th_eff >= 0, "V_th_eff >= 0"))
-        self.constraints.append(Constraint(self.base_params.V_dd <= 5, "V_dd <= 5"))
+        #self.constraints.append(Constraint(self.V_th_eff >= 0, "V_th_eff >= 0"))
+        #self.constraints.append(Constraint(self.base_params.V_dd <= 5, "V_dd <= 5"))
 
-        self.constraints.append(Constraint(self.I_off/(self.base_params.W) <= 1000e-9 / (1e-6), "I_off per (W) <= 1000e-9 per (1e-6)"))
+        #self.constraints.append(Constraint(self.I_off/(self.base_params.W) <= 10000e-9 / (1e-6), "I_off per (W) <= 1000e-9 per (1e-6)"))
 
 
         #delta_V_th_process = 20e-3 # account for 20mV variation in Vth
@@ -183,18 +184,18 @@ class TechModel(ABC):
         #self.constraints.append(V_th_max <= self.base_params.V_dd)
 
         #self.constraints.append(self.base_params.W / self.base_params.L <= 50)
-        self.constraints.append(Constraint(self.base_params.W / self.base_params.L >= 1, "W over L >= 1"))
+        #self.constraints.append(Constraint(self.base_params.W / self.base_params.L >= 1, "W over L >= 1"))
 
         # wire material constraints
-        self.constraints.append(Constraint(self.base_params.m1_rho >= 2e-8, "m1_rho >= 2e-8"))
-        self.constraints.append(Constraint(self.base_params.m1_k >= 2, "m1_k >= 2"))
-        self.constraints.append(Constraint(self.base_params.m2_rho >= 2e-8, "m2_rho >= 2e-8"))
-        self.constraints.append(Constraint(self.base_params.m2_k >= 2, "m2_k >= 2"))
-        self.constraints.append(Constraint(self.base_params.m3_rho >= 2e-8, "m3_rho >= 2e-8"))
-        self.constraints.append(Constraint(self.base_params.m3_k >= 2, "m3_k >= 2"))
+        #self.constraints.append(Constraint(self.base_params.m1_rho >= 2e-8, "m1_rho >= 2e-8"))
+        #self.constraints.append(Constraint(self.base_params.m1_k >= 2, "m1_k >= 2"))
+        #self.constraints.append(Constraint(self.base_params.m2_rho >= 2e-8, "m2_rho >= 2e-8"))
+        #self.constraints.append(Constraint(self.base_params.m2_k >= 2, "m2_k >= 2"))
+        #self.constraints.append(Constraint(self.base_params.m3_rho >= 2e-8, "m3_rho >= 2e-8"))
+        #self.constraints.append(Constraint(self.base_params.m3_k >= 2, "m3_k >= 2"))
 
-        if self.model_cfg["effects"]["high_k_gate"]:
-            self.constraints.append(Constraint(self.base_params.k_gate >= 2, "k_gate >= 2"))
-            self.constraints.append(Constraint(self.base_params.k_gate <= 20, "k_gate <= 20"))
+        #if self.model_cfg["effects"]["high_k_gate"]:
+            #self.constraints.append(Constraint(self.base_params.k_gate >= 2, "k_gate >= 2"))
+            #self.constraints.append(Constraint(self.base_params.k_gate <= 25, "k_gate <= 20"))
         
-        self.constraints.append(Constraint(self.base_params.u_n <= 0.1, "u_n <= 0.1"))
+        #self.constraints.append(Constraint(self.base_params.u_n <= 0.1, "u_n <= 0.1"))

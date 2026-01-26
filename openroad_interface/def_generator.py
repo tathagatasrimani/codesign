@@ -33,7 +33,7 @@ SUPPORTED_MACROS = [
     {"humnan_readable_name": "lshr", "macro_name_in_def": "RShift16", "search_terms": ["LSHR"]}
 ]
 
-DEBUG = True
+DEBUG = False
 def log_info(msg):
     if DEBUG:
         logger.info(msg)

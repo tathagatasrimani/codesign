@@ -30,6 +30,8 @@ default:
     min_dsp: 13
     max_power_density: 100000000 # W/mm^2, not active right now
     max_power: 150 # W
+    solver: ipopt
+    fixed_area_increase_pattern: False
 
 
 vitis_test_mvs:
@@ -57,3 +59,51 @@ vitis_test_no_wire_length:
   zero_wirelength_costs: true
 
 ### Add additional configurations in yaml files in test/additional_configs ###
+
+vitis_test_sweep:
+  base_cfg: vitis_test
+  args:
+    benchmark: gemm
+    arch_opt_pipeline: streamhls
+    pytorch: True  
+    min_dsp: 13
+    model_cfg: sweep_cfg
+    solver: cvxpy
+    opt_pipeline: fit
+
+vitis_test_sweep_brute_force:
+  base_cfg: vitis_test_sweep
+  args:
+    opt_pipeline: brute_force
+    fixed_area_increase_pattern: True
+    model_cfg: sweep_brute_force_cfg
+
+vitis_test_sweep_basic:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+
+vitis_test_sweep_basic_attention:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 40
+    benchmark: MultiHeadSelfAttention
+
+vitis_test_sweep_basic_inference:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 7680
+    benchmark: Inference
+
+run_sweep_mvs_self_consistent:
+  base_cfg: default
+  args:
+    model_cfg: mvs_self_consistent_cfg

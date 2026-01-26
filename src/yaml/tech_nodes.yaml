@@ -60,6 +60,10 @@ default:
   M: 2
   a: 0.5
   Lscale: 1.0e-7
+  delay: 0.0
+  E_act_inv: 0.0
+  P_pass_inv: 0.0
+  C_gate: 0.0
 
 yarch-default:
   Cs: 100.0
@@ -364,3 +368,17 @@ mvs-test-point:
   M: 2
   a: 0.5
   f: 4.0e+7
+
+sweep-starting-point:
+  L: 15.0e-9
+  W: 15.0e-9
+  V_dd: 0.344
+  V_th: 0.3
+  u_n: 0.07
+  k_gate: 14.5
+  tox: 1.0e-9
+  eps_semi: 11.7
+  tsemi: 8.0e-9
+  Lext: 10.0e-9
+  Lc: 20.0e-9
+  eps_cap: 3.9

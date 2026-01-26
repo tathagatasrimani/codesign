@@ -21,7 +21,7 @@ from . import detailed as det
 from . import scale_lef_files as scale_lef
 from openroad_interface.lib_cell_generator import LibCellGenerator
 from . import macro_maker as make_macros
-
+from src import sim_util
 ## This is the area between the die area and the core area.
 DIE_CORE_BUFFER_SIZE = 50
 
@@ -293,8 +293,8 @@ class OpenRoadRun:
         for i, line in enumerate(rc_data):
             if line.startswith("set_layer_rc"):
                 metal_layer = line.split()[2]
-                rsq = self.circuit_model.tech_model.wire_parasitics["R"][metal_layer].xreplace(self.circuit_model.tech_model.base_params.tech_values) * 1e-9 # convert to kohm/um
-                csq = self.circuit_model.tech_model.wire_parasitics["C"][metal_layer].xreplace(self.circuit_model.tech_model.base_params.tech_values) * 1e+15 * 1e-6 # convert to fF/um
+                rsq = sim_util.xreplace_safe(self.circuit_model.tech_model.wire_parasitics["R"][metal_layer], self.circuit_model.tech_model.base_params.tech_values) * 1e-9 # convert to kohm/um
+                csq = sim_util.xreplace_safe(self.circuit_model.tech_model.wire_parasitics["C"][metal_layer], self.circuit_model.tech_model.base_params.tech_values) * 1e+15 * 1e-6 # convert to fF/um
                 # need to scale up RC for mature nodes, because unscaled OpenROAD wirelengths will be too short
                 # for advanced nodes the unscaled wirelengths will be too long
                 resistance = rsq / self.alpha

@@ -108,7 +108,7 @@ class Codesign:
         self.run_cacti = not self.cfg["args"]["debug_no_cacti"]
         self.no_memory = self.cfg["args"]["no_memory"]
         self.hw = hardwareModel.HardwareModel(self.cfg, self.codesign_root_dir, self.tmp_dir)
-        self.opt = optimize.Optimizer(self.hw, self.tmp_dir, max_power=self.cfg["args"]["max_power"], max_power_density=self.cfg["args"]["max_power_density"], opt_pipeline=self.cfg["args"]["opt_pipeline"])
+        self.opt = optimize.Optimizer(self.hw, self.tmp_dir, self.save_dir, max_power=self.cfg["args"]["max_power"], max_power_density=self.cfg["args"]["max_power_density"], opt_pipeline=self.cfg["args"]["opt_pipeline"])
         self.module_map = {}
         self.inverse_pass_improvement = self.cfg["args"]["inverse_pass_improvement"]
         self.inverse_pass_lag_factor = 1
@@ -130,13 +130,19 @@ class Codesign:
         self.iteration_count = 0
 
         # configure starting resource usage based on the minimum DSP and BRAM usage
-        self.dsp_multiplier = 1/self.cfg["args"]["min_dsp"] * self.cfg["args"]["area"] / (3e-6 * 9e-6)
-        self.bram_multiplier = 1/self.cfg["args"]["min_dsp"] * self.cfg["args"]["area"] / (3e-6 * 9e-6)
+        self.dsp_multiplier = 1/self.cfg["args"]["min_dsp"] * self.cfg["args"]["area"] / sim_util.xreplace_safe(self.hw.circuit_model.tech_model.param_db["A_gate"], self.hw.circuit_model.tech_model.base_params.tech_values)
+        self.bram_multiplier = 1/self.cfg["args"]["min_dsp"] * self.cfg["args"]["area"] / sim_util.xreplace_safe(self.hw.circuit_model.tech_model.param_db["A_gate"], self.hw.circuit_model.tech_model.base_params.tech_values)
 
         self.wire_lengths_over_iterations = []
         self.wire_delays_over_iterations = []
         self.device_delays_over_iterations = []
         self.cur_dsp_usage = None # to be set later
+        self.last_dsp_count_set = False
+        if os.path.exists(f"{self.tmp_dir}/last_dsp_count.yaml"):
+            with open(f"{self.tmp_dir}/last_dsp_count.yaml", "r") as f:
+                self.cur_dsp_usage = yaml.load(f, Loader=yaml.FullLoader)["last_dsp_count"]
+                self.last_dsp_count_set = True
+                logger.info(f"loaded last_dsp_count from {self.tmp_dir}/last_dsp_count.yaml: {self.cur_dsp_usage}")
         self.max_rsc_reached = False
 
         self.config_json_path_scalehls = "ScaleHLS-HIDA/test/Transforms/Directive/config.json"
@@ -299,8 +305,8 @@ class Codesign:
             config["dsp"] = 1024
             config["bram"] = 1024
         else:
-            config["dsp"] = int(self.cfg["args"]["area"] / (self.hw.circuit_model.tech_model.param_db["A_gate"].xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf() * self.dsp_multiplier))
-            config["bram"] = int(self.cfg["args"]["area"] / (self.hw.circuit_model.tech_model.param_db["A_gate"].xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf() * self.bram_multiplier))
+            config["dsp"] = int(self.cfg["args"]["area"] / (sim_util.xreplace_safe(self.hw.circuit_model.tech_model.param_db["A_gate"], self.hw.circuit_model.tech_model.base_params.tech_values) * self.dsp_multiplier))
+            config["bram"] = int(self.cfg["args"]["area"] / (sim_util.xreplace_safe(self.hw.circuit_model.tech_model.param_db["A_gate"], self.hw.circuit_model.tech_model.base_params.tech_values) * self.bram_multiplier))
             # setting cur_dsp_usage here instead of with parse_dsp_usage after running scaleHLS
             # because I observed that for a small amount of resources, scaleHLS won't generate the csv file that we need to parse
             self.cur_dsp_usage = config["dsp"] 
@@ -336,7 +342,14 @@ class Codesign:
         print(f"Running StreamHLS in {cwd}")
 
         if not setup:
-            self.cur_dsp_usage = int(self.cfg["args"]["area"] / (self.hw.circuit_model.tech_model.param_db["A_gate"].xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf() * self.dsp_multiplier))
+            if self.last_dsp_count_set and iteration_count == 0:
+                self.cur_dsp_usage = self.cur_dsp_usage
+                self.last_dsp_count_set = False
+            elif self.cfg["args"]["fixed_area_increase_pattern"] and iteration_count > 0:
+                self.cur_dsp_usage = self.cur_dsp_usage * 10
+            else: 
+                self.cur_dsp_usage = int(self.cfg["args"]["area"] / (sim_util.xreplace_safe(self.hw.circuit_model.tech_model.param_db["A_gate"], self.hw.circuit_model.tech_model.base_params.tech_values) * self.dsp_multiplier))
+                self.cur_dsp_usage = max(self.cur_dsp_usage, self.cfg["args"]["min_dsp"])
             tilelimit = 1
         else:
             self.cur_dsp_usage = 10000
@@ -352,7 +365,7 @@ class Codesign:
             pwd
             source setup-env.sh
             cd examples
-            python run_streamhls.py -b {save_path} -d {save_path} -k {self.benchmark_name} -O 5 --dsps {self.cur_dsp_usage} --timelimit {1} --tilelimit {tilelimit}
+            python run_streamhls.py -b {save_path} -d {save_path} -k {self.benchmark_name} -O 5 --dsps {self.cur_dsp_usage} --timelimit {2} --tilelimit {tilelimit}
             '''
         ]
 
@@ -551,6 +564,7 @@ class Codesign:
             for basic_block_name in schedule_parser.basic_blocks:
                 if schedule_parser.basic_blocks[basic_block_name].is_dataflow_pipeline:
                     self.hw.scheduled_dfgs[basic_block_name] = schedule_parser.basic_blocks[basic_block_name].dfg.G_flattened_standard_with_wire_ops
+                    self.hw.dataflow_blocks.add(basic_block_name)
                 else:
                     self.hw.scheduled_dfgs[basic_block_name] = schedule_parser.basic_blocks[basic_block_name].dfg.G_standard_with_wire_ops
             for basic_block_name in schedule_parser.basic_blocks:
@@ -569,6 +583,7 @@ class Codesign:
                         continue
                     if os.path.exists(f"{parse_results_dir}/{file}/{file}_flattened_graph_standard_with_wire_ops.gml"):
                         self.hw.scheduled_dfgs[file] = nx.read_gml(f"{parse_results_dir}/{file}/{file}_flattened_graph_standard_with_wire_ops.gml")
+                        self.hw.dataflow_blocks.add(file)
                     else:
                         self.hw.scheduled_dfgs[file] = nx.read_gml(f"{parse_results_dir}/{file}/{file}_graph_standard_with_wire_ops.gml")
                     for subfile in os.listdir(f"{parse_results_dir}/{file}"):
@@ -590,12 +605,6 @@ class Codesign:
         print(f"Current working directory at end of vitis parse data: {os.getcwd()}")
 
         self.hw.netlist = nx.read_gml(f"{parse_results_dir}/{self.vitis_top_function}_full_netlist.gml")
-
-        logger.info("Now calculating execution time of Vitis design with top function "+self.vitis_top_function)
-        start_time = time.time()
-        execution_time = self.hw.calculate_execution_time_vitis(self.vitis_top_function)
-        logger.info(f"time to calculate execution time: {time.time()-start_time}")
-        print(f"Execution time: {execution_time}")
 
         ## print the cwd
         print(f"Current working directory in vitis parse data: {os.getcwd()}")
@@ -1014,8 +1023,8 @@ class Codesign:
             for key in self.hw.circuit_model.tech_model.base_params.tech_values:
                 if isinstance(key, str):
                     d[key] = float(self.hw.circuit_model.tech_model.base_params.tech_values[key])
-                else:
-                    d[key.name] = float(self.hw.circuit_model.tech_model.base_params.tech_values[key])
+                elif key in self.hw.circuit_model.tech_model.base_params.names:
+                    d[self.hw.circuit_model.tech_model.base_params.names[key]] = float(self.hw.circuit_model.tech_model.base_params.tech_values[key])
             f.write(yaml.dump(d))
 
     def symbolic_conversion(self):
@@ -1079,7 +1088,7 @@ class Codesign:
 
         stdout = sys.stdout
         with open(f"{self.tmp_dir}/ipopt_out.txt", "w") as sys.stdout:
-            lag_factor, error = self.opt.optimize("ipopt", improvement=self.inverse_pass_improvement)
+            lag_factor, error = self.opt.optimize(self.cfg["args"]["solver"], iteration=self.iteration_count, improvement=self.inverse_pass_improvement)
             self.inverse_pass_lag_factor *= lag_factor
         sys.stdout = stdout
 
@@ -1087,13 +1096,13 @@ class Codesign:
         
         if self.hls_tool == "vitis":
             # need to update the tech_value for final node arrival time after optimization
-            self.hw.calculate_execution_time_vitis(self.hw.top_block_name)
+            self.hw.calculate_execution_time_vitis(self.hw.top_block_name, clk_period_opt=True)
 
         self.write_back_params()
 
         self.hw.display_objective("after inverse pass")
 
-        self.obj_over_iterations.append(self.hw.obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values))
+        self.obj_over_iterations.append(sim_util.xreplace_safe(self.hw.obj, self.hw.circuit_model.tech_model.base_params.tech_values))
         self.lag_factor_over_iterations.append(self.inverse_pass_lag_factor)
 
     def log_all_to_file(self, iter_number):
@@ -1101,7 +1110,7 @@ class Codesign:
         wire_delays={}
         for edge in self.hw.circuit_model.edge_to_nets:
             wire_lengths[edge] = self.hw.circuit_model.wire_length(edge)
-            wire_delays[edge] = self.hw.circuit_model.wire_delay(edge)
+            wire_delays[edge] = sim_util.xreplace_safe(self.hw.circuit_model.wire_delay(edge), self.hw.circuit_model.tech_model.base_params.tech_values)
         self.wire_lengths_over_iterations.append(wire_lengths)
         self.wire_delays_over_iterations.append(wire_delays)
         device_delay = sim_util.xreplace_safe(self.hw.circuit_model.tech_model.delay, self.hw.circuit_model.tech_model.base_params.tech_values)
@@ -1165,11 +1174,14 @@ class Codesign:
                     dest_file.write(line)
             os.remove(prev_dat_file)
 
+    def save_last_dsp_count(self, last_dsp_count_path="src/yaml/last_dsp_count.yaml"):
+        with open(last_dsp_count_path, "w") as f:
+            yaml.dump({"last_dsp_count": self.cur_dsp_usage}, f)
+
     def cleanup(self):
         self.restore_dat()
 
     def end_of_run_plots(self, obj_over_iterations, lag_factor_over_iterations, params_over_iterations, wire_lengths_over_iterations, wire_delays_over_iterations, device_delays_over_iterations, sensitivities_over_iterations, constraint_slack_over_iterations, visualize_block_vectors=False):
-        assert len(params_over_iterations) > 1 
         obj = "Energy Delay Product"
         units = "nJ*ns"
         if self.obj_fn == "energy":
@@ -1178,7 +1190,7 @@ class Codesign:
         elif self.obj_fn == "delay":
             obj = "Delay"
             units = "ns"
-        trend_plotter = trend_plot.TrendPlot(self, params_over_iterations, obj_over_iterations, lag_factor_over_iterations, wire_lengths_over_iterations, wire_delays_over_iterations, device_delays_over_iterations, sensitivities_over_iterations, constraint_slack_over_iterations, self.save_dir + "/figs", obj, units, self.obj_fn)
+        trend_plotter = trend_plot.TrendPlot(self, params_over_iterations, self.hw.circuit_model.tech_model.base_params.names, obj_over_iterations, lag_factor_over_iterations, wire_lengths_over_iterations, wire_delays_over_iterations, device_delays_over_iterations, sensitivities_over_iterations, constraint_slack_over_iterations, self.save_dir + "/figs", obj, units, self.obj_fn)
         logger.info(f"plotting wire lengths over generations")
         trend_plotter.plot_wire_lengths_over_generations()
         logger.info(f"plotting wire delays over generations")
@@ -1223,7 +1235,8 @@ class Codesign:
             logger.info(f"time to update state after inverse pass iteration {self.iteration_count}: {time.time()-start_time_after_inverse_pass}")
             logger.info(f"time to execute iteration {self.iteration_count}: {time.time()-start_time}")
             self.iteration_count += 1
-            self.end_of_run_plots(self.obj_over_iterations, self.lag_factor_over_iterations, self.params_over_iterations, self.wire_lengths_over_iterations, self.wire_delays_over_iterations, self.device_delays_over_iterations, self.sensitivities_over_iterations, self.constraint_slack_over_iterations, visualize_block_vectors=False)
+            params_over_iterations_start_ind = 0 if not self.cfg["args"]["fixed_area_increase_pattern"] else 1
+            self.end_of_run_plots(self.obj_over_iterations, self.lag_factor_over_iterations, self.params_over_iterations[params_over_iterations_start_ind:], self.wire_lengths_over_iterations, self.wire_delays_over_iterations, self.device_delays_over_iterations, self.sensitivities_over_iterations, self.constraint_slack_over_iterations, visualize_block_vectors=False)
             logger.info(f"current dsp usage: {self.cur_dsp_usage}, max dsp: {self.max_dsp}")
             if self.cur_dsp_usage == self.max_dsp:
                 logger.info("Resource constraints have been reached, will skip forward pass steps from now on.")
@@ -1245,8 +1258,10 @@ def main(args):
         os.chdir(os.path.join(os.path.dirname(__file__), ".."))
         # dump latest tech params to tmp dir for replayability
         codesign_module.write_back_params(f"{codesign_module.tmp_dir}/tech_params_latest.yaml")
+        codesign_module.save_last_dsp_count(f"{codesign_module.tmp_dir}/last_dsp_count.yaml")
         
-        codesign_module.end_of_run_plots(codesign_module.obj_over_iterations, codesign_module.lag_factor_over_iterations, codesign_module.params_over_iterations, codesign_module.wire_lengths_over_iterations, codesign_module.wire_delays_over_iterations, codesign_module.device_delays_over_iterations, codesign_module.sensitivities_over_iterations, codesign_module.constraint_slack_over_iterations, visualize_block_vectors=True)
+        params_over_iterations_start_ind = 0 if not codesign_module.cfg["args"]["fixed_area_increase_pattern"] else 1
+        codesign_module.end_of_run_plots(codesign_module.obj_over_iterations, codesign_module.lag_factor_over_iterations, codesign_module.params_over_iterations[params_over_iterations_start_ind:], codesign_module.wire_lengths_over_iterations, codesign_module.wire_delays_over_iterations, codesign_module.device_delays_over_iterations, codesign_module.sensitivities_over_iterations, codesign_module.constraint_slack_over_iterations, visualize_block_vectors=True)
         codesign_module.cleanup()
 
 if __name__ == "__main__":
@@ -1335,6 +1350,8 @@ if __name__ == "__main__":
     parser.add_argument("--min_dsp", type=int, help="minimum DSP usage to start with")
     parser.add_argument("--max_power_density", type=float, help="maximum power density to allow")
     parser.add_argument("--max_power", type=float, help="maximum total power to allow")
+    parser.add_argument("--solver", type=str, help="solver to use for inverse pass")
+    parser.add_argument("--fixed_area_increase_pattern", type=bool, help="number of resources increases by some factor for each iteration")
     args = parser.parse_args()
 
     main(args)
