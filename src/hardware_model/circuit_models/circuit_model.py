@@ -243,8 +243,9 @@ class CircuitModel:
         } 
 
     #TODO come back and replace C_diff and C_load with the capacitance correctly sized for src and dst of each net
-    def wire_delay(self, edge, symbolic=False):
-        # If wires are disabled, delay contribution is zero
+    def wire_delay(self, edge):
+        wire_delay = 0
+
         if self.zero_wirelength_costs:
             return 0.0
 
@@ -252,37 +253,19 @@ class CircuitModel:
             # print(f"Using constant wire length cost of {self.constant_wire_length_cost} for edge {edge}!!")
             wire_delay = self.constant_wire_length_cost  # ns
             return wire_delay
-
-        if symbolic:
-            wire_delay = 0.0
-            for net in self.edge_to_nets.get(edge, []):
-                R_on_line = self.tech_model.R_avg_inv
-                C_current = self.tech_model.C_diff
+        
+        for net in self.edge_to_nets[edge]:
+            #logger.info(f"calculating wire delay for net {net.net_id}")
+            R_on_line = self.tech_model.R_avg_inv
+            C_current = self.tech_model.C_diff
+            wire_delay += R_on_line * C_current
+            for segment in net.segments:
+                #logger.info(f"calculating wire delay for segment in layer {segment.layer} with length {segment.length}")
+                C_current = segment.length * self.tech_model.wire_parasitics["C"][segment.layer]
+                R_on_line += segment.length * self.tech_model.wire_parasitics["R"][segment.layer]
                 wire_delay += R_on_line * C_current
-                for segment in net.segments:
-                    C_current = segment.length * self.tech_model.wire_parasitics["C"][segment.layer]
-                    R_on_line += segment.length * self.tech_model.wire_parasitics["R"][segment.layer]
-                    wire_delay += R_on_line * C_current
-                C_current = self.tech_model.C_load
-                wire_delay += R_on_line * C_current
-
-        else:
-            # wire delay = R * C * length^2 (ns)
-            wire_delay = 0
-            #logger.info(f"calculating wire delay for edge {edge}")
-            for net in self.edge_to_nets[edge]:
-                #logger.info(f"calculating wire delay for net {net.net_id}")
-                R_on_line = self.device_R_avg_inv
-                C_current = self.device_C_diff
-                wire_delay += R_on_line * C_current
-                for segment in net.segments:
-                    #logger.info(f"calculating wire delay for segment in layer {segment.layer} with length {segment.length}")
-                    C_current = segment.length * self.wire_C_values[segment.layer]
-                    R_on_line += segment.length * self.wire_R_values[segment.layer]
-                    wire_delay += R_on_line * C_current
-                C_current = self.device_C_load
-                wire_delay += R_on_line * C_current
-        print(f"wire_delay for edge {edge} is {wire_delay} ns!!")
+            C_current = self.tech_model.C_load
+            wire_delay += R_on_line * C_current
         return wire_delay * 1e9
 
     # for 1 bit
@@ -298,7 +281,7 @@ class CircuitModel:
         for net in self.edge_to_nets[edge]:
             for segment in net.segments:
                 wire_length += segment.length
-        # print(f"wire_length for edge {edge} is {wire_length}")
+        log_info(f"wire_length for edge {edge} is {wire_length}")
         return wire_length
         
     # multiplying wire length by DATA_WIDTH because there are multiple bits on the wire.
@@ -315,9 +298,6 @@ class CircuitModel:
         for net in self.edge_to_nets[edge]:
             for segment in net.segments:
                 wire_energy += 0.5 * segment.length*DATA_WIDTH * self.tech_model.wire_parasitics["C"][segment.layer] * self.tech_model.base_params.V_dd**2
-        if not symbolic and wire_energy != 0:
-            wire_energy = sim_util.xreplace_safe(wire_energy, self.tech_model.base_params.tech_values)
-        # print(f"wire_energy for edge {edge} is {wire_energy} nJ")
         return wire_energy * 1e9
         
     def make_sym_lat_wc(self, gamma):

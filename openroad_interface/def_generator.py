@@ -483,9 +483,8 @@ class DefGenerator:
                         graph.remove_edge(name1, node_name)
                     if graph.has_edge(name2, node_name):
                         graph.remove_edge(name2, node_name)
-                    graph.add_edge(name1, new_node_port)
-                    graph.add_edge(name2, new_node_port)
-                    graph.add_edge(new_node_port, new_node)
+                    graph.add_edge(name1, new_node)
+                    graph.add_edge(name2, new_node)
                     graph.add_edge(new_node, node_name)
                     # Track which input port each source node should use
                     mux_input_port_map[new_node] = {target_node1: 0, target_node2: 1}  # 0 = A0, 1 = A1
@@ -502,7 +501,7 @@ class DefGenerator:
                 #macro_output = self.find_macro("Mux" + str(counter))
                 #node_to_macro["Mux" + str(counter)] = [macro_output, copy.deepcopy(self.macro_dict[macro_output])]
                 # update list of input edges to reflect the new mux, which consumes two of the previous input edges
-                input_dict[node].append(new_node)
+                input_dict[node].append("Mux" + str(counter))
                 input_dict[node].remove(target_node2)
                 input_dict[node].remove(target_node1)
                 counter += 1 
@@ -538,7 +537,7 @@ class DefGenerator:
         # Track which base mux names we've already processed to avoid duplicates
         processed_mux_bases = set()
         for node in nodes:
-            if "port_idx" in graph.nodes[node]:
+            if "port_idx" in graph.nodes[node] and graph.nodes[node]["function"] != "Mux":
                 log_info(f"Skipping component for node: {node} because it is a functional unit port")
                 continue # dont generate components for functional unit ports
             # if "port_idx" not in graph.nodes[node] and graph.nodes[node]["function"] == "Mux":
