@@ -8,7 +8,6 @@ import os
 import cvxpy as cp
 from src.inverse_pass.constraint import Constraint
 from src import sim_util
-from src import coefficients
 logger = logging.getLogger(__name__)
 
 DEBUG = False
@@ -18,125 +17,6 @@ def log_info(msg):
 def log_warning(msg):
     if DEBUG:
         logger.warning(msg)
-
-class objective_evaluator:
-    def __init__(self, tech_model, total_active_energy, total_passive_power, scheduled_dfgs, dataflow_blocks, obj_fn, top_block_name, loop_1x_graphs, edge_to_nets):
-        # hardcoded tech node to reference for logical effort coefficients
-        self.coeffs = coefficients.create_and_save_coefficients([7])
-        self.set_coefficients()
-        self.tech_model = tech_model
-        self.total_active_energy = total_active_energy
-        self.total_passive_power = total_passive_power
-        self.scheduled_dfgs = scheduled_dfgs
-        self.loop_1x_graphs = loop_1x_graphs
-        self.dataflow_blocks = dataflow_blocks
-        self.obj = 0
-        self.obj_fn = obj_fn
-        self.top_block_name = top_block_name
-        self.edge_to_nets = edge_to_nets
-
-    def set_coefficients(self):
-        self.alpha = self.coeffs["alpha"]
-        self.beta = self.coeffs["beta"]
-        self.gamma = self.coeffs["gamma"]
-        self.area_coeffs = self.coeffs["area"]
-
-        # TODO: add actual data for Exp16
-        self.alpha["Exp16"] = 3*(self.alpha["Mult16"] + self.alpha["Add16"])
-        self.beta["Exp16"] = self.beta["Mult16"] + self.beta["Add16"]
-        self.gamma["Exp16"] = 3*(self.gamma["Mult16"] + self.gamma["Add16"])
-        self.area_coeffs["Exp16"] = self.area_coeffs["Mult16"] + self.area_coeffs["Add16"]
-    
-    def calculate_objective(self):
-        self.execution_time = self.calculate_execution_time()
-        if self.obj_fn == "edp":
-            self.obj = (self.total_passive_power * self.execution_time + self.total_active_energy) * self.execution_time
-        elif self.obj_fn == "ed2":
-            self.obj = (self.total_passive_power * self.execution_time + self.total_active_energy) * (self.execution_time)**2
-        elif self.obj_fn == "delay":
-            self.obj = self.execution_time
-        elif self.obj_fn == "energy":
-            self.obj = self.total_active_energy + self.total_passive_power * self.execution_time
-        else:
-            raise ValueError(f"Objective function {self.obj_fn} not supported")
-        self.obj = sim_util.xreplace_safe(self.obj, self.tech_model.base_params.tech_values)
-        self.total_power = sim_util.xreplace_safe(self.total_passive_power + (self.total_active_energy / self.execution_time), self.tech_model.base_params.tech_values)
-
-    def calculate_execution_time(self):
-        self.node_arrivals = {}
-        self.graph_delays = {}
-        for basic_block_name in self.scheduled_dfgs:
-            #self.node_arrivals[basic_block_name] = {"full": {}, "loop_1x": {}, "loop_2x": {}}
-            self.node_arrivals[basic_block_name] = {"full": {}, "loop_1x": {}, "loop_2x": {}}
-        log_info(f"scheduled dfgs: {self.scheduled_dfgs.keys()}")
-        graph_end_node = f"graph_end_{self.top_block_name}" if self.top_block_name not in self.dataflow_blocks else f"{self.top_block_name}_graph_end_{self.top_block_name}"
-        return self.calculate_execution_time_vitis_recursive(self.top_block_name, self.scheduled_dfgs[self.top_block_name], graph_end_node=graph_end_node)
-
-    def get_rsc_edge(self, edge, dfg):
-        if "rsc" in dfg.nodes[edge[0]] and "rsc" in dfg.nodes[edge[1]]:
-            return (dfg.nodes[edge[0]]["rsc"], dfg.nodes[edge[1]]["rsc"])
-        else:
-            return edge
-
-    def calculate_execution_time_vitis_recursive(self, basic_block_name, dfg, graph_end_node="graph_end", graph_type="full", resource_delays_only=False):
-        log_info(f"calculating execution time for {basic_block_name} with graph end node {graph_end_node}")
-        for node in dfg.nodes:
-            #self.node_arrivals[basic_block_name][graph_type][node] = sp.symbols(f"node_arrivals_{basic_block_name}_{graph_type}_{node}")
-            self.node_arrivals[basic_block_name][graph_type][node] = 0
-        for node in dfg.nodes:   
-            preds = list(dfg.predecessors(node))
-            for pred in preds:
-                pred_delay = 0.0
-                if dfg.edges[pred, node]["resource_edge"]:
-                    if dfg.nodes[pred]["function"] == "II":
-                        loop_name = dfg.nodes[pred]["loop_name"]
-                        delay_1x = self.calculate_execution_time_vitis_recursive(basic_block_name, self.loop_1x_graphs[loop_name][True], graph_end_node="loop_end_1x", graph_type="loop_1x", resource_delays_only=True)
-                        # TODO add dependence of II on loop-carried dependency
-                        pred_delay = delay_1x * (int(dfg.nodes[pred]["count"])-1)
-                    else:
-                        pred_delay = sim_util.xreplace_safe(self.tech_model.base_params.clk_period, self.tech_model.base_params.tech_values)
-                elif dfg.nodes[pred]["function"] == "Call": # if function call, recursively calculate its delay 
-                    if dfg.nodes[pred]["call_function"] not in self.graph_delays:
-                        self.graph_delays[dfg.nodes[pred]["call_function"]] = self.calculate_execution_time_vitis_recursive(dfg.nodes[pred]["call_function"], self.scheduled_dfgs[dfg.nodes[pred]["call_function"]], graph_end_node=f"graph_end_{dfg.nodes[pred]['call_function']}")
-                    pred_delay = self.graph_delays[dfg.nodes[pred]["call_function"]]
-                elif not resource_delays_only:
-                    if dfg.nodes[pred]["function"] == "Wire":
-                        src = dfg.nodes[pred]["src_node"]
-                        dst = dfg.nodes[pred]["dst_node"]
-                        rsc_edge = self.get_rsc_edge((src, dst), dfg)
-                        if rsc_edge in self.edge_to_nets:
-                            pred_delay = self.wire_delay(rsc_edge)
-                            log_info(f"added wire delay {self.wire_delay(rsc_edge)} for edge {rsc_edge}")
-                        else:
-                            log_info(f"no wire delay for edge {rsc_edge}")
-                    else:
-                        pred_delay = self.latency(dfg.nodes[pred]["function"]) 
-                log_info(f"pred_delay: {pred_delay}")
-                self.node_arrivals[basic_block_name][graph_type][node] = max(self.node_arrivals[basic_block_name][graph_type][pred] + pred_delay, self.node_arrivals[basic_block_name][graph_type][node])
-        return self.node_arrivals[basic_block_name][graph_type][graph_end_node]
-
-    #TODO come back and replace C_diff and C_load with the capacitance correctly sized for src and dst of each net
-    def wire_delay(self, edge):
-        wire_delay = 0
-        for net in self.edge_to_nets[edge]:
-            #log_info(f"calculating wire delay for net {net.net_id}")
-            R_on_line = self.tech_model.R_avg_inv
-            C_current = self.tech_model.C_diff
-            wire_delay += R_on_line * C_current
-            for segment in net.segments:
-                #log_info(f"calculating wire delay for segment in layer {segment.layer} with length {segment.length}")
-                C_current = segment.length * self.tech_model.wire_parasitics["C"][segment.layer]
-                R_on_line += segment.length * self.tech_model.wire_parasitics["R"][segment.layer]
-                wire_delay += R_on_line * C_current
-            C_current = self.tech_model.C_load
-            wire_delay += R_on_line * C_current
-        return sim_util.xreplace_safe(wire_delay * 1e9, self.tech_model.base_params.tech_values)
-
-    def latency(self, op_type):
-        if op_type not in self.gamma:
-            return 0
-        return math.ceil(self.gamma[op_type] * sim_util.xreplace_safe(self.tech_model.delay, self.tech_model.base_params.tech_values))
-
 
 class SweepBasicModel(TechModel):
     def __init__(self, model_cfg, base_params):

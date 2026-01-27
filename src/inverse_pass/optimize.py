@@ -25,7 +25,7 @@ from src.inverse_pass.constraint import Constraint
 
 from src import sim_util
 from src.hardware_model.hardwareModel import BlockVector
-from src.hardware_model.tech_models.sweep_basic_model import objective_evaluator
+from src.hardware_model.objective_evaluator import ObjectiveEvaluator
 
 multistart = False
 
@@ -481,9 +481,9 @@ def log_info(msg, stage):
     elif stage == "after optimization":
         logger.info(msg)
 
-def satisfies_constraints(objective_evaluator_obj, design_point, max_system_power, tech_model):
-    if objective_evaluator_obj.total_power > max_system_power:
-        logger.info(f"total power {objective_evaluator_obj.total_power} is greater than max system power {max_system_power} for design point {design_point}")
+def satisfies_constraints(total_power, design_point, max_system_power, tech_model):
+    if total_power > max_system_power:
+        logger.info(f"total power {total_power} is greater than max system power {max_system_power} for design point {design_point}")
         return False
     return True
 
@@ -492,37 +492,44 @@ def _worker_basic_optimization_chunk(args_tuple):
     Worker function that evaluates all design points in its chunk and returns
     detailed metrics for each one.
 
+    Args:
+        args_tuple: (worker_id, chunk, evaluator, max_system_power)
+            - worker_id: Worker identifier
+            - chunk: List of (idx, design_point) tuples
+            - evaluator: ObjectiveEvaluator instance (pickleable)
+            - max_system_power: Maximum allowed system power
+
     Returns:
         Tuple of (worker_id, list of DesignPointResult)
     """
-    worker_id, chunk, tech_model, total_active_energy, total_passive_power, scheduled_dfgs, dataflow_blocks, obj_fn, top_block_name, loop_1x_graphs, edge_to_nets, max_system_power = args_tuple
+    worker_id, chunk, evaluator, max_system_power = args_tuple
+
+    # Get tech_model from evaluator for convenience
+    tech_model = evaluator.tech_model
 
     results = []
     best_obj_val = math.inf
 
     for idx, design_point in chunk:
-        tech_model.set_params_from_design_point(design_point)
+        evaluator.set_params_from_design_point(design_point)
         lower_clk_period = sim_util.xreplace_safe(tech_model.delay * 150, tech_model.base_params.tech_values)
         upper_clk_period = sim_util.xreplace_safe(tech_model.delay * 5000, tech_model.base_params.tech_values)
         clk_periods = np.logspace(np.log10(lower_clk_period), np.log10(upper_clk_period), 1)
         for clk_period in clk_periods:
-            tech_model.base_params.set_symbol_value(tech_model.base_params.clk_period, clk_period)
+            evaluator.set_clk_period(clk_period)
 
-            objective_evaluator_obj = objective_evaluator(
-                tech_model, total_active_energy, total_passive_power,
-                scheduled_dfgs, dataflow_blocks, obj_fn, top_block_name,
-                loop_1x_graphs, edge_to_nets
-            )
-            objective_evaluator_obj.calculate_objective()
-            #logger.info(f"total_active_energy in worker {worker_id}, iteration {idx}: {sim_util.xreplace_safe(total_active_energy, tech_model.base_params.tech_values)}")
-            #logger.info(f"total_passive_power in worker {worker_id}, iteration {idx}: {sim_util.xreplace_safe(total_passive_power, tech_model.base_params.tech_values)}")
+            evaluator.calculate_objective()
+
+            if evaluator.tech_model.base_params.tech_values[evaluator.tech_model.base_params.clk_period] > clk_period:
+                logger.info(f"worker {worker_id} clk period {clk_period} is greater than minimum clk period {evaluator.tech_model.base_params.tech_values[evaluator.tech_model.base_params.clk_period]}, had to increase it")
+                clk_period = evaluator.tech_model.base_params.tech_values[evaluator.tech_model.base_params.clk_period]
 
             # Extract metrics
             delay = sim_util.xreplace_safe(tech_model.delay * 1e-9, tech_model.base_params.tech_values)
             dynamic_energy = sim_util.xreplace_safe(tech_model.E_act_inv, tech_model.base_params.tech_values)
             leakage_power = sim_util.xreplace_safe(tech_model.P_pass_inv, tech_model.base_params.tech_values)
-            total_power = objective_evaluator_obj.total_power
-            obj_value = objective_evaluator_obj.obj
+            total_power = evaluator.total_power
+            obj_value = evaluator.obj
 
             # Extract Ieff and Ioff from tech model
             Ieff = sim_util.xreplace_safe(tech_model.Ieff, tech_model.base_params.tech_values)
@@ -533,7 +540,7 @@ def _worker_basic_optimization_chunk(args_tuple):
             L = sim_util.xreplace_safe(tech_model.base_params.L, tech_model.base_params.tech_values)
             W = sim_util.xreplace_safe(tech_model.base_params.W, tech_model.base_params.tech_values)
 
-            constraints_satisfied = satisfies_constraints(objective_evaluator_obj, design_point, max_system_power, tech_model)
+            constraints_satisfied = satisfies_constraints(evaluator.total_power, design_point, max_system_power, tech_model)
 
             result = DesignPointResult(
                 design_point=design_point,
@@ -1142,12 +1149,15 @@ class Optimizer:
 
         logger.info(f"Partitioning {total_design_points} design points into {actual_n_workers} chunks of ~{chunk_size} each")
 
-        # Create tasks: each worker gets a chunk of design points
-        # No need to copy tech_model since ProcessPoolExecutor uses separate processes
+        # Create ObjectiveEvaluator - this is pickleable and avoids cvxpy objects
+        logger.info(f"Creating ObjectiveEvaluator from HardwareModel...")
+        evaluator = ObjectiveEvaluator.from_hardware_model(self.hw)
         logger.info(f"starting total_active_energy: {sim_util.xreplace_safe(self.hw.total_active_energy, self.hw.circuit_model.tech_model.base_params.tech_values)}")
         logger.info(f"starting total_passive_power: {sim_util.xreplace_safe(self.hw.total_passive_energy/self.hw.execution_time, self.hw.circuit_model.tech_model.base_params.tech_values)}")
+
+        # Create tasks: each worker gets a chunk of design points and the evaluator
         tasks = [
-            (worker_id, chunk, self.hw.circuit_model.tech_model, self.hw.total_active_energy, self.hw.total_passive_energy/self.hw.execution_time, self.hw.scheduled_dfgs, self.hw.dataflow_blocks, self.hw.obj_fn, self.hw.top_block_name, self.hw.loop_1x_graphs, self.hw.circuit_model.edge_to_nets, self.max_system_power)
+            (worker_id, chunk, evaluator, self.max_system_power)
             for worker_id, chunk in enumerate(chunks)
         ]
 

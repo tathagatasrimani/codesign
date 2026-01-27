@@ -351,5 +351,6 @@ class MVSSelfConsistentModel(TechModel):
         #self.sweep_constraints_eq["rho_c_n - rho_c_p"] = self.base_params.rho_c_n - self.base_params.rho_c_p
         #self.sweep_constraints_eq["Rsh_c_n - Rsh_c_p"] = self.base_params.Rsh_c_n - self.base_params.Rsh_c_p
         #self.sweep_constraints_eq["Rsh_ext_n - Rsh_ext_p"] = self.base_params.Rsh_ext_n - self.base_params.Rsh_ext_p
+        self.sweep_constraints_eq["W/L=1"] = self.base_params.W/self.base_params.L - 1
         
 
