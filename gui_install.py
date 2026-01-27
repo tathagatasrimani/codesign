@@ -45,6 +45,9 @@ class InstallGUI:
         # Header (3) + step (1) + blank (1) + "Recent Output:" (1) + separator (1) + 
         # output lines (5) + separator (1) + blank (1) + log path (1) = 15 lines
         self.display_lines = 15
+        # Extra padding/redraws to prevent output overlap
+        self.safety_padding_lines = 3
+        self.redraw_passes = 2
         
         # Thread-safe locks
         self.lock = threading.Lock()
@@ -75,6 +78,8 @@ class InstallGUI:
         sys.stdout.write(f"{CYAN}{'─' * 63}{NC}\n")
         sys.stdout.write("\n")
         sys.stdout.write(f"{CYAN}Full log: {self.log_file}{NC}\n")
+        sys.stdout.write("\n" * self.safety_padding_lines)
+        sys.stdout.write("\033[J")
         sys.stdout.flush()
         
         self.display_initialized = True
@@ -91,28 +96,34 @@ class InstallGUI:
             os.system('clear' if os.name != 'nt' else 'cls')
             self.display_initialized = True
         
-        # Redraw the full UI every refresh to avoid stale lines
-        sys.stdout.write("\033[H")  # Move to top-left
-        sys.stdout.write(f"{CYAN}{'═' * 63}{NC}\n")
-        sys.stdout.write(f"{GREEN}Codesign Installation Progress{NC}\n")
-        sys.stdout.write(f"{CYAN}{'═' * 63}{NC}\n")
-        sys.stdout.write("\n")
-        sys.stdout.write(f"{YELLOW}{throbber}{NC} {step}\n")
-        sys.stdout.write("\n")
-        sys.stdout.write(f"{CYAN}Recent Output:{NC}\n")
-        sys.stdout.write(f"{CYAN}{'─' * 63}{NC}\n")
-        output_lines = lines if lines else ["Waiting for output..."]
-        for i in range(5):
-            sys.stdout.write("\033[K")
-            if i < len(output_lines):
-                display_line = output_lines[i].rstrip()[:100]
-                sys.stdout.write(display_line)
+        # Redraw the full UI every refresh to avoid stale lines.
+        # Do a second pass to overwrite any stray terminal output.
+        for pass_index in range(self.redraw_passes):
+            if pass_index == 0:
+                sys.stdout.write("\033[2J\033[H")  # Clear screen + move to top-left
+            else:
+                sys.stdout.write("\033[H")
+            sys.stdout.write(f"{CYAN}{'═' * 63}{NC}\n")
+            sys.stdout.write(f"{GREEN}Codesign Installation Progress{NC}\n")
+            sys.stdout.write(f"{CYAN}{'═' * 63}{NC}\n")
             sys.stdout.write("\n")
-        sys.stdout.write(f"{CYAN}{'─' * 63}{NC}\n")
-        sys.stdout.write("\n")
-        sys.stdout.write(f"{CYAN}Full log: {self.log_file}{NC}\n")
-        sys.stdout.write("\033[J")  # Clear anything below the UI
-        sys.stdout.flush()
+            sys.stdout.write(f"{YELLOW}{throbber}{NC} {step}\n")
+            sys.stdout.write("\n")
+            sys.stdout.write(f"{CYAN}Recent Output:{NC}\n")
+            sys.stdout.write(f"{CYAN}{'─' * 63}{NC}\n")
+            output_lines = lines if lines else ["Waiting for output..."]
+            for i in range(5):
+                sys.stdout.write("\033[K")
+                if i < len(output_lines):
+                    display_line = output_lines[i].rstrip()[:100]
+                    sys.stdout.write(display_line)
+                sys.stdout.write("\n")
+            sys.stdout.write(f"{CYAN}{'─' * 63}{NC}\n")
+            sys.stdout.write("\n")
+            sys.stdout.write(f"{CYAN}Full log: {self.log_file}{NC}\n")
+            sys.stdout.write("\n" * self.safety_padding_lines)
+            sys.stdout.write("\033[J")  # Clear anything below the UI
+            sys.stdout.flush()
     
     def monitor_output(self):
         """Monitor process output and update state."""
