@@ -38,7 +38,7 @@ from openroad_interface import openroad_run_hier
 
 import cvxpy as cp
 
-DEBUG = True
+DEBUG = False
 def log_info(msg):
     if DEBUG:
         logger.info(msg)
@@ -640,6 +640,11 @@ class HardwareModel:
             
         return mapped_nodes_input_output_match
 
+    def calculate_minimum_clk_period(self):
+        self.minimum_clk_period = sim_util.xreplace_safe(self.circuit_model.DFF_DELAY, self.circuit_model.tech_model.base_params.tech_values)
+        for edge in self.circuit_model.edge_to_nets:
+            self.minimum_clk_period = max(self.minimum_clk_period, sim_util.xreplace_safe(self.circuit_model.wire_delay(edge) + self.circuit_model.DFF_DELAY, self.circuit_model.tech_model.base_params.tech_values))
+        return self.minimum_clk_period
     
     def get_wire_parasitics(self, arg_testfile, arg_parasitics, benchmark_name, run_openroad, area_constraint=None):
         if self.hls_tool == "catapult":
@@ -679,7 +684,13 @@ class HardwareModel:
             )
 
         log_info(f"edge to nets: {self.circuit_model.edge_to_nets}")
-        
+
+        self.minimum_clk_period = self.calculate_minimum_clk_period()
+        logger.info(f"minimum clk period: {self.minimum_clk_period}, current clk period: {self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.clk_period]}")
+        if self.minimum_clk_period > self.circuit_model.tech_model.base_params.tech_values[self.circuit_model.tech_model.base_params.clk_period]:
+            logger.info(f"minimum clk period is greater than current clk period, setting current clk period to minimum clk period")
+            self.circuit_model.tech_model.base_params.set_symbol_value(self.circuit_model.tech_model.base_params.clk_period, self.minimum_clk_period)
+
         logger.info(f"time to generate wire parasitics: {time.time()-start_time} seconds, {(time.time()-start_time)/60} minutes.")
 
     def save_symbolic_memories(self):
