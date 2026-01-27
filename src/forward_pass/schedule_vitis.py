@@ -394,19 +394,29 @@ class DataFlowGraph:
             self.G.add_node(dst, node_type="var_dst", function="N/A", original_name=instruction["dst"])
             # check for interface op
             if instruction["op"] == "write" and instruction["dst"] in self.interface_db.interfaces:
-                different_first_write = (
-                    self.interface_db.interfaces[instruction["dst"]].first_write is None or 
-                    (self.interface_db.interfaces[instruction["dst"]].first_write == op_name and self.interface_db.interfaces[instruction["dst"]].write_basic_block_name == self.basic_block_name)
-                )
-                assert different_first_write, f"Interface {instruction['dst']} already has a first write"
-                self.interface_db.interfaces[instruction["dst"]].set_first_write(op_name, self.basic_block_name)
+                current_write = self.interface_db.interfaces[instruction["dst"]]
+                if current_write.first_write is None:
+                    current_write.set_first_write(op_name, self.basic_block_name)
+                elif (current_write.first_write == op_name and current_write.write_basic_block_name == self.basic_block_name):
+                    pass
+                else:
+                    log_info(
+                        f"Interface {instruction['dst']} already has a first write "
+                        f"({current_write.first_write} in {current_write.write_basic_block_name}); "
+                        f"skipping {op_name} in {self.basic_block_name}"
+                    )
             if instruction["op"] == "read" and instruction["src"][0] in self.interface_db.interfaces:
-                different_first_read = (
-                    self.interface_db.interfaces[instruction["src"][0]].first_read is None or 
-                    (self.interface_db.interfaces[instruction["src"][0]].first_read == op_name and self.interface_db.interfaces[instruction["src"][0]].read_basic_block_name == self.basic_block_name)
-                )
-                assert different_first_read, f"Interface {instruction['src'][0]} already has a first read"
-                self.interface_db.interfaces[instruction["src"][0]].set_first_read(op_name, self.basic_block_name)
+                current_read = self.interface_db.interfaces[instruction["src"][0]]
+                if current_read.first_read is None:
+                    current_read.set_first_read(op_name, self.basic_block_name)
+                elif (current_read.first_read == op_name and current_read.read_basic_block_name == self.basic_block_name):
+                    pass
+                else:
+                    log_info(
+                        f"Interface {instruction['src'][0]} already has a first read "
+                        f"({current_read.first_read} in {current_read.read_basic_block_name}); "
+                        f"skipping {op_name} in {self.basic_block_name}"
+                    )
             if not self.resource_delays_only:
                 self.G.add_edge(op_name, dst, weight=instruction['delay'], resource_edge=0)
             else:
