@@ -94,7 +94,7 @@ class InstallGUI:
         # Redraw the full UI every refresh to avoid stale lines
         sys.stdout.write("\033[H")  # Move to top-left
         sys.stdout.write(f"{CYAN}{'═' * 63}{NC}\n")
-        sys.stdout.write(f"{GREEN}CodeSign Installation Progress{NC}\n")
+        sys.stdout.write(f"{GREEN}Codesign Installation Progress{NC}\n")
         sys.stdout.write(f"{CYAN}{'═' * 63}{NC}\n")
         sys.stdout.write("\n")
         sys.stdout.write(f"{YELLOW}{throbber}{NC} {step}\n")
