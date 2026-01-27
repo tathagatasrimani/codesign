@@ -1,0 +1,35 @@
+vitis_gemm_test_auto_streamhls:
+  base_cfg: vitis_test
+  args:
+    benchmark: gemm
+    stop_at_checkpoint: pd
+    arch_opt_pipeline: streamhls
+
+## The following tests still need to be implemented for the streamhls pipeline
+# benchmark_2mm_test_auto_streamhls:
+#   base_cfg: vitis_test
+#   args:
+#     benchmark: kernel_2mm
+#     stop_at_checkpoint: pd
+#     arch_opt_pipeline: streamhls
+
+# benchmark_3mm_test_auto_streamhls:
+#   base_cfg: vitis_test
+#   args:
+#     benchmark: kernel_3mm
+#     stop_at_checkpoint: pd
+#     arch_opt_pipeline: streamhls
+
+# benchmark_bicg_test_auto_streamhls:
+#   base_cfg: vitis_test
+#   args:
+#     benchmark: kernel_bicg
+#     stop_at_checkpoint: pd
+#     arch_opt_pipeline: streamhls
+
+# benchmark_mvt_test_auto_streamhls:
+#   base_cfg: vitis_test
+#   args:
+#     benchmark: kernel_mvt
+#     stop_at_checkpoint: pd
+#     arch_opt_pipeline: streamhls
