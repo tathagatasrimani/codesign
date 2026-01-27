@@ -403,6 +403,8 @@ class DefGenerator:
                 # this port node may have been added in a previous iteration
                 if not graph.has_node(name):
                     graph.add_node(name, function=node_attribute["function"], port_idx=x, name=node, count=output_bitwidth)
+                if name not in node_to_macro:
+                    node_to_macro[name] = [macro, copy.deepcopy(self.macro_dict[macro])]
                 # node may have multiple fanouts, take care of port x for each fanout
                 for output in out_edge[node]:
                     if output not in node_to_macro:
@@ -420,6 +422,8 @@ class DefGenerator:
                     if not graph.has_node(output_name):
                         graph.add_node(output_name, function=node_attribute["function"], port_idx=x, name=output, count=output_output_bitwidth)
                         graph.add_edge(output_name, output)
+                    if output_name not in node_to_macro:
+                        node_to_macro[output_name] = [output_macro, copy.deepcopy(self.macro_dict[output_macro])]
                     graph.add_edge(name, output_name)
 
         openroad_run.OpenRoadRun.export_graph(graph, "result", self.directory)
@@ -468,10 +472,19 @@ class DefGenerator:
                 _, t1_output_bitwidth, _ = self.get_macro_bitwidths(t1_macro)
                 _, t2_output_bitwidth, _ = self.get_macro_bitwidths(t2_macro)
                 
-                # Use the output bitwidth of the target node (which should match the mux input bitwidth)
-                mux_bitwidth = max(t1_output_bitwidth, t2_output_bitwidth)  # Use max to handle mismatches
+                # Align mux bitwidth with available source/dest widths to avoid implicit nodes
+                if output_bitwidth != t1_output_bitwidth or output_bitwidth != t2_output_bitwidth:
+                    logger.warning(
+                        "Mux bitwidth mismatch for node %s: dest=%s, src1=%s, src2=%s. "
+                        "Truncating mux to min width.",
+                        node,
+                        output_bitwidth,
+                        t1_output_bitwidth,
+                        t2_output_bitwidth,
+                    )
+                mux_bitwidth = min(output_bitwidth, t1_output_bitwidth, t2_output_bitwidth)
                 
-                for x in range(output_bitwidth):
+                for x in range(mux_bitwidth):
                     name1= target_node1 + "_" + str(x)
                     name2= target_node2 + "_" + str(x)
                     node_name = node + "_" + str(x)
