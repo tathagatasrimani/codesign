@@ -67,13 +67,7 @@ def parse_route_guide_with_layer_breakdown(
         total_length = sum(layer_lengths.values()) / units_per_micron
         layer_lengths_microns = {k: round(v / units_per_micron, 1) for k, v in layer_lengths.items()}
 
-        if net_id not in net_id_to_src_dsts:
-            # Net was likely skipped during parsing (e.g., source/dest components not in graph)
-            # Skip this net with a warning rather than failing
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.warning(f"Net {net_id} not found in net_id_to_src_dsts, skipping. This may occur if the net was skipped during DEF parsing.")
-            continue
+        assert net_id in net_id_to_src_dsts, f"Net {net_id} not found in net_id_to_src_dsts, block: {block}"
 
         src, dsts = net_id_to_src_dsts[net_id]
         net = Net(net_id, segments, src, dsts)
