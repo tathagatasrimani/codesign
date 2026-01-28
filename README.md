@@ -4,13 +4,24 @@ Application aware technology - architecture co-design framework.
 
 ## Install instructions RSG Linux machines or BLUEY machine at CMU: 
 cd into codesign root directory (<otherpath>/codesign) if you're not there already. Then run:
-source full_env_start.sh
+./gui_install.py
+
+(the command above runs source full_env_start.sh internally)
+
+## Setting up the environment
+Each time you open a new terminal, you must run:
+source full_env_start.sh (or .csh if you are using cshell)
+
+This sets environment variables so you can run the codesign flow. 
 
 ## Running the flow: 
 To run the codesign flow, run the following command from the codesign root directory: 
-run_codesign --config desired_config
+run_codesign --config <desired_config>
 
 Add configs to a yaml file in test/additional_configs. The codesign framework will search through all yaml files in this directory for a matching config. 
+
+To see more options on how to run the codesign flow, please run:
+run_codesign -h
 
 ## Running with checkpoints:
 For debug purposes, you may not want to run the entire flow each time. To help, you can save a checkpoint (transfer contents of src/tmp directory to separate save directory) and load it back to src/tmp on your next run. You can do this through a few flags in src/yaml/codesign_cfg.yaml, or on the command line

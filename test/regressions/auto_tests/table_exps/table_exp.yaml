@@ -1,0 +1,14 @@
+gemm:
+  base_cfg: vitis_test
+  args:
+    benchmark: gemm
+    num_iters: 15
+    obj: delay
+    stop_at_checkpoint: pd
+
+doitgen:
+  base_cfg: benchmark_doitgen_test
+  args:
+    obj: delay
+    num_iters: 15
+    stop_at_checkpoint: pd

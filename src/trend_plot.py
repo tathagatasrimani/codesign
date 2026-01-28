@@ -21,9 +21,10 @@ def log_warning(msg):
         logger.warning(msg)
 
 class TrendPlot:
-    def __init__(self, codesign_module, params_over_generations, obj_over_generations, lag_factor_over_generations, wire_lengths_over_generations, wire_delays_over_generations, device_delays_over_generations, sensitivities_over_generations, constraint_slack_over_generations, save_dir, obj="Energy Delay Product", units="nJ*ns", obj_fn="edp"):
+    def __init__(self, codesign_module, params_over_generations, param_names, obj_over_generations, lag_factor_over_generations, wire_lengths_over_generations, wire_delays_over_generations, device_delays_over_generations, sensitivities_over_generations, constraint_slack_over_generations, save_dir, obj="Energy Delay Product", units="nJ*ns", obj_fn="edp"):
         self.codesign_module = codesign_module
         self.params_over_generations = params_over_generations
+        self.param_names = param_names
         self.plot_list = set(self.codesign_module.hw.obj_sub_exprs.values())
         self.plot_list_exclude = set(["execution_time", "passive power", "active power"])
         log_info(f"plot list: {self.plot_list}")
@@ -93,9 +94,14 @@ class TrendPlot:
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
         f = open(f"{self.save_dir}/param_data.json", 'w')
-        copied_params = copy.deepcopy(self.params_over_generations)
-        for i in range(len(copied_params)):
-            copied_params[i] = {k.name: v for k, v in copied_params[i].items()}
+        copied_params = []
+        for i in range(len(self.params_over_generations)):
+            # Build dict by iterating through param_names to ensure we use the correct Variable objects as keys
+            param_dict = {}
+            for var_obj, name in self.param_names.items():
+                if var_obj in self.params_over_generations[i]:
+                    param_dict[name] = self.params_over_generations[i][var_obj]
+            copied_params.append(param_dict)
         json.dump(copied_params, f)
         # Set larger font sizes and better styling
         plt.rcParams.update({
@@ -288,7 +294,7 @@ class TrendPlot:
         
         # Get all parameters from the first generation
         params = list(self.sensitivities_over_generations[0].keys())
-        params = [param for param in params if param.name not in exclude_list]
+        params = [param for param in params if self.param_names[param] not in exclude_list]
         
         # Use a color cycle for different parameters
         colors = plt.cm.tab10(range(len(params)))
@@ -336,9 +342,14 @@ class TrendPlot:
         if not os.path.exists(self.save_dir + "/sensitivities"):
             os.makedirs(self.save_dir + "/sensitivities")
         f = open(f"{self.save_dir}/sensitivities_data.json", 'w')
-        copied_sensitivities = copy.deepcopy(self.sensitivities_over_generations)
-        for i in range(len(copied_sensitivities)):
-            copied_sensitivities[i] = {k.name: v for k, v in copied_sensitivities[i].items()}
+        copied_sensitivities = []
+        for i in range(len(self.sensitivities_over_generations)):
+            # Build dict by iterating through param_names to ensure we use the correct Variable objects as keys
+            sensitivity_dict = {}
+            for var_obj, name in self.param_names.items():
+                if var_obj in self.sensitivities_over_generations[i]:
+                    sensitivity_dict[name] = self.sensitivities_over_generations[i][var_obj]
+            copied_sensitivities.append(sensitivity_dict)
         json.dump(copied_sensitivities, f)
         # Set larger font sizes and better styling
         plt.rcParams.update({

@@ -1,0 +1,7 @@
+benchmark_3mm_test_auto_no_wires:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_3mm
+    stop_at_checkpoint: setup
+    max_dsp: 100
+    checkpoint_save_dir: "tmp_kernel_3mm"

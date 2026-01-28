@@ -1,0 +1,34 @@
+vitis_gemm_test_auto_scalehls:
+  base_cfg: vitis_test
+  args:
+    benchmark: gemm
+    stop_at_checkpoint: pd
+    arch_opt_pipeline: scalehls
+
+benchmark_2mm_test_auto_scalehls:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_2mm
+    stop_at_checkpoint: pd
+    arch_opt_pipeline: scalehls
+
+benchmark_3mm_test_auto_scalehls:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_3mm
+    stop_at_checkpoint: pd
+    arch_opt_pipeline: scalehls
+
+benchmark_bicg_test_auto_scalehls:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_bicg
+    stop_at_checkpoint: pd
+    arch_opt_pipeline: scalehls
+
+benchmark_mvt_test_auto_scalehls:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_mvt
+    stop_at_checkpoint: pd
+    arch_opt_pipeline: scalehls

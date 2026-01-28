@@ -74,10 +74,20 @@ def create_cdfg_one_file(fsm_data, state_transitions, stg_data, dir_name):
     for state in fsm_data:
         for fsm_node in fsm_data[state]:
             if fsm_node['operator'] == 'call':
+                debug_print(f"Processing FSM call node: {fsm_node} in state {curr_state}")
                 ## if the operator is a call, we will treat it as a submodule and add it to the graph
-                module_name = fsm_node['function']
+                if 'function' not in fsm_node:
+                    module_name = fsm_node['sources'][0]['source']
+                    module_name = module_name.split('@')[1].split('<')[0] + "_" + module_name.split('<')[1].split('>')[0] + "_s"# saw function formatted like this: @function<type>
+                    debug_print(f"Module name taken from source: {module_name}")
+                else:
+                    module_name = fsm_node['function']
                 if module_name not in instantiated_modules:
                     instantiated_modules.append(module_name)
+            else:
+                debug_print(f"Processing FSM node: {fsm_node} in state {curr_state}")
+                ## if the operator is not a call, we will not add it as a submodule
+                continue
 
     ## This loop will continue until we have followed the state transition flow through all states in the FSM.
     while curr_state in fsm_data:

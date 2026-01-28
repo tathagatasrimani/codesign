@@ -42,50 +42,9 @@ if [[ $FORCE_FULL -eq 1 ]]; then
         echo "[setup] lld already installed."
     fi
 
-    ###############################################
-    # Reset environment: ensure no system LLVM leaks in
-    ###############################################
-    echo "[setup] Resetting LLVM/MLIR environment for local build."
-    unset LLVM_HOME
-    unset MLIR_HOME
-    unset CC
-    unset CXX
-
-    # Remove old builds
-    rm -rf build llvm-project
-    echo "[setup] Removed old build directories."
-
-    ###############################################
-    # Build LLVM + Polygeist + ScaleHLS
-    ###############################################
-    echo "[setup] Running build-scalehls.sh..."
-    ./build-scalehls.sh
-    BUILD_EXIT_CODE=$?
-
-    ###############################################
-    # Detect real failure vs test-only failure
-    ###############################################
-    LLVM_BIN_DIR="$PWD/llvm-project/build/bin"
-    SCALEHLS_BIN_DIR="$PWD/build/bin"
-
-    if [[ -x "$SCALEHLS_BIN_DIR/scalehls-opt" ]]; then
-        if [[ $BUILD_EXIT_CODE -ne 0 ]]; then
-            echo "[setup] WARNING: ScaleHLS tests failed (expected when DSE is modified). Continuing..."
-        else
-            echo "[setup] SUCCESS: local LLVM + ScaleHLS built with no errors."
-        fi
-    else
-        echo "[setup] ERROR: Critical build artifacts missing."
-        echo "[setup] LLVM or ScaleHLS did NOT actually build."
-        exit 1
-    fi
-
+    ./build-scalehls.sh -j$(nproc)
 else
-    ###############################################
-    # NOT doing full build — just reinitialize environment
-    ###############################################
-    echo "[setup] Full build NOT requested. Setting up environment..."
-
+    echo "[setup] Skipping ScaleHLS build is not set."
     cd ScaleHLS-HIDA
 fi
 

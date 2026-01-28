@@ -1,4 +1,5 @@
 #include "arith_ops.c"
+#define N 150
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>

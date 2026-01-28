@@ -2,7 +2,7 @@ import logging
 from src.hardware_model.tech_models.tech_model_base import TechModel
 from src.sim_util import symbolic_convex_max, symbolic_min, custom_cosh, custom_exp, xreplace_safe
 import math
-from sympy import symbols, ceiling, expand, exp, Abs, cosh, log
+from sympy import symbols, ceiling, expand, exp, Abs, cosh, log, tan
 import sympy as sp
 from scipy.constants import k, e, epsilon_0, hbar, m_e
 from src.inverse_pass.constraint import Constraint
@@ -13,6 +13,16 @@ logger = logging.getLogger(__name__)
 class MVSGeneralModel(TechModel):
     def __init__(self, model_cfg, base_params):
         super().__init__(model_cfg, base_params)
+        self.init_eval_fns()
+
+    def call_Lscale(self):
+        L_ratio =  xreplace_safe(self.base_params.L / tech_codesign_v0.get_Lscale(self.base_params.k_gate, self.base_params.eps_semi, self.base_params.tox, self.base_params.tsemi), self.base_params.tech_values) 
+        return L_ratio < 2
+
+    def init_eval_fns(self):
+        self.eval_fns = [
+            self.call_Lscale
+        ]
 
     def init_tech_specific_constants(self):
         super().init_tech_specific_constants()
@@ -30,7 +40,7 @@ class MVSGeneralModel(TechModel):
         #self.V_ox = symbolic_convex_max(self.base_params.V_dd - self.V_th_eff, self.V_th_eff).xreplace(self.off_state)
         V_ox = V_dd - V_th
         E_ox = Abs(V_ox/tox)
-        logger.info(f"B: {self.B}, A: {self.A}, t_ox: {tox.xreplace(tech_values)}, E_ox: {E_ox.xreplace(tech_values)}, intermediate: {(1-(1-V_ox/self.phi_b)**3/2).xreplace(tech_values)}")
+        #logger.info(f"B: {self.B}, A: {self.A}, t_ox: {tox.xreplace(tech_values)}, E_ox: {E_ox.xreplace(tech_values)}, intermediate: {(1-(1-V_ox/self.phi_b)**3/2).xreplace(tech_values)}")
         FN_term = A_gate * self.A * E_ox**2 * (custom_exp(-self.B/E_ox))
         WKB_term = A_gate * self.A * E_ox**2 * (custom_exp(-self.B*(1-(1-V_ox/self.phi_b)**3/2)/E_ox))
         I_tunnel = FN_term + WKB_term
@@ -66,15 +76,15 @@ class MVSGeneralModel(TechModel):
             self.R_wire,
             self.C_wire
         )
-        logger.info(f"Area: {xreplace_safe(self.area, self.base_params.tech_values):.3e}")
-        logger.info(f"Delay: {xreplace_safe(self.delay, self.base_params.tech_values):.3e}")
-        logger.info(f"Edynamic: {xreplace_safe(self.Edynamic, self.base_params.tech_values):.3e}")
-        logger.info(f"Pstatic: {xreplace_safe(self.Pstatic, self.base_params.tech_values):.3e}")
-        logger.info(f"Ieff_n: {xreplace_safe(self.Ieff_n, self.base_params.tech_values):.3e}")
-        logger.info(f"Ieff_p: {xreplace_safe(self.Ieff_p, self.base_params.tech_values):.3e}")
-        logger.info(f"Ioff_n: {xreplace_safe(self.Ioff_n, self.base_params.tech_values):.3e}")
-        logger.info(f"Ioff_p: {xreplace_safe(self.Ioff_p, self.base_params.tech_values):.3e}")
-        logger.info(f"Cload: {xreplace_safe(self.C_load, self.base_params.tech_values):.3e}")
+        #logger.info(f"Area: {xreplace_safe(self.area, self.base_params.tech_values):.3e}")
+        #logger.info(f"Delay: {xreplace_safe(self.delay, self.base_params.tech_values):.3e}")
+        #logger.info(f"Edynamic: {xreplace_safe(self.Edynamic, self.base_params.tech_values):.3e}")
+        #logger.info(f"Pstatic: {xreplace_safe(self.Pstatic, self.base_params.tech_values):.3e}")
+        #logger.info(f"Ieff_n: {xreplace_safe(self.Ieff_n, self.base_params.tech_values):.3e}")
+        #logger.info(f"Ieff_p: {xreplace_safe(self.Ieff_p, self.base_params.tech_values):.3e}")
+        #logger.info(f"Ioff_n: {xreplace_safe(self.Ioff_n, self.base_params.tech_values):.3e}")
+        #logger.info(f"Ioff_p: {xreplace_safe(self.Ioff_p, self.base_params.tech_values):.3e}")
+        #logger.info(f"Cload: {xreplace_safe(self.C_load, self.base_params.tech_values):.3e}")
 
         self.E_act_inv = self.Edynamic
         self.P_pass_inv = self.Pstatic
@@ -83,15 +93,16 @@ class MVSGeneralModel(TechModel):
         self.A_gate = self.base_params.W * self.base_params.L
 
         self.Lscale = tech_codesign_v0.get_Lscale(self.base_params.k_gate, self.base_params.eps_semi, self.base_params.tox, self.base_params.tsemi)
-        logger.info(f"Lscale: {xreplace_safe(self.Lscale, self.base_params.tech_values):.3e}")
+        #self.Lscale = self.base_params.Lscale
+        #logger.info(f"Lscale: {xreplace_safe(self.Lscale, self.base_params.tech_values):.3e}")
         self.n0, self.delta, self.dVt = tech_codesign_v0.symbolic_sce_model_cmg(self.base_params.L, self.base_params.V_th, self.Lscale)
         self.V_th_eff = self.base_params.V_th - self.dVt - self.delta * self.base_params.V_dd
-        logger.info(f"n0: {xreplace_safe(self.n0, self.base_params.tech_values):.3e}")
-        logger.info(f"delta: {xreplace_safe(self.delta, self.base_params.tech_values):.3e}")
-        logger.info(f"dVt: {xreplace_safe(self.dVt, self.base_params.tech_values):.3e}")
+        #logger.info(f"n0: {xreplace_safe(self.n0, self.base_params.tech_values):.3e}")
+        #logger.info(f"delta: {xreplace_safe(self.delta, self.base_params.tech_values):.3e}")
+        #logger.info(f"dVt: {xreplace_safe(self.dVt, self.base_params.tech_values):.3e}")
 
         self.I_tunnel = self.get_gate_leakage_current(self.base_params.V_dd, self.V_th_eff, self.base_params.tox, self.A_gate, self.base_params.tech_values)
-        logger.info(f"I_tunnel: {self.I_tunnel.xreplace(self.base_params.tech_values)}")
+        #logger.info(f"I_tunnel: {self.I_tunnel.xreplace(self.base_params.tech_values)}")
         self.I_sub = (self.Ioff_n + self.Ioff_p)/2
         self.I_off = self.I_sub + self.I_tunnel
 
@@ -141,6 +152,7 @@ class MVSGeneralModel(TechModel):
 
         self.config_param_db()
 
+        self.config_sweep_output_db()
 
     def config_param_db(self):
         self.param_db["I_tunnel_per_um"] = self.I_tunnel / (self.base_params.W* 1e6)
@@ -155,6 +167,21 @@ class MVSGeneralModel(TechModel):
         self.param_db["R_wire"] = self.R_wire
         self.param_db["C_load"] = self.C_load
         super().config_param_db()
+
+    def config_sweep_output_db(self):
+        self.sweep_output_db["area"] = self.area
+        self.sweep_output_db["delay"] = self.delay
+        self.sweep_output_db["Edynamic"] = self.Edynamic
+        self.sweep_output_db["Pstatic"] = self.Pstatic
+        self.sweep_output_db["Ieff_p"] = self.Ieff_p
+        self.sweep_output_db["Ioff_n"] = self.Ioff_n
+        self.sweep_output_db["Ioff_p"] = self.Ioff_p
+        self.sweep_output_db["V_th_eff"] = self.V_th_eff
+
+        self.sweep_output_db["delta"] = self.delta
+        self.sweep_output_db["dVt"] = self.dVt
+        self.sweep_output_db["n0"] = self.n0
+        self.sweep_output_db["Lscale"] = self.Lscale
 
     def apply_base_parameter_effects(self):
         super().apply_base_parameter_effects()
@@ -183,6 +210,7 @@ class MVSGeneralModel(TechModel):
         self.constraints.append(Constraint(sp.Eq(self.base_params.Rsh_ext_n, self.base_params.tech_values[self.base_params.Rsh_ext_n], evaluate=False), "Rsh_ext_n = tech_values[Rsh_ext_n]"))
         self.constraints.append(Constraint(sp.Eq(self.base_params.Rsh_ext_p, self.base_params.tech_values[self.base_params.Rsh_ext_p], evaluate=False), "Rsh_ext_p = tech_values[Rsh_ext_p]"))
 
-        #self.constraints.append(self.delta <= 0.15)
-        self.constraints.append(Constraint(self.I_off_worst_case_per_um <= 100e-9, "I_off_worst_case_per_um <= 100e-9"))
+        self.constraints.append(Constraint(self.delta <= 0.15, "delta <= 0.15"))
+        #self.constraints.append(Constraint(sp.Eq(self.e_si*tan(math.pi*self.base_params.tox/self.Lscale) + self.base_params.k_gate*self.e_0*tan(math.pi*self.base_params.tsemi/self.Lscale), 0, evaluate=False), "e_si*tan(pi*t_ox/scale_length) + k_gate*e_0*tan(pi*tsemi/scale_length) <= 1e-6"))
+        #self.constraints.append(Constraint(self.I_off_worst_case_per_um <= 100e-9, "I_off_worst_case_per_um <= 100e-9"))
         #self.constraints.append(Constraint(self.V_th_eff_worst_case >= 0.05, "V_th_eff_worst_case >= 0.05"))

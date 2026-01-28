@@ -15,7 +15,7 @@ if [ ! -d "$INSTALL_DIR" ]; then
     echo "Building Verilator..."
     autoconf
     ./configure --prefix=$INSTALL_DIR
-    make -j"$NPROC"
+    make -j$(nproc)
     make install
     cd ..
     rm -rf verilator

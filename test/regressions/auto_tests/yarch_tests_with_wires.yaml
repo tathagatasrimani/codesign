@@ -1,0 +1,31 @@
+benchmark_3mm_test_auto:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_3mm
+    stop_at_checkpoint: pd
+    max_dsp: 2000
+
+
+vitis_gemm_test_auto:
+  base_cfg: vitis_test
+  args:
+    benchmark: gemm
+    stop_at_checkpoint: pd
+    max_dsp: 2000
+
+
+
+benchmark_3mm_test_auto_10DSP:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_3mm
+    stop_at_checkpoint: pd
+    max_dsp: 10
+
+
+vitis_gemm_test_auto_10DSP:
+  base_cfg: vitis_test
+  args:
+    benchmark: gemm
+    stop_at_checkpoint: pd
+    max_dsp: 10

@@ -10,6 +10,13 @@
 #ifndef _DOITGEN_H
 # define _DOITGEN_H
 
+/* If N is defined (from workload_size parameter), use it for all dimensions. */
+# ifdef N
+#  define NR N
+#  define NQ N
+#  define NP N
+# endif
+
 /* Default to LARGE_DATASET. */
 # if !defined(MINI_DATASET) && !defined(SMALL_DATASET) && !defined(MEDIUM_DATASET) && !defined(LARGE_DATASET) && !defined(EXTRALARGE_DATASET)
 #  define LARGE_DATASET

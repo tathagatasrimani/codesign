@@ -6,12 +6,38 @@ SETUP_SCRIPTS_FOLDER="$(pwd)/setup_scripts"
 
 BUILD_LOG="$SETUP_SCRIPTS_FOLDER/build.log"
 FORCE_FULL=0
+SKIP_OPENROAD=0
+
+# Start timer
+start_time=$(date +%s)
+
+record_full_build_metadata() {
+    local build_time root_commit
+    build_time=$(date "+%Y-%m-%d %H:%M:%S")
+    root_commit=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
+
+    {
+        echo "build_time: $build_time"
+        echo "root_commit: $root_commit"
+        echo "submodules:"
+
+        if git config --file .gitmodules --get-regexp 'submodule\..*\.path' >/dev/null 2>&1; then
+            git submodule foreach --recursive --quiet '
+                sub_commit=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
+                printf "  - %s: %s\n" "$path" "$sub_commit"
+            '
+        else
+            echo "  - none"
+        fi
+    } > "$BUILD_LOG"
+}
 
 # Parse command line options
 for arg in "$@"; do
     if [[ "$arg" == "--full" ]]; then
         FORCE_FULL=1
-        break
+    elif [[ "$arg" == "--skip-openroad" ]]; then
+        SKIP_OPENROAD=1
     fi
 done
 
@@ -23,10 +49,6 @@ if [[ $FORCE_FULL -eq 0 ]]; then
         last_epoch=$(date -r "$BUILD_LOG" +%s)
         now_epoch=$(date +%s)
         diff_days=$(( (now_epoch - last_epoch) / 86400 ))
-        if [[ $diff_days -ge 7 ]]; then
-            echo "Last build was $diff_days days ago — forcing full build."
-            FORCE_FULL=1
-        fi
     fi
 fi
 
@@ -36,12 +58,13 @@ else
     echo ">>> Performing incremental build"
 fi
 
-if [[ "${GITHUB_ACTIONS:-}" == "true" && "${OPENROAD_PRE_INSTALLED:-0}" == "1" ]] || [[ -f "openroad_interface/OpenROAD/build/src/openroad" ]]; then
+if [[ $SKIP_OPENROAD -eq 1 ]] || [[ "${GITHUB_ACTIONS:-}" == "true" && "${OPENROAD_PRE_INSTALLED:-0}" == "1" ]] || [[ -f "openroad_interface/OpenROAD/build/src/openroad" ]]; then
     echo "We likely will not need SUDO permissions for this build."
 else
     echo "SUDO permissions may be required for this build. Enter SUDO password if prompted."
     sudo -v
 fi
+echo "Thank you for entering your sudo password if prompted."
 ################## PARSE UNIVERSITY ARGUMENT ##################
 
 host=$(hostname)
@@ -67,7 +90,8 @@ else
     esac
 fi
 
-
+## print the university name to a file in the setup scripts folder
+echo "$UNIVERSITY" > "$SETUP_SCRIPTS_FOLDER"/university_name.txt
 
 
 printf '>>> SCRIPT START %s\n' "$(date)"
@@ -94,56 +118,70 @@ if [ "$UNIVERSITY" = "cmu" ]; then
     echo "Set TMPDIR to $TMPDIR"
 fi
 
-################## INSTALL OPENROAD ##################
-git submodule update --init --recursive openroad_interface/OpenROAD
+## ensure that git is set to fetch submodules in parallel (faster)
+git config --global fetch.parallel $(nproc)
+git config --global submodule.fetchJobs $(nproc)
 
-if  [[ "${GITHUB_ACTIONS:-}" == "true" && "${OPENROAD_PRE_INSTALLED:-0}" == "1" ]]; then
-    echo "OpenROAD executable already exists."
+################## INSTALL OPENROAD ##################
+echo "STARTING STEP 1: OPENROAD INSTALLATION"
+if [[ $SKIP_OPENROAD -eq 1 ]]; then
+    echo "Skipping OpenROAD installation (--skip-openroad flag set)."
 else
-# check if the openroad executable exists
-    if [ -f "openroad_interface/OpenROAD/build/src/openroad" ]; then
+    git submodule update --init --recursive openroad_interface/OpenROAD
+
+    if  [[ "${GITHUB_ACTIONS:-}" == "true" && "${OPENROAD_PRE_INSTALLED:-0}" == "1" ]]; then
         echo "OpenROAD executable already exists."
     else
-        echo "OpenROAD executable not found. Running openroad_install.sh..."
-        # Check OS, run openroad install script
-        if [ -f /etc/redhat-release ]; then
-            OS_VERSION=$(cat /etc/redhat-release)
-            case "$OS_VERSION" in 
-                *"Rocky Linux release 8"*|*"Red Hat Enterprise Linux release 8"*)
-                    bash "$SETUP_SCRIPTS_FOLDER"/openroad_install_rhel8.sh
-                ;;
-                *"Rocky Linux release 9"*|*"Red Hat Enterprise Linux release 9"*)
-                    bash "$SETUP_SCRIPTS_FOLDER"/openroad_install.sh
-                ;;
-                *)
-                    echo "Unsupported Rocky Linux version: $OS_VERSION"
-                    exit 1
-                ;;
-            esac    
+    # check if the openroad executable exists
+        if [ -f "openroad_interface/OpenROAD/build/src/openroad" ]; then
+            echo "OpenROAD executable already exists."
         else
-            echo "Unsupported OS"
+            echo "OpenROAD executable not found. Running openroad_install.sh..."
+            # Check OS, run openroad install script
+            if [ -f /etc/redhat-release ]; then
+                OS_VERSION=$(cat /etc/redhat-release)
+                case "$OS_VERSION" in 
+                    *"Rocky Linux release 8"*|*"Red Hat Enterprise Linux release 8"*)
+                        bash "$SETUP_SCRIPTS_FOLDER"/openroad_install_rhel8.sh
+                    ;;
+                    *"Rocky Linux release 9"*|*"Red Hat Enterprise Linux release 9"*)
+                        bash "$SETUP_SCRIPTS_FOLDER"/openroad_install.sh
+                    ;;
+                    *)
+                        echo "Unsupported Rocky Linux version: $OS_VERSION"
+                        exit 1
+                    ;;
+                esac    
+            else
+                echo "Unsupported OS"
+                exit 1
+            fi
+        fi
+    fi
+
+    if [[ "${GITHUB_ACTIONS:-}" == "true" && "${OPENROAD_PRE_INSTALLED:-0}" == "1"  ]]; then
+        echo "OpenROAD installation completed successfully."
+    else
+        # Ensure that the OpenROAD executable was created
+        if [ -f "openroad_interface/OpenROAD/build/src/openroad" ]; then
+            echo "OpenROAD installation completed successfully."
+        else
+            echo "OpenROAD installation failed."
             exit 1
         fi
     fi
 fi
-
-if [[ "${GITHUB_ACTIONS:-}" == "true" && "${OPENROAD_PRE_INSTALLED:-0}" == "1"  ]]; then
-    echo "OpenROAD installation completed successfully."
-else
-    # Ensure that the OpenROAD executable was created
-    if [ -f "openroad_interface/OpenROAD/build/src/openroad" ]; then
-        echo "OpenROAD installation completed successfully."
-    else
-        echo "OpenROAD installation failed."
-        exit 1
-    fi
-fi
+echo "COMPLETED STEP 1: OPENROAD INSTALLATION"
 
 ################ SET UP SCALEHLS ##################
+echo "STARTING STEP 2: SCALEHLS SETUP"
 ## we want this to operate outside of conda, so do this first
 source "$SETUP_SCRIPTS_FOLDER"/scale_hls_setup.sh $FORCE_FULL # setup scalehls
 
+echo "COMPLETED STEP 2: SCALEHLS SETUP"
+
 ################### SET UP CONDA ENVIRONMENT ##################
+echo "STARTING STEP 3: CONDA ENVIRONMENT SETUP"
 # Check if the directory miniconda3 exists
 if [ -d "miniconda3" ]; then
     export PATH="$(pwd):$PATH"
@@ -178,32 +216,37 @@ fi
 
 conda activate codesign # activate the codesign environment
 
+echo "COMPLETED STEP 3: CONDA ENVIRONMENT SETUP"
 
+################ SET UP STREAMHLS ##################
+echo "STARTING STEP 4: STREAMHLS SETUP"
+## StreamHLS setup needs conda to be available (setup-env.sh uses conda). 
+## Note that we run this script with 'bash' since we will source the streamhls environment separately when we need it.
+bash "$SETUP_SCRIPTS_FOLDER"/streamhls_setup.sh $FORCE_FULL # setup stream hls
+
+echo "COMPLETED STEP 4: STREAMHLS SETUP"
+
+echo "STARTING STEP 5: SUBMODULE UPDATE"
 ## update the rest of the submodules
 if [[ $FORCE_FULL -eq 1 ]]; then
     git submodule update --init --recursive
 fi
+echo "COMPLETED STEP 5: SUBMODULE UPDATE"
 
-###############  BUILD CACTI #################3
+###############  BUILD CACTI #################
+echo "STARTING STEP 6: CACTI BUILD"
 cd src/cacti
-make
+make -j$(nproc)
 cd ../..
+echo "COMPLETED STEP 6: CACTI BUILD"
 
-## make verilator
+###############  BUILD VERILATOR #################
+echo "STARTING STEP 7: VERILATOR BUILD"
 source "$SETUP_SCRIPTS_FOLDER"/verilator_install.sh
+echo "COMPLETED STEP 7: VERILATOR BUILD"
 
-## Load cad tools
-if [ "$UNIVERSITY" = "stanford" ]; then
-    echo "Setting up Stanford CAD tools..."
-    source "$SETUP_SCRIPTS_FOLDER"/stanford_cad_tool_setup.sh
-elif [ "$UNIVERSITY" = "cmu" ]; then
-    echo "Setting up CMU CAD tools..."
-    source "$SETUP_SCRIPTS_FOLDER"/cmu_cad_tool_setup.sh
-else
-    echo "Unsupported university for licensed cad tool setup: $UNIVERSITY"
-    exit 1
-fi
-
+############### HANDLE XAUTHORITY #################
+echo "STARTING STEP 8: XAUTHORITY HANDLING"
 # Only copy Xauthority if we're in a different directory than the old home
 if [ "$HOME" != "$OLD_HOME" ]; then
     echo "Copying Xauthority from $OLD_HOME to $HOME"
@@ -211,11 +254,18 @@ if [ "$HOME" != "$OLD_HOME" ]; then
         rm .Xauthority
         echo "Removed existing .Xauthority"
     fi
-    cp "$OLD_HOME"/.Xauthority .Xauthority
-    echo "Copied Xauthority from $OLD_HOME to $HOME"
+    if [ -f "$OLD_HOME"/.Xauthority ]; then
+        cp "$OLD_HOME"/.Xauthority .Xauthority
+        echo "Copied Xauthority from $OLD_HOME to $HOME"
+    else
+        echo "No .Xauthority file found in $OLD_HOME"
+    fi
+    
 fi
+echo "COMPLETED STEP 8: XAUTHORITY HANDLING"
 
-############### Add useful alisas ###############
+############### Add useful aliases ###############
+echo "STARTING STEP 9: ADDING USEFUL ALIASES"
 alias create_checkpoint="python3 -m test.checkpoint_controller"
 alias run_codesign="python3 -m src.codesign"
 alias run_tech_test="python3 -m test.experiments.dennard_multi_core"
@@ -225,12 +275,29 @@ alias clean_logs="rm -rf ~/logs/*"
 alias clean_tmp="rm -rf ~/src/tmp/*"
 alias clean_codesign="clean_checkpoints; clean_logs; clean_tmp"
 alias run_regression="python3 -m test.regression_run"
-
+alias run_sweep="python3 -m src.hardware_model.tech_models.tech_library.sweep_tech_codesign"
+echo "COMPLETED STEP 9: ADDING USEFUL ALIASES"
 ################## SUCCESSFUL BUILD LOG ##################
 if [[ $FORCE_FULL -eq 1 ]]; then
-    date "+%Y-%m-%d %H:%M:%S" > "$BUILD_LOG"
+    record_full_build_metadata
 fi
 
-echo "Last full build completed successfully on $(cat $BUILD_LOG)"which
+if [[ -f "$BUILD_LOG" ]]; then
+    echo "Last full build metadata:"
+    cat "$BUILD_LOG"
+fi
 
-echo "Environment setup complete."
+echo "ENVIRONMENT SETUP COMPLETE"
+
+# End timer
+end_time=$(date +%s)
+
+# Calculate duration
+duration=$((end_time - start_time))
+
+# Convert to minutes and seconds
+minutes=$((duration / 60))
+seconds=$((duration % 60))
+
+# Print duration
+printf "\nElapsed time: %d minutes and %d seconds\n" $minutes $seconds

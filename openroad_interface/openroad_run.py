@@ -21,7 +21,7 @@ from . import detailed as det
 from . import scale_lef_files as scale_lef
 from openroad_interface.lib_cell_generator import LibCellGenerator
 from . import macro_maker as make_macros
-
+from src import sim_util
 ## This is the area between the die area and the core area.
 DIE_CORE_BUFFER_SIZE = 50
 
@@ -83,6 +83,7 @@ class OpenRoadRun:
             "BUF_X16": "Not16",
             "BUF_X32": "Not16",
             "MUX2_X1": "Not16",
+            "Mux16": "Mux16",
             "Exp16": "Exp16",
             "LShift16": "LShift16",
             "RShift16": "RShift16",
@@ -292,8 +293,8 @@ class OpenRoadRun:
         for i, line in enumerate(rc_data):
             if line.startswith("set_layer_rc"):
                 metal_layer = line.split()[2]
-                rsq = self.circuit_model.tech_model.wire_parasitics["R"][metal_layer].xreplace(self.circuit_model.tech_model.base_params.tech_values) * 1e-9 # convert to kohm/um
-                csq = self.circuit_model.tech_model.wire_parasitics["C"][metal_layer].xreplace(self.circuit_model.tech_model.base_params.tech_values) * 1e+15 * 1e-6 # convert to fF/um
+                rsq = sim_util.xreplace_safe(self.circuit_model.tech_model.wire_parasitics["R"][metal_layer], self.circuit_model.tech_model.base_params.tech_values) * 1e-9 # convert to kohm/um
+                csq = sim_util.xreplace_safe(self.circuit_model.tech_model.wire_parasitics["C"][metal_layer], self.circuit_model.tech_model.base_params.tech_values) * 1e+15 * 1e-6 # convert to fF/um
                 # need to scale up RC for mature nodes, because unscaled OpenROAD wirelengths will be too short
                 # for advanced nodes the unscaled wirelengths will be too long
                 resistance = rsq / self.alpha
@@ -342,6 +343,10 @@ class OpenRoadRun:
         """
         Runs the OpenROAD executable. Run this after setup.
         """
+        import subprocess
+        import shutil
+        import os
+        
         logger.info("Starting OpenROAD run.")
         old_dir = os.getcwd()
         os.chdir(self.directory + "/tcl")
@@ -355,100 +360,87 @@ class OpenRoadRun:
         if isinstance(args_dict, dict):
             preinstalled = args_dict.get("preinstalled_openroad_path")
 
-        # Build command and log path
+        # Check if xvfb-run is available
+        xvfb_available = shutil.which("xvfb-run") is not None
+        
         if preinstalled:
-            bin_path = preinstalled
+            openroad_cmd = preinstalled
         else:
-            bin_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "OpenROAD", "build", "src", "openroad")
+            openroad_bin = os.path.join(os.path.dirname(os.path.abspath(__file__)), "OpenROAD", "build", "src", "openroad")
+            openroad_cmd = openroad_bin
+        
+        # Set up environment for Qt/OpenGL software rendering
+        env = os.environ.copy()
+        
+        # Qt platform configuration - use offscreen platform for headless rendering
+        # This avoids X11/XCB issues entirely and works natively without Xvfb
+        env['QT_QPA_PLATFORM'] = 'offscreen'
+        
+        # Ensure OpenGL software rendering is available for offscreen platform
+        env['LIBGL_ALWAYS_SOFTWARE'] = '1'
+        env['GALLIUM_DRIVER'] = 'llvmpipe'
+        env['MESA_LOADER_DRIVER_OVERRIDE'] = 'llvmpipe'
+        env['MESA_GL_VERSION_OVERRIDE'] = '3.3'
+        
+        # Ensure Qt can find image format plugins (PNG support)
+        # Try common system locations for Qt5 plugins
+        possible_plugin_paths = [
+            "/usr/lib64/qt5/plugins",
+            "/usr/lib/qt5/plugins", 
+            "/usr/lib/x86_64-linux-gnu/qt5/plugins",
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), 
+                        "OpenROAD", "build", "src", "plugins")
+        ]
+        for qt_plugin_path in possible_plugin_paths:
+            if os.path.exists(qt_plugin_path):
+                env['QT_PLUGIN_PATH'] = qt_plugin_path
+                logger.info(f"Set QT_PLUGIN_PATH to {qt_plugin_path}")
+                break
+        
+        # Ensure imageformats directory is accessible for PNG support
+        # Qt5 should have built-in PNG support, but plugins help
+        imageformat_path = "/usr/lib64/qt5/plugins/imageformats"
+        if os.path.exists(imageformat_path):
+            # Set QT_PLUGIN_PATH to include the parent plugins directory
+            # Qt will automatically look in plugins/imageformats subdirectory
+            if 'QT_PLUGIN_PATH' not in env:
+                env['QT_PLUGIN_PATH'] = "/usr/lib64/qt5/plugins"
+                logger.info("Set QT_PLUGIN_PATH to include imageformats")
+        
+        # Also try setting QT_QPA_PLATFORM_PLUGIN_PATH if needed
+        # This helps Qt find platform-specific plugins
+        if 'QT_QPA_PLATFORM_PLUGIN_PATH' not in env:
+            platform_plugin_path = "/usr/lib64/qt5/plugins/platforms"
+            if os.path.exists(platform_plugin_path):
+                env['QT_QPA_PLATFORM_PLUGIN_PATH'] = platform_plugin_path
+        
+        # Build the command - with offscreen platform, we don't need Xvfb
+        # Offscreen platform works natively without X server
+        cmd = f"{openroad_cmd} codesign_top.tcl"
+        logger.info("Using Qt offscreen platform for headless image rendering (no Xvfb needed)")
 
-        cmd_list = [bin_path, "codesign_top.tcl"]
-        log_path = f"{self.directory}/codesign_pd.log"
-
-        logger.info("Executing OpenROAD command: %s", " ".join(cmd_list))
-
-        proc = None
-        stop_event = threading.Event()
-        killed_due_to_error = False
-        monitor_thread = None
-        logf = None
-
-        try:
-            # Open the log file for writing
-            logf = open(log_path, "w")
-            proc = subprocess.Popen(
-                cmd_list,
-                stdout=logf,
-                stderr=subprocess.STDOUT,
+        # Redirect output to log file
+        log_file = f"{self.directory}/codesign_pd.log"
+        
+        logger.info("Executing OpenROAD command: %s", cmd)
+        logger.info("Environment: LIBGL_ALWAYS_SOFTWARE=%s, QT_QPA_PLATFORM=%s", 
+                    env.get('LIBGL_ALWAYS_SOFTWARE'), env.get('QT_QPA_PLATFORM'))
+        
+        # Use subprocess to properly handle environment and output redirection
+        with open(log_file, 'w') as log:
+            result = subprocess.run(
+                cmd,
+                shell=True,
+                env=env,
+                cwd=os.getcwd(),
+                stdout=log,
+                stderr=subprocess.STDOUT
             )
-            logger.info("Spawned OpenROAD PID: %s", proc.pid)
-
-            # Start a monitor thread that tails the log and kills the process if 'ERROR' appears.
-            if OPENROAD_ABORT_ON_LOG_ERROR:
-                def _monitor():
-                    nonlocal killed_due_to_error
-                    try:
-                        with open(log_path, "r", errors="ignore") as rf:
-                            # Read from the beginning; sleep when no new data
-                            while not stop_event.is_set():
-                                line = rf.readline()
-                                if not line:
-                                    # If process ended and no more lines, stop
-                                    if proc and proc.poll() is not None:
-                                        break
-                                    time.sleep(0.2)
-                                    continue
-                                if OPENROAD_ERROR_TEXT in line.lower():
-                                    killed_due_to_error = True
-                                    logger.error(f"Detected '{OPENROAD_ERROR_TEXT}' in OpenROAD log; terminating process.")
-                                    try:
-                                        # Flush and close the log file before killing the process
-                                        if logf:
-                                            logf.flush()
-                                            logf.close()
-                                        if proc and proc.poll() is None:
-                                            proc.terminate()
-                                            # Give it a moment to exit gracefully
-                                            try:
-                                                proc.wait(timeout=3)
-                                            except Exception:
-                                                pass
-                                            if proc.poll() is None:
-                                                proc.kill()
-                                    except Exception as e:
-                                        logger.warning("Failed to terminate OpenROAD process: %s", e)
-                                    break
-                    except Exception as e:
-                        logger.warning("Log monitor encountered an exception: %s", e)
-
-                monitor_thread = threading.Thread(target=_monitor, name="openroad_log_monitor", daemon=True)
-                monitor_thread.start()
-            else:
-                logger.info("OPENROAD_ABORT_ON_LOG_ERROR disabled; not monitoring log for errors.")
-
-            # Wait for process to finish
-            if proc is not None:
-                proc.wait()
-
-            if killed_due_to_error:
-                print("OpenROAD terminated early due to 'ERROR' in log.")
-                logger.error("OpenROAD terminated due to 'ERROR' in log: %s", log_path)
-            else:
-                print("done")
-                logger.info("OpenROAD run completed.")
-
-        finally:
-            stop_event.set()
-            if monitor_thread and monitor_thread.is_alive():
-                monitor_thread.join(timeout=1.0)
-            # Ensure log file is properly closed
-            if logf and not logf.closed:
-                try:
-                    logf.flush()
-                    logf.close()
-                except Exception as e:
-                    logger.warning("Failed to close log file: %s", e)
-            os.chdir(old_dir)
-            logger.info(f"Returned to original directory {old_dir}")
+        
+        print("done")
+        logger.info("OpenROAD run completed.")
+        os.chdir(old_dir)
+        logger.info(f"Returned to original directory {old_dir}")
 
 
     def mux_listing(self, graph, node_output, wire_length_by_edge):

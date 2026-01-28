@@ -1,0 +1,9 @@
+benchmark_conv2d_save:
+  args:
+    benchmark: conv2d
+    checkpoint_save_dir: tmp_conv2d
+    max_iter_num_scalehls: 10
+    obj: delay
+    stop_at_checkpoint: setup
+    workload_size: 32
+  base_cfg: vitis_test

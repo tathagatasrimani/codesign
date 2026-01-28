@@ -9,6 +9,7 @@ import logging
 import shutil
 import subprocess
 import copy
+import shlex
 import networkx as nx
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -60,6 +61,10 @@ class Codesign:
         ## save the root directory that the program started in
         self.codesign_root_dir = os.getcwd()
 
+        ## parse the university name from the setup scripts folder
+        with open(f"{self.codesign_root_dir}/setup_scripts/university_name.txt", "r") as f:
+            self.university_name = f.read().strip()
+
         self.hls_tool = self.cfg["args"]["hls_tool"]
         self.benchmark = f"src/benchmarks/{self.hls_tool}/{self.cfg['args']['benchmark']}"
         self.benchmark_name = self.cfg["args"]["benchmark"]
@@ -72,6 +77,7 @@ class Codesign:
         self.save_dir = os.path.join(
             self.cfg["args"]["savedir"], datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S") + "_" + tmp_dir_suffix
         )
+        self.hls_tcl_script = "tcl_script.tcl" if self.cfg["args"]["arch_opt_pipeline"] == "scalehls" else "hls.tcl"
 
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
@@ -102,7 +108,7 @@ class Codesign:
         self.run_cacti = not self.cfg["args"]["debug_no_cacti"]
         self.no_memory = self.cfg["args"]["no_memory"]
         self.hw = hardwareModel.HardwareModel(self.cfg, self.codesign_root_dir, self.tmp_dir)
-        self.opt = optimize.Optimizer(self.hw, self.tmp_dir, opt_pipeline=self.cfg["args"]["opt_pipeline"])
+        self.opt = optimize.Optimizer(self.hw, self.tmp_dir, self.save_dir, max_power=self.cfg["args"]["max_power"], max_power_density=self.cfg["args"]["max_power_density"], opt_pipeline=self.cfg["args"]["opt_pipeline"])
         self.module_map = {}
         self.inverse_pass_improvement = self.cfg["args"]["inverse_pass_improvement"]
         self.inverse_pass_lag_factor = 1
@@ -123,14 +129,20 @@ class Codesign:
 
         self.iteration_count = 0
 
-        # configure to start with 3 dsp and 3 bram
-        self.dsp_multiplier = 1/3 * self.cfg["args"]["area"] / (3e-6 * 9e-6)
-        self.bram_multiplier = 1/3 * self.cfg["args"]["area"] / (3e-6 * 9e-6)
+        # configure starting resource usage based on the minimum DSP and BRAM usage
+        self.dsp_multiplier = 1/self.cfg["args"]["min_dsp"] * self.cfg["args"]["area"] / sim_util.xreplace_safe(self.hw.circuit_model.tech_model.param_db["A_gate"], self.hw.circuit_model.tech_model.base_params.tech_values)
+        self.bram_multiplier = 1/self.cfg["args"]["min_dsp"] * self.cfg["args"]["area"] / sim_util.xreplace_safe(self.hw.circuit_model.tech_model.param_db["A_gate"], self.hw.circuit_model.tech_model.base_params.tech_values)
 
         self.wire_lengths_over_iterations = []
         self.wire_delays_over_iterations = []
         self.device_delays_over_iterations = []
-        self.cur_dsp_usage = 0
+        self.cur_dsp_usage = None # to be set later
+        self.last_dsp_count_set = False
+        if os.path.exists(f"{self.tmp_dir}/last_dsp_count.yaml"):
+            with open(f"{self.tmp_dir}/last_dsp_count.yaml", "r") as f:
+                self.cur_dsp_usage = yaml.load(f, Loader=yaml.FullLoader)["last_dsp_count"]
+                self.last_dsp_count_set = True
+                logger.info(f"loaded last_dsp_count from {self.tmp_dir}/last_dsp_count.yaml: {self.cur_dsp_usage}")
         self.max_rsc_reached = False
 
         self.config_json_path_scalehls = "ScaleHLS-HIDA/test/Transforms/Directive/config.json"
@@ -157,6 +169,7 @@ class Codesign:
         if args.additional_cfg_file is not None:
             with open(args.additional_cfg_file, "r") as f:
                 additional_cfg = yaml.load(f, Loader=yaml.FullLoader)
+                # print(f"Loaded additional config from {args.additional_cfg_file}: {additional_cfg}")
 
                 # check that there aren't any duplicate keys
                 for key in additional_cfg:
@@ -164,6 +177,8 @@ class Codesign:
                         raise Exception(f"Duplicate key {key} found in additional config {args.additional_cfg_file}")
 
                 cfgs = {**cfgs, **additional_cfg}
+        
+        # print(f"Final cfgs before applying CLI args: {cfgs}")
         
         overwrite_args_all = vars(args)
         overwrite_args = {}
@@ -173,6 +188,7 @@ class Codesign:
         overwrite_cfg = {"base_cfg": args.config, "args": overwrite_args}
         cfgs["overwrite_cfg"] = overwrite_cfg
         self.cfg = sim_util.recursive_cfg_merge(cfgs, "overwrite_cfg")
+        assert self.cfg["args"]["arch_opt_pipeline"] in ["scalehls", "streamhls"]
         print(f"args: {self.cfg['args']}")
 
     def get_tmp_dir(self):
@@ -286,14 +302,22 @@ class Codesign:
         with open(self.config_json_path, "r") as f:
             config = json.load(f)
         if unlimited:
-            config["dsp"] = 150
-            config["bram"] = 150
+            config["dsp"] = 1024
+            config["bram"] = 1024
         else:
-            config["dsp"] = int(self.cfg["args"]["area"] / (self.hw.circuit_model.tech_model.param_db["A_gate"].xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf() * self.dsp_multiplier))
-            config["bram"] = int(self.cfg["args"]["area"] / (self.hw.circuit_model.tech_model.param_db["A_gate"].xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf() * self.bram_multiplier))
+            config["dsp"] = int(self.cfg["args"]["area"] / (sim_util.xreplace_safe(self.hw.circuit_model.tech_model.param_db["A_gate"], self.hw.circuit_model.tech_model.base_params.tech_values) * self.dsp_multiplier))
+            config["bram"] = int(self.cfg["args"]["area"] / (sim_util.xreplace_safe(self.hw.circuit_model.tech_model.param_db["A_gate"], self.hw.circuit_model.tech_model.base_params.tech_values) * self.bram_multiplier))
             # setting cur_dsp_usage here instead of with parse_dsp_usage after running scaleHLS
             # because I observed that for a small amount of resources, scaleHLS won't generate the csv file that we need to parse
             self.cur_dsp_usage = config["dsp"] 
+
+        ## Manual override for max_dsp from command line. This is primarily used for the YARCH experiments where we only want to run the forward pass with a specific DSP constraint.
+        if "max_dsp" in self.cfg["args"]:
+            self.max_dsp = self.cfg["args"]["max_dsp"]
+            config["dsp"] = self.max_dsp
+            config["bram"] = self.max_dsp # set bram to same as dsp for yarch experiments
+            print(f"Using user specified max_dsp: {self.max_dsp}")
+            print(f"The current dsp used in the iteration is: {self.cur_dsp_usage}")
 
         # I don't think "100MHz" has any meaning because scaleHLS should be agnostic to frequency
         config["100MHz"]["fadd"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["Add16"] / self.clk_period)
@@ -304,6 +328,63 @@ class Codesign:
         config["max_iter_num"] = self.cfg["args"]["max_iter_num_scalehls"]
         with open(self.config_json_path, "w") as f:
             json.dump(config, f)
+
+    def run_streamhls(self, save_dir, setup=False, iteration_count=0):
+        """
+        Runs StreamHLS synthesis tool in a different environment with modified PATH and PYTHONPATH.
+        Updates the memory configuration and logs the output.
+        Handles directory changes and cleans up temporary files.
+        """
+        start_time = time.time()
+        logger.info(f"Running StreamHLS with save_dir: {save_dir}")
+        ## get CWD
+        cwd = os.getcwd()
+        print(f"Running StreamHLS in {cwd}")
+
+        if not setup:
+            if self.last_dsp_count_set and iteration_count == 0:
+                self.cur_dsp_usage = self.cur_dsp_usage
+                self.last_dsp_count_set = False
+            elif self.cfg["args"]["fixed_area_increase_pattern"] and iteration_count > 0:
+                self.cur_dsp_usage = self.cur_dsp_usage * 10
+            else: 
+                self.cur_dsp_usage = int(self.cfg["args"]["area"] / (sim_util.xreplace_safe(self.hw.circuit_model.tech_model.param_db["A_gate"], self.hw.circuit_model.tech_model.base_params.tech_values) * self.dsp_multiplier))
+                self.cur_dsp_usage = max(self.cur_dsp_usage, self.cfg["args"]["min_dsp"])
+            tilelimit = 1
+        else:
+            self.cur_dsp_usage = 10000
+            tilelimit = 1
+
+        save_path = os.path.join(os.path.dirname(__file__), "..", save_dir)
+        cmd = [
+            'bash', '-c',
+            f'''
+            cd {cwd}
+            source miniconda3/etc/profile.d/conda.sh
+            cd Stream-HLS
+            pwd
+            source setup-env.sh
+            cd examples
+            python run_streamhls.py -b {save_path} -d {save_path} -k {self.benchmark_name} -O 5 --dsps {self.cur_dsp_usage} --timelimit {2} --tilelimit {tilelimit}
+            '''
+        ]
+
+        with open(f"{save_path}/streamhls_out.log", "w") as outfile:
+            p = subprocess.Popen(
+                cmd,
+                stdout=outfile,
+                stderr=subprocess.STDOUT,
+                env={}  # clean environment
+            )
+            p.wait()
+        with open(f"{save_path}/streamhls_out.log", "r") as f:
+            logger.info(f"StreamHLS output:\n{f.read()}")
+
+        if p.returncode != 0:
+            raise Exception(f"StreamHLS failed with error: {p.stderr}")
+        logger.info(f"time to run StreamHLS: {time.time()-start_time}")
+        shutil.copy(f"{save_path}/{self.benchmark_name}/hls/src/{self.benchmark_name}.cpp", f"{save_path}/{self.benchmark_name}.cpp")
+        shutil.copy(f"{save_path}/{self.benchmark_name}/hls/hls.tcl", f"{save_path}/hls.tcl")
 
     def run_scalehls(self, save_dir, opt_cmd,setup=False):
         """
@@ -389,20 +470,43 @@ class Codesign:
     def parse_design_space_for_mlir(self, read_dir):
         df = pd.read_csv(f"{read_dir}/{self.vitis_top_function}_space.csv")
         mlir_idx_that_exist = []
+        best_idx = None
+        best_dsp = -1
         for i in range(len(df['dsp'].values)):
             file_exists = os.path.exists(f"{read_dir}/{self.vitis_top_function}_pareto_{i}.mlir")
             if file_exists:
                 mlir_idx_that_exist.append(i)
-            if df['dsp'].values[i] <= self.cur_dsp_usage and file_exists:
-                return f"{read_dir}/{self.vitis_top_function}_pareto_{i}.mlir", i
+                # Select the design point that uses the MOST DSPs (up to constraint) to maximize loop unrolling
+                if df['dsp'].values[i] <= self.max_dsp and df['dsp'].values[i] > best_dsp:
+                    best_dsp = df['dsp'].values[i]
+                    best_idx = i
+        if best_idx is not None:
+            logger.info(f"Selected design point {best_idx} with {best_dsp} DSPs (constraint: {self.max_dsp})")
+            return f"{read_dir}/{self.vitis_top_function}_pareto_{best_idx}.mlir", best_idx
         if len(mlir_idx_that_exist) == 0:
-            raise Exception(f"No Pareto solutions found for {self.benchmark_name} with dsp usage {self.cur_dsp_usage}")
+            raise Exception(f"No Pareto solutions found for {self.benchmark_name} with dsp usage {self.max_dsp}")
         return f"{read_dir}/{self.vitis_top_function}_pareto_{mlir_idx_that_exist[-1]}.mlir", mlir_idx_that_exist[-1]
 
-    def parse_dsp_usage_and_latency(self, mlir_idx):
-        df = pd.read_csv(f'''{os.path.join(os.path.dirname(__file__), "..", self.benchmark_setup_dir)}/function_hier_output/{self.vitis_top_function}_space.csv''')
-        logger.info(f"dsp usage: {df['dsp'].values[mlir_idx]}, latency: {df['cycle'].values[mlir_idx]}")
-        return df['dsp'].values[mlir_idx], df['cycle'].values[mlir_idx]
+    def parse_dsp_usage_and_latency(self, mlir_idx, save_dir):
+        if self.cfg["args"]["arch_opt_pipeline"] == "scalehls":
+            df = pd.read_csv(f'''{os.path.join(os.path.dirname(__file__), "..", self.benchmark_setup_dir)}/function_hier_output/{self.vitis_top_function}_space.csv''')
+            logger.info(f"dsp usage: {df['dsp'].values[mlir_idx]}, latency: {df['cycle'].values[mlir_idx]}")
+            return df['dsp'].values[mlir_idx], df['cycle'].values[mlir_idx]
+        elif self.cfg["args"]["arch_opt_pipeline"] == "streamhls":
+            log_file = sim_util.get_latest_log_dir_streamhls(os.path.join(save_dir, self.benchmark_name))
+            assert log_file is not None, f"No log file found for {self.benchmark_name} in {save_dir}"
+            latency, dsp = None, None
+            with open(log_file, "r") as f:
+                lines = f.readlines()
+                for line in lines:
+                    if "Combined Latency:" in line:
+                        latency = float(line.split("Combined Latency:")[1].strip())
+                    if "Total DSPs:" in line:
+                        dsp = int(line.split("Total DSPs:")[1].strip())
+                        if self.cur_dsp_usage is None:
+                            self.cur_dsp_usage = dsp
+            assert latency is not None and dsp is not None, f"No latency or dsp found for {self.benchmark_name} in {log_file}"
+            return dsp, latency
 
     def parse_vitis_data(self, save_dir):
 
@@ -410,7 +514,7 @@ class Codesign:
         print(f"Current working directory in vitis parse data: {os.getcwd()}")
 
         if self.no_memory:
-            allowed_functions_netlist = set(self.hw.circuit_model.circuit_values["area"].keys()).difference({"N/A", "Buf", "MainMem", "Call"})
+            allowed_functions_netlist = set(self.hw.circuit_model.circuit_values["area"].keys()).difference({"N/A", "Buf", "MainMem", "Call", "read", "write"})
             allowed_functions_schedule = allowed_functions_netlist.union({"Call", "II"})
         else:
             allowed_functions_netlist = set(self.hw.circuit_model.circuit_values["area"].keys()).difference({"N/A", "Call"})
@@ -457,14 +561,16 @@ class Codesign:
             
             logger.info("Creating DFGs from Vitis CDFGs")
             schedule_parser.create_dfgs()
-            self.hw.scheduled_dfgs = {basic_block_name: schedule_parser.basic_blocks[basic_block_name].dfg.G_standard_with_wire_ops for basic_block_name in schedule_parser.basic_blocks}
+            for basic_block_name in schedule_parser.basic_blocks:
+                if schedule_parser.basic_blocks[basic_block_name].is_dataflow_pipeline:
+                    self.hw.scheduled_dfgs[basic_block_name] = schedule_parser.basic_blocks[basic_block_name].dfg.G_flattened_standard_with_wire_ops
+                    self.hw.dataflow_blocks.add(basic_block_name)
+                else:
+                    self.hw.scheduled_dfgs[basic_block_name] = schedule_parser.basic_blocks[basic_block_name].dfg.G_standard_with_wire_ops
             for basic_block_name in schedule_parser.basic_blocks:
                 for loop_name in schedule_parser.basic_blocks[basic_block_name].dfg.loop_dfgs:
                     for iter_num in schedule_parser.basic_blocks[basic_block_name].dfg.loop_dfgs[loop_name]:
-                        self.hw.loop_1x_graphs[loop_name] = {
-                            True: schedule_parser.basic_blocks[basic_block_name].dfg.loop_dfgs[loop_name][iter_num][True].G_standard_with_wire_ops,
-                            False: schedule_parser.basic_blocks[basic_block_name].dfg.loop_dfgs[loop_name][iter_num][False].G_standard_with_wire_ops
-                        }
+                        self.hw.loop_1x_graphs[loop_name] = {True: schedule_parser.basic_blocks[basic_block_name].dfg.loop_dfgs[loop_name][iter_num][True].G_standard_with_wire_ops, False: schedule_parser.basic_blocks[basic_block_name].dfg.loop_dfgs[loop_name][iter_num][False].G_standard_with_wire_ops}
 
             #self.hw.loop_2x_graphs = {basic_block_name: schedule_parser.basic_blocks[basic_block_name]["G_loop_2x_standard"] for basic_block_name in schedule_parser.basic_blocks if "G_loop_2x" in schedule_parser.basic_blocks[basic_block_name]}
 
@@ -475,7 +581,11 @@ class Codesign:
                 if os.path.isdir(os.path.join(parse_results_dir, file)):
                     if file in sim_util.get_module_map().keys(): # dont parse blackboxed functions
                         continue
-                    self.hw.scheduled_dfgs[file] = nx.read_gml(f"{parse_results_dir}/{file}/{file}_graph_standard_with_wire_ops.gml")
+                    if os.path.exists(f"{parse_results_dir}/{file}/{file}_flattened_graph_standard_with_wire_ops.gml"):
+                        self.hw.scheduled_dfgs[file] = nx.read_gml(f"{parse_results_dir}/{file}/{file}_flattened_graph_standard_with_wire_ops.gml")
+                        self.hw.dataflow_blocks.add(file)
+                    else:
+                        self.hw.scheduled_dfgs[file] = nx.read_gml(f"{parse_results_dir}/{file}/{file}_graph_standard_with_wire_ops.gml")
                     for subfile in os.listdir(f"{parse_results_dir}/{file}"):
                         logger.info(f"subfile: {subfile}")
                         if subfile.endswith("rsc_delay_only_graph_standard_with_wire_ops_1.gml"):
@@ -496,12 +606,6 @@ class Codesign:
 
         self.hw.netlist = nx.read_gml(f"{parse_results_dir}/{self.vitis_top_function}_full_netlist.gml")
 
-        logger.info("Now calculating execution time of Vitis design with top function "+self.vitis_top_function)
-        start_time = time.time()
-        execution_time = self.hw.calculate_execution_time_vitis(self.vitis_top_function)
-        logger.info(f"time to calculate execution time: {time.time()-start_time}")
-        print(f"Execution time: {execution_time}")
-
         ## print the cwd
         print(f"Current working directory in vitis parse data: {os.getcwd()}")
 
@@ -517,34 +621,39 @@ class Codesign:
         """
         Runs Vitis version of forward pass, updates the memory configuration, and logs the output.
         """
-        self.vitis_top_function = self.benchmark_name if not self.cfg["args"]["pytorch"] else "forward"
+        self.vitis_top_function = self.benchmark_name if not self.cfg["args"]["pytorch"] and self.cfg["args"]["arch_opt_pipeline"] != "streamhls" else "forward"
         self.scalehls_pipeline = "hida-pytorch-dse-pipeline" if self.cfg["args"]["pytorch"] else "scalehls-dse-pipeline"
 
         # prep before running scalehls
-        self.set_resource_constraint_scalehls(unlimited=setup)
-        if setup:
-            opt_cmd = f'''scalehls-opt {self.benchmark_name}.mlir -{self.scalehls_pipeline}=\"top-func={self.vitis_top_function} target-spec={os.path.join(os.path.dirname(__file__), "..", self.config_json_path)}\"'''
+        if self.cfg["args"]["arch_opt_pipeline"] == "scalehls":
+            self.set_resource_constraint_scalehls(unlimited=setup)
+            if setup:
+                opt_cmd = f'''scalehls-opt {self.benchmark_name}.mlir -{self.scalehls_pipeline}=\"top-func={self.vitis_top_function} target-spec={os.path.join(os.path.dirname(__file__), "..", self.config_json_path)}\"'''
+                mlir_idx = 0
+            else:
+                mlir_file, mlir_idx = self.parse_design_space_for_mlir(os.path.join(os.path.dirname(__file__), "..", f"{self.tmp_dir}/benchmark_setup/function_hier_output"))
+                opt_cmd = f"cat {mlir_file}"
+            if (self.checkpoint_controller.check_checkpoint("arch_opt", self.iteration_count) and not setup) or (self.checkpoint_controller.check_checkpoint("setup", self.iteration_count) and setup) and not self.max_rsc_reached:
+                self.run_scalehls(save_dir, opt_cmd, setup)
+            else:
+                logger.info("Skipping ScaleHLS")
+            # set scale factors if in setup or first iteration
+        elif self.cfg["args"]["arch_opt_pipeline"] == "streamhls":
+            if (self.checkpoint_controller.check_checkpoint("arch_opt", self.iteration_count) and not setup) or (self.checkpoint_controller.check_checkpoint("setup", self.iteration_count) and setup):
+                self.run_streamhls(save_dir, setup, iteration_count)
             mlir_idx = 0
-        else:
-            mlir_file, mlir_idx = self.parse_design_space_for_mlir(os.path.join(os.path.dirname(__file__), "..", f"{self.tmp_dir}/benchmark_setup/function_hier_output"))
-            opt_cmd = f"cat {mlir_file}"
+        dsp_usage, latency = self.parse_dsp_usage_and_latency(mlir_idx, save_dir)
 
-        # run scalehls
-        if (self.checkpoint_controller.check_checkpoint("scalehls", self.iteration_count) and not setup) or (self.checkpoint_controller.check_checkpoint("setup", self.iteration_count) and setup) and not self.max_rsc_reached:
-            self.run_scalehls(save_dir, opt_cmd, setup)
-        else:
-            logger.info("Skipping ScaleHLS")
+        sim_util.change_clk_period_in_script(f"{save_dir}/{self.hls_tcl_script}", self.clk_period, self.cfg["args"]["hls_tool"])
 
-        # set scale factors if in setup or first iteration
-        dsp_usage, latency = self.parse_dsp_usage_and_latency(mlir_idx)
         if setup:
-            self.max_dsp = dsp_usage
+            self.max_dsp = dsp_usage + 2 # allow some margin above initial dsp usage
             self.max_latency = latency
         elif iteration_count == 0:
             self.max_speedup_factor = float(latency / self.max_latency)
             self.max_area_increase_factor = float(self.max_dsp / dsp_usage)
         if not setup:
-            self.checkpoint_controller.check_end_checkpoint("scalehls", self.iteration_count)
+            self.checkpoint_controller.check_end_checkpoint("arch_opt", self.iteration_count)
         if setup: # setup step ends here, don't need to run rest of forward pass
             return
 
@@ -553,18 +662,52 @@ class Codesign:
         self.hw.circuit_model.tech_model.init_scale_factors(self.max_speedup_factor, self.max_area_increase_factor)
 
         os.chdir(os.path.join(os.path.dirname(__file__), "..", save_dir))
-        scale_hls_port_fix(f"{self.benchmark_name}.cpp", self.benchmark_name, self.cfg["args"]["pytorch"])
-        generate_blackbox_files(f"{self.benchmark_name}.cpp", os.path.join(os.getcwd(), "blackbox_files"), os.path.join(os.getcwd(), "tcl_script.tcl"), self.hw.circuit_model.circuit_values["latency"], self.clk_period)
+        if self.cfg["args"]["arch_opt_pipeline"] == "scalehls":
+            scale_hls_port_fix(f"{self.benchmark_name}.cpp", self.benchmark_name, self.cfg["args"]["pytorch"])
+        generate_blackbox_files(f"{self.benchmark_name}.cpp", os.path.join(os.getcwd(), "blackbox_files"), os.path.join(os.getcwd(), self.hls_tcl_script), self.hw.circuit_model.circuit_values["latency"], self.clk_period)
         logger.info(f"Vitis top function: {self.vitis_top_function}")
 
 
         import time
-        command = ["vitis_hls", "-f", "tcl_script_new.tcl"]
+        # Build the path to the university-specific setup script
+        arch_opt_pipeline = self.cfg["args"]["arch_opt_pipeline"]
+        arch_opt_pipeline_capitalized = arch_opt_pipeline.capitalize()  # "scalehls" -> "Scalehls", "streamhls" -> "Streamhls"
+        # Handle capitalization: "scalehls" -> "ScaleHLS", "streamhls" -> "StreamHLS"
+        if arch_opt_pipeline == "scalehls":
+            arch_opt_pipeline_capitalized = "ScaleHLS"
+        elif arch_opt_pipeline == "streamhls":
+            arch_opt_pipeline_capitalized = "StreamHLS"
+        
+        setup_script_path = os.path.join(
+            self.codesign_root_dir,
+            "setup_scripts",
+            f"{self.university_name}_environment",
+            f"{self.university_name}_vitis_{arch_opt_pipeline_capitalized}_setup.sh"
+        )
+        
+        # Build the base command
+        base_command = ["vitis_hls", "-f", "tcl_script_new.tcl"] if arch_opt_pipeline == "scalehls" else ["vitis_hls", "hls_new.tcl", self.benchmark_name, "syn", "-l", "syn.log"]
+        
+        # Convert command list to string for bash -c with proper shell escaping
+        command_str = " ".join(shlex.quote(arg) for arg in base_command)
+        
+        # Build the full command with source
+        full_command = [
+            'bash', '-c',
+            f'source {shlex.quote(setup_script_path)} && {command_str}'
+        ]
+        
         if self.checkpoint_controller.check_checkpoint("vitis", self.iteration_count) and not self.max_rsc_reached:
             start_time = time.time()
+            # Clean up any existing Vitis HLS project directory to avoid stale blackbox file references
+            project_dir = f"hls_{self.benchmark_name}"
+            if os.path.exists(project_dir):
+                logger.info(f"Cleaning up existing Vitis HLS project directory: {project_dir}")
+                shutil.rmtree(project_dir)
+            logger.info(f"Sourcing setup script: {setup_script_path}")
             # Start the process and write output to vitis_hls.log
             with open("vitis_hls.log", "w") as logfile:
-                p = subprocess.Popen(command, stdout=logfile, stderr=subprocess.STDOUT, text=True)
+                p = subprocess.Popen(full_command, stdout=logfile, stderr=subprocess.STDOUT, text=True)
 
             completed_required_sections = False
             while True:
@@ -594,6 +737,9 @@ class Codesign:
             if p.returncode not in (0, None) and not completed_required_sections:
                 logger.error(f"Vitis HLS command failed: see vitis_hls.log")
                 raise Exception(f"Vitis HLS command failed: see vitis_hls.log")
+            if self.cfg["args"]["arch_opt_pipeline"] == "streamhls":
+                save_path = os.path.join(os.path.dirname(__file__), "..", save_dir)
+                shutil.copytree(f"{save_path}/hls_{self.benchmark_name}/solution1", f"{save_path}/{self.benchmark_name}/solution1")
         else:
             logger.info("Skipping Vitis")
         self.checkpoint_controller.check_end_checkpoint("vitis", self.iteration_count)
@@ -723,13 +869,16 @@ class Codesign:
             sim_util.change_clk_period_in_script(f"{self.benchmark_dir}/scripts/common.tcl", self.clk_period, self.cfg["args"]["hls_tool"])
             self.catapult_forward_pass()
         else:
-            sim_util.change_clk_period_in_script(f"{save_dir}/tcl_script.tcl", self.clk_period, self.cfg["args"]["hls_tool"])
             self.vitis_forward_pass(save_dir=save_dir, iteration_count=iteration_count, setup=setup)
         if setup: return
 
         # calculate wire parasitics 
         # NOTE: we don't check the checkpoint status here because it is handled in the function call (see run_openroad variable)
         self.calculate_wire_parasitics()
+
+        ## log the scheduled_dfgs from hardware model
+        for basic_block_name in self.hw.scheduled_dfgs:
+            logger.info(f"Scheduled DFG for basic block {basic_block_name}:")
 
         ## create the obj equation 
         self.hw.calculate_objective(log_top_vectors=True)
@@ -752,7 +901,6 @@ class Codesign:
                     self.hw.circuit_model.tech_model.base_params.memory_resource_amdahl_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.memory_resource_amdahl_limit],
                 }
             )
-            self.opt.initialize_max_system_power(sim_util.xreplace_safe((self.hw.total_passive_energy + self.hw.total_active_energy)/self.hw.execution_time, self.hw.circuit_model.tech_model.base_params.tech_values))
 
         """if setup:
             self.max_parallel_initial_objective_value = self.hw.obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf()
@@ -762,6 +910,27 @@ class Codesign:
             self.hw.circuit_model.tech_model.max_area_increase_factor = self.max_dsp / self.cur_dsp_usage
             print(f"max parallelism factor: {self.hw.circuit_model.tech_model.max_speedup_factor}")
             self.hw.circuit_model.tech_model.init_scale_factors(self.hw.circuit_model.tech_model.max_speedup_factor, self.hw.circuit_model.tech_model.max_area_increase_factor)"""
+
+        # Ensure clock period is no less than the longest wire delay
+        max_wire_delay = 0.0
+        for edge in self.hw.circuit_model.edge_to_nets:
+            wire_delay = sim_util.xreplace_safe(
+                self.hw.circuit_model.wire_delay(edge),
+                self.hw.circuit_model.tech_model.base_params.tech_values
+            )
+            max_wire_delay = max(max_wire_delay, wire_delay)
+        
+        if self.clk_period < max_wire_delay:
+            old_clk_period = self.clk_period
+            # Update clock period to be at least as large as the longest wire delay
+            self.hw.circuit_model.tech_model.base_params.tech_values[
+                self.hw.circuit_model.tech_model.base_params.clk_period
+            ] = max_wire_delay
+            self.clk_period = max_wire_delay
+            logger.warning(
+                f"Clock period ({old_clk_period} ns) was less than the longest wire delay "
+                f"({max_wire_delay} ns). Updated clock period to {max_wire_delay} ns."
+            )
 
         self.hw.display_objective("after forward pass")
 
@@ -807,6 +976,14 @@ class Codesign:
             None
         """
 
+        # If the user requested zero wirelength costs, we must not run (or try to reuse) OpenROAD.
+        # In this mode, all wirelength-related quantities are assumed to be 0.
+        if self.cfg["args"].get("zero_wirelength_costs", False):
+            logger.info("zero_wirelength_costs enabled: skipping OpenROAD; assuming all wirelengths/delays/energies are 0.")
+            # Make this explicit so other parts of the flow don't accidentally use stale OpenROAD results.
+            self.hw.circuit_model.edge_to_nets = {}
+            return
+
         # netlist_dfg = self.hw.scheduled_dfg.copy() 
         # netlist_dfg.remove_node("end")
         # self.hw.netlist = netlist_dfg
@@ -846,8 +1023,8 @@ class Codesign:
             for key in self.hw.circuit_model.tech_model.base_params.tech_values:
                 if isinstance(key, str):
                     d[key] = float(self.hw.circuit_model.tech_model.base_params.tech_values[key])
-                else:
-                    d[key.name] = float(self.hw.circuit_model.tech_model.base_params.tech_values[key])
+                elif key in self.hw.circuit_model.tech_model.base_params.names:
+                    d[self.hw.circuit_model.tech_model.base_params.names[key]] = float(self.hw.circuit_model.tech_model.base_params.tech_values[key])
             f.write(yaml.dump(d))
 
     def symbolic_conversion(self):
@@ -911,7 +1088,7 @@ class Codesign:
 
         stdout = sys.stdout
         with open(f"{self.tmp_dir}/ipopt_out.txt", "w") as sys.stdout:
-            lag_factor, error = self.opt.optimize("ipopt", improvement=self.inverse_pass_improvement)
+            lag_factor, error = self.opt.optimize(self.cfg["args"]["solver"], iteration=self.iteration_count, improvement=self.inverse_pass_improvement)
             self.inverse_pass_lag_factor *= lag_factor
         sys.stdout = stdout
 
@@ -919,13 +1096,13 @@ class Codesign:
         
         if self.hls_tool == "vitis":
             # need to update the tech_value for final node arrival time after optimization
-            self.hw.calculate_execution_time_vitis(self.hw.top_block_name)
+            self.hw.calculate_execution_time_vitis(self.hw.top_block_name, clk_period_opt=True)
 
         self.write_back_params()
 
         self.hw.display_objective("after inverse pass")
 
-        self.obj_over_iterations.append(self.hw.obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values))
+        self.obj_over_iterations.append(sim_util.xreplace_safe(self.hw.obj, self.hw.circuit_model.tech_model.base_params.tech_values))
         self.lag_factor_over_iterations.append(self.inverse_pass_lag_factor)
 
     def log_all_to_file(self, iter_number):
@@ -933,7 +1110,7 @@ class Codesign:
         wire_delays={}
         for edge in self.hw.circuit_model.edge_to_nets:
             wire_lengths[edge] = self.hw.circuit_model.wire_length(edge)
-            wire_delays[edge] = self.hw.circuit_model.wire_delay(edge)
+            wire_delays[edge] = sim_util.xreplace_safe(self.hw.circuit_model.wire_delay(edge), self.hw.circuit_model.tech_model.base_params.tech_values)
         self.wire_lengths_over_iterations.append(wire_lengths)
         self.wire_delays_over_iterations.append(wire_delays)
         device_delay = sim_util.xreplace_safe(self.hw.circuit_model.tech_model.delay, self.hw.circuit_model.tech_model.base_params.tech_values)
@@ -997,11 +1174,14 @@ class Codesign:
                     dest_file.write(line)
             os.remove(prev_dat_file)
 
+    def save_last_dsp_count(self, last_dsp_count_path="src/yaml/last_dsp_count.yaml"):
+        with open(last_dsp_count_path, "w") as f:
+            yaml.dump({"last_dsp_count": self.cur_dsp_usage}, f)
+
     def cleanup(self):
         self.restore_dat()
 
     def end_of_run_plots(self, obj_over_iterations, lag_factor_over_iterations, params_over_iterations, wire_lengths_over_iterations, wire_delays_over_iterations, device_delays_over_iterations, sensitivities_over_iterations, constraint_slack_over_iterations, visualize_block_vectors=False):
-        assert len(params_over_iterations) > 1 
         obj = "Energy Delay Product"
         units = "nJ*ns"
         if self.obj_fn == "energy":
@@ -1010,7 +1190,7 @@ class Codesign:
         elif self.obj_fn == "delay":
             obj = "Delay"
             units = "ns"
-        trend_plotter = trend_plot.TrendPlot(self, params_over_iterations, obj_over_iterations, lag_factor_over_iterations, wire_lengths_over_iterations, wire_delays_over_iterations, device_delays_over_iterations, sensitivities_over_iterations, constraint_slack_over_iterations, self.save_dir + "/figs", obj, units, self.obj_fn)
+        trend_plotter = trend_plot.TrendPlot(self, params_over_iterations, self.hw.circuit_model.tech_model.base_params.names, obj_over_iterations, lag_factor_over_iterations, wire_lengths_over_iterations, wire_delays_over_iterations, device_delays_over_iterations, sensitivities_over_iterations, constraint_slack_over_iterations, self.save_dir + "/figs", obj, units, self.obj_fn)
         logger.info(f"plotting wire lengths over generations")
         trend_plotter.plot_wire_lengths_over_generations()
         logger.info(f"plotting wire delays over generations")
@@ -1033,8 +1213,9 @@ class Codesign:
         if not os.path.exists(self.benchmark_setup_dir):
             shutil.copytree(self.benchmark, self.benchmark_setup_dir)
             shutil.copy(os.path.join(self.benchmark, "../..", "arith_ops.c"), os.path.join(self.benchmark_setup_dir, "arith_ops.c"))
-        assert os.path.exists(self.config_json_path_scalehls)
-        shutil.copy(self.config_json_path_scalehls, self.config_json_path)
+        if self.cfg["args"]["arch_opt_pipeline"] == "scalehls":
+            assert os.path.exists(self.config_json_path_scalehls)
+            shutil.copy(self.config_json_path_scalehls, self.config_json_path)
         self.forward_pass(0, save_dir=self.benchmark_setup_dir, setup=True)
 
     def execute(self, num_iters):
@@ -1054,7 +1235,8 @@ class Codesign:
             logger.info(f"time to update state after inverse pass iteration {self.iteration_count}: {time.time()-start_time_after_inverse_pass}")
             logger.info(f"time to execute iteration {self.iteration_count}: {time.time()-start_time}")
             self.iteration_count += 1
-            self.end_of_run_plots(self.obj_over_iterations, self.lag_factor_over_iterations, self.params_over_iterations, self.wire_lengths_over_iterations, self.wire_delays_over_iterations, self.device_delays_over_iterations, self.sensitivities_over_iterations, self.constraint_slack_over_iterations, visualize_block_vectors=False)
+            params_over_iterations_start_ind = 0 if not self.cfg["args"]["fixed_area_increase_pattern"] else 1
+            self.end_of_run_plots(self.obj_over_iterations, self.lag_factor_over_iterations, self.params_over_iterations[params_over_iterations_start_ind:], self.wire_lengths_over_iterations, self.wire_delays_over_iterations, self.device_delays_over_iterations, self.sensitivities_over_iterations, self.constraint_slack_over_iterations, visualize_block_vectors=False)
             logger.info(f"current dsp usage: {self.cur_dsp_usage}, max dsp: {self.max_dsp}")
             if self.cur_dsp_usage == self.max_dsp:
                 logger.info("Resource constraints have been reached, will skip forward pass steps from now on.")
@@ -1076,8 +1258,10 @@ def main(args):
         os.chdir(os.path.join(os.path.dirname(__file__), ".."))
         # dump latest tech params to tmp dir for replayability
         codesign_module.write_back_params(f"{codesign_module.tmp_dir}/tech_params_latest.yaml")
+        codesign_module.save_last_dsp_count(f"{codesign_module.tmp_dir}/last_dsp_count.yaml")
         
-        codesign_module.end_of_run_plots(codesign_module.obj_over_iterations, codesign_module.lag_factor_over_iterations, codesign_module.params_over_iterations, codesign_module.wire_lengths_over_iterations, codesign_module.wire_delays_over_iterations, codesign_module.device_delays_over_iterations, codesign_module.sensitivities_over_iterations, codesign_module.constraint_slack_over_iterations, visualize_block_vectors=True)
+        params_over_iterations_start_ind = 0 if not codesign_module.cfg["args"]["fixed_area_increase_pattern"] else 1
+        codesign_module.end_of_run_plots(codesign_module.obj_over_iterations, codesign_module.lag_factor_over_iterations, codesign_module.params_over_iterations[params_over_iterations_start_ind:], codesign_module.wire_lengths_over_iterations, codesign_module.wire_delays_over_iterations, codesign_module.device_delays_over_iterations, codesign_module.sensitivities_over_iterations, codesign_module.constraint_slack_over_iterations, visualize_block_vectors=True)
         codesign_module.cleanup()
 
 if __name__ == "__main__":
@@ -1142,6 +1326,7 @@ if __name__ == "__main__":
         type=str,
         help="Path to a pre-installed OpenROAD installation. This is primarily useful for CI testing where OpenRoad is pre-installed on the system.",
     )
+    parser.add_argument("--arch_opt_pipeline", type=str, help="architecture optimization pipeline to use")
     parser.add_argument('--debug_no_cacti', type=bool,
                         help='disable cacti in the first iteration to decrease runtime when debugging')
     parser.add_argument("--logic_node", type=int, help="logic node size")
@@ -1159,6 +1344,14 @@ if __name__ == "__main__":
     parser.add_argument("--stop_at_checkpoint", type=str, help="checkpoint step to stop at (will complete this step and then stop)")
     parser.add_argument("--workload_size", type=int, help="workload size to use, such as the dimension of the matrix for gemm. Only applies to certain benchmarks")
     parser.add_argument("--opt_pipeline", type=str, help="optimization pipeline to use for inverse pass")
+    parser.add_argument("--num_dsps", type=str, help="the number of DSPs to use as a constraint for ScaleHLS. Only use this if attempting to only run the FORWARD PASS.")
+    parser.add_argument("--zero_wirelength_costs", type=bool, help="set all wirelength costs to zero (wire_length and wire_energy will return 0)")
+    parser.add_argument("--constant_wire_length_cost", type=int, help="Instead of estimating the wirelength based on physical layout, use a constant cost for every wire in the design.")  
+    parser.add_argument("--min_dsp", type=int, help="minimum DSP usage to start with")
+    parser.add_argument("--max_power_density", type=float, help="maximum power density to allow")
+    parser.add_argument("--max_power", type=float, help="maximum total power to allow")
+    parser.add_argument("--solver", type=str, help="solver to use for inverse pass")
+    parser.add_argument("--fixed_area_increase_pattern", type=bool, help="number of resources increases by some factor for each iteration")
     args = parser.parse_args()
 
     main(args)

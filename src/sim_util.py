@@ -19,13 +19,271 @@ import json
 import pandas as pd
 from pathlib import Path
 
+import warnings
+warnings.filterwarnings("ignore")
+
+# Solver options for GP problems - relaxed tolerances to avoid InsufficientProgress
+# These are passed to the underlying conic solver (e.g., Clarabel, ECOS, SCS)
+GP_SOLVER_OPTS = {
+    'tol_gap_abs': 1e-6,
+    'tol_gap_rel': 1e-6,
+    'tol_feas': 1e-6,
+}
+
+GP_SOLVER_OPTS_RELAXED = {
+    'tol_gap_abs': 1e-3,
+    'tol_gap_rel': 1e-3,
+    'tol_feas': 1e-3,
+}
+
+# Threshold for considering problem poorly conditioned (in orders of magnitude)
+SCALING_CONDITION_THRESHOLD = 6
+
+
+def _compute_scaling_factors(variables):
+    """
+    Compute scaling factors for variables based on their current values.
+    Returns dict mapping variable to scale factor (value to multiply variable by).
+    """
+    scaling = {}
+    for var in variables:
+        if var.value is not None:
+            val = np.asarray(var.value).flatten()
+            val_positive = val[val > 0]
+            if len(val_positive) > 0:
+                # Compute geometric mean as the center point
+                log_center = np.mean(np.log10(val_positive))
+                # Scale factor brings values toward 1
+                scale_factor = 10 ** log_center
+                if scale_factor != 0 and not np.isnan(scale_factor) and not np.isinf(scale_factor):
+                    scaling[var] = scale_factor
+    return scaling
+
+
+def _estimate_condition(variables):
+    """
+    Estimate the condition number of the problem based on variable value spread.
+    Returns the log10 range of all variable values.
+    """
+    all_vals = []
+    for var in variables:
+        if var.value is not None:
+            vals = np.asarray(var.value).flatten()
+            vals_positive = vals[vals > 0]
+            if len(vals_positive) > 0:
+                all_vals.extend(vals_positive.tolist())
+
+    if all_vals:
+        all_vals = np.array(all_vals)
+        if np.min(all_vals) > 0:
+            return np.log10(np.max(all_vals)) - np.log10(np.min(all_vals))
+    return 0
+
+
+def _create_scaled_problem(prob, scaling_factors):
+    """
+    Create a new problem with scaled variables.
+    For GP: if original var x has scale s, we substitute x = s * x_scaled
+    where x_scaled is a new variable expected to be ~1.
+
+    Args:
+        prob: original cvxpy Problem
+        scaling_factors: dict mapping original variables to their scale factors
+
+    Returns:
+        (scaled_prob, scaled_vars, original_vars) tuple
+    """
+    # Create scaled variables
+    scaled_vars = {}
+    for var, scale in scaling_factors.items():
+        if var.ndim == 0:
+            scaled_var = cp.Variable(pos=True, name=f"{var.name()}_scaled")
+        else:
+            scaled_var = cp.Variable(var.shape, pos=True, name=f"{var.name()}_scaled")
+        scaled_vars[var] = scaled_var
+
+    # Build substitution map: original_var -> scale * scaled_var
+    subs_map = {var: scale * scaled_vars[var] for var, scale in scaling_factors.items()}
+
+    # Substitute in objective
+    scaled_obj = _substitute_in_expr(prob.objective.args[0], subs_map)
+    if prob.objective.NAME == 'minimize':
+        new_objective = cp.Minimize(scaled_obj)
+    else:
+        new_objective = cp.Maximize(scaled_obj)
+
+    # Substitute in constraints
+    scaled_constraints = []
+    for constr in prob.constraints:
+        scaled_constr = _substitute_in_constraint(constr, subs_map)
+        scaled_constraints.append(scaled_constr)
+
+    scaled_prob = cp.Problem(new_objective, scaled_constraints)
+    return scaled_prob, scaled_vars, scaling_factors
+
+
+def _substitute_in_expr(expr, subs_map):
+    """
+    Recursively substitute variables in a cvxpy expression.
+    """
+    if isinstance(expr, cp.Variable):
+        return subs_map.get(expr, expr)
+    elif isinstance(expr, cp.Constant):
+        return expr
+    elif hasattr(expr, 'args') and len(expr.args) > 0:
+        new_args = [_substitute_in_expr(arg, subs_map) for arg in expr.args]
+        # Reconstruct the expression with new args
+        return expr.copy(new_args)
+    else:
+        return expr
+
+
+def _substitute_in_constraint(constr, subs_map):
+    """
+    Substitute variables in a constraint.
+    """
+    new_args = [_substitute_in_expr(arg, subs_map) for arg in constr.args]
+    # Reconstruct constraint
+    return constr.copy(new_args)
+
+
+def _unscale_solution(original_vars, scaled_vars, scaling_factors):
+    """
+    Copy scaled solution back to original variables.
+    """
+    for orig_var, scale in scaling_factors.items():
+        scaled_var = scaled_vars[orig_var]
+        if scaled_var.value is not None:
+            orig_var.value = scale * scaled_var.value
+
+
+def solve_gp_with_fallback(prob, solver_opts=None, auto_scale=True):
+    """
+    Solve a GP problem with relaxed tolerances, automatic scaling, and fallback options.
+
+    Args:
+        prob: cvxpy Problem object
+        solver_opts: optional dict of solver options to override defaults
+        auto_scale: if True, automatically scale poorly conditioned problems (default True)
+
+    Returns:
+        The problem value, or None if solve failed
+    """
+    opts = GP_SOLVER_OPTS_RELAXED.copy()
+    if solver_opts:
+        opts.update(solver_opts)
+
+    try:
+        # First attempt: solve with relaxed tolerances
+        #prob.solve(gp=True, **opts)
+        #if prob.status in [cp.OPTIMAL, cp.OPTIMAL_INACCURATE]:
+        #    return prob.value
+
+        # Check if scaling might help
+        if auto_scale:
+            condition = _estimate_condition(prob.variables())
+            if condition > SCALING_CONDITION_THRESHOLD:
+                logger.info(f"Problem poorly conditioned ({condition:.1f} orders of magnitude), attempting scaled solve...")
+
+                # Compute scaling factors from current (possibly partial) solution
+                scaling_factors = _compute_scaling_factors(prob.variables())
+
+                if scaling_factors:
+                    try:
+                        # Create and solve scaled problem
+                        scaled_prob, scaled_vars, _ = _create_scaled_problem(prob, scaling_factors)
+                        logger.info(f"scaled variables: {scaled_vars}")
+                        scaled_prob.solve(gp=True, **opts)
+
+                        if scaled_prob.status in [cp.OPTIMAL, cp.OPTIMAL_INACCURATE]:
+                            # Copy solution back to original variables
+                            _unscale_solution(prob.variables(), scaled_vars, scaling_factors)
+                            logger.info(f"Scaled solve succeeded, status: {scaled_prob.status}")
+                            return scaled_prob.value
+                    except Exception as e:
+                        logger.warning(f"Scaled solve failed: {e}, trying relaxed tolerances...")
+
+    except Exception as e:
+        logger.error(f"GP solve failed: {e}")
+
+    return None
+
+
+def analyze_gp_scaling(prob):
+    """
+    Analyze the scaling of a GP problem by examining variable values and constraint structure.
+    Prints diagnostic information to help identify poorly scaled problems.
+
+    Args:
+        prob: cvxpy Problem object (should be solved or have initial values set)
+
+    Returns:
+        dict with scaling diagnostics
+    """
+    diagnostics = {
+        'var_ranges': {},
+        'var_log_ranges': {},
+        'condition_estimate': None,
+    }
+
+    # Analyze variable values/bounds
+    for var in prob.variables():
+        val = var.value
+        if val is not None:
+            if np.isscalar(val):
+                val = np.array([val])
+            val = np.asarray(val).flatten()
+            val_positive = val[val > 0]
+            if len(val_positive) > 0:
+                min_val, max_val = np.min(val_positive), np.max(val_positive)
+                log_range = np.log10(max_val) - np.log10(min_val) if min_val > 0 else 0
+                diagnostics['var_ranges'][var.name()] = (min_val, max_val)
+                diagnostics['var_log_ranges'][var.name()] = log_range
+                if log_range > 6:
+                    logger.warning(f"Variable {var.name()} has large log-range: {log_range:.1f} orders of magnitude")
+
+    diagnostics['condition_estimate'] = _estimate_condition(prob.variables())
+    if diagnostics['condition_estimate'] and diagnostics['condition_estimate'] > 8:
+        logger.warning(f"Problem appears poorly conditioned: ~{diagnostics['condition_estimate']:.1f} orders of magnitude spread in variables")
+
+    return diagnostics
+
+
+def scale_gp_variables(variables, target_log_center=0):
+    """
+    Compute scaling factors to center variable values around 10^target_log_center.
+    For GP problems, this means computing multiplicative scaling factors.
+
+    Args:
+        variables: list of cvxpy Variables with values set
+        target_log_center: target log10 center for scaled variables (default 0 means ~1)
+
+    Returns:
+        dict mapping variable name to scale_factor
+    """
+    scaling = {}
+    for var in variables:
+        if var.value is not None:
+            val = np.asarray(var.value).flatten()
+            val_positive = val[val > 0]
+            if len(val_positive) > 0:
+                log_center = (np.log10(np.min(val_positive)) + np.log10(np.max(val_positive))) / 2
+                scale_factor = 10 ** (log_center - target_log_center)
+                scaling[var.name()] = scale_factor
+                logger.debug(f"Variable {var.name()}: scale factor = {scale_factor:.2e}")
+    return scaling
+
 def symbolic_convex_max(a, b, evaluate=True):
+    if not isinstance(a, sp.Expr) and not isinstance(b, sp.Expr):
+        return cp.maximum(a, b)
     """
     Max(a, b) in a format which ipopt accepts.
     """
     return 0.5 * (a + b + Abs(a - b, evaluate=evaluate))
 
 def symbolic_min(a, b, evaluate=True):
+    if not isinstance(a, sp.Expr) and not isinstance(b, sp.Expr):
+        return cp.minimum(a, b)
     """
     Min(a, b) in a format which ipopt accepts.
     """
@@ -78,11 +336,14 @@ def deep_merge(dict1, dict2):
 def recursive_cfg_merge(model_cfgs, model_cfg_name):
     base_cfg = model_cfgs[model_cfg_name]["base_cfg"]
     model_cfg = model_cfgs[model_cfg_name]
+    # print(f"Recursively merging config for {model_cfg_name} with base {base_cfg}")
     while True:
+        # print(f"Merging two configs: {model_cfgs[base_cfg], model_cfg}")
         model_cfg = deep_merge(model_cfgs[base_cfg], model_cfg)
         if base_cfg == "default":
             break
         base_cfg = model_cfgs[base_cfg]["base_cfg"]
+    # print(f"Final merged config for {model_cfg_name}: {model_cfg}")
     return model_cfg
 
 def get_module_map():
@@ -138,9 +399,16 @@ def get_latest_log_dir():
     )
     return log_dirs[-1]
 
+def get_latest_log_dir_streamhls(path):
+    log_dirs = glob.glob(os.path.normpath(os.path.join(path, "streamhls_*-*-*_*-*-*.log")))
+    log_dirs = sorted(
+        log_dirs,
+        key=lambda x: datetime.datetime.strptime(x.split("/")[-1][10:29], "%Y-%m-%d_%H-%M-%S"),
+    )
+    return log_dirs[-1]
+
 def change_clk_period_in_script(filename, new_period, hls_tool):
     CATAPULT_PERIOD_POSITION = -1
-    VITIS_PERIOD_POSITION = 2
     new_lines = []
     with open(filename, "r") as f:
         lines = f.readlines()
@@ -151,15 +419,27 @@ def change_clk_period_in_script(filename, new_period, hls_tool):
                     new_line = line.replace(line.split()[CATAPULT_PERIOD_POSITION], str(new_period))
             elif hls_tool == "vitis":
                 if line.find("create_clock") != -1:
-                    new_line = line.replace(line.split()[VITIS_PERIOD_POSITION], str(new_period))
+                    period_pos = line.split().index("-period")
+                    new_line = line.replace(line.split()[period_pos+1], str(new_period))
             else:
                 raise ValueError(f"Invalid hls tool: {hls_tool}")
             new_lines.append(new_line)
     with open(filename, "w") as f:
         f.writelines(new_lines)
 
-# if expr is int or float, running xreplace will cause error. So add this safeguard
+# if expr is int or float, running xreplace will cause error. So add this safeguard. also supports cvxpy expressions.
 def xreplace_safe(expr, replacements):
+    if hasattr(expr, "value"):
+        val = expr.value
+        # Check if value is a numpy array - if so, extract scalar with .item()
+        if isinstance(val, np.ndarray):
+            return float(val.item())
+        # Check if value is a numpy scalar type
+        elif isinstance(val, (np.floating, np.integer)):
+            return float(val)
+        # Otherwise, return as-is (should be Python float/int)
+        else:
+            return val
     if not isinstance(expr, float) and not isinstance(expr, int):
         ret = expr.xreplace(replacements)
         if not isinstance(ret, float) and not isinstance(ret, int):
@@ -186,9 +466,6 @@ def add_area_constraint_to_script(filename, area_constraint):
 def remove_node(G, node):
     for src in G.predecessors(node):
         for dst in G.successors(node):
-            # only keep data dependencies if dealing with dfg
-            if "resource_edge" in G[src][node] and not G[src][node]["resource_edge"]:
-                continue
             G.add_edge(src, dst, weight=G.edges[src, node]["weight"], resource_edge=0)
     G.remove_node(node)
 

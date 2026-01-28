@@ -11,7 +11,7 @@ checkpoint_map = {
     "none": 0,
     "setup": 1,
     "vitis_unlimited": 2,
-    "scalehls": 3,
+    "arch_opt": 3,
     "vitis": 4,
     "netlist": 5,
     "schedule": 6,

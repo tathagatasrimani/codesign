@@ -200,7 +200,7 @@ vs_cfg_latest_capped_parallel:
   base_cfg: vs_cfg_latest_test
   effects:
     max_parallel_en: True
-    max_parallel_val: 1000
+    max_parallel_val: 1.1
 
 vs_cfg_latest_capped_parallel_t_1:
   base_cfg: vs_cfg_latest_capped_parallel
@@ -216,3 +216,25 @@ mvs_general_cfg_test:
 mvs_general_cfg:
   base_cfg: default
   model_type: mvs_general
+
+sweep_cfg:
+  base_cfg: default
+  delay_parasitics: all
+  model_type: sweep
+  sweep_file_prefix: tech_sweep_vs_cfg_latest_20260118_182443_pareto
+
+sweep_brute_force_cfg:
+  base_cfg: default
+  delay_parasitics: all
+  model_type: sweep_brute_force
+  sweep_file_prefix: tech_sweep_vs_cfg_latest_20260118_182443_pareto
+
+sweep_basic_cfg:
+  base_cfg: default
+  delay_parasitics: all
+  model_type: sweep_basic
+  sweep_file_prefix: tech_sweep_mvs_self_consistent_cfg_20260126_225359_pareto
+
+mvs_self_consistent_cfg:
+  base_cfg: default
+  model_type: mvs_self_consistent

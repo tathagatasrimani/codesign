@@ -1,0 +1,35 @@
+vitis_lenet_one_iter:
+  base_cfg: vitis_lenet_test
+  args:
+    num_iters: 1
+
+vitis_mobilenet_one_iter:
+  base_cfg: vitis_mobilenet_test
+  args:
+    num_iters: 1
+
+vitis_doitgen_one_iter:
+  base_cfg: benchmark_doitgen_test
+  args:
+    num_iters: 1
+
+vitis_mvt_one_iter:
+  base_cfg: benchmark_mvt_test
+  args:
+    num_iters: 1
+
+vitis_attention_head_one_iter:
+  base_cfg: vitis_attention_head_test
+  args:
+    num_iters: 1
+
+vitis_sgd_sw_one_iter:
+  base_cfg: vitis_sgd_sw_test
+  args:
+    num_iters: 1
+
+vitis_syr2k_one_iter:
+  base_cfg: vitis_syr2k_test
+  args:
+    num_iters: 1
+    workload_size: 256
