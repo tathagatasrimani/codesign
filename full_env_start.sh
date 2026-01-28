@@ -49,10 +49,6 @@ if [[ $FORCE_FULL -eq 0 ]]; then
         last_epoch=$(date -r "$BUILD_LOG" +%s)
         now_epoch=$(date +%s)
         diff_days=$(( (now_epoch - last_epoch) / 86400 ))
-        if [[ $diff_days -ge 7 ]]; then
-            echo "Last build was $diff_days days ago — forcing full build."
-            FORCE_FULL=1
-        fi
     fi
 fi
 
