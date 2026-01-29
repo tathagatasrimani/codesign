@@ -15,3 +15,6 @@
 [submodule "Stream-HLS"]
 	path = Stream-HLS
 	url = https://github.com/patrickmcewen/Stream-HLS.git
+[submodule "src/hardware_model/tech_models/mvs-transistor-models"]
+	path = src/hardware_model/tech_models/mvs-transistor-models
+	url = https://github.com/vjuricek101/mvs-transistor-models

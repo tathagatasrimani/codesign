@@ -131,6 +131,10 @@ def _worker_evaluate_configuration(args_tuple):
             if hasattr(tech_model.base_params, param_name):
                 param_symbol = getattr(tech_model.base_params, param_name)
                 tech_model.base_params.tech_values[param_symbol] = param_value
+        
+        #logger.info(f"Setting output folder for {tech_model.model_cfg['model_type']}")
+        if hasattr(tech_model, 'set_output_folder'):
+            tech_model.set_output_folder(current_config)
 
         # Re-initialize transistor equations with new parameter values
         tech_model.init_transistor_equations()
@@ -159,13 +163,17 @@ def _worker_evaluate_configuration(args_tuple):
             tol = 1e-25
             slack = sim_util.xreplace_safe(constraint.slack, tech_model.base_params.tech_values)
             if (slack > tol):
-                log_info(f"CONSTRAINT VIOLATED {constraint.label} for config {idx}, slack is {slack}")
+                config_hash_text = ""
+                if hasattr(tech_model, 'config_hash'):
+                    config_hash_text = f"CONFIG HASH: {tech_model.config_hash}"
+                log_info(f"CONSTRAINT VIOLATED {constraint.label} for config {idx}, slack is {slack} ({config_hash_text})")
                 # Constraint violated
                 return (idx, None)
 
         return (idx, result_row)
 
     except Exception as e:
+        logger.error(f"Error evaluating configuration {idx}: {e}")
         return (idx, None)
 
 class SweepTechCodesign:
@@ -725,7 +733,7 @@ def test_sweep_tech_codesign(args):
                         "tox": list(np.logspace(np.log10(1e-9), np.log10(100e-9), 10)),
                         "k_gate": list(np.linspace(3.9, 25, 3)),
                     }
-    elif sweep_tech_codesign.codesign_module.cfg['args']['model_cfg'] == 'mvs_self_consistent_cfg':
+    elif sweep_tech_codesign.codesign_module.cfg['args']['model_cfg'] in ['mvs_self_consistent_cfg', 'mvs_1_spice_cfg']:
         """value_ranges = {"L": list(np.logspace(np.log10(15e-9), np.log10(200e-9), 7)),
                         "W": list(np.logspace(np.log10(15e-9), np.log10(500e-9), 7)),
                         "V_dd": list(np.logspace(np.log10(0.1), np.log10(3), 5)),
@@ -756,7 +764,7 @@ def test_sweep_tech_codesign(args):
                         "V_dd": list(np.logspace(np.log10(0.1), np.log10(3), 5)),
                         "V_th": list(np.logspace(np.log10(0.2), np.log10(1.5), 5)),
                         "tox": list(np.logspace(np.log10(1e-9), np.log10(50e-9), 5)),
-                        "beta_p_n": list(np.logspace(np.log10(2.0), np.log10(2.0), 1)),
+                        "beta_p_n": list(np.linspace(1.0, 2.0, 2)),
                         "mD_fac": list(np.logspace(np.log10(0.5), np.log10(0.5), 1)),
                         "mu_eff_n": list(np.logspace(np.log10(250.0e-4), np.log10(250.0e-4), 1)),
                         "mu_eff_p": list(np.logspace(np.log10(125.0e-4), np.log10(125.0e-4), 1)),
@@ -776,18 +784,18 @@ def test_sweep_tech_codesign(args):
                         "M": list(np.logspace(np.log10(2), np.log10(2), 1)),
                         "a": list(np.logspace(np.log10(0.5), np.log10(0.5), 1)),
                     }
-        """value_ranges = {"L": list(np.logspace(np.log10(15e-9), np.log10(15e-9), 1)),
-                        "W": list(np.logspace(np.log10(500e-9), np.log10(500e-9), 1)),
+        """value_ranges = {"L": list(np.logspace(np.log10(1.5e-8), np.log10(1.5e-8), 1)),
+                        "W": list(np.logspace(np.log10(15e-9), np.log10(15e-9), 1)),
                         "V_dd": list(np.logspace(np.log10(0.1), np.log10(0.1), 1)),
                         "V_th": list(np.logspace(np.log10(1.5), np.log10(1.5), 1)),
-                        "tox": list(np.logspace(np.log10(50e-9), np.log10(50e-9), 1)),
+                        "tox": list(np.logspace(np.log10(5.0e-8), np.log10(5.0e-8), 1)),
                         "beta_p_n": list(np.logspace(np.log10(2.0), np.log10(2.0), 1)),
                         "mD_fac": list(np.logspace(np.log10(0.5), np.log10(0.5), 1)),
                         "mu_eff_n": list(np.logspace(np.log10(250.0e-4), np.log10(250.0e-4), 1)),
                         "mu_eff_p": list(np.logspace(np.log10(125.0e-4), np.log10(125.0e-4), 1)),
                         "k_gate": list(np.logspace(np.log10(3.9), np.log10(3.9), 1)),
                         "eps_semi": list(np.logspace(np.log10(11.7), np.log10(11.7), 1)),
-                        "tsemi": list(np.logspace(np.log10(50e-9), np.log10(50e-9), 1)),
+                        "tsemi": list(np.logspace(np.log10(2.81e-8), np.log10(2.81e-8), 1)),
                         "Lext": list(np.logspace(np.log10(20e-9), np.log10(20e-9), 1)),
                         "Lc": list(np.logspace(np.log10(40e-9), np.log10(40e-9), 1)),
                         "eps_cap": list(np.logspace(np.log10(3.9), np.log10(3.9), 1)),
@@ -801,6 +809,34 @@ def test_sweep_tech_codesign(args):
                         "M": list(np.logspace(np.log10(2), np.log10(2), 1)),
                         "a": list(np.logspace(np.log10(0.5), np.log10(0.5), 1)),
                     }"""
+        """value_ranges = {
+            "L": list(np.logspace(np.log10(30e-9), np.log10(30e-9), 1)),
+            "W": list(np.logspace(np.log10(30e-9), np.log10(30e-9), 1)),
+            "V_dd": list(np.logspace(np.log10(1.0), np.log10(1.0), 1)),
+            "V_th": list(np.logspace(np.log10(0.5), np.log10(0.5), 1)),
+            "tox": list(np.logspace(np.log10(3.0e-9), np.log10(3.0e-9), 1)),
+            "beta_p_n": list(np.logspace(np.log10(1.0), np.log10(1.0), 1)),
+            "mD_fac": list(np.logspace(np.log10(0.5), np.log10(0.5), 1)),
+            "mu_eff_n": list(np.logspace(np.log10(250.0e-4), np.log10(250.0e-4), 1)),
+            "mu_eff_p": list(np.logspace(np.log10(125.0e-4), np.log10(125.0e-4), 1)),
+            "k_gate": list(np.logspace(np.log10(2), np.log10(25), 1)),
+            "eps_semi": list(np.logspace(np.log10(11.7), np.log10(11.7), 1)),
+            "tsemi": list(np.logspace(np.log10(10e-9), np.log10(10e-9), 1)),
+            "Lext": list(np.logspace(np.log10(10e-9), np.log10(10e-9), 1)),
+            "Lc": list(np.logspace(np.log10(20e-9), np.log10(20e-9), 1)),
+            "eps_cap": list(np.logspace(np.log10(3.9), np.log10(3.9), 1)),
+            "rho_c_n": list(np.logspace(np.log10(7e-12), np.log10(7e-12), 1)),
+            "rho_c_p": list(np.logspace(np.log10(7e-12), np.log10(7e-12), 1)),
+            "Rsh_c_n": list(np.logspace(np.log10(9000), np.log10(9000), 1)),
+            "Rsh_c_p": list(np.logspace(np.log10(9000), np.log10(9000), 1)),
+            "Rsh_ext_n": list(np.logspace(np.log10(9000), np.log10(9000), 1)),
+            "Rsh_ext_p": list(np.logspace(np.log10(9000), np.log10(9000), 1)),
+            "FO": list(np.logspace(np.log10(4), np.log10(4), 1)),
+            "M": list(np.logspace(np.log10(2), np.log10(2), 1)),
+            "a": list(np.logspace(np.log10(0.5), np.log10(0.5), 1)),
+        }"""
+    else:
+        raise ValueError(f"Invalid model configuration: {sweep_tech_codesign.codesign_module.cfg['args']['model_cfg']}")
 
 
     params_to_sweep = list(value_ranges.keys())

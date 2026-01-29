@@ -134,7 +134,7 @@ class TechModel(ABC):
             }
         }
 
-        self.wire_len = 20*self.base_params.L
+        self.wire_len = 2*self.base_params.L
 
         self.C_wire = self.wire_parasitics["C"]["metal1"] * self.wire_len
         self.R_wire = self.wire_parasitics["R"]["metal1"] * self.wire_len

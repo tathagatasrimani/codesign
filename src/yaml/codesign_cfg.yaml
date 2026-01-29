@@ -107,3 +107,8 @@ run_sweep_mvs_self_consistent:
   base_cfg: default
   args:
     model_cfg: mvs_self_consistent_cfg
+
+run_sweep_mvs_1_spice:
+  base_cfg: default
+  args:
+    model_cfg: mvs_1_spice_cfg

@@ -238,3 +238,7 @@ sweep_basic_cfg:
 mvs_self_consistent_cfg:
   base_cfg: default
   model_type: mvs_self_consistent
+
+mvs_1_spice_cfg:
+  base_cfg: default
+  model_type: mvs_1_spice
