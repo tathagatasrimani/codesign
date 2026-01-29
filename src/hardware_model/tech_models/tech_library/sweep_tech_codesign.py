@@ -10,7 +10,7 @@ import copy
 import math
 from src import sim_util
 import json
-
+import shutil
 logger = logging.getLogger(__name__)
 
 debug = True
@@ -120,7 +120,7 @@ def _worker_evaluate_configuration(args_tuple):
     Worker function for process pool execution.
     Must be defined at module level to be picklable.
     """
-    idx, param_values, params_to_sweep, tech_model = args_tuple
+    idx, param_values, params_to_sweep, tech_model, worker_id = args_tuple
 
     try:
         # Create a dictionary of current parameter values
@@ -133,8 +133,12 @@ def _worker_evaluate_configuration(args_tuple):
                 tech_model.base_params.tech_values[param_symbol] = param_value
         
         #logger.info(f"Setting output folder for {tech_model.model_cfg['model_type']}")
-        if hasattr(tech_model, 'set_output_folder'):
-            tech_model.set_output_folder(current_config)
+        #if hasattr(tech_model, 'set_output_folder'):
+        #    tech_model.set_output_folder(current_config)
+        if hasattr(tech_model, 'set_output_folder_worker'):
+            tech_model.set_output_folder_worker(worker_id)
+            #shutil.rmtree(tech_model.output_folder, ignore_errors=True)
+
 
         # Re-initialize transistor equations with new parameter values
         tech_model.init_transistor_equations()
@@ -173,7 +177,10 @@ def _worker_evaluate_configuration(args_tuple):
         return (idx, result_row)
 
     except Exception as e:
-        logger.error(f"Error evaluating configuration {idx}: {e}")
+        config_hash_text = ""
+        if hasattr(tech_model, 'config_hash'):
+            config_hash_text = f"CONFIG HASH: {tech_model.config_hash}"
+        logger.error(f"Error evaluating configuration {idx}: {e} ({config_hash_text})")
         return (idx, None)
 
 class SweepTechCodesign:
@@ -348,7 +355,7 @@ class SweepTechCodesign:
 
                 with ProcessPoolExecutor(max_workers=n_processes) as executor:
                     tasks = [
-                        (global_idx, param_values, params_to_sweep, tech_model_pool[(global_idx - 1) % n_processes])
+                        (global_idx, param_values, params_to_sweep, tech_model_pool[(global_idx - 1) % n_processes], (global_idx - 1) % n_processes)
                         for local_idx, param_values in enumerate(current_combinations, 1)
                         for global_idx in [batch_start_idx + local_idx]
                     ]
@@ -815,7 +822,7 @@ def test_sweep_tech_codesign(args):
             "V_dd": list(np.logspace(np.log10(1.0), np.log10(1.0), 1)),
             "V_th": list(np.logspace(np.log10(0.5), np.log10(0.5), 1)),
             "tox": list(np.logspace(np.log10(3.0e-9), np.log10(3.0e-9), 1)),
-            "beta_p_n": list(np.logspace(np.log10(1.0), np.log10(1.0), 1)),
+            "beta_p_n": list(np.logspace(np.log10(1.5), np.log10(1.5), 1)),
             "mD_fac": list(np.logspace(np.log10(0.5), np.log10(0.5), 1)),
             "mu_eff_n": list(np.logspace(np.log10(250.0e-4), np.log10(250.0e-4), 1)),
             "mu_eff_p": list(np.logspace(np.log10(125.0e-4), np.log10(125.0e-4), 1)),

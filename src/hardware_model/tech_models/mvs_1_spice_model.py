@@ -132,6 +132,10 @@ class MVS1SpiceModel(TechModel):
         self.output_folder = os.path.join(os.path.dirname(__file__), "tech_library", "spice_sims", "mvs_1_spice_model", config_hash)
         self.current_config = current_config  # Store for reference
         self.config_hash = config_hash
+    
+    def set_output_folder_worker(self, worker_id):
+        self.output_folder = os.path.join(os.path.dirname(__file__), "tech_library", "spice_sims", "mvs_1_spice_model", str(worker_id))
+        self.config_hash = str(worker_id)
 
     def set_all_params_default(self):
         self.slope_at_crossing = 0
@@ -196,12 +200,12 @@ class MVS1SpiceModel(TechModel):
             self.config_param_db()
             return
         log_info(f"Generating netlists for {self.model_cfg['model_type']}")
-        generate_netlists.generate_single_transistor_netlist(self.mvs1_model_n, self.V_dd, os.path.join(self.output_folder, "single_transistor.scs"))
+        vds_values = generate_netlists.generate_single_transistor_netlist(self.mvs1_model_n, self.V_dd, os.path.join(self.output_folder, "single_transistor.scs"))
         generate_netlists.generate_fo4_inverter_netlist(self.mvs1_model_n, self.mvs1_model_p, self.V_dd, os.path.join(self.output_folder, "fo4_inverter.scs"))
-        num_ro_stages = 31
-        generate_netlists.generate_ring_oscillator_netlist(self.mvs1_model_n, self.mvs1_model_p, self.V_dd, num_ro_stages, os.path.join(self.output_folder, "ring_oscillator.scs"))
+        #num_ro_stages = 31
+        #generate_netlists.generate_ring_oscillator_netlist(self.mvs1_model_n, self.mvs1_model_p, self.V_dd, num_ro_stages, os.path.join(self.output_folder, "ring_oscillator.scs"))
         log_info(f"Analyzing single transistor for {self.model_cfg['model_type']}")
-        single_transistor_results = analyze_transistor.process_transistor_simulation_single(os.path.join(self.output_folder, "single_transistor.scs"), plot=False, plot_file=os.path.join(self.output_folder, "single_transistor.png"))
+        single_transistor_results = analyze_transistor.process_transistor_simulation_single(os.path.join(self.output_folder, "single_transistor.scs"), vds_values, plot=False, plot_file=os.path.join(self.output_folder, "single_transistor.png"))
         log_info(f"Analyzing FO4 inverter for {self.model_cfg['model_type']}")
         fo4_results = analyze_fo4.process_simulation(os.path.join(self.output_folder, "fo4_inverter.scs"), plot=False, plot_file=os.path.join(self.output_folder, "fo4_inverter.png"))
         log_info(f"Analyzing ring oscillator for {self.model_cfg['model_type']}")
