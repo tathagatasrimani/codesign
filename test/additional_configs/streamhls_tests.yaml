@@ -1,0 +1,13 @@
+vitis_gemm_streamhls_test:
+  base_cfg: vitis_test
+  args:
+    benchmark: gemm
+    arch_opt_pipeline: streamhls
+    pytorch: True
+
+vitis_multi_head_self_attention_streamhls_test:
+  base_cfg: vitis_test
+  args:
+    benchmark: MultiHeadSelfAttention
+    arch_opt_pipeline: streamhls
+    pytorch: True

@@ -506,6 +506,11 @@ class Codesign:
                         if self.cur_dsp_usage is None:
                             self.cur_dsp_usage = dsp
             assert latency is not None and dsp is not None, f"No latency or dsp found for {self.benchmark_name} in {log_file}"
+            if dsp <= 0:
+                raise ValueError(
+                    f"StreamHLS reported {dsp} DSPs for {self.benchmark_name}. "
+                    f"Check the StreamHLS log for details: {log_file}"
+                )
             return dsp, latency
 
     def parse_vitis_data(self, save_dir):
@@ -651,6 +656,11 @@ class Codesign:
             self.max_latency = latency
         elif iteration_count == 0:
             self.max_speedup_factor = float(latency / self.max_latency)
+            if dsp_usage <= 0:
+                raise ValueError(
+                    f"Invalid DSP usage ({dsp_usage}) for {self.benchmark_name}. "
+                    "StreamHLS parsing likely failed or reported zero DSPs."
+                )
             self.max_area_increase_factor = float(self.max_dsp / dsp_usage)
         if not setup:
             self.checkpoint_controller.check_end_checkpoint("arch_opt", self.iteration_count)
