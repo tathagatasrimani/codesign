@@ -396,11 +396,7 @@ class Codesign:
             pwd
             source setup-env.sh
             cd examples
-<<<<<<< HEAD
             python run_streamhls.py -b {save_path} -d {save_path} -k {self.benchmark_name} -O 5 --dsps {self.cur_dsp_usage} --timelimit {2} --tilelimit {tilelimit} --tech-config {config_path} --bufferize 1
-=======
-            python run_streamhls.py -b {save_path} -d {save_path} -k {self.benchmark_name} -O 5 --dsps {self.cur_dsp_usage} --timelimit {2} --tilelimit {tilelimit} --bufferize 1
->>>>>>> origin/eric-streamhls-benchmarks
             '''
         ]
 
