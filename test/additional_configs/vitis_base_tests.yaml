@@ -2,41 +2,55 @@ vitis_gemm_test:
   base_cfg: vitis_test
   args:
     benchmark: gemm
+    min_dsp: 100
 
 vitis_gesummv_test:
   base_cfg: vitis_test
   args:
     benchmark: gesummv
+    min_dsp: 100
+
+vitis_gemmv_test:
+  base_cfg: vitis_test
+  args:
+    benchmark: gemmv
+    min_dsp: 50
 
 benchmark_2mm_test:
   base_cfg: vitis_test
   args:
     benchmark: kernel_2mm
+    min_dsp: 100
 
 benchmark_3mm_test:
   base_cfg: vitis_test
   args:
     benchmark: kernel_3mm
+    min_dsp: 100
     
 benchmark_atax_test:
   base_cfg: vitis_test
   args:
     benchmark: kernel_atax
+    min_dsp: 50
 
 benchmark_bicg_test:
   base_cfg: vitis_test
   args:
     benchmark: kernel_bicg
+    min_dsp: 50
 
 benchmark_doitgen_test:
   base_cfg: vitis_test
   args:
     benchmark: kernel_doitgen
+    min_dsp: 50
 
 benchmark_mvt_test:
   base_cfg: vitis_test
   args:
     benchmark: kernel_mvt
+    min_dsp: 50
 
 vitis_gemm_32_test:
   base_cfg: vitis_gemm_test
@@ -58,6 +72,7 @@ vitis_bitnet_test:
   base_cfg: vitis_test
   args:
     benchmark: bitnet
+    min_dsp: 100
 
 vitis_llama_test:
   base_cfg: vitis_test
@@ -101,6 +116,7 @@ vitis_digitrec_sw_test:
   base_cfg: vitis_test
   args:
     benchmark: digitrec_sw
+    min_dsp: 100
 
 vitis_multihead_self_attention_test:
   base_cfg: vitis_test
