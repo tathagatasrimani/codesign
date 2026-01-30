@@ -178,6 +178,9 @@ def _worker_evaluate_configuration(args_tuple):
         return (idx, result_row)
 
     except Exception as e:
+        config_hash_text = ""
+        if hasattr(tech_model, 'config_hash'):
+            config_hash_text = f"CONFIG HASH: {tech_model.config_hash}"
         logger.error(f"Error evaluating worker {worker_id} configuration {idx}: {e} ({config_hash_text})")
         return (idx, None)
 
@@ -343,7 +346,7 @@ class SweepTechCodesign:
         writer = None
         results_buffer = []
         successful_count = 0
-        max_num_jobs_at_once = 10000
+        max_num_jobs_at_once = 100000
         num_iterations = math.ceil(len(all_combinations) / max_num_jobs_at_once)
         total_completed_count = 0
 
@@ -775,7 +778,7 @@ def test_sweep_tech_codesign(args, custom_point=None):
                         "V_dd": list(np.logspace(np.log10(0.1), np.log10(3), 5)),
                         "V_th": list(np.logspace(np.log10(0.2), np.log10(1.5), 5)),
                         "tox": list(np.logspace(np.log10(1e-9), np.log10(50e-9), 5)),
-                        "beta_p_n": list(np.linspace(1.0, 2.0, 2)),
+                        "beta_p_n": list(np.linspace(2.0, 2.0, 1)),
                         "mD_fac": list(np.logspace(np.log10(0.5), np.log10(0.5), 1)),
                         "mu_eff_n": list(np.logspace(np.log10(250.0e-4), np.log10(250.0e-4), 1)),
                         "mu_eff_p": list(np.logspace(np.log10(125.0e-4), np.log10(125.0e-4), 1)),

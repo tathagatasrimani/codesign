@@ -146,6 +146,7 @@ class Codesign:
         self.max_rsc_reached = False
 
         self.config_json_path_scalehls = "ScaleHLS-HIDA/test/Transforms/Directive/config.json"
+        self.config_json_path_streamhls = "Stream-HLS/test/Transforms/Directive/config.json"
         self.config_json_path = self.benchmark_setup_dir + "/config.json"
 
     # any arguments specified on CLI will override the default config
@@ -329,6 +330,33 @@ class Codesign:
         with open(self.config_json_path, "w") as f:
             json.dump(config, f)
 
+    def set_resource_constraint_streamhls(self):
+        """
+        Sets the resource constraint and op latencies for StreamHLS.
+        """
+        with open(self.config_json_path, "r") as f:
+            config = json.load(f)
+
+        config["dsp"] = self.cur_dsp_usage
+        config["bram"] = self.cur_dsp_usage
+
+        # Set operation latencies based on hardware model
+        config["latency"]["fadd"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["Add16"] / self.clk_period)
+        config["latency"]["fsub"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["Sub16"] / self.clk_period)
+        config["latency"]["fmul"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["Mult16"] / self.clk_period)
+        config["latency"]["fdiv"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["FloorDiv16"] / self.clk_period)
+        config["latency"]["fcmp"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["GtE16"] / self.clk_period)
+
+        # Set DSP usage based on hardware model
+        config["dsp_usage"]["fadd"] = math.ceil(self.hw.circuit_model.circuit_values["area"]["Add16"] / (sim_util.xreplace_safe(self.hw.circuit_model.tech_model.param_db["A_gate"], self.hw.circuit_model.tech_model.base_params.tech_values) * self.dsp_multiplier))
+        config["dsp_usage"]["fsub"] = math.ceil(self.hw.circuit_model.circuit_values["area"]["Sub16"] / (sim_util.xreplace_safe(self.hw.circuit_model.tech_model.param_db["A_gate"], self.hw.circuit_model.tech_model.base_params.tech_values) * self.dsp_multiplier))
+        config["dsp_usage"]["fmul"] = math.ceil(self.hw.circuit_model.circuit_values["area"]["Mult16"] / (sim_util.xreplace_safe(self.hw.circuit_model.tech_model.param_db["A_gate"], self.hw.circuit_model.tech_model.base_params.tech_values) * self.dsp_multiplier))
+        config["dsp_usage"]["fdiv"] = math.ceil(self.hw.circuit_model.circuit_values["area"]["FloorDiv16"] / (sim_util.xreplace_safe(self.hw.circuit_model.tech_model.param_db["A_gate"], self.hw.circuit_model.tech_model.base_params.tech_values) * self.dsp_multiplier))
+        config["dsp_usage"]["fcmp"] = math.ceil(self.hw.circuit_model.circuit_values["area"]["GtE16"] / (sim_util.xreplace_safe(self.hw.circuit_model.tech_model.param_db["A_gate"], self.hw.circuit_model.tech_model.base_params.tech_values) * self.dsp_multiplier))
+
+        with open(self.config_json_path, "w") as f:
+            json.dump(config, f)
+
     def run_streamhls(self, save_dir, setup=False, iteration_count=0):
         """
         Runs StreamHLS synthesis tool in a different environment with modified PATH and PYTHONPATH.
@@ -355,7 +383,10 @@ class Codesign:
             self.cur_dsp_usage = 10000
             tilelimit = 1
 
+        self.set_resource_constraint_streamhls()
+
         save_path = os.path.join(os.path.dirname(__file__), "..", save_dir)
+        config_path = os.path.join(cwd, self.config_json_path)
         cmd = [
             'bash', '-c',
             f'''
@@ -365,7 +396,7 @@ class Codesign:
             pwd
             source setup-env.sh
             cd examples
-            python run_streamhls.py -b {save_path} -d {save_path} -k {self.benchmark_name} -O 5 --dsps {self.cur_dsp_usage} --timelimit {2} --tilelimit {tilelimit}
+            python run_streamhls.py -b {save_path} -d {save_path} -k {self.benchmark_name} -O 5 --dsps {self.cur_dsp_usage} --timelimit {2} --tilelimit {tilelimit} --tech-config {config_path}
             '''
         ]
 
@@ -1216,6 +1247,9 @@ class Codesign:
         if self.cfg["args"]["arch_opt_pipeline"] == "scalehls":
             assert os.path.exists(self.config_json_path_scalehls)
             shutil.copy(self.config_json_path_scalehls, self.config_json_path)
+        elif self.cfg["args"]["arch_opt_pipeline"] == "streamhls":
+            assert os.path.exists(self.config_json_path_streamhls)
+            shutil.copy(self.config_json_path_streamhls, self.config_json_path)
         self.forward_pass(0, save_dir=self.benchmark_setup_dir, setup=True)
 
     def execute(self, num_iters):

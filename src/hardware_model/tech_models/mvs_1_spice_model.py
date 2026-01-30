@@ -420,10 +420,10 @@ class MVS1SpiceModel(TechModel):
         super().apply_additional_effects()
 
     def create_constraints(self, dennard_scaling_type="constant_field"):
-        eps = 1e-6
+        noise_margin_min = 0.04 # V
         self.constraints = [
             Constraint(sp.Le(self.slope_at_crossing, -1.0, evaluate=False), label="slope_at_crossing"),
-            Constraint(sp.Ge(self.noise_margin, eps, evaluate=False), label="noise_margin_positive"),
+            Constraint(sp.Ge(self.noise_margin, noise_margin_min, evaluate=False), label="noise_margin_positive"),
             Constraint(sp.Ge(self.Ieff, self.I_off, evaluate=False), label="Ieff_greater_than_Ioff"),
         ]
         #super().create_constraints(dennard_scaling_type)
