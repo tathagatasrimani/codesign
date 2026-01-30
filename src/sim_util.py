@@ -400,7 +400,12 @@ def get_latest_log_dir():
     return log_dirs[-1]
 
 def get_latest_log_dir_streamhls(path):
+    streamhls_out_log = os.path.join(path, "streamhls_out.log")
+    if os.path.exists(streamhls_out_log):
+        return streamhls_out_log
     log_dirs = glob.glob(os.path.normpath(os.path.join(path, "streamhls_*-*-*_*-*-*.log")))
+    if not log_dirs:
+        return None
     log_dirs = sorted(
         log_dirs,
         key=lambda x: datetime.datetime.strptime(x.split("/")[-1][10:29], "%Y-%m-%d_%H-%M-%S"),

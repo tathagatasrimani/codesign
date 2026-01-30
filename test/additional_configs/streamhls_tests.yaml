@@ -1,0 +1,26 @@
+vitis_gemm_streamhls_test:
+  base_cfg: vitis_test
+  args:
+    benchmark: gemm
+    arch_opt_pipeline: streamhls
+    pytorch: True
+
+vitis_multi_head_self_attention_streamhls_test:
+  base_cfg: vitis_test
+  args:
+    benchmark: MultiHeadSelfAttention
+    pytorch: True
+    min_dsp: 40
+    fixed_area_increase_pattern: True
+    solver: basic
+    arch_opt_pipeline: streamhls
+
+vitis_inference_streamhls_test:
+  base_cfg: vitis_test
+  args:
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 7680
+    benchmark: Inference
+    arch_opt_pipeline: streamhls
+    pytorch: True
