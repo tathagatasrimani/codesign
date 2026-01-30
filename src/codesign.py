@@ -346,6 +346,7 @@ class Codesign:
         config["latency"]["fmul"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["Mult16"] / self.clk_period)
         config["latency"]["fdiv"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["FloorDiv16"] / self.clk_period)
         config["latency"]["fcmp"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["GtE16"] / self.clk_period)
+        config["latency"]["fexp"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["Exp16"] / self.clk_period)
 
         # Set DSP usage based on hardware model
         config["dsp_usage"]["fadd"] = math.ceil(self.hw.circuit_model.circuit_values["area"]["Add16"] / (sim_util.xreplace_safe(self.hw.circuit_model.tech_model.param_db["A_gate"], self.hw.circuit_model.tech_model.base_params.tech_values) * self.dsp_multiplier))
@@ -353,6 +354,7 @@ class Codesign:
         config["dsp_usage"]["fmul"] = math.ceil(self.hw.circuit_model.circuit_values["area"]["Mult16"] / (sim_util.xreplace_safe(self.hw.circuit_model.tech_model.param_db["A_gate"], self.hw.circuit_model.tech_model.base_params.tech_values) * self.dsp_multiplier))
         config["dsp_usage"]["fdiv"] = math.ceil(self.hw.circuit_model.circuit_values["area"]["FloorDiv16"] / (sim_util.xreplace_safe(self.hw.circuit_model.tech_model.param_db["A_gate"], self.hw.circuit_model.tech_model.base_params.tech_values) * self.dsp_multiplier))
         config["dsp_usage"]["fcmp"] = math.ceil(self.hw.circuit_model.circuit_values["area"]["GtE16"] / (sim_util.xreplace_safe(self.hw.circuit_model.tech_model.param_db["A_gate"], self.hw.circuit_model.tech_model.base_params.tech_values) * self.dsp_multiplier))
+        config["dsp_usage"]["fexp"] = math.ceil(self.hw.circuit_model.circuit_values["area"]["Exp16"] / (sim_util.xreplace_safe(self.hw.circuit_model.tech_model.param_db["A_gate"], self.hw.circuit_model.tech_model.base_params.tech_values) * self.dsp_multiplier))
 
         with open(self.config_json_path, "w") as f:
             json.dump(config, f)
