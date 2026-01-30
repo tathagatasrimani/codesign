@@ -4,7 +4,7 @@ vitis_test_sweep:
     benchmark: gemm
     arch_opt_pipeline: streamhls
     pytorch: True  
-    min_dsp: 13
+    min_dsp: 5
     model_cfg: sweep_cfg
     solver: cvxpy
     opt_pipeline: fit
@@ -45,3 +45,8 @@ run_sweep_mvs_self_consistent:
   base_cfg: default
   args:
     model_cfg: mvs_self_consistent_cfg
+
+run_sweep_mvs_1_spice:
+  base_cfg: default
+  args:
+    model_cfg: mvs_1_spice_cfg
