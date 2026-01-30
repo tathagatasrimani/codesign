@@ -365,7 +365,7 @@ class Codesign:
             pwd
             source setup-env.sh
             cd examples
-            python run_streamhls.py -b {save_path} -d {save_path} -k {self.benchmark_name} -O 5 --dsps {self.cur_dsp_usage} --timelimit {2} --tilelimit {tilelimit}
+            python run_streamhls.py -b {save_path} -d {save_path} -k {self.benchmark_name} -O 5 --dsps {self.cur_dsp_usage} --timelimit {2} --tilelimit {tilelimit} --bufferize 1
             '''
         ]
 
@@ -493,22 +493,36 @@ class Codesign:
             logger.info(f"dsp usage: {df['dsp'].values[mlir_idx]}, latency: {df['cycle'].values[mlir_idx]}")
             return df['dsp'].values[mlir_idx], df['cycle'].values[mlir_idx]
         elif self.cfg["args"]["arch_opt_pipeline"] == "streamhls":
-            log_file = sim_util.get_latest_log_dir_streamhls(os.path.join(save_dir, self.benchmark_name))
+            log_file = sim_util.get_latest_log_dir_streamhls(save_dir)
+            if log_file is None:
+                log_file = sim_util.get_latest_log_dir_streamhls(os.path.join(save_dir, self.benchmark_name))
             assert log_file is not None, f"No log file found for {self.benchmark_name} in {save_dir}"
             latency, dsp = None, None
+            last_nonzero_latency, last_nonzero_dsp = None, None
+            crash_line = None
             with open(log_file, "r") as f:
                 lines = f.readlines()
                 for line in lines:
                     if "Combined Latency:" in line:
                         latency = float(line.split("Combined Latency:")[1].strip())
+                        if latency > 0:
+                            last_nonzero_latency = latency
                     if "Total DSPs:" in line:
                         dsp = int(line.split("Total DSPs:")[1].strip())
+                        if dsp > 0:
+                            last_nonzero_dsp = dsp
                         if self.cur_dsp_usage is None:
                             self.cur_dsp_usage = dsp
+                    if crash_line is None and ("Assertion" in line or "Aborted" in line or "core dumped" in line):
+                        crash_line = line.strip()
             assert latency is not None and dsp is not None, f"No latency or dsp found for {self.benchmark_name} in {log_file}"
+            if (latency == 0 or dsp == 0) and (last_nonzero_latency is not None or last_nonzero_dsp is not None):
+                latency = last_nonzero_latency if last_nonzero_latency is not None else latency
+                dsp = last_nonzero_dsp if last_nonzero_dsp is not None else dsp
             if dsp <= 0:
                 raise ValueError(
                     f"StreamHLS reported {dsp} DSPs for {self.benchmark_name}. "
+                    f"{'StreamHLS crashed: ' + crash_line + '. ' if crash_line else ''}"
                     f"Check the StreamHLS log for details: {log_file}"
                 )
             return dsp, latency
