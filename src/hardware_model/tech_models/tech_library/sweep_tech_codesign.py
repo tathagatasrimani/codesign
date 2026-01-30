@@ -120,7 +120,10 @@ def _worker_evaluate_configuration(args_tuple):
     Worker function for process pool execution.
     Must be defined at module level to be picklable.
     """
-    idx, param_values, params_to_sweep, tech_model, worker_id = args_tuple
+    idx, param_values, params_to_sweep, tech_model = args_tuple
+
+    # Use actual process ID to guarantee unique output folders per worker process
+    worker_id = os.getpid()
 
     try:
         # Create a dictionary of current parameter values
@@ -131,13 +134,10 @@ def _worker_evaluate_configuration(args_tuple):
             if hasattr(tech_model.base_params, param_name):
                 param_symbol = getattr(tech_model.base_params, param_name)
                 tech_model.base_params.tech_values[param_symbol] = param_value
-        
-        #logger.info(f"Setting output folder for {tech_model.model_cfg['model_type']}")
-        #if hasattr(tech_model, 'set_output_folder'):
-        #    tech_model.set_output_folder(current_config)
+
+        # Set output folder based on process ID to avoid conflicts between workers
         if hasattr(tech_model, 'set_output_folder_worker'):
             tech_model.set_output_folder_worker(worker_id)
-            #shutil.rmtree(tech_model.output_folder, ignore_errors=True)
 
 
         # Re-initialize transistor equations with new parameter values
@@ -163,24 +163,22 @@ def _worker_evaluate_configuration(args_tuple):
 
         # Validate all constraints
         constraints_to_eval = tech_model.constraints + tech_model.sweep_constraints
+        config_hash_text = ""
+        if hasattr(tech_model, 'config_hash'):
+            config_hash_text = f"CONFIG HASH: {tech_model.config_hash}"
         for constraint in constraints_to_eval:
             tol = 1e-25
             slack = sim_util.xreplace_safe(constraint.slack, tech_model.base_params.tech_values)
             if (slack > tol):
-                config_hash_text = ""
-                if hasattr(tech_model, 'config_hash'):
-                    config_hash_text = f"CONFIG HASH: {tech_model.config_hash}"
-                log_info(f"CONSTRAINT VIOLATED {constraint.label} for config {idx}, slack is {slack} ({config_hash_text})")
+                log_info(f"CONSTRAINT VIOLATED {constraint.label} for worker {worker_id} config {idx}, slack is {slack} ({config_hash_text}): {current_config}")
                 # Constraint violated
                 return (idx, None)
+        log_info(f"ALL CONSTRAINTS SATISFIED for worker {worker_id} config {idx}, ({config_hash_text}): {current_config}")
 
         return (idx, result_row)
 
     except Exception as e:
-        config_hash_text = ""
-        if hasattr(tech_model, 'config_hash'):
-            config_hash_text = f"CONFIG HASH: {tech_model.config_hash}"
-        logger.error(f"Error evaluating configuration {idx}: {e} ({config_hash_text})")
+        logger.error(f"Error evaluating worker {worker_id} configuration {idx}: {e} ({config_hash_text})")
         return (idx, None)
 
 class SweepTechCodesign:
@@ -226,13 +224,17 @@ class SweepTechCodesign:
             logger.error("No parameters specified for sweeping")
             return None
 
+        actual_params_to_sweep = []
+
         for param in params_to_sweep:
+            actual_params_to_sweep.append(param)
             if param not in value_ranges:
                 logger.error(f"Parameter '{param}' not found in value_ranges")
                 return None
             if not value_ranges[param]:
+                actual_params_to_sweep.pop()
                 logger.error(f"No values provided for parameter '{param}'")
-                return None
+                #return None
 
         # Create output directory if it doesn't exist
         os.makedirs(output_dir, exist_ok=True)
@@ -355,7 +357,7 @@ class SweepTechCodesign:
 
                 with ProcessPoolExecutor(max_workers=n_processes) as executor:
                     tasks = [
-                        (global_idx, param_values, params_to_sweep, tech_model_pool[(global_idx - 1) % n_processes], (global_idx - 1) % n_processes)
+                        (global_idx, param_values, params_to_sweep, tech_model_pool[(global_idx - 1) % n_processes])
                         for local_idx, param_values in enumerate(current_combinations, 1)
                         for global_idx in [batch_start_idx + local_idx]
                     ]
@@ -704,9 +706,11 @@ class SweepTechCodesign:
 
         return fig
 
-def test_sweep_tech_codesign(args):
+def test_sweep_tech_codesign(args, custom_point=None):
     sweep_tech_codesign = SweepTechCodesign(args)
-    if sweep_tech_codesign.codesign_module.cfg['args']['model_cfg'] == 'mvs_general_cfg':
+    if custom_point is not None:
+        value_ranges = custom_point
+    elif sweep_tech_codesign.codesign_module.cfg['args']['model_cfg'] == 'mvs_general_cfg':
         value_ranges = {"L": list(np.linspace(15e-9, 200e-9, 4)),
                         "W": list(np.linspace(15e-9, 1e-8, 4)),
                         "V_dd": list(np.linspace(0.7, 1.8, 4)),
@@ -1153,10 +1157,20 @@ if __name__ == "__main__":
         default=False,
         help="just fit the pareto surface, don't run the sweep"
     )
+    parser.add_argument(
+        "--custom_point",
+        type=int,
+        help="custom point to test"
+    )
     args = parser.parse_args()
     if args.just_prune:
         just_prune_design_space(args, args.filename)
     elif args.just_fit:
         just_fit_pareto_surface(args, args.filename)
+    elif args.custom_point is not None:
+        import pandas as pd
+        df = pd.read_csv(args.filename)
+        custom_point = {col: [df.iloc[args.custom_point][col]] for col in df.columns}
+        test_sweep_tech_codesign(args, custom_point)
     else:
         test_sweep_tech_codesign(args)
