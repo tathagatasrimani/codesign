@@ -78,6 +78,7 @@ vitis_llama_test:
   base_cfg: vitis_test
   args:
     benchmark: llama
+    min_dsp: 50
     always_run_openroad: True # have seen a bug with reusing previous openroad result here, so just rerun
 
 vitis_attention_head_test:
@@ -106,11 +107,13 @@ vitis_sgd_sw_test:
   base_cfg: vitis_test
   args:
     benchmark: sgd_sw
+    min_dsp: 100
 
 vitis_syr2k_test:
   base_cfg: vitis_test
   args:
     benchmark: syr2k
+    min_dsp: 50 # not an optimized choice
 
 vitis_digitrec_sw_test:
   base_cfg: vitis_test
@@ -124,6 +127,7 @@ vitis_multihead_self_attention_test:
     benchmark: MultiHeadSelfAttention
     arch_opt_pipeline: streamhls
     pytorch: True
+    min_dsp: 100
 
 
 # Stream HLS tests
