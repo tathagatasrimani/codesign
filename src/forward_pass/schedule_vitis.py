@@ -377,7 +377,8 @@ class DataFlowGraph:
             for src in instruction["src"]:
                 if src not in self.arguments_to_call_functions:
                     self.arguments_to_call_functions[src] = []
-                self.arguments_to_call_functions[src].append(call_fn)
+                if call_fn != "N/A":
+                    self.arguments_to_call_functions[src].append(call_fn)
             self.G.add_node(op_name, node_type=instruction["type"], function=fn_out, function_out=fn_out, rsc=rsc_name, core_inst=instruction["core_inst"], core_id=core_id, rsc_name_unique=rsc_name_unique, call_function=call_fn, original_name=instruction["op"])
             self.track_resource_usage(op_name)
             for src in instruction["src"]:
