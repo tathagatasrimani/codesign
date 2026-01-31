@@ -91,6 +91,7 @@ vitis_lenet_test:
   args:
     benchmark: lenet
     pytorch: True
+    min_dsp: 50 # not an optimized choice
 
 vitis_mobilenet_test:
   base_cfg: vitis_test
@@ -98,10 +99,18 @@ vitis_mobilenet_test:
     benchmark: mobilenet
     pytorch: True
 
+vitis_vgg16_test:
+  base_cfg: vitis_test
+  args:
+    benchmark: vgg16
+    pytorch: True
+    min_dsp: 100
+
 vitis_backprop_test:
   base_cfg: vitis_test
   args:
     benchmark: backprop
+    min_dsp: 50 # not an optimized choice
 
 vitis_sgd_sw_test:
   base_cfg: vitis_test
