@@ -151,7 +151,8 @@ vitis_streamhls_lenet_test:
     benchmark: lenet
     pytorch: True
     arch_opt_pipeline: streamhls
-    min_dsp: 50 # not an optimized choice
+    min_dsp: 100000 # not an optimized choice
+    streamhls_opt_level: 4
 
 vitis_streamhls_llama_test:
   base_cfg: vitis_test

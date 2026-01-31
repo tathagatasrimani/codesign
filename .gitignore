@@ -57,3 +57,4 @@ setup_scripts/university_name.txt
 !scalehls_test/**.log
 ######
 block_graph.gml
+src/yaml/params_current.yaml

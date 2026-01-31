@@ -31,7 +31,10 @@ class lenet(nn.Module):
         return out
 
 
-module = torch_mlir.compile(lenet(), torch.ones(
-    1, 3, 32, 32), output_type=torch_mlir.OutputType.LINALG_ON_TENSORS)
-
-print(module)
+if __name__ == "__main__":
+    module = torch_mlir.compile(
+        lenet(),
+        torch.ones(1, 3, 32, 32),
+        output_type=torch_mlir.OutputType.LINALG_ON_TENSORS,
+    )
+    print(module)

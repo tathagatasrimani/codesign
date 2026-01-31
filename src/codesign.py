@@ -356,6 +356,7 @@ class Codesign:
             tilelimit = 1
 
         save_path = os.path.join(os.path.dirname(__file__), "..", save_dir)
+        streamhls_opt_level = int(self.cfg["args"].get("streamhls_opt_level", 5))
         cmd = [
             'bash', '-c',
             f'''
@@ -365,7 +366,7 @@ class Codesign:
             pwd
             source setup-env.sh
             cd examples
-            python run_streamhls.py -b {save_path} -d {save_path} -k {self.benchmark_name} -O 5 --dsps {self.cur_dsp_usage} --timelimit {2} --tilelimit {tilelimit} --bufferize 1
+            python run_streamhls.py -b {save_path} -d {save_path} -k {self.benchmark_name} -O {streamhls_opt_level} --dsps {self.cur_dsp_usage} --timelimit {2} --tilelimit {tilelimit} --bufferize 1
             '''
         ]
 
@@ -499,14 +500,25 @@ class Codesign:
             assert log_file is not None, f"No log file found for {self.benchmark_name} in {save_dir}"
             latency, dsp = None, None
             last_nonzero_latency, last_nonzero_dsp = None, None
+            combined_latency = None
+            parallel_latency = None
+            perm_latency = None
             crash_line = None
             with open(log_file, "r") as f:
                 lines = f.readlines()
                 for line in lines:
                     if "Combined Latency:" in line:
-                        latency = float(line.split("Combined Latency:")[1].strip())
-                        if latency > 0:
-                            last_nonzero_latency = latency
+                        combined_latency = float(line.split("Combined Latency:")[1].strip())
+                        if combined_latency > 0:
+                            last_nonzero_latency = combined_latency
+                    if "Parallel Latency:" in line:
+                        parallel_latency = float(line.split("Parallel Latency:")[1].strip())
+                        if parallel_latency > 0:
+                            last_nonzero_latency = parallel_latency
+                    if "Permutation solver: latency:" in line:
+                        perm_latency = float(line.split("Permutation solver: latency:")[1].strip())
+                        if perm_latency > 0:
+                            last_nonzero_latency = perm_latency
                     if "Total DSPs:" in line:
                         dsp = int(line.split("Total DSPs:")[1].strip())
                         if dsp > 0:
@@ -515,6 +527,12 @@ class Codesign:
                             self.cur_dsp_usage = dsp
                     if crash_line is None and ("Assertion" in line or "Aborted" in line or "core dumped" in line):
                         crash_line = line.strip()
+            if combined_latency is not None:
+                latency = combined_latency
+            elif parallel_latency is not None:
+                latency = parallel_latency
+            elif perm_latency is not None:
+                latency = perm_latency
             assert latency is not None and dsp is not None, f"No latency or dsp found for {self.benchmark_name} in {log_file}"
             if (latency == 0 or dsp == 0) and (last_nonzero_latency is not None or last_nonzero_dsp is not None):
                 latency = last_nonzero_latency if last_nonzero_latency is not None else latency
@@ -1351,6 +1369,7 @@ if __name__ == "__main__":
         help="Path to a pre-installed OpenROAD installation. This is primarily useful for CI testing where OpenRoad is pre-installed on the system.",
     )
     parser.add_argument("--arch_opt_pipeline", type=str, help="architecture optimization pipeline to use")
+    parser.add_argument("--streamhls_opt_level", type=str, help="StreamHLS optimization level to use")
     parser.add_argument('--debug_no_cacti', type=bool,
                         help='disable cacti in the first iteration to decrease runtime when debugging')
     parser.add_argument("--logic_node", type=int, help="logic node size")
