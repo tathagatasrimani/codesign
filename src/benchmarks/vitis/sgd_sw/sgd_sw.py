@@ -18,24 +18,17 @@ class sgd_sw(torch.nn.Module):
         # data is NUM_FEATURES * NUM_TRAINING flattened
         data_2d = data.view(self.num_training, self.num_features)
         
-        # Main loop over epochs
+        # Main loop over epochs (batch gradient descent)
         for epoch in range(self.num_epochs):
-            # Loop over each training instance
-            for training_id in range(self.num_training):
-                # Get current data sample
-                data_sample = data_2d[training_id]  # shape: [NUM_FEATURES]
-                
-                # Dot product between theta and data sample
-                dot = torch.dot(theta, data_sample)
-                
-                # Sigmoid: prob = 1.0 / (1.0 + exp(-dot))
-                prob = torch.sigmoid(dot)
-                
-                # Compute gradient: (prob - label) * data_sample
-                error = prob - label[training_id]
-                gradient = error * data_sample
-                
-                # Update theta: theta -= step_size * gradient
-                theta = theta - self.step_size * gradient
+            # Vectorized forward pass for all training samples
+            logits = torch.sum(data_2d * theta, dim=1)
+            prob = torch.sigmoid(logits)
+
+            # Compute gradient across all samples
+            error = prob - label
+            gradient = torch.sum(error.unsqueeze(1) * data_2d, dim=0)
+
+            # Update theta: theta -= step_size * gradient
+            theta = theta - self.step_size * gradient
         
         return theta
