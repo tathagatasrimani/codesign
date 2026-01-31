@@ -151,8 +151,8 @@ vitis_streamhls_lenet_test:
     benchmark: lenet
     pytorch: True
     arch_opt_pipeline: streamhls
-    min_dsp: 100000 # not an optimized choice
-    streamhls_opt_level: 4
+    min_dsp: 100 
+    streamhls_opt_level: 4 ## disable top level optimization to avoid tool crash
 
 vitis_streamhls_llama_test:
   base_cfg: vitis_test
