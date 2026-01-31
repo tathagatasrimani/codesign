@@ -49,6 +49,9 @@ class InstallGUI:
         self.safety_padding_lines = 3
         self.redraw_passes = 2
         
+        # Timer for GUI display
+        self.gui_start_time = None
+        
         # Thread-safe locks
         self.lock = threading.Lock()
         
@@ -58,6 +61,16 @@ class InstallGUI:
         if match:
             return match.group(1).strip()
         return None
+    
+    def get_elapsed_time_str(self):
+        """Get formatted elapsed time string."""
+        if self.gui_start_time is None:
+            return "00:00:00"
+        elapsed = int(time.time() - self.gui_start_time)
+        hours = elapsed // 3600
+        minutes = (elapsed % 3600) // 60
+        seconds = elapsed % 60
+        return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
     
     def init_display(self):
         """Initialize the display - clear screen and print header once."""
@@ -70,6 +83,7 @@ class InstallGUI:
         sys.stdout.write(f"{CYAN}{'═' * 63}{NC}\n")
         sys.stdout.write("\n")
         sys.stdout.write(f"{YELLOW}⠋{NC} Initializing...\n")
+        sys.stdout.write(f"{CYAN}Elapsed Time: 00:00:00{NC}\n")
         sys.stdout.write("\n")
         sys.stdout.write(f"{CYAN}Recent Output:{NC}\n")
         sys.stdout.write(f"{CYAN}{'─' * 63}{NC}\n")
@@ -108,6 +122,8 @@ class InstallGUI:
             sys.stdout.write(f"{CYAN}{'═' * 63}{NC}\n")
             sys.stdout.write("\n")
             sys.stdout.write(f"{YELLOW}{throbber}{NC} {step}\n")
+            elapsed_str = self.get_elapsed_time_str()
+            sys.stdout.write(f"{CYAN}Elapsed Time: {elapsed_str}{NC}\n")
             sys.stdout.write("\n")
             sys.stdout.write(f"{CYAN}Recent Output:{NC}\n")
             sys.stdout.write(f"{CYAN}{'─' * 63}{NC}\n")
@@ -158,6 +174,7 @@ class InstallGUI:
                         # Check if we've seen the trigger line
                         if trigger_line in line:
                             self.gui_started = True
+                            self.gui_start_time = time.time()
                             # Clear screen and start GUI
                             os.system('clear' if os.name != 'nt' else 'cls')
                             self.init_display()

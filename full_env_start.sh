@@ -62,6 +62,7 @@ if [[ $SKIP_OPENROAD -eq 1 ]] || [[ "${GITHUB_ACTIONS:-}" == "true" && "${OPENRO
     echo "We likely will not need SUDO permissions for this build."
 else
     # Prompt for AMPL license UUID (using /dev/tty to work with gui_install.py)
+    sleep 0.25
     echo "Enter AMPL license UUID (press Enter to skip): " > /dev/tty
     read AMPL_LICENSE_UUID </dev/tty
     
