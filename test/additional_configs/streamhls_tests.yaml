@@ -162,6 +162,7 @@ vitis_streamhls_llama_test:
     always_run_openroad: True # have seen a bug with reusing previous openroad result here, so just rerun
     arch_opt_pipeline: streamhls
     pytorch: True
+    streamhls_opt_level: 1 ## disable optimization passes to avoid tool crash
 
 vitis_streamhls_mobilenet_test:
   base_cfg: vitis_test

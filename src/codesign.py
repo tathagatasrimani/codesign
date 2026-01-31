@@ -370,7 +370,8 @@ class Codesign:
             '''
         ]
 
-        with open(f"{save_path}/streamhls_out.log", "w") as outfile:
+        log_path = f"{save_path}/streamhls_out.log"
+        with open(log_path, "w") as outfile:
             p = subprocess.Popen(
                 cmd,
                 stdout=outfile,
@@ -378,11 +379,23 @@ class Codesign:
                 env={}  # clean environment
             )
             p.wait()
-        with open(f"{save_path}/streamhls_out.log", "r") as f:
+        with open(log_path, "r") as f:
             logger.info(f"StreamHLS output:\n{f.read()}")
 
         if p.returncode != 0:
-            raise Exception(f"StreamHLS failed with error: {p.stderr}")
+            tail = ""
+            try:
+                with open(log_path, "r") as f:
+                    lines = f.readlines()
+                tail = "".join(lines[-50:])
+            except Exception:
+                tail = "(unable to read streamhls_out.log)"
+            raise Exception(
+                "StreamHLS failed. "
+                f"Return code: {p.returncode}. "
+                f"Log: {log_path}\n"
+                f"Last lines:\n{tail}"
+            )
         logger.info(f"time to run StreamHLS: {time.time()-start_time}")
         shutil.copy(f"{save_path}/{self.benchmark_name}/hls/src/{self.benchmark_name}.cpp", f"{save_path}/{self.benchmark_name}.cpp")
         shutil.copy(f"{save_path}/{self.benchmark_name}/hls/hls.tcl", f"{save_path}/hls.tcl")
@@ -1224,6 +1237,12 @@ class Codesign:
         self.restore_dat()
 
     def end_of_run_plots(self, obj_over_iterations, lag_factor_over_iterations, params_over_iterations, wire_lengths_over_iterations, wire_delays_over_iterations, device_delays_over_iterations, sensitivities_over_iterations, constraint_slack_over_iterations, visualize_block_vectors=False):
+        if not hasattr(self.hw, "obj_sub_plot_names"):
+            logger.warning("Skipping plots: missing obj_sub_plot_names on hardware model.")
+            return
+        if not obj_over_iterations:
+            logger.warning("Skipping plots: no objective data collected.")
+            return
         obj = "Energy Delay Product"
         units = "nJ*ns"
         if self.obj_fn == "energy":
