@@ -62,14 +62,14 @@ if [[ $SKIP_OPENROAD -eq 1 ]] || [[ "${GITHUB_ACTIONS:-}" == "true" && "${OPENRO
     echo "We likely will not need SUDO permissions for this build."
 else
     # Prompt for AMPL license UUID (using /dev/tty to work with gui_install.py)
-    echo "Enter AMPL license UUID (press Enter to skip): " > /dev/tty
-    read AMPL_LICENSE_UUID </dev/tty
+    # echo "Enter AMPL license UUID (press Enter to skip): " > /dev/tty
+    # read AMPL_LICENSE_UUID </dev/tty
     
-    if [[ -n "$AMPL_LICENSE_UUID" ]]; then
-        echo "AMPL license UUID received. Activation will occur after setup completes."
-    else
-        echo "Skipping AMPL license activation."
-    fi
+    # if [[ -n "$AMPL_LICENSE_UUID" ]]; then
+    #     echo "AMPL license UUID received. Activation will occur after setup completes."
+    # else
+    #     echo "Skipping AMPL license activation."
+    # fi
     
     echo "SUDO permissions may be required for this build. Enter SUDO password if prompted."
     sudo -v
@@ -300,34 +300,34 @@ fi
 echo "ENVIRONMENT SETUP COMPLETE"
 
 ############### ACTIVATE AMPL LICENSE ###############
-# Activate AMPL license if UUID was provided at the beginning
-if [[ -n "$AMPL_LICENSE_UUID" ]]; then
-    echo "STARTING AMPL LICENSE ACTIVATION"
-    AMPL_DIR="$(pwd)/Stream-HLS/ampl.linux-intel64"
+# # Activate AMPL license if UUID was provided at the beginning
+# if [[ -n "$AMPL_LICENSE_UUID" ]]; then
+#     echo "STARTING AMPL LICENSE ACTIVATION"
+#     AMPL_DIR="$(pwd)/Stream-HLS/ampl.linux-intel64"
     
-    # Create directory if it doesn't exist
-    mkdir -p "$AMPL_DIR"
+#     # Create directory if it doesn't exist
+#     mkdir -p "$AMPL_DIR"
     
-    echo "Saving AMPL license..."
-    echo "$AMPL_LICENSE_UUID" > "$AMPL_DIR/ampl.lic"
-    echo "AMPL license saved to $AMPL_DIR/ampl.lic"
+#     echo "Saving AMPL license..."
+#     echo "$AMPL_LICENSE_UUID" > "$AMPL_DIR/ampl.lic"
+#     echo "AMPL license saved to $AMPL_DIR/ampl.lic"
     
-    # Activate the AMPL license
-    if [ -f "$AMPL_DIR/ampl" ]; then
-        echo "Activating AMPL license..."
-        cd "$AMPL_DIR"
-        ./ampl <<EOF
-shell "amplkey activate --uuid $AMPL_LICENSE_UUID";
-exit;
-EOF
-        cd - > /dev/null
-        echo "AMPL license activated successfully."
-    else
-        echo "Warning: AMPL executable not found at $AMPL_DIR/ampl"
-        echo "License saved but activation skipped."
-    fi
-    echo "COMPLETED AMPL LICENSE ACTIVATION"
-fi
+#     # Activate the AMPL license
+#     if [ -f "$AMPL_DIR/ampl" ]; then
+#         echo "Activating AMPL license..."
+#         cd "$AMPL_DIR"
+#         ./ampl <<EOF
+# shell "amplkey activate --uuid $AMPL_LICENSE_UUID";
+# exit;
+# EOF
+#         cd - > /dev/null
+#         echo "AMPL license activated successfully."
+#     else
+#         echo "Warning: AMPL executable not found at $AMPL_DIR/ampl"
+#         echo "License saved but activation skipped."
+#     fi
+#     echo "COMPLETED AMPL LICENSE ACTIVATION"
+# fi
 
 # End timer
 end_time=$(date +%s)
