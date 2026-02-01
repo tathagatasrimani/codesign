@@ -235,6 +235,12 @@ sweep_basic_cfg:
   model_type: sweep_basic
   sweep_file_prefix: tech_sweep_mvs_1_spice_cfg_20260129_184108_pareto
 
+sweep_basic_cfg_historical:
+  base_cfg: default
+  delay_parasitics: all
+  model_type: sweep_basic
+  sweep_file_prefix: tech_sweep_mvs_1_spice_cfg_20260129_184108_pareto_all_nodes
+
 mvs_self_consistent_cfg:
   base_cfg: default
   model_type: mvs_self_consistent

@@ -23,6 +23,12 @@ vitis_test_sweep_basic:
     fixed_area_increase_pattern: True
     solver: basic
 
+vitis_test_sweep_basic_historical:
+  base_cfg: vitis_test_sweep_basic
+  args:
+    historical_trend_pipeline: True
+    model_cfg: sweep_basic_cfg_historical
+
 vitis_test_sweep_basic_attention:
   base_cfg: vitis_test_sweep
   args:

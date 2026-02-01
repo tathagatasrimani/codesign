@@ -114,6 +114,8 @@ class BaseParameters:
         self.FO = self.symbol_init("FO")
         self.M = self.symbol_init("M")
         self.a = self.symbol_init("a")
+        self.GEO = self.symbol_init("GEO")
+        self.MUL = self.symbol_init("MUL")
 
         self.logic_sensitivity = self.symbol_init("logic_sensitivity")
         self.logic_resource_sensitivity = self.symbol_init("logic_resource_sensitivity")
@@ -371,6 +373,8 @@ class BaseParameters:
         self.constraints.append(Constraint(self.M >= 0, "M >= 0"))
         self.constraints.append(Constraint(self.f >= 0, "f >= 0"))
         self.constraints.append(Constraint(self.a >= 0, "a >= 0"))
+        self.constraints.append(Constraint(self.GEO >= 0, "GEO >= 0"))
+        self.constraints.append(Constraint(self.MUL >= 0, "MUL >= 0"))
 
     def init_symbol_table(self):
         # initialize string to symbol mapping
@@ -417,6 +421,8 @@ class BaseParameters:
             "FO": self.FO,
             "M": self.M,
             "a": self.a,
+            "GEO": self.GEO,
+            "MUL": self.MUL,
             "logic_sensitivity": self.logic_sensitivity,
             "logic_resource_sensitivity": self.logic_resource_sensitivity,
             "logic_amdahl_limit": self.logic_amdahl_limit,

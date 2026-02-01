@@ -1128,14 +1128,24 @@ class Optimizer:
         start_time = time.time()
         cur_obj_val = sim_util.xreplace_safe(self.hw.obj, self.hw.circuit_model.tech_model.base_params.tech_values)
 
-        total_design_points = len(self.hw.circuit_model.tech_model.pareto_df)
+        if self.hw.cfg["args"]["historical_trend_pipeline"]:
+            unique_gate_lengths = sorted(list(set(self.hw.circuit_model.tech_model.pareto_df["L"])))
+            allowed_gate_lengths_idx = max(0, len(unique_gate_lengths) - (iteration + 1))
+            allowed_gate_lengths = unique_gate_lengths[allowed_gate_lengths_idx:]
+            logger.info(f"allowed gate lengths: {allowed_gate_lengths}")
+            filtered_pareto_df = self.hw.circuit_model.tech_model.pareto_df[self.hw.circuit_model.tech_model.pareto_df["L"].isin(allowed_gate_lengths)]
+        else:
+            filtered_pareto_df = self.hw.circuit_model.tech_model.pareto_df
+
+
+        total_design_points = len(filtered_pareto_df)
         logger.info(f"Starting brute force optimization with {total_design_points} design points using {n_processes} process(es)")
         logger.info(f"objective: {self.hw.obj}")
         # Parallel execution
 
         # Prepare design points with indices and randomize order
         design_points = [
-            (i, row._asdict()) for i, row in enumerate(self.hw.circuit_model.tech_model.pareto_df.itertuples(index=False))
+            (i, row._asdict()) for i, row in enumerate(filtered_pareto_df.itertuples(index=False))
         ]
         np.random.shuffle(design_points)
 
@@ -1205,9 +1215,9 @@ class Optimizer:
             best_value_clk_period = None
             logger.warning("No valid designs found")
 
-        if best_design_point is None or best_obj_val >= cur_obj_val:
-            logger.warning("No better solution found in this iteration")
-            return cur_obj_val, False
+        #if best_design_point is None or best_obj_val >= cur_obj_val:
+        #    logger.warning("No better solution found in this iteration")
+        #    return cur_obj_val, False
 
         self.hw.circuit_model.tech_model.set_params_from_design_point(best_design_point)
         self.hw.circuit_model.tech_model.base_params.set_symbol_value(self.hw.circuit_model.tech_model.base_params.clk_period, best_value_clk_period)

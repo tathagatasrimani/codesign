@@ -59,6 +59,8 @@ default:
   FO: 4
   M: 2
   a: 0.5
+  GEO: 1
+  MUL: 1
   Lscale: 1.0e-7
   delay: 0.0
   E_act_inv: 0.0

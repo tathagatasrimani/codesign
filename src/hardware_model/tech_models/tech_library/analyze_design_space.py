@@ -7,9 +7,10 @@ def analyze_design_space(filename):
 
     print(df.columns)
     #mask = (df["V_dd"] >= 1) & (df["delay"] <= 0.1) & (df["V_th_eff"] >= 0.2)
-    mask = (df["V_dd"] >= 3)
+    mask = (df["V_dd"] <= 1.28) & (df["delay"] <= 0.02) & (df["V_th_eff"] >= 0.1)
     df_filtered = df[mask]
-    cols_to_show = ["L", "W", "V_dd", "V_th", "V_th_eff", "tox", "tsemi", "Lscale", "dVt", "delta", "n0", "k_gate", "delay", "Edynamic", "Pstatic", "Ieff", "Ioff", "slope_at_crossing", "NM_H", "NM_L"]
+    cols_to_show = ["L", "W", "V_dd","V_th_eff", "tox", "delay","Ieff", "Ioff"]
+    #cols_to_show = ["delay", "Edynamic", "Pstatic", "area", "slope_at_crossing", "NM_H", "NM_L"]
     sorted_df = df_filtered.sort_values(by="delay", ascending=True)
     pd.set_option('display.max_rows', None)
     print(sorted_df[cols_to_show])

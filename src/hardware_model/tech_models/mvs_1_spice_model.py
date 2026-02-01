@@ -71,39 +71,41 @@ class MVS1SpiceModel(TechModel):
         I_tunnel = FN_term + WKB_term
         return I_tunnel
 
-    def mvs2_wrapper(self, Vdd, Vt0, Lg, Wg, beta_p_n, mD_fac, mu_eff_n, mu_eff_p, eps_gox, tgox, eps_semi, tsemi, Lext, Lc, eps_cap, rho_c_n, rho_c_p, Rsh_c_n, Rsh_c_p, Rsh_ext_n, Rsh_ext_p):
-        Wc_n = Wg
-        Wext_n = 2 * Wg
+    def mvs2_wrapper(self, Vdd, Vt0, Lg, Wg, beta_p_n, mD_fac, mu_eff_n, mu_eff_p, eps_gox, tgox, eps_semi, tsemi, Lext, Lc, eps_cap, rho_c_n, rho_c_p, Rsh_c_n, Rsh_c_p, Rsh_ext_n, Rsh_ext_p, GEO, MUL):
+        Wc_n = MUL * Wg
+        Wext_n = MUL * Wg 
         Rs_n = symbolic_Rsd_model_cmg(Lc, Lext, Wc_n, Wext_n, rho_c_n, Rsh_c_n, Rsh_ext_n)
         Rd_n = symbolic_Rsd_model_cmg(Lc, Lext, Wc_n, Wext_n, rho_c_n, Rsh_c_n, Rsh_ext_n)
 
-        Wc_p = beta_p_n * Wg
-        Wext_p = 2 * beta_p_n * Wg
+        Wc_p = beta_p_n * MUL * Wg
+        Wext_p = beta_p_n * MUL * Wg
         Rs_p = symbolic_Rsd_model_cmg(Lc, Lext, Wc_p, Wext_p, rho_c_p, Rsh_c_p, Rsh_ext_p)
         Rd_p = symbolic_Rsd_model_cmg(Lc, Lext, Wc_p, Wext_p, rho_c_p, Rsh_c_p, Rsh_ext_p)
 
-        Lscale =  get_Lscale(eps_semi, eps_gox, tgox, tsemi)
+        Lscale =  get_Lscale(eps_gox, eps_semi, tgox, tsemi, GEO)
 
         Leff = Lg
-        Weff_Id_n = 2 * Wg
-        Weff_Id_p = 2 * beta_p_n * Wg
+        Weff_Id_n = GEO * MUL * Wg
+        Weff_Id_p = GEO * beta_p_n * MUL * Wg
         n0, delta, dVt = symbolic_sce_model_cmg(Leff, Vt0, Lscale)
         Cgc_on = eps_gox * self.e_0 / tgox
         mD = mD_fac * self.m_0
         vT = math.sqrt(2 * self.K*self.T * mD / (math.pi * mD**2))
         return get_mvs_model(Vt0, Leff, Weff_Id_n, mD, mu_eff_n, vT, Cgc_on, n0, delta, dVt, Rs_n, Rd_n), get_mvs_model(Vt0, Leff, Weff_Id_p, mD, mu_eff_p, vT, Cgc_on, n0, delta, dVt, Rs_p, Rd_p)
 
-    def calculate_C(self, Lg, Wg, Lext, eps_cap, eps_gox, tgox, beta_p_n, FO, M):
+    def calculate_C(self, Lg, Wg, Lext, eps_cap, eps_gox, tgox, beta_p_n, FO, M, GEO, MUL):
+        Weff_Id_n = GEO * MUL * Wg
+        Weff_Id_p = GEO * beta_p_n * MUL * Wg
         Cgc_on = eps_gox * self.e_0 / tgox
         tgate = 2 * Lg
-        Weff_Cpar_n = 2 * Wg
+        Weff_Cpar_n = Wg * MUL
         Cpar_n = symbolic_Cpar_model_cmg(Weff_Cpar_n, Lext, eps_cap, tgate)
-        Weff_Cpar_p = 2 * beta_p_n * Wg
+        Weff_Cpar_p = beta_p_n * Wg * MUL
         Cpar_p = symbolic_Cpar_model_cmg(Weff_Cpar_p, Lext, eps_cap, tgate)
 
         # modified from original; non-FO4 Cpar terms moved to other variable
-        Cload_n = FO * ( (2/3) * Cgc_on * Weff_Cpar_n * Lg + Cpar_n )
-        Cload_p = FO * ( (2/3) * Cgc_on * Weff_Cpar_p * Lg + Cpar_p )
+        Cload_n = FO * ( (2/3) * Cgc_on * Weff_Id_n * Lg + Cpar_n )
+        Cload_p = FO * ( (2/3) * Cgc_on * Weff_Id_p * Lg + Cpar_p )
         Cload = (Cload_n + Cload_p)/2
         
         Cpar = M * (Cpar_n + Cpar_p)/2
@@ -161,6 +163,11 @@ class MVS1SpiceModel(TechModel):
         self.n0 = 0
         self.Lscale = 0
         self.A_gate = 1
+        self.GEO = 1
+        self.MUL = 1
+        self.NM_H = 0
+        self.NM_L = 0
+        self.noise_margin = 0
 
     def init_transistor_equations(self):
         super().init_transistor_equations()
@@ -190,6 +197,8 @@ class MVS1SpiceModel(TechModel):
             self.Rsh_c_p, 
             self.Rsh_ext_n, 
             self.Rsh_ext_p,
+            self.GEO,
+            self.MUL,
         )
         self.mvs1_model_n, self.mvs1_model_p = self.mvs2_model_n.surrogate_mvs1(), self.mvs2_model_p.surrogate_mvs1()
         self.area = symbolic_area_model(self.L, self.W, self.beta_p_n, self.Lext, self.Lc)
@@ -208,7 +217,7 @@ class MVS1SpiceModel(TechModel):
         single_transistor_results = analyze_transistor.process_transistor_simulation_single(os.path.join(self.output_folder, "single_transistor.scs"), vds_values, plot=False, plot_file=os.path.join(self.output_folder, "single_transistor.png"))
         log_info(f"Analyzing FO4 inverter for {self.model_cfg['model_type']}")
         fo4_results = analyze_fo4.process_simulation(os.path.join(self.output_folder, "fo4_inverter.scs"), plot=False, plot_file=os.path.join(self.output_folder, "fo4_inverter.png"))
-        log_info(f"Analyzing ring oscillator for {self.model_cfg['model_type']}")
+        #log_info(f"Analyzing ring oscillator for {self.model_cfg['model_type']}")
         
         Vin_vals = fo4_results['vin']
         Vout_vals = fo4_results['vout1']
@@ -313,7 +322,7 @@ class MVS1SpiceModel(TechModel):
         #log_info(f"FO4 results: {fo4_results}")
         #log_info(f"Ring results: {ring_results}")
 
-        self.Lscale = get_Lscale(self.eps_semi, self.k_gate, self.tox, self.tsemi)
+        self.Lscale = get_Lscale(self.k_gate, self.eps_semi, self.tox, self.tsemi, self.GEO)
         self.n0, self.delta, self.dVt = symbolic_sce_model_cmg(self.L, self.V_th, self.Lscale)
         self.V_th_eff = self.V_th - self.dVt - self.delta * self.V_dd
         self.A_gate = self.L * self.W
@@ -323,7 +332,7 @@ class MVS1SpiceModel(TechModel):
         #self.I_sub = (self.Ioff_n + self.Ioff_p)/2
         self.I_off = (self.I_sub + self.I_tunnel)/2
 
-        self.C_load, self.C_par = self.calculate_C(self.L, self.W, self.Lext, self.eps_cap, self.k_gate, self.tox, self.beta_p_n, self.FO, self.M)
+        self.C_load, self.C_par = self.calculate_C(self.L, self.W, self.Lext, self.eps_cap, self.k_gate, self.tox, self.beta_p_n, self.FO, self.M, self.GEO, self.MUL)
 
         self.E_act_inv = (0.5*(self.C_load + self.C_par + self.C_wire)*self.V_dd*2) * 1e9  # nJ
         self.P_pass_inv = self.I_off * self.V_dd
@@ -351,6 +360,9 @@ class MVS1SpiceModel(TechModel):
         self.param_db["C_wire"] = self.C_wire
         self.param_db["R_wire"] = self.R_wire
         self.param_db["C_load"] = self.C_load
+        self.param_db["NM_H"] = self.NM_H
+        self.param_db["NM_L"] = self.NM_L
+        self.param_db["noise_margin"] = self.noise_margin
         super().config_param_db()
 
     def config_sweep_output_db(self):
@@ -420,7 +432,7 @@ class MVS1SpiceModel(TechModel):
         super().apply_additional_effects()
 
     def create_constraints(self, dennard_scaling_type="constant_field"):
-        noise_margin_min = 0.04 # V
+        noise_margin_min = 0.1*self.V_dd # V
         self.constraints = [
             Constraint(sp.Le(self.slope_at_crossing, -1.0, evaluate=False), label="slope_at_crossing"),
             Constraint(sp.Ge(self.noise_margin, noise_margin_min, evaluate=False), label="noise_margin_positive"),

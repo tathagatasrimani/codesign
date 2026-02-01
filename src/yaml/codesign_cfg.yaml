@@ -32,6 +32,7 @@ default:
     max_power: 150 # W
     solver: ipopt
     fixed_area_increase_pattern: False
+    historical_trend_pipeline: False
 
 
 vitis_test_mvs:

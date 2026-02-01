@@ -376,7 +376,7 @@ class Codesign:
                 self.cur_dsp_usage = self.cur_dsp_usage
                 self.last_dsp_count_set = False
             elif self.cfg["args"]["fixed_area_increase_pattern"] and iteration_count > 0:
-                self.cur_dsp_usage = self.cur_dsp_usage * 10
+                self.cur_dsp_usage = self.cur_dsp_usage * 4
             else: 
                 self.cur_dsp_usage = int(self.cfg["args"]["area"] / (sim_util.xreplace_safe(self.hw.circuit_model.tech_model.param_db["A_gate"], self.hw.circuit_model.tech_model.base_params.tech_values) * self.dsp_multiplier))
                 self.cur_dsp_usage = max(self.cur_dsp_usage, self.cfg["args"]["min_dsp"])
