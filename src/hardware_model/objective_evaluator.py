@@ -57,6 +57,7 @@ class ObjectiveEvaluator:
         DFF_DELAY: float,
         DFF_ENERGY: float,
         DFF_PASSIVE_POWER: float,
+        DFF_AREA: float,
     ):
         """
         Initialize the ObjectiveEvaluator.
@@ -86,12 +87,14 @@ class ObjectiveEvaluator:
         self.DFF_DELAY = DFF_DELAY
         self.DFF_ENERGY = DFF_ENERGY
         self.DFF_PASSIVE_POWER = DFF_PASSIVE_POWER
+        self.DFF_AREA = DFF_AREA
         # Results (updated by calculate_objective)
         self.obj = 0.0
         self.execution_time = 0.0
         self.total_power = 0.0
         self.total_active_energy = 0.0
         self.total_passive_energy = 0.0
+        self.total_area = 0.0
 
     def _set_coefficients(self):
         """Set up logical effort coefficients."""
@@ -131,6 +134,7 @@ class ObjectiveEvaluator:
             DFF_DELAY=hw.circuit_model.DFF_DELAY,
             DFF_ENERGY=hw.circuit_model.DFF_ENERGY,
             DFF_PASSIVE_POWER=hw.circuit_model.DFF_PASSIVE_POWER,
+            DFF_AREA=hw.circuit_model.DFF_AREA,
         )
 
     def set_params_from_design_point(self, design_point: Dict[str, Any]):
@@ -165,6 +169,8 @@ class ObjectiveEvaluator:
         self.total_passive_energy = self.calculate_passive_energy(self.execution_time)
         self.total_active_energy = self.calculate_active_energy()
         self.total_power = (self.total_active_energy + self.total_passive_energy) / self.execution_time
+        self.total_passive_power = self.total_passive_energy / self.execution_time
+        self.total_area = self.calculate_area()
 
         self._save_obj_vals(self.execution_time)
 
@@ -506,3 +512,26 @@ class ObjectiveEvaluator:
             pipeline_cost = 0.0
 
         return unpipelined_power + pipeline_cost
+
+    def calculate_area(self) -> float:
+        """
+        Calculate area for the circuit.
+        """
+        total_area = 0.0
+        for node, data in self.netlist.nodes(data=True):
+            area = self._symbolic_area(data["function"])
+            total_area += area
+            log_info(f"area for {node}: {area}")
+        return total_area
+
+    def _symbolic_area(self, function: str) -> float:
+        """
+        Calculate area for a function type.
+        """
+        if function in ["N/A", "Call", "read", "write"]:
+            return 0.0
+        tv = self.tech_model.base_params.tech_values
+        area_coeff = self.area_coeffs[function] * 500/7
+        area = area_coeff * self.tech_model.base_params.area
+        pipeline_cost = DATA_WIDTH * self.DFF_AREA * (self._latency(function)/self.tech_model.base_params.clk_period) # DATA_WIDTH DFFs needed for each extra cycle
+        return area + pipeline_cost

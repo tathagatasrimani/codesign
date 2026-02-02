@@ -202,6 +202,7 @@ class MVS1SpiceModel(TechModel):
         )
         self.mvs1_model_n, self.mvs1_model_p = self.mvs2_model_n.surrogate_mvs1(), self.mvs2_model_p.surrogate_mvs1()
         self.area = symbolic_area_model(self.L, self.W, self.beta_p_n, self.Lext, self.Lc)
+        self.base_params.area = self.area
 
         if not hasattr(self, "output_folder"):
             log_info(f"Output folder not set for {self.model_cfg['model_type']}")
@@ -363,6 +364,8 @@ class MVS1SpiceModel(TechModel):
         self.param_db["NM_H"] = self.NM_H
         self.param_db["NM_L"] = self.NM_L
         self.param_db["noise_margin"] = self.noise_margin
+        self.param_db["GEO"] = self.GEO
+        self.param_db["MUL"] = self.MUL
         super().config_param_db()
 
     def config_sweep_output_db(self):
@@ -417,11 +420,12 @@ class MVS1SpiceModel(TechModel):
         self.sweep_output_db["noise_margin"] = self.noise_margin
         self.sweep_output_db["I_tunnel"] = self.I_tunnel
         self.sweep_output_db["I_sub"] = self.I_sub
-
+        self.sweep_output_db["GEO"] = self.GEO
+        self.sweep_output_db["MUL"] = self.MUL
         self.sweep_output_db["config_hash"] = self.config_hash
 
     def config_pareto_metric_db(self):
-        self.pareto_metric_db = {"area": "min", "delay": "min", "Edynamic": "min", "Pstatic": "min"}
+        self.pareto_metric_db = {"area": "min", "delay": "min", "Edynamic": "min", "Pstatic": "min", "MUL": "min"}
         #self.pareto_metric_db = {"delay": "min"}
         self.input_metric_db = {"L", "W", "V_dd", "V_th", "tox"}
 

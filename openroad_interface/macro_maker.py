@@ -23,7 +23,7 @@ TARGET_ASPECT_RATIO = 1.0
 
 logger = logging.getLogger(__name__)
 
-DEBUG = True
+DEBUG = False
 
 def debug_print(message):
     if DEBUG:

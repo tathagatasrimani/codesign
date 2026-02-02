@@ -138,33 +138,34 @@ class CircuitModel:
 
         # UNITS: um^2
         self.symbolic_area = {
-            "And16": lambda: self.make_sym_area(self.area_coeffs["And16"]),
-            "Or16": lambda: self.make_sym_area(self.area_coeffs["Or16"]),
-            "Add16": lambda: self.make_sym_area(self.area_coeffs["Add16"]),
-            "Sub16": lambda: self.make_sym_area(self.area_coeffs["Sub16"]),
-            "Mult16": lambda: self.make_sym_area(self.area_coeffs["Mult16"]),
-            "FloorDiv16": lambda: self.make_sym_area(self.area_coeffs["FloorDiv16"]),
-            "Modulus16": lambda: self.make_sym_area(self.area_coeffs["Modulus16"]),
-            "LShift16": lambda: self.make_sym_area(self.area_coeffs["LShift16"]),
-            "RShift16": lambda: self.make_sym_area(self.area_coeffs["RShift16"]),
-            "BitOr16": lambda: self.make_sym_area(self.area_coeffs["BitOr16"]),
-            "BitXor16": lambda: self.make_sym_area(self.area_coeffs["BitXor16"]),
-            "BitAnd16": lambda: self.make_sym_area(self.area_coeffs["BitAnd16"]),
-            "Eq16": lambda: self.make_sym_area(self.area_coeffs["Eq16"]),
-            "NotEq16": lambda: self.make_sym_area(self.area_coeffs["NotEq16"]),
-            "Lt16": lambda: self.make_sym_area(self.area_coeffs["Lt16"]),
-            "LtE16": lambda: self.make_sym_area(self.area_coeffs["LtE16"]),
-            "Gt16": lambda: self.make_sym_area(self.area_coeffs["Gt16"]),
-            "GtE16": lambda: self.make_sym_area(self.area_coeffs["GtE16"]),
-            "Not16": lambda: self.make_sym_area(self.area_coeffs["Not16"]),
-            "Exp16": lambda: self.make_sym_area(self.area_coeffs["Exp16"]),
-            "Register16": lambda: self.make_sym_area(self.area_coeffs["Register16"]),
-            "Mux16": lambda: self.make_sym_area(self.area_coeffs["Mux16"]),
+            "And16": lambda: self.make_sym_area("And16", self.area_coeffs["And16"]),
+            "Or16": lambda: self.make_sym_area("Or16", self.area_coeffs["Or16"]),
+            "Add16": lambda: self.make_sym_area("Add16", self.area_coeffs["Add16"]),
+            "Sub16": lambda: self.make_sym_area("Sub16", self.area_coeffs["Sub16"]),
+            "Mult16": lambda: self.make_sym_area("Mult16", self.area_coeffs["Mult16"]),
+            "FloorDiv16": lambda: self.make_sym_area("FloorDiv16", self.area_coeffs["FloorDiv16"]),
+            "Modulus16": lambda: self.make_sym_area("Modulus16", self.area_coeffs["Modulus16"]),
+            "LShift16": lambda: self.make_sym_area("LShift16", self.area_coeffs["LShift16"]),
+            "RShift16": lambda: self.make_sym_area("RShift16", self.area_coeffs["RShift16"]),
+            "BitOr16": lambda: self.make_sym_area("BitOr16", self.area_coeffs["BitOr16"]),
+            "BitXor16": lambda: self.make_sym_area("BitXor16", self.area_coeffs["BitXor16"]),
+            "BitAnd16": lambda: self.make_sym_area("BitAnd16", self.area_coeffs["BitAnd16"]),
+            "Eq16": lambda: self.make_sym_area("Eq16", self.area_coeffs["Eq16"]),
+            "NotEq16": lambda: self.make_sym_area("NotEq16", self.area_coeffs["NotEq16"]),
+            "Lt16": lambda: self.make_sym_area("Lt16", self.area_coeffs["Lt16"]),
+            "LtE16": lambda: self.make_sym_area("LtE16", self.area_coeffs["LtE16"]),
+            "Gt16": lambda: self.make_sym_area("Gt16", self.area_coeffs["Gt16"]),
+            "GtE16": lambda: self.make_sym_area("GtE16", self.area_coeffs["GtE16"]),
+            "Not16": lambda: self.make_sym_area("Not16", self.area_coeffs["Not16"]),
+            "Exp16": lambda: self.make_sym_area("Exp16", self.area_coeffs["Exp16"]),
+            "Register16": lambda: self.make_sym_area("Register16", self.area_coeffs["Register16"]),
+            "Mux16": lambda: self.make_sym_area("Mux16", self.area_coeffs["Mux16"]),
             "N/A": lambda: 0,
             "Call": lambda: 0,
             "read": lambda: 0,
             "write": lambda: 0,
         }
+        self.DFF_AREA = 20*self.tech_model.area # TODO: get actual value
 
         # memories output from forward pass
         self.memories = {}
@@ -352,8 +353,10 @@ class CircuitModel:
         pipeline_cost = DATA_WIDTH * self.DFF_PASSIVE_POWER * (self.symbolic_latency_wc[key]()/self.tech_model.base_params.clk_period) # DATA_WIDTH DFFs needed for each extra cycle
         return unpipelined_power + pipeline_cost
 
-    def make_sym_area(self, area_coeff):
-        return area_coeff * self.tech_model.base_params.area
+    def make_sym_area(self, key, area_coeff):
+        unpipelined_area = area_coeff * self.tech_model.base_params.area
+        pipeline_cost = DATA_WIDTH * self.DFF_AREA * (self.symbolic_latency_wc[key]()/self.tech_model.base_params.clk_period) # DATA_WIDTH DFFs needed for each extra cycle
+        return unpipelined_area + pipeline_cost
 
     def create_constraints(self):
         self.constraints = []

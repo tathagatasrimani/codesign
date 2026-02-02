@@ -33,6 +33,8 @@ default:
     solver: ipopt
     fixed_area_increase_pattern: False
     historical_trend_pipeline: False
+    leakage_restriction: False
+    MUL_restriction: False
 
 
 vitis_test_mvs:

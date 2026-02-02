@@ -483,10 +483,23 @@ def log_info(msg, stage):
     elif stage == "after optimization":
         logger.info(msg)
 
-def satisfies_constraints(total_power, design_point, max_system_power, tech_model):
+def satisfies_constraints(total_power, total_area, total_passive_power, design_point, max_system_power, max_system_power_density, tech_model, leakage_restriction):
+    # Ensure numeric values by substituting any remaining symbolic expressions
+    total_power = sim_util.xreplace_safe(total_power, tech_model.base_params.tech_values)
+    total_area = sim_util.xreplace_safe(total_area, tech_model.base_params.tech_values)
+    total_passive_power = sim_util.xreplace_safe(total_passive_power, tech_model.base_params.tech_values)
+
     if total_power > max_system_power:
         logger.info(f"total power {total_power} is greater than max system power {max_system_power} for design point {design_point}")
         return False
+    total_area_mm2 = total_area *1e4
+    power_density_w_cm2 = total_power / total_area_mm2
+    if power_density_w_cm2 > max_system_power_density:
+        logger.info(f"power density {power_density_w_cm2} ({total_area_mm2} mm^2) ({total_power} W) is greater than max system power density {max_system_power_density} for design point {design_point}")
+        return False
+    if leakage_restriction and (total_passive_power > total_power/3): # restriction is that passive power <= 1/3 total power
+            logger.info(f"passive power {total_passive_power} is greater than 1/3 total power {total_power/3} for design point {design_point}")
+            return False
     return True
 
 def _worker_basic_optimization_chunk(args_tuple):
@@ -495,16 +508,17 @@ def _worker_basic_optimization_chunk(args_tuple):
     detailed metrics for each one.
 
     Args:
-        args_tuple: (worker_id, chunk, evaluator, max_system_power)
+        args_tuple: (worker_id, chunk, evaluator, max_system_power, max_system_power_density)
             - worker_id: Worker identifier
             - chunk: List of (idx, design_point) tuples
             - evaluator: ObjectiveEvaluator instance (pickleable)
             - max_system_power: Maximum allowed system power
+            - max_system_power_density: Maximum allowed system power density
 
     Returns:
         Tuple of (worker_id, list of DesignPointResult)
     """
-    worker_id, chunk, evaluator, max_system_power = args_tuple
+    worker_id, chunk, evaluator, max_system_power, max_system_power_density, leakage_restriction = args_tuple
 
     # Get tech_model from evaluator for convenience
     tech_model = evaluator.tech_model
@@ -542,7 +556,7 @@ def _worker_basic_optimization_chunk(args_tuple):
             L = sim_util.xreplace_safe(tech_model.base_params.L, tech_model.base_params.tech_values)
             W = sim_util.xreplace_safe(tech_model.base_params.W, tech_model.base_params.tech_values)
 
-            constraints_satisfied = satisfies_constraints(evaluator.total_power, design_point, max_system_power, tech_model)
+            constraints_satisfied = satisfies_constraints(evaluator.total_power, evaluator.total_area, evaluator.total_passive_power, design_point, max_system_power, max_system_power_density, tech_model, leakage_restriction)
 
             result = DesignPointResult(
                 design_point=design_point,
@@ -1137,6 +1151,9 @@ class Optimizer:
         else:
             filtered_pareto_df = self.hw.circuit_model.tech_model.pareto_df
 
+        if self.hw.cfg["args"]["MUL_restriction"]:
+            filtered_pareto_df = filtered_pareto_df[filtered_pareto_df["MUL"] == 1]
+
 
         total_design_points = len(filtered_pareto_df)
         logger.info(f"Starting brute force optimization with {total_design_points} design points using {n_processes} process(es)")
@@ -1169,7 +1186,7 @@ class Optimizer:
 
         # Create tasks: each worker gets a chunk of design points and the evaluator
         tasks = [
-            (worker_id, chunk, evaluator, self.max_system_power)
+            (worker_id, chunk, evaluator, self.max_system_power, self.max_system_power_density, self.hw.cfg["args"]["leakage_restriction"])
             for worker_id, chunk in enumerate(chunks)
         ]
 

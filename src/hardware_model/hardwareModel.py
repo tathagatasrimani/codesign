@@ -813,6 +813,13 @@ class HardwareModel:
         self.total_passive_power = total_passive_power
         return total_passive_power * total_execution_time
 
+    def calculate_area_vitis(self):
+        total_area = 0
+        for node, data in self.netlist.nodes(data=True):
+            total_area += self.circuit_model.symbolic_area[data["function"]]()
+            log_info(f"area for {node}: {self.circuit_model.symbolic_area[data['function']]()}")
+        return total_area
+
     def print_node_arrivals(self):
         for block_name in self.graph_delays:
             for node in self.node_arrivals[block_name]["full"]:
@@ -1399,6 +1406,8 @@ class HardwareModel:
                 "DIBL factor": self.circuit_model.tech_model.param_db["delta"],
                 "n0": self.circuit_model.tech_model.param_db["n0"],
                 "scale length": self.circuit_model.tech_model.param_db["Lscale"],
+                "GEO": self.circuit_model.tech_model.param_db["GEO"],
+                "MUL": self.circuit_model.tech_model.param_db["MUL"],
                 "t_ox": self.circuit_model.tech_model.param_db["tox"],
                 "k_gate": self.circuit_model.tech_model.param_db["k_gate"],
                 "NM_H": self.circuit_model.tech_model.param_db["NM_H"],
@@ -1453,6 +1462,8 @@ class HardwareModel:
             "effective threshold voltage worst case": "Effective Threshold Voltage Worst Case over generations (V)",
             "Inverter VTC gain": "Slope of Inverter VTC at Vout=Vin over generations (V/V)",
             "supply voltage": "Supply Voltage over generations (V)",
+            "GEO": "GEO flag over generations",
+            "MUL": "MUL flag over generations",
             "wire RC": "Wire RC over generations (s)",
             "on current per um": "On Current per um over generations (A/um)",
             "off current per um": "Off Current per um over generations (A/um)",
@@ -1608,6 +1619,7 @@ class HardwareModel:
             self.execution_time = self.calculate_execution_time_vitis(self.top_block_name, form_dfg, log_top_vectors=log_top_vectors, clk_period_opt=clk_period_opt)
             self.total_passive_energy = self.calculate_passive_energy_vitis(self.execution_time)
             self.total_active_energy = self.calculate_active_energy_vitis()
+            self.total_area = self.calculate_area_vitis()
         else:
             raise ValueError(f"HLS tool {self.hls_tool} not supported")
         self.save_obj_vals(self.execution_time)

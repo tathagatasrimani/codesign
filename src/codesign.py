@@ -1412,6 +1412,8 @@ if __name__ == "__main__":
     parser.add_argument("--max_power", type=float, help="maximum total power to allow")
     parser.add_argument("--solver", type=str, help="solver to use for inverse pass")
     parser.add_argument("--fixed_area_increase_pattern", type=bool, help="number of resources increases by some factor for each iteration")
+    parser.add_argument("--leakage_restriction", type=bool, help="restrict the passive power to be less than 1/3 of the total power")
+    parser.add_argument("--MUL_restriction", type=bool, help="restrict the MUL flag to be 1")
     args = parser.parse_args()
 
     main(args)
