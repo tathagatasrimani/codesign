@@ -128,7 +128,7 @@ def plot_2d_scatter(
 
     fig, ax = plt.subplots(figsize=(10, 6))
 
-    # Plot valid results with colors
+    # Plot valid results with colors - no label, we'll create custom legend
     if valid_results:
         scatter = ax.scatter(
             x_vals_valid,
@@ -138,9 +138,10 @@ def plot_2d_scatter(
             s=120,
             alpha=0.7,
             edgecolors='white',
-            linewidths=0.5,
-            label='Valid Designs'
+            linewidths=0.5
         )
+        # Dummy scatter with gray color for legend (represents all colored circles)
+        ax.scatter([], [], c='gray', s=120, alpha=0.7, edgecolors='white', label='Valid Designs')
         cbar = fig.colorbar(scatter, ax=ax, shrink=0.8, pad=0.02)
         title_txt = f'SYSTEM {obj_type.upper()}'
         title_txt = title_txt.lower().title()
@@ -488,9 +489,16 @@ def visualize_top_designs(all_results: List[DesignPointResult], iteration: int, 
     log_dynamic = np.log10(dynamic_energies)
     log_passive = np.log10(passive_powers)
 
-    # Separate valid and invalid results (excluding best design at index 0)
-    valid_indices = [i for i in range(1, len(top_results)) if top_results[i].satisfies_constraints]
-    invalid_indices = [i for i in range(1, len(top_results)) if not top_results[i].satisfies_constraints]
+    # Find the best valid design index (first valid in sorted list)
+    best_valid_idx = None
+    for i, r in enumerate(top_results):
+        if r.satisfies_constraints:
+            best_valid_idx = i
+            break
+
+    # Separate valid and invalid results (excluding best valid design)
+    valid_indices = [i for i in range(len(top_results)) if top_results[i].satisfies_constraints and i != best_valid_idx]
+    invalid_indices = [i for i in range(len(top_results)) if not top_results[i].satisfies_constraints]
 
     # Apply consistent plot styling
     apply_plot_style()
@@ -498,7 +506,7 @@ def visualize_top_designs(all_results: List[DesignPointResult], iteration: int, 
     fig2 = plt.figure(figsize=(9, 6))
     ax2 = fig2.add_subplot(111, projection='3d', computed_zorder=False)
 
-    # Plot valid points (excluding best)
+    # Plot valid points (excluding best) - no label here, we'll create custom legend
     if valid_indices:
         scatter2 = ax2.scatter(
             log_delays[valid_indices],
@@ -510,12 +518,14 @@ def visualize_top_designs(all_results: List[DesignPointResult], iteration: int, 
             alpha=0.75,
             edgecolors='white',
             linewidths=0.3,
-            zorder=1,
-            label='Valid Design'
+            zorder=1
         )
     else:
         # Need at least one scatter for colorbar
         scatter2 = ax2.scatter([], [], [], c=[], cmap='viridis_r')
+
+    # Create a dummy scatter with gray color for legend (represents all colored circles)
+    ax2.scatter([], [], [], c='gray', s=100, alpha=0.75, edgecolors='white', label='Valid Design')
 
     # Plot invalid points with X markers
     if invalid_indices:
@@ -559,10 +569,11 @@ def visualize_top_designs(all_results: List[DesignPointResult], iteration: int, 
     cbar2.ax.invert_yaxis()
     cbar2.ax.tick_params(labelsize=12)
 
-    # Mark the best design with a prominent star - plotted LAST with high zorder
-    ax2.scatter([log_delays[0]], [log_dynamic[0]], [log_passive[0]],
-                c='red', s=600, marker='*', label='Best Design',
-                edgecolors='black', linewidths=2, zorder=100)
+    # Mark the best valid design with a prominent star - plotted LAST with high zorder
+    if best_valid_idx is not None:
+        ax2.scatter([log_delays[best_valid_idx]], [log_dynamic[best_valid_idx]], [log_passive[best_valid_idx]],
+                    c='red', s=600, marker='*', label='Best Design',
+                    edgecolors='black', linewidths=2, zorder=100)
     ax2.legend(fontsize=12, loc='upper left', framealpha=0.9)
 
     # Adjust viewing angle for better visibility

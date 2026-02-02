@@ -1,0 +1,57 @@
+gemm_1000_bulk:
+  base_cfg: vitis_test
+  args:
+    benchmark: gemm
+    arch_opt_pipeline: streamhls
+    pytorch: True
+    min_dsp: 5
+    solver: basic
+    model_cfg: sweep_basic_cfg_bulk
+    max_power_density: 1000
+    checkpoint_load_dir: tmp_gemm_edp_115
+    checkpoint_start_step: pd
+    num_iters: 1
+    obj: delay
+
+gemm_100_bulk:
+  base_cfg: gemm_1000_bulk
+  args:
+    max_power_density: 100
+    num_iters: 1
+
+gemm_10_bulk:
+  base_cfg: gemm_1000_bulk
+  args:
+    max_power_density: 10
+    num_iters: 1
+
+gemm_1_bulk:
+  base_cfg: gemm_1000_bulk
+  args:
+    max_power_density: 1
+    num_iters: 1
+
+gemm_1000_dg_ns:
+  base_cfg: gemm_1000_bulk
+  args:
+    model_cfg: sweep_basic_cfg_dg_ns
+    max_power_density: 1000
+    num_iters: 1
+
+gemm_100_dg_ns:
+  base_cfg: gemm_1000_dg_ns
+  args:
+    max_power_density: 100
+    num_iters: 1
+
+gemm_10_dg_ns:
+  base_cfg: gemm_1000_dg_ns
+  args:
+    max_power_density: 10
+    num_iters: 1
+
+gemm_1_dg_ns:
+  base_cfg: gemm_1000_dg_ns
+  args:
+    max_power_density: 1
+    num_iters: 1

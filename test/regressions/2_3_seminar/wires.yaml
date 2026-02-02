@@ -1,0 +1,15 @@
+gemm_delay:
+  base_cfg: vitis_test
+  args:
+    benchmark: gemm
+    arch_opt_pipeline: streamhls
+    pytorch: True
+    min_dsp: 5
+    solver: basic
+    model_cfg: sweep_basic_cfg
+    max_power_density: 100000000000
+    checkpoint_load_dir: tmp_gemm_edp_115
+    checkpoint_start_step: pd
+    fixed_area_increase_pattern: True
+    num_iters: 5
+    obj: delay

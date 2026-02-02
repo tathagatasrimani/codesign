@@ -399,7 +399,7 @@ class Codesign:
             pwd
             source setup-env.sh
             cd examples
-            python run_streamhls.py -b {save_path} -d {save_path} -k {self.benchmark_name} -O {streamhls_opt_level} --dsps {self.cur_dsp_usage} --timelimit {2} --tilelimit {tilelimit} --tech-config {config_path} --bufferize 1
+            python run_streamhls.py -b {save_path} -d {save_path} -k {self.benchmark_name} -O {streamhls_opt_level} --dsps {self.cur_dsp_usage} --timelimit {5} --tilelimit {tilelimit} --tech-config {config_path} --bufferize 1
             '''
         ]
 
