@@ -389,6 +389,7 @@ class Codesign:
 
         save_path = os.path.join(os.path.dirname(__file__), "..", save_dir)
         config_path = os.path.join(cwd, self.config_json_path)
+        streamhls_opt_level = int(self.cfg["args"].get("streamhls_opt_level", 5))
         cmd = [
             'bash', '-c',
             f'''
@@ -398,11 +399,12 @@ class Codesign:
             pwd
             source setup-env.sh
             cd examples
-            python run_streamhls.py -b {save_path} -d {save_path} -k {self.benchmark_name} -O 5 --dsps {self.cur_dsp_usage} --timelimit {2} --tilelimit {tilelimit} --tech-config {config_path} --bufferize 1
+            python run_streamhls.py -b {save_path} -d {save_path} -k {self.benchmark_name} -O {streamhls_opt_level} --dsps {self.cur_dsp_usage} --timelimit {2} --tilelimit {tilelimit} --tech-config {config_path} --bufferize 1
             '''
         ]
 
-        with open(f"{save_path}/streamhls_out.log", "w") as outfile:
+        log_path = f"{save_path}/streamhls_out.log"
+        with open(log_path, "w") as outfile:
             p = subprocess.Popen(
                 cmd,
                 stdout=outfile,
@@ -410,11 +412,23 @@ class Codesign:
                 env={}  # clean environment
             )
             p.wait()
-        with open(f"{save_path}/streamhls_out.log", "r") as f:
+        with open(log_path, "r") as f:
             logger.info(f"StreamHLS output:\n{f.read()}")
 
         if p.returncode != 0:
-            raise Exception(f"StreamHLS failed with error: {p.stderr}")
+            tail = ""
+            try:
+                with open(log_path, "r") as f:
+                    lines = f.readlines()
+                tail = "".join(lines[-50:])
+            except Exception:
+                tail = "(unable to read streamhls_out.log)"
+            raise Exception(
+                "StreamHLS failed. "
+                f"Return code: {p.returncode}. "
+                f"Log: {log_path}\n"
+                f"Last lines:\n{tail}"
+            )
         logger.info(f"time to run StreamHLS: {time.time()-start_time}")
         shutil.copy(f"{save_path}/{self.benchmark_name}/hls/src/{self.benchmark_name}.cpp", f"{save_path}/{self.benchmark_name}.cpp")
         shutil.copy(f"{save_path}/{self.benchmark_name}/hls/hls.tcl", f"{save_path}/hls.tcl")
@@ -532,14 +546,25 @@ class Codesign:
             assert log_file is not None, f"No log file found for {self.benchmark_name} in {save_dir}"
             latency, dsp = None, None
             last_nonzero_latency, last_nonzero_dsp = None, None
+            combined_latency = None
+            parallel_latency = None
+            perm_latency = None
             crash_line = None
             with open(log_file, "r") as f:
                 lines = f.readlines()
                 for line in lines:
                     if "Combined Latency:" in line:
-                        latency = float(line.split("Combined Latency:")[1].strip())
-                        if latency > 0:
-                            last_nonzero_latency = latency
+                        combined_latency = float(line.split("Combined Latency:")[1].strip())
+                        if combined_latency > 0:
+                            last_nonzero_latency = combined_latency
+                    if "Parallel Latency:" in line:
+                        parallel_latency = float(line.split("Parallel Latency:")[1].strip())
+                        if parallel_latency > 0:
+                            last_nonzero_latency = parallel_latency
+                    if "Permutation solver: latency:" in line:
+                        perm_latency = float(line.split("Permutation solver: latency:")[1].strip())
+                        if perm_latency > 0:
+                            last_nonzero_latency = perm_latency
                     if "Total DSPs:" in line:
                         dsp = int(line.split("Total DSPs:")[1].strip())
                         if dsp > 0:
@@ -548,6 +573,12 @@ class Codesign:
                             self.cur_dsp_usage = dsp
                     if crash_line is None and ("Assertion" in line or "Aborted" in line or "core dumped" in line):
                         crash_line = line.strip()
+            if combined_latency is not None:
+                latency = combined_latency
+            elif parallel_latency is not None:
+                latency = parallel_latency
+            elif perm_latency is not None:
+                latency = perm_latency
             assert latency is not None and dsp is not None, f"No latency or dsp found for {self.benchmark_name} in {log_file}"
             if (latency == 0 or dsp == 0) and (last_nonzero_latency is not None or last_nonzero_dsp is not None):
                 latency = last_nonzero_latency if last_nonzero_latency is not None else latency
@@ -1239,6 +1270,12 @@ class Codesign:
         self.restore_dat()
 
     def end_of_run_plots(self, obj_over_iterations, lag_factor_over_iterations, params_over_iterations, wire_lengths_over_iterations, wire_delays_over_iterations, device_delays_over_iterations, sensitivities_over_iterations, constraint_slack_over_iterations, visualize_block_vectors=False):
+        if not hasattr(self.hw, "obj_sub_plot_names"):
+            logger.warning("Skipping plots: missing obj_sub_plot_names on hardware model.")
+            return
+        if not obj_over_iterations:
+            logger.warning("Skipping plots: no objective data collected.")
+            return
         obj = "Energy Delay Product"
         units = "nJ*ns"
         if self.obj_fn == "energy":
@@ -1387,6 +1424,7 @@ if __name__ == "__main__":
         help="Path to a pre-installed OpenROAD installation. This is primarily useful for CI testing where OpenRoad is pre-installed on the system.",
     )
     parser.add_argument("--arch_opt_pipeline", type=str, help="architecture optimization pipeline to use")
+    parser.add_argument("--streamhls_opt_level", type=str, help="StreamHLS optimization level to use")
     parser.add_argument('--debug_no_cacti', type=bool,
                         help='disable cacti in the first iteration to decrease runtime when debugging')
     parser.add_argument("--logic_node", type=int, help="logic node size")
