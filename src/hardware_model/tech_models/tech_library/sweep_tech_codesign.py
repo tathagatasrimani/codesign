@@ -774,8 +774,8 @@ def test_sweep_tech_codesign(args, custom_point=None):
                         "a": list(np.logspace(np.log10(0.5), np.log10(0.5), 1)),
                     }"""
         # BULK
-        """value_ranges = {"L": list(np.logspace(np.log10(10e-9), np.log10(60e-9), 5)),
-                        "W": list(np.logspace(np.log10(10e-9), np.log10(60e-9), 5)),
+        value_ranges = {"L": list(np.logspace(np.log10(10e-9), np.log10(50e-9), 5)),
+                        "W": list(np.logspace(np.log10(10e-9), np.log10(50e-9), 5)),
                         "V_dd": list(np.logspace(np.log10(0.1), np.log10(2), 5)),
                         "V_th": list(np.logspace(np.log10(0.2), np.log10(1.2), 5)),
                         "tox": list(np.logspace(np.log10(1e-9), np.log10(20e-9), 5)),
@@ -800,9 +800,9 @@ def test_sweep_tech_codesign(args, custom_point=None):
                         "a": list(np.logspace(np.log10(0.5), np.log10(0.5), 1)),
                         "GEO": list(np.linspace(1, 1, 1)),
                         "MUL": list(np.linspace(1, 1, 1)),
-                    }"""
+                    }
         # DG/NS
-        value_ranges = {"L": list(np.logspace(np.log10(5e-9), np.log10(50e-9), 5)),
+        """value_ranges = {"L": list(np.logspace(np.log10(5e-9), np.log10(50e-9), 5)),
                         "W": list(np.logspace(np.log10(5e-9), np.log10(50e-9), 5)),
                         "V_dd": list(np.logspace(np.log10(0.1), np.log10(1.2), 5)),
                         "V_th": list(np.logspace(np.log10(0.2), np.log10(0.9), 5)),
@@ -828,7 +828,7 @@ def test_sweep_tech_codesign(args, custom_point=None):
                         "a": list(np.logspace(np.log10(0.5), np.log10(0.5), 1)),
                         "GEO": list(np.linspace(2, 2, 1)),
                         "MUL": list(np.linspace(1, 3, 3)),
-                    }
+                    }"""
         """value_ranges = {"L": list(np.logspace(np.log10(1.5e-8), np.log10(1.5e-8), 1)),
                         "W": list(np.logspace(np.log10(15e-9), np.log10(15e-9), 1)),
                         "V_dd": list(np.logspace(np.log10(0.1), np.log10(0.1), 1)),

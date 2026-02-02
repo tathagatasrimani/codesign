@@ -104,8 +104,8 @@ class MVS1SpiceModel(TechModel):
         Cpar_p = symbolic_Cpar_model_cmg(Weff_Cpar_p, Lext, eps_cap, tgate)
 
         # modified from original; non-FO4 Cpar terms moved to other variable
-        Cload_n = FO * ( (2/3) * Cgc_on * Weff_Id_n * Lg + Cpar_n )
-        Cload_p = FO * ( (2/3) * Cgc_on * Weff_Id_p * Lg + Cpar_p )
+        Cload_n = FO * ( (3/4) * Cgc_on * Weff_Id_n * Lg + 2*Cpar_n )
+        Cload_p = FO * ( (3/4) * Cgc_on * Weff_Id_p * Lg + 2*Cpar_p )
         Cload = (Cload_n + Cload_p)/2
         
         Cpar = M * (Cpar_n + Cpar_p)/2
@@ -381,6 +381,7 @@ class MVS1SpiceModel(TechModel):
         self.sweep_output_db["k_gate"] = self.k_gate
         self.sweep_output_db["eps_semi"] = self.eps_semi
         self.sweep_output_db["tsemi"] = self.tsemi
+        self.sweep_output_db["eot"] = self.tox * self.e_sio2/self.k_gate
         self.sweep_output_db["Lext"] = self.Lext
         self.sweep_output_db["Lc"] = self.Lc
         self.sweep_output_db["eps_cap"] = self.eps_cap

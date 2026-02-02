@@ -1409,6 +1409,8 @@ class HardwareModel:
                 "GEO": self.circuit_model.tech_model.param_db["GEO"],
                 "MUL": self.circuit_model.tech_model.param_db["MUL"],
                 "t_ox": self.circuit_model.tech_model.param_db["tox"],
+                "tsemi": self.circuit_model.tech_model.param_db["tsemi"],
+                "eot": self.circuit_model.tech_model.param_db["eot"],
                 "k_gate": self.circuit_model.tech_model.param_db["k_gate"],
                 "NM_H": self.circuit_model.tech_model.param_db["NM_H"],
                 "NM_L": self.circuit_model.tech_model.param_db["NM_L"],
