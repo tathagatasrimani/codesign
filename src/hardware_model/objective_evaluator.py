@@ -531,7 +531,7 @@ class ObjectiveEvaluator:
         if function in ["N/A", "Call", "read", "write"]:
             return 0.0
         tv = self.tech_model.base_params.tech_values
-        area_coeff = self.area_coeffs[function] * 500/7
+        area_coeff = self.area_coeffs[function] * 500/7 # TODO: arbitrary, should fix the area coeffs at some point
         area = area_coeff * self.tech_model.base_params.area
         pipeline_cost = DATA_WIDTH * self.DFF_AREA * (self._latency(function)/self.tech_model.base_params.clk_period) # DATA_WIDTH DFFs needed for each extra cycle
         return area + pipeline_cost

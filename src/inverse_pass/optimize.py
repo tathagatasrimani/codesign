@@ -34,6 +34,24 @@ multistart = False
 from src.sim_util import solve_gp_with_fallback
 
 
+# --- Plot style configuration ---
+PLOT_STYLE = {
+    'figure.figsize': (12, 7),
+    "font.size": 50,
+    "axes.titlesize": 60,
+    "axes.labelsize": 50,
+    "xtick.labelsize": 50,
+    "ytick.labelsize": 50,
+    "legend.fontsize": 50,
+    "figure.titlesize": 60
+}
+
+def apply_plot_style():
+    """Apply consistent styling to matplotlib plots."""
+    for key, value in PLOT_STYLE.items():
+        plt.rcParams[key] = value
+
+
 @dataclass
 class DesignPointResult:
     """Stores metrics for a single design point evaluation."""
@@ -67,6 +85,7 @@ def plot_2d_scatter(
     top_percent: float,
     n_top: int,
     n_valid: int,
+    obj_type: str = "Objective",
     output_dir: str = None,
     eps: float = 1e-30,
     log_scale: bool = True
@@ -91,21 +110,24 @@ def plot_2d_scatter(
         eps: Small offset to add to values (for log scale handling of zeros)
         log_scale: Whether to use log scale for both axes (default: True)
     """
+    # Apply consistent plot styling
+    apply_plot_style()
+
     # Separate valid and invalid results
     valid_results = [r for r in top_results if r.satisfies_constraints]
     invalid_results = [r for r in top_results if not r.satisfies_constraints]
-    
+
     # Extract x and y values for valid results
     x_vals_valid = [getattr(r, x_attr) + eps for r in valid_results]
     y_vals_valid = [getattr(r, y_attr) + eps for r in valid_results]
     colors_valid = [colors[i] for i, r in enumerate(top_results) if r.satisfies_constraints]
-    
+
     # Extract x and y values for invalid results
     x_vals_invalid = [getattr(r, x_attr) + eps for r in invalid_results]
     y_vals_invalid = [getattr(r, y_attr) + eps for r in invalid_results]
 
-    fig, ax = plt.subplots(figsize=(10, 8))
-    
+    fig, ax = plt.subplots(figsize=(10, 6))
+
     # Plot valid results with colors
     if valid_results:
         scatter = ax.scatter(
@@ -113,47 +135,59 @@ def plot_2d_scatter(
             y_vals_valid,
             c=colors_valid,
             cmap='viridis_r',
-            s=50,
+            s=120,
             alpha=0.7,
+            edgecolors='white',
+            linewidths=0.5,
             label='Valid Designs'
         )
-        cbar = fig.colorbar(scatter, ax=ax)
-        cbar.set_label('Relative Objective (0=best)')
-    
+        cbar = fig.colorbar(scatter, ax=ax, shrink=0.8, pad=0.02)
+        title_txt = f'SYSTEM {obj_type.upper()}'
+        title_txt = title_txt.lower().title()
+        cbar.set_label(title_txt, fontsize=18, labelpad=2, fontweight='bold')
+        cbar.set_ticks([0, 1])
+        cbar.set_ticklabels(['Best', 'Worst'], fontweight='bold')
+        cbar.ax.invert_yaxis()
+        cbar.ax.tick_params(labelsize=14)
+
     # Plot invalid results with black X markers
     if invalid_results:
         ax.scatter(
             x_vals_invalid,
             y_vals_invalid,
-            c='black',
+            c='dimgray',
             marker='x',
-            s=100,
-            alpha=0.8,
-            linewidths=2,
-            label='Invalid Designs (constraint violation)',
+            s=80,
+            alpha=0.6,
+            linewidths=1.5,
+            label='Power Budget Violation',
             zorder=5
         )
-    
-    ax.set_xlabel(x_label)
-    ax.set_ylabel(y_label)
+
+    ax.set_xlabel(x_label, fontsize=18, labelpad=10)
+    ax.set_ylabel(y_label, fontsize=18, labelpad=10)
+    ax.tick_params(axis='both', which='major', labelsize=14)
+    ax.tick_params(axis='both', which='minor', labelsize=12)
     if log_scale:
         ax.set_xscale('log')
         ax.set_yscale('log')
-    ax.set_title(title)
+    ax.set_title(title, fontsize=20, fontweight='bold', pad=15)
 
     # Mark the best valid design
     if valid_results:
         best_valid_idx = 0
-        ax.scatter([x_vals_valid[best_valid_idx]], [y_vals_valid[best_valid_idx]], 
-                  c='red', s=200, marker='*', label='Best Design', zorder=6)
-    
-    ax.legend()
+        ax.scatter([x_vals_valid[best_valid_idx]], [y_vals_valid[best_valid_idx]],
+                  c='red', s=400, marker='*', label='Best Design', zorder=6,
+                  edgecolors='darkred', linewidths=1)
+
+    ax.legend(fontsize=14, loc='best', framealpha=0.9, edgecolor='gray')
+    ax.grid(True, alpha=0.3, linestyle='--')
     plt.tight_layout()
 
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)
         filepath = os.path.join(output_dir, f'{filename}_iteration_{iteration}.png')
-        plt.savefig(filepath, dpi=150)
+        plt.savefig(filepath, dpi=200, bbox_inches='tight', facecolor='white')
         logger.info(f"Saved 2D {x_attr}/{y_attr} plot to {filepath}")
         plt.close(fig)
     else:
@@ -171,6 +205,7 @@ def plot_metric_lines(
     top_percent: float,
     n_top: int,
     n_valid: int,
+    obj_type: str = "Objective",
     output_dir: str = None,
     eps: float = 1e-30,
     scale: List[str] = None
@@ -200,11 +235,14 @@ def plot_metric_lines(
         scale = ['linear'] * len(metrics)
     if len(metrics) != len(labels):
         raise ValueError(f"Number of metrics ({len(metrics)}) must match number of labels ({len(labels)})")
-    
+
+    # Apply consistent plot styling
+    apply_plot_style()
+
     n_metrics = len(metrics)
-    
+
     # Create a single figure with subplots (one row per metric)
-    fig, axes = plt.subplots(n_metrics, 1, figsize=(14, 2 * n_metrics + 1))
+    fig, axes = plt.subplots(n_metrics, 1, figsize=(16, 2.5 * n_metrics + 2))
     
     # Handle case where there's only one metric (axes won't be an array)
     if n_metrics == 1:
@@ -262,17 +300,17 @@ def plot_metric_lines(
         # Draw a horizontal line
         ax.axhline(y=0, color='gray', linestyle='-', linewidth=1, alpha=0.3, zorder=1)
         
-        ax.set_xlabel(label, fontsize=10)
+        ax.set_xlabel(label, fontsize=14, labelpad=8)
         ax.set_ylabel('')
         ax.set_yticks([])  # Remove y-axis ticks
         ax.set_ylim(-0.1, 0.1)  # Small range to keep line visible
         if scale[idx] == 'log':
             ax.set_xscale('log')
-        
+
         # Shorter title to avoid overlap
-        ax.set_title(f'{label} ({n_top} of {n_valid} valid)', fontsize=11, pad=5)
+        ax.set_title(f'{label}', fontsize=15, fontweight='bold', pad=8)
         ax.grid(True, alpha=0.3, axis='x')
-        ax.tick_params(axis='x', labelsize=9)
+        ax.tick_params(axis='x', labelsize=12)
         
         # Mark the best valid design
         if valid_results:
@@ -282,31 +320,38 @@ def plot_metric_lines(
     
     # Add a shared colorbar if there are valid results
     if scatter_objects:
-        cbar = fig.colorbar(scatter_objects[0], ax=axes, orientation='horizontal', 
-                            pad=0.15, aspect=40, location='bottom')
-        cbar.set_label('Relative Objective (0=best)', fontsize=10, labelpad=10)
-    
+        cbar = fig.colorbar(scatter_objects[0], ax=axes, orientation='horizontal',
+                            pad=0.12, aspect=40, location='bottom')
+        
+        title_txt = f'SYSTEM {obj_type.upper()}'
+        title_txt = title_txt.lower().title()
+        cbar.set_label(title_txt, fontsize=16, labelpad=2, fontweight='bold')
+        cbar.set_ticks([0, 1])
+        cbar.set_ticklabels(['Best', 'Worst'], fontweight='bold')
+        cbar.ax.invert_xaxis()  # horizontal colorbar
+        cbar.ax.tick_params(labelsize=14)
+
     # Add overall title
-    fig.suptitle(f'{title_prefix} ({n_top} of {n_valid} valid)', 
-                 fontsize=12, y=0.995)
-    
+    fig.suptitle(f'{title_prefix}',
+                 fontsize=18, fontweight='bold', y=0.995)
+
     # Add legend only once (from first subplot)
     if n_metrics > 0:
-        axes[0].legend(loc='upper right', fontsize=9, framealpha=0.9)
-    
+        axes[0].legend(loc='upper right', fontsize=12, framealpha=0.9)
+
     plt.tight_layout(rect=[0, 0.08, 1, 0.98])  # Leave more space at bottom for colorbar
-    
+
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)
         filepath = os.path.join(output_dir, f'{filename_prefix}_line_iteration_{iteration}.png')
-        plt.savefig(filepath, dpi=150, bbox_inches='tight')
+        plt.savefig(filepath, dpi=200, bbox_inches='tight', facecolor='white')
         logger.info(f"Saved line plots for {n_metrics} metrics to {filepath}")
         plt.close(fig)
     else:
         plt.show()
 
 
-def visualize_top_designs(all_results: List[DesignPointResult], iteration: int, top_percent: float = 0.1, output_dir: str = None):
+def visualize_top_designs(all_results: List[DesignPointResult], iteration: int, obj_type: str, top_percent: float = 0.1, output_dir: str = None):
     """
     Create visualizations of the top designs by objective value.
     Generates two plots:
@@ -365,13 +410,14 @@ def visualize_top_designs(all_results: List[DesignPointResult], iteration: int, 
         y_attr='Ioff',
         x_label='Ieff (A)',
         y_label='Ioff (A)',
-        title=f'Top {top_percent*100:.0f}% Designs: Ieff vs Ioff ({n_top} of {len(valid_results)})',
+        title=f'Design Space Map: Ieff vs Ioff',
         filename='ieff_ioff_2d',
         colors=colors,
         iteration=iteration,
         top_percent=top_percent,
         n_top=n_top,
         n_valid=len(valid_results),
+        obj_type=obj_type,
         output_dir=output_dir,
         eps=eps,
         log_scale=True
@@ -387,15 +433,16 @@ def visualize_top_designs(all_results: List[DesignPointResult], iteration: int, 
         top_results=top_results,
         x_attr='delay',
         y_attr='leakage_power',
-        x_label='Delay (s)',
+        x_label='Stage Delay (s)',
         y_label='Passive Power (W)',
-        title=f'Top {top_percent*100:.0f}% Designs: Delay vs Passive Power ({n_top} of {len(valid_results)})',
+        title=f'Design Space Map: Delay vs Passive Power',
         filename='delay_passive_power_2d',
         colors=colors,
         iteration=iteration,
         top_percent=top_percent,
         n_top=n_top,
         n_valid=len(valid_results),
+        obj_type=obj_type,
         output_dir=output_dir,
         eps=eps,
         log_scale=True
@@ -406,13 +453,14 @@ def visualize_top_designs(all_results: List[DesignPointResult], iteration: int, 
         top_results=top_results,
         metrics=['L', 'W', 'V_dd', 'V_th', 'tox'],
         labels=['L (m)', 'W (m)', 'V_dd (V)', 'V_th (V)', 'tox (m)'],
-        title_prefix=f'Top {top_percent*100:.0f}% Designs',
+        title_prefix='Design Space Map',
         filename_prefix='L_W_V_dd_V_th_tox',
         colors=colors,
         iteration=iteration,
         top_percent=top_percent,
         n_top=n_top,
         n_valid=len(valid_results),
+        obj_type=obj_type,
         output_dir=output_dir,
         eps=eps,
         scale=['log', 'log', 'linear', 'linear', 'log']
@@ -423,13 +471,14 @@ def visualize_top_designs(all_results: List[DesignPointResult], iteration: int, 
         y_attr='leakage_power',
         x_label='Dynamic Energy (J)',
         y_label='Leakage Power (W)',
-        title=f'Top {top_percent*100:.0f}% Designs: Dynamic Energy vs Leakage Power ({n_top} of {len(valid_results)})',
+        title=f'Design Space Map: Dynamic Energy vs Leakage Power',
         filename='dynamic_energy_leakage_power_2d',
         colors=colors,
         iteration=iteration,
         top_percent=top_percent,
         n_top=n_top,
         n_valid=len(valid_results),
+        obj_type=obj_type,
         output_dir=output_dir,
         eps=eps,
         log_scale=True
@@ -439,36 +488,89 @@ def visualize_top_designs(all_results: List[DesignPointResult], iteration: int, 
     log_dynamic = np.log10(dynamic_energies)
     log_passive = np.log10(passive_powers)
 
-    fig2 = plt.figure(figsize=(12, 9))
-    ax2 = fig2.add_subplot(111, projection='3d')
+    # Separate valid and invalid results (excluding best design at index 0)
+    valid_indices = [i for i in range(1, len(top_results)) if top_results[i].satisfies_constraints]
+    invalid_indices = [i for i in range(1, len(top_results)) if not top_results[i].satisfies_constraints]
 
-    scatter2 = ax2.scatter(
-        log_delays,
-        log_dynamic,
-        log_passive,
-        c=colors,
-        cmap='viridis_r',
-        s=50,
-        alpha=0.7
-    )
+    # Apply consistent plot styling
+    apply_plot_style()
 
-    ax2.set_xlabel('log10(Delay) [s]')
-    ax2.set_ylabel('log10(Dynamic Energy) [J]')
-    ax2.set_zlabel('log10(Passive Power) [W]')
-    ax2.set_title(f'Top {top_percent*100:.0f}% Designs ({n_top} of {len(valid_results)} valid)')
+    fig2 = plt.figure(figsize=(9, 6))
+    ax2 = fig2.add_subplot(111, projection='3d', computed_zorder=False)
 
-    cbar2 = fig2.colorbar(scatter2, ax=ax2, shrink=0.6, pad=0.1)
-    cbar2.set_label('Relative Objective (0=best)')
+    # Plot valid points (excluding best)
+    if valid_indices:
+        scatter2 = ax2.scatter(
+            log_delays[valid_indices],
+            log_dynamic[valid_indices],
+            log_passive[valid_indices],
+            c=[colors[i] for i in valid_indices],
+            cmap='viridis_r',
+            s=100,
+            alpha=0.75,
+            edgecolors='white',
+            linewidths=0.3,
+            zorder=1,
+            label='Valid Design'
+        )
+    else:
+        # Need at least one scatter for colorbar
+        scatter2 = ax2.scatter([], [], [], c=[], cmap='viridis_r')
 
-    # Mark the best design
+    # Plot invalid points with X markers
+    if invalid_indices:
+        ax2.scatter(
+            log_delays[invalid_indices],
+            log_dynamic[invalid_indices],
+            log_passive[invalid_indices],
+            c='dimgray',
+            marker='x',
+            s=80,
+            alpha=0.6,
+            linewidths=1.5,
+            zorder=2,
+            label='Power Budget Exceeded'
+        )
+
+    # Set axis labels - simplified
+    ax2.set_xlabel('Stage Delay [s]', fontsize=14, labelpad=8, fontweight='bold')
+    ax2.set_ylabel('Dynamic Energy [J]', fontsize=14, labelpad=8, fontweight='bold')
+    ax2.set_zlabel('Passive Power [W]', fontsize=14, labelpad=8, fontweight='bold')
+
+    # Title centered over the plot (shifted left to account for colorbar)
+    ax2.set_title('Design Space Map  (log₁₀ scale)', fontsize=25, fontweight='bold', pad=10)
+
+    # Style tick labels
+    ax2.tick_params(axis='x', labelsize=11, pad=5)
+    ax2.tick_params(axis='y', labelsize=11, pad=5)
+    ax2.tick_params(axis='z', labelsize=11, pad=5)
+
+    # Set integer-only ticks on Dynamic Energy (y) axis
+    y_min, y_max = int(np.floor(log_dynamic.min())), int(np.ceil(log_dynamic.max()))
+    ax2.set_yticks(range(y_min, y_max + 1))
+
+    # Colorbar with BEST/WORST labels
+    title_txt = f'SYSTEM {obj_type.upper()}'
+    title_txt = title_txt.lower().title()
+    cbar2 = fig2.colorbar(scatter2, ax=ax2, shrink=0.6, pad=0.02, aspect=25)
+    cbar2.set_label(title_txt, fontsize=14, labelpad=2, fontweight='bold')
+    cbar2.set_ticks([0, 1])
+    cbar2.set_ticklabels(['Best', 'Worst'], fontweight='bold')
+    cbar2.ax.invert_yaxis()
+    cbar2.ax.tick_params(labelsize=12)
+
+    # Mark the best design with a prominent star - plotted LAST with high zorder
     ax2.scatter([log_delays[0]], [log_dynamic[0]], [log_passive[0]],
-                c='red', s=200, marker='*', label='Best Design')
-    ax2.legend()
-    plt.tight_layout()
+                c='red', s=600, marker='*', label='Best Design',
+                edgecolors='black', linewidths=2, zorder=100)
+    ax2.legend(fontsize=12, loc='upper left', framealpha=0.9)
+
+    # Adjust viewing angle for better visibility
+    ax2.view_init(elev=20, azim=45)
 
     if output_dir:
         filepath2 = os.path.join(output_dir, f'delay_energy_power_3d_iteration_{iteration}.png')
-        plt.savefig(filepath2, dpi=150)
+        plt.savefig(filepath2, dpi=200, facecolor='white', bbox_inches='tight', pad_inches=0.5)
         logger.info(f"Saved 3D delay/energy/power plot to {filepath2}")
         plt.close(fig2)
     else:
@@ -1225,7 +1327,7 @@ class Optimizer:
             logger.info(f"Global best objective value: {best_obj_val}, design point: {best_design_point}")
 
             # Visualize top 10% of designs
-            visualize_top_designs(all_results, self.iteration, top_percent=1, output_dir=self.save_dir)
+            visualize_top_designs(all_results, self.iteration, obj_type=self.hw.obj_fn, top_percent=1, output_dir=self.save_dir)
         else:
             best_design_point = None
             best_obj_val = math.inf
