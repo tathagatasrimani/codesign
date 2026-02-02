@@ -14,7 +14,7 @@ import re
 from src import codesign
 from src import sim_util
 
-DEFAULT_MAX_JOB_RUNTIME_MINS = 60  # in minutes
+DEFAULT_MAX_JOB_RUNTIME_MINS = 2000  # in minutes
 
 NO_BETTER_DESIGN_POINT_FOUND_MSG = "FLOW END: No better design point found."
 
