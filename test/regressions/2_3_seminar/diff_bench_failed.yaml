@@ -5,11 +5,12 @@ vitis_streamhls_mvt_test1:
     solver: basic
     arch_opt_pipeline: streamhls
     pytorch: True
-    min_dsp: 4000
+    min_dsp: 800
     num_iters: 1
     model_cfg: sweep_basic_cfg_dg_ns
-    checkpoint_load_dir: tmp_mvt_edp_0
-    checkpoint_start_step: arch_opt
+    checkpoint_load_dir: tmp_mvt_delay_0
+    checkpoint_start_step: pd
+    obj: delay
 
 vitis_streamhls_gemm_test1:
   base_cfg: vitis_test
@@ -18,24 +19,26 @@ vitis_streamhls_gemm_test1:
     solver: basic
     arch_opt_pipeline: streamhls
     pytorch: True  
-    min_dsp: 4000
+    min_dsp: 800
     num_iters: 1
     model_cfg: sweep_basic_cfg_dg_ns
-    checkpoint_load_dir: tmp_gemm_edp_0
-    checkpoint_start_step: arch_opt
+    checkpoint_load_dir: tmp_gemm_delay_0
+    checkpoint_start_step: pd
+    obj: delay
 
 vitis_streamhls_doitgen_test1:
   base_cfg: vitis_test
   args:
     benchmark: kernel_doitgen
     solver: basic
-    min_dsp: 4000
+    min_dsp: 800
     arch_opt_pipeline: streamhls
     pytorch: True
     num_iters: 1
     model_cfg: sweep_basic_cfg_dg_ns
-    checkpoint_load_dir: tmp_kernel_doitgen_edp_0
+    checkpoint_load_dir: tmp_kernel_doitgen_delay_0
     checkpoint_start_step: arch_opt
+    obj: delay
 
 vitis_streamhls_bicg_test1:
   base_cfg: vitis_test
@@ -44,11 +47,12 @@ vitis_streamhls_bicg_test1:
     solver: basic
     arch_opt_pipeline: streamhls
     pytorch: True
-    min_dsp: 4000
+    min_dsp: 800
     num_iters: 1
     model_cfg: sweep_basic_cfg_dg_ns
-    checkpoint_load_dir: tmp_bicg_edp_0
-    checkpoint_start_step: arch_opt
+    checkpoint_load_dir: tmp_bicg_delay_0
+    checkpoint_start_step: pd
+    obj: delay
 
 vitis_streamhls_atax_test1:
   base_cfg: vitis_test
@@ -58,8 +62,122 @@ vitis_streamhls_atax_test1:
     arch_opt_pipeline: streamhls
     pytorch: True
     arch_opt_pipeline: streamhls
+    min_dsp: 800
+    num_iters: 1
+    model_cfg: sweep_basic_cfg_dg_ns
+    checkpoint_load_dir: tmp_atax_delay_0
+    checkpoint_start_step: pd
+    obj: delay
+
+vitis_streamhls_attention_test1:
+  base_cfg: vitis_test
+  args:
+    benchmark: MultiHeadSelfAttention
+    solver: basic
+    arch_opt_pipeline: streamhls
+    pytorch: True
+    min_dsp: 800
+    num_iters: 1
+    model_cfg: sweep_basic_cfg_dg_ns
+    checkpoint_load_dir: tmp_MultiHeadSelfAttention_delay_0
+    checkpoint_start_step: pd
+    obj: delay
+
+vitis_inference_streamhls_test1:
+  base_cfg: vitis_test
+  args:
+    solver: basic
+    min_dsp: 4000
+    benchmark: Inference
+    arch_opt_pipeline: streamhls
+    pytorch: True
+    num_iters: 1
+    model_cfg: sweep_basic_cfg_dg_ns
+    checkpoint_load_dir: tmp_Inference_delay_0
+    checkpoint_start_step: pd
+    obj: delay
+
+vitis_streamhls_gemmv_test1:
+  base_cfg: vitis_test
+  args:
+    benchmark: gemmv
+    solver: basic
+    min_dsp: 4000
+    arch_opt_pipeline: streamhls
+    pytorch: True
+    num_iters: 1
+    model_cfg: sweep_basic_cfg_dg_ns
+    checkpoint_load_dir: tmp_gemmv_delay_0
+    checkpoint_start_step: pd
+    obj: delay
+
+vitis_streamhls_gesummv_test1:
+  base_cfg: vitis_test
+  args:
+    benchmark: gesummv
+    solver: basic
+    arch_opt_pipeline: streamhls
+    pytorch: True
     min_dsp: 4000
     num_iters: 1
     model_cfg: sweep_basic_cfg_dg_ns
-    checkpoint_load_dir: tmp_atax_edp_0
-    checkpoint_start_step: arch_opt
+    checkpoint_load_dir: tmp_gesummv_delay_0
+    checkpoint_start_step: pd
+    obj: delay
+
+vitis_streamhls_2mm_test1:
+  base_cfg: vitis_test
+  args:
+    benchmark: k2mm
+    solver: basic
+    arch_opt_pipeline: streamhls
+    pytorch: True
+    min_dsp: 4000
+    num_iters: 1
+    model_cfg: sweep_basic_cfg_dg_ns
+    checkpoint_load_dir: tmp_k2mm_delay_0
+    checkpoint_start_step: pd
+    obj: delay
+  
+vitis_streamhls_3mm_test1:
+  base_cfg: vitis_test
+  args:
+    benchmark: k3mm
+    solver: basic
+    arch_opt_pipeline: streamhls
+    pytorch: True
+    min_dsp: 4000
+    num_iters: 1
+    model_cfg: sweep_basic_cfg_dg_ns
+    checkpoint_load_dir: tmp_k3mm_delay_0
+    checkpoint_start_step: pd
+    obj: delay
+
+vitis_streamhls_sgd_sw_test1:
+  base_cfg: vitis_test
+  args:
+    benchmark: sgd_sw
+    solver: basic
+    min_dsp: 4000
+    arch_opt_pipeline: streamhls
+    pytorch: True
+    num_iters: 1
+    model_cfg: sweep_basic_cfg_dg_ns
+    checkpoint_load_dir: tmp_sgd_sw_delay_0
+    checkpoint_start_step: pd
+    obj: delay
+
+vitis_streamhls_syr2k_test1:
+  base_cfg: vitis_test
+  args:
+    benchmark: syr2k
+    solver: basic
+    min_dsp: 4000 # not an optimized choice
+    arch_opt_pipeline: streamhls
+    pytorch: True
+    num_iters: 1
+    model_cfg: sweep_basic_cfg_dg_ns
+    checkpoint_load_dir: tmp_syr2k_delay_0
+    checkpoint_start_step: pd
+    obj: delay
+

@@ -593,7 +593,7 @@ def process_regression_results(
         print(f"\nProcessing experiment: {exp_dir_name}")
 
         # Detect if this is a diff_benchmark experiment
-        is_diff_benchmark = exp_dir_name.startswith("diff_benchmark")
+        is_diff_benchmark = exp_dir_name.startswith("diff_bench")
 
         results = collect_results_from_experiment_dir(exp_dir_path, is_diff_benchmark=is_diff_benchmark)
 

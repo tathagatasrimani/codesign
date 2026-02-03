@@ -1203,6 +1203,7 @@ class Codesign:
         self.wire_delays_over_iterations.append(wire_delays)
         device_delay = sim_util.xreplace_safe(self.hw.circuit_model.tech_model.delay, self.hw.circuit_model.tech_model.base_params.tech_values)
         self.device_delays_over_iterations.append(device_delay)
+        json.dump(wire_lengths.values(), open(f"{self.save_dir}/wire_lengths_{iter_number}.json", "w"))
         nx.write_gml(
             self.hw.netlist,
             f"{self.save_dir}/netlist_{iter_number}.gml",
