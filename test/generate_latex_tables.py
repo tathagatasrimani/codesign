@@ -28,6 +28,20 @@ DEFAULT_METRICS = {
     "scale length": ("$L_{scale}$", "nm", ".0f"),
     #"MUL": ("$MUL$", "", ".0f"),
     #"GEO": ("$GEO$", "", ".0f"),
+    "max_wire_length": 1e3,  # m -> mm
+}
+
+# Additional metrics for diff_benchmark experiments
+DIFF_BENCHMARK_METRICS = {
+    "supply voltage": ("$V_{dd}$", "V", ".2f"),
+    "effective threshold voltage": ("$V_{th}$", "V", ".2f"),
+    "gate length": ("$L_g$", "nm", ".0f"),
+    "eot_corrected": ("$t_{oxTeq}$", "nm", ".1f"),
+    "tsemi": ("$t_{semi}$", "nm", ".0f"),
+    "scale length": ("$L_{scale}$", "nm", ".0f"),
+    #"MUL": ("$MUL$", "", ".0f"),
+    #"GEO": ("$GEO$", "", ".0f"),
+    "max_wire_length": ("$L_{wire,max}$", "mm", ".2f"),
 }
 
 # Scale factors for converting to display units
@@ -60,7 +74,7 @@ def get_latest_log_dir(log_path: str) -> Optional[str]:
     return os.path.join(log_path, log_dirs[0])
 
 
-def load_param_data(results_dir: str) -> Optional[Dict]:
+def load_param_data(results_dir: str, load_wire_lengths: bool = False) -> Optional[Dict]:
     """Load the final parameter data from a results directory."""
     param_path = os.path.join(results_dir, "figs", "plot_param_data.json")
 
@@ -80,7 +94,21 @@ def load_param_data(results_dir: str) -> Optional[Dict]:
         return None
 
     # Return the last (final) iteration
-    return param_data[-1] if param_data else None
+    result = param_data[-1] if param_data else None
+
+    # Optionally load max wire length for diff_benchmark experiments
+    if result and load_wire_lengths:
+        wire_path = os.path.join(results_dir, "wire_lengths_0.json")
+        if os.path.exists(wire_path):
+            try:
+                with open(wire_path, "r") as f:
+                    wire_lengths = json.load(f)
+                    if wire_lengths:
+                        result["max_wire_length"] = max(wire_lengths)
+            except (json.JSONDecodeError, ValueError) as e:
+                print(f"Warning: Failed to parse {wire_path}: {e}")
+
+    return result
 
 
 def format_value(value: float, metric_key: str, metrics: Dict) -> str:
@@ -199,8 +227,8 @@ def collect_results_from_experiment_dir(experiment_dir: str, is_diff_benchmark: 
             print(f"Warning: No log directory found in {run_path}")
             continue
 
-        # Load parameter data
-        param_data = load_param_data(latest_log)
+        # Load parameter data (include wire lengths for diff_benchmark)
+        param_data = load_param_data(latest_log, load_wire_lengths=is_diff_benchmark)
         if param_data is None:
             continue
 
@@ -626,10 +654,12 @@ def process_regression_results(
             )
         else:
             # Use "Benchmark" as first column header for diff_benchmark experiments
+            # Also use DIFF_BENCHMARK_METRICS which includes max_wire_length
             first_col_header = "Benchmark" if is_diff_benchmark else "Objective"
+            table_metrics = DIFF_BENCHMARK_METRICS if is_diff_benchmark else metrics
             latex_table = generate_latex_table(
                 results,
-                metrics,
+                table_metrics,
                 benchmark_name=benchmark_name,
                 first_column_header=first_col_header,
             )
