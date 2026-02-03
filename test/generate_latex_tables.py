@@ -26,8 +26,8 @@ DEFAULT_METRICS = {
     #"k_gate": ("$k_{gate}$", "", ".1f"),
     "tsemi": ("$t_{semi}$", "nm", ".0f"),
     "scale length": ("$L_{scale}$", "nm", ".0f"),
-    "MUL": ("$MUL$", "", ".0f"),
-    "GEO": ("$GEO$", "", ".0f"),
+    #"MUL": ("$MUL$", "", ".0f"),
+    #"GEO": ("$GEO$", "", ".0f"),
 }
 
 # Scale factors for converting to display units
@@ -298,17 +298,27 @@ def generate_power_density_table(
         # Parse folder name like "gemm_1000_bulk" or "gemm_100_dg_ns"
         parts = run_name.split("_")
         if len(parts) >= 3:
-            # Extract power density value (e.g., "1000", "100", "10", "1")
-            power_density = parts[1]
+            # Extract power density value (e.g., "1000", "100", "10", "1", "05", "0001")
+            power_density_str = parts[1]
             device_type = "_".join(parts[2:])  # "bulk" or "dg_ns"
 
-            # Format power density as "1000 W/cm$^2$"
-            power_str = f"{power_density} W/cm$^2$"
+            # Parse power density: "05" -> 0.5, "0001" -> 0.001, "1000" -> 1000
+            if power_density_str.startswith("0") and len(power_density_str) > 1:
+                # Leading zero indicates decimal: "05" -> "0.5", "0001" -> "0.001"
+                power_density_val = float(f"0.{power_density_str[1:]}")
+            else:
+                power_density_val = float(power_density_str)
+
+            # Format power density for display
+            if power_density_val < 1:
+                power_str = f"{power_density_val:g} W/cm$^2$"
+            else:
+                power_str = f"{int(power_density_val)} W/cm$^2$"
 
             if "bulk" in device_type:
-                bulk_results.append((run_name, power_str, param_data, int(power_density)))
+                bulk_results.append((run_name, power_str, param_data, power_density_val))
             elif "dg" in device_type or "ns" in device_type:
-                dg_ns_results.append((run_name, power_str, param_data, int(power_density)))
+                dg_ns_results.append((run_name, power_str, param_data, power_density_val))
 
     # Sort by power density (descending)
     bulk_results.sort(key=lambda x: x[3], reverse=True)
