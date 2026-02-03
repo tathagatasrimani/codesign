@@ -21,10 +21,12 @@ DEFAULT_METRICS = {
     "effective threshold voltage": ("$V_{th}$", "V", ".2f"),
     "gate length": ("$L_g$", "nm", ".0f"),  # multiply by 1e9
     #"gate width": ("$W_g$", "nm", ".0f"),   # multiply by 1e9
-    "t_ox": ("$t_{ox}$", "nm", ".1f"),      # multiply by 1e9
+    "eot_corrected": ("$t_{oxTeq}$", "nm", ".1f"),      # multiply by 1e9
     #"k_gate": ("$k_{gate}$", "", ".1f"),
     "tsemi": ("$t_{semi}$", "nm", ".0f"),
     "scale length": ("$L_{scale}$", "nm", ".0f"),
+    "MUL": ("$MUL$", "", ".0f"),
+    "GEO": ("$GEO$", "", ".0f"),
 }
 
 # Scale factors for converting to display units
@@ -35,6 +37,9 @@ SCALE_FACTORS = {
     "scale length": 1e9, # m -> nm
     "k_gate": 1,       # m -> nm
     "tsemi": 1e9,        # m -> nm
+    "eot_corrected": 1e9,         # m -> nm
+    "MUL": 1,           # multiplier
+    "GEO": 1,           # geometry factor
 }
 
 
@@ -181,6 +186,7 @@ def generate_latex_table(
     caption: str = "Final technology configurations",
     benchmark_name: str = "",
     max_dsp: Optional[int] = None,
+    include_caption: bool = False,
 ) -> str:
     """Generate a LaTeX table from the results."""
 
@@ -205,10 +211,13 @@ def generate_latex_table(
         r"\begin{table}[h!]",
         r"\centering",
         r"\small",
-        f"\\caption{{{full_caption}.}}",
+    ]
+    if include_caption:
+        lines.append(f"\\caption{{{full_caption}.}}")
+    lines.extend([
         f"\\begin{{tabular}}{{{col_spec}}}",
         r"\toprule",
-    ]
+    ])
 
     # Add multicolumn header
     title_text = f"Final technology configurations for \\textit{{{benchmark_name}}}" if benchmark_name else caption
@@ -246,6 +255,7 @@ def generate_power_density_table(
     metrics: Dict,
     caption: str = "Technology configurations by power density constraint",
     benchmark_name: str = "",
+    include_caption: bool = False,
 ) -> str:
     """Generate a LaTeX table for power density experiments with device type on the side."""
 
@@ -292,10 +302,13 @@ def generate_power_density_table(
         r"\begin{table}[h!]",
         r"\centering",
         r"\small",
-        f"\\caption{{{full_caption}.}}",
+    ]
+    if include_caption:
+        lines.append(f"\\caption{{{full_caption}.}}")
+    lines.extend([
         f"\\begin{{tabular}}{{{col_spec}}}",
         r"\toprule",
-    ]
+    ])
 
     # Add column headers
     header_row = r"\textbf{Device} & \textbf{Power Density} & " + " & ".join(headers) + r" \\"
@@ -357,7 +370,7 @@ def render_latex_to_image(latex_code: str, output_path: str) -> bool:
 
     # Create a complete LaTeX document
     full_doc = r"""
-\documentclass[preview,border=10pt]{standalone}
+\documentclass[preview,border={10pt 60pt 10pt 10pt}]{standalone}
 \usepackage{booktabs}
 \usepackage{amsmath}
 \usepackage{multirow}
@@ -558,7 +571,7 @@ def process_regression_results(
         benchmark_name = results[0][0].split("_")[0] if results else exp_dir_name
 
         # Generate LaTeX table (use specialized format for power_density)
-        if exp_dir_name == "power_density":
+        if exp_dir_name.startswith("power_density"):
             latex_table = generate_power_density_table(
                 results,
                 metrics,

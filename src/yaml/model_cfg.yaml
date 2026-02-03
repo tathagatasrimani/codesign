@@ -239,7 +239,7 @@ sweep_basic_cfg_bulk:
   base_cfg: default
   delay_parasitics: all
   model_type: sweep_basic
-  sweep_file_prefix: tech_sweep_mvs_1_spice_cfg_20260202_173704_pareto_bulk
+  sweep_file_prefix: tech_sweep_mvs_1_spice_cfg_20260202_194104_pareto_bulk
 
 sweep_basic_cfg_dg_ns:
   base_cfg: default

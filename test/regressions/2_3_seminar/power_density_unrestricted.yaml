@@ -12,7 +12,6 @@ gemm_1000_bulk:
     checkpoint_start_step: pd
     num_iters: 1
     obj: delay
-    leakage_restriction: True
 
 gemm_100_bulk:
   base_cfg: gemm_1000_bulk

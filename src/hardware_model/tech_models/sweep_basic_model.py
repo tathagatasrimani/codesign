@@ -10,7 +10,7 @@ from src.inverse_pass.constraint import Constraint
 from src import sim_util
 logger = logging.getLogger(__name__)
 
-DEBUG = True
+DEBUG = False
 def log_info(msg):
     if DEBUG:
         logger.info(msg)
@@ -142,6 +142,8 @@ class SweepBasicModel(TechModel):
         if "A_gate" not in self.sweep_model["output_metrics"]:
             log_info(f"setting A_gate to {sim_util.xreplace_safe(self.area, self.base_params.tech_values)}")
             self.param_db["A_gate"] = self.area
+        
+        self.param_db["eot_corrected"] = self.param_db["eot"] * 3.9/self.e_sio2
 
     def config_pareto_metric_db(self):
         self.pareto_metric_db = self.sweep_model["output_metrics"]
