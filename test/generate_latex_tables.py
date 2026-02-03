@@ -9,6 +9,7 @@ formatted LaTeX tables with configurable metrics.
 import argparse
 import json
 import os
+import re
 import subprocess
 import tempfile
 from pathlib import Path
@@ -109,8 +110,37 @@ def escape_latex(text: str) -> str:
     return text.replace("_", r"\_")
 
 
-def extract_objective_name(dir_name: str, use_full_name: bool = False) -> str:
+def clean_benchmark_name(dir_name: str) -> str:
+    """Clean up benchmark name by removing 'test1', 'streamhls', 'vitis', and underscores."""
+    name = dir_name
+
+    # Remove 'test1' (case insensitive, with optional leading underscore)
+    name = re.sub(r'_?test1$', '', name, flags=re.IGNORECASE)
+    name = re.sub(r'_?test1_', '_', name, flags=re.IGNORECASE)
+
+    # Remove 'streamhls' (case insensitive, with optional surrounding underscores)
+    name = re.sub(r'^streamhls_?', '', name, flags=re.IGNORECASE)
+    name = re.sub(r'_?streamhls_?', '_', name, flags=re.IGNORECASE)
+
+    # Remove 'vitis' (case insensitive, with optional surrounding underscores)
+    name = re.sub(r'^vitis_?', '', name, flags=re.IGNORECASE)
+    name = re.sub(r'_?vitis_?', '_', name, flags=re.IGNORECASE)
+
+    # Replace underscores with spaces
+    name = name.replace('_', ' ')
+
+    # Clean up any double spaces and strip
+    name = ' '.join(name.split())
+
+    return name
+
+
+def extract_objective_name(dir_name: str, use_full_name: bool = False, is_diff_benchmark: bool = False) -> str:
     """Extract a human-readable objective name from directory name."""
+    # For diff_benchmark experiments, clean up the benchmark name
+    if is_diff_benchmark:
+        return clean_benchmark_name(dir_name)
+
     # Common patterns: gemm_delay, gemm_energy, gemm_edp, gemm_ed2
     # Also: gemm_100_bulk, gemm_1000_dg_ns
     parts = dir_name.split("_")
@@ -139,7 +169,7 @@ def extract_objective_name(dir_name: str, use_full_name: bool = False) -> str:
     return dir_name
 
 
-def collect_results_from_experiment_dir(experiment_dir: str) -> List[Tuple[str, str, Dict]]:
+def collect_results_from_experiment_dir(experiment_dir: str, is_diff_benchmark: bool = False) -> List[Tuple[str, str, Dict]]:
     """
     Collect results from an experiment directory.
 
@@ -156,7 +186,7 @@ def collect_results_from_experiment_dir(experiment_dir: str) -> List[Tuple[str, 
                        if os.path.isdir(os.path.join(experiment_dir, d))])
 
     # Check if we need full names (to avoid duplicates)
-    short_names = [extract_objective_name(d, use_full_name=False) for d in run_dirs]
+    short_names = [extract_objective_name(d, use_full_name=False, is_diff_benchmark=is_diff_benchmark) for d in run_dirs]
     use_full_name = len(short_names) != len(set(short_names))
 
     for run_dir in run_dirs:
@@ -174,7 +204,7 @@ def collect_results_from_experiment_dir(experiment_dir: str) -> List[Tuple[str, 
         if param_data is None:
             continue
 
-        display_name = extract_objective_name(run_dir, use_full_name=use_full_name)
+        display_name = extract_objective_name(run_dir, use_full_name=use_full_name, is_diff_benchmark=is_diff_benchmark)
         results.append((run_dir, display_name, param_data))
 
     return results
@@ -187,6 +217,7 @@ def generate_latex_table(
     benchmark_name: str = "",
     max_dsp: Optional[int] = None,
     include_caption: bool = False,
+    first_column_header: str = "Objective",
 ) -> str:
     """Generate a LaTeX table from the results."""
 
@@ -194,7 +225,7 @@ def generate_latex_table(
     metric_keys = list(metrics.keys())
     headers = [metrics[k][0] for k in metric_keys]
 
-    # Number of columns: 1 for objective + len(metrics)
+    # Number of columns: 1 for objective/benchmark + len(metrics)
     num_cols = len(headers) + 1
     col_spec = "l" + "c" * len(headers)
 
@@ -225,7 +256,7 @@ def generate_latex_table(
     lines.append(r"\midrule")
 
     # Add column headers
-    header_row = r"\textbf{Objective} & " + " & ".join(headers) + r" \\"
+    header_row = f"\\textbf{{{first_column_header}}} & " + " & ".join(headers) + r" \\"
     lines.append(header_row)
     lines.append(r"\midrule")
 
@@ -561,14 +592,20 @@ def process_regression_results(
 
         print(f"\nProcessing experiment: {exp_dir_name}")
 
-        results = collect_results_from_experiment_dir(exp_dir_path)
+        # Detect if this is a diff_benchmark experiment
+        is_diff_benchmark = exp_dir_name.startswith("diff_benchmark")
+
+        results = collect_results_from_experiment_dir(exp_dir_path, is_diff_benchmark=is_diff_benchmark)
 
         if not results:
             print(f"  No results found in {exp_dir_name}")
             continue
 
         # Extract benchmark name from the first result
-        benchmark_name = results[0][0].split("_")[0] if results else exp_dir_name
+        if is_diff_benchmark:
+            benchmark_name = "different benchmarks"
+        else:
+            benchmark_name = results[0][0].split("_")[0] if results else exp_dir_name
 
         # Generate LaTeX table (use specialized format for power_density)
         if exp_dir_name.startswith("power_density"):
@@ -578,10 +615,13 @@ def process_regression_results(
                 benchmark_name=benchmark_name,
             )
         else:
+            # Use "Benchmark" as first column header for diff_benchmark experiments
+            first_col_header = "Benchmark" if is_diff_benchmark else "Objective"
             latex_table = generate_latex_table(
                 results,
                 metrics,
                 benchmark_name=benchmark_name,
+                first_column_header=first_col_header,
             )
 
         all_tables.append((exp_dir_name, latex_table))
