@@ -43,6 +43,7 @@ class BaseParameters:
         self.V_dd = self.symbol_init("V_dd")
         self.V_th = self.symbol_init("V_th")
         self.tox = self.symbol_init("tox")
+        self.eot = self.symbol_init("eot")
         self.W = self.symbol_init("W")
         self.L = self.symbol_init("L")
         self.k_gate = self.symbol_init("k_gate")
@@ -375,6 +376,7 @@ class BaseParameters:
         self.constraints.append(Constraint(self.a >= 0, "a >= 0"))
         self.constraints.append(Constraint(self.GEO >= 0, "GEO >= 0"))
         self.constraints.append(Constraint(self.MUL >= 0, "MUL >= 0"))
+        self.constraints.append(Constraint(self.eot >= 0, "eot >= 0"))
 
     def init_symbol_table(self):
         # initialize string to symbol mapping
@@ -386,6 +388,7 @@ class BaseParameters:
             "C_gate": self.C_gate,
             "V_dd": self.V_dd,
             "V_th": self.V_th,
+            "eot": self.eot,
             "clk_period": self.clk_period,
             "f": self.f,
             "u_n": self.u_n,

@@ -20,10 +20,11 @@ DEFAULT_METRICS = {
     "supply voltage": ("$V_{dd}$", "V", ".2f"),
     "effective threshold voltage": ("$V_{th}$", "V", ".2f"),
     "gate length": ("$L_g$", "nm", ".0f"),  # multiply by 1e9
-    "gate width": ("$W_g$", "nm", ".0f"),   # multiply by 1e9
+    #"gate width": ("$W_g$", "nm", ".0f"),   # multiply by 1e9
     "t_ox": ("$t_{ox}$", "nm", ".1f"),      # multiply by 1e9
     #"k_gate": ("$k_{gate}$", "", ".1f"),
-    "scale length": ("$L_{scale}$", "", ".1f"),
+    "tsemi": ("$t_{semi}$", "nm", ".0f"),
+    "scale length": ("$L_{scale}$", "nm", ".0f"),
 }
 
 # Scale factors for converting to display units
@@ -32,6 +33,8 @@ SCALE_FACTORS = {
     "gate width": 1e9,   # m -> nm
     "t_ox": 1e9,         # m -> nm
     "scale length": 1e9, # m -> nm
+    "k_gate": 1,       # m -> nm
+    "tsemi": 1e9,        # m -> nm
 }
 
 

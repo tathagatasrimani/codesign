@@ -10,7 +10,7 @@ from src.inverse_pass.constraint import Constraint
 from src import sim_util
 logger = logging.getLogger(__name__)
 
-DEBUG = False
+DEBUG = True
 def log_info(msg):
     if DEBUG:
         logger.info(msg)

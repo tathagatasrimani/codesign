@@ -8,6 +8,7 @@ default:
   V_th: 0.9  # Threshold voltage (V)
   V_dd: 5.0  # Supply voltage (V)
   area: 2.0  # Transistor area (μm²)
+  eot: 1.0e-7  # Effective oxide thickness (m)
   m1_rho: 4.0e-8 # ohm * m
   m1_k: 2.5 # F / m
   m2_rho: 4.0e-8 # ohm * m

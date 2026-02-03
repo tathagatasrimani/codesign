@@ -381,7 +381,7 @@ class MVS1SpiceModel(TechModel):
         self.sweep_output_db["k_gate"] = self.k_gate
         self.sweep_output_db["eps_semi"] = self.eps_semi
         self.sweep_output_db["tsemi"] = self.tsemi
-        self.sweep_output_db["eot"] = self.tox * self.e_sio2/self.k_gate
+        self.sweep_output_db["eot"] = self.tox * 3.9/self.k_gate
         self.sweep_output_db["Lext"] = self.Lext
         self.sweep_output_db["Lc"] = self.Lc
         self.sweep_output_db["eps_cap"] = self.eps_cap

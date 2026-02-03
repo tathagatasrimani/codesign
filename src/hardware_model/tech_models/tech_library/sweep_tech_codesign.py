@@ -776,8 +776,8 @@ def test_sweep_tech_codesign(args, custom_point=None):
         # BULK
         value_ranges = {"L": list(np.logspace(np.log10(10e-9), np.log10(50e-9), 5)),
                         "W": list(np.logspace(np.log10(10e-9), np.log10(50e-9), 5)),
-                        "V_dd": list(np.logspace(np.log10(0.1), np.log10(2), 5)),
-                        "V_th": list(np.logspace(np.log10(0.2), np.log10(1.2), 5)),
+                        "V_dd": list(np.logspace(np.log10(0.1), np.log10(1.2), 5)),
+                        "V_th": list(np.logspace(np.log10(0.2), np.log10(0.9), 5)),
                         "tox": list(np.logspace(np.log10(1e-9), np.log10(20e-9), 5)),
                         "beta_p_n": list(np.linspace(1.0, 2.0, 3)),
                         "mD_fac": list(np.logspace(np.log10(0.5), np.log10(0.5), 1)),
