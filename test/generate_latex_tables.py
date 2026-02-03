@@ -28,7 +28,6 @@ DEFAULT_METRICS = {
     "scale length": ("$L_{scale}$", "nm", ".0f"),
     #"MUL": ("$MUL$", "", ".0f"),
     #"GEO": ("$GEO$", "", ".0f"),
-    "max_wire_length": 1e3,  # m -> mm
 }
 
 # Additional metrics for diff_benchmark experiments
@@ -55,6 +54,7 @@ SCALE_FACTORS = {
     "eot_corrected": 1e9,         # m -> nm
     "MUL": 1,           # multiplier
     "GEO": 1,           # geometry factor
+    "max_wire_length": 1e3,  # m -> mm
 }
 
 
@@ -105,6 +105,7 @@ def load_param_data(results_dir: str, load_wire_lengths: bool = False) -> Option
                     wire_lengths = json.load(f)
                     if wire_lengths:
                         result["max_wire_length"] = max(wire_lengths)
+                        print(f"Max wire length: {result['max_wire_length']}")
             except (json.JSONDecodeError, ValueError) as e:
                 print(f"Warning: Failed to parse {wire_path}: {e}")
 
