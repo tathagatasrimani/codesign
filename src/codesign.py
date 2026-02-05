@@ -89,7 +89,7 @@ class Codesign:
         file_handler.setLevel(logging.INFO)
         file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
         console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setLevel(logging.WARNING)
+        console_handler.setLevel(logging.INFO)
         console_handler.setFormatter(logging.Formatter('%(levelname)s: %(message)s'))
         logging.basicConfig(level=logging.INFO, handlers=[file_handler, console_handler])
         logger.info(f"args: {self.cfg['args']}")
