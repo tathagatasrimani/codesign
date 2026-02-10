@@ -7,6 +7,8 @@ SETUP_SCRIPTS_FOLDER="$(pwd)/setup_scripts"
 BUILD_LOG="$SETUP_SCRIPTS_FOLDER/build.log"
 FORCE_FULL=0
 SKIP_OPENROAD=0
+USE_MAX_PARALLEL=0
+MAX_PARALLEL_CORES=24
 
 # Start timer
 start_time=$(date +%s)
@@ -38,6 +40,8 @@ for arg in "$@"; do
         FORCE_FULL=1
     elif [[ "$arg" == "--skip-openroad" ]]; then
         SKIP_OPENROAD=1
+    elif [[ "$arg" == "--max_parallel_install" ]]; then
+        USE_MAX_PARALLEL=1
     fi
 done
 
@@ -57,6 +61,44 @@ if [[ $FORCE_FULL -eq 1 ]]; then
 else
     echo ">>> Performing incremental build"
 fi
+
+TOTAL_CORES=$(nproc 2>/dev/null || echo 0)
+if [[ $TOTAL_CORES -le 0 ]]; then
+    TOTAL_CORES=1
+fi
+
+if [[ $USE_MAX_PARALLEL -eq 1 ]]; then
+    TARGET_CORES=$TOTAL_CORES
+else
+    TARGET_CORES=$((TOTAL_CORES / 2))
+    if [[ $TARGET_CORES -lt 1 ]]; then
+        TARGET_CORES=1
+    fi
+fi
+
+if [[ $TARGET_CORES -gt $MAX_PARALLEL_CORES ]]; then
+    TARGET_CORES=$MAX_PARALLEL_CORES
+fi
+
+################## AMPL UUID LICENSE PROMPT ##################
+
+AMPL_UUID_FILE="$(pwd)/ampl_uuid.txt"
+
+# Only ask for AMPL UUID during full installation
+if [[ $FORCE_FULL -eq 1 ]]; then
+    if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
+        echo "Using $TARGET_CORES cores for this build."
+    fi
+    echo -n "Please enter your AMPL UUID license: " > /dev/tty
+    read ampl_uuid < /dev/tty
+    
+    # Save the AMPL UUID to the file
+    echo "$ampl_uuid" > "$AMPL_UUID_FILE"
+    echo "AMPL UUID saved to: $AMPL_UUID_FILE"
+    echo ""
+fi
+
+################## SUDO PASSWORD PROMPT ##################
 
 if [[ $SKIP_OPENROAD -eq 1 ]] || [[ "${GITHUB_ACTIONS:-}" == "true" && "${OPENROAD_PRE_INSTALLED:-0}" == "1" ]] || [[ -f "openroad_interface/OpenROAD/build/src/openroad" ]]; then
     echo "We likely will not need SUDO permissions for this build."
@@ -119,8 +161,8 @@ if [ "$UNIVERSITY" = "cmu" ]; then
 fi
 
 ## ensure that git is set to fetch submodules in parallel (faster)
-git config --global fetch.parallel $(nproc)
-git config --global submodule.fetchJobs $(nproc)
+git config --global fetch.parallel $TARGET_CORES
+git config --global submodule.fetchJobs $TARGET_CORES
 
 ################## INSTALL OPENROAD ##################
 echo "STARTING STEP 1: OPENROAD INSTALLATION"
@@ -224,6 +266,24 @@ echo "STARTING STEP 4: STREAMHLS SETUP"
 ## Note that we run this script with 'bash' since we will source the streamhls environment separately when we need it.
 bash "$SETUP_SCRIPTS_FOLDER"/streamhls_setup.sh $FORCE_FULL # setup stream hls
 
+# Activate ampl license automatically using uuid after Stream-HLS install
+# Read the UUID from ampl_uuid.txt
+UUID=$(cat ampl_uuid.txt)
+
+# Navigate to the ampl directory
+cd Stream-HLS/ampl.linux-intel64
+
+# Run ampl with commands
+./ampl <<EOF
+shell "amplkey activate --uuid $UUID";
+exit;
+EOF
+
+echo "AMPL has been restarted!"
+
+# Navigate back to codesign root directory
+cd ../..
+
 echo "COMPLETED STEP 4: STREAMHLS SETUP"
 
 echo "STARTING STEP 5: SUBMODULE UPDATE"
@@ -236,7 +296,7 @@ echo "COMPLETED STEP 5: SUBMODULE UPDATE"
 ###############  BUILD CACTI #################
 echo "STARTING STEP 6: CACTI BUILD"
 cd src/cacti
-make -j$(nproc)
+make -j$TARGET_CORES
 cd ../..
 echo "COMPLETED STEP 6: CACTI BUILD"
 
@@ -288,6 +348,19 @@ if [[ -f "$BUILD_LOG" ]]; then
 fi
 
 echo "ENVIRONMENT SETUP COMPLETE"
+
+# Run end-of-build regression tests only for full builds.
+if [[ $FORCE_FULL -eq 1 ]]; then
+    run_regression -l end_of_build_tests/end_of_build_tests.list.yaml -m 8
+    test_status=$?
+    if [[ $test_status -ne 0 ]]; then
+        echo "BUILD COMPLETED, but failed the test cases."
+    else
+        echo "BUILD COMPLETED SUCCESSFULLY."
+    fi
+else
+    echo "BUILD COMPLETED SUCCESSFULLY."
+fi
 
 # End timer
 end_time=$(date +%s)

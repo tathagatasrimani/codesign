@@ -2,41 +2,55 @@ vitis_gemm_test:
   base_cfg: vitis_test
   args:
     benchmark: gemm
+    min_dsp: 100
 
 vitis_gesummv_test:
   base_cfg: vitis_test
   args:
     benchmark: gesummv
+    min_dsp: 100
+
+vitis_gemmv_test:
+  base_cfg: vitis_test
+  args:
+    benchmark: gemmv
+    min_dsp: 50
 
 benchmark_2mm_test:
   base_cfg: vitis_test
   args:
     benchmark: kernel_2mm
+    min_dsp: 100
 
 benchmark_3mm_test:
   base_cfg: vitis_test
   args:
     benchmark: kernel_3mm
+    min_dsp: 100
     
 benchmark_atax_test:
   base_cfg: vitis_test
   args:
     benchmark: kernel_atax
+    min_dsp: 50
 
 benchmark_bicg_test:
   base_cfg: vitis_test
   args:
     benchmark: kernel_bicg
+    min_dsp: 50
 
 benchmark_doitgen_test:
   base_cfg: vitis_test
   args:
     benchmark: kernel_doitgen
+    min_dsp: 50
 
 benchmark_mvt_test:
   base_cfg: vitis_test
   args:
     benchmark: kernel_mvt
+    min_dsp: 50
 
 vitis_gemm_32_test:
   base_cfg: vitis_gemm_test
@@ -48,6 +62,7 @@ vitis_resnet_test:
   args:
     pytorch: True
     benchmark: resnet18
+    min_dsp: 50 # not an optimized choice
 
 vitis_jacobi_test:
   base_cfg: vitis_test
@@ -58,11 +73,13 @@ vitis_bitnet_test:
   base_cfg: vitis_test
   args:
     benchmark: bitnet
+    min_dsp: 100
 
 vitis_llama_test:
   base_cfg: vitis_test
   args:
     benchmark: llama
+    min_dsp: 50
     always_run_openroad: True # have seen a bug with reusing previous openroad result here, so just rerun
 
 vitis_attention_head_test:
@@ -75,6 +92,7 @@ vitis_lenet_test:
   args:
     benchmark: lenet
     pytorch: True
+    min_dsp: 50 # not an optimized choice
 
 vitis_mobilenet_test:
   base_cfg: vitis_test
@@ -82,25 +100,36 @@ vitis_mobilenet_test:
     benchmark: mobilenet
     pytorch: True
 
+vitis_vgg16_test:
+  base_cfg: vitis_test
+  args:
+    benchmark: vgg16
+    pytorch: True
+    min_dsp: 100
+
 vitis_backprop_test:
   base_cfg: vitis_test
   args:
     benchmark: backprop
+    min_dsp: 50 # not an optimized choice
 
 vitis_sgd_sw_test:
   base_cfg: vitis_test
   args:
     benchmark: sgd_sw
+    min_dsp: 100
 
 vitis_syr2k_test:
   base_cfg: vitis_test
   args:
     benchmark: syr2k
+    min_dsp: 50 # not an optimized choice
 
 vitis_digitrec_sw_test:
   base_cfg: vitis_test
   args:
     benchmark: digitrec_sw
+    min_dsp: 100
 
 vitis_multihead_self_attention_test:
   base_cfg: vitis_test
@@ -108,6 +137,7 @@ vitis_multihead_self_attention_test:
     benchmark: MultiHeadSelfAttention
     arch_opt_pipeline: streamhls
     pytorch: True
+    min_dsp: 100
 
 
 # Stream HLS tests
