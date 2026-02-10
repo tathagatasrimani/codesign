@@ -245,7 +245,7 @@ class InterfaceDB:
             self.interfaces.pop(intf_name)
 
 class DataFlowGraph:
-    def __init__(self, clk_period, no_rsc_allowed_ops, allowed_functions, build_dir, basic_block_name, name, resource_mapping, states_structure, G, G_standard, G_standard_with_wire_ops, resource_db, variable_db, is_dataflow_pipeline, resource_delays_only=False, num_iters=1, interface_db=None):
+    def __init__(self, clk_period, no_rsc_allowed_ops, allowed_functions, build_dir, basic_block_name, name, resource_mapping, states_structure, G, G_standard, G_standard_with_wire_ops, resource_db, variable_db, is_dataflow_pipeline, mem_mapping, resource_delays_only=False, num_iters=1, interface_db=None):
         self.clk_period = clk_period
         self.allowed_functions = allowed_functions
         self.build_dir = build_dir
@@ -275,6 +275,8 @@ class DataFlowGraph:
         self.num_iters = num_iters
         self.resource_delays_only = resource_delays_only
         self.arguments_to_call_functions = {}
+        self.ptr_to_target_mapping = {}
+        self.mem_mapping = mem_mapping
 
     def track_resource_usage(self, node):
         if self.G.nodes[node]["node_type"] == "op" and self.G.nodes[node]["core_inst"] != "N/A":
@@ -379,7 +381,36 @@ class DataFlowGraph:
                     self.arguments_to_call_functions[src] = []
                 if call_fn != "N/A":
                     self.arguments_to_call_functions[src].append(call_fn)
-            self.G.add_node(op_name, node_type=instruction["type"], function=fn_out, function_out=fn_out, rsc=rsc_name, core_inst=instruction["core_inst"], core_id=core_id, rsc_name_unique=rsc_name_unique, call_function=call_fn, original_name=instruction["op"])
+            if instruction["core_inst"] == "RAM":
+                log_info(f"instruction {instruction} in basic block {self.basic_block_name} is a RAM")
+                if instruction["op"] == "store":
+                    assert instruction["dst"] in self.ptr_to_target_mapping, f"instruction {instruction} has no ptr_to_target_mapping"
+                    mem_name_original = self.ptr_to_target_mapping[instruction["dst"]]
+                else:
+                    assert instruction["src"][0] in self.ptr_to_target_mapping, f"instruction {instruction} has no ptr_to_target_mapping"
+                    mem_name_original = self.ptr_to_target_mapping[instruction["src"][0]]
+                if self.mem_mapping[self.basic_block_name]["memory_ports"][mem_name_original]["storage_type"] == "top_interface":
+                    mem_size = 0
+                    mem_name = mem_name_original
+                    is_top_interface = True
+                else:
+                    is_top_interface = False
+                    mem_name = self.mem_mapping[self.basic_block_name]["memory_ports"][mem_name_original]["parent_ram"]
+                    mem_size = self.mem_mapping[self.basic_block_name]["memory_ports"][mem_name_original]["total_size"]
+            elif instruction["core_inst"] == "FIFO":
+                log_info(f"instruction {instruction} in basic block {self.basic_block_name} is a FIFO")
+                if instruction["op"] == "read":
+                    mem_name_original = instruction["src"][0].strip("%")
+                else:
+                    mem_name_original = instruction["dst"].strip("%")
+                mem_name = self.mem_mapping[self.basic_block_name]["fifo_ports"][mem_name_original]["parent_fifo"]
+                mem_size = self.mem_mapping[self.basic_block_name]["fifo_ports"][mem_name_original]["total_size"]
+                is_top_interface = False
+            else:
+                mem_name = "N/A"
+                mem_size = 0
+                is_top_interface = False
+            self.G.add_node(op_name, node_type=instruction["type"], function=fn_out, function_out=fn_out, rsc=rsc_name, core_inst=instruction["core_inst"], core_id=core_id, rsc_name_unique=rsc_name_unique, call_function=call_fn, original_name=instruction["op"], mem_name=mem_name, mem_size=mem_size, is_top_interface=is_top_interface)
             self.track_resource_usage(op_name)
             for src in instruction["src"]:
                 src_name = self.variable_db.get_read_node_name(src)
@@ -418,6 +449,8 @@ class DataFlowGraph:
                         f"({current_read.first_read} in {current_read.read_basic_block_name}); "
                         f"skipping {op_name} in {self.basic_block_name}"
                     )
+            if instruction["op"] == "getelementptr":
+                self.ptr_to_target_mapping[instruction["dst"]] = instruction["ptr_target"]
             if not self.resource_delays_only:
                 self.G.add_edge(op_name, dst, weight=instruction['delay'], resource_edge=0)
             else:
@@ -436,7 +469,7 @@ class DataFlowGraph:
         for node in in_nodes_loop_start:
             G.add_edge(node, f"loop_start_{loop_name}", weight=0.0, resource_edge=0)
         # create the graph
-        loop_dfg = DataFlowGraph(self.clk_period, self.no_rsc_allowed_ops, self.allowed_functions, self.build_dir, self.basic_block_name, loop_name, self.resource_mapping, self.states_structure.get_pruned_states_structure(self.states_structure.loops[loop_name]), G, G_standard, G_standard_with_wire_ops, resource_db, variable_db, is_dataflow_pipeline=self.states_structure.loops[loop_name].is_dataflow_pipeline, resource_delays_only=resource_delays_only, num_iters=num_iters, interface_db=self.interface_db)
+        loop_dfg = DataFlowGraph(self.clk_period, self.no_rsc_allowed_ops, self.allowed_functions, self.build_dir, self.basic_block_name, loop_name, self.resource_mapping, self.states_structure.get_pruned_states_structure(self.states_structure.loops[loop_name]), G, G_standard, G_standard_with_wire_ops, resource_db, variable_db, is_dataflow_pipeline=self.states_structure.loops[loop_name].is_dataflow_pipeline, mem_mapping=self.mem_mapping, resource_delays_only=resource_delays_only, num_iters=num_iters, interface_db=self.interface_db)
         
         loop_dfg.create_graph(resource_delays_only=resource_delays_only)
 
@@ -616,7 +649,7 @@ class StatesStructure:
 
 class BasicBlockInfo:
     # call parse, then convert
-    def __init__(self, build_dir, allowed_functions, basic_block_name, file_path, clk_period, ignore_ops, no_rsc_allowed_ops, resource_mapping, interface_db):
+    def __init__(self, build_dir, allowed_functions, basic_block_name, file_path, clk_period, ignore_ops, no_rsc_allowed_ops, resource_mapping, interface_db, mem_mapping):
         self.basic_block_name = basic_block_name
         self.build_dir = build_dir
         self.clk_period = clk_period
@@ -633,12 +666,13 @@ class BasicBlockInfo:
         self.interface_db = interface_db
         self.is_dataflow_pipeline = False
         #assert self.interface_db is not None, "InterfaceDB is not provided"
+        self.mem_mapping = mem_mapping
     
     def parse(self):
         self.parse_file(self.file_path)
 
     def convert(self):
-        self.dfg = DataFlowGraph(self.clk_period, self.no_rsc_allowed_ops, self.allowed_functions, self.build_dir, self.basic_block_name, self.basic_block_name, self.resource_mapping, self.states_structure, nx.DiGraph(), nx.DiGraph(), nx.DiGraph(), ResourceDB(), VariableDB(), self.is_dataflow_pipeline, 1, interface_db=self.interface_db)
+        self.dfg = DataFlowGraph(self.clk_period, self.no_rsc_allowed_ops, self.allowed_functions, self.build_dir, self.basic_block_name, self.basic_block_name, self.resource_mapping, self.states_structure, nx.DiGraph(), nx.DiGraph(), nx.DiGraph(), ResourceDB(), VariableDB(), self.is_dataflow_pipeline, self.mem_mapping, 1, interface_db=self.interface_db)
         log_info(f"creating dfg for {self.basic_block_name}")
         self.dfg.create_graph()
         nx.write_gml(self.dfg.G, f"{self.build_dir}/parse_results/{self.basic_block_name}/{self.basic_block_name}_graph.gml")
@@ -824,7 +858,7 @@ class BasicBlockInfo:
         return loop_objects
 
 class vitis_schedule_parser:
-    def __init__(self, build_dir, benchmark_name, top_level_module_name, clk_period, allowed_functions):
+    def __init__(self, build_dir, benchmark_name, top_level_module_name, clk_period, allowed_functions, mem_mapping):
         self.build_dir = build_dir
         self.solution_dir = os.path.join(build_dir, benchmark_name, "solution1/.autopilot/db")
         self.clk_period = clk_period
@@ -852,7 +886,7 @@ class vitis_schedule_parser:
         self.benchmark_name = benchmark_name
         self.allowed_functions = allowed_functions
         self.flattened_node_name_in_new_graph = {}
-
+        self.mem_mapping = mem_mapping
     def create_dfgs(self):
         log_info(f"getting resource mapping from: {self.build_dir}/parse_results/{self.top_level_module_name}_full_netlist_unfiltered.gml")
         self.resource_mapping = get_rsc_mapping(f"{self.build_dir}/parse_results/{self.top_level_module_name}_full_netlist_unfiltered.gml")
@@ -864,7 +898,7 @@ class vitis_schedule_parser:
                 if basic_block_name in sim_util.get_module_map().keys():
                     log_info(f"Skipping basic block {basic_block_name} because it is a blackbox.")
                     continue
-                self.basic_blocks[basic_block_name] = BasicBlockInfo(self.build_dir, self.allowed_functions, basic_block_name, file_path, self.clk_period, self.ignore_ops, self.no_rsc_allowed_ops, self.resource_mapping, self.interface_db)
+                self.basic_blocks[basic_block_name] = BasicBlockInfo(self.build_dir, self.allowed_functions, basic_block_name, file_path, self.clk_period, self.ignore_ops, self.no_rsc_allowed_ops, self.resource_mapping, self.interface_db, self.mem_mapping)
                 self.basic_blocks[basic_block_name].parse()
                 self.basic_blocks[basic_block_name].convert()
                 self.basic_blocks[basic_block_name].convert_to_standard_dfg()

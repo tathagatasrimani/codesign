@@ -112,6 +112,7 @@ def parse_op(instruction, op_name):
         parsed_op = unary_op(instruction)
     elif op_name == "getelementptr":
         parsed_op = undef_num_src_op_all_srcs(instruction)
+        parsed_op["ptr_target"] = parsed_op["src"][0].strip("%")
     elif op_name == "shl":
         parsed_op = arith_op(instruction)
     elif op_name == "bitcast":

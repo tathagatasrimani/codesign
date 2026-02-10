@@ -29,6 +29,7 @@ from src.forward_pass.scale_hls_port_fix import scale_hls_port_fix
 from src.generate_blackbox_files import generate_blackbox_files
 from src.forward_pass.vitis_create_netlist import create_vitis_netlist
 from src.forward_pass.vitis_parse_verbose_rpt import parse_verbose_rpt
+from src.forward_pass.vitis_memory_mapping import build_memory_mapping, write_mapping, load_mapping
 from src.forward_pass.vitis_merge_netlists import MergeNetlistsVitis
 from src.forward_pass.vitis_create_cdfg import create_cdfg_vitis
 from src import trend_plot
@@ -399,7 +400,7 @@ class Codesign:
             pwd
             source setup-env.sh
             cd examples
-            python run_streamhls.py -b {save_path} -d {save_path} -k {self.benchmark_name} -O {streamhls_opt_level} --dsps {self.cur_dsp_usage} --timelimit {5} --tilelimit {tilelimit} --tech-config {config_path} --bufferize 1
+            python run_streamhls.py -b {save_path} -d {save_path} -k {self.benchmark_name} -O {streamhls_opt_level} --dsps {self.cur_dsp_usage} --timelimit {2} --tilelimit {tilelimit} --tech-config {config_path} --bufferize 1
             '''
         ]
 
@@ -597,7 +598,7 @@ class Codesign:
         print(f"Current working directory in vitis parse data: {os.getcwd()}")
 
         if self.no_memory:
-            allowed_functions_netlist = set(self.hw.circuit_model.circuit_values["area"].keys()).difference({"N/A", "Buf", "MainMem", "Call", "read", "write"})
+            allowed_functions_netlist = set(self.hw.circuit_model.circuit_values["area"].keys()).difference({"N/A", "Buf", "MainMem", "Call", "read", "write", "load", "store"})
             allowed_functions_schedule = allowed_functions_netlist.union({"Call", "II"})
         else:
             allowed_functions_netlist = set(self.hw.circuit_model.circuit_values["area"].keys()).difference({"N/A", "Call"})
@@ -611,6 +612,14 @@ class Codesign:
             start_time = time.time()
             ## Do preprocessing to the vitis data for the next scripts
             parse_verbose_rpt(f"{save_dir}/{self.benchmark_name}/solution1/.autopilot/db", parse_results_dir)
+
+            ## Build cross-hierarchy memory mapping from generated Verilog
+            verilog_dir = f"{save_dir}/{self.benchmark_name}/solution1/impl/verilog"
+            if os.path.isdir(verilog_dir):
+                logger.info("Building cross-hierarchy memory mapping")
+                mem_mapping = build_memory_mapping(verilog_dir, self.vitis_top_function, parse_results_dir)
+                self.mem_mapping = mem_mapping
+                write_mapping(mem_mapping, parse_results_dir)
 
             ## Create the netlist
             logger.info("Creating Vitis netlist")
@@ -634,13 +643,14 @@ class Codesign:
             logger.info(f"time to parse vitis netlist: {time.time()-start_time}")
         else:
             logger.info("Skipping Vitis netlist parsing")
+            self.mem_mapping = load_mapping(parse_results_dir)
 
         self.checkpoint_controller.check_end_checkpoint("netlist", self.iteration_count)
 
         if self.checkpoint_controller.check_checkpoint("schedule", self.iteration_count) and not self.max_rsc_reached:
             start_time = time.time()
             logger.info("Parsing Vitis schedule")
-            schedule_parser = schedule_vitis.vitis_schedule_parser(save_dir, self.benchmark_name, self.vitis_top_function, self.clk_period, allowed_functions_schedule)
+            schedule_parser = schedule_vitis.vitis_schedule_parser(save_dir, self.benchmark_name, self.vitis_top_function, self.clk_period, allowed_functions_schedule, self.mem_mapping)
             
             logger.info("Creating DFGs from Vitis CDFGs")
             schedule_parser.create_dfgs()
