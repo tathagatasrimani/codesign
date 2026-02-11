@@ -150,15 +150,7 @@ class Optimizer:
         self.constraints = []
         start_time = time.time()
         cur_obj_val = sim_util.xreplace_safe(self.hw.obj, self.hw.circuit_model.tech_model.base_params.tech_values)
-
-        if self.hw.cfg["args"]["historical_trend_pipeline"]:
-            unique_gate_lengths = sorted(list(set(self.hw.circuit_model.tech_model.pareto_df["L"])))
-            allowed_gate_lengths_idx = max(0, len(unique_gate_lengths) - (iteration + 1))
-            allowed_gate_lengths = unique_gate_lengths[allowed_gate_lengths_idx:]
-            logger.info(f"allowed gate lengths: {allowed_gate_lengths}")
-            filtered_pareto_df = self.hw.circuit_model.tech_model.pareto_df[self.hw.circuit_model.tech_model.pareto_df["L"].isin(allowed_gate_lengths)]
-        else:
-            filtered_pareto_df = self.hw.circuit_model.tech_model.pareto_df
+        filtered_pareto_df = self.hw.circuit_model.tech_model.pareto_df
 
         if self.hw.cfg["args"]["MUL_restriction"]:
             filtered_pareto_df = filtered_pareto_df[filtered_pareto_df["MUL"] == 1]

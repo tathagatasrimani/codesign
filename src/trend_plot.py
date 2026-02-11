@@ -8,7 +8,6 @@ import logging
 import math
 logger = logging.getLogger(__name__)
 
-from test.visualize_block_vectors import visualize_all_block_vectors
 
 DEBUG = False
 
@@ -431,10 +430,8 @@ class TrendPlot:
         create_constraint_slack_single_plot(self.constraint_slack_over_generations, self.save_dir)
 
     def plot_block_vectors_over_generations(self):
-        if not os.path.exists(os.path.join(self.save_dir, "../block_vectors")):
-            logger.info(f"block vectors directory does not exist, returning")
-            return
-        visualize_all_block_vectors(os.path.join(self.save_dir, "../block_vectors"), self.codesign_module.vitis_top_function, os.path.join(self.save_dir, "block_vectors_visualization"))
+        logger.info("block vector visualization removed")
+        return
 
 
 def create_sensitivities_single_plot(sensitivities_over_generations, save_dir):

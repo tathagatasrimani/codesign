@@ -3,7 +3,7 @@ import sys
 import json
 import networkx as nx
 import logging
-import sim_util
+from src import sim_util
 
 logger = logging.getLogger(__name__)
 

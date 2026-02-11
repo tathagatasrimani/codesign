@@ -1074,28 +1074,10 @@ class Codesign:
                 self.constraint_slack_over_iterations[-1][constraint.label] = sim_util.xreplace_safe(constraint.slack, self.params_over_iterations[-2])
 
     def save_dat(self):
-        # Save tech node info to another file prefixed by prev_ so we can restore
-        org_dat_file = self.hw.cacti_dat_file
-        tech_nm = os.path.basename(org_dat_file)
-        tech_nm = os.path.splitext(tech_nm)[0]
-
-        prev_dat_file = f"src/cacti/tech_params/prev_{tech_nm}.dat"
-        with open(org_dat_file, "r") as src_file, open(prev_dat_file, "w") as dest_file:
-            for line in src_file:
-                dest_file.write(line)
+        pass
 
     def restore_dat(self):
-        dat_file = self.hw.cacti_dat_file
-        tech_nm = os.path.basename(dat_file)
-        tech_nm = os.path.splitext(tech_nm)[0]
-
-        prev_dat_file = f"src/cacti/tech_params/prev_{tech_nm}.dat"
-
-        if os.path.exists(prev_dat_file):
-            with open(prev_dat_file, "r") as src_file, open(dat_file, "w") as dest_file:
-                for line in src_file:
-                    dest_file.write(line)
-            os.remove(prev_dat_file)
+        pass
 
     def save_last_dsp_count(self, last_dsp_count_path="src/yaml/last_dsp_count.yaml"):
         with open(last_dsp_count_path, "w") as f:

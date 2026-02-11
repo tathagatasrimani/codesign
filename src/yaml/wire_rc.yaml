@@ -1,8 +1,0 @@
-# from nangate45 rc values (per micron)
-default:
-  m1_Rsq: 0.38
-  m2_Rsq: 0.25
-  m3_Rsq: 0.25
-  m1_Csq: 7.7161e-20
-  m2_Csq: 4.0896e-20
-  m3_Csq: 2.7745e-20

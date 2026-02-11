@@ -12,22 +12,13 @@ logger = logging.getLogger(__name__)
 
 import networkx as nx
 import sympy as sp
-from src import cacti_util
 from src.hardware_model.base_parameters import base_parameters
 from src.hardware_model.circuit_models import circuit_model
 
-from src.forward_pass import schedule
 from src import sim_util
 
 from src.inverse_pass.constraint import Constraint
-from src.sim_util import solve_gp_with_fallback
 
-from src.hardware_model.tech_models import bulk_model
-from src.hardware_model.tech_models import bulk_bsim4_model
-from src.hardware_model.tech_models import vs_model
-from src.hardware_model.tech_models import mvs_si_model
-from src.hardware_model.tech_models import mvs_2_model
-from src.hardware_model.tech_models import vscnfet_model
 from src.hardware_model.tech_models import mvs_general_model
 from src.hardware_model.tech_models import sweep_model
 from src.hardware_model.tech_models import sweep_brute_force_model
@@ -61,17 +52,6 @@ class HardwareModel:
         self.cfg = cfg
         self.codesign_root_dir = codesign_root_dir
         self.tmp_dir = tmp_dir
-        # HARDCODED UNTIL WE COME BACK TO MEMORY MODELING
-        self.cacti_tech_node = min(
-            cacti_util.valid_tech_nodes,
-            key=lambda x: abs(x - 7 * 1e-3),
-        )
-        print(f"cacti tech node: {self.cacti_tech_node}")
-
-        self.cacti_dat_file = (
-            f"src/cacti/tech_params/{int(self.cacti_tech_node*1e3):2d}nm.dat"
-        )
-        print(f"self.cacti_dat_file: {self.cacti_dat_file}")
         with open("src/yaml/model_cfg.yaml", "r") as f:
             model_cfgs = yaml.safe_load(f)
 
@@ -85,9 +65,9 @@ class HardwareModel:
             # when loading from checkpoint, use the latest set of tech param values as a starting point. Override "tech_node" argument.
             with open(f"{self.tmp_dir}/tech_params_latest.yaml", "r") as f:
                 tech_params = yaml.safe_load(f)
-            self.base_params = base_parameters.BaseParameters(args["tech_node"], self.cacti_dat_file, symbol_type, tech_params)
+            self.base_params = base_parameters.BaseParameters(args["tech_node"], symbol_type, tech_params)
         else:
-            self.base_params = base_parameters.BaseParameters(args["tech_node"], self.cacti_dat_file, symbol_type)
+            self.base_params = base_parameters.BaseParameters(args["tech_node"], symbol_type)
 
         self.reset_tech_model()
 
@@ -147,22 +127,7 @@ class HardwareModel:
             f.write(yaml.dump(params))
 
     def reset_tech_model(self):
-        if self.model_cfg["model_type"] == "bulk":
-            self.tech_model = bulk_model.BulkModel(self.model_cfg, self.base_params)
-        elif self.model_cfg["model_type"] == "bulk_bsim4":
-            self.tech_model = bulk_bsim4_model.BulkBSIM4Model(self.model_cfg, self.base_params)
-        elif self.model_cfg["model_type"] == "vs":
-            if self.model_cfg["vs_model_type"] == "base":
-                self.tech_model = vs_model.VSModel(self.model_cfg, self.base_params)
-            elif self.model_cfg["vs_model_type"] == "mvs_si":
-                self.tech_model = mvs_si_model.MVSSiModel(self.model_cfg, self.base_params)
-            elif self.model_cfg["vs_model_type"] == "mvs2":
-                self.tech_model = mvs_2_model.MVS2Model(self.model_cfg, self.base_params)
-            elif self.model_cfg["vs_model_type"] == "vscnfet":
-                self.tech_model = vscnfet_model.VSCNFetModel(self.model_cfg, self.base_params)
-            else:
-                raise ValueError(f"Invalid vs model type: {self.model_cfg['vs_model_type']}")
-        elif self.model_cfg["model_type"] == "sweep":
+        if self.model_cfg["model_type"] == "sweep":
             self.tech_model = sweep_model.SweepModel(self.model_cfg, self.base_params)
         elif self.model_cfg["model_type"] == "sweep_brute_force":
             self.tech_model = sweep_brute_force_model.SweepBruteForceModel(self.model_cfg, self.base_params)
