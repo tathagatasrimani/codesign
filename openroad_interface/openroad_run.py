@@ -17,7 +17,6 @@ import networkx as nx
 
 from openroad_interface import def_generator
 from . import estimation as est
-from . import detailed as det
 from . import scale_lef_files as scale_lef
 from openroad_interface.lib_cell_generator import LibCellGenerator
 from . import macro_maker as make_macros
@@ -108,7 +107,7 @@ class OpenRoadRun:
         """
         Runs the OpenROAD flow.
         params:
-            arg_parasitics: detailed, estimation, or none. Determines which parasitic calculation is executed.
+            arg_parasitics: estimation, or none. Determines which parasitic calculation is executed.
 
         """
         self.L_eff = L_eff
@@ -566,18 +565,14 @@ class OpenRoadRun:
         # 3. extract parasitics
         logger.info(f"Starting extraction with parasitics option: {arg_parasitics}")
         d = {}
-        if arg_parasitics == "detailed":
-            logger.info("Running detailed place and route.")
-            d, graph = self.detailed_place_n_route(
-                graph, net_out_dict, node_output, lef_data, node_to_num
-            )
-            logger.info("Detailed extraction complete.")
-        elif arg_parasitics == "estimation":
+        if arg_parasitics == "estimation":
             logger.info("Running estimated place and route.")
             d, graph = self.estimated_place_n_route(
                 graph, net_out_dict, node_output, lef_data, node_to_num
             )
             logger.info("Estimated extraction complete.")
+        else:
+            raise ValueError(f"Invalid parasitics option: {arg_parasitics}")
 
         return d, graph
 
@@ -749,76 +744,6 @@ class OpenRoadRun:
         self.export_graph(graph, "estimated", self.directory)
 
         return self.edge_to_nets, graph
-
-
-    def detailed_place_n_route(
-        self,
-        graph: nx.DiGraph,
-        net_out_dict: dict,
-        node_output: dict,
-        lef_data: dict,
-        node_to_num: dict,
-    ) -> dict:
-        """
-        runs openroad, calculates rcl, and then adds attributes to the graph
-
-        params:
-            graph: networkx graph
-            net_out_dict:  dict that lists nodes and their respective net (all components utilize one output, therefore this is a same assumption to use)
-            node_output: dict that lists nodes and their respective output nodes
-            lef_data: dict with layer information (units, res, cap, width)
-            node_to_num: dict that gives component id equivalent for node
-        returns:
-            dict: contains list of resistance, capacitance, length, and net data
-            graph: newly modified digraph with rcl attributes
-        """
-
-        # run openroad
-        logger.info("Starting detailed place and route.")
-        if self.run_openroad:
-            self.run_openroad_executable()
-        else:
-            logger.info("Skipping openroad run, as resource constraints have been reached in a previous iteration.")
-
-        # run parasitic_calc and length_calculations
-        graph, _ = self.coord_scraping(graph, node_to_num)
-        net_cap, net_res = self.det.parasitic_calc(self.directory + "/results/generated-tcl.spef")
-
-        length_dict = det.length_calculations(lef_data["units"], self.directory + "/results/final_generated-tcl.def")
-
-        # add edge attributions
-        net_graph_data = []
-        res_graph_data = []
-        cap_graph_data = []
-        len_graph_data = []
-        
-        for output_net in net_out_dict:
-            for net in net_out_dict[output_net]:
-                for node in node_output[output_net]:
-                    graph[output_net][node]["net"] = net
-                    graph[output_net][node]["net_length"] = length_dict[net]
-                    graph[output_net][node]["net_res"] = float(net_res[net])
-                    graph[output_net][node]["net_cap"] = float(net_cap[net])
-                net_graph_data.append(net)
-                len_graph_data.append(float(length_dict[net]))  # length
-                res_graph_data.append(float(net_res[net]) if net in net_res else 0)  # ohms
-                cap_graph_data.append(float(net_cap[net]) if net in net_cap else 0)  # picofarads
-            
-            
-
-        self.export_graph(graph, "detailed", self.directory)
-
-        self.mux_listing(graph, node_output)
-        self.mux_removal(graph)
-
-        self.export_graph(graph, "detailed_nomux", self.directory)
-
-        return {
-            "res": res_graph_data,
-            "cap": cap_graph_data,
-            "length": len_graph_data,
-            "net": net_graph_data,
-        }, graph
 
 
     def none_place_n_route(

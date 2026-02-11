@@ -42,7 +42,7 @@ def _read_verilog(path):
         return f.read()
 
 
-def parse_module_instantiations(verilog_text):
+def parse_module_instantiations(verilog_text, report_dir):
     """
     Extract all module instantiations and their named port connections from
     a Verilog source file.
@@ -54,6 +54,7 @@ def parse_module_instantiations(verilog_text):
         }, ...]
     """
     instances = []
+    valid_module_names = os.listdir(report_dir)
 
     # Strip Verilog parameter blocks: #( .Param(val), ... )
     # so that parameterised instantiations reduce to the simple
@@ -83,11 +84,12 @@ def parse_module_instantiations(verilog_text):
             if signal:
                 ports[port_name] = signal
 
-        instances.append({
-            'module_type': module_type,
-            'instance_name': instance_name,
-            'ports': ports,
-        })
+        if _child_module_name(instance_name) in valid_module_names:
+            instances.append({
+                'module_type': module_type,
+                'instance_name': instance_name,
+                'ports': ports,
+            })
 
     return instances
 
@@ -373,13 +375,106 @@ def _build_signal_to_ram_map(all_instances):
 
 
 def _child_module_name(instance_name):
-    """node4_U0 -> node4"""
+    """
+    Derive the child module name from a Vitis HLS instance name.
+
+    Handles naming conventions:
+      node4_U0                                  -> node4
+      grp_node23_Pipeline_loop125_loop126_fu_44 -> node23_Pipeline_loop125_loop126
+    """
     if instance_name.endswith('_U0'):
         return instance_name[:-3]
+    m = re.match(r'grp_(.+?)_fu_\d+$', instance_name)
+    if m:
+        return m.group(1)
     return instance_name
 
+def flatten_memory_instances(mapping):
+    mapping["flattened"] = {}
+    for child_module, child_info in mapping.items():
+        if 'memory_ports' in child_info:
+            for mem_name, mem_info in child_info['memory_ports'].items():
+                if mem_info["storage_type"] == "internal_ram":
+                    mapping["flattened"][mem_info['parent_ram']] = {
+                        'width': mem_info['width'],
+                        'depth': mem_info['depth'],
+                        'total_size': mem_info['total_size'],
+                        'type': 'ram',
+                    }
+                elif mem_info["storage_type"] == "top_interface":
+                    mem_name = mem_info['parent_ram'] if 'parent_ram' in mem_info else mem_name
+                    mapping["flattened"][mem_name] = {
+                        'width': 32, #default values
+                        'depth': 1,
+                        'total_size': 32,
+                        'type': 'top_interface',
+                    }
+                else:
+                    raise ValueError(f"Invalid storage type: {mem_info['storage_type']}")
+        if 'fifo_ports' in child_info:
+            for fifo_name, fifo_info in child_info['fifo_ports'].items():
+                mapping["flattened"][fifo_info['parent_fifo']] = {
+                    'width': fifo_info['width'],
+                    'depth': fifo_info['depth'],
+                    'total_size': fifo_info['total_size'],
+                    'type': 'fifo',
+                }
+    return mapping
 
-def build_memory_mapping(verilog_dir, top_module='forward', report_dir=None):
+
+def _parse_instances_recursive(verilog_dir, top_module, report_dir):
+    """
+    Recursively parse module instantiations starting from the top module,
+    descending into child modules.  Port connections are resolved through
+    the hierarchy so all signals reference the top-level scope.
+
+    Returns a list of instance dicts (same format as parse_module_instantiations).
+    """
+    top_v_path = os.path.join(verilog_dir, f'{top_module}.v')
+    top_text = _read_verilog(top_v_path)
+    top_instances = parse_module_instantiations(top_text, report_dir)
+
+    all_instances = list(top_instances)
+
+    def _descend(parent_inst):
+        child_module = _child_module_name(parent_inst['instance_name'])
+        child_v_path = os.path.join(
+            verilog_dir, f'{top_module}_{child_module}.v')
+        if not os.path.isfile(child_v_path):
+            return
+
+        child_text = _read_verilog(child_v_path)
+        child_instances = parse_module_instantiations(child_text, report_dir)
+        if not child_instances:
+            return
+
+        # Port names of the parent become signal names inside the child.
+        # parent_inst['ports'] maps port_name -> top-level signal (already
+        # resolved for deeper levels).
+        port_map = dict(parent_inst['ports'])
+
+        for inst in child_instances:
+            resolved_ports = {}
+            for pname, signal in inst['ports'].items():
+                resolved_ports[pname] = port_map.get(signal, signal)
+            inst['ports'] = resolved_ports
+
+            all_instances.append(inst)
+
+            # Recurse further into functional sub-modules
+            sub_module = _child_module_name(inst['instance_name'])
+            if sub_module != inst['instance_name']:
+                _descend(inst)
+
+    for inst in top_instances:
+        child_module = _child_module_name(inst['instance_name'])
+        if child_module != inst['instance_name']:
+            _descend(inst)
+
+    return all_instances
+
+
+def build_memory_mapping(verilog_dir, top_module, report_dir):
     """
     Build a cross-hierarchy memory mapping for a Vitis HLS design.
 
@@ -388,11 +483,9 @@ def build_memory_mapping(verilog_dir, top_module='forward', report_dir=None):
     verilog_dir : str
         Path to the generated Verilog directory (e.g. solution1/impl/verilog/).
     top_module : str
-        Name of the top-level module (default 'forward').
-    report_dir : str or None
-        Optional path to the parsed report directory.  When given, the
-        mapping is enriched with RAM metadata (width, depth, BRAM usage)
-        from each module's verbose report.
+        Name of the top-level module.
+    report_dir : str
+        path to the parsed report directory.
 
     Returns
     -------
@@ -402,26 +495,24 @@ def build_memory_mapping(verilog_dir, top_module='forward', report_dir=None):
     if not os.path.isfile(top_v_path):
         raise FileNotFoundError(f'Top-level Verilog not found: {top_v_path}')
 
-    log_info(f"Parsing top-level Verilog: {top_v_path}")
-    top_text = _read_verilog(top_v_path)
-    all_instances = parse_module_instantiations(top_text)
-    log_info(f"Found {len(all_instances)} module instantiations")
+    log_info(f"Parsing Verilog hierarchy from: {top_v_path}")
+    all_instances = _parse_instances_recursive(verilog_dir, top_module, report_dir)
+    log_info(f"Found {len(all_instances)} module instantiations (including sub-modules)")
 
     # Optionally load top-module RAM/FIFO metadata from verbose report
     top_ram_meta = {}
     top_fifo_meta = {}
-    if report_dir:
+    top_rpt = os.path.join(report_dir, top_module,
+                            f'{top_module}.verbose.rpt')
+    if not os.path.isfile(top_rpt):
         top_rpt = os.path.join(report_dir, top_module,
-                               f'{top_module}.verbose.rpt')
-        if not os.path.isfile(top_rpt):
-            top_rpt = os.path.join(report_dir, top_module,
-                                   f'{top_module}.rpt')
-        if os.path.isfile(top_rpt):
-            top_ram_meta = parse_memory_table(top_rpt)
-            top_fifo_meta = parse_fifo_table(top_rpt)
-            log_info(f"Loaded {len(top_ram_meta)} RAM + "
-                     f"{len(top_fifo_meta)} FIFO metadata entries "
-                     f"from {top_rpt}")
+                                f'{top_module}.rpt')
+    if os.path.isfile(top_rpt):
+        top_ram_meta = parse_memory_table(top_rpt)
+        top_fifo_meta = parse_fifo_table(top_rpt)
+        log_info(f"Loaded {len(top_ram_meta)} RAM + "
+                    f"{len(top_fifo_meta)} FIFO metadata entries "
+                    f"from {top_rpt}")
 
     # Build reverse map: signal -> RAM base name (for write-only port resolution)
     signal_to_ram = _build_signal_to_ram_map(all_instances)
@@ -590,167 +681,84 @@ def build_memory_mapping(verilog_dir, top_module='forward', report_dir=None):
     # --- local memories inside each child module ----------------------------
     # Parse each child module's verbose report for RAM/FIFO instances that
     # are local to the submodule (not connected through the parent).
-    if report_dir:
-        for child_module, child_info in mapping.items():
+    for child_module, child_info in mapping.items():
+        child_rpt = os.path.join(report_dir, child_module,
+                                    f'{child_module}.verbose.rpt')
+        if not os.path.isfile(child_rpt):
             child_rpt = os.path.join(report_dir, child_module,
-                                     f'{child_module}.verbose.rpt')
-            if not os.path.isfile(child_rpt):
-                child_rpt = os.path.join(report_dir, child_module,
-                                         f'{child_module}.rpt')
-            if not os.path.isfile(child_rpt):
-                continue
+                                        f'{child_module}.rpt')
+        if not os.path.isfile(child_rpt):
+            continue
 
-            child_ram_meta = parse_memory_table(child_rpt)
-            child_fifo_meta = parse_fifo_table(child_rpt)
+        child_ram_meta = parse_memory_table(child_rpt)
+        child_fifo_meta = parse_fifo_table(child_rpt)
 
-            if not child_ram_meta and not child_fifo_meta:
-                continue
+        if not child_ram_meta and not child_fifo_meta:
+            continue
 
-            log_info(f"Local memories for {child_module}: "
-                     f"{len(child_ram_meta)} RAM, "
-                     f"{len(child_fifo_meta)} FIFO")
+        log_info(f"Local memories for {child_module}: "
+                    f"{len(child_ram_meta)} RAM, "
+                    f"{len(child_fifo_meta)} FIFO")
 
-            mem_ports = child_info.setdefault('memory_ports', {})
-            for ram_name, meta in child_ram_meta.items():
-                ram_base = (ram_name[:-2]
-                            if ram_name.endswith('_U') else ram_name)
-                if ram_base in mem_ports:
-                    continue        # already captured via parent connection
-                entry = {
-                    'child_port': ram_base,
-                    'port_type': 'ap_memory',
-                    'direction': 'read_write',
-                    'storage_type': 'internal_ram',
-                    'parent_ram': ram_base,
-                    'parent_module': child_module,
-                    'ram_module': meta['module'],
-                    'width': meta['bits'],
-                    'depth': meta['words'],
-                    'bram18k': meta['bram18k'],
-                    'ff': meta['ff'],
-                    'lut': meta['lut'],
-                    'uram': meta['uram'],
-                    'total_size': meta['total_size'],
-                }
-                mem_ports[ram_base] = entry
-                log_info(f"  {child_module}.{ram_base}: local RAM "
-                         f"({meta['module']}, "
-                         f"{meta['words']}x{meta['bits']}, "
-                         f"total_size={meta['total_size']})")
+        mem_ports = child_info.setdefault('memory_ports', {})
+        for ram_name, meta in child_ram_meta.items():
+            ram_base = (ram_name[:-2]
+                        if ram_name.endswith('_U') else ram_name)
+            if ram_base in mem_ports:
+                continue        # already captured via parent connection
+            entry = {
+                'child_port': ram_base,
+                'port_type': 'ap_memory',
+                'direction': 'read_write',
+                'storage_type': 'internal_ram',
+                'parent_ram': ram_base,
+                'parent_module': child_module,
+                'ram_module': meta['module'],
+                'width': meta['bits'],
+                'depth': meta['words'],
+                'bram18k': meta['bram18k'],
+                'ff': meta['ff'],
+                'lut': meta['lut'],
+                'uram': meta['uram'],
+                'total_size': meta['total_size'],
+            }
+            mem_ports[ram_base] = entry
+            log_info(f"  {child_module}.{ram_base}: local RAM "
+                        f"({meta['module']}, "
+                        f"{meta['words']}x{meta['bits']}, "
+                        f"total_size={meta['total_size']})")
 
-            fifo_ports = child_info.setdefault('fifo_ports', {})
-            for fifo_name, meta in child_fifo_meta.items():
-                fifo_base = (fifo_name[:-2]
-                             if fifo_name.endswith('_U') else fifo_name)
-                if fifo_base in fifo_ports:
-                    continue        # already captured via parent connection
-                entry = {
-                    'child_port': fifo_base,
-                    'port_type': 'ap_fifo',
-                    'direction': 'read_write',
-                    'storage_type': 'internal_fifo',
-                    'parent_fifo': fifo_base,
-                    'parent_module': child_module,
-                    'depth': meta['depth'],
-                    'width': meta['bits'],
-                    'bram18k': meta['bram18k'],
-                    'ff': meta['ff'],
-                    'lut': meta['lut'],
-                    'uram': meta['uram'],
-                    'total_size': meta['total_size'],
-                }
-                fifo_ports[fifo_base] = entry
-                log_info(f"  {child_module}.{fifo_base}: local FIFO "
-                         f"(depth={meta['depth']}, bits={meta['bits']}, "
-                         f"total_size={meta['total_size']})")
+        fifo_ports = child_info.setdefault('fifo_ports', {})
+        for fifo_name, meta in child_fifo_meta.items():
+            fifo_base = (fifo_name[:-2]
+                            if fifo_name.endswith('_U') else fifo_name)
+            if fifo_base in fifo_ports:
+                continue        # already captured via parent connection
+            entry = {
+                'child_port': fifo_base,
+                'port_type': 'ap_fifo',
+                'direction': 'read_write',
+                'storage_type': 'internal_fifo',
+                'parent_fifo': fifo_base,
+                'parent_module': child_module,
+                'depth': meta['depth'],
+                'width': meta['bits'],
+                'bram18k': meta['bram18k'],
+                'ff': meta['ff'],
+                'lut': meta['lut'],
+                'uram': meta['uram'],
+                'total_size': meta['total_size'],
+            }
+            fifo_ports[fifo_base] = entry
+            log_info(f"  {child_module}.{fifo_base}: local FIFO "
+                        f"(depth={meta['depth']}, bits={meta['bits']}, "
+                        f"total_size={meta['total_size']})")
 
     log_info(f"Memory mapping complete: {len(mapping)} child module(s) mapped")
-    return mapping
 
-
-def build_memory_mapping_recursive(verilog_dir, top_module='forward',
-                                   report_dir=None):
-    """
-    Recursively build memory mappings through the full module hierarchy.
-
-    Starts from *top_module* and follows each sub-module that has its own
-    Verilog file, producing a nested mapping where every memory reference
-    at any level can be traced back to the originating RAM instance.
-
-    Returns
-    -------
-    dict  –  { child_module: { 'memory_ports': {...}, 'fifo_ports': {...},
-               'sub_mappings': { grandchild: ... } } }
-    """
-    # First level
-    mapping = build_memory_mapping(verilog_dir, top_module, report_dir)
-
-    # For each child, check if it has its own sub-modules
-    for child_module, child_info in mapping.items():
-        child_v_name = f'{top_module}_{child_module}.v'
-        child_v_path = os.path.join(verilog_dir, child_v_name)
-        if os.path.isfile(child_v_path):
-            sub_mapping = build_memory_mapping(
-                verilog_dir,
-                top_module=f'{top_module}_{child_module}',
-                report_dir=report_dir)
-            if sub_mapping:
-                child_info['sub_mappings'] = sub_mapping
+    mapping = flatten_memory_instances(mapping)
 
     return mapping
-
-
-# ---------------------------------------------------------------------------
-# Flattened lookup helpers
-# ---------------------------------------------------------------------------
-
-def flatten_memory_mapping(mapping, prefix=''):
-    """
-    Flatten the hierarchical mapping into a simple lookup table.
-
-    Returns a list of dicts, each with keys:
-        module, local_name, parent_module, parent_ram, width, depth, ...
-    """
-    rows = []
-    for child_module, info in mapping.items():
-        mod_path = f'{prefix}/{child_module}' if prefix else child_module
-
-        for port_name, entry in info.get('memory_ports', {}).items():
-            row = {'module': mod_path, 'local_name': port_name}
-            row.update(entry)
-            rows.append(row)
-
-        for port_name, entry in info.get('fifo_ports', {}).items():
-            row = {'module': mod_path, 'local_name': port_name}
-            row.update(entry)
-            rows.append(row)
-
-        if 'sub_mappings' in info:
-            rows.extend(
-                flatten_memory_mapping(info['sub_mappings'], prefix=mod_path))
-
-    return rows
-
-
-def lookup(mapping, module, local_name):
-    """
-    Look up a single variable reference.
-
-    Parameters
-    ----------
-    mapping : dict   – output of build_memory_mapping()
-    module : str     – child module name  (e.g. 'node4')
-    local_name : str – local variable name (e.g. 'v61_0_0_0')
-
-    Returns the entry dict with parent_ram / parent_fifo info, or None.
-    """
-    mod_info = mapping.get(module, {})
-    for section in ('memory_ports', 'fifo_ports'):
-        entry = mod_info.get(section, {}).get(local_name)
-        if entry:
-            return entry
-    return None
-
 
 # ---------------------------------------------------------------------------
 # CLI
@@ -779,31 +787,16 @@ def main():
                         help='Path to write memory_mapping.json')
     parser.add_argument('--top', default='forward',
                         help='Top-level module name (default: forward)')
-    parser.add_argument('--reports', default=None,
+    parser.add_argument('reports',
                         help='Path to parsed report directory for RAM metadata')
-    parser.add_argument('--recursive', action='store_true',
-                        help='Recursively map through sub-module hierarchies')
-    parser.add_argument('--flat', action='store_true',
-                        help='Also write a flattened CSV-style lookup table')
 
     args = parser.parse_args()
 
-    if args.recursive:
-        mapping = build_memory_mapping_recursive(
-            args.verilog_dir, args.top, args.reports)
-    else:
-        mapping = build_memory_mapping(
-            args.verilog_dir, args.top, args.reports)
+    mapping = build_memory_mapping(
+        args.verilog_dir, args.top, args.reports)
 
     out_path = write_mapping(mapping, args.output_dir)
     print(f'Wrote {out_path}')
-
-    if args.flat:
-        flat = flatten_memory_mapping(mapping)
-        flat_path = os.path.join(args.output_dir, 'memory_mapping_flat.json')
-        with open(flat_path, 'w') as f:
-            json.dump(flat, f, indent=2)
-        print(f'Wrote {flat_path}')
 
 
 if __name__ == '__main__':
