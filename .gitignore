@@ -6,6 +6,7 @@ src/benchmarks/json_data/**
 
 src/hardware_model/tech_models/tech_library/design_spaces/**
 src/hardware_model/tech_models/tech_library/old/**
+src/hardware_model/tech_models/tech_library/spice_sims/**
 src/output.txt
 
 src/params/rcs.yaml
@@ -36,6 +37,7 @@ test/inverse_validation/inverse_walkthrough_log_dir/**
 test/inverse_validation/walkthrough_figs/**
 test/experiments/dennard_multi_core_figs/**
 test/experiments/dennard_multi_core_logs/**
+test/latex_tables/**
 openroad_interface/fig
 openroad_interface/results
 

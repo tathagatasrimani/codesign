@@ -64,10 +64,10 @@ class CircuitModel:
             "OffChipIO": lambda: self.make_io_lat_dict(),
             "N/A": lambda: 0,
             "Call": lambda: 0,
-            "read": lambda: 0,
-            "write": lambda: 0,
-            "load": lambda: 0,
-            "store": lambda: 0,
+            "read": lambda: 1,
+            "write": lambda: 1,
+            "load": lambda: 1,
+            "store": lambda: 1,
         }
         self.DFF_DELAY = 10*self.tech_model.delay # ~10 FO4 delays
 

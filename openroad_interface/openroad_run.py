@@ -143,6 +143,8 @@ class OpenRoadRun:
         else: 
             logger.info("No parasitics selected. Running none_place_n_route.")
             graph = self.none_place_n_route(graph)
+            final_area = 0
+            d = {}
         logger.info("Place and route finished.")
         return d, graph, final_area
 

@@ -228,75 +228,6 @@ class Codesign:
 
         #logger.info(f"compute operation totals in fw pass:\n {self.hw.compute_operation_totals}")
 
-
-    def run_catapult(self):
-        """
-        Runs the Catapult synthesis tool, updates the memory configuration, and logs the output.
-        Handles directory changes and cleans up temporary files.
-
-        Args:
-            None
-        Returns:
-            None
-        """
-        self.module_map = {}
-        # if no_memory flag set, scheduler will cut out all memory nodes
-        if not self.no_memory:
-            self.module_map = {
-                "ccs_ram_sync_1R1W_rwport": "Rsc",
-                "ccs_ram_sync_1R1W_rport": "Rsc",
-                "ccs_ram_sync_1R1W_wport": "Rsc",
-                "nop": "nop"
-            }
-        for unit in self.hw.circuit_model.circuit_values["area"].keys():
-            self.module_map[unit.lower()] = unit
-
-        os.chdir(self.benchmark_dir)
-        
-        # add area constraint
-        sim_util.add_area_constraint_to_script(f"scripts/{self.benchmark_name}.tcl", self.hw.area_constraint)
-
-        p = subprocess.run(["make", "clean"], capture_output=True, text=True)
-        cmd = ["make", "build_design"]
-        p = subprocess.run(cmd, capture_output=True, text=True)
-        logger.info(f"first catapult run output: {p.stdout}")
-        if p.returncode != 0:
-            raise Exception(p.stderr)
-        os.chdir("../../..")
-        # if not self.no_memory:
-        #     ## If we are running with memory, we need to run Cacti to get the memory parameters and then rerun Catapult. 
-        #     pre_assign_counts = memory.get_pre_assign_counts(f"{self.benchmark_dir}/bom.rpt", self.module_map)
-        #     logger.info(f"hw.circuit_model.circuit_values: {self.hw.circuit_model.circuit_values}")
-        #     self.hw.circuit_model.set_memories(memory.customize_catapult_memories(f"{self.benchmark_dir}/memories.rpt", self.benchmark_name, self.hw, pre_assign_counts))
-        #     logger.info(f"custom catapult memories: {self.hw.circuit_model.memories}")
-        #     os.chdir(self.benchmark_dir)
-        #     p = subprocess.run(["make", "clean"], capture_output=True, text=True)
-        #     p = subprocess.run(cmd, capture_output=True, text=True)
-        #     logger.info(f"custom memory catapult run output: {p.stdout}")
-        #     if p.returncode != 0:
-        #         raise Exception(p.stderr)
-        #     os.chdir("../../..")
-        # else:
-        logger.info("skipping memory customization and second catapult run")
-        self.hw.circuit_model.set_memories({})
-
-        # Extract Hardware Netlist
-        cmd = ["yosys", "-p", f"read_verilog {self.benchmark_dir}/build/{self.benchmark_name}.v1/rtl.v; hierarchy -top {self.benchmark_name}; proc; write_json {self.benchmark_dir}/netlist.json"]
-        p = subprocess.run(cmd, capture_output=True, text=True)
-        if DEBUG_YOSYS:
-            logger.info(f"Yosys output: {p.stdout}")
-        if p.returncode != 0:
-            raise Exception(f"Yosys failed with error: {p.stderr}")
-
-        self.hw.netlist, full_netlist = parse_yosys_json(f"{self.benchmark_dir}/netlist.json", include_memories=(not self.no_memory), top_level_module_type=self.benchmark_name)
-
-        ## write the netlist to a file
-        with open(f"{self.benchmark_dir}/netlist-from-catapult.gml", "wb") as f:
-            nx.write_gml(self.hw.netlist, f)
-
-        with open(f"{self.benchmark_dir}/full_netlist_debug.gml", "wb") as f:
-            nx.write_gml(full_netlist, f)
-
     def set_resource_constraint_scalehls(self, unlimited=False):
         """
         Sets the resource constraint and op latencies for ScaleHLS.
@@ -846,73 +777,6 @@ class Codesign:
         self.parse_vitis_data(save_dir=save_dir)
         
 
-
-    def catapult_forward_pass(self):
-        """
-        Runs Catapult version of forward pass, updates the memory configuration, and logs the output.
-        """
-        shutil.copytree("src/forward_pass/ccores_base", f"{self.benchmark_dir}/src/ccores")
-
-        # update delay and area of ccores
-        ccore_update.update_ccores(self.hw.circuit_model.circuit_values["area"], self.hw.circuit_model.circuit_values["latency"])
-
-        if self.benchmark_name == "matmult":
-            # change the unroll factors in the matmult_basic.cpp file
-            with open(f"{self.benchmark}/src/matmult_basic.cpp", "r") as f:
-                lines = f.readlines()
-            with open(f"{self.benchmark_dir}/src/matmult_basic.cpp", "w") as f:
-                unroll_stmts = []
-                unroll_lines = {}
-                matrix_size = 0
-                for i in range(len(lines)):
-                    if "pragma hls_unroll no" in lines[i]:
-                        unroll_stmts.append(lines[i])
-                        unroll_lines[lines[i]] = i
-                    if "#define MATRIX_SIZE" in lines[i]:
-                        matrix_size = int(lines[i].strip().split()[-1])
-                assert matrix_size > 0
-                unroll_ordering = [2, 1, 0] # order of unroll statements to change (innermost first)
-                cur_max_unroll = min(self.max_unroll, int(self.inverse_pass_lag_factor))
-                for i in unroll_ordering:
-                    amount_to_unroll = cur_max_unroll
-                    lines[unroll_lines[unroll_stmts[i]]] = unroll_stmts[i].replace("no", str(min(amount_to_unroll, matrix_size)))
-                    cur_max_unroll //= min(amount_to_unroll, matrix_size)
-
-                f.writelines(lines)
-        elif self.benchmark_name == "basic_aes":
-            # change the unroll factors in the basic_aes.cpp file
-            with open(f"{self.benchmark}/src/basic_aes.cpp", "r") as f:
-                lines = f.readlines()
-            with open(f"{self.benchmark_dir}/src/basic_aes.cpp", "w") as f:
-                unroll_stmts = []
-                unroll_lines = []
-                block_size = 0
-                for i in range(len(lines)):
-                    if "pragma hls_unroll no" in lines[i]:
-                        unroll_stmts.append(lines[i])
-                        unroll_lines.append(i)
-                    if "#define BLOCK_SIZE" in lines[i]:
-                        block_size = int(lines[i].strip().split()[2])
-                #print(f"unroll stmts: {unroll_stmts}")
-                #print(f"unroll lines: {unroll_lines}")
-                assert block_size > 0
-                assert len(unroll_stmts) == 3
-                max_unrolls = [block_size, 4, block_size] # maximum value of unroll for each statement
-                cur_max_unroll = min(self.max_unroll, int(self.inverse_pass_lag_factor))
-                for i in range(3):
-                    amount_to_unroll = cur_max_unroll
-                    lines[unroll_lines[i]] = unroll_stmts[i].replace("no", str(min(amount_to_unroll, max_unrolls[i])))
-                    #print(f"new line: {lines[unroll_lines[i]]}")
-                    #print(f"unrolling {unroll_stmts[i]} by {min(amount_to_unroll, max_unrolls[i])}")
-
-                f.writelines(lines)
-
-        # run catapult with custom memory configurations
-        self.run_catapult()
-
-        # parse catapult timing report and create schedule
-        self.parse_catapult_timing()
-
     def set_workload_size(self, dir_name):
         """
         Sets the workload size for the benchmark.
@@ -963,11 +827,10 @@ class Codesign:
 
         self.clk_period = self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.clk_period] # ns
 
-        if self.hls_tool == "catapult":
-            sim_util.change_clk_period_in_script(f"{self.benchmark_dir}/scripts/common.tcl", self.clk_period, self.cfg["args"]["hls_tool"])
-            self.catapult_forward_pass()
-        else:
+        if self.hls_tool == "vitis":
             self.vitis_forward_pass(save_dir=save_dir, iteration_count=iteration_count, setup=setup)
+        else:
+            raise ValueError(f"Invalid hls tool: {self.hls_tool}")
         if setup: return
 
         # calculate wire parasitics 
@@ -980,7 +843,7 @@ class Codesign:
 
         ## create the obj equation 
         self.hw.calculate_objective(log_top_vectors=True)
-        self.hw.dump_top_vectors_to_file(f"{self.block_vectors_save_dir}/block_vectors_forward_pass_{iteration_count}.json")
+        #self.hw.dump_top_vectors_to_file(f"{self.block_vectors_save_dir}/block_vectors_forward_pass_{iteration_count}.json")
 
         if iteration_count == 0:
             self.params_over_iterations[0].update(
@@ -1035,34 +898,6 @@ class Codesign:
         self.checkpoint_controller.check_end_checkpoint("pd", self.iteration_count)
         self.obj_over_iterations.append(sim_util.xreplace_safe(self.hw.obj, self.hw.circuit_model.tech_model.base_params.tech_values))
 
-    def parse_catapult_timing(self):
-        """
-        Parses the Catapult timing report, extracts and schedules the data flow graph (DFG).
-
-        Args:
-            None
-        Returns:
-            None
-        """
-        # make sure to use parasitics here
-        build_dir = os.listdir(f"{self.benchmark_dir}/build")
-        schedule_dir = None
-        for dir in build_dir:
-            if dir.endswith(".v1"):
-                schedule_dir = dir
-                break
-        assert schedule_dir
-        schedule_path = f"{self.benchmark_dir}/build/{schedule_dir}"
-        schedule_parser = schedule.gnt_schedule_parser(schedule_path, self.module_map, self.hw.circuit_model.circuit_values["latency"], self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.clk_period])
-        schedule_parser.parse()
-        schedule_parser.convert(memories=self.hw.circuit_model.memories)
-        self.hw.inst_name_map = schedule_parser.inst_name_map
-        self.hw.scheduled_dfg = schedule_parser.modified_G
-
-        ## write the scheduled dfg to a file
-        with open(f"{self.benchmark_dir}/scheduled-dfg-from-catapult.gml", "wb") as f:
-            nx.write_gml(self.hw.scheduled_dfg, f)
-
     def calculate_wire_parasitics(self):
         """
         Prepares the schedule by setting the end node's start time and getting the longest paths.
@@ -1101,10 +936,6 @@ class Codesign:
         if not self.checkpoint_controller.check_checkpoint("pd", self.iteration_count):
             logger.info(f"will not run openroad because of checkpoint, will use results from previous run")
         self.hw.get_wire_parasitics(self.openroad_testfile, self.parasitics, self.benchmark_name, run_openroad, self.cfg["args"]["area"])
-
-        if self.cfg["args"]["hls_tool"] == "catapult":
-            # set end node's start time to longest path length
-            self.hw.scheduled_dfg.nodes["end"]["start_time"] = nx.dag_longest_path_length(self.hw.scheduled_dfg)
 
     def write_back_params(self, params_path="src/yaml/params_current.yaml"):
         """
@@ -1243,7 +1074,7 @@ class Codesign:
         self.params_over_iterations.append(copy.copy(self.hw.circuit_model.tech_model.base_params.tech_values))
         self.sensitivities_over_iterations.append(copy.copy(self.hw.sensitivities))
         self.constraint_slack_over_iterations.append({})
-        self.hw.dump_top_vectors_to_file(f"{self.block_vectors_save_dir}/block_vectors_inverse_pass_{iter_number}.json")
+        #self.hw.dump_top_vectors_to_file(f"{self.block_vectors_save_dir}/block_vectors_inverse_pass_{iter_number}.json")
         for constraint in self.opt.constraints:
             if constraint.label in self.hw.constraints_to_plot:
                 assert len(self.params_over_iterations) > 1, "params over iterations has less than 2 elements"
@@ -1310,9 +1141,9 @@ class Codesign:
         trend_plotter.plot_sensitivities_over_generations()
         logger.info(f"plotting constraint slack over generations")
         trend_plotter.plot_constraint_slack_over_generations()
-        if visualize_block_vectors:
-            logger.info(f"plotting block vectors over generations")
-            trend_plotter.plot_block_vectors_over_generations()
+        #if visualize_block_vectors:
+        #    logger.info(f"plotting block vectors over generations")
+        #    trend_plotter.plot_block_vectors_over_generations()
 
     def setup(self):
         if not os.path.exists(self.benchmark_setup_dir):

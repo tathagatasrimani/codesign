@@ -208,12 +208,6 @@ else
     conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r
 
     conda env create -f "$SETUP_SCRIPTS_FOLDER"/environment_simplified.yml -y
-
-    # create symlinks for g++-13 needed by cacti
-    cd miniconda3/envs/codesign/bin
-    ln -sf x86_64-conda-linux-gnu-gcc gcc-13
-    ln -sf x86_64-conda-linux-gnu-g++ g++-13
-    cd ../../../..
 fi
 
 
@@ -243,20 +237,13 @@ if [[ $FORCE_FULL -eq 1 ]]; then
 fi
 echo "COMPLETED STEP 5: SUBMODULE UPDATE"
 
-###############  BUILD CACTI #################
-echo "STARTING STEP 6: CACTI BUILD"
-cd src/cacti
-make -j$(nproc)
-cd ../..
-echo "COMPLETED STEP 6: CACTI BUILD"
-
 ###############  BUILD VERILATOR #################
-echo "STARTING STEP 7: VERILATOR BUILD"
+echo "STARTING STEP 6: VERILATOR BUILD"
 source "$SETUP_SCRIPTS_FOLDER"/verilator_install.sh
-echo "COMPLETED STEP 7: VERILATOR BUILD"
+echo "COMPLETED STEP 6: VERILATOR BUILD"
 
 ############### HANDLE XAUTHORITY #################
-echo "STARTING STEP 8: XAUTHORITY HANDLING"
+echo "STARTING STEP 7: XAUTHORITY HANDLING"
 # Only copy Xauthority if we're in a different directory than the old home
 if [ "$HOME" != "$OLD_HOME" ]; then
     echo "Copying Xauthority from $OLD_HOME to $HOME"
@@ -272,10 +259,10 @@ if [ "$HOME" != "$OLD_HOME" ]; then
     fi
     
 fi
-echo "COMPLETED STEP 8: XAUTHORITY HANDLING"
+echo "COMPLETED STEP 7: XAUTHORITY HANDLING"
 
 ############### Add useful aliases ###############
-echo "STARTING STEP 9: ADDING USEFUL ALIASES"
+echo "STARTING STEP 8: ADDING USEFUL ALIASES"
 alias create_checkpoint="python3 -m test.checkpoint_controller"
 alias run_codesign="python3 -m src.codesign"
 alias run_tech_test="python3 -m test.experiments.dennard_multi_core"
@@ -286,7 +273,7 @@ alias clean_tmp="rm -rf ~/src/tmp/*"
 alias clean_codesign="clean_checkpoints; clean_logs; clean_tmp"
 alias run_regression="python3 -m test.regression_run"
 alias run_sweep="python3 -m src.hardware_model.tech_models.tech_library.sweep_tech_codesign"
-echo "COMPLETED STEP 9: ADDING USEFUL ALIASES"
+echo "COMPLETED STEP 8: ADDING USEFUL ALIASES"
 ################## SUCCESSFUL BUILD LOG ##################
 if [[ $FORCE_FULL -eq 1 ]]; then
     record_full_build_metadata

@@ -11,7 +11,7 @@ vitis_streamhls_mvt_test1:
     checkpoint_load_dir: tmp_mvt_delay_0
     checkpoint_start_step: pd
     max_power_density: 1000
-    obj: delay
+    obj: edp
 
 vitis_streamhls_gemm_test1:
   base_cfg: vitis_test
@@ -26,7 +26,7 @@ vitis_streamhls_gemm_test1:
     checkpoint_load_dir: tmp_gemm_delay_0
     checkpoint_start_step: pd
     max_power_density: 1000
-    obj: delay
+    obj: edp
 
 vitis_streamhls_doitgen_test1:
   base_cfg: vitis_test
@@ -40,7 +40,7 @@ vitis_streamhls_doitgen_test1:
     model_cfg: sweep_basic_cfg_dg_ns
     checkpoint_load_dir: tmp_kernel_doitgen_delay_0
     checkpoint_start_step: arch_opt
-    obj: delay
+    obj: edp
     max_power_density: 1000
 
 vitis_streamhls_bicg_test1:
@@ -55,7 +55,7 @@ vitis_streamhls_bicg_test1:
     model_cfg: sweep_basic_cfg_dg_ns
     checkpoint_load_dir: tmp_bicg_delay_0
     checkpoint_start_step: pd
-    obj: delay
+    obj: edp
     max_power_density: 1000
 vitis_streamhls_atax_test1:
   base_cfg: vitis_test
@@ -70,7 +70,7 @@ vitis_streamhls_atax_test1:
     model_cfg: sweep_basic_cfg_dg_ns
     checkpoint_load_dir: tmp_atax_delay_0
     checkpoint_start_step: pd
-    obj: delay
+    obj: edp
     max_power_density: 1000
 vitis_streamhls_attention_test1:
   base_cfg: vitis_test
@@ -84,7 +84,7 @@ vitis_streamhls_attention_test1:
     model_cfg: sweep_basic_cfg_dg_ns
     checkpoint_load_dir: tmp_MultiHeadSelfAttention_delay_0
     checkpoint_start_step: pd
-    obj: delay
+    obj: edp
     max_power_density: 1000
 vitis_inference_streamhls_test1:
   base_cfg: vitis_test
@@ -98,7 +98,7 @@ vitis_inference_streamhls_test1:
     model_cfg: sweep_basic_cfg_dg_ns
     checkpoint_load_dir: tmp_Inference_delay_0
     checkpoint_start_step: pd
-    obj: delay
+    obj: edp
     max_power_density: 1000
 vitis_streamhls_gemmv_test1:
   base_cfg: vitis_test
@@ -112,7 +112,7 @@ vitis_streamhls_gemmv_test1:
     model_cfg: sweep_basic_cfg_dg_ns
     checkpoint_load_dir: tmp_gemmv_delay_0
     checkpoint_start_step: pd
-    obj: delay
+    obj: edp
     max_power_density: 1000
 vitis_streamhls_gesummv_test1:
   base_cfg: vitis_test
@@ -126,7 +126,7 @@ vitis_streamhls_gesummv_test1:
     model_cfg: sweep_basic_cfg_dg_ns
     checkpoint_load_dir: tmp_gesummv_delay_0
     checkpoint_start_step: pd
-    obj: delay
+    obj: edp
     max_power_density: 1000
 vitis_streamhls_2mm_test1:
   base_cfg: vitis_test
@@ -140,7 +140,7 @@ vitis_streamhls_2mm_test1:
     model_cfg: sweep_basic_cfg_dg_ns
     checkpoint_load_dir: tmp_k2mm_delay_0
     checkpoint_start_step: pd
-    obj: delay
+    obj: edp
     max_power_density: 1000
 vitis_streamhls_3mm_test1:
   base_cfg: vitis_test
@@ -154,7 +154,7 @@ vitis_streamhls_3mm_test1:
     model_cfg: sweep_basic_cfg_dg_ns
     checkpoint_load_dir: tmp_k3mm_delay_0
     checkpoint_start_step: pd
-    obj: delay
+    obj: edp
     max_power_density: 1000
 vitis_streamhls_sgd_sw_test1:
   base_cfg: vitis_test
@@ -168,7 +168,7 @@ vitis_streamhls_sgd_sw_test1:
     model_cfg: sweep_basic_cfg_dg_ns
     checkpoint_load_dir: tmp_sgd_sw_delay_0
     checkpoint_start_step: pd
-    obj: delay
+    obj: edp
     max_power_density: 1000
 vitis_streamhls_syr2k_test1:
   base_cfg: vitis_test
@@ -182,5 +182,5 @@ vitis_streamhls_syr2k_test1:
     model_cfg: sweep_basic_cfg_dg_ns
     checkpoint_load_dir: tmp_syr2k_delay_0
     checkpoint_start_step: pd
-    obj: delay
+    obj: edp
     max_power_density: 1000
