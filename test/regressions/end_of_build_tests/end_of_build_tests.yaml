@@ -61,7 +61,7 @@ benchmark_atax_test_streamhls:
     stop_at_checkpoint: netlist
     min_dsp: 50
 
-vitis_multihead_self_attention_test:
+vitis_multihead_self_attention_test_streamhls:
   base_cfg: vitis_test
   args:
     benchmark: MultiHeadSelfAttention
