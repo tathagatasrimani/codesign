@@ -19,11 +19,7 @@ from src import sim_util
 
 from src.inverse_pass.constraint import Constraint
 
-from src.hardware_model.tech_models import mvs_general_model
-from src.hardware_model.tech_models import sweep_model
-from src.hardware_model.tech_models import sweep_brute_force_model
 from src.hardware_model.tech_models import sweep_basic_model
-from src.hardware_model.tech_models import mvs_self_consistent_model
 from src.hardware_model.tech_models import mvs_1_spice_model
 from openroad_interface import openroad_run
 from openroad_interface import openroad_run_hier
@@ -201,185 +197,7 @@ class HardwareModel:
 
 
     def save_display_quantities(self, execution_time):
-        if self.model_cfg["model_type"] == "bulk_bsim4":
-            self.obj_sub_exprs = {
-                "execution_time": execution_time,
-                "passive power": self.total_passive_energy/execution_time,
-                "active power": self.total_active_energy/execution_time,
-                "subthreshold leakage current": self.circuit_model.tech_model.I_sub,
-                "gate tunneling current": self.circuit_model.tech_model.I_tunnel,
-                "GIDL current": self.circuit_model.tech_model.I_GIDL,
-                "long channel threshold voltage": self.circuit_model.tech_model.base_params.V_th,
-                "effective threshold voltage": self.circuit_model.tech_model.V_th_eff,
-                "supply voltage": self.circuit_model.tech_model.base_params.V_dd,
-                "wire RC": self.circuit_model.tech_model.m1_Rsq * self.circuit_model.tech_model.m1_Csq,
-                "clk_period": self.circuit_model.tech_model.base_params.clk_period,
-                "f": self.circuit_model.tech_model.base_params.f,
-            }
-        elif self.circuit_model.tech_model.model_cfg["model_type"] == "bulk":
-            self.obj_sub_exprs = {
-                "execution_time": execution_time,
-                "passive power": self.total_passive_energy/execution_time,
-                "active power": self.total_active_energy/execution_time,
-                "subthreshold leakage current": self.circuit_model.tech_model.I_off,
-                "gate tunneling current": self.circuit_model.tech_model.I_tunnel,
-                "FN term": self.circuit_model.tech_model.FN_term,
-                "WKB term": self.circuit_model.tech_model.WKB_term,
-                "GIDL current": self.circuit_model.tech_model.I_GIDL,
-                "effective threshold voltage": self.circuit_model.tech_model.V_th_eff,
-                "supply voltage": self.circuit_model.tech_model.base_params.V_dd,
-                "wire RC": self.circuit_model.tech_model.m1_Rsq * self.circuit_model.tech_model.m1_Csq,
-                "clk_period": self.circuit_model.tech_model.base_params.clk_period,
-                "f": self.circuit_model.tech_model.base_params.f,
-            }
-        elif self.circuit_model.tech_model.model_cfg["model_type"] == "vs":
-            self.obj_sub_exprs = {
-                "execution_time": execution_time,
-                "passive power": self.total_passive_energy/execution_time,
-                "active power": self.total_active_energy/execution_time,
-                "gate length": self.circuit_model.tech_model.param_db["L"],
-                "gate width": self.circuit_model.tech_model.param_db["W"],
-                "subthreshold leakage current": self.circuit_model.tech_model.param_db["I_sub"],
-                "long channel threshold voltage": self.circuit_model.tech_model.param_db["V_th"],
-                "effective threshold voltage": self.circuit_model.tech_model.param_db["V_th_eff"],
-                "supply voltage": self.circuit_model.tech_model.param_db["V_dd"],
-                "wire RC": self.circuit_model.tech_model.param_db["wire RC"],
-                "on current per um": self.circuit_model.tech_model.param_db["I_on_per_um"],
-                "off current per um": self.circuit_model.tech_model.param_db["I_off_per_um"],
-                "gate tunneling current per um": self.circuit_model.tech_model.param_db["I_tunnel_per_um"],
-                "subthreshold leakage current per um": self.circuit_model.tech_model.param_db["I_sub_per_um"],
-                "DIBL factor": self.circuit_model.tech_model.param_db["DIBL factor"],
-                "SS": self.circuit_model.tech_model.param_db["SS"],
-                "t_ox": self.circuit_model.tech_model.param_db["t_ox"],
-                "eot": self.circuit_model.tech_model.param_db["eot"],
-                "scale length": self.circuit_model.tech_model.param_db["scale_length"],
-                "C_load": self.circuit_model.tech_model.param_db["C_load"],
-                "C_wire": self.circuit_model.tech_model.param_db["C_wire"],
-                "R_wire": self.circuit_model.tech_model.param_db["R_wire"],
-                "R_device": self.circuit_model.tech_model.param_db["V_dd"]/self.circuit_model.tech_model.param_db["I_on"],
-                "F_f": self.circuit_model.tech_model.param_db["F_f"],
-                "F_s": self.circuit_model.tech_model.param_db["F_s"],
-                "vx0": self.circuit_model.tech_model.param_db["vx0"],
-                "v": self.circuit_model.tech_model.param_db["v"],
-                "clk_period": self.circuit_model.tech_model.base_params.clk_period,
-                #"f": self.circuit_model.tech_model.base_params.f,
-                "parasitic capacitance": self.circuit_model.tech_model.param_db["parasitic capacitance"],
-                "k_gate": self.circuit_model.tech_model.param_db["k_gate"],
-                "delay": self.circuit_model.tech_model.delay,
-                "multiplier delay": self.circuit_model.symbolic_latency_wc["Mult16"](),
-                #"scaled power": self.total_passive_power * self.circuit_model.tech_model.capped_power_scale_total + self.total_active_energy/(execution_time * self.circuit_model.tech_model.capped_delay_scale_total),
-                "logic_sensitivity": self.circuit_model.tech_model.base_params.logic_sensitivity,
-                "logic_resource_sensitivity": self.circuit_model.tech_model.base_params.logic_resource_sensitivity,
-                "logic_amdahl_limit": self.circuit_model.tech_model.base_params.logic_amdahl_limit,
-                "logic_resource_amdahl_limit": self.circuit_model.tech_model.base_params.logic_resource_amdahl_limit,
-                "interconnect sensitivity": self.circuit_model.tech_model.base_params.interconnect_sensitivity,
-                "interconnect resource sensitivity": self.circuit_model.tech_model.base_params.interconnect_resource_sensitivity,
-                "interconnect amdahl limit": self.circuit_model.tech_model.base_params.interconnect_amdahl_limit,
-                "interconnect resource amdahl limit": self.circuit_model.tech_model.base_params.interconnect_resource_amdahl_limit,
-                "memory sensitivity": self.circuit_model.tech_model.base_params.memory_sensitivity,
-                "memory resource sensitivity": self.circuit_model.tech_model.base_params.memory_resource_sensitivity,
-                "memory amdahl limit": self.circuit_model.tech_model.base_params.memory_amdahl_limit,
-                "memory resource amdahl limit": self.circuit_model.tech_model.base_params.memory_resource_amdahl_limit,
-                "m1_Rsq": self.circuit_model.tech_model.m1_Rsq,
-                "m2_Rsq": self.circuit_model.tech_model.m2_Rsq,
-                "m3_Rsq": self.circuit_model.tech_model.m3_Rsq,
-                "m1_Csq": self.circuit_model.tech_model.m1_Csq,
-                "m2_Csq": self.circuit_model.tech_model.m2_Csq,
-                "m3_Csq": self.circuit_model.tech_model.m3_Csq,
-                "m1_rho": self.circuit_model.tech_model.base_params.m1_rho,
-                "m2_rho": self.circuit_model.tech_model.base_params.m2_rho,
-                "m3_rho": self.circuit_model.tech_model.base_params.m3_rho,
-                "m1_k": self.circuit_model.tech_model.base_params.m1_k,
-                "m2_k": self.circuit_model.tech_model.base_params.m2_k,
-                "m3_k": self.circuit_model.tech_model.base_params.m3_k,
-            }
-            if self.circuit_model.tech_model.model_cfg["vs_model_type"] == "base":
-                self.obj_sub_exprs["t_1"] = self.circuit_model.tech_model.param_db["t_1"]
-            elif self.circuit_model.tech_model.model_cfg["vs_model_type"] == "mvs_si":
-                self.obj_sub_exprs["R_s"] = self.circuit_model.tech_model.param_db["R_s"]
-                self.obj_sub_exprs["R_d"] = self.circuit_model.tech_model.param_db["R_d"]
-                self.obj_sub_exprs["L_ov"] = self.circuit_model.tech_model.param_db["L_ov"]
-            elif self.circuit_model.tech_model.model_cfg["vs_model_type"] == "vscnfet":
-                self.obj_sub_exprs["Vth_rolloff"] = self.circuit_model.tech_model.param_db["Vth_rolloff"]
-                self.obj_sub_exprs["d"] = self.circuit_model.tech_model.param_db["d"]
-                self.obj_sub_exprs["L_c"] = self.circuit_model.tech_model.param_db["L_c"]
-                self.obj_sub_exprs["H_c"] = self.circuit_model.tech_model.param_db["H_c"]
-                self.obj_sub_exprs["H_g"] = self.circuit_model.tech_model.param_db["H_g"]
-                self.obj_sub_exprs["k_cnt"] = self.circuit_model.tech_model.param_db["k_cnt"]
-        elif self.circuit_model.tech_model.model_cfg["model_type"] == "mvs_general":
-            self.obj_sub_exprs = {
-                "execution_time": execution_time,
-                "passive power": self.total_passive_energy/execution_time,
-                "active power": self.total_active_energy/execution_time,
-                "area": self.circuit_model.tech_model.area,
-                "delay": self.circuit_model.tech_model.delay,
-                "Ieff_n": self.circuit_model.tech_model.Ieff_n,
-                "Ieff_p": self.circuit_model.tech_model.Ieff_p,
-                "Ioff_n": self.circuit_model.tech_model.Ioff_n,
-                "Ioff_p": self.circuit_model.tech_model.Ioff_p,
-                "gate tunneling current per um": self.circuit_model.tech_model.param_db["I_tunnel_per_um"],
-                "subthreshold leakage current per um": self.circuit_model.tech_model.param_db["I_sub_per_um"],
-                "subthreshold leakage current worst case per um": self.circuit_model.tech_model.param_db["I_sub_worst_case_per_um"],
-                "on current per um": self.circuit_model.tech_model.param_db["I_on_per_um"],
-                "off current per um": self.circuit_model.tech_model.param_db["I_off_per_um"],
-                "off current worst case per um": self.circuit_model.tech_model.param_db["I_off_worst_case_per_um"],
-                "supply voltage": self.circuit_model.tech_model.base_params.V_dd,
-                "long channel threshold voltage": self.circuit_model.tech_model.base_params.V_th,
-                "effective threshold voltage": self.circuit_model.tech_model.V_th_eff,
-                "effective threshold voltage worst case": self.circuit_model.tech_model.V_th_eff_worst_case,
-                "t_ox": self.circuit_model.tech_model.base_params.tox,
-                "k_gate": self.circuit_model.tech_model.base_params.k_gate,
-                "gate length": self.circuit_model.tech_model.base_params.L,
-                "gate width": self.circuit_model.tech_model.base_params.W,
-                "mu_eff_n": self.circuit_model.tech_model.base_params.mu_eff_n,
-                "mu_eff_p": self.circuit_model.tech_model.base_params.mu_eff_p,
-                "eps_semi": self.circuit_model.tech_model.base_params.eps_semi,
-                "tsemi": self.circuit_model.tech_model.base_params.tsemi,
-                "Lext": self.circuit_model.tech_model.base_params.Lext,
-                "L_c": self.circuit_model.tech_model.base_params.Lc,
-                "eps_cap": self.circuit_model.tech_model.base_params.eps_cap,
-                "rho_c_n": self.circuit_model.tech_model.base_params.rho_c_n,
-                "rho_c_p": self.circuit_model.tech_model.base_params.rho_c_p,
-                "Rsh_c_n": self.circuit_model.tech_model.base_params.Rsh_c_n,
-                "Rsh_c_p": self.circuit_model.tech_model.base_params.Rsh_c_p,
-                "Rsh_ext_n": self.circuit_model.tech_model.base_params.Rsh_ext_n,
-                "Rsh_ext_p": self.circuit_model.tech_model.base_params.Rsh_ext_p,
-                "C_load": self.circuit_model.tech_model.param_db["C_load"],
-                "C_wire": self.circuit_model.tech_model.param_db["C_wire"],
-                "R_wire": self.circuit_model.tech_model.param_db["R_wire"],
-                "f": self.circuit_model.tech_model.base_params.f,
-                "n0": self.circuit_model.tech_model.n0,
-                "DIBL factor": self.circuit_model.tech_model.delta,
-                "dVt": self.circuit_model.tech_model.dVt,
-                "scale length": self.circuit_model.tech_model.Lscale,
-                "clk_period": self.circuit_model.tech_model.base_params.clk_period,
-                "logic_sensitivity": self.circuit_model.tech_model.base_params.logic_sensitivity,
-                "logic_resource_sensitivity": self.circuit_model.tech_model.base_params.logic_resource_sensitivity,
-                "logic_amdahl_limit": self.circuit_model.tech_model.base_params.logic_amdahl_limit,
-                "logic_resource_amdahl_limit": self.circuit_model.tech_model.base_params.logic_resource_amdahl_limit,
-                "interconnect sensitivity": self.circuit_model.tech_model.base_params.interconnect_sensitivity,
-                "interconnect resource sensitivity": self.circuit_model.tech_model.base_params.interconnect_resource_sensitivity,
-                "interconnect amdahl limit": self.circuit_model.tech_model.base_params.interconnect_amdahl_limit,
-                "interconnect resource amdahl limit": self.circuit_model.tech_model.base_params.interconnect_resource_amdahl_limit,
-                "memory sensitivity": self.circuit_model.tech_model.base_params.memory_sensitivity,
-                "memory resource sensitivity": self.circuit_model.tech_model.base_params.memory_resource_sensitivity,
-                "memory amdahl limit": self.circuit_model.tech_model.base_params.memory_amdahl_limit,
-                "memory resource amdahl limit": self.circuit_model.tech_model.base_params.memory_resource_amdahl_limit,
-                "m1_Rsq": self.circuit_model.tech_model.m1_Rsq,
-                "m2_Rsq": self.circuit_model.tech_model.m2_Rsq,
-                "m3_Rsq": self.circuit_model.tech_model.m3_Rsq,
-                "m1_Csq": self.circuit_model.tech_model.m1_Csq,
-                "m2_Csq": self.circuit_model.tech_model.m2_Csq,
-                "m3_Csq": self.circuit_model.tech_model.m3_Csq,
-                "m1_rho": self.circuit_model.tech_model.base_params.m1_rho,
-                "m2_rho": self.circuit_model.tech_model.base_params.m2_rho,
-                "m3_rho": self.circuit_model.tech_model.base_params.m3_rho,
-                "m1_k": self.circuit_model.tech_model.base_params.m1_k,
-                "m2_k": self.circuit_model.tech_model.base_params.m2_k,
-                "m3_k": self.circuit_model.tech_model.base_params.m3_k,
-                "multiplier delay": self.circuit_model.symbolic_latency_wc["Mult16"](),
-            }
-        elif self.circuit_model.tech_model.model_cfg["model_type"] == "sweep" or self.circuit_model.tech_model.model_cfg["model_type"] == "sweep_brute_force" or self.circuit_model.tech_model.model_cfg["model_type"] == "sweep_basic":
+        if self.circuit_model.tech_model.model_cfg["model_type"] == "sweep_basic":
             self.obj_sub_exprs = {
                 "execution_time": execution_time,
                 "passive power": self.total_passive_energy/execution_time,
@@ -548,71 +366,8 @@ class HardwareModel:
             "m2_k": "Metal 2 Permittivity over generations (F/m)",
             "m3_k": "Metal 3 Permittivity over generations (F/m)",
         }
-        self.constraints_to_plot = set(
-            [
-                "total_power <= max_system_power",
-                "I_off per (W) <= 100e-9 per (1e-6)",
-                "W over L >= 1",
-                "V_th_eff >= 0",
-                "V_dd >= V_th",
-                "delta <= 0.15",
-                "latency_FloorDiv16 <= 20*clk_period",
-            ]
-        )
 
-    def save_obj_vals(self, execution_time, execution_time_override=False, execution_time_override_val=0):
-        self.save_display_quantities(execution_time)
-        if execution_time_override:
-            execution_time = execution_time_override_val
-        if self.obj_fn == "edp":
-            self.obj = (self.total_passive_energy + self.total_active_energy) * execution_time
-            self.obj_scaled = (self.total_passive_energy * self.circuit_model.tech_model.capped_energy_scale + self.total_active_energy) * execution_time * self.circuit_model.tech_model.capped_delay_scale
-        elif self.obj_fn == "ed2":
-            self.obj = (self.total_passive_energy + self.total_active_energy) * (execution_time)**2
-            self.obj_scaled = (self.total_passive_energy * self.circuit_model.tech_model.capped_energy_scale + self.total_active_energy) * (execution_time * self.circuit_model.tech_model.capped_delay_scale)**2
-        elif self.obj_fn == "delay":
-            self.obj = execution_time
-            self.obj_scaled = execution_time * self.circuit_model.tech_model.capped_delay_scale
-        elif self.obj_fn == "energy":
-            self.obj = self.total_active_energy + self.total_passive_energy
-            self.obj_scaled = (self.total_active_energy + self.total_passive_energy * self.circuit_model.tech_model.capped_energy_scale)
-        elif self.obj_fn == "eplusd":
-            self.obj = ((self.total_active_energy + self.total_passive_energy) * sim_util.xreplace_safe(execution_time, self.circuit_model.tech_model.base_params.tech_values) 
-                        + execution_time * sim_util.xreplace_safe(self.total_active_energy + self.total_passive_energy, self.circuit_model.tech_model.base_params.tech_values))
-            self.obj_scaled = ((self.total_active_energy + self.total_passive_energy * self.circuit_model.tech_model.capped_energy_scale) * sim_util.xreplace_safe(execution_time, self.circuit_model.tech_model.base_params.tech_values) 
-                        + execution_time * self.circuit_model.tech_model.capped_delay_scale * sim_util.xreplace_safe(self.total_active_energy + self.total_passive_energy, self.circuit_model.tech_model.base_params.tech_values))
-        else:
-            raise ValueError(f"Objective function {self.obj_fn} not supported")
-
-    def calculate_sensitivity_analysis(self, blackbox=False, constraints=[]):
-        obj = self.obj
-        for constraint in constraints:
-            eps = 1e-15
-            slack_value = -1*sim_util.xreplace_safe(constraint.slack, self.circuit_model.tech_model.base_params.tech_values) + eps
-            if (slack_value > 0):
-                log_info(f"adding log barrier for constraint {constraint.label}, slack value: {slack_value}, log barrier term: {-math.log(slack_value)}")
-                obj += -math.log(slack_value) # adding log barriers to objective to help show effect of constraints on sensitivities
-            else:
-                logger.warning(f"Constraint {constraint.label} is violated, slack value: {slack_value}")
-        for param in self.circuit_model.tech_model.base_params.tech_values:
-            #log_info(f"calculating sensitivity for {param}, initial value: {self.circuit_model.tech_model.base_params.tech_values[param]}")
-            if blackbox:
-                obj_initial_val = sim_util.xreplace_safe(obj, self.circuit_model.tech_model.base_params.tech_values)
-                tech_values_param_changed = {k: v for k, v in self.circuit_model.tech_model.base_params.tech_values.items() if k != param}
-                tech_values_param_changed[param] = self.circuit_model.tech_model.base_params.tech_values[param]*1.01
-                obj_param_changed = sim_util.xreplace_safe(obj, tech_values_param_changed)
-                obj_percent_change = (obj_param_changed - obj_initial_val) / obj_initial_val
-                if self.circuit_model.tech_model.base_params.tech_values[param] == 0:
-                    self.sensitivities[param] = 0
-                else:
-                    self.sensitivities[param] = (obj_percent_change) / (0.01) # 1% change in param
-            else:
-                tech_values_without_param = {k: v for k, v in self.circuit_model.tech_model.base_params.tech_values.items() if k != param}
-                d_obj_d_param = obj.diff(param, evaluate=True).xreplace(tech_values_without_param)
-                self.sensitivities[param] = sim_util.xreplace_safe(d_obj_d_param * (self.circuit_model.tech_model.base_params.tech_values[param] / sim_util.xreplace_safe(obj, self.circuit_model.tech_model.base_params.tech_values)), self.circuit_model.tech_model.base_params.tech_values)
-        logger.info(f"sensitivities: {self.sensitivities}")
-
-    def calculate_objective(self, form_dfg=True, do_sensitivity_analysis=False, log_top_vectors=False, clk_period_opt=False):
+    def calculate_objective(self, form_dfg=True, log_top_vectors=False, clk_period_opt=False):
         start_time = time.time()
         if self.hls_tool == "vitis":
             # Use ObjectiveEvaluator for energy/area calculation (consistent with optimization pass)
@@ -622,11 +377,10 @@ class HardwareModel:
             self.total_passive_energy = evaluator.total_passive_energy
             self.total_active_energy = evaluator.total_active_energy
             self.total_area = evaluator.total_area
+            self.obj = evaluator.obj
+            #self.save_display_quantities(self.execution_time)
         else:
             raise ValueError(f"HLS tool {self.hls_tool} not supported")
-        self.save_obj_vals(self.execution_time)
-        if do_sensitivity_analysis:
-            self.calculate_sensitivity_analysis()
         logger.info(f"time to calculate objective: {time.time()-start_time}")
 
     def display_objective(self, message):
