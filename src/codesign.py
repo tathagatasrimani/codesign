@@ -13,17 +13,12 @@ import shlex
 import networkx as nx
 import matplotlib.pyplot as plt
 import pandas as pd
-from src.forward_pass.netlist_parse import parse_yosys_json
 
 logger = logging.getLogger("codesign")
 
-from src import cacti_util
 from src import sim_util
 from src.hardware_model import hardwareModel
 from src.inverse_pass import optimize
-from src.forward_pass import schedule
-from src import memory
-from src.forward_pass import ccore_update
 from src.forward_pass import schedule_vitis
 from src.forward_pass.scale_hls_port_fix import scale_hls_port_fix
 from src.generate_blackbox_files import generate_blackbox_files
@@ -35,8 +30,6 @@ from src.forward_pass.vitis_create_cdfg import create_cdfg_vitis
 from src import trend_plot
 import time
 from test import checkpoint_controller
-
-DEBUG_YOSYS = False  # set to True to debug yosys output.
 
 FLOW_SUCCESS_MSG = "FLOW END: Design flow completed successfully for iterations = "
 
