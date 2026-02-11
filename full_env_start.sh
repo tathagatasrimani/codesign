@@ -354,7 +354,7 @@ if [[ $FORCE_FULL -eq 1 ]]; then
     FORCE_FULL=0
     set --
     source full_env_start.sh
-    run_regression -l end_of_build_tests/end_of_build_tests.list.yaml -m 8
+    python3 -m test.regression_run -l end_of_build_tests/end_of_build_tests.list.yaml -m 8
     test_status=$?
     if [[ $test_status -ne 0 ]]; then
         echo "BUILD COMPLETED, but failed the test cases."
