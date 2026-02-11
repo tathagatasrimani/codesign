@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-Wrapper script for full_env_start.sh with user-friendly GUI.
+Wrapper script for full_env_start_inside.sh with user-friendly GUI.
 Shows throbber, current step, and last 5 lines of output.
 """
 
@@ -30,7 +30,7 @@ STEP_RE = re.compile(r'STARTING STEP \d+:\s*(.+)')
 class InstallGUI:
     def __init__(self):
         self.script_dir = Path(__file__).parent.absolute()
-        self.main_script = self.script_dir / 'full_env_start.sh'
+        self.main_script = self.script_dir / 'full_env_start_inside.sh'
         self.log_file = self.script_dir / 'build_codesign.log'
         
         self.current_step = "Initializing..."
