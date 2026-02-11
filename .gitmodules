@@ -15,3 +15,6 @@
 [submodule "src/hardware_model/tech_models/mvs-transistor-models"]
 	path = src/hardware_model/tech_models/mvs-transistor-models
 	url = https://github.com/vjuricek101/mvs-transistor-models
+[submodule "src/hardware_model/tech_models/rsg"]
+	path = src/hardware_model/tech_models/rsg
+	url = https://github.com/inva-stav/rsg.git
