@@ -110,11 +110,13 @@ def get_module_map():
         "mulf": "Mult16",
         "divf": "FloorDiv16",
         "exp_bb": "Exp16",
+        "lshift_bb": "LShift16",
         "addf_ctrl_chain": "Add16",
         "subf_ctrl_chain": "Sub16",
         "mulf_ctrl_chain": "Mult16",
         "divf_ctrl_chain": "FloorDiv16",
         "exp_bb_ctrl_chain": "Exp16",
+        "lshift_bb_ctrl_chain": "LShift16",
     }
     return module_map
 
