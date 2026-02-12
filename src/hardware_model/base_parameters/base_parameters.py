@@ -111,21 +111,6 @@ class BaseParameters:
         self.GEO = self.symbol_init("GEO")
         self.MUL = self.symbol_init("MUL")
 
-        self.logic_sensitivity = self.symbol_init("logic_sensitivity")
-        self.logic_resource_sensitivity = self.symbol_init("logic_resource_sensitivity")
-        self.logic_amdahl_limit = self.symbol_init("logic_amdahl_limit")
-        self.logic_resource_amdahl_limit = self.symbol_init("logic_resource_amdahl_limit")
-
-        self.interconnect_sensitivity = self.symbol_init("interconnect_sensitivity")
-        self.interconnect_resource_sensitivity = self.symbol_init("interconnect_resource_sensitivity")
-        self.interconnect_amdahl_limit = self.symbol_init("interconnect_amdahl_limit")
-        self.interconnect_resource_amdahl_limit = self.symbol_init("interconnect_resource_amdahl_limit")
-
-        self.memory_sensitivity = self.symbol_init("memory_sensitivity")
-        self.memory_resource_sensitivity = self.symbol_init("memory_resource_sensitivity")
-        self.memory_amdahl_limit = self.symbol_init("memory_amdahl_limit")
-        self.memory_resource_amdahl_limit = self.symbol_init("memory_resource_amdahl_limit")
-
         # technology level parameter values
         self.tech_values = {}
         self.init_symbol_table()

@@ -1,6 +1,9 @@
+import os
 from dataclasses import dataclass
 from typing import Dict, List, Any, Optional
+import logging
 
+logger = logging.getLogger(__name__)
 # third party
 import pyomo.environ as pyo
 import sympy as sp

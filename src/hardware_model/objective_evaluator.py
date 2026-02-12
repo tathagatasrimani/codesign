@@ -23,6 +23,9 @@ def log_info(msg):
 
 DATA_WIDTH = 16
 
+_MEMORY_OPS = {"load", "store", "read", "write"}
+_MEMORY_READ_OPS = {"load", "read"}
+
 
 class ObjectiveEvaluator:
     """
@@ -47,6 +50,7 @@ class ObjectiveEvaluator:
     def __init__(
         self,
         tech_model,
+        memory_models: Dict[str, Any],
         scheduled_dfgs: Dict[str, Any],
         loop_1x_graphs: Dict[str, Any],
         dataflow_blocks: Set[str],
@@ -77,6 +81,7 @@ class ObjectiveEvaluator:
         self._set_coefficients()
 
         self.tech_model = tech_model
+        self.memory_models = memory_models
         self.scheduled_dfgs = scheduled_dfgs
         self.loop_1x_graphs = loop_1x_graphs
         self.dataflow_blocks = dataflow_blocks
@@ -124,6 +129,7 @@ class ObjectiveEvaluator:
         """
         return cls(
             tech_model=hw.circuit_model.tech_model,
+            memory_models=hw.memory_models,
             scheduled_dfgs=hw.scheduled_dfgs,
             loop_1x_graphs=hw.loop_1x_graphs,
             dataflow_blocks=hw.dataflow_blocks,
@@ -292,7 +298,7 @@ class ObjectiveEvaluator:
                         else:
                             log_info(f"no wire delay for edge {rsc_edge}")
                     else:
-                        pred_delay = self._latency(dfg.nodes[pred]["function"])
+                        pred_delay = self._latency(dfg.nodes[pred]["function"], dfg.nodes[pred])
 
                 log_info(f"pred_delay: {pred_delay}")
 
@@ -337,8 +343,25 @@ class ObjectiveEvaluator:
 
         return wire_delay * 1e9  # Convert to ns
 
-    def _latency(self, op_type: str) -> float:
-        """Calculate latency for an operation type using logical effort coefficients."""
+    def _latency(self, op_type: str, node_data: dict = None) -> float:
+        """Calculate latency for an operation type.
+
+        For memory ops (load/store/read/write) with a named memory (mem_name != 'N/A'),
+        returns the cache hit or write latency from the memory model (ns).
+        For register ops (mem_name == 'N/A'), returns 1 ns.
+        For logic ops, uses logical effort coefficients.
+        """
+        if op_type in _MEMORY_OPS:
+            mem_name = node_data.get("mem_name", "N/A") if node_data else "N/A"
+            if mem_name != "N/A" and mem_name in self.memory_models:
+                mm = self.memory_models[mem_name]
+                if op_type in _MEMORY_READ_OPS:
+                    return mm.cacheHitLatency_ns
+                else:
+                    return mm.cacheWriteLatency_ns
+            else:
+                op_type = "Register16"
+
         if op_type not in self.gamma:
             return 0.0
         tv = self.tech_model.base_params.tech_values
@@ -397,20 +420,33 @@ class ObjectiveEvaluator:
                     log_info(f"edge {rsc_edge} is not in edge_to_nets")
 
             else:
-                energy = self._symbolic_energy_active(data["function"])
+                energy = self._symbolic_energy_active(data["function"], data)
                 total_active_energy_basic_block += energy
                 log_info(f"active energy for {node}: {energy}")
 
         log_info(f"total active energy for {basic_block_name}: {total_active_energy_basic_block}")
         return total_active_energy_basic_block
 
-    def _symbolic_energy_active(self, function: str) -> float:
+    def _symbolic_energy_active(self, function: str, node_data: dict = None) -> float:
         """
         Calculate active energy for a function type.
 
-        Replicates CircuitModel.make_sym_energy_act.
+        For memory ops with a named memory, returns cache hit/write dynamic
+        energy from the memory model (nJ). For register ops, returns 0.
+        For logic ops, uses logical effort coefficients.
         """
-        if function in ["N/A", "Call", "read", "write"]:
+        if function in _MEMORY_OPS:
+            mem_name = node_data.get("mem_name", "N/A") if node_data else "N/A"
+            if mem_name != "N/A" and mem_name in self.memory_models:
+                mm = self.memory_models[mem_name]
+                if function in _MEMORY_READ_OPS:
+                    return mm.cacheHitDynamicEnergy_nJ
+                else:
+                    return mm.cacheWriteDynamicEnergy_nJ
+            else:
+                function = "Register16"
+
+        if function in ["N/A", "Call"]:
             return 0.0
 
         if function not in self.alpha:
@@ -464,6 +500,7 @@ class ObjectiveEvaluator:
         Calculate total passive (leakage) energy.
 
         Replicates HardwareModel.calculate_passive_energy_vitis.
+        Memory leakage is counted once per unique memory instance.
 
         Args:
             total_execution_time: Execution time in ns
@@ -472,22 +509,38 @@ class ObjectiveEvaluator:
             Passive energy in nJ
         """
         total_passive_power = 0.0
+        counted_memories = set()
 
         for node, data in self.netlist.nodes(data=True):
-            power = self._symbolic_power_passive(data["function"])
+            power = self._symbolic_power_passive(data["function"], data, counted_memories)
             total_passive_power += power
             log_info(f"passive power for {node}: {power}")
 
         self.total_passive_power = total_passive_power
         return total_passive_power * total_execution_time
 
-    def _symbolic_power_passive(self, function: str) -> float:
+    def _symbolic_power_passive(self, function: str, node_data: dict = None,
+                                counted_memories: set = None) -> float:
         """
         Calculate passive power for a function type.
 
-        Replicates CircuitModel.make_sym_power_pass.
+        For memory ops with a named memory, returns cache leakage from the
+        memory model (converted from mW to W). Each memory is counted only
+        once via counted_memories set.
+        For register ops, returns 0. For logic ops, uses logical effort coefficients.
         """
-        if function in ["N/A", "Call", "read", "write"]:
+        if function in _MEMORY_OPS:
+            mem_name = node_data.get("mem_name", "N/A") if node_data else "N/A"
+            if mem_name != "N/A" and mem_name in self.memory_models:
+                if counted_memories is not None and mem_name in counted_memories:
+                    return 0.0  # already counted this memory's leakage
+                if counted_memories is not None:
+                    counted_memories.add(mem_name)
+                return self.memory_models[mem_name].cacheLeakage_mW * 1e-3  # mW → W
+            else:
+                function = "Register16"
+
+        if function in ["N/A", "Call"]:
             return 0.0
 
         if function not in self.beta:
@@ -516,19 +569,37 @@ class ObjectiveEvaluator:
     def calculate_area(self) -> float:
         """
         Calculate area for the circuit.
+        Memory area is counted once per unique memory instance.
         """
         total_area = 0.0
+        counted_memories = set()
         for node, data in self.netlist.nodes(data=True):
-            area = self._symbolic_area(data["function"])
+            area = self._symbolic_area(data["function"], data, counted_memories)
             total_area += area
             log_info(f"area for {node}: {area}")
         return total_area
 
-    def _symbolic_area(self, function: str) -> float:
+    def _symbolic_area(self, function: str, node_data: dict = None,
+                       counted_memories: set = None) -> float:
         """
         Calculate area for a function type.
+
+        For memory ops with a named memory, returns cache area from the
+        memory model (converted from mm² to um²). Each memory is counted
+        only once via counted_memories set.
         """
-        if function in ["N/A", "Call", "read", "write"]:
+        if function in _MEMORY_OPS:
+            mem_name = node_data.get("mem_name", "N/A") if node_data else "N/A"
+            if mem_name != "N/A" and mem_name in self.memory_models:
+                if counted_memories is not None and mem_name in counted_memories:
+                    return 0.0  # already counted this memory's area
+                if counted_memories is not None:
+                    counted_memories.add(mem_name)
+                return self.memory_models[mem_name].cacheArea_mm2 * 1e6  # mm² → um²
+            else:
+                function = "Register16"
+
+        if function in ["N/A", "Call"]:
             return 0.0
         tv = self.tech_model.base_params.tech_values
         area_coeff = self.area_coeffs[function] * 500/7 # TODO: arbitrary, should fix the area coeffs at some point

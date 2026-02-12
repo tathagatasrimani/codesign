@@ -134,14 +134,10 @@ class Optimizer:
     def __init__(self, hw, tmp_dir, save_dir, max_power, max_power_density, test_config=False, opt_pipeline="block_vector"):
         self.hw = hw
         self.disabled_knobs = []
-        self.objective_constraint_inds = []
-        self.initial_alpha = None
         self.test_config = test_config
         self.tmp_dir = tmp_dir
         self.save_dir = save_dir
         self.opt_pipeline = opt_pipeline
-        self.bbv_op_delay_constraints = []
-        self.bbv_path_constraints = []
         self.max_system_power = max_power
         self.max_system_power_density = max_power_density
 

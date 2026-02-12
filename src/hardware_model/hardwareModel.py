@@ -14,6 +14,7 @@ import networkx as nx
 import sympy as sp
 from src.hardware_model.base_parameters import base_parameters
 from src.hardware_model.circuit_models import circuit_model
+from src.hardware_model.circuit_models import memory_model
 
 from src import sim_util
 
@@ -91,7 +92,9 @@ class HardwareModel:
         self.constraints = []
         self.sensitivities = {}
 
-        self.block_vectors = {}        
+        self.block_vectors = {}    
+        self.memory_models = {}
+        self.memory_mapping = {}
 
     def reset_state(self):
         self.symbolic_buf = {}
@@ -141,6 +144,12 @@ class HardwareModel:
 
         # by convention, we should always access bulk model and base params through circuit model
         self.circuit_model = circuit_model.CircuitModel(self.tech_model, cfg=self.cfg)
+        self.memory_models = {} # keyed by memory name
+
+    def set_memory_models(self, memory_mapping):
+        self.memory_mapping = memory_mapping
+        for memory_name, memory_info in memory_mapping["flattened"].items():
+            self.memory_models[memory_name] = memory_model.MemoryModel(memory_info)
 
     def calculate_minimum_clk_period(self):
         self.minimum_clk_period = sim_util.xreplace_safe(self.circuit_model.DFF_DELAY, self.circuit_model.tech_model.base_params.tech_values)
@@ -232,18 +241,6 @@ class HardwareModel:
                 "multiplier delay": self.circuit_model.symbolic_latency_wc["Mult16"](),
                 "clk_period": self.circuit_model.tech_model.base_params.clk_period,
                 #"scaled power": self.total_passive_power * self.circuit_model.tech_model.capped_power_scale_total + self.total_active_energy/(execution_time * self.circuit_model.tech_model.capped_delay_scale_total),
-                "logic_sensitivity": self.circuit_model.tech_model.base_params.logic_sensitivity,
-                "logic_resource_sensitivity": self.circuit_model.tech_model.base_params.logic_resource_sensitivity,
-                "logic_amdahl_limit": self.circuit_model.tech_model.base_params.logic_amdahl_limit,
-                "logic_resource_amdahl_limit": self.circuit_model.tech_model.base_params.logic_resource_amdahl_limit,
-                "interconnect sensitivity": self.circuit_model.tech_model.base_params.interconnect_sensitivity,
-                "interconnect resource sensitivity": self.circuit_model.tech_model.base_params.interconnect_resource_sensitivity,
-                "interconnect amdahl limit": self.circuit_model.tech_model.base_params.interconnect_amdahl_limit,
-                "interconnect resource amdahl limit": self.circuit_model.tech_model.base_params.interconnect_resource_amdahl_limit,
-                "memory sensitivity": self.circuit_model.tech_model.base_params.memory_sensitivity,
-                "memory resource sensitivity": self.circuit_model.tech_model.base_params.memory_resource_sensitivity,
-                "memory amdahl limit": self.circuit_model.tech_model.base_params.memory_amdahl_limit,
-                "memory resource amdahl limit": self.circuit_model.tech_model.base_params.memory_resource_amdahl_limit,
                 "m1_Rsq": self.circuit_model.tech_model.m1_Rsq,
                 "m2_Rsq": self.circuit_model.tech_model.m2_Rsq,
                 "m3_Rsq": self.circuit_model.tech_model.m3_Rsq,
@@ -341,18 +338,6 @@ class HardwareModel:
             "delay": "Transistor Delay over generations (s)",
             "multiplier delay": "Multiplier Delay over generations (s)",
             "scaled power": "Scaled Power over generations (W)",
-            "logic_sensitivity": "Logic Sensitivity over generations",
-            "logic_resource_sensitivity": "Logic Resource Sensitivity over generations",
-            "logic_amdahl_limit": "Logic amdahl Limit over generations",
-            "logic_resource_amdahl_limit": "Logic Resource amdahl Limit over generations",
-            "interconnect sensitivity": "Interconnect Sensitivity over generations",
-            "interconnect resource sensitivity": "Interconnect Resource Sensitivity over generations",
-            "interconnect amdahl limit": "Interconnect amdahl Limit over generations",
-            "interconnect resource amdahl limit": "Interconnect Resource amdahl Limit over generations",
-            "memory sensitivity": "Memory Sensitivity over generations",
-            "memory resource sensitivity": "Memory Resource Sensitivity over generations",
-            "memory amdahl limit": "Memory amdahl Limit over generations",
-            "memory resource amdahl limit": "Memory Resource amdahl Limit over generations",
             "m1_Rsq": "Metal 1 Resistance per Square over generations (Ohm/m)",
             "m2_Rsq": "Metal 2 Resistance per Square over generations (Ohm/m)",
             "m3_Rsq": "Metal 3 Resistance per Square over generations (Ohm/m)",

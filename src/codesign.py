@@ -838,24 +838,6 @@ class Codesign:
         self.hw.calculate_objective(log_top_vectors=True)
         #self.hw.dump_top_vectors_to_file(f"{self.block_vectors_save_dir}/block_vectors_forward_pass_{iteration_count}.json")
 
-        if iteration_count == 0:
-            self.params_over_iterations[0].update(
-                {
-                    self.hw.circuit_model.tech_model.base_params.logic_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.logic_sensitivity],
-                    self.hw.circuit_model.tech_model.base_params.logic_resource_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.logic_resource_sensitivity],
-                    self.hw.circuit_model.tech_model.base_params.logic_amdahl_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.logic_amdahl_limit],
-                    self.hw.circuit_model.tech_model.base_params.logic_resource_amdahl_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.logic_resource_amdahl_limit],
-                    self.hw.circuit_model.tech_model.base_params.interconnect_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.interconnect_sensitivity],
-                    self.hw.circuit_model.tech_model.base_params.interconnect_resource_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.interconnect_resource_sensitivity],
-                    self.hw.circuit_model.tech_model.base_params.interconnect_amdahl_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.interconnect_amdahl_limit],
-                    self.hw.circuit_model.tech_model.base_params.interconnect_resource_amdahl_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.interconnect_resource_amdahl_limit],
-                    self.hw.circuit_model.tech_model.base_params.memory_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.memory_sensitivity],
-                    self.hw.circuit_model.tech_model.base_params.memory_resource_sensitivity: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.memory_resource_sensitivity],
-                    self.hw.circuit_model.tech_model.base_params.memory_amdahl_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.memory_amdahl_limit],
-                    self.hw.circuit_model.tech_model.base_params.memory_resource_amdahl_limit: self.hw.circuit_model.tech_model.base_params.tech_values[self.hw.circuit_model.tech_model.base_params.memory_resource_amdahl_limit],
-                }
-            )
-
         """if setup:
             self.max_parallel_initial_objective_value = self.hw.obj.xreplace(self.hw.circuit_model.tech_model.base_params.tech_values).evalf()
             print(f"objective value with max parallelism: {self.max_parallel_initial_objective_value}")
@@ -949,49 +931,6 @@ class Codesign:
                     d[self.hw.circuit_model.tech_model.base_params.names[key]] = float(self.hw.circuit_model.tech_model.base_params.tech_values[key])
             f.write(yaml.dump(d))
 
-    def symbolic_conversion(self):
-        """
-        Runs symbolic cacti and saves initial values of symbolic parameters.
-
-        Returns:
-            dict: Dictionary of symbolic parameters and their initial values.
-        """
-        base_cache_cfg = "cfg/base_cache.cfg"
-        mem_cache_cfg = "cfg/mem_cache.cfg"
-        existing_memories = {}
-        for memory in self.hw.circuit_model.memories:
-            data_tuple = tuple(self.hw.circuit_model.memories[memory])
-            if data_tuple in existing_memories:
-                logger.info(f"reusing symbolic cacti values of {existing_memories[data_tuple]} for {memory}")
-                mem_type = self.hw.circuit_model.memories[memory]["type"]
-                if mem_type == "Mem":
-                    self.hw.circuit_model.symbolic_mem[memory] = self.hw.circuit_model.symbolic_mem[existing_memories[data_tuple]]
-                else:
-                    self.hw.circuit_model.symbolic_buf[memory] = self.hw.circuit_model.symbolic_buf[existing_memories[data_tuple]]
-            else:
-                opt_vals = {
-                    "ndwl": self.hw.circuit_model.memories[memory]["Ndwl"],
-                    "ndbl": self.hw.circuit_model.memories[memory]["Ndbl"],
-                    "nspd": self.hw.circuit_model.memories[memory]["Nspd"],
-                    "ndcm": self.hw.circuit_model.memories[memory]["Ndcm"],
-                    "ndsam1": self.hw.circuit_model.memories[memory]["Ndsam_level_1"],
-                    "ndsam2": self.hw.circuit_model.memories[memory]["Ndsam_level_2"],
-                    "repeater_spacing": self.hw.circuit_model.memories[memory]["Repeater spacing"],
-                    "repeater_size": self.hw.circuit_model.memories[memory]["Repeater size"],
-                }
-                logger.info(f"memory vals: {self.hw.circuit_model.memories[memory]}")
-                mem_type = self.hw.circuit_model.memories[memory]["type"]
-                logger.info(f"generating symbolic cacti for {memory} of type {mem_type}")
-                # generate mem or buf depending on type of memory
-                if mem_type == "Mem":
-                    self.hw.circuit_model.symbolic_mem[memory] = cacti_util.gen_symbolic("Mem", mem_cache_cfg, opt_vals, use_piecewise=False)
-                else:
-                    self.hw.circuit_model.symbolic_buf[memory] = cacti_util.gen_symbolic("Buf", base_cache_cfg, opt_vals, use_piecewise=False)
-                existing_memories[data_tuple] = memory
-        self.hw.save_symbolic_memories()
-        self.hw.calculate_objective()
-
-
     def inverse_pass(self):
         """
         Executes the inverse pass of the codesign process: generates symbolic CACTI values for
@@ -1005,20 +944,12 @@ class Codesign:
         """
         print("\nRunning Inverse Pass")
         logger.info("Running Inverse Pass")
-        self.symbolic_conversion()
-        self.hw.display_objective("after symbolic conversion")
 
         stdout = sys.stdout
         with open(f"{self.tmp_dir}/ipopt_out.txt", "w") as sys.stdout:
             lag_factor, error = self.opt.optimize(self.cfg["args"]["solver"], iteration=self.iteration_count, improvement=self.inverse_pass_improvement)
             self.inverse_pass_lag_factor *= lag_factor
         sys.stdout = stdout
-
-        self.opt.evaluate_constraints(self.hw.circuit_model.tech_model.constraints, "after optimization")
-        
-        if self.hls_tool == "vitis":
-            # need to update the tech_value for final node arrival time after optimization
-            self.hw.calculate_execution_time_vitis(self.hw.top_block_name, clk_period_opt=True)
 
         self.write_back_params()
 
