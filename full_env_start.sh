@@ -3,6 +3,24 @@
 # This wrapper determines the allowed CPU cores and uses taskset to
 # restrict full_env_start.sh to that many cores.
 
+IS_SOURCED=0
+if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
+    IS_SOURCED=1
+fi
+
+HAS_FULL_FLAG=0
+for arg in "$@"; do
+    if [[ "$arg" == "--full" ]]; then
+        HAS_FULL_FLAG=1
+        break
+    fi
+done
+
+if [[ $IS_SOURCED -eq 1 && $HAS_FULL_FLAG -eq 0 ]]; then
+    source full_env_start_inside.sh "$@"
+    return 0
+fi
+
 USE_MAX_PARALLEL=0
 MAX_PARALLEL_CORES=24
 
