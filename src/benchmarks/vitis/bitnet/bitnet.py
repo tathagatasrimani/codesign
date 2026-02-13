@@ -7,8 +7,6 @@ import re
 from typing import Optional, Tuple, Callable, Any
 
 
-
-
 class OutputHead(nn.Module):
     """
     Simple output head for language modeling.
@@ -22,7 +20,6 @@ class OutputHead(nn.Module):
     def forward(self, x):
         x = self.norm(x)
         return self.linear(x)
-
 
 
 class SimpleRMSNorm(nn.Module):

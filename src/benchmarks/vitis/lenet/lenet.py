@@ -1,4 +1,4 @@
-'''LeNet in PyTorch.
+'''lenet in PyTorch.
 Modified based on (https://github.com/kuangliu/pytorch-cifar/blob/master/models/lenet.py)
 '''
 
@@ -8,9 +8,9 @@ import torch.nn.functional as F
 import torch_mlir
 
 
-class LeNet(nn.Module):
+class lenet(nn.Module):
     def __init__(self):
-        super(LeNet, self).__init__()
+        super(lenet, self).__init__()
         self.conv1 = nn.Conv2d(3, 6, 5, stride=2, bias=False)
         # self.pool1 = nn.MaxPool2d(2, 2)
         self.conv2 = nn.Conv2d(6, 16, 5, stride=2, bias=False)
@@ -31,7 +31,10 @@ class LeNet(nn.Module):
         return out
 
 
-module = torch_mlir.compile(LeNet(), torch.ones(
-    1, 3, 32, 32), output_type=torch_mlir.OutputType.LINALG_ON_TENSORS)
-
-print(module)
+if __name__ == "__main__":
+    module = torch_mlir.compile(
+        lenet(),
+        torch.ones(1, 3, 32, 32),
+        output_type=torch_mlir.OutputType.LINALG_ON_TENSORS,
+    )
+    print(module)
