@@ -3,10 +3,10 @@ default:
   args:
     benchmark: matmult
     savedir: logs
-    parasitics: none
+    parasitics: estimation
     openroad_testfile: codesign_top.tcl ## the file must be in the openroad_interface/tcl/ folder.
     num_iters: 10
-    area: 1000000
+    area: 1000000000000000000
     no_memory: False
     debug_no_cacti: False
     logic_node: 7
@@ -42,7 +42,6 @@ vitis_test_mvs:
   args:
     hls_tool: vitis
     model_cfg: mvs_general_cfg
-    area: 1000000
     tech_node: mvs-starting-point
 
 vitis_test_vs:
@@ -50,7 +49,6 @@ vitis_test_vs:
   args:
     hls_tool: vitis
     model_cfg: vs_cfg_latest
-    area: 1000000
 
 ## The base test when using Vitis HLS
 vitis_test:

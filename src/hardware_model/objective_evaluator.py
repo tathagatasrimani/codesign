@@ -540,6 +540,17 @@ class ObjectiveEvaluator:
             else:
                 function = "Register16"
 
+        # Unified memory/fifo nodes from physical design netlist
+        if function in ("memory", "fifo"):
+            mem_name = node_data.get("name", "N/A") if node_data else "N/A"
+            if mem_name != "N/A" and mem_name in self.memory_models:
+                if counted_memories is not None and mem_name in counted_memories:
+                    return 0.0
+                if counted_memories is not None:
+                    counted_memories.add(mem_name)
+                return self.memory_models[mem_name].cacheLeakage_mW * 1e-3  # mW → W
+            return 0.0
+
         if function in ["N/A", "Call"]:
             return 0.0
 
@@ -598,6 +609,17 @@ class ObjectiveEvaluator:
                 return self.memory_models[mem_name].cacheArea_mm2 * 1e6  # mm² → um²
             else:
                 function = "Register16"
+
+        # Unified memory/fifo nodes from physical design netlist
+        if function in ("memory", "fifo"):
+            mem_name = node_data.get("name", "N/A") if node_data else "N/A"
+            if mem_name != "N/A" and mem_name in self.memory_models:
+                if counted_memories is not None and mem_name in counted_memories:
+                    return 0.0
+                if counted_memories is not None:
+                    counted_memories.add(mem_name)
+                return self.memory_models[mem_name].cacheArea_mm2 * 1e6  # mm² → um²
+            return 0.0  # top_interface or unknown memories
 
         if function in ["N/A", "Call"]:
             return 0.0

@@ -126,6 +126,10 @@ class DefGenerator:
             return name
         elif eq.upper() in name.upper():
             return name
+        elif name.startswith("MEM_"):
+            return name
+        elif name == "Register16":
+            return name
         else:
             return ""
 
@@ -147,6 +151,8 @@ class DefGenerator:
             return  and_gate
         if "XOR" in name.upper():
             return  xor_gate
+        if name == "Register16":
+            return "Register16"
         if name.startswith("Reg"):
             return  reg
         if "ADD" in name.upper():
@@ -173,6 +179,8 @@ class DefGenerator:
             return  lshr
         if "LSHR" in name.upper():
             return  lshr
+        if name in ("memory", "fifo"):
+            return f"MEM_{node['name']}"
         else:
             raise ValueError(f"Macro not found for {name}")
 

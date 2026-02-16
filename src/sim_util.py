@@ -113,6 +113,7 @@ def get_module_map():
         "lshr": "RShift16",
         "shl": "LShift16",
         "call": "Call",
+        "register": "Register16",
 
         # from MLIR (blackboxed arith ops)
         "addf": "Add16",
@@ -136,7 +137,11 @@ def map_operator_types(full_netlist):
     for node in full_netlist:
         raw_fn = full_netlist.nodes[node].get('bind', {}).get('fcode')
         if raw_fn is None:
-            raw_fn = "N/A"
+            node_name = full_netlist.nodes[node].get('name', '')
+            if '_reg_' in node_name:
+                raw_fn = "register"
+            else:
+                raw_fn = "N/A"
         full_netlist.nodes[node]['function'] = module_map[raw_fn] if raw_fn in module_map else raw_fn
     return full_netlist
 

@@ -68,6 +68,8 @@ class CircuitModel:
             "write": lambda: 1,
             "load": lambda: 1,
             "store": lambda: 1,
+            "fifo": lambda: 1,
+            "memory": lambda: 1,
         }
         self.DFF_DELAY = 10*self.tech_model.delay # ~10 FO4 delays
 
@@ -104,6 +106,8 @@ class CircuitModel:
             "write": lambda: 0,
             "load": lambda: 0,
             "store": lambda: 0,
+            "fifo": lambda: 0,
+            "memory": lambda: 0,
         }
         self.DFF_ENERGY = 20*self.tech_model.E_act_inv # TODO: get actual value
 
@@ -139,6 +143,8 @@ class CircuitModel:
             "write": lambda: 0,
             "load": lambda: 0,
             "store": lambda: 0,
+            "fifo": lambda: 0,
+            "memory": lambda: 0,
         }
         self.DFF_PASSIVE_POWER = 20*self.tech_model.P_pass_inv # TODO: get actual value
 
@@ -172,6 +178,8 @@ class CircuitModel:
             "write": lambda: 0,
             "load": lambda: 0,
             "store": lambda: 0,
+            "fifo": lambda: 0,
+            "memory": lambda: 0,
         }
         self.DFF_AREA = 20*self.tech_model.area # TODO: get actual value
 

@@ -188,7 +188,7 @@ class HardwareModel:
 
         ## flat openroad run
         else:
-            open_road_run = openroad_run.OpenRoadRun(cfg=self.cfg, codesign_root_dir=self.codesign_root_dir, tmp_dir=self.tmp_dir, run_openroad=run_openroad, circuit_model=self.circuit_model)
+            open_road_run = openroad_run.OpenRoadRun(cfg=self.cfg, codesign_root_dir=self.codesign_root_dir, tmp_dir=self.tmp_dir, run_openroad=run_openroad, circuit_model=self.circuit_model, memory_models=self.memory_models)
 
             self.circuit_model.edge_to_nets, _, _ = open_road_run.run(
                 netlist_copy, arg_testfile, arg_parasitics, area_constraint, L_eff

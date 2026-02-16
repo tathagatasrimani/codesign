@@ -22,11 +22,10 @@ from src.inverse_pass import optimize
 from src.forward_pass import schedule_vitis
 from src.forward_pass.scale_hls_port_fix import scale_hls_port_fix
 from src.generate_blackbox_files import generate_blackbox_files
-from src.forward_pass.vitis_create_netlist import create_vitis_netlist
+from src.forward_pass.vitis_create_netlist import create_vitis_netlist, extract_module_dependencies, create_physical_design_netlist
 from src.forward_pass.vitis_parse_verbose_rpt import parse_verbose_rpt
 from src.forward_pass.vitis_memory_mapping import build_memory_mapping, write_mapping, load_mapping
 from src.forward_pass.vitis_merge_netlists import MergeNetlistsVitis
-from src.forward_pass.vitis_create_cdfg import create_cdfg_vitis
 from src import trend_plot
 import time
 from test import checkpoint_controller
@@ -522,11 +521,13 @@ class Codesign:
         print(f"Current working directory in vitis parse data: {os.getcwd()}")
 
         if self.no_memory:
-            allowed_functions_netlist = set(self.hw.circuit_model.circuit_values["area"].keys()).difference({"N/A", "Buf", "MainMem", "Call", "read", "write", "load", "store"})
+            allowed_functions_netlist = set(self.hw.circuit_model.circuit_values["area"].keys()).difference({"N/A", "Buf", "MainMem", "Call", "read", "write", "load", "store", "fifo", "memory"})
             allowed_functions_schedule = allowed_functions_netlist.union({"Call", "II"})
+            allowed_functions_pd = allowed_functions_netlist
         else:
             allowed_functions_netlist = set(self.hw.circuit_model.circuit_values["area"].keys()).difference({"N/A", "Call"})
             allowed_functions_schedule = allowed_functions_netlist.union({"Call", "II"})
+            allowed_functions_pd = allowed_functions_netlist.difference({"read", "write", "load", "store"})
 
         parse_results_dir = f"{save_dir}/parse_results"
 
@@ -549,20 +550,19 @@ class Codesign:
             logger.info("Creating Vitis netlist")
             create_vitis_netlist(parse_results_dir)
 
-            ## Create the CDFGs for each FSM
-            logger.info("Creating Vitis CDFGs")
-            create_cdfg_vitis(parse_results_dir)
-
-            ## Create the mapping from CDFG nodes to netlist nodes
-            #create_cdfg_to_netlist_mapping_vitis(parse_results_dir)
-
-            ## Merge the CDFGs recursivley through the FSM module hierarchy to produce overall CDFG
-            #merge_cdfgs_vitis(parse_results_dir, self.vitis_top_function)
+            ## Extract module dependencies from FSM data (needed for netlist merging)
+            logger.info("Extracting module dependencies")
+            extract_module_dependencies(parse_results_dir)
 
             ## Merge the netlists recursivley through the module hierarchy to produce overall netlist
             logger.info("Recursivley merging vitis netlists")
             vitis_netlist_merger = MergeNetlistsVitis(self.cfg, self.codesign_root_dir, allowed_functions_netlist)
             vitis_netlist_merger.merge_netlists_vitis(parse_results_dir, self.vitis_top_function)
+
+            ## Create physical design netlist with unified memory/FIFO nodes
+            logger.info("Creating physical design netlist")
+            create_physical_design_netlist(parse_results_dir, self.vitis_top_function, allowed_functions_pd)
+
             logger.info("Vitis netlist parsing complete")
             logger.info(f"time to parse vitis netlist: {time.time()-start_time}")
         else:
@@ -621,7 +621,8 @@ class Codesign:
 
         print(f"Current working directory at end of vitis parse data: {os.getcwd()}")
 
-        self.hw.netlist = nx.read_gml(f"{parse_results_dir}/{self.vitis_top_function}_full_netlist.gml")
+        self.hw.netlist = nx.read_gml(f"{parse_results_dir}/{self.vitis_top_function}_physical_netlist_filtered.gml")
+        self.hw.set_memory_models(self.mem_mapping)
 
         ## print the cwd
         print(f"Current working directory in vitis parse data: {os.getcwd()}")

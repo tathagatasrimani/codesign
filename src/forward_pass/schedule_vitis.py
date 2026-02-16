@@ -277,6 +277,12 @@ class DataFlowGraph:
         self.arguments_to_call_functions = {}
         self.ptr_to_target_mapping = {}
         self.mem_mapping = mem_mapping
+        # Load register mapping if available
+        self.register_mapping = {}
+        reg_mapping_path = os.path.join(self.build_dir, "parse_results", "register_mapping.json")
+        if os.path.exists(reg_mapping_path):
+            with open(reg_mapping_path, 'r') as f:
+                self.register_mapping = json.load(f)
 
     def track_resource_usage(self, node):
         if self.G.nodes[node]["node_type"] == "op" and self.G.nodes[node]["core_inst"] != "N/A":
@@ -397,6 +403,7 @@ class DataFlowGraph:
                     is_top_interface = False
                     mem_name = self.mem_mapping[self.basic_block_name]["memory_ports"][mem_name_original]["parent_ram"]
                     mem_size = self.mem_mapping[self.basic_block_name]["memory_ports"][mem_name_original]["total_size"]
+                is_register = False
             elif instruction["core_inst"] == "FIFO":
                 log_info(f"instruction {instruction} in basic block {self.basic_block_name} is a FIFO")
                 if instruction["op"] == "read":
@@ -406,11 +413,19 @@ class DataFlowGraph:
                 mem_name = self.mem_mapping[self.basic_block_name]["fifo_ports"][mem_name_original]["parent_fifo"]
                 mem_size = self.mem_mapping[self.basic_block_name]["fifo_ports"][mem_name_original]["total_size"]
                 is_top_interface = False
+                is_register = False
             else:
-                mem_name = "N/A"
-                mem_size = 0
+                # Look up register name from register_mapping if available
+                reg_info = self.register_mapping.get(self.basic_block_name, {}).get(dst_name, None)
+                if reg_info and "register" in reg_info:
+                    mem_name = reg_info["register"]
+                    mem_size = reg_info.get("width", 0)
+                else:
+                    mem_name = f"Register{dst_name}"
+                    mem_size = 0
                 is_top_interface = False
-            self.G.add_node(op_name, node_type=instruction["type"], function=fn_out, function_out=fn_out, rsc=rsc_name, core_inst=instruction["core_inst"], core_id=core_id, rsc_name_unique=rsc_name_unique, call_function=call_fn, original_name=instruction["op"], mem_name=mem_name, mem_size=mem_size, is_top_interface=is_top_interface)
+                is_register = True
+            self.G.add_node(op_name, node_type=instruction["type"], function=fn_out, function_out=fn_out, rsc=rsc_name, core_inst=instruction["core_inst"], core_id=core_id, rsc_name_unique=rsc_name_unique, call_function=call_fn, original_name=instruction["op"], mem_name=mem_name, is_register=is_register, mem_size=mem_size, is_top_interface=is_top_interface)
             self.track_resource_usage(op_name)
             for src in instruction["src"]:
                 src_name = self.variable_db.get_read_node_name(src)

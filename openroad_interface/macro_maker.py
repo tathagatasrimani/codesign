@@ -168,7 +168,21 @@ class MacroMaker:
                         f.write(line)
             f.write("\n")  # Add a newline after including all custom LEF files
     
-    def create_all_macros(self):
+    def create_all_macros(self, extra_area_list=None, extra_pin_list=None):
+        """Create all macros in the LEF file.
+
+        Args:
+            extra_area_list: Optional dict of {macro_name: area_um2} for additional macros (e.g. memories).
+            extra_pin_list: Optional dict of {macro_name: {input: N, output: M}} for additional macros.
+        """
+
+        # Merge extra macros into the area and pin lists
+        if extra_area_list:
+            for name, area in extra_area_list.items():
+                self.area_list[name] = area
+        if extra_pin_list:
+            for name, pins in extra_pin_list.items():
+                self.pin_list[name] = pins
 
         # iterates through all needed macros
         ref_tech_param = copy.deepcopy(self.area_list)
@@ -186,7 +200,7 @@ class MacroMaker:
             # get area of this macro
             macro_area = self.area_list[macro] * AREA_SCALE_FACTOR
             macro_area_nm2 = macro_area * 1000000  # convert from um^2 to nm^2
-            
+
             debug_print(f"macro_area (nm^2) for {macro}: {macro_area_nm2}")
             debug_print(f"self.row_height: {self.row_height}")
             # we want our macros to be as close to square as possible
@@ -215,7 +229,7 @@ class MacroMaker:
                     for pin in seventyfive_lef:
                         f.write(f"{pin}")
                     f.write("END " + best1["name"] + "\n\n")
-        
+
         self.include_custom_lef_files()
         
         ## write this message to the end of the lef file if needed.

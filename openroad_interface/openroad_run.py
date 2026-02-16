@@ -33,7 +33,7 @@ def log_warning(msg):
     if DEBUG:
         logger.warning(msg)
 
-MAX_TRACTABLE_AREA_DBU = 6e13
+MAX_TRACTABLE_AREA_DBU = 1e20
 
 TARGET_UTILIZATION = 0.5
 
@@ -43,7 +43,7 @@ OPENROAD_ABORT_ON_LOG_ERROR = True
 OPENROAD_ERROR_TEXT = "error"
 
 class OpenRoadRun:
-    def __init__(self, cfg, codesign_root_dir, tmp_dir, run_openroad, circuit_model, subdirectory=None, custom_lef_files_to_include=None, top_level=True):
+    def __init__(self, cfg, codesign_root_dir, tmp_dir, run_openroad, circuit_model, subdirectory=None, custom_lef_files_to_include=None, top_level=True, memory_models=None):
         """
         Initialize the OpenRoadRun with configuration and root directory.
 
@@ -55,6 +55,7 @@ class OpenRoadRun:
         :param subdirectory: subdirectory for hierarchical runs
         :param custom_lef_files_to_include: custom LEF files to include
         :param top_level: flag indicating if this is the top level of hierarchy
+        :param memory_models: dict of memory name -> MemoryModel instances
         """
         self.cfg = cfg
         self.codesign_root_dir = codesign_root_dir
@@ -64,8 +65,9 @@ class OpenRoadRun:
         self.subdirectory = subdirectory
         self.custom_lef_files_to_include = custom_lef_files_to_include
         self.top_level = top_level
+        self.memory_models = memory_models or {}
 
-        ## results will be placed here. This is necessary for running the flow hierarchically. 
+        ## results will be placed here. This is necessary for running the flow hierarchically.
         if subdirectory is not None:
             self.directory = os.path.join(self.directory, subdirectory)
 
@@ -93,6 +95,7 @@ class OpenRoadRun:
             "Eq16": "Eq16",
             "Not16": "Not16",
             "NotEq16": "NotEq16",
+            "Register16": "Register16",
         }
 
 
@@ -257,9 +260,33 @@ class OpenRoadRun:
         else:
             logger.info("Skipping setup, using previous openroad results.")
 
+        # Build extra macro definitions for memory/fifo nodes in the graph
+        extra_area_list = {}
+        extra_pin_list = {}
+        for node, data in graph.nodes(data=True):
+            fn = data.get("function", "")
+            if fn not in ("memory", "fifo"):
+                continue
+            node_name = data.get("name", "")
+            macro_name = f"MEM_{node_name}"
+            if macro_name in extra_area_list:
+                continue
+            mem_model = self.memory_models.get(node_name)
+            if mem_model and hasattr(mem_model, "cacheArea_mm2"):
+                # Destiny areas are already at the simulated tech node (65nm).
+                # Divide by AREA_SCALE_FACTOR so MacroMaker's blanket scaling cancels out,
+                # leaving the raw Destiny area in the LEF.
+                area_um2 = mem_model.cacheArea_mm2 * 1e6 / make_macros.AREA_SCALE_FACTOR
+            else:
+                raise Exception(f"Memory model or area not found for {node_name}")
+            extra_area_list[macro_name] = area_um2
+            extra_pin_list[macro_name] = {"input": 32, "output": 16}
+            self.component_to_function[macro_name] = fn
+            logger.info(f"Memory macro {macro_name}: area={area_um2:.2f} um²")
+
         macro_maker = make_macros.MacroMaker(self.cfg, self.codesign_root_dir, self.tmp_dir, self.run_openroad, self.subdirectory, output_lef_file=self.directory + "/tcl/codesign_files/codesign_stdcell.lef", custom_lef_files_to_include=self.custom_lef_files_to_include)
 
-        macro_maker.create_all_macros()
+        macro_maker.create_all_macros(extra_area_list=extra_area_list, extra_pin_list=extra_pin_list)
 
         self.update_area_constraint(area_constraint)
 
