@@ -284,11 +284,21 @@ class Codesign:
         with open(self.config_json_path, "w") as f:
             json.dump(config, f)
 
-    def run_streamhls(self, save_dir, setup=False, iteration_count=0):
+    def run_streamhls(self, save_dir, setup=False, iteration_count=0, solution_file=""):
         """
         Runs StreamHLS synthesis tool in a different environment with modified PATH and PYTHONPATH.
         Updates the memory configuration and logs the output.
         Handles directory changes and cleans up temporary files.
+
+        Args:
+            save_dir: Directory to save StreamHLS output files.
+            setup: If True, runs with maximum resources for initial setup.
+            iteration_count: Current iteration number.
+            solution_file: Path to a pre-computed solution JSON file. When provided,
+                StreamHLS will replay the optimization decisions (permutations, tiling
+                factors) from this file instead of running the GUROBI solver. This
+                enables generating HLS C++ for different input dimensions while
+                maintaining the same hardware netlist structure.
         """
         start_time = time.time()
         logger.info(f"Running StreamHLS with save_dir: {save_dir}")
@@ -302,7 +312,7 @@ class Codesign:
                 self.last_dsp_count_set = False
             elif self.cfg["args"]["fixed_area_increase_pattern"] and iteration_count > 0:
                 self.cur_dsp_usage = self.cur_dsp_usage * 4
-            else: 
+            else:
                 self.cur_dsp_usage = int(self.cfg["args"]["area"] / (sim_util.xreplace_safe(self.hw.circuit_model.tech_model.param_db["A_gate"], self.hw.circuit_model.tech_model.base_params.tech_values) * self.dsp_multiplier))
                 self.cur_dsp_usage = max(self.cur_dsp_usage, self.cfg["args"]["min_dsp"])
             tilelimit = 1
@@ -315,6 +325,7 @@ class Codesign:
         save_path = os.path.join(os.path.dirname(__file__), "..", save_dir)
         config_path = os.path.join(cwd, self.config_json_path)
         streamhls_opt_level = int(self.cfg["args"].get("streamhls_opt_level", 5))
+        solution_file_arg = f"--solution-file {solution_file}" if solution_file else ""
         cmd = [
             'bash', '-c',
             f'''
@@ -324,7 +335,7 @@ class Codesign:
             pwd
             source setup-env.sh
             cd examples
-            python run_streamhls.py -b {save_path} -d {save_path} -k {self.benchmark_name} -O {streamhls_opt_level} --dsps {self.cur_dsp_usage} --timelimit {2} --tilelimit {tilelimit} --tech-config {config_path} --bufferize 1
+            python run_streamhls.py -b {save_path} -d {save_path} -k {self.benchmark_name} -O {streamhls_opt_level} --dsps {self.cur_dsp_usage} --timelimit {2} --tilelimit {tilelimit} --tech-config {config_path} --bufferize 1 {solution_file_arg}
             '''
         ]
 
@@ -357,6 +368,48 @@ class Codesign:
         logger.info(f"time to run StreamHLS: {time.time()-start_time}")
         shutil.copy(f"{save_path}/{self.benchmark_name}/hls/src/{self.benchmark_name}.cpp", f"{save_path}/{self.benchmark_name}.cpp")
         shutil.copy(f"{save_path}/{self.benchmark_name}/hls/hls.tcl", f"{save_path}/hls.tcl")
+
+    def get_solution_file_path(self, save_dir):
+        """Returns the path where StreamHLS saves the optimization solution JSON."""
+        save_path = os.path.join(os.path.dirname(__file__), "..", save_dir)
+        return f"{save_path}/{self.benchmark_name}/mlir/intermediates/{self.benchmark_name}_solution.json"
+
+    def run_streamhls_replay(self, save_dir, solution_file, input_dims, setup=False, iteration_count=0):
+        """
+        Runs StreamHLS with a pre-computed solution and different input dimensions.
+        This generates HLS C++ that has the same netlist structure (same unrolling,
+        tiling, permutations) but different loop bounds, yielding a different schedule.
+
+        Args:
+            save_dir: Directory to save output files for this dimension variant.
+            solution_file: Path to the solution JSON from a reference run.
+            input_dims: Dict mapping input names to tuples of dimensions, used to
+                update the benchmark's data.py input configuration.
+            setup: If True, runs with maximum resources.
+            iteration_count: Current iteration number.
+        Returns:
+            Tuple of (dsp_usage, latency) for the replayed dimension variant.
+        """
+        logger.info(f"Running StreamHLS replay with solution_file: {solution_file}, input_dims: {input_dims}")
+
+        # Create a variant benchmark directory with the new dimensions
+        variant_dir = f"{save_dir}_variant"
+        if os.path.exists(variant_dir):
+            shutil.rmtree(variant_dir)
+        shutil.copytree(self.benchmark, variant_dir)
+        shutil.copy(os.path.join(self.benchmark, "../..", "arith_ops.c"), os.path.join(variant_dir, "arith_ops.c"))
+
+        # Update the PyTorch model's input dimensions in data.py
+        # The caller is responsible for placing the correctly-dimensioned .py file
+        # in the variant benchmark directory before calling this method.
+
+        # Run StreamHLS with the solution file (skips GUROBI)
+        self.run_streamhls(variant_dir, setup=setup, iteration_count=iteration_count, solution_file=solution_file)
+
+        # Parse the resulting latency and DSP usage
+        dsp_usage, latency = self.parse_dsp_usage_and_latency(0, variant_dir)
+        logger.info(f"Replay result - DSP: {dsp_usage}, Latency: {latency}")
+        return dsp_usage, latency
 
     def run_scalehls(self, save_dir, opt_cmd,setup=False):
         """
