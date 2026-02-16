@@ -35,7 +35,7 @@ lshr = "RShift16"
 
 
 
-DEBUG = True
+DEBUG = False
 def log_info(msg):
     if DEBUG:
         logger.info(msg)

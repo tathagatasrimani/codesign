@@ -6,6 +6,7 @@ import sys
 import copy
 import math
 import os
+import itertools
 from typing import Dict, List, Any, Optional
 from concurrent.futures import ProcessPoolExecutor, as_completed
 logger = logging.getLogger(__name__)
@@ -152,15 +153,39 @@ class Optimizer:
             filtered_pareto_df = filtered_pareto_df[filtered_pareto_df["MUL"] == 1]
 
 
-        total_design_points = len(filtered_pareto_df)
-        logger.info(f"Starting brute force optimization with {total_design_points} design points using {n_processes} process(es)")
+        n_tech_points = len(filtered_pareto_df)
         logger.info(f"objective: {self.hw.obj}")
-        # Parallel execution
 
-        # Prepare design points with indices and randomize order
-        design_points = [
-            (i, row._asdict()) for i, row in enumerate(filtered_pareto_df.itertuples(index=False))
-        ]
+        # Build memory design space: {mem_name: num_design_points}
+        memory_design_space = {}
+        for mem_name, mem_model in self.hw.memory_models.items():
+            if mem_model.num_design_points > 0:
+                memory_design_space[mem_name] = mem_model.num_design_points
+        mem_names = sorted(memory_design_space.keys())
+
+        # Generate all memory index combinations
+        if mem_names:
+            mem_ranges = [range(memory_design_space[n]) for n in mem_names]
+            memory_combinations = list(itertools.product(*mem_ranges))
+        else:
+            memory_combinations = [()]
+
+        n_mem_combos = len(memory_combinations)
+        total_design_points = n_tech_points * n_mem_combos
+        logger.info(f"Starting brute force optimization: {n_tech_points} tech points x {n_mem_combos} memory combos = {total_design_points} total design points using {n_processes} process(es)")
+        for mem_name in mem_names:
+            logger.info(f"  memory '{mem_name}': capacity={self.hw.memory_models[mem_name].capacity_label}, {memory_design_space[mem_name]} design points")
+
+        # Prepare cross-product design points with indices and randomize order
+        design_points = []
+        for i, row in enumerate(filtered_pareto_df.itertuples(index=False)):
+            tech_dp = row._asdict()
+            for mem_combo in memory_combinations:
+                dp = {
+                    "logic": tech_dp,
+                    "memory": {name: idx for name, idx in zip(mem_names, mem_combo)},
+                }
+                design_points.append((len(design_points), dp))
         np.random.shuffle(design_points)
 
         # Partition design points into chunks for each worker
@@ -235,6 +260,11 @@ class Optimizer:
 
         self.hw.circuit_model.tech_model.set_params_from_design_point(best_design_point)
         self.hw.circuit_model.tech_model.base_params.set_symbol_value(self.hw.circuit_model.tech_model.base_params.clk_period, best_value_clk_period)
+        # Apply best memory design points
+        best_memory_config = best_design_point.get("memory", {})
+        for mem_name, mem_model in self.hw.memory_models.items():
+            if mem_name in best_memory_config:
+                mem_model.set_design_point(best_memory_config[mem_name])
         self.hw.calculate_objective()
         logger.info(f"ending total_active_energy: {sim_util.xreplace_safe(self.hw.total_active_energy, self.hw.circuit_model.tech_model.base_params.tech_values)}")
         logger.info(f"ending total_passive_power: {sim_util.xreplace_safe(self.hw.total_passive_energy/self.hw.execution_time, self.hw.circuit_model.tech_model.base_params.tech_values)}")

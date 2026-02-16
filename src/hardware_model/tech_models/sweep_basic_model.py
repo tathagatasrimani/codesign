@@ -115,10 +115,12 @@ class SweepBasicModel(TechModel):
         self.config_param_db()
 
     def set_params_from_design_point(self, design_point):
-        for param in design_point.keys():
+        # Extract logic params; fall back to the whole dict for backward compat
+        logic_params = design_point.get("logic", design_point)
+        for param in logic_params.keys():
             if not hasattr(self.base_params, param):
                 setattr(self.base_params, param, self.base_params.symbol_init(param))
-            self.base_params.set_symbol_value(getattr(self.base_params, param), design_point[param])
+            self.base_params.set_symbol_value(getattr(self.base_params, param), logic_params[param])
             setattr(self, param, getattr(self.base_params, param))
             log_info(f"set {param} to {sim_util.xreplace_safe(getattr(self, param), self.base_params.tech_values)}")
         if hasattr(self, "C_gate"):
@@ -126,7 +128,7 @@ class SweepBasicModel(TechModel):
             self.C_diff = self.C_gate
         if hasattr(self, "C_par"):
             self.C_diff = self.C_par
-        self.base_params.cur_design_point = design_point
+        self.base_params.cur_design_point = logic_params
         
 
     def config_param_db(self):

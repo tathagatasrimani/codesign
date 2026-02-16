@@ -144,8 +144,16 @@ class ObjectiveEvaluator:
         )
 
     def set_params_from_design_point(self, design_point: Dict[str, Any]):
-        """Update tech model from a design point (delegates to tech_model)."""
+        """Update tech and memory models from a design point.
+
+        Expects design_point = {"logic": {...}, "memory": {...}}.
+        Falls back to treating the whole dict as logic params if "logic" key is absent.
+        """
         self.tech_model.set_params_from_design_point(design_point)
+        memory_config = design_point.get("memory", {})
+        for mem_name, memory_model in self.memory_models.items():
+            if mem_name in memory_config:
+                memory_model.set_design_point(memory_config[mem_name])
 
     def set_clk_period(self, clk_period: float):
         """Set the clock period."""
@@ -156,9 +164,10 @@ class ObjectiveEvaluator:
         )
 
     def calculate_minimum_clk_period(self):
-        self.minimum_clk_period = sim_util.xreplace_safe(self.DFF_DELAY, self.tech_model.base_params.tech_values)
-        for edge in self.edge_to_nets:
-            self.minimum_clk_period = max(self.minimum_clk_period, sim_util.xreplace_safe(self._wire_delay(edge) + self.DFF_DELAY, self.tech_model.base_params.tech_values))
+        #self.minimum_clk_period = sim_util.xreplace_safe(self.DFF_DELAY, self.tech_model.base_params.tech_values)
+        #for edge in self.edge_to_nets:
+        #    self.minimum_clk_period = max(self.minimum_clk_period, sim_util.xreplace_safe(self._wire_delay(edge) + self.DFF_DELAY, self.tech_model.base_params.tech_values))
+        self.minimum_clk_period = self.tech_model.base_params.tech_values[self.tech_model.base_params.clk_period]
         return self.minimum_clk_period
 
     def calculate_objective(self):

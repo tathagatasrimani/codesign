@@ -149,7 +149,7 @@ class HardwareModel:
     def set_memory_models(self, memory_mapping):
         self.memory_mapping = memory_mapping
         for memory_name, memory_info in memory_mapping["flattened"].items():
-            self.memory_models[memory_name] = memory_model.MemoryModel(memory_info)
+            self.memory_models[memory_name] = memory_model.MemoryModel(memory_info, name=memory_name)
 
     def calculate_minimum_clk_period(self):
         self.minimum_clk_period = sim_util.xreplace_safe(self.circuit_model.DFF_DELAY, self.circuit_model.tech_model.base_params.tech_values)

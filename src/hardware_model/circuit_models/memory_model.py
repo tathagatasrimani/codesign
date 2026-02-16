@@ -69,8 +69,9 @@ class MemoryModel:
         'total_size' (in bits).
     """
 
-    def __init__(self, memory_info):
+    def __init__(self, memory_info, name=None):
         self.memory_info = memory_info
+        self.name = name
         self.total_size_bits = memory_info["total_size"]
 
         self.capacity_label = _bits_to_capacity_label(self.total_size_bits)
@@ -112,6 +113,13 @@ class MemoryModel:
             return 0
         return len(self.pareto_df)
 
+    def set_params_from_design_point(self, design_point):
+        memory_config = design_point.get("memory", {})
+        if self.name in memory_config:
+            self.set_design_point(memory_config[self.name])
+        else:
+            logger.warning(f"No memory config for '{self.name}' in design point")
+
     def set_design_point(self, index):
         """Select a design point by index into the pareto DataFrame.
 
@@ -137,4 +145,5 @@ class MemoryModel:
         n = self.num_design_points
         idx = self._design_point_index
         cap = self.capacity_label or "?"
-        return f"MemoryModel(capacity={cap}, design_point={idx}/{n})"
+        name = self.name or "?"
+        return f"MemoryModel(name={name}, capacity={cap}, design_point={idx}/{n})"
