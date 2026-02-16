@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 
 """
-Wrapper script for full_env_start.sh with user-friendly GUI.
+Wrapper script for full_env_start_inside.sh with user-friendly GUI.
 Shows throbber, current step, and last 5 lines of output.
 """
 
 import os
 import re
+import shutil
 import subprocess
 import sys
 import threading
@@ -29,7 +30,7 @@ STEP_RE = re.compile(r'STARTING STEP \d+:\s*(.+)')
 class InstallGUI:
     def __init__(self):
         self.script_dir = Path(__file__).parent.absolute()
-        self.main_script = self.script_dir / 'full_env_start.sh'
+        self.main_script = self.script_dir / 'full_env_start_inside.sh'
         self.log_file = self.script_dir / 'build_codesign.log'
         
         self.current_step = "Initializing..."
@@ -40,6 +41,7 @@ class InstallGUI:
         self.display_initialized = False
         self.last_output_time = time.time()
         self.gui_started = False
+        self.start_time = None  # Will be set when GUI starts
         
         # Number of lines to reserve for display updates
         # Header (3) + step (1) + blank (1) + "Recent Output:" (1) + separator (1) + 
@@ -63,6 +65,9 @@ class InstallGUI:
         """Initialize the display - clear screen and print header once."""
         # Clear terminal for clean live progress display
         os.system('clear' if os.name != 'nt' else 'cls')
+        
+        # Set start time when GUI display begins
+        self.start_time = time.time()
         
         # Print the header
         sys.stdout.write(f"{CYAN}{'═' * 63}{NC}\n")
@@ -91,6 +96,15 @@ class InstallGUI:
             lines = self.last_lines[-5:] if self.last_lines else []
             throbber = THROBBER_CHARS[self.throbber_index]
         
+        # Calculate elapsed time
+        if self.start_time:
+            elapsed_seconds = int(time.time() - self.start_time)
+            minutes, seconds = divmod(elapsed_seconds, 60)
+            hours, minutes = divmod(minutes, 60)
+            timer_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+        else:
+            timer_str = "00:00:00"
+        
         if not self.display_initialized:
             # Clear screen first to remove any password prompt text
             os.system('clear' if os.name != 'nt' else 'cls')
@@ -104,7 +118,7 @@ class InstallGUI:
             else:
                 sys.stdout.write("\033[H")
             sys.stdout.write(f"{CYAN}{'═' * 63}{NC}\n")
-            sys.stdout.write(f"{GREEN}Codesign Installation Progress{NC}\n")
+            sys.stdout.write(f"{GREEN}Codesign Installation Progress{NC} {CYAN}[{timer_str}]{NC}\n")
             sys.stdout.write(f"{CYAN}{'═' * 63}{NC}\n")
             sys.stdout.write("\n")
             sys.stdout.write(f"{YELLOW}{throbber}{NC} {step}\n")
@@ -191,9 +205,37 @@ class InstallGUI:
         """Run the installation with GUI."""
         if extra_args is None:
             extra_args = []
+
+        use_full_parallel = False
+        if '--max_parallel_install' in extra_args:
+            use_full_parallel = True
+            extra_args = [arg for arg in extra_args if arg != '--max_parallel_install']
         
         # Build command - always pass --full
         cmd = [str(self.main_script), '--full'] + extra_args
+
+        total_cores = os.cpu_count() or 0
+        max_parallel_cores = 24
+        if not use_full_parallel:
+            target_cores = max(1, total_cores // 2) if total_cores > 0 else 1
+            target_cores = min(target_cores, max_parallel_cores)
+            taskset_path = shutil.which('taskset')
+            if taskset_path and total_cores > 0:
+                core_list = f"0-{target_cores - 1}"
+                # Pin to half the cores by default, capped at max_parallel_cores.
+                cmd = [taskset_path, '-c', core_list] + cmd
+                print(f"Using {target_cores} cores out of {total_cores} (taskset enabled).")
+            else:
+                print("Warning: taskset not available or core count unknown; running without CPU pinning.")
+        else:
+            target_cores = max_parallel_cores
+            taskset_path = shutil.which('taskset')
+            if taskset_path and total_cores > 0:
+                core_list = f"0-{target_cores - 1}"
+                cmd = [taskset_path, '-c', core_list] + cmd
+                print(f"Using {target_cores} cores out of {total_cores} (max parallel).")
+            else:
+                print(f"Using {target_cores} cores (max parallel).")
         
         # Check if script exists
         if not self.main_script.exists():
