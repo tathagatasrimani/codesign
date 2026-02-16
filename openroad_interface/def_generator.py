@@ -35,7 +35,7 @@ lshr = "RShift16"
 
 
 
-DEBUG = False
+DEBUG = True
 def log_info(msg):
     if DEBUG:
         logger.info(msg)
@@ -416,7 +416,7 @@ class DefGenerator:
         input_dict = self.edge_gen("in", old_nodes, old_graph)
         input_dict_new = self.edge_gen("in", nodes, graph)
         for node in old_nodes:
-            if "Regs" in node:
+            if "Register" in old_graph.nodes[node]["function"]:
                 max_inputs = 1
             else:
                 max_inputs = 2
