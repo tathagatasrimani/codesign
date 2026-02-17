@@ -1,0 +1,110 @@
+# System-level codesign configurations.
+# Each config defines a set of block types, their codesign configs,
+# a dataflow graph, and system-level constraints.
+
+transformer_1layer_system:
+  name: "transformer_1layer"
+  description: "1-layer transformer with attention + feedforward"
+  execution_model: sequential  # sequential | pipelined | dfg
+  shared_tech: false
+
+  block_types:
+    attention:
+      codesign_config: vitis_test_sweep_basic_attention
+      repeat_count: 1
+      # Checkpoint support: uncomment to resume from a previous run
+      # checkpoint_load_dir: tmp_MultiHeadSelfAttention_edp_31
+      # checkpoint_start_step: pd
+    feedforward:
+      codesign_config: vitis_test_sweep_basic_feedforward
+      repeat_count: 1
+      # checkpoint_load_dir: tmp_FeedForward_edp_0
+      # checkpoint_start_step: pd
+
+  dfg:
+    edges:
+      - [attention, feedforward]
+
+  system_constraints:
+    max_total_power: 150.0   # Watts
+    max_total_area: 1.0e12   # um^2
+    objective: edp
+
+
+transformer_6layer_system:
+  name: "transformer_6layer"
+  description: "6-layer transformer decoder"
+  execution_model: sequential
+  shared_tech: false
+
+  block_types:
+    attention:
+      codesign_config: vitis_test_sweep_basic_attention
+      repeat_count: 6
+    feedforward:
+      codesign_config: vitis_test_sweep_basic_feedforward
+      repeat_count: 6
+
+  dfg:
+    # Shorthand for repeated-layer chain: attn[0]->ff[0]->attn[1]->ff[1]->...
+    pattern: chain
+    layer_blocks: [attention, feedforward]
+
+  system_constraints:
+    max_total_power: 150.0
+    max_total_area: 1.0e12
+    objective: edp
+
+
+# LLaMA 3 8B: 32 transformer layers, each with GQA attention + SwiGLU FF.
+# Uses reduced dimensions (dim=256, ffn_dim=1024, n_heads=4)
+# for tractable HLS compilation while preserving architectural structure.
+llama3_8b_system:
+  name: "llama3_8b"
+  description: "LLaMA 3 8B decoder (32 layers, GQA + SwiGLU)"
+  execution_model: sequential
+  shared_tech: false
+
+  # Global memory (DRAM) model for weight loading and inter-block communication
+  global_memory:
+    bandwidth_gbps: 100.0       # GB/s (e.g., HBM2e)
+    latency_ns: 100.0           # per-access latency
+    energy_per_bit_pj: 10.0     # pJ per bit transferred
+    capacity_bytes: 16.0e9      # 16 GB
+
+  block_types:
+    llama_attention:
+      codesign_config: vitis_test_sweep_basic_llama_attention
+      repeat_count: 32
+      shared_weights: false     # each layer has unique weights
+      data_sizes:
+        input_bytes: 65536      # (1, 64, 256) * 4B = batch * seq * dim * sizeof(float32)
+        output_bytes: 65536
+        weight_bytes: 1048576   # 4 * Linear(256,256) no bias = 4 * 256^2 * 4B
+        kv_cache_bytes: 131072  # 2(K+V) * batch(1) * seq(64) * n_heads(4) * head_dim(64) * 4B
+    llama_feedforward:
+      codesign_config: vitis_test_sweep_basic_llama_feedforward
+      repeat_count: 32
+      shared_weights: false
+      data_sizes:
+        input_bytes: 65536      # (1, 64, 256) * 4B
+        output_bytes: 65536
+        weight_bytes: 3145728   # 3 * Linear(256,1024)/(1024,256) no bias = 3 * 256*1024 * 4B
+        kv_cache_bytes: 0
+
+  dfg:
+    pattern: chain
+    layer_blocks: [llama_attention, llama_feedforward]
+    default_transfer: global_memory   # global_memory | on_chip
+    # Per-edge overrides: attn→ff within same layer can use on-chip transfer
+    # edge_overrides:
+    #   - src: llama_attention
+    #     dst: llama_feedforward
+    #     transfer: on_chip
+    #     on_chip_latency_ns: 10.0
+    #     on_chip_energy_per_bit_pj: 0.5
+
+  system_constraints:
+    max_total_power: 150.0
+    max_total_area: 1.0e12
+    objective: edp

@@ -120,11 +120,17 @@ class MemoryModel:
         else:
             logger.warning(f"No memory config for '{self.name}' in design point")
 
-    def set_design_point(self, index):
+    def set_design_point(self, index_or_dict):
         """Select a design point by index into the pareto DataFrame.
 
+        Accepts either an integer index or a dict with an "index" key
+        (as stored in expanded design points).
         Updates all metric attributes to reflect the new design point.
         """
+        if isinstance(index_or_dict, dict):
+            index = index_or_dict["index"]
+        else:
+            index = index_or_dict
         if self.pareto_df is None:
             raise ValueError("No pareto data loaded for this memory")
         if not (0 <= index < len(self.pareto_df)):

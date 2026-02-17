@@ -32,6 +32,60 @@ vitis_test_sweep_basic_attention:
     min_dsp: 40
     benchmark: MultiHeadSelfAttention
 
+vitis_test_sweep_basic_feedforward:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 20
+    benchmark: FeedForward
+
+vitis_test_sweep_basic_llama_attention:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 40
+    benchmark: LlamaAttention
+
+vitis_test_sweep_basic_llama_feedforward:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 20
+    benchmark: LlamaFeedForward
+
+vitis_test_sweep_basic_llama_prefill_attention:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 40
+    benchmark: LlamaPrefillAttention
+
+vitis_test_sweep_basic_llama_decode_attention:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 40
+    benchmark: LlamaDecodeAttention
+
+vitis_test_sweep_basic_llama_decode_feedforward:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 20
+    benchmark: LlamaDecodeFeedForward
+
 vitis_test_sweep_basic_inference:
   base_cfg: vitis_test_sweep
   args:

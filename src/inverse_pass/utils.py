@@ -47,6 +47,11 @@ class DesignPointResult:
     V_th: float
     tox: float
     satisfies_constraints: bool
+    # Block-level metrics (from ObjectiveEvaluator)
+    execution_time: float = 0.0       # block execution time (ns)
+    total_active_energy: float = 0.0  # block active energy (nJ)
+    total_passive_energy: float = 0.0 # block passive energy (nJ)
+    total_area: float = 0.0           # block area (um^2)
 
 def plot_2d_scatter(
     top_results: List[DesignPointResult],

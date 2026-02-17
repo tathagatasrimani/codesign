@@ -6,6 +6,8 @@ import sys
 import copy
 import math
 import os
+import json
+import pickle
 import itertools
 from typing import Dict, List, Any, Optional
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -104,8 +106,21 @@ def _worker_basic_optimization_chunk(args_tuple):
 
             constraints_satisfied = satisfies_constraints(evaluator.total_power, evaluator.total_area, evaluator.total_passive_power, design_point, max_system_power, max_system_power_density, tech_model, leakage_restriction)
 
+            # Expand memory indices to full metric dicts for reporting
+            expanded_dp = dict(design_point)
+            memory_config = design_point.get("memory", {})
+            if memory_config and evaluator.memory_models:
+                expanded_memory = {}
+                for mem_name, mem_idx in memory_config.items():
+                    if mem_name in evaluator.memory_models:
+                        row = evaluator.memory_models[mem_name].get_design_point_row()
+                        expanded_memory[mem_name] = {"index": mem_idx, **row}
+                    else:
+                        expanded_memory[mem_name] = {"index": mem_idx}
+                expanded_dp["memory"] = expanded_memory
+
             result = DesignPointResult(
-                design_point=design_point,
+                design_point=expanded_dp,
                 obj_value=obj_value,
                 delay=delay,
                 dynamic_energy=dynamic_energy,
@@ -119,7 +134,11 @@ def _worker_basic_optimization_chunk(args_tuple):
                 V_dd=V_dd,
                 V_th=V_th_eff,
                 tox=tox,
-                satisfies_constraints=constraints_satisfied
+                satisfies_constraints=constraints_satisfied,
+                execution_time=evaluator.execution_time,
+                total_active_energy=evaluator.total_active_energy,
+                total_passive_energy=evaluator.total_passive_energy,
+                total_area=sim_util.xreplace_safe(evaluator.total_area, tech_model.base_params.tech_values),
             )
             results.append(result)
 
@@ -237,6 +256,27 @@ class Optimizer:
         sorted_results = sorted(valid_results, key=lambda r: r.obj_value)
 
         logger.info(f"Total designs evaluated: {len(all_results)}, valid designs: {len(valid_results)}")
+
+        # Save all results to disk for system-level composition
+        results_path = os.path.join(self.save_dir, f"all_design_point_results_iter_{self.iteration}.pkl")
+        with open(results_path, "wb") as f:
+            pickle.dump(all_results, f)
+        logger.info(f"Saved {len(all_results)} design point results to {results_path}")
+
+        # Save JSON summary of top valid results
+        summary = [{
+            "obj_value": r.obj_value,
+            "execution_time": r.execution_time,
+            "total_active_energy": r.total_active_energy,
+            "total_passive_energy": r.total_passive_energy,
+            "total_area": r.total_area,
+            "total_power": r.total_power,
+            "clk_period": r.clk_period,
+            "satisfies_constraints": r.satisfies_constraints,
+        } for r in sorted_results]
+        summary_path = os.path.join(self.save_dir, f"design_point_summary_iter_{self.iteration}.json")
+        with open(summary_path, "w") as f:
+            json.dump(summary, f, indent=2, default=str)
 
         # Find global best
         if sorted_results:

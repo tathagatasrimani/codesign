@@ -167,7 +167,7 @@ class ObjectiveEvaluator:
         #self.minimum_clk_period = sim_util.xreplace_safe(self.DFF_DELAY, self.tech_model.base_params.tech_values)
         #for edge in self.edge_to_nets:
         #    self.minimum_clk_period = max(self.minimum_clk_period, sim_util.xreplace_safe(self._wire_delay(edge) + self.DFF_DELAY, self.tech_model.base_params.tech_values))
-        self.minimum_clk_period = self.tech_model.base_params.tech_values[self.tech_model.base_params.clk_period]
+        self.minimum_clk_period = 0
         return self.minimum_clk_period
 
     def calculate_objective(self):
