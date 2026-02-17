@@ -22,7 +22,12 @@ import glob
 from dataclasses import dataclass, field
 from typing import Dict, List, Any, Optional
 
+import importlib
+import sys
+
 import networkx as nx
+import torch
+import torch.nn as nn
 
 from src.inverse_pass.utils import DesignPointResult
 
@@ -69,10 +74,9 @@ class GlobalMemoryModel:
 @dataclass
 class BlockDataSizes:
     """Data size information for a block type."""
-    input_bytes: float = 0.0
+    input_bytes: float = 0.0            # total input bytes (including KV cache if applicable)
     output_bytes: float = 0.0
     weight_bytes: float = 0.0
-    kv_cache_bytes: float = 0.0         # per-layer KV cache (attention only)
     shared_weights: bool = False         # if True, weights loaded once for all repetitions
 
 
@@ -91,16 +95,16 @@ class OverheadBreakdown:
     weight_load_energy_nj: float = 0.0
     comm_time_ns: float = 0.0
     comm_energy_nj: float = 0.0
-    kv_cache_time_ns: float = 0.0
-    kv_cache_energy_nj: float = 0.0
+    extra_input_time_ns: float = 0.0      # input data beyond what predecessors provide
+    extra_input_energy_nj: float = 0.0
 
     @property
     def total_time_ns(self) -> float:
-        return self.weight_load_time_ns + self.comm_time_ns + self.kv_cache_time_ns
+        return self.weight_load_time_ns + self.comm_time_ns + self.extra_input_time_ns
 
     @property
     def total_energy_nj(self) -> float:
-        return self.weight_load_energy_nj + self.comm_energy_nj + self.kv_cache_energy_nj
+        return self.weight_load_energy_nj + self.comm_energy_nj + self.extra_input_energy_nj
 
 
 @dataclass
@@ -195,15 +199,13 @@ class SystemCodesign:
                     input_bytes=float(ds.get("input_bytes", 0)),
                     output_bytes=float(ds.get("output_bytes", 0)),
                     weight_bytes=float(ds.get("weight_bytes", 0)),
-                    kv_cache_bytes=float(ds.get("kv_cache_bytes", 0)),
                     shared_weights=block_cfg.get("shared_weights", False),
                 )
                 logger.info(
                     f"Block '{block_name}' data sizes (from YAML): "
                     f"in={self.block_data_sizes[block_name].input_bytes:.0f}B, "
                     f"out={self.block_data_sizes[block_name].output_bytes:.0f}B, "
-                    f"weights={self.block_data_sizes[block_name].weight_bytes:.0f}B, "
-                    f"kv_cache={self.block_data_sizes[block_name].kv_cache_bytes:.0f}B"
+                    f"weights={self.block_data_sizes[block_name].weight_bytes:.0f}B"
                 )
             else:
                 # Try to infer from data.py
@@ -213,8 +215,7 @@ class SystemCodesign:
                     f"Block '{block_name}' data sizes (inferred): "
                     f"in={inferred.input_bytes:.0f}B, "
                     f"out={inferred.output_bytes:.0f}B, "
-                    f"weights={inferred.weight_bytes:.0f}B, "
-                    f"kv_cache={inferred.kv_cache_bytes:.0f}B"
+                    f"weights={inferred.weight_bytes:.0f}B"
                 )
 
     def _infer_block_data_sizes(self, block_name: str, block_cfg: dict) -> BlockDataSizes:
@@ -273,25 +274,10 @@ class SystemCodesign:
             else:
                 output_bytes = input_bytes  # fallback: assume same as input
 
-            # Estimate KV cache for attention blocks
-            kv_cache_bytes = 0.0
-            config = model_entry.get("config", {})
-            if "n_heads" in config or "num_heads" in config:
-                # This is an attention block — estimate KV cache
-                n_heads = config.get("n_heads", config.get("num_heads", 1))
-                dim = config.get("dim", config.get("embed_dim", 256))
-                head_dim = dim // n_heads
-                seq_len = input_tensors[0].shape[1] if len(input_tensors[0].shape) >= 2 else 1
-                batch_size = input_tensors[0].shape[0]
-                elem_size = input_tensors[0].element_size()
-                # KV cache: 2 (K + V) * batch * seq_len * n_heads * head_dim * elem_size
-                kv_cache_bytes = 2 * batch_size * seq_len * n_heads * head_dim * elem_size
-
             return BlockDataSizes(
                 input_bytes=float(input_bytes),
                 output_bytes=float(output_bytes),
                 weight_bytes=float(weight_bytes),
-                kv_cache_bytes=float(kv_cache_bytes),
                 shared_weights=block_cfg.get("shared_weights", False),
             )
 
@@ -509,66 +495,148 @@ class SystemCodesign:
 
         return EdgeTransferConfig(transfer=default_transfer)
 
-    def build_system_dfg(self) -> nx.DiGraph:
-        """Build the system-level DFG from config with edge transfer configs."""
+    def _extract_dfg_from_benchmark(self) -> nx.DiGraph:
+        """Extract the system DFG by tracing a forward pass through the benchmark module.
+
+        The benchmark module (e.g. LlamaInference) is a PyTorch nn.Module whose
+        sub-module attributes correspond to block_types in the system config.
+        We install forward hooks on those sub-modules, run a forward pass with
+        dummy inputs, and record the call sequence to build the DFG.
+
+        The system config must contain a 'benchmark' section:
+            benchmark:
+                class: LlamaInference
+                module_path: src/benchmarks/vitis/LlamaInference
+                init_args:
+                    dim: 256
+                    n_heads: 4
+                    ...
+                input_shapes:
+                    - [1, 64, 256]   # prompt tensor
+
+                # Map sub-module attribute names to block_types
+                module_attr_map:
+                    prefill_attention: prefill_attention
+                    prefill_feedforward: prefill_feedforward
+                    decode_attention: decode_attention
+                    decode_feedforward: decode_feedforward
+        """
+        bench_cfg = self.system_cfg["benchmark"]
+        class_name = bench_cfg["class"]
+        module_path = bench_cfg.get("module_path", "")
+        init_args = bench_cfg.get("init_args", {})
+        input_shapes = bench_cfg.get("input_shapes", [])
+        module_attr_map = bench_cfg.get("module_attr_map", {})
+
+        # Import the benchmark module
+        if module_path:
+            abs_path = os.path.join(self.codesign_root_dir, module_path)
+            if abs_path not in sys.path:
+                sys.path.insert(0, abs_path)
+        # Also add pymodels/transformers in case imports are needed
+        pymodels_path = os.path.join(
+            self.codesign_root_dir, "Stream-HLS", "examples", "pymodels", "transformers"
+        )
+        if pymodels_path not in sys.path:
+            sys.path.insert(0, pymodels_path)
+
+        mod = importlib.import_module(class_name)
+        model_class = getattr(mod, class_name)
+        model = model_class(**init_args)
+        model.eval()
+
+        # Build reverse map: sub-module id -> (attr_name, block_type)
+        tracked_modules = {}
+        for attr_name, block_type in module_attr_map.items():
+            submod = getattr(model, attr_name, None)
+            if submod is not None:
+                tracked_modules[id(submod)] = (attr_name, block_type)
+            else:
+                logger.warning(
+                    f"Benchmark module has no attribute '{attr_name}', skipping"
+                )
+
+        # Record call sequence via forward hooks
+        call_sequence = []  # list of (attr_name, block_type)
+
+        def make_hook(attr_name, block_type):
+            def hook(module, input, output):
+                call_sequence.append((attr_name, block_type))
+            return hook
+
+        hooks = []
+        for attr_name, block_type in module_attr_map.items():
+            submod = getattr(model, attr_name, None)
+            if submod is not None:
+                h = submod.register_forward_hook(make_hook(attr_name, block_type))
+                hooks.append(h)
+
+        # Create dummy inputs and run forward pass
+        input_tensors = []
+        for shape in input_shapes:
+            input_tensors.append(torch.randn(*shape))
+
+        with torch.no_grad():
+            model(*input_tensors)
+
+        # Remove hooks
+        for h in hooks:
+            h.remove()
+
+        logger.info(
+            f"Benchmark trace: {len(call_sequence)} sub-block calls recorded "
+            f"from {class_name}.forward()"
+        )
+
+        # Build DFG from call sequence
         G = nx.DiGraph()
-        block_types = self.system_cfg["block_types"]
-        dfg_cfg = self.system_cfg["dfg"]
+        # Count instances per block_type for unique node IDs
+        instance_counter = {}
+        prev_node = None
+        prev_block_type = None
 
-        # Add nodes for all block instances
-        for block_name, block_cfg in block_types.items():
-            repeat = block_cfg.get("repeat_count", 1)
-            for i in range(repeat):
-                node_id = f"{block_name}[{i}]" if repeat > 1 else block_name
-                G.add_node(node_id, block_type=block_name, instance_index=i)
+        for attr_name, block_type in call_sequence:
+            idx = instance_counter.get(block_type, 0)
+            instance_counter[block_type] = idx + 1
+            node_id = f"{block_type}[{idx}]"
+            G.add_node(node_id, block_type=block_type, instance_index=idx)
 
-        if dfg_cfg.get("pattern") == "chain":
-            # Auto-generate chain: layer_blocks repeated
-            layer_blocks = dfg_cfg["layer_blocks"]
-            max_repeat = max(
-                block_types[b].get("repeat_count", 1) for b in layer_blocks
-            )
-            prev_node = None
-            prev_block_type = None
-            for layer_idx in range(max_repeat):
-                for block_name in layer_blocks:
-                    repeat = block_types[block_name].get("repeat_count", 1)
-                    if layer_idx < repeat:
-                        node_id = (
-                            f"{block_name}[{layer_idx}]"
-                            if repeat > 1
-                            else block_name
-                        )
-                        if prev_node is not None:
-                            edge_cfg = self._get_edge_transfer_config(
-                                prev_block_type, block_name
-                            )
-                            G.add_edge(prev_node, node_id, transfer_config=edge_cfg)
-                        prev_node = node_id
-                        prev_block_type = block_name
-        else:
-            # Explicit edges
-            for src, dst in dfg_cfg.get("edges", []):
-                # Resolve block types from node ids
-                src_type = G.nodes[src]["block_type"] if src in G.nodes else src
-                dst_type = G.nodes[dst]["block_type"] if dst in G.nodes else dst
-                edge_cfg = self._get_edge_transfer_config(src_type, dst_type)
-                G.add_edge(src, dst, transfer_config=edge_cfg)
+            if prev_node is not None:
+                edge_cfg = self._get_edge_transfer_config(prev_block_type, block_type)
+                G.add_edge(prev_node, node_id, transfer_config=edge_cfg)
 
-        logger.info(f"System DFG: {G.number_of_nodes()} nodes, {G.number_of_edges()} edges")
+            prev_node = node_id
+            prev_block_type = block_type
+
+        logger.info(
+            f"DFG from benchmark: {G.number_of_nodes()} nodes, "
+            f"{G.number_of_edges()} edges"
+        )
+        for bt, count in instance_counter.items():
+            logger.info(f"  {bt}: {count} instances")
+
         return G
+
+    def build_system_dfg(self) -> nx.DiGraph:
+        """Build the system-level DFG from config.
+
+        If a 'benchmark' section is present, traces the PyTorch benchmark module
+        to extract the DFG automatically. Otherwise falls back to the 'dfg'
+        section (chain/phases/explicit edges) for backward compatibility.
+        """
+        assert "benchmark" in self.system_cfg, "System config must contain a 'benchmark' section"
+        return self._extract_dfg_from_benchmark()
 
     # ------------------------------------------------------------------
     # System-level optimization
     # ------------------------------------------------------------------
 
-    def optimize_system(self, max_per_block: int = 50) -> Optional[SystemDesignPoint]:
+    def optimize_system(self, max_per_block: int = 5) -> Optional[SystemDesignPoint]:
         """Cross-product search over per-block pareto subsets."""
         block_types = self.system_cfg["block_types"]
         constraints = self.system_cfg.get("system_constraints", {})
         objective = constraints.get("objective", "edp")
         shared_tech = self.system_cfg.get("shared_tech", False)
-        execution_model = self.system_cfg.get("execution_model", "sequential")
 
         # Select top candidates per block (sorted by obj_value)
         block_candidates: Dict[str, List[DesignPointResult]] = {}
@@ -610,7 +678,7 @@ class SystemCodesign:
                     continue
 
             system_point = self._compose_system_metrics(
-                assignments, execution_model, objective
+                assignments, objective
             )
             system_point.satisfies_system_constraints = (
                 self._check_system_constraints(system_point, constraints)
@@ -654,7 +722,7 @@ class SystemCodesign:
         return time_ns, energy_nj
 
     def _compute_node_overhead(self, node_id: str, assignments: Dict[str, DesignPointResult]):
-        """Compute overhead for a single DFG node (weight load + incoming comm + KV cache)."""
+        """Compute overhead for a single DFG node (weight load + comm + extra input)."""
         G = self.system_dfg
         block_type = G.nodes[node_id]["block_type"]
         instance_idx = G.nodes[node_id]["instance_index"]
@@ -664,8 +732,8 @@ class SystemCodesign:
         weight_energy = 0.0
         comm_time = 0.0
         comm_energy = 0.0
-        kv_time = 0.0
-        kv_energy = 0.0
+        extra_input_time = 0.0
+        extra_input_energy = 0.0
 
         # Weight loading from global memory
         if data_sizes.weight_bytes > 0:
@@ -674,6 +742,7 @@ class SystemCodesign:
                 weight_energy = self.global_memory.transfer_energy_nj(data_sizes.weight_bytes)
 
         # Incoming activation transfers from predecessors
+        pred_output_bytes = 0.0
         for pred in G.predecessors(node_id):
             pred_block_type = G.nodes[pred]["block_type"]
             pred_data_sizes = self.block_data_sizes.get(pred_block_type, BlockDataSizes())
@@ -682,25 +751,28 @@ class SystemCodesign:
 
             # Transfer size = predecessor's output bytes
             transfer_bytes = pred_data_sizes.output_bytes
+            pred_output_bytes += transfer_bytes
             t, e = self._compute_edge_transfer(edge_cfg, transfer_bytes)
             comm_time += t
             comm_energy += e
 
-        # KV cache write for attention blocks (accumulates across layers)
-        if data_sizes.kv_cache_bytes > 0:
-            # Each layer writes its own KV cache to global memory
-            kv_time = self.global_memory.transfer_time_ns(data_sizes.kv_cache_bytes)
-            kv_energy = self.global_memory.transfer_energy_nj(data_sizes.kv_cache_bytes)
+        # Extra input: data the block needs beyond what predecessors provide
+        # (e.g., KV cache for decode attention, or any additional input tensors).
+        # Loaded from global memory.
+        extra_bytes = max(0.0, data_sizes.input_bytes - pred_output_bytes)
+        if extra_bytes > 0:
+            extra_input_time = self.global_memory.transfer_time_ns(extra_bytes)
+            extra_input_energy = self.global_memory.transfer_energy_nj(extra_bytes)
 
         return {
             "weight_time": weight_time,
             "weight_energy": weight_energy,
             "comm_time": comm_time,
             "comm_energy": comm_energy,
-            "kv_time": kv_time,
-            "kv_energy": kv_energy,
-            "total_time": weight_time + comm_time + kv_time,
-            "total_energy": weight_energy + comm_energy + kv_energy,
+            "extra_input_time": extra_input_time,
+            "extra_input_energy": extra_input_energy,
+            "total_time": weight_time + comm_time + extra_input_time,
+            "total_energy": weight_energy + comm_energy + extra_input_energy,
         }
 
     def _compute_all_overheads(self, assignments: Dict[str, DesignPointResult]) -> Dict:
@@ -716,8 +788,8 @@ class SystemCodesign:
             totals.weight_load_energy_nj += oh["weight_energy"]
             totals.comm_time_ns += oh["comm_time"]
             totals.comm_energy_nj += oh["comm_energy"]
-            totals.kv_cache_time_ns += oh["kv_time"]
-            totals.kv_cache_energy_nj += oh["kv_energy"]
+            totals.extra_input_time_ns += oh["extra_input_time"]
+            totals.extra_input_energy_nj += oh["extra_input_energy"]
 
         return {"totals": totals, "per_node": per_node}
 
@@ -725,50 +797,44 @@ class SystemCodesign:
     # System metric composition
     # ------------------------------------------------------------------
 
+    def _count_block_instances(self) -> Dict[str, int]:
+        """Count actual DFG node instances per block type.
+
+        Uses the DFG graph to count instances, which correctly handles
+        the 'phases' pattern where a block may run more times than its
+        repeat_count (e.g., 32 layers × 64 decode tokens = 2048 instances).
+        """
+        counts: Dict[str, int] = {}
+        for node_id, data in self.system_dfg.nodes(data=True):
+            bt = data["block_type"]
+            counts[bt] = counts.get(bt, 0) + 1
+        return counts
+
     def _compose_system_metrics(
         self,
         assignments: Dict[str, DesignPointResult],
-        execution_model: str,
         objective: str,
     ) -> SystemDesignPoint:
         """Compose per-block metrics into system-level metrics including overheads."""
         block_types = self.system_cfg["block_types"]
+
+        # Count actual DFG instances per block type (handles phases correctly)
+        instance_counts = self._count_block_instances()
 
         # Compute overheads
         overhead_data = self._compute_all_overheads(assignments)
         overhead = overhead_data["totals"]
         per_node_overhead = overhead_data["per_node"]
 
-        # --- Compute-only execution time ---
-        if execution_model == "dfg":
-            compute_time = self._dfg_critical_path(assignments, per_node_overhead)
-        elif execution_model == "pipelined":
-            stage_times = []
-            for block_name, result in assignments.items():
-                stage_times.append(result.execution_time)
-            total_repeats = max(
-                block_types[bn].get("repeat_count", 1) for bn in assignments
-            )
-            compute_time = (
-                sum(r.execution_time for r in assignments.values())
-                + max(stage_times) * (total_repeats - 1)
-            )
-            # For pipelined, add overhead proportionally
-            compute_time += overhead.total_time_ns
-        else:  # sequential (default)
-            compute_time_only = sum(
-                r.execution_time * block_types[bn].get("repeat_count", 1)
-                for bn, r in assignments.items()
-            )
-            # In sequential mode, overhead is added per block instance
-            compute_time = compute_time_only + overhead.total_time_ns
-
-        total_time = compute_time
+        # --- Execution time: DFG critical path (includes per-node overheads) ---
+        total_time = self._dfg_critical_path(assignments, per_node_overhead)
+        # Compute-only critical path (without overheads) for reporting
+        compute_time = self._dfg_critical_path(assignments, per_node_overhead=None)
 
         # --- Energy: compute + overhead ---
         compute_energy = sum(
             (r.total_active_energy + r.total_passive_energy)
-            * block_types[bn].get("repeat_count", 1)
+            * instance_counts.get(bn, 1)
             for bn, r in assignments.items()
         )
         total_energy = compute_energy + overhead.total_energy_nj
@@ -794,7 +860,7 @@ class SystemCodesign:
             system_total_energy=total_energy,
             system_total_area=total_area,
             system_obj_value=obj,
-            compute_time_ns=compute_time - overhead.total_time_ns,
+            compute_time_ns=compute_time,
             compute_energy_nj=compute_energy,
             overhead=overhead,
         )
@@ -851,7 +917,6 @@ class SystemCodesign:
         """Save system-level results and produce summary report."""
         report = {
             "system_config": self.system_cfg["name"],
-            "execution_model": self.system_cfg.get("execution_model", "sequential"),
             "shared_tech": self.system_cfg.get("shared_tech", False),
             "global_memory": {
                 "bandwidth_gbps": self.global_memory.bandwidth_gbps,
@@ -863,7 +928,6 @@ class SystemCodesign:
                     "input_bytes": ds.input_bytes,
                     "output_bytes": ds.output_bytes,
                     "weight_bytes": ds.weight_bytes,
-                    "kv_cache_bytes": ds.kv_cache_bytes,
                     "shared_weights": ds.shared_weights,
                 }
                 for bn, ds in self.block_data_sizes.items()
@@ -888,13 +952,14 @@ class SystemCodesign:
                 "weight_load_energy_nJ": oh.weight_load_energy_nj,
                 "comm_time_ns": oh.comm_time_ns,
                 "comm_energy_nJ": oh.comm_energy_nj,
-                "kv_cache_time_ns": oh.kv_cache_time_ns,
-                "kv_cache_energy_nJ": oh.kv_cache_energy_nj,
+                "extra_input_time_ns": oh.extra_input_time_ns,
+                "extra_input_energy_nJ": oh.extra_input_energy_nj,
             }
+            instance_counts = self._count_block_instances()
             for block_name, result in best_system.block_assignments.items():
-                repeat = self.system_cfg["block_types"][block_name].get("repeat_count", 1)
                 report["blocks"][block_name] = {
-                    "repeat_count": repeat,
+                    "repeat_count": self.system_cfg["block_types"][block_name].get("repeat_count", 1),
+                    "total_instances": instance_counts.get(block_name, 1),
                     "design_point": result.design_point,
                     "execution_time_ns": result.execution_time,
                     "total_active_energy_nJ": result.total_active_energy,
@@ -1014,7 +1079,7 @@ def main():
             f"    Overhead:     {oh.total_time_ns:.2f} ns ({pct_overhead:.1f}%)\n"
             f"      Weight load:  {oh.weight_load_time_ns:.2f} ns\n"
             f"      Comm:         {oh.comm_time_ns:.2f} ns\n"
-            f"      KV cache:     {oh.kv_cache_time_ns:.2f} ns\n"
+            f"      Extra input:  {oh.extra_input_time_ns:.2f} ns\n"
             f"  Total energy:   {best.system_total_energy:.4e} nJ\n"
             f"    Compute:      {best.compute_energy_nj:.4e} nJ\n"
             f"    Overhead:     {oh.total_energy_nj:.4e} nJ\n"

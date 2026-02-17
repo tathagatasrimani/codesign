@@ -32,7 +32,7 @@ class LlamaDecodeAttention(nn.Module):
 
     def forward(self, x, k_cache, v_cache):
         # x:       (batch, 1, dim)
-        # k_cache: (batch, n_heads, cache_len, head_dim)
+        # k_cache: (batch, n_heads, cache_len, head_dim)  — pre-sized to include new token slot
         # v_cache: (batch, n_heads, cache_len, head_dim)
         bsz = x.shape[0]
 
@@ -43,23 +43,29 @@ class LlamaDecodeAttention(nn.Module):
 
         # Reshape to multi-head layout
         q = q.view(bsz, 1, self.n_heads, self.head_dim).transpose(1, 2)
-        # q: (batch, n_heads, 1, head_dim)
-
         k_new = k_new.view(bsz, 1, self.n_heads, self.head_dim).transpose(1, 2)
         v_new = v_new.view(bsz, 1, self.n_heads, self.head_dim).transpose(1, 2)
-        # k_new, v_new: (batch, n_heads, 1, head_dim)
+        # q/k_new/v_new: (batch, n_heads, 1, head_dim)
 
-        # Append new K/V to cache: (batch, n_heads, cache_len+1, head_dim)
-        k_full = torch.cat([k_cache, k_new], dim=2)
-        v_full = torch.cat([v_cache, v_new], dim=2)
-
-        # Scaled dot-product attention (no causal mask — single query token)
+        # Attend over KV cache and the new token separately, then sum.
+        # This avoids torch.cat (which triggers bufferization.to_tensor in
+        # MLIR, unsupported by StreamHLS) while keeping wk/wv in the live
+        # computation graph for correct area/energy estimation.
         scale = 1.0 / (self.head_dim ** 0.5)
-        attn_scores = torch.matmul(q, k_full.transpose(-2, -1)) * scale
-        # attn_scores: (batch, n_heads, 1, cache_len+1)
 
-        attn_probs = F.softmax(attn_scores, dim=-1)
-        out = torch.matmul(attn_probs, v_full)
+        # Attention over cached K/V
+        cache_scores = torch.matmul(q, k_cache.transpose(-2, -1)) * scale
+        # cache_scores: (batch, n_heads, 1, cache_len)
+        cache_probs = F.softmax(cache_scores, dim=-1)
+        cache_out = torch.matmul(cache_probs, v_cache)
+
+        # Attention over new token's K/V (keeps wk, wv live)
+        new_scores = torch.matmul(q, k_new.transpose(-2, -1)) * scale
+        # new_scores: (batch, n_heads, 1, 1)
+        new_probs = F.softmax(new_scores, dim=-1)
+        new_out = torch.matmul(new_probs, v_new)
+
+        out = cache_out + new_out
         # out: (batch, n_heads, 1, head_dim)
 
         out = out.transpose(1, 2).contiguous().view(bsz, 1, -1)
