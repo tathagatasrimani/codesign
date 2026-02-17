@@ -29,6 +29,12 @@ area: #um^2
     Register16: 0.5 # temporary (same as before)
     Sub16: 5.82
     Exp16: 75.24 # PLACEHOLDER
+    Fpadd16: 84.87
+    Fpsub16: 67.505    
+    Fpadd32: 154.69
+    Fpsub32: 155.714375
+    Fpmul16: 53.10
+    Fpdiv16: 747.724625
   130: 
     BitAnd16: 100.096
     And16: 31.28
@@ -54,6 +60,12 @@ area: #um^2
     Mux16: 62.4 #TODO: These values are estimated. Must run proper characterization.
     Register16: 26.275
     Exp16: 2900.8 # PLACEHOLDER
+    Fpadd16: 5514.038 
+    Fpsub16: 5497.773 
+    Fpadd32: 13210.17
+    Fpsub32: 13167.629
+    Fpmul16: 3613.466
+    Fpdiv16: 11457.238
 dynamic_power: # nw
   7:
     Add16: 1247.10
@@ -79,6 +91,12 @@ dynamic_power: # nw
     Register16: 4752 # temporary (same as before)
     Sub16: 1466.13
     OffChipIO: 0.0 # temporary (same as before)
+    Fpadd16: 71480 
+    Fpsub16: 80160  
+    Fpadd32: 169330
+    Fpsub32: 170690
+    Fpmul16: 44360
+    Fpdiv16: 49960
   130: 
     BitAnd16: 6623
     And16: 1000
@@ -101,6 +119,12 @@ dynamic_power: # nw
     Mult16: 282600
     Mux16: 15280 #TODO: These values are estimated. Must run proper characterization.
     Register16: 4772.4
+    Fpadd16: 579300
+    Fpsub16: 571200
+    Fpadd32: 1325400
+    Fpsub32: 1330200
+    Fpmul16: 201410
+    Fpdiv16: 575300
 latency: # ns
   7:
     Add16: 0.645
@@ -127,6 +151,12 @@ latency: # ns
     Register16: 0.1159 # temporary (same as before)
     Sub16: 0.555
     OffChipIO16: 0.0 # temporary (same as before)
+    Fpadd16: 2.965   
+    Fpsub16: 2.313   
+    Fpadd32: 3.7927
+    Fpsub32: 3.596
+    Fpmul16: 1.791
+    Fpdiv16: 11.963594
   130: 
     BitAnd16: 0.32
     And16: 0.747
@@ -149,6 +179,12 @@ latency: # ns
     Mult16: 6.803
     Mux16: 1.285 #TODO: These values are estimated. Must run proper characterization.
     Register16: 0.294
+    Fpadd16: 17.501
+    Fpsub16: 17.745
+    Fpadd32: 24.62
+    Fpsub32: 24.909
+    Fpmul16: 14.709
+    Fpdiv16: 61.82
 
 leakage_power: #nW
   7:
@@ -175,6 +211,12 @@ leakage_power: #nW
     RShift16: 5.73
     Register16: 4.58
     Sub16: 6.81
+    Fpadd16: 70.2
+    Fpsub16: 56   
+    Fpadd32: 135
+    Fpsub32: 136
+    Fpmul16: 50.8
+    Fpdiv16: 103
   130: 
     BitAnd16: 0.0308
     And16: 0.00215
@@ -197,6 +239,12 @@ leakage_power: #nW
     Mult16: 0.869
     Mux16: 0.0298 #TODO: These values are estimated. Must run proper characterization.
     Register16: 0.0105
+    Fpadd16: 1.82
+    Fpsub16: 1.89
+    Fpadd32: 4.54
+    Fpsub32: 4.49
+    Fpmul16: 1.35
+    Fpdiv16: 4.11
 
 pin_count: 
   Add16:
@@ -266,5 +314,23 @@ pin_count:
     input: 32
     output: 16
   Exp16:
+    input: 32
+    output: 16
+  Fpadd16: 
+    input: 32
+    output: 16
+  Fpsub16: 
+    input: 32
+    output: 16
+  Fpadd32: 
+    input: 64
+    output: 32
+  Fpsub32:
+    input: 64
+    output: 32
+  Fpmul16: 
+    input: 32
+    output: 16
+  Fpdiv16: 
     input: 32
     output: 16
