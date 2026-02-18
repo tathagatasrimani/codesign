@@ -95,6 +95,239 @@ vitis_test_sweep_basic_inference:
     min_dsp: 7680
     benchmark: Inference
 
+# ---------------------------------------------------------------------------
+# DeepSeek-V3 sweep configs
+# ---------------------------------------------------------------------------
+vitis_test_sweep_deepseekv3_prefill_attention:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 40
+    benchmark: DeepSeekPrefillAttention
+    #streamhls_opt_level: 3  # large Perm crashes perm solver; run parallelization only
+
+vitis_test_sweep_deepseekv3_prefill_dense_ffn:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 20
+    benchmark: DeepSeekPrefillDenseFFN
+    #streamhls_opt_level: 2  # small Perm=221184; run permutation only (large Paral unsafe)
+
+vitis_test_sweep_deepseekv3_prefill_moe:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 40
+    benchmark: DeepSeekPrefillMoE
+    #streamhls_opt_level: 3  # Perm=12.2e9 > INT32_MAX crashes perm solver; run parallelization only
+
+vitis_test_sweep_deepseekv3_decode_attention:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 40
+    benchmark: DeepSeekDecodeAttention
+
+vitis_test_sweep_deepseekv3_decode_dense_ffn:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 20
+    benchmark: DeepSeekDecodeDenseFFN
+
+vitis_test_sweep_deepseekv3_decode_moe:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 20
+    benchmark: DeepSeekDecodeMoE
+    #streamhls_opt_level: 2  # small Perm=262144; run permutation only (large Paral=1.4e19 unsafe)
+
+# ---------------------------------------------------------------------------
+# Mixtral 8x7B sweep configs
+# ---------------------------------------------------------------------------
+vitis_test_sweep_mixtral_prefill_attention:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 40
+    benchmark: MixtralPrefillAttention
+    #streamhls_opt_level: 3  # large Perm=9.6e18 crashes perm solver; run parallelization only
+
+vitis_test_sweep_mixtral_prefill_moe:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 40
+    benchmark: MixtralPrefillMoE
+    #streamhls_opt_level: 2  # small Perm=221184; run permutation only (large Paral unsafe)
+
+vitis_test_sweep_mixtral_decode_attention:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 40
+    benchmark: MixtralDecodeAttention
+    #streamhls_opt_level: 3  # perm solver crashes with SmallVector bug in populateNodeInfo; run parallelization only
+
+vitis_test_sweep_mixtral_decode_moe:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 20
+    benchmark: MixtralDecodeMoE
+
+# ---------------------------------------------------------------------------
+# V-JEPA sweep configs
+# ---------------------------------------------------------------------------
+vitis_test_sweep_vjepa_spatial_attention:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 40
+    benchmark: VJEPASpatialAttention
+    #streamhls_opt_level: 3  # large Perm=6.4e18 crashes perm solver; run parallelization only
+
+vitis_test_sweep_vjepa_temporal_attention:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 40
+    benchmark: VJEPATemporalAttention
+    #streamhls_opt_level: 3  # large Perm=3.1e16 crashes perm solver; run parallelization only
+
+vitis_test_sweep_vjepa_feedforward:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 20
+    benchmark: VJEPAFeedForward
+    #streamhls_opt_level: 2  # small Perm=9216; run permutation only (large Paral=9.4e18 unsafe)
+
+vitis_test_sweep_vjepa_predictor_attention:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 40
+    benchmark: VJEPAPredictorAttention
+    #streamhls_opt_level: 3  # large Perm=3.1e16 crashes perm solver; Paral=0 trivial for parallelization
+
+vitis_test_sweep_vjepa_predictor_feedforward:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 20
+    benchmark: VJEPAPredictorFeedForward
+    #streamhls_opt_level: 4  # disable combined optimization to avoid stoi overflow
+
+# ---------------------------------------------------------------------------
+# OpenVLA sweep configs
+# ---------------------------------------------------------------------------
+vitis_test_sweep_openvla_dino_attention:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 40
+    benchmark: OpenVLADinoAttention
+
+vitis_test_sweep_openvla_dino_feedforward:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 20
+    benchmark: OpenVLADinoFeedForward
+
+vitis_test_sweep_openvla_vision_attention:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 40
+    benchmark: OpenVLAVisionAttention
+
+vitis_test_sweep_openvla_vision_projection:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 20
+    benchmark: OpenVLAVisionProjection
+
+vitis_test_sweep_openvla_vision_feedforward:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 20
+    benchmark: OpenVLAVisionFeedForward
+
+vitis_test_sweep_openvla_lm_prefill_attention:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 40
+    benchmark: OpenVLALMPrefillAttention
+    #streamhls_opt_level: 3  # large Perm=6.2e16 crashes perm solver; run parallelization only
+
+vitis_test_sweep_openvla_lm_feedforward:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 20
+    benchmark: OpenVLALMFeedForward
+    #streamhls_opt_level: 2  # small Perm=221184; run permutation only (large Paral=1.8e19 unsafe)
+
+vitis_test_sweep_openvla_lm_decode_attention:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 40
+    benchmark: OpenVLALMDecodeAttention
+
 run_sweep_mvs_1_spice:
   base_cfg: default
   args:

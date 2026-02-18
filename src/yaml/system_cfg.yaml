@@ -79,3 +79,488 @@ llama3_inference_system:
     max_total_power: 150.0
     max_total_area: 1.0e12
     objective: edp
+
+# ---------------------------------------------------------------------------
+# DeepSeek-V3 (MoE): prefill (512 tokens) + decode (64 tokens)
+# ---------------------------------------------------------------------------
+# DeepSeek-V3 is a 671B-parameter (37B active) MoE model with 61 layers.
+# Layer structure (first_k_dense_replace=3):
+#   Layers 1-3:   MLA attention + DENSE SwiGLU FFN (intermediate=18432)
+#   Layers 4-61:  MLA attention + SPARSE MoE FFN (256 routed + 1 shared,
+#                   top-8 active, moe_intermediate=2048)
+# MLA: q_lora_rank=1536, kv_lora_rank=512 for compressed K/V caching.
+#
+# Data size accounting:
+#   MLA attention weights: q_down(7168x1536) + q_up(1536x7168) + kv_down(7168x512)
+#     + k_up(512x7168) + v_up(512x7168) + o_proj(7168x7168) all * 4B
+#   Dense FFN weights: w1(7168x18432) + w3(7168x18432) + w2(18432x7168) * 4B
+#   MoE weights: gate(7168x256) + shared(3x7168x2048) + 8 active routed(3x7168x2048)
+deepseekv3_inference_system:
+  name: "deepseekv3_inference"
+  description: "DeepSeek-V3 MoE inference: prefill (512 tokens) + decode (64 tokens)"
+  shared_tech: false
+
+  global_memory:
+    bandwidth_gbps: 100.0
+    latency_ns: 100.0
+    energy_per_bit_pj: 10.0
+    capacity_bytes: 64.0e9
+
+  benchmark:
+    class: DeepSeekV3Inference
+    module_path: src/benchmarks/vitis/DeepSeekV3Inference
+    init_args:
+      hidden: 7168
+      n_heads: 128
+      head_dim: 128
+      q_lora_rank: 1536
+      kv_lora_rank: 512
+      dense_intermediate: 18432
+      moe_intermediate: 2048
+      n_routed_experts: 256
+      top_k: 8
+      n_layers: 61
+      n_dense: 3
+      n_decode: 64
+      cache_len: 512
+    input_shapes:
+      - [1, 512, 7168]           # prompt tensor (batch, prompt_len, hidden)
+    module_attr_map:
+      prefill_attention: prefill_attention
+      prefill_dense_ffn: prefill_dense_ffn
+      prefill_moe: prefill_moe
+      decode_attention: decode_attention
+      decode_dense_ffn: decode_dense_ffn
+      decode_moe: decode_moe
+
+  block_types:
+    # --- Prefill phase ---
+    prefill_attention:
+      codesign_config: vitis_test_sweep_deepseekv3_prefill_attention
+      shared_weights: false
+      data_sizes:
+        # input/output: (1, 512, 7168) * 4B
+        input_bytes: 14680064
+        output_bytes: 14680064
+        # q_down(7168x1536) + q_up(1536x7168) + kv_down(7168x512)
+        # + k_up(512x7168) + v_up(512x7168) + o_proj(7168x7168) all * 4B
+        weight_bytes: 455081984
+
+    prefill_dense_ffn:
+      codesign_config: vitis_test_sweep_deepseekv3_prefill_dense_ffn
+      shared_weights: false
+      data_sizes:
+        input_bytes: 14680064           # (1, 512, 7168) * 4B
+        output_bytes: 14680064
+        # w1(7168x18432) + w3(7168x18432) + w2(18432x7168) * 4B
+        weight_bytes: 1585446912
+
+    prefill_moe:
+      codesign_config: vitis_test_sweep_deepseekv3_prefill_moe
+      shared_weights: false
+      data_sizes:
+        input_bytes: 14680064
+        output_bytes: 14680064
+        # gate(7168x256) + shared(3x7168x2048) + 8 active routed(3x7168x2048 each)
+        # = 7168*256 + 9*3*7168*2048, all * 4B
+        weight_bytes: 1592786944
+
+    # --- Decode phase ---
+    decode_attention:
+      codesign_config: vitis_test_sweep_deepseekv3_decode_attention
+      shared_weights: false
+      data_sizes:
+        # x(1,1,7168) + k_cache(1,128,512,128) + v_cache(1,128,512,128)
+        input_bytes: 1077248
+        output_bytes: 28672            # (1, 1, 7168) * 4B
+        weight_bytes: 455081984        # same weights as prefill attention
+
+    decode_dense_ffn:
+      codesign_config: vitis_test_sweep_deepseekv3_decode_dense_ffn
+      shared_weights: false
+      data_sizes:
+        input_bytes: 28672             # (1, 1, 7168) * 4B
+        output_bytes: 28672
+        weight_bytes: 1585446912       # same weights as prefill dense FFN
+
+    decode_moe:
+      codesign_config: vitis_test_sweep_deepseekv3_decode_moe
+      shared_weights: false
+      data_sizes:
+        input_bytes: 28672             # (1, 1, 7168) * 4B
+        output_bytes: 28672
+        weight_bytes: 1592786944       # same weights as prefill MoE
+
+  dfg:
+    default_transfer: global_memory
+
+  system_constraints:
+    max_total_power: 150.0
+    max_total_area: 1.0e12
+    objective: edp
+
+# ---------------------------------------------------------------------------
+# Mixtral 8x7B (MoE): prefill (512 tokens) + decode (64 tokens)
+# ---------------------------------------------------------------------------
+# Mixtral 8x7B is a sparse MoE transformer: 32 layers, grouped-query attention
+# (32 Q-heads, 8 KV-heads, head_dim=128), sparse MoE FFN with 8 experts and
+# top-2 routing (ffn_intermediate=14336).
+#
+# Data size accounting:
+#   Prefill attention weights: wq(4096x4096) + wk(4096x1024) + wv(4096x1024)
+#     + wo(4096x4096) all * 4B  [n_kv_heads=8, head_dim=128 → 1024 KV dim]
+#   Prefill MoE weights: gate(4096x8) + top-2 fused SwiGLU(3x4096x28672)
+#     [28672 = 14336 * top_k=2]
+mixtral_inference_system:
+  name: "mixtral_inference"
+  description: "Mixtral 8x7B MoE inference: prefill (512 tokens) + decode (64 tokens)"
+  shared_tech: false
+
+  global_memory:
+    bandwidth_gbps: 100.0
+    latency_ns: 100.0
+    energy_per_bit_pj: 10.0
+    capacity_bytes: 64.0e9
+
+  benchmark:
+    class: MixtralInference
+    module_path: src/benchmarks/vitis/MixtralInference
+    init_args:
+      hidden: 4096
+      n_heads: 32
+      n_kv_heads: 8
+      head_dim: 128
+      ffn_intermediate: 14336
+      n_experts: 8
+      top_k: 2
+      n_layers: 32
+      n_decode: 64
+      cache_len: 512
+    input_shapes:
+      - [1, 512, 4096]           # prompt tensor (batch, prompt_len, hidden)
+    module_attr_map:
+      prefill_attention: prefill_attention
+      prefill_moe: prefill_moe
+      decode_attention: decode_attention
+      decode_moe: decode_moe
+
+  block_types:
+    # --- Prefill phase ---
+    prefill_attention:
+      codesign_config: vitis_test_sweep_mixtral_prefill_attention
+      shared_weights: false
+      data_sizes:
+        # input/output: (1, 512, 4096) * 4B
+        input_bytes: 8388608
+        output_bytes: 8388608
+        # wq(4096x4096) + wk(4096x1024) + wv(4096x1024) + wo(4096x4096) * 4B
+        weight_bytes: 167772160
+
+    prefill_moe:
+      codesign_config: vitis_test_sweep_mixtral_prefill_moe
+      shared_weights: false
+      data_sizes:
+        input_bytes: 8388608
+        output_bytes: 8388608
+        # gate(4096x8) + w1(4096x28672) + w3(4096x28672) + w2(28672x4096) * 4B
+        # (28672 = 14336 * top_k=2, fused)
+        weight_bytes: 1409417216
+
+    # --- Decode phase ---
+    decode_attention:
+      codesign_config: vitis_test_sweep_mixtral_decode_attention
+      shared_weights: false
+      data_sizes:
+        # x(1,1,4096) + k_cache(1,8,512,128) + v_cache(1,8,512,128)
+        input_bytes: 4210688
+        output_bytes: 16384            # (1, 1, 4096) * 4B
+        weight_bytes: 167772160        # same weights as prefill attention
+
+    decode_moe:
+      codesign_config: vitis_test_sweep_mixtral_decode_moe
+      shared_weights: false
+      data_sizes:
+        input_bytes: 16384             # (1, 1, 4096) * 4B
+        output_bytes: 16384
+        weight_bytes: 1409417216       # same weights as prefill MoE
+
+  dfg:
+    default_transfer: global_memory
+
+  system_constraints:
+    max_total_power: 150.0
+    max_total_area: 1.0e12
+    objective: edp
+
+# ---------------------------------------------------------------------------
+# V-JEPA: context encoder (ViT-H/16) + predictor transformer
+# ---------------------------------------------------------------------------
+# V-JEPA has two networks:
+#   Context encoder (ViT-H/16, 32 layers): factorised space-time attention.
+#     Each block: spatial attention (196 patches/frame, per-frame) →
+#                 temporal attention (all 3136 tokens) → FFN.
+#   Predictor (12 layers, hidden=384): takes encoder outputs projected to
+#     pred_hidden=384 plus mask tokens; predicts target patch representations.
+#     Input: 3136 positions (all video patches).
+#
+# Data size accounting:
+#   Spatial attention: called with (n_frames * batch, 196, 1280) = (16, 196, 1280)
+#     input_bytes = 16 * 196 * 1280 * 4B = 16,056,320
+#   Temporal attention: (1, 3136, 1280) * 4B = 16,056,320
+#   FFN: same 16,056,320
+#   Predictor attention: (1, 3136, 384) * 4B = 4,825,088
+#   Predictor FFN: same 4,825,088
+vjepa_inference_system:
+  name: "vjepa_inference"
+  description: "V-JEPA ViT-H/16 context encoder + predictor: 16 frames × 196 patches"
+  shared_tech: false
+
+  global_memory:
+    bandwidth_gbps: 100.0
+    latency_ns: 100.0
+    energy_per_bit_pj: 10.0
+    capacity_bytes: 16.0e9
+
+  benchmark:
+    class: VJEPAInference
+    module_path: src/benchmarks/vitis/VJEPAInference
+    init_args:
+      hidden: 1280
+      n_heads: 16
+      head_dim: 80
+      ffn_intermediate: 5120
+      n_frames: 16
+      spatial_patches: 196
+      n_layers: 32
+      pred_hidden: 384
+      pred_n_heads: 12
+      pred_head_dim: 32
+      pred_ffn: 1536
+      n_pred_layers: 12
+    input_shapes:
+      - [1, 3136, 1280]          # all video tokens (batch, total_patches, hidden)
+    module_attr_map:
+      spatial_attention: spatial_attention
+      temporal_attention: temporal_attention
+      feedforward: feedforward
+      predictor_attention: predictor_attention
+      predictor_feedforward: predictor_feedforward
+
+  block_types:
+    # --- Context encoder ---
+    spatial_attention:
+      codesign_config: vitis_test_sweep_vjepa_spatial_attention
+      shared_weights: false
+      data_sizes:
+        # input shape after view: (batch * n_frames, spatial_patches, hidden)
+        #                       = (16, 196, 1280) → 16 * 196 * 1280 * 4B
+        input_bytes: 16056320
+        output_bytes: 16056320
+        # 4 × Linear(1280, 1280) * 4B
+        weight_bytes: 26214400
+
+    temporal_attention:
+      codesign_config: vitis_test_sweep_vjepa_temporal_attention
+      shared_weights: false
+      data_sizes:
+        # input/output: (1, 3136, 1280) * 4B
+        input_bytes: 16056320
+        output_bytes: 16056320
+        weight_bytes: 26214400
+
+    feedforward:
+      codesign_config: vitis_test_sweep_vjepa_feedforward
+      shared_weights: false
+      data_sizes:
+        input_bytes: 16056320
+        output_bytes: 16056320
+        # fc1(1280x5120) + fc2(5120x1280) * 4B
+        weight_bytes: 52428800
+
+    # --- Predictor ---
+    predictor_attention:
+      codesign_config: vitis_test_sweep_vjepa_predictor_attention
+      shared_weights: false
+      data_sizes:
+        # input/output: (1, 3136, 384) * 4B
+        input_bytes: 4825088
+        output_bytes: 4825088
+        # 4 × Linear(384, 384) * 4B
+        weight_bytes: 2359296
+
+    predictor_feedforward:
+      codesign_config: vitis_test_sweep_vjepa_predictor_feedforward
+      shared_weights: false
+      data_sizes:
+        input_bytes: 4825088
+        output_bytes: 4825088
+        # fc1(384x1536) + fc2(1536x384) * 4B
+        weight_bytes: 4718592
+
+  dfg:
+    default_transfer: global_memory
+
+  system_constraints:
+    max_total_power: 150.0
+    max_total_area: 1.0e12
+    objective: edp
+
+# ---------------------------------------------------------------------------
+# OpenVLA: dual vision encoding + projection + LM prefill + action decode
+# ---------------------------------------------------------------------------
+# OpenVLA uses Prismatic dual-encoder architecture (7B parameters total):
+#   DINOv2 ViT-L/14 (24 layers, hidden=1024): semantic/structural features
+#   SigLIP-SO400M   (27 layers, hidden=1152): vision-language aligned features
+#   Both process the same 256 patches (224×224 @ 14px patch size).
+#   Vision projection MLP: concat(DINOv2=1024, SigLIP=1152)=2176 → lm_hidden=4096
+#   LM: Llama 2 7B (32 layers, hidden=4096) prefill + 7 action token decode.
+#
+# Data size accounting:
+#   DINOv2 attention: 4 × Linear(1024, 1024) * 4B = 16,777,216B
+#   DINOv2 FFN: fc1(1024x4096) + fc2(4096x1024) * 4B = 33,554,432B
+#   SigLIP attention: 4 × Linear(1152, 1152) * 4B = 21,233,664B
+#   SigLIP FFN: fc1(1152x4304) + fc2(4304x1152) * 4B = 39,583,744B
+#   Vision projection: fc1(2176x4096) + fc2(4096x4096) * 4B = 102,760,448B
+#   LM attention: 4 × Linear(4096, 4096) * 4B = 268,435,456B
+#   LM FFN: w1(4096x11008) + w3(4096x11008) + w2(11008x4096) * 4B = 541,065,216B
+openvla_inference_system:
+  name: "openvla_inference"
+  description: "OpenVLA inference: DINOv2 + SigLIP dual-encoder + Llama2-7B LM + 7-token action decode"
+  shared_tech: false
+
+  global_memory:
+    bandwidth_gbps: 100.0
+    latency_ns: 100.0
+    energy_per_bit_pj: 10.0
+    capacity_bytes: 32.0e9
+
+  benchmark:
+    class: OpenVLAInference
+    module_path: src/benchmarks/vitis/OpenVLAInference
+    init_args:
+      # DINOv2 ViT-L/14
+      dino_hidden: 1024
+      dino_n_heads: 16
+      dino_head_dim: 64
+      dino_ffn: 4096
+      n_dino_layers: 24
+      # SigLIP-SO400M
+      vis_hidden: 1152
+      vis_n_heads: 16
+      vis_head_dim: 72
+      vis_ffn: 4304
+      n_vision_layers: 27
+      n_patches: 256
+      # Language model (Llama 2 7B)
+      lm_hidden: 4096
+      lm_n_heads: 32
+      lm_head_dim: 128
+      lm_ffn: 11008
+      n_lm_layers: 32
+      # Decode
+      n_decode: 7
+      cache_len: 512
+    input_shapes:
+      - [1, 256, 1024]           # DINOv2 patch embeddings (batch, n_patches, dino_hidden)
+      - [1, 256, 1152]           # SigLIP patch embeddings (batch, n_patches, vis_hidden)
+      - [1, 256, 4096]           # language tokens        (batch, lang_len, lm_hidden)
+    module_attr_map:
+      dino_attention: dino_attention
+      dino_feedforward: dino_feedforward
+      vision_attention: vision_attention
+      vision_feedforward: vision_feedforward
+      vision_projection: vision_projection
+      lm_prefill_attention: lm_prefill_attention
+      lm_feedforward: lm_feedforward
+      lm_decode_attention: lm_decode_attention
+
+  block_types:
+    # --- DINOv2 encoder (ViT-L/14, 24 layers) ---
+    dino_attention:
+      codesign_config: vitis_test_sweep_openvla_dino_attention
+      shared_weights: false
+      data_sizes:
+        # input/output: (1, 256, 1024) * 4B
+        input_bytes: 1048576
+        output_bytes: 1048576
+        # 4 × Linear(1024, 1024) * 4B  [n_heads*head_dim = 16*64 = 1024]
+        weight_bytes: 16777216
+
+    dino_feedforward:
+      codesign_config: vitis_test_sweep_openvla_dino_feedforward
+      shared_weights: false
+      data_sizes:
+        input_bytes: 1048576
+        output_bytes: 1048576
+        # fc1(1024x4096) + fc2(4096x1024) * 4B
+        weight_bytes: 33554432
+
+    # --- SigLIP encoder (SO400M, 27 layers) ---
+    vision_attention:
+      codesign_config: vitis_test_sweep_openvla_vision_attention
+      shared_weights: false
+      data_sizes:
+        # input/output: (1, 256, 1152) * 4B
+        input_bytes: 1179648
+        output_bytes: 1179648
+        # 4 × Linear(1152, 1152) * 4B  [n_heads*head_dim = 16*72 = 1152]
+        weight_bytes: 21233664
+
+    vision_feedforward:
+      codesign_config: vitis_test_sweep_openvla_vision_feedforward
+      shared_weights: false
+      data_sizes:
+        input_bytes: 1179648
+        output_bytes: 1179648
+        # fc1(1152x4304) + fc2(4304x1152) * 4B
+        weight_bytes: 39583744
+
+    # --- Vision projection MLP (concat 2176 → lm_hidden 4096) ---
+    vision_projection:
+      codesign_config: vitis_test_sweep_openvla_vision_projection
+      shared_weights: false
+      data_sizes:
+        # input: (1, 256, 2176) * 4B  [concat DINOv2=1024 + SigLIP=1152]
+        input_bytes: 2228224
+        # output: (1, 256, 4096) * 4B
+        output_bytes: 4194304
+        # fc1(2176x4096) + fc2(4096x4096) * 4B
+        weight_bytes: 102760448
+
+    # --- Language model prefill (Llama 2 7B) ---
+    lm_prefill_attention:
+      codesign_config: vitis_test_sweep_openvla_lm_prefill_attention
+      shared_weights: false
+      data_sizes:
+        # input/output: (1, 512, 4096) * 4B  [256 vision + 256 language tokens]
+        input_bytes: 8388608
+        output_bytes: 8388608
+        # 4 × Linear(4096, 4096) * 4B
+        weight_bytes: 268435456
+
+    lm_feedforward:
+      codesign_config: vitis_test_sweep_openvla_lm_feedforward
+      shared_weights: false
+      data_sizes:
+        input_bytes: 8388608
+        output_bytes: 8388608
+        # w1(4096x11008) + w3(4096x11008) + w2(11008x4096) * 4B
+        weight_bytes: 541065216
+
+    # --- Action decode ---
+    lm_decode_attention:
+      codesign_config: vitis_test_sweep_openvla_lm_decode_attention
+      shared_weights: false
+      data_sizes:
+        # x(1,1,4096) + k_cache(1,32,512,128) + v_cache(1,32,512,128)
+        input_bytes: 16793600
+        output_bytes: 16384            # (1, 1, 4096) * 4B
+        weight_bytes: 268435456        # same weights as prefill attention
+
+  dfg:
+    default_transfer: global_memory
+
+  system_constraints:
+    max_total_power: 150.0
+    max_total_area: 1.0e12
+    objective: edp
