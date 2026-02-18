@@ -564,3 +564,451 @@ openvla_inference_system:
     max_total_power: 150.0
     max_total_area: 1.0e12
     objective: edp
+
+# ---------------------------------------------------------------------------
+# DeepSeek-V3 (MoE) SMALL: scaled-down for rapid prototyping
+# ---------------------------------------------------------------------------
+# Reduced: hidden=512, n_heads=8, head_dim=64, q_lora_rank=128,
+#   kv_lora_rank=64, dense_intermediate=1024, moe_intermediate=256,
+#   n_routed_experts=16, top_k=2, n_layers=8, prompt_len=64, cache_len=64.
+deepseekv3_small_system:
+  name: "deepseekv3_small"
+  description: "DeepSeek-V3 small (hidden=512): prefill (64 tokens) + decode (16 tokens)"
+  shared_tech: false
+
+  global_memory:
+    bandwidth_gbps: 100.0
+    latency_ns: 100.0
+    energy_per_bit_pj: 10.0
+    capacity_bytes: 16.0e9
+
+  benchmark:
+    class: DeepSeekV3Inference
+    module_path: src/benchmarks/vitis/DeepSeekV3Inference
+    init_args:
+      hidden: 512
+      n_heads: 8
+      head_dim: 64
+      q_lora_rank: 128
+      kv_lora_rank: 64
+      dense_intermediate: 1024
+      moe_intermediate: 256
+      n_routed_experts: 16
+      top_k: 2
+      n_layers: 8
+      n_dense: 2
+      n_decode: 16
+      cache_len: 64
+    input_shapes:
+      - [1, 64, 512]             # prompt tensor (batch, prompt_len, hidden)
+    module_attr_map:
+      prefill_attention: prefill_attention
+      prefill_dense_ffn: prefill_dense_ffn
+      prefill_moe: prefill_moe
+      decode_attention: decode_attention
+      decode_dense_ffn: decode_dense_ffn
+      decode_moe: decode_moe
+
+  block_types:
+    # --- Prefill phase ---
+    prefill_attention:
+      codesign_config: vitis_test_sweep_deepseekv3_prefill_attention_small
+      shared_weights: false
+      data_sizes:
+        # input/output: (1, 64, 512) * 4B
+        input_bytes: 131072
+        output_bytes: 131072
+        # q_down(512x128) + q_up(128x512) + kv_down(512x64)
+        # + k_up(64x512) + v_up(64x512) + o_proj(512x512) all * 4B
+        weight_bytes: 1966080
+
+    prefill_dense_ffn:
+      codesign_config: vitis_test_sweep_deepseekv3_prefill_dense_ffn_small
+      shared_weights: false
+      data_sizes:
+        input_bytes: 131072              # (1, 64, 512) * 4B
+        output_bytes: 131072
+        # w1(512x1024) + w3(512x1024) + w2(1024x512) * 4B
+        weight_bytes: 6291456
+
+    prefill_moe:
+      codesign_config: vitis_test_sweep_deepseekv3_prefill_moe_small
+      shared_weights: false
+      data_sizes:
+        input_bytes: 131072
+        output_bytes: 131072
+        # gate(512x16) + shared(3x512x256) + 2 active routed(3x512x256 each)
+        # = 512*16 + 9*512*256, all * 4B
+        weight_bytes: 4751360
+
+    # --- Decode phase ---
+    decode_attention:
+      codesign_config: vitis_test_sweep_deepseekv3_decode_attention_small
+      shared_weights: false
+      data_sizes:
+        # x(1,1,512) + k_cache(1,8,64,64) + v_cache(1,8,64,64)
+        input_bytes: 264192
+        output_bytes: 2048               # (1, 1, 512) * 4B
+        weight_bytes: 1966080            # same weights as prefill attention
+
+    decode_dense_ffn:
+      codesign_config: vitis_test_sweep_deepseekv3_decode_dense_ffn_small
+      shared_weights: false
+      data_sizes:
+        input_bytes: 2048                # (1, 1, 512) * 4B
+        output_bytes: 2048
+        weight_bytes: 6291456            # same weights as prefill dense FFN
+
+    decode_moe:
+      codesign_config: vitis_test_sweep_deepseekv3_decode_moe_small
+      shared_weights: false
+      data_sizes:
+        input_bytes: 2048                # (1, 1, 512) * 4B
+        output_bytes: 2048
+        weight_bytes: 4751360            # same weights as prefill MoE
+
+  dfg:
+    default_transfer: global_memory
+
+  system_constraints:
+    max_total_power: 150.0
+    max_total_area: 1.0e12
+    objective: edp
+
+# ---------------------------------------------------------------------------
+# Mixtral 8x7B (MoE) SMALL: scaled-down for rapid prototyping
+# ---------------------------------------------------------------------------
+# Reduced: hidden=512, n_heads=8, n_kv_heads=2, head_dim=64,
+#   ffn_intermediate=1024, n_experts=4, top_k=2, n_layers=8,
+#   prompt_len=64, cache_len=64.
+mixtral_small_system:
+  name: "mixtral_small"
+  description: "Mixtral small (hidden=512): prefill (64 tokens) + decode (16 tokens)"
+  shared_tech: false
+
+  global_memory:
+    bandwidth_gbps: 100.0
+    latency_ns: 100.0
+    energy_per_bit_pj: 10.0
+    capacity_bytes: 16.0e9
+
+  benchmark:
+    class: MixtralInference
+    module_path: src/benchmarks/vitis/MixtralInference
+    init_args:
+      hidden: 512
+      n_heads: 8
+      n_kv_heads: 2
+      head_dim: 64
+      ffn_intermediate: 1024
+      n_experts: 4
+      top_k: 2
+      n_layers: 8
+      n_decode: 16
+      cache_len: 64
+    input_shapes:
+      - [1, 64, 512]             # prompt tensor (batch, prompt_len, hidden)
+    module_attr_map:
+      prefill_attention: prefill_attention
+      prefill_moe: prefill_moe
+      decode_attention: decode_attention
+      decode_moe: decode_moe
+
+  block_types:
+    # --- Prefill phase ---
+    prefill_attention:
+      codesign_config: vitis_test_sweep_mixtral_prefill_attention_small
+      shared_weights: false
+      data_sizes:
+        # input/output: (1, 64, 512) * 4B
+        input_bytes: 131072
+        output_bytes: 131072
+        # wq(512x512) + wk(512x128) + wv(512x128) + wo(512x512) * 4B
+        # [n_kv_heads=2, head_dim=64 → 128 KV dim]
+        weight_bytes: 2621440
+
+    prefill_moe:
+      codesign_config: vitis_test_sweep_mixtral_prefill_moe_small
+      shared_weights: false
+      data_sizes:
+        input_bytes: 131072
+        output_bytes: 131072
+        # gate(512x4) + w1(512x2048) + w3(512x2048) + w2(2048x512) * 4B
+        # (2048 = 1024 * top_k=2, fused)
+        weight_bytes: 12591104
+
+    # --- Decode phase ---
+    decode_attention:
+      codesign_config: vitis_test_sweep_mixtral_decode_attention_small
+      shared_weights: false
+      data_sizes:
+        # x(1,1,512) + k_cache(1,2,64,64) + v_cache(1,2,64,64)
+        input_bytes: 67584
+        output_bytes: 2048               # (1, 1, 512) * 4B
+        weight_bytes: 2621440            # same weights as prefill attention
+
+    decode_moe:
+      codesign_config: vitis_test_sweep_mixtral_decode_moe_small
+      shared_weights: false
+      data_sizes:
+        input_bytes: 2048                # (1, 1, 512) * 4B
+        output_bytes: 2048
+        weight_bytes: 12591104           # same weights as prefill MoE
+
+  dfg:
+    default_transfer: global_memory
+
+  system_constraints:
+    max_total_power: 150.0
+    max_total_area: 1.0e12
+    objective: edp
+
+# ---------------------------------------------------------------------------
+# V-JEPA SMALL: scaled-down for rapid prototyping
+# ---------------------------------------------------------------------------
+# Reduced: hidden=256, n_heads=4, head_dim=64, ffn_intermediate=1024,
+#   n_frames=4 (→ 784 total patches), n_layers=8,
+#   pred_hidden=128, pred_ffn=512, n_pred_layers=4.
+vjepa_small_system:
+  name: "vjepa_small"
+  description: "V-JEPA small (hidden=256): 4 frames × 196 patches, 8-layer encoder"
+  shared_tech: false
+
+  global_memory:
+    bandwidth_gbps: 100.0
+    latency_ns: 100.0
+    energy_per_bit_pj: 10.0
+    capacity_bytes: 4.0e9
+
+  benchmark:
+    class: VJEPAInference
+    module_path: src/benchmarks/vitis/VJEPAInference
+    init_args:
+      hidden: 256
+      n_heads: 4
+      head_dim: 64
+      ffn_intermediate: 1024
+      n_frames: 4
+      spatial_patches: 196
+      n_layers: 8
+      pred_hidden: 128
+      pred_n_heads: 4
+      pred_head_dim: 32
+      pred_ffn: 512
+      n_pred_layers: 4
+    input_shapes:
+      - [1, 784, 256]            # all video tokens (batch, n_frames*spatial_patches, hidden)
+    module_attr_map:
+      spatial_attention: spatial_attention
+      temporal_attention: temporal_attention
+      feedforward: feedforward
+      predictor_attention: predictor_attention
+      predictor_feedforward: predictor_feedforward
+
+  block_types:
+    # --- Context encoder ---
+    spatial_attention:
+      codesign_config: vitis_test_sweep_vjepa_spatial_attention_small
+      shared_weights: false
+      data_sizes:
+        # input shape after view: (batch * n_frames, spatial_patches, hidden)
+        #                       = (4, 196, 256) → 4 * 196 * 256 * 4B
+        input_bytes: 802816
+        output_bytes: 802816
+        # 4 × Linear(256, 256) * 4B
+        weight_bytes: 1048576
+
+    temporal_attention:
+      codesign_config: vitis_test_sweep_vjepa_temporal_attention_small
+      shared_weights: false
+      data_sizes:
+        # input/output: (1, 784, 256) * 4B
+        input_bytes: 802816
+        output_bytes: 802816
+        weight_bytes: 1048576
+
+    feedforward:
+      codesign_config: vitis_test_sweep_vjepa_feedforward_small
+      shared_weights: false
+      data_sizes:
+        input_bytes: 802816
+        output_bytes: 802816
+        # fc1(256x1024) + fc2(1024x256) * 4B
+        weight_bytes: 2097152
+
+    # --- Predictor ---
+    predictor_attention:
+      codesign_config: vitis_test_sweep_vjepa_predictor_attention_small
+      shared_weights: false
+      data_sizes:
+        # input/output: (1, 784, 128) * 4B
+        input_bytes: 401408
+        output_bytes: 401408
+        # 4 × Linear(128, 128) * 4B
+        weight_bytes: 262144
+
+    predictor_feedforward:
+      codesign_config: vitis_test_sweep_vjepa_predictor_feedforward_small
+      shared_weights: false
+      data_sizes:
+        input_bytes: 401408
+        output_bytes: 401408
+        # fc1(128x512) + fc2(512x128) * 4B
+        weight_bytes: 524288
+
+  dfg:
+    default_transfer: global_memory
+
+  system_constraints:
+    max_total_power: 150.0
+    max_total_area: 1.0e12
+    objective: edp
+
+# ---------------------------------------------------------------------------
+# OpenVLA SMALL: scaled-down for rapid prototyping
+# ---------------------------------------------------------------------------
+# Reduced: dino_hidden=256, vis_hidden=256, lm_hidden=512, n_patches=64,
+#   dino/vis n_heads=4, head_dim=64, ffn=1024; lm n_heads=8, head_dim=64,
+#   lm_ffn=2048; n_dino_layers=6, n_vision_layers=6, n_lm_layers=8,
+#   cache_len=128.
+openvla_small_system:
+  name: "openvla_small"
+  description: "OpenVLA small: DINOv2(256)+SigLIP(256)+LM(512), 64 patches, 7-token decode"
+  shared_tech: false
+
+  global_memory:
+    bandwidth_gbps: 100.0
+    latency_ns: 100.0
+    energy_per_bit_pj: 10.0
+    capacity_bytes: 8.0e9
+
+  benchmark:
+    class: OpenVLAInference
+    module_path: src/benchmarks/vitis/OpenVLAInference
+    init_args:
+      # DINOv2 ViT-L/14 (scaled)
+      dino_hidden: 256
+      dino_n_heads: 4
+      dino_head_dim: 64
+      dino_ffn: 1024
+      n_dino_layers: 6
+      # SigLIP (scaled)
+      vis_hidden: 256
+      vis_n_heads: 4
+      vis_head_dim: 64
+      vis_ffn: 1024
+      n_vision_layers: 6
+      n_patches: 64
+      # Language model (scaled)
+      lm_hidden: 512
+      lm_n_heads: 8
+      lm_head_dim: 64
+      lm_ffn: 2048
+      n_lm_layers: 8
+      # Decode
+      n_decode: 7
+      cache_len: 128
+    input_shapes:
+      - [1, 64, 256]             # DINOv2 patch embeddings (batch, n_patches, dino_hidden)
+      - [1, 64, 256]             # SigLIP patch embeddings (batch, n_patches, vis_hidden)
+      - [1, 64, 512]             # language tokens        (batch, lang_len, lm_hidden)
+    module_attr_map:
+      dino_attention: dino_attention
+      dino_feedforward: dino_feedforward
+      vision_attention: vision_attention
+      vision_feedforward: vision_feedforward
+      vision_projection: vision_projection
+      lm_prefill_attention: lm_prefill_attention
+      lm_feedforward: lm_feedforward
+      lm_decode_attention: lm_decode_attention
+
+  block_types:
+    # --- DINOv2 encoder (scaled, 6 layers) ---
+    dino_attention:
+      codesign_config: vitis_test_sweep_openvla_dino_attention_small
+      shared_weights: false
+      data_sizes:
+        # input/output: (1, 64, 256) * 4B
+        input_bytes: 65536
+        output_bytes: 65536
+        # 4 × Linear(256, 256) * 4B  [n_heads*head_dim = 4*64 = 256]
+        weight_bytes: 1048576
+
+    dino_feedforward:
+      codesign_config: vitis_test_sweep_openvla_dino_feedforward_small
+      shared_weights: false
+      data_sizes:
+        input_bytes: 65536
+        output_bytes: 65536
+        # fc1(256x1024) + fc2(1024x256) * 4B
+        weight_bytes: 2097152
+
+    # --- SigLIP encoder (scaled, 6 layers) ---
+    vision_attention:
+      codesign_config: vitis_test_sweep_openvla_vision_attention_small
+      shared_weights: false
+      data_sizes:
+        # input/output: (1, 64, 256) * 4B
+        input_bytes: 65536
+        output_bytes: 65536
+        # 4 × Linear(256, 256) * 4B  [n_heads*head_dim = 4*64 = 256]
+        weight_bytes: 1048576
+
+    vision_feedforward:
+      codesign_config: vitis_test_sweep_openvla_vision_feedforward_small
+      shared_weights: false
+      data_sizes:
+        input_bytes: 65536
+        output_bytes: 65536
+        # fc1(256x1024) + fc2(1024x256) * 4B
+        weight_bytes: 2097152
+
+    # --- Vision projection MLP (concat 512 → lm_hidden 512) ---
+    vision_projection:
+      codesign_config: vitis_test_sweep_openvla_vision_projection_small
+      shared_weights: false
+      data_sizes:
+        # input: (1, 64, 512) * 4B  [concat DINOv2=256 + SigLIP=256]
+        input_bytes: 131072
+        # output: (1, 64, 512) * 4B
+        output_bytes: 131072
+        # fc1(512x512) + fc2(512x512) * 4B
+        weight_bytes: 2097152
+
+    # --- Language model prefill (scaled, 8 layers) ---
+    lm_prefill_attention:
+      codesign_config: vitis_test_sweep_openvla_lm_prefill_attention_small
+      shared_weights: false
+      data_sizes:
+        # input/output: (1, 128, 512) * 4B  [64 vision + 64 language tokens]
+        input_bytes: 262144
+        output_bytes: 262144
+        # 4 × Linear(512, 512) * 4B
+        weight_bytes: 4194304
+
+    lm_feedforward:
+      codesign_config: vitis_test_sweep_openvla_lm_feedforward_small
+      shared_weights: false
+      data_sizes:
+        input_bytes: 262144
+        output_bytes: 262144
+        # w1(512x2048) + w3(512x2048) + w2(2048x512) * 4B
+        weight_bytes: 12582912
+
+    # --- Action decode ---
+    lm_decode_attention:
+      codesign_config: vitis_test_sweep_openvla_lm_decode_attention_small
+      shared_weights: false
+      data_sizes:
+        # x(1,1,512) + k_cache(1,8,128,64) + v_cache(1,8,128,64)
+        input_bytes: 526336
+        output_bytes: 2048               # (1, 1, 512) * 4B
+        weight_bytes: 4194304            # same weights as prefill attention
+
+  dfg:
+    default_transfer: global_memory
+
+  system_constraints:
+    max_total_power: 150.0
+    max_total_area: 1.0e12
+    objective: edp

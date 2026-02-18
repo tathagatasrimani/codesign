@@ -61,6 +61,9 @@ class Codesign:
         self.hls_tool = self.cfg["args"]["hls_tool"]
         self.benchmark = f"src/benchmarks/{self.hls_tool}/{self.cfg['args']['benchmark']}"
         self.benchmark_name = self.cfg["args"]["benchmark"]
+        # "class" overrides the data.py / StreamHLS -k lookup without changing
+        # the HLS source directory or Vitis output naming (which use benchmark_name).
+        self.data_benchmark_name = self.cfg["args"].get("class", self.benchmark_name)
         self.obj_fn = self.cfg["args"]["obj"]
         self.tmp_dir = self.get_tmp_dir()
         print(f"tmp_dir: {self.tmp_dir}")
@@ -201,7 +204,7 @@ class Codesign:
             tmp_base_dir = tmp_dir_arg
 
         while True:
-            tmp_dir = f"{tmp_base_dir}/tmp_{self.benchmark_name}_{self.obj_fn}_{idx}"
+            tmp_dir = f"{tmp_base_dir}/tmp_{self.data_benchmark_name}_{self.obj_fn}_{idx}"
             tmp_dir_full = os.path.join(self.codesign_root_dir, tmp_dir)
             if not os.path.exists(tmp_dir_full):
                 os.makedirs(tmp_dir_full)
@@ -323,7 +326,7 @@ class Codesign:
             pwd
             source setup-env.sh
             cd examples
-            python run_streamhls.py -b {save_path} -d {save_path} -k {self.benchmark_name} -O {streamhls_opt_level} --dsps {self.cur_dsp_usage} --timelimit {1} --tilelimit {tilelimit} --tech-config {config_path} --bufferize 1
+            python run_streamhls.py -b {save_path} -d {save_path} -k {self.data_benchmark_name} -O {streamhls_opt_level} --dsps {self.cur_dsp_usage} --timelimit {1} --tilelimit {tilelimit} --tech-config {config_path} --bufferize 1
             '''
         ]
 
@@ -354,8 +357,8 @@ class Codesign:
                 f"Last lines:\n{tail}"
             )
         logger.info(f"time to run StreamHLS: {time.time()-start_time}")
-        shutil.copy(f"{save_path}/{self.benchmark_name}/hls/src/{self.benchmark_name}.cpp", f"{save_path}/{self.benchmark_name}.cpp")
-        shutil.copy(f"{save_path}/{self.benchmark_name}/hls/hls.tcl", f"{save_path}/hls.tcl")
+        shutil.copy(f"{save_path}/{self.data_benchmark_name}/hls/src/{self.data_benchmark_name}.cpp", f"{save_path}/{self.benchmark_name}.cpp")
+        shutil.copy(f"{save_path}/{self.data_benchmark_name}/hls/hls.tcl", f"{save_path}/hls.tcl")
 
     def run_scalehls(self, save_dir, opt_cmd,setup=False):
         """

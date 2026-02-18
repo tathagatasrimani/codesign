@@ -328,6 +328,250 @@ vitis_test_sweep_openvla_lm_decode_attention:
     min_dsp: 40
     benchmark: OpenVLALMDecodeAttention
 
+# ---------------------------------------------------------------------------
+# DeepSeek-V3 SMALL sweep configs (hidden=512, prompt_len=64, cache_len=64)
+# benchmark = HLS source dir in src/benchmarks/vitis/
+# class     = data.py key (overrides StreamHLS -k lookup)
+# ---------------------------------------------------------------------------
+vitis_test_sweep_deepseekv3_prefill_attention_small:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 40
+    benchmark: DeepSeekPrefillAttention
+    class: DeepSeekPrefillAttentionSmall
+
+vitis_test_sweep_deepseekv3_prefill_dense_ffn_small:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 20
+    benchmark: DeepSeekPrefillDenseFFN
+    class: DeepSeekPrefillDenseFFNSmall
+
+vitis_test_sweep_deepseekv3_prefill_moe_small:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 150
+    benchmark: DeepSeekPrefillMoE
+    class: DeepSeekPrefillMoESmall
+
+vitis_test_sweep_deepseekv3_decode_attention_small:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 40
+    benchmark: DeepSeekDecodeAttention
+    class: DeepSeekDecodeAttentionSmall
+
+vitis_test_sweep_deepseekv3_decode_dense_ffn_small:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 20
+    benchmark: DeepSeekDecodeDenseFFN
+    class: DeepSeekDecodeDenseFFNSmall
+
+vitis_test_sweep_deepseekv3_decode_moe_small:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 150
+    benchmark: DeepSeekDecodeMoE
+    class: DeepSeekDecodeMoESmall
+
+# ---------------------------------------------------------------------------
+# Mixtral SMALL sweep configs (hidden=512, n_kv_heads=2, prompt_len=64)
+# ---------------------------------------------------------------------------
+vitis_test_sweep_mixtral_prefill_attention_small:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 40
+    benchmark: MixtralPrefillAttention
+    class: MixtralPrefillAttentionSmall
+
+vitis_test_sweep_mixtral_prefill_moe_small:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 40
+    benchmark: MixtralPrefillMoE
+    class: MixtralPrefillMoESmall
+
+vitis_test_sweep_mixtral_decode_attention_small:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 40
+    benchmark: MixtralDecodeAttention
+    class: MixtralDecodeAttentionSmall
+
+vitis_test_sweep_mixtral_decode_moe_small:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 20
+    benchmark: MixtralDecodeMoE
+    class: MixtralDecodeMoESmall
+
+# ---------------------------------------------------------------------------
+# V-JEPA SMALL sweep configs (hidden=256, n_frames=4, pred_hidden=128)
+# ---------------------------------------------------------------------------
+vitis_test_sweep_vjepa_spatial_attention_small:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 40
+    benchmark: VJEPASpatialAttention
+    class: VJEPASpatialAttentionSmall
+
+vitis_test_sweep_vjepa_temporal_attention_small:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 40
+    benchmark: VJEPATemporalAttention
+    class: VJEPATemporalAttentionSmall
+
+vitis_test_sweep_vjepa_feedforward_small:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 20
+    benchmark: VJEPAFeedForward
+    class: VJEPAFeedForwardSmall
+
+vitis_test_sweep_vjepa_predictor_attention_small:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 40
+    benchmark: VJEPAPredictorAttention
+    class: VJEPAPredictorAttentionSmall
+
+vitis_test_sweep_vjepa_predictor_feedforward_small:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 20
+    benchmark: VJEPAPredictorFeedForward
+    class: VJEPAPredictorFeedForwardSmall
+
+# ---------------------------------------------------------------------------
+# OpenVLA SMALL sweep configs (dino/vis=256, lm=512, n_patches=64)
+# ---------------------------------------------------------------------------
+vitis_test_sweep_openvla_dino_attention_small:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 40
+    benchmark: OpenVLADinoAttention
+    class: OpenVLADinoAttentionSmall
+
+vitis_test_sweep_openvla_dino_feedforward_small:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 20
+    benchmark: OpenVLADinoFeedForward
+    class: OpenVLADinoFeedForwardSmall
+
+vitis_test_sweep_openvla_vision_attention_small:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 40
+    benchmark: OpenVLAVisionAttention
+    class: OpenVLAVisionAttentionSmall
+
+vitis_test_sweep_openvla_vision_feedforward_small:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 20
+    benchmark: OpenVLAVisionFeedForward
+    class: OpenVLAVisionFeedForwardSmall
+
+vitis_test_sweep_openvla_vision_projection_small:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 20
+    benchmark: OpenVLAVisionProjection
+    class: OpenVLAVisionProjectionSmall
+
+vitis_test_sweep_openvla_lm_prefill_attention_small:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 40
+    benchmark: OpenVLALMPrefillAttention
+    class: OpenVLALMPrefillAttentionSmall
+
+vitis_test_sweep_openvla_lm_feedforward_small:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 20
+    benchmark: OpenVLALMFeedForward
+    class: OpenVLALMFeedForwardSmall
+
+vitis_test_sweep_openvla_lm_decode_attention_small:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 40
+    benchmark: OpenVLALMDecodeAttention
+    class: OpenVLALMDecodeAttentionSmall
+
 run_sweep_mvs_1_spice:
   base_cfg: default
   args:
