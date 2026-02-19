@@ -62,6 +62,7 @@ class ObjectiveEvaluator:
         DFF_ENERGY: float,
         DFF_PASSIVE_POWER: float,
         DFF_AREA: float,
+        mem_access_db: Dict[str, Any] = None,
     ):
         """
         Initialize the ObjectiveEvaluator.
@@ -93,12 +94,21 @@ class ObjectiveEvaluator:
         self.DFF_ENERGY = DFF_ENERGY
         self.DFF_PASSIVE_POWER = DFF_PASSIVE_POWER
         self.DFF_AREA = DFF_AREA
+        # mem_access_db: mem_name -> {first_write, write_basic_block_name,
+        #                              first_read,  read_basic_block_name}
+        # Node labels are "<block_name>_<name_in_original_graph>".
+        self.mem_access_db = mem_access_db or {}
+        self.first_write_times = {}
+        self.first_write_blocks = {}
+        self.last_read_times = {}
+        self.last_read_blocks = {}
         # Results (updated by calculate_objective)
         self.obj = 0.0
         self.execution_time = 0.0
         self.total_power = 0.0
         self.total_active_energy = 0.0
         self.total_passive_energy = 0.0
+        self.total_refresh_energy = 0.0
         self.total_area = 0.0
 
     def _set_coefficients(self):
@@ -141,6 +151,7 @@ class ObjectiveEvaluator:
             DFF_ENERGY=hw.circuit_model.DFF_ENERGY,
             DFF_PASSIVE_POWER=hw.circuit_model.DFF_PASSIVE_POWER,
             DFF_AREA=hw.circuit_model.DFF_AREA,
+            mem_access_db=hw.mem_access_db,
         )
 
     def set_params_from_design_point(self, design_point: Dict[str, Any]):
@@ -183,6 +194,8 @@ class ObjectiveEvaluator:
         self.execution_time = self.calculate_execution_time()
         self.total_passive_energy = self.calculate_passive_energy(self.execution_time)
         self.total_active_energy = self.calculate_active_energy()
+        self.total_refresh_energy = self.calculate_refresh_energy()
+        self.total_active_energy += self.total_refresh_energy
         self.total_power = (self.total_active_energy + self.total_passive_energy) / self.execution_time
         self.total_passive_power = self.total_passive_energy / self.execution_time
         self.total_area = self.calculate_area()
@@ -210,6 +223,7 @@ class ObjectiveEvaluator:
         """Calculate execution time by traversing the scheduled DFGs."""
         self.node_arrivals = {}
         self.graph_delays = {}
+        self.loop_delays_1x = {}  # loop_name -> delay of one iteration (ns)
 
         for basic_block_name in self.scheduled_dfgs:
             self.node_arrivals[basic_block_name] = {"full": {}, "loop_1x": {}, "loop_2x": {}}
@@ -278,6 +292,7 @@ class ObjectiveEvaluator:
                             graph_type="loop_1x",
                             resource_delays_only=True
                         )
+                        self.loop_delays_1x[loop_name] = delay_1x
                         # TODO: add dependence of II on loop-carried dependency
                         pred_delay = delay_1x * (int(dfg.nodes[pred]["count"]) - 1)
                     else:
@@ -286,15 +301,18 @@ class ObjectiveEvaluator:
                         )
 
                 elif dfg.nodes[pred]["function"] == "Call":
-                    # Recursively calculate delay for function calls
-                    call_fn = dfg.nodes[pred]["call_function"]
-                    if call_fn not in self.graph_delays:
-                        self.graph_delays[call_fn] = self._calculate_execution_time_recursive(
-                            call_fn,
-                            self.scheduled_dfgs[call_fn],
-                            graph_end_node=f"graph_end_{call_fn}"
-                        )
-                    pred_delay = self.graph_delays[call_fn]
+                    if basic_block_name in self.dataflow_blocks:
+                        pred_delay = 0.0 # ignore calls beacuse operations are inlined
+                    else:
+                        # Recursively calculate delay for function calls
+                        call_fn = dfg.nodes[pred]["call_function"]
+                        if call_fn not in self.graph_delays:
+                            self.graph_delays[call_fn] = self._calculate_execution_time_recursive(
+                                call_fn,
+                                self.scheduled_dfgs[call_fn],
+                                graph_end_node=f"graph_end_{call_fn}"
+                            )
+                        pred_delay = self.graph_delays[call_fn]
 
                 elif not resource_delays_only:
                     if dfg.nodes[pred]["function"] == "Wire":
@@ -309,7 +327,7 @@ class ObjectiveEvaluator:
                     else:
                         pred_delay = self._latency(dfg.nodes[pred]["function"], dfg.nodes[pred])
 
-                log_info(f"pred_delay: {pred_delay}")
+                log_info(f"pred_delay: {pred_delay} for node {node} and pred {pred}")
 
                 # Update node arrival time (max of all predecessor paths)
                 arrival = self.node_arrivals[basic_block_name][graph_type][pred] + pred_delay
@@ -317,7 +335,6 @@ class ObjectiveEvaluator:
                     arrival,
                     self.node_arrivals[basic_block_name][graph_type][node]
                 )
-
         return self.node_arrivals[basic_block_name][graph_type][graph_end_node]
 
     def _wire_delay(self, edge) -> float:
@@ -376,6 +393,27 @@ class ObjectiveEvaluator:
         tv = self.tech_model.base_params.tech_values
         delay = sim_util.xreplace_safe(self.tech_model.delay, tv)
         return math.ceil(self.gamma[op_type] * delay)
+
+    def calculate_refresh_energy(self) -> float:
+        total_refresh_energy = 0.0
+        for mem_name in self.mem_access_db:
+            if not hasattr(self.memory_models[mem_name], "retentionTime_ns"):
+                continue
+            last_read_node = self.mem_access_db[mem_name]["last_read"]
+            last_read_basic_block_name = self.mem_access_db[mem_name]["last_read_basic_block_name"]
+            if self.scheduled_dfgs[last_read_basic_block_name].nodes[last_read_node]["is_in_loop"]:
+                loop_name = self.scheduled_dfgs[last_read_basic_block_name].nodes[last_read_node]["loop_name"]
+                last_read_time = self.node_arrivals[last_read_basic_block_name]["full"][f"{last_read_basic_block_name}_loop_end_{loop_name}"] # TODO: make more precise
+            else:
+                last_read_time = self.node_arrivals[last_read_basic_block_name]["full"][last_read_node]
+            first_write_node = self.mem_access_db[mem_name]["first_write"]
+            first_write_basic_block_name = self.mem_access_db[mem_name]["write_basic_block_name"]
+            first_write_time = self.node_arrivals[first_write_basic_block_name]["full"][first_write_node]
+            live_time = last_read_time - first_write_time
+            num_refresh = math.ceil(live_time / self.memory_models[mem_name].retentionTime_ns)
+            total_refresh_energy += num_refresh * self.memory_models[mem_name].refreshEnergy_nJ
+                
+        return total_refresh_energy
 
     # =========================================================================
     # Active Energy Calculation

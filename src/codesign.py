@@ -593,7 +593,7 @@ class Codesign:
                         self.hw.loop_1x_graphs[loop_name] = {True: schedule_parser.basic_blocks[basic_block_name].dfg.loop_dfgs[loop_name][iter_num][True].G_standard_with_wire_ops, False: schedule_parser.basic_blocks[basic_block_name].dfg.loop_dfgs[loop_name][iter_num][False].G_standard_with_wire_ops}
 
             #self.hw.loop_2x_graphs = {basic_block_name: schedule_parser.basic_blocks[basic_block_name]["G_loop_2x_standard"] for basic_block_name in schedule_parser.basic_blocks if "G_loop_2x" in schedule_parser.basic_blocks[basic_block_name]}
-
+            self.hw.mem_access_db = schedule_parser.mem_access_db.json_obj
             logger.info("Vitis schedule parsing complete")
             logger.info(f"time to parse vitis schedule: {time.time()-start_time}")
         else:
@@ -615,6 +615,7 @@ class Codesign:
                                 True: nx.read_gml(f"{parse_results_dir}/{file}/{subfile}"),
                                 False: nx.read_gml(f"{parse_results_dir}/{file}/{subfile.replace('rsc_delay_only_', '')}")
                             }
+            self.hw.mem_access_db = json.load(open(f"{parse_results_dir}/mem_access_db.json"))
             logger.info("Skipping Vitis schedule parsing")
         
         logger.info(f"scheduled dfgs: {self.hw.scheduled_dfgs}")
@@ -989,13 +990,6 @@ class Codesign:
             shutil.copytree(f"{self.tmp_dir}/pd", f"{self.tmp_dir}/pd_{self.cur_dsp_usage}_dsp")
         if os.path.exists(f"{self.tmp_dir}/pd/results/design_snapshot-tcl.png"):
             shutil.copy(f"{self.tmp_dir}/pd/results/design_snapshot-tcl.png", f"{self.save_dir}/design_snapshot_{iter_number}.png")
-        """for mem in self.hw.circuit_model.memories:
-            shutil.copy(
-                f"{self.tmp_dir}/cacti_exprs_{mem}.txt", f"{self.save_dir}/cacti_exprs_{mem}_{iter_number}.txt"
-            )"""
-        #TODO: copy cacti expressions to file, read yaml file from notebook, call sim util fn to get xreplace structure
-        #TODO: fw pass save cacti params of interest, with logger unique starting string, then write parsing script in notebook to look at them
-        # save latency, power, and tech params
         self.hw.write_technology_parameters(
             f"{self.save_dir}/circuit_values_{iter_number}.yaml"
         )

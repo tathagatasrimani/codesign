@@ -81,7 +81,7 @@ class HardwareModel:
         self.parasitic_graph = nx.DiGraph()
         self.symbolic_mem = {}
         self.symbolic_buf = {}
-        self.memories = []
+        self.mem_access_db = {}
         self.obj_fn = args["obj"]
         self.obj = 0
         self.obj_sub_exprs = {}
@@ -100,7 +100,7 @@ class HardwareModel:
         self.symbolic_buf = {}
         self.symbolic_mem = {}
         self.netlist = nx.DiGraph()
-        self.memories = []
+        self.mem_access_db = {}
         self.obj = 0
         self.scheduled_dfg = nx.DiGraph()
         self.scheduled_dfgs = {}

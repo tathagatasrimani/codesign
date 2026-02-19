@@ -22,6 +22,7 @@ def log_info(msg):
 
 module_map = sim_util.get_module_map()
 
+_MEMORY_OPS = ["load", "store", "read", "write"]
 class VariableTracker:
     def __init__(self):
         # Maps variable name to (current_node_id, timestamp)
@@ -184,68 +185,97 @@ class LoopInfo:
     def __repr__(self):
         return self.__str__()
 
-class InterfaceInfo:
-    def __init__(self, intf_name):
-        self.intf_name = intf_name
+class MemRWInfo:
+    def __init__(self, mem_name, is_fifo=False):
+        self.mem_name = mem_name
         self.first_read = None
         self.first_write = None
+        self.last_read = None
+        self.last_read_basic_block_name = None
         self.read_basic_block_name = None
         self.write_basic_block_name = None
+        self.is_fifo = is_fifo
 
     def set_first_read(self, node, basic_block_name):
         self.first_read = node
         self.read_basic_block_name = basic_block_name
-        log_info(f"set_first_read: {self.intf_name} {node} {basic_block_name}")
+        log_info(f"set_first_read: {self.mem_name} {node} {basic_block_name}")
         log_info(f"after setting read, write info is {self.first_write} {self.write_basic_block_name}")
     
     def set_first_write(self, node, basic_block_name):
         self.first_write = node
         self.write_basic_block_name = basic_block_name
-        log_info(f"set_first_write: {self.intf_name} {node} {basic_block_name}")
+        log_info(f"set_first_write: {self.mem_name} {node} {basic_block_name}")
         log_info(f"after setting write, read info is {self.first_read} {self.read_basic_block_name}")
 
-class InterfaceDB:
+    def set_last_read(self, node, basic_block_name):
+        self.last_read = node
+        self.last_read_basic_block_name = basic_block_name
+        log_info(f"set_last_read: {self.mem_name} {node} {basic_block_name}")
+        log_info(f"after setting last read, write info is {self.first_write} {self.write_basic_block_name}")
+
+    def set_first_write_dataflow(self, basic_block_name):
+        self.first_write = f"{self.write_basic_block_name}_{self.first_write}"
+        self.write_basic_block_name = basic_block_name
+        log_info(f"set_first_write_dataflow: {self.mem_name} {basic_block_name}")
+        log_info(f"after setting first write dataflow, write info is {self.first_write} {self.write_basic_block_name}")
+
+    def set_last_read_dataflow(self, basic_block_name):
+        self.last_read = f"{self.last_read_basic_block_name}_{self.last_read}"
+        self.last_read_basic_block_name = basic_block_name
+        log_info(f"set_last_read_dataflow: {self.mem_name} {basic_block_name}")
+        log_info(f"after setting last read dataflow, last read info is {self.last_read} {self.last_read_basic_block_name}")
+
+    def set_first_read_dataflow(self, basic_block_name):
+        self.first_read = f"{self.read_basic_block_name}_{self.first_read}"
+        self.read_basic_block_name = basic_block_name
+        log_info(f"set_first_read_dataflow: {self.mem_name} {basic_block_name}")
+        log_info(f"after setting first read dataflow, read info is {self.first_read} {self.read_basic_block_name}")
+
+class MemRWDB:
     def __init__(self):
-        self.interfaces = {}
+        self.mem_rws = {}
         self.json_obj = {}
-    def add_interface(self, intf_name):
-        if intf_name not in self.interfaces:
-            self.interfaces[intf_name] = InterfaceInfo(intf_name)
-            log_info(f"add_interface: Created new interface {intf_name}")
+    def add_memory(self, mem_name, is_fifo=False):
+        if mem_name not in self.mem_rws:
+            self.mem_rws[mem_name] = MemRWInfo(mem_name, is_fifo)
+            log_info(f"add_memory: Created new memory {mem_name}")
         else:
-            log_info(f"add_interface: Interface {intf_name} already exists, skipping creation")
+            log_info(f"add_memory: Memory {mem_name} already exists, skipping creation")
     
     def create_dot_file(self, build_dir):
         graph = nx.DiGraph()
-        for intf_name in self.interfaces:
-            graph.add_edge(self.interfaces[intf_name].write_basic_block_name, self.interfaces[intf_name].read_basic_block_name)
+        for mem_name in self.mem_rws:
+            graph.add_edge(self.mem_rws[mem_name].write_basic_block_name, self.mem_rws[mem_name].read_basic_block_name)
         edges_to_add = []
         for node in graph.nodes():
             if graph.in_degree(node) == 0:
                 edges_to_add.append(("Node 10000", node))
         for edge in edges_to_add:
             graph.add_edge(edge[0], edge[1])
-        nx.drawing.nx_agraph.write_dot(graph, f"{build_dir}/parse_results/interface_db.dot")
-        log_info(f"created dot file for interface db")
+        nx.drawing.nx_agraph.write_dot(graph, f"{build_dir}/parse_results/mem_access_db.dot")
+        log_info(f"created dot file for memory access db")
 
     def create_json_obj(self):
         to_remove = []
-        for intf_name in self.interfaces:
-            if not self.interfaces[intf_name].first_read or not self.interfaces[intf_name].first_write:
-                log_info(f"interface {intf_name} has no first read or first write, skipping and removing")
-                to_remove.append(intf_name)
+        for mem_name in self.mem_rws:
+            if not self.mem_rws[mem_name].first_read or not self.mem_rws[mem_name].first_write:
+                log_info(f"memory {mem_name} has no first read or first write, skipping and removing")
+                to_remove.append(mem_name)
                 continue
-            self.json_obj[intf_name] = {
-                "first_read": self.interfaces[intf_name].first_read,
-                "read_basic_block_name": self.interfaces[intf_name].read_basic_block_name,
-                "first_write": self.interfaces[intf_name].first_write,
-                "write_basic_block_name": self.interfaces[intf_name].write_basic_block_name,
+            self.json_obj[mem_name] = {
+                "first_read": self.mem_rws[mem_name].first_read,
+                "read_basic_block_name": self.mem_rws[mem_name].read_basic_block_name,
+                "first_write": self.mem_rws[mem_name].first_write,
+                "write_basic_block_name": self.mem_rws[mem_name].write_basic_block_name,
+                "last_read": self.mem_rws[mem_name].last_read,
+                "last_read_basic_block_name": self.mem_rws[mem_name].last_read_basic_block_name,
             }
-        for intf_name in to_remove:
-            self.interfaces.pop(intf_name)
+        for mem_name in to_remove:
+            self.mem_rws.pop(mem_name)
 
 class DataFlowGraph:
-    def __init__(self, clk_period, no_rsc_allowed_ops, allowed_functions, build_dir, basic_block_name, name, resource_mapping, states_structure, G, G_standard, G_standard_with_wire_ops, resource_db, variable_db, is_dataflow_pipeline, mem_mapping, resource_delays_only=False, num_iters=1, interface_db=None):
+    def __init__(self, clk_period, no_rsc_allowed_ops, allowed_functions, build_dir, basic_block_name, name, resource_mapping, states_structure, G, G_standard, G_standard_with_wire_ops, resource_db, variable_db, is_dataflow_pipeline, mem_mapping, resource_delays_only=False, num_iters=1, mem_access_db=None, is_loop_dfg=False):
         self.clk_period = clk_period
         self.allowed_functions = allowed_functions
         self.build_dir = build_dir
@@ -261,8 +291,9 @@ class DataFlowGraph:
         self.flattened_variable_db = VariableDB()
         self.resource_db = resource_db
         self.variable_db = variable_db
-        self.interface_db = interface_db
-        assert self.interface_db is not None, "InterfaceDB is not provided"
+        self.mem_access_db = mem_access_db
+        self.is_loop_dfg = is_loop_dfg
+        assert self.mem_access_db is not None, "MemRWDB is not provided"
         self.is_dataflow_pipeline = is_dataflow_pipeline
         self.no_rsc_allowed_ops = no_rsc_allowed_ops
         self.resource_mapping = resource_mapping
@@ -349,6 +380,34 @@ class DataFlowGraph:
                 G.add_edge(src, dst, weight=G.edges[src, node]["weight"], resource_edge=0)
         G.remove_node(node)
 
+    def handle_write_or_store(self, op_name, mem_name):
+        assert mem_name in self.mem_access_db.mem_rws, f"Memory {mem_name} not found in mem_access_db"
+        current_write = self.mem_access_db.mem_rws[mem_name]
+        if current_write.first_write is None:
+            current_write.set_first_write(op_name, self.basic_block_name)
+        elif (current_write.first_write == op_name and current_write.write_basic_block_name == self.basic_block_name):
+            pass
+        else:
+            log_info(
+                f"Memory {mem_name} already has a first write "
+                f"({current_write.first_write} in {current_write.write_basic_block_name}); "
+                f"skipping {op_name} in {self.basic_block_name}"
+            )
+    def handle_read_or_load(self, op_name, mem_name):
+        assert mem_name in self.mem_access_db.mem_rws, f"Memory {mem_name} not found in mem_access_db"
+        current_read = self.mem_access_db.mem_rws[mem_name]
+        current_read.set_last_read(op_name, self.basic_block_name)
+        if current_read.first_read is None:
+            current_read.set_first_read(op_name, self.basic_block_name)
+        elif (current_read.first_read == op_name and current_read.read_basic_block_name == self.basic_block_name):
+            pass
+        else:
+            log_info(
+                f"Memory {mem_name} already has a first read "
+                f"({current_read.first_read} in {current_read.read_basic_block_name}); "
+                f"skipping {op_name} in {self.basic_block_name}"
+            )
+
     def add_one_state_to_graph(self, state, start_node=None, use_start_node=False, resource_delays_only=False):
         #log_info(f"Adding one state to graph")
         for idx in range(len(state)):
@@ -403,6 +462,9 @@ class DataFlowGraph:
                     is_top_interface = False
                     mem_name = self.mem_mapping[self.basic_block_name]["memory_ports"][mem_name_original]["parent_ram"]
                     mem_size = self.mem_mapping[self.basic_block_name]["memory_ports"][mem_name_original]["total_size"]
+
+                if mem_name not in self.mem_access_db.mem_rws:
+                    self.mem_access_db.add_memory(mem_name, is_fifo=False)
                 is_register = False
             elif instruction["core_inst"] == "FIFO":
                 log_info(f"instruction {instruction} in basic block {self.basic_block_name} is a FIFO")
@@ -425,7 +487,15 @@ class DataFlowGraph:
                     mem_size = 0
                 is_top_interface = False
                 is_register = True
-            self.G.add_node(op_name, node_type=instruction["type"], function=fn_out, function_out=fn_out, rsc=rsc_name, core_inst=instruction["core_inst"], core_id=core_id, rsc_name_unique=rsc_name_unique, call_function=call_fn, original_name=instruction["op"], mem_name=mem_name, is_register=is_register, mem_size=mem_size, is_top_interface=is_top_interface)
+            
+            # handle write or read for non-register memories
+            if not is_register:
+                if instruction["op"] == "store" or instruction["op"] == "write":
+                    self.handle_write_or_store(op_name, mem_name)
+                elif instruction["op"] == "load" or instruction["op"] == "read":
+                    self.handle_read_or_load(op_name, mem_name)
+            
+            self.G.add_node(op_name, node_type=instruction["type"], function=fn_out, function_out=fn_out, rsc=rsc_name, core_inst=instruction["core_inst"], core_id=core_id, rsc_name_unique=rsc_name_unique, call_function=call_fn, original_name=instruction["op"], mem_name=mem_name, is_register=is_register, mem_size=mem_size, is_top_interface=is_top_interface, is_in_loop=self.is_loop_dfg, dfg_name=self.name)
             self.track_resource_usage(op_name)
             for src in instruction["src"]:
                 src_name = self.variable_db.get_read_node_name(src)
@@ -439,31 +509,7 @@ class DataFlowGraph:
                     self.G.add_edge(src_name, op_name, weight=0.0, resource_edge=0)
             dst = self.variable_db.update_write_node(instruction["dst"])
             self.G.add_node(dst, node_type="var_dst", function="N/A", original_name=instruction["dst"])
-            # check for interface op
-            if instruction["op"] == "write" and instruction["dst"] in self.interface_db.interfaces:
-                current_write = self.interface_db.interfaces[instruction["dst"]]
-                if current_write.first_write is None:
-                    current_write.set_first_write(op_name, self.basic_block_name)
-                elif (current_write.first_write == op_name and current_write.write_basic_block_name == self.basic_block_name):
-                    pass
-                else:
-                    log_info(
-                        f"Interface {instruction['dst']} already has a first write "
-                        f"({current_write.first_write} in {current_write.write_basic_block_name}); "
-                        f"skipping {op_name} in {self.basic_block_name}"
-                    )
-            if instruction["op"] == "read" and instruction["src"][0] in self.interface_db.interfaces:
-                current_read = self.interface_db.interfaces[instruction["src"][0]]
-                if current_read.first_read is None:
-                    current_read.set_first_read(op_name, self.basic_block_name)
-                elif (current_read.first_read == op_name and current_read.read_basic_block_name == self.basic_block_name):
-                    pass
-                else:
-                    log_info(
-                        f"Interface {instruction['src'][0]} already has a first read "
-                        f"({current_read.first_read} in {current_read.read_basic_block_name}); "
-                        f"skipping {op_name} in {self.basic_block_name}"
-                    )
+
             if instruction["op"] == "getelementptr":
                 self.ptr_to_target_mapping[instruction["dst"]] = instruction["ptr_target"]
             if not self.resource_delays_only:
@@ -484,7 +530,7 @@ class DataFlowGraph:
         for node in in_nodes_loop_start:
             G.add_edge(node, f"loop_start_{loop_name}", weight=0.0, resource_edge=0)
         # create the graph
-        loop_dfg = DataFlowGraph(self.clk_period, self.no_rsc_allowed_ops, self.allowed_functions, self.build_dir, self.basic_block_name, loop_name, self.resource_mapping, self.states_structure.get_pruned_states_structure(self.states_structure.loops[loop_name]), G, G_standard, G_standard_with_wire_ops, resource_db, variable_db, is_dataflow_pipeline=self.states_structure.loops[loop_name].is_dataflow_pipeline, mem_mapping=self.mem_mapping, resource_delays_only=resource_delays_only, num_iters=num_iters, interface_db=self.interface_db)
+        loop_dfg = DataFlowGraph(self.clk_period, self.no_rsc_allowed_ops, self.allowed_functions, self.build_dir, self.basic_block_name, loop_name, self.resource_mapping, self.states_structure.get_pruned_states_structure(self.states_structure.loops[loop_name]), G, G_standard, G_standard_with_wire_ops, resource_db, variable_db, is_dataflow_pipeline=self.states_structure.loops[loop_name].is_dataflow_pipeline, mem_mapping=self.mem_mapping, resource_delays_only=resource_delays_only, num_iters=num_iters, mem_access_db=self.mem_access_db, is_loop_dfg=True)
         
         loop_dfg.create_graph(resource_delays_only=resource_delays_only)
 
@@ -664,7 +710,7 @@ class StatesStructure:
 
 class BasicBlockInfo:
     # call parse, then convert
-    def __init__(self, build_dir, allowed_functions, basic_block_name, file_path, clk_period, ignore_ops, no_rsc_allowed_ops, resource_mapping, interface_db, mem_mapping):
+    def __init__(self, build_dir, allowed_functions, basic_block_name, file_path, clk_period, ignore_ops, no_rsc_allowed_ops, resource_mapping, mem_access_db, mem_mapping):
         self.basic_block_name = basic_block_name
         self.build_dir = build_dir
         self.clk_period = clk_period
@@ -678,16 +724,16 @@ class BasicBlockInfo:
         self.resource_mapping = resource_mapping
         self.file_path = file_path
         self.allowed_functions = allowed_functions
-        self.interface_db = interface_db
+        self.mem_access_db = mem_access_db
         self.is_dataflow_pipeline = False
-        #assert self.interface_db is not None, "InterfaceDB is not provided"
+        #assert self.mem_access_db is not None, "MemRWDB is not provided"
         self.mem_mapping = mem_mapping
     
     def parse(self):
         self.parse_file(self.file_path)
 
     def convert(self):
-        self.dfg = DataFlowGraph(self.clk_period, self.no_rsc_allowed_ops, self.allowed_functions, self.build_dir, self.basic_block_name, self.basic_block_name, self.resource_mapping, self.states_structure, nx.DiGraph(), nx.DiGraph(), nx.DiGraph(), ResourceDB(), VariableDB(), self.is_dataflow_pipeline, self.mem_mapping, 1, interface_db=self.interface_db)
+        self.dfg = DataFlowGraph(self.clk_period, self.no_rsc_allowed_ops, self.allowed_functions, self.build_dir, self.basic_block_name, self.basic_block_name, self.resource_mapping, self.states_structure, nx.DiGraph(), nx.DiGraph(), nx.DiGraph(), ResourceDB(), VariableDB(), self.is_dataflow_pipeline, self.mem_mapping, 1, mem_access_db=self.mem_access_db, is_loop_dfg=False)
         log_info(f"creating dfg for {self.basic_block_name}")
         self.dfg.create_graph()
         nx.write_gml(self.dfg.G, f"{self.build_dir}/parse_results/{self.basic_block_name}/{self.basic_block_name}_graph.gml")
@@ -788,7 +834,7 @@ class BasicBlockInfo:
                     if operation_name not in self.ignore_ops and first_op:
                         parsed_op = llvm_ir_parse.parse_op(instruction, operation_name)
                         if parsed_op["type"] == "intf":
-                            self.interface_db.add_interface(parsed_op["variable"])
+                            self.mem_access_db.add_memory(parsed_op["variable"], is_fifo=True)
                         else:
                             parsed_op["delay"] = operation_delay
                             if core_inst:
@@ -879,8 +925,8 @@ class vitis_schedule_parser:
         self.clk_period = clk_period
         self.top_level_module_name = top_level_module_name
         self.basic_blocks = {}
-        # Create a shared InterfaceDB instance for all basic blocks
-        self.interface_db = InterfaceDB()
+        # Create a shared MemRWDB instance for all basic blocks
+        self.mem_access_db = MemRWDB()
         self.ignore_ops = set([
             "spectopmodule",
             "specbitsmap",
@@ -913,15 +959,11 @@ class vitis_schedule_parser:
                 if basic_block_name in sim_util.get_module_map().keys():
                     log_info(f"Skipping basic block {basic_block_name} because it is a blackbox.")
                     continue
-                self.basic_blocks[basic_block_name] = BasicBlockInfo(self.build_dir, self.allowed_functions, basic_block_name, file_path, self.clk_period, self.ignore_ops, self.no_rsc_allowed_ops, self.resource_mapping, self.interface_db, self.mem_mapping)
+                self.basic_blocks[basic_block_name] = BasicBlockInfo(self.build_dir, self.allowed_functions, basic_block_name, file_path, self.clk_period, self.ignore_ops, self.no_rsc_allowed_ops, self.resource_mapping, self.mem_access_db, self.mem_mapping)
                 self.basic_blocks[basic_block_name].parse()
                 self.basic_blocks[basic_block_name].convert()
                 self.basic_blocks[basic_block_name].convert_to_standard_dfg()
                 self.basic_blocks[basic_block_name].convert_to_standard_dfg_with_wire_ops()
-        self.interface_db.create_json_obj()
-        self.interface_db.create_dot_file(self.build_dir)
-        with open(f"{self.build_dir}/parse_results/interface_db.json", "w") as f:
-            json.dump(self.interface_db.json_obj, f, indent=2)
         for basic_block_name in self.basic_blocks.keys():
             if self.basic_blocks[basic_block_name].is_dataflow_pipeline:
                 self.init_flattened_graph(basic_block_name, self.basic_blocks[basic_block_name].dfg)
@@ -931,20 +973,39 @@ class vitis_schedule_parser:
                 nx.write_gml(self.basic_blocks[basic_block_name].dfg.G_flattened, f"{self.build_dir}/parse_results/{basic_block_name}/{basic_block_name}_flattened_graph.gml")
                 nx.write_gml(self.basic_blocks[basic_block_name].dfg.G_flattened_standard, f"{self.build_dir}/parse_results/{basic_block_name}/{basic_block_name}_flattened_graph_standard.gml")
                 nx.write_gml(self.basic_blocks[basic_block_name].dfg.G_flattened_standard_with_wire_ops, f"{self.build_dir}/parse_results/{basic_block_name}/{basic_block_name}_flattened_graph_standard_with_wire_ops.gml")
+        self.mem_access_db.create_json_obj()
+        self.mem_access_db.create_dot_file(self.build_dir)
+        with open(f"{self.build_dir}/parse_results/mem_access_db.json", "w") as f:
+            json.dump(self.mem_access_db.json_obj, f, indent=2)
 
 
     def init_flattened_graph(self, basic_block_name, dfg):
         cur_G = self.basic_blocks[basic_block_name].dfg.G
+        call_basic_blocks = []
         for node in nx.topological_sort(cur_G):
             new_name = f"{basic_block_name}_{node}"
             if cur_G.nodes[node]["function"] == "Call":
                 self.init_flattened_graph(self.basic_blocks[cur_G.nodes[node]["call_function"]].basic_block_name, dfg)
+                call_basic_blocks.append(self.basic_blocks[cur_G.nodes[node]["call_function"]].basic_block_name)
             preds = list(cur_G.predecessors(node))
             dfg.G_flattened.add_node(new_name, name_in_original_graph=node, **dict(cur_G.nodes[node]))
             for pred in preds:
                 pred_name = f"{basic_block_name}_{pred}"
                 assert pred_name in dfg.G_flattened.nodes(), f"Predecessor {pred_name} of node {new_name} is not in flattened graph"
                 dfg.G_flattened.add_edge(pred_name, new_name, **dict(cur_G.edges[pred, node]))
+            if cur_G.nodes[node]["function"] in _MEMORY_OPS:
+                mem_name = cur_G.nodes[node]["mem_name"]
+                if mem_name in self.mem_access_db.mem_rws:
+                    if node == self.mem_access_db.mem_rws[mem_name].first_write and basic_block_name == self.mem_access_db.mem_rws[mem_name].write_basic_block_name:
+                        self.mem_access_db.mem_rws[mem_name].set_first_write_dataflow(dfg.basic_block_name)
+                    if node == self.mem_access_db.mem_rws[mem_name].last_read and basic_block_name == self.mem_access_db.mem_rws[mem_name].last_read_basic_block_name:
+                        self.mem_access_db.mem_rws[mem_name].set_last_read_dataflow(dfg.basic_block_name)
+                    if node == self.mem_access_db.mem_rws[mem_name].first_read and basic_block_name == self.mem_access_db.mem_rws[mem_name].read_basic_block_name:
+                        self.mem_access_db.mem_rws[mem_name].set_first_read_dataflow(dfg.basic_block_name)
+        for call_basic_block in call_basic_blocks:
+            assert f"{call_basic_block}_graph_end_{call_basic_block}" in dfg.G_flattened.nodes(), f"Graph end node {f'{call_basic_block}_graph_end_{call_basic_block}'} of call basic block {call_basic_block} is not in flattened graph"
+            assert f"{basic_block_name}_graph_end_{basic_block_name}" in dfg.G_flattened.nodes(), f"Graph end node {f'{basic_block_name}_graph_end_{basic_block_name}'} of basic block {basic_block_name} is not in flattened graph"
+            dfg.G_flattened.add_edge(f"{call_basic_block}_graph_end_{call_basic_block}", f"{basic_block_name}_graph_end_{basic_block_name}", weight=self.clk_period, resource_edge=1, stream_edge=0)
 
     def connect_flattened_graph(self, dfg):
         for arg in dfg.arguments_to_call_functions:
@@ -954,30 +1015,30 @@ class vitis_schedule_parser:
                 producer_call_fn = call_functions[i]
                 consumer_call_fn = call_functions[i + 1]
                 is_intf = False
-                intf_name = None
-                for intf_name in self.interface_db.interfaces:
-                    if intf_name.startswith(arg):
+                mem_name = None
+                for mem_name in self.mem_access_db.mem_rws:
+                    if mem_name.startswith(arg.strip("%")) and self.mem_access_db.mem_rws[mem_name].is_fifo:
                         is_intf = True
-                        intf_name = intf_name
-                        log_info(f"argument {arg} is an interface variable, matched with interface {intf_name}")
+                        mem_name = mem_name
+                        log_info(f"argument {arg} is an interface variable, matched with interface {mem_name}")
                         break
                 if is_intf:
                     # KEY POINTS:
                     #  Interface between two basic blocks means edge between first write (BB1) and first read (BB2)
                     #  But BB2 cannot finish before BB1 finishes (has to wait each time for BB1 to write) so model this by adding
                     #  an edge between the graph end of BB1 and the graph end of BB2
-                    first_write_node = f"{self.interface_db.interfaces[intf_name].write_basic_block_name}_{self.interface_db.interfaces[intf_name].first_write}"
-                    assert first_write_node in dfg.G_flattened.nodes(), f"First write node {first_write_node} of interface {intf_name} ({arg}) is not in flattened graph"
-                    first_read_node = f"{self.interface_db.interfaces[intf_name].read_basic_block_name}_{self.interface_db.interfaces[intf_name].first_read}"
-                    assert first_read_node in dfg.G_flattened.nodes(), f"First read node {first_read_node} of interface {intf_name} ({arg}) is not in flattened graph"
+                    first_write_node = f"{self.mem_access_db.mem_rws[mem_name].write_basic_block_name}_{self.mem_access_db.mem_rws[mem_name].first_write}"
+                    assert first_write_node in dfg.G_flattened.nodes(), f"First write node {first_write_node} of interface {mem_name} ({arg}) is not in flattened graph"
+                    first_read_node = f"{self.mem_access_db.mem_rws[mem_name].read_basic_block_name}_{self.mem_access_db.mem_rws[mem_name].first_read}"
+                    assert first_read_node in dfg.G_flattened.nodes(), f"First read node {first_read_node} of interface {mem_name} ({arg}) is not in flattened graph"
                     dfg.G_flattened.add_edge(first_write_node, first_read_node, weight=self.clk_period, resource_edge=1, stream_edge=1)
-                    log_info(f"added streaming edge between {first_write_node} and {first_read_node} for interface {intf_name} ({arg})")
+                    log_info(f"added streaming edge between {first_write_node} and {first_read_node} for interface {mem_name} ({arg})")
                     producer_node = f"{producer_call_fn}_graph_end_{producer_call_fn}"
                     consumer_node = f"{consumer_call_fn}_graph_end_{consumer_call_fn}"
-                    assert producer_node in dfg.G_flattened.nodes(), f"Producer {producer_node} of interface {intf_name} ({arg}) is not in flattened graph"
-                    assert consumer_node in dfg.G_flattened.nodes(), f"Consumer {consumer_node} of interface {intf_name} ({arg}) is not in flattened graph"
+                    assert producer_node in dfg.G_flattened.nodes(), f"Producer {producer_node} of interface {mem_name} ({arg}) is not in flattened graph"
+                    assert consumer_node in dfg.G_flattened.nodes(), f"Consumer {consumer_node} of interface {mem_name} ({arg}) is not in flattened graph"
                     dfg.G_flattened.add_edge(producer_node, consumer_node, weight=self.clk_period, resource_edge=1, stream_edge=1)
-                    log_info(f"added streaming edge between {producer_node} and {consumer_node} for interface {intf_name} ({arg})")
+                    log_info(f"added streaming edge between {producer_node} and {consumer_node} for interface {mem_name} ({arg})")
                 else:
                     # if using a buffer interface instead of fifo streaming interface, must wait for BB1 to finish before BB2 can start
                     producer_node = f"{producer_call_fn}_graph_end_{producer_call_fn}"
