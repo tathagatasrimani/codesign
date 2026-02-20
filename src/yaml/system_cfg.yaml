@@ -81,6 +81,102 @@ llama3_inference_system:
     objective: edp
 
 # ---------------------------------------------------------------------------
+# LLaMA 3 8B (full scale): prefill (64-token prompt) + decode (64 tokens)
+# ---------------------------------------------------------------------------
+# Real LLaMA 3 8B architecture:
+#   32 transformer layers, hidden=4096, FFN SwiGLU intermediate=14336.
+#   Grouped-query attention: 32 Q-heads, 8 KV-heads, head_dim=128.
+#   Uses Llama38BInference with GQA-accurate sub-blocks (Llama38BPrefillAttention,
+#   Llama38BDecodeAttention) — correctly models 32 Q-heads / 8 KV-heads.
+#   Weight bytes computed for actual GQA projection sizes.
+#   Prompt length is capped at 64 by the hardcoded SEQ_LEN in LlamaPrefillAttention.
+#
+# Data size accounting:
+#   Attention weights (GQA):
+#     wq(4096×4096) + wk(4096×1024) + wv(4096×1024) + wo(4096×4096) × 4B
+#     [8 KV-heads × head_dim 128 = 1024 KV dim]
+#     = (16,777,216 + 4,194,304 + 4,194,304 + 16,777,216) × 4 = 167,772,160 B
+#   FFN weights (SwiGLU):
+#     w1(4096×14336) + w3(4096×14336) + w2(14336×4096) × 4B
+#     = 3 × 4096 × 14336 × 4 = 704,643,072 B
+#   Decode KV cache (GQA, 8 KV-heads, cache_len=64):
+#     k_cache(1,8,64,128) + v_cache(1,8,64,128) × 4B = 2 × 262,144 = 524,288 B
+llama3_8b_system:
+  name: "llama3_8b_inference"
+  description: "LLaMA 3 8B inference: prefill (64 tokens) + decode (64 tokens)"
+  shared_tech: false
+
+  global_memory:
+    bandwidth_gbps: 100.0
+    latency_ns: 100.0
+    energy_per_bit_pj: 10.0
+    capacity_bytes: 32.0e9            # ~28 GB model weights at FP32
+
+  benchmark:
+    class: Llama38BInference
+    module_path: src/benchmarks/vitis/Llama38BInference
+    init_args:
+      hidden: 4096
+      n_heads: 32
+      n_kv_heads: 8
+      head_dim: 128
+      ffn_dim: 14336
+      n_layers: 32
+      n_decode: 64
+      cache_len: 64
+    input_shapes:
+      - [1, 64, 4096]           # prompt tensor (batch, prompt_len, hidden)
+    module_attr_map:
+      prefill_attention: prefill_attention
+      prefill_feedforward: prefill_feedforward
+      decode_attention: decode_attention
+      decode_feedforward: decode_feedforward
+
+  block_types:
+    # --- Prefill phase blocks (process full prompt) ---
+    prefill_attention:
+      codesign_config: vitis_test_sweep_llama3_8b_prefill_attention
+      shared_weights: false
+      data_sizes:
+        input_bytes: 1048576             # (1, 64, 4096) × 4B
+        output_bytes: 1048576
+        weight_bytes: 167772160          # GQA: wq+wk+wv+wo (see above)
+
+    prefill_feedforward:
+      codesign_config: vitis_test_sweep_llama3_8b_prefill_feedforward
+      shared_weights: false
+      data_sizes:
+        input_bytes: 1048576             # (1, 64, 4096) × 4B
+        output_bytes: 1048576
+        weight_bytes: 704643072          # SwiGLU: w1+w3+w2 (see above)
+
+    # --- Decode phase blocks (one token at a time, uses KV cache) ---
+    decode_attention:
+      codesign_config: vitis_test_sweep_llama3_8b_decode_attention
+      shared_weights: false
+      data_sizes:
+        # x(1,1,4096) + k_cache(1,8,64,128) + v_cache(1,8,64,128)
+        input_bytes: 540672              # 16,384 + 262,144 + 262,144
+        output_bytes: 16384              # (1, 1, 4096) × 4B
+        weight_bytes: 167772160          # same projections as prefill attention
+
+    decode_feedforward:
+      codesign_config: vitis_test_sweep_llama3_8b_decode_feedforward
+      shared_weights: false
+      data_sizes:
+        input_bytes: 16384               # (1, 1, 4096) × 4B
+        output_bytes: 16384
+        weight_bytes: 704643072          # same weights as prefill feedforward
+
+  dfg:
+    default_transfer: global_memory
+
+  system_constraints:
+    max_total_power: 150.0
+    max_total_area: 1.0e12
+    objective: edp
+
+# ---------------------------------------------------------------------------
 # DeepSeek-V3 (MoE): prefill (512 tokens) + decode (64 tokens)
 # ---------------------------------------------------------------------------
 # DeepSeek-V3 is a 671B-parameter (37B active) MoE model with 61 layers.

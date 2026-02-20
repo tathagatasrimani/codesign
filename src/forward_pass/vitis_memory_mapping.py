@@ -26,7 +26,7 @@ from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 
-DEBUG = True
+DEBUG = False
 
 def log_info(msg):
     if DEBUG:

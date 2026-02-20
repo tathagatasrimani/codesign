@@ -528,17 +528,32 @@ class SystemCodesign:
         input_shapes = bench_cfg.get("input_shapes", [])
         module_attr_map = bench_cfg.get("module_attr_map", {})
 
-        # Import the benchmark module
+        # Import the benchmark module.
         if module_path:
             abs_path = os.path.join(self.codesign_root_dir, module_path)
             if abs_path not in sys.path:
                 sys.path.insert(0, abs_path)
-        # Also add pymodels/transformers in case imports are needed
-        pymodels_path = os.path.join(
+            # Add the parent dir so the benchmark's package-style sibling
+            # imports work (e.g. `from LlamaFeedForward.LlamaFeedForward import
+            # LlamaFeedForward` requires the vitis/ parent in sys.path).
+            parent_path = os.path.dirname(abs_path)
+            if parent_path not in sys.path:
+                sys.path.insert(0, parent_path)
+
+        # _infer_block_data_sizes imports sibling block modules (e.g.
+        # LlamaFeedForward) as flat files from pymodels/transformers, which
+        # leaves them cached in sys.modules as plain modules (not packages).
+        # The benchmark module imports those same names as packages
+        # (`from LlamaFeedForward.LlamaFeedForward import ...`), which fails
+        # with "not a package" if the flat-module entry is still cached.
+        # Evict any such entries so they are re-imported as packages.
+        pymodels_path = os.path.abspath(os.path.join(
             self.codesign_root_dir, "Stream-HLS", "examples", "pymodels", "transformers"
-        )
-        if pymodels_path not in sys.path:
-            sys.path.insert(0, pymodels_path)
+        ))
+        for mod_name in [n for n, m in list(sys.modules.items())
+                         if getattr(m, "__file__", None) and
+                            os.path.abspath(os.path.dirname(m.__file__)) == pymodels_path]:
+            del sys.modules[mod_name]
 
         mod = importlib.import_module(class_name)
         model_class = getattr(mod, class_name)

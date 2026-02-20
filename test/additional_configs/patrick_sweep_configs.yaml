@@ -86,6 +86,61 @@ vitis_test_sweep_basic_llama_decode_feedforward:
     min_dsp: 20
     benchmark: LlamaDecodeFeedForward
 
+# ---------------------------------------------------------------------------
+# LLaMA 3 8B GQA sweep configs (hidden=4096, n_heads=32, n_kv_heads=8, head_dim=128)
+# benchmark = HLS source dir in src/benchmarks/vitis/
+# class     = data.py key (only when it differs from benchmark name)
+# ---------------------------------------------------------------------------
+vitis_test_sweep_llama3_8b_prefill_attention:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 40
+    benchmark: Llama38BPrefillAttention
+    streamhls_opt_level: 3
+    checkpoint_load_dir: tmp_Llama38BPrefillAttention_edp_5
+    checkpoint_start_step: pd
+
+vitis_test_sweep_llama3_8b_decode_attention:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 40
+    benchmark: Llama38BDecodeAttention
+    streamhls_opt_level: 3
+    checkpoint_load_dir: tmp_Llama38BDecodeAttention_edp_18
+    checkpoint_start_step: pd
+
+vitis_test_sweep_llama3_8b_prefill_feedforward:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 20
+    benchmark: LlamaFeedForward
+    class: Llama38BPrefillFeedForward
+    streamhls_opt_level: 3
+    checkpoint_load_dir: tmp_Llama38BPrefillFeedForward_edp_5
+    checkpoint_start_step: pd
+
+vitis_test_sweep_llama3_8b_decode_feedforward:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 20
+    benchmark: LlamaDecodeFeedForward
+    class: Llama38BDecodeFeedForward
+    streamhls_opt_level: 3
+    checkpoint_load_dir: tmp_Llama38BDecodeFeedForward_edp_4
+    checkpoint_start_step: pd
+
 vitis_test_sweep_basic_inference:
   base_cfg: vitis_test_sweep
   args:

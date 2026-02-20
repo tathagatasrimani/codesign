@@ -282,7 +282,7 @@ class OpenRoadRun:
             extra_area_list[macro_name] = area_um2
             extra_pin_list[macro_name] = {"input": 32, "output": 16}
             self.component_to_function[macro_name] = fn
-            logger.info(f"Memory macro {macro_name}: area={area_um2:.2f} um²")
+            log_info(f"Memory macro {macro_name}: area={area_um2:.2f} um²")
 
         macro_maker = make_macros.MacroMaker(self.cfg, self.codesign_root_dir, self.tmp_dir, self.run_openroad, self.subdirectory, output_lef_file=self.directory + "/tcl/codesign_files/codesign_stdcell.lef", custom_lef_files_to_include=self.custom_lef_files_to_include)
 
@@ -530,12 +530,12 @@ class OpenRoadRun:
         param:
             graph: graph with the new edge connections, after mux listing
         """
-        logger.info("Removing mux nodes from graph.")
+        log_info("Removing mux nodes from graph.")
         reference = copy.deepcopy(graph.nodes())
         for node in reference:
             if "Mux" in node:
                 graph.remove_node(node)
-                logger.info(f"Removed mux node: {node}")
+                log_info(f"Removed mux node: {node}")
 
 
     def coord_scraping(
@@ -554,7 +554,7 @@ class OpenRoadRun:
             graph: digraph with the new coordinate attributes
             component_nets: dict that list components for the respective net id
         """
-        logger.info("Scraping coordinates and nets from DEF file.")
+        log_info("Scraping coordinates and nets from DEF file.")
         pattern = r"_\w+_\s+\w+\s+\+\s+PLACED\s+\(\s*\d+\s+\d+\s*\)\s+\w+\s*;"
         net_pattern = r"-\s(_\d+_)\s((?:\(\s_\d+_\s\w+\s\)\s*)+).*"
         component_pattern = r"(_\w+_)"
@@ -569,19 +569,19 @@ class OpenRoadRun:
                 coord = re.findall(r"\((.*?)\)", line)[0].split()
                 match = re.search(component_pattern, line)
                 macro_coords[match.group(0)] = {"x": float(coord[0]), "y": float(coord[1])}
-                logger.info(f"Found macro {match.group(0)} at ({coord[0]}, {coord[1]})")
+                log_info(f"Found macro {match.group(0)} at ({coord[0]}, {coord[1]})")
             if re.search(net_pattern, line) is not None:
                 pins = re.findall(r"\(\s(.*?)\s\w+\s\)", line)
                 match = re.search(component_pattern, line)
                 component_nets[match.group(0)] = pins
-                logger.info(f"Found net {match.group(0)} with pins {pins}")
+                log_info(f"Found net {match.group(0)} with pins {pins}")
 
         for node in node_to_num:
             coord = macro_coords[node_to_num[node]]
             graph.nodes[node]["x"] = coord["x"]
             graph.nodes[node]["y"] = coord["y"]
-            logger.info(f"Assigned coordinates to node {node}: {coord}")
-        logger.info("Coordinate scraping complete.")
+            log_info(f"Assigned coordinates to node {node}: {coord}")
+        log_info("Coordinate scraping complete.")
         return graph, component_nets
 
 
@@ -792,7 +792,7 @@ class OpenRoadRun:
             graph[u][v]["net_length"] = 0
             graph[u][v]["net_res"] = 0
             graph[u][v]["net_cap"] = 0
-            logger.info(f"Set default attributes for edge ({u}, {v})")
+            #logger.info(f"Set default attributes for edge ({u}, {v})")
 
         logger.info("none_place_n_route finished.")
         return graph
