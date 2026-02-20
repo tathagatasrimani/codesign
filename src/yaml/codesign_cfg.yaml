@@ -27,6 +27,7 @@ default:
     always_run_openroad: False
     arch_opt_pipeline: scalehls
     benchmark_group: polybench # only used for streamhls
+    streamhls_opt_level: 5
     min_dsp: 13
     max_power_density: 100000000 # W/mm^2, not active right now
     max_power: 150 # W

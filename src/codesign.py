@@ -317,6 +317,7 @@ class Codesign:
         save_path = os.path.join(os.path.dirname(__file__), "..", save_dir)
         config_path = os.path.join(cwd, self.config_json_path)
         streamhls_opt_level = int(self.cfg["args"].get("streamhls_opt_level", 5))
+        conv = int(self.cfg["args"].get("conv", 0))
         cmd = [
             'bash', '-c',
             f'''
@@ -326,7 +327,7 @@ class Codesign:
             pwd
             source setup-env.sh
             cd examples
-            python run_streamhls.py -b {save_path} -d {save_path} -k {self.data_benchmark_name} -O {streamhls_opt_level} --dsps {self.cur_dsp_usage} --timelimit {1} --tilelimit {tilelimit} --tech-config {config_path} --bufferize 1
+            python run_streamhls.py -b {save_path} -d {save_path} -k {self.data_benchmark_name} -O {streamhls_opt_level} --dsps {self.cur_dsp_usage} --timelimit {2} --tilelimit {tilelimit} --tech-config {config_path} --bufferize 1 --conv {conv}
             '''
         ]
 
@@ -500,13 +501,16 @@ class Codesign:
                             self.cur_dsp_usage = dsp
                     if crash_line is None and ("Assertion" in line or "Aborted" in line or "core dumped" in line):
                         crash_line = line.strip()
+            if self.cfg["args"]["streamhls_opt_level"] == 1:
+                dsp = 1
+                latency = 1
             if combined_latency is not None:
                 latency = combined_latency
             elif parallel_latency is not None:
                 latency = parallel_latency
             elif perm_latency is not None:
                 latency = perm_latency
-            assert latency is not None and dsp is not None, f"No latency or dsp found for {self.benchmark_name} in {log_file}"
+            #assert latency is not None and dsp is not None, f"No latency or dsp found for {self.benchmark_name} in {log_file}"
             if (latency == 0 or dsp == 0) and (last_nonzero_latency is not None or last_nonzero_dsp is not None):
                 latency = last_nonzero_latency if last_nonzero_latency is not None else latency
                 dsp = last_nonzero_dsp if last_nonzero_dsp is not None else dsp

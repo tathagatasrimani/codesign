@@ -131,6 +131,8 @@ def parse_op(instruction, op_name):
         parsed_op = arith_op(instruction)
     elif op_name == "frecip":
         parsed_op = arith_op(instruction)
+    elif op_name == "frsqrt": 
+        parsed_op = arith_op(instruction)
     elif op_name == "call":
         parsed_op = undef_num_src_op_all_srcs(instruction)
     elif op_name == "partselect":

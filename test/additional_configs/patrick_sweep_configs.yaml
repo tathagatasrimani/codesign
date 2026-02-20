@@ -572,6 +572,137 @@ vitis_test_sweep_openvla_lm_decode_attention_small:
     benchmark: OpenVLALMDecodeAttention
     class: OpenVLALMDecodeAttentionSmall
 
+# ---------------------------------------------------------------------------
+# ResNet-18 sweep configs (image classification, 224x224 input)
+# Each BasicBlock is a separate config so StreamHLS handles one block at a time.
+# benchmark = HLS source dir in src/benchmarks/vitis/
+# class     = data.py key (only when it differs from benchmark name)
+# Conv2d loops are 6-dim (6!=720 perms each) → combined MIQCP is too large;
+# use streamhls_opt_level: 3 (parallelization only, no permutation search).
+# ---------------------------------------------------------------------------
+vitis_test_sweep_resnet18_stem:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 20
+    benchmark: ResNet18Stem
+    streamhls_opt_level: 3
+    conv: 1
+
+# Layer 1: both BasicBlocks are identical (64→64, no downsample)
+vitis_test_sweep_resnet18_layer1_block:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 20
+    benchmark: ResNet18Block
+    class: ResNet18Layer1Block
+    streamhls_opt_level: 3  # Perm=720×720 per conv → too large for combined MIQCP
+    conv: 1
+
+# Layer 2: downsampling block (64→128, stride=2)
+vitis_test_sweep_resnet18_layer2_down:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 20
+    benchmark: ResNet18Block
+    class: ResNet18Layer2Down
+    streamhls_opt_level: 3
+    conv: 1
+
+# Layer 2: plain block (128→128)
+vitis_test_sweep_resnet18_layer2_block:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 20
+    benchmark: ResNet18Block
+    class: ResNet18Layer2Block
+    streamhls_opt_level: 3
+    conv: 1
+
+# Layer 3: downsampling block (128→256, stride=2)
+vitis_test_sweep_resnet18_layer3_down:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 20
+    benchmark: ResNet18Block
+    class: ResNet18Layer3Down
+    streamhls_opt_level: 3
+    conv: 1
+
+# Layer 3: plain block (256→256)
+vitis_test_sweep_resnet18_layer3_block:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 20
+    benchmark: ResNet18Block
+    class: ResNet18Layer3Block
+    streamhls_opt_level: 3
+    conv: 1
+
+# Layer 4: downsampling block (256→512, stride=2)
+vitis_test_sweep_resnet18_layer4_down:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 20
+    benchmark: ResNet18Block
+    class: ResNet18Layer4Down
+    streamhls_opt_level: 3
+    conv: 1
+
+# Layer 4: plain block (512→512)
+vitis_test_sweep_resnet18_layer4_block:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 20
+    benchmark: ResNet18Block
+    class: ResNet18Layer4Block
+    streamhls_opt_level: 3
+    conv: 1
+
+vitis_test_sweep_resnet18_classifier:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 20
+    benchmark: ResNet18Classifier
+
+# Standalone ResidualBlock test (16→16, 58x58 pre-padded) — uses 1x1 convs (no 3D conv loop)
+vitis_test_sweep_residual_block:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 20
+    benchmark: ResidualBlock
+    streamhls_opt_level: 3
+    conv: 1
+
 run_sweep_mvs_1_spice:
   base_cfg: default
   args:

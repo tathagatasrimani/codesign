@@ -865,6 +865,156 @@ vjepa_small_system:
     objective: edp
 
 # ---------------------------------------------------------------------------
+# ResNet-18: image classification (224x224 → 1000 classes)
+# ---------------------------------------------------------------------------
+# Standard ResNet-18 architecture (11.7M parameters).  Each BasicBlock is
+# exposed as its own codesign block type — stacking two blocks in one module
+# makes the StreamHLS permutation space too large.
+#
+# Block dimensions (batch=1):
+#   stem:         (3,224,224)  → (64,56,56)   via conv7x7 + 2×maxpool
+#   layer1_block: (64,56,56)   → (64,56,56)   BasicBlock(64→64)    called 2×
+#   layer2_down:  (64,56,56)   → (128,28,28)  BasicBlock(64→128,s=2)
+#   layer2_block: (128,28,28)  → (128,28,28)  BasicBlock(128→128)
+#   layer3_down:  (128,28,28)  → (256,14,14)  BasicBlock(128→256,s=2)
+#   layer3_block: (256,14,14)  → (256,14,14)  BasicBlock(256→256)
+#   layer4_down:  (256,14,14)  → (512,7,7)    BasicBlock(256→512,s=2)
+#   layer4_block: (512,7,7)    → (512,7,7)    BasicBlock(512→512)
+#   classifier:   (512,7,7)    → (1000,)      AdaptiveAvgPool + fc
+#
+# Weight accounting per block (conv + BN weights; BN = weight+bias per channel):
+#   stem:         conv1(64×3×7×7) * 4B                            =    37,632 bytes
+#   layer1_block: (64×64×9 + 64×2 + 64×64×9 + 64×2) * 4B        =   590,848 bytes
+#   layer2_down:  (128×64×9 + 128×2 + 128×128×9 + 128×2
+#                  + 128×64 + 128×2) * 4B                         =   920,576 bytes
+#   layer2_block: (128×128×9 + 128×2 + 128×128×9 + 128×2) * 4B  = 1,181,696 bytes
+#   layer3_down:  (256×128×9 + 256×2 + 256×256×9 + 256×2
+#                  + 256×128 + 256×2) * 4B                        = 3,676,160 bytes
+#   layer3_block: (256×256×9 + 256×2 + 256×256×9 + 256×2) * 4B  = 4,722,688 bytes
+#   layer4_down:  (512×256×9 + 512×2 + 512×512×9 + 512×2
+#                  + 512×256 + 512×2) * 4B                        = 14,692,352 bytes
+#   layer4_block: (512×512×9 + 512×2 + 512×512×9 + 512×2) * 4B  = 18,882,560 bytes
+#   classifier:   (512×1000 + 1000) * 4B                         =  2,052,000 bytes
+resnet18_system:
+  name: "resnet18_inference"
+  description: "ResNet-18 image classification: 224x224 input, 1000-class output"
+  shared_tech: false
+
+  global_memory:
+    bandwidth_gbps: 100.0
+    latency_ns: 100.0
+    energy_per_bit_pj: 10.0
+    capacity_bytes: 1.0e9
+
+  benchmark:
+    class: ResNet18Inference
+    module_path: src/benchmarks/vitis/ResNet18Inference
+    init_args:
+      num_classes: 1000
+    input_shapes:
+      - [1, 3, 224, 224]           # image tensor (batch, channels, H, W)
+    module_attr_map:
+      stem: stem
+      layer1_block: layer1_block
+      layer2_down: layer2_down
+      layer2_block: layer2_block
+      layer3_down: layer3_down
+      layer3_block: layer3_block
+      layer4_down: layer4_down
+      layer4_block: layer4_block
+      classifier: classifier
+
+  block_types:
+    # Initial conv7x7 + 2x maxpool
+    stem:
+      codesign_config: vitis_test_sweep_resnet18_stem
+      shared_weights: false
+      data_sizes:
+        input_bytes: 602112          # (1, 3, 224, 224) * 4B
+        output_bytes: 802816         # (1, 64, 56, 56) * 4B
+        weight_bytes: 37632          # conv1(64×3×7×7) * 4B
+
+    # BasicBlock(64→64, stride=1) — called 2× (both blocks of layer1 identical)
+    layer1_block:
+      codesign_config: vitis_test_sweep_resnet18_layer1_block
+      shared_weights: false
+      data_sizes:
+        input_bytes: 802816          # (1, 64, 56, 56) * 4B
+        output_bytes: 802816
+        weight_bytes: 590848         # (64×64×9+64×2+64×64×9+64×2) * 4B
+
+    # BasicBlock(64→128, stride=2) — first block of layer2, with downsample
+    layer2_down:
+      codesign_config: vitis_test_sweep_resnet18_layer2_down
+      shared_weights: false
+      data_sizes:
+        input_bytes: 802816          # (1, 64, 56, 56) * 4B
+        output_bytes: 401408         # (1, 128, 28, 28) * 4B
+        weight_bytes: 920576         # (128×64×9+128×2+128×128×9+128×2+128×64+128×2) * 4B
+
+    # BasicBlock(128→128, stride=1) — second block of layer2
+    layer2_block:
+      codesign_config: vitis_test_sweep_resnet18_layer2_block
+      shared_weights: false
+      data_sizes:
+        input_bytes: 401408          # (1, 128, 28, 28) * 4B
+        output_bytes: 401408
+        weight_bytes: 1181696        # (128×128×9+128×2+128×128×9+128×2) * 4B
+
+    # BasicBlock(128→256, stride=2) — first block of layer3, with downsample
+    layer3_down:
+      codesign_config: vitis_test_sweep_resnet18_layer3_down
+      shared_weights: false
+      data_sizes:
+        input_bytes: 401408          # (1, 128, 28, 28) * 4B
+        output_bytes: 200704         # (1, 256, 14, 14) * 4B
+        weight_bytes: 3676160        # (256×128×9+256×2+256×256×9+256×2+256×128+256×2) * 4B
+
+    # BasicBlock(256→256, stride=1) — second block of layer3
+    layer3_block:
+      codesign_config: vitis_test_sweep_resnet18_layer3_block
+      shared_weights: false
+      data_sizes:
+        input_bytes: 200704          # (1, 256, 14, 14) * 4B
+        output_bytes: 200704
+        weight_bytes: 4722688        # (256×256×9+256×2+256×256×9+256×2) * 4B
+
+    # BasicBlock(256→512, stride=2) — first block of layer4, with downsample
+    layer4_down:
+      codesign_config: vitis_test_sweep_resnet18_layer4_down
+      shared_weights: false
+      data_sizes:
+        input_bytes: 200704          # (1, 256, 14, 14) * 4B
+        output_bytes: 100352         # (1, 512, 7, 7) * 4B
+        weight_bytes: 14692352       # (512×256×9+512×2+512×512×9+512×2+512×256+512×2) * 4B
+
+    # BasicBlock(512→512, stride=1) — second block of layer4
+    layer4_block:
+      codesign_config: vitis_test_sweep_resnet18_layer4_block
+      shared_weights: false
+      data_sizes:
+        input_bytes: 100352          # (1, 512, 7, 7) * 4B
+        output_bytes: 100352
+        weight_bytes: 18882560       # (512×512×9+512×2+512×512×9+512×2) * 4B
+
+    # AdaptiveAvgPool2d + flatten + Linear(512→1000)
+    classifier:
+      codesign_config: vitis_test_sweep_resnet18_classifier
+      shared_weights: false
+      data_sizes:
+        input_bytes: 100352          # (1, 512, 7, 7) * 4B
+        output_bytes: 4000           # (1, 1000) * 4B
+        weight_bytes: 2052000        # (512×1000 + 1000) * 4B
+
+  dfg:
+    default_transfer: global_memory
+
+  system_constraints:
+    max_total_power: 150.0
+    max_total_area: 1.0e12
+    objective: edp
+
+# ---------------------------------------------------------------------------
 # OpenVLA SMALL: scaled-down for rapid prototyping
 # ---------------------------------------------------------------------------
 # Reduced: dino_hidden=256, vis_hidden=256, lm_hidden=512, n_patches=64,
