@@ -254,7 +254,19 @@ class HardwareModel:
                 "m2_k": self.circuit_model.tech_model.base_params.m2_k,
                 "m3_k": self.circuit_model.tech_model.base_params.m3_k,
             }
-        else: 
+            for mem_name, mem_model in self.memory_models.items():
+                if mem_model.num_design_points == 0:
+                    continue
+                row = mem_model.get_design_point_row()
+                self.obj_sub_exprs[f"mem_{mem_name}_index"] = mem_model.design_point_index
+                area_key = next((k for k in row if "area" in k.lower()), None)
+                latency_key = next((k for k in row if "latency" in k.lower()), None)
+                leakage_key = next((k for k in row if "leak" in k.lower()), None)
+                for label, col in [("area", area_key), ("latency", latency_key), ("leakage", leakage_key)]:
+                    if col is not None:
+                        self.obj_sub_exprs[f"mem_{mem_name}_{label}"] = row[col]
+                self.obj_sub_exprs[f"mem_{mem_name}_capacity"] = mem_model.total_size_bits
+        else:
             raise ValueError(f"Model type {self.circuit_model.tech_model.model_cfg['model_type']} not supported")
         self.obj_sub_plot_names = {
             "execution_time": "Execution Time over generations (ns)",
@@ -351,6 +363,14 @@ class HardwareModel:
             "m2_k": "Metal 2 Permittivity over generations (F/m)",
             "m3_k": "Metal 3 Permittivity over generations (F/m)",
         }
+        for mem_name, mem_model in self.memory_models.items():
+            if mem_model.num_design_points == 0:
+                continue
+            self.obj_sub_plot_names[f"mem_{mem_name}_index"] = f"Memory {mem_name} design point index over generations"
+            self.obj_sub_plot_names[f"mem_{mem_name}_area"] = f"Memory {mem_name} area over generations (mm^2)"
+            self.obj_sub_plot_names[f"mem_{mem_name}_latency"] = f"Memory {mem_name} latency over generations (ns)"
+            self.obj_sub_plot_names[f"mem_{mem_name}_leakage"] = f"Memory {mem_name} leakage over generations (mW)"
+            self.obj_sub_plot_names[f"mem_{mem_name}_capacity"] = f"Memory {mem_name} capacity over generations (KB)"
 
     def calculate_objective(self, form_dfg=True, log_top_vectors=False, clk_period_opt=False):
         start_time = time.time()

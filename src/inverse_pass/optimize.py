@@ -113,8 +113,9 @@ def _worker_basic_optimization_chunk(args_tuple):
                 expanded_memory = {}
                 for mem_name, mem_idx in memory_config.items():
                     if mem_name in evaluator.memory_models:
-                        row = evaluator.memory_models[mem_name].get_design_point_row()
-                        expanded_memory[mem_name] = {"index": mem_idx, **row}
+                        mem_model = evaluator.memory_models[mem_name]
+                        row = mem_model.get_design_point_row()
+                        expanded_memory[mem_name] = {"index": mem_idx, "capacity": mem_model.capacity_label, **row}
                     else:
                         expanded_memory[mem_name] = {"index": mem_idx}
                 expanded_dp["memory"] = expanded_memory
@@ -273,6 +274,7 @@ class Optimizer:
             "total_power": r.total_power,
             "clk_period": r.clk_period,
             "satisfies_constraints": r.satisfies_constraints,
+            "memory": r.design_point.get("memory", {}),
         } for r in sorted_results]
         summary_path = os.path.join(self.save_dir, f"design_point_summary_iter_{self.iteration}.json")
         with open(summary_path, "w") as f:
@@ -309,11 +311,147 @@ class Optimizer:
         logger.info(f"ending total_active_energy: {sim_util.xreplace_safe(self.hw.total_active_energy, self.hw.circuit_model.tech_model.base_params.tech_values)}")
         logger.info(f"ending total_passive_power: {sim_util.xreplace_safe(self.hw.total_passive_energy/self.hw.execution_time, self.hw.circuit_model.tech_model.base_params.tech_values)}")
         return 1, False
-        
+
+
+    def bayesian_optimization(self, improvement, iteration, n_trials=500, n_parallel=50):
+        try:
+            import optuna
+        except ImportError:
+            raise ImportError("optuna is required for Bayesian optimization: pip install optuna")
+        optuna.logging.set_verbosity(optuna.logging.WARNING)
+
+        self.iteration = iteration
+        self.constraints = []
+        filtered_pareto_df = self.hw.circuit_model.tech_model.pareto_df
+        if self.hw.cfg["args"]["MUL_restriction"]:
+            filtered_pareto_df = filtered_pareto_df[filtered_pareto_df["MUL"] == 1]
+
+        pareto_rows = [row._asdict() for row in filtered_pareto_df.itertuples(index=False)]
+        n_tech_points = len(pareto_rows)
+
+        memory_design_space = {}
+        for mem_name, mem_model in self.hw.memory_models.items():
+            if mem_model.num_design_points > 0:
+                memory_design_space[mem_name] = mem_model.num_design_points
+        mem_names = sorted(memory_design_space.keys())
+
+        logger.info(f"Starting Bayesian optimization: {n_tech_points} tech points, memory space: {memory_design_space}")
+        logger.info(f"Running {n_trials} trials with {n_parallel} parallel workers per batch")
+
+        evaluator = ObjectiveEvaluator.from_hardware_model(self.hw)
+        leakage_restriction = self.hw.cfg["args"]["leakage_restriction"]
+
+        study = optuna.create_study(direction="minimize", sampler=optuna.samplers.TPESampler(seed=42))
+        all_results: List[DesignPointResult] = []
+
+        n_batches = math.ceil(n_trials / n_parallel)
+        for batch_idx in range(n_batches):
+            batch_size = min(n_parallel, n_trials - batch_idx * n_parallel)
+
+            # Ask optuna for a batch of trials
+            batch_trials = []
+            batch_dps = []
+            for _ in range(batch_size):
+                trial = study.ask()
+                logic_idx = trial.suggest_int("logic_idx", 0, n_tech_points - 1)
+                dp = {
+                    "logic": pareto_rows[logic_idx],
+                    "memory": {
+                        name: trial.suggest_int(f"mem_{name}", 0, n_dp - 1)
+                        for name, n_dp in memory_design_space.items()
+                    },
+                }
+                batch_trials.append(trial)
+                batch_dps.append(dp)
+
+            # Partition batch into chunks for parallel evaluation
+            indexed_batch = list(enumerate(batch_dps))
+            n_workers = min(n_parallel, batch_size)
+            chunk_size = math.ceil(batch_size / n_workers)
+            chunks = [indexed_batch[i * chunk_size:(i + 1) * chunk_size] for i in range(n_workers)]
+            chunks = [c for c in chunks if c]
+
+            tasks = [
+                (wid, chunk, evaluator, self.max_system_power, self.max_system_power_density, leakage_restriction)
+                for wid, chunk in enumerate(chunks)
+            ]
+
+            results_by_idx = {}
+            with ProcessPoolExecutor(max_workers=len(chunks)) as executor:
+                future_to_chunk = {executor.submit(_worker_basic_optimization_chunk, task): task[1] for task in tasks}
+                for future in as_completed(future_to_chunk):
+                    chunk = future_to_chunk[future]
+                    _, worker_results = future.result()
+                    for (dp_idx, _), result in zip(chunk, worker_results):
+                        results_by_idx[dp_idx] = result
+
+            # Tell results to optuna
+            for dp_idx, trial in enumerate(batch_trials):
+                result = results_by_idx[dp_idx]
+                obj = result.obj_value if result.satisfies_constraints else float('inf')
+                study.tell(trial, obj)
+
+            batch_results = [results_by_idx[i] for i in range(batch_size)]
+            all_results.extend(batch_results)
+
+            valid_in_batch = [r for r in batch_results if r.satisfies_constraints]
+            if valid_in_batch:
+                batch_best = min(valid_in_batch, key=lambda r: r.obj_value)
+                logger.info(f"Batch {batch_idx+1}/{n_batches}: best={batch_best.obj_value:.6g}, valid={len(valid_in_batch)}/{batch_size}")
+            else:
+                logger.info(f"Batch {batch_idx+1}/{n_batches}: no valid designs in batch")
+
+        valid_results = [r for r in all_results if r.satisfies_constraints]
+        sorted_results = sorted(valid_results, key=lambda r: r.obj_value)
+
+        logger.info(f"Total designs evaluated: {len(all_results)}, valid designs: {len(valid_results)}")
+
+        results_path = os.path.join(self.save_dir, f"all_design_point_results_iter_{self.iteration}.pkl")
+        with open(results_path, "wb") as f:
+            pickle.dump(all_results, f)
+        logger.info(f"Saved {len(all_results)} design point results to {results_path}")
+
+        summary = [{
+            "obj_value": r.obj_value,
+            "execution_time": r.execution_time,
+            "total_active_energy": r.total_active_energy,
+            "total_passive_energy": r.total_passive_energy,
+            "total_area": r.total_area,
+            "total_power": r.total_power,
+            "clk_period": r.clk_period,
+            "satisfies_constraints": r.satisfies_constraints,
+            "memory": r.design_point.get("memory", {}),
+        } for r in sorted_results]
+        summary_path = os.path.join(self.save_dir, f"design_point_summary_iter_{self.iteration}.json")
+        with open(summary_path, "w") as f:
+            json.dump(summary, f, indent=2, default=str)
+
+        if sorted_results:
+            best_result = sorted_results[0]
+            best_design_point = best_result.design_point
+            best_obj_val = best_result.obj_value
+            best_value_clk_period = best_result.clk_period
+            logger.info(f"Global best objective value: {best_obj_val}, design point: {best_design_point}")
+            visualize_top_designs(all_results, self.iteration, obj_type=self.hw.obj_fn, top_percent=1, output_dir=self.save_dir)
+        else:
+            best_design_point = None
+            best_obj_val = math.inf
+            best_value_clk_period = None
+            logger.warning("No valid designs found")
+
+        self.hw.circuit_model.tech_model.set_params_from_design_point(best_design_point)
+        self.hw.circuit_model.tech_model.base_params.set_symbol_value(self.hw.circuit_model.tech_model.base_params.clk_period, best_value_clk_period)
+        best_memory_config = best_design_point.get("memory", {})
+        for mem_name, mem_model in self.hw.memory_models.items():
+            if mem_name in best_memory_config:
+                mem_model.set_design_point(best_memory_config[mem_name])
+        self.hw.calculate_objective()
+        return 1, False
+
 
     # note: improvement/regularization parameter currently only for inverse pass validation, so only using it for ipopt
     # example: improvement of 1.1 = 10% improvement
-    def optimize(self, opt, improvement=10, disabled_knobs=[], iteration=0):
+    def optimize(self, opt, improvement=10, disabled_knobs=[], iteration=0, **kwargs):
         self.disabled_knobs = disabled_knobs
         """
         Optimize the hardware model using the specified optimization method.
@@ -325,6 +463,12 @@ class Optimizer:
         """
         if opt == "basic":
             return self.basic_optimization(improvement, iteration)
+        elif opt == "bayesian":
+            return self.bayesian_optimization(
+                improvement, iteration,
+                n_trials=kwargs.get("n_trials", 500),
+                n_parallel=kwargs.get("n_parallel", 50),
+            )
         else:
             raise ValueError(f"Invalid solver: {opt}")
 

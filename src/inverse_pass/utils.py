@@ -1,4 +1,6 @@
 import os
+import glob
+import pickle
 from dataclasses import dataclass
 from typing import Dict, List, Any, Optional
 import logging
@@ -333,6 +335,232 @@ def plot_metric_lines(
         plt.show()
 
 
+def visualize_memory_latency_scatter(
+    top_results: List[DesignPointResult],
+    iteration: int,
+    obj_type: str,
+    colors: List[float],
+    output_dir: str = None,
+):
+    """
+    For each memory block, plot hit latency vs write latency as a 2D scatter
+    colored by objective value.  Blocks where either latency column is absent
+    or where all top results share the same design point are skipped.
+    """
+    mem_entries = {}
+    for r, color in zip(top_results, colors):
+        for mem_name, mem_info in r.design_point.get("memory", {}).items():
+            if not isinstance(mem_info, dict):
+                continue
+            mem_entries.setdefault(mem_name, []).append((mem_info, color))
+
+    varied_blocks = {
+        name: entries for name, entries in mem_entries.items()
+        if len({e[0].get("index") for e in entries}) > 1
+    }
+    if not varied_blocks:
+        return
+
+    eps = 1e-30
+    for mem_name, entries in varied_blocks.items():
+        mem_infos  = [e[0] for e in entries]
+        mem_colors = [e[1] for e in entries]
+
+        numeric_cols = []
+        for k in mem_infos[0]:
+            if k in ("index", "capacity"):
+                continue
+            try:
+                float(mem_infos[0][k])
+                numeric_cols.append(k)
+            except (TypeError, ValueError):
+                pass
+
+        hit_col   = next((c for c in numeric_cols if "hit"   in c.lower() and "latency" in c.lower()), None)
+        write_col = next((c for c in numeric_cols if "write" in c.lower() and "latency" in c.lower()), None)
+        if hit_col is None or write_col is None:
+            continue
+
+        hit_lats   = np.array([float(m.get(hit_col,   0)) + eps for m in mem_infos])
+        write_lats = np.array([float(m.get(write_col, 0)) + eps for m in mem_infos])
+        log_hit    = np.log10(hit_lats)
+        log_write  = np.log10(write_lats)
+
+        capacity = mem_infos[0].get("capacity") if mem_infos else None
+        cap_str  = f"  [{capacity}]" if capacity else ""
+
+        plt.rcdefaults()
+        fig, ax = plt.subplots(figsize=(8, 6))
+
+        scatter = ax.scatter(log_hit[1:], log_write[1:], c=mem_colors[1:],
+                             cmap='viridis_r', s=100, alpha=0.75,
+                             edgecolors='white', linewidths=0.3)
+        ax.scatter([log_hit[0]], [log_write[0]], c='red', s=600, marker='*',
+                   label='Best Design', zorder=6, edgecolors='black', linewidths=2)
+        ax.scatter([], [], c='gray', s=100, alpha=0.75,
+                   edgecolors='white', label='Valid Design')
+
+        ax.set_xlabel(f'{hit_col} [log₁₀]',   fontsize=14, labelpad=6, fontweight='bold')
+        ax.set_ylabel(f'{write_col} [log₁₀]', fontsize=14, labelpad=6, fontweight='bold')
+        ax.tick_params(labelsize=11)
+        ax.grid(True, alpha=0.3, linestyle='--')
+        ax.set_title(f'Memory Hit vs Write Latency: {mem_name}{cap_str}  (log₁₀ scale)',
+                     fontsize=15, fontweight='bold', pad=10)
+        ax.legend(fontsize=12, loc='upper left', framealpha=0.9)
+
+        cbar = fig.colorbar(scatter, ax=ax, shrink=0.8, pad=0.02)
+        cbar.set_label(f'System {obj_type.upper()}', fontsize=14, labelpad=2, fontweight='bold')
+        cbar.set_ticks([0, 1])
+        cbar.set_ticklabels(['Best', 'Worst'], fontweight='bold')
+        cbar.ax.invert_yaxis()
+        cbar.ax.tick_params(labelsize=12)
+
+        if output_dir:
+            os.makedirs(output_dir, exist_ok=True)
+            safe_name = mem_name.replace('/', '_').replace(' ', '_')
+            filepath = os.path.join(output_dir, f'memory_{capacity}_{safe_name}_hit_vs_write_latency_iter_{iteration}.png')
+            plt.savefig(filepath, dpi=200, bbox_inches='tight', facecolor='white', pad_inches=0.3)
+            logger.info(f"Saved hit vs write latency plot for '{mem_name}' ({capacity}KB) to {filepath}")
+            plt.close(fig)
+        else:
+            plt.show()
+
+
+def visualize_top_memory_designs(
+    top_results: List[DesignPointResult],
+    iteration: int,
+    obj_type: str,
+    colors: List[float],
+    output_dir: str = None,
+):
+    """
+    Create 3D scatter plots for memory design choices among the top results.
+
+    For each memory block where the design point index varies across the top
+    results, plots area vs latency vs leakage (log10 scale) colored by objective
+    value — matching the style of the logic delay/energy/power 3D plot.
+    Blocks where all top results chose the same design point are skipped.
+    """
+    # Collect memory info per block: {mem_name: [(info_dict, color), ...]}
+    mem_entries = {}
+    for r, color in zip(top_results, colors):
+        for mem_name, mem_info in r.design_point.get("memory", {}).items():
+            if not isinstance(mem_info, dict):
+                continue
+            mem_entries.setdefault(mem_name, []).append((mem_info, color))
+
+    # Only plot blocks where the design point index varies
+    varied_blocks = {
+        name: entries for name, entries in mem_entries.items()
+        if len({e[0].get("index") for e in entries}) > 1
+    }
+    if not varied_blocks:
+        return
+
+    eps = 1e-30
+    for mem_name, entries in varied_blocks.items():
+        mem_infos = [e[0] for e in entries]
+        mem_colors = [e[1] for e in entries]
+
+        # Find numeric columns (excluding non-numeric metadata keys)
+        numeric_cols = []
+        for k in mem_infos[0]:
+            if k in ("index", "capacity"):
+                continue
+            try:
+                float(mem_infos[0][k])
+                numeric_cols.append(k)
+            except (TypeError, ValueError):
+                pass
+
+        if len(numeric_cols) < 2:
+            continue
+
+        area_col    = next((c for c in numeric_cols if "area"    in c.lower()), numeric_cols[0])
+        latency_col = next((c for c in numeric_cols if "latency" in c.lower()), None)
+
+        if latency_col is None or latency_col == area_col:
+            latency_col = next((c for c in numeric_cols if c != area_col), None)
+        if latency_col is None:
+            continue
+
+        leakage_col        = next((c for c in numeric_cols if "leak"  in c.lower()), None)
+        hit_energy_col     = next((c for c in numeric_cols if "hit"   in c.lower() and "energy"  in c.lower()), None)
+        write_energy_col   = next((c for c in numeric_cols if "write" in c.lower() and "energy"  in c.lower()), None)
+        write_latency_col  = next((c for c in numeric_cols if "write" in c.lower() and "latency" in c.lower()), None)
+
+        # Each entry: (z column name, file suffix)
+        z_axes = []
+        if leakage_col    is not None: z_axes.append((leakage_col,    "leakage"))
+        if hit_energy_col is not None: z_axes.append((hit_energy_col, "hit_energy"))
+        if not z_axes:
+            continue
+
+        areas     = np.array([float(m.get(area_col,    0)) + eps for m in mem_infos])
+        latencies = np.array([float(m.get(latency_col, 0)) + eps for m in mem_infos])
+        log_areas     = np.log10(areas)
+        log_latencies = np.log10(latencies)
+
+        capacity = mem_infos[0].get("capacity") if mem_infos else None
+        cap_str  = f"  [{capacity}]" if capacity else ""
+
+        best_idx  = 0
+        other_idx = list(range(1, len(mem_infos)))
+
+        for z_col, z_suffix in z_axes:
+            z_vals = np.array([float(m.get(z_col, 0)) + eps for m in mem_infos])
+            log_z  = np.log10(z_vals)
+
+            plt.rcdefaults()
+            fig = plt.figure(figsize=(9, 6))
+            ax  = fig.add_subplot(111, projection='3d', computed_zorder=False)
+
+            if other_idx:
+                scatter = ax.scatter(
+                    log_areas[other_idx], log_latencies[other_idx], log_z[other_idx],
+                    c=[mem_colors[i] for i in other_idx],
+                    cmap='viridis_r', s=100, alpha=0.75,
+                    edgecolors='white', linewidths=0.3, zorder=1,
+                )
+            else:
+                scatter = ax.scatter([], [], [], c=[], cmap='viridis_r')
+            ax.scatter([], [], [], c='gray', s=100, alpha=0.75,
+                       edgecolors='white', label='Valid Design')
+            ax.scatter([log_areas[best_idx]], [log_latencies[best_idx]], [log_z[best_idx]],
+                       c='red', s=600, marker='*', label='Best Design',
+                       edgecolors='black', linewidths=2, zorder=100)
+
+            ax.set_xlabel(f'{area_col} [log₁₀]',    fontsize=14, labelpad=8, fontweight='bold')
+            ax.set_ylabel(f'{latency_col} [log₁₀]', fontsize=14, labelpad=8, fontweight='bold')
+            ax.set_zlabel(f'{z_col} [log₁₀]',       fontsize=14, labelpad=8, fontweight='bold')
+            ax.tick_params(axis='x', labelsize=11, pad=5)
+            ax.tick_params(axis='y', labelsize=11, pad=5)
+            ax.tick_params(axis='z', labelsize=11, pad=5)
+            ax.view_init(elev=20, azim=45)
+
+            ax.set_title(f'Memory Design Space: {mem_name}{cap_str}  (log₁₀ scale)',
+                         fontsize=15, fontweight='bold', pad=10)
+            ax.legend(fontsize=12, loc='upper left', framealpha=0.9)
+
+            title_txt = f'System {obj_type.upper()}'
+            cbar = fig.colorbar(scatter, ax=ax, shrink=0.6, pad=0.02, aspect=25)
+            cbar.set_label(title_txt, fontsize=14, labelpad=2, fontweight='bold')
+            cbar.set_ticks([0, 1])
+            cbar.set_ticklabels(['Best', 'Worst'], fontweight='bold')
+            cbar.ax.invert_yaxis()
+            cbar.ax.tick_params(labelsize=12)
+
+            if output_dir:
+                os.makedirs(output_dir, exist_ok=True)
+                safe_name = mem_name.replace('/', '_').replace(' ', '_')
+                filepath = os.path.join(output_dir, f'memory_{capacity}_{safe_name}_{z_suffix}_iter_{iteration}.png')
+                plt.savefig(filepath, dpi=200, bbox_inches='tight', facecolor='white', pad_inches=0.5)
+                logger.info(f"Saved memory design plot for '{mem_name}' ({capacity}KB) ({z_suffix}) to {filepath}")
+                plt.close(fig)
+            else:
+                plt.show()
+
+
 def visualize_top_designs(all_results: List[DesignPointResult], iteration: int, obj_type: str, top_percent: float = 0.1, output_dir: str = None):
     """
     Create visualizations of the top designs by objective value.
@@ -568,4 +796,38 @@ def visualize_top_designs(all_results: List[DesignPointResult], iteration: int, 
     else:
         plt.show()
 
+    visualize_top_memory_designs(top_results, iteration, obj_type, colors, output_dir=output_dir)
+    visualize_memory_latency_scatter(top_results, iteration, obj_type, colors, output_dir=output_dir)
+
     return top_results
+
+
+def regenerate_plots_from_log_dir(log_dir: str, obj_type: str = "edp", top_percent: float = 1):
+    """
+    Load pickled DesignPointResult lists from a previous log directory and
+    regenerate all visualisation plots into that same directory.
+
+    Discovers all ``all_design_point_results_iter_<N>.pkl`` files in *log_dir*
+    and calls :func:`visualize_top_designs` for each iteration found.
+
+    Args:
+        log_dir:     Path to a previous run's log directory (the directory that
+                     contains the .pkl files and where plots will be written).
+        obj_type:    Objective type string used for axis labels (e.g. "edp").
+        top_percent: Fraction of top designs to visualise (default 10 %).
+    """
+    pattern = os.path.join(log_dir, "all_design_point_results_iter_*.pkl")
+    pkl_files = sorted(glob.glob(pattern))
+    assert pkl_files, f"No design-point result pkl files found in {log_dir!r} (pattern: {pattern})"
+
+    for pkl_path in pkl_files:
+        # Extract iteration number from filename
+        basename = os.path.basename(pkl_path)
+        iteration = int(basename.replace("all_design_point_results_iter_", "").replace(".pkl", ""))
+
+        with open(pkl_path, "rb") as f:
+            all_results: List[DesignPointResult] = pickle.load(f)
+
+        logger.info(f"Regenerating plots for iteration {iteration} ({len(all_results)} results) from {pkl_path}")
+        visualize_top_designs(all_results, iteration, obj_type,
+                              top_percent=top_percent, output_dir=log_dir)
