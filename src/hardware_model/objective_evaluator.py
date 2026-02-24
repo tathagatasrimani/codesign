@@ -27,6 +27,42 @@ _MEMORY_OPS = {"load", "store", "read", "write"}
 _MEMORY_READ_OPS = {"load", "read"}
 
 
+def _make_zero_bd():
+    """Create a zero-initialized latency breakdown dict.
+
+    The breakdown dict tracks how the delay to a given DFG node is split
+    across four physical categories:
+        clk    - register/pipeline-stage delays (one clk_period per resource
+                 edge) and loop initiation-interval stalls (delay_1x *
+                 (trip_count - 1)).  Represents time spent waiting on clock
+                 boundaries rather than doing useful computation.
+        logic  - combinational delay through arithmetic/logic units.
+        memory - latency of cache-hit reads or cache-write operations to named
+                 memory blocks (e.g. SRAM, DRAM caches).
+        wire   - RC delay along physical wire segments in the netlist.
+        memory_by_block - {mem_name: ns} sub-breakdown of the 'memory' total,
+                 one entry per named memory instance.
+
+    Percentages are computed relative to the total (sum of clk+logic+memory+wire).
+    """
+    return {"clk": 0.0, "logic": 0.0, "memory": 0.0, "wire": 0.0, "memory_by_block": {}}
+
+
+def _add_bd(base, delta):
+    """Return a new breakdown dict equal to base + delta.
+
+    The four scalar fields are summed directly; memory_by_block dicts are
+    merged with per-key summation so individual memory contributions accumulate
+    correctly as we propagate breakdowns along the critical path.
+    """
+    result = {k: base[k] + delta[k] for k in ("clk", "logic", "memory", "wire")}
+    mb = dict(base["memory_by_block"])
+    for mem, val in delta["memory_by_block"].items():
+        mb[mem] = mb.get(mem, 0.0) + val
+    result["memory_by_block"] = mb
+    return result
+
+
 class ObjectiveEvaluator:
     """
     Pickleable class for evaluating objectives in worker processes.
@@ -110,6 +146,23 @@ class ObjectiveEvaluator:
         self.total_passive_energy = 0.0
         self.total_refresh_energy = 0.0
         self.total_area = 0.0
+        # Latency breakdown (critical path ns and % by category)
+        self.latency_breakdown = {"clk": 0.0, "logic": 0.0, "memory": 0.0, "wire": 0.0}
+        self.latency_breakdown_pct = {"clk": 0.0, "logic": 0.0, "memory": 0.0, "wire": 0.0}
+        self.latency_memory_by_block: Dict[str, float] = {}
+        self.latency_memory_by_block_pct: Dict[str, float] = {}
+        self.total_logic_ops = 0
+        self.total_memory_ops = 0
+        # Active energy breakdown (nJ and % by category)
+        self.active_energy_breakdown = {"logic": 0.0, "memory": 0.0, "wire": 0.0}
+        self.active_energy_breakdown_pct = {"logic": 0.0, "memory": 0.0, "wire": 0.0}
+        self.active_energy_memory_by_block: Dict[str, float] = {}
+        self.active_energy_memory_by_block_pct: Dict[str, float] = {}
+        # Passive power breakdown (W and % by category; wires excluded)
+        self.passive_power_breakdown = {"logic": 0.0, "memory": 0.0}
+        self.passive_power_breakdown_pct = {"logic": 0.0, "memory": 0.0}
+        self.passive_power_memory_by_block: Dict[str, float] = {}
+        self.passive_power_memory_by_block_pct: Dict[str, float] = {}
 
     def _set_coefficients(self):
         """Set up logical effort coefficients."""
@@ -202,6 +255,46 @@ class ObjectiveEvaluator:
 
         self._save_obj_vals(self.execution_time)
 
+        # ---------- Latency breakdown ----------
+        # _calculate_execution_time_recursive propagates a breakdown dict
+        # alongside every node's arrival time.  At the graph's end node the
+        # accumulated dict represents the full critical-path delay split by
+        # category.  Percentages are relative to the total critical-path length.
+        if self.top_block_name not in self.dataflow_blocks:
+            _graph_end = f"graph_end_{self.top_block_name}"
+        else:
+            _graph_end = f"{self.top_block_name}_graph_end_{self.top_block_name}"
+        _bd = self.node_delay_breakdown[self.top_block_name]["full"].get(_graph_end, _make_zero_bd())
+        self.latency_breakdown = {k: _bd[k] for k in ("clk", "logic", "memory", "wire")}
+        self.latency_memory_by_block = dict(_bd["memory_by_block"])
+        _total_lat = sum(self.latency_breakdown.values())
+        if _total_lat > 0:
+            self.latency_breakdown_pct = {k: v / _total_lat for k, v in self.latency_breakdown.items()}
+            self.latency_memory_by_block_pct = {m: v / _total_lat for m, v in self.latency_memory_by_block.items()}
+
+        # ---------- Op counts ----------
+        # Counts all logic and memory ops executed at runtime.  Loop bodies are
+        # multiplied by their full trip count (not count-1) because we want
+        # actual execution count, not the pipelined-overlap adjustment used for
+        # latency/energy.
+        self.total_logic_ops, self.total_memory_ops = self._count_ops()
+
+        # ---------- Active energy breakdown ----------
+        # Accumulated in-place during calculate_active_energy; normalised here.
+        # Percentages are relative to total active switching energy.
+        _total_ae = sum(self.active_energy_breakdown.values())
+        if _total_ae > 0:
+            self.active_energy_breakdown_pct = {k: v / _total_ae for k, v in self.active_energy_breakdown.items()}
+            self.active_energy_memory_by_block_pct = {m: v / _total_ae for m, v in self.active_energy_memory_by_block.items()}
+
+        # ---------- Passive (leakage) power breakdown ----------
+        # Accumulated in-place during calculate_passive_energy; wires carry no
+        # leakage so only logic and memory units are tracked.
+        _total_pp = sum(self.passive_power_breakdown.values())
+        if _total_pp > 0:
+            self.passive_power_breakdown_pct = {k: v / _total_pp for k, v in self.passive_power_breakdown.items()}
+            self.passive_power_memory_by_block_pct = {m: v / _total_pp for m, v in self.passive_power_memory_by_block.items()}
+
     def _save_obj_vals(self, execution_time: float):
         """Calculate and save objective values based on objective function."""
         if self.obj_fn == "edp":
@@ -222,11 +315,13 @@ class ObjectiveEvaluator:
     def calculate_execution_time(self) -> float:
         """Calculate execution time by traversing the scheduled DFGs."""
         self.node_arrivals = {}
+        self.node_delay_breakdown = {}
         self.graph_delays = {}
         self.loop_delays_1x = {}  # loop_name -> delay of one iteration (ns)
 
         for basic_block_name in self.scheduled_dfgs:
             self.node_arrivals[basic_block_name] = {"full": {}, "loop_1x": {}, "loop_2x": {}}
+            self.node_delay_breakdown[basic_block_name] = {"full": {}, "loop_1x": {}, "loop_2x": {}}
 
         log_info(f"scheduled dfgs: {self.scheduled_dfgs.keys()}")
 
@@ -257,23 +352,74 @@ class ObjectiveEvaluator:
         """
         Recursively calculate execution time through the DFG.
 
+        Algorithm — longest-path with parallel breakdown tracking
+        ---------------------------------------------------------
+        The DFG is a DAG where each node represents an operation and each edge
+        carries a delay.  We perform a single forward pass over the nodes (they
+        are stored in topological order) and track, for every node, both:
+
+            node_arrivals[block][type][node]        — scalar arrival time (ns)
+            node_delay_breakdown[block][type][node] — breakdown dict (see
+                                                      _make_zero_bd)
+
+        For each predecessor edge we compute a (pred_delay, pred_bd_delta) pair
+        and update the node's arrival if the new candidate is strictly greater.
+        When a new maximum is found, the node's breakdown is replaced with
+        pred_breakdown + pred_bd_delta, so the breakdown always reflects the
+        actual critical path that determined the arrival time.
+
+        Edge-type to breakdown-category mapping
+        ----------------------------------------
+        resource_edge AND pred.function == "II"  →  clk
+            The II node represents a loop that runs `count` iterations.  The
+            outer graph sees a delay of  delay_1x * (count - 1)  where delay_1x
+            is the critical-path latency of a single loop iteration (computed
+            by a recursive call with resource_delays_only=True).  This whole
+            quantity is classified as 'clk' because it represents initiation-
+            interval stalls between successive resource uses — time governed by
+            the clock, not by logic depth.  Op counts are separately multiplied
+            by the full trip count `count` in _count_ops_in_dfg.
+
+        resource_edge AND pred.function != "II"  →  clk
+            A plain register/pipeline-stage edge costs one clock period.
+
+        pred.function == "Call"  →  propagate sub-function's breakdown
+            The delay equals the called function's total latency.  Rather than
+            re-categorising it, we copy the end-node breakdown of the called
+            function's graph so that its clk/logic/memory/wire split flows up
+            into the caller's critical path.
+
+        pred.function == "Wire"  →  wire
+            RC wire delay computed from segment lengths and layer parasitics.
+
+        pred.function in _MEMORY_OPS (with named memory)  →  memory
+            Cache-hit or write latency from the memory model.  Also recorded
+            in memory_by_block[mem_name] for per-instance breakdown.
+
+        everything else  →  logic
+            Combinational delay via logical-effort coefficients (gamma table).
+            Register ops (mem_name == 'N/A') fall through to Register16 and
+            are also counted here.
+
         Args:
             basic_block_name: Name of the basic block
             dfg: NetworkX DiGraph representing the DFG
             graph_end_node: Name of the end node
             graph_type: Type of graph ('full', 'loop_1x', 'loop_2x')
             resource_delays_only: If True, only count resource edge delays
+                (used when computing delay_1x for II nodes)
 
         Returns:
-            Execution time in ns
+            Execution time in ns (arrival time at graph_end_node)
         """
         log_info(f"calculating execution time for {basic_block_name} with graph end node {graph_end_node}")
 
         tv = self.tech_model.base_params.tech_values
 
-        # Initialize all node arrivals to 0
+        # Initialize all node arrivals and delay breakdowns to 0
         for node in dfg.nodes:
             self.node_arrivals[basic_block_name][graph_type][node] = 0.0
+            self.node_delay_breakdown[basic_block_name][graph_type][node] = _make_zero_bd()
 
         # Process nodes
         for node in dfg.nodes:
@@ -281,6 +427,7 @@ class ObjectiveEvaluator:
 
             for pred in preds:
                 pred_delay = 0.0
+                pred_bd_delta = _make_zero_bd()
 
                 if dfg.edges[pred, node]["resource_edge"]:
                     if dfg.nodes[pred]["function"] == "II":
@@ -295,14 +442,16 @@ class ObjectiveEvaluator:
                         self.loop_delays_1x[loop_name] = delay_1x
                         # TODO: add dependence of II on loop-carried dependency
                         pred_delay = delay_1x * (int(dfg.nodes[pred]["count"]) - 1)
+                        pred_bd_delta["clk"] = pred_delay
                     else:
                         pred_delay = sim_util.xreplace_safe(
                             self.tech_model.base_params.clk_period, tv
                         )
+                        pred_bd_delta["clk"] = pred_delay
 
                 elif dfg.nodes[pred]["function"] == "Call":
                     if basic_block_name in self.dataflow_blocks:
-                        pred_delay = 0.0 # ignore calls beacuse operations are inlined
+                        pred_delay = 0.0 # ignore calls because operations are inlined
                     else:
                         # Recursively calculate delay for function calls
                         call_fn = dfg.nodes[pred]["call_function"]
@@ -313,6 +462,10 @@ class ObjectiveEvaluator:
                                 graph_end_node=f"graph_end_{call_fn}"
                             )
                         pred_delay = self.graph_delays[call_fn]
+                        pred_bd_delta = dict(
+                            self.node_delay_breakdown[call_fn]["full"][f"graph_end_{call_fn}"]
+                        )
+                        pred_bd_delta["memory_by_block"] = dict(pred_bd_delta["memory_by_block"])
 
                 elif not resource_delays_only:
                     if dfg.nodes[pred]["function"] == "Wire":
@@ -321,20 +474,30 @@ class ObjectiveEvaluator:
                         rsc_edge = self._get_rsc_edge((src, dst), dfg)
                         if rsc_edge in self.edge_to_nets:
                             pred_delay = self._wire_delay(rsc_edge)
+                            pred_bd_delta["wire"] = pred_delay
                             log_info(f"added wire delay {pred_delay} for edge {rsc_edge}")
                         else:
                             log_info(f"no wire delay for edge {rsc_edge}")
                     else:
                         pred_delay = self._latency(dfg.nodes[pred]["function"], dfg.nodes[pred])
+                        fn = dfg.nodes[pred]["function"]
+                        mem_name = dfg.nodes[pred].get("mem_name", "N/A")
+                        if fn in _MEMORY_OPS and mem_name != "N/A" and mem_name in self.memory_models:
+                            pred_bd_delta["memory"] = pred_delay
+                            pred_bd_delta["memory_by_block"][mem_name] = pred_delay
+                        else:
+                            pred_bd_delta["logic"] = pred_delay
 
                 log_info(f"pred_delay: {pred_delay} for node {node} and pred {pred}")
 
-                # Update node arrival time (max of all predecessor paths)
+                # Update node arrival time and breakdown (max of all predecessor paths)
                 arrival = self.node_arrivals[basic_block_name][graph_type][pred] + pred_delay
-                self.node_arrivals[basic_block_name][graph_type][node] = max(
-                    arrival,
-                    self.node_arrivals[basic_block_name][graph_type][node]
-                )
+                current = self.node_arrivals[basic_block_name][graph_type][node]
+                if arrival > current:
+                    self.node_arrivals[basic_block_name][graph_type][node] = arrival
+                    pred_bd = self.node_delay_breakdown[basic_block_name][graph_type][pred]
+                    self.node_delay_breakdown[basic_block_name][graph_type][node] = _add_bd(pred_bd, pred_bd_delta)
+
         return self.node_arrivals[basic_block_name][graph_type][graph_end_node]
 
     def _wire_delay(self, edge) -> float:
@@ -394,6 +557,39 @@ class ObjectiveEvaluator:
         delay = sim_util.xreplace_safe(self.tech_model.delay, tv)
         return math.ceil(self.gamma[op_type] * delay)
 
+    def _count_ops(self) -> tuple:
+        """Count total logic and memory operations across all scheduled DFGs.
+
+        Loop bodies are multiplied by their full trip count so the result
+        reflects the total number of operations executed at runtime, not the
+        static op count in the IR.  Returns (total_logic_ops, total_memory_ops).
+        """
+        total_logic, total_memory = 0, 0
+        for block_name in self.scheduled_dfgs:
+            logic, memory = self._count_ops_in_dfg(block_name, self.scheduled_dfgs[block_name])
+            total_logic += logic
+            total_memory += memory
+        return total_logic, total_memory
+
+    def _count_ops_in_dfg(self, block_name: str, dfg) -> tuple:
+        """Recursively count ops in dfg, scaling loop bodies by trip count."""
+        logic, memory = 0, 0
+        for node, data in dfg.nodes(data=True):
+            fn = data["function"]
+            if fn == "II":
+                count = int(data["count"])
+                loop_name = data["loop_name"]
+                l, m = self._count_ops_in_dfg(block_name, self.loop_1x_graphs[loop_name][False])
+                logic += l * count
+                memory += m * count
+            elif fn in _MEMORY_OPS:
+                mem_name = data.get("mem_name", "N/A")
+                if mem_name != "N/A" and mem_name in self.memory_models:
+                    memory += 1
+            elif fn not in ("Wire", "Call", "N/A") and fn in self.gamma:
+                logic += 1
+        return logic, memory
+
     def calculate_refresh_energy(self) -> float:
         total_refresh_energy = 0.0
         for mem_name in self.mem_access_db:
@@ -425,19 +621,25 @@ class ObjectiveEvaluator:
 
         Replicates HardwareModel.calculate_active_energy_vitis.
         """
+        self.active_energy_breakdown = {"logic": 0.0, "memory": 0.0, "wire": 0.0}
+        self.active_energy_memory_by_block = {}
         total_active_energy = 0.0
         for basic_block_name in self.scheduled_dfgs:
             total_active_energy += self._calculate_active_energy_basic_block(
                 basic_block_name,
-                self.scheduled_dfgs[basic_block_name]
+                self.scheduled_dfgs[basic_block_name],
+                breakdown=self.active_energy_breakdown,
+                memory_by_block=self.active_energy_memory_by_block,
             )
         return total_active_energy
 
-    def _calculate_active_energy_basic_block(self, basic_block_name: str, dfg) -> float:
+    def _calculate_active_energy_basic_block(self, basic_block_name: str, dfg,
+                                              breakdown=None, memory_by_block=None) -> float:
         """
         Calculate active energy for a single basic block.
 
         Replicates HardwareModel.calculate_active_energy_basic_block.
+        breakdown and memory_by_block, if provided, are accumulated in-place.
         """
         tv = self.tech_model.base_params.tech_values
         total_active_energy_basic_block = 0.0
@@ -448,11 +650,21 @@ class ObjectiveEvaluator:
             if data["function"] == "II":
                 loop_count = int(data["count"])
                 loop_name = data["loop_name"]
+                loop_bd = {"logic": 0.0, "memory": 0.0, "wire": 0.0} if breakdown is not None else None
+                loop_mbb = {} if memory_by_block is not None else None
                 loop_energy = self._calculate_active_energy_basic_block(
                     basic_block_name,
-                    self.loop_1x_graphs[loop_name][False]
+                    self.loop_1x_graphs[loop_name][False],
+                    breakdown=loop_bd,
+                    memory_by_block=loop_mbb,
                 )
                 total_active_energy_basic_block += loop_energy * (loop_count - 1)
+                if breakdown is not None:
+                    for k in breakdown:
+                        breakdown[k] += loop_bd[k] * (loop_count - 1)
+                if memory_by_block is not None:
+                    for m, v in loop_mbb.items():
+                        memory_by_block[m] = memory_by_block.get(m, 0.0) + v * (loop_count - 1)
                 log_info(f"loop count for {basic_block_name}: {loop_count}")
                 log_info(f"loop energy for {basic_block_name}: {sim_util.xreplace_safe(loop_energy, tv)}")
 
@@ -461,7 +673,10 @@ class ObjectiveEvaluator:
                 dst = data["dst_node"]
                 rsc_edge = self._get_rsc_edge((src, dst), dfg)
                 if rsc_edge in self.edge_to_nets:
-                    total_active_energy_basic_block += self._wire_energy(rsc_edge)
+                    energy = self._wire_energy(rsc_edge)
+                    total_active_energy_basic_block += energy
+                    if breakdown is not None:
+                        breakdown["wire"] += energy
                     log_info(f"edge {rsc_edge} is in edge_to_nets")
                 else:
                     log_info(f"edge {rsc_edge} is not in edge_to_nets")
@@ -469,6 +684,15 @@ class ObjectiveEvaluator:
             else:
                 energy = self._symbolic_energy_active(data["function"], data)
                 total_active_energy_basic_block += energy
+                if breakdown is not None:
+                    fn = data["function"]
+                    mem_name = data.get("mem_name", "N/A")
+                    if fn in _MEMORY_OPS and mem_name != "N/A" and mem_name in self.memory_models:
+                        breakdown["memory"] += energy
+                        if memory_by_block is not None:
+                            memory_by_block[mem_name] = memory_by_block.get(mem_name, 0.0) + energy
+                    else:
+                        breakdown["logic"] += energy
                 log_info(f"active energy for {node}: {energy}")
 
         log_info(f"total active energy for {basic_block_name}: {total_active_energy_basic_block}")
@@ -557,10 +781,33 @@ class ObjectiveEvaluator:
         """
         total_passive_power = 0.0
         counted_memories = set()
+        self.passive_power_breakdown = {"logic": 0.0, "memory": 0.0}
+        self.passive_power_memory_by_block = {}
 
         for node, data in self.netlist.nodes(data=True):
             power = self._symbolic_power_passive(data["function"], data, counted_memories)
             total_passive_power += power
+            # Categorize for breakdown
+            fn = data["function"]
+            mem_name = data.get("mem_name", "N/A") if data else "N/A"
+            if fn in _MEMORY_OPS:
+                if mem_name != "N/A" and mem_name in self.memory_models:
+                    self.passive_power_breakdown["memory"] += power
+                    if power > 0:
+                        self.passive_power_memory_by_block[mem_name] = (
+                            self.passive_power_memory_by_block.get(mem_name, 0.0) + power
+                        )
+                else:
+                    self.passive_power_breakdown["logic"] += power  # Register16
+            elif fn in ("memory", "fifo"):
+                self.passive_power_breakdown["memory"] += power
+                blk = data.get("name", "N/A") if data else "N/A"
+                if power > 0 and blk != "N/A":
+                    self.passive_power_memory_by_block[blk] = (
+                        self.passive_power_memory_by_block.get(blk, 0.0) + power
+                    )
+            elif fn not in ("N/A", "Call") and fn in self.beta:
+                self.passive_power_breakdown["logic"] += power
             log_info(f"passive power for {node}: {power}")
 
         self.total_passive_power = total_passive_power

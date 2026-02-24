@@ -1,7 +1,7 @@
 import os
 import glob
 import pickle
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, List, Any, Optional
 import logging
 
@@ -49,11 +49,28 @@ class DesignPointResult:
     V_th: float
     tox: float
     satisfies_constraints: bool
-    # Block-level metrics (from ObjectiveEvaluator)
+    # Block-level scalar metrics (from ObjectiveEvaluator)
     execution_time: float = 0.0       # block execution time (ns)
     total_active_energy: float = 0.0  # block active energy (nJ)
     total_passive_energy: float = 0.0 # block passive energy (nJ)
     total_area: float = 0.0           # block area (um^2)
+    # Latency breakdown (critical path ns and % per category)
+    latency_breakdown: Dict[str, float] = field(default_factory=lambda: {"clk": 0.0, "logic": 0.0, "memory": 0.0, "wire": 0.0})
+    latency_breakdown_pct: Dict[str, float] = field(default_factory=lambda: {"clk": 0.0, "logic": 0.0, "memory": 0.0, "wire": 0.0})
+    latency_memory_by_block: Dict[str, float] = field(default_factory=dict)
+    latency_memory_by_block_pct: Dict[str, float] = field(default_factory=dict)
+    total_logic_ops: int = 0
+    total_memory_ops: int = 0
+    # Active energy breakdown (nJ and % per category)
+    active_energy_breakdown: Dict[str, float] = field(default_factory=lambda: {"logic": 0.0, "memory": 0.0, "wire": 0.0})
+    active_energy_breakdown_pct: Dict[str, float] = field(default_factory=lambda: {"logic": 0.0, "memory": 0.0, "wire": 0.0})
+    active_energy_memory_by_block: Dict[str, float] = field(default_factory=dict)
+    active_energy_memory_by_block_pct: Dict[str, float] = field(default_factory=dict)
+    # Passive power breakdown (W and % per category; wires excluded)
+    passive_power_breakdown: Dict[str, float] = field(default_factory=lambda: {"logic": 0.0, "memory": 0.0})
+    passive_power_breakdown_pct: Dict[str, float] = field(default_factory=lambda: {"logic": 0.0, "memory": 0.0})
+    passive_power_memory_by_block: Dict[str, float] = field(default_factory=dict)
+    passive_power_memory_by_block_pct: Dict[str, float] = field(default_factory=dict)
 
 def plot_2d_scatter(
     top_results: List[DesignPointResult],

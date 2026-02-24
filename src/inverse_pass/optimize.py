@@ -140,13 +140,27 @@ def _worker_basic_optimization_chunk(args_tuple):
                 total_active_energy=evaluator.total_active_energy,
                 total_passive_energy=evaluator.total_passive_energy,
                 total_area=sim_util.xreplace_safe(evaluator.total_area, tech_model.base_params.tech_values),
+                latency_breakdown=dict(evaluator.latency_breakdown),
+                latency_breakdown_pct=dict(evaluator.latency_breakdown_pct),
+                latency_memory_by_block=dict(evaluator.latency_memory_by_block),
+                latency_memory_by_block_pct=dict(evaluator.latency_memory_by_block_pct),
+                total_logic_ops=evaluator.total_logic_ops,
+                total_memory_ops=evaluator.total_memory_ops,
+                active_energy_breakdown=dict(evaluator.active_energy_breakdown),
+                active_energy_breakdown_pct=dict(evaluator.active_energy_breakdown_pct),
+                active_energy_memory_by_block=dict(evaluator.active_energy_memory_by_block),
+                active_energy_memory_by_block_pct=dict(evaluator.active_energy_memory_by_block_pct),
+                passive_power_breakdown=dict(evaluator.passive_power_breakdown),
+                passive_power_breakdown_pct=dict(evaluator.passive_power_breakdown_pct),
+                passive_power_memory_by_block=dict(evaluator.passive_power_memory_by_block),
+                passive_power_memory_by_block_pct=dict(evaluator.passive_power_memory_by_block_pct),
             )
             results.append(result)
 
             # Log only when we find a new best
             if constraints_satisfied and obj_value < best_obj_val:
                 best_obj_val = obj_value
-                logger.info(f"worker {worker_id} new best objective value: {obj_value}, design point: {design_point}")
+                #logger.info(f"worker {worker_id} new best objective value: {obj_value}, design point: {design_point}")
 
     return (worker_id, results)
 

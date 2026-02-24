@@ -120,6 +120,24 @@ class SystemDesignPoint:
     compute_time_ns: float = 0.0
     compute_energy_nj: float = 0.0
     overhead: Optional[OverheadBreakdown] = None
+    # System latency breakdown (critical-path ns and % by category)
+    # Overhead time (weight loads, comms) is attributed to 'memory'.
+    system_latency_breakdown: Dict[str, float] = field(default_factory=lambda: {"clk": 0.0, "logic": 0.0, "memory": 0.0, "wire": 0.0})
+    system_latency_breakdown_pct: Dict[str, float] = field(default_factory=lambda: {"clk": 0.0, "logic": 0.0, "memory": 0.0, "wire": 0.0})
+    system_latency_memory_by_block: Dict[str, float] = field(default_factory=dict)
+    system_latency_memory_by_block_pct: Dict[str, float] = field(default_factory=dict)
+    system_total_logic_ops: int = 0
+    system_total_memory_ops: int = 0
+    # System active energy breakdown (summed over all block instances, nJ and %)
+    system_active_energy_breakdown: Dict[str, float] = field(default_factory=lambda: {"logic": 0.0, "memory": 0.0, "wire": 0.0})
+    system_active_energy_breakdown_pct: Dict[str, float] = field(default_factory=lambda: {"logic": 0.0, "memory": 0.0, "wire": 0.0})
+    system_active_energy_memory_by_block: Dict[str, float] = field(default_factory=dict)
+    system_active_energy_memory_by_block_pct: Dict[str, float] = field(default_factory=dict)
+    # System passive power breakdown (dedicated HW leakage, W and %; wires excluded)
+    system_passive_power_breakdown: Dict[str, float] = field(default_factory=lambda: {"logic": 0.0, "memory": 0.0})
+    system_passive_power_breakdown_pct: Dict[str, float] = field(default_factory=lambda: {"logic": 0.0, "memory": 0.0})
+    system_passive_power_memory_by_block: Dict[str, float] = field(default_factory=dict)
+    system_passive_power_memory_by_block_pct: Dict[str, float] = field(default_factory=dict)
 
 
 # ---------------------------------------------------------------------------
@@ -949,7 +967,9 @@ class SystemCodesign:
         per_node_overhead = overhead_data["per_node"]
 
         # --- Execution time: DFG critical path (includes per-node overheads) ---
+        # _dfg_critical_path also stores the latency breakdown as a side-effect.
         total_time = self._dfg_critical_path(assignments, per_node_overhead)
+        _cp_bd = dict(getattr(self, "_last_critical_path_bd", {}))
         # Compute-only critical path (without overheads) for reporting
         compute_time = self._dfg_critical_path(assignments, per_node_overhead=None)
 
@@ -976,6 +996,43 @@ class SystemCodesign:
         else:
             obj = total_energy * total_time  # default to EDP
 
+        # --- Breakdown aggregation ---
+        # Latency: from the critical path (already computed above).
+        lat_bd = {k: _cp_bd.get(k, 0.0) for k in ("clk", "logic", "memory", "wire")}
+        lat_mbb = dict(_cp_bd.get("memory_by_block", {}))
+        _total_lat = sum(lat_bd.values())
+        lat_bd_pct = {k: v / _total_lat for k, v in lat_bd.items()} if _total_lat > 0 else dict(lat_bd)
+        lat_mbb_pct = {m: v / _total_lat for m, v in lat_mbb.items()} if _total_lat > 0 else {}
+
+        # Active energy: sum over all block instances (multiply by instance count).
+        ae_bd = {"logic": 0.0, "memory": 0.0, "wire": 0.0}
+        ae_mbb: Dict[str, float] = {}
+        # Passive power: dedicated HW leaks simultaneously — no instance multiplier.
+        pp_bd = {"logic": 0.0, "memory": 0.0}
+        pp_mbb: Dict[str, float] = {}
+        total_logic_ops = 0
+        total_memory_ops = 0
+
+        for bn, result in assignments.items():
+            count = instance_counts.get(bn, 1)
+            for k in ae_bd:
+                ae_bd[k] += (getattr(result, "active_energy_breakdown", None) or {}).get(k, 0.0) * count
+            for m, v in ((getattr(result, "active_energy_memory_by_block", None) or {}).items()):
+                ae_mbb[m] = ae_mbb.get(m, 0.0) + v * count
+            for k in pp_bd:
+                pp_bd[k] += (getattr(result, "passive_power_breakdown", None) or {}).get(k, 0.0)
+            for m, v in ((getattr(result, "passive_power_memory_by_block", None) or {}).items()):
+                pp_mbb[m] = pp_mbb.get(m, 0.0) + v
+            total_logic_ops += getattr(result, "total_logic_ops", 0) * count
+            total_memory_ops += getattr(result, "total_memory_ops", 0) * count
+
+        _total_ae = sum(ae_bd.values())
+        ae_bd_pct = {k: v / _total_ae for k, v in ae_bd.items()} if _total_ae > 0 else dict(ae_bd)
+        ae_mbb_pct = {m: v / _total_ae for m, v in ae_mbb.items()} if _total_ae > 0 else {}
+        _total_pp = sum(pp_bd.values())
+        pp_bd_pct = {k: v / _total_pp for k, v in pp_bd.items()} if _total_pp > 0 else dict(pp_bd)
+        pp_mbb_pct = {m: v / _total_pp for m, v in pp_mbb.items()} if _total_pp > 0 else {}
+
         return SystemDesignPoint(
             block_assignments=assignments,
             system_execution_time=total_time,
@@ -985,6 +1042,20 @@ class SystemCodesign:
             compute_time_ns=compute_time,
             compute_energy_nj=compute_energy,
             overhead=overhead,
+            system_latency_breakdown=lat_bd,
+            system_latency_breakdown_pct=lat_bd_pct,
+            system_latency_memory_by_block=lat_mbb,
+            system_latency_memory_by_block_pct=lat_mbb_pct,
+            system_total_logic_ops=total_logic_ops,
+            system_total_memory_ops=total_memory_ops,
+            system_active_energy_breakdown=ae_bd,
+            system_active_energy_breakdown_pct=ae_bd_pct,
+            system_active_energy_memory_by_block=ae_mbb,
+            system_active_energy_memory_by_block_pct=ae_mbb_pct,
+            system_passive_power_breakdown=pp_bd,
+            system_passive_power_breakdown_pct=pp_bd_pct,
+            system_passive_power_memory_by_block=pp_mbb,
+            system_passive_power_memory_by_block_pct=pp_mbb_pct,
         )
 
     def _dfg_critical_path(
@@ -992,26 +1063,60 @@ class SystemCodesign:
         assignments: Dict[str, DesignPointResult],
         per_node_overhead: Optional[Dict] = None,
     ) -> float:
-        """Compute critical path through the system DFG including per-node overheads."""
+        """Compute critical path through the system DFG including per-node overheads.
+
+        Also accumulates a latency breakdown (clk/logic/memory/wire) along the
+        critical path and stores it as self._last_critical_path_bd.  Each block's
+        latency_breakdown (ns) is added to the running sum; per-node overhead
+        (weight loads, comm) is attributed to 'memory' since it is all data
+        movement.  The breakdown is used by _compose_system_metrics after the
+        full-overhead critical-path call.
+        """
         G = self.system_dfg
         node_times: Dict[str, float] = {}
+        _zero_bd = {"clk": 0.0, "logic": 0.0, "memory": 0.0, "wire": 0.0, "memory_by_block": {}}
+        node_lat_bd: Dict[str, dict] = {}
 
         for node in nx.topological_sort(G):
             block_type = G.nodes[node]["block_type"]
-            block_time = assignments[block_type].execution_time
+            result = assignments[block_type]
+            block_time = result.execution_time
+            block_bd = getattr(result, "latency_breakdown", None) or {}
+            block_mbb = getattr(result, "latency_memory_by_block", None) or {}
 
             # Add per-node overhead (weight load + comm + kv cache)
             node_overhead = 0.0
             if per_node_overhead and node in per_node_overhead:
                 node_overhead = per_node_overhead[node]["total_time"]
 
+            # Find best (latest-completing) predecessor
+            best_pred = None
             pred_completion = 0.0
             for pred in G.predecessors(node):
-                pred_completion = max(pred_completion, node_times[pred])
+                if node_times[pred] > pred_completion:
+                    pred_completion = node_times[pred]
+                    best_pred = pred
+
+            # Accumulate breakdown from the critical predecessor
+            inherited = node_lat_bd[best_pred] if best_pred is not None else _zero_bd
+            new_bd = {k: inherited[k] + block_bd.get(k, 0.0) for k in ("clk", "logic", "memory", "wire")}
+            mb = dict(inherited["memory_by_block"])
+            for mem, val in block_mbb.items():
+                mb[mem] = mb.get(mem, 0.0) + val
+            # Overhead is data-movement time → attribute to memory
+            new_bd["memory"] += node_overhead
+            new_bd["memory_by_block"] = mb
 
             node_times[node] = pred_completion + block_time + node_overhead
+            node_lat_bd[node] = new_bd
 
-        return max(node_times.values()) if node_times else 0.0
+        if not node_times:
+            self._last_critical_path_bd = dict(_zero_bd)
+            return 0.0
+
+        critical_node = max(node_times, key=lambda n: node_times[n])
+        self._last_critical_path_bd = node_lat_bd[critical_node]
+        return node_times[critical_node]
 
     def _check_system_constraints(
         self, point: SystemDesignPoint, constraints: dict
@@ -1077,6 +1182,22 @@ class SystemCodesign:
                 "extra_input_time_ns": oh.extra_input_time_ns,
                 "extra_input_energy_nJ": oh.extra_input_energy_nj,
             }
+            report["system_breakdown"] = {
+                "latency_ns": best_system.system_latency_breakdown,
+                "latency_pct": best_system.system_latency_breakdown_pct,
+                "latency_memory_by_block_ns": best_system.system_latency_memory_by_block,
+                "latency_memory_by_block_pct": best_system.system_latency_memory_by_block_pct,
+                "total_logic_ops": best_system.system_total_logic_ops,
+                "total_memory_ops": best_system.system_total_memory_ops,
+                "active_energy_nJ": best_system.system_active_energy_breakdown,
+                "active_energy_pct": best_system.system_active_energy_breakdown_pct,
+                "active_energy_memory_by_block_nJ": best_system.system_active_energy_memory_by_block,
+                "active_energy_memory_by_block_pct": best_system.system_active_energy_memory_by_block_pct,
+                "passive_power_W": best_system.system_passive_power_breakdown,
+                "passive_power_pct": best_system.system_passive_power_breakdown_pct,
+                "passive_power_memory_by_block_W": best_system.system_passive_power_memory_by_block,
+                "passive_power_memory_by_block_pct": best_system.system_passive_power_memory_by_block_pct,
+            }
             instance_counts = self._count_block_instances()
             for block_name, result in best_system.block_assignments.items():
                 report["blocks"][block_name] = {
@@ -1090,6 +1211,14 @@ class SystemCodesign:
                     "clk_period_ns": result.clk_period,
                     "V_dd": result.V_dd,
                     "L": result.L,
+                    "latency_breakdown_pct": getattr(result, "latency_breakdown_pct", {}),
+                    "latency_memory_by_block_pct": getattr(result, "latency_memory_by_block_pct", {}),
+                    "total_logic_ops": getattr(result, "total_logic_ops", 0),
+                    "total_memory_ops": getattr(result, "total_memory_ops", 0),
+                    "active_energy_breakdown_pct": getattr(result, "active_energy_breakdown_pct", {}),
+                    "active_energy_memory_by_block_pct": getattr(result, "active_energy_memory_by_block_pct", {}),
+                    "passive_power_breakdown_pct": getattr(result, "passive_power_breakdown_pct", {}),
+                    "passive_power_memory_by_block_pct": getattr(result, "passive_power_memory_by_block_pct", {}),
                 }
         else:
             report["system_metrics"] = None
