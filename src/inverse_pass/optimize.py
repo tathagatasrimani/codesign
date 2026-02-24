@@ -314,6 +314,40 @@ class Optimizer:
 
 
     def bayesian_optimization(self, improvement, iteration, n_trials=500, n_parallel=50):
+        """
+        Sample-efficient alternative to brute-force enumeration using Bayesian
+        optimisation (Optuna TPE sampler).
+
+        Instead of exhaustively evaluating every design point in the joint
+        logic × memory space, this method iteratively proposes promising
+        candidates guided by a surrogate model built from previously observed
+        objective values.  Evaluations are batched so that each batch is run
+        in parallel using the same worker pool as ``basic_optimization``.
+
+        Algorithm
+        ---------
+        1. Initialise an Optuna ``Study`` (minimise) with a TPE sampler.
+        2. Repeat for ``ceil(n_trials / n_parallel)`` batches:
+           a. Ask Optuna for ``n_parallel`` candidate design points.  Each
+              trial proposes a logic technology index (into the Pareto front)
+              and one memory design-point index per memory block.
+           b. Evaluate the batch in parallel via ``ProcessPoolExecutor``,
+              reusing ``_worker_basic_optimization_chunk``.
+           c. Report the observed objective (or ``inf`` for constraint
+              violations) back to Optuna so the surrogate model is updated.
+        3. Apply the globally best design point found to the hardware model.
+
+        Args:
+            improvement:  Unused regularisation parameter (kept for API
+                          compatibility with ``basic_optimization``).
+            iteration:    Current outer optimisation iteration index.  Used for
+                          naming saved artefacts (pkl, JSON, plots).
+            n_trials:     Total number of design points to evaluate across all
+                          batches (default 500).
+            n_parallel:   Number of design points evaluated in parallel per
+                          batch, i.e. the Optuna batch size and the number of
+                          worker processes per batch (default 50).
+        """
         try:
             import optuna
         except ImportError:

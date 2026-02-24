@@ -647,28 +647,51 @@ class SystemCodesign:
     # ------------------------------------------------------------------
 
     def optimize_system(self, max_per_block: int = 5) -> Optional[SystemDesignPoint]:
-        """Cross-product search over per-block pareto subsets."""
+        """Search over per-block pareto subsets.
+
+        The search strategy is controlled by ``system_constraints.solver`` in
+        the system config:
+          - ``"basic"`` (default): exhaustive cross-product enumeration, capped
+            at ``max_per_block`` candidates per block type.
+          - ``"bayesian"``: Optuna TPE sampler — sample-efficient and scales to
+            large candidate pools.  Uses all valid results per block by default;
+            override with ``system_constraints.max_per_block``.  Number of
+            trials controlled by ``system_constraints.n_trials`` (default 500).
+        """
         block_types = self.system_cfg["block_types"]
         constraints = self.system_cfg.get("system_constraints", {})
         objective = constraints.get("objective", "edp")
+        solver = constraints.get("solver", "bayesian")
         shared_tech = self.system_cfg.get("shared_tech", False)
 
-        # Select top candidates per block (sorted by obj_value)
+        # For Bayesian, default to all valid results; for basic, default to max_per_block
+        if solver == "bayesian":
+            cap = int(constraints.get("max_per_block", 10**9))
+        else:
+            cap = int(constraints.get("max_per_block", max_per_block))
+
+        # Select candidates per block (sorted by obj_value)
         block_candidates: Dict[str, List[DesignPointResult]] = {}
         for block_name in block_types:
             br = self.block_results[block_name]
-            block_candidates[block_name] = br.valid_results[:max_per_block]
+            block_candidates[block_name] = br.valid_results[:cap]
             if not block_candidates[block_name]:
                 logger.warning(f"No valid results for block '{block_name}'")
 
         block_names = sorted(block_candidates.keys())
         candidate_lists = [block_candidates[bn] for bn in block_names]
 
-        # Skip if any block has no candidates
         if any(len(cl) == 0 for cl in candidate_lists):
             logger.warning("At least one block has no valid candidates; cannot optimize")
             return None
 
+        if solver == "bayesian":
+            n_trials = int(constraints.get("n_trials", 500))
+            return self._optimize_system_bayesian(
+                block_names, candidate_lists, objective, shared_tech, constraints, n_trials
+            )
+
+        # --- basic: exhaustive cross-product ---
         total_combos = 1
         for cl in candidate_lists:
             total_combos *= len(cl)
@@ -692,9 +715,7 @@ class SystemCodesign:
                 if not all(lp == logic_points[0] for lp in logic_points):
                     continue
 
-            system_point = self._compose_system_metrics(
-                assignments, objective
-            )
+            system_point = self._compose_system_metrics(assignments, objective)
             system_point.satisfies_system_constraints = (
                 self._check_system_constraints(system_point, constraints)
             )
@@ -711,6 +732,92 @@ class SystemCodesign:
                 logger.info(f"Evaluated {evaluated}/{total_combos} system combinations...")
 
         logger.info(f"Evaluated {evaluated} system combinations")
+        if best_system:
+            logger.info(f"Best system objective: {best_obj:.4e}")
+        else:
+            logger.warning("No valid system design found!")
+
+        return best_system
+
+    def _optimize_system_bayesian(
+        self,
+        block_names: List[str],
+        candidate_lists: List[List[DesignPointResult]],
+        objective: str,
+        shared_tech: bool,
+        constraints: dict,
+        n_trials: int = 500,
+    ) -> Optional[SystemDesignPoint]:
+        """Bayesian optimization over the system design space using Optuna TPE.
+
+        Each trial proposes one candidate index per block type.  Since metric
+        composition is cheap (pure arithmetic over precomputed block results),
+        trials are evaluated serially — parallelism would add overhead without
+        benefit here.
+
+        Args:
+            block_names:     Sorted list of block type names.
+            candidate_lists: Corresponding list of candidate DesignPointResults
+                             (sorted by per-block obj_value, best first).
+            objective:       System-level objective string (e.g. "edp").
+            shared_tech:     If True, only combinations where all blocks share
+                             the same logic design point are considered valid.
+            constraints:     Raw system_constraints dict from the config.
+            n_trials:        Number of Optuna trials to run (default 500).
+        """
+        try:
+            import optuna
+        except ImportError:
+            raise ImportError("optuna is required for Bayesian optimization: pip install optuna")
+        optuna.logging.set_verbosity(optuna.logging.WARNING)
+
+        total_combos = math.prod(len(cl) for cl in candidate_lists)
+        logger.info(
+            f"System Bayesian optimization: {n_trials} trials over "
+            f"{' x '.join(str(len(cl)) for cl in candidate_lists)} "
+            f"= {total_combos} combinations"
+        )
+
+        best_system: Optional[SystemDesignPoint] = None
+        best_obj = math.inf
+
+        def optuna_objective(trial):
+            nonlocal best_system, best_obj
+
+            assignments = {}
+            for bn, cl in zip(block_names, candidate_lists):
+                idx = trial.suggest_int(f"block_{bn}", 0, len(cl) - 1)
+                assignments[bn] = cl[idx]
+
+            if shared_tech:
+                logic_points = [
+                    r.design_point.get("logic", r.design_point)
+                    for r in assignments.values()
+                ]
+                if not all(lp == logic_points[0] for lp in logic_points):
+                    return float("inf")
+
+            system_point = self._compose_system_metrics(assignments, objective)
+            system_point.satisfies_system_constraints = (
+                self._check_system_constraints(system_point, constraints)
+            )
+
+            if not system_point.satisfies_system_constraints:
+                return float("inf")
+
+            if system_point.system_obj_value < best_obj:
+                best_obj = system_point.system_obj_value
+                best_system = system_point
+
+            return system_point.system_obj_value
+
+        study = optuna.create_study(
+            direction="minimize",
+            sampler=optuna.samplers.TPESampler(seed=42),
+        )
+        study.optimize(optuna_objective, n_trials=n_trials, show_progress_bar=False)
+
+        logger.info(f"Bayesian optimization: evaluated {len(study.trials)} trials")
         if best_system:
             logger.info(f"Best system objective: {best_obj:.4e}")
         else:

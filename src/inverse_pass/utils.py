@@ -449,16 +449,8 @@ def visualize_top_memory_designs(
                 continue
             mem_entries.setdefault(mem_name, []).append((mem_info, color))
 
-    # Only plot blocks where the design point index varies
-    varied_blocks = {
-        name: entries for name, entries in mem_entries.items()
-        if len({e[0].get("index") for e in entries}) > 1
-    }
-    if not varied_blocks:
-        return
-
     eps = 1e-30
-    for mem_name, entries in varied_blocks.items():
+    for mem_name, entries in mem_entries.items():
         mem_infos = [e[0] for e in entries]
         mem_colors = [e[1] for e in entries]
 

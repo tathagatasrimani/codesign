@@ -404,8 +404,8 @@ mixtral_inference_system:
 #     input_bytes = 16 * 196 * 1280 * 4B = 16,056,320
 #   Temporal attention: (1, 3136, 1280) * 4B = 16,056,320
 #   FFN: same 16,056,320
-#   Predictor attention: (1, 3136, 384) * 4B = 4,825,088
-#   Predictor FFN: same 4,825,088
+#   Predictor attention: (1, 3136, 384) * 4B = 4,816,896
+#   Predictor FFN: same 4,816,896
 vjepa_inference_system:
   name: "vjepa_inference"
   description: "V-JEPA ViT-H/16 context encoder + predictor: 16 frames × 196 patches"
@@ -479,8 +479,8 @@ vjepa_inference_system:
       shared_weights: false
       data_sizes:
         # input/output: (1, 3136, 384) * 4B
-        input_bytes: 4825088
-        output_bytes: 4825088
+        input_bytes: 4816896
+        output_bytes: 4816896
         # 4 × Linear(384, 384) * 4B
         weight_bytes: 2359296
 
@@ -488,8 +488,8 @@ vjepa_inference_system:
       codesign_config: vitis_test_sweep_vjepa_predictor_feedforward
       shared_weights: false
       data_sizes:
-        input_bytes: 4825088
-        output_bytes: 4825088
+        input_bytes: 4816896
+        output_bytes: 4816896
         # fc1(384x1536) + fc2(1536x384) * 4B
         weight_bytes: 4718592
 
@@ -1101,6 +1101,142 @@ resnet18_system:
         input_bytes: 100352          # (1, 512, 7, 7) * 4B
         output_bytes: 4000           # (1, 1000) * 4B
         weight_bytes: 2052000        # (512×1000 + 1000) * 4B
+
+  dfg:
+    default_transfer: global_memory
+
+  system_constraints:
+    max_total_power: 150.0
+    max_total_area: 1.0e12
+    objective: edp
+
+# ---------------------------------------------------------------------------
+# ResNet-50 (image classification, 224x224 input → 1000-class output)
+# Architecture: stem + 4 layers of Bottleneck blocks (1×1→3×3→1×1).
+# Layer counts: layer1: 1 down + 2 plain; layer2: 1 down + 3 plain;
+#               layer3: 1 down + 5 plain; layer4: 1 down + 2 plain.
+# Stem is shared with ResNet-18 (same 7×7 conv + 2× maxpool architecture).
+# ---------------------------------------------------------------------------
+resnet50_system:
+  name: "resnet50_inference"
+  description: "ResNet-50 image classification: 224x224 input, 1000-class output"
+  shared_tech: false
+
+  global_memory:
+    bandwidth_gbps: 100.0
+    latency_ns: 100.0
+    energy_per_bit_pj: 10.0
+    capacity_bytes: 1.0e9
+
+  benchmark:
+    class: ResNet50Inference
+    module_path: src/benchmarks/vitis/ResNet50Inference
+    init_args:
+      num_classes: 1000
+    input_shapes:
+      - [1, 3, 224, 224]           # image tensor (batch, channels, H, W)
+    module_attr_map:
+      stem: stem
+      layer1_down: layer1_down
+      layer1_block: layer1_block
+      layer2_down: layer2_down
+      layer2_block: layer2_block
+      layer3_down: layer3_down
+      layer3_block: layer3_block
+      layer4_down: layer4_down
+      layer4_block: layer4_block
+      classifier: classifier
+
+  block_types:
+    # Initial 7×7 conv + 2× maxpool (shared with ResNet-18)
+    stem:
+      codesign_config: vitis_test_sweep_resnet18_stem
+      shared_weights: false
+      data_sizes:
+        input_bytes: 602112          # (1, 3, 224, 224) * 4B
+        output_bytes: 802816         # (1, 64, 56, 56) * 4B
+        weight_bytes: 37632          # conv1(64×3×7×7) * 4B
+
+    # Bottleneck(64→64→256, stride=1) — first block of layer1, with projection
+    layer1_down:
+      codesign_config: vitis_test_sweep_resnet50_layer1_down
+      shared_weights: false
+      data_sizes:
+        input_bytes: 802816          # (1, 64, 56, 56) * 4B
+        output_bytes: 3211264        # (1, 256, 56, 56) * 4B
+        weight_bytes: 300032         # (64×64+64×2+64×64×9+64×2+256×64+256×2+256×64+256×2) * 4B
+
+    # Bottleneck(256→64→256, stride=1) — plain blocks of layer1, called 2×
+    layer1_block:
+      codesign_config: vitis_test_sweep_resnet50_layer1_block
+      shared_weights: false
+      data_sizes:
+        input_bytes: 3211264         # (1, 256, 56, 56) * 4B
+        output_bytes: 3211264
+        weight_bytes: 281600         # (64×256+64×2+64×64×9+64×2+256×64+256×2) * 4B
+
+    # Bottleneck(256→128→512, stride=2) — first block of layer2, with projection
+    layer2_down:
+      codesign_config: vitis_test_sweep_resnet50_layer2_down
+      shared_weights: false
+      data_sizes:
+        input_bytes: 3211264         # (1, 256, 56, 56) * 4B
+        output_bytes: 1605632        # (1, 512, 28, 28) * 4B
+        weight_bytes: 1517568        # (128×256+128×2+128×128×9+128×2+512×128+512×2+512×256+512×2) * 4B
+
+    # Bottleneck(512→128→512, stride=1) — plain blocks of layer2, called 3×
+    layer2_block:
+      codesign_config: vitis_test_sweep_resnet50_layer2_block
+      shared_weights: false
+      data_sizes:
+        input_bytes: 1605632         # (1, 512, 28, 28) * 4B
+        output_bytes: 1605632
+        weight_bytes: 1120256        # (128×512+128×2+128×128×9+128×2+512×128+512×2) * 4B
+
+    # Bottleneck(512→256→1024, stride=2) — first block of layer3, with projection
+    layer3_down:
+      codesign_config: vitis_test_sweep_resnet50_layer3_down
+      shared_weights: false
+      data_sizes:
+        input_bytes: 1605632         # (1, 512, 28, 28) * 4B
+        output_bytes: 802816         # (1, 1024, 14, 14) * 4B
+        weight_bytes: 6049792        # (256×512+256×2+256×256×9+256×2+1024×256+1024×2+1024×512+1024×2) * 4B
+
+    # Bottleneck(1024→256→1024, stride=1) — plain blocks of layer3, called 5×
+    layer3_block:
+      codesign_config: vitis_test_sweep_resnet50_layer3_block
+      shared_weights: false
+      data_sizes:
+        input_bytes: 802816          # (1, 1024, 14, 14) * 4B
+        output_bytes: 802816
+        weight_bytes: 4468736        # (256×1024+256×2+256×256×9+256×2+1024×256+1024×2) * 4B
+
+    # Bottleneck(1024→512→2048, stride=2) — first block of layer4, with projection
+    layer4_down:
+      codesign_config: vitis_test_sweep_resnet50_layer4_down
+      shared_weights: false
+      data_sizes:
+        input_bytes: 802816          # (1, 1024, 14, 14) * 4B
+        output_bytes: 401408         # (1, 2048, 7, 7) * 4B
+        weight_bytes: 24158208       # (512×1024+512×2+512×512×9+512×2+2048×512+2048×2+2048×1024+2048×2) * 4B
+
+    # Bottleneck(2048→512→2048, stride=1) — plain blocks of layer4, called 2×
+    layer4_block:
+      codesign_config: vitis_test_sweep_resnet50_layer4_block
+      shared_weights: false
+      data_sizes:
+        input_bytes: 401408          # (1, 2048, 7, 7) * 4B
+        output_bytes: 401408
+        weight_bytes: 17850368       # (512×2048+512×2+512×512×9+512×2+2048×512+2048×2) * 4B
+
+    # AdaptiveAvgPool2d + flatten + Linear(2048→1000)
+    classifier:
+      codesign_config: vitis_test_sweep_resnet50_classifier
+      shared_weights: false
+      data_sizes:
+        input_bytes: 401408          # (1, 2048, 7, 7) * 4B
+        output_bytes: 4000           # (1, 1000) * 4B
+        weight_bytes: 8196000        # (2048×1000 + 1000) * 4B
 
   dfg:
     default_transfer: global_memory
