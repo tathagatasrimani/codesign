@@ -210,7 +210,7 @@ vitis_test_sweep_mixtral_prefill_attention:
     fixed_area_increase_pattern: True
     min_dsp: 40
     benchmark: MixtralPrefillAttention
-    #streamhls_opt_level: 3  # large Perm=9.6e18 crashes perm solver; run parallelization only
+    streamhls_opt_level: 3  # large Perm=9.6e18 crashes perm solver; run parallelization only
 
 vitis_test_sweep_mixtral_prefill_moe:
   base_cfg: vitis_test_sweep_bayesian
@@ -228,7 +228,7 @@ vitis_test_sweep_mixtral_decode_attention:
     fixed_area_increase_pattern: True
     min_dsp: 40
     benchmark: MixtralDecodeAttention
-    #streamhls_opt_level: 3  # perm solver crashes with SmallVector bug in populateNodeInfo; run parallelization only
+    streamhls_opt_level: 3  # perm solver crashes with SmallVector bug in populateNodeInfo; run parallelization only
 
 vitis_test_sweep_mixtral_decode_moe:
   base_cfg: vitis_test_sweep_bayesian
@@ -425,6 +425,7 @@ vitis_test_sweep_mixtral_prefill_attention_small:
     min_dsp: 40
     benchmark: MixtralPrefillAttention
     class: MixtralPrefillAttentionSmall
+    streamhls_opt_level: 3  # large Perm=8.3e17 crashes combined solver; run parallelization only
 
 vitis_test_sweep_mixtral_prefill_moe_small:
   base_cfg: vitis_test_sweep_bayesian
