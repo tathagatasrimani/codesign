@@ -466,7 +466,7 @@ class DataFlowGraph:
                 if mem_name not in self.mem_access_db.mem_rws:
                     self.mem_access_db.add_memory(mem_name, is_fifo=False)
                 is_register = False
-            elif instruction["core_inst"] == "FIFO":
+            elif instruction["core_inst"] == "FIFO" or instruction["core_inst"] == "FIFO_SRL":
                 log_info(f"instruction {instruction} in basic block {self.basic_block_name} is a FIFO")
                 if instruction["op"] == "read":
                     mem_name_original = instruction["src"][0].strip("%")
@@ -834,7 +834,16 @@ class BasicBlockInfo:
                     if operation_name not in self.ignore_ops and first_op:
                         parsed_op = llvm_ir_parse.parse_op(instruction, operation_name)
                         if parsed_op["type"] == "intf":
-                            self.mem_access_db.add_memory(parsed_op["variable"], is_fifo=True)
+                            if self.basic_block_name in self.mem_mapping:
+                                if parsed_op["variable"].strip("%") in self.mem_mapping[self.basic_block_name]["fifo_ports"]:
+                                    mem_name = self.mem_mapping[self.basic_block_name]["fifo_ports"][parsed_op["variable"].strip("%")]["parent_fifo"]
+                                elif parsed_op["variable"].strip("%") in self.mem_mapping[self.basic_block_name]["memory_ports"]:
+                                    mem_name = self.mem_mapping[self.basic_block_name]["memory_ports"][parsed_op["variable"].strip("%")]["child_port"]
+                                else:
+                                    raise ValueError(f"variable {parsed_op['variable']} is not in fifo ports or memory ports for basic block {self.basic_block_name} in mem_mapping: {self.mem_mapping}")
+                            else: 
+                                mem_name = parsed_op["variable"]
+                            self.mem_access_db.add_memory(mem_name, is_fifo=True)
                         else:
                             parsed_op["delay"] = operation_delay
                             if core_inst:
@@ -989,6 +998,7 @@ class vitis_schedule_parser:
                 call_basic_blocks.append(self.basic_blocks[cur_G.nodes[node]["call_function"]].basic_block_name)
             preds = list(cur_G.predecessors(node))
             dfg.G_flattened.add_node(new_name, name_in_original_graph=node, **dict(cur_G.nodes[node]))
+            log_info(f"added node {new_name} to flattened graph")
             for pred in preds:
                 pred_name = f"{basic_block_name}_{pred}"
                 assert pred_name in dfg.G_flattened.nodes(), f"Predecessor {pred_name} of node {new_name} is not in flattened graph"
@@ -1027,9 +1037,9 @@ class vitis_schedule_parser:
                     #  Interface between two basic blocks means edge between first write (BB1) and first read (BB2)
                     #  But BB2 cannot finish before BB1 finishes (has to wait each time for BB1 to write) so model this by adding
                     #  an edge between the graph end of BB1 and the graph end of BB2
-                    first_write_node = f"{self.mem_access_db.mem_rws[mem_name].write_basic_block_name}_{self.mem_access_db.mem_rws[mem_name].first_write}"
+                    first_write_node = self.mem_access_db.mem_rws[mem_name].first_write
                     assert first_write_node in dfg.G_flattened.nodes(), f"First write node {first_write_node} of interface {mem_name} ({arg}) is not in flattened graph"
-                    first_read_node = f"{self.mem_access_db.mem_rws[mem_name].read_basic_block_name}_{self.mem_access_db.mem_rws[mem_name].first_read}"
+                    first_read_node = self.mem_access_db.mem_rws[mem_name].first_read
                     assert first_read_node in dfg.G_flattened.nodes(), f"First read node {first_read_node} of interface {mem_name} ({arg}) is not in flattened graph"
                     dfg.G_flattened.add_edge(first_write_node, first_read_node, weight=self.clk_period, resource_edge=1, stream_edge=1)
                     log_info(f"added streaming edge between {first_write_node} and {first_read_node} for interface {mem_name} ({arg})")
